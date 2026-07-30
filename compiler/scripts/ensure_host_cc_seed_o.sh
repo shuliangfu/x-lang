@@ -6094,7 +6094,23 @@ run_check() {
   else
     note "std-core-prefer table body present (wave780)"
   fi
+  # wave897: multi-target $(STD_CORE_HYBRID_PRODUCT_OBJS) + mk list (no per-leaf target line).
+  # Accept A) legacy per-leaf `^OUT:` FORCE+try-heat, or B) OUT in mk list + multi-target rule.
+  _SC_MK="mk/std_core_hybrid_product_objs.mk"
+  [ -f "$_SC_MK" ] || _SC_MK="compiler/mk/std_core_hybrid_product_objs.mk"
   _sc_n=0
+  _sc_multi=0
+  if [ -f "$_SC_MK" ] && grep -qE '\$\(STD_CORE_HYBRID_PRODUCT_OBJS\):[[:space:]]*FORCE' Makefile; then
+    if awk '
+      /\$\(STD_CORE_HYBRID_PRODUCT_OBJS\):/ { hit=1; next }
+      hit && /^[^#[:space:]\t]/ { exit 1 }
+      hit && /ensure_host_cc_seed_o\.sh/ && /try-heat|try-std-core-prefer/ { found=1; exit 0 }
+      END { exit found ? 0 : 1 }
+    ' Makefile; then
+      _sc_multi=1
+      note "Makefile multi-target STD_CORE_HYBRID_PRODUCT_OBJS FORCE+try-heat (wave897)"
+    fi
+  fi
   for _sc_leaf in \
     ../std/process/process.o \
     ../std/path/path.o \
@@ -6106,6 +6122,7 @@ run_check() {
     else
       bad "std_core_prefer_spec_for_out missing $_sc_leaf (wave780)"
     fi
+    _ok_t=0
     if awk -v leaf="$_sc_leaf" '
       $0 ~ ("^" leaf ":") {grab=1; next}
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
@@ -6115,13 +6132,22 @@ run_check() {
         exit 1
       }
     ' Makefile; then
-      note "Makefile $_sc_leaf thin-calls ensure try-std-core-prefer (wave780)"
+      _ok_t=1
+    elif [ "$_sc_multi" -eq 1 ] && grep -qF "$_sc_leaf" "$_SC_MK" 2>/dev/null; then
+      _ok_t=1
+    fi
+    if [ "$_ok_t" -eq 1 ]; then
+      note "Makefile $_sc_leaf thin-calls ensure try-heat|try-std-core-prefer (wave780/897)"
     else
-      bad "Makefile $_sc_leaf must thin-call ensure try-heat|try-std-core-prefer (wave780)"
+      bad "Makefile $_sc_leaf must thin-call ensure try-heat|try-std-core-prefer (wave780/897)"
     fi
     # Ban re-opened hybrid: only scan recipe lines (leading tab), not following
     # comment blocks (those often mention historic xlang-c / PREFER).
-    if awk -v leaf="$_sc_leaf" '
+    # wave897 multi-target path: no per-leaf body — skip dual-hybrid scan when covered by mk.
+    if [ "$_sc_multi" -eq 1 ] && grep -qF "$_sc_leaf" "$_SC_MK" 2>/dev/null \
+      && ! grep -qE "^${_sc_leaf}:" Makefile 2>/dev/null; then
+      :
+    elif awk -v leaf="$_sc_leaf" '
       $0 ~ ("^" leaf ":") {grab=1; next}
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab && /^\t/ {body = body $0 "\n"}
@@ -6139,7 +6165,7 @@ run_check() {
   if [ "$_sc_n" -ne 5 ]; then
     bad "std-core prefer table size $_sc_n != 5 (wave780 B2 heat)"
   else
-    note "std-core prefer table has 5 members (wave780 B2)"
+    note "std-core prefer table has 5 members (wave780 B2; wave897 multi-target)"
   fi
   # wave781: try-lsp-sat-prefer B3 2 LSP satellite hybrid
   if ! grep -q 'try_ensure_lsp_sat_prefer_one\|try-lsp-sat-prefer' "$0"; then

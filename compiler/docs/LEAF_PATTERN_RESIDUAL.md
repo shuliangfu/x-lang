@@ -65,7 +65,8 @@
 > - **wave894** · B7B formal_mod product edges list→mk + multi-target FORCE thin ensure (38 leaves → `mk/formal_mod_product_objs.mk` + `$(FORMAL_MOD_PRODUCT_OBJS)` ensure)
 > - **wave895** · B7B std_x product edges list→mk + multi-target FORCE thin ensure (22 leaves → `mk/std_x_product_objs.mk` + `$(STD_X_PRODUCT_OBJS)` ensure)
 > - **wave896** · B7B driver_leaf product edges list→mk + multi-target FORCE thin ensure (8 leaves → `mk/driver_leaf_product_objs.mk` + `$(DRIVER_LEAF_PRODUCT_OBJS)` ensure)
-> - **open** · thin edges + B2 + remaining mk lists hybrid · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave897** · B7B B2 std_core hybrid product edges list→mk + multi-target FORCE thin try-heat (5 leaves → `mk/std_core_hybrid_product_objs.mk` + `$(STD_CORE_HYBRID_PRODUCT_OBJS)` try-heat)
+> - **open** · thin edges + remaining mk lists hybrid · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete

@@ -136,6 +136,8 @@ include mk/formal_mod_product_objs.mk
 include mk/std_x_product_objs.mk
 # wave896: driver_leaf product edge inventory (make-graph only; body = ensure catalog).
 include mk/driver_leaf_product_objs.mk
+# wave897: B2 std/core hybrid product edge inventory (make-graph only; body = try-heat).
+include mk/std_core_hybrid_product_objs.mk
 # 注：lsp.x 生成的 lsp_gen 与 lsp_diag 中 lsp_build_* 同名；若把 InitializeResult/response 外壳迁入 .x，
 # 默认 xlang 须链 lsp_x.o、lsp_io_x.o；F-03 v2/v3 std.io 由 .x codegen 提供，无 io.o。
 
@@ -148,22 +150,6 @@ XLANG_X = xlang-x
 # MAIN_X_DEPS / PREPROCESS_X_DEPS: list authority mk/x_source_deps.mk (wave823).
 .PHONY: all std-objs clean test size-baseline perf-baseline bootstrap-token bootstrap-lexer bootstrap-parser bootstrap-parse-file bootstrap-typeck bootstrap-codegen bootstrap-driver bootstrap-driver-seed bootstrap-driver-bstrict bootstrap-driver-bstrict-relink bootstrap-driver-bstrict-windows bootstrap-driver-crt0 bootstrap-driver-asm bootstrap-driver-asm-only bootstrap-asm bootstrap_xlangc check-asm-o-quality check-6.4 bootstrap-self check-7.2 check-7.2-bstrict bootstrap-verify bootstrap-verify-seed bootstrap-verify-bstrict bootstrap-verify-stage2 bootstrap-verify-stage2-bstrict bootstrap-test build-tool build-tool-x build-via-tool first-time verify-selfhost-stage2 regen-lsp-gens-x xlang-no-c-frontend gen-x-driver-objs build-user-asm-backend build-seed-user-asm-partial bootstrap-driver-seed-user-asm compile_commands.json
 
-# std.process：F 闭合 — process.o 只提供 process_*_c（argv 薄封装 + OS glue）。
-# 用户 std_process_* API 由 -o 路径 co-emit std/process/mod.x（带 std_process_ 前缀）。
-# 【Why 不 -E mod.x/process.x】产品 -x -E 对无 main 库模块当前会在巨型 preamble 后截断
-# 函数体（16KiB/20KiB），且裸 getcwd/pipe 与 unistd 编译期冲突。截断修通后可改回
-# xlang_compile_std_module --bare-impl process.x（mod.x 仍勿编入 .o，避免双定义）。
-# wave780 B2: hybrid body → ensure try-std-core-prefer (G.7; not physical delete).
-# wave790 B7A: heat recipe unify → try-heat only (mode names in comments; dep edges residual).
-# PLATFORM: SHARED — cold ld -r args seed + runtime_process_argv + os_glue.
-../std/process/process.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave795 B7A: heat dep-edge thin std merge process residual — prereqs → FORCE + ensure;
-# try-heat owns seed/peer .o mtime (process_merge). NOT physical delete.
-# wave881 B7B: drop XLANG_G05_PREFER_X_O recipe inject on try-heat (COUNT=31 family).
-# Prefer via make CLI/env (auto-export) or shell default; shell resolve_host_cc (wave884; no CC= inject).
-# NOT physical delete — thin edges + B2 + mk lists remain residual.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # ---------------------------------------------------------------------------
 # wave894 B7B: formal_mod product edges list→mk + multi-target FORCE thin ensure
@@ -201,76 +187,30 @@ $(DRIVER_LEAF_PRODUCT_OBJS): FORCE scripts/driver_leaf_x_to_o.sh
 	@bash scripts/driver_leaf_x_to_o.sh ensure $@
 
 
-# std.string：F 闭合 — 产品 -o 完整 emit（-x -E 会截断函数体）。
-# 用 xlang_compile_std_module（与 crypto 等同路径）；优先 xlang_asm/xlang 产品宿主。
-# std.path：保留 mod.x 作为 F-path v1 源码锚点；path.o 由 C provider 产出，
-# 避免 bootstrap asm backend 在 dirname/last_slash 链上反复卡住。
-# G-02f-21 (wave531)：R2 DIRECT mode — pure-compute path helpers (16 functions:
-#   path_sep/is_sep/last_sep/last_dot + std_path_join/dirname/basename/...).
-#   No OS bridge, no _impl indirection; .x compiles standalone via xlang-c
-#   -lib-name "". Seed .from_x.c guarded by XLANG_RUNTIME_PATH_FAST_FROM_X for
-#   cold path fallback only.
-# PLATFORM: SHARED path — pure compute (pointer scan + min), no OS dependency.
-#   Note: .x path_sep_c always returns '/' (47) per posix gate; seed Win branch
-#   returns '\' (92) but is skipped in R2 mode.
-# wave780 B2: dual hybrid → ensure try-std-core-prefer (G.7; not physical delete).
-../std/path/path.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave795 B7A: heat dep-edge thin std direct path residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x mtime (std-core-prefer/direct). NOT physical delete.
+
+
+
+# ---------------------------------------------------------------------------
+# wave897 B7B: B2 std/core hybrid product edges list→mk multi-target FORCE thin
+# G.7: list authority = mk/std_core_hybrid_product_objs.mk (COUNT=5).
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat → try-std-core-prefer
+# (wave780 B2 table; wave790 heat unify; wave794–796 FORCE dep-thin mtime).
+# Leaves: process (process_merge) · path (direct) · runtime (direct) · net (net_merge)
+# · core/slice/slice.o (direct; distinct from formal_mod core/slice/mod.o).
+# Archaeology (not dual recipe authority):
+#   process.o — process_*_c argv/OS glue only; user API co-emitted from mod.x.
+#   path.o / runtime.o — R2 DIRECT pure compute / thin panic wrappers.
+#   net.o — mod.x + sub .x + five runtime_net_*_fast; PLATFORM: MACOS force xlang-c.
+#   slice.o — runtime_slice_glue pure compute (from_ptr/subslice).
+# Makefile only FORCE + thin-call try-heat. NOT physical delete — thin edges +
+# remaining mk lists hybrid + tip Windows → dual L4 → explicit auth ship delete.
+# wave881 B7B: try-heat PREFER inject hygiene — no XLANG_G05_PREFER_X_O / XLANG=
+# recipe inject (COUNT=31 family; prefer via make CLI/env or shell default).
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(STD_CORE_HYBRID_PRODUCT_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-# std.heap：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + libc + ops）。
-# std.heap.page_mmap：F-no-libc NL-03 freestanding mmap bump 堆（单文件 .x -E + cc）。
-# 路径前缀 std_heap_page_mmap_*；传递依赖 std.sys.linux + core.mem 由 freestanding on_demand 链入。
-# std.sys：OS 原语门面（mod.x -E + cc；#[cfg(target_os)] 分平台）。
-# 路径前缀 std_sys_*；Linux 编译激活 linux import，传递依赖 std/sys/linux.o + core/mem/mem.o。
-# std.sys.linux：Linux syscall 号表 + freestanding invoke（linux.x -E + cc）。
-# 路径前缀 std_sys_linux_*；含 hosted libc 函数（open/mmap），靠 --gc-sections 移除未引用者。
-# core.mem：内存操作原语（mod.x -E + cc）。
-# 路径前缀 core_mem_*；align_up/mem_copy/mem_set 等纯 .x 实现，无 libc 依赖。
-# PLATFORM: SHARED — core.types/option/result formal .o for -backend asm on_demand.
-# Do not asm co-emit these (Ubuntu x86_64 hang on option/result); C -E + cc only.
-# core.debug：兼容 alias of core.assert; formal .o for asm on_demand (no co-emit).
-# PLATFORM: SHARED — tests/sort etc. U core_debug_assert_eq_*; L4 wipe needs make ensure.
-# core.slice formal API (mod.x → core_slice_len_*/get_*). Glue from_ptr/subslice stays
-# in core/slice/slice.o (runtime_slice_glue). PLATFORM: SHARED — Ubuntu -backend asm
-# length.x BLD001 U core_slice_len_i32 when only glue .o existed; simple-group g9 + ensure.
-# std.map：F 闭合 — 纯 .x -E-extern + cc -c。
-# std.set：F 闭合 — 纯 .x -E-extern + cc -c。
-# std.vec：F 闭合 — 单 mod.x（import std.heap）；link_only 产品链按需 std/vec/vec.o。
-# PLATFORM: SHARED — L4 全擦后须 make 本目标或 link ensure（push_existing  alone 静默 skip）。
-# std.runtime：保留 runtime.x 作为 F-runtime v1 源码锚点；runtime.o 仅提供
-# runtime_panic/runtime_abort/runtime_crash_evidence_collect_c 三个 extern provider。
-# G-02f-23 (wave532)：R2 DIRECT mode — 6 thin wrappers forwarding to extern "C"
-#   xlang_panic_ / xlang_crash_evidence_collect_c (resolved by runtime_panic module
-#   at link time). No OS bridge, no _impl indirection; .x compiles standalone via
-#   xlang-c -lib-name "". Seed .from_x.c guarded by XLANG_RUNTIME_STD_RUNTIME_FAST_FROM_X
-#   for cold path fallback only.
-# PLATFORM: SHARED runtime — pure thin wrappers to panic; no OS dependency.
-# wave780 B2: dual hybrid → ensure try-std-core-prefer (G.7; not physical delete).
-../std/runtime/runtime.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave795 B7A: heat dep-edge thin std direct runtime residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x mtime (std-core-prefer/direct). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# std.net：F-04 v10～v14 纯 .x（F-ZC）；OS glue 由 runtime_net_*_fast.inc 提供（G-02e-18）。
-# PLATFORM: SHARED — mod.x MUST be compiled into net.o; otherwise std_net_listen /
-# std_net_close_listener / std_net_accept etc. exported symbols are missing from
-# net.o, and any user program calling net.* API hits Undefined symbol BLD001.
-# Root cause fix (2026-07-19): add mod.x via xlang_compile_std_module.sh (matches
-# string/heap/sys/fs pattern). Sub-module .x keep xlang_compile_std_x.sh bare path.
-# PLATFORM: MACOS — after wave102 pure-asm arm64 enc, -backend asm succeeds for
-# alpn/tcp/...; ld -r with C mod.o leaves tls_stub/tcp_pool/io UNDEFs live under
-# product -dead_strip (net-context BLD001). Pre-wave102 Darwin fell back to xlang-c
-# (code_len=0). Recipe forces ./xlang-c for Darwin net submodules; Linux keeps asm.
-# wave780 B2: multi hybrid → ensure try-std-core-prefer (G.7; not physical delete).
-# wave796 B7A: heat dep-edge thin net multi-merge residual — prereqs → FORCE + ensure;
-# try-heat owns multi .x + five fast seed/.x mtime (net_merge). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-../std/net/net.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # wave815: archaeology host-pick phonies → scripts/archaeology_host_pick_phony.sh
 # (G.7; not physical delete). Makefile thin-call ensure only; host pick + TLS/sqlite
 # merge body live in the shell catalog. Nested product .o still via make try-heat.
@@ -2828,19 +2768,6 @@ size-baseline: scripts/stage8_baseline.sh
 perf-baseline: scripts/stage8_baseline.sh
 	@bash scripts/stage8_baseline.sh perf
 
-# core.slice：语言限制 C 桩（G-01 core 零 C；G-02e-17：.inc + cc_inc_tu）。
-# G-02f-22：runtime_slice_glue 产品 seed
-# G-02f-29 (wave530)：R2 DIRECT mode — pure-compute module (6 functions: slice
-#   from_ptr/subslice for i32/u8/u64, no OS bridge), .x compiles standalone
-#   via xlang-c -lib-name "" without thin+rest ld -r. Seed .from_x.c guarded
-#   by XLANG_RUNTIME_SLICE_GLUE_FROM_X for cold path fallback only.
-# PLATFORM: SHARED slice — pure compute, no OS dependency.
-# wave780 B2: dual hybrid → ensure try-std-core-prefer (G.7; not physical delete).
-../core/slice/slice.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave794 B7A: heat dep-edge thin pure seed+.x leftover — prereqs → FORCE + ensure;
-# try-heat owns seed/.x mtime (try-std-core-prefer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-22：runtime_asm_build 产品 seed
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).

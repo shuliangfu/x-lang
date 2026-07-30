@@ -1530,10 +1530,11 @@
 - **wave894** · B7B formal_mod product edges list→mk + multi-target FORCE thin（38 → `mk/formal_mod_product_objs.mk` · Makefile multi-target ensure）
 - **wave895** · B7B std_x product edges list→mk + multi-target FORCE thin（22 → `mk/std_x_product_objs.mk` · Makefile multi-target ensure）
 - **wave896** · B7B driver_leaf product edges list→mk + multi-target FORCE thin（8 → `mk/driver_leaf_product_objs.mk` · Makefile multi-target ensure）
+- **wave897** · B7B B2 std_core hybrid product edges list→mk + multi-target FORCE thin（5 → `mk/std_core_hybrid_product_objs.mk` · Makefile multi-target try-heat）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
-- **open** · thin edges + B2 + remaining mk lists hybrid · → tip Windows → 双端 L4 → explicit auth 真删  # post-wave896 driver_leaf list→mk
+- **open** · thin edges + remaining mk lists hybrid · → tip Windows → 双端 L4 → explicit auth 真删  # post-wave897 B2 list→mk
 
 **状态明细**（一行一项）：
 
@@ -1611,7 +1612,8 @@
 - ✅ **std_x FORCE dep-thin**（wave827 · 22 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · formal_mod FORCE + B2 try-heat + thin edges + mk lists 仍 residual）
 - ✅ **std_x product edges list→mk multi-target**（wave895 · 22 · `mk/std_x_product_objs.mk` · Makefile multi-target FORCE thin ensure · **非**物理删 · thin edges + B2 + 其它 mk lists 仍 residual）
 - ✅ **formal_mod product edges list→mk multi-target**（wave894 · 38 叶 · `mk/formal_mod_product_objs.mk` + `$(FORMAL_MOD_PRODUCT_OBJS)` FORCE ensure · shell catalog 体权威 · **非**物理删 · thin edges + B2 + 其它 mk lists 仍 residual）
-- ✅ **driver_leaf product edges list→mk multi-target**（wave896 · 8 · `mk/driver_leaf_product_objs.mk` · Makefile multi-target FORCE thin ensure · **非**物理删 · thin edges + B2 + 其它 mk lists 仍 residual）
+- ✅ **driver_leaf product edges list→mk multi-target**（wave896 · 8 · `mk/driver_leaf_product_objs.mk` · Makefile multi-target FORCE thin ensure · **非**物理删 · thin edges + 其它 mk lists 仍 residual）
+- ✅ **B2 std_core hybrid product edges list→mk multi-target**（wave897 · 5 · `mk/std_core_hybrid_product_objs.mk` · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + 其它 mk lists 仍 residual）
 - ✅ **driver_leaf FORCE dep-thin**（wave828 · 8 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · B2 try-heat + thin edges + mk lists 仍 residual）
 - ✅ **gen.c FORCE dep-thin**（wave829 · 17 叶 · Makefile FORCE+ensure_*_gen only · bash recipe · shell 拥 pin/FORCE_REGEN · **非**物理删 · B2 + thin edges + mk lists 仍 residual）
 - ✅ **ast_gen2 FORCE dep-thin**（wave830 · 1 叶 · Makefile FORCE+ensure_ast_gen2 only · bash recipe · shell 拥 pin/FORCE_REGEN/-E+fix_slim · **非**物理删 · B2 + thin edges + mk lists 仍 residual）
