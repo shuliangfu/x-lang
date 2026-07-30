@@ -2096,7 +2096,8 @@ ship delete body; mac-only wave green.
     SWALLOWED_B7B_SEED_GATE_REQUIRED=1
     PHYS_DEL_PREFLIGHT_B7B_SEED_GATE_REQUIRED=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (this wave product tip)
+  dual-end L2 green tip: 44f161811 (Mac + Ubuntu leaf residual CHECK +
+    make -n RXL/XXL/XNC REQUIRED expand + product rv42)
   next: residual thin/B2/lists (hybrid) or tip Windows
     re-proof → ship delete body (explicit auth only; tip L4 wave840)
 ```
