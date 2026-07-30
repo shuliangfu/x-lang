@@ -22,8 +22,9 @@
 > - **wave852** · B7B BXF full link bag → archaeology_experiment (bootstrap-driver-seed-x-frontend)
 > - **wave853** · B7B seed phase1/final full link bags → composites.mk (SEED_LINK_OBJS; 2 bags)
 > - **wave854** · B7B seed-gate REQUIRED_OBJS bags → composites + archaeology (RXL/XXL/XNC; 3 bags)
+> - **wave855** · B7B seed-gate REQUIRED shell-load from mk (RXL/XXL/XNC; Makefile drops multi-token env export)
 > - **wave799** · execute-gate (hard refuse delete)
-> - **open** · thin edges + B2 + other mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
+> - **open** · thin edges + B2 + other mk lists (hybrid) + LINK env export residual → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete

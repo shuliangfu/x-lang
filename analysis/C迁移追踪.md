@@ -1490,7 +1490,8 @@
 - **wave852** · B7B BXF full link bag → archaeology_experiment（bootstrap-driver-seed-x-frontend）
 - **wave853** · B7B seed phase1/final full link bags → composites（SEED_LINK_OBJS；2 bags）
 - **wave854** · B7B seed-gate REQUIRED_OBJS bags → composites + archaeology（RXL/XXL/XNC；3 bags）
-- **open** · thin edges + B2 + other mk lists（hybrid）→ tip Windows → 双端 L4 → explicit auth 真删
+- **wave855** · B7B seed-gate REQUIRED shell-load from mk（RXL/XXL/XNC；Makefile 去 multi-token REQUIRED env）
+- **open** · thin edges + B2 + other mk lists（hybrid）+ LINK env export residual → tip Windows → 双端 L4 → explicit auth 真删
 
 **状态明细**（一行一项）：
 
@@ -1592,6 +1593,7 @@
 - ✅ **BXF full link bag → mk**（wave852 · archaeology_experiment · `DRIVER_SEED_X_FRONTEND_LINK_OBJS` · fixed multi-token **2** · Makefile expand only · **非**物理删 · thin edges + B2 + 其它 mk lists）
 - ✅ **seed phase1/final full link bags → mk**（wave853 · composites · `BOOTSTRAP_DRIVER_SEED_{PHASE1,FINAL}_LINK_OBJS` · bags **2** · SEED_LINK_OBJS expand only · **非**物理删 · thin edges + B2 + 其它 mk lists）
 - ✅ **seed-gate REQUIRED_OBJS bags → mk**（wave854 · composites + archaeology · `RELINK_XLANG_REQUIRED_OBJS`/`XLANG_X_REQUIRED_OBJS`/`XLANG_NO_C_FRONTEND_REQUIRED_OBJS` · bags **3** · fixed multi-token 6+12+3 · Makefile expand only · **非**物理删 · thin edges + B2 + 其它 mk lists） · 双端 L2 tip **`44f161811`**
+- ✅ **seed-gate REQUIRED shell-load from mk**（wave855 · RXL/XXL/XNC 3 shells · `_mk_assign_val` 自 mk 加载 · Makefile 去 multi-token REQUIRED env · **非**物理删 · LINK env + thin edges + B2 + mk lists）
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：
@@ -1668,6 +1670,7 @@
     - wave852 BXF full link bag → mk
     - wave853 seed phase1/final full link bags → mk
     - wave854 seed-gate REQUIRED_OBJS bags → mk
+    - wave855 seed-gate REQUIRED shell-load from mk
     - **open** · lists/thin 残项（hybrid）+ tip Windows 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体（终局波）
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```
