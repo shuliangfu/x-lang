@@ -667,6 +667,23 @@ $(R1_ALIAS_STUBS_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 $(R1_EXTRA_CFLAGS_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
+# ---------------------------------------------------------------------------
+# wave904 B7B: R1_MISC_BASENAME product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = R1_MISC_BASENAME_OBJS in mk/driver_seed_r_lists.mk
+# (wave754 family · wave788 list→mk · COUNT=9). Do NOT open a second .o list.
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat (wave754/790/791/792/793/794/767).
+# Leaves: runtime_link_abi_user_env · runtime_channel_glue · runtime_scheduler_glue ·
+# runtime_kv_mmap_glue · backend_x86_64_enc_c · backend_arm64_enc_c ·
+# lsp_diag_pipeline_ctx · pipeline_glue_strict_minimal · runtime_asm_build
+# (pure basename host-cc; no special -D/-f extras beyond ensure defaults).
+# Seed maps / ldpc prefer / l2-asm prefer live in ensure try-heat ladder; Makefile only
+# FORCE + thin-call. NOT physical delete — thin edges + remaining R1 family multi-target
+# (SEED_MAP/…) / mk lists hybrid + tip Windows → dual L4 → explicit auth ship delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(R1_MISC_BASENAME_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
 # xlang_x 用：仅 -DXLANG_USE_X_PIPELINE（runtime_x / main_x via wave901 multi-target).
 
@@ -823,12 +840,8 @@ runtime_dynlib_os.o: FORCE scripts/ensure_host_cc_seed_o.sh
 
 # wave253 G.7: sole user-domain residual face body (weak link_abi_getenv twin).
 # Never g05 host bag; STD_AND_PANIC / product -o companion of PRIMARY_PANIC.
-# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-runtime_link_abi_user_env.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# runtime_link_abi_user_env — joined wave904 multi-target $(R1_MISC_BASENAME_OBJS).
+# Archaeology: wave754 R1 pure host-cc · wave793 FORCE thin seed+.x+.h — body in try-heat.
 
 # F-ZC：env OS getenv/setenv/iter；与 env.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_env_os 产品 seed
@@ -881,13 +894,7 @@ runtime_atomic_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：channel 有界/无界/select；与 channel.o 一并链入（G-02e-20：.inc + cc_inc_tu）
-# G-02f-18：runtime_channel_glue 产品 seed
-# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
-# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
-# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-runtime_channel_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-18：runtime_channel_glue 产品 seed — joined wave904 multi-target $(R1_MISC_BASENAME_OBJS).
 
 # F-ZC：net UDP batch recvmmsg/sendmmsg；与 net.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-20：runtime_net_udp_batch 产品 seed
@@ -951,14 +958,8 @@ runtime_thread_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：async 协作调度 + async_net_fs；与 scheduler.o 一并链入（按需 -pthread）
-# G-02f-18：runtime_scheduler_glue 产品 seed（#include async_net_fs.from_x.c）
-# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
-# Thin passes -Isrc/asm for historical parity with make recipe (include path).
-runtime_scheduler_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave794 B7A: heat dep-edge thin twin residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x + async_net_fs #include (seed_project_hdrs_newer first-hop).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-18：runtime_scheduler_glue 产品 seed — joined wave904 multi-target $(R1_MISC_BASENAME_OBJS).
+# Archaeology: wave754 R1 · -Isrc/asm parity · wave794 twin async_net_fs #include — body in try-heat.
 
 # F-ZC：HTTP 客户端/服务端胶层（含 http2/*.inc.c）；与 http.o 一并链入（G-02e-21）
 # G-02f-21：runtime_http_glue 产品 seed（#include http2/*.inc）；thin 在 src/asm/http/
@@ -987,13 +988,7 @@ runtime_tls_mbedtls_bio.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：db.kv mmap 胶层；与 kv.o 按需同链（G-02e-17：.inc + cc_inc_tu）
-# G-02f-21：runtime_kv_mmap_glue 产品 seed
-# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
-# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
-# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-runtime_kv_mmap_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-21：runtime_kv_mmap_glue 产品 seed — joined wave904 multi-target $(R1_MISC_BASENAME_OBJS).
 
 # F-ZC：db.arrow SIMD 胶层；与 arrow.o 按需同链（G-02e-19：.inc + cc_inc_tu）
 # G-02f-21：runtime_arrow_simd_glue 产品 seed
@@ -1292,22 +1287,12 @@ $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 src/asm/backend_enc_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-# G-02f-15：backend_x86_64_enc_c 产品 seed
-# wave754 R1 cold: ensure one · wave769 product PREFER → try-l2-asm-prefer.
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/asm/backend_x86_64_enc_c.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-15：backend_x86_64_enc_c 产品 seed — joined wave904 multi-target $(R1_MISC_BASENAME_OBJS).
+# Archaeology: wave754 R1 cold · wave769 try-l2-asm-prefer · wave792 FORCE — body in try-heat.
 
-# CG002：backend_arm64_enc_c 产品 seed（强符号覆盖 seed_link_compat weak -1 桩）
+# CG002：backend_arm64_enc_c 产品 seed — joined wave904 multi-target $(R1_MISC_BASENAME_OBJS).
 # PLATFORM: MACOS arm64 pure-asm 必需；其它主机链接无害（ta!=1 不调）。
-# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/asm/backend_arm64_enc_c.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# Archaeology: wave754 R1 · wave792 FORCE — body in try-heat.
 
 # wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
 # wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
@@ -1590,14 +1575,8 @@ src/lsp/lsp_diag_pipeline_sizes_nostub.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02e-8：lsp_diag_x_alias 已并入本 TU。
-# G-02f-12：lsp_diag_pipeline_ctx 产品 seed
-# wave754 R1 cold: ensure_one · wave767 product PREFER thin+rest → try-ldpc-prefer.
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/lsp/lsp_diag_pipeline_ctx.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	# wave767: ldpc PREFER thin+rest → try-ldpc-prefer (cold plain seed fallback).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-12：lsp_diag_pipeline_ctx 产品 seed — joined wave904 multi-target $(R1_MISC_BASENAME_OBJS).
+# Archaeology: wave754 R1 cold · wave767 try-ldpc-prefer · wave792 FORCE — body in try-heat.
 
 # G-02f-11：runtime_driver_strict_glue_stubs 产品 seed（内含 runtime_heap_user.inc）
 # (wave752 R1 · wave771 try-other-l2-prefer · wave794 twin) — joined wave902 multi-target
@@ -2219,14 +2198,8 @@ $(ASM_GLUE_STANDALONE_O): FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-# G-02f-11：pipeline_glue_strict_minimal 产品 seed
-# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-build_asm/pipeline_glue_strict_minimal.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	# wave889 B7B residual: drop dual @mkdir -p build_asm (ensure_one owns dirname mkdir).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-11：pipeline_glue_strict_minimal 产品 seed — joined wave904 multi-target $(R1_MISC_BASENAME_OBJS).
+# Archaeology: wave754 R1 · wave792 FORCE · wave889 ensure_one owns dirname mkdir — body in try-heat.
 
 # relink-xlang 与 bootstrap-driver-seed 链接同一组 .o；list authority =
 # mk/driver_seed_composites.mk RELINK_XLANG_PREREQS (wave822 B7B; not physical delete).
@@ -2646,10 +2619,5 @@ perf-baseline: scripts/stage8_baseline.sh
 	@bash scripts/stage8_baseline.sh perf
 
 
-# G-02f-22：runtime_asm_build 产品 seed
-# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/asm/runtime_asm_build.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-22：runtime_asm_build 产品 seed — joined wave904 multi-target $(R1_MISC_BASENAME_OBJS).
+# Archaeology: wave754 R1 · wave792 FORCE — body in try-heat.

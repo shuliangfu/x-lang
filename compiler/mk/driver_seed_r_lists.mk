@@ -55,6 +55,8 @@ R1_EXTRA_CFLAGS_OBJS = src/runtime_pipeline_abi.o runtime_asm_io_stubs.o runtime
 # wave754 R1 seventh family: pure host-cc misc basename (no special -D/-f extras).
 # List authority for ensure_host_cc_seed_o.sh misc-basename mode; body = same script.
 # Basename → seeds/<leaf>.from_x.c.
+# wave904: also make-graph multi-target FORCE thin try-heat inventory (COUNT=9).
+# Body = ensure try-heat; do not re-list in Makefile or residual shells (G.7).
 R1_MISC_BASENAME_OBJS = runtime_link_abi_user_env.o runtime_channel_glue.o runtime_scheduler_glue.o runtime_kv_mmap_glue.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/lsp/lsp_diag_pipeline_ctx.o build_asm/pipeline_glue_strict_minimal.o src/asm/runtime_asm_build.o
 
 # wave755 R1 eighth family: basename-mismatch + bootstrap orch extras.
