@@ -1744,7 +1744,8 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     SWALLOWED_STD_X_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_STD_X_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (filled after dual-end verify)
+  dual-end L2 green tip: 3f29cb132 (Mac + Ubuntu leaf + catalog + phys-del
+    --check; std_x --check 22 FORCE; sample ensure skip up-to-date)
   next: more shell-primary / thin edges / B2 residual or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```
@@ -1758,7 +1759,7 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
 | `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
-| dual-end L2 tip | (after verify) |
+| dual-end L2 tip | `3f29cb132` |
 
 **Forbidden:** claim std_x FORCE thin = physical delete; re-list catalog `.x` on
 Makefile std_x prereq lines; `rm compiler/Makefile`; ship delete body; mac-only
