@@ -21,6 +21,7 @@
 > - **wave851** · B7B XXL/BS/XNC full link bags → composites + archaeology_experiment (3 bags)
 > - **wave852** · B7B BXF full link bag → archaeology_experiment (bootstrap-driver-seed-x-frontend)
 > - **wave853** · B7B seed phase1/final full link bags → composites.mk (SEED_LINK_OBJS; 2 bags)
+> - **wave854** · B7B seed-gate REQUIRED_OBJS bags → composites + archaeology (RXL/XXL/XNC; 3 bags)
 > - **wave799** · execute-gate (hard refuse delete)
 > - **open** · thin edges + B2 + other mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
 
@@ -2066,6 +2067,54 @@ ship delete body; mac-only wave green.
 `bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
+## wave854 B7B seed-gate REQUIRED_OBJS bags → mk (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on product archaeology **seed-gate**
+> multi-token lists still **inlined** as `*_REQUIRED_OBJS="..."` in Makefile
+> thin-call exports after wave853 (full link bags already mk):
+>   - **RXL** — `RELINK_XLANG_REQUIRED_OBJS` (fixed multi-token **COUNT=6**)
+>   - **XXL** — `XLANG_X_REQUIRED_OBJS` (fixed multi-token **COUNT=12**)
+>   - **XNC** — `XLANG_NO_C_FRONTEND_REQUIRED_OBJS` (fixed multi-token **COUNT=3**)
+>
+> Authority:
+>   - `mk/driver_seed_composites.mk` — RXL + XXL
+>   - `mk/archaeology_experiment_objs.mk` — XNC
+>   - bags **COUNT=3**
+>
+> Makefile expands `$(RELINK_XLANG_REQUIRED_OBJS)` /
+> `$(XLANG_X_REQUIRED_OBJS)` / `$(XLANG_NO_C_FRONTEND_REQUIRED_OBJS)` only.
+> Residual after: thin edges + B2 + other mk lists (hybrid). Dual-end L2
+> required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_B7B_SEED_GATE_REQUIRED=1
+    PHYS_DEL_B7B_SEED_GATE_REQUIRED_WAVE=wave854
+    PHYS_DEL_B7B_SEED_GATE_REQUIRED_COUNT=3
+    SWALLOWED_B7B_SEED_GATE_REQUIRED=1
+    PHYS_DEL_PREFLIGHT_B7B_SEED_GATE_REQUIRED=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (this wave product tip)
+  next: residual thin/B2/lists (hybrid) or tip Windows
+    re-proof → ship delete body (explicit auth only; tip L4 wave840)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_SEED_GATE_REQUIRED` | `1` |
+| `PHYS_DEL_B7B_SEED_GATE_REQUIRED_COUNT` | `3` (RXL + XXL + XNC bags) |
+| `SWALLOWED_B7B_SEED_GATE_REQUIRED` | `1` |
+| `B7B_SEED_GATE_REQUIRED_MK` | `mk/driver_seed_composites.mk+mk/archaeology_experiment_objs.mk` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | tree arm; delete deferred |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim seed-gate REQUIRED bags → mk = physical delete; dual inline
+`*_REQUIRED_OBJS="a.o b.o ..."` re-list in Makefile; second inventory in shell;
+mac-only wave green; `rm compiler/Makefile`; ship delete without explicit auth.
+
 ## wave853 B7B seed phase1/final full link bags → composites (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
@@ -2086,8 +2135,8 @@ ship delete body; mac-only wave green.
 >     target-specific `DRIVER_SEED_GLUE_SUFFIX` override retired with the bags).
 >
 > Makefile expands `$(BOOTSTRAP_DRIVER_SEED_{PHASE1,FINAL}_LINK_OBJS)` only.
-> Residual after: thin edges + B2 + other mk lists (hybrid). Dual-end L2
-> required. Blockers **remain**.
+> Residual after: ~~seed-gate REQUIRED~~ wave854 · thin edges + B2 + other mk
+> lists (hybrid). Dual-end L2 required. Blockers **remain**.
 
 ```text
   leaf dump:
@@ -2099,8 +2148,8 @@ ship delete body; mac-only wave green.
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
   dual-end L2 green tip: 3c67649c9 (Mac + Ubuntu leaf residual CHECK +
     make -n phase1/final expand + product rv42)
-  next: residual thin/B2/lists (hybrid) or tip Windows
-    re-proof → ship delete body (explicit auth only; tip L4 wave840)
+  next: residual thin/B2/lists (~~seed-gate REQUIRED~~ wave854 · hybrid) or tip
+    Windows re-proof → ship delete body (explicit auth only; tip L4 wave840)
 ```
 
 | Key | Value |

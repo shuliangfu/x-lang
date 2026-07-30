@@ -68,3 +68,13 @@ XLANG_NO_C_FRONTEND_LINK_OBJS = $(DRIVER_NO_C_FRONTEND_OBJS) driver_x.o pipeline
 #   bootstrap_driver_seed_x_frontend.sh).
 # PLATFORM: SHARED — leaf basenames host-portable; PIPELINE_LIBS host-filtered.
 DRIVER_SEED_X_FRONTEND_LINK_OBJS = $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) driver_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) $(PIPELINE_LIBS)
+
+# wave854 B7B: xlang-no-c-frontend seed-gate REQUIRED_OBJS bag (G.7 有则补全).
+# Pre-link existence gate for shell-primary archaeology no-C-frontend target.
+# Makefile thin-call must not re-list this inventory inline (dual authority).
+# Fixed multi-token authority COUNT=3 (all path tokens; no $(...) expand):
+#   driver_x.o pipeline_x.o preprocess_x.o
+# Consumer: XNC_REQUIRED_OBJS (make xlang-no-c-frontend → xlang_no_c_frontend.sh).
+# Part of honesty bags COUNT=3 with RXL/XXL in driver_seed_composites.mk.
+# PLATFORM: SHARED — leaf basenames host-portable.
+XLANG_NO_C_FRONTEND_REQUIRED_OBJS = driver_x.o pipeline_x.o preprocess_x.o

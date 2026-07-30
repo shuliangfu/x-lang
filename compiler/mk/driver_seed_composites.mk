@@ -126,3 +126,15 @@ BOOTSTRAP_SELF_LINK_OBJS = $(DRIVER_SEED_LINK_BASE) $(USER_ASM_LINK)
 # PLATFORM: SHARED — HOST/filtered picks from user_asm_seed_objs.mk.
 BOOTSTRAP_DRIVER_SEED_PHASE1_LINK_OBJS = $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(USER_ASM_SEED_HOST_STUBS) build_asm/seed_host/asm_backend_partial.o $(RELINK_XLANG_GLUE_SUFFIX)
 BOOTSTRAP_DRIVER_SEED_FINAL_LINK_OBJS = $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(RELINK_XLANG_GLUE_SUFFIX)
+
+# wave854 B7B: product archaeology seed-gate REQUIRED_OBJS bags (G.7 有则补全).
+# Pre-link existence gates for shell-primary product archaeology targets.
+# Makefile thin-call must not re-list these inventories inline (dual authority).
+# Honesty COUNT=3 bags total with XNC in archaeology_experiment_objs.mk.
+# Fixed multi-token authority (all path tokens; no $(...) expand):
+#   RELINK_XLANG_REQUIRED_OBJS COUNT=6 (RXL relink-xlang-lexer seed gate)
+#   XLANG_X_REQUIRED_OBJS      COUNT=12 (XXL xlang-x seed gate)
+# Consumers: RXL_REQUIRED_OBJS / XXL_REQUIRED_OBJS env exports.
+# PLATFORM: SHARED — leaf basenames host-portable.
+RELINK_XLANG_REQUIRED_OBJS = build_asm/seed_host/asm_backend_partial.o driver_x.o pipeline_x.o parser_x.o typeck_x.o codegen_x.o
+XLANG_X_REQUIRED_OBJS = driver_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o lsp_io_std_heap_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o

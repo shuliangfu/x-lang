@@ -86,6 +86,8 @@
 #            (bootstrap-driver-seed-x-frontend; fixed multi-token 2; NOT physical delete)
 #   wave853: B7B seed phase1/final full link bags → mk/driver_seed_composites.mk
 #            (SEED_LINK_OBJS export; 2 bags; NOT physical delete)
+#   wave854: B7B product archaeology seed-gate REQUIRED_OBJS bags → mk
+#            (RXL/XXL composites + XNC archaeology_experiment; 3 bags; NOT physical delete)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
 #   wave783: B5 cfg_eval multi-ladder → try-cfg-eval-ladder
@@ -977,6 +979,20 @@ SWALLOWED_B7B_SEED_PHASE_FINAL_LINK=1
 B7B_SEED_PHASE_FINAL_LINK_SWALLOWED=1
 B7B_SEED_PHASE_FINAL_LINK_MK=mk/driver_seed_composites.mk
 B7B_SEED_PHASE_FINAL_LINK_WAVE=wave853
+# wave854: B7B product archaeology seed-gate REQUIRED_OBJS bags (G.7).
+# RELINK_XLANG_REQUIRED_OBJS (RXL) + XLANG_X_REQUIRED_OBJS (XXL) → composites.mk
+# XLANG_NO_C_FRONTEND_REQUIRED_OBJS (XNC) → archaeology_experiment_objs.mk
+# COUNT=3 bags. Fixed multi-token: RXL=6 · XXL=12 · XNC=3 (all path tokens).
+# NOT physical delete — thin edges + B2 + other mk lists remain residual.
+PHYS_DEL_B7B_SEED_GATE_REQUIRED=1
+PHYS_DEL_B7B_SEED_GATE_REQUIRED_WAVE=wave854
+PHYS_DEL_B7B_SEED_GATE_REQUIRED_COUNT=3
+PHYS_DEL_B7B_SEED_GATE_REQUIRED_VIA=mk_composites_plus_archaeology_experiment
+PHYS_DEL_B7B_SEED_GATE_REQUIRED_NOTE=list_authority_mk_include_only_thin_edges_remain
+SWALLOWED_B7B_SEED_GATE_REQUIRED=1
+B7B_SEED_GATE_REQUIRED_SWALLOWED=1
+B7B_SEED_GATE_REQUIRED_MK=mk/driver_seed_composites.mk+mk/archaeology_experiment_objs.mk
+B7B_SEED_GATE_REQUIRED_WAVE=wave854
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -1176,8 +1192,9 @@ PHYS_DEL_PREFLIGHT_B7B_RELINK_PRODUCT_LINK=1
 PHYS_DEL_PREFLIGHT_B7B_XXL_BS_XNC_LINK=1
 PHYS_DEL_PREFLIGHT_B7B_BXF_LINK=1
 PHYS_DEL_PREFLIGHT_B7B_SEED_PHASE_FINAL_LINK=1
+PHYS_DEL_PREFLIGHT_B7B_SEED_GATE_REQUIRED=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|claim_xxl_bs_xnc_link_mk_is_physical_delete|claim_bxf_link_mk_is_physical_delete|claim_seed_phase_final_link_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|claim_xxl_bs_xnc_link_mk_is_physical_delete|claim_bxf_link_mk_is_physical_delete|claim_seed_phase_final_link_mk_is_physical_delete|claim_seed_gate_required_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1891,6 +1908,9 @@ else
   fi
   if ! grep -qE 'wave853|SEED_PHASE_FINAL|PHASE1_LINK|FINAL_LINK|SEED_LINK_OBJS' "$DOC_REL"; then
     bad "$DOC_REL must document wave853 B7B seed phase1/final link bags → mk"
+  fi
+  if ! grep -qE 'wave854|SEED_GATE_REQUIRED|REQUIRED_OBJS|RELINK_XLANG_REQUIRED|XLANG_X_REQUIRED|XLANG_NO_C_FRONTEND_REQUIRED' "$DOC_REL"; then
+    bad "$DOC_REL must document wave854 B7B seed-gate REQUIRED_OBJS bags → mk"
   fi
   note "doc $DOC_REL present"
 fi
@@ -2966,6 +2986,22 @@ if ! grep -q 'SWALLOWED_B7B_SEED_PHASE_FINAL_LINK=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_SEED_PHASE_FINAL_LINK=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B7B_SEED_PHASE_FINAL_LINK=1 (wave853)"
+fi
+# wave854: B7B seed-gate REQUIRED_OBJS bag authority
+if ! grep -q 'PHYS_DEL_B7B_SEED_GATE_REQUIRED=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SEED_GATE_REQUIRED=1 (wave854)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_SEED_GATE_REQUIRED_WAVE=wave854' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SEED_GATE_REQUIRED_WAVE=wave854"
+fi
+if ! grep -q 'PHYS_DEL_B7B_SEED_GATE_REQUIRED_COUNT=3' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SEED_GATE_REQUIRED_COUNT=3 (wave854)"
+fi
+if ! grep -q 'SWALLOWED_B7B_SEED_GATE_REQUIRED=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_SEED_GATE_REQUIRED=1 (wave854)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_SEED_GATE_REQUIRED=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_SEED_GATE_REQUIRED=1 (wave854)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
@@ -4877,6 +4913,83 @@ if ! grep -qE "SEED_LINK_OBJS=.*BOOTSTRAP_DRIVER_SEED_FINAL_LINK_OBJS" "$MF"; th
 fi
 note "B7B seed phase1/final link authority in composites.mk (bags 2; wave853; not physical delete)"
 
+# wave854: B7B seed-gate REQUIRED_OBJS bags in mk; Makefile expand only.
+_COMP_MK="compiler/mk/driver_seed_composites.mk"
+_ARCH_MK="compiler/mk/archaeology_experiment_objs.mk"
+if [ ! -f "$_COMP_MK" ]; then
+  bad "missing $_COMP_MK (wave854 B7B seed-gate REQUIRED authority)"
+fi
+if [ ! -f "$_ARCH_MK" ]; then
+  bad "missing $_ARCH_MK (wave854 B7B seed-gate REQUIRED authority)"
+fi
+if ! grep -qE '^RELINK_XLANG_REQUIRED_OBJS\s*=' "$_COMP_MK"; then
+  bad "$_COMP_MK must define RELINK_XLANG_REQUIRED_OBJS (wave854)"
+fi
+if ! grep -qE '^XLANG_X_REQUIRED_OBJS\s*=' "$_COMP_MK"; then
+  bad "$_COMP_MK must define XLANG_X_REQUIRED_OBJS (wave854)"
+fi
+if ! grep -qE '^XLANG_NO_C_FRONTEND_REQUIRED_OBJS\s*=' "$_ARCH_MK"; then
+  bad "$_ARCH_MK must define XLANG_NO_C_FRONTEND_REQUIRED_OBJS (wave854)"
+fi
+_count_fixed() {
+  # Count non-$(...) tokens on a single-line VAR= assignment.
+  local mk="$1" var="$2"
+  awk -v var="$var" '
+    $0 ~ ("^" var "[[:space:]]*=") {
+      line=$0
+      sub(/^[^=]*=[[:space:]]*/, "", line)
+      gsub(/\\/, "", line)
+      n=split(line, a, /[[:space:]]+/)
+      c=0
+      for (i=1;i<=n;i++) {
+        if (a[i] == "") continue
+        if (a[i] ~ /^\$\(/) continue
+        c++
+      }
+      print c+0
+      exit
+    }
+  ' "$mk"
+}
+_rxl_n=$(_count_fixed "$_COMP_MK" RELINK_XLANG_REQUIRED_OBJS)
+if [ "${_rxl_n:-0}" -ne 6 ]; then
+  bad "wave854 expected RELINK_XLANG_REQUIRED_OBJS fixed multi-token count 6 in mk, got ${_rxl_n:-0}"
+fi
+_xxl_n=$(_count_fixed "$_COMP_MK" XLANG_X_REQUIRED_OBJS)
+if [ "${_xxl_n:-0}" -ne 12 ]; then
+  bad "wave854 expected XLANG_X_REQUIRED_OBJS fixed multi-token count 12 in mk, got ${_xxl_n:-0}"
+fi
+_xnc_n=$(_count_fixed "$_ARCH_MK" XLANG_NO_C_FRONTEND_REQUIRED_OBJS)
+if [ "${_xnc_n:-0}" -ne 3 ]; then
+  bad "wave854 expected XLANG_NO_C_FRONTEND_REQUIRED_OBJS fixed multi-token count 3 in mk, got ${_xnc_n:-0}"
+fi
+# Forbid dual authority: hardcode multi-token REQUIRED_OBJS strings in Makefile.
+if grep -nE 'RXL_REQUIRED_OBJS="[^$]*\.o[^$]*\.o' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile must not re-list RXL_REQUIRED_OBJS multi-token inline (wave854 dual authority)"
+else
+  note "Makefile RXL_REQUIRED_OBJS uses RELINK_XLANG_REQUIRED_OBJS (wave854)"
+fi
+if grep -nE 'XXL_REQUIRED_OBJS="[^$]*\.o[^$]*\.o' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile must not re-list XXL_REQUIRED_OBJS multi-token inline (wave854 dual authority)"
+else
+  note "Makefile XXL_REQUIRED_OBJS uses XLANG_X_REQUIRED_OBJS (wave854)"
+fi
+if grep -nE 'XNC_REQUIRED_OBJS="[^$]*\.o[^$]*\.o' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile must not re-list XNC_REQUIRED_OBJS multi-token inline (wave854 dual authority)"
+else
+  note "Makefile XNC_REQUIRED_OBJS uses XLANG_NO_C_FRONTEND_REQUIRED_OBJS (wave854)"
+fi
+if ! grep -qE 'RXL_REQUIRED_OBJS="\$\(RELINK_XLANG_REQUIRED_OBJS\)"' "$MF"; then
+  bad "Makefile relink-xlang-lexer must expand RXL_REQUIRED_OBJS=\$(RELINK_XLANG_REQUIRED_OBJS) (wave854)"
+fi
+if ! grep -qE 'XXL_REQUIRED_OBJS="\$\(XLANG_X_REQUIRED_OBJS\)"' "$MF"; then
+  bad "Makefile xlang-x must expand XXL_REQUIRED_OBJS=\$(XLANG_X_REQUIRED_OBJS) (wave854)"
+fi
+if ! grep -qE 'XNC_REQUIRED_OBJS="\$\(XLANG_NO_C_FRONTEND_REQUIRED_OBJS\)"' "$MF"; then
+  bad "Makefile xlang-no-c-frontend must expand XNC_REQUIRED_OBJS=\$(XLANG_NO_C_FRONTEND_REQUIRED_OBJS) (wave854)"
+fi
+note "B7B seed-gate REQUIRED_OBJS authority in mk (bags 3; wave854; not physical delete)"
+
 
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -5661,5 +5774,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–839: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave833 pipeline_glue_types FORCE dep-thin 1 + wave834 bootstrap-pipeline FORCE shell-primary 1 + wave835 class-G filter FORCE dep-thin 4 + wave836 cp-alias FORCE dep-thin 3 + wave837 pipeline_gen FORCE dep-thin 1 + wave838 bootstrap_xlangc FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave839 archaeology host-pick FORCE dep-thin 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26 + wave850 RELINK_PRODUCT_LINK bag→mk 8 + wave851 XXL/BS/XNC link bags→mk 3 + wave852 BXF link bag→mk 2 + wave853 seed phase1/final link bags→mk 2; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–839: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave833 pipeline_glue_types FORCE dep-thin 1 + wave834 bootstrap-pipeline FORCE shell-primary 1 + wave835 class-G filter FORCE dep-thin 4 + wave836 cp-alias FORCE dep-thin 3 + wave837 pipeline_gen FORCE dep-thin 1 + wave838 bootstrap_xlangc FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave839 archaeology host-pick FORCE dep-thin 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26 + wave850 RELINK_PRODUCT_LINK bag→mk 8 + wave851 XXL/BS/XNC link bags→mk 3 + wave852 BXF link bag→mk 2 + wave853 seed phase1/final link bags→mk 2 + wave854 seed-gate REQUIRED bags→mk 3; Makefile still present; delete body deferred)"
 exit 0
