@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 🟡** prereq 边 shell（wave744）· **11.3.1 路径 🟡** 叶 pattern residual（wave746–845 · **非**物理删；**逐行清单见下 §11.3.1**） · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 🟡** prereq 边 shell（wave744）· **11.3.1 路径 🟡** 叶 pattern residual（wave746–846 · **非**物理删；**逐行清单见下 §11.3.1**） · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 4/4 策略 | 11.5.1–4 **策略已裁定**（wave734/741 · `tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -1481,6 +1481,7 @@
 - **wave761** · gen/pipeline try-gen-x
 - **wave762–839** · R2/R3 prefer · phys-del prep · B7A–D · list→mk · FORCE dep-thin（见下 bullet）
 - **wave841–845** · B7C shell-primary（typeck/codegen · x-compiler · self · parser smoke · xlang-x-pipeline）
+- **wave846** · B7C xlang-x shell-primary（host-cc product link）
 - **open** · thin edges + B2 + mk lists → tip Windows → 双端 L4 → explicit auth 真删
 
 **状态明细**（一行一项）：
@@ -1574,6 +1575,7 @@
 - ✅ **bootstrap-self shell-primary**（wave843 · 1 叶 · bootstrap_self.sh · stage1 snapshot + satellite ensure + stage2 host-cc link + out_self smoke · BS_LINK_OBJS from mk · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **bootstrap-parser/parse-file shell-primary**（wave844 · 2 叶 · bootstrap_parser_smoke.sh · parser.x -o smoke + dual-path parse fixtures · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **xlang-x-pipeline shell-primary**（wave845 · 1 叶 · xlang_x_pipeline.sh · force pipeline_x.o + migrate/satellites + host-cc link TARGET_x · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **xlang-x shell-primary**（wave846 · 1 叶 · xlang_x.sh · seed gate + host-cc link product xlang-x · **非**物理删 · thin edges + B2 + mk lists）
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：
@@ -1585,7 +1587,7 @@
     - driver_leaf catalog / FORCE thin ✅
     - gen.c / ast_gen2 / src-edge / migrate *_x / pipeline_glue_types FORCE thin ✅
     - bootstrap-pipeline / pipeline_gen / bootstrap_xlangc / archaeology FORCE thin ✅
-    - bootstrap-typeck/codegen · x-compiler · self · parser smoke · xlang-x-pipeline shell ✅
+    - bootstrap-typeck/codegen · x-compiler · self · parser smoke · xlang-x-pipeline · xlang-x shell ✅
 - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
@@ -1640,6 +1642,7 @@
     - wave843 bootstrap-self shell-primary
     - wave844 bootstrap-parser/parse-file shell-primary
     - wave845 xlang-x-pipeline shell-primary
+    - wave846 xlang-x shell-primary
     - **open** · lists/thin 残项 + tip Windows 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体（终局波）
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```

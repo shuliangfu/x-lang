@@ -2687,10 +2687,16 @@ regen-lsp-gens-x:
 	@echo "regen-lsp-gens-x OK"
 
 # 仅重链 ./xlang-x；pipeline/driver/preprocess 的 .x 变更会经对应 *_x.o 目标触发重编后再链接。
-xlang-x: build-seed-asm-host $(DRIVER_SEED_OBJS) $(XLANG_X_PIPELINE_LINK_O) $(XLANG_X_USER_ASM_OBJS) driver_x.o preprocess_x.o $(RELINK_XLANG_GLUE_SUFFIX)
-	@test -f driver_x.o && test -f lsp_x.o && test -f lsp_diag_x.o && test -f lsp_io_x.o && test -f preprocess_x.o && test -f lsp_io_std_heap_x.o && test -f driver_fmt_x.o && test -f driver_check_x.o && test -f driver_test_x.o && test -f driver_compile_x.o && test -f driver_build_x.o && test -f driver_run_x.o && test -f || (echo "缺少 driver_x.o 等，请先: make bootstrap-driver-seed" && exit 1)
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $@ $(DRIVER_SEED_OBJS) driver_x.o $(XLANG_X_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(XLANG_X_USER_ASM_OBJS) $(RELINK_XLANG_GLUE_SUFFIX)
-	@echo "xlang-x OK"
+# wave846: full body → scripts/xlang_x.sh (G.7 有则补全; shell owns seed gate + host-cc
+#   link). Lists stay mk expansion (composites / user_asm / subcmd / link_picks).
+# NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — shell owns preflight + link orchestration.
+xlang-x: build-seed-asm-host $(DRIVER_SEED_OBJS) $(XLANG_X_PIPELINE_LINK_O) $(XLANG_X_USER_ASM_OBJS) driver_x.o preprocess_x.o $(RELINK_XLANG_GLUE_SUFFIX) scripts/xlang_x.sh
+	@CC="$(CC)" XLANG_X="$(XLANG_X)" \
+	  XXL_LINK_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
+	  XXL_LINK_OBJS="$(DRIVER_SEED_OBJS) driver_x.o $(XLANG_X_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(XLANG_X_USER_ASM_OBJS) $(RELINK_XLANG_GLUE_SUFFIX)" \
+	  XXL_REQUIRED_OBJS="driver_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o lsp_io_std_heap_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o" \
+	  bash scripts/xlang_x.sh
 
 # Stage2：xlang-x 用 -x -E-extern 生成 _gen2.c 并链出 xlang-x2，与 xlang-x 行为对比（脚本内会 make xlang-x / bootstrap-driver-seed）
 verify-selfhost-stage2:

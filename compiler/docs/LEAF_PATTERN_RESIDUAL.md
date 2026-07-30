@@ -13,6 +13,7 @@
 > - **wave761** · gen/pipeline try-gen-x
 > - **wave762–839** · R2/R3 prefer · phys-del prep · B7A–D · list→mk · FORCE dep-thin (see § wave rows)
 > - **wave841–845** · B7C shell-primary (typeck/codegen · x-compiler · self · parser smoke · xlang-x-pipeline)
+> - **wave846** · B7C xlang-x shell-primary (host-cc product link)
 > - **wave799** · execute-gate (hard refuse delete)
 > - **open** · thin edges + B2 + mk lists → tip Windows → dual L4 → explicit auth ship delete
 
@@ -1201,7 +1202,7 @@ After (wave785):
 | Swallowed this wave | Still residual |
 |---------------------|----------------|
 | **B7 inventory** (named B7A–B7D + dump/`--check`) | Physical delete (Windows gate) |
-| **B7c partial** (archaeology dual `-c` → migrate / thin leaves) | ~~B7c typeck/codegen~~ (wave841) · ~~x-compiler~~ (wave842) · ~~bootstrap-self~~ (wave843) · ~~bootstrap-parser smoke~~ (wave844) · ~~xlang-x-pipeline~~ (wave845) · B7A edges · B7B lists · ~~**B7D host-cc xlang link**~~ (wave786) |
+| **B7c partial** (archaeology dual `-c` → migrate / thin leaves) | ~~B7c typeck/codegen~~ (wave841) · ~~x-compiler~~ (wave842) · ~~bootstrap-self~~ (wave843) · ~~bootstrap-parser smoke~~ (wave844) · ~~xlang-x-pipeline~~ (wave845) · ~~xlang-x~~ (wave846) · B7A edges · B7B lists · ~~**B7D host-cc xlang link**~~ (wave786) |
 
 **Forbidden:** physical delete Makefile; claim B7 inventory = physical delete; re-open dual `$(CC) -c` on typeck/codegen/bootstrap-self lsp; mac-only wave green; treat B7D UNDEF as product g05 failure.
 
@@ -2057,6 +2058,57 @@ ship delete body; mac-only wave green.
 **Forbidden:** claim bootstrap_xlangc FORCE thin = physical delete; re-list
 `bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
+
+## wave846 xlang-x shell-primary (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7C archaeology residual —
+> `xlang-x` still owned a multi-step Makefile body
+> (long `test -f` seed gate + fat `$(CC)` link of product `./xlang-x`).
+> wave845 shelled `xlang-x-pipeline` (`TARGET_x`); this wave shells the sibling
+> full-driver product binary relink path.
+>
+> New authority: `scripts/xlang_x.sh`
+>   - seed gate via Makefile-exported `XXL_REQUIRED_OBJS`
+>   - host-cc link with Makefile-exported `XXL_LINK_CFLAGS` / `XXL_LINK_OBJS`
+>     (lists stay mk expansion; no second inventory in shell)
+>
+> Makefile thin-call only (keeps `build-seed-asm-host` / `DRIVER_SEED_OBJS` /
+> pipeline+user-asm make-graph prereqs). Honesty COUNT = **1**. Residual after:
+> thin edges + B2 + mk lists (+ `xlang-no-c-frontend` / hybrid residual). Dual-end
+> L2 required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_XLANG_X_SHELL=1
+    PHYS_DEL_XLANG_X_SHELL_WAVE=wave846
+    PHYS_DEL_XLANG_X_SHELL_COUNT=1
+    SWALLOWED_XLANG_X_SHELL=1
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=8
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave846
+    PHYS_DEL_PREFLIGHT_XLANG_X_SHELL=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2: Mac + Ubuntu leaf --check + xlang_x.sh --check + phys-del --check
+  next: residual thin/B2/lists (xlang-no-c-frontend / hybrid / lists) or tip
+    Windows re-proof → ship delete body (explicit auth only; tip L4 wave840)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_XLANG_X_SHELL` | `1` |
+| `PHYS_DEL_XLANG_X_SHELL_COUNT` | `1` |
+| `SWALLOWED_XLANG_X_SHELL` | `1` |
+| `XLANG_X_SHELL_HELPER` | `xlang_x.sh` |
+| `PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT` | `8` (wave841–845 + wave846 xlang-x) |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim xlang-x shell-primary = physical delete; dual `$(CC)` link /
+`test -f` seed gate body in Makefile recipe; dual full link inventory in shell;
+mac-only wave green; `rm compiler/Makefile`; ship delete body without explicit auth.
 
 ## wave845 xlang-x-pipeline shell-primary (2026-07-30)
 
