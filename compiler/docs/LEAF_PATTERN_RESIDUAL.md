@@ -1009,7 +1009,8 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave799:** physical-delete **execute gate** (`phys_del_makefile_gate.sh` refuse-delete + dry-run; NOT green; NOT delete)
 - [x] **wave800:** Windows min-gate **proof stamp** harness (`--run-windows-gate` writes stamp; `--verify-windows-proof`; NOT STATUS green; NOT delete)
 - [x] **wave805:** ENDGAME arm **prep/preview** (`--endgame-preview`; STATUS green plan only; TREE_ARMED=0; NOT arm; NOT delete)
-- [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **ENDGAME arm + confirm delete**)
+- [x] **wave806:** ENDGAME arm **apply harness** (`--endgame-arm-apply`; STATUS+confirm; TREE_ARMED=0 on tree; NOT physical delete)
+- [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **TREE_ARMED arm + confirm delete**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] B7 residual endgame: Makefile heat **dep** edges gone / physical delete (try-heat ✅ wave789; thin-unify ✅ wave790; source-prereq closed wave797; thin-call edges remain until phys del)
 
@@ -1711,10 +1712,54 @@ Then (later waves, not this tip):
 | `PHYS_DEL_ENDGAME_PREP_DELETE_ALLOWED` | `0` |
 | `PHYS_DEL_WINDOWS_GATE_STATUS` | `reproven_green` (wave804) |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
-| `PHYS_DEL_PREFLIGHT_NEXT` | `endgame_arm_after_preview_separate_wave` |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `endgame_arm_apply_tree_then_confirm_delete_separate` (wave806) |
 
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
+
+## wave806 ENDGAME arm apply harness (2026-07-30)
+
+> **Not this wave:** set tree `ENDGAME_PHYSICAL_DELETE_MAKEFILE=1`; set
+> `TREE_ARMED=1`; physical delete of `compiler/Makefile`.
+> **This wave:** G.7 **有则补全** on `phys_del_makefile_gate.sh` —
+> `--endgame-arm-apply` requires STATUS=`reproven_green` +
+> `XLANG_PHYS_DEL_ENDGAME_ARM_APPLY=ARM_ENDGAME_I_UNDERSTAND` to rewrite
+> leaf `ENDGAME_PHYSICAL_DELETE_MAKEFILE` 0→1 (or temp leaf via
+> `XLANG_PHYS_DEL_LEAF_FILE`). Without confirm → exit 2. Keep STATUS green.
+> Never rm Makefile. Even after ENDGAME=1, `--delete` still refuses (delete
+> body deferred). Tree this tip keeps ENDGAME=0 · TREE_ARMED=0.
+> Dual-end L2 required (mac + Ubuntu).
+
+```text
+Entry (STATUS already reproven_green after wave804):
+  # plan only:
+  ./xbuild phys-del-gate --endgame-preview
+  # confirm-gated arm on leaf (or temp leaf for harness):
+  XLANG_PHYS_DEL_ENDGAME_ARM_APPLY=ARM_ENDGAME_I_UNDERSTAND \
+    ./xbuild phys-del-gate --endgame-arm-apply
+      # exit 0 + PHYS_DEL_ENDGAME_ARM_APPLY_APPLIED=1 on write path
+      # exit 2 without confirm / STATUS not green
+      # --check exercises temp leaf only; tree ENDGAME stays 0
+
+Then (later waves, not this tip):
+  reviewed TREE_ARMED=1 commit + honesty greps → confirm --delete body
+```
+
+| Key | Value |
+|-----|--------|
+| `PHYS_DEL_ENDGAME_ARM_APPLY_HARNESS` | `1` |
+| `PHYS_DEL_ENDGAME_ARM_APPLY_HARNESS_WAVE` | `wave806` |
+| `PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED` | `0` |
+| `PHYS_DEL_ENDGAME_ARM_APPLY_TARGET_ENDGAME` | `1` |
+| `PHYS_DEL_ENDGAME_ARM_APPLY_DELETE_ALLOWED` | `0` |
+| `PHYS_DEL_ENDGAME_ARM_APPLY_CONFIRM_ENV` | `XLANG_PHYS_DEL_ENDGAME_ARM_APPLY=ARM_ENDGAME_I_UNDERSTAND` |
+| `PHYS_DEL_WINDOWS_GATE_STATUS` | `reproven_green` (wave804) |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` (tree; harness ≠ tree arm) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `endgame_arm_apply_tree_then_confirm_delete_separate` |
+
+**Forbidden:** claim arm-apply harness = tree arm / physical delete; auto-arm
+from preview alone; apply without confirm; `rm compiler/Makefile`; mac-only
+wave green.
 
 ## wave804 Windows min-gate proof + STATUS apply (2026-07-30)
 
