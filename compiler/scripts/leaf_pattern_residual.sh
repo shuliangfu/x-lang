@@ -204,6 +204,10 @@
 #            formal_mod 38 + std_x 22 + migrate 4 + eoo/tests/verify 3 + g05 4 +
 #            clean/token/refresh/cc_inc/driver_bstrict 6; pure `@bash scripts/…`;
 #            NOT physical delete — thin edges + B2 + mk lists remain
+#   wave891: B7B residual non-thin HOST_CC + SKIP_SUBSCRIPT body hygiene (2 sites) →
+#            HOST_CC_OBJS_CORE bare $(CC) → host_cc_objs_core_link.sh (1);
+#            SKIP_SUBSCRIPT nested $(MAKE) → bootstrap_driver_seed.sh soft-skip (1);
+#            NOT physical delete — thin edges + B2 + mk lists remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1585,6 +1589,24 @@ SWALLOWED_B7B_BULK_SH_TO_BASH_FORM_HYGIENE=1
 B7B_BULK_SH_TO_BASH_FORM_HYGIENE_SWALLOWED=1
 B7B_BULK_SH_TO_BASH_FORM_HYGIENE_WAVE=wave890
 B7B_BULK_SH_TO_BASH_FORM_HYGIENE_COUNT=77
+# wave891: B7B residual non-thin HOST_CC + SKIP_SUBSCRIPT body hygiene.
+# COUNT = 2 recipe bodies closed:
+#   1 HOST_CC_OBJS_CORE bare `$(CC) $(CFLAGS) -o $@ $^ $(WIN_LDFLAGS)`
+#     → scripts/host_cc_objs_core_link.sh (+ export-objs-core-link-objs)
+#   1 SKIP_SUBSCRIPT nested `@test -x || $(MAKE) bootstrap-driver-seed …`
+#     → thin bootstrap_driver_seed.sh soft-skip / re-enter make
+# Authority: shell owns archaeology incomplete link + SKIP soft-skip (G.7 有则补全).
+# NOT physical delete — thin edges + B2 + mk lists remain.
+# Flag XLANG_HOST_CC_OBJS_CORE must stay (escape hatch; wave786).
+PHYS_DEL_B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE=1
+PHYS_DEL_B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE_WAVE=wave891
+PHYS_DEL_B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE_COUNT=2
+PHYS_DEL_B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE_VIA=host_cc_objs_core_link_shell_primary_skip_subscript_soft_skip
+PHYS_DEL_B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE_NOTE=makefile_no_bare_cc_recipe_no_nested_make_skip_subscript_thin_edges_remain
+SWALLOWED_B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE=1
+B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE_SWALLOWED=1
+B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE_WAVE=wave891
+B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE_COUNT=2
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -7244,6 +7266,55 @@ if ! grep -q 'PHYS_DEL_B7B_BULK_SH_TO_BASH_FORM_HYGIENE_COUNT=77' <<<"$_out"; th
   bad "dump must set PHYS_DEL_B7B_BULK_SH_TO_BASH_FORM_HYGIENE_COUNT=77 (wave890)"
 fi
 note "B7B residual bulk @sh→@bash form hygiene (COUNT=77; wave890; not physical delete)"
+# wave891: HOST_CC bare $(CC) + SKIP_SUBSCRIPT nested $(MAKE) → shell-primary
+if grep -nE $'^\t\$\(CC\)' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still has bare \$(CC) recipe body (wave891; shell owns HOST_CC link)"
+  grep -nE $'^\t\$\(CC\)' "$MF" | head -5 >&2
+fi
+if ! grep -q 'host_cc_objs_core_link\.sh' "$MF"; then
+  bad "Makefile must thin-call host_cc_objs_core_link.sh (wave891)"
+fi
+if ! grep -qE '^export-objs-core-link-objs:' "$MF"; then
+  bad "Makefile must define export-objs-core-link-objs (wave891)"
+fi
+if ! grep -q 'XLANG_HOST_CC_OBJS_CORE' "$MF"; then
+  bad "Makefile must keep XLANG_HOST_CC_OBJS_CORE escape flag (wave786/891)"
+fi
+# SKIP_SUBSCRIPT branch: thin bootstrap_driver_seed, no nested $(MAKE) in recipe
+_skip_rec=$(awk '
+  /^ifeq \(\$\(XLANG_SKIP_SUBSCRIPT_MAKE\),1\)/ { hit=1; next }
+  hit && /^bootstrap-driver-seed:/ { seed=1; print; next }
+  seed && /^[^[:space:]#]/ { exit }
+  seed { print }
+' "$MF")
+if ! grep -q 'bootstrap_driver_seed\.sh' <<<"$_skip_rec"; then
+  bad "SKIP_SUBSCRIPT bootstrap-driver-seed must thin-call bootstrap_driver_seed.sh (wave891)"
+fi
+if grep -qE '\$\(MAKE\)' <<<"$_skip_rec"; then
+  bad "SKIP_SUBSCRIPT bootstrap-driver-seed must not nest \$(MAKE) (wave891; shell owns)"
+fi
+if ! grep -q 'wave891' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave891 HOST_CC + SKIP_SUBSCRIPT body hygiene"
+fi
+if ! grep -q 'PHYS_DEL_B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE=1 (wave891)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE_COUNT=2' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE_COUNT=2 (wave891)"
+fi
+if [ ! -f compiler/scripts/host_cc_objs_core_link.sh ]; then
+  bad "missing compiler/scripts/host_cc_objs_core_link.sh (wave891)"
+elif ! grep -q 'XLANG_HOST_CC_OBJS_CORE' compiler/scripts/host_cc_objs_core_link.sh; then
+  bad "host_cc_objs_core_link.sh must document HOST_CC_OBJS_CORE authority (wave891)"
+else
+  note "host_cc_objs_core_link.sh present (wave891)"
+fi
+if ! grep -q 'XLANG_SKIP_SUBSCRIPT_MAKE' compiler/scripts/bootstrap_driver_seed.sh; then
+  bad "bootstrap_driver_seed.sh must own SKIP_SUBSCRIPT soft-skip (wave891)"
+else
+  note "bootstrap_driver_seed.sh SKIP_SUBSCRIPT soft-skip present (wave891)"
+fi
+note "B7B residual HOST_CC + SKIP_SUBSCRIPT body hygiene (COUNT=2; wave891; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \

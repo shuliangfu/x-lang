@@ -33,6 +33,13 @@
 # Wave: 717 orchestration · 721 phase1/final link · 722 sat/lsp · 723 host-stubs ·
 #       724 bridge/panic/user-asm/glue · 725 check-abi/pipeline-x FORCE/asm-host ·
 #       744 DRIVER_SEED_PREREQS edge swallow (shell ensure).
+#       891 SKIP_SUBSCRIPT soft-skip / nested-make body → this script (G.7 有则补全).
+#
+# Env (wave891):
+#   XLANG_SKIP_SUBSCRIPT_MAKE=1 — if TARGET already executable, soft-skip full
+#     cold sequence (run-all entry already linked seed). If TARGET missing,
+#     re-invoke make bootstrap-driver-seed with SKIP cleared + RUN_ALL=1 so
+#     composites/export leaves load (historic nested $(MAKE) body).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -42,6 +49,27 @@ TARGET="${TARGET:-xlang}"
 XLANG_C="${XLANG_C:-xlang-c}"
 
 log() { echo "bootstrap-driver-seed: $*" >&2; }
+
+# ---------------------------------------------------------------------------
+# wave891: XLANG_SKIP_SUBSCRIPT_MAKE soft-skip (G.7 有则补全; was Makefile body)
+# PLATFORM: SHARED — same gate on mac/Ubuntu/Windows host.
+# ---------------------------------------------------------------------------
+if [ -n "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  if [ -x "./${TARGET}" ]; then
+    log "SKIP: XLANG_SKIP_SUBSCRIPT_MAKE=${XLANG_SKIP_SUBSCRIPT_MAKE} and ./${TARGET} already executable"
+    exit 0
+  fi
+  # TARGET missing: full cold needs composites.mk / export leaves → re-enter make
+  # with SKIP cleared (parse-time ifeq) + RUN_ALL so all-path preserves seed.
+  log "TARGET ./${TARGET} not executable under SKIP_SUBSCRIPT; full bootstrap via make"
+  # Unset so nested make takes the full-body branch (include composites).
+  env -u XLANG_SKIP_SUBSCRIPT_MAKE \
+    XLANG_RUN_ALL_BOOTSTRAP_XLANG="${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-1}" \
+    MAKEFLAGS= "${MAKE}" bootstrap-driver-seed \
+    XLANG_SKIP_SUBSCRIPT_MAKE= \
+    XLANG_RUN_ALL_BOOTSTRAP_XLANG="${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-1}"
+  exit $?
+fi
 
 # Session catalog cache: one shell mk parse for the whole cold seed wave.
 # PLATFORM: SHARED — required for Windows hybrid min-gate (Git Bash/MinGW);

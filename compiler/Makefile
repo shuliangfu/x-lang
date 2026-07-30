@@ -683,9 +683,14 @@ std-objs: $(STD_AND_PANIC_O)
 # PLATFORM: SHARED — same g05 path on mac/Ubuntu/Windows host (Windows LEGACY env still via g05).
 # Escape (archaeology only): XLANG_HOST_CC_OBJS_CORE=1 restores incomplete OBJS_CORE link
 # (expect UNDEF residual; not product). Cold tree without product .o: run bootstrap-driver-seed first.
+# wave891 B7B residual: bare `$(CC) $(CFLAGS) -o $@ $^ $(WIN_LDFLAGS)` → shell-primary
+#   scripts/host_cc_objs_core_link.sh (G.7 有则补全 wave858 legacy link form).
+#   LINK_OBJS via export-objs-core-link-objs; CFLAGS via export-try-heat-cflags;
+#   WIN_LDFLAGS shell uname. Thin @bash only. NOT physical delete — thin edges + B2 + mk lists.
+# PLATFORM: SHARED — archaeology host-cc; WIN_LDFLAGS is WINDOWS|PE only inside shell.
 ifeq ($(XLANG_HOST_CC_OBJS_CORE),1)
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ $(WIN_LDFLAGS)
+	@bash scripts/host_cc_objs_core_link.sh
 else
 .PHONY: $(TARGET)
 $(TARGET):
@@ -2235,9 +2240,14 @@ src/lsp/lsp_diag_stubs_no_c.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # XLANG_SKIP_SUBSCRIPT_MAKE=1：run-all 入口已链 seed，子脚本 `make` 仅在校验 xlang 缺失时再完整 bootstrap。
+# wave891 B7B residual: nested `@test -x || $(MAKE) bootstrap-driver-seed …` body →
+#   thin `@bash scripts/bootstrap_driver_seed.sh` (G.7 有则补全; shell owns soft-skip
+#   when TARGET executable, else re-enters make with SKIP cleared + RUN_ALL=1).
+# Thin @bash only. NOT physical delete — thin edges + B2 + mk lists remain.
+# PLATFORM: SHARED — same soft-skip on mac/Ubuntu/Windows host.
 ifeq ($(XLANG_SKIP_SUBSCRIPT_MAKE),1)
 bootstrap-driver-seed:
-	@test -x '$(TARGET)' || $(MAKE) bootstrap-driver-seed XLANG_SKIP_SUBSCRIPT_MAKE= XLANG_RUN_ALL_BOOTSTRAP_XLANG=1
+	@bash scripts/bootstrap_driver_seed.sh
 else
 # G-06 两阶段 seed：先无 USER_ASM 链 xlang-seed-phase1，再用其跑 asm.x -E 生成 partial，最后全量链 xlang。
 # wave728: composites (DRIVER_SEED_OBJS / LINK_BASE / PREREQS) → mk only (G.7).
@@ -2307,6 +2317,7 @@ include mk/driver_seed_export_lists.mk
 	export-bxf-link-objs \
 	export-bs-link-objs \
 	export-legacy-xlang-c-link-objs \
+	export-objs-core-link-objs \
 	export-xxp-link-bags \
 	export-bxc-link-objs \
 	export-driver-leaf-base-cflags \
@@ -2534,6 +2545,12 @@ export-bs-link-objs:
 # NOT physical delete — thin edges + B2 + mk lists remain residual.
 export-legacy-xlang-c-link-objs:
 	@printf 'LINK_OBJS=%s\n' '$(LEGACY_XLANG_C_PREREQS)'
+
+# wave891 B7B: archaeology HOST_CC_OBJS_CORE LINK_OBJS export leaf (G.7 有则补全
+# export-*-link-objs pattern). List authority mk/objs_core.mk OBJS=$(OBJS_CORE).
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+export-objs-core-link-objs:
+	@printf 'LINK_OBJS=%s\n' '$(OBJS)'
 
 # wave859 · B7B XXP/BXC multi-token bag shell-load via make export leaves (G.7).
 # xlang-x-pipeline (wave845 shell-primary) still required multi-token XXP_* env

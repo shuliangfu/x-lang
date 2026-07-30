@@ -5,8 +5,8 @@
 #   OBJS       — alias $(OBJS_CORE) for $(TARGET) archaeology escape consumers
 #
 # Used by:
-#   - compiler/Makefile: XLANG_HOST_CC_OBJS_CORE=1 escape link of $(OBJS)
-#     (expect UNDEF residual; not product g05 path — wave786 B7D)
+#   - compiler/Makefile: XLANG_HOST_CC_OBJS_CORE=1 escape → scripts/host_cc_objs_core_link.sh
+#     (wave891 shell-primary; expect UNDEF residual; not product g05 path — wave786 B7D)
 #   - stage2 / archaeology recipes that expand $(OBJS)
 #   - driver_seed_obj_catalog.sh shell parse (0-make; G.7)
 #
