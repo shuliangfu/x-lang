@@ -1486,7 +1486,8 @@
 - **wave848** · B7C bootstrap-driver-seed-x-frontend shell-primary（host-cc experiment link）
 - **wave849** · B7C relink-xlang-lexer shell-primary（host-cc product link + XLANG_C sync）
 - **wave850** · B7B RELINK_PRODUCT_LINK bag → composites.mk（BTC/RXL product link 单权威）
-- **open** · thin edges + B2 + mk lists → tip Windows → 双端 L4 → explicit auth 真删
+- **wave851** · B7B XXL/BS/XNC full link bags → composites + archaeology_experiment（3 bags）
+- **open** · thin edges + B2 + mk lists（BXF / hybrid）→ tip Windows → 双端 L4 → explicit auth 真删
 
 **状态明细**（一行一项）：
 
@@ -1584,6 +1585,7 @@
 - ✅ **bootstrap-driver-seed-x-frontend shell-primary**（wave848 · 1 叶 · bootstrap_driver_seed_x_frontend.sh · host-cc link archaeology `$(TARGET)_x_frontend` · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **relink-xlang-lexer shell-primary**（wave849 · 1 叶 · relink_xlang_lexer.sh · seed gate + host-cc link product TARGET + XLANG_C/bootstrap_xlangc sync · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **RELINK_PRODUCT_LINK bag → mk**（wave850 · composites.mk · `RELINK_PRODUCT_LINK_BASE/OBJS` · BTC typeck/codegen + RXL relink-lexer 三处 dual bag 收单权威 · fixed BASE **8** · Makefile expand only · **非**物理删 · thin edges + B2 + 其它 mk lists）
+- ✅ **XXL/BS/XNC full link bags → mk**（wave851 · composites + archaeology_experiment · `XLANG_X_LINK_*` + `BOOTSTRAP_SELF_LINK_OBJS` + `XLANG_NO_C_FRONTEND_LINK_OBJS` · COUNT=**3** bags · Makefile expand only · **非**物理删 · thin edges + B2 + 其它 mk lists）
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：
@@ -1596,6 +1598,7 @@
     - gen.c / ast_gen2 / src-edge / migrate *_x / pipeline_glue_types FORCE thin ✅
     - bootstrap-pipeline / pipeline_gen / bootstrap_xlangc / archaeology FORCE thin ✅
     - bootstrap-typeck/codegen · x-compiler · self · parser smoke · xlang-x-pipeline · xlang-x · xlang-no-c-frontend · seed-x-frontend · relink-xlang-lexer shell ✅
+    - RELINK_PRODUCT_LINK bag → mk · XXL/BS/XNC bags → mk ✅
 - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
@@ -1655,7 +1658,8 @@
     - wave848 bootstrap-driver-seed-x-frontend shell-primary
     - wave849 relink-xlang-lexer shell-primary
     - wave850 RELINK_PRODUCT_LINK bag → composites.mk
-    - **open** · lists/thin 残项 + tip Windows 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体（终局波）
+    - wave851 XXL/BS/XNC full link bags → mk
+    - **open** · lists/thin 残项（BXF / hybrid）+ tip Windows 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体（终局波）
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
