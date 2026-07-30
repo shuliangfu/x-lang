@@ -21,8 +21,10 @@
 #   xlang_compile_std_module.sh --check                               # catalog + thin greps
 #
 # wave812 (G.7 有则补全): formal_mod product table lives here — bare flag + sources
-# + fs_formal dispatch. Makefile thin-calls `ensure $@` only (prereqs stay for mtime).
-# NOT physical delete; thin edges + B2 ensure + mk lists remain residual.
+# + fs_formal dispatch. Makefile thin-calls `ensure $@` only.
+# wave826 (G.7 有则补全): FORCE dep-thin — Makefile prereqs are FORCE + script only;
+# shell owns catalog source mtime (skip up-to-date). NOT physical delete; thin edges
+# + B2 try-heat + mk lists still form std_core_product_make_graph residual.
 #
 # 约定：mod.x 编译为带前缀符号（std_<module>_*）。
 #   --bare-impl：非 mod.x 文件用 -lib-name ""（裸符号）；否则用路径提取前缀。
@@ -224,10 +226,17 @@ formal_mod_check() {
       done
     fi
     _tgt="$(formal_mod_out_for_key "$_k")"
-    # Makefile thin-call: ensure|auto only (wave812); no inline source list after $@.
+    # Makefile thin-call: ensure|auto only (wave812); FORCE dep-thin (wave826).
+    # Target line must list FORCE (shell owns catalog source mtime); no dual .x prereqs.
     if [ -f "$_mk" ]; then
       if ! awk -v tgt="$_tgt" '
-        $0 ~ ("^" tgt ":") { hit=1; next }
+        $0 ~ ("^" tgt ":") {
+          line=$0
+          # wave826: FORCE required (dep-thin); ban dual catalog .x on prereq line.
+          if (line !~ /FORCE/) { exit 1 }
+          if (line ~ /\.x([[:space:]]|$)/) { exit 1 }
+          hit=1; next
+        }
         hit && /^[^#[:space:]]/ { exit 1 }
         hit && /xlang_compile_std_module\.sh/ {
           if ($0 ~ /ensure|auto/) { found=1; exit 0 }
@@ -238,7 +247,7 @@ formal_mod_check() {
         }
         END { exit found ? 0 : 1 }
       ' "$_mk"; then
-        echo "formal_mod --check: Makefile $_tgt must thin-call ensure|auto (wave812)" >&2
+        echo "formal_mod --check: Makefile $_tgt must FORCE + ensure|auto (wave826 FORCE thin)" >&2
         _bad=1
       fi
     fi
@@ -290,7 +299,7 @@ KEYS
     echo "formal_mod --check: FAIL" >&2
     return 1
   fi
-  echo "formal_mod --check: OK (38 leaves; catalog + Makefile ensure thin; not physical delete)"
+  echo "formal_mod --check: OK (38 leaves; catalog + Makefile FORCE+ensure thin wave826; not physical delete)"
   return 0
 }
 
@@ -345,6 +354,23 @@ case "${1:-}" in
     if [ -z "$_fm_srcs" ]; then
       echo "xlang_compile_std_module.sh ensure: no sources for $_key" >&2
       exit 1
+    fi
+    # wave826: FORCE-thin mtime — shell owns catalog source freshness (G.7).
+    # Makefile always invokes via FORCE; skip recompile when OUT is newer than all
+    # catalog sources. FORCE=1 forces rebuild (tests / explicit). PLATFORM: SHARED.
+    if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ]; then
+      _fm_stale=0
+      for _s in $_fm_srcs; do
+        [ -n "$_s" ] || continue
+        if [ -f "$_s" ] && [ "$_s" -nt "$out_o" ]; then
+          _fm_stale=1
+          break
+        fi
+      done
+      if [ "$_fm_stale" = "0" ]; then
+        echo "xlang_compile_std_module: skip up-to-date $out_o (formal_mod/$_key)" >&2
+        exit 0
+      fi
     fi
     # shellcheck disable=SC2086
     set -- $_fm_srcs

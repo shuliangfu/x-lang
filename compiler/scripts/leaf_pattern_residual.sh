@@ -24,6 +24,7 @@
 #   wave811: std_x product hybrid body (22 leaves) → xlang_compile_std_x auto|auto-soft|auto-soft-merge
 #            (Makefile thin-call only; NOT physical delete; formal_mod graph remains)
 #   wave825: std_x shell-primary catalog (22 leaves) → xlang_compile_std_x ensure
+#   wave826: formal_mod FORCE dep-thin (38 leaves) → ensure owns source mtime
 #            (mode|x_path table in shell; Makefile ensure only; NOT physical delete)
 #   wave812: formal_mod shell-primary catalog (38 leaves) → xlang_compile_std_module ensure
 #            (Makefile thin-call only; NOT physical delete; edges+lists+B2 remain)
@@ -424,6 +425,18 @@ SWALLOWED_FORMAL_MOD_CATALOG=1
 FORMAL_MOD_CATALOG_SWALLOWED=1
 FORMAL_MOD_CATALOG_HELPER=xlang_compile_std_module.sh
 FORMAL_MOD_CATALOG_WAVE=wave812
+# wave826: formal_mod FORCE dep-thin — Makefile prereqs FORCE+script only; shell
+# owns catalog source mtime (skip up-to-date). NOT physical delete — thin edges
+# + B2 try-heat + mk lists still form std_core_product_make_graph.
+PHYS_DEL_FORMAL_MOD_FORCE_THIN=1
+PHYS_DEL_FORMAL_MOD_FORCE_THIN_WAVE=wave826
+PHYS_DEL_FORMAL_MOD_FORCE_THIN_COUNT=38
+PHYS_DEL_FORMAL_MOD_FORCE_THIN_VIA=xlang_compile_std_module_ensure_mtime
+PHYS_DEL_FORMAL_MOD_FORCE_THIN_NOTE=force_prereq_shell_owns_source_mtime_edges_remain
+SWALLOWED_FORMAL_MOD_FORCE_THIN=1
+FORMAL_MOD_FORCE_THIN_SWALLOWED=1
+FORMAL_MOD_FORCE_THIN_HELPER=xlang_compile_std_module.sh
+FORMAL_MOD_FORCE_THIN_WAVE=wave826
 # wave813: B7B product STD_AND_PANIC_O inventory → mk/std_and_panic_objs.mk (G.7).
 # Makefile includes mk only; no dual inline re-list. NOT physical delete —
 # thin-call edges + B2 ensure + other mk lists remain residual.
@@ -734,6 +747,7 @@ PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_pr
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
 PHYS_DEL_PREFLIGHT_STD_X_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1
+PHYS_DEL_PREFLIGHT_FORMAL_MOD_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_B7B_STD_AND_PANIC_LIST=1
 PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1
@@ -747,7 +761,7 @@ PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_E_DIRS_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1342,6 +1356,9 @@ else
   if ! grep -qE 'wave825|std_x (shell-primary|catalog)|STD_X_SHELL_PRIMARY|std_x ensure' "$DOC_REL"; then
     bad "$DOC_REL must document wave825 std_x shell-primary catalog"
   fi
+  if ! grep -qE 'wave826|formal_mod FORCE|FORMAL_MOD_FORCE_THIN|FORCE dep-thin' "$DOC_REL"; then
+    bad "$DOC_REL must document wave826 formal_mod FORCE dep-thin"
+  fi
   if ! grep -qE 'wave812|formal_mod|FORMAL_MOD_SHELL|std_module ensure' "$DOC_REL"; then
     bad "$DOC_REL must document wave812 formal_mod shell-primary catalog"
   fi
@@ -1869,6 +1886,21 @@ if ! grep -q 'SWALLOWED_FORMAL_MOD_CATALOG=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1 (wave812)"
+fi
+if ! grep -q 'PHYS_DEL_FORMAL_MOD_FORCE_THIN=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_FORMAL_MOD_FORCE_THIN=1 (wave826)"
+fi
+if ! grep -q 'PHYS_DEL_FORMAL_MOD_FORCE_THIN_WAVE=wave826' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_FORMAL_MOD_FORCE_THIN_WAVE=wave826"
+fi
+if ! grep -q 'PHYS_DEL_FORMAL_MOD_FORCE_THIN_COUNT=38' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_FORMAL_MOD_FORCE_THIN_COUNT=38 (wave826)"
+fi
+if ! grep -q 'SWALLOWED_FORMAL_MOD_FORCE_THIN=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_FORMAL_MOD_FORCE_THIN=1 (wave826)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_FORMAL_MOD_FORCE_THIN=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_FORMAL_MOD_FORCE_THIN=1 (wave826)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST=1 (wave813)"
@@ -2421,6 +2453,49 @@ if grep -nE '^\t@?sh scripts/xlang_compile_std_module\.sh (--bare-impl )?[.]{0,2
   bad "Makefile formal_mod still has explicit-source std_module calls (wave812 must ensure)"
 else
   note "Makefile formal_mod free of explicit-source std_module recipe args (wave812)"
+fi
+# wave826: formal_mod FORCE dep-thin — target line FORCE only (no dual .x prereqs).
+_fm_force=0
+for _fm in \
+  string/string heap/heap heap/page_mmap sys/sys sys/linux \
+  map/map set/set vec/vec thread/thread time/time random/random env/env \
+  fs/fs sync/sync queue/queue encoding/encoding base64/base64 crypto/crypto \
+  log/log test/test atomic/atomic hash/hash math/math sort/sort ffi/ffi \
+  context/context error/error json/json csv/csv dynlib/dynlib http/http tar/tar
+do
+  if awk -v tgt="../std/${_fm}.o" '
+    $0 ~ ("^" tgt ":") {
+      if ($0 ~ /FORCE/ && $0 !~ /\.x([[:space:]]|$)/) { ok=1; exit 0 }
+      exit 1
+    }
+    END { exit ok ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _fm_force=$((_fm_force + 1))
+  else
+    bad "Makefile ../std/${_fm}.o must FORCE dep-thin (no .x prereqs; wave826)"
+  fi
+done
+for _fm in mem/mem types/types option/option result/result debug/debug slice/mod; do
+  if awk -v tgt="../core/${_fm}.o" '
+    $0 ~ ("^" tgt ":") {
+      if ($0 ~ /FORCE/ && $0 !~ /\.x([[:space:]]|$)/) { ok=1; exit 0 }
+      exit 1
+    }
+    END { exit ok ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _fm_force=$((_fm_force + 1))
+  else
+    bad "Makefile ../core/${_fm}.o must FORCE dep-thin (no .x prereqs; wave826)"
+  fi
+done
+if [ "$_fm_force" -ne 38 ]; then
+  bad "wave826 expected 38 formal_mod FORCE thin leaves, got $_fm_force"
+fi
+note "Makefile formal_mod 38 leaves FORCE dep-thin (wave826; not physical delete)"
+if ! grep -q 'FORCE-thin mtime\|skip up-to-date' "$_fm_sh"; then
+  bad "xlang_compile_std_module.sh must own FORCE-thin mtime skip (wave826)"
+else
+  note "formal_mod ensure owns source mtime skip (wave826)"
 fi
 # wave813: B7B STD_AND_PANIC_O list authority in mk; Makefile include only.
 _SAP_MK="compiler/mk/std_and_panic_objs.mk"
@@ -3749,5 +3824,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–825: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–826: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26; Makefile still present; delete body deferred)"
 exit 0
