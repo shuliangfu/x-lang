@@ -17,9 +17,9 @@ DRIVER_SEED_SAT_REBUILD_OBJS = src/diag.o src/runtime_io_abi.o src/runtime_link_
 DRIVER_SEED_LSP_X_OBJS = lsp_io_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_pipeline_ctx.o x_frontend_link_alias.o
 DRIVER_SEED_BRIDGE_OBJS = src/x_seed_bridge.o
 DRIVER_SEED_PANIC_OBJS = runtime_panic.o
-# wave762 R2 UNAME leaves (lists = mk only; body = ensure try-r2):
-# typeck_f64_bits.o — host picks platform .s (Linux/Darwin/Windows mingw).
-DRIVER_SEED_TYPECK_F64_OBJS = src/typeck/typeck_f64_bits.o
+# wave914: DRIVER_SEED_TYPECK_F64_OBJS literal → mk/driver_seed_r_lists.mk (early
+# multi-target FORCE thin try-heat inventory; G.7 single authority — do not re-assign).
+# Catalog still expands DRIVER_SEED_TYPECK_F64_OBJS via r_lists parse (shell primary).
 # wave913: DRIVER_SEED_CRT0_OBJS literal → mk/driver_seed_r_lists.mk (early multi-target
 # FORCE thin try-heat inventory; G.7 single authority — do not re-assign here).
 # Catalog still expands DRIVER_SEED_CRT0_OBJS via r_lists parse (shell primary).

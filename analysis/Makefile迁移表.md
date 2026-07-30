@@ -723,6 +723,7 @@
 
 ## wave913 residual note
 
+- **wave914** · R2 TYPECK_F64 multi-target FORCE thin try-heat（1 · `DRIVER_SEED_TYPECK_F64_OBJS` 迁 r_lists · UNAME ifeq hard-error 面收掉 · **非**物理删）
 - **wave913** · B7B R2 CRT0 multi-target FORCE thin try-heat：6 leaves → `$(DRIVER_SEED_CRT0_OBJS)`（`mk/driver_seed_r_lists.mk` · G.7 有则补全 try-r2；export_lists 不再复写）+ Makefile multi-target FORCE try-heat。**非**物理删。
 
 ## wave889 residual note

@@ -5256,8 +5256,8 @@ run_check() {
   note() { echo "ensure_host_cc_seed_o: $*" >&2; }
   bad() { echo "ensure_host_cc_seed_o: FAIL: $*" >&2; fail=1; }
 
-  # wave907–913 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
-  # checks (R1/R3/ASYNC/B1 / GEN_X / GEN_C_TO_O / B3_LSP_SAT / FMT_CHECK / R2 CRT0 families).
+  # wave907–914 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
+  # checks (R1/R3/ASYNC/B1 / GEN_X / GEN_C_TO_O / B3_LSP_SAT / FMT_CHECK / R2 CRT0 / TYPECK_F64).
   # Accept per-leaf OR membership in a multi-target list whose recipe thin-calls ensure
   # try-heat (prefer / gen-x / gen-c-to-o / lsp-sat / other-l2 / try-r2 ladder lives in shell).
   makefile_leaf_try_heat_ok() {
@@ -5280,7 +5280,7 @@ run_check() {
       RT_SEED_SLICE_OBJS R1_CORE_SEED_OBJS R1_FRONTEND_GLUE_OBJS R1_MAIN_RUNTIME_OBJS \
       R1_ALIAS_STUBS_OBJS R1_EXTRA_CFLAGS_OBJS R1_MISC_BASENAME_OBJS R1_SEED_MAP_OBJS \
       R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS B1_RUNTIME_OS_SEED_OBJS GEN_X_SEED_OBJS \
-      GEN_C_TO_O_SEED_OBJS B3_LSP_SAT_SEED_OBJS FMT_CHECK_SEED_OBJS DRIVER_SEED_CRT0_OBJS; do
+      GEN_C_TO_O_SEED_OBJS B3_LSP_SAT_SEED_OBJS FMT_CHECK_SEED_OBJS DRIVER_SEED_CRT0_OBJS DRIVER_SEED_TYPECK_F64_OBJS; do
       if [ ! -f "$mk" ]; then
         continue
       fi
@@ -5621,8 +5621,17 @@ run_check() {
     note "try-r2-prefer helper present (wave776)"
   fi
 
-  # wave762: typeck_f64 + host crt0 leaves must thin-call try-r2 (no inline $(CC) -c).
-  if awk '
+  # wave762/914: typeck_f64 must thin-call try-heat|try-r2 (no inline $(CC) -c).
+  # wave914: multi-target $(DRIVER_SEED_TYPECK_F64_OBJS): FORCE try-heat (UNAME gates dropped).
+  if grep -qE '\$\(DRIVER_SEED_TYPECK_F64_OBJS\):[[:space:]]*FORCE' Makefile 2>/dev/null \
+    && awk '
+      /\$\(DRIVER_SEED_TYPECK_F64_OBJS\):/ { hit=1; next }
+      hit && /^[^#[:space:]\t]/ { exit 1 }
+      hit && /ensure_host_cc_seed_o\.sh/ && /try-heat|try-r2/ { found=1; exit 0 }
+      END { exit found ? 0 : 1 }
+    ' Makefile; then
+    note "Makefile R2 TYPECK_F64 multi-target FORCE thin try-heat (wave914)"
+  elif awk '
     /^src\/typeck\/typeck_f64_bits\.o:/ { in_t=1; next }
     in_t && /^[^[:space:]#]/ { in_t=0 }
     in_t { body = body $0 "\n" }
@@ -5633,7 +5642,7 @@ run_check() {
   ' Makefile; then
     note "Makefile typeck_f64_bits thin-calls ensure try-r2 (wave762)"
   else
-    bad "Makefile typeck_f64_bits.o must thin-call ensure try-heat|try-r2 (wave762)"
+    bad "Makefile typeck_f64_bits.o must thin-call ensure try-heat|try-r2 (wave762/914 multi-target)"
   fi
   # Host MAIN_LINK crt0 (Darwin arm64 / Linux x86_64 / …) — per-leaf or wave913 multi-target.
   # wave913: multi-target $(DRIVER_SEED_CRT0_OBJS): FORCE try-heat covers all six catalog leaves

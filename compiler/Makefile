@@ -873,52 +873,20 @@ endif
 
 # asm 链接无 runtime_driver 时：提供 typeck_float64_bits_lo/hi（G-02e：全平台 .s，零 C）。
 # wave762 R2: body → ensure try-r2 (host pick .s; list = DRIVER_SEED_TYPECK_F64_OBJS).
-# UNAME ifeq keeps unsupported-arch hard error surface; recipe is shell.
 # wave795 B7A: .s prereqs → FORCE; shell owns freshness (try-r2). NOT physical delete.
-ifeq ($(UNAME_S),Linux)
-ifeq ($(UNAME_M),x86_64)
-src/typeck/typeck_f64_bits.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave795 B7A: heat dep-edge thin pure asm residual — .s prereq → FORCE + ensure;
-# try-heat owns host-picked .s mtime (r2-typeck-f64). NOT physical delete.
+# wave914 B7B: R2 typeck_f64 product edge multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = $(DRIVER_SEED_TYPECK_F64_OBJS) in mk/driver_seed_r_lists.mk
+# (migrated from export_lists; COUNT=1).
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat
+# (wave762/790/795; try-heat → try-r2 → r2_typeck_f64_host_pick_src).
+# UNAME ifeq per-host recipe gates + $(error unsupported arch/OS) dropped;
+# shell fails closed on unsupported host (G.7 single cold body).
+# Makefile only FORCE + thin-call. NOT physical delete — thin edges + remaining
+# (cfg_eval / panic singles) + tip Windows → dual L4 → explicit auth.
+# PLATFORM: SHARED multi-target graph; host ISA pick in try-r2 shell
+# (LINUX|x86_64 / LINUX|aarch64 / DARWIN|arm64 / DARWIN|x86_64 / WINDOWS mingw).
+$(DRIVER_SEED_TYPECK_F64_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-else ifeq ($(UNAME_M),aarch64)
-src/typeck/typeck_f64_bits.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave795 B7A: heat dep-edge thin pure asm residual — .s prereq → FORCE + ensure;
-# try-heat owns host-picked .s mtime (r2-typeck-f64). NOT physical delete.
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-else
-$(error typeck_f64_bits: unsupported Linux arch $(UNAME_M); add .s)
-endif
-else ifeq ($(UNAME_S),Darwin)
-ifeq ($(UNAME_M),arm64)
-src/typeck/typeck_f64_bits.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave795 B7A: heat dep-edge thin pure asm residual — .s prereq → FORCE + ensure;
-# try-heat owns host-picked .s mtime (r2-typeck-f64). NOT physical delete.
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-else ifeq ($(UNAME_M),x86_64)
-# Darwin x86_64：SysV .s 无 _ 前缀；clang 汇编 Mach-O 时需额外处理，当前主路径为 arm64。
-src/typeck/typeck_f64_bits.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave795 B7A: heat dep-edge thin pure asm residual — .s prereq → FORCE + ensure;
-# try-heat owns host-picked .s mtime (r2-typeck-f64). NOT physical delete.
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-else
-$(error typeck_f64_bits: unsupported Darwin arch $(UNAME_M); add .s)
-endif
-else ifeq ($(XLANG_IS_WIN_HOST),1)
-# Windows MSYS/MinGW x86_64: PE/COFF doesn't support ELF-style .type directive;
-# use _mingw variant (x64 PE COFF doesn't add underscore prefix, so symbol names
-# match the SysV variant — see typeck_f64_bits_x86_64_mingw.s docblock).
-ifeq ($(UNAME_M),x86_64)
-src/typeck/typeck_f64_bits.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave795 B7A: heat dep-edge thin pure asm residual — .s prereq → FORCE + ensure;
-# try-heat owns host-picked .s mtime (r2-typeck-f64). NOT physical delete.
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-else
-$(error typeck_f64_bits: unsupported Windows arch $(UNAME_M); add .s)
-endif
-else
-$(error typeck_f64_bits: unsupported OS $(UNAME_S); add .s)
-endif
 
 # wave718: clean body → scripts/clean_compiler.sh (G.7 single authority)
 # wave879 B7B: drop multi-token TARGET/XLANG_C inject (G.7 hygiene).

@@ -130,5 +130,15 @@ FMT_CHECK_SEED_OBJS = src/driver/fmt_check_cmd.o src/driver/fmt_check_cmd_driver
 # Do not re-list in Makefile or residual shells (G.7).
 DRIVER_SEED_CRT0_OBJS = src/asm/crt0_x86_64.o src/asm/crt0_arm64.o src/asm/crt0_darwin_x86_64.o src/asm/crt0_mingw.o src/asm/crt0_user_x86_64.o src/asm/freestanding_io_x86_64.o
 
+# wave762/914 R2 typeck_f64_bits host-pick pure-.s family (N=1 leaf).
+# List authority for multi-target FORCE thin try-heat (wave914 COUNT=1).
+# Body = ensure try-heat → try-r2 → r2_typeck_f64_host_pick_src (G.7 single body).
+# UNAME ifeq hard-error surface dropped from Makefile — shell fails closed on
+# unsupported host (ensure_r2_typeck_f64_one). Migrated from export_lists so
+# multi-target binds before late include (G.7 single literal authority).
+# Leaf: src/typeck/typeck_f64_bits.o.
+# Do not re-list in Makefile or residual shells (G.7).
+DRIVER_SEED_TYPECK_F64_OBJS = src/typeck/typeck_f64_bits.o
+
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o

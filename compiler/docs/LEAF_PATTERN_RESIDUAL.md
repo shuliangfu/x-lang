@@ -82,7 +82,8 @@
 > - **wave911** · B7B B3_LSP_SAT product edges multi-target FORCE thin try-heat (2 leaves → `$(B3_LSP_SAT_SEED_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-lsp-sat-prefer map; no second body)
 > - **wave912** · B7B FMT_CHECK product edges multi-target FORCE thin try-heat (2 leaves → `$(FMT_CHECK_SEED_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-other-l2-prefer map; no second body)
 > - **wave913** · B7B R2 CRT0 product edges multi-target FORCE thin try-heat (6 leaves → `$(DRIVER_SEED_CRT0_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-r2; list migrated from export_lists; no second body)
-> - **open** · thin edges + mk lists hybrid (cfg_eval / typeck_f64 / panic singles …) · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave914** · B7B R2 TYPECK_F64 product edge multi-target FORCE thin try-heat (1 leaf → `$(DRIVER_SEED_TYPECK_F64_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-r2 host pick; UNAME ifeq hard-error surface dropped; no second body)
+> - **open** · thin edges + mk lists hybrid (cfg_eval / panic singles …) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -4740,4 +4741,27 @@ PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_bo
 **Forbidden:** claim G05_SYNC inject hygiene = physical delete; re-add recipe-line
 `G05_SYNC_ASM=` on these phonies; claim residual inject family exhausted while
 LD / pipeline bags / thin edges remain.
+
+### wave914 · R2 TYPECK_F64 multi-target FORCE thin try-heat (UNAME gates dropped)
+
+> **This wave:** collapse Makefile UNAME ifeq hard-error surface for
+> `src/typeck/typeck_f64_bits.o` (5 text recipe branches) into single multi-target
+> `$(DRIVER_SEED_TYPECK_F64_OBJS): FORCE` + try-heat. List authority migrates from
+> `mk/driver_seed_export_lists.mk` → `mk/driver_seed_r_lists.mk` (COUNT=1).
+> Body remains ensure try-heat → try-r2 → `r2_typeck_f64_host_pick_src` (G.7).
+> Shell fails closed on unsupported host (no Makefile `$(error …)`).
+> **NOT physical delete** — thin edges + remaining (cfg_eval / panic singles) +
+> tip Windows → dual L4 → explicit auth.
+
+```text
+PHYS_DEL_R2_TYPECK_F64_LIST_MK=1
+PHYS_DEL_R2_TYPECK_F64_LIST_MK_WAVE=wave914
+PHYS_DEL_R2_TYPECK_F64_LIST_MK_COUNT=1
+SWALLOWED_R2_TYPECK_F64_LIST_MK=1
+PHYS_DEL_PREFLIGHT_R2_TYPECK_F64_LIST_MK=1
+```
+
+| Closed | Residual |
+|--------|----------|
+| UNAME ifeq multi-recipe surface for typeck_f64_bits | cfg_eval / panic singles · tip Windows · dual L4 · auth delete |
 

@@ -247,6 +247,9 @@
 #   wave912: FMT_CHECK product edges multi-target FORCE thin try-heat (2)
 #            (G.7 有则补全: FMT_CHECK_SEED_OBJS in driver_seed_r_lists.mk; try-other-l2-prefer map; no second body)
 #   wave913: R2 CRT0 product edges multi-target FORCE thin try-heat (6)
+#   wave914: R2 TYPECK_F64 product edge multi-target FORCE thin try-heat (1)
+#            (G.7 有则补全: DRIVER_SEED_TYPECK_F64_OBJS in driver_seed_r_lists.mk;
+#             UNAME ifeq hard-error surface dropped; try-r2 host pick; no second body)
 #            (G.7 有则补全: DRIVER_SEED_CRT0_OBJS in driver_seed_r_lists.mk; try-r2; no second body)
 #            wave893: B7B residual verify-selfhost thin-call form hygiene (2 sites) →
 #            body → scripts/verify-selfhost-stage2{,-bstrict}.sh; Makefile pure
@@ -912,6 +915,18 @@ PHYS_DEL_R2_CRT0_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
 SWALLOWED_R2_CRT0_LIST_MK=1
 R2_CRT0_LIST_MK_SWALLOWED=1
 R2_CRT0_LIST_MK_WAVE=wave913
+# wave914: R2 TYPECK_F64 product edge multi-target FORCE thin try-heat (make-graph only).
+# G.7 有则补全: list authority = DRIVER_SEED_TYPECK_F64_OBJS in mk/driver_seed_r_lists.mk
+# (migrated from export_lists; try-r2 host pick; COUNT=1; UNAME ifeq gates dropped).
+# Body = ensure try-heat → try-r2. NOT physical delete.
+PHYS_DEL_R2_TYPECK_F64_LIST_MK=1
+PHYS_DEL_R2_TYPECK_F64_LIST_MK_WAVE=wave914
+PHYS_DEL_R2_TYPECK_F64_LIST_MK_COUNT=1
+PHYS_DEL_R2_TYPECK_F64_LIST_MK_VIA=mk_driver_seed_typeck_f64_objs_multi_target_thin
+PHYS_DEL_R2_TYPECK_F64_LIST_MK_NOTE=list_multi_target_force_thin_uname_gates_dropped_edges_remain
+SWALLOWED_R2_TYPECK_F64_LIST_MK=1
+R2_TYPECK_F64_LIST_MK_SWALLOWED=1
+R2_TYPECK_F64_LIST_MK_WAVE=wave914
 # wave829: product/archaeology *_gen.c FORCE dep-thin — Makefile prereqs FORCE+script
 # only; shell owns pin/seed/FORCE_REGEN policy (ensure_*_gen). NOT physical delete —
 # thin edges + B2 try-heat + mk lists remain (ast_gen2 closed wave830).
@@ -2089,6 +2104,7 @@ PHYS_DEL_PREFLIGHT_GEN_C_TO_O_LIST_MK=1
 PHYS_DEL_PREFLIGHT_B3_LSP_SAT_LIST_MK=1
 PHYS_DEL_PREFLIGHT_FMT_CHECK_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R2_CRT0_LIST_MK=1
+PHYS_DEL_PREFLIGHT_R2_TYPECK_F64_LIST_MK=1
 PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_SRC_EDGE_FORCE_THIN=1
@@ -2807,6 +2823,9 @@ else
   fi
   if ! grep -qE 'wave913|R2_CRT0.*multi|DRIVER_SEED_CRT0_OBJS.*multi|crt0 multi|R2 CRT0 multi' "$DOC_REL"; then
     bad "$DOC_REL must document wave913 R2 CRT0 multi-target FORCE thin"
+  fi
+  if ! grep -qE 'wave914|R2_TYPECK_F64.*multi|TYPECK_F64.*multi|typeck_f64 multi|DRIVER_SEED_TYPECK_F64_OBJS.*multi' "$DOC_REL"; then
+    bad "$DOC_REL must document wave914 R2 TYPECK_F64 multi-target FORCE thin"
   fi
   if ! grep -qE 'wave828|driver_leaf FORCE|DRIVER_LEAF_FORCE_THIN' "$DOC_REL"; then
     bad "$DOC_REL must document wave828 driver_leaf FORCE dep-thin"
@@ -3854,6 +3873,21 @@ if ! grep -q 'SWALLOWED_R2_CRT0_LIST_MK=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_R2_CRT0_LIST_MK=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_R2_CRT0_LIST_MK=1 (wave913)"
+fi
+if ! grep -q 'PHYS_DEL_R2_TYPECK_F64_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R2_TYPECK_F64_LIST_MK=1 (wave914)"
+fi
+if ! grep -q 'PHYS_DEL_R2_TYPECK_F64_LIST_MK_WAVE=wave914' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R2_TYPECK_F64_LIST_MK_WAVE=wave914"
+fi
+if ! grep -q 'PHYS_DEL_R2_TYPECK_F64_LIST_MK_COUNT=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R2_TYPECK_F64_LIST_MK_COUNT=1 (wave914)"
+fi
+if ! grep -q 'SWALLOWED_R2_TYPECK_F64_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_R2_TYPECK_F64_LIST_MK=1 (wave914)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_R2_TYPECK_F64_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_R2_TYPECK_F64_LIST_MK=1 (wave914)"
 fi
 if ! grep -q 'PHYS_DEL_GEN_C_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_GEN_C_FORCE_THIN=1 (wave829)"
@@ -7474,6 +7508,60 @@ if [ "$_crt0_indiv" -ne 0 ]; then
 fi
 note "Makefile R2 CRT0 multi-target FORCE thin try-heat + mk list 6 (wave762/913; not physical delete)"
 
+# wave914: R2 TYPECK_F64 product edge multi-target FORCE thin try-heat (G.7 list authority).
+_F64_MK="compiler/mk/driver_seed_r_lists.mk"
+[ -f "$_F64_MK" ] || _F64_MK="mk/driver_seed_r_lists.mk"
+if [ ! -f "$_F64_MK" ]; then
+  bad "missing $_F64_MK (wave914 R2 TYPECK_F64 list authority)"
+fi
+if ! grep -qE '^DRIVER_SEED_TYPECK_F64_OBJS\s*=' "$_F64_MK"; then
+  bad "$_F64_MK must define DRIVER_SEED_TYPECK_F64_OBJS (wave762/914)"
+fi
+_F64_EXP="compiler/mk/driver_seed_export_lists.mk"
+[ -f "$_F64_EXP" ] || _F64_EXP="mk/driver_seed_export_lists.mk"
+if [ -f "$_F64_EXP" ] && grep -qE '^DRIVER_SEED_TYPECK_F64_OBJS\s*=' "$_F64_EXP"; then
+  bad "$_F64_EXP must not re-assign DRIVER_SEED_TYPECK_F64_OBJS (wave914 list authority = r_lists)"
+fi
+_f64_list_n=$(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^DRIVER_SEED_TYPECK_F64_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) c++
+      next
+    }
+    END { print c+0 }
+  ' "$_F64_MK"
+)
+if [ "${_f64_list_n:-0}" -ne 1 ]; then
+  bad "wave914 expected 1 DRIVER_SEED_TYPECK_F64_OBJS member, got ${_f64_list_n:-0}"
+fi
+if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
+  bad "Makefile must include mk/driver_seed_r_lists.mk (wave788/914)"
+fi
+if ! grep -qE '\$\(DRIVER_SEED_TYPECK_F64_OBJS\):[[:space:]]*FORCE' "$MF"; then
+  bad "Makefile must multi-target \$(DRIVER_SEED_TYPECK_F64_OBJS): FORCE (wave914)"
+fi
+if ! awk '
+  /\$\(DRIVER_SEED_TYPECK_F64_OBJS\):/ { hit=1; next }
+  hit && /^[^#[:space:]\t]/ { exit 1 }
+  hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+  END { exit found ? 0 : 1 }
+' "$MF"; then
+  bad "Makefile DRIVER_SEED_TYPECK_F64_OBJS multi-target must thin-call try-heat (wave914)"
+fi
+# No per-leaf typeck_f64_bits.o: and no UNAME hard-error surface for typeck.
+if grep -qE '^src/typeck/typeck_f64_bits\.o:' "$MF" 2>/dev/null; then
+  bad "Makefile still has per-leaf src/typeck/typeck_f64_bits.o: (wave914 multi-target only)"
+fi
+if grep -qE '\$\(error typeck_f64_bits:' "$MF" 2>/dev/null; then
+  bad "Makefile still has typeck_f64_bits UNAME hard-error surface (wave914; shell fails closed)"
+fi
+note "Makefile R2 TYPECK_F64 multi-target FORCE thin try-heat + mk list 1 (wave762/914; not physical delete)"
+
+
 
 
 
@@ -9355,6 +9443,10 @@ fi
 if grep -qE '\$\(DRIVER_SEED_CRT0_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
   _th_recipe_n=$((_th_recipe_n + 5))
 fi
+# wave914: UNAME ifeq collapsed 5 text try-heat recipes → 1 multi-target; logical expand +4.
+if grep -qE '\$\(DRIVER_SEED_TYPECK_F64_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+  _th_recipe_n=$((_th_recipe_n + 4))
+fi
 if [ "${_th_recipe_n}" -lt 100 ]; then
   bad "Makefile expected >=100 try-heat thin-call recipes (wave862; got ${_th_recipe_n}; multi-target logical expand)"
 fi
@@ -10182,6 +10274,10 @@ fi
 if grep -qE '\$\(DRIVER_SEED_CRT0_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
   _bash_thin_n=$((_bash_thin_n + 5))
 fi
+# wave914: UNAME ifeq collapsed 5 text @bash try-heat → 1 multi-target; logical expand +4.
+if grep -qE '\$\(DRIVER_SEED_TYPECK_F64_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+  _bash_thin_n=$((_bash_thin_n + 4))
+fi
 if [ "$_bash_thin_n" -lt 200 ]; then
   bad "Makefile @bash scripts/ thin-call count expected >=200 got ${_bash_thin_n} (wave890; multi-target logical expand)"
 fi
@@ -10409,6 +10505,10 @@ if [ -f "$MF" ]; then
   if grep -qE '\$\(DRIVER_SEED_CRT0_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
     _heat_recipe_n=$((_heat_recipe_n + 5))
   fi
+  # wave914: UNAME ifeq collapsed 5 text try-heat → 1 multi-target; logical expand +4.
+  if grep -qE '\$\(DRIVER_SEED_TYPECK_F64_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+    _heat_recipe_n=$((_heat_recipe_n + 4))
+  fi
   _heat_non_try=$(grep -E $'^\t.*ensure_host_cc_seed_o\.sh ' "$MF" 2>/dev/null | grep -vc 'try-heat' || true)
   _heat_non_try=${_heat_non_try:-0}
   if [ "${_heat_recipe_n}" -lt 50 ]; then
@@ -10495,10 +10595,14 @@ if [ -f "$MF" ]; then
   if grep -qE '\$\(DRIVER_SEED_CRT0_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
     _force_n=$((_force_n + 5))
   fi
+  # wave914: UNAME ifeq collapsed 5 text FORCE headers → 1 multi-target; logical expand +4.
+  if grep -qE '\$\(DRIVER_SEED_TYPECK_F64_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
+    _force_n=$((_force_n + 4))
+  fi
   if [ "${_force_n}" -lt 113 ]; then
-    bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n}; wave897/898/899/900/901/902/903/904/905/906/907/908/909/910/911/912/913 multi-target logical expand)"
+    bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n}; wave897/898/899/900/901/902/903/904/905/906/907/908/909/910/911/912/913/914 multi-target logical expand)"
   else
-    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797; wave897/898/899/900/901/902/903/904/905/906/907/908/909/910/911/912/913 multi-target logical expand)"
+    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797; wave897/898/899/900/901/902/903/904/905/906/907/908/909/910/911/912/913/914 multi-target logical expand)"
   fi
   # wave797: orch last heat source-prereq leaf must be FORCE thin (no pipeline_gen prereq edge).
   # G.7: do not quote product *.o paths in residual body (self inventory ban).

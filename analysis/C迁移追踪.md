@@ -1550,7 +1550,8 @@
 - ✅ **B3_LSP_SAT multi-target FORCE thin**（wave911 · 2 · `$(B3_LSP_SAT_SEED_OBJS)` 新 list in mk · G.7 try-lsp-sat-prefer map · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
 - ✅ **FMT_CHECK multi-target FORCE thin**（wave912 · 2 · `$(FMT_CHECK_SEED_OBJS)` 新 list in mk · G.7 try-other-l2-prefer map · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
 - ✅ **R2 CRT0 multi-target FORCE thin**（wave913 · 6 · `$(DRIVER_SEED_CRT0_OBJS)` 迁 r_lists · G.7 try-r2 · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
-- **open** · thin edges + mk lists hybrid（cfg_eval / typeck_f64 / panic singles …）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave913 R2 CRT0 multi
+- ✅ **R2 TYPECK_F64 multi-target FORCE thin**（wave914 · 1 · `$(DRIVER_SEED_TYPECK_F64_OBJS)` 迁 r_lists · G.7 try-r2 host pick · UNAME ifeq hard-error 面收掉 · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
+- **open** · thin edges + mk lists hybrid（cfg_eval / panic singles …）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave914 TYPECK_F64 multi
 
 **状态明细**（一行一项）：
 
