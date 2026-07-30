@@ -34,7 +34,8 @@
 > - **wave863** · B7B class-G filter CFLAGS/PIPELINE_GEN shell-load hygiene (4 filter FORCE recipes; try-heat CC-only)
 > - **wave864** · B7B leaf-extra RUNTIME_*/PARSER_* multi-token CFLAGS inject hygiene (3 leaves; ensure shell defaults)
 > - **wave865** · B7B migrate/bootstrap multi-token CFLAGS shell-load via export-try-heat-cflags (8 recipes)
-> - **open** · thin edges + B2 + other multi-token env / mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
+> - **wave866** · B7B build-tool CFLAGS shell-load + WIN32_O_CFLAGS leaf drop (2 recipes)
+> - **open** · thin edges + B2 + mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -2139,7 +2140,7 @@ without a single replacement authority; mac-only wave green.
 >
 > Shells load `export-try-heat-cflags` when `CFLAGS` / `PIPELINE_GEN_CFLAGS` unset.
 > Makefile thin-call: `CC=` / `PYTHON=` / `MAKE=` / `TARGET=` only (no multi-token CFLAGS=).
-> Residual: `build-tool` still injects `CFLAGS='$(CFLAGS)'`; WIN32_O_CFLAGS leaf; thin·B2.
+> Residual: ~~build-tool / WIN32_O~~ wave866; thin·B2 + mk lists hybrid remain.
 > **NOT physical delete** — thin edges + B2 + mk lists remain. Dual-end L2 required.
 >
 ```text
@@ -2150,7 +2151,7 @@ without a single replacement authority; mac-only wave green.
     PHYS_DEL_PREFLIGHT_B7B_MIGRATE_BOOTSTRAP_CFLAGS_SHELL_LOAD=1
 ```
 >
-> next: residual thin/B2 / other multi-token env (build-tool / WIN32) / mk lists hybrid
+> next: ~~build-tool / WIN32 multi-token~~ wave866 · residual thin/B2 / mk lists hybrid
 > or tip Windows → dual L4 → explicit auth ship
 
 | Key | Value |
@@ -2164,6 +2165,50 @@ without a single replacement authority; mac-only wave green.
 **Forbidden:** claim migrate/bootstrap CFLAGS shell-load = physical delete; reintroduce
 multi-token `CFLAGS="$(CFLAGS)"` on migrate/BTC/XXP/BXC recipes; pass empty
 `CFLAGS=` into `migrate_x_objs` (blocks export leaf load); mac-only wave green.
+
+## wave866 B7B build-tool CFLAGS shell-load + WIN32_O leaf drop (2026-07-30)
+
+> **Why (G.7 有则补全 on wave862/865 export-try-heat-cflags):**
+> After wave865 closed migrate/bootstrap multi-token `CFLAGS="$(CFLAGS)"`, residual
+> multi-token env injects remained on:
+>   - **build-tool** thin phony: `CFLAGS='$(CFLAGS)'` into `build_tool.sh`
+>   - **crt0_mingw** Windows leaf: `WIN32_O_CFLAGS="$(WIN32_O_CFLAGS)"` (no Makefile
+>     `?=` composition — always empty bag noise)
+>
+> Product CFLAGS still need make expansion (`OPT += -O2`, clang silence ifeq) for
+> build_tool host-cc; shell loads `export-try-heat-cflags` when unset (same leaf
+> as try-heat / migrate). WIN32_O has no make composition — env empty default
+> `${WIN32_O_CFLAGS:-}` is the authority when caller does not set it.
+>
+> **Recipes (COUNT=2):**
+>   - `build-tool` → `build_tool.sh` (shell-load CFLAGS; `--check` honesty)
+>   - `src/asm/crt0_mingw.o` → `ensure try-heat` (CC= only; WINDOWS ifeq)
+>
+> Makefile thin-call: `CC=` / `XLANG_BUILD_TOOL_REGEN=` only on build-tool;
+> crt0_mingw `CC=` only. Residual: thin·B2 / mk lists hybrid.
+> **NOT physical delete** — thin edges + B2 + mk lists remain. Dual-end L2 required.
+>
+```text
+    PHYS_DEL_B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE=1
+    PHYS_DEL_B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE_WAVE=wave866
+    PHYS_DEL_B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE_COUNT=2
+    SWALLOWED_B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE=1
+    PHYS_DEL_PREFLIGHT_B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE=1
+```
+>
+> next: residual thin/B2 / mk lists hybrid or tip Windows → dual L4 → explicit auth ship
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE` | `1` |
+| `PHYS_DEL_B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE_COUNT` | `2` |
+| `SWALLOWED_B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE` | `1` |
+| `B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE_VIA` | `export_try_heat_cflags_build_tool_win32_empty_default` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim build-tool/WIN32 CFLAGS hygiene = physical delete; reintroduce
+multi-token `CFLAGS='$(CFLAGS)'` on build-tool or `WIN32_O_CFLAGS="$(…)"` on
+crt0_mingw; mac-only wave green.
 
 ## wave863 B7B filter CFLAGS shell-load hygiene (2026-07-30)
 

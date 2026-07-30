@@ -1487,9 +1487,14 @@ endif
 endif
 # E-04 v21：Windows/MinGW/MSYS bootstrap 默认 crt0_mingw 替代 main_driver.o
 # wave762: try-r2 body (cc_inc_tu + WIN32_O_CFLAGS inside ensure; list = DRIVER_SEED_CRT0)
+# wave866 B7B: drop multi-token WIN32_O_CFLAGS inject (G.7 hygiene).
+# Ensure shell uses ${WIN32_O_CFLAGS:-} when env set by caller; no make-expanded bag
+# (WIN32_O_CFLAGS has no Makefile ?= composition). Thin-call CC= only.
+# PLATFORM: WINDOWS — crt0_mingw host only; mac/Ubuntu skip this recipe via ifeq.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
 ifeq ($(XLANG_IS_WIN_HOST),1)
 src/asm/crt0_mingw.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" WIN32_O_CFLAGS="$(WIN32_O_CFLAGS)" \
+	@CC="$(CC)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 endif
 
@@ -2965,8 +2970,13 @@ first-time: build-tool
 # - build_run_asm_build 默认 `make xlang_asm`（与 relink 定稿一致）；FULL=1 → bootstrap-driver-bstrict
 # - main 调用 entry（build_runner.x），非 build_entry
 # wave718: body → scripts/build_tool.sh (G.7; xlang-build calls shell directly)
+# wave866 B7B: drop multi-token CFLAGS='$(CFLAGS)' inject (G.7 hygiene).
+# Shell loads export-try-heat-cflags when CFLAGS unset (same authority as try-heat
+# / migrate wave862–865). Thin-call CC= + XLANG_BUILD_TOOL_REGEN only.
+# PLATFORM: SHARED — host-cc residual for G-05 entry until BC retires build_tool C.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
 build-tool:
-	@CC='$(CC)' CFLAGS='$(CFLAGS)' XLANG_BUILD_TOOL_REGEN="$${XLANG_BUILD_TOOL_REGEN:-0}" \
+	@CC='$(CC)' XLANG_BUILD_TOOL_REGEN="$${XLANG_BUILD_TOOL_REGEN:-0}" \
 	  sh scripts/build_tool.sh
 
 # wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).

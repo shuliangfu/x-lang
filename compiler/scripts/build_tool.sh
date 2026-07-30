@@ -8,23 +8,99 @@
 #
 # Usage (compiler directory, or via make -C compiler build-tool):
 #   ./scripts/build_tool.sh
+#   ./scripts/build_tool.sh --check
 #
 # Env:
-#   CC, CFLAGS — same defaults as Makefile / cc_inc_tu.sh
+#   CC — host C compiler (default: cc)
+#   CFLAGS — product flags; default: load via export-try-heat-cflags when
+#     unset (wave866; G.7 有则补全 on wave862 export leaf — OPT/-I/clang ifeq)
 #   XLANG_BUILD_TOOL_REGEN=1 — try ./xlang -x -E to refresh build_gen +
 #     build_runtime_x_gen (falls back to seeds/ on failure)
+#   MAKE — residual make for export leaf (wave866)
+#
+# wave866: Makefile drops multi-token CFLAGS='$(CFLAGS)' inject; shell loads
+#   export-try-heat-cflags when unset (same authority as try-heat / migrate).
 #
 # PLATFORM: SHARED — host-cc residual for G-05 entry until BC retires build_tool C.
-# Wave: 718 Track MG · pairs with Makefile thin leaf + xlang-build direct call.
+# Wave: 718 Track MG · wave866 B7B CFLAGS shell-load · pairs with Makefile thin leaf
+#   + xlang-build direct call. NOT physical delete.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 CC="${CC:-cc}"
-# Match Makefile `CFLAGS ?= -Wall -Wextra -I. -Iinclude -Isrc`
+MAKE="${MAKE:-make}"
+MODE="${1:-}"
+
+# wave866 · B7B build-tool CFLAGS shell-load (G.7 有则补全 on wave862 export leaf).
+# Product CFLAGS need make expansion (OPT += -O2; clang silence ifeq).
+# Makefile build-tool recipe drops multi-token CFLAGS= env; shell loads when unset.
+# PLATFORM: SHARED — KEY=value from export target; no compile side effects.
+_load_try_heat_cflags_via_make() {
+  # PLATFORM: SHARED — heredoc not bash <<< so dash-friendly if ever invoked via sh.
+  local raw line
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-try-heat-cflags) || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      CFLAGS=*)
+        if [ -z "${CFLAGS+x}" ]; then
+          CFLAGS=${line#CFLAGS=}
+        fi
+        ;;
+    esac
+  done <<EOF
+$raw
+EOF
+  return 0
+}
+
+if [ -z "${CFLAGS+x}" ]; then
+  _load_try_heat_cflags_via_make || true
+fi
+# Fallback when make export unavailable (direct shell invoke without Makefile).
 CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
 
 log() { echo "build-tool: $*" >&2; }
+fail() { echo "build-tool: $*" >&2; exit 1; }
+
+# --check: structural honesty (no host-cc product link; dual-end L2 safe)
+if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
+  MF=Makefile
+  if [ ! -f "$MF" ]; then
+    fail "missing $MF"
+  fi
+  if ! grep -qE '^export-try-heat-cflags:' "$MF"; then
+    fail "Makefile must define export-try-heat-cflags (wave866)"
+  fi
+  # build-tool thin-call must not inject multi-token CFLAGS='$(CFLAGS)' / CFLAGS="$(CFLAGS)"
+  _rec=$(awk '
+    $0 ~ /^build-tool:/ {grab=1; next}
+    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+    grab {print}
+  ' "$MF")
+  if grep -qE "CFLAGS=['\"]\\\$\\(CFLAGS\\)['\"]" <<<"$_rec"; then
+    fail "build-tool must not export CFLAGS= (wave866; shell loads export-try-heat-cflags)"
+  fi
+  if ! grep -q 'export-try-heat-cflags\|wave866' "$0"; then
+    fail "build_tool.sh must shell-load export-try-heat-cflags (wave866)"
+  fi
+  # WIN32 residual: crt0_mingw must not inject WIN32_O_CFLAGS=
+  _win=$(awk '
+    $0 ~ /^src\/asm\/crt0_mingw\.o:/ {grab=1; next}
+    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+    grab {print}
+  ' "$MF")
+  if grep -qE 'WIN32_O_CFLAGS=' <<<"$_win"; then
+    fail "crt0_mingw must not inject WIN32_O_CFLAGS= (wave866; shell \${WIN32_O_CFLAGS:-})"
+  fi
+  echo "build_tool: CHECK OK (wave866 CFLAGS shell-load + WIN32_O drop; not physical delete)" >&2
+  exit 0
+fi
+
+if [ -n "$MODE" ] && [ "$MODE" != "build" ]; then
+  echo "usage: $0 [--check]" >&2
+  exit 2
+fi
 
 if [ "${XLANG_BUILD_TOOL_REGEN:-0}" = "1" ] && [ -x ./xlang ]; then
   log "regen build_gen + build_runtime_x_gen via ./xlang build -x -E"

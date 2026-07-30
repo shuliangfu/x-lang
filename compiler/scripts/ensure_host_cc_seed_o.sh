@@ -4998,8 +4998,9 @@ ensure_r2_crt0_one() {
       $CC -c -o "$o" "$src"
       ;;
     cc_inc_tu)
-      # PLATFORM: WINDOWS — same wrap as Makefile (WIN32_O_CFLAGS from env).
-      # wave795: Makefile mtime for WIN32_O_CFLAGS (force_thin_makefile_flags_newer).
+      # PLATFORM: WINDOWS — WIN32_O_CFLAGS from env when set by caller (wave866:
+      # Makefile drops WIN32_O_CFLAGS= inject; shell ${WIN32_O_CFLAGS:-} empty default).
+      # wave795: Makefile mtime for flag-sensitive rebuild (force_thin_makefile_flags_newer).
       if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$src" -nt "$o" ] \
         && ! force_thin_makefile_flags_newer "$o"; then
         log "skip $o (up-to-date vs $src)"
@@ -6368,7 +6369,19 @@ run_check() {
   else
     note "net_merge multi-source mtime present (wave796 FORCE thin)"
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat + CFLAGS shell-load wave862 + hdr/Makefile-flags + net multi-merge mtime · wave748–862)" >&2
+  # wave866: crt0_mingw must not inject multi-token WIN32_O_CFLAGS= (G.7 hygiene).
+  # Shell uses ${WIN32_O_CFLAGS:-}; no Makefile ?= composition for this bag.
+  _win_rec=$(awk '
+    $0 ~ /^src\/asm\/crt0_mingw\.o:/ {grab=1; next}
+    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+    grab {print}
+  ' Makefile 2>/dev/null || true)
+  if grep -qE 'WIN32_O_CFLAGS=' <<<"${_win_rec:-}"; then
+    bad "Makefile crt0_mingw still injects WIN32_O_CFLAGS= (wave866)"
+  else
+    note "Makefile crt0_mingw drops WIN32_O_CFLAGS inject (wave866)"
+  fi
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat + CFLAGS shell-load wave862 + WIN32_O drop wave866 + hdr/Makefile-flags + net multi-merge mtime · wave748–866)" >&2
 }
 
 # ---------------------------------------------------------------------------
