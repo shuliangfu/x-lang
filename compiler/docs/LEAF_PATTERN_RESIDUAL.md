@@ -17,6 +17,7 @@
 > - **wave847** · B7C xlang-no-c-frontend shell-primary (host-cc product link)
 > - **wave848** · B7C bootstrap-driver-seed-x-frontend shell-primary (host-cc experiment link)
 > - **wave849** · B7C relink-xlang-lexer shell-primary (host-cc product link + XLANG_C sync)
+> - **wave850** · B7B RELINK_PRODUCT_LINK bag → composites.mk (BTC/RXL product link inventory)
 > - **wave799** · execute-gate (hard refuse delete)
 > - **open** · thin edges + B2 + mk lists → tip Windows → dual L4 → explicit auth ship delete
 
@@ -2061,6 +2062,56 @@ ship delete body; mac-only wave green.
 **Forbidden:** claim bootstrap_xlangc FORCE thin = physical delete; re-list
 `bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
+
+## wave850 B7B RELINK_PRODUCT_LINK bag → composites.mk (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7B list residual — the **same**
+> product archaeology full host-cc link bag was inlined **3×** in Makefile
+> thin-call exports (`BTC_OBJS` typeck + codegen, `RXL_LINK_OBJS`
+> relink-xlang-lexer). That was dual (triple) inventory beside
+> `DRIVER_SEED_LINK_BASE` shape.
+>
+> New authority in `mk/driver_seed_composites.mk`:
+>   - `RELINK_PRODUCT_LINK_BASE` — LINK_BASE shape with
+>     `RELINK_XLANG_PIPELINE_LINK_O` (Darwin filtered) · fixed multi-token
+>     **COUNT=8**
+>   - `RELINK_PRODUCT_LINK_OBJS` — `GLUE_PREFIX` + BASE +
+>     `RELINK_XLANG_USER_ASM_LINK` + `RELINK_XLANG_GLUE_SUFFIX`
+>
+> Makefile consumers expand `$(RELINK_PRODUCT_LINK_OBJS)` only (no dual
+> inline bag). Catalog parses composites.mk (wave728/788) — no second list.
+> Residual after: thin edges + B2 + other mk lists. Dual-end L2 required.
+> Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_B7B_RELINK_PRODUCT_LINK=1
+    PHYS_DEL_B7B_RELINK_PRODUCT_LINK_WAVE=wave850
+    PHYS_DEL_B7B_RELINK_PRODUCT_LINK_COUNT=8
+    SWALLOWED_B7B_RELINK_PRODUCT_LINK=1
+    PHYS_DEL_PREFLIGHT_B7B_RELINK_PRODUCT_LINK=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2: leaf residual CHECK + make -n BTC/RXL expand bag + product
+    relink-xlang-lexer + rv42 (tip after product commit)
+  next: residual thin/B2/lists (XXL/BS/XNC bags or hybrid) or tip Windows
+    re-proof → ship delete body (explicit auth only; tip L4 wave840)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_RELINK_PRODUCT_LINK` | `1` |
+| `PHYS_DEL_B7B_RELINK_PRODUCT_LINK_COUNT` | `8` (fixed BASE path tokens) |
+| `SWALLOWED_B7B_RELINK_PRODUCT_LINK` | `1` |
+| `B7B_RELINK_PRODUCT_LINK_MK` | `mk/driver_seed_composites.mk` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | tree arm; delete deferred |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim product-link bag → mk = physical delete; dual inline
+`BTC_OBJS`/`RXL_LINK_OBJS` bag re-list in Makefile; second inventory in shell;
+mac-only wave green; `rm compiler/Makefile`; ship delete without explicit auth.
 
 ## wave849 relink-xlang-lexer shell-primary (2026-07-30)
 

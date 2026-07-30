@@ -1869,26 +1869,29 @@ codegen_x.o: FORCE scripts/migrate_x_objs.sh
 # 6.1：.x typeck 入口与 C AST 对接；force-regen typeck_gen → migrate typeck_x → relink TARGET。
 # wave785 B7c: typeck_x.o → migrate_x_objs (no dual $(CC) -c).
 # wave841: full body → scripts/bootstrap_typeck_codegen.sh (G.7 有则补全 ensure_migrate_gen
-#   FORCE_REGEN + migrate_x_objs; Makefile thin-call + expanded BTC_* link bag only).
+#   FORCE_REGEN + migrate_x_objs; Makefile thin-call only).
+# wave850 B7B: BTC_OBJS bag → mk/driver_seed_composites.mk RELINK_PRODUCT_LINK_OBJS
+#   (G.7 有则补全; no dual inline product link inventory in typeck/codegen/relink-lexer).
 # NOT physical delete — prereq make-graph + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns gen/migrate/link orchestration.
 bootstrap-typeck: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) scripts/bootstrap_typeck_codegen.sh
 	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" CC="$(CC)" \
 	  CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" \
 	  BTC_CFLAGS="$(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
-	  BTC_OBJS="$(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)" \
+	  BTC_OBJS="$(RELINK_PRODUCT_LINK_OBJS)" \
 	  bash scripts/bootstrap_typeck_codegen.sh typeck
 
 # 6.2：.x codegen 入口与 C AST 对接；force-regen typeck+codegen gen → migrate both → relink TARGET。
 # wave785 B7c: typeck/codegen .o → migrate_x_objs (no dual $(CC) -c).
 # wave841: full body → scripts/bootstrap_typeck_codegen.sh (G.7 有则补全; same shell as typeck).
+# wave850 B7B: BTC_OBJS → $(RELINK_PRODUCT_LINK_OBJS) (composites.mk; same bag as typeck/RXL).
 # NOT physical delete — prereq make-graph + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns gen/migrate/link orchestration.
 bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) scripts/bootstrap_typeck_codegen.sh
 	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" CC="$(CC)" \
 	  CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" \
 	  BTC_CFLAGS="$(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
-	  BTC_OBJS="$(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)" \
+	  BTC_OBJS="$(RELINK_PRODUCT_LINK_OBJS)" \
 	  bash scripts/bootstrap_typeck_codegen.sh codegen
 
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 XLANG_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
@@ -2334,6 +2337,8 @@ else
 # wave728: composites (DRIVER_SEED_OBJS / LINK_BASE / PREREQS) → mk only (G.7).
 # wave822 B7B: LEGACY_XLANG_C_* + RELINK_XLANG_PREREQS also live in composites.mk
 # (G.7 有则补全; Makefile include only — no dual inline re-list).
+# wave850 B7B: RELINK_PRODUCT_LINK_BASE/OBJS (product archaeology full link bag)
+# also live here — BTC_OBJS / RXL_LINK_OBJS consumers expand the var only.
 include mk/driver_seed_composites.mk
 
 # legacy xlang-c: list authority mk/driver_seed_composites.mk (wave822).
@@ -2666,15 +2671,16 @@ xlang_asm:
 	@echo "xlang_asm OK (via g05_prepare_and_relink.sh)"
 
 # wave849: full body → scripts/relink_xlang_lexer.sh (G.7 有则补全; shell owns seed
-#   gate + host-cc link + XLANG_C/bootstrap_xlangc sync). Lists stay mk expansion
-#   (composites / user_asm / link_picks / subcmd / PIPELINE_LIBS).
+#   gate + host-cc link + XLANG_C/bootstrap_xlangc sync).
+# wave850 B7B: RXL_LINK_OBJS → $(RELINK_PRODUCT_LINK_OBJS) (composites.mk; same bag
+#   as BTC_OBJS typeck/codegen — no dual inline product link inventory).
 # NOT physical delete — prereq make-graph (lexer_x.o / FILTERED / GLUE) + thin edges
 #   + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell owns preflight + link + product alias sync.
 relink-xlang-lexer: lexer_x.o $(RELINK_XLANG_FILTERED_OBJS) $(RELINK_XLANG_GLUE_SUFFIX) scripts/relink_xlang_lexer.sh
 	@CC="$(CC)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" BOOTSTRAP_XLANGC="bootstrap_xlangc" \
 	  RXL_LINK_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
-	  RXL_LINK_OBJS="$(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)" \
+	  RXL_LINK_OBJS="$(RELINK_PRODUCT_LINK_OBJS)" \
 	  RXL_REQUIRED_OBJS="build_asm/seed_host/asm_backend_partial.o driver_x.o pipeline_x.o parser_x.o typeck_x.o codegen_x.o" \
 	  bash scripts/relink_xlang_lexer.sh
 

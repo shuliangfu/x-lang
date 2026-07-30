@@ -78,6 +78,8 @@
 #            (G.7 有则补全 composites; fixed RELINK authority 14; NOT physical delete)
 #   wave824: B7B MAIN/LSP/PIPELINE_X_E_DIRS → mk/x_e_dirs.mk
 #            (-E module search roots; fixed dir-root authority 26; NOT physical delete)
+#   wave850: B7B RELINK_PRODUCT_LINK_OBJS → mk/driver_seed_composites.mk
+#            (product archaeology full link bag BTC/RXL; fixed BASE 8; NOT physical delete)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
 #   wave783: B5 cfg_eval multi-ladder → try-cfg-eval-ladder
@@ -911,6 +913,20 @@ SWALLOWED_B7B_E_DIRS_LIST=1
 B7B_E_DIRS_LIST_SWALLOWED=1
 B7B_E_DIRS_LIST_MK=mk/x_e_dirs.mk
 B7B_E_DIRS_LIST_WAVE=wave824
+# wave850: B7B product archaeology full link bag → mk/driver_seed_composites.mk (G.7).
+# RELINK_PRODUCT_LINK_BASE fixed multi-token authority COUNT=8 + RELINK_PRODUCT_LINK_OBJS
+# (GLUE_PREFIX + BASE + USER_ASM + GLUE_SUFFIX). Swallows 3-way dual inventory that
+# lived in Makefile BTC_OBJS (typeck/codegen) + RXL_LINK_OBJS (relink-xlang-lexer).
+# NOT physical delete — thin edges + B2 + other mk lists remain residual.
+PHYS_DEL_B7B_RELINK_PRODUCT_LINK=1
+PHYS_DEL_B7B_RELINK_PRODUCT_LINK_WAVE=wave850
+PHYS_DEL_B7B_RELINK_PRODUCT_LINK_COUNT=8
+PHYS_DEL_B7B_RELINK_PRODUCT_LINK_VIA=mk_driver_seed_composites
+PHYS_DEL_B7B_RELINK_PRODUCT_LINK_NOTE=list_authority_mk_include_only_thin_edges_remain
+SWALLOWED_B7B_RELINK_PRODUCT_LINK=1
+B7B_RELINK_PRODUCT_LINK_SWALLOWED=1
+B7B_RELINK_PRODUCT_LINK_MK=mk/driver_seed_composites.mk
+B7B_RELINK_PRODUCT_LINK_WAVE=wave850
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -1106,8 +1122,9 @@ PHYS_DEL_PREFLIGHT_B7B_ARCH_EXPERIMENT_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_E_DIRS_LIST=1
+PHYS_DEL_PREFLIGHT_B7B_RELINK_PRODUCT_LINK=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1809,6 +1826,9 @@ else
   fi
   if ! grep -qE 'wave824|E_DIRS|x_e_dirs|MAIN_X_E_DIRS|LSP_X_E_DIRS|PIPELINE_X_E_DIRS' "$DOC_REL"; then
     bad "$DOC_REL must document wave824 B7B E_DIRS list → mk"
+  fi
+  if ! grep -qE 'wave850|RELINK_PRODUCT_LINK|product link bag' "$DOC_REL"; then
+    bad "$DOC_REL must document wave850 B7B RELINK_PRODUCT_LINK bag → mk"
   fi
   note "doc $DOC_REL present"
 fi
@@ -2820,6 +2840,22 @@ if ! grep -q 'SWALLOWED_B7B_E_DIRS_LIST=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_E_DIRS_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B7B_E_DIRS_LIST=1 (wave824)"
+fi
+# wave850: B7B RELINK_PRODUCT_LINK bag authority
+if ! grep -q 'PHYS_DEL_B7B_RELINK_PRODUCT_LINK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_RELINK_PRODUCT_LINK=1 (wave850)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_RELINK_PRODUCT_LINK_WAVE=wave850' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_RELINK_PRODUCT_LINK_WAVE=wave850"
+fi
+if ! grep -q 'PHYS_DEL_B7B_RELINK_PRODUCT_LINK_COUNT=8' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_RELINK_PRODUCT_LINK_COUNT=8 (wave850)"
+fi
+if ! grep -q 'SWALLOWED_B7B_RELINK_PRODUCT_LINK=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_RELINK_PRODUCT_LINK=1 (wave850)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_RELINK_PRODUCT_LINK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_RELINK_PRODUCT_LINK=1 (wave850)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
@@ -4494,6 +4530,56 @@ if grep -nE "printf '%s' '-L \.\. -L src/lsp" "$_dl" 2>/dev/null | grep -q 'src/
   bad "driver_leaf_x_to_o.sh must not hardcode LSP_X_E_DIRS string (wave824 dual authority)"
 fi
 note "B7B E_DIRS list authority in mk (fixed dir-roots 26; wave824; not physical delete)"
+
+# wave850: B7B product archaeology full link bag in composites.mk; Makefile expand only.
+_COMP_MK="compiler/mk/driver_seed_composites.mk"
+if [ ! -f "$_COMP_MK" ]; then
+  bad "missing $_COMP_MK (wave850 B7B RELINK_PRODUCT_LINK authority)"
+fi
+if ! grep -qE '^RELINK_PRODUCT_LINK_BASE\s*=' "$_COMP_MK"; then
+  bad "$_COMP_MK must define RELINK_PRODUCT_LINK_BASE (wave850)"
+fi
+if ! grep -qE '^RELINK_PRODUCT_LINK_OBJS\s*=' "$_COMP_MK"; then
+  bad "$_COMP_MK must define RELINK_PRODUCT_LINK_OBJS (wave850)"
+fi
+# Fixed RELINK_PRODUCT_LINK_BASE multi-token authority COUNT=8 (non-$(...) tokens).
+_rpl_n=$(awk '
+  /^RELINK_PRODUCT_LINK_BASE[[:space:]]*=/ { grab=1 }
+  grab {
+    line=$0
+    sub(/^[^=]*=[[:space:]]*/, "", line)
+    gsub(/\\/, "", line)
+    n=split(line, a, /[[:space:]]+/)
+    for (i=1;i<=n;i++) {
+      if (a[i] == "") continue
+      if (a[i] ~ /^\$\(/) continue
+      c++
+    }
+    if ($0 !~ /\\[[:space:]]*$/) { print c+0; exit }
+  }
+' "$_COMP_MK")
+if [ "${_rpl_n:-0}" -ne 8 ]; then
+  bad "wave850 expected RELINK_PRODUCT_LINK_BASE fixed multi-token count 8 in mk, got ${_rpl_n:-0}"
+fi
+# Forbid dual authority: inline re-list of product link bag in Makefile recipes.
+if grep -nE 'BTC_OBJS="\$\(DRIVER_SEED_GLUE_PREFIX\)|RXL_LINK_OBJS="\$\(DRIVER_SEED_GLUE_PREFIX\)' "$MF" 2>/dev/null | grep -qE 'driver_x\.o|lsp_io_std_heap'; then
+  bad "Makefile must not re-list product link bag inline in BTC/RXL (wave850 dual authority)"
+else
+  note "Makefile BTC/RXL use \$(RELINK_PRODUCT_LINK_OBJS) (wave850)"
+fi
+if ! grep -qE 'BTC_OBJS="\$\(RELINK_PRODUCT_LINK_OBJS\)"' "$MF"; then
+  bad "Makefile bootstrap-typeck/codegen must expand BTC_OBJS=\$(RELINK_PRODUCT_LINK_OBJS) (wave850)"
+fi
+if ! grep -qE 'RXL_LINK_OBJS="\$\(RELINK_PRODUCT_LINK_OBJS\)"' "$MF"; then
+  bad "Makefile relink-xlang-lexer must expand RXL_LINK_OBJS=\$(RELINK_PRODUCT_LINK_OBJS) (wave850)"
+fi
+# Consumers still expand the composite var (3 sites: typeck + codegen + relink-lexer).
+_rpl_consumers=$(grep -cE '\$\(RELINK_PRODUCT_LINK_OBJS\)' "$MF" || true)
+if [ "${_rpl_consumers:-0}" -lt 3 ]; then
+  bad "Makefile must consume \$(RELINK_PRODUCT_LINK_OBJS) at least 3 times (wave850; got ${_rpl_consumers:-0})"
+fi
+note "B7B RELINK_PRODUCT_LINK authority in composites.mk (BASE fixed 8; wave850; not physical delete)"
+
 
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \

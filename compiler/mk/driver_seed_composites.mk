@@ -20,6 +20,12 @@
 # (list residual of b7b_lists_in_mk). NOT physical delete — thin edges + other
 # mk lists + std_core product make graph still residual.
 #
+# wave850: RELINK_PRODUCT_LINK_BASE/OBJS — product archaeology full link bag
+# (bootstrap-typeck|codegen BTC_OBJS + relink-xlang-lexer RXL_LINK_OBJS were
+# the same 3-way dual inventory in Makefile thin-call exports). G.7 有则补全
+# into this file; Makefile consumers expand $(RELINK_PRODUCT_LINK_OBJS) only.
+# NOT physical delete — thin edges + B2 + other mk lists remain residual.
+#
 # PLATFORM: SHARED — composite paths under compiler/; host-filtered pieces
 # come from already-resolved vars (Darwin filtered pipeline, etc.).
 
@@ -60,3 +66,15 @@ RELINK_XLANG_PREREQS = build-seed-asm-host $(RELINK_XLANG_FILTERED_OBJS) $(USER_
   $(DRIVER_SUBCMD_OBJS) \
   $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o \
   src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o
+
+# wave850 B7B: product archaeology full host-cc link bag (G.7 有则补全).
+# Mirrors DRIVER_SEED_LINK_BASE shape but uses RELINK_XLANG_PIPELINE_LINK_O
+# (Darwin filtered pipeline) + glue prefix/suffix + RELINK user-asm link.
+# Fixed multi-token authority COUNT=8 on LINK_BASE (non-$(...) path tokens):
+#   driver_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o
+#   src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o
+#   lsp_io_std_heap_x.o
+# Consumers: BTC_OBJS (typeck/codegen) + RXL_LINK_OBJS (relink-xlang-lexer).
+# PLATFORM: SHARED — pipeline pick from user_asm_seed_objs.mk (Darwin filtered).
+RELINK_PRODUCT_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
+RELINK_PRODUCT_LINK_OBJS = $(DRIVER_SEED_GLUE_PREFIX) $(RELINK_PRODUCT_LINK_BASE) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)
