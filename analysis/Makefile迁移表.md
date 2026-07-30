@@ -686,6 +686,10 @@
 
 - **wave885** · B7B residual `G05_SYNC_ASM=` inject hygiene：2 叶（`relink-xlang` → `--no-sync`；`xlang_asm` bare default sync）。shell CLI/env 权威；drop recipe `G05_SYNC_ASM=0/1`。**非**物理删。
 
+## wave886 residual note
+
+- **wave886** · B7B residual LD + pipeline bag inject hygiene：2 叶（`cfg_eval.o` 去 `LD=`/`LD_RELFLAGS=`；`pipeline_x.o` 去 `PIPELINE_X_DEPS`/`PIPELINE_X_FORCE_COMPILE`/`XLANG_FORCE_REGEN_GEN`）。shell LD defaults + `ensure_gen_x_o` mk-load DEPS。**非**物理删。
+
 ## wave883 residual note
 
 - **wave883** · B7B residual single-token `MAKE=` inject hygiene：24 叶（archaeology 4 + driver_leaf 8 + rebuild_leaves 7 + host_stubs 2 + phase1-link 1 pure drop；bstrict/refresh multi 去 MAKE=）。shell `MAKE:-make` + GNU make auto-export；keep ENSURE_SEED/NO_REPLACE。**非**物理删。
