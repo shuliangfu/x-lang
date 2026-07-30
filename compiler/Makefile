@@ -304,13 +304,13 @@ net-o-mbedtls: scripts/archaeology_host_pick_phony.sh
 
 # std.async：F-async v2 纯 .x（F-ZC）；调度胶层在 runtime_scheduler_glue.o；Unix 按需 -pthread。
 ../std/async/scheduler.o: ../std/async/scheduler.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/async/scheduler.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # std.async：F-async-future v2 纯 .x → future.o（同 hash/cache）。
 ../std/async/future.o: ../std/async/future.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/async/future.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # std.time：F 闭合 — mod.x 内联派生函数（now_monotonic_us/sleep_ms/duration_ns 等），
 # 仅 5 个基础 OS extern 由 runtime_time_os.o 提供。无需 time.x / time_import_alias.c。
@@ -389,13 +389,13 @@ net-o-mbedtls: scripts/archaeology_host_pick_phony.sh
 
 # std.channel：F-channel v2 纯 .x（F-ZC）；channel 胶层在 runtime_channel_glue.o；Unix 需 -lpthread。
 ../std/channel/channel.o: ../std/channel/channel.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/channel/channel.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # std.backtrace：F-backtrace v2 纯 .x（F-ZC）；平台胶层在 runtime_backtrace_platform.o。
 ../std/backtrace/backtrace.o: ../std/backtrace/backtrace.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/backtrace/backtrace.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # std.hash：F 闭合 — mod.x（用户 API）+ hash.x（impl 裸符号）用 -E-extern 编译。
 ../std/hash/hash.o: ../std/hash/mod.x ../std/hash/hash.x | scripts/xlang_compile_std_module.sh
@@ -440,68 +440,68 @@ net-o-mbedtls: scripts/archaeology_host_pick_phony.sh
 
 # std.datetime：F-datetime v2 + F-ZC 纯 datetime.x → datetime.o（无 glue；无 xlang 时 exit 0）。
 ../std/datetime/datetime.o: ../std/datetime/datetime.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/datetime/datetime.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # std.uuid：F-uuid v1 纯 .x（uuid.x）；依赖 random.o + time.o。
 ../std/uuid/uuid.o: ../std/uuid/uuid.x ../std/random/random.o ../std/time/time.o | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto ../std/uuid/uuid.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # std.url：F-url v2 + F-ZC 纯 url.x → url.o（无 glue；无 xlang 时 exit 0）。
 ../std/url/url.o: ../std/url/url.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/url/url.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # std.cli：命令行解析（std/cli/cli.c）。
 # std.cli：F-cli v1 纯 .x（cli.x）；零胶层 C。
 ../std/cli/cli.o: ../std/cli/cli.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto ../std/cli/cli.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.security：F-security v1 + F-ZC 纯 security.x → security.o（无 glue；无 xlang 时 exit 0）。
 ../std/security/security.o: ../std/security/security.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/security/security.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.config：F-config v2 + F-ZC 纯 config.x → config.o（无 glue；无 xlang 时 exit 0）。
 ../std/config/config.o: ../std/config/config.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/config/config.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # std.cache：F-cache v2 纯 .x（cache.x）；零胶层 C。
 ../std/cache/cache.o: ../std/cache/cache.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto ../std/cache/cache.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # std.trace：F-trace v2 纯 trace.x → trace.o（无 glue；无 xlang 时 exit 0）。
 ../std/trace/trace.o: ../std/trace/trace.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/trace/trace.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.task：F-task v2 纯 .x → task.o（同 trace/cache v2）。
 ../std/task/task.o: ../std/task/task.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/task/task.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.schema：F-schema v2 纯 .x → schema.o（同 cache/encoding）。
 ../std/schema/schema.o: ../std/schema/schema.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto ../std/schema/schema.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # std.db.kv：F-05 v2 纯 .x（F-ZC）；mmap 胶层在 runtime_kv_mmap_glue.o。
 ../std/db/kv/kv.o: ../std/db/kv/kv.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/db/kv/kv.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # std.db.arrow：F-05 v1 纯 .x（F-ZC）；SIMD 胶层在 runtime_arrow_simd_glue.o。
 ../std/db/arrow/arrow.o: ../std/db/arrow/arrow.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/db/arrow/arrow.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # std.sys.mmap：F-02 v1 Linux/macOS 纯 .x（已移除 mmap.inc.c）
 # std.sys.win32：F-02 v2 纯 .x kernel32 FFI（已移除 win32.inc.c / win32_net.inc.c）
@@ -522,8 +522,8 @@ endif
 
 # std.db.sqlite：F-05 v3 纯 .x（F-ZC）；sqlite3 胶层在 runtime_sqlite_glue.o。
 ../std/db/sqlite/sqlite.o: ../std/db/sqlite/sqlite.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/db/sqlite/sqlite.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 sqlite-o: ../std/db/sqlite/sqlite.o runtime_sqlite_glue.o
 # wave815: archaeology host-pick phony → shell catalog (G.7; not physical delete).
 sqlite-o-stub: scripts/archaeology_host_pick_phony.sh
@@ -532,8 +532,8 @@ sqlite-o-stub: scripts/archaeology_host_pick_phony.sh
 
 # std.elf：F-elf v2 + F-ZC 纯 elf.x → elf.o（无 glue；无 xlang 时 exit 0）。
 ../std/elf/elf.o: ../std/elf/elf.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/elf/elf.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 # P4 std 模块（按需链接）
 # std.json：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + json）。
@@ -546,15 +546,15 @@ sqlite-o-stub: scripts/archaeology_host_pick_phony.sh
 	@sh scripts/xlang_compile_std_module.sh ensure $@
 # std.regex：F-regex v2 纯 .x → regex.o（同 hash/schema）。
 ../std/regex/regex.o: ../std/regex/regex.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/regex/regex.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 # F-04 v7：std.compress 全格式已迁 .x；compress.o 不再构建，保留 target 名兼容门禁。
 compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brotli:
 	@true
 # std.unicode：F-unicode v2 纯 .x → unicode.o（同 hash/schema）。
 ../std/unicode/unicode.o: ../std/unicode/unicode.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/unicode/unicode.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 # std.dynlib：F 闭合 — mod.x（用户 API）+ dynlib.x（impl 裸符号）用 -E-extern 编译；
 # dlopen 胶层在 runtime_dynlib_os.o，最终 exe 链接时按需推入。
 ../std/dynlib/dynlib.o: ../std/dynlib/mod.x ../std/dynlib/dynlib.x | scripts/xlang_compile_std_module.sh
@@ -568,8 +568,8 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 
 # std.socketio：F-socketio v2 纯 socketio.x；ld -r 合并为 socketio.o（P3 可选）。
 ../std/socketio/socketio.o: ../std/socketio/socketio.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft-merge (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft-merge ../std/socketio/socketio.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 # std.tar：F-tar v2 纯 tar.x；import binding 别名桩 tar_import_alias.c。
 # std.tar：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + tar）。
 ../std/tar/tar.o: ../std/tar/mod.x ../std/tar/tar.x | scripts/xlang_compile_std_module.sh
@@ -577,8 +577,8 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 	@sh scripts/xlang_compile_std_module.sh ensure $@
 # std.simd：F-simd v1 + F-ZC 纯 simd.x → simd.o（无 glue；无 xlang 时 exit 0）。
 ../std/simd/simd.o: ../std/simd/simd.x | scripts/xlang_compile_std_x.sh
-# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/simd/simd.x $@
+# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
+	@sh scripts/xlang_compile_std_x.sh ensure $@
 
 
 # 测试与 xlang 链接 std 时依赖的 .o：所有 std 模块 + runtime_panic.o；Linux 另预编 freestanding 链入桩
