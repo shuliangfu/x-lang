@@ -347,7 +347,7 @@
 
 | 行 | Makefile 目标 | 迁移状态 |
 |----|---------------|----------|
-| 1160 | `runtime_panic.o` | ⬜ |
+| 1160 | `runtime_panic.o` | 🟡 wave915 multi-target try-heat |
 | 1204 | `runtime_asm_io_stubs.o` | ⬜ |
 | 1210 | `runtime_test_fn_invoke.o` | ⬜ |
 | 1223 | `runtime_random_fill.o` | ⬜ |
