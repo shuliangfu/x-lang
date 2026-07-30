@@ -62,7 +62,8 @@
 > - **wave891** · B7B residual non-thin HOST_CC + SKIP_SUBSCRIPT body hygiene (2 sites → HOST_CC_OBJS_CORE bare `$(CC)` → `host_cc_objs_core_link.sh`; SKIP_SUBSCRIPT nested `$(MAKE)` → `bootstrap_driver_seed.sh` soft-skip)
 > - **wave892** · B7B residual terminal `@echo` + last multi-token `-I` form hygiene (13 sites → dual `@echo` drop 3 · pure `@echo`→`@true` 9 · last `cc_inc_tu` `-I` drop 1)
 > - **wave893** · B7B residual verify-selfhost thin-call form hygiene (2 sites → body under `scripts/` · pure `@bash scripts/…` · root shim for CI/tests)
-> - **open** · thin edges + B2 + mk lists (hybrid) · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave894** · B7B formal_mod product edges list→mk + multi-target FORCE thin ensure (38 leaves → `mk/formal_mod_product_objs.mk` + `$(FORMAL_MOD_PRODUCT_OBJS)` ensure)
+> - **open** · thin edges + B2 + remaining mk lists / std_x product graph (hybrid) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete

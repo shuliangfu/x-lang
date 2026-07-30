@@ -212,7 +212,8 @@
 #            drop dual @echo after thin-call (3); pure @echo alias → @true (9);
 #            last cc_inc_tu multi-token -I. -Iinclude -Isrc drop (1; shell default);
 #            NOT physical delete — thin edges + B2 + mk lists remain
-#   wave893: B7B residual verify-selfhost thin-call form hygiene (2 sites) →
+#   wave894: formal_mod product edges list→mk + multi-target FORCE thin (38)
+#            wave893: B7B residual verify-selfhost thin-call form hygiene (2 sites) →
 #            body → scripts/verify-selfhost-stage2{,-bstrict}.sh; Makefile pure
 #            @bash scripts/… (drop @bash ./); root shim for CI/tests path compat;
 #            NOT physical delete — thin edges + B2 + mk lists remain
@@ -602,6 +603,14 @@ FORMAL_MOD_CATALOG_WAVE=wave812
 PHYS_DEL_FORMAL_MOD_FORCE_THIN=1
 PHYS_DEL_FORMAL_MOD_FORCE_THIN_WAVE=wave826
 PHYS_DEL_FORMAL_MOD_FORCE_THIN_COUNT=38
+PHYS_DEL_FORMAL_MOD_LIST_MK=1
+PHYS_DEL_FORMAL_MOD_LIST_MK_WAVE=wave894
+PHYS_DEL_FORMAL_MOD_LIST_MK_COUNT=38
+PHYS_DEL_FORMAL_MOD_LIST_MK_VIA=mk_formal_mod_product_objs_multi_target_thin
+PHYS_DEL_FORMAL_MOD_LIST_MK_NOTE=list_to_mk_multi_target_force_thin_edges_remain
+SWALLOWED_FORMAL_MOD_LIST_MK=1
+FORMAL_MOD_LIST_MK_SWALLOWED=1
+FORMAL_MOD_LIST_MK_WAVE=wave894
 PHYS_DEL_FORMAL_MOD_FORCE_THIN_VIA=xlang_compile_std_module_ensure_mtime
 PHYS_DEL_FORMAL_MOD_FORCE_THIN_NOTE=force_prereq_shell_owns_source_mtime_edges_remain
 SWALLOWED_FORMAL_MOD_FORCE_THIN=1
@@ -4503,7 +4512,7 @@ else
   note "Makefile product std_x leaves free of host-pick if-ladder (wave811)"
 fi
 
-# wave812: formal_mod shell-primary — ensure thin on 38 leaves + script catalog/--check.
+# wave812 + wave826 + wave894: formal_mod shell catalog + FORCE thin + list→mk multi-target.
 if [ ! -f "$ROOT/compiler/scripts/xlang_compile_std_module.sh" ] && [ ! -f "scripts/xlang_compile_std_module.sh" ]; then
   bad "missing xlang_compile_std_module.sh (wave812 formal_mod authority)"
 fi
@@ -4518,7 +4527,38 @@ fi
 if ! grep -q 'formal_mod_check' "$_fm_sh"; then
   bad "xlang_compile_std_module.sh must support --check (wave812)"
 fi
-_fm_thin=0
+# wave894: make-graph inventory in mk; multi-target FORCE thin ensure.
+_FM_MK="compiler/mk/formal_mod_product_objs.mk"
+[ -f "$_FM_MK" ] || _FM_MK="mk/formal_mod_product_objs.mk"
+if [ ! -f "$_FM_MK" ]; then
+  bad "missing $_FM_MK (wave894 formal_mod product edges list→mk)"
+fi
+if ! grep -qE '^FORMAL_MOD_PRODUCT_OBJS\s*=' "$_FM_MK"; then
+  bad "$_FM_MK must define FORMAL_MOD_PRODUCT_OBJS (wave894)"
+fi
+_fm_list_n=$(
+  # shellcheck disable=SC2016
+  tr ' \t\\\n' ' ' < "$_FM_MK" | tr -s ' ' '\n' | grep -cE '\.\./(std|core)/.+\.o' || true
+)
+if [ "${_fm_list_n:-0}" -ne 38 ]; then
+  bad "wave894 expected 38 FORMAL_MOD_PRODUCT_OBJS members, got ${_fm_list_n:-0}"
+fi
+if ! grep -q 'include mk/formal_mod_product_objs.mk' "$MF"; then
+  bad "Makefile must include mk/formal_mod_product_objs.mk (wave894)"
+fi
+if ! grep -qE '\$\(FORMAL_MOD_PRODUCT_OBJS\):[[:space:]]*FORCE' "$MF"; then
+  bad "Makefile must multi-target \$(FORMAL_MOD_PRODUCT_OBJS): FORCE (wave894)"
+fi
+if ! awk '
+  /\$\(FORMAL_MOD_PRODUCT_OBJS\):/ { hit=1; next }
+  hit && /^[^#[:space:]\t]/ { exit 1 }
+  hit && /xlang_compile_std_module\.sh/ && /ensure|auto/ { found=1; exit 0 }
+  END { exit found ? 0 : 1 }
+' "$MF"; then
+  bad "Makefile FORMAL_MOD_PRODUCT_OBJS multi-target must thin-call ensure|auto (wave894)"
+fi
+# Per-leaf individual formal_mod rules retired (must not reappear as dual authority).
+_fm_indiv=0
 for _fm in \
   string/string heap/heap heap/page_mmap sys/sys sys/linux \
   map/map set/set vec/vec thread/thread time/time random/random env/env \
@@ -4526,33 +4566,18 @@ for _fm in \
   log/log test/test atomic/atomic hash/hash math/math sort/sort ffi/ffi \
   context/context error/error json/json csv/csv dynlib/dynlib http/http tar/tar
 do
-  if awk -v tgt="../std/${_fm}.o" '
-    $0 ~ ("^" tgt ":") { hit=1; next }
-    hit && /^[^#[:space:]]/ { exit 1 }
-    hit && /xlang_compile_std_module\.sh/ && /ensure|auto/ { found=1; exit 0 }
-    END { exit found ? 0 : 1 }
-  ' "$MF" 2>/dev/null; then
-    _fm_thin=$((_fm_thin + 1))
-  else
-    bad "Makefile ../std/${_fm}.o must thin-call xlang_compile_std_module ensure|auto (wave812)"
+  if grep -qE "^\\.\\./std/${_fm}\\.o:" "$MF" 2>/dev/null; then
+    _fm_indiv=$((_fm_indiv + 1))
   fi
 done
 for _fm in mem/mem types/types option/option result/result debug/debug slice/mod; do
-  if awk -v tgt="../core/${_fm}.o" '
-    $0 ~ ("^" tgt ":") { hit=1; next }
-    hit && /^[^#[:space:]]/ { exit 1 }
-    hit && /xlang_compile_std_module\.sh/ && /ensure|auto/ { found=1; exit 0 }
-    END { exit found ? 0 : 1 }
-  ' "$MF" 2>/dev/null; then
-    _fm_thin=$((_fm_thin + 1))
-  else
-    bad "Makefile ../core/${_fm}.o must thin-call xlang_compile_std_module ensure|auto (wave812)"
+  if grep -qE "^\\.\\./core/${_fm}\\.o:" "$MF" 2>/dev/null; then
+    _fm_indiv=$((_fm_indiv + 1))
   fi
 done
-if [ "$_fm_thin" -ne 38 ]; then
-  bad "wave812 expected 38 formal_mod ensure leaves, got $_fm_thin"
+if [ "$_fm_indiv" -ne 0 ]; then
+  bad "Makefile still has $_fm_indiv per-leaf formal_mod targets (wave894 multi-target only)"
 fi
-note "Makefile formal_mod 38 leaves thin-call ensure (wave812; not physical delete)"
 # no residual explicit source lists after ensure in formal recipe bodies
 if grep -nE '^\t@(bash|sh) scripts/xlang_compile_std_module\.sh (--bare-impl )?[.]{0,2}/' "$MF" 2>/dev/null \
   | grep -v ensure | grep -v auto | head -1 | grep -q .; then
@@ -4560,49 +4585,21 @@ if grep -nE '^\t@(bash|sh) scripts/xlang_compile_std_module\.sh (--bare-impl )?[
 else
   note "Makefile formal_mod free of explicit-source std_module recipe args (wave812)"
 fi
-# wave826: formal_mod FORCE dep-thin — target line FORCE only (no dual .x prereqs).
-_fm_force=0
-for _fm in \
-  string/string heap/heap heap/page_mmap sys/sys sys/linux \
-  map/map set/set vec/vec thread/thread time/time random/random env/env \
-  fs/fs sync/sync queue/queue encoding/encoding base64/base64 crypto/crypto \
-  log/log test/test atomic/atomic hash/hash math/math sort/sort ffi/ffi \
-  context/context error/error json/json csv/csv dynlib/dynlib http/http tar/tar
-do
-  if awk -v tgt="../std/${_fm}.o" '
-    $0 ~ ("^" tgt ":") {
-      if ($0 ~ /FORCE/ && $0 !~ /\.x([[:space:]]|$)/) { ok=1; exit 0 }
-      exit 1
-    }
-    END { exit ok ? 0 : 1 }
-  ' "$MF" 2>/dev/null; then
-    _fm_force=$((_fm_force + 1))
-  else
-    bad "Makefile ../std/${_fm}.o must FORCE dep-thin (no .x prereqs; wave826)"
-  fi
-done
-for _fm in mem/mem types/types option/option result/result debug/debug slice/mod; do
-  if awk -v tgt="../core/${_fm}.o" '
-    $0 ~ ("^" tgt ":") {
-      if ($0 ~ /FORCE/ && $0 !~ /\.x([[:space:]]|$)/) { ok=1; exit 0 }
-      exit 1
-    }
-    END { exit ok ? 0 : 1 }
-  ' "$MF" 2>/dev/null; then
-    _fm_force=$((_fm_force + 1))
-  else
-    bad "Makefile ../core/${_fm}.o must FORCE dep-thin (no .x prereqs; wave826)"
-  fi
-done
-if [ "$_fm_force" -ne 38 ]; then
-  bad "wave826 expected 38 formal_mod FORCE thin leaves, got $_fm_force"
-fi
-note "Makefile formal_mod 38 leaves FORCE dep-thin (wave826; not physical delete)"
+note "Makefile formal_mod multi-target FORCE thin ensure + mk list 38 (wave812/826/894; not physical delete)"
 if ! grep -q 'FORCE-thin mtime\|skip up-to-date' "$_fm_sh"; then
   bad "xlang_compile_std_module.sh must own FORCE-thin mtime skip (wave826)"
 else
   note "formal_mod ensure owns source mtime skip (wave826)"
 fi
+# formal_mod --check expects cwd=compiler/ (catalog sources use ../std/.. paths).
+_fm_cwd="$ROOT/compiler"
+[ -d "$_fm_cwd" ] || _fm_cwd="."
+if ! ( cd "$_fm_cwd" && bash scripts/xlang_compile_std_module.sh --check >/dev/null 2>&1 ); then
+  bad "xlang_compile_std_module.sh --check failed (wave812/894 catalog+mk thin)"
+else
+  note "xlang_compile_std_module.sh --check OK (wave894 formal_mod list→mk)"
+fi
+
 # wave813: B7B STD_AND_PANIC_O list authority in mk; Makefile include only.
 _SAP_MK="compiler/mk/std_and_panic_objs.mk"
 if [ ! -f "$_SAP_MK" ]; then

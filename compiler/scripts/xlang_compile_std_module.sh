@@ -25,6 +25,8 @@
 # wave826 (G.7 有则补全): FORCE dep-thin — Makefile prereqs are FORCE + script only;
 # shell owns catalog source mtime (skip up-to-date). NOT physical delete; thin edges
 # + B2 try-heat + mk lists still form std_core_product_make_graph residual.
+# wave894 (G.7 有则补全): make-graph inventory → mk/formal_mod_product_objs.mk;
+# Makefile multi-target $(FORMAL_MOD_PRODUCT_OBJS) FORCE thin ensure only.
 #
 # 约定：mod.x 编译为带前缀符号（std_<module>_*）。
 #   --bare-impl：非 mod.x 文件用 -lib-name ""（裸符号）；否则用路径提取前缀。
@@ -227,12 +229,15 @@ formal_mod_check() {
     fi
     _tgt="$(formal_mod_out_for_key "$_k")"
     # Makefile thin-call: ensure|auto only (wave812); FORCE dep-thin (wave826).
-    # Target line must list FORCE (shell owns catalog source mtime); no dual .x prereqs.
+    # wave894: multi-target $(FORMAL_MOD_PRODUCT_OBJS) + mk list (no per-leaf target line).
+    # Accept A) legacy per-leaf `^OUT:` FORCE+ensure, or B) OUT in mk list + multi-target rule.
     if [ -f "$_mk" ]; then
-      if ! awk -v tgt="$_tgt" '
+      _fm_mk="$_here/../mk/formal_mod_product_objs.mk"
+      [ -f "$_fm_mk" ] || _fm_mk="$_here/mk/formal_mod_product_objs.mk"
+      _ok_leaf=0
+      if awk -v tgt="$_tgt" '
         $0 ~ ("^" tgt ":") {
           line=$0
-          # wave826: FORCE required (dep-thin); ban dual catalog .x on prereq line.
           if (line !~ /FORCE/) { exit 1 }
           if (line ~ /\.x([[:space:]]|$)/) { exit 1 }
           hit=1; next
@@ -242,12 +247,24 @@ formal_mod_check() {
           if ($0 ~ /ensure|auto/) { found=1; exit 0 }
         }
         hit && /xlang_compile_std_fs_formal\.sh/ {
-          # fs may still call formal script directly OR ensure dispatch
           if (tgt ~ /fs\/fs\.o/) { found=1; exit 0 }
         }
         END { exit found ? 0 : 1 }
-      ' "$_mk"; then
-        echo "formal_mod --check: Makefile $_tgt must FORCE + ensure|auto (wave826 FORCE thin)" >&2
+      ' "$_mk" 2>/dev/null; then
+        _ok_leaf=1
+      elif [ -f "$_fm_mk" ] \
+        && grep -qF "$_tgt" "$_fm_mk" \
+        && grep -qE '\$\(FORMAL_MOD_PRODUCT_OBJS\):[[:space:]]*FORCE' "$_mk" \
+        && awk '
+          /\$\(FORMAL_MOD_PRODUCT_OBJS\):/ { hit=1; next }
+          hit && /^[^#[:space:]\t]/ { exit 1 }
+          hit && /xlang_compile_std_module\.sh/ && /ensure|auto/ { found=1; exit 0 }
+          END { exit found ? 0 : 1 }
+        ' "$_mk"; then
+        _ok_leaf=1
+      fi
+      if [ "$_ok_leaf" -ne 1 ]; then
+        echo "formal_mod --check: Makefile/mk $_tgt must FORCE + ensure|auto (wave826/wave894)" >&2
         _bad=1
       fi
     fi
@@ -299,7 +316,7 @@ KEYS
     echo "formal_mod --check: FAIL" >&2
     return 1
   fi
-  echo "formal_mod --check: OK (38 leaves; catalog + Makefile FORCE+ensure thin wave826; not physical delete)"
+  echo "formal_mod --check: OK (38 leaves; catalog + mk list + multi-target FORCE+ensure wave894; not physical delete)"
   return 0
 }
 
