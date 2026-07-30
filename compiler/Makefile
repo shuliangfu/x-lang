@@ -963,15 +963,19 @@ bootstrap-parse-file: $(TARGET) $(STD_AND_PANIC_O) bootstrap-parser scripts/boot
 # Command-line overrides still flow via make recipe env. Thin @bash only.
 parser_gen.c: FORCE scripts/ensure_migrate_gen.sh
 	@bash scripts/ensure_migrate_gen.sh parser
-# wave735: G.7 body → scripts/migrate_x_objs.sh (parser leaf)
+# wave735/919: G.7 body → scripts/migrate_x_objs.sh (parser/typeck/codegen leaves).
 # wave832: FORCE dep-thin — shell owns gen.c mtime (migrate need_rebuild; not physical delete).
+# wave919: 3 per-leaf recipes → 1 multi-target $(MIGRATE_X_OBJS) from
+# mk/driver_seed_r_lists.mk (G.7 single authority; export_lists never re-assigns).
+# Body = @bash scripts/migrate_x_objs.sh $@ — script case accepts <name>_x.o as
+# MODE, so $@ passes parser_x.o / typeck_x.o / codegen_x.o directly (no --auto).
 # PLATFORM: SHARED — FORCE always invokes migrate (cheap mtime skip).
 # wave865 B7B: drop multi-token CFLAGS inject (G.7 hygiene).
 # migrate_x_objs shell-loads export-try-heat-cflags when CFLAGS/PIPELINE_GEN unset.
 # wave878 B7B: drop multi-token CC/PYTHON/MAKE inject (G.7 hygiene).
 # Shell defaults own CC/PYTHON/MAKE (migrate_x_objs). Thin @bash only (wave890).
-parser_x.o: FORCE scripts/migrate_x_objs.sh
-	@bash scripts/migrate_x_objs.sh parser
+$(MIGRATE_X_OBJS): FORCE scripts/migrate_x_objs.sh
+	@bash scripts/migrate_x_objs.sh $@
 
 # lexer.x：须 xlang-x -x -E 全量 TU；xlang-c 无 -x 时缺 advance_one/next_body。
 # wave737: G.7 body → scripts/ensure_migrate_gen.sh lexer (pin/seed/-E + slim + token enum)
@@ -1108,26 +1112,10 @@ ast_gen2.c: FORCE scripts/ensure_ast_gen2.sh
 typeck_gen.c: FORCE scripts/ensure_migrate_gen.sh
 	@bash scripts/ensure_migrate_gen.sh typeck
 
-# wave735: G.7 body → scripts/migrate_x_objs.sh (typeck leaf)
-# wave832: FORCE dep-thin — shell owns gen.c mtime (migrate need_rebuild; not physical delete).
-# PLATFORM: SHARED — FORCE always invokes migrate (cheap mtime skip).
-# wave865 B7B: drop multi-token CFLAGS inject (G.7 hygiene).
-# wave878 B7B: drop multi-token CC/PYTHON/MAKE inject (G.7 hygiene; shell defaults).
-typeck_x.o: FORCE scripts/migrate_x_objs.sh
-	@bash scripts/migrate_x_objs.sh typeck
-
 # wave736: G.7 body → scripts/ensure_migrate_gen.sh (codegen_gen.c tip seed pin/-E)
 # wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
 codegen_gen.c: FORCE scripts/ensure_migrate_gen.sh
 	@bash scripts/ensure_migrate_gen.sh codegen
-
-# wave735: G.7 body → scripts/migrate_x_objs.sh (codegen leaf)
-# wave832: FORCE dep-thin — shell owns gen.c mtime (migrate need_rebuild; not physical delete).
-# PLATFORM: SHARED — FORCE always invokes migrate (cheap mtime skip).
-# wave865 B7B: drop multi-token CFLAGS inject (G.7 hygiene).
-# wave878 B7B: drop multi-token CC/PYTHON/MAKE inject (G.7 hygiene; shell defaults).
-codegen_x.o: FORCE scripts/migrate_x_objs.sh
-	@bash scripts/migrate_x_objs.sh codegen
 
 # 6.1：.x typeck 入口与 C AST 对接；force-regen typeck_gen → migrate typeck_x → relink TARGET。
 # wave785 B7c: typeck_x.o → migrate_x_objs (no dual $(CC) -c).

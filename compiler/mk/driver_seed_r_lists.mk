@@ -194,5 +194,17 @@ CC_INC_TU_OBJS = \
 # Do not re-list in Makefile or residual shells (G.7).
 CC_INC_TU_LINUX_X86_64_OBJS = src/asm/bootstrap_nostdlib_stubs.o
 
+# wave735/919 B7B migrate_x family (N=3 leaves; root-level .o).
+# List authority for multi-target FORCE thin migrate_x_objs (wave919).
+# Body = @bash scripts/migrate_x_objs.sh $@ (G.7 single body; script's
+# case statement accepts both <name> and <name>_x.o as MODE, so $@ passes
+# parser_x.o / typeck_x.o / codegen_x.o directly — no --auto seed-map needed).
+# Migrated from 3 per-leaf Makefile recipes (parser_x/typeck_x/codegen_x).
+# Leaves: parser_x.o typeck_x.o codegen_x.o (root-level; gen.c mtime owned
+# by migrate_x_objs.sh need_rebuild + XLANG_MIGRATE_FORCE; ensure_migrate_gen
+# for missing/stale gen.c still via separate *_gen.c recipes).
+# Do not re-list in Makefile or residual shells (G.7).
+MIGRATE_X_OBJS = parser_x.o typeck_x.o codegen_x.o
+
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o

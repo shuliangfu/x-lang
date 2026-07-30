@@ -985,14 +985,14 @@ SRC_EDGE_FORCE_THIN_WAVE=wave831
 # (need_rebuild owns gen mtime; ensure_migrate_gen for missing/stale gen).
 # NOT physical delete — ~~pipeline_glue_types.inc~~ (wave833) + thin edges + B2 + mk lists remain.
 PHYS_DEL_MIGRATE_X_FORCE_THIN=1
-PHYS_DEL_MIGRATE_X_FORCE_THIN_WAVE=wave832
+PHYS_DEL_MIGRATE_X_FORCE_THIN_WAVE=wave832/919
 PHYS_DEL_MIGRATE_X_FORCE_THIN_COUNT=3
-PHYS_DEL_MIGRATE_X_FORCE_THIN_VIA=migrate_x_objs_need_rebuild_mtime
-PHYS_DEL_MIGRATE_X_FORCE_THIN_NOTE=force_prereq_shell_owns_gen_mtime_edges_remain
+PHYS_DEL_MIGRATE_X_FORCE_THIN_VIA=migrate_x_objs_need_rebuild_mtime_multi_target
+PHYS_DEL_MIGRATE_X_FORCE_THIN_NOTE=force_prereq_shell_owns_gen_mtime_multi_target_edges_remain
 SWALLOWED_MIGRATE_X_FORCE_THIN=1
 MIGRATE_X_FORCE_THIN_SWALLOWED=1
 MIGRATE_X_FORCE_THIN_HELPER=migrate_x_objs.sh
-MIGRATE_X_FORCE_THIN_WAVE=wave832
+MIGRATE_X_FORCE_THIN_WAVE=wave832/919
 # wave833: pipeline_glue_types.inc extract → FORCE + ensure_pipeline_glue_types
 # (need_rebuild owns gen/extract.pl mtime; ABI guard + extract.pl called by shell).
 # NOT physical delete — ~~bootstrap-pipeline~~ (wave834) + thin-call edges + B2 + mk lists remain.
@@ -1681,18 +1681,19 @@ SWALLOWED_B7B_GEN_ENSURE_ENV_HYGIENE=1
 B7B_GEN_ENSURE_ENV_HYGIENE_SWALLOWED=1
 B7B_GEN_ENSURE_ENV_HYGIENE_WAVE=wave877
 B7B_GEN_ENSURE_ENV_HYGIENE_COUNT=20
-# wave878: B7B migrate_x_objs multi-token CC/PYTHON/MAKE inject hygiene.
-# COUNT = 4 recipes (parser/typeck/codegen migrate leaves + migrate-x-objs phony);
-# shell defaults own CC/PYTHON/MAKE; thin @sh only.
+# wave878/919: B7B migrate_x_objs multi-token CC/PYTHON/MAKE inject hygiene.
+# COUNT = 2 recipes (was 4 pre-wave919: 1 multi-target + migrate-x-objs phony;
+# wave919 collapsed 3 per-leaf → 1 multi-target $(MIGRATE_X_OBJS)).
+# shell defaults own CC/PYTHON/MAKE; thin @bash only.
 PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE=1
-PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_WAVE=wave878
-PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_COUNT=4
+PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_WAVE=wave878/919
+PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_COUNT=2
 PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_VIA=migrate_shell_defaults_no_recipe_inject
-PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_NOTE=makefile_no_cc_python_make_inject_on_migrate_x_objs_shell_defaults_thin_edges_remain
+PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_NOTE=makefile_no_cc_python_make_inject_on_migrate_x_objs_shell_defaults_multi_target_thin_edges_remain
 SWALLOWED_B7B_MIGRATE_ENV_HYGIENE=1
 B7B_MIGRATE_ENV_HYGIENE_SWALLOWED=1
-B7B_MIGRATE_ENV_HYGIENE_WAVE=wave878
-B7B_MIGRATE_ENV_HYGIENE_COUNT=4
+B7B_MIGRATE_ENV_HYGIENE_WAVE=wave878/919
+B7B_MIGRATE_ENV_HYGIENE_COUNT=2
 # wave879: B7B stage/bootstrap multi-token TARGET/CC/MAKE inject hygiene.
 # COUNT = 13 recipes (clean + typeck/codegen + seed final/seed + relink-lexer +
 # regen-lsp + xlang-x + check-6.4 + build-tool + self + pipeline + x-compiler);
@@ -4780,15 +4781,16 @@ fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_GEN_ENSURE_ENV_HYGIENE=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B7B_GEN_ENSURE_ENV_HYGIENE=1 (wave877)"
 fi
-# wave878: migrate_x_objs multi-token CC/PYTHON/MAKE inject hygiene
+# wave878/919: migrate_x_objs multi-token CC/PYTHON/MAKE inject hygiene
+# wave919: 3 per-leaf → 1 multi-target; COUNT 4→2 (1 multi-target + 1 phony)
 if ! grep -q 'PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE=1' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE=1 (wave878)"
+  bad "dump must set PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE=1 (wave878/919)"
 fi
-if ! grep -q 'PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_WAVE=wave878' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_WAVE=wave878"
+if ! grep -q 'PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_WAVE=wave878/919' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_WAVE=wave878/919"
 fi
-if ! grep -q 'PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_COUNT=4' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_COUNT=4 (wave878)"
+if ! grep -q 'PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_COUNT=2' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_COUNT=2 (wave878/919)"
 fi
 if ! grep -q 'SWALLOWED_B7B_MIGRATE_ENV_HYGIENE=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7B_MIGRATE_ENV_HYGIENE=1 (wave878)"
@@ -7799,13 +7801,21 @@ else
   note "cc_inc_tu.sh owns mtime/PEERS policy (wave831 FORCE thin; not physical delete)"
 fi
 
-# wave832: migrate companion FORCE dep-thin (COUNT=3). Pattern greps only — no
-# product object inventory hardcode (G.7 residual honesty). Shell owns gen mtime.
-_migrate_x_force=$(grep -cE ': FORCE scripts/migrate_x_objs\.sh[[:space:]]*$' "$MF" 2>/dev/null || true)
-if [ "${_migrate_x_force:-0}" -eq 3 ]; then
-  note "Makefile migrate companion 3 leaves FORCE dep-thin (wave832; not physical delete)"
+# wave832/919: migrate companion FORCE dep-thin (was COUNT=3 per-leaf).
+# wave919: 3 migrate_x leaves → multi-target $(MIGRATE_X_OBJS).
+# Pattern greps only — no product object inventory hardcode (G.7 residual honesty).
+# Shell owns gen mtime (migrate_x_objs need_rebuild + XLANG_MIGRATE_FORCE).
+_migrate_x_force=$(grep -cE '^[a-zA-Z0-9_./-]+: FORCE scripts/migrate_x_objs\.sh[[:space:]]*$' "$MF" 2>/dev/null || true)
+if [ "${_migrate_x_force:-0}" -eq 0 ]; then
+  note "Makefile migrate companion 0 per-leaf FORCE (all migrated to multi-target; wave919)"
 else
-  bad "Makefile expected 3 FORCE+migrate_x_objs companion leaves, got ${_migrate_x_force:-0} (wave832)"
+  bad "Makefile expected 0 FORCE+migrate_x_objs per-leaf residual, got ${_migrate_x_force:-0} (wave832/919)"
+fi
+# wave919: 3 migrate_x leaves migrated to multi-target $(MIGRATE_X_OBJS).
+if grep -qE '\$\(MIGRATE_X_OBJS\):[[:space:]]*FORCE scripts/migrate_x_objs\.sh' "$MF" 2>/dev/null; then
+  note "Makefile migrate_x family multi-target FORCE thin (wave919; 3 leaves)"
+else
+  bad "Makefile missing \$(MIGRATE_X_OBJS): FORCE multi-target for migrate_x family (wave919)"
 fi
 # Companion leaves that still list gen as make-graph prereq (pre-FORCE shape) must be 0.
 # wave834 closed bootstrap-pipeline: pipeline_gen.c — no allowlist for that phony.
@@ -9627,13 +9637,14 @@ fi
 if ! grep -q 'wave865' "$COMPILER_DIR/scripts/bootstrap_typeck_codegen.sh" 2>/dev/null; then
   bad "bootstrap_typeck_codegen.sh must document wave865 (no empty CFLAGS to migrate)"
 fi
-# Honesty COUNT=8: 4 migrate + 2 BTC + 2 XXP/BXC thin-call recipes without CFLAGS inject.
+# Honesty COUNT=6 (was 8 pre-wave919): 2 migrate (1 multi-target + 1 phony) + 2 BTC + 2 XXP/BXC.
+# wave919: 3 migrate_x per-leaf → 1 multi-target $(MIGRATE_X_OBJS); -2 recipes.
 _mig_recipe_n=$(grep -cE $'^\t.*(migrate_x_objs\\.sh|bootstrap_typeck_codegen\\.sh|xlang_x_pipeline\\.sh|bootstrap_x_compiler\\.sh)' "$MF" 2>/dev/null || true)
 _mig_recipe_n=${_mig_recipe_n:-0}
-if [ "${_mig_recipe_n}" -lt 8 ]; then
-  bad "Makefile expected >=8 migrate/bootstrap shell thin-call recipes (wave865; got ${_mig_recipe_n})"
+if [ "${_mig_recipe_n}" -lt 6 ]; then
+  bad "Makefile expected >=6 migrate/bootstrap shell thin-call recipes (wave865/919; got ${_mig_recipe_n})"
 fi
-note "B7B migrate/bootstrap CFLAGS shell-load (recipes ${_mig_recipe_n}; COUNT=8 injects dropped; wave865; not physical delete)"
+note "B7B migrate/bootstrap CFLAGS shell-load (recipes ${_mig_recipe_n}; COUNT=6 injects dropped; wave865/919; not physical delete)"
 # wave866: build-tool CFLAGS shell-load + WIN32_O_CFLAGS leaf drop (COUNT=2).
 # G.7: recipe inject hygiene; shell loads export-try-heat-cflags; WIN32 empty default.
 _bt_hits=$(awk '
@@ -9971,9 +9982,10 @@ if [ -n "${_mig_env_hits:-}" ]; then
   bad "Makefile migrate_x_objs recipes still multi-token inject CC/PYTHON/MAKE (wave878)"
   echo "$_mig_env_hits" | head -10 >&2
 fi
+# wave919: 3 per-leaf → 1 multi-target; now 1 multi-target + 1 phony = 2.
 _mig_thin_n=$(grep -cE $'^\t@bash scripts/migrate_x_objs\\.sh' "$MF" 2>/dev/null || echo 0)
-if [ "${_mig_thin_n:-0}" -lt 4 ]; then
-  bad "Makefile migrate_x_objs thin @bash count expected >=4 got ${_mig_thin_n} (wave878/890)"
+if [ "${_mig_thin_n:-0}" -lt 2 ]; then
+  bad "Makefile migrate_x_objs thin @bash count expected >=2 got ${_mig_thin_n} (wave878/890/919)"
 fi
 if ! grep -q 'wave878' "$MF" 2>/dev/null; then
   bad "Makefile must document wave878 migrate env hygiene"
@@ -10380,6 +10392,10 @@ fi
 # wave917: 5 SHARED cc_inc_tu per-leaf → 1 multi-target $(CC_INC_TU_OBJS); logical expand +4.
 if grep -qE '\$\(CC_INC_TU_OBJS\):[[:space:]]*FORCE scripts/cc_inc_tu\.sh' "$MF" 2>/dev/null; then
   _bash_thin_n=$((_bash_thin_n + 4))
+fi
+# wave919: 3 migrate_x per-leaf → 1 multi-target $(MIGRATE_X_OBJS); logical expand +2.
+if grep -qE '\$\(MIGRATE_X_OBJS\):[[:space:]]*FORCE scripts/migrate_x_objs\.sh' "$MF" 2>/dev/null; then
+  _bash_thin_n=$((_bash_thin_n + 2))
 fi
 if [ "$_bash_thin_n" -lt 200 ]; then
   bad "Makefile @bash scripts/ thin-call count expected >=200 got ${_bash_thin_n} (wave890; multi-target logical expand)"
