@@ -80,7 +80,7 @@
 | `bootstrap_xlangc` | 716 | Makefile/预编译种子 | `xbuild bootstrap_xlangc` | ⬜ Makefile | 冷启动种子机 |
 | `build-tool` | ~3190 | **shell** `scripts/build_tool.sh` | `xbuild build-tool` | 🟢 wave718 shell | Makefile 薄转调；xlang-build 直调 |
 | `first-time` | 3181 | shell build-tool + g05 | `xbuild first-time` | 🟡 wave718 build-tool shell；g05 日常 |  |
-| `build-via-tool` | 3262 | Makefile | `xbuild build` | ⬜ Makefile | 与 G-05 合并 |
+| `build-via-tool` | ~3001 | **shell** `build_via_tool.sh` | `xbuild build` | 🟢 wave874 体 shell；`build-tool` prereq 仍 make 图 | 与 G-05 / xbuild run_build_tool 同权威 |
 | `xlang-x` | 3125 | Makefile 工程轨 | `xbuild xlang-x` | ⬜ Makefile | 非产品默认 |
 | `xlang-no-c-frontend` | 3112 | Makefile | `xbuild product-frontend` | ⬜ Makefile | G-06 |
 | `clean` | 1675 | **shell** `scripts/clean_compiler.sh` | `xbuild clean` | 🟢 wave718 shell | Makefile 薄转调；L4 全擦可直调脚本 |
@@ -456,7 +456,7 @@
 | 3181 | `first-time` | 🟡 shell build-tool + g05（wave718） |
 | ~3190 | `build-tool` | 🟢 shell `build_tool.sh`（wave718） |
 | ~3198 | `build-tool-x` | 🟢 别名 → build-tool |
-| 3262 | `build-via-tool` | ⬜ |
+| ~3001 | `build-via-tool` | 🟢 wave874 shell `build_via_tool.sh` |
 
 ### 类 J — test / check / verify / baseline
 
