@@ -1985,6 +1985,8 @@ include mk/driver_seed_link_picks.mk
 # wave821 B7B: archaeology experiment lists → mk/archaeology_experiment_objs.mk
 # (G.7; not physical delete). X_FRONTEND_EXPERIMENT (7) + NO_C_FRONTEND (expands
 # MAIN_LINK/PREPROCESS/AST). Include after link_picks; before experiment recipes.
+# wave851: XLANG_NO_C_FRONTEND_LINK_OBJS (XNC full bag).
+# wave852: DRIVER_SEED_X_FRONTEND_LINK_OBJS (BXF full bag).
 # Makefile include only — no dual inline re-list.
 include mk/archaeology_experiment_objs.mk
 # wave728 · 11.0.4: DRIVER_SEED_OBJS / X_FRONTEND / LINK_BASE / PREREQS composites
@@ -1996,12 +1998,14 @@ include mk/archaeology_experiment_objs.mk
 # List authority: mk/archaeology_experiment_objs.mk (wave821).
 # wave848: full body → scripts/bootstrap_driver_seed_x_frontend.sh (G.7 有则补全;
 #   shell owns host-cc link of $(TARGET)_x_frontend). Lists stay mk expansion.
+# wave852 B7B: BXF_LINK_OBJS → $(DRIVER_SEED_X_FRONTEND_LINK_OBJS)
+#   (archaeology_experiment_objs.mk; no dual inline bag re-list).
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell owns link orchestration.
 bootstrap-driver-seed-x-frontend: $(XLANG_C) migrate-x-objs driver_x.o preprocess_x.o $(DRIVER_SUBCMD_GEN) $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) $(LSP_DIAG_LINK_O) $(DRIVER_SUBCMD_OBJS) scripts/bootstrap_driver_seed_x_frontend.sh
 	@CC="$(CC)" OUT="$(TARGET)_x_frontend" \
 	  BXF_LINK_CFLAGS="$(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN" \
-	  BXF_LINK_OBJS="$(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) driver_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) $(PIPELINE_LIBS)" \
+	  BXF_LINK_OBJS="$(DRIVER_SEED_X_FRONTEND_LINK_OBJS)" \
 	  bash scripts/bootstrap_driver_seed_x_frontend.sh
 
 # 6.3：.x 入口与 main.c 一一对应。bootstrap-driver-seed = 用 C 代码生成（生成 pipeline_gen.c / driver_gen.c）得到种子 xlang；仅首次或无 xlang 时需要。

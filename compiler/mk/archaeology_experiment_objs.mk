@@ -25,6 +25,11 @@
 # G.7 有则补全; Makefile expands $(XLANG_NO_C_FRONTEND_LINK_OBJS) only.
 # NOT physical delete — thin edges + B2 + other mk lists remain residual.
 #
+# wave852: DRIVER_SEED_X_FRONTEND_LINK_OBJS — full host-cc link bag for
+# bootstrap-driver-seed-x-frontend (BXF; experiment base + driver/preprocess
+# satellites). G.7 有则补全; Makefile expands $(DRIVER_SEED_X_FRONTEND_LINK_OBJS)
+# only. NOT physical delete — thin edges + B2 + other mk lists remain residual.
+#
 # Requires (for DRIVER_NO_C_FRONTEND_OBJS expansion):
 #   MAIN_LINK_O, PREPROCESS_LINK_O, AST_LINK_O
 #   (from mk/driver_seed_link_picks.mk — include this mk after link_picks)
@@ -53,3 +58,13 @@ DRIVER_NO_C_FRONTEND_OBJS = $(MAIN_LINK_O) src/runtime_io_abi.o src/runtime_link
 # Consumer: XNC_LINK_OBJS (make xlang-no-c-frontend → xlang_no_c_frontend.sh).
 # PLATFORM: SHARED — leaf basenames host-portable; PIPELINE_LIBS host-filtered.
 XLANG_NO_C_FRONTEND_LINK_OBJS = $(DRIVER_NO_C_FRONTEND_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
+
+# wave852 B7B: full host-cc link bag for bootstrap-driver-seed-x-frontend (G.7 有则补全).
+# Stage 10.4 experiment inventory + driver/preprocess satellites + subcmd/lsp/libs.
+# Makefile thin-call must not re-list this inventory inline (dual authority).
+# Fixed multi-token authority COUNT=2 (non-$(...) path tokens beyond experiment base):
+#   driver_x.o preprocess_x.o
+# Consumer: BXF_LINK_OBJS (make bootstrap-driver-seed-x-frontend →
+#   bootstrap_driver_seed_x_frontend.sh).
+# PLATFORM: SHARED — leaf basenames host-portable; PIPELINE_LIBS host-filtered.
+DRIVER_SEED_X_FRONTEND_LINK_OBJS = $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) driver_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) $(PIPELINE_LIBS)
