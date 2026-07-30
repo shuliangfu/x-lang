@@ -4,8 +4,9 @@
 # honesty* + wave804 STATUS apply (tree may be reproven_green) + wave805 ENDGAME
 # arm *prep/preview* + wave806 ENDGAME arm *apply harness* + wave807 ENDGAME arm
 # *commit honesty* + wave808 reviewed TREE_ARMED arm (tree may be ENDGAME=1 +
-# TREE_ARMED=1) + wave809 delete-body *prep/preview* (plan only; never rm —
-# delete body still deferred until a later confirm wave ships the rm body).
+# TREE_ARMED=1) + wave809 delete-body *prep/preview* + wave810 delete-body
+# *commit honesty* (inventory / pre_ship contract only; never rm — delete body
+# still deferred until a later confirm wave ships the rm body after explicit auth).
 #
 # PLATFORM: SHARED shell orchestration (macOS / Ubuntu / Windows MSYS2).
 # Windows min-gate body runs only on MSYS2 (tests/run-bootstrap-bstrict-windows-gate.sh).
@@ -14,14 +15,15 @@
 #   Single shell authority that *refuses* physical delete of compiler/Makefile
 #   until Windows hybrid min-gate is re-proven on this tip AND ENDGAME=1 AND
 #   explicit confirm. Complements leaf_pattern_residual.sh preflight keys
-#   (wave798). Does NOT delete Makefile in wave805/806/807/808/809 (preview / arm
-#   harness / commit honesty / tree arm / delete-body preview). STATUS flip of
-#   PHYS_DEL_WINDOWS_GATE_STATUS is confirm-gated leaf edit only (wave802);
-#   never auto-flip from proof alone; ENDGAME stays 0 on STATUS flip. ENDGAME arm
-#   is confirm-gated leaf edit only (wave806); never auto-arm from preview alone;
-#   tree ENDGAME=1 + TREE_ARMED=1 only after reviewed wave808 tree arm commit
-#   (after wave807 honesty); wave809 prints the delete-body plan only; delete
-#   body remains deferred (even after ENDGAME=1 + confirm, execute-gate never rm).
+#   (wave798). Does NOT delete Makefile in wave805/806/807/808/809/810 (preview /
+#   arm harness / commit honesty / tree arm / delete-body preview / delete-body
+#   commit honesty). STATUS flip of PHYS_DEL_WINDOWS_GATE_STATUS is confirm-gated
+#   leaf edit only (wave802); never auto-flip from proof alone; ENDGAME stays 0
+#   on STATUS flip. ENDGAME arm is confirm-gated leaf edit only (wave806); never
+#   auto-arm from preview alone; tree ENDGAME=1 + TREE_ARMED=1 only after reviewed
+#   wave808 tree arm commit (after wave807 honesty); wave809 prints the delete-body
+#   plan only; wave810 prints delete-body commit checklist / pre_ship contract only;
+#   delete body remains deferred (even after ENDGAME=1 + confirm, execute-gate never rm).
 #
 # wave800 (G.7 有则补全 on this script):
 #   Machine-checkable *evidence* stamp after MSYS min-gate green.
@@ -85,12 +87,22 @@
 #   confirm env, co-change list). Preview never edits leaf. Preview ≠ ship body.
 #   Preview ≠ physical delete. --delete still dies at never-rm. Makefile present.
 #
+# wave810 (G.7 有则补全 on this script):
+#   --delete-body-commit-honesty: machine-readable *commit checklist* for the
+#   delete-body ship mac commit (co-change surfaces + pre_ship contract). Does NOT
+#   edit leaf. Does NOT delete Makefile. Pre_ship (Makefile present + TREE_ARMED):
+#   inventory only. Post_ship (Makefile already absent on future tip): contract that
+#   body shipped + honesty greps co-changed. Honesty greps that hard-require Makefile
+#   present co-change in the same delete-body commit. Explicit user auth is SEPARATE
+#   before shipping real rm body. --delete still dies at never-rm until body wave.
+#
 # Modes:
 #   status | --status          Dump readiness + host + Windows gate honesty + proof
 #   --check | check            Machine-check gate wiring + refuse + proof + flip
 #                              + endgame-preview (wave805) + endgame-arm-apply
 #                              (wave806) + endgame-arm-commit-honesty (wave807)
 #                              + delete-body-preview (wave809)
+#                              + delete-body-commit-honesty (wave810)
 #   --dry-run-delete           List what physical delete *would* touch; never rm
 #   --run-windows-gate         Run min-gate (MSYS2 only; non-MSYS skip exit 0);
 #                              on success write proof stamp (wave800)
@@ -118,6 +130,9 @@
 #   --delete-body-preview
 #                              TREE_ARMED-gated plan for delete body (wave809);
 #                              never edits; never deletes; exit 0 when armed green
+#   --delete-body-commit-honesty
+#                              Commit checklist / pre_ship contract (wave810);
+#                              never edits; never deletes
 #   --delete                   HARD refuse unless Windows green + ENDGAME=1 + confirm
 #                              (even ENDGAME=1 + TREE_ARMED=1 still dies at "never rm"
 #                              until delete body ships)
@@ -134,7 +149,8 @@
 #   bash compiler/scripts/phys_del_makefile_gate.sh --endgame-arm-apply
 #   bash compiler/scripts/phys_del_makefile_gate.sh --endgame-arm-commit-honesty
 #   bash compiler/scripts/phys_del_makefile_gate.sh --delete-body-preview
-#   ./xbuild phys-del-gate [...|--delete-body-preview]
+#   bash compiler/scripts/phys_del_makefile_gate.sh --delete-body-commit-honesty
+#   ./xbuild phys-del-gate [...|--delete-body-commit-honesty]
 #
 # Env:
 #   XLANG_PHYS_DEL_WINDOWS_PROOF=/path/to/proof   default /tmp/xlang_phys_del_windows_proof.txt
@@ -143,10 +159,10 @@
 #   XLANG_PHYS_DEL_LEAF_FILE=/path/to/leaf_copy   (test override; default leaf script)
 #   XLANG_PHYS_DEL_CONFIRM=DELETE_MAKEFILE_I_UNDERSTAND  (delete path only; still refused)
 #
-# Wave: 799–809 Track MG · 11.3.1 · NOT physical delete · tree may be ENDGAME=1
+# Wave: 799–810 Track MG · 11.3.1 · NOT physical delete · tree may be ENDGAME=1
 #       + TREE_ARMED=1 after wave808 · STATUS may be reproven_green after wave804
-#       · delete-body-preview (wave809) plans only · delete body still deferred
-#       (never-rm in execute-gate)
+#       · delete-body-preview (wave809) plans only · delete-body-commit-honesty
+#       (wave810) inventory only · delete body still deferred (never-rm in execute-gate)
 
 set -euo pipefail
 
@@ -441,6 +457,24 @@ PHYS_DEL_DELETE_BODY_PREP_CURRENT_TREE_ARMED=${tree_armed:-0}
 PHYS_DEL_DELETE_BODY_PREP_DELETE_ALLOWED=0
 PHYS_DEL_DELETE_BODY_PREP_NEXT=delete_body_commit_honesty_then_confirm_rm_separate
 PHYS_DEL_DELETE_BODY_PREP_FORBIDDEN=auto_rm_makefile|claim_preview_is_delete_body|claim_preview_is_physical_delete|rm_makefile_from_delete_body_preview|mac_only_claim_wave_green
+# wave810: delete-body *commit honesty* (inventory + pre_ship contract; not edit; not delete)
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_NOTE=commit_checklist_and_pre_ship_contract_not_rm
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MODE=--delete-body-commit-honesty
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TARGET_ACTION=rm_compiler_Makefile
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_REQUIRES_STATUS=reproven_green
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_REQUIRES_ENDGAME=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_REQUIRES_TREE_ARMED=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_CURRENT_STATUS=${win_status:-?}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_CURRENT_ENDGAME=${endgame:-?}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_CURRENT_TREE_ARMED=${tree_armed:-0}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_BODY=deferred_never_rm_until_body_wave
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_NEXT=explicit_user_auth_then_ship_delete_body
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_FORBIDDEN=claim_honesty_is_physical_delete|rm_makefile_in_honesty|ship_body_without_explicit_auth|skip_co_change_honesty_greps|mac_only_claim_wave_green|claim_preview_is_delete
 # Human runbook (STATUS may already be reproven_green after wave804):
 #   PLATFORM: WINDOWS repo root (authoritative, 2026-07-30):
 #     C:\Users\shuliangfu\worker\xlang\x-lang
@@ -456,7 +490,8 @@ PHYS_DEL_DELETE_BODY_PREP_FORBIDDEN=auto_rm_makefile|claim_preview_is_delete_bod
 #     C) wave807: --endgame-arm-commit-honesty (pre_arm inventory + post_arm contract)
 #     D) wave808: reviewed TREE_ARMED=1 + ENDGAME=1 (Makefile still present)
 #     E) wave809: --delete-body-preview (plan only; never rm)
-#     F) later: delete-body commit honesty → confirm ship --delete body
+#     F) wave810: --delete-body-commit-honesty (pre_ship inventory; never rm)
+#     G) later: explicit user auth → ship real --delete body (separate wave)
 #   Pre-STATUS (if STATUS not_reproven again):
 #   1) reboot dual-boot → Windows/MSYS2 or Git Bash (ssh windows-server)
 #   2) cd /c/Users/shuliangfu/worker/xlang/x-lang
@@ -466,7 +501,7 @@ PHYS_DEL_DELETE_BODY_PREP_FORBIDDEN=auto_rm_makefile|claim_preview_is_delete_bod
 #   5) confirm --status-flip-apply → --status-flip-commit-honesty → commit
 #   NEVER rm compiler/Makefile while ENDGAME=0
 #   NEVER auto-edit leaf from endgame-preview alone
-#   physical delete is SEPARATE after ENDGAME arm commit
+#   physical delete is SEPARATE after ENDGAME arm commit + honesty + explicit auth
 EOF
 }
 
@@ -587,6 +622,21 @@ cmd_check() {
     || badf "delete-body prep target must be rm_compiler_Makefile"
   grep -q 'PHYS_DEL_DELETE_BODY_PREP_REQUIRES_TREE_ARMED=1' <<<"$dump" \
     || badf "delete-body prep must require TREE_ARMED=1"
+  # wave810: delete-body commit honesty keys in status dump
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY=1' <<<"$dump" \
+    || badf "status missing PHYS_DEL_DELETE_BODY_COMMIT_HONESTY=1 (wave810)"
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810' <<<"$dump" \
+    || badf "status missing DELETE_BODY_COMMIT_HONESTY_WAVE=wave810"
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0' <<<"$dump" \
+    || badf "delete-body commit honesty must keep BODY_SHIPPED=0"
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0' <<<"$dump" \
+    || badf "delete-body commit honesty must keep DELETE_ALLOWED=0"
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MODE=--delete-body-commit-honesty' <<<"$dump" \
+    || badf "delete-body commit honesty mode must be --delete-body-commit-honesty"
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TARGET_ACTION=rm_compiler_Makefile' <<<"$dump" \
+    || badf "delete-body commit honesty target must be rm_compiler_Makefile"
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_REQUIRES_TREE_ARMED=1' <<<"$dump" \
+    || badf "delete-body commit honesty must require TREE_ARMED=1"
 
   # Cross-check leaf honesty. wave804: STATUS may be reproven_green + TREE_APPLIED=1;
   # wave808: ENDGAME may be 1 + TREE_ARMED=1 (tree arm); delete body still deferred.
@@ -656,6 +706,19 @@ cmd_check() {
     || badf "leaf dump must keep DELETE_BODY_PREP_DELETE_ALLOWED=0 (wave809)"
   grep -q 'PHYS_DEL_DELETE_BODY_PREP_MODE=--delete-body-preview' <<<"$leaf" \
     || badf "leaf dump missing DELETE_BODY_PREP_MODE=--delete-body-preview (wave809)"
+  # wave810: delete-body commit honesty keys on leaf
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY=1' <<<"$leaf" \
+    || badf "leaf dump missing PHYS_DEL_DELETE_BODY_COMMIT_HONESTY=1 (wave810)"
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810' <<<"$leaf" \
+    || badf "leaf dump missing PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810"
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0' <<<"$leaf" \
+    || badf "leaf dump must keep DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0 (wave810)"
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0' <<<"$leaf" \
+    || badf "leaf dump must keep DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0 (wave810)"
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MODE=--delete-body-commit-honesty' <<<"$leaf" \
+    || badf "leaf dump missing DELETE_BODY_COMMIT_HONESTY_MODE=--delete-body-commit-honesty (wave810)"
+  grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TARGET_ACTION=rm_compiler_Makefile' <<<"$leaf" \
+    || badf "leaf dump missing DELETE_BODY_COMMIT_HONESTY_TARGET_ACTION (wave810)"
   if [ "${tree_applied_leaf:-0}" = "1" ]; then
     grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green' <<<"$leaf" \
       || badf "leaf TREE_APPLIED=1 must have WINDOWS_GATE_STATUS=reproven_green"
@@ -1273,6 +1336,78 @@ cmd_check() {
         /tmp/phys_del_dbp_unarmed.$$ /tmp/phys_del_dbp_unarmed_err.$$ \
         "$leaf_tmp_dbp" "${leaf_tmp_dbp}.new" 2>/dev/null || true
 
+  # wave810: --delete-body-commit-honesty — pre_ship inventory; never edits; never deletes.
+  # Tree after wave808 is ENDGAME=1 TREE_ARMED=1 + Makefile present → PHASE=pre_ship READY=1.
+  local endgame_before_dbh status_before_dbh makefile_before_dbh
+  endgame_before_dbh="$(leaf_get ENDGAME_PHYSICAL_DELETE_MAKEFILE)"
+  status_before_dbh="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+  makefile_before_dbh=0
+  [ -f "$MAKEFILE" ] && makefile_before_dbh=1
+  if [ "${endgame_before_dbh:-}" = "1" ] && [ "${tree_armed_leaf:-0}" = "1" ] \
+      && [ "$makefile_before_dbh" = "1" ] \
+      && { [ "${status_before_dbh:-}" = "reproven_green" ] || [ "${status_before_dbh:-}" = "green" ]; }; then
+    if ! bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --delete-body-commit-honesty \
+        >/tmp/phys_del_dbh_ok.$$ 2>/tmp/phys_del_dbh_ok_err.$$; then
+      cat /tmp/phys_del_dbh_ok.$$ >&2 || true
+      cat /tmp/phys_del_dbh_ok_err.$$ >&2 || true
+      badf "tree TREE_ARMED must --delete-body-commit-honesty exit 0 (wave810)"
+    else
+      if ! grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_PHASE=pre_ship' /tmp/phys_del_dbh_ok.$$; then
+        badf "delete-body-commit-honesty must print PHASE=pre_ship when Makefile present"
+      elif ! grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_READY=1' /tmp/phys_del_dbh_ok.$$; then
+        badf "delete-body-commit-honesty must print READY=1"
+      elif ! grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_CO_CHANGE=1' /tmp/phys_del_dbh_ok.$$; then
+        badf "delete-body-commit-honesty must list CO_CHANGE surfaces"
+      elif ! grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0' /tmp/phys_del_dbh_ok.$$; then
+        badf "delete-body-commit-honesty must keep DELETE_ALLOWED=0"
+      elif ! grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0' /tmp/phys_del_dbh_ok.$$; then
+        badf "delete-body-commit-honesty must keep BODY_SHIPPED=0"
+      elif ! grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_STILL_REFUSED=1' /tmp/phys_del_dbh_ok.$$; then
+        badf "delete-body-commit-honesty must keep DELETE_STILL_REFUSED=1 (never-rm body)"
+      elif ! grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MAKEFILE_PRESENT=1' /tmp/phys_del_dbh_ok.$$; then
+        badf "delete-body-commit-honesty must keep MAKEFILE_PRESENT=1"
+      else
+        note "tree TREE_ARMED --delete-body-commit-honesty pre_ship OK (wave810 harness)"
+      fi
+    fi
+  else
+    note "tree not fully TREE_ARMED green + Makefile — skip green --delete-body-commit-honesty path"
+  fi
+  # Temp leaf ENDGAME=0 / TREE_ARMED=0 must refuse delete-body-commit-honesty (pre_ship).
+  local leaf_tmp_dbh
+  leaf_tmp_dbh="/tmp/phys_del_dbh_leaf_$$.sh"
+  cp "$LEAF_SH" "$leaf_tmp_dbh" || badf "could not copy leaf for delete-body-commit-honesty harness"
+  if sed -e 's/^PHYS_DEL_WINDOWS_GATE_STATUS=.*/PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green/' \
+         -e 's/^ENDGAME_PHYSICAL_DELETE_MAKEFILE=.*/ENDGAME_PHYSICAL_DELETE_MAKEFILE=0/' \
+         -e 's/^PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=.*/PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=0/' \
+         -e 's/^PHYS_DEL_ENDGAME_TREE_ARMED=.*/PHYS_DEL_ENDGAME_TREE_ARMED=0/' \
+         "$leaf_tmp_dbh" >"${leaf_tmp_dbh}.new" 2>/dev/null; then
+    mv "${leaf_tmp_dbh}.new" "$leaf_tmp_dbh"
+  fi
+  if XLANG_PHYS_DEL_LEAF_FILE="$leaf_tmp_dbh" \
+      bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --delete-body-commit-honesty \
+      >/tmp/phys_del_dbh_bad.$$ 2>/tmp/phys_del_dbh_bad_err.$$; then
+    badf "ENDGAME=0 temp leaf must not --delete-body-commit-honesty exit 0"
+  else
+    note "ENDGAME=0 temp leaf --delete-body-commit-honesty refuses OK (wave810)"
+  fi
+  # Honesty must not mutate tree ENDGAME/STATUS or remove Makefile.
+  endgame_after_hon="$(leaf_get ENDGAME_PHYSICAL_DELETE_MAKEFILE)"
+  status_after="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+  if [ "${endgame_before_dbh:-}" != "${endgame_after_hon:-}" ]; then
+    badf "delete-body-commit-honesty mutated tree ENDGAME ($endgame_before_dbh → $endgame_after_hon)"
+  fi
+  if [ "${status_before_dbh:-}" != "${status_after:-}" ]; then
+    badf "delete-body-commit-honesty mutated tree STATUS ($status_before_dbh → $status_after)"
+  fi
+  if [ "$makefile_before_dbh" = "1" ] && [ ! -f "$MAKEFILE" ]; then
+    badf "delete-body-commit-honesty removed compiler/Makefile (forbidden)"
+  fi
+  note "delete-body-commit-honesty left tree STATUS=$status_after ENDGAME=$endgame_after_hon Makefile intact OK"
+  rm -f /tmp/phys_del_dbh_ok.$$ /tmp/phys_del_dbh_ok_err.$$ \
+        /tmp/phys_del_dbh_bad.$$ /tmp/phys_del_dbh_bad_err.$$ \
+        "$leaf_tmp_dbh" "${leaf_tmp_dbh}.new" 2>/dev/null || true
+
   rm -f "$synth" "$bad_synth" "$leaf_tmp" /tmp/phys_del_vfy_ok.$$ /tmp/phys_del_vfy_bad.$$ \
     /tmp/phys_del_vfy_miss.$$ /tmp/phys_del_flip_miss.$$ /tmp/phys_del_flip_bad.$$ \
     /tmp/phys_del_flip_ok.$$ /tmp/phys_del_apply_miss.$$ /tmp/phys_del_apply_bad.$$ \
@@ -1288,7 +1423,7 @@ cmd_check() {
     echo "phys-del-makefile-gate: CHECK FAILED" >&2
     exit 1
   fi
-  echo "phys-del-makefile-gate: CHECK OK (wave799–809 execute-gate + proof + flip + honesty + endgame harness + tree arm + delete-body-preview; --delete never-rm even after ENDGAME=1 TREE_ARMED=1; STATUS may be reproven_green; not physical delete)"
+  echo "phys-del-makefile-gate: CHECK OK (wave799–810 execute-gate + proof + flip + honesty + endgame harness + tree arm + delete-body-preview + delete-body-commit-honesty; --delete never-rm even after ENDGAME=1 TREE_ARMED=1; STATUS may be reproven_green; not physical delete)"
   exit 0
 }
 
@@ -2187,7 +2322,7 @@ PHYS_DEL_DELETE_BODY_PREVIEW_NEXT=delete_body_commit_honesty_then_confirm_rm_sep
 
 # Reviewed mac path (NOT run by preview):
 # 1) dual-end L2: mac + Ubuntu same tip leaf + phys-del --check
-# 2) later: delete-body commit honesty co-change list
+# 2) wave810: delete-body commit honesty co-change list
 # 3) explicit user auth → ship cmd_delete real rm body (still needs
 #    XLANG_PHYS_DEL_CONFIRM=DELETE_MAKEFILE_I_UNDERSTAND)
 # 4) post-delete: Makefile absent honesty; xbuild/product path without make
@@ -2196,6 +2331,182 @@ EOF
   log "delete-body-preview READY for tip=$cur_tip STATUS=${win_status} ENDGAME=1 TREE_ARMED=1"
   log "  TARGET rm compiler/Makefile; APPLIED=0 BODY_SHIPPED=0; DELETE_ALLOWED=0"
   log "  next: delete-body commit honesty → explicit confirm ship --delete body (separate wave)"
+  exit 0
+}
+
+# wave810: delete-body *commit honesty* — pre_ship inventory + post_ship contract.
+# Never edits leaf. Never deletes Makefile.
+# Exit: 0 = pre_ship inventory ready OR post_ship contract OK; 1 = contract fail; 2 = preconditions.
+cmd_delete_body_commit_honesty() {
+  local win_status endgame tree_armed leaf_target cur_tip del_refused makefile_present
+  leaf_target="${XLANG_PHYS_DEL_LEAF_FILE:-$LEAF_SH}"
+  cur_tip="$(tip_short)"
+  makefile_present=$([ -f "$MAKEFILE" ] && echo 1 || echo 0)
+
+  if [ ! -f "$leaf_target" ]; then
+    die "delete-body-commit-honesty: leaf file missing: $leaf_target"
+  fi
+
+  win_status="$(grep -E '^PHYS_DEL_WINDOWS_GATE_STATUS=' "$leaf_target" | head -1 | sed 's/^PHYS_DEL_WINDOWS_GATE_STATUS=//' || true)"
+  endgame="$(grep -E '^ENDGAME_PHYSICAL_DELETE_MAKEFILE=' "$leaf_target" | head -1 | sed 's/^ENDGAME_PHYSICAL_DELETE_MAKEFILE=//' || true)"
+  tree_armed="$(grep -E '^PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=' "$leaf_target" | head -1 | sed 's/^PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=//' || true)"
+  if [ -z "${tree_armed:-}" ]; then
+    tree_armed="$(grep -E '^PHYS_DEL_ENDGAME_TREE_ARMED=' "$leaf_target" | head -1 | sed 's/^PHYS_DEL_ENDGAME_TREE_ARMED=//' || true)"
+  fi
+
+  # --delete must still hard-refuse (never-rm body) until a later body wave ships rm.
+  del_refused=0
+  if XLANG_PHYS_DEL_LEAF_FILE="$leaf_target" \
+      bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --delete \
+      >/tmp/phys_del_dbh_del_out.$$ 2>/tmp/phys_del_dbh_del_err.$$; then
+    del_refused=0
+  else
+    del_refused=1
+  fi
+  rm -f /tmp/phys_del_dbh_del_out.$$ /tmp/phys_del_dbh_del_err.$$
+
+  if [ "$makefile_present" = "1" ]; then
+    # Pre_ship: print commit checklist only when TREE_ARMED green + ENDGAME=1.
+    if [ "${win_status:-}" != "reproven_green" ] && [ "${win_status:-}" != "green" ]; then
+      cat <<EOF
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_READY=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_PHASE=pre_ship
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TIP=$cur_tip
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_LEAF=$leaf_target
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_STATUS=${win_status:-?}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_ENDGAME=${endgame:-?}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TREE_ARMED=${tree_armed:-0}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MAKEFILE_PRESENT=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_NOTE=status_not_green_refused
+EOF
+      log "delete-body-commit-honesty REFUSED: STATUS must be reproven_green (got '${win_status:-empty}')"
+      exit 2
+    fi
+    if [ "${endgame:-}" != "1" ]; then
+      cat <<EOF
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_READY=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_PHASE=pre_ship
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TIP=$cur_tip
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_LEAF=$leaf_target
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_STATUS=${win_status:-?}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_ENDGAME=${endgame:-?}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TREE_ARMED=${tree_armed:-0}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MAKEFILE_PRESENT=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_NOTE=endgame_not_1_refused
+EOF
+      log "delete-body-commit-honesty REFUSED: ENDGAME must be 1 (got '${endgame:-empty}')"
+      exit 2
+    fi
+    if [ "${tree_armed:-}" != "1" ]; then
+      cat <<EOF
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_READY=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_PHASE=pre_ship
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TIP=$cur_tip
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_LEAF=$leaf_target
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_STATUS=${win_status:-?}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_ENDGAME=${endgame:-?}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TREE_ARMED=${tree_armed:-0}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MAKEFILE_PRESENT=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_NOTE=tree_armed_not_1_refused
+EOF
+      log "delete-body-commit-honesty REFUSED: TREE_ARMED must be 1 (got '${tree_armed:-empty}')"
+      exit 2
+    fi
+    if [ "$del_refused" -ne 1 ]; then
+      cat <<EOF
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_READY=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_PHASE=pre_ship
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_FAIL=delete_not_refused
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0
+EOF
+      log "delete-body-commit-honesty FAIL: --delete must still refuse (never-rm body) pre_ship"
+      exit 1
+    fi
+    cat <<EOF
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_READY=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_PHASE=pre_ship
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TIP=$cur_tip
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_LEAF=$leaf_target
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_STATUS=${win_status:-?}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_ENDGAME=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TREE_ARMED=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TARGET_ACTION=rm_compiler_Makefile
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_CONFIRM_ENV=XLANG_PHYS_DEL_CONFIRM=DELETE_MAKEFILE_I_UNDERSTAND
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_STILL_REFUSED=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MAKEFILE_PRESENT=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_CO_CHANGE=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_CO_CHANGE_LIST=compiler/scripts/phys_del_makefile_gate.sh|compiler/scripts/leaf_pattern_residual.sh|--check_greps_expect_makefile_absent_after_body|analysis/自举进度.md|analysis/C迁移追踪.md|compiler/docs/LEAF_PATTERN_RESIDUAL.md|analysis/Makefile迁移表.md
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MUST_UPDATE=cmd_delete_real_rm_body_gated|honesty_expect_makefile_absent_after|dual_end_L2|explicit_user_auth|BODY_SHIPPED→1|progress_triad_wave_note
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MUST_NOT=rm_without_explicit_auth|claim_honesty_is_physical_delete|same_commit_as_preview_only|skip_dual_end_L2|mac_only_claim_wave_green|auto_rm
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_NOTE=inventory_only_ship_body_requires_explicit_user_auth_separate_wave
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_FORBIDDEN=claim_honesty_is_physical_delete|rm_makefile_in_honesty|ship_body_without_explicit_auth|skip_co_change_honesty_greps|mac_only_claim_wave_green
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_NEXT=explicit_user_auth_then_ship_delete_body
+EOF
+    log "delete-body-commit-honesty PHASE=pre_ship tip=$cur_tip (inventory only; no edit; no rm)"
+    log "  STATUS green ENDGAME=1 TREE_ARMED=1 Makefile present; --delete still refused (never-rm)"
+    log "  TARGET rm compiler/Makefile; BODY_SHIPPED=0 DELETE_ALLOWED=0"
+    log "  next: explicit user auth → ship --delete body (separate wave; co-change honesty greps)"
+    exit 0
+  fi
+
+  # Post_ship: Makefile already absent (future tip after real delete-body commit).
+  if [ "${win_status:-}" != "reproven_green" ] && [ "${win_status:-}" != "green" ]; then
+    cat <<EOF
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_READY=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_PHASE=post_ship
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_POST_OK=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_FAIL=status_not_green
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0
+EOF
+    log "delete-body-commit-honesty FAIL: STATUS must stay green after delete body (got '${win_status:-empty}')"
+    exit 1
+  fi
+  if [ "${endgame:-}" != "1" ]; then
+    cat <<EOF
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_READY=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_PHASE=post_ship
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_POST_OK=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_FAIL=endgame_not_1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0
+EOF
+    log "delete-body-commit-honesty FAIL: ENDGAME must stay 1 after delete body"
+    exit 1
+  fi
+  cat <<EOF
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_READY=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_PHASE=post_ship
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_POST_OK=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TIP=$cur_tip
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_LEAF=$leaf_target
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_STATUS=reproven_green
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_ENDGAME=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TREE_ARMED=${tree_armed:-1}
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MAKEFILE_PRESENT=0
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_CO_CHANGE=1
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_NOTE=makefile_absent_post_ship_contract_honesty_only_does_not_rm
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_FORBIDDEN=claim_honesty_re_deleted|re_rm_missing_makefile
+PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_NEXT=product_path_without_make_verify
+EOF
+  log "delete-body-commit-honesty PHASE=post_ship POST_OK=1 tip=$cur_tip (Makefile already absent)"
+  log "  contract only — honesty never performs rm; verify product path without make"
   exit 0
 }
 
@@ -2224,12 +2535,12 @@ cmd_delete() {
     log "  runbook: --endgame-preview → dual-end L2 → confirm --endgame-arm-apply → TREE_ARMED commit → confirm --delete body"
   elif [ "${XLANG_PHYS_DEL_CONFIRM:-}" != "DELETE_MAKEFILE_I_UNDERSTAND" ]; then
     log "  reason: missing XLANG_PHYS_DEL_CONFIRM=DELETE_MAKEFILE_I_UNDERSTAND (ENDGAME=1 but delete body still deferred)"
-    log "  runbook: --delete-body-preview (wave809) → honesty → explicit confirm + ship delete body"
+    log "  runbook: --delete-body-preview (wave809) → --delete-body-commit-honesty (wave810) → explicit confirm + ship delete body"
   else
     log "  reason: execute-gate never rm Makefile (delete body deferred even after ENDGAME=1 + confirm)"
-    log "  runbook: ship delete-body wave after wave809 preview + explicit review; preview/TREE_ARMED alone is not physical delete"
+    log "  runbook: ship delete-body wave after wave809/810 preview+honesty + explicit user auth; honesty/TREE_ARMED alone is not physical delete"
   fi
-  log "  forbidden: delete_makefile_before_windows_green|delete_makefile_before_endgame_1|claim_tree_arm_is_physical_delete|claim_proof_is_physical_delete|claim_preview_is_delete|claim_endgame_preview_is_delete|claim_delete_body_preview_is_delete|claim_apply_is_physical_delete|claim_honesty_is_delete"
+  log "  forbidden: delete_makefile_before_windows_green|delete_makefile_before_endgame_1|claim_tree_arm_is_physical_delete|claim_proof_is_physical_delete|claim_preview_is_delete|claim_endgame_preview_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_apply_is_physical_delete|claim_honesty_is_delete"
 
   # Even if someone forges leaf keys later, require explicit confirm AND green + ENDGAME.
   if [ "${win_status:-}" != "green" ] && [ "${win_status:-}" != "reproven_green" ]; then
@@ -2282,13 +2593,16 @@ case "$MODE" in
   --delete-body-preview|delete-body-preview|prepare-delete-body|delete-body-prep)
     cmd_delete_body_preview
     ;;
+  --delete-body-commit-honesty|delete-body-commit-honesty|delete-commit-honesty|body-commit-honesty)
+    cmd_delete_body_commit_honesty
+    ;;
   --delete|delete)
     cmd_delete
     ;;
   -h|--help|help)
-    sed -n '2,140p' "$0"
+    sed -n '2,160p' "$0"
     ;;
   *)
-    die "unknown mode '$MODE' (status|--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply|--status-flip-commit-honesty|--endgame-preview|--endgame-arm-apply|--endgame-arm-commit-honesty|--delete-body-preview|--delete)"
+    die "unknown mode '$MODE' (status|--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply|--status-flip-commit-honesty|--endgame-preview|--endgame-arm-apply|--endgame-arm-commit-honesty|--delete-body-preview|--delete-body-commit-honesty|--delete)"
     ;;
 esac

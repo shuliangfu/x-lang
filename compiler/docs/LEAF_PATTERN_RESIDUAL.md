@@ -1013,7 +1013,8 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave807:** ENDGAME arm **commit honesty** (`--endgame-arm-commit-honesty`; pre_arm/post_arm; TREE_ARMED=0 on tree; NOT tree arm; NOT delete)
 - [x] **wave808:** reviewed **TREE_ARMED arm** (`ENDGAME=1` + `TREE_ARMED=1`; honesty greps co-changed; Makefile still present; NOT physical delete)
 - [x] **wave809:** delete-body **prep/preview** (`--delete-body-preview`; TREE_ARMED plan only; BODY_SHIPPED=0; NOT ship body; NOT physical delete)
-- [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **confirm delete body only**)
+- [x] **wave810:** delete-body **commit honesty** (`--delete-body-commit-honesty`; pre_ship inventory; BODY_SHIPPED=0; NOT ship body; NOT physical delete)
+- [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **explicit auth + ship delete body only**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] B7 residual endgame: Makefile heat **dep** edges gone / physical delete (try-heat ✅ wave789; thin-unify ✅ wave790; source-prereq closed wave797; thin-call edges remain until phys del)
 
@@ -1719,6 +1720,45 @@ Then (later waves, not this tip):
 
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
+
+## wave810 delete-body commit honesty (2026-07-30)
+
+> **Not this wave:** ship real `rm compiler/Makefile` body; physical delete.
+>
+> **What this wave is:** G.7 **有则补全** on `phys_del_makefile_gate.sh` —
+> `--delete-body-commit-honesty` prints pre_ship inventory (Makefile present +
+> TREE_ARMED green → CO_CHANGE list + MUST_UPDATE/MUST_NOT) and post_ship contract
+> (Makefile already absent on a future tip). Never edits leaf. Never rm Makefile.
+> Tree keeps ENDGAME=1 · TREE_ARMED=1 · BODY_SHIPPED=0 · Makefile present ·
+> `--delete` still never-rm. Dual-end L2 required.
+
+```text
+  ./xbuild phys-del-gate --delete-body-commit-honesty
+      # PHASE=pre_ship READY=1 when TREE_ARMED green + Makefile present
+      # BODY_SHIPPED=0 DELETE_ALLOWED=0 DELETE_STILL_REFUSED=1; no leaf mutation; no rm
+  leaf dump:
+    PHYS_DEL_DELETE_BODY_COMMIT_HONESTY=1
+    PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810
+    PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MODE=--delete-body-commit-honesty
+    PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0
+    PHYS_DEL_PREFLIGHT_NEXT=explicit_user_auth_then_ship_delete_body
+  next: explicit user auth → ship --delete body (separate wave)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_DELETE_BODY_COMMIT_HONESTY` | `1` |
+| `PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE` | `wave810` |
+| `PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_MODE` | `--delete-body-commit-honesty` |
+| `PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED` | `0` |
+| `PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_TARGET_ACTION` | `rm_compiler_Makefile` |
+| `PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED` | `0` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `explicit_user_auth_then_ship_delete_body` |
+
+**Forbidden:** claim delete-body-commit-honesty = ship body / physical delete;
+`rm compiler/Makefile` in this wave; ship body without explicit user auth;
+mac-only wave green.
 
 ## wave809 delete-body prep / preview (2026-07-30)
 
