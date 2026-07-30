@@ -93,7 +93,7 @@
 | `compile_commands.json` | 3418 | Makefile | `xbuild compile-commands 或删` | ⬜ Makefile | IDE 辅助 |
 | `size-baseline` | 3422 | **shell** `stage8_baseline.sh size` | `xbuild size-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-size-baseline.sh` | 可选 stage-8 |
 | `perf-baseline` | 3426 | **shell** `stage8_baseline.sh perf` | `xbuild perf-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-perf-baseline.sh` | 可选 stage-8 |
-| `verify-selfhost-stage2` | ~2783 | **shell** `scripts/verify-selfhost-stage2.sh` | `xbuild stage2` / make thin | 🟢 wave898 RT_SEED multi; wave897 B2; wave896 driver_leaf; wave895 std_x; wave894 formal_mod; wave893 body under scripts；root shim CI | Stage2 X dogfood |
+| `verify-selfhost-stage2` | ~2783 | **shell** `scripts/verify-selfhost-stage2.sh` | `xbuild stage2` / make thin | 🟢 wave899 R1_CORE multi; wave898 RT_SEED; wave897 B2; wave896 driver_leaf; wave895 std_x; wave894 formal_mod; wave893 body under scripts；root shim CI | Stage2 X dogfood |
 | `bootstrap-verify` | 3414 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-seed` | 3410 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-bstrict` | 3407 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
@@ -697,6 +697,7 @@
 
 ## wave892 residual note
 
+- **wave899** · B7B R1_CORE_SEED multi-target FORCE thin try-heat：5 leaves → `$(R1_CORE_SEED_OBJS)`（`mk/driver_seed_r_lists.mk` 既有 · G.7 有则补全）+ Makefile multi-target FORCE try-heat（收 diag/link_abi/c_import/bridge/compat）。**非**物理删。
 - **wave898** · B7B RT_SEED_SLICE multi-target FORCE thin try-heat：5 leaves → `$(RT_SEED_SLICE_OBJS)`（`mk/driver_seed_r_lists.mk` 既有 · G.7 有则补全）+ Makefile multi-target FORCE try-heat（收 5 per-leaf）。**非**物理删。
 - **wave897** · B7B B2 std_core hybrid product edges list→mk multi-target thin：5 leaves → `mk/std_core_hybrid_product_objs.mk` + Makefile `$(STD_CORE_HYBRID_PRODUCT_OBJS)` multi-target FORCE try-heat（收 process/path/runtime/net/slice）。**非**物理删。
 - **wave896** · B7B driver_leaf product edges list→mk multi-target thin：8 leaves → `mk/driver_leaf_product_objs.mk` + Makefile `$(DRIVER_LEAF_PRODUCT_OBJS)` multi-target FORCE ensure（收 8 per-leaf）。**非**物理删。
