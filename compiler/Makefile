@@ -2665,15 +2665,18 @@ xlang_asm:
 	@G05_SYNC_ASM=1 sh scripts/g05_prepare_and_relink.sh
 	@echo "xlang_asm OK (via g05_prepare_and_relink.sh)"
 
-relink-xlang-lexer: lexer_x.o
-	@test -f build_asm/seed_host/asm_backend_partial.o || (echo "relink-xlang-lexer: need build_asm/seed_host/asm_backend_partial.o (make build-seed-asm-host)" >&2; exit 1)
-	@test -f driver_x.o && test -f pipeline_x.o && test -f parser_x.o && test -f typeck_x.o && test -f codegen_x.o || (echo "relink-xlang-lexer: missing *_x.o (make bootstrap-driver-seed first)" >&2; exit 1)
-	@$(MAKE) $(RELINK_XLANG_FILTERED_OBJS)
-	@$(MAKE) $(RELINK_XLANG_GLUE_SUFFIX)
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)
-	cp -f $(TARGET) $(XLANG_C)
-	cp -f $(TARGET) bootstrap_xlangc
-	@echo "relink-xlang-lexer OK (lexer_x.o only; xlang-c synced)"
+# wave849: full body → scripts/relink_xlang_lexer.sh (G.7 有则补全; shell owns seed
+#   gate + host-cc link + XLANG_C/bootstrap_xlangc sync). Lists stay mk expansion
+#   (composites / user_asm / link_picks / subcmd / PIPELINE_LIBS).
+# NOT physical delete — prereq make-graph (lexer_x.o / FILTERED / GLUE) + thin edges
+#   + B2 + mk lists remain residual.
+# PLATFORM: SHARED — shell owns preflight + link + product alias sync.
+relink-xlang-lexer: lexer_x.o $(RELINK_XLANG_FILTERED_OBJS) $(RELINK_XLANG_GLUE_SUFFIX) scripts/relink_xlang_lexer.sh
+	@CC="$(CC)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" BOOTSTRAP_XLANGC="bootstrap_xlangc" \
+	  RXL_LINK_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
+	  RXL_LINK_OBJS="$(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)" \
+	  RXL_REQUIRED_OBJS="build_asm/seed_host/asm_backend_partial.o driver_x.o pipeline_x.o parser_x.o typeck_x.o codegen_x.o" \
+	  bash scripts/relink_xlang_lexer.sh
 
 bootstrap-driver-seed-user-asm: bootstrap-driver-seed
 	@echo "bootstrap-driver-seed-user-asm OK (= bootstrap-driver-seed + USER_ASM_LINK)"
