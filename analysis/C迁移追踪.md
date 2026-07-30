@@ -1527,10 +1527,11 @@
 - **wave891** · B7B residual non-thin HOST_CC + SKIP_SUBSCRIPT body hygiene（2 sites → host_cc_objs_core_link.sh + bootstrap_driver_seed soft-skip）
 - **wave892** · B7B residual terminal `@echo` + last multi-token `-I` form hygiene（13 sites → dual echo drop 3 · pure echo→`@true` 9 · last `cc_inc_tu` `-I` drop 1）
 - **wave893** · B7B residual verify-selfhost thin-call form hygiene（2 sites → body under `scripts/` · pure `@bash scripts/…` · root shim for CI/tests）
+- **wave894** · B7B formal_mod product edges list→mk + multi-target FORCE thin（38 → `mk/formal_mod_product_objs.mk` · Makefile multi-target ensure）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
-- **open** · thin edges + B2 + mk lists（hybrid）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave893 verify form closed
+- **open** · thin edges + B2 + remaining mk lists / std_x product graph（hybrid）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave894 formal_mod list→mk
 
 **状态明细**（一行一项）：
 
@@ -1606,6 +1607,7 @@
 - ✅ **std_x shell-primary catalog**（wave825 · 22 叶 · `xlang_compile_std_x ensure` · mode|x_path 表进 shell · Makefile thin-call ensure only · **非**物理删 · formal_mod + B2 + thin edges + mk lists 仍 residual）
 - ✅ **formal_mod FORCE dep-thin**（wave826 · 38 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · B2 try-heat + thin edges + mk lists 仍 residual）
 - ✅ **std_x FORCE dep-thin**（wave827 · 22 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · formal_mod FORCE + B2 try-heat + thin edges + mk lists 仍 residual）
+- ✅ **formal_mod product edges list→mk multi-target**（wave894 · 38 叶 · `mk/formal_mod_product_objs.mk` + `$(FORMAL_MOD_PRODUCT_OBJS)` FORCE ensure · shell catalog 体权威 · **非**物理删 · thin edges + B2 + std_x graph 仍 residual）
 - ✅ **driver_leaf FORCE dep-thin**（wave828 · 8 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · B2 try-heat + thin edges + mk lists 仍 residual）
 - ✅ **gen.c FORCE dep-thin**（wave829 · 17 叶 · Makefile FORCE+ensure_*_gen only · bash recipe · shell 拥 pin/FORCE_REGEN · **非**物理删 · B2 + thin edges + mk lists 仍 residual）
 - ✅ **ast_gen2 FORCE dep-thin**（wave830 · 1 叶 · Makefile FORCE+ensure_ast_gen2 only · bash recipe · shell 拥 pin/FORCE_REGEN/-E+fix_slim · **非**物理删 · B2 + thin edges + mk lists 仍 residual）
