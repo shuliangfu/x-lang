@@ -302,21 +302,20 @@ XLANG_X = xlang-x
 # wave867 B7B: drop multi-token LD_R_MULTIDEF_FLAGS inject (G.7 hygiene).
 # Shell arch_ld_r_multidef_flags() owns host uname default when env unset
 # (Darwin -multiply_defined suppress / else --allow-multiple-definition).
-# Thin-call MAKE= only (nested product .o). Optional LD_R_MULTIDEF_FLAGS still
-# accepted by shell when caller sets it. NOT physical delete — thin edges + B2 remain.
+# wave883 B7B: drop single-token MAKE= inject (G.7 hygiene).
+# Shell MAKE="${MAKE:-make}" + GNU make auto-exports MAKE to recipe env.
+# Optional LD_R_MULTIDEF_FLAGS still accepted by shell when caller sets it.
+# NOT physical delete — thin edges + B2 remain.
 # PLATFORM: SHARED — FORCE always invokes ensure; bash for Ubuntu dash.
 net-o-stub: FORCE scripts/archaeology_host_pick_phony.sh
-	@MAKE="$(MAKE)" \
-	  bash scripts/archaeology_host_pick_phony.sh ensure $@
+	@bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 # TLS：F-04 v8 net-o-openssl 编译 std/net/tls_openssl.x（不再 #include tls_openssl.inc.c）。
 net-o-openssl: FORCE scripts/archaeology_host_pick_phony.sh
-	@MAKE="$(MAKE)" \
-	  bash scripts/archaeology_host_pick_phony.sh ensure $@
+	@bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
-	@MAKE="$(MAKE)" \
-	  bash scripts/archaeology_host_pick_phony.sh ensure $@
+	@bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 # std.thread：mod.x 提供 std_thread_* 包装；pthread 胶层在 runtime_thread_glue.o（thread_*_c）。
 # 【Why 勿只编 thread.x】thread.x 仅 marker，link_only 时缺 _std_thread_create 等。
@@ -586,10 +585,10 @@ sqlite-o: ../std/db/sqlite/sqlite.o runtime_sqlite_glue.o
 # wave815: archaeology host-pick phony → shell catalog (G.7; not physical delete).
 # wave839: FORCE dep-thin — FORCE + archaeology_host_pick_phony only (G.7 有则补全).
 # wave867 B7B: drop multi-token LD_R_MULTIDEF_FLAGS inject (G.7 hygiene; same as net-o-*).
+# wave883 B7B: drop single-token MAKE= inject (shell MAKE default + make auto-export).
 # PLATFORM: SHARED — FORCE always invokes ensure; bash for Ubuntu dash.
 sqlite-o-stub: FORCE scripts/archaeology_host_pick_phony.sh
-	@MAKE="$(MAKE)" \
-	  bash scripts/archaeology_host_pick_phony.sh ensure $@
+	@bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 # std.elf：F-elf v2 + F-ZC 纯 elf.x → elf.o（无 glue；无 xlang 时 exit 0）。
 ../std/elf/elf.o: FORCE scripts/xlang_compile_std_x.sh
@@ -1699,9 +1698,10 @@ build-seed-asm-host: bootstrap-driver-seed-asm-host
 # §5b #9 — host stubs body → scripts/bootstrap_driver_seed_host_stubs.sh (wave723).
 # SCAN_BASE / CFLAGS / OUT: Makefile export only (G.7). Optional HOST_DIR peers
 # (asm_full.o, asm_backend_partial.o) remain fixed relative names in shell.
+# wave883 B7B: drop single-token MAKE= inject (shell MAKE default + make auto-export).
 $(USER_ASM_SEED_HOST_STUBS): pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SEED_OBJS) scripts/gen_asm_full_link_stubs.pl scripts/bootstrap_driver_seed_host_stubs.sh
 	@chmod +x scripts/bootstrap_driver_seed_host_stubs.sh 2>/dev/null || true
-	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_host_stubs.sh
+	@./scripts/bootstrap_driver_seed_host_stubs.sh
 
 $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 
@@ -2165,8 +2165,9 @@ lsp_gen.c: FORCE scripts/ensure_lsp_pipeline_gen.sh
 # wave814: driver_leaf catalog → ensure (G.7; rename/dirs in script; not physical delete).
 # wave828: FORCE dep-thin — shell owns catalog .x mtime (skip up-to-date); not physical delete.
 # wave860: BASE_CFLAGS via export-driver-leaf-base-cflags when unset (no multi-token env).
+# wave883 B7B: drop single-token MAKE= inject (shell MAKE:-make + make auto-export).
 lsp_io_std_heap_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@bash scripts/driver_leaf_x_to_o.sh ensure $@
 # wave740: G.7 body → scripts/ensure_archaeology_gen.sh (Track L archaeology only)
 # wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
 lsp_io_std_heap_gen.c: FORCE scripts/ensure_archaeology_gen.sh
@@ -2199,23 +2200,24 @@ include mk/driver_subcmd_objs.mk
 # wave814: driver_leaf shell-primary catalog → ensure (G.7; not physical delete).
 # wave828: FORCE dep-thin — Makefile prereqs FORCE+script only; shell owns catalog .x mtime.
 # wave860: BASE_CFLAGS via export-driver-leaf-base-cflags when unset (no multi-token env).
+# wave883 B7B: drop single-token MAKE= inject (shell MAKE:-make + make auto-export).
 # Makefile thin-call only; src/rename/cold-seed/-L + BASE_CFLAGS live in script catalog/export.
 driver_fmt_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_check_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_test_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_build_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_run_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@bash scripts/driver_leaf_x_to_o.sh ensure $@
 # Track L：compile / emit 叶子退役（prove IDENTICAL；emit 依赖 codegen 字段访问 . vs -> 根修）
 # wave814: rename maps moved into driver_leaf_x_to_o.sh catalog (G.7 single authority).
 driver_compile_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_emit_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@bash scripts/driver_leaf_x_to_o.sh ensure $@
 
 # wave740: G.7 body → scripts/ensure_archaeology_gen.sh
 # 考古：可选再生成工作区 *_gen.c（不进 DRIVER_SEED_PREREQS；叶子已退役；产品用 *_x.o）
@@ -2445,9 +2447,11 @@ bootstrap-driver-seed-export-pipeline-x:
 	@printf 'SEED_REBUILD_MAKE_ARGS=%s\n' ''
 	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' 'PIPELINE_X_FORCE_COMPILE=1'
 
+# wave883 B7B: drop single-token MAKE= inject on rebuild-leaves phonies (G.7 hygiene).
+# Shell MAKE="${MAKE:-make}" + GNU make auto-exports MAKE; nested make uses recipe env.
 bootstrap-driver-seed-pipeline-x:
 	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh pipeline-x
+	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh pipeline-x
 
 # §5b #3 — satellite runtime/diag/simd forced seed path (XLANG_G05_PREFER_X_O=0)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh sat; list = DRIVER_SEED_SAT_REBUILD_OBJS only.
@@ -2458,7 +2462,7 @@ bootstrap-driver-seed-export-sat-rebuild:
 
 bootstrap-driver-seed-sat-rebuild:
 	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh sat
+	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh sat
 
 # §5b #4 — lsp / frontend alias objs (list = DRIVER_SEED_LSP_X_OBJS only)
 bootstrap-driver-seed-export-lsp-x-objs:
@@ -2468,7 +2472,7 @@ bootstrap-driver-seed-export-lsp-x-objs:
 
 bootstrap-driver-seed-lsp-x-objs:
 	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh lsp
+	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh lsp
 
 # §5b #5 — x_seed_bridge.o (list = DRIVER_SEED_BRIDGE_OBJS only)
 bootstrap-driver-seed-export-bridge:
@@ -2478,7 +2482,7 @@ bootstrap-driver-seed-export-bridge:
 
 bootstrap-driver-seed-bridge:
 	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
+	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 
 # §5b #12 — runtime_panic.o (list = DRIVER_SEED_PANIC_OBJS only; platform recipe stays Makefile)
 bootstrap-driver-seed-export-panic:
@@ -2488,7 +2492,7 @@ bootstrap-driver-seed-export-panic:
 
 bootstrap-driver-seed-panic:
 	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh panic
+	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh panic
 
 # §5b #6 — USER_ASM seed objs (list = DRIVER_SEED_USER_ASM_SEED_OBJS → USER_ASM_SEED_OBJS)
 bootstrap-driver-seed-export-user-asm:
@@ -2498,7 +2502,7 @@ bootstrap-driver-seed-export-user-asm:
 
 bootstrap-driver-seed-user-asm-seed-objs:
 	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh user-asm
+	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh user-asm
 
 # §5b #7 — pipeline_glue_standalone.o (list = DRIVER_SEED_ASM_GLUE_OBJS)
 bootstrap-driver-seed-export-glue:
@@ -2508,7 +2512,7 @@ bootstrap-driver-seed-export-glue:
 
 bootstrap-driver-seed-asm-glue-standalone:
 	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh glue
+	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh glue
 
 
 # §5b #10 — class-G filtered (Darwin); empty expansion on Linux
@@ -2526,9 +2530,10 @@ bootstrap-driver-seed-export-host-stubs:
 	@printf 'SEED_STUBS_SCAN_BASE=%s\n' '$(DRIVER_SEED_HOST_STUBS_SCAN_BASE)'
 	@printf 'SEED_STUBS_PERL=%s\n' 'scripts/gen_asm_full_link_stubs.pl'
 
+# wave883 B7B: drop single-token MAKE= inject (shell MAKE default + make auto-export).
 bootstrap-driver-seed-host-stubs:
 	@chmod +x scripts/bootstrap_driver_seed_host_stubs.sh 2>/dev/null || true
-	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_host_stubs.sh
+	@./scripts/bootstrap_driver_seed_host_stubs.sh
 
 # §5b #11 — phase1 / final link
 # OBJS+CFLAGS: Makefile export only (G.7). Link body: bootstrap_driver_seed_link.sh.
@@ -2681,9 +2686,10 @@ export-xnc-link-cflags:
 export-bxf-link-cflags:
 	@printf 'LINK_CFLAGS=%s\n' '$(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN'
 
+# wave883 B7B: drop single-token MAKE= inject (align final-link wave879; shell MAKE default).
 bootstrap-driver-seed-phase1-link:
 	@chmod +x scripts/bootstrap_driver_seed_link.sh 2>/dev/null || true
-	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_link.sh phase1
+	@./scripts/bootstrap_driver_seed_link.sh phase1
 
 # wave879 B7B: drop multi-token MAKE/TARGET inject (G.7 hygiene).
 # Shell defaults own MAKE/TARGET (bootstrap_driver_seed_link). Thin ./scripts only.
@@ -2873,19 +2879,20 @@ bootstrap-driver-asm-only: bootstrap-driver-hybrid
 # wave719: body → scripts/bootstrap_driver_bstrict.sh (G.7); prereq seed 仍 make 图。
 # 仅保留 xlang_asm、不覆盖 seed：XLANG_BSTRICT_NO_REPLACE=1 make bootstrap-driver-bstrict
 # wave882 B7B: drop TARGET= from multi-token inject (shell TARGET default + CLI).
-# Keep MAKE= (nested rebuild) + ENSURE_SEED=0 (override shell default 1).
+# wave883 B7B: drop MAKE= from multi-token inject (shell MAKE default + make auto-export).
+# Keep ENSURE_SEED=0 (override shell default 1).
 bootstrap-driver-bstrict: bootstrap-driver-seed
-	@MAKE="$(MAKE)" XLANG_BSTRICT_ENSURE_SEED=0 \
+	@XLANG_BSTRICT_ENSURE_SEED=0 \
 	  sh scripts/bootstrap_driver_bstrict.sh
 
 # P0 asm 门禁：strict xlang_asm 与 seed+migrate-x-objs 对齐（M-3 含 typeck/codegen/ast）；xlang_asm2 仍保留 gen2。
 # wave734: body → scripts/refresh_xlang_asm_gate.sh (G.7)
 # wave735: migrate → scripts/migrate_x_objs.sh (no make migrate-x-objs inside refresh).
 # wave882 B7B: drop TARGET= from multi-token inject (shell TARGET default + CLI).
-# Keep MAKE= + NO_REPLACE passthrough (makefile var may be unset; env/CLI still honored).
+# wave883 B7B: drop MAKE= from multi-token inject (shell MAKE default + make auto-export).
+# Keep NO_REPLACE passthrough (makefile var may be unset; env/CLI still honored).
 refresh-xlang-asm-gate:
-	@MAKE="$(MAKE)" \
-	  XLANG_BSTRICT_NO_REPLACE="$(XLANG_BSTRICT_NO_REPLACE)" \
+	@XLANG_BSTRICT_NO_REPLACE="$(XLANG_BSTRICT_NO_REPLACE)" \
 	  sh scripts/refresh_xlang_asm_gate.sh
 
 # 日常快路径：仅 strict relink（前提 build_asm/*.o 已由 prior bootstrap 产出；改 glue/runtime/link 时用，~30s）。

@@ -167,6 +167,11 @@
 #            token/lexer/parser/parse-file / hybrid / crt0 / build-via-tool /
 #            check-7.2 pure drop; bstrict+refresh drop TARGET from multi-token;
 #            shell TARGET:-xlang + CLI auto-export; NOT physical delete
+#   wave883: B7B residual single-token MAKE= inject hygiene (24 recipes) →
+#            archaeology 4 + driver_leaf 8 + rebuild_leaves 7 + host_stubs 2 +
+#            phase1-link 1 pure drop; bstrict+refresh drop MAKE from multi-token;
+#            shell MAKE:-make + GNU make auto-export; keep ENSURE_SEED/NO_REPLACE;
+#            NOT physical delete — CC passthrough + G05_SYNC + LD + thin edges remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1414,6 +1419,21 @@ SWALLOWED_B7B_TARGET_INJECT_HYGIENE=1
 B7B_TARGET_INJECT_HYGIENE_SWALLOWED=1
 B7B_TARGET_INJECT_HYGIENE_WAVE=wave882
 B7B_TARGET_INJECT_HYGIENE_COUNT=10
+# wave883: B7B residual single-token MAKE= inject hygiene.
+# COUNT = 24 recipes: 22 pure MAKE-only thin-calls (archaeology host-pick 4 +
+# driver_leaf 8 + rebuild_leaves 7 + host_stubs 2 + phase1-link 1) + 2 multi-token
+# (bstrict/refresh) drop MAKE=. Shell MAKE="${MAKE:-make}" + GNU make auto-exports
+# MAKE to recipe env (G.7). Keep ENSURE_SEED=0 / NO_REPLACE passthrough.
+# NOT physical delete — CC= passthrough + G05_SYNC + LD + thin edges + B2 remain.
+PHYS_DEL_B7B_MAKE_INJECT_HYGIENE=1
+PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_WAVE=wave883
+PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_COUNT=24
+PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_VIA=shell_make_default_gnu_autoexport_no_recipe_inject
+PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_NOTE=makefile_no_make_inject_on_archaeology_driver_leaf_rebuild_host_stubs_phase1_bstrict_refresh_shell_defaults_thin_edges_remain
+SWALLOWED_B7B_MAKE_INJECT_HYGIENE=1
+B7B_MAKE_INJECT_HYGIENE_SWALLOWED=1
+B7B_MAKE_INJECT_HYGIENE_WAVE=wave883
+B7B_MAKE_INJECT_HYGIENE_COUNT=24
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -2441,6 +2461,9 @@ else
   fi
   if ! grep -qE 'wave882|TARGET_INJECT|TARGET=.*inject|single-token TARGET' "$DOC_REL"; then
     bad "$DOC_REL must document wave882 TARGET inject hygiene"
+  fi
+  if ! grep -qE 'wave883|MAKE_INJECT|MAKE=.*inject|single-token MAKE' "$DOC_REL"; then
+    bad "$DOC_REL must document wave883 MAKE inject hygiene"
   fi
   note "doc $DOC_REL present"
 fi
@@ -6833,6 +6856,25 @@ if ! grep -q 'PHYS_DEL_B7B_TARGET_INJECT_HYGIENE_COUNT=10' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_TARGET_INJECT_HYGIENE_COUNT=10 (wave882)"
 fi
 note "B7B residual TARGET= inject hygiene (COUNT=10; wave882; not physical delete)"
+# wave883: residual single-token MAKE= inject hygiene.
+# COUNT=24: drop MAKE= recipe inject; shell MAKE:-make + GNU make auto-export.
+# G.7: no dual MAKE authority — shell defaults own nested make binary.
+# Fixed-string match for recipe form MAKE="$(MAKE)" (comments use prose only).
+if grep -qF 'MAKE="$(MAKE)"' "$MF" 2>/dev/null; then
+  bad "Makefile still injects MAKE=\$(MAKE) on recipes (wave883)"
+  grep -nF 'MAKE="$(MAKE)"' "$MF" | head -15 >&2
+fi
+if ! grep -q 'wave883' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave883 MAKE inject hygiene"
+fi
+# dump honesty
+if ! grep -q 'PHYS_DEL_B7B_MAKE_INJECT_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_MAKE_INJECT_HYGIENE=1 (wave883)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_COUNT=24' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_COUNT=24 (wave883)"
+fi
+note "B7B residual MAKE= inject hygiene (COUNT=24; wave883; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \

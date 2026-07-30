@@ -51,7 +51,8 @@
 > - **wave880** · B7B ENSURE=0 / OUT=$@ / all OPT inject hygiene (7 recipes → thin `@bash`/`@sh` all/test_c/test_x/seed-x-frontend/legacy-xlang-c/xnc/check-7.2-bstrict; MAKELEVEL shell defaults)
 > - **wave881** · B7B try-heat XLANG_G05_PREFER_X_O inject hygiene (31 recipes → CC-only thin-call; PREFER via make CLI/env + shell default; net XLANG= drop)
 > - **wave882** · B7B residual single-token TARGET= inject hygiene (10 recipes → drop TARGET= on token/lexer/parser/parse-file/hybrid/crt0/build-via-tool/check-7.2 + bstrict/refresh multi; shell TARGET:-xlang + CLI auto-export)
-> - **open** · thin edges + B2 + mk lists (hybrid) · residual single-token injects (MAKE/CC passthrough · G05_SYNC · LD · pipeline bags) · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave883** · B7B residual single-token MAKE= inject hygiene (24 recipes → drop MAKE= on archaeology 4 + driver_leaf 8 + rebuild_leaves 7 + host_stubs 2 + phase1-link 1 + bstrict/refresh multi; shell MAKE:-make + GNU make auto-export; keep ENSURE_SEED/NO_REPLACE)
+> - **open** · thin edges + B2 + mk lists (hybrid) · residual single-token injects (CC passthrough · G05_SYNC · LD · pipeline bags) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -4598,3 +4599,38 @@ PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_bo
 **Forbidden:** claim ENSURE/OUT/OPT hygiene = physical delete; re-add ENSURE=0 /
 OUT=$@ / multi-token OPT inject on these leaves; claim multi-token fat exhausted
 while thin edges / B2 / mk lists remain.
+
+## wave883 B7B residual single-token MAKE= inject hygiene (2026-07-30)
+
+> **Why (G.7 有则补全 on wave882 TARGET inject hygiene):** After TARGET= pure/multi
+> hygiene, residual single-token `MAKE="$(MAKE)"` recipe injects remained on nested-make
+> thin leaves. Shells already default `MAKE="${MAKE:-make}"`; GNU make **auto-exports**
+> `MAKE` into recipe environments. Dual inject = second authority path.
+
+**This wave:** drop `MAKE="$(MAKE)"` on **24** recipes:
+- **22 pure** thin-calls: archaeology host-pick (4) · `driver_leaf_x_to_o` (8) ·
+  `bootstrap_driver_seed_rebuild_leaves` (7) · host_stubs (2) · phase1-link (1)
+- **2 multi-token** bags: `bootstrap-driver-bstrict` / `refresh-xlang-asm-gate` drop
+  MAKE=; keep `XLANG_BSTRICT_ENSURE_SEED=0` / `XLANG_BSTRICT_NO_REPLACE` intentional overrides
+
+Shell + GNU make auto-export remain authority. **NOT** physical delete — thin edges +
+B2 + mk lists + residual CC passthrough / G05_SYNC / LD bags remain.
+
+```text
+PHYS_DEL_B7B_MAKE_INJECT_HYGIENE=1
+PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_WAVE=wave883
+PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_COUNT=24
+PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_MAKE_INJECT_HYGIENE` | `1` |
+| `PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_COUNT` | `24` |
+| `PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_WAVE` | `wave883` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim MAKE inject hygiene = physical delete; re-add `MAKE="$(MAKE)"`
+recipe inject on these leaves; claim residual single-token inject family exhausted
+while CC passthrough / G05_SYNC / LD / pipeline bags / thin edges remain.
+
