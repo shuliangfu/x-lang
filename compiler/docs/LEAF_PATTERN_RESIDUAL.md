@@ -2074,6 +2074,44 @@ ship delete body; mac-only wave green.
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
 
+## wave861 B7B rt_* multi-token -I CFLAGS hygiene (2026-07-30)
+
+> **Why (G.7 有则补全 on heat thin-call hygiene):**
+> wave748/792 `RT_SEED_SLICE` five leaves (`rt_arena_buf` / `rt_emit_state` /
+> `rt_preamble` / `rt_stack` / `rt_parse_diag`) already FORCE+try-heat, but
+> Makefile still injected multi-token
+> `CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc"`. Product `-I` already lives in
+> `CFLAGS ?=` and shell `BASE_CFLAGS` default — dual bag was make-escape noise
+> vs sibling try-heat leaves (`runtime_x.o` etc. use plain `CFLAGS="$(CFLAGS)"`).
+>
+> **Leaves (COUNT=5):** drop multi-token `-I` append; plain
+> `CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)"` only.
+> **NOT physical delete** — thin edges + B2 try-heat + mk lists remain.
+> Dual-end L2 required.
+>
+```text
+    PHYS_DEL_B7B_RT_SLICE_I_CFLAGS_HYGIENE=1
+    PHYS_DEL_B7B_RT_SLICE_I_CFLAGS_HYGIENE_WAVE=wave861
+    PHYS_DEL_B7B_RT_SLICE_I_CFLAGS_HYGIENE_COUNT=5
+    SWALLOWED_B7B_RT_SLICE_I_CFLAGS_HYGIENE=1
+    PHYS_DEL_PREFLIGHT_B7B_RT_SLICE_I_CFLAGS_HYGIENE=1
+```
+>
+> next: residual thin/B2/lists (hybrid; e.g. try-heat CFLAGS shell-load bulk)
+> or tip Windows → dual L4 → explicit auth ship
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_RT_SLICE_I_CFLAGS_HYGIENE` | `1` |
+| `PHYS_DEL_B7B_RT_SLICE_I_CFLAGS_HYGIENE_COUNT` | `5` |
+| `SWALLOWED_B7B_RT_SLICE_I_CFLAGS_HYGIENE` | `1` |
+| `B7B_RT_SLICE_I_CFLAGS_HYGIENE_VIA` | `plain_cflags_try_heat` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim -I hygiene = physical delete; reintroduce multi-token
+`CFLAGS="$(CFLAGS) -I…"` on heat recipes; dual product -I formula outside
+`CFLAGS ?=` / shell `BASE_CFLAGS` default.
+
 ## wave860 B7B driver_leaf BASE_CFLAGS multi-token shell-load (2026-07-30)
 
 > **Why (G.7 有则补全 on wave857/859 export-leaf pattern):**
@@ -2098,7 +2136,7 @@ ship delete body; mac-only wave green.
     PHYS_DEL_PREFLIGHT_B7B_DRIVER_LEAF_BASE_CFLAGS_SHELL_LOAD=1
 ```
 >
-> next: residual thin/B2/lists (hybrid) or tip Windows → dual L4 → explicit auth ship
+> next: ~~rt_* multi-token -I~~ (wave861) · residual thin/B2/lists or tip Windows
 
 | Key | Value |
 |-----|-------|

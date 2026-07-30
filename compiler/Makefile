@@ -932,33 +932,41 @@ src/runtime_driver.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
 # shell owns seed/.x freshness (try-heat). NOT physical delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# wave861 B7B: drop multi-token CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" (G.7 hygiene).
+# CFLAGS already carries product -I paths (Makefile ?= / shell BASE_CFLAGS default);
+# dual -I bag was residual make-escape noise vs sibling try-heat leaves (runtime_x.o).
+# NOT physical delete — thin edges + B2 try-heat + mk lists remain.
 src/runtime/rt_arena_buf.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
 # shell owns seed/.x freshness (try-heat). NOT physical delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# wave861: plain CFLAGS= (no multi-token -I bag; product -I already in CFLAGS).
 src/runtime/rt_emit_state.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
 # shell owns seed/.x freshness (try-heat). NOT physical delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# wave861: plain CFLAGS= (no multi-token -I bag; product -I already in CFLAGS).
 src/runtime/rt_preamble.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
 # shell owns seed/.x freshness (try-heat). NOT physical delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# wave861: plain CFLAGS= (no multi-token -I bag; product -I already in CFLAGS).
 src/runtime/rt_stack.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # multi-error recovery 诊断（G-02f-307）；勿仅靠 no_c 内嵌 merge——冷启动 phase1 须显式链入。
 # wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
 # shell owns seed/.x freshness (try-heat). NOT physical delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# wave861: plain CFLAGS= (no multi-token -I bag; product -I already in CFLAGS).
 src/runtime/rt_parse_diag.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # wave788 B7B: RT / R1 / R3 pure-literal lists → mk/driver_seed_r_lists.mk
 # (G.7 single list authority; shell catalog parses the same mk; do not re-assign).
