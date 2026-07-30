@@ -1010,6 +1010,7 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave800:** Windows min-gate **proof stamp** harness (`--run-windows-gate` writes stamp; `--verify-windows-proof`; NOT STATUS green; NOT delete)
 - [x] **wave805:** ENDGAME arm **prep/preview** (`--endgame-preview`; STATUS green plan only; TREE_ARMED=0; NOT arm; NOT delete)
 - [x] **wave806:** ENDGAME arm **apply harness** (`--endgame-arm-apply`; STATUS+confirm; TREE_ARMED=0 on tree; NOT physical delete)
+- [x] **wave807:** ENDGAME arm **commit honesty** (`--endgame-arm-commit-honesty`; pre_arm/post_arm; TREE_ARMED=0 on tree; NOT tree arm; NOT delete)
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **TREE_ARMED arm + confirm delete**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] B7 residual endgame: Makefile heat **dep** edges gone / physical delete (try-heat ✅ wave789; thin-unify ✅ wave790; source-prereq closed wave797; thin-call edges remain until phys del)
@@ -1717,6 +1718,37 @@ Then (later waves, not this tip):
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 
+## wave807 ENDGAME arm commit honesty (2026-07-30)
+
+> **Not this wave:** set tree `ENDGAME_PHYSICAL_DELETE_MAKEFILE=1`; set
+> `TREE_ARMED=1`; physical delete of `compiler/Makefile`.
+> **This wave:** G.7 **有则补全** on `phys_del_makefile_gate.sh` —
+> `--endgame-arm-commit-honesty` prints pre_arm inventory (ENDGAME=0) and
+> post_arm contract (temp leaf ENDGAME=1 → STATUS green + `--delete` still
+> refused + Makefile present). Never edits leaf. Never rm Makefile.
+> Tree this tip keeps ENDGAME=0 · TREE_ARMED=0. Dual-end L2 required.
+
+```text
+Entry:
+  ./xbuild phys-del-gate --endgame-arm-commit-honesty
+      # PHASE=pre_arm when tree ENDGAME=0; CO_CHANGE list + MUST_UPDATE
+  # --check: pre_arm on tree + post_arm on temp leaf after arm-apply
+```
+
+| Key | Value |
+|-----|--------|
+| `PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY` | `1` |
+| `PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_WAVE` | `wave807` |
+| `PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_TARGET_ENDGAME` | `1` |
+| `PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_TARGET_TREE_ARMED` | `1` |
+| `PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_DELETE_ALLOWED` | `0` |
+| `PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED` | `0` (tree; honesty ≠ tree arm) |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` (tree) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `endgame_arm_commit_honesty_then_tree_arm_then_confirm_delete_separate` |
+
+**Forbidden:** claim honesty = tree arm / physical delete; set ENDGAME=1 in this
+wave; `rm compiler/Makefile`; mac-only wave green.
+
 ## wave806 ENDGAME arm apply harness (2026-07-30)
 
 > **Not this wave:** set tree `ENDGAME_PHYSICAL_DELETE_MAKEFILE=1`; set
@@ -1742,7 +1774,7 @@ Entry (STATUS already reproven_green after wave804):
       # --check exercises temp leaf only; tree ENDGAME stays 0
 
 Then (later waves, not this tip):
-  reviewed TREE_ARMED=1 commit + honesty greps → confirm --delete body
+  --endgame-arm-commit-honesty → reviewed TREE_ARMED=1 commit → confirm --delete body
 ```
 
 | Key | Value |
@@ -1755,7 +1787,7 @@ Then (later waves, not this tip):
 | `PHYS_DEL_ENDGAME_ARM_APPLY_CONFIRM_ENV` | `XLANG_PHYS_DEL_ENDGAME_ARM_APPLY=ARM_ENDGAME_I_UNDERSTAND` |
 | `PHYS_DEL_WINDOWS_GATE_STATUS` | `reproven_green` (wave804) |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` (tree; harness ≠ tree arm) |
-| `PHYS_DEL_PREFLIGHT_NEXT` | `endgame_arm_apply_tree_then_confirm_delete_separate` |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `endgame_arm_commit_honesty_then_tree_arm_then_confirm_delete_separate` (wave807) |
 
 **Forbidden:** claim arm-apply harness = tree arm / physical delete; auto-arm
 from preview alone; apply without confirm; `rm compiler/Makefile`; mac-only
