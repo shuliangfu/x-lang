@@ -208,6 +208,10 @@
 #            HOST_CC_OBJS_CORE bare $(CC) → host_cc_objs_core_link.sh (1);
 #            SKIP_SUBSCRIPT nested $(MAKE) → bootstrap_driver_seed.sh soft-skip (1);
 #            NOT physical delete — thin edges + B2 + mk lists remain
+#   wave892: B7B residual terminal @echo + last multi-token -I form hygiene (13 sites) →
+#            drop dual @echo after thin-call (3); pure @echo alias → @true (9);
+#            last cc_inc_tu multi-token -I. -Iinclude -Isrc drop (1; shell default);
+#            NOT physical delete — thin edges + B2 + mk lists remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1607,6 +1611,25 @@ SWALLOWED_B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE=1
 B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE_SWALLOWED=1
 B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE_WAVE=wave891
 B7B_HOST_CC_SKIP_SUBSCRIPT_BODY_HYGIENE_COUNT=2
+# wave892: B7B residual terminal @echo status + last multi-token -I form hygiene.
+# COUNT=13 recipe sites:
+#   dual @echo after thin-call drop (3): relink-xlang · xlang_asm · bootstrap-pipeline
+#   pure @echo alias → @true (9): test · bootstrap-driver-seed-user-asm ·
+#     bootstrap-verify-stage2 · bootstrap-verify-stage2-bstrict ·
+#     bootstrap-driver-bstrict-windows · bootstrap-asm · gen-x-driver-objs ·
+#     bootstrap-test · bootstrap-verify-seed
+#   last multi-token -I on cc_inc_tu leaf drop (1): lsp_diag_pipeline_sizes.o
+# Shell owns messaging (g05 / run_compiler_tests / ensure) + BASE_CFLAGS -I default.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+PHYS_DEL_B7B_TERMINAL_ECHO_I_FORM_HYGIENE=1
+PHYS_DEL_B7B_TERMINAL_ECHO_I_FORM_HYGIENE_WAVE=wave892
+PHYS_DEL_B7B_TERMINAL_ECHO_I_FORM_HYGIENE_COUNT=13
+PHYS_DEL_B7B_TERMINAL_ECHO_I_FORM_HYGIENE_VIA=drop_dual_echo_pure_echo_to_true_last_cc_inc_tu_I_flags
+PHYS_DEL_B7B_TERMINAL_ECHO_I_FORM_HYGIENE_NOTE=makefile_no_echo_recipe_no_cc_inc_tu_I_inject_thin_edges_remain
+SWALLOWED_B7B_TERMINAL_ECHO_I_FORM_HYGIENE=1
+B7B_TERMINAL_ECHO_I_FORM_HYGIENE_SWALLOWED=1
+B7B_TERMINAL_ECHO_I_FORM_HYGIENE_WAVE=wave892
+B7B_TERMINAL_ECHO_I_FORM_HYGIENE_COUNT=13
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -7315,6 +7338,27 @@ else
   note "bootstrap_driver_seed.sh SKIP_SUBSCRIPT soft-skip present (wave891)"
 fi
 note "B7B residual HOST_CC + SKIP_SUBSCRIPT body hygiene (COUNT=2; wave891; not physical delete)"
+# wave892: terminal @echo status + last multi-token -I form hygiene
+if grep -nE $'^\t@echo ' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still has @echo recipe body (wave892; drop dual/pure status → @true or shell owns)"
+  grep -nE $'^\t@echo ' "$MF" | head -10 >&2
+fi
+# No thin-call recipe may still pass multi-token -I. -Iinclude -Isrc (shell BASE_CFLAGS
+# / export-driver-leaf-base-cflags own those). Allow @printf export leaves only.
+if grep -nE $'^\t@bash scripts/cc_inc_tu\.sh .* -I\.' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile cc_inc_tu thin-call still injects multi-token -I (wave892; shell BASE_CFLAGS default)"
+  grep -nE $'^\t@bash scripts/cc_inc_tu\.sh .* -I\.' "$MF" | head -5 >&2
+fi
+if ! grep -q 'wave892' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave892 terminal @echo + last -I form hygiene"
+fi
+if ! grep -q 'PHYS_DEL_B7B_TERMINAL_ECHO_I_FORM_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_TERMINAL_ECHO_I_FORM_HYGIENE=1 (wave892)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_TERMINAL_ECHO_I_FORM_HYGIENE_COUNT=13' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_TERMINAL_ECHO_I_FORM_HYGIENE_COUNT=13 (wave892)"
+fi
+note "B7B residual terminal @echo + last multi-token -I form hygiene (COUNT=13; wave892; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \

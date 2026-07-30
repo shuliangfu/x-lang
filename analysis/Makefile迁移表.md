@@ -691,6 +691,10 @@
 - **wave886** · B7B residual LD + pipeline bag inject hygiene：2 叶（`cfg_eval.o` 去 `LD=`/`LD_RELFLAGS=`；`pipeline_x.o` 去 `PIPELINE_X_DEPS`/`PIPELINE_X_FORCE_COMPILE`/`XLANG_FORCE_REGEN_GEN`）。shell LD defaults + `ensure_gen_x_o` mk-load DEPS。**非**物理删。
 
 
+## wave892 residual note
+
+- **wave892** · B7B residual terminal `@echo` + last multi-token `-I` form hygiene：13 sites（dual `@echo` after thin-call drop 3：`relink-xlang`/`xlang_asm`/`bootstrap-pipeline`；pure `@echo` alias → `@true` 9；last `cc_inc_tu` multi-token `-I. -Iinclude -Isrc` drop 1：`lsp_diag_pipeline_sizes.o`，shell BASE_CFLAGS 默认已含）。**非**物理删。
+
 ## wave891 residual note
 
 - **wave891** · B7B residual non-thin HOST_CC + SKIP_SUBSCRIPT body hygiene：2 sites（`HOST_CC_OBJS_CORE` 裸 `$(CC)` → `host_cc_objs_core_link.sh` + `export-objs-core-link-objs`；`SKIP_SUBSCRIPT` 嵌套 `$(MAKE)` → thin `bootstrap_driver_seed.sh` soft-skip）。**非**物理删。

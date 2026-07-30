@@ -1525,8 +1525,11 @@ test_x: bootstrap-driver-seed
 	@bash scripts/run_compiler_tests.sh x
 
 # 全量：先 C 再 x 自举（thin: reuses c/x shells via mode all)
+# wave892 B7B residual: drop dual @echo status body (G.7 form hygiene).
+# Authority: scripts/run_compiler_tests.sh already prints "Test all OK" on mode all.
+# Pure prereq chain; thin @true only. NOT physical delete — thin edges remain.
 test: test_c test_x
-	@echo "Test all OK"
+	@true
 
 # wave719: bootstrap-token/lexer body → scripts/bootstrap_token_lexer_smoke.sh (G.7)
 # wave882 B7B: drop single-token TARGET= inject (G.7 hygiene).
@@ -1972,7 +1975,10 @@ bootstrap-driver-seed-x-frontend: $(XLANG_C) migrate-x-objs driver_x.o preproces
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
 src/lsp/lsp_diag_pipeline_sizes.o: FORCE scripts/cc_inc_tu.sh
 	# wave889 B7B residual: bare sh → pure @bash thin-call form.
-	@bash scripts/cc_inc_tu.sh seeds/lsp_diag_pipeline_sizes_weak.from_x.c $@ -I. -Iinclude -Isrc
+	# wave892 B7B residual: drop multi-token -I. -Iinclude -Isrc (G.7 hygiene).
+	# Shell BASE_CFLAGS default already has -I. -Iinclude -Isrc (cc_inc_tu.sh);
+	# same form as other cc_inc_tu leaves. NOT physical delete — thin edges remain.
+	@bash scripts/cc_inc_tu.sh seeds/lsp_diag_pipeline_sizes_weak.from_x.c $@
 
 # G-02f-1 / Phase 4：产品 G05 nostub 真迁 .x（#[no_mangle] 三枚 sizeof）
 # 源：src/lsp/lsp_diag_pipeline_sizes.x
@@ -2700,13 +2706,13 @@ g05-export-relink:
 # --no-sync for relink-xlang only. Env G05_SYNC_ASM still works for direct shell.
 # NOT physical delete — thin edges + B2 + mk lists + LD/pipeline bags remain.
 # PLATFORM: SHARED — same g05 shell body on mac / Ubuntu / Windows host.
+# wave892 B7B residual: drop dual @echo after thin-call (G.7 form hygiene).
+# Shell g05_prepare_and_relink prints OK; pure @bash only.
 relink-xlang:
 	@bash scripts/g05_prepare_and_relink.sh --no-sync
-	@echo "relink-xlang OK (via g05_prepare_and_relink.sh)"
 
 xlang_asm:
 	@bash scripts/g05_prepare_and_relink.sh
-	@echo "xlang_asm OK (via g05_prepare_and_relink.sh)"
 
 # wave849: full body → scripts/relink_xlang_lexer.sh (G.7 有则补全; shell owns seed
 #   gate + host-cc link + XLANG_C/bootstrap_xlangc sync).
@@ -2723,8 +2729,10 @@ xlang_asm:
 relink-xlang-lexer: lexer_x.o $(RELINK_XLANG_FILTERED_OBJS) $(RELINK_XLANG_GLUE_SUFFIX) scripts/relink_xlang_lexer.sh
 	@bash scripts/relink_xlang_lexer.sh
 
+# wave892 B7B residual: drop pure @echo alias body → @true (G.7 form hygiene).
+# Alias of bootstrap-driver-seed (+ USER_ASM_LINK graph elsewhere); no dual status body.
 bootstrap-driver-seed-user-asm: bootstrap-driver-seed
-	@echo "bootstrap-driver-seed-user-asm OK (= bootstrap-driver-seed + USER_ASM_LINK)"
+	@true
 
 # 实验：不链 C lexer/parser/typeck/codegen；依赖已成功的 bootstrap-driver-seed 产物。(-E-extern / 泛型单态 C 路径不可用)
 # List authority: mk/archaeology_experiment_objs.mk (wave821).
@@ -2776,16 +2784,18 @@ verify-selfhost-stage2:
 	@bash ./verify-selfhost-stage2.sh
 
 # 可选：在 bootstrap-verify 之外单独跑 Stage2（不阻塞 PR 默认 CI）
+# wave892 B7B residual: drop pure @echo alias body → @true (G.7 form hygiene).
 bootstrap-verify-stage2: verify-selfhost-stage2
-	@echo "bootstrap-verify-stage2 OK"
+	@true
 
 # M5：B-strict 二遍 build_xlang_asm（xlang_asm -> xlang_asm2），不依赖 xlang-x -x -E。
 # wave888 B7B: thin @bash form (drop sh ./…).
 verify-selfhost-stage2-bstrict:
 	@bash ./verify-selfhost-stage2-bstrict.sh
 
+# wave892 B7B residual: drop pure @echo alias body → @true (G.7 form hygiene).
 bootstrap-verify-stage2-bstrict: verify-selfhost-stage2-bstrict
-	@echo "bootstrap-verify-stage2-bstrict OK"
+	@true
 
 # B-hybrid：asm 构建（无 SKIP_GEN），成功则 xlang_asm 覆盖 $(TARGET)；失败保留 seed。
 # wave872: full body → scripts/bootstrap_driver_hybrid.sh (G.7 有则补全).
@@ -2832,8 +2842,10 @@ bootstrap-driver-bstrict-relink: scripts/relink_xlang_asm_bstrict_runtime_objs.s
 bootstrap-driver: bootstrap-driver-bstrict
 
 # E-06 v5 / C-03 v2：Windows MSYS2 B-strict（SKIP_GEN，禁 cc -c pipeline_gen.c）；验收 XLANG_WIN_BSTRICT=1 ./tests/run-bootstrap-bstrict-windows-gate.sh
+# wave892 B7B residual: drop pure @echo alias body → @true (G.7 form hygiene).
+# Gate: XLANG_WIN_BSTRICT=1 ./tests/run-bootstrap-bstrict-windows-gate.sh (MSYS2).
 bootstrap-driver-bstrict-windows: bootstrap-driver-bstrict
-	@echo "bootstrap-driver-bstrict-windows OK (E-06 v5: SKIP_GEN B-strict; gate with XLANG_WIN_BSTRICT=1 on MSYS2)"
+	@true
 
 # M4 Linux：crt0 + full_asm .o 链（B-partial，无 runtime_driver）；与 bootstrap-driver-bstrict（asm_only_strict）分轨验收。
 # wave869: full body → scripts/bootstrap_driver_crt0.sh (G.7 有则补全).
@@ -2850,9 +2862,10 @@ build-user-asm-backend:
 	@bash scripts/build_user_asm_backend.sh
 
 # Goal 2（用 asm 后端构建 xlang）：构建最小 C 桩 + 可选执行 asm 自举脚本（需先 bootstrap-driver）
+# wave892 B7B residual: drop dual pure @echo status body → @true (G.7 form hygiene).
+# Prereqs own the objects; full asm path remains bootstrap-asm-full / build_xlang_asm.sh.
 bootstrap-asm: $(TARGET) src/asm/runtime_asm_build.o src/runtime_driver.o
-	@echo "bootstrap-asm: runtime_asm_build.o + runtime_driver.o ready."
-	@echo " Full asm build: XLANG=./$(TARGET) ./scripts/build_xlang_asm.sh (requires bootstrap-driver first)"
+	@true
 # wave887 B7B: drop XLANG= inject — build_xlang_asm defaults XLANG=./$TARGET (or env/CLI).
 bootstrap-asm-full: bootstrap-driver bootstrap-asm
 	@bash scripts/build_xlang_asm.sh
@@ -2977,12 +2990,15 @@ check-pipeline-gen-expr-i64-abi:
 # Shell always runs pin/seed/force -E + i64 ABI (make file-prereq skipped when pin exists).
 # PLATFORM: SHARED — same ensure on Darwin/Linux/Windows MSYS2. NOT physical delete.
 .PHONY: bootstrap-pipeline
+# wave892 B7B residual: drop dual @echo after thin-call (G.7 form hygiene).
+# Shell ensure_lsp_pipeline_gen owns pipeline pin messaging; pure @bash only.
 bootstrap-pipeline: FORCE scripts/ensure_lsp_pipeline_gen.sh
 	@bash scripts/ensure_lsp_pipeline_gen.sh pipeline
-	@echo "bootstrap-pipeline OK"
 # 仅重生成并编译 pipeline/driver/preprocess 三个 X 对象（供调试或 build_xlang_asm 对齐）
+# wave892 B7B residual: drop pure @echo alias body → @true (G.7 form hygiene).
+# Prereqs own pipeline_x.o driver_x.o preprocess_x.o rebuild.
 gen-x-driver-objs: pipeline_x.o driver_x.o preprocess_x.o
-	@echo "gen-x-driver-objs OK (pipeline_x.o driver_x.o preprocess_x.o)"
+	@true
 
 # pipeline_gen.c 为真实文件目标；-E 时 runtime.c 在入口为 pipeline.x 时自动追加 pipeline_glue.c 到 stdout，无 Makefile 补丁
 
@@ -3020,8 +3036,10 @@ bootstrap-x-compiler: xlang-x-pipeline scripts/bootstrap_x_compiler.sh
 	@bash scripts/bootstrap_x_compiler.sh
 
 # 自举测试（不含 run-all）：seed 构建 xlang，再用 xlang 自编得到 xlang_stage2，stage2 跑 return-value 返回 42 即通过。用于快速验证「xlang 能编译自己」。
+# wave892 B7B residual: drop pure @echo alias body → @true (G.7 form hygiene).
+# Prereq bootstrap-self owns stage1→stage2 smoke; no dual status body.
 bootstrap-test: bootstrap-self
-	@echo "Bootstrap tests OK (self-compilation: xlang1 -> xlang2)"
+	@true
 
 # M9：B-strict 语义自举主路径（xlang_asm→xlang_asm2 + lexer/typeck 烟测）。
 # wave720: check-7.2-bstrict / bootstrap-verify body → scripts/bootstrap_verify_bstrict.sh
@@ -3034,8 +3052,9 @@ check-7.2-bstrict: bootstrap-driver-bstrict
 bootstrap-verify-bstrict: check-7.2-bstrict
 	@true
 
+# wave892 B7B residual: drop pure @echo alias body → @true (G.7 form hygiene).
 bootstrap-verify-seed: check-7.2
-	@echo "bootstrap-verify-seed OK (seed xlang -> xlang_stage2)"
+	@true
 
 # 7.3 默认：B-strict / xlang_asm 主路径；-x -E 全模块仍见 bootstrap-verify-seed + verify-selfhost-stage2。
 bootstrap-verify: bootstrap-verify-bstrict

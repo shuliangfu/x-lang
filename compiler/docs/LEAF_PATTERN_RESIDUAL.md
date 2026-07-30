@@ -60,6 +60,7 @@
 > - **wave889** · B7B residual non-thin recipe body / form hygiene (10 sites → drop dual `@mkdir -p build_asm` + panic stamp body; bare `sh scripts/cc_inc_tu` → `@bash`; `legacy-xlang-c-ready` nested `$(MAKE)` → thin ensure)
 > - **wave890** · B7B residual bulk `@sh` → `@bash` thin-call form hygiene (77 sites → formal_mod 38 + std_x 22 + migrate/eoo/g05/clean/token/refresh; pure `@bash scripts/…`)
 > - **wave891** · B7B residual non-thin HOST_CC + SKIP_SUBSCRIPT body hygiene (2 sites → HOST_CC_OBJS_CORE bare `$(CC)` → `host_cc_objs_core_link.sh`; SKIP_SUBSCRIPT nested `$(MAKE)` → `bootstrap_driver_seed.sh` soft-skip)
+> - **wave892** · B7B residual terminal `@echo` + last multi-token `-I` form hygiene (13 sites → dual `@echo` drop 3 · pure `@echo`→`@true` 9 · last `cc_inc_tu` `-I` drop 1)
 > - **open** · thin edges + B2 + mk lists (hybrid) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
