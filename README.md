@@ -279,8 +279,7 @@ xlang/
 ├── tests/                    # regressions and gates
 ├── examples/
 ├── tools/
-├── editors/vscode/           # VS Code / Cursor / Trae + LSP client
-└── mcp/
+└── editors/vscode/           # VS Code / Cursor / Trae + LSP client
 ```
 
 - **core/** does not depend on **std/**; **std/** may depend on **core/**
@@ -485,7 +484,6 @@ Diff cases D1–D6: 5/6 pass; float D4 still a known P2 placeholder.
 |-----------|------|
 | VS Code / Cursor / Trae | [`editors/vscode/`](editors/vscode/) |
 | LSP | `xlang --lsp` · `compiler/src/lsp/` |
-| MCP | [`mcp/`](mcp/) |
 
 Plugin install: [`editors/vscode/README.md`](editors/vscode/README.md).
 

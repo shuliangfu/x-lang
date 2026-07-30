@@ -279,8 +279,7 @@ xlang/
 ├── tests/
 ├── examples/
 ├── tools/
-├── editors/vscode/           # VS Code / Cursor / Trae + LSP 客户端
-└── mcp/
+└── editors/vscode/           # VS Code / Cursor / Trae + LSP 客户端
 ```
 
 - **core/** 不依赖 **std/**；**std/** 可依赖 **core/**
@@ -487,7 +486,6 @@ xlang/
 |------|------|
 | VS Code / Cursor / Trae | [`editors/vscode/`](editors/vscode/) |
 | LSP | `xlang --lsp` · `compiler/src/lsp/` |
-| MCP | [`mcp/`](mcp/) |
 
 插件安装：[`editors/vscode/README.md`](editors/vscode/README.md)。
 
