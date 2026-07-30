@@ -300,18 +300,23 @@ XLANG_X = xlang-x
 # wave839: FORCE dep-thin — drop script-only prereq residual; FORCE + script only
 # (G.7 有则补全). Shell owns host pick / TLS-sqlite merge; FORCE always re-enters
 # (matches product leaf pattern; never make-skipped by stale script mtimes alone).
+# wave867 B7B: drop multi-token LD_R_MULTIDEF_FLAGS inject (G.7 hygiene).
+# Shell arch_ld_r_multidef_flags() owns host uname default when env unset
+# (Darwin -multiply_defined suppress / else --allow-multiple-definition).
+# Thin-call MAKE= only (nested product .o). Optional LD_R_MULTIDEF_FLAGS still
+# accepted by shell when caller sets it. NOT physical delete — thin edges + B2 remain.
 # PLATFORM: SHARED — FORCE always invokes ensure; bash for Ubuntu dash.
 net-o-stub: FORCE scripts/archaeology_host_pick_phony.sh
-	@MAKE="$(MAKE)" LD_R_MULTIDEF_FLAGS="$(LD_R_MULTIDEF_FLAGS)" \
+	@MAKE="$(MAKE)" \
 	  bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 # TLS：F-04 v8 net-o-openssl 编译 std/net/tls_openssl.x（不再 #include tls_openssl.inc.c）。
 net-o-openssl: FORCE scripts/archaeology_host_pick_phony.sh
-	@MAKE="$(MAKE)" LD_R_MULTIDEF_FLAGS="$(LD_R_MULTIDEF_FLAGS)" \
+	@MAKE="$(MAKE)" \
 	  bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
-	@MAKE="$(MAKE)" LD_R_MULTIDEF_FLAGS="$(LD_R_MULTIDEF_FLAGS)" \
+	@MAKE="$(MAKE)" \
 	  bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 # std.thread：mod.x 提供 std_thread_* 包装；pthread 胶层在 runtime_thread_glue.o（thread_*_c）。
@@ -581,9 +586,10 @@ endif
 sqlite-o: ../std/db/sqlite/sqlite.o runtime_sqlite_glue.o
 # wave815: archaeology host-pick phony → shell catalog (G.7; not physical delete).
 # wave839: FORCE dep-thin — FORCE + archaeology_host_pick_phony only (G.7 有则补全).
+# wave867 B7B: drop multi-token LD_R_MULTIDEF_FLAGS inject (G.7 hygiene; same as net-o-*).
 # PLATFORM: SHARED — FORCE always invokes ensure; bash for Ubuntu dash.
 sqlite-o-stub: FORCE scripts/archaeology_host_pick_phony.sh
-	@MAKE="$(MAKE)" LD_R_MULTIDEF_FLAGS="$(LD_R_MULTIDEF_FLAGS)" \
+	@MAKE="$(MAKE)" \
 	  bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 # std.elf：F-elf v2 + F-ZC 纯 elf.x → elf.o（无 glue；无 xlang 时 exit 0）。

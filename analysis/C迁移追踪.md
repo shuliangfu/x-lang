@@ -1499,6 +1499,7 @@
 - **wave864** · B7B leaf-extra RUNTIME_*/PARSER_* multi-token CFLAGS inject hygiene（3 leaves：pipeline_abi / runtime_driver_no_c / parser_asm_thin_glue；shell `_DEFAULT_*` 权威）
 - **wave865** · B7B migrate/bootstrap multi-token CFLAGS shell-load（export-try-heat-cflags；8 recipes：migrate 4 + BTC 2 + XXP/BXC 2）
 - **wave866** · B7B build-tool CFLAGS shell-load + WIN32_O_CFLAGS leaf drop（export-try-heat-cflags；2 recipes：build-tool + crt0_mingw）
+- **wave867** · B7B archaeology host-pick LD_R_MULTIDEF_FLAGS leaf drop（4 recipes：net-o-stub/openssl/mbedtls + sqlite-o-stub；shell uname 默认）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
@@ -1610,6 +1611,7 @@
 - ✅ **leaf-extra RUNTIME_*/PARSER_* CFLAGS hygiene**（wave864 · 3 leaves · 去 multi-token leaf-extra inject · ensure shell `_DEFAULT_*` · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **migrate/bootstrap CFLAGS shell-load**（wave865 · 8 recipes · export-try-heat-cflags · 去 multi-token CFLAGS inject · **非**物理删 · thin edges + B2 + build-tool/WIN32 residual）
 - ✅ **build-tool/WIN32 CFLAGS hygiene**（wave866 · 2 recipes · build-tool shell-load export-try-heat-cflags · crt0_mingw 去 WIN32_O inject · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **archaeology host-pick LD_R_MULTIDEF hygiene**（wave867 · 4 recipes · net-o-stub/openssl/mbedtls + sqlite-o-stub 去 multi-token `LD_R_MULTIDEF_FLAGS=` · shell `arch_ld_r_multidef_flags` uname 默认 · **非**物理删 · thin edges + B2 + mk lists）
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：

@@ -15,7 +15,9 @@
 #
 # wave839 (G.7 有则补全): Makefile prereqs → FORCE + this script only (dep-thin).
 # FORCE always re-enters ensure; shell owns host pick / TLS-sqlite merge body.
-# NOT physical delete — thin-call edges + B2 + mk lists remain residual.
+# wave867 (G.7 hygiene): Makefile drops multi-token LD_R_MULTIDEF_FLAGS inject on
+# 4 phonies; arch_ld_r_multidef_flags() is sole host-default authority when env
+# unset (optional override still accepted). NOT physical delete — thin edges + B2.
 #
 # Catalog keys:
 #   net-o-stub       — ensure ../std/net/net.o (net.o product leaf is try-heat)
@@ -27,7 +29,7 @@
 # Nested .o deps still go through make (try-heat / product leaves) — thin edges remain.
 # NOT physical delete; B7B lists + product thin edges + B2 remain residual.
 #
-# Env: MAKE (default make), LD_R_MULTIDEF_FLAGS (optional override)
+# Env: MAKE (default make), LD_R_MULTIDEF_FLAGS (optional override; wave867 not required)
 # PLATFORM: SHARED — catalog + host pick; ld -r multidef is host-OS branched.
 set -eu
 cd "$(dirname "$0")/.."
@@ -36,9 +38,10 @@ MAKE="${MAKE:-make}"
 STD_X_SH="scripts/xlang_compile_std_x.sh"
 
 # ---------------------------------------------------------------------------
-# Host ld -r multidef flags (historic Makefile LD_R_MULTIDEF_FLAGS).
+# Host ld -r multidef flags (historic Makefile LD_R_MULTIDEF_FLAGS twin).
 # PLATFORM: MACOS → -multiply_defined suppress; LINUX|WINDOWS → --allow-multiple-definition
-# Prefer env override when Makefile passes LD_R_MULTIDEF_FLAGS=...
+# wave867: Makefile no longer injects LD_R_MULTIDEF_FLAGS=; this uname default is
+# the product authority when env unset. Optional env override still honored.
 # ---------------------------------------------------------------------------
 arch_ld_r_multidef_flags() {
   if [ -n "${LD_R_MULTIDEF_FLAGS:-}" ]; then
@@ -160,7 +163,13 @@ arch_check() {
   for _k in net-o-stub net-o-openssl net-o-mbedtls sqlite-o-stub; do
     arch_phony_known "$_k" || return 1
   done
-  echo "archaeology_host_pick_phony: --check OK (wave815; 4 phonies; host via xlang_compile_std_x)"
+  # wave867: shell must own multidef host default (no Makefile inject required).
+  _mdf="$(arch_ld_r_multidef_flags)"
+  if [ -z "$_mdf" ]; then
+    echo "archaeology_host_pick_phony: --check: arch_ld_r_multidef_flags empty" >&2
+    return 1
+  fi
+  echo "archaeology_host_pick_phony: --check OK (wave815+wave867; 4 phonies; LD_R host-default; host via xlang_compile_std_x)"
   return 0
 }
 

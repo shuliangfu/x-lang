@@ -116,6 +116,9 @@
 #   wave866: B7B build-tool CFLAGS shell-load + WIN32_O_CFLAGS leaf drop
 #            (2 recipes: build-tool + crt0_mingw; shell loads export-try-heat-cflags;
 #            WIN32 empty default; NOT physical delete — thin edges + B2 remain)
+#   wave867: B7B archaeology host-pick LD_R_MULTIDEF_FLAGS leaf drop (4 recipes:
+#            net-o-stub/openssl/mbedtls + sqlite-o-stub; shell uname default when
+#            env unset; NOT physical delete — thin edges + B2 remain)
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1161,6 +1164,18 @@ SWALLOWED_B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE=1
 B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE_SWALLOWED=1
 B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE_WAVE=wave866
 B7B_BUILD_TOOL_WIN32_CFLAGS_HYGIENE_COUNT=2
+# wave867: archaeology host-pick LD_R_MULTIDEF_FLAGS leaf drop (G.7 hygiene).
+# COUNT = 4 FORCE phonies that drop multi-token LD_R_MULTIDEF_FLAGS inject.
+# Shell arch_ld_r_multidef_flags uname default is authority when env unset.
+PHYS_DEL_B7B_ARCH_HOST_PICK_LD_R_HYGIENE=1
+PHYS_DEL_B7B_ARCH_HOST_PICK_LD_R_HYGIENE_WAVE=wave867
+PHYS_DEL_B7B_ARCH_HOST_PICK_LD_R_HYGIENE_COUNT=4
+PHYS_DEL_B7B_ARCH_HOST_PICK_LD_R_HYGIENE_VIA=arch_ld_r_multidef_flags_uname_default
+PHYS_DEL_B7B_ARCH_HOST_PICK_LD_R_HYGIENE_NOTE=makefile_no_ld_r_multidef_env_on_archaeology_host_pick_shell_uname_default_thin_edges_remain
+SWALLOWED_B7B_ARCH_HOST_PICK_LD_R_HYGIENE=1
+B7B_ARCH_HOST_PICK_LD_R_HYGIENE_SWALLOWED=1
+B7B_ARCH_HOST_PICK_LD_R_HYGIENE_WAVE=wave867
+B7B_ARCH_HOST_PICK_LD_R_HYGIENE_COUNT=4
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -2127,6 +2142,9 @@ else
   fi
   if ! grep -qE 'wave866|BUILD_TOOL_WIN32|build-tool.*CFLAGS|WIN32_O_CFLAGS.*hygiene|build-tool.*WIN32' "$DOC_REL"; then
     bad "$DOC_REL must document wave866 B7B build-tool/WIN32 CFLAGS hygiene"
+  fi
+  if ! grep -qE 'wave867|ARCH_HOST_PICK_LD_R|LD_R_MULTIDEF.*hygiene|archaeology.*LD_R|host-pick.*LD_R' "$DOC_REL"; then
+    bad "$DOC_REL must document wave867 B7B archaeology host-pick LD_R_MULTIDEF hygiene"
   fi
   note "doc $DOC_REL present"
 fi
@@ -5846,6 +5864,31 @@ if grep -qE 'WIN32_O_CFLAGS=' <<<"${_win_hits:-}"; then
   echo "$_win_hits" | head -4 >&2
 fi
 note "B7B build-tool/WIN32 CFLAGS hygiene (COUNT=2 injects dropped; wave866; not physical delete)"
+# wave867: archaeology host-pick LD_R_MULTIDEF_FLAGS leaf drop (COUNT=4).
+# G.7: recipe inject hygiene; shell arch_ld_r_multidef_flags uname default when unset.
+_arch_ld_inject=0
+for _arch_tgt in net-o-stub net-o-openssl net-o-mbedtls sqlite-o-stub; do
+  _arch_hits=$(awk -v t="$_arch_tgt" '
+    $0 ~ ("^" t ":") {grab=1; next}
+    grab && /^[^#\t]/ && $0 !~ /^$/ {exit}
+    grab {print}
+  ' "$MF" 2>/dev/null || true)
+  if grep -qE 'LD_R_MULTIDEF_FLAGS=' <<<"${_arch_hits:-}"; then
+    bad "Makefile $_arch_tgt still injects LD_R_MULTIDEF_FLAGS= (wave867)"
+    echo "$_arch_hits" | head -4 >&2
+    _arch_ld_inject=$((_arch_ld_inject + 1))
+  fi
+done
+if [ "${_arch_ld_inject}" -ne 0 ]; then
+  bad "Makefile archaeology host-pick LD_R inject residual (wave867; count=${_arch_ld_inject})"
+fi
+if ! grep -q 'arch_ld_r_multidef_flags\|wave867' "$COMPILER_DIR/scripts/archaeology_host_pick_phony.sh" 2>/dev/null; then
+  bad "archaeology_host_pick_phony.sh must own arch_ld_r_multidef_flags (wave867)"
+fi
+if ! bash "$COMPILER_DIR/scripts/archaeology_host_pick_phony.sh" --check >/dev/null 2>&1; then
+  bad "archaeology_host_pick_phony.sh --check failed (wave867)"
+fi
+note "B7B archaeology host-pick LD_R_MULTIDEF hygiene (COUNT=4 injects dropped; wave867; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \
@@ -6629,5 +6672,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–839: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave833 pipeline_glue_types FORCE dep-thin 1 + wave834 bootstrap-pipeline FORCE shell-primary 1 + wave835 class-G filter FORCE dep-thin 4 + wave836 cp-alias FORCE dep-thin 3 + wave837 pipeline_gen FORCE dep-thin 1 + wave838 bootstrap_xlangc FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave839 archaeology host-pick FORCE dep-thin 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26 + wave850 RELINK_PRODUCT_LINK bag→mk 8 + wave851 XXL/BS/XNC link bags→mk 3 + wave852 BXF link bag→mk 2 + wave853 seed phase1/final link bags→mk 2 + wave854 seed-gate REQUIRED bags→mk 3 + wave855 seed-gate REQUIRED shell-load 3 + wave856 LINK_OBJS shell-load export leaves 5 + wave857 LINK_CFLAGS shell-load export leaves 4 + wave858 LEGACY xlang-c shell-primary 1 + wave859 XXP/BXC bag shell-load 2 + wave860 driver_leaf BASE_CFLAGS shell-load 8 + wave861 rt_* -I CFLAGS hygiene 5 + wave862 try-heat CFLAGS bulk shell-load 114 + wave863 filter CFLAGS shell-load 4 + wave864 leaf-extra RUNTIME_*/PARSER_* CFLAGS hygiene 3 + wave865 migrate/bootstrap CFLAGS shell-load 8 + wave866 build-tool/WIN32 CFLAGS hygiene 2; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–839: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave833 pipeline_glue_types FORCE dep-thin 1 + wave834 bootstrap-pipeline FORCE shell-primary 1 + wave835 class-G filter FORCE dep-thin 4 + wave836 cp-alias FORCE dep-thin 3 + wave837 pipeline_gen FORCE dep-thin 1 + wave838 bootstrap_xlangc FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave839 archaeology host-pick FORCE dep-thin 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26 + wave850 RELINK_PRODUCT_LINK bag→mk 8 + wave851 XXL/BS/XNC link bags→mk 3 + wave852 BXF link bag→mk 2 + wave853 seed phase1/final link bags→mk 2 + wave854 seed-gate REQUIRED bags→mk 3 + wave855 seed-gate REQUIRED shell-load 3 + wave856 LINK_OBJS shell-load export leaves 5 + wave857 LINK_CFLAGS shell-load export leaves 4 + wave858 LEGACY xlang-c shell-primary 1 + wave859 XXP/BXC bag shell-load 2 + wave860 driver_leaf BASE_CFLAGS shell-load 8 + wave861 rt_* -I CFLAGS hygiene 5 + wave862 try-heat CFLAGS bulk shell-load 114 + wave863 filter CFLAGS shell-load 4 + wave864 leaf-extra RUNTIME_*/PARSER_* CFLAGS hygiene 3 + wave865 migrate/bootstrap CFLAGS shell-load 8 + wave866 build-tool/WIN32 CFLAGS hygiene 2 + wave867 archaeology host-pick LD_R hygiene 4; Makefile still present; delete body deferred)"
 exit 0
