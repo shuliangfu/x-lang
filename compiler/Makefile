@@ -453,13 +453,8 @@ LEGACY_XLANG_C_READY_TARGETS = build-tool
 
 $(LEGACY_XLANG_C_READY_TARGETS): | legacy-xlang-c-ready
 
-# G-02f-16：main 产品 seed（LEGACY 极简入口）
-# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/main.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-16：main 产品 seed（LEGACY 极简入口）— joined wave901 multi-target
+# $(R1_MAIN_RUNTIME_OBJS). Multi-flag variants share seeds (main.from_x / runtime.from_x).
 
 # E-04 v2/v3：argv/target 与 POSIX I/O ABI 薄壳；默认 seed / B-strict 均链入。
 
@@ -543,13 +538,7 @@ src/runtime_driver_diagnostic.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # 6.3：runtime.c 提供 run_compiler_c 与弱符号 main_entry；带 .x 入口时用 runtime_driver.o（含 driver_*/pipeline_*）
-# G-02f-14：runtime 产品 seed（多变体）
-# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/runtime.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-14：runtime 产品 seed（多变体）— joined wave901 multi-target $(R1_MAIN_RUNTIME_OBJS).
 # Makefile 为 prerequisite：编译宏（如 XLANG_USE_X_PREPROCESS）变更时须重编，否则 runtime_driver.o 缺 preprocess() 导致链接 Undefined _preprocess。
 # XLANG_ASM_USE_COMPILER_IMPL_C：driver_run_compiler_full 走 impl_c（parse_argv+post_parse），避免 compile.x X emit 路径 silent fail（与 B-strict xlang_asm 同）。
 # E-03 v2：XLANG_LEGACY_PREPROCESS_C=1 时 runtime preprocess() 仍调 C preprocess_c_fallback。
@@ -583,13 +572,8 @@ RUNTIME_PIPELINE_ABI_CFLAGS = -DXLANG_USE_X_PIPELINE
 ifeq ($(XLANG_LEGACY_PREPROCESS_C),1)
 RUNTIME_PIPELINE_ABI_CFLAGS += -DXLANG_LEGACY_PREPROCESS_C
 endif
-# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
-# Extra flags = $(RUNTIME_DRIVER_CFLAGS) (make expands; shell body only).
-src/runtime_driver.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave794 B7A: heat dep-edge thin Makefile-flags residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/diag.h + Makefile flag mtime (force_thin_makefile_flags_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# wave751 R1 runtime_driver.o — joined wave901 multi-target $(R1_MAIN_RUNTIME_OBJS).
+# Extra flags = ensure extras_for_main_runtime / _DEFAULT_RUNTIME_DRIVER_CFLAGS (wave864).
 
 # G-02f Cap residual slices：driver_abi 跨 TU 数据/thread_fn（arena BSS、emit 扫描槽、preamble 表、stack_esc）。
 # 与 g05_ensure 产品路径同源 seed；冷启动 phase1 必须进 DRIVER_SEED_OBJS。
@@ -643,14 +627,24 @@ $(R1_CORE_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 $(R1_FRONTEND_GLUE_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-# G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
-# xlang_x 用：仅 -DXLANG_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
-# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
+# ---------------------------------------------------------------------------
+# wave901 B7B: R1_MAIN_RUNTIME product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = R1_MAIN_RUNTIME_OBJS in mk/driver_seed_r_lists.mk
+# (wave751 family · wave788 list→mk · COUNT=7). Do NOT open a second .o list.
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat (wave751/790/792/793/794).
+# Leaves: main · main_x · main_driver · runtime · runtime_x · runtime_driver ·
+# runtime_driver_no_c (shared seeds + multi-flag map in ensure extras_for_main_runtime).
+# PREFER archaeology (wave766 try-rt-prefer on runtime_driver_no_c) lives in try-heat
+# body; Makefile only FORCE + thin-call. NOT physical delete — thin edges +
+# remaining R1 family multi-target / mk lists hybrid + tip Windows → dual L4 →
+# explicit auth ship delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/runtime_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# ---------------------------------------------------------------------------
+$(R1_MAIN_RUNTIME_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+
+# G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
+# xlang_x 用：仅 -DXLANG_USE_X_PIPELINE（runtime_x / main_x via wave901 multi-target).
 
 # wave775: non-driver fmt_check_cmd.o → ensure try-other-l2-prefer (fmt_core).
 # G.7 有则补全 — same body as driver leaf; leaf_kind=fmt_core omits USE_X_PIPELINE
@@ -696,26 +690,10 @@ src/lexer/cfg_eval.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # G-02a：preprocess 已迁 preprocess.x；不再编译 preprocess.c。
 
 # runtime.c：不引用 C lexer/parser/typeck/codegen（见 XLANG_NO_C_FRONTEND 包裹的 load_one_import 等）
-# G-02f-14：G05 产品 runtime_driver_no_c
-# wave751 R1 cold: ensure_one + NO_C · wave766 product PREFER multi-slice → try-rt-prefer.
-src/runtime_driver_no_c.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave794 B7A: heat dep-edge thin Makefile-flags residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x + Makefile flag mtime (force_thin_makefile_flags_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-# wave864 B7B: drop multi-token RUNTIME_DRIVER_NO_C_CFLAGS inject (G.7 hygiene).
-# ensure extras_for_main_runtime / _DEFAULT_RUNTIME_DRIVER_NO_C_CFLAGS own product
-# multi-flag bag when env unset (aligned with runtime_driver.o shell defaults).
-# NOT physical delete — thin edges + B2 + remaining mk lists remain.
-	# wave766: rt multi-slice PREFER → try-rt-prefer (cold full seed + NO_C fallback).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-14：G05 产品 runtime_driver_no_c — joined wave901 multi-target $(R1_MAIN_RUNTIME_OBJS).
+# wave751 R1 cold + wave766 try-rt-prefer + wave864 shell flag defaults live in ensure try-heat.
 
-# xlang_x 使用带 -DXLANG_USE_X_PIPELINE 编译的 main，否则 #ifdef 块不会生效
-# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/main_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# xlang_x 使用带 -DXLANG_USE_X_PIPELINE 编译的 main — joined wave901 multi-target $(R1_MAIN_RUNTIME_OBJS).
 
 # xlang_x：pipeline_x.o 编排 typeck_x/codegen_x（G-02a: typeck.c + codegen.c 已删；X pipeline 独立）。
 # wave817 B7B: list authority → mk/pipeline_x_objs.mk (G.7; not physical delete).
@@ -1523,13 +1501,7 @@ bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS)
 	@bash scripts/bootstrap_typeck_codegen.sh codegen
 
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 XLANG_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
-# G-02f-16：main_driver 与 main 同源 seed
-# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
-src/main_driver.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave794 B7A: heat dep-edge thin Makefile-flags residual — prereqs → FORCE + ensure;
-# try-heat owns seed/main_c_entry.x + Makefile flag mtime (force_thin_makefile_flags_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-16：main_driver 与 main 同源 seed — joined wave901 multi-target $(R1_MAIN_RUNTIME_OBJS).
 # G-02a: preprocess.c 已物理删除；runtime preprocess() 走 preprocess.x（preprocess_x.o）。
 # G-02f-6：target_cpu.o 单 TU（pure seed 含 OS detect；无 ld -r cold）
 # wave755 R1: pure host-cc body → ensure (list = R1_SEED_MAP_OBJS).

@@ -32,6 +32,8 @@ R1_FRONTEND_GLUE_OBJS = src/lexer/lexer.o src/ast/ast.o src/lsp/lsp_diag.o
 # wave751 R1 fourth family: main/runtime multi-flag variants (shared seeds, different -D).
 # List authority for ensure_host_cc_seed_o.sh main-runtime mode; body = same script.
 # Seed/flag maps live in ensure script (path convention); list stays here (G.7).
+# wave901: also make-graph multi-target FORCE thin try-heat inventory (COUNT=7).
+# Body = ensure try-heat; do not re-list in Makefile or residual shells (G.7).
 R1_MAIN_RUNTIME_OBJS = src/main.o src/main_x.o src/main_driver.o src/runtime.o src/runtime_x.o src/runtime_driver.o src/runtime_driver_no_c.o
 
 # wave752 R1 fifth family: pure host-cc link alias / bare / compat stubs
