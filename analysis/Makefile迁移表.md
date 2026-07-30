@@ -674,3 +674,6 @@
 
 > **波次变更记录**：只写 [`自举进度.md`](自举进度.md)。本表只维护迁移状态与白名单。
 
+## wave881 residual note
+
+- **wave881** · B7B try-heat `XLANG_G05_PREFER_X_O` inject hygiene：31 叶 try-heat 去 PREFER/XLANG inject，保留 `CC=` only（对齐 wave862/864）。冷链 `make XLANG_G05_PREFER_X_O=0` 仍靠 make CLI auto-export。**非**物理删。
