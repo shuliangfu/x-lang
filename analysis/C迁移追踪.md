@@ -1501,6 +1501,7 @@
 - **wave866** · B7B build-tool CFLAGS shell-load + WIN32_O_CFLAGS leaf drop（export-try-heat-cflags；2 recipes：build-tool + crt0_mingw）
 - **wave867** · B7B archaeology host-pick LD_R_MULTIDEF_FLAGS leaf drop（4 recipes：net-o-stub/openssl/mbedtls + sqlite-o-stub；shell uname 默认）
 - **wave868** · B7C bootstrap-driver-bstrict-relink shell-primary（1 phony → relink_xlang_asm_bstrict_runtime_objs.sh；G.7 有则补全 dual body）
+- **wave869** · B7C bootstrap-driver-crt0 shell-primary（1 phony → bootstrap_driver_crt0.sh；G.7 有则补全 dual body · crt0 log gates）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
@@ -1614,6 +1615,7 @@
 - ✅ **build-tool/WIN32 CFLAGS hygiene**（wave866 · 2 recipes · build-tool shell-load export-try-heat-cflags · crt0_mingw 去 WIN32_O inject · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **archaeology host-pick LD_R_MULTIDEF hygiene**（wave867 · 4 recipes · net-o-stub/openssl/mbedtls + sqlite-o-stub 去 multi-token `LD_R_MULTIDEF_FLAGS=` · shell `arch_ld_r_multidef_flags` uname 默认 · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **bstrict-relink shell-primary**（wave868 · bootstrap-driver-bstrict-relink → relink_xlang_asm_bstrict_runtime_objs.sh · G.7 有则补全 dual body · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`c14777d2b`**
+- ✅ **bootstrap-driver-crt0 shell-primary**（wave869 · bootstrap-driver-crt0 → bootstrap_driver_crt0.sh · G.7 有则补全 dual body · shell 拥 build_xlang_asm + crt0 log gates · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`74ebab839`**
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：
