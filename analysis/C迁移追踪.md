@@ -1518,10 +1518,11 @@
 - **wave882** · B7B residual single-token TARGET= inject hygiene（10 recipes → drop TARGET=；shell TARGET:-xlang + CLI auto-export）
 - **wave884** · B7B residual single-token CC= inject hygiene（118 recipes → drop CC=；shell resolve_host_cc + CLI/env；keep LD/pipeline multi bags）
 - **wave883** · B7B residual single-token MAKE= inject hygiene（24 recipes → drop MAKE=；shell MAKE:-make + GNU make auto-export；keep ENSURE_SEED/NO_REPLACE）
+- **wave885** · B7B residual G05_SYNC inject hygiene（2 recipes → relink-xlang `--no-sync` + xlang_asm bare；drop G05_SYNC_ASM= recipe inject）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
-- **open** · thin edges + B2 + mk lists（hybrid）· residual injects（G05_SYNC · LD · pipeline bags）· → tip Windows → 双端 L4 → explicit auth 真删
+- **open** · thin edges + B2 + mk lists（hybrid）· residual injects（LD · pipeline bags）· → tip Windows → 双端 L4 → explicit auth 真删
 
 **状态明细**（一行一项）：
 
@@ -1647,6 +1648,7 @@
 - ✅ **residual single-token TARGET= inject hygiene**（wave882 · 10 recipes · smoke/hybrid/crt0/tool/check-7.2 + bstrict/refresh 去 TARGET= · shell TARGET 默认 · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **residual single-token CC= inject hygiene**（wave884 · 118 recipes · try-heat/filter pure + cfg_eval/pipeline_x multi 去 CC= · shell resolve_host_cc + CLI/env · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **residual single-token MAKE= inject hygiene**（wave883 · 24 recipes · archaeology/driver_leaf/rebuild_leaves/host_stubs/phase1 + bstrict/refresh 去 MAKE= · shell MAKE 默认 + GNU make auto-export · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **residual G05_SYNC inject hygiene**（wave885 · 2 recipes · relink-xlang/xlang_asm 去 G05_SYNC_ASM= inject · shell `--no-sync` + default sync · **非**物理删 · thin edges + B2 + mk lists）
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：

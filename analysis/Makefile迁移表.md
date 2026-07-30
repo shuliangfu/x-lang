@@ -682,6 +682,10 @@
 
 - **wave884** · B7B residual single-token `CC=` inject hygiene：118 叶（116 pure try-heat/filter drop CC=；cfg_eval LD bag + pipeline_x multi 仅去 CC=）。shell `resolve_host_cc` + make CLI/env；keep LD/PIPELINE bags。**非**物理删。
 
+## wave885 residual note
+
+- **wave885** · B7B residual `G05_SYNC_ASM=` inject hygiene：2 叶（`relink-xlang` → `--no-sync`；`xlang_asm` bare default sync）。shell CLI/env 权威；drop recipe `G05_SYNC_ASM=0/1`。**非**物理删。
+
 ## wave883 residual note
 
 - **wave883** · B7B residual single-token `MAKE=` inject hygiene：24 叶（archaeology 4 + driver_leaf 8 + rebuild_leaves 7 + host_stubs 2 + phase1-link 1 pure drop；bstrict/refresh multi 去 MAKE=）。shell `MAKE:-make` + GNU make auto-export；keep ENSURE_SEED/NO_REPLACE。**非**物理删。
