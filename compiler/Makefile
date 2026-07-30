@@ -2956,8 +2956,13 @@ check-asm-o-quality: $(TARGET)
 
 # 6.4 验收：宿主编译器能编译整机 .x（typeck+codegen+driver）并产出新 xlang，且新 xlang 能编译运行测试（return-value 返回 42 视为成功）。用 seed 构建 xlang 以保证通过（asm 路径修好后可改为 bootstrap-driver）。
 # seed 的 .x 单文件路径把 C 写到 -o；须 $(CC) 链成可执行再运行（与 xlang-c 直接出 Mach-O/ELF 不同）。
-check-6.4: $(TARGET)
-	@$(MAKE) bootstrap-driver-seed && ./$(TARGET) ../tests/return-value/main.x -o /tmp/check64.c && $(CC) $(CFLAGS) -o /tmp/check64 /tmp/check64.c && /tmp/check64; [ $$? -eq 42 ] && echo "check-6.4 OK"
+# wave871: full body → scripts/check_6_4.sh (G.7 有则补全; shell owns emit-C + host-cc + exit 42).
+# Thin-call TARGET/CC only (CFLAGS optional env; no multi-token inject required).
+# Seed prereq stays make graph (bootstrap-driver-seed).
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — shell owns seed-path 6.4 smoke orchestration.
+check-6.4: bootstrap-driver-seed scripts/check_6_4.sh
+	@TARGET="$(TARGET)" CC="$(CC)" bash scripts/check_6_4.sh
 
 # 首次/从零构建：一条命令得到 xlang-c + build_tool（build-tool 仅依赖 xlang-c，与 lsp_gen 生成物无环）。与 README「读者一次做对」一致。
 first-time: build-tool
