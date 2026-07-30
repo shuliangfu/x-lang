@@ -420,6 +420,7 @@ extern int32_t std_error_error_ok(void);
 #define error_ok(_a, _b) std_error_error_ok()
 #include <stddef.h>
 #include <sys/types.h>
+#include "xlang_weak.h"
 
 /* XLANG_ALLOW_LEGACY_EXTERN: typeck_set_allow_legacy_extern_calls (seed regen / -E). */
 static int g_typeck_allow_legacy_extern_calls = 0;
@@ -7226,11 +7227,12 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
   }
   return 0;
 }
-__attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+XLANG_WEAK int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /* LANG-007: always use glue path (enforces S0 extern-in-unsafe). */
   extern int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
 }
+
 
 
 
@@ -7823,11 +7825,12 @@ int32_t typeck_check_expr_addr_of(struct ast_Module * module, struct ast_ASTAren
     return 0;
   }
 }
-int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+XLANG_WEAK int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /* LANG-007: always use glue path (S0 deref requires unsafe). */
   extern int32_t pipeline_typeck_check_expr_deref_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
 }
+
 
 int32_t typeck_check_expr_var_top_level(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, uint8_t * vbuf, int32_t vnlen, int32_t tl) {
   {
@@ -7983,17 +7986,20 @@ int32_t typeck_check_expr_method_call_arg(struct ast_Module * module, struct ast
     return typeck_check_expr_method_call_arg(module, arena, expr_ref, return_type_ref, ctx, (arg_i + 1), num_args);
   }
 }
-int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+XLANG_WEAK int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /*
    * PLATFORM: SHARED — authority matches typeck.x: only pipeline_typeck_check_expr_method_call_c.
    * Do NOT re-dispatch by import index as dep index: multi-import closure (ndep > n_imports)
    * maps entry import ii for "heap" to a wrong dep (Linux inserts page_mmap so ii=2 → libc).
    * That overwrote free(*u8) with libc free → bare std_heap_free / http.o fail.
    * method_call_c already path-resolves dep + scores overloads + expected_ret.
+   * wave680: XLANG_WEAK vs bootstrap_seed_pipeline_filtered strong export (Darwin dual-def;
+   * PE strong + --allow-multiple-definition).
    */
   extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
 }
+
 
 /* wave659 Cap residual: cast-eligible type class for `as` (G.7 ≡ typeck.x). */
 int32_t typeck_as_cast_type_class_ok(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref) {

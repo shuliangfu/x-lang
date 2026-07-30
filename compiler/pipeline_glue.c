@@ -34,11 +34,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "xlang_weak.h"
 #include "token.h"
 #include "target_cpu.h"
 #include "simd_enc.h"
 #include "simd_loop.h"
 #include "async_asm_pool.h"
+
 
 /* wave240 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
@@ -595,8 +597,8 @@ int32_t pipeline_run_x_pipeline(struct ast_Module *module, struct ast_ASTArena *
  * constants 16/68 matching these sizeofs). Keep weak so pure.o can override without
  * dual-strong clash; cold path without pure still links these. When struct layout
  * changes, re-verify pure constants dual-end (mac + Ubuntu). */
-__attribute__((weak)) size_t pipeline_sizeof_arena(void) { return sizeof(struct ast_ASTArena); }
-__attribute__((weak)) size_t pipeline_sizeof_module(void) { return sizeof(struct ast_Module); }
+XLANG_WEAK size_t pipeline_sizeof_arena(void) { return sizeof(struct ast_ASTArena); }
+XLANG_WEAK size_t pipeline_sizeof_module(void) { return sizeof(struct ast_Module); }
 /** LSP / lsp_diag.x：PipelineDepCtx 体量大（含 4MiB×2 缓冲），一次性 calloc 后 memset 复用。 */
 size_t pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_PipelineDepCtx); }
 /** parser OneFuncResult 体量大（256×64 let 名等）；parse_block_into 堆分配 scratch，避免递归块解析栈溢出。 */
@@ -30120,17 +30122,17 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct as
  * Keep weak cold twin for standalone / non-PREFER links.
  * PLATFORM: SHARED — ELF weak overridden by pure.
  */
-__attribute__((weak)) int32_t pipeline_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module,
                                                        uint8_t *buf, int32_t buf_len) {
   return pipeline_parse_into_buf_impl_c(arena, module, buf, buf_len);
 }
 
-__attribute__((weak)) int32_t pipeline_load_import_from_disk(struct ast_Module *module, struct ast_ASTArena *arena,
+XLANG_WEAK int32_t pipeline_load_import_from_disk(struct ast_Module *module, struct ast_ASTArena *arena,
                                                              struct ast_PipelineDepCtx *ctx, int32_t import_idx) {
   return pipeline_load_import_from_disk_impl_c(module, arena, ctx, import_idx);
 }
 
-__attribute__((weak)) int32_t pipeline_sync_dep_slots_from_driver(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_sync_dep_slots_from_driver(struct ast_Module *module,
                                                                    struct ast_PipelineDepCtx *ctx) {
   return pipeline_sync_dep_slots_from_driver_impl_c(module, ctx);
 }
@@ -30140,7 +30142,7 @@ __attribute__((weak)) int32_t pipeline_sync_dep_slots_from_driver(struct ast_Mod
  * Keep weak cold twin for standalone / non-PREFER links.
  * PLATFORM: SHARED — ELF weak overridden by pure.
  */
-__attribute__((weak)) int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx *ctx, uint8_t *import_path,
+XLANG_WEAK int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx *ctx, uint8_t *import_path,
                                                         int32_t path_len) {
   return pipeline_resolve_path_x_impl_c(ctx, import_path, path_len);
 }
@@ -30150,12 +30152,12 @@ __attribute__((weak)) int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx 
  * Keep weak cold twin for standalone / non-PREFER links.
  * PLATFORM: SHARED — ELF weak overridden by pure.
  */
-__attribute__((weak)) int32_t pipeline_read_file_x(struct ast_PipelineDepCtx *ctx) {
+XLANG_WEAK int32_t pipeline_read_file_x(struct ast_PipelineDepCtx *ctx) {
   return pipeline_read_file_x_impl_c(ctx);
 }
 
 /** weak 默认：parse_into_with_init / lsp / typeck 薄编排（standalone；build_asm pipeline.o X 强符号覆盖）。 */
-__attribute__((weak)) struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena *arena,
+XLANG_WEAK struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena *arena,
                                                                                        struct ast_Module *module,
                                                                                        uint8_t *data, int32_t len) {
   return pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
@@ -30168,7 +30170,7 @@ __attribute__((weak)) struct parser_ParseIntoResult pipeline_parse_into_with_ini
  * Keep XLANG_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
  * PLATFORM: SHARED — ELF weak overridden by pure.
  */
-__attribute__((weak)) int32_t pipeline_load_import_from_disk_c(struct ast_Module *module, struct ast_ASTArena *arena,
+XLANG_WEAK int32_t pipeline_load_import_from_disk_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                           struct ast_PipelineDepCtx *ctx, int32_t import_idx) {
   return pipeline_load_import_from_disk(module, arena, ctx, import_idx);
 }
@@ -30196,7 +30198,7 @@ extern void driver_diagnostic_typeck_fail(void);
  * Keep XLANG_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
  * PLATFORM: SHARED — ELF weak overridden by pure.
  */
-__attribute__((weak)) int32_t pipeline_sync_dep_slots_from_driver_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
+XLANG_WEAK int32_t pipeline_sync_dep_slots_from_driver_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
   return pipeline_sync_dep_slots_from_driver(module, ctx);
 }
 
@@ -30360,13 +30362,13 @@ int32_t pipeline_typeck_after_parse_ok_c(struct ast_ASTArena *arena, struct ast_
 
 /** weak 默认：lsp / typeck 诊断路径（standalone；build_asm pipeline.o X 强符号覆盖）。 */
 #ifdef XLANG_PIPELINE_GLUE_STANDALONE_TU
-__attribute__((weak)) int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
+XLANG_WEAK int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                   uint8_t *source_data, int32_t source_len,
                                                                   struct ast_PipelineDepCtx *ctx) {
   return pipeline_lsp_diag_parse_typeck_buf_impl_c(module, arena, source_data, source_len, ctx);
 }
 
-__attribute__((weak)) int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, struct ast_Module *module,
                                                               struct xlang_slice_uint8_t *source,
                                                               struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_after_parse_ok_impl_c(arena, module, source, ctx);
@@ -31571,7 +31573,7 @@ int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena
  * fallback for links without pure pipeline_abi / PREFER hybrid.
  * PLATFORM: SHARED — ELF weak overridden by pure; same walk as typeck.x.
  */
-__attribute__((weak)) void pipeline_typeck_patch_all_body_parent_links_c(struct ast_Module *module,
+XLANG_WEAK void pipeline_typeck_patch_all_body_parent_links_c(struct ast_Module *module,
                                                                          struct ast_ASTArena *arena) {
   int32_t i;
   int32_t br;
@@ -34227,7 +34229,7 @@ extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_
  * cold fallback for links without pure pipeline_abi / PREFER hybrid (still glue metrics fork).
  * PLATFORM: SHARED — ELF weak overridden by pure; cold uses typeck_validate_*_glue.
  */
-__attribute__((weak)) int32_t pipeline_typeck_validate_struct_layouts_zero_padding_c(
+XLANG_WEAK int32_t pipeline_typeck_validate_struct_layouts_zero_padding_c(
     struct ast_Module *module, struct ast_ASTArena *arena) {
   return typeck_validate_struct_layouts_zero_padding_glue(module, arena);
 }
@@ -37114,7 +37116,7 @@ int32_t pipeline_typeck_method_call_generic_ufcs_c(struct ast_Module *module, st
  * PLATFORM: SHARED — weak so pipeline_glue_strict_minimal strong definition wins when linked;
  * this body remains correct if it is the sole definition (Ubuntu first-T link order).
  */
-__attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
                                                                        struct ast_ASTArena *arena,
                                                                        int32_t expr_ref,
                                                                        int32_t return_type_ref,
@@ -39148,7 +39150,7 @@ extern int32_t typeck_check_expr_impl_mega(struct ast_Module *module, struct ast
                                          int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
 /** glue-only 链无 typeck.o 时回退 mega_c；自举 typeck_x.o 提供 typeck_check_expr_impl_mega 覆盖。 */
-__attribute__((weak)) int32_t check_expr_impl_mega(struct ast_Module *module, struct ast_ASTArena *arena,
+XLANG_WEAK int32_t check_expr_impl_mega(struct ast_Module *module, struct ast_ASTArena *arena,
                                                    int32_t expr_ref, int32_t return_type_ref,
                                                    struct ast_PipelineDepCtx *ctx) {
   return typeck_check_expr_impl_mega(module, arena, expr_ref, return_type_ref, ctx);
@@ -39212,7 +39214,7 @@ int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module, struct ast_
 }
 
 /** glue-only 链无 typeck.o 时回退 impl_c；自举 typeck.o 在 EMIT_HEAVY 下 bl→impl_c 覆盖。 */
-__attribute__((weak)) int32_t check_expr_impl(struct ast_Module *module, struct ast_ASTArena *arena,
+XLANG_WEAK int32_t check_expr_impl(struct ast_Module *module, struct ast_ASTArena *arena,
                                               int32_t expr_ref, int32_t return_type_ref,
                                               struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_check_expr_impl_c(module, arena, expr_ref, return_type_ref, ctx);
@@ -39495,7 +39497,7 @@ int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast
 }
 
 /** glue-only 链无 typeck.o 时回退 impl_c。 */
-__attribute__((weak)) int32_t check_block_impl(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
+XLANG_WEAK int32_t check_block_impl(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
                                               int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_check_block_impl_c(module, arena, block_ref, return_type_ref, ctx);
 }
@@ -39727,11 +39729,11 @@ int32_t pipeline_typeck_x_ast_library_c(struct ast_Module *module, struct ast_AS
  */
 static int32_t g_pipeline_typeck_diag_soft_suppress = 0;
 
-__attribute__((weak)) void pipeline_typeck_diag_soft_suppress_set(int32_t v) {
+XLANG_WEAK void pipeline_typeck_diag_soft_suppress_set(int32_t v) {
   g_pipeline_typeck_diag_soft_suppress = v ? 1 : 0;
 }
 
-__attribute__((weak)) int32_t pipeline_typeck_diag_soft_suppress_get(void) {
+XLANG_WEAK int32_t pipeline_typeck_diag_soft_suppress_get(void) {
   return g_pipeline_typeck_diag_soft_suppress;
 }
 
@@ -39743,11 +39745,11 @@ __attribute__((weak)) int32_t pipeline_typeck_diag_soft_suppress_get(void) {
  */
 static struct ast_PipelineDepCtx *g_pipeline_typeck_dep_ctx_cold = 0;
 
-__attribute__((weak)) void pipeline_typeck_set_dep_ctx(struct ast_PipelineDepCtx *ctx) {
+XLANG_WEAK void pipeline_typeck_set_dep_ctx(struct ast_PipelineDepCtx *ctx) {
   g_pipeline_typeck_dep_ctx_cold = ctx;
 }
 
-__attribute__((weak)) struct ast_PipelineDepCtx *pipeline_typeck_get_dep_ctx(void) {
+XLANG_WEAK struct ast_PipelineDepCtx *pipeline_typeck_get_dep_ctx(void) {
   return g_pipeline_typeck_dep_ctx_cold;
 }
 
@@ -39764,7 +39766,7 @@ extern int32_t typeck_typeck_x_ast_library(struct ast_Module *module, struct ast
  * Keep XLANG_WEAK cold fallback for links without pure pipeline_abi / PREFER hybrid.
  * PLATFORM: SHARED — ELF weak overridden by pure; same steps as pure orch.
  */
-__attribute__((weak)) int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module,
                                                                   struct ast_ASTArena *arena,
                                                                   struct ast_PipelineDepCtx *ctx) {
   int32_t tc;

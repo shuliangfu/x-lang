@@ -33,9 +33,12 @@ int typeck_get_allow_legacy_extern_calls(void) {
 """
 
 # wave680 / Darwin product link: bootstrap_seed_pipeline_filtered.o also exports
-# these three symbols strongly; typeck_x wrappers must be weak to avoid dual-def.
+# these three symbols strongly; typeck_x wrappers must be weak on ELF to avoid dual-def.
+# PLATFORM: SHARED — use XLANG_WEAK (include/xlang_weak.h), NEVER bare __attribute__((weak)):
+#   ELF/Darwin: weak so filtered pipeline strong wins; PE/MinGW: empty → strong def that
+#   actually satisfies U refs (PE weak does not; Windows phase1 UNDEF typeck_check_expr_call).
 CALL_BODY = """\
-__attribute__((weak)) int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+XLANG_WEAK int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /* LANG-007: always use glue path (enforces S0 extern-in-unsafe). */
   extern int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
@@ -43,7 +46,7 @@ __attribute__((weak)) int32_t typeck_check_expr_call(struct ast_Module * module,
 """
 
 DEREF_BODY = """\
-__attribute__((weak)) int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+XLANG_WEAK int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /* LANG-007: always use glue path (S0 deref requires unsafe). */
   extern int32_t pipeline_typeck_check_expr_deref_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
@@ -51,14 +54,15 @@ __attribute__((weak)) int32_t typeck_check_expr_deref(struct ast_Module * module
 """
 
 METHOD_CALL_BODY = """\
-__attribute__((weak)) int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+XLANG_WEAK int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /*
    * PLATFORM: SHARED — authority matches typeck.x: only pipeline_typeck_check_expr_method_call_c.
    * Do NOT re-dispatch by import index as dep index: multi-import closure (ndep > n_imports)
    * maps entry import ii for "heap" to a wrong dep (Linux inserts page_mmap so ii=2 → libc).
    * That overwrote free(*u8) with libc free → bare std_heap_free / http.o fail.
    * method_call_c already path-resolves dep + scores overloads + expected_ret.
-   * wave680: weak vs bootstrap_seed_pipeline_filtered strong export (Darwin dual-def).
+   * wave680: XLANG_WEAK vs bootstrap_seed_pipeline_filtered strong export (Darwin dual-def;
+   * PE strong + --allow-multiple-definition).
    */
   extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
@@ -115,14 +119,53 @@ int32_t typeck_check_block_one_region(struct ast_Module * module, struct ast_AST
 """
 
 
-def replace_weak_fn(src: str, name: str, new_body: str) -> tuple[str, bool]:
-    """Replace (XLANG_LIB_WEAK)? int32_t <name>(...) { ... } balanced braces.
+# Leading linkage attrs that may prefix int32_t name( — bare weak may be stacked
+# (old patch matched only int32_t, left prior __attribute__((weak)) prefixes).
+_LEAD_ATTR = (
+    r"(?:(?:__attribute__\s*\(\s*\(\s*weak\s*\)\s*\)|XLANG_LIB_WEAK|XLANG_WEAK)\s+)*"
+)
 
-    【Why 根源】-E-extern 生成的 typeck_gen.c 用普通 int32_t（无 XLANG_LIB_WEAK 前缀），
-    旧正则只匹配 int32_t 导致补丁从未生效。LANG-007 S0 守卫缺失。
+
+def _sig_is_xlang_weak_only(sig: str) -> bool:
+    """True if linkage is single XLANG_WEAK (or none) — no bare PE-broken weak."""
+    if "__attribute__" in sig:
+        return False
+    return True
+
+
+def _glue_delegate_ok(name: str, old: str) -> bool:
+    """True when body already delegates to the correct glue path with PE-safe linkage."""
+    sig = old.split("{", 1)[0]
+    if not _sig_is_xlang_weak_only(sig):
+        return False
+    if name == "typeck_check_expr_call":
+        return "pipeline_typeck_check_expr_call_c" in old and "XLANG_WEAK" in sig
+    if name == "typeck_check_expr_deref":
+        return "pipeline_typeck_check_expr_deref_c" in old and "XLANG_WEAK" in sig
+    if name == "typeck_check_expr_method_call":
+        return (
+            "pipeline_typeck_check_expr_method_call_c" in old
+            and "Do NOT re-dispatch by import index" in old
+            and "XLANG_WEAK" in sig
+        )
+    if name == "typeck_check_block_one_region":
+        return "pipeline_typeck_check_block_one_region_c" in old
+    if name == "typeck_check_expr_block":
+        return "pipeline_typeck_unsafe_depth_push_c" in old
+    return False
+
+
+def replace_weak_fn(src: str, name: str, new_body: str) -> tuple[str, bool]:
+    """Replace [weak attrs]* int32_t <name>(...) { ... } balanced braces.
+
+    Why (root): -E typeck_gen may use plain int32_t; LANG-007 rewrites to glue
+    delegate. Old regex started at int32_t and left stacked bare
+    __attribute__((weak)) prefixes; PE/MinGW does not satisfy U refs from weak
+    defs. Match and replace the full leading-attr span; emit XLANG_WEAK only.
+    PLATFORM: SHARED — XLANG_WEAK empty on Windows, weak on ELF/Darwin.
     """
     pat = re.compile(
-        rf"((?:XLANG_LIB_WEAK\s+)?int32_t\s+{re.escape(name)}\s*\([^;]*?\)\s*\{{)",
+        rf"({_LEAD_ATTR}int32_t\s+{re.escape(name)}\s*\([^;]*?\)\s*\{{)",
         re.M | re.S,
     )
     m = pat.search(src)
@@ -141,24 +184,24 @@ def replace_weak_fn(src: str, name: str, new_body: str) -> tuple[str, bool]:
             if depth == 0:
                 end = i + 1
                 old = src[start:end]
-                if name == "typeck_check_expr_call":
-                    if "g_typeck_allow_legacy_extern_calls" in old:
-                        return src, False  # already allow_legacy + glue path
-                    # else replace (old glue-only or inline body)
-                elif "pipeline_typeck_check_expr_deref_c" in old and name == "typeck_check_expr_deref":
+                if _glue_delegate_ok(name, old):
                     return src, False
-                if "pipeline_typeck_check_block_one_region_c" in old and name == "typeck_check_block_one_region":
-                    return src, False
-                if "pipeline_typeck_unsafe_depth_push_c" in old and name == "typeck_check_expr_block":
-                    return src, False
-                if name == "typeck_check_expr_method_call":
-                    # Fixed: pure delegate to path-resolving method_call_c (no import-ix re-dispatch).
-                    if "Do NOT re-dispatch by import index" in old:
-                        return src, False
-                    # Any older body (import-ix re-dispatch or short stub) → rewrite.
                 return src[:start] + new_body.rstrip() + "\n" + src[end:], True
         i += 1
     raise RuntimeError(f"unbalanced braces for {name}")
+
+
+def ensure_xlang_weak_include(src: str) -> tuple[str, bool]:
+    """Ensure typeck_gen.c includes xlang_weak.h (XLANG_WEAK for PE-safe weak)."""
+    if "xlang_weak.h" in src:
+        return src, False
+    last_inc = -1
+    for m in re.finditer(r"^#include[^\n]*\n", src, re.M):
+        last_inc = m.end()
+    line = '#include "xlang_weak.h"\n'
+    if last_inc > 0:
+        return src[:last_inc] + line + src[last_inc:], True
+    return line + src, True
 
 
 def insert_block_final_skip(src: str) -> tuple[str, bool]:
@@ -533,6 +576,12 @@ def main() -> int:
         return 0
     src = PATH.read_text(encoding="utf-8", errors="replace")
     changed = False
+    src, did = ensure_xlang_weak_include(src)
+    if did:
+        print("patch_typeck_gen_lang007: inserted #include xlang_weak.h")
+        changed = True
+    else:
+        print("patch_typeck_gen_lang007: xlang_weak.h include already ok")
     src, did = insert_allow_legacy_helpers(src)
     if did:
         print("patch_typeck_gen_lang007: inserted allow_legacy_extern helpers")

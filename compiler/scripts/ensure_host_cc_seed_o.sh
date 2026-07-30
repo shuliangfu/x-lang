@@ -1588,13 +1588,13 @@ rt_prefer_try_x_to_o() {
     for _wfn in $G05_X_O_WEAK_FUNCS; do
       _wfn="$(printf '%s' "$_wfn" | tr -d '[:space:]')"
       [ -z "$_wfn" ] && continue
-      perl -i -pe "s/^(int32_t)\\s+${_wfn}\\s*\\(/__attribute__((weak)) \$1 ${_wfn}(/" "$_xtmp" || true
+      perl -i -pe "s/^(int32_t)\\s+${_wfn}\\s*\\(/XLANG_WEAK \$1 ${_wfn}(/" "$_xtmp" || true
     done
     IFS="$_old_ifs_w"
   elif [ "${G05_X_O_WEAK:-0}" = "1" ]; then
     # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
     # G-02f-335/336：含 uint8_t * / char * / int64_t 返回（diag_color_prefix / get_source_len 等）
-    perl -i -pe 's/^((?:void|int64_t|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
+    perl -i -pe 's/^((?:void|int64_t|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/XLANG_WEAK $1 $2(/' "$_xtmp" || true
   fi
   # G-02f-458: 前端 *_gen.c .o 的符号重命名
   # 格式：G05_X_O_SYM_RENAME="old1:new1,old2:new2,..."
@@ -1616,6 +1616,7 @@ rt_prefer_try_x_to_o() {
     echo '/* rt_prefer_try_x_to_o prologue (G-02f-332/334 + uio/poll) */'
     echo '#include <stddef.h>'
     echo '#include <stdint.h>'
+    echo '#include "xlang_weak.h"'
     echo '#include <sys/types.h>'
     echo '#include <stdlib.h>'
     echo '#include <string.h>'
