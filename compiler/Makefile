@@ -413,25 +413,8 @@ bootstrap_xlangc: FORCE scripts/select_bootstrap_xlangc.sh
 	@bash scripts/select_bootstrap_xlangc.sh
 
 ifeq ($(XLANG_LEGACY_C_FRONTEND),1)
-# G-02a: lexer.o 从 runtime_lexer_glue.inc 编译（G-02e-19：cc_inc_tu）。
-# 仅提供 lexer_new/lexer_free；lexer_next 由 lexer_x.o（.x）或 runtime_driver_strict_glue_stubs.o（weak 桩）提供。
-# G-02f-21：runtime_lexer_glue 产品 seed
-# wave750 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_FRONTEND_GLUE_OBJS).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/lexer/lexer.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# G-02a: ast.o 从 runtime_ast_glue.inc 编译（LEGACY 模式 XLANG_LEGACY_C_FRONTEND=1）。
-# LEGACY parser.o 不引用 ast_expr_init_match_enum，安全。
-# G-02f-21：runtime_ast_glue 产品 seed
-# wave750 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_FRONTEND_GLUE_OBJS).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/ast/ast.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02a: lexer.o / ast.o (LEGACY runtime_*_glue seeds) — joined wave900 multi-target
+# $(R1_FRONTEND_GLUE_OBJS). Basename-mismatch map lives in ensure frontend-glue mode.
 
 # G-02a: typeck.c 已物理删除；typeck.o 由 typeck.x 生成（typeck_x.o），C 编排由 typeck_c_module_stubs.o 提供。
 
@@ -453,16 +436,8 @@ endif
 
 # G-02f-11：diag 产品 seed — joined wave899 multi-target $(R1_CORE_SEED_OBJS).
 
-# G-02a: lsp_diag.c 迁移到 runtime_lsp_glue.inc（24 个符号被 lsp_x.o/fmt_check_cmd*.o/runtime*.o 引用）
-# 全局规则，LEGACY 和默认模式共用。
-# G-02f-15：lsp_diag 产品 seed（原 runtime_lsp_glue）
-# wave750 R1 cold: ensure_one · wave771 product PREFER thin+rest → try-other-l2-prefer.
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/lsp/lsp_diag.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-15：lsp_diag 产品 seed — joined wave900 multi-target $(R1_FRONTEND_GLUE_OBJS).
+# wave771 archaeology: other L2 PREFER thin+rest → try-other-l2-prefer (body in try-heat).
 
 # `xlang-c` 默认模式可能只是 bootstrap_xlangc 的同步副本；凡是依赖 `-E/-E-extern`
 # 生成当前源码对应 C 的目标，必须先强制刷新一次 legacy C frontend，避免继续吃旧语义。
@@ -651,6 +626,21 @@ $(RT_SEED_SLICE_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 # ---------------------------------------------------------------------------
 $(R1_CORE_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+
+# ---------------------------------------------------------------------------
+# wave900 B7B: R1_FRONTEND_GLUE product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = R1_FRONTEND_GLUE_OBJS in mk/driver_seed_r_lists.mk
+# (wave750 family · wave788 list→mk · COUNT=3). Do NOT open a second .o list.
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat (wave750/790/792/793).
+# Leaves: lexer.o · ast.o · lsp_diag.o (basename-mismatch seed map in ensure).
+# PREFER archaeology (wave771 try-other-l2-prefer on lsp_diag) lives in try-heat
+# body; Makefile only FORCE + thin-call. NOT physical delete — thin edges +
+# remaining R1 family multi-target / mk lists hybrid + tip Windows → dual L4 →
+# explicit auth ship delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(R1_FRONTEND_GLUE_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
@@ -1704,14 +1694,8 @@ ast_x.o: FORCE scripts/ensure_cp_alias_o.sh
 
 # G-02a: preprocess.c 已物理删除；preprocess.o 不再编译（preprocess_x.o 由 .x 生成）。
 
-# G-02a: lexer.o 从 runtime_lexer_glue.inc 编译（G-02e-19：cc_inc_tu）。
-# G-02f-21：runtime_lexer_glue 产品 seed
-# wave750 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_FRONTEND_GLUE_OBJS).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/lexer/lexer.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02a / G-02f-21：lexer.o runtime_lexer_glue product seed — joined wave900 multi-target
+# $(R1_FRONTEND_GLUE_OBJS). (Default product path twin of LEGACY ifeq block.)
 
 # G-02f-80：cfg_eval 冷启动 stub；legacy xlang-c 直链需要独立 .o 规则。
 # wave831: FORCE dep-thin — shell owns seed+.x mtime (cc_inc_tu PEERS; not physical delete).

@@ -25,6 +25,8 @@ R1_CORE_SEED_OBJS = src/diag.o src/runtime_link_abi.o src/runtime_c_import.o src
 # (lexer.o ← runtime_lexer_glue, ast.o ← runtime_ast_glue, lsp_diag.o ← runtime_lsp_glue).
 # List authority for ensure_host_cc_seed_o.sh frontend-glue mode; body = same script.
 # Seed map lives in ensure script (path convention); list stays here (G.7).
+# wave900: also make-graph multi-target FORCE thin try-heat inventory (COUNT=3).
+# Body = ensure try-heat; do not re-list in Makefile or residual shells (G.7).
 R1_FRONTEND_GLUE_OBJS = src/lexer/lexer.o src/ast/ast.o src/lsp/lsp_diag.o
 
 # wave751 R1 fourth family: main/runtime multi-flag variants (shared seeds, different -D).
