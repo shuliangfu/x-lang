@@ -74,8 +74,8 @@
 | `bootstrap-driver` | 3193 | Makefile 历史 | `xbuild bootstrap-driver` | ⬜ make | 考古/过渡 |
 | `bootstrap-driver-bstrict-windows` | 3196 | Makefile WINDOWS | `xbuild bootstrap-win` | ⬜ Makefile | PLATFORM: WINDOWS |
 | `bootstrap-driver-crt0` | 3200 | Makefile | `xbuild crt0` | ⬜ Makefile | 阶段 9 residual 相关 |
-| `bootstrap-driver-asm` | 3146 | Makefile | `xbuild bootstrap-asm` | ⬜ Makefile |  |
-| `bootstrap-driver-asm-only` | 3151 | Makefile | `xbuild bootstrap-asm-only` | ⬜ Makefile |  |
+| `bootstrap-driver-hybrid` / `-asm` | ~2901 | **shell** `bootstrap_driver_hybrid.sh` | `xbuild bootstrap-hybrid` | 🟢 wave872 体 shell；`$(TARGET)` prereq 仍 make 图 | B-hybrid 无 SKIP_GEN |
+| `bootstrap-driver-asm-only` | ~2905 | Makefile alias → hybrid | `xbuild bootstrap-asm-only` | 🟢 wave872 别名 |  |
 | `bootstrap-pipeline` | 3359 | Makefile -E pipeline | `xbuild bootstrap-pipeline` | ⬜ Makefile | gen 路径 |
 | `bootstrap_xlangc` | 716 | Makefile/预编译种子 | `xbuild bootstrap_xlangc` | ⬜ Makefile | 冷启动种子机 |
 | `build-tool` | ~3190 | **shell** `scripts/build_tool.sh` | `xbuild build-tool` | 🟢 wave718 shell | Makefile 薄转调；xlang-build 直调 |
@@ -420,9 +420,8 @@
 | 3125 | `xlang-x` | ⬜ |
 | 3135 | `bootstrap-verify-stage2` | ⬜ |
 | 3142 | `bootstrap-verify-stage2-bstrict` | ⬜ |
-| 3146 | `bootstrap-driver-hybrid` | ⬜ |
-| 3146 | `bootstrap-driver-asm` | ⬜ |
-| 3151 | `bootstrap-driver-asm-only` | ⬜ |
+| ~2901 | `bootstrap-driver-hybrid` / `-asm` | 🟢 wave872 shell `bootstrap_driver_hybrid.sh` |
+| ~2905 | `bootstrap-driver-asm-only` | 🟢 wave872 alias → hybrid |
 | ~3107 | `bootstrap-driver-bstrict` | 🟡 wave719 体 shell；refresh 仍 make |
 | 3179 | `bootstrap-driver-bstrict-relink` | ⬜ make |
 | 3193 | `bootstrap-driver` | ⬜ make |

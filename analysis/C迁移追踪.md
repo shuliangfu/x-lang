@@ -1505,10 +1505,11 @@
 - **wave869** · B7C bootstrap-driver-crt0 shell-primary（1 phony → bootstrap_driver_crt0.sh；G.7 有则补全 dual body · crt0 log gates）
 - **wave870** · B7C check-7.2 shell-primary（1 phony → check_7_2.sh；seed stage1/stage2 smoke · ≠ bstrict path）
 - **wave871** · B7C check-6.4 shell-primary（1 phony → check_6_4.sh；seed emit-C + host-cc + exit 42）
+- **wave872** · B7C bootstrap-driver-hybrid shell-primary（1 phony → bootstrap_driver_hybrid.sh；B-hybrid build_xlang_asm + replace/soft-skip；alias -asm）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
-- **open** · thin edges + B2 + mk lists（hybrid）→ tip Windows → 双端 L4 → explicit auth 真删
+- **open** · thin edges + B2 + mk lists（hybrid）· 其它 fat · → tip Windows → 双端 L4 → explicit auth 真删
 
 **状态明细**（一行一项）：
 
@@ -1621,6 +1622,7 @@
 - ✅ **bootstrap-driver-crt0 shell-primary**（wave869 · bootstrap-driver-crt0 → bootstrap_driver_crt0.sh · G.7 有则补全 dual body · shell 拥 build_xlang_asm + crt0 log gates · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`74ebab839`**
 - ✅ **check-7.2 shell-primary**（wave870 · check-7.2 → check_7_2.sh · G.7 有则补全 dual body · seed stage1/stage2 smoke · **非** bstrict 路径 · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`0dc9ae7b3`**
 - ✅ **check-6.4 shell-primary**（wave871 · check-6.4 → check_6_4.sh · G.7 有则补全 dual body · seed emit-C + host-cc + exit 42 · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`63ef5a3b5`**
+- ✅ **bootstrap-driver-hybrid shell-primary**（wave872 · hybrid/-asm → bootstrap_driver_hybrid.sh · G.7 有则补全 dual body · B-hybrid no SKIP_GEN + replace/soft-skip · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`PENDING`**
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：
@@ -1698,6 +1700,7 @@
     - wave853 seed phase1/final full link bags → mk
     - wave854 seed-gate REQUIRED_OBJS bags → mk
     - wave855 seed-gate REQUIRED shell-load from mk
+    - wave872 bootstrap-driver-hybrid shell-primary
     - **open** · lists/thin 残项（hybrid）+ tip Windows 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体（终局波）
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```

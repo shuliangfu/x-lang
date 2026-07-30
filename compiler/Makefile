@@ -2893,9 +2893,13 @@ bootstrap-verify-stage2-bstrict: verify-selfhost-stage2-bstrict
 	@echo "bootstrap-verify-stage2-bstrict OK"
 
 # B-hybrid：asm 构建（无 SKIP_GEN），成功则 xlang_asm 覆盖 $(TARGET)；失败保留 seed。
-bootstrap-driver-hybrid bootstrap-driver-asm: $(TARGET)
-	@XLANG=./$(TARGET) ./scripts/build_xlang_asm.sh
-	@if [ -f xlang_asm ]; then cp -f xlang_asm $(TARGET) && echo "bootstrap-driver-hybrid OK: $(TARGET) from asm (B-hybrid)"; else echo "bootstrap-driver-hybrid: asm build skipped ($(TARGET) left as seed); run XLANG=./$(TARGET) ./scripts/build_xlang_asm.sh for details."; fi
+# wave872: full body → scripts/bootstrap_driver_hybrid.sh (G.7 有则补全).
+# Shell owns build_xlang_asm (no SKIP_GEN) + xlang_asm→TARGET replace / soft-skip.
+# Thin-call TARGET= only. $(TARGET) prereq stays make graph.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — orchestration only; ABI stays in build_xlang_asm.
+bootstrap-driver-hybrid bootstrap-driver-asm: $(TARGET) scripts/bootstrap_driver_hybrid.sh
+	@TARGET="$(TARGET)" bash scripts/bootstrap_driver_hybrid.sh
 
 # 仅 asm、不生成 C（B-hybrid 别名，保留历史目标名）
 bootstrap-driver-asm-only: bootstrap-driver-hybrid
