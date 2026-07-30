@@ -97,7 +97,7 @@ EOF
 extern long xlang_sys_write(int fd, const void *buf, unsigned long len);
 int main(void) {
   static const char msg[] = "Hello Xlang!\n";
-  if (xlang_sys_write(1, msg, 11) != 11) {
+  if (xlang_sys_write(1, msg, 13) != 13) {
     return 1;
   }
   return 0;

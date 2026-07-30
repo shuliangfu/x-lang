@@ -15,9 +15,10 @@ function main(): i32 {
   if (z != 0) {
     return 2;
   }
-  let msg: u8[12] = [72, 101, 108, 108, 111, 32, 83, 104, 117, 33, 10, 0];
-  let n: i32 = sys.os_write_stdout(&msg[0], 11);
-  if (n != 11) {
+  /* "Hello Xlang!\n" — matches platform write-gate EXPECTED (single authority). */
+  let msg: u8[14] = [72, 101, 108, 108, 111, 32, 88, 108, 97, 110, 103, 33, 10, 0];
+  let n: i32 = sys.os_write_stdout(&msg[0], 13);
+  if (n != 13) {
     return 3;
   }
   return 0;
