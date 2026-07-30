@@ -3137,12 +3137,22 @@ compile_commands.json:
 	./scripts/gen_compile_commands.sh
 
 # 阶段 8 体积基线：编译固定用例并输出可执行文件大小
-size-baseline:
-	@if [ -f ../tests/run-size-baseline.sh ]; then (cd .. && chmod +x tests/run-size-baseline.sh && XLANG=./compiler/xlang-c ./tests/run-size-baseline.sh); fi
+# wave875: full body → scripts/stage8_baseline.sh size (G.7 有则补全;
+#   measurement authority stays tests/run-size-baseline.sh; shell owns make
+#   cwd → repo-root dispatch + soft-skip). Thin-call only.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — orchestration only.
+size-baseline: scripts/stage8_baseline.sh
+	@bash scripts/stage8_baseline.sh size
 
 # 阶段 8 性能基线：编译并多次运行 perf-baseline，输出耗时
-perf-baseline:
-	@if [ -f ../tests/run-perf-baseline.sh ]; then (cd .. && chmod +x tests/run-perf-baseline.sh && XLANG=./compiler/xlang-c ./tests/run-perf-baseline.sh); fi
+# wave875: full body → scripts/stage8_baseline.sh perf (G.7 有则补全;
+#   measurement authority stays tests/run-perf-baseline.sh; shell owns make
+#   cwd → repo-root dispatch + soft-skip). Thin-call only.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — orchestration only.
+perf-baseline: scripts/stage8_baseline.sh
+	@bash scripts/stage8_baseline.sh perf
 
 # core.slice：语言限制 C 桩（G-01 core 零 C；G-02e-17：.inc + cc_inc_tu）。
 # G-02f-22：runtime_slice_glue 产品 seed
