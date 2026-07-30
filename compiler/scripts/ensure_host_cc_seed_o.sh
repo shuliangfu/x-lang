@@ -5280,7 +5280,7 @@ run_check() {
       RT_SEED_SLICE_OBJS R1_CORE_SEED_OBJS R1_FRONTEND_GLUE_OBJS R1_MAIN_RUNTIME_OBJS \
       R1_ALIAS_STUBS_OBJS R1_EXTRA_CFLAGS_OBJS R1_MISC_BASENAME_OBJS R1_SEED_MAP_OBJS \
       R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS B1_RUNTIME_OS_SEED_OBJS GEN_X_SEED_OBJS \
-      GEN_C_TO_O_SEED_OBJS B3_LSP_SAT_SEED_OBJS FMT_CHECK_SEED_OBJS DRIVER_SEED_CRT0_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED_PANIC_OBJS; do
+      GEN_C_TO_O_SEED_OBJS B3_LSP_SAT_SEED_OBJS FMT_CHECK_SEED_OBJS DRIVER_SEED_CRT0_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_CFG_EVAL_OBJS; do
       if [ ! -f "$mk" ]; then
         continue
       fi
@@ -6387,7 +6387,17 @@ run_check() {
   else
     bad "cfg_eval_ladder_spec_for_out must reject non-members (wave783)"
   fi
-  if awk '
+  # wave783 + wave916: cfg_eval must thin-call try-heat|try-cfg-eval-ladder.
+  # wave916: multi-target $(DRIVER_SEED_CFG_EVAL_OBJS): FORCE try-heat (list in r_lists).
+  if grep -qE '\$\(DRIVER_SEED_CFG_EVAL_OBJS\):[[:space:]]*FORCE' Makefile 2>/dev/null \
+    && awk '
+      /\$\(DRIVER_SEED_CFG_EVAL_OBJS\):/ { hit=1; next }
+      hit && /^[^#[:space:]\t]/ { exit 1 }
+      hit && /ensure_host_cc_seed_o\.sh/ && /try-heat|try-cfg-eval-ladder/ { found=1; exit 0 }
+      END { exit found ? 0 : 1 }
+    ' Makefile; then
+    note "Makefile B5 CFG_EVAL multi-target FORCE thin try-heat (wave916)"
+  elif awk '
     $0 ~ /^src\/lexer\/cfg_eval\.o:/ {grab=1; next}
     grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
     grab {body = body $0 "\n"}
@@ -6398,10 +6408,26 @@ run_check() {
   ' Makefile; then
     note "Makefile src/lexer/cfg_eval.o thin-calls ensure try-cfg-eval-ladder (wave783)"
   else
-    bad "Makefile src/lexer/cfg_eval.o must thin-call ensure try-heat|try-cfg-eval-ladder (wave783)"
+    bad "Makefile cfg_eval must thin-call ensure try-heat|try-cfg-eval-ladder (wave783/916 multi-target)"
   fi
   # Ban re-opened multi-ladder: no inline $(CC)/xlang-c/-E-extern on recipe lines.
-  if awk '
+  # wave916: multi-target recipe body must also stay thin (no inline multi-ladder).
+  if grep -qE '\$\(DRIVER_SEED_CFG_EVAL_OBJS\):[[:space:]]*FORCE' Makefile 2>/dev/null \
+    && awk '
+      /\$\(DRIVER_SEED_CFG_EVAL_OBJS\):/ { hit=1; next }
+      hit && /^[^#[:space:]\t]/ { exit 0 }
+      hit && /^\t/ {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-cfg-eval-ladder/ \
+            && body !~ /\$\(CC\)/ && body !~ /xlang-c/ && body !~ /-E-extern/) exit 1
+        if (body ~ /\$\(CC\)/ && body ~ /-c /) exit 0
+        if (body ~ /-E-extern/ && body !~ /ensure_host_cc_seed_o/) exit 0
+        if (body ~ /cfg_eval_bootstrap_stub/ && body !~ /ensure_host_cc_seed_o/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+    bad "Makefile B5 CFG_EVAL multi-target still has multi-ladder body (wave783/916)"
+  elif awk '
     $0 ~ /^src\/lexer\/cfg_eval\.o:/ {grab=1; next}
     grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
     grab && /^\t/ {body = body $0 "\n"}

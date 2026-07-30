@@ -708,13 +708,21 @@ $(R3_COLD_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 # Deps: link_alias + linux pin gen (Ubuntu gold) + host lit + bootstrap stub seed.
 # wave98: do NOT use plain -E — bare -E emits dangling BSS → SEGV on complex #if.
 # wave783 B5: multi-ladder body → ensure try-cfg-eval-ladder (G.7; not physical delete).
-src/lexer/cfg_eval.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave795 B7A: heat dep-edge thin cfg_eval multi residual — prereqs → FORCE + ensure;
-# try-heat owns multi-seed/.x + hdr mtime (try-cfg-eval-ladder). NOT physical delete.
+# wave916 B7B: B5 cfg_eval product edge multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = $(DRIVER_SEED_CFG_EVAL_OBJS) in mk/driver_seed_r_lists.mk
+# (N=1 leaf). Body = ensure try-heat → try-cfg-eval-ladder (wave783 multi-ladder:
+# live -E-extern → pin gen → bootstrap stub rungs; LD/LD_RELFLAGS shell defaults
+# via wave886). Migrated from per-leaf recipe so multi-target binds before late
+# include (G.7 single literal authority; export_lists never re-assigns this leaf).
+# wave795 B7A: heat dep-edge thin — prereqs → FORCE + ensure; try-heat owns
+# multi-seed/.x + hdr mtime (try-cfg-eval-ladder). NOT physical delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 # wave886 B7B residual: drop LD=/LD_RELFLAGS= recipe inject (G.7 hygiene).
 # Authority: ensure try-cfg-eval-ladder — LD:-ld + shell Darwin arch default;
 # CLI/env LD / LD_RELFLAGS still override. NOT physical delete.
+# Leaf: src/lexer/cfg_eval.o. Not in list: cfg_eval_bootstrap_stub.o (cc_inc_tu
+# residual · wave831; different family — direct seed copy, not multi-ladder).
+$(DRIVER_SEED_CFG_EVAL_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a：preprocess 已迁 preprocess.x；不再编译 preprocess.c。

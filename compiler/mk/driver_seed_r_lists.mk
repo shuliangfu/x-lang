@@ -149,5 +149,17 @@ DRIVER_SEED_TYPECK_F64_OBJS = src/typeck/typeck_f64_bits.o
 # Do not re-list in Makefile or residual shells (G.7).
 DRIVER_SEED_PANIC_OBJS = runtime_panic.o
 
+# wave783/916 B5 cfg_eval multi-ladder family (N=1 leaf).
+# List authority for multi-target FORCE thin try-heat (wave916 COUNT=1).
+# Body = ensure try-heat → try-cfg-eval-ladder (G.7 single body; live -E-extern →
+# pin gen → bootstrap stub rungs; LD/LD_RELFLAGS shell defaults via wave886).
+# Migrated from per-leaf Makefile recipe so multi-target binds before late include
+# (G.7 single literal authority; export_lists never re-assigns this leaf).
+# Leaf: src/lexer/cfg_eval.o.
+# Not in list: src/lexer/cfg_eval_bootstrap_stub.o (cc_inc_tu residual · wave831;
+# different family — direct seed copy, not multi-ladder).
+# Do not re-list in Makefile or residual shells (G.7).
+DRIVER_SEED_CFG_EVAL_OBJS = src/lexer/cfg_eval.o
+
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
