@@ -83,7 +83,8 @@
 > - **wave912** · B7B FMT_CHECK product edges multi-target FORCE thin try-heat (2 leaves → `$(FMT_CHECK_SEED_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-other-l2-prefer map; no second body)
 > - **wave913** · B7B R2 CRT0 product edges multi-target FORCE thin try-heat (6 leaves → `$(DRIVER_SEED_CRT0_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-r2; list migrated from export_lists; no second body)
 > - **wave914** · B7B R2 TYPECK_F64 product edge multi-target FORCE thin try-heat (1 leaf → `$(DRIVER_SEED_TYPECK_F64_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-r2 host pick; UNAME ifeq hard-error surface dropped; no second body)
-> - **open** · thin edges + mk lists hybrid (cfg_eval / panic singles …) · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave915** · B7B R2 PANIC product edge multi-target FORCE thin try-heat (1 leaf → `$(DRIVER_SEED_PANIC_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-heat → try-r2-prefer / try-r2; list migrated from export_lists; no second body)
+> - **open** · thin edges + mk lists hybrid (cfg_eval single …) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -4763,5 +4764,32 @@ PHYS_DEL_PREFLIGHT_R2_TYPECK_F64_LIST_MK=1
 
 | Closed | Residual |
 |--------|----------|
-| UNAME ifeq multi-recipe surface for typeck_f64_bits | cfg_eval / panic singles · tip Windows · dual L4 · auth delete |
+| UNAME ifeq multi-recipe surface for typeck_f64_bits | ~~panic single~~ (wave915) · cfg_eval single · tip Windows · dual L4 · auth delete |
+
+### wave915 · R2 PANIC multi-target FORCE thin try-heat (list→r_lists)
+
+> **This wave:** collapse Makefile per-leaf `runtime_panic.o:` recipe into single multi-target
+> `$(DRIVER_SEED_PANIC_OBJS): FORCE` + try-heat. List authority migrates from
+> `mk/driver_seed_export_lists.mk` → `mk/driver_seed_r_lists.mk` (COUNT=1).
+> Body remains ensure try-heat → try-r2-prefer / try-r2 → `r2_panic_host_pick_src` (G.7).
+> Dropped unused `RUNTIME_PANIC_S` wildcard (shell owns host pick).
+> **NOT physical delete** — thin edges + remaining (cfg_eval single) +
+> tip Windows → dual L4 → explicit auth.
+
+```text
+PHYS_DEL_R2_PANIC_LIST_MK=1
+PHYS_DEL_R2_PANIC_LIST_MK_WAVE=wave915
+PHYS_DEL_R2_PANIC_LIST_MK_COUNT=1
+SWALLOWED_R2_PANIC_LIST_MK=1
+PHYS_DEL_PREFLIGHT_R2_PANIC_LIST_MK=1
+```
+
+| Closed | Residual |
+|--------|----------|
+| per-leaf `runtime_panic.o:` + export_lists dual assign | cfg_eval single · tip Windows · dual L4 · auth delete |
+
+**Forbidden:** claim R2 PANIC multi-target = physical delete; re-assign
+`DRIVER_SEED_PANIC_OBJS` in export_lists; re-open dual hybrid PREFER body;
+hardcode panic `.o` list in shell (catalog KEY only).
+
 

@@ -140,5 +140,14 @@ DRIVER_SEED_CRT0_OBJS = src/asm/crt0_x86_64.o src/asm/crt0_arm64.o src/asm/crt0_
 # Do not re-list in Makefile or residual shells (G.7).
 DRIVER_SEED_TYPECK_F64_OBJS = src/typeck/typeck_f64_bits.o
 
+# wave760/776/915 R2 runtime_panic family (N=1 leaf; cold try-r2 + PREFER try-r2-prefer).
+# List authority for multi-target FORCE thin try-heat (wave915 COUNT=1).
+# Body = ensure try-heat → try-r2-prefer / try-r2 (G.7 single body; host pick + stamp).
+# Migrated from export_lists so multi-target binds before late include (G.7 single
+# literal authority; export_lists no longer re-assigns).
+# Leaf: runtime_panic.o.
+# Do not re-list in Makefile or residual shells (G.7).
+DRIVER_SEED_PANIC_OBJS = runtime_panic.o
+
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o

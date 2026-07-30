@@ -255,6 +255,9 @@
 #            body → scripts/verify-selfhost-stage2{,-bstrict}.sh; Makefile pure
 #            @bash scripts/… (drop @bash ./); root shim for CI/tests path compat;
 #            NOT physical delete — thin edges + remaining R1 multi / mk lists remain
+#   wave915: R2 PANIC product edge multi-target FORCE thin try-heat (1)
+#            (G.7 有则补全: DRIVER_SEED_PANIC_OBJS in driver_seed_r_lists.mk;
+#            try-heat → try-r2-prefer/try-r2; no second body). NOT physical delete.
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -927,6 +930,17 @@ PHYS_DEL_R2_TYPECK_F64_LIST_MK_NOTE=list_multi_target_force_thin_uname_gates_dro
 SWALLOWED_R2_TYPECK_F64_LIST_MK=1
 R2_TYPECK_F64_LIST_MK_SWALLOWED=1
 R2_TYPECK_F64_LIST_MK_WAVE=wave914
+# wave915: R2 PANIC product edge multi-target FORCE thin try-heat (make-graph only).
+# G.7 有则补全: list authority = DRIVER_SEED_PANIC_OBJS in mk/driver_seed_r_lists.mk
+# (migrated from export_lists; COUNT=1). Body = try-heat → try-r2-prefer / try-r2.
+PHYS_DEL_R2_PANIC_LIST_MK=1
+PHYS_DEL_R2_PANIC_LIST_MK_WAVE=wave915
+PHYS_DEL_R2_PANIC_LIST_MK_COUNT=1
+PHYS_DEL_R2_PANIC_LIST_MK_VIA=mk_driver_seed_panic_objs_multi_target_thin
+PHYS_DEL_R2_PANIC_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
+SWALLOWED_R2_PANIC_LIST_MK=1
+R2_PANIC_LIST_MK_SWALLOWED=1
+R2_PANIC_LIST_MK_WAVE=wave915
 # wave829: product/archaeology *_gen.c FORCE dep-thin — Makefile prereqs FORCE+script
 # only; shell owns pin/seed/FORCE_REGEN policy (ensure_*_gen). NOT physical delete —
 # thin edges + B2 try-heat + mk lists remain (ast_gen2 closed wave830).
@@ -2105,6 +2119,7 @@ PHYS_DEL_PREFLIGHT_B3_LSP_SAT_LIST_MK=1
 PHYS_DEL_PREFLIGHT_FMT_CHECK_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R2_CRT0_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R2_TYPECK_F64_LIST_MK=1
+PHYS_DEL_PREFLIGHT_R2_PANIC_LIST_MK=1
 PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_SRC_EDGE_FORCE_THIN=1
@@ -2826,6 +2841,9 @@ else
   fi
   if ! grep -qE 'wave914|R2_TYPECK_F64.*multi|TYPECK_F64.*multi|typeck_f64 multi|DRIVER_SEED_TYPECK_F64_OBJS.*multi' "$DOC_REL"; then
     bad "$DOC_REL must document wave914 R2 TYPECK_F64 multi-target FORCE thin"
+  fi
+  if ! grep -qE 'wave915|R2_PANIC.*multi|PANIC.*multi|panic multi|DRIVER_SEED_PANIC_OBJS.*multi' "$DOC_REL"; then
+    bad "$DOC_REL must document wave915 R2 PANIC multi-target FORCE thin"
   fi
   if ! grep -qE 'wave828|driver_leaf FORCE|DRIVER_LEAF_FORCE_THIN' "$DOC_REL"; then
     bad "$DOC_REL must document wave828 driver_leaf FORCE dep-thin"
@@ -3888,6 +3906,21 @@ if ! grep -q 'SWALLOWED_R2_TYPECK_F64_LIST_MK=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_R2_TYPECK_F64_LIST_MK=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_R2_TYPECK_F64_LIST_MK=1 (wave914)"
+fi
+if ! grep -q 'PHYS_DEL_R2_PANIC_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R2_PANIC_LIST_MK=1 (wave915)"
+fi
+if ! grep -q 'PHYS_DEL_R2_PANIC_LIST_MK_WAVE=wave915' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R2_PANIC_LIST_MK_WAVE=wave915"
+fi
+if ! grep -q 'PHYS_DEL_R2_PANIC_LIST_MK_COUNT=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R2_PANIC_LIST_MK_COUNT=1 (wave915)"
+fi
+if ! grep -q 'SWALLOWED_R2_PANIC_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_R2_PANIC_LIST_MK=1 (wave915)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_R2_PANIC_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_R2_PANIC_LIST_MK=1 (wave915)"
 fi
 if ! grep -q 'PHYS_DEL_GEN_C_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_GEN_C_FORCE_THIN=1 (wave829)"
@@ -7560,6 +7593,57 @@ if grep -qE '\$\(error typeck_f64_bits:' "$MF" 2>/dev/null; then
   bad "Makefile still has typeck_f64_bits UNAME hard-error surface (wave914; shell fails closed)"
 fi
 note "Makefile R2 TYPECK_F64 multi-target FORCE thin try-heat + mk list 1 (wave762/914; not physical delete)"
+
+# wave915: R2 PANIC product edge multi-target FORCE thin try-heat (G.7 list authority).
+_PANIC_MK="compiler/mk/driver_seed_r_lists.mk"
+[ -f "$_PANIC_MK" ] || _PANIC_MK="mk/driver_seed_r_lists.mk"
+if [ ! -f "$_PANIC_MK" ]; then
+  bad "missing $_PANIC_MK (wave915 R2 PANIC list authority)"
+fi
+if ! grep -qE '^DRIVER_SEED_PANIC_OBJS\s*=' "$_PANIC_MK"; then
+  bad "$_PANIC_MK must define DRIVER_SEED_PANIC_OBJS (wave760/915)"
+fi
+_PANIC_EXP="compiler/mk/driver_seed_export_lists.mk"
+[ -f "$_PANIC_EXP" ] || _PANIC_EXP="mk/driver_seed_export_lists.mk"
+if [ -f "$_PANIC_EXP" ] && grep -qE '^DRIVER_SEED_PANIC_OBJS\s*=' "$_PANIC_EXP"; then
+  bad "$_PANIC_EXP must not re-assign DRIVER_SEED_PANIC_OBJS (wave915 list authority = r_lists)"
+fi
+_panic_list_n=$(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^DRIVER_SEED_PANIC_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) c++
+      next
+    }
+    END { print c+0 }
+  ' "$_PANIC_MK"
+)
+if [ "${_panic_list_n:-0}" -ne 1 ]; then
+  bad "wave915 expected 1 DRIVER_SEED_PANIC_OBJS member, got ${_panic_list_n:-0}"
+fi
+if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
+  bad "Makefile must include mk/driver_seed_r_lists.mk (wave788/915)"
+fi
+if ! grep -qE '\$\(DRIVER_SEED_PANIC_OBJS\):[[:space:]]*FORCE' "$MF"; then
+  bad "Makefile must multi-target \$(DRIVER_SEED_PANIC_OBJS): FORCE (wave915)"
+fi
+if ! awk '
+  /\$\(DRIVER_SEED_PANIC_OBJS\):/ { hit=1; next }
+  hit && /^[^#[:space:]\t]/ { exit 1 }
+  hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+  END { exit found ? 0 : 1 }
+' "$MF"; then
+  bad "Makefile DRIVER_SEED_PANIC_OBJS multi-target must thin-call try-heat (wave915)"
+fi
+# No per-leaf runtime_panic.o: recipe (multi-target only).
+if grep -qE '^runtime_panic\.o:' "$MF" 2>/dev/null; then
+  bad "Makefile still has per-leaf runtime_panic.o: (wave915 multi-target only)"
+fi
+note "Makefile R2 PANIC multi-target FORCE thin try-heat + mk list 1 (wave760/776/915; not physical delete)"
+
 
 
 

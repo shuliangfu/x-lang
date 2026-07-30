@@ -5256,8 +5256,8 @@ run_check() {
   note() { echo "ensure_host_cc_seed_o: $*" >&2; }
   bad() { echo "ensure_host_cc_seed_o: FAIL: $*" >&2; fail=1; }
 
-  # wave907–914 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
-  # checks (R1/R3/ASYNC/B1 / GEN_X / GEN_C_TO_O / B3_LSP_SAT / FMT_CHECK / R2 CRT0 / TYPECK_F64).
+  # wave907–915 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
+  # checks (R1/R3/ASYNC/B1 / GEN_X / GEN_C_TO_O / B3_LSP_SAT / FMT_CHECK / R2 CRT0 / TYPECK_F64 / PANIC).
   # Accept per-leaf OR membership in a multi-target list whose recipe thin-calls ensure
   # try-heat (prefer / gen-x / gen-c-to-o / lsp-sat / other-l2 / try-r2 ladder lives in shell).
   makefile_leaf_try_heat_ok() {
@@ -5280,7 +5280,7 @@ run_check() {
       RT_SEED_SLICE_OBJS R1_CORE_SEED_OBJS R1_FRONTEND_GLUE_OBJS R1_MAIN_RUNTIME_OBJS \
       R1_ALIAS_STUBS_OBJS R1_EXTRA_CFLAGS_OBJS R1_MISC_BASENAME_OBJS R1_SEED_MAP_OBJS \
       R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS B1_RUNTIME_OS_SEED_OBJS GEN_X_SEED_OBJS \
-      GEN_C_TO_O_SEED_OBJS B3_LSP_SAT_SEED_OBJS FMT_CHECK_SEED_OBJS DRIVER_SEED_CRT0_OBJS DRIVER_SEED_TYPECK_F64_OBJS; do
+      GEN_C_TO_O_SEED_OBJS B3_LSP_SAT_SEED_OBJS FMT_CHECK_SEED_OBJS DRIVER_SEED_CRT0_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED_PANIC_OBJS; do
       if [ ! -f "$mk" ]; then
         continue
       fi
@@ -5584,9 +5584,17 @@ run_check() {
     bad "must not hardcode DRIVER_SEED_CRT0_OBJS= in shell body (wave762)"
   fi
 
-  # wave760 + wave776: Makefile runtime_panic must thin-call try-r2-prefer
-  # (PREFER+cold) or try-r2 (cold-only). No inline dual hybrid.
-  if awk '
+  # wave760 + wave776 + wave915: Makefile panic must thin-call try-heat|try-r2-prefer|try-r2.
+  # wave915: multi-target $(DRIVER_SEED_PANIC_OBJS): FORCE try-heat (list in r_lists).
+  if grep -qE '\$\(DRIVER_SEED_PANIC_OBJS\):[[:space:]]*FORCE' Makefile 2>/dev/null \
+    && awk '
+      /\$\(DRIVER_SEED_PANIC_OBJS\):/ { hit=1; next }
+      hit && /^[^#[:space:]\t]/ { exit 1 }
+      hit && /ensure_host_cc_seed_o\.sh/ && /try-heat|try-r2-prefer|try-r2/ { found=1; exit 0 }
+      END { exit found ? 0 : 1 }
+    ' Makefile; then
+    note "Makefile R2 PANIC multi-target FORCE thin try-heat (wave915)"
+  elif awk '
     /^runtime_panic\.o:/ { in_t=1; next }
     in_t && /^[^[:space:]#]/ { in_t=0 }
     in_t { body = body $0 "\n" }
@@ -5597,10 +5605,26 @@ run_check() {
   ' Makefile; then
     note "Makefile runtime_panic thin-calls ensure try-r2-prefer/try-r2 (wave760/776)"
   else
-    bad "Makefile runtime_panic.o must thin-call ensure try-heat|try-r2-prefer or try-r2 (wave776)"
+    bad "Makefile runtime_panic.o must thin-call ensure try-heat|try-r2-prefer or try-r2 (wave776/915 multi-target)"
   fi
   # wave776: ban dual hybrid (inline xlang-c thin + seed rest + ld -r).
-  if awk '
+  # wave915: multi-target recipe body must also stay thin (no dual hybrid).
+  if grep -qE '\$\(DRIVER_SEED_PANIC_OBJS\):[[:space:]]*FORCE' Makefile 2>/dev/null \
+    && awk '
+      /\$\(DRIVER_SEED_PANIC_OBJS\):/ { hit=1; next }
+      hit && /^[^#[:space:]\t]/ { exit 0 }
+      hit {
+        body = body $0 "\n"
+      }
+      END {
+        if (body ~ /runtime_panic\.thin\.o/ && body ~ /runtime_panic\.rest\.o/) exit 1
+        if (body ~ /XLANG_RUNTIME_PANIC_FROM_X/ && body ~ /ld -r/) exit 1
+        if (body ~ /\.\/xlang-c/ && body ~ /runtime_panic/ && body ~ /ld -r/) exit 1
+        exit 0
+      }
+    ' Makefile; then
+    note "Makefile runtime_panic multi-target has no dual hybrid body (wave776/915)"
+  elif awk '
     /^runtime_panic\.o:/ { in_t=1; next }
     in_t && /^[^[:space:]#]/ { in_t=0 }
     in_t { body = body $0 "\n" }

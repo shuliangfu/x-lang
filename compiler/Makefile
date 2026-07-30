@@ -736,18 +736,21 @@ include mk/pipeline_x_objs.mk
 # list = DRIVER_SEED_PANIC_OBJS).
 # wave776 R2 PREFER: thin+rest → ensure try-r2-prefer (G.7 single PREFER body;
 # fail / PREFER=0 / pure-asm host → cold try-r2 twin). Makefile thin-call only.
-# PLATFORM: LINUX|x86_64 (.s) / MACOS|arm64 + LINUX|aarch64 (arm64 seed) / else (from_x).
-RUNTIME_PANIC_S := $(wildcard src/asm/runtime_panic_x86_64.s)
 # wave796 B7A: heat dep-edge thin panic stamp residual — UNAME prereqs → FORCE + ensure;
 # shell try-r2 / try-r2-prefer owns host source pick + platform stamp mtime.
 # wave889 B7B residual: drop dual Makefile stamp body (mkdir+touch). Shell ensure
 # owns build_asm/runtime_panic.$(uname -s).$(uname -m).stamp under try-r2 /
 # try-r2-prefer. Stamp target no longer in make graph (was unused prereq).
-# NOT physical delete — thin edges + B2 + mk lists remain.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-# PLATFORM: LINUX|x86_64 — cold .s when present; arm64 seed; else portable from_x
-# (shell r2_panic_host_pick_src; stamp path under build_asm/).
-runtime_panic.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave915 B7B: R2 panic product edge multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = $(DRIVER_SEED_PANIC_OBJS) in mk/driver_seed_r_lists.mk
+# (migrated from export_lists; COUNT=1).
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat
+# (wave760/776/790/796; try-heat → try-r2-prefer / try-r2 → r2_panic_host_pick_src).
+# Makefile only FORCE + thin-call. NOT physical delete — thin edges + remaining
+# (cfg_eval single …) + tip Windows → dual L4 → explicit auth.
+# PLATFORM: SHARED multi-target graph; host pick in try-r2 shell
+# (LINUX|x86_64 .s / MACOS|arm64 + LINUX|aarch64 arm64 seed / else from_x).
+$(DRIVER_SEED_PANIC_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（G-02e-20 .inc）
@@ -1576,7 +1579,7 @@ bootstrap-driver-seed-export-bridge:
 bootstrap-driver-seed-bridge:
 	@bash scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 
-# §5b #12 — runtime_panic.o (list = DRIVER_SEED_PANIC_OBJS only; platform recipe stays Makefile)
+# §5b #12 — runtime_panic.o (list = DRIVER_SEED_PANIC_OBJS; multi-target FORCE try-heat wave915)
 bootstrap-driver-seed-export-panic:
 	@printf 'SEED_REBUILD_OBJS=%s\n' '$(DRIVER_SEED_PANIC_OBJS)'
 	@printf 'SEED_REBUILD_MAKE_ARGS=%s\n' ''
