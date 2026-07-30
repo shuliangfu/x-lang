@@ -1798,25 +1798,29 @@ src/asm/parser_asm_parse_expr_link.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # wave835: FORCE dep-thin — drop SRC/partial make-graph prereqs; shell owns mtime +
 # try-heat SRC then filter (parallel-safe). NOT physical delete.
 # PLATFORM: SHARED — FORCE always invokes ensure (cheap mtime skip).
+# wave863 B7B: drop multi-token CFLAGS/PIPELINE_GEN inject (G.7 hygiene).
+# try-heat (wave862) shell-loads export-try-heat-cflags when unset; filter scripts
+# must not pass empty CFLAGS= (would block shell-load). Thin-call CC= only.
 build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o: FORCE scripts/filter_bootstrap_seed_against_partial_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	@CC="$(CC)" \
 	  bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure $@
 
 build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o: FORCE scripts/filter_bootstrap_seed_against_partial_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	@CC="$(CC)" \
 	  bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure $@
 
 build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: FORCE scripts/filter_bootstrap_seed_against_partial_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	@CC="$(CC)" \
 	  bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure $@
 
 # Authority: scripts/filter_bootstrap_seed_pipeline_o.sh → filter_o_export_against_deps.sh
 # (G.7 single path; g05_ensure same). PLATFORM: SHARED — Darwin product link primary.
 # wave835: FORCE dep-thin — drop pipeline_x/partial/strict_minimal make-graph prereqs;
 # shell owns mtime + try-heat SRC. NOT physical delete.
+# wave863 B7B: drop multi-token CFLAGS/PIPELINE_GEN inject (same as partial trio).
 # PLATFORM: SHARED — FORCE always invokes ensure (cheap mtime skip).
 build_asm/bootstrap_seed_pipeline_filtered.o: FORCE scripts/filter_bootstrap_seed_pipeline_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	@CC="$(CC)" \
 	  bash scripts/filter_bootstrap_seed_pipeline_o.sh ensure $@
 
 # wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).

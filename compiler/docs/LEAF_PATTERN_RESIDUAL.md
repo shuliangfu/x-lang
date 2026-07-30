@@ -31,7 +31,8 @@
 > - **wave860** · B7B driver_leaf BASE_CFLAGS multi-token shell-load via make export leaf (8 leaves)
 > - **wave861** · B7B rt_* multi-token -I CFLAGS hygiene (5 RT_SEED_SLICE leaves; plain CFLAGS= try-heat)
 > - **wave862** · B7B try-heat CFLAGS/PIPELINE_GEN_CFLAGS bulk shell-load via export-try-heat-cflags (114 recipes)
-> - **open** · thin edges + B2 + other mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
+> - **wave863** · B7B class-G filter CFLAGS/PIPELINE_GEN shell-load hygiene (4 filter FORCE recipes; try-heat CC-only)
+> - **open** · thin edges + B2 + leaf-extra flags / other mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -2076,6 +2077,48 @@ ship delete body; mac-only wave green.
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
 
+## wave863 B7B filter CFLAGS shell-load hygiene (2026-07-30)
+
+> **Why (G.7 有则补全 on wave835/862):**
+> wave835 class-G four filtered.o leaves already FORCE+filter scripts, but Makefile
+> still injected multi-token
+> `CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)"`.
+> wave862 try-heat shell-loads `export-try-heat-cflags` when unset — filter
+> scripts must not pass empty `CFLAGS=` (set-but-empty blocks that load).
+>
+> **Leaves (COUNT=4):**
+>   - `bootstrap_seed_backend_x86_64_enc_c_filtered.o`
+>   - `bootstrap_seed_user_asm_seed_bridge_filtered.o`
+>   - `bootstrap_seed_asm_backend_compat_stubs_filtered.o`
+>   - `bootstrap_seed_pipeline_filtered.o`
+>
+> Makefile thin-call `CC=` only; filter scripts invoke try-heat with CC only.
+> **NOT physical delete** — thin edges + B2 + leaf-extra + mk lists remain.
+> Dual-end L2 required.
+>
+```text
+    PHYS_DEL_B7B_FILTER_CFLAGS_SHELL_LOAD=1
+    PHYS_DEL_B7B_FILTER_CFLAGS_SHELL_LOAD_WAVE=wave863
+    PHYS_DEL_B7B_FILTER_CFLAGS_SHELL_LOAD_COUNT=4
+    SWALLOWED_B7B_FILTER_CFLAGS_SHELL_LOAD=1
+    PHYS_DEL_PREFLIGHT_B7B_FILTER_CFLAGS_SHELL_LOAD=1
+```
+>
+> next: residual thin/B2/lists (hybrid; leaf-extra RUNTIME_*/PARSER_* flags)
+> or tip Windows → dual L4 → explicit auth ship
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_FILTER_CFLAGS_SHELL_LOAD` | `1` |
+| `PHYS_DEL_B7B_FILTER_CFLAGS_SHELL_LOAD_COUNT` | `4` |
+| `SWALLOWED_B7B_FILTER_CFLAGS_SHELL_LOAD` | `1` |
+| `B7B_FILTER_CFLAGS_SHELL_LOAD_VIA` | `filter_try_heat_cc_only+export_try_heat_cflags` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim filter CFLAGS hygiene = physical delete; reintroduce multi-token
+`CFLAGS="$(CFLAGS)"` on filter ensure recipes; pass empty `CFLAGS=` into try-heat
+from filter scripts (blocks wave862 shell-load).
+
 ## wave861 B7B rt_* multi-token -I CFLAGS hygiene (2026-07-30)
 
 > **Why (G.7 有则补全 on heat thin-call hygiene):**
@@ -2099,8 +2142,8 @@ ship delete body; mac-only wave green.
     PHYS_DEL_PREFLIGHT_B7B_RT_SLICE_I_CFLAGS_HYGIENE=1
 ```
 >
-> next: residual thin/B2/lists (hybrid; e.g. try-heat CFLAGS shell-load bulk)
-> or tip Windows → dual L4 → explicit auth ship
+> next: ~~try-heat CFLAGS bulk~~ wave862 · ~~filter CFLAGS~~ wave863 · residual
+> leaf-extra / lists or tip Windows → dual L4 → explicit auth ship
 
 | Key | Value |
 |-----|-------|

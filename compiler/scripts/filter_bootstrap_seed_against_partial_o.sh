@@ -16,6 +16,11 @@
 #     - XLANG_FILTER_FORCE=1 always refilters
 #   PLATFORM: SHARED — cheap mtime skip on every FORCE recipe run.
 #
+# wave863 (G.7 有则补全; not physical delete):
+#   Makefile filter recipes drop multi-token CFLAGS=/PIPELINE_GEN_CFLAGS= inject.
+#   try-heat (wave862) shell-loads export-try-heat-cflags when unset — do NOT
+#   pass empty CFLAGS= (set-but-empty blocks shell-load).
+#
 # Usage (cwd = compiler/):
 #   bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure OUT.o
 #   bash scripts/filter_bootstrap_seed_against_partial_o.sh --check
@@ -113,7 +118,8 @@ ensure_src_via_try_heat() {
   local src="$1"
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     # PLATFORM: SHARED — try-heat builds catalog heat leaves; exit 3 = not owned.
-    if ! CC="${CC:-}" CFLAGS="${CFLAGS:-}" \
+    # wave863: pass CC only so unset CFLAGS triggers export-try-heat-cflags load.
+    if ! CC="${CC:-}" \
       bash scripts/ensure_host_cc_seed_o.sh try-heat "$src" 2>/dev/null; then
       _rc=$?
       if [ "$_rc" -eq 3 ]; then
