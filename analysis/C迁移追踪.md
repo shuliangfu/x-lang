@@ -1553,7 +1553,8 @@
 - ✅ **R2 TYPECK_F64 multi-target FORCE thin**（wave914 · 1 · `$(DRIVER_SEED_TYPECK_F64_OBJS)` 迁 r_lists · G.7 try-r2 host pick · UNAME ifeq hard-error 面收掉 · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
 - ✅ **R2 PANIC multi-target FORCE thin**（wave915 · 1 · `$(DRIVER_SEED_PANIC_OBJS)` 迁 r_lists · G.7 try-heat→try-r2-prefer/try-r2 · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
 - ✅ **B5 CFG_EVAL multi-target FORCE thin**（wave916 · 1 · `$(DRIVER_SEED_CFG_EVAL_OBJS)` = `src/lexer/cfg_eval.o` 迁 r_lists · G.7 try-heat→try-cfg-eval-ladder · per-leaf recipe → multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
-- **open** · thin edges + mk lists hybrid（cc_inc_tu / net_merge …）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave916 B5 CFG_EVAL multi
+- ✅ **cc_inc_tu SHARED family multi-target FORCE thin --auto**（wave917 · 5 · `$(CC_INC_TU_OBJS)` 迁 r_lists · G.7 `@bash scripts/cc_inc_tu.sh --auto $@` · cc_inc_tu.sh seed-map `cc_inc_tu_seed_for_out` · 5 per-leaf recipes → 1 multi-target · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
+- **open** · thin edges + mk lists hybrid（bootstrap_nostdlib_stubs.o Linux guard / net_merge …）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave917 cc_inc_tu SHARED multi
 
 **状态明细**（一行一项）：
 

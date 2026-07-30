@@ -85,7 +85,8 @@
 > - **wave914** · B7B R2 TYPECK_F64 product edge multi-target FORCE thin try-heat (1 leaf → `$(DRIVER_SEED_TYPECK_F64_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-r2 host pick; UNAME ifeq hard-error surface dropped; no second body)
 > - **wave915** · B7B R2 PANIC product edge multi-target FORCE thin try-heat (1 leaf → `$(DRIVER_SEED_PANIC_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-heat → try-r2-prefer / try-r2; list migrated from export_lists; no second body)
 > - **wave916** · B7B B5 CFG_EVAL product edge multi-target FORCE thin try-heat (1 leaf → `$(DRIVER_SEED_CFG_EVAL_OBJS)` = `src/lexer/cfg_eval.o` in `mk/driver_seed_r_lists.mk`; G.7 try-heat → try-cfg-eval-ladder; migrated from per-leaf recipe; no second body)
-> - **open** · thin edges + mk lists hybrid (cc_inc_tu / net_merge …) · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave917** · B7B cc_inc_tu SHARED family multi-target FORCE thin --auto (5 leaves → `$(CC_INC_TU_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 `@bash scripts/cc_inc_tu.sh --auto $@`; seed-map `cc_inc_tu_seed_for_out` in cc_inc_tu.sh; migrated from 5 per-leaf recipes; 72+ explicit-seed call sites unchanged)
+> - **open** · thin edges + mk lists hybrid (bootstrap_nostdlib_stubs.o Linux guard / net_merge …) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete

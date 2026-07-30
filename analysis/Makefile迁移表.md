@@ -321,21 +321,21 @@
 | 2014 | `src/asm/backend_try_inline_dispatch.o` | ⬜ |
 | 2031 | `src/asm/backend_call_dispatch.o` | ⬜ |
 | 2092 | `src/asm/parser_asm_parse_expr_link.o` | ⬜ |
-| 2141 | `src/asm/asm_experimental_symbol_bridge.o` | ⬜ |
+| 2141 | `src/asm/asm_experimental_symbol_bridge.o` | 🟡 wave917 multi-target --auto |
 | 2238 | `src/main_driver.o` | ⬜ |
 | 2242 | `src/driver/target_cpu.o` | ⬜ |
 | 2251 | `src/asm/simd_enc.o` | ⬜ |
 | 2271 | `src/asm/simd_loop.o` | ⬜ |
-| 2490 | `src/lsp/lsp_diag_pipeline_sizes.o` | ⬜ |
+| 2490 | `src/lsp/lsp_diag_pipeline_sizes.o` | 🟡 wave917 multi-target --auto |
 | 2499 | `src/lsp/lsp_diag_pipeline_sizes_nostub.o` | ⬜ |
 | 2515 | `src/lsp/lsp_diag_pipeline_ctx.o` | ⬜ |
 | 2519 | `src/runtime_driver_strict_glue_stubs.o` | ⬜ |
 | 2525 | `src/ast/ast_seed.o` | ⬜ |
-| 2540 | `src/lexer/cfg_eval_bootstrap_stub.o` | ⬜ |
-| 2604 | `src/lsp/typeck_lsp_io_stub.o` | ⬜ |
+| 2540 | `src/lexer/cfg_eval_bootstrap_stub.o` | 🟡 wave917 multi-target --auto |
+| 2604 | `src/lsp/typeck_lsp_io_stub.o` | 🟡 wave917 multi-target --auto |
 | 2608 | `src/seed_link_compat.o` | ⬜ |
 | 2938 | `src/lsp/lsp_diag_stubs_no_c.o` | ⬜ |
-| 3255 | `src/build_tool_main.o` | ⬜ |
+| 3255 | `src/build_tool_main.o` | 🟡 wave917 multi-target --auto |
 | 3444 | `src/asm/runtime_asm_build.o` | ⬜ |
 
 ### 类 F — runtime_* residual 宿主 .o
@@ -723,6 +723,7 @@
 
 ## wave913 residual note
 
+- **wave917** · cc_inc_tu SHARED family multi-target FORCE thin --auto（5 · `$(CC_INC_TU_OBJS)` 迁 r_lists · G.7 `@bash scripts/cc_inc_tu.sh --auto $@` · cc_inc_tu.sh seed-map `cc_inc_tu_seed_for_out` · 5 per-leaf recipes → 1 multi-target · **非**物理删）
 - **wave916** · B5 CFG_EVAL multi-target FORCE thin try-heat（1 · `$(DRIVER_SEED_CFG_EVAL_OBJS)` = `src/lexer/cfg_eval.o` 迁 r_lists · G.7 try-heat→try-cfg-eval-ladder · per-leaf recipe → multi-target FORCE thin try-heat · **非**物理删）
 - **wave914** · R2 TYPECK_F64 multi-target FORCE thin try-heat（1 · `DRIVER_SEED_TYPECK_F64_OBJS` 迁 r_lists · UNAME ifeq hard-error 面收掉 · **非**物理删）
 - **wave913** · B7B R2 CRT0 multi-target FORCE thin try-heat：6 leaves → `$(DRIVER_SEED_CRT0_OBJS)`（`mk/driver_seed_r_lists.mk` · G.7 有则补全 try-r2；export_lists 不再复写）+ Makefile multi-target FORCE try-heat。**非**物理删。
