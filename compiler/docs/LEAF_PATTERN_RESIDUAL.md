@@ -1722,7 +1722,44 @@ Then (later waves, not this tip):
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 
-## wave812 formal_mod shell-primary catalog (2026-07-30)
+## wave813 B7B STD_AND_PANIC_O list → mk (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7B product list residual —
+> `STD_AND_PANIC_O` (65 base leaves + Linux x86_64 freestanding append) lives in
+> `compiler/mk/std_and_panic_objs.mk`. Makefile **include only** (no dual inline
+> inventory). Consumers (`std-objs` / `test_c` / bootstrap-token/lexer/parser)
+> still expand `$(STD_AND_PANIC_O)`. Lists stay mk (G.7). Dual-end L2 required.
+> `std_core_product_make_graph` blocker **remains** (thin edges + B2 ensure +
+> other mk lists).
+
+```text
+  leaf dump:
+    PHYS_DEL_B7B_STD_AND_PANIC_LIST=1
+    PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813
+    PHYS_DEL_B7B_STD_AND_PANIC_LIST_COUNT=65
+    SWALLOWED_B7B_STD_AND_PANIC_LIST=1
+    PHYS_DEL_PREFLIGHT_B7B_STD_AND_PANIC_LIST=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  next: more shell-primary / lists residual or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_STD_AND_PANIC_LIST` | `1` |
+| `PHYS_DEL_B7B_STD_AND_PANIC_LIST_COUNT` | `65` |
+| `SWALLOWED_B7B_STD_AND_PANIC_LIST` | `1` |
+| `B7B_STD_AND_PANIC_LIST_MK` | `mk/std_and_panic_objs.mk` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** re-list `STD_AND_PANIC_O` inline in Makefile; dual shell inventory;
+claim list→mk = physical delete; `rm compiler/Makefile`; mac-only wave green.
+
+## wave812 formal_mod shell-primary · wave813 B7B STD_AND_PANIC list→mk catalog (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
 >

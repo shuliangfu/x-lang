@@ -5,7 +5,7 @@
 #   Single implementation for bootstrap-token / bootstrap-lexer bodies.
 #   Makefile targets keep $(TARGET) + $(STD_AND_PANIC_O) as prereqs only;
 #   xlang-build.sh calls this script directly (no make -C for those targets).
-#   Does NOT re-list STD_AND_PANIC_O (object authority stays Makefile).
+#   Does NOT re-list STD_AND_PANIC_O (object authority = mk/std_and_panic_objs.mk wave813).
 #
 # Usage (cwd = compiler/):
 #   ./scripts/bootstrap_token_lexer_smoke.sh token

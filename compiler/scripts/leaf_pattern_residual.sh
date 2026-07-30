@@ -25,6 +25,8 @@
 #            (Makefile thin-call only; NOT physical delete; formal_mod graph remains)
 #   wave812: formal_mod shell-primary catalog (38 leaves) → xlang_compile_std_module ensure
 #            (Makefile thin-call only; NOT physical delete; edges+lists+B2 remain)
+#   wave813: B7B STD_AND_PANIC_O list authority → mk/std_and_panic_objs.mk
+#            (Makefile include only; NOT physical delete; thin edges + B2 remain)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
 #   wave783: B5 cfg_eval multi-ladder → try-cfg-eval-ladder
@@ -368,7 +370,7 @@ B2_STD_CORE_PREFER_WAVE=wave780
 # wave811: pure .x std product leaves still had Makefile if-ladder + xlang_compile_std_x.
 # G.7 有则补全: host pick + soft/hard + socketio merge live in xlang_compile_std_x.sh;
 # Makefile 22 leaves thin-call auto|auto-soft|auto-soft-merge only. NOT physical delete.
-# formal_mod / try-std-core-prefer / STD_AND_PANIC list still form std_core_product_make_graph.
+# formal_mod / try-std-core-prefer / remaining mk lists still form std_core_product_make_graph.
 PHYS_DEL_STD_X_HYBRID_THIN=1
 PHYS_DEL_STD_X_HYBRID_THIN_WAVE=wave811
 PHYS_DEL_STD_X_HYBRID_THIN_COUNT=22
@@ -390,6 +392,18 @@ SWALLOWED_FORMAL_MOD_CATALOG=1
 FORMAL_MOD_CATALOG_SWALLOWED=1
 FORMAL_MOD_CATALOG_HELPER=xlang_compile_std_module.sh
 FORMAL_MOD_CATALOG_WAVE=wave812
+# wave813: B7B product STD_AND_PANIC_O inventory → mk/std_and_panic_objs.mk (G.7).
+# Makefile includes mk only; no dual inline re-list. NOT physical delete —
+# thin-call edges + B2 ensure + other mk lists remain residual.
+PHYS_DEL_B7B_STD_AND_PANIC_LIST=1
+PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813
+PHYS_DEL_B7B_STD_AND_PANIC_LIST_COUNT=65
+PHYS_DEL_B7B_STD_AND_PANIC_LIST_VIA=mk_std_and_panic_objs
+PHYS_DEL_B7B_STD_AND_PANIC_LIST_NOTE=list_authority_mk_include_only_thin_edges_remain
+SWALLOWED_B7B_STD_AND_PANIC_LIST=1
+B7B_STD_AND_PANIC_LIST_SWALLOWED=1
+B7B_STD_AND_PANIC_LIST_MK=mk/std_and_panic_objs.mk
+B7B_STD_AND_PANIC_LIST_WAVE=wave813
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -539,13 +553,14 @@ PHYS_DEL_PREFLIGHT_B7D_G05=1
 PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
-# wave811/812: std_x hybrid + formal_mod catalog swallowed; blocker name kept
-# (thin edges + B2 ensure + B7B lists still form std_core_product_make_graph).
+# wave811–813: std_x / formal_mod / STD_AND_PANIC list swallowed; blocker name kept
+# (thin edges + B2 ensure + remaining B7B mk lists still form make graph residual).
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
 PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1
+PHYS_DEL_PREFLIGHT_B7B_STD_AND_PANIC_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1140,6 +1155,9 @@ else
   if ! grep -qE 'wave812|formal_mod|FORMAL_MOD_SHELL|std_module ensure' "$DOC_REL"; then
     bad "$DOC_REL must document wave812 formal_mod shell-primary catalog"
   fi
+  if ! grep -qE 'wave813|STD_AND_PANIC|std_and_panic_objs|B7B.*STD_AND_PANIC' "$DOC_REL"; then
+    bad "$DOC_REL must document wave813 B7B STD_AND_PANIC list → mk"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1614,6 +1632,21 @@ fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1 (wave812)"
 fi
+if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST=1 (wave813)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
+fi
+if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_COUNT=65' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_COUNT=65 (wave813)"
+fi
+if ! grep -q 'SWALLOWED_B7B_STD_AND_PANIC_LIST=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_STD_AND_PANIC_LIST=1 (wave813)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_STD_AND_PANIC_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_STD_AND_PANIC_LIST=1 (wave813)"
+fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh' <<<"$_out"; then
   bad "dump must name Windows min-gate command (wave798)"
 fi
@@ -1965,6 +1998,43 @@ if grep -nE '^\t@?sh scripts/xlang_compile_std_module\.sh (--bare-impl )?[.]{0,2
 else
   note "Makefile formal_mod free of explicit-source std_module recipe args (wave812)"
 fi
+# wave813: B7B STD_AND_PANIC_O list authority in mk; Makefile include only.
+_SAP_MK="compiler/mk/std_and_panic_objs.mk"
+if [ ! -f "$_SAP_MK" ]; then
+  bad "missing $_SAP_MK (wave813 B7B STD_AND_PANIC list authority)"
+fi
+if ! grep -qE '^STD_AND_PANIC_O\s*=' "$_SAP_MK"; then
+  bad "$_SAP_MK must define STD_AND_PANIC_O (wave813)"
+fi
+# Base list must stay 65 tokens (Linux freestanding append is conditional, not base).
+_sap_n=$(awk '
+  /^STD_AND_PANIC_O[[:space:]]*=/ {
+    line=$0
+    sub(/^[^=]*=[[:space:]]*/, "", line)
+    n=split(line, a, /[[:space:]]+/)
+    c=0
+    for (i=1;i<=n;i++) if (a[i] != "") c++
+    print c
+    exit
+  }
+' "$_SAP_MK")
+if [ "${_sap_n:-0}" -ne 65 ]; then
+  bad "wave813 expected STD_AND_PANIC_O base count 65 in mk, got ${_sap_n:-0}"
+fi
+if ! grep -qE 'include[[:space:]]+mk/std_and_panic_objs\.mk' "$MF"; then
+  bad "Makefile must include mk/std_and_panic_objs.mk (wave813)"
+fi
+# Forbid dual authority: long inline re-assignment of the product inventory.
+if grep -nE '^STD_AND_PANIC_O[[:space:]]*=' "$MF" 2>/dev/null | grep -qE '\.\./std/'; then
+  bad "Makefile must not re-list STD_AND_PANIC_O inline (wave813 dual authority)"
+else
+  note "Makefile STD_AND_PANIC_O has no dual inline product list (wave813)"
+fi
+# make must still expand the list (std-objs target exists; prereq graph).
+if ! grep -qE '^std-objs:.*\$\(STD_AND_PANIC_O\)' "$MF"; then
+  bad "Makefile std-objs must still depend on \$(STD_AND_PANIC_O) (wave813 consumers)"
+fi
+note "B7B STD_AND_PANIC_O list authority in mk (65 base; wave813; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \
@@ -2527,5 +2597,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–812: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–813: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk; Makefile still present; delete body deferred)"
 exit 0

@@ -615,12 +615,9 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 
 
 # 测试与 xlang 链接 std 时依赖的 .o：所有 std 模块 + runtime_panic.o；Linux 另预编 freestanding 链入桩
-STD_AND_PANIC_O = ../std/heap/heap.o ../std/heap/page_mmap.o ../std/sys/sys.o ../std/sys/linux.o ../core/mem/mem.o ../std/map/map.o ../std/set/set.o ../std/process/process.o ../std/string/string.o ../std/path/path.o ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o ../std/async/scheduler.o ../std/time/time.o ../std/random/random.o ../std/env/env.o ../std/sync/sync.o ../std/encoding/encoding.o ../std/base64/base64.o ../std/crypto/crypto.o ../std/log/log.o ../std/atomic/atomic.o ../std/channel/channel.o ../std/backtrace/backtrace.o ../std/hash/hash.o ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o ../std/csv/csv.o ../std/regex/regex.o ../std/unicode/unicode.o ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/simd/simd.o ../std/context/context.o ../std/error/error.o ../std/trace/trace.o ../std/test/test.o runtime_panic.o runtime_link_abi_user_env.o runtime_asm_io_stubs.o runtime_process_argv.o runtime_process_os_glue.o runtime_test_fn_invoke.o runtime_random_fill.o runtime_time_os.o runtime_dynlib_os.o runtime_env_os.o runtime_backtrace_platform.o runtime_log_os.o runtime_math_libm.o runtime_atomic_glue.o runtime_channel_glue.o runtime_net_udp_batch.o runtime_net_workers.o runtime_sync_os.o runtime_sync_lock_diag_tls.o runtime_thread_glue.o runtime_scheduler_glue.o runtime_http_glue.o runtime_crypto_inc_glue.o runtime_ed25519_ref10_glue.o
-ifeq ($(UNAME_S),Linux)
-ifeq ($(UNAME_M),x86_64)
-STD_AND_PANIC_O += crt0_user.o freestanding_io.o
-endif
-endif
+# wave813 B7B: list authority → mk/std_and_panic_objs.mk (G.7; not physical delete).
+# Makefile keeps include + consumers (std-objs / test_c / bootstrap-*); no dual list.
+include mk/std_and_panic_objs.mk
 
 # 同时链出 xlang-c：与 pipeline/lsp/build_gen 的 -E 生成及 test_c 前置一致，避免仅 make all 后缺少 xlang-c。
 # XLANG_RUN_ALL_BOOTSTRAP_XLANG=1：run-all 显式 XLANG=seed 时子脚本须保持 bootstrap 链，禁止 C-only all 覆盖 xlang。
