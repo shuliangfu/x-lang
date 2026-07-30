@@ -21,6 +21,8 @@
 #   wave778: Windows hard gate before Makefile delete + dual-end (mac+Ubuntu) verify policy
 #   wave779: B1 runtime_* OS/glue dual hybrid body → try-runtime-os-prefer (Makefile thin-call)
 #   wave780: B2 std/core product hybrid body → try-std-core-prefer (Makefile thin-call)
+#   wave811: std_x product hybrid body (22 leaves) → xlang_compile_std_x auto|auto-soft|auto-soft-merge
+#            (Makefile thin-call only; NOT physical delete; formal_mod graph remains)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
 #   wave783: B5 cfg_eval multi-ladder → try-cfg-eval-ladder
@@ -361,6 +363,19 @@ SWALLOWED_B2_STD_CORE_PREFER=1
 B2_STD_CORE_PREFER_SWALLOWED=1
 B2_STD_CORE_PREFER_HELPER=try-std-core-prefer
 B2_STD_CORE_PREFER_WAVE=wave780
+# wave811: pure .x std product leaves still had Makefile if-ladder + xlang_compile_std_x.
+# G.7 有则补全: host pick + soft/hard + socketio merge live in xlang_compile_std_x.sh;
+# Makefile 22 leaves thin-call auto|auto-soft|auto-soft-merge only. NOT physical delete.
+# formal_mod / try-std-core-prefer / STD_AND_PANIC list still form std_core_product_make_graph.
+PHYS_DEL_STD_X_HYBRID_THIN=1
+PHYS_DEL_STD_X_HYBRID_THIN_WAVE=wave811
+PHYS_DEL_STD_X_HYBRID_THIN_COUNT=22
+PHYS_DEL_STD_X_HYBRID_THIN_VIA=xlang_compile_std_x_auto_soft_merge
+PHYS_DEL_STD_X_HYBRID_THIN_NOTE=makefile_if_ladder_swallowed_thin_call_edges_remain
+SWALLOWED_STD_X_HYBRID_BODY=1
+STD_X_HYBRID_BODY_SWALLOWED=1
+STD_X_HYBRID_BODY_HELPER=xlang_compile_std_x.sh
+STD_X_HYBRID_BODY_WAVE=wave811
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -510,9 +525,11 @@ PHYS_DEL_PREFLIGHT_B7D_G05=1
 PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
+# wave811: std_x hybrid body swallowed; blocker name kept (formal_mod + B2 ensure + lists).
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
-PHYS_DEL_PREFLIGHT_NEXT=explicit_user_auth_then_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
+PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1542,8 +1559,23 @@ fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113 (wave798)"
 fi
-if ! grep -q 'PHYS_DEL_PREFLIGHT_NEXT=explicit_user_auth_then_ship_delete_body' <<<"$_out"; then
-  bad "dump PHYS_DEL_PREFLIGHT_NEXT must be explicit_user_auth_then_ship_delete_body (wave810)"
+if ! grep -q 'PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body' <<<"$_out"; then
+  bad "dump PHYS_DEL_PREFLIGHT_NEXT must be continue_shell_primary_then_explicit_auth_ship_delete_body (wave811)"
+fi
+if ! grep -q 'PHYS_DEL_STD_X_HYBRID_THIN=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_STD_X_HYBRID_THIN=1 (wave811)"
+fi
+if ! grep -q 'PHYS_DEL_STD_X_HYBRID_THIN_WAVE=wave811' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_STD_X_HYBRID_THIN_WAVE=wave811"
+fi
+if ! grep -q 'PHYS_DEL_STD_X_HYBRID_THIN_COUNT=22' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_STD_X_HYBRID_THIN_COUNT=22 (wave811)"
+fi
+if ! grep -q 'SWALLOWED_STD_X_HYBRID_BODY=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_STD_X_HYBRID_BODY=1 (wave811)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1 (wave811)"
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh' <<<"$_out"; then
   bad "dump must name Windows min-gate command (wave798)"
@@ -1787,6 +1819,56 @@ if [ ! -f "$ROOT/compiler/Makefile" ]; then
   bad "wave810 must keep compiler/Makefile present (delete body not shipped)"
 else
   note "compiler/Makefile still present after delete-body-commit-honesty keys (wave810; not physical delete)"
+fi
+# wave811: std_x product hybrid body thin — auto|auto-soft|auto-soft-merge only on 22 leaves.
+if [ ! -f "$COMPILER_DIR/scripts/xlang_compile_std_x.sh" ]; then
+  bad "missing xlang_compile_std_x.sh (wave811 std_x authority)"
+fi
+if ! grep -q 'auto-soft' "$COMPILER_DIR/scripts/xlang_compile_std_x.sh"; then
+  bad "xlang_compile_std_x.sh must support auto-soft (wave811)"
+fi
+if ! grep -q 'auto-soft-merge\|_merge' "$COMPILER_DIR/scripts/xlang_compile_std_x.sh"; then
+  bad "xlang_compile_std_x.sh must support merge mode (wave811 socketio)"
+fi
+_stdx_leaves=(
+  async/scheduler async/future channel/channel backtrace/backtrace datetime/datetime
+  uuid/uuid url/url cli/cli security/security config/config cache/cache
+  trace/trace task/task schema/schema db/kv/kv db/arrow/arrow db/sqlite/sqlite
+  elf/elf regex/regex unicode/unicode socketio/socketio simd/simd
+)
+_stdx_thin=0
+for _leaf in "${_stdx_leaves[@]}"; do
+  if awk -v leaf="../std/${_leaf}.o" '
+    $0 ~ ("^" leaf ":") { want=1; next }
+    want && /^\t@sh scripts\/xlang_compile_std_x\.sh (auto|auto-soft|auto-soft-merge) / { ok=1; exit }
+    want && /^\t/ { next }
+    want && /^[^#\t]/ && $0 !~ /^$/ { exit }
+    END { exit ok ? 0 : 1 }
+  ' "$MF"; then
+    _stdx_thin=$((_stdx_thin + 1))
+  else
+    bad "Makefile ../std/${_leaf}.o must thin-call xlang_compile_std_x auto|auto-soft|auto-soft-merge (wave811)"
+  fi
+done
+if [ "$_stdx_thin" -ne 22 ]; then
+  bad "wave811 expected 22 std_x thin leaves, got $_stdx_thin"
+else
+  note "Makefile std_x 22 leaves thin-call xlang_compile_std_x (wave811; not physical delete)"
+fi
+# Product leaf recipes must not keep the historical multi-line host-pick ladder
+# (sqlite-o-stub archaeology may still pick host — exclude that phony).
+if awk '
+  /^sqlite-o-stub:/ { skip=1; next }
+  skip && /^[^[:space:]#]/ && $0 !~ /^sqlite/ { skip=0 }
+  skip { next }
+  /^\.\.\/std\/.*\.o:/ { inleaf=1; next }
+  inleaf && /elif \[ -x \.\/xlang \]; then xlang=/ { bad=1; exit }
+  inleaf && /^[^[:space:]#]/ { inleaf=0 }
+  END { exit bad ? 0 : 1 }
+' "$MF"; then
+  bad "Makefile product std/*.o still has host-pick if-ladder (wave811 must thin)"
+else
+  note "Makefile product std_x leaves free of host-pick if-ladder (wave811)"
 fi
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -2350,5 +2432,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–810: leaf residual inventory + phys-del preflight/execute-gate/proof/flip/endgame harness + wave808 TREE_ARMED arm ENDGAME=1 + wave809 delete-body-preview + wave810 delete-body-commit-honesty; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–811: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x hybrid thin 22; Makefile still present; delete body deferred)"
 exit 0

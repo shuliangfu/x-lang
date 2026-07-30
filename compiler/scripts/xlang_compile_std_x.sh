@@ -1,18 +1,66 @@
 #!/bin/sh
-# xlang_compile_std_x.sh — 编译 std/*.x 为 .o（Makefile std-objs 规则共用）
+# xlang_compile_std_x.sh — compile std/*.x → .o (Makefile std-objs + shell-primary)
 #
-# xlang-c 仅 C 前端，不接受 -backend；seed/xlang_asm 走 -backend asm。
-# 用法：xlang_compile_std_x.sh <xlang-bin|auto> <x-path> <out.o>
-# auto：优先 xlang_asm → xlang → xlang-c（库模块须 asm 出 .o，勿优先 xlang-c）。
+# PLATFORM: SHARED — host product path for pure .x std leaves (asm prefer, C fallback).
+# Authority for host pick + -E/cc / -backend asm; Makefile must only thin-call this script
+# (wave811: G.7 有则补全 — no second xlang-pick ladder in Makefile).
+#
+# Usage (cwd = compiler/):
+#   xlang_compile_std_x.sh <xlang-bin|auto|auto-soft|auto-merge|auto-soft-merge> <x-path> <out.o>
+#
+# Modes:
+#   auto              hard-fail if no host; pick xlang_asm → xlang → xlang-c
+#   auto-soft         same pick; exit 0 if no host (F-ZC soft leaves)
+#   auto-merge        compile to ${out%.o}_main.o then ld -r → out.o (hard)
+#   auto-soft-merge   same merge; exit 0 if no host (socketio)
+#   <path-to-bin>     use explicit driver
+#
+# auto: prefer xlang_asm → xlang → xlang-c (lib modules need asm .o; do not prefer xlang-c
+# unless XLANG_COMPILE_STD_USE_C=1).
+# Wave: pre-811 body in Makefile if-ladder; 811 body fully here (not physical delete).
 set -e
 xlang_bin="$1"
 x_path="$2"
 out_o="$3"
 if [ -z "$xlang_bin" ] || [ -z "$x_path" ] || [ -z "$out_o" ]; then
-  echo "usage: xlang_compile_std_x.sh <xlang|auto> <file.x> <out.o>" >&2
+  echo "usage: xlang_compile_std_x.sh <xlang|auto|auto-soft|auto-merge|auto-soft-merge> <file.x> <out.o>" >&2
   exit 1
 fi
-# Makefile 在 compiler/ 下执行；输入须为 ../std/...（-L .. 不解析入口路径）
+
+# wave811: mode flags before path normalization.
+# PLATFORM: SHARED — soft vs hard is product leaf policy (F-ZC), not OS branch.
+_soft=0
+_merge=0
+case "$xlang_bin" in
+  auto-soft-merge)
+    _soft=1
+    _merge=1
+    xlang_bin=auto
+    ;;
+  auto-merge)
+    _merge=1
+    xlang_bin=auto
+    ;;
+  auto-soft)
+    _soft=1
+    xlang_bin=auto
+    ;;
+esac
+
+# Final OUT for merge mode; compile may target *_main.o first.
+_final_out="$out_o"
+if [ "$_merge" = "1" ]; then
+  case "$out_o" in
+    *.o) _main_o="${out_o%.o}_main.o" ;;
+    *)
+      echo "xlang_compile_std_x.sh: merge mode needs .o out, got $out_o" >&2
+      exit 1
+      ;;
+  esac
+  out_o="$_main_o"
+fi
+
+# Makefile runs under compiler/; entry paths must be ../std/... for -L ..
 case "$x_path" in
   std/*) x_path="../$x_path" ;;
 esac
@@ -30,6 +78,10 @@ if [ "$xlang_bin" = "auto" ]; then
   elif [ -x ./xlang-c ]; then
     xlang_bin=./xlang-c
   else
+    if [ "$_soft" = "1" ]; then
+      echo "xlang_compile_std_x.sh: no xlang host; soft-skip ${_final_out} (auto-soft)" >&2
+      exit 0
+    fi
     echo "xlang_compile_std_x.sh: need xlang_asm, xlang, or xlang-c in compiler/" >&2
     exit 1
   fi
@@ -139,3 +191,13 @@ case "$(basename "$xlang_bin")" in
     fi
     ;;
 esac
+
+# wave811: socketio-style single-TU merge — compile landed on *_main.o; ld -r → final OUT.
+# PLATFORM: SHARED — host ld -r only (no second Makefile hybrid ladder).
+if [ "$_merge" = "1" ]; then
+  if [ ! -f "$out_o" ]; then
+    echo "xlang_compile_std_x.sh: merge missing intermediate $out_o" >&2
+    exit 1
+  fi
+  ld -r -o "$_final_out" "$out_o" || exit 1
+fi

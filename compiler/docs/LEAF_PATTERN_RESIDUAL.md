@@ -1014,7 +1014,8 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave808:** reviewed **TREE_ARMED arm** (`ENDGAME=1` + `TREE_ARMED=1`; honesty greps co-changed; Makefile still present; NOT physical delete)
 - [x] **wave809:** delete-body **prep/preview** (`--delete-body-preview`; TREE_ARMED plan only; BODY_SHIPPED=0; NOT ship body; NOT physical delete)
 - [x] **wave810:** delete-body **commit honesty** (`--delete-body-commit-honesty`; pre_ship inventory; BODY_SHIPPED=0; NOT ship body; NOT physical delete)
-- [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **explicit auth + ship delete body only**)
+- [x] **wave811:** std_x product hybrid body thin (22 leaves → `xlang_compile_std_x` `auto|auto-soft|auto-soft-merge`; NOT physical delete)
+- [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **after shell-primary residual + explicit auth + ship delete body**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] B7 residual endgame: Makefile heat **dep** edges gone / physical delete (try-heat ✅ wave789; thin-unify ✅ wave790; source-prereq closed wave797; thin-call edges remain until phys del)
 
@@ -1720,6 +1721,40 @@ Then (later waves, not this tip):
 
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
+
+## wave811 std_x product hybrid thin (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on `xlang_compile_std_x.sh` — host pick,
+> soft-skip, and socketio `ld -r` merge live in the shell authority. Makefile
+> **22** pure `.x` product leaves thin-call only:
+> `auto` | `auto-soft` | `auto-soft-merge`. Removes the multi-line `if [ -x
+> ./xlang_* ]` ladder from product leaf recipes (sqlite-o-stub archaeology may
+> still pick host). `std_core_product_make_graph` blocker **remains** (formal_mod
+> + B2 ensure + list graph). Dual-end L2 required.
+
+```text
+  leaf dump:
+    PHYS_DEL_STD_X_HYBRID_THIN=1
+    PHYS_DEL_STD_X_HYBRID_THIN_WAVE=wave811
+    PHYS_DEL_STD_X_HYBRID_THIN_COUNT=22
+    SWALLOWED_STD_X_HYBRID_BODY=1
+    PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  next: more shell-primary (formal_mod / lists) → tip Windows re-proof → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_STD_X_HYBRID_THIN` | `1` |
+| `PHYS_DEL_STD_X_HYBRID_THIN_COUNT` | `22` |
+| `SWALLOWED_STD_X_HYBRID_BODY` | `1` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim std_x thin = physical delete; `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
 ## wave810 delete-body commit honesty (2026-07-30)
 

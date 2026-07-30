@@ -313,20 +313,14 @@ net-o-mbedtls:
 	@sh scripts/xlang_compile_std_module.sh $@ ../std/thread/mod.x
 
 # std.async：F-async v2 纯 .x（F-ZC）；调度胶层在 runtime_scheduler_glue.o；Unix 按需 -pthread。
-../std/async/scheduler.o: ../std/async/scheduler.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "make scheduler.o: need xlang-c or xlang (F-async zero-c)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/async/scheduler.x ../std/async/scheduler.o
+../std/async/scheduler.o: ../std/async/scheduler.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/async/scheduler.x $@
 
 # std.async：F-async-future v2 纯 .x → future.o（同 hash/cache）。
-../std/async/future.o: ../std/async/future.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "future.o: need xlang-c or xlang (F-async-future v2)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/async/future.x ../std/async/future.o
+../std/async/future.o: ../std/async/future.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/async/future.x $@
 
 # std.time：F 闭合 — mod.x 内联派生函数（now_monotonic_us/sleep_ms/duration_ns 等），
 # 仅 5 个基础 OS extern 由 runtime_time_os.o 提供。无需 time.x / time_import_alias.c。
@@ -392,20 +386,14 @@ net-o-mbedtls:
 	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/atomic/mod.x ../std/atomic/atomic.x
 
 # std.channel：F-channel v2 纯 .x（F-ZC）；channel 胶层在 runtime_channel_glue.o；Unix 需 -lpthread。
-../std/channel/channel.o: ../std/channel/channel.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "make channel.o: need xlang-c or xlang (F-channel zero-c)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/channel/channel.x ../std/channel/channel.o
+../std/channel/channel.o: ../std/channel/channel.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/channel/channel.x $@
 
 # std.backtrace：F-backtrace v2 纯 .x（F-ZC）；平台胶层在 runtime_backtrace_platform.o。
-../std/backtrace/backtrace.o: ../std/backtrace/backtrace.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "make backtrace.o: need xlang-c or xlang (F-backtrace zero-c)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/backtrace/backtrace.x ../std/backtrace/backtrace.o
+../std/backtrace/backtrace.o: ../std/backtrace/backtrace.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/backtrace/backtrace.x $@
 
 # std.hash：F 闭合 — mod.x（用户 API）+ hash.x（impl 裸符号）用 -E-extern 编译。
 ../std/hash/hash.o: ../std/hash/mod.x ../std/hash/hash.x | scripts/xlang_compile_std_module.sh
@@ -443,107 +431,69 @@ net-o-mbedtls:
 
 
 # std.datetime：F-datetime v2 + F-ZC 纯 datetime.x → datetime.o（无 glue；无 xlang 时 exit 0）。
-../std/datetime/datetime.o: ../std/datetime/datetime.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "datetime.o: need xlang-c or xlang (F-datetime zero-c)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/datetime/datetime.x ../std/datetime/datetime.o
+../std/datetime/datetime.o: ../std/datetime/datetime.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/datetime/datetime.x $@
 
 # std.uuid：F-uuid v1 纯 .x（uuid.x）；依赖 random.o + time.o。
-../std/uuid/uuid.o: ../std/uuid/uuid.x ../std/random/random.o ../std/time/time.o
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "make uuid.o: need xlang-c or xlang (F-uuid v1)" >&2; exit 1; fi; \
-	$(MAKE) -q ../std/random/random.o 2>/dev/null || $(MAKE) ../std/random/random.o; \
-	$(MAKE) -q ../std/time/time.o 2>/dev/null || $(MAKE) ../std/time/time.o; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/uuid/uuid.x ../std/uuid/uuid.o
+../std/uuid/uuid.o: ../std/uuid/uuid.x ../std/random/random.o ../std/time/time.o | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto ../std/uuid/uuid.x $@
 
 # std.url：F-url v2 + F-ZC 纯 url.x → url.o（无 glue；无 xlang 时 exit 0）。
-../std/url/url.o: ../std/url/url.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "url.o: need xlang-c or xlang (F-url v2 zero-c)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/url/url.x ../std/url/url.o
+../std/url/url.o: ../std/url/url.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/url/url.x $@
 
 # std.cli：命令行解析（std/cli/cli.c）。
 # std.cli：F-cli v1 纯 .x（cli.x）；零胶层 C。
-../std/cli/cli.o: ../std/cli/cli.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "make cli.o: need xlang-c or xlang (F-cli v1)" >&2; exit 1; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/cli/cli.x ../std/cli/cli.o
+../std/cli/cli.o: ../std/cli/cli.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto ../std/cli/cli.x $@
 
 
 # std.security：F-security v1 + F-ZC 纯 security.x → security.o（无 glue；无 xlang 时 exit 0）。
-../std/security/security.o: ../std/security/security.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "security.o: need xlang-c or xlang (F-security zero-c)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/security/security.x ../std/security/security.o
+../std/security/security.o: ../std/security/security.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/security/security.x $@
 
 
 # std.config：F-config v2 + F-ZC 纯 config.x → config.o（无 glue；无 xlang 时 exit 0）。
-../std/config/config.o: ../std/config/config.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "config.o: need xlang-c or xlang (F-config v2 zero-c)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/config/config.x ../std/config/config.o
+../std/config/config.o: ../std/config/config.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/config/config.x $@
 
 # std.cache：F-cache v2 纯 .x（cache.x）；零胶层 C。
-../std/cache/cache.o: ../std/cache/cache.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "cache.o: need xlang-c or xlang (F-cache v2)" >&2; exit 1; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/cache/cache.x ../std/cache/cache.o
+../std/cache/cache.o: ../std/cache/cache.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto ../std/cache/cache.x $@
 
 # std.trace：F-trace v2 纯 trace.x → trace.o（无 glue；无 xlang 时 exit 0）。
-../std/trace/trace.o: ../std/trace/trace.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "trace.o: need xlang-c or xlang (F-trace v2)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/trace/trace.x ../std/trace/trace.o
+../std/trace/trace.o: ../std/trace/trace.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/trace/trace.x $@
 
 
 # std.task：F-task v2 纯 .x → task.o（同 trace/cache v2）。
-../std/task/task.o: ../std/task/task.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "task.o: need xlang-c or xlang (F-task v2)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/task/task.x ../std/task/task.o
+../std/task/task.o: ../std/task/task.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/task/task.x $@
 
 
 # std.schema：F-schema v2 纯 .x → schema.o（同 cache/encoding）。
-../std/schema/schema.o: ../std/schema/schema.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "schema.o: need xlang-c or xlang (F-schema v2)" >&2; exit 1; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/schema/schema.x ../std/schema/schema.o
+../std/schema/schema.o: ../std/schema/schema.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto ../std/schema/schema.x $@
 
 # std.db.kv：F-05 v2 纯 .x（F-ZC）；mmap 胶层在 runtime_kv_mmap_glue.o。
-../std/db/kv/kv.o: ../std/db/kv/kv.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "make kv.o: need xlang-c or xlang (F-db-kv zero-c)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/db/kv/kv.x ../std/db/kv/kv.o
+../std/db/kv/kv.o: ../std/db/kv/kv.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/db/kv/kv.x $@
 
 # std.db.arrow：F-05 v1 纯 .x（F-ZC）；SIMD 胶层在 runtime_arrow_simd_glue.o。
-../std/db/arrow/arrow.o: ../std/db/arrow/arrow.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "make arrow.o: need xlang-c or xlang (F-db-arrow zero-c)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/db/arrow/arrow.x ../std/db/arrow/arrow.o
+../std/db/arrow/arrow.o: ../std/db/arrow/arrow.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/db/arrow/arrow.x $@
 
 # std.sys.mmap：F-02 v1 Linux/macOS 纯 .x（已移除 mmap.inc.c）
 # std.sys.win32：F-02 v2 纯 .x kernel32 FFI（已移除 win32.inc.c / win32_net.inc.c）
@@ -563,12 +513,9 @@ endif
 endif
 
 # std.db.sqlite：F-05 v3 纯 .x（F-ZC）；sqlite3 胶层在 runtime_sqlite_glue.o。
-../std/db/sqlite/sqlite.o: ../std/db/sqlite/sqlite.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "make sqlite.o: need xlang-c or xlang (F-db-sqlite zero-c)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/db/sqlite/sqlite.x ../std/db/sqlite/sqlite.o
+../std/db/sqlite/sqlite.o: ../std/db/sqlite/sqlite.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/db/sqlite/sqlite.x $@
 sqlite-o: ../std/db/sqlite/sqlite.o runtime_sqlite_glue.o
 sqlite-o-stub:
 	$(MAKE) runtime_sqlite_glue_stub.o
@@ -585,12 +532,9 @@ sqlite-o-stub:
 	fi
 
 # std.elf：F-elf v2 + F-ZC 纯 elf.x → elf.o（无 glue；无 xlang 时 exit 0）。
-../std/elf/elf.o: ../std/elf/elf.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "elf.o: need xlang-c or xlang (F-elf v2 zero-c)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/elf/elf.x ../std/elf/elf.o
+../std/elf/elf.o: ../std/elf/elf.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/elf/elf.x $@
 
 # P4 std 模块（按需链接）
 # std.json：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + json）。
@@ -600,22 +544,16 @@ sqlite-o-stub:
 ../std/csv/csv.o: ../std/csv/mod.x ../std/csv/csv.x | scripts/xlang_compile_std_module.sh
 	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/csv/mod.x ../std/csv/csv.x
 # std.regex：F-regex v2 纯 .x → regex.o（同 hash/schema）。
-../std/regex/regex.o: ../std/regex/regex.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "regex.o: need xlang-c or xlang (F-regex v2)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/regex/regex.x ../std/regex/regex.o
+../std/regex/regex.o: ../std/regex/regex.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/regex/regex.x $@
 # F-04 v7：std.compress 全格式已迁 .x；compress.o 不再构建，保留 target 名兼容门禁。
 compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brotli:
 	@true
 # std.unicode：F-unicode v2 纯 .x → unicode.o（同 hash/schema）。
-../std/unicode/unicode.o: ../std/unicode/unicode.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "unicode.o: need xlang-c or xlang (F-unicode v2)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/unicode/unicode.x ../std/unicode/unicode.o
+../std/unicode/unicode.o: ../std/unicode/unicode.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/unicode/unicode.x $@
 # std.dynlib：F 闭合 — mod.x（用户 API）+ dynlib.x（impl 裸符号）用 -E-extern 编译；
 # dlopen 胶层在 runtime_dynlib_os.o，最终 exe 链接时按需推入。
 ../std/dynlib/dynlib.o: ../std/dynlib/mod.x ../std/dynlib/dynlib.x | scripts/xlang_compile_std_module.sh
@@ -626,28 +564,17 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/http/mod.x ../std/http/http.x
 
 # std.socketio：F-socketio v2 纯 socketio.x；ld -r 合并为 socketio.o（P3 可选）。
-../std/socketio/socketio.o: ../std/socketio/socketio.x
-	@objs=""; \
-	if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else \
-	  echo "socketio.o: need xlang-c to compile socketio.x"; exit 0; \
-	fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/socketio/socketio.x ../std/socketio/socketio_main.o || exit 1; \
-	objs="$$objs ../std/socketio/socketio_main.o"; \
-	$(LD) $(LD_RELFLAGS) -r -o $@ $$objs
+../std/socketio/socketio.o: ../std/socketio/socketio.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft-merge (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft-merge ../std/socketio/socketio.x $@
 # std.tar：F-tar v2 纯 tar.x；import binding 别名桩 tar_import_alias.c。
 # std.tar：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + tar）。
 ../std/tar/tar.o: ../std/tar/mod.x ../std/tar/tar.x | scripts/xlang_compile_std_module.sh
 	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/tar/mod.x ../std/tar/tar.x
 # std.simd：F-simd v1 + F-ZC 纯 simd.x → simd.o（无 glue；无 xlang 时 exit 0）。
-../std/simd/simd.o: ../std/simd/simd.x
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else echo "simd.o: need xlang-c or xlang (F-simd zero-c)" >&2; exit 0; fi; \
-	sh scripts/xlang_compile_std_x.sh auto ../std/simd/simd.x ../std/simd/simd.o
+../std/simd/simd.o: ../std/simd/simd.x | scripts/xlang_compile_std_x.sh
+# wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/simd/simd.x $@
 
 
 # 测试与 xlang 链接 std 时依赖的 .o：所有 std 模块 + runtime_panic.o；Linux 另预编 freestanding 链入桩
