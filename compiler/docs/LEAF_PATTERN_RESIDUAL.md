@@ -2065,7 +2065,8 @@ ship delete body; mac-only wave green.
     SWALLOWED_ARCH_HOST_PICK_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (fill after dual-end)
+  dual-end L2 green tip: 4a2ddc977 (Mac + Ubuntu leaf --check;
+    make net-o-stub FORCE ensure → try-heat net.o skip OK)
   next: thin edges / B2 or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body (explicit auth only)
 ```
