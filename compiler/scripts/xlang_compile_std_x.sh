@@ -3,7 +3,8 @@
 #
 # PLATFORM: SHARED — host product path for pure .x std leaves (asm prefer, C fallback).
 # Authority for host pick + -E/cc / -backend asm + per-leaf mode table.
-# Makefile must only thin-call this script (wave811 body; wave825 catalog ensure).
+# Makefile must only thin-call this script (wave811 body; wave825 catalog ensure;
+# wave827 FORCE dep-thin).
 #
 # Usage (cwd = compiler/):
 #   xlang_compile_std_x.sh ensure <out.o>                             # wave825 catalog
@@ -22,8 +23,11 @@
 # wave811 (G.7 有则补全): host pick + soft/hard + socketio merge body here;
 #   Makefile lost multi-line if-ladder (thin-call auto|auto-soft|auto-soft-merge).
 # wave825 (G.7 有则补全): product mode|x_path table lives here; Makefile 22 leaves
-#   thin-call `ensure $@` only (prereqs stay for mtime). NOT physical delete —
+#   thin-call `ensure $@` only. NOT physical delete —
 #   thin edges + formal_mod + B2 ensure + mk lists still form std_core_product_make_graph.
+# wave827 (G.7 有则补全): FORCE dep-thin — Makefile prereqs are FORCE + script only;
+#   shell owns catalog source mtime (skip up-to-date). NOT physical delete; thin edges
+#   + formal_mod FORCE + B2 try-heat + mk lists still form std_core_product_make_graph residual.
 #
 # auto: prefer xlang_asm → xlang → xlang-c (lib modules need asm .o; do not prefer xlang-c
 # unless XLANG_COMPILE_STD_USE_C=1).
@@ -165,17 +169,24 @@ std_x_check() {
       _bad=1
     fi
     _tgt="$(std_x_out_for_key "$_k")"
-    # Makefile thin-call: ensure|auto only (wave825); no explicit mode/path after $@.
+    # Makefile thin-call: ensure|auto only (wave825); FORCE dep-thin (wave827).
+    # Target line must list FORCE (shell owns catalog source mtime); no dual .x prereqs.
     if [ -f "$_mk" ]; then
       if ! awk -v tgt="$_tgt" '
-        $0 ~ ("^" tgt ":") { hit=1; next }
+        $0 ~ ("^" tgt ":") {
+          line=$0
+          # wave827: FORCE required (dep-thin); ban dual catalog .x on prereq line.
+          if (line !~ /FORCE/) { exit 1 }
+          if (line ~ /\.x([[:space:]]|$)/) { exit 1 }
+          hit=1; next
+        }
         hit && /^[^#[:space:]]/ { exit 1 }
         hit && /xlang_compile_std_x\.sh/ {
           if ($0 ~ /ensure|[[:space:]]auto[[:space:]]+\$@/) { found=1; exit 0 }
         }
         END { exit found ? 0 : 1 }
       ' "$_mk"; then
-        echo "std_x --check: Makefile $_tgt must thin-call ensure|auto (wave825)" >&2
+        echo "std_x --check: Makefile $_tgt must FORCE + ensure|auto (wave827 FORCE thin)" >&2
         _bad=1
       fi
     fi
@@ -211,7 +222,7 @@ KEYS
     echo "std_x --check: FAIL" >&2
     return 1
   fi
-  echo "std_x --check: OK (22 leaves; catalog + Makefile ensure thin; not physical delete)"
+  echo "std_x --check: OK (22 leaves; catalog + Makefile FORCE+ensure thin wave827; not physical delete)"
   return 0
 }
 
@@ -437,6 +448,19 @@ case "${1:-}" in
     _spec="$(std_x_spec_for_key "$_key")"
     _mode="${_spec%%|*}"
     _xsrc="${_spec#*|}"
+    # wave827: FORCE-thin mtime — shell owns catalog source freshness (G.7).
+    # Makefile always invokes via FORCE; skip recompile when OUT is newer than the
+    # catalog .x source. FORCE=1 forces rebuild (tests / explicit). PLATFORM: SHARED.
+    if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ]; then
+      _sx_stale=0
+      if [ -f "$_xsrc" ] && [ "$_xsrc" -nt "$out_o" ]; then
+        _sx_stale=1
+      fi
+      if [ "$_sx_stale" = "0" ]; then
+        echo "xlang_compile_std_x: skip up-to-date $out_o (std_x/$_key)" >&2
+        exit 0
+      fi
+    fi
     std_x_compile_one "$_mode" "$_xsrc" "$out_o"
     exit $?
     ;;

@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1721,6 +1721,48 @@ Then (later waves, not this tip):
 
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
+
+## wave827 std_x FORCE dep-thin (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on std_x neighborhood residual (mirror
+> wave826 formal_mod) — Makefile **22** pure-.x std product leaves drop dual
+> catalog `.x` prereqs (incl. uuid's historic `random.o`/`time.o` order deps);
+> target lines are `FORCE scripts/xlang_compile_std_x.sh` only; recipe remains
+> `ensure $@`. Shell owns catalog source mtime (skip up-to-date; `FORCE=1`
+> rebuilds). Honesty COUNT = **22**. Dual-end L2 required. Blockers **remain**
+> (`makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph`) —
+> thin edges + formal_mod FORCE + B2 try-heat + mk lists still form the product
+> make graph.
+
+```text
+  leaf dump:
+    PHYS_DEL_STD_X_FORCE_THIN=1
+    PHYS_DEL_STD_X_FORCE_THIN_WAVE=wave827
+    PHYS_DEL_STD_X_FORCE_THIN_COUNT=22
+    SWALLOWED_STD_X_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_STD_X_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (filled after dual-end verify)
+  next: more shell-primary / thin edges / B2 residual or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_STD_X_FORCE_THIN` | `1` |
+| `PHYS_DEL_STD_X_FORCE_THIN_COUNT` | `22` |
+| `SWALLOWED_STD_X_FORCE_THIN` | `1` |
+| `STD_X_FORCE_THIN_HELPER` | `xlang_compile_std_x.sh` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+| dual-end L2 tip | (after verify) |
+
+**Forbidden:** claim std_x FORCE thin = physical delete; re-list catalog `.x` on
+Makefile std_x prereq lines; `rm compiler/Makefile`; ship delete body; mac-only
+wave green.
 
 ## wave826 formal_mod FORCE dep-thin (2026-07-30)
 
