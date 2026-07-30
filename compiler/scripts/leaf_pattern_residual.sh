@@ -214,6 +214,7 @@
 #            NOT physical delete — thin edges + B2 + mk lists remain
 #   wave894: formal_mod product edges list→mk + multi-target FORCE thin (38)
 #   wave895: std_x product edges list→mk + multi-target FORCE thin (22)
+#   wave896: driver_leaf product edges list→mk + multi-target FORCE thin (8)
 #            wave893: B7B residual verify-selfhost thin-call form hygiene (2 sites) →
 #            body → scripts/verify-selfhost-stage2{,-bstrict}.sh; Makefile pure
 #            @bash scripts/… (drop @bash ./); root shim for CI/tests path compat;
@@ -676,6 +677,16 @@ SWALLOWED_DRIVER_LEAF_FORCE_THIN=1
 DRIVER_LEAF_FORCE_THIN_SWALLOWED=1
 DRIVER_LEAF_FORCE_THIN_HELPER=driver_leaf_x_to_o.sh
 DRIVER_LEAF_FORCE_THIN_WAVE=wave828
+# wave896: driver_leaf product edges list→mk multi-target FORCE thin (make-graph only).
+# Body authority remains driver_leaf_x_to_o.sh ensure; thin edges still residual.
+PHYS_DEL_DRIVER_LEAF_LIST_MK=1
+PHYS_DEL_DRIVER_LEAF_LIST_MK_WAVE=wave896
+PHYS_DEL_DRIVER_LEAF_LIST_MK_COUNT=8
+PHYS_DEL_DRIVER_LEAF_LIST_MK_VIA=mk_driver_leaf_product_objs_multi_target_thin
+PHYS_DEL_DRIVER_LEAF_LIST_MK_NOTE=list_to_mk_multi_target_force_thin_edges_remain
+SWALLOWED_DRIVER_LEAF_LIST_MK=1
+DRIVER_LEAF_LIST_MK_SWALLOWED=1
+DRIVER_LEAF_LIST_MK_WAVE=wave896
 # wave829: product/archaeology *_gen.c FORCE dep-thin — Makefile prereqs FORCE+script
 # only; shell owns pin/seed/FORCE_REGEN policy (ensure_*_gen). NOT physical delete —
 # thin edges + B2 try-heat + mk lists remain (ast_gen2 closed wave830).
@@ -1897,7 +1908,7 @@ PHYS_DEL_PREFLIGHT_B7B_MIGRATE_ENV_HYGIENE=1
 PHYS_DEL_PREFLIGHT_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE=1
 PHYS_DEL_PREFLIGHT_B7B_ENSURE_OUT_OPT_HYGIENE=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|claim_xxl_bs_xnc_link_mk_is_physical_delete|claim_bxf_link_mk_is_physical_delete|claim_seed_phase_final_link_mk_is_physical_delete|claim_seed_gate_required_mk_is_physical_delete|claim_seed_gate_required_shell_load_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_driver_leaf_list_mk_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|claim_xxl_bs_xnc_link_mk_is_physical_delete|claim_bxf_link_mk_is_physical_delete|claim_seed_phase_final_link_mk_is_physical_delete|claim_seed_gate_required_mk_is_physical_delete|claim_seed_gate_required_shell_load_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -2500,6 +2511,9 @@ else
   fi
   if ! grep -qE 'wave895|std_x product edges list|STD_X_PRODUCT_OBJS|std_x list' "$DOC_REL"; then
     bad "$DOC_REL must document wave895 std_x product edges list→mk"
+  fi
+  if ! grep -qE 'wave896|driver_leaf product edges list|DRIVER_LEAF_PRODUCT_OBJS|driver_leaf list' "$DOC_REL"; then
+    bad "$DOC_REL must document wave896 driver_leaf product edges list→mk"
   fi
   if ! grep -qE 'wave828|driver_leaf FORCE|DRIVER_LEAF_FORCE_THIN' "$DOC_REL"; then
     bad "$DOC_REL must document wave828 driver_leaf FORCE dep-thin"
@@ -3280,6 +3294,18 @@ if ! grep -q 'SWALLOWED_DRIVER_LEAF_FORCE_THIN=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_DRIVER_LEAF_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_DRIVER_LEAF_FORCE_THIN=1 (wave828)"
+fi
+if ! grep -q 'PHYS_DEL_DRIVER_LEAF_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DRIVER_LEAF_LIST_MK=1 (wave896)"
+fi
+if ! grep -q 'PHYS_DEL_DRIVER_LEAF_LIST_MK_WAVE=wave896' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DRIVER_LEAF_LIST_MK_WAVE=wave896"
+fi
+if ! grep -q 'PHYS_DEL_DRIVER_LEAF_LIST_MK_COUNT=8' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DRIVER_LEAF_LIST_MK_COUNT=8 (wave896)"
+fi
+if ! grep -q 'SWALLOWED_DRIVER_LEAF_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_DRIVER_LEAF_LIST_MK=1 (wave896)"
 fi
 if ! grep -q 'PHYS_DEL_GEN_C_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_GEN_C_FORCE_THIN=1 (wave829)"
@@ -4678,29 +4704,65 @@ fi
 if ! grep -q 'driver_leaf_check' "$_dl_sh"; then
   bad "driver_leaf_x_to_o.sh must support --check (wave814)"
 fi
+# wave896: multi-target path — per-leaf ^OUT: lines optional if mk list + multi-target.
+_DL_MK="compiler/mk/driver_leaf_product_objs.mk"
+[ -f "$_DL_MK" ] || _DL_MK="mk/driver_leaf_product_objs.mk"
+if [ ! -f "$_DL_MK" ]; then
+  bad "missing $_DL_MK (wave896 driver_leaf product edges list→mk)"
+fi
+if ! grep -qE '^DRIVER_LEAF_PRODUCT_OBJS\s*=' "$_DL_MK"; then
+  bad "$_DL_MK must define DRIVER_LEAF_PRODUCT_OBJS (wave896)"
+fi
+# Count assignment-line members only (skip comments; G.7 residual hardcode ban).
+_dl_list_n=$(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^DRIVER_LEAF_PRODUCT_OBJS[[:space:]]*=/ { inlist=1 }
+    inlist {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) c++
+      if ($0 !~ /\\[[:space:]]*$/ && $0 !~ /^DRIVER_LEAF_PRODUCT_OBJS/) inlist=0
+    }
+    END { print c+0 }
+  ' "$_DL_MK"
+)
+if [ "${_dl_list_n:-0}" -ne 8 ]; then
+  bad "wave896 expected 8 DRIVER_LEAF_PRODUCT_OBJS members, got ${_dl_list_n:-0}"
+fi
+if ! grep -q 'include mk/driver_leaf_product_objs.mk' "$MF"; then
+  bad "Makefile must include mk/driver_leaf_product_objs.mk (wave896)"
+fi
+if ! grep -qE '\$\(DRIVER_LEAF_PRODUCT_OBJS\):[[:space:]]*FORCE' "$MF"; then
+  bad "Makefile must multi-target \$(DRIVER_LEAF_PRODUCT_OBJS): FORCE (wave896)"
+fi
+if ! awk '
+  /\$\(DRIVER_LEAF_PRODUCT_OBJS\):/ { hit=1; next }
+  hit && /^[^#[:space:]\t]/ { exit 1 }
+  hit && /driver_leaf_x_to_o\.sh/ && /ensure|auto/ { found=1; exit 0 }
+  END { exit found ? 0 : 1 }
+' "$MF"; then
+  bad "Makefile DRIVER_LEAF_PRODUCT_OBJS multi-target must thin-call ensure|auto (wave896)"
+fi
+# wave814/828/896: each catalog leaf is covered by multi-target (or legacy per-leaf).
 _dl_thin=0
-# Keys come from catalog `list` only (G.7: residual shell must not hardcode .o inventory).
+_dl_force=0
 while IFS= read -r _dl; do
   [ -z "$_dl" ] && continue
+  _ok_t=0
+  _ok_f=0
   if awk -v leaf="$_dl" '
     $0 ~ ("^" leaf ":") { want=1; next }
     want && /^[^#[:space:]]/ { want=0 }
     want && /driver_leaf_x_to_o\.sh ensure/ { found=1 }
     END { exit found ? 0 : 1 }
-  ' "$MF"; then
-    _dl_thin=$((_dl_thin + 1))
-  else
-    bad "Makefile $_dl must thin-call driver_leaf_x_to_o ensure (wave814)"
+  ' "$MF" 2>/dev/null; then
+    _ok_t=1
+  elif grep -qF "$_dl" "$_DL_MK" \
+    && grep -qE '\$\(DRIVER_LEAF_PRODUCT_OBJS\):[[:space:]]*FORCE' "$MF"; then
+    _ok_t=1
   fi
-done < <(bash "$_dl_sh" list 2>/dev/null || true)
-if [ "$_dl_thin" -ne 8 ]; then
-  bad "wave814 expected 8 driver_leaf ensure leaves, got $_dl_thin"
-fi
-note "Makefile driver_leaf 8 leaves thin-call ensure (wave814; not physical delete)"
-# wave828: driver_leaf FORCE dep-thin — target line FORCE only (no dual .x prereqs).
-_dl_force=0
-while IFS= read -r _dl; do
-  [ -z "$_dl" ] && continue
   if awk -v leaf="$_dl" '
     $0 ~ ("^" leaf ":") {
       if ($0 ~ /FORCE/ && $0 !~ /\.x([[:space:]]|$)/) { ok=1; exit 0 }
@@ -4708,15 +4770,41 @@ while IFS= read -r _dl; do
     }
     END { exit ok ? 0 : 1 }
   ' "$MF" 2>/dev/null; then
+    _ok_f=1
+  elif grep -qF "$_dl" "$_DL_MK" \
+    && grep -qE '\$\(DRIVER_LEAF_PRODUCT_OBJS\):[[:space:]]*FORCE' "$MF"; then
+    _ok_f=1
+  fi
+  if [ "$_ok_t" -eq 1 ]; then
+    _dl_thin=$((_dl_thin + 1))
+  else
+    bad "Makefile $_dl must thin-call driver_leaf_x_to_o ensure (wave814/896)"
+  fi
+  if [ "$_ok_f" -eq 1 ]; then
     _dl_force=$((_dl_force + 1))
   else
-    bad "Makefile $_dl must FORCE dep-thin (no .x prereqs; wave828)"
+    bad "Makefile $_dl must FORCE dep-thin (no .x prereqs; wave828/896)"
   fi
 done < <(bash "$_dl_sh" list 2>/dev/null || true)
-if [ "$_dl_force" -ne 8 ]; then
-  bad "wave828 expected 8 driver_leaf FORCE thin leaves, got $_dl_force"
+if [ "$_dl_thin" -ne 8 ]; then
+  bad "wave814/896 expected 8 driver_leaf ensure leaves, got $_dl_thin"
 fi
-note "Makefile driver_leaf 8 leaves FORCE dep-thin (wave828; not physical delete)"
+if [ "$_dl_force" -ne 8 ]; then
+  bad "wave828/896 expected 8 driver_leaf FORCE thin leaves, got $_dl_force"
+fi
+# Per-leaf individual driver_leaf rules retired (must not reappear as dual authority).
+# Keys from catalog `list` only (G.7 residual hardcode ban — no bare product .o tokens).
+_dl_indiv=0
+while IFS= read -r _dl; do
+  [ -z "$_dl" ] && continue
+  if grep -qE "^${_dl}:" "$MF" 2>/dev/null; then
+    _dl_indiv=$((_dl_indiv + 1))
+  fi
+done < <(bash "$_dl_sh" list 2>/dev/null || true)
+if [ "$_dl_indiv" -ne 0 ]; then
+  bad "Makefile still has $_dl_indiv per-leaf driver_leaf targets (wave896 multi-target only)"
+fi
+note "Makefile driver_leaf multi-target FORCE thin ensure + mk list 8 (wave814/828/896; not physical delete)"
 if ! grep -q 'FORCE-thin mtime\|skip up-to-date' "$_dl_sh"; then
   bad "driver_leaf_x_to_o.sh must own FORCE-thin mtime skip (wave828)"
 else
@@ -4740,9 +4828,9 @@ fi
 note "Makefile free of driver_leaf rename dual lists (wave814)"
 # --check resolves catalog + Makefile FORCE greps (cwd=compiler/).
 if ! ( cd "$COMPILER_DIR" && bash scripts/driver_leaf_x_to_o.sh --check >/dev/null ); then
-  bad "driver_leaf_x_to_o.sh --check failed (wave814/wave828)"
+  bad "driver_leaf_x_to_o.sh --check failed (wave814/828/896)"
 else
-  note "driver_leaf_x_to_o.sh --check OK (wave828 FORCE thin; not physical delete)"
+  note "driver_leaf_x_to_o.sh --check OK (wave896 list→mk multi-target; not physical delete)"
 fi
 
 # wave829: product/archaeology *_gen.c FORCE dep-thin (17 leaves; no dual .x / X_DEPS prereqs).

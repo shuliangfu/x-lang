@@ -134,6 +134,8 @@ include mk/objs_core.mk
 include mk/formal_mod_product_objs.mk
 # wave895: std_x product edge inventory (make-graph only; body = ensure catalog).
 include mk/std_x_product_objs.mk
+# wave896: driver_leaf product edge inventory (make-graph only; body = ensure catalog).
+include mk/driver_leaf_product_objs.mk
 # 注：lsp.x 生成的 lsp_gen 与 lsp_diag 中 lsp_build_* 同名；若把 InitializeResult/response 外壳迁入 .x，
 # 默认 xlang 须链 lsp_x.o、lsp_io_x.o；F-03 v2/v3 std.io 由 .x codegen 提供，无 io.o。
 
@@ -184,6 +186,19 @@ $(FORMAL_MOD_PRODUCT_OBJS): FORCE scripts/xlang_compile_std_module.sh
 # ---------------------------------------------------------------------------
 $(STD_X_PRODUCT_OBJS): FORCE scripts/xlang_compile_std_x.sh
 	@bash scripts/xlang_compile_std_x.sh ensure $@
+
+# ---------------------------------------------------------------------------
+# wave896 B7B: driver_leaf product edges list→mk + multi-target FORCE thin ensure
+# G.7: list authority = mk/driver_leaf_product_objs.mk (COUNT=8).
+# Body authority = scripts/driver_leaf_x_to_o.sh ensure (wave814 catalog;
+# wave828 shell owns source mtime; wave860 BASE_CFLAGS export leaf).
+# Makefile only FORCE + thin-call. DRIVER_SUBCMD_OBJS (wave816) remains seed
+# link prereq set (7 leaves) — distinct from this ensure-catalog multi-target.
+# PLATFORM: SHARED — not physical delete; residual thin edges + B2 try-heat +
+# other mk lists hybrid + tip Windows → dual L4 → explicit auth ship delete.
+# ---------------------------------------------------------------------------
+$(DRIVER_LEAF_PRODUCT_OBJS): FORCE scripts/driver_leaf_x_to_o.sh
+	@bash scripts/driver_leaf_x_to_o.sh ensure $@
 
 
 # std.string：F 闭合 — 产品 -o 完整 emit（-x -E 会截断函数体）。
@@ -1842,14 +1857,9 @@ src/seed_link_compat.o: FORCE scripts/ensure_host_cc_seed_o.sh
 lsp_gen.c: FORCE scripts/ensure_lsp_pipeline_gen.sh
 	@bash scripts/ensure_lsp_pipeline_gen.sh lsp_gen
 
-# Track L：lsp_io_std_heap 叶子退役 — .x→.o（rename 与 prove_module_selfhost 一致）
-# 冷启动仅 seeds/lsp_io_std_heap_gen.linux.x86_64.c；工作区 lsp_io_std_heap_gen.c 仅考古/FORCE_REGEN
-# wave814: driver_leaf catalog → ensure (G.7; rename/dirs in script; not physical delete).
-# wave828: FORCE dep-thin — shell owns catalog .x mtime (skip up-to-date); not physical delete.
-# wave860: BASE_CFLAGS via export-driver-leaf-base-cflags when unset (no multi-token env).
-# wave883 B7B: drop single-token MAKE= inject (shell MAKE:-make + make auto-export).
-lsp_io_std_heap_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@bash scripts/driver_leaf_x_to_o.sh ensure $@
+# Track L：lsp_io_std_heap / driver_*_x product edges — list→mk multi-target
+# (wave896). Catalog body = driver_leaf_x_to_o.sh ensure (wave814/828/860).
+# 冷启动仅 seeds/*_gen.linux.x86_64.c；工作区 *_gen.c 仅考古/FORCE_REGEN。
 # wave740: G.7 body → scripts/ensure_archaeology_gen.sh (Track L archaeology only)
 # wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
 lsp_io_std_heap_gen.c: FORCE scripts/ensure_archaeology_gen.sh
@@ -1869,35 +1879,13 @@ lsp_io_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 lsp_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-# Driver 子命令 .o：
-#   Track L 已退役叶子：fmt/check/test/build/run/compile/emit + lsp_io_std_heap → PREFER_X_O（.x→.o）
+# Driver 子命令 .o（seed link / relink prereq names — not ensure recipe edges）：
+#   Track L 已退役叶子：fmt/check/test/build/run/compile/emit + lsp_io_std_heap → ensure catalog
 #   构建不读工作区 pinned *_gen.c；冷启动回退仅 seeds/*_gen.linux.x86_64.c
 # wave816 B7B: list authority → mk/driver_subcmd_objs.mk (G.7; not physical delete).
 # Makefile keeps include + consumers (seed link / relink / composites); no dual list.
+# wave896: ensure edges → mk/driver_leaf_product_objs.mk multi-target (early include).
 include mk/driver_subcmd_objs.mk
-
-# Track L：叶子 .o 直接来自 .x（scripts/driver_leaf_x_to_o.sh）；rename 与 prove_module_selfhost / g05 一致
-# wave814: driver_leaf shell-primary catalog → ensure (G.7; not physical delete).
-# wave828: FORCE dep-thin — Makefile prereqs FORCE+script only; shell owns catalog .x mtime.
-# wave860: BASE_CFLAGS via export-driver-leaf-base-cflags when unset (no multi-token env).
-# wave883 B7B: drop single-token MAKE= inject (shell MAKE:-make + make auto-export).
-# Makefile thin-call only; src/rename/cold-seed/-L + BASE_CFLAGS live in script catalog/export.
-driver_fmt_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@bash scripts/driver_leaf_x_to_o.sh ensure $@
-driver_check_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@bash scripts/driver_leaf_x_to_o.sh ensure $@
-driver_test_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@bash scripts/driver_leaf_x_to_o.sh ensure $@
-driver_build_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@bash scripts/driver_leaf_x_to_o.sh ensure $@
-driver_run_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@bash scripts/driver_leaf_x_to_o.sh ensure $@
-# Track L：compile / emit 叶子退役（prove IDENTICAL；emit 依赖 codegen 字段访问 . vs -> 根修）
-# wave814: rename maps moved into driver_leaf_x_to_o.sh catalog (G.7 single authority).
-driver_compile_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@bash scripts/driver_leaf_x_to_o.sh ensure $@
-driver_emit_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@bash scripts/driver_leaf_x_to_o.sh ensure $@
 
 # wave740: G.7 body → scripts/ensure_archaeology_gen.sh
 # 考古：可选再生成工作区 *_gen.c（不进 DRIVER_SEED_PREREQS；叶子已退役；产品用 *_x.o）

@@ -64,6 +64,7 @@
 > - **wave893** · B7B residual verify-selfhost thin-call form hygiene (2 sites → body under `scripts/` · pure `@bash scripts/…` · root shim for CI/tests)
 > - **wave894** · B7B formal_mod product edges list→mk + multi-target FORCE thin ensure (38 leaves → `mk/formal_mod_product_objs.mk` + `$(FORMAL_MOD_PRODUCT_OBJS)` ensure)
 > - **wave895** · B7B std_x product edges list→mk + multi-target FORCE thin ensure (22 leaves → `mk/std_x_product_objs.mk` + `$(STD_X_PRODUCT_OBJS)` ensure)
+> - **wave896** · B7B driver_leaf product edges list→mk + multi-target FORCE thin ensure (8 leaves → `mk/driver_leaf_product_objs.mk` + `$(DRIVER_LEAF_PRODUCT_OBJS)` ensure)
 > - **open** · thin edges + B2 + remaining mk lists hybrid · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile

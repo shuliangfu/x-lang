@@ -23,6 +23,9 @@
 #   composition loads via make export-driver-leaf-base-cflags when unset
 #   ($(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc). Makefile recipes drop
 #   multi-token BASE_CFLAGS= env. NOT physical delete; thin edges + B2 + lists remain.
+# wave896 (G.7 有则补全): product edges list→mk multi-target FORCE thin ensure —
+#   mk/driver_leaf_product_objs.mk + $(DRIVER_LEAF_PRODUCT_OBJS) single multi-target
+#   rule (no per-leaf dual authority). NOT physical delete; thin edges + B2 + lists remain.
 #
 # Env: CC, BASE_CFLAGS (optional; shell-loads export leaf when unset), MAKE,
 #      DRIVER_SUBCMD_DIRS (legacy override; ensure uses catalog)
@@ -273,10 +276,26 @@ EOF
   # Makefile thin greps when available (cwd = compiler/)
   _mf=Makefile
   if [ -f "$_mf" ]; then
+    _dl_mk="mk/driver_leaf_product_objs.mk"
+    # wave896: multi-target $(DRIVER_LEAF_PRODUCT_OBJS) + mk list (no per-leaf target line).
+    # Accept A) legacy per-leaf `^OUT:` FORCE+ensure, or B) OUT in mk list + multi-target rule.
+    _multi_ok=0
+    if [ -f "$_dl_mk" ] \
+      && grep -qE '^DRIVER_LEAF_PRODUCT_OBJS\s*=' "$_dl_mk" \
+      && grep -qE '\$\(DRIVER_LEAF_PRODUCT_OBJS\):[[:space:]]*FORCE' "$_mf" \
+      && awk '
+        /\$\(DRIVER_LEAF_PRODUCT_OBJS\):/ { hit=1; next }
+        hit && /^[^#[:space:]\t]/ { exit 1 }
+        hit && /driver_leaf_x_to_o\.sh/ && /ensure|auto/ { found=1; exit 0 }
+        END { exit found ? 0 : 1 }
+      ' "$_mf"; then
+      _multi_ok=1
+    fi
     for _leaf in driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o \
       driver_run_x.o driver_compile_x.o driver_emit_x.o lsp_io_std_heap_x.o; do
+      _ok_leaf=0
       # wave828: FORCE required (dep-thin); ban dual catalog .x on prereq line.
-      if ! awk -v leaf="$_leaf" '
+      if awk -v leaf="$_leaf" '
         $0 ~ ("^" leaf ":") {
           line=$0
           if (line !~ /FORCE/) { exit 1 }
@@ -286,8 +305,13 @@ EOF
         want && /^[^#[:space:]]/ { want=0 }
         want && /driver_leaf_x_to_o\.sh ensure/ { found=1 }
         END { exit found ? 0 : 1 }
-      ' "$_mf"; then
-        echo "driver_leaf_x_to_o --check: Makefile $_leaf must FORCE + ensure (wave828 FORCE thin)" >&2
+      ' "$_mf" 2>/dev/null; then
+        _ok_leaf=1
+      elif [ "$_multi_ok" -eq 1 ] && grep -qF "$_leaf" "$_dl_mk"; then
+        _ok_leaf=1
+      fi
+      if [ "$_ok_leaf" -ne 1 ]; then
+        echo "driver_leaf_x_to_o --check: Makefile/mk $_leaf must FORCE + ensure (wave828/wave896)" >&2
         exit 1
       fi
     done
@@ -306,7 +330,7 @@ EOF
       exit 1
     fi
   fi
-  echo "driver_leaf_x_to_o --check: OK (8 catalog leaves; FORCE+ensure wave828; BASE_CFLAGS export leaf wave860; not physical delete)"
+  echo "driver_leaf_x_to_o --check: OK (8 catalog leaves; mk list + multi-target FORCE+ensure wave896; BASE_CFLAGS export leaf wave860; not physical delete)"
   exit 0
 }
 
