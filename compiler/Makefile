@@ -974,23 +974,10 @@ src/main_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # xlang_x：pipeline_x.o 编排 typeck_x/codegen_x（G-02a: typeck.c + codegen.c 已删；X pipeline 独立）。
-PIPELINE_X_BASE_OBJS = src/main_x.o src/runtime_x.o src/diag.o src/lexer/lexer.o src/ast/ast_seed.o
-PIPELINE_X_FRONTEND_OBJS = typeck_x.o codegen_x.o x_frontend_link_alias.o
-# parser_x / seed partial / C typeck·codegen·bridge + 卫星 .o（对齐 DRIVER_SEED_OBJS 除 main_x/runtime_x 外的链接依赖）。
-# fmt_check_cmd.o（非 _driver）：runtime_x 无 XLANG_USE_X_DRIVER，fmt/check 走 run_compiler_c 桩，避免缺 driver_run_compiler_full。
-PIPELINE_X_SATELLITE_OBJS = lexer_x.o preprocess_x.o \
-  src/driver/fmt_check_cmd.o src/driver/target_cpu.o \
-  src/asm/simd_enc.o src/asm/simd_loop.o \
-  src/async/async_liveness.o src/async/async_cps_codegen.o \
-  src/runtime_driver_strict_glue_stubs.o
-PIPELINE_X_LINK_OBJS = parser_x.o typeck_x.o codegen_x.o src/x_seed_bridge.o $(PIPELINE_X_SATELLITE_OBJS) $(USER_ASM_LINK)
-PIPELINE_X_SUPPORT_OBJS = build-seed-asm-host $(PIPELINE_X_LINK_OBJS)
-
-# xlang-x-pipeline：F-03 v2/v3 std.io 纯 .x；Linux 链 -lpthread（net/thread）；无 -luring。
-PIPELINE_LIBS :=
-ifeq ($(UNAME_S),Linux)
-  PIPELINE_LIBS := -lpthread
-endif
+# wave817 B7B: list authority → mk/pipeline_x_objs.mk (G.7; not physical delete).
+# Makefile keeps include + consumers (xlang-x-pipeline / seed link / composites);
+# no dual PIPELINE_X_* / PIPELINE_LIBS inventory.
+include mk/pipeline_x_objs.mk
 
 # asm 后端 -o <exe> 时链接用：提供 xlang_panic_；Linux x86_64 有 .s 时用纯 syscall .s，否则 .inc（G-02e-20）
 # wave760 R2: cold body → ensure try-r2 (platform stamp + UNAME source pick;

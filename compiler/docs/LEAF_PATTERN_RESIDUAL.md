@@ -1722,6 +1722,48 @@ Then (later waves, not this tip):
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 
+## wave817 B7B PIPELINE_X list → mk (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7B product list residual —
+> `PIPELINE_X_BASE_OBJS` / `PIPELINE_X_FRONTEND_OBJS` /
+> `PIPELINE_X_SATELLITE_OBJS` (9) / `PIPELINE_X_LINK_OBJS` /
+> `PIPELINE_X_SUPPORT_OBJS` + product `PIPELINE_LIBS` (Linux `-lpthread`) move
+> into `compiler/mk/pipeline_x_objs.mk`. Makefile **include only** (no dual
+> inline re-list). `driver_seed_obj_catalog.sh` shell-parses the mk (drops
+> `PIPELINE_LIBS` hardcode). `xlang-x-pipeline` / seed link / composites still
+> expand `$(PIPELINE_X_*)` / `$(PIPELINE_LIBS)`. Dual-end L2 required. Blockers
+> **remain**
+> (`makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph`).
+
+```text
+  leaf dump:
+    PHYS_DEL_B7B_PIPELINE_X_LIST=1
+    PHYS_DEL_B7B_PIPELINE_X_LIST_WAVE=wave817
+    PHYS_DEL_B7B_PIPELINE_X_LIST_COUNT=9
+    SWALLOWED_B7B_PIPELINE_X_LIST=1
+    PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2: (fill after Mac+Ubuntu green)
+  next: more shell-primary / lists residual or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_PIPELINE_X_LIST` | `1` |
+| `PHYS_DEL_B7B_PIPELINE_X_LIST_COUNT` | `9` (satellite multi-line inventory) |
+| `SWALLOWED_B7B_PIPELINE_X_LIST` | `1` |
+| `B7B_PIPELINE_X_LIST_MK` | `mk/pipeline_x_objs.mk` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim PIPELINE_X list→mk = physical delete; dual inline
+`PIPELINE_X_*` / `PIPELINE_LIBS` inventory in Makefile or catalog hardcode;
+`rm compiler/Makefile`; ship delete body; mac-only wave green.
+
 ## wave816 B7B DRIVER_SUBCMD list → mk (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.

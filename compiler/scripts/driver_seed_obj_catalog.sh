@@ -194,14 +194,10 @@ catalog_seed_host_defaults() {
   catalog_set AST_LINK_O ""
   catalog_set LSP_DIAG_LINK_O "src/lsp/lsp_diag.o"
   catalog_set XLANG_C "xlang-c"
-  # PLATFORM: LINUX — Makefile PIPELINE_LIBS := -lpthread (net/thread); else empty.
-  if [ "$uname_s" = "Linux" ]; then
-    catalog_set PIPELINE_LIBS "-lpthread"
-  else
-    catalog_set PIPELINE_LIBS ""
-  fi
   # wave816: DRIVER_SUBCMD_* list authority → mk/driver_subcmd_objs.mk (G.7).
   # Do not hardcode DRIVER_SUBCMD_OBJS / GEN here — catalog_parse_mk owns them.
+  # wave817: PIPELINE_X_* + PIPELINE_LIBS → mk/pipeline_x_objs.mk (G.7).
+  # Do not hardcode PIPELINE_LIBS / PIPELINE_X_* here — catalog_parse_mk owns them.
 
   # MAIN_LINK_O / MAIN_LINK_REBUILD — mirror Makefile default crt0 pick.
   # PLATFORM: LINUX x86_64 · MACOS arm64/x86_64 · WINDOWS mingw · else main_driver.
@@ -386,9 +382,12 @@ catalog_shell_dump() {
   catalog_store_init
   catalog_seed_host_defaults
   # Include order matches make dependency of lists
-  # (user_asm → r_lists → subcmd → export → composites).
+  # (user_asm → pipeline_x → r_lists → subcmd → export → composites).
   # wave816: driver_subcmd_objs.mk before composites (DRIVER_SUBCMD_OBJS/GEN).
+  # wave817: pipeline_x_objs.mk after user_asm (USER_ASM_LINK for LINK_OBJS;
+  #          PIPELINE_LIBS before composites that expand it).
   catalog_parse_mk "mk/user_asm_seed_objs.mk"
+  catalog_parse_mk "mk/pipeline_x_objs.mk"
   catalog_parse_mk "mk/driver_seed_r_lists.mk"
   catalog_parse_mk "mk/driver_subcmd_objs.mk"
   catalog_parse_mk "mk/driver_seed_export_lists.mk"
