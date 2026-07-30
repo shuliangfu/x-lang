@@ -1754,7 +1754,8 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     SWALLOWED_SRC_EDGE_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_SRC_EDGE_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2: (this tip)
+  dual-end L2 green tip: acc2a8fd1 (Mac + Ubuntu leaf --check;
+    src-edge 7 FORCE; cc_inc_tu mtime/PEERS; sample pin OK)
   next: migrate *_x.o FORCE / pipeline_glue_types or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```
