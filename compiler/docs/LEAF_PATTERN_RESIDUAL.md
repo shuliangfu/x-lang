@@ -1185,7 +1185,7 @@ After (wave785):
 | Swallowed this wave | Still residual |
 |---------------------|----------------|
 | **B7 inventory** (named B7A–B7D + dump/`--check`) | Physical delete (Windows gate) |
-| **B7c partial** (archaeology dual `-c` → migrate / thin leaves) | ~~B7c typeck/codegen~~ (wave841) · ~~x-compiler~~ (wave842) · ~~bootstrap-self~~ (wave843) · ~~bootstrap-parser smoke~~ (wave844) · B7A edges · B7B lists · ~~**B7D host-cc xlang link**~~ (wave786) |
+| **B7c partial** (archaeology dual `-c` → migrate / thin leaves) | ~~B7c typeck/codegen~~ (wave841) · ~~x-compiler~~ (wave842) · ~~bootstrap-self~~ (wave843) · ~~bootstrap-parser smoke~~ (wave844) · ~~xlang-x-pipeline~~ (wave845) · B7A edges · B7B lists · ~~**B7D host-cc xlang link**~~ (wave786) |
 
 **Forbidden:** physical delete Makefile; claim B7 inventory = physical delete; re-open dual `$(CC) -c` on typeck/codegen/bootstrap-self lsp; mac-only wave green; treat B7D UNDEF as product g05 failure.
 
@@ -2042,6 +2042,56 @@ ship delete body; mac-only wave green.
 `bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
+## wave845 xlang-x-pipeline shell-primary (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7C archaeology residual —
+> `xlang-x-pipeline` still owned a multi-step Makefile body
+> (force `pipeline_x.o` + migrate/satellites/`build-seed-asm-host` + force
+> `target_cpu`/`simd_enc`/`simd_loop` + fat `$(CC)` link of `TARGET_x`).
+> wave842 shelled `bootstrap-x-compiler` but left this prereq body residual.
+>
+> New authority: `scripts/xlang_x_pipeline.sh`
+>   - force rebuild ladder via residual make ensure edges
+>   - host-cc link `TARGET_x` with Makefile-exported `XXP_*` bags
+>     (lists = `pipeline_x_objs.mk`; no second inventory in shell)
+>
+> Makefile thin-call only (keeps `bootstrap-pipeline` / migrate / PIPELINE_X_*
+> make-graph prereqs). Honesty COUNT = **1**. Residual after: thin edges + B2 +
+> mk lists. Dual-end L2 required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_XLANG_X_PIPELINE_SHELL=1
+    PHYS_DEL_XLANG_X_PIPELINE_SHELL_WAVE=wave845
+    PHYS_DEL_XLANG_X_PIPELINE_SHELL_COUNT=1
+    SWALLOWED_XLANG_X_PIPELINE_SHELL=1
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=7
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave845
+    PHYS_DEL_PREFLIGHT_XLANG_X_PIPELINE_SHELL=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (fill after Mac/Ubuntu prove)
+  next: residual thin/B2/lists or tip Windows re-proof → ship delete body
+       (explicit auth only; tip L4 already wave840)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_XLANG_X_PIPELINE_SHELL` | `1` |
+| `PHYS_DEL_XLANG_X_PIPELINE_SHELL_COUNT` | `1` |
+| `SWALLOWED_XLANG_X_PIPELINE_SHELL` | `1` |
+| `XLANG_X_PIPELINE_SHELL_HELPER` | `xlang_x_pipeline.sh` |
+| `PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT` | `7` (wave841–844 + wave845 xlang-x-pipeline) |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim xlang-x-pipeline shell-primary = physical delete; dual multi-make
+ensure / `$(CC)` link body in Makefile recipe; dual `PIPELINE_X_*` list in shell;
+mac-only wave green; `rm compiler/Makefile`; ship delete body without explicit auth.
+
 ## wave844 bootstrap-parser/parse-file shell-primary (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
@@ -2059,7 +2109,8 @@ ship delete body; mac-only wave green.
 >
 > Makefile thin-call only (keeps `relink-xlang` / `STD_AND_PANIC_O` /
 > `bootstrap-parser` make-graph prereqs). Honesty COUNT = **2**. Residual after:
-> thin edges + B2 + mk lists. Dual-end L2 required. Blockers **remain**.
+> thin edges + B2 + mk lists + ~~xlang-x-pipeline~~ (cleared wave845). Dual-end L2
+> required. Blockers **remain**.
 
 ```text
   leaf dump:
@@ -2084,7 +2135,7 @@ ship delete body; mac-only wave green.
 | `PHYS_DEL_BOOTSTRAP_PARSER_SMOKE_COUNT` | `2` |
 | `SWALLOWED_BOOTSTRAP_PARSER_SMOKE` | `1` |
 | `BOOTSTRAP_PARSER_SMOKE_HELPER` | `bootstrap_parser_smoke.sh` |
-| `PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT` | `6` (wave841–843 + wave844 parser/parse-file) |
+| `PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT` | `6` (wave841–843 + wave844 parser/parse-file; later 7 @ wave845) |
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
 | `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |

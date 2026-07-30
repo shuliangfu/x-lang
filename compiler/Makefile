@@ -2894,13 +2894,19 @@ gen-x-driver-objs: pipeline_x.o driver_x.o preprocess_x.o
 # 链接带 -x 流水线的 xlang（需 main_x.o 用 -DXLANG_USE_X_PIPELINE 编译，否则 -x -E 不生效）
 # xlang-x-pipeline 链接了；lsp_diag_pipeline_sizes.o 提供 lsp_diag 与 pipeline 间结构体 sizeof；
 # 提供 asm_driver_*（fmt/check/test 仅 bootstrap-driver-seed / xlang-x 全驱动链需要 DRIVER_SUBCMD_OBJS）
-xlang-x-pipeline: bootstrap-pipeline migrate-x-objs $(PIPELINE_X_BASE_OBJS) pipeline_x.o $(PIPELINE_X_FRONTEND_OBJS) $(PIPELINE_X_SUPPORT_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes.o
-	@# gen_driver 副本可能缺 pipeline_asm_block_*；与 bootstrap-driver-seed 一致强制从 pipeline_gen.c 重编。
-	@$(MAKE) pipeline_x.o PIPELINE_X_FORCE_COMPILE=1
-	@$(MAKE) migrate-x-objs $(PIPELINE_X_SATELLITE_OBJS) build-seed-asm-host
-	@$(MAKE) -B src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
-	$(CC) $(CFLAGS) -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN -o $(TARGET)_x $(PIPELINE_X_BASE_OBJS) pipeline_x.o $(PIPELINE_X_FRONTEND_OBJS) $(PIPELINE_X_LINK_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes.o $(PIPELINE_LIBS)
-	@echo "xlang_x built; use ./xlang_x -x -E <file.x> to test .x pipeline"
+# wave845: full body → scripts/xlang_x_pipeline.sh (G.7 有则补全; shell owns multi-make
+# ensure ladder + host-cc link). Lists stay mk expansion (pipeline_x_objs.mk).
+# NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — shell owns force-rebuild + link orchestration.
+xlang-x-pipeline: bootstrap-pipeline migrate-x-objs $(PIPELINE_X_BASE_OBJS) pipeline_x.o $(PIPELINE_X_FRONTEND_OBJS) $(PIPELINE_X_SUPPORT_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes.o scripts/xlang_x_pipeline.sh
+	@TARGET="$(TARGET)" CC="$(CC)" CFLAGS="$(CFLAGS)" MAKE="$(MAKE)" \
+	  XXP_BASE_OBJS="$(PIPELINE_X_BASE_OBJS)" \
+	  XXP_FRONTEND_OBJS="$(PIPELINE_X_FRONTEND_OBJS)" \
+	  XXP_LINK_OBJS="$(PIPELINE_X_LINK_OBJS)" \
+	  XXP_SATELLITE_OBJS="$(PIPELINE_X_SATELLITE_OBJS)" \
+	  XXP_LSP_DIAG="$(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes.o" \
+	  XXP_LIBS="$(PIPELINE_LIBS)" \
+	  bash scripts/xlang_x_pipeline.sh
 
 # 4.5（.x 流水线编译 compiler 自身）：用 xlang_x 的 -x -E 生成 typeck.x / codegen.x 对应的 C，再由 cc 链接得到新的 xlang_x_stage2。
 # 这一目标的目的，是验证「完整前端（parse_into + typeck_x_ast + codegen_x_ast）」全部跑在 .x 上时，仍能产出能工作的编译器。

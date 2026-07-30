@@ -46,6 +46,7 @@
 #   wave843: bootstrap-self shell-primary (1 phony) → bootstrap_self.sh
 #            (stage1 snapshot + satellite ensure + stage2 host-cc link + out_self smoke; NOT physical delete)
 #   wave844: bootstrap-parser/parse-file shell-primary (2 phonies) → bootstrap_parser_smoke.sh
+#   wave845: xlang-x-pipeline shell-primary (1 target) → xlang_x_pipeline.sh
 #            (parser.x -o smoke + dual-path parse fixtures; NOT physical delete)
 #   wave812: formal_mod shell-primary catalog (38 leaves) → xlang_compile_std_module ensure
 #            (Makefile thin-call only; NOT physical delete; edges+lists+B2 remain)
@@ -719,6 +720,19 @@ SWALLOWED_BOOTSTRAP_PARSER_SMOKE=1
 BOOTSTRAP_PARSER_SMOKE_SWALLOWED=1
 BOOTSTRAP_PARSER_SMOKE_HELPER=bootstrap_parser_smoke.sh
 BOOTSTRAP_PARSER_SMOKE_WAVE=wave844
+# wave845: xlang-x-pipeline full body → shell (G.7 有则补全).
+# Multi-make ensure ladder + host-cc link TARGET_x; lists stay mk expansion.
+# NOT physical delete — prereq bootstrap-pipeline/migrate + thin edges + B2 + mk lists remain.
+# Honesty COUNT = 1 target.
+PHYS_DEL_XLANG_X_PIPELINE_SHELL=1
+PHYS_DEL_XLANG_X_PIPELINE_SHELL_WAVE=wave845
+PHYS_DEL_XLANG_X_PIPELINE_SHELL_COUNT=1
+PHYS_DEL_XLANG_X_PIPELINE_SHELL_VIA=xlang_x_pipeline_sh_force_rebuild_link
+PHYS_DEL_XLANG_X_PIPELINE_SHELL_NOTE=shell_primary_xlang_x_link_prereq_graph_remain
+SWALLOWED_XLANG_X_PIPELINE_SHELL=1
+XLANG_X_PIPELINE_SHELL_SWALLOWED=1
+XLANG_X_PIPELINE_SHELL_HELPER=xlang_x_pipeline.sh
+XLANG_X_PIPELINE_SHELL_WAVE=wave845
 # wave816: B7B DRIVER_SUBCMD_* inventory → mk/driver_subcmd_objs.mk (G.7).
 # Makefile includes mk only; no dual inline re-list. Catalog parses mk (no
 # hardcode). NOT physical delete — thin-call edges + B2 ensure + other mk lists
@@ -953,13 +967,13 @@ B7B_SHELL_CATALOG_VIA=driver_seed_obj_catalog_shell_mk_parse
 B7B_SHELL_CATALOG_WAVE=wave788
 B7B_SHELL_CATALOG_NOTE=default_0make_mk_parse_make_export_escape_LEGACY
 PHYS_DEL_BUCKET_B7C=archaeology_phony_cc
-PHYS_DEL_BUCKET_B7C_SCOPE=bootstrap_typeck_codegen_self_x_compiler_parser_smoke
+PHYS_DEL_BUCKET_B7C_SCOPE=bootstrap_typeck_codegen_self_x_compiler_parser_smoke_xlang_x_pipeline
 PHYS_DEL_BUCKET_B7C_ARCHAEOLOGY_CC_THINNED=1
-PHYS_DEL_BUCKET_B7C_THINNED_VIA=bootstrap_typeck_codegen_sh+bootstrap_x_compiler_sh+bootstrap_self_sh+bootstrap_parser_smoke_sh+migrate_x_objs+ensure_gen_x_o_driver_leaf
-PHYS_DEL_BUCKET_B7C_THINNED_NOTE=typeck_codegen_shell_wave841_x_compiler_shell_wave842_self_shell_wave843_parser_smoke_wave844
+PHYS_DEL_BUCKET_B7C_THINNED_VIA=bootstrap_typeck_codegen_sh+bootstrap_x_compiler_sh+bootstrap_self_sh+bootstrap_parser_smoke_sh+xlang_x_pipeline_sh+migrate_x_objs+ensure_gen_x_o_driver_leaf
+PHYS_DEL_BUCKET_B7C_THINNED_NOTE=typeck_codegen_shell_wave841_x_compiler_shell_wave842_self_shell_wave843_parser_smoke_wave844_xlang_x_pipeline_wave845
 PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1
-PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave844
-PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=6
+PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave845
+PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=7
 PHYS_DEL_BUCKET_B7D=host_cc_product_link_xlang
 PHYS_DEL_BUCKET_B7D_SCOPE=TARGET_default_g05_prepare_and_relink
 PHYS_DEL_BUCKET_B7D_BODY_SWALLOWED=1
@@ -1017,6 +1031,7 @@ PHYS_DEL_PREFLIGHT_BOOTSTRAP_TYPECK_CODEGEN_SHELL=1
 PHYS_DEL_PREFLIGHT_BOOTSTRAP_X_COMPILER_SHELL=1
 PHYS_DEL_PREFLIGHT_BOOTSTRAP_SELF_SHELL=1
 PHYS_DEL_PREFLIGHT_BOOTSTRAP_PARSER_SMOKE=1
+PHYS_DEL_PREFLIGHT_XLANG_X_PIPELINE_SHELL=1
 PHYS_DEL_PREFLIGHT_B7B_DRIVER_SUBCMD_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SEED_MODE_LIST=1
@@ -1027,7 +1042,7 @@ PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_E_DIRS_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1675,6 +1690,9 @@ else
   fi
   if ! grep -qE 'wave844|BOOTSTRAP_PARSER_SMOKE|bootstrap-parser.*shell|parser.smoke shell-primary' "$DOC_REL"; then
     bad "$DOC_REL must document wave844 bootstrap-parser/parse-file shell-primary"
+  fi
+  if ! grep -qE 'wave845|XLANG_X_PIPELINE_SHELL|xlang-x-pipeline.*shell|xlang.x.pipeline shell-primary' "$DOC_REL"; then
+    bad "$DOC_REL must document wave845 xlang-x-pipeline shell-primary"
   fi
   if ! grep -qE 'wave812|formal_mod|FORMAL_MOD_SHELL|std_module ensure' "$DOC_REL"; then
     bad "$DOC_REL must document wave812 formal_mod shell-primary catalog"
@@ -2507,14 +2525,29 @@ fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_BOOTSTRAP_PARSER_SMOKE=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_BOOTSTRAP_PARSER_SMOKE=1 (wave844)"
 fi
+if ! grep -q 'PHYS_DEL_XLANG_X_PIPELINE_SHELL=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_XLANG_X_PIPELINE_SHELL=1 (wave845)"
+fi
+if ! grep -q 'PHYS_DEL_XLANG_X_PIPELINE_SHELL_WAVE=wave845' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_XLANG_X_PIPELINE_SHELL_WAVE=wave845"
+fi
+if ! grep -q 'PHYS_DEL_XLANG_X_PIPELINE_SHELL_COUNT=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_XLANG_X_PIPELINE_SHELL_COUNT=1 (wave845)"
+fi
+if ! grep -q 'SWALLOWED_XLANG_X_PIPELINE_SHELL=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_XLANG_X_PIPELINE_SHELL=1 (wave845)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_XLANG_X_PIPELINE_SHELL=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_XLANG_X_PIPELINE_SHELL=1 (wave845)"
+fi
 if ! grep -q 'PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1 (wave841–wave844)"
+  bad "dump must set PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1 (wave841–wave845)"
 fi
-if ! grep -q 'PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=6' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=6 (wave844)"
+if ! grep -q 'PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=7' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=7 (wave845)"
 fi
-if ! grep -q 'PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave844' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave844"
+if ! grep -q 'PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave845' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave845"
 fi
 if ! grep -q 'PHYS_DEL_B7B_DRIVER_SUBCMD_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_DRIVER_SUBCMD_LIST=1 (wave816)"
@@ -4550,6 +4583,31 @@ if [ -f "$MF" ]; then
     fi
   else
     bad "missing bootstrap_parser_smoke.sh (wave844)"
+  fi
+  # wave845 B7c: xlang-x-pipeline shell-primary via xlang_x_pipeline.sh
+  # (multi-make ensure + host-cc link TARGET_x; no dual Makefile body)
+  if ! grep -A12 '^xlang-x-pipeline:' "$MF" | grep -q 'xlang_x_pipeline\.sh'; then
+    bad "xlang-x-pipeline must thin-call xlang_x_pipeline.sh (wave845 B7c shell-primary)"
+  else
+    note "xlang-x-pipeline → xlang_x_pipeline.sh (wave845)"
+  fi
+  _xxp_rec=$(awk '/^xlang-x-pipeline:/{h=1;next} h&&/^[^[:space:]#]/{exit} h&&/^\t/{print}' "$MF")
+  if grep -qE 'PIPELINE_X_FORCE_COMPILE=1|@\$\(MAKE\).*migrate-x-objs' <<<"$_xxp_rec"; then
+    bad "xlang-x-pipeline must not keep dual multi-make ensure body (wave845)"
+  fi
+  if grep -qE '\$\(CC\).*DXLANG_USE_X_PIPELINE|\$\(CC\).* -o \$\(TARGET\)_x' <<<"$_xxp_rec"; then
+    bad "xlang-x-pipeline must not keep dual \$(CC) link body (wave845)"
+  fi
+  _xxp_sh="$SCRIPT_DIR/xlang_x_pipeline.sh"
+  if [ -f "$_xxp_sh" ]; then
+    if ! bash "$_xxp_sh" --check >/tmp/xxp_shell_check.log 2>/tmp/xxp_shell_check_err.log; then
+      bad "xlang_x_pipeline.sh --check failed (wave845)"
+      head -20 /tmp/xxp_shell_check_err.log >&2 || true
+    else
+      note "xlang_x_pipeline.sh --check OK (wave845)"
+    fi
+  else
+    bad "missing xlang_x_pipeline.sh (wave845)"
   fi
   # wave786 B7D: default TARGET product link via g05 (not incomplete OBJS_CORE)
   if ! grep -q 'g05_prepare_and_relink\.sh' "$MF"; then

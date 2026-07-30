@@ -433,8 +433,8 @@
 | 3216 | `bootstrap-asm-full` | ⬜ |
 | 3270 | `bootstrap-self` | 🟢 wave843 shell-primary：`bootstrap_self.sh`（stage1+stage2 link+smoke）；prereq graph residual |
 | 3359 | `bootstrap-pipeline` | ⬜ |
-| 3370 | `xlang-x-pipeline` | ⬜ |
-| 3380 | `bootstrap-x-compiler` | ⬜ |
+| 3370 | `xlang-x-pipeline` | 🟢 wave845 shell-primary：`xlang_x_pipeline.sh`（force rebuild + host-cc link TARGET_x）；prereq graph residual |
+| 3380 | `bootstrap-x-compiler` | 🟢 wave842 shell-primary：`bootstrap_x_compiler.sh`；prereq graph residual |
 | 3389 | `bootstrap-test` | ⬜ |
 | 3407 | `bootstrap-verify-bstrict` | ⬜ |
 | 3410 | `bootstrap-verify-seed` | ⬜ |

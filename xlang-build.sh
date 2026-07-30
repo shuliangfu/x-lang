@@ -550,6 +550,12 @@ case "$TARGET" in
   bootstrap-parse-file)
     (cd compiler && sh scripts/bootstrap_parser_smoke.sh parse-file)
     ;;
+  # wave845: xlang-x-pipeline shell-primary (G.7; multi-make ensure + host-cc link)
+  # Note: full product still needs make prereq graph; xbuild entry is structural/thin path.
+  xlang-x-pipeline|xlang_x_pipeline)
+    (cd compiler && sh scripts/xlang_x_pipeline.sh --check)
+    echo "xbuild xlang-x-pipeline: structural --check only; full link: make -C compiler xlang-x-pipeline" >&2
+    ;;
   bootstrap-verify)
     (cd compiler && sh scripts/bootstrap_verify_bstrict.sh)
     ;;
@@ -710,6 +716,7 @@ CI / 冷启动（外层 0× make -C；叶 pattern residual 至 11.3）:
   test / test_c / test_x     scripts/run_compiler_tests.sh
   bootstrap-token / lexer    scripts/bootstrap_token_lexer_smoke.sh
   bootstrap-parser / parse-file  scripts/bootstrap_parser_smoke.sh (wave844)
+  xlang-x-pipeline               scripts/xlang_x_pipeline.sh --check (wave845; full=make)
   bootstrap-driver-bstrict   scripts/bootstrap_driver_bstrict.sh
   bootstrap-verify           scripts/bootstrap_verify_bstrict.sh
 
