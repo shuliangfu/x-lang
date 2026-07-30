@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 🟡** prereq 边 shell（wave744）· **11.3.1 路径 🟡** 叶 pattern residual（wave746–861 · **非**物理删；**逐行清单见下 §11.3.1**） · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 🟡** prereq 边 shell（wave744）· **11.3.1 路径 🟡** 叶 pattern residual（wave746–868 · **非**物理删；**逐行清单见下 §11.3.1**） · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 4/4 策略 | 11.5.1–4 **策略已裁定**（wave734/741 · `tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -1500,6 +1500,7 @@
 - **wave865** · B7B migrate/bootstrap multi-token CFLAGS shell-load（export-try-heat-cflags；8 recipes：migrate 4 + BTC 2 + XXP/BXC 2）
 - **wave866** · B7B build-tool CFLAGS shell-load + WIN32_O_CFLAGS leaf drop（export-try-heat-cflags；2 recipes：build-tool + crt0_mingw）
 - **wave867** · B7B archaeology host-pick LD_R_MULTIDEF_FLAGS leaf drop（4 recipes：net-o-stub/openssl/mbedtls + sqlite-o-stub；shell uname 默认）
+- **wave868** · B7C bootstrap-driver-bstrict-relink shell-primary（1 phony → relink_xlang_asm_bstrict_runtime_objs.sh；G.7 有则补全 dual body）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
@@ -1612,6 +1613,7 @@
 - ✅ **migrate/bootstrap CFLAGS shell-load**（wave865 · 8 recipes · export-try-heat-cflags · 去 multi-token CFLAGS inject · **非**物理删 · thin edges + B2 + build-tool/WIN32 residual）
 - ✅ **build-tool/WIN32 CFLAGS hygiene**（wave866 · 2 recipes · build-tool shell-load export-try-heat-cflags · crt0_mingw 去 WIN32_O inject · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **archaeology host-pick LD_R_MULTIDEF hygiene**（wave867 · 4 recipes · net-o-stub/openssl/mbedtls + sqlite-o-stub 去 multi-token `LD_R_MULTIDEF_FLAGS=` · shell `arch_ld_r_multidef_flags` uname 默认 · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **bstrict-relink shell-primary**（wave868 · bootstrap-driver-bstrict-relink → relink_xlang_asm_bstrict_runtime_objs.sh · G.7 有则补全 dual body · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`c14777d2b`**
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：
