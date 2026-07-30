@@ -9,7 +9,11 @@
 #
 #   Object lists stay mk expansion (composites / user_asm / link_picks /
 #   subcmd / PIPELINE_LIBS). Shell never hardcodes a second full link inventory —
-#   Makefile thin-call exports expanded bags as RXL_* env vars.
+#   Makefile thin-call exports expanded LINK bag as RXL_LINK_* env vars.
+#
+#   Seed-gate REQUIRED bag authority: mk/driver_seed_composites.mk
+#   RELINK_XLANG_REQUIRED_OBJS (wave854 list → mk; wave855 shell loads mk —
+#   Makefile must not re-export multi-token RXL_REQUIRED_OBJS).
 #
 # Usage (cwd = compiler/):
 #   bash scripts/relink_xlang_lexer.sh
@@ -23,10 +27,11 @@
 #   RXL_LINK_CFLAGS      — expanded CFLAGS + DRIVER_SEED_LINK_FLAGS +
 #                          ASM_GLUE_DUP_LDFLAGS + MAIN_LINK_FLAGS
 #   RXL_LINK_OBJS        — full expanded object bag for the link line
-#   RXL_REQUIRED_OBJS    — satellite .o that must exist before link
-#                          (historical seed gate; not a second list authority)
+#   RXL_REQUIRED_OBJS    — optional override; default loads RELINK_XLANG_REQUIRED_OBJS
+#                          from mk (wave855; not a second list authority)
 #
 # wave849 (G.7 有则补全): Makefile fat test + $(MAKE) glue + $(CC) link + cp → this script.
+# wave855: seed-gate REQUIRED loads from mk (G.7; not physical delete).
 # NOT physical delete — prereq make-graph (lexer_x.o / FILTERED / GLUE) + thin edges +
 # B2 + mk lists remain.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
@@ -67,11 +72,21 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'test -f driver_x\.o && test -f pipeline_x\.o' <<<"$_rec"; then
     fail "relink-xlang-lexer must not keep dual test -f seed gate body (wave849; shell owns preflight)"
   fi
+  # wave855: Makefile must not re-export multi-token REQUIRED bag (shell loads mk).
+  if grep -qE 'RXL_REQUIRED_OBJS=' <<<"$_rec"; then
+    fail "relink-xlang-lexer must not export RXL_REQUIRED_OBJS (wave855; shell loads mk)"
+  fi
+  if [ ! -f mk/driver_seed_composites.mk ]; then
+    fail "missing mk/driver_seed_composites.mk (wave855 REQUIRED authority)"
+  fi
+  if ! grep -qE '^RELINK_XLANG_REQUIRED_OBJS[[:space:]]*=' mk/driver_seed_composites.mk; then
+    fail "mk/driver_seed_composites.mk must define RELINK_XLANG_REQUIRED_OBJS (wave855)"
+  fi
   # Dual cp sync of product aliases must not remain in recipe.
   if grep -qE 'cp -f \$\(TARGET\) \$\(XLANG_C\)|cp -f \$\(TARGET\) bootstrap_xlangc' <<<"$_rec"; then
     fail "relink-xlang-lexer must not keep dual cp sync body (wave849; shell owns sync)"
   fi
-  log "CHECK OK (wave849 relink-xlang-lexer shell-primary; not physical delete)"
+  log "CHECK OK (wave849+855 relink-xlang-lexer shell-primary; REQUIRED from mk; not physical delete)"
   exit 0
 fi
 
@@ -89,8 +104,20 @@ if [ "$MODE" != "run" ] && [ "$MODE" != "" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Preflight: link env from Makefile thin-call (G.7: bags stay mk expansion)
+# Preflight: link env from Makefile thin-call (G.7: LINK bags stay mk expansion)
+# wave855: seed-gate REQUIRED loads from mk (fixed multi-token; no make export).
+# PLATFORM: SHARED — pure text parse of composites.mk; no make.
 # ---------------------------------------------------------------------------
+_mk_assign_val() {
+  # First KEY = value line from mk (strip comments / trailing space).
+  # $1 = key, $2 = mk path
+  local key="$1"
+  local mk="$2"
+  local line
+  line=$(grep -E "^${key}[[:space:]]*=" "$mk" 2>/dev/null | head -1 | sed "s/^${key}[[:space:]]*=[[:space:]]*//;s/#.*//;s/[[:space:]]*$//")
+  printf '%s' "$line"
+}
+
 if [ -z "${RXL_LINK_CFLAGS:-}" ]; then
   fail "RXL_LINK_CFLAGS required (Makefile thin-call must export expanded link CFLAGS)"
 fi
@@ -98,7 +125,12 @@ if [ -z "${RXL_LINK_OBJS:-}" ]; then
   fail "RXL_LINK_OBJS required (Makefile thin-call must export expanded link bag)"
 fi
 if [ -z "${RXL_REQUIRED_OBJS:-}" ]; then
-  fail "RXL_REQUIRED_OBJS required (Makefile thin-call must export seed gate .o list)"
+  _COMP_MK=mk/driver_seed_composites.mk
+  [ -f "$_COMP_MK" ] || fail "missing $_COMP_MK (wave855 REQUIRED authority)"
+  RXL_REQUIRED_OBJS=$(_mk_assign_val RELINK_XLANG_REQUIRED_OBJS "$_COMP_MK")
+fi
+if [ -z "${RXL_REQUIRED_OBJS:-}" ]; then
+  fail "failed to load RELINK_XLANG_REQUIRED_OBJS from mk/driver_seed_composites.mk (wave855)"
 fi
 
 # ---------------------------------------------------------------------------

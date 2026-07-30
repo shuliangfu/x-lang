@@ -2349,7 +2349,8 @@ else
 # wave853 B7B: BOOTSTRAP_DRIVER_SEED_{PHASE1,FINAL}_LINK_OBJS (seed SEED_LINK_OBJS
 # phase1/final bags) also live here — Makefile expand only.
 # wave854 B7B: RELINK_XLANG_REQUIRED_OBJS + XLANG_X_REQUIRED_OBJS (seed-gate bags)
-# also live here — Makefile expand only. XNC gate bag is in archaeology_experiment.
+# also live here. wave855: shell loads REQUIRED from mk (no multi-token env export).
+# XNC gate bag is in archaeology_experiment.
 include mk/driver_seed_composites.mk
 
 # legacy xlang-c: list authority mk/driver_seed_composites.mk (wave822).
@@ -2684,8 +2685,8 @@ xlang_asm:
 #   gate + host-cc link + XLANG_C/bootstrap_xlangc sync).
 # wave850 B7B: RXL_LINK_OBJS → $(RELINK_PRODUCT_LINK_OBJS) (composites.mk; same bag
 #   as BTC_OBJS typeck/codegen — no dual inline product link inventory).
-# wave854 B7B: RXL_REQUIRED_OBJS → $(RELINK_XLANG_REQUIRED_OBJS) (composites.mk;
-#   seed-gate bag; no dual inline multi-token gate list).
+# wave854 B7B: RELINK_XLANG_REQUIRED_OBJS list authority → composites.mk.
+# wave855: shell loads REQUIRED from mk (no Makefile multi-token env export).
 # NOT physical delete — prereq make-graph (lexer_x.o / FILTERED / GLUE) + thin edges
 #   + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell owns preflight + link + product alias sync.
@@ -2693,7 +2694,6 @@ relink-xlang-lexer: lexer_x.o $(RELINK_XLANG_FILTERED_OBJS) $(RELINK_XLANG_GLUE_
 	@CC="$(CC)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" BOOTSTRAP_XLANGC="bootstrap_xlangc" \
 	  RXL_LINK_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
 	  RXL_LINK_OBJS="$(RELINK_PRODUCT_LINK_OBJS)" \
-	  RXL_REQUIRED_OBJS="$(RELINK_XLANG_REQUIRED_OBJS)" \
 	  bash scripts/relink_xlang_lexer.sh
 
 bootstrap-driver-seed-user-asm: bootstrap-driver-seed
@@ -2708,13 +2708,13 @@ bootstrap-driver-seed-user-asm: bootstrap-driver-seed
 # PLATFORM: SHARED — shell owns preflight + link orchestration.
 # wave851 B7B: XNC_LINK_OBJS → $(XLANG_NO_C_FRONTEND_LINK_OBJS)
 #   (archaeology_experiment_objs.mk; no dual inline no-C full link inventory).
-# wave854 B7B: XNC_REQUIRED_OBJS → $(XLANG_NO_C_FRONTEND_REQUIRED_OBJS)
-#   (archaeology_experiment_objs.mk; seed-gate bag).
+# wave854 B7B: XLANG_NO_C_FRONTEND_REQUIRED_OBJS list authority →
+#   archaeology_experiment_objs.mk.
+# wave855: shell loads REQUIRED from mk (no Makefile multi-token env export).
 xlang-no-c-frontend: $(DRIVER_NO_C_FRONTEND_OBJS) src/lsp/lsp_diag_stubs_no_c.o scripts/xlang_no_c_frontend.sh
 	@CC="$(CC)" OUT="$@" \
 	  XNC_LINK_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS)" \
 	  XNC_LINK_OBJS="$(XLANG_NO_C_FRONTEND_LINK_OBJS)" \
-	  XNC_REQUIRED_OBJS="$(XLANG_NO_C_FRONTEND_REQUIRED_OBJS)" \
 	  bash scripts/xlang_no_c_frontend.sh
 
 # 注意：Makefile 中存在同名规则 `xlang-x:`，不能把 `xlang-x` 列为本目标 prerequisite，否则会先执行重链接口而非仅检测文件是否存在。
@@ -2731,13 +2731,12 @@ regen-lsp-gens-x:
 # PLATFORM: SHARED — shell owns preflight + link orchestration.
 # wave851 B7B: XXL_LINK_OBJS → $(XLANG_X_LINK_OBJS)
 #   (composites.mk; no dual inline xlang-x product link inventory).
-# wave854 B7B: XXL_REQUIRED_OBJS → $(XLANG_X_REQUIRED_OBJS) (composites.mk;
-#   seed-gate bag; no dual inline multi-token gate list).
+# wave854 B7B: XLANG_X_REQUIRED_OBJS list authority → composites.mk.
+# wave855: shell loads REQUIRED from mk (no Makefile multi-token env export).
 xlang-x: build-seed-asm-host $(DRIVER_SEED_OBJS) $(XLANG_X_PIPELINE_LINK_O) $(XLANG_X_USER_ASM_OBJS) driver_x.o preprocess_x.o $(RELINK_XLANG_GLUE_SUFFIX) scripts/xlang_x.sh
 	@CC="$(CC)" XLANG_X="$(XLANG_X)" \
 	  XXL_LINK_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
 	  XXL_LINK_OBJS="$(XLANG_X_LINK_OBJS)" \
-	  XXL_REQUIRED_OBJS="$(XLANG_X_REQUIRED_OBJS)" \
 	  bash scripts/xlang_x.sh
 
 # Stage2：xlang-x 用 -x -E-extern 生成 _gen2.c 并链出 xlang-x2，与 xlang-x 行为对比（脚本内会 make xlang-x / bootstrap-driver-seed）

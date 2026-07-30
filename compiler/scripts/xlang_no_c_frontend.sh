@@ -9,7 +9,11 @@
 #   Object lists stay mk expansion (archaeology_experiment_objs.mk
 #   DRIVER_NO_C_FRONTEND_OBJS + DRIVER_SUBCMD + PIPELINE_LIBS). Shell never
 #   hardcodes a second full link inventory — Makefile thin-call exports
-#   expanded bags as XNC_* env vars.
+#   expanded LINK bag as XNC_LINK_* env vars.
+#
+#   Seed-gate REQUIRED bag authority: mk/archaeology_experiment_objs.mk
+#   XLANG_NO_C_FRONTEND_REQUIRED_OBJS (wave854 list → mk; wave855 shell loads
+#   mk — Makefile must not re-export multi-token XNC_REQUIRED_OBJS).
 #
 # Usage (cwd = compiler/):
 #   bash scripts/xlang_no_c_frontend.sh
@@ -20,10 +24,11 @@
 #   OUT / TARGET_OUT     — output binary (default: xlang-no-c-frontend)
 #   XNC_LINK_CFLAGS      — expanded CFLAGS + DRIVER_SEED_LINK_FLAGS + MAIN_LINK_FLAGS
 #   XNC_LINK_OBJS        — full expanded object bag for the link line
-#   XNC_REQUIRED_OBJS    — satellite .o that must exist before link
-#                          (historical seed gate; not a second list authority)
+#   XNC_REQUIRED_OBJS    — optional override; default loads
+#                          XLANG_NO_C_FRONTEND_REQUIRED_OBJS from mk (wave855)
 #
 # wave847 (G.7 有则补全): Makefile fat test + $(CC) link → this script.
+# wave855: seed-gate REQUIRED loads from mk (G.7; not physical delete).
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
@@ -61,7 +66,17 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'test -f driver_x\.o && test -f pipeline_x\.o' <<<"$_rec"; then
     fail "xlang-no-c-frontend must not keep dual test -f seed gate body (wave847; shell owns preflight)"
   fi
-  log "CHECK OK (wave847 xlang-no-c-frontend shell-primary; not physical delete)"
+  # wave855: Makefile must not re-export multi-token REQUIRED bag (shell loads mk).
+  if grep -qE 'XNC_REQUIRED_OBJS=' <<<"$_rec"; then
+    fail "xlang-no-c-frontend must not export XNC_REQUIRED_OBJS (wave855; shell loads mk)"
+  fi
+  if [ ! -f mk/archaeology_experiment_objs.mk ]; then
+    fail "missing mk/archaeology_experiment_objs.mk (wave855 REQUIRED authority)"
+  fi
+  if ! grep -qE '^XLANG_NO_C_FRONTEND_REQUIRED_OBJS[[:space:]]*=' mk/archaeology_experiment_objs.mk; then
+    fail "mk/archaeology_experiment_objs.mk must define XLANG_NO_C_FRONTEND_REQUIRED_OBJS (wave855)"
+  fi
+  log "CHECK OK (wave847+855 xlang-no-c-frontend shell-primary; REQUIRED from mk; not physical delete)"
   exit 0
 fi
 
@@ -79,8 +94,20 @@ if [ "$MODE" != "run" ] && [ "$MODE" != "" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Preflight: link env from Makefile thin-call (G.7: bags stay mk expansion)
+# Preflight: link env from Makefile thin-call (G.7: LINK bags stay mk expansion)
+# wave855: seed-gate REQUIRED loads from mk (fixed multi-token; no make export).
+# PLATFORM: SHARED — pure text parse of archaeology_experiment_objs.mk; no make.
 # ---------------------------------------------------------------------------
+_mk_assign_val() {
+  # First KEY = value line from mk (strip comments / trailing space).
+  # $1 = key, $2 = mk path
+  local key="$1"
+  local mk="$2"
+  local line
+  line=$(grep -E "^${key}[[:space:]]*=" "$mk" 2>/dev/null | head -1 | sed "s/^${key}[[:space:]]*=[[:space:]]*//;s/#.*//;s/[[:space:]]*$//")
+  printf '%s' "$line"
+}
+
 if [ -z "${XNC_LINK_CFLAGS:-}" ]; then
   fail "XNC_LINK_CFLAGS required (Makefile thin-call must export expanded link CFLAGS)"
 fi
@@ -88,7 +115,12 @@ if [ -z "${XNC_LINK_OBJS:-}" ]; then
   fail "XNC_LINK_OBJS required (Makefile thin-call must export expanded link bag)"
 fi
 if [ -z "${XNC_REQUIRED_OBJS:-}" ]; then
-  fail "XNC_REQUIRED_OBJS required (Makefile thin-call must export seed gate .o list)"
+  _ARCH_MK=mk/archaeology_experiment_objs.mk
+  [ -f "$_ARCH_MK" ] || fail "missing $_ARCH_MK (wave855 REQUIRED authority)"
+  XNC_REQUIRED_OBJS=$(_mk_assign_val XLANG_NO_C_FRONTEND_REQUIRED_OBJS "$_ARCH_MK")
+fi
+if [ -z "${XNC_REQUIRED_OBJS:-}" ]; then
+  fail "failed to load XLANG_NO_C_FRONTEND_REQUIRED_OBJS from mk/archaeology_experiment_objs.mk (wave855)"
 fi
 
 # ---------------------------------------------------------------------------

@@ -74,7 +74,8 @@ DRIVER_SEED_X_FRONTEND_LINK_OBJS = $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) dri
 # Makefile thin-call must not re-list this inventory inline (dual authority).
 # Fixed multi-token authority COUNT=3 (all path tokens; no $(...) expand):
 #   driver_x.o pipeline_x.o preprocess_x.o
-# Consumer: XNC_REQUIRED_OBJS (make xlang-no-c-frontend → xlang_no_c_frontend.sh).
+# wave855: shell consumer loads this key from this mk (xlang_no_c_frontend.sh);
+# Makefile must not re-export multi-token XNC_REQUIRED_OBJS env.
 # Part of honesty bags COUNT=3 with RXL/XXL in driver_seed_composites.mk.
 # PLATFORM: SHARED — leaf basenames host-portable.
 XLANG_NO_C_FRONTEND_REQUIRED_OBJS = driver_x.o pipeline_x.o preprocess_x.o

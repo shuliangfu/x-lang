@@ -134,7 +134,8 @@ BOOTSTRAP_DRIVER_SEED_FINAL_LINK_OBJS = $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_D
 # Fixed multi-token authority (all path tokens; no $(...) expand):
 #   RELINK_XLANG_REQUIRED_OBJS COUNT=6 (RXL relink-xlang-lexer seed gate)
 #   XLANG_X_REQUIRED_OBJS      COUNT=12 (XXL xlang-x seed gate)
-# Consumers: RXL_REQUIRED_OBJS / XXL_REQUIRED_OBJS env exports.
+# wave855: shell consumers load these keys from this mk (relink_xlang_lexer.sh /
+#   xlang_x.sh); Makefile must not re-export multi-token REQUIRED env.
 # PLATFORM: SHARED — leaf basenames host-portable.
 RELINK_XLANG_REQUIRED_OBJS = build_asm/seed_host/asm_backend_partial.o driver_x.o pipeline_x.o parser_x.o typeck_x.o codegen_x.o
 XLANG_X_REQUIRED_OBJS = driver_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o lsp_io_std_heap_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o
