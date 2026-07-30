@@ -212,6 +212,10 @@
 #            drop dual @echo after thin-call (3); pure @echo alias → @true (9);
 #            last cc_inc_tu multi-token -I. -Iinclude -Isrc drop (1; shell default);
 #            NOT physical delete — thin edges + B2 + mk lists remain
+#   wave893: B7B residual verify-selfhost thin-call form hygiene (2 sites) →
+#            body → scripts/verify-selfhost-stage2{,-bstrict}.sh; Makefile pure
+#            @bash scripts/… (drop @bash ./); root shim for CI/tests path compat;
+#            NOT physical delete — thin edges + B2 + mk lists remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1630,6 +1634,23 @@ SWALLOWED_B7B_TERMINAL_ECHO_I_FORM_HYGIENE=1
 B7B_TERMINAL_ECHO_I_FORM_HYGIENE_SWALLOWED=1
 B7B_TERMINAL_ECHO_I_FORM_HYGIENE_WAVE=wave892
 B7B_TERMINAL_ECHO_I_FORM_HYGIENE_COUNT=13
+# wave893: B7B residual verify-selfhost thin-call form hygiene.
+#   2 recipes: verify-selfhost-stage2 + verify-selfhost-stage2-bstrict
+#   body authority → scripts/verify-selfhost-stage2{,-bstrict}.sh
+#   Makefile pure @bash scripts/… (drop residual @bash ./ form)
+#   root compiler/verify-selfhost-stage2*.sh = zero-logic shim (CI/tests path)
+#   bootstrap_verify_bstrict calls scripts/ authority directly
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — form hygiene only.
+PHYS_DEL_B7B_VERIFY_SELFHOST_FORM_HYGIENE=1
+PHYS_DEL_B7B_VERIFY_SELFHOST_FORM_HYGIENE_WAVE=wave893
+PHYS_DEL_B7B_VERIFY_SELFHOST_FORM_HYGIENE_COUNT=2
+PHYS_DEL_B7B_VERIFY_SELFHOST_FORM_HYGIENE_VIA=scripts_verify_selfhost_stage2_bash_scripts_form_root_shim
+PHYS_DEL_B7B_VERIFY_SELFHOST_FORM_HYGIENE_NOTE=makefile_no_bash_dot_slash_verify_body_under_scripts_thin_edges_remain
+SWALLOWED_B7B_VERIFY_SELFHOST_FORM_HYGIENE=1
+B7B_VERIFY_SELFHOST_FORM_HYGIENE_SWALLOWED=1
+B7B_VERIFY_SELFHOST_FORM_HYGIENE_WAVE=wave893
+B7B_VERIFY_SELFHOST_FORM_HYGIENE_COUNT=2
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -7359,6 +7380,56 @@ if ! grep -q 'PHYS_DEL_B7B_TERMINAL_ECHO_I_FORM_HYGIENE_COUNT=13' <<<"$_out"; th
   bad "dump must set PHYS_DEL_B7B_TERMINAL_ECHO_I_FORM_HYGIENE_COUNT=13 (wave892)"
 fi
 note "B7B residual terminal @echo + last multi-token -I form hygiene (COUNT=13; wave892; not physical delete)"
+# wave893: verify-selfhost pure @bash scripts/ form (no @bash ./ residual)
+if grep -nE $'^\t@bash \\./' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still uses @bash ./… recipe form (wave893; use @bash scripts/)"
+  grep -nE $'^\t@bash \\./' "$MF" | head -5 >&2
+fi
+# stage2 thin-call targets must invoke scripts/ authority
+_vs2_rec=$(awk '
+  /^verify-selfhost-stage2:/ { hit=1; print; next }
+  hit && /^[^[:space:]#]/ { exit }
+  hit { print }
+' "$MF")
+if ! grep -q 'scripts/verify-selfhost-stage2\.sh' <<<"$_vs2_rec"; then
+  bad "verify-selfhost-stage2 must thin-call scripts/verify-selfhost-stage2.sh (wave893)"
+fi
+if grep -qE '@bash \./' <<<"$_vs2_rec"; then
+  bad "verify-selfhost-stage2 must not use @bash ./ form (wave893)"
+fi
+_vs2b_rec=$(awk '
+  /^verify-selfhost-stage2-bstrict:/ { hit=1; print; next }
+  hit && /^[^[:space:]#]/ { exit }
+  hit { print }
+' "$MF")
+if ! grep -q 'scripts/verify-selfhost-stage2-bstrict\.sh' <<<"$_vs2b_rec"; then
+  bad "verify-selfhost-stage2-bstrict must thin-call scripts/ body (wave893)"
+fi
+if grep -qE '@bash \./' <<<"$_vs2b_rec"; then
+  bad "verify-selfhost-stage2-bstrict must not use @bash ./ form (wave893)"
+fi
+# body authority present under scripts/; root is shim-only
+if [ ! -f "$COMPILER_DIR/scripts/verify-selfhost-stage2.sh" ]; then
+  bad "missing scripts/verify-selfhost-stage2.sh body (wave893)"
+fi
+if [ ! -f "$COMPILER_DIR/scripts/verify-selfhost-stage2-bstrict.sh" ]; then
+  bad "missing scripts/verify-selfhost-stage2-bstrict.sh body (wave893)"
+fi
+if ! grep -q 'wave893' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave893 verify-selfhost form hygiene"
+fi
+if ! grep -q 'PHYS_DEL_B7B_VERIFY_SELFHOST_FORM_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_VERIFY_SELFHOST_FORM_HYGIENE=1 (wave893)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_VERIFY_SELFHOST_FORM_HYGIENE_COUNT=2' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_VERIFY_SELFHOST_FORM_HYGIENE_COUNT=2 (wave893)"
+fi
+# bootstrap_verify must call scripts/ authority (not only root shim)
+if ! grep -q 'scripts/verify-selfhost-stage2-bstrict\.sh' \
+  "$COMPILER_DIR/scripts/bootstrap_verify_bstrict.sh" 2>/dev/null; then
+  bad "bootstrap_verify_bstrict.sh must call scripts/ verify-selfhost-stage2-bstrict (wave893)"
+fi
+note "B7B residual verify-selfhost form hygiene (COUNT=2; wave893; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \

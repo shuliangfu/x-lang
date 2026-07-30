@@ -93,7 +93,7 @@
 | `compile_commands.json` | 3418 | Makefile | `xbuild compile-commands 或删` | ⬜ Makefile | IDE 辅助 |
 | `size-baseline` | 3422 | **shell** `stage8_baseline.sh size` | `xbuild size-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-size-baseline.sh` | 可选 stage-8 |
 | `perf-baseline` | 3426 | **shell** `stage8_baseline.sh perf` | `xbuild perf-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-perf-baseline.sh` | 可选 stage-8 |
-| `verify-selfhost-stage2` | 3131 | Makefile | `xbuild stage2` | ⬜ Makefile | 阶段 11.2.1 |
+| `verify-selfhost-stage2` | ~2783 | **shell** `scripts/verify-selfhost-stage2.sh` | `xbuild stage2` / make thin | 🟢 wave893 body under scripts；root shim CI | Stage2 X dogfood |
 | `bootstrap-verify` | 3414 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-seed` | 3410 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-bstrict` | 3407 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
@@ -472,8 +472,8 @@
 | ~1685 | `test_c` | 🟢 wave720 shell `run_compiler_tests.sh c` |
 | ~1690 | `test_x` | 🟢 wave720 shell `run_compiler_tests.sh x` |
 | ~1694 | `test` | 🟢 wave720 → test_c+test_x（xlang-build: mode all） |
-| 3131 | `verify-selfhost-stage2` | ⬜ |
-| 3139 | `verify-selfhost-stage2-bstrict` | ⬜ 脚本仍内 make |
+| ~2783 | `verify-selfhost-stage2` | 🟢 wave893 shell `scripts/verify-selfhost-stage2.sh` |
+| ~2792 | `verify-selfhost-stage2-bstrict` | 🟢 wave893 shell `scripts/verify-selfhost-stage2-bstrict.sh` |
 | 3220 | `check-asm-o-quality` | ⬜ |
 | 2959 | `check-6.4` | 🟢 wave871 shell `check_6_4.sh` |
 | 3015 | `check-7.2` | 🟢 wave870 shell `check_7_2.sh` |
@@ -690,6 +690,10 @@
 
 - **wave886** · B7B residual LD + pipeline bag inject hygiene：2 叶（`cfg_eval.o` 去 `LD=`/`LD_RELFLAGS=`；`pipeline_x.o` 去 `PIPELINE_X_DEPS`/`PIPELINE_X_FORCE_COMPILE`/`XLANG_FORCE_REGEN_GEN`）。shell LD defaults + `ensure_gen_x_o` mk-load DEPS。**非**物理删。
 
+
+## wave893 residual note
+
+- **wave893** · B7B residual verify-selfhost thin-call form hygiene：2 sites（`verify-selfhost-stage2` / `verify-selfhost-stage2-bstrict` body → `scripts/`；Makefile pure `@bash scripts/…`；root shim for CI/tests path；`bootstrap_verify_bstrict` 直调 scripts/）。**非**物理删。迁移表 ⬜→🟢 体 shell；`make` 图仍 thin-call。
 
 ## wave892 residual note
 

@@ -1526,10 +1526,11 @@
 - **wave890** · B7B residual bulk `@sh` → `@bash` thin-call form hygiene（77 sites → formal_mod 38 + std_x 22 + migrate/eoo/g05/clean/token/refresh；纯 `@bash scripts/…`）
 - **wave891** · B7B residual non-thin HOST_CC + SKIP_SUBSCRIPT body hygiene（2 sites → host_cc_objs_core_link.sh + bootstrap_driver_seed soft-skip）
 - **wave892** · B7B residual terminal `@echo` + last multi-token `-I` form hygiene（13 sites → dual echo drop 3 · pure echo→`@true` 9 · last `cc_inc_tu` `-I` drop 1）
+- **wave893** · B7B residual verify-selfhost thin-call form hygiene（2 sites → body under `scripts/` · pure `@bash scripts/…` · root shim for CI/tests）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
-- **open** · thin edges + B2 + mk lists（hybrid）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave892 terminal echo/-I form closed
+- **open** · thin edges + B2 + mk lists（hybrid）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave893 verify form closed
 
 **状态明细**（一行一项）：
 

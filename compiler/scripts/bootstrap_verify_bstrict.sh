@@ -63,11 +63,13 @@ elif [ "$XLANG_VERIFY_ENSURE_BSTRICT" = "1" ] && [ ! -x ./xlang_asm ]; then
 fi
 
 # Step 1: stage2 dogfood (produces xlang_asm_stage1 / xlang_asm2 when needed)
-if [ ! -f ./verify-selfhost-stage2-bstrict.sh ]; then
-  log "missing ./verify-selfhost-stage2-bstrict.sh"
+# wave893: body authority = scripts/verify-selfhost-stage2-bstrict.sh (G.7).
+# Root compiler/verify-selfhost-stage2-bstrict.sh is a thin shim only.
+if [ ! -f ./scripts/verify-selfhost-stage2-bstrict.sh ]; then
+  log "missing ./scripts/verify-selfhost-stage2-bstrict.sh"
   exit 1
 fi
-sh ./verify-selfhost-stage2-bstrict.sh
+bash ./scripts/verify-selfhost-stage2-bstrict.sh
 
 # Step 2: historical check-7.2-bstrict per-stage suite
 ROOT="$(pwd)/.."

@@ -2779,9 +2779,13 @@ xlang-x: build-seed-asm-host $(DRIVER_SEED_OBJS) $(XLANG_X_PIPELINE_LINK_O) $(XL
 	@bash scripts/xlang_x.sh
 
 # Stage2：xlang-x 用 -x -E-extern 生成 _gen2.c 并链出 xlang-x2，与 xlang-x 行为对比（脚本内会 make xlang-x / bootstrap-driver-seed）
-# wave888 B7B: thin @bash form (drop sh ./…).
-verify-selfhost-stage2:
-	@bash ./verify-selfhost-stage2.sh
+# wave893 B7B residual: pure @bash scripts/ form (drop @bash ./ compiler-root body).
+# Authority: scripts/verify-selfhost-stage2.sh (G.7 有则补全; body moved under scripts/).
+# Root shim compiler/verify-selfhost-stage2.sh remains for CI/tests path compatibility.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — thin orchestration only.
+verify-selfhost-stage2: scripts/verify-selfhost-stage2.sh
+	@bash scripts/verify-selfhost-stage2.sh
 
 # 可选：在 bootstrap-verify 之外单独跑 Stage2（不阻塞 PR 默认 CI）
 # wave892 B7B residual: drop pure @echo alias body → @true (G.7 form hygiene).
@@ -2789,9 +2793,13 @@ bootstrap-verify-stage2: verify-selfhost-stage2
 	@true
 
 # M5：B-strict 二遍 build_xlang_asm（xlang_asm -> xlang_asm2），不依赖 xlang-x -x -E。
-# wave888 B7B: thin @bash form (drop sh ./…).
-verify-selfhost-stage2-bstrict:
-	@bash ./verify-selfhost-stage2-bstrict.sh
+# wave893 B7B residual: pure @bash scripts/ form (drop @bash ./ compiler-root body).
+# Authority: scripts/verify-selfhost-stage2-bstrict.sh (G.7 有则补全).
+# Root shim remains for CI/tests path compatibility.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — thin orchestration only.
+verify-selfhost-stage2-bstrict: scripts/verify-selfhost-stage2-bstrict.sh
+	@bash scripts/verify-selfhost-stage2-bstrict.sh
 
 # wave892 B7B residual: drop pure @echo alias body → @true (G.7 form hygiene).
 bootstrap-verify-stage2-bstrict: verify-selfhost-stage2-bstrict
