@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # phys_del_makefile_gate.sh — wave799 execute-gate + wave800 proof + wave801 STATUS
 # flip prep + wave802 STATUS flip *apply harness* + wave803 STATUS flip *commit
-# honesty* (inventory + post-apply contract; tree not flipped on this tip without
-# real Windows proof + explicit human confirm).
+# honesty* + wave804 STATUS apply (tree may be reproven_green) + wave805 ENDGAME
+# arm *prep/preview* (plan only; tree ENDGAME stays 0; never rm Makefile).
 #
 # PLATFORM: SHARED shell orchestration (macOS / Ubuntu / Windows MSYS2).
 # Windows min-gate body runs only on MSYS2 (tests/run-bootstrap-bstrict-windows-gate.sh).
 #
 # Authority (G.7):
 #   Single shell authority that *refuses* physical delete of compiler/Makefile
-#   until Windows hybrid min-gate is re-proven on this tip. Complements
-#   leaf_pattern_residual.sh preflight keys (wave798). Does NOT delete Makefile.
+#   until Windows hybrid min-gate is re-proven on this tip AND ENDGAME=1 AND
+#   explicit confirm. Complements leaf_pattern_residual.sh preflight keys
+#   (wave798). Does NOT delete Makefile in wave805 (preview only).
 #   STATUS flip of PHYS_DEL_WINDOWS_GATE_STATUS is confirm-gated leaf edit only
-#   (wave802); never auto-flip from proof alone; ENDGAME stays 0 on flip.
+#   (wave802); never auto-flip from proof alone; ENDGAME stays 0 on STATUS flip.
 #
 # wave800 (G.7 有则补全 on this script):
 #   Machine-checkable *evidence* stamp after MSYS min-gate green.
@@ -39,9 +40,17 @@
 #   ENDGAME=0 AND --delete still refused. Honesty greps that hard-require
 #   not_reproven must co-change in the same flip commit (listed here).
 #
+# wave805 (G.7 有则补全 on this script):
+#   --endgame-preview: after STATUS=reproven_green (wave804), print the *exact*
+#   leaf key plan a reviewed mac commit would apply to arm ENDGAME=1.
+#   Preview never edits files. Preview ≠ arm ENDGAME. Preview ≠ physical delete.
+#   Tree ENDGAME stays 0 on this tip; --delete still hard-refuses.
+#   Optional XLANG_PHYS_DEL_LEAF_FILE for harness tests (temp leaf STATUS).
+#
 # Modes:
 #   status | --status          Dump readiness + host + Windows gate honesty + proof
 #   --check | check            Machine-check gate wiring + refuse + proof + flip
+#                              + endgame-preview harness (wave805)
 #   --dry-run-delete           List what physical delete *would* touch; never rm
 #   --run-windows-gate         Run min-gate (MSYS2 only; non-MSYS skip exit 0);
 #                              on success write proof stamp (wave800)
@@ -56,8 +65,11 @@
 #   --status-flip-commit-honesty
 #                              Commit checklist / post-apply honesty (wave803);
 #                              never edits; never deletes
-#   --delete                   HARD refuse unless Windows green + confirm env
-#                              (this tip keeps STATUS=not_reproven → always refuse)
+#   --endgame-preview
+#                              STATUS-gated plan for ENDGAME=1 arm (wave805);
+#                              never edits; never deletes; exit 0 when STATUS green
+#   --delete                   HARD refuse unless Windows green + ENDGAME=1 + confirm
+#                              (this tip keeps ENDGAME=0 → always refuse)
 #
 # Usage (repo root or compiler/):
 #   bash compiler/scripts/phys_del_makefile_gate.sh
@@ -67,7 +79,8 @@
 #   bash compiler/scripts/phys_del_makefile_gate.sh --status-flip-preview [/path]
 #   bash compiler/scripts/phys_del_makefile_gate.sh --status-flip-apply [/path]
 #   bash compiler/scripts/phys_del_makefile_gate.sh --status-flip-commit-honesty
-#   ./xbuild phys-del-gate [--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply|--status-flip-commit-honesty]
+#   bash compiler/scripts/phys_del_makefile_gate.sh --endgame-preview
+#   ./xbuild phys-del-gate [--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply|--status-flip-commit-honesty|--endgame-preview]
 #
 # Env:
 #   XLANG_PHYS_DEL_WINDOWS_PROOF=/path/to/proof   default /tmp/xlang_phys_del_windows_proof.txt
@@ -75,8 +88,8 @@
 #   XLANG_PHYS_DEL_LEAF_FILE=/path/to/leaf_copy   (test override; default leaf script)
 #   XLANG_PHYS_DEL_CONFIRM=DELETE_MAKEFILE_I_UNDERSTAND  (delete path only; still refused)
 #
-# Wave: 799–803 Track MG · 11.3.1 · NOT physical delete · tree STATUS still not_reproven
-#       · NOT Windows green claim without MSYS proof + reviewed apply
+# Wave: 799–805 Track MG · 11.3.1 · NOT physical delete · tree ENDGAME stays 0
+#       · STATUS may be reproven_green after wave804; endgame arm is later wave
 
 set -euo pipefail
 
@@ -301,32 +314,43 @@ PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME_REQUIRED=0
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NEXT=separate_physical_delete_wave_endgame_1
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_FORBIDDEN=claim_honesty_is_flip|claim_honesty_is_delete|set_endgame_1_in_flip_commit|skip_co_change_honesty_greps|delete_makefile_in_flip_commit
-# Human runbook (dual-boot host currently often Ubuntu):
+# wave805: ENDGAME arm *prep/preview* (plan only after STATUS green; not arm; not delete)
+PHYS_DEL_ENDGAME_PREP=1
+PHYS_DEL_ENDGAME_PREP_WAVE=wave805
+PHYS_DEL_ENDGAME_PREP_NOTE=preview_only_after_status_reproven_green_not_arm_not_delete
+PHYS_DEL_ENDGAME_PREP_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
+PHYS_DEL_ENDGAME_PREP_MODE=--endgame-preview
+PHYS_DEL_ENDGAME_PREP_APPLIED=0
+PHYS_DEL_ENDGAME_PREP_TREE_ARMED=0
+PHYS_DEL_ENDGAME_PREP_REQUIRES_STATUS=reproven_green
+PHYS_DEL_ENDGAME_PREP_TARGET_ENDGAME=1
+PHYS_DEL_ENDGAME_PREP_CURRENT_STATUS=${win_status:-?}
+PHYS_DEL_ENDGAME_PREP_CURRENT_ENDGAME=${endgame:-?}
+PHYS_DEL_ENDGAME_PREP_DELETE_ALLOWED=0
+PHYS_DEL_ENDGAME_PREP_NEXT=reviewed_endgame_arm_apply_then_confirm_delete_separate
+PHYS_DEL_ENDGAME_PREP_FORBIDDEN=auto_set_endgame_1|claim_preview_is_endgame_arm|claim_preview_is_physical_delete|rm_makefile_from_endgame_preview|mac_only_claim_wave_green
+# Human runbook (STATUS may already be reproven_green after wave804):
 #   PLATFORM: WINDOWS repo root (authoritative, 2026-07-30):
 #     C:\Users\shuliangfu\worker\xlang\x-lang
 #     Git Bash: /c/Users/shuliangfu/worker/xlang/x-lang
 #     FORBIDDEN: worker/shu/shux · worker/shu/xlang (legacy renamed away)
-#   SOURCE SYNC: mac git commit+push only → Windows git pull --ff-only
+#   SOURCE SYNC: mac git commit+push only → Windows/Ubuntu git pull --ff-only
 #     (NEVER scp the working tree as project sync)
+#   Dual-end L2: mac + Ubuntu same tip (MG_VERIFY_DUAL_END); Ubuntu = gold
+#   Post-STATUS (wave804 done) residual path:
+#     A) mac: ./xbuild phys-del-gate --endgame-preview   # plan only; no edit
+#     B) later wave: reviewed ENDGAME=1 arm (confirm-gated) — NOT this wave
+#     C) later wave: confirm --delete body — NOT this wave
+#   Pre-STATUS (if STATUS not_reproven again):
 #   1) reboot dual-boot → Windows/MSYS2 or Git Bash (ssh windows-server)
 #   2) cd /c/Users/shuliangfu/worker/xlang/x-lang
 #      git pull --ff-only origin self-hosting   # tip must match mac push
 #   3) ./xbuild phys-del-gate --run-windows-gate   # writes proof stamp on green
-#      or: ./tests/run-bootstrap-bstrict-windows-gate.sh then:
-#          XLANG_PHYS_DEL_WINDOWS_PROOF=/tmp/xlang_phys_del_windows_proof.txt \\
-#            ./xbuild phys-del-gate --run-windows-gate
-#   4) transfer PROOF ARTIFACT only (not source):
-#        scp windows-server:/tmp/xlang_phys_del_windows_proof.txt /tmp/
-#      or: ssh … 'cat /tmp/xlang_phys_del_windows_proof.txt' > /tmp/…
-#   5) mac: ./xbuild phys-del-gate --verify-windows-proof  # tip SHA must match
-#   6) mac: ./xbuild phys-del-gate --status-flip-preview   # plan only; no edit
-#   7) mac: XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND \\
-#            ./xbuild phys-del-gate --status-flip-apply     # leaf STATUS only
-#   8) mac: ./xbuild phys-del-gate --status-flip-commit-honesty  # wave803 checklist
-#      then same commit: honesty greps + progress triad (ENDGAME stays 0)
-#   9) NEVER rm compiler/Makefile on this tip while STATUS=not_reproven_this_tip
-#  10) NEVER auto-edit leaf from preview / proof alone (confirm env required)
-#  11) physical delete is a SEPARATE wave after STATUS flip commit
+#   4) scp proof → mac --verify-windows-proof → --status-flip-preview
+#   5) confirm --status-flip-apply → --status-flip-commit-honesty → commit
+#   NEVER rm compiler/Makefile while ENDGAME=0
+#   NEVER auto-edit leaf from endgame-preview alone
+#   physical delete is SEPARATE after ENDGAME arm commit
 EOF
 }
 
@@ -384,9 +408,22 @@ cmd_check() {
     || badf "status flip commit honesty must keep DELETE_ALLOWED=0"
   grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME_REQUIRED=0' <<<"$dump" \
     || badf "status flip commit honesty must keep ENDGAME_REQUIRED=0"
+  # wave805: ENDGAME prep / preview harness keys in status dump
+  grep -q 'PHYS_DEL_ENDGAME_PREP=1' <<<"$dump" \
+    || badf "status missing PHYS_DEL_ENDGAME_PREP=1 (wave805)"
+  grep -q 'PHYS_DEL_ENDGAME_PREP_WAVE=wave805' <<<"$dump" \
+    || badf "status missing ENDGAME_PREP_WAVE=wave805"
+  grep -q 'PHYS_DEL_ENDGAME_PREP_APPLIED=0' <<<"$dump" \
+    || badf "endgame prep must keep APPLIED=0"
+  grep -q 'PHYS_DEL_ENDGAME_PREP_TREE_ARMED=0' <<<"$dump" \
+    || badf "endgame prep must keep TREE_ARMED=0 this tip"
+  grep -q 'PHYS_DEL_ENDGAME_PREP_DELETE_ALLOWED=0' <<<"$dump" \
+    || badf "endgame prep must keep DELETE_ALLOWED=0"
+  grep -q 'PHYS_DEL_ENDGAME_PREP_TARGET_ENDGAME=1' <<<"$dump" \
+    || badf "endgame prep target must be ENDGAME=1"
 
   # Cross-check leaf honesty. wave804: STATUS may be reproven_green + TREE_APPLIED=1;
-  # ENDGAME must stay 0 (physical delete is a separate wave).
+  # wave805: ENDGAME must stay 0 (physical delete / arm is a separate wave).
   local leaf tree_applied_leaf
   leaf="$(leaf_dump)"
   tree_applied_leaf="$(leaf_get PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED)"
@@ -394,8 +431,16 @@ cmd_check() {
   grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$leaf" \
     || badf "leaf must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
   if grep -qE 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$leaf"; then
-    badf "leaf must not set ENDGAME=1 in STATUS-flip wave"
+    badf "leaf must not set ENDGAME=1 in endgame-preview wave (wave805)"
   fi
+  grep -q 'PHYS_DEL_ENDGAME_PREP=1' <<<"$leaf" \
+    || badf "leaf dump missing PHYS_DEL_ENDGAME_PREP=1 (wave805)"
+  grep -q 'PHYS_DEL_ENDGAME_PREP_WAVE=wave805' <<<"$leaf" \
+    || badf "leaf dump missing PHYS_DEL_ENDGAME_PREP_WAVE=wave805"
+  grep -q 'PHYS_DEL_ENDGAME_PREP_TREE_ARMED=0' <<<"$leaf" \
+    || badf "leaf dump must keep ENDGAME_PREP_TREE_ARMED=0 (wave805)"
+  grep -q 'PHYS_DEL_ENDGAME_PREP_DELETE_ALLOWED=0' <<<"$leaf" \
+    || badf "leaf dump must keep ENDGAME_PREP_DELETE_ALLOWED=0 (wave805)"
   if [ "${tree_applied_leaf:-0}" = "1" ]; then
     grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green' <<<"$leaf" \
       || badf "leaf TREE_APPLIED=1 must have WINDOWS_GATE_STATUS=reproven_green"
@@ -449,6 +494,67 @@ cmd_check() {
     fi
   fi
   rm -f /tmp/phys_del_refuse_out.$$ /tmp/phys_del_refuse_err.$$
+
+  # wave805: --endgame-preview — STATUS-gated plan; never edits; never deletes.
+  # Tree after wave804 is reproven_green → preview must READY=1 and leave ENDGAME=0.
+  local endgame_before endgame_after status_before status_after
+  endgame_before="$(leaf_get ENDGAME_PHYSICAL_DELETE_MAKEFILE)"
+  status_before="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+  if [ "${status_before:-}" = "reproven_green" ] || [ "${status_before:-}" = "green" ]; then
+    if ! bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --endgame-preview \
+        >/tmp/phys_del_endgame_ok.$$ 2>/tmp/phys_del_endgame_ok_err.$$; then
+      badf "tree STATUS green must --endgame-preview exit 0 (wave805)"
+    else
+      if ! grep -q 'PHYS_DEL_ENDGAME_PREVIEW_READY=1' /tmp/phys_del_endgame_ok.$$; then
+        badf "endgame-preview must print PHYS_DEL_ENDGAME_PREVIEW_READY=1"
+      elif ! grep -q 'PHYS_DEL_ENDGAME_PREVIEW_APPLIED=0' /tmp/phys_del_endgame_ok.$$; then
+        badf "endgame-preview must keep APPLIED=0"
+      elif ! grep -q 'PHYS_DEL_ENDGAME_PREVIEW_TARGET_ENDGAME=1' /tmp/phys_del_endgame_ok.$$; then
+        badf "endgame-preview must name TARGET_ENDGAME=1"
+      elif ! grep -q 'PHYS_DEL_ENDGAME_PREVIEW_DELETE_ALLOWED=0' /tmp/phys_del_endgame_ok.$$; then
+        badf "endgame-preview must keep DELETE_ALLOWED=0"
+      elif ! grep -q 'PHYS_DEL_ENDGAME_PREVIEW_TREE_ARMED=0' /tmp/phys_del_endgame_ok.$$; then
+        badf "endgame-preview must keep TREE_ARMED=0"
+      else
+        note "tree STATUS green --endgame-preview OK (wave805 harness)"
+      fi
+    fi
+  else
+    note "tree STATUS not green — skip green --endgame-preview path (expected pre-flip)"
+  fi
+  # Temp leaf with not_reproven STATUS must refuse endgame-preview (exit non-zero).
+  local leaf_tmp_eg
+  leaf_tmp_eg="/tmp/phys_del_endgame_leaf_$$.sh"
+  cp "$LEAF_SH" "$leaf_tmp_eg" || badf "could not copy leaf for endgame-preview harness"
+  if ! grep -qE '^PHYS_DEL_WINDOWS_GATE_STATUS=' "$leaf_tmp_eg"; then
+    badf "temp leaf missing PHYS_DEL_WINDOWS_GATE_STATUS for endgame harness"
+  else
+    # Force not_reproven regardless of tree tip (portable sed).
+    if sed -e 's/^PHYS_DEL_WINDOWS_GATE_STATUS=.*/PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip/' \
+           -e 's/^ENDGAME_PHYSICAL_DELETE_MAKEFILE=.*/ENDGAME_PHYSICAL_DELETE_MAKEFILE=0/' \
+           "$leaf_tmp_eg" >"${leaf_tmp_eg}.new" 2>/dev/null; then
+      mv "${leaf_tmp_eg}.new" "$leaf_tmp_eg"
+    fi
+    if XLANG_PHYS_DEL_LEAF_FILE="$leaf_tmp_eg" \
+        bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --endgame-preview \
+        >/tmp/phys_del_endgame_bad.$$ 2>/tmp/phys_del_endgame_bad_err.$$; then
+      badf "not_reproven temp leaf must not --endgame-preview exit 0"
+    else
+      note "not_reproven temp leaf --endgame-preview refuses OK (wave805)"
+    fi
+  fi
+  endgame_after="$(leaf_get ENDGAME_PHYSICAL_DELETE_MAKEFILE)"
+  status_after="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+  if [ "${endgame_before:-}" != "${endgame_after:-}" ]; then
+    badf "endgame-preview mutated tree ENDGAME ($endgame_before → $endgame_after)"
+  fi
+  if [ "${status_before:-}" != "${status_after:-}" ]; then
+    badf "endgame-preview mutated tree STATUS ($status_before → $status_after)"
+  fi
+  note "endgame-preview left tree STATUS=$status_after ENDGAME=$endgame_after unchanged OK"
+  rm -f /tmp/phys_del_endgame_ok.$$ /tmp/phys_del_endgame_ok_err.$$ \
+        /tmp/phys_del_endgame_bad.$$ /tmp/phys_del_endgame_bad_err.$$ \
+        "$leaf_tmp_eg" "${leaf_tmp_eg}.new" 2>/dev/null || true
 
   # wave800: synthetic proof round-trip (PLATFORM: SHARED — no MSYS required).
   local synth="/tmp/xlang_phys_del_proof_synth.$$"
@@ -685,19 +791,20 @@ cmd_check() {
     echo "phys-del-makefile-gate: CHECK FAILED" >&2
     exit 1
   fi
-  echo "phys-del-makefile-gate: CHECK OK (wave799–804 execute-gate + proof + flip + honesty; refuse-delete while ENDGAME=0; STATUS may be reproven_green after TREE_APPLIED=1; not physical delete)"
+  echo "phys-del-makefile-gate: CHECK OK (wave799–805 execute-gate + proof + flip + honesty + endgame-preview; refuse-delete while ENDGAME=0; STATUS may be reproven_green; TREE_ARMED=0; not physical delete)"
   exit 0
 }
 
 cmd_dry_run_delete() {
   cat <<EOF
-# phys-del-makefile-gate --dry-run-delete (wave799/800)
-# NEVER deletes. Lists intended endgame surface after Windows green + reviewed wave.
+# phys-del-makefile-gate --dry-run-delete (wave799/805)
+# NEVER deletes. Lists intended endgame surface after Windows green + ENDGAME arm + confirm.
 HOST=$(host_label)
 WINDOWS_GATE_STATUS=$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)
 ENDGAME_PHYSICAL_DELETE_MAKEFILE=$(leaf_get ENDGAME_PHYSICAL_DELETE_MAKEFILE)
 DELETE_ALLOWED=0
 PROOF_IS_NOT_DELETE=1
+ENDGAME_PREVIEW_IS_NOT_DELETE=1
 
 WOULD_TOUCH_PRIMARY:
   - compiler/Makefile   # product/cold thin-call edges + residual std graph (11.3 endgame)
@@ -711,13 +818,83 @@ WOULD_NOT_TOUCH_THIS_WAVE_ALONE:
 BLOCKERS_STILL_NAMED:
   $(leaf_get PHYS_DEL_PREFLIGHT_BLOCKERS)
 
-NEXT_HUMAN:
-  reboot dual-boot to Windows/MSYS2 → ./xbuild phys-del-gate --run-windows-gate
-  → scp proof → mac --verify-windows-proof → --status-flip-preview
-  → XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND --status-flip-apply
-  → --status-flip-commit-honesty (wave803 checklist + co-change greps)
-  → commit STATUS flip (ENDGAME=0) → separate delete wave
+NEXT_HUMAN (STATUS green after wave804):
+  mac: ./xbuild phys-del-gate --endgame-preview          # wave805 plan only
+  → dual-end L2 (mac + Ubuntu same tip)
+  → separate wave: reviewed ENDGAME=1 arm (confirm-gated; not this tip)
+  → separate wave: XLANG_PHYS_DEL_CONFIRM=DELETE_MAKEFILE_I_UNDERSTAND --delete
+  → NEVER claim endgame-preview = ENDGAME arm or physical delete
 EOF
+}
+
+# wave805: STATUS-gated plan for reviewed ENDGAME=1 arm. Never edits leaf / Makefile.
+# Exit: 0 = plan ready (STATUS green); 2 = STATUS not green; 1 = harness error.
+cmd_endgame_preview() {
+  local leaf_target win_status endgame cur_tip makefile_present
+  leaf_target="${XLANG_PHYS_DEL_LEAF_FILE:-$LEAF_SH}"
+  cur_tip="$(tip_short)"
+  makefile_present=0
+  [ -f "$MAKEFILE" ] && makefile_present=1
+
+  if [ ! -f "$leaf_target" ]; then
+    log "endgame-preview: leaf file missing: $leaf_target"
+    exit 1
+  fi
+  win_status="$(grep -E '^PHYS_DEL_WINDOWS_GATE_STATUS=' "$leaf_target" | head -1 | sed 's/^PHYS_DEL_WINDOWS_GATE_STATUS=//' || true)"
+  endgame="$(grep -E '^ENDGAME_PHYSICAL_DELETE_MAKEFILE=' "$leaf_target" | head -1 | sed 's/^ENDGAME_PHYSICAL_DELETE_MAKEFILE=//' || true)"
+
+  if [ "${win_status:-}" != "reproven_green" ] && [ "${win_status:-}" != "green" ]; then
+    log "endgame-preview REFUSED: STATUS must be reproven_green (got '${win_status:-empty}')"
+    log "  leaf=$leaf_target tip=$cur_tip"
+    log "  runbook: Windows min-gate + proof + status-flip apply first (wave799–804)"
+    log "  forbidden: claim_endgame_preview_without_status_green|auto_set_endgame_1"
+    cat <<EOF
+PHYS_DEL_ENDGAME_PREVIEW_READY=0
+PHYS_DEL_ENDGAME_PREVIEW_WAVE=wave805
+PHYS_DEL_ENDGAME_PREVIEW_TIP=$cur_tip
+PHYS_DEL_ENDGAME_PREVIEW_LEAF=$leaf_target
+PHYS_DEL_ENDGAME_PREVIEW_CURRENT_STATUS=${win_status:-?}
+PHYS_DEL_ENDGAME_PREVIEW_CURRENT_ENDGAME=${endgame:-?}
+PHYS_DEL_ENDGAME_PREVIEW_APPLIED=0
+PHYS_DEL_ENDGAME_PREVIEW_TREE_ARMED=0
+PHYS_DEL_ENDGAME_PREVIEW_TARGET_ENDGAME=1
+PHYS_DEL_ENDGAME_PREVIEW_DELETE_ALLOWED=0
+PHYS_DEL_ENDGAME_PREVIEW_NOTE=status_not_green_refused
+EOF
+    exit 2
+  fi
+
+  # Machine-readable plan (agents/CI). Preview never mutates leaf / Makefile.
+  cat <<EOF
+PHYS_DEL_ENDGAME_PREVIEW_READY=1
+PHYS_DEL_ENDGAME_PREVIEW_WAVE=wave805
+PHYS_DEL_ENDGAME_PREVIEW_TIP=$cur_tip
+PHYS_DEL_ENDGAME_PREVIEW_LEAF=$leaf_target
+PHYS_DEL_ENDGAME_PREVIEW_CURRENT_STATUS=${win_status:-?}
+PHYS_DEL_ENDGAME_PREVIEW_CURRENT_ENDGAME=${endgame:-?}
+PHYS_DEL_ENDGAME_PREVIEW_TARGET_ENDGAME=1
+PHYS_DEL_ENDGAME_PREVIEW_APPLIED=0
+PHYS_DEL_ENDGAME_PREVIEW_TREE_ARMED=0
+PHYS_DEL_ENDGAME_PREVIEW_DELETE_ALLOWED=0
+PHYS_DEL_ENDGAME_PREVIEW_MAKEFILE_PRESENT=$makefile_present
+PHYS_DEL_ENDGAME_PREVIEW_NOTE=plan_only_reviewed_mac_endgame_arm_commit_required
+PHYS_DEL_ENDGAME_PREVIEW_FORBIDDEN=auto_set_endgame_1|claim_preview_is_endgame_arm|claim_preview_is_physical_delete|rm_makefile_from_endgame_preview|mac_only_claim_wave_green
+
+# Reviewed mac path (later wave; NOT run by preview):
+# 1) dual-end L2: mac + Ubuntu same tip leaf + phys-del --check
+# 2) confirm-gated ENDGAME arm (future --endgame-arm-apply or reviewed sed):
+#      ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 → 1
+#      keep PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green
+#      keep DELETE body separate; --delete still needs confirm env
+# 3) commit ENDGAME arm + honesty greps (still not rm Makefile in same commit preferred)
+# 4) XLANG_PHYS_DEL_CONFIRM=DELETE_MAKEFILE_I_UNDERSTAND \\
+#      ./xbuild phys-del-gate --delete   # still refuse until delete body ships
+# 5) NEVER claim this preview armed ENDGAME or deleted Makefile
+EOF
+  log "endgame-preview READY for tip=$cur_tip STATUS=${win_status} (leaf=$leaf_target)"
+  log "  TARGET ENDGAME=1; TREE_ARMED=0; APPLIED=0 (no leaf edit); DELETE_ALLOWED=0"
+  log "  next: dual-end L2 then separate ENDGAME arm wave; then confirm delete wave"
+  exit 0
 }
 
 # wave801: proof-gated plan for reviewed STATUS flip. Never edits leaf keys.
@@ -1137,9 +1314,14 @@ cmd_delete() {
   log "  PHYS_DEL_WINDOWS_GATE_STATUS=${win_status:-?}"
   log "  ENDGAME_PHYSICAL_DELETE_MAKEFILE=${endgame:-?}"
   log "  host=$(host_label) is_msys=$(is_msys && echo 1 || echo 0)"
-  log "  reason: Windows hybrid min-gate not re-proven on this tip (wave778/798–803)"
-  log "  runbook: reboot → MSYS2 → --run-windows-gate → scp proof → --verify → --status-flip-preview → confirm --status-flip-apply → commit-honesty → commit → delete wave"
-  log "  forbidden: delete_makefile_before_windows_green|claim_proof_is_physical_delete|claim_preview_is_delete|claim_apply_is_physical_delete|claim_honesty_is_delete"
+  if [ "${win_status:-}" = "reproven_green" ] || [ "${win_status:-}" = "green" ]; then
+    log "  reason: ENDGAME_PHYSICAL_DELETE_MAKEFILE is not 1 (wave805 preview ≠ arm; delete body deferred)"
+    log "  runbook: ./xbuild phys-del-gate --endgame-preview → dual-end L2 → separate ENDGAME arm wave → confirm --delete"
+  else
+    log "  reason: Windows hybrid min-gate not re-proven on this tip (wave778/798–804)"
+    log "  runbook: reboot → MSYS2 → --run-windows-gate → scp proof → --verify → --status-flip-preview → confirm --status-flip-apply → commit-honesty → commit → endgame-preview → delete wave"
+  fi
+  log "  forbidden: delete_makefile_before_windows_green|delete_makefile_before_endgame_1|claim_proof_is_physical_delete|claim_preview_is_delete|claim_endgame_preview_is_delete|claim_apply_is_physical_delete|claim_honesty_is_delete"
 
   # Even if someone forges leaf keys later, require explicit confirm AND green.
   if [ "${win_status:-}" != "green" ] && [ "${win_status:-}" != "reproven_green" ]; then
@@ -1180,13 +1362,16 @@ case "$MODE" in
   --status-flip-commit-honesty|status-flip-commit-honesty|commit-honesty|flip-commit-honesty)
     cmd_status_flip_commit_honesty
     ;;
+  --endgame-preview|endgame-preview|prepare-endgame|endgame-prep)
+    cmd_endgame_preview
+    ;;
   --delete|delete)
     cmd_delete
     ;;
   -h|--help|help)
-    sed -n '2,80p' "$0"
+    sed -n '2,100p' "$0"
     ;;
   *)
-    die "unknown mode '$MODE' (status|--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply|--status-flip-commit-honesty|--delete)"
+    die "unknown mode '$MODE' (status|--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply|--status-flip-commit-honesty|--endgame-preview|--delete)"
     ;;
 esac

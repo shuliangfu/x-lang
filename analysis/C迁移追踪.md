@@ -1512,12 +1512,13 @@
     ✅ **STATUS flip apply harness**（wave802 · `--status-flip-apply` 需 proof + confirm env；`--check` 仅 temp leaf；ENDGAME 保持 0）；
     ✅ **STATUS flip commit honesty**（wave803 · `--status-flip-commit-honesty` pre/post 契约 + co-change 清单；`DELETE_ALLOWED=0` · ENDGAME 保持 0）；
     ✅ **Windows min-gate proof + STATUS apply**（wave804 · MSYS2 B-hybrid 绿 + proof tip `bb8f07263` + Mac verify · STATUS=`reproven_green` · `TREE_APPLIED=1` · **ENDGAME 仍 0** · **非**物理删）；
-    ⬜ B7 residual endgame · physical delete / 删 Makefile（**仅**须 Windows hybrid min-gate 绿；heat source-prereq 已 closed）
+    ✅ **ENDGAME arm prep/preview**（wave805 · `--endgame-preview` · TREE_ARMED=0 · ENDGAME 仍 0 · **非** arm · **非**物理删）；
+    ⬜ B7 residual endgame · physical delete / 删 Makefile（**须** ENDGAME arm=1 + confirm；heat source-prereq 已 closed · STATUS 已绿）
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
 
-  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主**；**wave797 heat source-prereq closed**；**wave798 preflight**；**wave799 execute-gate 硬拒删**；**wave800 proof stamp harness**；**wave801 status-flip-preview**；**wave802 status-flip-apply harness**；**wave803 commit-honesty**；**wave778 Windows hybrid min-gate 绿**（tip 重跑 + proof verify + preview + confirm apply + honesty + commit）后再删
+  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主**；**wave797 heat source-prereq closed**；**wave798 preflight**；**wave799 execute-gate 硬拒删**；**wave800 proof stamp harness**；**wave801–804 STATUS flip + Windows min-gate 绿**；**wave805 endgame-preview**；**ENDGAME arm=1（另波 confirm）** 后再删
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \

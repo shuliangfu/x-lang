@@ -1008,7 +1008,8 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave798:** physical-delete **preflight** readiness (named blockers; Windows min-gate cmd; NOT green; NOT delete)
 - [x] **wave799:** physical-delete **execute gate** (`phys_del_makefile_gate.sh` refuse-delete + dry-run; NOT green; NOT delete)
 - [x] **wave800:** Windows min-gate **proof stamp** harness (`--run-windows-gate` writes stamp; `--verify-windows-proof`; NOT STATUS green; NOT delete)
-- [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **Windows gate**)
+- [x] **wave805:** ENDGAME arm **prep/preview** (`--endgame-preview`; STATUS green plan only; TREE_ARMED=0; NOT arm; NOT delete)
+- [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **ENDGAME arm + confirm delete**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] B7 residual endgame: Makefile heat **dep** edges gone / physical delete (try-heat ✅ wave789; thin-unify ✅ wave790; source-prereq closed wave797; thin-call edges remain until phys del)
 
@@ -1678,6 +1679,43 @@ After verified evidence + human review:
 matches (grep exits early). Checks use `grep … <<<"$_out"` instead.
 Same for `phys_del_makefile_gate.sh` status/leaf probes.
 
+## wave805 ENDGAME arm prep / preview (2026-07-30)
+
+> **Not this wave:** set `ENDGAME_PHYSICAL_DELETE_MAKEFILE=1`; physical delete of
+> `compiler/Makefile`; claim delete allowed.  
+> **This wave:** G.7 **有则补全** on `phys_del_makefile_gate.sh` —
+> `--endgame-preview` after STATUS=`reproven_green` prints the machine-readable
+> plan for a reviewed ENDGAME=1 arm commit. Preview never edits leaf. Preview ≠
+> arm. Preview ≠ physical delete. Tree ENDGAME stays 0 · `TREE_ARMED=0` ·
+> `--delete` still hard-refuses. Dual-end L2 required (mac + Ubuntu).
+
+```text
+Entry (STATUS already reproven_green after wave804):
+  ./xbuild phys-del-gate --endgame-preview
+      # exit 0 + PHYS_DEL_ENDGAME_PREVIEW_READY=1 when STATUS green
+      # exit 2 when STATUS not_reproven (temp leaf / pre-flip)
+      # APPLIED=0 always; TREE_ARMED=0 always; no leaf mutation
+
+Then (later waves, not this tip):
+  dual-end L2 → reviewed ENDGAME=1 arm → confirm --delete body
+```
+
+| Key | Value |
+|-----|--------|
+| `PHYS_DEL_ENDGAME_PREP` | `1` |
+| `PHYS_DEL_ENDGAME_PREP_WAVE` | `wave805` |
+| `PHYS_DEL_ENDGAME_PREP_MODE` | `--endgame-preview` |
+| `PHYS_DEL_ENDGAME_PREP_APPLIED` | `0` |
+| `PHYS_DEL_ENDGAME_PREP_TREE_ARMED` | `0` |
+| `PHYS_DEL_ENDGAME_PREP_TARGET_ENDGAME` | `1` |
+| `PHYS_DEL_ENDGAME_PREP_DELETE_ALLOWED` | `0` |
+| `PHYS_DEL_WINDOWS_GATE_STATUS` | `reproven_green` (wave804) |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `endgame_arm_after_preview_separate_wave` |
+
+**Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
+ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
+
 ## wave804 Windows min-gate proof + STATUS apply (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; set
@@ -1692,7 +1730,7 @@ Same for `phys_del_makefile_gate.sh` status/leaf probes.
 | `PHYS_DEL_WINDOWS_GATE_STATUS` | `reproven_green` |
 | `PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED` | `1` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
-| `PHYS_DEL_PREFLIGHT_NEXT` | `physical_delete_makefile_separate_wave_after_status_flip` |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `physical_delete_makefile_separate_wave_after_status_flip` (superseded by wave805 next) |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` (after) | still `0` until delete wave |
 
 **Forbidden:** claim STATUS flip = physical delete; set ENDGAME=1 in this wave;
