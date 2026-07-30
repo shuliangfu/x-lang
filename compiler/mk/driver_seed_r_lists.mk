@@ -48,6 +48,8 @@ R1_ALIAS_STUBS_OBJS = x_frontend_link_alias.o ast_asm_bare_link_alias.o backend_
 # (pipeline_abi -D, asm_io_stubs -fPIE, sqlite glue+stub, parser link-alias -D).
 # List authority for ensure_host_cc_seed_o.sh extra-cflags mode; body = same script.
 # Seed/flag maps live in ensure script (path convention); list stays here (G.7).
+# wave903: also make-graph multi-target FORCE thin try-heat inventory (COUNT=5).
+# Body = ensure try-heat; do not re-list in Makefile or residual shells (G.7).
 R1_EXTRA_CFLAGS_OBJS = src/runtime_pipeline_abi.o runtime_asm_io_stubs.o runtime_sqlite_glue.o runtime_sqlite_glue_stub.o src/asm/parser_asm_parse_expr_link.o
 
 # wave754 R1 seventh family: pure host-cc misc basename (no special -D/-f extras).

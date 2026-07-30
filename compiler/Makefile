@@ -485,18 +485,9 @@ src/runtime_io_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
 src/runtime_driver_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-# G-02f-12：runtime_pipeline_abi 产品 seed（须 XLANG_USE_X_PIPELINE）
-# wave753 R1 cold: ensure_one + USE_X_PIPELINE · wave767 product PREFER → try-pipeline-abi-prefer.
-src/runtime_pipeline_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave794 B7A: heat dep-edge thin Makefile-flags residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/hdr + Makefile flag mtime (force_thin_makefile_flags_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-# wave864 B7B: drop multi-token RUNTIME_PIPELINE_ABI_CFLAGS inject (G.7 hygiene).
-# ensure extras_for_extra_cflags / _DEFAULT_RUNTIME_PIPELINE_ABI_CFLAGS own product
-# -DXLANG_USE_X_PIPELINE when env unset (same pattern as runtime_driver.o).
-# NOT physical delete — thin edges + B2 + remaining mk lists remain.
-	# wave767: pipeline_abi PREFER thin+rest → try-pipeline-abi-prefer (cold + USE_X_PIPELINE fallback).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-12：runtime_pipeline_abi 产品 seed — joined wave903 multi-target $(R1_EXTRA_CFLAGS_OBJS).
+# Archaeology: wave753 R1 cold USE_X_PIPELINE · wave767 try-pipeline-abi-prefer · wave794 FORCE
+# · wave864 extras_for_extra_cflags / _DEFAULT_RUNTIME_PIPELINE_ABI_CFLAGS — body in try-heat.
 
 
 # G-02f-22：runtime_c_import 产品 seed — joined wave899 multi-target $(R1_CORE_SEED_OBJS).
@@ -660,6 +651,22 @@ $(R1_MAIN_RUNTIME_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 $(R1_ALIAS_STUBS_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
+# ---------------------------------------------------------------------------
+# wave903 B7B: R1_EXTRA_CFLAGS product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = R1_EXTRA_CFLAGS_OBJS in mk/driver_seed_r_lists.mk
+# (wave753 family · wave788 list→mk · COUNT=5). Do NOT open a second .o list.
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat (wave753/790/791/794/767).
+# Leaves: runtime_pipeline_abi · runtime_asm_io_stubs · runtime_sqlite_glue ·
+# runtime_sqlite_glue_stub · parser_asm_parse_expr_link (extra flags / multi-out seeds).
+# Seed/flag maps (pipeline_abi -D · asm_io -fPIE · sqlite glue+stub · parser -D) live in
+# ensure extras_for_extra_cflags; Makefile only FORCE + thin-call. NOT physical delete —
+# thin edges + remaining R1 family multi-target (MISC/SEED_MAP/…) / mk lists hybrid +
+# tip Windows → dual L4 → explicit auth ship delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(R1_EXTRA_CFLAGS_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
 # xlang_x 用：仅 -DXLANG_USE_X_PIPELINE（runtime_x / main_x via wave901 multi-target).
 
@@ -738,13 +745,7 @@ runtime_panic.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（G-02e-20 .inc）
-# G-02f-20：runtime_asm_io_stubs 产品 seed
-# wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
-# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
-# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-runtime_asm_io_stubs.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-20：runtime_asm_io_stubs 产品 seed — joined wave903 multi-target $(R1_EXTRA_CFLAGS_OBJS).
 
 
 # F-ZC：std.test fn-ptr invoke；与 test.o 一并链入（G-02e-16：.inc + cc_inc_tu）
@@ -1005,20 +1006,8 @@ runtime_arrow_simd_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：db.sqlite 胶层（libsqlite3）；与 sqlite.o 同链（G-02e-20）
-# G-02f-21：runtime_sqlite_glue 产品 seed
-# wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
-# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
-# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-runtime_sqlite_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-# wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
-# Multi-out from same seed as runtime_sqlite_glue.o (no -DXLANG_DB_USE_SQLITE3).
-# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
-# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-runtime_sqlite_glue_stub.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-21：runtime_sqlite_glue[+_stub] 产品 seed — joined wave903 multi-target $(R1_EXTRA_CFLAGS_OBJS).
+# Multi-out: glue + stub share seed; flag map in ensure extras_for_extra_cflags.
 # G-02f-20：runtime_crypto_inc_glue 产品 seed
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
@@ -1361,12 +1350,7 @@ PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
 parser_asm_thin_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-# wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/asm/parser_asm_parse_expr_link.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# parser_asm_parse_expr_link — joined wave903 multi-target $(R1_EXTRA_CFLAGS_OBJS).
 
 
 # Authority: scripts/filter_bootstrap_seed_against_partial_o.sh → filter_o_export_against_deps.sh
