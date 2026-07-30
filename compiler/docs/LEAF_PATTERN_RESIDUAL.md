@@ -2091,7 +2091,9 @@ ship delete body; mac-only wave green.
     PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave848
     PHYS_DEL_PREFLIGHT_BOOTSTRAP_SEED_X_FRONTEND_SHELL=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2: (filled after prove)
+  dual-end L2 green tip: b45455cd0 (Mac + Ubuntu leaf --check +
+    bootstrap_driver_seed_x_frontend.sh --check + phys-del --check +
+    make -n thin-call; product rv42 green both ends)
   next: residual thin/B2/lists (hybrid / lists / relink-xlang-lexer) or tip
     Windows re-proof → ship delete body (explicit auth only; tip L4 wave840)
 ```
