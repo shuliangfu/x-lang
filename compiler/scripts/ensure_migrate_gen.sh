@@ -5,9 +5,9 @@
 # Authority (G.7):
 #   Single implementation of product frontend *_gen.c production for:
 #     parser_gen.c   (seed pin / force -E / C-04 post-normalize)     — wave736
-#     typeck_gen.c   (seed pin / force -E / fix_slim_arena)          — wave736
+#     typeck_gen.c   (seed pin + contract refresh / force -E / slim) — wave736
 #     codegen_gen.c  (tip seed pin sync / force -E / fix_slim_arena) — wave736
-#     lexer_gen.c    (seed pin / force -E / slim + token enum sync)  — wave737
+#     lexer_gen.c    (seed pin + contract refresh / force -E / slim) — wave737
 #   Makefile thin leaves and migrate_x_objs.sh call this script (0× make for
 #   the gen body). Residual make only when building missing xlang-c for force
 #   -E (until 11.3 swallows that graph).
@@ -31,6 +31,8 @@
 #   XLANG_C / XLANG_X — binary names (default xlang-c / xlang-x)
 #
 # PLATFORM: SHARED shell orchestration; product seed pins are host-portable C.
+# Stale gitignored pins (dual-boot Windows) fail product symbol contract →
+# refresh from seeds/*_gen.linux.x86_64.c (same class as codegen tip-seed sync).
 # Wave: 736/737 Track MG · pairs with migrate_x_objs.sh + Makefile thin leaves.
 
 set -euo pipefail
@@ -49,6 +51,54 @@ log() { echo "ensure-migrate-gen: $*" >&2; }
 # PLATFORM: SHARED — cold start on Darwin/Windows uses the same pins.
 seed_ok() {
   [ -f "$1" ]
+}
+
+# Gitignored local *_gen.c pins can drift on dual-boot hosts (Windows keeps
+# weeks-old pins while tip seed has new product symbols). codegen already tip-
+# seed syncs; typeck/lexer must not treat any non-empty pin as final.
+# Contract = symbols phase1/final link actually needs from that TU.
+# PLATFORM: SHARED — same seed pins on macOS/Ubuntu/Windows.
+gen_has_sym() {
+  # $1=file $2=symbol substring (grep -F)
+  [ -s "$1" ] && grep -Fq "$2" "$1"
+}
+
+typeck_gen_contract_ok() {
+  # phase1 UNDEF surface from pipeline_x → typeck_x
+  gen_has_sym "$1" 'typeck_check_call_arity' \
+    && gen_has_sym "$1" 'typeck_check_call_arg_types' \
+    && gen_has_sym "$1" 'typeck_expr_is_null_keyword' \
+    && gen_has_sym "$1" 'typeck_type_is_valid_subscript_index'
+}
+
+lexer_gen_contract_ok() {
+  # phase1 UNDEF surface from parser_x / thin_glue → lexer_x
+  gen_has_sym "$1" 'lexer_advance_one' \
+    && gen_has_sym "$1" 'lexer_invalid_type_suffix_reset' \
+    && gen_has_sym "$1" 'lexer_note_string_lit_overflow'
+}
+
+refresh_gen_from_seed_if_stale() {
+  # $1=local gen  $2=seed  $3=contract_fn_name  $4=label
+  # If local pin fails contract and tip seed passes, replace pin from seed.
+  local gen="$1" seed="$2" contract="$3" label="$4"
+  if [ ! -s "$gen" ]; then
+    return 1
+  fi
+  if "$contract" "$gen"; then
+    return 1
+  fi
+  if ! seed_ok "$seed"; then
+    log "${label}: pin fails product contract and no tip seed ($seed)"
+    return 1
+  fi
+  if ! "$contract" "$seed"; then
+    log "${label}: pin and tip seed both fail contract ($seed) — need FORCE regen"
+    return 1
+  fi
+  cp -f "$seed" "$gen"
+  log "${label}: refreshed from tip seed (stale gitignored pin failed contract; PLATFORM SHARED)"
+  return 0
 }
 
 ensure_xlang_c() {
@@ -188,7 +238,11 @@ ensure_typeck_gen() {
     "./$XLANG_C" -L .. -L src -L src/lexer -L src/ast -L src/parser \
       src/typeck/typeck.x -E-extern >"$tmp" && mv "$tmp" typeck_gen.c
   elif [ -s typeck_gen.c ]; then
-    log "typeck_gen.c: pinned ($(bytes_of typeck_gen.c) bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"
+    if refresh_gen_from_seed_if_stale typeck_gen.c "$seed" typeck_gen_contract_ok typeck_gen.c; then
+      :
+    else
+      log "typeck_gen.c: pinned ($(bytes_of typeck_gen.c) bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"
+    fi
   elif seed_ok "$seed" && [ ! -s typeck_gen.c ]; then
     cp -f "$seed" typeck_gen.c
     log "typeck_gen.c: restored from $seed"
@@ -211,6 +265,10 @@ ensure_typeck_gen() {
 
   if [ -f scripts/fix_slim_arena_gen_c.pl ]; then
     perl scripts/fix_slim_arena_gen_c.pl typeck_gen.c
+  fi
+  if ! typeck_gen_contract_ok typeck_gen.c; then
+    log "typeck_gen.c: FAIL product contract (missing typeck_check_call_* / null_keyword / subscript)"
+    exit 1
   fi
   log "typeck_gen.c OK ($(bytes_of typeck_gen.c) bytes)"
 }
@@ -281,7 +339,11 @@ ensure_lexer_gen() {
         && mv -f "$tmp" lexer_gen.c
     fi
   elif [ -s lexer_gen.c ]; then
-    log "lexer_gen.c: pinned ($(bytes_of lexer_gen.c) bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"
+    if refresh_gen_from_seed_if_stale lexer_gen.c "$seed" lexer_gen_contract_ok lexer_gen.c; then
+      :
+    else
+      log "lexer_gen.c: pinned ($(bytes_of lexer_gen.c) bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"
+    fi
   elif seed_ok "$seed" && [ ! -s lexer_gen.c ]; then
     cp -f "$seed" lexer_gen.c
     log "lexer_gen.c: restored from $seed"
@@ -332,8 +394,8 @@ ensure_lexer_gen() {
   if [ -f scripts/sync_lexer_gen_token_enum.pl ]; then
     perl scripts/sync_lexer_gen_token_enum.pl lexer_gen.c
   fi
-  if ! grep -q 'lexer_advance_one' lexer_gen.c; then
-    log "lexer_gen.c: missing lexer_advance_one (need xlang-x -x -E full TU)"
+  if ! lexer_gen_contract_ok lexer_gen.c; then
+    log "lexer_gen.c: FAIL product contract (missing advance_one / invalid_type_suffix_reset / note_string_lit_overflow)"
     exit 1
   fi
   log "lexer_gen.c: from lexer.x (-E-extern, full TU via xlang-x -x) OK ($(bytes_of lexer_gen.c) bytes)"

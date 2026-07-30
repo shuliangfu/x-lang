@@ -89,6 +89,8 @@ ensure_gen_via_shell() {
 # Skip ensure when gen already present (make only re-runs recipe when .x is newer).
 # FORCE always re-ensures. codegen tip seed: re-sync only when local pin is missing
 # or still byte-identical to seed (post fix_slim diverges — do not thrash rebuild).
+# typeck: re-enter ensure when pin fails product symbol contract (Windows dual-boot
+# gitignored pin drift → phase1 UNDEF). ensure_migrate_gen owns refresh body.
 want_ensure_gen() {
   # $1=mode $2=gen.c $3=optional seed
   local mode="$1" gen="$2" seed="${3:-}"
@@ -103,6 +105,14 @@ want_ensure_gen() {
     # After ensure_migrate_gen, fix_slim rewrites gen → differs from seed; skip re-copy
     # so we do not force rebuild every migrate (G.7 single path, no thrash).
     if cmp -s "$seed" "$gen" 2>/dev/null; then
+      return 0
+    fi
+  fi
+  # PLATFORM: SHARED — typeck pin contract (phase1 link surface).
+  if [ "$mode" = "typeck" ]; then
+    if ! grep -Fq 'typeck_check_call_arity' "$gen" \
+      || ! grep -Fq 'typeck_expr_is_null_keyword' "$gen" \
+      || ! grep -Fq 'typeck_type_is_valid_subscript_index' "$gen"; then
       return 0
     fi
   fi

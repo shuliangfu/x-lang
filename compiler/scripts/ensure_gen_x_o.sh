@@ -217,7 +217,14 @@ need_rebuild_gen_o_or_deps() {
 
 build_lexer_x() {
   # Makefile: perl sync_lexer_gen_token_enum + PIPELINE_GEN_CFLAGS -I triad.
-  if [ ! -f lexer_gen.c ]; then
+  # Always run ensure_migrate_gen lexer first: gitignored pin can fail product
+  # symbol contract (Windows dual-boot stale pin) while .o is still "up-to-date"
+  # vs that pin — phase1 then UNDEF lexer_*_reset. G.7: migrate owns gen body.
+  # PLATFORM: SHARED.
+  if [ -f scripts/ensure_migrate_gen.sh ]; then
+    MAKE="$MAKE" XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}" \
+      sh scripts/ensure_migrate_gen.sh lexer || return 1
+  elif [ ! -f lexer_gen.c ]; then
     log "missing lexer_gen.c (run ensure_migrate_gen lexer / make lexer_gen.c first)"
     return 1
   fi
