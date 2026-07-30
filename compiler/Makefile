@@ -1597,8 +1597,10 @@ parser_gen.c: FORCE scripts/ensure_migrate_gen.sh
 # wave735: G.7 body → scripts/migrate_x_objs.sh (parser leaf)
 # wave832: FORCE dep-thin — shell owns gen.c mtime (migrate need_rebuild; not physical delete).
 # PLATFORM: SHARED — FORCE always invokes migrate (cheap mtime skip).
+# wave865 B7B: drop multi-token CFLAGS inject (G.7 hygiene).
+# migrate_x_objs shell-loads export-try-heat-cflags when CFLAGS/PIPELINE_GEN unset.
 parser_x.o: FORCE scripts/migrate_x_objs.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
+	@CC="$(CC)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
 	  sh scripts/migrate_x_objs.sh parser
 
 # lexer.x：须 xlang-x -x -E 全量 TU；xlang-c 无 -x 时缺 advance_one/next_body。
@@ -1839,8 +1841,9 @@ src/asm/asm_experimental_symbol_bridge.o: FORCE scripts/cc_inc_tu.sh
 
 # 迁移到 .x：parser/typeck/codegen 独立 -E-extern 产物；pipeline_x.o 仅编排（-E-extern），seed 链 typeck_x.o/codegen_x.o。
 # wave735/736: G.7 body → migrate_x_objs.sh (_x.o) + ensure_migrate_gen.sh (*_gen.c)
+# wave865 B7B: drop multi-token CFLAGS inject (G.7 hygiene; same as parser/typeck/codegen).
 migrate-x-objs:
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
+	@CC="$(CC)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
 	  sh scripts/migrate_x_objs.sh all
 
 # wave830: G.7 body → scripts/ensure_ast_gen2.sh (pin / FORCE_REGEN / -E + fix_slim)
@@ -1869,8 +1872,9 @@ typeck_gen.c: FORCE scripts/ensure_migrate_gen.sh
 # wave735: G.7 body → scripts/migrate_x_objs.sh (typeck leaf)
 # wave832: FORCE dep-thin — shell owns gen.c mtime (migrate need_rebuild; not physical delete).
 # PLATFORM: SHARED — FORCE always invokes migrate (cheap mtime skip).
+# wave865 B7B: drop multi-token CFLAGS inject (G.7 hygiene).
 typeck_x.o: FORCE scripts/migrate_x_objs.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
+	@CC="$(CC)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
 	  sh scripts/migrate_x_objs.sh typeck
 
 # wave736: G.7 body → scripts/ensure_migrate_gen.sh (codegen_gen.c tip seed pin/-E)
@@ -1883,8 +1887,9 @@ codegen_gen.c: FORCE scripts/ensure_migrate_gen.sh
 # wave735: G.7 body → scripts/migrate_x_objs.sh (codegen leaf)
 # wave832: FORCE dep-thin — shell owns gen.c mtime (migrate need_rebuild; not physical delete).
 # PLATFORM: SHARED — FORCE always invokes migrate (cheap mtime skip).
+# wave865 B7B: drop multi-token CFLAGS inject (G.7 hygiene).
 codegen_x.o: FORCE scripts/migrate_x_objs.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
+	@CC="$(CC)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
 	  sh scripts/migrate_x_objs.sh codegen
 
 # 6.1：.x typeck 入口与 C AST 对接；force-regen typeck_gen → migrate typeck_x → relink TARGET。
@@ -1895,11 +1900,12 @@ codegen_x.o: FORCE scripts/migrate_x_objs.sh
 #   (G.7 有则补全; no dual inline product link inventory in typeck/codegen/relink-lexer).
 # wave856: shell loads LINK_OBJS via export-relink-product-link-objs (no multi-token BTC_OBJS=).
 # wave857: shell loads LINK_CFLAGS via export leaves (no multi-token BTC_CFLAGS=).
+# wave865: shell/migrate loads product CFLAGS via export-try-heat-cflags (no multi-token CFLAGS=).
 # NOT physical delete — prereq make-graph + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns gen/migrate/link orchestration.
 bootstrap-typeck: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) scripts/bootstrap_typeck_codegen.sh
 	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" CC="$(CC)" \
-	  CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" \
+	  PYTHON="$(PYTHON)" \
 	  bash scripts/bootstrap_typeck_codegen.sh typeck
 
 # 6.2：.x codegen 入口与 C AST 对接；force-regen typeck+codegen gen → migrate both → relink TARGET。
@@ -1908,11 +1914,12 @@ bootstrap-typeck: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) 
 # wave850 B7B: BTC_OBJS → $(RELINK_PRODUCT_LINK_OBJS) (composites.mk; same bag as typeck/RXL).
 # wave856: shell loads LINK_OBJS via export-relink-product-link-objs (no multi-token BTC_OBJS=).
 # wave857: shell loads LINK_CFLAGS via export leaves (no multi-token BTC_CFLAGS=).
+# wave865: shell/migrate loads product CFLAGS via export-try-heat-cflags (no multi-token CFLAGS=).
 # NOT physical delete — prereq make-graph + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns gen/migrate/link orchestration.
 bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) scripts/bootstrap_typeck_codegen.sh
 	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" CC="$(CC)" \
-	  CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" \
+	  PYTHON="$(PYTHON)" \
 	  bash scripts/bootstrap_typeck_codegen.sh codegen
 
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 XLANG_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
@@ -3065,11 +3072,13 @@ gen-x-driver-objs: pipeline_x.o driver_x.o preprocess_x.o
 # wave845: full body → scripts/xlang_x_pipeline.sh (G.7 有则补全; shell owns multi-make
 # ensure ladder + host-cc link). Lists stay mk expansion (pipeline_x_objs.mk).
 # wave859: shell loads XXP_* via export-xxp-link-bags when unset (no multi-token
-# XXP_* env export). NOT physical delete — prereq make-graph + thin edges + B2
+# XXP_* env export).
+# wave865: shell loads CFLAGS via export-try-heat-cflags when unset (no multi-token
+# CFLAGS= env). NOT physical delete — prereq make-graph + thin edges + B2
 # + mk lists remain residual.
 # PLATFORM: SHARED — shell owns force-rebuild + link orchestration.
 xlang-x-pipeline: bootstrap-pipeline migrate-x-objs $(PIPELINE_X_BASE_OBJS) pipeline_x.o $(PIPELINE_X_FRONTEND_OBJS) $(PIPELINE_X_SUPPORT_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes.o scripts/xlang_x_pipeline.sh
-	@TARGET="$(TARGET)" CC="$(CC)" CFLAGS="$(CFLAGS)" MAKE="$(MAKE)" \
+	@TARGET="$(TARGET)" CC="$(CC)" MAKE="$(MAKE)" \
 	  bash scripts/xlang_x_pipeline.sh
 
 # 4.5（.x 流水线编译 compiler 自身）：用 xlang_x 的 -x -E 生成 typeck.x / codegen.x 对应的 C，再由 cc 链接得到新的 xlang_x_stage2。
@@ -3077,11 +3086,13 @@ xlang-x-pipeline: bootstrap-pipeline migrate-x-objs $(PIPELINE_X_BASE_OBJS) pipe
 # wave785 B7c: typeck_x_x / codegen_x_x are *not* migrate_x_objs (different TU names; archaeology).
 # wave842: full body → scripts/bootstrap_x_compiler.sh (G.7 有则补全; shell owns -x -E + host-cc -c + link).
 # wave859: shell loads BXC_LINK_OBJS via export-bxc-link-objs when unset (no multi-token
-# BXC_LINK_OBJS= env). NOT physical delete — prereq make-graph (xlang-x-pipeline)
+# BXC_LINK_OBJS= env).
+# wave865: shell loads CFLAGS via export-try-heat-cflags when unset (no multi-token
+# CFLAGS= env). NOT physical delete — prereq make-graph (xlang-x-pipeline)
 # + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns stage2 emit/compile/link orchestration.
 bootstrap-x-compiler: xlang-x-pipeline scripts/bootstrap_x_compiler.sh
-	@TARGET="$(TARGET)" CC="$(CC)" CFLAGS="$(CFLAGS)" MAKE="$(MAKE)" \
+	@TARGET="$(TARGET)" CC="$(CC)" MAKE="$(MAKE)" \
 	  bash scripts/bootstrap_x_compiler.sh
 
 # 自举测试（不含 run-all）：seed 构建 xlang，再用 xlang 自编得到 xlang_stage2，stage2 跑 return-value 返回 42 即通过。用于快速验证「xlang 能编译自己」。

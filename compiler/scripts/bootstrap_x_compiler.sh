@@ -25,11 +25,13 @@
 #   STAGE2         — output binary (default: ${TARGET}_x_stage2)
 #   CC             — host C compiler (default: cc)
 #   CFLAGS         — host CFLAGS for -c and link base
-#   MAKE           — residual make for export leaf (wave859)
+#                    default: load via export-try-heat-cflags when unset (wave865)
+#   MAKE           — residual make for export leaf (wave859 / wave865)
 #   BXC_LINK_OBJS  — optional; default loads via export-bxc-link-objs
 #
 # wave842 (G.7 有则补全): Makefile fat -x -E + $(CC) -c + link → this script.
 # wave859: BXC_LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
+# wave865: CFLAGS shell-load via export-try-heat-cflags (no multi-token CFLAGS=).
 # NOT physical delete — thin-call edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
@@ -40,8 +42,17 @@ TARGET="${TARGET:-xlang}"
 TARGET_X="${TARGET_X:-${TARGET}_x}"
 STAGE2="${STAGE2:-${TARGET}_x_stage2}"
 CC="${CC:-cc}"
-CFLAGS="${CFLAGS:-}"
 MAKE="${MAKE:-make}"
+# wave865: product CFLAGS need make expansion (OPT/-I); recipe no longer injects.
+if [ -z "${CFLAGS+x}" ]; then
+  _raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-try-heat-cflags 2>/dev/null || true)
+  while IFS= read -r _line || [ -n "${_line:-}" ]; do
+    case "$_line" in
+      CFLAGS=*) CFLAGS=${_line#CFLAGS=} ;;
+    esac
+  done <<<"${_raw:-}"
+fi
+CFLAGS="${CFLAGS:-}"
 
 log() { echo "bootstrap-x-compiler: $*" >&2; }
 fail() { echo "bootstrap-x-compiler: FAIL: $*" >&2; exit 1; }
@@ -73,10 +84,17 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'BXC_LINK_OBJS=' <<<"$_rec"; then
     fail "bootstrap-x-compiler must not export BXC_LINK_OBJS (wave859; shell loads export-bxc-link-objs)"
   fi
+  # wave865: no multi-token CFLAGS="$(CFLAGS)" on recipe (shell loads export leaf).
+  if grep -qE 'CFLAGS="\$\(CFLAGS\)"' <<<"$_rec"; then
+    fail "bootstrap-x-compiler must not export CFLAGS= (wave865; shell loads export-try-heat-cflags)"
+  fi
   if ! grep -qE '^export-bxc-link-objs:' "$MF"; then
     fail "Makefile must define export-bxc-link-objs (wave859)"
   fi
-  log "CHECK OK (wave842+859 bootstrap-x-compiler shell-primary; BXC bag export leaf; not physical delete)"
+  if ! grep -qE '^export-try-heat-cflags:' "$MF"; then
+    fail "Makefile must define export-try-heat-cflags (wave865)"
+  fi
+  log "CHECK OK (wave842+859+865 bootstrap-x-compiler shell-primary; BXC bag + CFLAGS export leaf; not physical delete)"
   exit 0
 fi
 

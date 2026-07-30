@@ -33,7 +33,8 @@
 > - **wave862** · B7B try-heat CFLAGS/PIPELINE_GEN_CFLAGS bulk shell-load via export-try-heat-cflags (114 recipes)
 > - **wave863** · B7B class-G filter CFLAGS/PIPELINE_GEN shell-load hygiene (4 filter FORCE recipes; try-heat CC-only)
 > - **wave864** · B7B leaf-extra RUNTIME_*/PARSER_* multi-token CFLAGS inject hygiene (3 leaves; ensure shell defaults)
-> - **open** · thin edges + B2 + leaf-extra flags / other mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
+> - **wave865** · B7B migrate/bootstrap multi-token CFLAGS shell-load via export-try-heat-cflags (8 recipes)
+> - **open** · thin edges + B2 + other multi-token env / mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -2107,8 +2108,7 @@ ship delete body; mac-only wave green.
     PHYS_DEL_PREFLIGHT_B7B_LEAF_EXTRA_CFLAGS_HYGIENE=1
 ```
 >
-> next: residual thin/B2 / other multi-token env / mk lists hybrid
-> or tip Windows → dual L4 → explicit auth ship
+> next: ~~migrate/bootstrap CFLAGS~~ wave865 · residual thin/B2/lists or tip Windows → dual L4 → explicit auth ship
 
 | Key | Value |
 |-----|-------|
@@ -2122,6 +2122,48 @@ ship delete body; mac-only wave green.
 `RUNTIME_PIPELINE_ABI_CFLAGS="$(…)"` / `RUNTIME_DRIVER_NO_C_CFLAGS="$(…)"` /
 `PARSER_ASM_THIN_GLUE_CFLAGS="$(…)"` on product try-heat recipes; drop shell `_DEFAULT_*`
 without a single replacement authority; mac-only wave green.
+
+## wave865 B7B migrate/bootstrap CFLAGS shell-load (2026-07-30)
+
+> **Why (G.7 有则补全 on wave862 export-try-heat-cflags):**
+> After wave862/863/864 try-heat + filter + leaf-extra hygiene, migrate companion
+> and archaeology bootstrap shells still required multi-token
+> `CFLAGS="$(CFLAGS)"` on Makefile thin-call recipes. Product CFLAGS need make
+> expansion (`OPT += -O2`, `-I` bags); dual recipe inject was residual
+> make-escape noise vs shell-load authority already used by try-heat.
+>
+> **Recipes (COUNT=8):**
+>   - `parser_x.o` / `typeck_x.o` / `codegen_x.o` / `migrate-x-objs` → `migrate_x_objs.sh`
+>   - `bootstrap-typeck` / `bootstrap-codegen` → `bootstrap_typeck_codegen.sh` (no empty `CFLAGS=` into migrate)
+>   - `xlang-x-pipeline` / `bootstrap-x-compiler` → host-cc link base CFLAGS
+>
+> Shells load `export-try-heat-cflags` when `CFLAGS` / `PIPELINE_GEN_CFLAGS` unset.
+> Makefile thin-call: `CC=` / `PYTHON=` / `MAKE=` / `TARGET=` only (no multi-token CFLAGS=).
+> Residual: `build-tool` still injects `CFLAGS='$(CFLAGS)'`; WIN32_O_CFLAGS leaf; thin·B2.
+> **NOT physical delete** — thin edges + B2 + mk lists remain. Dual-end L2 required.
+>
+```text
+    PHYS_DEL_B7B_MIGRATE_BOOTSTRAP_CFLAGS_SHELL_LOAD=1
+    PHYS_DEL_B7B_MIGRATE_BOOTSTRAP_CFLAGS_SHELL_LOAD_WAVE=wave865
+    PHYS_DEL_B7B_MIGRATE_BOOTSTRAP_CFLAGS_SHELL_LOAD_COUNT=8
+    SWALLOWED_B7B_MIGRATE_BOOTSTRAP_CFLAGS_SHELL_LOAD=1
+    PHYS_DEL_PREFLIGHT_B7B_MIGRATE_BOOTSTRAP_CFLAGS_SHELL_LOAD=1
+```
+>
+> next: residual thin/B2 / other multi-token env (build-tool / WIN32) / mk lists hybrid
+> or tip Windows → dual L4 → explicit auth ship
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_MIGRATE_BOOTSTRAP_CFLAGS_SHELL_LOAD` | `1` |
+| `PHYS_DEL_B7B_MIGRATE_BOOTSTRAP_CFLAGS_SHELL_LOAD_COUNT` | `8` |
+| `SWALLOWED_B7B_MIGRATE_BOOTSTRAP_CFLAGS_SHELL_LOAD` | `1` |
+| `B7B_MIGRATE_BOOTSTRAP_CFLAGS_SHELL_LOAD_VIA` | `export_try_heat_cflags_migrate_xxp_bxc_btc` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim migrate/bootstrap CFLAGS shell-load = physical delete; reintroduce
+multi-token `CFLAGS="$(CFLAGS)"` on migrate/BTC/XXP/BXC recipes; pass empty
+`CFLAGS=` into `migrate_x_objs` (blocks export leaf load); mac-only wave green.
 
 ## wave863 B7B filter CFLAGS shell-load hygiene (2026-07-30)
 

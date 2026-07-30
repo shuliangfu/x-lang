@@ -21,6 +21,8 @@
 #   TARGET              — product binary basename (default: xlang)
 #   TARGET_X            — .x-pipeline binary (default: ${TARGET}_x)
 #   CC / CFLAGS         — host C compiler + flags
+#                         CFLAGS default: load via export-try-heat-cflags when
+#                         unset (wave865; G.7 有则补全 on wave862)
 #   MAKE                — make binary (for residual ensure edges + export leaf)
 #   XXP_BASE_OBJS       — optional; default loads via export-xxp-link-bags
 #   XXP_FRONTEND_OBJS   — optional; default loads via export-xxp-link-bags
@@ -32,6 +34,7 @@
 #
 # wave845 (G.7 有则补全): Makefile fat multi-make + $(CC) link → this script.
 # wave859: XXP_* shell-load via make export leaf (G.7; not physical delete).
+# wave865: CFLAGS shell-load via export-try-heat-cflags (no multi-token CFLAGS=).
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
@@ -41,8 +44,17 @@ MODE="${1:-run}"
 TARGET="${TARGET:-xlang}"
 TARGET_X="${TARGET_X:-${TARGET}_x}"
 CC="${CC:-cc}"
-CFLAGS="${CFLAGS:-}"
 MAKE="${MAKE:-make}"
+# wave865: product CFLAGS need make expansion (OPT/-I); recipe no longer injects.
+if [ -z "${CFLAGS+x}" ]; then
+  _raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-try-heat-cflags 2>/dev/null || true)
+  while IFS= read -r _line || [ -n "${_line:-}" ]; do
+    case "$_line" in
+      CFLAGS=*) CFLAGS=${_line#CFLAGS=} ;;
+    esac
+  done <<<"${_raw:-}"
+fi
+CFLAGS="${CFLAGS:-}"
 
 log() { echo "xlang-x-pipeline: $*" >&2; }
 fail() { echo "xlang-x-pipeline: FAIL: $*" >&2; exit 1; }
@@ -76,10 +88,17 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'XXP_BASE_OBJS=|XXP_FRONTEND_OBJS=|XXP_LINK_OBJS=|XXP_SATELLITE_OBJS=|XXP_LSP_DIAG=|XXP_LIBS=' <<<"$_rec"; then
     fail "xlang-x-pipeline must not export XXP_* bags (wave859; shell loads export-xxp-link-bags)"
   fi
+  # wave865: no multi-token CFLAGS="$(CFLAGS)" on recipe (shell loads export leaf).
+  if grep -qE 'CFLAGS="\$\(CFLAGS\)"' <<<"$_rec"; then
+    fail "xlang-x-pipeline must not export CFLAGS= (wave865; shell loads export-try-heat-cflags)"
+  fi
   if ! grep -qE '^export-xxp-link-bags:' "$MF"; then
     fail "Makefile must define export-xxp-link-bags (wave859)"
   fi
-  log "CHECK OK (wave845+859 xlang-x-pipeline shell-primary; XXP bags export leaf; not physical delete)"
+  if ! grep -qE '^export-try-heat-cflags:' "$MF"; then
+    fail "Makefile must define export-try-heat-cflags (wave865)"
+  fi
+  log "CHECK OK (wave845+859+865 xlang-x-pipeline shell-primary; XXP bags + CFLAGS export leaf; not physical delete)"
   exit 0
 fi
 

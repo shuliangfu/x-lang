@@ -1497,10 +1497,11 @@
 - **wave862** · B7B try-heat CFLAGS/PIPELINE_GEN bulk shell-load（export-try-heat-cflags；114 recipes 去 multi-token CFLAGS inject）
 - **wave863** · B7B class-G filter CFLAGS/PIPELINE_GEN shell-load hygiene（4 filter FORCE recipes 去 multi-token CFLAGS inject；try-heat CC-only）
 - **wave864** · B7B leaf-extra RUNTIME_*/PARSER_* multi-token CFLAGS inject hygiene（3 leaves：pipeline_abi / runtime_driver_no_c / parser_asm_thin_glue；shell `_DEFAULT_*` 权威）
+- **wave865** · B7B migrate/bootstrap multi-token CFLAGS shell-load（export-try-heat-cflags；8 recipes：migrate 4 + BTC 2 + XXP/BXC 2）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
-- **open** · thin edges + B2 + other multi-token env / mk lists（hybrid）→ tip Windows → 双端 L4 → explicit auth 真删
+- **open** · thin edges + B2 + other multi-token env（build-tool / WIN32）/ mk lists（hybrid）→ tip Windows → 双端 L4 → explicit auth 真删
 
 **状态明细**（一行一项）：
 
@@ -1606,6 +1607,8 @@
 - ✅ **try-heat CFLAGS bulk shell-load**（wave862 · export-try-heat-cflags · 114 recipes 去 CFLAGS/PIPELINE_GEN inject · shell 未设时 make 展开 · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **filter CFLAGS shell-load hygiene**（wave863 · 4 class-G filter FORCE · 去 multi-token CFLAGS/PIPELINE inject · filter→try-heat CC-only · **非**物理删 · thin edges + B2 + leaf-extra + mk lists）
 - ✅ **leaf-extra RUNTIME_*/PARSER_* CFLAGS hygiene**（wave864 · 3 leaves · 去 multi-token leaf-extra inject · ensure shell `_DEFAULT_*` · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **migrate/bootstrap CFLAGS shell-load**（wave865 · 8 recipes · export-try-heat-cflags · 去 multi-token CFLAGS inject · **非**物理删 · thin edges + B2 + build-tool/WIN32 residual）
+- ✅ **migrate/bootstrap CFLAGS shell-load**（wave865 · 8 recipes · export-try-heat-cflags · 去 multi-token CFLAGS inject · **非**物理删 · thin edges + B2 + build-tool/WIN32 residual）
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：

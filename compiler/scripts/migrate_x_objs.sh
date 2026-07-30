@@ -21,7 +21,9 @@
 #   make migrate-x-objs | make parser_x.o …   # thin Makefile leaves
 #
 # Env:
-#   CC / CFLAGS / PYTHON / MAKE — host compile (defaults match Makefile)
+#   CC / CFLAGS / PIPELINE_GEN_CFLAGS / PYTHON / MAKE — host compile
+#   CFLAGS / PIPELINE_GEN_CFLAGS default: load via make export-try-heat-cflags
+#     when unset (wave865; G.7 有则补全 on wave862 export leaf — OPT/-I/clang ifeq)
 #   XLANG_MIGRATE_FORCE=1 — always recompile even if .o is newer than gen
 #   XLANG_FORCE_REGEN_GEN=1 — force ensure_migrate_gen -E path
 #
@@ -29,12 +31,13 @@
 # Wave: 735/736 Track MG · pairs with ensure_migrate_gen.sh + Makefile thin leaves.
 # wave832: Makefile *_x.o leaves are FORCE dep-thin; this script owns gen.c mtime
 #   (need_rebuild + XLANG_MIGRATE_FORCE). NOT physical delete.
+# wave865: Makefile drops multi-token CFLAGS="$(CFLAGS)" inject; shell loads
+#   export-try-heat-cflags when unset (same authority as try-heat / wave862).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 CC="${CC:-cc}"
-CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
 MAKE="${MAKE:-make}"
 PYTHON="${PYTHON:-}"
 if [ -z "$PYTHON" ]; then
@@ -47,12 +50,44 @@ fi
 XLANG_MIGRATE_FORCE="${XLANG_MIGRATE_FORCE:-0}"
 MODE="${1:-all}"
 
-# Match Makefile PIPELINE_GEN_CFLAGS (Clang extras only when CC is clang).
-PIPELINE_GEN_CFLAGS_BASE="-Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits"
-PIPELINE_GEN_CFLAGS_CLANG="-Wno-logical-op-parentheses -Wno-bitwise-op-parentheses -Wno-incompatible-pointer-types-discards-qualifiers -Wno-parentheses-equality"
-PIPELINE_GEN_CFLAGS="$PIPELINE_GEN_CFLAGS_BASE"
-if "$CC" -v 2>&1 | grep -qi clang; then
-  PIPELINE_GEN_CFLAGS="$PIPELINE_GEN_CFLAGS_BASE $PIPELINE_GEN_CFLAGS_CLANG"
+# wave865 · B7B migrate CFLAGS shell-load (G.7 有则补全 on wave862 export leaf).
+# Product CFLAGS / PIPELINE_GEN_CFLAGS need make expansion (OPT += -O2; clang
+# silence ifeq). Makefile migrate recipes drop multi-token CFLAGS= env; shell
+# loads export-try-heat-cflags when either var is unset.
+# PLATFORM: SHARED — KEY=value from export target; no compile side effects.
+_load_try_heat_cflags_via_make() {
+  local raw line
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-try-heat-cflags) || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      CFLAGS=*)
+        if [ -z "${CFLAGS+x}" ]; then
+          CFLAGS=${line#CFLAGS=}
+        fi
+        ;;
+      PIPELINE_GEN_CFLAGS=*)
+        if [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
+          PIPELINE_GEN_CFLAGS=${line#PIPELINE_GEN_CFLAGS=}
+        fi
+        ;;
+    esac
+  done <<<"$raw"
+  return 0
+}
+
+if [ -z "${CFLAGS+x}" ] || [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
+  _load_try_heat_cflags_via_make || true
+fi
+# Fallback when make export unavailable (direct shell invoke without Makefile).
+CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
+if [ -z "${PIPELINE_GEN_CFLAGS+x}" ] || [ -z "${PIPELINE_GEN_CFLAGS:-}" ]; then
+  # Match Makefile PIPELINE_GEN_CFLAGS (Clang extras only when CC is clang).
+  PIPELINE_GEN_CFLAGS_BASE="-Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits"
+  PIPELINE_GEN_CFLAGS_CLANG="-Wno-logical-op-parentheses -Wno-bitwise-op-parentheses -Wno-incompatible-pointer-types-discards-qualifiers -Wno-parentheses-equality"
+  PIPELINE_GEN_CFLAGS="$PIPELINE_GEN_CFLAGS_BASE"
+  if "$CC" -v 2>&1 | grep -qi clang; then
+    PIPELINE_GEN_CFLAGS="$PIPELINE_GEN_CFLAGS_BASE $PIPELINE_GEN_CFLAGS_CLANG"
+  fi
 fi
 
 log() { echo "migrate-x-objs: $*" >&2; }

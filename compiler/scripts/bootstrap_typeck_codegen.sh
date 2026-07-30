@@ -78,6 +78,10 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
     if grep -qE 'BTC_CFLAGS=' <<<"$_rec"; then
       fail "$ph must not export BTC_CFLAGS (wave857; shell loads export leaf)"
     fi
+    # wave865: no multi-token product CFLAGS="$(CFLAGS)" (migrate loads export leaf).
+    if grep -qE 'CFLAGS="\$\(CFLAGS\)"' <<<"$_rec"; then
+      fail "$ph must not export CFLAGS= (wave865; migrate shell-loads export-try-heat-cflags)"
+    fi
   done
   if ! grep -qE '^export-relink-product-link-objs:' "$MF"; then
     fail "Makefile must define export-relink-product-link-objs (wave856)"
@@ -88,7 +92,13 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if ! grep -qE '^export-relink-product-link-cflags:' "$MF"; then
     fail "Makefile must define export-relink-product-link-cflags (wave857)"
   fi
-  log "CHECK OK (wave841+856+857 bootstrap-typeck/codegen shell-primary; LINK_OBJS+CFLAGS export leaves; not physical delete)"
+  if ! grep -qE '^export-try-heat-cflags:' "$MF"; then
+    fail "Makefile must define export-try-heat-cflags (wave865)"
+  fi
+  if ! grep -q 'export-try-heat-cflags\|wave865' scripts/migrate_x_objs.sh 2>/dev/null; then
+    fail "migrate_x_objs.sh must shell-load export-try-heat-cflags (wave865)"
+  fi
+  log "CHECK OK (wave841+856+857+865 bootstrap-typeck/codegen shell-primary; LINK+CFLAGS export leaves; not physical delete)"
   exit 0
 fi
 
@@ -175,8 +185,10 @@ run_force_gen() {
 
 run_migrate() {
   # $1 = typeck|codegen
+  # wave865: do not pass empty CFLAGS= (blocks migrate export-try-heat-cflags load).
+  # migrate_x_objs shell-loads product CFLAGS/PIPELINE_GEN when unset.
   log "migrate_x_objs FORCE $1"
-  CC="$CC" CFLAGS="${CFLAGS:-}" PYTHON="$PYTHON" MAKE="$MAKE" XLANG_MIGRATE_FORCE=1 \
+  CC="$CC" PYTHON="$PYTHON" MAKE="$MAKE" XLANG_MIGRATE_FORCE=1 \
     sh scripts/migrate_x_objs.sh "$1"
 }
 
