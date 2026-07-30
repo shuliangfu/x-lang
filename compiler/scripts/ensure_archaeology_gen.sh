@@ -38,6 +38,8 @@
 #   XLANG_C — binary name (default xlang-c)
 #
 # PLATFORM: SHARED shell orchestration; seed pins are host-portable C.
+# wave829 (G.7 有则补全): FORCE dep-thin — Makefile prereqs FORCE+script only;
+#   shell owns pin/FORCE_REGEN archaeology policy. NOT physical delete.
 # Wave: 740 Track MG · pairs with Makefile thin leaves + xbuild archaeology-gen.
 
 set -euo pipefail

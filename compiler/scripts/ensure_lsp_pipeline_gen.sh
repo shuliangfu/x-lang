@@ -30,6 +30,8 @@
 #   XLANG_C / XLANG_X — binary names (default xlang-c / xlang-x)
 #
 # PLATFORM: SHARED shell orchestration; product seed pins are host-portable C.
+# wave829 (G.7 有则补全): FORCE dep-thin — Makefile prereqs FORCE+script only;
+#   shell owns pin/seed/FORCE_REGEN policy. NOT physical delete.
 # Wave: 739 Track MG · pairs with Makefile thin leaves + xbuild lsp/pipeline-gen.
 
 set -euo pipefail

@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1721,6 +1721,47 @@ Then (later waves, not this tip):
 
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
+
+## wave829 gen.c FORCE dep-thin (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on product/archaeology `*_gen.c` residual
+> (mirror wave826–828 FORCE dep-thin) — Makefile **17** gen leaves drop dual `.x`
+> / `$(MAIN_X_DEPS)` / `$(PREPROCESS_X_DEPS)` prereqs; target lines are
+> `FORCE scripts/ensure_{migrate,driver,lsp_pipeline,archaeology}_gen.sh` only;
+> recipes remain thin-call ensure. Shell owns pin/seed/`XLANG_FORCE_REGEN_GEN`
+> policy (not make source-edge graph). Honesty COUNT = **17** (migrate 4 + lsp 3 +
+> archaeology 8 + driver/preprocess 2). Residual: `ast_gen2.c` still inline body;
+> `pipeline_gen.c` already prereq-free; thin edges + B2 + mk lists remain.
+> Dual-end L2 required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_GEN_C_FORCE_THIN=1
+    PHYS_DEL_GEN_C_FORCE_THIN_WAVE=wave829
+    PHYS_DEL_GEN_C_FORCE_THIN_COUNT=17
+    SWALLOWED_GEN_C_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (this wave implement; docs dual-end follow)
+  next: more shell-primary / thin edges / B2 residual or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_GEN_C_FORCE_THIN` | `1` |
+| `PHYS_DEL_GEN_C_FORCE_THIN_COUNT` | `17` |
+| `SWALLOWED_GEN_C_FORCE_THIN` | `1` |
+| `GEN_C_FORCE_THIN_HELPER` | `ensure_migrate_driver_lsp_archaeology_gen` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim gen.c FORCE thin = physical delete; re-list catalog `.x` /
+`X_DEPS` on these Makefile gen prereq lines; `rm compiler/Makefile`; ship delete
+body; mac-only wave green.
 
 ## wave828 driver_leaf FORCE dep-thin (2026-07-30)
 

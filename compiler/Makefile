@@ -1562,7 +1562,8 @@ bootstrap-parse-file: $(TARGET) $(STD_AND_PANIC_O) bootstrap-parser
 # 须 xlang-x -x -E 全量 TU；xlang-c 瘦 gen 缺 copy_module_import_path64 / parse_expr_into 等。
 # ast_gen2.c 仅 typeck/codegen 单 TU 需要；clean worktree 用 pinned parser seed 时不应先触发它。
 # wave736: G.7 body → scripts/ensure_migrate_gen.sh (parser_gen.c seed/pin/-E)
-parser_gen.c: src/parser/parser.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+parser_gen.c: FORCE scripts/ensure_migrate_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_PARSER_GEN_TIMEOUT="$(XLANG_PARSER_GEN_TIMEOUT)" \
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
@@ -1574,7 +1575,8 @@ parser_x.o: parser_gen.c
 
 # lexer.x：须 xlang-x -x -E 全量 TU；xlang-c 无 -x 时缺 advance_one/next_body。
 # wave737: G.7 body → scripts/ensure_migrate_gen.sh lexer (pin/seed/-E + slim + token enum)
-lexer_gen.c: src/lexer/lexer.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+lexer_gen.c: FORCE scripts/ensure_migrate_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
 	  sh scripts/ensure_migrate_gen.sh lexer
@@ -1855,7 +1857,8 @@ ast_gen2.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave736: G.7 body → scripts/ensure_migrate_gen.sh (typeck_gen.c seed/pin/-E)
-typeck_gen.c: src/typeck/typeck.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+typeck_gen.c: FORCE scripts/ensure_migrate_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" \
 	  sh scripts/ensure_migrate_gen.sh typeck
@@ -1866,7 +1869,8 @@ typeck_x.o: typeck_gen.c
 	  sh scripts/migrate_x_objs.sh typeck
 
 # wave736: G.7 body → scripts/ensure_migrate_gen.sh (codegen_gen.c tip seed pin/-E)
-codegen_gen.c: src/codegen/codegen.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+codegen_gen.c: FORCE scripts/ensure_migrate_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" \
 	  sh scripts/ensure_migrate_gen.sh codegen
@@ -2091,7 +2095,8 @@ src/lexer/cfg_eval_bootstrap_stub.o: seeds/cfg_eval_bootstrap_stub.from_x.c src/
 # G-02a: autovec.c 已物理删除（孤立死代码，无任何调用点/include）。
 
 # wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh (product LSP gens)
-lsp_diag_gen.c: src/lsp/lsp_diag.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+lsp_diag_gen.c: FORCE scripts/ensure_lsp_pipeline_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
 	  sh scripts/ensure_lsp_pipeline_gen.sh lsp_diag
@@ -2106,7 +2111,8 @@ lsp_diag_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 
 # lsp_io.x：C-04 v0 要求 xlang-c 自动生成 import extern；xlang-x 仍走旧块时回退 xlang-c。
 # wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh
-lsp_io_gen.c: src/lsp/lsp_io.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+lsp_io_gen.c: FORCE scripts/ensure_lsp_pipeline_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
 	  sh scripts/ensure_lsp_pipeline_gen.sh lsp_io
@@ -2130,7 +2136,8 @@ src/seed_link_compat.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh (lsp_gen + g_lsp_state_buf post)
-lsp_gen.c: src/lsp/lsp.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+lsp_gen.c: FORCE scripts/ensure_lsp_pipeline_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
 	  sh scripts/ensure_lsp_pipeline_gen.sh lsp_gen
@@ -2143,7 +2150,8 @@ lsp_io_std_heap_x.o: FORCE scripts/driver_leaf_x_to_o.sh
 	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh ensure $@
 # wave740: G.7 body → scripts/ensure_archaeology_gen.sh (Track L archaeology only)
-lsp_io_std_heap_gen.c: src/lsp/lsp_io_std_heap.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+lsp_io_std_heap_gen.c: FORCE scripts/ensure_archaeology_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" \
 	  sh scripts/ensure_archaeology_gen.sh lsp_io_std_heap
@@ -2201,31 +2209,38 @@ driver_emit_x.o: FORCE scripts/driver_leaf_x_to_o.sh
 
 # wave740: G.7 body → scripts/ensure_archaeology_gen.sh
 # 考古：可选再生成工作区 *_gen.c（不进 DRIVER_SEED_PREREQS；叶子已退役；产品用 *_x.o）
-driver_fmt_gen.c: src/driver/fmt.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+driver_fmt_gen.c: FORCE scripts/ensure_archaeology_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" \
 	  sh scripts/ensure_archaeology_gen.sh fmt
-driver_check_gen.c: src/driver/check.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+driver_check_gen.c: FORCE scripts/ensure_archaeology_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" \
 	  sh scripts/ensure_archaeology_gen.sh check
-driver_test_gen.c: src/driver/test.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+driver_test_gen.c: FORCE scripts/ensure_archaeology_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" \
 	  sh scripts/ensure_archaeology_gen.sh test
-driver_compile_gen.c: src/driver/compile.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+driver_compile_gen.c: FORCE scripts/ensure_archaeology_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" \
 	  sh scripts/ensure_archaeology_gen.sh compile
-driver_build_gen.c: src/driver/build.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+driver_build_gen.c: FORCE scripts/ensure_archaeology_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" \
 	  sh scripts/ensure_archaeology_gen.sh build
-driver_run_gen.c: src/driver/run.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+driver_run_gen.c: FORCE scripts/ensure_archaeology_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" \
 	  sh scripts/ensure_archaeology_gen.sh run
-driver_emit_gen.c: src/driver/emit.x
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+driver_emit_gen.c: FORCE scripts/ensure_archaeology_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" \
 	  sh scripts/ensure_archaeology_gen.sh emit
@@ -2268,7 +2283,8 @@ FORCE:
 
 # driver_gen.c / driver_x.o：main.x 驱动入口。
 # wave738: G.7 body → scripts/ensure_driver_gen.sh (MAIN_X_DEPS freshness / seed / -E + fix dup main)
-driver_gen.c: $(MAIN_X_DEPS)
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+driver_gen.c: FORCE scripts/ensure_driver_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_DRIVER_GEN_TIMEOUT="$(XLANG_DRIVER_GEN_TIMEOUT)" \
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
@@ -2284,7 +2300,8 @@ driver_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 
 # preprocess_gen.c / preprocess_x.o：runtime XLANG_USE_X_PREPROCESS 路径。
 # wave738: G.7 body → scripts/ensure_driver_gen.sh preprocess
-preprocess_gen.c: $(PREPROCESS_X_DEPS)
+# wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
+preprocess_gen.c: FORCE scripts/ensure_driver_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
 	  sh scripts/ensure_driver_gen.sh preprocess

@@ -28,6 +28,8 @@
 #   XLANG_C / XLANG_X — binary names (default xlang-c / xlang-x)
 #
 # PLATFORM: SHARED shell orchestration; product seed pins are host-portable C.
+# wave829 (G.7 有则补全): FORCE dep-thin — Makefile prereqs FORCE+script only;
+#   shell owns MAIN_X_DEPS/PREPROCESS pin policy (mk lists). NOT physical delete.
 # Wave: 738 Track MG · pairs with Makefile thin leaves + xbuild driver-gen.
 
 set -euo pipefail

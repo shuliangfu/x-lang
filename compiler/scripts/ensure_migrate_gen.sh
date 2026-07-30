@@ -33,6 +33,8 @@
 # PLATFORM: SHARED shell orchestration; product seed pins are host-portable C.
 # Stale gitignored pins (dual-boot Windows) fail product symbol contract →
 # refresh from seeds/*_gen.linux.x86_64.c (same class as codegen tip-seed sync).
+# wave829 (G.7 有则补全): FORCE dep-thin — Makefile prereqs FORCE+script only;
+#   shell owns pin/seed/FORCE_REGEN policy. NOT physical delete.
 # Wave: 736/737 Track MG · pairs with migrate_x_objs.sh + Makefile thin leaves.
 
 set -euo pipefail
