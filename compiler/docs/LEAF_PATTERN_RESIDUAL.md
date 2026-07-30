@@ -1836,7 +1836,7 @@ ship delete body; mac-only wave green.
     SWALLOWED_BOOTSTRAP_PIPELINE_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_BOOTSTRAP_PIPELINE_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (implement tip; Mac + Ubuntu leaf --check;
+  dual-end L2 green tip: 92536f727 (Mac + Ubuntu leaf --check;
     bootstrap-pipeline FORCE; sample make bootstrap-pipeline OK)
   next: thin edges / B2 pressure or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body (explicit auth only)
