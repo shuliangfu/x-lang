@@ -254,7 +254,7 @@
 | 1888 | `lexer_x.o` | 🟡 wave782 try-gen-c-to-o thin |
 | 2185 | `typeck_x.o` | 🟡 wave735 migrate · wave878 thin `@bash` · wave919 multi-target `$(MIGRATE_X_OBJS)` |
 | 2210 | `codegen_x.o` | 🟡 wave735 migrate · wave878 thin `@bash` · wave919 multi-target `$(MIGRATE_X_OBJS)` |
-| 2529 | `ast_x.o` | ⬜ |
+| 2529 | `ast_x.o` | 🟡 wave836 cp-alias · wave920 multi-target `$(CP_ALIAS_SHARED_OBJS)` |
 | 2568 | `lsp_diag_x.o` | ⬜ |
 | 2644 | `lsp_io_std_heap_x.o` | ⬜ |
 | 2663 | `lsp_io_x.o` | ⬜ |
@@ -540,8 +540,8 @@
 
 | 行 | Makefile 目标 | 迁移状态 |
 |----|---------------|----------|
-| 1614 | `crt0_user.o` | ⬜ |
-| 1616 | `freestanding_io.o` | ⬜ |
+| 1614 | `crt0_user.o` | 🟡 wave836 cp-alias · wave920 multi-target `$(CP_ALIAS_LINUX_X86_64_OBJS)` |
+| 1616 | `freestanding_io.o` | 🟡 wave836 cp-alias · wave920 multi-target `$(CP_ALIAS_LINUX_X86_64_OBJS)` |
 | 1899 | `x_frontend_link_alias.o` | ⬜ |
 | 1903 | `ast_asm_bare_link_alias.o` | ⬜ |
 | 1906 | `backend_asm_bare_link_alias.o` | ⬜ |
@@ -723,6 +723,7 @@
 
 ## wave913 residual note
 
+- **wave920** · cp-alias family multi-target FORCE thin（3 · `$(CP_ALIAS_SHARED_OBJS)` = `ast_x.o`（1 · SHARED）+ `$(CP_ALIAS_LINUX_X86_64_OBJS)` = `crt0_user.o` + `freestanding_io.o`（2 · Linux x86_64 guard）— 2 新 lists in r_lists · G.7 `@bash scripts/ensure_cp_alias_o.sh ensure $@` · 脚本 CATALOG 拥有 OUT|SRC map · 3 per-leaf recipes → 2 multi-target（按平台作用域拆分）· **cp-alias family closed** · **非**物理删）
 - **wave919** · migrate_x family multi-target FORCE thin（3 · `$(MIGRATE_X_OBJS)` = `parser_x.o` + `typeck_x.o` + `codegen_x.o` 新 list in r_lists · G.7 `@bash scripts/migrate_x_objs.sh $@` · 脚本 case 已接受 `<name>_x.o` MODE 无需 --auto · 3 per-leaf recipes → 1 multi-target · **migrate_x family closed** · **非**物理删）
 - **wave918** · cc_inc_tu Linux x86_64 guard multi-target FORCE thin --auto（1 · `$(CC_INC_TU_LINUX_X86_64_OBJS)` = `src/asm/bootstrap_nostdlib_stubs.o` 新 list in r_lists · G.7 `@bash scripts/cc_inc_tu.sh --auto $@` · cc_inc_tu.sh seed-map 扩 · per-leaf recipe → multi-target FORCE inside `ifeq (Linux,x86_64)` guard · **cc_inc_tu multi-target family closed** · **非**物理删）
 - **wave917** · cc_inc_tu SHARED family multi-target FORCE thin --auto（5 · `$(CC_INC_TU_OBJS)` 迁 r_lists · G.7 `@bash scripts/cc_inc_tu.sh --auto $@` · cc_inc_tu.sh seed-map `cc_inc_tu_seed_for_out` · 5 per-leaf recipes → 1 multi-target · **非**物理删）

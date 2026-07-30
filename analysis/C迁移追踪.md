@@ -1556,7 +1556,8 @@
 - ✅ **cc_inc_tu SHARED family multi-target FORCE thin --auto**（wave917 · 5 · `$(CC_INC_TU_OBJS)` 迁 r_lists · G.7 `@bash scripts/cc_inc_tu.sh --auto $@` · cc_inc_tu.sh seed-map `cc_inc_tu_seed_for_out` · 5 per-leaf recipes → 1 multi-target · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
 - ✅ **cc_inc_tu Linux x86_64 guard multi-target FORCE thin --auto**（wave918 · 1 · `$(CC_INC_TU_LINUX_X86_64_OBJS)` = `src/asm/bootstrap_nostdlib_stubs.o` 新 list in r_lists · G.7 `@bash scripts/cc_inc_tu.sh --auto $@` · cc_inc_tu.sh seed-map 扩 · per-leaf recipe → multi-target FORCE inside `ifeq (Linux,x86_64)` guard · **cc_inc_tu multi-target family closed** · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
 - ✅ **migrate_x family multi-target FORCE thin**（wave919 · 3 · `$(MIGRATE_X_OBJS)` = `parser_x.o` + `typeck_x.o` + `codegen_x.o` 新 list in r_lists · G.7 `@bash scripts/migrate_x_objs.sh $@` · 脚本 case 已接受 `<name>_x.o` MODE 无需 --auto · 3 per-leaf recipes → 1 multi-target · **migrate_x family closed** · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
-- **open** · thin edges + mk lists hybrid（cp-alias 3 / filter 4 / net_merge …）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave919 migrate_x family closed
+- ✅ **cp-alias family multi-target FORCE thin**（wave920 · 3 · `$(CP_ALIAS_SHARED_OBJS)` = `ast_x.o`（1 · SHARED G-02a C ABI alias）+ `$(CP_ALIAS_LINUX_X86_64_OBJS)` = `crt0_user.o` + `freestanding_io.o`（2 · Linux x86_64 freestanding wrappers inside ifeq guard）— 2 新 lists in r_lists · G.7 `@bash scripts/ensure_cp_alias_o.sh ensure $@` · 脚本 CATALOG 拥有 OUT|SRC map · 3 per-leaf recipes → 2 multi-target（按平台作用域拆分）· **cp-alias family closed** · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
+- **open** · thin edges + mk lists hybrid（filter 4 / net_merge …）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave920 cp-alias family closed
 
 **状态明细**（一行一项）：
 
@@ -1654,7 +1655,7 @@
 - ✅ **pipeline_glue_types FORCE dep-thin**（wave833 · 1 叶 · FORCE+ensure_pipeline_glue_types · shell 拥 gen/extract mtime + ABI guard · **非**物理删 · ~~bootstrap-pipeline~~（wave834）+ thin edges + B2 + mk lists 仍 residual）
 - ✅ **bootstrap-pipeline FORCE shell-primary**（wave834 · 1 叶 · FORCE+ensure_lsp_pipeline_gen pipeline · G.7 有则补全 wave739 body · **非**物理删 · ~~filtered.o~~（wave835）+ thin edges + B2 + mk lists 仍 residual）
 - ✅ **bootstrap_seed filtered.o FORCE dep-thin**（wave835 · 4 叶 · FORCE+filter_* ensure · shell mtime + try-heat SRC · g05 同 path · **非**物理删 · thin edges + B2 + mk lists 仍 residual）
-- ✅ **product object-path cp-alias FORCE dep-thin**（wave836 · 3 叶 · FORCE+ensure_cp_alias_o · shell mtime + try-heat SRC · **非**物理删 · thin edges + B2 + mk lists 仍 residual）
+- ✅ **product object-path cp-alias FORCE dep-thin**（wave836 · 3 叶 · FORCE+ensure_cp_alias_o · shell mtime + try-heat SRC · wave920 multi-target `$(CP_ALIAS_SHARED_OBJS)` + `$(CP_ALIAS_LINUX_X86_64_OBJS)` · **非**物理删 · thin edges + B2 + mk lists 仍 residual）
 - ✅ **pipeline_gen.c FORCE dep-thin**（wave837 · 1 叶 · FORCE+ensure_lsp_pipeline_gen pipeline · G.7 有则补全 wave739 body · 收 empty-prereq 残 · **非**物理删 · thin edges + B2 + mk lists 仍 residual）
 - ✅ **bootstrap_xlangc FORCE dep-thin**（wave838 · 1 叶 · FORCE+select_bootstrap_xlangc · G.7 有则补全 · 收 create.sh make-graph 残 · **非**物理删 · thin edges + B2 + mk lists 仍 residual）
 - ✅ **archaeology host-pick FORCE dep-thin**（wave839 · 4 叶 · FORCE+archaeology_host_pick_phony · G.7 有则补全 · 收 script-only prereq 残 · **非**物理删 · thin edges + B2 + mk lists 仍 residual）
