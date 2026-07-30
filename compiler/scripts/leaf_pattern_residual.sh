@@ -2788,6 +2788,13 @@ for _gs in ensure_migrate_gen.sh ensure_driver_gen.sh ensure_lsp_pipeline_gen.sh
   fi
 done
 note "ensure_*_gen scripts own pin/FORCE_REGEN policy (wave829)"
+# PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
+# Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
+if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile ensure_*_gen recipes must use bash (not sh/dash; wave829 Ubuntu)"
+else
+  note "Makefile ensure_*_gen recipes use bash (wave829 dash-safe)"
+fi
 
 # wave815: archaeology host-pick phonies — ensure thin on catalog keys + script --check.
 if [ ! -f "$ROOT/compiler/scripts/archaeology_host_pick_phony.sh" ] && [ ! -f "scripts/archaeology_host_pick_phony.sh" ]; then
