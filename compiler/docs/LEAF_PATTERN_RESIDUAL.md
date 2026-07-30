@@ -25,7 +25,8 @@
 > - **wave855** · B7B seed-gate REQUIRED shell-load from mk (RXL/XXL/XNC; Makefile drops multi-token env export)
 > - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags / 6 shells; nested expand)
 > - **wave799** · execute-gate (hard refuse delete)
-> - **open** · thin edges + B2 + other mk lists (hybrid) + LINK CFLAGS env residual → tip Windows → dual L4 → explicit auth ship delete
+> - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves (4 bags / 6 shells; drop multi-token CFLAGS env)
+- **open** · thin edges + B2 + other mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -2070,6 +2071,43 @@ ship delete body; mac-only wave green.
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
 
+## wave857 B7B LINK_CFLAGS shell-load via make export leaves (2026-07-30)
+
+> **Why (G.7 有则补全 on wave856 LINK_OBJS export-leaf pattern):**
+> Archaeology shells still required multi-token `*_LINK_CFLAGS=` / `BTC_CFLAGS=` /
+> `BS_LINK_FLAGS=` from Makefile thin-call. Composed flags need **make expansion**
+> (`DRIVER_SEED_LINK_FLAGS` / `ASM_GLUE_DUP_LDFLAGS` / `MAIN_LINK_FLAGS` / platform ifeq)
+> — not pure mk text.
+>
+> **Bags (4 formulas / 6 shells):**
+>   - **relink-product** — RXL + XXL + BTC codegen via `export-relink-product-link-cflags`
+>   - **btc-typeck** — BTC typeck only via `export-btc-typeck-link-cflags` (no `-DXLANG_USE_X_CODEGEN`)
+>   - **xnc** — XNC + BS via `export-xnc-link-cflags` (no ASM_GLUE_DUP)
+>   - **bxf** — BXF via `export-bxf-link-cflags`
+>
+> Shell loads `LINK_CFLAGS=` when env unset; Makefile recipes drop multi-token
+> CFLAGS/FLAGS env. **NOT physical delete** — thin edges + B2 + mk lists remain.
+>
+```text
+    PHYS_DEL_B7B_LINK_CFLAGS_SHELL_LOAD=1
+    PHYS_DEL_B7B_LINK_CFLAGS_SHELL_LOAD_WAVE=wave857
+    PHYS_DEL_B7B_LINK_CFLAGS_SHELL_LOAD_COUNT=4
+    SWALLOWED_B7B_LINK_CFLAGS_SHELL_LOAD=1
+    PHYS_DEL_PREFLIGHT_B7B_LINK_CFLAGS_SHELL_LOAD=1
+```
+>
+> next: residual thin/B2/lists (hybrid) or tip Windows → dual L4 → explicit auth ship
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_LINK_CFLAGS_SHELL_LOAD` | `1` |
+| `PHYS_DEL_B7B_LINK_CFLAGS_SHELL_LOAD_COUNT` | `4` bags / `6` shells |
+| `SWALLOWED_B7B_LINK_CFLAGS_SHELL_LOAD` | `1` |
+| `B7B_LINK_CFLAGS_SHELL_LOAD_VIA` | `export_relink_product+btc_typeck+xnc+bxf_link_cflags` |
+
+**Forbidden:** claim LINK_CFLAGS export leaves = physical delete; dual multi-token
+`*_LINK_CFLAGS="…"` recipe env re-list; second full flag inventory in shell.
+
 ## wave856 B7B LINK_OBJS shell-load via make export leaves (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
@@ -2102,7 +2140,7 @@ ship delete body; mac-only wave green.
     PHYS_DEL_PREFLIGHT_B7B_LINK_OBJS_SHELL_LOAD=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
   dual-end L2 green tip: 4f4e2cf9f (Mac + Ubuntu leaf residual CHECK + shell --check + export smoke + product rv42)
-  next: residual thin/B2/lists (hybrid) or LINK CFLAGS residual or tip Windows
+  next: residual thin/B2/lists (hybrid) or tip Windows (LINK CFLAGS → wave857)
     re-proof → ship delete body (explicit auth only; tip L4 wave840)
 ```
 

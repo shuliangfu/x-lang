@@ -9,7 +9,7 @@
 #   Object lists stay mk expansion (archaeology_experiment_objs.mk
 #   DRIVER_NO_C_FRONTEND_OBJS + DRIVER_SUBCMD + PIPELINE_LIBS). Shell never
 #   hardcodes a second full link inventory — wave856: LINK_OBJS via make
-#   export-xnc-link-objs when unset; CFLAGS still Makefile thin-call env.
+#   export-xnc-link-objs when unset; wave857: LINK_CFLAGS via export-xnc-link-cflags.
 #
 #   Seed-gate REQUIRED bag authority: mk/archaeology_experiment_objs.mk
 #   XLANG_NO_C_FRONTEND_REQUIRED_OBJS (wave854 list → mk; wave855 shell loads
@@ -32,6 +32,7 @@
 # wave847 (G.7 有则补全): Makefile fat test + $(CC) link → this script.
 # wave855: seed-gate REQUIRED loads from mk (G.7; not physical delete).
 # wave856: LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
+# wave857: LINK_CFLAGS shell-load via make export leaf (G.7; not physical delete).
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
@@ -78,8 +79,14 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'XNC_LINK_OBJS=' <<<"$_rec"; then
     fail "xlang-no-c-frontend must not export XNC_LINK_OBJS (wave856; shell loads export leaf)"
   fi
+  if grep -qE 'XNC_LINK_CFLAGS=' <<<"$_rec"; then
+    fail "xlang-no-c-frontend must not export XNC_LINK_CFLAGS (wave857; shell loads export leaf)"
+  fi
   if ! grep -qE '^export-xnc-link-objs:' "$MF"; then
     fail "Makefile must define export-xnc-link-objs (wave856)"
+  fi
+  if ! grep -qE '^export-xnc-link-cflags:' "$MF"; then
+    fail "Makefile must define export-xnc-link-cflags (wave857)"
   fi
   if [ ! -f mk/archaeology_experiment_objs.mk ]; then
     fail "missing mk/archaeology_experiment_objs.mk (wave855 REQUIRED authority)"
@@ -87,7 +94,7 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if ! grep -qE '^XLANG_NO_C_FRONTEND_REQUIRED_OBJS[[:space:]]*=' mk/archaeology_experiment_objs.mk; then
     fail "mk/archaeology_experiment_objs.mk must define XLANG_NO_C_FRONTEND_REQUIRED_OBJS (wave855)"
   fi
-  log "CHECK OK (wave847+855+856 xlang-no-c-frontend shell-primary; REQUIRED from mk; LINK_OBJS export leaf; not physical delete)"
+  log "CHECK OK (wave847+855+856+857 xlang-no-c-frontend shell-primary; REQUIRED from mk; LINK_OBJS+CFLAGS export leaves; not physical delete)"
   exit 0
 fi
 
@@ -119,9 +126,6 @@ _mk_assign_val() {
   printf '%s' "$line"
 }
 
-if [ -z "${XNC_LINK_CFLAGS:-}" ]; then
-  fail "XNC_LINK_CFLAGS required (Makefile thin-call must export expanded link CFLAGS)"
-fi
 # wave856: full LINK bag needs make expansion (nested $(...) / Darwin filters).
 # G.7 有则补全 on bootstrap_driver_seed_export-*-link pattern — shell loads via
 # make export leaf when env unset; Makefile recipes drop multi-token XNC_LINK_OBJS=.
@@ -146,6 +150,31 @@ if [ -z "${XNC_LINK_OBJS:-}" ]; then
 fi
 if [ -z "${XNC_LINK_OBJS:-}" ]; then
   fail "empty LINK_OBJS from export-xnc-link-objs (wave856)"
+fi
+
+# wave857: composed LINK_CFLAGS need make expansion (DRIVER_SEED_LINK_FLAGS /
+# ASM_GLUE / MAIN_LINK / platform ifeq). G.7 有则补全 on wave856 export-leaf pattern.
+# PLATFORM: SHARED — KEY=value from export target; no second flag inventory.
+_load_link_cflags_via_make() {
+  # $1 = make export target (export-*-link-cflags)
+  local target="$1"
+  local raw line val
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  val=
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      LINK_CFLAGS=*) val=${line#LINK_CFLAGS=} ;;
+    esac
+  done <<<"$raw"
+  printf '%s' "$val"
+}
+
+if [ -z "${XNC_LINK_CFLAGS:-}" ]; then
+  XNC_LINK_CFLAGS=$(_load_link_cflags_via_make export-xnc-link-cflags) \
+    || fail "failed to expand export-xnc-link-cflags (wave857 LINK_CFLAGS shell-load)"
+fi
+if [ -z "${XNC_LINK_CFLAGS:-}" ]; then
+  fail "empty LINK_CFLAGS from export-xnc-link-cflags (wave857)"
 fi
 if [ -z "${XNC_REQUIRED_OBJS:-}" ]; then
   _ARCH_MK=mk/archaeology_experiment_objs.mk

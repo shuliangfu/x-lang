@@ -1873,12 +1873,12 @@ codegen_x.o: FORCE scripts/migrate_x_objs.sh
 # wave850 B7B: BTC_OBJS bag → mk/driver_seed_composites.mk RELINK_PRODUCT_LINK_OBJS
 #   (G.7 有则补全; no dual inline product link inventory in typeck/codegen/relink-lexer).
 # wave856: shell loads LINK_OBJS via export-relink-product-link-objs (no multi-token BTC_OBJS=).
+# wave857: shell loads LINK_CFLAGS via export leaves (no multi-token BTC_CFLAGS=).
 # NOT physical delete — prereq make-graph + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns gen/migrate/link orchestration.
 bootstrap-typeck: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) scripts/bootstrap_typeck_codegen.sh
 	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" CC="$(CC)" \
 	  CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" \
-	  BTC_CFLAGS="$(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
 	  bash scripts/bootstrap_typeck_codegen.sh typeck
 
 # 6.2：.x codegen 入口与 C AST 对接；force-regen typeck+codegen gen → migrate both → relink TARGET。
@@ -1886,12 +1886,12 @@ bootstrap-typeck: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) 
 # wave841: full body → scripts/bootstrap_typeck_codegen.sh (G.7 有则补全; same shell as typeck).
 # wave850 B7B: BTC_OBJS → $(RELINK_PRODUCT_LINK_OBJS) (composites.mk; same bag as typeck/RXL).
 # wave856: shell loads LINK_OBJS via export-relink-product-link-objs (no multi-token BTC_OBJS=).
+# wave857: shell loads LINK_CFLAGS via export leaves (no multi-token BTC_CFLAGS=).
 # NOT physical delete — prereq make-graph + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns gen/migrate/link orchestration.
 bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) scripts/bootstrap_typeck_codegen.sh
 	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" CC="$(CC)" \
 	  CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" \
-	  BTC_CFLAGS="$(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
 	  bash scripts/bootstrap_typeck_codegen.sh codegen
 
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 XLANG_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
@@ -2005,7 +2005,6 @@ include mk/archaeology_experiment_objs.mk
 # PLATFORM: SHARED — shell owns link orchestration.
 bootstrap-driver-seed-x-frontend: $(XLANG_C) migrate-x-objs driver_x.o preprocess_x.o $(DRIVER_SUBCMD_GEN) $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) $(LSP_DIAG_LINK_O) $(DRIVER_SUBCMD_OBJS) scripts/bootstrap_driver_seed_x_frontend.sh
 	@MAKE="$(MAKE)" CC="$(CC)" OUT="$(TARGET)_x_frontend" \
-	  BXF_LINK_CFLAGS="$(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN" \
 	  bash scripts/bootstrap_driver_seed_x_frontend.sh
 
 # 6.3：.x 入口与 main.c 一一对应。bootstrap-driver-seed = 用 C 代码生成（生成 pipeline_gen.c / driver_gen.c）得到种子 xlang；仅首次或无 xlang 时需要。
@@ -2398,6 +2397,10 @@ include mk/driver_seed_export_lists.mk
 	export-xnc-link-objs \
 	export-bxf-link-objs \
 	export-bs-link-objs \
+	export-relink-product-link-cflags \
+	export-btc-typeck-link-cflags \
+	export-xnc-link-cflags \
+	export-bxf-link-cflags \
 	bootstrap-driver-seed-export-obj-catalog \
 	bootstrap-driver-seed-phase1-link \
 	bootstrap-driver-seed-final-link
@@ -2598,7 +2601,7 @@ bootstrap-driver-seed-export-final-link:
 # Consumers load when env unset: RXL/BTC → RELINK_PRODUCT; XXL; XNC; BXF; BS.
 # Makefile archaeology thin-call recipes drop multi-token *_LINK_OBJS= env.
 # PLATFORM: SHARED — KEY=value; no compile/link side effects.
-# NOT physical delete — CFLAGS env + thin edges + B2 + mk lists remain residual.
+# NOT physical delete — thin edges + B2 + mk lists remain residual (CFLAGS → wave857 export leaves).
 export-relink-product-link-objs:
 	@printf 'LINK_OBJS=%s\n' '$(RELINK_PRODUCT_LINK_OBJS)'
 
@@ -2613,6 +2616,25 @@ export-bxf-link-objs:
 
 export-bs-link-objs:
 	@printf 'LINK_OBJS=%s\n' '$(BOOTSTRAP_SELF_LINK_OBJS)'
+
+# wave857 · B7B LINK CFLAGS shell-load via make export leaves (G.7 有则补全 on
+# wave856 LINK_OBJS export pattern). Flags need make expansion (DRIVER_SEED_LINK_FLAGS /
+# ASM_GLUE_DUP_LDFLAGS / MAIN_LINK_FLAGS / platform ifeq) — NOT pure mk text.
+# Bags (4 formulas / 6 shells): relink-product (RXL+XXL+BTC codegen); btc-typeck;
+# xnc (XNC+BS); bxf. Makefile recipes drop multi-token *_LINK_CFLAGS=/BTC_CFLAGS=/BS_LINK_FLAGS=.
+# PLATFORM: SHARED — KEY=value; no compile/link side effects.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+export-relink-product-link-cflags:
+	@printf 'LINK_CFLAGS=%s\n' '$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)'
+
+export-btc-typeck-link-cflags:
+	@printf 'LINK_CFLAGS=%s\n' '$(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)'
+
+export-xnc-link-cflags:
+	@printf 'LINK_CFLAGS=%s\n' '$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS)'
+
+export-bxf-link-cflags:
+	@printf 'LINK_CFLAGS=%s\n' '$(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN'
 
 bootstrap-driver-seed-phase1-link:
 	@chmod +x scripts/bootstrap_driver_seed_link.sh 2>/dev/null || true
@@ -2721,7 +2743,6 @@ xlang_asm:
 # PLATFORM: SHARED — shell owns preflight + link + product alias sync.
 relink-xlang-lexer: lexer_x.o $(RELINK_XLANG_FILTERED_OBJS) $(RELINK_XLANG_GLUE_SUFFIX) scripts/relink_xlang_lexer.sh
 	@MAKE="$(MAKE)" CC="$(CC)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" BOOTSTRAP_XLANGC="bootstrap_xlangc" \
-	  RXL_LINK_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
 	  bash scripts/relink_xlang_lexer.sh
 
 bootstrap-driver-seed-user-asm: bootstrap-driver-seed
@@ -2742,7 +2763,6 @@ bootstrap-driver-seed-user-asm: bootstrap-driver-seed
 # wave856: shell loads LINK_OBJS via export-xnc-link-objs (no multi-token XNC_LINK_OBJS=).
 xlang-no-c-frontend: $(DRIVER_NO_C_FRONTEND_OBJS) src/lsp/lsp_diag_stubs_no_c.o scripts/xlang_no_c_frontend.sh
 	@MAKE="$(MAKE)" CC="$(CC)" OUT="$@" \
-	  XNC_LINK_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS)" \
 	  bash scripts/xlang_no_c_frontend.sh
 
 # 注意：Makefile 中存在同名规则 `xlang-x:`，不能把 `xlang-x` 列为本目标 prerequisite，否则会先执行重链接口而非仅检测文件是否存在。
@@ -2764,7 +2784,6 @@ regen-lsp-gens-x:
 # wave856: shell loads LINK_OBJS via export-xlang-x-link-objs (no multi-token XXL_LINK_OBJS=).
 xlang-x: build-seed-asm-host $(DRIVER_SEED_OBJS) $(XLANG_X_PIPELINE_LINK_O) $(XLANG_X_USER_ASM_OBJS) driver_x.o preprocess_x.o $(RELINK_XLANG_GLUE_SUFFIX) scripts/xlang_x.sh
 	@MAKE="$(MAKE)" CC="$(CC)" XLANG_X="$(XLANG_X)" \
-	  XXL_LINK_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
 	  bash scripts/xlang_x.sh
 
 # Stage2：xlang-x 用 -x -E-extern 生成 _gen2.c 并链出 xlang-x2，与 xlang-x 行为对比（脚本内会 make xlang-x / bootstrap-driver-seed）
@@ -2897,8 +2916,7 @@ build-via-tool: build-tool
 # NOT physical delete — prereq bootstrap-driver-seed + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns stage2 link/smoke orchestration.
 bootstrap-self: bootstrap-driver-seed scripts/bootstrap_self.sh
-	@TARGET="$(TARGET)" CC="$(CC)" CFLAGS="$(CFLAGS)" MAKE="$(MAKE)" \
-	  BS_LINK_FLAGS="$(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS)" \
+	@TARGET="$(TARGET)" CC="$(CC)" MAKE="$(MAKE)" \
 	  bash scripts/bootstrap_self.sh
 
 # 阶段 8.3 seed：两代 xlang（xlang_stage1/xlang_stage2）烟测；B-strict 主路径见 check-7.2-bstrict。

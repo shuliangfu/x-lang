@@ -23,8 +23,9 @@
 #   STAGE1              — stage1 snapshot (default: ${TARGET}_stage1)
 #   STAGE2              — stage2 binary (default: ${TARGET}_stage2)
 #   CC                  — host C compiler (default: cc)
-#   CFLAGS              — base host CFLAGS
-#   BS_LINK_FLAGS       — expanded DRIVER_SEED_LINK_FLAGS + MAIN_LINK_FLAGS
+#   CFLAGS              — optional base host CFLAGS (re-cc of host-emitted C only)
+#   BS_LINK_CFLAGS      — optional; default loads via export-xnc-link-cflags (wave857;
+#                          CFLAGS + DRIVER_SEED_LINK_FLAGS + MAIN_LINK_FLAGS)
 #   BS_LINK_OBJS        — optional; default loads via export-bs-link-objs (wave856)
 #   MAKE                — residual make for best-effort satellite leaves
 #   BS_OUT_SELF         — stage2 -o path (default: /tmp/out_self)
@@ -32,6 +33,7 @@
 #
 # wave843 (G.7 有则补全): Makefile fat stage2 link + smoke → this script.
 # wave856: LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
+# wave857: LINK_CFLAGS shell-load via make export leaf (G.7; not physical delete).
 # NOT physical delete — thin-call edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell orchestration; file(1) Mach-O/ELF/PE32* portable.
 set -euo pipefail
@@ -43,7 +45,7 @@ STAGE1="${STAGE1:-${TARGET}_stage1}"
 STAGE2="${STAGE2:-${TARGET}_stage2}"
 CC="${CC:-cc}"
 CFLAGS="${CFLAGS:-}"
-BS_LINK_FLAGS="${BS_LINK_FLAGS:-}"
+BS_LINK_CFLAGS="${BS_LINK_CFLAGS:-}"
 MAKE="${MAKE:-make}"
 BS_OUT_SELF="${BS_OUT_SELF:-/tmp/out_self}"
 BS_RV_SRC="${BS_RV_SRC:-../tests/return-value/main.x}"
@@ -81,10 +83,17 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'BS_LINK_OBJS=' <<<"$_rec"; then
     fail "bootstrap-self must not export BS_LINK_OBJS (wave856; shell loads export leaf)"
   fi
+  # wave857: no multi-token BS_LINK_FLAGS= / BS_LINK_CFLAGS= on recipe.
+  if grep -qE 'BS_LINK_FLAGS=|BS_LINK_CFLAGS=' <<<"$_rec"; then
+    fail "bootstrap-self must not export BS_LINK_FLAGS/BS_LINK_CFLAGS (wave857; shell loads export leaf)"
+  fi
   if ! grep -qE '^export-bs-link-objs:' "$MF"; then
     fail "Makefile must define export-bs-link-objs (wave856)"
   fi
-  log "CHECK OK (wave843+856 bootstrap-self shell-primary; LINK_OBJS export leaf; not physical delete)"
+  if ! grep -qE '^export-xnc-link-cflags:' "$MF"; then
+    fail "Makefile must define export-xnc-link-cflags (wave857)"
+  fi
+  log "CHECK OK (wave843+856+857 bootstrap-self shell-primary; LINK_OBJS+CFLAGS export leaves; not physical delete)"
   exit 0
 fi
 
@@ -129,6 +138,31 @@ fi
 if [ -z "${BS_LINK_OBJS:-}" ]; then
   fail "empty LINK_OBJS from export-bs-link-objs (wave856)"
 fi
+
+# wave857: composed LINK_CFLAGS need make expansion (DRIVER_SEED_LINK_FLAGS /
+# ASM_GLUE / MAIN_LINK / platform ifeq). G.7 有则补全 on wave856 export-leaf pattern.
+# PLATFORM: SHARED — KEY=value from export target; no second flag inventory.
+_load_link_cflags_via_make() {
+  # $1 = make export target (export-*-link-cflags)
+  local target="$1"
+  local raw line val
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  val=
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      LINK_CFLAGS=*) val=${line#LINK_CFLAGS=} ;;
+    esac
+  done <<<"$raw"
+  printf '%s' "$val"
+}
+
+if [ -z "${BS_LINK_CFLAGS:-}" ]; then
+  BS_LINK_CFLAGS=$(_load_link_cflags_via_make export-xnc-link-cflags) \
+    || fail "failed to expand export-xnc-link-cflags (wave857 LINK_CFLAGS shell-load)"
+fi
+if [ -z "${BS_LINK_CFLAGS:-}" ]; then
+  fail "empty LINK_CFLAGS from export-xnc-link-cflags (wave857)"
+fi
 if [ ! -x "./$TARGET" ] && [ ! -f "./$TARGET" ]; then
   fail "missing $TARGET (build prereq first: make bootstrap-driver-seed)"
 fi
@@ -151,7 +185,7 @@ $MAKE -s pipeline_x.o driver_x.o preprocess_x.o lsp_io_x.o lsp_x.o lsp_io_std_he
 # ---------------------------------------------------------------------------
 log "link ./$STAGE2"
 # shellcheck disable=SC2086
-$CC $CFLAGS $BS_LINK_FLAGS -o "./$STAGE2" $BS_LINK_OBJS
+$CC $BS_LINK_CFLAGS -o "./$STAGE2" $BS_LINK_OBJS
 
 # ---------------------------------------------------------------------------
 # Smoke: stage2 → return-value; expect exit 42

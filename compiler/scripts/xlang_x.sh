@@ -9,7 +9,8 @@
 #   Object lists stay mk expansion (driver_seed_composites / user_asm /
 #   link_picks / subcmd). Shell never hardcodes a second full link inventory —
 #   wave856: LINK_OBJS via make export-xlang-x-link-objs when unset;
-#   CFLAGS still Makefile thin-call env (composed flags).
+#   wave857: LINK_CFLAGS via make export-relink-product-link-cflags when unset
+#   (same formula as RXL product link flags).
 #
 #   Seed-gate REQUIRED bag authority: mk/driver_seed_composites.mk
 #   XLANG_X_REQUIRED_OBJS (wave854 list → mk; wave855 shell loads mk —
@@ -22,8 +23,8 @@
 # Env (product path; Makefile thin-call exports these):
 #   XLANG_X / TARGET_OUT — output binary (default: xlang-x)
 #   CC                   — host C compiler
-#   XXL_LINK_CFLAGS      — expanded CFLAGS + DRIVER_SEED_LINK_FLAGS +
-#                          ASM_GLUE_DUP_LDFLAGS + MAIN_LINK_FLAGS
+#   XXL_LINK_CFLAGS      — optional; default loads via export-relink-product-link-cflags
+#                          (wave857; same formula as RXL product link flags)
 #   XXL_LINK_OBJS        — optional; default loads via export-xlang-x-link-objs
 #                          (wave856; mk bag needs make expansion)
 #   XXL_REQUIRED_OBJS    — optional override; default loads XLANG_X_REQUIRED_OBJS
@@ -33,6 +34,7 @@
 # wave846 (G.7 有则补全): Makefile fat test + $(CC) link → this script.
 # wave855: seed-gate REQUIRED loads from mk (G.7; not physical delete).
 # wave856: LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
+# wave857: LINK_CFLAGS shell-load via make export leaf (G.7; not physical delete).
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
@@ -79,8 +81,14 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'XXL_LINK_OBJS=' <<<"$_rec"; then
     fail "xlang-x must not export XXL_LINK_OBJS (wave856; shell loads export leaf)"
   fi
+  if grep -qE 'XXL_LINK_CFLAGS=' <<<"$_rec"; then
+    fail "xlang-x must not export XXL_LINK_CFLAGS (wave857; shell loads export leaf)"
+  fi
   if ! grep -qE '^export-xlang-x-link-objs:' "$MF"; then
     fail "Makefile must define export-xlang-x-link-objs (wave856)"
+  fi
+  if ! grep -qE '^export-relink-product-link-cflags:' "$MF"; then
+    fail "Makefile must define export-relink-product-link-cflags (wave857)"
   fi
   if [ ! -f mk/driver_seed_composites.mk ]; then
     fail "missing mk/driver_seed_composites.mk (wave855 REQUIRED authority)"
@@ -88,7 +96,7 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if ! grep -qE '^XLANG_X_REQUIRED_OBJS[[:space:]]*=' mk/driver_seed_composites.mk; then
     fail "mk/driver_seed_composites.mk must define XLANG_X_REQUIRED_OBJS (wave855)"
   fi
-  log "CHECK OK (wave846+855+856 xlang-x shell-primary; REQUIRED from mk; LINK_OBJS export leaf; not physical delete)"
+  log "CHECK OK (wave846+855+856+857 xlang-x shell-primary; REQUIRED from mk; LINK_OBJS+CFLAGS export leaves; not physical delete)"
   exit 0
 fi
 
@@ -120,9 +128,6 @@ _mk_assign_val() {
   printf '%s' "$line"
 }
 
-if [ -z "${XXL_LINK_CFLAGS:-}" ]; then
-  fail "XXL_LINK_CFLAGS required (Makefile thin-call must export expanded link CFLAGS)"
-fi
 # wave856: full LINK bag needs make expansion (nested $(...) / Darwin filters).
 # G.7 有则补全 on bootstrap_driver_seed_export-*-link pattern — shell loads via
 # make export leaf when env unset; Makefile recipes drop multi-token XXL_LINK_OBJS=.
@@ -147,6 +152,31 @@ if [ -z "${XXL_LINK_OBJS:-}" ]; then
 fi
 if [ -z "${XXL_LINK_OBJS:-}" ]; then
   fail "empty LINK_OBJS from export-xlang-x-link-objs (wave856)"
+fi
+
+# wave857: composed LINK_CFLAGS need make expansion (DRIVER_SEED_LINK_FLAGS /
+# ASM_GLUE / MAIN_LINK / platform ifeq). G.7 有则补全 on wave856 export-leaf pattern.
+# PLATFORM: SHARED — KEY=value from export target; no second flag inventory.
+_load_link_cflags_via_make() {
+  # $1 = make export target (export-*-link-cflags)
+  local target="$1"
+  local raw line val
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  val=
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      LINK_CFLAGS=*) val=${line#LINK_CFLAGS=} ;;
+    esac
+  done <<<"$raw"
+  printf '%s' "$val"
+}
+
+if [ -z "${XXL_LINK_CFLAGS:-}" ]; then
+  XXL_LINK_CFLAGS=$(_load_link_cflags_via_make export-relink-product-link-cflags) \
+    || fail "failed to expand export-relink-product-link-cflags (wave857 LINK_CFLAGS shell-load)"
+fi
+if [ -z "${XXL_LINK_CFLAGS:-}" ]; then
+  fail "empty LINK_CFLAGS from export-relink-product-link-cflags (wave857)"
 fi
 if [ -z "${XXL_REQUIRED_OBJS:-}" ]; then
   _COMP_MK=mk/driver_seed_composites.mk

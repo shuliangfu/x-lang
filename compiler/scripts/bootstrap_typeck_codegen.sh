@@ -7,7 +7,8 @@
 #     bootstrap-codegen  — force-regen typeck+codegen gen → migrate both → relink TARGET
 #   Gen body  = ensure_migrate_gen.sh (wave736 FORCE_REGEN; no dual xlang-c -E in Makefile)
 #   .o body   = migrate_x_objs.sh (wave735; XLANG_MIGRATE_FORCE=1)
-#   Link list = BTC_CFLAGS from Makefile thin-call; BTC_OBJS via export-relink-product-link-objs
+#   Link list = BTC_CFLAGS via export-btc-typeck-link-cflags / export-relink-product-link-cflags
+#               (wave857; mode-dependent); BTC_OBJS via export-relink-product-link-objs
 #               when unset (wave856; expands mk composites; no second .o inventory)
 #
 # Usage (cwd = compiler/):
@@ -19,13 +20,15 @@
 #   TARGET       — product binary name (default: xlang)
 #   XLANG_C      — C frontend binary name (default: xlang-c)
 #   CC           — host C compiler (default: cc)
-#   BTC_CFLAGS   — full CFLAGS + -DXLANG_USE_X_* + ASM_GLUE/MAIN_LINK flags (required for link)
+#   BTC_CFLAGS   — optional; default loads via export-btc-typeck-link-cflags (typeck)
+#                  or export-relink-product-link-cflags (codegen) (wave857)
 #   BTC_OBJS     — optional; default loads via export-relink-product-link-objs (wave856)
 #   MAKE         — residual make for LINK_OBJS export leaf + ensure_migrate_gen
 #   PYTHON       — for migrate_x_objs patches
 #
 # wave841 (G.7 有则补全): Makefile fat dual -E + migrate + $(CC) link → this script.
 # wave856: LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
+# wave857: LINK_CFLAGS shell-load via make export leaf (G.7; not physical delete).
 # NOT physical delete — thin-call edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
@@ -71,11 +74,21 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
     if grep -qE 'BTC_OBJS=' <<<"$_rec"; then
       fail "$ph must not export BTC_OBJS (wave856; shell loads export leaf)"
     fi
+    # wave857: no multi-token BTC_CFLAGS= on recipe (shell loads export leaf).
+    if grep -qE 'BTC_CFLAGS=' <<<"$_rec"; then
+      fail "$ph must not export BTC_CFLAGS (wave857; shell loads export leaf)"
+    fi
   done
   if ! grep -qE '^export-relink-product-link-objs:' "$MF"; then
     fail "Makefile must define export-relink-product-link-objs (wave856)"
   fi
-  log "CHECK OK (wave841+856 bootstrap-typeck/codegen shell-primary; LINK_OBJS export leaf; not physical delete)"
+  if ! grep -qE '^export-btc-typeck-link-cflags:' "$MF"; then
+    fail "Makefile must define export-btc-typeck-link-cflags (wave857)"
+  fi
+  if ! grep -qE '^export-relink-product-link-cflags:' "$MF"; then
+    fail "Makefile must define export-relink-product-link-cflags (wave857)"
+  fi
+  log "CHECK OK (wave841+856+857 bootstrap-typeck/codegen shell-primary; LINK_OBJS+CFLAGS export leaves; not physical delete)"
   exit 0
 fi
 
@@ -90,9 +103,6 @@ esac
 # ---------------------------------------------------------------------------
 # Preflight: link env from Makefile thin-call (G.7: lists stay mk expansions)
 # ---------------------------------------------------------------------------
-if [ -z "${BTC_CFLAGS:-}" ]; then
-  fail "BTC_CFLAGS required (Makefile thin-call must export expanded link CFLAGS)"
-fi
 # wave856: full LINK bag needs make expansion (nested $(...) / Darwin filters).
 # G.7 有则补全 on bootstrap_driver_seed_export-*-link pattern — shell loads via
 # make export leaf when env unset; Makefile recipes drop multi-token BTC_OBJS=.
@@ -117,6 +127,37 @@ if [ -z "${BTC_OBJS:-}" ]; then
 fi
 if [ -z "${BTC_OBJS:-}" ]; then
   fail "empty LINK_OBJS from export-relink-product-link-objs (wave856)"
+fi
+
+# wave857: composed LINK_CFLAGS need make expansion (DRIVER_SEED_LINK_FLAGS /
+# ASM_GLUE / MAIN_LINK / platform ifeq). G.7 有则补全 on wave856 export-leaf pattern.
+# PLATFORM: SHARED — KEY=value from export target; no second flag inventory.
+_load_link_cflags_via_make() {
+  # $1 = make export target (export-*-link-cflags)
+  local target="$1"
+  local raw line val
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  val=
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      LINK_CFLAGS=*) val=${line#LINK_CFLAGS=} ;;
+    esac
+  done <<<"$raw"
+  printf '%s' "$val"
+}
+
+if [ -z "${BTC_CFLAGS:-}" ]; then
+  if [ "$MODE" = "typeck" ]; then
+    BTC_CFLAGS=$(_load_link_cflags_via_make export-btc-typeck-link-cflags) \
+      || fail "failed to expand export-btc-typeck-link-cflags (wave857 LINK_CFLAGS shell-load)"
+  else
+    # codegen: same composed flags as product RXL/XXL (includes -DXLANG_USE_X_CODEGEN)
+    BTC_CFLAGS=$(_load_link_cflags_via_make export-relink-product-link-cflags) \
+      || fail "failed to expand export-relink-product-link-cflags (wave857 LINK_CFLAGS shell-load)"
+  fi
+fi
+if [ -z "${BTC_CFLAGS:-}" ]; then
+  fail "empty LINK_CFLAGS from export leaf (wave857; mode=$MODE)"
 fi
 if [ ! -x "./$XLANG_C" ] && [ ! -f "./$XLANG_C" ]; then
   fail "missing $XLANG_C (build product first: make bootstrap_xlangc / bootstrap-driver-seed)"
