@@ -1743,7 +1743,8 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     SWALLOWED_DRIVER_LEAF_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_DRIVER_LEAF_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (pending this wave commit)
+  dual-end L2 green tip: 02aee9417 (Mac + Ubuntu leaf + catalog + phys-del
+    --check; driver_leaf --check 8 FORCE; sample ensure skip up-to-date)
   next: more shell-primary / thin edges / B2 residual or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```
@@ -1757,7 +1758,7 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
 | `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
-| dual-end L2 tip | pending |
+| dual-end L2 tip | `02aee9417` |
 
 **Forbidden:** claim driver_leaf FORCE thin = physical delete; re-list catalog
 `.x` on Makefile driver_leaf prereq lines; `rm compiler/Makefile`; ship delete
