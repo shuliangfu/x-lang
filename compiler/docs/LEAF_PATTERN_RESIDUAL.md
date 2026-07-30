@@ -1011,7 +1011,8 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave805:** ENDGAME arm **prep/preview** (`--endgame-preview`; STATUS green plan only; TREE_ARMED=0; NOT arm; NOT delete)
 - [x] **wave806:** ENDGAME arm **apply harness** (`--endgame-arm-apply`; STATUS+confirm; TREE_ARMED=0 on tree; NOT physical delete)
 - [x] **wave807:** ENDGAME arm **commit honesty** (`--endgame-arm-commit-honesty`; pre_arm/post_arm; TREE_ARMED=0 on tree; NOT tree arm; NOT delete)
-- [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **TREE_ARMED arm + confirm delete**)
+- [x] **wave808:** reviewed **TREE_ARMED arm** (`ENDGAME=1` + `TREE_ARMED=1`; honesty greps co-changed; Makefile still present; NOT physical delete)
+- [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **confirm delete body only**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] B7 residual endgame: Makefile heat **dep** edges gone / physical delete (try-heat ✅ wave789; thin-unify ✅ wave790; source-prereq closed wave797; thin-call edges remain until phys del)
 
@@ -1717,6 +1718,43 @@ Then (later waves, not this tip):
 
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
+
+## wave808 reviewed TREE_ARMED arm (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`.
+>
+> **What this wave is:** reviewed mac commit sets tree
+> `ENDGAME_PHYSICAL_DELETE_MAKEFILE=1` and
+> `PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=1` (+ `PHYS_DEL_ENDGAME_TREE_ARMED=1`).
+> Honesty `--check` greps expect ENDGAME=1 · TREE_ARMED=1. STATUS stays
+> `reproven_green`. `--delete` still dies at never-rm body (even with
+> `XLANG_PHYS_DEL_CONFIRM=DELETE_MAKEFILE_I_UNDERSTAND`). Makefile remains.
+> Dual-end L2 required.
+
+```text
+  leaf dump:
+    ENDGAME_PHYSICAL_DELETE_MAKEFILE=1
+    PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=1
+    PHYS_DEL_ENDGAME_TREE_ARMED=1
+    PHYS_DEL_ENDGAME_TREE_ARMED_WAVE=wave808
+    PHYS_DEL_ENDGAME_TREE_ARMED_DELETE_ALLOWED=0
+    PHYS_DEL_PREFLIGHT_NEXT=confirm_delete_body_separate_wave_after_tree_arm
+  # --delete (with or without confirm) still refuses; Makefile present
+  next: confirm --delete body (separate wave; still never-rm until body ships)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_ENDGAME_TREE_ARMED` | `1` |
+| `PHYS_DEL_ENDGAME_TREE_ARMED_WAVE` | `wave808` |
+| `PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED` | `1` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` |
+| `PHYS_DEL_ENDGAME_TREE_ARMED_DELETE_ALLOWED` | `0` |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `confirm_delete_body_separate_wave_after_tree_arm` |
+| `PHYS_DEL_WINDOWS_GATE_STATUS` | `reproven_green` |
+
+**Forbidden:** claim tree arm = physical delete; `rm compiler/Makefile` in this
+wave; skip dual-end L2; mac-only wave green.
 
 ## wave807 ENDGAME arm commit honesty (2026-07-30)
 

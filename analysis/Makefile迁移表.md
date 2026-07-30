@@ -580,7 +580,7 @@
 | `./xbuild full` | FULL 可能仍 make bstrict | 非日常 | `xbuild cold-test` 子集 |
 | `./xbuild compiler-all` | `scripts/compiler_all_ci.sh`（wave784） | CI；`xlang`=g05（wave786 B7D）+ `xlang-c` seed；冷 residual_make=0（wave787）；catalog shell 0-make（wave788）；heat try-heat（wave789）· thin-unify（wave790）· dep-thin FORCE 113（wave791–797）；preflight wave798；execute-gate wave799；proof harness wave800；status-flip-preview wave801；status-flip-apply harness wave802；commit-honesty wave803；physical delete residual | 物理删后 0-make（Windows 绿后） |
 | `./xbuild heat-o OUT.o` | `ensure_host_cc_seed_o.sh try-heat`（wave789–803） | B7A heat shell 自动分发；recipes try-heat（wave790）；**113 FORCE** dep-thin（wave791–797 · orch closed · `HEAT_RESIDUAL=0`）；preflight/execute-gate/proof/flip-prep/apply/honesty wave798–803；非物理删 | 物理删 Makefile 后主热路径（Windows 绿后） |
-| `./xbuild phys-del-gate` | `phys_del_makefile_gate.sh`（wave799–804） | 硬拒删 Makefile（ENDGAME=0）；dry-run；MSYS min-gate + proof；STATUS flip（wave804：`reproven_green` + `TREE_APPLIED=1`）；**非**物理删 | ENDGAME=1 + confirm 后才允许删波 |
+| `./xbuild phys-del-gate` | `phys_del_makefile_gate.sh`（wave799–808） | 硬拒删 Makefile（never-rm 体；wave808 后 ENDGAME=1 + TREE_ARMED=1 仍拒）；dry-run；MSYS min-gate + proof；STATUS flip（wave804）；tree arm（wave808）；**非**物理删 | confirm 物理删体波才允许 `rm` |
 | `./xbuild bootstrap-driver-seed` | make 图 + shell 编排 | 冷启动 | 11.3 吞图 |
 | `./xbuild compiler-make …` | 叶 .o / CFLAGS 透传 | 残余 | G.7 体 = `tests/lib/compiler-make.sh` |
 | `./xbuild ensure` / `link-env` / `link-product` | g05_*.sh 直调 | **0× make**（wave733） | 11.1.6 产品链一等 |

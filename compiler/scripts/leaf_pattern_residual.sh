@@ -511,8 +511,8 @@ PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
-PHYS_DEL_PREFLIGHT_NEXT=endgame_arm_commit_honesty_then_tree_arm_then_confirm_delete_separate
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_status_flip_is_physical_delete|claim_endgame_preview_is_delete|claim_endgame_arm_honesty_is_tree_arm|delete_makefile_before_endgame_1
+PHYS_DEL_PREFLIGHT_NEXT=confirm_delete_body_separate_wave_after_tree_arm
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -520,13 +520,13 @@ PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
 # STATUS may be reproven_green; ENDGAME still 0 → delete still refused.
 PHYS_DEL_EXECUTE_GATE=1
 PHYS_DEL_EXECUTE_GATE_WAVE=wave799
-PHYS_DEL_EXECUTE_GATE_NOTE=refuse_delete_while_endgame_0_not_physical_delete
+PHYS_DEL_EXECUTE_GATE_NOTE=refuse_delete_never_rm_body_even_after_endgame_1_not_physical_delete
 PHYS_DEL_EXECUTE_GATE_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
 PHYS_DEL_EXECUTE_GATE_REFUSES_DELETE=1
 PHYS_DEL_EXECUTE_GATE_DELETE_ALLOWED=0
 PHYS_DEL_EXECUTE_GATE_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
-PHYS_DEL_EXECUTE_GATE_NEXT=endgame_arm_then_confirm_delete_separate_waves
-PHYS_DEL_EXECUTE_GATE_FORBIDDEN=claim_execute_gate_is_physical_delete|claim_status_flip_is_physical_delete|claim_endgame_preview_is_delete|delete_makefile_before_endgame_1|claim_proof_is_physical_delete|auto_flip_leaf_from_proof
+PHYS_DEL_EXECUTE_GATE_NEXT=confirm_delete_body_separate_wave_after_tree_arm
+PHYS_DEL_EXECUTE_GATE_FORBIDDEN=claim_execute_gate_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|rm_makefile_without_confirm_delete_body|claim_proof_is_physical_delete|auto_flip_leaf_from_proof
 # wave800: Windows min-gate proof stamp harness (evidence only; NOT STATUS green; NOT delete).
 # Authority body: phys_del_makefile_gate.sh --run-windows-gate writes stamp; --verify-windows-proof.
 PHYS_DEL_WINDOWS_PROOF_HARNESS=1
@@ -591,34 +591,43 @@ PHYS_DEL_ENDGAME_PREP_TARGET_ENDGAME=1
 PHYS_DEL_ENDGAME_PREP_DELETE_ALLOWED=0
 PHYS_DEL_ENDGAME_PREP_NEXT=confirm_endgame_arm_apply_then_tree_arm_then_delete_separate
 PHYS_DEL_ENDGAME_PREP_FORBIDDEN=auto_set_endgame_1|claim_preview_is_endgame_arm|claim_preview_is_physical_delete|rm_makefile_from_endgame_preview|mac_only_claim_wave_green
-# wave806: ENDGAME arm *apply harness* — STATUS + confirm; TREE_ARMED=0 this tip; NOT physical delete.
-# Body: phys_del_makefile_gate.sh --endgame-arm-apply. Tree ENDGAME stays 0 until reviewed arm commit.
+# wave806: ENDGAME arm *apply harness* — STATUS + confirm; temp-leaf harness; NOT physical delete.
+# Body: phys_del_makefile_gate.sh --endgame-arm-apply. wave808 reviewed tree arm sets TREE_ARMED=1.
 PHYS_DEL_ENDGAME_ARM_APPLY_HARNESS=1
 PHYS_DEL_ENDGAME_ARM_APPLY_HARNESS_WAVE=wave806
 PHYS_DEL_ENDGAME_ARM_APPLY_HARNESS_NOTE=status_and_confirm_gated_leaf_endgame_edit_not_delete
 PHYS_DEL_ENDGAME_ARM_APPLY_HARNESS_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
-PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=0
+PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=1
 PHYS_DEL_ENDGAME_ARM_APPLY_REQUIRES_STATUS=reproven_green
 PHYS_DEL_ENDGAME_ARM_APPLY_REQUIRES_CONFIRM=1
 PHYS_DEL_ENDGAME_ARM_APPLY_CONFIRM_ENV=XLANG_PHYS_DEL_ENDGAME_ARM_APPLY=ARM_ENDGAME_I_UNDERSTAND
 PHYS_DEL_ENDGAME_ARM_APPLY_TARGET_ENDGAME=1
 PHYS_DEL_ENDGAME_ARM_APPLY_DELETE_ALLOWED=0
 PHYS_DEL_ENDGAME_ARM_APPLY_DELETE_BODY=deferred_never_rm_in_execute_gate
-PHYS_DEL_ENDGAME_ARM_APPLY_NEXT=endgame_arm_commit_honesty_then_tree_arm_then_confirm_delete_body
-PHYS_DEL_ENDGAME_ARM_APPLY_FORBIDDEN=apply_without_status_green|apply_without_confirm|rm_makefile_from_arm_apply|claim_arm_apply_is_physical_delete|auto_arm_from_preview_alone|mac_only_claim_wave_green
+PHYS_DEL_ENDGAME_ARM_APPLY_NEXT=confirm_delete_body_separate_wave
+PHYS_DEL_ENDGAME_ARM_APPLY_FORBIDDEN=apply_without_status_green|apply_without_confirm|rm_makefile_from_arm_apply|claim_arm_apply_is_physical_delete|auto_arm_from_preview_alone|mac_only_claim_wave_green|claim_tree_arm_is_physical_delete
 # wave807: ENDGAME arm *commit honesty* — pre_arm inventory + post_arm contract (NOT edit; NOT delete).
-# Body: phys_del_makefile_gate.sh --endgame-arm-commit-honesty. Tree arm commit co-changes honesty greps.
+# Body: phys_del_makefile_gate.sh --endgame-arm-commit-honesty. wave808 tree arm co-changed honesty greps.
 PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY=1
 PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_WAVE=wave807
-PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_NOTE=post_arm_contract_ENDGAME_1_delete_still_refused_not_delete
+PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_NOTE=post_arm_contract_ENDGAME_1_TREE_ARMED_1_delete_still_refused_not_delete
 PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
 PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_MODE=--endgame-arm-commit-honesty
 PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_TARGET_ENDGAME=1
 PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_TARGET_TREE_ARMED=1
 PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_DELETE_ALLOWED=0
 PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_DELETE_BODY=deferred_never_rm_in_execute_gate
-PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_NEXT=reviewed_tree_arm_TREE_ARMED_1_ENDGAME_1_then_confirm_delete_body
-PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_FORBIDDEN=claim_honesty_is_tree_arm|claim_honesty_is_physical_delete|rm_makefile_in_arm_commit|skip_co_change_honesty_greps|mac_only_claim_wave_green
+PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_NEXT=confirm_delete_body_separate_wave
+PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_FORBIDDEN=claim_honesty_is_tree_arm|claim_honesty_is_physical_delete|rm_makefile_in_arm_commit|skip_co_change_honesty_greps|mac_only_claim_wave_green|claim_tree_arm_is_physical_delete
+# wave808: reviewed TREE_ARMED arm — ENDGAME=1 + TREE_ARMED=1 on tree; NOT physical delete.
+# Delete body still deferred (execute-gate never rm even after ENDGAME=1 + confirm env).
+PHYS_DEL_ENDGAME_TREE_ARMED=1
+PHYS_DEL_ENDGAME_TREE_ARMED_WAVE=wave808
+PHYS_DEL_ENDGAME_TREE_ARMED_NOTE=reviewed_tree_arm_ENDGAME_1_TREE_ARMED_1_delete_body_separate
+PHYS_DEL_ENDGAME_TREE_ARMED_DELETE_ALLOWED=0
+PHYS_DEL_ENDGAME_TREE_ARMED_DELETE_BODY=deferred_never_rm_in_execute_gate
+PHYS_DEL_ENDGAME_TREE_ARMED_NEXT=confirm_delete_body_separate_wave
+PHYS_DEL_ENDGAME_TREE_ARMED_FORBIDDEN=claim_tree_arm_is_physical_delete|rm_makefile_in_tree_arm_commit|skip_dual_end_L2|mac_only_claim_wave_green
 # wave778: every SHARED MG wave must green on mac + Ubuntu (Ubuntu = gold).
 # Mac-only residual/matrix green is NOT wave green. Push → Ubuntu pull → same check.
 MG_VERIFY_DUAL_END=mac_plus_ubuntu_required
@@ -908,7 +917,7 @@ R1_SEED_MAP_SWALLOWED=$r1_seed_map
 R1_OTHER_HOST_CC_STILL_MAKE=1
 # wave777: physical-delete prep inventory present (buckets above; body residual honest)
 PHYS_DEL_PREP_INVENTORY_LIVE=1
-ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
+ENDGAME_PHYSICAL_DELETE_MAKEFILE=1
 ENDGAME_LEAF_WITHOUT_HOST_CC=0
 ENDGAME_COLD_PURE_LD=1
 ENDGAME_G05_PURE_LD=1
@@ -1293,8 +1302,11 @@ fi
 if ! grep -q 'PHYS_DEL_BUCKET_B7=' <<<"$_out"; then
   bad "dump must name PHYS_DEL_BUCKET_B7 (wave777 makefile DAG)"
 fi
-if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
-  bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (not closed)"
+if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
+  bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=1 (wave808 tree arm; not physical delete)"
+fi
+if grep -qE 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
+  bad "wave808 must not keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 after tree arm"
 fi
 if ! grep -q 'PHYS_DEL_WINDOWS_GATE=required_before_makefile_delete' <<<"$_out"; then
   bad "dump must set PHYS_DEL_WINDOWS_GATE=required_before_makefile_delete (wave778)"
@@ -1497,21 +1509,21 @@ fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113 (wave798)"
 fi
-if ! grep -q 'PHYS_DEL_PREFLIGHT_NEXT=endgame_arm_commit_honesty_then_tree_arm_then_confirm_delete_separate' <<<"$_out"; then
-  bad "dump PHYS_DEL_PREFLIGHT_NEXT must be endgame_arm_commit_honesty_then_tree_arm_then_confirm_delete_separate (wave807)"
+if ! grep -q 'PHYS_DEL_PREFLIGHT_NEXT=confirm_delete_body_separate_wave_after_tree_arm' <<<"$_out"; then
+  bad "dump PHYS_DEL_PREFLIGHT_NEXT must be confirm_delete_body_separate_wave_after_tree_arm (wave808)"
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh' <<<"$_out"; then
   bad "dump must name Windows min-gate command (wave798)"
 fi
-# Honesty: wave804 STATUS flip — Windows min-gate reproven_green; ENDGAME still 0 (not delete).
+# Honesty: wave804 STATUS flip + wave808 tree arm — STATUS green; ENDGAME=1 TREE_ARMED=1 (not delete).
 if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green' <<<"$_out"; then
   bad "wave804 must set PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green (MSYS proof + reviewed apply)"
 fi
-if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
-  bad "wave804 must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (STATUS flip ≠ physical delete)"
+if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
+  bad "wave808 must set ENDGAME_PHYSICAL_DELETE_MAKEFILE=1 (reviewed TREE_ARMED arm)"
 fi
-if grep -qE 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
-  bad "wave804 must not set ENDGAME=1 (physical delete is a separate wave)"
+if grep -qE 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
+  bad "wave808 must not keep ENDGAME=0 after tree arm (delete body still separate)"
 fi
 if grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$_out"; then
   bad "wave804 must not keep STATUS=not_reproven_this_tip after reviewed apply"
@@ -1610,18 +1622,18 @@ fi
 if ! grep -q 'PHYS_DEL_ENDGAME_PREP_MODE=--endgame-preview' <<<"$_out"; then
   bad "dump must set PHYS_DEL_ENDGAME_PREP_MODE=--endgame-preview (wave805)"
 fi
-# wave806: ENDGAME arm apply harness (NOT tree arm; NOT delete; TREE_ARMED=0)
+# wave806: ENDGAME arm apply harness present; wave808 sets TREE_ARMED=1 on tree.
 if ! grep -q 'PHYS_DEL_ENDGAME_ARM_APPLY_HARNESS=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_ENDGAME_ARM_APPLY_HARNESS=1 (wave806)"
 fi
 if ! grep -q 'PHYS_DEL_ENDGAME_ARM_APPLY_HARNESS_WAVE=wave806' <<<"$_out"; then
   bad "dump must set PHYS_DEL_ENDGAME_ARM_APPLY_HARNESS_WAVE=wave806"
 fi
-if ! grep -q 'PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=0' <<<"$_out"; then
-  bad "dump must keep PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=0 (wave806)"
+if ! grep -q 'PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=1 (wave808 tree arm)"
 fi
 if ! grep -q 'PHYS_DEL_ENDGAME_ARM_APPLY_DELETE_ALLOWED=0' <<<"$_out"; then
-  bad "dump must keep PHYS_DEL_ENDGAME_ARM_APPLY_DELETE_ALLOWED=0 (wave806)"
+  bad "dump must keep PHYS_DEL_ENDGAME_ARM_APPLY_DELETE_ALLOWED=0 (wave806/808)"
 fi
 if ! grep -q 'PHYS_DEL_ENDGAME_ARM_APPLY_TARGET_ENDGAME=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_ENDGAME_ARM_APPLY_TARGET_ENDGAME=1 (wave806)"
@@ -1629,7 +1641,7 @@ fi
 if ! grep -q 'PHYS_DEL_ENDGAME_ARM_APPLY_REQUIRES_CONFIRM=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_ENDGAME_ARM_APPLY_REQUIRES_CONFIRM=1 (wave806)"
 fi
-# wave807: ENDGAME arm commit honesty (NOT tree arm; NOT delete; TREE_ARMED=0)
+# wave807: ENDGAME arm commit honesty keys still live; wave808 tree arm applied.
 if ! grep -q 'PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY=1 (wave807)"
 fi
@@ -1648,34 +1660,50 @@ fi
 if ! grep -q 'PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_MODE=--endgame-arm-commit-honesty' <<<"$_out"; then
   bad "dump must set PHYS_DEL_ENDGAME_ARM_COMMIT_HONESTY_MODE=--endgame-arm-commit-honesty (wave807)"
 fi
+# wave808: reviewed TREE_ARMED arm markers
+if ! grep -q 'PHYS_DEL_ENDGAME_TREE_ARMED=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_ENDGAME_TREE_ARMED=1 (wave808)"
+fi
+if ! grep -q 'PHYS_DEL_ENDGAME_TREE_ARMED_WAVE=wave808' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_ENDGAME_TREE_ARMED_WAVE=wave808"
+fi
+if ! grep -q 'PHYS_DEL_ENDGAME_TREE_ARMED_DELETE_ALLOWED=0' <<<"$_out"; then
+  bad "dump must keep PHYS_DEL_ENDGAME_TREE_ARMED_DELETE_ALLOWED=0 (wave808 ≠ physical delete)"
+fi
 if [ ! -f "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" ]; then
-  bad "missing compiler/scripts/phys_del_makefile_gate.sh (wave799–807 execute-gate + proof + flip + honesty + endgame-preview + arm-apply + arm-commit-honesty body)"
+  bad "missing compiler/scripts/phys_del_makefile_gate.sh (wave799–808 execute-gate + tree arm; never-rm delete body)"
 else
-  note "phys_del_makefile_gate.sh present (wave799–807 refuse-delete while ENDGAME=0; endgame-arm-commit-honesty)"
-  # Self-check execute gate + proof + flip + honesty + endgame-preview + arm-apply + arm-commit-honesty.
+  note "phys_del_makefile_gate.sh present (wave799–808; ENDGAME=1 TREE_ARMED=1; --delete still never-rm)"
+  # Self-check execute gate + proof + flip + honesty + endgame + tree arm contract.
   if ! bash "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" --check >/tmp/phys_del_gate_check.$$ 2>&1; then
     cat /tmp/phys_del_gate_check.$$ >&2 || true
-    bad "phys_del_makefile_gate.sh --check failed (wave799–807)"
+    bad "phys_del_makefile_gate.sh --check failed (wave799–808)"
   else
-    note "phys_del_makefile_gate.sh --check OK (wave799–807)"
+    note "phys_del_makefile_gate.sh --check OK (wave799–808)"
   fi
   rm -f /tmp/phys_del_gate_check.$$
 fi
-# Honesty: STATUS flip applied; ENDGAME still 0; TREE_ARMED=0 (tree arm/delete separate).
+# Honesty: STATUS green + ENDGAME=1 + TREE_ARMED=1; physical delete still separate.
 if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green' <<<"$_out"; then
-  bad "wave804–807 must keep PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green"
+  bad "wave804–808 must keep PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green"
 fi
-if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
-  bad "wave807 must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (honesty ≠ tree arm)"
+if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
+  bad "wave808 must set ENDGAME_PHYSICAL_DELETE_MAKEFILE=1 (reviewed tree arm)"
 fi
-if grep -qE 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
-  bad "wave807 must not set ENDGAME=1 on tree (reviewed TREE_ARMED arm is a separate wave)"
+if grep -qE 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
+  bad "wave808 must not keep ENDGAME=0 on tree after TREE_ARMED arm"
 fi
 if ! grep -q 'PHYS_DEL_ENDGAME_PREP_TREE_ARMED=0' <<<"$_out"; then
-  bad "wave807 must keep PHYS_DEL_ENDGAME_PREP_TREE_ARMED=0"
+  bad "wave808 must keep PHYS_DEL_ENDGAME_PREP_TREE_ARMED=0 (prep key never arms)"
 fi
-if ! grep -q 'PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=0' <<<"$_out"; then
-  bad "wave807 must keep PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=0"
+if ! grep -q 'PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=1' <<<"$_out"; then
+  bad "wave808 must set PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=1"
+fi
+# Makefile must still exist (tree arm ≠ physical delete).
+if [ ! -f "$ROOT/compiler/Makefile" ]; then
+  bad "wave808 must keep compiler/Makefile present (delete body separate)"
+else
+  note "compiler/Makefile still present after tree arm (wave808; not physical delete)"
 fi
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -2239,5 +2267,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave763 R3 PREFER thin + wave764 g05 r3-prefer-family + wave765 labi try-labi-prefer + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory + wave790 heat thin-unify + wave791–797 heat dep-thin FORCE 113 orch closed + wave798 phys-del preflight + wave799 phys-del execute-gate + wave800 Windows proof harness + wave801 status-flip-preview + wave802 status-flip-apply harness + wave803 status-flip-commit-honesty harness + wave805 endgame-preview harness + wave806 endgame-arm-apply harness + wave807 endgame-arm-commit-honesty)"
+echo "leaf_pattern_residual: CHECK OK (wave747–808: leaf residual inventory + phys-del preflight/execute-gate/proof/flip/endgame harness + wave808 TREE_ARMED arm ENDGAME=1; Makefile still present; delete body deferred)"
 exit 0

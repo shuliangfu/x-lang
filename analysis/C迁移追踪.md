@@ -1515,12 +1515,13 @@
     ✅ **ENDGAME arm prep/preview**（wave805 · `--endgame-preview` · TREE_ARMED=0 · ENDGAME 仍 0 · **非** arm · **非**物理删）；
     ✅ **ENDGAME arm apply harness**（wave806 · `--endgame-arm-apply` · confirm 闸门 · TREE_ARMED=0 · 树 ENDGAME 仍 0 · **非**树 arm · **非**物理删）；
     ✅ **ENDGAME arm commit honesty**（wave807 · `--endgame-arm-commit-honesty` · pre_arm/post_arm · TREE_ARMED=0 · 树 ENDGAME 仍 0 · **非**树 arm · **非**物理删）；
-    ⬜ B7 residual endgame · physical delete / 删 Makefile（**须** TREE_ARMED arm=1 + confirm；heat source-prereq 已 closed · STATUS 已绿 · arm harness ✅ · arm-commit-honesty ✅）
+    ✅ **TREE_ARMED arm**（wave808 · `ENDGAME=1` · `TREE_ARMED=1` · Makefile 仍在 · `--delete` 仍 never-rm · **非**物理删）；
+    ⬜ B7 residual endgame · physical delete / 删 Makefile（**须** confirm 物理删体；heat closed · STATUS 绿 · TREE_ARMED arm ✅）
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
 
-  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主**；**wave797 heat source-prereq closed**；**wave798 preflight**；**wave799 execute-gate 硬拒删**；**wave800 proof stamp harness**；**wave801–804 STATUS flip + Windows min-gate 绿**；**wave805 endgame-preview**；**wave806 endgame-arm-apply harness**；**wave807 endgame-arm-commit-honesty**；**TREE_ARMED arm=1（另波 confirm）** 后再删
+  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主**；**wave797 heat source-prereq closed**；**wave798 preflight**；**wave799 execute-gate 硬拒删**；**wave800 proof stamp harness**；**wave801–804 STATUS flip + Windows min-gate 绿**；**wave805 endgame-preview**；**wave806 endgame-arm-apply harness**；**wave807 endgame-arm-commit-honesty**；**wave808 TREE_ARMED arm ENDGAME=1**；**confirm 物理删体（另波）** 后再删
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
