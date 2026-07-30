@@ -5256,10 +5256,10 @@ run_check() {
   note() { echo "ensure_host_cc_seed_o: $*" >&2; }
   bad() { echo "ensure_host_cc_seed_o: FAIL: $*" >&2; fail=1; }
 
-  # wave907–912 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
-  # checks (R1/R3/ASYNC/B1 / GEN_X / GEN_C_TO_O / B3_LSP_SAT / FMT_CHECK families).
+  # wave907–913 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
+  # checks (R1/R3/ASYNC/B1 / GEN_X / GEN_C_TO_O / B3_LSP_SAT / FMT_CHECK / R2 CRT0 families).
   # Accept per-leaf OR membership in a multi-target list whose recipe thin-calls ensure
-  # try-heat (prefer / gen-x / gen-c-to-o / lsp-sat / other-l2 ladder lives in shell).
+  # try-heat (prefer / gen-x / gen-c-to-o / lsp-sat / other-l2 / try-r2 ladder lives in shell).
   makefile_leaf_try_heat_ok() {
     local leaf="$1"
     local prefer_re="${2:-try-heat}"
@@ -5280,7 +5280,7 @@ run_check() {
       RT_SEED_SLICE_OBJS R1_CORE_SEED_OBJS R1_FRONTEND_GLUE_OBJS R1_MAIN_RUNTIME_OBJS \
       R1_ALIAS_STUBS_OBJS R1_EXTRA_CFLAGS_OBJS R1_MISC_BASENAME_OBJS R1_SEED_MAP_OBJS \
       R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS B1_RUNTIME_OS_SEED_OBJS GEN_X_SEED_OBJS \
-      GEN_C_TO_O_SEED_OBJS B3_LSP_SAT_SEED_OBJS FMT_CHECK_SEED_OBJS; do
+      GEN_C_TO_O_SEED_OBJS B3_LSP_SAT_SEED_OBJS FMT_CHECK_SEED_OBJS DRIVER_SEED_CRT0_OBJS; do
       if [ ! -f "$mk" ]; then
         continue
       fi
@@ -5635,8 +5635,18 @@ run_check() {
   else
     bad "Makefile typeck_f64_bits.o must thin-call ensure try-heat|try-r2 (wave762)"
   fi
-  # Host MAIN_LINK crt0 (Darwin arm64 / Linux x86_64 / …) — at least one recipe body.
-  if awk '
+  # Host MAIN_LINK crt0 (Darwin arm64 / Linux x86_64 / …) — per-leaf or wave913 multi-target.
+  # wave913: multi-target $(DRIVER_SEED_CRT0_OBJS): FORCE try-heat covers all six catalog leaves
+  # (no per-leaf dual). Accept multi-target OR historical per-leaf try-heat|try-r2.
+  if grep -qE '\$\(DRIVER_SEED_CRT0_OBJS\):[[:space:]]*FORCE' Makefile 2>/dev/null \
+    && awk '
+      /\$\(DRIVER_SEED_CRT0_OBJS\):/ { hit=1; next }
+      hit && /^[^#[:space:]\t]/ { exit 1 }
+      hit && /ensure_host_cc_seed_o\.sh/ && /try-heat|try-r2/ { found=1; exit 0 }
+      END { exit found ? 0 : 1 }
+    ' Makefile; then
+    note "Makefile R2 CRT0 multi-target FORCE thin try-heat (wave913; covers six)"
+  elif awk '
     /^src\/asm\/crt0_[a-z0-9_]+\.o:/ { in_t=1; body=""; next }
     in_t && /^[^[:space:]#]/ {
       if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-r2/) found=1
@@ -5647,7 +5657,7 @@ run_check() {
   ' Makefile; then
     note "Makefile crt0 leaves thin-call ensure try-r2 (wave762)"
   else
-    bad "Makefile crt0_*.o recipes must thin-call ensure try-heat|try-r2 (wave762)"
+    bad "Makefile crt0_*.o recipes must thin-call ensure try-heat|try-r2 (wave762/913 multi-target)"
   fi
 
   if [ "$fail" -ne 0 ]; then
@@ -6496,15 +6506,23 @@ run_check() {
   fi
   # wave866: crt0_mingw must not inject multi-token WIN32_O_CFLAGS= (G.7 hygiene).
   # Shell uses ${WIN32_O_CFLAGS:-}; no Makefile ?= composition for this bag.
+  # wave913: mingw is multi-target member — also scan multi-target body if no per-leaf line.
   _win_rec=$(awk '
     $0 ~ /^src\/asm\/crt0_mingw\.o:/ {grab=1; next}
     grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
     grab {print}
   ' Makefile 2>/dev/null || true)
+  if [ -z "${_win_rec:-}" ]; then
+    _win_rec=$(awk '
+      /\$\(DRIVER_SEED_CRT0_OBJS\):/ { grab=1; next }
+      grab && /^[^#[:space:]\t]/ { exit }
+      grab { print }
+    ' Makefile 2>/dev/null || true)
+  fi
   if grep -qE 'WIN32_O_CFLAGS=' <<<"${_win_rec:-}"; then
-    bad "Makefile crt0_mingw still injects WIN32_O_CFLAGS= (wave866)"
+    bad "Makefile crt0_mingw still injects WIN32_O_CFLAGS= (wave866/913)"
   else
-    note "Makefile crt0_mingw drops WIN32_O_CFLAGS inject (wave866)"
+    note "Makefile crt0_mingw drops WIN32_O_CFLAGS inject (wave866/913 multi-target)"
   fi
   echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat + CFLAGS shell-load wave862 + WIN32_O drop wave866 + hdr/Makefile-flags + net multi-merge mtime · wave748–866)" >&2
 }

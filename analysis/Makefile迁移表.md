@@ -721,6 +721,10 @@
 
 - **wave890** · B7B residual bulk `@sh` → `@bash` thin-call form hygiene：77 sites（formal_mod 38 + std_x 22 + migrate 4 + eoo/tests/verify 3 + g05 4 + clean/token/refresh/cc_inc/driver_bstrict 6；全部 `\t@sh scripts/` → 纯 `@bash scripts/…`）。**非**物理删。
 
+## wave913 residual note
+
+- **wave913** · B7B R2 CRT0 multi-target FORCE thin try-heat：6 leaves → `$(DRIVER_SEED_CRT0_OBJS)`（`mk/driver_seed_r_lists.mk` · G.7 有则补全 try-r2；export_lists 不再复写）+ Makefile multi-target FORCE try-heat。**非**物理删。
+
 ## wave889 residual note
 
 - **wave889** · B7B residual non-thin recipe body / form hygiene：10 sites（3 dual `@mkdir -p build_asm` 去掉；1 panic stamp Makefile body 去掉；5 bare `sh scripts/cc_inc_tu` → `@bash`；1 `legacy-xlang-c-ready` 嵌套 `$(MAKE)` → thin `ensure_xlang_c`）。**非**物理删。

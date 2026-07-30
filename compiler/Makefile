@@ -839,55 +839,36 @@ $(FMT_CHECK_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 
 # 无 C 自举：crt0 提供 _start 与 driver_get_argv_i；链接 asm 版 xlang 时用本 .o 替代 main.o / runtime_asm_build.o
 # wave762 R2: body → ensure_host_cc_seed_o.sh try-r2 (list = DRIVER_SEED_CRT0_OBJS /
-# DRIVER_SEED_TYPECK_F64_OBJS). UNAME ifeq only selects which target is defined on
-# this host; recipe body is shell (G.7 single cold body). PLATFORM tags in ensure.
-# wave795 B7A: heat dep-edge thin pure asm residual — .s prereqs → FORCE + ensure;
-# try-heat owns .s/seed mtime (try-r2). Host ifeq gate kept. NOT physical delete.
-ifeq ($(UNAME_S),Linux)
-ifeq ($(UNAME_M),x86_64)
-src/asm/crt0_x86_64.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# DRIVER_SEED_TYPECK_F64_OBJS). Recipe body is shell (G.7 single cold body).
+# wave795 B7A: heat dep-edge thin pure asm residual — FORCE + ensure; try-heat owns .s mtime.
+# wave913 B7B: R2 CRT0 product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = $(DRIVER_SEED_CRT0_OBJS) in mk/driver_seed_r_lists.mk
+# (migrated from export_lists for early multi-target bind; COUNT=6).
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat
+# (wave762/790/795; try-heat → try-r2; family host filter = r2_crt0_host_relevant).
+# Leaves: crt0_x86_64 · crt0_arm64 · crt0_darwin_x86_64 · crt0_mingw ·
+#         crt0_user_x86_64 · freestanding_io_x86_64.
+# UNAME ifeq per-leaf recipe gates dropped (graph always defines catalog members);
+# shell still host-picks family rebuild. NOT physical delete — thin edges +
+# remaining (cfg_eval / typeck_f64 / panic singles) + tip Windows → dual L4 →
+# explicit auth. PLATFORM: SHARED multi-target graph; leaf ISA in try-r2 shell.
+$(DRIVER_SEED_CRT0_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-# S4 freestanding 用户程序入口（call _main；见 tests/run-freestanding-hello.sh）
-src/asm/crt0_user_x86_64.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-# S4 freestanding syscall write（xlang_sys_write）
-src/asm/freestanding_io_x86_64.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+
 # runtime.c 链 freestanding 用户程序时在 compiler/ 下查找 crt0_user.o / freestanding_io.o
 # wave836: FORCE dep-thin — shell owns SRC mtime + try-heat (ensure_cp_alias_o; not physical delete).
-# PLATFORM: x86_64 freestanding link names (block gated by UNAME_M); FORCE always invokes script.
+# PLATFORM: x86_64 freestanding link names (block gated by UNAME); FORCE always invokes script.
+# NL-07 v2 bootstrap_nostdlib_stubs: cc_inc_tu residual — not R2 try-r2 multi (wave831/889).
+ifeq ($(UNAME_S),Linux)
+ifeq ($(UNAME_M),x86_64)
 crt0_user.o: FORCE scripts/ensure_cp_alias_o.sh
 	@bash scripts/ensure_cp_alias_o.sh ensure $@
 freestanding_io.o: FORCE scripts/ensure_cp_alias_o.sh
 	@bash scripts/ensure_cp_alias_o.sh ensure $@
-# NL-07 v2：bootstrap crt0 nostdlib 最小 libc 桩（cc_inc_tu residual — not R2 try-r2)
-# wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
-# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
 src/asm/bootstrap_nostdlib_stubs.o: FORCE scripts/cc_inc_tu.sh
 	# wave889 B7B residual: bare sh → pure @bash thin-call form (wave888 incomplete).
 	@bash scripts/cc_inc_tu.sh seeds/bootstrap_nostdlib_stubs.from_x.c $@
 endif
-endif
-# E-04 v20：Darwin bootstrap 默认 crt0（arm64 / x86_64 Mach-O）
-ifeq ($(UNAME_S),Darwin)
-ifneq (,$(filter arm64 aarch64,$(UNAME_M)))
-src/asm/crt0_arm64.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-else ifneq (,$(filter x86_64 amd64,$(UNAME_M)))
-src/asm/crt0_darwin_x86_64.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-endif
-endif
-# E-04 v21：Windows/MinGW/MSYS bootstrap 默认 crt0_mingw 替代 main_driver.o
-# wave762: try-r2 body (cc_inc_tu + WIN32_O_CFLAGS inside ensure; list = DRIVER_SEED_CRT0)
-# wave866 B7B: drop multi-token WIN32_O_CFLAGS inject (G.7 hygiene).
-# Ensure shell uses ${WIN32_O_CFLAGS:-} when env set by caller; no make-expanded bag
-# (WIN32_O_CFLAGS has no Makefile ?= composition). Shell resolve_host_cc (wave884; no CC= inject).
-# PLATFORM: WINDOWS — crt0_mingw host only; mac/Ubuntu skip this recipe via ifeq.
-# NOT physical delete — thin edges + B2 + mk lists remain residual.
-ifeq ($(XLANG_IS_WIN_HOST),1)
-src/asm/crt0_mingw.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 endif
 
 # asm 链接无 runtime_driver 时：提供 typeck_float64_bits_lo/hi（G-02e：全平台 .s，零 C）。

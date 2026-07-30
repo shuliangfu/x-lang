@@ -118,5 +118,17 @@ B3_LSP_SAT_SEED_OBJS = src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag
 # Do not re-list in Makefile or residual shells (G.7).
 FMT_CHECK_SEED_OBJS = src/driver/fmt_check_cmd.o src/driver/fmt_check_cmd_driver.o
 
+# wave762/913 R2 CRT0 / freestanding platform .s (and mingw seed) family.
+# List authority for multi-target FORCE thin try-heat (wave913 COUNT=6).
+# Body = ensure try-heat → try-r2 (fixed o→src map; r2_crt0_host_relevant filters
+# family rebuild). Migrated from export_lists so multi-target binds before late
+# include (G.7 single literal authority; export_lists no longer re-assigns).
+# Leaves: crt0_x86_64 · crt0_arm64 · crt0_darwin_x86_64 · crt0_mingw ·
+#         crt0_user_x86_64 · freestanding_io_x86_64.
+# Not in list: crt0_user.o / freestanding_io.o (cp-alias · wave836) ·
+#              bootstrap_nostdlib_stubs (cc_inc_tu residual · wave831).
+# Do not re-list in Makefile or residual shells (G.7).
+DRIVER_SEED_CRT0_OBJS = src/asm/crt0_x86_64.o src/asm/crt0_arm64.o src/asm/crt0_darwin_x86_64.o src/asm/crt0_mingw.o src/asm/crt0_user_x86_64.o src/asm/freestanding_io_x86_64.o
+
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
