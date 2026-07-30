@@ -122,21 +122,48 @@ driver_leaf_spec_for_key() {
   esac
 }
 
+driver_leaf_mk_assign_val() {
+  # First KEY = value from product mk (strip comments / trailing space).
+  # PLATFORM: SHARED — pure text parse; no make. G.7: no dual hardcode of
+  # product -L inventories (wave816 DRIVER_SUBCMD_DIRS; wave824 LSP_X_E_DIRS).
+  local key="$1"
+  local mk="$2"
+  local line
+  line=$(grep -E "^${key}[[:space:]]*=" "$mk" 2>/dev/null | head -1 | sed "s/^${key}[[:space:]]*=[[:space:]]*//;s/#.*//;s/[[:space:]]*$//")
+  printf '%s' "$line"
+}
+
 driver_leaf_dirs_for_kind() {
-  # Match historic Makefile DRIVER_SUBCMD_DIRS / extended / LSP_X_E_DIRS exactly.
+  # base = DRIVER_SUBCMD_DIRS (mk/driver_subcmd_objs.mk wave816)
+  # lsp  = LSP_X_E_DIRS (mk/x_e_dirs.mk wave824)
+  # extended = g05/subcmd extended roots (archaeology; not MAIN/LSP product E_DIRS)
   case "$1" in
     base)
-      printf '%s' '-L .. -L src -L src/lexer -L src/ast'
+      _v=$(driver_leaf_mk_assign_val DRIVER_SUBCMD_DIRS "mk/driver_subcmd_objs.mk")
+      if [ -z "$_v" ]; then
+        echo "driver_leaf_x_to_o: failed to load DRIVER_SUBCMD_DIRS from mk/driver_subcmd_objs.mk" >&2
+        return 2
+      fi
+      printf '%s' "$_v"
       ;;
     extended)
       printf '%s' '-L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/preprocess -L src/driver'
       ;;
     lsp)
-      # Historic LSP_X_E_DIRS (no bare -L src).
-      printf '%s' '-L .. -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess'
+      _v=$(driver_leaf_mk_assign_val LSP_X_E_DIRS "mk/x_e_dirs.mk")
+      if [ -z "$_v" ]; then
+        echo "driver_leaf_x_to_o: failed to load LSP_X_E_DIRS from mk/x_e_dirs.mk" >&2
+        return 2
+      fi
+      printf '%s' "$_v"
       ;;
     *)
-      printf '%s' '-L .. -L src -L src/lexer -L src/ast'
+      _v=$(driver_leaf_mk_assign_val DRIVER_SUBCMD_DIRS "mk/driver_subcmd_objs.mk")
+      if [ -z "$_v" ]; then
+        printf '%s' '-L .. -L src -L src/lexer -L src/ast'
+      else
+        printf '%s' "$_v"
+      fi
       ;;
   esac
 }

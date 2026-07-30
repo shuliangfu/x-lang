@@ -190,6 +190,8 @@ catalog_seed_host_defaults() {
   # wave822: LEGACY_XLANG_C_* + RELINK_XLANG_PREREQS → mk/driver_seed_composites.mk.
   # wave823: SRCS / MAIN_X_DEPS / PREPROCESS_X_DEPS / PIPELINE_*_DEPS →
   #          mk/x_source_deps.mk (source-path inventories; G.7).
+  # wave824: MAIN_X_E_DIRS / LSP_X_E_DIRS / PIPELINE_X_E_DIRS →
+  #          mk/x_e_dirs.mk (-E module search roots; G.7).
   # Do not hardcode those lists here — catalog_parse_mk owns them (after env flags).
   catalog_set XLANG_LEGACY_C_FRONTEND "${XLANG_LEGACY_C_FRONTEND:-}"
   catalog_set XLANG_NO_C_SEED_LINK "${XLANG_NO_C_SEED_LINK:-}"
@@ -206,6 +208,7 @@ catalog_seed_host_defaults() {
   # wave821: archaeology experiment lists → mk/archaeology_experiment_objs.mk (G.7).
   # wave822: RELINK/LEGACY composites → mk/driver_seed_composites.mk (G.7).
   # wave823: source-path deps → mk/x_source_deps.mk (G.7).
+  # wave824: -E module roots → mk/x_e_dirs.mk (G.7).
 }
 
 # Parse a single .mk file: simple KEY = value and ifeq ($(VAR),VAL)/else/endif.
@@ -382,7 +385,9 @@ catalog_shell_dump() {
   #          (parse last; expands filtered/host + DRIVER_SEED_OBJS).
   # wave823: x_source_deps.mk (SRCS / MAIN_X_DEPS / PIPELINE_X_DEPS; independent
   #          of composites; parse early like objs_core).
+  # wave824: x_e_dirs.mk (MAIN/LSP/PIPELINE_X_E_DIRS; independent; parse early).
   catalog_parse_mk "mk/x_source_deps.mk"
+  catalog_parse_mk "mk/x_e_dirs.mk"
   catalog_parse_mk "mk/objs_core.mk"
   catalog_parse_mk "mk/user_asm_seed_objs.mk"
   catalog_parse_mk "mk/pipeline_x_objs.mk"

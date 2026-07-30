@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave822 RELINK/LEGACY list→composites · wave823 SOURCE_DEPS list→mk · wave747–821 prior swallows · wave799 execute-gate · … · not physical delete)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave823 SOURCE_DEPS list→mk · wave824 E_DIRS list→mk · wave747–822 prior swallows · wave799 execute-gate · … · not physical delete)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1721,6 +1721,54 @@ Then (later waves, not this tip):
 
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
+
+## wave824 B7B E_DIRS lists → mk (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7B *-E module search root residual —
+> `MAIN_X_E_DIRS` (dir-roots **9**, includes bare `-L src`), `LSP_X_E_DIRS`
+> (**8**, no bare `-L src`), and `PIPELINE_X_E_DIRS` (**9**, includes
+> `src/asm`) move into `compiler/mk/x_e_dirs.mk`. Makefile **include only**
+> (early with source-deps). Catalog shell-parses the mk.
+> `ensure_driver_gen.sh` / `ensure_lsp_pipeline_gen.sh` /
+> `ensure_archaeology_gen.sh` load from the same mk (no dual bash arrays).
+> `driver_leaf_x_to_o.sh` kind=`lsp` loads `LSP_X_E_DIRS` from mk; kind=`base`
+> loads `DRIVER_SUBCMD_DIRS` from `mk/driver_subcmd_objs.mk` (wave816 有则补全).
+> Honesty COUNT = fixed directory-root tokens **26** (9+8+9; excludes literal
+> `-L` flag tokens). Dual-end L2 required. Blockers **remain**
+> (`makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph`).
+
+```text
+  leaf dump:
+    PHYS_DEL_B7B_E_DIRS_LIST=1
+    PHYS_DEL_B7B_E_DIRS_LIST_WAVE=wave824
+    PHYS_DEL_B7B_E_DIRS_LIST_COUNT=26
+    SWALLOWED_B7B_E_DIRS_LIST=1
+    PHYS_DEL_PREFLIGHT_B7B_E_DIRS_LIST=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (pending implement commit; Mac + Ubuntu leaf +
+    catalog + phys-del --check; E_DIRS fixed 26; make words MAIN/LSP/PIPE
+    18/16/18; ensure_driver_gen MAIN_X_E_DIRS load from mk)
+  next: more shell-primary / thin edges / std_core graph residual or tip
+       Windows re-proof → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_E_DIRS_LIST` | `1` |
+| `PHYS_DEL_B7B_E_DIRS_LIST_COUNT` | `26` (fixed dir-root authority) |
+| `SWALLOWED_B7B_E_DIRS_LIST` | `1` |
+| `B7B_E_DIRS_LIST_MK` | `mk/x_e_dirs.mk` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+| dual-end L2 tip | pending |
+
+**Forbidden:** claim E_DIRS list→mk = physical delete; dual inline
+`MAIN_X_E_DIRS` / `LSP_X_E_DIRS` / `PIPELINE_X_E_DIRS` in Makefile or hardcode
+in ensure_driver_gen / ensure_lsp_pipeline_gen / ensure_archaeology_gen /
+driver_leaf kind=lsp; `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
 ## wave823 B7B SOURCE_DEPS lists → mk (2026-07-30)
 

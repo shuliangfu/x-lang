@@ -41,10 +41,30 @@ XLANG_X="${XLANG_X:-xlang-x}"
 XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}"
 MODE="${1:-all}"
 
-# Parity with Makefile LSP_X_E_DIRS
-LSP_X_E_DIRS=(-L .. -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess)
-# pipeline -E lib roots (Makefile bootstrap-pipeline recipe)
-PIPELINE_X_E_DIRS=(-L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess)
+# LSP_X_E_DIRS / PIPELINE_X_E_DIRS: G.7 single authority mk/x_e_dirs.mk (wave824).
+# Do not hardcode a second -L inventory here.
+_X_E_DIRS_MK="mk/x_e_dirs.mk"
+_mk_assign_val() {
+  # First KEY = value line from mk (strip comments / trailing space).
+  # PLATFORM: SHARED — pure text parse; no make.
+  local key="$1"
+  local line
+  line=$(grep -E "^${key}[[:space:]]*=" "$_X_E_DIRS_MK" 2>/dev/null | head -1 | sed "s/^${key}[[:space:]]*=[[:space:]]*//;s/#.*//;s/[[:space:]]*$//")
+  printf '%s' "$line"
+}
+# bash 3.2: read -a from mk-owned lists (wave824; not dual inventory).
+# shellcheck disable=SC2206
+LSP_X_E_DIRS=($(_mk_assign_val LSP_X_E_DIRS))
+# shellcheck disable=SC2206
+PIPELINE_X_E_DIRS=($(_mk_assign_val PIPELINE_X_E_DIRS))
+if [ "${#LSP_X_E_DIRS[@]}" -lt 2 ] || [ -z "${LSP_X_E_DIRS[0]:-}" ]; then
+  echo "ensure-lsp-pipeline-gen: failed to load LSP_X_E_DIRS from $_X_E_DIRS_MK" >&2
+  exit 2
+fi
+if [ "${#PIPELINE_X_E_DIRS[@]}" -lt 2 ] || [ -z "${PIPELINE_X_E_DIRS[0]:-}" ]; then
+  echo "ensure-lsp-pipeline-gen: failed to load PIPELINE_X_E_DIRS from $_X_E_DIRS_MK" >&2
+  exit 2
+fi
 
 log() { echo "ensure-lsp-pipeline-gen: $*" >&2; }
 

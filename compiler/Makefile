@@ -113,6 +113,10 @@ TARGET = xlang
 # mk/x_source_deps.mk (G.7; not physical delete). Makefile include only.
 # Include early so $(PIPELINE_X_DEPS) is non-empty before pipeline_x.o rules.
 include mk/x_source_deps.mk
+# wave824 B7B: MAIN_X_E_DIRS / LSP_X_E_DIRS / PIPELINE_X_E_DIRS →
+# mk/x_e_dirs.mk (G.7; not physical delete). Makefile include only.
+# Include early with source-deps so gen thin leaves expand non-empty -L roots.
+include mk/x_e_dirs.mk
 # wave820 B7B: OBJS_CORE / OBJS archaeology list → mk/objs_core.mk (G.7; not physical delete).
 # Makefile include only; product make xlang is g05 (wave786); escape XLANG_HOST_CC_OBJS_CORE=1.
 include mk/objs_core.mk
@@ -124,9 +128,7 @@ XLANG_C = xlang-c
 # bootstrap-driver-seed 末尾 `cp $(TARGET)` 得到；不作为 lsp_*_gen.c / driver_gen / preprocess_gen 的 Makefile 前置（否则与 seed 依赖环）。
 # -E/-E-extern 生成时在 recipe 内 `test -f xlang-x`：冷启动仅用 xlang-c；二次构建起用 xlang-x（pipeline+codegen.x），使 LSP 生成 C 与 codegen.x 的自动 extern 一致。
 XLANG_X = xlang-x
-# 与既有 xlang-c 命令行一致的 -L（lsp/*.x -E；-L src 仅限 main.x / driver_gen）
-LSP_X_E_DIRS = -L .. -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess
-MAIN_X_E_DIRS = -L .. -L src -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess
+# MAIN/LSP/PIPELINE_X_E_DIRS: list authority mk/x_e_dirs.mk (wave824).
 # MAIN_X_DEPS / PREPROCESS_X_DEPS: list authority mk/x_source_deps.mk (wave823).
 .PHONY: all std-objs clean test size-baseline perf-baseline bootstrap-token bootstrap-lexer bootstrap-parser bootstrap-parse-file bootstrap-typeck bootstrap-codegen bootstrap-driver bootstrap-driver-seed bootstrap-driver-bstrict bootstrap-driver-bstrict-relink bootstrap-driver-bstrict-windows bootstrap-driver-crt0 bootstrap-driver-asm bootstrap-driver-asm-only bootstrap-asm bootstrap_xlangc check-asm-o-quality check-6.4 bootstrap-self check-7.2 check-7.2-bstrict bootstrap-verify bootstrap-verify-seed bootstrap-verify-bstrict bootstrap-verify-stage2 bootstrap-verify-stage2-bstrict bootstrap-test build-tool build-tool-x build-via-tool first-time verify-selfhost-stage2 regen-lsp-gens-x xlang-no-c-frontend gen-x-driver-objs build-user-asm-backend build-seed-user-asm-partial bootstrap-driver-seed-user-asm compile_commands.json
 

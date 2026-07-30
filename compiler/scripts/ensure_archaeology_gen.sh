@@ -48,11 +48,36 @@ XLANG_C="${XLANG_C:-xlang-c}"
 XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}"
 MODE="${1:-all}"
 
-# Parity with Makefile DRIVER_SUBCMD_DIRS / LSP_X_E_DIRS / emit -E roots
-DRIVER_SUBCMD_DIRS=(-L .. -L src -L src/lexer -L src/ast)
-# emit Makefile: extra roots after DRIVER_SUBCMD_DIRS
+# DRIVER_SUBCMD_DIRS: product authority mk/driver_subcmd_objs.mk (wave816).
+# LSP_X_E_DIRS: product authority mk/x_e_dirs.mk (wave824).
+# DRIVER_EMIT_E_DIRS: archaeology-only emit -E roots (not product MAIN/LSP/PIPELINE).
+# Load product -L inventories from mk (G.7; not dual hardcode).
+_DRIVER_SUBCMD_MK="mk/driver_subcmd_objs.mk"
+_X_E_DIRS_MK="mk/x_e_dirs.mk"
+_mk_assign_val() {
+  # First KEY = value line from mk (strip comments / trailing space).
+  # PLATFORM: SHARED — pure text parse; no make.
+  local key="$1"
+  local mk="$2"
+  local line
+  line=$(grep -E "^${key}[[:space:]]*=" "$mk" 2>/dev/null | head -1 | sed "s/^${key}[[:space:]]*=[[:space:]]*//;s/#.*//;s/[[:space:]]*$//")
+  printf '%s' "$line"
+}
+# bash 3.2: read -a from mk-owned lists (wave816/wave824; not dual inventory).
+# shellcheck disable=SC2206
+DRIVER_SUBCMD_DIRS=($(_mk_assign_val DRIVER_SUBCMD_DIRS "$_DRIVER_SUBCMD_MK"))
+# shellcheck disable=SC2206
+LSP_X_E_DIRS=($(_mk_assign_val LSP_X_E_DIRS "$_X_E_DIRS_MK"))
+# emit Makefile: extra roots after DRIVER_SUBCMD_DIRS (archaeology-only; not in product E_DIRS mk).
 DRIVER_EMIT_E_DIRS=(-L .. -L src -L src/lexer -L src/ast -L ../std/fs -L src/preprocess -L src/pipeline -L src/codegen)
-LSP_X_E_DIRS=(-L .. -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess)
+if [ "${#DRIVER_SUBCMD_DIRS[@]}" -lt 2 ] || [ -z "${DRIVER_SUBCMD_DIRS[0]:-}" ]; then
+  echo "ensure-archaeology-gen: failed to load DRIVER_SUBCMD_DIRS from $_DRIVER_SUBCMD_MK" >&2
+  exit 2
+fi
+if [ "${#LSP_X_E_DIRS[@]}" -lt 2 ] || [ -z "${LSP_X_E_DIRS[0]:-}" ]; then
+  echo "ensure-archaeology-gen: failed to load LSP_X_E_DIRS from $_X_E_DIRS_MK" >&2
+  exit 2
+fi
 
 log() { echo "ensure-archaeology-gen: $*" >&2; }
 
