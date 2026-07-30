@@ -87,7 +87,8 @@
 > - **wave916** · B7B B5 CFG_EVAL product edge multi-target FORCE thin try-heat (1 leaf → `$(DRIVER_SEED_CFG_EVAL_OBJS)` = `src/lexer/cfg_eval.o` in `mk/driver_seed_r_lists.mk`; G.7 try-heat → try-cfg-eval-ladder; migrated from per-leaf recipe; no second body)
 > - **wave917** · B7B cc_inc_tu SHARED family multi-target FORCE thin --auto (5 leaves → `$(CC_INC_TU_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 `@bash scripts/cc_inc_tu.sh --auto $@`; seed-map `cc_inc_tu_seed_for_out` in cc_inc_tu.sh; migrated from 5 per-leaf recipes; 72+ explicit-seed call sites unchanged)
 > - **wave918** · B7B cc_inc_tu Linux x86_64 guard multi-target FORCE thin --auto (1 leaf → `$(CC_INC_TU_LINUX_X86_64_OBJS)` = `src/asm/bootstrap_nostdlib_stubs.o` new list in `mk/driver_seed_r_lists.mk`; G.7 `@bash scripts/cc_inc_tu.sh --auto $@`; cc_inc_tu.sh seed-map extended; per-leaf recipe → multi-target FORCE inside `ifeq (Linux,x86_64)` guard; **cc_inc_tu multi-target family closed** — SHARED 5 + Linux guard 1 = 6)
-> - **open** · thin edges + mk lists hybrid (net_merge …) · → tip Windows → dual L4 → explicit auth ship delete  # post-wave918 cc_inc_tu family closed
+> - **wave919** · B7B migrate_x family multi-target FORCE thin (3 leaves → `$(MIGRATE_X_OBJS)` = `parser_x.o` + `typeck_x.o` + `codegen_x.o` new list in `mk/driver_seed_r_lists.mk`; G.7 `@bash scripts/migrate_x_objs.sh $@` — script case accepts `<name>_x.o` as MODE directly, no --auto seed-map needed; migrated from 3 per-leaf recipes; **migrate_x family closed**)
+> - **open** · thin edges + mk lists hybrid (cp-alias 3 / filter 4 / net_merge …) · → tip Windows → dual L4 → explicit auth ship delete  # post-wave919 migrate_x family closed
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete

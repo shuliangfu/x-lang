@@ -250,10 +250,10 @@
 |----|---------------|----------|
 | 986 | `src/runtime_x.o` | ⬜ |
 | 1129 | `src/main_x.o` | ⬜ |
-| 1819 | `parser_x.o` | 🟡 wave735 migrate · wave878 thin `@sh` only |
+| 1819 | `parser_x.o` | 🟡 wave735 migrate · wave878 thin `@bash` · wave919 multi-target `$(MIGRATE_X_OBJS)` |
 | 1888 | `lexer_x.o` | 🟡 wave782 try-gen-c-to-o thin |
-| 2185 | `typeck_x.o` | 🟡 wave735 migrate · wave878 thin `@sh` only |
-| 2210 | `codegen_x.o` | 🟡 wave735 migrate · wave878 thin `@sh` only |
+| 2185 | `typeck_x.o` | 🟡 wave735 migrate · wave878 thin `@bash` · wave919 multi-target `$(MIGRATE_X_OBJS)` |
+| 2210 | `codegen_x.o` | 🟡 wave735 migrate · wave878 thin `@bash` · wave919 multi-target `$(MIGRATE_X_OBJS)` |
 | 2529 | `ast_x.o` | ⬜ |
 | 2568 | `lsp_diag_x.o` | ⬜ |
 | 2644 | `lsp_io_std_heap_x.o` | ⬜ |
@@ -723,6 +723,7 @@
 
 ## wave913 residual note
 
+- **wave919** · migrate_x family multi-target FORCE thin（3 · `$(MIGRATE_X_OBJS)` = `parser_x.o` + `typeck_x.o` + `codegen_x.o` 新 list in r_lists · G.7 `@bash scripts/migrate_x_objs.sh $@` · 脚本 case 已接受 `<name>_x.o` MODE 无需 --auto · 3 per-leaf recipes → 1 multi-target · **migrate_x family closed** · **非**物理删）
 - **wave918** · cc_inc_tu Linux x86_64 guard multi-target FORCE thin --auto（1 · `$(CC_INC_TU_LINUX_X86_64_OBJS)` = `src/asm/bootstrap_nostdlib_stubs.o` 新 list in r_lists · G.7 `@bash scripts/cc_inc_tu.sh --auto $@` · cc_inc_tu.sh seed-map 扩 · per-leaf recipe → multi-target FORCE inside `ifeq (Linux,x86_64)` guard · **cc_inc_tu multi-target family closed** · **非**物理删）
 - **wave917** · cc_inc_tu SHARED family multi-target FORCE thin --auto（5 · `$(CC_INC_TU_OBJS)` 迁 r_lists · G.7 `@bash scripts/cc_inc_tu.sh --auto $@` · cc_inc_tu.sh seed-map `cc_inc_tu_seed_for_out` · 5 per-leaf recipes → 1 multi-target · **非**物理删）
 - **wave916** · B5 CFG_EVAL multi-target FORCE thin try-heat（1 · `$(DRIVER_SEED_CFG_EVAL_OBJS)` = `src/lexer/cfg_eval.o` 迁 r_lists · G.7 try-heat→try-cfg-eval-ladder · per-leaf recipe → multi-target FORCE thin try-heat · **非**物理删）
