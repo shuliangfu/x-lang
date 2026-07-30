@@ -571,31 +571,36 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   fi
   # Darwin product link uses filtered pipeline + filtered USER_ASM trio; drop
   # stale TDS after unbundle / partial refresh. Pure shell (no make).
+  # wave835: G.7 有则补全 — mtime + ensure live in filter_* scripts (same as Makefile
+  # FORCE thin). g05 thin-calls ensure only (no dual mtime if-ladder here).
   # Authority: filter_bootstrap_seed_*_o.sh → filter_o_export_against_deps.sh (G.7).
   # PLATFORM: SHARED hygiene; PLATFORM: MACOS product link consumes these (g05_relink_env).
   _filt=build_asm/bootstrap_seed_pipeline_filtered.o
-  if [ -f pipeline_x.o ] && { [ ! -f "$_filt" ] || [ pipeline_x.o -nt "$_filt" ]; }; then
-    echo "g05_ensure: $_filt ← filter_bootstrap_seed_pipeline_o.sh (pipeline_x newer; no make)"
-    if ! sh scripts/filter_bootstrap_seed_pipeline_o.sh pipeline_x.o "$_filt"; then
+  if [ -f pipeline_x.o ]; then
+    echo "g05_ensure: $_filt ← filter_bootstrap_seed_pipeline_o.sh ensure (no make)"
+    if ! bash scripts/filter_bootstrap_seed_pipeline_o.sh ensure "$_filt"; then
       echo "g05_ensure: WARN filter $_filt failed (Darwin may dual-def pool)" >&2
     fi
   fi
-  # Class-G trio: filter against seed_host partial only (same as Makefile recipes).
-  # Do not use `set --` here (would clobber script positional args).
+  # Class-G trio: filter against seed_host partial only (catalog in filter script).
   _partial=build_asm/seed_host/asm_backend_partial.o
   if [ -f "$_partial" ]; then
-    for _spec in \
-      "src/asm/user_asm_seed_bridge.o|build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o|bootstrap_seed_user_asm_seed_bridge" \
-      "src/asm/asm_backend_compat_stubs.o|build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o|bootstrap_seed_asm_backend_compat_stubs" \
-      "src/asm/backend_x86_64_enc_c.o|build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o|bootstrap_seed_backend_x86_64_enc_c"
+    for _out in \
+      build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o \
+      build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o \
+      build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o
     do
-      _src="${_spec%%|*}"
-      _rest="${_spec#*|}"
-      _out="${_rest%%|*}"
-      _stem="${_rest#*|}"
-      if [ -f "$_src" ] && { [ ! -f "$_out" ] || [ "$_src" -nt "$_out" ] || [ "$_partial" -nt "$_out" ]; }; then
-        echo "g05_ensure: $_out ← filter_bootstrap_seed_against_partial_o.sh (no make)"
-        if ! sh scripts/filter_bootstrap_seed_against_partial_o.sh "$_src" "$_out" "$_stem" "$_partial"; then
+      # Skip ensure when SRC not yet present (cold partial trees); catalog ensure
+      # would try-heat — only call when matching SRC exists (historical g05 gate).
+      case "$_out" in
+        *user_asm_seed_bridge*) _src=src/asm/user_asm_seed_bridge.o ;;
+        *compat_stubs*) _src=src/asm/asm_backend_compat_stubs.o ;;
+        *backend_x86_64*) _src=src/asm/backend_x86_64_enc_c.o ;;
+        *) _src= ;;
+      esac
+      if [ -n "$_src" ] && [ -f "$_src" ]; then
+        echo "g05_ensure: $_out ← filter_bootstrap_seed_against_partial_o.sh ensure (no make)"
+        if ! bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure "$_out"; then
           echo "g05_ensure: WARN filter $_out failed (Darwin USER_ASM dual-def risk)" >&2
         fi
       fi

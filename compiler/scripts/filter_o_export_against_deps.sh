@@ -26,6 +26,9 @@
 # Linux may build for hygiene (product link often uses bare .o).
 
 set -euo pipefail
+# PLATFORM: SHARED — GNU comm rejects non-C locale order (Ubuntu L2 hang/fail);
+# force C collate for sort -u / comm -23 of nm symbol lists.
+export LC_ALL=C
 
 _script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 _compiler_dir="$(CDPATH= cd -- "$_script_dir/.." && pwd)"

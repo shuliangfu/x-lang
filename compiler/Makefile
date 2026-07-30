@@ -1777,23 +1777,29 @@ src/asm/parser_asm_parse_expr_link.o: FORCE scripts/ensure_host_cc_seed_o.sh
 
 # Authority: scripts/filter_bootstrap_seed_against_partial_o.sh → filter_o_export_against_deps.sh
 # (G.7 single path; g05_ensure same). PLATFORM: SHARED — Darwin product USER_ASM_LINK.
-build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o: src/asm/backend_x86_64_enc_c.o build_asm/seed_host/asm_backend_partial.o
-	@chmod +x scripts/filter_bootstrap_seed_against_partial_o.sh scripts/filter_o_export_against_deps.sh 2>/dev/null || true
-	@./scripts/filter_bootstrap_seed_against_partial_o.sh src/asm/backend_x86_64_enc_c.o $@ bootstrap_seed_backend_x86_64_enc_c
+# wave835: FORCE dep-thin — drop SRC/partial make-graph prereqs; shell owns mtime +
+# try-heat SRC then filter (parallel-safe). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes ensure (cheap mtime skip).
+build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o: FORCE scripts/filter_bootstrap_seed_against_partial_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure $@
 
-build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o: src/asm/user_asm_seed_bridge.o build_asm/seed_host/asm_backend_partial.o
-	@chmod +x scripts/filter_bootstrap_seed_against_partial_o.sh scripts/filter_o_export_against_deps.sh 2>/dev/null || true
-	@./scripts/filter_bootstrap_seed_against_partial_o.sh src/asm/user_asm_seed_bridge.o $@ bootstrap_seed_user_asm_seed_bridge
+build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o: FORCE scripts/filter_bootstrap_seed_against_partial_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure $@
 
-build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: src/asm/asm_backend_compat_stubs.o build_asm/seed_host/asm_backend_partial.o
-	@chmod +x scripts/filter_bootstrap_seed_against_partial_o.sh scripts/filter_o_export_against_deps.sh 2>/dev/null || true
-	@./scripts/filter_bootstrap_seed_against_partial_o.sh src/asm/asm_backend_compat_stubs.o $@ bootstrap_seed_asm_backend_compat_stubs
+build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: FORCE scripts/filter_bootstrap_seed_against_partial_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure $@
 
 # Authority: scripts/filter_bootstrap_seed_pipeline_o.sh → filter_o_export_against_deps.sh
 # (G.7 single path; g05_ensure same). PLATFORM: SHARED — Darwin product link primary.
-build_asm/bootstrap_seed_pipeline_filtered.o: pipeline_x.o build_asm/seed_host/asm_backend_partial.o build_asm/pipeline_glue_strict_minimal.o
-	@chmod +x scripts/filter_bootstrap_seed_pipeline_o.sh scripts/filter_o_export_against_deps.sh 2>/dev/null || true
-	@./scripts/filter_bootstrap_seed_pipeline_o.sh pipeline_x.o $@
+# wave835: FORCE dep-thin — drop pipeline_x/partial/strict_minimal make-graph prereqs;
+# shell owns mtime + try-heat SRC. NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes ensure (cheap mtime skip).
+build_asm/bootstrap_seed_pipeline_filtered.o: FORCE scripts/filter_bootstrap_seed_pipeline_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/filter_bootstrap_seed_pipeline_o.sh ensure $@
 
 # wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
