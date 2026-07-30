@@ -1744,7 +1744,8 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     SWALLOWED_GEN_C_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (this wave implement; docs dual-end follow)
+  dual-end L2 green tip: bfa60f50b (Mac + Ubuntu leaf + phys-del --check;
+    gen.c 17 FORCE; ensure recipes bash; sample pin/seed OK)
   next: more shell-primary / thin edges / B2 residual or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```

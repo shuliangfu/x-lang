@@ -1536,7 +1536,7 @@
     ✅ **formal_mod FORCE dep-thin**（wave826 · 38 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · B2 try-heat + thin edges + mk lists 仍 residual）；
     ✅ **std_x FORCE dep-thin**（wave827 · 22 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · formal_mod FORCE + B2 try-heat + thin edges + mk lists 仍 residual）；
     ✅ **driver_leaf FORCE dep-thin**（wave828 · 8 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · B2 try-heat + thin edges + mk lists 仍 residual）；
-    ✅ **gen.c FORCE dep-thin**（wave829 · 17 叶 · Makefile FORCE+ensure_*_gen only · shell 拥 pin/FORCE_REGEN · **非**物理删 · ast_gen2 inline + B2 + thin edges + mk lists 仍 residual）；
+    ✅ **gen.c FORCE dep-thin**（wave829 · 17 叶 · Makefile FORCE+ensure_*_gen only · bash recipe · shell 拥 pin/FORCE_REGEN · **非**物理删 · ast_gen2 inline + B2 + thin edges + mk lists 仍 residual）；
     ⬜ B7 residual endgame · physical delete / 删 Makefile（**须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体；heat closed · STATUS 绿 · TREE_ARMED arm ✅ · delete-body honesty ✅ · std_x thin ✅ · std_x catalog ✅ · std_x FORCE thin ✅ · formal_mod FORCE thin ✅ · formal_mod catalog ✅ · STD_AND_PANIC list→mk ✅ · driver_leaf catalog ✅ · driver_leaf FORCE thin ✅ · gen.c FORCE thin ✅ · archaeology host-pick ✅ · DRIVER_SUBCMD list→mk ✅ · PIPELINE_X list→mk ✅ · SEED_MODE list→mk ✅ · SEED_LINK_PICKS list→mk ✅ · OBJS_CORE list→mk ✅ · ARCH_EXPERIMENT list→mk ✅ · RELINK_LEGACY list→mk ✅ · SOURCE_DEPS list→mk ✅ · E_DIRS list→mk ✅）
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
