@@ -1794,7 +1794,7 @@ ship delete body; mac-only wave green.
     SWALLOWED_GLUE_TYPES_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_GLUE_TYPES_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (this implement SHA; Mac + Ubuntu leaf --check;
+  dual-end L2 green tip: 6d08997ad (Mac + Ubuntu leaf --check;
     glue_types FORCE; need_rebuild mtime; sample make OK)
   next: thin edges / B2 / bootstrap-pipeline or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
