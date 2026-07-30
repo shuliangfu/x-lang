@@ -431,7 +431,7 @@
 | 3209 | `build-user-asm-backend` | ⬜ |
 | 3213 | `bootstrap-asm` | ⬜ |
 | 3216 | `bootstrap-asm-full` | ⬜ |
-| 3270 | `bootstrap-self` | 🟡 wave785 B7c：lsp thin leaves；stage2 link residual |
+| 3270 | `bootstrap-self` | 🟢 wave843 shell-primary：`bootstrap_self.sh`（stage1+stage2 link+smoke）；prereq graph residual |
 | 3359 | `bootstrap-pipeline` | ⬜ |
 | 3370 | `xlang-x-pipeline` | ⬜ |
 | 3380 | `bootstrap-x-compiler` | ⬜ |

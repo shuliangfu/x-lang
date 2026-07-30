@@ -1172,8 +1172,9 @@ After (wave785):
   B7A thin_call_edges_only
   B7B mk_list_authority (mk + catalog)
   B7C archaeology_phony_cc
-    → typeck/codegen .o via migrate_x_objs.sh
+    → typeck/codegen .o via migrate_x_objs.sh (wave841 shell-primary)
     → bootstrap-self lsp_* via thin leaves (ensure_gen_x_o / driver_leaf)
+      (cleared wave843: full body → bootstrap_self.sh; stage2 link bag still mk)
     → bootstrap-x-compiler typeck_x_x residual $(CC) -c kept (honesty)
       (cleared wave842: body → bootstrap_x_compiler.sh; still not migrate_x_objs)
   B7D host_cc_product_link_xlang (TARGET:OBJS incomplete vs g05; UNDEF residual)
@@ -1184,7 +1185,7 @@ After (wave785):
 | Swallowed this wave | Still residual |
 |---------------------|----------------|
 | **B7 inventory** (named B7A–B7D + dump/`--check`) | Physical delete (Windows gate) |
-| **B7c partial** (archaeology dual `-c` → migrate / thin leaves) | ~~B7c `bootstrap-x-compiler` typeck_x_x~~ (wave842 shell) · B7A edges · B7B lists · ~~**B7D host-cc xlang link**~~ (wave786) |
+| **B7c partial** (archaeology dual `-c` → migrate / thin leaves) | ~~B7c typeck/codegen~~ (wave841) · ~~x-compiler~~ (wave842) · ~~bootstrap-self~~ (wave843) · B7A edges · B7B lists · ~~**B7D host-cc xlang link**~~ (wave786) · bootstrap-parser smoke |
 
 **Forbidden:** physical delete Makefile; claim B7 inventory = physical delete; re-open dual `$(CC) -c` on typeck/codegen/bootstrap-self lsp; mac-only wave green; treat B7D UNDEF as product g05 failure.
 
@@ -2041,6 +2042,59 @@ ship delete body; mac-only wave green.
 `bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
+## wave843 bootstrap-self shell-primary (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7C archaeology residual —
+> `bootstrap-self` still owned a multi-step Makefile body
+> (stage1 `cp` + best-effort satellite ensure + fat `$(CC)` stage2 link +
+> `out_self` return-value smoke / file(1) re-cc). wave785 already closed dual
+> `$(CC) -c` on lsp gens; stage2 link bag residual stays mk expansion.
+>
+> New authority: `scripts/bootstrap_self.sh`
+>   - stage1 snapshot + residual make ensure for satellite leaves
+>   - host-cc link stage2 with Makefile `BS_LINK_OBJS` / `BS_LINK_FLAGS`
+>     (mk composites; no second product inventory in shell)
+>   - out_self smoke (exit 42; Mach-O/ELF/PE32* or re-cc -x c)
+>
+> Makefile thin-call only (keeps `bootstrap-driver-seed` make-graph prereq).
+> Honesty COUNT = **1**. Residual after: thin edges + B2 + mk lists +
+> bootstrap-parser smoke body. Dual-end L2 required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_BOOTSTRAP_SELF_SHELL=1
+    PHYS_DEL_BOOTSTRAP_SELF_SHELL_WAVE=wave843
+    PHYS_DEL_BOOTSTRAP_SELF_SHELL_COUNT=1
+    SWALLOWED_BOOTSTRAP_SELF_SHELL=1
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=4
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave843
+    PHYS_DEL_PREFLIGHT_BOOTSTRAP_SELF_SHELL=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (Mac + Ubuntu leaf --check +
+    bootstrap_self.sh --check + phys-del --check + rv42/hello)
+  next: more shell-primary (bootstrap-parser smoke) or tip Windows
+       re-proof → ship delete body (explicit auth only; tip L4 already wave840)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_BOOTSTRAP_SELF_SHELL` | `1` |
+| `PHYS_DEL_BOOTSTRAP_SELF_SHELL_COUNT` | `1` |
+| `SWALLOWED_BOOTSTRAP_SELF_SHELL` | `1` |
+| `BOOTSTRAP_SELF_SHELL_HELPER` | `bootstrap_self.sh` |
+| `PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT` | `4` (wave841 typeck/codegen + wave842 x-compiler + wave843 self) |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim bootstrap-self shell-primary = physical delete; dual inline
+stage2 `$(CC)` link / out_self smoke / stage1 cp on this phony; hardcode second
+product `.o` list in shell; `rm compiler/Makefile`; ship delete body; mac-only
+wave green.
+
 ## wave842 bootstrap-x-compiler shell-primary (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
@@ -2058,8 +2112,8 @@ ship delete body; mac-only wave green.
 >
 > Makefile thin-call only (keeps `xlang-x-pipeline` make-graph prereq —
 > wave719-style body shell-primary). Honesty COUNT = **1**. Residual after:
-> thin edges + B2 + mk lists + bootstrap-self / bootstrap-parser smoke bodies.
-> Dual-end L2 required. Blockers **remain**.
+> thin edges + B2 + mk lists + bootstrap-self / bootstrap-parser smoke bodies
+> (bootstrap-self cleared wave843). Dual-end L2 required. Blockers **remain**.
 
 ```text
   leaf dump:
@@ -2083,7 +2137,7 @@ ship delete body; mac-only wave green.
 | `PHYS_DEL_BOOTSTRAP_X_COMPILER_SHELL_COUNT` | `1` |
 | `SWALLOWED_BOOTSTRAP_X_COMPILER_SHELL` | `1` |
 | `BOOTSTRAP_X_COMPILER_SHELL_HELPER` | `bootstrap_x_compiler.sh` |
-| `PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT` | `3` (wave841 typeck/codegen + wave842 x-compiler) |
+| `PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT` | `3` (wave841 typeck/codegen + wave842 x-compiler; later 4 @ wave843) |
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
 | `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
