@@ -7836,6 +7836,19 @@ for _gs in ensure_migrate_gen.sh ensure_driver_gen.sh ensure_lsp_pipeline_gen.sh
   fi
 done
 note "ensure_*_gen missing xlang-c → ensure_xlang_c.sh (wave949; 0-make)"
+# wave950: cfg-eval ladder soft missing xlang-c → ensure_xlang_c.sh (0-make).
+# PLATFORM: SHARED — product B5 path; post_ship honesty after Makefile delete.
+_hc="$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh"
+[ -f "$_hc" ] || _hc="scripts/ensure_host_cc_seed_o.sh"
+if [ ! -f "$_hc" ]; then
+  bad "missing ensure_host_cc_seed_o.sh (wave950 cfg-eval soft xlang-c)"
+elif grep -E '^[[:space:]]+\$MAKE[[:space:]]+xlang-c' "$_hc" 2>/dev/null | grep -q .; then
+  bad "ensure_host_cc_seed_o must not residual bare make xlang-c (wave950; ensure_xlang_c.sh)"
+elif ! grep -q 'ensure_xlang_c\.sh ensure' "$_hc"; then
+  bad "ensure_host_cc_seed_o cfg-eval must soft-call ensure_xlang_c.sh (wave950)"
+else
+  note "cfg-eval soft xlang-c → ensure_xlang_c.sh (wave950; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then

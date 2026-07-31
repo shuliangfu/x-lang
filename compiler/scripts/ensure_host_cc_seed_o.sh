@@ -90,6 +90,8 @@
 #            (有则补全; single leaf src/lexer/cfg_eval.o; rungs: -E-extern±L →
 #            linux pin gen + link_alias ld -r → bootstrap stub). Makefile
 #            thin-call only (NOT physical delete). Residual: B6 R5 · physical delete.
+#   wave950: cfg-eval soft missing xlang-c → scripts/ensure_xlang_c.sh (0-make;
+#            was make-target xlang-c; post-delete residual; soft || true pin/stub OK).
 #   wave789: B7A heat shell auto-dispatch — `try-heat OUT` (有则补全; NOT physical
 #            delete). Ladder existing try-* membership helpers (prefer before
 #            pure R1/R2/gen) so heat can rebuild ensure-owned leaves without
@@ -4438,7 +4440,8 @@ try_ensure_gen_c_to_o_one() {
 # Makefile multi-ladder: live -E-extern (+/- -L) → cc with PIPELINE_GEN_CFLAGS
 # + link_alias ld -r; else linux pin gen + alias; else bootstrap stub copy.
 # Dead rung dropped: `if false &&` default-pipeline asm path (was permanently
-# disabled). Cold may soft-build xlang-c; pin/stub rungs do not require it.
+# disabled). Cold may soft-ensure xlang-c via ensure_xlang_c.sh (wave950;
+# was make-target xlang-c); pin/stub rungs do not require it.
 #
 # Exit codes:
 #   0 — OUT is B5 member; ladder produced OUT (or skip up-to-date)
@@ -4446,8 +4449,8 @@ try_ensure_gen_c_to_o_one() {
 #   1 — all rungs failed
 # PLATFORM: SHARED shell body · pin = Ubuntu gold seed; Darwin may fall to stub
 # when -E emits illegal dual host-lit C (historic Makefile twin).
-# Callers: Makefile thin-call (wave783). NOT physical delete.
-# Residual after: B6 R5 · physical delete.
+# Callers: g05 / rebuild_leaves / historic Makefile thin-call (wave783).
+# wave950: missing xlang-c → ensure_xlang_c.sh (0-make post-delete).
 # ---------------------------------------------------------------------------
 
 cfg_eval_ladder_spec_for_out() {
@@ -4542,12 +4545,15 @@ ensure_cfg_eval_ladder_one() {
 
   mkdir -p "$(dirname "$o")"
 
-  # Historic Makefile: $(MAKE) xlang-c first. Soft-continue so pin/stub cold
-  # paths still work when xlang-c graph is not ready (L2 residual rebuild).
+  # Soft ensure xlang-c for live -E rungs. wave950: ensure_xlang_c.sh (0-make;
+  # Makefile deleted wave941). Soft-continue so pin/stub cold paths still work
+  # when bootstrap_xlangc / SRC is not ready (L2 residual rebuild).
+  # PLATFORM: SHARED — G.7 single authority for default xlang-c alias.
   if [ ! -x "$xlang_c" ]; then
-    log "cfg-eval-ladder: xlang-c missing; try soft make (pin/stub fallback if fail)"
-    $MAKE xlang-c 2>/dev/null || true
+    log "cfg-eval-ladder: xlang-c missing; soft ensure via ensure_xlang_c.sh (pin/stub fallback if fail)"
+    bash scripts/ensure_xlang_c.sh ensure xlang-c 2>/dev/null || true
   fi
+  # (do not reintroduce bare make-target xlang-c here)
 
   rm -f "$x_o"
 
@@ -6412,6 +6418,17 @@ run_check() {
     note "cfg_eval_ladder non-member empty (wave783)"
   else
     bad "cfg_eval_ladder_spec_for_out must reject non-members (wave783)"
+  fi
+  # wave950: cfg-eval soft missing xlang-c → ensure_xlang_c.sh (0-make).
+  # PLATFORM: SHARED — post_ship honesty after Makefile physical delete.
+  # Match only active recipe lines (leading spaces + $MAKE), not comments/strings.
+  if grep -E '^[[:space:]]+\$MAKE[[:space:]]+xlang-c' "$0" 2>/dev/null | grep -q .; then
+    bad "cfg-eval ladder must not residual bare make xlang-c (wave950; ensure_xlang_c.sh)"
+  fi
+  if ! grep -q 'ensure_xlang_c\.sh ensure' "$0" 2>/dev/null; then
+    bad "cfg-eval ladder must soft-call ensure_xlang_c.sh for missing xlang-c (wave950)"
+  else
+    note "cfg-eval soft xlang-c → ensure_xlang_c.sh (wave950; 0-make)"
   fi
   # wave783 + wave916: cfg_eval must thin-call try-heat|try-cfg-eval-ladder.
   # wave916: multi-target $(DRIVER_SEED_CFG_EVAL_OBJS): FORCE try-heat (list in r_lists).
