@@ -33,7 +33,8 @@
 # 8.3.1 domain thin cuts: ctfe + assign + coerce_init + method_call + check_block + region_assign + asm_emit_unary + asm_emit_as + asm_emit_return + asm_emit_logand + asm_emit_block_body + asm_emit_block_if_stmt + asm_emit_block_inits (#include TU).
 # 8.3.2 domain thin cuts: ast_pool_module_import + ast_pool_struct_layout +
 #   ast_pool_top_level + ast_pool_type_alias + ast_pool_expr_sidecar +
-#   ast_pool_module_enum + ast_pool_onefunc (#include into ast_pool TU).
+#   ast_pool_module_enum + ast_pool_onefunc + ast_pool_dep_ctx
+#   (#include into ast_pool TU).
 
 set -euo pipefail
 
@@ -69,6 +70,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_expr_sidecar.c|8.3.2|expr (+ type-pos) var-len sidecar domain slice|620|present"
   "compiler/ast_pool_module_enum.c|8.3.2|module ModuleEnumEntry + enum field-access mark slice|300|present"
   "compiler/ast_pool_onefunc.c|8.3.2|OneFunc const/let/param/call/while/for sidecar domain slice|520|present"
+  "compiler/ast_pool_dep_ctx.c|8.3.2|PipelineDepCtx cold accessors + lib_root + empty_param slice|480|present"
   # --- 8.3.1 domain thin slices (#include into pipeline_glue TU; not separate .o) ---
   "compiler/pipeline_typeck_ctfe.c|8.3.1|typeck CTFE producer slice|1000|present"
   "compiler/pipeline_typeck_assign.c|8.3.1|typeck assign domain slice|250|present"
@@ -260,7 +262,7 @@ run_check() {
     echo "bc_host_cc_product_inventory: --check FAILED" >&2
     exit 1
   fi
-  echo "bc_host_cc_product_inventory: CHECK OK (BC open · 8.3.1 typeck+asm slices + 8.3.2 ast_pool module_import+struct_layout+top_level+type_alias+expr_sidecar+module_enum+onefunc present · 8.3.9 absent · host-cc residual still required)" >&2
+  echo "bc_host_cc_product_inventory: CHECK OK (BC open · 8.3.1 typeck+asm slices + 8.3.2 ast_pool module_import+struct_layout+top_level+type_alias+expr_sidecar+module_enum+onefunc+dep_ctx present · 8.3.9 absent · host-cc residual still required)" >&2
 }
 
 case "$MODE" in
