@@ -481,22 +481,6 @@ $(LEGACY_XLANG_C_READY_TARGETS): | legacy-xlang-c-ready
 
 # G-02f-22：runtime_c_import 产品 seed — joined wave899 multi-target $(R1_CORE_SEED_OBJS).
 
-# ---------------------------------------------------------------------------
-# wave907 · B7B async three product edges multi-target FORCE thin try-heat
-# G.7 有则补全: list authority = $(ASYNC_THREE_SEED_OBJS) in mk/driver_seed_r_lists.mk
-# (wave770 try-async-prefer table; wave788 list-in-mk family; no second .o list).
-# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat
-# (wave770/790/792/793; PREFER full.x+rest ladder lives in try-heat → try-async-prefer).
-# Leaves: async_liveness · async_cps_codegen · async_asm_pool.
-# Archaeology: G-02f-18 independent TU · R2 unbundle async_asm_pool from glue ·
-# wave792/793 FORCE dep-thin — body in try-heat.
-# Makefile only FORCE + thin-call. NOT physical delete — thin edges + remaining
-# mk lists hybrid (B1 runtime OS / gen-x / …) + tip Windows → dual L4 → explicit auth.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-# ---------------------------------------------------------------------------
-$(ASYNC_THREE_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
 # G-02f-12 / Phase 4：runtime_driver_diagnostic — joined wave906 multi-target $(R3_COLD_SEED_OBJS).
 # PLATFORM: SHARED 冷链 — 仅 XLANG_G05_PREFER_X_O=1 才 thin（同 simd_enc / runtime_driver_abi）。
 # Archaeology: wave757/763 try-r3-prefer · wave793 FORCE — body in try-heat.
@@ -545,6 +529,22 @@ endif
 # wave788 B7B: RT / R1 / R3 pure-literal lists → mk/driver_seed_r_lists.mk
 # (G.7 single list authority; shell catalog parses the same mk; do not re-assign).
 include mk/driver_seed_r_lists.mk
+
+# ---------------------------------------------------------------------------
+# wave907 · B7B async three product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = $(ASYNC_THREE_SEED_OBJS) in mk/driver_seed_r_lists.mk
+# (wave770 try-async-prefer table; wave788 list-in-mk family; no second .o list).
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat
+# (wave770/790/792/793; PREFER full.x+rest ladder lives in try-heat → try-async-prefer).
+# Leaves: async_liveness · async_cps_codegen · async_asm_pool.
+# Archaeology: G-02f-18 independent TU · R2 unbundle async_asm_pool from glue ·
+# wave792/793 FORCE dep-thin — body in try-heat.
+# Makefile only FORCE + thin-call. NOT physical delete — thin edges + remaining
+# mk lists hybrid (B1 runtime OS / gen-x / …) + tip Windows → dual L4 → explicit auth.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(ASYNC_THREE_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # ---------------------------------------------------------------------------
 # wave898 B7B: RT_SEED_SLICE product edges multi-target FORCE thin try-heat
