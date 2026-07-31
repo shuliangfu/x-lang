@@ -2085,13 +2085,13 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
    *
    * PLATFORM: SHARED — g_typeck_active_module is populated identically on
    *           macOS arm64 and Ubuntu x86_64 at module typeck entry.
-   *           Mirrors glue_is_const_expr_ref in pipeline_glue.c (kept in
+   *           Mirrors glue_is_const_expr_ref in pipeline_typeck_ctfe.c (wave965 slice) (kept in
    *           sync per "seed 与 glue 副本同 commit" rule).
    */
   if (kind == (int32_t)ast_ExprKind_EXPR_FIELD_ACCESS) {
     /* C5-enum-variant: pre-mark via the active-module getter (defined in
      * pipeline_glue.c) so enum-variant shapes pass; runtime obj.field
-     * stays non-const. See glue_is_const_expr_ref in pipeline_glue.c for
+     * stays non-const. See glue_is_const_expr_ref in pipeline_typeck_ctfe.c (wave965) for
      * the full rationale (kept in sync per "seed 与 glue 副本同 commit"). */
     struct ast_Module *active_mod = pipeline_typeck_active_module_c();
     pipeline_expr_try_mark_enum_field_access(active_mod, arena, expr_ref);
@@ -2114,7 +2114,7 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
    * Invariant: Recurses into all three children (cond, then, else). If any
    *            child is non-const the whole expression is non-const.
    *
-   * PLATFORM: SHARED — Mirrors glue_is_const_expr_ref in pipeline_glue.c
+   * PLATFORM: SHARED — Mirrors glue_is_const_expr_ref in pipeline_typeck_ctfe.c (wave965 slice)
    *           (kept in sync per "seed 与 glue 副本同 commit" rule; Darwin
    *           filtered pipeline localizes glue's strong version, so this
    *           seed weak version is what's actually called on Darwin).
@@ -2147,7 +2147,7 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
    *            handler in glue_typeck_fold_expr_ref mirrors this check and
    *            stamps e->const_folded_val from the final expr's folded value.
    *
-   * PLATFORM: SHARED — Mirrors glue_is_const_expr_ref in pipeline_glue.c
+   * PLATFORM: SHARED — Mirrors glue_is_const_expr_ref in pipeline_typeck_ctfe.c (wave965 slice)
    *           (kept in sync per "seed 与 glue 副本同 commit" rule; Darwin
    *           filtered pipeline localizes glue's strong version, so this
    *           seed weak version is what's actually called on Darwin).

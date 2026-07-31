@@ -25,7 +25,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 1/~10 | **`pipeline_glue.c` ~40k + `ast_pool.c` ~18k** 等；阶段 8.3；**wave963 开 BC 库存机检** · 8.3.9 ✅ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 1/~10 | **`pipeline_glue.c` ~39k + `ast_pool.c` ~18k** 等；阶段 8.3；**wave963 开 BC** · **wave965 CTFE 切片** · 8.3.9 ✅ |
 | **Cap 能力解锁** | 🟡 持续 | 已闭多波；untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ 钉盘 `77b334842` | wave942 Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -891,7 +891,8 @@
 
 | 文件（compiler/） | LOC | 角色 | 状态 |
 |-------------------|-----|------|------|
-| `pipeline_glue.c` | 40,096 | 产品 mega glue（typeck/codegen/asm/match…） | ⬜ |
+| `pipeline_glue.c` | ~38,944 | 产品 mega glue（typeck/codegen/asm/match…） | 🟡 wave965 已切 CTFE 出 |
+| `pipeline_typeck_ctfe.c` | 1,177 | typeck CTFE 生产者切片（同 TU `#include`） | 🟡 wave965 抽出；仍 host-cc |
 | `ast_pool.c` | 18,109 | AST 池 / MatchArm / sidecar | ⬜ |
 | `pipeline_typeck_field_access.c` | 1,477 | field_access 权威切片（常被 glue 拉入） | ⬜ |
 | `pipeline_typeck_soa.c` | 255 | typeck SOA 辅助 | ⬜ |
@@ -912,10 +913,12 @@
 | `build_asm/gen_driver/*.c`（10） | Makefile + g05 + partial 脚本 | 物理在 compiler/ 外，易漏计 |
 | bare alias / stubs `.c` | 链接安静桩 | 终局由 .x `#[no_mangle]` 取代 |
 
-⬜ **8.3.1 `pipeline_glue.c` → .x（或按域切 thin + 唯一权威）**
+🟡 **8.3.1 `pipeline_glue.c` → .x（或按域切 thin + 唯一权威）**
 
   - 爆炸半径：几乎所有 typeck/codegen/asm 产品路径
   - 验收：产品链不再 `cc -c pipeline_glue.c`；Ubuntu L4 + 129
+  - **wave965**：第一域 thin — `pipeline_typeck_ctfe.c`（const whitelist + fold 生产者）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS`/g05 STALE 收切片；仍 host-cc 入 `pipeline_x.o`
+  - 下一域候选：typeck assign / method_call / check_block_impl / asm emit 块体
 
 ⬜ **8.3.2 `ast_pool.c` → .x / 已有 ast.x 权威收敛**
 
@@ -1512,6 +1515,7 @@
   - ✅ wave962：`host_cc_objs_core_link.sh` catalog OBJS_CORE bag + `--check` post_ship（MF 缺席绿；`--link-objs-export objs-core` + `--cflags-export`；`XLANG_OBJS_CORE_LINK_VIA_MAKE` 逃生口；leaf honesty）
   - ✅ wave963：**开 BC** · `bc_host_cc_product_inventory.sh` 冻结 8.3 产品 residual C · `./xbuild bc-inventory --check` · 8.3.9 孤儿 absent · leaf honesty
   - ✅ wave964：`ensure_host_cc_seed_o.sh --check` post_ship（MF 缺席绿；catalog+shell R1/R3/R2/gen-x/try-heat；warm catalog cache；leaf honesty）
+  - ✅ wave965：**8.3.1 第一刀** · `pipeline_typeck_ctfe.c` 同 TU 抽出 · `PIPELINE_X_DEPS`/g05 STALE 收切片 · bc-inventory 登记
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
@@ -1792,12 +1796,12 @@
 ```
 
 **综合迁移进度（修订）：约 48–50%**  
-MG **编排层**已完成（wave941/942/944/945）。**BC 轨 wave963 已开**（库存机检）。剩余主债：**8.3 glue 切片** · **PC 零 cc** · **去 pin** · 阶段 12 冷启动。
+MG **编排层**已完成（wave941/942/944/945）。**BC 轨 wave963 已开**（库存机检）· **wave965 CTFE 第一刀**。剩余主债：**8.3 glue 续切** · **PC 零 cc** · **去 pin** · 阶段 12 冷启动。
 
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual**（wave944–**964**）— 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check post_ship ✅
-2. 🟡 **BC 开 + 阶段 8.3**（wave963 库存冻结 · 8.3.9 ✅ · **下一：8.3.1/8.3.2 切片**）  
+2. 🟡 **BC 开 + 阶段 8.3**（wave963 库存 · wave965 CTFE 第一刀 · 8.3.9 ✅ · **下一：8.3.1 下一域 / 8.3.2**）  
 3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. **阶段 10 → 9** 语言能力 + residual 消灭  
 5. **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  

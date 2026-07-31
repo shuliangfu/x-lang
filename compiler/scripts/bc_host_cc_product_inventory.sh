@@ -30,6 +30,7 @@
 # PLATFORM: SHARED — inventory of sources; ABI lives in the residual bodies.
 # Wave: 963 open BC + 8.3.9 orphan gone (analysis/_debug_io_ctx_gen.c was
 # gitignored local scratch; --check asserts ABSENT).
+# Wave: 965 first 8.3.1 domain thin cut — pipeline_typeck_ctfe.c (#include TU).
 
 set -euo pipefail
 
@@ -56,8 +57,10 @@ esac
 # min_loc: for present rows, soft floor (0 = any non-empty / placeholder OK)
 PRODUCT_RESIDUAL_ROWS=(
   # --- 8.3.1 / 8.3.2 volume main debt ---
-  "compiler/pipeline_glue.c|8.3.1|product mega glue (typeck/codegen/asm/match)|30000|present"
+  "compiler/pipeline_glue.c|8.3.1|product mega glue (typeck/codegen/asm/match)|28000|present"
   "compiler/ast_pool.c|8.3.2|AST pool / MatchArm / sidecar|10000|present"
+  # --- 8.3.1 domain thin slices (#include into pipeline_glue TU; not separate .o) ---
+  "compiler/pipeline_typeck_ctfe.c|8.3.1|typeck CTFE producer slice (wave965)|1000|present"
   # --- 8.3.3 typeck slices often pulled by glue ---
   "compiler/pipeline_typeck_field_access.c|8.3.3|field_access slice|500|present"
   "compiler/pipeline_typeck_soa.c|8.3.3|typeck SOA helper|50|present"
@@ -235,7 +238,7 @@ run_check() {
     echo "bc_host_cc_product_inventory: --check FAILED" >&2
     exit 1
   fi
-  echo "bc_host_cc_product_inventory: CHECK OK (wave963 BC open · 8.3 map frozen · 8.3.9 absent · host-cc product residual still required)" >&2
+  echo "bc_host_cc_product_inventory: CHECK OK (wave963 BC open · wave965 ctfe slice present · 8.3.9 absent · host-cc residual still required)" >&2
 }
 
 case "$MODE" in
