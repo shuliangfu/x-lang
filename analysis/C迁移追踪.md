@@ -33,7 +33,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~19.8k + `ast_pool` ~12.9k；8.3.1 三十刀（+expr_rec）+ …／try_binop residual／**call_arg resolve + f32 slot** 有则补全 + 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~19.6k + `ast_pool` ~12.9k；8.3.1 三十刀（+expr_rec／fast）+ …／**emit_expr fast** 有则补全 + 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -1022,8 +1022,9 @@
   - ✅ asm assign_rhs_to_rax 有则补全：`pipeline_asm_emit_assign.c` 迁入 `glue_emit_assign_rhs_to_rax_elf_c`（~89 LOC；file ~678；COUNT 仍 62；glue ~20.7k）（wave1016）
   - ✅ asm type_named_struct 有则补全：`pipeline_asm_emit_call_args.c` 迁入 `glue_type_ref_is_named_struct_layout_elf_c`（~30 LOC；file ~876；COUNT 仍 62；glue ~20.7k）（wave1017）
   - ✅ asm try_binop residual 有则补全：`pipeline_asm_emit_binop.c` 迁入 as_needs + load_operand／clobber／preserve／commutative／left_rax／cmp（~740 LOC；file ~1976；COUNT 仍 62；glue ~19.9k）（wave1018）
+  - ✅ asm emit_expr_elf_fast + emit_expr_elf_c 有则补全：`pipeline_asm_emit_expr_rec.c` 迁入 fast／c（~212 LOC；file ~404；COUNT 仍 62；glue ~19.6k；include 迁 field_access 后）（wave1020）
   - ✅ asm call_arg resolve + f32 VAR slot 有则补全：`pipeline_asm_emit_call_args.c` 迁入 resolve_anon／resolve_var_stack_off + load_f32_var_slot_{rax,rbx} + unusable／append_at_offset／var_is_param（~160 LOC；file ~1052；COUNT 仍 62；glue ~19.8k；var_decl + lazy_append 仍 glue）（wave1019）
-  - ⬜ 下一域候选：其它 leaf residual 或 8.3.3 field_access／soa
+  - ⬜ 下一域候选：array_lit durable／slice reent／var_decl residual 或 8.3.3 field_access／soa
 
 ⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
@@ -1826,7 +1827,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 三十刀（+try_binop residual）+ index_eff base／lvalue_text／thin faces／binop residual／assign_rhs／type_named_struct／try_binop 有则补全 ✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：leaf residual 或 8.3.3 field_access／soa**）  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 三十刀（+try_binop residual）+ index_eff base／lvalue_text／thin faces／binop residual／assign_rhs／type_named_struct／try_binop 有则补全 ✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：leaf residual（array_lit durable／slice reent／var_decl）或 8.3.3 field_access／soa**）  
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
