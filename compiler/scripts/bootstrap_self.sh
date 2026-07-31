@@ -18,26 +18,35 @@
 #   bash scripts/bootstrap_self.sh
 #   bash scripts/bootstrap_self.sh --check
 #
-# Env (product path; Makefile thin-call exports these):
+# Env (product path):
 #   TARGET              — product binary basename (default: xlang)
 #   STAGE1              — stage1 snapshot (default: ${TARGET}_stage1)
 #   STAGE2              — stage2 binary (default: ${TARGET}_stage2)
 #   CC                  — host C compiler (default: cc)
 #   CFLAGS              — optional base host CFLAGS (re-cc of host-emitted C only)
-#   BS_LINK_CFLAGS      — optional; default loads via export-xnc-link-cflags (wave857;
+#   BS_LINK_CFLAGS      — optional; default loads via catalog --link-cflags-export bs
+#                          (wave955; same formula as historic export-xnc-link-cflags:
 #                          CFLAGS + DRIVER_SEED_LINK_FLAGS + MAIN_LINK_FLAGS)
-#   BS_LINK_OBJS        — optional; default loads via export-bs-link-objs (wave856)
-#   MAKE                — residual make for best-effort satellite leaves
+#   BS_LINK_OBJS        — optional; default loads via catalog --link-objs-export bs
+#                          (wave955; mk BOOTSTRAP_SELF_LINK_OBJS via catalog)
+#   XLANG_BS_LINK_VIA_MAKE=1 — escape LINK bag load to make export (needs MF)
+#   MAKE                — residual make for VIA_MAKE escape only
 #   BS_OUT_SELF         — stage2 -o path (default: /tmp/out_self)
 #   BS_RV_SRC           — return-value probe (default: ../tests/return-value/main.x)
 #
 # wave843 (G.7 有则补全): Makefile fat stage2 link + smoke → this script.
 # wave856: LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
 # wave857: LINK_CFLAGS shell-load via make export leaf (G.7; not physical delete).
-# NOT physical delete — thin-call edges + B2 + mk lists remain residual.
+# wave937: satellite ensure shell-primary (try-heat + driver_leaf_x_to_o).
+# wave955: catalog-primary LINK bag (0-make post-delete); --check post_ship when
+#   Makefile absent (wave941 phys-del). XLANG_BS_LINK_VIA_MAKE + MF escape only.
 # PLATFORM: SHARED — shell orchestration; file(1) Mach-O/ELF/PE32* portable.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+# wave955/945: absolute self path — relative $0 breaks after cd to compiler/.
+# PLATFORM: SHARED — post_ship --check greps this file; must not use post-cd $0.
+_SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+_SCRIPT_SELF="${_SCRIPT_DIR}/$(basename "$0")"
+cd "${_SCRIPT_DIR}/.."
 
 MODE="${1:-run}"
 TARGET="${TARGET:-xlang}"
@@ -58,7 +67,45 @@ fail() { echo "bootstrap-self: FAIL: $*" >&2; exit 1; }
 # ---------------------------------------------------------------------------
 if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   MF=Makefile
-  [ -f "$MF" ] || fail "missing $MF"
+  # wave955 post_ship: Makefile physically deleted (wave941). Shell + catalog
+  # own stage1/stage2/smoke + BS LINK bag; MF thin-call inventory N/A.
+  if [ ! -f "$MF" ]; then
+    # Grep absolute self (wave945: relative $0 breaks after cd to compiler/).
+    if ! grep -q 'driver_seed_obj_catalog\|--link-objs-export bs\|link-objs-export bs' "$_SCRIPT_SELF"; then
+      fail "bootstrap_self must catalog-load BS LINK_OBJS (wave955 post_ship)"
+    fi
+    if ! grep -q 'link-cflags-export bs\|--link-cflags-export' "$_SCRIPT_SELF"; then
+      fail "bootstrap_self must catalog-load BS LINK_CFLAGS (wave955 post_ship)"
+    fi
+    if ! grep -q 'XLANG_BS_LINK_VIA_MAKE' "$_SCRIPT_SELF"; then
+      fail "bootstrap_self must document XLANG_BS_LINK_VIA_MAKE escape (wave955)"
+    fi
+    # Product body still owns stage1 snapshot + stage2 link + out_self smoke.
+    if ! grep -q 'STAGE1\|_stage1' "$_SCRIPT_SELF"; then
+      fail "bootstrap_self must own stage1 snapshot (wave843/955)"
+    fi
+    if ! grep -q 'STAGE2\|_stage2' "$_SCRIPT_SELF"; then
+      fail "bootstrap_self must own stage2 link (wave843/955)"
+    fi
+    if ! grep -q 'out_self\|BS_OUT_SELF\|return-value' "$_SCRIPT_SELF"; then
+      fail "bootstrap_self must own out_self smoke (wave843/955)"
+    fi
+    # wave937: satellite ensure already shell-primary (not residual $MAKE leaves).
+    if ! grep -q 'ensure_host_cc_seed_o\|try-heat' "$_SCRIPT_SELF"; then
+      fail "bootstrap_self must shell-ensure satellites (wave937/955)"
+    fi
+    if ! grep -q 'wave955\|wave843' "$_SCRIPT_SELF"; then
+      fail "bootstrap_self must document wave843/955 shell-primary"
+    fi
+    if [ ! -f scripts/driver_seed_obj_catalog.sh ]; then
+      fail "missing scripts/driver_seed_obj_catalog.sh (wave955; BS bag authority)"
+    fi
+    if [ ! -f mk/driver_seed_composites.mk ]; then
+      fail "missing mk/driver_seed_composites.mk (wave851 BOOTSTRAP_SELF_LINK_OBJS)"
+    fi
+    log "CHECK OK (wave955 post_ship; catalog BS bag; shell-primary; 0-make)"
+    exit 0
+  fi
   # Makefile thin-call only (wave843): scan *recipe* lines (tab-indented) only —
   # comments between phonies must not false-positive on "$(CC)" / stage2 prose.
   _rec=$(awk '
@@ -93,7 +140,14 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if ! grep -qE '^export-xnc-link-cflags:' "$MF"; then
     fail "Makefile must define export-xnc-link-cflags (wave857)"
   fi
-  log "CHECK OK (wave843+856+857 bootstrap-self shell-primary; LINK_OBJS+CFLAGS export leaves; not physical delete)"
+  # wave955 honesty: product path catalog-primary even while MF present.
+  if ! grep -q 'driver_seed_obj_catalog\|--link-objs-export bs' "$_SCRIPT_SELF"; then
+    fail "bootstrap_self must catalog-load BS LINK_OBJS (wave955)"
+  fi
+  if ! grep -q 'XLANG_BS_LINK_VIA_MAKE' "$_SCRIPT_SELF"; then
+    fail "bootstrap_self must document XLANG_BS_LINK_VIA_MAKE escape (wave955)"
+  fi
+  log "CHECK OK (wave843+856+857+955 bootstrap-self shell-primary; catalog BS bag; not physical delete)"
   exit 0
 fi
 
@@ -111,17 +165,19 @@ if [ "$MODE" != "run" ] && [ "$MODE" != "" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Preflight: link env from Makefile thin-call (G.7: bag stays mk expansion)
+# Preflight: BS LINK bag via shell catalog (0-make post-delete)
 # ---------------------------------------------------------------------------
-# wave856: full LINK bag needs make expansion (nested $(...) / Darwin filters).
-# G.7 有则补全 on bootstrap_driver_seed_export-*-link pattern — shell loads via
-# make export leaf when env unset; Makefile recipes drop multi-token BS_LINK_OBJS=.
-# PLATFORM: SHARED — KEY=value from export target; no second .o inventory.
-_load_link_objs_via_make() {
-  # $1 = make export target (export-*-link-objs)
-  local target="$1"
+# wave955: full LINK bag via shell catalog (0 make; replaces wave856/857 make
+# export leaves). G.7 有则补全 on catalog --link-objs/cflags-export (wave926 XNC).
+# XLANG_BS_LINK_VIA_MAKE=1 + Makefile present escapes to make export (parity).
+# PLATFORM: SHARED — KEY=value from catalog; no second .o inventory.
+_load_link_objs() {
   local raw line val
-  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  if [ "${XLANG_BS_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
+    raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-bs-link-objs) || return 1
+  else
+    raw=$(bash scripts/driver_seed_obj_catalog.sh --link-objs-export bs 2>/dev/null) || return 1
+  fi
   val=
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
@@ -132,21 +188,24 @@ _load_link_objs_via_make() {
 }
 
 if [ -z "${BS_LINK_OBJS:-}" ]; then
-  BS_LINK_OBJS=$(_load_link_objs_via_make export-bs-link-objs) \
-    || fail "failed to expand export-bs-link-objs (wave856 LINK_OBJS shell-load)"
+  BS_LINK_OBJS=$(_load_link_objs) \
+    || fail "failed to expand bs link-objs (wave955 catalog)"
 fi
 if [ -z "${BS_LINK_OBJS:-}" ]; then
-  fail "empty LINK_OBJS from export-bs-link-objs (wave856)"
+  fail "empty LINK_OBJS from bs link-objs (wave955)"
 fi
 
-# wave857: composed LINK_CFLAGS need make expansion (DRIVER_SEED_LINK_FLAGS /
-# ASM_GLUE / MAIN_LINK / platform ifeq). G.7 有则补全 on wave856 export-leaf pattern.
-# PLATFORM: SHARED — KEY=value from export target; no second flag inventory.
-_load_link_cflags_via_make() {
-  # $1 = make export target (export-*-link-cflags)
-  local target="$1"
+# wave955: composed LINK_CFLAGS via shell catalog (same formula as historic
+# export-xnc-link-cflags: CFLAGS + DRIVER_SEED_LINK_FLAGS + MAIN_LINK_FLAGS).
+# bag name "bs" aliases xnc formula in catalog (G.7 named authority).
+# PLATFORM: SHARED — KEY=value from catalog; no second flag inventory.
+_load_link_cflags() {
   local raw line val
-  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  if [ "${XLANG_BS_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
+    raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-xnc-link-cflags) || return 1
+  else
+    raw=$(bash scripts/driver_seed_obj_catalog.sh --link-cflags-export bs 2>/dev/null) || return 1
+  fi
   val=
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
@@ -157,18 +216,18 @@ _load_link_cflags_via_make() {
 }
 
 if [ -z "${BS_LINK_CFLAGS:-}" ]; then
-  BS_LINK_CFLAGS=$(_load_link_cflags_via_make export-xnc-link-cflags) \
-    || fail "failed to expand export-xnc-link-cflags (wave857 LINK_CFLAGS shell-load)"
+  BS_LINK_CFLAGS=$(_load_link_cflags) \
+    || fail "failed to expand bs link-cflags (wave955 catalog)"
 fi
 if [ -z "${BS_LINK_CFLAGS:-}" ]; then
-  fail "empty LINK_CFLAGS from export-xnc-link-cflags (wave857)"
+  fail "empty LINK_CFLAGS from bs link-cflags (wave955)"
 fi
 if [ ! -x "./$TARGET" ] && [ ! -f "./$TARGET" ]; then
-  fail "missing $TARGET (build prereq first: make bootstrap-driver-seed)"
+  fail "missing $TARGET (build prereq first: bash scripts/bootstrap_driver_seed.sh)"
 fi
 
 # ---------------------------------------------------------------------------
-# Snapshot xlang₁ and ensure satellite leaves (best-effort; residual make)
+# Snapshot xlang₁ and ensure satellite leaves (best-effort; shell-primary)
 # PLATFORM: SHARED — leaves already thin (wave785 B7c; no dual $(CC) -c)
 # ---------------------------------------------------------------------------
 log "snapshot $TARGET → $STAGE1"
@@ -185,7 +244,7 @@ bash scripts/ensure_host_cc_seed_o.sh try-heat lsp_x.o 2>/dev/null || true
 bash scripts/driver_leaf_x_to_o.sh ensure lsp_io_std_heap_x.o 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
-# host-cc link stage2 (bag from Makefile; B7D-adjacent residual, not g05 product)
+# host-cc link stage2 (bag from catalog; B7D-adjacent residual, not g05 product)
 # PLATFORM: SHARED — host CC links expanded .o; pure-ld not this archaeology path
 # ---------------------------------------------------------------------------
 log "link ./$STAGE2"

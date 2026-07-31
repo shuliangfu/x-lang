@@ -7922,6 +7922,25 @@ elif ! bash "$_bvt_ps" --check >/dev/null 2>&1; then
 else
   note "build_via_tool → ./build_tool TARGET (wave954 post_ship; 0-make)"
 fi
+# wave955: bootstrap_self --check post_ship + catalog BS bag (0-make).
+# Default: catalog --link-objs-export bs + --link-cflags-export bs;
+# escape XLANG_BS_LINK_VIA_MAKE=1 + MF only.
+# PLATFORM: SHARED — archaeology stage2 path after wave941 delete.
+_bs_ps="$ROOT/compiler/scripts/bootstrap_self.sh"
+[ -f "$_bs_ps" ] || _bs_ps="scripts/bootstrap_self.sh"
+if [ ! -f "$_bs_ps" ]; then
+  bad "missing bootstrap_self.sh (wave955 post_ship)"
+elif ! grep -q 'wave955' "$_bs_ps"; then
+  bad "bootstrap_self must document wave955 post_ship --check"
+elif ! grep -q 'XLANG_BS_LINK_VIA_MAKE' "$_bs_ps"; then
+  bad "bootstrap_self must document XLANG_BS_LINK_VIA_MAKE escape (wave955)"
+elif ! grep -qE 'link-objs-export bs|--link-objs-export bs' "$_bs_ps"; then
+  bad "bootstrap_self must catalog-load BS LINK_OBJS (wave955)"
+elif ! bash "$_bs_ps" --check >/dev/null 2>&1; then
+  bad "bootstrap_self.sh --check failed (wave955 post_ship 0-make)"
+else
+  note "bootstrap_self BS bag → catalog bs (wave955 post_ship; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then

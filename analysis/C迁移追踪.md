@@ -1502,6 +1502,7 @@
   - ✅ wave952：`regen_lsp_gens_x` 四 gens → `ensure_lsp_pipeline_gen.sh lsp` + `ensure_archaeology_gen.sh lsp_io_std_heap`（0× 默认 `$MAKE`；`XLANG_REGEN_LSP_VIA_MAKE=1` 逃生口；`--check` post_ship）
   - ✅ wave953：`build_tool.sh --check` post_ship（MF 缺席绿；catalog `--cflags-export` 权威；`XLANG_CFLAGS_VIA_MAKE` 逃生口 + `[ -f Makefile ]`；leaf honesty）
   - ✅ wave954：`build_via_tool.sh --check` post_ship（MF 缺席绿；shell 拥有 `./build_tool`→TARGET + OK；leaf honesty）
+  - ✅ wave955：`bootstrap_self.sh` catalog BS bag + `--check` post_ship（MF 缺席绿；`--link-objs-export bs` + `--link-cflags-export bs`；`XLANG_BS_LINK_VIA_MAKE` 逃生口；leaf honesty）
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
@@ -1694,6 +1695,7 @@
   - ✅ wave952：`regen_lsp_gens_x` 四 gens 不再默认 `$MAKE`（→ ensure_lsp_pipeline_gen + ensure_archaeology_gen）
   - ✅ wave953：`build_tool --check` post_ship（MF 缺席绿；CFLAGS → catalog）
   - ✅ wave954：`build_via_tool --check` post_ship（MF 缺席绿；shell → ./build_tool TARGET）
+  - ✅ wave955：`bootstrap_self` catalog BS bag + `--check` post_ship（MF 缺席绿；bs objs/cflags）
 
 ⬜ **13.2.3 零 cc 三义验收**（§0.1 MG+BC+PC）
 
@@ -1776,7 +1778,7 @@ MG **编排层**已完成（wave941/942/944/945）。剩余主债：**BC/PC 零 
 
 剩余工作优先级（MG 已闭后）：
 
-1. ✅ **post-delete residual**（wave944–954）— 0-make hub · gate post_ship · docs/help/hint · XXP/BXC catalog bags · XXP ensure ladder 0-make · leaf 机检 quiet · ensure_*_gen / cfg-eval xlang-c shell · run_compiler_tests ensure · regen_lsp_gens_x shell ensure · build_tool --check post_ship · build_via_tool --check post_ship（残：其它 thin-call `--check` NEED_POST_SHIP）
+1. ✅ **post-delete residual**（wave944–955）— 0-make hub · gate post_ship · docs/help/hint · XXP/BXC catalog bags · XXP ensure ladder 0-make · leaf 机检 quiet · ensure_*_gen / cfg-eval xlang-c shell · run_compiler_tests ensure · regen_lsp_gens_x shell ensure · build_tool/build_via_tool --check post_ship · bootstrap_self catalog BS + --check post_ship（残：其它 thin-call `--check` NEED_POST_SHIP：xlang_x / relink / …）
 
 2. **阶段 8.3** pipeline_glue / ast_pool 等非 gen 产品 C  
 3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  

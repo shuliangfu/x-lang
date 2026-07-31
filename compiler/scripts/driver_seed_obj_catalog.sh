@@ -715,6 +715,7 @@ catalog_link_objs_export_dump() {
 # Each bag has a distinct CFLAGS formula (mirrors Makefile export targets):
 #   relink-product → CFLAGS + DRIVER_SEED_LINK_FLAGS + ASM_GLUE_DUP_LDFLAGS + MAIN_LINK_FLAGS
 #   xnc            → CFLAGS + DRIVER_SEED_LINK_FLAGS + MAIN_LINK_FLAGS
+#   bs             → same as xnc (historic bootstrap-self used export-xnc-link-cflags)
 #   btc-typeck     → CFLAGS + -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK + ASM_GLUE_DUP_LDFLAGS + MAIN_LINK_FLAGS
 #   bxf            → CFLAGS + -DXLANG_USE_X_DRIVER -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN
 # Output: single LINK_CFLAGS=<flags> line.
@@ -731,7 +732,8 @@ catalog_link_cflags_export_dump() {
     relink-product)
       link_cflags="$cflags $driver_link_flags $dup_ldflags $main_link_flags"
       ;;
-    xnc)
+    xnc|bs)
+      # wave955: bs aliases xnc formula (bootstrap_self historic export-xnc-link-cflags).
       link_cflags="$cflags $driver_link_flags $main_link_flags"
       ;;
     btc-typeck)
