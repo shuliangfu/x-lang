@@ -115,6 +115,8 @@ REQUIRED_KEYS=(
   GEN_C_TO_O_SEED_OBJS
   B3_LSP_SAT_SEED_OBJS
   FMT_CHECK_SEED_OBJS
+  MIGRATE_X_OBJS
+  DRIVER_LEAF_PRODUCT_OBJS
 )
 
 # ---------------------------------------------------------------------------
@@ -179,7 +181,8 @@ catalog_get() {
 
 # Collapse runs of spaces (make often leaves double spaces from empty $(VAR)).
 catalog_norm_ws() {
-  printf '%s' "$1" | tr -s ' ' | sed 's/^ //;s/ $//'
+  # wave935: also collapse tabs (mk continuation lines carry tab indentation).
+  printf '%s' "$1" | tr '\t' ' ' | tr -s ' ' | sed 's/^ //;s/ $//'
 }
 
 catalog_expand_value() {
@@ -321,9 +324,24 @@ catalog_parse_mk() {
     return 1
   fi
 
+  # wave935: join backslash line continuations (mk files like
+  # driver_leaf_product_objs.mk use `KEY = \` + tab-indented values).
+  # Read raw, accumulate until a line not ending with backslash.
   while IFS= read -r raw || [ -n "$raw" ]; do
     # strip CR
     raw=${raw%$'\r'}
+    # accumulate backslash continuations: while raw ends with backslash,
+    # strip it and append the next line.
+    while printf '%s' "$raw" | grep -qE '\\$'; do
+      raw=$(printf '%s' "$raw" | sed 's/\\$//')
+      local _cont
+      if IFS= read -r _cont || [ -n "$_cont" ]; then
+        _cont=${_cont%$'\r'}
+        raw="$raw $_cont"
+      else
+        break
+      fi
+    done
     # strip comment (not inside values we care about — mk comments are full-line or trailing after lists rarely)
     line=$(printf '%s\n' "$raw" | sed 's/#.*//')
     # trim
@@ -518,6 +536,9 @@ catalog_shell_parse_all() {
   catalog_parse_mk "mk/user_asm_seed_objs.mk"
   catalog_parse_mk "mk/pipeline_x_objs.mk"
   catalog_parse_mk "mk/driver_seed_r_lists.mk"
+  # wave935: driver_leaf_product_objs.mk owns DRIVER_LEAF_PRODUCT_OBJS (8 leaves);
+  # parsed after r_lists (no composite deps; independent leaf list).
+  catalog_parse_mk "mk/driver_leaf_product_objs.mk"
   catalog_parse_mk "mk/driver_subcmd_objs.mk"
   catalog_parse_mk "mk/driver_seed_mode_objs.mk"
   catalog_parse_mk "mk/driver_seed_link_picks.mk"

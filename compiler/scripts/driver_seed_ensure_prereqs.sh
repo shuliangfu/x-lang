@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# driver_seed_ensure_prereqs.sh — wave744 · 11.3 residual: swallow DRIVER_SEED_PREREQS edges
+# driver_seed_ensure_prereqs.sh — wave935 · 11.3 residual: shell-primary DRIVER_SEED_PREREQS edges
 #
 # Authority (G.7):
 #   Object-list *definition* of DRIVER_SEED_PREREQS stays in
 #   compiler/mk/driver_seed_composites.mk (read via driver_seed_obj_catalog.sh /
 #   make bootstrap-driver-seed-export-obj-catalog). This script owns only
-#   *edge satisfaction*: expand the catalog key and invoke Make for those
-#   targets (plus the historical glue companion). It does NOT hardcode a
-#   second .o inventory.
+#   *edge satisfaction*: expand the catalog key and dispatch each target via
+#   shell — no Make invocation in --run path.
+#   wave935: dispatch by catalog membership (MIGRATE_X_OBJS → migrate_x_objs.sh;
+#   DRIVER_LEAF_PRODUCT_OBJS → driver_leaf_x_to_o.sh; others → try-heat).
+#   MAKE retained for --check fallback only.
 #
 # Usage (from compiler/):
 #   bash scripts/driver_seed_ensure_prereqs.sh              # run (make prereqs)
@@ -194,8 +196,111 @@ fi
 # shellcheck disable=SC2064
 trap 'if [ "${_cat_owned:-0}" = "1" ]; then rm -f "${_cat_cache:-}" /tmp/xlang_ensure_cat_err_$$.txt; fi' EXIT HUP INT TERM
 
-echo "driver_seed_ensure_prereqs: make ($n leaf targets) ..." >&2
-# shellcheck disable=SC2086
-"$MAKE" "$@"
-echo "driver_seed_ensure_prereqs: RUN OK count=$n" >&2
+echo "driver_seed_ensure_prereqs: shell try-heat ($n leaf targets) ..." >&2
+
+# wave935: shell-primary edge satisfaction (G.7 single body; was make "$@").
+# Each target dispatches by suffix:
+#   *.c   → ensure_lsp_pipeline_gen.sh (LSP pipeline gen sources; 3 leaves)
+#   *.o   → ensure_host_cc_seed_o.sh try-heat (50 leaves; includes special
+#           path build_asm/pipeline_glue_strict_minimal.o which try-heat
+#           resolves via R1_MISC_BASENAME seed map)
+# Pre-load CFLAGS / PIPELINE_GEN_CFLAGS via catalog --cflags-export so try-heat
+# children do not each invoke `make export-try-heat-cflags`.
+if [ -z "${CFLAGS+x}" ] || [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
+  _cflags_blob=""
+  if _cflags_blob=$(bash scripts/driver_seed_obj_catalog.sh --cflags-export 2>/dev/null); then
+    while IFS= read -r _line || [ -n "$_line" ]; do
+      case "$_line" in
+        CFLAGS=*) [ -z "${CFLAGS+x}" ] && CFLAGS=${_line#CFLAGS=} ;;
+        PIPELINE_GEN_CFLAGS=*) [ -z "${PIPELINE_GEN_CFLAGS+x}" ] && PIPELINE_GEN_CFLAGS=${_line#PIPELINE_GEN_CFLAGS=} ;;
+      esac
+    done <<<"$_cflags_blob"
+  fi
+  export CFLAGS PIPELINE_GEN_CFLAGS
+fi
+
+# wave935: query catalog for MIGRATE_X_OBJS and DRIVER_LEAF_PRODUCT_OBJS
+# (G.7 single authority — no hardcoded name lists in this script).
+# Catalog cache is already warmed (parent or owned above); reuse it.
+_migrate_x_objs=""
+_driver_leaf_product_objs=""
+if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE}" ]; then
+  _migrate_x_objs=$(sed -n 's/^MIGRATE_X_OBJS=//p' "${XLANG_CATALOG_CACHE_FILE}" | head -1)
+  _driver_leaf_product_objs=$(sed -n 's/^DRIVER_LEAF_PRODUCT_OBJS=//p' "${XLANG_CATALOG_CACHE_FILE}" | head -1)
+fi
+# Fallback: re-expand catalog if cache missing or keys empty.
+if [ -z "${_migrate_x_objs// /}" ] || [ -z "${_driver_leaf_product_objs// /}" ]; then
+  _cat_blob=$(bash scripts/driver_seed_obj_catalog.sh 2>/dev/null)
+  _migrate_x_objs=$(printf '%s\n' "$_cat_blob" | sed -n 's/^MIGRATE_X_OBJS=//p' | head -1)
+  _driver_leaf_product_objs=$(printf '%s\n' "$_cat_blob" | sed -n 's/^DRIVER_LEAF_PRODUCT_OBJS=//p' | head -1)
+fi
+
+# Membership check: $1=target, $2=space-separated list.
+_in_list() {
+  case " $2 " in *" $1 "*) return 0 ;; esac
+  return 1
+}
+
+_ok=0
+_fail=0
+for _t in "$@"; do
+  case "$_t" in
+    *.c)
+      # LSP pipeline gen sources: lsp_io_gen.c / lsp_gen.c / lsp_diag_gen.c
+      # Map gen source name to ensure_lsp_pipeline_gen.sh family arg.
+      case "$_t" in
+        lsp_io_gen.c)    _fam=lsp_io ;;
+        lsp_gen.c)       _fam=lsp_gen ;;
+        lsp_diag_gen.c)  _fam=lsp_diag ;;
+        *) echo "driver_seed_ensure_prereqs: unknown .c gen source $_t" >&2; _fail=$((_fail+1)); continue ;;
+      esac
+      if bash scripts/ensure_lsp_pipeline_gen.sh "$_fam" >&2; then
+        _ok=$((_ok+1))
+      else
+        echo "driver_seed_ensure_prereqs: FAIL ensure_lsp_pipeline_gen.sh $_fam ($_t)" >&2
+        _fail=$((_fail+1))
+      fi
+      ;;
+    *.o)
+      # wave935: dispatch by catalog membership (G.7 single authority).
+      # - MIGRATE_X_OBJS (parser_x.o, typeck_x.o, codegen_x.o):
+      #   migrate_x_objs.sh (Makefile rule body; .x→.o via xlang-x -E).
+      # - DRIVER_LEAF_PRODUCT_OBJS (driver_*_x.o, lsp_io_std_heap_x.o):
+      #   driver_leaf_x_to_o.sh ensure (Makefile rule body; .x→.o catalog).
+      # - All other .o: try-heat auto-dispatch (prefer/R1/R2/R3 tables).
+      if _in_list "$_t" "$_migrate_x_objs"; then
+        if bash scripts/migrate_x_objs.sh "$_t" >&2; then
+          _ok=$((_ok+1))
+        else
+          echo "driver_seed_ensure_prereqs: FAIL migrate_x_objs.sh $_t" >&2
+          _fail=$((_fail+1))
+        fi
+      elif _in_list "$_t" "$_driver_leaf_product_objs"; then
+        if bash scripts/driver_leaf_x_to_o.sh ensure "$_t" >&2; then
+          _ok=$((_ok+1))
+        else
+          echo "driver_seed_ensure_prereqs: FAIL driver_leaf_x_to_o.sh ensure $_t" >&2
+          _fail=$((_fail+1))
+        fi
+      else
+        if bash scripts/ensure_host_cc_seed_o.sh try-heat "$_t" >&2; then
+          _ok=$((_ok+1))
+        else
+          echo "driver_seed_ensure_prereqs: FAIL try-heat $_t" >&2
+          _fail=$((_fail+1))
+        fi
+      fi
+      ;;
+    *)
+      echo "driver_seed_ensure_prereqs: unknown target type $_t" >&2
+      _fail=$((_fail+1))
+      ;;
+  esac
+done
+
+if [ "$_fail" -ne 0 ]; then
+  echo "driver_seed_ensure_prereqs: FAIL ok=$_ok fail=$_fail (of $n)" >&2
+  exit 1
+fi
+echo "driver_seed_ensure_prereqs: RUN OK ok=$_ok count=$n" >&2
 exit 0
