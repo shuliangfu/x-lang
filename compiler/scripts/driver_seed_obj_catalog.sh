@@ -799,20 +799,25 @@ printf '%s\n' "$out"
 
 if [ "$CHECK" -eq 1 ]; then
   missing=0
+  # wave948: use here-string (not `printf | grep -q`) under `set -o pipefail`.
+  # When grep -q finds a match it exits early; printf can get SIGPIPE → pipeline
+  # non-zero → false "missing key" flake (keys present in $out). Here-string is
+  # deterministic. PLATFORM: SHARED.
   for k in "${REQUIRED_KEYS[@]}"; do
-    if ! printf '%s\n' "$out" | grep -q "^${k}="; then
+    if ! grep -q "^${k}=" <<<"$out"; then
       echo "driver_seed_obj_catalog: missing key $k" >&2
       missing=1
     fi
   done
   # Empty lists ok (e.g. FILTERED on Linux); values must expand USER_ASM non-empty.
-  user_asm=$(printf '%s\n' "$out" | sed -n 's/^USER_ASM_SEED_OBJS=//p' | head -1)
+  user_asm=$(sed -n 's/^USER_ASM_SEED_OBJS=//p' <<<"$out" | head -1)
   if [ -z "${user_asm// /}" ]; then
     echo "driver_seed_obj_catalog: USER_ASM_SEED_OBJS empty (mk include broken?)" >&2
     missing=1
   fi
 
   # wave788: shell vs make parity under product-default flags (when make available).
+  # post_ship (Makefile absent): make export empty → skip parity (honest).
   if ! catalog_need_make_escape || [ "$FORCE_SHELL" -eq 1 ]; then
     if command -v "$MAKE" >/dev/null 2>&1 || command -v make >/dev/null 2>&1; then
       make_out="$(catalog_make_dump 2>/dev/null || true)"
@@ -823,8 +828,8 @@ if [ "$CHECK" -eq 1 ]; then
         fi
         parity_fail=0
         for k in "${REQUIRED_KEYS[@]}"; do
-          sv=$(printf '%s\n' "$shell_out" | sed -n "s/^${k}=//p" | head -1)
-          mv=$(printf '%s\n' "$make_out" | sed -n "s/^${k}=//p" | head -1)
+          sv=$(sed -n "s/^${k}=//p" <<<"$shell_out" | head -1)
+          mv=$(sed -n "s/^${k}=//p" <<<"$make_out" | head -1)
           sv=$(catalog_norm_ws "$sv")
           mv=$(catalog_norm_ws "$mv")
           if [ "$sv" != "$mv" ]; then

@@ -1440,7 +1440,7 @@
   - ✅ `./xbuild driver-seed-prereqs`；cold dry-run 印 `PREREQ=` 边
   - ✅ 叶 `.o` pattern / host-cc residual → shell ensure（wave746–940）+ **Makefile 物理删除 wave941**
   - ✅ wave746：**11.3.1 路径库存** — `LEAF_PATTERN_RESIDUAL.md` + `leaf_pattern_residual.sh`
-    （R1–R6 命名；`./xbuild leaf-patterns`；机检 post-delete 适配仍 🟡 residual）
+    （R1–R6 命名；`./xbuild leaf-patterns`；机检 post_ship ✅ wave944/948）
   - ✅ wave747：**R4 mode-policy 吞并** — `rebuild_leaves` 默认 catalog KEY + shell mode 表；
     pattern 体仍 make（R4 body residual）；export 叶 inventory/legacy
   - ✅ wave748–755：**R1 八族** — `ensure_host_cc_seed_o.sh` 单 body + catalog 八 KEY；
@@ -1473,7 +1473,7 @@
 **状态**（波次流水见 `自举进度.md` §6 · 本文件只保留状态总结 + 权威指向）：
 
 - ✅ 权威图：`compiler/docs/LEAF_PATTERN_RESIDUAL.md`
-- 🟡 机检：`leaf_pattern_residual.sh` / `phys_del_makefile_gate.sh` 仍有「期望 Makefile 存在」的 pre-delete harness 分支 → **post-delete 适配 residual**（产品冷路径已绿）
+- ✅ 机检：`leaf_pattern_residual.sh` / `phys_del_makefile_gate.sh` **post_ship**（wave944 gate · wave948 leaf quiet/honesty；MF 缺席绿、无 stderr 噪声、无「unexpected early delete」假文案）
 - ✅ R1 host-cc seed · R2 UNAME stamp · R3 thin+rest · R4 rebuild pattern bodies · R5 CI all · R6→11.1.4
 - ✅ B1–B7 命名桶 + phys-del prep + Windows gate + dual-end verify（wave746–wave931 全部已闭；详情见 §6）
 - ✅ R4 / B 桶列表 → `mk/*.mk` + catalog/shell ensure（bootstrap 默认冷路径 0 make）
@@ -1495,6 +1495,7 @@
   - ✅ wave945 residual：README/vscode / labi 诊断 hint → `./xbuild`（**非** ensure 权威）
   - ✅ wave946：docs/07 · xbuild help · g05 cold hint · xlang.toml · dag/linker MF-absent · XXP/BXC catalog bag
   - ✅ wave947：XXP ensure ladder 0-make（try-heat / migrate_x_objs / build_seed_asm_host；VIA_MAKE 逃生口）
+  - ✅ wave948：leaf 机检 post_ship quiet/honesty（`/dev/null` MF bind · mf_bad 静默计数 · 禁 unexpected-early-delete）+ catalog `--check` here-string（pipefail flake）
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
@@ -1763,8 +1764,7 @@ MG **编排层**已完成（wave941/942/944/945）。剩余主债：**BC/PC 零 
 
 剩余工作优先级（MG 已闭后）：
 
-1. ✅ **post-delete residual**（wave944–947）— 0-make hub · gate post_ship · docs/help/hint · XXP/BXC catalog bags · XXP ensure ladder 0-make  
- 
+1. ✅ **post-delete residual**（wave944–948）— 0-make hub · gate post_ship · docs/help/hint · XXP/BXC catalog bags · XXP ensure ladder 0-make · leaf 机检 quiet/honesty  
 
 2. **阶段 8.3** pipeline_glue / ast_pool 等非 gen 产品 C  
 3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  

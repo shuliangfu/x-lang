@@ -362,13 +362,22 @@ bad() { echo "leaf_pattern_residual: FAIL: $*" >&2; fail=1; }
 # wave933: Makefile physically deleted (body shipped). Many leaf checks historically
 # asserted Makefile content (grep $MF) or counts derived from Makefile lists. After
 # the body is deleted, those checks have no Makefile to read, so they would fail
-# spuriously. mf_bad() downgrades such Makefile-dependent `bad` calls to `note`
-# when compiler/Makefile is absent, leaving genuine non-Makefile checks untouched.
+# spuriously. mf_bad() downgrades such Makefile-dependent `bad` calls when
+# compiler/Makefile is absent, leaving genuine non-Makefile checks untouched.
+#
+# wave948 post_ship honesty:
+#   - Presence authority is always the real path (_MF_PRESENT / _MF_REAL).
+#   - Do NOT spam hundreds of per-check "MF absent: …" notes (wave933 did);
+#     count skips and emit one summary before CHECK OK.
+#   - Do NOT claim "unexpected early delete; 11.3.1 not closed" after body ship.
 _MF_PRESENT=1
-[ -f "$ROOT/compiler/Makefile" ] || _MF_PRESENT=0
+_MF_REAL="$ROOT/compiler/Makefile"
+[ -f "$_MF_REAL" ] || _MF_PRESENT=0
+_MF_BAD_SKIPPED=0
 mf_bad() {
   if [ "$_MF_PRESENT" = "0" ]; then
-    note "MF absent (wave933 body shipped): $*"
+    # PLATFORM: SHARED — post_ship quiet: historical Makefile-content residual.
+    _MF_BAD_SKIPPED=$((${_MF_BAD_SKIPPED:-0} + 1))
     return 0
   fi
   bad "$@"
@@ -2730,6 +2739,17 @@ SCRIPT_REL="compiler/scripts/leaf_pattern_residual.sh"
 XBUILD_REL="xlang-build.sh"
 MF="compiler/Makefile"
 REBUILD_REL="compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh"
+# wave948: post_ship — bind $MF greps/awks to /dev/null so hundreds of
+# historical tools do not spam "No such file" / "can't open file" on stderr.
+# CRITICAL: must NOT be a regular empty file — `[ -f regular ]` is true and
+# would re-enter pre_ship MF-content blocks (shell --check, heat counts) that
+# hard-`bad` on missing Makefile. /dev/null is a char device → `[ -f ]` false
+# (same skip path as MF-absent), greps open cleanly and miss all patterns.
+# Presence authority remains _MF_PRESENT / _MF_REAL only.
+if [ "$_MF_PRESENT" = "0" ]; then
+  MF=/dev/null
+  note "wave948 post_ship: MF-content greps bound to /dev/null (compiler/Makefile absent · body shipped · [ -f ] stays false)"
+fi
 
 if [ ! -f "$DOC_REL" ]; then
   bad "missing $DOC_REL (11.3.1 leaf residual authority map)"
@@ -10875,9 +10895,10 @@ if [ -f "$MF" ]; then
   fi
 fi
 
-# Makefile still present (residual reality) + has host-cc heat
-if [ ! -f "$MF" ]; then
-  mf_bad "missing $MF (unexpected early delete; 11.3.1 not closed)"
+# wave948 post_ship honesty: body shipped (wave941) — not "unexpected early delete".
+# Presence uses _MF_PRESENT (real path), never the empty probe $MF.
+if [ "$_MF_PRESENT" = "0" ]; then
+  note "compiler/Makefile absent (wave948 post_ship · MG body shipped · MF-content inventory skipped)"
 else
   if ! grep -qE '\$\(CC\).*-c' "$MF"; then
     note "Makefile has 0 \$(CC) -c residual lines (heat cleared? keep inventory)"
@@ -11414,7 +11435,7 @@ elif grep -qE 'falling back to.*(CC|SEED_LINK_CC)' compiler/scripts/bootstrap_dr
 else
   note "cold pure-ld required + no silent CC fallback + pure_ld_shared (wave772/774)"
 fi
-if ! grep -q 'SEED_LINK_PURE_OK\|SEED_LINK_MULTIDEF' compiler/Makefile; then
+if ! grep -q 'SEED_LINK_PURE_OK\|SEED_LINK_MULTIDEF' "$MF"; then
   mf_bad "Makefile must export SEED_LINK_PURE_OK/MULTIDEF (wave772 pure-ld)"
 else
   note "Makefile pure-ld export signal present (wave772)"
@@ -11448,7 +11469,7 @@ elif ! grep -q 'try-r3-prefer\|try_ensure_r3_prefer' compiler/scripts/ensure_hos
 else
   note "try-r3-prefer present in ensure_host_cc_seed_o (wave763)"
 fi
-if ! grep -q 'try-r3-prefer' compiler/Makefile; then
+if ! grep -q 'try-r3-prefer' "$MF"; then
   mf_bad "Makefile must thin-call try-r3-prefer for R3_COLD leaves (wave763)"
 else
   note "Makefile try-r3-prefer thin-call signal present (wave763)"
@@ -11471,7 +11492,7 @@ elif ! grep -q 'try-labi-prefer\|try_ensure_labi_prefer_one' compiler/scripts/en
 else
   note "try-labi-prefer present in ensure_host_cc_seed_o (wave765)"
 fi
-if ! grep -q 'try-labi-prefer' compiler/Makefile; then
+if ! grep -q 'try-labi-prefer' "$MF"; then
   mf_bad "Makefile must thin-call try-labi-prefer for labi link_abi leaf (wave765)"
 else
   note "Makefile try-labi-prefer thin-call signal present (wave765)"
@@ -11497,7 +11518,7 @@ elif ! grep -q 'try-rt-prefer\|try_ensure_rt_prefer_one' compiler/scripts/ensure
 else
   note "try-rt-prefer present in ensure_host_cc_seed_o (wave766)"
 fi
-if ! grep -q 'try-rt-prefer' compiler/Makefile; then
+if ! grep -q 'try-rt-prefer' "$MF"; then
   mf_bad "Makefile must thin-call try-rt-prefer for runtime_driver_no_c leaf (wave766)"
 else
   note "Makefile try-rt-prefer thin-call signal present (wave766)"
@@ -11578,9 +11599,16 @@ else
   bad "missing PLATFORM_LINKER.md (wave745 companion for R6)"
 fi
 
+if [ "$_MF_PRESENT" = "0" ]; then
+  note "wave948 post_ship: skipped ${_MF_BAD_SKIPPED} historical Makefile-content checks (body shipped wave941; 0-make hub wave944; shell/mk authority)"
+fi
 if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–839: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave833 pipeline_glue_types FORCE dep-thin 1 + wave834 bootstrap-pipeline FORCE shell-primary 1 + wave835 class-G filter FORCE dep-thin 4 + wave836 cp-alias FORCE dep-thin 3 + wave837 pipeline_gen FORCE dep-thin 1 + wave838 bootstrap_xlangc FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave839 archaeology host-pick FORCE dep-thin 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26 + wave850 RELINK_PRODUCT_LINK bag→mk 8 + wave851 XXL/BS/XNC link bags→mk 3 + wave852 BXF link bag→mk 2 + wave853 seed phase1/final link bags→mk 2 + wave854 seed-gate REQUIRED bags→mk 3 + wave855 seed-gate REQUIRED shell-load 3 + wave856 LINK_OBJS shell-load export leaves 5 + wave857 LINK_CFLAGS shell-load export leaves 4 + wave858 LEGACY xlang-c shell-primary 1 + wave859 XXP/BXC bag shell-load 2 + wave860 driver_leaf BASE_CFLAGS shell-load 8 + wave861 rt_* -I CFLAGS hygiene 5 + wave862 try-heat CFLAGS bulk shell-load 114 + wave863 filter CFLAGS shell-load 4 + wave864 leaf-extra RUNTIME_*/PARSER_* CFLAGS hygiene 3 + wave865 migrate/bootstrap CFLAGS shell-load 8 + wave866 build-tool/WIN32 CFLAGS hygiene 2 + wave867 archaeology host-pick LD_R hygiene 4 + wave868 bstrict-relink shell-primary 1 + wave869 bootstrap-driver-crt0 shell-primary 1 + wave870 check-7.2 shell-primary 1 + wave871 check-6.4 shell-primary 1 + wave872 bootstrap-driver-hybrid shell-primary 1 + wave873 regen-lsp-gens-x shell-primary 1 + wave874 build-via-tool shell-primary 1 + wave875 size/perf-baseline shell-primary 2 + wave876 default xlang-c alias shell-primary 1 + wave877 gen ensure env hygiene 20 + wave878 migrate env hygiene 4 + wave879 stage/bootstrap env hygiene 13; Makefile still present; delete body deferred)"
+if [ "$_MF_PRESENT" = "0" ]; then
+  echo "leaf_pattern_residual: CHECK OK (wave948 post_ship · MF absent · quiet skip ${_MF_BAD_SKIPPED} MF-content checks · shell/mk authority · phys-del post_ship · 0-make hub)"
+else
+  echo "leaf_pattern_residual: CHECK OK (wave747–839: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty; pre_ship host with Makefile present)"
+fi
 exit 0
