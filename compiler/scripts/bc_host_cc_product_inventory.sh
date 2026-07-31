@@ -71,7 +71,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_type_alias.c|8.3.2|module TypeAliasEntry cold accessors slice|80|present"
   "compiler/ast_pool_expr_sidecar.c|8.3.2|expr (+ type-pos) var-len sidecar domain slice|620|present"
   "compiler/ast_pool_module_enum.c|8.3.2|module ModuleEnumEntry + enum field-access mark slice|300|present"
-  "compiler/ast_pool_onefunc.c|8.3.2|OneFunc const/let/param/call/while/for sidecar domain slice|520|present"
+  "compiler/ast_pool_onefunc.c|8.3.2|OneFunc sidecar + fill_from_onefunc residual (defer/labeled/if/region/stmt_order/whiles/fors) slice|900|present"
   "compiler/ast_pool_dep_ctx.c|8.3.2|PipelineDepCtx cold accessors + lib_root + empty_param slice|480|present"
   "compiler/ast_pool_module_func.c|8.3.2|module Func cold accessors + param sidecar slice|400|present"
   "compiler/ast_pool_arena.c|8.3.2|ASTArena main-pool cold accessors slice|200|present"

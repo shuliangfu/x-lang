@@ -1,10 +1,10 @@
 /**
- * ast_pool_onefunc.c — OneFunc sidecar const/let/param/call/while/for domain (BC 8.3.2).
+ * ast_pool_onefunc.c — OneFunc sidecar + fill_from_onefunc domain (BC 8.3.2).
  *
  * Same-TU #include from ast_pool.c (itself #include'd into pipeline_glue /
  * pipeline_x). Not a separate .o.
  *
- * Domain (contiguous cold APIs after module_enum slice):
+ * Domain (contiguous cold APIs; G.7 single authority — extend in place):
  * - pipeline_onefunc_append_const / const_* accessors / num_consts
  * - pipeline_onefunc_append_let / let_* accessors / num_lets
  * - pipeline_onefunc_append_param / param_* / set_param_type_ref / num_params
@@ -12,16 +12,23 @@
  * - pipeline_onefunc_copy_sidecar (+ uses same-TU grow_vec_copy_append)
  * - pipeline_onefunc_const/let_name_copy64
  * - pipeline_onefunc_append_while/for + while/for accessors
+ * - wave991 residual 有则补全:
+ *   - defer / labeled / if / region / with_arena / unsafe / stmt_order / body_expr
+ *   - pipeline_block_fill_*_from_onefunc (defers/labeled/regions/ifs/stmt_order/
+ *     expr_stmts/whiles/fors) — block_append consumers live in same TU after
+ *     #include "ast_pool_block.c"
  *
- * Earlier OneFunc APIs (defer/labeled/if/region/stmt_order) remain in
- * ast_pool.c interleaved with block_* fill paths — not this slice.
+ * NOT in this slice (still core residual):
+ * - pipeline_module_top_level_name_is_const (top_level consumer)
+ * - stmt_order rebuild / fixup / sparse_ifs (block-local rewrite)
  *
  * Depends on same-TU statics: onefunc_sidecar_get, grow_vec_*, OneFuncSidecar,
- * grow_vec_copy_append (core helper, hoisted next to grow_vec_push), and
+ * OneFuncLabeledEntry, OneFuncRegionEntry, grow_vec_copy_append,
+ * block_at, pipeline_block_append_*, pipeline_block_labeled_ptr,
  * ast_pool_onefunc_reset (defined earlier in ast_pool.c).
  *
  * PLATFORM: SHARED — host-cc Cap residual; parser fill_block paths call these.
- * Wave: 984 · no semantic change · pin stays 77b334842.
+ * Wave: 984 + 991 residual · no semantic change · pin stays 77b334842.
  */
 
 /** OneFunc const/let scratch 追加 API。 */
@@ -545,4 +552,435 @@ int32_t pipeline_onefunc_for_body_ref(uint8_t *out, int32_t i) {
 int32_t pipeline_onefunc_num_fors(uint8_t *out) {
   OneFuncSidecar *sc = onefunc_sidecar_get(out, 0);
   return sc ? sc->for_init_refs.len : 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* wave991: onefunc residual + fill_from_onefunc (G.7 有则补全 into this leaf) */
+/* -------------------------------------------------------------------------- */
+
+
+/** MEM-B0：OneFunc 侧车追加 defer body；返回 defer 下标，失败 -1。 */
+int32_t pipeline_onefunc_append_defer(uint8_t *out, int32_t body_ref) {
+  OneFuncSidecar *sc;
+  int32_t *pr;
+  if (!out || body_ref <= 0 || !(sc = onefunc_sidecar_get(out, 1)))
+    return -1;
+  if (grow_vec_push(&sc->defer_body_refs) < 0)
+    return -1;
+  pr = (int32_t *)grow_vec_at(&sc->defer_body_refs, sc->defer_body_refs.len - 1);
+  *pr = body_ref;
+  return sc->defer_body_refs.len - 1;
+}
+
+
+
+int32_t pipeline_onefunc_num_defers(uint8_t *out) {
+  OneFuncSidecar *sc = onefunc_sidecar_get(out, 0);
+  return sc ? sc->defer_body_refs.len : 0;
+}
+
+
+
+/** MEM-B0：将 OneFunc 中 defer 链批量写入 Block 池。 */
+void pipeline_block_fill_defers_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
+  OneFuncSidecar *sc;
+  int32_t *pr;
+  int32_t i;
+  if (!a || !out || !(sc = onefunc_sidecar_get(out, 0)))
+    return;
+  for (i = 0; i < count && i < sc->defer_body_refs.len; i++) {
+    pr = (int32_t *)grow_vec_at(&sc->defer_body_refs, i);
+    if (pr && *pr > 0)
+      pipeline_block_append_defer(a, br, *pr);
+  }
+}
+
+
+
+/* BC 8.3.2 wave989–990: block residual (+ parent/resolve/name-binding wave990)
+ * moved into ast_pool_block.c (same-TU #include above).
+ * onefunc labeled + fill_* stay here as residual. */
+
+/**
+ * wave379: append labeled entry to OneFunc scratch (goto / label / labeled return).
+ * @return index in onefunc labeled pool, or -1 on failure
+ * PLATFORM: SHARED — G.7 authority with pipeline_block_append_labeled.
+ */
+int32_t pipeline_onefunc_append_labeled(uint8_t *out, uint8_t *label, int32_t label_len, int32_t is_goto,
+                                        uint8_t *goto_target, int32_t goto_target_len, int32_t return_expr_ref) {
+  OneFuncSidecar *sc;
+  OneFuncLabeledEntry *le;
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)))
+    return -1;
+  if (grow_vec_push(&sc->labeleds) < 0)
+    return -1;
+  le = (OneFuncLabeledEntry *)grow_vec_at(&sc->labeleds, sc->labeleds.len - 1);
+  if (!le)
+    return -1;
+  memset(le, 0, sizeof(*le));
+  le->is_goto = is_goto;
+  le->return_expr_ref = return_expr_ref;
+  if (label && label_len > 0) {
+    /* wave586 Cap residual: label content ≤127 (OneFuncLabeledEntry.label[128]). */
+    if (label_len > 127)
+      label_len = 127;
+    memcpy(le->label, label, (size_t)label_len);
+    le->label_len = label_len;
+  }
+  if (goto_target && goto_target_len > 0) {
+    /* wave586 Cap residual: goto target content ≤127. */
+    if (goto_target_len > 127)
+      goto_target_len = 127;
+    memcpy(le->goto_target, goto_target, (size_t)goto_target_len);
+    le->goto_target_len = goto_target_len;
+  }
+  return sc->labeleds.len - 1;
+}
+
+
+
+int32_t pipeline_onefunc_num_labeleds(uint8_t *out) {
+  OneFuncSidecar *sc = onefunc_sidecar_get(out, 0);
+  return sc ? sc->labeleds.len : 0;
+}
+
+
+
+/**
+ * wave379: flush OneFunc labeled pool into Block.labeled_stmts (preserves names).
+ * Resets block num_labeled_stmts first (same pattern as fill_ifs_from_onefunc).
+ * Names are written via labeled_ptr (append only stores lengths).
+ * PLATFORM: SHARED.
+ */
+void pipeline_block_fill_labeled_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
+  OneFuncSidecar *sc;
+  OneFuncLabeledEntry *le;
+  struct ast_Block *b;
+  struct ast_LabeledStmt *ls;
+  int32_t i;
+  int32_t li;
+  if (!a || !out || !(sc = onefunc_sidecar_get(out, 0)))
+    return;
+  if (br > 0 && (b = block_at(a, br)))
+    b->num_labeled_stmts = 0;
+  for (i = 0; i < count && i < sc->labeleds.len; i++) {
+    le = (OneFuncLabeledEntry *)grow_vec_at(&sc->labeleds, i);
+    if (!le)
+      continue;
+    li = pipeline_block_append_labeled(a, br, le->label_len, le->is_goto, le->goto_target_len,
+                                       le->return_expr_ref);
+    if (li < 0)
+      continue;
+    ls = pipeline_block_labeled_ptr(a, br, li);
+    if (!ls)
+      continue;
+    if (le->label_len > 0) {
+      int32_t n = le->label_len;
+      if (n > 127)
+        n = 127;
+      memcpy(ls->label, le->label, (size_t)n);
+      ls->label[n] = 0;
+      ls->label_len = n;
+    }
+    if (le->goto_target_len > 0) {
+      int32_t n = le->goto_target_len;
+      if (n > 127)
+        n = 127;
+      memcpy(ls->goto_target, le->goto_target, (size_t)n);
+      ls->goto_target[n] = 0;
+      ls->goto_target_len = n;
+    }
+  }
+}
+
+
+
+/** OneFunc scratch 池 API */
+int32_t pipeline_onefunc_append_if(uint8_t *out, int32_t cond, int32_t then_ref, int32_t else_ref) {
+  OneFuncSidecar *sc;
+  int32_t *p;
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)))
+    return -1;
+  if (grow_vec_push(&sc->if_cond_refs) < 0)
+    return -1;
+  if (grow_vec_push(&sc->if_then_body_refs) < 0)
+    return -1;
+  if (grow_vec_push(&sc->if_else_body_refs) < 0)
+    return -1;
+  p = (int32_t *)grow_vec_at(&sc->if_cond_refs, sc->if_cond_refs.len - 1);
+  *p = cond;
+  p = (int32_t *)grow_vec_at(&sc->if_then_body_refs, sc->if_then_body_refs.len - 1);
+  *p = then_ref;
+  p = (int32_t *)grow_vec_at(&sc->if_else_body_refs, sc->if_else_body_refs.len - 1);
+  *p = else_ref;
+  return sc->if_cond_refs.len - 1;
+}
+
+
+
+int32_t pipeline_onefunc_if_cond_ref(uint8_t *out, int32_t i) {
+  OneFuncSidecar *sc;
+  int32_t *p;
+  if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->if_cond_refs.len)
+    return 0;
+  p = (int32_t *)grow_vec_at(&sc->if_cond_refs, i);
+  return p ? *p : 0;
+}
+
+
+
+int32_t pipeline_onefunc_if_then_body_ref(uint8_t *out, int32_t i) {
+  OneFuncSidecar *sc;
+  int32_t *p;
+  if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->if_then_body_refs.len)
+    return 0;
+  p = (int32_t *)grow_vec_at(&sc->if_then_body_refs, i);
+  return p ? *p : 0;
+}
+
+
+
+int32_t pipeline_onefunc_if_else_body_ref(uint8_t *out, int32_t i) {
+  OneFuncSidecar *sc;
+  int32_t *p;
+  if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->if_else_body_refs.len)
+    return 0;
+  p = (int32_t *)grow_vec_at(&sc->if_else_body_refs, i);
+  return p ? *p : 0;
+}
+
+
+
+int32_t pipeline_onefunc_num_if_stmts(uint8_t *out) {
+  OneFuncSidecar *sc = onefunc_sidecar_get(out, 0);
+  return sc ? sc->if_cond_refs.len : 0;
+}
+
+
+
+/** M-3：OneFunc 侧车追加 region；返回 region 下标，失败 -1。 */
+int32_t pipeline_onefunc_append_region(uint8_t *out, uint8_t *label, int32_t label_len, int32_t body_ref) {
+  OneFuncSidecar *sc;
+  OneFuncRegionEntry *re;
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || !label || label_len <= 0 || label_len > 127)
+    return -1;
+  if (grow_vec_push(&sc->regions) < 0)
+    return -1;
+  re = (OneFuncRegionEntry *)grow_vec_at(&sc->regions, sc->regions.len - 1);
+  if (!re)
+    return -1;
+  memset(re, 0, sizeof(*re));
+  memcpy(re->label, label, (size_t)label_len);
+  re->label_len = label_len;
+  re->body_ref = body_ref;
+  re->with_arena_cap_ref = 0;
+  return sc->regions.len - 1;
+}
+
+
+
+/** MEM-C1：OneFunc 侧车追加 with_arena(cap) { body }。 */
+int32_t pipeline_onefunc_append_with_arena(uint8_t *out, int32_t cap_ref, int32_t body_ref) {
+  OneFuncSidecar *sc;
+  OneFuncRegionEntry *re;
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || cap_ref <= 0 || body_ref <= 0)
+    return -1;
+  if (grow_vec_push(&sc->regions) < 0)
+    return -1;
+  re = (OneFuncRegionEntry *)grow_vec_at(&sc->regions, sc->regions.len - 1);
+  if (!re)
+    return -1;
+  memset(re, 0, sizeof(*re));
+  re->with_arena_cap_ref = cap_ref;
+  re->body_ref = body_ref;
+  return sc->regions.len - 1;
+}
+
+
+
+/** LANG-007 v2：OneFunc 侧车追加 unsafe { body }。 */
+int32_t pipeline_onefunc_append_unsafe(uint8_t *out, int32_t body_ref) {
+  OneFuncSidecar *sc;
+  OneFuncRegionEntry *re;
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || body_ref <= 0)
+    return -1;
+  if (grow_vec_push(&sc->regions) < 0)
+    return -1;
+  re = (OneFuncRegionEntry *)grow_vec_at(&sc->regions, sc->regions.len - 1);
+  if (!re)
+    return -1;
+  memset(re, 0, sizeof(*re));
+  re->with_arena_cap_ref = -1;
+  re->body_ref = body_ref;
+  return sc->regions.len - 1;
+}
+
+
+
+int32_t pipeline_onefunc_num_regions(uint8_t *out) {
+  OneFuncSidecar *sc = onefunc_sidecar_get(out, 0);
+  return sc ? sc->regions.len : 0;
+}
+
+
+
+/** M-3：将 OneFunc 中 region 链批量写入 Block 池。 */
+void pipeline_block_fill_regions_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
+  OneFuncSidecar *sc;
+  OneFuncRegionEntry *re;
+  int32_t i;
+  if (!a || !out || !(sc = onefunc_sidecar_get(out, 0)))
+    return;
+  for (i = 0; i < count && i < sc->regions.len; i++) {
+    re = (OneFuncRegionEntry *)grow_vec_at(&sc->regions, i);
+    if (!re)
+      continue;
+    if (re->with_arena_cap_ref > 0)
+      pipeline_block_append_with_arena(a, br, re->with_arena_cap_ref, re->body_ref);
+    else if (re->with_arena_cap_ref == -1)
+      pipeline_block_append_unsafe(a, br, re->body_ref);
+    else if (re->label_len > 0)
+      pipeline_block_append_region(a, br, re->label, re->label_len, re->body_ref);
+  }
+}
+
+
+
+int32_t pipeline_onefunc_push_stmt_order(uint8_t *out, uint8_t kind, int32_t idx) {
+  OneFuncSidecar *sc;
+  uint8_t *pk;
+  int32_t *pi;
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)))
+    return -1;
+  if (grow_vec_push(&sc->src_stmt_kind) < 0 || grow_vec_push(&sc->src_stmt_idx) < 0)
+    return -1;
+  pk = (uint8_t *)grow_vec_at(&sc->src_stmt_kind, sc->src_stmt_kind.len - 1);
+  pi = (int32_t *)grow_vec_at(&sc->src_stmt_idx, sc->src_stmt_idx.len - 1);
+  *pk = kind;
+  *pi = idx;
+  return sc->src_stmt_kind.len - 1;
+}
+
+
+
+int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *out) {
+  OneFuncSidecar *sc = onefunc_sidecar_get(out, 0);
+  return sc ? sc->src_stmt_kind.len : 0;
+}
+
+
+
+uint8_t pipeline_onefunc_src_stmt_kind(uint8_t *out, int32_t i) {
+  OneFuncSidecar *sc;
+  uint8_t *pk;
+  if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->src_stmt_kind.len)
+    return 0;
+  pk = (uint8_t *)grow_vec_at(&sc->src_stmt_kind, i);
+  return pk ? *pk : 0;
+}
+
+
+
+int32_t pipeline_onefunc_src_stmt_idx(uint8_t *out, int32_t i) {
+  OneFuncSidecar *sc;
+  int32_t *pi;
+  if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->src_stmt_idx.len)
+    return 0;
+  pi = (int32_t *)grow_vec_at(&sc->src_stmt_idx, i);
+  return pi ? *pi : 0;
+}
+
+
+
+int32_t pipeline_onefunc_push_body_expr_stmt(uint8_t *out, int32_t expr_ref) {
+  OneFuncSidecar *sc;
+  int32_t *pr;
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)))
+    return -1;
+  if (grow_vec_push(&sc->src_body_expr_stmt_refs) < 0)
+    return -1;
+  pr = (int32_t *)grow_vec_at(&sc->src_body_expr_stmt_refs, sc->src_body_expr_stmt_refs.len - 1);
+  *pr = expr_ref;
+  return sc->src_body_expr_stmt_refs.len - 1;
+}
+
+
+
+int32_t pipeline_onefunc_body_expr_stmt_ref(uint8_t *out, int32_t i) {
+  OneFuncSidecar *sc;
+  int32_t *pr;
+  if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->src_body_expr_stmt_refs.len)
+    return 0;
+  pr = (int32_t *)grow_vec_at(&sc->src_body_expr_stmt_refs, i);
+  return pr ? *pr : 0;
+}
+
+
+
+int32_t pipeline_onefunc_num_body_expr_stmts(uint8_t *out) {
+  OneFuncSidecar *sc = onefunc_sidecar_get(out, 0);
+  return sc ? sc->src_body_expr_stmt_refs.len : 0;
+}
+
+
+
+/**
+ * 将 OneFunc 中 if 链批量写入 Block 池。
+ * 调用方勿预置 b->num_if_stmts（与 num_loops 相同）：否则 lazy_fix if_base 错位，
+ * asm emit 读到错误 IfStmt，块内 if 被静默跳过（run-asm-binop-var #38）。
+ */
+void pipeline_block_fill_ifs_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
+  int32_t i;
+  struct ast_Block *b;
+  if (a && br > 0 && (b = block_at(a, br)))
+    b->num_if_stmts = 0;
+  for (i = 0; i < count; i++) {
+    pipeline_block_append_if(a, br, pipeline_onefunc_if_cond_ref(out, i),
+                             pipeline_onefunc_if_then_body_ref(out, i),
+                             pipeline_onefunc_if_else_body_ref(out, i));
+  }
+}
+
+
+
+void pipeline_block_fill_stmt_order_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
+  int32_t i;
+  for (i = 0; i < count; i++) {
+    pipeline_block_append_stmt_order(a, br, pipeline_onefunc_src_stmt_kind(out, i),
+                                     pipeline_onefunc_src_stmt_idx(out, i));
+  }
+}
+
+
+
+void pipeline_block_fill_expr_stmts_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
+  int32_t i;
+  for (i = 0; i < count; i++) {
+    pipeline_block_append_expr_stmt(a, br, pipeline_onefunc_body_expr_stmt_ref(out, i));
+  }
+}
+
+
+
+void pipeline_block_fill_whiles_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
+  int32_t i;
+  for (i = 0; i < count; i++) {
+    int32_t cond_ref = pipeline_onefunc_while_cond_ref(out, i);
+    int32_t body_ref = pipeline_onefunc_while_body_ref(out, i);
+    if (link_abi_getenv("XLANG_ASM_DEBUG"))
+      fprintf(stderr, "xlang: fill_while_from_onefunc i=%d cond=%d body=%d\n", (int)i, (int)cond_ref, (int)body_ref);
+    pipeline_block_append_while(a, br, cond_ref, body_ref);
+  }
+}
+
+
+
+void pipeline_block_fill_fors_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
+  int32_t i;
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
+    fprintf(stderr, "xlang: fill_fors br=%d count=%d\n", (int)br, (int)count);
+  for (i = 0; i < count; i++) {
+    pipeline_block_append_for(a, br, pipeline_onefunc_for_init_ref(out, i), pipeline_onefunc_for_cond_ref(out, i),
+                              pipeline_onefunc_for_step_ref(out, i), pipeline_onefunc_for_body_ref(out, i));
+  }
 }
