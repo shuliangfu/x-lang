@@ -7998,6 +7998,25 @@ elif ! bash "$_rxl_ps" --check >/dev/null 2>&1; then
 else
   note "relink_xlang_lexer RXL bag → catalog relink-product (wave958 post_ship; 0-make)"
 fi
+# wave959: bootstrap_driver_seed_x_frontend --check post_ship + catalog BXF bag
+# (0-make). Default: catalog --link-objs-export bxf + --link-cflags-export bxf;
+# escape XLANG_BXF_LINK_VIA_MAKE=1 + MF only.
+# PLATFORM: SHARED — archaeology x_frontend experiment path after wave941 delete.
+_bxf_ps="$ROOT/compiler/scripts/bootstrap_driver_seed_x_frontend.sh"
+[ -f "$_bxf_ps" ] || _bxf_ps="scripts/bootstrap_driver_seed_x_frontend.sh"
+if [ ! -f "$_bxf_ps" ]; then
+  bad "missing bootstrap_driver_seed_x_frontend.sh (wave959 post_ship)"
+elif ! grep -q 'wave959' "$_bxf_ps"; then
+  bad "bootstrap_driver_seed_x_frontend must document wave959 post_ship --check"
+elif ! grep -q 'XLANG_BXF_LINK_VIA_MAKE' "$_bxf_ps"; then
+  bad "bootstrap_driver_seed_x_frontend must document XLANG_BXF_LINK_VIA_MAKE escape (wave959)"
+elif ! grep -qE 'link-objs-export bxf|--link-objs-export bxf' "$_bxf_ps"; then
+  bad "bootstrap_driver_seed_x_frontend must catalog-load BXF LINK_OBJS (wave959)"
+elif ! bash "$_bxf_ps" --check >/dev/null 2>&1; then
+  bad "bootstrap_driver_seed_x_frontend.sh --check failed (wave959 post_ship 0-make)"
+else
+  note "bootstrap_driver_seed_x_frontend BXF bag → catalog bxf (wave959 post_ship; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then

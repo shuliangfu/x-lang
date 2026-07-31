@@ -1506,6 +1506,7 @@
   - ✅ wave956：`xlang_x.sh` catalog XXL bag + `--check` post_ship（MF 缺席绿；`--link-objs-export xlang-x` + `--link-cflags-export relink-product`；`XLANG_XXL_LINK_VIA_MAKE` 逃生口；leaf honesty）
   - ✅ wave957：`xlang_no_c_frontend.sh` catalog XNC bag + `--check` post_ship（MF 缺席绿；`--link-objs-export xnc` + `--link-cflags-export xnc`；`XLANG_XNC_LINK_VIA_MAKE` 逃生口；leaf honesty）
   - ✅ wave958：`relink_xlang_lexer.sh` catalog RXL bag + `--check` post_ship（MF 缺席绿；`--link-objs-export relink-product` + `--link-cflags-export relink-product`；`XLANG_RXL_LINK_VIA_MAKE` 逃生口；leaf honesty）
+  - ✅ wave959：`bootstrap_driver_seed_x_frontend.sh` catalog BXF bag + `--check` post_ship（MF 缺席绿；`--link-objs-export bxf` + `--link-cflags-export bxf`；`XLANG_BXF_LINK_VIA_MAKE` 逃生口；leaf honesty）
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
@@ -1702,6 +1703,7 @@
   - ✅ wave956：`xlang_x` catalog XXL bag + `--check` post_ship（MF 缺席绿；xlang-x objs + relink-product cflags）
   - ✅ wave957：`xlang_no_c_frontend` catalog XNC bag + `--check` post_ship（MF 缺席绿；xnc objs/cflags）
   - ✅ wave958：`relink_xlang_lexer` catalog RXL bag + `--check` post_ship（MF 缺席绿；relink-product objs/cflags）
+  - ✅ wave959：`bootstrap_driver_seed_x_frontend` catalog BXF bag + `--check` post_ship（MF 缺席绿；bxf objs/cflags）
 
 ⬜ **13.2.3 零 cc 三义验收**（§0.1 MG+BC+PC）
 
