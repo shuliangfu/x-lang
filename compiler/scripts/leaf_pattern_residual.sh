@@ -8059,6 +8059,27 @@ elif ! bash "$_leg_ps" --check >/dev/null 2>&1; then
 else
   note "legacy_xlang_c_link LEGACY bag → catalog legacy-xlang-c + relink-product (wave961 post_ship; 0-make)"
 fi
+# wave962: host_cc_objs_core_link --check post_ship + catalog OBJS_CORE bag (0-make).
+# Default: catalog --link-objs-export objs-core + --cflags-export;
+# escape XLANG_OBJS_CORE_LINK_VIA_MAKE=1 + MF only.
+# PLATFORM: SHARED — archaeology HOST_CC_OBJS_CORE path after wave941 delete.
+_hcc_ps="$ROOT/compiler/scripts/host_cc_objs_core_link.sh"
+[ -f "$_hcc_ps" ] || _hcc_ps="scripts/host_cc_objs_core_link.sh"
+if [ ! -f "$_hcc_ps" ]; then
+  bad "missing host_cc_objs_core_link.sh (wave962 post_ship)"
+elif ! grep -q 'wave962' "$_hcc_ps"; then
+  bad "host_cc_objs_core_link must document wave962 post_ship --check"
+elif ! grep -q 'XLANG_OBJS_CORE_LINK_VIA_MAKE' "$_hcc_ps"; then
+  bad "host_cc_objs_core_link must document XLANG_OBJS_CORE_LINK_VIA_MAKE escape (wave962)"
+elif ! grep -qE 'link-objs-export objs-core|--link-objs-export objs-core' "$_hcc_ps"; then
+  bad "host_cc_objs_core_link must catalog-load OBJS_CORE LINK_OBJS (wave962)"
+elif ! grep -qE 'cflags-export|--cflags-export' "$_hcc_ps"; then
+  bad "host_cc_objs_core_link must catalog-load CFLAGS (wave962)"
+elif ! bash "$_hcc_ps" --check >/dev/null 2>&1; then
+  bad "host_cc_objs_core_link.sh --check failed (wave962 post_ship 0-make)"
+else
+  note "host_cc_objs_core_link OBJS_CORE bag → catalog objs-core + cflags-export (wave962 post_ship; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then
