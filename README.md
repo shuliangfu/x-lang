@@ -27,7 +27,7 @@ Most languages force a trade-off. X language refuses that trade-off:
 | **High performance** | **Beat careful C by default** | No GC; default ASM backend + optional C backend; aggressive alias / `noalias`, BCE, monomorphized generics, arena/region paths with zero hot-path malloc. Performance comes from the **compiler**, not from heroics in every call site |
 | **High safety** | **Near Rust in the safe subset** | Compile-time region / borrow / linear checks; `Option` / `Result` over silent null; bounds-aware slices; graded `unsafe` only for hardware & syscall edges — **auditable**, not ambient |
 | **High readability** | **Simpler than C at scale** | `T[]` carries length; no header hell (directory = module); `defer` / `with_arena` / scoped allocators; field access is only `.`; diagnostics with real locations |
-| **Low learning cost** | **Days, not months — if you already program** | No type-theory onboarding: a solid imperative background (C/C++/Java/Go/…) is enough; familiar control flow; no lifetime-annotation maze; progressive path (start “almost C”, then adopt safety features); integrated `xlang build` / fmt / LSP |
+| **Low learning cost** | **Days, not months — if you already program** | No type-theory onboarding: a solid imperative background (C/C++/Java/Go/JS/TS/…) is enough; familiar control flow; no lifetime-annotation maze; progressive path (start “almost C”, then adopt safety features); integrated `xlang build` / fmt / LSP |
 
 **One-line review rule for every language feature:**
 
