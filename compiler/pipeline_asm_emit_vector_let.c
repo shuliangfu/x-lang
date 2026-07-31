@@ -16,14 +16,14 @@
  * second flat writer or second element-wise fixed-array copy path.
  * glue_emit_fixed_array_type_let_init_elf_c stays in glue (thin wrapper over
  * store_fixed_array with foff=0; needs glue_type_is_fixed_array macros below).
- * SIMD vector lane binops / shuffle / fma remain in glue.
+ * SIMD vector lane binops / shuffle / fma: pipeline_asm_emit_vector_simd.c.
  *
  * Callers: STRUCT_LIT fields (via store_fixed_array); block let/assign fixed
  * arrays (via glue_emit_fixed_array_type_let_init); vector/array let-init;
  * rvalue array_lit force_esz nested flat (array_lit slice).
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c immediately
- * after pipeline_asm_emit_struct_lit.c (before SIMD vector helpers).
+ * after pipeline_asm_emit_struct_lit.c (before vector_simd lane domain).
  *
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
  *   · LINUX|x86 high-end frame mag base-foff; bulk spill copy
