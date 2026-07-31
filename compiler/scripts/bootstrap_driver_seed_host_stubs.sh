@@ -2,8 +2,12 @@
 # bootstrap_driver_seed_host_stubs.sh — §5b #9 asm_full_link_stubs body (11.0.3)
 #
 # Authority (G.7):
-#   - CC / CFLAGS / OUT / HOST_DIR / SCAN_BASE live ONLY in compiler/Makefile
-#     (export leaf bootstrap-driver-seed-export-host-stubs).
+#   - CC / CFLAGS / OUT / HOST_DIR / SCAN_BASE composed from
+#     driver_seed_obj_catalog.sh (shell-primary parse of mk lists; wave941).
+#     Pre-wave941 these came from Makefile export leaf
+#     bootstrap-driver-seed-export-host-stubs; the catalog is now the single
+#     authority (CC/CFLAGS/USER_ASM_SEED_HOST_*/DRIVER_SEED_HOST_STUBS_SCAN_BASE
+#     are all catalog keys sourced from mk/*.mk).
 #   - This script never hardcodes USER_ASM_SEED_OBJS or platform glue paths.
 #   - Optional scan peers under HOST_DIR (asm_full.o, asm_backend_partial.o)
 #     are fixed relative names — same logic as the pre-wave723 Makefile recipe.
@@ -12,56 +16,44 @@
 #   ./scripts/bootstrap_driver_seed_host_stubs.sh
 #
 # Env:
-#   MAKE — make binary (default: make)
+#   XLANG_CATALOG_CACHE_FILE — optional pre-warmed catalog KEY= blob (parent
+#     bootstrap_driver_seed.sh warms one; reuses avoid re-parsing 17 mk files).
 #
 # PLATFORM: SHARED — gen_asm_full_link_stubs.pl emits weak stubs on ELF and
-#            non-weak on MinGW; scan/base composition is Makefile-owned.
-# Wave: 723 Track MG · pairs with Makefile export + thin host-stubs leaf.
+#            non-weak on MinGW; scan/base composition is catalog-owned.
+# Wave: 723 Track MG · 941 shell-primary catalog (drop make export leaf).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-MAKE="${MAKE:-make}"
-export_target="bootstrap-driver-seed-export-host-stubs"
+# wave941: compose SEED_STUBS_* from catalog (replaces make export leaf).
+# Catalog keys (all from mk/*.mk via driver_seed_obj_catalog.sh --shell):
+#   CC, CFLAGS, USER_ASM_SEED_HOST_STUBS, USER_ASM_SEED_HOST_DIR,
+#   DRIVER_SEED_HOST_STUBS_SCAN_BASE.
+# XLANG_CATALOG_CACHE_FILE lets the parent bootstrap pass a pre-warmed cache
+# so this script does not re-parse all mk files (Windows MinGW: ~3min/call).
+# PLATFORM: SHARED — same KEY=VALUE semantics on Darwin/Linux/Windows MSYS2.
+_cat_query() {
+  # $1 = key. Reuse cache file if present; else fall back to catalog --shell.
+  if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+    sed -n "s|^$1=||p" "${XLANG_CATALOG_CACHE_FILE}" | tail -n 1
+  else
+    bash scripts/driver_seed_obj_catalog.sh --shell 2>/dev/null \
+      | sed -n "s|^$1=||p" | tail -n 1
+  fi
+}
 
-# Makefile single authority. Clear MAKEFLAGS so parent `make -n` / jobserver
-# dry-run does not turn the export target into printed recipe text.
-export_raw=$(MAKEFLAGS= "$MAKE" -s "$export_target")
-if [ -z "$export_raw" ]; then
-  echo "bootstrap_driver_seed_host_stubs: empty export from $export_target" >&2
-  exit 1
-fi
-
-SEED_STUBS_CC=
-SEED_STUBS_CFLAGS=
-SEED_STUBS_OUT=
-SEED_STUBS_HOST_DIR=
-SEED_STUBS_GEN_C=
-SEED_STUBS_SCAN_BASE=
-SEED_STUBS_PERL=
-while IFS= read -r line; do
-  [ -z "${line:-}" ] && continue
-  case "$line" in
-    SEED_STUBS_CC=*) SEED_STUBS_CC=${line#SEED_STUBS_CC=} ;;
-    SEED_STUBS_CFLAGS=*) SEED_STUBS_CFLAGS=${line#SEED_STUBS_CFLAGS=} ;;
-    SEED_STUBS_OUT=*) SEED_STUBS_OUT=${line#SEED_STUBS_OUT=} ;;
-    SEED_STUBS_HOST_DIR=*) SEED_STUBS_HOST_DIR=${line#SEED_STUBS_HOST_DIR=} ;;
-    SEED_STUBS_GEN_C=*) SEED_STUBS_GEN_C=${line#SEED_STUBS_GEN_C=} ;;
-    SEED_STUBS_SCAN_BASE=*) SEED_STUBS_SCAN_BASE=${line#SEED_STUBS_SCAN_BASE=} ;;
-    SEED_STUBS_PERL=*) SEED_STUBS_PERL=${line#SEED_STUBS_PERL=} ;;
-    *)
-      echo "bootstrap_driver_seed_host_stubs: unknown export line: $line" >&2
-      exit 1
-      ;;
-  esac
-done <<EOF
-$export_raw
-EOF
+SEED_STUBS_CC=$(_cat_query CC)
+SEED_STUBS_CFLAGS=$(_cat_query CFLAGS)
+SEED_STUBS_OUT=$(_cat_query USER_ASM_SEED_HOST_STUBS)
+SEED_STUBS_HOST_DIR=$(_cat_query USER_ASM_SEED_HOST_DIR)
+SEED_STUBS_SCAN_BASE=$(_cat_query DRIVER_SEED_HOST_STUBS_SCAN_BASE)
+SEED_STUBS_GEN_C="${SEED_STUBS_HOST_DIR}/asm_full_link_stubs.c"
+SEED_STUBS_PERL="scripts/gen_asm_full_link_stubs.pl"
 
 if [ -z "$SEED_STUBS_CC" ] || [ -z "$SEED_STUBS_OUT" ] || [ -z "$SEED_STUBS_HOST_DIR" ] \
   || [ -z "$SEED_STUBS_GEN_C" ] || [ -z "$SEED_STUBS_SCAN_BASE" ] || [ -z "$SEED_STUBS_PERL" ]; then
-  echo "bootstrap_driver_seed_host_stubs: incomplete export from $export_target" >&2
-  echo "$export_raw" >&2
+  echo "bootstrap_driver_seed_host_stubs: incomplete catalog (CC/OUT/HOST_DIR/SCAN_BASE empty)" >&2
   exit 1
 fi
 
@@ -85,7 +77,7 @@ if [ -f "$SEED_STUBS_HOST_DIR/asm_backend_partial.o" ]; then
 fi
 
 n_scan=$(printf '%s\n' "$_scan" | wc -w | tr -d ' ')
-echo "bootstrap-driver-seed: host-stubs → $SEED_STUBS_OUT  (scan $n_scan objs via Makefile export)" >&2
+echo "bootstrap-driver-seed: host-stubs → $SEED_STUBS_OUT  (scan $n_scan objs via catalog)" >&2
 
 # shellcheck disable=SC2086
 perl "$SEED_STUBS_PERL" "$SEED_STUBS_GEN_C" $_scan

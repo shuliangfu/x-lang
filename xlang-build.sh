@@ -512,11 +512,15 @@ case "$TARGET" in
     (cd compiler && bash scripts/compiler_all_ci.sh)
     ;;
   bootstrap-driver-seed)
-    # Cold-start: thin Makefile phony → bootstrap_driver_seed.sh
-    # (wave744: shell ensure_prereqs then §5b sequence; lists via catalog)
-    # wave933 prep: Makefile still needed for .o compile rules until
-    # driver_seed_ensure_prereqs.sh make-call migration is complete.
-    run_compiler_make bootstrap-driver-seed
+    # Cold-start: direct shell → bootstrap_driver_seed.sh (wave941).
+    # wave744: shell ensure_prereqs then §5b sequence; lists via catalog.
+    # wave935/936: all mk calls migrated to direct shell (0 make in --run path).
+    # wave941: drop make entry — bootstrap_driver_seed.sh is 100% shell-primary
+    # (catalog cache + ensure_prereqs + rebuild_leaves + link all shell).
+    # The only make re-entry was XLANG_SKIP_SUBSCRIPT_MAKE (line 66-71) which
+    # only fires when TARGET missing under SKIP; normal cold start is shell.
+    # PLATFORM: SHARED — same shell path on Darwin/Linux/Windows MSYS2.
+    (cd compiler && bash scripts/bootstrap_driver_seed.sh)
     ;;
   compiler-make)
     # Passthrough for residual leaves: std .o, CFLAGS=…, ASan rebuild, etc.
