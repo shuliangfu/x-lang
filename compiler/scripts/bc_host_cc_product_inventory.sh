@@ -30,7 +30,7 @@
 # PLATFORM: SHARED — inventory of sources; ABI lives in the residual bodies.
 # Wave: 963 open BC + 8.3.9 orphan gone (analysis/_debug_io_ctx_gen.c was
 # gitignored local scratch; --check asserts ABSENT).
-# 8.3.1 domain thin cuts: ctfe + assign + coerce_init + method_call + check_block + region_assign + asm_emit_unary + asm_emit_as + asm_emit_return + asm_emit_logand + asm_emit_block_body (#include TU).
+# 8.3.1 domain thin cuts: ctfe + assign + coerce_init + method_call + check_block + region_assign + asm_emit_unary + asm_emit_as + asm_emit_return + asm_emit_logand + asm_emit_block_body + asm_emit_block_if_stmt (#include TU).
 
 set -euo pipefail
 
@@ -71,6 +71,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_return.c|8.3.1|asm ELF return emit (slice escape + return_impl) slice|550|present"
   "compiler/pipeline_asm_emit_logand.c|8.3.1|asm ELF LOGAND/LOGOR short-circuit emit slice|80|present"
   "compiler/pipeline_asm_emit_block_body.c|8.3.1|asm ELF block body sync emit (defer + body_sync) slice|700|present"
+  "compiler/pipeline_asm_emit_block_if_stmt.c|8.3.1|asm ELF block-level if-stmt emit (then-first jz) slice|80|present"
   # --- 8.3.3 typeck slices often pulled by glue ---
   "compiler/pipeline_typeck_field_access.c|8.3.3|field_access slice|500|present"
   "compiler/pipeline_typeck_soa.c|8.3.3|typeck SOA helper|50|present"
@@ -248,7 +249,7 @@ run_check() {
     echo "bc_host_cc_product_inventory: --check FAILED" >&2
     exit 1
   fi
-  echo "bc_host_cc_product_inventory: CHECK OK (BC open · 8.3.1 ctfe+assign+coerce_init+method_call+check_block+region_assign+asm_emit_unary+asm_emit_as+asm_emit_return+asm_emit_logand+asm_emit_block_body slices present · 8.3.9 absent · host-cc residual still required)" >&2
+  echo "bc_host_cc_product_inventory: CHECK OK (BC open · 8.3.1 ctfe+assign+coerce_init+method_call+check_block+region_assign+asm_emit_unary+asm_emit_as+asm_emit_return+asm_emit_logand+asm_emit_block_body+asm_emit_block_if_stmt slices present · 8.3.9 absent · host-cc residual still required)" >&2
 }
 
 case "$MODE" in

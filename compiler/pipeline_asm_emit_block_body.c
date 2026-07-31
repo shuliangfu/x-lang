@@ -15,8 +15,8 @@
  * G.7: single product-mega block_body_sync ELF path — do not open a second
  * stmt_order body emitter in seed partial or a parallel glue copy. Callers
  * (if_arm / mega_body / if_stmt / while) stay in pipeline_glue.c and call
- * these entry points (same TU). Nested block_if_stmt remains in glue until a
- * later if-stmt domain cut.
+ * these entry points (same TU). Nested block_if_stmt lives in
+ * pipeline_asm_emit_block_if_stmt.c (wave976; same TU #include after this file).
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c after
  * with_arena emit helpers and before block_if_stmt / expr field accessors.

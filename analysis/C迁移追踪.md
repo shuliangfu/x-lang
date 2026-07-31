@@ -899,7 +899,7 @@
 
 | 文件（compiler/） | LOC | 角色 | 状态 |
 |-------------------|-----|------|------|
-| `pipeline_glue.c` | ~34,423 | 产品 mega glue（typeck/codegen/asm/match…） | 🟡 CTFE+assign+coerce_init+method_call+check_block+region_assign+asm_emit_unary+asm_emit_as+asm_emit_return+asm_emit_logand+asm_emit_block_body 域已切出；其余仍在 |
+| `pipeline_glue.c` | ~34,340 | 产品 mega glue（typeck/codegen/asm/match…） | 🟡 CTFE+assign+coerce_init+method_call+check_block+region_assign+asm_emit_unary+asm_emit_as+asm_emit_return+asm_emit_logand+asm_emit_block_body+asm_emit_block_if_stmt 域已切出；其余仍在 |
 | `pipeline_typeck_ctfe.c` | 1,177 | typeck CTFE 生产者切片（同 TU `#include`） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_assign.c` | 348 | typeck assign 域切片（lit 收窄 + EXPR_ASSIGN） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_coerce_init.c` | 460 | typeck coerce-init 域切片（lit/float/enum/call/array/struct…） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
@@ -911,6 +911,7 @@
 | `pipeline_asm_emit_return.c` | ~633 | asm ELF return emit（slice escape + return_impl）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_logand.c` | ~102 | asm ELF LOGAND/LOGOR short-circuit emit 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_block_body.c` | ~809 | asm ELF block body sync emit（defer + body_sync + accessors）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_block_if_stmt.c` | ~106 | asm ELF block-level if-stmt emit（then-first jz）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool.c` | 18,109 | AST 池 / MatchArm / sidecar | ⬜ |
 | `pipeline_typeck_field_access.c` | 1,477 | field_access 权威切片（常被 glue 拉入） | ⬜ |
 | `pipeline_typeck_soa.c` | 255 | typeck SOA 辅助 | ⬜ |
@@ -923,7 +924,7 @@
 
 | 消费方 | 如何引用 | 风险 |
 |--------|----------|------|
-| `compiler/mk/x_source_deps.mk` `PIPELINE_X_DEPS` | glue + ctfe/assign/coerce_init/method_call/check_block/region_assign/asm_emit_unary/asm_emit_as/asm_emit_return/asm_emit_logand/asm_emit_block_body/field_access/soa 切片 + `ast_pool` + bootstrap glue | 改源必重编 pipeline_x |
+| `compiler/mk/x_source_deps.mk` `PIPELINE_X_DEPS` | glue + ctfe/assign/coerce_init/method_call/check_block/region_assign/asm_emit_unary/asm_emit_as/asm_emit_return/asm_emit_logand/asm_emit_block_body/asm_emit_block_if_stmt/field_access/soa 切片 + `ast_pool` + bootstrap glue | 改源必重编 pipeline_x |
 | g05 / standalone seed 链 | standalone seed + glue + types.inc | weak 孪生与主链分叉 |
 | `g05_ensure_relink_prereqs.sh` | mtime vs pipeline_x / standalone；切片 STALE | 产品热路径仍 host-cc 重编 |
 | `pipeline_gen.c` / `-E` runtime 路径 | 入口 pipeline.x 时追加 glue 到 stdout | 与 gen 双权威风险 |
@@ -946,8 +947,9 @@
   - ✅ asm return emit 域 thin：`pipeline_asm_emit_return.c`（slice escape finder + return_impl ~633 LOC）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 29→30 / g05 STALE / inventory 已收
   - ✅ asm logand·logor emit 域 thin：`pipeline_asm_emit_logand.c`（LOGAND/LOGOR short-circuit ~102 LOC）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 30→31 / g05 STALE / inventory 已收
   - ✅ asm block body sync emit 域 thin：`pipeline_asm_emit_block_body.c`（defer mask + body_sync + backend accessors ~809 LOC）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 31→32 / g05 STALE / inventory 已收
+  - ✅ asm block-level if-stmt emit 域 thin：`pipeline_asm_emit_block_if_stmt.c`（then-first + jz / else / done + live merge ~106 LOC）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 32→33 / g05 STALE / inventory 已收
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
-  - ⬜ 下一域候选：block_if_stmt / block_inits / 8.3.2 ast_pool
+  - ⬜ 下一域候选：block_inits / 8.3.2 ast_pool
 
 ⬜ **8.3.2 `ast_pool.c` → .x / 已有 ast.x 权威收敛**
 
@@ -1754,7 +1756,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · CTFE ✅ · assign ✅ · coerce_init ✅ · method_call ✅ · check_block ✅ · region_assign ✅ · asm_emit_unary ✅ · asm_emit_as ✅ · asm_emit_return ✅ · asm_emit_logand ✅ · asm_emit_block_body ✅ · 8.3.9 ✅ · **当前：8.3.1 下一域 / 8.3.2**）  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · CTFE ✅ · assign ✅ · coerce_init ✅ · method_call ✅ · check_block ✅ · region_assign ✅ · asm_emit_unary ✅ · asm_emit_as ✅ · asm_emit_return ✅ · asm_emit_logand ✅ · asm_emit_block_body ✅ · asm_emit_block_if_stmt ✅ · 8.3.9 ✅ · **当前：block_inits / 8.3.2**）  
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
