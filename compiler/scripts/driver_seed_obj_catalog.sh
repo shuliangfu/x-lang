@@ -14,10 +14,12 @@
 #   bash scripts/driver_seed_obj_catalog.sh --link-export phase1  # SEED_LINK_* (phase1)
 #   bash scripts/driver_seed_obj_catalog.sh --link-export final   # SEED_LINK_* (final)
 #   bash scripts/driver_seed_obj_catalog.sh --cflags-export       # CFLAGS + PIPELINE_GEN_CFLAGS
+#   bash scripts/driver_seed_obj_catalog.sh --link-objs-export xnc # LINK_OBJS (bag: xnc/legacy-xlang-c/...)
+#   bash scripts/driver_seed_obj_catalog.sh --link-cflags-export xnc # LINK_CFLAGS (bag: xnc/relink-product/...)
 #   MAKE=gmake bash scripts/driver_seed_obj_catalog.sh
 #
 # PLATFORM: SHARED — thin catalog; no compile/link.
-# Wave: 726–728 export · 788 B7B shell-primary · 924 --link-export · 925 --cflags-export (not physical delete).
+# Wave: 726–728 export · 788 B7B shell-primary · 924 --link-export · 925 --cflags-export · 926 --link-objs/cflags-export (not physical delete).
 
 set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
@@ -32,6 +34,8 @@ FORCE_SHELL=0
 FORCE_MAKE=0
 LINK_EXPORT_MODE=""
 CFLAGS_EXPORT=0
+LINK_OBJS_BAG=""
+LINK_CFLAGS_BAG=""
 case "${1:-}" in
   --check) CHECK=1 ;;
   --shell) FORCE_SHELL=1 ;;
@@ -44,13 +48,27 @@ case "${1:-}" in
     LINK_EXPORT_MODE="$2"
     ;;
   --cflags-export) CFLAGS_EXPORT=1 ;;
+  --link-objs-export)
+    if [ -z "${2:-}" ]; then
+      echo "driver_seed_obj_catalog: --link-objs-export needs bag name" >&2
+      exit 2
+    fi
+    LINK_OBJS_BAG="$2"
+    ;;
+  --link-cflags-export)
+    if [ -z "${2:-}" ]; then
+      echo "driver_seed_obj_catalog: --link-cflags-export needs bag name" >&2
+      exit 2
+    fi
+    LINK_CFLAGS_BAG="$2"
+    ;;
   "" ) ;;
   -h|--help)
     sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
   *)
-    echo "driver_seed_obj_catalog: unknown arg '$1' (use --check|--shell|--make|--link-export phase1|final|--cflags-export)" >&2
+    echo "driver_seed_obj_catalog: unknown arg '$1' (use --check|--shell|--make|--link-export|--cflags-export|--link-objs-export|--link-cflags-export)" >&2
     exit 2
     ;;
 esac
@@ -569,6 +587,80 @@ catalog_cflags_export_dump() {
   printf 'PIPELINE_GEN_CFLAGS=%s\n' "$pipeline_gen_cflags"
 }
 
+# wave926: --link-objs-export <bag> — shell-primary LINK_OBJS dump.
+# Replaces `make export-<bag>-link-objs` for archaeology link scripts.
+# Bag name maps to the Makefile variable that holds the .o list:
+#   xnc           → XLANG_NO_C_FRONTEND_LINK_OBJS (mk/archaeology_experiment_objs.mk)
+#   legacy-xlang-c → LEGACY_XLANG_C_PREREQS       (mk/driver_seed_composites.mk)
+#   relink-product → RELINK_PRODUCT_LINK_OBJS     (mk/driver_seed_composites.mk)
+#   xlang-x       → XLANG_X_LINK_OBJS             (mk/driver_seed_composites.mk)
+#   bxf           → DRIVER_SEED_X_FRONTEND_LINK_OBJS
+#   bs            → BOOTSTRAP_SELF_LINK_OBJS
+#   objs-core     → OBJS                          (mk/objs_core.mk)
+#   bxc           → OBJS                          (mk/objs_core.mk)
+# Output: single LINK_OBJS=<space-separated .o list> line.
+catalog_link_objs_export_dump() {
+  local bag="$1"
+  local var
+  case "$bag" in
+    xnc)             var=XLANG_NO_C_FRONTEND_LINK_OBJS ;;
+    legacy-xlang-c)  var=LEGACY_XLANG_C_PREREQS ;;
+    relink-product)  var=RELINK_PRODUCT_LINK_OBJS ;;
+    xlang-x)         var=XLANG_X_LINK_OBJS ;;
+    bxf)             var=DRIVER_SEED_X_FRONTEND_LINK_OBJS ;;
+    bs)              var=BOOTSTRAP_SELF_LINK_OBJS ;;
+    objs-core|bxc)   var=OBJS ;;
+    *)
+      echo "driver_seed_obj_catalog: unknown link-objs bag '$bag'" >&2
+      return 2
+      ;;
+  esac
+  catalog_shell_parse_all
+  local objs
+  objs=$(catalog_get "$var")
+  objs=$(catalog_norm_ws "$objs")
+  printf 'LINK_OBJS=%s\n' "$objs"
+}
+
+# wave926: --link-cflags-export <bag> — shell-primary LINK_CFLAGS dump.
+# Replaces `make export-<bag>-link-cflags` for archaeology link scripts.
+# Each bag has a distinct CFLAGS formula (mirrors Makefile export targets):
+#   relink-product → CFLAGS + DRIVER_SEED_LINK_FLAGS + ASM_GLUE_DUP_LDFLAGS + MAIN_LINK_FLAGS
+#   xnc            → CFLAGS + DRIVER_SEED_LINK_FLAGS + MAIN_LINK_FLAGS
+#   btc-typeck     → CFLAGS + -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK + ASM_GLUE_DUP_LDFLAGS + MAIN_LINK_FLAGS
+#   bxf            → CFLAGS + -DXLANG_USE_X_DRIVER -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN
+# Output: single LINK_CFLAGS=<flags> line.
+catalog_link_cflags_export_dump() {
+  local bag="$1"
+  catalog_shell_parse_all
+  local cflags driver_link_flags dup_ldflags main_link_flags
+  cflags=$(catalog_get CFLAGS)
+  driver_link_flags=$(catalog_get DRIVER_SEED_LINK_FLAGS)
+  dup_ldflags=$(catalog_get ASM_GLUE_DUP_LDFLAGS)
+  main_link_flags=$(catalog_get MAIN_LINK_FLAGS)
+  local link_cflags
+  case "$bag" in
+    relink-product)
+      link_cflags="$cflags $driver_link_flags $dup_ldflags $main_link_flags"
+      ;;
+    xnc)
+      link_cflags="$cflags $driver_link_flags $main_link_flags"
+      ;;
+    btc-typeck)
+      link_cflags="$cflags -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK $dup_ldflags $main_link_flags"
+      ;;
+    bxf)
+      link_cflags="$cflags -DXLANG_USE_X_DRIVER -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN"
+      ;;
+    *)
+      echo "driver_seed_obj_catalog: unknown link-cflags bag '$bag'" >&2
+      return 2
+      ;;
+  esac
+  link_cflags=$(catalog_norm_ws "$link_cflags")
+  printf 'LINK_CFLAGS=%s\n' "$link_cflags"
+}
+
 # Decide path
 USE_MAKE=0
 if [ "$FORCE_MAKE" -eq 1 ]; then
@@ -592,6 +684,18 @@ fi
 # wave925: --cflags-export short-circuit (shell-only; replaces make export-try-heat-cflags).
 if [ "$CFLAGS_EXPORT" -eq 1 ]; then
   catalog_cflags_export_dump
+  exit $?
+fi
+
+# wave926: --link-objs-export <bag> short-circuit (shell-only; replaces make export-*-link-objs).
+if [ -n "$LINK_OBJS_BAG" ]; then
+  catalog_link_objs_export_dump "$LINK_OBJS_BAG"
+  exit $?
+fi
+
+# wave926: --link-cflags-export <bag> short-circuit (shell-only; replaces make export-*-link-cflags).
+if [ -n "$LINK_CFLAGS_BAG" ]; then
+  catalog_link_cflags_export_dump "$LINK_CFLAGS_BAG"
   exit $?
 fi
 

@@ -127,15 +127,17 @@ _mk_assign_val() {
   printf '%s' "$line"
 }
 
-# wave856: full LINK bag needs make expansion (nested $(...) / Darwin filters).
-# G.7 有则补全 on bootstrap_driver_seed_export-*-link pattern — shell loads via
-# make export leaf when env unset; Makefile recipes drop multi-token XNC_LINK_OBJS=.
-# PLATFORM: SHARED — KEY=value from export target; no second .o inventory.
-_load_link_objs_via_make() {
-  # $1 = make export target (export-*-link-objs)
-  local target="$1"
+# wave926: full LINK bag via shell catalog (0 make; replaces wave856/857
+# make export leaves). G.7 有则补全 on catalog --link-objs/cflags-export.
+# XLANG_XNC_LINK_VIA_MAKE=1 escapes to make export (parity / debug).
+# PLATFORM: SHARED — KEY=value from catalog; no second .o inventory.
+_load_link_objs() {
   local raw line val
-  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  if [ "${XLANG_XNC_LINK_VIA_MAKE:-0}" = "1" ]; then
+    raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-xnc-link-objs) || return 1
+  else
+    raw=$(bash scripts/driver_seed_obj_catalog.sh --link-objs-export xnc 2>/dev/null) || return 1
+  fi
   val=
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
@@ -146,21 +148,23 @@ _load_link_objs_via_make() {
 }
 
 if [ -z "${XNC_LINK_OBJS:-}" ]; then
-  XNC_LINK_OBJS=$(_load_link_objs_via_make export-xnc-link-objs) \
-    || fail "failed to expand export-xnc-link-objs (wave856 LINK_OBJS shell-load)"
+  XNC_LINK_OBJS=$(_load_link_objs) \
+    || fail "failed to expand xnc link-objs (wave926 catalog)"
 fi
 if [ -z "${XNC_LINK_OBJS:-}" ]; then
-  fail "empty LINK_OBJS from export-xnc-link-objs (wave856)"
+  fail "empty LINK_OBJS from xnc link-objs (wave926)"
 fi
 
-# wave857: composed LINK_CFLAGS need make expansion (DRIVER_SEED_LINK_FLAGS /
-# ASM_GLUE / MAIN_LINK / platform ifeq). G.7 有则补全 on wave856 export-leaf pattern.
-# PLATFORM: SHARED — KEY=value from export target; no second flag inventory.
-_load_link_cflags_via_make() {
-  # $1 = make export target (export-*-link-cflags)
-  local target="$1"
+# wave926: composed LINK_CFLAGS via shell catalog (replaces wave857 make export).
+# G.7 有则补全 on catalog --link-cflags-export xnc.
+# PLATFORM: SHARED — KEY=value from catalog; no second flag inventory.
+_load_link_cflags() {
   local raw line val
-  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  if [ "${XLANG_XNC_LINK_VIA_MAKE:-0}" = "1" ]; then
+    raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-xnc-link-cflags) || return 1
+  else
+    raw=$(bash scripts/driver_seed_obj_catalog.sh --link-cflags-export xnc 2>/dev/null) || return 1
+  fi
   val=
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
@@ -171,11 +175,11 @@ _load_link_cflags_via_make() {
 }
 
 if [ -z "${XNC_LINK_CFLAGS:-}" ]; then
-  XNC_LINK_CFLAGS=$(_load_link_cflags_via_make export-xnc-link-cflags) \
-    || fail "failed to expand export-xnc-link-cflags (wave857 LINK_CFLAGS shell-load)"
+  XNC_LINK_CFLAGS=$(_load_link_cflags) \
+    || fail "failed to expand xnc link-cflags (wave926 catalog)"
 fi
 if [ -z "${XNC_LINK_CFLAGS:-}" ]; then
-  fail "empty LINK_CFLAGS from export-xnc-link-cflags (wave857)"
+  fail "empty LINK_CFLAGS from xnc link-cflags (wave926)"
 fi
 if [ -z "${XNC_REQUIRED_OBJS:-}" ]; then
   _ARCH_MK=mk/archaeology_experiment_objs.mk

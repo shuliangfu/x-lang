@@ -85,14 +85,18 @@ if [ "$MODE" != "run" ] && [ "$MODE" != "" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# wave858: full LEGACY link bag needs make expansion (nested composites).
-# G.7 有则补全 on export-*-link-objs pattern (wave856).
-# PLATFORM: SHARED — KEY=value from export target; no second .o inventory.
+# wave926: full LEGACY link bag via shell catalog (0 make; replaces wave858
+# make export leaves). G.7 有则补全 on catalog --link-objs/cflags-export.
+# XLANG_LEGACY_LINK_VIA_MAKE=1 escapes to make export (parity / debug).
+# PLATFORM: SHARED — KEY=value from catalog; no second .o inventory.
 # ---------------------------------------------------------------------------
-_load_link_objs_via_make() {
-  local target="$1"
+_load_link_objs() {
   local raw line val
-  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  if [ "${XLANG_LEGACY_LINK_VIA_MAKE:-0}" = "1" ]; then
+    raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-legacy-xlang-c-link-objs) || return 1
+  else
+    raw=$(bash scripts/driver_seed_obj_catalog.sh --link-objs-export legacy-xlang-c 2>/dev/null) || return 1
+  fi
   val=
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
@@ -102,10 +106,13 @@ _load_link_objs_via_make() {
   printf '%s' "$val"
 }
 
-_load_link_cflags_via_make() {
-  local target="$1"
+_load_link_cflags() {
   local raw line val
-  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  if [ "${XLANG_LEGACY_LINK_VIA_MAKE:-0}" = "1" ]; then
+    raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-relink-product-link-cflags) || return 1
+  else
+    raw=$(bash scripts/driver_seed_obj_catalog.sh --link-cflags-export relink-product 2>/dev/null) || return 1
+  fi
   val=
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
@@ -116,21 +123,21 @@ _load_link_cflags_via_make() {
 }
 
 if [ -z "${LEGACY_LINK_OBJS:-}" ]; then
-  LEGACY_LINK_OBJS=$(_load_link_objs_via_make export-legacy-xlang-c-link-objs) \
-    || fail "failed to expand export-legacy-xlang-c-link-objs (wave858 LINK_OBJS shell-load)"
+  LEGACY_LINK_OBJS=$(_load_link_objs) \
+    || fail "failed to expand legacy-xlang-c link-objs (wave926 catalog)"
 fi
 if [ -z "${LEGACY_LINK_OBJS:-}" ]; then
-  fail "empty LINK_OBJS from export-legacy-xlang-c-link-objs (wave858)"
+  fail "empty LINK_OBJS from legacy-xlang-c link-objs (wave926)"
 fi
 
-# CFLAGS formula identical to product archaeology relink-product bag (wave857).
-# G.7: reuse export leaf — do not invent a second flag inventory for LEGACY.
+# CFLAGS formula identical to product archaeology relink-product bag.
+# G.7: reuse catalog bag — do not invent a second flag inventory for LEGACY.
 if [ -z "${LEGACY_LINK_CFLAGS:-}" ]; then
-  LEGACY_LINK_CFLAGS=$(_load_link_cflags_via_make export-relink-product-link-cflags) \
-    || fail "failed to expand export-relink-product-link-cflags (wave858 CFLAGS reuse)"
+  LEGACY_LINK_CFLAGS=$(_load_link_cflags) \
+    || fail "failed to expand relink-product link-cflags (wave926 CFLAGS reuse)"
 fi
 if [ -z "${LEGACY_LINK_CFLAGS:-}" ]; then
-  fail "empty LINK_CFLAGS from export-relink-product-link-cflags (wave858)"
+  fail "empty LINK_CFLAGS from relink-product link-cflags (wave926)"
 fi
 
 # ---------------------------------------------------------------------------
