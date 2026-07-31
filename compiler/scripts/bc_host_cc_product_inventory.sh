@@ -107,6 +107,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_index_helpers.c|8.3.1|asm ELF INDEX residual helpers (slot+esz+try_index forest+lvalue_eff_addr) slice|2500|present"
   "compiler/pipeline_asm_emit_spill.c|8.3.1|asm ELF 7.3 live/Chaitin spill/bulk_mem/index-assign residual slice|2000|present"
   "compiler/pipeline_asm_emit_index_eff_addr.c|8.3.1|asm ELF INDEX effective-address scaled (bounds+rvalue_slice+eff_addr_scaled) slice|500|present"
+  "compiler/pipeline_asm_emit_expr_rec.c|8.3.1|asm ELF expr recursion dispatcher (lit_i32 + emit_expr_elf_rec) slice|100|present"
   # --- 8.3.3 typeck slices often pulled by glue ---
   "compiler/pipeline_typeck_field_access.c|8.3.3|field_access slice|500|present"
   "compiler/pipeline_typeck_soa.c|8.3.3|typeck SOA helper|50|present"
