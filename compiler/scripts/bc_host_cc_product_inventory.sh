@@ -92,7 +92,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_block_if_stmt.c|8.3.1|asm ELF block-level if-stmt emit (then-first jz) slice|80|present"
   "compiler/pipeline_asm_emit_block_inits.c|8.3.1|asm ELF block const/let init emit slice|140|present"
   "compiler/pipeline_asm_emit_assign.c|8.3.1|asm ELF EXPR_ASSIGN emit (lhs f32 + rhs + assign_rhs_to_rax + assign_elf) slice|600|present"
-  "compiler/pipeline_asm_emit_array_lit.c|8.3.1|asm ELF EXPR_ARRAY_LIT emit (elem_sz + empty + force_esz) slice|280|present"
+  "compiler/pipeline_asm_emit_array_lit.c|8.3.1|asm ELF EXPR_ARRAY_LIT emit (elem_sz + empty + force_esz + durable + force_esz_from_elem) slice|650|present"
   "compiler/pipeline_asm_emit_index.c|8.3.1|asm ELF EXPR_INDEX/ADDR_OF/DEREF emit (esz + load + lea) slice|350|present"
   "compiler/pipeline_asm_emit_match.c|8.3.1|asm ELF EXPR_MATCH/EXPR_IF emit (arm cmp+jeq + if jz) slice|140|present"
   "compiler/pipeline_asm_emit_panic.c|8.3.1|asm ELF EXPR_PANIC + int div-zero panic face slice|100|present"
