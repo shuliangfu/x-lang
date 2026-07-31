@@ -33,7 +33,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~34k + `ast_pool` ~16.4k；8.3.1 十三刀 + 8.3.2 module_import+struct_layout+top_level+type_alias+expr_sidecar+module_enum 已切；8.3.9 ✅；其余 ⬜ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~34k + `ast_pool` ~15.9k；8.3.1 十三刀 + 8.3.2 module_import+struct_layout+top_level+type_alias+expr_sidecar+module_enum+onefunc 已切；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -913,13 +913,14 @@
 | `pipeline_asm_emit_block_body.c` | ~809 | asm ELF block body sync emit（defer + body_sync + accessors）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_block_if_stmt.c` | ~106 | asm ELF block-level if-stmt emit（then-first jz）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_block_inits.c` | ~171 | asm ELF block const/let init emit 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
-| `ast_pool.c` | ~16,398 | AST 池 / MatchArm / sidecar | 🟡 module_import+struct_layout+top_level+type_alias+expr_sidecar+module_enum 已切；其余仍在 |
+| `ast_pool.c` | ~15,881 | AST 池 / MatchArm / sidecar | 🟡 module_import+struct_layout+top_level+type_alias+expr_sidecar+module_enum+onefunc 已切；其余仍在 |
 | `ast_pool_module_import.c` | ~226 | module ImportEntry cold-twin accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_struct_layout.c` | ~385 | module StructLayout cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_top_level.c` | ~134 | module TopLevelLetEntry cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_type_alias.c` | ~100 | module TypeAliasEntry cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_expr_sidecar.c` | ~647 | expr (+ type-pos) var-len sidecar 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_module_enum.c` | ~359 | module ModuleEnumEntry + enum field-access mark 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
+| `ast_pool_onefunc.c` | ~548 | OneFunc const/let/param/call/while/for 侧车切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_field_access.c` | 1,477 | field_access 权威切片（常被 glue 拉入） | ⬜ |
 | `pipeline_typeck_soa.c` | 255 | typeck SOA 辅助 | ⬜ |
 | `ast_pool_bootstrap_glue.c` | 632 | 冷启动 ast 桥 | ⬜ |
@@ -931,7 +932,7 @@
 
 | 消费方 | 如何引用 | 风险 |
 |--------|----------|------|
-| `compiler/mk/x_source_deps.mk` `PIPELINE_X_DEPS` | glue + 8.3.1 切片 + `ast_pool` + `ast_pool_module_import` + `ast_pool_struct_layout` + `ast_pool_top_level` + `ast_pool_type_alias` + `ast_pool_expr_sidecar` + `ast_pool_module_enum` + bootstrap glue | 改源必重编 pipeline_x |
+| `compiler/mk/x_source_deps.mk` `PIPELINE_X_DEPS` | glue + 8.3.1 切片 + `ast_pool` + `ast_pool_module_import` + `ast_pool_struct_layout` + `ast_pool_top_level` + `ast_pool_type_alias` + `ast_pool_expr_sidecar` + `ast_pool_module_enum` + `ast_pool_onefunc` + bootstrap glue | 改源必重编 pipeline_x |
 | g05 / standalone seed 链 | standalone seed + glue + types.inc | weak 孪生与主链分叉 |
 | `g05_ensure_relink_prereqs.sh` | mtime vs pipeline_x / standalone；切片 STALE | 产品热路径仍 host-cc 重编 |
 | `pipeline_gen.c` / `-E` runtime 路径 | 入口 pipeline.x 时追加 glue 到 stdout | 与 gen 双权威风险 |
@@ -957,7 +958,7 @@
   - ✅ asm block-level if-stmt emit 域 thin：`pipeline_asm_emit_block_if_stmt.c`（then-first + jz / else / done + live merge ~106 LOC）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 32→33 / g05 STALE / inventory 已收
   - ✅ asm block const/let init emit 域 thin：`pipeline_asm_emit_block_inits.c`（const+let · VECTOR/SLICE/fixed-array/struct · empty dual-GP ~171 LOC）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 33→34 / g05 STALE / inventory 已收
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
-  - ⬜ 下一域候选：8.3.2 arena_block / module_func / 下一 asm 域
+  - ⬜ 下一域候选：8.3.2 dep_ctx / module_func / arena / 下一 asm 域
 
 🟡 **8.3.2 `ast_pool.c` → .x / 已有 ast.x 权威收敛**
 
@@ -968,8 +969,9 @@
   - ✅ type_alias 域 thin：`ast_pool_type_alias.c`（`pipeline_module_type_alias_*` + `num_type_aliases_at` ~80 LOC body）同 TU 抽出；COUNT 37→38 / g05 STALE / inventory 已收
   - ✅ expr_sidecar 域 thin：`ast_pool_expr_sidecar.c`（call/method/match/struct_lit/array_lit + type_type_arg ~620 LOC body）同 TU 抽出；COUNT 38→39 / g05 STALE / inventory 已收
   - ✅ module_enum 域 thin：`ast_pool_module_enum.c`（`pipeline_module_enum_*` + expr/codegen enum field-access mark ~336 LOC body）同 TU 抽出；COUNT 39→40 / g05 STALE / inventory 已收
+  - ✅ onefunc 域 thin：`ast_pool_onefunc.c`（const/let/param/call/while/for + copy_sidecar ~522 LOC body；`grow_vec_copy_append` 上提 core）同 TU 抽出；COUNT 40→41 / g05 STALE / inventory 已收
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
-  - ⬜ 下一域候选：arena_block / module_func / …
+  - ⬜ 下一域候选：dep_ctx / module_func / arena / …
 
 ⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
@@ -1772,7 +1774,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 十三刀 ✅ · **8.3.2 module_import+struct_layout+top_level+type_alias+expr_sidecar+module_enum ✅** · 8.3.9 ✅ · **当前：8.3.2 下一域 / 下一 asm 域**）  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 十三刀 ✅ · **8.3.2 module_import+struct_layout+top_level+type_alias+expr_sidecar+module_enum+onefunc ✅** · 8.3.9 ✅ · **当前：8.3.2 下一域 / 下一 asm 域**）  
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
