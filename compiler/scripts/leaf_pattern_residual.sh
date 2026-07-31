@@ -9652,18 +9652,20 @@ fi
 if [ "${_th_recipe_n}" -lt 100 ]; then
   mf_bad "Makefile expected >=100 try-heat thin-call recipes (wave862; got ${_th_recipe_n}; multi-target logical expand)"
 fi
-_ex=$(cd "$COMPILER_DIR" && MAKEFLAGS= make -s export-try-heat-cflags 2>/dev/null || true)
+# wave942: catalog-primary CFLAGS/PIPELINE_GEN_CFLAGS (was make export-try-heat-cflags).
+# Makefile physically deleted in wave941; catalog is the single authority.
+_ex=$(cd "$COMPILER_DIR" && bash scripts/driver_seed_obj_catalog.sh --shell 2>/dev/null || true)
 if ! grep -qE '^CFLAGS=' <<<"$_ex"; then
-  mf_bad "export-try-heat-cflags must print CFLAGS=... (wave862)"
+  mf_bad "catalog must print CFLAGS=... (wave862/942)"
 fi
 if ! grep -qE '^PIPELINE_GEN_CFLAGS=' <<<"$_ex"; then
-  mf_bad "export-try-heat-cflags must print PIPELINE_GEN_CFLAGS=... (wave862)"
+  mf_bad "catalog must print PIPELINE_GEN_CFLAGS=... (wave862/942)"
 fi
 if ! grep -qE -- '-Wall|-I\.' <<<"$_ex"; then
-  mf_bad "export-try-heat-cflags must expand product CFLAGS includes (wave862)"
+  mf_bad "catalog must expand product CFLAGS includes (wave862/942)"
 fi
-if ! grep -q '_load_try_heat_cflags_via_make\|export-try-heat-cflags' "$COMPILER_DIR/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null; then
-  bad "ensure_host_cc_seed_o.sh must shell-load export-try-heat-cflags (wave862)"
+if ! grep -q '_load_try_heat_cflags_via_catalog\|export-try-heat-cflags' "$COMPILER_DIR/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null; then
+  bad "ensure_host_cc_seed_o.sh must shell-load CFLAGS via catalog (wave862/942)"
 fi
 note "B7B try-heat CFLAGS bulk shell-load (recipes ${_th_recipe_n}; wave862; not physical delete)"
 

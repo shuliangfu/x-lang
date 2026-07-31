@@ -306,29 +306,38 @@ FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
 # LD=/LD_RELFLAGS=; pipeline_x drops PIPELINE_X_* / XLANG_FORCE_REGEN_GEN inject.
 # Shell owns LD defaults + PIPELINE_X_DEPS mk-load when unset.
 # Residual: thin edges · B2 · mk lists · physical delete.
-# PLATFORM: SHARED — KEY=value from export target; no compile side effects.
-_load_try_heat_cflags_via_make() {
-  local raw line
-  raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-try-heat-cflags) || return 1
-  while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in
-      CFLAGS=*)
-        if [ -z "${CFLAGS+x}" ]; then
-          CFLAGS=${line#CFLAGS=}
-        fi
-        ;;
-      PIPELINE_GEN_CFLAGS=*)
-        if [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
-          PIPELINE_GEN_CFLAGS=${line#PIPELINE_GEN_CFLAGS=}
-        fi
-        ;;
-    esac
-  done <<<"$raw"
+# wave942: catalog-primary CFLAGS/PIPELINE_GEN_CFLAGS load (was make
+# export-try-heat-cflags). Makefile physically deleted in wave941; catalog is
+# the single authority for mk-derived KEY=VALUE (CC, CFLAGS, PIPELINE_GEN_CFLAGS
+# all sourced from mk/*.mk via driver_seed_obj_catalog.sh --shell).
+# XLANG_CATALOG_CACHE_FILE lets the parent bootstrap pass a pre-warmed cache
+# so this script does not re-parse all mk files (Windows MinGW: ~3min/call).
+# PLATFORM: SHARED — same KEY=VALUE semantics on Darwin/Linux/Windows MSYS2.
+_load_try_heat_cflags_via_catalog() {
+  local _val
+  if [ -z "${CFLAGS+x}" ]; then
+    if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+      _val=$(sed -n "s|^CFLAGS=||p" "${XLANG_CATALOG_CACHE_FILE}" | tail -n 1)
+    else
+      _val=$(bash scripts/driver_seed_obj_catalog.sh --shell 2>/dev/null \
+        | sed -n "s|^CFLAGS=||p" | tail -n 1)
+    fi
+    [ -n "$_val" ] && CFLAGS="$_val"
+  fi
+  if [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
+    if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+      _val=$(sed -n "s|^PIPELINE_GEN_CFLAGS=||p" "${XLANG_CATALOG_CACHE_FILE}" | tail -n 1)
+    else
+      _val=$(bash scripts/driver_seed_obj_catalog.sh --shell 2>/dev/null \
+        | sed -n "s|^PIPELINE_GEN_CFLAGS=||p" | tail -n 1)
+    fi
+    [ -n "$_val" ] && PIPELINE_GEN_CFLAGS="$_val"
+  fi
   return 0
 }
 
 if [ -z "${CFLAGS+x}" ] || [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
-  _load_try_heat_cflags_via_make || true
+  _load_try_heat_cflags_via_catalog || true
 fi
 # Match g05 / Makefile product includes; PIPELINE_GEN_CFLAGS optional when empty.
 BASE_CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
@@ -6526,15 +6535,12 @@ run_check() {
   fi
   # wave862: try-heat CFLAGS bulk shell-load via export-try-heat-cflags (G.7).
   # Makefile try-heat recipes must not re-inject CFLAGS=/PIPELINE_GEN_CFLAGS=.
-  if ! grep -qE '^export-try-heat-cflags:' Makefile; then
-    bad "Makefile must define export-try-heat-cflags (wave862)"
+  # wave942: catalog-primary CFLAGS load (was make export-try-heat-cflags).
+  # Makefile physically deleted in wave941; catalog is the single authority.
+  if ! grep -q '_load_try_heat_cflags_via_catalog\|export-try-heat-cflags' "$0"; then
+    bad "shell must load try-heat CFLAGS via catalog (wave862/942)"
   else
-    note "Makefile export-try-heat-cflags present (wave862)"
-  fi
-  if ! grep -q '_load_try_heat_cflags_via_make\|export-try-heat-cflags' "$0"; then
-    bad "shell must load try-heat CFLAGS via export leaf (wave862)"
-  else
-    note "try-heat CFLAGS shell-load present (wave862)"
+    note "try-heat CFLAGS catalog-load present (wave862/942)"
   fi
   _th_cflags_n=$(awk '
     $0 ~ /ensure_host_cc_seed_o\.sh try-heat/ { grab=1 }
