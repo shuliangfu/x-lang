@@ -173,7 +173,8 @@ catalog_get() {
     return 0
   fi
   # Last assignment wins (matches prior overwrite semantics of _CAT_STORE).
-  sed -n "s/^${1}=//p" "$_CAT_FILE" | tail -n 1
+  # Use '|' as sed delimiter — key names may contain '/' (e.g. wildcard paths).
+  sed -n "s|^${1}=||p" "$_CAT_FILE" | tail -n 1
 }
 
 # Collapse runs of spaces (make often leaves double spaces from empty $(VAR)).
@@ -200,7 +201,19 @@ catalog_expand_value() {
       printf '%s' "$val"
       return 0
     fi
-    rep=$(catalog_get "$name")
+    # Handle make built-in $(wildcard PATTERN) — expand shell glob
+    # (make semantics: return matching files, space-separated).
+    if [ "${name#wildcard }" != "$name" ]; then
+      local wpat="${name#wildcard }"
+      local wres=""
+      local wf
+      for wf in $wpat; do
+        [ -f "$wf" ] && wres="$wres $wf"
+      done
+      rep="${wres# }"
+    else
+      rep=$(catalog_get "$name")
+    fi
     val="${pre}${rep}${post}"
     i=$((i + 1))
   done
