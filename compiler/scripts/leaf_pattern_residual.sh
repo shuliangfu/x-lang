@@ -7941,6 +7941,25 @@ elif ! bash "$_bs_ps" --check >/dev/null 2>&1; then
 else
   note "bootstrap_self BS bag → catalog bs (wave955 post_ship; 0-make)"
 fi
+# wave956: xlang_x --check post_ship + catalog XXL bag (0-make).
+# Default: catalog --link-objs-export xlang-x + --link-cflags-export relink-product;
+# escape XLANG_XXL_LINK_VIA_MAKE=1 + MF only.
+# PLATFORM: SHARED — product xlang-x host-cc path after wave941 delete.
+_xxl_ps="$ROOT/compiler/scripts/xlang_x.sh"
+[ -f "$_xxl_ps" ] || _xxl_ps="scripts/xlang_x.sh"
+if [ ! -f "$_xxl_ps" ]; then
+  bad "missing xlang_x.sh (wave956 post_ship)"
+elif ! grep -q 'wave956' "$_xxl_ps"; then
+  bad "xlang_x must document wave956 post_ship --check"
+elif ! grep -q 'XLANG_XXL_LINK_VIA_MAKE' "$_xxl_ps"; then
+  bad "xlang_x must document XLANG_XXL_LINK_VIA_MAKE escape (wave956)"
+elif ! grep -qE 'link-objs-export xlang-x|--link-objs-export xlang-x' "$_xxl_ps"; then
+  bad "xlang_x must catalog-load XXL LINK_OBJS (wave956)"
+elif ! bash "$_xxl_ps" --check >/dev/null 2>&1; then
+  bad "xlang_x.sh --check failed (wave956 post_ship 0-make)"
+else
+  note "xlang_x XXL bag → catalog xlang-x + relink-product (wave956 post_ship; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then
