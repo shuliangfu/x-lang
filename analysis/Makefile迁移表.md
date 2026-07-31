@@ -53,7 +53,7 @@
 冷启动硬依赖：    H bootstrap-driver-seed · B pin gen · K seed-tools
 删 make 前体积债：C glue ~40k · 阶段 8.3（与本表并行，非 11.0 独占）
 11.3 物理删 make：✅ **已完成**（wave941）· catalog 单权威（mk/*.mk）· bootstrap 0 make · 双端 L4（wave942）  
-  post-delete residual（wave945–946）：✅ compiler-make 0-make · ✅ formal_std/net-tls shell · ✅ gate post_ship · ✅ README·vscode · ensure hint → xbuild · ✅ docs/07 · xbuild help · XXP/BXC catalog bags · dag/linker MF-absent  
+  post-delete residual（wave944–947）：✅ compiler-make 0-make · ✅ formal_std/net-tls shell · ✅ gate post_ship · ✅ README·vscode · ensure hint → xbuild · ✅ docs/07 · xbuild help · XXP/BXC catalog bags · ✅ **XXP ensure ladder 0-make**（wave947）· dag/linker MF-absent  
 
   BC 层 host-cc 业务 C（glue/pin）仍 ⬜ — **≠** MG 编排未完成
 ```
@@ -439,7 +439,7 @@
 | 3216 | `bootstrap-asm-full` | ⬜ |
 | 3270 | `bootstrap-self` | 🟢 wave843 shell · wave879 thin `@bash` only：`bootstrap_self.sh`；prereq graph residual |
 | 3359 | `bootstrap-pipeline` | ⬜ |
-| 3370 | `xlang-x-pipeline` | 🟢 wave845 shell · wave879 thin `@bash` only：`xlang_x_pipeline.sh`；prereq graph residual |
+| 3370 | `xlang-x-pipeline` | 🟢 wave845 shell · wave879 thin · wave946 bags · **wave947 ensure 0-make**（try-heat/migrate/asm-host） |
 | 3380 | `bootstrap-x-compiler` | 🟢 wave842 shell · wave879 thin `@bash` only：`bootstrap_x_compiler.sh`；prereq graph residual |
 | 3389 | `bootstrap-test` | ⬜ |
 | 3407 | `bootstrap-verify-bstrict` | ⬜ |

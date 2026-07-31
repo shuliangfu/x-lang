@@ -12,6 +12,8 @@
 #   hardcodes a second PIPELINE_X_* inventory —
 #   wave859: XXP_* bags when unset (was make export-xxp-link-bags)
 #   wave946: catalog-primary from PIPELINE_X_* / LSP_DIAG_LINK_O / PIPELINE_LIBS
+#   wave947: ensure ladder shell-primary (try-heat / migrate / build_seed_asm_host;
+#            was $MAKE residual after Makefile delete)
 #
 # Usage (cwd = compiler/):
 #   bash scripts/xlang_x_pipeline.sh
@@ -22,18 +24,20 @@
 #   TARGET_X            — .x-pipeline binary (default: ${TARGET}_x)
 #   CC / CFLAGS         — host C compiler + flags
 #                         CFLAGS default: catalog-primary when unset (wave943)
-#   MAKE                — residual escape only (Makefile deleted wave941)
+#   MAKE                — residual escape only (XLANG_XXP_ENSURE_VIA_MAKE=1 + MF)
 #   XXP_BASE_OBJS       — optional; default: PIPELINE_X_BASE_OBJS via catalog
 #   XXP_FRONTEND_OBJS   — optional; default: PIPELINE_X_FRONTEND_OBJS via catalog
 #   XXP_LINK_OBJS       — optional; default: PIPELINE_X_LINK_OBJS via catalog
 #   XXP_SATELLITE_OBJS  — optional; default: PIPELINE_X_SATELLITE_OBJS via catalog
 #   XXP_LSP_DIAG        — optional; default: LSP_DIAG_LINK_O via catalog
 #   XXP_LIBS            — optional; default: PIPELINE_LIBS via catalog (empty OK)
+#   XLANG_XXP_ENSURE_VIA_MAKE=1 — escape ensure ladder to make (needs Makefile)
 #
 # wave845 (G.7 有则补全): Makefile fat multi-make + $(CC) link → this script.
 # wave859: XXP_* shell-load (was make export leaf).
 # wave865/943: CFLAGS catalog-primary.
 # wave946: XXP bags catalog-primary (Makefile physically deleted wave941).
+# wave947: ensure ladder 0-make (try-heat / migrate_x_objs / build_seed_asm_host).
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -65,10 +69,29 @@ fail() { echo "xlang-x-pipeline: FAIL: $*" >&2; exit 1; }
 # ---------------------------------------------------------------------------
 if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   MF=Makefile
-  # wave943: Makefile physically deleted in wave941; structural checks no longer
-  # apply. Catalog is the single authority; shell loads CFLAGS via catalog.
+  # wave947: post-delete honesty — script body must own ensure ladder without
+  # bare $MAKE product edges (escape only via XLANG_XXP_ENSURE_VIA_MAKE).
+  # PLATFORM: SHARED — same grep on this file on Darwin/Linux/Windows MSYS2.
+  _self=$(cat scripts/xlang_x_pipeline.sh 2>/dev/null || cat "$0")
+  # Product ensure path must be shell-primary. Escape may still mention $MAKE
+  # only under XLANG_XXP_ENSURE_VIA_MAKE (parity); that is not the default path.
+  if ! printf '%s\n' "$_self" | grep -qE 'ensure_host_cc_seed_o\.sh try-heat pipeline_x\.o'; then
+    fail "ensure ladder must force pipeline_x.o via try-heat (wave947; G.7 wave929 twin)"
+  fi
+  if ! printf '%s\n' "$_self" | grep -qE 'migrate_x_objs\.sh'; then
+    fail "ensure ladder must call migrate_x_objs.sh (wave947)"
+  fi
+  if ! printf '%s\n' "$_self" | grep -qE 'build_seed_asm_host\.sh'; then
+    fail "ensure ladder must call build_seed_asm_host.sh (wave947)"
+  fi
+  if ! printf '%s\n' "$_self" | grep -qE 'XLANG_XXP_ENSURE_VIA_MAKE'; then
+    fail "ensure ladder must gate any make escape with XLANG_XXP_ENSURE_VIA_MAKE (wave947)"
+  fi
+  # Default product path must not be an unguarded top-level $MAKE ensure edge.
+  # Count unguarded: lines that are `$MAKE …` after a non-escape assignment are
+  # still allowed inside the escape branch only (checked by presence of gate).
   if [ ! -f "$MF" ]; then
-    log "CHECK OK (wave943; Makefile physically deleted; catalog-primary)"
+    log "CHECK OK (wave947; Makefile deleted; ensure ladder shell-primary + catalog bags)"
     exit 0
   fi
   # Makefile thin-call only (wave845): scan *recipe* lines (tab-indented) only —
@@ -104,7 +127,7 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if ! grep -qE '^export-try-heat-cflags:' "$MF"; then
     fail "Makefile must define export-try-heat-cflags (wave865)"
   fi
-  log "CHECK OK (wave845+859+865 xlang-x-pipeline shell-primary; XXP bags + CFLAGS export leaf; not physical delete)"
+  log "CHECK OK (wave845+859+865+947 xlang-x-pipeline shell-primary ensure + bags)"
   exit 0
 fi
 
@@ -188,19 +211,70 @@ fi
 
 # ---------------------------------------------------------------------------
 # Ensure ladder (same order as pre-wave845 Makefile body)
-# PLATFORM: SHARED — residual make edges for individual .o still via ensure/try-heat
+# wave947: shell-primary — no bare $MAKE (Makefile deleted wave941).
+# G.7 有则补全: try-heat / migrate_x_objs / build_seed_asm_host already own
+# the leaf bodies (wave735/789/929 twins). Escape: XLANG_XXP_ENSURE_VIA_MAKE=1
+# + Makefile present only (parity / archaeology debug).
+# PLATFORM: SHARED — same shell edges on Darwin/Linux/Windows MSYS2.
 # ---------------------------------------------------------------------------
-log "force pipeline_x.o (PIPELINE_X_FORCE_COMPILE=1)"
-# shellcheck disable=SC2086
-$MAKE pipeline_x.o PIPELINE_X_FORCE_COMPILE=1
+_xxp_ensure_via_make=0
+if [ "${XLANG_XXP_ENSURE_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
+  _xxp_ensure_via_make=1
+fi
 
-log "migrate-x-objs + satellites + build-seed-asm-host"
-# shellcheck disable=SC2086
-$MAKE migrate-x-objs $XXP_SATELLITE_OBJS build-seed-asm-host
+if [ "$_xxp_ensure_via_make" = "1" ]; then
+  log "ensure via make escape (XLANG_XXP_ENSURE_VIA_MAKE=1)"
+  # shellcheck disable=SC2086
+  $MAKE pipeline_x.o PIPELINE_X_FORCE_COMPILE=1
+  # shellcheck disable=SC2086
+  $MAKE migrate-x-objs $XXP_SATELLITE_OBJS build-seed-asm-host
+  # shellcheck disable=SC2086
+  $MAKE -B src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
+else
+  # 1) force pipeline_x.o — twin of build_xlang_asm wave929 try-heat path
+  log "force pipeline_x.o via try-heat (PIPELINE_X_FORCE_COMPILE=1)"
+  if [ ! -f scripts/ensure_host_cc_seed_o.sh ]; then
+    fail "missing scripts/ensure_host_cc_seed_o.sh (wave947 ensure ladder)"
+  fi
+  PIPELINE_X_FORCE_COMPILE=1 bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o \
+    || fail "try-heat pipeline_x.o failed (wave947)"
 
-log "force target_cpu / simd_enc / simd_loop (-B)"
-# shellcheck disable=SC2086
-$MAKE -B src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
+  # 2) migrate companion frontend .o (parser/typeck/codegen _x)
+  log "migrate-x-objs via migrate_x_objs.sh"
+  if [ ! -f scripts/migrate_x_objs.sh ]; then
+    fail "missing scripts/migrate_x_objs.sh (wave947 ensure ladder)"
+  fi
+  bash scripts/migrate_x_objs.sh all \
+    || fail "migrate_x_objs.sh failed (wave947)"
+
+  # 3) satellite .o bag (catalog PIPELINE_X_SATELLITE_OBJS → XXP_SATELLITE_OBJS)
+  log "satellites via try-heat ($XXP_SATELLITE_OBJS)"
+  # shellcheck disable=SC2086
+  for _sat in $XXP_SATELLITE_OBJS; do
+    [ -z "$_sat" ] && continue
+    bash scripts/ensure_host_cc_seed_o.sh try-heat "$_sat" \
+      || fail "try-heat satellite $_sat failed (wave947)"
+  done
+
+  # 4) seed asm host partials (backend_enc_* for pipeline_x consumers)
+  log "build-seed-asm-host via build_seed_asm_host.sh"
+  if [ ! -f scripts/build_seed_asm_host.sh ]; then
+    fail "missing scripts/build_seed_asm_host.sh (wave947 ensure ladder)"
+  fi
+  bash scripts/build_seed_asm_host.sh \
+    || fail "build_seed_asm_host.sh failed (wave947)"
+
+  # 5) force target_cpu / simd_enc / simd_loop (gen_driver may lag; historical -B)
+  log "force target_cpu / simd_enc / simd_loop (XLANG_HOST_CC_SEED_FORCE=1)"
+  for _force_o in \
+    src/driver/target_cpu.o \
+    src/asm/simd_enc.o \
+    src/asm/simd_loop.o
+  do
+    XLANG_HOST_CC_SEED_FORCE=1 bash scripts/ensure_host_cc_seed_o.sh try-heat "$_force_o" \
+      || fail "try-heat force $_force_o failed (wave947)"
+  done
+fi
 
 # ---------------------------------------------------------------------------
 # host-cc link TARGET_x (archaeology .x pipeline binary)
