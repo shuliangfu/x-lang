@@ -17,6 +17,8 @@
  * color map or bulk_mem_copy path. Face emitters (assign/index/binop) stay in
  * their slices; glue_emit_index_eff_addr_scaled_elf_c lives in
  * pipeline_asm_emit_index_eff_addr.c (same TU, after binop residual helpers).
+ * Thin public break/continue faces (pipeline_asm_emit_{break,continue}_elf_c)
+ * live next to their static impls in this leaf (wave1014 fold).
  *
  * Callers: block emit (live_in / color at entry); binop load/spill;
  * INDEX assign store; durable NAMED bulk fill; try_index forest (via
@@ -579,6 +581,21 @@ static int32_t pipeline_asm_emit_continue_elf_impl(struct ast_ASTArena *arena,
     return -1;
   glue_loop_continue_head_note_current();
   return backend_enc_jmp_arch(elf_ctx, ly->continue_label, ly->continue_len, ta);
+}
+
+/**
+ * EXPR_BREAK / EXPR_CONTINUE ELF faces (X emit_expr_elf single-line delegates).
+ * wave1014 G.7: folded from pipeline_glue residual next to static impls.
+ * PLATFORM: SHARED — product residual C; same TU as break/continue *_elf_impl.
+ */
+int32_t pipeline_asm_emit_break_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                      struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  return pipeline_asm_emit_break_elf_impl(arena, elf_ctx, ctx, ta);
+}
+
+int32_t pipeline_asm_emit_continue_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                         struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  return pipeline_asm_emit_continue_elf_impl(arena, elf_ctx, ctx, ta);
 }
 
 static void glue_live_fwd_remove(GlueBlockLiveFwd *live, int32_t off) {

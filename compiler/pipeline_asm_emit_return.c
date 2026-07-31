@@ -11,9 +11,9 @@
  *   / float promote / tail_join jmp)
  *
  * G.7: single product-mega EXPR_RETURN ELF emit path — do not open a second
- * return emitter in seed partial or a parallel glue copy. rec / thin wrapper
- * (pipeline_asm_emit_return_elf_c) stays in pipeline_glue.c and calls the
- * static impl (same TU). Host codegen also calls
+ * return emitter in seed partial or a parallel glue copy. Thin public wrapper
+ * pipeline_asm_emit_return_elf_c lives at end of this leaf (wave1014 fold) and
+ * calls the static impl (same TU). Host codegen also calls
  * pipeline_find_fixed_array_slice_escape (non-static) for twin escape capacity.
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c after float
@@ -629,5 +629,15 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
   if (ly->tail_join_label_len <= 0)
     return -1;
   return backend_enc_jmp_arch(elf_ctx, ly->tail_join_label, ly->tail_join_label_len, ta);
+}
+
+/**
+ * EXPR_RETURN ELF face (X emit_expr_elf single-line delegate).
+ * wave1014 G.7: folded from pipeline_glue residual next to static impl.
+ * PLATFORM: SHARED — product residual C; same TU as return_elf_impl.
+ */
+int32_t pipeline_asm_emit_return_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                       int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  return pipeline_asm_emit_return_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
 }
 

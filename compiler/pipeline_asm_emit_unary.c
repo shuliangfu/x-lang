@@ -10,9 +10,9 @@
  * - glue_enc_jz_after_bool_in_eax (bool-in-eax → jz; used by if/while/async)
  *
  * G.7: single product-mega unary ELF emit path — do not open a second NEG /
- * BITNOT / LOGNOT emitter in seed partial or a parallel glue copy. rec / thin
- * wrappers (pipeline_asm_emit_*_elf_c) stay in pipeline_glue.c and call these
- * static impls (same TU).
+ * BITNOT / LOGNOT emitter in seed partial or a parallel glue copy. Thin public
+ * wrappers (pipeline_asm_emit_{neg,lognot,bitnot}_elf_c) live at end of this
+ * leaf (wave1014 fold) and call these static impls (same TU).
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c after float
  * classifier forward decls and before await/as/try/logand emit helpers.
@@ -256,4 +256,24 @@ static int32_t pipeline_asm_emit_bitnot_elf_impl(struct ast_ASTArena *arena,
   if (kind_ord == (int32_t)ast_TypeKind_TYPE_I32)
     return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
   return 0;
+}
+
+/**
+ * EXPR_NEG / LOGNOT / BITNOT ELF faces (X emit_expr_elf single-line delegates).
+ * wave1014 G.7: folded from pipeline_glue residual next to static impls.
+ * PLATFORM: SHARED — product residual C; same TU as unary *_elf_impl.
+ */
+int32_t pipeline_asm_emit_neg_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                    int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  return pipeline_asm_emit_neg_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+int32_t pipeline_asm_emit_lognot_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                       int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  return pipeline_asm_emit_lognot_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+int32_t pipeline_asm_emit_bitnot_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                        int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  return pipeline_asm_emit_bitnot_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
 }

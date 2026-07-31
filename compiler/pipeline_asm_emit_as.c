@@ -11,9 +11,9 @@
  * - pipeline_asm_emit_as_elf_impl (int/float cast family; routes await via stub)
  *
  * G.7: single product-mega EXPR_AS ELF emit path — do not open a second cast
- * emitter in seed partial or a parallel glue copy. rec / thin wrappers
- * (pipeline_asm_emit_as_elf_c) stay in pipeline_glue.c and call these static
- * impls (same TU).
+ * emitter in seed partial or a parallel glue copy. Thin public wrapper
+ * pipeline_asm_emit_as_elf_c lives at end of this leaf (wave1014 fold) and
+ * calls the static impl (same TU).
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c after the
  * unary emit slice and before async CPS; logand·logor live in
@@ -409,4 +409,14 @@ static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
     }
   }
   return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta);
+}
+
+/**
+ * EXPR_AS ELF face (X emit_expr_elf single-line delegate).
+ * wave1014 G.7: folded from pipeline_glue residual next to static impl.
+ * PLATFORM: SHARED — product residual C; same TU as as_elf_impl.
+ */
+int32_t pipeline_asm_emit_as_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                   int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  return pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
 }

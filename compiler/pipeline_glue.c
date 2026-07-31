@@ -4123,50 +4123,10 @@ static int32_t glue_try_binop_cmp_rbx_rax_elf_c(struct ast_ASTArena *arena,
 
 /* BC 8.3.1: asm ELF expr recursion dispatcher domain
  * (lit_i32 + emit_expr_elf_rec; Cap residual pure; same TU).
- * Face emitters stay in domain leaves; slow remains backend residual. */
+ * Face emitters stay in domain leaves; slow remains backend residual.
+ * wave1014: thin public return/break/continue/neg/lognot/bitnot/as faces
+ * folded into return/unary/as/spill leaves (G.7 有则补全; no glue residual). */
 #include "pipeline_asm_emit_expr_rec.c"
-
-/** EXPR_RETURN ELF 发射（X emit_expr_elf 单行委托）。 */
-int32_t pipeline_asm_emit_return_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                       int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  return pipeline_asm_emit_return_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
-}
-
-/** EXPR_BREAK ELF 发射（X emit_expr_elf 单行委托）。 */
-int32_t pipeline_asm_emit_break_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                      struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  return pipeline_asm_emit_break_elf_impl(arena, elf_ctx, ctx, ta);
-}
-
-/** EXPR_CONTINUE ELF 发射（X emit_expr_elf 单行委托）。 */
-int32_t pipeline_asm_emit_continue_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                         struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  return pipeline_asm_emit_continue_elf_impl(arena, elf_ctx, ctx, ta);
-}
-
-/** EXPR_NEG ELF 发射（X emit_expr_elf 单行委托）。 */
-int32_t pipeline_asm_emit_neg_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                    int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  return pipeline_asm_emit_neg_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
-}
-
-/** EXPR_LOGNOT ELF 发射（X emit_expr_elf 单行委托）。 */
-int32_t pipeline_asm_emit_lognot_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                       int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  return pipeline_asm_emit_lognot_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
-}
-
-/** EXPR_BITNOT ELF 发射（X emit_expr_elf 单行委托；wave290 Cap residual）。 */
-int32_t pipeline_asm_emit_bitnot_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                        int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  return pipeline_asm_emit_bitnot_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
-}
-
-/** EXPR_AS ELF 发射（X emit_expr_elf 单行委托）。 */
-int32_t pipeline_asm_emit_as_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                   int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  return pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
-}
 
 #define GLUE_TYPE_NAMED 8
 
