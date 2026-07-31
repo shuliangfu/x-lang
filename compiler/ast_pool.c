@@ -1593,40 +1593,9 @@ void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct ast_Modu
 #include "ast_pool_block.c"
 
 /* BC 8.3.2 wave991: onefunc fill residual lives in ast_pool_onefunc.c (include later).
- * core residual here after block include: module_top_level_name_is_const +
- * hoist_top_level_lets (calls block prepend_lets) + module enum/… */
-
-/**
- * wave678 Cap residual: 1 if a module top-level let/const slot has this name and
- * is_const (top-level `const N = …`). 0 if missing or non-const top let.
- * @param m *Module
- * @param vname *u8
- * @param vlen i32
- * @return i32 — 1 const top-level, 0 otherwise
- * PLATFORM: SHARED
- */
-int32_t pipeline_module_top_level_name_is_const(struct ast_Module *m, uint8_t *vname, int32_t vlen) {
-  int32_t n;
-  int32_t i;
-  int32_t nl;
-  int32_t k;
-  if (!m || !vname || vlen <= 0)
-    return 0;
-  n = m->num_top_level_lets;
-  for (i = 0; i < n; i++) {
-    nl = pipeline_module_top_level_let_name_len(m, i);
-    if (nl != vlen)
-      continue;
-    for (k = 0; k < vlen; k++) {
-      if (pipeline_module_top_level_let_name_byte_at(m, i, k) != vname[k])
-        break;
-    }
-    if (k == vlen)
-      return pipeline_module_top_level_let_is_const(m, i) != 0 ? 1 : 0;
-  }
-  return 0;
-}
-
+ * BC 8.3.2 wave993: name_is_const + hoist live in ast_pool_top_level.c (include below;
+ * after block so static prepend_lets is visible). core residual: hoist target /
+ * sum stack + module enum / backend wrappers … */
 
 /** ---------- Module import / struct_layout / top_level / enum 动态池 ---------- */
 
@@ -1636,81 +1605,11 @@ int32_t pipeline_module_top_level_name_is_const(struct ast_Module *m, uint8_t *v
 /** BC 8.3.2: module StructLayout cold accessors (same-TU thin). */
 #include "ast_pool_struct_layout.c"
 
-/** BC 8.3.2: module TopLevelLetEntry cold accessors (same-TU thin). */
+/** BC 8.3.2 wave980+993: TopLevelLetEntry accessors + name_is_const + hoist. */
 #include "ast_pool_top_level.c"
 
 /** BC 8.3.2: module TypeAliasEntry cold accessors (same-TU thin). */
 #include "ast_pool_type_alias.c"
-
-/**
- * 将 module 顶层 let/const 按序并入 main（或库模块首个 non extern 函数）体块，供 asm 栈槽初始化。
- * 保留 num_top_level_lets 供 emit 对其它函数做 module const 字面量回落（AF_INET as u16 等）。
- */
-void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct ast_ASTArena *a) {
-  int32_t mi;
-  int32_t br;
-  int32_t tl;
-  int32_t fi;
-  int32_t n;
-  int32_t let_start_idx;
-  uint8_t name_buf[128];
-  int32_t name_len;
-  int32_t k;
-  ModuleSidecar *sc;
-  TopLevelLetEntry *ent;
-  const char *dbg_hoist;
-  struct ast_Block *main_blk;
-  if (!m || !a || m->num_top_level_lets <= 0)
-    return;
-  dbg_hoist = link_abi_getenv("XLANG_DEBUG_TOPLEVEL_HOIST");
-  mi = m->main_func_index;
-  if (mi < 0) {
-    /* 库模块 -o .o 无 main：并入首个可 emit 的非 extern 函数体（与 C static 全局等价）。 */
-    mi = -1;
-    for (fi = 0; fi < m->num_funcs; fi++) {
-      if (pipeline_asm_module_func_is_extern_at(m, fi) == 0 &&
-          pipeline_module_func_body_ref_at(m, fi) > 0) {
-        mi = fi;
-        break;
-      }
-    }
-    if (mi < 0)
-      return;
-  }
-  br = pipeline_module_func_body_ref_at(m, mi);
-  if (br <= 0)
-    return;
-  sc = module_sidecar_get(m, 0);
-  if (!sc)
-    return;
-  main_blk = block_at(a, br);
-  let_start_idx = main_blk ? main_blk->num_lets : 0;
-  n = m->num_top_level_lets;
-  if (dbg_hoist && dbg_hoist[0] && dbg_hoist[0] != '0') {
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "hoist debug: target_fi=%d body_ref=%d top_level_lets=%d prior_block_lets=%d",
-                 (int)mi, (int)br, (int)n, (int)let_start_idx);
-  }
-  for (tl = 0; tl < n; tl++) {
-    if (tl < 0 || tl >= sc->top_level_lets.len)
-      break;
-    ent = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, tl);
-    /* wave581 Cap residual: top-level let name content cap 127. */
-    if (!ent || ent->name_len <= 0 || ent->name_len > 127)
-      continue;
-    if (dbg_hoist && dbg_hoist[0] && dbg_hoist[0] != '0' && tl < 40) {
-      diag_reportf(NULL, 0, 0, "note", NULL,
-                   "hoist debug: idx=%d const=%d name=%.*s init_ref=%d init_kind=%d",
-                   (int)tl, (int)ent->is_const, (int)ent->name_len, (const char *)ent->name,
-                   (int)ent->init_ref, (int)pipeline_expr_kind_ord_at(a, ent->init_ref));
-    }
-    name_len = ent->name_len;
-    for (k = 0; k < name_len; k++)
-      name_buf[k] = ent->name[k];
-    (void)pipeline_block_append_let(a, br, name_buf, name_len, ent->type_ref, ent->init_ref);
-  }
-  pipeline_block_stmt_order_prepend_lets(a, br, let_start_idx, n);
-}
 
 /**
  * 返回 hoist 目标函数下标：main 或库模块首个非 extern 实现函数。

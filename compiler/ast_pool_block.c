@@ -24,15 +24,15 @@
  *   - pipeline_block_stmt_order_rebuild_sparse_ifs
  *   - pipeline_module_fixup_with_arena_stmt_orders (module walk → block fixups)
  *
- * Left in core (next residual / other domains):
- * - fill_*_from_onefunc lives in onefunc slice (same TU after this include)
- * - module_top_level_name_is_const (top_level name-scan consumer)
- * - hoist_top_level_lets_into_main (calls prepend_lets; same TU after include)
+ * Left in other domains (same TU after this include):
+ * - fill_*_from_onefunc → onefunc slice (wave991)
+ * - module_top_level_name_is_const + hoist_top_level_lets_into_main →
+ *   top_level slice (wave993; hoist calls static prepend_lets here)
  *
  * Depends on same-TU statics: block_at, arena_sidecar_get, grow_vec_*,
  * link_abi_getenv, diag_reportf, pipeline_expr_kind_ord_at,
  * pipeline_arena_expr_ptr, pipeline_module_func_*.
- * fill helpers (onefunc) and hoist (core) call these exports same TU.
+ * fill helpers (onefunc) and hoist (top_level) call these exports same TU.
  *
  * PLATFORM: SHARED — host-cc Cap residual; parser/typeck/codegen call these.
  * Wave: 988–990 + 992 residual · no semantic change · pin stays 77b334842.
