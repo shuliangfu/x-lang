@@ -1493,6 +1493,7 @@
   - ✅ wave944：compiler-make / formal_std ensure **0-make**；phys-del/leaf **post_ship**
   - ✅ wave945：README/vscode 11.6.2/3 · labi ensure hint · bootstrap smoke hint → `./xbuild`
   - ✅ wave945 residual：README/vscode / labi 诊断 hint → `./xbuild`（**非** ensure 权威）
+  - ✅ wave946：docs/07 · xbuild help · g05 cold hint · xlang.toml · dag/linker MF-absent · XXP/BXC catalog bag（考古 ensure 阶梯 `$MAKE` residual 另计）
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
@@ -1677,6 +1678,7 @@
 
   - ✅ `test ! -e Makefile && test ! -e compiler/Makefile`（wave941）
   - ✅ wave945：README · editors/vscode · labi ensure hint 已去 make -C（产品入口 `./xbuild`）
+  - ✅ wave946：docs/07 std.db 构建提示 · xbuild help 实现层 · XXP/BXC bag catalog-primary
 
 ⬜ **13.2.3 零 cc 三义验收**（§0.1 MG+BC+PC）
 
@@ -1759,7 +1761,7 @@ MG **编排层**已完成（wave941/942/944/945）。剩余主债：**BC/PC 零 
 
 剩余工作优先级（MG 已闭后）：
 
-1. ✅ **post-delete 文档 residual**（wave945）— README/vscode + labi hint → `./xbuild`  
+1. ✅ **post-delete residual**（wave944–946）— 0-make hub · gate post_ship · docs/help/hint · XXP/BXC catalog bags  
 
 2. **阶段 8.3** pipeline_glue / ast_pool 等非 gen 产品 C  
 3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  

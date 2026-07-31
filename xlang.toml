@@ -2,7 +2,7 @@
 #
 # ============================================================================
 # ⚠️  本文件为【Full 设计示例 / 语言仓库超集】，编译器尚未读取。
-#     构建仍由 compiler/Makefile + CLI + env 驱动。
+#     构建由 ./xbuild / CLI + env 驱动（compiler/Makefile 已物理删除 · wave941）。
 #     实现路线（Core vs Full、解析裂缝、阶段 0–4）：
 #       analysis/xlang-toml-实现分析.md
 #     与 build.x 正交分工：

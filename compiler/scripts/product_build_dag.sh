@@ -375,10 +375,15 @@ if [ ! -f compiler/scripts/driver_seed_ensure_prereqs.sh ]; then
   bad "missing compiler/scripts/driver_seed_ensure_prereqs.sh (wave744 11.3 prereq edges)"
 elif ! grep -q 'driver_seed_ensure_prereqs' compiler/scripts/bootstrap_driver_seed.sh; then
   bad "bootstrap_driver_seed.sh must call driver_seed_ensure_prereqs (wave744)"
-elif grep -nE '^bootstrap-driver-seed:.*DRIVER_SEED_PREREQS' compiler/Makefile \
+elif [ -f compiler/Makefile ] \
+  && grep -nE '^bootstrap-driver-seed:.*DRIVER_SEED_PREREQS' compiler/Makefile \
   | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
   bad "Makefile must not use DRIVER_SEED_PREREQS as make-graph deps (wave744 shell ensure)"
 else
+  # wave946 post_ship: Makefile already absent — skip make-graph anti-pattern grep.
+  if [ ! -f compiler/Makefile ]; then
+    note "Makefile absent (wave946 post_ship): skip DRIVER_SEED_PREREQS make-graph check"
+  fi
   if ! bash compiler/scripts/driver_seed_ensure_prereqs.sh --check >/tmp/driver_seed_ensure_prereqs_check.out 2>/tmp/driver_seed_ensure_prereqs_check.err; then
     bad "driver_seed_ensure_prereqs.sh --check failed"
     head -20 /tmp/driver_seed_ensure_prereqs_check.err >&2 || true

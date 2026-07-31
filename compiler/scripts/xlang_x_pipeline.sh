@@ -10,8 +10,8 @@
 #
 #   Object lists stay mk expansion (pipeline_x_objs.mk; wave817). Shell never
 #   hardcodes a second PIPELINE_X_* inventory —
-#   wave859: XXP_* bags via make export-xxp-link-bags when unset
-#   (LINK needs nested $(USER_ASM_LINK) + PIPELINE_LIBS platform ifeq).
+#   wave859: XXP_* bags when unset (was make export-xxp-link-bags)
+#   wave946: catalog-primary from PIPELINE_X_* / LSP_DIAG_LINK_O / PIPELINE_LIBS
 #
 # Usage (cwd = compiler/):
 #   bash scripts/xlang_x_pipeline.sh
@@ -21,21 +21,19 @@
 #   TARGET              — product binary basename (default: xlang)
 #   TARGET_X            — .x-pipeline binary (default: ${TARGET}_x)
 #   CC / CFLAGS         — host C compiler + flags
-#                         CFLAGS default: load via export-try-heat-cflags when
-#                         unset (wave865; G.7 有则补全 on wave862)
-#   MAKE                — make binary (for residual ensure edges + export leaf)
-#   XXP_BASE_OBJS       — optional; default loads via export-xxp-link-bags
-#   XXP_FRONTEND_OBJS   — optional; default loads via export-xxp-link-bags
-#   XXP_LINK_OBJS       — optional; default loads via export-xxp-link-bags
-#   XXP_SATELLITE_OBJS  — optional; default loads via export-xxp-link-bags
-#   XXP_LSP_DIAG        — optional; default loads via export-xxp-link-bags
-#   XXP_LIBS            — optional; default loads via export-xxp-link-bags
-#                          (may be empty on non-Linux)
+#                         CFLAGS default: catalog-primary when unset (wave943)
+#   MAKE                — residual escape only (Makefile deleted wave941)
+#   XXP_BASE_OBJS       — optional; default: PIPELINE_X_BASE_OBJS via catalog
+#   XXP_FRONTEND_OBJS   — optional; default: PIPELINE_X_FRONTEND_OBJS via catalog
+#   XXP_LINK_OBJS       — optional; default: PIPELINE_X_LINK_OBJS via catalog
+#   XXP_SATELLITE_OBJS  — optional; default: PIPELINE_X_SATELLITE_OBJS via catalog
+#   XXP_LSP_DIAG        — optional; default: LSP_DIAG_LINK_O via catalog
+#   XXP_LIBS            — optional; default: PIPELINE_LIBS via catalog (empty OK)
 #
 # wave845 (G.7 有则补全): Makefile fat multi-make + $(CC) link → this script.
-# wave859: XXP_* shell-load via make export leaf (G.7; not physical delete).
-# wave865: CFLAGS shell-load via export-try-heat-cflags (no multi-token CFLAGS=).
-# NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain.
+# wave859: XXP_* shell-load (was make export leaf).
+# wave865/943: CFLAGS catalog-primary.
+# wave946: XXP bags catalog-primary (Makefile physically deleted wave941).
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -124,23 +122,42 @@ if [ "$MODE" != "run" ] && [ "$MODE" != "" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Preflight: XXP bags from make export leaf when unset (wave859; G.7)
-# PIPELINE_X_LINK_OBJS needs nested $(USER_ASM_LINK); PIPELINE_LIBS platform ifeq.
-# PLATFORM: SHARED — KEY=value from export target; no second .o inventory.
+# Preflight: XXP bags (wave946 catalog-primary; G.7 有则补全 on wave859/926)
+# Map mk/catalog keys → XXP_* env used by this archaeology link body.
+# PLATFORM: SHARED — KEY=value from catalog; no second .o inventory.
+# Escape: XLANG_XXP_LINK_VIA_MAKE=1 + Makefile present (parity only).
 # ---------------------------------------------------------------------------
-_load_xxp_bags_via_make() {
+_load_xxp_bags() {
   local raw line
-  raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-xxp-link-bags) || return 1
-  while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in
-      XXP_BASE_OBJS=*) XXP_BASE_OBJS=${line#XXP_BASE_OBJS=} ;;
-      XXP_FRONTEND_OBJS=*) XXP_FRONTEND_OBJS=${line#XXP_FRONTEND_OBJS=} ;;
-      XXP_LINK_OBJS=*) XXP_LINK_OBJS=${line#XXP_LINK_OBJS=} ;;
-      XXP_SATELLITE_OBJS=*) XXP_SATELLITE_OBJS=${line#XXP_SATELLITE_OBJS=} ;;
-      XXP_LSP_DIAG=*) XXP_LSP_DIAG=${line#XXP_LSP_DIAG=} ;;
-      XXP_LIBS=*) XXP_LIBS=${line#XXP_LIBS=} ;;
-    esac
-  done <<<"$raw"
+  if [ "${XLANG_XXP_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
+    raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-xxp-link-bags) || return 1
+    while IFS= read -r line || [ -n "$line" ]; do
+      case "$line" in
+        XXP_BASE_OBJS=*) XXP_BASE_OBJS=${line#XXP_BASE_OBJS=} ;;
+        XXP_FRONTEND_OBJS=*) XXP_FRONTEND_OBJS=${line#XXP_FRONTEND_OBJS=} ;;
+        XXP_LINK_OBJS=*) XXP_LINK_OBJS=${line#XXP_LINK_OBJS=} ;;
+        XXP_SATELLITE_OBJS=*) XXP_SATELLITE_OBJS=${line#XXP_SATELLITE_OBJS=} ;;
+        XXP_LSP_DIAG=*) XXP_LSP_DIAG=${line#XXP_LSP_DIAG=} ;;
+        XXP_LIBS=*) XXP_LIBS=${line#XXP_LIBS=} ;;
+      esac
+    done <<<"$raw"
+  else
+    if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+      raw=$(cat "${XLANG_CATALOG_CACHE_FILE}")
+    else
+      raw=$(bash scripts/driver_seed_obj_catalog.sh --shell 2>/dev/null) || return 1
+    fi
+    while IFS= read -r line || [ -n "$line" ]; do
+      case "$line" in
+        PIPELINE_X_BASE_OBJS=*) XXP_BASE_OBJS=${line#PIPELINE_X_BASE_OBJS=} ;;
+        PIPELINE_X_FRONTEND_OBJS=*) XXP_FRONTEND_OBJS=${line#PIPELINE_X_FRONTEND_OBJS=} ;;
+        PIPELINE_X_LINK_OBJS=*) XXP_LINK_OBJS=${line#PIPELINE_X_LINK_OBJS=} ;;
+        PIPELINE_X_SATELLITE_OBJS=*) XXP_SATELLITE_OBJS=${line#PIPELINE_X_SATELLITE_OBJS=} ;;
+        LSP_DIAG_LINK_O=*) XXP_LSP_DIAG=${line#LSP_DIAG_LINK_O=} ;;
+        PIPELINE_LIBS=*) XXP_LIBS=${line#PIPELINE_LIBS=} ;;
+      esac
+    done <<<"$raw"
+  fi
   return 0
 }
 
@@ -148,25 +165,25 @@ _load_xxp_bags_via_make() {
 if [ -z "${XXP_BASE_OBJS:-}" ] || [ -z "${XXP_FRONTEND_OBJS:-}" ] || \
    [ -z "${XXP_LINK_OBJS:-}" ] || [ -z "${XXP_SATELLITE_OBJS:-}" ] || \
    [ -z "${XXP_LSP_DIAG:-}" ] || [ -z "${XXP_LIBS+x}" ]; then
-  _load_xxp_bags_via_make \
-    || fail "failed to expand export-xxp-link-bags (wave859 XXP shell-load)"
+  _load_xxp_bags \
+    || fail "failed to expand XXP bags (wave946 catalog PIPELINE_X_* / PIPELINE_LIBS)"
 fi
 if [ -z "${XXP_BASE_OBJS:-}" ]; then
-  fail "empty XXP_BASE_OBJS from export-xxp-link-bags (wave859)"
+  fail "empty XXP_BASE_OBJS from catalog PIPELINE_X_BASE_OBJS (wave946)"
 fi
 if [ -z "${XXP_FRONTEND_OBJS:-}" ]; then
-  fail "empty XXP_FRONTEND_OBJS from export-xxp-link-bags (wave859)"
+  fail "empty XXP_FRONTEND_OBJS from catalog PIPELINE_X_FRONTEND_OBJS (wave946)"
 fi
 if [ -z "${XXP_LINK_OBJS:-}" ]; then
-  fail "empty XXP_LINK_OBJS from export-xxp-link-bags (wave859)"
+  fail "empty XXP_LINK_OBJS from catalog PIPELINE_X_LINK_OBJS (wave946)"
 fi
 if [ -z "${XXP_SATELLITE_OBJS:-}" ]; then
-  fail "empty XXP_SATELLITE_OBJS from export-xxp-link-bags (wave859)"
+  fail "empty XXP_SATELLITE_OBJS from catalog PIPELINE_X_SATELLITE_OBJS (wave946)"
 fi
 if [ -z "${XXP_LSP_DIAG:-}" ]; then
-  fail "empty XXP_LSP_DIAG from export-xxp-link-bags (wave859)"
+  fail "empty XXP_LSP_DIAG from catalog LSP_DIAG_LINK_O (wave946)"
 fi
-# XXP_LIBS may be empty (non-Linux) — OK; ensure variable is set for set -u
+# XXP_LIBS may be empty (non-Linux) — OK; ensure variable is set for set -u.
 : "${XXP_LIBS:=}"
 
 # ---------------------------------------------------------------------------

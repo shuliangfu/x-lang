@@ -558,11 +558,11 @@ case "$TARGET" in
   bootstrap-parse-file)
     (cd compiler && sh scripts/bootstrap_parser_smoke.sh parse-file)
     ;;
-  # wave845: xlang-x-pipeline shell-primary (G.7; multi-make ensure + host-cc link)
-  # Note: full product still needs make prereq graph; xbuild entry is structural/thin path.
+  # wave845: xlang-x-pipeline shell-primary (G.7). wave946: post-delete honesty —
+  # full archaeology link is the same shell body (catalog bags; no make -C).
   xlang-x-pipeline|xlang_x_pipeline)
     (cd compiler && sh scripts/xlang_x_pipeline.sh --check)
-    echo "xbuild xlang-x-pipeline: structural --check only; full link: make -C compiler xlang-x-pipeline" >&2
+    echo "xbuild xlang-x-pipeline: structural --check only; full link: cd compiler && bash scripts/xlang_x_pipeline.sh" >&2
     ;;
   bootstrap-verify)
     (cd compiler && sh scripts/bootstrap_verify_bstrict.sh)
@@ -714,17 +714,17 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        图 = compiler/docs/LEAF_PATTERN_RESIDUAL.md
                                        （非物理删 make；G.7 禁双 .o 清单）
 
-CI / 冷启动（外层 0× make -C；叶 pattern residual 至 11.3）:
+CI / 冷启动（外层 0× make；Makefile 已删 wave941）:
   compiler-all / ci-all      scripts/compiler_all_ci.sh（CI host-cc；≠ 产品 all；wave784）
   bootstrap-driver-seed      冷启动（shell ensure_prereqs → §5b 编排）
-  compiler-make <args…>      残余叶透传（std .o / CFLAGS / ASan）
-                             体 = tests/lib/compiler-make.sh（G.7 单 hub）
+  compiler-make <args…>      叶 .o / archaeology phony 分发（std .o / stub / ASan）
+                             体 = tests/lib/compiler-make.sh（G.7 单 hub · 0-make）
 
 测试 / 自举:
   test / test_c / test_x     scripts/run_compiler_tests.sh
   bootstrap-token / lexer    scripts/bootstrap_token_lexer_smoke.sh
   bootstrap-parser / parse-file  scripts/bootstrap_parser_smoke.sh (wave844)
-  xlang-x-pipeline               scripts/xlang_x_pipeline.sh --check (wave845; full=make)
+  xlang-x-pipeline               scripts/xlang_x_pipeline.sh --check (wave845; full=same shell)
   bootstrap-driver-bstrict   scripts/bootstrap_driver_bstrict.sh
   bootstrap-verify           scripts/bootstrap_verify_bstrict.sh
 
@@ -741,12 +741,12 @@ CI / 冷启动（外层 0× make -C；叶 pattern residual 至 11.3）:
   XLANG_G05_LEGACY_SMOKE=1  c08 gate 额外跑 ./build_tool ./xlang legacy（默认跳过）
 
 实现层（用户勿直接依赖）:
-  tests/lib/compiler-make.sh               — 残余 make -C 唯一体（tests + xbuild）
+  tests/lib/compiler-make.sh               — 叶分发 hub（0-make；tests + xbuild）
   compiler/scripts/g05_build_xlang_asm.sh  — build_tool 唯一 asm 出口
   compiler/scripts/g05_prepare_and_relink.sh — ensure+env+link 编排
   compiler/scripts/refresh_xlang_asm_gate.sh — P0 refresh 门禁体（wave734）
-  compiler/Makefile                         — 冷启动 / 叶 .o 图（至 11.3）
-  根 Makefile                               — help-only；勿再加厚
+  compiler/scripts/driver_seed_obj_catalog.sh — mk/*.mk 单权威列表/CFLAGS
+  compiler/Makefile / 根 Makefile          — 已物理删除（wave941）；勿再新建
 
 日常优先:
   ./xbuild build

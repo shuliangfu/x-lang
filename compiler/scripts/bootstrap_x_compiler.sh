@@ -30,9 +30,10 @@
 #   BXC_LINK_OBJS  — optional; default loads via catalog / export leaf escape
 #
 # wave842 (G.7 有则补全): Makefile fat -x -E + $(CC) -c + link → this script.
-# wave859: BXC_LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
-# wave865: CFLAGS shell-load via export-try-heat-cflags (no multi-token CFLAGS=).
+# wave859: BXC_LINK_OBJS shell-load (was make export-bxc-link-objs).
+# wave865: CFLAGS shell-load (was export-try-heat-cflags).
 # wave943: CFLAGS catalog-primary (Makefile physically deleted wave941).
+# wave946: BXC bag catalog-primary via --link-objs-export bxc (G.7 like xnc wave926).
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -126,14 +127,17 @@ if [ "$MODE" != "run" ] && [ "$MODE" != "" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Preflight: link bag from make export leaf when unset (wave859; G.7)
-# PLATFORM: SHARED — KEY=value from export target; no second .o inventory.
+# Preflight: BXC link bag (wave946 catalog-primary; G.7 有则补全 on wave926 xnc)
+# PLATFORM: SHARED — KEY=value from catalog; no second .o inventory.
+# Escape: XLANG_BXC_LINK_VIA_MAKE=1 + Makefile present (parity only).
 # ---------------------------------------------------------------------------
-_load_link_objs_via_make() {
-  # $1 = make export target (export-*-link-objs)
-  local target="$1"
+_load_bxc_link_objs() {
   local raw line val
-  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  if [ "${XLANG_BXC_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
+    raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-bxc-link-objs) || return 1
+  else
+    raw=$(bash scripts/driver_seed_obj_catalog.sh --link-objs-export bxc 2>/dev/null) || return 1
+  fi
   val=
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
@@ -144,14 +148,14 @@ _load_link_objs_via_make() {
 }
 
 if [ -z "${BXC_LINK_OBJS:-}" ]; then
-  BXC_LINK_OBJS=$(_load_link_objs_via_make export-bxc-link-objs) \
-    || fail "failed to expand export-bxc-link-objs (wave859 BXC shell-load)"
+  BXC_LINK_OBJS=$(_load_bxc_link_objs) \
+    || fail "failed to expand bxc link-objs (wave946 catalog --link-objs-export bxc)"
 fi
 if [ -z "${BXC_LINK_OBJS:-}" ]; then
-  fail "empty LINK_OBJS from export-bxc-link-objs (wave859)"
+  fail "empty LINK_OBJS from bxc catalog bag (wave946)"
 fi
 if [ ! -x "./$TARGET_X" ] && [ ! -f "./$TARGET_X" ]; then
-  fail "missing $TARGET_X (build prereq first: make xlang-x-pipeline)"
+  fail "missing $TARGET_X (build prereq first: cd compiler && bash scripts/xlang_x_pipeline.sh)"
 fi
 
 # ---------------------------------------------------------------------------

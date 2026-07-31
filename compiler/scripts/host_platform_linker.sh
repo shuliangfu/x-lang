@@ -321,10 +321,19 @@ elif grep -qE 'falling back to.*(CC|SEED_LINK_CC)' "$LINK_BODY"; then
 else
   note "cold link body pure-ld required + named CC residual + pure_ld_shared (wave772/774)"
 fi
-if ! grep -q 'SEED_LINK_PURE_OK\|SEED_LINK_LD\|SEED_LINK_MULTIDEF' compiler/Makefile; then
-  bad "Makefile export must emit SEED_LINK_LD/MULTIDEF/PURE_OK (wave772 pure-ld)"
+# wave946 post_ship: Makefile deleted (wave941). Authority is shell pure-ld + catalog.
+if [ -f compiler/Makefile ]; then
+  if ! grep -q 'SEED_LINK_PURE_OK\|SEED_LINK_LD\|SEED_LINK_MULTIDEF' compiler/Makefile; then
+    bad "Makefile export must emit SEED_LINK_LD/MULTIDEF/PURE_OK (wave772 pure-ld)"
+  else
+    note "Makefile pure-ld export keys present"
+  fi
+elif [ -f compiler/scripts/pure_ld_shared.sh ] \
+  && grep -q 'SEED_LINK_PURE_OK\|pure_ld_try_link\|SEED_LINK_LD\|SEED_LINK_MULTIDEF' \
+       compiler/scripts/pure_ld_shared.sh compiler/scripts/bootstrap_driver_seed_link.sh 2>/dev/null; then
+  note "Makefile absent (wave946 post_ship): pure-ld authority in shell (pure_ld_shared + seed link)"
 else
-  note "Makefile pure-ld export keys present"
+  bad "Makefile absent and pure-ld shell authority missing SEED_LINK_* / pure_ld_try_link (wave946)"
 fi
 
 # wave773/774: g05 product pure-ld required; no silent CC fallback
