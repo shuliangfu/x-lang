@@ -16,7 +16,8 @@
  * impls (same TU).
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c after the
- * unary emit slice and before async CPS / logand·logor emit helpers.
+ * unary emit slice and before async CPS; logand·logor live in
+ * pipeline_asm_emit_logand.c (same TU, later include).
  * Callers of glue_emit_float_lit (array_lit pack / let) remain later in the
  * same TU.
  *
