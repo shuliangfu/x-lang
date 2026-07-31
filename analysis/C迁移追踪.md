@@ -33,7 +33,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue.c` ~38.2k + `ast_pool.c` ~18k 等；CTFE+assign+coerce_init 域已切出；8.3.9 ✅；其余 ⬜ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue.c` ~37.2k + `ast_pool.c` ~18k 等；CTFE+assign+coerce_init+method_call 域已切出；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -899,10 +899,11 @@
 
 | 文件（compiler/） | LOC | 角色 | 状态 |
 |-------------------|-----|------|------|
-| `pipeline_glue.c` | ~38,181 | 产品 mega glue（typeck/codegen/asm/match…） | 🟡 CTFE+assign+coerce_init 域已切出；其余仍在 |
+| `pipeline_glue.c` | ~37,209 | 产品 mega glue（typeck/codegen/asm/match…） | 🟡 CTFE+assign+coerce_init+method_call 域已切出；其余仍在 |
 | `pipeline_typeck_ctfe.c` | 1,177 | typeck CTFE 生产者切片（同 TU `#include`） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_assign.c` | 348 | typeck assign 域切片（lit 收窄 + EXPR_ASSIGN） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_coerce_init.c` | 460 | typeck coerce-init 域切片（lit/float/enum/call/array/struct…） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
+| `pipeline_typeck_method_call.c` | 998 | typeck method_call + generic UFCS mono 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool.c` | 18,109 | AST 池 / MatchArm / sidecar | ⬜ |
 | `pipeline_typeck_field_access.c` | 1,477 | field_access 权威切片（常被 glue 拉入） | ⬜ |
 | `pipeline_typeck_soa.c` | 255 | typeck SOA 辅助 | ⬜ |
@@ -929,9 +930,10 @@
   - 验收：产品链不再 `cc -c pipeline_glue.c`；Ubuntu L4 + 129
   - ✅ CTFE 域 thin：`pipeline_typeck_ctfe.c`（const whitelist + fold 生产者）自 glue 同 TU `#include` 抽出
   - ✅ assign 域 thin：`pipeline_typeck_assign.c`（lit i16/u16 收窄 + `check_expr_assign` 生产者）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` / g05 STALE / inventory 已收
-  - ✅ coerce_init 域 thin：`pipeline_typeck_coerce_init.c`（lit/float/enum/call/array|vector/int binop/struct/slice + `coerce_init_expr_to_decl` 分发）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 23→24 / g05 STALE / inventory 已收
+  - ✅ coerce_init 域 thin：`pipeline_typeck_coerce_init.c`（lit/float/enum/call/array｜vector/int binop/struct/slice + `coerce_init_expr_to_decl` 分发）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 23→24 / g05 STALE / inventory 已收
+  - ✅ method_call 域 thin：`pipeline_typeck_method_call.c`（weak method_call + pattern-unify/mono-map/subst + generic UFCS）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 24→25 / g05 STALE / inventory 已收
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
-  - ⬜ 下一域候选：method_call_generic_ufcs / check_block_impl / region-assign 族 / asm emit 块体
+  - ⬜ 下一域候选：check_block_impl / region-assign 族 / asm emit 块体
 
 ⬜ **8.3.2 `ast_pool.c` → .x / 已有 ast.x 权威收敛**
 
@@ -1466,7 +1468,7 @@
   - ✅ `xlang-build.sh` bootstrap → 直调 `bootstrap_driver_seed.sh`；host_stubs catalog
   - ✅ **物理删除** 根 + `compiler/Makefile`；ensure CFLAGS → catalog；钉盘 `77b334842`
   - ✅ post-delete residual（0-make hub · gate/leaf post_ship · catalog bags · ensure_* `--check`）
-  - ✅ BC 库存机检：`bc_host_cc_product_inventory.sh` / `./xbuild bc-inventory --check` · 8.3.1 ctfe+assign+coerce_init · 8.3.9 孤儿 absent
+  - ✅ BC 库存机检：`bc_host_cc_product_inventory.sh` / `./xbuild bc-inventory --check` · 8.3.1 ctfe+assign+coerce_init+method_call · 8.3.9 孤儿 absent
   - 🟡 8.3/7/8 residual C **仍在**（host-cc 编；MG 编排层已独立完成，BC 层另计）
   - 验收 grep：
     ```
@@ -1738,7 +1740,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · CTFE ✅ · assign ✅ · coerce_init ✅ · 8.3.9 ✅ · **当前：8.3.1 下一域 / 8.3.2**）  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · CTFE ✅ · assign ✅ · coerce_init ✅ · method_call ✅ · 8.3.9 ✅ · **当前：8.3.1 下一域 / 8.3.2**）  
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
