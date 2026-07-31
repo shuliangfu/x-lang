@@ -631,7 +631,7 @@
 | 8 | `build-seed-asm-host` | 🟢 shell 体 + 薄叶 | wave725：`bootstrap-driver-seed-asm-host` + `DRIVER_SEED_ASM_HOST_DISPATCH_OBJS`；体 `build_seed_asm_host.sh`；`build-seed-asm-host` 历史别名 |
 | 9 | `$(USER_ASM_SEED_HOST_STUBS)` | 🟢 shell 体 + 导出 | wave723：`bootstrap_driver_seed_host_stubs.sh` + `export-host-stubs`（`DRIVER_SEED_HOST_STUBS_SCAN_BASE` 单权威；PHONY 恒刷） |
 | 10 | `$(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)` | 🟢 shell 体 | wave716 配方纯 shell；wave717 经薄目标 |
-| 11 | phase1/final `$(CC)` 链接 | 🟢 shell 体 + 导出 | wave721：`bootstrap_driver_seed_link.sh` + `export-phase1/final-link`（OBJS 仍 Makefile 单权威） |
+| 11 | phase1/final `$(CC)` 链接 | 🟢 shell 体 + shell 导出 | wave721：`bootstrap_driver_seed_link.sh` + `export-phase1/final-link`；**wave924**：shell-primary `driver_seed_obj_catalog.sh --link-export phase1\|final`（0 make；9 SEED_LINK_* 从 mk 解析；`XLANG_SEED_LINK_VIA_MAKE=1` 逃生口）；Makefile export-* targets 保留 parity/escape |
 | 12 | `runtime_panic.o` | 🟢 shell 体 + catalog | wave724+747：`rebuild_leaves.sh panic`；list=`DRIVER_SEED_PANIC_OBJS`；平台 recipe 仍 Makefile |
 | 13 | smoke / `bootstrap_xlangc_create` | 🟢 已 shell | smoke + create 由编排脚本转调 |
 
