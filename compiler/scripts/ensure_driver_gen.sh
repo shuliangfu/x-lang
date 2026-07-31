@@ -7,24 +7,22 @@
 #     driver_gen.c      (MAIN_X_DEPS freshness / seed pin / xlang-x|-c -E +
 #                        fix_driver_gen_duplicate_main) — wave738
 #     preprocess_gen.c  (pin / seed / force -E)                               — wave738
-#   Makefile thin leaves and ./xbuild driver-gen call this script (0× make for
-#   the gen body). Residual make only when building missing xlang-c for force
-#   -E (until 11.3 swallows that graph).
+#   ./xbuild driver-gen and product callers invoke this script (0× make for
+#   the gen body). Missing xlang-c for force -E → scripts/ensure_xlang_c.sh
+#   (wave949; not $MAKE — Makefile physically deleted wave941).
 #   Frontend leaves remain ensure_migrate_gen.sh (wave736/737). Product LSP +
 #   pipeline_gen live in ensure_lsp_pipeline_gen.sh (wave739). Archaeology
 #   subcmd gens live in ensure_archaeology_gen.sh (wave740).
 #
 # Usage (cwd = compiler/):
-#   sh scripts/ensure_driver_gen.sh              # driver + preprocess (default)
-#   sh scripts/ensure_driver_gen.sh all
-#   sh scripts/ensure_driver_gen.sh driver|preprocess
+#   bash scripts/ensure_driver_gen.sh              # driver + preprocess (default)
+#   bash scripts/ensure_driver_gen.sh all
+#   bash scripts/ensure_driver_gen.sh driver|preprocess
 #   ./xbuild driver-gen | preprocess-gen         # repo root
-#   make driver_gen.c | preprocess_gen.c         # thin leaves
 #
 # Env:
 #   XLANG_FORCE_REGEN_GEN=1 — force -E regen (ignore local pin / deps)
 #   XLANG_DRIVER_GEN_TIMEOUT — seconds for driver -E (default 120)
-#   MAKE — residual make for missing xlang-c only
 #   XLANG_C / XLANG_X — binary names (default xlang-c / xlang-x)
 #
 # PLATFORM: SHARED shell orchestration; product seed pins are host-portable C.
@@ -35,7 +33,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-MAKE="${MAKE:-make}"
 XLANG_C="${XLANG_C:-xlang-c}"
 XLANG_X="${XLANG_X:-xlang-x}"
 XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}"
@@ -85,12 +82,14 @@ seed_ok() {
   [ -f "$1" ]
 }
 
+# G.7 single authority for default xlang-c alias: ensure_xlang_c.sh (wave876/949).
+# PLATFORM: SHARED — 0-make; SRC=bootstrap_xlangc must already exist (select seed).
 ensure_xlang_c() {
   if [ -x "./$XLANG_C" ] || [ -f "./$XLANG_C" ]; then
     return 0
   fi
-  log "residual make $XLANG_C (missing binary for force -E)"
-  MAKEFLAGS= "$MAKE" "$XLANG_C"
+  log "ensure $XLANG_C via scripts/ensure_xlang_c.sh (missing binary for force -E)"
+  bash scripts/ensure_xlang_c.sh ensure "$XLANG_C"
 }
 
 run_with_timeout() {
@@ -249,7 +248,7 @@ Usage: ensure_driver_gen.sh [all|driver|preprocess]
   all (default)   — ensure driver_gen.c + preprocess_gen.c
   driver          — driver_gen.c only (MAIN_X_DEPS freshness + seed/-E + fix dup main)
   preprocess      — preprocess_gen.c only
-Env: XLANG_FORCE_REGEN_GEN=1 XLANG_DRIVER_GEN_TIMEOUT MAKE XLANG_C XLANG_X
+Env: XLANG_FORCE_REGEN_GEN=1 XLANG_DRIVER_GEN_TIMEOUT XLANG_C XLANG_X
 EOF
     ;;
   *)

@@ -111,7 +111,7 @@ if [ -n "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
 fi
 
 if [ ! -e "./$SRC" ] && [ ! -e "$SRC" ]; then
-  fail "missing source $SRC (run make bootstrap_xlangc / select_bootstrap_xlangc first)"
+  fail "missing source $SRC (run ./xbuild bootstrap-driver-seed / select_bootstrap_xlangc first)"
 fi
 
 # Prefer cwd-relative product names (historic: cp -f bootstrap_xlangc $@).

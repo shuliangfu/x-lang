@@ -1496,6 +1496,7 @@
   - ✅ wave946：docs/07 · xbuild help · g05 cold hint · xlang.toml · dag/linker MF-absent · XXP/BXC catalog bag
   - ✅ wave947：XXP ensure ladder 0-make（try-heat / migrate_x_objs / build_seed_asm_host；VIA_MAKE 逃生口）
   - ✅ wave948：leaf 机检 post_ship quiet/honesty（`/dev/null` MF bind · mf_bad 静默计数 · 禁 unexpected-early-delete）+ catalog `--check` here-string（pipefail flake）
+  - ✅ wave949：ensure_*_gen force-E 缺 xlang-c → `ensure_xlang_c.sh`（5 脚本；0× `$MAKE $XLANG_C`；leaf honesty）
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
@@ -1682,6 +1683,7 @@
   - ✅ wave945：README · editors/vscode · labi ensure hint 已去 make -C（产品入口 `./xbuild`）
   - ✅ wave946：docs/07 std.db 构建提示 · xbuild help 实现层 · XXP/BXC bag catalog-primary
   - ✅ wave947：`xlang_x_pipeline` ensure 阶梯 shell-primary（无默认 `$MAKE`）
+  - ✅ wave949：ensure_*_gen 缺 xlang-c 不再 `$MAKE`（→ `ensure_xlang_c.sh`）
 
 ⬜ **13.2.3 零 cc 三义验收**（§0.1 MG+BC+PC）
 
@@ -1764,7 +1766,7 @@ MG **编排层**已完成（wave941/942/944/945）。剩余主债：**BC/PC 零 
 
 剩余工作优先级（MG 已闭后）：
 
-1. ✅ **post-delete residual**（wave944–948）— 0-make hub · gate post_ship · docs/help/hint · XXP/BXC catalog bags · XXP ensure ladder 0-make · leaf 机检 quiet/honesty  
+1. ✅ **post-delete residual**（wave944–949）— 0-make hub · gate post_ship · docs/help/hint · XXP/BXC catalog bags · XXP ensure ladder 0-make · leaf 机检 quiet · ensure_*_gen xlang-c shell 
 
 2. **阶段 8.3** pipeline_glue / ast_pool 等非 gen 产品 C  
 3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  

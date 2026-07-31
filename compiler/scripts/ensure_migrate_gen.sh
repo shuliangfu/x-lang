@@ -8,26 +8,23 @@
 #     typeck_gen.c   (seed pin + contract refresh / force -E / slim) — wave736
 #     codegen_gen.c  (tip seed pin sync / force -E / fix_slim_arena) — wave736
 #     lexer_gen.c    (seed pin + contract refresh / force -E / slim) — wave737
-#   Makefile thin leaves and migrate_x_objs.sh call this script (0× make for
-#   the gen body). Residual make only when building missing xlang-c for force
-#   -E (until 11.3 swallows that graph).
+#   migrate_x_objs.sh and ./xbuild migrate-gen call this script (0× make for
+#   the gen body). Missing xlang-c for force -E → scripts/ensure_xlang_c.sh
+#   (wave949; not $MAKE — Makefile physically deleted wave941).
 #   Name is historical (migrate companions); owns frontend gen leaves only —
 #   driver/preprocess → ensure_driver_gen.sh (wave738)
 #   LSP + pipeline_gen → ensure_lsp_pipeline_gen.sh (wave739)
-#   still Makefile until later MG waves.
 #
 # Usage (cwd = compiler/):
-#   sh scripts/ensure_migrate_gen.sh              # parser+typeck+codegen (default)
-#   sh scripts/ensure_migrate_gen.sh all
-#   sh scripts/ensure_migrate_gen.sh all-frontend # +lexer
-#   sh scripts/ensure_migrate_gen.sh parser|typeck|codegen|lexer
+#   bash scripts/ensure_migrate_gen.sh              # parser+typeck+codegen (default)
+#   bash scripts/ensure_migrate_gen.sh all
+#   bash scripts/ensure_migrate_gen.sh all-frontend # +lexer
+#   bash scripts/ensure_migrate_gen.sh parser|typeck|codegen|lexer
 #   ./xbuild migrate-gen | lexer-gen              # repo root
-#   make parser_gen.c | typeck_gen.c | codegen_gen.c | lexer_gen.c  # thin leaves
 #
 # Env:
 #   XLANG_FORCE_REGEN_GEN=1 — force -E regen (ignore local pin)
 #   XLANG_PARSER_GEN_TIMEOUT — seconds for parser -E (default 120)
-#   MAKE — residual make for missing xlang-c only
 #   XLANG_C / XLANG_X — binary names (default xlang-c / xlang-x)
 #
 # PLATFORM: SHARED shell orchestration; product seed pins are host-portable C.
@@ -40,7 +37,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-MAKE="${MAKE:-make}"
 XLANG_C="${XLANG_C:-xlang-c}"
 XLANG_X="${XLANG_X:-xlang-x}"
 XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}"
@@ -103,12 +99,14 @@ refresh_gen_from_seed_if_stale() {
   return 0
 }
 
+# G.7 single authority for default xlang-c alias: ensure_xlang_c.sh (wave876/949).
+# PLATFORM: SHARED — 0-make; SRC=bootstrap_xlangc must already exist (select seed).
 ensure_xlang_c() {
   if [ -x "./$XLANG_C" ] || [ -f "./$XLANG_C" ]; then
     return 0
   fi
-  log "residual make $XLANG_C (missing binary for force -E)"
-  MAKEFLAGS= "$MAKE" "$XLANG_C"
+  log "ensure $XLANG_C via scripts/ensure_xlang_c.sh (missing binary for force -E)"
+  bash scripts/ensure_xlang_c.sh ensure "$XLANG_C"
 }
 
 run_with_timeout() {
@@ -436,7 +434,7 @@ Usage: ensure_migrate_gen.sh [all|all-frontend|parser|typeck|codegen|lexer]
   all (default)   — ensure parser_gen.c typeck_gen.c codegen_gen.c
   all-frontend    — above + lexer_gen.c
   parser|typeck|codegen|lexer — single leaf
-Env: XLANG_FORCE_REGEN_GEN=1 XLANG_PARSER_GEN_TIMEOUT MAKE XLANG_C XLANG_X
+Env: XLANG_FORCE_REGEN_GEN=1 XLANG_PARSER_GEN_TIMEOUT XLANG_C XLANG_X
 EOF
     ;;
   *)

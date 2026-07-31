@@ -8,25 +8,22 @@
 #     lsp_io_gen.c    (pin / seed / xlang-x|-c -E; reject old io.o stub TU)
 #     lsp_gen.c       (pin / seed / xlang-x|-c -E + g_lsp_state_buf sed post)
 #     pipeline_gen.c  (pin / seed / force xlang-c -E + check_pipeline_gen_expr_i64_abi)
-#   Makefile thin leaves and ./xbuild lsp-gen|pipeline-gen call this script
-#   (0× make for the gen body). Residual make only when building missing
-#   xlang-c for force -E (until 11.3 swallows that graph).
+#   ./xbuild lsp-gen|pipeline-gen call this script (0× make for the gen body).
+#   Missing xlang-c for force -E → scripts/ensure_xlang_c.sh (wave949; not $MAKE).
 #   Frontend = ensure_migrate_gen.sh; driver path = ensure_driver_gen.sh.
 #   Archaeology gens (lsp_io_std_heap_gen, driver_*_gen subcmds) =
 #   ensure_archaeology_gen.sh (wave740; Track L retired product path).
 #
 # Usage (cwd = compiler/):
-#   sh scripts/ensure_lsp_pipeline_gen.sh              # product all (default)
-#   sh scripts/ensure_lsp_pipeline_gen.sh all
-#   sh scripts/ensure_lsp_pipeline_gen.sh lsp|lsp-all  # three LSP gens
-#   sh scripts/ensure_lsp_pipeline_gen.sh lsp_diag|lsp_io|lsp
-#   sh scripts/ensure_lsp_pipeline_gen.sh pipeline
+#   bash scripts/ensure_lsp_pipeline_gen.sh              # product all (default)
+#   bash scripts/ensure_lsp_pipeline_gen.sh all
+#   bash scripts/ensure_lsp_pipeline_gen.sh lsp|lsp-all  # three LSP gens
+#   bash scripts/ensure_lsp_pipeline_gen.sh lsp_diag|lsp_io|lsp
+#   bash scripts/ensure_lsp_pipeline_gen.sh pipeline
 #   ./xbuild lsp-gen | pipeline-gen | lsp-pipeline-gen
-#   make lsp_diag_gen.c | lsp_io_gen.c | lsp_gen.c | pipeline_gen.c
 #
 # Env:
 #   XLANG_FORCE_REGEN_GEN=1 — force -E regen (ignore local pin)
-#   MAKE — residual make for missing xlang-c only
 #   XLANG_C / XLANG_X — binary names (default xlang-c / xlang-x)
 #
 # PLATFORM: SHARED shell orchestration; product seed pins are host-portable C.
@@ -39,7 +36,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-MAKE="${MAKE:-make}"
 XLANG_C="${XLANG_C:-xlang-c}"
 XLANG_X="${XLANG_X:-xlang-x}"
 XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}"
@@ -78,12 +74,14 @@ seed_ok() {
   [ -f "$1" ]
 }
 
+# G.7 single authority for default xlang-c alias: ensure_xlang_c.sh (wave876/949).
+# PLATFORM: SHARED — 0-make; SRC=bootstrap_xlangc must already exist (select seed).
 ensure_xlang_c() {
   if [ -x "./$XLANG_C" ] || [ -f "./$XLANG_C" ]; then
     return 0
   fi
-  log "residual make $XLANG_C (missing binary for force -E)"
-  MAKEFLAGS= "$MAKE" "$XLANG_C"
+  log "ensure $XLANG_C via scripts/ensure_xlang_c.sh (missing binary for force -E)"
+  bash scripts/ensure_xlang_c.sh ensure "$XLANG_C"
 }
 
 bytes_of() {
@@ -334,7 +332,7 @@ Usage: ensure_lsp_pipeline_gen.sh [all|lsp|lsp_diag|lsp_io|lsp_gen|pipeline]
   lsp_io          — lsp_io_gen.c only
   lsp_gen         — lsp_gen.c only
   pipeline        — pipeline_gen.c only (+ i64 ABI check)
-Env: XLANG_FORCE_REGEN_GEN=1 MAKE XLANG_C XLANG_X
+Env: XLANG_FORCE_REGEN_GEN=1 XLANG_C XLANG_X
 EOF
     ;;
   *)

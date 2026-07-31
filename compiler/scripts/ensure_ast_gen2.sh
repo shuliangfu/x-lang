@@ -4,8 +4,8 @@
 # Authority (G.7):
 #   Single implementation of ast_gen2.c production for typeck/codegen single-TU
 #   compile (ast_ast_* prototypes via fix_slim_arena_gen_c.pl).
-#   Makefile thin leaf FORCE-calls this script (0× make for the gen body except
-#   residual make of missing xlang-c for force -E).
+#   Product / ensure_gen_x_o call this script (0× make for the gen body).
+#   Missing xlang-c for force -E → scripts/ensure_xlang_c.sh (wave949; not $MAKE).
 #   Distinct from product frontend *_gen.c (ensure_migrate_gen.sh) — no
 #   seeds/*_gen.linux.x86_64.c pin; authority is the committed local pin +
 #   optional -E from src/ast/ast.x.
@@ -14,11 +14,9 @@
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_ast_gen2.sh
 #   bash scripts/ensure_ast_gen2.sh --check
-#   make ast_gen2.c   # thin FORCE leaf
 #
 # Env:
 #   XLANG_FORCE_REGEN_GEN=1 — force -E regen (ignore local pin)
-#   MAKE — residual make for missing xlang-c only
 #   XLANG_C — binary name (default xlang-c)
 #
 # PLATFORM: SHARED shell orchestration; committed pin is host-portable C.
@@ -29,7 +27,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-MAKE="${MAKE:-make}"
 XLANG_C="${XLANG_C:-xlang-c}"
 XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}"
 MODE="${1:-ensure}"
@@ -41,12 +38,14 @@ bytes_of() {
   wc -c < "$1" | tr -d ' '
 }
 
+# G.7 single authority for default xlang-c alias: ensure_xlang_c.sh (wave876/949).
+# PLATFORM: SHARED — 0-make; SRC=bootstrap_xlangc must already exist (select seed).
 ensure_xlang_c() {
   if [ -x "./$XLANG_C" ] || [ -f "./$XLANG_C" ]; then
     return 0
   fi
-  log "residual make $XLANG_C (missing binary for force -E)"
-  MAKEFLAGS= "$MAKE" "$XLANG_C"
+  log "ensure $XLANG_C via scripts/ensure_xlang_c.sh (missing binary for force -E)"
+  bash scripts/ensure_xlang_c.sh ensure "$XLANG_C"
 }
 
 # Run -E -E-extern from src/ast/ast.x, then fix_slim_arena (injects ast_ast_*).
@@ -125,7 +124,7 @@ case "$MODE" in
 Usage: ensure_ast_gen2.sh [ensure|ast_gen2|--check]
   ensure (default) — pin if non-empty; else -E + fix_slim
   XLANG_FORCE_REGEN_GEN=1 — force -E regen
-Env: MAKE XLANG_C XLANG_FORCE_REGEN_GEN
+Env: XLANG_C XLANG_FORCE_REGEN_GEN
 EOF
     ;;
   *)

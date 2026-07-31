@@ -7819,6 +7819,23 @@ for _gs in ensure_migrate_gen.sh ensure_driver_gen.sh ensure_lsp_pipeline_gen.sh
   fi
 done
 note "ensure_*_gen scripts own pin/FORCE_REGEN policy (wave829)"
+# wave949: force -E missing xlang-c → ensure_xlang_c.sh (0-make; not $MAKE).
+# PLATFORM: SHARED — post_ship honesty; dual authority ban G.7.
+for _gs in ensure_migrate_gen.sh ensure_driver_gen.sh ensure_lsp_pipeline_gen.sh \
+  ensure_archaeology_gen.sh ensure_ast_gen2.sh; do
+  _gp="$ROOT/compiler/scripts/$_gs"
+  [ -f "$_gp" ] || _gp="scripts/$_gs"
+  if [ ! -f "$_gp" ]; then
+    bad "missing $_gs (wave949 gen ensure_xlang_c shell-primary)"
+  fi
+  if grep -qE 'MAKEFLAGS=.*"\$MAKE".*"\$XLANG_C"|MAKEFLAGS= "\$MAKE" "\$XLANG_C"' "$_gp"; then
+    bad "$_gs must not residual make XLANG_C (wave949; ensure_xlang_c.sh)"
+  fi
+  if ! grep -q 'ensure_xlang_c\.sh' "$_gp"; then
+    bad "$_gs must shell-call ensure_xlang_c.sh for missing xlang-c (wave949)"
+  fi
+done
+note "ensure_*_gen missing xlang-c → ensure_xlang_c.sh (wave949; 0-make)"
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then

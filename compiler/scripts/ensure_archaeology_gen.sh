@@ -14,9 +14,8 @@
 #     driver_emit_gen.c  (extra -L roots vs other subcmds)
 #     lsp_io_std_heap_gen.c  (LSP_X_E_DIRS + strip host malloc/free/calloc extern)
 #
-#   Makefile thin leaves and ./xbuild archaeology-gen call this script
-#   (0× make for the gen body). Residual make only when building missing
-#   xlang-c for force -E (until 11.3 swallows that graph).
+#   ./xbuild archaeology-gen call this script (0× make for the gen body).
+#   Missing xlang-c for force -E → scripts/ensure_xlang_c.sh (wave949; not $MAKE).
 #
 #   Product gens remain:
 #     ensure_migrate_gen.sh (parser/typeck/codegen/lexer)
@@ -24,17 +23,15 @@
 #     ensure_lsp_pipeline_gen.sh (lsp_diag/io/lsp + pipeline)
 #
 # Usage (cwd = compiler/):
-#   sh scripts/ensure_archaeology_gen.sh              # all archaeology (default)
-#   sh scripts/ensure_archaeology_gen.sh all
-#   sh scripts/ensure_archaeology_gen.sh driver-all    # seven driver subcmd gens
-#   sh scripts/ensure_archaeology_gen.sh fmt|check|test|compile|build|run|emit
-#   sh scripts/ensure_archaeology_gen.sh lsp_io_std_heap|std_heap
+#   bash scripts/ensure_archaeology_gen.sh              # all archaeology (default)
+#   bash scripts/ensure_archaeology_gen.sh all
+#   bash scripts/ensure_archaeology_gen.sh driver-all    # seven driver subcmd gens
+#   bash scripts/ensure_archaeology_gen.sh fmt|check|test|compile|build|run|emit
+#   bash scripts/ensure_archaeology_gen.sh lsp_io_std_heap|std_heap
 #   ./xbuild archaeology-gen | driver-subcmd-gen
-#   make driver_fmt_gen.c | … | lsp_io_std_heap_gen.c
 #
 # Env:
 #   XLANG_FORCE_REGEN_GEN=1 — force -E regen (ignore local pin)
-#   MAKE — residual make for missing xlang-c only
 #   XLANG_C — binary name (default xlang-c)
 #
 # PLATFORM: SHARED shell orchestration; seed pins are host-portable C.
@@ -45,7 +42,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-MAKE="${MAKE:-make}"
 XLANG_C="${XLANG_C:-xlang-c}"
 XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}"
 MODE="${1:-all}"
@@ -87,12 +83,14 @@ seed_ok() {
   [ -f "$1" ]
 }
 
+# G.7 single authority for default xlang-c alias: ensure_xlang_c.sh (wave876/949).
+# PLATFORM: SHARED — 0-make; SRC=bootstrap_xlangc must already exist (select seed).
 ensure_xlang_c() {
   if [ -x "./$XLANG_C" ] || [ -f "./$XLANG_C" ]; then
     return 0
   fi
-  log "residual make $XLANG_C (missing binary for force -E)"
-  MAKEFLAGS= "$MAKE" "$XLANG_C"
+  log "ensure $XLANG_C via scripts/ensure_xlang_c.sh (missing binary for force -E)"
+  bash scripts/ensure_xlang_c.sh ensure "$XLANG_C"
 }
 
 bytes_of() {
@@ -270,7 +268,7 @@ Usage: ensure_archaeology_gen.sh [all|driver-all|fmt|check|test|compile|build|ru
   driver-all        — driver subcmd gens only
   fmt|check|…|emit  — single driver subcmd gen
   lsp_io_std_heap   — lsp_io_std_heap_gen.c only
-Env: XLANG_FORCE_REGEN_GEN=1 MAKE XLANG_C
+Env: XLANG_FORCE_REGEN_GEN=1 XLANG_C
 Note: product link does not use these files (Track L PREFER_X_O).
 EOF
     ;;
