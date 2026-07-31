@@ -10,7 +10,7 @@
 > **进度数字**：[自举进度.md](自举进度.md) · skill `xlang-selfhost-product-gate` · Makefile 映射：[Makefile迁移表.md](Makefile迁移表.md)  
 > **先→后时序（换 IDE）**：[自举时序.md](自举时序.md)（执行序 S0–S8；与本文阶段号对照见时序 §5）  
 > **维护约定**：本文只维护 **待办勾选 / 状态表 / 债地图**；**波次变更记录只写 [自举进度.md](自举进度.md)**（禁止在本文追加 changelog 段）。  
-> **权威钉盘**（与本文附录 C 同步）：**`9bb7a757c`**（wave710）。
+> **权威钉盘**（与本文附录 C 同步）：**`77b334842`**（wave942 · Makefile 物理删除）。
 
 ---
 
@@ -27,14 +27,14 @@
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
 | **非 gen 产品 C（glue/ast 池）** | ⬜ 0/~10 | **`pipeline_glue.c` ~40k + `ast_pool.c` ~18k** 等；阶段 8.3（**删 Makefile 前最大体积债**） |
 | **Cap 能力解锁** | 🟡 持续 | 已闭多波；untyped self 待治；LANG-006 保留 |
-| **产品 L4 放行** | ✅ 钉盘 `9bb7a757c` | 双端 L4 真冷 + 129 bstrict |
+| **产品 L4 放行** | ✅ 钉盘 `77b334842` | wave942 Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
-| **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 🟡** prereq 边 shell（wave744）· **11.3.1 路径 🟡** 叶 pattern residual（wave746–868 · **非**物理删；**逐行清单见下 §11.3.1**） · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
+| **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 ✅** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 ✅** prereq 边 shell（wave744）· **11.3.1 ✅** 叶 pattern residual（wave746–942 · **已物理删**） · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 4/4 策略 | 11.5.1–4 **策略已裁定**（wave734/741 · `tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
-| **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
+| **终局：无 Makefile + 零 cc + v2==v3** | 🟡 MG ✅ | MG ✅（wave941/942）· BC ⬜ · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
 
@@ -42,7 +42,7 @@
 
 | 层 | 含义 | 今日状态 | 失败时的假绿 |
 |----|------|----------|--------------|
-| **MG · 编排层** | 不依赖 `make` / `compiler/Makefile` / 顶层 `Makefile` 完成 build / L4 / bootstrap | 🟡 日常可走 `xlang-build.sh`→g05 shell；冷启动/依赖图/`*.o` 规则仍大量在 Makefile | 只删入口 Makefile、实现层仍 `make -C compiler` |
+| **MG · 编排层** | 不依赖 `make` / `compiler/Makefile` / 顶层 `Makefile` 完成 build / L4 / bootstrap | ✅ **wave941/942 已完成**：Makefile 物理删除 · bootstrap 0 make · catalog 单权威（mk/*.mk）· 双端 L4 绿 | 只删入口 Makefile、实现层仍 `make -C compiler` |
 | **BC · 自举编译层** | 编译器自身 TU **不**再被 host `cc/gcc/clang` 编译（.x→纯 asm `.o` 或等价） | ⬜ 大量 pin `*_gen.c` / glue / seed 仍 `$(CC) -c` | seed 用 xlang `-E` 出 C 再交给 gcc |
 | **PC · 产品默认后端** | 用户程序默认 **`-backend asm`**（或纯自研目标）；**不**默认 emit C 再 `exec` host-cc；`labi_invoke_cc*` 退役或仅 opt-in | ⬜ `-backend c` 与 labi invoke_cc 仍在产品面 | 自举绿但用户 `-o` 仍调 gcc |
 

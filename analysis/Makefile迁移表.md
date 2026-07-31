@@ -1,10 +1,10 @@
-# compiler/Makefile 迁移表（11.0.1）
+# compiler/Makefile 迁移表（11.0.1 · **已物理删除**）
 
-> **日期**：2026-07-29 · wave714（Track MG / 阶段 11.0.1）  
-> **来源**：`compiler/Makefile`（~3445 行）自动盘点 + 人工分类  
+> **日期**：2026-07-31 · wave942（Track MG / 阶段 11.0.1 · **Makefile 已物理删除**）  
+> **来源**：`compiler/Makefile`（~3445 行 · **wave941 已 git rm**）自动盘点 + 人工分类  
 > **权威勾选**：本表「迁移状态」列；汇总摘要同步 [`C迁移追踪.md`](C迁移追踪.md) 附录 E / 阶段 11.0  
 > **xbuild 目标名**：拟定 API；实现前禁止另开第三套编排（收敛 g05 / `xlang-build.sh` / `build.x`）  
-> **终局**：物理删除 Makefile 前本表须 100% 有主（迁出 / 删除 / 白名单 residual 由 xbuild 编）
+> **终局**：✅ **已完成**（wave941 物理删除 Makefile；本表保留为历史记录）
 
 ---
 
@@ -51,7 +51,7 @@
 须与 g05 同语义：  D/E/F/C 的 .o 热路径（今日已有 shell cc，Makefile 为第二权威）
 冷启动硬依赖：    H bootstrap-driver-seed · B pin gen · K seed-tools
 删 make 前体积债：C glue ~40k · 阶段 8.3（与本表并行，非 11.0 独占）
-11.3 物理删 make：A–O 全 🟢 或 🗑；BC 不再强制 host-cc 业务 C
+11.3 物理删 make：✅ **已完成**（wave941）· A–O 全 🟢 或 🗑；catalog 单权威（mk/*.mk）；BC 不再强制 host-cc 业务 C（仍 ⬜）
 ```
 
 ---
