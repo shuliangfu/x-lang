@@ -14,7 +14,7 @@
  * G.7: single product-mega STRUCT_LIT ELF face — do not open a second field
  * store width path or second DEST_IN_RBX / rehome geometry. Fixed TYPE_ARRAY
  * field store (glue_struct_lit_store_fixed_array_field_elf_c) and vector /
- * array flat let-init remain in glue (shared with let-init / assign paths).
+ * array flat let-init live in pipeline_asm_emit_vector_let.c (same TU).
  *
  * Callers: emit_expr leaf STRUCT_LIT; assign INDEX STRUCT_LIT; call-arg
  * STRUCT_LIT packing; array_lit / vector_let >8B named elem paths.
@@ -31,7 +31,7 @@
 /* Forward decls / callees defined elsewhere in the same TU:
  * - glue_sysv_dual_gp_byte_size_c / glue_type_named_layout_size_any_module_elf_c
  * - glue_type_is_empty_struct_c / glue_type_size_simple
- * - glue_struct_lit_store_fixed_array_field_elf_c (def after vector_let_init)
+ * - glue_struct_lit_store_fixed_array_field_elf_c (pipeline_asm_emit_vector_let.c)
  * - glue_struct_field_frame_mag_c / glue_field_access_effective_offset_c
  * - glue_call_return_byte_size_c / glue_store_retval_pair_to_rbp_elf_c
  * - glue_emit_struct_type_let_init_elf_c / glue_emit_sret_memcpy_rbx_to_home

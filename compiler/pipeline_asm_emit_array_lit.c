@@ -12,8 +12,9 @@
  *   Cap residual pure waves 340/598/613/626/631/647/692)
  *
  * G.7: single product-mega ARRAY_LIT ELF face — do not open a second array_lit
- * emitter. Nested helpers (leaf_elem_byte_sz / flat_elf, scalar_elem_to_rax,
- * durable_ptr, force_esz_from_elem_type, bump_next_offset) remain in
+ * emitter. Nested helpers: leaf_elem_byte_sz / flat_elf live in
+ * pipeline_asm_emit_vector_let.c (same TU). scalar_elem_to_rax,
+ * durable_ptr, force_esz_from_elem_type, bump_next_offset remain in
  * pipeline_glue.c (same TU; defined earlier or later).
  *
  * Callers: expr_elf_rec, return_impl (force_esz), block_body/inits (empty check),
