@@ -33,7 +33,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~31.1k + `ast_pool` ~12.9k；8.3.1 二十二刀（+asm_emit_call_args）+ 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~29.8k + `ast_pool` ~12.9k；8.3.1 二十三刀（+asm_emit_struct_lit）+ 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -922,6 +922,7 @@
 | `pipeline_asm_emit_binop.c` | ~904 | asm ELF BINOP emit（add／sub／mul／div／mod／and／bitwise／shift + unsigned／64bit + nested helpers）切片 | 🟡 已抽出（wave1001）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_cmp.c` | ~315 | asm ELF relational CMP emit（eq/ne/lt/le/gt/ge + enum RHS + f32/f64/int finish）切片 | 🟡 已抽出（wave1002）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_call_args.c` | ~831 | asm ELF CALL-arg emit（lea + dual-GP + named layout + for_call_args）切片 | 🟡 已抽出（wave1003）；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_struct_lit.c` | ~484 | asm ELF STRUCT_LIT emit（field_store_sz + rehome + fields + struct_lit_elf）切片 | 🟡 已抽出（wave1004）；仍 host-cc 入 `pipeline_x` |
 | `ast_pool.c` | ~12,875 | AST 池 / MatchArm / sidecar | 🟡 module_import+…+top_level hoist_target／sum residual 已切；backend asm wrappers／path helpers 仍 core |
 | `ast_pool_module_import.c` | ~226 | module ImportEntry cold-twin accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_struct_layout.c` | ~385 | module StructLayout cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
@@ -945,7 +946,7 @@
 
 | 消费方 | 如何引用 | 风险 |
 |--------|----------|------|
-| `compiler/mk/x_source_deps.mk` `PIPELINE_X_DEPS` | glue + 8.3.1 切片 + `ast_pool` + 11× ast_pool domain slices + bootstrap glue | 改源必重编 pipeline_x |
+| `compiler/mk/x_source_deps.mk` `PIPELINE_X_DEPS` | glue + 8.3.1 切片（含 struct_lit）+ `ast_pool` + 11× ast_pool domain slices + bootstrap glue | 改源必重编 pipeline_x |
 | g05 / standalone seed 链 | standalone seed + glue + types.inc | weak 孪生与主链分叉 |
 | `g05_ensure_relink_prereqs.sh` | mtime vs pipeline_x / standalone；切片 STALE | 产品热路径仍 host-cc 重编 |
 | `pipeline_gen.c` / `-E` runtime 路径 | 入口 pipeline.x 时追加 glue 到 stdout | 与 gen 双权威风险 |
@@ -979,6 +980,7 @@
   - ✅ asm BINOP emit domain thin：`pipeline_asm_emit_binop.c`（add／sub／mul／div／mod／and／bitwise／shift + unsigned／64bit + nested rax／rbx helpers · ~857 LOC body）自 glue 同 TU `#include` 抽出；panic include 前置；`PIPELINE_X_DEPS` COUNT 51→52 / g05 STALE / inventory 已收（wave1001）
   - ✅ asm relational CMP emit domain thin：`pipeline_asm_emit_cmp.c`（emit_cmp_elf + enum RHS tag + 64bit/rex + f32/f64/int finish · ~278 LOC body）自 glue 同 TU `#include` 抽出；typekind_variant_tag 仍 glue（field_access 共享）；`PIPELINE_X_DEPS` COUNT 52→53 / g05 STALE / inventory 已收（wave1002）
   - ✅ asm CALL-arg emit domain thin：`pipeline_asm_emit_call_args.c`（lea_not_load + dual-GP load_var + named layout size + pass_addr + for_call_args · ~792 LOC body／~831 file）自 glue 同 TU `#include` 抽出；resolve_* 仍 glue（leaf VAR 共享）；CALL／METHOD_CALL 仍 seed；`PIPELINE_X_DEPS` COUNT 53→54 / g05 STALE / inventory 已收（wave1003）
+  - ✅ asm STRUCT_LIT emit domain thin：`pipeline_asm_emit_struct_lit.c`（field_store_sz + public wrapper + DEST_IN_RBX/rehome + fields + struct_lit_elf · ~444 LOC body／~484 file）自 glue 同 TU `#include` 抽出；store_fixed_array_field／vector_let 仍 glue；`PIPELINE_X_DEPS` COUNT 54→55 / g05 STALE / inventory 已收（wave1004）
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
 
 🟡 **8.3.2 `ast_pool.c` → .x / 已有 ast.x 权威收敛**
@@ -1002,7 +1004,7 @@
   - ✅ top_level name_is_const／hoist residual 有则补全：`ast_pool_top_level.c` 迁入 name_is_const + hoist_top_level_lets_into_main（~115 LOC；file ~249）；COUNT 仍 45；block 后 include 可见 static prepend_lets（wave993）
   - ✅ top_level hoist_target／sum residual 有则补全：`ast_pool_top_level.c` 迁入 `pipeline_asm_hoist_target_func_index` + `pipeline_asm_sum_module_top_level_lets_stack`（~77 LOC；file ~326）；COUNT 仍 45；modlet／slot helpers 仍 glue extern（wave994）
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
-  - ⬜ 下一域候选：下一 asm 域（struct_lit／spill／leaf…）或 8.3.3 field_access／soa
+  - ⬜ 下一域候选：下一 asm 域（spill／leaf／vector_let…）或 8.3.3 field_access／soa
 
 ⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
@@ -1805,7 +1807,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 二十二刀（+call_args）✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：下一 asm 域（struct_lit／spill／leaf…）或 8.3.3 field_access／soa**）  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 二十三刀（+struct_lit）✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：下一 asm 域（spill／leaf／vector_let…）或 8.3.3 field_access／soa**）  
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
