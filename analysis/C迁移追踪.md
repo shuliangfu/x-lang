@@ -33,7 +33,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~33.0k + `ast_pool` ~12.9k；8.3.1 十六刀（+asm_emit_index）+ 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~32.8k + `ast_pool` ~12.9k；8.3.1 十七刀（+asm_emit_match）+ 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -899,7 +899,7 @@
 
 | 文件（compiler/） | LOC | 角色 | 状态 |
 |-------------------|-----|------|------|
-| `pipeline_glue.c` | ~32,983 | 产品 mega glue（typeck/codegen/asm/match…） | 🟡 CTFE+…+asm_emit_array_lit+asm_emit_index 域已切出；其余仍在 |
+| `pipeline_glue.c` | ~32,843 | 产品 mega glue（typeck/codegen/asm…） | 🟡 CTFE+…+asm_emit_index+asm_emit_match 域已切出；其余仍在 |
 | `pipeline_typeck_ctfe.c` | 1,177 | typeck CTFE 生产者切片（同 TU `#include`） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_assign.c` | 348 | typeck assign 域切片（lit 收窄 + EXPR_ASSIGN） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_coerce_init.c` | 460 | typeck coerce-init 域切片（lit/float/enum/call/array/struct…） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
@@ -916,6 +916,7 @@
 | `pipeline_asm_emit_assign.c` | ~556 | asm ELF EXPR_ASSIGN emit（lhs f32 + rhs + assign_elf）切片 | 🟡 已抽出（wave995）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_array_lit.c` | ~335 | asm ELF EXPR_ARRAY_LIT emit（elem_sz + empty + force_esz）切片 | 🟡 已抽出（wave996）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_index.c` | ~434 | asm ELF INDEX／ADDR_OF／DEREF emit（esz + load + lea）切片 | 🟡 已抽出（wave997）；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_match.c` | ~179 | asm ELF MATCH／EXPR_IF emit（arm cmp+jeq + if jz）切片 | 🟡 已抽出（wave998）；仍 host-cc 入 `pipeline_x` |
 | `ast_pool.c` | ~12,875 | AST 池 / MatchArm / sidecar | 🟡 module_import+…+top_level hoist_target／sum residual 已切；backend asm wrappers／path helpers 仍 core |
 | `ast_pool_module_import.c` | ~226 | module ImportEntry cold-twin accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_struct_layout.c` | ~385 | module StructLayout cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
@@ -967,6 +968,7 @@
   - ✅ asm EXPR_ASSIGN emit 域 thin：`pipeline_asm_emit_assign.c`（lhs f32 + rhs + assign_elf · FIELD/INDEX/VAR/DEREF · slice dual-GP / fixed-array / STRUCT_LIT index / esz>8 bulk · ~556 LOC）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 45→46 / g05 STALE / inventory 已收（wave995）
   - ✅ asm EXPR_ARRAY_LIT emit 域 thin：`pipeline_asm_emit_array_lit.c`（elem_byte_sz + empty + emit/force_esz · nested flat / SLICE dual-GP / >8B STRUCT / may_clobber re-lea · ~335 LOC）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 46→47 / g05 STALE / inventory 已收（wave996）
   - ✅ asm INDEX／ADDR_OF／DEREF emit 域 thin：`pipeline_asm_emit_index.c`（index_elem_byte_sz + emit_index + addr_of + deref · multi-dim／SLICE dual-GP／lea-slot／TYPE_ARRAY leave · ~434 LOC）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 47→48 / g05 STALE / inventory 已收（wave997）
+  - ✅ asm MATCH／EXPR_IF emit 域 thin：`pipeline_asm_emit_match.c`（match_elf + expr_if_elf · arm cmp+jeq／wildcard join／RETURN skip · cond jz then／else · ~179 LOC）自 glue 同 TU `#include` 抽出；CALL／METHOD_CALL 仍 seed；`PIPELINE_X_DEPS` COUNT 48→49 / g05 STALE / inventory 已收（wave998）
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
 
 🟡 **8.3.2 `ast_pool.c` → .x / 已有 ast.x 权威收敛**
@@ -990,7 +992,7 @@
   - ✅ top_level name_is_const／hoist residual 有则补全：`ast_pool_top_level.c` 迁入 name_is_const + hoist_top_level_lets_into_main（~115 LOC；file ~249）；COUNT 仍 45；block 后 include 可见 static prepend_lets（wave993）
   - ✅ top_level hoist_target／sum residual 有则补全：`ast_pool_top_level.c` 迁入 `pipeline_asm_hoist_target_func_index` + `pipeline_asm_sum_module_top_level_lets_stack`（~77 LOC；file ~326）；COUNT 仍 45；modlet／slot helpers 仍 glue extern（wave994）
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
-  - ⬜ 下一域候选：下一 asm 域（index／addr_of／deref／match／call…）或 8.3.3 field_access／soa
+  - ⬜ 下一域候选：下一 asm 域（panic／field_access_emit…）或 8.3.3 field_access／soa
 
 ⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
@@ -1793,7 +1795,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 十三刀 ✅ · **8.3.2 …+top_level hoist_target／sum residual ✅** · 8.3.9 ✅ · **当前：下一 asm 域 或 8.3.3 field_access／soa**）  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 十七刀（+match）✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：下一 asm 域（panic…）或 8.3.3 field_access／soa**）  
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
