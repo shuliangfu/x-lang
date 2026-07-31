@@ -7979,6 +7979,25 @@ elif ! bash "$_xnc_ps" --check >/dev/null 2>&1; then
 else
   note "xlang_no_c_frontend XNC bag → catalog xnc (wave957 post_ship; 0-make)"
 fi
+# wave958: relink_xlang_lexer --check post_ship + catalog RXL bag (0-make).
+# Default: catalog --link-objs-export relink-product + --link-cflags-export
+# relink-product; escape XLANG_RXL_LINK_VIA_MAKE=1 + MF only.
+# PLATFORM: SHARED — product lexer fast-relink path after wave941 delete.
+_rxl_ps="$ROOT/compiler/scripts/relink_xlang_lexer.sh"
+[ -f "$_rxl_ps" ] || _rxl_ps="scripts/relink_xlang_lexer.sh"
+if [ ! -f "$_rxl_ps" ]; then
+  bad "missing relink_xlang_lexer.sh (wave958 post_ship)"
+elif ! grep -q 'wave958' "$_rxl_ps"; then
+  bad "relink_xlang_lexer must document wave958 post_ship --check"
+elif ! grep -q 'XLANG_RXL_LINK_VIA_MAKE' "$_rxl_ps"; then
+  bad "relink_xlang_lexer must document XLANG_RXL_LINK_VIA_MAKE escape (wave958)"
+elif ! grep -qE 'link-objs-export relink-product|--link-objs-export relink-product' "$_rxl_ps"; then
+  bad "relink_xlang_lexer must catalog-load RXL LINK_OBJS (wave958)"
+elif ! bash "$_rxl_ps" --check >/dev/null 2>&1; then
+  bad "relink_xlang_lexer.sh --check failed (wave958 post_ship 0-make)"
+else
+  note "relink_xlang_lexer RXL bag → catalog relink-product (wave958 post_ship; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then
