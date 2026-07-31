@@ -97,7 +97,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_match.c|8.3.1|asm ELF EXPR_MATCH/EXPR_IF emit (arm cmp+jeq + if jz) slice|140|present"
   "compiler/pipeline_asm_emit_panic.c|8.3.1|asm ELF EXPR_PANIC + int div-zero panic face slice|100|present"
   "compiler/pipeline_asm_emit_field_access.c|8.3.1|asm ELF EXPR_FIELD_ACCESS emit domain slice|500|present"
-  "compiler/pipeline_asm_emit_binop.c|8.3.1|asm ELF EXPR_BINOP emit (add/sub/mul/div/mod/and/bitwise/shift) slice|700|present"
+  "compiler/pipeline_asm_emit_binop.c|8.3.1|asm ELF EXPR_BINOP emit (+ residual scalar/ptr/add helpers) slice|1000|present"
   "compiler/pipeline_asm_emit_cmp.c|8.3.1|asm ELF relational CMP emit (eq/ne/lt/le/gt/ge + f32/f64 finish) slice|200|present"
   "compiler/pipeline_asm_emit_call_args.c|8.3.1|asm ELF CALL-arg emit (lea + dual-GP + named layout + for_call_args) slice|700|present"
   "compiler/pipeline_asm_emit_struct_lit.c|8.3.1|asm ELF STRUCT_LIT emit (field_store_sz + rehome + fields + struct_lit_elf) slice|400|present"
