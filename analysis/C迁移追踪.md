@@ -33,7 +33,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~34k + `ast_pool` ~13.3k；8.3.1 十三刀 + 8.3.2 …+arena+block+onefunc fill residual 已切；8.3.9 ✅；其余 ⬜ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~34k + `ast_pool` ~12.9k；8.3.1 十三刀 + 8.3.2 …+top_level hoist_target／sum residual 已切；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -913,10 +913,10 @@
 | `pipeline_asm_emit_block_body.c` | ~809 | asm ELF block body sync emit（defer + body_sync + accessors）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_block_if_stmt.c` | ~106 | asm ELF block-level if-stmt emit（then-first jz）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_block_inits.c` | ~171 | asm ELF block const/let init emit 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
-| `ast_pool.c` | ~12,928 | AST 池 / MatchArm / sidecar | 🟡 module_import+…+block stmt_order rebuild+onefunc fill+top_level name_is_const／hoist residual 已切；hoist_target／sum stack 仍 core |
+| `ast_pool.c` | ~12,875 | AST 池 / MatchArm / sidecar | 🟡 module_import+…+top_level hoist_target／sum residual 已切；backend asm wrappers／path helpers 仍 core |
 | `ast_pool_module_import.c` | ~226 | module ImportEntry cold-twin accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_struct_layout.c` | ~385 | module StructLayout cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
-| `ast_pool_top_level.c` | ~249 | module TopLevelLetEntry cold accessors + name_is_const／hoist residual 切片 | 🟡 已抽出（wave980+993 有则补全）；仍 host-cc 入 `pipeline_x` |
+| `ast_pool_top_level.c` | ~326 | module TopLevelLetEntry + name_is_const／hoist + hoist_target／sum residual 切片 | 🟡 已抽出（wave980+993–994 有则补全）；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_type_alias.c` | ~100 | module TypeAliasEntry cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_expr_sidecar.c` | ~647 | expr (+ type-pos) var-len sidecar 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_module_enum.c` | ~359 | module ModuleEnumEntry + enum field-access mark 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
@@ -982,6 +982,7 @@
   - ✅ onefunc fill residual 有则补全：`ast_pool_onefunc.c` 迁入 defer/labeled/if/region/stmt_order + fill_*（defers/labeled/regions/ifs/stmt_order/expr_stmts/whiles/fors）（~438 LOC；file ~986）；COUNT 仍 45；module_top_level_name_is_const + stmt_order rebuild 仍 core（wave991）
   - ✅ stmt_order rebuild residual 有则补全：`ast_pool_block.c` insert/fixup/sparse_ifs/module_fixup（~299 LOC；file ~1439）；COUNT 仍 45；name_is_const + hoist 仍 core（wave992）
   - ✅ top_level name_is_const／hoist residual 有则补全：`ast_pool_top_level.c` 迁入 name_is_const + hoist_top_level_lets_into_main（~115 LOC；file ~249）；COUNT 仍 45；block 后 include 可见 static prepend_lets（wave993）
+  - ✅ top_level hoist_target／sum residual 有则补全：`ast_pool_top_level.c` 迁入 `pipeline_asm_hoist_target_func_index` + `pipeline_asm_sum_module_top_level_lets_stack`（~77 LOC；file ~326）；COUNT 仍 45；modlet／slot helpers 仍 glue extern（wave994）
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
   - ⬜ 下一域候选：下一 asm 域 或 8.3.3 field_access／soa
 
@@ -1786,7 +1787,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 十三刀 ✅ · **8.3.2 …+block stmt_order rebuild+onefunc fill+top_level name_is_const／hoist residual ✅** · 8.3.9 ✅ · **当前：下一 asm 域 或 8.3.3 field_access／soa**）  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 十三刀 ✅ · **8.3.2 …+top_level hoist_target／sum residual ✅** · 8.3.9 ✅ · **当前：下一 asm 域 或 8.3.3 field_access／soa**）  
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
