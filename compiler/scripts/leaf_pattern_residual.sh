@@ -8038,6 +8038,27 @@ elif ! bash "$_btc_ps" --check >/dev/null 2>&1; then
 else
   note "bootstrap_typeck_codegen BTC bag → catalog relink-product + btc-typeck (wave960 post_ship; 0-make)"
 fi
+# wave961: legacy_xlang_c_link --check post_ship + catalog LEGACY bag (0-make).
+# Default: catalog --link-objs-export legacy-xlang-c + --link-cflags-export
+# relink-product; escape XLANG_LEGACY_LINK_VIA_MAKE=1 + MF only.
+# PLATFORM: SHARED — archaeology LEGACY xlang-c path after wave941 delete.
+_leg_ps="$ROOT/compiler/scripts/legacy_xlang_c_link.sh"
+[ -f "$_leg_ps" ] || _leg_ps="scripts/legacy_xlang_c_link.sh"
+if [ ! -f "$_leg_ps" ]; then
+  bad "missing legacy_xlang_c_link.sh (wave961 post_ship)"
+elif ! grep -q 'wave961' "$_leg_ps"; then
+  bad "legacy_xlang_c_link must document wave961 post_ship --check"
+elif ! grep -q 'XLANG_LEGACY_LINK_VIA_MAKE' "$_leg_ps"; then
+  bad "legacy_xlang_c_link must document XLANG_LEGACY_LINK_VIA_MAKE escape (wave961)"
+elif ! grep -qE 'link-objs-export legacy-xlang-c|--link-objs-export legacy-xlang-c' "$_leg_ps"; then
+  bad "legacy_xlang_c_link must catalog-load LEGACY LINK_OBJS (wave961)"
+elif ! grep -qE 'link-cflags-export relink-product|--link-cflags-export relink-product' "$_leg_ps"; then
+  bad "legacy_xlang_c_link must catalog-load relink-product LINK_CFLAGS (wave961)"
+elif ! bash "$_leg_ps" --check >/dev/null 2>&1; then
+  bad "legacy_xlang_c_link.sh --check failed (wave961 post_ship 0-make)"
+else
+  note "legacy_xlang_c_link LEGACY bag → catalog legacy-xlang-c + relink-product (wave961 post_ship; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then
