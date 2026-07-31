@@ -26,9 +26,9 @@
 # Note: PIPELINE_ASM_X_DEPS uses GNU make $(wildcard); catalog stores the
 # unexpanded $(PIPELINE_ASM_X_DEPS) token inside PIPELINE_X_DEPS (make expands
 # at recipe/prereq time). Fixed multi-token authority COUNT for honesty:
-#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths 13
+#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths 14
 #   = 22 (excludes the $(PIPELINE_ASM_X_DEPS) expansion token).
-#   wave965: +3 #include slices (ctfe/field_access/soa) in PIPELINE_X_DEPS.
+#   wave965: +4 #include slices (ctfe/assign/field_access/soa) in PIPELINE_X_DEPS.
 
 # Archaeology incomplete from_x .c inventory (historical host-cc core set).
 # Makefile product path is g05 (wave786); this list remains for inventory /
@@ -47,4 +47,4 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 PIPELINE_ASM_X_DEPS = $(wildcard src/asm/*.x src/asm/platform/*.x src/asm/arch/*.x)
 
 # pipeline_x.o / pipeline_gen STALE set: frontend .x chain + glue/pool C + asm tree.
-PIPELINE_X_DEPS = src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x $(PIPELINE_ASM_X_DEPS) pipeline_glue.c pipeline_typeck_ctfe.c pipeline_typeck_field_access.c pipeline_typeck_soa.c ast_pool.c ast_pool_bootstrap_glue.c
+PIPELINE_X_DEPS = src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x $(PIPELINE_ASM_X_DEPS) pipeline_glue.c pipeline_typeck_ctfe.c pipeline_typeck_assign.c pipeline_typeck_field_access.c pipeline_typeck_soa.c ast_pool.c ast_pool_bootstrap_glue.c
