@@ -33,7 +33,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~20.8k + `ast_pool` ~12.9k；8.3.1 二十九刀（+expr_rec）+ index_eff base／lvalue_text／thin faces／binop residual 有则补全 + 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~20.7k + `ast_pool` ~12.9k；8.3.1 二十九刀（+expr_rec）+ index_eff／lvalue／thin faces／binop residual／**assign_rhs** 有则补全 + 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -913,7 +913,7 @@
 | `pipeline_asm_emit_block_body.c` | ~809 | asm ELF block body sync emit（defer + body_sync + accessors）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_block_if_stmt.c` | ~106 | asm ELF block-level if-stmt emit（then-first jz）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_block_inits.c` | ~171 | asm ELF block const/let init emit 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
-| `pipeline_asm_emit_assign.c` | ~556 | asm ELF EXPR_ASSIGN emit（lhs f32 + rhs + assign_elf）切片 | 🟡 已抽出（wave995）；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_assign.c` | ~678 | asm ELF EXPR_ASSIGN emit（lhs f32 + rhs + assign_rhs_to_rax + assign_elf）切片 | 🟡 已抽出（wave995）+ assign_rhs 有则补全（wave1016）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_array_lit.c` | ~335 | asm ELF EXPR_ARRAY_LIT emit（elem_sz + empty + force_esz）切片 | 🟡 已抽出（wave996）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_index.c` | ~434 | asm ELF INDEX／ADDR_OF／DEREF emit（esz + load + lea）切片 | 🟡 已抽出（wave997）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_match.c` | ~179 | asm ELF MATCH／EXPR_IF emit（arm cmp+jeq + if jz）切片 | 🟡 已抽出（wave998）；仍 host-cc 入 `pipeline_x` |
@@ -1016,7 +1016,7 @@
   - ✅ asm INDEX effective-address scaled domain thin：`pipeline_asm_emit_index_eff_addr.c`（rax_plus_rbx_scaled + bounds_guard + rvalue_slice_once + eff_addr_scaled · ~653 LOC body／~697 file）自 glue 同 TU `#include` 抽出；try_index 仍 index_helpers；face 仍 index／assign；`PIPELINE_X_DEPS` COUNT 60→61 / g05 STALE / inventory 已收（wave1010）
   - ✅ asm expr recursion dispatcher domain thin：`pipeline_asm_emit_expr_rec.c`（lit_i32 + emit_expr_elf_rec · ~139 LOC body／~179 file）自 glue 同 TU `#include` 抽出；face 仍各域叶；slow 仍 backend residual；`PIPELINE_X_DEPS` COUNT 61→62 / g05 STALE / inventory 已收（wave1011）
   - ✅ asm INDEX eff-addr base twins + public faces 有则补全：`pipeline_asm_emit_index_eff_addr.c` 迁入 local_slot_text + base_{elf,text} + public index_eff_addr_{elf,text}（~198 LOC；file ~697→~895）；COUNT 仍 62；lvalue_eff_addr_text 仍 glue residual；ELF lvalue 仍 index_helpers（wave1012）
-  - ✅ asm lvalue_eff_addr_text 有则补全：`pipeline_asm_emit_index_helpers.c` 迁入 `pipeline_asm_emit_lvalue_eff_addr_text_c`（~77 LOC；file ~3039→~3135）；与 ELF twin 同叶；local_slot_text 仍 index_eff_addr（同 TU static 前向）；COUNT 仍 62；glue ~21.2k→~21.1k（wave1013）
+  - ✅ asm lvalue_eff_addr_text 有则补全：`pipeline_asm_emit_index_helpers.c` 迁入 `pipeline_asm_emit_lvalue_eff_addr_text_c`（~77 LOC；file ~3039→~3135）；与 ELF twin 同叶；local_slot_text 仍 index_eff_addr（同 TU static 前向）；COUNT 仍 62；glue ~20.7k→~21.1k（wave1013）
   - ✅ asm thin ELF public faces 有则补全：return／unary／as／spill 叶迁入 `pipeline_asm_emit_{return,neg,lognot,bitnot,as,break,continue}_elf_c`（~40 LOC 自 glue；COUNT 仍 62；glue ~21.1k）（wave1014）
   - ✅ asm binop residual 有则补全：`pipeline_asm_emit_binop.c` 迁入 scalar f32／f64／ptr arith／add_rax_rbx（~306 LOC 自 glue；file ~1221；COUNT 仍 62；glue ~20.8k）（wave1015）
   - ⬜ 下一域候选：assign_rhs residual／type_named_struct／leaf residual 或 8.3.3 field_access／soa
