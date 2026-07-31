@@ -1,6 +1,6 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
-> **创建**：2026-07-29（wave710 tip L4 钉盘 `53fd80927` 双端 129 全绿后）  
+> **创建**：2026-07-29（wave710 tip L4 钉盘 `9bb7a757c` 双端 129 全绿后）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（wave713 升级 · **用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -10,7 +10,7 @@
 > **进度数字**：[自举进度.md](自举进度.md) · skill `xlang-selfhost-product-gate` · Makefile 映射：[Makefile迁移表.md](Makefile迁移表.md)  
 > **先→后时序（换 IDE）**：[自举时序.md](自举时序.md)（执行序 S0–S8；与本文阶段号对照见时序 §5）  
 > **维护约定**：本文只维护 **待办勾选 / 状态表 / 债地图**；**波次变更记录只写 [自举进度.md](自举进度.md)**（禁止在本文追加 changelog 段）。  
-> **权威钉盘**（与本文附录 C 同步）：**`53fd80927`**（wave710）。
+> **权威钉盘**（与本文附录 C 同步）：**`9bb7a757c`**（wave710）。
 
 ---
 
@@ -27,7 +27,7 @@
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
 | **非 gen 产品 C（glue/ast 池）** | ⬜ 0/~10 | **`pipeline_glue.c` ~40k + `ast_pool.c` ~18k** 等；阶段 8.3（**删 Makefile 前最大体积债**） |
 | **Cap 能力解锁** | 🟡 持续 | 已闭多波；untyped self 待治；LANG-006 保留 |
-| **产品 L4 放行** | ✅ 钉盘 `53fd80927` | 双端 L4 真冷 + 129 bstrict |
+| **产品 L4 放行** | ✅ 钉盘 `9bb7a757c` | 双端 L4 真冷 + 129 bstrict |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
@@ -1793,7 +1793,7 @@
 
 | 项 | 值 |
 |---|---|
-| 钉盘 SHA | `53fd80927` |
+| 钉盘 SHA | `9bb7a757c` |
 | 前钉 SHA | `4fa4f07e7` |
 | 升钉波次 | wave710（match struct 模式链整波收口） |
 | 上次 L4 日期 | 2026-07-29 |

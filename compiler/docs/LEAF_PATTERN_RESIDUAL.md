@@ -1,7 +1,7 @@
 # Leaf pattern residual (11.3.1 path · not physical delete)
 
 > **Wave rows live in `analysis/自举进度.md` §6 only** (single authority; do not duplicate here).  
-> **Status:** endgame open — ✅ Windows reproof done (wave922) · ✅ dual-end L4 done (wave923 @ `81285129e`) · ⬜ explicit user auth → `phys-del-gate --delete-body` (final ship).
+> **Status:** endgame open — ✅ Windows reproof done (wave922) · ✅ dual-end L4 done (wave923 @ `eef4d7743`) · ⬜ explicit user auth → `phys-del-gate --delete-body` (final ship).
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
