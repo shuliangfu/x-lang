@@ -36,7 +36,10 @@
 #   TARGET — product binary name (default: xlang)
 #
 # wave874 (G.7 有则补全): Makefile fat body + xlang-build dual invoke → this script.
-# NOT physical delete — thin edges + B2 + mk lists remain residual.
+# Wave: 954 post_ship --check when Makefile absent (wave941 phys-del); shell is
+#   sole build-via-tool authority (run ./build_tool → TARGET + OK). MF thin-call
+#   inventory only applies when Makefile still present (pre_ship archaeology).
+# NOT physical delete of build_tool C (BC) — orchestration only.
 # PLATFORM: SHARED — orchestration only; ABI stays in build_tool / g05.
 
 set -euo pipefail
@@ -53,7 +56,33 @@ fail() { echo "build-via-tool: FAIL: $*" >&2; exit 1; }
 # ---------------------------------------------------------------------------
 if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   MF=Makefile
-  [ -f "$MF" ] || fail "missing $MF"
+  # wave954 post_ship: Makefile physically deleted (wave941). Shell owns
+  # invoke + OK; require product path authority in this script, not MF recipe.
+  if [ ! -f "$MF" ]; then
+    # Product path must still invoke host ./build_tool (not a second body).
+    if ! grep -qE '\./build_tool|build_tool "' "$0"; then
+      fail "build_via_tool must invoke ./build_tool (wave874/954 post_ship)"
+    fi
+    if ! grep -q 'build-via-tool OK' "$0"; then
+      fail "build_via_tool must print historic OK line (wave874/954 post_ship)"
+    fi
+    # Default TARGET and asm|legacy passthrough remain shell-owned.
+    if ! grep -q 'TARGET:-xlang' "$0"; then
+      fail "build_via_tool must default TARGET=xlang (wave874/954)"
+    fi
+    if ! grep -q 'asm|legacy' "$0"; then
+      fail "build_via_tool must accept asm|legacy subcmd (wave874/954)"
+    fi
+    if ! grep -q 'wave954\|wave874' "$0"; then
+      fail "build_via_tool must document wave874/954 shell-primary"
+    fi
+    # Host compile of build_tool stays build_tool.sh (G.7: not reimplemented here).
+    if [ ! -f scripts/build_tool.sh ]; then
+      fail "missing scripts/build_tool.sh (wave874/954; host build_tool authority)"
+    fi
+    echo "build_via_tool: --check OK (wave954 post_ship; shell-primary; 0-make)"
+    exit 0
+  fi
   _rec=$(awk '
     /^build-via-tool:/ { hit=1; next }
     hit && /^[^[:space:]#]/ { exit }
@@ -69,7 +98,7 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'build-via-tool OK' <<<"$_rec"; then
     fail "build-via-tool must not keep dual OK body (wave874; shell owns)"
   fi
-  echo "build_via_tool: --check OK (wave874; shell-primary; not physical delete)"
+  echo "build_via_tool: --check OK (wave874/954; shell-primary; not physical delete)"
   exit 0
 fi
 

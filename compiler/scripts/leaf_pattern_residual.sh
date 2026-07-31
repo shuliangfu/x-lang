@@ -7906,6 +7906,22 @@ elif ! bash "$_bt_sh" --check >/dev/null 2>&1; then
 else
   note "build_tool CFLAGS → catalog --cflags-export (wave953 post_ship; 0-make)"
 fi
+# wave954: build_via_tool --check post_ship (0-make after Makefile phys-del).
+# Shell owns run ./build_tool → TARGET + OK; xlang-build dual retired wave874.
+# PLATFORM: SHARED — product path orchestration after wave941 delete.
+_bvt_ps="$ROOT/compiler/scripts/build_via_tool.sh"
+[ -f "$_bvt_ps" ] || _bvt_ps="scripts/build_via_tool.sh"
+if [ ! -f "$_bvt_ps" ]; then
+  bad "missing build_via_tool.sh (wave954 post_ship)"
+elif ! grep -q 'wave954' "$_bvt_ps"; then
+  bad "build_via_tool must document wave954 post_ship --check"
+elif ! grep -qE '\./build_tool|build_tool "' "$_bvt_ps"; then
+  bad "build_via_tool must invoke ./build_tool (wave874/954)"
+elif ! bash "$_bvt_ps" --check >/dev/null 2>&1; then
+  bad "build_via_tool.sh --check failed (wave954 post_ship 0-make)"
+else
+  note "build_via_tool → ./build_tool TARGET (wave954 post_ship; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then
@@ -10092,10 +10108,11 @@ if [ -f xlang-build.sh ]; then
     bad "xlang-build.sh must call build_via_tool.sh (wave874 G.7)"
   fi
 fi
+# wave954: --check post_ship when MF absent; pre_ship still inventories thin-call.
 if ! bash "$_bvt_sh" --check >/dev/null 2>&1; then
-  mf_bad "build_via_tool.sh --check failed (wave874)"
+  mf_bad "build_via_tool.sh --check failed (wave874/954)"
 fi
-note "B7C build-via-tool shell-primary (COUNT=1; wave874; not physical delete)"
+note "B7C build-via-tool shell-primary (COUNT=1; wave874/954 post_ship; not physical delete)"
 # wave875: size-baseline + perf-baseline shell-primary (COUNT=2).
 # G.7: dual Makefile if/chmod/XLANG wrappers retired; shell owns dispatch;
 # measurement authority stays tests/run-{size,perf}-baseline.sh.
