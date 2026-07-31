@@ -385,6 +385,7 @@
 - **今日**：🟢 **全 4 纯 shell**（wave715 pipeline · wave716 partial trio + 共用核心）
 - **优先**：已闭；bstrict 路径 `ensure_bstrict_filtered_*` 仍为 build_xlang_asm 内副本（follow-up 可收敛）
 - **wave928**：`build_xlang_asm.sh` experimental chain A类 3 处 make→shell（`pipeline_bootstrap_orchestration.o` 2处统一cc直编seed + `lsp_diag_pipeline_ctx.o`→try-ldpc-prefer + `fmt_check_cmd_driver.o`→try-other-l2-prefer；parity字节级一致；逃生口 `XLANG_ASM_LINK_VIA_MAKE=1`）；仍剩 9 处 make（B类 FORCE leaves + C类 复合 target）
+- **wave929**：`build_xlang_asm.sh` B类 FORCE leaves 3 处 make→shell（`pipeline_x.o PIPELINE_X_FORCE_COMPILE=1`→try-heat + env；`parser_x.o`→migrate_x_objs；`typeck_x.o + x_frontend_link_alias.o`→migrate + try-heat；parity字节级一致）；仍剩 6 处 make（C类长串 companion list + C类复合 targets）
 - **条数**：4
 - **权威（G.7）**：
   - 核心：`compiler/scripts/filter_o_export_against_deps.sh`
