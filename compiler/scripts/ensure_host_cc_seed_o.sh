@@ -256,6 +256,11 @@
 #   bash scripts/ensure_host_cc_seed_o.sh seed-map --force
 #   ./xbuild host-cc-seed | … | misc-basename | seed-map | r2-panic
 #
+#   wave964: --check post_ship when Makefile absent (wave941 phys-del).
+#            Catalog + shell seed maps / try-heat ladder remain the authority;
+#            MF thin-call residual inventory is N/A (no dual "missing Makefile" fail).
+#            PLATFORM: SHARED — 0-make structural honesty; dual-end L2 safe.
+#
 # Env:
 #   CC — host compiler (default: resolve_host_cc.sh — `cc` if present else `gcc`;
 #        PLATFORM: WINDOWS/MinGW often has only gcc, no `cc` binary name)
@@ -5288,10 +5293,239 @@ run_check() {
   note() { echo "ensure_host_cc_seed_o: $*" >&2; }
   bad() { echo "ensure_host_cc_seed_o: FAIL: $*" >&2; fail=1; }
 
+  # -------------------------------------------------------------------------
+  # wave964 post_ship: Makefile physically deleted (wave941). Catalog + shell
+  # own host-cc seed/.o; MF thin-call residual inventory is N/A.
+  # PLATFORM: SHARED — structural honesty only (no product compile); dual-end L2.
+  # -------------------------------------------------------------------------
+  if [ ! -f Makefile ]; then
+    local _ps_key _ps_keys _ps_cache
+    if [ ! -f scripts/driver_seed_obj_catalog.sh ]; then
+      bad "missing driver_seed_obj_catalog.sh (wave964 post_ship)"
+    else
+      note "catalog script present (wave964 post_ship)"
+    fi
+    if [ ! -f mk/driver_seed_r_lists.mk ]; then
+      bad "missing mk/driver_seed_r_lists.mk (wave964; R* list authority)"
+    fi
+    # Warm file cache once: catalog_key_list uses `catalog_blob | sed` (pipe
+    # subshell loses in-process _catalog_blob_cache). Without a file cache,
+    # each family re-parses mk (~9s × N) and --check looks hung.
+    # PLATFORM: SHARED — same cache contract as bootstrap/ensure_prereqs.
+    _ps_cache="${TMPDIR:-/tmp}/xlang_ensure_host_cc_check_$$.catalog"
+    if bash scripts/driver_seed_obj_catalog.sh --shell >"$_ps_cache" 2>/dev/null \
+      && [ -s "$_ps_cache" ]; then
+      export XLANG_CATALOG_CACHE_FILE="$_ps_cache"
+      note "catalog cache warm for --check (wave964 post_ship)"
+    else
+      rm -f "$_ps_cache" 2>/dev/null || true
+      note "catalog cache warm skipped; in-process only (wave964)"
+    fi
+    # List authority lives in mk/*.mk (catalog re-exports). Not Makefile.
+    _ps_keys="RT_SEED_SLICE_OBJS R1_CORE_SEED_OBJS R1_FRONTEND_GLUE_OBJS R1_MAIN_RUNTIME_OBJS \
+R1_ALIAS_STUBS_OBJS R1_EXTRA_CFLAGS_OBJS R1_MISC_BASENAME_OBJS R1_SEED_MAP_OBJS \
+R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED_CRT0_OBJS"
+    # shellcheck disable=SC2086
+    for _ps_key in $_ps_keys; do
+      if ! grep -q "$_ps_key" mk/*.mk 2>/dev/null; then
+        bad "$_ps_key not defined in mk/*.mk (wave964 post_ship)"
+      fi
+    done
+    # Catalog expand + seed map resolve (G.7 lists stay mk; shell owns seed paths).
+    check_family "RT_SEED_SLICE_OBJS" 5 "rt-slice" "basename" "src/runtime/"
+    check_family "R1_CORE_SEED_OBJS" 5 "core-seed" "basename" "src/"
+    check_family "R1_FRONTEND_GLUE_OBJS" 3 "frontend-glue" "frontend-glue" "src/"
+    check_family "R1_MAIN_RUNTIME_OBJS" 7 "main-runtime" "main-runtime" "src/"
+    check_family "R1_ALIAS_STUBS_OBJS" 8 "alias-stubs" "basename" ""
+    check_family "R1_EXTRA_CFLAGS_OBJS" 5 "extra-cflags" "extra-cflags" ""
+    check_family "R1_MISC_BASENAME_OBJS" 9 "misc-basename" "basename" ""
+    check_family "R1_SEED_MAP_OBJS" 5 "seed-map" "seed-map" ""
+    check_family "R3_COLD_SEED_OBJS" 9 "r3-cold-seed" "basename" ""
+    {
+      local panic_list panic_n=0 po pick
+      if ! panic_list="$(catalog_key_list "DRIVER_SEED_PANIC_OBJS" 2>/dev/null)"; then
+        bad "catalog cannot expand DRIVER_SEED_PANIC_OBJS (wave964 post_ship)"
+      else
+        # shellcheck disable=SC2086
+        for po in $panic_list; do
+          [ -z "$po" ] && continue
+          panic_n=$((panic_n + 1))
+        done
+        if [ "$panic_n" -lt 1 ]; then
+          bad "DRIVER_SEED_PANIC_OBJS empty (wave964 post_ship)"
+        else
+          note "catalog DRIVER_SEED_PANIC_OBJS n=$panic_n (r2-panic)"
+        fi
+        if ! pick="$(r2_panic_host_pick_src 2>/dev/null)"; then
+          bad "r2_panic_host_pick_src failed on this host (wave964 post_ship)"
+        else
+          note "r2-panic host pick: $pick"
+        fi
+      fi
+    }
+    {
+      local f64_list f64_n=0 fo f64_src crt0_list crt0_n=0 co
+      if ! f64_list="$(catalog_key_list "DRIVER_SEED_TYPECK_F64_OBJS" 2>/dev/null)"; then
+        bad "catalog cannot expand DRIVER_SEED_TYPECK_F64_OBJS (wave964 post_ship)"
+      else
+        # shellcheck disable=SC2086
+        for fo in $f64_list; do
+          [ -z "$fo" ] && continue
+          f64_n=$((f64_n + 1))
+        done
+        if [ "$f64_n" -lt 1 ]; then
+          bad "DRIVER_SEED_TYPECK_F64_OBJS empty (wave964 post_ship)"
+        else
+          note "catalog DRIVER_SEED_TYPECK_F64_OBJS n=$f64_n (r2-typeck-f64)"
+        fi
+        if ! f64_src="$(r2_typeck_f64_host_pick_src 2>/dev/null)"; then
+          bad "r2_typeck_f64_host_pick_src failed on this host (wave964 post_ship)"
+        else
+          note "r2-typeck-f64 host pick: $f64_src"
+        fi
+      fi
+      if ! crt0_list="$(catalog_key_list "DRIVER_SEED_CRT0_OBJS" 2>/dev/null)"; then
+        bad "catalog cannot expand DRIVER_SEED_CRT0_OBJS (wave964 post_ship)"
+      else
+        # shellcheck disable=SC2086
+        for co in $crt0_list; do
+          [ -z "$co" ] && continue
+          crt0_n=$((crt0_n + 1))
+        done
+        if [ "$crt0_n" -lt 1 ]; then
+          bad "DRIVER_SEED_CRT0_OBJS empty (wave964 post_ship)"
+        else
+          note "catalog DRIVER_SEED_CRT0_OBJS n=$crt0_n (r2-crt0)"
+        fi
+      fi
+    }
+    # G.7: list authority is catalog/mk only — no hardcoded assignment of product lists.
+    if grep -nE '^(export )?RT_SEED_SLICE_OBJS=' "$0" 2>/dev/null \
+      | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
+      bad "must not hardcode RT_SEED_SLICE_OBJS= in shell body"
+    fi
+    if grep -nE '^(export )?R1_CORE_SEED_OBJS=' "$0" 2>/dev/null \
+      | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
+      bad "must not hardcode R1_CORE_SEED_OBJS= in shell body"
+    fi
+    if grep -nE '^(export )?DRIVER_SEED_PANIC_OBJS=' "$0" 2>/dev/null \
+      | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
+      bad "must not hardcode DRIVER_SEED_PANIC_OBJS= in shell body"
+    fi
+    # Shell ladder / bodies still required after MF delete.
+    if ! grep -q 'try_ensure_r1_one\|try-r1' "$0"; then
+      bad "try-r1 / try_ensure_r1_one missing (wave756/964)"
+    else
+      note "try-r1 pure-R1 helper present (wave964 post_ship)"
+    fi
+    if ! grep -q 'try_ensure_r3_cold_one\|try-r3-cold' "$0"; then
+      bad "try-r3-cold missing (wave757/964)"
+    else
+      note "try-r3-cold helper present (wave964 post_ship)"
+    fi
+    if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
+      bad "try-r2 / try_ensure_r2_one missing (wave760/762/964)"
+    else
+      note "try-r2 R2 UNAME helper present (wave964 post_ship)"
+    fi
+    if ! grep -q 'try_heat_one\|try-heat' "$0"; then
+      bad "try-heat / try_heat_one missing (wave789/964 B7A heat)"
+    else
+      note "try-heat B7A heat auto-dispatch present (wave964 post_ship)"
+    fi
+    if ! grep -q '_load_try_heat_cflags_via_catalog\|export-try-heat-cflags' "$0"; then
+      bad "shell must load try-heat CFLAGS via catalog (wave862/942/964)"
+    else
+      note "try-heat CFLAGS catalog-load present (wave964 post_ship)"
+    fi
+    if ! grep -q 'try_ensure_gen_x_one\|try-gen-x' "$0"; then
+      bad "try-gen-x / try_ensure_gen_x_one missing (wave761/964)"
+    else
+      note "try-gen-x gen residual helper present (wave964 post_ship)"
+    fi
+    if [ ! -f scripts/ensure_gen_x_o.sh ]; then
+      bad "scripts/ensure_gen_x_o.sh missing (wave761/964)"
+    else
+      note "ensure_gen_x_o.sh present (wave964 post_ship)"
+    fi
+    # wave950: cfg-eval soft missing xlang-c → ensure_xlang_c.sh (0-make).
+    if grep -E '^[[:space:]]+\$MAKE[[:space:]]+xlang-c' "$0" 2>/dev/null | grep -q .; then
+      bad "cfg-eval ladder must not residual bare make xlang-c (wave950/964; ensure_xlang_c.sh)"
+    fi
+    if ! grep -q 'ensure_xlang_c\.sh ensure' "$0" 2>/dev/null; then
+      bad "cfg-eval ladder must soft-call ensure_xlang_c.sh for missing xlang-c (wave950/964)"
+    else
+      note "cfg-eval soft xlang-c → ensure_xlang_c.sh (wave964 post_ship; 0-make)"
+    fi
+    if ! grep -q 'seed_project_hdrs_newer' "$0"; then
+      bad "seed_project_hdrs_newer missing (wave793/964)"
+    else
+      note "seed_project_hdrs_newer present (wave964 post_ship)"
+    fi
+    if ! grep -q 'force_thin_makefile_flags_newer' "$0"; then
+      bad "force_thin_makefile_flags_newer missing (wave794/964)"
+    else
+      note "force_thin_makefile_flags_newer present (wave964 post_ship)"
+    fi
+    if ! grep -q 'udp_batch.x' "$0" || ! grep -q 'runtime_net_sock_fast.from_x.c' "$0"; then
+      bad "net_merge multi-source mtime missing (wave796/964)"
+    else
+      note "net_merge multi-source mtime present (wave964 post_ship)"
+    fi
+    # B4 gen-c-to-o table (shell owns map; MF multi-target gone).
+    if ! grep -q 'gen_c_to_o_spec_for_out\|try_ensure_gen_c_to_o_one' "$0"; then
+      bad "gen-c-to-o table/body missing (wave782/964)"
+    else
+      note "gen-c-to-o table present (wave964 post_ship)"
+    fi
+    _b4_n=0
+    for _b4_leaf in lexer_x.o ast_gen2.o driver_x.o preprocess_x.o _x_stubs2.o; do
+      if [ -n "$(gen_c_to_o_spec_for_out "$_b4_leaf" 2>/dev/null || true)" ]; then
+        _b4_n=$((_b4_n + 1))
+      else
+        bad "gen_c_to_o_spec_for_out missing $_b4_leaf (wave782/964)"
+      fi
+    done
+    if [ "$_b4_n" -ne 5 ]; then
+      bad "gen-c-to-o table size $_b4_n != 5 (wave782/964 B4 heat)"
+    else
+      note "gen-c-to-o table has 5 members (wave964 post_ship)"
+    fi
+    # B5 cfg-eval ladder table.
+    if ! grep -q 'cfg_eval_ladder_spec_for_out\|ensure_cfg_eval_ladder_one\|try-cfg-eval-ladder' "$0"; then
+      bad "cfg-eval ladder table/body missing (wave783/964)"
+    else
+      note "cfg-eval ladder present (wave964 post_ship)"
+    fi
+    if [ -n "$(cfg_eval_ladder_spec_for_out "src/lexer/cfg_eval.o" 2>/dev/null || true)" ]; then
+      note "cfg_eval_ladder_spec_for_out has src/lexer/cfg_eval.o (wave964 post_ship)"
+    else
+      bad "cfg_eval_ladder_spec_for_out missing src/lexer/cfg_eval.o (wave783/964)"
+    fi
+    # Prefer helpers still present (product path via try-heat ladder).
+    if ! grep -q 'try_ensure_runtime_os_prefer_one' "$0" \
+      || ! grep -q 'try_ensure_r1_one' "$0" \
+      || ! grep -q 'try_ensure_gen_x_one' "$0"; then
+      bad "try-heat ladder requires existing try-* helpers (wave789/964)"
+    else
+      note "try-heat ladder deps present (prefer/R1/gen; wave964 post_ship)"
+    fi
+    if [ -n "${_ps_cache:-}" ]; then
+      rm -f "$_ps_cache" 2>/dev/null || true
+    fi
+    if [ "$fail" -ne 0 ]; then
+      echo "ensure_host_cc_seed_o: --check FAILED (wave964 post_ship)" >&2
+      exit 1
+    fi
+    echo "ensure_host_cc_seed_o: CHECK OK (wave964 post_ship; catalog+shell R1/R3/R2/gen-x/try-heat; MF thin residual N/A after wave941 phys-del; 0-make)" >&2
+    exit 0
+  fi
+
   # wave907–915 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
   # checks (R1/R3/ASYNC/B1 / GEN_X / GEN_C_TO_O / B3_LSP_SAT / FMT_CHECK / R2 CRT0 / TYPECK_F64 / PANIC).
   # Accept per-leaf OR membership in a multi-target list whose recipe thin-calls ensure
   # try-heat (prefer / gen-x / gen-c-to-o / lsp-sat / other-l2 / try-r2 ladder lives in shell).
+  # Archaeology: this block runs only when Makefile is present (pre_ship / restored MF).
   makefile_leaf_try_heat_ok() {
     local leaf="$1"
     local prefer_re="${2:-try-heat}"
@@ -5365,9 +5599,6 @@ run_check() {
 
   if [ ! -f scripts/driver_seed_obj_catalog.sh ]; then
     bad "missing driver_seed_obj_catalog.sh"
-  fi
-  if [ ! -f Makefile ]; then
-    bad "missing Makefile (cwd must be compiler/)"
   fi
   if ! grep -q 'RT_SEED_SLICE_OBJS' Makefile \
     && ! grep -q 'RT_SEED_SLICE_OBJS' mk/*.mk 2>/dev/null; then

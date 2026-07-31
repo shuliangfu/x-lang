@@ -1511,7 +1511,7 @@
   - ✅ wave961：`legacy_xlang_c_link.sh` catalog LEGACY bag + `--check` post_ship（MF 缺席绿；`--link-objs-export legacy-xlang-c` + `--link-cflags-export relink-product`；`XLANG_LEGACY_LINK_VIA_MAKE` 逃生口；leaf honesty）
   - ✅ wave962：`host_cc_objs_core_link.sh` catalog OBJS_CORE bag + `--check` post_ship（MF 缺席绿；`--link-objs-export objs-core` + `--cflags-export`；`XLANG_OBJS_CORE_LINK_VIA_MAKE` 逃生口；leaf honesty）
   - ✅ wave963：**开 BC** · `bc_host_cc_product_inventory.sh` 冻结 8.3 产品 residual C · `./xbuild bc-inventory --check` · 8.3.9 孤儿 absent · leaf honesty
-  - ✅ wave963：**开 BC** · `bc_host_cc_product_inventory.sh` 冻结 8.3 产品 residual C 面 · `./xbuild bc-inventory --check` · 8.3.9 孤儿 absent · leaf honesty
+  - ✅ wave964：`ensure_host_cc_seed_o.sh --check` post_ship（MF 缺席绿；catalog+shell R1/R3/R2/gen-x/try-heat；warm catalog cache；leaf honesty）
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
@@ -1796,7 +1796,7 @@ MG **编排层**已完成（wave941/942/944/945）。**BC 轨 wave963 已开**�
 
 剩余工作优先级（MG 已闭后）：
 
-1. ✅ **post-delete residual**（wave944–962）— 0-make hub · gate post_ship · catalog bags · host_cc_objs_core_link OBJS_CORE（残：ensure_host_cc --check post_ship MF 缺席）
+1. ✅ **post-delete residual**（wave944–**964**）— 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check post_ship ✅
 2. 🟡 **BC 开 + 阶段 8.3**（wave963 库存冻结 · 8.3.9 ✅ · **下一：8.3.1/8.3.2 切片**）  
 3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. **阶段 10 → 9** 语言能力 + residual 消灭  

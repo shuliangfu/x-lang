@@ -8094,6 +8094,22 @@ elif ! bash "$_bc_inv" --check >/dev/null 2>&1; then
 else
   note "bc_host_cc_product_inventory BC open · 8.3 map frozen (wave963)"
 fi
+# wave964: ensure_host_cc_seed_o --check post_ship when Makefile absent (wave941).
+# Catalog + shell seed maps / try-heat remain authority; MF thin residual N/A.
+# PLATFORM: SHARED — 0-make structural honesty after phys-del.
+_ehc_ps="$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh"
+[ -f "$_ehc_ps" ] || _ehc_ps="scripts/ensure_host_cc_seed_o.sh"
+if [ ! -f "$_ehc_ps" ]; then
+  bad "missing ensure_host_cc_seed_o.sh (wave964 post_ship)"
+elif ! grep -q 'wave964' "$_ehc_ps"; then
+  bad "ensure_host_cc_seed_o must document wave964 post_ship --check"
+elif ! grep -q 'post_ship' "$_ehc_ps"; then
+  bad "ensure_host_cc_seed_o must document post_ship path (wave964)"
+elif ! bash "$_ehc_ps" --check >/dev/null 2>&1; then
+  bad "ensure_host_cc_seed_o.sh --check failed (wave964 post_ship 0-make)"
+else
+  note "ensure_host_cc_seed_o --check post_ship OK (wave964; catalog+shell; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then
