@@ -16,10 +16,10 @@
  *
  * G.7: single product-mega INDEX scaled-eff-addr face — do not open a second
  * bounds-guard or rax+rbx*esz path, and do not re-open base/public INDEX
- * eff-addr twins outside this leaf. try_index forest stays in
- * pipeline_asm_emit_index_helpers.c; face emitters stay in
- * pipeline_asm_emit_index.c / assign. lvalue_eff_addr_text remains later in glue
- * (ELF lvalue already in index_helpers).
+ * eff-addr twins outside this leaf. try_index forest + lvalue_eff_addr_{elf,text}
+ * stay in pipeline_asm_emit_index_helpers.c (text folded wave1013; calls
+ * local_slot_text + index_eff_addr_text here via same-TU forward decls);
+ * face emitters stay in pipeline_asm_emit_index.c / assign.
  *
  * Callers: pipeline_asm_emit_index.c; assign INDEX lhs; index_helpers try_index;
  * spill index_assign residual (via forward decl); lvalue text INDEX arm;
@@ -27,7 +27,7 @@
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c in place of
  * the former residual body (after binop load helpers / spill; before lit_i32 +
- * expr_rec; lvalue_eff_addr_text residual follows expr_rec).
+ * expr_rec).
  *
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
  *   · LINUX+MACOS x86_64 SysV — imul/lea scale + bounds jl/jge

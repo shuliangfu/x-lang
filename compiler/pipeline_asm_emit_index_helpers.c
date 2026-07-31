@@ -15,17 +15,19 @@
  * - try_index_* forest (base→rax/rbx, assign-addr→rbx, eff_addr→rax;
  *   lit/var/add/sub/mul nested shapes + index scratch cache)
  * - glue_emit_soa_index_field_addr_elf_c (DoD column-major arr[i].field)
- * - pipeline_asm_emit_lvalue_eff_addr_elf_c (VAR / FIELD / INDEX / DEREF)
+ * - pipeline_asm_emit_lvalue_eff_addr_{elf,text}_c (VAR / FIELD / INDEX;
+ *   ELF also DEREF; text twin folded wave1013 G.7 有则补全)
  *
  * G.7: single product-mega INDEX residual-helper face — do not open a second
  * try_index forest or lvalue_eff_addr path. Face emitters stay in
  * pipeline_asm_emit_index.c; index assign finish_store / bulk_mem_copy_spills /
  * Chaitin spill live in pipeline_asm_emit_spill.c (same TU, next include);
- * glue_emit_index_eff_addr_scaled_elf_c lives in
+ * glue_emit_index_eff_addr_scaled_elf_c + local_slot_text live in
  * pipeline_asm_emit_index_eff_addr.c (same TU, after binop residual helpers).
  *
  * Callers: pipeline_asm_emit_index.c; assign INDEX lhs; call-arg base;
- * field_access INDEX-rooted chains; expr_elf_rec INDEX/ADDR_OF/DEREF.
+ * field_access INDEX-rooted chains; expr_elf_rec INDEX/ADDR_OF/DEREF;
+ * text path M8-tail / backend wrappers for lvalue text.
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c immediately
  * after pipeline_asm_emit_struct_let.c (before pipeline_asm_emit_spill.c).
@@ -2927,10 +2929,19 @@ static int32_t glue_emit_soa_index_field_addr_elf_c(struct ast_ASTArena *arena,
   return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
 }
 
-/** 前置声明：lvalue text 的 INDEX 分支调用。 */
+/**
+ * Forward decls for lvalue text twin (defined later in same TU):
+ * - pipeline_asm_emit_index_eff_addr_text_c — public face in index_eff_addr leaf
+ * - glue_arch_emit_local_slot_ptr_or_addr_text_c — static helper in index_eff_addr
+ *   (wave1012 fold); same-TU static forward decl is valid C.
+ */
 int32_t pipeline_asm_emit_index_eff_addr_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                 int32_t ix_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                 int32_t elem_sz);
+static int32_t glue_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena,
+                                                            struct codegen_CodegenOutBuf *out, int32_t var_expr_ref,
+                                                            int32_t stack_off, struct backend_AsmFuncCtx *ctx,
+                                                            int32_t ta);
 
 /**
  * 赋值左值有效地址入 rax/x0（VAR / 链式 FIELD_ACCESS / INDEX）；M8-tail 薄包装 bl 目标。
@@ -3034,6 +3045,91 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(struct ast_ASTArena *arena,
     if (op <= 0)
       return -1;
     return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta);
+  }
+  return -1;
+}
+
+/**
+ * Assign lvalue effective address text path (VAR / chained FIELD_ACCESS / INDEX).
+ * Twin of pipeline_asm_emit_lvalue_eff_addr_elf_c for M8-tail / backend text
+ * wrappers. INDEX arm delegates to pipeline_asm_emit_index_eff_addr_text_c;
+ * local slot uses glue_arch_emit_local_slot_ptr_or_addr_text_c (same-TU later
+ * in index_eff_addr leaf). wave596: auto-deref *T intermediate field before
+ * next field offset (w.p.f / chain) — same authority as ELF / INDEX ptr-field.
+ * DEREF (ko==52) is ELF-only on this face (text residual never had it).
+ * G.7 wave1013: folded from glue residual into this leaf beside ELF twin.
+ * PLATFORM: SHARED freestanding text path · LINUX gold · MACOS co-path.
+ */
+int32_t pipeline_asm_emit_lvalue_eff_addr_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                                 int32_t lval_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t ko;
+  if (!arena || !out || !ctx || lval_ref <= 0)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(arena, lval_ref);
+  if (ko == 3) {
+    uint8_t vname[128];
+    int32_t vlen;
+    int32_t off;
+    vlen = pipeline_expr_var_name_len(arena, lval_ref);
+    if (vlen <= 0 || vlen > 127)
+      return -1;
+    pipeline_expr_var_name_into(arena, lval_ref, vname);
+    off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
+    if (off < 0)
+      return -1;
+    return glue_arch_emit_local_slot_ptr_or_addr_text_c(arena, out, lval_ref, off, ctx, ta);
+  }
+  if (ko == 44) {
+    int32_t base_ref;
+    int32_t field_off;
+    if (pipeline_expr_field_access_is_enum_variant(arena, lval_ref) != 0)
+      return -1;
+    base_ref = pipeline_expr_field_access_base_ref(arena, lval_ref);
+    if (base_ref <= 0)
+      return -1;
+    if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
+      uint8_t vname[128];
+      int32_t vlen;
+      int32_t var_off;
+      vlen = pipeline_expr_var_name_len(arena, base_ref);
+      if (vlen <= 0 || vlen > 127)
+        return -1;
+      pipeline_expr_var_name_into(arena, base_ref, vname);
+      var_off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
+      if (var_off < 0)
+        var_off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
+      if (var_off < 0)
+        return -1;
+      if (glue_arch_emit_local_slot_ptr_or_addr_text_c(arena, out, base_ref, var_off, ctx, ta) != 0)
+        return -1;
+      field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, lval_ref);
+      if (field_off != 0 && backend_arch_emit_add_imm_to_rax(out, field_off, ta) != 0)
+        return -1;
+      return 0;
+    }
+    if (pipeline_asm_emit_lvalue_eff_addr_text_c(arena, out, base_ref, ctx, ta) != 0)
+      return -1;
+    /*
+     * wave596: twin of ELF lvalue — auto-deref *T intermediate field before next
+     * field offset (w.p.f / chain). G.7 same authority as INDEX ptr-field slot.
+     * PLATFORM: SHARED freestanding text path.
+     */
+    if (pipeline_expr_kind_ord_at(arena, base_ref) == 44) {
+      int32_t ftr = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, base_ref);
+      int32_t fk = (ftr > 0) ? pipeline_type_kind_ord_at(arena, ftr) : 0;
+      if ((fk == GLUE_TYPE_KIND_PTR || fk == GLUE_TYPE_KIND_SLICE) &&
+          backend_arch_emit_load_64_from_rax(out, ta) != 0)
+        return -1;
+    }
+    field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, lval_ref);
+    if (field_off != 0 && backend_arch_emit_add_imm_to_rax(out, field_off, ta) != 0)
+      return -1;
+    return 0;
+  }
+  if (ko == 47) {
+    int32_t esz;
+    esz = pipeline_asm_index_elem_byte_sz_c(arena, lval_ref);
+    return pipeline_asm_emit_index_eff_addr_text_c(arena, out, lval_ref, ctx, ta, esz);
   }
   return -1;
 }

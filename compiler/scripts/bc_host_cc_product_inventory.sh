@@ -104,7 +104,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_vector_let.c|8.3.1|asm ELF vector_let / fixed-array field store (leaf + flat + vector_let + frame_mag + store_fixed) slice|550|present"
   "compiler/pipeline_asm_emit_vector_simd.c|8.3.1|asm ELF SIMD vector lane / shuffle / select / fma emit domain slice|1200|present"
   "compiler/pipeline_asm_emit_struct_let.c|8.3.1|asm ELF struct let-init (struct_let_init + type_let_init + sret shift) slice|150|present"
-  "compiler/pipeline_asm_emit_index_helpers.c|8.3.1|asm ELF INDEX residual helpers (slot+esz+try_index forest+lvalue_eff_addr) slice|2500|present"
+  "compiler/pipeline_asm_emit_index_helpers.c|8.3.1|asm ELF INDEX residual helpers (slot+esz+try_index forest+lvalue_eff_addr elf+text) slice|2500|present"
   "compiler/pipeline_asm_emit_spill.c|8.3.1|asm ELF 7.3 live/Chaitin spill/bulk_mem/index-assign residual slice|2000|present"
   "compiler/pipeline_asm_emit_index_eff_addr.c|8.3.1|asm ELF INDEX eff-addr (scaled+bounds+base twins+public faces) slice|700|present"
   "compiler/pipeline_asm_emit_expr_rec.c|8.3.1|asm ELF expr recursion dispatcher (lit_i32 + emit_expr_elf_rec) slice|100|present"

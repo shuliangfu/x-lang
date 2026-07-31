@@ -4117,92 +4117,14 @@ static int32_t glue_try_binop_cmp_rbx_rax_elf_c(struct ast_ASTArena *arena,
  * (rax_plus_rbx_scaled + bounds_guard + rvalue_slice_once +
  *  eff_addr_scaled entry + base twins + public index_eff_addr faces;
  *  Cap residual pure; same TU). G.7 fold base/public into this leaf (wave1012).
- * try_index forest stays in index_helpers; face in index/assign;
- * lvalue_eff_addr_text residual after expr_rec. */
+ * try_index forest + lvalue_eff_addr_{elf,text} stay in index_helpers
+ * (text folded wave1013); face in index/assign. */
 #include "pipeline_asm_emit_index_eff_addr.c"
 
 /* BC 8.3.1: asm ELF expr recursion dispatcher domain
  * (lit_i32 + emit_expr_elf_rec; Cap residual pure; same TU).
  * Face emitters stay in domain leaves; slow remains backend residual. */
 #include "pipeline_asm_emit_expr_rec.c"
-
-
-/**
- * 赋值左值有效地址 text（VAR / 链式 FIELD_ACCESS / INDEX）；M8-tail 薄包装 bl 目标。
- */
-int32_t pipeline_asm_emit_lvalue_eff_addr_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
-                                                 int32_t lval_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  int32_t ko;
-  if (!arena || !out || !ctx || lval_ref <= 0)
-    return -1;
-  ko = pipeline_expr_kind_ord_at(arena, lval_ref);
-  if (ko == 3) {
-    uint8_t vname[128];
-    int32_t vlen;
-    int32_t off;
-    vlen = pipeline_expr_var_name_len(arena, lval_ref);
-    if (vlen <= 0 || vlen > 127)
-      return -1;
-    pipeline_expr_var_name_into(arena, lval_ref, vname);
-    off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
-    if (off < 0)
-      return -1;
-    return glue_arch_emit_local_slot_ptr_or_addr_text_c(arena, out, lval_ref, off, ctx, ta);
-  }
-  if (ko == 44) {
-    int32_t base_ref;
-    int32_t field_off;
-    if (pipeline_expr_field_access_is_enum_variant(arena, lval_ref) != 0)
-      return -1;
-    base_ref = pipeline_expr_field_access_base_ref(arena, lval_ref);
-    if (base_ref <= 0)
-      return -1;
-    if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
-      uint8_t vname[128];
-      int32_t vlen;
-      int32_t var_off;
-      vlen = pipeline_expr_var_name_len(arena, base_ref);
-      if (vlen <= 0 || vlen > 127)
-        return -1;
-      pipeline_expr_var_name_into(arena, base_ref, vname);
-      var_off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
-      if (var_off < 0)
-        var_off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
-      if (var_off < 0)
-        return -1;
-      if (glue_arch_emit_local_slot_ptr_or_addr_text_c(arena, out, base_ref, var_off, ctx, ta) != 0)
-        return -1;
-      field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, lval_ref);
-      if (field_off != 0 && backend_arch_emit_add_imm_to_rax(out, field_off, ta) != 0)
-        return -1;
-      return 0;
-    }
-    if (pipeline_asm_emit_lvalue_eff_addr_text_c(arena, out, base_ref, ctx, ta) != 0)
-      return -1;
-    /*
-     * wave596: twin of ELF lvalue — auto-deref *T intermediate field before next
-     * field offset (w.p.f / chain). G.7 same authority as INDEX ptr-field slot.
-     * PLATFORM: SHARED freestanding text path.
-     */
-    if (pipeline_expr_kind_ord_at(arena, base_ref) == 44) {
-      int32_t ftr = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, base_ref);
-      int32_t fk = (ftr > 0) ? pipeline_type_kind_ord_at(arena, ftr) : 0;
-      if ((fk == GLUE_TYPE_KIND_PTR || fk == GLUE_TYPE_KIND_SLICE) &&
-          backend_arch_emit_load_64_from_rax(out, ta) != 0)
-        return -1;
-    }
-    field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, lval_ref);
-    if (field_off != 0 && backend_arch_emit_add_imm_to_rax(out, field_off, ta) != 0)
-      return -1;
-    return 0;
-  }
-  if (ko == 47) {
-    int32_t esz;
-    esz = pipeline_asm_index_elem_byte_sz_c(arena, lval_ref);
-    return pipeline_asm_emit_index_eff_addr_text_c(arena, out, lval_ref, ctx, ta, esz);
-  }
-  return -1;
-}
 
 /** EXPR_RETURN ELF 发射（X emit_expr_elf 单行委托）。 */
 int32_t pipeline_asm_emit_return_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
