@@ -9058,8 +9058,8 @@ _xsd_n=$(awk '
   /^PIPELINE_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
   END { print t+0 }
 ' "$_XSD_MK")
-if [ "${_xsd_n:-0}" -ne 44 ]; then
-  bad "8.3.2 expected SOURCE_DEPS fixed multi-token count 44 in mk, got ${_xsd_n:-0}"
+if [ "${_xsd_n:-0}" -ne 45 ]; then
+  bad "8.3.2 expected SOURCE_DEPS fixed multi-token count 45 in mk, got ${_xsd_n:-0}"
 fi
 # wave965: PIPELINE_X_DEPS must list #include slices so STALE rebuilds pipeline_x.
 if ! grep -qE 'pipeline_typeck_ctfe\.c' "$_XSD_MK"; then

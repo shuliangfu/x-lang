@@ -35,6 +35,7 @@
 #   ast_pool_top_level + ast_pool_type_alias + ast_pool_expr_sidecar +
 #   ast_pool_module_enum + ast_pool_onefunc + ast_pool_dep_ctx +
 #   ast_pool_module_func + ast_pool_arena + ast_pool_block
+#   (wave989: block extended with loop/labeled/getters residual)
 #   (#include into ast_pool TU).
 
 set -euo pipefail
@@ -74,7 +75,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_dep_ctx.c|8.3.2|PipelineDepCtx cold accessors + lib_root + empty_param slice|480|present"
   "compiler/ast_pool_module_func.c|8.3.2|module Func cold accessors + param sidecar slice|400|present"
   "compiler/ast_pool_arena.c|8.3.2|ASTArena main-pool cold accessors slice|200|present"
-  "compiler/ast_pool_block.c|8.3.2|block append/region/defer domain slice|280|present"
+  "compiler/ast_pool_block.c|8.3.2|block append/region/defer + loop/labeled/getters domain slice|700|present"
   # --- 8.3.1 domain thin slices (#include into pipeline_glue TU; not separate .o) ---
   "compiler/pipeline_typeck_ctfe.c|8.3.1|typeck CTFE producer slice|1000|present"
   "compiler/pipeline_typeck_assign.c|8.3.1|typeck assign domain slice|250|present"
