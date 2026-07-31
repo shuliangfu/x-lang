@@ -25,11 +25,11 @@
  * (included just before this file in the same TU).
  *
  * Callers: pipeline_asm_emit_expr_elf_fast BINOP arms; compound-assign
- * glue_emit_assign_rhs_to_rax uses the nested rax/rbx helpers (forward-decl
- * in glue, bodies here).
+ * glue_emit_assign_rhs_to_rax (in emit_assign leaf) uses nested rax/rbx helpers
+ * (forwards in assign leaf; bodies here).
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c at the former
- * binop body site (after assign_rhs_to_rax + panic include; before
+ * binop body site (after panic include; before
  * field_access include).
  * wave1015 G.7 有则补全: residual helpers live at top of this leaf.
  *

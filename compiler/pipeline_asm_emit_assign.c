@@ -5,29 +5,55 @@
  * #include). Authority for product-mega freestanding assign ELF emit:
  * - glue_assign_lhs_f32_type_ref_elf_c (lhs f32 slot detect for float-lit RHS)
  * - glue_emit_assign_rhs_elf_c (RHS emit; f32 imm32 vs rec)
+ * - glue_emit_assign_rhs_to_rax_elf_c (plain + compound assign value into rax;
+ *   wave1016 G.7 fold from glue residual)
  * - pipeline_asm_emit_assign_elf_c (FIELD / INDEX / VAR / DEREF assign paths;
  *   slice dual-GP, fixed-array whole assign, STRUCT_LIT index in-place,
  *   esz>8 bulk copy — Cap residual pure waves 324–630)
  *
  * G.7: single product-mega assign ELF path — do not open a second assign
  * emitter in seed partial or a parallel glue copy. Callers (expr_elf_rec /
- * mega) call pipeline_asm_emit_assign_elf_c (same TU). Nested helpers
- * (glue_emit_assign_rhs_to_rax, index try_*, lvalue_eff_addr, array_lit,
- * struct_lit_fields, modlet store) remain in pipeline_glue.c.
+ * mega) call pipeline_asm_emit_assign_elf_c (same TU). Nested helpers still
+ * outside this leaf: index try_*, lvalue_eff_addr, array_lit, struct_lit,
+ * modlet store; binop rax/rbx helpers live in pipeline_asm_emit_binop.c
+ * (forward-declared below; bodies after this include in the same TU).
  *
- * Not compiled as a separate .o — #included from pipeline_glue.c near other
- * expr emit helpers (before array_lit_elem_byte_sz / index / addr_of).
+ * Not compiled as a separate .o — #included from pipeline_glue.c after spill
+ * (before array_lit / index / addr_of).
  *
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
  */
 
-/* Forward decls for helpers defined later in pipeline_glue.c (same TU). */
+/* Forward decls for helpers defined later in the same TU (glue / binop leaf). */
 static int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                              int32_t var_expr_ref);
-static int32_t glue_emit_assign_rhs_to_rax_elf_c(struct ast_ASTArena *arena,
-                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                  int32_t assign_expr_ref, int32_t left_ref, int32_t right_ref,
-                                                  struct backend_AsmFuncCtx *ctx, int32_t ta);
+/* Compound-assign value path: nested load + add/sub/mul/div/shift helpers
+ * (bodies in pipeline_asm_emit_binop.c / glue residual try_binop; after this
+ * #include). Div-zero face is pipeline_asm_emit_panic.c (forward earlier in glue). */
+static int32_t glue_try_binop_left_rax_right_rbx_elf_c(struct ast_ASTArena *arena,
+                                                        struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                        int32_t left_ref, int32_t right_ref,
+                                                        struct backend_AsmFuncCtx *ctx, int32_t ta);
+static int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
+                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                   struct backend_AsmFuncCtx *ctx, int32_t left_ref,
+                                                   int32_t right_ref, int32_t ta);
+static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         struct backend_AsmFuncCtx *ctx, int32_t left_ref,
+                                                         int32_t right_ref, int32_t ta);
+static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
+                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                   struct backend_AsmFuncCtx *ctx, int32_t left_ref,
+                                                   int32_t right_ref, int32_t ta);
+static int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                       int32_t expr_ref);
+static int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                       int32_t expr_ref);
+static int32_t glue_binop_operand_is_unsigned_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                     int32_t left_ref, int32_t right_ref);
+static int32_t glue_binop_operand_is_64bit_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                  int32_t left_ref, int32_t right_ref);
 void pipeline_asm_bump_next_offset_for_array_lit(struct ast_ASTArena *arena, int32_t expr_ref,
                                                  struct backend_AsmFuncCtx *ctx);
 int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -77,6 +103,100 @@ static int32_t glue_emit_assign_rhs_elf_c(struct ast_ASTArena *arena, struct pla
       return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, right_ref, ta, lhs_f32, 0);
   }
   return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta);
+}
+
+/**
+ * Plain / compound assign: materialize the value to write into lhs in rax.
+ * Plain (ako==28) → RHS only; a+=10 etc → lhs op rhs via nested binop helpers.
+ * Avoids EXPR_*_ASSIGN falling through backend_emit_expr_elf_slow and mutual
+ * recursion SIGSEGV with expr_elf_rec.
+ * wave1016 G.7: folded from pipeline_glue residual (same semantics).
+ * PLATFORM: SHARED freestanding · f32/f64 compound reuse binop residual.
+ */
+static int32_t glue_emit_assign_rhs_to_rax_elf_c(struct ast_ASTArena *arena,
+                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                  int32_t assign_expr_ref, int32_t left_ref, int32_t right_ref,
+                                                  struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t ako;
+  int32_t vr;
+  if (!arena || !elf_ctx || !ctx || assign_expr_ref <= 0 || left_ref <= 0 || right_ref <= 0)
+    return -1;
+  ako = pipeline_expr_kind_ord_at(arena, assign_expr_ref);
+  if (ako == 28)
+    return glue_emit_assign_rhs_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+  vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+  if (vr == -1)
+    return -1;
+  if (vr == -2) {
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  switch (ako) {
+  case 29:
+    return glue_emit_binop_add_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+  case 30:
+    /* PLATFORM: SHARED — f64/f32 -= → subsd/subss (same residual as EXPR_SUB; not int sub). */
+    return glue_emit_binop_sub_rax_minus_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+  case 31:
+    return glue_emit_binop_mul_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+  case 32:
+    /* PLATFORM: SHARED — f64 /= → divsd; f32 /= → divss (same residual as EXPR_DIV; not idiv). */
+    if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
+      return backend_enc_divsd_rax_rbx_arch(elf_ctx, ta);
+    if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+        glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
+      return backend_enc_divss_rax_rbx_arch(elf_ctx, ta);
+    if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
+      return -1;
+    return backend_enc_idiv_rbx_arch(elf_ctx, ta);
+  case 33:
+    if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
+      return -1;
+    return backend_enc_rem_mod_arch(elf_ctx, ta);
+  case 34:
+    return backend_enc_and_rbx_rax_arch(elf_ctx, ta);
+  case 35:
+    return backend_enc_or_rbx_rax_arch(elf_ctx, ta);
+  case 36:
+    return backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
+  case 37: {
+    int32_t is_64bit;
+    glue_binop_var_slot_cache_clear();
+    if (backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta) != 0)
+      return -1;
+    /* left only: compound assign shift width follows lhs type. */
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, 0);
+    return is_64bit ? backend_enc_shl_cl_rax_arch(elf_ctx, ta) : backend_enc_shl_cl_eax_arch(elf_ctx, ta);
+  }
+  case 38: {
+    /*
+     * wave648 Cap residual pure: signed >>= must be SAR not logical SHR.
+     * Same root as binop >> — host-C uses arithmetic shift; freestanding
+     * always emitted SHR so `-16 >>= 2` stayed 0x3ffffffc (fs if-eq 0).
+     * G.7: reuse unsigned + 64-bit helpers; u32/u64 keep SHR.
+     * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+     */
+    int32_t is_64bit;
+    int32_t is_unsigned;
+    glue_binop_var_slot_cache_clear();
+    if (backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta) != 0)
+      return -1;
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, 0);
+    is_unsigned = glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, 0);
+    if (is_unsigned)
+      return is_64bit ? backend_enc_shr_cl_rax_arch(elf_ctx, ta) : backend_enc_shr_cl_eax_arch(elf_ctx, ta);
+    return is_64bit ? backend_enc_sar_cl_rax_arch(elf_ctx, ta) : backend_enc_sar_cl_eax_arch(elf_ctx, ta);
+  }
+  default:
+    return -1;
+  }
 }
 
 /**
