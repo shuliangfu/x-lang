@@ -36,7 +36,7 @@
 #   ast_pool_module_enum + ast_pool_onefunc + ast_pool_dep_ctx +
 #   ast_pool_module_func + ast_pool_arena + ast_pool_block
 #   (wave989–990 + wave992: block + parent/resolve + stmt_order rebuild/fixup residual)
-#   (wave993: top_level name_is_const + hoist residual 有则补全)
+#   (wave993–994: top_level name_is_const/hoist + hoist_target/sum residual 有则补全)
 #   (#include into ast_pool TU).
 
 set -euo pipefail
@@ -68,7 +68,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool.c|8.3.2|AST pool / MatchArm / sidecar|10000|present"
   "compiler/ast_pool_module_import.c|8.3.2|module ImportEntry cold-twin accessors slice|180|present"
   "compiler/ast_pool_struct_layout.c|8.3.2|module StructLayout cold accessors slice|360|present"
-  "compiler/ast_pool_top_level.c|8.3.2|module TopLevelLetEntry cold accessors + name_is_const/hoist residual slice|220|present"
+  "compiler/ast_pool_top_level.c|8.3.2|module TopLevelLetEntry cold accessors + name_is_const/hoist + hoist_target/sum residual slice|290|present"
   "compiler/ast_pool_type_alias.c|8.3.2|module TypeAliasEntry cold accessors slice|80|present"
   "compiler/ast_pool_expr_sidecar.c|8.3.2|expr (+ type-pos) var-len sidecar domain slice|620|present"
   "compiler/ast_pool_module_enum.c|8.3.2|module ModuleEnumEntry + enum field-access mark slice|300|present"

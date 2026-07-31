@@ -26,8 +26,9 @@
  *
  * Left in other domains (same TU after this include):
  * - fill_*_from_onefunc → onefunc slice (wave991)
- * - module_top_level_name_is_const + hoist_top_level_lets_into_main →
- *   top_level slice (wave993; hoist calls static prepend_lets here)
+ * - module_top_level_name_is_const + hoist_top_level_lets_into_main +
+ *   asm_hoist_target / sum_module_top_level_lets_stack →
+ *   top_level slice (wave993–994; hoist calls static prepend_lets here)
  *
  * Depends on same-TU statics: block_at, arena_sidecar_get, grow_vec_*,
  * link_abi_getenv, diag_reportf, pipeline_expr_kind_ord_at,
@@ -1189,7 +1190,7 @@ static void pipeline_block_stmt_order_insert_at(struct ast_ASTArena *a, int32_t 
 
 /**
  * 在 block 的 stmt_order 最前插入 count 条 let 初始化（kind=1，idx 为块内 let 下标）。
- * Used by pipeline_module_hoist_top_level_lets_into_main (core residual, same TU).
+ * Used by pipeline_module_hoist_top_level_lets_into_main (top_level domain, same TU).
  */
 static void pipeline_block_stmt_order_prepend_lets(struct ast_ASTArena *a, int32_t br, int32_t let_start_idx,
                                                    int32_t let_count) {

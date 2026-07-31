@@ -19,7 +19,8 @@
  *     #include "ast_pool_block.c"
  *
  * NOT in this slice:
- * - pipeline_module_top_level_name_is_const + hoist (top_level domain · wave993)
+ * - pipeline_module_top_level_name_is_const + hoist + hoist_target/sum
+ *   (top_level domain · wave993–994)
  * - stmt_order rebuild / fixup / sparse_ifs (block domain · wave992)
  *
  * Depends on same-TU statics: onefunc_sidecar_get, grow_vec_*, OneFuncSidecar,

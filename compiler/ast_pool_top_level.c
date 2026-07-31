@@ -1,6 +1,6 @@
 /**
  * ast_pool_top_level.c — module TopLevelLetEntry cold accessors + name scan /
- * hoist residual (BC 8.3.2).
+ * hoist + asm hoist-target / top-level stack residual (BC 8.3.2).
  *
  * Same-TU #include from ast_pool.c (itself #include'd into pipeline_glue /
  * pipeline_x). Not a separate .o.
@@ -12,6 +12,10 @@
  *   - pipeline_module_top_level_name_is_const (name-scan over top-level lets)
  *   - pipeline_module_hoist_top_level_lets_into_main (append lets into main /
  *     first emitable body + stmt_order prepend; needs block prepend_lets)
+ * - wave994 residual 有则补全:
+ *   - pipeline_asm_hoist_target_func_index (main or first non-extern body)
+ *   - pipeline_asm_sum_module_top_level_lets_stack (non-hoist frame estimate;
+ *     skips shared modlet cells)
  *
  * Include order (ast_pool.c): block domain first (static prepend_lets), then
  * this file — hoist may call static pipeline_block_stmt_order_prepend_lets.
@@ -20,9 +24,11 @@
  * ModuleSidecar / TopLevelLetEntry (defined earlier in ast_pool.c); block
  * append_let / prepend_lets (ast_pool_block.c); pipeline_module_func_* /
  * pipeline_asm_module_func_is_extern_at / pipeline_expr_kind_ord_at.
+ * Asm frame helpers (extern via glue same TU): pipeline_asm_modlet_name_is_shared,
+ * asm_local_slot_reg_offset, pipeline_asm_let_init_stack_reserve_bytes.
  *
  * PLATFORM: SHARED — host-cc Cap residual; parser/typeck/asm/codegen call these.
- * Wave: 980 + 993 residual · no semantic change · pin stays 77b334842.
+ * Wave: 980 + 993 + 994 residual · no semantic change · pin stays 77b334842.
  */
 
 int32_t pipeline_module_top_level_let_alloc(struct ast_Module *m) {
@@ -246,4 +252,75 @@ void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct
     (void)pipeline_block_append_let(a, br, name_buf, name_len, ent->type_ref, ent->init_ref);
   }
   pipeline_block_stmt_order_prepend_lets(a, br, let_start_idx, n);
+}
+
+/* BC 8.3.2 wave994: asm hoist-target + top-level lets stack residual (有则补全). */
+
+/**
+ * Return the hoist target function index: main_func_index when set, else the
+ * first non-extern function with a body (library -o .o has no main).
+ * @param m *Module
+ * @return i32 — func index, or -1 if none
+ * PLATFORM: SHARED — asm frame layout / backend pre-mega path.
+ */
+int32_t pipeline_asm_hoist_target_func_index(struct ast_Module *m) {
+  int32_t fi;
+  if (!m)
+    return -1;
+  if (m->main_func_index >= 0)
+    return m->main_func_index;
+  for (fi = 0; fi < m->num_funcs; fi++) {
+    if (pipeline_asm_module_func_is_extern_at(m, fi) == 0 &&
+        pipeline_module_func_body_ref_at(m, fi) > 0)
+      return fi;
+  }
+  return -1;
+}
+
+/** pipeline_glue.c — x86_64 text-embedded module mutable lets (true cross-fn share). */
+extern int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len);
+/** Frame slot helpers (glue / bootstrap_glue same TU; prototypes for free-standing cc). */
+extern int32_t asm_local_slot_reg_offset(struct ast_ASTArena *arena, int32_t type_ref, int32_t off,
+                                        int32_t *inout_off);
+extern int32_t pipeline_asm_let_init_stack_reserve_bytes(struct ast_ASTArena *arena, int32_t type_ref,
+                                                        int32_t init_ref);
+
+/**
+ * Accumulate stack occupancy of module top-level let/const slots for non-hoist
+ * target functions (frame_size estimate). Shared modlet cells live in .text and
+ * are skipped.
+ * @param a *ASTArena
+ * @param m *Module
+ * @param off i32 — incoming frame offset
+ * @return i32 — updated frame offset
+ * PLATFORM: SHARED — asm emit frame layout.
+ */
+int32_t pipeline_asm_sum_module_top_level_lets_stack(struct ast_ASTArena *a, struct ast_Module *m, int32_t off) {
+  ModuleSidecar *sc;
+  int32_t tl;
+  int32_t n;
+  if (!a || !m || m->num_top_level_lets <= 0)
+    return off;
+  sc = module_sidecar_get(m, 0);
+  if (!sc)
+    return off;
+  n = m->num_top_level_lets;
+  for (tl = 0; tl < n; tl++) {
+    TopLevelLetEntry *ent;
+    int32_t type_ref;
+    int32_t init_ref;
+    if (tl < 0 || tl >= sc->top_level_lets.len)
+      break;
+    ent = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, tl);
+    if (!ent || ent->type_ref <= 0)
+      continue;
+    /* Modlet cells live in .text, not the per-fn frame. */
+    if (ent->name_len > 0 && pipeline_asm_modlet_name_is_shared(ent->name, ent->name_len) != 0)
+      continue;
+    type_ref = ent->type_ref;
+    init_ref = ent->init_ref;
+    (void)asm_local_slot_reg_offset(a, type_ref, off, &off);
+    off += pipeline_asm_let_init_stack_reserve_bytes(a, type_ref, init_ref);
+  }
+  return off;
 }

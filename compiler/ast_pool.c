@@ -1593,9 +1593,9 @@ void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct ast_Modu
 #include "ast_pool_block.c"
 
 /* BC 8.3.2 wave991: onefunc fill residual lives in ast_pool_onefunc.c (include later).
- * BC 8.3.2 wave993: name_is_const + hoist live in ast_pool_top_level.c (include below;
- * after block so static prepend_lets is visible). core residual: hoist target /
- * sum stack + module enum / backend wrappers … */
+ * BC 8.3.2 wave993+994: name_is_const + hoist + asm hoist_target / sum stack live in
+ * ast_pool_top_level.c (include below; after block so static prepend_lets is visible).
+ * core residual: backend asm wrappers + fill_* decls / path helpers / module enum … */
 
 /** ---------- Module import / struct_layout / top_level / enum 动态池 ---------- */
 
@@ -1605,64 +1605,11 @@ void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct ast_Modu
 /** BC 8.3.2: module StructLayout cold accessors (same-TU thin). */
 #include "ast_pool_struct_layout.c"
 
-/** BC 8.3.2 wave980+993: TopLevelLetEntry accessors + name_is_const + hoist. */
+/** BC 8.3.2 wave980+993+994: TopLevelLetEntry + name_is_const/hoist + hoist_target/sum. */
 #include "ast_pool_top_level.c"
 
 /** BC 8.3.2: module TypeAliasEntry cold accessors (same-TU thin). */
 #include "ast_pool_type_alias.c"
-
-/**
- * 返回 hoist 目标函数下标：main 或库模块首个非 extern 实现函数。
- */
-int32_t pipeline_asm_hoist_target_func_index(struct ast_Module *m) {
-  int32_t fi;
-  if (!m)
-    return -1;
-  if (m->main_func_index >= 0)
-    return m->main_func_index;
-  for (fi = 0; fi < m->num_funcs; fi++) {
-    if (pipeline_asm_module_func_is_extern_at(m, fi) == 0 &&
-        pipeline_module_func_body_ref_at(m, fi) > 0)
-      return fi;
-  }
-  return -1;
-}
-
-/**
- * 累加 module 顶层 let/const 栈占用（供非 hoist 目标函数的 frame_size 估算）。
- */
-/** pipeline_glue.c — x86_64 text-embedded module mutable lets (true cross-fn share). */
-extern int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len);
-
-int32_t pipeline_asm_sum_module_top_level_lets_stack(struct ast_ASTArena *a, struct ast_Module *m, int32_t off) {
-  ModuleSidecar *sc;
-  int32_t tl;
-  int32_t n;
-  if (!a || !m || m->num_top_level_lets <= 0)
-    return off;
-  sc = module_sidecar_get(m, 0);
-  if (!sc)
-    return off;
-  n = m->num_top_level_lets;
-  for (tl = 0; tl < n; tl++) {
-    TopLevelLetEntry *ent;
-    int32_t type_ref;
-    int32_t init_ref;
-    if (tl < 0 || tl >= sc->top_level_lets.len)
-      break;
-    ent = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, tl);
-    if (!ent || ent->type_ref <= 0)
-      continue;
-    /* Modlet cells live in .text, not the per-fn frame. */
-    if (ent->name_len > 0 && pipeline_asm_modlet_name_is_shared(ent->name, ent->name_len) != 0)
-      continue;
-    type_ref = ent->type_ref;
-    init_ref = ent->init_ref;
-    (void)asm_local_slot_reg_offset(a, type_ref, off, &off);
-    off += pipeline_asm_let_init_stack_reserve_bytes(a, type_ref, init_ref);
-  }
-  return off;
-}
 
 /** seed partial（build_seed_asm_host）导出的 mega 全量实现；勿与薄包装 backend_asm_codegen_ast 混调（会递归）。 */
 extern int32_t backend_asm_codegen_ast_seed_mega(struct ast_Module *m, struct ast_ASTArena *a,
