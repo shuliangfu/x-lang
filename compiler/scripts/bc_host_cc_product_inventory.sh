@@ -92,6 +92,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_block_if_stmt.c|8.3.1|asm ELF block-level if-stmt emit (then-first jz) slice|80|present"
   "compiler/pipeline_asm_emit_block_inits.c|8.3.1|asm ELF block const/let init emit slice|140|present"
   "compiler/pipeline_asm_emit_assign.c|8.3.1|asm ELF EXPR_ASSIGN emit (lhs f32 + rhs + assign_elf) slice|500|present"
+  "compiler/pipeline_asm_emit_array_lit.c|8.3.1|asm ELF EXPR_ARRAY_LIT emit (elem_sz + empty + force_esz) slice|280|present"
   # --- 8.3.3 typeck slices often pulled by glue ---
   "compiler/pipeline_typeck_field_access.c|8.3.3|field_access slice|500|present"
   "compiler/pipeline_typeck_soa.c|8.3.3|typeck SOA helper|50|present"
