@@ -288,9 +288,9 @@
 | 801 | `src/runtime_driver_abi.o` | ⬜ |
 | 819 | `src/runtime_pipeline_abi.o` | ⬜ |
 | 823 | `src/runtime_c_import.o` | ⬜ |
-| 830 | `src/async/async_liveness.o` | ⬜ |
-| 859 | `src/async/async_cps_codegen.o` | ⬜ |
-| 888 | `src/async/async_asm_pool.o` | ⬜ |
+| 830 | `src/async/async_liveness.o` | 🟢 wave907 multi-target `$(ASYNC_THREE_SEED_OBJS)` · wave923 rule 移到 include 后 |
+| 859 | `src/async/async_cps_codegen.o` | 🟢 wave907 multi-target `$(ASYNC_THREE_SEED_OBJS)` · wave923 rule 移到 include 后 |
+| 888 | `src/async/async_asm_pool.o` | 🟢 wave907 multi-target `$(ASYNC_THREE_SEED_OBJS)` · wave923 rule 移到 include 后 |
 | 907 | `src/runtime_driver_diagnostic.o` | ⬜ |
 | 926 | `src/runtime.o` | ⬜ |
 | 961 | `src/runtime_driver.o` | ⬜ |

@@ -1558,8 +1558,8 @@
 - ✅ **migrate_x family multi-target FORCE thin**（wave919 · 3 · `$(MIGRATE_X_OBJS)` = `parser_x.o` + `typeck_x.o` + `codegen_x.o` 新 list in r_lists · G.7 `@bash scripts/migrate_x_objs.sh $@` · 脚本 case 已接受 `<name>_x.o` MODE 无需 --auto · 3 per-leaf recipes → 1 multi-target · **migrate_x family closed** · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
 - ✅ **cp-alias family multi-target FORCE thin**（wave920 · 3 · `$(CP_ALIAS_SHARED_OBJS)` = `ast_x.o`（1 · SHARED G-02a C ABI alias）+ `$(CP_ALIAS_LINUX_X86_64_OBJS)` = `crt0_user.o` + `freestanding_io.o`（2 · Linux x86_64 freestanding wrappers inside ifeq guard）— 2 新 lists in r_lists · G.7 `@bash scripts/ensure_cp_alias_o.sh ensure $@` · 脚本 CATALOG 拥有 OUT|SRC map · 3 per-leaf recipes → 2 multi-target（按平台作用域拆分）· **cp-alias family closed** · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
 - ✅ **class-G filter family multi-target FORCE thin**（wave921 · 4 · `$(FILTER_AGAINST_PARTIAL_OBJS)` = 3 叶（backend_x86_64_enc_c / user_asm_seed_bridge / asm_backend_compat_stubs）+ `$(FILTER_PIPELINE_OBJS)` = 1 叶（bootstrap_seed_pipeline）— 2 新 lists in r_lists · G.7 `@bash scripts/filter_bootstrap_seed_{against_partial,pipeline}_o.sh ensure $@` · 脚本 CATALOG 拥有 OUT|SRC map · 4 per-leaf recipes → 2 multi-target（按脚本拆分）· **class-G filter family closed** · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
-- ✅ **Windows MSYS2 min-gate reproof**（wave922 · 非代码改动波 · tip `39baf14b4` 复证绿 · B-hybrid + win32 write/read gates · proof RC=0 · leaf apply 幂等 `ALREADY=1`（STATUS 持续 `reproven_green`）· **非**物理删 · **不升钉**）
-- **open** · thin edges + mk lists hybrid · ✅ Windows reproof done（wave922）· → 双端 L4（mac + Ubuntu 真冷 + 129 bstrict）→ explicit auth 真删  # post-wave922 Windows reproof
+- ✅ **双端 L4 真冷全绿**（wave923 @ `81285129e` · mac 699s + Ubuntu 477s · 129 bstrict 全绿 · async rule parse-order fix：wave907 `$(ASYNC_THREE_SEED_OBJS)` multi-target FORCE rule 移到 include r_lists.mk 之后 · **非**物理删 · **不升钉**）
+- **open** · thin edges + mk lists hybrid · ✅ Windows reproof done（wave922）· ✅ 双端 L4 done（wave923）· → **explicit auth** 真删（`phys-del-gate --delete-body`）  # post-wave923 dual L4 green
 
 **状态明细**（一行一项）：
 
