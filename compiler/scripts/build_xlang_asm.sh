@@ -4153,7 +4153,22 @@ ensure_asm_experimental_lsp_objs() {
   rm -f lsp_io_std_heap_gen.c
   fi
   build_xlang_asm_info "ensure lsp_x.o (+ lsp_io) for lsp_state (typeck_lsp_main_impl)"
-  make -s lsp_io_gen.c lsp_gen.c lsp_io_std_heap_gen.c lsp_x.o lsp_io_x.o lsp_io_std_heap_x.o
+  # Wave930: shell gen + try-heat (no make; lsp_gen.c via ensure_lsp_pipeline_gen.sh,
+  # lsp_io_std_heap_gen.c via ensure_archaeology_gen.sh, *_x.o via try-heat / cc).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    make -s lsp_io_gen.c lsp_gen.c lsp_io_std_heap_gen.c lsp_x.o lsp_io_x.o lsp_io_std_heap_x.o
+  else
+    bash scripts/ensure_lsp_pipeline_gen.sh lsp
+    bash scripts/ensure_archaeology_gen.sh lsp_io_std_heap
+    bash scripts/ensure_host_cc_seed_o.sh try-heat lsp_x.o
+    bash scripts/ensure_host_cc_seed_o.sh try-heat lsp_io_x.o
+    # lsp_io_std_heap_x.o: no Makefile rule (via driver_leaf / direct cc); cc -c from gen.c.
+    if [ ! -f lsp_io_std_heap_x.o ] && [ -f lsp_io_std_heap_gen.c ]; then
+      "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+        -c lsp_io_std_heap_gen.c -o lsp_io_std_heap_x.o
+    fi
+  fi
   cp -f lsp_x.o lsp_io_x.o lsp_io_std_heap_x.o "$GEN_DIR/"
 }
 
@@ -4185,8 +4200,17 @@ ensure_pipeline_x_o_fresh() {
   fi
   done
   if [ "$need" -eq 1 ]; then
-  build_xlang_asm_info "rebuild pipeline_x.o (PIPELINE_X_DEPS / ast_pool newer than pipeline_x.o)"
-  make bootstrap-pipeline pipeline_x.o
+  # Wave930: shell ensure_lsp_pipeline_gen + try-heat (no make; bootstrap-pipeline
+  # target thin-calls ensure_lsp_pipeline_gen.sh pipeline; pipeline_x.o via GEN_C_TO_O).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    build_xlang_asm_info "rebuild pipeline_x.o (PIPELINE_X_DEPS / ast_pool newer than pipeline_x.o)"
+    make bootstrap-pipeline pipeline_x.o
+  else
+    build_xlang_asm_info "rebuild pipeline_x.o (wave930; ensure_lsp_pipeline_gen + try-heat)"
+    bash scripts/ensure_lsp_pipeline_gen.sh pipeline
+    bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o
+  fi
   fi
   # gen_driver 与 strict partial 须与 compiler/pipeline_x.o 同步；parser_x.o 变更后须失效旧 partial。
   if [ -f pipeline_x.o ]; then
@@ -4410,8 +4434,19 @@ ensure_asm_gen_driver_x_objs() {
       cp -f "$GEN_DIR/preprocess_x.o" preprocess_x.o 2>/dev/null || true
     fi
   elif [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    echo " make gen-x-driver-objs -> copy pipeline_x.o driver_x.o preprocess_x.o to $GEN_DIR/"
-    make gen-x-driver-objs
+    # Wave930: shell try-heat for 3 leaves (no make; gen-x-driver-objs target
+    # body is @true — only triggers pipeline_x.o + driver_x.o + preprocess_x.o
+    # FORCE rebuild via GEN_C_TO_O_SEED_OBJS + GEN_X_SEED_OBJS bodies).
+    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ]; then
+      echo " make gen-x-driver-objs -> copy pipeline_x.o driver_x.o preprocess_x.o to $GEN_DIR/"
+      make gen-x-driver-objs
+    else
+      echo " wave930: try-heat pipeline_x.o + driver_x.o + preprocess_x.o -> $GEN_DIR/"
+      bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat driver_x.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat preprocess_x.o
+    fi
     cp -f pipeline_x.o "$GEN_DIR/"
     cp -f driver_x.o "$GEN_DIR/driver_x.o"
     cp -f preprocess_x.o "$GEN_DIR/preprocess_x.o"
