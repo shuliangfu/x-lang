@@ -8017,6 +8017,27 @@ elif ! bash "$_bxf_ps" --check >/dev/null 2>&1; then
 else
   note "bootstrap_driver_seed_x_frontend BXF bag → catalog bxf (wave959 post_ship; 0-make)"
 fi
+# wave960: bootstrap_typeck_codegen --check post_ship + catalog BTC bag (0-make).
+# Default: catalog --link-objs-export relink-product + --link-cflags-export
+# btc-typeck (typeck) / relink-product (codegen); escape XLANG_BTC_LINK_VIA_MAKE=1 + MF only.
+# PLATFORM: SHARED — archaeology typeck/codegen bootstrap path after wave941 delete.
+_btc_ps="$ROOT/compiler/scripts/bootstrap_typeck_codegen.sh"
+[ -f "$_btc_ps" ] || _btc_ps="scripts/bootstrap_typeck_codegen.sh"
+if [ ! -f "$_btc_ps" ]; then
+  bad "missing bootstrap_typeck_codegen.sh (wave960 post_ship)"
+elif ! grep -q 'wave960' "$_btc_ps"; then
+  bad "bootstrap_typeck_codegen must document wave960 post_ship --check"
+elif ! grep -q 'XLANG_BTC_LINK_VIA_MAKE' "$_btc_ps"; then
+  bad "bootstrap_typeck_codegen must document XLANG_BTC_LINK_VIA_MAKE escape (wave960)"
+elif ! grep -qE 'link-objs-export relink-product|--link-objs-export relink-product' "$_btc_ps"; then
+  bad "bootstrap_typeck_codegen must catalog-load BTC LINK_OBJS (wave960)"
+elif ! grep -qE 'link-cflags-export btc-typeck|--link-cflags-export btc-typeck' "$_btc_ps"; then
+  bad "bootstrap_typeck_codegen must catalog-load BTC typeck LINK_CFLAGS (wave960)"
+elif ! bash "$_btc_ps" --check >/dev/null 2>&1; then
+  bad "bootstrap_typeck_codegen.sh --check failed (wave960 post_ship 0-make)"
+else
+  note "bootstrap_typeck_codegen BTC bag → catalog relink-product + btc-typeck (wave960 post_ship; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then
