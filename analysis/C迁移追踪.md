@@ -1019,7 +1019,7 @@
   - ✅ asm lvalue_eff_addr_text 有则补全：`pipeline_asm_emit_index_helpers.c` 迁入 `pipeline_asm_emit_lvalue_eff_addr_text_c`（~77 LOC；file ~3039→~3135）；与 ELF twin 同叶；local_slot_text 仍 index_eff_addr（同 TU static 前向）；COUNT 仍 62；glue ~21.2k→~21.1k（wave1013）
   - ✅ asm thin ELF public faces 有则补全：return／unary／as／spill 叶迁入 `pipeline_asm_emit_{return,neg,lognot,bitnot,as,break,continue}_elf_c`（~40 LOC 自 glue；COUNT 仍 62；glue ~21.1k）（wave1014）
   - ✅ asm binop residual 有则补全：`pipeline_asm_emit_binop.c` 迁入 scalar f32／f64／ptr arith／add_rax_rbx（~306 LOC 自 glue；file ~1221；COUNT 仍 62；glue ~20.8k）（wave1015）
-  - ⬜ 下一域候选：binop residual／type_named_struct／leaf residual 或 8.3.3 field_access／soa
+  - ⬜ 下一域候选：assign_rhs residual／type_named_struct／leaf residual 或 8.3.3 field_access／soa
 
 ⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
