@@ -18,9 +18,9 @@
  *     expr_stmts/whiles/fors) — block_append consumers live in same TU after
  *     #include "ast_pool_block.c"
  *
- * NOT in this slice (still core residual):
- * - pipeline_module_top_level_name_is_const (top_level consumer)
- * - stmt_order rebuild / fixup / sparse_ifs (block-local rewrite)
+ * NOT in this slice:
+ * - pipeline_module_top_level_name_is_const (core top_level consumer)
+ * - stmt_order rebuild / fixup / sparse_ifs (block domain · wave992)
  *
  * Depends on same-TU statics: onefunc_sidecar_get, grow_vec_*, OneFuncSidecar,
  * OneFuncLabeledEntry, OneFuncRegionEntry, grow_vec_copy_append,

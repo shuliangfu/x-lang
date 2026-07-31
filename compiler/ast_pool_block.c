@@ -5,7 +5,7 @@
  * pipeline_x). Not a separate .o.
  *
  * Domain (block pool append + region/defer + loop/labeled + cold getters +
- * parent patch + name resolve):
+ * parent patch + name resolve + stmt_order rebuild/fixup):
  * - static block_pool_append_pos (insert-and-shift continuity helper)
  * - pipeline_block_append_{const,let,if,region,with_arena,unsafe,defer}
  * - pipeline_block_append_{expr_stmt,stmt_order,while,for,labeled}
@@ -17,20 +17,25 @@
  * - pipeline_patch_block_parent_links + expr_has_inner_block + set_parent_if_zero
  * - pipeline_block_resolve_var_type_ref / name_binding_kind / find_var_decl_block_ref
  * - pipeline_block_local_name_redecl_c
+ * - wave992 residual 有则补全:
+ *   - static pipeline_block_stmt_order_insert_at / prepend_lets
+ *   - pipeline_block_stmt_order_fix_prefix_lets
+ *   - pipeline_block_with_arena_fixup_stmt_order
+ *   - pipeline_block_stmt_order_rebuild_sparse_ifs
+ *   - pipeline_module_fixup_with_arena_stmt_orders (module walk → block fixups)
  *
  * Left in core (next residual / other domains):
- * - fill_*_from_onefunc / onefunc_append_defer / onefunc_append_labeled
- * - onefunc if/region/unsafe/stmt_order scratch residual
- * - stmt_order rebuild insert helpers
- * - module_top_level_name_is_const (module top-level domain neighbor)
+ * - fill_*_from_onefunc lives in onefunc slice (same TU after this include)
+ * - module_top_level_name_is_const (top_level name-scan consumer)
+ * - hoist_top_level_lets_into_main (calls prepend_lets; same TU after include)
  *
  * Depends on same-TU statics: block_at, arena_sidecar_get, grow_vec_*,
  * link_abi_getenv, diag_reportf, pipeline_expr_kind_ord_at,
  * pipeline_arena_expr_ptr, pipeline_module_func_*.
- * fill helpers remain core and call these exports (same TU after #include).
+ * fill helpers (onefunc) and hoist (core) call these exports same TU.
  *
  * PLATFORM: SHARED — host-cc Cap residual; parser/typeck/codegen call these.
- * Wave: 988–990 · no semantic change · pin stays 77b334842.
+ * Wave: 988–990 + 992 residual · no semantic change · pin stays 77b334842.
  */
 
 /**
@@ -1136,5 +1141,299 @@ int32_t pipeline_block_find_var_decl_block_ref(struct ast_ASTArena *a, int32_t b
     depth++;
   }
   return 0;
+}
+
+/**
+ * 在 block 的 stmt_order 下标 pos 处插入 n_items 条记录，并修正同 arena 内后续 block 的 stmt_order_base。
+ * Same insert-and-shift continuity strategy as block_pool_append_pos.
+ */
+static void pipeline_block_stmt_order_insert_at(struct ast_ASTArena *a, int32_t br, int32_t pos,
+                                                const struct ast_StmtOrderItem *items, int32_t n_items) {
+  ArenaSidecar *sc;
+  struct ast_Block *b;
+  int32_t abs;
+  int32_t move_count;
+  int32_t bi;
+  size_t esz;
+  uint8_t *data;
+  int32_t i;
+  if (!a || br <= 0 || !items || n_items <= 0 || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)))
+    return;
+  if (pos < 0)
+    pos = 0;
+  if (pos > b->num_stmt_order)
+    pos = b->num_stmt_order;
+  abs = b->stmt_order_base + pos;
+  move_count = sc->stmt_order.len - abs;
+  esz = sizeof(struct ast_StmtOrderItem);
+  data = sc->stmt_order.data;
+  for (i = 0; i < n_items; i++) {
+    if (!grow_vec_ensure(&sc->stmt_order))
+      return;
+    data = sc->stmt_order.data;
+  }
+  if (move_count > 0 && data)
+    memmove(data + (size_t)(abs + n_items) * esz, data + (size_t)abs * esz, (size_t)move_count * esz);
+  for (i = 0; i < n_items; i++) {
+    struct ast_StmtOrderItem *so = (struct ast_StmtOrderItem *)(data + (size_t)(abs + i) * esz);
+    *so = items[i];
+  }
+  sc->stmt_order.len += n_items;
+  b->num_stmt_order += n_items;
+  for (bi = 1; bi <= a->num_blocks; bi++) {
+    struct ast_Block *ob = block_at(a, bi);
+    if (ob && bi != br && ob->stmt_order_base >= abs)
+      ob->stmt_order_base += n_items;
+  }
+}
+
+/**
+ * 在 block 的 stmt_order 最前插入 count 条 let 初始化（kind=1，idx 为块内 let 下标）。
+ * Used by pipeline_module_hoist_top_level_lets_into_main (core residual, same TU).
+ */
+static void pipeline_block_stmt_order_prepend_lets(struct ast_ASTArena *a, int32_t br, int32_t let_start_idx,
+                                                   int32_t let_count) {
+  struct ast_StmtOrderItem ins[64];
+  int32_t li;
+  if (!a || br <= 0 || let_count <= 0 || let_count > 64)
+    return;
+  for (li = 0; li < let_count; li++) {
+    ins[li].kind = 1;
+    ins[li].idx = let_start_idx + li;
+  }
+  pipeline_block_stmt_order_insert_at(a, br, 0, ins, let_count);
+}
+
+/**
+ * 块首 parse_body_lets 产生的 let（idx < prefix_n）须在 stmt_order 中先于 if/loop；
+ * parser 偶发乱序（with_arena 内连续 if）时原地重排，不改变条目数量。
+ */
+void pipeline_block_stmt_order_fix_prefix_lets(struct ast_ASTArena *a, int32_t br, int32_t prefix_n) {
+  struct ast_Block *b;
+  ArenaSidecar *sc;
+  struct ast_StmtOrderItem old[512];
+  struct ast_StmtOrderItem neu[512];
+  int32_t nso;
+  int32_t i;
+  int32_t nn;
+  int32_t pi;
+  int32_t lets_seen;
+  int32_t need_fix;
+  int32_t abs;
+  if (!a || br <= 0 || prefix_n <= 0 || prefix_n > 64)
+    return;
+  b = block_at(a, br);
+  sc = arena_sidecar_get(a, 1);
+  if (!b || !sc || b->num_stmt_order <= 0)
+    return;
+  nso = b->num_stmt_order;
+  if (nso > 512)
+    return;
+  for (i = 0; i < nso; i++) {
+    old[i].kind = pipeline_block_stmt_order_kind(a, br, i);
+    old[i].idx = (int32_t)pipeline_block_stmt_order_idx(a, br, i);
+  }
+  need_fix = 0;
+  lets_seen = 0;
+  for (i = 0; i < nso; i++) {
+    if (old[i].kind == 0)
+      continue;
+    if (old[i].kind == 1 && old[i].idx >= 0 && old[i].idx < prefix_n) {
+      if (lets_seen != old[i].idx)
+        need_fix = 1;
+      lets_seen++;
+      continue;
+    }
+    if (lets_seen < prefix_n)
+      need_fix = 1;
+    break;
+  }
+  if (!need_fix && lets_seen >= prefix_n)
+    return;
+  nn = 0;
+  for (i = 0; i < nso; i++) {
+    if (old[i].kind == 0)
+      neu[nn++] = old[i];
+  }
+  for (pi = 0; pi < prefix_n; pi++) {
+    neu[nn].kind = 1;
+    neu[nn].idx = pi;
+    nn++;
+  }
+  for (i = 0; i < nso; i++) {
+    if (old[i].kind == 0)
+      continue;
+    if (old[i].kind == 1 && old[i].idx >= 0 && old[i].idx < prefix_n)
+      continue;
+    neu[nn++] = old[i];
+  }
+  if (nn != nso)
+    return;
+  abs = b->stmt_order_base;
+  for (i = 0; i < nn; i++) {
+    struct ast_StmtOrderItem *so = (struct ast_StmtOrderItem *)grow_vec_at(&sc->stmt_order, abs + i);
+    if (so)
+      *so = neu[i];
+  }
+}
+
+/**
+ * with_arena 块：stmt_order 须含 kind=6(region) 供 asm init/body/deinit；
+ * parse_one_function 偶发只把内层 let/if 扁平写入函数体 stmt_order 而漏 kind=6（with_arena_vec gate 仅 emit 前 2 条 push）。
+ * 若本块有 with_arena region 且 stmt_order 无 kind=6，则改为仅保留 region 项（内层 body 块已由 parse_block_into 填好）。
+ */
+void pipeline_block_with_arena_fixup_stmt_order(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block *b;
+  ArenaSidecar *sc;
+  int32_t ri;
+  int32_t wa_ri;
+  int32_t inner;
+  int32_t i;
+  int32_t abs;
+  struct ast_StmtOrderItem *so;
+  if (!a || br <= 0)
+    return;
+  b = block_at(a, br);
+  sc = arena_sidecar_get(a, 1);
+  if (!b || !sc || b->num_regions <= 0)
+    return;
+  wa_ri = -1;
+  inner = 0;
+  for (ri = 0; ri < b->num_regions; ri++) {
+    if (pipeline_block_region_with_arena_cap_ref(a, br, ri) > 0) {
+      wa_ri = ri;
+      inner = pipeline_block_region_body_ref(a, br, ri);
+      break;
+    }
+  }
+  if (wa_ri < 0 || inner <= 0 || inner == br) {
+    if (link_abi_getenv("XLANG_ASM_DEBUG") && b->num_regions > 0)
+      fprintf(stderr, "xlang: wa_fixup skip br=%d wa_ri=%d inner=%d nso=%d\n", (int)br, (int)wa_ri, (int)inner,
+              (int)b->num_stmt_order);
+    return;
+  }
+  for (i = 0; i < b->num_stmt_order; i++) {
+    if (pipeline_block_stmt_order_kind(a, br, i) == 6) {
+      if (link_abi_getenv("XLANG_ASM_DEBUG")) {
+        struct ast_Block *ib = inner > 0 ? block_at(a, inner) : NULL;
+        fprintf(stderr, "xlang: wa_fixup ok br=%d inner=%d in_nso=%d in_nif=%d\n", (int)br, (int)inner,
+                ib ? (int)ib->num_stmt_order : -1, ib ? (int)ib->num_if_stmts : -1);
+      }
+      return;
+    }
+  }
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
+    fprintf(stderr, "xlang: wa_fixup apply br=%d wa_ri=%d inner=%d old_nso=%d\n", (int)br, (int)wa_ri, (int)inner,
+            (int)b->num_stmt_order);
+  abs = b->stmt_order_base;
+  if (abs < 0)
+    return;
+  b->num_stmt_order = 1;
+  so = (struct ast_StmtOrderItem *)grow_vec_at(&sc->stmt_order, abs);
+  if (!so)
+    return;
+  so->kind = 6;
+  so->idx = wa_ri;
+}
+
+/**
+ * 若 stmt_order 中 if(kind=5) 条目少于 num_if_stmts，按侧车池 0..n-1 重建（去掉误解析的 expr kind=2）。
+ * with_arena 内层块 parse 偶发 `(push!=0)` expr + 仅前 2 条 if kind=5。
+ */
+void pipeline_block_stmt_order_rebuild_sparse_ifs(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block *b;
+  ArenaSidecar *sc;
+  struct ast_StmtOrderItem neu[512];
+  int32_t nso;
+  int32_t nif;
+  int32_t i;
+  int32_t nn;
+  int32_t if_in_order;
+  int32_t abs;
+  if (!a || br <= 0)
+    return;
+  b = block_at(a, br);
+  sc = arena_sidecar_get(a, 1);
+  if (!b || !sc || b->num_if_stmts <= 0)
+    return;
+  nso = b->num_stmt_order;
+  nif = b->num_if_stmts;
+  if (nso > 512)
+    return;
+  if_in_order = 0;
+  for (i = 0; i < nso; i++) {
+    if (pipeline_block_stmt_order_kind(a, br, i) == 5)
+      if_in_order++;
+  }
+  if (if_in_order >= nif)
+    return;
+  nn = 0;
+  for (i = 0; i < b->num_consts; i++) {
+    neu[nn].kind = 0;
+    neu[nn].idx = i;
+    nn++;
+  }
+  for (i = 0; i < b->num_lets; i++) {
+    neu[nn].kind = 1;
+    neu[nn].idx = i;
+    nn++;
+  }
+  for (i = 0; i < nif; i++) {
+    neu[nn].kind = 5;
+    neu[nn].idx = i;
+    nn++;
+  }
+  for (i = 0; i < nso; i++) {
+    uint8_t k = pipeline_block_stmt_order_kind(a, br, i);
+    int32_t idx = pipeline_block_stmt_order_idx(a, br, i);
+    if (k == 0 || k == 1 || k == 5)
+      continue;
+    if (k == 2)
+      continue; /* 丢弃误解析 cond 片段 expr */
+    neu[nn].kind = k;
+    neu[nn].idx = idx;
+    nn++;
+  }
+  abs = b->stmt_order_base;
+  if (abs < 0)
+    return;
+  b->num_stmt_order = nn;
+  for (i = 0; i < nn; i++) {
+    struct ast_StmtOrderItem *so = (struct ast_StmtOrderItem *)grow_vec_at(&sc->stmt_order, abs + i);
+    if (so)
+      *so = neu[i];
+  }
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
+    fprintf(stderr, "xlang: if_rebuild br=%d nif=%d old_if_in_order=%d new_nso=%d\n", (int)br, (int)nif, (int)if_in_order,
+            (int)nn);
+}
+
+/** 对 module 全部函数体块执行 with_arena stmt_order 修补（parse 后/typeck 前调用）。 */
+void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, struct ast_ASTArena *a) {
+  int32_t fi;
+  if (!m || !a)
+    return;
+  for (fi = 0; fi < m->num_funcs; fi++) {
+    int32_t br = pipeline_module_func_body_ref_at(m, fi);
+    struct ast_Block *b;
+    int32_t ri;
+    if (br <= 0)
+      continue;
+    b = block_at(a, br);
+    if (link_abi_getenv("XLANG_ASM_DEBUG") && b && b->num_regions > 0)
+      fprintf(stderr, "xlang: wa_fixup scan fi=%d br=%d nreg=%d nso=%d\n", (int)fi, (int)br, (int)b->num_regions,
+              (int)b->num_stmt_order);
+    pipeline_block_with_arena_fixup_stmt_order(a, br);
+    pipeline_block_stmt_order_rebuild_sparse_ifs(a, br);
+    if (b) {
+      for (ri = 0; ri < b->num_regions; ri++) {
+        int32_t inner = pipeline_block_region_body_ref(a, br, ri);
+        if (inner > 0 && inner != br) {
+          pipeline_block_stmt_order_fix_prefix_lets(a, inner, block_at(a, inner) ? block_at(a, inner)->num_lets : 0);
+          pipeline_block_stmt_order_rebuild_sparse_ifs(a, inner);
+        }
+      }
+    }
+  }
 }
 
