@@ -19,9 +19,10 @@
  *
  * G.7: single product-mega INDEX residual-helper face — do not open a second
  * try_index forest or lvalue_eff_addr path. Face emitters stay in
- * pipeline_asm_emit_index.c; glue_emit_index_eff_addr_scaled_elf_c /
- * index assign finish_store / bulk_mem_copy_spills / Chaitin spill live in
- * pipeline_asm_emit_spill.c (same TU, immediately after this include).
+ * pipeline_asm_emit_index.c; index assign finish_store / bulk_mem_copy_spills /
+ * Chaitin spill live in pipeline_asm_emit_spill.c (same TU, next include);
+ * glue_emit_index_eff_addr_scaled_elf_c lives in
+ * pipeline_asm_emit_index_eff_addr.c (same TU, after binop residual helpers).
  *
  * Callers: pipeline_asm_emit_index.c; assign INDEX lhs; call-arg base;
  * field_access INDEX-rooted chains; expr_elf_rec INDEX/ADDR_OF/DEREF.
@@ -39,7 +40,7 @@
  * - glue_field_access_effective_offset_c (def later near layout_offset)
  * - glue_type_size_simple / glue_type_ref_is_named_struct_layout_elf_c
  * - glue_var_expr_stack_off_elf_c (def after assign/index includes)
- * - glue_emit_index_eff_addr_scaled_elf_c (def later in glue)
+ * - glue_emit_index_eff_addr_scaled_elf_c (pipeline_asm_emit_index_eff_addr.c)
  * - glue_binop_stack_spill_* / glue_asm73_var_prefers_stack_spill (defs later)
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / asm_ctx_local_*
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index

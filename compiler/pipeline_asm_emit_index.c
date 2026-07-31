@@ -17,7 +17,7 @@
  * G.7: single product-mega INDEX / ADDR_OF / DEREF ELF face — do not open a
  * second cluster emitter. Nested helpers: try_index_* forest + lvalue_eff_addr
  * live in pipeline_asm_emit_index_helpers.c (same TU; included earlier);
- * glue_emit_index_eff_addr_scaled + index assign-addr cache remain in
+ * glue_emit_index_eff_addr_scaled (pipeline_asm_emit_index_eff_addr.c) + index assign-addr cache remain in
  * pipeline_glue.c (same TU).
  *
  * Callers: expr_elf_rec / mega, assign INDEX lhs (elem_byte_sz),
