@@ -33,7 +33,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~20.7k + `ast_pool` ~12.9k；8.3.1 二十九刀（+expr_rec）+ index_eff／lvalue／thin faces／binop residual／assign_rhs／**type_named_struct** 有则补全 + 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~19.8k + `ast_pool` ~12.9k；8.3.1 三十刀（+expr_rec）+ …／try_binop residual／**call_arg resolve + f32 slot** 有则补全 + 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -921,7 +921,7 @@
 | `pipeline_asm_emit_field_access.c` | ~632 | asm ELF FIELD_ACCESS emit（layout_by_name + call_arg + call_base + var + fast）切片 | 🟡 已抽出（wave1000）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_binop.c` | ~1976 | asm ELF EXPR_BINOP emit（arith/bitwise/shift + residual scalar/ptr/add + try_binop load/placement）切片 | 🟡 已抽出 + residual 有则补全（wave1015/1018）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_cmp.c` | ~315 | asm ELF relational CMP emit（eq/ne/lt/le/gt/ge + enum RHS + f32/f64/int finish）切片 | 🟡 已抽出（wave1002）；仍 host-cc 入 `pipeline_x` |
-| `pipeline_asm_emit_call_args.c` | ~876 | asm ELF CALL-arg emit（named_struct + lea + dual-GP + named layout + for_call_args）切片 | 🟡 已抽出（wave1003）+ type_named_struct 有则补全（wave1017）；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_call_args.c` | ~1052 | asm ELF CALL-arg emit（named_struct + resolve + f32 slot + lea + dual-GP + named layout + for_call_args）切片 | 🟡 已抽出（wave1003）+ type_named_struct（wave1017）+ resolve／f32 slot（wave1019）有则补全；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_struct_lit.c` | ~484 | asm ELF STRUCT_LIT emit（field_store_sz + rehome + fields + struct_lit_elf）切片 | 🟡 已抽出（wave1004）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_vector_let.c` | ~686 | asm ELF vector_let／fixed-array field store（leaf + flat + vector_let + frame_mag + store_fixed）切片 | 🟡 已抽出（wave1005）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_vector_simd.c` | ~1436 | asm ELF SIMD vector lane／shuffle／select／fma emit domain 切片 | 🟡 已抽出（wave1006）；仍 host-cc 入 `pipeline_x` |
@@ -1022,7 +1022,8 @@
   - ✅ asm assign_rhs_to_rax 有则补全：`pipeline_asm_emit_assign.c` 迁入 `glue_emit_assign_rhs_to_rax_elf_c`（~89 LOC；file ~678；COUNT 仍 62；glue ~20.7k）（wave1016）
   - ✅ asm type_named_struct 有则补全：`pipeline_asm_emit_call_args.c` 迁入 `glue_type_ref_is_named_struct_layout_elf_c`（~30 LOC；file ~876；COUNT 仍 62；glue ~20.7k）（wave1017）
   - ✅ asm try_binop residual 有则补全：`pipeline_asm_emit_binop.c` 迁入 as_needs + load_operand／clobber／preserve／commutative／left_rax／cmp（~740 LOC；file ~1976；COUNT 仍 62；glue ~19.9k）（wave1018）
-  - ⬜ 下一域候选：leaf residual（f32 VAR slot load／call_arg resolve…）或 8.3.3 field_access／soa
+  - ✅ asm call_arg resolve + f32 VAR slot 有则补全：`pipeline_asm_emit_call_args.c` 迁入 resolve_anon／resolve_var_stack_off + load_f32_var_slot_{rax,rbx} + unusable／append_at_offset／var_is_param（~160 LOC；file ~1052；COUNT 仍 62；glue ~19.8k；var_decl + lazy_append 仍 glue）（wave1019）
+  - ⬜ 下一域候选：其它 leaf residual 或 8.3.3 field_access／soa
 
 ⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
