@@ -373,12 +373,18 @@ experimental_bootstrap_info "linking xlang_asm.experimental"
 ensure_experimental_lsp_objs() {
   GEN_DIR="$BUILD_DIR/gen_driver"
   mkdir -p "$GEN_DIR"
-  if [ ! -f Makefile ] || ! command -v make >/dev/null 2>&1; then
-  experimental_bootstrap_warn "cannot make lsp_x.o"
-  return 1
+  # wave937: shell-primary (was make -s lsp_io_gen.c lsp_gen.c ...). Mirrors
+  # build_xlang_asm.sh ensure_asm_experimental_lsp_objs shell path (wave930).
+  experimental_bootstrap_warn "ensure lsp_x.o (+ lsp_io + lsp_diag) via shell"
+  bash scripts/ensure_lsp_pipeline_gen.sh lsp
+  bash scripts/ensure_lsp_pipeline_gen.sh lsp_diag
+  bash scripts/ensure_archaeology_gen.sh lsp_io_std_heap
+  bash scripts/ensure_host_cc_seed_o.sh try-heat lsp_x.o
+  bash scripts/ensure_host_cc_seed_o.sh try-heat lsp_io_x.o
+  bash scripts/ensure_host_cc_seed_o.sh try-heat lsp_diag_x.o
+  if [ ! -f lsp_io_std_heap_x.o ]; then
+    bash scripts/driver_leaf_x_to_o.sh ensure lsp_io_std_heap_x.o
   fi
-  make -s lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c \
-  lsp_x.o lsp_io_x.o lsp_diag_x.o lsp_io_std_heap_x.o
   cp -f lsp_x.o lsp_io_x.o lsp_diag_x.o lsp_io_std_heap_x.o "$GEN_DIR/"
 }
 ensure_experimental_lsp_objs || true

@@ -2116,9 +2116,13 @@ PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
 # wave811–829: std_x hybrid+catalog+FORCE / formal_mod / STD_AND_PANIC / driver_leaf
 # catalog+FORCE / archaeology / DRIVER_SUBCMD / PIPELINE_X / SEED_MODE / SEED_LINK_PICKS /
-# OBJS_CORE / ARCH_EXPERIMENT / RELINK_LEGACY / SOURCE_DEPS / E_DIRS / gen.c FORCE thin swallowed;
-# blocker name kept (thin edges + B2 ensure + remaining B7B mk lists still form make graph).
-PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
+# OBJS_CORE / ARCH_EXPERIMENT / RELINK_LEGACY / SOURCE_DEPS / E_DIRS / gen.c FORCE thin swallowed.
+# wave937: makefile_thin_call_edges cleared (wave936 bootstrap_driver_seed.sh default
+# cold path 100% shell, 0 make calls). Remaining blockers:
+# - b7b_lists_in_mk: mk files still Makefile includes (catalog parses independently)
+# - std_core_product_make_graph: relink_xlang_asm_strict_glue.sh / bootstrap_self.sh /
+#   host_cc_objs_core_link.sh still call make in default product paths.
+PHYS_DEL_PREFLIGHT_BLOCKERS=b7b_lists_in_mk|std_core_product_make_graph
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
 PHYS_DEL_PREFLIGHT_STD_X_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_STD_X_FORCE_THIN=1

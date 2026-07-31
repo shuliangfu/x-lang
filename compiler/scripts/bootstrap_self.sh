@@ -175,9 +175,14 @@ log "snapshot $TARGET → $STAGE1"
 cp "$TARGET" "$STAGE1"
 
 log "best-effort ensure satellite leaves (pipeline/driver/lsp/preprocess)"
-# shellcheck disable=SC2086
-$MAKE -s pipeline_x.o driver_x.o preprocess_x.o lsp_io_x.o lsp_x.o lsp_io_std_heap_x.o \
-  2>/dev/null || true
+# wave937: shell-primary (was $MAKE -s pipeline_x.o driver_x.o ...). Best-effort
+# ensure via try-heat / driver_leaf_x_to_o.sh; failures soft-skipped (|| true).
+bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o 2>/dev/null || true
+bash scripts/ensure_host_cc_seed_o.sh try-heat driver_x.o 2>/dev/null || true
+bash scripts/ensure_host_cc_seed_o.sh try-heat preprocess_x.o 2>/dev/null || true
+bash scripts/ensure_host_cc_seed_o.sh try-heat lsp_io_x.o 2>/dev/null || true
+bash scripts/ensure_host_cc_seed_o.sh try-heat lsp_x.o 2>/dev/null || true
+bash scripts/driver_leaf_x_to_o.sh ensure lsp_io_std_heap_x.o 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # host-cc link stage2 (bag from Makefile; B7D-adjacent residual, not g05 product)

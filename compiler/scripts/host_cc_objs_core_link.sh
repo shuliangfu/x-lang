@@ -131,16 +131,31 @@ _default_win_ldflags() {
 }
 
 if [ -z "${HOST_CC_LINK_OBJS:-}" ]; then
-  HOST_CC_LINK_OBJS=$(_load_link_objs_via_make export-objs-core-link-objs) \
-    || fail "failed to expand export-objs-core-link-objs (wave891 LINK_OBJS shell-load)"
+  # wave937: shell-primary via catalog --link-objs-export (was make export-objs-core-link-objs).
+  # XLANG_OBJS_CORE_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_OBJS_CORE_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
+    HOST_CC_LINK_OBJS=$(_load_link_objs_via_make export-objs-core-link-objs) \
+      || fail "failed to expand export-objs-core-link-objs (wave891 LINK_OBJS shell-load)"
+  else
+    HOST_CC_LINK_OBJS=$(bash scripts/driver_seed_obj_catalog.sh --link-objs-export objs-core 2>/dev/null \
+      | sed -n 's/^LINK_OBJS=//p' | head -1) \
+      || fail "failed to expand catalog --link-objs-export objs-core (wave937)"
+  fi
 fi
 if [ -z "${HOST_CC_LINK_OBJS:-}" ]; then
-  fail "empty LINK_OBJS from export-objs-core-link-objs (wave891)"
+  fail "empty LINK_OBJS from objs-core (wave891/937)"
 fi
 
 if [ -z "${HOST_CC_CFLAGS:-}" ]; then
-  HOST_CC_CFLAGS=$(_load_cflags_via_make export-try-heat-cflags) \
-    || fail "failed to expand export-try-heat-cflags (wave891 CFLAGS shell-load)"
+  # wave937: shell-primary via catalog --cflags-export (was make export-try-heat-cflags).
+  if [ "${XLANG_OBJS_CORE_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
+    HOST_CC_CFLAGS=$(_load_cflags_via_make export-try-heat-cflags) \
+      || fail "failed to expand export-try-heat-cflags (wave891 CFLAGS shell-load)"
+  else
+    HOST_CC_CFLAGS=$(bash scripts/driver_seed_obj_catalog.sh --cflags-export 2>/dev/null \
+      | sed -n 's/^CFLAGS=//p' | head -1) \
+      || fail "failed to expand catalog --cflags-export (wave937)"
+  fi
 fi
 # CFLAGS may be empty in extreme override; still allow link (host default).
 
