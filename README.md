@@ -79,27 +79,34 @@ We do **not** treat every OS point-release as a required test matrix. Clear tier
 
 | Role | Host | Notes |
 |------|------|--------|
-| **Gold standard** | **Ubuntu x86_64** | Link completeness / product gates; do not treat macOS green alone as SHARED done |
+| **Gold lab host** | **Ubuntu x86_64** | Reproducible L4 / product gates; do not treat macOS green alone as SHARED done |
 | **Product dual host** | Ubuntu x86_64 + **macOS** | L4 true cold + full `run-all-bstrict` for release pins |
 | **Windows** | MSYS2 / MinGW **hybrid** probes | Hybrid green ≠ product L4 / self-host complete |
 
-Linux care is driven more by **libc family** (glibc vs musl), **glibc major line**, and **kernel era** than by every Ubuntu point release. On macOS, care is **Darwin major + arch** (arm64 first). On Windows, care is **Win10/11 + x64 toolchain**, not every build number.
+**Product vs host (do not confuse):**
 
-**Alpine / musl is supported** (host + CI Docker smoke). It is **not** the product gold host: gold and release pins still mean **Ubuntu x86_64 (glibc)**. Full B-strict / L4 self-host parity on Alpine is on the post-bootstrap track (A-13), not “won’t fix.”
+| Layer | Policy |
+|-------|--------|
+| **User product binaries** | Goal is **libc-free / freestanding** where the path says so (`-freestanding`, crt0, syscall / `std.sys`, nostdlib static on Linux x86_64, etc.). **X is not “a glibc language.”** Gold on Ubuntu does **not** mean “shipped programs depend on glibc.” |
+| **Host OS lab** | We still need **representative machines** to build the toolchain, run CI, and pin L4. That lab is **Ubuntu x86_64 first** — chosen for reproducibility, not as a permanent product libc ABI. |
+| **Bootstrap residual** | Some **compiler build / hybrid / seed** steps may still touch host `cc`/`ld` or a system C library while self-hosting is incomplete. That is **engineering residue**, not the end-state product contract. Prefer freestanding gates when reporting “does my program need libc?” |
 
-#### Official matrix — Linux (Ubuntu / glibc and Alpine)
+Linux host care is **kernel era + arch + object/link format (ELF)** and **which host tools built the compiler**, not “every glibc point release.” Distro libc (glibc vs musl) still matters for **host bootstrap quirks** and residual hosted links — it is **not** the product ABI we advertise. On macOS, care is **Darwin major + arch** (arm64 first). On Windows, care is **Win10/11 + x64 toolchain**, not every build number.
+
+**Alpine is supported** as a **host** (CI Docker smoke, musl host facts). It is **not** the gold **lab** host: release pins / L4 truth still mean **Ubuntu x86_64**. Full B-strict / L4 self-host parity on Alpine is on the post-bootstrap track (A-13), not “won’t fix.” Product freestanding on Alpine is the same **no-product-libc** goal as on Ubuntu once the host toolchain path is green.
+
+#### Official matrix — Linux (lab hosts: Ubuntu + Alpine, …)
 
 | Platform | Arch | Tier | Notes |
 |----------|------|------|--------|
-| **Ubuntu 24.04 LTS** | x86_64 | **1** | Current mainstream LTS; CI (`ubuntu-latest` / 24.04 line) |
-| **Ubuntu 22.04 LTS** | x86_64 | **1** | Gold-adjacent LTS; CI `ubuntu-22.04`; Docker gates often pin 22.04 |
-| **Ubuntu 26.04 LTS** (when used as host) | x86_64 | **1** | Newer LTS line — same Tier 1 bar once adopted as a primary host |
-| **Alpine Linux** (musl) | x86_64 | **2** | **Supported host**; CI `docker-distro` (`alpine:3.x`); local `scripts/docker-ci-local.sh alpine`; host facts via `XLANG_HOST_ALPINE` / platform linker docs. Musl quirks handled (stack, link, some std fallbacks). **Not gold**: product L4 / release pins still Ubuntu glibc; full B-strict self-host on Alpine is deferred (A-13), not unsupported |
-| **Ubuntu 24.04 / current** | aarch64 | **2** | CI probe (`ubuntu-24.04-arm`); not the product gold host |
-| **Ubuntu 20.04 LTS** | x86_64 | **2** | Late life; may work if toolchain is new enough |
-| Other glibc distros (Debian stable, Fedora, …) | x86_64 | **2** | Untested officially; report bugs with distro + glibc version |
-| Rolling / exotic (Arch, etc.) | * | **2** | Best effort only |
-| **Ubuntu 18.04 and older** / pre-glibc-2.28 era | * | **3** | EOL; no official support |
+| **Ubuntu 24.04 LTS** | x86_64 | **1** | Current mainstream LTS lab; CI (`ubuntu-latest` / 24.04 line) |
+| **Ubuntu 22.04 LTS** | x86_64 | **1** | Gold-adjacent LTS lab; CI `ubuntu-22.04`; Docker gates often pin 22.04 |
+| **Ubuntu 26.04 LTS** (when used as host) | x86_64 | **1** | Newer LTS line — same Tier 1 lab bar once adopted as a primary host |
+| **Alpine Linux** | x86_64 | **2** | **Supported host**; CI `docker-distro` (`alpine:3.x`); local `scripts/docker-ci-local.sh alpine`; host facts via `XLANG_HOST_ALPINE` / platform linker docs. Host bootstrap may differ (musl-era tools, stack defaults); product freestanding still targets **no libc**. **Not gold lab**: L4 / release pins still Ubuntu x86_64; full B-strict self-host on Alpine deferred (A-13), not unsupported |
+| **Ubuntu 24.04 / current** | aarch64 | **2** | CI probe (`ubuntu-24.04-arm`); not the product gold lab host |
+| **Ubuntu 20.04 LTS** | x86_64 | **2** | Late life; may work if host toolchain is new enough |
+| Other Linux distros (Debian, Fedora, Arch, …) | x86_64 | **2** | Best effort lab hosts. When filing bugs: **distro + arch + kernel**, build mode (**freestanding vs hosted**), and **host toolchain** (`cc`/`ld` versions) if the failure is in **building** the compiler — **not** “glibc version as product ABI” |
+| **Ubuntu 18.04 and older** / ancient host userspace | * | **3** | EOL; host packages / toolchains too old for the lab |
 
 #### Official matrix — macOS
 
@@ -134,10 +141,10 @@ Windows status today is **hybrid / min-gate green on the product path**, not “
 | Windows 7 / 8 / 8.1 | Long EOL; no modern security / toolchain story |
 | Windows 10 before 22H2 | Out of support window for this project |
 | macOS 12 and older | SDK / ld64 / system expectations too old |
-| Ubuntu 18.04 and older | EOL LTS; ancient glibc / packages |
-| “Every Ubuntu / Windows / macOS point release needs its own VM” | **Out of policy** — use tiers + representative hosts |
+| Ubuntu 18.04 and older | EOL LTS; ancient host userspace / packages |
+| “Every Ubuntu / Windows / macOS point release needs its own VM” | **Out of policy** — use tiers + representative **lab** hosts |
 
-**Not Tier 3:** Alpine / musl — **Tier 2 supported** (see Linux matrix). Gold remains Ubuntu glibc; that is a quality bar, not a “musl unsupported” policy.
+**Not Tier 3:** Alpine — **Tier 2 supported host** (see Linux matrix). Gold is **Ubuntu x86_64 as the L4 lab**, not “product requires glibc / musl unsupported.”
 
 #### How we test (cost-effective)
 

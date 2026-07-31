@@ -79,27 +79,34 @@
 
 | 角色 | 主机 | 说明 |
 |------|------|------|
-| **金标准** | **Ubuntu x86_64** | 链接完整性 / 产品门禁真值；禁止单靠 macOS 绿结案 SHARED 债 |
+| **金标实验室宿主** | **Ubuntu x86_64** | 可复现的 L4 / 产品门禁真值；禁止单靠 macOS 绿结案 SHARED 债 |
 | **产品双端** | Ubuntu x86_64 + **macOS** | 放行钉盘须 L4 真冷 + 全量 `run-all-bstrict` |
 | **Windows** | MSYS2 / MinGW **hybrid** 探针 | hybrid 绿 ≠ 产品 L4 / 自举完成 |
 
-Linux 更关键的是 **libc 族**（glibc vs musl）、**glibc 主线**与**内核年代**，不是每个 Ubuntu 点版本。macOS 看 **Darwin 大版本 + 架构**（arm64 优先）。Windows 看 **Win10/11 + x64 工具链**，不是每个 build 号。
+**产品 vs 宿主（不要混）：**
 
-**Alpine / musl 是支持的**（宿主 + CI Docker 烟测）。它**不是**产品金标宿主：金标与放行钉盘仍以 **Ubuntu x86_64（glibc）** 为准。Alpine 上完整 B-strict / L4 自举对齐走自举后轨道（A-13），**不是**「不修 / 不支持」。
+| 层次 | 政策 |
+|------|------|
+| **用户产品二进制** | 目标是路径上的 **去 libc / freestanding**（`-freestanding`、crt0、syscall / `std.sys`、Linux x86_64 nostdlib 静态等）。**X 不是「依赖 glibc 的语言」。** 金标选 Ubuntu **不等于**「发货程序依赖 glibc」。 |
+| **宿主 OS 实验室** | 仍需要**代表性机器**来编工具链、跑 CI、钉 L4。实验室优先 **Ubuntu x86_64**——为的是可复现，**不是**把 glibc 当成永久产品 ABI。 |
+| **自举残留** | 在自举未完成前，部分**编译器构建 / hybrid / seed** 步骤仍可能碰到宿主 `cc`/`ld` 或系统 C 库。那是**工程残留**，不是终态产品契约。问「我的程序要不要 libc？」请优先看 freestanding 门禁。 |
 
-#### 官方矩阵 — Linux（Ubuntu / glibc 与 Alpine）
+Linux 宿主更关心 **内核年代 + 架构 + 目标格式（ELF）** 以及**用什么宿主工具编出了编译器**，不是「每个 glibc 点版本」。发行版上的 libc（glibc vs musl）仍可能影响**宿主 bootstrap 怪癖**与残留 hosted 链接——**不是**我们对外宣传的产品 ABI。macOS 看 **Darwin 大版本 + 架构**（arm64 优先）。Windows 看 **Win10/11 + x64 工具链**，不是每个 build 号。
+
+**Alpine 是支持的宿主**（CI Docker 烟测、musl 宿主事实）。它**不是**金标**实验室**宿主：放行钉 / L4 真值仍是 **Ubuntu x86_64**。Alpine 上完整 B-strict / L4 自举对齐走自举后轨道（A-13），**不是**「不修」。产品 freestanding 在 Alpine 上与 Ubuntu 一样走 **产品无 libc** 目标，前提是宿主工具链路径本身是绿的。
+
+#### 官方矩阵 — Linux（实验室宿主：Ubuntu + Alpine …）
 
 | 平台 | 架构 | 等级 | 说明 |
 |------|------|------|------|
-| **Ubuntu 24.04 LTS** | x86_64 | **1** | 当前主流 LTS；CI（`ubuntu-latest` / 24.04 线） |
-| **Ubuntu 22.04 LTS** | x86_64 | **1** | 金标邻近 LTS；CI `ubuntu-22.04`；Docker gate 常钉 22.04 |
-| **Ubuntu 26.04 LTS**（作为主机使用时） | x86_64 | **1** | 新 LTS 纳入主宿主后与 22.04/24.04 同级 |
-| **Alpine Linux**（musl） | x86_64 | **2** | **支持宿主**；CI `docker-distro`（`alpine:3.x`）；本地 `scripts/docker-ci-local.sh alpine`；宿主事实见 `XLANG_HOST_ALPINE` / platform linker 文档。musl 差异有处理（栈、链接、部分 std 回退）。**非金标**：产品 L4 / 放行钉仍 Ubuntu glibc；Alpine 上完整 B-strict 自举延后（A-13），**不是不支持** |
-| **Ubuntu 24.04 / 当前** | aarch64 | **2** | CI 探针（`ubuntu-24.04-arm`）；非产品金标 |
-| **Ubuntu 20.04 LTS** | x86_64 | **2** | 后期 LTS；工具链够新时多半可跑 |
-| 其他 glibc 发行版（Debian stable、Fedora 等） | x86_64 | **2** | 无官方保证；报 bug 请带发行版 + glibc 版本 |
-| 滚动版 / 小众发行版（Arch 等） | * | **2** | 仅尽力 |
-| **Ubuntu 18.04 及更早** / 过旧 glibc 时代 | * | **3** | 已 EOL；不支持 |
+| **Ubuntu 24.04 LTS** | x86_64 | **1** | 当前主流 LTS 实验室；CI（`ubuntu-latest` / 24.04 线） |
+| **Ubuntu 22.04 LTS** | x86_64 | **1** | 金标邻近 LTS 实验室；CI `ubuntu-22.04`；Docker gate 常钉 22.04 |
+| **Ubuntu 26.04 LTS**（作为主机使用时） | x86_64 | **1** | 新 LTS 纳入主实验室后与 22.04/24.04 同级 |
+| **Alpine Linux** | x86_64 | **2** | **支持宿主**；CI `docker-distro`（`alpine:3.x`）；本地 `scripts/docker-ci-local.sh alpine`；宿主事实见 `XLANG_HOST_ALPINE` / platform linker 文档。宿主 bootstrap 可能不同（musl 时代工具、默认栈等）；产品 freestanding 仍目标 **无 libc**。**非金标实验室**：L4 / 放行钉仍 Ubuntu x86_64；Alpine 上完整 B-strict 自举延后（A-13），**不是不支持** |
+| **Ubuntu 24.04 / 当前** | aarch64 | **2** | CI 探针（`ubuntu-24.04-arm`）；非产品金标实验室 |
+| **Ubuntu 20.04 LTS** | x86_64 | **2** | 后期 LTS；宿主工具链够新时多半可跑 |
+| 其他 Linux 发行版（Debian、Fedora、Arch 等） | x86_64 | **2** | 尽力实验室宿主。报 bug 请带：**发行版 + 架构 + 内核**、构建模式（**freestanding vs hosted**）、若是**编编译器**失败再附 **宿主工具链**（`cc`/`ld` 版本）——**不要**把「glibc 版本」当成产品 ABI 必备字段 |
+| **Ubuntu 18.04 及更早** / 过旧宿主用户态 | * | **3** | 已 EOL；实验室软件包 / 工具链过旧 |
 
 #### 官方矩阵 — macOS
 
@@ -134,10 +141,10 @@ Windows 现状是**产品路径上的 hybrid / min-gate 绿**，不是「完整�
 | Windows 7 / 8 / 8.1 | 长期 EOL；无现代安全 / 工具链故事 |
 | Windows 10 早于 22H2 | 超出本项目支持窗口 |
 | macOS 12 及更早 | SDK / ld64 / 系统预期过旧 |
-| Ubuntu 18.04 及更早 | LTS 已 EOL；glibc / 软件包过旧 |
-| 「每个 Ubuntu / Windows / macOS 小版本都要独立 VM」 | **政策明确不做** — 用等级 + 代表性环境 |
+| Ubuntu 18.04 及更早 | LTS 已 EOL；过旧宿主用户态 / 软件包 |
+| 「每个 Ubuntu / Windows / macOS 小版本都要独立 VM」 | **政策明确不做** — 用等级 + 代表性**实验室**宿主 |
 
-**不是 Tier 3：** Alpine / musl — **Tier 2 支持**（见 Linux 矩阵）。金标仍是 Ubuntu glibc，这是质量闸门，**不是**「musl 不支持」政策。
+**不是 Tier 3：** Alpine — **Tier 2 支持宿主**（见 Linux 矩阵）。金标是 **Ubuntu x86_64 作为 L4 实验室**，不是「产品必须 glibc / musl 不支持」。
 
 #### 测试资源怎么安排（性价比）
 
