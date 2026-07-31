@@ -23,6 +23,31 @@ echo "g05_ensure_relink_prereqs: load env (shell, no make)"
 # shellcheck disable=SC2046
 eval "$(bash scripts/g05_relink_env.sh)"
 
+# wave940: warm catalog cache once for the whole g05 ensure ladder.
+# Without this, every ensure_host_cc_seed_o.sh try-* call re-parses all mk
+# files via driver_seed_obj_catalog.sh. On Windows MinGW/Git Bash that is
+# ~3min per call × ~15 calls = g05 appears "hung" (no gcc, only bash).
+# bootstrap_driver_seed.sh already warms this cache (line 83-97); g05 must
+# do the same since it is invoked independently after bootstrap.
+# PLATFORM: SHARED — same mk parse on Darwin/Linux/Windows MSYS2.
+if [ -z "${XLANG_CATALOG_CACHE_FILE:-}" ] || [ ! -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+  _g05_cat_cache="${TMPDIR:-/tmp}/xlang_g05_catalog_$$.txt"
+  if bash scripts/driver_seed_obj_catalog.sh --shell >"${_g05_cat_cache}" \
+    2>/tmp/xlang_g05_cat_err_$$.txt; then
+    export XLANG_CATALOG_CACHE_FILE="${_g05_cat_cache}"
+    echo "g05_ensure_relink_prereqs: catalog cache warm OK (${XLANG_CATALOG_CACHE_FILE})"
+  else
+    echo "g05_ensure_relink_prereqs: WARN catalog warm failed (try-* will re-expand)" >&2
+    cat /tmp/xlang_g05_cat_err_$$.txt 2>/dev/null || true
+    rm -f "${_g05_cat_cache}" /tmp/xlang_g05_cat_err_$$.txt
+    _g05_cat_cache=""
+  fi
+  # shellcheck disable=SC2064
+  trap 'if [ -n "${_g05_cat_cache:-}" ]; then rm -f "${_g05_cat_cache}" /tmp/xlang_g05_cat_err_$$.txt; fi' EXIT HUP INT TERM
+else
+  echo "g05_ensure_relink_prereqs: catalog cache reuse OK (${XLANG_CATALOG_CACHE_FILE})"
+fi
+
 # Why: Windows MSYS2/MinGW ships gcc only (no cc alias). Honor caller-provided
 #      $CC (e.g. CC=gcc exported by Windows build env), then G05_CC override,
 #      then fall back to cc for POSIX. Without this, g05 hot-rebuild emits

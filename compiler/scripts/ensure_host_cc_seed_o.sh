@@ -548,6 +548,23 @@ ensure_one() {
     fi
   fi
 
+  # wave940: pipeline_glue_standalone.o embeds build_asm/pipeline_glue_types.inc
+  # via #include. On cold start (build_asm/ cleared) the .inc is missing and
+  # cc fails with "fatal error: pipeline_glue_types.inc: No such file or
+  # directory". Root-cause fix (G.7 single body): ensure .inc before cc -c.
+  # PLATFORM: SHARED — same extract on Darwin/Linux/Windows MSYS2.
+  # Before wave940 this was a symptom-level fix (manual cc -Ibuild_asm); now
+  # the seed-map body owns the .inc prerequisite just like Makefile prereq.
+  if [ "$out" = "build_asm/pipeline_glue_standalone.o" ] \
+    && [ ! -s build_asm/pipeline_glue_types.inc ] \
+    && [ -f scripts/ensure_pipeline_glue_types.sh ]; then
+    log "ensure build_asm/pipeline_glue_types.inc (cold-start prereq for $out)"
+    bash scripts/ensure_pipeline_glue_types.sh >&2 || {
+      echo "ensure_host_cc_seed_o: ensure_pipeline_glue_types.sh failed for $out" >&2
+      return 1
+    }
+  fi
+
   log "cc -c $seed → $out"
   # shellcheck disable=SC2086
   $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS "${extras[@]+"${extras[@]}"}" -c -o "$out" "$seed"
