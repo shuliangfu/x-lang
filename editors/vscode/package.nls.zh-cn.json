@@ -77,7 +77,7 @@
   "xlang.walkthrough.openProject.title": "打开 Xlang 项目",
   "xlang.walkthrough.openProject.description": "使用 **Open Folder** 打开 xlang 仓库根目录。LSP 需要工作区才能启动诊断、跳转、补全。",
   "xlang.walkthrough.buildCompiler.title": "构建 xlang 编译器",
-  "xlang.walkthrough.buildCompiler.description": "执行 `make -C compiler bootstrap-driver-seed` 获得 LSP 所需的 `compiler/xlang` 二进制。",
+  "xlang.walkthrough.buildCompiler.description": "执行 `./xbuild bootstrap-driver-seed` 获得 LSP 所需的 `compiler/xlang` 二进制。",
   "xlang.walkthrough.openXFile.title": "打开 .x 文件体验",
   "xlang.walkthrough.openXFile.description": "打开任意 `.x` 文件，验证语法高亮、折叠、CodeLens、状态栏是否生效。",
   "xlang.walkthrough.runFile.title": "运行 .x 文件",
@@ -86,7 +86,7 @@
   "xlang.taskDefinition.task.description": "Xlang 任务类型: build / build-file / run / check",
 
   "xlang.walkthrough.openProject.media": "按 `Ctrl+K Ctrl+O` 打开项目根目录（含 `compiler/` 的目录）。",
-  "xlang.walkthrough.buildCompiler.media": "在终端运行：\n```\nmake -C compiler bootstrap-driver-seed\n```\n构建成功后 `compiler/xlang` 将作为语言服务。",
+  "xlang.walkthrough.buildCompiler.media": "在终端运行：\n```\n./xbuild bootstrap-driver-seed\n```\n构建成功后 `compiler/xlang` 将作为语言服务。",
   "xlang.walkthrough.openXFile.media": "尝试打开 `compiler/src/lexer/lexer.x` 或 `tests/` 下任意测试文件。",
   "xlang.walkthrough.runFile.media": "CodeLens `▶ Run` 出现在 `function main` 定义行。"
 }

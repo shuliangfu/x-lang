@@ -543,11 +543,11 @@ export function labi_ensure_catalog_step_at(
   if (hint_out != 0 as *usize) {
     // empty hints: only i==0 and i==1 have non-null
     if (i == 0) {
-      let p: *u8 = "try: make -C compiler runtime_asm_io_stubs.o";
+      let p: *u8 = "try: ./xbuild compiler-make runtime_asm_io_stubs.o";
       hint_out[0] = p as usize;
     } else {
       if (i == 1) {
-        let p: *u8 = "try: make -C compiler runtime_process_argv.o";
+        let p: *u8 = "try: ./xbuild compiler-make runtime_process_argv.o";
         hint_out[0] = p as usize;
       } else {
         hint_out[0] = 0 as usize;
@@ -618,10 +618,10 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
     // Hints only for catalog 0/1 (≡ mega step_at / thin historic make tips).
     let hint: *u8 = 0 as *u8;
     if (catalog_idx == 0) {
-      hint = "try: make -C compiler runtime_asm_io_stubs.o";
+      hint = "try: ./xbuild compiler-make runtime_asm_io_stubs.o";
     } else {
       if (catalog_idx == 1) {
-        hint = "try: make -C compiler runtime_process_argv.o";
+        hint = "try: ./xbuild compiler-make runtime_process_argv.o";
       }
     }
     unsafe {
@@ -862,7 +862,7 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
     rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
   }
   if (rc != 0) {
-    let hint: *u8 = "try: make -C compiler runtime_panic.o";
+    let hint: *u8 = "try: ./xbuild compiler-make runtime_panic.o";
     unsafe {
       link_diag_runtime_obj_resolve_fail("runtime_panic.o", hint);
     }
@@ -1298,7 +1298,7 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   if (rc != 0) {
     // Match mega: resolve_fail with make hint for test_fn_invoke.
     unsafe {
-      link_diag_runtime_obj_resolve_fail("runtime_test_fn_invoke.o", "try: make -C compiler runtime_test_fn_invoke.o");
+      link_diag_runtime_obj_resolve_fail("runtime_test_fn_invoke.o", "try: ./xbuild compiler-make runtime_test_fn_invoke.o");
     }
     return -1;
   }

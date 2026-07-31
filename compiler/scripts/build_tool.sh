@@ -6,7 +6,7 @@
 #   `build-tool` and repo-root xlang-build.sh call this script only.
 #   Does NOT duplicate product link object lists (phase1/final stay Make).
 #
-# Usage (compiler directory, or via make -C compiler build-tool):
+# Usage (compiler directory, or via ./xbuild build-tool):
 #   ./scripts/build_tool.sh
 #   ./scripts/build_tool.sh --check
 #

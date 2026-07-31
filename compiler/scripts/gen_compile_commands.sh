@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 生成 compiler/compile_commands.json + ide/pipeline_glue_types.inc，供 clangd 精确解析。
 # 用法（仓库根目录）：./compiler/scripts/gen_compile_commands.sh
-# 或：make -C compiler compile_commands.json
+# 或：./xbuild compiler-make compile_commands.json
 
 set -euo pipefail
 

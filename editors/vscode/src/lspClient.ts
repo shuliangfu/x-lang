@@ -37,7 +37,7 @@ export function validateXlangLanguageServer(command: string): XlangLspValidation
   if (!fs.existsSync(command)) {
     return {
       ok: false,
-      message: t('{0} not found. Run in repo root: make -C compiler bootstrap-driver-seed', command),
+      message: t('{0} not found. Run in repo root: ./xbuild bootstrap-driver-seed', command),
     };
   }
 

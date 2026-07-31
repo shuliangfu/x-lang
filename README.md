@@ -11,7 +11,7 @@
 | **Compiler binary** | `xlang` / `xlang_asm` (product binary after a proper build) |
 | **Source extension** | `.x` |
 | **Project build** | `build.x` — build strategy written in X (`xlang build` / `build_tool` / `xlang-build.sh`) |
-| **Status (2026-07-31)** | **Product L4 pin `9bb7a757c`** (dual-host true cold + bstrict **129/129**). Tip dual L4 candidate **`eef4d7743`** (wave923 · **not** re-pinned yet). Residual tip on `self-hosting` (MG **11.3.1** · daily L2 · Makefile still present · **awaiting explicit auth** for physical delete). **Self-host not finished** — cold start still needs seed / host `cc`. |
+| **Status (2026-07-31)** | **Product L4 pin `77b334842`** (post-MG Makefile delete · dual-host true cold lineage). Older dual bstrict pin **`9bb7a757c`** (129/129) remains historical gold until next explicit re-pin. Tip residual on `self-hosting` (MG **编排层已删 Makefile** · 0-make hub wave944 · post-delete docs residual wave945). **Self-host not finished** — cold start still needs seed / host `cc`. |
 | **Live dashboard** | [Progress](analysis/自举进度.md) · [Timeline](analysis/自举时序.md) · [C-migration debt](analysis/C迁移追踪.md) · [Makefile map](analysis/Makefile迁移表.md) · [Leaf residual](compiler/docs/LEAF_PATTERN_RESIDUAL.md) |
 | **中文** | [README_zh-CN.md](README_zh-CN.md) |
 
@@ -169,16 +169,16 @@ Windows status today is **hybrid / min-gate green on the product path**, not “
 ### First-time build
 
 ```bash
-# Recommended: pinned seeds → build_tool → daily xlang
-make -C compiler build-tool
-./xlang-build.sh first-time          # build_tool + ./build_tool ./xlang
-# Or: cd compiler && ./build_tool ./xlang
+# Recommended product entry (Makefile deleted — wave942; 0-make hub wave944)
+./xbuild build-tool                  # pinned seeds → build_tool
+./xbuild first-time                  # build_tool + daily g05 path
+# Or: ./xlang-build.sh first-time
 
-# Cold start with cc only:
+# Cold start with cc only (minimal):
 #   cd compiler && sh bootstrap.sh
 
 # Full seed driver (common product / LSP path):
-make -C compiler bootstrap-driver-seed
+./xbuild bootstrap-driver-seed
 FULL=0 bash compiler/scripts/g05_prepare_and_relink.sh
 ```
 
@@ -186,21 +186,22 @@ FULL=0 bash compiler/scripts/g05_prepare_and_relink.sh
 
 ```bash
 # Daily: G-05 path → xlang_asm relink
-./xlang-build.sh build
-# Or: cd compiler && ./build_tool ./xlang
+./xbuild build
+# Or: ./xlang-build.sh build
 
 export XLANG=./compiler/xlang_asm   # this-wave product binary
 ./tests/run-hello.sh
 
 # Heavier rebuild after backend / seed changes
-./xlang-build.sh full              # or: make -C compiler bootstrap-driver-bstrict
+./xbuild full                        # bootstrap-driver-bstrict path
 ```
 
 | Entry | Use |
 |-------|-----|
-| `./xlang-build.sh build` / `./build_tool ./xlang` | **Daily incremental** (default) |
-| `./xlang-build.sh full` | Full B-strict-style rebuild |
-| `make -C compiler …` | Cold start, CI, low-level targets |
+| `./xbuild build` / `./xlang-build.sh build` | **Daily incremental** (default) |
+| `./xbuild full` | Full B-strict-style rebuild |
+| `./xbuild bootstrap-driver-seed` | Cold start seed driver / LSP binary |
+| `./xbuild compiler-make <target>` | Residual leaf `.o` / CI hub (0-make) |
 
 **Product binary** — after a proper build, use **`compiler/xlang_asm`** (often mirrored as `compiler/xlang`).  
 `xlang-c` and seed helpers are for **cold start and transition**, not the daily release story.
@@ -410,22 +411,23 @@ Link is **on demand** — unused modules stay out of the final link when possibl
 
 > **Authoritative live numbers:** [自举进度.md](analysis/自举进度.md) · [C迁移追踪.md](analysis/C迁移追踪.md) · [LEAF_PATTERN_RESIDUAL.md](compiler/docs/LEAF_PATTERN_RESIDUAL.md).  
 > This README only summarizes. **Do not** treat Stage2 / prove / WPO / daily L2 green as a tip L4 re-pin or as “self-host done”.  
-> **Bare “continue next step” ≠ physical delete of `compiler/Makefile`.** Endgame delete needs **explicit user authorization** (Windows re-proof and dual tip L4 are already green on the current path).
+> **Makefile physical delete is done** (wave941/942 · pin lineage **`77b334842`**). Bare “continue next step” now means post-delete residual (0-make hub, docs, gates) — **not** re-auth delete.
 
 ### Product track
 
 | Item | Status |
 |------|--------|
-| **L4 release pin** | **`9bb7a757c`** (wave710, 2026-07-29) — dual-host **true cold** + `run-all-bstrict` **129/129** (Ubuntu + macOS) |
+| **L4 release pin (post-MG)** | **`77b334842`** (wave942) — Makefile delete + catalog CFLAGS; tip residual continues on `self-hosting` |
+| Historical dual bstrict pin | **`9bb7a757c`** (wave710) — dual-host true cold + **129/129**; not auto-replaced until next explicit re-pin |
 | Product bstrict suite | **129** scripts (`tests/run-all-bstrict.sh`; log must show `OK (129 scripts…)`) |
-| Ubuntu L4 + full bstrict (pin) | ✅ **129/129** @ **`9bb7a757c`** |
-| macOS L4 + full bstrict (pin) | ✅ **129/129** @ **`9bb7a757c`** |
-| tip L4 safety net (not a pin bump) | ✅ **`ec773fe95`** (wave840) — mid-endgame tip proved dual L4; **pin stays `9bb7a757c`** until explicit re-pin |
-| tip dual L4 candidate (not a pin bump) | ✅ **`eef4d7743`** (wave923) — dual true cold + 129 green; **re-pin only after endgame delete + explicit decision** |
-| Windows hybrid / phys-del min-gate | ✅ re-proved green on current tip path (wave922 lineage); tip drift still requires re-proof |
+| Ubuntu L4 + full bstrict (historical pin) | ✅ **129/129** @ **`9bb7a757c`** |
+| macOS L4 + full bstrict (historical pin) | ✅ **129/129** @ **`9bb7a757c`** |
+| tip L4 safety net (not a pin bump) | ✅ **`ec773fe95`** (wave840) |
+| tip dual L4 candidate (not a pin bump) | ✅ **`eef4d7743`** (wave923) — re-pin only after explicit decision |
+| Windows hybrid / phys-del min-gate | ✅ re-proved green (wave922 lineage); tip drift still requires re-proof |
 | Gold host | **Ubuntu x86_64** |
 | Product binary under test | This-wave `compiler/xlang_asm` (g05 / relink) — **never** leftover Stage2 `xlang_asm2` or old `stage1` |
-| Branch residual tip (≠ release pin) | Daily MG work on `self-hosting` (11.3.1 leaf residual · L2). **Exact SHA → dashboard** |
+| Branch residual tip (≠ release pin) | Post-delete MG residual on `self-hosting` (0-make hub · docs). **Exact SHA → dashboard** |
 
 ### What “usable” means today
 
@@ -438,10 +440,9 @@ On the **user product path** (`xlang_asm` → `-o` / run / freestanding / gates)
 | Item | Status |
 |------|--------|
 | Goal | Physical delete of `compiler/Makefile` + cold start without host-cc compiling business C (C-migration stages 11–12) |
-| Path | **11.3.1 leaf-pattern residual** — absorb host-cc / multi-token / list inventory into shell + `compiler/mk/*.mk` (**Makefile still present**) |
-| Tree flags | `TREE_ARMED=1` · `BODY_SHIPPED=0` · `DELETE_ALLOWED=0` · `--delete` never-rm until auth |
-| Progress (through 2026-07-31) | Hundreds of residual waves closed (list→mk, FORCE multi-target families, shell-primary phonies, build_xlang_asm make-call shrinkage through ~wave930, …) |
-| Endgame preconditions | ✅ Windows re-proof · ✅ dual tip L4 (`eef4d7743`) · ⬜ **explicit user auth** for `phys-del-gate --delete-body` |
+| Makefile | ✅ **deleted** (wave941/942) — product entry is **`./xbuild`** / `./xlang-build.sh` only |
+| 0-make hub | ✅ `tests/lib/compiler-make.sh` (wave944) · docs/hints (wave945) |
+| Still open | BC/PC zero host-cc · seed elimination · pin re-lift · Stage 12 cold redesign |
 
 ### Engineering track (subset)
 
@@ -461,16 +462,16 @@ On the **user product path** (`xlang_asm` → `-o` / run / freestanding / gates)
 - **Not** “engineering WPO green = tip product L4”
 - **Not** “dual L2 residual checks = tip L4” — release pin is **`9bb7a757c`** until the next dual **true cold** re-pin
 - **Not** “Windows hybrid green = product L4 / self-host done”
-- **Not** “11.3.1 residual closed = Makefile deleted” — physical delete is a later endgame wave with **explicit auth**
+- **Not** “Makefile deleted = self-host / zero host-cc done” — seed + BC/PC remain
 - Final physical zero-C / full seed elimination (**G**) remains roadmap, not the weekly claim surface
 
 Methodology: [自举方法.md](analysis/自举方法.md) · timeline: [自举时序.md](analysis/自举时序.md) · ops: [SELFHOST.md](compiler/docs/SELFHOST.md) · discipline: [AGENTS.md](AGENTS.md) + skill `xlang-selfhost-product-gate`.
 
 ### Near-term front row
 
-1. **Clear remaining preflight blockers / residual make edges** on the MG path (daily dual L2)  
-2. **Explicit user auth** → physical Makefile delete (`phys-del-gate --delete-body`) → dual bstrict green  
-3. **Re-pin** to tip dual L4 candidate (e.g. **`eef4d7743`** lineage) only after endgame delete is validated — **no soft-skip typeck, no dual authority, no unmapped tip L4 re-pin**
+1. **Post-delete residual** — keep 0-make hub + docs honest; no reintroduce `make -C`  
+2. **Ubuntu gold L4** on tip when claiming product green after SHARED waves  
+3. **Re-pin** only after explicit decision + dual true cold — **no soft-skip typeck, no dual authority**
 
 ---
 
@@ -483,8 +484,8 @@ Methodology: [自举方法.md](analysis/自举方法.md) · timeline: [自举时
 | M2 | import, core/std subset, multi-target | ✅ |
 | M3 | Generics, trait, modules, std growth | ✅ |
 | M4 | DCE, `-O2`/`-Os`, size / perf baseline | ✅ partial |
-| M5 | Bootstrap (compiler rebuilds itself) | 🟡 **usable product path + advanced self-host**; **seed still required for cold start**; Makefile residual path open |
-| **Now** | Product L4 dual pin @ **`9bb7a757c`** (129/129); tip dual L4 candidate **`eef4d7743`**; tip L4 safety net **`ec773fe95`**; residual MG **11.3.1** awaiting **explicit auth** for delete | See [dashboard](analysis/自举进度.md) |
+| M5 | Bootstrap (compiler rebuilds itself) | 🟡 **usable product path + advanced self-host**; **seed still required for cold start**; MG Makefile **deleted** (0-make) |
+| **Now** | Post-MG pin **`77b334842`**; historical dual bstrict **`9bb7a757c`** (129/129); tip dual L4 candidate **`eef4d7743`** | See [dashboard](analysis/自举进度.md) |
 
 ---
 
@@ -601,9 +602,9 @@ Longer design notes: [syntax & safety](analysis/语法与类型设计-高性能�
 
 ## 13. Contributing
 
-1. Clone → `make -C compiler build-tool && ./xlang-build.sh first-time` (or full bootstrap-driver path).  
-2. Daily edits → `./xlang-build.sh build`, set `XLANG=./compiler/xlang_asm`, run relevant tests / gates.  
-3. Product / link / **SHARED** changes → **Ubuntu gold** (and mac when SHARED); release claims need **L4 true cold** + dual bstrict **129** (pin `9bb7a757c` until re-pin).  
+1. Clone → `./xbuild build-tool && ./xbuild first-time` (or `./xbuild bootstrap-driver-seed`).  
+2. Daily edits → `./xbuild build`, set `XLANG=./compiler/xlang_asm`, run relevant tests / gates.  
+3. Product / link / **SHARED** changes → **Ubuntu gold** (and mac when SHARED); release claims need **L4 true cold** + dual bstrict **129** (pin `77b334842` / historical `9bb7a757c` until re-pin).  
 4. Commits: Conventional Commits (`feat:` / `fix:` / `docs:` …). New `.x` comments in **English** (see `AGENTS.md` / G.9).  
 5. **No dual authority** — seed and `.x` product surfaces move in the **same commit** when both exist.  
 6. **No false green** — do not claim self-host complete from prove / Stage2 / WPO alone.

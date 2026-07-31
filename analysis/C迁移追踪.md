@@ -1491,7 +1491,8 @@
     - ✅ wave941：`xlang-build.sh` bootstrap → 直调 `bootstrap_driver_seed.sh`；host_stubs catalog；**物理删除** 根 + `compiler/Makefile`
     - ✅ wave942：ensure_host_cc_seed_o CFLAGS → catalog；双端 L4 升钉 `77b334842`
   - ✅ wave944：compiler-make / formal_std ensure **0-make**；phys-del/leaf **post_ship**
-  - 🟡 residual：README/vscode / labi 诊断 hint `try: make -C` / 部分 docs（**非** ensure 权威）
+  - ✅ wave945：README/vscode 11.6.2/3 · labi ensure hint · bootstrap smoke hint → `./xbuild`
+  - ✅ wave945 residual：README/vscode / labi 诊断 hint → `./xbuild`（**非** ensure 权威）
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
@@ -1585,16 +1586,15 @@
   - 自带 Makefile + binding.gyp + Cargo.toml(cc crate) + bindings/rust/build.rs
   - 策略：git submodule / 独立 release / 删除（与 xlang 自举链解耦）
 
-⬜ **11.6.2 `editors/vscode/` 用户提示语**
+✅ **11.6.2 `editors/vscode/` 用户提示语**（wave945）
 
-  - 15+ 语言文件（package.nls.{json,zh-cn,zh-tw,ja,ko,...}.json · l10n.bundle.*.json · src/lspClient.ts:40 · README.md · editors/LSP接入.md）
-  - 全部提示用户运行 `make -C compiler bootstrap-driver-seed`
-  - 改为 `xbuild bootstrap` 或删除提示
+  - package.nls.* · l10n.bundle.* · src/lspClient.ts · README · editors/LSP接入.md
+  - 全部改为 `./xbuild bootstrap-driver-seed`（Makefile 已删）
 
-⬜ **11.6.3 `README.md` / `README_zh-CN.md` 用户指南**
+✅ **11.6.3 `README.md` / `README_zh-CN.md` 用户指南**（wave945）
 
-  - 行 128/496 指导用户 `make -C compiler build-tool && ./xlang-build.sh first-time`
-  - 改为 `xbuild build`
+  - 首次/日常/贡献入口 → `./xbuild build-tool|first-time|build|full|bootstrap-driver-seed|compiler-make`
+  - MG 状态改为 Makefile **已删**；钉盘摘要对齐 `77b334842`
 
 
 ---
@@ -1676,7 +1676,7 @@
 🟡 **13.2.2 Makefile 物理删除验收**（文件层 ✅ · 文档/残调用 🟡）
 
   - ✅ `test ! -e Makefile && test ! -e compiler/Makefile`（wave941）
-  - 🟡 文档/脚本仍见「请 make -C compiler」提示（README · editors/vscode · 11.6.2/3）— **非唯一权威路径**（产品入口已是 `./xbuild`），清理属 residual
+  - ✅ wave945：README · editors/vscode · labi ensure hint 已去 make -C（产品入口 `./xbuild`）
 
 ⬜ **13.2.3 零 cc 三义验收**（§0.1 MG+BC+PC）
 
@@ -1749,17 +1749,17 @@
   阶段 8.3 glue/ast（新）        0.12 × 0%    → 0%
   阶段 9 residual                0.12 × 0%    → 0%
   阶段 10 语言 L2                0.10 × 0%    → 0%
-  阶段 11 Makefile 退役/xbuild   0.12 × ~90%  → ~11%  （**MG 文件删除 ✅**；post-delete 0-make residual / 文档 / gate --check 🟡）
+  阶段 11 Makefile 退役/xbuild   0.12 × ~95%  → ~11%  （**MG 文件删除 ✅**；0-make hub + 文档 residual wave944/945 ✅）
   阶段 12–13 冷启动+终局验收     0.04 × ~10%  → ~0.4% （13.2.2 文件层 ✅；零 cc / v2==v3 ⬜）
                                  合计 ≈ 48–50%
 ```
 
 **综合迁移进度（修订）：约 48–50%**  
-MG **编排层**已完成（wave941/942/944）。剩余主债：**BC/PC 零 cc** · **8.3 glue** · **去 pin** · **post-delete 文档 residual**（README/vscode make 提示 · labi ensure 诊断 hint 串）。
+MG **编排层**已完成（wave941/942/944/945）。剩余主债：**BC/PC 零 cc** · **8.3 glue** · **去 pin** · 阶段 12 冷启动。
 
 剩余工作优先级（MG 已闭后）：
 
-1. **post-delete 文档 residual** — README/vscode 去 make 提示（11.6.2/3）；labi `try: make -C` 诊断 hint 英文化/改 xbuild  
+1. ✅ **post-delete 文档 residual**（wave945）— README/vscode + labi hint → `./xbuild`  
 
 2. **阶段 8.3** pipeline_glue / ast_pool 等非 gen 产品 C  
 3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  

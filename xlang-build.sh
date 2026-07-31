@@ -8,8 +8,8 @@
 #   1) 日常编译器：build.x + compiler/build_tool
 #      → scripts/g05_build_xlang_asm.sh → g05 relink（产品 0-make）
 #   2) 测试 / 内核 / gate：委托 compiler/scripts 或 tests/*.sh
-#   3) compiler/Makefile：冷启动依赖图 / 对象清单 — 实现层兜底（至 11.3）
-#   4) 根 Makefile：help-only（11.0.4）；兼容转发 ./xbuild，勿加厚
+#   3) compiler/Makefile：已物理删除（wave942）；叶图 → shell catalog + tests/lib/compiler-make.sh
+#   4) 根 Makefile：已删除；统一入口 ./xbuild
 #
 # 产品入口 0× make -C（build-tool/clean/test*/bootstrap-* 均 shell 权威）。
 #
@@ -46,7 +46,7 @@ run_build_tool() {
 # Residual make hub for CI / cold-start / leaf .o (wave730 · wave733 G.7).
 # Outer workflows/docker must call ./xbuild — never raw `make -C compiler`.
 # G.7 single body: tests/lib/compiler-make.sh (same as tests xlang_compiler_make).
-# Dependency graph still lives in compiler/Makefile until 11.3.
+# Dependency graph: shell catalog + compiler-make hub (Makefile deleted).
 # PLATFORM: SHARED
 run_compiler_make() {
   bash tests/lib/compiler-make.sh "$@"

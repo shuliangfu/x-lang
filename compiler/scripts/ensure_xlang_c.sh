@@ -35,7 +35,11 @@
 # PLATFORM: SHARED — binary sync only; ABI / seed pick stays select_bootstrap_xlangc.
 
 set -euo pipefail
-cd "$(dirname "$0")/.."
+# Resolve script dir before cd so $0 relative paths remain valid after cwd change.
+# PLATFORM: SHARED — post_ship --check greps this file; must not use post-cd $0.
+_SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+_SCRIPT_SELF="${_SCRIPT_DIR}/$(basename "$0")"
+cd "${_SCRIPT_DIR}/.."
 
 MODE="${1:-ensure}"
 OUT_ARG="${2:-}"
@@ -52,10 +56,11 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
     # wave944 post_ship: Makefile deleted; this script is the sole default xlang-c authority.
     [ -f scripts/legacy_xlang_c_link.sh ] || [ -f ./legacy_xlang_c_link.sh ] \
       || fail "legacy_xlang_c_link.sh must remain for LEGACY path (wave858; post_ship)"
-    if ! grep -q 'XLANG_SKIP_SUBSCRIPT_MAKE\|bootstrap_xlangc' "$0"; then
+    # wave945: grep absolute self path (relative $0 breaks after cd to compiler/)
+    if ! grep -q 'XLANG_SKIP_SUBSCRIPT_MAKE\|bootstrap_xlangc' "$_SCRIPT_SELF"; then
       fail "ensure_xlang_c.sh must own SKIP_SUBSCRIPT + bootstrap_xlangc sync body"
     fi
-    echo "ensure_xlang_c: --check OK (wave944 post_ship; shell-primary; Makefile absent)"
+    echo "ensure_xlang_c: --check OK (wave944/945 post_ship; shell-primary; Makefile absent)"
     exit 0
   fi
   # Default non-LEGACY recipe: target is $(XLANG_C) literally in Makefile text.

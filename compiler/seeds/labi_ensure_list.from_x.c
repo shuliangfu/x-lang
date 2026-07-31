@@ -320,9 +320,9 @@ int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_b
     *flags_out = labi_ensure_catalog_flags(i);
   if (hint_out) {
     if (i == 0)
-      *hint_out = "try: make -C compiler runtime_asm_io_stubs.o";
+      *hint_out = "try: ./xbuild compiler-make runtime_asm_io_stubs.o";
     else if (i == 1)
-      *hint_out = "try: make -C compiler runtime_process_argv.o";
+      *hint_out = "try: ./xbuild compiler-make runtime_process_argv.o";
     else
       *hint_out = NULL;
   }
@@ -368,9 +368,9 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   if (rc != 0) {
     const char *hint = NULL;
     if (catalog_idx == 0)
-      hint = "try: make -C compiler runtime_asm_io_stubs.o";
+      hint = "try: ./xbuild compiler-make runtime_asm_io_stubs.o";
     else if (catalog_idx == 1)
-      hint = "try: make -C compiler runtime_process_argv.o";
+      hint = "try: ./xbuild compiler-make runtime_process_argv.o";
     link_diag_runtime_obj_resolve_fail(out_base, hint);
     return -1;
   }
@@ -495,7 +495,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
     return 0;
   rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc != 0) {
-    link_diag_runtime_obj_resolve_fail("runtime_panic.o", "try: make -C compiler runtime_panic.o");
+    link_diag_runtime_obj_resolve_fail("runtime_panic.o", "try: ./xbuild compiler-make runtime_panic.o");
     return -1;
   }
   dn = 0;
@@ -727,7 +727,7 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
   rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc != 0) {
     link_diag_runtime_obj_resolve_fail("runtime_test_fn_invoke.o",
-                                       "try: make -C compiler runtime_test_fn_invoke.o");
+                                       "try: ./xbuild compiler-make runtime_test_fn_invoke.o");
     return -1;
   }
   dn = 0;

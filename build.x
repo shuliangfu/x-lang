@@ -23,7 +23,7 @@
 //     step table (build_get_step_count / build_get_step_at / build_use_asm_only).
 //   - Product orchestration authority today is **`./xbuild` → xlang-build.sh**
 //     plus **compiler/scripts/g05_*.sh** (not Makefile recipes for daily path).
-//   - Cold-start / residual leaf .o graphs remain **compiler/Makefile** until
+//   - Cold-start / residual leaf .o graphs use shell catalog + compiler-make hub (Makefile deleted wave942); was
 //     11.3 physical delete; outer entry is always `./xbuild` (no raw make -C).
 //
 // PLATFORM: SHARED — same entry names on macOS and Ubuntu; ABI details live

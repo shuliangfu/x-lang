@@ -100,7 +100,7 @@ for f in ../std/sys/sys.o runtime_panic.o; do
 done
 if [ "$need_std" -ne 0 ]; then
   log "std/runtime objects missing (e.g. ../std/sys/sys.o, runtime_panic.o)"
-  log "hint: make -C compiler std-objs   # or full product path that builds std .o"
+  log "hint: ./xbuild compiler-make std-objs  # product path builds std .o
   exit 1
 fi
 
