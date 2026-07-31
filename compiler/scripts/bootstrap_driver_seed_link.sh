@@ -2,11 +2,14 @@
 # bootstrap_driver_seed_link.sh — phase1/final link body for cold bootstrap (11.0.3 / 11.1.4)
 #
 # Authority (G.7):
-#   - Object lists + CFLAGS + platform link flags live ONLY in compiler/Makefile
-#     (DRIVER_SEED_* / BOOTSTRAP_DRIVER_SEED_* / MAIN_LINK_* expansions).
-#   - This script never hardcodes an .o list. It evals export leaves:
-#       make bootstrap-driver-seed-export-phase1-link
-#       make bootstrap-driver-seed-export-final-link
+#   - Object lists + CFLAGS + platform link flags live ONLY in compiler/mk/*.mk
+#     (DRIVER_SEED_* / BOOTSTRAP_DRIVER_SEED_* / MAIN_LINK_* / SEED_LINK_* expansions).
+#   - wave924: This script never hardcodes an .o list. It loads SEED_LINK_* via
+#     shell catalog parse of mk files (0 make):
+#       bash scripts/driver_seed_obj_catalog.sh --link-export phase1
+#       bash scripts/driver_seed_obj_catalog.sh --link-export final
+#     `make bootstrap-driver-seed-export-{phase1,final}-link` remains an escape /
+#     parity authority via XLANG_SEED_LINK_VIA_MAKE=1.
 #   - wave772 · 11.1.4 pure-ld when SEED_LINK_PURE_OK=1:
 #       "$SEED_LINK_LD" [platform] $MULTIDEF $ENTRY -o OUT $OBJS $TAIL
 #   - wave773 · G.7 有则补全: pure-ld platform helpers in pure_ld_shared.sh
@@ -20,22 +23,21 @@
 #   ./scripts/bootstrap_driver_seed_link.sh --self-test   # pure-ld smoke (tiny objs)
 #
 # Env:
-#   MAKE   — make binary (default: make)
 #   TARGET — final product name when mode=final (default: xlang); must match Makefile
 #   XLANG_SEED_LINK_FORCE_CC=1 — skip pure-ld; use SEED_LINK_CC residual only (escape)
+#   XLANG_SEED_LINK_VIA_MAKE=1 — escape: use make export instead of shell catalog
 #
-# PLATFORM: SHARED — link composition identical; Makefile expands platform
+# PLATFORM: SHARED — link composition identical; mk expands platform
 #            crt0 / -e / filtered.o into SEED_LINK_*.
 # PLATFORM: MACOS — pure-ld needs -syslibroot / -arch / -platform_version / -lSystem
 #            (composed in pure_ld_shared.sh; not a second .o inventory).
 # PLATFORM: LINUX — pure-ld freestanding entry + multidef + -lc (nostartfiles-style).
 # PLATFORM: WINDOWS — PURE_OK=0 → CC residual only (no pure-ld eligibility).
-# Wave: 721 export body · 772 pure-ld prefer · 773 pure_ld_shared · 774 drop silent fallback.
+# Wave: 721 export body · 772 pure-ld prefer · 773 pure_ld_shared · 774 drop silent fallback · 924 shell catalog.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-MAKE="${MAKE:-make}"
 MODE="${1:-}"
 
 note() { echo "bootstrap_driver_seed_link: $*" >&2; }
@@ -84,12 +86,20 @@ if [ "$MODE" != "phase1" ] && [ "$MODE" != "final" ]; then
   exit 2
 fi
 
+# wave924: SEED_LINK_* via shell catalog parse of mk files (0 make).
+# XLANG_SEED_LINK_VIA_MAKE=1 escapes to make export (parity / debug).
+# Shell path resolves CC / LD / CFLAGS / TARGET / DRIVER_SEED_LINK_FLAGS /
+# ASM_GLUE_DUP_LDFLAGS / MAIN_LINK_FLAGS / LD_R_MULTIDEF_FLAGS /
+# SEED_LINK_PURE_OK / ENTRY / LD_TAIL / BOOTSTRAP_DRIVER_SEED_*_LINK_OBJS
+# from mk/driver_seed_{mode_objs,link_picks,composites}.mk + host defaults.
 export_target="bootstrap-driver-seed-export-${MODE}-link"
-
-# Makefile single authority. Clear MAKEFLAGS so parent `make -n` / jobserver
-# dry-run does not turn the export target into printed recipe text.
-# KEY=value lines (first '=' splits) — safe for CFLAGS with commas/spaces.
-export_raw=$(MAKEFLAGS= "$MAKE" -s "$export_target" TARGET="${TARGET:-xlang}")
+if [ "${XLANG_SEED_LINK_VIA_MAKE:-0}" = "1" ]; then
+  # Make escape path. Clear MAKEFLAGS so parent `make -n` / jobserver
+  # dry-run does not turn the export target into printed recipe text.
+  export_raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$export_target" TARGET="${TARGET:-xlang}")
+else
+  export_raw=$(bash scripts/driver_seed_obj_catalog.sh --link-export "$MODE")
+fi
 if [ -z "$export_raw" ]; then
   fail "empty export from $export_target"
 fi

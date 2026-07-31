@@ -1194,15 +1194,11 @@ include mk/driver_seed_mode_objs.mk
 #            (L1632 backend_x86_64_enc_c.o) is excluded — single .o + version script.
 # PLATFORM: SHARED — Darwin uses -multiply_defined suppress; ELF/PE uses
 #           --allow-multiple-definition. Both are no-ops when no duplicate exists.
-ifeq ($(UNAME_S),Darwin)
-LD_R_MULTIDEF_FLAGS = -multiply_defined suppress
-ASM_GLUE_DUP_LDFLAGS = -Wl,-multiply_defined,suppress
-else
-LD_R_MULTIDEF_FLAGS = --allow-multiple-definition
-ASM_GLUE_DUP_LDFLAGS = -Wl,--allow-multiple-definition
-endif
+# wave924 B7B: LD_R_MULTIDEF_FLAGS / ASM_GLUE_DUP_LDFLAGS moved to
+#              mk/driver_seed_link_picks.mk (G.7 single authority; catalog parse).
 # wave819 B7B: seed link picks → mk/driver_seed_link_picks.mk (G.7; not physical delete).
 # MAIN_LINK / LEXER_AST / LSP_DIAG / PREPROCESS / GLUE_SUFFIX authority in mk only.
+# wave924: SEED_LINK_PURE_OK / ENTRY / LD_TAIL also live in mk/driver_seed_link_picks.mk.
 # Why stubs at GLUE_SUFFIX link END: PE first-wins multidef; real impls before stubs.
 # PLATFORM: SHARED — Windows-critical; no-op on ELF/Darwin weak.
 include mk/driver_seed_link_picks.mk
@@ -1635,31 +1631,11 @@ bootstrap-driver-seed-host-stubs:
 
 # pure-ld eligibility: freestanding crt0 + -e _start (not main_driver / not PE residual).
 # PLATFORM: LINUX x86_64 · MACOS arm64/x86_64 — pure ld + tail libs; else PURE_OK=0 → CC residual.
-ifeq ($(XLANG_LEGACY_MAIN_C),1)
-SEED_LINK_PURE_OK = 0
-SEED_LINK_ENTRY =
-SEED_LINK_LD_TAIL =
-else ifeq ($(UNAME_S),Linux)
-ifeq ($(UNAME_M),x86_64)
-SEED_LINK_PURE_OK = 1
-SEED_LINK_ENTRY = -e _start
-# nostartfiles-style cold seed still pulls libc via former CC driver; pure-ld needs -lc.
-SEED_LINK_LD_TAIL = -lc
-else
-SEED_LINK_PURE_OK = 0
-SEED_LINK_ENTRY =
-SEED_LINK_LD_TAIL =
-endif
-else ifeq ($(UNAME_S),Darwin)
-SEED_LINK_PURE_OK = 1
-SEED_LINK_ENTRY = -e _start
-# PLATFORM: MACOS — syslibroot/arch/platform_version composed in bootstrap_driver_seed_link.sh
-SEED_LINK_LD_TAIL = -lSystem
-else
-SEED_LINK_PURE_OK = 0
-SEED_LINK_ENTRY =
-SEED_LINK_LD_TAIL =
-endif
+# wave924 B7B: SEED_LINK_PURE_OK / ENTRY / LD_TAIL moved to mk/driver_seed_link_picks.mk
+#              (G.7 single authority; catalog_parse_mk resolves for --link-export shell).
+#              Converted from `else ifeq` to nested ifeq/else/endif (catalog has no
+#              `else ifeq` support). Make behavior unchanged.
+
 
 # KEY=value lines (first '=' splits). Avoid TAB: some make/shell paths mangle \t.
 bootstrap-driver-seed-export-phase1-link:

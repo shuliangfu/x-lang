@@ -1,4 +1,4 @@
-# driver_seed_link_picks.mk — wave819 · 11.3.1 B7B
+# driver_seed_link_picks.mk — wave819 · 11.3.1 B7B · wave924 link-export
 #
 # Single-authority seed *link picks* for bootstrap-driver-seed / composites / relink:
 #   PREPROCESS_LINK_O / DRIVER_SEED_PREPROCESS_REBUILD
@@ -7,11 +7,14 @@
 #   LSP_DIAG_LINK_O
 #   LEXER_LINK_O / AST_LINK_O
 #   MAIN_LINK_O / MAIN_LINK_REBUILD / MAIN_LINK_FLAGS
+#   LD_R_MULTIDEF_FLAGS / ASM_GLUE_DUP_LDFLAGS  (wave924: moved from Makefile inline)
+#   SEED_LINK_PURE_OK / SEED_LINK_ENTRY / SEED_LINK_LD_TAIL  (wave924: moved from Makefile)
 #
 # Used by:
 #   - compiler/Makefile seed link / relink / xlang-x / no-c frontend recipes
 #   - mk/driver_seed_composites.mk (DRIVER_SEED_OBJS / PREREQS expand MAIN/LEXER/AST)
 #   - driver_seed_obj_catalog.sh shell parse (0-make; G.7)
+#   - driver_seed_obj_catalog.sh --link-export phase1|final (wave924: SEED_LINK_* dump)
 #
 # G.7: Definitions live only here. Makefile must include, not re-assign the
 # product inventory. Shell host-defaults must not hardcode a second
@@ -122,6 +125,59 @@ MAIN_LINK_O = src/main_driver.o
 MAIN_LINK_REBUILD = src/main_driver.o
 MAIN_LINK_FLAGS =
 endif
+endif
+endif
+endif
+
+# ---------------------------------------------------------------------------
+# wave924: platform multidef + pure-ld eligibility flags moved from Makefile
+# inline ifeq (G.7 single authority; catalog_parse_mk owns them now).
+# Converted from Makefile `else ifeq` to nested ifeq/else/endif so the shell
+# catalog parser (no `else ifeq` support) can resolve them.
+# ---------------------------------------------------------------------------
+
+# PLATFORM: SHARED — Darwin uses -multiply_defined suppress; ELF/PE uses
+# --allow-multiple-definition. Both are no-ops when no duplicate exists.
+# Invariant: applied to every `ld -r` rule that merges 2+ .o inputs.
+ifeq ($(UNAME_S),Darwin)
+LD_R_MULTIDEF_FLAGS = -multiply_defined suppress
+ASM_GLUE_DUP_LDFLAGS = -Wl,-multiply_defined,suppress
+else
+LD_R_MULTIDEF_FLAGS = --allow-multiple-definition
+ASM_GLUE_DUP_LDFLAGS = -Wl,--allow-multiple-definition
+endif
+
+# pure-ld eligibility: freestanding crt0 + -e _start (not main_driver / not PE).
+# PLATFORM: LINUX x86_64 · MACOS arm64/x86_64 — pure ld + tail libs.
+# PLATFORM: WINDOWS · LEGACY_MAIN_C · non-x86_64 Linux · non-Darwin → CC residual.
+# Mirrors MAIN_LINK_O platform branches: LEGACY_MAIN_C wins first; then Linux
+# x86_64; then Darwin (any arch); else PURE_OK=0 (Windows / fallback main_driver).
+ifeq ($(XLANG_LEGACY_MAIN_C),1)
+SEED_LINK_PURE_OK = 0
+SEED_LINK_ENTRY =
+SEED_LINK_LD_TAIL =
+else
+ifeq ($(UNAME_S),Linux)
+ifeq ($(UNAME_M),x86_64)
+SEED_LINK_PURE_OK = 1
+SEED_LINK_ENTRY = -e _start
+# nostartfiles-style cold seed still pulls libc via former CC driver; pure-ld needs -lc.
+SEED_LINK_LD_TAIL = -lc
+else
+SEED_LINK_PURE_OK = 0
+SEED_LINK_ENTRY =
+SEED_LINK_LD_TAIL =
+endif
+else
+ifeq ($(UNAME_S),Darwin)
+SEED_LINK_PURE_OK = 1
+SEED_LINK_ENTRY = -e _start
+# PLATFORM: MACOS — syslibroot/arch/platform_version composed in bootstrap_driver_seed_link.sh
+SEED_LINK_LD_TAIL = -lSystem
+else
+SEED_LINK_PURE_OK = 0
+SEED_LINK_ENTRY =
+SEED_LINK_LD_TAIL =
 endif
 endif
 endif

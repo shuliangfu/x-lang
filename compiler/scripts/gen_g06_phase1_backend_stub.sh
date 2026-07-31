@@ -60,13 +60,18 @@ if [ ! -f src/x_seed_bridge.o ]; then
   }
 fi
 
-# Wave721: phase1 OBJS/CFLAGS from Makefile export only (G.7; no make -n scrape / dual list).
+# Wave721: phase1 OBJS/CFLAGS from mk catalog only (G.7; no make -n scrape / dual list).
+# Wave924: shell catalog parse of mk files replaces make export (0 make).
+# XLANG_SEED_LINK_VIA_MAKE=1 escapes to make export (parity / debug).
 # Drop asm_backend_partial.o so the probe link surfaces backend UNDEFs for stub gen.
 MAKE="${MAKE:-make}"
-# Clear MAKEFLAGS: parent dry-run must not print export recipes instead of running them.
-export_raw=$(MAKEFLAGS= "$MAKE" -s bootstrap-driver-seed-export-phase1-link 2>/dev/null) || export_raw=
+if [ "${XLANG_SEED_LINK_VIA_MAKE:-0}" = "1" ]; then
+  export_raw=$(MAKEFLAGS= "$MAKE" -s bootstrap-driver-seed-export-phase1-link 2>/dev/null) || export_raw=
+else
+  export_raw=$(bash scripts/driver_seed_obj_catalog.sh --link-export phase1 2>/dev/null) || export_raw=
+fi
 if [ -z "$export_raw" ]; then
-  echo "gen_g06_phase1_backend_stub: cannot get phase1 export (bootstrap-driver-seed-export-phase1-link)" >&2
+  echo "gen_g06_phase1_backend_stub: cannot get phase1 export (catalog --link-export phase1)" >&2
   exit 1
 fi
 SEED_LINK_CC=

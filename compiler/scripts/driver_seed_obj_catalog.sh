@@ -11,10 +11,12 @@
 #   bash scripts/driver_seed_obj_catalog.sh --check   # keys present + shell==make
 #   bash scripts/driver_seed_obj_catalog.sh --shell   # force shell path
 #   bash scripts/driver_seed_obj_catalog.sh --make    # force make export
+#   bash scripts/driver_seed_obj_catalog.sh --link-export phase1  # SEED_LINK_* (phase1)
+#   bash scripts/driver_seed_obj_catalog.sh --link-export final   # SEED_LINK_* (final)
 #   MAKE=gmake bash scripts/driver_seed_obj_catalog.sh
 #
 # PLATFORM: SHARED — thin catalog; no compile/link.
-# Wave: 726–728 export · 788 B7B shell-primary (not physical delete).
+# Wave: 726–728 export · 788 B7B shell-primary · 924 --link-export (not physical delete).
 
 set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
@@ -27,20 +29,32 @@ export MAKEFLAGS=""
 CHECK=0
 FORCE_SHELL=0
 FORCE_MAKE=0
+LINK_EXPORT_MODE=""
 case "${1:-}" in
   --check) CHECK=1 ;;
   --shell) FORCE_SHELL=1 ;;
   --make) FORCE_MAKE=1 ;;
+  --link-export)
+    if [ -z "${2:-}" ]; then
+      echo "driver_seed_obj_catalog: --link-export needs phase1|final" >&2
+      exit 2
+    fi
+    LINK_EXPORT_MODE="$2"
+    ;;
   "" ) ;;
   -h|--help)
     sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
   *)
-    echo "driver_seed_obj_catalog: unknown arg '$1' (use --check|--shell|--make)" >&2
+    echo "driver_seed_obj_catalog: unknown arg '$1' (use --check|--shell|--make|--link-export phase1|final)" >&2
     exit 2
     ;;
 esac
+
+# wave924: --link-export phase1|final short-circuits to SEED_LINK_* dump.
+# Dispatch is after function definitions (catalog_link_export_dump at bottom).
+# See USE_MAKE decision block below for the actual call.
 
 # Required keys from export-obj-catalog (must match Makefile recipe + mk lists).
 # wave728: composite keys (LINK_BASE / PREREQS / X_FRONTEND) added.
@@ -187,6 +201,37 @@ catalog_seed_host_defaults() {
   catalog_set UNAME_S "$uname_s"
   catalog_set UNAME_M "$uname_m"
   catalog_set XLANG_IS_WIN_HOST "$is_win"
+
+  # wave924: CC / LD / CFLAGS / TARGET mirror Makefile `?=` defaults so the
+  # --link-export shell path can compose SEED_LINK_CFLAGS / SEED_LINK_OUT /
+  # SEED_LINK_OBJS without invoking make. Same semantics as Makefile:
+  # env override wins; platform default only when unset.
+  # PLATFORM: SHARED — cc/ld on POSIX; gcc on MinGW (Makefile L17-27 parity).
+  if [ -z "${CC:-}" ]; then
+    if [ "$is_win" -eq 1 ]; then
+      catalog_set CC gcc
+    else
+      catalog_set CC cc
+    fi
+  else
+    catalog_set CC "$CC"
+  fi
+  if [ -z "${LD:-}" ]; then
+    catalog_set LD ld
+  else
+    catalog_set LD "$LD"
+  fi
+  # CFLAGS default mirrors Makefile L37 (+ OPT=1 append L86).
+  if [ -z "${CFLAGS:-}" ]; then
+    cflags_default="-Wall -Wextra -I. -Iinclude -Isrc"
+    if [ "${OPT:-0}" = "1" ]; then
+      cflags_default="$cflags_default -O2"
+    fi
+    catalog_set CFLAGS "$cflags_default"
+  else
+    catalog_set CFLAGS "$CFLAGS"
+  fi
+  catalog_set TARGET "${TARGET:-xlang}"
 
   # wave818: DRIVER_SEED_RUNTIME_O / SUPPORT_EXTRA / FRONTEND_EXTRA /
   # RUNTIME_REBUILD / LINK_FLAGS / C_FRONTEND_LEGACY → mk/driver_seed_mode_objs.mk.
@@ -373,6 +418,20 @@ catalog_expand_all_stored() {
 }
 
 catalog_shell_dump() {
+  catalog_shell_parse_all
+  local k v
+  for k in "${REQUIRED_KEYS[@]}"; do
+    v=$(catalog_get "$k")
+    v=$(catalog_norm_ws "$v")
+    printf '%s=%s\n' "$k" "$v"
+  done
+}
+
+# wave924: Parse all mk files + host defaults into the store (shared by
+# catalog_shell_dump for REQUIRED_KEYS and catalog_link_export_dump for
+# SEED_LINK_*). Split out so --link-export reuses the same parse pipeline
+# without duplicating the include-order comments / catalog_parse_mk calls.
+catalog_shell_parse_all() {
   catalog_store_init
   catalog_seed_host_defaults
   # Include order matches make dependency of lists
@@ -392,6 +451,8 @@ catalog_shell_dump() {
   # wave823: x_source_deps.mk (SRCS / MAIN_X_DEPS / PIPELINE_X_DEPS; independent
   #          of composites; parse early like objs_core).
   # wave824: x_e_dirs.mk (MAIN/LSP/PIPELINE_X_E_DIRS; independent; parse early).
+  # wave924: link_picks.mk now also owns LD_R_MULTIDEF_FLAGS / ASM_GLUE_DUP_LDFLAGS
+  #          / SEED_LINK_PURE_OK / ENTRY / LD_TAIL (moved from Makefile inline).
   catalog_parse_mk "mk/x_source_deps.mk"
   catalog_parse_mk "mk/x_e_dirs.mk"
   catalog_parse_mk "mk/objs_core.mk"
@@ -405,13 +466,58 @@ catalog_shell_dump() {
   catalog_parse_mk "mk/driver_seed_export_lists.mk"
   catalog_parse_mk "mk/driver_seed_composites.mk"
   catalog_expand_all_stored
+}
 
-  local k v
-  for k in "${REQUIRED_KEYS[@]}"; do
-    v=$(catalog_get "$k")
-    v=$(catalog_norm_ws "$v")
-    printf '%s=%s\n' "$k" "$v"
-  done
+# wave924: --link-export phase1|final — shell-primary SEED_LINK_* dump.
+# Replaces `make bootstrap-driver-seed-export-{phase1,final}-link` for the
+# product link path (bootstrap_driver_seed_link.sh / gen_g06_phase1_backend_stub.sh).
+# Output mirrors the Makefile export targets exactly (9 KEY=value lines).
+# All RHS vars resolve via catalog_shell_parse_all (mk parse + host defaults).
+# PLATFORM: SHARED — CC/LD/CFLAGS/TARGET defaults mirror Makefile `?=`.
+catalog_link_export_dump() {
+  local mode="$1"
+  if [ "$mode" != "phase1" ] && [ "$mode" != "final" ]; then
+    echo "driver_seed_obj_catalog: --link-export needs phase1|final (got '$mode')" >&2
+    return 2
+  fi
+  catalog_shell_parse_all
+
+  # Compose SEED_LINK_CFLAGS = $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)
+  local cflags driver_link_flags dup_ldflags main_link_flags
+  cflags=$(catalog_get CFLAGS)
+  driver_link_flags=$(catalog_get DRIVER_SEED_LINK_FLAGS)
+  dup_ldflags=$(catalog_get ASM_GLUE_DUP_LDFLAGS)
+  main_link_flags=$(catalog_get MAIN_LINK_FLAGS)
+  local seed_link_cflags
+  seed_link_cflags=$(catalog_norm_ws "$cflags $driver_link_flags $dup_ldflags $main_link_flags")
+
+  local cc ld multidef entry ld_tail pure_ok target objs out
+  cc=$(catalog_get CC)
+  ld=$(catalog_get LD)
+  multidef=$(catalog_get LD_R_MULTIDEF_FLAGS)
+  entry=$(catalog_get SEED_LINK_ENTRY)
+  ld_tail=$(catalog_get SEED_LINK_LD_TAIL)
+  pure_ok=$(catalog_get SEED_LINK_PURE_OK)
+  target=$(catalog_get TARGET)
+
+  if [ "$mode" = "phase1" ]; then
+    out="xlang-seed-phase1"
+    objs=$(catalog_get BOOTSTRAP_DRIVER_SEED_PHASE1_LINK_OBJS)
+  else
+    out="$target"
+    objs=$(catalog_get BOOTSTRAP_DRIVER_SEED_FINAL_LINK_OBJS)
+  fi
+  objs=$(catalog_norm_ws "$objs")
+
+  printf 'SEED_LINK_CC=%s\n' "$cc"
+  printf 'SEED_LINK_CFLAGS=%s\n' "$seed_link_cflags"
+  printf 'SEED_LINK_LD=%s\n' "$ld"
+  printf 'SEED_LINK_MULTIDEF=%s\n' "$multidef"
+  printf 'SEED_LINK_ENTRY=%s\n' "$entry"
+  printf 'SEED_LINK_LD_TAIL=%s\n' "$ld_tail"
+  printf 'SEED_LINK_PURE_OK=%s\n' "$pure_ok"
+  printf 'SEED_LINK_OUT=%s\n' "$out"
+  printf 'SEED_LINK_OBJS=%s\n' "$objs"
 }
 
 catalog_make_dump() {
@@ -428,6 +534,14 @@ elif catalog_need_make_escape; then
   USE_MAKE=1
 else
   USE_MAKE=0
+fi
+
+# wave924: --link-export short-circuit (shell-only; no make parity path).
+# LEGACY flags still need make escape for obj catalog, but link-export vars
+# (SEED_LINK_*) resolve from mk directly — no make escape needed.
+if [ -n "$LINK_EXPORT_MODE" ]; then
+  catalog_link_export_dump "$LINK_EXPORT_MODE"
+  exit $?
 fi
 
 if [ "$USE_MAKE" -eq 1 ]; then
