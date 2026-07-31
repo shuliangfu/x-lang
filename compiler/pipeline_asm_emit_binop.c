@@ -51,8 +51,8 @@
  * From pipeline_glue residual before index_eff_addr include. Same-TU static.
  * Callers: binop faces (this leaf); assign compound path (forward in assign);
  * cmp leaf (after this include); array_lit/vector_let via may_clobber forward.
- * f32 VAR slot load stays in glue (shared with call_args). Spill CAP/cache in
- * pipeline_asm_emit_spill.c / index_helpers.
+ * f32 VAR slot load lives in call_args leaf (wave1019; shared with emit_expr
+ * VAR arm). Spill CAP/cache in pipeline_asm_emit_spill.c / index_helpers.
  * ======================================================================== */
 
 /**

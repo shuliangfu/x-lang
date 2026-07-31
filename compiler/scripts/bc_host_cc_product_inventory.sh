@@ -64,7 +64,7 @@ esac
 # min_loc: for present rows, soft floor (0 = any non-empty / placeholder OK)
 PRODUCT_RESIDUAL_ROWS=(
   # --- 8.3.1 / 8.3.2 volume main debt ---
-  "compiler/pipeline_glue.c|8.3.1|product mega glue (typeck/codegen/asm/match)|20000|present"
+  "compiler/pipeline_glue.c|8.3.1|product mega glue (typeck/codegen/asm/match)|19000|present"
   "compiler/ast_pool.c|8.3.2|AST pool / MatchArm / sidecar|10000|present"
   "compiler/ast_pool_module_import.c|8.3.2|module ImportEntry cold-twin accessors slice|180|present"
   "compiler/ast_pool_struct_layout.c|8.3.2|module StructLayout cold accessors slice|360|present"
@@ -99,7 +99,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_field_access.c|8.3.1|asm ELF EXPR_FIELD_ACCESS emit domain slice|500|present"
   "compiler/pipeline_asm_emit_binop.c|8.3.1|asm ELF EXPR_BINOP emit (+ residual try_binop load/placement wave1018) slice|1500|present"
   "compiler/pipeline_asm_emit_cmp.c|8.3.1|asm ELF relational CMP emit (eq/ne/lt/le/gt/ge + f32/f64 finish) slice|200|present"
-  "compiler/pipeline_asm_emit_call_args.c|8.3.1|asm ELF CALL-arg emit (named_struct + lea + dual-GP + layout + for_call_args) slice|750|present"
+  "compiler/pipeline_asm_emit_call_args.c|8.3.1|asm ELF CALL-arg emit (named_struct + resolve + f32 slot + lea + dual-GP + layout + for_call_args) slice|950|present"
   "compiler/pipeline_asm_emit_struct_lit.c|8.3.1|asm ELF STRUCT_LIT emit (field_store_sz + rehome + fields + struct_lit_elf) slice|400|present"
   "compiler/pipeline_asm_emit_vector_let.c|8.3.1|asm ELF vector_let / fixed-array field store (leaf + flat + vector_let + frame_mag + store_fixed) slice|550|present"
   "compiler/pipeline_asm_emit_vector_simd.c|8.3.1|asm ELF SIMD vector lane / shuffle / select / fma emit domain slice|1200|present"

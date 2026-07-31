@@ -3136,118 +3136,10 @@ static int32_t glue_lazy_append_block_let_local(struct ast_ASTArena *arena, stru
 int32_t pipeline_block_let_name_len(struct ast_ASTArena *a, int32_t br, int32_t li);
 void pipeline_block_let_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst);
 
-/** SKIP_TYPECK：LetDecl.name_len>0 但 name[] 全零，不可用于 sidecar 匹配。 */
-static int32_t glue_block_let_name_is_unusable_c(uint8_t *name_buf, int32_t name_len) {
-  int32_t k;
-  if (name_len <= 0)
-    return 1;
-  for (k = 0; k < name_len && k < 127; k++) {
-    if (name_buf[k] != 0)
-      return 0;
-  }
-  return 1;
-}
-
-/**
- * 以已知 rbp 负偏移登记块 let（SKIP_TYPECK 无名 let 回落；勿 bump next_offset 重算槽位）。
- */
-static int32_t glue_append_block_let_local_at_offset(struct backend_AsmFuncCtx *ctx, uint8_t *name,
-                                                     int32_t name_len, int32_t slot_off) {
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  if (!ctx || !name || name_len <= 0)
-    return -1;
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (!ly)
-    return -1;
-  if (asm_ctx_local_find_offset((uint8_t *)ctx, name, name_len) >= 0)
-    return 0;
-  if (asm_ctx_local_append((uint8_t *)ctx, name, name_len, slot_off) < 0)
-    return -1;
-  ly->num_locals = asm_ctx_local_count((uint8_t *)ctx);
-  return 0;
-}
-
-/**
- * SKIP_TYPECK 无名/空名 let：按函数体 let 槽位 + VAR 实参名登记 sidecar。
- */
-static int32_t glue_call_arg_resolve_anon_body_let_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                           int32_t body_ref, int32_t let_idx, uint8_t *vname,
-                                                           int32_t vlen) {
-  int32_t slot_base;
-  int32_t nconst;
-  int32_t slot;
-  int32_t slot_off;
-  if (!arena || !ctx || !vname || vlen <= 0 || body_ref <= 0 || let_idx < 0)
-    return -1;
-  slot_base = backend_block_slot_base_for(ctx, arena, body_ref);
-  nconst = ast_ast_block_num_consts(arena, body_ref);
-  slot = slot_base + nconst + let_idx;
-  slot_off = backend_asm_ctx_slot_offset(ctx, slot);
-  if (glue_append_block_let_local_at_offset(ctx, vname, vlen, slot_off) != 0)
-    return -1;
-  return slot_off;
-}
-
-/**
- * CALL 实参：解析局部 VAR 栈偏移；while/if 子块 scoped lookup 失败时懒登记函数体 let。
- */
-static int32_t glue_call_arg_resolve_var_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                            int32_t var_expr_ref) {
-  int32_t off;
-  int32_t body_ref;
-  int32_t li;
-  int32_t nlet;
-  uint8_t vname[128];
-  int32_t vlen;
-  if (!arena || !ctx || var_expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, var_expr_ref) != GLUE_EXPR_KIND_VAR)
-    return -1;
-  off = glue_var_expr_stack_off_elf_c(arena, ctx, var_expr_ref);
-  if (off >= 0)
-    return off;
-  if (!g_pipeline_asm_emit_module || g_pipeline_asm_emit_func_index < 0)
-    return -1;
-  vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-  if (vlen <= 0 || vlen > 127)
-    return -1;
-  pipeline_expr_var_name_into(arena, var_expr_ref, vname);
-  body_ref = pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
-  if (body_ref <= 0)
-    return -1;
-  nlet = ast_ast_block_num_lets(arena, body_ref);
-  for (li = 0; li < nlet; li++) {
-    uint8_t lb[128];
-    int32_t llen;
-    int32_t k;
-    int32_t eq;
-    llen = pipeline_block_let_name_len(arena, body_ref, li);
-    pipeline_block_let_name_copy64(arena, body_ref, li, lb);
-    /** name_len 与 VAR 名等长但字节未写入（SKIP_TYPECK fill）时按 anon let 回落。 */
-    if (llen == vlen && vlen > 0 && glue_block_let_name_is_unusable_c(lb, llen)) {
-      if (nlet == 1 && li == 0)
-        return glue_call_arg_resolve_anon_body_let_elf_c(arena, ctx, body_ref, li, vname, vlen);
-      continue;
-    }
-    if (llen != vlen) {
-      /** name_len==0 的单 let 函体（dep_sync_i 等）。 */
-      if (llen == 0 && vlen > 0 && nlet == 1 && li == 0)
-        return glue_call_arg_resolve_anon_body_let_elf_c(arena, ctx, body_ref, li, vname, vlen);
-      continue;
-    }
-    eq = 1;
-    for (k = 0; k < vlen; k++) {
-      if (lb[k] != vname[k]) {
-        eq = 0;
-        break;
-      }
-    }
-    if (eq == 0)
-      continue;
-    if (glue_lazy_append_block_let_local(arena, ctx, body_ref, li, vname, vlen) != 0)
-      return -1;
-    return glue_var_expr_stack_off_elf_c(arena, ctx, var_expr_ref);
-  }
-  return -1;
-}
+/* wave1019 G.7: call_arg resolve + f32 VAR slot load (+ unusable/append_at_offset
+ * + var_is_param) folded into pipeline_asm_emit_call_args.c. var_decl_type_ref +
+ * lazy_append stay here (shared: assign/unary/binop/block_inits before/after
+ * call_args include via forward or later definition). */
 
 /** 局部 VAR 声明类型 ref（块内 let / 形参 / expr resolved 回落）。 */
 static int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
@@ -3311,53 +3203,6 @@ static int32_t glue_lazy_append_block_let_local(struct ast_ASTArena *arena, stru
   return 0;
 }
 
-/** VAR 是否为当前 emit 函数的形参（任意 param 槽）。 */
-static int32_t glue_var_is_current_func_param_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                 int32_t var_expr_ref) {
-  int32_t np;
-  int32_t pi;
-  if (!arena || !ctx || !g_pipeline_asm_emit_module || g_pipeline_asm_emit_func_index < 0)
-    return 0;
-  np = pipeline_module_func_num_params_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
-  for (pi = 0; pi < np; pi++) {
-    if (glue_expr_is_func_param_at_c(arena, g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index, var_expr_ref,
-                                     pi))
-      return 1;
-  }
-  return 0;
-}
-
-/** Forward: glue_type_ref_is_scalar_f32_c (body in pipeline_asm_emit_binop.c wave1015). */
-static int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
-
-/**
- * f32 VAR 装入 rax：XLANG_ABI_F32_XMM=1 形参走 32-bit homing；否则 caller f64 movabs → cvtsd2ss。
- */
-static int32_t glue_load_f32_var_slot_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                    struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                    int32_t var_expr_ref, int32_t off, int32_t ta) {
-  if (glue_var_is_current_func_param_c(arena, ctx, var_expr_ref)) {
-    if (ta == 0 && pipeline_asm_abi_f32_xmm_enabled_c() != 0) {
-      int32_t tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
-      if (glue_type_ref_is_scalar_f32_c(arena, tr))
-        return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, 4, ta);
-    }
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
-      return -1;
-    return backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx, ta);
-  }
-  return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, 4, ta);
-}
-
-/** f32 VAR 装入 rbx（与 rax 路径对称）。 */
-static int32_t glue_load_f32_var_slot_to_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                    struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                    int32_t var_expr_ref, int32_t off, int32_t ta) {
-  if (glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, var_expr_ref, off, ta) != 0)
-    return -1;
-  return backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
-}
-
 /** Forward: binop operand loader paths (field_access body in field_access leaf). */
 static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);
 static int32_t pipeline_asm_emit_var_field_access_elf_c(struct ast_ASTArena *arena,
@@ -3374,9 +3219,8 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
 
 /* wave1018 G.7: glue_binop_as_needs_full_emit + try_binop residual
  * (load_operand / clobber / preserve-restore / commutative / left_rax /
- *  cmp_rbx_rax) folded into pipeline_asm_emit_binop.c. f32 VAR slot load
- * stays above (shared with call_args + expr_elf_fast). Field-access / lit
- * forwards for the loader stay just above this note. */
+ *  cmp_rbx_rax) folded into pipeline_asm_emit_binop.c.
+ * wave1019: f32 VAR slot load + call_arg resolve folded into call_args leaf. */
 
 /* BC 8.3.1: asm ELF INDEX effective-address domain
  * (rax_plus_rbx_scaled + bounds_guard + rvalue_slice_once +
@@ -3401,9 +3245,9 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
 
 /* BC 8.3.1: asm ELF CALL-arg emit domain
  * (named_struct_layout predicate + lea_not_load + dual-GP load_var +
- *  named layout size + pass_addr + emit_expr_elf_for_call_args;
- *  Cap residual pure; same TU). G.7 fold type_named_struct into this leaf
- * (wave1017). glue_call_arg_resolve_* stays above (shared leaf VAR paths). */
+ *  named layout size + pass_addr + emit_expr_elf_for_call_args +
+ *  call_arg resolve + f32 VAR slot load; Cap residual pure; same TU).
+ * G.7 fold type_named_struct (wave1017) + resolve/f32 residual (wave1019). */
 #include "pipeline_asm_emit_call_args.c"
 
 
