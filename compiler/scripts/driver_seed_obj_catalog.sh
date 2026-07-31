@@ -547,6 +547,12 @@ catalog_shell_parse_all() {
   catalog_parse_mk "mk/archaeology_experiment_objs.mk"
   catalog_parse_mk "mk/driver_seed_export_lists.mk"
   catalog_parse_mk "mk/driver_seed_composites.mk"
+  # wave939: complete mk coverage — 4 remaining mk files (were Makefile-only includes;
+  # catalog now parses all 17 mk files for Makefile-independent operation).
+  catalog_parse_mk "mk/formal_mod_product_objs.mk"
+  catalog_parse_mk "mk/std_x_product_objs.mk"
+  catalog_parse_mk "mk/std_core_hybrid_product_objs.mk"
+  catalog_parse_mk "mk/std_and_panic_objs.mk"
   catalog_expand_all_stored
 }
 

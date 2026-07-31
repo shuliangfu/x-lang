@@ -2122,10 +2122,10 @@ PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
 # wave938: std_core_product_make_graph cleared (archaeology_host_pick_phony.sh net,
 # runtime_tls_mbedtls_bio, runtime_sqlite_glue_stub + relink_xlang_asm_strict_glue
 # + relink_xlang_asm_experimental_bootstrap + bootstrap_self + host_cc_objs_core_link
-# all migrated to shell try-heat / catalog). Remaining blocker:
-# - b7b_lists_in_mk: mk files still Makefile includes (catalog parses independently;
-#   not a runtime make-graph dependency — informational only).
-PHYS_DEL_PREFLIGHT_BLOCKERS=b7b_lists_in_mk
+# all migrated to shell try-heat / catalog).
+# wave939: b7b_lists_in_mk cleared (catalog now parses all 17 mk files independently;
+# Makefile include mechanism no longer needed for catalog operation).
+PHYS_DEL_PREFLIGHT_BLOCKERS=
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
 PHYS_DEL_PREFLIGHT_STD_X_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_STD_X_FORCE_THIN=1
