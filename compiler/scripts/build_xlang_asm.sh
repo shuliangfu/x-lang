@@ -3400,10 +3400,22 @@ ensure_crt0_codegen_parser_companion_objs() {
   fi
   fi
   if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ]; then
-  make -s src/lsp/lsp_diag_pipeline_ctx.o 2>/dev/null || true
+  # Wave928: shell ensure_host_cc_seed_o try-ldpc-prefer (wave767 authority; no make).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    make -s src/lsp/lsp_diag_pipeline_ctx.o 2>/dev/null || true
+  else
+    bash scripts/ensure_host_cc_seed_o.sh try-ldpc-prefer src/lsp/lsp_diag_pipeline_ctx.o 2>/dev/null || true
+  fi
   fi
   if [ ! -f src/driver/fmt_check_cmd_driver.o ]; then
-  make -s src/driver/fmt_check_cmd_driver.o 2>/dev/null || true
+  # Wave928: shell ensure_host_cc_seed_o try-other-l2-prefer (wave771/775 authority; no make).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    make -s src/driver/fmt_check_cmd_driver.o 2>/dev/null || true
+  else
+    bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer src/driver/fmt_check_cmd_driver.o 2>/dev/null || true
+  fi
   fi
   if [ ! -f src/lexer/cfg_eval.o ]; then
   ensure_asm_bootstrap_support_extra_objs || true
@@ -3774,17 +3786,16 @@ ensure_asm_bootstrap_x_companion_objs() {
   fi
   ensure_ast_pool_l5_bridge_obj
   if [ ! -f pipeline_bootstrap_orchestration.o ] || [ seeds/pipeline_bootstrap_orchestration.from_x.c -nt pipeline_bootstrap_orchestration.o ]; then
-    if build_xlang_asm_is_msys; then
-      # PLATFORM: WINDOWS — no nested make; compile seed C directly if present.
-      if [ -f seeds/pipeline_bootstrap_orchestration.from_x.c ]; then
-        echo " win: cc pipeline_bootstrap_orchestration.o <- seeds (skip make)"
-        $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/pipeline_bootstrap_orchestration.from_x.c \
-          -o pipeline_bootstrap_orchestration.o
-      else
-        build_xlang_asm_info "win: WARN missing pipeline_bootstrap_orchestration.o seed"
-      fi
-    else
+    # Wave928: all platforms cc direct from seed (unified with WINDOWS path; no make).
+    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
       make pipeline_bootstrap_orchestration.o
+    elif [ -f seeds/pipeline_bootstrap_orchestration.from_x.c ]; then
+      echo " cc pipeline_bootstrap_orchestration.o <- seeds (wave928; unified all platforms)"
+      $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/pipeline_bootstrap_orchestration.from_x.c \
+        -o pipeline_bootstrap_orchestration.o
+    else
+      build_xlang_asm_info "WARN missing pipeline_bootstrap_orchestration.o seed"
     fi
   fi
   XLANG_ASM_BOOTSTRAP_X_COMPANIONS_READY=1
@@ -5255,7 +5266,17 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ensure_asm_experimental_lsp_objs
   ensure_ast_pool_l5_bridge_obj
   if [ ! -f pipeline_bootstrap_orchestration.o ] || [ seeds/pipeline_bootstrap_orchestration.from_x.c -nt pipeline_bootstrap_orchestration.o ]; then
-  make pipeline_bootstrap_orchestration.o
+  # Wave928: all platforms cc direct from seed (unified; no make).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    make pipeline_bootstrap_orchestration.o
+  elif [ -f seeds/pipeline_bootstrap_orchestration.from_x.c ]; then
+    echo " cc pipeline_bootstrap_orchestration.o <- seeds (wave928; unified all platforms)"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/pipeline_bootstrap_orchestration.from_x.c \
+      -o pipeline_bootstrap_orchestration.o
+  else
+    build_xlang_asm_info "WARN missing pipeline_bootstrap_orchestration.o seed"
+  fi
   fi
   SEED_O="$BUILD_DIR/asm_driver_seed"
   GEN_O="$BUILD_DIR/gen_driver"
