@@ -31,6 +31,7 @@
 # Wave: 963 open BC + 8.3.9 orphan gone (analysis/_debug_io_ctx_gen.c was
 # gitignored local scratch; --check asserts ABSENT).
 # 8.3.1 domain thin cuts: ctfe + assign + coerce_init + method_call + check_block + region_assign + asm_emit_unary + asm_emit_as + asm_emit_return + asm_emit_logand + asm_emit_block_body + asm_emit_block_if_stmt + asm_emit_block_inits (#include TU).
+# 8.3.2 domain thin cuts: ast_pool_module_import (#include into ast_pool TU).
 
 set -euo pipefail
 
@@ -59,6 +60,7 @@ PRODUCT_RESIDUAL_ROWS=(
   # --- 8.3.1 / 8.3.2 volume main debt ---
   "compiler/pipeline_glue.c|8.3.1|product mega glue (typeck/codegen/asm/match)|24000|present"
   "compiler/ast_pool.c|8.3.2|AST pool / MatchArm / sidecar|10000|present"
+  "compiler/ast_pool_module_import.c|8.3.2|module ImportEntry cold-twin accessors slice|180|present"
   # --- 8.3.1 domain thin slices (#include into pipeline_glue TU; not separate .o) ---
   "compiler/pipeline_typeck_ctfe.c|8.3.1|typeck CTFE producer slice|1000|present"
   "compiler/pipeline_typeck_assign.c|8.3.1|typeck assign domain slice|250|present"
@@ -250,7 +252,7 @@ run_check() {
     echo "bc_host_cc_product_inventory: --check FAILED" >&2
     exit 1
   fi
-  echo "bc_host_cc_product_inventory: CHECK OK (BC open · 8.3.1 ctfe+assign+coerce_init+method_call+check_block+region_assign+asm_emit_unary+asm_emit_as+asm_emit_return+asm_emit_logand+asm_emit_block_body+asm_emit_block_if_stmt+asm_emit_block_inits slices present · 8.3.9 absent · host-cc residual still required)" >&2
+  echo "bc_host_cc_product_inventory: CHECK OK (BC open · 8.3.1 typeck+asm slices + 8.3.2 ast_pool_module_import present · 8.3.9 absent · host-cc residual still required)" >&2
 }
 
 case "$MODE" in
