@@ -29,9 +29,9 @@
 # Note: PIPELINE_ASM_X_DEPS uses GNU make $(wildcard); catalog stores the
 # unexpanded $(PIPELINE_ASM_X_DEPS) token inside PIPELINE_X_DEPS (make expands
 # at recipe/prereq time). Fixed multi-token authority COUNT for honesty:
-#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths 38
-#   = 47 (excludes the $(PIPELINE_ASM_X_DEPS) expansion token).
-#   8.3.1+8.3.2: +27 #include slices (ctfe/assign/.../soa + asm_emit_array_lit +
+#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths 39
+#   = 48 (excludes the $(PIPELINE_ASM_X_DEPS) expansion token).
+#   8.3.1+8.3.2: +28 #include slices (ctfe/assign/.../soa + asm_emit_index +
 #     ast_pool_module_import + ast_pool_struct_layout + ast_pool_top_level +
 #     ast_pool_type_alias + ast_pool_expr_sidecar + ast_pool_module_enum +
 #     ast_pool_onefunc + ast_pool_dep_ctx + ast_pool_module_func + ast_pool_arena +
@@ -54,4 +54,4 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 PIPELINE_ASM_X_DEPS = $(wildcard src/asm/*.x src/asm/platform/*.x src/asm/arch/*.x)
 
 # pipeline_x.o / pipeline_gen STALE set: frontend .x chain + glue/pool C + asm tree.
-PIPELINE_X_DEPS = src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x $(PIPELINE_ASM_X_DEPS) pipeline_glue.c pipeline_typeck_ctfe.c pipeline_typeck_assign.c pipeline_typeck_coerce_init.c pipeline_typeck_method_call.c pipeline_typeck_check_block.c pipeline_typeck_region_assign.c pipeline_asm_emit_unary.c pipeline_asm_emit_as.c pipeline_asm_emit_return.c pipeline_asm_emit_logand.c pipeline_asm_emit_block_body.c pipeline_asm_emit_block_if_stmt.c pipeline_asm_emit_block_inits.c pipeline_asm_emit_assign.c pipeline_asm_emit_array_lit.c pipeline_typeck_field_access.c pipeline_typeck_soa.c ast_pool.c ast_pool_module_import.c ast_pool_struct_layout.c ast_pool_top_level.c ast_pool_type_alias.c ast_pool_expr_sidecar.c ast_pool_module_enum.c ast_pool_onefunc.c ast_pool_dep_ctx.c ast_pool_module_func.c ast_pool_arena.c ast_pool_block.c ast_pool_bootstrap_glue.c
+PIPELINE_X_DEPS = src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x $(PIPELINE_ASM_X_DEPS) pipeline_glue.c pipeline_typeck_ctfe.c pipeline_typeck_assign.c pipeline_typeck_coerce_init.c pipeline_typeck_method_call.c pipeline_typeck_check_block.c pipeline_typeck_region_assign.c pipeline_asm_emit_unary.c pipeline_asm_emit_as.c pipeline_asm_emit_return.c pipeline_asm_emit_logand.c pipeline_asm_emit_block_body.c pipeline_asm_emit_block_if_stmt.c pipeline_asm_emit_block_inits.c pipeline_asm_emit_assign.c pipeline_asm_emit_array_lit.c pipeline_asm_emit_index.c pipeline_typeck_field_access.c pipeline_typeck_soa.c ast_pool.c ast_pool_module_import.c ast_pool_struct_layout.c ast_pool_top_level.c ast_pool_type_alias.c ast_pool_expr_sidecar.c ast_pool_module_enum.c ast_pool_onefunc.c ast_pool_dep_ctx.c ast_pool_module_func.c ast_pool_arena.c ast_pool_block.c ast_pool_bootstrap_glue.c
