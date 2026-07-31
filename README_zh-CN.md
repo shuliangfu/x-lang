@@ -83,20 +83,22 @@
 | **产品双端** | Ubuntu x86_64 + **macOS** | 放行钉盘须 L4 真冷 + 全量 `run-all-bstrict` |
 | **Windows** | MSYS2 / MinGW **hybrid** 探针 | hybrid 绿 ≠ 产品 L4 / 自举完成 |
 
-Linux 更关键的是 **glibc 主线**与**内核年代**，不是每个 Ubuntu 点版本。macOS 看 **Darwin 大版本 + 架构**（arm64 优先）。Windows 看 **Win10/11 + x64 工具链**，不是每个 build 号。
+Linux 更关键的是 **libc 族**（glibc vs musl）、**glibc 主线**与**内核年代**，不是每个 Ubuntu 点版本。macOS 看 **Darwin 大版本 + 架构**（arm64 优先）。Windows 看 **Win10/11 + x64 工具链**，不是每个 build 号。
 
-#### 官方矩阵 — Linux（Ubuntu / glibc 主机）
+**Alpine / musl 是支持的**（宿主 + CI Docker 烟测）。它**不是**产品金标宿主：金标与放行钉盘仍以 **Ubuntu x86_64（glibc）** 为准。Alpine 上完整 B-strict / L4 自举对齐走自举后轨道（A-13），**不是**「不修 / 不支持」。
+
+#### 官方矩阵 — Linux（Ubuntu / glibc 与 Alpine）
 
 | 平台 | 架构 | 等级 | 说明 |
 |------|------|------|------|
 | **Ubuntu 24.04 LTS** | x86_64 | **1** | 当前主流 LTS；CI（`ubuntu-latest` / 24.04 线） |
 | **Ubuntu 22.04 LTS** | x86_64 | **1** | 金标邻近 LTS；CI `ubuntu-22.04`；Docker gate 常钉 22.04 |
 | **Ubuntu 26.04 LTS**（作为主机使用时） | x86_64 | **1** | 新 LTS 纳入主宿主后与 22.04/24.04 同级 |
+| **Alpine Linux**（musl） | x86_64 | **2** | **支持宿主**；CI `docker-distro`（`alpine:3.x`）；本地 `scripts/docker-ci-local.sh alpine`；宿主事实见 `XLANG_HOST_ALPINE` / platform linker 文档。musl 差异有处理（栈、链接、部分 std 回退）。**非金标**：产品 L4 / 放行钉仍 Ubuntu glibc；Alpine 上完整 B-strict 自举延后（A-13），**不是不支持** |
 | **Ubuntu 24.04 / 当前** | aarch64 | **2** | CI 探针（`ubuntu-24.04-arm`）；非产品金标 |
 | **Ubuntu 20.04 LTS** | x86_64 | **2** | 后期 LTS；工具链够新时多半可跑 |
 | 其他 glibc 发行版（Debian stable、Fedora 等） | x86_64 | **2** | 无官方保证；报 bug 请带发行版 + glibc 版本 |
 | 滚动版 / 小众发行版（Arch 等） | * | **2** | 仅尽力 |
-| **Alpine / musl 作为主宿主** | * | **3** | 非官方宿主工具链目标 |
 | **Ubuntu 18.04 及更早** / 过旧 glibc 时代 | * | **3** | 已 EOL；不支持 |
 
 #### 官方矩阵 — macOS
@@ -133,15 +135,16 @@ Windows 现状是**产品路径上的 hybrid / min-gate 绿**，不是「完整�
 | Windows 10 早于 22H2 | 超出本项目支持窗口 |
 | macOS 12 及更早 | SDK / ld64 / 系统预期过旧 |
 | Ubuntu 18.04 及更早 | LTS 已 EOL；glibc / 软件包过旧 |
-| musl 作为**主**官方宿主 | 金标与文档默认 glibc Linux |
 | 「每个 Ubuntu / Windows / macOS 小版本都要独立 VM」 | **政策明确不做** — 用等级 + 代表性环境 |
+
+**不是 Tier 3：** Alpine / musl — **Tier 2 支持**（见 Linux 矩阵）。金标仍是 Ubuntu glibc，这是质量闸门，**不是**「musl 不支持」政策。
 
 #### 测试资源怎么安排（性价比）
 
 | 层级 | 覆盖 |
 |------|------|
-| **CI 为主** | Ubuntu 22.04 + 当前 Ubuntu LTS 线；macOS 14 + `macos-latest`；Windows 最新（hybrid gate） |
-| **本地 / 实验室（少量即可）** | 1× Ubuntu LTS（金标）、1× macOS arm64、可选 1× Win11（仅在确有 Win10 用户压力时再加 Win10） |
+| **CI 为主** | Ubuntu 22.04 + 当前 Ubuntu LTS 线；**Alpine + Debian slim**（`docker-distro`）；macOS 14 + `macos-latest`；Windows 最新（hybrid gate） |
+| **本地 / 实验室（少量即可）** | 1× Ubuntu LTS（金标）、1× macOS arm64、可选 1× Win11（仅在确有 Win10 用户压力时再加 Win10）；Alpine 用 Docker 即可，不必常备 Alpine 虚拟机 |
 | **云实例按需** | 出现可疑平台问题再临时开对应版本复现，比长期囤旧 VM 划算 |
 
 **不会**为 Win7/Win8 或每个 Ubuntu 中间版本长期维护官方虚拟机。Tier 2/3 用户不应默认获得与放行钉盘同级的质量承诺。
@@ -154,7 +157,7 @@ Windows 现状是**产品路径上的 hybrid / min-gate 绿**，不是「完整�
 
 - 优先使用上文[支持等级与平台矩阵](#支持等级策略)中的 **Tier 1** 主机（Tier 2 请接受「尽力」）：**Ubuntu x86_64（金标）** 或 **macOS arm64（14+）**；Windows 11 x64 用于 hybrid 探针
 - 宿主 C 工具链（`cc` / `clang`；Windows 上 hybrid 路径用 MSYS2 / MinGW）
-- 可选：Docker 跑 Linux gate（脚本里常见 `ubuntu:22.04` 镜像）
+- 可选：Docker 跑 Linux gate（常见 `ubuntu:22.04`；Alpine 用 `scripts/docker-ci-local.sh alpine` / CI `docker-distro`）
 
 ### 首次构建
 

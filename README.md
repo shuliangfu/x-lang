@@ -83,20 +83,22 @@ We do **not** treat every OS point-release as a required test matrix. Clear tier
 | **Product dual host** | Ubuntu x86_64 + **macOS** | L4 true cold + full `run-all-bstrict` for release pins |
 | **Windows** | MSYS2 / MinGW **hybrid** probes | Hybrid green ≠ product L4 / self-host complete |
 
-Linux care is driven more by **glibc major line** and **kernel era** than by every Ubuntu point release. On macOS, care is **Darwin major + arch** (arm64 first). On Windows, care is **Win10/11 + x64 toolchain**, not every build number.
+Linux care is driven more by **libc family** (glibc vs musl), **glibc major line**, and **kernel era** than by every Ubuntu point release. On macOS, care is **Darwin major + arch** (arm64 first). On Windows, care is **Win10/11 + x64 toolchain**, not every build number.
 
-#### Official matrix — Linux (Ubuntu / glibc hosts)
+**Alpine / musl is supported** (host + CI Docker smoke). It is **not** the product gold host: gold and release pins still mean **Ubuntu x86_64 (glibc)**. Full B-strict / L4 self-host parity on Alpine is on the post-bootstrap track (A-13), not “won’t fix.”
+
+#### Official matrix — Linux (Ubuntu / glibc and Alpine)
 
 | Platform | Arch | Tier | Notes |
 |----------|------|------|--------|
 | **Ubuntu 24.04 LTS** | x86_64 | **1** | Current mainstream LTS; CI (`ubuntu-latest` / 24.04 line) |
 | **Ubuntu 22.04 LTS** | x86_64 | **1** | Gold-adjacent LTS; CI `ubuntu-22.04`; Docker gates often pin 22.04 |
 | **Ubuntu 26.04 LTS** (when used as host) | x86_64 | **1** | Newer LTS line — same Tier 1 bar once adopted as a primary host |
+| **Alpine Linux** (musl) | x86_64 | **2** | **Supported host**; CI `docker-distro` (`alpine:3.x`); local `scripts/docker-ci-local.sh alpine`; host facts via `XLANG_HOST_ALPINE` / platform linker docs. Musl quirks handled (stack, link, some std fallbacks). **Not gold**: product L4 / release pins still Ubuntu glibc; full B-strict self-host on Alpine is deferred (A-13), not unsupported |
 | **Ubuntu 24.04 / current** | aarch64 | **2** | CI probe (`ubuntu-24.04-arm`); not the product gold host |
 | **Ubuntu 20.04 LTS** | x86_64 | **2** | Late life; may work if toolchain is new enough |
 | Other glibc distros (Debian stable, Fedora, …) | x86_64 | **2** | Untested officially; report bugs with distro + glibc version |
 | Rolling / exotic (Arch, etc.) | * | **2** | Best effort only |
-| **Alpine / musl as primary host** | * | **3** | Not an official host toolchain target |
 | **Ubuntu 18.04 and older** / pre-glibc-2.28 era | * | **3** | EOL; no official support |
 
 #### Official matrix — macOS
@@ -133,15 +135,16 @@ Windows status today is **hybrid / min-gate green on the product path**, not “
 | Windows 10 before 22H2 | Out of support window for this project |
 | macOS 12 and older | SDK / ld64 / system expectations too old |
 | Ubuntu 18.04 and older | EOL LTS; ancient glibc / packages |
-| musl as the **primary** official host | Gold and docs assume glibc Linux |
 | “Every Ubuntu / Windows / macOS point release needs its own VM” | **Out of policy** — use tiers + representative hosts |
+
+**Not Tier 3:** Alpine / musl — **Tier 2 supported** (see Linux matrix). Gold remains Ubuntu glibc; that is a quality bar, not a “musl unsupported” policy.
 
 #### How we test (cost-effective)
 
 | Layer | Coverage |
 |-------|----------|
-| **CI** | Ubuntu 22.04 + current Ubuntu LTS line; macOS 14 + `macos-latest`; Windows latest (hybrid gate) |
-| **Local / lab (few VMs)** | 1× Ubuntu LTS (gold), 1× macOS arm64, optional 1× Win11 (+ Win10 only if Tier-2 pressure is real) |
+| **CI** | Ubuntu 22.04 + current Ubuntu LTS line; **Alpine + Debian slim** (`docker-distro`); macOS 14 + `macos-latest`; Windows latest (hybrid gate) |
+| **Local / lab (few VMs)** | 1× Ubuntu LTS (gold), 1× macOS arm64, optional 1× Win11 (+ Win10 only if Tier-2 pressure is real); Alpine via Docker is enough (no dedicated Alpine VM required) |
 | **On-demand cloud** | Spin a machine only when a platform bug needs repro — better than hoarding EOL VMs |
 
 **We will not** maintain official VMs for Win7/Win8 or every Ubuntu interim release. Users on Tier 2/3 should not assume release-pin quality.
@@ -154,7 +157,7 @@ Windows status today is **hybrid / min-gate green on the product path**, not “
 
 - A **Tier 1** host from the [support tiers & platform matrix](#support-tiers-policy) (or Tier 2 if you accept best-effort): **Ubuntu x86_64 (gold)** or **macOS arm64 (14+)**; Windows 11 x64 for hybrid probes
 - Host C toolchain (`cc` / `clang`; on Windows, MSYS2 / MinGW for the hybrid path)
-- Optional: Docker for Linux gates (`ubuntu:22.04` images are common in scripts)
+- Optional: Docker for Linux gates (`ubuntu:22.04` common; Alpine via `scripts/docker-ci-local.sh alpine` / CI `docker-distro`)
 
 ### First-time build
 
