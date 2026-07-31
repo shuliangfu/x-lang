@@ -1,16 +1,24 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
-> **创建**：2026-07-29（wave710 tip L4 钉盘 `9bb7a757c` 双端 129 全绿后）  
+> **创建**：2026-07-29  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
-> **终局目标**（wave713 升级 · **用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
+> **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
-> **用途**：全面列出 C 逻辑迁移到 .X 的所有步骤，按自举顺序排列。每完成一步打勾。已完成的打 ✅，未完成的打 ⬜，部分完成打 🟡。  
+> **用途**：全面列出 C 逻辑迁移到 .X 的所有步骤，按自举顺序排列。  
+> **状态标记（唯一进度记法）**：  
+> - ⬜ 未开始  
+> - 🟡 **进行中**（做到哪一项就把哪一项标黄）  
+> - ✅ **已完成**（该项做完直接打绿勾）  
 > **路线**：路线 A（纯 .x + 内建能力重写）— 详见「路线选择」章节。  
 > **方法**：[自举方法.md](自举方法.md)（Cap / R / L / M）+ Track L2（语言能力）+ Track X（xbuild）+ Track C0（冷启动零 cc）+ Track MG（Makefile 退役）  
-> **进度数字**：[自举进度.md](自举进度.md) · skill `xlang-selfhost-product-gate` · Makefile 映射：[Makefile迁移表.md](Makefile迁移表.md)  
+> **进度数字 / 波次流水**：[自举进度.md](自举进度.md) · skill `xlang-selfhost-product-gate` · Makefile 映射：[Makefile迁移表.md](Makefile迁移表.md)  
 > **先→后时序（换 IDE）**：[自举时序.md](自举时序.md)（执行序 S0–S8；与本文阶段号对照见时序 §5）  
-> **维护约定**：本文只维护 **待办勾选 / 状态表 / 债地图**；**波次变更记录只写 [自举进度.md](自举进度.md)**（禁止在本文追加 changelog 段）。  
-> **权威钉盘**（与本文附录 C 同步）：**`77b334842`**（wave942 · Makefile 物理删除）。
+> **维护约定（强制）**：  
+> 1. 本文 **只** 维护 **待办勾选 / 状态表 / 债地图**（✅ / 🟡 / ⬜ + 必要事实：路径、LOC、验收条件）。  
+> 2. **禁止** 在本文写波次号、波次 changelog、「waveN 做了 X」流水账。  
+> 3. 波次叙事、tip SHA 演进、commit 序列 **只写 [自举进度.md](自举进度.md)**。  
+> 4. 做到某一项 → 标 🟡；该项完成 → 改 ✅；不要追加「完成波次」段落。  
+> **权威钉盘**（与本文附录 C 同步）：**`77b334842`**（Makefile 物理删除 + 双端 L4）。
 
 ---
 
@@ -25,16 +33,16 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 1/~10 | **`pipeline_glue.c` ~39k + `ast_pool.c` ~18k** 等；阶段 8.3；**wave963 开 BC** · **wave965 CTFE 切片** · 8.3.9 ✅ |
-| **Cap 能力解锁** | 🟡 持续 | 已闭多波；untyped self 待治；LANG-006 保留 |
-| **产品 L4 放行** | ✅ 钉盘 `77b334842` | wave942 Makefile 物理删除 + 双端 L4 真冷 |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue.c` ~39k + `ast_pool.c` ~18k 等；CTFE 域已切出；8.3.9 ✅；其余 ⬜ |
+| **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
+| **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 ✅** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 ✅** prereq 边 shell（wave744）· **11.3.1 ✅** 叶 pattern residual（wave746–942 · **已物理删**） · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
-| **tests/ 对照 C 处理策略** | 🟡 4/4 策略 | 11.5.1–4 **策略已裁定**（wave734/741 · `tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
+| **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
-| **终局：无 Makefile + 零 cc + v2==v3** | 🟡 MG ✅ | MG ✅（wave941/942）· BC ⬜ · PC ⬜；见 §0.1 三义；阶段 13 |
+| **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
 
@@ -42,8 +50,8 @@
 
 | 层 | 含义 | 今日状态 | 失败时的假绿 |
 |----|------|----------|--------------|
-| **MG · 编排层** | 不依赖 `make` / `compiler/Makefile` / 顶层 `Makefile` 完成 build / L4 / bootstrap | ✅ **wave941/942 已完成**：Makefile 物理删除 · bootstrap 0 make · catalog 单权威（mk/*.mk）· 双端 L4 绿 | 只删入口 Makefile、实现层仍 `make -C compiler` |
-| **BC · 自举编译层** | 编译器自身 TU **不**再被 host `cc/gcc/clang` 编译（.x→纯 asm `.o` 或等价） | 🟡 **wave963 已开**（库存冻结；glue/ast 仍 host-cc） | seed 用 xlang `-E` 出 C 再交给 gcc |
+| **MG · 编排层** | 不依赖 `make` / `compiler/Makefile` / 顶层 `Makefile` 完成 build / L4 / bootstrap | ✅ Makefile 物理删除 · bootstrap 0 make · catalog 单权威（mk/*.mk）· 双端 L4 绿 | 只删入口 Makefile、实现层仍 `make -C compiler` |
+| **BC · 自举编译层** | 编译器自身 TU **不**再被 host `cc/gcc/clang` 编译（.x→纯 asm `.o` 或等价） | 🟡 已开（库存机检冻结；glue/ast 仍 host-cc） | seed 用 xlang `-E` 出 C 再交给 gcc |
 | **PC · 产品默认后端** | 用户程序默认 **`-backend asm`**（或纯自研目标）；**不**默认 emit C 再 `exec` host-cc；`labi_invoke_cc*` 退役或仅 opt-in | ⬜ `-backend c` 与 labi invoke_cc 仍在产品面 | 自举绿但用户 `-o` 仍调 gcc |
 
 > **用户主目标对齐**：以 **去掉 Makefile（MG）** 为终局叙事主闸门；MG 物理删除的**前置**是 BC 足够小（glue/gen 可被 xbuild 用 xlang 编）且编排逻辑迁到 xbuild / g05 已覆盖的 shell·.x。  
@@ -657,7 +665,7 @@
 
 ✅ **6.1.4 切片完成度** 24/24
 
-✅ **6.1.5 rest 仅 marker + Cap residual**（R7/R8 OS/pthread 等 **原**标 🔒；wave713 起归阶段 9 **必须消灭**，非永久 seed 边界）
+✅ **6.1.5 rest 仅 marker + Cap residual**（R7/R8 OS/pthread 等 **原**标 🔒；归阶段 9 **必须消灭**，非永久 seed 边界）
 
 
 ### 6.2 parser thin mega 拆分（RFC: G-02f-P2-parser-thin-mega）
@@ -687,7 +695,7 @@
 
 ✅ **6.3.5 切片完成度** 11/11
 
-✅ **6.3.6 L3+ 含 stat/spawn/cc/ld** 历史曾标 🔒 薄门闩；wave713 起 **invoke_cc/ld 本体归阶段 9/12–13 必须消灭或 opt-in 隔离**（删 Makefile 后产品默认不得再 `exec` host-cc）
+✅ **6.3.6 L3+ 含 stat/spawn/cc/ld** 历史曾标 🔒 薄门闩；**invoke_cc/ld 本体归阶段 9/12–13 必须消灭或 opt-in 隔离**（删 Makefile 后产品默认不得再 `exec` host-cc）
 
 
 ---
@@ -752,7 +760,7 @@
 ⬜ **7.4.2 codegen 去 pin**
 
   - 当前：`compiler/codegen_gen.c` + `seeds/codegen_gen.linux.x86_64.c` 产品 pin
-  - 目标：同 7.4.1；与 wave70x seed 同 commit 纪律收敛为「仅 .x 权威」
+  - 目标：同 7.4.1；与 seed 同 commit 纪律收敛为「仅 .x 权威」
 
 ⬜ **7.4.3 lexer / preprocess / pipeline 去 pin 对齐**
 
@@ -771,23 +779,23 @@
 
 ### 8.1 已退役的 pinned gen.c（8 个）
 
-> 产品链 PREFER_X_O；工作区考古 gen 生产体 = `ensure_archaeology_gen.sh`（**wave740** · Makefile 薄叶）
+> 产品链 PREFER_X_O；工作区考古 gen 生产体 = `ensure_archaeology_gen.sh`
 
-✅ **8.1.1 lsp_io_std_heap_gen.c** Track L 退役（构建用 lsp_io_std_heap_x.o；考古 shell wave740）
+✅ **8.1.1 lsp_io_std_heap_gen.c** Track L 退役（构建用 lsp_io_std_heap_x.o；考古 shell）
 
-✅ **8.1.2 driver_fmt_gen.c** Track L 退役（构建用 driver_fmt_x.o；考古 shell wave740）
+✅ **8.1.2 driver_fmt_gen.c** Track L 退役（构建用 driver_fmt_x.o；考古 shell）
 
-✅ **8.1.3 driver_check_gen.c** Track L 退役（archaeology shell wave740）
+✅ **8.1.3 driver_check_gen.c** Track L 退役（archaeology shell）
 
-✅ **8.1.4 driver_test_gen.c** Track L 退役（archaeology shell wave740）
+✅ **8.1.4 driver_test_gen.c** Track L 退役（archaeology shell）
 
-✅ **8.1.5 driver_build_gen.c** Track L 退役（archaeology shell wave740）
+✅ **8.1.5 driver_build_gen.c** Track L 退役（archaeology shell）
 
-✅ **8.1.6 driver_run_gen.c** Track L 退役（archaeology shell wave740）
+✅ **8.1.6 driver_run_gen.c** Track L 退役（archaeology shell）
 
-✅ **8.1.7 driver_emit_gen.c** Track L 退役（构建用 driver_emit_x.o；考古 shell wave740）
+✅ **8.1.7 driver_emit_gen.c** Track L 退役（构建用 driver_emit_x.o；考古 shell）
 
-✅ **8.1.8 driver_compile_gen.c** R2 真迁（构建用 driver_compile_x.o；考古 shell wave740）
+✅ **8.1.8 driver_compile_gen.c** R2 真迁（构建用 driver_compile_x.o；考古 shell）
 
 
 ### 8.2 仍需退役的 pinned gen.c（22 个 · 前端核心 + 工具链 + 测试）
@@ -815,22 +823,22 @@
   - 前端核心：src/codegen/codegen.x
   - 阻塞：codegen mega 去 pin
 
-🟡 **8.2.6 lsp_diag_gen.c** pin/seed/-E → `ensure_lsp_pipeline_gen.sh`（wave739 · Makefile 薄叶）
+🟡 **8.2.6 lsp_diag_gen.c** pin/seed/-E → `ensure_lsp_pipeline_gen.sh`
 
-🟡 **8.2.7 lsp_io_gen.c** pin/seed/-E → `ensure_lsp_pipeline_gen.sh`（wave739 · Makefile 薄叶）
+🟡 **8.2.7 lsp_io_gen.c** pin/seed/-E → `ensure_lsp_pipeline_gen.sh`
 
-🟡 **8.2.8 lsp_gen.c** pin/seed/-E + g_lsp_state_buf post → `ensure_lsp_pipeline_gen.sh`（wave739）
+🟡 **8.2.8 lsp_gen.c** pin/seed/-E + g_lsp_state_buf post → `ensure_lsp_pipeline_gen.sh`
 
-🟡 **8.2.9 driver_gen.c** pin/seed/-E → `ensure_driver_gen.sh`（wave738 · Makefile 薄叶）
+🟡 **8.2.9 driver_gen.c** pin/seed/-E → `ensure_driver_gen.sh`
 
   - driver main：src/main.x
   - MAIN_X_DEPS freshness + `fix_driver_gen_duplicate_main` in shell
 
-🟡 **8.2.10 preprocess_gen.c** pin/seed/-E → `ensure_driver_gen.sh`（wave738 · Makefile 薄叶）
+🟡 **8.2.10 preprocess_gen.c** pin/seed/-E → `ensure_driver_gen.sh`
 
   - preprocess：src/preprocess/preprocess.x
 
-🟡 **8.2.11 pipeline_gen.c** pin/seed/-E + i64 ABI → `ensure_lsp_pipeline_gen.sh`（wave739 · Makefile 薄叶）
+🟡 **8.2.11 pipeline_gen.c** pin/seed/-E + i64 ABI → `ensure_lsp_pipeline_gen.sh`
 
   - pipeline：src/pipeline/pipeline.x · post = `check_pipeline_gen_expr_i64_abi.sh`
 
@@ -891,34 +899,35 @@
 
 | 文件（compiler/） | LOC | 角色 | 状态 |
 |-------------------|-----|------|------|
-| `pipeline_glue.c` | ~38,944 | 产品 mega glue（typeck/codegen/asm/match…） | 🟡 wave965 已切 CTFE 出 |
-| `pipeline_typeck_ctfe.c` | 1,177 | typeck CTFE 生产者切片（同 TU `#include`） | 🟡 wave965 抽出；仍 host-cc |
+| `pipeline_glue.c` | ~38,944 | 产品 mega glue（typeck/codegen/asm/match…） | 🟡 CTFE 域已切出；其余仍在 |
+| `pipeline_typeck_ctfe.c` | 1,177 | typeck CTFE 生产者切片（同 TU `#include`） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool.c` | 18,109 | AST 池 / MatchArm / sidecar | ⬜ |
 | `pipeline_typeck_field_access.c` | 1,477 | field_access 权威切片（常被 glue 拉入） | ⬜ |
 | `pipeline_typeck_soa.c` | 255 | typeck SOA 辅助 | ⬜ |
 | `ast_pool_bootstrap_glue.c` | 632 | 冷启动 ast 桥 | ⬜ |
 | `pipeline_bootstrap_orchestration.c` | 5 | 编排占位 | ⬜ |
-| `pipeline_glue_strict_minimal`（seed → `.o`） | — | 产品 weak 孪生 | ⬜ |
+| `pipeline_glue_strict_minimal`（seed → 产品链） | — | 产品 weak 孪生 | ⬜ |
 | bare link alias / stubs 族 | 小 | `*_bare_link_alias.c` · `_stubs.c` · `xlang_x_stubs.c` · `typeck_c_module_stubs.c` 等 | ⬜ |
 
 #### 8.3 消费方地图（谁还拉 glue · 迁时必同改）
 
 | 消费方 | 如何引用 | 风险 |
 |--------|----------|------|
-| `compiler/Makefile` `PIPELINE_X_DEPS` | `pipeline_glue.c` + `ast_pool.c` + bootstrap glue 进 deps | 改源必重编 pipeline_x |
-| `compiler/Makefile` `ASM_GLUE_STANDALONE_O` | standalone seed + glue + types.inc | weak 孪生与主链分叉 |
-| `g05_ensure_relink_prereqs.sh` | mtime vs `pipeline_x.o` / standalone；unbundle 卫生 | 产品热路径仍 host-cc 重编 |
+| `compiler/mk/x_source_deps.mk` `PIPELINE_X_DEPS` | glue + ctfe/field_access/soa 切片 + `ast_pool` + bootstrap glue | 改源必重编 pipeline_x |
+| g05 / standalone seed 链 | standalone seed + glue + types.inc | weak 孪生与主链分叉 |
+| `g05_ensure_relink_prereqs.sh` | mtime vs pipeline_x / standalone；切片 STALE | 产品热路径仍 host-cc 重编 |
 | `pipeline_gen.c` / `-E` runtime 路径 | 入口 pipeline.x 时追加 glue 到 stdout | 与 gen 双权威风险 |
 | `seeds/pipeline_glue_standalone.from_x.c` | 与 glue 并列产品链 | seed 与 .c 须同 commit |
-| `build_asm/gen_driver/*.c`（10） | Makefile + g05 + partial 脚本 | 物理在 compiler/ 外，易漏计 |
+| `build_asm/gen_driver/*.c`（10） | g05 + partial 脚本 | 物理在 compiler/ 外，易漏计 |
 | bare alias / stubs `.c` | 链接安静桩 | 终局由 .x `#[no_mangle]` 取代 |
 
 🟡 **8.3.1 `pipeline_glue.c` → .x（或按域切 thin + 唯一权威）**
 
   - 爆炸半径：几乎所有 typeck/codegen/asm 产品路径
   - 验收：产品链不再 `cc -c pipeline_glue.c`；Ubuntu L4 + 129
-  - **wave965**：第一域 thin — `pipeline_typeck_ctfe.c`（const whitelist + fold 生产者）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS`/g05 STALE 收切片；仍 host-cc 入 `pipeline_x.o`
-  - 下一域候选：typeck assign / method_call / check_block_impl / asm emit 块体
+  - ✅ CTFE 域 thin：`pipeline_typeck_ctfe.c`（const whitelist + fold 生产者）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` / g05 STALE 已收切片
+  - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
+  - ⬜ 下一域候选：typeck assign / method_call / check_block_impl / asm emit 块体
 
 ⬜ **8.3.2 `ast_pool.c` → .x / 已有 ast.x 权威收敛**
 
@@ -947,10 +956,9 @@
 ⬜ **8.3.8 `build_asm/gen_driver/*.c`（10 个 · 物理在 compiler/ 外）**
 
   - `build_asm/gen_driver/pipeline_gen.c` · `lsp_io_gen.c` · `driver_check.c` · `preprocess_gen.c` · `driver_fmt.c` · `lsp_gen.c` · `lsp_io_std_heap_gen.c` · `driver_gen.c` · `driver_test.c`
-  - 被 `compiler/Makefile` 行 2821-2839 + `g05_ensure_relink_prereqs.sh` 行 1956-1957 + `build_seed_user_asm_codegen_partial.sh` 引用
-  - 属构建链产物，物理位置在 compiler/ 之外，原 8.3 漏计
+  - 被 g05 / partial 脚本引用；属构建链产物，物理位置在 compiler/ 之外
 
-✅ **8.3.9 `analysis/_debug_io_ctx_gen.c` 孤儿 .c**（wave963）
+✅ **8.3.9 `analysis/_debug_io_ctx_gen.c` 孤儿 .c**
 
   - 本就在 `analysis/*` gitignore 下（仅 `*.md` 入库）；本地调试残留已 rm
   - 机检：`bc_host_cc_product_inventory.sh --check` 断言 **absent** + 禁 `_debug_*_gen.c` 再出现
@@ -1318,18 +1326,18 @@
 
 > **目的**：在 residual C 仍存在时，先把「编排权威」从 Makefile 挪走，避免终局时一次性改 3445 行。
 
-✅ **11.0.1 盘点 `compiler/Makefile` 规则 → 迁移表**（2026-07-29 · wave714）
+✅ **11.0.1 盘点 `compiler/Makefile` 规则 → 迁移表**（2026-07-29）
 
   - 分类：冷启动 bootstrap / `*_x.o` / seed pin cp / g05 已覆盖 / 测试·prove / Windows / 死规则
   - 产出：**[`analysis/Makefile迁移表.md`](Makefile迁移表.md)**（288 唯一目标 · 类 A–O）+ 本文附录 E 摘要
   - xbuild 拟目标命名已挂表；迁移完成定义见迁移表 §0
 
-✅ **11.0.2 产品路径 0-make 验收**（wave714 静态 ✅ · wave715/716 class-G filtered ✅ · **wave726 PATH 探针 ✅**）
+✅ **11.0.2 产品路径 0-make 验收**（静态 ✅ · class-G filtered ✅ · PATH 探针 ✅）
 
   - 在 **不** `make -C compiler` 的前提下：仅 `xlang-build.sh` / g05 完成 `xlang`/`xlang_asm` 链 + 矩阵
   - **静态闸门**：`tests/run-product-path-zero-make-gate.sh`（allowlist 冻结 g05 日常 `make`；防回退）
-  - **wave715**：pipeline filtered → shell；**wave716**：其余 3 partial-filter + 共用 `filter_o_export_against_deps.sh`；g05_ensure Darwin trio 纯 shell
-  - **wave726 运行时 PATH 探针**：`tests/run-product-path-zero-make-path-probe.sh` — shadow make/gmake；help + g05_relink_env + ensure/prepare 须 **0-exec** make；闸门硬检并真跑
+  - pipeline filtered → shell；其余 partial-filter + 共用 `filter_o_export_against_deps.sh`；g05_ensure Darwin trio 纯 shell
+  - 运行时 PATH 探针：`tests/run-product-path-zero-make-path-probe.sh` — shadow make/gmake；help + g05_relink_env + ensure/prepare 须 **0-exec** make
   - **仍非日常 0-make**：FULL=1→make bstrict（g05 白名单）；嵌套 `tests/run-all-*.sh` / ensure 内 make（11.2.3）
 
 🟡 **11.0.3 冷启动路径减 make**（§5b 全 🟢；叶清单→mk）
@@ -1337,14 +1345,14 @@
   - ✅ 类 G 全 4 filtered.o = 纯 shell；冷启动 `$(MAKE)` **白名单**：[Makefile迁移表.md](Makefile迁移表.md) §5b
   - ✅ 编排 / 链接 / rebuild / host-stubs / check-abi / asm-host → shell 权威；Makefile 薄叶子 + export
   - ✅ 叶清单 / 组合体定义 → `compiler/mk/*.mk`（G.7 单权威；catalog 18 keys）
-  - ✅ FULL=1 / 冷路径编排已 shell（wave719+）；**Makefile 已物理删除**（wave941）— 不再经 make 白名单叶
-  - ✅ wave944：`tests/lib/compiler-make.sh` **0-make** 分发（formal_mod / std_x / try-heat / bootstrap / g05）；formal_std + net-tls ensure 命令串 → bash hub（.x + seed）
+  - ✅ FULL=1 / 冷路径编排已 shell；**Makefile 已物理删除** — 不再经 make 白名单叶
+  - ✅ `tests/lib/compiler-make.sh` **0-make** 分发（formal_mod / std_x / try-heat / bootstrap / g05）；formal_std + net-tls ensure 命令串 → bash hub（.x + seed）
 
 ✅ **11.0.4 根 Makefile 只保留 help → xbuild → 已物理删除**
 
   - ✅ OBJS 叶 + 组合体 → `compiler/mk/*.mk`；`export-obj-catalog` + `driver_seed_obj_catalog.sh`（禁 shell 双清单）
-  - ✅ **`./xbuild`** 薄转调 **`xlang-build.sh`**（G.7 同体）；根 Makefile **help-only** 历史态 → **wave941 已物理删除**
-  - ✅ compiler/Makefile 编排权威 → catalog/shell/g05（wave746–942）；**文件已 git rm**
+  - ✅ **`./xbuild`** 薄转调 **`xlang-build.sh`**（G.7 同体）；根 Makefile 已物理删除
+  - ✅ compiler/Makefile 编排权威 → catalog/shell/g05；**文件已 git rm**
 
 ### 11.1 核心功能
 
@@ -1352,58 +1360,47 @@
 
   - 扫描 .x import / seed 输入 / 平台条件；增量重编
   - 对齐 code-review-graph 思路可选，但 **权威在 xbuild**
-  - ✅ wave742：编排 DAG **库存** — `compiler/docs/BUILD_DAG.md` + `product_build_dag.sh` dump/`--check`；`./xbuild product-dag`；产品日路径 + 冷启动节点/owner；G.7 禁第二套 `.o`（列表仍 mk/catalog）
-  - ✅ wave744：`DRIVER_SEED_PREREQS` **边满足** → `driver_seed_ensure_prereqs.sh`（catalog 列表 + glue companion）；Makefile 薄 phony 不再挂 make-graph prereq
-  - ⬜ 终局：import 扫描 + 增量图执行（依赖 11.1.2）；叶 `.o` pattern residual → 11.3.1
+  - ✅ 编排 DAG **库存** — `compiler/docs/BUILD_DAG.md` + `product_build_dag.sh` dump/`--check`；`./xbuild product-dag`；产品日路径 + 冷启动节点/owner；G.7 禁第二套列表（仍 mk/catalog）
+  - ✅ `DRIVER_SEED_PREREQS` **边满足** → `driver_seed_ensure_prereqs.sh`（catalog 列表 + glue companion）
+  - ⬜ 终局：import 扫描 + 增量图执行（依赖 11.1.2）；叶 pattern residual → 11.3.1
 
 🟡 **11.1.2 编译调度（.x → .o）**
 
   - 默认 **asm backend**（BC 终局）；过渡期允许显式 `host-cc` 仅编 **白名单 residual C**（清单来自 8.3/9，逐步清空）
   - 并行：线程原语（10.6）就绪前可用进程池 / 外部 ninja 过渡（**过渡须标 temporary**）
-  - ✅ wave743：编排图 **schedule 执行** — `product` / `refresh` / `cold` 命名调度；`--dry-run` / `--run`；`run` 只转调既有 shell 体（G.7 禁双路径）；product 跳过 archaeology 与独立 g05_ensure/link_env；cold live = 外层 `bootstrap-driver-seed`
-  - ✅ wave744：cold 调度首节点 `cold_ensure_prereqs`；live outer 内嵌 shell ensure
+  - ✅ 编排图 **schedule 执行** — `product` / `refresh` / `cold` 命名调度；`--dry-run` / `--run`；`run` 只转调既有 shell 体（G.7 禁双路径）
+  - ✅ cold 调度首节点 `cold_ensure_prereqs`；live outer 内嵌 shell ensure
   - ⬜ 终局：.x import 增量图 + 并行；冷启动叶不经 make pattern（与 11.3 同闸）
 
 🟡 **11.1.3 平台处理**
 
   - Linux / macOS / Windows 路径·ABI·seed 选择
-  - 替代 Makefile `ifeq ($(UNAME)…)` / Alpine 等
-  - ✅ wave745：权威 `compiler/docs/PLATFORM_LINKER.md` + `host_platform_linker.sh`（`XLANG_HOST_OS`/`ARCH`/`PLATFORM_TAG`/Alpine/seed pin）；`./xbuild host-platform`；产品 pin 仍 `*.linux.x86_64.c`（host-portable）
-  - ✅ wave746 交叉：叶 UNAME residual 类 **R2** 已在 `LEAF_PATTERN_RESIDUAL.md` 命名（库存 only）
-  - ⬜ 终局：Makefile `UNAME` 叶 pattern 全吞（与 11.3.1 同闸）；禁 shell 第二套 uname 矩阵
+  - 替代历史 Makefile `UNAME` / Alpine 等
+  - ✅ 权威 `compiler/docs/PLATFORM_LINKER.md` + `host_platform_linker.sh`；`./xbuild host-platform`
+  - ✅ 叶 UNAME residual 类 **R2** 已在 `LEAF_PATTERN_RESIDUAL.md` 命名
+  - ⬜ 终局：UNAME 叶 pattern 全吞（与 11.3.1 同闸）；禁 shell 第二套 uname 矩阵
 
 🟡 **11.1.4 链接器调用**
 
   - 直接调 `ld` / `lld` / `link.exe`（syscall 或 raw FFI / 过渡 `posix_spawn`）
   - **禁止**默认 `$(CC) -o` 当链接器（避免偷偷拉 cc）
-  - ✅ wave745：策略库存 — prefer `xlang_asm_invoke_ld_platform` + direct ld；**命名 residual** `bootstrap_driver_seed_link.sh` `SEED_LINK_CC -o`（列表仍 Makefile export）；`./xbuild linker-policy`
-  - ✅ wave772：cold phase1/final **pure-ld** — Makefile export `SEED_LINK_LD/MULTIDEF/ENTRY/LD_TAIL/PURE_OK`；`bootstrap_driver_seed_link.sh` pure ld（Darwin syslibroot）；`--self-test`
-  - ✅ wave773：g05 product **pure-ld** — G.7 抽 `pure_ld_shared.sh`；cold 转调；`g05_relink_xlang` pure-ld（LINUX nostdlib static；else `-lSystem`/`-lc`）
-  - ✅ wave774：**drop silent CC fallback** — pure-ld eligible → hard fail on pure miss；named CC residual only `FORCE_CC` / ineligible（`PURE_OK=0` / non-freestanding）
+  - ✅ 策略库存 — prefer `xlang_asm_invoke_ld_platform` + direct ld；命名 residual `SEED_LINK_CC -o`；`./xbuild linker-policy`
+  - ✅ cold / g05 product **pure-ld**（`pure_ld_shared.sh`）；eligible 路径 hard fail on pure miss；named CC residual only `FORCE_CC` / ineligible
   - ⬜ 终局：Windows PE pure-ld · 无任何 residual `CC -o`（含 FORCE_CC 逃生口收敛）
 
 🟡 **11.1.5 填实 `build.x` 策略源**
 
-  - ✅ wave734：根 `build.x` 英文策略图（产品/冷启动/残余叶/xbuild 目标映射）；三函数 ABI 保持 pin-compatible
-  - ✅ wave742：`build.x` §F 挂 11.1.1 BUILD_DAG / product-dag
-  - ✅ wave743：`build.x` §F 挂 11.1.2 dry-run/run schedules
-  - ✅ wave744：`build.x` §F 挂 shell ensure_prereqs / driver-seed-prereqs
-  - ✅ wave745：`build.x` §F 挂 11.1.3 host-platform / 11.1.4 linker-policy
+  - ✅ 根 `build.x` 英文策略图（产品/冷启动/残余叶/xbuild 目标映射）；三函数 ABI 保持 pin-compatible
+  - ✅ `build.x` §F 挂 BUILD_DAG / product-dag / schedule / ensure_prereqs / host-platform / linker-policy
   - ⬜ 终局：DAG-as-data 替代 C build_runtime 步表（依赖 11.1.1–4 执行层）
 
 🟡 **11.1.6 吞并 g05 脚本族**
 
   - `g05_ensure_relink_prereqs` / `g05_relink_env` / `g05_relink_xlang` / `g05_prepare_and_relink` / `build_xlang_asm.sh`
-  - ✅ wave733：`./xbuild ensure|link-env|link-product|link-product-asm` 直调 g05 shell（**零 make**）；Makefile 薄兼容入口仍在
-  - ✅ wave733：`run_compiler_make` 与 tests hub 合体 → `tests/lib/compiler-make.sh`（G.7 单 make -C 体）
-  - ✅ wave734：`refresh_xlang_asm_gate.sh` 唯一体；`./xbuild refresh-gate`；bstrict/run-refresh 脱 make recipe
-  - ✅ wave735：`migrate_x_objs.sh` 唯一体（parser/typeck/codegen `_x.o`）；`./xbuild migrate`；refresh 0× make migrate；Makefile 薄叶
-  - ✅ wave736：`ensure_migrate_gen.sh` 唯一体（parser/typeck/codegen `_gen.c` pin/seed/-E）；`./xbuild migrate-gen`；migrate 0× make gen 体
-  - ✅ wave737：`lexer_gen.c` → 同 script mode lexer；`./xbuild lexer-gen`；Makefile 薄叶
-  - ✅ wave738：`ensure_driver_gen.sh` 唯一体（`driver_gen.c` + `preprocess_gen.c`）；`./xbuild driver-gen`；Makefile 薄叶
-  - ✅ wave739：`ensure_lsp_pipeline_gen.sh` 唯一体（`lsp_diag`/`lsp_io`/`lsp_gen` + `pipeline_gen`）；`./xbuild lsp-gen` / `pipeline-gen`；Makefile 薄叶；考古 subcmd gen residual
-  - ✅ wave740：`ensure_archaeology_gen.sh` 唯一体（7× `driver_*_gen` + `lsp_io_std_heap_gen`）；`./xbuild archaeology-gen`；产品链不消费（Track L PREFER_X_O）
-  - ⬜ 终局：xbuild 内建或单一 `scripts/g05` 族；删 Makefile 间接调用 / seed prereq 图（与 11.3 同闸）
+  - ✅ `./xbuild ensure|link-env|link-product|link-product-asm` 直调 g05 shell（**零 make**）
+  - ✅ `run_compiler_make` 与 tests hub 合体 → `tests/lib/compiler-make.sh`（G.7 单体）
+  - ✅ `refresh_xlang_asm_gate.sh` / `migrate_x_objs.sh` / `ensure_migrate_gen.sh` / `lexer-gen` / `driver-gen` / `lsp-gen` / `pipeline-gen` / `archaeology-gen` 唯一体 + `./xbuild` 入口
+  - ⬜ 终局：xbuild 内建或单一 `scripts/g05` 族；无 make 间接调用 / seed prereq 图（与 11.3 同闸）
 
 ### 11.2 自举 stage + 测试/CI 编排
 
@@ -1415,113 +1412,65 @@
 
   - `xbuild cold-test`：全擦 `compiler|std|core` 下 `.o` + 删产品二进制 → seed/g05 或纯 xbuild → 矩阵 → `run-all-bstrict`（`XLANG_BSTRICT_SKIP_BUILD=1`）
 
-✅ **11.2.3 prove / bstrict / gate 脚本去 make**（wave727–733）
+✅ **11.2.3 prove / bstrict / gate 脚本去 make**
 
   - `tests/**/*.sh`（含 `tests/lib/*.sh` · `tests/bench/**/*.sh` · `tests/docker/*`）中 `make -C compiler` 清零或改为 `xbuild` / `xlang_compiler_make`
-  - ✅ `tests/lib/compiler-make.sh` 单入口 `xlang_compiler_make`；tests/lib **0** raw `make -C`（hub 外）；`XLANG_COMPILER_DIR` 支持 nolibc（wave727/728）
-  - ✅ `tests/run-*.sh` **0** raw `make -C`（~456 脚本 → hub；wave732）；图仍 Makefile 至 11.3
-  - ✅ wave733：全仓 `tests/**/*.sh` 0 raw make -C（bench 本无 make -C，vacuous close）；CLI 模式供 xbuild 共用 hub
-  - docker CI 外层 / 11.2.5 workflow ✅ wave730
+  - ✅ `tests/lib/compiler-make.sh` 单入口 `xlang_compiler_make`；tests/lib **0** raw `make -C`（hub 外）；`XLANG_COMPILER_DIR` 支持 nolibc
+  - ✅ `tests/run-*.sh` **0** raw `make -C`（~456 脚本 → hub）；图仍 Makefile 至 11.3
+  - ✅ 全仓 `tests/**/*.sh` 0 raw make -C（bench 本无 make -C，vacuous close）；CLI 模式供 xbuild 共用 hub
+  - docker CI 外层 / 11.2.5 workflow ✅
 
 ⬜ **11.2.4 Windows 入口**
 
   - 非金标但终局须有 xbuild 路径（MSYS2）；禁止「只 Linux 删了 Makefile」
-  - 🟡 CI Windows job 已 `./xbuild compiler-all`（wave730）；本地 MSYS2 入口仍待 11.2.4 专波
+  - 🟡 CI Windows job 已 `./xbuild compiler-all`；本地 MSYS2 入口仍待 11.2.4
 
-✅ **11.2.5 `.github/workflows/*.yml` CI 去 make/cc（wave730 · 外层）**
+✅ **11.2.5 `.github/workflows/*.yml` CI 去 make/cc（外层）**
 
   - `ci.yml` / `ci-nightly.yml` / `selfhost-stage2.yml` / `release.yml`：构建入口 → `./xbuild compiler-all` / `bootstrap-driver-seed` / `compiler-make` / shell `clean`
   - `bootstrap-seeds-capture.yml`：无 `make -C`（仅装 gmake 包）
   - 实现层仍经 `xlang-build.sh`→`run_compiler_make` 触 Makefile 图（至 11.3）；guest 仍装 host-cc/make（零 cc 属 12）
 
-### 11.3 Makefile 物理删除（**终局硬指标** · **wave941/942 已完成**）
+### 11.3 Makefile 物理删除（**终局硬指标** · ✅ 已完成）
 
-✅ **11.3 residual · prereq 边吞并（wave744 → 物理删 wave941）**
+✅ **11.3 residual · prereq 边吞并 → 物理删 Makefile**
 
   - ✅ `driver_seed_ensure_prereqs.sh`：catalog 展开 `DRIVER_SEED_PREREQS` + glue companion；`--dry-run` / `--check` / `--run`
-  - ✅ `bootstrap_driver_seed.sh` step 0 调 ensure；历史 Makefile 薄 phony 已随 wave941 删除
+  - ✅ `bootstrap_driver_seed.sh` step 0 调 ensure；历史 Makefile 薄 phony 已删除
   - ✅ `./xbuild driver-seed-prereqs`；cold dry-run 印 `PREREQ=` 边
-  - ✅ 叶 `.o` pattern / host-cc residual → shell ensure（wave746–940）+ **Makefile 物理删除 wave941**
-  - ✅ wave746：**11.3.1 路径库存** — `LEAF_PATTERN_RESIDUAL.md` + `leaf_pattern_residual.sh`
-    （R1–R6 命名；`./xbuild leaf-patterns`；机检 post_ship ✅ wave944/948）
-  - ✅ wave747：**R4 mode-policy 吞并** — `rebuild_leaves` 默认 catalog KEY + shell mode 表；
-    pattern 体仍 make（R4 body residual）；export 叶 inventory/legacy
-  - ✅ wave748–755：**R1 八族** — `ensure_host_cc_seed_o.sh` 单 body + catalog 八 KEY；
-    Makefile 薄转调；`./xbuild host-cc-seed` umbrella
-  - ✅ wave757：**R3 cold-else body** — `rebuild_leaves` residual → `ensure try-r3-cold`
-    （catalog `R3_COLD_SEED_OBJS`）；PREFER thin 仍 make
-  - ✅ wave756：**R4 pure-R1 body** — `rebuild_leaves` → `ensure try-r1`（catalog membership）；
-    bridge 无 make；non-R1 residual 仍 make
-  - ✅ wave758：**R4 residual thin_glue → R1 seed-map**（G.7 有则补全）—
-    `parser_asm_thin_glue` pure host-cc；user-asm shell-only
-  - ✅ wave759：**R4 residual glue-standalone → R1 seed-map**（G.7 有则补全）—
-    `pipeline_glue_standalone` pure host-cc；glue shell-only
-  - ✅ wave760：**R2 panic cold try-r2** — catalog `DRIVER_SEED_PANIC_OBJS`；
-    stamp+UNAME 选源；panic shell-only；PREFER thin residual
-  - ✅ wave762：**R2 typeck_f64/crt0 try-r2** — catalog `DRIVER_SEED_TYPECK_F64_OBJS` +
-    `DRIVER_SEED_CRT0_OBJS`；host pick `.s` / mingw seed；Makefile+g05+build_xlang_asm 收敛
-  - ✅ wave763：**R3 PREFER thin try-r3-prefer** — catalog `R3_COLD_SEED_OBJS` 九叶；
-    thin+rest 单 body（prefer 失败 → cold ensure_one）；Makefile thin
-  - ✅ wave764：**g05 R3_COLD r3-prefer-family** — 同 catalog 体；full→thin ladder；
-    删 g05 双 hybrid
-  - ✅ wave765–767：**g05 labi/rt/pipeline_abi/ldpc try-*-prefer** — 单 body；g05/Makefile thin-call
-  - ✅ wave768：**g05 target_cpu try-target-cpu-prefer** — flags.x + rest FROM_X → `$CC -r`
-  - ✅ wave769–771：**g05 L2-asm / async / other-L2 try-*-prefer** — 表驱动；g05/Makefile thin-call
-  - ✅ wave772：**11.1.4 pure-ld** — cold phase1/final
-  - ✅ wave773：**11.1.4 g05 pure-ld** — `pure_ld_shared` + g05_relink
-  - ✅ wave774：**11.1.4 drop silent CC fallback** — cold+g05 pure-ld required；FORCE_CC/ineligible named residual only
+  - ✅ 叶 pattern / host-cc residual → shell ensure + **Makefile 物理删除**
+  - ✅ R1–R6 叶路径（host-cc seed / UNAME stamp / thin+rest / rebuild / CI / pure-ld）→ catalog + shell
+  - ✅ g05 prefer 族 / pure-ld 与 cold 同体（无 silent CC fallback）
 
-✅ **11.3.1 路径 · 叶 pattern residual + 物理删除**（wave746–942）
+✅ **11.3.1 路径 · 叶 pattern residual + 物理删除**
 
-**状态**（波次流水见 `自举进度.md` §6 · 本文件只保留状态总结 + 权威指向）：
+**状态**（波次流水只写 `自举进度.md` · 本文件只保留 ✅/🟡/⬜）：
 
 - ✅ 权威图：`compiler/docs/LEAF_PATTERN_RESIDUAL.md`
-- ✅ 机检：`leaf_pattern_residual.sh` / `phys_del_makefile_gate.sh` **post_ship**（wave944 gate · wave948 leaf quiet/honesty；MF 缺席绿、无 stderr 噪声、无「unexpected early delete」假文案）
+- ✅ 机检：`leaf_pattern_residual.sh` / `phys_del_makefile_gate.sh` **post_ship**（MF 缺席绿、无 stderr 噪声、无「unexpected early delete」假文案）
 - ✅ R1 host-cc seed · R2 UNAME stamp · R3 thin+rest · R4 rebuild pattern bodies · R5 CI all · R6→11.1.4
-- ✅ B1–B7 命名桶 + phys-del prep + Windows gate + dual-end verify（wave746–wave931 全部已闭；详情见 §6）
+- ✅ B1–B7 命名桶 + phys-del prep + Windows gate + dual-end verify
 - ✅ R4 / B 桶列表 → `mk/*.mk` + catalog/shell ensure（bootstrap 默认冷路径 0 make）
-- ✅ **B7 residual endgame · physical delete / 删 Makefile**（wave941 · explicit user auth）
-  - ✅ lists/thin 收口 · Windows tip 复证 · Mac/Ubuntu L4 · explicit auth → **已 ship 物理删体**
-  - 已闭摘要：heat / STATUS / TREE_ARMED / delete-body honesty / std_x·formal_mod·bags→mk / FORCE thin / 全 phony shell-primary 等（wave791–940）
-- ✅ **物理删 `compiler/Makefile`**（wave941 `git rm`）
+- ✅ **B7 residual endgame · physical delete / 删 Makefile**
+  - ✅ lists/thin 收口 · Windows tip 复证 · Mac/Ubuntu L4 · 用户授权 → **已 ship 物理删体**
+  - ✅ heat / STATUS / TREE_ARMED / delete-body honesty / std_x·formal_mod·bags→mk / FORCE thin / 全 phony shell-primary
+- ✅ **物理删 `compiler/Makefile`**
 
-✅ **11.3.1 删除 `compiler/Makefile`**（wave941 · tip `59d5b7471`；钉盘升 wave942 `77b334842`）
+✅ **11.3.1 删除 `compiler/Makefile`**
 
-  - 前置全部满足后用户 explicit auth 真删：
-    - ✅ 迁移表有主 shell/catalog（wave714–940）
-    - 🟡 8.3/7/8 residual C **仍在**（host-cc 编；**MG 编排层已独立完成**，BC 层另计）
-    - ✅ wave746–940 R1–R5 / B1–B7 / heat / preflight / gates / Windows / dual L4
-    - ✅ wave941：`xlang-build.sh` bootstrap → 直调 `bootstrap_driver_seed.sh`；host_stubs catalog；**物理删除** 根 + `compiler/Makefile`
-    - ✅ wave942：ensure_host_cc_seed_o CFLAGS → catalog；双端 L4 升钉 `77b334842`
-  - ✅ wave944：compiler-make / formal_std ensure **0-make**；phys-del/leaf **post_ship**
-  - ✅ wave945：README/vscode 11.6.2/3 · labi ensure hint · bootstrap smoke hint → `./xbuild`
-  - ✅ wave945 residual：README/vscode / labi 诊断 hint → `./xbuild`（**非** ensure 权威）
-  - ✅ wave946：docs/07 · xbuild help · g05 cold hint · xlang.toml · dag/linker MF-absent · XXP/BXC catalog bag
-  - ✅ wave947：XXP ensure ladder 0-make（try-heat / migrate_x_objs / build_seed_asm_host；VIA_MAKE 逃生口）
-  - ✅ wave948：leaf 机检 post_ship quiet/honesty（`/dev/null` MF bind · mf_bad 静默计数 · 禁 unexpected-early-delete）+ catalog `--check` here-string（pipefail flake）
-  - ✅ wave949：ensure_*_gen force-E 缺 xlang-c → `ensure_xlang_c.sh`（5 脚本；0× `$MAKE $XLANG_C`；leaf honesty）
-  - ✅ wave950：cfg-eval soft 缺 xlang-c → `ensure_xlang_c.sh`（`ensure_host_cc_seed_o` B5；0× `$MAKE xlang-c`；soft `|| true`）
-  - ✅ wave951：`run_compiler_tests` 缺产品 ensure → `bootstrap_driver_seed.sh` + `ensure_xlang_c.sh`（0× 默认 `$MAKE`；`XLANG_TEST_ENSURE_VIA_MAKE=1` 逃生口）
-  - ✅ wave952：`regen_lsp_gens_x` 四 gens → `ensure_lsp_pipeline_gen.sh lsp` + `ensure_archaeology_gen.sh lsp_io_std_heap`（0× 默认 `$MAKE`；`XLANG_REGEN_LSP_VIA_MAKE=1` 逃生口；`--check` post_ship）
-  - ✅ wave953：`build_tool.sh --check` post_ship（MF 缺席绿；catalog `--cflags-export` 权威；`XLANG_CFLAGS_VIA_MAKE` 逃生口 + `[ -f Makefile ]`；leaf honesty）
-  - ✅ wave954：`build_via_tool.sh --check` post_ship（MF 缺席绿；shell 拥有 `./build_tool`→TARGET + OK；leaf honesty）
-  - ✅ wave955：`bootstrap_self.sh` catalog BS bag + `--check` post_ship（MF 缺席绿；`--link-objs-export bs` + `--link-cflags-export bs`；`XLANG_BS_LINK_VIA_MAKE` 逃生口；leaf honesty）
-  - ✅ wave956：`xlang_x.sh` catalog XXL bag + `--check` post_ship（MF 缺席绿；`--link-objs-export xlang-x` + `--link-cflags-export relink-product`；`XLANG_XXL_LINK_VIA_MAKE` 逃生口；leaf honesty）
-  - ✅ wave957：`xlang_no_c_frontend.sh` catalog XNC bag + `--check` post_ship（MF 缺席绿；`--link-objs-export xnc` + `--link-cflags-export xnc`；`XLANG_XNC_LINK_VIA_MAKE` 逃生口；leaf honesty）
-  - ✅ wave958：`relink_xlang_lexer.sh` catalog RXL bag + `--check` post_ship（MF 缺席绿；`--link-objs-export relink-product` + `--link-cflags-export relink-product`；`XLANG_RXL_LINK_VIA_MAKE` 逃生口；leaf honesty）
-  - ✅ wave959：`bootstrap_driver_seed_x_frontend.sh` catalog BXF bag + `--check` post_ship（MF 缺席绿；`--link-objs-export bxf` + `--link-cflags-export bxf`；`XLANG_BXF_LINK_VIA_MAKE` 逃生口；leaf honesty）
-  - ✅ wave960：`bootstrap_typeck_codegen.sh` catalog BTC bag + `--check` post_ship（MF 缺席绿；`--link-objs-export relink-product` + `--link-cflags-export btc-typeck`/`relink-product`；`XLANG_BTC_LINK_VIA_MAKE` 逃生口；leaf honesty）
-  - ✅ wave961：`legacy_xlang_c_link.sh` catalog LEGACY bag + `--check` post_ship（MF 缺席绿；`--link-objs-export legacy-xlang-c` + `--link-cflags-export relink-product`；`XLANG_LEGACY_LINK_VIA_MAKE` 逃生口；leaf honesty）
-  - ✅ wave962：`host_cc_objs_core_link.sh` catalog OBJS_CORE bag + `--check` post_ship（MF 缺席绿；`--link-objs-export objs-core` + `--cflags-export`；`XLANG_OBJS_CORE_LINK_VIA_MAKE` 逃生口；leaf honesty）
-  - ✅ wave963：**开 BC** · `bc_host_cc_product_inventory.sh` 冻结 8.3 产品 residual C · `./xbuild bc-inventory --check` · 8.3.9 孤儿 absent · leaf honesty
-  - ✅ wave964：`ensure_host_cc_seed_o.sh --check` post_ship（MF 缺席绿；catalog+shell R1/R3/R2/gen-x/try-heat；warm catalog cache；leaf honesty）
-  - ✅ wave965：**8.3.1 第一刀** · `pipeline_typeck_ctfe.c` 同 TU 抽出 · `PIPELINE_X_DEPS`/g05 STALE 收切片 · bc-inventory 登记
+  - ✅ 迁移表有主 shell/catalog；R1–R5 / B1–B7 / heat / preflight / gates / dual L4
+  - ✅ `xlang-build.sh` bootstrap → 直调 `bootstrap_driver_seed.sh`；host_stubs catalog
+  - ✅ **物理删除** 根 + `compiler/Makefile`；ensure CFLAGS → catalog；钉盘 `77b334842`
+  - ✅ post-delete residual（0-make hub · gate/leaf post_ship · catalog bags · ensure_* `--check`）
+  - ✅ BC 库存机检：`bc_host_cc_product_inventory.sh` / `./xbuild bc-inventory --check` · 8.3.9 孤儿 absent
+  - 🟡 8.3/7/8 residual C **仍在**（host-cc 编；MG 编排层已独立完成，BC 层另计）
+  - 验收 grep：
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
     ```
 
-✅ **11.3.2 删除仓库根 `Makefile`**（wave941 同 commit）
+✅ **11.3.2 删除仓库根 `Makefile`**
 
   - 入口：`./xbuild` 或 `./xlang-build.sh` → xbuild（根 Makefile 已不存在）
 
@@ -1546,32 +1495,32 @@
 
 > **背景**：阶段 11.0–11.3 只点 Makefile 与 tests/，**漏了根脚本、tools/、scripts/、docker/ 中的 make/cc 调用**。这些是「零 cc 链」的硬障碍。
 
-✅ **11.4.1 `build.sh`（根目录）薄转发 `./xbuild`（wave731）**
+✅ **11.4.1 `build.sh`（根目录）薄转发 `./xbuild`**
 
   - 旧体：直接 `cc` 链 `build_tool`（双权威 + 已坏变量 `$LINK_SHU`）
   - 现体：默认 `./xbuild build`；参数透传任意 xbuild 目标；**0× host-cc**
   - host-cc residual 仅 `compiler/scripts/build_tool.sh`（至阶段 12）
 
-✅ **11.4.2 `xlang-build.sh` 产品路径 0× make -C；CI hub 单点**（wave944 闭合 hub）
+✅ **11.4.2 `xlang-build.sh` 产品路径 0× make -C；CI hub 单点**
 
-  - 产品目标（build/clean/test*/bootstrap-* 烟测）已 shell（wave718–720）
-  - ✅ wave941：`bootstrap-driver-seed` **不再**经 `run_compiler_make` → 直调 `bootstrap_driver_seed.sh`
-  - ✅ wave944：`run_compiler_make` / `tests/lib/compiler-make.sh` **0-make** 分发（无 make -C）；`compiler_all_ci` 直 g05 + ensure_xlang_c
+  - 产品目标（build/clean/test*/bootstrap-* 烟测）已 shell
+  - ✅ `bootstrap-driver-seed` **不再**经 `run_compiler_make` → 直调 `bootstrap_driver_seed.sh`
+  - ✅ `run_compiler_make` / `tests/lib/compiler-make.sh` **0-make** 分发（无 make -C）；`compiler_all_ci` 直 g05 + ensure_xlang_c
   - 外层 `./xbuild compiler-make <args…>` 目标名不变
 
-✅ **11.4.3 `scripts/docker-ci-local.sh` 外层 0× `make -C`（wave730）**
+✅ **11.4.3 `scripts/docker-ci-local.sh` 外层 0× `make -C`**
 
   - 全矩阵段 → `./xbuild clean|compiler-all|test_*|bootstrap-*|compiler-make …`
   - 与 11.2.5 同入口；guest 仍需 build-essential（零 cc 属 12）
 
-✅ **11.4.4 `tools/verify-xlang-migration.sh` 提示 → xbuild（wave730）**
+✅ **11.4.4 `tools/verify-xlang-migration.sh` 提示 → xbuild**
 
-🟡 **11.4.5 `tests/docker/linux-dev.Dockerfile`（wave731 入口文档）**
+🟡 **11.4.5 `tests/docker/linux-dev.Dockerfile`（入口文档）**
 
   - ✅ `XLANG_PREFERRED_ENTRY=./xbuild` + `org.xlang.entry` label
   - ⬜ 仍装 `gcc make`（build_tool / seed / bench 差分 residual；**卸包装 = 阶段 12**）
 
-✅ **11.4.6 `tests/lib/delete-one-c-file.sh` → `./xbuild`（wave731）**
+✅ **11.4.6 `tests/lib/delete-one-c-file.sh` → `./xbuild`**
 
   - host + Docker 回归：`./xbuild bootstrap-driver-bstrict`（无 raw `make -C`）
   - bare ubuntu guest 仍可 apt residual gcc/make（至阶段 12）
@@ -1582,25 +1531,25 @@
 🟡 **11.5.1 `tests/bench/**/*.c`（~50 个）对照基准 C**
 
   - `loop_i32.c` · `mem_copy.c` · `simd_dot.c` · `struct_param.c` · `call_boundary.c` · `zero_copy_sendfile*.c` · `regex_match_*.c` · `http_bench_server.c` · `net_*.c` · `io_*.c` · `async_*.c` · `diff/d1_int_arith.c` ~ `d6_mem_ops.c`
-  - **策略裁定（wave734）**：**永久 host-cc 白名单（仅差分/对照基准）** — 不进产品路径、不进 g05、不经 `./xbuild all`；与 `.x` 对照测时由 bench 脚本显式 `cc`（标 temporary residual 至阶段 12 零 cc 终局复审）。优先路径：有 `.x` 孪生则产品侧只编 `.x`；裸 `.c` 不强制本波改写
+  - **策略裁定**：**永久 host-cc 白名单（仅差分/对照基准）** — 不进产品路径、不进 g05、不经 `./xbuild all`；与 `.x` 对照测时由 bench 脚本显式 `cc`（标 temporary residual 至阶段 12 零 cc 终局复审）。优先路径：有 `.x` 孪生则产品侧只编 `.x`；裸 `.c` 不强制本波改写
   - 权威清单：`tests/HOST_CC_POLICY.md` §11.5.1
 
 🟡 **11.5.2 `tests/std-*/*.c`（50 个）std 模块 smoke 测试 C**
 
   - `tests/std-sqlite/*_ok.c` · `tests/std-elf/*_ok.c` · `tests/std-crypto/*_smoke*.c` · `tests/std-math/*` · `tests/std-config/*` · `tests/std-uuid/*` · `tests/std-ffi/*` · `tests/std-trace/*` · `tests/std-context/*` · `tests/std-base64/*` · `tests/std-tar/*` · `tests/std-task/*` · `tests/std-log/*` · …
   - 被 `tests/lib/std-*.sh` 用 host cc 链接 **已编好的** `std/**/*.o`
-  - **策略裁定（wave741）**：**永久 host-cc 白名单（C smoke harness only）** — 不进 g05 / `./xbuild all` / 产品编译器链接；产品绿以 bstrict / `.x` 闸门为准；改写为 `.x` 属阶段 12 复审，不挡 11.3
+  - **策略裁定**：**永久 host-cc 白名单（C smoke harness only）** — 不进 g05 / `./xbuild all` / 产品编译器链接；产品绿以 bstrict / `.x` 闸门为准；改写为 `.x` 属阶段 12 复审，不挡 11.3
   - 权威清单：`tests/HOST_CC_POLICY.md` §11.5.2（50 路径 + 闸门 floor ≥40）
 
 🟡 **11.5.3 `tests/abi|leak|safe|kernel/*.c` 探针 C**
 
   - `tests/abi/layout_abi.c` · `tests/leak/leak_probe.c`（cc -fsanitize=address）· `tests/safe/race_probe.c` · `tests/kernel/freestanding_stubs.c`
-  - **策略裁定（wave741）**：**永久 host-cc 白名单（ABI / sanitizer / freestanding 探针）** — 依赖 host 工具链能力；不进产品链；权威见 `tests/HOST_CC_POLICY.md` §11.5.3
+  - **策略裁定**：**永久 host-cc 白名单（ABI / sanitizer / freestanding 探针）** — 依赖 host 工具链能力；不进产品链；权威见 `tests/HOST_CC_POLICY.md` §11.5.3
 
 🟡 **11.5.4 `tests/probes/**/*.c` prove/seed 工具产物**
 
   - `seed_optional/*/optional_gen.c` · `prove_x_o/*/{*.gen.c,*.raw.c,*.seed.probe.c,*.merged.probe.c,thin.c}` · `bootstrap-parser/{csv_core,json_core}_gen_probe*.c`
-  - **策略裁定（wave741）**：**非产品 residual 类** — 工具/生成物；多数不入库；随 prove→xbuild 收缩；禁止扩成产品 host-cc 债。权威：`tests/HOST_CC_POLICY.md` §11.5.4
+  - **策略裁定**：**非产品 residual 类** — 工具/生成物；多数不入库；随 prove→xbuild 收缩；禁止扩成产品 host-cc 债。权威：`tests/HOST_CC_POLICY.md` §11.5.4
 
 ### 11.6 editors/ 与文档去 make（**用户指南同步**）
 
@@ -1609,12 +1558,12 @@
   - 自带 Makefile + binding.gyp + Cargo.toml(cc crate) + bindings/rust/build.rs
   - 策略：git submodule / 独立 release / 删除（与 xlang 自举链解耦）
 
-✅ **11.6.2 `editors/vscode/` 用户提示语**（wave945）
+✅ **11.6.2 `editors/vscode/` 用户提示语**
 
   - package.nls.* · l10n.bundle.* · src/lspClient.ts · README · editors/LSP接入.md
   - 全部改为 `./xbuild bootstrap-driver-seed`（Makefile 已删）
 
-✅ **11.6.3 `README.md` / `README_zh-CN.md` 用户指南**（wave945）
+✅ **11.6.3 `README.md` / `README_zh-CN.md` 用户指南**
 
   - 首次/日常/贡献入口 → `./xbuild build-tool|first-time|build|full|bootstrap-driver-seed|compiler-make`
   - MG 状态改为 Makefile **已删**；钉盘摘要对齐 `77b334842`
@@ -1696,28 +1645,13 @@
 
 ⬜ **13.2.1 双端 L4 真冷 + 129 bstrict（xbuild 驱动 · 零 make · 零 host-cc）**
 
-🟡 **13.2.2 Makefile 物理删除验收**（文件层 ✅ · 文档/残调用 🟡）
+🟡 **13.2.2 Makefile 物理删除验收**（文件层 ✅ · 零 make 调用面 🟡）
 
-  - ✅ `test ! -e Makefile && test ! -e compiler/Makefile`（wave941）
-  - ✅ wave945：README · editors/vscode · labi ensure hint 已去 make -C（产品入口 `./xbuild`）
-  - ✅ wave946：docs/07 std.db 构建提示 · xbuild help 实现层 · XXP/BXC bag catalog-primary
-  - ✅ wave947：`xlang_x_pipeline` ensure 阶梯 shell-primary（无默认 `$MAKE`）
-  - ✅ wave949：ensure_*_gen 缺 xlang-c 不再 `$MAKE`（→ `ensure_xlang_c.sh`）
-  - ✅ wave950：cfg-eval soft 缺 xlang-c 不再 `$MAKE`（→ `ensure_xlang_c.sh`）
-  - ✅ wave951：`run_compiler_tests` 缺产品 ensure 不再默认 `$MAKE`（→ bootstrap_driver_seed + ensure_xlang_c）
-  - ✅ wave952：`regen_lsp_gens_x` 四 gens 不再默认 `$MAKE`（→ ensure_lsp_pipeline_gen + ensure_archaeology_gen）
-  - ✅ wave953：`build_tool --check` post_ship（MF 缺席绿；CFLAGS → catalog）
-  - ✅ wave954：`build_via_tool --check` post_ship（MF 缺席绿；shell → ./build_tool TARGET）
-  - ✅ wave955：`bootstrap_self` catalog BS bag + `--check` post_ship（MF 缺席绿；bs objs/cflags）
-  - ✅ wave956：`xlang_x` catalog XXL bag + `--check` post_ship（MF 缺席绿；xlang-x objs + relink-product cflags）
-  - ✅ wave957：`xlang_no_c_frontend` catalog XNC bag + `--check` post_ship（MF 缺席绿；xnc objs/cflags）
-  - ✅ wave958：`relink_xlang_lexer` catalog RXL bag + `--check` post_ship（MF 缺席绿；relink-product objs/cflags）
-  - ✅ wave959：`bootstrap_driver_seed_x_frontend` catalog BXF bag + `--check` post_ship（MF 缺席绿；bxf objs/cflags）
-  - ✅ wave960：`bootstrap_typeck_codegen` catalog BTC bag + `--check` post_ship（MF 缺席绿；relink-product objs + btc-typeck/relink-product cflags）
-  - ✅ wave961：`legacy_xlang_c_link` catalog LEGACY bag + `--check` post_ship（MF 缺席绿；legacy-xlang-c objs + relink-product cflags）
-  - ✅ wave962：`host_cc_objs_core_link` catalog OBJS_CORE bag + `--check` post_ship（MF 缺席绿；objs-core objs + cflags-export）
-  - ✅ wave963：**开 BC** · `bc_host_cc_product_inventory.sh` 冻结 8.3 产品 residual C · `./xbuild bc-inventory --check` · 8.3.9 孤儿 absent
-  - ✅ wave963：**开 BC** · `bc_host_cc_product_inventory.sh` 冻结 8.3 产品 residual C · `./xbuild bc-inventory --check` · 8.3.9 孤儿 absent
+  - ✅ `test ! -e Makefile && test ! -e compiler/Makefile`
+  - ✅ 产品入口 / 文档 / labi hint → `./xbuild`（无 make -C）
+  - ✅ ensure 阶梯 / gen / tests / link bags shell-primary + catalog bag（MF 缺席绿）
+  - ✅ `bc_host_cc_product_inventory.sh` / `./xbuild bc-inventory --check` · 8.3.9 孤儿 absent
+  - 🟡 仍有 host-cc residual C（BC/PC 未闭）；逃生口 env 仍可能调 make
 
 ⬜ **13.2.3 零 cc 三义验收**（§0.1 MG+BC+PC）
 
@@ -1741,7 +1675,7 @@
 
 ---
 
-## 附录 A：代码量分布（快照 · wave713 文档创建时；审计后补 glue 列）
+## 附录 A：代码量分布（快照 · 文档创建时；审计后补 glue 列）
 
 | 维度 | .x 行数 | .c 行数 | 备注 |
 |------|---------|---------|------|
@@ -1768,48 +1702,47 @@
 
 | 项 | 值 |
 |---|---|
-| 钉盘 SHA | **`77b334842`**（wave942 · Makefile 物理删除） |
-| 前钉 SHA | `9bb7a757c`（wave710）· `4fa4f07e7` |
-| 升钉波次 | wave942（MG 物理删 + catalog CFLAGS + 双端 L4） |
+| 钉盘 SHA | **`77b334842`**（Makefile 物理删除 + 双端 L4） |
+| 前钉 SHA | `9bb7a757c` · `4fa4f07e7` |
 | 上次 L4 日期 | 2026-07-31 |
-| 双端 bstrict 数 | 129（历史钉盘）；tip 产品矩阵/bootstrap 绿；全量 bstrict post-delete residual 待清 |
-| mac 产品链 | ✅ wave942 build/g05 OK |
-| Ubuntu L4（金标） | ✅ wave942 wipe+bootstrap+build+smoke OK |
+| 双端 bstrict 数 | 129（历史钉盘）；tip 产品矩阵/bootstrap 绿 |
+| mac 产品链 | ✅ build/g05 OK |
+| Ubuntu L4（金标） | ✅ wipe+bootstrap+build+smoke OK |
 | 工程轨 KPI | T 18/18 · N 111/111 IDENTICAL |
 | MG | ✅ 根 + `compiler/Makefile` 已物理删除 |
-| git 锚点 | 见 `自举进度.md` §6 wave941/942 |
+| git 锚点 / 波次流水 | 见 `自举进度.md` |
 
 ## 附录 D：综合迁移进度（终局 = **无 Makefile** + 零 cc 三义）
 
 ```
-旧终局（v2==v3 + 无 pin）≈ 74.5%（历史权重，见变更记录）
+旧终局（v2==v3 + 无 pin）≈ 74.5%（历史权重）
 
-新终局权重（2026-07-31 修订 · MG 物理删后）：
+新终局权重（MG 物理删后）：
   库+T+N+R2+M拆分+Cap≈         0.40 × ~85%  → ~34%
   阶段 7/8 gen 去 pin            0.10 × ~25%  → ~2.5%
-  阶段 8.3 glue/ast（新）        0.12 × 0%    → 0%
+  阶段 8.3 glue/ast（新）        0.12 × ~5%   → ~0.6%  （CTFE 域已切；整体仍 🟡）
   阶段 9 residual                0.12 × 0%    → 0%
   阶段 10 语言 L2                0.10 × 0%    → 0%
-  阶段 11 Makefile 退役/xbuild   0.12 × ~95%  → ~11%  （**MG 文件删除 ✅**；0-make hub + 文档 residual wave944/945 ✅）
+  阶段 11 Makefile 退役/xbuild   0.12 × ~95%  → ~11%  （**MG 文件删除 ✅**；0-make hub ✅）
   阶段 12–13 冷启动+终局验收     0.04 × ~10%  → ~0.4% （13.2.2 文件层 ✅；零 cc / v2==v3 ⬜）
                                  合计 ≈ 48–50%
 ```
 
 **综合迁移进度（修订）：约 48–50%**  
-MG **编排层**已完成（wave941/942/944/945）。**BC 轨 wave963 已开**（库存机检）· **wave965 CTFE 第一刀**。剩余主债：**8.3 glue 续切** · **PC 零 cc** · **去 pin** · 阶段 12 冷启动。
+MG **编排层** ✅。BC 🟡（库存机检 + CTFE 域已切）。PC ⬜。剩余主债：**8.3 glue 续切** · **PC 零 cc** · **去 pin** · 阶段 12 冷启动。
 
 剩余工作优先级（MG 已闭后）：
 
-1. ✅ **post-delete residual**（wave944–**964**）— 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check post_ship ✅
-2. 🟡 **BC 开 + 阶段 8.3**（wave963 库存 · wave965 CTFE 第一刀 · 8.3.9 ✅ · **下一：8.3.1 下一域 / 8.3.2**）  
-3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
-4. **阶段 10 → 9** 语言能力 + residual 消灭  
-5. **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
+1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · CTFE 域 ✅ · 8.3.9 ✅ · **当前：8.3.1 下一域 / 8.3.2**）  
+3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
+4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
+5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
 
 ## 附录 E：compiler/Makefile 迁移表（摘要 · 全量见独立文档）
 
-> **全量权威清单**（11.0.1 · wave714）：[`analysis/Makefile迁移表.md`](Makefile迁移表.md)  
-> 每完成一行迁移到 xbuild，在迁移表「迁移状态」列改 🟢，并回写本摘要若影响仪表盘。
+> **全量权威清单**（11.0.1）：[`analysis/Makefile迁移表.md`](Makefile迁移表.md)  
+> 每完成一行迁移到 xbuild，在迁移表「迁移状态」列改 ✅，并回写本摘要若影响仪表盘。
 
 | 类 | 主题 | 条数（约） | 今日落点 | xbuild 拟目标 | 状态 |
 |----|------|------------|----------|---------------|------|
@@ -1822,7 +1755,7 @@ MG **编排层**已完成（wave941/942/944/945）。**BC 轨 wave963 已开**�
 | **B** | pinned `*_gen.c` | 18 | Makefile pin cp | `xbuild pin-gen` | ⬜ 7.4/8.2 |
 | **A** | std/core 模块 .o | 65 | 部分 shell / g05 | `xbuild std` | 🟡 |
 | **G** | `build_asm/*_filtered.o` | 4 | 全 4 🟢 shell | `xbuild build-asm-filter` | ✅ 产品+Makefile 同调 |
-| **J** | test / check / verify | 12 | shell + tests hub | `xbuild test` / `cold-test` | 🟢 11.2.3 tests/** hub ✅（wave733） |
+| **J** | test / check / verify | 12 | shell + tests hub | `xbuild test` / `cold-test` | ✅ 11.2.3 tests/** hub |
 | **K** | seed 工具 | 4 | Makefile | `xbuild seed-tools` | ⬜ 11.0.3 |
 | **L** | std 变体 stub | 10 | Makefile | `xbuild std-variant` | ⬜ |
 | **M** | clean / compile_commands / legacy | 6 | make / 考古 | util 或 🗑 | 🟡 |
