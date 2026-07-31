@@ -19,69 +19,24 @@
 
 ## Contents
 
-1. [Why X language — Three Highs, One Low](#1-why-x-language--three-highs-one-low)
-2. [Language sketch](#2-language-sketch)
-3. [Quick start](#3-quick-start)
-4. [Compiler CLI](#4-compiler-cli)
-5. [Repository layout](#5-repository-layout)
-6. [Standard library](#6-standard-library)
-7. [Compiler architecture](#7-compiler-architecture)
-8. [Self-host status](#8-self-host-status-snapshot--2026-07-31)
-9. [Milestones](#9-milestones)
-10. [Documentation map](#10-documentation-map)
-11. [Testing and quality](#11-testing-and-quality)
-12. [Tooling](#12-tooling)
+1. [Language sketch](#1-language-sketch)
+2. [Quick start](#2-quick-start)
+3. [Compiler CLI](#3-compiler-cli)
+4. [Repository layout](#4-repository-layout)
+5. [Standard library](#5-standard-library)
+6. [Compiler architecture](#6-compiler-architecture)
+7. [Self-host status](#7-self-host-status-snapshot--2026-07-31)
+8. [Milestones](#8-milestones)
+9. [Documentation map](#9-documentation-map)
+10. [Testing and quality](#10-testing-and-quality)
+11. [Tooling](#11-tooling)
+12. [Why X language — Three Highs, One Low](#12-why-x-language--three-highs-one-low)
 13. [Contributing](#13-contributing)
 14. [License](#14-license)
 
 ---
 
-## 1. Why X language — **Three Highs, One Low**
-
-**X language** is a **systems language** for kernels, drivers, runtimes, embedded targets, and high-performance tools: no GC, zero-cost abstractions, an explicit memory model, and freestanding support.
-
-Most languages force a trade-off. X refuses that trade-off:
-
-| Pillar | Target | What it means |
-|--------|--------|----------------|
-| **High performance** | **Beat careful C by default** | No GC; default ASM backend (+ optional C backend); aggressive alias / `noalias`, BCE, monomorphized generics; arena / region paths with zero hot-path malloc. Speed comes from the **compiler**, not heroics at every call site. |
-| **High safety** | **Near Rust in the safe subset** | Compile-time region / borrow / linear checks; `Option` / `Result` instead of silent null; length-carrying slices; graded `unsafe` only at hardware & syscall edges — **auditable**, never ambient UB. |
-| **High readability** | **Simpler than C at scale** | `T[]` carries length; no header hell (directory = module); `defer` / `with_arena` / scoped allocators; field access is only `.`; diagnostics with real source locations. |
-| **Low learning cost** | **Days, not months — if you already program** | No type-theory bootcamp: a solid imperative background (C / C++ / Java / Go / **JS / TS** / …) is enough. Familiar control flow; no lifetime-annotation maze; progressive path (start “almost C”, then adopt safety features); `xlang build` / `fmt` / LSP in one toolchain. |
-
-**One-line design rule for every language feature:**
-
-> *Would this make a C programmer’s life harder?*  
-> If yes → cut it, hide it in the compiler, or quarantine it in `unsafe`.  
-> **Simpler than C is the highest design priority.** Safety and speed are delivered by compiler intelligence, not by burdening the author.
-
-### Honest positioning
-
-| vs | X language choice |
-|----|-------------------|
-| **C** | Same “close to the metal” control — cleaner syntax, fewer footguns, one toolchain, and safety proofs where C has UB. |
-| **Rust** | Same ambition on memory safety — **without** a heavy borrow-checker lifestyle; regions + inference + linear types carry the load. |
-| **Zig** | Shared love of simplicity and explicitness — plus a first-class safe subset and a stronger static safety story by default. |
-
-### Supporting goals
-
-| Goal | Meaning |
-|------|---------|
-| **Lightweight** | Few deps; small binaries; freestanding / embedded; std linked on demand |
-| **Standard library** | Full `core/` + `std/`; one API across platforms (platform details under `std.sys`) |
-| **Self-hosting** | End state: compiler + std 100% `.x`; host C / seed only for cold start (**in progress — not claimed complete**) |
-
-### Design stance
-
-- **Aim** — extreme performance where it matters: **default codegen better than typical careful C**, not “as good if you are careful”.
-- **Discipline** — maintainable code, simple development, **memory safety** (no silent UB in the safe subset).
-- **Method** — region-based memory + borrow gates + linear types; alias analysis feeds autovec / DCE; `unsafe` stays thin and reviewable.
-
-Longer design notes: [syntax & safety](analysis/语法与类型设计-高性能与内存安全.md) · [requirements](analysis/需求分析.md) · [safety & perf](analysis/安全与性能.md).
-
----
-
-## 2. Language sketch
+## 1. Language sketch
 
 ### Types and semantics
 
@@ -104,21 +59,102 @@ See [compile-time memory & autovec](analysis/编译时自动内存管理和自�
 ### Platforms
 
 - Conditional compilation (`#if` / target branches)
-- **One API, multi-OS** — Linux / macOS primary; Windows hybrid / probes
+- **One API, multi-OS** — Linux / macOS primary product paths; Windows hybrid / probes
 - Freestanding: `-freestanding` (nostdlib static, Linux x86_64 path)
 - Targets such as `x86_64-linux`, `arm64-macos` (`-target`)
 
 Syntax index: [docs/README.md](docs/README.md).
 
+#### Support tiers (policy)
+
+We do **not** treat every OS point-release as a required test matrix. Clear tiers keep quality high without infinite VMs:
+
+| Tier | Meaning | What we do |
+|------|---------|------------|
+| **Tier 1 — Official** | Documented, CI-backed, bugs fixed first | Representative hosts only (see tables below) |
+| **Tier 2 — Best effort** | Often works; no guarantee | Fix when cheap / when users report |
+| **Tier 3 — Unsupported** | No testing, no support commitment | Documented so expectations stay honest |
+
+**Project truth (orthogonal to tiers):**
+
+| Role | Host | Notes |
+|------|------|--------|
+| **Gold standard** | **Ubuntu x86_64** | Link completeness / product gates; do not treat macOS green alone as SHARED done |
+| **Product dual host** | Ubuntu x86_64 + **macOS** | L4 true cold + full `run-all-bstrict` for release pins |
+| **Windows** | MSYS2 / MinGW **hybrid** probes | Hybrid green ≠ product L4 / self-host complete |
+
+Linux care is driven more by **glibc major line** and **kernel era** than by every Ubuntu point release. On macOS, care is **Darwin major + arch** (arm64 first). On Windows, care is **Win10/11 + x64 toolchain**, not every build number.
+
+#### Official matrix — Linux (Ubuntu / glibc hosts)
+
+| Platform | Arch | Tier | Notes |
+|----------|------|------|--------|
+| **Ubuntu 24.04 LTS** | x86_64 | **1** | Current mainstream LTS; CI (`ubuntu-latest` / 24.04 line) |
+| **Ubuntu 22.04 LTS** | x86_64 | **1** | Gold-adjacent LTS; CI `ubuntu-22.04`; Docker gates often pin 22.04 |
+| **Ubuntu 26.04 LTS** (when used as host) | x86_64 | **1** | Newer LTS line — same Tier 1 bar once adopted as a primary host |
+| **Ubuntu 24.04 / current** | aarch64 | **2** | CI probe (`ubuntu-24.04-arm`); not the product gold host |
+| **Ubuntu 20.04 LTS** | x86_64 | **2** | Late life; may work if toolchain is new enough |
+| Other glibc distros (Debian stable, Fedora, …) | x86_64 | **2** | Untested officially; report bugs with distro + glibc version |
+| Rolling / exotic (Arch, etc.) | * | **2** | Best effort only |
+| **Alpine / musl as primary host** | * | **3** | Not an official host toolchain target |
+| **Ubuntu 18.04 and older** / pre-glibc-2.28 era | * | **3** | EOL; no official support |
+
+#### Official matrix — macOS
+
+| Platform | Arch | Tier | Notes |
+|----------|------|------|--------|
+| **macOS 14 Sonoma** | **arm64** (Apple Silicon) | **1** | CI `macos-14` |
+| **macOS 15 Sequoia** and **macOS 26.x** (current Apple major line) | **arm64** | **1** | CI `macos-latest` tracks the current runner image; primary mac development host |
+| macOS 14+ | **x86_64** (Intel) | **2** | May work; not CI-primary; Intel Macs are declining |
+| **macOS 13 Ventura** | arm64 / x86_64 | **2** | Best effort; no dedicated CI pin |
+| **macOS 12 Monterey and older** | * | **3** | No official support (Xcode / SDK / linker expectations drift) |
+| iOS / iPadOS / tvOS as **host** build OS | * | **3** | Not host platforms (cross targets are a separate story) |
+
+**macOS policy in one line:** official support = **Apple Silicon + last ~2–3 major macOS releases (14+)**. Older macOS and Intel are best-effort or unsupported—not a reason to keep old VMs forever.
+
+#### Official matrix — Windows
+
+| Platform | Arch | Tier | Notes |
+|----------|------|------|--------|
+| **Windows 11** | x64 | **1** | Preferred Windows host; CI `windows-latest`; MSYS2 / MinGW hybrid path |
+| **Windows 10 22H2+** | x64 | **2** | Large install base; support when practical (local / cloud repro) |
+| Windows 10 before 22H2 | x64 | **3** | Not targeted |
+| **Windows 7 / 8 / 8.1** | * | **3** | **Explicitly unsupported** (EOL, security, modern toolchain) |
+| Windows 11 / 10 | ARM64 | **2** | Experimental / best effort; not CI-primary |
+| MSVC-only pure PE product path | * | **2** | Hybrid MinGW path is what gates exercise today |
+
+Windows status today is **hybrid / min-gate green on the product path**, not “full self-host L4 gold.” See [self-host status](#7-self-host-status-snapshot--2026-07-31) and [Windows limits guide](analysis/Windows平台限制与测试指南.md) when present.
+
+#### Explicitly unsupported (Tier 3 — do not expect fixes)
+
+| Item | Why |
+|------|-----|
+| Windows 7 / 8 / 8.1 | Long EOL; no modern security / toolchain story |
+| Windows 10 before 22H2 | Out of support window for this project |
+| macOS 12 and older | SDK / ld64 / system expectations too old |
+| Ubuntu 18.04 and older | EOL LTS; ancient glibc / packages |
+| musl as the **primary** official host | Gold and docs assume glibc Linux |
+| “Every Ubuntu / Windows / macOS point release needs its own VM” | **Out of policy** — use tiers + representative hosts |
+
+#### How we test (cost-effective)
+
+| Layer | Coverage |
+|-------|----------|
+| **CI** | Ubuntu 22.04 + current Ubuntu LTS line; macOS 14 + `macos-latest`; Windows latest (hybrid gate) |
+| **Local / lab (few VMs)** | 1× Ubuntu LTS (gold), 1× macOS arm64, optional 1× Win11 (+ Win10 only if Tier-2 pressure is real) |
+| **On-demand cloud** | Spin a machine only when a platform bug needs repro — better than hoarding EOL VMs |
+
+**We will not** maintain official VMs for Win7/Win8 or every Ubuntu interim release. Users on Tier 2/3 should not assume release-pin quality.
+
 ---
 
-## 3. Quick start
+## 2. Quick start
 
 ### Requirements
 
-- **Linux** (x86_64 = gold standard) or **macOS**
-- Host C toolchain (`cc` / `clang`) for linking and cold-start seed
-- Optional: Docker for Linux gates
+- A **Tier 1** host from the [support tiers & platform matrix](#support-tiers-policy) (or Tier 2 if you accept best-effort): **Ubuntu x86_64 (gold)** or **macOS arm64 (14+)**; Windows 11 x64 for hybrid probes
+- Host C toolchain (`cc` / `clang`; on Windows, MSYS2 / MinGW for the hybrid path)
+- Optional: Docker for Linux gates (`ubuntu:22.04` images are common in scripts)
 
 ### First-time build
 
@@ -195,11 +231,11 @@ Details: [self-host method](analysis/自举方法.md) · [SELFHOST.md](compiler/
 
 > **Daily L2 green on tip ≠ tip L4 pin.**  
 > Release pin remains **`9bb7a757c`** (129/129 dual true cold) until an explicit re-pin.  
-> Tip dual L4 candidate **`eef4d7743`** and safety net **`ec773fe95`** are **not** automatic pin bumps (see [§8](#8-self-host-status-snapshot--2026-07-31)).
+> Tip dual L4 candidate **`eef4d7743`** and safety net **`ec773fe95`** are **not** automatic pin bumps (see [§7](#7-self-host-status-snapshot--2026-07-31)).
 
 ---
 
-## 4. Compiler CLI
+## 3. Compiler CLI
 
 Default backend: **ASM** (`-backend asm`).
 
@@ -269,7 +305,7 @@ Root [build.x](build.x) describes *what* to build. Daily entry: `./xlang-build.s
 
 ---
 
-## 5. Repository layout
+## 4. Repository layout
 
 ```
 xlang/
@@ -301,7 +337,7 @@ Architecture notes (historical narrative): [构架分析.md](analysis/archive/na
 
 ---
 
-## 6. Standard library
+## 5. Standard library
 
 ### `core` (no OS)
 
@@ -335,7 +371,7 @@ Link is **on demand** — unused modules stay out of the final link when possibl
 
 ---
 
-## 7. Compiler architecture
+## 6. Compiler architecture
 
 ```
 .x source
@@ -360,7 +396,7 @@ Link is **on demand** — unused modules stay out of the final link when possibl
 
 ---
 
-## 8. Self-host status (snapshot · 2026-07-31)
+## 7. Self-host status (snapshot · 2026-07-31)
 
 > **Authoritative live numbers:** [自举进度.md](analysis/自举进度.md) · [C迁移追踪.md](analysis/C迁移追踪.md) · [LEAF_PATTERN_RESIDUAL.md](compiler/docs/LEAF_PATTERN_RESIDUAL.md).  
 > This README only summarizes. **Do not** treat Stage2 / prove / WPO / daily L2 green as a tip L4 re-pin or as “self-host done”.  
@@ -428,7 +464,7 @@ Methodology: [自举方法.md](analysis/自举方法.md) · timeline: [自举时
 
 ---
 
-## 9. Milestones
+## 8. Milestones
 
 | Milestone | Content | Status |
 |-----------|---------|--------|
@@ -442,7 +478,7 @@ Methodology: [自举方法.md](analysis/自举方法.md) · timeline: [自举时
 
 ---
 
-## 10. Documentation map
+## 9. Documentation map
 
 | Document | Role |
 |----------|------|
@@ -466,7 +502,7 @@ Many RFCs live under `analysis/` (http, async, WPO, …).
 
 ---
 
-## 11. Testing and quality
+## 10. Testing and quality
 
 | Suite | Command |
 |-------|---------|
@@ -495,7 +531,7 @@ Diff cases D1–D6: 5/6 pass; float D4 remains a known P2 placeholder.
 
 ---
 
-## 12. Tooling
+## 11. Tooling
 
 | Component | Path |
 |-----------|------|
@@ -505,6 +541,51 @@ Diff cases D1–D6: 5/6 pass; float D4 remains a known P2 placeholder.
 | LSP | `xlang --lsp` · `compiler/src/lsp/` |
 
 Plugin install: [editors/vscode/README.md](editors/vscode/README.md).
+
+---
+
+## 12. Why X language — **Three Highs, One Low**
+
+**X language** is a **systems language** for kernels, drivers, runtimes, embedded targets, and high-performance tools: no GC, zero-cost abstractions, an explicit memory model, and freestanding support.
+
+Most languages force a trade-off. X refuses that trade-off:
+
+| Pillar | Target | What it means |
+|--------|--------|----------------|
+| **High performance** | **Beat careful C by default** | No GC; default ASM backend (+ optional C backend); aggressive alias / `noalias`, BCE, monomorphized generics; arena / region paths with zero hot-path malloc. Speed comes from the **compiler**, not heroics at every call site. |
+| **High safety** | **Near Rust in the safe subset** | Compile-time region / borrow / linear checks; `Option` / `Result` instead of silent null; length-carrying slices; graded `unsafe` only at hardware & syscall edges — **auditable**, never ambient UB. |
+| **High readability** | **Simpler than C at scale** | `T[]` carries length; no header hell (directory = module); `defer` / `with_arena` / scoped allocators; field access is only `.`; diagnostics with real source locations. |
+| **Low learning cost** | **Days, not months — if you already program** | No type-theory bootcamp: a solid imperative background (C / C++ / Java / Go / **JS / TS** / …) is enough. Familiar control flow; no lifetime-annotation maze; progressive path (start “almost C”, then adopt safety features); `xlang build` / `fmt` / LSP in one toolchain. |
+
+**One-line design rule for every language feature:**
+
+> *Would this make a C programmer’s life harder?*  
+> If yes → cut it, hide it in the compiler, or quarantine it in `unsafe`.  
+> **Simpler than C is the highest design priority.** Safety and speed are delivered by compiler intelligence, not by burdening the author.
+
+### Honest positioning
+
+| vs | X language choice |
+|----|-------------------|
+| **C** | Same “close to the metal” control — cleaner syntax, fewer footguns, one toolchain, and safety proofs where C has UB. |
+| **Rust** | Same ambition on memory safety — **without** a heavy borrow-checker lifestyle; regions + inference + linear types carry the load. |
+| **Zig** | Shared love of simplicity and explicitness — plus a first-class safe subset and a stronger static safety story by default. |
+
+### Supporting goals
+
+| Goal | Meaning |
+|------|---------|
+| **Lightweight** | Few deps; small binaries; freestanding / embedded; std linked on demand |
+| **Standard library** | Full `core/` + `std/`; one API across platforms (platform details under `std.sys`) |
+| **Self-hosting** | End state: compiler + std 100% `.x`; host C / seed only for cold start (**in progress — not claimed complete**) |
+
+### Design stance
+
+- **Aim** — extreme performance where it matters: **default codegen better than typical careful C**, not “as good if you are careful”.
+- **Discipline** — maintainable code, simple development, **memory safety** (no silent UB in the safe subset).
+- **Method** — region-based memory + borrow gates + linear types; alias analysis feeds autovec / DCE; `unsafe` stays thin and reviewable.
+
+Longer design notes: [syntax & safety](analysis/语法与类型设计-高性能与内存安全.md) · [requirements](analysis/需求分析.md) · [safety & perf](analysis/安全与性能.md).
 
 ---
 
