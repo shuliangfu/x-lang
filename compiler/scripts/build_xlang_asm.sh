@@ -1043,9 +1043,16 @@ ensure_experimental_ast_pool_for_wpo() {
   elif [ -f "$gen_drv" ] && { [ ast_pool.c -nt "$gen_drv" ] || [ pipeline_glue.c -nt "$gen_drv" ]; }; then
   need=1
   fi
-  if [ "$need" -eq 1 ] && command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-  build_xlang_asm_info "ast_pool/glue stale - make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1"
-  make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || return 1
+  if [ "$need" -eq 1 ]; then
+  # Wave929: shell try-heat with PIPELINE_X_FORCE_COMPILE=1 (no make).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    build_xlang_asm_info "ast_pool/glue stale - make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1"
+    make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || return 1
+  else
+    build_xlang_asm_info "ast_pool/glue stale - try-heat pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 (wave929)"
+    PIPELINE_X_FORCE_COMPILE=1 bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o || return 1
+  fi
   fi
   if [ ! -x ./scripts/relink_xlang_asm_experimental_bootstrap.sh ]; then
   return 1
@@ -4207,8 +4214,15 @@ ensure_parser_x_o_for_strict_link() {
   return 0
   fi
   if [ ! -f parser_x.o ] || [ src/parser/parser.x -nt parser_x.o ]; then
-  build_xlang_asm_info "make parser_x.o (strict link must override seed parser.o)"
-  make -s parser_x.o
+  # Wave929: shell migrate_x_objs.sh (no make; MIGRATE_X_OBJS body authority).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && command -v make >/dev/null 2>&1; then
+    build_xlang_asm_info "make parser_x.o (strict link must override seed parser.o)"
+    make -s parser_x.o
+  else
+    build_xlang_asm_info "migrate_x_objs parser_x.o (wave929; strict link override)"
+    bash scripts/migrate_x_objs.sh parser_x.o
+  fi
   fi
 }
 
@@ -4448,8 +4462,16 @@ ensure_gen_driver_typeck_companion_objs() {
     return 0
   fi
   if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    build_xlang_asm_info "gen_driver typeck companions (typeck_x.o + link alias)"
-    make typeck_x.o x_frontend_link_alias.o
+    # Wave929: shell migrate + try-heat (no make; MIGRATE_X_OBJS + R1_ALIAS_STUBS bodies).
+    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ]; then
+      build_xlang_asm_info "gen_driver typeck companions (typeck_x.o + link alias)"
+      make typeck_x.o x_frontend_link_alias.o
+    else
+      build_xlang_asm_info "gen_driver typeck companions (wave929; migrate + try-heat)"
+      bash scripts/migrate_x_objs.sh typeck_x.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat x_frontend_link_alias.o
+    fi
   fi
   XLANG_ASM_GEN_DRIVER_TYPECK_READY=1
 }
