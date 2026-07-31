@@ -577,7 +577,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   if [ -f pipeline_glue.c ] && [ -f pipeline_gen.c ]; then
     _glue_slice_stale=0
     for _gs in pipeline_typeck_ctfe.c pipeline_typeck_assign.c pipeline_typeck_coerce_init.c pipeline_typeck_method_call.c pipeline_typeck_check_block.c pipeline_typeck_region_assign.c pipeline_asm_emit_unary.c pipeline_asm_emit_as.c pipeline_asm_emit_return.c pipeline_asm_emit_logand.c pipeline_asm_emit_block_body.c pipeline_asm_emit_block_if_stmt.c pipeline_asm_emit_block_inits.c pipeline_typeck_field_access.c pipeline_typeck_soa.c \
-      ast_pool.c ast_pool_module_import.c ast_pool_struct_layout.c ast_pool_top_level.c ast_pool_type_alias.c ast_pool_expr_sidecar.c ast_pool_module_enum.c ast_pool_onefunc.c ast_pool_dep_ctx.c ast_pool_module_func.c ast_pool_arena.c ast_pool_bootstrap_glue.c; do
+      ast_pool.c ast_pool_module_import.c ast_pool_struct_layout.c ast_pool_top_level.c ast_pool_type_alias.c ast_pool_expr_sidecar.c ast_pool_module_enum.c ast_pool_onefunc.c ast_pool_dep_ctx.c ast_pool_module_func.c ast_pool_arena.c ast_pool_block.c ast_pool_bootstrap_glue.c; do
       if [ -f "$_gs" ] && [ "$_gs" -nt pipeline_x.o ]; then
         _glue_slice_stale=1
         break
