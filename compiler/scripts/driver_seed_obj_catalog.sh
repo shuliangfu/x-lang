@@ -498,12 +498,39 @@ catalog_expand_all_stored() {
 
 catalog_shell_dump() {
   catalog_shell_parse_all
+  # wave940: dump ALL stored keys, not just REQUIRED_KEYS. The cache file
+  # (XLANG_CATALOG_CACHE_FILE) is produced by `--shell` and must contain
+  # every key that --link-export / --cflags-export / --link-objs-export
+  # might query via catalog_get (e.g. BOOTSTRAP_DRIVER_SEED_PHASE1_LINK_OBJS,
+  # DRIVER_SEED_LINK_FLAGS, SEED_LINK_PURE_OK, etc.). These are set by
+  # catalog_parse_mk + catalog_expand_all_stored but are NOT in
+  # REQUIRED_KEYS. Dumping only REQUIRED_KEYS would starve the cache and
+  # break --link-export when it reuses a parent-warmed cache.
+  # --check still validates only REQUIRED_KEYS (parity + presence).
+  # PLATFORM: SHARED — same KEY=VALUE store on Darwin/Linux/Windows MSYS2.
   local k v
+  # First emit REQUIRED_KEYS (stable order for --check parity consumers).
   for k in "${REQUIRED_KEYS[@]}"; do
     v=$(catalog_get "$k")
     v=$(catalog_norm_ws "$v")
     printf '%s=%s\n' "$k" "$v"
   done
+  # Then emit all other keys from the store (dedup against REQUIRED_KEYS).
+  if [ -n "${_CAT_FILE:-}" ] && [ -f "$_CAT_FILE" ]; then
+    # Extract unique key names from the store, skip REQUIRED_KEYS.
+    local _seen _key _line
+    _seen=" $(printf '%s\n' "${REQUIRED_KEYS[@]}") "
+    while IFS='=' read -r _key _; do
+      [ -z "$_key" ] && continue
+      case "$_seen" in
+        *" $_key "*) continue ;;
+      esac
+      _seen="$_seen$_key "
+      v=$(catalog_get "$_key")
+      v=$(catalog_norm_ws "$v")
+      printf '%s=%s\n' "$_key" "$v"
+    done < "$_CAT_FILE"
+  fi
 }
 
 # wave924: Parse all mk files + host defaults into the store (shared by
@@ -512,6 +539,25 @@ catalog_shell_dump() {
 # without duplicating the include-order comments / catalog_parse_mk calls.
 catalog_shell_parse_all() {
   catalog_store_init
+  # wave940: Reuse parent's pre-warmed catalog cache when available.
+  # Without this, every invocation (bootstrap link, g05 ensure, rebuild
+  # leaves, filter scripts, ...) re-parses all 17 mk files. On Windows
+  # MinGW/Git Bash that is ~3min per call; a single bootstrap makes ~6
+  # catalog calls → 18+ min of redundant shell parsing that looks "hung".
+  # The cache file is a KEY=VALUE blob produced by `driver_seed_obj_catalog.sh
+  # --shell` (or a caller-supplied path). It contains every mk-derived key
+  # (DRIVER_SEED_OBJS, SEED_LINK_*, FILTER_*, etc.) but NOT the host-default
+  # keys (CC, CFLAGS, TARGET, CC_IS_CLANG, UNAME_*) which depend on the
+  # current process environment. So we still call catalog_seed_host_defaults
+  # (cheap: 1 `cc -v` probe + ~20 catalog_set) but skip all catalog_parse_mk
+  # calls (expensive: 17 mk files × shell parse). catalog_get is last-wins,
+  # so host-default keys appended after the cache take precedence.
+  # PLATFORM: SHARED — same KEY=VALUE semantics on Darwin/Linux/Windows MSYS2.
+  if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+    cat "${XLANG_CATALOG_CACHE_FILE}" >> "$_CAT_FILE"
+    catalog_seed_host_defaults
+    return 0
+  fi
   catalog_seed_host_defaults
   # Include order matches make dependency of lists
   # (user_asm → pipeline_x → r_lists → subcmd → mode → link_picks → export → composites).
