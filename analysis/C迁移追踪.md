@@ -33,7 +33,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~31.3k + `ast_pool` ~12.9k；8.3.1 二十刀（+asm_emit_binop）+ 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~31.1k + `ast_pool` ~12.9k；8.3.1 二十一刀（+asm_emit_cmp）+ 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -899,7 +899,7 @@
 
 | 文件（compiler/） | LOC | 角色 | 状态 |
 |-------------------|-----|------|------|
-| `pipeline_glue.c` | ~31,332 | 产品 mega glue（typeck/codegen/asm…） | 🟡 CTFE+…+asm_emit_field_access+asm_emit_binop 域已切出；其余仍在 |
+| `pipeline_glue.c` | ~31,059 | 产品 mega glue（typeck/codegen/asm…） | 🟡 CTFE+…+asm_emit_binop+asm_emit_cmp 域已切出；其余仍在 |
 | `pipeline_typeck_ctfe.c` | 1,177 | typeck CTFE 生产者切片（同 TU `#include`） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_assign.c` | 348 | typeck assign 域切片（lit 收窄 + EXPR_ASSIGN） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_coerce_init.c` | 460 | typeck coerce-init 域切片（lit/float/enum/call/array/struct…） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
@@ -920,6 +920,7 @@
 | `pipeline_asm_emit_panic.c` | ~121 | asm ELF PANIC／int div-zero face（xlang_panic_call + panic_elf + div0）切片 | 🟡 已抽出（wave999）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_field_access.c` | ~632 | asm ELF FIELD_ACCESS emit（layout_by_name + call_arg + call_base + var + fast）切片 | 🟡 已抽出（wave1000）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_binop.c` | ~904 | asm ELF BINOP emit（add／sub／mul／div／mod／and／bitwise／shift + unsigned／64bit + nested helpers）切片 | 🟡 已抽出（wave1001）；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_cmp.c` | ~315 | asm ELF relational CMP emit（eq/ne/lt/le/gt/ge + enum RHS + f32/f64/int finish）切片 | 🟡 已抽出（wave1002）；仍 host-cc 入 `pipeline_x` |
 | `ast_pool.c` | ~12,875 | AST 池 / MatchArm / sidecar | 🟡 module_import+…+top_level hoist_target／sum residual 已切；backend asm wrappers／path helpers 仍 core |
 | `ast_pool_module_import.c` | ~226 | module ImportEntry cold-twin accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_struct_layout.c` | ~385 | module StructLayout cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
@@ -975,6 +976,7 @@
   - ✅ asm PANIC／div-zero face thin：`pipeline_asm_emit_panic.c`（xlang_panic_call + panic_elf + panic_int_div_zero + divisor_zero_check_rbx · ~121 LOC）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 49→50 / g05 STALE / inventory 已收（wave999）
   - ✅ asm FIELD_ACCESS emit domain thin：`pipeline_asm_emit_field_access.c`（layout_by_name + call_arg struct／agg + call_base rvalue + var_field_access + field_access_elf_fast · ~583 LOC body）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 50→51 / g05 STALE / inventory 已收（wave1000）
   - ✅ asm BINOP emit domain thin：`pipeline_asm_emit_binop.c`（add／sub／mul／div／mod／and／bitwise／shift + unsigned／64bit + nested rax／rbx helpers · ~857 LOC body）自 glue 同 TU `#include` 抽出；panic include 前置；`PIPELINE_X_DEPS` COUNT 51→52 / g05 STALE / inventory 已收（wave1001）
+  - ✅ asm relational CMP emit domain thin：`pipeline_asm_emit_cmp.c`（emit_cmp_elf + enum RHS tag + 64bit/rex + f32/f64/int finish · ~278 LOC body）自 glue 同 TU `#include` 抽出；typekind_variant_tag 仍 glue（field_access 共享）；`PIPELINE_X_DEPS` COUNT 52→53 / g05 STALE / inventory 已收（wave1002）
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
 
 🟡 **8.3.2 `ast_pool.c` → .x / 已有 ast.x 权威收敛**
@@ -1801,7 +1803,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 二十刀（+binop）✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：下一 asm 域（cmp／leaf／call-arg…）或 8.3.3 field_access／soa**）  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 二十一刀（+cmp）✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：下一 asm 域（leaf／call-arg…）或 8.3.3 field_access／soa**）  
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  

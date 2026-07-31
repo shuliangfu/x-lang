@@ -98,6 +98,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_panic.c|8.3.1|asm ELF EXPR_PANIC + int div-zero panic face slice|100|present"
   "compiler/pipeline_asm_emit_field_access.c|8.3.1|asm ELF EXPR_FIELD_ACCESS emit domain slice|500|present"
   "compiler/pipeline_asm_emit_binop.c|8.3.1|asm ELF EXPR_BINOP emit (add/sub/mul/div/mod/and/bitwise/shift) slice|700|present"
+  "compiler/pipeline_asm_emit_cmp.c|8.3.1|asm ELF relational CMP emit (eq/ne/lt/le/gt/ge + f32/f64 finish) slice|200|present"
   # --- 8.3.3 typeck slices often pulled by glue ---
   "compiler/pipeline_typeck_field_access.c|8.3.3|field_access slice|500|present"
   "compiler/pipeline_typeck_soa.c|8.3.3|typeck SOA helper|50|present"
