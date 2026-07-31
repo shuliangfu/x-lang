@@ -14992,91 +14992,10 @@ static int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena, str
   return 0;
 }
 
-/**
- * 发射 call xlang_panic_(code, msg)；msg_ref==0 时第二参为 0。
- * x86/arm64 均先装 arg1 再 arg0，避免 arm64 覆盖 w0。
- */
-static int32_t pipeline_asm_emit_xlang_panic_call_elf_c(struct ast_ASTArena *arena,
-                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                            struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t code,
-                                                            int32_t msg_ref) {
-  static const uint8_t panic_nm[] = "xlang_panic_";
-
-  if (msg_ref > 0) {
-    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, msg_ref, ctx, ta) != 0)
-      return -1;
-  } else if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) {
-    return -1;
-  }
-  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
-    return -1;
-  if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, code, ta) != 0)
-    return -1;
-  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
-    return -1;
-  return backend_enc_call_arch(elf_ctx, (uint8_t *)panic_nm, 14, ta);
-}
-
-/**
- * EXPR_PANIC → xlang_panic_(has_msg, msg).
- * has_msg: 0 bare / 1 integer / 2 cstr pointer (STRING_LIT or TYPE_PTR).
- * PLATFORM: SHARED freestanding+asm — wave386 aligns with host-C has_msg=2 cstr print.
- * Second arg is pointer-width in arg1; runtime prints cstr when has_msg==2.
- */
-int32_t pipeline_asm_emit_panic_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                      int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  int32_t op_ref;
-  int32_t code;
-  int32_t is_cstr;
-  int32_t op_ty;
-  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
-    return -1;
-  op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-  if (op_ref <= 0) {
-    code = 0;
-  } else {
-    is_cstr = 0;
-    if (pipeline_expr_kind_ord_at(arena, op_ref) == 59) /* EXPR_STRING_LIT */ {
-      is_cstr = 1;
-    } else {
-      op_ty = pipeline_expr_resolved_type_ref(arena, op_ref);
-      if (op_ty > 0 && pipeline_type_kind_ord_at(arena, op_ty) == (int32_t)ast_TypeKind_TYPE_PTR)
-        is_cstr = 1;
-    }
-    code = is_cstr ? 2 : 1;
-  }
-  return pipeline_asm_emit_xlang_panic_call_elf_c(arena, elf_ctx, ctx, ta, code, op_ref);
-}
-
-/**
- * UB 收窄：发射 xlang_panic_(1, 0)（与 C codegen 整数除零检查一致）。
- */
-static int32_t pipeline_asm_emit_panic_int_div_zero_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  return pipeline_asm_emit_xlang_panic_call_elf_c(0, elf_ctx, 0, ta, 1, 0);
-}
-
-/**
- * 除数已在 rbx/w1 时做零检查；为零则 panic，否则继续 idiv/rem。
- * 须 enc_test_rbx（勿 mov rbx→rax），VAR 快速路径被除数仍在 w0/rax。
- */
-static int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  uint8_t ok_lbl[128];
-  int32_t ok_len;
-
-  ok_len = pipeline_asm_emit_next_label_c(ctx, ok_lbl, 64);
-  if (ok_len <= 0)
-    return -1;
-  if (backend_enc_test_rbx_rbx_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_jne_arch(elf_ctx, ok_lbl, ok_len, ta) != 0)
-    return -1;
-  if (pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_label_arch(elf_ctx, ok_lbl, ok_len, 0, ta) != 0)
-    return -1;
-  return 0;
-}
+/* BC 8.3.1: asm ELF EXPR_PANIC + integer div-zero panic face
+ * (xlang_panic_call + panic_elf + panic_int_div_zero + divisor_zero_check_rbx;
+ * Cap residual pure; same TU). */
+#include "pipeline_asm_emit_panic.c"
 
 /**
  * 判定 binop 左操作数是否无符号类型（u8/u32/u64/usize）。
