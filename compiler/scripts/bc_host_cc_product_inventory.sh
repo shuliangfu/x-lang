@@ -104,6 +104,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_vector_let.c|8.3.1|asm ELF vector_let / fixed-array field store (leaf + flat + vector_let + frame_mag + store_fixed) slice|550|present"
   "compiler/pipeline_asm_emit_vector_simd.c|8.3.1|asm ELF SIMD vector lane / shuffle / select / fma emit domain slice|1200|present"
   "compiler/pipeline_asm_emit_struct_let.c|8.3.1|asm ELF struct let-init (struct_let_init + type_let_init + sret shift) slice|150|present"
+  "compiler/pipeline_asm_emit_index_helpers.c|8.3.1|asm ELF INDEX residual helpers (slot+esz+try_index forest+lvalue_eff_addr) slice|2500|present"
   # --- 8.3.3 typeck slices often pulled by glue ---
   "compiler/pipeline_typeck_field_access.c|8.3.3|field_access slice|500|present"
   "compiler/pipeline_typeck_soa.c|8.3.3|typeck SOA helper|50|present"
