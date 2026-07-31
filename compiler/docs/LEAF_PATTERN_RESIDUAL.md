@@ -4709,4 +4709,110 @@ PHYS_DEL_PREFLIGHT_R2_PANIC_LIST_MK=1
 `DRIVER_SEED_PANIC_OBJS` in export_lists; re-open dual hybrid PREFER body;
 hardcode panic `.o` list in shell (catalog KEY only).
 
+## wave867 B7B archaeology host-pick LD_R_MULTIDEF hygiene (2026-07-31)
+
+> **Why:** archaeology host-pick phonies (wave815/839) emitted `-Wl,--allow-multiple-definition`
+> (LD_R_MULTIDEF) via Makefile recipe inject. Shell-primary `archaeology_host_pick_phony.sh`
+> now owns LD flags; Makefile no longer injects LD_R_MULTIDEF. B7B hygiene closed.
+
+## wave868 bootstrap-driver-bstrict-relink shell-primary (2026-07-31)
+
+> **Why:** `bootstrap-driver-bstrict-relink` target was a Makefile recipe with inline
+> link logic. Migrated to shell-primary `bootstrap_driver_bstrict_relink.sh`; Makefile
+> thin-calls the shell. B7B shell-primary closed.
+
+## wave869 bootstrap-driver-crt0 shell-primary (2026-07-31)
+
+> **Why:** `bootstrap-driver-crt0` target was a Makefile recipe. Migrated to
+> shell-primary `bootstrap_driver_crt0.sh`; Makefile thin-calls the shell.
+
+## wave870 check-7.2 shell-primary (2026-07-31)
+
+> **Why:** `check-7.2` target was a Makefile recipe. Migrated to shell-primary
+> `check_7_2.sh`; Makefile thin-calls the shell.
+
+## wave871 check-6.4 shell-primary (2026-07-31)
+
+> **Why:** `check-6.4` target was a Makefile recipe. Migrated to shell-primary
+> `check_6_4.sh`; Makefile thin-calls the shell.
+
+## wave872 bootstrap-driver-hybrid shell-primary (2026-07-31)
+
+> **Why:** `bootstrap-driver-hybrid` target was a Makefile recipe. Migrated to
+> shell-primary `bootstrap_driver_hybrid.sh`; Makefile thin-calls the shell.
+
+## wave873 regen-lsp-gens-x shell-primary (2026-07-31)
+
+> **Why:** `regen-lsp-gens-x` target was a Makefile recipe. Migrated to
+> shell-primary `regen_lsp_gens_x.sh`; Makefile thin-calls the shell.
+
+## wave874 build-via-tool shell-primary (2026-07-31)
+
+> **Why:** `build-via-tool` target was a Makefile recipe. Migrated to
+> shell-primary `build_via_tool.sh`; Makefile thin-calls the shell.
+
+## wave875 size/perf-baseline shell-primary (2026-07-31)
+
+> **Why:** `size` and `perf-baseline` targets were Makefile recipes. Migrated to
+> shell-primary `size_perf_baseline.sh`; Makefile thin-calls the shell.
+
+## wave881 try-heat PREFER inject hygiene (2026-07-31)
+
+> **Why:** try-heat PREFER inject for R3/g05 families passed CFLAGS via Makefile
+> recipe env. Shell-primary `ensure_host_cc_seed_o.sh` now owns PREFER inject;
+> Makefile no longer duplicates CFLAGS env. B7B hygiene closed.
+
+## wave895 std_x product edges list→mk (2026-07-31)
+
+> **Why:** STD_X_PRODUCT_OBJS per-leaf recipes collapsed into single multi-target
+> `$(STD_X_PRODUCT_OBJS): FORCE` + ensure. List authority: `mk/std_x_product_objs.mk`.
+> std_x product edges list→mk migration closed.
+
+## wave896 driver_leaf product edges list→mk (2026-07-31)
+
+> **Why:** DRIVER_LEAF_PRODUCT_OBJS per-leaf recipes collapsed into single
+> multi-target `$(DRIVER_LEAF_PRODUCT_OBJS): FORCE` + ensure. List authority:
+> `mk/driver_leaf_product_objs.mk`. driver_leaf product edges list→mk closed.
+
+## wave897 B2 std_core hybrid product edges list→mk (2026-07-31)
+
+> **Why:** STD_CORE_HYBRID_PRODUCT_OBJS per-leaf recipes collapsed into single
+> multi-target `$(STD_CORE_HYBRID_PRODUCT_OBJS): FORCE` + try-heat. List authority:
+> `mk/std_core_hybrid_product_objs.mk`. B2 std_core hybrid product edges list→mk closed.
+
+## wave907 ASYNC_THREE multi-target FORCE thin (2026-07-31)
+
+> **Why:** ASYNC_THREE_SEED_OBJS per-leaf recipes collapsed into single multi-target
+> FORCE thin. ASYNC_THREE multi-target FORCE thin closed.
+
+## wave908 B1_RUNTIME_OS multi-target FORCE thin (2026-07-31)
+
+> **Why:** B1_RUNTIME_OS_SEED_OBJS per-leaf recipes collapsed into single multi-target
+> FORCE thin. B1_RUNTIME_OS multi-target FORCE thin closed.
+
+## wave909 GEN_X multi-target FORCE thin (2026-07-31)
+
+> **Why:** GEN_X_SEED_OBJS per-leaf recipes collapsed into single multi-target
+> FORCE thin. GEN_X multi-target FORCE thin closed.
+
+## wave910 GEN_C_TO_O multi-target FORCE thin (2026-07-31)
+
+> **Why:** GEN_C_TO_O_SEED_OBJS per-leaf recipes collapsed into single multi-target
+> FORCE thin. GEN_C_TO_O multi-target FORCE thin closed.
+
+## wave911 B3_LSP_SAT multi-target FORCE thin (2026-07-31)
+
+> **Why:** B3_LSP_SAT_SEED_OBJS per-leaf recipes collapsed into single multi-target
+> FORCE thin. B3_LSP_SAT multi-target FORCE thin closed.
+
+## wave912 FMT_CHECK multi-target FORCE thin (2026-07-31)
+
+> **Why:** FMT_CHECK_SEED_OBJS per-leaf recipes collapsed into single multi-target
+> FORCE thin. FMT_CHECK multi-target FORCE thin closed.
+
+## wave913 R2 CRT0 multi-target FORCE thin (2026-07-31)
+
+> **Why:** DRIVER_SEED_CRT0_OBJS per-leaf recipes collapsed into single multi-target
+> FORCE thin. R2 CRT0 multi-target FORCE thin closed.
+
 

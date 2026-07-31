@@ -514,6 +514,8 @@ case "$TARGET" in
   bootstrap-driver-seed)
     # Cold-start: thin Makefile phony → bootstrap_driver_seed.sh
     # (wave744: shell ensure_prereqs then §5b sequence; lists via catalog)
+    # wave933 prep: Makefile still needed for .o compile rules until
+    # driver_seed_ensure_prereqs.sh make-call migration is complete.
     run_compiler_make bootstrap-driver-seed
     ;;
   compiler-make)
