@@ -1347,9 +1347,10 @@ B7B_RELINK_LEGACY_LIST_MK=mk/driver_seed_composites.mk
 B7B_RELINK_LEGACY_LIST_WAVE=wave822
 # wave823: B7B source-path inventories → mk/x_source_deps.mk (G.7).
 # SRCS (4) + MAIN_X_DEPS (4) + PREPROCESS_X_DEPS (1) + PIPELINE_X_DEPS fixed
-# paths (44; excludes $(PIPELINE_ASM_X_DEPS) wildcard token) = COUNT=53.
-# 8.3.1+8.3.2: +34 #include slices (ctfe/.../soa + asm_emit_assign + asm_emit_index +
+# paths (45; excludes $(PIPELINE_ASM_X_DEPS) wildcard token) = COUNT=54.
+# 8.3.1+8.3.2: +35 #include slices (ctfe/.../soa + asm_emit_assign + asm_emit_index +
 #   asm_emit_match + asm_emit_panic + asm_emit_field_access + asm_emit_binop + asm_emit_cmp +
+#   asm_emit_call_args +
 #   ast_pool_module_import + ast_pool_struct_layout + ast_pool_top_level +
 #   ast_pool_type_alias + ast_pool_expr_sidecar + ast_pool_module_enum +
 #   ast_pool_onefunc + ast_pool_dep_ctx + ast_pool_module_func + ast_pool_arena +
@@ -1357,7 +1358,7 @@ B7B_RELINK_LEGACY_LIST_WAVE=wave822
 # NOT physical delete — thin edges + std_core product make graph remain.
 PHYS_DEL_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823/8.3.1
-PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=53
+PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=54
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_VIA=mk_x_source_deps
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_NOTE=list_authority_mk_include_only_thin_edges_remain
 SWALLOWED_B7B_SOURCE_DEPS_LIST=1
@@ -4464,8 +4465,8 @@ fi
 if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823"
 fi
-if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=53' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=53 (8.3.1 cmp emit face)"
+if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=54' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=54 (8.3.1 call_args emit face)"
 fi
 if ! grep -q 'SWALLOWED_B7B_SOURCE_DEPS_LIST=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7B_SOURCE_DEPS_LIST=1 (wave823)"
@@ -9038,8 +9039,8 @@ fi
 if ! grep -qE '^PIPELINE_X_DEPS\s*=' "$_XSD_MK"; then
   bad "$_XSD_MK must define PIPELINE_X_DEPS (wave823)"
 fi
-# Fixed multi-token authority COUNT=53 (8.3.1: +1 asm_emit_cmp slice):
-#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths 44
+# Fixed multi-token authority COUNT=54 (8.3.1: +1 asm_emit_call_args slice):
+#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths 45
 #   (exclude $(PIPELINE_ASM_X_DEPS) expansion token).
 _xsd_n=$(awk '
   function count_fixed(line,   n, a, i, c) {
@@ -9060,8 +9061,8 @@ _xsd_n=$(awk '
   /^PIPELINE_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
   END { print t+0 }
 ' "$_XSD_MK")
-if [ "${_xsd_n:-0}" -ne 53 ]; then
-  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 53 in mk, got ${_xsd_n:-0}"
+if [ "${_xsd_n:-0}" -ne 54 ]; then
+  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 54 in mk, got ${_xsd_n:-0}"
 fi
 # wave965: PIPELINE_X_DEPS must list #include slices so STALE rebuilds pipeline_x.
 if ! grep -qE 'pipeline_typeck_ctfe\.c' "$_XSD_MK"; then
@@ -9126,6 +9127,9 @@ if ! grep -qE 'pipeline_asm_emit_binop\.c' "$_XSD_MK"; then
 fi
 if ! grep -qE 'pipeline_asm_emit_cmp\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_cmp.c (8.3.1 asm_emit_cmp slice)"
+fi
+if ! grep -qE 'pipeline_asm_emit_call_args\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_call_args.c (8.3.1 asm_emit_call_args slice)"
 fi
 if ! grep -qE 'ast_pool_module_import\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_module_import.c (8.3.2 module_import slice)"
