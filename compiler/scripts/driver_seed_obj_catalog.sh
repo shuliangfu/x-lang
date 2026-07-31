@@ -117,6 +117,8 @@ REQUIRED_KEYS=(
   FMT_CHECK_SEED_OBJS
   MIGRATE_X_OBJS
   DRIVER_LEAF_PRODUCT_OBJS
+  FILTER_AGAINST_PARTIAL_OBJS
+  FILTER_PIPELINE_OBJS
 )
 
 # ---------------------------------------------------------------------------

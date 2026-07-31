@@ -99,12 +99,71 @@ fi
 trap 'if [ "${_bootstrap_cat_owned:-0}" = "1" ]; then rm -f "${_bootstrap_cat_cache:-}" /tmp/xlang_bootstrap_cat_err_$$.txt; fi' EXIT HUP INT TERM
 
 # --- §5b whitelist make helper (only named leaves; no free-form recipes) ---
-# wave934: 10 phony thin-call targets migrated to direct shell invocation.
-# mk() retained for 3 targets with .o dependencies (asm-host, filtered-objs,
-# and ensure_prereqs --run which compiles 53 .o/.c leaves via make).
+# wave936: all mk calls migrated to direct shell. mk() retained only for
+# XLANG_SKIP_SUBSCRIPT_MAKE re-entry path (line 68) which needs make-graph
+# composites.mk / export leaves for full cold bootstrap when TARGET missing.
+# Default cold path (TARGET present or fresh build) is 100% shell.
 mk() {
   # shellcheck disable=SC2086
   "$MAKE" "$@"
+}
+
+# wave936: shell-primary asm-host + filtered-objs (was mk thin-call).
+# Catalog cache is already warmed above (XLANG_CATALOG_CACHE_FILE).
+# PLATFORM: SHARED — Darwin non-empty filtered; Linux empty.
+_ensure_asm_host_dispatch_objs() {
+  # 5 DRIVER_SEED_ASM_HOST_DISPATCH_OBJS already compiled by ensure_prereqs
+  # (R3_COLD_SEED_OBJS + R1_MISC_BASENAME_OBJS). Verify existence; if any
+  # missing, re-run try-heat for that leaf (G.7 single body).
+  local _dispatch_objs _obj
+  _dispatch_objs=$(sed -n 's/^DRIVER_SEED_ASM_HOST_DISPATCH_OBJS=//p' \
+    "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null | head -1)
+  if [ -z "${_dispatch_objs// /}" ]; then
+    _dispatch_objs=$(bash scripts/driver_seed_obj_catalog.sh 2>/dev/null \
+      | sed -n 's/^DRIVER_SEED_ASM_HOST_DISPATCH_OBJS=//p' | head -1)
+  fi
+  # shellcheck disable=SC2086
+  for _obj in $_dispatch_objs; do
+    if [ ! -s "$_obj" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh try-heat "$_obj" >&2 || \
+        log "WARN try-heat $_obj failed (asm-host dispatch)"
+    fi
+  done
+}
+
+_ensure_filtered_objs() {
+  # BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS on Darwin = 4 filtered .o + 7 plain .o.
+  # Plain .o already compiled by ensure_prereqs. Filtered .o need filter script
+  # ensure (FILTER_AGAINST_PARTIAL_OBJS + FILTER_PIPELINE_OBJS in catalog).
+  # Linux: BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS empty → no-op.
+  local _filtered_objs _against_partial _pipeline _obj
+  _filtered_objs=$(sed -n 's/^BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS=//p' \
+    "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null | head -1)
+  if [ -z "${_filtered_objs// /}" ]; then
+    _filtered_objs=$(bash scripts/driver_seed_obj_catalog.sh 2>/dev/null \
+      | sed -n 's/^BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS=//p' | head -1)
+  fi
+  [ -z "${_filtered_objs// /}" ] && return 0
+  _against_partial=$(sed -n 's/^FILTER_AGAINST_PARTIAL_OBJS=//p' \
+    "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null | head -1)
+  _pipeline=$(sed -n 's/^FILTER_PIPELINE_OBJS=//p' \
+    "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null | head -1)
+  # shellcheck disable=SC2086
+  for _obj in $_filtered_objs; do
+    case " $_against_partial " in *" $_obj "*)
+      bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure "$_obj" >&2 || \
+        log "WARN filter ensure $_obj failed"
+      continue ;;
+    esac
+    case " $_pipeline " in *" $_obj "*)
+      bash scripts/filter_bootstrap_seed_pipeline_o.sh ensure "$_obj" >&2 || \
+        log "WARN filter ensure $_obj failed"
+      continue ;;
+    esac
+    # Plain .o: already compiled by ensure_prereqs; skip if present.
+    [ -s "$_obj" ] || bash scripts/ensure_host_cc_seed_o.sh try-heat "$_obj" >&2 || \
+      log "WARN try-heat $_obj failed (filtered-objs plain dep)"
+  done
 }
 
 # 0) wave744: satisfy DRIVER_SEED_PREREQS edges via catalog (G.7 single list).
@@ -168,7 +227,10 @@ bash scripts/bootstrap_driver_seed_rebuild_leaves.sh user-asm
 bash scripts/bootstrap_driver_seed_rebuild_leaves.sh glue
 
 # 8) build-seed-asm-host (§5b #8 thin leaf → build_seed_asm_host.sh)
-mk bootstrap-driver-seed-asm-host
+# wave936: direct shell invocation (was mk bootstrap-driver-seed-asm-host).
+# 5 DRIVER_SEED_ASM_HOST_DISPATCH_OBJS already compiled by ensure_prereqs.
+_ensure_asm_host_dispatch_objs
+bash scripts/build_seed_asm_host.sh
 
 if [ ! -s build_asm/seed_host/asm_backend_partial.o ]; then
   log "no seed partial, gen phase1 backend stub ..."
@@ -183,9 +245,10 @@ rm -f build_asm/seed_host/asm_full_link_stubs.o build_asm/seed_host/asm_full_lin
 bash scripts/bootstrap_driver_seed_host_stubs.sh
 
 # 10) class-G filtered.o (Darwin product chain; empty on Linux)
-# wave934: retained as mk call — target has $(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)
-# dependency (.o compile rules still in Makefile; Darwin non-empty, Linux empty).
-mk bootstrap-driver-seed-filtered-objs
+# wave936: direct shell invocation (was mk bootstrap-driver-seed-filtered-objs).
+# Darwin: 4 filtered .o via filter script ensure + 7 plain .o (ensure_prereqs).
+# Linux: BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS empty → no-op.
+_ensure_filtered_objs
 
 # 11a) phase1 link → xlang-seed-phase1
 # wave934: direct shell invocation (was mk bootstrap-driver-seed-phase1-link).

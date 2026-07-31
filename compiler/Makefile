@@ -1527,6 +1527,8 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'FMT_CHECK_SEED_OBJS=%s\n' '$(FMT_CHECK_SEED_OBJS)'
 	@printf 'MIGRATE_X_OBJS=%s\n' '$(MIGRATE_X_OBJS)'
 	@printf 'DRIVER_LEAF_PRODUCT_OBJS=%s\n' '$(DRIVER_LEAF_PRODUCT_OBJS)'
+	@printf 'FILTER_AGAINST_PARTIAL_OBJS=%s\n' '$(FILTER_AGAINST_PARTIAL_OBJS)'
+	@printf 'FILTER_PIPELINE_OBJS=%s\n' '$(FILTER_PIPELINE_OBJS)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.
