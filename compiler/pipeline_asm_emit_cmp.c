@@ -14,7 +14,8 @@
  * G.7: single product-mega CMP ELF face — do not open a second setcc finish
  * or second 64-bit width table. TypeKind name→tag table
  * (pipeline_asm_typekind_variant_tag) stays in glue (shared with field_access).
- * Operand load placement helper glue_try_binop_cmp_rbx_rax_elf_c stays in glue
+ * Operand load placement helper glue_try_binop_cmp_rbx_rax_elf_c lives in
+ * pipeline_asm_emit_binop.c (wave1018 G.7 fold; same TU before this include).
  * (shared with binop operand stack discipline).
  *
  * Callers: pipeline_asm_emit_expr_elf_rec cmp arms (kind 10..15).
