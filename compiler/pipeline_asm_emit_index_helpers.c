@@ -20,14 +20,14 @@
  * G.7: single product-mega INDEX residual-helper face — do not open a second
  * try_index forest or lvalue_eff_addr path. Face emitters stay in
  * pipeline_asm_emit_index.c; glue_emit_index_eff_addr_scaled_elf_c /
- * index assign finish_store / bulk_mem_copy_spills / Chaitin spill remain
- * later in pipeline_glue.c (same TU).
+ * index assign finish_store / bulk_mem_copy_spills / Chaitin spill live in
+ * pipeline_asm_emit_spill.c (same TU, immediately after this include).
  *
  * Callers: pipeline_asm_emit_index.c; assign INDEX lhs; call-arg base;
  * field_access INDEX-rooted chains; expr_elf_rec INDEX/ADDR_OF/DEREF.
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c immediately
- * after pipeline_asm_emit_struct_let.c (before 7.3 live/spill residual).
+ * after pipeline_asm_emit_struct_let.c (before pipeline_asm_emit_spill.c).
  *
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
  *   · LINUX+MACOS x86_64 SysV — lea/load slot + scaled index
@@ -45,7 +45,7 @@
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index
  *
  * Note: binop_stack_spill CAP statics live here (shared index-scratch depth
- * with 7.3 spill); their method bodies stay later in glue.
+ * with 7.3 spill); their method bodies live in pipeline_asm_emit_spill.c.
  */
 
 /** INDEX 元素字节宽（前向声明，定义见本文件后部）。 */
