@@ -7849,6 +7849,24 @@ elif ! grep -q 'ensure_xlang_c\.sh ensure' "$_hc"; then
 else
   note "cfg-eval soft xlang-c → ensure_xlang_c.sh (wave950; 0-make)"
 fi
+# wave951: run_compiler_tests product ensure shell-primary (0-make post-delete).
+# Default path: bootstrap_driver_seed + ensure_xlang_c; escape VIA_MAKE + MF only.
+# PLATFORM: SHARED — test_c/test_x entry after Makefile phys-del.
+_rct="$ROOT/compiler/scripts/run_compiler_tests.sh"
+[ -f "$_rct" ] || _rct="scripts/run_compiler_tests.sh"
+if [ ! -f "$_rct" ]; then
+  bad "missing run_compiler_tests.sh (wave951 test ensure 0-make)"
+elif ! grep -q 'XLANG_TEST_ENSURE_VIA_MAKE' "$_rct"; then
+  bad "run_compiler_tests must document XLANG_TEST_ENSURE_VIA_MAKE escape (wave951)"
+elif ! grep -q 'bootstrap_driver_seed\.sh' "$_rct"; then
+  bad "run_compiler_tests must shell-call bootstrap_driver_seed.sh (wave951 0-make)"
+elif ! grep -q 'ensure_xlang_c\.sh' "$_rct"; then
+  bad "run_compiler_tests must shell-call ensure_xlang_c.sh for missing xlang-c (wave951)"
+elif ! grep -q 'wave951' "$_rct"; then
+  bad "run_compiler_tests must document wave951 shell-primary ensure"
+else
+  note "run_compiler_tests ensure → bootstrap_driver_seed + ensure_xlang_c (wave951; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then
