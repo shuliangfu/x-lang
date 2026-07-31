@@ -30,7 +30,7 @@
 # PLATFORM: SHARED — inventory of sources; ABI lives in the residual bodies.
 # Wave: 963 open BC + 8.3.9 orphan gone (analysis/_debug_io_ctx_gen.c was
 # gitignored local scratch; --check asserts ABSENT).
-# 8.3.1 domain thin cuts: ctfe + assign + coerce_init + method_call + check_block + region_assign + asm_emit_unary (#include TU).
+# 8.3.1 domain thin cuts: ctfe + assign + coerce_init + method_call + check_block + region_assign + asm_emit_unary + asm_emit_as (#include TU).
 
 set -euo pipefail
 
@@ -67,6 +67,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_typeck_check_block.c|8.3.1|typeck check_block orchestration slice|250|present"
   "compiler/pipeline_typeck_region_assign.c|8.3.1|typeck region/escape assign-site slice|350|present"
   "compiler/pipeline_asm_emit_unary.c|8.3.1|asm ELF unary emit (NEG/LOGNOT/BITNOT) slice|200|present"
+  "compiler/pipeline_asm_emit_as.c|8.3.1|asm ELF as/await/try/float-lit emit slice|350|present"
   # --- 8.3.3 typeck slices often pulled by glue ---
   "compiler/pipeline_typeck_field_access.c|8.3.3|field_access slice|500|present"
   "compiler/pipeline_typeck_soa.c|8.3.3|typeck SOA helper|50|present"
@@ -244,7 +245,7 @@ run_check() {
     echo "bc_host_cc_product_inventory: --check FAILED" >&2
     exit 1
   fi
-  echo "bc_host_cc_product_inventory: CHECK OK (BC open · 8.3.1 ctfe+assign+coerce_init+method_call+check_block+region_assign+asm_emit_unary slices present · 8.3.9 absent · host-cc residual still required)" >&2
+  echo "bc_host_cc_product_inventory: CHECK OK (BC open · 8.3.1 ctfe+assign+coerce_init+method_call+check_block+region_assign+asm_emit_unary+asm_emit_as slices present · 8.3.9 absent · host-cc residual still required)" >&2
 }
 
 case "$MODE" in

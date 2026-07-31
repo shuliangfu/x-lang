@@ -576,7 +576,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # PLATFORM: SHARED — Linux 允许多定义时也应以无内嵌为真值。
   if [ -f pipeline_glue.c ] && [ -f pipeline_gen.c ]; then
     _glue_slice_stale=0
-    for _gs in pipeline_typeck_ctfe.c pipeline_typeck_assign.c pipeline_typeck_coerce_init.c pipeline_typeck_method_call.c pipeline_typeck_check_block.c pipeline_typeck_region_assign.c pipeline_asm_emit_unary.c pipeline_typeck_field_access.c pipeline_typeck_soa.c \
+    for _gs in pipeline_typeck_ctfe.c pipeline_typeck_assign.c pipeline_typeck_coerce_init.c pipeline_typeck_method_call.c pipeline_typeck_check_block.c pipeline_typeck_region_assign.c pipeline_asm_emit_unary.c pipeline_asm_emit_as.c pipeline_typeck_field_access.c pipeline_typeck_soa.c \
       ast_pool.c ast_pool_bootstrap_glue.c; do
       if [ -f "$_gs" ] && [ "$_gs" -nt pipeline_x.o ]; then
         _glue_slice_stale=1

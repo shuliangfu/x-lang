@@ -899,7 +899,7 @@
 
 | 文件（compiler/） | LOC | 角色 | 状态 |
 |-------------------|-----|------|------|
-| `pipeline_glue.c` | ~36,274 | 产品 mega glue（typeck/codegen/asm/match…） | 🟡 CTFE+assign+coerce_init+method_call+check_block+region_assign+asm_emit_unary 域已切出；其余仍在 |
+| `pipeline_glue.c` | ~35,891 | 产品 mega glue（typeck/codegen/asm/match…） | 🟡 CTFE+assign+coerce_init+method_call+check_block+region_assign+asm_emit_unary+asm_emit_as 域已切出；其余仍在 |
 | `pipeline_typeck_ctfe.c` | 1,177 | typeck CTFE 生产者切片（同 TU `#include`） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_assign.c` | 348 | typeck assign 域切片（lit 收窄 + EXPR_ASSIGN） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_coerce_init.c` | 460 | typeck coerce-init 域切片（lit/float/enum/call/array/struct…） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
@@ -907,6 +907,7 @@
 | `pipeline_typeck_check_block.c` | 312 | typeck check_block 编排切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_region_assign.c` | 450 | typeck region/escape assign-site 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_unary.c` | 259 | asm ELF unary emit（NEG/LOGNOT/BITNOT）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_as.c` | 411 | asm ELF as/await/try/float-lit emit 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool.c` | 18,109 | AST 池 / MatchArm / sidecar | ⬜ |
 | `pipeline_typeck_field_access.c` | 1,477 | field_access 权威切片（常被 glue 拉入） | ⬜ |
 | `pipeline_typeck_soa.c` | 255 | typeck SOA 辅助 | ⬜ |
@@ -919,7 +920,7 @@
 
 | 消费方 | 如何引用 | 风险 |
 |--------|----------|------|
-| `compiler/mk/x_source_deps.mk` `PIPELINE_X_DEPS` | glue + ctfe/assign/coerce_init/method_call/check_block/region_assign/asm_emit_unary/field_access/soa 切片 + `ast_pool` + bootstrap glue | 改源必重编 pipeline_x |
+| `compiler/mk/x_source_deps.mk` `PIPELINE_X_DEPS` | glue + ctfe/assign/coerce_init/method_call/check_block/region_assign/asm_emit_unary/asm_emit_as/field_access/soa 切片 + `ast_pool` + bootstrap glue | 改源必重编 pipeline_x |
 | g05 / standalone seed 链 | standalone seed + glue + types.inc | weak 孪生与主链分叉 |
 | `g05_ensure_relink_prereqs.sh` | mtime vs pipeline_x / standalone；切片 STALE | 产品热路径仍 host-cc 重编 |
 | `pipeline_gen.c` / `-E` runtime 路径 | 入口 pipeline.x 时追加 glue 到 stdout | 与 gen 双权威风险 |
@@ -938,8 +939,9 @@
   - ✅ check_block 域 thin：`pipeline_typeck_check_block.c`（block_impl ctx + loop/unsafe depth + check_block_impl_c + weak fallback + check_block_c + as_loop_body）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 25→26 / g05 STALE / inventory 已收
   - ✅ region-assign 域 thin：`pipeline_typeck_region_assign.c`（M-3 slice region + return slice + WPO-S3 stack-escape assign + MEM-A3 scope-borrow + MEM-C1 with_arena/allocator region）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 26→27 / g05 STALE / inventory 已收
   - ✅ asm unary emit 域 thin：`pipeline_asm_emit_unary.c`（NEG/LOGNOT/BITNOT + sxt/jz）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 27→28 / g05 STALE / inventory 已收
+  - ✅ asm as/await/try/float-lit emit 域 thin：`pipeline_asm_emit_as.c` 自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 28→29 / g05 STALE / inventory 已收
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
-  - ⬜ 下一域候选：asm emit 续（return/as/logand/block body）/ 8.3.2 ast_pool
+  - ⬜ 下一域候选：return / logand·logor / block body / 8.3.2 ast_pool
 
 ⬜ **8.3.2 `ast_pool.c` → .x / 已有 ast.x 权威收敛**
 
@@ -1746,7 +1748,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · CTFE ✅ · assign ✅ · coerce_init ✅ · method_call ✅ · check_block ✅ · region_assign ✅ · asm_emit_unary ✅ · 8.3.9 ✅ · **当前：8.3.1 下一域 / 8.3.2**）  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · CTFE ✅ · assign ✅ · coerce_init ✅ · method_call ✅ · check_block ✅ · region_assign ✅ · asm_emit_unary ✅ · asm_emit_as ✅ · 8.3.9 ✅ · **当前：8.3.1 下一域 / 8.3.2**）  
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  

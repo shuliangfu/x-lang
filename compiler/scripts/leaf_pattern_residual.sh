@@ -1347,12 +1347,12 @@ B7B_RELINK_LEGACY_LIST_MK=mk/driver_seed_composites.mk
 B7B_RELINK_LEGACY_LIST_WAVE=wave822
 # wave823: B7B source-path inventories → mk/x_source_deps.mk (G.7).
 # SRCS (4) + MAIN_X_DEPS (4) + PREPROCESS_X_DEPS (1) + PIPELINE_X_DEPS fixed
-# paths (19; excludes $(PIPELINE_ASM_X_DEPS) wildcard token) = COUNT=28.
-# 8.3.1: +9 #include slices (ctfe/assign/coerce_init/method_call/check_block/region_assign/asm_emit_unary/field_access/soa) into PIPELINE_X_DEPS STALE.
+# paths (20; excludes $(PIPELINE_ASM_X_DEPS) wildcard token) = COUNT=29.
+# 8.3.1: +10 #include slices (ctfe/assign/coerce_init/method_call/check_block/region_assign/asm_emit_unary/asm_emit_as/field_access/soa) into PIPELINE_X_DEPS STALE.
 # NOT physical delete — thin edges + std_core product make graph remain.
 PHYS_DEL_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823/8.3.1
-PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=28
+PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=29
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_VIA=mk_x_source_deps
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_NOTE=list_authority_mk_include_only_thin_edges_remain
 SWALLOWED_B7B_SOURCE_DEPS_LIST=1
@@ -4459,8 +4459,8 @@ fi
 if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823"
 fi
-if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=28' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=28 (8.3.1 slices)"
+if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=29' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=29 (8.3.1 slices)"
 fi
 if ! grep -q 'SWALLOWED_B7B_SOURCE_DEPS_LIST=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7B_SOURCE_DEPS_LIST=1 (wave823)"
@@ -9033,8 +9033,8 @@ fi
 if ! grep -qE '^PIPELINE_X_DEPS\s*=' "$_XSD_MK"; then
   bad "$_XSD_MK must define PIPELINE_X_DEPS (wave823)"
 fi
-# Fixed multi-token authority COUNT=28 (8.3.1: was 27; +1 asm_emit_unary slice):
-#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths 19
+# Fixed multi-token authority COUNT=29 (8.3.1: was 28; +1 asm_emit_as slice):
+#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths 20
 #   (exclude $(PIPELINE_ASM_X_DEPS) expansion token).
 _xsd_n=$(awk '
   function count_fixed(line,   n, a, i, c) {
@@ -9055,8 +9055,8 @@ _xsd_n=$(awk '
   /^PIPELINE_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
   END { print t+0 }
 ' "$_XSD_MK")
-if [ "${_xsd_n:-0}" -ne 28 ]; then
-  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 28 in mk, got ${_xsd_n:-0}"
+if [ "${_xsd_n:-0}" -ne 29 ]; then
+  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 29 in mk, got ${_xsd_n:-0}"
 fi
 # wave965: PIPELINE_X_DEPS must list #include slices so STALE rebuilds pipeline_x.
 if ! grep -qE 'pipeline_typeck_ctfe\.c' "$_XSD_MK"; then
@@ -9079,6 +9079,9 @@ if ! grep -qE 'pipeline_typeck_region_assign\.c' "$_XSD_MK"; then
 fi
 if ! grep -qE 'pipeline_asm_emit_unary\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_unary.c (8.3.1 asm_emit_unary slice)"
+fi
+if ! grep -qE 'pipeline_asm_emit_as\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_as.c (8.3.1 asm_emit_as slice)"
 fi
 if ! grep -qE 'pipeline_typeck_field_access\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_typeck_field_access.c (wave965 STALE)"
