@@ -1013,7 +1013,8 @@
   - ✅ asm struct let-init domain thin：`pipeline_asm_emit_struct_let.c`（struct_let_init + glue_emit_struct_type_let_init + sret reg shift · ~176 LOC body／~215 file）自 glue 同 TU `#include` 抽出；store_retval／type_size 仍 glue；`PIPELINE_X_DEPS` COUNT 57→58 / g05 STALE / inventory 已收（wave1007）
   - ✅ asm INDEX residual helpers domain thin：`pipeline_asm_emit_index_helpers.c`（module_from_ctx + param/local slot + field_type_ref + fixed_array_total_bytes + index_elem_byte_sz_from_type_ref + try_index forest + soa_index_field_addr + lvalue_eff_addr · ~2988 LOC body／~3038 file）自 glue 同 TU `#include` 抽出；eff_addr_scaled／assign finish_store／bulk_mem_copy／Chaitin spill 仍 glue；`PIPELINE_X_DEPS` COUNT 58→59 / g05 STALE / inventory 已收（wave1008）
   - ✅ asm 7.3 live／Chaitin spill／bulk_mem／index-assign residual thin：`pipeline_asm_emit_spill.c`（live_fwd + CFG phi + color + bulk_mem_copy_spills + index_assign_finish_store + index scratch／binop_stack_spill methods · ~2487 LOC body／~2532 file）自 glue 同 TU `#include` 抽出；CAP statics 仍 index_helpers；eff_addr_scaled 仍 glue；`PIPELINE_X_DEPS` COUNT 59→60 / g05 STALE / inventory 已收（wave1009）
-  - ⬜ 下一域候选：eff_addr_scaled／leaf residual 或 8.3.3 field_access／soa
+  - ✅ asm INDEX effective-address scaled domain thin：`pipeline_asm_emit_index_eff_addr.c`（rax_plus_rbx_scaled + bounds_guard + rvalue_slice_once + eff_addr_scaled · ~653 LOC body／~697 file）自 glue 同 TU `#include` 抽出；try_index 仍 index_helpers；face 仍 index／assign；`PIPELINE_X_DEPS` COUNT 60→61 / g05 STALE / inventory 已收（wave1010）
+  - ⬜ 下一域候选：binop residual／expr_rec／leaf residual 或 8.3.3 field_access／soa
 
 ⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
