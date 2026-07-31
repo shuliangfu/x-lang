@@ -7888,6 +7888,24 @@ elif ! bash "$_rlg" --check >/dev/null 2>&1; then
 else
   note "regen_lsp_gens_x → ensure_lsp_pipeline_gen + ensure_archaeology_gen (wave952; 0-make)"
 fi
+# wave953: build_tool CFLAGS --check post_ship (0-make after Makefile phys-del).
+# Default: catalog --cflags-export; escape XLANG_CFLAGS_VIA_MAKE=1 + MF only.
+# PLATFORM: SHARED — host build_tool binary entry after wave941 delete.
+_bt_sh="$ROOT/compiler/scripts/build_tool.sh"
+[ -f "$_bt_sh" ] || _bt_sh="scripts/build_tool.sh"
+if [ ! -f "$_bt_sh" ]; then
+  bad "missing build_tool.sh (wave953 CFLAGS post_ship)"
+elif ! grep -q 'XLANG_CFLAGS_VIA_MAKE' "$_bt_sh"; then
+  bad "build_tool must document XLANG_CFLAGS_VIA_MAKE escape (wave953)"
+elif ! grep -q 'driver_seed_obj_catalog\.sh --cflags-export' "$_bt_sh"; then
+  bad "build_tool must shell-load catalog --cflags-export (wave925/953)"
+elif ! grep -q 'wave953' "$_bt_sh"; then
+  bad "build_tool must document wave953 post_ship --check"
+elif ! bash "$_bt_sh" --check >/dev/null 2>&1; then
+  bad "build_tool.sh --check failed (wave953 post_ship 0-make)"
+else
+  note "build_tool CFLAGS → catalog --cflags-export (wave953 post_ship; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then
