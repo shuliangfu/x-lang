@@ -1504,6 +1504,7 @@
   - ✅ wave954：`build_via_tool.sh --check` post_ship（MF 缺席绿；shell 拥有 `./build_tool`→TARGET + OK；leaf honesty）
   - ✅ wave955：`bootstrap_self.sh` catalog BS bag + `--check` post_ship（MF 缺席绿；`--link-objs-export bs` + `--link-cflags-export bs`；`XLANG_BS_LINK_VIA_MAKE` 逃生口；leaf honesty）
   - ✅ wave956：`xlang_x.sh` catalog XXL bag + `--check` post_ship（MF 缺席绿；`--link-objs-export xlang-x` + `--link-cflags-export relink-product`；`XLANG_XXL_LINK_VIA_MAKE` 逃生口；leaf honesty）
+  - ✅ wave957：`xlang_no_c_frontend.sh` catalog XNC bag + `--check` post_ship（MF 缺席绿；`--link-objs-export xnc` + `--link-cflags-export xnc`；`XLANG_XNC_LINK_VIA_MAKE` 逃生口；leaf honesty）
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
@@ -1698,6 +1699,7 @@
   - ✅ wave954：`build_via_tool --check` post_ship（MF 缺席绿；shell → ./build_tool TARGET）
   - ✅ wave955：`bootstrap_self` catalog BS bag + `--check` post_ship（MF 缺席绿；bs objs/cflags）
   - ✅ wave956：`xlang_x` catalog XXL bag + `--check` post_ship（MF 缺席绿；xlang-x objs + relink-product cflags）
+  - ✅ wave957：`xlang_no_c_frontend` catalog XNC bag + `--check` post_ship（MF 缺席绿；xnc objs/cflags）
 
 ⬜ **13.2.3 零 cc 三义验收**（§0.1 MG+BC+PC）
 
@@ -1780,7 +1782,7 @@ MG **编排层**已完成（wave941/942/944/945）。剩余主债：**BC/PC 零 
 
 剩余工作优先级（MG 已闭后）：
 
-1. ✅ **post-delete residual**（wave944–956）— 0-make hub · gate post_ship · docs/help/hint · XXP/BXC catalog bags · XXP ensure ladder 0-make · leaf 机检 quiet · ensure_*_gen / cfg-eval xlang-c shell · run_compiler_tests ensure · regen_lsp_gens_x shell ensure · build_tool/build_via_tool --check post_ship · bootstrap_self catalog BS · xlang_x catalog XXL + --check post_ship（残：其它 thin-call `--check` NEED_POST_SHIP：xlang_no_c_frontend / relink / …）
+1. ✅ **post-delete residual**（wave944–957）— 0-make hub · gate post_ship · docs/help/hint · XXP/BXC catalog bags · XXP ensure ladder 0-make · leaf 机检 quiet · ensure_*_gen / cfg-eval xlang-c shell · run_compiler_tests ensure · regen_lsp_gens_x shell ensure · build_tool/build_via_tool --check post_ship · bootstrap_self catalog BS · xlang_x catalog XXL · xlang_no_c_frontend catalog XNC + --check post_ship（残：其它 thin-call `--check` NEED_POST_SHIP：relink_xlang_lexer / bootstrap_driver_seed_x_frontend / …）
 
 2. **阶段 8.3** pipeline_glue / ast_pool 等非 gen 产品 C  
 3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  

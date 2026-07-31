@@ -7960,6 +7960,25 @@ elif ! bash "$_xxl_ps" --check >/dev/null 2>&1; then
 else
   note "xlang_x XXL bag → catalog xlang-x + relink-product (wave956 post_ship; 0-make)"
 fi
+# wave957: xlang_no_c_frontend --check post_ship + catalog XNC bag (0-make).
+# Default: catalog --link-objs-export xnc + --link-cflags-export xnc;
+# escape XLANG_XNC_LINK_VIA_MAKE=1 + MF only.
+# PLATFORM: SHARED — archaeology no-C-frontend path after wave941 delete.
+_xnc_ps="$ROOT/compiler/scripts/xlang_no_c_frontend.sh"
+[ -f "$_xnc_ps" ] || _xnc_ps="scripts/xlang_no_c_frontend.sh"
+if [ ! -f "$_xnc_ps" ]; then
+  bad "missing xlang_no_c_frontend.sh (wave957 post_ship)"
+elif ! grep -q 'wave957' "$_xnc_ps"; then
+  bad "xlang_no_c_frontend must document wave957 post_ship --check"
+elif ! grep -q 'XLANG_XNC_LINK_VIA_MAKE' "$_xnc_ps"; then
+  bad "xlang_no_c_frontend must document XLANG_XNC_LINK_VIA_MAKE escape (wave957)"
+elif ! grep -qE 'link-objs-export xnc|--link-objs-export xnc' "$_xnc_ps"; then
+  bad "xlang_no_c_frontend must catalog-load XNC LINK_OBJS (wave957)"
+elif ! bash "$_xnc_ps" --check >/dev/null 2>&1; then
+  bad "xlang_no_c_frontend.sh --check failed (wave957 post_ship 0-make)"
+else
+  note "xlang_no_c_frontend XNC bag → catalog xnc (wave957 post_ship; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then
