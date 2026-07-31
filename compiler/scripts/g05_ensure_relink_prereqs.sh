@@ -571,13 +571,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # ~~R2 async three dual hybrid~~ wave770 → try-async-prefer above
   # Unbundle hygiene：pipeline_glue.c 变更后，旧 pipeline_x / filtered / standalone
   # 仍可能内嵌 pool T → Darwin 与 pool.o 双定义红。产品 g05 无 make 时在此重建。
-  # 8.3.1+8.3.2: #include slices (ctfe/.../soa/ast_pool*/module_import/struct_layout/top_level/type_alias) also force STALE —
+  # 8.3.1+8.3.2: #include slices (ctfe/.../soa/ast_pool*/module_import/struct_layout/top_level/type_alias/expr_sidecar) also force STALE —
   # editing a slice alone must rebuild pipeline_x.o (G.7; was a silent gap).
   # PLATFORM: SHARED — Linux 允许多定义时也应以无内嵌为真值。
   if [ -f pipeline_glue.c ] && [ -f pipeline_gen.c ]; then
     _glue_slice_stale=0
     for _gs in pipeline_typeck_ctfe.c pipeline_typeck_assign.c pipeline_typeck_coerce_init.c pipeline_typeck_method_call.c pipeline_typeck_check_block.c pipeline_typeck_region_assign.c pipeline_asm_emit_unary.c pipeline_asm_emit_as.c pipeline_asm_emit_return.c pipeline_asm_emit_logand.c pipeline_asm_emit_block_body.c pipeline_asm_emit_block_if_stmt.c pipeline_asm_emit_block_inits.c pipeline_typeck_field_access.c pipeline_typeck_soa.c \
-      ast_pool.c ast_pool_module_import.c ast_pool_struct_layout.c ast_pool_top_level.c ast_pool_type_alias.c ast_pool_bootstrap_glue.c; do
+      ast_pool.c ast_pool_module_import.c ast_pool_struct_layout.c ast_pool_top_level.c ast_pool_type_alias.c ast_pool_expr_sidecar.c ast_pool_bootstrap_glue.c; do
       if [ -f "$_gs" ] && [ "$_gs" -nt pipeline_x.o ]; then
         _glue_slice_stale=1
         break
