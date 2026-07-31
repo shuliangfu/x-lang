@@ -1335,7 +1335,7 @@
   - ✅ 编排 / 链接 / rebuild / host-stubs / check-abi / asm-host → shell 权威；Makefile 薄叶子 + export
   - ✅ 叶清单 / 组合体定义 → `compiler/mk/*.mk`（G.7 单权威；catalog 18 keys）
   - ✅ FULL=1 / 冷路径编排已 shell（wave719+）；**Makefile 已物理删除**（wave941）— 不再经 make 白名单叶
-  - 🟡 residual：`tests/**` hub `compiler-make` / formal_std ensure 仍可能 `make -C`（0-make 测试适配待续）
+  - ✅ wave944：`tests/lib/compiler-make.sh` **0-make** 分发（formal_mod / std_x / try-heat / bootstrap / g05）；formal_std + net-tls ensure 命令串 → bash hub（.x + seed）
 
 ✅ **11.0.4 根 Makefile 只保留 help → xbuild → 已物理删除**
 
@@ -1490,7 +1490,8 @@
     - ✅ wave746–940 R1–R5 / B1–B7 / heat / preflight / gates / Windows / dual L4
     - ✅ wave941：`xlang-build.sh` bootstrap → 直调 `bootstrap_driver_seed.sh`；host_stubs catalog；**物理删除** 根 + `compiler/Makefile`
     - ✅ wave942：ensure_host_cc_seed_o CFLAGS → catalog；双端 L4 升钉 `77b334842`
-  - 🟡 验收 grep 仍见 residual `make -C` / `compiler-make` / formal_std make 命令串 / 文档提示（**非** Makefile 文件权威；属 post-delete 清理）
+  - ✅ wave944：compiler-make / formal_std ensure **0-make**；phys-del/leaf **post_ship**
+  - 🟡 residual：README/vscode / labi 诊断 hint `try: make -C` / 部分 docs（**非** ensure 权威）
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
@@ -1527,12 +1528,12 @@
   - 现体：默认 `./xbuild build`；参数透传任意 xbuild 目标；**0× host-cc**
   - host-cc residual 仅 `compiler/scripts/build_tool.sh`（至阶段 12）
 
-🟡 **11.4.2 `xlang-build.sh` 产品路径 0× make -C；CI hub 单点**
+✅ **11.4.2 `xlang-build.sh` 产品路径 0× make -C；CI hub 单点**（wave944 闭合 hub）
 
   - 产品目标（build/clean/test*/bootstrap-* 烟测）已 shell（wave718–720）
   - ✅ wave941：`bootstrap-driver-seed` **不再**经 `run_compiler_make` → 直调 `bootstrap_driver_seed.sh`
-  - wave730：`run_compiler_make` hub 仍供 `compiler-make` / 部分 CI 叶（**Makefile 已删 → hub 会红**；0-make 适配待续）
-  - 🟡 post-delete：hub 须改 shell/try-heat/catalog；外层 `./xbuild` 目标名不变
+  - ✅ wave944：`run_compiler_make` / `tests/lib/compiler-make.sh` **0-make** 分发（无 make -C）；`compiler_all_ci` 直 g05 + ensure_xlang_c
+  - 外层 `./xbuild compiler-make <args…>` 目标名不变
 
 ✅ **11.4.3 `scripts/docker-ci-local.sh` 外层 0× `make -C`（wave730）**
 
@@ -1754,11 +1755,12 @@
 ```
 
 **综合迁移进度（修订）：约 48–50%**  
-MG **编排层**已完成（wave941/942）。剩余主债：**BC/PC 零 cc** · **8.3 glue** · **去 pin** · **post-delete residual**（compiler-make / formal_std make / README·vscode 提示 / gate --check 期望 Makefile 存在）。
+MG **编排层**已完成（wave941/942/944）。剩余主债：**BC/PC 零 cc** · **8.3 glue** · **去 pin** · **post-delete 文档 residual**（README/vscode make 提示 · labi ensure 诊断 hint 串）。
 
 剩余工作优先级（MG 已闭后）：
 
-1. **post-delete residual** — `compiler-make` / formal_std ensure 0-make；gate `--check` 接受 Makefile 缺席；README/vscode 去 make 提示（11.6.2/3）  
+1. **post-delete 文档 residual** — README/vscode 去 make 提示（11.6.2/3）；labi `try: make -C` 诊断 hint 英文化/改 xbuild  
+
 2. **阶段 8.3** pipeline_glue / ast_pool 等非 gen 产品 C  
 3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. **阶段 10 → 9** 语言能力 + residual 消灭  

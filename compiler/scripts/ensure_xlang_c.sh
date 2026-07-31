@@ -48,7 +48,16 @@ fail() { echo "ensure-xlang-c: FAIL: $*" >&2; exit 1; }
 # ---------------------------------------------------------------------------
 if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   MF=Makefile
-  [ -f "$MF" ] || fail "missing $MF"
+  if [ ! -f "$MF" ]; then
+    # wave944 post_ship: Makefile deleted; this script is the sole default xlang-c authority.
+    [ -f scripts/legacy_xlang_c_link.sh ] || [ -f ./legacy_xlang_c_link.sh ] \
+      || fail "legacy_xlang_c_link.sh must remain for LEGACY path (wave858; post_ship)"
+    if ! grep -q 'XLANG_SKIP_SUBSCRIPT_MAKE\|bootstrap_xlangc' "$0"; then
+      fail "ensure_xlang_c.sh must own SKIP_SUBSCRIPT + bootstrap_xlangc sync body"
+    fi
+    echo "ensure_xlang_c: --check OK (wave944 post_ship; shell-primary; Makefile absent)"
+    exit 0
+  fi
   # Default non-LEGACY recipe: target is $(XLANG_C) literally in Makefile text.
   _rec=$(awk '
     /^\$\(XLANG_C\):/ { hit=1; next }

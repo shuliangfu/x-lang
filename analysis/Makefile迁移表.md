@@ -53,7 +53,8 @@
 冷启动硬依赖：    H bootstrap-driver-seed · B pin gen · K seed-tools
 删 make 前体积债：C glue ~40k · 阶段 8.3（与本表并行，非 11.0 独占）
 11.3 物理删 make：✅ **已完成**（wave941）· catalog 单权威（mk/*.mk）· bootstrap 0 make · 双端 L4（wave942）  
-  post-delete residual：tests hub `compiler-make` / formal_std make 命令串 / gate `--check` 期望 MF 存在 / README·vscode make 提示（⬜≠文件权威）  
+  post-delete residual（wave944 后）：✅ compiler-make 0-make · ✅ formal_std/net-tls shell · ✅ gate post_ship；🟡 README·vscode · ensure hint 串  
+
   BC 层 host-cc 业务 C（glue/pin）仍 ⬜ — **≠** MG 编排未完成
 ```
 
@@ -587,7 +588,7 @@
 | `./xbuild heat-o OUT.o` | `ensure_host_cc_seed_o.sh try-heat`（wave789–803） | B7A heat shell 自动分发；recipes try-heat（wave790）；**113 FORCE** dep-thin（wave791–797 · orch closed · `HEAT_RESIDUAL=0`）；preflight/execute-gate/proof/flip-prep/apply/honesty wave798–803；非物理删 | 物理删 Makefile 后主热路径（Windows 绿后） |
 | `./xbuild phys-del-gate` | `phys_del_makefile_gate.sh`（wave799–810） | 历史硬拒删 + preview/honesty；**wave941 已物理删** → `--check` 仍期望 MF 存在（**post-delete 适配 residual**） | 文件层 MG 已闭；gate 机检需 wave94x 改「缺席 = OK」 |
 | `./xbuild bootstrap-driver-seed` | **shell** `bootstrap_driver_seed.sh`（wave941） | 冷启动 **0 make** | ✅ |
-| `./xbuild compiler-make …` | 叶 .o 历史 make hub | 🔴 Makefile 已删 → hub 红 | 待 0-make：try-heat / catalog / `xlang_compile_std_module` |
+| `./xbuild compiler-make …` | 叶 .o 历史 make hub | 🟢 wave944 0-make 分发 | formal_mod / std_x / try-heat / bootstrap / g05 |
 | `./xbuild ensure` / `link-env` / `link-product` | g05_*.sh 直调 | **0× make**（wave733） | 11.1.6 产品链一等 |
 | `./xbuild migrate` | `migrate_x_objs.sh` | `_x.o` **0× make**；gen→ensure_migrate_gen（wave735/736） | 11.1.6 迁移叶 |
 | `./xbuild migrate-gen` | `ensure_migrate_gen.sh` | parser/typeck/codegen `_gen.c` **0× make**（wave736） | 11.1.6 迁移 gen |

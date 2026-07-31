@@ -512,8 +512,64 @@ cmd_check() {
 
   [ -f "$LEAF_SH" ] || badf "missing leaf_pattern_residual.sh"
   [ -f "$WIN_GATE" ] || badf "missing $WIN_GATE_REL"
-  [ -f "$MAKEFILE" ] || badf "compiler/Makefile missing (unexpected mid-migration)"
   [ -x "$0" ] || chmod +x "$0" 2>/dev/null || true
+
+  # wave944 post_ship: Makefile already physically deleted (wave941).
+  # Full pre_ship harness (endgame-arm-apply on temp leaves requiring MF present,
+  # delete-body-preview requiring MF) does not apply. Contract:
+  #   ENDGAME=1 + TREE_ARMED=1 + STATUS green + MF absent + shell 0-make hub live.
+  if [ ! -f "$MAKEFILE" ]; then
+    note "PHASE=post_ship (wave944): compiler/Makefile absent — body shipped"
+    local dump_ps win_ps end_ps armed_ps
+    dump_ps="$(print_status)"
+    win_ps="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+    end_ps="$(leaf_get ENDGAME_PHYSICAL_DELETE_MAKEFILE)"
+    armed_ps="$(leaf_get PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED)"
+    grep -q 'PHYS_DEL_EXECUTE_GATE=1' <<<"$dump_ps" || badf "post_ship status missing EXECUTE_GATE=1"
+    grep -q 'PHYS_DEL_EXECUTE_GATE_REFUSES_DELETE=1' <<<"$dump_ps" \
+      || badf "post_ship must still refuse re-delete"
+    if [ "${win_ps:-}" != "reproven_green" ] && [ "${win_ps:-}" != "green" ]; then
+      badf "post_ship STATUS must stay reproven_green (got '${win_ps:-empty}')"
+    fi
+    if [ "${end_ps:-}" != "1" ]; then
+      badf "post_ship ENDGAME must stay 1 (got '${end_ps:-empty}')"
+    fi
+    if [ "${armed_ps:-}" != "1" ]; then
+      badf "post_ship TREE_ARMED must stay 1 (got '${armed_ps:-empty}')"
+    fi
+    # 0-make hub live (wave944)
+    if [ ! -f "$ROOT/tests/lib/compiler-make.sh" ]; then
+      badf "post_ship missing tests/lib/compiler-make.sh (0-make hub)"
+    elif ! grep -q 'wave944\|0-make\|try-heat' "$ROOT/tests/lib/compiler-make.sh"; then
+      badf "post_ship compiler-make.sh must be 0-make dispatcher (wave944)"
+    else
+      note "0-make hub tests/lib/compiler-make.sh present (wave944)"
+    fi
+    if [ ! -f "$COMPILER_DIR/scripts/compiler_all_ci.sh" ]; then
+      badf "post_ship missing compiler_all_ci.sh"
+    fi
+    if [ ! -f "$COMPILER_DIR/scripts/bootstrap_driver_seed.sh" ]; then
+      badf "post_ship missing bootstrap_driver_seed.sh"
+    fi
+    # --delete-body-commit-honesty post_ship path must exit 0
+    if ! bash "$0" --delete-body-commit-honesty >/tmp/phys_del_post_ship_dbh.$$ 2>&1; then
+      cat /tmp/phys_del_post_ship_dbh.$$ >&2 || true
+      badf "post_ship --delete-body-commit-honesty must exit 0"
+    else
+      if ! grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=1' /tmp/phys_del_post_ship_dbh.$$; then
+        badf "post_ship honesty must report BODY_SHIPPED=1"
+      else
+        note "post_ship delete-body-commit-honesty BODY_SHIPPED=1 OK"
+      fi
+    fi
+    rm -f /tmp/phys_del_post_ship_dbh.$$
+    if [ "$bad" -ne 0 ]; then
+      echo "phys-del-makefile-gate: CHECK FAILED (post_ship)" >&2
+      exit 1
+    fi
+    echo "phys-del-makefile-gate: CHECK OK (wave944 post_ship · Makefile absent · 0-make hub)"
+    exit 0
+  fi
 
   local dump
   dump="$(print_status)"

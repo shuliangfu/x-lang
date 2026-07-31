@@ -72,7 +72,8 @@ if [ "$MODE" = "check" ]; then
   fi
 
   if [ ! -f "$MF" ]; then
-    bad "missing Makefile (unexpected early delete; 11.3.1 not closed)"
+    # wave944 post_ship: Makefile physically deleted (wave941); shell body is authority.
+    note "Makefile absent (wave944 post_ship) — compiler_all_ci.sh is CI all authority"
   else
     # all: must thin-call this script (not make-deps graph only).
     if ! awk '
@@ -103,13 +104,17 @@ if [ "$MODE" = "check" ]; then
   if ! grep -qE 'OPT|TARGET|XLANG_C' "$_self"; then
     bad "body must name OPT/TARGET/XLANG_C policy"
   fi
+  # wave944: 0-make path must be present in body.
+  if ! grep -q 'g05_prepare_and_relink\|_cm_all_shell\|bootstrap_driver_seed' "$_self"; then
+    bad "body must own 0-make g05/bootstrap shell path (wave944)"
+  fi
   unset _self
 
   if [ "$fail" -ne 0 ]; then
     echo "compiler_all_ci: CHECK FAILED" >&2
     exit 1
   fi
-  echo "compiler_all_ci: CHECK OK (wave784 B6 R5 shell body)"
+  echo "compiler_all_ci: CHECK OK (wave784 B6 R5 shell body · wave944 0-make)"
   exit 0
 fi
 
@@ -138,26 +143,50 @@ if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG+set}" ]; then
   export XLANG_RUN_ALL_BOOTSTRAP_XLANG
 fi
 
-mk() {
-  # shellcheck disable=SC2086
-  "$MAKE" "$@"
+# wave944: 0-make after physical delete. Prefer shell authorities; optional make
+# only when compiler/Makefile still exists (legacy mid-migration hosts).
+_cm_all_shell() {
+  if [ "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" = "1" ]; then
+    note "XLANG_RUN_ALL_BOOTSTRAP_XLANG=1 → bootstrap_driver_seed.sh (0-make)"
+    bash scripts/bootstrap_driver_seed.sh
+    return $?
+  fi
+  # Default CI: product link via g05 + xlang-c alias sync (wave786 + wave876).
+  note "CI → OPT=${OPT:-} $TARGET via g05_prepare_and_relink + ensure_xlang_c (wave944 0-make)"
+  if [ -f scripts/g05_prepare_and_relink.sh ]; then
+    FULL="${FULL:-0}" bash scripts/g05_prepare_and_relink.sh || return $?
+  elif [ -f scripts/build_xlang_asm.sh ]; then
+    bash scripts/build_xlang_asm.sh || return $?
+  else
+    note "FAIL: no g05_prepare_and_relink / build_xlang_asm"
+    return 1
+  fi
+  if [ -f scripts/ensure_xlang_c.sh ]; then
+    bash scripts/ensure_xlang_c.sh ensure "$XLANG_C" || return $?
+  fi
+  # Honor TARGET alias: if xlang_asm requested name differs, leave g05 outputs.
+  return 0
 }
 
-if [ "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" = "1" ]; then
-  # Alternate CI / run-all seed path: full cold bootstrap only.
-  # PLATFORM: SHARED — same policy as pre-wave784 Makefile all branch.
-  note "XLANG_RUN_ALL_BOOTSTRAP_XLANG=1 → bootstrap-driver-seed"
-  mk bootstrap-driver-seed
-else
-  # Default CI path: product `xlang` via g05 (wave786 B7D) + xlang-c seed copy.
-  # Leaf .o graph for other targets remains Makefile residual (B7A/B7B).
-  # OPT still forwarded for any host-cc leaf recipes that honor Makefile OPT=1.
-  note "CI → OPT=${OPT:-} $TARGET (g05 product link · wave786 B7D) + $XLANG_C"
-  if [ -n "${OPT}" ]; then
-    mk OPT="$OPT" "$TARGET" "$XLANG_C"
+if [ -f Makefile ] && [ "${XLANG_COMPILER_ALL_FORCE_SHELL:-0}" != "1" ]; then
+  # Legacy thin residual (should not run on tip after wave941).
+  mk() {
+    # shellcheck disable=SC2086
+    "$MAKE" "$@"
+  }
+  if [ "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" = "1" ]; then
+    note "XLANG_RUN_ALL_BOOTSTRAP_XLANG=1 → make bootstrap-driver-seed (legacy MF present)"
+    mk bootstrap-driver-seed
   else
-    mk "$TARGET" "$XLANG_C"
+    note "CI → OPT=${OPT:-} make $TARGET $XLANG_C (legacy MF present)"
+    if [ -n "${OPT}" ]; then
+      mk OPT="$OPT" "$TARGET" "$XLANG_C"
+    else
+      mk "$TARGET" "$XLANG_C"
+    fi
   fi
+else
+  _cm_all_shell
 fi
 
-note "done (xlang product g05 link · xlang-c seed; B7A/B residual)"
+note "done (xlang product g05 link · xlang-c seed; wave944 0-make)"

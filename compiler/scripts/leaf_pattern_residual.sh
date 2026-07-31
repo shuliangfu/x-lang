@@ -5089,8 +5089,13 @@ fi
 if ! grep -q 'PHYS_DEL_DELETE_BODY_PREP_APPLIED=0' <<<"$_out"; then
   bad "dump must keep PHYS_DEL_DELETE_BODY_PREP_APPLIED=0 (wave809)"
 fi
-if ! grep -q 'PHYS_DEL_DELETE_BODY_PREP_BODY_SHIPPED=0' <<<"$_out"; then
-  bad "dump must keep PHYS_DEL_DELETE_BODY_PREP_BODY_SHIPPED=0 (wave809)"
+# wave944 post_ship: BODY_SHIPPED flips to 1 when Makefile is absent.
+if [ -f "$ROOT/compiler/Makefile" ]; then
+  if ! grep -q 'PHYS_DEL_DELETE_BODY_PREP_BODY_SHIPPED=0' <<<"$_out"; then
+    bad "dump must keep PHYS_DEL_DELETE_BODY_PREP_BODY_SHIPPED=0 (wave809 pre_ship)"
+  fi
+else
+  note "Makefile absent (wave944 post_ship): skip PREP_BODY_SHIPPED=0 hard require"
 fi
 if ! grep -q 'PHYS_DEL_DELETE_BODY_PREP_DELETE_ALLOWED=0' <<<"$_out"; then
   bad "dump must keep PHYS_DEL_DELETE_BODY_PREP_DELETE_ALLOWED=0 (wave809)"
@@ -5111,8 +5116,12 @@ fi
 if ! grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810' <<<"$_out"; then
   bad "dump must set PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_WAVE=wave810"
 fi
-if ! grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0' <<<"$_out"; then
-  bad "dump must keep PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0 (wave810)"
+if [ -f "$ROOT/compiler/Makefile" ]; then
+  if ! grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0' <<<"$_out"; then
+    bad "dump must keep PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_BODY_SHIPPED=0 (wave810 pre_ship)"
+  fi
+else
+  note "Makefile absent (wave944 post_ship): skip COMMIT_HONESTY_BODY_SHIPPED=0 hard require"
 fi
 if ! grep -q 'PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0' <<<"$_out"; then
   bad "dump must keep PHYS_DEL_DELETE_BODY_COMMIT_HONESTY_DELETE_ALLOWED=0 (wave810)"
@@ -5158,14 +5167,18 @@ fi
 if ! grep -q 'PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=1' <<<"$_out"; then
   bad "wave808 must set PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=1"
 fi
-# wave933 prep: Makefile still present (bootstrap path migration in progress).
-# When physical delete ships, flip this to expect absent. For now, body must
-# remain because bootstrap_driver_seed.sh / driver_seed_ensure_prereqs.sh still
-# invoke make for .o compilation rules that live in the Makefile.
+# wave944 post_ship: Makefile physically deleted (wave941). Cold path is
+# shell-primary (bootstrap_driver_seed + try-heat + catalog); 0-make hub =
+# tests/lib/compiler-make.sh. Pre-wave944 expected MF present (wave933 prep).
 if [ ! -f "$ROOT/compiler/Makefile" ]; then
-  bad "wave933 prep must keep compiler/Makefile present (bootstrap make-calls not yet migrated)"
+  note "compiler/Makefile absent (wave944 post_ship · MG body shipped · 0-make hub)"
+  if [ ! -f "$ROOT/tests/lib/compiler-make.sh" ]; then
+    bad "post_ship missing tests/lib/compiler-make.sh (wave944 0-make hub)"
+  elif ! grep -q '0-make\|wave944\|try-heat' "$ROOT/tests/lib/compiler-make.sh"; then
+    bad "compiler-make.sh must be 0-make dispatcher after MF delete (wave944)"
+  fi
 else
-  note "compiler/Makefile still present (wave933 prep; bootstrap path migration pending)"
+  note "compiler/Makefile still present (pre-delete residual host)"
 fi
 # wave811+wave825+wave827+wave895: std_x product body + catalog + FORCE + list→mk multi-target.
 if [ ! -f "$COMPILER_DIR/scripts/xlang_compile_std_x.sh" ]; then
