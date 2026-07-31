@@ -3403,7 +3403,13 @@ ensure_crt0_codegen_parser_companion_objs() {
   if [ ! -f src/lsp/lsp_diag_pipeline_sizes_nostub.o ]; then
   if [ -f seeds/lsp_diag_pipeline_sizes_nostub.from_x.c ] || [ -f src/lsp/lsp_diag_pipeline_sizes_nostub.c ]; then
   build_xlang_asm_info "crt0 L5: build lsp_diag_pipeline_sizes_nostub.o"
-  make -s src/lsp/lsp_diag_pipeline_sizes_nostub.o 2>/dev/null || true
+  # Wave931: shell try-heat (B3_LSP_SAT_SEED_OBJS · wave911; no make).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    make -s src/lsp/lsp_diag_pipeline_sizes_nostub.o 2>/dev/null || true
+  else
+    bash scripts/ensure_host_cc_seed_o.sh try-heat src/lsp/lsp_diag_pipeline_sizes_nostub.o 2>/dev/null || true
+  fi
   fi
   fi
   if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ]; then
@@ -3755,19 +3761,56 @@ ensure_asm_bootstrap_x_companion_objs() {
     # PLATFORM: WINDOWS | MINGW | MSYS — never nest make for companions; hybrid continues with
     # whatever seed objs exist + direct cc below. Missing leaves may fail at link (real signal).
     build_xlang_asm_info "win: skip nested make for X companions (missing seed bag; link may fail)"
-  elif [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    build_xlang_asm_info "ensure X companion objs (parser/lexer/typeck/codegen/preprocess/compile)"
-    # 瘦 pipeline_x.o 仍引用 codegen_codegen_* / typeck_typeck_* / lexer_lexer_init；须与 bootstrap-driver-seed 同款 link alias。
-    # x 命名 迁移：链接行仍引用 *_x.o，须 make 别名目标（cp *_x.o）。
-    make parser_x.o lexer_x.o typeck_x.o codegen_x.o preprocess_x.o \
-      lexer_x.o codegen_x.o typeck_x.o preprocess_x.o \
-      x_frontend_link_alias.o \
-      driver_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o \
-      driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-      driver_fmt_x.o driver_check_x.o driver_test_x.o \
-      driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-      lsp_io_std_heap_x.o \
-      src/runtime_io_abi.o src/asm/parser_asm_parse_expr_link.o
+  else
+    # Wave931: shell multi-family ensure (default; no make).
+    # Companion list spans 6 multi-target families (G.7 single-body per family):
+    #   MIGRATE_X (wave919): parser_x.o typeck_x.o codegen_x.o
+    #   GEN_C_TO_O (wave910): lexer_x.o preprocess_x.o driver_x.o
+    #   R1_ALIAS_STUBS (wave902): x_frontend_link_alias.o
+    #   DRIVER_LEAF (wave896): driver_{fmt,check,test,build,run,compile,emit}_x.o + lsp_io_std_heap_x.o
+    #   R3_COLD (wave906): src/runtime_io_abi.o
+    #   R1_EXTRA_CFLAGS (wave903): src/asm/parser_asm_parse_expr_link.o
+    # Thin pipeline_x.o still references codegen_codegen_* / typeck_typeck_* / lexer_lexer_init;
+    # must use same link alias as bootstrap-driver-seed.
+    # x-naming migration: link line still references *_x.o; alias targets cp *_x.o.
+    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+      build_xlang_asm_info "ensure X companion objs (parser/lexer/typeck/codegen/preprocess/compile)"
+      make parser_x.o lexer_x.o typeck_x.o codegen_x.o preprocess_x.o \
+        lexer_x.o codegen_x.o typeck_x.o preprocess_x.o \
+        x_frontend_link_alias.o \
+        driver_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o \
+        driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
+        driver_fmt_x.o driver_check_x.o driver_test_x.o \
+        driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
+        lsp_io_std_heap_x.o \
+        src/runtime_io_abi.o src/asm/parser_asm_parse_expr_link.o
+    else
+      build_xlang_asm_info "wave931: shell ensure X companion objs (6 families)"
+      # MIGRATE_X_OBJS (wave919): parser_x.o typeck_x.o codegen_x.o
+      bash scripts/migrate_x_objs.sh parser_x.o
+      bash scripts/migrate_x_objs.sh typeck_x.o
+      bash scripts/migrate_x_objs.sh codegen_x.o
+      # GEN_C_TO_O_SEED_OBJS (wave910): lexer_x.o preprocess_x.o driver_x.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat lexer_x.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat preprocess_x.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat driver_x.o
+      # R1_ALIAS_STUBS_OBJS (wave902): x_frontend_link_alias.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat x_frontend_link_alias.o
+      # DRIVER_LEAF_PRODUCT_OBJS (wave896): driver_*_x.o + lsp_io_std_heap_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_fmt_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_check_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_test_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_build_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_run_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_compile_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_emit_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure lsp_io_std_heap_x.o
+      # R3_COLD_SEED_OBJS (wave906): src/runtime_io_abi.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat src/runtime_io_abi.o
+      # R1_EXTRA_CFLAGS_OBJS (wave903): src/asm/parser_asm_parse_expr_link.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat src/asm/parser_asm_parse_expr_link.o
+    fi
   fi
   # G-02e: fs/sys shim symbols live in runtime_io_abi.o
   if [ ! -f src/runtime_io_abi.o ] || [ seeds/runtime_io_abi.from_x.c -nt src/runtime_io_abi.o ]; then
