@@ -75,9 +75,10 @@ arch_phony_known() {
 # Bodies (historic Makefile semantics; single shell authority)
 # ---------------------------------------------------------------------------
 
-# net-o-stub: product net.o via make (try-heat body already shell-primary).
+# net-o-stub: product net.o via shell try-heat (wave938; was $MAKE ../std/net/net.o).
+# ensure_host_cc_seed_o.sh try-heat resolves std/net/net.o via R1/R2/R3 seed maps.
 arch_run_net_o_stub() {
-  "$MAKE" ../std/net/net.o
+  bash scripts/ensure_host_cc_seed_o.sh try-heat ../std/net/net.o
 }
 
 # net-o-openssl: hard-fail without host; compile tls_openssl.x then net-o-stub.
@@ -99,7 +100,8 @@ arch_run_net_o_mbedtls() {
     return 1
   fi
   sh "$STD_X_SH" auto ../std/net/tls_mbedtls.x ../std/net/tls_mbedtls_main.o || return 1
-  "$MAKE" runtime_tls_mbedtls_bio.o || return 1
+  # wave938: shell try-heat (was $MAKE runtime_tls_mbedtls_bio.o).
+  bash scripts/ensure_host_cc_seed_o.sh try-heat runtime_tls_mbedtls_bio.o || return 1
   # shellcheck disable=SC2086
   ld -r $(arch_ld_r_multidef_flags) -o ../std/net/tls_mbedtls.o \
     ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o || return 1
@@ -109,7 +111,8 @@ arch_run_net_o_mbedtls() {
 # sqlite-o-stub: always build glue stub; merge sqlite.x when host present.
 # PLATFORM: SHARED — archaeology stub path (product sqlite.o is wave811 auto-soft).
 arch_run_sqlite_o_stub() {
-  "$MAKE" runtime_sqlite_glue_stub.o || return 1
+  # wave938: shell try-heat (was $MAKE runtime_sqlite_glue_stub.o).
+  bash scripts/ensure_host_cc_seed_o.sh try-heat runtime_sqlite_glue_stub.o || return 1
   _mdf="$(arch_ld_r_multidef_flags)"
   if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
     sh "$STD_X_SH" auto ../std/db/sqlite/sqlite.x ../std/db/sqlite/sqlite_main.o || return 1
