@@ -4128,53 +4128,25 @@ static int32_t glue_try_binop_cmp_rbx_rax_elf_c(struct ast_ASTArena *arena,
  * folded into return/unary/as/spill leaves (G.7 有则补全; no glue residual). */
 #include "pipeline_asm_emit_expr_rec.c"
 
+/* GLUE_TYPE_NAMED (TYPE_NAMED kind ord) — used by call_args leaf + later glue residual. */
 #define GLUE_TYPE_NAMED 8
-
-/**
- * 类型 ref 是否为模块内具 layout 的命名 struct（Pair 等）。
- */
-static int32_t glue_type_ref_is_named_struct_layout_elf_c(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                            int32_t ty_ref) {
-  uint8_t nm[128];
-  int32_t nlen;
-  int32_t k;
-  int32_t ln;
-  int32_t j;
-  if (ty_ref <= 0 || !mod || !arena)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, ty_ref) != GLUE_TYPE_NAMED)
-    return 0;
-  nlen = pipeline_type_named_name_into(arena, ty_ref, nm);
-  if (nlen <= 0)
-    return 0;
-  for (k = 0; k < pipeline_module_num_struct_layouts_at(mod); k++) {
-    ln = pipeline_module_struct_layout_name_len(mod, k);
-    if (ln != nlen || ln <= 0)
-      continue;
-    for (j = 0; j < nlen; j++) {
-      if (pipeline_module_struct_layout_name_byte_at(mod, k, j) != nm[j])
-        break;
-    }
-    if (j == nlen)
-      return 1;
-  }
-  return 0;
-}
 
 /** 与 typeck.x typeck_x_type_size 一致（前向声明，定义见本文件后部）。 */
 static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 
 /* BC 8.3.1: asm ELF CALL-arg emit domain
- * (lea_not_load + dual-GP load_var + named layout size + pass_addr +
- *  emit_expr_elf_for_call_args; Cap residual pure; same TU).
- * glue_call_arg_resolve_* stays above (shared leaf VAR paths). */
+ * (named_struct_layout predicate + lea_not_load + dual-GP load_var +
+ *  named layout size + pass_addr + emit_expr_elf_for_call_args;
+ *  Cap residual pure; same TU). G.7 fold type_named_struct into this leaf
+ * (wave1017). glue_call_arg_resolve_* stays above (shared leaf VAR paths). */
 #include "pipeline_asm_emit_call_args.c"
 
 
 /* wave1016 G.7: glue_emit_assign_rhs_to_rax folded into pipeline_asm_emit_assign.c
  * (included earlier after spill). Compound-assign uses binop helpers via
  * forwards in that leaf; early unary/as scalar/mul forwards remain ~2584.
- * binop residual scalar/ptr/add already in pipeline_asm_emit_binop.c (wave1015). */
+ * binop residual scalar/ptr/add already in pipeline_asm_emit_binop.c (wave1015).
+ * wave1017: type_named_struct predicate in call_args leaf (above). */
 
 /* BC 8.3.1: asm ELF EXPR_PANIC + integer div-zero panic face
  * (xlang_panic_call + panic_elf + panic_int_div_zero + divisor_zero_check_rbx;

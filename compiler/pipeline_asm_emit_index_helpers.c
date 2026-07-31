@@ -41,6 +41,7 @@
  * - pipeline_asm_index_elem_byte_sz_c (pipeline_asm_emit_index.c, later include)
  * - glue_field_access_effective_offset_c (def later near layout_offset)
  * - glue_type_size_simple / glue_type_ref_is_named_struct_layout_elf_c
+ *   (named_struct body in call_args leaf wave1017; same-TU forward here)
  * - glue_var_expr_stack_off_elf_c (def after assign/index includes)
  * - glue_emit_index_eff_addr_scaled_elf_c (pipeline_asm_emit_index_eff_addr.c)
  * - glue_binop_stack_spill_* / glue_asm73_var_prefers_stack_spill (defs later)
@@ -115,7 +116,7 @@ static int32_t glue_emit_func_param_is_indirect_array_slot_c(struct ast_ASTArena
   return glue_type_is_fixed_array(arena, pty);
 }
 
-/** 前向声明：>8B struct 形参 hidden pointer 判定（定义见 glue_type_ref_is_named_struct_layout_elf_c 之后）。 */
+/** Same-TU forward: body in pipeline_asm_emit_call_args.c (wave1017 G.7 fold). */
 static int32_t glue_type_ref_is_named_struct_layout_elf_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                             int32_t ty_ref);
 static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);

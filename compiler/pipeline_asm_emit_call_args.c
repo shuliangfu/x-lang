@@ -4,6 +4,8 @@
  * Mechanically extracted from pipeline_glue.c (same translation unit via
  * #include). Authority for product-mega freestanding CALL/METHOD_CALL
  * argument packing into rax[/rdx] (or lea of stack payload):
+ * - glue_type_ref_is_named_struct_layout_elf_c (wave1017 G.7 fold: TYPE_NAMED
+ *   has module struct layout — shared gate for lea-vs-load / pass-by-addr)
  * - glue_call_arg_var_use_lea_not_load_elf_c (VAR: lea payload vs load slot)
  * - glue_load_var_as_value_to_rax_rdx_elf_c (≤16B INTEGER dual-GP by-value)
  * - glue_type_named_layout_size_any_module_elf_c (dep-arena layout size >8)
@@ -16,12 +18,17 @@
  * helpers glue_call_arg_resolve_* stay in glue (shared with emit_expr leaf
  * VAR paths). CALL/METHOD_CALL dispatch remains seed backend_call_dispatch.
  *
+ * wave1017 G.7 有则补全: named-struct layout predicate moved here from glue
+ * residual (same TU; no new DEPS). index_helpers keeps a same-TU forward
+ * (included earlier). GLUE_TYPE_NAMED remains defined in pipeline_glue.c
+ * immediately before this #include (also used by later glue residual).
+ *
  * Callers: backend_call_dispatch.x / seed (extern); glue emit_expr leaf
  * VAR dual-GP via glue_load_var_as_value_to_rax_rdx_elf_c.
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c at the former
  * call-arg packing body site (after glue_type_size_simple forward; before
- * scalar f32/f64 classifiers used by binop).
+ * panic/binop/field_access).
  *
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
  *   · LINUX+MACOS x86_64 SysV ≤16B by-value / >16B by-addr
@@ -35,7 +42,45 @@
  * - pipeline_asm_emit_expr_elf_rec / glue_emit_float_lit_to_rax_elf_c
  * - glue_var_decl_type_ref_elf_c / glue_type_is_fixed_array / backend_enc_*
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_call_param_ty_ref / ...
+ * - GLUE_TYPE_NAMED (macro; defined in pipeline_glue.c before this include)
  */
+
+/**
+ * Type ref is a module-local named struct that has a struct layout entry
+ * (e.g. Pair). Used by CALL-arg lea-vs-load and index_helpers hidden-pointer
+ * gates. G.7 single predicate — do not reimplement layout name scan elsewhere.
+ *
+ * wave1017: folded from pipeline_glue residual into this leaf (callers:
+ * glue_call_arg_var_use_lea_not_load_elf_c here; index_helpers via forward).
+ * PLATFORM: SHARED layout predicate.
+ */
+static int32_t glue_type_ref_is_named_struct_layout_elf_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                            int32_t ty_ref) {
+  uint8_t nm[128];
+  int32_t nlen;
+  int32_t k;
+  int32_t ln;
+  int32_t j;
+  if (ty_ref <= 0 || !mod || !arena)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, ty_ref) != GLUE_TYPE_NAMED)
+    return 0;
+  nlen = pipeline_type_named_name_into(arena, ty_ref, nm);
+  if (nlen <= 0)
+    return 0;
+  for (k = 0; k < pipeline_module_num_struct_layouts_at(mod); k++) {
+    ln = pipeline_module_struct_layout_name_len(mod, k);
+    if (ln != nlen || ln <= 0)
+      continue;
+    for (j = 0; j < nlen; j++) {
+      if (pipeline_module_struct_layout_name_byte_at(mod, k, j) != nm[j])
+        break;
+    }
+    if (j == nlen)
+      return 1;
+  }
+  return 0;
+}
 
 /**
  * CALL 实参 VAR：块内 let struct / 定长数组 T[N] 须 lea 传地址；标量 / *T / 形参 struct 指针槽须 load。
