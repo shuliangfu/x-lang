@@ -11,19 +11,23 @@
  * - glue_emit_slice_length_to_rbx_elf_c + glue_emit_index_bounds_guard_elf_c
  * - glue_try_index_rvalue_slice_once_elf_c (CALL/METHOD TYPE_SLICE once)
  * - glue_emit_index_eff_addr_scaled_elf_c (full scaled INDEX address entry)
+ * - glue_arch_emit_local_slot_ptr_or_addr_text_c (text twin of local slot ptr/addr)
+ * - glue_emit_index_eff_addr_base_{elf,text}_c + public pipeline_asm_emit_index_eff_addr_{elf,text}_c
  *
  * G.7: single product-mega INDEX scaled-eff-addr face — do not open a second
- * bounds-guard or rax+rbx*esz path. try_index forest stays in
+ * bounds-guard or rax+rbx*esz path, and do not re-open base/public INDEX
+ * eff-addr twins outside this leaf. try_index forest stays in
  * pipeline_asm_emit_index_helpers.c; face emitters stay in
- * pipeline_asm_emit_index.c / assign. Older text/ELF base twins
- * (glue_emit_index_eff_addr_base_*) remain later in glue until a later wave.
+ * pipeline_asm_emit_index.c / assign. lvalue_eff_addr_text remains later in glue
+ * (ELF lvalue already in index_helpers).
  *
  * Callers: pipeline_asm_emit_index.c; assign INDEX lhs; index_helpers try_index;
- * spill index_assign residual (via forward decl); pipeline_asm_emit_index_eff_addr_elf_c
- * (add_index_to_base).
+ * spill index_assign residual (via forward decl); lvalue text INDEX arm;
+ * backend/M8-tail thin wrappers.
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c in place of
- * the former residual body (after binop load helpers; before lit_i32 + expr_rec).
+ * the former residual body (after binop load helpers / spill; before lit_i32 +
+ * expr_rec; lvalue_eff_addr_text residual follows expr_rec).
  *
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
  *   · LINUX+MACOS x86_64 SysV — imul/lea scale + bounds jl/jge
@@ -34,7 +38,10 @@
  * - glue_try_index_var_or_field_base_to_rax_elf_c / try_index_* forest
  *   (pipeline_asm_emit_index_helpers.c)
  * - glue_try_index_var_{mul,plus,minus}_* _eff_addr_rax_elf_c (index_helpers)
- * - pipeline_asm_emit_expr_elf_rec / pipeline_asm_expr_lit_i32_at_c (later glue)
+ * - pipeline_asm_emit_expr_elf_rec / pipeline_asm_expr_lit_i32_at_c (expr_rec leaf; after this include)
+ * - pipeline_asm_emit_expr_c / backend_arch_emit_* text twins (text public path)
+ * - glue_index_deref_ptr_field_slot_rax_elf_c / glue_enc_local_slot_ptr_or_addr_elf_c
+ * - glue_field_access_effective_offset_c / glue_var_expr_type_ref_with_decl_fallback_c
  * - pipeline_asm_emit_panic_int_div_zero_elf_c (panic face)
  * - glue_binop_preserve/restore_rax_* (binop residual helpers)
  * - glue_var_expr_stack_off_elf_c / backend_enc_* / asm_ctx_local_*
@@ -694,4 +701,195 @@ static int32_t glue_emit_index_eff_addr_scaled_elf_c(struct ast_ASTArena *arena,
   return glue_emit_index_rax_plus_rbx_scaled_elf_c(elf_ctx, esz, ta);
 }
 
+/**
+ * text 路径：局部 VAR 槽地址（*T/T[N] load 指针，其余 lea 栈槽）。
+ */
+static int32_t glue_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena,
+                                                            struct codegen_CodegenOutBuf *out, int32_t var_expr_ref,
+                                                            int32_t stack_off, struct backend_AsmFuncCtx *ctx,
+                                                            int32_t ta) {
+  if (asm_local_var_slot_holds_indirect_ptr(arena, var_expr_ref, g_pipeline_asm_emit_module, (uint8_t *)ctx) != 0)
+    return backend_arch_emit_load_rbp_to_rax(out, stack_off, ta);
+  return backend_arch_emit_lea_rbp_to_rax(out, stack_off, ta);
+}
+
+/**
+ * INDEX 左值 base 有效地址入 rax/x0（ELF）；与 backend.x 原 emit_index_eff_addr_elf 语义一致。
+ */
+static int32_t glue_emit_index_eff_addr_base_elf_c(struct ast_ASTArena *arena,
+                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ix_ref,
+                                                   struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t base_ref;
+  int32_t base_ko;
+  int32_t tr;
+  base_ref = pipeline_expr_index_base_ref(arena, ix_ref);
+  if (base_ref <= 0)
+    return -1;
+  base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  if (base_ko == 44 && pipeline_expr_field_access_is_enum_variant(arena, base_ref) == 0) {
+    int32_t fb_ref;
+    int32_t field_off;
+    fb_ref = pipeline_expr_field_access_base_ref(arena, base_ref);
+    field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, base_ref);
+    if (fb_ref > 0 && pipeline_expr_kind_ord_at(arena, fb_ref) == 3) {
+      uint8_t vname[128];
+      int32_t vlen;
+      int32_t off;
+      vlen = pipeline_expr_var_name_len(arena, fb_ref);
+      if (vlen <= 0 || vlen > 127)
+        return -1;
+      pipeline_expr_var_name_into(arena, fb_ref, vname);
+      off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
+      if (off < 0)
+        return -1;
+      if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, fb_ref, off, ctx, ta) != 0)
+        return -1;
+    } else {
+      if (fb_ref <= 0)
+        return -1;
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, fb_ref, ctx, ta) != 0)
+        return -1;
+    }
+    if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
+      return -1;
+    if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0)
+      return -1;
+  } else if (base_ko == 3) {
+    uint8_t vname[128];
+    int32_t vlen;
+    int32_t off;
+    vlen = pipeline_expr_var_name_len(arena, base_ref);
+    if (vlen <= 0 || vlen > 127)
+      return -1;
+    pipeline_expr_var_name_into(arena, base_ref, vname);
+    off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
+    if (off < 0)
+      return -1;
+    if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, off, ctx, ta) != 0)
+      return -1;
+  } else if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+    return -1;
+  }
+  tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+  if (tr <= 0)
+    tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+  if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE) {
+    if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  } else if (base_ko == 44) {
+    if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/**
+ * INDEX 左值 base 有效地址入 rax/x0（text）；与 ELF 路径对称。
+ */
+static int32_t glue_emit_index_eff_addr_base_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                                    int32_t ix_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t base_ref;
+  int32_t base_ko;
+  int32_t tr;
+  base_ref = pipeline_expr_index_base_ref(arena, ix_ref);
+  if (base_ref <= 0)
+    return -1;
+  base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  if (base_ko == 44 && pipeline_expr_field_access_is_enum_variant(arena, base_ref) == 0) {
+    int32_t fb_ref;
+    int32_t field_off;
+    fb_ref = pipeline_expr_field_access_base_ref(arena, base_ref);
+    field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, base_ref);
+    if (fb_ref > 0 && pipeline_expr_kind_ord_at(arena, fb_ref) == 3) {
+      uint8_t vname[128];
+      int32_t vlen;
+      int32_t off;
+      vlen = pipeline_expr_var_name_len(arena, fb_ref);
+      if (vlen <= 0 || vlen > 127)
+        return -1;
+      pipeline_expr_var_name_into(arena, fb_ref, vname);
+      off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
+      if (off < 0)
+        return -1;
+      if (glue_arch_emit_local_slot_ptr_or_addr_text_c(arena, out, fb_ref, off, ctx, ta) != 0)
+        return -1;
+    } else {
+      if (fb_ref <= 0)
+        return -1;
+      if (pipeline_asm_emit_expr_c(arena, out, fb_ref, ctx, ta) != 0)
+        return -1;
+    }
+    if (field_off != 0 && backend_arch_emit_add_imm_to_rax(out, field_off, ta) != 0)
+      return -1;
+  } else if (base_ko == 3) {
+    uint8_t vname[128];
+    int32_t vlen;
+    int32_t off;
+    vlen = pipeline_expr_var_name_len(arena, base_ref);
+    if (vlen <= 0 || vlen > 127)
+      return -1;
+    pipeline_expr_var_name_into(arena, base_ref, vname);
+    off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
+    if (off < 0)
+      return -1;
+    if (glue_arch_emit_local_slot_ptr_or_addr_text_c(arena, out, base_ref, off, ctx, ta) != 0)
+      return -1;
+  } else if (pipeline_asm_emit_expr_c(arena, out, base_ref, ctx, ta) != 0) {
+    return -1;
+  }
+  tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+  if (tr <= 0)
+    tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+  if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE) {
+    if (backend_arch_emit_load_64_from_rax(out, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/**
+ * INDEX 左值有效地址 ELF（ix_ref 替代 Expr 按值；M8-tail 薄包装 bl 目标）。
+ */
+int32_t pipeline_asm_emit_index_eff_addr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                               int32_t ix_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                               int32_t elem_sz) {
+  int32_t idx_ref;
+  if (!arena || !elf_ctx || !ctx || ix_ref <= 0)
+    return -1;
+  idx_ref = pipeline_expr_index_index_ref(arena, ix_ref);
+  if (pipeline_expr_index_base_ref(arena, ix_ref) <= 0 || idx_ref <= 0)
+    return -1;
+  if (glue_emit_index_eff_addr_base_elf_c(arena, elf_ctx, ix_ref, ctx, ta) != 0)
+    return -1;
+  return glue_emit_index_add_index_to_base_rax_elf_c(arena, elf_ctx, idx_ref, ctx, ta, elem_sz);
+}
+
+/**
+ * INDEX 左值有效地址 text（ix_ref 替代 Expr 按值；M8-tail 薄包装 bl 目标）。
+ */
+int32_t pipeline_asm_emit_index_eff_addr_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                                int32_t ix_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                int32_t elem_sz) {
+  int32_t idx_ref;
+  if (!arena || !out || !ctx || ix_ref <= 0)
+    return -1;
+  idx_ref = pipeline_expr_index_index_ref(arena, ix_ref);
+  if (pipeline_expr_index_base_ref(arena, ix_ref) <= 0 || idx_ref <= 0)
+    return -1;
+  if (glue_emit_index_eff_addr_base_text_c(arena, out, ix_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_arch_emit_push_rax(out, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_expr_c(arena, out, idx_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_arch_emit_mov_rax_to_rbx(out, ta) != 0)
+    return -1;
+  if (backend_arch_emit_pop_rax(out, ta) != 0)
+    return -1;
+  if (elem_sz == 1)
+    return backend_arch_emit_rax_plus_rbx_scale1(out, ta);
+  if (elem_sz == 8)
+    return backend_arch_emit_rax_plus_rbx_scale8(out, ta);
+  return backend_arch_emit_rax_plus_rbx_scale4(out, ta);
+}
 
