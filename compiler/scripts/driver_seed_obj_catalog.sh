@@ -13,10 +13,11 @@
 #   bash scripts/driver_seed_obj_catalog.sh --make    # force make export
 #   bash scripts/driver_seed_obj_catalog.sh --link-export phase1  # SEED_LINK_* (phase1)
 #   bash scripts/driver_seed_obj_catalog.sh --link-export final   # SEED_LINK_* (final)
+#   bash scripts/driver_seed_obj_catalog.sh --cflags-export       # CFLAGS + PIPELINE_GEN_CFLAGS
 #   MAKE=gmake bash scripts/driver_seed_obj_catalog.sh
 #
 # PLATFORM: SHARED — thin catalog; no compile/link.
-# Wave: 726–728 export · 788 B7B shell-primary · 924 --link-export (not physical delete).
+# Wave: 726–728 export · 788 B7B shell-primary · 924 --link-export · 925 --cflags-export (not physical delete).
 
 set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
@@ -30,6 +31,7 @@ CHECK=0
 FORCE_SHELL=0
 FORCE_MAKE=0
 LINK_EXPORT_MODE=""
+CFLAGS_EXPORT=0
 case "${1:-}" in
   --check) CHECK=1 ;;
   --shell) FORCE_SHELL=1 ;;
@@ -41,13 +43,14 @@ case "${1:-}" in
     fi
     LINK_EXPORT_MODE="$2"
     ;;
+  --cflags-export) CFLAGS_EXPORT=1 ;;
   "" ) ;;
   -h|--help)
     sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
   *)
-    echo "driver_seed_obj_catalog: unknown arg '$1' (use --check|--shell|--make|--link-export phase1|final)" >&2
+    echo "driver_seed_obj_catalog: unknown arg '$1' (use --check|--shell|--make|--link-export phase1|final|--cflags-export)" >&2
     exit 2
     ;;
 esac
@@ -233,6 +236,17 @@ catalog_seed_host_defaults() {
   fi
   catalog_set TARGET "${TARGET:-xlang}"
 
+  # wave925: CC_IS_CLANG mirrors Makefile `:= $(findstring clang,$(shell $(CC) -v 2>&1))`.
+  # Both produce "clang" when CC output contains "clang", empty otherwise.
+  # Set before parsing mk/driver_seed_mode_objs.mk so ifeq resolves correctly.
+  local _cc_bin
+  _cc_bin=$(catalog_get CC)
+  if "$_cc_bin" -v 2>&1 | grep -q 'clang'; then
+    catalog_set CC_IS_CLANG clang
+  else
+    catalog_set CC_IS_CLANG ""
+  fi
+
   # wave818: DRIVER_SEED_RUNTIME_O / SUPPORT_EXTRA / FRONTEND_EXTRA /
   # RUNTIME_REBUILD / LINK_FLAGS / C_FRONTEND_LEGACY → mk/driver_seed_mode_objs.mk.
   # wave819: MAIN_LINK / LEXER_AST / LSP_DIAG / PREPROCESS / GLUE → mk/driver_seed_link_picks.mk.
@@ -369,8 +383,22 @@ catalog_parse_mk() {
     done
     [ "$active" -eq 1 ] || continue
 
-    # KEY = value  or  KEY := value (bash 3.2; no sed \? optional)
+    # KEY = value / KEY := value / KEY += value (bash 3.2; wave925: += append support)
     case "$line" in
+      *'+='*)
+        key=${line%%+=*}
+        val=${line#*+=}
+        key=$(printf '%s' "$key" | sed 's/[[:space:]]*$//;s/^[[:space:]]*//')
+        val=$(printf '%s' "$val" | sed 's/^[[:space:]]*//')
+        case "$key" in
+          [A-Za-z_]*)
+            # append: get existing value, add space + new value (match make += semantics)
+            local _old
+            _old=$(catalog_get "$key")
+            catalog_set "$key" "$(catalog_norm_ws "$_old $val")"
+            ;;
+        esac
+        ;;
       *'='*)
         key=
         val=
@@ -524,6 +552,23 @@ catalog_make_dump() {
   "$MAKE" -s bootstrap-driver-seed-export-obj-catalog
 }
 
+# wave925: --cflags-export — shell-primary CFLAGS + PIPELINE_GEN_CFLAGS dump.
+# Replaces `make export-try-heat-cflags` for build_tool.sh.
+# Output mirrors the Makefile export target exactly (2 KEY=value lines).
+# CFLAGS resolves from host defaults (Makefile `?=` parity + OPT=1 -O2).
+# PIPELINE_GEN_CFLAGS resolves from mk/driver_seed_mode_objs.mk (BASE + ifeq
+# CC_IS_CLANG → CLANG append).
+catalog_cflags_export_dump() {
+  catalog_shell_parse_all
+  local cflags pipeline_gen_cflags
+  cflags=$(catalog_get CFLAGS)
+  pipeline_gen_cflags=$(catalog_get PIPELINE_GEN_CFLAGS)
+  cflags=$(catalog_norm_ws "$cflags")
+  pipeline_gen_cflags=$(catalog_norm_ws "$pipeline_gen_cflags")
+  printf 'CFLAGS=%s\n' "$cflags"
+  printf 'PIPELINE_GEN_CFLAGS=%s\n' "$pipeline_gen_cflags"
+}
+
 # Decide path
 USE_MAKE=0
 if [ "$FORCE_MAKE" -eq 1 ]; then
@@ -541,6 +586,12 @@ fi
 # (SEED_LINK_*) resolve from mk directly — no make escape needed.
 if [ -n "$LINK_EXPORT_MODE" ]; then
   catalog_link_export_dump "$LINK_EXPORT_MODE"
+  exit $?
+fi
+
+# wave925: --cflags-export short-circuit (shell-only; replaces make export-try-heat-cflags).
+if [ "$CFLAGS_EXPORT" -eq 1 ]; then
+  catalog_cflags_export_dump
   exit $?
 fi
 

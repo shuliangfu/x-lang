@@ -33,14 +33,19 @@ CC="${CC:-cc}"
 MAKE="${MAKE:-make}"
 MODE="${1:-}"
 
-# wave866 · B7B build-tool CFLAGS shell-load (G.7 有则补全 on wave862 export leaf).
-# Product CFLAGS need make expansion (OPT += -O2; clang silence ifeq).
-# Makefile build-tool recipe drops multi-token CFLAGS= env; shell loads when unset.
-# PLATFORM: SHARED — KEY=value from export target; no compile side effects.
-_load_try_heat_cflags_via_make() {
-  # PLATFORM: SHARED — heredoc not bash <<< so dash-friendly if ever invoked via sh.
+# wave925 · B7B build-tool CFLAGS shell-load via catalog (0 make).
+# Replaces wave866 make export-try-heat-cflags with shell catalog parse of mk.
+# CFLAGS + PIPELINE_GEN_CFLAGS resolve from mk/driver_seed_mode_objs.mk + host
+# defaults (Makefile `?=` parity + OPT=1 -O2 + CC_IS_CLANG ifeq).
+# XLANG_CFLAGS_VIA_MAKE=1 escapes to make export (parity / debug).
+# PLATFORM: SHARED — KEY=value from catalog; no compile side effects.
+_load_try_heat_cflags() {
   local raw line
-  raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-try-heat-cflags) || return 1
+  if [ "${XLANG_CFLAGS_VIA_MAKE:-0}" = "1" ]; then
+    raw=$(MAKEFLAGS= "$MAKE" -s export-try-heat-cflags) || return 1
+  else
+    raw=$(bash scripts/driver_seed_obj_catalog.sh --cflags-export 2>/dev/null) || return 1
+  fi
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
       CFLAGS=*)
@@ -56,9 +61,9 @@ EOF
 }
 
 if [ -z "${CFLAGS+x}" ]; then
-  _load_try_heat_cflags_via_make || true
+  _load_try_heat_cflags || true
 fi
-# Fallback when make export unavailable (direct shell invoke without Makefile).
+# Fallback when catalog/make unavailable (direct shell invoke without Makefile).
 CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
 
 log() { echo "build-tool: $*" >&2; }
