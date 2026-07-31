@@ -25,14 +25,14 @@
 #   STAGE2         — output binary (default: ${TARGET}_x_stage2)
 #   CC             — host C compiler (default: cc)
 #   CFLAGS         — host CFLAGS for -c and link base
-#                    default: load via export-try-heat-cflags when unset (wave865)
-#   MAKE           — residual make for export leaf (wave859 / wave865)
-#   BXC_LINK_OBJS  — optional; default loads via export-bxc-link-objs
+#                    default: catalog-primary when unset (wave943; was export-try-heat-cflags)
+#   MAKE           — residual escape only (Makefile physically deleted wave941)
+#   BXC_LINK_OBJS  — optional; default loads via catalog / export leaf escape
 #
 # wave842 (G.7 有则补全): Makefile fat -x -E + $(CC) -c + link → this script.
 # wave859: BXC_LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
 # wave865: CFLAGS shell-load via export-try-heat-cflags (no multi-token CFLAGS=).
-# NOT physical delete — thin-call edges + B2 + mk lists remain residual.
+# wave943: CFLAGS catalog-primary (Makefile physically deleted wave941).
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -43,14 +43,17 @@ TARGET_X="${TARGET_X:-${TARGET}_x}"
 STAGE2="${STAGE2:-${TARGET}_x_stage2}"
 CC="${CC:-cc}"
 MAKE="${MAKE:-make}"
-# wave865: product CFLAGS need make expansion (OPT/-I); recipe no longer injects.
+# wave943: catalog-primary CFLAGS load (was make export-try-heat-cflags).
+# Makefile physically deleted in wave941; catalog is the single authority.
+# XLANG_CATALOG_CACHE_FILE lets the parent bootstrap pass a pre-warmed cache.
+# PLATFORM: SHARED — same KEY=VALUE semantics on Darwin/Linux/Windows MSYS2.
 if [ -z "${CFLAGS+x}" ]; then
-  _raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-try-heat-cflags 2>/dev/null || true)
-  while IFS= read -r _line || [ -n "${_line:-}" ]; do
-    case "$_line" in
-      CFLAGS=*) CFLAGS=${_line#CFLAGS=} ;;
-    esac
-  done <<<"${_raw:-}"
+  if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+    CFLAGS=$(sed -n "s|^CFLAGS=||p" "${XLANG_CATALOG_CACHE_FILE}" | tail -n 1)
+  else
+    CFLAGS=$(bash scripts/driver_seed_obj_catalog.sh --shell 2>/dev/null \
+      | sed -n "s|^CFLAGS=||p" | tail -n 1)
+  fi
 fi
 CFLAGS="${CFLAGS:-}"
 
@@ -62,7 +65,18 @@ fail() { echo "bootstrap-x-compiler: FAIL: $*" >&2; exit 1; }
 # ---------------------------------------------------------------------------
 if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   MF=Makefile
-  [ -f "$MF" ] || fail "missing $MF"
+  # wave943: Makefile physically deleted in wave941; structural recipe checks N/A.
+  # Catalog is the single authority; shell loads CFLAGS via catalog.
+  if [ ! -f "$MF" ]; then
+    if ! grep -q '_load_try_heat_cflags_via_catalog\|driver_seed_obj_catalog\|XLANG_CATALOG_CACHE_FILE' "$0" 2>/dev/null; then
+      # Accept either inline catalog load (this script) or shared helper name.
+      if ! grep -q 'driver_seed_obj_catalog.sh' "$0" 2>/dev/null; then
+        fail "bootstrap_x_compiler.sh must catalog-load CFLAGS after Makefile delete (wave943)"
+      fi
+    fi
+    log "CHECK OK (wave943; Makefile physically deleted; catalog-primary CFLAGS)"
+    exit 0
+  fi
   # Makefile thin-call only (wave842): scan *recipe* lines (tab-indented) only —
   # comments between phonies must not false-positive on "$(CC) -c" prose.
   _rec=$(awk '

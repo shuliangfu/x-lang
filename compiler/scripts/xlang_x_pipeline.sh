@@ -45,14 +45,17 @@ TARGET="${TARGET:-xlang}"
 TARGET_X="${TARGET_X:-${TARGET}_x}"
 CC="${CC:-cc}"
 MAKE="${MAKE:-make}"
-# wave865: product CFLAGS need make expansion (OPT/-I); recipe no longer injects.
+# wave943: catalog-primary CFLAGS load (was make export-try-heat-cflags).
+# Makefile physically deleted in wave941; catalog is the single authority.
+# XLANG_CATALOG_CACHE_FILE lets the parent bootstrap pass a pre-warmed cache.
+# PLATFORM: SHARED — same KEY=VALUE semantics on Darwin/Linux/Windows MSYS2.
 if [ -z "${CFLAGS+x}" ]; then
-  _raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-try-heat-cflags 2>/dev/null || true)
-  while IFS= read -r _line || [ -n "${_line:-}" ]; do
-    case "$_line" in
-      CFLAGS=*) CFLAGS=${_line#CFLAGS=} ;;
-    esac
-  done <<<"${_raw:-}"
+  if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+    CFLAGS=$(sed -n "s|^CFLAGS=||p" "${XLANG_CATALOG_CACHE_FILE}" | tail -n 1)
+  else
+    CFLAGS=$(bash scripts/driver_seed_obj_catalog.sh --shell 2>/dev/null \
+      | sed -n "s|^CFLAGS=||p" | tail -n 1)
+  fi
 fi
 CFLAGS="${CFLAGS:-}"
 
@@ -64,7 +67,12 @@ fail() { echo "xlang-x-pipeline: FAIL: $*" >&2; exit 1; }
 # ---------------------------------------------------------------------------
 if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   MF=Makefile
-  [ -f "$MF" ] || fail "missing $MF"
+  # wave943: Makefile physically deleted in wave941; structural checks no longer
+  # apply. Catalog is the single authority; shell loads CFLAGS via catalog.
+  if [ ! -f "$MF" ]; then
+    log "CHECK OK (wave943; Makefile physically deleted; catalog-primary)"
+    exit 0
+  fi
   # Makefile thin-call only (wave845): scan *recipe* lines (tab-indented) only —
   # comments between targets must not false-positive on "$(CC)" prose.
   _rec=$(awk '

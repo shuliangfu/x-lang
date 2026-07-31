@@ -22,8 +22,8 @@
 #
 # Env:
 #   CC / CFLAGS / PIPELINE_GEN_CFLAGS / PYTHON / MAKE — host compile
-#   CFLAGS / PIPELINE_GEN_CFLAGS default: load via make export-try-heat-cflags
-#     when unset (wave865; G.7 有则补全 on wave862 export leaf — OPT/-I/clang ifeq)
+#   CFLAGS / PIPELINE_GEN_CFLAGS default: load via driver_seed_obj_catalog.sh
+#     when unset (wave943; G.7 catalog single authority — was make export leaf)
 #   XLANG_MIGRATE_FORCE=1 — always recompile even if .o is newer than gen
 #   XLANG_FORCE_REGEN_GEN=1 — force ensure_migrate_gen -E path
 #
@@ -32,7 +32,7 @@
 # wave832: Makefile *_x.o leaves are FORCE dep-thin; this script owns gen.c mtime
 #   (need_rebuild + XLANG_MIGRATE_FORCE). NOT physical delete.
 # wave865: Makefile drops multi-token CFLAGS="$(CFLAGS)" inject; shell loads
-#   export-try-heat-cflags when unset (same authority as try-heat / wave862).
+#   catalog when unset (wave943; was export-try-heat-cflags / wave862).
 # wave878: Makefile drops multi-token CC/PYTHON/MAKE inject; shell defaults own
 #   CC="${CC:-cc}" / PYTHON auto / MAKE="${MAKE:-make}" (G.7 有则补全 wave877-style).
 
@@ -57,38 +57,40 @@ fi
 XLANG_MIGRATE_FORCE="${XLANG_MIGRATE_FORCE:-0}"
 MODE="${1:-all}"
 
-# wave865 · B7B migrate CFLAGS shell-load (G.7 有则补全 on wave862 export leaf).
-# Product CFLAGS / PIPELINE_GEN_CFLAGS need make expansion (OPT += -O2; clang
-# silence ifeq). Makefile migrate recipes drop multi-token CFLAGS= env; shell
-# loads export-try-heat-cflags when either var is unset.
-# PLATFORM: SHARED — KEY=value from export target; no compile side effects.
-_load_try_heat_cflags_via_make() {
-  # PLATFORM: SHARED — invoked via `sh` on Makefile thin leaves (dash on Ubuntu);
-  # use heredoc not bash <<< so macOS bash + Ubuntu dash both parse.
-  # shellcheck disable=SC2039
-  local raw line
-  raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-try-heat-cflags) || return 1
-  while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in
-      CFLAGS=*)
-        if [ -z "${CFLAGS+x}" ]; then
-          CFLAGS=${line#CFLAGS=}
-        fi
-        ;;
-      PIPELINE_GEN_CFLAGS=*)
-        if [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
-          PIPELINE_GEN_CFLAGS=${line#PIPELINE_GEN_CFLAGS=}
-        fi
-        ;;
-    esac
-  done <<EOF
-$raw
-EOF
+# wave943 · catalog-primary CFLAGS/PIPELINE_GEN_CFLAGS load (was make
+# export-try-heat-cflags). Makefile physically deleted in wave941; catalog is
+# the single authority for mk-derived KEY=VALUE (CC, CFLAGS, PIPELINE_GEN_CFLAGS
+# all sourced from mk/*.mk via driver_seed_obj_catalog.sh --shell).
+# XLANG_CATALOG_CACHE_FILE lets the parent bootstrap pass a pre-warmed cache
+# so this script does not re-parse all mk files (Windows MinGW: ~3min/call).
+# PLATFORM: SHARED — same KEY=VALUE semantics on Darwin/Linux/Windows MSYS2.
+_load_try_heat_cflags_via_catalog() {
+  # PLATFORM: SHARED — invoked via `sh` on thin leaves (dash on Ubuntu);
+  # use portable sed not bash <<< so macOS bash + Ubuntu dash both parse.
+  local _val
+  if [ -z "${CFLAGS+x}" ]; then
+    if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+      _val=$(sed -n "s|^CFLAGS=||p" "${XLANG_CATALOG_CACHE_FILE}" | tail -n 1)
+    else
+      _val=$(bash scripts/driver_seed_obj_catalog.sh --shell 2>/dev/null \
+        | sed -n "s|^CFLAGS=||p" | tail -n 1)
+    fi
+    [ -n "$_val" ] && CFLAGS="$_val"
+  fi
+  if [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
+    if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+      _val=$(sed -n "s|^PIPELINE_GEN_CFLAGS=||p" "${XLANG_CATALOG_CACHE_FILE}" | tail -n 1)
+    else
+      _val=$(bash scripts/driver_seed_obj_catalog.sh --shell 2>/dev/null \
+        | sed -n "s|^PIPELINE_GEN_CFLAGS=||p" | tail -n 1)
+    fi
+    [ -n "$_val" ] && PIPELINE_GEN_CFLAGS="$_val"
+  fi
   return 0
 }
 
 if [ -z "${CFLAGS+x}" ] || [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
-  _load_try_heat_cflags_via_make || true
+  _load_try_heat_cflags_via_catalog || true
 fi
 # Fallback when make export unavailable (direct shell invoke without Makefile).
 CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"

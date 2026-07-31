@@ -17,9 +17,10 @@
 | **行号** | `compiler/Makefile` 首次出现 |
 | **今日落点** | 谁真正在干活（g05 shell / Makefile / 测试脚本） |
 | **xbuild 目标** | 终局拟接管名 |
-| **迁移状态** | 🟢 已 shell 权威 · 🟡 半路径 · ⬜ 仍 Makefile · 🗑 拟删除不迁 |
+| **迁移状态** | 🟢 已 shell 权威 · 🟡 半路径 / post-delete residual · ⬜ 历史「仍 Makefile」**（文件已删；未迁 shell 的目标 = 死规则或待 0-make 适配）** · 🗑 拟删除不迁 / 已随 Makefile 删除 |
 
-**迁移完成定义（单行）**：产品/冷启动/CI 不再依赖该 Makefile 规则；xbuild 或单一 shell 族可复现。
+**迁移完成定义（单行）**：产品/冷启动/CI 不再依赖该 Makefile 规则；xbuild 或单一 shell 族可复现。  
+**wave941 后注**：`compiler/Makefile` **已物理删除**。表内 ⬜「仍 Makefile」= 盘点当时状态；真源以 🟢 shell / catalog / g05 为准。未再实现的 phony 视为 🗑。
 
 ---
 
@@ -51,7 +52,9 @@
 须与 g05 同语义：  D/E/F/C 的 .o 热路径（今日已有 shell cc，Makefile 为第二权威）
 冷启动硬依赖：    H bootstrap-driver-seed · B pin gen · K seed-tools
 删 make 前体积债：C glue ~40k · 阶段 8.3（与本表并行，非 11.0 独占）
-11.3 物理删 make：✅ **已完成**（wave941）· A–O 全 🟢 或 🗑；catalog 单权威（mk/*.mk）；BC 不再强制 host-cc 业务 C（仍 ⬜）
+11.3 物理删 make：✅ **已完成**（wave941）· catalog 单权威（mk/*.mk）· bootstrap 0 make · 双端 L4（wave942）  
+  post-delete residual：tests hub `compiler-make` / formal_std make 命令串 / gate `--check` 期望 MF 存在 / README·vscode make 提示（⬜≠文件权威）  
+  BC 层 host-cc 业务 C（glue/pin）仍 ⬜ — **≠** MG 编排未完成
 ```
 
 ---
@@ -66,7 +69,7 @@
 | `g05-ensure-relink-prereqs` | 3081 | g05_ensure_relink_prereqs.sh (~3.3k 行) | `xbuild ensure` | 🟢 g05_ensure_relink_prereqs.sh | 热路径 cc；filtered.o 已纯 shell（wave715） |
 | `g05-export-relink` | 3085 | g05_relink_env.sh | `xbuild link-env` | 🟢 g05_relink_env.sh | 链接清单 |
 | `refresh-xlang-asm-gate` | 3172 | shell `refresh_xlang_asm_gate.sh` | `xbuild refresh-gate` | 🟢 wave734 体 shell；**wave735–737** migrate+gen+lexer shell | 11.1.6 |
-| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–803：… → **B7A heat dep-thin FORCE 113**（wave791–797 · orch closed · `HEAT_RESIDUAL=0`）· **preflight wave798** · **execute-gate wave799** · **proof harness wave800** · **status-flip-preview wave801** · **status-flip-apply harness wave802** · **commit-honesty wave803**；**wave927** gen_g06 phase1 stub make-call cleanup（`make src/x_seed_bridge.o` + probe loop `make $obj` → shell cc 直编；`XLANG_SEED_LINK_VIA_MAKE=1` 逃生口）；residual **物理删**（Windows 绿 + STATUS flip 后） | L4 必经；列表 mk catalog shell 主路径；冷 rebuild residual_make=0；heat shell 可 `xbuild heat-o`；`xbuild phys-del-gate` 硬拒删 + proof + flip-preview/apply/honesty；11.3.1 物理删仍 ⬜ |
+| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ catalog（wave941） | `xbuild bootstrap` | 🟢 **wave941 物理删后 100% shell-primary**（`bootstrap_driver_seed.sh`；0 make）；wave717–940 列表/heat/gate 全闭；wave927 gen_g06 shell；wave942 ensure CFLAGS catalog | L4 必经；`./xbuild bootstrap-driver-seed`；冷路径 residual_make=0；post-delete gate harness 🟡 |
 | `bootstrap-driver-bstrict` | ~3107 | **shell** `bootstrap_driver_bstrict.sh`；FULL=1 仍 make 入口 | `xbuild bstrict-build` | 🟡 wave719 体 shell；**wave927** ensure-seed 直调 `bash scripts/bootstrap_driver_seed.sh`（0 make；`XLANG_BSTRICT_ENSURE_VIA_MAKE=1` 逃生口）；refresh 仍 make | 非日常 |
 | `test` / `test_c` / `test_x` | ~1685 | **shell** `run_compiler_tests.sh` | `xbuild test` | 🟢 wave720 体 shell；prereq 仍 make 图 | 嵌套 run-all 可 make |
 | `bootstrap-verify` / `check-7.2-bstrict` | ~3320 | **shell** `bootstrap_verify_bstrict.sh` | `xbuild verify` | 🟢 wave720 体 shell · wave880 thin `@sh` only（MAKELEVEL ENSURE） | 阶段2 仍脚本内 make |
@@ -574,17 +577,17 @@
 
 | 根入口 | 委托 | 是否仍 make（compiler） | 终局 |
 |--------|------|-------------------------|------|
-| `make` / `make help` | 打印 help + `./xbuild help` | 否 | 保留至 11.3 删根 Makefile |
-| `make <any>`（兼容） | `./xbuild <any>`（stderr 提示） | 同 `./xbuild` | 用户改敲 `./xbuild` |
+| ~~`make` / `make help`~~ | ~~打印 help + `./xbuild help`~~ | 否 | ✅ wave941 **根 Makefile 已删**；只用 `./xbuild` |
+| ~~`make <any>`（兼容）~~ | ~~`./xbuild <any>`~~ | — | ✅ 已删除；`./xbuild` 唯一入口 |
 | `./xbuild build` / `./xlang-build.sh build` / `./build.sh` | build_tool → g05 | 产品链 0× make -C | `xbuild build` 权威名；`build.sh` 别名 |
 | `./xbuild test*` | `run_compiler_tests.sh` | 否 | `xbuild test` |
 | `./xbuild clean` | `clean_compiler.sh` | 否 | `xbuild clean` |
 | `./xbuild full` | FULL 可能仍 make bstrict | 非日常 | `xbuild cold-test` 子集 |
 | `./xbuild compiler-all` | `scripts/compiler_all_ci.sh`（wave784 · wave880 thin all） | CI；`xlang`=g05（wave786 B7D）+ `xlang-c` seed；冷 residual_make=0（wave787）；catalog shell 0-make（wave788）；heat try-heat（wave789）· thin-unify（wave790）· dep-thin FORCE 113（wave791–797）；preflight wave798；execute-gate wave799；proof harness wave800；status-flip-preview wave801；status-flip-apply harness wave802；commit-honesty wave803；physical delete residual | 物理删后 0-make（Windows 绿后） |
 | `./xbuild heat-o OUT.o` | `ensure_host_cc_seed_o.sh try-heat`（wave789–803） | B7A heat shell 自动分发；recipes try-heat（wave790）；**113 FORCE** dep-thin（wave791–797 · orch closed · `HEAT_RESIDUAL=0`）；preflight/execute-gate/proof/flip-prep/apply/honesty wave798–803；非物理删 | 物理删 Makefile 后主热路径（Windows 绿后） |
-| `./xbuild phys-del-gate` | `phys_del_makefile_gate.sh`（wave799–810） | 硬拒删 Makefile（never-rm 体；wave808 后 ENDGAME=1 + TREE_ARMED=1 仍拒）；dry-run；MSYS min-gate + proof；STATUS flip（wave804）；tree arm（wave808）；delete-body-preview（wave809）；delete-body-commit-honesty（wave810）；**非**物理删 | explicit auth + ship 物理删体波才允许 `rm` |
-| `./xbuild bootstrap-driver-seed` | make 图 + shell 编排 | 冷启动 | 11.3 吞图 |
-| `./xbuild compiler-make …` | 叶 .o / CFLAGS 透传 | 残余 | G.7 体 = `tests/lib/compiler-make.sh` |
+| `./xbuild phys-del-gate` | `phys_del_makefile_gate.sh`（wave799–810） | 历史硬拒删 + preview/honesty；**wave941 已物理删** → `--check` 仍期望 MF 存在（**post-delete 适配 residual**） | 文件层 MG 已闭；gate 机检需 wave94x 改「缺席 = OK」 |
+| `./xbuild bootstrap-driver-seed` | **shell** `bootstrap_driver_seed.sh`（wave941） | 冷启动 **0 make** | ✅ |
+| `./xbuild compiler-make …` | 叶 .o 历史 make hub | 🔴 Makefile 已删 → hub 红 | 待 0-make：try-heat / catalog / `xlang_compile_std_module` |
 | `./xbuild ensure` / `link-env` / `link-product` | g05_*.sh 直调 | **0× make**（wave733） | 11.1.6 产品链一等 |
 | `./xbuild migrate` | `migrate_x_objs.sh` | `_x.o` **0× make**；gen→ensure_migrate_gen（wave735/736） | 11.1.6 迁移叶 |
 | `./xbuild migrate-gen` | `ensure_migrate_gen.sh` | parser/typeck/codegen `_gen.c` **0× make**（wave736） | 11.1.6 迁移 gen |

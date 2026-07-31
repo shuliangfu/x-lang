@@ -1334,13 +1334,14 @@
   - ✅ 类 G 全 4 filtered.o = 纯 shell；冷启动 `$(MAKE)` **白名单**：[Makefile迁移表.md](Makefile迁移表.md) §5b
   - ✅ 编排 / 链接 / rebuild / host-stubs / check-abi / asm-host → shell 权威；Makefile 薄叶子 + export
   - ✅ 叶清单 / 组合体定义 → `compiler/mk/*.mk`（G.7 单权威；catalog 18 keys）
-  - ⬜ FULL=1 冷路径仍经 make 白名单叶（编排已 shell）
+  - ✅ FULL=1 / 冷路径编排已 shell（wave719+）；**Makefile 已物理删除**（wave941）— 不再经 make 白名单叶
+  - 🟡 residual：`tests/**` hub `compiler-make` / formal_std ensure 仍可能 `make -C`（0-make 测试适配待续）
 
-🟡 **11.0.4 根 Makefile 只保留 help → xbuild**
+✅ **11.0.4 根 Makefile 只保留 help → xbuild → 已物理删除**
 
   - ✅ OBJS 叶 + 组合体 → `compiler/mk/*.mk`；`export-obj-catalog` + `driver_seed_obj_catalog.sh`（禁 shell 双清单）
-  - ✅ **`./xbuild`** 薄转调 **`xlang-build.sh`**（G.7 同体）；根 Makefile **help-only**（`.DEFAULT_GOAL=help`；`%` 仅兼容转发）
-  - ⬜ 禁止再加厚根 Makefile；compiler/Makefile 本体仍待 xbuild 吞并（11.1/11.3）
+  - ✅ **`./xbuild`** 薄转调 **`xlang-build.sh`**（G.7 同体）；根 Makefile **help-only** 历史态 → **wave941 已物理删除**
+  - ✅ compiler/Makefile 编排权威 → catalog/shell/g05（wave746–942）；**文件已 git rm**
 
 ### 11.1 核心功能
 
@@ -1430,16 +1431,16 @@
   - `bootstrap-seeds-capture.yml`：无 `make -C`（仅装 gmake 包）
   - 实现层仍经 `xlang-build.sh`→`run_compiler_make` 触 Makefile 图（至 11.3）；guest 仍装 host-cc/make（零 cc 属 12）
 
-### 11.3 Makefile 物理删除（**终局硬指标**）
+### 11.3 Makefile 物理删除（**终局硬指标** · **wave941/942 已完成**）
 
-🟡 **11.3 residual · prereq 边吞并（wave744 · 非物理删）**
+✅ **11.3 residual · prereq 边吞并（wave744 → 物理删 wave941）**
 
   - ✅ `driver_seed_ensure_prereqs.sh`：catalog 展开 `DRIVER_SEED_PREREQS` + glue companion；`--dry-run` / `--check` / `--run`
-  - ✅ `bootstrap_driver_seed.sh` step 0 调 ensure；Makefile `bootstrap-driver-seed` 薄 phony（无 `$(DRIVER_SEED_PREREQS)` make deps）
+  - ✅ `bootstrap_driver_seed.sh` step 0 调 ensure；历史 Makefile 薄 phony 已随 wave941 删除
   - ✅ `./xbuild driver-seed-prereqs`；cold dry-run 印 `PREREQ=` 边
-  - ⬜ 叶 `.o` pattern / host-cc residual 仍 Makefile 至 11.3.1 物理删
+  - ✅ 叶 `.o` pattern / host-cc residual → shell ensure（wave746–940）+ **Makefile 物理删除 wave941**
   - ✅ wave746：**11.3.1 路径库存** — `LEAF_PATTERN_RESIDUAL.md` + `leaf_pattern_residual.sh`
-    （R1–R6 命名；`./xbuild leaf-patterns`；**非**物理删 / **非** pure-ld）
+    （R1–R6 命名；`./xbuild leaf-patterns`；机检 post-delete 适配仍 🟡 residual）
   - ✅ wave747：**R4 mode-policy 吞并** — `rebuild_leaves` 默认 catalog KEY + shell mode 表；
     pattern 体仍 make（R4 body residual）；export 叶 inventory/legacy
   - ✅ wave748–755：**R1 八族** — `ensure_host_cc_seed_o.sh` 单 body + catalog 八 KEY；
@@ -1467,106 +1468,37 @@
   - ✅ wave773：**11.1.4 g05 pure-ld** — `pure_ld_shared` + g05_relink
   - ✅ wave774：**11.1.4 drop silent CC fallback** — cold+g05 pure-ld required；FORCE_CC/ineligible named residual only
 
-🟡 **11.3.1 路径 · 叶 pattern residual**（**非**物理删）
+✅ **11.3.1 路径 · 叶 pattern residual + 物理删除**（wave746–942）
 
 **状态**（波次流水见 `自举进度.md` §6 · 本文件只保留状态总结 + 权威指向）：
 
 - ✅ 权威图：`compiler/docs/LEAF_PATTERN_RESIDUAL.md`
-- ✅ 机检：`leaf_pattern_residual.sh` dump/classes/`--check`；`./xbuild leaf-patterns`
+- 🟡 机检：`leaf_pattern_residual.sh` / `phys_del_makefile_gate.sh` 仍有「期望 Makefile 存在」的 pre-delete harness 分支 → **post-delete 适配 residual**（产品冷路径已绿）
 - ✅ R1 host-cc seed · R2 UNAME stamp · R3 thin+rest · R4 rebuild pattern bodies · R5 CI all · R6→11.1.4
 - ✅ B1–B7 命名桶 + phys-del prep + Windows gate + dual-end verify（wave746–wave931 全部已闭；详情见 §6）
-- ⬜ R4 remaining residual 离 make 图（gen/pipeline-x 等，后序 B 桶吞）
-- ⬜ **B7 residual endgame · physical delete / 删 Makefile**
-  - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
-  - 已闭（一行一项，摘要）：
-    - heat closed · STATUS 绿 · TREE_ARMED arm ✅
-    - delete-body honesty ✅
-    - std_x thin / catalog / FORCE thin ✅
-    - formal_mod catalog / FORCE thin ✅
-    - STD_AND_PANIC · DRIVER_SUBCMD · PIPELINE_X · SEED_MODE · SEED_LINK_PICKS · OBJS_CORE · ARCH_EXPERIMENT · RELINK_LEGACY · SOURCE_DEPS · E_DIRS list→mk ✅
-    - driver_leaf catalog / FORCE thin ✅
-    - gen.c / ast_gen2 / src-edge / migrate *_x / pipeline_glue_types FORCE thin ✅
-    - bootstrap-pipeline / pipeline_gen / bootstrap_xlangc / archaeology FORCE thin ✅
-    - bootstrap-typeck/codegen · x-compiler · self · parser smoke · xlang-x-pipeline · xlang-x · xlang-no-c-frontend · seed-x-frontend · relink-xlang-lexer shell ✅
-    - RELINK_PRODUCT_LINK bag → mk · XXL/BS/XNC bags → mk · BXF bag → mk · seed phase1/final bags → mk ✅
-- ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
+- ✅ R4 / B 桶列表 → `mk/*.mk` + catalog/shell ensure（bootstrap 默认冷路径 0 make）
+- ✅ **B7 residual endgame · physical delete / 删 Makefile**（wave941 · explicit user auth）
+  - ✅ lists/thin 收口 · Windows tip 复证 · Mac/Ubuntu L4 · explicit auth → **已 ship 物理删体**
+  - 已闭摘要：heat / STATUS / TREE_ARMED / delete-body honesty / std_x·formal_mod·bags→mk / FORCE thin / 全 phony shell-primary 等（wave791–940）
+- ✅ **物理删 `compiler/Makefile`**（wave941 `git rm`）
 
-⬜ **11.3.1 删除 `compiler/Makefile`**
+✅ **11.3.1 删除 `compiler/Makefile`**（wave941 · tip `59d5b7471`；钉盘升 wave942 `77b334842`）
 
-  - 前置（一行一项；**仍**须 lists/thin + tip Windows + 双端 L4 + explicit auth 后才可 ship 真删）：
-    - 11.0 迁移表 100% 有主
-    - 8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0
-    - wave746 库存类 R1–R5 有主 shell
-    - wave777 prep 桶 B1–B7 有主
-    - wave797 heat source-prereq closed
-    - wave798 preflight
-    - wave799 execute-gate 硬拒删
-    - wave800 proof stamp harness
-    - wave801–804 STATUS flip + Windows min-gate 绿
-    - wave805 endgame-preview
-    - wave806 endgame-arm-apply harness
-    - wave807 endgame-arm-commit-honesty
-    - wave808 TREE_ARMED arm ENDGAME=1
-    - wave809 delete-body-preview
-    - wave810 delete-body-commit-honesty
-    - wave811 std_x hybrid thin
-    - wave812 formal_mod shell-primary
-    - wave813 STD_AND_PANIC list→mk
-    - wave814 driver_leaf catalog
-    - wave815 archaeology host-pick
-    - wave816 DRIVER_SUBCMD list→mk
-    - wave817 PIPELINE_X list→mk
-    - wave818 SEED_MODE list→mk
-    - wave819 SEED_LINK_PICKS list→mk
-    - wave820 OBJS_CORE list→mk
-    - wave821 ARCH_EXPERIMENT list→mk
-    - wave822 RELINK_LEGACY list→mk
-    - wave823 SOURCE_DEPS list→mk
-    - wave824 E_DIRS list→mk
-    - wave825 std_x shell-primary catalog
-    - wave826 formal_mod FORCE dep-thin
-    - wave827 std_x FORCE dep-thin
-    - wave828 driver_leaf FORCE dep-thin
-    - wave829 gen.c FORCE dep-thin
-    - wave830 ast_gen2 FORCE dep-thin
-    - wave831 src-edge FORCE dep-thin
-    - wave832 migrate *_x FORCE dep-thin
-    - wave833 pipeline_glue_types FORCE dep-thin
-    - wave834 bootstrap-pipeline FORCE shell-primary
-    - wave835 filtered.o FORCE dep-thin
-    - wave836 cp-alias FORCE dep-thin
-    - wave837 pipeline_gen.c FORCE dep-thin
-    - wave838 bootstrap_xlangc FORCE dep-thin
-    - wave839 archaeology host-pick FORCE dep-thin
-    - wave841 bootstrap-typeck/codegen shell-primary
-    - wave842 bootstrap-x-compiler shell-primary
-    - wave843 bootstrap-self shell-primary
-    - wave844 bootstrap-parser/parse-file shell-primary
-    - wave845 xlang-x-pipeline shell-primary
-    - wave846 xlang-x shell-primary
-    - wave847 xlang-no-c-frontend shell-primary
-    - wave848 bootstrap-driver-seed-x-frontend shell-primary
-    - wave849 relink-xlang-lexer shell-primary
-    - wave850 RELINK_PRODUCT_LINK bag → composites.mk
-    - wave851 XXL/BS/XNC full link bags → mk
-    - wave852 BXF full link bag → mk
-    - wave853 seed phase1/final full link bags → mk
-    - wave854 seed-gate REQUIRED_OBJS bags → mk
-    - wave855 seed-gate REQUIRED shell-load from mk
-    - wave872 bootstrap-driver-hybrid shell-primary
-    - wave873 regen-lsp-gens-x shell-primary
-    - wave874 build-via-tool shell-primary
-    - **open** · lists/thin 残项（hybrid）+ tip Windows 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体（终局波）
-  - 验收 grep（全仓 · 不止 tests/analysis/docs）：
+  - 前置全部满足后用户 explicit auth 真删：
+    - ✅ 迁移表有主 shell/catalog（wave714–940）
+    - 🟡 8.3/7/8 residual C **仍在**（host-cc 编；**MG 编排层已独立完成**，BC 层另计）
+    - ✅ wave746–940 R1–R5 / B1–B7 / heat / preflight / gates / Windows / dual L4
+    - ✅ wave941：`xlang-build.sh` bootstrap → 直调 `bootstrap_driver_seed.sh`；host_stubs catalog；**物理删除** 根 + `compiler/Makefile`
+    - ✅ wave942：ensure_host_cc_seed_o CFLAGS → catalog；双端 L4 升钉 `77b334842`
+  - 🟡 验收 grep 仍见 residual `make -C` / `compiler-make` / formal_std make 命令串 / 文档提示（**非** Makefile 文件权威；属 post-delete 清理）
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
     ```
-    仅考古引用
 
-⬜ **11.3.2 删除仓库根 `Makefile`**
+✅ **11.3.2 删除仓库根 `Makefile`**（wave941 同 commit）
 
-  - 入口改为 `./xbuild` 或 `./xlang-build.sh` → xbuild
+  - 入口：`./xbuild` 或 `./xlang-build.sh` → xbuild（根 Makefile 已不存在）
 
 ⬜ **11.3.3 删除/归档其它 make 碎片**
 
@@ -1598,8 +1530,9 @@
 🟡 **11.4.2 `xlang-build.sh` 产品路径 0× make -C；CI hub 单点**
 
   - 产品目标（build/clean/test*/bootstrap-* 烟测）已 shell（wave718–720）
-  - wave730：`run_compiler_make` 单 hub 供 `compiler-all` / `bootstrap-driver-seed` / `compiler-make`（CI/冷启动/叶 .o）
-  - 终局 11.3 删 Makefile 后 hub 改 shell 体，外层目标名不变
+  - ✅ wave941：`bootstrap-driver-seed` **不再**经 `run_compiler_make` → 直调 `bootstrap_driver_seed.sh`
+  - wave730：`run_compiler_make` hub 仍供 `compiler-make` / 部分 CI 叶（**Makefile 已删 → hub 会红**；0-make 适配待续）
+  - 🟡 post-delete：hub 须改 shell/try-heat/catalog；外层 `./xbuild` 目标名不变
 
 ✅ **11.4.3 `scripts/docker-ci-local.sh` 外层 0× `make -C`（wave730）**
 
@@ -1739,10 +1672,10 @@
 
 ⬜ **13.2.1 双端 L4 真冷 + 129 bstrict（xbuild 驱动 · 零 make · 零 host-cc）**
 
-⬜ **13.2.2 Makefile 物理删除验收**
+🟡 **13.2.2 Makefile 物理删除验收**（文件层 ✅ · 文档/残调用 🟡）
 
-  - `test ! -e Makefile && test ! -e compiler/Makefile`
-  - 文档/脚本无「请 make -C compiler」作为唯一路径
+  - ✅ `test ! -e Makefile && test ! -e compiler/Makefile`（wave941）
+  - 🟡 文档/脚本仍见「请 make -C compiler」提示（README · editors/vscode · 11.6.2/3）— **非唯一权威路径**（产品入口已是 `./xbuild`），清理属 residual
 
 ⬜ **13.2.3 零 cc 三义验收**（§0.1 MG+BC+PC）
 
@@ -1793,43 +1726,43 @@
 
 | 项 | 值 |
 |---|---|
-| 钉盘 SHA | `9bb7a757c` |
-| 前钉 SHA | `4fa4f07e7` |
-| 升钉波次 | wave710（match struct 模式链整波收口） |
-| 上次 L4 日期 | 2026-07-29 |
-| 双端 bstrict 数 | 129 |
-| mac 产品链 | ✅ L4 真冷 OK (129) |
-| Ubuntu L4（金标） | ✅ L4 真冷 OK (129) |
+| 钉盘 SHA | **`77b334842`**（wave942 · Makefile 物理删除） |
+| 前钉 SHA | `9bb7a757c`（wave710）· `4fa4f07e7` |
+| 升钉波次 | wave942（MG 物理删 + catalog CFLAGS + 双端 L4） |
+| 上次 L4 日期 | 2026-07-31 |
+| 双端 bstrict 数 | 129（历史钉盘）；tip 产品矩阵/bootstrap 绿；全量 bstrict post-delete residual 待清 |
+| mac 产品链 | ✅ wave942 build/g05 OK |
+| Ubuntu L4（金标） | ✅ wave942 wipe+bootstrap+build+smoke OK |
 | 工程轨 KPI | T 18/18 · N 111/111 IDENTICAL |
-| git 锚点 | `anchor-pre-wave710-l4` · `anchor-pre-wave712-cap` |
+| MG | ✅ 根 + `compiler/Makefile` 已物理删除 |
+| git 锚点 | 见 `自举进度.md` §6 wave941/942 |
 
 ## 附录 D：综合迁移进度（终局 = **无 Makefile** + 零 cc 三义）
 
 ```
 旧终局（v2==v3 + 无 pin）≈ 74.5%（历史权重，见变更记录）
 
-新终局权重（2026-07-29 审计修订）：
+新终局权重（2026-07-31 修订 · MG 物理删后）：
   库+T+N+R2+M拆分+Cap≈         0.40 × ~85%  → ~34%
   阶段 7/8 gen 去 pin            0.10 × ~25%  → ~2.5%
   阶段 8.3 glue/ast（新）        0.12 × 0%    → 0%
   阶段 9 residual                0.12 × 0%    → 0%
   阶段 10 语言 L2                0.10 × 0%    → 0%
-  阶段 11 Makefile 退役/xbuild   0.12 × ~15%  → ~2%   （G-05/shell/build.x 半路径）
-  阶段 12–13 冷启动+终局验收     0.04 × 0%    → 0%
-                                 合计 ≈ 38–45%
+  阶段 11 Makefile 退役/xbuild   0.12 × ~90%  → ~11%  （**MG 文件删除 ✅**；post-delete 0-make residual / 文档 / gate --check 🟡）
+  阶段 12–13 冷启动+终局验收     0.04 × ~10%  → ~0.4% （13.2.2 文件层 ✅；零 cc / v2==v3 ⬜）
+                                 合计 ≈ 48–50%
 ```
 
-**综合迁移进度（修订）：约 40–45%**  
-（原写 ~50% 略乐观：漏计 **8.3 glue ~60k** 与 **typeck/codegen pin**，且根 Makefile 薄包装 ≠ compiler/Makefile 已退役。）
+**综合迁移进度（修订）：约 48–50%**  
+MG **编排层**已完成（wave941/942）。剩余主债：**BC/PC 零 cc** · **8.3 glue** · **去 pin** · **post-delete residual**（compiler-make / formal_std make / README·vscode 提示 / gate --check 期望 Makefile 存在）。
 
-剩余工作按 **删 Makefile** 优先级：
+剩余工作优先级（MG 已闭后）：
 
-1. **阶段 11.0** Makefile 规则迁移表 + 产品路径 0-make 闸门（可立即开）  
+1. **post-delete residual** — `compiler-make` / formal_std ensure 0-make；gate `--check` 接受 Makefile 缺席；README/vscode 去 make 提示（11.6.2/3）  
 2. **阶段 8.3** pipeline_glue / ast_pool 等非 gen 产品 C  
 3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. **阶段 10 → 9** 语言能力 + residual 消灭  
-5. **阶段 11.1–11.3** xbuild 填实 + **物理删 Makefile**  
-6. **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
+5. **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
 
 ## 附录 E：compiler/Makefile 迁移表（摘要 · 全量见独立文档）
 
