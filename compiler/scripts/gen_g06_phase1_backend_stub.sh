@@ -53,11 +53,26 @@ fi
 mkdir -p "$OUT_DIR"
 
 # phase1 试链需要 DRIVER_SEED_OBJS 中的 io 桩；gen 脚本可能在 recipe 中段先于最终 prerequisite 链执行。
+# Wave927: shell cc direct compile from seed (no make; g05 G-02f-11 cold fallback pattern).
+# XLANG_SEED_LINK_VIA_MAKE=1 escapes to make (parity / debug).
 if [ ! -f src/x_seed_bridge.o ]; then
-  make src/x_seed_bridge.o >/dev/null 2>&1 || {
-    echo "gen_g06_phase1_backend_stub: failed to build src/x_seed_bridge.o" >&2
+  if [ "${XLANG_SEED_LINK_VIA_MAKE:-0}" = "1" ]; then
+    make src/x_seed_bridge.o >/dev/null 2>&1 || {
+      echo "gen_g06_phase1_backend_stub: failed to build src/x_seed_bridge.o via make" >&2
+      exit 1
+    }
+  elif [ -f seeds/x_seed_bridge.from_x.c ]; then
+    echo "gen_g06_phase1_backend_stub: cc -c seeds/x_seed_bridge.from_x.c -> src/x_seed_bridge.o" >&2
+    mkdir -p src
+    # shellcheck disable=SC2086
+    $CC $CFLAGS -c -o src/x_seed_bridge.o seeds/x_seed_bridge.from_x.c || {
+      echo "gen_g06_phase1_backend_stub: failed to build src/x_seed_bridge.o from seed" >&2
+      exit 1
+    }
+  else
+    echo "gen_g06_phase1_backend_stub: missing src/x_seed_bridge.o and seeds/x_seed_bridge.from_x.c" >&2
     exit 1
-  }
+  fi
 fi
 
 # Wave721: phase1 OBJS/CFLAGS from mk catalog only (G.7; no make -n scrape / dual list).
@@ -104,7 +119,16 @@ for obj in $SEED_LINK_OBJS; do
     build_asm/seed_host/asm_backend_partial.o) continue ;;
   esac
   if [ ! -f "$obj" ]; then
-    "$MAKE" "$obj" >/dev/null 2>&1 || true
+    # Wave927: shell cc direct compile from matching .c source (no make).
+    # XLANG_SEED_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+    _src_c="${obj%.o}.c"
+    if [ "${XLANG_SEED_LINK_VIA_MAKE:-0}" = "1" ]; then
+      "$MAKE" "$obj" >/dev/null 2>&1 || true
+    elif [ -f "$_src_c" ]; then
+      mkdir -p "$(dirname "$obj")"
+      # shellcheck disable=SC2086
+      $CC $CFLAGS -c -o "$obj" "$_src_c" 2>/dev/null || true
+    fi
   fi
   SEED_LINK_OBJS_NO_PARTIAL="$SEED_LINK_OBJS_NO_PARTIAL $obj"
 done

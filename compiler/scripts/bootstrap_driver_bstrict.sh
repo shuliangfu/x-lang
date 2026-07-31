@@ -43,8 +43,16 @@ log() { echo "bootstrap-driver-bstrict: $*" >&2; }
 
 if [ ! -x "./$TARGET" ]; then
   if [ "${XLANG_BSTRICT_ENSURE_SEED}" = "1" ]; then
-    log "./$TARGET missing → make bootstrap-driver-seed"
-    "$MAKE" bootstrap-driver-seed
+    # Wave927: direct shell orchestration (Makefile target thin-calls the same
+    # script; no make prereq graph needed). XLANG_BSTRICT_ENSURE_VIA_MAKE=1
+    # escapes to make (parity / debug).
+    if [ "${XLANG_BSTRICT_ENSURE_VIA_MAKE:-0}" = "1" ]; then
+      log "./$TARGET missing → make bootstrap-driver-seed"
+      "$MAKE" bootstrap-driver-seed
+    else
+      log "./$TARGET missing → bash scripts/bootstrap_driver_seed.sh"
+      bash scripts/bootstrap_driver_seed.sh
+    fi
   else
     log "missing executable ./$TARGET (run make bootstrap-driver-seed first)"
     exit 1
