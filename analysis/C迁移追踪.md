@@ -919,7 +919,7 @@
 | `pipeline_asm_emit_match.c` | ~179 | asm ELF MATCH／EXPR_IF emit（arm cmp+jeq + if jz）切片 | 🟡 已抽出（wave998）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_panic.c` | ~121 | asm ELF PANIC／int div-zero face（xlang_panic_call + panic_elf + div0）切片 | 🟡 已抽出（wave999）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_field_access.c` | ~632 | asm ELF FIELD_ACCESS emit（layout_by_name + call_arg + call_base + var + fast）切片 | 🟡 已抽出（wave1000）；仍 host-cc 入 `pipeline_x` |
-| `pipeline_asm_emit_binop.c` | ~1221 | asm ELF EXPR_BINOP emit（+ residual scalar／ptr／add helpers）切片 | 🟡 已抽出；binop residual wave1015 有则补全；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_binop.c` | ~1976 | asm ELF EXPR_BINOP emit（arith/bitwise/shift + residual scalar/ptr/add + try_binop load/placement）切片 | 🟡 已抽出 + residual 有则补全（wave1015/1018）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_cmp.c` | ~315 | asm ELF relational CMP emit（eq/ne/lt/le/gt/ge + enum RHS + f32/f64/int finish）切片 | 🟡 已抽出（wave1002）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_call_args.c` | ~876 | asm ELF CALL-arg emit（named_struct + lea + dual-GP + named layout + for_call_args）切片 | 🟡 已抽出（wave1003）+ type_named_struct 有则补全（wave1017）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_struct_lit.c` | ~484 | asm ELF STRUCT_LIT emit（field_store_sz + rehome + fields + struct_lit_elf）切片 | 🟡 已抽出（wave1004）；仍 host-cc 入 `pipeline_x` |
@@ -1021,7 +1021,8 @@
   - ✅ asm binop residual 有则补全：`pipeline_asm_emit_binop.c` 迁入 scalar f32／f64／ptr arith／add_rax_rbx（~306 LOC 自 glue；file ~1221；COUNT 仍 62；glue ~20.8k）（wave1015）
   - ✅ asm assign_rhs_to_rax 有则补全：`pipeline_asm_emit_assign.c` 迁入 `glue_emit_assign_rhs_to_rax_elf_c`（~89 LOC；file ~678；COUNT 仍 62；glue ~20.7k）（wave1016）
   - ✅ asm type_named_struct 有则补全：`pipeline_asm_emit_call_args.c` 迁入 `glue_type_ref_is_named_struct_layout_elf_c`（~30 LOC；file ~876；COUNT 仍 62；glue ~20.7k）（wave1017）
-  - ⬜ 下一域候选：try_binop residual／leaf residual 或 8.3.3 field_access／soa
+  - ✅ asm try_binop residual 有则补全：`pipeline_asm_emit_binop.c` 迁入 as_needs + load_operand／clobber／preserve／commutative／left_rax／cmp（~740 LOC；file ~1976；COUNT 仍 62；glue ~19.9k）（wave1018）
+  - ⬜ 下一域候选：leaf residual（f32 VAR slot load／call_arg resolve…）或 8.3.3 field_access／soa
 
 ⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
@@ -1824,7 +1825,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 二十九刀（+expr_rec）+ index_eff base／lvalue_text／thin faces／binop residual／assign_rhs／type_named_struct 有则补全 ✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：try_binop residual／leaf residual 或 8.3.3 field_access／soa**）  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 三十刀（+try_binop residual）+ index_eff base／lvalue_text／thin faces／binop residual／assign_rhs／type_named_struct／try_binop 有则补全 ✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：leaf residual 或 8.3.3 field_access／soa**）  
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
