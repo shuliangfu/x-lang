@@ -33,7 +33,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~34k + `ast_pool` ~14.8k；8.3.1 十三刀 + 8.3.2 module_import+struct_layout+top_level+type_alias+expr_sidecar+module_enum+onefunc+dep_ctx+module_func+arena 已切；8.3.9 ✅；其余 ⬜ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~34k + `ast_pool` ~14.5k；8.3.1 十三刀 + 8.3.2 module_import+struct_layout+top_level+type_alias+expr_sidecar+module_enum+onefunc+dep_ctx+module_func+arena+block 已切；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -975,8 +975,9 @@
   - ✅ dep_ctx 域 thin：`ast_pool_dep_ctx.c`（PipelineDepCtx cold accessors + lib_root + empty_param ~480 LOC body；path_append/resolve/load 仍 core）同 TU 抽出；COUNT 41→42 / g05 STALE / inventory 已收
   - ✅ module_func 域 thin：`ast_pool_module_func.c`（module Func alloc/flags/params/name_equal/byte + arena_func param_write/copy_slot · ~409 LOC body；static helpers + visibility/L7 + glue name/body 仍 core）同 TU 抽出；COUNT 42→43 / g05 STALE / inventory 已收
   - ✅ arena 域 thin：`ast_pool_arena.c`（type/expr/block/func ptr/alloc/get/set + write_var/binop + num_types + caps · ~220 LOC body；block_at/sidecar helpers 仍 core）同 TU 抽出；COUNT 43→44 / g05 STALE / inventory 已收
+  - ✅ block 域 thin：`ast_pool_block.c`（block_pool_append_pos + append const/let/if/region/with_arena/unsafe/defer + region/defer accessors · ~297 LOC body；while/for/labeled/getters/resolve 仍 core）同 TU 抽出；COUNT 44→45 / g05 STALE / inventory 已收
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
-  - ⬜ 下一域候选：block append/region/defer / resolve residual / …
+  - ⬜ 下一域候选：block residual（while/for/labeled/getters）/ resolve residual / 下一 asm 域
 
 ⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
@@ -1779,7 +1780,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 十三刀 ✅ · **8.3.2 …+module_func+arena ✅** · 8.3.9 ✅ · **当前：8.3.2 block／resolve residual / 下一 asm 域**）  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 十三刀 ✅ · **8.3.2 …+module_func+arena+block ✅** · 8.3.9 ✅ · **当前：8.3.2 block residual／resolve residual / 下一 asm 域**）  
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
