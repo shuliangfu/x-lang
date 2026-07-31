@@ -140,6 +140,14 @@
 //     ./xbuild leaf-patterns | leaf-residual [--check]
 //     Named residual classes R1–R5 (host-cc seed/.o, UNAME stamp, thin+rest,
 //     cold rebuild pattern bodies, CI all). R6 cold CC -o → 11.1.4.
+//
+//   BC track · stage 8.3 product residual C inventory (wave963 open):
+//     Authority map: analysis/C迁移追踪.md §8.3
+//     Machine: compiler/scripts/bc_host_cc_product_inventory.sh
+//     ./xbuild bc-inventory | bc-host-cc [--check]
+//     Freezes host-cc product residual surface (pipeline_glue / ast_pool /
+//     field_access / stubs / gen_driver). 8.3.9 orphan must stay absent.
+//     Does not compile; does not lift pin. Next: 8.3.1/8.3.2 thin slices.
 //     wave747: R4 mode policy + catalog list in rebuild_leaves (default);
 //     pattern bodies still make.
 //     wave748: R1 pure host-cc body for RT_SEED_SLICE family

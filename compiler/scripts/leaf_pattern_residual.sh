@@ -8080,6 +8080,20 @@ elif ! bash "$_hcc_ps" --check >/dev/null 2>&1; then
 else
   note "host_cc_objs_core_link OBJS_CORE bag → catalog objs-core + cflags-export (wave962 post_ship; 0-make)"
 fi
+# wave963: BC track open — product residual C inventory (stage 8.3 map).
+# Not Makefile residual: freezes host-cc product C surface after MG closed.
+# PLATFORM: SHARED — inventory only; dual-end path-safe.
+_bc_inv="$ROOT/compiler/scripts/bc_host_cc_product_inventory.sh"
+[ -f "$_bc_inv" ] || _bc_inv="scripts/bc_host_cc_product_inventory.sh"
+if [ ! -f "$_bc_inv" ]; then
+  bad "missing bc_host_cc_product_inventory.sh (wave963 BC open)"
+elif ! grep -q 'wave963' "$_bc_inv"; then
+  bad "bc_host_cc_product_inventory must document wave963"
+elif ! bash "$_bc_inv" --check >/dev/null 2>&1; then
+  bad "bc_host_cc_product_inventory.sh --check failed (wave963 BC open)"
+else
+  note "bc_host_cc_product_inventory BC open · 8.3 map frozen (wave963)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then

@@ -25,7 +25,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | ⬜ 0/~10 | **`pipeline_glue.c` ~40k + `ast_pool.c` ~18k** 等；阶段 8.3（**删 Makefile 前最大体积债**） |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 1/~10 | **`pipeline_glue.c` ~40k + `ast_pool.c` ~18k** 等；阶段 8.3；**wave963 开 BC 库存机检** · 8.3.9 ✅ |
 | **Cap 能力解锁** | 🟡 持续 | 已闭多波；untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ 钉盘 `77b334842` | wave942 Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -43,7 +43,7 @@
 | 层 | 含义 | 今日状态 | 失败时的假绿 |
 |----|------|----------|--------------|
 | **MG · 编排层** | 不依赖 `make` / `compiler/Makefile` / 顶层 `Makefile` 完成 build / L4 / bootstrap | ✅ **wave941/942 已完成**：Makefile 物理删除 · bootstrap 0 make · catalog 单权威（mk/*.mk）· 双端 L4 绿 | 只删入口 Makefile、实现层仍 `make -C compiler` |
-| **BC · 自举编译层** | 编译器自身 TU **不**再被 host `cc/gcc/clang` 编译（.x→纯 asm `.o` 或等价） | ⬜ 大量 pin `*_gen.c` / glue / seed 仍 `$(CC) -c` | seed 用 xlang `-E` 出 C 再交给 gcc |
+| **BC · 自举编译层** | 编译器自身 TU **不**再被 host `cc/gcc/clang` 编译（.x→纯 asm `.o` 或等价） | 🟡 **wave963 已开**（库存冻结；glue/ast 仍 host-cc） | seed 用 xlang `-E` 出 C 再交给 gcc |
 | **PC · 产品默认后端** | 用户程序默认 **`-backend asm`**（或纯自研目标）；**不**默认 emit C 再 `exec` host-cc；`labi_invoke_cc*` 退役或仅 opt-in | ⬜ `-backend c` 与 labi invoke_cc 仍在产品面 | 自举绿但用户 `-o` 仍调 gcc |
 
 > **用户主目标对齐**：以 **去掉 Makefile（MG）** 为终局叙事主闸门；MG 物理删除的**前置**是 BC 足够小（glue/gen 可被 xbuild 用 xlang 编）且编排逻辑迁到 xbuild / g05 已覆盖的 shell·.x。  
@@ -947,10 +947,10 @@
   - 被 `compiler/Makefile` 行 2821-2839 + `g05_ensure_relink_prereqs.sh` 行 1956-1957 + `build_seed_user_asm_codegen_partial.sh` 引用
   - 属构建链产物，物理位置在 compiler/ 之外，原 8.3 漏计
 
-⬜ **8.3.9 `analysis/_debug_io_ctx_gen.c` 孤儿 .c**
+✅ **8.3.9 `analysis/_debug_io_ctx_gen.c` 孤儿 .c**（wave963）
 
-  - grep 全仓无任何引用，调试残留
-  - 确认后删除
+  - 本就在 `analysis/*` gitignore 下（仅 `*.md` 入库）；本地调试残留已 rm
+  - 机检：`bc_host_cc_product_inventory.sh --check` 断言 **absent** + 禁 `_debug_*_gen.c` 再出现
 
 ⬜ **8.3.10 `editors/tree-sitter-xlang/` 第三方 .c**
 
@@ -1510,6 +1510,8 @@
   - ✅ wave960：`bootstrap_typeck_codegen.sh` catalog BTC bag + `--check` post_ship（MF 缺席绿；`--link-objs-export relink-product` + `--link-cflags-export btc-typeck`/`relink-product`；`XLANG_BTC_LINK_VIA_MAKE` 逃生口；leaf honesty）
   - ✅ wave961：`legacy_xlang_c_link.sh` catalog LEGACY bag + `--check` post_ship（MF 缺席绿；`--link-objs-export legacy-xlang-c` + `--link-cflags-export relink-product`；`XLANG_LEGACY_LINK_VIA_MAKE` 逃生口；leaf honesty）
   - ✅ wave962：`host_cc_objs_core_link.sh` catalog OBJS_CORE bag + `--check` post_ship（MF 缺席绿；`--link-objs-export objs-core` + `--cflags-export`；`XLANG_OBJS_CORE_LINK_VIA_MAKE` 逃生口；leaf honesty）
+  - ✅ wave963：**开 BC** · `bc_host_cc_product_inventory.sh` 冻结 8.3 产品 residual C · `./xbuild bc-inventory --check` · 8.3.9 孤儿 absent · leaf honesty
+  - ✅ wave963：**开 BC** · `bc_host_cc_product_inventory.sh` 冻结 8.3 产品 residual C 面 · `./xbuild bc-inventory --check` · 8.3.9 孤儿 absent · leaf honesty
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
@@ -1710,6 +1712,8 @@
   - ✅ wave960：`bootstrap_typeck_codegen` catalog BTC bag + `--check` post_ship（MF 缺席绿；relink-product objs + btc-typeck/relink-product cflags）
   - ✅ wave961：`legacy_xlang_c_link` catalog LEGACY bag + `--check` post_ship（MF 缺席绿；legacy-xlang-c objs + relink-product cflags）
   - ✅ wave962：`host_cc_objs_core_link` catalog OBJS_CORE bag + `--check` post_ship（MF 缺席绿；objs-core objs + cflags-export）
+  - ✅ wave963：**开 BC** · `bc_host_cc_product_inventory.sh` 冻结 8.3 产品 residual C · `./xbuild bc-inventory --check` · 8.3.9 孤儿 absent
+  - ✅ wave963：**开 BC** · `bc_host_cc_product_inventory.sh` 冻结 8.3 产品 residual C · `./xbuild bc-inventory --check` · 8.3.9 孤儿 absent
 
 ⬜ **13.2.3 零 cc 三义验收**（§0.1 MG+BC+PC）
 
@@ -1788,13 +1792,12 @@
 ```
 
 **综合迁移进度（修订）：约 48–50%**  
-MG **编排层**已完成（wave941/942/944/945）。剩余主债：**BC/PC 零 cc** · **8.3 glue** · **去 pin** · 阶段 12 冷启动。
+MG **编排层**已完成（wave941/942/944/945）。**BC 轨 wave963 已开**（库存机检）。剩余主债：**8.3 glue 切片** · **PC 零 cc** · **去 pin** · 阶段 12 冷启动。
 
 剩余工作优先级（MG 已闭后）：
 
-1. ✅ **post-delete residual**（wave944–962）— 0-make hub · gate post_ship · docs/help/hint · XXP/BXC catalog bags · XXP ensure ladder 0-make · leaf 机检 quiet · ensure_*_gen / cfg-eval xlang-c shell · run_compiler_tests ensure · regen_lsp_gens_x shell ensure · build_tool/build_via_tool --check post_ship · bootstrap_self catalog BS · xlang_x catalog XXL · xlang_no_c_frontend catalog XNC · relink_xlang_lexer catalog RXL · bootstrap_driver_seed_x_frontend catalog BXF · bootstrap_typeck_codegen catalog BTC · legacy_xlang_c_link catalog LEGACY · host_cc_objs_core_link catalog OBJS_CORE + --check post_ship（残：扫薄若仍有 NEED_POST_SHIP；主债 BC/PC · 8.3）
-
-2. **阶段 8.3** pipeline_glue / ast_pool 等非 gen 产品 C  
+1. ✅ **post-delete residual**（wave944–962）— 0-make hub · gate post_ship · catalog bags · host_cc_objs_core_link OBJS_CORE（残：ensure_host_cc --check post_ship MF 缺席）
+2. 🟡 **BC 开 + 阶段 8.3**（wave963 库存冻结 · 8.3.9 ✅ · **下一：8.3.1/8.3.2 切片**）  
 3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. **阶段 10 → 9** 语言能力 + residual 消灭  
 5. **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  

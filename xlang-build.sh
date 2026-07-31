@@ -327,6 +327,24 @@ case "$TARGET" in
     bash compiler/scripts/leaf_pattern_residual.sh "$_lp_mode"
     ;;
 
+  # === wave963 · BC track open · stage 8.3 product residual C inventory ===
+  bc-inventory|bc-host-cc|bc-host-cc-inventory|bc-residual)
+    # G.7 single body: compiler/scripts/bc_host_cc_product_inventory.sh
+    # Freezes product residual C that still need host-cc (pipeline_glue/ast_pool/…).
+    # Map: analysis/C迁移追踪.md §8.3 · does NOT compile · not pin lift.
+    # Usage:
+    #   ./xbuild bc-inventory
+    #   ./xbuild bc-inventory --check
+    #   ./xbuild bc-host-cc --check
+    _bc_mode="dump"
+    if [ "${2:-}" = "--check" ] || [ "${2:-}" = "check" ] || [ "${2:-}" = "-c" ]; then
+      _bc_mode="check"
+    elif [ "${2:-}" = "--dump" ] || [ "${2:-}" = "dump" ]; then
+      _bc_mode="dump"
+    fi
+    bash compiler/scripts/bc_host_cc_product_inventory.sh "$_bc_mode"
+    ;;
+
   # === wave799 · 11.3.1 · physical-delete execute gate (NOT delete; NOT Windows green) ===
   phys-del-gate|phys-del|physical-delete-gate|makefile-delete-gate)
     # G.7 single body: compiler/scripts/phys_del_makefile_gate.sh
@@ -692,6 +710,10 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        （G.7 禁双 .o；禁第二套链接实现）
   leaf-patterns / leaf-residual        叶 .o pattern residual 库存（11.3.1 路径）
   leaf-patterns --check                校验 doc + class dump + 接线
+  bc-inventory / bc-host-cc            BC 轨 · 阶段 8.3 产品 residual C 库存（wave963）
+  bc-inventory --check                 冻结 glue/ast_pool/桩面；8.3.9 孤儿须 absent
+                                       体 = bc_host_cc_product_inventory.sh
+                                       图 = analysis/C迁移追踪.md §8.3
   phys-del-gate / phys-del             物理删 Makefile 执行闸门（wave799–810；非物理删）
   phys-del-gate --check                硬拒删 + preflight 诚实 + proof + flip + endgame + delete-body-preview + commit-honesty
   phys-del-gate --dry-run-delete       仅列将删面
