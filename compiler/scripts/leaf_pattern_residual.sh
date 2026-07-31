@@ -7867,6 +7867,27 @@ elif ! grep -q 'wave951' "$_rct"; then
 else
   note "run_compiler_tests ensure → bootstrap_driver_seed + ensure_xlang_c (wave951; 0-make)"
 fi
+# wave952: regen_lsp_gens_x product path shell-primary (0-make post-delete).
+# Default: ensure_lsp_pipeline_gen lsp + ensure_archaeology_gen lsp_io_std_heap;
+# escape XLANG_REGEN_LSP_VIA_MAKE=1 + MF only. wave930 twin.
+# PLATFORM: SHARED — force-refresh orchestration after Makefile phys-del.
+_rlg="$ROOT/compiler/scripts/regen_lsp_gens_x.sh"
+[ -f "$_rlg" ] || _rlg="scripts/regen_lsp_gens_x.sh"
+if [ ! -f "$_rlg" ]; then
+  bad "missing regen_lsp_gens_x.sh (wave952 regen 0-make)"
+elif ! grep -q 'XLANG_REGEN_LSP_VIA_MAKE' "$_rlg"; then
+  bad "regen_lsp_gens_x must document XLANG_REGEN_LSP_VIA_MAKE escape (wave952)"
+elif ! grep -q 'ensure_lsp_pipeline_gen\.sh' "$_rlg"; then
+  bad "regen_lsp_gens_x must shell-call ensure_lsp_pipeline_gen.sh (wave952 0-make)"
+elif ! grep -q 'ensure_archaeology_gen\.sh' "$_rlg"; then
+  bad "regen_lsp_gens_x must shell-call ensure_archaeology_gen.sh (wave952 0-make)"
+elif ! grep -q 'wave952' "$_rlg"; then
+  bad "regen_lsp_gens_x must document wave952 shell-primary ensure"
+elif ! bash "$_rlg" --check >/dev/null 2>&1; then
+  bad "regen_lsp_gens_x.sh --check failed (wave952 post_ship 0-make)"
+else
+  note "regen_lsp_gens_x → ensure_lsp_pipeline_gen + ensure_archaeology_gen (wave952; 0-make)"
+fi
 # PLATFORM: SHARED — ensure_*_gen use bash arrays; Ubuntu /bin/sh is dash.
 # Recipes must invoke bash (not sh) so FORCE always-run path works on Linux.
 if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen\.sh' "$MF" 2>/dev/null | grep -q .; then

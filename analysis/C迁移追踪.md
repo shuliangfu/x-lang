@@ -1499,6 +1499,7 @@
   - ✅ wave949：ensure_*_gen force-E 缺 xlang-c → `ensure_xlang_c.sh`（5 脚本；0× `$MAKE $XLANG_C`；leaf honesty）
   - ✅ wave950：cfg-eval soft 缺 xlang-c → `ensure_xlang_c.sh`（`ensure_host_cc_seed_o` B5；0× `$MAKE xlang-c`；soft `|| true`）
   - ✅ wave951：`run_compiler_tests` 缺产品 ensure → `bootstrap_driver_seed.sh` + `ensure_xlang_c.sh`（0× 默认 `$MAKE`；`XLANG_TEST_ENSURE_VIA_MAKE=1` 逃生口）
+  - ✅ wave952：`regen_lsp_gens_x` 四 gens → `ensure_lsp_pipeline_gen.sh lsp` + `ensure_archaeology_gen.sh lsp_io_std_heap`（0× 默认 `$MAKE`；`XLANG_REGEN_LSP_VIA_MAKE=1` 逃生口；`--check` post_ship）
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
        tests scripts tools editors .github analysis build.sh xlang-build.sh
@@ -1688,6 +1689,7 @@
   - ✅ wave949：ensure_*_gen 缺 xlang-c 不再 `$MAKE`（→ `ensure_xlang_c.sh`）
   - ✅ wave950：cfg-eval soft 缺 xlang-c 不再 `$MAKE`（→ `ensure_xlang_c.sh`）
   - ✅ wave951：`run_compiler_tests` 缺产品 ensure 不再默认 `$MAKE`（→ bootstrap_driver_seed + ensure_xlang_c）
+  - ✅ wave952：`regen_lsp_gens_x` 四 gens 不再默认 `$MAKE`（→ ensure_lsp_pipeline_gen + ensure_archaeology_gen）
 
 ⬜ **13.2.3 零 cc 三义验收**（§0.1 MG+BC+PC）
 
@@ -1770,7 +1772,7 @@ MG **编排层**已完成（wave941/942/944/945）。剩余主债：**BC/PC 零 
 
 剩余工作优先级（MG 已闭后）：
 
-1. ✅ **post-delete residual**（wave944–951）— 0-make hub · gate post_ship · docs/help/hint · XXP/BXC catalog bags · XXP ensure ladder 0-make · leaf 机检 quiet · ensure_*_gen / cfg-eval xlang-c shell · run_compiler_tests ensure shell-primary
+1. ✅ **post-delete residual**（wave944–952）— 0-make hub · gate post_ship · docs/help/hint · XXP/BXC catalog bags · XXP ensure ladder 0-make · leaf 机检 quiet · ensure_*_gen / cfg-eval xlang-c shell · run_compiler_tests ensure · regen_lsp_gens_x shell ensure
 
 2. **阶段 8.3** pipeline_glue / ast_pool 等非 gen 产品 C  
 3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
