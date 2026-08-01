@@ -2547,3 +2547,345 @@ static int32_t glue_index_subadd3_sum_cache_spill_store_elf_c(struct ast_ASTAren
   glue_index_subadd3_sum_cache.slot_depth = glue_index_scratch_stack_depth;
   return 0;
 }
+
+/* ============================================================
+ * wave1138-1140 G.7: frame-size spill byte summation cluster
+ * (migrated from pipeline_glue.c L4498-4501 macros + L4512-4805 fns).
+ *
+ * Why here: glue_asm_sum_expr_call_spill_bytes /
+ * glue_sum_block_slice_reent_dc_bytes_c /
+ * glue_asm_sum_block_call_spill_bytes compute the permanent
+ * call-arg spill byte total and slice reent deep-copy byte total
+ * for pipeline_asm_compute_frame_size_c (stays in glue.c L4807).
+ * Colocating with the 7.3 Chaitin spill domain keeps all
+ * frame-size / spill estimation in one file.
+ *
+ * Dependencies (visible via earlier decls in the TU):
+ *   - glue_index_elem_byte_sz_from_type_ref_c (static fwd at glue.c L1718)
+ *   - GLUE_ARRAY_LIT_MAX_ELEMS (macro at glue.c L1887)
+ *   - pipeline_expr_method_call_base_ref_at / _num_args_at (extern fwd
+ *     below; definitions at glue.c L3738/L3744)
+ *   - pipeline_block_while/for/region_*_ref (extern fwd below + in
+ *     glue.c L4503-4510; defined in ast_pool.c, #included earlier in TU)
+ *   - ast_ast_block_* / ast_pipeline_block_* (ast headers; TU-wide)
+ *
+ * Callers (all in glue.c, after #include at L2181):
+ *   - pipeline_asm_compute_frame_size_c calls
+ *     glue_asm_sum_block_call_spill_bytes +
+ *     glue_sum_block_slice_reent_dc_bytes_c
+ *
+ * PLATFORM: SHARED — pure frame-size estimation; no platform ABI dep.
+ * ============================================================ */
+
+#define GLUE_ASM_CALL_SPILL_SLOT_BYTES 32
+/** Depth / node visit caps for frame-size AST walk (avoid pathological recursion). */
+#define GLUE_ASM_FRAME_WALK_VISIT_MAX 65536
+#define GLUE_ASM_FRAME_WALK_DEPTH_MAX 256
+
+extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_block_while_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
+extern int32_t pipeline_block_while_body_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
+extern int32_t pipeline_block_for_init_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+extern int32_t pipeline_block_for_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+extern int32_t pipeline_block_for_step_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+extern int32_t pipeline_block_for_body_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
+extern int32_t ast_pipeline_block_if_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+
+extern int32_t pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
+
+/**
+ * Sum permanent call-arg spill bytes under expr_ref (recursive).
+ * CALL(48) / METHOD_CALL(49): each reg-class arg spills 32B without reclaim
+ * (backend_call_dispatch glue_sysv_spill_rax_rdx_to_frame_c). Nested calls
+ * counted in arg subtrees; METHOD_CALL includes receiver as one spill unit.
+ *
+ * @param arena AST arena
+ * @param expr_ref expression root (0 = no-op)
+ * @param inout_total running spill byte total
+ * @param inout_visits node visit counter (shared cap)
+ */
+static void glue_asm_sum_expr_call_spill_bytes(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *inout_total,
+                                              int32_t *inout_visits) {
+  int32_t ko;
+  int32_t i;
+  int32_t n;
+  int32_t arg_ref;
+  if (!arena || expr_ref <= 0 || !inout_total || !inout_visits)
+    return;
+  if (*inout_visits >= GLUE_ASM_FRAME_WALK_VISIT_MAX)
+    return;
+  (*inout_visits)++;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  /* CALL */
+  if (ko == 48) {
+    n = pipeline_expr_call_num_args_at(arena, expr_ref);
+    if (n < 0)
+      n = 0;
+    if (n > 64)
+      n = 64;
+    for (i = 0; i < n; i++) {
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+      glue_asm_sum_expr_call_spill_bytes(arena, arg_ref, inout_total, inout_visits);
+    }
+    /* Conservative: all args treated as reg-class spills (stack args rare; over-reserve OK). */
+    *inout_total += n * GLUE_ASM_CALL_SPILL_SLOT_BYTES;
+    return;
+  }
+  /* METHOD_CALL */
+  if (ko == 49) {
+    glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_method_call_base_ref_at(arena, expr_ref), inout_total,
+                                       inout_visits);
+    n = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    if (n < 0)
+      n = 0;
+    if (n > 64)
+      n = 64;
+    for (i = 0; i < n; i++) {
+      arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+      glue_asm_sum_expr_call_spill_bytes(arena, arg_ref, inout_total, inout_visits);
+    }
+    /* Receiver + args: emit path often places receiver then each arg through spill. */
+    *inout_total += (n + 1) * GLUE_ASM_CALL_SPILL_SLOT_BYTES;
+    return;
+  }
+  /* binops / assign-like */
+  if ((ko >= 4 && ko <= 21) || ko == 25 || ko == 26) {
+    glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_binop_left_ref_at(arena, expr_ref), inout_total,
+                                       inout_visits);
+    glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_binop_right_ref_at(arena, expr_ref), inout_total,
+                                       inout_visits);
+    return;
+  }
+  /* unary / LOGNOT / RETURN operand style */
+  if (ko == 22 || ko == 23 || ko == 24 || ko == 41) {
+    glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_unary_operand_ref_at(arena, expr_ref), inout_total,
+                                       inout_visits);
+    return;
+  }
+  /* AS */
+  if (ko == (int32_t)ast_ExprKind_EXPR_AS || pipeline_expr_as_operand_ref_at(arena, expr_ref) > 0) {
+    int32_t op = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+    if (op <= 0)
+      op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    glue_asm_sum_expr_call_spill_bytes(arena, op, inout_total, inout_visits);
+    return;
+  }
+  /* INDEX */
+  if (ko == 47) {
+    glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_index_base_ref(arena, expr_ref), inout_total,
+                                       inout_visits);
+    glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_index_index_ref(arena, expr_ref), inout_total,
+                                       inout_visits);
+    return;
+  }
+  /* FIELD_ACCESS */
+  if (ko == 44) {
+    glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_field_access_base_ref(arena, expr_ref), inout_total,
+                                       inout_visits);
+    return;
+  }
+  /* ARRAY_LIT */
+  if (ko == 46) {
+    n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+    if (n > GLUE_ARRAY_LIT_MAX_ELEMS)
+      n = GLUE_ARRAY_LIT_MAX_ELEMS;
+    for (i = 0; i < n; i++)
+      glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_array_lit_elem_ref(arena, expr_ref, i), inout_total,
+                                         inout_visits);
+    return;
+  }
+  /* STRUCT_LIT */
+  if (ko == 45) {
+    n = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+    if (n > 64)
+      n = 64;
+    for (i = 0; i < n; i++)
+      glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_struct_lit_init_ref(arena, expr_ref, i), inout_total,
+                                         inout_visits);
+    return;
+  }
+  /* EXPR_IF / ternary */
+  if (pipeline_expr_if_cond_ref_at(arena, expr_ref) > 0) {
+    glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_if_cond_ref_at(arena, expr_ref), inout_total,
+                                       inout_visits);
+    glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_if_then_ref_at(arena, expr_ref), inout_total,
+                                       inout_visits);
+    glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_if_else_ref_at(arena, expr_ref), inout_total,
+                                       inout_visits);
+  }
+}
+
+/**
+ * wave418 Cap residual pure: pre-sum frame bytes for TYPE_SLICE let reent deep-copy.
+ * Each `let s: T[] = call()` / METHOD uses a per-frame payload buffer of max_n*esz
+ * (max_n=1024, esz from elem). Twin host stack `__xlang_ldN`.
+ * wave632: esz>8 large NAMED (was clamp 4); payload ≤64KiB large / 8KiB scalar;
+ * +32B spill pair for bulk copy. Walks block tree (lets only; call-arg stays COMMON).
+ * PLATFORM: SHARED freestanding frame layout.
+ *
+ * @param arena AST arena
+ * @param block_ref function body block
+ * @return total payload bytes to reserve (>=0)
+ */
+static int32_t glue_sum_block_slice_reent_dc_bytes_c(struct ast_ASTArena *arena, int32_t block_ref) {
+  int32_t total = 0;
+  int32_t stack[GLUE_ASM_FRAME_WALK_DEPTH_MAX];
+  int32_t sp = 0;
+  int32_t seen = 0;
+  if (!arena || block_ref <= 0)
+    return 0;
+  stack[sp++] = block_ref;
+  while (sp > 0 && seen < GLUE_ASM_FRAME_WALK_VISIT_MAX) {
+    int32_t cur;
+    int32_t i;
+    int32_t n;
+    int32_t ch;
+    seen++;
+    cur = stack[--sp];
+    if (cur <= 0)
+      continue;
+    n = ast_ast_block_num_lets(arena, cur);
+    for (i = 0; i < n; i++) {
+      int32_t tref = pipeline_block_let_type_ref(arena, cur, i);
+      int32_t init_ref = pipeline_block_let_init_ref(arena, cur, i);
+      int32_t ik;
+      int32_t esz = 4;
+      int32_t elem_tr;
+      int32_t nbytes;
+      int32_t max_n = 1024;
+      int32_t max_payload;
+      if (tref <= 0 || init_ref <= 0)
+        continue;
+      if (pipeline_type_kind_ord_at(arena, tref) != (int32_t)ast_TypeKind_TYPE_SLICE)
+        continue;
+      ik = pipeline_expr_kind_ord_at(arena, init_ref);
+      if (ik != (int32_t)ast_ExprKind_EXPR_CALL && ik != (int32_t)ast_ExprKind_EXPR_METHOD_CALL)
+        continue;
+      elem_tr = pipeline_type_elem_ref_at(arena, tref);
+      if (elem_tr > 0)
+        esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
+      if (esz <= 0)
+        esz = 4;
+      /* wave632: keep esz>8; weird mid widths → 4 (≡ deep_copy face). */
+      if (esz != 1 && esz != 2 && esz != 4 && esz != 8 && esz <= 8)
+        esz = 4;
+      max_payload = (esz > 8) ? (1024 * 64) : 8192;
+      if (esz > 0 && max_n > max_payload / esz)
+        max_n = max_payload / esz;
+      if (max_n <= 0)
+        max_n = 1;
+      nbytes = max_n * esz;
+      if (nbytes > 0 && nbytes <= max_payload) {
+        total += nbytes;
+        if (esz > 8)
+          total += 32; /* src/dst spill pair for bulk copy */
+      }
+    }
+    n = ast_ast_block_num_if_stmts(arena, cur);
+    for (i = 0; i < n; i++) {
+      ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_ASM_FRAME_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+      ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_ASM_FRAME_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+    n = ast_ast_block_num_loops(arena, cur);
+    for (i = 0; i < n; i++) {
+      ch = pipeline_block_while_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_ASM_FRAME_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+    n = ast_ast_block_num_for_loops(arena, cur);
+    for (i = 0; i < n; i++) {
+      ch = pipeline_block_for_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_ASM_FRAME_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+    n = ast_ast_block_num_regions(arena, cur);
+    for (i = 0; i < n; i++) {
+      ch = pipeline_block_region_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_ASM_FRAME_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+  }
+  return total;
+}
+
+/**
+ * Block-tree sum of permanent call-arg spill temp for compute_frame_size.
+ * Walks const/let inits, expr stmts, final_expr, if/while/for conds + nested bodies.
+ *
+ * @param arena AST arena
+ * @param block_ref function body (or nested) block
+ * @return estimated spill bytes (>=0)
+ */
+static int32_t glue_asm_sum_block_call_spill_bytes(struct ast_ASTArena *arena, int32_t block_ref) {
+  int32_t total = 0;
+  int32_t visits = 0;
+  int32_t stack[GLUE_ASM_FRAME_WALK_DEPTH_MAX];
+  int32_t sp = 0;
+  int32_t seen = 0;
+  if (!arena || block_ref <= 0)
+    return 0;
+  stack[sp++] = block_ref;
+  while (sp > 0 && seen < GLUE_ASM_FRAME_WALK_VISIT_MAX) {
+    int32_t cur;
+    int32_t i;
+    int32_t n;
+    int32_t ch;
+    seen++;
+    cur = stack[--sp];
+    if (cur <= 0)
+      continue;
+    n = ast_ast_block_num_consts(arena, cur);
+    for (i = 0; i < n; i++)
+      glue_asm_sum_expr_call_spill_bytes(arena, ast_pipeline_block_const_init_ref(arena, cur, i), &total, &visits);
+    n = ast_ast_block_num_lets(arena, cur);
+    for (i = 0; i < n; i++)
+      glue_asm_sum_expr_call_spill_bytes(arena, ast_pipeline_block_let_init_ref(arena, cur, i), &total, &visits);
+    n = ast_ast_block_num_expr_stmts(arena, cur);
+    for (i = 0; i < n; i++)
+      glue_asm_sum_expr_call_spill_bytes(arena, ast_pipeline_block_expr_stmt_ref(arena, cur, i), &total, &visits);
+    {
+      int32_t fin = ast_ast_block_final_expr_ref(arena, cur);
+      if (fin > 0)
+        glue_asm_sum_expr_call_spill_bytes(arena, fin, &total, &visits);
+    }
+    n = ast_ast_block_num_if_stmts(arena, cur);
+    for (i = 0; i < n; i++) {
+      glue_asm_sum_expr_call_spill_bytes(arena, ast_pipeline_block_if_cond_ref(arena, cur, i), &total, &visits);
+      ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_ASM_FRAME_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+      ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_ASM_FRAME_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+    n = ast_ast_block_num_loops(arena, cur);
+    for (i = 0; i < n; i++) {
+      glue_asm_sum_expr_call_spill_bytes(arena, pipeline_block_while_cond_ref(arena, cur, i), &total, &visits);
+      ch = pipeline_block_while_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_ASM_FRAME_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+    n = ast_ast_block_num_for_loops(arena, cur);
+    for (i = 0; i < n; i++) {
+      glue_asm_sum_expr_call_spill_bytes(arena, pipeline_block_for_init_ref(arena, cur, i), &total, &visits);
+      glue_asm_sum_expr_call_spill_bytes(arena, pipeline_block_for_cond_ref(arena, cur, i), &total, &visits);
+      glue_asm_sum_expr_call_spill_bytes(arena, pipeline_block_for_step_ref(arena, cur, i), &total, &visits);
+      ch = pipeline_block_for_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_ASM_FRAME_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+    n = ast_ast_block_num_regions(arena, cur);
+    for (i = 0; i < n; i++) {
+      ch = pipeline_block_region_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_ASM_FRAME_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+  }
+  return total;
+}
