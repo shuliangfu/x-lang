@@ -2913,59 +2913,13 @@ void pipeline_typeck_hot_reorder_warn_layout(struct ast_Module *module, struct a
   }
 }
 
-/** 与 typeck.x typeck_x_type_align 一致（§11.1 布局步进）。 */
-static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth) {
-  int32_t kind_ord;
-  if (!a || ty_ref <= 0 || ty_ref > a->num_types || depth > 64)
-    return 1;
-  kind_ord = pipeline_type_kind_ord_at(a, ty_ref);
-  if (kind_ord == 2)
-    return 1;
-  /** i32/u32/u8/f32 对齐 4；勿将 f32(14) 误为 8（否则 AoS 三 f32 字段落成 0/8/16）。 */
-  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 14)
-    return 4;
-  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9)
-    return 8;
-  if (kind_ord == 11)
-    return 8;
-  /** ARRAY / LINEAR / VECTOR：对齐取 elem（与 typeck.x ko==10/12/13 一致）。 */
-  if (kind_ord == 10 || kind_ord == 12 || kind_ord == 13) {
-    int32_t elem_ref = pipeline_type_elem_ref_at(a, ty_ref);
-    if (elem_ref <= 0)
-      return 1;
-    return glue_type_align_simple(m, a, elem_ref, depth + 1);
-  }
-  if (kind_ord == 8) {
-    int32_t sz_out = 0;
-    int32_t al_out = 1;
-    int32_t nlen;
-    uint8_t name[128];
-    int32_t k;
-    nlen = pipeline_type_named_name_into(a, ty_ref, name);
-    if (nlen <= 0 || nlen > 127)
-      return 4;
-    for (k = 0; m && k < (int32_t)m->num_struct_layouts; k++) {
-      int32_t ln = pipeline_module_struct_layout_name_len(m, k);
-      int32_t j;
-      int32_t eq = 1;
-      if (ln != nlen)
-        continue;
-      for (j = 0; j < nlen; j++) {
-        if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
-          eq = 0;
-          break;
-        }
-      }
-      if (!eq)
-        continue;
-      if (glue_struct_layout_metrics_c(m, a, k, depth + 1, 0, &sz_out, &al_out) != 0)
-        return 1;
-      return al_out > 0 ? al_out : 1;
-    }
-    return 4;
-  }
-  return 1;
-}
+/* wave1054 G.7: glue_type_align_simple migrated to pipeline_asm_emit_struct_lit.c
+ * (definition at EOF, after metrics). Static fwd decl retained above (L2787)
+ * for glue.c callsites in pipeline_struct_layout_next_field_offset_ex body
+ * + soa.c:94/140 via #include at L11697 (fwd decl at L2787 < L11697 visible).
+ * struct_lit.c:65 fwd decl retained for struct_lit.c callsites at L726/L1040
+ * (before EOF definition). Mutually recursive with glue_struct_layout_metrics_c
+ * (wave1053 migrated to struct_lit.c EOF). */
 
 /** DOD-S1：SoAStruct[N] 列主序总字节数；非 SoA 时返回 0 由调用方回落 AoS。 */
 extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, struct ast_ASTArena *arena,

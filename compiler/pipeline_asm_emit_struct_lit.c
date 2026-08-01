@@ -60,8 +60,12 @@ static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, s
                                                           int32_t fj);
 static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name, int32_t nlen);
 
-/* wave1044 G.7: forward decl — glue_type_align_simple defined later in TU
- * (glue.c:3003); consumed by glue_struct_layout_compute_field_offset_c. */
+/* wave1054 G.7: forward decl — glue_type_align_simple is defined at EOF
+ * below (migrated from glue.c:2917). Consumed by glue_struct_layout_compute
+ * _field_offset_c (L726) + glue_struct_layout_metrics_c (L1040), both
+ * before the EOF definition. Mutually recursive with metrics (defined
+ * earlier at EOF). glue.c:2787 retains its own fwd decl for callsites
+ * in pipeline_struct_layout_next_field_offset_ex + soa.c via #include. */
 static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 
 /* wave1051 G.7: forward decl — glue_struct_layout_metrics_c defined at EOF
@@ -1089,4 +1093,97 @@ static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct as
 int32_t typeck_typeck_struct_layout_metrics(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
                                             int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
   return glue_struct_layout_metrics_c(module, arena, li, depth, check_pad, out_sz, out_al);
+}
+
+/* wave1054 G.7 fold: glue_type_align_simple migrated here from pipeline_glue.c
+ * (definition was at glue.c:2917). Struct layout registry domain — type
+ * alignment computation, colocated with wave1053 (metrics) + wave1044
+ * (compute_field_offset) + wave1049 (index_by_name) + wave1051 (value_bytes)
+ * + wave1052 (sync_field_offsets).
+ *
+ * Mutually recursive with glue_struct_layout_metrics_c (defined above):
+ *   - align_simple calls metrics for TYPE_NAMED struct alignment at depth+1
+ *   - metrics calls align_simple for per-field alignment
+ * Both static fwd decls at top of this file (L65/L72); definitions are
+ * colocated here (align_simple after metrics at EOF).
+ *
+ * glue.c retains static fwd decl at L2787 for callsites in
+ * pipeline_struct_layout_next_field_offset_ex body + soa.c:94/140 via
+ * #include at glue.c:11697 (fwd decl visible before #include site). */
+
+/**
+ * Compute the alignment of a type (C twin of typeck.x typeck_x_type_align).
+ *
+ * Why: §11.1 layout step — asm frame sizing and struct field offset
+ * computation need the alignment of each type to insert correct padding.
+ * Scalar types return their natural width (bool/u8=1, i32/u32/f32=4,
+ * i64/u64/usize/isize/ptr/slice=8). ARRAY/VECTOR/LINEAR recurse on the
+ * element type. TYPE_NAMED looks up the struct layout by name and delegates
+ * to glue_struct_layout_metrics_c for the struct's max_align.
+ *
+ * Invariant: returns 1 for invalid inputs (null arena, ty_ref out of range,
+ * depth > 64) or unknown kinds; otherwise returns the alignment (1/4/8 or
+ * struct max_align). f32 (kind_ord 14) must return 4, NOT 8 — otherwise
+ * AoS three-f32 fields land at 0/8/16 instead of 0/4/8 (wave369 fix).
+ *
+ * Asm/Perf: O(1) for scalars; O(depth) for ARRAY/VECTOR recursion;
+ * O(nlayouts * nf) for TYPE_NAMED via glue_struct_layout_metrics_c.
+ * Bounded by depth limit 64. Hot path — called from struct layout metrics
+ * and field offset computation.
+ *
+ * PLATFORM: SHARED — pure type alignment computation; arch-agnostic.
+ */
+static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth) {
+  int32_t kind_ord;
+  if (!a || ty_ref <= 0 || ty_ref > a->num_types || depth > 64)
+    return 1;
+  kind_ord = pipeline_type_kind_ord_at(a, ty_ref);
+  if (kind_ord == 2)
+    return 1;
+  /* i32/u32/u8/f32 align 4; do NOT treat f32(14) as 8 (AoS 3xf32 fields
+   * would land at 0/8/16 instead of 0/4/8). */
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 14)
+    return 4;
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9)
+    return 8;
+  if (kind_ord == 11)
+    return 8;
+  /* ARRAY / LINEAR / VECTOR: alignment follows element type (matches
+   * typeck.x ko==10/12/13). */
+  if (kind_ord == 10 || kind_ord == 12 || kind_ord == 13) {
+    int32_t elem_ref = pipeline_type_elem_ref_at(a, ty_ref);
+    if (elem_ref <= 0)
+      return 1;
+    return glue_type_align_simple(m, a, elem_ref, depth + 1);
+  }
+  if (kind_ord == 8) {
+    int32_t sz_out = 0;
+    int32_t al_out = 1;
+    int32_t nlen;
+    uint8_t name[128];
+    int32_t k;
+    nlen = pipeline_type_named_name_into(a, ty_ref, name);
+    if (nlen <= 0 || nlen > 127)
+      return 4;
+    for (k = 0; m && k < (int32_t)m->num_struct_layouts; k++) {
+      int32_t ln = pipeline_module_struct_layout_name_len(m, k);
+      int32_t j;
+      int32_t eq = 1;
+      if (ln != nlen)
+        continue;
+      for (j = 0; j < nlen; j++) {
+        if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
+          eq = 0;
+          break;
+        }
+      }
+      if (!eq)
+        continue;
+      if (glue_struct_layout_metrics_c(m, a, k, depth + 1, 0, &sz_out, &al_out) != 0)
+        return 1;
+      return al_out > 0 ? al_out : 1;
+    }
+    return 4;
+  }
+  return 1;
 }
