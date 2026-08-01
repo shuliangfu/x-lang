@@ -1033,3 +1033,123 @@ int32_t pipeline_typeck_expr_type_ref_c(struct ast_ASTArena *arena, int32_t expr
   return pipeline_typeck_expr_type_ref_impl_c(arena, expr_ref);
 }
 
+/*
+ * wave1165 G.7: ret coerce cluster (3 fns:
+ * pipeline_typeck_return_operand_matches_c /
+ * pipeline_typeck_ret_coerce_integral_to_expect_i32_c /
+ * pipeline_typeck_ret_coerce_integral_widen_c) migrated from pipeline_glue.c
+ * (was L6942-7022). Colocated with coerce-init domain — return coercion is
+ * the return-path twin of let/const/arg init coercion.
+ * Deps (all visible at coerce_init.c #include L9083):
+ * - pipeline_expr_resolved_type_ref / set_resolved_type_ref (expr_rec.c EOF)
+ * - pipeline_typeck_type_refs_equal_c (fwd decl at L27 of this file)
+ * - pipeline_type_kind_ord_at / pipeline_type_elem_ref_at (extern)
+ * - pipeline_typeck_integer_widen_ok_refs_c / pipeline_typeck_float_widen_ok_c
+ *   (static fwd decls at glue.c L6921/L6894, visible via same TU)
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU.
+ */
+
+/**
+ * Check whether a return operand type matches the expected return type.
+ *
+ * Why: return typeck must allow integer widen (i8/i16/u16 → i32) and float
+ *      widen (f32 → f64) in addition to exact type match. Linear(T) inner T
+ *      also matches (same layout; move on VAR path).
+ * Contract: null/invalid refs → returns 1 (allow); mismatched → returns 0.
+ * PLATFORM: SHARED — return typeck twin of assign compatibility check.
+ */
+int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref) {
+  int32_t got;
+  int32_t expect_kind;
+  int32_t got_kind;
+
+  if (ast_ref_is_null(op_ref) || ast_ref_is_null(expect_ref))
+    return 1;
+  if (!arena || op_ref <= 0 || op_ref > arena->num_exprs)
+    return 0;
+  got = pipeline_expr_resolved_type_ref(arena, op_ref);
+  if (ast_ref_is_null(got))
+    return 0;
+  if (pipeline_typeck_type_refs_equal_c(arena, got, expect_ref))
+    return 1;
+  expect_kind = pipeline_type_kind_ord_at(arena, expect_ref);
+  got_kind = pipeline_type_kind_ord_at(arena, got);
+  /* wave313: refs path so NAMED i8/i16/u16 return widen participates. */
+  if (pipeline_typeck_integer_widen_ok_refs_c(arena, expect_ref, got))
+    return 1;
+  /* wave314: f32→f64 float widen on return. */
+  if (pipeline_typeck_float_widen_ok_c(expect_kind, got_kind))
+    return 1;
+  /* M-4: return Linear(T) matches inner T (same layout; move on VAR path). */
+  if (got_kind == (int32_t)ast_TypeKind_TYPE_LINEAR) {
+    int32_t elem = pipeline_type_elem_ref_at(arena, got);
+    if (!ast_ref_is_null(elem) && pipeline_typeck_type_refs_equal_c(arena, elem, expect_ref))
+      return 1;
+  }
+  /* wave671: hard-fail bool → non-bool return (removed BOOL_LIT/LOGNOT→i32). */
+  return 0;
+}
+
+/**
+ * Coerce return operand to i32 when function expects i32 and operand is u8/usize.
+ *
+ * Why: u8/usize return value in a wider register may have high bits set;
+ *      writing resolved_type_ref to i32 ensures codegen emits proper masking.
+ * Contract: only applies when expect_ref is TYPE_I32 and operand is TYPE_U8
+ *           or TYPE_USIZE; otherwise no-op.
+ * PLATFORM: SHARED — return typeck integral coercion.
+ */
+void pipeline_typeck_ret_coerce_integral_to_expect_i32_c(struct ast_ASTArena *arena, int32_t op_ref,
+                                                         int32_t expect_ref) {
+  int32_t got_ref;
+  int32_t got_kind;
+
+  if (ast_ref_is_null(op_ref) || op_ref <= 0 || !arena || op_ref > arena->num_exprs || ast_ref_is_null(expect_ref))
+    return;
+  if (expect_ref <= 0 || expect_ref > arena->num_types)
+    return;
+  if (pipeline_type_kind_ord_at(arena, expect_ref) != (int32_t)ast_TypeKind_TYPE_I32)
+    return;
+  got_ref = pipeline_expr_resolved_type_ref(arena, op_ref);
+  if (ast_ref_is_null(got_ref) || got_ref <= 0 || got_ref > arena->num_types)
+    return;
+  got_kind = pipeline_type_kind_ord_at(arena, got_ref);
+  if (got_kind != (int32_t)ast_TypeKind_TYPE_U8 && got_kind != (int32_t)ast_TypeKind_TYPE_USIZE)
+    return;
+  pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
+}
+
+/**
+ * Widen return operand resolved_type_ref when integer widening is allowed.
+ *
+ * Why: narrow integer return (i8/i16/u16 NAMED) into wider expect (i32/i64)
+ *      must write back the wider type_ref so codegen emits correct width.
+ *      f32→f64 is handled by emit (cvtss2sd), not by stamping type_ref.
+ * Contract: only applies for integer widen (via integer_widen_ok_refs_c);
+ *           float widen is a no-op (emit handles it).
+ * PLATFORM: SHARED — return typeck integral widen.
+ */
+void pipeline_typeck_ret_coerce_integral_widen_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref) {
+  int32_t got_ref;
+  int32_t expect_kind;
+  int32_t got_kind;
+
+  if (ast_ref_is_null(op_ref) || op_ref <= 0 || !arena || op_ref > arena->num_exprs || ast_ref_is_null(expect_ref))
+    return;
+  if (expect_ref <= 0 || expect_ref > arena->num_types)
+    return;
+  got_ref = pipeline_expr_resolved_type_ref(arena, op_ref);
+  if (ast_ref_is_null(got_ref) || got_ref <= 0 || got_ref > arena->num_types)
+    return;
+  expect_kind = pipeline_type_kind_ord_at(arena, expect_ref);
+  got_kind = pipeline_type_kind_ord_at(arena, got_ref);
+  /* wave313: refs path covers NAMED i8/i16/u16. */
+  if (pipeline_typeck_integer_widen_ok_refs_c(arena, expect_ref, got_ref)) {
+    pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
+    return;
+  }
+  /* wave314: f32→f64 return — no stamp; emit promotes with cvtss2sd. */
+  (void)expect_kind;
+  (void)got_kind;
+}
+

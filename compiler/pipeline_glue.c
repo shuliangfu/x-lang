@@ -2424,76 +2424,12 @@ int32_t pipeline_parser_extern_init_arena_func_and_register_c(struct ast_ASTAren
   return fi;
 }
 
-void pipeline_module_func_name_write(struct ast_Module *m, int32_t func_index, uint8_t *name_bytes,
-                                     int32_t name_len) {
-  struct ast_Func *f;
-  if (!m || func_index < 0)
-    return;
-  /* wave577 Cap: AST Func.name is u8[128]; allow up to 127 bytes */
-  if (name_len < 0 || name_len > 127)
-    return;
-  if (name_len > 0 && !name_bytes)
-    return;
-  f = pipeline_module_func_ptr(m, func_index);
-  if (!f)
-    return;
-  f->name_len = name_len;
-  memset(f->name, 0, sizeof(f->name));
-  if (name_len > 0)
-    memcpy(f->name, name_bytes, (size_t)name_len);
-}
-
-/** 自举 codegen：将 module->funcs[fi].name[64] 拷入 dst，避免 .x 对嵌套大数组下标 typeck/asm GEP 失败。 */
-void pipeline_module_func_name_copy64(struct ast_Module *m, int32_t func_index, uint8_t *dst) {
-  struct ast_Func *f;
-  int32_t nlen;
-  if (!m || !dst || func_index < 0)
-    return;
-  if (func_index >= (int32_t)m->num_funcs)
-    return;
-  f = pipeline_module_func_ptr(m, func_index);
-  if (!f)
-    return;
-  /* wave577 Cap: 拷贝 name_len 字节（≤127），余下清零；与 AST name[128] 对齐避免截断。 */
-  nlen = f->name_len;
-  if (nlen < 0)
-    nlen = 0;
-  if (nlen > 127)
-    nlen = 127;
-  memset(dst, 0, 128);
-  if (nlen > 0)
-    memcpy(dst, f->name, (size_t)nlen);
-}
-
-int32_t pipeline_module_func_name_len_at(struct ast_Module *m, int32_t func_index) {
-  struct ast_Func *f;
-  if (!m || func_index < 0)
-    return 0;
-  if (func_index >= (int32_t)m->num_funcs)
-    return 0;
-  f = pipeline_module_func_ptr(m, func_index);
-  return f ? (int32_t)f->name_len : 0;
-}
-
-int32_t pipeline_module_func_is_extern_at(struct ast_Module *m, int32_t func_index) {
-  struct ast_Func *f;
-  if (!m || func_index < 0)
-    return 0;
-  if (func_index >= (int32_t)m->num_funcs)
-    return 0;
-  f = pipeline_module_func_ptr(m, func_index);
-  return f ? (int32_t)f->is_extern : 0;
-}
-
-int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t func_index) {
-  struct ast_Func *f;
-  if (!m || func_index < 0)
-    return 0;
-  if (func_index >= (int32_t)m->num_funcs)
-    return 0;
-  f = pipeline_module_func_ptr(m, func_index);
-  return f ? (int32_t)f->body_ref : 0;
-}
+/* wave1163 G.7: module_func name/body reader cluster (5 fns:
+ * pipeline_module_func_name_write / name_copy64 / name_len_at /
+ * is_extern_at / body_ref_at) migrated to ast_pool_module_func.c EOF
+ * (colocated with module_func accessor domain). Forward decls at L96 /
+ * L256-260 retained for early callsites (L637-649 etc.).
+ * ast_pool.c #include at L5388 → ast_pool_module_func.c at L1222 within. */
 
 /** struct_layout / import / top_level / enum / func 形参池实现见 ast_pool.c（文件末尾 #include）。 */
 
@@ -2510,55 +2446,12 @@ static struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t e
 #include "pipeline_typeck_ctfe.c"
 
 
-/** 读 struct_lit 字段数；避免 X 内 `let e: Expr = ast_arena_expr_get` 后字段访问 typeck 失败。 */
-int32_t pipeline_expr_struct_lit_num_fields(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->struct_lit_num_fields : 0;
-}
-
-/** 读 struct_lit 类型名长度。 */
-int32_t pipeline_expr_struct_lit_type_name_len(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->struct_lit_struct_name_len : 0;
-}
-
-/** memcpy struct_lit 类型名到 out64。 */
-void pipeline_expr_struct_lit_type_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64) {
-  struct ast_Expr *ex;
-  if (!out64)
-    return;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex) {
-    memset(out64, 0, 128);
-    return;
-  }
-  memcpy(out64, ex->struct_lit_struct_name, 128); /* wave577 Cap */
-}
-
-/**
- * Backfill struct_lit_struct_name on an anonymous struct literal expression
- * from the contextual return type (resolved through type alias).
- *
- * Why: anonymous `{ a: 1, b: 2 }` literals have empty struct_lit_struct_name;
- *      codegen then emits `(struct <module>_){...}` → cc "incomplete type" error.
- *      typeck backfills the name so codegen emits `(struct <module>_Pair){...}`.
- * Contract: name_len must be in [1, 63]; null/invalid arena/ref is a no-op.
- * PLATFORM: SHARED — called from typeck.x contextual typing backfill path.
- */
-void pipeline_expr_struct_lit_type_name_set(struct ast_ASTArena *a, int32_t expr_ref,
-                                            uint8_t *name, int32_t name_len) {
-  struct ast_Expr *ex;
-  if (!a || !name || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return;
-  if (name_len < 0 || name_len > 127)
-    return;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex)
-    return;
-  memset(ex->struct_lit_struct_name, 0, sizeof(ex->struct_lit_struct_name)); /* wave577 Cap */
-  memcpy(ex->struct_lit_struct_name, name, (size_t)name_len);
-  ex->struct_lit_struct_name_len = name_len;
-}
+/* wave1164 G.7: struct_lit accessor cluster (4 fns:
+ * pipeline_expr_struct_lit_num_fields / type_name_len / type_name_into /
+ * type_name_set) migrated to pipeline_asm_emit_struct_lit.c EOF (colocated
+ * with STRUCT_LIT emit domain). glue_arena_expr_at_ref fwd decl in as.c L41
+ * covers the migrated functions (same TU). Forward decl for num_fields at
+ * L1540 retained (harmless). */
 
 extern void driver_diagnostic_typeck_struct_padding_before(uint8_t *sname, int32_t sname_len, int32_t gap,
                                                            uint8_t *fname, int32_t fname_len);
@@ -7046,87 +6939,18 @@ static int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *aren
  * coerce only. PLATFORM: SHARED — product return path often hits this glue twin
  * (Ubuntu) while typeck.x body is the seed twin; both must match.
  */
-int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref) {
-  int32_t got;
-  int32_t expect_kind;
-  int32_t got_kind;
-
-  if (ast_ref_is_null(op_ref) || ast_ref_is_null(expect_ref))
-    return 1;
-  if (!arena || op_ref <= 0 || op_ref > arena->num_exprs)
-    return 0;
-  got = pipeline_expr_resolved_type_ref(arena, op_ref);
-  if (ast_ref_is_null(got))
-    return 0;
-  if (pipeline_typeck_type_refs_equal_c(arena, got, expect_ref))
-    return 1;
-  expect_kind = pipeline_type_kind_ord_at(arena, expect_ref);
-  got_kind = pipeline_type_kind_ord_at(arena, got);
-  /* wave313: refs path so NAMED i8/i16/u16 return widen participates. */
-  if (pipeline_typeck_integer_widen_ok_refs_c(arena, expect_ref, got))
-    return 1;
-  /* wave314: f32→f64 float widen on return. */
-  if (pipeline_typeck_float_widen_ok_c(expect_kind, got_kind))
-    return 1;
-  /* M-4: return Linear(T) matches inner T (same layout; move on VAR path). */
-  if (got_kind == (int32_t)ast_TypeKind_TYPE_LINEAR) {
-    int32_t elem = pipeline_type_elem_ref_at(arena, got);
-    if (!ast_ref_is_null(elem) && pipeline_typeck_type_refs_equal_c(arena, elem, expect_ref))
-      return 1;
-  }
-  /* wave671: hard-fail bool → non-bool return (removed BOOL_LIT/LOGNOT→i32). */
-  return 0;
-}
-
-/**
- * typeck.x::typeck_ret_coerce_integral_to_expect_i32 的 C 委托：i32 返回时对 u8/usize 操作数写回 resolved_type_ref。
- */
+/* wave1165 G.7: ret coerce cluster (3 fns:
+ * pipeline_typeck_return_operand_matches_c /
+ * pipeline_typeck_ret_coerce_integral_to_expect_i32_c /
+ * pipeline_typeck_ret_coerce_integral_widen_c) migrated to
+ * pipeline_typeck_coerce_init.c EOF (colocated with coerce-init domain —
+ * return coercion is the return-path twin of let/const/arg init coercion).
+ * Forward decls below for callsites at L7367-7370 (before coerce_init.c
+ * #include at L9010). Deps all visible at coerce_init.c #include L9010. */
+int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref);
 void pipeline_typeck_ret_coerce_integral_to_expect_i32_c(struct ast_ASTArena *arena, int32_t op_ref,
-                                                         int32_t expect_ref) {
-  int32_t got_ref;
-  int32_t got_kind;
-
-  if (ast_ref_is_null(op_ref) || op_ref <= 0 || !arena || op_ref > arena->num_exprs || ast_ref_is_null(expect_ref))
-    return;
-  if (expect_ref <= 0 || expect_ref > arena->num_types)
-    return;
-  if (pipeline_type_kind_ord_at(arena, expect_ref) != (int32_t)ast_TypeKind_TYPE_I32)
-    return;
-  got_ref = pipeline_expr_resolved_type_ref(arena, op_ref);
-  if (ast_ref_is_null(got_ref) || got_ref <= 0 || got_ref > arena->num_types)
-    return;
-  got_kind = pipeline_type_kind_ord_at(arena, got_ref);
-  if (got_kind != (int32_t)ast_TypeKind_TYPE_U8 && got_kind != (int32_t)ast_TypeKind_TYPE_USIZE)
-    return;
-  pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
-}
-
-/**
- * typeck.x::typeck_ret_coerce_integral_widen 的 C 委托：较宽返回类型时对较小整型写回 resolved_type_ref。
- */
-void pipeline_typeck_ret_coerce_integral_widen_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref) {
-  int32_t got_ref;
-  int32_t expect_kind;
-  int32_t got_kind;
-
-  if (ast_ref_is_null(op_ref) || op_ref <= 0 || !arena || op_ref > arena->num_exprs || ast_ref_is_null(expect_ref))
-    return;
-  if (expect_ref <= 0 || expect_ref > arena->num_types)
-    return;
-  got_ref = pipeline_expr_resolved_type_ref(arena, op_ref);
-  if (ast_ref_is_null(got_ref) || got_ref <= 0 || got_ref > arena->num_types)
-    return;
-  expect_kind = pipeline_type_kind_ord_at(arena, expect_ref);
-  got_kind = pipeline_type_kind_ord_at(arena, got_ref);
-  /* wave313: refs path covers NAMED i8/i16/u16. */
-  if (pipeline_typeck_integer_widen_ok_refs_c(arena, expect_ref, got_ref)) {
-    pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
-    return;
-  }
-  /* wave314: f32→f64 return — no stamp; emit promotes with cvtss2sd. */
-  (void)expect_kind;
-  (void)got_kind;
-}
+                                                         int32_t expect_ref);
+void pipeline_typeck_ret_coerce_integral_widen_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref);
 
 /** EXPR_RETURN 诊断与 scratch 缓冲（runtime.c）。 */
 extern void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref,

@@ -1576,3 +1576,74 @@ static int32_t typeck_struct_layouts_same_shape_c(struct ast_Module *m, struct a
   }
   return 1;
 }
+
+/*
+ * wave1164 G.7: struct_lit accessor cluster (4 fns:
+ * pipeline_expr_struct_lit_num_fields / type_name_len / type_name_into /
+ * type_name_set) migrated from pipeline_glue.c (was L2450-2497). Colocated
+ * with STRUCT_LIT emit domain — all read/write Expr struct_lit_* fields via
+ * glue_arena_expr_at_ref (static fwd decl in pipeline_asm_emit_as.c L41,
+ * visible to this file via #include chain as.c L1843 < struct_lit.c L1959).
+ * Forward decl for num_fields retained at glue.c L1540 (harmless).
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU.
+ */
+
+/**
+ * Read EXPR_STRUCT_LIT field count (number of named fields in the literal).
+ * Returns 0 for invalid ref / non-STRUCT_LIT expr.
+ */
+int32_t pipeline_expr_struct_lit_num_fields(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->struct_lit_num_fields : 0;
+}
+
+/**
+ * Read struct_lit type name length (byte count of struct_lit_struct_name).
+ * Returns 0 for invalid ref.
+ */
+int32_t pipeline_expr_struct_lit_type_name_len(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->struct_lit_struct_name_len : 0;
+}
+
+/**
+ * Copy struct_lit type name into out64 (128 bytes, NUL-padded).
+ * For invalid ref, writes 128 zero bytes to out64.
+ * wave577 Cap: copies full 128-byte struct_lit_struct_name array.
+ */
+void pipeline_expr_struct_lit_type_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64) {
+  struct ast_Expr *ex;
+  if (!out64)
+    return;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex) {
+    memset(out64, 0, 128);
+    return;
+  }
+  memcpy(out64, ex->struct_lit_struct_name, 128); /* wave577 Cap */
+}
+
+/**
+ * Backfill struct_lit_struct_name on an anonymous struct literal expression
+ * from the contextual return type (resolved through type alias).
+ *
+ * Why: anonymous `{ a: 1, b: 2 }` literals have empty struct_lit_struct_name;
+ *      codegen then emits `(struct <module>_){...}` → cc "incomplete type" error.
+ *      typeck backfills the name so codegen emits `(struct <module>_Pair){...}`.
+ * Contract: name_len must be in [1, 127]; null/invalid arena/ref is a no-op.
+ * PLATFORM: SHARED — called from typeck.x contextual typing backfill path.
+ */
+void pipeline_expr_struct_lit_type_name_set(struct ast_ASTArena *a, int32_t expr_ref,
+                                            uint8_t *name, int32_t name_len) {
+  struct ast_Expr *ex;
+  if (!a || !name || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return;
+  if (name_len < 0 || name_len > 127)
+    return;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return;
+  memset(ex->struct_lit_struct_name, 0, sizeof(ex->struct_lit_struct_name)); /* wave577 Cap */
+  memcpy(ex->struct_lit_struct_name, name, (size_t)name_len);
+  ex->struct_lit_struct_name_len = name_len;
+}

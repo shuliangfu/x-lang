@@ -20,9 +20,10 @@
  * - pipeline_module_num_funcs / main_func_index / reset_parse_counters /
  *   strict_parse_into_init
  *
- * Left in pipeline_glue.c (name/body readers used by codegen path):
- * - pipeline_module_func_name_write / name_len_at / name_copy64
- * - pipeline_module_func_is_extern_at / body_ref_at
+ * wave1163 G.7: pipeline_module_func_name_write / name_len_at / name_copy64
+ * / is_extern_at / body_ref_at migrated from pipeline_glue.c to this file's
+ * EOF (colocated with module_func accessor domain). Forward decls at
+ * glue.c L96/L256-260 retained for early callsites (L637-649 etc.).
  *
  * Depends on same-TU statics: module_func_at, module_func_param_entry,
  * arena_func_param_entry, copy_func_params_between_sidecars, module_sidecar_get,
@@ -441,5 +442,106 @@ uint8_t pipeline_module_func_name_byte_at(struct ast_Module *m, int32_t fi, int3
 int32_t pipeline_module_func_body_expr_ref_at(struct ast_Module *m, int32_t fi) {
   struct ast_Func *f = module_func_at(m, fi);
   return f ? (int32_t)f->body_expr_ref : 0;
+}
+
+/*
+ * wave1163 G.7: module_func name/body reader cluster migrated from
+ * pipeline_glue.c (was L2427-2496). Colocated with module_func accessor
+ * domain — all read/write Func struct fields via pipeline_module_func_ptr.
+ * Forward decls retained in glue.c L96/L256-260 for early callsites.
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU.
+ */
+
+/**
+ * Write func name bytes into Func.name[128] (Cap: ≤127 bytes + NUL pad).
+ * Called by codegen name-write path and parse-time func registration.
+ * Contract: null m / OOB func_index / name_len outside [0,127] → no-op.
+ */
+void pipeline_module_func_name_write(struct ast_Module *m, int32_t func_index, uint8_t *name_bytes,
+                                     int32_t name_len) {
+  struct ast_Func *f;
+  if (!m || func_index < 0)
+    return;
+  /* wave577 Cap: AST Func.name is u8[128]; allow up to 127 bytes */
+  if (name_len < 0 || name_len > 127)
+    return;
+  if (name_len > 0 && !name_bytes)
+    return;
+  f = pipeline_module_func_ptr(m, func_index);
+  if (!f)
+    return;
+  f->name_len = name_len;
+  memset(f->name, 0, sizeof(f->name));
+  if (name_len > 0)
+    memcpy(f->name, name_bytes, (size_t)name_len);
+}
+
+/**
+ * Copy Func.name[128] into dst (128 bytes, NUL-padded).
+ * Used by codegen to avoid .x nested array GEP typeck/asm failures.
+ * Contract: null m/dst / OOB func_index → no-op; copies ≤127 bytes + zero-pad.
+ */
+void pipeline_module_func_name_copy64(struct ast_Module *m, int32_t func_index, uint8_t *dst) {
+  struct ast_Func *f;
+  int32_t nlen;
+  if (!m || !dst || func_index < 0)
+    return;
+  if (func_index >= (int32_t)m->num_funcs)
+    return;
+  f = pipeline_module_func_ptr(m, func_index);
+  if (!f)
+    return;
+  /* wave577 Cap: copy name_len bytes (≤127), zero-pad rest; aligns with
+   * AST name[128] to avoid truncation. */
+  nlen = f->name_len;
+  if (nlen < 0)
+    nlen = 0;
+  if (nlen > 127)
+    nlen = 127;
+  memset(dst, 0, 128);
+  if (nlen > 0)
+    memcpy(dst, f->name, (size_t)nlen);
+}
+
+/**
+ * Read Func.name_len (byte count, excl. NUL).
+ * Contract: null m / OOB func_index → returns 0.
+ */
+int32_t pipeline_module_func_name_len_at(struct ast_Module *m, int32_t func_index) {
+  struct ast_Func *f;
+  if (!m || func_index < 0)
+    return 0;
+  if (func_index >= (int32_t)m->num_funcs)
+    return 0;
+  f = pipeline_module_func_ptr(m, func_index);
+  return f ? (int32_t)f->name_len : 0;
+}
+
+/**
+ * Read Func.is_extern flag (1 if extern declaration, no body).
+ * Contract: null m / OOB func_index → returns 0.
+ */
+int32_t pipeline_module_func_is_extern_at(struct ast_Module *m, int32_t func_index) {
+  struct ast_Func *f;
+  if (!m || func_index < 0)
+    return 0;
+  if (func_index >= (int32_t)m->num_funcs)
+    return 0;
+  f = pipeline_module_func_ptr(m, func_index);
+  return f ? (int32_t)f->is_extern : 0;
+}
+
+/**
+ * Read Func.body_ref (block_ref for function body; 0/null if extern).
+ * Contract: null m / OOB func_index → returns 0.
+ */
+int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t func_index) {
+  struct ast_Func *f;
+  if (!m || func_index < 0)
+    return 0;
+  if (func_index >= (int32_t)m->num_funcs)
+    return 0;
+  f = pipeline_module_func_ptr(m, func_index);
+  return f ? (int32_t)f->body_ref : 0;
 }
 
