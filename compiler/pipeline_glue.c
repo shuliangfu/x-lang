@@ -4372,26 +4372,10 @@ void pipeline_asm_bump_next_offset_after_let_init(struct ast_ASTArena *arena, in
   glue_align_next_offset(ctx);
 }
 
-/**
- * 无 init_ref 的定长数组 let：在 ctx->next_offset 处 lea 并写入局部指针槽（如 `let buf:u8[64]=[]` 被省略 init 时）。
- */
-static int32_t glue_emit_array_let_empty_init(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                              struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off) {
-  int32_t temp_off;
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  (void)arena;
-  if (!elf_ctx || !ctx)
-    return -1;
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (!ly)
-    return -1;
-  temp_off = ly->next_offset;
-  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_off, ta) != 0)
-    return -1;
-  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, stack_slot_off, ta) != 0)
-    return -1;
-  return 0;
-}
+/* wave1043 G.7: glue_emit_array_let_empty_init migrated to
+ * pipeline_asm_emit_block_body.c (sole consumer block_body_sync_elf +
+ * glue.c internal callsites 6791/6872 after #include 4459 — visible via
+ * forward decl in block_body.c). Definition removed from here. */
 
 /**
  * stmt_order 中是否含 EXPR_RETURN（任意操作数）；用于 if-then 含 return 时勿 jmp 到 if 后语句。

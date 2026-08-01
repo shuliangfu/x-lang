@@ -39,6 +39,12 @@
 static int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                           int32_t block_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 
+/* wave1043 G.7: forward decl — definition at EOF (callsites at lines 467/602
+ * precede definition). Consumed by block_body_sync_elf + glue.c internal
+ * (lines 6791/6872, after #include 4459 — visible there via this decl). */
+static int32_t glue_emit_array_let_empty_init(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                              struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off);
+
 /** Deeper use walk for defer analysis: INDEX / AS / field / array-lit elems / unaries. */
 static void glue_live_fwd_collect_expr_uses_for_defer(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                      int32_t expr_ref, GlueBlockLiveFwd *gen) {
@@ -903,5 +909,43 @@ static int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct pla
       }
     }
   }
+  return 0;
+}
+
+/**
+ * Emit empty init for fixed-size array let without init_ref (e.g.
+ * `let buf: u8[64] = []` with omitted init).
+ *
+ * Why: when a fixed-size array let has no explicit initializer, the slot
+ * must still point to a valid temp region at ctx->next_offset. This emits
+ * a lea rbp + temp_off -> rax, then stores rax to the stack slot offset.
+ *
+ * Invariant: elf_ctx && ctx valid; stack_slot_off is the resolved slot
+ * offset from backend_asm_ctx_slot_offset. temp_off = ly->next_offset
+ * (caller bumps next_offset via pipeline_asm_bump_next_offset_after_let_init).
+ *
+ * Asm/Perf: single lea + store pair (2 instructions); no loop, no spill.
+ * PLATFORM: SHARED — arch-agnostic via backend_enc_lea_rbp_to_rax_arch +
+ * backend_enc_store_rax_to_rbp_arch.
+ *
+ * Consumers: pipeline_asm_emit_block_body_sync_elf (this file, lines 467/602)
+ * + pipeline_glue.c internal (lines 6791/6872, after #include 4459 — visible
+ * via forward decl at top of this file). G.7 single authority.
+ */
+static int32_t glue_emit_array_let_empty_init(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                              struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off) {
+  int32_t temp_off;
+  pipeline_glue_AsmFuncCtxLayout *ly;
+  (void)arena;
+  if (!elf_ctx || !ctx)
+    return -1;
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (!ly)
+    return -1;
+  temp_off = ly->next_offset;
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_off, ta) != 0)
+    return -1;
+  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, stack_slot_off, ta) != 0)
+    return -1;
   return 0;
 }
