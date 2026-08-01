@@ -27,12 +27,11 @@
 6. [编译器架构](#六编译器架构)
 7. [自举状态](#七自举状态摘要--2026-07-31)
 8. [里程碑](#八里程碑)
-9. [文档索引](#九文档索引)
-10. [测试与质量](#十测试与质量)
-11. [工具链生态](#十一工具链生态)
-12. [为什么是 X 语言 — 三高一低](#十二为什么是-x-语言--三高一低)
-13. [贡献](#十三贡献)
-14. [许可证](#十四许可证)
+9. [测试与质量](#九测试与质量)
+10. [工具链生态](#十工具链生态)
+11. [为什么是 X 语言 — 三高一低](#十一为什么是-x-语言--三高一低)
+12. [贡献](#十二贡献)
+13. [许可证](#十三许可证)
 
 ---
 
@@ -489,31 +488,7 @@ xlang/
 
 ---
 
-## 九、文档索引
-
-| 文档 | 内容 |
-|------|------|
-| [analysis/自举进度.md](analysis/自举进度.md) | **KPI 仪表盘**（每波必改） |
-| [analysis/自举时序.md](analysis/自举时序.md) | 自举先→后（S0–S8）· 换 IDE 协议 |
-| [compiler/docs/LEAF_PATTERN_RESIDUAL.md](compiler/docs/LEAF_PATTERN_RESIDUAL.md) | 11.3.1 叶 residual 人读地图 |
-| [analysis/C迁移追踪.md](analysis/C迁移追踪.md) | 终局债地图（MG / 删 Makefile DAG） |
-| [analysis/Makefile迁移表.md](analysis/Makefile迁移表.md) | Makefile → xbuild 叶映射 |
-| [analysis/自举方法.md](analysis/自举方法.md) | Cap / R / L / M 方法 |
-| [analysis/自举步骤.md](analysis/自举步骤.md) | 可执行闸门 |
-| [docs/README.md](docs/README.md) | 语言文档目录 |
-| [analysis/需求分析.md](analysis/需求分析.md) | 总目标、性能与安全策略 |
-| [analysis/archive/narrative/构架分析.md](analysis/archive/narrative/构架分析.md) | 仓库与编译器划分（叙事归档） |
-| [analysis/性能压榨.md](analysis/性能压榨.md) | 性能分层 / dogfood |
-| [compiler/docs/SELFHOST.md](compiler/docs/SELFHOST.md) | 自举运维 |
-| [editors/vscode/README.md](editors/vscode/README.md) | 编辑器插件与 LSP |
-| [AGENTS.md](AGENTS.md) | 协作铁律（根源、双权威、平台） |
-| [HOW_TO_TEST.md](HOW_TO_TEST.md) | 测试入口说明 |
-
-更多 RFC 见 `analysis/`（http、async、WPO 等）。
-
----
-
-## 十、测试与质量
+## 九、测试与质量
 
 | 套件 | 命令 |
 |------|------|
@@ -542,7 +517,7 @@ xlang/
 
 ---
 
-## 十一、工具链生态
+## 十、工具链生态
 
 | 组件 | 路径 |
 |------|------|
@@ -555,7 +530,7 @@ xlang/
 
 ---
 
-## 十二、为什么是 X 语言 — **三高一低**
+## 十一、为什么是 X 语言 — **三高一低**
 
 **X 语言**是一门面向内核、驱动、运行时、嵌入式与高性能工具的**系统级编程语言**：无 GC、零成本抽象、显式内存模型，可 freestanding。
 
@@ -600,7 +575,7 @@ xlang/
 
 ---
 
-## 十三、贡献
+## 十二、贡献
 
 1. 克隆 → `./xbuild build-tool && ./xbuild first-time`（或 `./xbuild bootstrap-driver-seed`）。  
 2. 日常改动 → `./xbuild build`，`XLANG=./compiler/xlang_asm`，跑相关测试 / gate。  
@@ -613,7 +588,7 @@ xlang/
 
 ---
 
-## 十四、许可证
+## 十三、许可证
 
 X 语言采用 **分层授权**（语言库宽松；编译器 copyleft）。详见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。
 

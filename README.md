@@ -27,12 +27,11 @@
 6. [Compiler architecture](#6-compiler-architecture)
 7. [Self-host status](#7-self-host-status-snapshot--2026-07-31)
 8. [Milestones](#8-milestones)
-9. [Documentation map](#9-documentation-map)
-10. [Testing and quality](#10-testing-and-quality)
-11. [Tooling](#11-tooling)
-12. [Why X language — Three Highs, One Low](#12-why-x-language--three-highs-one-low)
-13. [Contributing](#13-contributing)
-14. [License](#14-license)
+9. [Testing and quality](#9-testing-and-quality)
+10. [Tooling](#10-tooling)
+11. [Why X language — Three Highs, One Low](#11-why-x-language--three-highs-one-low)
+12. [Contributing](#12-contributing)
+13. [License](#13-license)
 
 ---
 
@@ -489,31 +488,7 @@ Methodology: [自举方法.md](analysis/自举方法.md) · timeline: [自举时
 
 ---
 
-## 9. Documentation map
-
-| Document | Role |
-|----------|------|
-| [analysis/自举进度.md](analysis/自举进度.md) | **KPI dashboard** (must update each wave) |
-| [analysis/自举时序.md](analysis/自举时序.md) | Self-host timeline (S0–S8) · switch-IDE protocol |
-| [compiler/docs/LEAF_PATTERN_RESIDUAL.md](compiler/docs/LEAF_PATTERN_RESIDUAL.md) | 11.3.1 leaf residual human map |
-| [analysis/C迁移追踪.md](analysis/C迁移追踪.md) | Endgame debt map (MG / delete-Makefile DAG) |
-| [analysis/Makefile迁移表.md](analysis/Makefile迁移表.md) | Makefile → xbuild leaf map |
-| [analysis/自举方法.md](analysis/自举方法.md) | Cap / R / L / M method |
-| [analysis/自举步骤.md](analysis/自举步骤.md) | Executable gates |
-| [docs/README.md](docs/README.md) | Language docs index |
-| [analysis/需求分析.md](analysis/需求分析.md) | Goals, perf & safety strategy |
-| [analysis/archive/narrative/构架分析.md](analysis/archive/narrative/构架分析.md) | Repo / compiler layout (narrative archive) |
-| [analysis/性能压榨.md](analysis/性能压榨.md) | Perf layers / dogfood |
-| [compiler/docs/SELFHOST.md](compiler/docs/SELFHOST.md) | Self-host ops |
-| [editors/vscode/README.md](editors/vscode/README.md) | Editor plugin + LSP |
-| [AGENTS.md](AGENTS.md) | Contributor / agent rules (root-cause, dual authority, platforms) |
-| [HOW_TO_TEST.md](HOW_TO_TEST.md) | Testing entry points |
-
-Many RFCs live under `analysis/` (http, async, WPO, …).
-
----
-
-## 10. Testing and quality
+## 9. Testing and quality
 
 | Suite | Command |
 |-------|---------|
@@ -542,7 +517,7 @@ Diff cases D1–D6: 5/6 pass; float D4 remains a known P2 placeholder.
 
 ---
 
-## 11. Tooling
+## 10. Tooling
 
 | Component | Path |
 |-----------|------|
@@ -555,7 +530,7 @@ Plugin install: [editors/vscode/README.md](editors/vscode/README.md).
 
 ---
 
-## 12. Why X language — **Three Highs, One Low**
+## 11. Why X language — **Three Highs, One Low**
 
 **X language** is a **systems language** for kernels, drivers, runtimes, embedded targets, and high-performance tools: no GC, zero-cost abstractions, an explicit memory model, and freestanding support.
 
@@ -600,7 +575,7 @@ Longer design notes: [syntax & safety](analysis/语法与类型设计-高性能�
 
 ---
 
-## 13. Contributing
+## 12. Contributing
 
 1. Clone → `./xbuild build-tool && ./xbuild first-time` (or `./xbuild bootstrap-driver-seed`).  
 2. Daily edits → `./xbuild build`, set `XLANG=./compiler/xlang_asm`, run relevant tests / gates.  
@@ -613,7 +588,7 @@ Longer design notes: [syntax & safety](analysis/语法与类型设计-高性能�
 
 ---
 
-## 14. License
+## 13. License
 
 X language uses **layered licensing** (language libraries permissive; compiler copyleft). See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
