@@ -1014,74 +1014,13 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena *arena, s
  * ast.x extern：块末若为 RETURN/PANIC/BREAK/CONTINUE，返回 1（禁止隐式尾）；非法 ref 视为 1。
  * 符号名 deliberately 无前缀，供 X「extern function」原样映射，避免与其它 ast_ast_* extern 串联重复前缀。
  */
-/** ast.x：池槽 CALL 解析占位 -1（避免 X 对 Expr 尾字段 FIELD_ACCESS 缺 layout）。 */
-void pipeline_expr_init_call_resolve_at_ref(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex;
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return;
-  ex->call_resolved_func_index = -1;
-  ex->call_resolved_dep_index = -1;
-}
-
-/** ast.x / typeck.x：typeck 命中后写入 call_resolved_*。 */
+/* wave1159 G.7: call_resolve cluster (8 extern fns) migrated to
+ * pipeline_typeck_method_call.c EOF (colocated with method_call typeck
+ * domain). Extern fwd decls below for callsites before #include L9703. */
 void pipeline_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t expr_ref, int32_t dep_ix,
-                                    int32_t func_ix) {
-  struct ast_Expr *ex;
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return;
-  ex->call_resolved_dep_index = dep_ix;
-  ex->call_resolved_func_index = func_ix;
-}
-
-/** parser.x expr_set_common_zeros：对堆/池上 Expr 指针写 call_resolved 占位。 */
-void pipeline_expr_ptr_init_call_resolve(struct ast_Expr *e) {
-  if (!e)
-    return;
-  e->call_resolved_func_index = -1;
-  e->call_resolved_dep_index = -1;
-}
-
-/** import ast 时 codegen 可能加 ast_ 前缀；转发到 pipeline_expr_* 裸符号。 */
-void ast_pipeline_expr_ptr_init_call_resolve(struct ast_Expr *e) {
-  pipeline_expr_ptr_init_call_resolve(e);
-}
-
-void ast_pipeline_expr_init_call_resolve_at_ref(struct ast_ASTArena *a, int32_t expr_ref) {
-  pipeline_expr_init_call_resolve_at_ref(a, expr_ref);
-}
-
-void ast_pipeline_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t expr_ref, int32_t dep_ix,
-                                         int32_t func_ix) {
-  pipeline_expr_apply_call_resolve(a, expr_ref, dep_ix, func_ix);
-}
-
-/** typeck 解析 import/本模块 call 后写入的 dep 槽下标；-1 表示本模块，无效 expr 返回 -2。 */
-int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex;
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return -2;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return -2;
-  return ex->call_resolved_dep_index;
-}
-
-/** typeck 解析 call 后写入的被调函数在 dep/本模块中的下标；未解析返回 -1。 */
-int32_t pipeline_expr_call_resolved_func_index_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex;
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return -1;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return -1;
-  return ex->call_resolved_func_index;
-}
+                                    int32_t func_ix);
+int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t pipeline_expr_call_resolved_func_index_at(struct ast_ASTArena *a, int32_t expr_ref);
 
 int implicit_tail_expr_disallowed_by_glue(struct ast_ASTArena *a, int32_t expr_ref) {
   enum ast_ExprKind kd;
@@ -3619,11 +3558,8 @@ static int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena 
  * ast_pool.c wrapper (pipeline_expr_float_bits_lo/hi) is after as.c
  * #include — definition visible, no forward decl needed. */
 
-/** EXPR_CALL callee expr ref；无效 ref 返回 0。 */
-int32_t pipeline_expr_call_callee_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->call_callee_ref : 0;
-}
+/* wave1159 G.7: pipeline_expr_call_callee_ref_at migrated to
+ * pipeline_typeck_method_call.c EOF. Fwd decl already exists above. */
 
 /** EXPR_AS 操作数 ref；无效 ref 返回 0。 */
 int32_t pipeline_expr_as_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
@@ -3643,37 +3579,9 @@ int32_t pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_r
   return ex ? ex->enum_variant_tag : 0;
 }
 
-/** EXPR_METHOD_CALL receiver ref；无效 ref 返回 0。 */
-int32_t pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->method_call_base_ref : 0;
-}
-
-/** EXPR_METHOD_CALL 实参个数（不含 receiver）；无效 ref 返回 0。 */
-int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->method_call_num_args : 0;
-}
-
-/** EXPR_METHOD_CALL 方法名长度；无效 ref 返回 0。 */
-int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->method_call_name_len : 0;
-}
-
-/** EXPR_METHOD_CALL 方法名 memcpy 到 out64。 */
-void pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64) {
-  struct ast_Expr *ex;
-  if (!out64)
-    return;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex) {
-    memset(out64, 0, 128);
-    return;
-  }
-  /* wave577 Cap: method_call_name is u8[128] */
-  memcpy(out64, ex->method_call_name, 128);
-}
+/* wave1159 G.7: method_call accessor cluster (4 extern fns) migrated to
+ * pipeline_typeck_method_call.c EOF (colocated with method_call typeck
+ * domain). Fwd decls in method_call.c top; visible via #include L9703. */
 
 /** EXPR_IF/TERNARY 条件 ref；无效 ref 返回 0。 */
 int32_t pipeline_expr_if_cond_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
