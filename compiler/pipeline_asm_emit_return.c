@@ -16,6 +16,14 @@
  * calls the static impl (same TU). Host codegen also calls
  * pipeline_find_fixed_array_slice_escape (non-static) for twin escape capacity.
  *
+ * wave1025 G.7 fold: sret return path helpers moved here from glue residual
+ * (same TU; no new DEPS):
+ * - glue_emit_sret_memcpy_rbx_to_home_elf_c (memcpy struct to caller dest)
+ * - glue_emit_sret_return_from_var_elf_c (return local_var sret copy)
+ * - glue_copy_large_struct_from_rax_ptr_elf_c (>16B struct from rax ptr to slot)
+ * Shared with struct_lit leaf (sret_memcpy) and struct_let leaf
+ * (copy_large_struct via store_retval_pair). glue 1989-1991 forward decls kept.
+ *
  * Not compiled as a separate .o — #included from pipeline_glue.c after float
  * promote / module return-type forward decls and before unary / as emit slices.
  *
@@ -241,6 +249,16 @@ int32_t pipeline_find_fixed_array_slice_escape(struct ast_ASTArena *arena, int32
 static int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
 static void glue_slice_dual_gp_bump_past_home_c(struct backend_AsmFuncCtx *ctx, int32_t data_home,
                                                int32_t ta);
+/* wave1025: glue_var_decl_type_ref_elf_c body in pipeline_asm_emit_var_decl.c (wave1023);
+ * needed by glue_emit_sret_return_from_var_elf_c (body at end of this leaf). */
+static int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                             int32_t var_expr_ref);
+/* wave1025: glue_enc_local_slot_ptr_or_addr_rbx_elf_c body in pipeline_asm_emit_index_helpers.c
+ * (#included after this leaf); needed by glue_emit_sret_return_from_var_elf_c. */
+static int32_t glue_enc_local_slot_ptr_or_addr_rbx_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         int32_t var_expr_ref, int32_t stack_off,
+                                                         struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /**
  * wave342–344 Cap residual pure: freestanding `return s` where
@@ -639,5 +657,116 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
 int32_t pipeline_asm_emit_return_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                        int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   return pipeline_asm_emit_return_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+/* ========================================================================
+ * wave1025 G.7 fold: sret return path helpers
+ * (from pipeline_glue residual after this #include). Same-TU static.
+ * Callers: this leaf (return_elf_impl); struct_lit leaf (sret_memcpy);
+ * struct_let leaf (copy_large_struct via store_retval_pair).
+ * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
+ * ======================================================================== */
+
+/**
+ * sret write-back: rbx = source struct base; memcpy into caller dest saved at
+ * g_pipeline_asm_sret_home_off.
+ * PLATFORM: LINUX+MACOS x86_64 SysV — dest@rdi src@rsi n@rdx (rax scratch; arg regs distinct).
+ * PLATFORM: MACOS|ARM64 AAPCS64 (wave591) — dest@x0 src@x1 n@x2.
+ *   arm64 cannot reuse the x86 push/pop sequence: mov_rax_to_arg_reg(0) is a no-op
+ *   (arg0≡x0), so pop would clobber dest. Order: keep src in x1 (rbx), size→x2 first,
+ *   then load dest into x0.
+ */
+static int32_t glue_emit_sret_memcpy_rbx_to_home_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t sz,
+                                                       int32_t ta) {
+  static const uint8_t memcpy_sym[] = "memcpy";
+  if ((ta != 0 && ta != 1) || !elf_ctx || sz <= 16 || g_pipeline_asm_sret_home_off < 0)
+    return -1;
+  if (ta == 1) {
+    /* src already in x1 (=rbx); set n@x2 then dest@x0 (load must not clobber x1/x2). */
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+      return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+      return -1;
+    /* x0=dest, x1=src, x2=n */
+    return backend_enc_call_arch(elf_ctx, (uint8_t *)memcpy_sym, (int32_t)(sizeof(memcpy_sym) - 1), ta);
+  }
+  /* x86 SysV: rax scratch, rdi/rsi/rdx hold args. */
+  if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+    return -1;
+  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+    return -1;
+  return backend_enc_call_arch(elf_ctx, (uint8_t *)memcpy_sym, (int32_t)(sizeof(memcpy_sym) - 1), ta);
+}
+
+/**
+ * sret 返回路径：`return local_var` 时把按值局部 struct 拷到 caller hidden dest。
+ */
+static int32_t glue_emit_sret_return_from_var_elf_c(struct ast_ASTArena *arena,
+                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t var_expr_ref,
+                                                    struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  uint8_t vname[128];
+  int32_t vlen;
+  int32_t off;
+  int32_t tr;
+  int32_t sz;
+  if (!arena || !elf_ctx || !ctx || var_expr_ref <= 0 || !g_pipeline_asm_func_sret_active)
+    return -1;
+  vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+  if (vlen <= 0 || vlen > 127)
+    return -1;
+  pipeline_expr_var_name_into(arena, var_expr_ref, vname);
+  off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
+  if (off < 0)
+    off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
+  if (off < 0)
+    return -1;
+  tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
+  if (tr <= 0)
+    tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
+  sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
+  if (sz <= 16)
+    return -1;
+  if (glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, var_expr_ref, off, ctx, ta) != 0)
+    return -1;
+  return glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx, sz, ta);
+}
+
+/**
+ * 大 struct（>16B）按值返回：callee 在 rax 放指向栈上结果的指针，memcpy 到 let 槽。
+ */
+static int32_t glue_copy_large_struct_from_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off,
+                                                         int32_t sz, int32_t ta) {
+  static const uint8_t memcpy_sym[] = "memcpy";
+  if (ta != 0 || sz <= 16)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+    return -1;
+  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+    return -1;
+  return backend_enc_call_arch(elf_ctx, (uint8_t *)memcpy_sym, (int32_t)(sizeof(memcpy_sym) - 1), ta);
 }
 
