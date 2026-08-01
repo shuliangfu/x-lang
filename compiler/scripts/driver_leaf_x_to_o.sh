@@ -50,6 +50,7 @@ driver_leaf_key_for_out() {
     driver_run_x.o|*driver_run_x.o) printf '%s' "driver_run_x.o" ;;
     driver_compile_x.o|*driver_compile_x.o) printf '%s' "driver_compile_x.o" ;;
     driver_emit_x.o|*driver_emit_x.o) printf '%s' "driver_emit_x.o" ;;
+    lsp_io_x.o|*lsp_io_x.o) printf '%s' "lsp_io_x.o" ;;
     lsp_io_std_heap_x.o|*lsp_io_std_heap_x.o) printf '%s' "lsp_io_std_heap_x.o" ;;
     *) printf '%s' "" ;;
   esac
@@ -98,6 +99,20 @@ driver_leaf_lsp_io_std_heap_rename() {
 'std_heap_free:lsp_io_std_heap_std_heap_free'
 }
 
+# lsp_io rename (historic Makefile LSP_IO_GEN_CFLAGS -D flags).
+# Order matters: cascading renames (std_heap_alloc_usize → typeck_std_heap_alloc
+# → lsp_io_std_heap_std_heap_alloc) must be applied sequentially.
+# PLATFORM: SHARED — must match ensure_gen_x_o.sh -D flags for lsp_io_x.o.
+driver_leaf_lsp_io_rename() {
+  printf '%s' \
+    'std_io_read:io_read,'\
+'std_io_write:io_write,'\
+'std_heap_alloc_usize:typeck_std_heap_alloc,'\
+'std_heap_free_u8_ptr:typeck_std_heap_free,'\
+'typeck_std_heap_alloc:lsp_io_std_heap_std_heap_alloc,'\
+'typeck_std_heap_free:lsp_io_std_heap_std_heap_free'
+}
+
 # Print catalog line for key: src|rename|cold_seed|dirs_kind
 # rename may be empty; long renames resolved at ensure time via helpers above
 # when rename field is @compile / @emit / @lsp_io_std_heap.
@@ -123,6 +138,9 @@ driver_leaf_spec_for_key() {
       ;;
     driver_emit_x.o)
       printf '%s' 'src/driver/emit.x|@emit|seeds/driver_emit_gen.linux.x86_64.c|extended'
+      ;;
+    lsp_io_x.o)
+      printf '%s' 'src/lsp/lsp_io.x|@lsp_io|seeds/lsp_io_gen.linux.x86_64.c|lsp'
       ;;
     lsp_io_std_heap_x.o)
       printf '%s' 'src/lsp/lsp_io_std_heap.x|@lsp_io_std_heap|seeds/lsp_io_std_heap_gen.linux.x86_64.c|lsp'
@@ -183,6 +201,7 @@ driver_leaf_resolve_rename() {
   case "$1" in
     @compile) driver_leaf_compile_rename ;;
     @emit) driver_leaf_emit_rename ;;
+    @lsp_io) driver_leaf_lsp_io_rename ;;
     @lsp_io_std_heap) driver_leaf_lsp_io_std_heap_rename ;;
     *) printf '%s' "$1" ;;
   esac
@@ -197,6 +216,7 @@ driver_leaf_list_keys() {
     driver_run_x.o \
     driver_compile_x.o \
     driver_emit_x.o \
+    lsp_io_x.o \
     lsp_io_std_heap_x.o
 }
 
@@ -261,12 +281,21 @@ driver_leaf_check() {
             ;;
         esac
         ;;
+      lsp_io_x.o)
+        case "$_rn" in
+          *std_io_read:io_read*) ;;
+          *)
+            echo "driver_leaf_x_to_o --check: lsp_io rename map incomplete" >&2
+            _miss=$((_miss + 1))
+            ;;
+        esac
+        ;;
     esac
   done <<EOF
 $(driver_leaf_list_keys)
 EOF
-  if [ "$_n" -ne 8 ]; then
-    echo "driver_leaf_x_to_o --check: expected 8 catalog keys, got $_n" >&2
+  if [ "$_n" -ne 9 ]; then
+    echo "driver_leaf_x_to_o --check: expected 9 catalog keys, got $_n" >&2
     exit 1
   fi
   if [ "$_miss" -ne 0 ]; then
@@ -292,7 +321,7 @@ EOF
       _multi_ok=1
     fi
     for _leaf in driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o \
-      driver_run_x.o driver_compile_x.o driver_emit_x.o lsp_io_std_heap_x.o; do
+      driver_run_x.o driver_compile_x.o driver_emit_x.o lsp_io_x.o lsp_io_std_heap_x.o; do
       _ok_leaf=0
       # wave828: FORCE required (dep-thin); ban dual catalog .x on prereq line.
       if awk -v leaf="$_leaf" '
@@ -330,7 +359,7 @@ EOF
       exit 1
     fi
   fi
-  echo "driver_leaf_x_to_o --check: OK (8 catalog leaves; mk list + multi-target FORCE+ensure wave896; BASE_CFLAGS export leaf wave860; not physical delete)"
+  echo "driver_leaf_x_to_o --check: OK (9 catalog leaves; mk list + multi-target FORCE+ensure wave896; BASE_CFLAGS export leaf wave860; not physical delete)"
   exit 0
 }
 
@@ -419,6 +448,10 @@ driver_leaf_build() {
         echo '#include <unistd.h>'
         echo '#include <fcntl.h>'
         echo '#include <errno.h>'
+        # PLATFORM: POSIX — lsp_io.x -E uses readv/writev/poll (wave1035 Track L
+        # retirement of lsp_io_gen.c; g05_try_x_to_o prologue already has these).
+        echo '#include <sys/uio.h>'
+        echo '#include <poll.h>'
         echo '#endif'
         sed -e '/^#include /d' \
             -e '/^extern ssize_t read(/d' \
@@ -453,23 +486,32 @@ driver_leaf_build() {
   if [ -n "$COLD_SEED" ] && [ -f "$COLD_SEED" ]; then
     # PLATFORM: SHARED — cold seed may contain extern decls that conflict with
     # system headers on macOS (void* vs uint8_t*). Strip before compile.
+    # wave1035: apply SYM_RENAME to cold seed too (lsp_io seed has un-renamed
+    # std_heap_alloc_usize etc.; historic path used -D flags at cc time).
     _seed_tmp="$(mktemp "${TMPDIR:-/tmp}/cold_seed.XXXXXX.c")"
     sed -e '/^extern uint8_t \* malloc(/d' \
         -e '/^extern void free(/d' \
         -e '/^extern uint8_t \* calloc(/d' \
         "$COLD_SEED" > "$_seed_tmp"
+    apply_rename "$_seed_tmp" "$SYM_RENAME"
     # shellcheck disable=SC2086
     if $CC $BASE_CFLAGS -c -o "$OUT_O" "$_seed_tmp" 2>/dev/null; then
       rm -f "$_seed_tmp"
-      echo "driver_leaf_x_to_o: $OUT_O <- $COLD_SEED (cold seed, stripped externs)"
+      echo "driver_leaf_x_to_o: $OUT_O <- $COLD_SEED (cold seed, stripped externs + rename)"
+      return 0
+    fi
+    # Fallback: unstripped copy (Linux often has no conflict with extern decls)
+    cp -f "$COLD_SEED" "$_seed_tmp"
+    apply_rename "$_seed_tmp" "$SYM_RENAME"
+    # shellcheck disable=SC2086
+    if $CC $BASE_CFLAGS -c -o "$OUT_O" "$_seed_tmp" 2>/dev/null; then
+      rm -f "$_seed_tmp"
+      echo "driver_leaf_x_to_o: $OUT_O <- $COLD_SEED (cold seed, rename only)"
       return 0
     fi
     rm -f "$_seed_tmp"
-    # Fallback: unstripped (Linux often has no conflict)
-    # shellcheck disable=SC2086
-    $CC $BASE_CFLAGS -c -o "$OUT_O" "$COLD_SEED"
-    echo "driver_leaf_x_to_o: $OUT_O <- $COLD_SEED (cold seed)"
-    return 0
+    echo "driver_leaf_x_to_o: cold seed compile failed for $COLD_SEED" >&2
+    return 1
   fi
 
   echo "driver_leaf_x_to_o: cannot build $OUT_O (no xlang -E and no cold seed)" >&2

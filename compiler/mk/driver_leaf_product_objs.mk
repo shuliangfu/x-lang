@@ -11,7 +11,7 @@
 # Consumers: Makefile multi-target FORCE thin ensure.
 # Related (distinct authority / purpose — do not dual-list recipe edges):
 #   mk/driver_subcmd_objs.mk DRIVER_SUBCMD_OBJS — seed link / relink prereq set
-#   (7 leaves; no lsp_io_std_heap_x.o). This list is ensure-catalog-only (8).
+#   (7 leaves; no lsp_io_std_heap_x.o). This list is ensure-catalog-only (9).
 
 DRIVER_LEAF_PRODUCT_OBJS = \
 	driver_fmt_x.o \
@@ -21,4 +21,5 @@ DRIVER_LEAF_PRODUCT_OBJS = \
 	driver_run_x.o \
 	driver_compile_x.o \
 	driver_emit_x.o \
+	lsp_io_x.o \
 	lsp_io_std_heap_x.o

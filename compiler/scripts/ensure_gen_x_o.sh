@@ -155,13 +155,22 @@ ensure_gen_file() {
 }
 
 build_lsp_io_x() {
+  # wave1035: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
+  # Fall back to lsp_io_gen.c (archaeology) only if Track L fails.
+  if [ -f scripts/driver_leaf_x_to_o.sh ]; then
+    if bash scripts/driver_leaf_x_to_o.sh ensure lsp_io_x.o 2>/dev/null; then
+      log "lsp_io_x.o ← Track L (.x → -E → .o; wave1035)"
+      return 0
+    fi
+    log "Track L failed for lsp_io_x.o; falling back to lsp_io_gen.c (archaeology)"
+  fi
   ensure_gen_file lsp_io
   # wave796: historic Makefile prereq src/lsp/lsp_io.x (FORCE thin).
   if ! need_rebuild_gen_o_or_deps lsp_io_x.o lsp_io_gen.c src/lsp/lsp_io.x; then
     log "skip lsp_io_x.o (up-to-date vs lsp_io_gen.c + lsp_io.x)"
     return 0
   fi
-  log "cc -c lsp_io_gen.c → lsp_io_x.o"
+  log "cc -c lsp_io_gen.c → lsp_io_x.o (archaeology fallback)"
   # shellcheck disable=SC2086
   $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. \
     -Dstd_io_read=io_read -Dstd_io_write=io_write \
