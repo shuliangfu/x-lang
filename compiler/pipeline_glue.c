@@ -2801,20 +2801,16 @@ static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct as
 extern void driver_diagnostic_warn_pad_fields_same_cache_line(uint8_t *sname, int32_t sname_len, uint8_t *f0,
                                                               int32_t f0_len, uint8_t *f1, int32_t f1_len);
 
-/** XLANG_PAD_FIELDS=1 时启用 -pad-fields 伪共享警告。 */
-static int glue_pad_fields_warn_enabled(void) {
-  const char *e = link_abi_getenv("XLANG_PAD_FIELDS");
-  return e && e[0] == '1' && e[1] == '\0';
-}
+/* wave1070 G.7: glue_pad_fields_warn_enabled migrated to
+ * pipeline_asm_emit_struct_lit.c EOF (XLANG_PAD_FIELDS env gate, consumed by
+ * pipeline_typeck_pad_fields_warn_layout). Static same-TU: struct_lit.c
+ * #include L2095 < def EOF < callsite L2828. Deps: link_abi_getenv (extern). */
 
-/** 4/8 字节标量视作 atomic 计数器候选（u32/i32/u64/i64）。 */
-static int glue_field_type_atomic_sized(struct ast_Module *m, struct ast_ASTArena *a, int32_t ftr) {
-  int32_t sz;
-  if (!m || !a || ftr <= 0)
-    return 0;
-  sz = glue_type_size_simple(m, a, ftr, 0);
-  return sz == 4 || sz == 8;
-}
+/* wave1071 G.7: glue_field_type_atomic_sized migrated to
+ * pipeline_asm_emit_struct_lit.c EOF (4/8B atomic-sized field classifier,
+ * consumed by pipeline_typeck_pad_fields_warn_layout). Static same-TU:
+ * struct_lit.c #include L2095 < def EOF < callsite L2847. Deps:
+ * glue_type_size_simple (static, struct_lit.c EOF wave1056). */
 
 /**
  * DOD-CL -pad-fields：相邻字段落在同一 64B cache line 且均无 align(64) 时打印 warning。
@@ -2860,11 +2856,10 @@ void pipeline_typeck_pad_fields_warn_layout(struct ast_Module *module, struct as
 extern void driver_diagnostic_warn_hot_reorder_field(uint8_t *sname, int32_t sname_len, uint8_t *hot, int32_t hot_len,
                                                     uint8_t *cold, int32_t cold_len);
 
-/** XLANG_HOT_REORDER=1 时启用热字段重排 hint。 */
-static int glue_hot_reorder_warn_enabled(void) {
-  const char *e = link_abi_getenv("XLANG_HOT_REORDER");
-  return e && e[0] == '1' && e[1] == '\0';
-}
+/* wave1072 G.7: glue_hot_reorder_warn_enabled migrated to
+ * pipeline_asm_emit_struct_lit.c EOF (XLANG_HOT_REORDER env gate, consumed by
+ * pipeline_typeck_hot_reorder_warn_layout). Static same-TU: struct_lit.c
+ * #include L2095 < def EOF < callsite L2875. Deps: link_abi_getenv (extern). */
 
 /**
  * DOD-CL-S2 -hot-reorder：热字段（≤4B 标量）出现在大字段（≥8B）之后时 hint。
@@ -3806,35 +3801,13 @@ void pipeline_asm_bump_next_offset_after_let_init(struct ast_ASTArena *arena, in
  * glue.c internal callsites 6791/6872 after #include 4459 — visible via
  * forward decl in block_body.c). Definition removed from here. */
 
-/**
- * stmt_order 中是否含 EXPR_RETURN（任意操作数）；用于 if-then 含 return 时勿 jmp 到 if 后语句。
- */
-static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t block_ref) {
-  int32_t nso;
-  int32_t i;
-  if (!arena || block_ref <= 0)
-    return 0;
-  nso = ast_ast_block_num_stmt_order(arena, block_ref);
-  for (i = 0; i < nso; i++) {
-    uint8_t sk = ast_ast_block_stmt_order_kind(arena, block_ref, i);
-    int32_t idx = ast_ast_block_stmt_order_idx(arena, block_ref, i);
-    if (sk == 2) {
-      int32_t expr_ref;
-      if (idx < 0 || idx >= ast_ast_block_num_expr_stmts(arena, block_ref))
-        continue;
-      expr_ref = ast_pipeline_block_expr_stmt_ref(arena, block_ref, idx);
-      if (expr_ref != 0 && pipeline_expr_kind_ord_at(arena, expr_ref) == 41)
-        return 1;
-    } else if (sk == 7) {
-      /* wave387: L: return e; stores operand in labeled pool (not EXPR_RETURN expr_stmt). */
-      if (idx >= 0 && idx < pipeline_block_num_labeled_stmts(arena, block_ref) &&
-          pipeline_block_labeled_is_goto(arena, block_ref, idx) == 0 &&
-          pipeline_block_labeled_return_expr_ref(arena, block_ref, idx) > 0)
-        return 1;
-    }
-  }
-  return 0;
-}
+/* wave1073 G.7: glue_block_stmt_order_has_return migrated to
+ * pipeline_asm_emit_block_body.c EOF (block stmt_order return scanner,
+ * consumed by block_body_sync_elf + block_if_stmt). Static same-TU:
+ * block_body.c #include L3872 < fwd decl L48 < def EOF. Callsites:
+ * block_body.c:819/851 + block_if_stmt.c:82 (via #include L3875 > L3872).
+ * Deps: ast_ast_block_* / ast_pipeline_block_* / pipeline_expr_kind_ord_at
+ * / pipeline_block_labeled_* (all extern). */
 
 /* wave1021: durable body already in pipeline_asm_emit_array_lit.c; late redecl OK. */
 static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
@@ -4383,16 +4356,11 @@ int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32
 int32_t pipeline_expr_enum_field_tag_via_module(uint8_t *enum_name, int32_t enum_len, uint8_t *variant_name,
                                                 int32_t variant_len);
 
-/** 枚举变体名前缀匹配：parser 偶发 field_len 多 1（含尾零），flen>=期望长度且前缀一致即命中。 */
-static int glue_enum_field_name_equal(const uint8_t *field_buf, int32_t flen, const char *expect) {
-  int32_t elen;
-  if (!field_buf || !expect || flen <= 0)
-    return 0;
-  elen = (int32_t)strlen(expect);
-  if (flen < elen)
-    return 0;
-  return memcmp(field_buf, expect, (size_t)elen) == 0;
-}
+/* wave1074 G.7: glue_enum_field_name_equal migrated to
+ * pipeline_asm_emit_field_access.c EOF (enum variant name prefix match,
+ * consumed by pipeline_expr_enum_namespace_field_tag). Static same-TU:
+ * field_access.c #include L2419 < def EOF < all callsites L4402+. Deps:
+ * strlen / memcmp (libc, global). */
 
 int32_t pipeline_expr_enum_namespace_field_tag(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex;

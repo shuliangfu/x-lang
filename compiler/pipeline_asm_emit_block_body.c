@@ -45,6 +45,11 @@ static int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct pla
 static int32_t glue_emit_array_let_empty_init(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                               struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off);
 
+/* wave1073 G.7: forward decl — definition at EOF (callsites at lines 819/851
+ * precede definition). Also consumed by block_if_stmt.c:82 via #include at
+ * glue.c L3875 > block_body.c L3872 (visible there via this decl). */
+static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t block_ref);
+
 /** Deeper use walk for defer analysis: INDEX / AS / field / array-lit elems / unaries. */
 static void glue_live_fwd_collect_expr_uses_for_defer(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                      int32_t expr_ref, GlueBlockLiveFwd *gen) {
@@ -991,4 +996,58 @@ static void pipeline_asm_ctx_reset_for_func_c(pipeline_glue_AsmFuncCtxLayout *ct
   ctx->dep_pipe = NULL;
   ctx->tail_join_label_len = 0;
   asm_ctx_local_reset((uint8_t *)ctx);
+}
+
+/**
+ * Check whether a block's stmt_order contains an EXPR_RETURN (any operand).
+ *
+ * Why: if-then branch that contains a return must NOT emit a jump to the
+ * post-if statement (control flow falls through). This helper scans stmt_order
+ * for kind 2 (expr_stmt) with EXPR_RETURN (kind_ord 41), and kind 7 (labeled
+ * stmt) with a return-expr in the labeled pool (wave387: `L: return e;`).
+ *
+ * Invariant: returns 0 for NULL arena or invalid block_ref; returns 1 iff at
+ * least one stmt_order entry is a return (expr_stmt kind 41 or labeled return).
+ *
+ * Asm/Perf: O(nso) — one pass over stmt_order. Cold path — called per
+ * if-then branch in block_if_stmt.c:82 and per block tail in block_body.c
+ * (lines 819/851).
+ *
+ * PLATFORM: SHARED — stmt_order traversal is platform-independent.
+ *
+ * wave1073 G.7: migrated from glue.c:3807 (body 25 LOC). Static (non-extern):
+ * same-TU — block_body.c #include at L3872 < fwd decl L48 < def EOF.
+ * Callsites: block_body.c:819/851 (fwd decl L48) + block_if_stmt.c:82
+ * (via #include at glue.c L3875 > block_body.c L3872 — fwd decl visible).
+ * Dependencies: ast_ast_block_num_stmt_order / ast_ast_block_stmt_order_kind /
+ * ast_ast_block_stmt_order_idx / ast_ast_block_num_expr_stmts /
+ * ast_pipeline_block_expr_stmt_ref / pipeline_expr_kind_ord_at /
+ * pipeline_block_num_labeled_stmts / pipeline_block_labeled_is_goto /
+ * pipeline_block_labeled_return_expr_ref (all extern).
+ */
+static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t block_ref) {
+  int32_t nso;
+  int32_t i;
+  if (!arena || block_ref <= 0)
+    return 0;
+  nso = ast_ast_block_num_stmt_order(arena, block_ref);
+  for (i = 0; i < nso; i++) {
+    uint8_t sk = ast_ast_block_stmt_order_kind(arena, block_ref, i);
+    int32_t idx = ast_ast_block_stmt_order_idx(arena, block_ref, i);
+    if (sk == 2) {
+      int32_t expr_ref;
+      if (idx < 0 || idx >= ast_ast_block_num_expr_stmts(arena, block_ref))
+        continue;
+      expr_ref = ast_pipeline_block_expr_stmt_ref(arena, block_ref, idx);
+      if (expr_ref != 0 && pipeline_expr_kind_ord_at(arena, expr_ref) == 41)
+        return 1;
+    } else if (sk == 7) {
+      /* wave387: L: return e; stores operand in labeled pool (not EXPR_RETURN expr_stmt). */
+      if (idx >= 0 && idx < pipeline_block_num_labeled_stmts(arena, block_ref) &&
+          pipeline_block_labeled_is_goto(arena, block_ref, idx) == 0 &&
+          pipeline_block_labeled_return_expr_ref(arena, block_ref, idx) > 0)
+        return 1;
+    }
+  }
+  return 0;
 }

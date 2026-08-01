@@ -1142,3 +1142,36 @@ static int32_t glue_struct_layout_field_offset_by_name_c(struct ast_Module *m, s
   }
   return -1;
 }
+
+/**
+ * Enum variant name prefix match: parser occasionally emits field_len with +1
+ * trailing zero; flen >= expected length and prefix match → hit.
+ *
+ * Why: pipeline_expr_enum_namespace_field_tag resolves FIELD_ACCESS on enum
+ * namespace (e.g. `ExprKind.EXPR_LIT`) by comparing the field name against
+ * known enum variant strings. The parser may include a trailing NUL byte in
+ * the field buffer, so exact-length comparison would miss valid matches.
+ * This helper centralizes the lenient prefix match so the caller does not
+ * repeat strlen/memcmp pairs for every variant check.
+ *
+ * Invariant: returns 0 for NULL field_buf/expect or flen <= 0; returns 1 iff
+ * flen >= strlen(expect) and the first strlen(expect) bytes match exactly.
+ *
+ * Asm/Perf: O(elen) — one strlen + one memcmp. Cold path — called per enum
+ * variant probe in pipeline_expr_enum_namespace_field_tag (glue.c:4402+).
+ *
+ * PLATFORM: SHARED — string comparison is platform-independent.
+ *
+ * wave1074 G.7: migrated from glue.c:4359 (body 8 LOC). Static (non-extern):
+ * same-TU — field_access.c #include at L2419 < def EOF < all callsites
+ * glue.c:4402+. Dependencies: strlen / memcmp (libc, global).
+ */
+static int glue_enum_field_name_equal(const uint8_t *field_buf, int32_t flen, const char *expect) {
+  int32_t elen;
+  if (!field_buf || !expect || flen <= 0)
+    return 0;
+  elen = (int32_t)strlen(expect);
+  if (flen < elen)
+    return 0;
+  return memcmp(field_buf, expect, (size_t)elen) == 0;
+}

@@ -1358,3 +1358,78 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
   }
   return 0;
 }
+
+/**
+ * Check whether XLANG_PAD_FIELDS=1 env is set (DOD-CL pad-fields warning gate).
+ *
+ * Why: pipeline_typeck_pad_fields_warn_layout must early-exit when the user has
+ * not opted into the false-sharing cache-line warning, to keep default builds
+ * silent. Centralizing the env probe avoids scattering link_abi_getenv calls.
+ *
+ * Invariant: returns 1 only when XLANG_PAD_FIELDS is exactly "1"; 0 otherwise
+ * (including unset, empty, or any other value).
+ *
+ * Asm/Perf: O(1) — one getenv + two byte checks. Cold path — called once per
+ * struct layout in pipeline_typeck_pad_fields_warn_layout (glue.c:2828).
+ *
+ * PLATFORM: SHARED — env probe is platform-independent.
+ *
+ * wave1070 G.7: migrated from glue.c:2805 (body 3 LOC). Static (non-extern):
+ * same-TU visibility — struct_lit.c #include at L2095 < def EOF < sole callsite
+ * glue.c:2828. Dependencies: link_abi_getenv (extern).
+ */
+static int glue_pad_fields_warn_enabled(void) {
+  const char *e = link_abi_getenv("XLANG_PAD_FIELDS");
+  return e && e[0] == '1' && e[1] == '\0';
+}
+
+/**
+ * Classify a field type as atomic-sized (4 or 8 bytes: u32/i32/u64/i64).
+ *
+ * Why: DOD-CL pad-fields warning (pipeline_typeck_pad_fields_warn_layout) must
+ * only flag adjacent fields where at least one is an atomic counter candidate
+ * (4/8B scalar). This helper centralizes the size gate so the warning logic
+ * does not repeat glue_type_size_simple calls inline.
+ *
+ * Invariant: returns 0 for NULL module/arena or invalid type_ref; returns 1
+ * iff glue_type_size_simple yields exactly 4 or 8.
+ *
+ * Asm/Perf: O(1) — one glue_type_size_simple call. Cold path — called per
+ * field pair in pipeline_typeck_pad_fields_warn_layout (glue.c:2847).
+ *
+ * PLATFORM: SHARED — type size classification is platform-independent.
+ *
+ * wave1071 G.7: migrated from glue.c:2811 (body 6 LOC). Static (non-extern):
+ * same-TU — struct_lit.c #include L2095 < def EOF < callsite glue.c:2847.
+ * Dependencies: glue_type_size_simple (static, same file EOF wave1056).
+ */
+static int glue_field_type_atomic_sized(struct ast_Module *m, struct ast_ASTArena *a, int32_t ftr) {
+  int32_t sz;
+  if (!m || !a || ftr <= 0)
+    return 0;
+  sz = glue_type_size_simple(m, a, ftr, 0);
+  return sz == 4 || sz == 8;
+}
+
+/**
+ * Check whether XLANG_HOT_REORDER=1 env is set (DOD-CL-S2 hot-reorder hint gate).
+ *
+ * Why: pipeline_typeck_hot_reorder_warn_layout must early-exit when the user
+ * has not opted into the hot-field placement hint, to keep default builds
+ * silent. Centralizing the env probe avoids scattering link_abi_getenv calls.
+ *
+ * Invariant: returns 1 only when XLANG_HOT_REORDER is exactly "1"; 0 otherwise.
+ *
+ * Asm/Perf: O(1) — one getenv + two byte checks. Cold path — called once per
+ * struct layout in pipeline_typeck_hot_reorder_warn_layout (glue.c:2875).
+ *
+ * PLATFORM: SHARED — env probe is platform-independent.
+ *
+ * wave1072 G.7: migrated from glue.c:2860 (body 3 LOC). Static (non-extern):
+ * same-TU — struct_lit.c #include L2095 < def EOF < callsite glue.c:2875.
+ * Dependencies: link_abi_getenv (extern).
+ */
+static int glue_hot_reorder_warn_enabled(void) {
+  const char *e = link_abi_getenv("XLANG_HOT_REORDER");
+  return e && e[0] == '1' && e[1] == '\0';
+}
