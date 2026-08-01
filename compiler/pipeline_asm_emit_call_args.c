@@ -354,7 +354,9 @@ static int32_t glue_call_arg_var_use_lea_not_load_elf_c(struct ast_ASTArena *are
   return 0;
 }
 
-/** SysV 9–16B dual-GP size for import POD (def later near store_retval). */
+/* wave1057 G.7: glue_sysv_dual_gp_byte_size_c now defined at EOF of this
+ * file (migrated from glue.c:3216). Forward decl retained for callsites
+ * at L396/L410/L1571 before the EOF definition. */
 static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 
 /* wave1048 G.7: fwd decl — definition at EOF. Visible to all callsites after
@@ -1501,7 +1503,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
  * Dependencies already visible from this include point:
  * - glue_type_named_layout_size_any_module_elf_c (defined in this file at L429)
  * - glue_type_size_simple (forward decl at glue.c:1887 < include 2392)
- * - glue_sysv_dual_gp_byte_size_c (forward decl at glue.c:2050 < include 2392) */
+ * - glue_sysv_dual_gp_byte_size_c (defined at EOF of this file; wave1057) */
 
 /**
  * Byte size of formal param i (named struct uses dep layout when entry module lacks it).
@@ -1738,4 +1740,72 @@ static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t 
   if (sz <= 0)
     sz = glue_type_size_simple(mod, arena, rty, 0);
   return sz > 0 ? sz : -1;
+}
+
+/**
+ * SysV INTEGER class dual-GP byte width (9-16B) for import POD types.
+ *
+ * Why: SysV ABI classification - import POD types (Allocator, StrView,
+ * Result_i32) are 16B formal C structs that fit in two GP registers
+ * (INTEGER class, 9-16B). When glue_type_size_simple misses the dep
+ * layout (import without registered struct layout), this helper recovers
+ * the 16B width by name suffix match so that call-arg packing, retval
+ * store, and struct_lit field store all emit the correct dual-GP
+ * (rax+rdx / x0+x1) sequence. Without this, 16B import POD would be
+ * sized as 4B (unknown TYPE_NAMED fallback) -> only rax stored -> rdx
+ * half garbage -> UB on read (e.g. Option_u8 false sret, Pair half-zero).
+ *
+ * Invariant: returns 0 for invalid arena/ref, non-TYPE_NAMED, or unknown
+ * names; returns glue_type_named_layout_size_any_module_elf_c result when
+ * it yields 9-16B; returns 16 for bare/suffix name match
+ * (Allocator/StrView/Result_i32). Qualified imports (heap.Allocator) use
+ * the bare suffix after the last '.'.
+ *
+ * Asm/Perf: O(1) - one dep layout size query + one name suffix memcmp
+ * (bounded by 3 known suffixes). Cold path - called per call-arg /
+ * retval / field store when type might be dual-GP.
+ *
+ * PLATFORM: SHARED - pure type sizing; SysV consumers use >8 && <=16 to
+ * gate dual-GP. LINUX+MACOS x86_64 rax+rdx; MACOS|ARM64 x0+x1 (wave593).
+ *
+ * wave1057 G.7: migrated from glue.c:3216 (body ~35 LOC). Placed at EOF
+ * after glue_type_named_layout_size_any_module_elf_c (L454 dependency).
+ * Forward decl at L358 retained for callsites at L396/L410/L1571 before
+ * this definition. glue.c:2050 static fwd decl retained for struct_lit.c
+ * callsite at L279 (struct_lit.c #include at glue.c:2095 < call_args.c
+ * #include at glue.c:2395).
+ */
+static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref) {
+  uint8_t name[128];
+  int32_t nlen;
+  int32_t sz;
+  int32_t base_off;
+  int32_t i;
+  if (!arena || ty_ref <= 0)
+    return 0;
+  sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+  if (sz > 8 && sz <= 16)
+    return sz;
+  if (pipeline_type_kind_ord_at(arena, ty_ref) != GLUE_TYPE_NAMED)
+    return 0;
+  nlen = pipeline_type_named_name_into(arena, ty_ref, name);
+  if (nlen <= 0 || nlen > 127)
+    return 0;
+  base_off = 0;
+  for (i = 0; i < nlen; i++) {
+    if (name[i] == (uint8_t)'.')
+      base_off = i + 1;
+  }
+  /* Bare or suffix: Allocator / StrView / Result_i32 (16B INTEGER class). */
+  {
+    int32_t bl = nlen - base_off;
+    const char *s = (const char *)(name + base_off);
+    if (bl == 9 && memcmp(s, "Allocator", 9) == 0)
+      return 16;
+    if (bl == 7 && memcmp(s, "StrView", 7) == 0)
+      return 16;
+    if (bl == 10 && memcmp(s, "Result_i32", 10) == 0)
+      return 16;
+  }
+  return 0;
 }

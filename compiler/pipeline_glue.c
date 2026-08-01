@@ -3208,45 +3208,14 @@ int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(struct ast_ASTArena *aren
 /**
  * CALL/expr 结果落 let 栈槽：先写 rax 半；9–16B struct（SysV x86）再写 rdx 半；>16B 经 rax 指针 memcpy。
  */
-/**
- * SysV INTEGER dual-GP width for import POD when size_simple misses dep layout.
- * PLATFORM: LINUX+MACOS x86_64 — Allocator/StrView/Result_i32 are 16B formal C.
- * Prefer named_layout; fall back to known 16B type name suffixes (qualified imports).
- */
-static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref) {
-  uint8_t name[128];
-  int32_t nlen;
-  int32_t sz;
-  int32_t base_off;
-  int32_t i;
-  if (!arena || ty_ref <= 0)
-    return 0;
-  sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
-  if (sz > 8 && sz <= 16)
-    return sz;
-  if (pipeline_type_kind_ord_at(arena, ty_ref) != GLUE_TYPE_NAMED)
-    return 0;
-  nlen = pipeline_type_named_name_into(arena, ty_ref, name);
-  if (nlen <= 0 || nlen > 127)
-    return 0;
-  base_off = 0;
-  for (i = 0; i < nlen; i++) {
-    if (name[i] == (uint8_t)'.')
-      base_off = i + 1;
-  }
-  /* Bare or suffix: Allocator / StrView / Result_i32 (16B INTEGER class). */
-  {
-    int32_t bl = nlen - base_off;
-    const char *s = (const char *)(name + base_off);
-    if (bl == 9 && memcmp(s, "Allocator", 9) == 0)
-      return 16;
-    if (bl == 7 && memcmp(s, "StrView", 7) == 0)
-      return 16;
-    if (bl == 10 && memcmp(s, "Result_i32", 10) == 0)
-      return 16;
-  }
-  return 0;
-}
+/* wave1057 G.7: glue_sysv_dual_gp_byte_size_c migrated to
+ * pipeline_asm_emit_call_args.c EOF (SysV ABI type classification domain).
+ * Definition visible via same-TU #include at L2395 < all callsites below
+ * (L3270/3398/3415/3421/3428). Static fwd decl at L2050 retained for
+ * struct_lit.c:279 callsite (struct_lit.c #include at L2095 < call_args.c
+ * #include at L2395). call_args.c:358 has its own fwd decl for callsites
+ * at L396/L410/L1571 before the EOF definition. Dependency
+ * glue_type_named_layout_size_any_module_elf_c already in call_args.c:454. */
 
 /* wave1022: glue_slice_let_reent_deep_copy_after_dual_gp_elf_c body folded into
  * pipeline_asm_emit_call_args.c (G.7 有则补全; same TU). Callers: this residual
@@ -5548,7 +5517,7 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, struct ast_ASTAren
  * Dependencies already visible from that include point:
  * glue_type_named_layout_size_any_module_elf_c (call_args.c:429) +
  * glue_type_size_simple (fwd decl L1887) + glue_sysv_dual_gp_byte_size_c
- * (fwd decl L2050). */
+ * (call_args.c EOF; wave1057; static fwd decl L2050 retained). */
 
 /**
  * Home slot width for formal param.
