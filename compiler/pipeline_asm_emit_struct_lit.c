@@ -64,10 +64,27 @@ static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uin
  * (glue.c:3003); consumed by glue_struct_layout_compute_field_offset_c. */
 static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 
-/* wave1051 G.7: forward decl — glue_struct_layout_metrics_c defined later in
- * TU (glue.c:2794); consumed by pipeline_expr_struct_lit_value_bytes (EOF). */
+/* wave1051 G.7: forward decl — glue_struct_layout_metrics_c defined at EOF
+ * below (wave1053 migrated from glue.c:2794). Consumed by
+ * pipeline_expr_struct_lit_value_bytes (L855) + typeck_typeck_struct_layout_metrics
+ * public wrapper (EOF) + glue.c:3050 (glue_type_align_simple recursive call)
+ * + glue.c:16645/16658/16670 (typeck_validate_* wrappers). */
 static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
                                             int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al);
+
+/* wave1053 G.7: forward decl — glue_type_size_simple defined later in TU
+ * (glue.c:3064); consumed by glue_struct_layout_metrics_c (EOF). */
+static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+
+/* wave1053 G.7: extern decls — driver diagnostics for struct padding checks.
+ * Defined in driver glue (extern); visible at glue.c:691 (driver_asm_build_skip_typeck)
+ * but padding/trailing/field_bad_size are declared at glue.c:2781-2784 > #include
+ * at L2095, so struct_lit.c must declare them locally for metrics body. */
+extern void driver_diagnostic_typeck_struct_padding_before(uint8_t *sname, int32_t sname_len, int32_t gap,
+                                                           uint8_t *fname, int32_t fname_len);
+extern void driver_diagnostic_typeck_struct_padding_trailing(uint8_t *sname, int32_t sname_len, int32_t gap);
+extern void driver_diagnostic_typeck_struct_field_bad_size(uint8_t *sname, int32_t sname_len, uint8_t *fname,
+                                                           int32_t fname_len);
 
 /* wave1052 G.7: forward decl — glue_sync_struct_layout_field_offsets_c is
  * defined at EOF below (migrated from glue.c:3665). glue.c:11850 callsite
@@ -922,4 +939,154 @@ static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct
               nf > 1 ? (int)pipeline_module_struct_layout_field_align_at(m, li, 1) : -1);
     }
   }
+}
+
+/* wave1053 G.7 fold: glue_struct_layout_metrics_c migrated here from
+ * pipeline_glue.c (definition was at glue.c:2794). Struct layout registry
+ * domain — computes total size + alignment for a layout index, colocated
+ * with wave1044 (compute_field_offset) + wave1049 (index_by_type_name) +
+ * wave1051 (value_bytes) + wave1052 (sync_field_offsets).
+ *
+ * glue_struct_layout_metrics_c is mutually recursive with glue_type_align_simple
+ * (glue.c:3006) — metrics calls align for per-field alignment, align calls
+ * metrics for nested TYPE_NAMED struct alignment at depth+1. Both static
+ * fwd decls at top of this file (L65/L72); definitions are split across
+ * struct_lit.c (metrics) and glue.c (align) but same TU via #include.
+ *
+ * Public wrapper typeck_typeck_struct_layout_metrics (below) also migrated —
+ * thin delegate; extern-called by ast_pool.c:8151 (same pipeline_x.o symbol).
+ * glue.c:16645/16658/16670 callsites (typeck_validate_* wrappers) see the
+ * definition via same-TU #include at glue.c:2095. */
+
+/**
+ * Compute struct layout total size and alignment (C twin of typeck.x
+ * typeck_struct_layout_metrics).
+ *
+ * Why: asm stack-slot width / frame_size hot path uses this C implementation
+ * to avoid the gen2 self-hosted X typeck_struct_layout_metrics being
+ * pathologically slow on Stage2 (hang). Walks each field, accumulates size
+ * with alignment padding, and optionally reports padding violations via
+ * driver diagnostics. Packed layouts skip implicit padding (align=1).
+ *
+ * Invariant: returns -1 on invalid inputs (null module/arena/out pointers,
+ * li out of range, depth > 64); otherwise writes *out_sz / *out_al and
+ * returns 0. Empty / empty-of-empty ZST fields (size 0) are valid
+ * (wave366/368) — not treated as unknown. check_pad=0 path silently fails
+ * on bad field size to avoid million-line spam on Token literals (harness
+ * TIMEOUT); check_pad=1 path reports via driver diagnostics.
+ *
+ * Asm/Perf: O(nf) — linear scan over layout fields; each field invokes
+ * glue_type_size_simple + glue_type_align_simple (which may recurse on
+ * nested TYPE_NAMED via glue_struct_layout_metrics_c at depth+1). Bounded
+ * by depth limit 64. Hot path — called from asm emit frame sizing and
+ * typeck validation.
+ *
+ * PLATFORM: SHARED — pure layout computation; arch-agnostic.
+ */
+static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
+                                            int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
+  int32_t nf;
+  int32_t allow;
+  int32_t layout_nlen;
+  int32_t current;
+  int32_t max_align;
+  int32_t j;
+  uint8_t layout_nm[128];
+  uint8_t field_nm[128];
+  if (!module || !arena || !out_sz || !out_al)
+    return -1;
+  if (li < 0 || li >= pipeline_module_num_struct_layouts_at(module) || depth > 64)
+    return -1;
+  nf = pipeline_module_struct_layout_num_fields(module, li);
+  allow = pipeline_module_struct_layout_allow_padding_at(module, li);
+  layout_nlen = pipeline_module_struct_layout_name_len(module, li);
+  pipeline_module_struct_layout_name_into(module, li, layout_nm);
+  current = 0;
+  max_align = 1;
+  /** packed: no implicit padding, struct align=1 (matches typeck.x typeck_struct_layout_metrics). */
+  if (pipeline_module_struct_layout_packed_at(module, li)) {
+    for (j = 0; j < nf; j++) {
+      int32_t ftr;
+      int32_t flen;
+      int32_t fsize;
+      ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
+      pipeline_module_struct_layout_field_name_into(module, li, j, field_nm);
+      flen = pipeline_module_struct_layout_field_name_len(module, li, j);
+      fsize = glue_type_size_simple(module, arena, ftr, depth);
+      /* wave366/368: fsize==0 OK for empty / empty-of-empty nested ZST. */
+      if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr, depth) == 0)) {
+        if (driver_asm_build_skip_typeck() == 0 && check_pad != 0)
+          driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
+        return -1;
+      }
+      current = current + fsize;
+    }
+    *out_sz = current;
+    *out_al = 1;
+    return 0;
+  }
+  for (j = 0; j < nf; j++) {
+    int32_t ftr;
+    int32_t flen;
+    int32_t A;
+    int32_t rem;
+    int32_t gap;
+    int32_t fsize;
+    ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
+    pipeline_module_struct_layout_field_name_into(module, li, j, field_nm);
+    flen = pipeline_module_struct_layout_field_name_len(module, li, j);
+    {
+      int32_t fa = pipeline_module_struct_layout_field_align_at(module, li, j);
+      A = glue_type_align_simple(module, arena, ftr, depth);
+      if (A <= 0)
+        A = 1;
+      if (fa > A)
+        A = fa;
+    }
+    rem = current % A;
+    gap = A - rem;
+    gap = gap % A;
+    if (check_pad != 0 && gap > 0 && allow == 0) {
+      driver_diagnostic_typeck_struct_padding_before(layout_nm, layout_nlen, gap, field_nm, flen);
+      return -1;
+    }
+    current = current + gap;
+    fsize = glue_type_size_simple(module, arena, ftr, depth);
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr, depth) == 0)) {
+      /**
+       * check_pad!=0: zero-padding validation path reports bad field size.
+       * check_pad==0: size query silently fails (avoid million-line spam on
+       * every Token literal -> harness TIMEOUT).
+       * wave366: empty named field size 0 is valid — do not treat as unknown.
+       */
+      if (check_pad != 0 && driver_asm_build_skip_typeck() == 0)
+        driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
+      return -1;
+    }
+    current = current + fsize;
+    if (A > max_align)
+      max_align = A;
+  }
+  if (max_align > 0 && (current % max_align) != 0) {
+    int32_t end_pad = max_align - (current % max_align);
+    if (check_pad != 0 && end_pad > 0 && allow == 0) {
+      driver_diagnostic_typeck_struct_padding_trailing(layout_nm, layout_nlen, end_pad);
+      return -1;
+    }
+    current = current + end_pad;
+  }
+  *out_sz = current;
+  *out_al = max_align > 0 ? max_align : 1;
+  return 0;
+}
+
+/**
+ * typeck.x / asm glue unified entry: delegates to C metrics.
+ * Do NOT call gen2 self-hosted X typeck_struct_layout_metrics (Stage2 hang).
+ *
+ * PLATFORM: SHARED — public symbol; extern-called by ast_pool.c:8151.
+ */
+int32_t typeck_typeck_struct_layout_metrics(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
+                                            int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
+  return glue_struct_layout_metrics_c(module, arena, li, depth, check_pad, out_sz, out_al);
 }

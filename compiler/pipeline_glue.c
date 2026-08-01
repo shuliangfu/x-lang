@@ -2787,105 +2787,16 @@ extern void driver_diagnostic_typeck_struct_field_bad_size(uint8_t *sname, int32
 static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 
-/**
- * C 版 struct_layout_metrics：与 typeck.x typeck_struct_layout_metrics 语义一致。
- * asm 栈槽宽 / frame_size 热路径走此实现，避免 gen2 自举 X metrics 在 Stage2 上极慢挂死。
- */
+/* wave1053 G.7: glue_struct_layout_metrics_c + typeck_typeck_struct_layout_metrics
+ * migrated to pipeline_asm_emit_struct_lit.c (definitions at EOF). Static fwd
+ * decl for metrics retained at glue.c:2794 (above) — callsites at glue.c:3050
+ * (glue_type_align_simple recursive) + public wrapper removed below.
+ * Public wrapper typeck_typeck_struct_layout_metrics was at glue.c:16631 —
+ * extern-called by ast_pool.c:8151 (same pipeline_x.o symbol, no link change).
+ * extern decls for driver_diagnostic_typeck_struct_padding_* / field_bad_size
+ * retained below (still consumed by glue.c:2912/2962 warn_layout paths). */
 static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
-                                            int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
-  int32_t nf;
-  int32_t allow;
-  int32_t layout_nlen;
-  int32_t current;
-  int32_t max_align;
-  int32_t j;
-  uint8_t layout_nm[128];
-  uint8_t field_nm[128];
-  if (!module || !arena || !out_sz || !out_al)
-    return -1;
-  if (li < 0 || li >= pipeline_module_num_struct_layouts_at(module) || depth > 64)
-    return -1;
-  nf = pipeline_module_struct_layout_num_fields(module, li);
-  allow = pipeline_module_struct_layout_allow_padding_at(module, li);
-  layout_nlen = pipeline_module_struct_layout_name_len(module, li);
-  pipeline_module_struct_layout_name_into(module, li, layout_nm);
-  current = 0;
-  max_align = 1;
-  /** packed：无隐式 padding，结构体对齐 1（与 typeck.x typeck_struct_layout_metrics 一致）。 */
-  if (pipeline_module_struct_layout_packed_at(module, li)) {
-    for (j = 0; j < nf; j++) {
-      int32_t ftr;
-      int32_t flen;
-      int32_t fsize;
-      ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
-      pipeline_module_struct_layout_field_name_into(module, li, j, field_nm);
-      flen = pipeline_module_struct_layout_field_name_len(module, li, j);
-      fsize = glue_type_size_simple(module, arena, ftr, depth);
-      /* wave366/368: fsize==0 OK for empty / empty-of-empty nested ZST. */
-      if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr, depth) == 0)) {
-        if (driver_asm_build_skip_typeck() == 0 && check_pad != 0)
-          driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
-        return -1;
-      }
-      current = current + fsize;
-    }
-    *out_sz = current;
-    *out_al = 1;
-    return 0;
-  }
-  for (j = 0; j < nf; j++) {
-    int32_t ftr;
-    int32_t flen;
-    int32_t A;
-    int32_t rem;
-    int32_t gap;
-    int32_t fsize;
-    ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
-    pipeline_module_struct_layout_field_name_into(module, li, j, field_nm);
-    flen = pipeline_module_struct_layout_field_name_len(module, li, j);
-    {
-      int32_t fa = pipeline_module_struct_layout_field_align_at(module, li, j);
-      A = glue_type_align_simple(module, arena, ftr, depth);
-      if (A <= 0)
-        A = 1;
-      if (fa > A)
-        A = fa;
-    }
-    rem = current % A;
-    gap = A - rem;
-    gap = gap % A;
-    if (check_pad != 0 && gap > 0 && allow == 0) {
-      driver_diagnostic_typeck_struct_padding_before(layout_nm, layout_nlen, gap, field_nm, flen);
-      return -1;
-    }
-    current = current + gap;
-    fsize = glue_type_size_simple(module, arena, ftr, depth);
-    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr, depth) == 0)) {
-      /**
-       * check_pad!=0：zero-padding 校验路径报告。
-       * check_pad==0：size 查询静默失败（避免每个 Token 字面量刷百万行 → harness TIMEOUT）。
-       * wave366: empty named field size 0 is valid — do not treat as unknown.
-       */
-      if (check_pad != 0 && driver_asm_build_skip_typeck() == 0)
-        driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
-      return -1;
-    }
-    current = current + fsize;
-    if (A > max_align)
-      max_align = A;
-  }
-  if (max_align > 0 && (current % max_align) != 0) {
-    int32_t end_pad = max_align - (current % max_align);
-    if (check_pad != 0 && end_pad > 0 && allow == 0) {
-      driver_diagnostic_typeck_struct_padding_trailing(layout_nm, layout_nlen, end_pad);
-      return -1;
-    }
-    current = current + end_pad;
-  }
-  *out_sz = current;
-  *out_al = max_align > 0 ? max_align : 1;
-  return 0;
-}
+                                            int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al);
 
 extern void driver_diagnostic_warn_pad_fields_same_cache_line(uint8_t *sname, int32_t sname_len, uint8_t *f0,
                                                               int32_t f0_len, uint8_t *f1, int32_t f1_len);
@@ -16625,13 +16536,11 @@ int32_t backend_pipeline_expr_struct_lit_field_store_sz(struct ast_ASTArena *a, 
   return pipeline_expr_struct_lit_field_store_sz(a, m, expr_ref, field_ix);
 }
 
-/**
- * typeck.x / asm glue 统一入口：委托 C metrics，勿再调 gen2 自举 X typeck_struct_layout_metrics。
- */
-int32_t typeck_typeck_struct_layout_metrics(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
-                                            int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
-  return glue_struct_layout_metrics_c(module, arena, li, depth, check_pad, out_sz, out_al);
-}
+/* wave1053 G.7: typeck_typeck_struct_layout_metrics migrated to
+ * pipeline_asm_emit_struct_lit.c (definition at EOF). Public symbol —
+ * extern-called by ast_pool.c:8151 (same pipeline_x.o symbol, no link
+ * change). glue.c:16551/16564/16576 callsites (typeck_validate_* wrappers)
+ * see the definition via same-TU #include at glue.c:2095. */
 
 int32_t typeck_validate_struct_layouts_zero_padding_glue(struct ast_Module *module, struct ast_ASTArena *arena) {
   int32_t li;
