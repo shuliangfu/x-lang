@@ -10007,71 +10007,9 @@ int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *modu
   return 0;
 }
 
-/** WPO-S3：单 expr assign/call 栈逃逸扫描（post-typeck；typeck.o WPO 可能裁掉 inline hook）。 */
-static int32_t typeck_scan_expr_stack_escape_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                             struct ast_PipelineDepCtx *ctx, int32_t func_ix,
-                                             int32_t expr_ref) {
-  int32_t k;
-  int32_t saved_ix;
-  int32_t saved_br;
-  if (!m || !a || !ctx || expr_ref <= 0 || func_ix < 0)
-    return 0;
-  saved_ix = ctx->current_func_index;
-  saved_br = ctx->current_block_ref;
-  ctx->current_func_index = func_ix;
-  k = pipeline_expr_kind_ord_at(a, expr_ref);
-  if (glue_expr_kind_is_assign_like_ord(k)) {
-    int32_t l = pipeline_expr_binop_left_ref_at(a, expr_ref);
-    int32_t r = pipeline_expr_binop_right_ref_at(a, expr_ref);
-    if (pipeline_typeck_check_struct_stack_escape_assign_c(m, a, expr_ref, l, r, ctx) != 0) {
-      ctx->current_func_index = saved_ix;
-      ctx->current_block_ref = saved_br;
-      return -1;
-    }
-    if (pipeline_typeck_check_scope_borrow_assign_c(m, a, expr_ref, l, r, ctx) != 0) {
-      ctx->current_func_index = saved_ix;
-      ctx->current_block_ref = saved_br;
-      return -1;
-    }
-    if (pipeline_typeck_check_allocator_region_assign_c(m, a, expr_ref, l, ctx) != 0) {
-      ctx->current_func_index = saved_ix;
-      ctx->current_block_ref = saved_br;
-      return -1;
-    }
-  } else if (k == (int32_t)ast_ExprKind_EXPR_RETURN) {
-    int32_t op = pipeline_expr_unary_operand_ref_at(a, expr_ref);
-    int32_t func_ret = pipeline_module_func_return_type_at(m, func_ix);
-    if (pipeline_typeck_check_scope_borrow_return_c(m, a, expr_ref, op, func_ret, ctx) != 0) {
-      ctx->current_func_index = saved_ix;
-      ctx->current_block_ref = saved_br;
-      return -1;
-    }
-    if (pipeline_typeck_check_allocator_region_return_c(a, expr_ref, func_ret) != 0) {
-      ctx->current_func_index = saved_ix;
-      ctx->current_block_ref = saved_br;
-      return -1;
-    }
-    if (pipeline_typeck_check_return_slice_region_in_scope_c(a, expr_ref, func_ret, ctx) != 0) {
-      ctx->current_func_index = saved_ix;
-      ctx->current_block_ref = saved_br;
-      return -1;
-    }
-    if (pipeline_typeck_check_return_slice_region_c(a, expr_ref, op, func_ret) != 0) {
-      ctx->current_func_index = saved_ix;
-      ctx->current_block_ref = saved_br;
-      return -1;
-    }
-  } else if (k == (int32_t)ast_ExprKind_EXPR_CALL) {
-    if (pipeline_typeck_check_call_struct_stack_escape_c(m, a, expr_ref, ctx) != 0) {
-      ctx->current_func_index = saved_ix;
-      ctx->current_block_ref = saved_br;
-      return -1;
-    }
-  }
-  ctx->current_func_index = saved_ix;
-  ctx->current_block_ref = saved_br;
-  return 0;
-}
+/* wave1136 G.7: typeck_scan_expr_stack_escape_c migrated to
+ * pipeline_typeck_region_assign.c EOF (colocated with WPO-S3 assign/return
+ * escape checks). Visible here via #include at L9934. */
 
 /** M-3：typeck region 域嵌套栈（最多 8 层；push/pop 在 C glue 内维护）。 */
 #define TYPECK_REGION_SCOPE_MAX 8
@@ -10110,106 +10048,10 @@ void pipeline_dep_ctx_scope_region_pop_c(struct ast_PipelineDepCtx *ctx) {
     memcpy(ctx->typeck_scope_region_label, g_typeck_region_saved_label[slot], 128);
 }
 
-/** WPO-S3：递归扫描块内 expr_stmt / final_expr / 子块。 */
-static int32_t typeck_scan_block_stack_escape_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                              struct ast_PipelineDepCtx *ctx, int32_t func_ix,
-                                              int32_t block_ref) {
-  int32_t nes;
-  int32_t ei;
-  int32_t fin;
-  int32_t nso;
-  int32_t i;
-  int32_t saved_br;
-  if (!m || !a || !ctx || block_ref <= 0 || func_ix < 0)
-    return 0;
-  saved_br = ctx->current_block_ref;
-  ctx->current_block_ref = block_ref;
-  nes = ast_ast_block_num_expr_stmts(a, block_ref);
-  for (ei = 0; ei < nes; ei++) {
-    int32_t er = ast_ast_block_expr_stmt_ref(a, block_ref, ei);
-    if (er > 0 && typeck_scan_expr_stack_escape_c(m, a, ctx, func_ix, er) != 0) {
-      ctx->current_block_ref = saved_br;
-      return -1;
-    }
-  }
-  fin = pipeline_asm_block_final_expr_ref_at(a, block_ref);
-  if (fin > 0 && typeck_scan_expr_stack_escape_c(m, a, ctx, func_ix, fin) != 0) {
-    ctx->current_block_ref = saved_br;
-    return -1;
-  }
-  nso = ast_ast_block_num_stmt_order(a, block_ref);
-  for (i = 0; i < nso; i++) {
-    uint8_t k = ast_ast_block_stmt_order_kind(a, block_ref, i);
-    int32_t idx = ast_ast_block_stmt_order_idx(a, block_ref, i);
-    if (k == 2 && idx >= 0 && idx < ast_ast_block_num_expr_stmts(a, block_ref)) {
-      int32_t er = ast_ast_block_expr_stmt_ref(a, block_ref, idx);
-      if (er > 0 && typeck_scan_expr_stack_escape_c(m, a, ctx, func_ix, er) != 0) {
-        ctx->current_block_ref = saved_br;
-        return -1;
-      }
-    } else if (k == 3 && idx >= 0 && idx < ast_ast_block_num_loops(a, block_ref)) {
-      int32_t br = ast_ast_block_while_body_ref(a, block_ref, idx);
-      if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0)
-        return -1;
-    } else if (k == 4 && idx >= 0 && idx < ast_ast_block_num_for_loops(a, block_ref)) {
-      int32_t br = ast_ast_block_for_body_ref(a, block_ref, idx);
-      if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0)
-        return -1;
-    } else if (k == 5 && idx >= 0 && idx < ast_ast_block_num_if_stmts(a, block_ref)) {
-      int32_t tr = ast_ast_block_if_then_body_ref(a, block_ref, idx);
-      int32_t er = ast_ast_block_if_else_body_ref(a, block_ref, idx);
-      if (tr > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, tr) != 0)
-        return -1;
-      if (er > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, er) != 0)
-        return -1;
-    } else if (k == 6 && idx >= 0 && idx < ast_ast_block_num_regions(a, block_ref)) {
-      int32_t wa_cap = pipeline_block_region_with_arena_cap_ref(a, block_ref, idx);
-      int32_t br = ast_ast_block_region_body_ref(a, block_ref, idx);
-      /* Cap-T001: post-scan must honor unsafe regions like check_block_one_region. */
-      int32_t is_unsafe = pipeline_block_region_is_unsafe(a, block_ref, idx);
-      int32_t saved_ud = 0;
-      if (is_unsafe != 0)
-        saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
-      if (wa_cap > 0) {
-        typeck_with_arena_scope_push_c(br);
-        if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
-          typeck_with_arena_scope_pop_c();
-          if (is_unsafe != 0)
-            pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
-          ctx->current_block_ref = saved_br;
-          return -1;
-        }
-        typeck_with_arena_scope_pop_c();
-      } else {
-        uint8_t lbl[128];
-        int32_t llen = pipeline_block_region_label_len(a, block_ref, idx);
-        if (llen > 0) {
-          pipeline_block_region_label_copy64(a, block_ref, idx, lbl);
-          if (pipeline_dep_ctx_scope_region_push_c(ctx, lbl, llen) != 0) {
-            if (is_unsafe != 0)
-              pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
-            ctx->current_block_ref = saved_br;
-            return -1;
-          }
-        }
-        if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
-          if (llen > 0)
-            pipeline_dep_ctx_scope_region_pop_c(ctx);
-          if (is_unsafe != 0)
-            pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
-          ctx->current_block_ref = saved_br;
-          return -1;
-        }
-        if (llen > 0)
-          pipeline_dep_ctx_scope_region_pop_c(ctx);
-      }
-      if (is_unsafe != 0)
-        pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
-    }
-  }
-  ctx->current_block_ref = saved_br;
-  return 0;
-}
+/* wave1137 G.7: typeck_scan_block_stack_escape_c migrated to
+ * pipeline_typeck_region_assign.c EOF (recursive post-typeck block walker;
+ * colocated with scan_expr + WPO-S3 escape checks). Visible here via
+ * #include at L9934; called by pipeline_typeck_scan_module_struct_stack_escape_c below. */
 
 /** WPO-S3：模块级 post-typeck 扫描 struct 栈指针逃逸。 */
 int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *module, struct ast_ASTArena *arena,
