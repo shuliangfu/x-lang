@@ -2031,3 +2031,125 @@ int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegen
     return -1;
   return backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx, ta);
 }
+
+/**
+ * Classify whether a 16B struct CALL retval arrives via rax pointer (C sret
+ * lowering) vs rax+rdx by-value (pure-asm dual-GP).
+ *
+ * Why: C-lowered / skip-heavy import callees (libm wrappers, stubs) return a
+ * 16B struct by writing into a hidden caller-passed pointer, and on return
+ * rax holds that pointer. Pure-asm freestanding `function mk(): S` with S
+ * 9-16B instead returns dual-GP by value (rax low half, rdx high half). The
+ * store_retval / call-arg packing path must distinguish the two before
+ * deciding to deref *rax (wave1060 pipeline_asm_deref_struct16_rax_ptr_elf_c)
+ * or store rax+rdx directly. Wrong choice either loads garbage from a value
+ * as a pointer (SIGSEGV) or treats a pointer as a value (half-initialized
+ * struct).
+ *
+ * Rule (G.7 single classifier — do not reimplement elsewhere):
+ *   - non-CALL (kind != 48)                              → 0
+ *   - TYPE_SLICE / TYPE_ARRAY / fixed-array return       → 0 (freestanding dual-GP)
+ *   - ok_i32 / err_i32 / ok_u8 / err_u8 whitelist        → 0 (asm dual-GP)
+ *   - skip_heavy C body (asm_skip_heavy_module_func_body)→ 1 (pointer in rax)
+ *   - pure-asm body                                      → 0 (dual-GP by value)
+ * A `sz` is computed for future sret-vs-dual gates but is NOT the deciding
+ * factor — `heavy` alone is the deref authority (wave594 root: blanket
+ * `size>8 → 1` false-positive pure freestanding mk():S).
+ *
+ * Invariant: returns 0 or 1 (never negative). Returns 0 on any resolve
+ * failure or non-CALL kind (safe default = dual-GP, the common path). Dep
+ * callee return type_ref is mapped into caller arena before kind_ord / size
+ * queries (raw dep type_ref + caller-arena kind_ord is garbage, hides
+ * f32/f64, breaks SysV SSE classification — G.7 single mapping authority).
+ *
+ * Asm/Perf: O(1) — one resolve_call_target + one skip_heavy scan + one
+ * size_simple. Cold path — called per struct16 CALL retval in
+ * glue_store_retval_pair_to_rbp_elf_c (wave1058, call_args.c:1878) and
+ * glue_load_var_as_value_to_rax_rdx_elf_c (call_args.c) on the let-init /
+ * by-value load path. Also called from pipeline_asm_emit_index_eff_addr.c
+ * (249, 420) for INDEX-on-call-base fat materialize gate.
+ *
+ * PLATFORM: SHARED classifier — LINUX gold + MACOS|ARM64 co-path. The flag
+ * only decides deref vs dual-GP; store_retval half2 store is arch-aware.
+ *
+ * wave1061 G.7: migrated from glue.c:13788 (body ~60 LOC). Extern (non-static):
+ * extern prototype at glue.c:791 < call_args.c #include L2395 visible to all
+ * callsites (call_args.c:1878 same leaf; index_eff_addr.c:249/420 via #include
+ * L2381 < 2395; backend_call_dispatch.x:701 + seeds via extern C link).
+ * struct_let.c:77 #define alias
+ * (glue_call_struct16_ret_needs_rax_deref_c -> pipeline_asm_call_struct16_ret_needs_rax_deref_c)
+ * retained — call_args.c / index_eff_addr.c callsites use glue_ name, #define
+ * routes to this definition. struct_let.c:75 dead static fwd decl retained
+ * (harmless, cleanup deferred with wave1060 dead fwd). Dependencies:
+ * glue_asm_resolve_call_target_module_c (static fwd decl struct_let.c:78
+ * included at L2269 < call_args.c L2395; def still in glue.c:13555);
+ * pipeline_expr_kind_ord_at / pipeline_module_func_return_type_at /
+ * pipeline_typeck_get_dep_return_type_in_caller_arena_c /
+ * pipeline_type_kind_ord_at / ast_TypeKind_TYPE_SLICE|TYPE_ARRAY /
+ * glue_type_is_fixed_array / pipeline_asm_module_func_name_len_at|copy64 /
+ * asm_skip_heavy_module_func_body / glue_type_size_simple (all visible via
+ * same-TU #include or global extern); g_pipeline_asm_emit_module /
+ * g_pipeline_asm_emit_dep_pipe (globals).
+ */
+int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
+  struct ast_Module *mod;
+  int32_t fi;
+  int32_t dep_ix;
+  int32_t rty;
+  uint8_t name[128];
+  int32_t nlen;
+  int32_t rk;
+  int32_t sz;
+  int32_t heavy;
+  if (!arena || call_expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, call_expr_ref) != 48)
+    return 0;
+  if (glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &fi, &dep_ix) != 0)
+    return 0;
+  if (!mod || fi < 0)
+    return 0;
+  rty = pipeline_module_func_return_type_at(mod, fi);
+  if (rty > 0 && dep_ix >= 0 && g_pipeline_asm_emit_dep_pipe) {
+    int32_t mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena,
+                                                                           g_pipeline_asm_emit_dep_pipe);
+    if (mapped > 0)
+      rty = mapped;
+  }
+  /*
+   * wave335 Cap residual pure: TYPE_SLICE return is freestanding dual-GP
+   * (data@rax length@rdx, wave333 return emit). The generic `size>8 -> deref`
+   * rule was for C/skip-heavy named structs that return a pointer in rax;
+   * applying it to slice made `let b = take()` load *data as fat (length=30
+   * garbage, INDEX SIGSEGV). G.7: slice = dual-GP by value (return 0).
+   * wave404: TYPE_ARRAY return is E* (freestanding / host __xlang_ar), not
+   * C "pointer to 16B POD" needing dual-GP load from *rax.
+   */
+  if (rty > 0) {
+    rk = pipeline_type_kind_ord_at(arena, rty);
+    if (rk == (int32_t)ast_TypeKind_TYPE_SLICE || rk == (int32_t)ast_TypeKind_TYPE_ARRAY ||
+        glue_type_is_fixed_array(arena, rty))
+      return 0;
+  }
+  nlen = pipeline_asm_module_func_name_len_at(mod, fi);
+  if (nlen > 0 && nlen <= 63) {
+    pipeline_asm_module_func_name_copy64(mod, fi, name);
+    /* ok_i32/err_i32/ok_u8/err_u8 are asm dual-register returns; other
+     * core.result struct combinators are C pointer returns. */
+    if ((nlen == 6 && memcmp(name, "ok_i32", 6) == 0) || (nlen == 7 && memcmp(name, "err_i32", 7) == 0) ||
+        (nlen == 5 && memcmp(name, "ok_u8", 5) == 0) || (nlen == 6 && memcmp(name, "err_u8", 6) == 0)) {
+      return 0;
+    }
+  }
+  /*
+   * wave594: size 9-16 is dual-GP by value for pure-asm bodies; only
+   * skip_heavy (C-lowered import / heavy stub) still returns a pointer in
+   * rax. Do not blanket `size>8 -> 1` — that false-positive pure
+   * freestanding mk():S. (sz retained for future sret-vs-dual gates; heavy
+   * is the sole deref authority.)
+   */
+  heavy = asm_skip_heavy_module_func_body(mod, arena, fi) != 0 ? 1 : 0;
+  sz = 0;
+  if (rty > 0)
+    sz = glue_type_size_simple(mod, arena, rty, 0);
+  (void)sz;
+  return heavy;
+}

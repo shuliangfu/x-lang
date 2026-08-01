@@ -13759,92 +13759,14 @@ static int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena,
  * struct_let.c:75 #define alias retained (glue_ name -> pipeline_asm_).
  * Dependencies: backend_enc_*_arch (global extern). */
 
-/**
- * CALL 返回 16B struct 是否经 rax 指针（C lowering）而非 rax/rdx 按值。
- *
- * wave335 Cap residual pure: TYPE_SLICE return is freestanding dual-GP
- * (data@rax length@rdx, wave333 return emit). The generic `size>8 → deref`
- * rule was for C/skip-heavy named structs that return a pointer in rax;
- * applying it to slice made `let b = take()` load *data as fat (length=30
- * garbage, INDEX SIGSEGV). G.7: slice = dual-GP by value (return 0).
- *
- * wave594 Cap residual pure: pure-asm freestanding `function mk(): S` with
- * S 9–16B (e.g. `{a,b,c}` i32) returns dual-GP by value (return t loads
- * rax+rdx). Prior `size>8 → return 1` treated every named >8B as C
- * pointer-in-rax → store_retval / CALL.field did `mov rax,rbx; mov (rbx),…`
- * on value 0x2a → SIGSEGV (Ubuntu pure-asm gold). STRUCT_LIT-return CALL
- * was green only because try_inline skipped this path.
- *
- * Rule (G.7 single classifier):
- *   SLICE / ARRAY / fixed-array → 0 (never struct16-deref)
- *   ok_i32 / err_* whitelist → 0 (asm dual-GP)
- *   size 9–16 + skip_heavy C body → 1 (pointer in rax)
- *   size 9–16 + pure asm body → 0 (dual-GP by value)
- *   else skip_heavy → 1
- *
- * PLATFORM: SHARED classifier · LINUX gold + MACOS|ARM64 co-path
- *   (store_retval half2 arch-aware; this flag only decides deref vs dual-GP).
- */
-int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
-  struct ast_Module *mod;
-  int32_t fi;
-  int32_t dep_ix;
-  int32_t rty;
-  uint8_t name[128];
-  int32_t nlen;
-  int32_t rk;
-  int32_t sz;
-  int32_t heavy;
-  if (!arena || call_expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, call_expr_ref) != 48)
-    return 0;
-  if (glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &fi, &dep_ix) != 0)
-    return 0;
-  if (!mod || fi < 0)
-    return 0;
-  rty = pipeline_module_func_return_type_at(mod, fi);
-  if (rty > 0 && dep_ix >= 0 && g_pipeline_asm_emit_dep_pipe) {
-    int32_t mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena,
-                                                                           g_pipeline_asm_emit_dep_pipe);
-    if (mapped > 0)
-      rty = mapped;
-  }
-  /*
-   * wave404 Cap residual pure: fixed TYPE_ARRAY return is E* (wave352 freestanding /
-   * host __xlang_ar), not C "pointer to 16B POD" needing dual-GP load from *rax.
-   * Root: size>8 gate below returned 1 for i32[3] (12B) → glue_emit_one_call_arg
-   * called deref_struct16 after call-arg fat materialize → arm64
-   * load_qword_rbx8_to_rdx ta!=0 → -1 (CG002 after wave404 fat path OK).
-   * G.7: same early-out as TYPE_SLICE; ARRAY/SLICE never struct16-deref.
-   * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
-   */
-  if (rty > 0) {
-    rk = pipeline_type_kind_ord_at(arena, rty);
-    if (rk == (int32_t)ast_TypeKind_TYPE_SLICE || rk == (int32_t)ast_TypeKind_TYPE_ARRAY ||
-        glue_type_is_fixed_array(arena, rty))
-      return 0;
-  }
-  nlen = pipeline_asm_module_func_name_len_at(mod, fi);
-  if (nlen > 0 && nlen <= 63) {
-    pipeline_asm_module_func_name_copy64(mod, fi, name);
-    /** ok_i32/err_i32 等为 asm 双寄存器返回；其余 core.result struct 组合子为 C 指针返回。 */
-    if ((nlen == 6 && memcmp(name, "ok_i32", 6) == 0) || (nlen == 7 && memcmp(name, "err_i32", 7) == 0) ||
-        (nlen == 5 && memcmp(name, "ok_u8", 5) == 0) || (nlen == 6 && memcmp(name, "err_u8", 6) == 0)) {
-      return 0;
-    }
-  }
-  /*
-   * wave594: size 9–16 is dual-GP by value for pure-asm bodies; only skip_heavy
-   * (C-lowered import / heavy stub) still returns a pointer in rax.
-   * Do not blanket `size>8 → 1` — that false-positive pure freestanding mk():S.
-   * (sz retained for future sret-vs-dual gates; heavy is the sole deref authority.)
-   */
-  heavy = asm_skip_heavy_module_func_body(mod, arena, fi) != 0 ? 1 : 0;
-  sz = 0;
-  if (rty > 0)
-    sz = glue_type_size_simple(mod, arena, rty, 0);
-  (void)sz;
-  return heavy;
-}
+/* wave1061 G.7: pipeline_asm_call_struct16_ret_needs_rax_deref_c migrated to
+ * pipeline_asm_emit_call_args.c EOF (struct16 retval deref classifier domain,
+ * twin of wave1060 deref action). Extern prototype at L791 < call_args.c
+ * #include L2395 visible to all callsites. struct_let.c:77 #define alias
+ * retained (glue_ name -> pipeline_asm_). Dependencies: glue_asm_resolve_
+ * call_target_module_c (static fwd decl struct_let.c:78, def still in this
+ * file at L13555); pipeline_module_func_* / pipeline_typeck_* / glue_type_*
+ * (same-TU / extern). */
 
 /**
  * CALL emit: callee param type_ref at index, always in *caller* arena.
