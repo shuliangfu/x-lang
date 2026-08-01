@@ -139,7 +139,11 @@ fi
 # wave1038: Track L retirement — build_gen.c retired from pinned seed.
 # Default: generate from ../build.x via xlang -E (product path).
 # Fallback: copy seeds/build_gen.c (archaeology) only when -E fails or no xlang.
-# build_runtime_x_gen.c / build_runner_gen.c remain pinned (separate retirement).
+# wave1039: build_runner_gen.c retired from pinned seed (same -E + fallback pattern).
+#   build_runner.x extern calls wrapped in unsafe{} (typeck G.9); entry marked
+#   #[no_mangle] export to preserve symbol name (no build_ module prefix).
+#   -E import closure symbols are __attribute__((weak)) — coexist with build_gen.o.
+# build_runtime_x_gen.c remains pinned (separate retirement).
 if [ -x ./xlang ]; then
   log "build_gen.c ← ../build.x -E (wave1038 Track L retired)"
   if ! ./xlang -x -E -L .. ../build.x > build_gen.c 2>/dev/null || [ ! -s build_gen.c ]; then
@@ -149,6 +153,15 @@ if [ -x ./xlang ]; then
 else
   cp -f seeds/build_gen.c build_gen.c
 fi
+if [ -x ./xlang ]; then
+  log "build_runner_gen.c ← ../build_runner.x -E (wave1039 Track L retired)"
+  if ! ./xlang -x -E -L .. ../build_runner.x > build_runner_gen.c 2>/dev/null || [ ! -s build_runner_gen.c ]; then
+    log "build_runner_gen.c: -E failed; fallback to seed (archaeology)"
+    cp -f seeds/build_runner_gen.c build_runner_gen.c
+  fi
+else
+  cp -f seeds/build_runner_gen.c build_runner_gen.c
+fi
 if [ "${XLANG_BUILD_TOOL_REGEN:-0}" = "1" ] && [ -x ./xlang ]; then
   log "regen build_runtime_x_gen via ./xlang build -x -E"
   ./xlang build -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c \
@@ -156,13 +169,12 @@ if [ "${XLANG_BUILD_TOOL_REGEN:-0}" = "1" ] && [ -x ./xlang ]; then
 else
   cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c
 fi
-cp -f seeds/build_runner_gen.c build_runner_gen.c
 
 # shellcheck disable=SC2086
 $CC $CFLAGS -Wno-unused -c build_gen.c -o build_tool.o
 sh scripts/cc_inc_tu.sh seeds/build_tool_libc_bridge.from_x.c build_tool_libc_bridge.o
 # shellcheck disable=SC2086
-$CC $CFLAGS -c build_runner_gen.c -o build_runner.o
+$CC $CFLAGS -Wno-unused -c build_runner_gen.c -o build_runner.o
 # shellcheck disable=SC2086
 $CC $CFLAGS -Wno-unused -c build_runtime_x_gen.c -o build_runtime_x.o
 sh scripts/cc_inc_tu.sh seeds/build_tool_main.from_x.c build_tool_main.o
