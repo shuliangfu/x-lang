@@ -7297,8 +7297,20 @@ XLANG_WEAK void pipeline_typeck_patch_all_body_parent_links_c(struct ast_Module 
   }
 }
 
-/** 前向声明：typeck_glue_type_refs_equal_impl 递归比较 elem 类型。 */
+/* wave1158 G.7: typeck type_refs_equal / type_ref_is_bool / expr_type_ref
+ * public wrappers (9 extern fns) migrated to pipeline_typeck_coerce_init.c
+ * EOF (colocated with wave1080-1083 static implementations). Extern fwd
+ * decls below for callsites before #include L9626. */
+int32_t pipeline_typeck_type_refs_equal_named_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+int32_t pipeline_typeck_type_refs_equal_same_kind_c(struct ast_ASTArena *arena, int32_t a, int32_t b,
+                                                     int32_t kind_ord);
+int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *arena, int32_t type_ref);
 int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+int32_t pipeline_typeck_type_refs_equal_impl_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+int32_t pipeline_typeck_type_ref_is_bool_impl_c(struct ast_ASTArena *arena, int32_t type_ref);
+int32_t pipeline_typeck_type_ref_is_bool_c(struct ast_ASTArena *arena, int32_t type_ref);
+int32_t pipeline_typeck_expr_type_ref_impl_c(struct ast_ASTArena *arena, int32_t expr_ref);
+int32_t pipeline_typeck_expr_type_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
 
 /* wave1080 G.7: typeck_named_unqual_offset_c migrated to
  * pipeline_typeck_coerce_init.c EOF (NAMED type unqualified-name offset:
@@ -7315,35 +7327,6 @@ static int32_t typeck_named_unqual_offset_c(const uint8_t *buf, int32_t len);
  * typeck_scratch64_slot (extern L10447) / pipeline_type_named_name_into (extern). */
 static int32_t typeck_glue_type_refs_equal_named(struct ast_ASTArena *arena, int32_t a, int32_t b);
 
-/** type_refs_equal_named 薄委托（与 typeck.x 拆分 helper 一致）。 */
-int32_t pipeline_typeck_type_refs_equal_named_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  if (!arena || a <= 0 || b <= 0)
-    return 0;
-  return typeck_glue_type_refs_equal_named(arena, a, b);
-}
-
-/**
- * kind 已相等时的复合类型比较（与 typeck.x::type_refs_equal_same_kind 一致；EMIT_HEAVY 薄委托）。
- */
-int32_t pipeline_typeck_type_refs_equal_same_kind_c(struct ast_ASTArena *arena, int32_t a, int32_t b,
-                                                    int32_t kind_ord) {
-  if (!arena || a <= 0 || b <= 0)
-    return 0;
-  if (kind_ord == (int32_t)ast_TypeKind_TYPE_NAMED)
-    return typeck_glue_type_refs_equal_named(arena, a, b);
-  if (kind_ord == (int32_t)ast_TypeKind_TYPE_PTR || kind_ord == (int32_t)ast_TypeKind_TYPE_SLICE ||
-      kind_ord == (int32_t)ast_TypeKind_TYPE_LINEAR)
-    return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a),
-                                             pipeline_type_elem_ref_at(arena, b));
-  if (kind_ord == (int32_t)ast_TypeKind_TYPE_ARRAY || kind_ord == (int32_t)ast_TypeKind_TYPE_VECTOR) {
-    if (pipeline_type_array_size_at(arena, a) != pipeline_type_array_size_at(arena, b))
-      return 0;
-    return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a),
-                                             pipeline_type_elem_ref_at(arena, b));
-  }
-  return 1;
-}
-
 /* wave1082 G.7: typeck_glue_type_refs_equal_impl migrated to
  * pipeline_typeck_coerce_init.c EOF (type_refs_equal internal impl: read kind
  * then delegate to same_kind). Static same-TU: fwd decl below (before callsites
@@ -7358,69 +7341,24 @@ extern int32_t pipeline_module_type_alias_name_len(struct ast_Module *m, int32_t
 extern uint8_t pipeline_module_type_alias_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
 extern int32_t pipeline_module_type_alias_target_ref(struct ast_Module *m, int32_t idx);
 
-/** 比较两个类型池 ref 是否相等（与 typeck.x::type_refs_equal 一致；EMIT_HEAVY 薄委托）。 */
+/* wave1083 G.7: pipeline_typeck_resolve_type_alias_ref_impl_c body migrated to
+ * pipeline_typeck_coerce_init.c EOF (type alias chain resolver: NAMED → target
+ * ref, depth-limited recursion). Static fwd decl below (before callsite in
+ * resolve_type_alias_ref_c, now in coerce_init.c). Body 36 LOC. Deps:
+ * ast_ref_is_null (global) / pipeline_module_num_type_aliases_at (extern) /
+ * pipeline_type_kind_ord_at (extern) / pipeline_type_named_name_into (extern) /
+ * pipeline_module_type_alias_name_len (extern) /
+ * pipeline_module_type_alias_name_byte_at (extern) /
+ * pipeline_module_type_alias_target_ref (extern). */
 static int32_t pipeline_typeck_resolve_type_alias_ref_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                              int32_t type_ref, int32_t depth);
 
-int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *arena, int32_t type_ref) {
-  return pipeline_typeck_resolve_type_alias_ref_impl_c(g_typeck_active_module, arena, type_ref, 0);
-}
-
-/* wave1083 G.7: pipeline_typeck_resolve_type_alias_ref_impl_c body migrated to
- * pipeline_typeck_coerce_init.c EOF (type alias chain resolver: NAMED → target
- * ref, depth-limited recursion). Static fwd decl at L10141 (before callsite in
- * resolve_type_alias_ref_c L10145). Recursive self-call is within the def
- * (now in coerce_init.c). Body 36 LOC. Deps: ast_ref_is_null (global) /
- * pipeline_module_num_type_aliases_at (extern L10135) /
- * pipeline_type_kind_ord_at (extern) / pipeline_type_named_name_into (extern) /
- * pipeline_module_type_alias_name_len (extern L10136) /
- * pipeline_module_type_alias_name_byte_at (extern L10137) /
- * pipeline_module_type_alias_target_ref (extern L10138). */
-
-int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  if (ast_ref_is_null(a) || ast_ref_is_null(b))
-    return a == b;
-  a = pipeline_typeck_resolve_type_alias_ref_c(arena, a);
-  b = pipeline_typeck_resolve_type_alias_ref_c(arena, b);
-  if (a == b)
-    return 1;
-  return typeck_glue_type_refs_equal_impl(arena, a, b);
-}
-
-/** type_refs_equal_impl 薄委托：调用方已保证 ref 非 null 且 a!=b。 */
-int32_t pipeline_typeck_type_refs_equal_impl_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  return typeck_glue_type_refs_equal_impl(arena, a, b);
-}
-
-/** 判断 type_ref 是否为 bool（内部；与 typeck.x::type_ref_is_bool_impl 一致）。 */
-int32_t pipeline_typeck_type_ref_is_bool_impl_c(struct ast_ASTArena *arena, int32_t type_ref) {
-  return pipeline_type_kind_ord_at(arena, type_ref) == (int32_t)ast_TypeKind_TYPE_BOOL;
-}
-
-/** 判断 type_ref 是否为 bool（与 typeck.x::type_ref_is_bool 一致；EMIT_HEAVY 薄委托）。 */
-int32_t pipeline_typeck_type_ref_is_bool_c(struct ast_ASTArena *arena, int32_t type_ref) {
-  if (ast_ref_is_null(type_ref) || type_ref <= 0 || !arena || type_ref > arena->num_types)
-    return 0;
-  return pipeline_typeck_type_ref_is_bool_impl_c(arena, type_ref);
-}
-
-/**
- * typeck.x::expr_type_ref_impl 的 C 委托：读 expr.resolved_type_ref（glue 指针读，避免 Expr 按值撕裂）。
- */
-int32_t pipeline_typeck_expr_type_ref_impl_c(struct ast_ASTArena *arena, int32_t expr_ref) {
-  return pipeline_expr_resolved_type_ref(arena, expr_ref);
-}
-
-/**
- * typeck.x::expr_type_ref 的 C 委托：带 null/边界检查的 resolved_type_ref 读取。
- */
-int32_t pipeline_typeck_expr_type_ref_c(struct ast_ASTArena *arena, int32_t expr_ref) {
-  if (ast_ref_is_null(expr_ref))
-    return 0;
-  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
-    return 0;
-  return pipeline_typeck_expr_type_ref_impl_c(arena, expr_ref);
-}
+/* wave1158 G.7: 9 extern public wrappers (type_refs_equal_named_c /
+ * type_refs_equal_same_kind_c / resolve_type_alias_ref_c /
+ * type_refs_equal_c / type_refs_equal_impl_c / type_ref_is_bool_impl_c /
+ * type_ref_is_bool_c / expr_type_ref_impl_c / expr_type_ref_c) migrated to
+ * pipeline_typeck_coerce_init.c EOF — colocated with wave1080-1083 static
+ * implementations. Bodies removed; extern fwd decls above. */
 
 /* wave1156 G.7: typeck diag fmt cluster (5 fns) migrated to
  * pipeline_typeck_assign.c EOF (colocated with assign mismatch diag domain —

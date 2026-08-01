@@ -20,6 +20,14 @@
 extern int32_t typeck_ensure_struct_layout_from_struct_lit(struct ast_Module *module, struct ast_ASTArena *arena,
                                                            int32_t expr_ref);
 
+/* wave1158 G.7: extern fwd decls for type_refs_equal / type_ref_is_bool /
+ * expr_type_ref public wrappers migrated to this file's EOF (colocated with
+ * wave1080-1083 static implementations). Callsites at L277 / L816 precede the
+ * EOF definitions; these decls make them visible within the same TU. */
+int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+int32_t pipeline_typeck_type_refs_equal_same_kind_c(struct ast_ASTArena *arena, int32_t a, int32_t b,
+                                                     int32_t kind_ord);
+
 /** 比较两段字节序列是否逐字节相等（typeck name_equal 的 C 辅助）。 */
 static int32_t pipeline_typeck_bytes_equal_c(uint8_t *a, int32_t a_len, uint8_t *b, int32_t b_len) {
   int32_t i;
@@ -882,5 +890,146 @@ static int32_t pipeline_typeck_resolve_type_alias_ref_impl_c(struct ast_Module *
     return pipeline_typeck_resolve_type_alias_ref_impl_c(module, arena, tgt, depth + 1);
   }
   return type_ref;
+}
+
+/* ============================================================
+ * wave1158 G.7: typeck type_refs_equal / type_ref_is_bool /
+ * expr_type_ref public wrappers (9 extern fns) migrated from
+ * glue.c L7319-7423.
+ *
+ * Why here: these extern wrappers delegate to the static
+ * implementations migrated by wave1080-1083 (named, impl,
+ * resolve_alias_ref_impl) which already live in this file's
+ * body above. Colocating public wrappers with their static
+ * implementations is G.7 single-authority — the typeck type
+ * comparison / bool check / expr-type-ref query path has one
+ * home (coerce_init.c), not split between glue.c and
+ * coerce_init.c.
+ *
+ * Extern (non-static): cross-TU link visibility; same-TU
+ * visibility via #include L9626 + fwd decls at glue.c L7299
+ * (for callsites before #include) and coerce_init.c L23
+ * (for callsites L277/L816 before EOF definitions).
+ *
+ * Dependencies: typeck_glue_type_refs_equal_named (static,
+ * same file L745) / typeck_glue_type_refs_equal_impl (static,
+ * same file L806) / pipeline_typeck_resolve_type_alias_ref_impl_c
+ * (static, same file L849) / g_typeck_active_module (static
+ * global, glue.c L135, visible via #include) /
+ * pipeline_type_elem_ref_at (extern, glue.c) /
+ * pipeline_type_array_size_at (extern, glue.c) /
+ * pipeline_type_kind_ord_at (extern, glue.c) /
+ * pipeline_expr_resolved_type_ref (extern, glue.c) /
+ * ast_ref_is_null (global).
+ *
+ * PLATFORM: SHARED — type comparison / bool check / expr-type
+ * query is platform-independent.
+ */
+
+/**
+ * NAMED type_refs_equal public wrapper: null/invalid gate then
+ * delegate to typeck_glue_type_refs_equal_named (static, same file).
+ * Matches typeck.x::type_refs_equal_named.
+ */
+int32_t pipeline_typeck_type_refs_equal_named_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
+  if (!arena || a <= 0 || b <= 0)
+    return 0;
+  return typeck_glue_type_refs_equal_named(arena, a, b);
+}
+
+/**
+ * resolve_type_alias_ref public wrapper: delegate to the static
+ * impl with the active module (g_typeck_active_module) and depth 0.
+ * Matches typeck.x::resolve_type_alias_ref.
+ */
+int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *arena, int32_t type_ref) {
+  return pipeline_typeck_resolve_type_alias_ref_impl_c(g_typeck_active_module, arena, type_ref, 0);
+}
+
+/**
+ * type_refs_equal_impl thin delegate: caller guarantees non-null
+ * refs and a!=b. Delegates to typeck_glue_type_refs_equal_impl
+ * (static, same file).
+ */
+int32_t pipeline_typeck_type_refs_equal_impl_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
+  return typeck_glue_type_refs_equal_impl(arena, a, b);
+}
+
+/**
+ * type_refs_equal public entry: resolve aliases on both sides,
+ * then if still different delegate to typeck_glue_type_refs_equal_impl
+ * (static, same file). Matches typeck.x::type_refs_equal.
+ */
+int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
+  if (ast_ref_is_null(a) || ast_ref_is_null(b))
+    return a == b;
+  a = pipeline_typeck_resolve_type_alias_ref_c(arena, a);
+  b = pipeline_typeck_resolve_type_alias_ref_c(arena, b);
+  if (a == b)
+    return 1;
+  return typeck_glue_type_refs_equal_impl(arena, a, b);
+}
+
+/**
+ * Compound type comparison when kind is already known equal.
+ * NAMED → name compare; PTR/SLICE/LINEAR → elem recursive;
+ * ARRAY/VECTOR → size check + elem recursive; else equal.
+ * Matches typeck.x::type_refs_equal_same_kind.
+ */
+int32_t pipeline_typeck_type_refs_equal_same_kind_c(struct ast_ASTArena *arena, int32_t a, int32_t b,
+                                                    int32_t kind_ord) {
+  if (!arena || a <= 0 || b <= 0)
+    return 0;
+  if (kind_ord == (int32_t)ast_TypeKind_TYPE_NAMED)
+    return typeck_glue_type_refs_equal_named(arena, a, b);
+  if (kind_ord == (int32_t)ast_TypeKind_TYPE_PTR || kind_ord == (int32_t)ast_TypeKind_TYPE_SLICE ||
+      kind_ord == (int32_t)ast_TypeKind_TYPE_LINEAR)
+    return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a),
+                                             pipeline_type_elem_ref_at(arena, b));
+  if (kind_ord == (int32_t)ast_TypeKind_TYPE_ARRAY || kind_ord == (int32_t)ast_TypeKind_TYPE_VECTOR) {
+    if (pipeline_type_array_size_at(arena, a) != pipeline_type_array_size_at(arena, b))
+      return 0;
+    return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a),
+                                             pipeline_type_elem_ref_at(arena, b));
+  }
+  return 1;
+}
+
+/**
+ * type_ref_is_bool internal: check TypeKind == TYPE_BOOL.
+ * Matches typeck.x::type_ref_is_bool_impl.
+ */
+int32_t pipeline_typeck_type_ref_is_bool_impl_c(struct ast_ASTArena *arena, int32_t type_ref) {
+  return pipeline_type_kind_ord_at(arena, type_ref) == (int32_t)ast_TypeKind_TYPE_BOOL;
+}
+
+/**
+ * type_ref_is_bool public entry: null/bounds gate then delegate
+ * to type_ref_is_bool_impl_c (same file). Matches typeck.x::type_ref_is_bool.
+ */
+int32_t pipeline_typeck_type_ref_is_bool_c(struct ast_ASTArena *arena, int32_t type_ref) {
+  if (ast_ref_is_null(type_ref) || type_ref <= 0 || !arena || type_ref > arena->num_types)
+    return 0;
+  return pipeline_typeck_type_ref_is_bool_impl_c(arena, type_ref);
+}
+
+/**
+ * expr_type_ref internal: read expr.resolved_type_ref via glue pointer
+ * read (avoids Expr by-value tearing). Matches typeck.x::expr_type_ref_impl.
+ */
+int32_t pipeline_typeck_expr_type_ref_impl_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+  return pipeline_expr_resolved_type_ref(arena, expr_ref);
+}
+
+/**
+ * expr_type_ref public entry: null/bounds gate then delegate to
+ * expr_type_ref_impl_c (same file). Matches typeck.x::expr_type_ref.
+ */
+int32_t pipeline_typeck_expr_type_ref_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+  if (ast_ref_is_null(expr_ref))
+    return 0;
+  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
+    return 0;
+  return pipeline_typeck_expr_type_ref_impl_c(arena, expr_ref);
 }
 
