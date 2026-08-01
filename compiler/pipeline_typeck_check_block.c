@@ -351,3 +351,186 @@ static int typeck_linear_name_already_moved(const uint8_t *name, int32_t name_le
       return 1;
   return 0;
 }
+
+/* ============================================================
+ * wave1157 G.7: linear type use-once move tracking cluster (6 fns)
+ * (migrated from pipeline_glue.c L8957-9083).
+ *
+ * Why here: the linear move tracking cluster is colocated with
+ * typeck_linear_name_already_moved (wave1132, already in this file)
+ * and the check_block walker domain. The linear_use_var_c entry point
+ * is invoked during check_expr / check_block walks for VAR reads of
+ * TYPE_LINEAR — colocating with the walker keeps the linear-move
+ * bookkeeping next to the only walker that triggers it.
+ *
+ * Cluster (6 fns, ~125 LOC):
+ *   - pipeline_typeck_set_active_ctx_c (4 LOC; active module/ctx setter)
+ *   - pipeline_typeck_active_module_c (4 LOC; active module getter)
+ *   - pipeline_typeck_linear_reset_c (3 LOC; per-function moved set reset)
+ *   - pipeline_typeck_linear_use_var_c (24 LOC; VAR read double-move gate)
+ *   - pipeline_typeck_linear_accepts_init_c (10 LOC; Linear(T) init accept)
+ *   - pipeline_typeck_reject_addr_of_linear_c (42 LOC; ADDR_OF reject)
+ *
+ * Dependencies (all visible via same-TU globals or extern):
+ *   - g_typeck_active_module (static global at glue.c L135; before
+ *     #include L10250 — visible)
+ *   - g_typeck_active_ctx (static global at glue.c L8955; before
+ *     #include L10250 — visible)
+ *   - g_typeck_linear_moved_{n,names,lens} + TYPECK_LINEAR_MOVED_MAX
+ *     (static globals at glue.c L8949-8952; before #include L10250 — visible)
+ *   - typeck_linear_name_already_moved (static, wave1132, same file —
+ *     direct call, no fwd needed)
+ *   - pipeline_type_kind_ord_at / pipeline_type_elem_ref_at /
+ *     pipeline_expr_kind_ord_at / pipeline_expr_var_name_len / _into /
+ *     pipeline_expr_line_at / pipeline_expr_col_at (all extern)
+ *   - pipeline_typeck_type_refs_equal_c (extern, defined at glue.c L7375;
+ *     before #include L10250 — visible)
+ *   - pipeline_block_resolve_var_type_ref (extern, declared at glue.c L1326)
+ *   - pipeline_module_func_param_type_ref_for_name (extern, declared at
+ *     glue.c L264)
+ *   - lsp_diag_report_typeck (extern, declared at glue.c L8943; before
+ *     #include L10250 — visible)
+ *   - driver_diagnostic_typeck_linear_addr_of (extern, inline-declared
+ *     in function body)
+ *
+ * Visibility:
+ *   - glue.c callsite for set_active_ctx_c at L6109 PRECEDES check_block.c
+ *     #include at L10250 → extern fwd decl added in glue.c before L6109.
+ *   - glue.c callsites for linear_reset_c at L10267/10331/10398 are AFTER
+ *     #include L10250 → visible, no fwd decl needed.
+ *   - Other functions have no glue.c callsites (called from typeck.x /
+ *     ast_pool.c / seeds — all cross-TU extern calls).
+ *
+ * PLATFORM: SHARED — pure typeck linear-type bookkeeping; no platform ABI dep.
+ * ============================================================ */
+
+/**
+ * WPO-S3: set active typeck module/ctx before check (called per-function
+ * by typeck_x_ast). Updates g_typeck_active_module (defined at glue.c L135)
+ * and g_typeck_active_ctx (defined at glue.c L8955).
+ */
+void pipeline_typeck_set_active_ctx_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
+  g_typeck_active_module = module;
+  g_typeck_active_ctx = ctx;
+}
+
+/**
+ * C5-enum-variant: read-only accessor for the active typeck module.
+ *
+ * Why: The const-init whitelist (pipeline_typeck_block_const_init_is_const_c)
+ *      runs BEFORE the typeck-time marker pipeline_typeck_try_mark_enum_field_access
+ *      fires inside typeck_check_expr (seed typeck_gen L6839 vs L6850). To pre-mark
+ *      FIELD_ACCESS nodes at whitelist time we need the active module — but the
+ *      whitelist signature takes only (arena, block_ref, idx), no module param.
+ *      Rather than widening the signature (which would force seed modifications
+ *      across many call sites), we expose a getter for the active module that
+ *      the strict_minimal seed whitelist mirrors via extern.
+ *
+ * Invariant: Returns NULL outside the typeck phase; non-NULL throughout
+ *            typeck_parsed_module_c (ast_pool.c L6428 sets it; L22027 sets
+ *            it for the parse-coupled entry). Callers must NULL-check.
+ *
+ * PLATFORM: SHARED — populated identically on macOS arm64 and Ubuntu x86_64.
+ */
+struct ast_Module *pipeline_typeck_active_module_c(void) {
+  return g_typeck_active_module;
+}
+
+/**
+ * M-4: clear moved set before entering a new function's typeck pass.
+ */
+void pipeline_typeck_linear_reset_c(void) {
+  g_typeck_linear_moved_n = 0;
+}
+
+/**
+ * M-4: VAR read of Linear(T) checks double-move; on success marks moved.
+ * Returns 0 if acceptable, -1 if already moved (diagnostic emitted).
+ */
+int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTArena *arena, int32_t type_ref, int32_t expr_ref,
+                                         uint8_t *name, int32_t name_len) {
+  int32_t line;
+  int32_t col;
+  if (!arena || name_len <= 0 || name_len > 127 || !name)
+    return 0;
+  if (type_ref <= 0 || pipeline_type_kind_ord_at(arena, type_ref) != (int32_t)ast_TypeKind_TYPE_LINEAR)
+    return 0;
+  if (typeck_linear_name_already_moved(name, name_len)) {
+    line = 0;
+    col = 0;
+    if (expr_ref > 0 && expr_ref <= arena->num_exprs) {
+      line = pipeline_expr_line_at(arena, expr_ref);
+      col = pipeline_expr_col_at(arena, expr_ref);
+    }
+    lsp_diag_report_typeck((int)line, (int)col, "linear value used after move");
+    return -1;
+  }
+  if (g_typeck_linear_moved_n < TYPECK_LINEAR_MOVED_MAX) {
+    memcpy(g_typeck_linear_moved_names[g_typeck_linear_moved_n], name, (size_t)name_len);
+    g_typeck_linear_moved_lens[g_typeck_linear_moved_n] = name_len;
+    g_typeck_linear_moved_n++;
+  }
+  return 0;
+}
+
+/**
+ * M-4: whether Linear(T) let accepts inner T or Linear(T) init value.
+ */
+int32_t pipeline_typeck_linear_accepts_init_c(struct ast_ASTArena *arena, int32_t decl_ref,
+                                                int32_t init_ref) {
+  if (!arena || decl_ref <= 0 || init_ref <= 0)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, decl_ref) != (int32_t)ast_TypeKind_TYPE_LINEAR)
+    return 0;
+  if (pipeline_typeck_type_refs_equal_c(arena, decl_ref, init_ref))
+    return 1;
+  return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, decl_ref), init_ref);
+}
+
+/**
+ * M-4: reject ADDR_OF on Linear variable (must be called before
+ * pipeline_typeck_linear_use_var_c). Returns 0 to continue; -1 if
+ * diagnostic emitted.
+ */
+int32_t pipeline_typeck_reject_addr_of_linear_c(struct ast_ASTArena *arena, int32_t op_ref,
+    int32_t addr_expr_ref, struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
+  int32_t vnlen;
+  int32_t block_ref;
+  int32_t vd_tr;
+  int32_t func_ix;
+  int32_t pr;
+  int32_t line;
+  int32_t col;
+  uint8_t vbuf[128];
+  extern void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col);
+  if (!arena || !module || !ctx || op_ref <= 0 || op_ref > arena->num_exprs)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, op_ref) != 3)
+    return 0;
+  vnlen = pipeline_expr_var_name_len(arena, op_ref);
+  if (vnlen <= 0 || vnlen > 127)
+    return 0;
+  pipeline_expr_var_name_into(arena, op_ref, vbuf);
+  block_ref = ctx->current_block_ref;
+  if (block_ref > 0 && block_ref <= arena->num_blocks) {
+    vd_tr = pipeline_block_resolve_var_type_ref(arena, block_ref, vbuf, vnlen);
+    if (vd_tr > 0 && pipeline_type_kind_ord_at(arena, vd_tr) == (int32_t)ast_TypeKind_TYPE_LINEAR)
+      goto reject;
+  }
+  func_ix = ctx->current_func_index;
+  if (func_ix >= 0 && func_ix < module->num_funcs) {
+    pr = pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen);
+    if (pr > 0 && pipeline_type_kind_ord_at(arena, pr) == (int32_t)ast_TypeKind_TYPE_LINEAR)
+      goto reject;
+  }
+  return 0;
+reject:
+  line = 0;
+  col = 0;
+  if (addr_expr_ref > 0 && addr_expr_ref <= arena->num_exprs) {
+    line = pipeline_expr_line_at(arena, addr_expr_ref);
+    col = pipeline_expr_col_at(arena, addr_expr_ref);
+  }
+  driver_diagnostic_typeck_linear_addr_of(line, col);
+  return -1;
+}

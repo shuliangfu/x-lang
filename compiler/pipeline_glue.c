@@ -6093,6 +6093,11 @@ int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *mod
 
 extern void pipeline_lint_set_source_buf(const uint8_t *data, int32_t len);
 
+/* wave1157 G.7: extern fwd decl for set_active_ctx_c migrated to
+ * pipeline_typeck_check_block.c EOF. Callsite at L6109 precedes
+ * check_block.c #include at L10250. */
+void pipeline_typeck_set_active_ctx_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx);
+
 int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct ast_Module *module,
                                                struct xlang_slice_uint8_t *source, struct ast_PipelineDepCtx *ctx) {
   struct parser_ParseIntoResult r;
@@ -7417,166 +7422,13 @@ int32_t pipeline_typeck_expr_type_ref_c(struct ast_ASTArena *arena, int32_t expr
   return pipeline_typeck_expr_type_ref_impl_c(arena, expr_ref);
 }
 
-/** 诊断缓冲追加字面量（与 typeck.x::typeck_diag_append_lit 一致）。 */
-int32_t pipeline_typeck_diag_append_lit_c(uint8_t *out, int32_t pos, int32_t cap, uint8_t *lit, int32_t lit_len) {
-  int32_t p;
-  int32_t i;
-
-  p = pos;
-  i = 0;
-  while (i < lit_len && p >= 0 && p < cap) {
-    out[p] = lit[i];
-    p = p + 1;
-    i = i + 1;
-  }
-  return p;
-}
-
-/** 诊断缓冲追加十进制 u32（与 typeck.x::typeck_diag_append_u32_dec 一致）。 */
-int32_t pipeline_typeck_diag_append_u32_dec_c(uint8_t *out, int32_t pos, int32_t cap, int32_t v) {
-  int32_t p;
-  int32_t cnt;
-  int32_t tc;
-  int32_t k;
-  int32_t tm;
-  int32_t d;
-  uint8_t zd[1];
-
-  p = pos;
-  if (v < 0 || p < 0 || p >= cap)
-    return p;
-  if (v == 0) {
-    zd[0] = (uint8_t)'0';
-    return pipeline_typeck_diag_append_lit_c(out, p, cap, zd, 1);
-  }
-  cnt = 0;
-  tc = v;
-  while (tc > 0) {
-    cnt = cnt + 1;
-    tc = tc / 10;
-  }
-  k = cnt - 1;
-  tm = v;
-  while (tm > 0) {
-    d = tm % 10;
-    tm = tm / 10;
-    if ((pos + k) < 0 || (pos + k) >= cap)
-      return p;
-    out[pos + k] = (uint8_t)(d + 48);
-    k = k - 1;
-  }
-  return pos + cnt;
-}
-
-/**
- * typeck.x::typeck_diag_fmt_type_at 的 C 委托：将类型 ref 格式化为可读 ASCII（不写 NUL）。
- */
-int32_t pipeline_typeck_diag_fmt_type_at_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out, int32_t cur,
-                                           int32_t cap) {
-  static const uint8_t qmk[1] = { 63 };
-  static const uint8_t lit_i32[3] = { 105, 51, 50 };
-  static const uint8_t lit_bool[4] = { 98, 111, 111, 108 };
-  static const uint8_t lit_u8[2] = { 117, 56 };
-  static const uint8_t lit_u32[3] = { 117, 51, 50 };
-  static const uint8_t lit_u64[3] = { 117, 54, 52 };
-  static const uint8_t lit_i64[3] = { 105, 54, 52 };
-  static const uint8_t lit_usize[5] = { 117, 115, 105, 122, 101 };
-  static const uint8_t lit_isize[5] = { 105, 115, 105, 122, 101 };
-  static const uint8_t lit_f32[3] = { 102, 51, 50 };
-  static const uint8_t lit_f64[3] = { 102, 54, 52 };
-  static const uint8_t star[1] = { 42 };
-  static const uint8_t lbk[1] = { 91 };
-  static const uint8_t rbk[1] = { 93 };
-  static const uint8_t slo[2] = { 91, 93 };
-  int32_t kind;
-  int32_t nlen;
-  uint8_t nm[128];
-  int32_t elem_ref;
-  int32_t asz;
-  int32_t nex;
-  int32_t p0;
-  int32_t p1;
-  int32_t p2;
-
-  if (cur < 0 || cap <= 0 || cur >= cap)
-    return cur;
-  if (ast_ref_is_null(ref) || ref <= 0 || !arena || ref > arena->num_types)
-    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)qmk, 1);
-  kind = pipeline_type_kind_ord_at(arena, ref);
-  if (kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
-    nlen = pipeline_type_named_name_into(arena, ref, nm);
-    if (nlen > 0)
-      return pipeline_typeck_diag_append_lit_c(out, cur, cap, nm, nlen);
-  }
-  if (kind == (int32_t)ast_TypeKind_TYPE_I32)
-    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_i32, 3);
-  if (kind == (int32_t)ast_TypeKind_TYPE_BOOL)
-    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_bool, 4);
-  if (kind == (int32_t)ast_TypeKind_TYPE_U8)
-    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_u8, 2);
-  if (kind == (int32_t)ast_TypeKind_TYPE_U32)
-    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_u32, 3);
-  if (kind == (int32_t)ast_TypeKind_TYPE_U64)
-    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_u64, 3);
-  if (kind == (int32_t)ast_TypeKind_TYPE_I64)
-    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_i64, 3);
-  if (kind == (int32_t)ast_TypeKind_TYPE_USIZE)
-    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_usize, 5);
-  if (kind == (int32_t)ast_TypeKind_TYPE_ISIZE)
-    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_isize, 5);
-  if (kind == (int32_t)ast_TypeKind_TYPE_F32)
-    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_f32, 3);
-  if (kind == (int32_t)ast_TypeKind_TYPE_F64)
-    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_f64, 3);
-  if (kind == (int32_t)ast_TypeKind_TYPE_VOID)
-    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)qmk, 1);
-  if (kind == (int32_t)ast_TypeKind_TYPE_PTR) {
-    elem_ref = pipeline_type_elem_ref_at(arena, ref);
-    nex = pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)star, 1);
-    return pipeline_typeck_diag_fmt_type_at_c(arena, elem_ref, out, nex, cap);
-  }
-  if (kind == (int32_t)ast_TypeKind_TYPE_SLICE) {
-    static const uint8_t lt_ch[1] = { 60 };
-    static const uint8_t gt_ch[1] = { 62 };
-    int32_t rlen;
-    uint8_t rbuf[128];
-    elem_ref = pipeline_type_elem_ref_at(arena, ref);
-    nex = pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)slo, 2);
-    nex = pipeline_typeck_diag_fmt_type_at_c(arena, elem_ref, out, nex, cap);
-    rlen = pipeline_type_region_label_len_at(arena, ref);
-    if (rlen > 0 && pipeline_type_region_label_into(arena, ref, rbuf) == rlen) {
-      p0 = pipeline_typeck_diag_append_lit_c(out, nex, cap, (uint8_t *)lt_ch, 1);
-      p1 = pipeline_typeck_diag_append_lit_c(out, p0, cap, rbuf, rlen);
-      return pipeline_typeck_diag_append_lit_c(out, p1, cap, (uint8_t *)gt_ch, 1);
-    }
-    return nex;
-  }
-  if (kind == (int32_t)ast_TypeKind_TYPE_ARRAY) {
-    elem_ref = pipeline_type_elem_ref_at(arena, ref);
-    asz = pipeline_type_array_size_at(arena, ref);
-    if (!ast_ref_is_null(elem_ref) && asz > 0) {
-      p0 = pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lbk, 1);
-      p1 = pipeline_typeck_diag_append_u32_dec_c(out, p0, cap, asz);
-      p2 = pipeline_typeck_diag_append_lit_c(out, p1, cap, (uint8_t *)rbk, 1);
-      return pipeline_typeck_diag_fmt_type_at_c(arena, elem_ref, out, p2, cap);
-    }
-  }
-  return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)qmk, 1);
-}
-
-/** typeck.x::typeck_diag_fmt_type_into 的 C 委托。 */
-int32_t pipeline_typeck_diag_fmt_type_into_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out, int32_t cap) {
-  return pipeline_typeck_diag_fmt_type_at_c(arena, ref, out, 0, cap);
-}
-
-/** typeck.x::typeck_diag_fmt_type_or_question 的 C 委托。 */
-int32_t pipeline_typeck_diag_fmt_type_or_question_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out) {
-  static const uint8_t qmk[1] = { 63 };
-
-  if (ast_ref_is_null(ref) || ref <= 0 || !arena || ref > arena->num_types)
-    return pipeline_typeck_diag_append_lit_c(out, 0, 96, (uint8_t *)qmk, 1);
-  return pipeline_typeck_diag_fmt_type_into_c(arena, ref, out, 96);
-}
+/* wave1156 G.7: typeck diag fmt cluster (5 fns) migrated to
+ * pipeline_typeck_assign.c EOF (colocated with assign mismatch diag domain —
+ * 8 callsites in assign.c lines 265-336; sole glue.c callsite at L8147 in
+ * check_expr_return return-type mismatch diag). Extern (non-static):
+ * assign.c #include at L8265; extern fwd decl at L8013 (before L8147 callsite).
+ * Cluster: diag_append_lit_c / diag_append_u32_dec_c / diag_fmt_type_at_c /
+ * diag_fmt_type_into_c / diag_fmt_type_or_question_c. PLATFORM: SHARED. */
 
 /* wave1076 G.7: pipeline_typeck_float_widen_ok_c migrated to
  * pipeline_typeck_coerce_init.c EOF (f32→f64 IEEE float widen gate).
@@ -8009,6 +7861,11 @@ int32_t pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(struct ast_ASTAre
 /** bootstrap typeck 后处理（METHOD_CALL / 泛型 CALL）；定义见 pipeline_typeck_bootstrap_expr_fixup_c。 */
 static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                    int32_t expr_ref);
+
+/* wave1156 G.7: extern fwd decl for diag fmt cluster migrated to
+ * pipeline_typeck_assign.c EOF. Callsite at L8142 precedes assign.c
+ * #include at L8265. */
+int32_t pipeline_typeck_diag_fmt_type_or_question_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out);
 
 int32_t pipeline_typeck_check_expr_return_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                              int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
@@ -8988,176 +8845,13 @@ int32_t pipeline_typeck_resolve_whole_import_call_ret_c(
   return 0;
 }
 
-/**
- * typeck.x::resolve_call_callee_return_type 的 C 委托：
- * 解析 CALL callee 返回类型（本模块 / dep / 整包 / 绑定 / 解构 import）。
- */
-int32_t pipeline_typeck_resolve_call_callee_return_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                          int32_t callee_expr_ref, int32_t call_expr_ref,
-                                                          struct ast_PipelineDepCtx *ctx) {
-  int32_t want_resolve;
-  int32_t whole_dep;
-  int32_t whole_fn;
-  int32_t *p_whole_dep;
-  int32_t *p_whole_fn;
-  int32_t callee_ord;
-  int32_t minus_one;
-  int32_t loc_fn;
-  int32_t *p_loc_fn;
-  int32_t ret;
-  int32_t i;
-  int32_t imax;
-  int32_t nd_scan;
-
-  if (callee_expr_ref <= 0 || !arena || callee_expr_ref > arena->num_exprs)
-    return 0;
-  want_resolve = (call_expr_ref > 0 && call_expr_ref <= arena->num_exprs);
-  whole_dep = 0;
-  whole_fn = 0;
-  p_whole_dep = 0;
-  p_whole_fn = 0;
-  if (want_resolve) {
-    p_whole_dep = &whole_dep;
-    p_whole_fn = &whole_fn;
-  }
-  callee_ord = pipeline_expr_kind_ord_at(arena, callee_expr_ref);
-  if (callee_ord == 44) {
-    int32_t r_whole;
-
-    r_whole = pipeline_typeck_resolve_whole_import_call_ret_c(
-        module, arena, callee_expr_ref, ctx, p_whole_dep, p_whole_fn);
-    if (r_whole != 0) {
-      if (want_resolve)
-        pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, whole_dep, whole_fn);
-      return r_whole;
-    }
-  }
-  if (callee_ord == 44) {
-    int32_t base_bind_ref;
-
-    base_bind_ref = pipeline_expr_field_access_base_ref(arena, callee_expr_ref);
-    if (base_bind_ref > 0 && base_bind_ref <= arena->num_exprs &&
-        pipeline_expr_kind_ord_at(arena, base_bind_ref) == 3) {
-      int32_t base_bind_len;
-
-      base_bind_len = pipeline_expr_var_name_len(arena, base_bind_ref);
-      if (base_bind_len > 0 && base_bind_len <= 63) {
-        uint8_t base_bind_nm[128];
-        int32_t field_len;
-        uint8_t field_nm[128];
-        int32_t ii;
-        int32_t n_imp;
-
-        pipeline_expr_var_name_into(arena, base_bind_ref, base_bind_nm);
-        field_len = pipeline_expr_field_access_name_len(arena, callee_expr_ref);
-        pipeline_expr_field_access_name_into(arena, callee_expr_ref, field_nm);
-        n_imp = pipeline_typeck_module_num_imports_c(module);
-        ii = 0;
-        while (ii < n_imp) {
-          if (pipeline_module_import_kind_at(module, ii) == GLUE_TYPECK_IMPORT_BINDING &&
-              pipeline_typeck_import_binding_name_equal_impl(module, ii, base_bind_nm, base_bind_len)) {
-            struct ast_Module *dm;
-            int32_t dep_slot;
-
-            dep_slot = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, ii);
-            if (dep_slot < 0)
-              break;
-            dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
-            if (dm) {
-              int32_t bind_fn = 0;
-              int32_t *p_bind_fn = 0;
-              int32_t ret_b;
-
-              if (want_resolve)
-                p_bind_fn = &bind_fn;
-              ret_b = pipeline_typeck_find_func_return_type_in_module_by_name_c(dm, arena, field_nm, field_len,
-                                                                                dep_slot, ctx, p_bind_fn);
-              if (ret_b != 0) {
-                if (want_resolve)
-                  pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, dep_slot, bind_fn);
-                return ret_b;
-              }
-            }
-            break;
-          }
-          ii = ii + 1;
-        }
-      }
-    }
-  }
-  minus_one = -1;
-  loc_fn = 0;
-  p_loc_fn = 0;
-  if (want_resolve)
-    p_loc_fn = &loc_fn;
-  ret = pipeline_typeck_find_func_return_type_in_module_c(module, arena, arena, arena, callee_expr_ref, minus_one, ctx,
-                                                          p_loc_fn);
-  if (ret != 0) {
-    if (want_resolve)
-      pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, minus_one, loc_fn);
-    return ret;
-  }
-  i = 0;
-  imax = pipeline_typeck_module_num_imports_c(module);
-  nd_scan = pipeline_dep_ctx_ndep(ctx);
-  if (nd_scan > imax)
-    imax = nd_scan;
-  while (i < imax) {
-    struct ast_Module *dm;
-    int32_t dep_fn;
-    int32_t *p_dep_fn;
-
-    dm = pipeline_dep_ctx_module_at(ctx, i);
-    if (!dm) {
-      i = i + 1;
-      continue;
-    }
-    dep_fn = 0;
-    p_dep_fn = 0;
-    if (want_resolve)
-      p_dep_fn = &dep_fn;
-    ret = pipeline_typeck_find_func_return_type_in_module_c(dm, arena, arena, arena, callee_expr_ref, i, ctx, p_dep_fn);
-    if (ret != 0) {
-      if (want_resolve)
-        pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, i, dep_fn);
-      return ret;
-    }
-    if (i < module->num_imports && pipeline_module_import_kind_at(module, i) == GLUE_TYPECK_IMPORT_SELECT &&
-        callee_ord == 3) {
-      int32_t cv_len;
-
-      cv_len = pipeline_expr_var_name_len(arena, callee_expr_ref);
-      if (cv_len > 0) {
-        uint8_t cv_nm[128];
-        int32_t k;
-        int32_t sel_cnt;
-
-        pipeline_expr_var_name_into(arena, callee_expr_ref, cv_nm);
-        k = 0;
-        sel_cnt = pipeline_module_import_select_count_at(module, i);
-        while (k < sel_cnt) {
-          if (pipeline_typeck_import_select_name_equal_impl(module, i, k, cv_nm, cv_len)) {
-            int32_t sel_fn = 0;
-            int32_t *p_sel_fn = 0;
-
-            if (want_resolve)
-              p_sel_fn = &sel_fn;
-            ret = pipeline_typeck_find_func_return_type_in_module_by_name_c(dm, arena, cv_nm, cv_len, i, ctx, p_sel_fn);
-            if (ret != 0) {
-              if (want_resolve)
-                pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, i, sel_fn);
-              return ret;
-            }
-            break;
-          }
-          k = k + 1;
-        }
-      }
-    }
-    i = i + 1;
-  }
-  return 0;
-}
+/* wave1155 G.7: pipeline_typeck_resolve_call_callee_return_type_c migrated to
+ * pipeline_typeck_method_call.c EOF (colocated with resolve_call_func_index_c
+ * wave1085-1094 — both resolve CALL callee targets; return-type twin of
+ * func_index resolver). Extern (non-static): sole callsite at L10353 is AFTER
+ * method_call.c #include at L10186 — visible via extern decl. Deps:
+ * GLUE_TYPECK_IMPORT_BINDING/SELECT enum (L2241 < #include L10186), all other
+ * deps extern/header-declared. PLATFORM: SHARED. */
 
 extern int32_t pipeline_module_main_func_index(struct ast_Module *m);
 extern int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t fi);
@@ -9265,133 +8959,18 @@ static int32_t g_typeck_linear_moved_lens[TYPECK_LINEAR_MOVED_MAX];
 /** WPO-S3：typeck 活跃 module/ctx（call slice 检查等 C glue 无 ctx 参数时回落）。 */
 static struct ast_PipelineDepCtx *g_typeck_active_ctx;
 
-/** WPO-S3：进入函数 typeck 前设置活跃 ctx（typeck_x_ast 每函数调用）。 */
-void pipeline_typeck_set_active_ctx_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
-  g_typeck_active_module = module;
-  g_typeck_active_ctx = ctx;
-}
-
-/**
- * C5-enum-variant: read-only accessor for the active typeck module.
- *
- * Why: The const-init whitelist (pipeline_typeck_block_const_init_is_const_c)
- *      runs BEFORE the typeck-time marker pipeline_typeck_try_mark_enum_field_access
- *      fires inside typeck_check_expr (seed typeck_gen L6839 vs L6850). To pre-mark
- *      FIELD_ACCESS nodes at whitelist time we need the active module — but the
- *      whitelist signature takes only (arena, block_ref, idx), no module param.
- *      Rather than widening the signature (which would force seed modifications
- *      across many call sites), we expose a getter for the active module that
- *      the strict_minimal seed whitelist mirrors via extern.
- *
- * Invariant: Returns NULL outside the typeck phase; non-NULL throughout
- *            typeck_parsed_module_c (ast_pool.c L6428 sets it; L22027 sets
- *            it for the parse-coupled entry). Callers must NULL-check.
- *
- * PLATFORM: SHARED — populated identically on macOS arm64 and Ubuntu x86_64.
- */
-struct ast_Module *pipeline_typeck_active_module_c(void) {
-  return g_typeck_active_module;
-}
-
-/** M-4：进入新函数 typeck 前清零 moved 集合。 */
-void pipeline_typeck_linear_reset_c(void) {
-  g_typeck_linear_moved_n = 0;
-}
-
-/* wave1132 G.7: typeck_linear_name_already_moved migrated to
- * pipeline_typeck_check_block.c EOF (colocated with the check_block walker
- * domain; globals g_typeck_linear_moved_* above are visible there via
- * #include @ L11606). Static fwd decl below — definition at check_block.c
- * EOF, AFTER the callsite at L9805 in pipeline_typeck_linear_use_var_c. */
-static int typeck_linear_name_already_moved(const uint8_t *name, int32_t name_len);
-
-/**
- * M-4：VAR 读取 Linear(T) 时检查 double-move；成功则标记 moved。返回 0 可接受，-1 已报错。
- */
-int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTArena *arena, int32_t type_ref, int32_t expr_ref,
-                                         uint8_t *name, int32_t name_len) {
-  int32_t line;
-  int32_t col;
-  if (!arena || name_len <= 0 || name_len > 127 || !name)
-    return 0;
-  if (type_ref <= 0 || pipeline_type_kind_ord_at(arena, type_ref) != (int32_t)ast_TypeKind_TYPE_LINEAR)
-    return 0;
-  if (typeck_linear_name_already_moved(name, name_len)) {
-    line = 0;
-    col = 0;
-    if (expr_ref > 0 && expr_ref <= arena->num_exprs) {
-      line = pipeline_expr_line_at(arena, expr_ref);
-      col = pipeline_expr_col_at(arena, expr_ref);
-    }
-    lsp_diag_report_typeck((int)line, (int)col, "linear value used after move");
-    return -1;
-  }
-  if (g_typeck_linear_moved_n < TYPECK_LINEAR_MOVED_MAX) {
-    memcpy(g_typeck_linear_moved_names[g_typeck_linear_moved_n], name, (size_t)name_len);
-    g_typeck_linear_moved_lens[g_typeck_linear_moved_n] = name_len;
-    g_typeck_linear_moved_n++;
-  }
-  return 0;
-}
-
-/** M-4：Linear(T) let 是否接受内层 T 或 Linear(T) 初值。 */
-int32_t pipeline_typeck_linear_accepts_init_c(struct ast_ASTArena *arena, int32_t decl_ref,
-                                                int32_t init_ref) {
-  if (!arena || decl_ref <= 0 || init_ref <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, decl_ref) != (int32_t)ast_TypeKind_TYPE_LINEAR)
-    return 0;
-  if (pipeline_typeck_type_refs_equal_c(arena, decl_ref, init_ref))
-    return 1;
-  return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, decl_ref), init_ref);
-}
-
-/**
- * M-4：ADDR_OF 操作数为 Linear 变量时拒绝（须在 pipeline_typeck_linear_use_var_c 之前）。
- * 返回 0 可继续；-1 已打印诊断。
- */
-int32_t pipeline_typeck_reject_addr_of_linear_c(struct ast_ASTArena *arena, int32_t op_ref,
-    int32_t addr_expr_ref, struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
-  int32_t vnlen;
-  int32_t block_ref;
-  int32_t vd_tr;
-  int32_t func_ix;
-  int32_t pr;
-  int32_t line;
-  int32_t col;
-  uint8_t vbuf[128];
-  extern void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col);
-  if (!arena || !module || !ctx || op_ref <= 0 || op_ref > arena->num_exprs)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, op_ref) != 3)
-    return 0;
-  vnlen = pipeline_expr_var_name_len(arena, op_ref);
-  if (vnlen <= 0 || vnlen > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, op_ref, vbuf);
-  block_ref = ctx->current_block_ref;
-  if (block_ref > 0 && block_ref <= arena->num_blocks) {
-    vd_tr = pipeline_block_resolve_var_type_ref(arena, block_ref, vbuf, vnlen);
-    if (vd_tr > 0 && pipeline_type_kind_ord_at(arena, vd_tr) == (int32_t)ast_TypeKind_TYPE_LINEAR)
-      goto reject;
-  }
-  func_ix = ctx->current_func_index;
-  if (func_ix >= 0 && func_ix < module->num_funcs) {
-    pr = pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen);
-    if (pr > 0 && pipeline_type_kind_ord_at(arena, pr) == (int32_t)ast_TypeKind_TYPE_LINEAR)
-      goto reject;
-  }
-  return 0;
-reject:
-  line = 0;
-  col = 0;
-  if (addr_expr_ref > 0 && addr_expr_ref <= arena->num_exprs) {
-    line = pipeline_expr_line_at(arena, addr_expr_ref);
-    col = pipeline_expr_col_at(arena, addr_expr_ref);
-  }
-  driver_diagnostic_typeck_linear_addr_of(line, col);
-  return -1;
-}
+/* wave1157 G.7: linear type use-once move tracking cluster (6 fns) migrated
+ * to pipeline_typeck_check_block.c EOF (colocated with typeck_linear_name_
+ * already_moved wave1132 + check_block walker domain). Extern (non-static):
+ * set_active_ctx_c extern fwd decl at L6099 (before callsite at L6109 <
+ * check_block.c #include at L10250); linear_reset_c callsites at L10267/
+ * 10331/10398 are AFTER #include L10250 — visible. Other 4 fns have no
+ * glue.c callsites (called from typeck.x / ast_pool.c / seeds — cross-TU).
+ * Globals above (g_typeck_linear_moved_*, g_typeck_active_ctx, TYPECK_LINEAR_
+ * MOVED_MAX) stay here — visible in check_block.c via #include after L10250.
+ * wave1132 static fwd decl for typeck_linear_name_already_moved removed
+ * (sole caller linear_use_var_c now in same file — direct call, no fwd
+ * needed). PLATFORM: SHARED. */
 
 /* wave1125-1129 G.7: TYPECK_STACK_LOCAL_PTR_LBL const migrated to
  * pipeline_typeck_region_assign.c (with the 5 stack-escape helpers that

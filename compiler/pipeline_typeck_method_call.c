@@ -2833,3 +2833,220 @@ static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, st
   if (kind == ord_call)
     (void)glue_generic_call_fixup_resolved_type_c(module, arena, expr_ref, 0, 0);
 }
+
+/* ============================================================
+ * wave1155 G.7: CALL callee return-type resolver
+ * (migrated from pipeline_glue.c L8994-9160).
+ *
+ * Why here: pipeline_typeck_resolve_call_callee_return_type_c resolves
+ * the return type for a CALL/METHOD_CALL callee expr. It is the
+ * return-type twin of pipeline_typeck_resolve_call_func_index_c
+ * (already in this file, wave1085-1094) — both resolve call targets
+ * from callee expressions. Colocating them keeps the call-resolution
+ * domain in a single file.
+ *
+ * Contract: returns >0 type_ref on success (caller applies via
+ * pipeline_typeck_expr_apply_call_resolve_c if want_resolve), 0 if
+ * unresolved. Resolution order:
+ *   (1) FIELD_ACCESS whole-import call (math.floor form)
+ *   (2) FIELD_ACCESS binding-based call (import_binding + field name)
+ *   (3) Local module function (find_func_return_type_in_module_c)
+ *   (4) Dep scan: each dep module + import_select name match
+ *
+ * Dependencies (all visible via same-TU globals or extern headers):
+ *   - pipeline_expr_kind_ord_at / pipeline_expr_field_access_base_ref /
+ *     _name_len / _name_into / pipeline_expr_var_name_len / _into
+ *     (extern, header-declared)
+ *   - pipeline_typeck_resolve_whole_import_call_ret_c (extern)
+ *   - pipeline_typeck_expr_apply_call_resolve_c (extern)
+ *   - pipeline_typeck_module_num_imports_c (static in assign.c wave1066;
+ *     visible same-TU via #include at L8265 < this file #include at L10186)
+ *   - pipeline_typeck_import_binding_name_equal_impl (extern)
+ *   - pipeline_typeck_resolve_dep_index_for_import_c (extern)
+ *   - pipeline_dep_ctx_module_at / pipeline_dep_ctx_ndep (extern)
+ *   - pipeline_typeck_find_func_return_type_in_module_c (extern, defined
+ *     at glue.c L8926; visible via extern fwd decl at glue.c L8926 which
+ *     is BEFORE this file's #include at L10186)
+ *   - pipeline_typeck_find_func_return_type_in_module_by_name_c (extern)
+ *   - pipeline_module_import_kind_at / pipeline_module_import_select_count_at
+ *     / pipeline_typeck_import_select_name_equal_impl (extern)
+ *   - GLUE_TYPECK_IMPORT_BINDING / GLUE_TYPECK_IMPORT_SELECT (anonymous
+ *     enum at glue.c L2241, BEFORE this file's #include at L10186 — visible)
+ *
+ * Caller (in glue.c, AFTER this file's #include at L10186):
+ *   - pipeline_typeck_check_expr_call_c (glue.c L10353; sole callsite)
+ *   No fwd decl needed: caller is after the #include point.
+ *
+ * PLATFORM: SHARED — pure typeck call-target resolution; no platform ABI dep.
+ * ============================================================ */
+
+/**
+ * typeck.x::resolve_call_callee_return_type C delegate: resolve CALL callee
+ * return type (local module / dep / whole-package / binding / deconstruct import).
+ */
+int32_t pipeline_typeck_resolve_call_callee_return_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                          int32_t callee_expr_ref, int32_t call_expr_ref,
+                                                          struct ast_PipelineDepCtx *ctx) {
+  int32_t want_resolve;
+  int32_t whole_dep;
+  int32_t whole_fn;
+  int32_t *p_whole_dep;
+  int32_t *p_whole_fn;
+  int32_t callee_ord;
+  int32_t minus_one;
+  int32_t loc_fn;
+  int32_t *p_loc_fn;
+  int32_t ret;
+  int32_t i;
+  int32_t imax;
+  int32_t nd_scan;
+
+  if (callee_expr_ref <= 0 || !arena || callee_expr_ref > arena->num_exprs)
+    return 0;
+  want_resolve = (call_expr_ref > 0 && call_expr_ref <= arena->num_exprs);
+  whole_dep = 0;
+  whole_fn = 0;
+  p_whole_dep = 0;
+  p_whole_fn = 0;
+  if (want_resolve) {
+    p_whole_dep = &whole_dep;
+    p_whole_fn = &whole_fn;
+  }
+  callee_ord = pipeline_expr_kind_ord_at(arena, callee_expr_ref);
+  if (callee_ord == 44) {
+    int32_t r_whole;
+
+    r_whole = pipeline_typeck_resolve_whole_import_call_ret_c(
+        module, arena, callee_expr_ref, ctx, p_whole_dep, p_whole_fn);
+    if (r_whole != 0) {
+      if (want_resolve)
+        pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, whole_dep, whole_fn);
+      return r_whole;
+    }
+  }
+  if (callee_ord == 44) {
+    int32_t base_bind_ref;
+
+    base_bind_ref = pipeline_expr_field_access_base_ref(arena, callee_expr_ref);
+    if (base_bind_ref > 0 && base_bind_ref <= arena->num_exprs &&
+        pipeline_expr_kind_ord_at(arena, base_bind_ref) == 3) {
+      int32_t base_bind_len;
+
+      base_bind_len = pipeline_expr_var_name_len(arena, base_bind_ref);
+      if (base_bind_len > 0 && base_bind_len <= 63) {
+        uint8_t base_bind_nm[128];
+        int32_t field_len;
+        uint8_t field_nm[128];
+        int32_t ii;
+        int32_t n_imp;
+
+        pipeline_expr_var_name_into(arena, base_bind_ref, base_bind_nm);
+        field_len = pipeline_expr_field_access_name_len(arena, callee_expr_ref);
+        pipeline_expr_field_access_name_into(arena, callee_expr_ref, field_nm);
+        n_imp = pipeline_typeck_module_num_imports_c(module);
+        ii = 0;
+        while (ii < n_imp) {
+          if (pipeline_module_import_kind_at(module, ii) == GLUE_TYPECK_IMPORT_BINDING &&
+              pipeline_typeck_import_binding_name_equal_impl(module, ii, base_bind_nm, base_bind_len)) {
+            struct ast_Module *dm;
+            int32_t dep_slot;
+
+            dep_slot = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, ii);
+            if (dep_slot < 0)
+              break;
+            dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
+            if (dm) {
+              int32_t bind_fn = 0;
+              int32_t *p_bind_fn = 0;
+              int32_t ret_b;
+
+              if (want_resolve)
+                p_bind_fn = &bind_fn;
+              ret_b = pipeline_typeck_find_func_return_type_in_module_by_name_c(dm, arena, field_nm, field_len,
+                                                                                dep_slot, ctx, p_bind_fn);
+              if (ret_b != 0) {
+                if (want_resolve)
+                  pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, dep_slot, bind_fn);
+                return ret_b;
+              }
+            }
+            break;
+          }
+          ii = ii + 1;
+        }
+      }
+    }
+  }
+  minus_one = -1;
+  loc_fn = 0;
+  p_loc_fn = 0;
+  if (want_resolve)
+    p_loc_fn = &loc_fn;
+  ret = pipeline_typeck_find_func_return_type_in_module_c(module, arena, arena, arena, callee_expr_ref, minus_one, ctx,
+                                                          p_loc_fn);
+  if (ret != 0) {
+    if (want_resolve)
+      pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, minus_one, loc_fn);
+    return ret;
+  }
+  i = 0;
+  imax = pipeline_typeck_module_num_imports_c(module);
+  nd_scan = pipeline_dep_ctx_ndep(ctx);
+  if (nd_scan > imax)
+    imax = nd_scan;
+  while (i < imax) {
+    struct ast_Module *dm;
+    int32_t dep_fn;
+    int32_t *p_dep_fn;
+
+    dm = pipeline_dep_ctx_module_at(ctx, i);
+    if (!dm) {
+      i = i + 1;
+      continue;
+    }
+    dep_fn = 0;
+    p_dep_fn = 0;
+    if (want_resolve)
+      p_dep_fn = &dep_fn;
+    ret = pipeline_typeck_find_func_return_type_in_module_c(dm, arena, arena, arena, callee_expr_ref, i, ctx, p_dep_fn);
+    if (ret != 0) {
+      if (want_resolve)
+        pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, i, dep_fn);
+      return ret;
+    }
+    if (i < module->num_imports && pipeline_module_import_kind_at(module, i) == GLUE_TYPECK_IMPORT_SELECT &&
+        callee_ord == 3) {
+      int32_t cv_len;
+
+      cv_len = pipeline_expr_var_name_len(arena, callee_expr_ref);
+      if (cv_len > 0) {
+        uint8_t cv_nm[128];
+        int32_t k;
+        int32_t sel_cnt;
+
+        pipeline_expr_var_name_into(arena, callee_expr_ref, cv_nm);
+        k = 0;
+        sel_cnt = pipeline_module_import_select_count_at(module, i);
+        while (k < sel_cnt) {
+          if (pipeline_typeck_import_select_name_equal_impl(module, i, k, cv_nm, cv_len)) {
+            int32_t sel_fn = 0;
+            int32_t *p_sel_fn = 0;
+
+            if (want_resolve)
+              p_sel_fn = &sel_fn;
+            ret = pipeline_typeck_find_func_return_type_in_module_by_name_c(dm, arena, cv_nm, cv_len, i, ctx, p_sel_fn);
+            if (ret != 0) {
+              if (want_resolve)
+                pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, i, sel_fn);
+              return ret;
+            }
+            break;
+          }
+          k = k + 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}

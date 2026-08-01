@@ -55,6 +55,11 @@ int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *mo
                                                            int32_t site_expr_ref, int32_t left_ref, int32_t right_ref,
                                                            struct ast_PipelineDepCtx *ctx);
 
+/* wave1156 G.7: extern fwd decls for diag fmt cluster migrated to this
+ * file's EOF. Callsites at lines 265-336 precede the EOF definitions. */
+int32_t pipeline_typeck_diag_fmt_type_into_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out, int32_t cap);
+int32_t pipeline_typeck_diag_fmt_type_or_question_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out);
+
 int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                             int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   int32_t expr_kind;
@@ -382,5 +387,207 @@ static int32_t pipeline_typeck_module_num_imports_c(struct ast_Module *module) {
   if (n_imp > 0)
     return n_imp;
   return module->num_imports;
+}
+
+/* ============================================================
+ * wave1156 G.7: typeck diag fmt cluster (5 fns)
+ * (migrated from pipeline_glue.c L7420-7579).
+ *
+ * Why here: pipeline_typeck_diag_fmt_type_at_c / _into_c /
+ * _or_question_c format type_ref as readable ASCII for mismatch
+ * diagnostics. The primary consumer is pipeline_typeck_check_expr_assign_c
+ * (this file, lines 265-336 — 8 callsites for fmt_type_into /
+ * fmt_type_or_question in assign mismatch diag paths). The glue.c
+ * callsite at L8142 (check_expr_return return-type mismatch diag)
+ * is the only other consumer — extern fwd decl added in glue.c.
+ *
+ * Cluster (5 fns, ~145 LOC):
+ *   - pipeline_typeck_diag_append_lit_c (14 LOC; pure buffer copy)
+ *   - pipeline_typeck_diag_append_u32_dec_c (28 LOC; u32 decimal)
+ *   - pipeline_typeck_diag_fmt_type_at_c (92 LOC; type_ref → ASCII)
+ *   - pipeline_typeck_diag_fmt_type_into_c (2 LOC; wrapper)
+ *   - pipeline_typeck_diag_fmt_type_or_question_c (7 LOC; wrapper)
+ *
+ * Dependencies (all extern/header-declared):
+ *   - pipeline_type_kind_ord_at / pipeline_type_named_name_into /
+ *     pipeline_type_elem_ref_at / pipeline_type_array_size_at /
+ *     pipeline_type_region_label_len_at / pipeline_type_region_label_into
+ *     (all extern, header-declared)
+ *   - ast_ref_is_null / ast_TypeKind_* (global enum)
+ *   - intra-cluster calls (append_lit / append_u32_dec / fmt_type_at /
+ *     fmt_type_into — same cluster, direct call)
+ *
+ * Visibility:
+ *   - assign.c callsites at lines 265-336 PRECEDE the EOF definitions →
+ *     extern fwd decls added at top of assign.c (lines 33-38 below).
+ *   - glue.c callsite at L8142 PRECEDES assign.c #include at L8265 →
+ *     extern fwd decl added in glue.c before L8142.
+ *
+ * PLATFORM: SHARED — pure type-formatting; no platform ABI dep.
+ * ============================================================ */
+
+/**
+ * Diagnostic buffer append literal (matches typeck.x::typeck_diag_append_lit).
+ */
+int32_t pipeline_typeck_diag_append_lit_c(uint8_t *out, int32_t pos, int32_t cap, uint8_t *lit, int32_t lit_len) {
+  int32_t p;
+  int32_t i;
+
+  p = pos;
+  i = 0;
+  while (i < lit_len && p >= 0 && p < cap) {
+    out[p] = lit[i];
+    p = p + 1;
+    i = i + 1;
+  }
+  return p;
+}
+
+/**
+ * Diagnostic buffer append decimal u32 (matches typeck.x::typeck_diag_append_u32_dec).
+ */
+int32_t pipeline_typeck_diag_append_u32_dec_c(uint8_t *out, int32_t pos, int32_t cap, int32_t v) {
+  int32_t p;
+  int32_t cnt;
+  int32_t tc;
+  int32_t k;
+  int32_t tm;
+  int32_t d;
+  uint8_t zd[1];
+
+  p = pos;
+  if (v < 0 || p < 0 || p >= cap)
+    return p;
+  if (v == 0) {
+    zd[0] = (uint8_t)'0';
+    return pipeline_typeck_diag_append_lit_c(out, p, cap, zd, 1);
+  }
+  cnt = 0;
+  tc = v;
+  while (tc > 0) {
+    cnt = cnt + 1;
+    tc = tc / 10;
+  }
+  k = cnt - 1;
+  tm = v;
+  while (tm > 0) {
+    d = tm % 10;
+    tm = tm / 10;
+    if ((pos + k) < 0 || (pos + k) >= cap)
+      return p;
+    out[pos + k] = (uint8_t)(d + 48);
+    k = k - 1;
+  }
+  return pos + cnt;
+}
+
+/**
+ * typeck.x::typeck_diag_fmt_type_at C delegate: format type ref as readable ASCII (no NUL written).
+ */
+int32_t pipeline_typeck_diag_fmt_type_at_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out, int32_t cur,
+                                           int32_t cap) {
+  static const uint8_t qmk[1] = { 63 };
+  static const uint8_t lit_i32[3] = { 105, 51, 50 };
+  static const uint8_t lit_bool[4] = { 98, 111, 111, 108 };
+  static const uint8_t lit_u8[2] = { 117, 56 };
+  static const uint8_t lit_u32[3] = { 117, 51, 50 };
+  static const uint8_t lit_u64[3] = { 117, 54, 52 };
+  static const uint8_t lit_i64[3] = { 105, 54, 52 };
+  static const uint8_t lit_usize[5] = { 117, 115, 105, 122, 101 };
+  static const uint8_t lit_isize[5] = { 105, 115, 105, 122, 101 };
+  static const uint8_t lit_f32[3] = { 102, 51, 50 };
+  static const uint8_t lit_f64[3] = { 102, 54, 52 };
+  static const uint8_t star[1] = { 42 };
+  static const uint8_t lbk[1] = { 91 };
+  static const uint8_t rbk[1] = { 93 };
+  static const uint8_t slo[2] = { 91, 93 };
+  int32_t kind;
+  int32_t nlen;
+  uint8_t nm[128];
+  int32_t elem_ref;
+  int32_t asz;
+  int32_t nex;
+  int32_t p0;
+  int32_t p1;
+  int32_t p2;
+
+  if (cur < 0 || cap <= 0 || cur >= cap)
+    return cur;
+  if (ast_ref_is_null(ref) || ref <= 0 || !arena || ref > arena->num_types)
+    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)qmk, 1);
+  kind = pipeline_type_kind_ord_at(arena, ref);
+  if (kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
+    nlen = pipeline_type_named_name_into(arena, ref, nm);
+    if (nlen > 0)
+      return pipeline_typeck_diag_append_lit_c(out, cur, cap, nm, nlen);
+  }
+  if (kind == (int32_t)ast_TypeKind_TYPE_I32)
+    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_i32, 3);
+  if (kind == (int32_t)ast_TypeKind_TYPE_BOOL)
+    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_bool, 4);
+  if (kind == (int32_t)ast_TypeKind_TYPE_U8)
+    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_u8, 2);
+  if (kind == (int32_t)ast_TypeKind_TYPE_U32)
+    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_u32, 3);
+  if (kind == (int32_t)ast_TypeKind_TYPE_U64)
+    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_u64, 3);
+  if (kind == (int32_t)ast_TypeKind_TYPE_I64)
+    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_i64, 3);
+  if (kind == (int32_t)ast_TypeKind_TYPE_USIZE)
+    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_usize, 5);
+  if (kind == (int32_t)ast_TypeKind_TYPE_ISIZE)
+    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_isize, 5);
+  if (kind == (int32_t)ast_TypeKind_TYPE_F32)
+    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_f32, 3);
+  if (kind == (int32_t)ast_TypeKind_TYPE_F64)
+    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lit_f64, 3);
+  if (kind == (int32_t)ast_TypeKind_TYPE_VOID)
+    return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)qmk, 1);
+  if (kind == (int32_t)ast_TypeKind_TYPE_PTR) {
+    elem_ref = pipeline_type_elem_ref_at(arena, ref);
+    nex = pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)star, 1);
+    return pipeline_typeck_diag_fmt_type_at_c(arena, elem_ref, out, nex, cap);
+  }
+  if (kind == (int32_t)ast_TypeKind_TYPE_SLICE) {
+    static const uint8_t lt_ch[1] = { 60 };
+    static const uint8_t gt_ch[1] = { 62 };
+    int32_t rlen;
+    uint8_t rbuf[128];
+    elem_ref = pipeline_type_elem_ref_at(arena, ref);
+    nex = pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)slo, 2);
+    nex = pipeline_typeck_diag_fmt_type_at_c(arena, elem_ref, out, nex, cap);
+    rlen = pipeline_type_region_label_len_at(arena, ref);
+    if (rlen > 0 && pipeline_type_region_label_into(arena, ref, rbuf) == rlen) {
+      p0 = pipeline_typeck_diag_append_lit_c(out, nex, cap, (uint8_t *)lt_ch, 1);
+      p1 = pipeline_typeck_diag_append_lit_c(out, p0, cap, rbuf, rlen);
+      return pipeline_typeck_diag_append_lit_c(out, p1, cap, (uint8_t *)gt_ch, 1);
+    }
+    return nex;
+  }
+  if (kind == (int32_t)ast_TypeKind_TYPE_ARRAY) {
+    elem_ref = pipeline_type_elem_ref_at(arena, ref);
+    asz = pipeline_type_array_size_at(arena, ref);
+    if (!ast_ref_is_null(elem_ref) && asz > 0) {
+      p0 = pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)lbk, 1);
+      p1 = pipeline_typeck_diag_append_u32_dec_c(out, p0, cap, asz);
+      p2 = pipeline_typeck_diag_append_lit_c(out, p1, cap, (uint8_t *)rbk, 1);
+      return pipeline_typeck_diag_fmt_type_at_c(arena, elem_ref, out, p2, cap);
+    }
+  }
+  return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)qmk, 1);
+}
+
+/** typeck.x::typeck_diag_fmt_type_into C delegate. */
+int32_t pipeline_typeck_diag_fmt_type_into_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out, int32_t cap) {
+  return pipeline_typeck_diag_fmt_type_at_c(arena, ref, out, 0, cap);
+}
+
+/** typeck.x::typeck_diag_fmt_type_or_question C delegate. */
+int32_t pipeline_typeck_diag_fmt_type_or_question_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out) {
+  static const uint8_t qmk[1] = { 63 };
+
+  if (ast_ref_is_null(ref) || ref <= 0 || !arena || ref > arena->num_types)
+    return pipeline_typeck_diag_append_lit_c(out, 0, 96, (uint8_t *)qmk, 1);
+  return pipeline_typeck_diag_fmt_type_into_c(arena, ref, out, 96);
 }
 
