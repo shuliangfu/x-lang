@@ -1769,86 +1769,10 @@ static int32_t glue_emit_index_add_index_to_base_rax_elf_c(struct ast_ASTArena *
                                                             int32_t ta, int32_t esz);
 static int32_t glue_emit_index_rax_plus_rbx_scaled_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t esz,
                                                           int32_t ta);
-static int32_t glue_try_index_var_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                int32_t base_ref, int32_t idx_ref,
-                                                                struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                int32_t esz);
-static int32_t glue_try_index_var_mul_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                int32_t base_ref, int32_t idx_ref,
-                                                                struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                int32_t esz);
-static int32_t glue_try_index_var_plus_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                 struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                 int32_t base_ref, int32_t idx_ref,
-                                                                 struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                 int32_t esz);
-static int32_t glue_try_index_var_minus_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                  int32_t base_ref, int32_t idx_ref,
-                                                                  struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                  int32_t esz);
-static int32_t glue_try_index_var_plus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                 struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                 int32_t base_ref, int32_t idx_ref,
-                                                                 struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                 int32_t esz);
-static int32_t glue_try_index_var_minus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                  int32_t base_ref, int32_t idx_ref,
-                                                                  struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                  int32_t esz);
-static int32_t glue_try_index_var_plus_var_plus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                          int32_t base_ref, int32_t idx_ref,
-                                                                          struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                          int32_t esz);
-static int32_t glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                         int32_t base_ref, int32_t idx_ref,
-                                                                         struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                         int32_t esz);
-static int32_t glue_try_index_var_add3_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                    int32_t base_ref, int32_t idx_ref,
-                                                                    struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                    int32_t esz);
-static int32_t glue_try_index_var_minus_var_plus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                           int32_t base_ref, int32_t idx_ref,
-                                                                           struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                           int32_t esz);
-static int32_t glue_try_index_var_minus_var_minus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                            int32_t base_ref, int32_t idx_ref,
-                                                                            struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                            int32_t esz);
-static int32_t glue_try_index_var_minus_add3_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                 struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                 int32_t base_ref, int32_t idx_ref,
-                                                                 struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                 int32_t esz);
-static int32_t glue_try_index_var_minus_var_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                          int32_t base_ref, int32_t idx_ref,
-                                                                          struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                          int32_t esz);
-static int32_t glue_try_index_var_subadd3_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                       int32_t base_ref, int32_t idx_ref,
-                                                                       struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                       int32_t esz);
-static int32_t glue_try_index_var_subsub3_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                        struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                        int32_t base_ref, int32_t idx_ref,
-                                                                        struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                        int32_t esz);
-static int32_t glue_try_index_var_minus_add3_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
-                                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                           int32_t base_ref, int32_t idx_ref,
-                                                                           struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                           int32_t esz);
+/* wave1037: 16 glue_try_index_var_* fwd declarations removed (G.7 same-leaf fold).
+ * Definitions live in pipeline_asm_emit_index_helpers.c (included at line ~2352,
+ * before all consuming leaves: assign/array_lit/index/index_eff_addr/call_args/
+ * field_access/block_inits). glue.c has no direct call sites — fwd was redundant. */
 
 /**
  * 压入嵌套循环 break/continue 标签栈；与 backend.x ctx_push_loop_labels 一致。
