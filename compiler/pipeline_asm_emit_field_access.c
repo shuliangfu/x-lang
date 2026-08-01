@@ -700,7 +700,11 @@ static int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *ar
  * ======================================================================== */
 
 /* wave1026: forward decls for helpers defined later in this TU (after
- * field_access.c #include at glue:2847). Needed by layout/offset helpers. */
+ * field_access.c #include at glue:2847). Needed by layout/offset helpers.
+ * wave1050: glue_struct_layout_field_offset_by_name_c migrated here (definition
+ * at EOF below); forward decl retained for callsites at L811/L832/L866/L884
+ * (all in this leaf, before the definition). glue.c has zero self-callsites —
+ * pure leaf consumed only by field_access.c. */
 static int32_t glue_struct_layout_field_offset_by_name_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                           int32_t li, uint8_t *name, int32_t nlen);
 static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name,
@@ -1080,4 +1084,61 @@ int32_t pipeline_expr_field_access_load_byte_sz(struct ast_ASTArena *a, struct a
   if (flen == 7 && memcmp(field_name, nm_is_none, 7) == 0)
     return 1;
   return 8;
+}
+
+/* wave1050 G.7 fold: glue_struct_layout_field_offset_by_name_c migrated here
+ * from pipeline_glue.c (definition was at glue.c:3698). Same-TU #include at
+ * glue.c:2419 makes the forward decl at L708 above visible to all 4 callsites
+ * in this leaf (L811/L832/L866/L884 — all before this definition). glue.c has
+ * zero self-callsites — pure leaf consumed only by field_access.c.
+ *
+ * glue_struct_layout_compute_field_offset_c (called by the body) is defined
+ * in pipeline_asm_emit_struct_lit.c (wave1044 fold; struct_lit.c #include at
+ * glue.c:2095 < field_access.c #include at glue.c:2419, so visible here). */
+
+/**
+ * Look up a struct field's dynamic byte offset by field name within a layout.
+ *
+ * Why: §11.1 struct layout registry — the authoritative name→offset lookup
+ * consumed by field_access effective offset (4 callsites above: L811 single-
+ * layout fallback; L832 named-layout; L866 single-layout fallback return;
+ * L884 named-layout). Walks layout li fields comparing names byte-by-byte;
+ * on match returns the cumulative offset computed by
+ * glue_struct_layout_compute_field_offset_c (handles packed / aligned /
+ * mixed-size fields). Returns -1 on any miss so callers fall back to the
+ * fast-path offset table or default 8-byte stride.
+ *
+ * Invariant: returns -1 for invalid module/arena/li/name or flen<=0; returns
+ * -1 when no field name matches; otherwise returns the cumulative byte offset
+ * of the matched field within layout li.
+ *
+ * Asm/Perf: O(nf * flen) — linear scan over fields with byte-by-byte name
+ * comparison. Bounded by struct field count (typically small).
+ *
+ * PLATFORM: SHARED — pure layout registry query; arch-agnostic.
+ */
+static int32_t glue_struct_layout_field_offset_by_name_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t li,
+                                                         uint8_t *field_name, int32_t flen) {
+  int32_t j;
+  if (!m || !a || li < 0 || !field_name || flen <= 0)
+    return -1;
+  for (j = 0; j < pipeline_module_struct_layout_num_fields(m, li); j++) {
+    int32_t fnlen = pipeline_module_struct_layout_field_name_len(m, li, j);
+    int32_t feq = 1;
+    int32_t fi;
+    if (fnlen != flen)
+      continue;
+    for (fi = 0; fi < fnlen; fi++) {
+      uint8_t fb[128];
+      pipeline_module_struct_layout_field_name_into(m, li, j, fb);
+      if (fb[fi] != field_name[fi]) {
+        feq = 0;
+        break;
+      }
+    }
+    if (!feq)
+      continue;
+    return glue_struct_layout_compute_field_offset_c(m, a, li, j);
+  }
+  return -1;
 }

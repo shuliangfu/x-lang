@@ -3692,38 +3692,12 @@ static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct
   }
 }
 
-/**
- * 在 layout li 中按字段名查动态偏移；未命中返回 -1。
- */
-static int32_t glue_struct_layout_field_offset_by_name_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t li,
-                                                         uint8_t *field_name, int32_t flen) {
-  int32_t j;
-  if (!m || !a || li < 0 || !field_name || flen <= 0)
-    return -1;
-  for (j = 0; j < pipeline_module_struct_layout_num_fields(m, li); j++) {
-    int32_t fnlen = pipeline_module_struct_layout_field_name_len(m, li, j);
-    int32_t feq = 1;
-    int32_t fi;
-    if (fnlen != flen)
-      continue;
-    for (fi = 0; fi < fnlen; fi++) {
-      uint8_t fb[128];
-      pipeline_module_struct_layout_field_name_into(m, li, j, fb);
-      if (fb[fi] != field_name[fi]) {
-        feq = 0;
-        break;
-      }
-    }
-    if (!feq)
-      continue;
-    return glue_struct_layout_compute_field_offset_c(m, a, li, j);
-  }
-  return -1;
-}
+/* wave1050 G.7: glue_struct_layout_field_offset_by_name_c migrated to
+ * pipeline_asm_emit_field_access.c (definition at EOF; field_access.c:708 fwd
+ * decl retained for callsites at L811/L832/L866/L884 — all in field_access.c,
+ * before the definition). glue.c has zero self-callsites — pure leaf consumed
+ * only by field_access.c. */
 
-/**
- * 按 struct 类型名查 layout 下标；单 layout 入口模块时 layout 名偶发空仍返回 0（DOD-CL-S1 fallback）。
- */
 /* wave1049 G.7: glue_struct_layout_index_by_type_name_c migrated to
  * pipeline_asm_emit_struct_lit.c (definition at EOF; struct_lit.c:59 fwd
  * decl retained for struct_lit.c:162 callsite. field_access.c:706 fwd decl
@@ -3732,8 +3706,9 @@ static int32_t glue_struct_layout_field_offset_by_name_c(struct ast_Module *m, s
  * has zero self-callsites — pure leaf consumed by struct_lit + field_access. */
 
 /**
- * 在 layout_idx 上为下一字段（类型 new_field_type_ref）计算 §11.1 对齐后的字节偏移；
- * field_align_req 为 align(N) 指定的最小对齐（0 表示仅类型对齐）。
+ * Compute the §11.1-aligned byte offset for the next field (of type
+ * new_field_type_ref) on layout_idx; field_align_req is the minimum
+ * alignment specified by align(N) (0 means type alignment only).
  */
 int32_t pipeline_struct_layout_next_field_offset_ex(struct ast_Module *m, struct ast_ASTArena *a, int32_t layout_idx,
                                                     int32_t new_field_type_ref, int32_t field_align_req) {
