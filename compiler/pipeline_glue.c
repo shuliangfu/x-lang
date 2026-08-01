@@ -13753,16 +13753,11 @@ static int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena,
   return -1;
 }
 
-/**
- * C/skip-heavy callee 的 16B struct 返回：rax 为指向 struct 的指针，载入 rax/rdx。
- */
-int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta) != 0)
-    return -1;
-  return backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx, ta);
-}
+/* wave1060 G.7: pipeline_asm_deref_struct16_rax_ptr_elf_c migrated to
+ * pipeline_asm_emit_call_args.c EOF (struct16 retval deref domain).
+ * Extern prototype at L1493 < call_args.c #include L2395 visible.
+ * struct_let.c:75 #define alias retained (glue_ name -> pipeline_asm_).
+ * Dependencies: backend_enc_*_arch (global extern). */
 
 /**
  * CALL 返回 16B struct 是否经 rax 指针（C lowering）而非 rax/rdx 按值。

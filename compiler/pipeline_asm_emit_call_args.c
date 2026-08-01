@@ -1995,3 +1995,39 @@ static int32_t glue_func_param_is_f64_c(struct ast_ASTArena *arena, struct ast_M
     return 0;
   return pipeline_type_kind_ord_at(arena, pty) == GLUE_TYPE_KIND_F64_ORD ? 1 : 0;
 }
+
+/**
+ * Dereference rax as a struct16 pointer and load dual-GP (rax+rdx).
+ *
+ * Why: C/skip-heavy callees return 16B structs via a hidden pointer in rax
+ * (C lowering sret convention). Before storing the result into a let slot,
+ * the pointer must be dereferenced: mov rax->rbx (pointer), then load
+ * [rbx]->rax (low half) and [rbx+8]->rdx (high half). Called by
+ * glue_store_retval_pair_to_rbp_elf_c (wave1058, call_args.c) and
+ * glue_load_var_as_value_to_rax_rdx_elf_c (call_args.c) when
+ * glue_call_struct16_ret_needs_rax_deref_c returns 1.
+ *
+ * Invariant: returns 0 on success, -1 on backend_enc failure. ta selects
+ * target arch (0=x86_64, 1=arm64).
+ *
+ * Asm/Perf: O(1) — 3 backend_enc instructions. Cold path — called per
+ * struct16 CALL retval when C/skip-heavy callee is detected.
+ *
+ * PLATFORM: SHARED freestanding emit — LINUX+MACOS x86_64 rax+rdx /
+ * MACOS|ARM64 x0+x1 (ta arch select).
+ *
+ * wave1060 G.7: migrated from glue.c:13759 (body 7 LOC). Extern (non-static):
+ * extern prototype at glue.c:1493 < call_args.c #include L2395 visible.
+ * struct_let.c:75 #define alias
+ * (glue_deref_struct16_rax_ptr_elf_c -> pipeline_asm_deref_struct16_rax_ptr_elf_c)
+ * retained — call_args.c callsites use glue_ name, #define routes to this
+ * definition. struct_let.c:73 dead static fwd decl retained (harmless,
+ * cleanup deferred). Dependencies: backend_enc_*_arch (global extern).
+ */
+int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  return backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx, ta);
+}
