@@ -4735,95 +4735,16 @@ static int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct pla
   return 0;
 }
 
-/** MEM-C1：with_arena emit 栈深度与当前 scope 内栈上 Arena64 偏移（供 default_alloc 内联）。 */
-#define GLUE_WA_SCOPE_STACK_MAX 16
-static int32_t g_glue_wa_scope_off_stack[GLUE_WA_SCOPE_STACK_MAX];
-static int32_t g_glue_wa_scope_n;
-static int32_t g_glue_wa_temp_base;
-static int32_t g_glue_wa_temp_next;
-static int32_t g_glue_wa_func_body_ref;
+/* wave1030 G.7: GLUE_WA_SCOPE_STACK_MAX + g_glue_wa_* globals +
+ * glue_with_arena_scope_active_c + glue_with_arena_scope_top_off_c +
+ * glue_wa_emit_begin_func_c + glue_wa_scope_alloc_off_c +
+ * glue_wa_scope_push_c + glue_wa_scope_pop_c +
+ * glue_emit_with_arena_init_elf + glue_emit_with_arena_deinit_elf
+ * folded into pipeline_asm_emit_with_arena.c (same TU #include; no new DEPS).
+ * Chinese docblocks converted to English per G.9. block_body.c #included
+ * after this site consumes all wa helpers; no forward decls needed. */
+#include "pipeline_asm_emit_with_arena.c"
 
-/** 当前是否在 with_arena scope 内（backend_try_inline default_alloc 用）。 */
-int32_t glue_with_arena_scope_active_c(void) {
-  return g_glue_wa_scope_n > 0 ? 1 : 0;
-}
-
-/** 栈顶 with_arena 临时 Arena64 的 rbp 负偏移；无 scope 时返回 0。 */
-int32_t glue_with_arena_scope_top_off_c(void) {
-  return g_glue_wa_scope_n > 0 ? g_glue_wa_scope_off_stack[g_glue_wa_scope_n - 1] : 0;
-}
-
-/** 函数体 emit 入口：重置 wa 临时区游标（须在 fill_block_locals_tree 之后调用）。 */
-static void glue_wa_emit_begin_func_c(struct backend_AsmFuncCtx *ctx, struct ast_ASTArena *arena, int32_t body_ref) {
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  g_glue_wa_scope_n = 0;
-  g_glue_wa_temp_next = 0;
-  g_glue_wa_func_body_ref = body_ref;
-  /**
-   * Arena64 栈槽在全部 let 之后：next_offset 为上一局部 slot_off（= lea 基址），
-   * 须 +24 再作 wa 起点，避免与 Vec_u8 等 struct 的 [fp-(off+sz),fp-off) 重叠。
-   */
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (!ly)
-    return;
-  g_glue_wa_temp_base = ly->next_offset + asm_sum_block_array_temp_bytes(arena, body_ref) + 24;
-}
-
-/** 为本 with_arena 块分配栈上 Arena64 槽偏移（24B 步进，8 对齐；须在所有块内 let 之后）。 */
-static int32_t glue_wa_scope_alloc_off_c(struct backend_AsmFuncCtx *ctx) {
-  int32_t off = g_glue_wa_temp_base + g_glue_wa_temp_next;
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  g_glue_wa_temp_next += 24;
-  if (g_glue_wa_temp_next % 8 != 0)
-    g_glue_wa_temp_next += 8 - (g_glue_wa_temp_next % 8);
-  /** 与 compute_frame_size 一致：游标越过 wa 区，避免后续 fill 与 Arena64 重叠。 */
-  if (ctx) {
-    int32_t end = off + 24;
-    if (end % 8 != 0)
-      end += 8 - (end % 8);
-    ly = pipeline_asm_ctx_layout(ctx);
-    if (ly && end > ly->next_offset)
-      ly->next_offset = end;
-  }
-  return off;
-}
-
-static void glue_wa_scope_push_c(int32_t wa_off) {
-  if (g_glue_wa_scope_n >= GLUE_WA_SCOPE_STACK_MAX)
-    return;
-  g_glue_wa_scope_off_stack[g_glue_wa_scope_n++] = wa_off;
-}
-
-static void glue_wa_scope_pop_c(void) {
-  if (g_glue_wa_scope_n > 0)
-    g_glue_wa_scope_n--;
-}
-
-/** heap_arena_init_c(a, cap)：a=rbp+wa_off，cap 由 cap_ref 表达式求值。 */
-static int32_t glue_emit_with_arena_init_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                             struct backend_AsmFuncCtx *ctx, int32_t wa_off, int32_t cap_ref,
-                                             int32_t ta) {
-  static const uint8_t init_sym[] = "heap_arena_init_c";
-  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, wa_off, ta) != 0)
-    return -1;
-  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
-    return -1;
-  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, cap_ref, ctx, ta) != 0)
-    return -1;
-  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
-    return -1;
-  return backend_enc_call_arch(elf_ctx, (uint8_t *)init_sym, (int32_t)(sizeof(init_sym) - 1), ta);
-}
-
-/** heap_arena64_deinit_c(a)：释放 with_arena 栈上 Arena64 chunk。 */
-static int32_t glue_emit_with_arena_deinit_elf(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t wa_off, int32_t ta) {
-  static const uint8_t deinit_sym[] = "heap_arena64_deinit_c";
-  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, wa_off, ta) != 0)
-    return -1;
-  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
-    return -1;
-  return backend_enc_call_arch(elf_ctx, (uint8_t *)deinit_sym, (int32_t)(sizeof(deinit_sym) - 1), ta);
-}
 
 /* BC 8.3.1: asm ELF block body sync emit domain (defer + body_sync + accessors; same TU). */
 #include "pipeline_asm_emit_block_body.c"
