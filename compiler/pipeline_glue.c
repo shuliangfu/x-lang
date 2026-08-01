@@ -2122,9 +2122,11 @@ int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
 /* Forward: dual-GP / named layout used by STRUCT_LIT field store (defs later). */
 static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref);
-/* wave369: ZST store_sz — defs with layout metrics later in this file. */
-static int32_t glue_type_is_empty_struct_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
-                                          int32_t depth);
+/* wave1032 G.7: glue_type_is_empty_struct_c folded into
+ * pipeline_asm_emit_struct_lit.c (same TU #include at L2160; no new DEPS).
+ * Chinese docblock converted to English per G.9. struct_lit.c is the sole
+ * in-TU leaf consumer; residual glue.c callers (layout metrics / call
+ * return size) are after the #include site — no forward decl needed. */
 static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 /* wave349/350: STRUCT_LIT fixed TYPE_ARRAY field inline store (def after vector_let_init). */
 static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
@@ -2152,6 +2154,9 @@ static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
                                                     struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                     int32_t let_ty_ref, int32_t stack_slot_off);
 void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t shift);
+
+/* GLUE_TYPE_NAMED (TYPE_NAMED kind ord) — used by struct_lit leaf + call_args leaf + later glue residual. */
+#define GLUE_TYPE_NAMED 8
 
 /* BC 8.3.1: asm ELF STRUCT_LIT emit domain
  * (field_store_sz + public wrapper + DEST_IN_RBX/rehome + fields + struct_lit_elf;
@@ -2448,9 +2453,6 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
 /* wave1020: expr_rec leaf (lit_i32 + rec + fast + emit_expr_elf_c) include
  * moved to after field_access — see wave1020 include below. Early forward
  * decls for rec/fast/lit_i32 remain above for index_helpers / array_lit. */
-
-/* GLUE_TYPE_NAMED (TYPE_NAMED kind ord) — used by call_args leaf + later glue residual. */
-#define GLUE_TYPE_NAMED 8
 
 /** 与 typeck.x typeck_x_type_size 一致（前向声明，定义见本文件后部）。 */
 static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
@@ -2854,55 +2856,6 @@ extern void driver_diagnostic_typeck_struct_field_bad_size(uint8_t *sname, int32
 
 static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
-
-/**
- * wave366/368: TYPE_NAMED ZST — layout nf==0, or every field is itself empty ZST.
- * Mirrors typeck.x typeck_type_is_empty_struct — G.7 twin in glue metrics path.
- * PLATFORM: SHARED — host sizeof Empty / NestEmpty==0; empty-of-empty must not T001.
- */
-static int32_t glue_type_is_empty_struct_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
-                                          int32_t depth) {
-  uint8_t name[128];
-  int32_t nlen;
-  int32_t k;
-  int32_t j;
-  int32_t nf;
-  int32_t fi;
-  int32_t ftr;
-  if (!module || !arena || ty_ref <= 0 || ty_ref > arena->num_types || depth > 64)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, ty_ref) != GLUE_TYPE_NAMED)
-    return 0;
-  nlen = pipeline_type_named_name_into(arena, ty_ref, name);
-  if (nlen <= 0 || nlen > 127)
-    return 0;
-  for (k = 0; k < (int32_t)module->num_struct_layouts; k++) {
-    int32_t ln = pipeline_module_struct_layout_name_len(module, k);
-    int32_t eq = 1;
-    if (ln != nlen)
-      continue;
-    for (j = 0; j < nlen; j++) {
-      if (pipeline_module_struct_layout_name_byte_at(module, k, j) != name[j]) {
-        eq = 0;
-        break;
-      }
-    }
-    if (!eq)
-      continue;
-    nf = pipeline_module_struct_layout_num_fields(module, k);
-    /* wave366: bare empty struct. */
-    if (nf == 0)
-      return 1;
-    /* wave368: all fields empty ZSTs → empty-of-empty nest is also ZST. */
-    for (fi = 0; fi < nf; fi++) {
-      ftr = pipeline_module_struct_layout_field_type_ref(module, k, fi);
-      if (glue_type_is_empty_struct_c(module, arena, ftr, depth + 1) == 0)
-        return 0;
-    }
-    return 1;
-  }
-  return 0;
-}
 
 /**
  * C 版 struct_layout_metrics：与 typeck.x typeck_struct_layout_metrics 语义一致。

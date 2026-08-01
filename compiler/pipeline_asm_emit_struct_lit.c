@@ -30,13 +30,80 @@
 
 /* Forward decls / callees defined elsewhere in the same TU:
  * - glue_sysv_dual_gp_byte_size_c / glue_type_named_layout_size_any_module_elf_c
- * - glue_type_is_empty_struct_c / glue_type_size_simple
+ * - glue_type_size_simple
  * - glue_struct_lit_store_fixed_array_field_elf_c (pipeline_asm_emit_vector_let.c)
  * - glue_struct_field_frame_mag_c / glue_field_access_effective_offset_c
  * - glue_call_return_byte_size_c / glue_store_retval_pair_to_rbp_elf_c
  * - glue_emit_struct_type_let_init_elf_c / glue_emit_sret_memcpy_rbx_to_home
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / g_pipeline_asm_emit_*
+ *
+ * wave1032 G.7 fold: glue_type_is_empty_struct_c is now defined at the top
+ * of this file (sole in-TU leaf consumer + residual glue.c callers after
+ * this #include site).
  */
+
+/**
+ * Check whether a TYPE_NAMED refers to an empty struct (ZST).
+ *
+ * Why: wave366/368 — TYPE_NAMED ZST has layout nf==0, or every field is
+ * itself an empty ZST (empty-of-empty nest). Mirrors typeck.x
+ * typeck_type_is_empty_struct as the G.7 twin in the glue metrics path.
+ * Used by struct_lit field store_sz to skip 0-byte stores for ZST fields
+ * (prior default 8 stored a temp pointer into mid Nest/Empty and shifted
+ * later field offsets → Ubuntu freestanding nest_mid garbage exit).
+ *
+ * Contract: returns 1 if ty_ref is a TYPE_NAMED whose struct layout has
+ * nf==0 or all fields are themselves empty ZSTs; returns 0 otherwise
+ * (including non-TYPE_NAMED, invalid ref, depth > 64). Recursive on
+ * field type refs with depth+1.
+ *
+ * PLATFORM: SHARED — host sizeof Empty / NestEmpty==0; empty-of-empty
+ * must not trigger T001. Consumed by struct_lit field store_sz (this
+ * file) + residual glue.c layout metrics / call return size paths.
+ */
+static int32_t glue_type_is_empty_struct_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
+                                          int32_t depth) {
+  uint8_t name[128];
+  int32_t nlen;
+  int32_t k;
+  int32_t j;
+  int32_t nf;
+  int32_t fi;
+  int32_t ftr;
+  if (!module || !arena || ty_ref <= 0 || ty_ref > arena->num_types || depth > 64)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, ty_ref) != GLUE_TYPE_NAMED)
+    return 0;
+  nlen = pipeline_type_named_name_into(arena, ty_ref, name);
+  if (nlen <= 0 || nlen > 127)
+    return 0;
+  for (k = 0; k < (int32_t)module->num_struct_layouts; k++) {
+    int32_t ln = pipeline_module_struct_layout_name_len(module, k);
+    int32_t eq = 1;
+    if (ln != nlen)
+      continue;
+    for (j = 0; j < nlen; j++) {
+      if (pipeline_module_struct_layout_name_byte_at(module, k, j) != name[j]) {
+        eq = 0;
+        break;
+      }
+    }
+    if (!eq)
+      continue;
+    nf = pipeline_module_struct_layout_num_fields(module, k);
+    /* wave366: bare empty struct. */
+    if (nf == 0)
+      return 1;
+    /* wave368: all fields empty ZSTs → empty-of-empty nest is also ZST. */
+    for (fi = 0; fi < nf; fi++) {
+      ftr = pipeline_module_struct_layout_field_type_ref(module, k, fi);
+      if (glue_type_is_empty_struct_c(module, arena, ftr, depth + 1) == 0)
+        return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
 
 /**
  * STRUCT_LIT per-field store width (matches glue_field_access_load_bytes_for_type_ref for scalars).
