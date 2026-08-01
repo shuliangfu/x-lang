@@ -13768,77 +13768,20 @@ static int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena,
  * file at L13555); pipeline_module_func_* / pipeline_typeck_* / glue_type_*
  * (same-TU / extern). */
 
-/**
- * CALL emit: callee param type_ref at index, always in *caller* arena.
- * PLATFORM: SHARED — import dep param type_refs live in dep arenas; using them with
- * caller-arena kind_ord is garbage (hides f32/f64 → SysV xmm misclassified as GP).
- * Authority: map via get_dep_return / dep_return_type_to_caller; never return raw dep ref.
- * G.7: single authority for import param types (removes need for std_math_* name gates).
- */
-int32_t pipeline_asm_call_param_type_ref_at_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
-                                              int32_t param_index) {
-  struct ast_Module *mod;
-  int32_t func_ix;
-  int32_t dep_ix;
-  int32_t pty;
-  struct ast_ASTArena *dep_arena;
-  int32_t mapped;
-
-  if (!arena || call_expr_ref <= 0 || param_index < 0)
-    return 0;
-  if (glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &func_ix, &dep_ix) != 0)
-    return 0;
-  if (!mod || func_ix < 0)
-    return 0;
-  pty = pipeline_module_func_param_type_ref_at(mod, func_ix, param_index);
-  if (pty <= 0)
-    return 0;
-
-  /* Entry-module callee: type_ref already in caller/entry arena. */
-  if (mod == g_pipeline_asm_emit_module && dep_ix < 0)
-    return pty;
-
-  /* Dep callee: map into caller arena (primitives f32/f64/i32… + named/ptr/slice). */
-  if (g_pipeline_asm_emit_dep_pipe) {
-    if (dep_ix >= 0) {
-      mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, pty, arena,
-                                                                     g_pipeline_asm_emit_dep_pipe);
-      if (mapped > 0)
-        return mapped;
-      dep_arena = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, dep_ix);
-      if (!dep_arena)
-        dep_arena = pipeline_get_dep_arena_slot(dep_ix);
-      if (dep_arena) {
-        mapped = pipeline_typeck_dep_return_type_to_caller_arena_c(dep_arena, pty, arena);
-        if (mapped > 0)
-          return mapped;
-      }
-    } else if (mod != g_pipeline_asm_emit_module) {
-      /* Resolve found dep module but dep_ix missing: locate arena by module pointer. */
-      int32_t i;
-      int32_t ndep = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
-      for (i = 0; i < ndep; i++) {
-        if (pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, i) != mod)
-          continue;
-        mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(i, pty, arena,
-                                                                       g_pipeline_asm_emit_dep_pipe);
-        if (mapped > 0)
-          return mapped;
-        dep_arena = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, i);
-        if (dep_arena) {
-          mapped = pipeline_typeck_dep_return_type_to_caller_arena_c(dep_arena, pty, arena);
-          if (mapped > 0)
-            return mapped;
-        }
-        break;
-      }
-    }
-    /* Never hand a dep type_ref to caller-arena consumers. */
-    if (mod != g_pipeline_asm_emit_module)
-      return 0;
-  }
-  return pty;
-}
+/* wave1063 G.7: pipeline_asm_call_param_type_ref_at_c migrated to
+ * pipeline_asm_emit_call_args.c EOF (call param type_ref resolve domain,
+ * twin of wave1062 call_return_type_kind_ord). Extern (non-static): seed
+ * extern C link (backend_call_dispatch.x:19 / backend_call_dispatch_thin.x:104);
+ * struct_let.c:98 comment references it (via #include L2269 < call_args.c
+ * L2395). Dependencies: glue_asm_resolve_call_target_module_c (static fwd
+ * decl struct_let.c:78, def still at L13555); pipeline_module_func_param_
+ * type_ref_at (extern L261); pipeline_typeck_get_dep_return_type_in_caller_
+ * arena_c (extern L788); pipeline_dep_ctx_arena_at (extern decl wave1062 in
+ * call_args.c); pipeline_dep_ctx_ndep / pipeline_dep_ctx_module_at /
+ * pipeline_get_dep_arena_slot / pipeline_typeck_dep_return_type_to_caller_
+ * arena_c (extern decls wave1063 in call_args.c; defs at L11661/11663/
+ * 11664/11846 > #include L2395); g_pipeline_asm_emit_module /
+ * g_pipeline_asm_emit_dep_pipe (globals). */
 
 /* wave1062 G.7: pipeline_asm_call_return_type_kind_ord_c migrated to
  * pipeline_asm_emit_call_args.c EOF (call return TypeKind resolve domain,

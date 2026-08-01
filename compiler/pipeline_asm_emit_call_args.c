@@ -2239,3 +2239,123 @@ int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int
   }
   return pipeline_type_kind_ord_at(arena, rty);
 }
+
+/* wave1063: extern decls — defined in glue.c after this leaf's #include (L2395).
+ * Needed for dep-arena param type_ref mapping in
+ * pipeline_asm_call_param_type_ref_at_c below. */
+extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
+extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
+extern struct ast_ASTArena *pipeline_get_dep_arena_slot(int32_t i);
+extern int32_t pipeline_typeck_dep_return_type_to_caller_arena_c(struct ast_ASTArena *dep_arena,
+                                                                int32_t dep_return_type_ref,
+                                                                struct ast_ASTArena *caller_arena);
+
+/**
+ * Resolve a CALL expression's param type_ref at a given index, always in the
+ * *caller* arena.
+ *
+ * Why: after the typeck phase writes resolved dep/func indices onto a CALL
+ * node, the asm emit call-arg packing path must know each formal param's
+ * type to choose the right SysV register class (SSE for f32/f64, GP for
+ * integers/pointers) and the right load width. Dep callee param type_refs
+ * live in dep arenas — handing them to caller-arena kind_ord consumers is
+ * garbage (hides f32/f64 → SysV xmm misclassified as GP → callee reads
+ * xmm0 as rax, returns NaN/garbage). G.7 single mapping authority: map
+ * via pipeline_typeck_get_dep_return_type_in_caller_arena_c (fast path) or
+ * pipeline_typeck_dep_return_type_to_caller_arena_c (slow path); never
+ * return a raw dep type_ref.
+ *
+ * Invariant: returns a caller-arena type_ref (>0) on success, 0 on resolve
+ * failure or unmappable dep type. Entry-module callee (mod == current
+ * emit module, dep_ix < 0) returns the raw type_ref (already in caller
+ * arena). When dep_ix is missing but callee module is a dep, scans the dep
+ * ctx by module pointer to recover the arena (legacy resolve path).
+ *
+ * Asm/Perf: O(1) typical; O(ndep) worst-case when recovering arena by
+ * module pointer scan (rare; legacy resolve path). Cold path — called per
+ * CALL formal param in backend_call_dispatch.x:2248 (seed extern) for
+ * SysV register class selection + arg packing.
+ *
+ * PLATFORM: SHARED — LINUX+MACOS x86_64 SysV SSE/GP param classification
+ * + MACOS|ARM64 AAPCS64 (type_ref only selects param homing; arch select
+ * is at the backend_enc call site, not here).
+ *
+ * wave1063 G.7: migrated from glue.c:13777 (body ~64 LOC). Extern
+ * (non-static): extern prototype at backend_call_dispatch.x:19 +
+ * backend_call_dispatch_thin.x:104 (seed extern C link); struct_let.c:98
+ * comment references it (via #include L2269 < call_args.c L2395).
+ * Dependencies: glue_asm_resolve_call_target_module_c (static fwd decl
+ * struct_let.c:78, def still at glue.c:13555);
+ * pipeline_module_func_param_type_ref_at (extern glue.c:261 < 2395);
+ * pipeline_typeck_get_dep_return_type_in_caller_arena_c (extern glue.c:788
+ * < 2395); pipeline_dep_ctx_arena_at (extern decl wave1062 above);
+ * pipeline_dep_ctx_ndep / pipeline_dep_ctx_module_at /
+ * pipeline_get_dep_arena_slot / pipeline_typeck_dep_return_type_to_caller_
+ * arena_c (extern decls just above — defs at glue.c:11661/11663/11664/
+ * 11846 > #include L2395); g_pipeline_asm_emit_module /
+ * g_pipeline_asm_emit_dep_pipe (globals).
+ */
+int32_t pipeline_asm_call_param_type_ref_at_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
+                                              int32_t param_index) {
+  struct ast_Module *mod;
+  int32_t func_ix;
+  int32_t dep_ix;
+  int32_t pty;
+  struct ast_ASTArena *dep_arena;
+  int32_t mapped;
+
+  if (!arena || call_expr_ref <= 0 || param_index < 0)
+    return 0;
+  if (glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &func_ix, &dep_ix) != 0)
+    return 0;
+  if (!mod || func_ix < 0)
+    return 0;
+  pty = pipeline_module_func_param_type_ref_at(mod, func_ix, param_index);
+  if (pty <= 0)
+    return 0;
+
+  /* Entry-module callee: type_ref already in caller/entry arena. */
+  if (mod == g_pipeline_asm_emit_module && dep_ix < 0)
+    return pty;
+
+  /* Dep callee: map into caller arena (primitives f32/f64/i32… + named/ptr/slice). */
+  if (g_pipeline_asm_emit_dep_pipe) {
+    if (dep_ix >= 0) {
+      mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, pty, arena,
+                                                                     g_pipeline_asm_emit_dep_pipe);
+      if (mapped > 0)
+        return mapped;
+      dep_arena = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, dep_ix);
+      if (!dep_arena)
+        dep_arena = pipeline_get_dep_arena_slot(dep_ix);
+      if (dep_arena) {
+        mapped = pipeline_typeck_dep_return_type_to_caller_arena_c(dep_arena, pty, arena);
+        if (mapped > 0)
+          return mapped;
+      }
+    } else if (mod != g_pipeline_asm_emit_module) {
+      /* Resolve found dep module but dep_ix missing: locate arena by module pointer. */
+      int32_t i;
+      int32_t ndep = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
+      for (i = 0; i < ndep; i++) {
+        if (pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, i) != mod)
+          continue;
+        mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(i, pty, arena,
+                                                                       g_pipeline_asm_emit_dep_pipe);
+        if (mapped > 0)
+          return mapped;
+        dep_arena = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, i);
+        if (dep_arena) {
+          mapped = pipeline_typeck_dep_return_type_to_caller_arena_c(dep_arena, pty, arena);
+          if (mapped > 0)
+            return mapped;
+        }
+        break;
+      }
+    }
+    /* Never hand a dep type_ref to caller-arena consumers. */
+    if (mod != g_pipeline_asm_emit_module)
+      return 0;
+  }
+  return pty;
+}
