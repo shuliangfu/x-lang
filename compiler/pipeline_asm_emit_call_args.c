@@ -1809,3 +1809,117 @@ static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t
   }
   return 0;
 }
+
+/**
+ * Store CALL/expr result into a let stack slot (rax half first; 9-16B
+ * struct adds rdx half; >16B via rax pointer memcpy).
+ *
+ * Why: SysV ABI retval store authority — after a CALL returns in rax
+ * (and rdx for 9-16B INTEGER class), the value must be stored into the
+ * let home slot at the correct width. Without this, 9-16B dual-GP
+ * structs (Allocator/StrView/Result_i32) lose the rdx half, TYPE_SLICE
+ * loses the length half (arm64 home+8 / x86 home-8), and >16B structs
+ * read garbage from the un-copied tail. SLICE CALL/METHOD init also
+ * needs frame deep-copy (true recursion reentrancy — dual-GP alone
+ * leaves .data callee static/COMMON last-wins across recurse).
+ *
+ * Invariant: returns -1 on elf_ctx null or backend_enc failure; returns
+ * 0 on success or non-storeable type. Size resolution: glue_type_size_simple
+ * first, widened by glue_sysv_dual_gp_byte_size_c for import POD 16B.
+ * >16B + EXPR_STRUCT_LIT init delegates to glue_copy_large_struct_from_rax_ptr.
+ * 9-16B + CALL returning struct16 via rax-pointer may need deref first
+ * (glue_call_struct16_ret_needs_rax_deref_c / glue_deref_struct16_rax_ptr).
+ * TYPE_SLICE stores rdx at glue_slice_dual_gp_length_off_c(slot_off, ta)
+ * (arm64 +8 / x86 -8) + deep-copy for CALL/METHOD init. 9-16B non-SLICE
+ * stores rdx at half2 = (ta==1) ? slot_off+8 : slot_off-8.
+ *
+ * Asm/Perf: O(1) — 1-2 size queries + 1-3 backend_enc stores. Hot path —
+ * called per let-init with CALL/METHOD/STRUCT_LIT init during block body
+ * emit.
+ *
+ * PLATFORM: SHARED freestanding emit.
+ *   · LINUX+MACOS x86_64 SysV rax+rdx (high@slot_off-8 high-end)
+ *   · MACOS|ARM64 AAPCS64 x0+x1 (high@slot_off+8 low-end, wave593)
+ *
+ * wave1058 G.7: migrated from glue.c:3226 (body ~67 LOC). Placed at EOF
+ * after glue_sysv_dual_gp_byte_size_c (wave1057). Dependencies all visible:
+ * glue_type_size_simple (fwd decl glue.c:1887 < #include 2395),
+ * glue_sysv_dual_gp_byte_size_c (this file L358 fwd + EOF def),
+ * glue_copy_large_struct_from_rax_ptr_elf_c (return.c:751 via #include at
+ * glue.c:1957 < 2395),
+ * glue_slice_dual_gp_length_off_c (fwd decl glue.c:1899 < 2395),
+ * glue_slice_let_reent_deep_copy_after_dual_gp_elf_c (this file L562).
+ * glue_deref_struct16_rax_ptr / glue_call_struct16_ret_needs_rax_deref
+ * are #define-aliased to pipeline_asm_* externs (struct_let.c:76-77,
+ * extern decls at glue.c:791/1493 < 2395). Forward decls: glue.c:2076
+ * retained (struct_let.c:70 via #include at L2269 < call_args.c L2395);
+ * struct_let.c:70 retains its own fwd decl for callsite at L208.
+ */
+static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct ast_ASTArena *arena,
+                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ty_ref,
+                                                   int32_t slot_off, int32_t ta, int32_t init_ref,
+                                                   struct backend_AsmFuncCtx *ctx) {
+  int32_t sz;
+  if (!elf_ctx)
+    return -1;
+  sz = glue_type_size_simple(m, arena, ty_ref, 0);
+  /*
+   * Import named structs (Allocator) often size_simple=4 without entry layout;
+   * dual-store rax+rdx for formal C SysV return (G.7 dual-GP path).
+   */
+  if (sz <= 16 && arena && ty_ref > 0) {
+    int32_t nsz = glue_sysv_dual_gp_byte_size_c(arena, ty_ref);
+    if (nsz > sz)
+      sz = nsz;
+  }
+  if (sz > 16 && init_ref > 0 && arena && pipeline_expr_kind_ord_at(arena, init_ref) == 48)
+    return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
+  if (sz > 8 && sz <= 16 && init_ref > 0 && arena &&
+      glue_call_struct16_ret_needs_rax_deref_c(arena, init_ref) != 0) {
+    if (glue_deref_struct16_rax_ptr_elf_c(elf_ctx, ta) != 0)
+      return -1;
+  }
+  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta) != 0)
+    return -1;
+  /*
+   * wave408 Cap residual pure: TYPE_SLICE let-init from CALL must store dual-GP
+   * length half on arm64 too. Prior: `if (ta != 0) return 0` after data@rax only
+   * -> [x29,#home+8] garbage -> INDEX bounds panic (pure0/rec mac arm64).
+   * Authority (G.7): same dual store as assign wave331 / call-arg wave345;
+   * length half via glue_slice_dual_gp_length_off_c (arm64 home+8, x86 home-8).
+   * PLATFORM: SHARED freestanding - LINUX gold - MACOS|ARM64.
+   *
+   * wave409: CALL/METHOD init -> frame deep-copy (true recursion reentrancy).
+   * Dual-GP alone leaves .data -> callee static/COMMON last-wins across recurse.
+   */
+  if (arena && ty_ref > 0 &&
+      pipeline_type_kind_ord_at(arena, ty_ref) == (int32_t)ast_TypeKind_TYPE_SLICE) {
+    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(slot_off, ta),
+                                           ta) != 0)
+      return -1;
+    if (ctx && init_ref > 0 &&
+        (pipeline_expr_kind_ord_at(arena, init_ref) == (int32_t)ast_ExprKind_EXPR_CALL ||
+         pipeline_expr_kind_ord_at(arena, init_ref) == (int32_t)ast_ExprKind_EXPR_METHOD_CALL)) {
+      /* wave418: let path use_frame=1 - per-frame buffer (true recursion; twin host stack). */
+      if (glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(arena, elf_ctx, ctx, ta, slot_off, ty_ref,
+                                                             1) != 0)
+        return -1;
+    }
+    return 0;
+  }
+  if (!m || !arena || ty_ref <= 0)
+    return 0;
+  if (sz > 8 && sz <= 16) {
+    /*
+     * SysV INTEGER dual-GP second half (rdx / x1).
+     * PLATFORM: LINUX+MACOS x86_64 - high-end home: low@slot_off, high@slot_off-8.
+     * PLATFORM: MACOS|ARM64 (wave593) - low-end home: low@slot_off, high@slot_off+8
+     *   (same memory order as glue_slice_dual_gp_length_off_c / wave402 frame).
+     * Prior: `if (ta != 0) return 0` after rax-only store left 9-16B arm64 half garbage.
+     */
+    int32_t half2 = (ta == 1) ? (slot_off + 8) : (slot_off - 8);
+    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, half2, ta) != 0)
+      return -1;
+  }
+  return 0;
+}

@@ -3205,9 +3205,6 @@ int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(struct ast_ASTArena *aren
   return nbytes;
 }
 
-/**
- * CALL/expr 结果落 let 栈槽：先写 rax 半；9–16B struct（SysV x86）再写 rdx 半；>16B 经 rax 指针 memcpy。
- */
 /* wave1057 G.7: glue_sysv_dual_gp_byte_size_c migrated to
  * pipeline_asm_emit_call_args.c EOF (SysV ABI type classification domain).
  * Definition visible via same-TU #include at L2395 < all callsites below
@@ -3223,74 +3220,17 @@ int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(struct ast_ASTArena *aren
  * g_pipeline_asm_al_nc_seq remains early in glue (shared with durable/return).
  */
 
-static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct ast_ASTArena *arena,
-                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ty_ref,
-                                                   int32_t slot_off, int32_t ta, int32_t init_ref,
-                                                   struct backend_AsmFuncCtx *ctx) {
-  int32_t sz;
-  if (!elf_ctx)
-    return -1;
-  sz = glue_type_size_simple(m, arena, ty_ref, 0);
-  /**
-   * Import named structs (Allocator) often size_simple=4 without entry layout;
-   * dual-store rax+rdx for formal C SysV return (G.7 dual-GP path).
-   */
-  if (sz <= 16 && arena && ty_ref > 0) {
-    int32_t nsz = glue_sysv_dual_gp_byte_size_c(arena, ty_ref);
-    if (nsz > sz)
-      sz = nsz;
-  }
-  if (sz > 16 && init_ref > 0 && arena && pipeline_expr_kind_ord_at(arena, init_ref) == 48)
-    return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
-  if (sz > 8 && sz <= 16 && init_ref > 0 && arena &&
-      glue_call_struct16_ret_needs_rax_deref_c(arena, init_ref) != 0) {
-    if (glue_deref_struct16_rax_ptr_elf_c(elf_ctx, ta) != 0)
-      return -1;
-  }
-  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta) != 0)
-    return -1;
-  /*
-   * wave408 Cap residual pure: TYPE_SLICE let-init from CALL must store dual-GP
-   * length half on arm64 too. Prior: `if (ta != 0) return 0` after data@rax only
-   * → [x29,#home+8] garbage → INDEX bounds panic (pure0/rec mac arm64).
-   * Authority (G.7): same dual store as assign wave331 / call-arg wave345;
-   * length half via glue_slice_dual_gp_length_off_c (arm64 home+8, x86 home-8).
-   * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
-   *
-   * wave409: CALL/METHOD init → frame deep-copy (true recursion reentrancy).
-   * Dual-GP alone leaves .data → callee static/COMMON last-wins across recurse.
-   */
-  if (arena && ty_ref > 0 &&
-      pipeline_type_kind_ord_at(arena, ty_ref) == (int32_t)ast_TypeKind_TYPE_SLICE) {
-    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(slot_off, ta),
-                                           ta) != 0)
-      return -1;
-    if (ctx && init_ref > 0 &&
-        (pipeline_expr_kind_ord_at(arena, init_ref) == (int32_t)ast_ExprKind_EXPR_CALL ||
-         pipeline_expr_kind_ord_at(arena, init_ref) == (int32_t)ast_ExprKind_EXPR_METHOD_CALL)) {
-      /* wave418: let path use_frame=1 — per-frame buffer (true recursion; twin host stack). */
-      if (glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(arena, elf_ctx, ctx, ta, slot_off, ty_ref,
-                                                             1) != 0)
-        return -1;
-    }
-    return 0;
-  }
-  if (!m || !arena || ty_ref <= 0)
-    return 0;
-  if (sz > 8 && sz <= 16) {
-    /*
-     * SysV INTEGER dual-GP second half (rdx / x1).
-     * PLATFORM: LINUX+MACOS x86_64 — high-end home: low@slot_off, high@slot_off-8.
-     * PLATFORM: MACOS|ARM64 (wave593) — low-end home: low@slot_off, high@slot_off+8
-     *   (same memory order as glue_slice_dual_gp_length_off_c / wave402 frame).
-     * Prior: `if (ta != 0) return 0` after rax-only store left 9–16B arm64 half garbage.
-     */
-    int32_t half2 = (ta == 1) ? (slot_off + 8) : (slot_off - 8);
-    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, half2, ta) != 0)
-      return -1;
-  }
-  return 0;
-}
+/* wave1058 G.7: glue_store_retval_pair_to_rbp_elf_c migrated to
+ * pipeline_asm_emit_call_args.c EOF (retval store domain). Definition
+ * visible via same-TU #include at L2395 < callsite at L6291. Static fwd
+ * decl at L2076 retained for struct_let.c:208 (struct_let.c #include at
+ * L2269 < call_args.c L2395). struct_let.c:70 retains its own fwd decl.
+ * block_body.c:595 + field_access.c:427 via #include > L2395 visible.
+ * Dependencies: glue_type_size_simple (fwd L1887), glue_sysv_dual_gp_byte_size_c
+ * (call_args.c:358), glue_copy_large_struct_from_rax_ptr (return.c:751),
+ * glue_slice_dual_gp_length_off_c (fwd L1899), glue_slice_let_reent_deep_copy
+ * (call_args.c:562), glue_deref_struct16/call_struct16_ret_needs_rax_deref
+ * (#define-aliased to pipeline_asm_* externs, struct_let.c:76-77). */
 
 /** 导出给 backend_call_dispatch：形参/局部 type_ref 字节大小（与 typeck 一致）。 */
 int32_t pipeline_asm_type_ref_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref) {
