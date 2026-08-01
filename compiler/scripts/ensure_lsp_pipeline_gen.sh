@@ -5,7 +5,7 @@
 # Authority (G.7):
 #   Single implementation of product LSP/pipeline *_gen.c production for:
 #     lsp_diag_gen.c  (pin / seed / xlang-c -E only + C-04 aliases guard)
-#     lsp_io_gen.c    (pin / seed / xlang-x|-c -E; reject old io.o stub TU)
+#     lsp_io_gen.c    (ARCHAEOLOGY — wave1036 Track L retired; product = catalog)
 #     lsp_gen.c       (pin / seed / xlang-x|-c -E + g_lsp_state_buf sed post)
 #     pipeline_gen.c  (pin / seed / force xlang-c -E + check_pipeline_gen_expr_i64_abi)
 #   ./xbuild lsp-gen|pipeline-gen call this script (0× make for the gen body).
@@ -135,10 +135,21 @@ ensure_lsp_diag_gen() {
 }
 
 # ---------------------------------------------------------------------------
-# lsp_io_gen.c
-# Prefer xlang-x -x -E when present; reject old 'lsp_io -E-extern stubs (io.o' TU.
+# lsp_io_gen.c — ARCHAEOLOGY ONLY (wave1036 Track L retirement)
+# Product path: lsp_io_x.o built via driver_leaf_x_to_o.sh catalog (.x → -E → .o)
+# This function is retained for archaeology/verification only:
+#   - Called explicitly: bash ensure_lsp_pipeline_gen.sh lsp_io
+#   - Called as fallback: ensure_gen_x_o.sh build_lsp_io_x() when Track L fails
+# In the all/lsp-all flow, lsp_io_gen.c is skipped (Track L catalog owns product).
 # ---------------------------------------------------------------------------
 ensure_lsp_io_gen() {
+  # wave1036: Track L retirement — skip in product flow (all/lsp-all).
+  # Only regenerate when explicitly requested (archaeology) or as gen.c fallback.
+  if [ "$MODE" = "all" ] || [ "$MODE" = "lsp" ] || [ "$MODE" = "lsp-all" ] || [ "$MODE" = "lsp_all" ]; then
+    log "lsp_io_gen.c: SKIP (wave1036 Track L retired; product path = driver_leaf_x_to_o.sh catalog)"
+    return 0
+  fi
+  log "lsp_io_gen.c: ARCHAEOLOGY mode (wave1036; product uses Track L catalog)"
   local tmp seed="seeds/lsp_io_gen.linux.x86_64.c"
   tmp="lsp_io_gen.c.tmp.$$"
   rm -f "$tmp"
@@ -297,7 +308,7 @@ ensure_pipeline_gen() {
 
 ensure_lsp_all() {
   ensure_lsp_diag_gen
-  ensure_lsp_io_gen
+  ensure_lsp_io_gen  # wave1036: skips in product flow (Track L retired)
   ensure_lsp_gen
 }
 
@@ -305,11 +316,11 @@ case "$MODE" in
   all|"")
     ensure_lsp_all
     ensure_pipeline_gen
-    echo "ensure-lsp-pipeline-gen OK (lsp_diag/io/lsp + pipeline_gen ready)"
+    echo "ensure-lsp-pipeline-gen OK (lsp_diag/lsp + pipeline_gen ready; lsp_io=Track L)"
     ;;
   lsp|lsp-all|lsp_all)
     ensure_lsp_all
-    echo "ensure-lsp-pipeline-gen OK (lsp_diag_gen.c lsp_io_gen.c lsp_gen.c ready)"
+    echo "ensure-lsp-pipeline-gen OK (lsp_diag_gen.c lsp_gen.c ready; lsp_io=Track L)"
     ;;
   lsp_diag|lsp_diag_gen.c)
     ensure_lsp_diag_gen
