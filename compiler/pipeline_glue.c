@@ -190,11 +190,16 @@ static struct platform_elf_ElfCodegenCtx *g_pipeline_asm_emit_elf_ctx;
 /** asm_ctx scope 设置（定义见本文件后部；前置声明供 glue_asm_ctx_set_scope_block 调用）。 */
 void asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref);
 
-/** 设置 asm ctx scope 并同步全局 scope_block（FIELD_ACCESS 布局查 let 类型）。 */
-static void glue_asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref) {
-  g_pipeline_asm_emit_scope_block = block_ref;
-  asm_ctx_set_scope_block(ctx, block_ref);
-}
+/* wave1152 G.7: glue_asm_ctx_set_scope_block migrated to
+ * pipeline_asm_emit_block_body.c EOF (block scope setter; colocated
+ * with block_body_sync domain — all 13 callsites are in block_body.c /
+ * block_if_stmt.c / fold_count_up_while.c / glue.c:5121, all after
+ * block_body.c #include at L3623).
+ *
+ * Static fwd decl at block_body.c:53 (callsites at lines 295/700/865
+ * precede EOF definition). Deps g_pipeline_asm_emit_scope_block (L182)
+ * + asm_ctx_set_scope_block (L191) both before #include L3623 — visible.
+ * PLATFORM: SHARED. */
 int32_t pipeline_block_labeled_return_expr_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
 /* wave379/wave387: labeled pool accessors (stmt_order kind=7 goto/label/labeled-return). */
 int32_t pipeline_block_num_labeled_stmts(struct ast_ASTArena *a, int32_t br);
@@ -337,28 +342,10 @@ void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so
   driver_diagnostic_parse_func_generic(byte_pos, num_funcs_so_far, name, name_len, num_generic_params, is_main);
 }
 
-/** parse_into/parse_into_buf 函数体提交前后打印 OneFunc sidecar 与 Block 形状（XLANG_DEBUG_PARSE_COMMIT=1）。 */
-static void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
-                                                 uint8_t *name, int32_t phase, int32_t block_ref,
-                                                 int32_t pool_num_consts, int32_t pool_num_lets,
-                                                 int32_t pool_num_ifs, int32_t pool_num_regions,
-                                                 int32_t pool_num_stmt_order, int32_t block_num_consts,
-                                                 int32_t block_num_lets, int32_t block_num_ifs,
-                                                 int32_t block_num_regions, int32_t block_num_stmt_order,
-                                                 int32_t final_expr_ref) {
-  extern void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name,
-                                                   int32_t name_len, int32_t phase, int32_t block_ref,
-                                                   int32_t pool_num_consts, int32_t pool_num_lets, int32_t pool_num_ifs,
-                                                   int32_t pool_num_regions, int32_t pool_num_stmt_order,
-                                                   int32_t block_num_consts, int32_t block_num_lets, int32_t block_num_ifs,
-                                                   int32_t block_num_regions, int32_t block_num_stmt_order,
-                                                   int32_t final_expr_ref);
-  driver_diagnostic_parse_commit_shape(byte_pos, num_funcs_so_far, name, name_len, phase, block_ref, pool_num_consts,
-                                       pool_num_lets, pool_num_ifs, pool_num_regions, pool_num_stmt_order,
-                                       block_num_consts, block_num_lets, block_num_ifs, block_num_regions,
-                                       block_num_stmt_order, final_expr_ref);
-}
-
+/* wave1153 dead code delete: parser_diagnostic_parse_commit_shape removed
+ * (static wrapper delegating to driver_diagnostic_parse_commit_shape extern;
+ * zero callsites in glue.c TU — superseded by runtime_driver_diagnostic.x
+ * export function which is linked independently). */
 /** 从 (data, len) 构造 slice，供 parser.x 内 parse_into_buf 调 parse_one_function_impl 时使用。 */
 struct xlang_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len) {
   struct xlang_slice_uint8_t s;
@@ -4955,10 +4942,11 @@ int32_t pipeline_asm_emit_if_then_block_body_elf_c(struct ast_ASTArena *arena,
   return r;
 }
 
-/**
- * stmt_order 中单条 const(item_kind=0) 或 let(item_kind=1) 的 ELF 初始化。
- * while/for 循环体每轮须按 stmt_order 重跑 let（含 struct/mk 内联），与块体主路径一致。
- */
+/* wave1154 dead code delete: glue_emit_block_stmt_order_let_const_elf removed
+ * (~134 LOC; zero callsites in glue.c TU — superseded by block_body_sync_elf
+ * in pipeline_asm_emit_block_body.c which handles stmt_order let/const init
+ * via the same code path). */
+#if 0
 static int32_t glue_emit_block_stmt_order_let_const_elf(struct ast_ASTArena *arena,
                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                         int32_t block_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -5094,6 +5082,7 @@ static int32_t glue_emit_block_stmt_order_let_const_elf(struct ast_ASTArena *are
   }
   return 0;
 }
+#endif
 
 /**
  * ELF 循环体 stmt_order（expr/while/for/if + final_expr）；C for 循环，避免 partial 薄包装递归。

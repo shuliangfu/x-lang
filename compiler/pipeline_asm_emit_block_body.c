@@ -50,6 +50,10 @@ static int32_t glue_emit_array_let_empty_init(struct ast_ASTArena *arena, struct
  * glue.c L3875 > block_body.c L3872 (visible there via this decl). */
 static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t block_ref);
 
+/* wave1152 G.7: forward decl — definition at EOF (callsites at lines 295/700/865
+ * precede definition). Migrated from pipeline_glue.c L194. */
+static void glue_asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref);
+
 /** Deeper use walk for defer analysis: INDEX / AS / field / array-lit elems / unaries. */
 static void glue_live_fwd_collect_expr_uses_for_defer(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                      int32_t expr_ref, GlueBlockLiveFwd *gen) {
@@ -1050,4 +1054,36 @@ static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t 
     }
   }
   return 0;
+}
+
+/* ============================================================
+ * wave1152 G.7: asm ctx scope block setter
+ * (migrated from pipeline_glue.c L194-197).
+ *
+ * Why here: glue_asm_ctx_set_scope_block sets both the TU-wide
+ * g_pipeline_asm_emit_scope_block (used by FIELD_ACCESS let-type
+ * lookup) and the per-ctx asm_ctx scope_block_ref. Every block
+ * entry/exit point in the block emit domain calls this setter —
+ * block_body_sync (lines 295/700/865), block_if_stmt (4 callsites
+ * via #include after this file), fold_count_up_while (5 callsites
+ * via #include after this file), and glue.c:5121 (after #include).
+ *
+ * Contract: sets g_pipeline_asm_emit_scope_block = block_ref, then
+ * delegates to asm_ctx_set_scope_block (extern, non-static; declared
+ * at glue.c L191 before this file's #include at L3623 — visible).
+ *
+ * Dependencies:
+ *   - g_pipeline_asm_emit_scope_block (static global at glue.c L182;
+ *     before #include L3623 — visible)
+ *   - asm_ctx_set_scope_block (extern; declared at glue.c L191;
+ *     before #include L3623 — visible)
+ *
+ * Static fwd decl at block_body.c:53 (callsites at lines 295/700/865
+ * precede this EOF definition).
+ *
+ * PLATFORM: SHARED — pure scope bookkeeping; no platform ABI dep.
+ * ============================================================ */
+static void glue_asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref) {
+  g_pipeline_asm_emit_scope_block = block_ref;
+  asm_ctx_set_scope_block(ctx, block_ref);
 }
