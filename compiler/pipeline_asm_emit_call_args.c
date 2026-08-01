@@ -27,6 +27,11 @@
  * wave1022 G.7 有则补全: glue_slice_let_reent_deep_copy_after_dual_gp_elf_c
  * (TYPE_SLICE dual-GP reentrancy deep-copy; use_frame=0 call-arg COMMON /
  * use_frame=1 let frame) from glue residual into this leaf.
+ * wave1045 G.7 fold: glue_func_param_agg_byte_size_c (formal param aggregate
+ * byte size; SysV ≤16B dual-GP / >16B MEMORY / SLICE+ARRAY pointer lowering)
+ * migrated here from glue residual — callee-side param sizing twin of the
+ * caller-side call-arg packing. Consumed by glue_func_param_home_width_c +
+ * fill_param_slots / emit_func_param_home (still in glue.c, same TU).
  *
  * Callers: backend_call_dispatch.x / seed (extern); glue emit_expr leaf
  * VAR dual-GP via glue_load_var_as_value_to_rax_rdx_elf_c; glue
@@ -1466,4 +1471,93 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
     }
   }
   return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+/* wave1045 G.7 fold: glue_func_param_agg_byte_size_c migrated here from
+ * pipeline_glue.c (definition was at glue.c:5987; forward decl at 5588 —
+ * both removed). Same-TU #include at glue.c:2392 makes the definition
+ * visible to all glue.c callsites (glue_func_param_home_width_c at 6048 +
+ * fill_param_slots / emit_func_param_home paths at 6172/6249/6393/6473).
+ * Dependencies already visible from this include point:
+ * - glue_type_named_layout_size_any_module_elf_c (defined in this file at L429)
+ * - glue_type_size_simple (forward decl at glue.c:1887 < include 2392)
+ * - glue_sysv_dual_gp_byte_size_c (forward decl at glue.c:2050 < include 2392) */
+
+/**
+ * Byte size of formal param i (named struct uses dep layout when entry module lacks it).
+ *
+ * Why: §SysV ABI formal-param sizing — the authoritative aggregate byte size
+ * consumed by glue_func_param_home_width_c (home slot width) and all
+ * fill_param_slots / emit_func_param_home paths. TYPE_SLICE / TYPE_ARRAY
+ * formals lower as pointers (one GP, 8B) matching codegen.x; TYPE_NAMED
+ * uses dep-arena layout size when entry module lacks its own layout.
+ * wave417: fixed TYPE_ARRAY formals must NOT return full payload (e.g.
+ * i32[8]=32) — that mis-classed as MEMORY by-value (>16B) and arm64
+ * emit_param_home stores GP args at 16+i*8 → INDEX loads junk → SIGSEGV.
+ *
+ * Invariant: returns >= 8 for any valid param (8 is the GP slot floor);
+ * returns 8 for invalid arena/module/func/param, pointer types (kind 9),
+ * TYPE_SLICE, TYPE_ARRAY. For TYPE_NAMED (kind 8) returns the dep-arena
+ * layout size if >0, else glue_type_size_simple; upgraded to dual-GP size
+ * if that exceeds the simple size (≤8B INTEGER dual-half home).
+ *
+ * Asm/Perf: O(1) per param — one type_ref lookup + one kind dispatch +
+ * at most two size queries (named layout + dual-GP). No recursion.
+ *
+ * PLATFORM: SHARED — pure size query; SysV consumers align to 8.
+ *   · LINUX+MACOS x86_64 SysV ≤16B dual-GP / >16B MEMORY classification
+ *   · MACOS|ARM64 AAPCS64 same pointer lowering for SLICE/ARRAY formals
+ */
+static int32_t glue_func_param_agg_byte_size_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                              int32_t func_index, int32_t param_index) {
+  int32_t pty;
+  int32_t k;
+  int32_t sz;
+  if (!arena || !mod || func_index < 0 || param_index < 0)
+    return 8;
+  pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
+  if (pty <= 0)
+    return 8;
+  k = pipeline_type_kind_ord_at(arena, pty);
+  if (k == 9)
+    return 8; /* pointer */
+  /*
+   * PLATFORM: SHARED + LINUX/MACOS x86_64 SysV —
+   * TYPE_SLICE params are lowered as `struct xlang_slice_* *` (codegen.x), one GP.
+   * Fat value is 16B but call/home must not dual-GP classify (that steals rsi for
+   * the next arg → get_i32(s,i) puts i in rdx; C expects i in rsi). G.7 complete
+   * with call-arg lea for TYPE_SLICE.
+   */
+  if (k == (int32_t)ast_TypeKind_TYPE_SLICE)
+    return 8;
+  /*
+   * wave417 Cap residual pure: fixed TYPE_ARRAY formals lower as E* (one GP),
+   * matching host-C `int32_t *a` / call-site lea(payload) / glue_emit_func_param
+   * is_indirect_array_slot_c (8B pointer in home).
+   * Root: prior glue_type_size_simple(T[N]) returned full payload (e.g. i32[8]=32).
+   * fill_param_slots then used high-end home (off+width)=0x30 while arm64
+   * emit_param_home always stores GP args at 16+i*8 (=0x10) → INDEX loads junk
+   * base → SIGSEGV. x86 SysV also mis-classed as MEMORY by-value (>16B).
+   * G.7: complete the *T / T[] / T[N] param pointer set in this authority only.
+   * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
+   */
+  if (k == (int32_t)ast_TypeKind_TYPE_ARRAY)
+    return 8;
+  if (k == 8) {
+    sz = glue_type_named_layout_size_any_module_elf_c(arena, pty);
+    if (sz <= 0)
+      sz = glue_type_size_simple(mod, arena, pty, 0);
+    if (sz <= 8) {
+      int32_t dsz = glue_sysv_dual_gp_byte_size_c(arena, pty);
+      if (dsz > sz)
+        sz = dsz;
+    }
+    if (sz <= 0)
+      return 8;
+    return sz;
+  }
+  sz = glue_type_size_simple(mod, arena, pty, 0);
+  if (sz <= 0)
+    return 8;
+  return sz;
 }
