@@ -3770,50 +3770,13 @@ int32_t pipeline_struct_layout_next_field_offset(struct ast_Module *m, struct as
   return pipeline_struct_layout_next_field_offset_ex(m, a, layout_idx, new_field_type_ref, 0);
 }
 
-/**
- * EXPR_STRUCT_LIT 按 module.struct_layouts 计算的字节大小；用于 asm 小结构体按值经 x0 返回（≤8）。
- * 未命中布局时返回 0，由 backend 退回指针语义。
- */
-int32_t pipeline_expr_struct_lit_value_bytes(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref) {
-  struct ast_Expr *ex;
-  int32_t nlen;
-  uint8_t name[128];
-  int32_t k;
-  int32_t sz_out;
-  int32_t al_out;
-  if (!a || !m || expr_ref <= 0)
-    return 0;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex || ex->kind != ast_ExprKind_EXPR_STRUCT_LIT)
-    return 0;
-  nlen = ex->struct_lit_struct_name_len;
-  if (nlen <= 0 || nlen > 127)
-    return 0;
-  memcpy(name, ex->struct_lit_struct_name, (size_t)nlen);
-  for (k = 0; k < (int32_t)m->num_struct_layouts; k++) {
-    int32_t ln;
-    int32_t j;
-    int32_t eq;
-    ln = pipeline_module_struct_layout_name_len(m, k);
-    if (ln != nlen)
-      continue;
-    eq = 1;
-    for (j = 0; j < nlen; j++) {
-      if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
-        eq = 0;
-        break;
-      }
-    }
-    if (!eq)
-      continue;
-    sz_out = 0;
-    al_out = 1;
-    if (glue_struct_layout_metrics_c(m, a, k, 0, 0, &sz_out, &al_out) != 0)
-      return 0;
-    return sz_out > 0 ? sz_out : 0;
-  }
-  return 0;
-}
+/* wave1051 G.7: pipeline_expr_struct_lit_value_bytes migrated to
+ * pipeline_asm_emit_struct_lit.c (definition at EOF; struct_lit.c:69 fwd decl
+ * for glue_struct_layout_metrics_c added — static, defined later in TU at
+ * glue.c:2794). glue.c:1693 public forward decl retained (public symbol).
+ * Consumed by struct_lit.c:612 + field_access.c:330 — field_access.c #include
+ * at L2419 > struct_lit.c L2095 so definition is visible there. glue.c has
+ * zero self-callsites — pure leaf consumed by struct_lit + field_access. */
 
 /* wave1035 G.7: pipeline_expr_struct_lit_field_offset_at +
  * pipeline_expr_struct_lit_field_type_ref_at folded into

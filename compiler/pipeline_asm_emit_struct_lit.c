@@ -64,6 +64,11 @@ static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uin
  * (glue.c:3003); consumed by glue_struct_layout_compute_field_offset_c. */
 static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 
+/* wave1051 G.7: forward decl — glue_struct_layout_metrics_c defined later in
+ * TU (glue.c:2794); consumed by pipeline_expr_struct_lit_value_bytes (EOF). */
+static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
+                                            int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al);
+
 /**
  * Check whether a TYPE_NAMED refers to an empty struct (ZST).
  *
@@ -768,4 +773,81 @@ static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uin
   if (m->num_struct_layouts == 1)
     return 0;
   return -1;
+}
+
+/* wave1051 G.7 fold: pipeline_expr_struct_lit_value_bytes migrated here from
+ * pipeline_glue.c (definition was at glue.c:3777). Public (non-static) —
+ * glue.c:1693 forward decl retained (public symbol declaration). Consumed by
+ * struct_lit.c:612 (this leaf) + field_access.c:330 (field_access.c #include
+ * at glue.c:2419 > struct_lit.c L2095, so definition is visible there). glue.c
+ * has zero self-callsites — pure leaf consumed by struct_lit + field_access.
+ *
+ * glue_struct_layout_metrics_c (called by the body) is defined in glue.c:2794
+ * (static; forward decl at L69 above — struct_lit.c #include at L2095 < 2794,
+ * so the forward decl is needed for visibility). */
+
+/**
+ * Compute the byte size of an EXPR_STRUCT_LIT value based on the module's
+ * struct layouts. Used by asm to pass small structs by value via x0 (<=8).
+ * Returns 0 when no layout matches, letting the backend fall back to
+ * pointer semantics.
+ *
+ * Why: §11.1 struct layout registry — the authoritative STRUCT_LIT total
+ * size lookup consumed by struct_lit emit (L612, for ≤8B by-value return
+ * via sret_direct) and field_access CALL-arg (field_access.c:330, for
+ * MEMORY class >16B pass-by-addr gate). Walks module struct layouts by
+ * name match; on match delegates to glue_struct_layout_metrics_c for the
+ * cumulative size + alignment computation (handles packed / nested /
+ * mixed-size fields). Returns 0 on any miss so callers fall back to
+ * pointer semantics.
+ *
+ * Invariant: returns 0 for invalid arena/module/ref or non-EXPR_STRUCT_LIT;
+ * returns 0 when struct name is missing/oversized or no layout matches;
+ * otherwise returns the layout's total byte size (>=0).
+ *
+ * Asm/Perf: O(nlayouts * nlen) — linear scan over layouts with byte-by-byte
+ * name comparison, plus one glue_struct_layout_metrics_c call on match.
+ * Bounded by module struct count (typically small).
+ *
+ * PLATFORM: SHARED — pure layout registry query; arch-agnostic.
+ */
+int32_t pipeline_expr_struct_lit_value_bytes(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref) {
+  struct ast_Expr *ex;
+  int32_t nlen;
+  uint8_t name[128];
+  int32_t k;
+  int32_t sz_out;
+  int32_t al_out;
+  if (!a || !m || expr_ref <= 0)
+    return 0;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex || ex->kind != ast_ExprKind_EXPR_STRUCT_LIT)
+    return 0;
+  nlen = ex->struct_lit_struct_name_len;
+  if (nlen <= 0 || nlen > 127)
+    return 0;
+  memcpy(name, ex->struct_lit_struct_name, (size_t)nlen);
+  for (k = 0; k < (int32_t)m->num_struct_layouts; k++) {
+    int32_t ln;
+    int32_t j;
+    int32_t eq;
+    ln = pipeline_module_struct_layout_name_len(m, k);
+    if (ln != nlen)
+      continue;
+    eq = 1;
+    for (j = 0; j < nlen; j++) {
+      if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
+        eq = 0;
+        break;
+      }
+    }
+    if (!eq)
+      continue;
+    sz_out = 0;
+    al_out = 1;
+    if (glue_struct_layout_metrics_c(m, a, k, 0, 0, &sz_out, &al_out) != 0)
+      return 0;
+    return sz_out > 0 ? sz_out : 0;
+  }
+  return 0;
 }
