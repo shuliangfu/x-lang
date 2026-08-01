@@ -2603,3 +2603,95 @@ static int32_t pipeline_typeck_dep_return_type_to_caller_arena_impl(struct ast_A
     return 0;
   return pipeline_type_ensure_by_kind_ord(caller_arena, kind);
 }
+
+/* ============================================================
+ * wave1145 G.7: call arg *Struct compatibility check
+ * (migrated from pipeline_glue.c L10200-10241).
+ *
+ * Why here: typeck_check_call_ptr_struct_compat_c is the MOD-02 sub-check
+ * of call_arg compat — verifies that a *Struct formal param accepts the
+ * caller's arg (NAMED struct / *NAMED / &local of NAMED). Colocated with
+ * the overload resolution / call dispatch domain (wave1089-1094 cluster)
+ * and the import binding name resolution domain (wave1085-1088 cluster)
+ * already in this file.
+ *
+ * Caller (in glue.c, BEFORE this file's #include at L10585):
+ *   - pipeline_typeck_check_call_slice_region_c (glue.c L10313) calls
+ *     typeck_check_call_ptr_struct_compat_c.
+ * Static fwd decl added at glue.c L10201 (BEFORE caller L10313).
+ *
+ * Dependencies (visible via earlier decls in the TU):
+ *   - pipeline_type_kind_ord_at (extern fwd at glue.c L774)
+ *   - ast_TypeKind_TYPE_PTR / TYPE_NAMED (global enum)
+ *   - pipeline_type_elem_ref_at (extern)
+ *   - typeck_type_is_named_struct_c (static, in pipeline_asm_emit_struct_lit.c
+ *     #include at L2051, before this file's #include at L10585)
+ *   - pipeline_expr_resolved_type_ref / pipeline_expr_kind_ord_at (extern)
+ *   - ast_ExprKind_EXPR_ADDR_OF (global enum)
+ *   - pipeline_expr_unary_operand_ref_at (extern)
+ *   - pipeline_typeck_call_arg_repr_compatible_ok_c (extern, defined at
+ *     glue.c L10151, before this file's #include at L10585)
+ *   - pipeline_expr_line_at / pipeline_expr_col_at (extern)
+ *   - lsp_diag_report_typeck (extern)
+ *
+ * PLATFORM: SHARED — pure typeck check + diagnostic emit; no platform ABI dep.
+ * ============================================================ */
+
+/**
+ * MOD-02: *Struct formal param vs call arg (incl. &local) type compatibility.
+ *
+ * Verifies that when a function expects `*T` (TYPE_PTR to TYPE_NAMED struct),
+ * the caller's argument is one of:
+ *   - arg type is TYPE_NAMED struct T (auto-takes address)
+ *   - arg type is *T (already a pointer)
+ *   - arg is EXPR_ADDR_OF of a TYPE_NAMED struct T local
+ *
+ * Returns 0 if the check does not apply (param is not *Struct) or if the
+ * argument is compatible (via call_arg_repr_compatible_ok_c positive path).
+ * Returns -1 (with diagnostic) when struct pointer argument is incompatible.
+ *
+ * Contract: module / arena non-NULL; param_ref > 0; arg_ref > 0; call_expr_ref > 0.
+ *
+ * PLATFORM: SHARED — pure typeck dispatch + lsp_diag_report_typeck emit.
+ */
+static int32_t typeck_check_call_ptr_struct_compat_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                     int32_t call_expr_ref, int32_t param_ref, int32_t arg_ref) {
+  int32_t line;
+  int32_t col;
+  if (!module || !arena || param_ref <= 0 || arg_ref <= 0)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, param_ref) != (int32_t)ast_TypeKind_TYPE_PTR)
+    return 0;
+  {
+    int32_t param_elem = pipeline_type_elem_ref_at(arena, param_ref);
+    int32_t arg_ty;
+    int32_t arg_kind;
+    int32_t arg_elem;
+    if (param_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, param_elem))
+      return 0;
+    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
+    if (arg_ty <= 0 && arg_kind == (int32_t)ast_ExprKind_EXPR_ADDR_OF) {
+      int32_t op = pipeline_expr_unary_operand_ref_at(arena, arg_ref);
+      if (op > 0)
+        arg_ty = pipeline_expr_resolved_type_ref(arena, op);
+    }
+    if (arg_ty <= 0)
+      return 0;
+    if (pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_NAMED)
+      arg_elem = arg_ty;
+    else if (pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_PTR)
+      arg_elem = pipeline_type_elem_ref_at(arena, arg_ty);
+    else
+      return 0;
+    if (arg_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, arg_elem))
+      return 0;
+  }
+  /* wave703: G.7 positive path shared with call_arg_types / score. */
+  if (pipeline_typeck_call_arg_repr_compatible_ok_c(module, arena, param_ref, arg_ref))
+    return 0;
+  line = pipeline_expr_line_at(arena, call_expr_ref);
+  col = pipeline_expr_col_at(arena, call_expr_ref);
+  lsp_diag_report_typeck((int)line, (int)col, "no matching overload (incompatible struct pointer argument)");
+  return -1;
+}

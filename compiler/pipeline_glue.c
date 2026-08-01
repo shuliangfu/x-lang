@@ -2084,55 +2084,17 @@ int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t ref);
 /** EXPR_VAR kind 序数（与 ast_ExprKind 一致）。 */
 #define GLUE_EXPR_KIND_VAR 3
 
-/** TYPE_ARRAY（kind==10）定长数组 let。 */
-static int32_t glue_type_is_fixed_array(struct ast_ASTArena *arena, int32_t type_ref) {
-  if (!arena || type_ref <= 0)
-    return 0;
-  return pipeline_type_kind_ord_at(arena, type_ref) == GLUE_TYPE_KIND_ARRAY ? 1 : 0;
-}
+/* wave1141-1144 G.7: fixed TYPE_ARRAY local let helpers cluster migrated to
+ * pipeline_asm_emit_vector_let.c EOF (glue_type_is_fixed_array +
+ * glue_emit_fixed_array_type_let_init_elf_c + glue_block_let_is_fixed_array_type
+ * + glue_fixed_array_let_init_uses_direct_slot). Visible here via #include at
+ * L2063. Colocated with glue_struct_lit_store_fixed_array_field_elf_c (the
+ * element-wise store authority called by glue_emit_fixed_array_type_let_init).
+ * GLUE_TYPE_KIND_ARRAY macro stays here (L2076 above) for callers in
+ * struct_let/index_helpers/spill/modlet/assign/array_lit/index/vector_simd/
+ * block_inits/field_access (all #included AFTER L2076). */
 
-/**
- * wave354 Cap residual pure: fixed TYPE_ARRAY local let init (asm freestanding).
- *
- * Root: only ARRAY_LIT went through vector_let_init; VAR/FIELD/CALL fell through to
- * emit_expr + store 8B (pointer / first lane) into the array slot → Ubuntu
- * freestanding `let t: T[N] = b.a` wrong sum (host-C memcpy already correct, wave353).
- *
- * G.7: thin wrapper over glue_struct_lit_store_fixed_array_field_elf_c with foff=0 /
- * sret_direct=0 into the let slot (same element-wise authority as STRUCT_LIT fields).
- *
- * @return 0 handled; -1 error; -2 not a fixed array / unsupported init
- * PLATFORM: SHARED freestanding emit · LINUX gold
- */
-static int32_t glue_emit_fixed_array_type_let_init_elf_c(struct ast_ASTArena *arena,
-                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                         int32_t init_ref, struct backend_AsmFuncCtx *ctx,
-                                                         int32_t ta, int32_t type_ref,
-                                                         int32_t stack_slot_off) {
-  if (!arena || !elf_ctx || !ctx || init_ref <= 0 || type_ref <= 0)
-    return -2;
-  if (!glue_type_is_fixed_array(arena, type_ref))
-    return -2;
-  return glue_struct_lit_store_fixed_array_field_elf_c(arena, elf_ctx, init_ref, ctx, ta, 0,
-                                                       stack_slot_off, 0, type_ref);
-}
 
-/** 块内 let 是否为定长数组 T[N]。 */
-static int32_t glue_block_let_is_fixed_array_type(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx) {
-  int32_t tr;
-  if (!arena || block_ref <= 0 || let_idx < 0)
-    return 0;
-  tr = pipeline_block_let_type_ref(arena, block_ref, let_idx);
-  return glue_type_is_fixed_array(arena, tr);
-}
-
-/** 定长数组 let + ARRAY_LIT 直写内联栈槽（与向量 ARRAY_LIT 同 emit）。 */
-static int32_t glue_fixed_array_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref,
-                                                          int32_t init_ref) {
-  if (!glue_type_is_fixed_array(arena, type_ref) || init_ref <= 0)
-    return 0;
-  return pipeline_expr_kind_ord_at(arena, init_ref) == 46 ? 1 : 0;
-}
 
 /**
  * let 初值在指针槽后额外占用的 temp 字节；向量/定长数组 ARRAY_LIT 直写槽时返回 0。
@@ -10236,48 +10198,19 @@ int32_t pipeline_typeck_call_arg_repr_compatible_ok_c(struct ast_Module *module,
   return 0;
 }
 
-/** MOD-02：*Struct 形参 vs 实参（含 &local）点ee 类型是否可接受；失败时打印 typeck error。 */
+/* wave1145 G.7: typeck_check_call_ptr_struct_compat_c migrated to
+ * pipeline_typeck_method_call.c EOF (colocated with overload resolution /
+ * call dispatch domain wave1089-1094 + import binding resolution wave1085-1088).
+ * Static same-TU: fwd decl below (BEFORE sole callsite L10313 in
+ * pipeline_typeck_check_call_slice_region_c) < method_call.c #include at
+ * L10585 < def EOF. Deps: pipeline_type_kind_ord_at / pipeline_type_elem_ref_at /
+ * typeck_type_is_named_struct_c (struct_lit.c L2051) /
+ * pipeline_expr_resolved_type_ref / pipeline_expr_kind_ord_at /
+ * pipeline_expr_unary_operand_ref_at / pipeline_typeck_call_arg_repr_compatible_ok_c
+ * (glue.c L10151) / pipeline_expr_line_at / pipeline_expr_col_at /
+ * lsp_diag_report_typeck. PLATFORM: SHARED. */
 static int32_t typeck_check_call_ptr_struct_compat_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                     int32_t call_expr_ref, int32_t param_ref, int32_t arg_ref) {
-  int32_t line;
-  int32_t col;
-  if (!module || !arena || param_ref <= 0 || arg_ref <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, param_ref) != (int32_t)ast_TypeKind_TYPE_PTR)
-    return 0;
-  {
-    int32_t param_elem = pipeline_type_elem_ref_at(arena, param_ref);
-    int32_t arg_ty;
-    int32_t arg_kind;
-    int32_t arg_elem;
-    if (param_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, param_elem))
-      return 0;
-    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
-    arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
-    if (arg_ty <= 0 && arg_kind == (int32_t)ast_ExprKind_EXPR_ADDR_OF) {
-      int32_t op = pipeline_expr_unary_operand_ref_at(arena, arg_ref);
-      if (op > 0)
-        arg_ty = pipeline_expr_resolved_type_ref(arena, op);
-    }
-    if (arg_ty <= 0)
-      return 0;
-    if (pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_NAMED)
-      arg_elem = arg_ty;
-    else if (pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_PTR)
-      arg_elem = pipeline_type_elem_ref_at(arena, arg_ty);
-    else
-      return 0;
-    if (arg_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, arg_elem))
-      return 0;
-  }
-  /* wave703: G.7 positive path shared with call_arg_types / score. */
-  if (pipeline_typeck_call_arg_repr_compatible_ok_c(module, arena, param_ref, arg_ref))
-    return 0;
-  line = pipeline_expr_line_at(arena, call_expr_ref);
-  col = pipeline_expr_col_at(arena, call_expr_ref);
-  lsp_diag_report_typeck((int)line, (int)col, "no matching overload (incompatible struct pointer argument)");
-  return -1;
-}
+                                                     int32_t call_expr_ref, int32_t param_ref, int32_t arg_ref);
 
 /**
  * M-3：.x typeck CALL 实参 slice 域检查；解析 callee 后逐实参对照形参域标签。

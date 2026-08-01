@@ -14,8 +14,9 @@
  *
  * G.7: single product-mega vector_let / fixed-array field face — do not open a
  * second flat writer or second element-wise fixed-array copy path.
- * glue_emit_fixed_array_type_let_init_elf_c stays in glue (thin wrapper over
- * store_fixed_array with foff=0; needs glue_type_is_fixed_array macros below).
+ * Fixed-array let helpers (glue_type_is_fixed_array +
+ * glue_emit_fixed_array_type_let_init_elf_c + glue_block_let_is_fixed_array_type
+ * + glue_fixed_array_let_init_uses_direct_slot) migrated to EOF at wave1141-1144.
  * SIMD vector lane binops / shuffle / fma: pipeline_asm_emit_vector_simd.c.
  *
  * Callers: STRUCT_LIT fields (via store_fixed_array); block let/assign fixed
@@ -683,4 +684,128 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
 
   /* Unsupported init — leave generic path. */
   return -2;
+}
+
+/* ============================================================
+ * wave1141-1144 G.7: fixed TYPE_ARRAY local let helpers cluster
+ * (migrated from pipeline_glue.c L2087-2135).
+ *
+ * Why here: glue_type_is_fixed_array / glue_emit_fixed_array_type_let_init_elf_c
+ * / glue_block_let_is_fixed_array_type / glue_fixed_array_let_init_uses_direct_slot
+ * form the fixed TYPE_ARRAY (kind==10) local let classification + emit sub-domain.
+ * They are the fixed-array twin of the vector let-init domain above (parallel to
+ * glue_vector_let_init_uses_direct_slot which is in vector_simd.c, since SIMD
+ * lane binops are colocated there).
+ *
+ * glue_emit_fixed_array_type_let_init_elf_c is a thin wrapper over
+ * glue_struct_lit_store_fixed_array_field_elf_c (defined at L347 above, same file)
+ * with foff=0 / sret_direct=0 into the let slot — colocation keeps the
+ * element-wise / bulk store authority in one file.
+ *
+ * Callers (all in glue.c, after #include at L2063):
+ *   - pipeline_asm_let_init_stack_reserve_bytes (glue.c L2141) calls
+ *     glue_fixed_array_let_init_uses_direct_slot
+ *   - pipeline_asm_emit_block_stmt_order_let_const_elf (glue.c L5142 area)
+ *     calls glue_block_let_is_fixed_array_type + glue_emit_fixed_array_type_let_init_elf_c
+ *   - pipeline_asm_fill_block_locals_tree (glue.c L3175-3185) calls
+ *     glue_type_is_fixed_array
+ *
+ * Dependencies (visible via earlier decls in the TU):
+ *   - pipeline_type_kind_ord_at (extern fwd at glue.c L774, before #include L2063)
+ *   - pipeline_block_let_type_ref (extern fwd at glue.c L776, before #include L2063)
+ *   - pipeline_expr_kind_ord_at (extern fwd at glue.c L1618, before #include L2063)
+ *   - glue_struct_lit_store_fixed_array_field_elf_c (defined at L347 above, same file)
+ *
+ * Note: GLUE_TYPE_KIND_ARRAY macro (defined in glue.c L2076, AFTER this file's
+ * #include at L2063 — NOT visible here) replaced with literal 10 to match
+ * vector_let.c style (file already uses literals 45/46 for EXPR kinds; see
+ * L59/L64/L101/L113/L123/L205/L213/L245/L359). Macro stays in glue.c for
+ * callers in struct_let/index_helpers/spill/modlet/assign/array_lit/index/
+ * vector_simd/block_inits/field_access (all #included AFTER L2076).
+ *
+ * PLATFORM: SHARED — pure fixed-array classification + emit dispatch; no
+ * platform ABI dependency (platform branches handled inside
+ * glue_struct_lit_store_fixed_array_field_elf_c).
+ * ============================================================ */
+
+/**
+ * TYPE_ARRAY (kind==10) fixed-length array type predicate.
+ *
+ * Contract: arena non-NULL; type_ref > 0.
+ * @return 1 if type_ref is TYPE_ARRAY; 0 otherwise (incl. invalid input).
+ *
+ * PLATFORM: SHARED — pure type kind comparison; no platform ABI dependency.
+ */
+static int32_t glue_type_is_fixed_array(struct ast_ASTArena *arena, int32_t type_ref) {
+  if (!arena || type_ref <= 0)
+    return 0;
+  return pipeline_type_kind_ord_at(arena, type_ref) == 10 ? 1 : 0;
+}
+
+/**
+ * wave354 Cap residual pure: fixed TYPE_ARRAY local let init (asm freestanding).
+ *
+ * Root: only ARRAY_LIT went through vector_let_init; VAR/FIELD/CALL fell through
+ * to emit_expr + store 8B (pointer / first lane) into the array slot, causing
+ * Ubuntu freestanding `let t: T[N] = b.a` wrong sum (host-C memcpy already
+ * correct, wave353).
+ *
+ * G.7: thin wrapper over glue_struct_lit_store_fixed_array_field_elf_c (L347
+ * above, same file) with foff=0 / sret_direct=0 into the let slot — same
+ * element-wise authority as STRUCT_LIT fields.
+ *
+ * Contract: arena / elf_ctx / ctx non-NULL; init_ref > 0; type_ref > 0.
+ * @return 0 handled; -1 error; -2 not a fixed array / unsupported init.
+ *
+ * PLATFORM: SHARED freestanding emit — platform branches live inside
+ * glue_struct_lit_store_fixed_array_field_elf_c.
+ */
+static int32_t glue_emit_fixed_array_type_let_init_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         int32_t init_ref, struct backend_AsmFuncCtx *ctx,
+                                                         int32_t ta, int32_t type_ref,
+                                                         int32_t stack_slot_off) {
+  if (!arena || !elf_ctx || !ctx || init_ref <= 0 || type_ref <= 0)
+    return -2;
+  if (!glue_type_is_fixed_array(arena, type_ref))
+    return -2;
+  return glue_struct_lit_store_fixed_array_field_elf_c(arena, elf_ctx, init_ref, ctx, ta, 0,
+                                                       stack_slot_off, 0, type_ref);
+}
+
+/**
+ * Block-let fixed-array type predicate.
+ *
+ * Contract: arena non-NULL; block_ref > 0; let_idx >= 0.
+ * @return 1 if the let at (block_ref, let_idx) is TYPE_ARRAY; 0 otherwise.
+ *
+ * PLATFORM: SHARED — pure type kind comparison; no platform ABI dependency.
+ */
+static int32_t glue_block_let_is_fixed_array_type(struct ast_ASTArena *arena, int32_t block_ref,
+                                                  int32_t let_idx) {
+  int32_t tr;
+  if (!arena || block_ref <= 0 || let_idx < 0)
+    return 0;
+  tr = pipeline_block_let_type_ref(arena, block_ref, let_idx);
+  return glue_type_is_fixed_array(arena, tr);
+}
+
+/**
+ * Fixed-array let + ARRAY_LIT direct-slot classifier.
+ *
+ * Returns 1 when the let init is an EXPR_ARRAY_LIT (kind==46) destined for a
+ * fixed TYPE_ARRAY — the element-wise flat writer above can inline the store
+ * directly into the stack slot (mirrors glue_vector_let_init_uses_direct_slot
+ * in vector_simd.c for SIMD TYPE_VECTOR let).
+ *
+ * Contract: glue_type_is_fixed_array(arena, type_ref) gating; init_ref > 0.
+ * @return 1 if direct-slot emit applies; 0 otherwise.
+ *
+ * PLATFORM: SHARED — pure kind comparison; no platform ABI dependency.
+ */
+static int32_t glue_fixed_array_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref,
+                                                          int32_t init_ref) {
+  if (!glue_type_is_fixed_array(arena, type_ref) || init_ref <= 0)
+    return 0;
+  return pipeline_expr_kind_ord_at(arena, init_ref) == 46 ? 1 : 0;
 }
