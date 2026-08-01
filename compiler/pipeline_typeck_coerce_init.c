@@ -458,3 +458,32 @@ int32_t pipeline_typeck_coerce_init_expr_to_decl_c(struct ast_Module *module, st
   return 0;
 }
 
+/**
+ * Classify an ExprKind ordinal as any assignment kind (plain or compound).
+ *
+ * Why: check_block block-final-expr inference must distinguish assign-family
+ * expressions from value expressions to route left/right coercion and lval
+ * store. A single predicate avoids scattering kind_ord range checks across
+ * the check_block path. Matches typeck.x check_block assign-kind gate.
+ *
+ * Invariant: returns 1 for EXPR_ASSIGN and EXPR_ADD_ASSIGN..EXPR_SHR_ASSIGN
+ * inclusive, 0 otherwise (including invalid kind_ord).
+ *
+ * Asm/Perf: O(1) — two comparisons. Cold path — called per block-final
+ * expr in pipeline_typeck_check_block_one_region_c (glue.c:15308).
+ *
+ * PLATFORM: SHARED — kind_ord classification is platform-independent.
+ *
+ * wave1065 G.7: migrated from glue.c:14135 (body 6 LOC). Static
+ * (non-extern): same-TU visibility — coerce_init.c #include at L14126 <
+ * def L14135 < sole callsite glue.c:15308. Dependencies: ast_ExprKind_*
+ * enum (global); no other deps.
+ */
+static int32_t pipeline_typeck_expr_is_any_assign_kind_c(int32_t kind_ord) {
+  if (kind_ord == (int32_t)ast_ExprKind_EXPR_ASSIGN)
+    return 1;
+  if (kind_ord >= (int32_t)ast_ExprKind_EXPR_ADD_ASSIGN && kind_ord <= (int32_t)ast_ExprKind_EXPR_SHR_ASSIGN)
+    return 1;
+  return 0;
+}
+

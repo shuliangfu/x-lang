@@ -676,3 +676,75 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
   }
   return -1;
 }
+
+/**
+ * Extract the pair base VAR ref from a field-assign expression.
+ *
+ * Why: fold/affine pattern detection (glue_match_struct_pair_n2_body_pattern)
+ * needs the base VAR of `p.a = ...` (FIELD_ASSIGN left = FIELD_ACCESS, base =
+ * VAR). This helper centralizes the EXPR_FIELD_ASSIGN(28) → left(44) → base
+ * traversal so callers don't repeat kind_ord checks.
+ *
+ * Invariant: returns 0 for non-field-assign or NULL arena; otherwise the
+ * base VAR expr_ref from pipeline_expr_field_access_base_ref.
+ *
+ * Asm/Perf: O(1) — 3 accessor calls. Cold path — called per body stmt in
+ * pattern match (glue.c:6664).
+ *
+ * PLATFORM: SHARED — pattern detection is platform-independent.
+ *
+ * wave1068 G.7: migrated from glue.c:6499 (body 8 LOC). Static
+ * (non-extern): same-TU — asm_emit_assign.c #include L2294 < def L6499 <
+ * callsite L6664. Deps: pipeline_expr_kind_ord_at /
+ * pipeline_expr_binop_left_ref_at / pipeline_expr_field_access_base_ref
+ * (all extern).
+ */
+static int32_t glue_field_assign_pair_base_ref_c(struct ast_ASTArena *arena, int32_t er) {
+  int32_t left_ref;
+  if (!arena || er <= 0 || pipeline_expr_kind_ord_at(arena, er) != 28)
+    return 0;
+  left_ref = pipeline_expr_binop_left_ref_at(arena, er);
+  if (pipeline_expr_kind_ord_at(arena, left_ref) != 44)
+    return 0;
+  return pipeline_expr_field_access_base_ref(arena, left_ref);
+}
+
+/**
+ * Get the si-th expr stmt ref in a block (handles stmt_order + pure
+ * expr_stmts sub-block).
+ *
+ * Why: fold/affine pattern match iterates body expr stmts; some blocks use
+ * stmt_order (mixed let/expr) and others use pure expr_stmts. This helper
+ * normalizes the two paths so callers see a uniform indexed sequence.
+ *
+ * Invariant: returns 0 for NULL arena / invalid body / non-expr stmt at
+ * si; otherwise writes the expr_ref to *out_er and returns 1.
+ *
+ * Asm/Perf: O(1) — 2-3 accessor calls. Cold path — called per body stmt
+ * in pattern match (glue.c:6657).
+ *
+ * PLATFORM: SHARED — block traversal is platform-independent.
+ *
+ * wave1069 G.7: migrated from glue.c:6604 (body 15 LOC). Static
+ * (non-extern): same-TU — asm_emit_assign.c #include L2294 < def L6604 <
+ * callsite L6657. Deps: ast_ast_block_stmt_order_kind /
+ * ast_ast_block_stmt_order_idx / ast_pipeline_block_expr_stmt_ref
+ * (all extern).
+ */
+static int32_t glue_body_expr_stmt_at_c(struct ast_ASTArena *arena, int32_t body_ref, int32_t si, int32_t nso,
+                                        int32_t *out_er) {
+  int32_t er;
+  if (!arena || body_ref <= 0 || !out_er)
+    return 0;
+  if (nso > 0) {
+    if (ast_ast_block_stmt_order_kind(arena, body_ref, si) != 2)
+      return 0;
+    er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, ast_ast_block_stmt_order_idx(arena, body_ref, si));
+  } else {
+    er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, si);
+  }
+  if (er <= 0)
+    return 0;
+  *out_er = er;
+  return 1;
+}

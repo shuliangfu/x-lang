@@ -949,3 +949,46 @@ static int32_t glue_emit_array_let_empty_init(struct ast_ASTArena *arena, struct
     return -1;
   return 0;
 }
+
+/**
+ * Reset per-func AsmFuncCtx for a new function emit pass.
+ *
+ * Why: the mega-emit C main loop (glue.c:8270) emits each function in
+ * sequence into the same AsmFuncCtxLayout. Frame size, locals, break/
+ * continue stacks, loop depth, tail-join label, and dep_pipe must be
+ * zeroed between functions to prevent stale state leaking across function
+ * boundaries (e.g. a break in func B jumping to func A's loop label).
+ * label_counter is intentionally preserved to keep .L_N unique across the
+ * whole mega emit. Equivalent to backend.x ctx_reset.
+ *
+ * Invariant: NULL ctx is a no-op. All frame/locals/break/continue/loop/
+ * tail_join fields zeroed; module_ref set to current mod; dep_pipe
+ * cleared (re-set per-func by caller if needed). asm_ctx_local_reset
+ * flushes the local sidecar table.
+ *
+ * Asm/Perf: O(1) — field writes + one sidecar reset. Called once per
+ * function in the mega emit loop (glue.c:8342).
+ *
+ * PLATFORM: SHARED — ctx layout is platform-independent; arch select
+ * happens at backend_enc call sites, not here.
+ *
+ * wave1067 G.7: migrated from glue.c:8255 (body 13 LOC). Static
+ * (non-extern): same-TU visibility — block_body.c #include at L3872 <
+ * def L8255 < sole callsite glue.c:8342. Dependencies:
+ * pipeline_glue_AsmFuncCtxLayout (struct, defined early in glue.c <
+ * L3872); asm_ctx_local_reset (extern).
+ */
+static void pipeline_asm_ctx_reset_for_func_c(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod) {
+  if (!ctx)
+    return;
+  ctx->frame_size = 0;
+  ctx->next_offset = 0;
+  ctx->num_locals = 0;
+  ctx->module_ref = mod;
+  ctx->break_len = 0;
+  ctx->continue_len = 0;
+  ctx->loop_label_depth = 0;
+  ctx->dep_pipe = NULL;
+  ctx->tail_join_label_len = 0;
+  asm_ctx_local_reset((uint8_t *)ctx);
+}

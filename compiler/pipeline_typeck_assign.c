@@ -346,3 +346,41 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
   return 0;
 }
 
+/**
+ * Unified import count reader: prefer sidecar accessor, fall back to thin
+ * Module field.
+ *
+ * Why: import count can be stored either in the parser sidecar (full parse
+ * pipeline) or in the Module struct thin field (bootstrap/seed path). A
+ * single reader avoids scattering two-path checks across import_segment_at,
+ * map_import_binding, and import_overload_match consumers. Matches
+ * typeck.x::module_num_imports.
+ *
+ * Invariant: returns 0 for NULL module; otherwise parser sidecar count if
+ * >0, else module->num_imports.
+ *
+ * Asm/Perf: O(1) — one accessor call + one field read. Cold path — called
+ * per import lookup in typeck_import_segment_at_c (glue.c:11627),
+ * pipeline_typeck_map_import_binding_named_to_caller_c (glue.c:11706),
+ * and import_overload_match (glue.c:12111).
+ *
+ * PLATFORM: SHARED — import count is platform-independent.
+ *
+ * wave1066 G.7: migrated from glue.c:11682 (body 9 LOC). Static
+ * (non-extern): same-TU visibility — assign.c #include at L11324 < old
+ * fwd L11618 < def L11682 < all callsites (L11627/11706/12111). Old fwd
+ * decl at L11618 deleted (def now visible from #include point).
+ * Dependencies: parser_get_module_num_imports (extern);
+ * module->num_imports (struct field).
+ */
+static int32_t pipeline_typeck_module_num_imports_c(struct ast_Module *module) {
+  int32_t n_imp;
+
+  if (!module)
+    return 0;
+  n_imp = parser_get_module_num_imports(module);
+  if (n_imp > 0)
+    return n_imp;
+  return module->num_imports;
+}
+

@@ -6495,16 +6495,11 @@ static int32_t glue_is_assign_s_plus_pair_field_sum_call_c(struct ast_ASTArena *
   return 1;
 }
 
-/** 从字段赋值 expr 取 pair 基址 VAR ref。 */
-static int32_t glue_field_assign_pair_base_ref_c(struct ast_ASTArena *arena, int32_t er) {
-  int32_t left_ref;
-  if (!arena || er <= 0 || pipeline_expr_kind_ord_at(arena, er) != 28)
-    return 0;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, er);
-  if (pipeline_expr_kind_ord_at(arena, left_ref) != 44)
-    return 0;
-  return pipeline_expr_field_access_base_ref(arena, left_ref);
-}
+/* wave1068 G.7: glue_field_assign_pair_base_ref_c migrated to
+ * pipeline_asm_emit_assign.c EOF (fold/affine pattern detection). Static
+ * same-TU: asm_emit_assign.c #include L2294 < def L6499 < callsite L6664.
+ * Deps: pipeline_expr_kind_ord_at / pipeline_expr_binop_left_ref_at /
+ * pipeline_expr_field_access_base_ref (all extern). */
 
 /** 是否为 `buf[i] = (i as u8)`。 */
 static int32_t glue_is_assign_u8_index_store_cast_i_c(struct ast_ASTArena *arena, int32_t er, int32_t *out_buf_ref,
@@ -6600,24 +6595,11 @@ static int32_t glue_expr_var_name_eq_let_idx_c(struct ast_ASTArena *arena, int32
   return 1;
 }
 
-/** 取块内第 si 条 expr 语句 ref（兼容 stmt_order 与纯 expr_stmts 子块）。 */
-static int32_t glue_body_expr_stmt_at_c(struct ast_ASTArena *arena, int32_t body_ref, int32_t si, int32_t nso,
-                                        int32_t *out_er) {
-  int32_t er;
-  if (!arena || body_ref <= 0 || !out_er)
-    return 0;
-  if (nso > 0) {
-    if (ast_ast_block_stmt_order_kind(arena, body_ref, si) != 2)
-      return 0;
-    er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, ast_ast_block_stmt_order_idx(arena, body_ref, si));
-  } else {
-    er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, si);
-  }
-  if (er <= 0)
-    return 0;
-  *out_er = er;
-  return 1;
-}
+/* wave1069 G.7: glue_body_expr_stmt_at_c migrated to
+ * pipeline_asm_emit_assign.c EOF (fold/affine pattern detection). Static
+ * same-TU: asm_emit_assign.c #include L2294 < def L6604 < callsite L6657.
+ * Deps: ast_ast_block_stmt_order_kind / ast_ast_block_stmt_order_idx /
+ * ast_pipeline_block_expr_stmt_ref (all extern). */
 
 /**
  * 只匹配 struct_param 四语句体：`p.a=i; p.b=i+1; s+=add_pair(p); i++`（不写码）。
@@ -8249,23 +8231,11 @@ int32_t pipeline_asm_emit_wpo_mono_thunks_elf_c(struct ast_Module *entry, struct
   return 0;
 }
 
-/**
- * 重置 per-func AsmFuncCtx；等价 backend.x ctx_reset（label_counter 保留以免 .L_N 重名）。
- */
-static void pipeline_asm_ctx_reset_for_func_c(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod) {
-  if (!ctx)
-    return;
-  ctx->frame_size = 0;
-  ctx->next_offset = 0;
-  ctx->num_locals = 0;
-  ctx->module_ref = mod;
-  ctx->break_len = 0;
-  ctx->continue_len = 0;
-  ctx->loop_label_depth = 0;
-  ctx->dep_pipe = NULL;
-  ctx->tail_join_label_len = 0;
-  asm_ctx_local_reset((uint8_t *)ctx);
-}
+/* wave1067 G.7: pipeline_asm_ctx_reset_for_func_c migrated to
+ * pipeline_asm_emit_block_body.c EOF (per-func ctx reset). Static
+ * same-TU: block_body.c #include L3872 < def L8255 < callsite L8342.
+ * Deps: pipeline_glue_AsmFuncCtxLayout (struct < L3872);
+ * asm_ctx_local_reset (extern). */
 
 /**
  * M8-tail ELF mega 主循环 C 体：打破 seed_mega→backend_asm_codegen_ast_to_elf→pipeline 递归 SIGSEGV。
@@ -11612,10 +11582,11 @@ int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_A
   return 0;
 }
 
-/**
- * typeck.x::typeck_import_segment_at 的 C 委托：取 import 路径第 want_seg 段偏移与长度。
- */
-static int32_t pipeline_typeck_module_num_imports_c(struct ast_Module *module);
+/* wave1066 G.7: pipeline_typeck_module_num_imports_c migrated to
+ * pipeline_typeck_assign.c EOF (unified import count reader). Static
+ * same-TU: assign.c #include L11324 < def L11682 < all callsites
+ * (L11627/11706/12111). Old fwd decl at L11618 deleted — def visible
+ * from #include point. Deps: parser_get_module_num_imports (extern). */
 int32_t pipeline_typeck_import_segment_at_c(struct ast_Module *module, int32_t imp_ix, int32_t want_seg,
                                               int32_t *ostr, int32_t *olen) {
   int32_t pl;
@@ -11678,17 +11649,7 @@ extern int32_t asm_qual_sym_layer_count(void);
 extern int32_t asm_qual_sym_layer_len(int32_t i);
 extern void asm_qual_sym_layer_copy(int32_t i, uint8_t *dst, int32_t cap);
 
-/** 统一 import 数量读取：优先 sidecar accessor，回落薄 Module 字段。 */
-static int32_t pipeline_typeck_module_num_imports_c(struct ast_Module *module) {
-  int32_t n_imp;
-
-  if (!module)
-    return 0;
-  n_imp = parser_get_module_num_imports(module);
-  if (n_imp > 0)
-    return n_imp;
-  return module->num_imports;
-}
+/* wave1066: def migrated to pipeline_typeck_assign.c EOF. */
 
 /**
  * Map entry-module import slot → dep ctx slot by import path.
@@ -14131,14 +14092,10 @@ int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct ast_ASTAr
 int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
                                       int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
-/** 判定 ExprKind 是否为赋值/复合赋值（与 typeck.x check_block 块尾推断一致）。 */
-static int32_t pipeline_typeck_expr_is_any_assign_kind_c(int32_t kind_ord) {
-  if (kind_ord == (int32_t)ast_ExprKind_EXPR_ASSIGN)
-    return 1;
-  if (kind_ord >= (int32_t)ast_ExprKind_EXPR_ADD_ASSIGN && kind_ord <= (int32_t)ast_ExprKind_EXPR_SHR_ASSIGN)
-    return 1;
-  return 0;
-}
+/* wave1065 G.7: pipeline_typeck_expr_is_any_assign_kind_c migrated to
+ * pipeline_typeck_coerce_init.c EOF (assign-kind classifier, consumed by
+ * check_block_one_region). Static same-TU: coerce_init.c #include L14126 <
+ * def L14135 < sole callsite L15308. Deps: ast_ExprKind_* enum (global). */
 
 /** typeck.o / typeck_x_no_layout 子 helper；kind 分派经 pipeline_typeck_check_expr_impl_mega_c 调用。 */
 extern int32_t typeck_check_expr_try_propagate(struct ast_Module *module, struct ast_ASTArena *arena,
