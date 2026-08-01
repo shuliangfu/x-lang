@@ -10428,129 +10428,43 @@ int32_t pipeline_typeck_diag_fmt_type_or_question_c(struct ast_ASTArena *arena, 
   return pipeline_typeck_diag_fmt_type_into_c(arena, ref, out, 96);
 }
 
-/**
- * 较小整数向较宽整数隐式拓宽（对齐 typeck.c typeck_integer_widen_ok）。
- * first-class TypeKind only; NAMED i8/i16/u16 use pipeline_typeck_integer_widen_ok_refs_c.
- */
-static int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src_kind) {
-  /* G.7 mirror typeck.x::typeck_integer_widen_ok (wave309–312).
-   * PLATFORM: SHARED — first-class integer family; wave313 NAMED via refs path. */
-  if (dest_kind == src_kind) {
-    if (dest_kind == (int32_t)ast_TypeKind_TYPE_I32 || dest_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
-        dest_kind == (int32_t)ast_TypeKind_TYPE_U8 || dest_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
-        dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
-        dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE)
-      return 1;
-    return 0;
-  }
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_U8)
-    /* wave312: +i64 +isize (prior: u32/u64/usize/i32). */
-    return dest_kind == (int32_t)ast_TypeKind_TYPE_U32 || dest_kind == (int32_t)ast_TypeKind_TYPE_U64 ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_I32 ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_I64 || dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE;
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_I32)
-    /* wave311: i32→u64 (true widen; was hole vs usize) + i32→u8 (low-byte narrow).
-     * i32→isize：与 typeck.x / i32→usize 对称（指针宽度有符号整型）。 */
-    return dest_kind == (int32_t)ast_TypeKind_TYPE_I64 || dest_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_U8;
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_U32)
-    /* wave312: u32→u64 (prior) + u32→i64/usize/isize. */
-    return dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE;
-  /* wave312: LP64 pointer-width ↔ fixed 64-bit (same bits; ILP32 true widen). */
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_USIZE && dest_kind == (int32_t)ast_TypeKind_TYPE_U64)
-    return 1;
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_U64 && dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE)
-    return 1;
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_ISIZE && dest_kind == (int32_t)ast_TypeKind_TYPE_I64)
-    return 1;
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_I64 && dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE)
-    return 1;
-  return 0;
-}
+/* wave1076 G.7: pipeline_typeck_float_widen_ok_c migrated to
+ * pipeline_typeck_coerce_init.c EOF (f32→f64 IEEE float widen gate).
+ * Static same-TU: fwd decl below (before all callsites L10570/10650/11132/
+ * 13272) < coerce_init.c #include L14126 < def EOF. Deps: ast_TypeKind_* (global). */
+static int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind);
+
+/* wave1077 G.7: pipeline_typeck_integer_widen_ok_c migrated to
+ * pipeline_typeck_coerce_init.c EOF (first-class integer widen gate).
+ * Static same-TU: fwd decl below (before sole callsite in refs_c L10523) <
+ * coerce_init.c #include L14126 < def EOF. Deps: ast_TypeKind_* (global). */
+static int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src_kind);
+
+/* wave1077 G.7: pipeline_typeck_integer_widen_ok_c body migrated to
+ * pipeline_typeck_coerce_init.c EOF (first-class integer widen gate).
+ * Static fwd decl at L10441 (before sole callsite in refs_c). Body 36 LOC. */
 
 extern uint8_t *typeck_scratch64_slot(int32_t slot);
 
-/**
- * wave313: family id for first-class ints + NAMED i8/i16/u16. G.7 ≡ typeck.x::typeck_int_family_id.
- * PLATFORM: SHARED
- */
-static int32_t pipeline_typeck_int_family_id_c(struct ast_ASTArena *arena, int32_t type_ref) {
-  int32_t k;
-  int32_t nlen;
-  uint8_t *buf;
-  if (ast_ref_is_null(type_ref) || type_ref <= 0 || !arena)
-    return -1;
-  k = pipeline_type_kind_ord_at(arena, type_ref);
-  if (k == 0 || k == 2 || k == 3 || k == 4 || k == 5 || k == 6 || k == 7)
-    return k;
-  if (k != 8)
-    return -1;
-  buf = typeck_scratch64_slot(15);
-  nlen = pipeline_type_named_name_into(arena, type_ref, buf);
-  if (nlen == 2 && buf[0] == 105 && buf[1] == 56) /* i8 */
-    return 10;
-  if (nlen == 3 && buf[0] == 105 && buf[1] == 49 && buf[2] == 54) /* i16 */
-    return 11;
-  if (nlen == 3 && buf[0] == 117 && buf[1] == 49 && buf[2] == 54) /* u16 */
-    return 12;
-  return -1;
-}
+/* wave1078 G.7: pipeline_typeck_int_family_id_c migrated to
+ * pipeline_typeck_coerce_init.c EOF (family id for first-class ints + NAMED
+ * i8/i16/u16). Static same-TU: fwd decl below (before callsites in refs_c
+ * L10485/10486) < coerce_init.c #include L14126 < def EOF. Deps:
+ * typeck_scratch64_slot (extern L10447) / pipeline_type_named_name_into (extern). */
+static int32_t pipeline_typeck_int_family_id_c(struct ast_ASTArena *arena, int32_t type_ref);
 
-/**
- * wave313: refs-based integer widen (first-class + NAMED i8/i16/u16).
- * G.7 ≡ typeck.x::typeck_integer_widen_ok_refs. PLATFORM: SHARED
- */
+/* wave1079 G.7: pipeline_typeck_integer_widen_ok_refs_c migrated to
+ * pipeline_typeck_coerce_init.c EOF (refs-based integer widen: first-class +
+ * NAMED i8/i16/u16). Static same-TU: fwd decl below (before all callsites
+ * L10590/10646/11074/13212) < coerce_init.c #include L14126 < def EOF.
+ * Deps: pipeline_typeck_int_family_id_c + pipeline_typeck_integer_widen_ok_c
+ * (both in coerce_init.c EOF, same file — direct call, no fwd needed). */
 static int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *arena, int32_t dest_ref,
-                                                       int32_t src_ref) {
-  int32_t dest_f;
-  int32_t src_f;
-  if (ast_ref_is_null(dest_ref) || ast_ref_is_null(src_ref) || !arena)
-    return 0;
-  dest_f = pipeline_typeck_int_family_id_c(arena, dest_ref);
-  src_f = pipeline_typeck_int_family_id_c(arena, src_ref);
-  if (dest_f < 0 || src_f < 0)
-    return 0;
-  if (dest_f == src_f)
-    return 1;
-  if (dest_f <= 7 && src_f <= 7) {
-    if (pipeline_typeck_integer_widen_ok_c(dest_f, src_f))
-      return 1;
-  }
-  if (src_f == 10) /* i8 */
-    return dest_f == 11 || dest_f == 12 || dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 ||
-           dest_f == 5 || dest_f == 6 || dest_f == 7;
-  if (src_f == 11) /* i16 */
-    return dest_f == 12 || dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 || dest_f == 5 ||
-           dest_f == 6 || dest_f == 7;
-  if (src_f == 12) /* u16 */
-    return dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 || dest_f == 5 || dest_f == 6 ||
-           dest_f == 7;
-  if (dest_f == 10) /* → i8 */
-    return src_f == 2 || src_f == 0 || src_f == 11 || src_f == 12;
-  if (dest_f == 11) /* → i16 */
-    return src_f == 2 || src_f == 0 || src_f == 12 || src_f == 3;
-  if (dest_f == 12) /* → u16 */
-    return src_f == 2 || src_f == 0 || src_f == 11 || src_f == 3;
-  return 0;
-}
+                                                       int32_t src_ref);
 
-/**
- * wave314 Cap residual pure: f32→f64 IEEE float widen.
- * G.7 ≡ typeck.x::typeck_float_widen_ok. PLATFORM: SHARED
- * TypeKind: TYPE_F32=14, TYPE_F64=15. Narrow f64→f32 requires explicit `as`.
- */
-static int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind) {
-  if (dest_kind == src_kind) {
-    if (dest_kind == (int32_t)ast_TypeKind_TYPE_F32 || dest_kind == (int32_t)ast_TypeKind_TYPE_F64)
-      return 1;
-    return 0;
-  }
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_F32 && dest_kind == (int32_t)ast_TypeKind_TYPE_F64)
-    return 1;
-  return 0;
-}
+/* wave1076 G.7: pipeline_typeck_float_widen_ok_c body migrated to
+ * pipeline_typeck_coerce_init.c EOF (f32→f64 IEEE float widen gate).
+ * Static fwd decl at L10435 (before all callsites). Body 10 LOC. */
 
 /**
  * wave314 freestanding emit: if dest is f64 and src value in eax is f32 bits, promote via
@@ -14743,38 +14657,14 @@ static int32_t pipeline_typeck_named_is_module_type_c(struct ast_Module *mod, st
  * G.7: single effective-type helper for value_ok + same-name unify.
  * @return type_ref >0, or 0 if arg cannot pin a mono type
  * PLATFORM: SHARED typeck.
+ *
+ * wave1075 G.7: pipeline_typeck_call_arg_effective_type_c migrated to
+ * pipeline_typeck_method_call.c EOF (call arg effective mono type for free-T
+ * unify). Static same-TU: method_call.c #include L14220 < def EOF < all
+ * callsites L14810/14834/14860. Deps: pipeline_expr_resolved_type_ref /
+ * pipeline_expr_kind_ord_at / pipeline_type_ensure_by_kind_ord /
+ * pipeline_type_find_or_alloc_compound / typeck_expr_is_null_keyword (extern).
  */
-static int32_t pipeline_typeck_call_arg_effective_type_c(struct ast_ASTArena *arena, int32_t arg_ref) {
-  int32_t arg_ty;
-  int32_t ek;
-  extern int32_t typeck_expr_is_null_keyword(struct ast_ASTArena *a, int32_t expr_ref);
-  if (!arena || arg_ref <= 0)
-    return 0;
-  arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
-  if (arg_ty > 0)
-    return arg_ty;
-  ek = pipeline_expr_kind_ord_at(arena, arg_ref);
-  /* EXPR_LIT=0: bare int lit (not keyword null) → i32 for mono pin. */
-  if (ek == 0) {
-    if (typeck_expr_is_null_keyword(arena, arg_ref) != 0)
-      return 0; /* null alone cannot pin free T */
-    return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I32);
-  }
-  /* EXPR_FLOAT_LIT=1 → f64 (product default float lit width). */
-  if (ek == 1)
-    return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_F64);
-  /* EXPR_BOOL_LIT=2 → bool. */
-  if (ek == 2)
-    return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_BOOL);
-  /* EXPR_STRING_LIT=59 → *u8 (C interop default for string lit). */
-  if (ek == 59) {
-    int32_t u8t = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_U8);
-    if (u8t <= 0)
-      return 0;
-    return pipeline_type_find_or_alloc_compound(arena, (int32_t)ast_TypeKind_TYPE_PTR, u8t, 0);
-  }
-  return 0;
-}
 
 static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Module *callee_mod,
                                                                  struct ast_ASTArena *arena,

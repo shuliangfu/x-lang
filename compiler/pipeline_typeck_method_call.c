@@ -996,3 +996,65 @@ int32_t pipeline_typeck_method_call_generic_ufcs_c(struct ast_Module *module, st
   }
   return 0;
 }
+
+/**
+ * Effective mono type_ref for a call arg, falling back to lit-kind defaults.
+ *
+ * Why: try_infer_generic_call_from_args needs each arg to pin a mono type for
+ * free-T unification. Bare INT/BOOL/FLOAT/STRING lits often lack
+ * resolved_type_ref until stamp; prior try_infer required arg_ty>0 → id(42)
+ * fell through to requires_type_args even after free-T formals were accepted
+ * by call_arg_types. This helper centralizes the effective-type fallback so
+ * value_ok and same-name unify share one path.
+ *
+ * Invariant: returns type_ref >0 if arg can pin a mono type; 0 if NULL arena,
+ * invalid arg_ref, or arg is bare `null` keyword (cannot pin free T).
+ *   - EXPR_LIT(0) non-null → TYPE_I32
+ *   - EXPR_FLOAT_LIT(1) → TYPE_F64
+ *   - EXPR_BOOL_LIT(2) → TYPE_BOOL
+ *   - EXPR_STRING_LIT(59) → *u8 (C interop default)
+ *
+ * Asm/Perf: O(1) — one resolved_type_ref read + kind dispatch. Cold path —
+ * called per call arg in try_infer_generic_call_from_args (glue.c:14810/14834/
+ * 14860).
+ *
+ * PLATFORM: SHARED — typeck mono pin is platform-independent.
+ *
+ * wave1075 G.7: migrated from glue.c:14747 (body 31 LOC). Static (non-extern):
+ * same-TU — method_call.c #include at L14220 < def EOF < all callsites
+ * (L14810/14834/14860). Dependencies: pipeline_expr_resolved_type_ref /
+ * pipeline_expr_kind_ord_at / pipeline_type_ensure_by_kind_ord /
+ * pipeline_type_find_or_alloc_compound (all extern);
+ * typeck_expr_is_null_keyword (extern, declared in-function-body).
+ */
+static int32_t pipeline_typeck_call_arg_effective_type_c(struct ast_ASTArena *arena, int32_t arg_ref) {
+  int32_t arg_ty;
+  int32_t ek;
+  extern int32_t typeck_expr_is_null_keyword(struct ast_ASTArena *a, int32_t expr_ref);
+  if (!arena || arg_ref <= 0)
+    return 0;
+  arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+  if (arg_ty > 0)
+    return arg_ty;
+  ek = pipeline_expr_kind_ord_at(arena, arg_ref);
+  /* EXPR_LIT=0: bare int lit (not keyword null) → i32 for mono pin. */
+  if (ek == 0) {
+    if (typeck_expr_is_null_keyword(arena, arg_ref) != 0)
+      return 0; /* null alone cannot pin free T */
+    return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I32);
+  }
+  /* EXPR_FLOAT_LIT=1 → f64 (product default float lit width). */
+  if (ek == 1)
+    return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_F64);
+  /* EXPR_BOOL_LIT=2 → bool. */
+  if (ek == 2)
+    return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_BOOL);
+  /* EXPR_STRING_LIT=59 → *u8 (C interop default for string lit). */
+  if (ek == 59) {
+    int32_t u8t = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_U8);
+    if (u8t <= 0)
+      return 0;
+    return pipeline_type_find_or_alloc_compound(arena, (int32_t)ast_TypeKind_TYPE_PTR, u8t, 0);
+  }
+  return 0;
+}

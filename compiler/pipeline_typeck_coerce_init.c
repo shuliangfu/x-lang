@@ -487,3 +487,203 @@ static int32_t pipeline_typeck_expr_is_any_assign_kind_c(int32_t kind_ord) {
   return 0;
 }
 
+/**
+ * f32→f64 IEEE float widen gate (typeck-side).
+ *
+ * Why: implicit float widen (f32 → f64) is allowed in assign/arg/return
+ * coercion; the reverse (f64 → f32) requires an explicit `as` cast. This
+ * predicate centralizes the gate so coerce_init, check_expr_return, and
+ * call_arg_types share one authority. Matches typeck.x::typeck_float_widen_ok.
+ *
+ * Invariant: returns 1 iff (dest==src and kind is F32 or F64) or
+ * (src==F32 and dest==F64); 0 otherwise. TypeKind: TYPE_F32=14, TYPE_F64=15.
+ *
+ * Asm/Perf: O(1) — two comparisons. Cold path — called in coerce_init float
+ * path, check_expr_return (glue.c:10650), return-type unify (glue.c:11132),
+ * and call_arg_types (glue.c:13272).
+ *
+ * PLATFORM: SHARED — float widen classification is platform-independent.
+ *
+ * wave1076 G.7: migrated from glue.c:10544 (body 10 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:10435 (before all callsites) < coerce_init.c
+ * #include at L14126 < def EOF. Dependencies: ast_TypeKind_TYPE_F32 /
+ * ast_TypeKind_TYPE_F64 (global enum).
+ */
+static int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind) {
+  if (dest_kind == src_kind) {
+    if (dest_kind == (int32_t)ast_TypeKind_TYPE_F32 || dest_kind == (int32_t)ast_TypeKind_TYPE_F64)
+      return 1;
+    return 0;
+  }
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_F32 && dest_kind == (int32_t)ast_TypeKind_TYPE_F64)
+    return 1;
+  return 0;
+}
+
+/**
+ * First-class integer implicit widen gate (smaller → wider).
+ *
+ * Why: implicit integer widen (e.g. u8 → u32, i32 → i64) is allowed in
+ * assign/arg/return coercion; narrowing requires explicit `as`. This
+ * predicate centralizes the first-class TypeKind widen matrix so
+ * integer_widen_ok_refs and coerce_init share one authority. Matches
+ * typeck.x::typeck_integer_widen_ok (wave309–312). NAMED i8/i16/u16 go
+ * through pipeline_typeck_integer_widen_ok_refs_c (family-id path).
+ *
+ * Invariant: returns 1 iff dest_kind can implicitly hold src_kind without
+ * value loss (same-kind for int family, or wider dest). LP64 pointer-width
+ * ↔ fixed 64-bit is same-bits (allowed). Returns 0 for narrowing or
+ * non-integer kinds.
+ *
+ * Asm/Perf: O(1) — comparisons. Cold path — called in
+ * pipeline_typeck_integer_widen_ok_refs_c (glue.c:10523, via fwd decl).
+ *
+ * PLATFORM: SHARED — integer widen classification is platform-independent.
+ *
+ * wave1077 G.7: migrated from glue.c:10441 (body 36 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:10441 (before sole callsite in refs_c) <
+ * coerce_init.c #include at L14126 < def EOF. Dependencies: ast_TypeKind_*
+ * (global enum).
+ */
+static int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src_kind) {
+  /* G.7 mirror typeck.x::typeck_integer_widen_ok (wave309–312).
+   * PLATFORM: SHARED — first-class integer family; wave313 NAMED via refs path. */
+  if (dest_kind == src_kind) {
+    if (dest_kind == (int32_t)ast_TypeKind_TYPE_I32 || dest_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
+        dest_kind == (int32_t)ast_TypeKind_TYPE_U8 || dest_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
+        dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
+        dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE)
+      return 1;
+    return 0;
+  }
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_U8)
+    /* wave312: +i64 +isize (prior: u32/u64/usize/i32). */
+    return dest_kind == (int32_t)ast_TypeKind_TYPE_U32 || dest_kind == (int32_t)ast_TypeKind_TYPE_U64 ||
+           dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_I32 ||
+           dest_kind == (int32_t)ast_TypeKind_TYPE_I64 || dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE;
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_I32)
+    /* wave311: i32→u64 (true widen; was hole vs usize) + i32→u8 (low-byte narrow).
+     * i32→isize：与 typeck.x / i32→usize 对称（指针宽度有符号整型）。 */
+    return dest_kind == (int32_t)ast_TypeKind_TYPE_I64 || dest_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
+           dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
+           dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_U8;
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_U32)
+    /* wave312: u32→u64 (prior) + u32→i64/usize/isize. */
+    return dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
+           dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE;
+  /* wave312: LP64 pointer-width ↔ fixed 64-bit (same bits; ILP32 true widen). */
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_USIZE && dest_kind == (int32_t)ast_TypeKind_TYPE_U64)
+    return 1;
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_U64 && dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE)
+    return 1;
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_ISIZE && dest_kind == (int32_t)ast_TypeKind_TYPE_I64)
+    return 1;
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_I64 && dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE)
+    return 1;
+  return 0;
+}
+
+/**
+ * Family id for first-class ints + NAMED i8/i16/u16.
+ *
+ * Why: integer_widen_ok_refs needs a uniform family id to route NAMED types
+ * (i8/i16/u16) through the same widen matrix as first-class TypeKinds.
+ * First-class ints return their TypeKind ordinal (0/2–7); NAMED i8/i16/u16
+ * return 10/11/12 respectively. Matches typeck.x::typeck_int_family_id.
+ *
+ * Invariant: returns TypeKind ordinal (0/2–7) for first-class ints; 10 for
+ * NAMED "i8", 11 for "i16", 12 for "u16"; -1 for NULL/invalid/non-int.
+ *
+ * Asm/Perf: O(1) — one kind read + one name comparison. Cold path — called
+ * in pipeline_typeck_integer_widen_ok_refs_c (glue.c:10485/10486, via fwd decl).
+ *
+ * PLATFORM: SHARED — int family classification is platform-independent.
+ *
+ * wave1078 G.7: migrated from glue.c:10453 (body 19 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:10454 (before callsites in refs_c) <
+ * coerce_init.c #include at L14126 < def EOF. Dependencies:
+ * typeck_scratch64_slot (extern, glue.c:10447) /
+ * pipeline_type_named_name_into (extern) / ast_ref_is_null (global).
+ */
+static int32_t pipeline_typeck_int_family_id_c(struct ast_ASTArena *arena, int32_t type_ref) {
+  int32_t k;
+  int32_t nlen;
+  uint8_t *buf;
+  if (ast_ref_is_null(type_ref) || type_ref <= 0 || !arena)
+    return -1;
+  k = pipeline_type_kind_ord_at(arena, type_ref);
+  if (k == 0 || k == 2 || k == 3 || k == 4 || k == 5 || k == 6 || k == 7)
+    return k;
+  if (k != 8)
+    return -1;
+  buf = typeck_scratch64_slot(15);
+  nlen = pipeline_type_named_name_into(arena, type_ref, buf);
+  if (nlen == 2 && buf[0] == 105 && buf[1] == 56) /* i8 */
+    return 10;
+  if (nlen == 3 && buf[0] == 105 && buf[1] == 49 && buf[2] == 54) /* i16 */
+    return 11;
+  if (nlen == 3 && buf[0] == 117 && buf[1] == 49 && buf[2] == 54) /* u16 */
+    return 12;
+  return -1;
+}
+
+/**
+ * Refs-based integer widen (first-class + NAMED i8/i16/u16).
+ *
+ * Why: typeck assign/arg/return coercion compares two type_refs for implicit
+ * integer widen. First-class TypeKinds route through integer_widen_ok_c;
+ * NAMED i8/i16/u16 use family-id-based widen matrix. This helper unifies
+ * both paths so callers see one predicate. Matches
+ * typeck.x::typeck_integer_widen_ok_refs.
+ *
+ * Invariant: returns 0 for NULL arena or null refs; 1 iff dest can implicitly
+ * hold src (same family id, or first-class widen, or NAMED→first-class /
+ * NAMED→NAMED per matrix). Returns 0 for narrowing or non-int types.
+ *
+ * Asm/Perf: O(1) — two family-id lookups + comparisons. Cold path — called
+ * in typeck_check_expr (glue.c:10590/10646), return-type unify (glue.c:11074),
+ * and call_arg_types (glue.c:13212).
+ *
+ * PLATFORM: SHARED — int widen classification is platform-independent.
+ *
+ * wave1079 G.7: migrated from glue.c:10460 (body 33 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:10462 (before all callsites) <
+ * coerce_init.c #include at L14126 < def EOF. Dependencies:
+ * pipeline_typeck_int_family_id_c (same file, def above) /
+ * pipeline_typeck_integer_widen_ok_c (same file, def above) /
+ * ast_ref_is_null (global).
+ */
+static int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *arena, int32_t dest_ref,
+                                                       int32_t src_ref) {
+  int32_t dest_f;
+  int32_t src_f;
+  if (ast_ref_is_null(dest_ref) || ast_ref_is_null(src_ref) || !arena)
+    return 0;
+  dest_f = pipeline_typeck_int_family_id_c(arena, dest_ref);
+  src_f = pipeline_typeck_int_family_id_c(arena, src_ref);
+  if (dest_f < 0 || src_f < 0)
+    return 0;
+  if (dest_f == src_f)
+    return 1;
+  if (dest_f <= 7 && src_f <= 7) {
+    if (pipeline_typeck_integer_widen_ok_c(dest_f, src_f))
+      return 1;
+  }
+  if (src_f == 10) /* i8 */
+    return dest_f == 11 || dest_f == 12 || dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 ||
+           dest_f == 5 || dest_f == 6 || dest_f == 7;
+  if (src_f == 11) /* i16 */
+    return dest_f == 12 || dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 || dest_f == 5 ||
+           dest_f == 6 || dest_f == 7;
+  if (src_f == 12) /* u16 */
+    return dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 || dest_f == 5 || dest_f == 6 ||
+           dest_f == 7;
+  if (dest_f == 10) /* → i8 */
+    return src_f == 2 || src_f == 0 || src_f == 11 || src_f == 12;
+  if (dest_f == 11) /* → i16 */
+    return src_f == 2 || src_f == 0 || src_f == 12 || src_f == 3;
+  if (dest_f == 12) /* → u16 */
+    return src_f == 2 || src_f == 0 || src_f == 11 || src_f == 3;
+  return 0;
+}
+
