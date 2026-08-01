@@ -2925,103 +2925,20 @@ void pipeline_typeck_hot_reorder_warn_layout(struct ast_Module *module, struct a
 extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                   int32_t elem_type_ref, int32_t array_len, int32_t depth);
 
-/** 与 typeck.x typeck_x_type_size 一致。 */
-static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth) {
-  int32_t kind_ord;
-  if (!a || ty_ref <= 0 || ty_ref > a->num_types || depth > 64)
-    return 0;
-  kind_ord = pipeline_type_kind_ord_at(a, ty_ref);
-  if (kind_ord == 16)
-    return 0;
-  if (kind_ord == 2)
-    return 1;
-  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 13 || kind_ord == 14)
-    return 4;
-  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9)
-    return 8;
-  if (kind_ord == 11)
-    return 16;
-  if (kind_ord == 10 || kind_ord == 12) {
-    int32_t elem_ref = pipeline_type_elem_ref_at(a, ty_ref);
-    int32_t asz = pipeline_type_array_size_at(a, ty_ref);
-    int32_t es;
-    int32_t soa_sz;
-    if (elem_ref <= 0 || asz <= 0)
-      return 0;
-    soa_sz = typeck_soa_array_storage_size_glue(m, a, elem_ref, asz, depth + 1);
-    if (soa_sz > 0)
-      return soa_sz;
-    es = glue_type_size_simple(m, a, elem_ref, depth + 1);
-    return es > 0 ? asz * es : 0;
-  }
-  if (kind_ord == 8) {
-    uint8_t name[128];
-    int32_t nlen;
-    int32_t k;
-    int32_t di;
-    int32_t nd;
-    struct ast_Module *dm;
-    nlen = pipeline_type_named_name_into(a, ty_ref, name);
-    if (nlen <= 0 || nlen > 127)
-      return 4;
-    for (k = 0; m && k < (int32_t)m->num_struct_layouts; k++) {
-      int32_t ln = pipeline_module_struct_layout_name_len(m, k);
-      int32_t j;
-      int32_t eq = 1;
-      if (ln != nlen)
-        continue;
-      for (j = 0; j < nlen; j++) {
-        if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
-          eq = 0;
-          break;
-        }
-      }
-      if (!eq)
-        continue;
-      return typeck_x_type_size_from_layout_glue(m, a, k, depth + 1);
-    }
-    /**
-     * Dep exact-name layout only here. Qualified import names (heap.Allocator) use
-     * glue_type_named_layout_size_any_module_elf_c bare-suffix match for SysV dual-GP
-     * store/load/call — not size_simple (freestanding std.vec co-emit CG002 if bare size
-     * walks inflate nested layout sizes inconsistently).
-     *
-     * PLATFORM: SHARED — field type_refs on dep layouts are dep-arena indices.
-     * Must size with pipeline_dep_ctx_arena_at, not caller arena (Option_u8→24 false sret).
-     */
-    if (g_pipeline_asm_emit_dep_pipe) {
-      nd = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
-      for (di = 0; di < nd; di++) {
-        struct ast_ASTArena *da;
-        dm = pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, di);
-        da = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, di);
-        if (!dm || !da)
-          continue;
-        for (k = 0; k < (int32_t)dm->num_struct_layouts; k++) {
-          int32_t ln = pipeline_module_struct_layout_name_len(dm, k);
-          int32_t j;
-          int32_t eq = 1;
-          int32_t sz;
-          if (ln != nlen)
-            continue;
-          for (j = 0; j < nlen; j++) {
-            if (pipeline_module_struct_layout_name_byte_at(dm, k, j) != name[j]) {
-              eq = 0;
-              break;
-            }
-          }
-          if (!eq)
-            continue;
-          sz = typeck_x_type_size_from_layout_glue(dm, da, k, depth + 1);
-          if (sz > 0)
-            return sz;
-        }
-      }
-    }
-    return 4;
-  }
-  return 0;
-}
+/* wave1056 G.7: glue_type_size_simple migrated to pipeline_asm_emit_struct_lit.c
+ * EOF (type sizing domain — completes struct layout registry triad:
+ * size + align(wave1054) + metrics(wave1053)). Definition visible via same-TU
+ * #include at L2095 < all callsites below. Static fwd decl at L1887 retained
+ * for return.c (#include at L1957 < L2095) + glue.c callsites before L2095.
+ * struct_lit.c local fwd decl at L81 retained for callsites before EOF def.
+ * Redundant fwd decls in array_lit.c:35 / struct_let.c:95 / index_helpers.c:122
+ * / index.c:35 harmless (C allows redeclaration); cleanup deferred.
+ * Dependencies: typeck_x_type_size_from_layout_glue (extern L233 < 2095 visible)
+ * + typeck_soa_array_storage_size_glue (extern above; also declared in
+ * struct_lit.c for its body) + g_pipeline_asm_emit_dep_pipe (static global
+ * L184 < 2095 visible). */
+
+
 
 /**
  * wave625 Cap residual pure: force_esz for ARRAY_LIT packed into TYPE_SLICE / TYPE_ARRAY.

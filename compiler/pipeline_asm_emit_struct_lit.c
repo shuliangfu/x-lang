@@ -1187,3 +1187,174 @@ static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena 
   }
   return 1;
 }
+
+/* wave1056 G.7: extern decl — typeck_soa_array_storage_size_glue defined in
+ * pipeline_typeck_soa.c (glue.c:11651 #include); extern decl at glue.c:2925
+ * is after this #include at L2095, so declare locally for size_simple body. */
+extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                  int32_t elem_type_ref, int32_t array_len, int32_t depth);
+
+/* wave1056 G.7 fold: glue_type_size_simple migrated here from pipeline_glue.c
+ * (definition was at glue.c:2929). Type sizing domain — completes the struct
+ * layout registry triad: size (wave1056) + align (wave1054) + metrics
+ * (wave1053). All three colocated in struct_lit.c EOF.
+ *
+ * glue_type_size_simple is the C twin of typeck.x typeck_x_type_size. It is
+ * the G.7 authority for type byte-width computation across all asm emit
+ * domains (frame sizing, sret activation, call-arg packing, index stride,
+ * array_lit temp, struct_lit field store).
+ *
+ * Dependencies (all visible before this #include site at glue.c:2095):
+ * - typeck_x_type_size_from_layout_glue (extern; glue.c:233 < 2095 visible)
+ * - typeck_soa_array_storage_size_glue (extern; declared locally above —
+ *   glue.c:2925 > 2095 not visible)
+ * - g_pipeline_asm_emit_dep_pipe (static global; glue.c:184 < 2095 visible)
+ * - pipeline_dep_ctx_* / pipeline_type_* / pipeline_module_struct_layout_*
+ *   (all public; visible)
+ *
+ * Forward decls retained:
+ * - glue.c:1887 (before all #includes; serves return.c #include at L1957 +
+ *   glue.c callsites before L2095)
+ * - struct_lit.c:81 (local; for struct_lit.c callsites L286/746/1019/1058
+ *   before EOF definition)
+ * - array_lit.c:35 / struct_let.c:95 / index_helpers.c:122 / index.c:35
+ *   (redundant after migration but harmless; cleanup deferred to avoid
+ *   multi-file churn in one wave)
+ *
+ * Recursion: glue_type_size_simple calls itself for ARRAY/VECTOR element
+ * sizing (L2954); also calls typeck_soa_array_storage_size_glue for SoA
+ * column-major array storage and typeck_x_type_size_from_layout_glue for
+ * TYPE_NAMED struct layout sizing. Mutually consistent with
+ * glue_type_align_simple (wave1054) + glue_struct_layout_metrics_c
+ * (wave1053) — all three share the same kind_ord dispatch table. */
+
+/**
+ * Compute the byte size of a type (C twin of typeck.x typeck_x_type_size).
+ *
+ * Why: §11.1 layout step — asm frame sizing, sret activation, call-arg
+ * packing, index stride, array_lit temp, and struct_lit field store all
+ * need the byte width of each type. Scalars return their natural width
+ * (bool/u8=1, i32/u32/f32=4, i64/u64/usize/isize/ptr/f64=8, slice=16,
+ * vector=16). ARRAY/VECTOR recurse on element type and multiply by
+ * array_size, checking SoA column-major storage first. TYPE_NAMED looks
+ * up the struct layout by name and delegates to
+ * typeck_x_type_size_from_layout_glue; if not found locally, searches
+ * dep modules via g_pipeline_asm_emit_dep_pipe for cross-module layout
+ * sizing (field type_refs are dep-arena indices — must size with
+ * pipeline_dep_ctx_arena_at, not caller arena, or Option_u8→24 false sret).
+ *
+ * Invariant: returns 0 for invalid inputs (null arena, ty_ref out of
+ * range, depth > 64) or unknown kinds; otherwise returns the byte size
+ * (1/4/8/16 or struct layout size). f32 (kind_ord 14) must return 4, NOT
+ * 8 — matches glue_type_align_simple (wave1054) scalar table. SoA arrays
+ * return column-major storage size when typeck_soa_array_storage_size_glue
+ * > 0, else fall back to AoS (array_size * elem_sz). Dep module lookup
+ * uses exact name match (not bare-suffix) — qualified import names
+ * (heap.Allocator) use glue_type_named_layout_size_any_module_elf_c instead.
+ *
+ * Asm/Perf: O(1) for scalars; O(depth) for ARRAY/VECTOR recursion;
+ * O(nlayouts * nf) for TYPE_NAMED via typeck_x_type_size_from_layout_glue;
+ * O(ndep * nlayouts * nf) for dep module search. Bounded by depth limit 64.
+ * Hot path — called from frame sizing, sret activation, call-arg packing,
+ * index stride, array_lit temp, struct_lit field store.
+ *
+ * PLATFORM: SHARED — pure type sizing; arch-agnostic. Dep module search
+ * is SHARED (cross-module layout resolution; dep-arena indices require
+ * pipeline_dep_ctx_arena_at for correct field type sizing).
+ */
+static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth) {
+  int32_t kind_ord;
+  if (!a || ty_ref <= 0 || ty_ref > a->num_types || depth > 64)
+    return 0;
+  kind_ord = pipeline_type_kind_ord_at(a, ty_ref);
+  if (kind_ord == 16)
+    return 0;
+  if (kind_ord == 2)
+    return 1;
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 13 || kind_ord == 14)
+    return 4;
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9)
+    return 8;
+  if (kind_ord == 11)
+    return 16;
+  if (kind_ord == 10 || kind_ord == 12) {
+    int32_t elem_ref = pipeline_type_elem_ref_at(a, ty_ref);
+    int32_t asz = pipeline_type_array_size_at(a, ty_ref);
+    int32_t es;
+    int32_t soa_sz;
+    if (elem_ref <= 0 || asz <= 0)
+      return 0;
+    soa_sz = typeck_soa_array_storage_size_glue(m, a, elem_ref, asz, depth + 1);
+    if (soa_sz > 0)
+      return soa_sz;
+    es = glue_type_size_simple(m, a, elem_ref, depth + 1);
+    return es > 0 ? asz * es : 0;
+  }
+  if (kind_ord == 8) {
+    uint8_t name[128];
+    int32_t nlen;
+    int32_t k;
+    int32_t di;
+    int32_t nd;
+    struct ast_Module *dm;
+    nlen = pipeline_type_named_name_into(a, ty_ref, name);
+    if (nlen <= 0 || nlen > 127)
+      return 4;
+    for (k = 0; m && k < (int32_t)m->num_struct_layouts; k++) {
+      int32_t ln = pipeline_module_struct_layout_name_len(m, k);
+      int32_t j;
+      int32_t eq = 1;
+      if (ln != nlen)
+        continue;
+      for (j = 0; j < nlen; j++) {
+        if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
+          eq = 0;
+          break;
+        }
+      }
+      if (!eq)
+        continue;
+      return typeck_x_type_size_from_layout_glue(m, a, k, depth + 1);
+    }
+    /* Dep exact-name layout only here. Qualified import names (heap.Allocator)
+     * use glue_type_named_layout_size_any_module_elf_c bare-suffix match for
+     * SysV dual-GP store/load/call — not size_simple (freestanding std.vec
+     * co-emit CG002 if bare size walks inflate nested layout sizes
+     * inconsistently).
+     *
+     * PLATFORM: SHARED — field type_refs on dep layouts are dep-arena indices.
+     * Must size with pipeline_dep_ctx_arena_at, not caller arena
+     * (Option_u8→24 false sret). */
+    if (g_pipeline_asm_emit_dep_pipe) {
+      nd = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
+      for (di = 0; di < nd; di++) {
+        struct ast_ASTArena *da;
+        dm = pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, di);
+        da = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, di);
+        if (!dm || !da)
+          continue;
+        for (k = 0; k < (int32_t)dm->num_struct_layouts; k++) {
+          int32_t ln = pipeline_module_struct_layout_name_len(dm, k);
+          int32_t j;
+          int32_t eq = 1;
+          int32_t sz;
+          if (ln != nlen)
+            continue;
+          for (j = 0; j < nlen; j++) {
+            if (pipeline_module_struct_layout_name_byte_at(dm, k, j) != name[j]) {
+              eq = 0;
+              break;
+            }
+          }
+          if (!eq)
+            continue;
+          sz = typeck_x_type_size_from_layout_glue(dm, da, k, depth + 1);
+          if (sz > 0)
+            return sz;
+        }
+      }
+    }
+    return 4;
+  }
+  return 0;
+}
