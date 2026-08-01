@@ -2153,3 +2153,89 @@ int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *ar
   (void)sz;
   return heavy;
 }
+
+/* wave1062: extern decl — pipeline_dep_ctx_arena_at defined in glue.c:11662
+ * (after this leaf's #include at L2395). Needed for dep-arena fallback in
+ * pipeline_asm_call_return_type_kind_ord_c below. */
+extern struct ast_ASTArena *pipeline_dep_ctx_arena_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
+
+/**
+ * Resolve a CALL expression's return TypeKind ordinal for asm emit.
+ *
+ * Why: after a CALL, the SysV retval harvest path must know whether the
+ * callee returns f32/f64 (SSE class — harvest xmm0) vs i32/i64/struct (GP
+ * class — harvest rax[/rdx]). The caller-arena resolved_type_ref is the
+ * fast path; when missing (skip_heavy C callees, dep imports without
+ * resolved_type), the callee module + func_ix must be resolved via
+ * glue_asm_resolve_call_target_module_c (wave1061 same leaf) and the
+ * return type_ref fetched + mapped into the caller arena. Dep callee
+ * type_refs live in dep arenas — using them with caller-arena kind_ord is
+ * garbage (hides f64 as non-float, breaks SSE classification — root cause
+ * of abs/signum returning NaN). G.7 single mapping authority.
+ *
+ * Invariant: returns a valid TypeKind ordinal (>=0) on success, -1 on
+ * resolve failure. Dep callee return type_ref is first mapped via
+ * pipeline_typeck_get_dep_return_type_in_caller_arena_c; if mapping fails,
+ * kind_ord is read from the dep arena directly (safe — kind_ord is
+ * arena-local, type_ref is not cross-arena portable but kind_ord read
+ * against the owning arena is correct).
+ *
+ * Asm/Perf: O(1) — one resolved_type lookup + one resolve_call_target +
+ * one dep map. Cold path — called per CALL retval harvest in
+ * glue_asm_harvest_sse_call_ret_to_gpr_c (backend_call_dispatch.x:3316),
+ * binop load_operand (binop.c:869/914), cmp cc select (cmp.c:231/252),
+ * and call_args.c:1352 (call-arg f32/fast-path gate).
+ *
+ * PLATFORM: SHARED — LINUX+MACOS x86_64 SysV SSE/GP harvest + MACOS|ARM64
+ * AAPCS64 (kind_ord only selects harvest register; arch select is at the
+ * backend_enc call site, not here).
+ *
+ * wave1062 G.7: migrated from glue.c:13849 (body ~30 LOC). Extern
+ * (non-static): extern prototype at struct_let.c:99 (via #include at
+ * L2269 < call_args.c L2395) visible to all callsites (call_args.c:1352
+ * same leaf; binop.c:869/914 via #include L2413 > 2395; cmp.c:231/252 via
+ * #include L3690 > 2395; backend_call_dispatch.x:3316 + seeds via extern C
+ * link). Dependencies: pipeline_expr_resolved_type_ref (extern glue.c:1698
+ * < 2395); pipeline_type_kind_ord_at (extern < 2395);
+ * glue_asm_resolve_call_target_module_c (static fwd decl struct_let.c:78
+ * via #include L2269 < 2395; def still in glue.c:13555);
+ * pipeline_module_func_return_type_at (extern glue.c:1954 < 2395);
+ * pipeline_typeck_get_dep_return_type_in_caller_arena_c (extern glue.c:788
+ * < 2395); pipeline_dep_ctx_arena_at (extern glue.c:11662 > 2395 —
+ * forward declared just above); g_pipeline_asm_emit_dep_pipe (global).
+ */
+int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
+  struct ast_Module *mod;
+  int32_t func_ix;
+  int32_t dep_ix;
+  int32_t rty;
+  int32_t mapped;
+  struct ast_ASTArena *dep_arena;
+
+  if (!arena || call_expr_ref <= 0)
+    return -1;
+  /* Fast path: caller-arena resolved type_ref (set by typeck). */
+  rty = pipeline_expr_resolved_type_ref(arena, call_expr_ref);
+  if (rty > 0)
+    return pipeline_type_kind_ord_at(arena, rty);
+  /* Slow path: resolve callee module + func_ix, fetch return type_ref. */
+  if (glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &func_ix, &dep_ix) != 0)
+    return -1;
+  if (!mod || func_ix < 0)
+    return -1;
+  rty = pipeline_module_func_return_type_at(mod, func_ix);
+  if (rty <= 0)
+    return -1;
+  /* Dep callee: map type_ref into caller arena first; if mapping fails,
+   * read kind_ord from dep arena (arena-local read is safe). */
+  if (dep_ix >= 0 && g_pipeline_asm_emit_dep_pipe) {
+    mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena,
+                                                                   g_pipeline_asm_emit_dep_pipe);
+    if (mapped > 0)
+      return pipeline_type_kind_ord_at(arena, mapped);
+    dep_arena = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, dep_ix);
+    if (dep_arena)
+      return pipeline_type_kind_ord_at(dep_arena, rty);
+  }
+  return pipeline_type_kind_ord_at(arena, rty);
+}
