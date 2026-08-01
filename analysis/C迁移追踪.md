@@ -33,7 +33,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~18.7k + `ast_pool` ~12.9k；8.3.1 三十二刀（+…／array_lit durable／**slice reent**／**var_decl+lazy_append 共享叶**）+ 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~18.5k + `ast_pool` ~12.9k；8.3.1 三十二刀（+…／array_lit durable／**slice reent**／**var_decl+lazy_append 共享叶**／**slice dual-GP+slice_from_array 同叶**）+ 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -1027,7 +1027,8 @@
   - ✅ asm call_arg resolve + f32 VAR slot 有则补全：`pipeline_asm_emit_call_args.c` 迁入 resolve_anon／resolve_var_stack_off + load_f32_var_slot_{rax,rbx} + unusable／append_at_offset／var_is_param（~160 LOC；file ~1052；COUNT 仍 62；glue ~19.8k；var_decl + lazy_append wave1023 已迁出共享叶）（wave1019）
   - ✅ asm slice reent deep-copy 有则补全：`pipeline_asm_emit_call_args.c` 迁入 `glue_slice_let_reent_deep_copy_after_dual_gp_elf_c`（~400 LOC；file ~1458；COUNT 仍 62；glue ~18.8k）（wave1022）
   - ✅ asm var_decl + lazy_append G.7 共享叶 fold：新建 `pipeline_asm_emit_var_decl.c`（~125 LOC；`glue_var_decl_type_ref_elf_c` ~30 + `glue_lazy_append_block_let_local` ~25 自 glue residual）；glue 66 行定义体 → 9 行 #include；COUNT 仍 62（同 TU #include 不增 .o）；glue ~18.8k→~18.7k；被 7 切片共享（call_args/binop/assign/unary/expr_rec/block_inits/block_body）（wave1023）
-  - ⬜ 下一域候选：slice_from_array residual 或 8.3.3 field_access／soa
+  - ✅ asm slice dual-GP helpers + slice_from_array G.7 同叶 fold：`pipeline_asm_emit_block_inits.c` 迁入 `glue_slice_dual_gp_length_off_c`（~5 LOC）+ `glue_slice_dual_gp_bump_past_home_c`（~14 LOC）+ `glue_emit_slice_from_array_let_init_elf_c`（~150 LOC 自 glue residual；file ~171→~402）；COUNT 仍 62；glue ~18.7k→~18.5k；被 block_inits + call_args（slice_let_reent_deep_copy）共享（length_off 早期 fwd 保留供 call_args）（wave1024）
+  - ⬜ 下一域候选：8.3.1 其它 leaf residual 或 8.3.3 field_access／soa
 
 ⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
@@ -1830,7 +1831,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 三十二刀（+array_lit durable／slice reent／**var_decl+lazy_append 共享叶**）+ index_eff／emit_expr fast／call_arg／try_binop 有则补全 ✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：leaf residual（slice_from_array）或 8.3.3 field_access／soa**）  
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 三十二刀（+array_lit durable／slice reent／**var_decl+lazy_append 共享叶**／**slice dual-GP+slice_from_array 同叶**）+ index_eff／emit_expr fast／call_arg／try_binop 有则补全 ✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：8.3.1 其它 leaf residual 或 8.3.3 field_access／soa**）
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
