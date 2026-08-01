@@ -34,6 +34,11 @@
  */
 #define GLUE_BLOCK_LET_DEFER_MAX 512
 
+/* wave1042 G.7: forward decl — definition at EOF (block_body_sync_elf callsite
+ * at line 768 precedes definition). Same-TU #include from pipeline_glue.c. */
+static int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                          int32_t block_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+
 /** Deeper use walk for defer analysis: INDEX / AS / field / array-lit elems / unaries. */
 static void glue_live_fwd_collect_expr_uses_for_defer(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                      int32_t expr_ref, GlueBlockLiveFwd *gen) {
@@ -806,4 +811,97 @@ int32_t pipeline_asm_block_num_stmt_order_at(struct ast_ASTArena *a, int32_t br)
 /** stmt_order 已含 EXPR_RETURN 时勿再 emit final_expr（避免 return 1+2 后重复 emit 占位 LIT 1）。 */
 int32_t pipeline_asm_block_stmt_order_has_return(struct ast_ASTArena *a, int32_t br) {
   return glue_block_stmt_order_has_return(a, br);
+}
+
+/**
+ * Synchronize block-body tail: if the block has a final_expr_ref (e.g.
+ * `return offset;`) and stmt_order does not contain RETURN, emit the
+ * trailing expression here.
+ *
+ * Why: parser stmt_order may omit an explicit EXPR_RETURN when the block
+ * ends with a bare expression; this emit path ensures the value-producing
+ * expr is emitted exactly once. Caller: pipeline_asm_emit_block_body_sync_elf
+ * (same file, same TU #include from pipeline_glue.c at line 4533).
+ *
+ * Invariant: block_ref > 0 && blk->final_expr_ref > 0 && no RETURN in
+ * stmt_order. Emits expr via pipeline_asm_emit_expr_elf_rec then optionally
+ * jmp tail_join_label when this block *is* the function body.
+ *
+ * Asm/Perf: index scratch spills cleanup preserves rbx address cache for
+ * EXPR_INDEX symmetric reuse in the final return (7.3). tail_join jmp is
+ * gated by function-body identity (not a second loop-only special case)
+ * to avoid freestanding one-iteration regression (wave653 root).
+ *
+ * PLATFORM: SHARED freestanding · LINUX x86_64 gold · MACOS arm64 co-path.
+ */
+static int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                          int32_t block_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  struct ast_Block *blk;
+  if (!arena || !elf_ctx || !ctx || block_ref <= 0)
+    return 0;
+  blk = pipeline_arena_block_ptr(arena, block_ref);
+  if (!blk || blk->final_expr_ref == 0)
+    return 0;
+  if (glue_block_stmt_order_has_return(arena, block_ref))
+    return 0;
+  {
+    pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
+    if (ly && ly->module_ref)
+      g_pipeline_asm_emit_module = ly->module_ref;
+    if (ly && ly->dep_pipe)
+      g_pipeline_asm_emit_dep_pipe = (struct ast_PipelineDepCtx *)ly->dep_pipe;
+  }
+  glue_asm_ctx_set_scope_block((uint8_t *)ctx, block_ref);
+  /* Preserve assign rbx address cache for final return EXPR_INDEX symmetric reuse (7.3). */
+  if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0) {
+    if (link_abi_getenv("XLANG_ASM_DEBUG"))
+      fprintf(stderr, "xlang: final_expr scratch cleanup fail block=%d fref=%d ko=%d\n", (int)block_ref,
+              (int)blk->final_expr_ref, (int)pipeline_expr_kind_ord_at(arena, blk->final_expr_ref));
+    return -1;
+  }
+  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, blk->final_expr_ref, ctx, ta) != 0) {
+    if (link_abi_getenv("XLANG_ASM_DEBUG"))
+      fprintf(stderr, "xlang: final_expr emit_expr fail block=%d fref=%d ko=%d sret=%d ret_sz=%d\n",
+              (int)block_ref, (int)blk->final_expr_ref,
+              (int)pipeline_expr_kind_ord_at(arena, blk->final_expr_ref),
+              (int)g_pipeline_asm_func_sret_active, (int)g_pipeline_asm_func_sret_ret_sz);
+    return -1;
+  }
+  /*
+   * Implicit trailing expr (non-EXPR_RETURN): jmp function tail_join only
+   * when this block *is* the function body (value falls into epilogue).
+   * Nested blocks must not:
+   *   - if-expr arms: done-label joins (glue_if_expr_arm_emit_depth)
+   *   - while/for loop bodies: back-edge joins after body emit
+   *   - if-stmt then/else / bare blocks: fall through to parent CFG
+   * wave653 root: ASI omits `;` so trailing `s = s + i` is final_expr of
+   * while body; old path always jmp tail_join -> freestanding one-iteration
+   * (fs=1 vs host=12). G.7 single authority: function-body gate.
+   * PLATFORM: SHARED freestanding · LINUX x86_64 gold · MACOS arm64 co-path.
+   */
+  {
+    int32_t allow_tail_join = 0;
+    int32_t fref_ko = pipeline_expr_kind_ord_at(arena, blk->final_expr_ref);
+    if (glue_if_expr_arm_emit_depth <= 0 && fref_ko != 41) {
+      if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
+        int32_t fb =
+            pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
+        if (fb > 0 && fb == block_ref)
+          allow_tail_join = 1;
+      } else {
+        /* No module context (rare unit path): keep prior non-if-arm tail_join. */
+        allow_tail_join = 1;
+      }
+    }
+    if (allow_tail_join) {
+      pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
+      if (ly->tail_join_label_len > 0 &&
+          backend_enc_jmp_arch(elf_ctx, ly->tail_join_label, ly->tail_join_label_len, ta) != 0) {
+        if (link_abi_getenv("XLANG_ASM_DEBUG"))
+          fprintf(stderr, "xlang: final_expr tail_join jmp fail block=%d\n", (int)block_ref);
+        return -1;
+      }
+    }
+  }
+  return 0;
 }
