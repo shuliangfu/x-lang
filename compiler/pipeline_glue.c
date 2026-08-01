@@ -1688,10 +1688,6 @@ int32_t pipeline_expr_field_access_offset(struct ast_ASTArena *a, int32_t expr_r
 int32_t pipeline_expr_field_access_layout_offset(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref);
 int32_t pipeline_expr_field_access_load_byte_sz(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref);
 int32_t pipeline_expr_field_access_soa_stride(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t pipeline_expr_struct_lit_field_offset_at(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
-                                                 int32_t field_ix);
-int32_t pipeline_expr_struct_lit_field_type_ref_at(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
-                                                   int32_t field_ix);
 int32_t pipeline_expr_struct_lit_field_store_sz(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
                                                 int32_t field_ix);
 int32_t pipeline_expr_struct_lit_value_bytes(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref);
@@ -4022,72 +4018,15 @@ int32_t pipeline_expr_struct_lit_value_bytes(struct ast_ASTArena *a, struct ast_
   return 0;
 }
 
-/**
- * STRUCT_LIT 第 field_ix 字段在布局中的字节偏移；供 asm 按 layout 存字段（勿用 fi*8）。
+/* wave1035 G.7: pipeline_expr_struct_lit_field_offset_at +
+ * pipeline_expr_struct_lit_field_type_ref_at folded into
+ * pipeline_asm_emit_struct_lit.c (included at glue.c:2172). struct_lit.c
+ * is the sole in-TU leaf consumer (offset: 1 callsite L276; type_ref: 2
+ * callsites L119/L278); residual glue.c wrappers codegen_/backend_ at
+ * L17076/L17084 are after struct_lit.c #include — definition visible,
+ * no forward decl needed. Seed backend_try_inline_dispatch consumes via
+ * extern — symbol still in pipeline_x.o.
  */
-int32_t pipeline_expr_struct_lit_field_offset_at(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
-                                                 int32_t field_ix) {
-  struct ast_Expr *ex;
-  int32_t nlen;
-  uint8_t name[128];
-  int32_t k;
-  if (!a || !m || expr_ref <= 0 || field_ix < 0)
-    return field_ix * 8;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex || ex->kind != ast_ExprKind_EXPR_STRUCT_LIT)
-    return field_ix * 8;
-  nlen = ex->struct_lit_struct_name_len;
-  if (nlen <= 0 || nlen > 127) {
-    /** 类型名缺失时单 layout 入口模块仍可按 field_ix 查 offset（DOD-CL-S1）。 */
-    if (m->num_struct_layouts == 1 && field_ix < pipeline_module_struct_layout_num_fields(m, 0))
-      return glue_struct_layout_compute_field_offset_c(m, a, 0, field_ix);
-    return field_ix * 8;
-  }
-  memcpy(name, ex->struct_lit_struct_name, (size_t)nlen);
-  k = glue_struct_layout_index_by_type_name_c(m, name, nlen);
-  if (k >= 0 && field_ix < pipeline_module_struct_layout_num_fields(m, k))
-    return glue_struct_layout_compute_field_offset_c(m, a, k, field_ix);
-  return field_ix * 8;
-}
-
-/** STRUCT_LIT 第 field_ix 字段在 layout 中的类型 ref；未命中时返回 0。 */
-int32_t pipeline_expr_struct_lit_field_type_ref_at(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
-                                                 int32_t field_ix) {
-  struct ast_Expr *ex;
-  int32_t nlen;
-  uint8_t name[128];
-  int32_t k;
-  if (!a || !m || expr_ref <= 0 || field_ix < 0)
-    return 0;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex || ex->kind != ast_ExprKind_EXPR_STRUCT_LIT)
-    return 0;
-  nlen = ex->struct_lit_struct_name_len;
-  if (nlen <= 0 || nlen > 127)
-    return 0;
-  memcpy(name, ex->struct_lit_struct_name, (size_t)nlen);
-  for (k = 0; k < (int32_t)m->num_struct_layouts; k++) {
-    int32_t ln;
-    int32_t j;
-    int32_t eq;
-    ln = pipeline_module_struct_layout_name_len(m, k);
-    if (ln != nlen)
-      continue;
-    eq = 1;
-    for (j = 0; j < nlen; j++) {
-      if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
-        eq = 0;
-        break;
-      }
-    }
-    if (!eq)
-      continue;
-    if (field_ix < pipeline_module_struct_layout_num_fields(m, k))
-      return pipeline_module_struct_layout_field_type_ref(m, k, field_ix);
-    return 0;
-  }
-  return 0;
-}
 
 /** struct_lit 字段名/init 读 API 见 ast_pool.c（侧车池）。 */
 

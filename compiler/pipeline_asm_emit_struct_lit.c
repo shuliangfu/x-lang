@@ -40,7 +40,21 @@
  * wave1032 G.7 fold: glue_type_is_empty_struct_c is now defined at the top
  * of this file (sole in-TU leaf consumer + residual glue.c callers after
  * this #include site).
+ * wave1035 G.7 fold: pipeline_expr_struct_lit_field_offset_at +
+ * pipeline_expr_struct_lit_field_type_ref_at are now defined at the top of
+ * this file (sole in-TU leaf consumer: 2 callsites each at L119/L276/L278;
+ * residual glue.c wrappers codegen_/backend_ at L17076/L17084 after this
+ * #include site; seed backend_try_inline_dispatch consumes via extern —
+ * symbol still in pipeline_x.o).
+ * Requires static forward decls for glue_struct_layout_compute_field_offset_c
+ * and glue_struct_layout_index_by_type_name_c (defined later in TU at
+ * glue.c:3788/3892, after this #include at glue.c:2172).
  */
+
+/* wave1035 G.7: static forward decls — definitions later in TU (glue.c:3788/3892). */
+static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t li,
+                                                          int32_t fj);
+static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name, int32_t nlen);
 
 /**
  * Check whether a TYPE_NAMED refers to an empty struct (ZST).
@@ -101,6 +115,98 @@ static int32_t glue_type_is_empty_struct_c(struct ast_Module *module, struct ast
         return 0;
     }
     return 1;
+  }
+  return 0;
+}
+
+/**
+ * Byte offset of STRUCT_LIT field field_ix within its struct layout.
+ *
+ * Why: asm emit must store each field at its layout offset (not fi*8) to
+ * honour C-compatible padding / mixed-size fields. When the struct name
+ * is missing (anonymous single-layout module, e.g. DOD-CL-S1), fall back
+ * to the single layout entry directly. When the name is present, look up
+ * the layout index by type name, then compute the cumulative offset up
+ * to field_ix. Returns field_ix*8 as a safe fallback on any miss.
+ *
+ * Contract: returns field_ix*8 for invalid arena/module/ref/ix or
+ * non-EXPR_STRUCT_LIT; otherwise returns the layout byte offset.
+ *
+ * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
+ */
+int32_t pipeline_expr_struct_lit_field_offset_at(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
+                                                 int32_t field_ix) {
+  struct ast_Expr *ex;
+  int32_t nlen;
+  uint8_t name[128];
+  int32_t k;
+  if (!a || !m || expr_ref <= 0 || field_ix < 0)
+    return field_ix * 8;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex || ex->kind != ast_ExprKind_EXPR_STRUCT_LIT)
+    return field_ix * 8;
+  nlen = ex->struct_lit_struct_name_len;
+  if (nlen <= 0 || nlen > 127) {
+    /** Single-layout module fallback when type name is missing (DOD-CL-S1). */
+    if (m->num_struct_layouts == 1 && field_ix < pipeline_module_struct_layout_num_fields(m, 0))
+      return glue_struct_layout_compute_field_offset_c(m, a, 0, field_ix);
+    return field_ix * 8;
+  }
+  memcpy(name, ex->struct_lit_struct_name, (size_t)nlen);
+  k = glue_struct_layout_index_by_type_name_c(m, name, nlen);
+  if (k >= 0 && field_ix < pipeline_module_struct_layout_num_fields(m, k))
+    return glue_struct_layout_compute_field_offset_c(m, a, k, field_ix);
+  return field_ix * 8;
+}
+
+/**
+ * Type ref of STRUCT_LIT field field_ix within its struct layout.
+ *
+ * Why: asm emit needs the per-field type ref to select the correct store
+ * width / register class (scalar / dual-GP / ZST). Walks module struct
+ * layouts by name match; returns 0 on any miss (caller falls back to
+ * default 8-byte store).
+ *
+ * Contract: returns 0 for invalid arena/module/ref/ix, non-EXPR_STRUCT_LIT,
+ * missing struct name, or layout not found; otherwise returns the field
+ * type_ref from the matched layout.
+ *
+ * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
+ */
+int32_t pipeline_expr_struct_lit_field_type_ref_at(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
+                                                   int32_t field_ix) {
+  struct ast_Expr *ex;
+  int32_t nlen;
+  uint8_t name[128];
+  int32_t k;
+  if (!a || !m || expr_ref <= 0 || field_ix < 0)
+    return 0;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex || ex->kind != ast_ExprKind_EXPR_STRUCT_LIT)
+    return 0;
+  nlen = ex->struct_lit_struct_name_len;
+  if (nlen <= 0 || nlen > 127)
+    return 0;
+  memcpy(name, ex->struct_lit_struct_name, (size_t)nlen);
+  for (k = 0; k < (int32_t)m->num_struct_layouts; k++) {
+    int32_t ln;
+    int32_t j;
+    int32_t eq;
+    ln = pipeline_module_struct_layout_name_len(m, k);
+    if (ln != nlen)
+      continue;
+    eq = 1;
+    for (j = 0; j < nlen; j++) {
+      if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
+        eq = 0;
+        break;
+      }
+    }
+    if (!eq)
+      continue;
+    if (field_ix < pipeline_module_struct_layout_num_fields(m, k))
+      return pipeline_module_struct_layout_field_type_ref(m, k, field_ix);
+    return 0;
   }
   return 0;
 }
