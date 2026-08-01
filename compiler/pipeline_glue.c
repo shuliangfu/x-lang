@@ -1900,13 +1900,13 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
                                                             int32_t expr_ref, int32_t force_esz, int32_t ta,
                                                             struct backend_AsmFuncCtx *ctx);
 
-/** WPO-S3 async CPS：return 前 reset phase；定义见 glue_async_cps_emit_phase_reset。 */
+/** WPO-S3 async CPS：return 前 reset phase；定义见 glue_async_cps_emit_phase_reset. */
 static int32_t glue_async_cps_emit_phase_reset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
-/* wave314: f32→f64 freestanding promote (defs near typeck float_widen). */
-static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
-                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                       int32_t dest_ty_ref, int32_t src_ty_ref, int32_t ta);
-static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
+/* wave1130-1131 G.7: glue_maybe_promote_f32_to_f64_rax_elf_c /
+ * glue_float_promote_src_ty_ref_c fwd decls removed — definitions now at
+ * pipeline_asm_emit_return.c EOF (#include @ L1913 below provides same-TU
+ * visibility to all subsequent callsites incl. assign/block_inits/block_body
+ * and glue.c L5553-5554). */
 extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
 
 /* BC 8.3.1: asm ELF return emit domain (slice escape + return_impl; same TU). */
@@ -1925,11 +1925,8 @@ static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                    int32_t right_ref, int32_t ta);
-/* wave314: f32→f64 freestanding promote (defs near typeck float_widen). */
-static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
-                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                       int32_t dest_ty_ref, int32_t src_ty_ref, int32_t ta);
-static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
+/* wave1130-1131 G.7: float promote pair fwd decls removed — definitions now
+ * at pipeline_asm_emit_return.c EOF (visible via #include @ L1913 above). */
 
 /* BC 8.3.1: asm ELF unary emit domain (NEG/LOGNOT/BITNOT + sxt/jz; same TU). */
 #include "pipeline_asm_emit_unary.c"
@@ -8102,71 +8099,10 @@ static int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *aren
  * pipeline_typeck_coerce_init.c EOF (f32→f64 IEEE float widen gate).
  * Static fwd decl at L10435 (before all callsites). Body 10 LOC. */
 
-/**
- * wave314 freestanding emit: if dest is f64 and src value in eax is f32 bits, promote via
- * backend_enc_cvtss2sd_rax_from_f32_bits_arch (G.7 reuse wave293 encoder; no parallel path).
- * @return 0 OK, -1 encode fail. No-op when not f32→f64.
- * PLATFORM: SHARED typeck gate / LINUX+MACOS x86_64|arm64 encode via arch helper.
- */
-static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
-                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                       int32_t dest_ty_ref, int32_t src_ty_ref, int32_t ta) {
-  int32_t dk;
-  int32_t sk;
-  if (!arena || !elf_ctx || dest_ty_ref <= 0 || src_ty_ref <= 0)
-    return 0;
-  dk = pipeline_type_kind_ord_at(arena, dest_ty_ref);
-  sk = pipeline_type_kind_ord_at(arena, src_ty_ref);
-  if (!pipeline_typeck_float_widen_ok_c(dk, sk))
-    return 0;
-  /* Only true widen f32→f64 needs convert (identity no-op). */
-  if (dk == (int32_t)ast_TypeKind_TYPE_F64 && sk == (int32_t)ast_TypeKind_TYPE_F32)
-    return backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta);
-  return 0;
-}
-
-/**
- * Resolve source type for float promote.
- * Prefer VAR **declaration** type over resolved_type_ref: typeck may stamp the VAR
- * expr as f64 under f64 let context (init_ctx=decl), which would skip cvtss2sd and
- * zero-extend f32 bits (Ubuntu wave314 run=0). PLATFORM: SHARED.
- */
-static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref) {
-  int32_t tr;
-  uint8_t vname[128];
-  int32_t vlen;
-  if (!arena || expr_ref <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, expr_ref) == GLUE_EXPR_KIND_VAR) {
-    /* Decl / param first — true storage type before any widen stamp. */
-    vlen = pipeline_expr_var_name_len(arena, expr_ref);
-    if (vlen > 0 && vlen <= 63) {
-      pipeline_expr_var_name_into(arena, expr_ref, vname);
-      if (g_pipeline_asm_emit_func_index >= 0 && g_pipeline_asm_emit_module) {
-        tr = pipeline_module_func_param_type_ref_for_name(g_pipeline_asm_emit_module,
-                                                         g_pipeline_asm_emit_func_index, vname, vlen);
-        if (tr > 0)
-          return tr;
-      }
-      if (g_pipeline_asm_emit_scope_block > 0) {
-        tr = pipeline_block_resolve_var_type_ref(arena, g_pipeline_asm_emit_scope_block, vname, vlen);
-        if (tr > 0)
-          return tr;
-      }
-      if (g_pipeline_asm_emit_func_index >= 0 && g_pipeline_asm_emit_module) {
-        int32_t body_ref =
-            pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
-        if (body_ref > 0) {
-          tr = pipeline_block_resolve_var_type_ref(arena, body_ref, vname, vlen);
-          if (tr > 0)
-            return tr;
-        }
-      }
-    }
-  }
-  tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
-  return tr > 0 ? tr : 0;
-}
+/* wave1130-1131 G.7: glue_maybe_promote_f32_to_f64_rax_elf_c /
+ * glue_float_promote_src_ty_ref_c migrated to pipeline_asm_emit_return.c EOF
+ * (colocated with wave314 return float-widen callsites at L542/543/630/631/
+ * 640/641). Same-TU visibility via #include @ L1913. */
 
 /**
  * typeck.x::typeck_return_operand_matches C twin (G.7 single semantic).
@@ -9846,14 +9782,12 @@ void pipeline_typeck_linear_reset_c(void) {
   g_typeck_linear_moved_n = 0;
 }
 
-static int typeck_linear_name_already_moved(const uint8_t *name, int32_t name_len) {
-  int i;
-  for (i = 0; i < g_typeck_linear_moved_n; i++)
-    if (g_typeck_linear_moved_lens[i] == name_len && name_len > 0 &&
-        memcmp(g_typeck_linear_moved_names[i], name, (size_t)name_len) == 0)
-      return 1;
-  return 0;
-}
+/* wave1132 G.7: typeck_linear_name_already_moved migrated to
+ * pipeline_typeck_check_block.c EOF (colocated with the check_block walker
+ * domain; globals g_typeck_linear_moved_* above are visible there via
+ * #include @ L11606). Static fwd decl below — definition at check_block.c
+ * EOF, AFTER the callsite at L9805 in pipeline_typeck_linear_use_var_c. */
+static int typeck_linear_name_already_moved(const uint8_t *name, int32_t name_len);
 
 /**
  * M-4：VAR 读取 Linear(T) 时检查 double-move；成功则标记 moved。返回 0 可接受，-1 已报错。
@@ -9974,138 +9908,13 @@ static int32_t typeck_var_is_block_local_c(struct ast_Module *m, struct ast_ASTA
                                            struct ast_PipelineDepCtx *ctx, int32_t expr_ref);
 static int32_t typeck_find_or_alloc_ptr_stack_local_c(struct ast_ASTArena *a, int32_t elem_ref);
 
-/** WPO-S3：left 是否为第 dst_pi 形参（*T）上的字段写入左值（含 field 链基为形参）。 */
-static int32_t typeck_lval_is_param_ptr_field_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
-                                                int32_t left_ref, int32_t dst_pi) {
-  int32_t base_ref;
-  int32_t param_ty;
-  int32_t np;
-  int32_t pi;
-  if (!m || !a || left_ref <= 0 || func_ix < 0 || dst_pi < 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(a, left_ref) != (int32_t)ast_ExprKind_EXPR_FIELD_ACCESS)
-    return 0;
-  base_ref = pipeline_expr_field_access_base_ref(a, left_ref);
-  if (glue_expr_is_func_param_at_c(a, m, func_ix, base_ref, dst_pi)) {
-    param_ty = pipeline_module_func_param_type_ref_at(m, func_ix, dst_pi);
-    return param_ty > 0 && pipeline_type_kind_ord_at(a, param_ty) == (int32_t)ast_TypeKind_TYPE_PTR ? 1 : 0;
-  }
-  /** field 链：slot.x.ptr 等，沿 base 找 *T 形参。 */
-  np = pipeline_module_func_num_params_at(m, func_ix);
-  for (pi = 0; pi < np; pi++) {
-    if (glue_expr_is_func_param_at_c(a, m, func_ix, base_ref, pi)) {
-      param_ty = pipeline_module_func_param_type_ref_at(m, func_ix, pi);
-      if (param_ty > 0 && pipeline_type_kind_ord_at(a, param_ty) == (int32_t)ast_TypeKind_TYPE_PTR)
-        return pi == dst_pi ? 1 : 0;
-    }
-  }
-  return 0;
-}
-
-/** WPO-S3：扫描块内 expr_stmts 是否存在 param[dst].field = param[src]。 */
-static int32_t typeck_block_expr_stmts_store_scan_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                    int32_t block_ref, int32_t func_ix, int32_t dst_pi,
-                                                    int32_t src_pi) {
-  int32_t nes;
-  int32_t ei;
-  if (!m || !a || block_ref <= 0 || func_ix < 0)
-    return 0;
-  nes = ast_ast_block_num_expr_stmts(a, block_ref);
-  for (ei = 0; ei < nes; ei++) {
-    int32_t er = ast_ast_block_expr_stmt_ref(a, block_ref, ei);
-    int32_t left_ref;
-    int32_t right_ref;
-    if (er <= 0 || !glue_expr_kind_is_assign_like_ord(pipeline_expr_kind_ord_at(a, er)))
-      continue;
-    left_ref = pipeline_expr_binop_left_ref_at(a, er);
-    right_ref = pipeline_expr_binop_right_ref_at(a, er);
-    if (typeck_lval_is_param_ptr_field_c(m, a, func_ix, left_ref, dst_pi) &&
-        glue_expr_is_func_param_at_c(a, m, func_ix, right_ref, src_pi))
-      return 1;
-  }
-  return 0;
-}
-
-/** WPO-S3：块内是否存在 dst_pi 形参字段 = src_pi 形参 的赋值。 */
-static int32_t typeck_block_stores_param_into_param_field_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                            int32_t block_ref, int32_t func_ix, int32_t dst_pi,
-                                                            int32_t src_pi) {
-  int32_t nso;
-  int32_t i;
-  if (!m || !a || block_ref <= 0 || func_ix < 0)
-    return 0;
-  if (typeck_block_expr_stmts_store_scan_c(m, a, block_ref, func_ix, dst_pi, src_pi))
-    return 1;
-  nso = ast_ast_block_num_stmt_order(a, block_ref);
-  for (i = 0; i < nso; i++) {
-    uint8_t item_kind = ast_ast_block_stmt_order_kind(a, block_ref, i);
-    int32_t idx = ast_ast_block_stmt_order_idx(a, block_ref, i);
-    if (item_kind == 2 && idx >= 0 && idx < ast_ast_block_num_expr_stmts(a, block_ref)) {
-      int32_t er = ast_ast_block_expr_stmt_ref(a, block_ref, idx);
-      int32_t left_ref;
-      int32_t right_ref;
-      if (er <= 0 || !glue_expr_kind_is_assign_like_ord(pipeline_expr_kind_ord_at(a, er)))
-        continue;
-      left_ref = pipeline_expr_binop_left_ref_at(a, er);
-      right_ref = pipeline_expr_binop_right_ref_at(a, er);
-      if (typeck_lval_is_param_ptr_field_c(m, a, func_ix, left_ref, dst_pi) &&
-          glue_expr_is_func_param_at_c(a, m, func_ix, right_ref, src_pi))
-        return 1;
-    } else if (item_kind == 3 && idx >= 0 && idx < ast_ast_block_num_loops(a, block_ref)) {
-      int32_t body_ref = ast_ast_block_while_body_ref(a, block_ref, idx);
-      if (body_ref > 0 &&
-          typeck_block_stores_param_into_param_field_c(m, a, body_ref, func_ix, dst_pi, src_pi))
-        return 1;
-    } else if (item_kind == 4 && idx >= 0 && idx < ast_ast_block_num_for_loops(a, block_ref)) {
-      int32_t body_ref = ast_ast_block_for_body_ref(a, block_ref, idx);
-      if (body_ref > 0 &&
-          typeck_block_stores_param_into_param_field_c(m, a, body_ref, func_ix, dst_pi, src_pi))
-        return 1;
-    } else if (item_kind == 5 && idx >= 0 && idx < ast_ast_block_num_regions(a, block_ref)) {
-      int32_t body_ref = ast_ast_block_region_body_ref(a, block_ref, idx);
-      if (body_ref > 0 &&
-          typeck_block_stores_param_into_param_field_c(m, a, body_ref, func_ix, dst_pi, src_pi))
-        return 1;
-    }
-  }
-  return 0;
-}
-
-/** WPO-S3：扫描块 final_expr 是否为 param[dst].field = param[src]。 */
-static int32_t typeck_block_final_expr_store_scan_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                    int32_t block_ref, int32_t func_ix, int32_t dst_pi,
-                                                    int32_t src_pi) {
-  int32_t fin;
-  int32_t left_ref;
-  int32_t right_ref;
-  if (!m || !a || block_ref <= 0 || func_ix < 0)
-    return 0;
-  fin = pipeline_asm_block_final_expr_ref_at(a, block_ref);
-  if (fin <= 0 || !glue_expr_kind_is_assign_like_ord(pipeline_expr_kind_ord_at(a, fin)))
-    return 0;
-  left_ref = pipeline_expr_binop_left_ref_at(a, fin);
-  right_ref = pipeline_expr_binop_right_ref_at(a, fin);
-  return typeck_lval_is_param_ptr_field_c(m, a, func_ix, left_ref, dst_pi) &&
-                 glue_expr_is_func_param_at_c(a, m, func_ix, right_ref, src_pi)
-             ? 1
-             : 0;
-}
-
-/** WPO-S3：callee 是否将 src 形参写入 dst 形参（*T）指向对象的字段。 */
-static int32_t typeck_func_stores_param_into_param_field_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                           int32_t func_ix, int32_t dst_pi, int32_t src_pi) {
-  int32_t body_ref;
-  if (!m || !a || func_ix < 0)
-    return 0;
-  body_ref = pipeline_module_func_body_ref_at(m, func_ix);
-  if (body_ref <= 0)
-    return 0;
-  if (typeck_block_expr_stmts_store_scan_c(m, a, body_ref, func_ix, dst_pi, src_pi))
-    return 1;
-  if (typeck_block_final_expr_store_scan_c(m, a, body_ref, func_ix, dst_pi, src_pi))
-    return 1;
-  return typeck_block_stores_param_into_param_field_c(m, a, body_ref, func_ix, dst_pi, src_pi);
-}
+/* wave1133-1135 G.7: lval param ptr field cluster migrated to
+ * pipeline_typeck_region_assign.c EOF (colocated with WPO-S3 stack-escape
+ * helpers wave1125-1129; same-TU visibility via #include @ L10059 below).
+ * Cluster: typeck_lval_is_param_ptr_field_c / typeck_block_expr_stmts_store_scan_c /
+ * typeck_block_final_expr_store_scan_c / typeck_block_stores_param_into_param_field_c /
+ * typeck_func_stores_param_into_param_field_c. region_assign.c L141 callsite
+ * sees definition via static fwd decl at file top L37. */
 
 /**
  * WPO-S3：&local struct 时返回 stack_local *T，否则 0（调用方回落普通 *T）。

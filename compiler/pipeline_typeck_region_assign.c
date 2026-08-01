@@ -34,6 +34,12 @@
 static int32_t typeck_expr_is_addr_of_block_local_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                    struct ast_PipelineDepCtx *ctx, int32_t expr_ref);
 
+/* wave1133-1135 G.7: forward decl — definition at EOF (callsite at L141 in
+ * pipeline_typeck_check_struct_stack_escape_assign_c precedes the EOF
+ * definition). */
+static int32_t typeck_lval_is_param_ptr_field_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
+                                                int32_t left_ref, int32_t dst_pi);
+
 /** M-3：slice 域冲突（expect/src 均带 label 且不同）返回 1。 */
 static int32_t pipeline_typeck_slice_region_conflict_c(struct ast_ASTArena *arena, int32_t expect_ref,
                                                        int32_t src_ref) {
@@ -662,4 +668,227 @@ static int32_t typeck_expr_is_addr_of_block_local_c(struct ast_Module *m, struct
     return 0;
   op_ref = pipeline_expr_unary_operand_ref_at(a, expr_ref);
   return op_ref > 0 && typeck_var_is_block_local_c(m, a, ctx, op_ref) ? 1 : 0;
+}
+
+/* ============================================================
+ * wave1133-1135 G.7: lval param ptr field cluster (migrated from
+ * glue.c L9912-10042).
+ *
+ * Why here: this cluster answers "does an lvalue denote a field of a
+ * *T function param (or chain slot.x.ptr rooted at a *T param)" — the
+ * same WPO-S3 stack-escape assign-site question that
+ * pipeline_typeck_check_struct_stack_escape_assign_c (L121 above) asks.
+ * Colocating with the existing stack-escape helpers (wave1125-1129)
+ * keeps the whole WPO-S3 assign / call escape analysis path in one
+ * domain file.
+ *
+ * Cluster members:
+ *   wave1133 — typeck_lval_is_param_ptr_field_c (base case: is left a
+ *              FIELD_ACCESS whose base is the dst_pi *T param, or a
+ *              chain slot.x.ptr rooted at any *T param matching dst_pi?)
+ *   wave1134 — typeck_block_expr_stmts_store_scan_c (scan block
+ *              expr_stmts for `param[dst].field = param[src]`)
+ *            + typeck_block_final_expr_store_scan_c (scan final_expr)
+ *            + typeck_block_stores_param_into_param_field_c (recursive
+ *              block scan walking stmt_order / nested while/for/region)
+ *   wave1135 — typeck_func_stores_param_into_param_field_c (func-level
+ *              entry: body_ref scan combining expr_stmts + final +
+ *              recursive block walk).
+ *
+ * Invariant: definitions placed at EOF AFTER all callsites in this file.
+ * Forward decl at file top (L34 area) keeps L141 callsite visible.
+ * Same-TU visibility: any subsequent caller in pipeline_glue.c sees
+ * these via the #include of this leaf at glue.c L10059.
+ *
+ * Note: as of wave1135 migration, typeck_func_stores_param_into_param_field_c
+ * has no in-tree caller (the call_struct_stack_escape path at glue.c
+ * L10066+ does its own arg-pair scan instead). Kept cohesive with the
+ * cluster for future WPO-S3 call-site reuse; candidate for DCE if no
+ * caller appears.
+ *
+ * PLATFORM: SHARED — pure typeck analysis; no platform ABI dependency.
+ * ============================================================ */
+
+/* wave1133-1135 G.7: forward decl — recursive helper body below. */
+static int32_t typeck_block_stores_param_into_param_field_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                            int32_t block_ref, int32_t func_ix, int32_t dst_pi,
+                                                            int32_t src_pi);
+
+/**
+ * WPO-S3: left is a FIELD_ACCESS writing into a field of the dst_pi
+ * formal param (which must be *T). Also handles field chains like
+ * slot.x.ptr where the chain root is any *T param matching dst_pi.
+ *
+ * Contract:
+ *   - m / a non-NULL; left_ref > 0; func_ix >= 0; dst_pi >= 0.
+ *   - Returns 1 if left is FIELD_ACCESS whose base is the dst_pi *T
+ *     param (or chain root matches dst_pi); 0 otherwise.
+ *
+ * PLATFORM: SHARED — pure AST walk; no platform ABI dependency.
+ */
+static int32_t typeck_lval_is_param_ptr_field_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
+                                                int32_t left_ref, int32_t dst_pi) {
+  int32_t base_ref;
+  int32_t param_ty;
+  int32_t np;
+  int32_t pi;
+  if (!m || !a || left_ref <= 0 || func_ix < 0 || dst_pi < 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(a, left_ref) != (int32_t)ast_ExprKind_EXPR_FIELD_ACCESS)
+    return 0;
+  base_ref = pipeline_expr_field_access_base_ref(a, left_ref);
+  if (glue_expr_is_func_param_at_c(a, m, func_ix, base_ref, dst_pi)) {
+    param_ty = pipeline_module_func_param_type_ref_at(m, func_ix, dst_pi);
+    return param_ty > 0 && pipeline_type_kind_ord_at(a, param_ty) == (int32_t)ast_TypeKind_TYPE_PTR ? 1 : 0;
+  }
+  /* Field chain: slot.x.ptr etc. — walk base to find a *T param root. */
+  np = pipeline_module_func_num_params_at(m, func_ix);
+  for (pi = 0; pi < np; pi++) {
+    if (glue_expr_is_func_param_at_c(a, m, func_ix, base_ref, pi)) {
+      param_ty = pipeline_module_func_param_type_ref_at(m, func_ix, pi);
+      if (param_ty > 0 && pipeline_type_kind_ord_at(a, param_ty) == (int32_t)ast_TypeKind_TYPE_PTR)
+        return pi == dst_pi ? 1 : 0;
+    }
+  }
+  return 0;
+}
+
+/**
+ * WPO-S3: scan block expr_stmts for an assign-like statement of the form
+ * `param[dst].field = param[src]`. Returns 1 if found; 0 otherwise.
+ *
+ * Contract: m / a non-NULL; block_ref > 0; func_ix >= 0.
+ * PLATFORM: SHARED — pure AST walk.
+ */
+static int32_t typeck_block_expr_stmts_store_scan_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                    int32_t block_ref, int32_t func_ix, int32_t dst_pi,
+                                                    int32_t src_pi) {
+  int32_t nes;
+  int32_t ei;
+  if (!m || !a || block_ref <= 0 || func_ix < 0)
+    return 0;
+  nes = ast_ast_block_num_expr_stmts(a, block_ref);
+  for (ei = 0; ei < nes; ei++) {
+    int32_t er = ast_ast_block_expr_stmt_ref(a, block_ref, ei);
+    int32_t left_ref;
+    int32_t right_ref;
+    if (er <= 0 || !glue_expr_kind_is_assign_like_ord(pipeline_expr_kind_ord_at(a, er)))
+      continue;
+    left_ref = pipeline_expr_binop_left_ref_at(a, er);
+    right_ref = pipeline_expr_binop_right_ref_at(a, er);
+    if (typeck_lval_is_param_ptr_field_c(m, a, func_ix, left_ref, dst_pi) &&
+        glue_expr_is_func_param_at_c(a, m, func_ix, right_ref, src_pi))
+      return 1;
+  }
+  return 0;
+}
+
+/**
+ * WPO-S3: scan block final_expr for an assign-like expr
+ * `param[dst].field = param[src]`. Returns 1 if found; 0 otherwise.
+ *
+ * Contract: m / a non-NULL; block_ref > 0; func_ix >= 0.
+ * PLATFORM: SHARED — pure AST walk.
+ */
+static int32_t typeck_block_final_expr_store_scan_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                    int32_t block_ref, int32_t func_ix, int32_t dst_pi,
+                                                    int32_t src_pi) {
+  int32_t fin;
+  int32_t left_ref;
+  int32_t right_ref;
+  if (!m || !a || block_ref <= 0 || func_ix < 0)
+    return 0;
+  fin = pipeline_asm_block_final_expr_ref_at(a, block_ref);
+  if (fin <= 0 || !glue_expr_kind_is_assign_like_ord(pipeline_expr_kind_ord_at(a, fin)))
+    return 0;
+  left_ref = pipeline_expr_binop_left_ref_at(a, fin);
+  right_ref = pipeline_expr_binop_right_ref_at(a, fin);
+  return typeck_lval_is_param_ptr_field_c(m, a, func_ix, left_ref, dst_pi) &&
+                 glue_expr_is_func_param_at_c(a, m, func_ix, right_ref, src_pi)
+             ? 1
+             : 0;
+}
+
+/**
+ * WPO-S3: recursive block walk — does this block (or any nested
+ * while/for/region body) contain `param[dst].field = param[src]`?
+ * Combines stmt_order walk with nested-body recursion.
+ *
+ * Contract: m / a non-NULL; block_ref > 0; func_ix >= 0.
+ * Recursion depth bounded by AST block tree depth (no explicit cap;
+ * AST construction guarantees acyclic).
+ *
+ * PLATFORM: SHARED — pure AST walk.
+ */
+static int32_t typeck_block_stores_param_into_param_field_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                            int32_t block_ref, int32_t func_ix, int32_t dst_pi,
+                                                            int32_t src_pi) {
+  int32_t nso;
+  int32_t i;
+  if (!m || !a || block_ref <= 0 || func_ix < 0)
+    return 0;
+  if (typeck_block_expr_stmts_store_scan_c(m, a, block_ref, func_ix, dst_pi, src_pi))
+    return 1;
+  nso = ast_ast_block_num_stmt_order(a, block_ref);
+  for (i = 0; i < nso; i++) {
+    uint8_t item_kind = ast_ast_block_stmt_order_kind(a, block_ref, i);
+    int32_t idx = ast_ast_block_stmt_order_idx(a, block_ref, i);
+    if (item_kind == 2 && idx >= 0 && idx < ast_ast_block_num_expr_stmts(a, block_ref)) {
+      int32_t er = ast_ast_block_expr_stmt_ref(a, block_ref, idx);
+      int32_t left_ref;
+      int32_t right_ref;
+      if (er <= 0 || !glue_expr_kind_is_assign_like_ord(pipeline_expr_kind_ord_at(a, er)))
+        continue;
+      left_ref = pipeline_expr_binop_left_ref_at(a, er);
+      right_ref = pipeline_expr_binop_right_ref_at(a, er);
+      if (typeck_lval_is_param_ptr_field_c(m, a, func_ix, left_ref, dst_pi) &&
+          glue_expr_is_func_param_at_c(a, m, func_ix, right_ref, src_pi))
+        return 1;
+    } else if (item_kind == 3 && idx >= 0 && idx < ast_ast_block_num_loops(a, block_ref)) {
+      int32_t body_ref = ast_ast_block_while_body_ref(a, block_ref, idx);
+      if (body_ref > 0 &&
+          typeck_block_stores_param_into_param_field_c(m, a, body_ref, func_ix, dst_pi, src_pi))
+        return 1;
+    } else if (item_kind == 4 && idx >= 0 && idx < ast_ast_block_num_for_loops(a, block_ref)) {
+      int32_t body_ref = ast_ast_block_for_body_ref(a, block_ref, idx);
+      if (body_ref > 0 &&
+          typeck_block_stores_param_into_param_field_c(m, a, body_ref, func_ix, dst_pi, src_pi))
+        return 1;
+    } else if (item_kind == 5 && idx >= 0 && idx < ast_ast_block_num_regions(a, block_ref)) {
+      int32_t body_ref = ast_ast_block_region_body_ref(a, block_ref, idx);
+      if (body_ref > 0 &&
+          typeck_block_stores_param_into_param_field_c(m, a, body_ref, func_ix, dst_pi, src_pi))
+        return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * WPO-S3: does callee `func_ix` store its src_pi param into a field of
+ * the *T object pointed to by its dst_pi param? Combines expr_stmts +
+ * final_expr + recursive block walk over the function body.
+ *
+ * Contract: m / a non-NULL; func_ix >= 0.
+ * Returns 1 if such a store exists; 0 otherwise.
+ *
+ * Note: as of wave1135, this helper has no in-tree caller (the call-site
+ * escape path at glue.c L10066+ does its own arg-pair scan). Retained
+ * for future WPO-S3 call-site reuse; DCE candidate if unused long-term.
+ *
+ * PLATFORM: SHARED — pure AST analysis.
+ */
+static int32_t typeck_func_stores_param_into_param_field_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                           int32_t func_ix, int32_t dst_pi, int32_t src_pi) {
+  int32_t body_ref;
+  if (!m || !a || func_ix < 0)
+    return 0;
+  body_ref = pipeline_module_func_body_ref_at(m, func_ix);
+  if (body_ref <= 0)
+    return 0;
+  if (typeck_block_expr_stmts_store_scan_c(m, a, body_ref, func_ix, dst_pi, src_pi))
+    return 1;
+  if (typeck_block_final_expr_store_scan_c(m, a, body_ref, func_ix, dst_pi, src_pi))
+    return 1;
+  return typeck_block_stores_param_into_param_field_c(m, a, body_ref, func_ix, dst_pi, src_pi);
 }

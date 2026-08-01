@@ -48,6 +48,18 @@ int32_t ast_ast_block_num_expr_stmts(struct ast_ASTArena *a, int32_t br);
 int32_t ast_ast_block_num_loops(struct ast_ASTArena *a, int32_t br);
 int32_t ast_ast_block_num_for_loops(struct ast_ASTArena *a, int32_t br);
 int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t br);
+
+/* wave1130-1131 G.7: static fwd decls — definitions at EOF below (migrated
+ * from glue.c:8111/8134). Consumed by pipeline_asm_emit_return_elf_impl
+ * (L542/543/630/631/640/641) above, which precede the EOF definitions.
+ * pipeline_typeck_float_widen_ok_c fwd decl needed because its definition
+ * is in coerce_init.c (#include at glue.c L11099, after this file's
+ * #include at L1913). */
+static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                       int32_t dest_ty_ref, int32_t src_ty_ref, int32_t ta);
+static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
+static int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind);
 int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br);
 int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br);
 int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei);
@@ -751,4 +763,118 @@ static int32_t glue_emit_sret_return_from_var_elf_c(struct ast_ASTArena *arena,
  * pipeline_asm_emit_call_args.c (colocated with wave1058 store_retval_pair
  * sole caller). Static same-TU visibility via #include order (return.c L1957
  * < call_args.c L2395). Dependencies: backend_enc_*_arch (global extern). */
+
+/* ============================================================
+ * wave1130-1131 G.7: float promote pair (migrated from glue.c L8111-8169).
+ *
+ * Why here: both helpers are consumed by pipeline_asm_emit_return_elf_impl
+ * (L542/543/630/631/640/641 above) to perform f32→f64 widen on the return
+ * value before storing to the return slot. Same-TU visibility: callers in
+ * pipeline_asm_emit_assign.c / pipeline_asm_emit_block_inits.c /
+ * pipeline_asm_emit_block_body.c / pipeline_glue.c (L5553-5554) see these
+ * definitions via the #include of this leaf at glue.c L1913.
+ *
+ * Invariant: definitions placed at EOF AFTER all callsites in this file;
+ * forward decls at L58-62 above keep L542/543/630/631/640/641 visible.
+ * pipeline_typeck_float_widen_ok_c fwd decl at L62 above — its definition
+ * is in pipeline_typeck_coerce_init.c (#include @ glue.c L11099, after
+ * this leaf's #include @ L1913); the fwd decl keeps this leaf compiling
+ * standalone within the larger TU.
+ *
+ * PLATFORM: SHARED — typeck gate is platform-agnostic; encoder dispatch
+ * (backend_enc_cvtss2sd_rax_from_f32_bits_arch) handles LINUX+MACOS
+ * x86_64|arm64 via arch helper. No Windows-specific path here.
+ * ============================================================ */
+
+/**
+ * wave314 freestanding emit: if dest is f64 and src value in eax is f32 bits,
+ * promote via backend_enc_cvtss2sd_rax_from_f32_bits_arch (G.7 reuse wave293
+ * encoder; no parallel path).
+ *
+ * Contract:
+ *   - arena / elf_ctx non-NULL; dest_ty_ref / src_ty_ref > 0; else no-op return 0.
+ *   - Calls pipeline_typeck_float_widen_ok_c (defined in coerce_init.c, late
+ *     in TU) — forward decl at L62 above resolves the implicit-decl risk.
+ *   - backend_enc_cvtss2sd_rax_from_f32_bits_arch returns 0 OK / -1 fail.
+ *
+ * @return 0 OK or no-op (not f32→f64); -1 encode fail.
+ *
+ * PLATFORM: SHARED typeck gate / LINUX+MACOS x86_64|arm64 encode via arch helper.
+ */
+static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                       int32_t dest_ty_ref, int32_t src_ty_ref, int32_t ta) {
+  int32_t dk;
+  int32_t sk;
+  if (!arena || !elf_ctx || dest_ty_ref <= 0 || src_ty_ref <= 0)
+    return 0;
+  dk = pipeline_type_kind_ord_at(arena, dest_ty_ref);
+  sk = pipeline_type_kind_ord_at(arena, src_ty_ref);
+  if (!pipeline_typeck_float_widen_ok_c(dk, sk))
+    return 0;
+  /* Only true widen f32→f64 needs convert (identity no-op). */
+  if (dk == (int32_t)ast_TypeKind_TYPE_F64 && sk == (int32_t)ast_TypeKind_TYPE_F32)
+    return backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta);
+  return 0;
+}
+
+/**
+ * Resolve source type for float promote.
+ *
+ * Why prefer VAR declaration type over resolved_type_ref: typeck may stamp the
+ * VAR expr as f64 under f64 let context (init_ctx=decl), which would skip
+ * cvtss2sd and zero-extend f32 bits (Ubuntu wave314 run=0 regression).
+ *
+ * Lookup order (last-wins precedence):
+ *   1. func param type_ref_for_name (param decl)
+ *   2. scope_block var type_ref (current block)
+ *   3. func body_ref block var type_ref (outer func body)
+ *   4. fallback expr resolved_type_ref (post-typeck stamp)
+ *
+ * Contract:
+ *   - arena non-NULL; expr_ref > 0; else return 0.
+ *   - vname buffer 128 bytes; vlen ≤ 63 (truncates longer names safely).
+ *   - Global state read: g_pipeline_asm_emit_func_index,
+ *     g_pipeline_asm_emit_module, g_pipeline_asm_emit_scope_block.
+ *
+ * @return type_ref > 0 if resolved; 0 if not found.
+ *
+ * PLATFORM: SHARED — pure typeck resolver; no platform ABI dependency.
+ */
+static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+  int32_t tr;
+  uint8_t vname[128];
+  int32_t vlen;
+  if (!arena || expr_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) == 3 /* GLUE_EXPR_KIND_VAR, macro defined in glue.c L2085 */) {
+    /* Decl / param first — true storage type before any widen stamp. */
+    vlen = pipeline_expr_var_name_len(arena, expr_ref);
+    if (vlen > 0 && vlen <= 63) {
+      pipeline_expr_var_name_into(arena, expr_ref, vname);
+      if (g_pipeline_asm_emit_func_index >= 0 && g_pipeline_asm_emit_module) {
+        tr = pipeline_module_func_param_type_ref_for_name(g_pipeline_asm_emit_module,
+                                                         g_pipeline_asm_emit_func_index, vname, vlen);
+        if (tr > 0)
+          return tr;
+      }
+      if (g_pipeline_asm_emit_scope_block > 0) {
+        tr = pipeline_block_resolve_var_type_ref(arena, g_pipeline_asm_emit_scope_block, vname, vlen);
+        if (tr > 0)
+          return tr;
+      }
+      if (g_pipeline_asm_emit_func_index >= 0 && g_pipeline_asm_emit_module) {
+        int32_t body_ref =
+            pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
+        if (body_ref > 0) {
+          tr = pipeline_block_resolve_var_type_ref(arena, body_ref, vname, vlen);
+          if (tr > 0)
+            return tr;
+        }
+      }
+    }
+  }
+  tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  return tr > 0 ? tr : 0;
+}
 

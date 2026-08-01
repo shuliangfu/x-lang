@@ -310,3 +310,44 @@ int32_t pipeline_typeck_check_block_as_loop_body_c(struct ast_Module *module, st
   pipeline_typeck_loop_depth_pop_c(ctx, saved_ld);
   return rc;
 }
+
+/* ============================================================
+ * wave1132 G.7: typeck_linear_name_already_moved (migrated from
+ * glue.c L9785-9792).
+ *
+ * Why here: linear use-once move tracking is consulted by
+ * pipeline_typeck_linear_use_var_c (glue.c L9797+) which is invoked
+ * during check_expr / check_block walks for VAR reads of TYPE_LINEAR.
+ * Colocating with the check_block domain keeps the linear-move bookkeeping
+ * next to the only walker that triggers it (no other module reads
+ * g_typeck_linear_moved_*).
+ *
+ * Invariant: globals g_typeck_linear_moved_{n,names,lens} are defined
+ * earlier in pipeline_glue.c (L9745-9747) BEFORE the #include of this
+ * leaf at L11606 — so the function body sees them. The single callsite
+ * at glue.c L9805 (pipeline_typeck_linear_use_var_c) PRECEDES the
+ * #include; a static forward decl is added at glue.c L9784 to keep it
+ * visible.
+ *
+ * Contract:
+ *   - name non-NULL; name_len > 0; else return 0 (no match).
+ *   - Reads g_typeck_linear_moved_n + g_typeck_linear_moved_names/lens
+ *     arrays (capacity TYPECK_LINEAR_MOVED_MAX=128, name width 128).
+ *   - Returns 1 if name already in moved set; 0 otherwise.
+ *
+ * PLATFORM: SHARED — pure name lookup; no platform ABI dependency.
+ * ============================================================ */
+
+/**
+ * M-4 linear move set lookup: scan g_typeck_linear_moved_names[] for an
+ * exact (len, bytes) match. Returns 1 if the named variable was already
+ * moved this function (set by pipeline_typeck_linear_use_var_c), else 0.
+ */
+static int typeck_linear_name_already_moved(const uint8_t *name, int32_t name_len) {
+  int i;
+  for (i = 0; i < g_typeck_linear_moved_n; i++)
+    if (g_typeck_linear_moved_lens[i] == name_len && name_len > 0 &&
+        memcmp(g_typeck_linear_moved_names[i], name, (size_t)name_len) == 0)
+      return 1;
+  return 0;
+}
