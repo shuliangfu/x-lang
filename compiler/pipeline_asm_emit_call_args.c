@@ -1923,3 +1923,75 @@ static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct 
   }
   return 0;
 }
+
+/**
+ * Classify a function parameter as SysV SSE class (f32 or f64).
+ *
+ * Why: SysV ABI param classification — f32/f64 parameters are homed in
+ * xmm0–7 (SSE class) rather than GP registers (INTEGER class). This
+ * predicate gates the xmm-vs-gp homing path in
+ * pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c, which uses it alongside
+ * glue_func_param_agg_byte_size_c (wave1045) and glue_func_param_home_width_c
+ * (wave1047) — all three called in the same per-param loop iteration,
+ * proving same-leaf colocated SysV param-classification domain.
+ *
+ * Invariant: returns 0 for invalid arena/mod/func_index/param_index or
+ * non-f32/f64 param type. Returns 1 if param type kind is F32(14) or F64(15).
+ *
+ * Asm/Perf: O(1) — one type_ref lookup + one kind ord compare. Cold path —
+ * called per param during func prologue emit.
+ *
+ * PLATFORM: SHARED kind predicate — LINUX+MACOS x86_64 SysV xmm slotting.
+ *
+ * wave1059 G.7: migrated from glue.c:5548 (body ~12 LOC). Placed at EOF
+ * after glue_store_retval_pair_to_rbp_elf_c (wave1058). Dependencies:
+ * pipeline_module_func_param_type_ref_at + pipeline_type_kind_ord_at (extern,
+ * visible); GLUE_TYPE_KIND_F32_ORD/F64_ORD macros at glue.c:2185/2187 <
+ * call_args.c #include L2395. Sole live caller
+ * pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c at glue.c:5648 > L2395
+ * visible. Dead caller glue_sysv_x86_func_param_slot_c deleted same wave.
+ */
+static int32_t glue_func_param_is_f32_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
+                                        int32_t param_index) {
+  int32_t pty;
+  int32_t k;
+  if (!arena || !mod || func_index < 0 || param_index < 0)
+    return 0;
+  pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
+  if (pty <= 0)
+    return 0;
+  k = pipeline_type_kind_ord_at(arena, pty);
+  return (k == GLUE_TYPE_KIND_F32_ORD || k == GLUE_TYPE_KIND_F64_ORD) ? 1 : 0;
+}
+
+/**
+ * Classify a function parameter as f64 (8B xmm home width).
+ *
+ * Why: SysV ABI param classification — f64 params need 8B xmm home width
+ * (distinct from f32's 4B). This predicate separates f64 from f32 in the
+ * xmm homing path so that pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c
+ * reserves the correct home slot width. Called alongside is_f32 in the
+ * same per-param loop — same SysV param classification domain.
+ *
+ * Invariant: returns 0 for invalid arena/mod/func_index/param_index or
+ * non-f64 param type. Returns 1 if param type kind is F64(15).
+ *
+ * Asm/Perf: O(1) — one type_ref lookup + one kind ord compare. Cold path —
+ * called per param during func prologue emit.
+ *
+ * PLATFORM: SHARED kind predicate — LINUX+MACOS x86_64 SysV xmm slotting.
+ *
+ * wave1059 G.7: migrated from glue.c:5562 (body ~10 LOC). Placed at EOF
+ * after glue_func_param_is_f32_c. Dependencies: same as is_f32. Sole caller
+ * pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c at glue.c:5671 > L2395.
+ */
+static int32_t glue_func_param_is_f64_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
+                                        int32_t param_index) {
+  int32_t pty;
+  if (!arena || !mod || func_index < 0 || param_index < 0)
+    return 0;
+  pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
+  if (pty <= 0)
+    return 0;
+  return pipeline_type_kind_ord_at(arena, pty) == GLUE_TYPE_KIND_F64_ORD ? 1 : 0;
+}

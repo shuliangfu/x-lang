@@ -5543,98 +5543,18 @@ void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Mo
   ly->next_offset = off;
 }
 
-/** 函数形参 type_ref 是否走 SysV SSE 浮点寄存器类（f32 或 f64；历史名 is_f32）。
- * PLATFORM: SHARED kind / LINUX+MACOS x86_64 SysV xmm slotting. */
-static int32_t glue_func_param_is_f32_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
-                                        int32_t param_index) {
-  int32_t pty;
-  int32_t k;
-  if (!arena || !mod || func_index < 0 || param_index < 0)
-    return 0;
-  pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
-  if (pty <= 0)
-    return 0;
-  k = pipeline_type_kind_ord_at(arena, pty);
-  return (k == GLUE_TYPE_KIND_F32_ORD || k == GLUE_TYPE_KIND_F64_ORD) ? 1 : 0;
-}
+/* wave1059 G.7: glue_func_param_is_f32_c + glue_func_param_is_f64_c migrated
+ * to pipeline_asm_emit_call_args.c EOF (SysV param classification domain).
+ * Definitions visible via same-TU #include at L2395 < sole live caller
+ * pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c at L5648. Dependencies:
+ * GLUE_TYPE_KIND_F32_ORD/F64_ORD macros at L2185/2187 < L2395;
+ * pipeline_module_func_param_type_ref_at + pipeline_type_kind_ord_at extern. */
 
-/** 函数形参是否为 f64（8B xmm→GPR home；与 is_f32 槽位类分离宽度）。 */
-static int32_t glue_func_param_is_f64_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
-                                        int32_t param_index) {
-  int32_t pty;
-  if (!arena || !mod || func_index < 0 || param_index < 0)
-    return 0;
-  pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
-  if (pty <= 0)
-    return 0;
-  return pipeline_type_kind_ord_at(arena, pty) == GLUE_TYPE_KIND_F64_ORD ? 1 : 0;
-}
-
-/**
- * SysV x86_64：第 param_index 个形参的寄存器/栈归属（0=gp 1=xmm 2=stack）。
- * reg_k / stack_k 为对应类内序号（与 backend_call_dispatch glue_sysv_x86_call_arg_slot 一致）。
- * PLATFORM: LINUX+MACOS x86_64 SysV — 9–16B INTEGER aggregates consume 2 GP units.
- */
-static void glue_sysv_x86_func_param_slot_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
-                                            int32_t np, int32_t param_index, int32_t *out_kind, int32_t *out_reg_k,
-                                            int32_t *out_stack_k) {
-  int32_t gp;
-  int32_t xmm;
-  int32_t stk;
-  int32_t j;
-  int32_t units;
-  int32_t psz;
-  gp = 0;
-  xmm = 0;
-  stk = 0;
-  for (j = 0; j <= param_index && j < np; j++) {
-    psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, j);
-    if (glue_func_param_is_f32_c(arena, mod, func_index, j))
-      units = 1;
-    else if (psz > 16)
-      units = 0; /* MEMORY: stack only, no GP */
-    else if (psz > 8)
-      units = 2;
-    else
-      units = 1;
-    if (j == param_index) {
-      if (glue_func_param_is_f32_c(arena, mod, func_index, j)) {
-        if (xmm < 8) {
-          *out_kind = 1;
-          *out_reg_k = xmm;
-        } else {
-          *out_kind = 2;
-          *out_stack_k = stk;
-        }
-      } else if (psz > 16) {
-        *out_kind = 2;
-        *out_stack_k = stk;
-      } else if (gp + units <= 6) {
-        *out_kind = 0;
-        *out_reg_k = gp;
-      } else {
-        *out_kind = 2;
-        *out_stack_k = stk;
-      }
-      return;
-    }
-    if (glue_func_param_is_f32_c(arena, mod, func_index, j)) {
-      if (xmm < 8)
-        xmm++;
-      else
-        stk++;
-    } else if (psz > 16) {
-      stk += (psz + 7) / 8; /* 8B slots */
-    } else if (gp + units <= 6) {
-      gp += units;
-    } else {
-      stk += units;
-    }
-  }
-  *out_kind = 2;
-  *out_reg_k = 0;
-  *out_stack_k = 0;
-}
+/* Dead code glue_sysv_x86_func_param_slot_c deleted wave1059: full-tree grep
+ * showed zero callsites (static, same-TU only). It consumed
+ * glue_func_param_agg_byte_size_c + glue_func_param_is_f32_c but was never
+ * called — leftover from an earlier SysV slot iteration design superseded by
+ * pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c below. */
 
 /**
  * SysV x86 + XLANG_ABI_F32_XMM=1：gp/xmm 分轨形参 homing + INTEGER dual-GP + MEMORY by-value copy.
