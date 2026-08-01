@@ -33,7 +33,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~17.1k + `ast_pool` ~12.9k；8.3.1 四十刀（+…／array_lit durable／**slice reent**／**var_decl+lazy_append 共享叶**／**slice dual-GP+slice_from_array 同叶**／**sret return path 同叶**／**field_access layout/offset 同叶**／**lea/arm64 sret helpers 同叶**／**async CPS emit domain 同叶**／**x86 micro-encoders 同叶**／**with_arena scope domain 同叶**／**cmp cc helpers 同叶**／**empty struct check 同叶**）+ 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~17.1k + `ast_pool` ~12.9k；8.3.1 四十一刀（+…／array_lit durable／**slice reent**／**var_decl+lazy_append 共享叶**／**slice dual-GP+slice_from_array 同叶**／**sret return path 同叶**／**field_access layout/offset 同叶**／**lea/arm64 sret helpers 同叶**／**async CPS emit domain 同叶**／**x86 micro-encoders 同叶**／**with_arena scope domain 同叶**／**cmp cc helpers 同叶**／**empty struct check 同叶**／**TokenKind variant tag 同叶**）+ 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -1833,7 +1833,7 @@ MG **编排层** ✅。BC 🟡（库存机检 + CTFE/assign 域已切）。PC �
 剩余工作优先级（MG 已闭后）：
 
 1. ✅ **post-delete residual** — 0-make hub · gate post_ship · catalog bags · ensure_host_cc --check  
-2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 四十刀（+array_lit durable／slice reent／**var_decl+lazy_append 共享叶**／**slice dual-GP+slice_from_array 同叶**／**sret return path 同叶**／**field_access layout/offset 同叶**／**lea/arm64 sret helpers 同叶**／**async CPS emit domain 同叶**／**x86 micro-encoders 同叶**／**with_arena scope domain 同叶**／**cmp cc helpers 同叶**／**empty struct check 同叶**）+ index_eff／emit_expr fast／call_arg／try_binop 有则补全 ✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：8.3.1 其它 leaf residual 或 8.3.3 field_access／soa**）
+2. 🟡 **BC + 阶段 8.3**（库存 ✅ · 8.3.1 四十一刀（+array_lit durable／slice reent／**var_decl+lazy_append 共享叶**／**slice dual-GP+slice_from_array 同叶**／**sret return path 同叶**／**field_access layout/offset 同叶**／**lea/arm64 sret helpers 同叶**／**async CPS emit domain 同叶**／**x86 micro-encoders 同叶**／**with_arena scope domain 同叶**／**cmp cc helpers 同叶**／**empty struct check 同叶**／**TokenKind variant tag 同叶**）+ index_eff／emit_expr fast／call_arg／try_binop 有则补全 ✅ · **8.3.2 …+top_level residual ✅** · 8.3.9 ✅ · **当前：8.3.1 其它 leaf residual 或 8.3.3 field_access／soa**）
 3. ⬜ **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
 4. ⬜ **阶段 10 → 9** 语言能力 + residual 消灭  
 5. ⬜ **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
