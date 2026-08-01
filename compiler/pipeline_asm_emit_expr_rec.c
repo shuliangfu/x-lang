@@ -46,6 +46,15 @@
  * - link_abi_getenv
  */
 
+/*
+ * wave1160 G.7: static fwd decl for glue_arena_expr_at_ref (defined in
+ * pipeline_glue.c L2501, after this file's #include at L2210). The 10
+ * expr accessor wrappers migrated to this file's EOF use it for
+ * bounds-checked Expr pointer retrieval. Safe within same TU (C11
+ * allows static fwd decl within same translation unit).
+ */
+static struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
+
 /** 字面量判定：kind 序 0/2。 */
 static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm) {
   int32_t ko;
@@ -401,4 +410,484 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
     return pipeline_asm_emit_binop_bitwise_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
                                                  pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 1);
   return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+}
+
+/* ============================================================
+ * wave1160 G.7: expr accessor public wrappers (10 fns) +
+ * ast_pipeline_* forwarding wrappers (9 fns) migrated from
+ * pipeline_glue.c L3564-3625 / L10412-10449. Colocated with expr
+ * ELF recursion dispatcher — these are the field readers consumed
+ * by emit_expr_elf_rec / emit_expr_elf_fast above. Fwd decls at
+ * glue.c L1532-1578 (before #include L2210).
+ */
+
+/**
+ * Read EXPR_AS operand expr ref. Returns 0 for invalid ref.
+ * Used by emit_expr_elf_rec EXPR_AS arm to load the cast source.
+ */
+int32_t pipeline_expr_as_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->as_operand_ref : 0;
+}
+
+/**
+ * Read EXPR_AS target type pool ref. Returns 0 for invalid ref.
+ * Used by typeck return path and emit EXPR_AS arm to determine
+ * the cast target type.
+ */
+int32_t pipeline_expr_as_target_type_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->as_target_type_ref : 0;
+}
+
+/**
+ * Read EXPR_ENUM_VARIANT / FIELD_ACCESS enum variant tag.
+ * Returns 0 for invalid ref. Used by emit_expr_elf_rec to emit
+ * the variant ordinal as immediate.
+ */
+int32_t pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->enum_variant_tag : 0;
+}
+
+/**
+ * Read EXPR_IF/EXPR_TERNARY condition expr ref.
+ * Returns 0 for invalid ref.
+ */
+int32_t pipeline_expr_if_cond_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->if_cond_ref : 0;
+}
+
+/**
+ * Read EXPR_IF/EXPR_TERNARY then-branch expr ref.
+ * Returns 0 for invalid ref.
+ */
+int32_t pipeline_expr_if_then_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->if_then_ref : 0;
+}
+
+/**
+ * Read EXPR_IF/EXPR_TERNARY else-branch expr ref.
+ * Returns 0 for invalid ref.
+ */
+int32_t pipeline_expr_if_else_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->if_else_ref : 0;
+}
+
+/**
+ * Read EXPR_BLOCK inner block ref. Returns 0 for invalid ref.
+ * Used by emit_expr_elf_rec EXPR_BLOCK arm and typeck tail-expr scan.
+ */
+int32_t pipeline_expr_block_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->block_ref : 0;
+}
+
+/**
+ * Read EXPR_MATCH matched-value expr ref. Returns 0 for invalid ref.
+ * Used by emit_expr_elf_rec EXPR_MATCH arm and typeck check_expr_match.
+ */
+int32_t pipeline_expr_match_matched_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->match_matched_ref : 0;
+}
+
+/**
+ * Read CTFE const-folded valid flag. Returns 0 for invalid ref.
+ * Used by emit_expr_elf_fast to short-circuit folded constants.
+ */
+int32_t pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? (int32_t)ex->const_folded_valid : 0;
+}
+
+/**
+ * Read CTFE const-folded integer value. Returns 0 for invalid ref.
+ * Used by emit_expr_elf_fast to emit folded constant as immediate.
+ */
+int32_t pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->const_folded_val : 0;
+}
+
+/*
+ * ast_pipeline_* forwarding wrappers: codegen may prepend ast_ prefix
+ * when importing the ast module; each delegates to the pipeline_expr_*
+ * bare symbol defined above.
+ */
+
+int32_t ast_pipeline_expr_as_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_as_operand_ref_at(a, expr_ref);
+}
+
+int32_t ast_pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_enum_variant_tag_at(a, expr_ref);
+}
+
+int32_t ast_pipeline_expr_if_cond_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_if_cond_ref_at(a, expr_ref);
+}
+
+int32_t ast_pipeline_expr_if_then_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_if_then_ref_at(a, expr_ref);
+}
+
+int32_t ast_pipeline_expr_if_else_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_if_else_ref_at(a, expr_ref);
+}
+
+int32_t ast_pipeline_expr_block_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_block_ref_at(a, expr_ref);
+}
+
+int32_t ast_pipeline_expr_match_matched_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_match_matched_ref_at(a, expr_ref);
+}
+
+int32_t ast_pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_const_folded_valid_at(a, expr_ref);
+}
+
+int32_t ast_pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_const_folded_val_at(a, expr_ref);
+}
+
+/* ============================================================
+ * wave1161 G.7: index/field_access/line/col accessor public wrappers
+ * (10 fns) + ast_pipeline_* forwarding wrappers (3 fns) migrated from
+ * pipeline_glue.c L3816-3950 / L10382-10392. Colocated with expr ELF
+ * recursion dispatcher — these field readers/writers are consumed by
+ * emit_expr_elf_rec / emit_expr_elf_fast and typeck index/field checks.
+ * Fwd decls at glue.c L1554-1565 (before #include L2210).
+ */
+
+/**
+ * Read EXPR_INDEX base expr ref. Returns 0 for invalid ref.
+ * Used by emit_expr_elf_rec EXPR_INDEX arm to load the indexed value.
+ */
+int32_t pipeline_expr_index_base_ref(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->index_base_ref : 0;
+}
+
+/**
+ * Read EXPR_INDEX index expr ref. Returns 0 for invalid ref.
+ * Used by emit_expr_elf_rec EXPR_INDEX arm to load the index operand.
+ */
+int32_t pipeline_expr_index_index_ref(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->index_index_ref : 0;
+}
+
+/**
+ * Read resolved_type_ref from arena-pooled Expr. Returns 0 for invalid
+ * ref. Used throughout typeck and asm emit to determine the inferred
+ * type of an expression.
+ */
+int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->resolved_type_ref : 0;
+}
+
+/**
+ * Write resolved_type_ref on arena-pooled Expr. Called by typeck.x
+ * EMIT_HEAVY emit path to stamp the inferred type without Expr
+ * by-value get/set (which tears the struct on the asm backend).
+ * Includes optional XLANG_TRACE_EXPR_SET debug tracing.
+ */
+void pipeline_expr_set_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t type_ref) {
+  struct ast_Expr *ex;
+  const char *trace_expr;
+  int32_t trace_ref;
+  int32_t old_ref;
+
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return;
+  old_ref = ex->resolved_type_ref;
+  ex->resolved_type_ref = type_ref;
+  trace_expr = link_abi_getenv("XLANG_TRACE_EXPR_SET");
+  if (!trace_expr || !*trace_expr)
+    return;
+  trace_ref = atoi(trace_expr);
+  if (trace_ref != expr_ref)
+    return;
+  fprintf(stderr, "note: expr set debug: expr=%d kind=%d block=%d old_ty=%d new_ty=%d\n", (int)expr_ref,
+          (int)ex->kind, (int)ex->block_ref, (int)old_ref, (int)type_ref);
+}
+
+/**
+ * Write index_base_is_slice flag on EXPR_INDEX. Called by typeck
+ * index bounds check to mark slice-typed bases for asm emit.
+ * Avoids ast_arena_expr_set (EMIT_HEAVY asm struct tear).
+ */
+void pipeline_expr_set_index_base_is_slice(struct ast_ASTArena *a, int32_t expr_ref, int32_t v) {
+  struct ast_Expr *ex;
+
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return;
+  ex->index_base_is_slice = v;
+}
+
+/**
+ * Write index_proven_in_bounds flag on EXPR_INDEX. Called by typeck
+ * after static bounds proof to skip runtime bounds check in asm emit.
+ */
+void pipeline_expr_set_index_proven_in_bounds(struct ast_ASTArena *a, int32_t expr_ref, int32_t v) {
+  struct ast_Expr *ex;
+
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return;
+  ex->index_proven_in_bounds = v;
+}
+
+/**
+ * Read source line number from Expr. Returns 0 for invalid ref.
+ * Used by break/continue diagnostics and typeck error reporting.
+ */
+int32_t pipeline_expr_line_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->line : 0;
+}
+
+/**
+ * Read source column number from Expr. Returns 0 for invalid ref.
+ * Used by break/continue diagnostics and typeck error reporting.
+ */
+int32_t pipeline_expr_col_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->col : 0;
+}
+
+/**
+ * Read FIELD_ACCESS byte offset. Returns 0 for invalid ref.
+ * Used by asm emit to compute the field address (base + offset).
+ */
+int32_t pipeline_expr_field_access_offset(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->field_access_offset : 0;
+}
+
+/**
+ * Write FIELD_ACCESS byte offset. Called by typeck field layout
+ * resolver. Avoids ast_arena_expr_set (EMIT_HEAVY asm struct tear).
+ */
+void pipeline_expr_set_field_access_offset(struct ast_ASTArena *a, int32_t expr_ref, int32_t offset) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (ex)
+    ex->field_access_offset = offset;
+}
+
+/**
+ * Read FIELD_ACCESS SoA column stride (DOD-S1). Returns 0 for AoS
+ * static offset. Used by asm emit for SoA struct field access.
+ */
+int32_t pipeline_expr_field_access_soa_stride(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->field_access_soa_stride : 0;
+}
+
+/* ast_pipeline_* forwarding wrappers for index/field_access accessors. */
+
+int32_t ast_pipeline_expr_index_base_ref(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_index_base_ref(a, expr_ref);
+}
+
+int32_t ast_pipeline_expr_index_index_ref(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_index_index_ref(a, expr_ref);
+}
+
+int32_t ast_pipeline_expr_field_access_offset(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_field_access_offset(a, expr_ref);
+}
+
+/* ============================================================
+ * wave1162 G.7: lit/var/field_access/unary/binop accessor public
+ * wrappers (13 fns) migrated from pipeline_glue.c L3244-3422.
+ * Colocated with expr ELF recursion dispatcher — these are the
+ * field readers consumed by emit_expr_elf_rec / emit_expr_elf_fast
+ * and typeck expr check paths. Fwd decls at glue.c L1530-1571.
+ */
+
+/**
+ * Read EXPR_LIT/EXPR_BOOL_LIT int_val as i32. Returns 0 for invalid
+ * ref. Backend asm must not use ast_arena_expr_get (large module
+ * stack overflow risk).
+ */
+int32_t pipeline_expr_int_val_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? (int32_t)ex->int_val : 0;
+}
+
+/**
+ * Read EXPR_LIT full i64 value (avoids int32 truncation for
+ * INT64_MIN and large constants like P0-4).
+ */
+int64_t pipeline_expr_int64_val_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->int_val : 0;
+}
+
+/**
+ * Read EXPR_NEG/EXPR_BITNOT/EXPR_LOGNOT unary operand ref.
+ * Returns 0 for invalid ref. typeck check_block_impl block-tail
+ * `return;` detection uses this glue (not ast_arena_expr_get
+ * which fails on bootstrap asm FIELD_ACCESS).
+ */
+int32_t pipeline_expr_unary_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->unary_operand_ref : 0;
+}
+
+/**
+ * Copy FIELD_ACCESS field name into out64 (u8[128], max 127 bytes
+ * + zero-fill). wave577 Cap: output buffer is u8[128].
+ */
+void pipeline_expr_field_access_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64) {
+  struct ast_Expr *ex;
+  int32_t nlen;
+  if (!out64)
+    return;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex) {
+    memset(out64, 0, 128);
+    return;
+  }
+  nlen = ex->field_access_field_len;
+  if (nlen < 0)
+    nlen = 0;
+  if (nlen > 127)
+    nlen = 127;
+  memset(out64, 0, 128);
+  if (nlen > 0)
+    memcpy(out64, ex->field_access_field_name, (size_t)nlen);
+}
+
+/**
+ * Read FIELD_ACCESS field name length. Returns 0 for non-FIELD_ACCESS
+ * or invalid ref.
+ */
+int32_t pipeline_expr_field_access_name_len(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex || ex->kind != ast_ExprKind_EXPR_FIELD_ACCESS)
+    return 0;
+  return ex->field_access_field_len;
+}
+
+/**
+ * Read FIELD_ACCESS base_ref. Returns 0 for non-FIELD_ACCESS or
+ * invalid ref.
+ */
+int32_t pipeline_expr_field_access_base_ref(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex || ex->kind != ast_ExprKind_EXPR_FIELD_ACCESS)
+    return 0;
+  return ex->field_access_base_ref;
+}
+
+/**
+ * Copy EXPR_VAR variable name into out64 (u8[128], max 127 bytes
+ * + zero-fill).
+ */
+void pipeline_expr_var_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64) {
+  struct ast_Expr *ex;
+  int32_t nlen;
+  if (!out64)
+    return;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex) {
+    memset(out64, 0, 128);
+    return;
+  }
+  nlen = ex->var_name_len;
+  if (nlen < 0)
+    nlen = 0;
+  if (nlen > 127)
+    nlen = 127;
+  memset(out64, 0, 128);
+  if (nlen > 0)
+    memcpy(out64, ex->var_name, (size_t)nlen);
+}
+
+/**
+ * Read STRING_LIT (kind 59) byte length. Returns 0 for non-string-lit
+ * or invalid ref.
+ */
+int32_t pipeline_expr_var_name_len_for_string_lit_c(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex || (int32_t)ex->kind != 59)
+    return 0;
+  return ex->var_name_len;
+}
+
+/**
+ * Read EXPR_VAR name length. Returns 0 for non-VAR or invalid ref.
+ */
+int32_t pipeline_expr_var_name_len(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex || ex->kind != ast_ExprKind_EXPR_VAR)
+    return 0;
+  return ex->var_name_len;
+}
+
+/**
+ * wave670 Cap residual: keyword `null` is EXPR_LIT int_val=0 tagged
+ * var_name="null"/len=4. G.7 single null face.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_expr_is_null_keyword_c(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex || (int32_t)ex->kind != 0 /* EXPR_LIT */)
+    return 0;
+  if (ex->int_val != 0 || ex->var_name_len != 4)
+    return 0;
+  if (ex->var_name[0] == (uint8_t)'n' && ex->var_name[1] == (uint8_t)'u' &&
+      ex->var_name[2] == (uint8_t)'l' && ex->var_name[3] == (uint8_t)'l')
+    return 1;
+  return 0;
+}
+
+/**
+ * Tag EXPR_LIT 0 as keyword null on the live arena expr.
+ * Use after parser_asm primary set — avoids parser_asm_ast_expr ↔
+ * ast_Expr memcpy layout drift (mac vs gcc) losing var_name tag.
+ * PLATFORM: SHARED.
+ */
+void pipeline_expr_tag_null_keyword_c(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  int32_t zi;
+  if (!ex)
+    return;
+  ex->kind = ast_ExprKind_EXPR_LIT;
+  ex->int_val = 0;
+  ex->var_name[0] = (uint8_t)'n';
+  ex->var_name[1] = (uint8_t)'u';
+  ex->var_name[2] = (uint8_t)'l';
+  ex->var_name[3] = (uint8_t)'l';
+  ex->var_name_len = 4;
+  for (zi = 4; zi < 128; zi++)
+    ex->var_name[zi] = 0;
+}
+
+/** Read expr.binop_left_ref. Returns 0 for invalid ref. */
+int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->binop_left_ref : 0;
+}
+
+/** Read expr.binop_right_ref. Returns 0 for invalid ref. */
+int32_t pipeline_expr_binop_right_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->binop_right_ref : 0;
 }

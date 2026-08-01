@@ -3240,17 +3240,8 @@ int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *a, int32_t expr_ref) {
   return (int32_t)kd;
 }
 
-/** 读 EXPR_LIT/EXPR_BOOL_LIT 的 int_val；backend asm 勿 ast_arena_expr_get 整颗 Expr（大模块栈溢出）。 */
-int32_t pipeline_expr_int_val_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? (int32_t)ex->int_val : 0;
-}
-
-/** 读 EXPR_LIT 完整 i64 字面量（避免 int32 截断，P0-4 INT64_MIN 大常数）。 */
-int64_t pipeline_expr_int64_val_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->int_val : 0;
-}
+/* wave1162 G.7: int_val_at + int64_val_at migrated to
+ * pipeline_asm_emit_expr_rec.c EOF. Fwd decls at L1530-1531. */
 
 /**
  * EXPR_LIT 默认 resolved 类型：|v|≤i32 用 i32，否则 i64。
@@ -3285,141 +3276,11 @@ int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t
   return 0;
 }
 
-/**
- * 读 expr.unary_operand_ref；无效 ref 返回 0。
- * typeck.x check_block_impl 块末 `return;` 判定须用此 glue，勿 `let fin_ex: Expr = ast_arena_expr_get` 再读字段（自举 asm FIELD_ACCESS 失败）。
- */
-int32_t pipeline_expr_unary_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->unary_operand_ref : 0;
-}
-
-/** FIELD_ACCESS 字段名 memcpy 到 out64（最多 63 字节 + 清零）。 */
-void pipeline_expr_field_access_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64) {
-  struct ast_Expr *ex;
-  int32_t nlen;
-  if (!out64)
-    return;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex) {
-    memset(out64, 0, 128);
-    return;
-  }
-  nlen = ex->field_access_field_len;
-  if (nlen < 0)
-    nlen = 0;
-  if (nlen > 127)
-    nlen = 127;
-  /* wave577 Cap: out must be u8[128] (same contract as var_name_into). */
-  memset(out64, 0, 128);
-  if (nlen > 0)
-    memcpy(out64, ex->field_access_field_name, (size_t)nlen);
-}
-
-/** FIELD_ACCESS 字段名长度；非 FIELD_ACCESS 或无效 ref 返回 0。 */
-int32_t pipeline_expr_field_access_name_len(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex || ex->kind != ast_ExprKind_EXPR_FIELD_ACCESS)
-    return 0;
-  return ex->field_access_field_len;
-}
-
-/** FIELD_ACCESS base_ref；非 FIELD_ACCESS 返回 0。 */
-int32_t pipeline_expr_field_access_base_ref(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex || ex->kind != ast_ExprKind_EXPR_FIELD_ACCESS)
-    return 0;
-  return ex->field_access_base_ref;
-}
-
-/** EXPR_VAR 变量名 memcpy 到 out64（最多 127 字节 + 清零）。 */
-void pipeline_expr_var_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64) {
-  struct ast_Expr *ex;
-  int32_t nlen;
-  if (!out64)
-    return;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex) {
-    memset(out64, 0, 128);
-    return;
-  }
-  nlen = ex->var_name_len;
-  if (nlen < 0)
-    nlen = 0;
-  if (nlen > 127)
-    nlen = 127;
-  memset(out64, 0, 128);
-  if (nlen > 0)
-    memcpy(out64, ex->var_name, (size_t)nlen);
-}
-
-/** STRING_LIT（kind 59）字节长度；非字面量返回 0。 */
-int32_t pipeline_expr_var_name_len_for_string_lit_c(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex || (int32_t)ex->kind != 59)
-    return 0;
-  return ex->var_name_len;
-}
-
-/** EXPR_VAR 名长度；非 VAR 或无效 ref 返回 0。 */
-int32_t pipeline_expr_var_name_len(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex || ex->kind != ast_ExprKind_EXPR_VAR)
-    return 0;
-  return ex->var_name_len;
-}
-
-/**
- * wave670 Cap residual: keyword `null` is EXPR_LIT int_val=0 tagged
- * var_name="null"/len=4 (parser_alloc_null_lit / primary TOKEN_NULL).
- * Do not use pipeline_expr_var_name_len (VAR-only). G.7 single null face.
- * PLATFORM: SHARED.
- */
-int32_t pipeline_expr_is_null_keyword_c(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex || (int32_t)ex->kind != 0 /* EXPR_LIT */)
-    return 0;
-  if (ex->int_val != 0 || ex->var_name_len != 4)
-    return 0;
-  if (ex->var_name[0] == (uint8_t)'n' && ex->var_name[1] == (uint8_t)'u' &&
-      ex->var_name[2] == (uint8_t)'l' && ex->var_name[3] == (uint8_t)'l')
-    return 1;
-  return 0;
-}
-
-/**
- * Tag EXPR_LIT 0 as keyword null on the live arena expr (ast_Expr layout).
- * Use after parser_asm primary set — avoids parser_asm_ast_expr↔ast_Expr
- * memcpy layout drift (mac vs gcc) losing var_name tag.
- * PLATFORM: SHARED.
- */
-void pipeline_expr_tag_null_keyword_c(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  int32_t zi;
-  if (!ex)
-    return;
-  ex->kind = ast_ExprKind_EXPR_LIT;
-  ex->int_val = 0;
-  ex->var_name[0] = (uint8_t)'n';
-  ex->var_name[1] = (uint8_t)'u';
-  ex->var_name[2] = (uint8_t)'l';
-  ex->var_name[3] = (uint8_t)'l';
-  ex->var_name_len = 4;
-  for (zi = 4; zi < 128; zi++)
-    ex->var_name[zi] = 0;
-}
-
-/** 读 expr.binop_left_ref；无效 ref 返回 0。 */
-int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->binop_left_ref : 0;
-}
-
-/** 读 expr.binop_right_ref；无效 ref 返回 0。 */
-int32_t pipeline_expr_binop_right_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->binop_right_ref : 0;
-}
+/* wave1162 G.7: unary/field_access/var/null/binop accessor cluster
+ * (11 fns: unary_operand_ref_at, field_access_name_into/len/base_ref,
+ * var_name_into/len_for_string_lit/len, is_null_keyword_c,
+ * tag_null_keyword_c, binop_left/right_ref_at) migrated to
+ * pipeline_asm_emit_expr_rec.c EOF. Fwd decls at L1530-1571. */
 
 /* wave1146 G.7: pipeline_asm_typekind_variant_tag migrated to
  * pipeline_asm_emit_cmp.c EOF (TypeKind variant-name → tag table;
@@ -3561,69 +3422,14 @@ static int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena 
 /* wave1159 G.7: pipeline_expr_call_callee_ref_at migrated to
  * pipeline_typeck_method_call.c EOF. Fwd decl already exists above. */
 
-/** EXPR_AS 操作数 ref；无效 ref 返回 0。 */
-int32_t pipeline_expr_as_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->as_operand_ref : 0;
-}
-
-/** EXPR_AS 目标类型池 ref；无效 ref 返回 0（typeck return 分支 X emit 用）。 */
-int32_t pipeline_expr_as_target_type_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->as_target_type_ref : 0;
-}
-
-/** EXPR_ENUM_VARIANT / FIELD_ACCESS 枚举 tag；无效 ref 返回 0。 */
-int32_t pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->enum_variant_tag : 0;
-}
+/* wave1160 G.7: expr accessor cluster (10 extern fns) migrated to
+ * pipeline_asm_emit_expr_rec.c EOF (colocated with expr ELF recursion
+ * dispatcher domain). Fwd decls already exist at L1532-1578 (before
+ * #include L2210). ast_pipeline_* wrappers also migrated. */
 
 /* wave1159 G.7: method_call accessor cluster (4 extern fns) migrated to
  * pipeline_typeck_method_call.c EOF (colocated with method_call typeck
  * domain). Fwd decls in method_call.c top; visible via #include L9703. */
-
-/** EXPR_IF/TERNARY 条件 ref；无效 ref 返回 0。 */
-int32_t pipeline_expr_if_cond_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->if_cond_ref : 0;
-}
-
-/** EXPR_IF/TERNARY then 分支 ref；无效 ref 返回 0。 */
-int32_t pipeline_expr_if_then_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->if_then_ref : 0;
-}
-
-/** EXPR_IF/TERNARY else 分支 ref；无效 ref 返回 0。 */
-int32_t pipeline_expr_if_else_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->if_else_ref : 0;
-}
-
-/** EXPR_BLOCK 块 ref；无效 ref 返回 0。 */
-int32_t pipeline_expr_block_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->block_ref : 0;
-}
-
-/** EXPR_MATCH 待匹配值 ref；无效 ref 返回 0。 */
-int32_t pipeline_expr_match_matched_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->match_matched_ref : 0;
-}
-
-/** CTFE 折叠标记；无效 ref 返回 0。 */
-int32_t pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? (int32_t)ex->const_folded_valid : 0;
-}
-
-/** CTFE 折叠整型值；无效 ref 返回 0。 */
-int32_t pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->const_folded_val : 0;
-}
 
 static enum ast_TypeKind glue_type_kind_from_ord(int32_t ord) {
   if (ord < 0 || ord > 16)
@@ -3868,71 +3674,13 @@ int32_t pipeline_asm_index_elem_byte_sz(struct ast_ASTArena *a, int32_t index_ex
   return pipeline_asm_index_elem_byte_sz_c(a, index_expr_ref);
 }
 
-/** EXPR 池槽 index_base_ref / index_index_ref / resolved_type_ref / field_access_*。 */
-int32_t pipeline_expr_index_base_ref(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->index_base_ref : 0;
-}
-
-int32_t pipeline_expr_index_index_ref(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->index_index_ref : 0;
-}
-
-int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->resolved_type_ref : 0;
-}
-
-/**
- * 写 arena.exprs[expr_ref].resolved_type_ref；供 typeck.x EMIT_HEAVY 真 emit，避免 Expr 按值 get/set 撕裂。
- */
-void pipeline_expr_set_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t type_ref) {
-  struct ast_Expr *ex;
-  const char *trace_expr;
-  int32_t trace_ref;
-  int32_t old_ref;
-
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex)
-    return;
-  old_ref = ex->resolved_type_ref;
-  ex->resolved_type_ref = type_ref;
-  trace_expr = link_abi_getenv("XLANG_TRACE_EXPR_SET");
-  if (!trace_expr || !*trace_expr)
-    return;
-  trace_ref = atoi(trace_expr);
-  if (trace_ref != expr_ref)
-    return;
-  fprintf(stderr, "note: expr set debug: expr=%d kind=%d block=%d old_ty=%d new_ty=%d\n", (int)expr_ref,
-          (int)ex->kind, (int)ex->block_ref, (int)old_ref, (int)type_ref);
-}
-
-/** 写 expr.index_base_is_slice；勿 ast_arena_expr_set 整颗 Expr（EMIT_HEAVY asm）。 */
-void pipeline_expr_set_index_base_is_slice(struct ast_ASTArena *a, int32_t expr_ref, int32_t v) {
-  struct ast_Expr *ex;
-
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex)
-    return;
-  ex->index_base_is_slice = v;
-}
-
-/** 写 expr.index_proven_in_bounds；勿 ast_arena_expr_set 整颗 Expr（EMIT_HEAVY asm）。 */
-void pipeline_expr_set_index_proven_in_bounds(struct ast_ASTArena *a, int32_t expr_ref, int32_t v) {
-  struct ast_Expr *ex;
-
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex)
-    return;
-  ex->index_proven_in_bounds = v;
-}
+/* wave1161 G.7: index/field_access/line/col accessor cluster (10 extern
+ * fns) migrated to pipeline_asm_emit_expr_rec.c EOF (colocated with
+ * expr ELF recursion dispatcher). Fwd decls already exist at L1554-1565.
+ * Note: pipeline_expr_typeck_set_float_bits_from_val,
+ * pipeline_dep_ctx_typeck_loop_depth_at, pipeline_expr_set_field_access_enum_variant,
+ * pipeline_expr_set_field_access_soa_stride remain in glue.c (different
+ * domain / dependency). */
 
 /** 从 float_val 重算并写入 float_bits_lo/hi；typeck EXPR_FLOAT_LIT X emit 用（勿 Expr 按值 set）。 */
 void pipeline_expr_typeck_set_float_bits_from_val(struct ast_ASTArena *a, int32_t expr_ref) {
@@ -3945,18 +3693,6 @@ void pipeline_expr_typeck_set_float_bits_from_val(struct ast_ASTArena *a, int32_
     return;
   ex->float_bits_lo = typeck_float64_bits_lo(ex->float_val);
   ex->float_bits_hi = typeck_float64_bits_hi(ex->float_val);
-}
-
-/** 读 expr.line；break/continue 诊断 X emit 用。 */
-int32_t pipeline_expr_line_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->line : 0;
-}
-
-/** 读 expr.col；break/continue 诊断 X emit 用。 */
-int32_t pipeline_expr_col_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->col : 0;
 }
 
 /** 读 ctx.typeck_loop_depth；break/continue X emit 勿直接读 PipelineDepCtx 字段（自举 asm SIGSEGV）。 */
@@ -3977,24 +3713,6 @@ void pipeline_expr_set_field_access_enum_variant(struct ast_ASTArena *a, int32_t
     return;
   ex->field_access_is_enum_variant = 1;
   ex->enum_variant_tag = tag;
-}
-
-int32_t pipeline_expr_field_access_offset(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->field_access_offset : 0;
-}
-
-/** 写 FIELD_ACCESS 字节偏移；勿 ast_arena_expr_set 整颗 Expr（EMIT_HEAVY asm 撕裂）。 */
-void pipeline_expr_set_field_access_offset(struct ast_ASTArena *a, int32_t expr_ref, int32_t offset) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (ex)
-    ex->field_access_offset = offset;
-}
-
-/** DOD-S1：读 FIELD_ACCESS SoA 列内步长；0 表示 AoS 静态偏移。 */
-int32_t pipeline_expr_field_access_soa_stride(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->field_access_soa_stride : 0;
 }
 
 /** DOD-S1：写 FIELD_ACCESS SoA 步长（与 field_access_offset 列基址配合）。 */
@@ -10409,12 +10127,8 @@ int32_t ast_pipeline_expr_float_bits_hi_at(struct ast_ASTArena *a, int32_t expr_
 int32_t ast_pipeline_expr_call_callee_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
   return pipeline_expr_call_callee_ref_at(a, expr_ref);
 }
-int32_t ast_pipeline_expr_as_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_as_operand_ref_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_enum_variant_tag_at(a, expr_ref);
-}
+int32_t ast_pipeline_expr_as_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t ast_pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
   return pipeline_expr_method_call_base_ref_at(a, expr_ref);
 }
@@ -10427,39 +10141,25 @@ int32_t ast_pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t e
 void ast_pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64) {
   pipeline_expr_method_call_name_into(a, expr_ref, out64);
 }
-int32_t ast_pipeline_expr_if_cond_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_if_cond_ref_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_if_then_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_if_then_ref_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_if_else_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_if_else_ref_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_block_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_block_ref_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_match_matched_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_match_matched_ref_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_const_folded_valid_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_const_folded_val_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_index_base_ref(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_index_base_ref(a, expr_ref);
-}
-int32_t ast_pipeline_expr_index_index_ref(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_index_index_ref(a, expr_ref);
-}
+int32_t ast_pipeline_expr_if_cond_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_if_then_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_if_else_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_block_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_match_matched_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref);
+/* wave1160 G.7: 9 ast_pipeline_expr_* wrappers above (as/if/block/match/
+ * const_folded/enum_variant) migrated to pipeline_asm_emit_expr_rec.c EOF
+ * as fwd decls. wave1159: 4 method_call wrappers remain as function bodies
+ * (their pipeline_expr_* twins are in method_call.c via #include L9703). */
+/* wave1161 G.7: index/field_access_offset wrappers migrated to
+ * pipeline_asm_emit_expr_rec.c EOF as fwd decls below. */
+int32_t ast_pipeline_expr_index_base_ref(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_index_index_ref(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t ast_pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref) {
   return pipeline_expr_field_access_is_enum_variant(a, expr_ref);
 }
-int32_t ast_pipeline_expr_field_access_offset(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_field_access_offset(a, expr_ref);
-}
+int32_t ast_pipeline_expr_field_access_offset(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t ast_pipeline_expr_field_access_layout_offset(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref) {
   return pipeline_expr_field_access_layout_offset(a, m, expr_ref);
 }
