@@ -45,7 +45,65 @@
  * - pipeline_asm_emit_struct_let_init_elf_c / glue_emit_soa_index_field_addr*
  * - pipeline_typeck_field_soa_index_c / backend_enc_*_arch / pipeline_expr_*
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_call_param_ty_ref
+ *
+ * wave1033 G.7 fold: pipeline_token_kind_variant_tag is now defined at the
+ * top of this file (sole in-TU leaf consumer + residual glue.c caller
+ * pipeline_expr_enum_namespace_field_tag after this #include site).
  */
+
+/**
+ * Resolve a TokenKind variant name (e.g. "TOKEN_EOF") to its ordinal.
+ *
+ * Why: ExprKind.XXX / TypeKind.XXX / TokenKind.XXX comparisons in asm have
+ * no local slot; the field name is parsed and matched against the TokenKind
+ * enum variant table to return the ordinal, or -1 on miss. Import token.x
+ * without registered sidecar falls back to this fast path; the module
+ * enum sidecar (pipeline_expr_enum_field_tag_via_module) is the slower
+ * fallback path used by pipeline_expr_enum_namespace_field_tag.
+ *
+ * Contract: variant_name must be non-NULL and variant_len > 0; returns
+ * 0..N-1 matching the include/token.h TokenKind enum order, or -1 if no
+ * match. The names[] table is kept in lockstep with token.h TokenKind.
+ *
+ * PLATFORM: SHARED — names[] table mirrors include/token.h TokenKind enum
+ * order; must not drift from token.h. Consumed by field_access fast path
+ * (this file, 2 callsites) + residual glue.c enum_namespace_field_tag.
+ */
+static int32_t pipeline_token_kind_variant_tag(const uint8_t *variant_name, int32_t variant_len) {
+  /* Keep in lockstep with include/token.h TokenKind enum order; import
+   * token.x without registered sidecar falls back to this fast path. */
+  static const char *const names[] = {
+      "TOKEN_EOF",       "TOKEN_FUNCTION",  "TOKEN_LET",         "TOKEN_CONST",      "TOKEN_IF",
+      "TOKEN_ELSE",      "TOKEN_WHILE",     "TOKEN_LOOP",        "TOKEN_FOR",        "TOKEN_BREAK",
+      "TOKEN_CONTINUE",  "TOKEN_RETURN",    "TOKEN_PANIC",       "TOKEN_DEFER",      "TOKEN_MATCH",
+      "TOKEN_STRUCT",    "TOKEN_PACKED",    "TOKEN_ENUM",        "TOKEN_GOTO",       "TOKEN_TRAIT",
+      "TOKEN_IMPL",      "TOKEN_SELF",      "TOKEN_UNDERSCORE",  "TOKEN_IMPORT",     "TOKEN_EXTERN",
+      "TOKEN_IDENT",     "TOKEN_I32",       "TOKEN_BOOL",        "TOKEN_U8",         "TOKEN_U32",
+      "TOKEN_U64",       "TOKEN_I64",       "TOKEN_USIZE",       "TOKEN_ISIZE",      "TOKEN_I32X4",
+      "TOKEN_I32X8",     "TOKEN_I32X16",    "TOKEN_U32X4",       "TOKEN_U32X8",      "TOKEN_U32X16",
+      "TOKEN_F32X4",     "TOKEN_TRUE",      "TOKEN_FALSE",     "TOKEN_F32",         "TOKEN_F64",        "TOKEN_VOID",
+      "TOKEN_INT",       "TOKEN_FLOAT",     "TOKEN_LPAREN",      "TOKEN_RPAREN",     "TOKEN_LBRACE",
+      "TOKEN_RBRACE",    "TOKEN_LBRACKET",  "TOKEN_RBRACKET",    "TOKEN_ARROW",      "TOKEN_FATARROW",
+      "TOKEN_COMMA",     "TOKEN_COLON",     "TOKEN_DOT",         "TOKEN_SEMICOLON",  "TOKEN_PLUS",
+      "TOKEN_MINUS",     "TOKEN_STAR",      "TOKEN_SLASH",       "TOKEN_PERCENT",    "TOKEN_AMP",
+      "TOKEN_PIPE",      "TOKEN_CARET",     "TOKEN_LSHIFT",      "TOKEN_RSHIFT",     "TOKEN_PLUS_EQ",
+      "TOKEN_MINUS_EQ",  "TOKEN_STAR_EQ",   "TOKEN_SLASH_EQ",    "TOKEN_PERCENT_EQ", "TOKEN_AMP_EQ",
+      "TOKEN_PIPE_EQ",   "TOKEN_CARET_EQ",  "TOKEN_LSHIFT_EQ",   "TOKEN_RSHIFT_EQ",  "TOKEN_TILDE",
+      "TOKEN_ASSIGN",    "TOKEN_EQ",        "TOKEN_NE",          "TOKEN_LT",         "TOKEN_GT",
+      "TOKEN_LE",        "TOKEN_GE",        "TOKEN_AMPAMP",      "TOKEN_PIPEPIPE",   "TOKEN_BANG",
+      "TOKEN_QUESTION",  "TOKEN_AS",        "TOKEN_AT",
+  };
+  int32_t i;
+  int32_t nlen;
+  if (!variant_name || variant_len <= 0)
+    return -1;
+  for (i = 0; i < (int32_t)(sizeof(names) / sizeof(names[0])); i++) {
+    nlen = (int32_t)strlen(names[i]);
+    if (nlen == variant_len && memcmp(variant_name, names[i], (size_t)variant_len) == 0)
+      return i;
+  }
+  return -1;
+}
 
 /**
  * layout 扫描：按字段名在 module struct 表查 field type_ref（glue_field_access_field_type_ref 失败时回落）。

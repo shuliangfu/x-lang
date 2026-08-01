@@ -2073,7 +2073,12 @@ static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32
 /* BC 8.3.1: asm ELF LOGAND/LOGOR short-circuit emit domain (same TU). */
 #include "pipeline_asm_emit_logand.c"
 
-static int32_t pipeline_token_kind_variant_tag(const uint8_t *variant_name, int32_t variant_len);
+/* wave1033 G.7: pipeline_token_kind_variant_tag folded into
+ * pipeline_asm_emit_field_access.c (same TU #include at L2489; no new DEPS).
+ * Chinese docblock converted to English per G.9. field_access.c is the sole
+ * in-TU leaf consumer (2 callsites); residual glue.c caller
+ * pipeline_expr_enum_namespace_field_tag is after the #include site — no
+ * forward decl needed. */
 /** TypeKind 枚举变体 tag；定义见 pipeline_asm_emit_cmp_elf 前部。 */
 static int32_t pipeline_asm_typekind_variant_tag(const uint8_t *field_buf, int32_t flen);
 /** if/三元分支块 emit 深度（定义见 glue_block_emit_stmt_i 旁；此处前置供 if_arm 使用）。 */
@@ -5183,45 +5188,6 @@ extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *
 int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
   return ex ? ex->field_access_is_enum_variant : 0;
-}
-
-/**
- * ExprKind.XXX / TypeKind.XXX 比较在 asm 中无局部槽；解析字段名返回变体序数，失败 -1。
- * TokenKind.TOKEN_EOF 等经 module enum sidecar（pipeline_expr_enum_field_tag_via_module）。
- */
-static int32_t pipeline_token_kind_variant_tag(const uint8_t *variant_name, int32_t variant_len) {
-  /** 与 include/token.h TokenKind 枚举序一致；import token.x 未登记 sidecar 时 asm 快路径回落。 */
-  static const char *const names[] = {
-      "TOKEN_EOF",       "TOKEN_FUNCTION",  "TOKEN_LET",         "TOKEN_CONST",      "TOKEN_IF",
-      "TOKEN_ELSE",      "TOKEN_WHILE",     "TOKEN_LOOP",        "TOKEN_FOR",        "TOKEN_BREAK",
-      "TOKEN_CONTINUE",  "TOKEN_RETURN",    "TOKEN_PANIC",       "TOKEN_DEFER",      "TOKEN_MATCH",
-      "TOKEN_STRUCT",    "TOKEN_PACKED",    "TOKEN_ENUM",        "TOKEN_GOTO",       "TOKEN_TRAIT",
-      "TOKEN_IMPL",      "TOKEN_SELF",      "TOKEN_UNDERSCORE",  "TOKEN_IMPORT",     "TOKEN_EXTERN",
-      "TOKEN_IDENT",     "TOKEN_I32",       "TOKEN_BOOL",        "TOKEN_U8",         "TOKEN_U32",
-      "TOKEN_U64",       "TOKEN_I64",       "TOKEN_USIZE",       "TOKEN_ISIZE",      "TOKEN_I32X4",
-      "TOKEN_I32X8",     "TOKEN_I32X16",    "TOKEN_U32X4",       "TOKEN_U32X8",      "TOKEN_U32X16",
-      "TOKEN_F32X4",     "TOKEN_TRUE",      "TOKEN_FALSE",     "TOKEN_F32",         "TOKEN_F64",        "TOKEN_VOID",
-      "TOKEN_INT",       "TOKEN_FLOAT",     "TOKEN_LPAREN",      "TOKEN_RPAREN",     "TOKEN_LBRACE",
-      "TOKEN_RBRACE",    "TOKEN_LBRACKET",  "TOKEN_RBRACKET",    "TOKEN_ARROW",      "TOKEN_FATARROW",
-      "TOKEN_COMMA",     "TOKEN_COLON",     "TOKEN_DOT",         "TOKEN_SEMICOLON",  "TOKEN_PLUS",
-      "TOKEN_MINUS",     "TOKEN_STAR",      "TOKEN_SLASH",       "TOKEN_PERCENT",    "TOKEN_AMP",
-      "TOKEN_PIPE",      "TOKEN_CARET",     "TOKEN_LSHIFT",      "TOKEN_RSHIFT",     "TOKEN_PLUS_EQ",
-      "TOKEN_MINUS_EQ",  "TOKEN_STAR_EQ",   "TOKEN_SLASH_EQ",    "TOKEN_PERCENT_EQ", "TOKEN_AMP_EQ",
-      "TOKEN_PIPE_EQ",   "TOKEN_CARET_EQ",  "TOKEN_LSHIFT_EQ",   "TOKEN_RSHIFT_EQ",  "TOKEN_TILDE",
-      "TOKEN_ASSIGN",    "TOKEN_EQ",        "TOKEN_NE",          "TOKEN_LT",         "TOKEN_GT",
-      "TOKEN_LE",        "TOKEN_GE",        "TOKEN_AMPAMP",      "TOKEN_PIPEPIPE",   "TOKEN_BANG",
-      "TOKEN_QUESTION",  "TOKEN_AS",        "TOKEN_AT",
-  };
-  int32_t i;
-  int32_t nlen;
-  if (!variant_name || variant_len <= 0)
-    return -1;
-  for (i = 0; i < (int32_t)(sizeof(names) / sizeof(names[0])); i++) {
-    nlen = (int32_t)strlen(names[i]);
-    if (nlen == variant_len && memcmp(variant_name, names[i], (size_t)variant_len) == 0)
-      return i;
-  }
-  return -1;
 }
 
 int32_t pipeline_expr_enum_field_tag_via_module(uint8_t *enum_name, int32_t enum_len, uint8_t *variant_name,
