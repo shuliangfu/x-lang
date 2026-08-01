@@ -75,6 +75,10 @@ static int32_t glue_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegenC
 static int32_t glue_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 #define glue_deref_struct16_rax_ptr_elf_c pipeline_asm_deref_struct16_rax_ptr_elf_c
 #define glue_call_struct16_ret_needs_rax_deref_c pipeline_asm_call_struct16_ret_needs_rax_deref_c
+/* wave1150 G.7: glue_asm_resolve_call_target_module_c definition migrated to
+ * pipeline_asm_emit_call_args.c EOF (was in glue.c L9843). This static fwd
+ * decl (struct_let.c #include at L2120 < call_args.c #include at L2251)
+ * provides TU-wide visibility for all callers. */
 static int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
                                                      struct ast_Module **mod_out, int32_t *func_ix_out,
                                                      int32_t *dep_ix_out);
