@@ -8910,26 +8910,11 @@ static void glue_fill_array_lit_from_decl(struct ast_ASTArena *arena, int32_t de
   init_ex->resolved_type_ref = decl_ty_ref;
 }
 
-/** 块内 let 名与 EXPR_VAR 是否一致（长度与逐字节）。 */
-static int glue_let_name_matches_var(struct ast_ASTArena *arena, int32_t expr_ref, const uint8_t *let_nm,
-                                   int32_t let_nlen) {
-  uint8_t vn[128];
-  int32_t vlen;
-  int32_t j;
-  if (!arena || !let_nm || let_nlen <= 0 || expr_ref <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, expr_ref) != 3)
-    return 0;
-  vlen = pipeline_expr_var_name_len(arena, expr_ref);
-  if (vlen != let_nlen)
-    return 0;
-  pipeline_expr_var_name_into(arena, expr_ref, vn);
-  for (j = 0; j < let_nlen; j++) {
-    if (vn[j] != let_nm[j])
-      return 0;
-  }
-  return 1;
-}
+/* wave1084 G.7: glue_let_name_matches_var migrated to
+ * pipeline_asm_emit_block_inits.c EOF (block-internal let name vs EXPR_VAR
+ * match: length + byte compare). Static same-TU: block_inits.c #include L3830
+ * < def EOF < all callsites L8985/9015. Deps: pipeline_expr_kind_ord_at /
+ * pipeline_expr_var_name_len / pipeline_expr_var_name_into (all extern). */
 
 /** 仅接受位于 scope_block 本块或其子块中的表达式，避免跨函数/跨兄弟块同名变量互相污染 resolved_type。 */
 static int32_t glue_expr_in_scope_block_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t scope_block_ref) {
@@ -10079,53 +10064,20 @@ XLANG_WEAK void pipeline_typeck_patch_all_body_parent_links_c(struct ast_Module 
 /** 前向声明：typeck_glue_type_refs_equal_impl 递归比较 elem 类型。 */
 int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
 
-/** 比较两个 NAMED 类型名（与 typeck.x::type_refs_equal_named 一致；含限定名/短名末段对齐）。 */
-static int32_t typeck_named_unqual_offset_c(const uint8_t *buf, int32_t len) {
-  int32_t i;
-  for (i = len - 1; i > 0; i--) {
-    if (buf[i] == '.')
-      return i + 1;
-  }
-  return 0;
-}
+/* wave1080 G.7: typeck_named_unqual_offset_c migrated to
+ * pipeline_typeck_coerce_init.c EOF (NAMED type unqualified-name offset:
+ * find last '.' +1). Static same-TU: fwd decl below (before callsites in
+ * typeck_glue_type_refs_equal_named L10117/10118) < coerce_init.c #include
+ * L14126 < def EOF. Deps: none (pure buf scan). */
+static int32_t typeck_named_unqual_offset_c(const uint8_t *buf, int32_t len);
 
-static int32_t typeck_glue_type_refs_equal_named(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  int32_t na;
-  int32_t nb;
-  int32_t i;
-  int32_t oa;
-  int32_t ob;
-  int32_t ua;
-  int32_t ub;
-  uint8_t *buf_a;
-  uint8_t *buf_b;
-
-  buf_a = typeck_scratch64_slot(0);
-  buf_b = typeck_scratch64_slot(1);
-  na = pipeline_type_named_name_into(arena, a, buf_a);
-  nb = pipeline_type_named_name_into(arena, b, buf_b);
-  if (na <= 0 || nb <= 0)
-    return 0;
-  if (na == nb) {
-    for (i = 0; i < na; i++) {
-      if (buf_a[i] != buf_b[i])
-        break;
-    }
-    if (i == na)
-      return 1;
-  }
-  oa = typeck_named_unqual_offset_c(buf_a, na);
-  ob = typeck_named_unqual_offset_c(buf_b, nb);
-  ua = na - oa;
-  ub = nb - ob;
-  if (ua != ub || ua <= 0)
-    return 0;
-  for (i = 0; i < ua; i++) {
-    if (buf_a[oa + i] != buf_b[ob + i])
-      return 0;
-  }
-  return 1;
-}
+/* wave1081 G.7: typeck_glue_type_refs_equal_named migrated to
+ * pipeline_typeck_coerce_init.c EOF (NAMED type_refs_equal: full-name then
+ * unqualified suffix match). Static same-TU: fwd decl below (before callsites
+ * L10134/10145) < coerce_init.c #include L14126 < def EOF. Deps:
+ * typeck_named_unqual_offset_c (same file, def above) /
+ * typeck_scratch64_slot (extern L10447) / pipeline_type_named_name_into (extern). */
+static int32_t typeck_glue_type_refs_equal_named(struct ast_ASTArena *arena, int32_t a, int32_t b);
 
 /** type_refs_equal_named 薄委托（与 typeck.x 拆分 helper 一致）。 */
 int32_t pipeline_typeck_type_refs_equal_named_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
@@ -10156,19 +10108,13 @@ int32_t pipeline_typeck_type_refs_equal_same_kind_c(struct ast_ASTArena *arena, 
   return 1;
 }
 
-/** 内部：a/b 已非 null 且 a!=b；读 kind 后委托 same_kind（与 typeck.x::type_refs_equal_impl 一致）。 */
-static int32_t typeck_glue_type_refs_equal_impl(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  int32_t ka;
-  int32_t kb;
-
-  if (!arena || a <= 0 || b <= 0)
-    return 0;
-  ka = pipeline_type_kind_ord_at(arena, a);
-  kb = pipeline_type_kind_ord_at(arena, b);
-  if (ka != kb)
-    return 0;
-  return pipeline_typeck_type_refs_equal_same_kind_c(arena, a, b, ka);
-}
+/* wave1082 G.7: typeck_glue_type_refs_equal_impl migrated to
+ * pipeline_typeck_coerce_init.c EOF (type_refs_equal internal impl: read kind
+ * then delegate to same_kind). Static same-TU: fwd decl below (before callsites
+ * L10199/10204) < coerce_init.c #include L14126 < def EOF. Deps:
+ * pipeline_typeck_type_refs_equal_same_kind_c (extern, glue.c L10108) /
+ * pipeline_type_kind_ord_at (extern). */
+static int32_t typeck_glue_type_refs_equal_impl(struct ast_ASTArena *arena, int32_t a, int32_t b);
 
 /** WPO-S3：typeck 活跃 module（type 别名展开等 glue 回落；定义见文件前部 g_typeck_active_module）。 */
 extern int32_t pipeline_module_num_type_aliases_at(struct ast_Module *m);
@@ -10184,43 +10130,16 @@ int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *arena, int
   return pipeline_typeck_resolve_type_alias_ref_impl_c(g_typeck_active_module, arena, type_ref, 0);
 }
 
-static int32_t pipeline_typeck_resolve_type_alias_ref_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                             int32_t type_ref, int32_t depth) {
-  int32_t kind;
-  uint8_t nm[128];
-  int32_t nlen;
-  int32_t i;
-  int32_t alen;
-  int32_t j;
-  int32_t tgt;
-
-  if (!arena || ast_ref_is_null(type_ref) || depth > 32)
-    return type_ref;
-  if (!module || pipeline_module_num_type_aliases_at(module) <= 0)
-    return type_ref;
-  kind = pipeline_type_kind_ord_at(arena, type_ref);
-  if (kind != (int32_t)ast_TypeKind_TYPE_NAMED)
-    return type_ref;
-  nlen = pipeline_type_named_name_into(arena, type_ref, nm);
-  if (nlen <= 0)
-    return type_ref;
-  for (i = 0; i < pipeline_module_num_type_aliases_at(module); i++) {
-    alen = pipeline_module_type_alias_name_len(module, i);
-    if (alen != nlen)
-      continue;
-    for (j = 0; j < nlen; j++) {
-      if (pipeline_module_type_alias_name_byte_at(module, i, j) != nm[j])
-        break;
-    }
-    if (j < nlen)
-      continue;
-    tgt = pipeline_module_type_alias_target_ref(module, i);
-    if (tgt <= 0)
-      return type_ref;
-    return pipeline_typeck_resolve_type_alias_ref_impl_c(module, arena, tgt, depth + 1);
-  }
-  return type_ref;
-}
+/* wave1083 G.7: pipeline_typeck_resolve_type_alias_ref_impl_c body migrated to
+ * pipeline_typeck_coerce_init.c EOF (type alias chain resolver: NAMED → target
+ * ref, depth-limited recursion). Static fwd decl at L10141 (before callsite in
+ * resolve_type_alias_ref_c L10145). Recursive self-call is within the def
+ * (now in coerce_init.c). Body 36 LOC. Deps: ast_ref_is_null (global) /
+ * pipeline_module_num_type_aliases_at (extern L10135) /
+ * pipeline_type_kind_ord_at (extern) / pipeline_type_named_name_into (extern) /
+ * pipeline_module_type_alias_name_len (extern L10136) /
+ * pipeline_module_type_alias_name_byte_at (extern L10137) /
+ * pipeline_module_type_alias_target_ref (extern L10138). */
 
 int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
   if (ast_ref_is_null(a) || ast_ref_is_null(b))

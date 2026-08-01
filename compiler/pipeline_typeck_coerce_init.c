@@ -687,3 +687,200 @@ static int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *aren
   return 0;
 }
 
+/**
+ * NAMED type unqualified-name offset: find the last '.' and return offset+1.
+ *
+ * Why: type_refs_equal_named compares two NAMED type names. When full-name
+ * match fails, it falls back to unqualified suffix match (last segment after
+ * '.'). This helper centralizes the offset calculation so the caller does not
+ * repeat the reverse scan. Matches typeck.x::type_refs_equal_named helper.
+ *
+ * Invariant: returns 0 if no '.' found (whole name is unqualified); otherwise
+ * the byte offset of the first char after the last '.'.
+ *
+ * Asm/Perf: O(len) — one reverse scan. Cold path — called twice in
+ * typeck_glue_type_refs_equal_named (glue.c:10117/10118, via fwd decl).
+ *
+ * PLATFORM: SHARED — string scan is platform-independent.
+ *
+ * wave1080 G.7: migrated from glue.c:10083 (body 7 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:10087 (before callsites in
+ * typeck_glue_type_refs_equal_named) < coerce_init.c #include at L14126 < def EOF.
+ * Dependencies: none (pure buf scan).
+ */
+static int32_t typeck_named_unqual_offset_c(const uint8_t *buf, int32_t len) {
+  int32_t i;
+  for (i = len - 1; i > 0; i--) {
+    if (buf[i] == '.')
+      return i + 1;
+  }
+  return 0;
+}
+
+/**
+ * NAMED type_refs_equal: full-name match then unqualified suffix match.
+ *
+ * Why: typeck assign/arg/return coercion compares two NAMED type_refs. A
+ * qualified name `mod.Foo` and unqualified `Foo` should compare equal when
+ * they are the same type. This helper first tries full-name equality, then
+ * falls back to comparing only the unqualified suffix (last segment after
+ * '.'). Matches typeck.x::type_refs_equal_named.
+ *
+ * Invariant: returns 0 for NULL arena or invalid refs; 1 iff full names
+ * match exactly OR unqualified suffixes match (same length + byte-equal).
+ *
+ * Asm/Perf: O(na+nb) — two name reads + two scans + one compare. Cold path —
+ * called in pipeline_typeck_type_refs_equal_named_c (glue.c:10101, thin
+ * delegate) and pipeline_typeck_type_refs_equal_same_kind_c (glue.c:10112).
+ *
+ * PLATFORM: SHARED — NAMED type comparison is platform-independent.
+ *
+ * wave1081 G.7: migrated from glue.c:10092 (body 37 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:10095 (before callsites L10101/10112) <
+ * coerce_init.c #include at L14126 < def EOF. Dependencies:
+ * typeck_named_unqual_offset_c (same file, def above) /
+ * typeck_scratch64_slot (extern, glue.c:10447) /
+ * pipeline_type_named_name_into (extern).
+ */
+static int32_t typeck_glue_type_refs_equal_named(struct ast_ASTArena *arena, int32_t a, int32_t b) {
+  int32_t na;
+  int32_t nb;
+  int32_t i;
+  int32_t oa;
+  int32_t ob;
+  int32_t ua;
+  int32_t ub;
+  uint8_t *buf_a;
+  uint8_t *buf_b;
+
+  buf_a = typeck_scratch64_slot(0);
+  buf_b = typeck_scratch64_slot(1);
+  na = pipeline_type_named_name_into(arena, a, buf_a);
+  nb = pipeline_type_named_name_into(arena, b, buf_b);
+  if (na <= 0 || nb <= 0)
+    return 0;
+  if (na == nb) {
+    for (i = 0; i < na; i++) {
+      if (buf_a[i] != buf_b[i])
+        break;
+    }
+    if (i == na)
+      return 1;
+  }
+  oa = typeck_named_unqual_offset_c(buf_a, na);
+  ob = typeck_named_unqual_offset_c(buf_b, nb);
+  ua = na - oa;
+  ub = nb - ob;
+  if (ua != ub || ua <= 0)
+    return 0;
+  for (i = 0; i < ua; i++) {
+    if (buf_a[oa + i] != buf_b[ob + i])
+      return 0;
+  }
+  return 1;
+}
+
+/**
+ * type_refs_equal internal impl: read kind then delegate to same_kind.
+ *
+ * Why: pipeline_typeck_type_refs_equal_c (the public entry) calls this impl
+ * for the non-null, a!=b case. Reads both type kinds; if they differ, types
+ * are not equal; if same, delegates to same_kind_c for compound comparison.
+ * Matches typeck.x::type_refs_equal_impl.
+ *
+ * Invariant: returns 0 for NULL arena or invalid refs; 0 if kinds differ;
+ * otherwise delegates to pipeline_typeck_type_refs_equal_same_kind_c.
+ *
+ * Asm/Perf: O(1) — two kind reads + one delegate. Cold path — called in
+ * pipeline_typeck_type_refs_equal_c (glue.c:10199) and resolve_alias path
+ * (glue.c:10204).
+ *
+ * PLATFORM: SHARED — type comparison is platform-independent.
+ *
+ * wave1082 G.7: migrated from glue.c:10127 (body 12 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:10132 (before callsites L10199/10204) <
+ * coerce_init.c #include at L14126 < def EOF. Dependencies:
+ * pipeline_typeck_type_refs_equal_same_kind_c (extern, glue.c:10108) /
+ * pipeline_type_kind_ord_at (extern).
+ */
+static int32_t typeck_glue_type_refs_equal_impl(struct ast_ASTArena *arena, int32_t a, int32_t b) {
+  int32_t ka;
+  int32_t kb;
+
+  if (!arena || a <= 0 || b <= 0)
+    return 0;
+  ka = pipeline_type_kind_ord_at(arena, a);
+  kb = pipeline_type_kind_ord_at(arena, b);
+  if (ka != kb)
+    return 0;
+  return pipeline_typeck_type_refs_equal_same_kind_c(arena, a, b, ka);
+}
+
+/**
+ * Type alias chain resolver: NAMED → target ref, depth-limited recursion.
+ *
+ * Why: typeck type_refs_equal must resolve type aliases before comparing.
+ * A NAMED type `Foo` may alias to another type `Bar` or a compound. This
+ * resolver walks the module's alias table, matching by name, and recurses
+ * into the target ref (depth-limited to 32 to prevent infinite loops).
+ * Matches typeck.x::resolve_type_alias_ref_impl.
+ *
+ * Invariant: returns type_ref unchanged for NULL arena, null ref, depth > 32,
+ * no module, no aliases, or non-NAMED kind. For NAMED types matching an alias,
+ * returns the resolved target ref (recursively). Returns type_ref if target
+ * is invalid (<=0).
+ *
+ * Asm/Perf: O(n_aliases × name_len) per level, depth ≤ 32. Cold path — called
+ * in pipeline_typeck_resolve_type_alias_ref_c (glue.c:10145, via fwd decl).
+ *
+ * PLATFORM: SHARED — alias resolution is platform-independent.
+ *
+ * wave1083 G.7: migrated from glue.c:10148 (body 36 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:10141 (before callsite in
+ * resolve_type_alias_ref_c) < coerce_init.c #include at L14126 < def EOF.
+ * Recursive self-call is within this def (same file). Dependencies:
+ * ast_ref_is_null (global) / pipeline_module_num_type_aliases_at (extern,
+ * glue.c:10135) / pipeline_type_kind_ord_at (extern) /
+ * pipeline_type_named_name_into (extern) /
+ * pipeline_module_type_alias_name_len (extern, glue.c:10136) /
+ * pipeline_module_type_alias_name_byte_at (extern, glue.c:10137) /
+ * pipeline_module_type_alias_target_ref (extern, glue.c:10138).
+ */
+static int32_t pipeline_typeck_resolve_type_alias_ref_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                             int32_t type_ref, int32_t depth) {
+  int32_t kind;
+  uint8_t nm[128];
+  int32_t nlen;
+  int32_t i;
+  int32_t alen;
+  int32_t j;
+  int32_t tgt;
+
+  if (!arena || ast_ref_is_null(type_ref) || depth > 32)
+    return type_ref;
+  if (!module || pipeline_module_num_type_aliases_at(module) <= 0)
+    return type_ref;
+  kind = pipeline_type_kind_ord_at(arena, type_ref);
+  if (kind != (int32_t)ast_TypeKind_TYPE_NAMED)
+    return type_ref;
+  nlen = pipeline_type_named_name_into(arena, type_ref, nm);
+  if (nlen <= 0)
+    return type_ref;
+  for (i = 0; i < pipeline_module_num_type_aliases_at(module); i++) {
+    alen = pipeline_module_type_alias_name_len(module, i);
+    if (alen != nlen)
+      continue;
+    for (j = 0; j < nlen; j++) {
+      if (pipeline_module_type_alias_name_byte_at(module, i, j) != nm[j])
+        break;
+    }
+    if (j < nlen)
+      continue;
+    tgt = pipeline_module_type_alias_target_ref(module, i);
+    if (tgt <= 0)
+      return type_ref;
+    return pipeline_typeck_resolve_type_alias_ref_impl_c(module, arena, tgt, depth + 1);
+  }
+  return type_ref;
+}
+

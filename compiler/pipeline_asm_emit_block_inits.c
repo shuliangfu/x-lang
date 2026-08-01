@@ -400,3 +400,46 @@ int32_t pipeline_asm_emit_block_inits_elf_c(struct ast_ASTArena *arena, struct p
   }
   return 0;
 }
+
+/**
+ * Check whether a block-internal let name matches an EXPR_VAR (length + bytes).
+ *
+ * Why: glue_fill_var_types_from_lets_in_block and glue_fill_array_lit_types_in_
+ * block iterate block lets and match them against EXPR_VAR refs to propagate
+ * resolved_type from let init to var usage. This helper centralizes the
+ * name comparison so callers don't repeat kind_ord + name_len + memcmp.
+ *
+ * Invariant: returns 0 for NULL arena/let_nm, invalid expr_ref, let_nlen <= 0,
+ * or non-VAR (kind_ord != 3); returns 1 iff var name length and bytes match
+ * let_nm exactly.
+ *
+ * Asm/Perf: O(n) — one name read + one byte loop. Cold path — called per
+ * let × per expr in glue_fill_var_types_from_lets_in_block (glue.c:8985) and
+ * glue_fill_array_lit_types_in_block (glue.c:9015).
+ *
+ * PLATFORM: SHARED — name comparison is platform-independent.
+ *
+ * wave1084 G.7: migrated from glue.c:8914 (body 19 LOC). Static (non-extern):
+ * same-TU — block_inits.c #include at L3830 < def EOF < all callsites
+ * (glue.c:8985/9015). Dependencies: pipeline_expr_kind_ord_at /
+ * pipeline_expr_var_name_len / pipeline_expr_var_name_into (all extern).
+ */
+static int glue_let_name_matches_var(struct ast_ASTArena *arena, int32_t expr_ref, const uint8_t *let_nm,
+                                   int32_t let_nlen) {
+  uint8_t vn[128];
+  int32_t vlen;
+  int32_t j;
+  if (!arena || !let_nm || let_nlen <= 0 || expr_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) != 3)
+    return 0;
+  vlen = pipeline_expr_var_name_len(arena, expr_ref);
+  if (vlen != let_nlen)
+    return 0;
+  pipeline_expr_var_name_into(arena, expr_ref, vn);
+  for (j = 0; j < let_nlen; j++) {
+    if (vn[j] != let_nm[j])
+      return 0;
+  }
+  return 1;
+}
