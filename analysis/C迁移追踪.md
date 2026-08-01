@@ -32,7 +32,7 @@
 | **R2 真迁退役** | 🟡 ~85% | 128 prove 模块中 ~120 已 R2；Cap residual 待消灭 ~8 模块 |
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
-| **Pinned gen.c 退役** | 🟡 11/30 | Track L 退役 11 个（wave1036 lsp_io_gen + wave1038 build_gen + wave1039 build_runner_gen）；仍 pinned 19 个（前端核心 + 工具链 + 测试） |
+| **Pinned gen.c 退役** | 🟡 12/30 | Track L 退役 12 个（wave1036 lsp_io_gen + wave1038 build_gen + wave1039 build_runner_gen + wave1040 build_runtime_x_gen）；build_*_gen 三件套全退役；仍 pinned 18 个（前端核心 + 工具链 + 测试） |
 | **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~17.0k + `ast_pool` ~12.9k；8.3.1 四十四刀（+…／array_lit durable／**slice reent**／**var_decl+lazy_append 共享叶**／**slice dual-GP+slice_from_array 同叶**／**sret return path 同叶**／**field_access layout/offset 同叶**／**lea/arm64 sret helpers 同叶**／**async CPS emit domain 同叶**／**x86 micro-encoders 同叶**／**with_arena scope domain 同叶**／**cmp cc helpers 同叶**／**empty struct check 同叶**／**TokenKind variant tag 同叶**／**float bits lo/hi 同叶**／**struct_lit field offset/type_ref 同叶**／**16 个 try_index_var_* fwd 清理**）+ 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
@@ -773,11 +773,11 @@
 
 ---
 
-## 阶段 8：Pinned gen.c 退役（部分完成 · 11/30）
+## 阶段 8：Pinned gen.c 退役（部分完成 · 12/30）
 
 > **定义**：compiler/ 顶层的 *_gen.c 是 pinned 生成器，产品链权威。Track L 退役 = 构建改用 *_x.o，pinned gen 仅考古。
 
-### 8.1 已退役的 pinned gen.c（11 个）
+### 8.1 已退役的 pinned gen.c（12 个）
 
 > 产品链 PREFER_X_O；工作区考古 gen 生产体 = `ensure_archaeology_gen.sh`
 
@@ -803,8 +803,10 @@
 
 ✅ **8.1.11 build_runner_gen.c** Track L 退役 wave1039（构建用 `../build_runner.x` via `./xlang -x -E` 生成；考古 `seeds/build_runner_gen.c`；根源修复：9 处 extern 调用包裹 `unsafe{}` + `entry` 加 `#[no_mangle] export`）
 
+✅ **8.1.12 build_runtime_x_gen.c** Track L 退役 wave1040（构建用 `../build_runtime_x.x` via `./xlang -x -E` 生成；考古 `seeds/build_runtime_x_gen.c`；根源修复：15 处 `build_exec_system` extern 调用用 `unsafe{}` 表达式形式包裹 + `copy_path`/`append_lit` 加 `#[no_mangle]`；build_*_gen 三件套全退役）
 
-### 8.2 仍需退役的 pinned gen.c（19 个 · 前端核心 + 工具链 + 测试）
+
+### 8.2 仍需退役的 pinned gen.c（18 个 · 前端核心 + 工具链 + 测试）
 
 ⬜ **8.2.1 parser_gen.c** pinned（Makefile L1760 · XLANG_FORCE_REGGEN=1 to regen）
 
@@ -861,9 +863,7 @@
 
 ✅ **8.2.15 ~~build_runner_gen.c~~** 已退役 → 见 8.1.11（wave1039）
 
-⬜ **8.2.16 build_runtime_x_gen.c** pinned（245 行 · seeds/build_runtime_x_gen.c）
-
-  - build runtime 生成器
+✅ **8.2.16 ~~build_runtime_x_gen.c~~** 已退役 → 见 8.1.12（wave1040）
 
 ⬜ **8.2.17 cfg_eval_gen.c** pinned（src/lexer/ · 973 行 · seeds/cfg_eval_gen.linux.x86_64.c）
 
