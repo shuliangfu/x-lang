@@ -1666,8 +1666,10 @@ int32_t pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr
 int32_t pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_binop_right_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t pipeline_expr_float_bits_lo_at(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t pipeline_expr_float_bits_hi_at(struct ast_ASTArena *a, int32_t expr_ref);
+/* wave1034 G.7: pipeline_expr_float_bits_lo/hi_at folded into
+ * pipeline_asm_emit_as.c (same TU #include; no new DEPS). as.c is the
+ * sole in-TU leaf consumer (4 callsites); ast_pool.c wrapper is after
+ * as.c #include — definition visible, no forward decl needed. */
 int32_t pipeline_expr_struct_lit_num_fields(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_struct_lit_init_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t j);
 int32_t pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref);
@@ -4671,25 +4673,11 @@ static int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct pla
 #include "pipeline_asm_emit_block_if_stmt.c"
 
 
-/** EXPR_FLOAT_LIT 低 32 位；emit 时从 float_val 重算，避免 X parser 未持久化 float_bits_*。 */
-int32_t pipeline_expr_float_bits_lo_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex)
-    return 0;
-  if (ex->kind == ast_ExprKind_EXPR_FLOAT_LIT)
-    return typeck_float64_bits_lo(ex->float_val);
-  return ex->float_bits_lo;
-}
-
-/** EXPR_FLOAT_LIT 高 32 位。 */
-int32_t pipeline_expr_float_bits_hi_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex)
-    return 0;
-  if (ex->kind == ast_ExprKind_EXPR_FLOAT_LIT)
-    return typeck_float64_bits_hi(ex->float_val);
-  return ex->float_bits_hi;
-}
+/* wave1034 G.7: pipeline_expr_float_bits_lo/hi_at folded into
+ * pipeline_asm_emit_as.c (included at glue.c:2062). as.c is the sole
+ * in-TU leaf consumer (4 callsites: array_lit pack + float_lit emit);
+ * ast_pool.c wrapper (pipeline_expr_float_bits_lo/hi) is after as.c
+ * #include — definition visible, no forward decl needed. */
 
 /** EXPR_CALL callee expr ref；无效 ref 返回 0。 */
 int32_t pipeline_expr_call_callee_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {

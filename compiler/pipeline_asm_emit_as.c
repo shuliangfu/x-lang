@@ -33,6 +33,56 @@
 /** X/parser_asm/backend 权威：STRING_LIT 序数 59（与 GLUE_EXPR_STRING_LIT_ORD / PARSER_ASM_EXPR_STRING_LIT 一致）。 */
 #define GLUE_EXPR_STRING_LIT_ORD 59
 
+/* wave1034 G.7: forward decl — glue_arena_expr_at_ref is defined later in the
+ * TU (glue.c:2796, after field_access.c #include at glue.c:2496). as.c is
+ * #included at glue.c:2062, before the definition; without this static
+ * forward decl the call below would get an implicit non-static declaration
+ * and conflict with the later static definition. */
+static struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
+
+/**
+ * Low 32 bits of a float64 literal's IEEE-754 bit representation.
+ *
+ * Why: at emit time the bits are recomputed from float_val to avoid
+ * relying on X parser having persisted float_bits_* (which may be
+ * stale or zero). Non-float expressions fall back to the stored
+ * float_bits_lo field.
+ *
+ * Contract: returns 0 for invalid expr_ref or NULL expr; otherwise
+ * returns the low 32 bits of typeck_float64_bits(double).
+ *
+ * PLATFORM: SHARED — typeck_float64_bits_lo is an external asm symbol
+ * (typeck_f64_bits_x86_64_mingw.s / typeck_f64_bits_arm64.s).
+ */
+int32_t pipeline_expr_float_bits_lo_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return 0;
+  if (ex->kind == ast_ExprKind_EXPR_FLOAT_LIT)
+    return typeck_float64_bits_lo(ex->float_val);
+  return ex->float_bits_lo;
+}
+
+/**
+ * High 32 bits of a float64 literal's IEEE-754 bit representation.
+ *
+ * Why: same rationale as pipeline_expr_float_bits_lo_at — recompute
+ * from float_val at emit time rather than trusting persisted bits.
+ *
+ * Contract: returns 0 for invalid expr_ref or NULL expr; otherwise
+ * returns the high 32 bits of typeck_float64_bits(double).
+ *
+ * PLATFORM: SHARED — typeck_float64_bits_hi is an external asm symbol.
+ */
+int32_t pipeline_expr_float_bits_hi_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return 0;
+  if (ex->kind == ast_ExprKind_EXPR_FLOAT_LIT)
+    return typeck_float64_bits_hi(ex->float_val);
+  return ex->float_bits_hi;
+}
+
 /**
  * pool/C parser 上的 await 表达式。
  * X pool：kind==EXPR_AWAIT(55) 且 unary 操作数有效。
