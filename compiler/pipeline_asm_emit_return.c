@@ -20,9 +20,11 @@
  * (same TU; no new DEPS):
  * - glue_emit_sret_memcpy_rbx_to_home_elf_c (memcpy struct to caller dest)
  * - glue_emit_sret_return_from_var_elf_c (return local_var sret copy)
- * - glue_copy_large_struct_from_rax_ptr_elf_c (>16B struct from rax ptr to slot)
+ * - glue_copy_large_struct_from_rax_ptr_elf_c — wave1064 migrated to
+ *   pipeline_asm_emit_call_args.c (colocated with wave1058 store_retval_pair
+ *   sole caller; same retval store domain)
  * Shared with struct_lit leaf (sret_memcpy) and struct_let leaf
- * (copy_large_struct via store_retval_pair). glue 1989-1991 forward decls kept.
+ * (store_retval_pair in call_args.c). glue 1989-1991 forward decls kept.
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c after float
  * promote / module return-type forward decls and before unary / as emit slices.
@@ -745,28 +747,8 @@ static int32_t glue_emit_sret_return_from_var_elf_c(struct ast_ASTArena *arena,
   return glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx, sz, ta);
 }
 
-/**
- * 大 struct（>16B）按值返回：callee 在 rax 放指向栈上结果的指针，memcpy 到 let 槽。
- */
-static int32_t glue_copy_large_struct_from_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off,
-                                                         int32_t sz, int32_t ta) {
-  static const uint8_t memcpy_sym[] = "memcpy";
-  if (ta != 0 || sz <= 16)
-    return -1;
-  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta) != 0)
-    return -1;
-  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
-    return -1;
-  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
-    return -1;
-  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
-    return -1;
-  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
-    return -1;
-  return backend_enc_call_arch(elf_ctx, (uint8_t *)memcpy_sym, (int32_t)(sizeof(memcpy_sym) - 1), ta);
-}
+/* wave1064 G.7: glue_copy_large_struct_from_rax_ptr_elf_c migrated to
+ * pipeline_asm_emit_call_args.c (colocated with wave1058 store_retval_pair
+ * sole caller). Static same-TU visibility via #include order (return.c L1957
+ * < call_args.c L2395). Dependencies: backend_enc_*_arch (global extern). */
 

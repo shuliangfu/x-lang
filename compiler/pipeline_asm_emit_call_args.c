@@ -364,6 +364,12 @@ static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t
  * has its own fwd decl (struct_let.c #include at L2266 < call_args.c L2392). */
 static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 
+/* wave1064 G.7: fwd decl — definition at L1969 (colocated after
+ * store_retval_pair). Sole caller: glue_store_retval_pair_to_rbp_elf_c at
+ * L1876 (same leaf). Static same-TU visibility. */
+static int32_t glue_copy_large_struct_from_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         int32_t slot_off, int32_t sz, int32_t ta);
+
 /**
  * VAR 按值装入 rax（及 9–16B struct 的 rdx）：局部 let 双 half 栈 load；形参 hidden pointer 则 deref。
  * or_i32/and_i32 三元 `r : other` 与 `return r` 须完整 SysV 双寄存器，单 load 会丢 err 半或误用指针。
@@ -1922,6 +1928,70 @@ static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct 
       return -1;
   }
   return 0;
+}
+
+/**
+ * Copy a large (>16B) struct CALL retval from rax pointer to let slot.
+ *
+ * Why: C/skip-heavy callees returning a struct larger than 16 bytes use the
+ * SysV MEMORY class — the callee writes the result into a hidden
+ * caller-passed dest pointer, and on return rax holds that pointer (or for
+ * some C lowered paths, a pointer to a stack temp). The caller-side
+ * store_retval_pair path must memcpy the payload from *rax into the let
+ * slot, because the struct is too large for dual-GP (rax+rdx) by-value
+ * transport. Inline byte-copy is not viable for arbitrary sizes; the
+ * freestanding memcpy symbol (host libc for import callees, or the
+ * pipeline memcpy stub for pure-asm callees) is the single authority.
+ *
+ * Sequence: push rax (save src ptr) → lea rbp+slot_off → rax (dest) →
+ * arg_reg[0] = rax (dest) → pop rax (restore src ptr) → arg_reg[1] = rax
+ * (src) → mov imm64 sz → rax → arg_reg[2] = rax (count) → call memcpy.
+ *
+ * Invariant: returns 0 on success, -1 on any backend_enc failure or
+ * invalid args (ta != 0 x86_64-only path; sz <= 16 rejected — caller
+ * must route ≤16B through dual-GP store instead). sz must be the true
+ * payload byte size (post glue_sysv_dual_gp_byte_size_c widening).
+ *
+ * Asm/Perf: O(1) emit — 8 backend_enc instructions + 1 call. Cold path —
+ * called per >16B struct CALL retval in glue_store_retval_pair_to_rbp_elf_c
+ * (wave1058, call_args.c:1876). Not on the hot scalar/i32 path.
+ *
+ * PLATFORM: LINUX+MACOS x86_64 SysV MEMORY class only — ta != 0 returns
+ * -1 (MACOS|ARM64 uses AAPCS64 x8 indirect result location, handled in
+ * the sret reg-shift path of glue_emit_struct_type_let_init_elf_c, not
+ * here). memcpy symbol resolves via standard host libc link or pipeline
+ * freestanding stub.
+ *
+ * wave1064 G.7: migrated from pipeline_asm_emit_return.c:751 (body ~22
+ * LOC). Static (non-extern): same-TU visibility via #include order
+ * (return.c L1957 < call_args.c L2395). Sole caller:
+ * glue_store_retval_pair_to_rbp_elf_c (wave1058, call_args.c:1876) —
+ * colocated in this leaf. return.c L23 doc comment updated to reference
+ * this new location. Dependencies: backend_enc_push_rax_arch /
+ * backend_enc_lea_rbp_to_rax_arch / backend_enc_mov_rax_to_arg_reg_arch
+ * / backend_enc_pop_rax_arch / backend_enc_mov_imm64_to_rax_arch /
+ * backend_enc_call_arch (all global extern).
+ */
+static int32_t glue_copy_large_struct_from_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off,
+                                                         int32_t sz, int32_t ta) {
+  static const uint8_t memcpy_sym[] = "memcpy";
+  if (ta != 0 || sz <= 16)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+    return -1;
+  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+    return -1;
+  return backend_enc_call_arch(elf_ctx, (uint8_t *)memcpy_sym, (int32_t)(sizeof(memcpy_sym) - 1), ta);
 }
 
 /**
