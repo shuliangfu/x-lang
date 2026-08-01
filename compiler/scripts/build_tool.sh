@@ -136,13 +136,24 @@ if [ -n "$MODE" ] && [ "$MODE" != "build" ]; then
   exit 2
 fi
 
+# wave1038: Track L retirement — build_gen.c retired from pinned seed.
+# Default: generate from ../build.x via xlang -E (product path).
+# Fallback: copy seeds/build_gen.c (archaeology) only when -E fails or no xlang.
+# build_runtime_x_gen.c / build_runner_gen.c remain pinned (separate retirement).
+if [ -x ./xlang ]; then
+  log "build_gen.c ← ../build.x -E (wave1038 Track L retired)"
+  if ! ./xlang -x -E -L .. ../build.x > build_gen.c 2>/dev/null || [ ! -s build_gen.c ]; then
+    log "build_gen.c: -E failed; fallback to seed (archaeology)"
+    cp -f seeds/build_gen.c build_gen.c
+  fi
+else
+  cp -f seeds/build_gen.c build_gen.c
+fi
 if [ "${XLANG_BUILD_TOOL_REGEN:-0}" = "1" ] && [ -x ./xlang ]; then
-  log "regen build_gen + build_runtime_x_gen via ./xlang build -x -E"
-  ./xlang build -x -E -L .. ../build.x > build_gen.c || cp -f seeds/build_gen.c build_gen.c
+  log "regen build_runtime_x_gen via ./xlang build -x -E"
   ./xlang build -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c \
     || cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c
 else
-  cp -f seeds/build_gen.c build_gen.c
   cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c
 fi
 cp -f seeds/build_runner_gen.c build_runner_gen.c
