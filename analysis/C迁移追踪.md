@@ -773,11 +773,11 @@
 
 ---
 
-## 阶段 8：Pinned gen.c 退役（部分完成 · 12/30）
+## 阶段 8：Pinned gen.c 退役（部分完成 · 13/30）
 
 > **定义**：compiler/ 顶层的 *_gen.c 是 pinned 生成器，产品链权威。Track L 退役 = 构建改用 *_x.o，pinned gen 仅考古。
 
-### 8.1 已退役的 pinned gen.c（12 个）
+### 8.1 已退役的 pinned gen.c（13 个）
 
 > 产品链 PREFER_X_O；工作区考古 gen 生产体 = `ensure_archaeology_gen.sh`
 
@@ -805,8 +805,10 @@
 
 ✅ **8.1.12 build_runtime_x_gen.c** Track L 退役 wave1040（构建用 `../build_runtime_x.x` via `./xlang -x -E` 生成；考古 `seeds/build_runtime_x_gen.c`；根源修复：15 处 `build_exec_system` extern 调用用 `unsafe{}` 表达式形式包裹 + `copy_path`/`append_lit` 加 `#[no_mangle]`；build_*_gen 三件套全退役）
 
+✅ **8.1.13 cfg_eval_gen.c** Track L 退役 wave1041（bespoke ladder · `try-cfg-eval-ladder` in `ensure_host_cc_seed_o.sh`；`src/lexer/cfg_eval.x` via `-E-extern -L ..` → `cfg_eval_x.o` → `ld -r` with `cfg_eval_link_alias.from_x.c` → `cfg_eval.o`；考古 `seeds/cfg_eval_gen.linux.x86_64.c`；G.7 单权威：catalog 不支持 ld -r alias merge，保留 bespoke ladder；`audit_gen_retirement.sh` 添加 Bespoke ladder-retired 识别段）
 
-### 8.2 仍需退役的 pinned gen.c（18 个 · 前端核心 + 工具链 + 测试）
+
+### 8.2 仍需退役的 pinned gen.c（17 个 · 前端核心 + 工具链 + 测试）
 
 ⬜ **8.2.1 parser_gen.c** pinned（Makefile L1760 · XLANG_FORCE_REGGEN=1 to regen）
 
