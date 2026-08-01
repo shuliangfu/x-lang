@@ -2068,70 +2068,12 @@ static int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
 
 /* wave354: glue_emit_fixed_array_type_let_init_elf_c defined after glue_type_is_fixed_array. */
 
-/** TYPE_VECTOR 的 lane 数与元素字节宽（与 asm_local_slot_bytes_mod 一致）。 */
-static int32_t glue_vector_type_lanes_esz_c(struct ast_ASTArena *arena, int32_t type_ref, int32_t *out_lanes,
-                                            int32_t *out_esz) {
-  struct ast_Type *t;
-  int32_t lanes;
-  int32_t esz;
-  int32_t elem_ref;
-  if (!arena || !out_lanes || !out_esz)
-    return -1;
-  if (!asm_type_is_simd_vector_spelling(arena, type_ref))
-    return -1;
-  t = pipeline_arena_type_ptr(arena, type_ref);
-  lanes = (t && t->array_size > 0) ? t->array_size : 4;
-  if (t && (int32_t)t->kind == 8) {
-    /** NAMED i32x4/Vec8i/f32x4 等拼写（SIMD-S2 集中表见 target_cpu.h）。 */
-    int32_t spell_lanes = 0;
-    int32_t spell_esz = 0;
-    if (t->name_len > 0 &&
-        xlang_simd_vector_lanes_esz_from_spelling((const char *)t->name, (size_t)t->name_len, &spell_lanes,
-                                                &spell_esz) == 0) {
-      *out_lanes = spell_lanes;
-      *out_esz = spell_esz;
-      return 0;
-    }
-    /** 回落：x4/x8/x16 后缀启发（历史 i32x* lex IDENT 路径）。 */
-    lanes = 4;
-    if (t->name_len == 5 && t->name[4] == 56)
-      lanes = 8;
-    if (t->name_len == 6 && t->name[4] == 49 && t->name[5] == 54)
-      lanes = 16;
-  }
-  esz = 4;
-  elem_ref = t ? t->elem_type_ref : 0;
-  if (elem_ref > 0 && elem_ref <= arena->num_types) {
-    struct ast_Type *et = pipeline_arena_type_ptr(arena, elem_ref);
-    if (et) {
-      if ((int32_t)et->kind == 2)
-        esz = 1;
-      else if ((int32_t)et->kind == 14)
-        esz = 4;
-      else if ((int32_t)et->kind == 8 || (int32_t)et->kind == 4 || (int32_t)et->kind == 5 ||
-               (int32_t)et->kind == 6)
-        esz = 8;
-    }
-  }
-  *out_lanes = lanes;
-  *out_esz = esz;
-  return 0;
-}
-
-/** 向量 let 初值是否为逐 lane 直写栈槽（ARRAY_LIT / VAR 拷贝 / 逐分量 binop）。 */
-static int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko) {
-  return (ko >= 4 && ko <= 13) ? 1 : 0;
-}
-
-static int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref) {
-  int32_t ko;
-  if (!asm_type_is_simd_vector_spelling(arena, type_ref) || init_ref <= 0)
-    return 0;
-  ko = pipeline_expr_kind_ord_at(arena, init_ref);
-  if (ko == 46 || ko == 3 || ko == 48)
-    return 1;
-  return glue_is_vector_lane_scalar_binop_ko(ko);
-}
+/* wave1115-1117 G.7: vector type/let helpers domain (3 fns) migrated to
+ * pipeline_asm_emit_vector_simd.c EOF (SIMD vector type introspection and
+ * let-init classification, co-located with SIMD emit domain). Static fwd
+ * decl below for glue.c L2205 callsite (pipeline_asm_let_init_stack_reserve_bytes)
+ * which precedes vector_simd.c #include at L2218. PLATFORM: SHARED. */
+static int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref);
 
 /** TYPE_ARRAY / TYPE_SLICE 在 TypeKind 序数表中的值（与 ast.x / pipeline_type_kind_ord_at 一致）。 */
 #define GLUE_TYPE_KIND_ARRAY 10
@@ -6784,129 +6726,14 @@ int32_t pipeline_asm_emit_expr_method_call_c(struct ast_ASTArena *arena, struct 
   return backend_emit_expr_method_call(arena, out, expr_ref, e, ctx, target_arch);
 }
 
-/** 将 let/const 声明类型 T[N] 回填到 ARRAY_LIT 初值的 resolved_type_ref（与 typeck_coerce_init_expr_to_decl 一致）。 */
-static void glue_fill_array_lit_from_decl(struct ast_ASTArena *arena, int32_t decl_ty_ref, int32_t init_ref) {
-  struct ast_Expr *init_ex;
-  if (!arena || decl_ty_ref <= 0 || decl_ty_ref > arena->num_types || init_ref <= 0 ||
-      init_ref > arena->num_exprs)
-    return;
-  if (pipeline_type_kind_ord_at(arena, decl_ty_ref) != GLUE_TYPE_KIND_ARRAY)
-    return;
-  if (pipeline_expr_kind_ord_at(arena, init_ref) != 46)
-    return;
-  init_ex = pipeline_arena_expr_ptr(arena, init_ref);
-  if (!init_ex)
-    return;
-  init_ex->resolved_type_ref = decl_ty_ref;
-}
-
-/* wave1084 G.7: glue_let_name_matches_var migrated to
- * pipeline_asm_emit_block_inits.c EOF (block-internal let name vs EXPR_VAR
- * match: length + byte compare). Static same-TU: block_inits.c #include L3830
- * < def EOF < all callsites L8985/9015. Deps: pipeline_expr_kind_ord_at /
- * pipeline_expr_var_name_len / pipeline_expr_var_name_into (all extern). */
-
-/** 仅接受位于 scope_block 本块或其子块中的表达式，避免跨函数/跨兄弟块同名变量互相污染 resolved_type。 */
-static int32_t glue_expr_in_scope_block_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t scope_block_ref) {
-  int32_t cur;
-  int32_t depth;
-  if (!arena || expr_ref <= 0 || scope_block_ref <= 0 || scope_block_ref > arena->num_blocks)
-    return 0;
-  cur = pipeline_expr_block_ref_at(arena, expr_ref);
-  if (cur == scope_block_ref)
-    return 1;
-  depth = 0;
-  while (cur > 0 && cur <= arena->num_blocks && depth < 128) {
-    struct ast_Block *b = pipeline_arena_block_ptr(arena, cur);
-    if (!b)
-      break;
-    cur = b->parent_block_ref;
-    if (cur == scope_block_ref)
-      return 1;
-    depth++;
-  }
-  return 0;
-}
-
-/**
- * 为函数形参同名 EXPR_VAR 回填 resolved_type_ref（skip .x typeck 时 SoA `arr[i].field` 须 T[N]）。
- * 仅当 resolved_type 尚未设置时写入，避免多函数同名形参（如 v）后者覆盖前者。
- */
-static void glue_fill_var_types_from_params_for_func(struct ast_Module *m, struct ast_ASTArena *arena,
-                                                     int32_t func_index) {
-  int32_t np;
-  int32_t pi;
-  int32_t ei;
-  int32_t body_ref;
-  uint8_t nm[128];
-  int32_t nlen;
-  int32_t tref;
-  if (!m || !arena || func_index < 0 || func_index >= (int32_t)m->num_funcs)
-    return;
-  body_ref = pipeline_module_func_body_ref_at(m, func_index);
-  if (body_ref <= 0)
-    return;
-  np = pipeline_module_func_num_params_at(m, func_index);
-  for (pi = 0; pi < np; pi++) {
-    nlen = pipeline_module_func_param_name_len_at(m, func_index, pi);
-    if (nlen <= 0 || nlen > 127)
-      continue;
-    pipeline_module_func_param_name_copy32(m, func_index, pi, nm);
-    tref = pipeline_module_func_param_type_ref_at(m, func_index, pi);
-    if (tref <= 0)
-      continue;
-    for (ei = 1; ei <= arena->num_exprs; ei++) {
-      if (glue_expr_in_scope_block_c(arena, ei, body_ref) &&
-          glue_let_name_matches_var(arena, ei, nm, nlen) &&
-          pipeline_expr_resolved_type_ref(arena, ei) <= 0)
-        pipeline_expr_set_resolved_type_ref(arena, ei, tref);
-    }
-  }
-}
-
-/** 为块内 let 同名 EXPR_VAR 回填 resolved_type_ref（跳过 .x typeck 时 arr[i] 等 INDEX 需 base 类型）。 */
-static void glue_fill_var_types_from_lets_in_block(struct ast_ASTArena *arena, int32_t block_ref) {
-  int32_t nlet;
-  int32_t li;
-  int32_t ei;
-  if (!arena || block_ref <= 0 || block_ref > arena->num_blocks)
-    return;
-  nlet = ast_ast_block_num_lets(arena, block_ref);
-  for (li = 0; li < nlet; li++) {
-    int32_t tref = pipeline_block_let_type_ref(arena, block_ref, li);
-    uint8_t nm[128];
-    int32_t nlen;
-    if (tref <= 0)
-      continue;
-    nlen = pipeline_block_let_name_len(arena, block_ref, li);
-    if (nlen <= 0 || nlen > 127)
-      continue;
-    pipeline_block_let_name_copy64(arena, block_ref, li, nm);
-    for (ei = 1; ei <= arena->num_exprs; ei++) {
-      struct ast_Expr *ex = pipeline_arena_expr_ptr(arena, ei);
-      if (!ex)
-        continue;
-      if (glue_expr_in_scope_block_c(arena, ei, block_ref) &&
-          glue_let_name_matches_var(arena, ei, nm, nlen)) {
-        ex->resolved_type_ref = tref;
-      }
-    }
-  }
-}
-
-/** 遍历块内 let，为跳过 .x typeck 的 asm 路径补齐 ARRAY_LIT 类型（hello u8[12] 等）。 */
-static void glue_fill_array_lit_types_in_block(struct ast_ASTArena *arena, int32_t block_ref) {
-  int32_t nlet;
-  int32_t i;
-  if (!arena || block_ref <= 0 || block_ref > arena->num_blocks)
-    return;
-  glue_fill_var_types_from_lets_in_block(arena, block_ref);
-  nlet = ast_ast_block_num_lets(arena, block_ref);
-  for (i = 0; i < nlet; i++) {
-    glue_fill_array_lit_from_decl(arena, pipeline_block_let_type_ref(arena, block_ref, i),
-                                ast_pipeline_block_let_init_ref(arena, block_ref, i));
-  }
-}
+/* wave1118-1123 G.7: skipped-typeck array-lit/var type backfill domain (5 fns)
+ * migrated to pipeline_asm_emit_block_inits.c EOF (block-init domain; forms
+ * a tight interdependent cluster with glue_let_name_matches_var wave1084).
+ * Members: glue_fill_array_lit_from_decl / glue_expr_in_scope_block_c /
+ * glue_fill_var_types_from_params_for_func /
+ * glue_fill_var_types_from_lets_in_block / glue_fill_array_lit_types_in_block.
+ * #include at L3689 < all callsites (L8981+ public skipped-typeck path).
+ * Zero fwd decls required. PLATFORM: SHARED. */
 
 /**
  * C 预检后跳过 .x typeck 时：为各函数体块内 `let buf: u8[N] = [..]` 回填 ARRAY_LIT 的 resolved_type_ref，
@@ -9398,101 +9225,18 @@ void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module) {
   g_typeck_entry_module_for_dep_map = module;
 }
 
-/**
- * IMPORT_BINDING：dep 侧 TYPE_NAMED 映为 caller 侧 binding.struct（如 vec.Vec_u8）。
- * 非 binding import 或 dep_ix<0 时回落裸名 find_or_alloc。
- */
+/* wave1111-1112 G.7: dep return type mapping domain (2 fns) migrated to
+ * pipeline_typeck_method_call.c EOF (cross-module call return-type
+ * resolution is a sub-domain of method call). Static fwd decls below
+ * keep callsites at L9500/9530/9534/9604 visible before method_call.c
+ * #include at L11693. PLATFORM: SHARED. */
 static int32_t pipeline_typeck_map_import_binding_named_to_caller_c(struct ast_Module *entry_mod,
                                                                     int32_t dep_ix,
                                                                     struct ast_ASTArena *caller_arena,
-                                                                    uint8_t *nm, int32_t nlen) {
-  int32_t bl;
-  int32_t qlen;
-  uint8_t qnm[128];
-  int32_t i;
-
-  if (!caller_arena || !nm || nlen <= 0)
-    return 0;
-  if (!entry_mod || dep_ix < 0 || dep_ix >= entry_mod->num_imports)
-    return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
-  if (pipeline_module_import_kind_at(entry_mod, dep_ix) != 1) /* IMPORT_BINDING */
-    return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
-  bl = pipeline_module_import_binding_name_len(entry_mod, dep_ix);
-  if (bl <= 0 || bl + 1 + nlen > 127)
-    return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
-  for (i = 0; i < bl; i++)
-    qnm[i] = pipeline_module_import_binding_name_byte_at(entry_mod, dep_ix, i);
-  qnm[bl] = '.';
-  memcpy(qnm + bl + 1, nm, (size_t)nlen);
-  qlen = bl + 1 + nlen;
-  return pipeline_type_find_or_alloc_named(caller_arena, qnm, qlen);
-}
-
-/**
- * typeck.x::dep_return_type_to_caller_arena 的 C 实现：dep 侧 return_type_ref 递归映到 caller arena。
- */
+                                                                    uint8_t *nm, int32_t nlen);
 static int32_t pipeline_typeck_dep_return_type_to_caller_arena_impl(struct ast_ASTArena *dep_arena,
                                                                     int32_t dep_return_type_ref,
-                                                                    struct ast_ASTArena *caller_arena) {
-  int32_t kind;
-  int32_t inner_mapped;
-  int32_t elem_ref;
-  int32_t array_size;
-  uint8_t nm[128];
-  int32_t nlen;
-
-  if (dep_return_type_ref <= 0 || !dep_arena || !caller_arena)
-    return 0;
-  kind = pipeline_type_kind_ord_at(dep_arena, dep_return_type_ref);
-  if (kind < 0)
-    return 0;
-  if (kind == (int32_t)ast_TypeKind_TYPE_I32 || kind == (int32_t)ast_TypeKind_TYPE_I64 ||
-      kind == (int32_t)ast_TypeKind_TYPE_BOOL || kind == (int32_t)ast_TypeKind_TYPE_F64 ||
-      kind == (int32_t)ast_TypeKind_TYPE_U8 || kind == (int32_t)ast_TypeKind_TYPE_U32 ||
-      kind == (int32_t)ast_TypeKind_TYPE_U64 || kind == (int32_t)ast_TypeKind_TYPE_ISIZE ||
-      kind == (int32_t)ast_TypeKind_TYPE_F32 || kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
-      kind == (int32_t)ast_TypeKind_TYPE_VOID)
-    return pipeline_type_ensure_by_kind_ord(caller_arena, kind);
-  if (kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
-    nlen = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, nm);
-    if (nlen <= 0)
-      return 0;
-    return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
-  }
-  elem_ref = pipeline_type_elem_ref_at(dep_arena, dep_return_type_ref);
-  inner_mapped = 0;
-  if (!ast_ref_is_null(elem_ref)) {
-    inner_mapped =
-        pipeline_typeck_dep_return_type_to_caller_arena_impl(dep_arena, elem_ref, caller_arena);
-    if (inner_mapped == 0)
-      return 0;
-  }
-  array_size = pipeline_type_array_size_at(dep_arena, dep_return_type_ref);
-  if (kind == (int32_t)ast_TypeKind_TYPE_SLICE) {
-    int32_t rlen = pipeline_type_region_label_len_at(dep_arena, dep_return_type_ref);
-    uint8_t rbuf[128];
-    if (rlen > 0)
-      (void)pipeline_type_region_label_into(dep_arena, dep_return_type_ref, rbuf);
-    return pipeline_type_find_or_alloc_slice(caller_arena, inner_mapped, rlen > 0 ? rbuf : NULL, rlen);
-  }
-  if (kind == (int32_t)ast_TypeKind_TYPE_PTR)
-    return pipeline_type_find_or_alloc_compound(caller_arena, (int32_t)ast_TypeKind_TYPE_PTR, inner_mapped, 0);
-  if (kind == (int32_t)ast_TypeKind_TYPE_VECTOR)
-    return pipeline_type_find_or_alloc_compound(caller_arena, (int32_t)ast_TypeKind_TYPE_VECTOR, inner_mapped,
-                                                array_size);
-  if (kind == (int32_t)ast_TypeKind_TYPE_ARRAY) {
-    if (ast_ref_is_null(elem_ref) || array_size <= 0)
-      return 0;
-    return pipeline_type_find_or_alloc_compound(caller_arena, (int32_t)ast_TypeKind_TYPE_ARRAY, inner_mapped,
-                                                array_size);
-  }
-  if (!ast_ref_is_null(elem_ref) || array_size != 0)
-    return 0;
-  nlen = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, nm);
-  if (nlen != 0)
-    return 0;
-  return pipeline_type_ensure_by_kind_ord(caller_arena, kind);
-}
+                                                                    struct ast_ASTArena *caller_arena);
 
 /** typeck.x::dep_return_type_to_caller_arena 的 C 委托（EMIT_HEAVY 薄包装入口）。 */
 int32_t pipeline_typeck_dep_return_type_to_caller_arena_c(struct ast_ASTArena *dep_arena, int32_t dep_return_type_ref,
@@ -10199,8 +9943,9 @@ reject:
   return -1;
 }
 
-/** WPO-S3：*T 栈局部域标签（与 slice region_label 共用 Type 槽；仅 TYPE_PTR）。 */
-static const uint8_t TYPECK_STACK_LOCAL_PTR_LBL[] = "stack_local";
+/* wave1125-1129 G.7: TYPECK_STACK_LOCAL_PTR_LBL const migrated to
+ * pipeline_typeck_region_assign.c (with the 5 stack-escape helpers that
+ * are its sole consumers). Visible via #include at L10231. */
 
 static int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                          int32_t call_expr_ref);
@@ -10209,156 +9954,25 @@ static int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Modul
                                                                 int32_t call_expr_ref,
                                                                 struct ast_PipelineDepCtx *ctx);
 
-/** WPO-S3：类型是否为模块内已登记的 struct（TYPE_NAMED 且匹配 struct_layout）。 */
-static int32_t typeck_type_is_named_struct_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref) {
-  uint8_t name[128];
-  int32_t nlen;
-  int32_t k;
-  int32_t j;
-  if (!m || !a || ty_ref <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(a, ty_ref) != (int32_t)ast_TypeKind_TYPE_NAMED)
-    return 0;
-  nlen = pipeline_type_named_name_into(a, ty_ref, name);
-  if (nlen <= 0 || nlen > 127)
-    return 0;
-  for (k = 0; k < (int32_t)m->num_struct_layouts; k++) {
-    int32_t ln = pipeline_module_struct_layout_name_len(m, k);
-    int32_t eq = 1;
-    if (ln != nlen)
-      continue;
-    for (j = 0; j < nlen; j++) {
-      if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
-        eq = 0;
-        break;
-      }
-    }
-    if (eq)
-      return 1;
-  }
-  return 0;
-}
+/* wave1113 G.7: typeck_type_is_named_struct_c migrated to
+ * pipeline_asm_emit_struct_lit.c EOF (struct layout registry name-match
+ * helper, co-located with layout registry authority). Static (non-extern):
+ * same-TU — struct_lit.c #include at L2051 < all callsites (L10422+ /
+ * L11189+ / L11240+ / L11363+). PLATFORM: SHARED. */
 
-/** WPO-S3：查找或分配带 stack_local 域标签的 *elem_ref。 */
-static int32_t typeck_find_or_alloc_ptr_stack_local_c(struct ast_ASTArena *a, int32_t elem_ref) {
-  int32_t k;
-  struct ast_Type *t;
-  static const int32_t lbl_len = 11;
-  if (!a || elem_ref <= 0)
-    return 0;
-  for (k = 1; k <= a->num_types; k++) {
-    t = pipeline_arena_type_ptr(a, k);
-    if (t && t->kind == ast_TypeKind_TYPE_PTR && t->elem_type_ref == elem_ref && t->name_len == 0 &&
-        t->region_label_len == lbl_len &&
-        memcmp(t->region_label, TYPECK_STACK_LOCAL_PTR_LBL, (size_t)lbl_len) == 0)
-      return k;
-  }
-  k = pipeline_arena_type_alloc(a);
-  if (k <= 0)
-    return 0;
-  t = pipeline_arena_type_ptr(a, k);
-  if (!t)
-    return 0;
-  memset(t, 0, sizeof(*t));
-  t->kind = ast_TypeKind_TYPE_PTR;
-  t->elem_type_ref = elem_ref;
-  memcpy(t->region_label, TYPECK_STACK_LOCAL_PTR_LBL, (size_t)lbl_len);
-  t->region_label_len = lbl_len;
-  return k;
-}
-
-/** WPO-S3：ptr 类型是否带 stack_local 域（局部 struct 取址标记）。 */
-static int32_t typeck_ptr_has_stack_local_label_c(struct ast_ASTArena *a, int32_t ty_ref) {
-  struct ast_Type *t;
-  static const int32_t lbl_len = 11;
-  if (!a || ty_ref <= 0 || ty_ref > a->num_types)
-    return 0;
-  t = pipeline_arena_type_ptr(a, ty_ref);
-  if (!t || t->kind != ast_TypeKind_TYPE_PTR)
-    return 0;
-  return (t->region_label_len == lbl_len &&
-          memcmp(t->region_label, TYPECK_STACK_LOCAL_PTR_LBL, (size_t)lbl_len) == 0)
-             ? 1
-             : 0;
-}
-
-/** WPO-S3：块子树（含 while/for/if/region 体）内是否存在 let/const 名 vname。 */
-static int32_t typeck_block_tree_has_var_c(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname,
-                                           int32_t vlen) {
-  int32_t nso;
-  int32_t i;
-  if (!a || block_ref <= 0 || !vname || vlen <= 0)
-    return 0;
-  if (pipeline_block_resolve_var_type_ref(a, block_ref, vname, vlen) > 0)
-    return 1;
-  nso = ast_ast_block_num_stmt_order(a, block_ref);
-  for (i = 0; i < nso; i++) {
-    uint8_t sk = ast_ast_block_stmt_order_kind(a, block_ref, i);
-    int32_t idx = ast_ast_block_stmt_order_idx(a, block_ref, i);
-    int32_t br = 0;
-    if (sk == 3 && idx >= 0 && idx < ast_ast_block_num_loops(a, block_ref))
-      br = ast_ast_block_while_body_ref(a, block_ref, idx);
-    else if (sk == 4 && idx >= 0 && idx < ast_ast_block_num_for_loops(a, block_ref))
-      br = ast_ast_block_for_body_ref(a, block_ref, idx);
-    else if (sk == 5 && idx >= 0 && idx < ast_ast_block_num_if_stmts(a, block_ref)) {
-      int32_t tr = ast_ast_block_if_then_body_ref(a, block_ref, idx);
-      int32_t er = ast_ast_block_if_else_body_ref(a, block_ref, idx);
-      if (tr > 0 && typeck_block_tree_has_var_c(a, tr, vname, vlen))
-        return 1;
-      if (er > 0 && typeck_block_tree_has_var_c(a, er, vname, vlen))
-        return 1;
-      continue;
-    } else if (sk == 6 && idx >= 0 && idx < ast_ast_block_num_regions(a, block_ref))
-      br = ast_ast_block_region_body_ref(a, block_ref, idx);
-    if (br > 0 && typeck_block_tree_has_var_c(a, br, vname, vlen))
-      return 1;
-  }
-  return 0;
-}
-
-/** WPO-S3：VAR 是否为块内 let/const 且非形参。 */
+/* wave1125-1129 G.7: WPO-S3 stack-escape analysis helpers (5 fns + const)
+ * migrated to pipeline_typeck_region_assign.c EOF (stack-escape local-var
+ * detection cluster, co-located with WPO-S3 struct stack-escape assign).
+ * Members: typeck_find_or_alloc_ptr_stack_local_c /
+ * typeck_ptr_has_stack_local_label_c / typeck_block_tree_has_var_c /
+ * typeck_var_is_block_local_c / typeck_expr_is_addr_of_block_local_c
+ * (definitions at region_assign.c EOF). Glue.c L10223/10227 callsites
+ * (inside pipeline_typeck_ptr_for_addr_of_operand_c) precede #include
+ * L10231, so 2 static fwd decls below keep them visible.
+ * PLATFORM: SHARED. */
 static int32_t typeck_var_is_block_local_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                           struct ast_PipelineDepCtx *ctx, int32_t expr_ref) {
-  int32_t vlen;
-  uint8_t vbuf[128];
-  int32_t func_ix;
-  int32_t body_ref;
-  if (!m || !a || !ctx || expr_ref <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(a, expr_ref) != GLUE_EXPR_KIND_VAR)
-    return 0;
-  vlen = pipeline_expr_var_name_len(a, expr_ref);
-  if (vlen <= 0 || vlen > 127)
-    return 0;
-  pipeline_expr_var_name_into(a, expr_ref, vbuf);
-  func_ix = ctx->current_func_index;
-  if (func_ix >= 0 && pipeline_module_func_param_type_ref_for_name(m, func_ix, vbuf, vlen) > 0)
-    return 0;
-  if (ctx->current_block_ref > 0 &&
-      pipeline_block_resolve_var_type_ref(a, ctx->current_block_ref, vbuf, vlen) > 0)
-    return 1;
-  /** post-scan 等路径 ctx 块可能未 push：回落函数体根块及子块查 let。 */
-  if (func_ix >= 0) {
-    body_ref = pipeline_module_func_body_ref_at(m, func_ix);
-    if (body_ref > 0 && typeck_block_tree_has_var_c(a, body_ref, vbuf, vlen))
-      return 1;
-  }
-  return 0;
-}
-
-/** WPO-S3：expr 是否为 &块内局部（call 逃逸检测用；*Struct 形参侧另判）。 */
-static int32_t typeck_expr_is_addr_of_block_local_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                   struct ast_PipelineDepCtx *ctx, int32_t expr_ref) {
-  int32_t op_ref;
-  if (!m || !a || !ctx || expr_ref <= 0)
-    return 0;
-  if (typeck_ptr_has_stack_local_label_c(a, pipeline_expr_resolved_type_ref(a, expr_ref)))
-    return 1;
-  if (pipeline_expr_kind_ord_at(a, expr_ref) != (int32_t)ast_ExprKind_EXPR_ADDR_OF)
-    return 0;
-  op_ref = pipeline_expr_unary_operand_ref_at(a, expr_ref);
-  return op_ref > 0 && typeck_var_is_block_local_c(m, a, ctx, op_ref) ? 1 : 0;
-}
+                                           struct ast_PipelineDepCtx *ctx, int32_t expr_ref);
+static int32_t typeck_find_or_alloc_ptr_stack_local_c(struct ast_ASTArena *a, int32_t elem_ref);
 
 /** WPO-S3：left 是否为第 dst_pi 形参（*T）上的字段写入左值（含 field 链基为形参）。 */
 static int32_t typeck_lval_is_param_ptr_field_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
@@ -11194,60 +10808,17 @@ static int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena,
  * pipeline_dep_ctx_arena_at extern decl added in call_args.c (def at
  * L11662 > #include L2395); rest < L2395 / extern / global. */
 
-/**
- * MOD-02：按 TYPE_NAMED 查 struct_layout 下标；未登记返回 -1。
- */
-static int32_t typeck_layout_index_for_named_type_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref) {
-  uint8_t name[128];
-  int32_t nlen;
-  int32_t k;
-  int32_t j;
-  if (!m || !a || ty_ref <= 0)
-    return -1;
-  if (pipeline_type_kind_ord_at(a, ty_ref) != (int32_t)ast_TypeKind_TYPE_NAMED)
-    return -1;
-  nlen = pipeline_type_named_name_into(a, ty_ref, name);
-  if (nlen <= 0 || nlen > 127)
-    return -1;
-  for (k = 0; k < (int32_t)m->num_struct_layouts; k++) {
-    int32_t ln = pipeline_module_struct_layout_name_len(m, k);
-    int32_t eq = 1;
-    if (ln != nlen)
-      continue;
-    for (j = 0; j < nlen; j++) {
-      if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
-        eq = 0;
-        break;
-      }
-    }
-    if (eq)
-      return k;
-  }
-  return -1;
-}
+/* wave1114 G.7: typeck_layout_index_for_named_type_c migrated to
+ * pipeline_asm_emit_struct_lit.c EOF (struct layout registry index lookup,
+ * co-located with typeck_type_is_named_struct_c wave1113). Static
+ * (non-extern): same-TU — struct_lit.c #include at L2051 < callsites
+ * (L11213+). PLATFORM: SHARED. */
 
-/** MOD-02：两 struct layout 字段数/偏移/类型等价则视为同布局。 */
-static int32_t typeck_struct_layouts_same_shape_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t la,
-                                                  int32_t lb) {
-  int32_t nfa;
-  int32_t nfb;
-  int32_t j;
-  if (!m || !a || la < 0 || lb < 0)
-    return 0;
-  nfa = pipeline_module_struct_layout_num_fields(m, la);
-  nfb = pipeline_module_struct_layout_num_fields(m, lb);
-  if (nfa != nfb || nfa <= 0)
-    return 0;
-  for (j = 0; j < nfa; j++) {
-    if (pipeline_module_struct_layout_field_offset_at(m, la, j) !=
-        pipeline_module_struct_layout_field_offset_at(m, lb, j))
-      return 0;
-    if (!pipeline_typeck_type_refs_equal_c(a, pipeline_module_struct_layout_field_type_ref(m, la, j),
-                                           pipeline_module_struct_layout_field_type_ref(m, lb, j)))
-      return 0;
-  }
-  return 1;
-}
+/* wave1124 G.7: typeck_struct_layouts_same_shape_c migrated to
+ * pipeline_asm_emit_struct_lit.c EOF (MOD-02 same-shape comparator for
+ * repr(compatible) ptr coerce; co-located with struct layout registry).
+ * Static (non-extern): same-TU — struct_lit.c #include at L2051 < callsite
+ * (inside pipeline_typeck_call_arg_repr_compatible_ok_c). PLATFORM: SHARED. */
 
 /**
  * wave703 / MOD-02: 1 if *StructA vs *StructB (or &StructB) may coerce under

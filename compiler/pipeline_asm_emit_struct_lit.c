@@ -90,6 +90,11 @@ extern void driver_diagnostic_typeck_struct_padding_trailing(uint8_t *sname, int
 extern void driver_diagnostic_typeck_struct_field_bad_size(uint8_t *sname, int32_t sname_len, uint8_t *fname,
                                                            int32_t fname_len);
 
+/* wave1124 G.7: extern fwd decl — pipeline_typeck_type_refs_equal_c is
+ * defined at glue.c:7861 (fwd decl at L7782), both after this file's
+ * #include at L2051. Required by typeck_struct_layouts_same_shape_c. */
+extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+
 /* wave1052 G.7: forward decl — glue_sync_struct_layout_field_offsets_c is
  * defined at EOF below (migrated from glue.c:3665). glue.c:11850 callsite
  * retains its own forward decl at glue.c:3655 (same TU; visible via #include
@@ -1432,4 +1437,142 @@ static int glue_field_type_atomic_sized(struct ast_Module *m, struct ast_ASTAren
 static int glue_hot_reorder_warn_enabled(void) {
   const char *e = link_abi_getenv("XLANG_HOT_REORDER");
   return e && e[0] == '1' && e[1] == '\0';
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* wave1113-1114 G.7: struct layout name lookup domain (2 fns) migrated from
+ * pipeline_glue.c L10130-10157 and L11114-11144. These are struct layout
+ * registry name-match helpers — natural co-located with the struct layout
+ * registry authority already in struct_lit.c (wave1044/1049/1051/1052/1053).
+ * Static (non-extern): same-TU visibility via #include order — struct_lit.c
+ * #include at L2051 < all callsites (L10189+ / L11213+ / L11240+ / L11363+).
+ * PLATFORM: SHARED — pure name match, no arch dependency. */
+
+/**
+ * Return 1 if ty_ref is a TYPE_NAMED that matches a registered struct_layout
+ * in module m. Returns 0 otherwise (including non-NAMED, empty name, or no
+ * matching layout).
+ *
+ * Why: WPO-S3 stack-escape analysis and call ptr-struct compatibility both
+ * need to know whether a type is a module-local struct. Centralizing this
+ * check in the struct layout registry avoids duplicating the name-scan loop.
+ *
+ * Contract: m and a must be non-NULL, ty_ref > 0. Returns 0/1 only.
+ *
+ * PLATFORM: SHARED — pure name comparison, no arch dependency.
+ */
+static int32_t typeck_type_is_named_struct_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref) {
+  uint8_t name[128];
+  int32_t nlen;
+  int32_t k;
+  int32_t j;
+  if (!m || !a || ty_ref <= 0)
+    return 0;
+  if (pipeline_type_kind_ord_at(a, ty_ref) != (int32_t)ast_TypeKind_TYPE_NAMED)
+    return 0;
+  nlen = pipeline_type_named_name_into(a, ty_ref, name);
+  if (nlen <= 0 || nlen > 127)
+    return 0;
+  for (k = 0; k < (int32_t)m->num_struct_layouts; k++) {
+    int32_t ln = pipeline_module_struct_layout_name_len(m, k);
+    int32_t eq = 1;
+    if (ln != nlen)
+      continue;
+    for (j = 0; j < nlen; j++) {
+      if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
+        eq = 0;
+        break;
+      }
+    }
+    if (eq)
+      return 1;
+  }
+  return 0;
+}
+
+/**
+ * Find the struct_layout index for a TYPE_NAMED type_ref. Returns -1 if not
+ * found or not a TYPE_NAMED.
+ *
+ * Why: call-arg repr-compatibility check (wave703) needs the layout index to
+ * compare field shapes between two struct types. Co-located with the struct
+ * layout registry to keep all name→index lookups in one authority.
+ *
+ * Contract: m and a must be non-NULL, ty_ref > 0. Returns -1 on miss.
+ *
+ * PLATFORM: SHARED — pure name scan, no arch dependency.
+ */
+static int32_t typeck_layout_index_for_named_type_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref) {
+  uint8_t name[128];
+  int32_t nlen;
+  int32_t k;
+  int32_t j;
+  if (!m || !a || ty_ref <= 0)
+    return -1;
+  if (pipeline_type_kind_ord_at(a, ty_ref) != (int32_t)ast_TypeKind_TYPE_NAMED)
+    return -1;
+  nlen = pipeline_type_named_name_into(a, ty_ref, name);
+  if (nlen <= 0 || nlen > 127)
+    return -1;
+  for (k = 0; k < (int32_t)m->num_struct_layouts; k++) {
+    int32_t ln = pipeline_module_struct_layout_name_len(m, k);
+    int32_t eq = 1;
+    if (ln != nlen)
+      continue;
+    for (j = 0; j < nlen; j++) {
+      if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
+        eq = 0;
+        break;
+      }
+    }
+    if (eq)
+      return k;
+  }
+  return -1;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* wave1124 G.7: struct layout same-shape comparator (1 fn) migrated from
+ * pipeline_glue.c L10924. Co-located with the struct layout registry domain
+ * (typeck_type_is_named_struct_c wave1113 / typeck_layout_index_for_named_type_c
+ * wave1114 / glue_struct_layout_metrics_c wave1053). Static (non-extern):
+ * same-TU — struct_lit.c #include at glue.c L2051 < callsite L10996 (inside
+ * pipeline_typeck_call_arg_repr_compatible_ok_c). Deps:
+ * pipeline_module_struct_layout_* (extern) + pipeline_typeck_type_refs_equal_c
+ * (public). PLATFORM: SHARED. */
+
+/**
+ * MOD-02: return 1 if two struct layouts have identical field count,
+ * field offsets, and field types. Returns 0 otherwise.
+ *
+ * Why: wave703 #[repr(compatible)] ptr-coerce path needs to verify that
+ * *StructA and *StructB have the same memory shape before allowing the
+ * cast. Centralizing this comparator in the struct layout registry
+ * avoids duplicating the field-by-field walk in the call-arg compat gate.
+ *
+ * Contract: m and a must be non-NULL, la and lb >= 0. Returns 0 if
+ * either layout has 0 fields or field counts differ.
+ *
+ * PLATFORM: SHARED — pure layout comparison, no arch dependency.
+ */
+static int32_t typeck_struct_layouts_same_shape_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t la,
+                                                  int32_t lb) {
+  int32_t nfa;
+  int32_t nfb;
+  int32_t j;
+  if (!m || !a || la < 0 || lb < 0)
+    return 0;
+  nfa = pipeline_module_struct_layout_num_fields(m, la);
+  nfb = pipeline_module_struct_layout_num_fields(m, lb);
+  if (nfa != nfb || nfa <= 0)
+    return 0;
+  for (j = 0; j < nfa; j++) {
+    if (pipeline_module_struct_layout_field_offset_at(m, la, j) !=
+        pipeline_module_struct_layout_field_offset_at(m, lb, j))
+      return 0;
+    if (!pipeline_typeck_type_refs_equal_c(a, pipeline_module_struct_layout_field_type_ref(m, la, j),
+                                           pipeline_module_struct_layout_field_type_ref(m, lb, j)))
+      return 0;
+  }
+  return 1;
 }

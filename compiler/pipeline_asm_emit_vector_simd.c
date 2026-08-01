@@ -34,12 +34,19 @@
  */
 
 /* Forward decls / callees defined elsewhere in the same TU:
- * - glue_vector_type_lanes_esz_c / glue_is_vector_lane_scalar_binop_ko
  * - pipeline_asm_emit_vector_let_init_elf_c (vector_let.c)
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / g_pipeline_asm_*
  * - asm_type_is_simd_vector_spelling / asm_local_slot_bytes / asm_ctx_local_find_*
  * - glue_asm_init_expr_reserve_stack_bytes (not used here; stack_reserve in glue)
+ *
+ * wave1115-1117 G.7: the following 3 helpers were migrated from glue.c to
+ * this file's EOF. Static fwd decls below keep early callsites visible
+ * before the EOF definitions.
  */
+static int32_t glue_vector_type_lanes_esz_c(struct ast_ASTArena *arena, int32_t type_ref, int32_t *out_lanes,
+                                            int32_t *out_esz);
+static int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko);
+static int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref);
 
 /**
  * 块内 let 是否为 SIMD 向量（声明 type_ref 或 16B 槽宽 + 向量形初值）。
@@ -1433,4 +1440,115 @@ static int32_t glue_emit_vector_type_let_init_elf_c(struct ast_ASTArena *arena,
       return 0;
   }
   return -2;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* wave1115-1117 G.7: vector type/let helpers domain (3 fns) migrated from
+ * pipeline_glue.c L2072-2134. These are SIMD vector type introspection and
+ * let-init classification helpers — natural co-located with the SIMD emit
+ * domain already in vector_simd.c. Static (non-extern): same-TU visibility
+ * via #include order — vector_simd.c #include at L2218; all vector_simd.c
+ * callsites follow. Glue.c L2205 callsite (pipeline_asm_let_init_stack_reserve_bytes)
+ * precedes #include, so a static fwd decl is kept at glue.c L2068.
+ * PLATFORM: SHARED — pure type introspection, no arch dependency. */
+
+/**
+ * Extract lane count and element byte-width for a TYPE_VECTOR (SIMD) type.
+ * Handles both builtin kinds (array_size field) and NAMED spellings
+ * (i32x4/Vec8i/f32x4 via xlang_simd_vector_lanes_esz_from_spelling).
+ *
+ * Why: SIMD emit paths (load/store/binop/shuffle) need lanes×esz to compute
+ * register widths and memory access sizes. Centralizing this here keeps the
+ * spelling table lookup in one place.
+ *
+ * Contract: arena, out_lanes, out_esz must be non-NULL. Returns 0 on
+ * success, -1 if type_ref is not a SIMD vector.
+ *
+ * PLATFORM: SHARED — pure type introspection. Arch-specific register
+ * allocation happens in callers.
+ */
+static int32_t glue_vector_type_lanes_esz_c(struct ast_ASTArena *arena, int32_t type_ref, int32_t *out_lanes,
+                                            int32_t *out_esz) {
+  struct ast_Type *t;
+  int32_t lanes;
+  int32_t esz;
+  int32_t elem_ref;
+  if (!arena || !out_lanes || !out_esz)
+    return -1;
+  if (!asm_type_is_simd_vector_spelling(arena, type_ref))
+    return -1;
+  t = pipeline_arena_type_ptr(arena, type_ref);
+  lanes = (t && t->array_size > 0) ? t->array_size : 4;
+  if (t && (int32_t)t->kind == 8) {
+    int32_t spell_lanes = 0;
+    int32_t spell_esz = 0;
+    if (t->name_len > 0 &&
+        xlang_simd_vector_lanes_esz_from_spelling((const char *)t->name, (size_t)t->name_len, &spell_lanes,
+                                                &spell_esz) == 0) {
+      *out_lanes = spell_lanes;
+      *out_esz = spell_esz;
+      return 0;
+    }
+    lanes = 4;
+    if (t->name_len == 5 && t->name[4] == 56)
+      lanes = 8;
+    if (t->name_len == 6 && t->name[4] == 49 && t->name[5] == 54)
+      lanes = 16;
+  }
+  esz = 4;
+  elem_ref = t ? t->elem_type_ref : 0;
+  if (elem_ref > 0 && elem_ref <= arena->num_types) {
+    struct ast_Type *et = pipeline_arena_type_ptr(arena, elem_ref);
+    if (et) {
+      if ((int32_t)et->kind == 2)
+        esz = 1;
+      else if ((int32_t)et->kind == 14)
+        esz = 4;
+      else if ((int32_t)et->kind == 8 || (int32_t)et->kind == 4 || (int32_t)et->kind == 5 ||
+               (int32_t)et->kind == 6)
+        esz = 8;
+    }
+  }
+  *out_lanes = lanes;
+  *out_esz = esz;
+  return 0;
+}
+
+/**
+ * Return 1 if a binop kind ordinal is a vector lane-scalar operation
+ * (kinds 4-13: add/sub/mul/div/mod and their signed/unsigned variants).
+ *
+ * Why: vector let-init with a lane-scalar binop can write directly to the
+ * stack slot without a temporary register; this classifier gates that
+ * fast path.
+ *
+ * Contract: pure function, no side effects. Returns 0/1.
+ *
+ * PLATFORM: SHARED — pure integer comparison.
+ */
+static int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko) {
+  return (ko >= 4 && ko <= 13) ? 1 : 0;
+}
+
+/**
+ * Return 1 if a vector let-init can write directly to the stack slot
+ * (ARRAY_LIT / VAR copy / per-lane scalar binop). Returns 0 otherwise.
+ *
+ * Why: direct-slot writes avoid a temporary register and an extra store
+ * cycle. This classifier is the single authority for the direct-slot
+ * fast path.
+ *
+ * Contract: arena must be non-NULL, type_ref must be a SIMD vector,
+ * init_ref > 0. Returns 0/1.
+ *
+ * PLATFORM: SHARED — pure classification, no arch dependency.
+ */
+static int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref) {
+  int32_t ko;
+  if (!asm_type_is_simd_vector_spelling(arena, type_ref) || init_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  if (ko == 46 || ko == 3 || ko == 48)
+    return 1;
+  return glue_is_vector_lane_scalar_binop_ko(ko);
 }

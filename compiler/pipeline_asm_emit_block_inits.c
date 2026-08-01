@@ -36,6 +36,12 @@
  * PLATFORM: SHARED freestanding · MACOS|ARM64 vs LINUX|x86_64 polarity.
  * ======================================================================== */
 
+/* wave1118-1123 G.7: extern fwd decl — pipeline_expr_set_resolved_type_ref
+ * is defined at glue.c:4076 (after this file's #include at L3689). The
+ * getter pipeline_expr_resolved_type_ref has its own fwd decl at glue.c:1654
+ * but the setter does not. Required by glue_fill_var_types_from_params_for_func. */
+extern void pipeline_expr_set_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t type_ref);
+
 /**
  * wave394 Cap residual pure: TYPE_SLICE dual-GP length half product offset.
  *
@@ -442,4 +448,194 @@ static int glue_let_name_matches_var(struct ast_ASTArena *arena, int32_t expr_re
       return 0;
   }
   return 1;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* wave1118-1123 G.7: skipped-typeck array-lit/var type backfill domain (5 fns)
+ * migrated from pipeline_glue.c L6729-6851. These form a tight interdependent
+ * cluster: glue_fill_array_lit_types_in_block orchestrates over the other
+ * four, and glue_fill_var_types_from_params_for_func / _from_lets_in_block
+ * both consume glue_expr_in_scope_block_c + glue_let_name_matches_var
+ * (defined above in this file). Co-located with the block-init domain.
+ * Static (non-extern): same-TU visibility via #include order — block_inits.c
+ * #include at glue.c L3689 < all callsites (L8981+ public skipped-typeck
+ * path). Zero fwd decls required. PLATFORM: SHARED. */
+
+/**
+ * Backfill a let/const declaration type T[N] into the ARRAY_LIT init's
+ * resolved_type_ref (mirrors typeck_coerce_init_expr_to_decl).
+ *
+ * Why: when the asm emitter skips .x typeck (skip-heavy C-only modules),
+ * ARRAY_LIT inits have resolved_type_ref=0; the asm array_lit path needs
+ * the element count from the declared array type to size the memcpy.
+ *
+ * Contract: no-op if arena/decl_ty_ref/init_ref invalid, decl_ty_ref is
+ * not TYPE_ARRAY (kind ord 10), or init_ref is not EXPR_ARRAY_LIT (kind 46).
+ *
+ * PLATFORM: SHARED — pure type_ref stamp, no arch dependency.
+ */
+static void glue_fill_array_lit_from_decl(struct ast_ASTArena *arena, int32_t decl_ty_ref, int32_t init_ref) {
+  struct ast_Expr *init_ex;
+  if (!arena || decl_ty_ref <= 0 || decl_ty_ref > arena->num_types || init_ref <= 0 ||
+      init_ref > arena->num_exprs)
+    return;
+  if (pipeline_type_kind_ord_at(arena, decl_ty_ref) != GLUE_TYPE_KIND_ARRAY)
+    return;
+  if (pipeline_expr_kind_ord_at(arena, init_ref) != 46)
+    return;
+  init_ex = pipeline_arena_expr_ptr(arena, init_ref);
+  if (!init_ex)
+    return;
+  init_ex->resolved_type_ref = decl_ty_ref;
+}
+
+/**
+ * Return 1 if expr_ref lives in scope_block_ref or any of its child blocks.
+ * Prevents cross-function / cross-sibling-block name collisions from
+ * polluting resolved_type_ref during the skip-typeck backfill.
+ *
+ * Why: the asm skip-typeck path scans all exprs for name matches; without
+ * this scope gate, `v` in func A would inherit the type of `v` in func B.
+ *
+ * Contract: returns 0 for invalid arena/refs. Depth-limited to 128 to
+ * prevent infinite loops on cyclic block graphs (should not happen).
+ *
+ * PLATFORM: SHARED — pure block-tree walk, no arch dependency.
+ */
+static int32_t glue_expr_in_scope_block_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t scope_block_ref) {
+  int32_t cur;
+  int32_t depth;
+  if (!arena || expr_ref <= 0 || scope_block_ref <= 0 || scope_block_ref > arena->num_blocks)
+    return 0;
+  cur = pipeline_expr_block_ref_at(arena, expr_ref);
+  if (cur == scope_block_ref)
+    return 1;
+  depth = 0;
+  while (cur > 0 && cur <= arena->num_blocks && depth < 128) {
+    struct ast_Block *b = pipeline_arena_block_ptr(arena, cur);
+    if (!b)
+      break;
+    cur = b->parent_block_ref;
+    if (cur == scope_block_ref)
+      return 1;
+    depth++;
+  }
+  return 0;
+}
+
+/**
+ * Backfill resolved_type_ref for EXPR_VAR nodes that match a function
+ * parameter name (skip .x typeck path; SoA `arr[i].field` needs T[N]).
+ * Only writes when resolved_type_ref is still 0, so multiple functions
+ * with same-named params (e.g. `v`) do not overwrite each other.
+ *
+ * Why: the asm emitter dereferences INDEX/METHOD_CALL base VARs whose
+ * resolved_type_ref was never set by the skipped typeck pass.
+ *
+ * Contract: no-op if m/arena/func_index invalid or func has no body.
+ * Iterates all exprs (O(E×P)) — cold path, only called when typeck
+ * is skipped.
+ *
+ * PLATFORM: SHARED — pure type_ref propagation, no arch dependency.
+ */
+static void glue_fill_var_types_from_params_for_func(struct ast_Module *m, struct ast_ASTArena *arena,
+                                                     int32_t func_index) {
+  int32_t np;
+  int32_t pi;
+  int32_t ei;
+  int32_t body_ref;
+  uint8_t nm[128];
+  int32_t nlen;
+  int32_t tref;
+  if (!m || !arena || func_index < 0 || func_index >= (int32_t)m->num_funcs)
+    return;
+  body_ref = pipeline_module_func_body_ref_at(m, func_index);
+  if (body_ref <= 0)
+    return;
+  np = pipeline_module_func_num_params_at(m, func_index);
+  for (pi = 0; pi < np; pi++) {
+    nlen = pipeline_module_func_param_name_len_at(m, func_index, pi);
+    if (nlen <= 0 || nlen > 127)
+      continue;
+    pipeline_module_func_param_name_copy32(m, func_index, pi, nm);
+    tref = pipeline_module_func_param_type_ref_at(m, func_index, pi);
+    if (tref <= 0)
+      continue;
+    for (ei = 1; ei <= arena->num_exprs; ei++) {
+      if (glue_expr_in_scope_block_c(arena, ei, body_ref) &&
+          glue_let_name_matches_var(arena, ei, nm, nlen) &&
+          pipeline_expr_resolved_type_ref(arena, ei) <= 0)
+        pipeline_expr_set_resolved_type_ref(arena, ei, tref);
+    }
+  }
+}
+
+/**
+ * Backfill resolved_type_ref for EXPR_VAR nodes that match a block-internal
+ * let name (skip .x typeck path; arr[i] INDEX needs base type).
+ *
+ * Why: without typeck, the asm emitter cannot size the element store for
+ * `let buf: u8[N] = [..]; buf[0] = 1;` — the VAR `buf` has no
+ * resolved_type_ref until this backfill stamps it from the let decl.
+ *
+ * Contract: no-op if arena/block_ref invalid. Overwrites resolved_type_ref
+ * unconditionally (unlike the params variant) because let scope is
+ * block-local — there is no cross-function collision risk.
+ *
+ * PLATFORM: SHARED — pure type_ref propagation, no arch dependency.
+ */
+static void glue_fill_var_types_from_lets_in_block(struct ast_ASTArena *arena, int32_t block_ref) {
+  int32_t nlet;
+  int32_t li;
+  int32_t ei;
+  if (!arena || block_ref <= 0 || block_ref > arena->num_blocks)
+    return;
+  nlet = ast_ast_block_num_lets(arena, block_ref);
+  for (li = 0; li < nlet; li++) {
+    int32_t tref = pipeline_block_let_type_ref(arena, block_ref, li);
+    uint8_t nm[128];
+    int32_t nlen;
+    if (tref <= 0)
+      continue;
+    nlen = pipeline_block_let_name_len(arena, block_ref, li);
+    if (nlen <= 0 || nlen > 127)
+      continue;
+    pipeline_block_let_name_copy64(arena, block_ref, li, nm);
+    for (ei = 1; ei <= arena->num_exprs; ei++) {
+      struct ast_Expr *ex = pipeline_arena_expr_ptr(arena, ei);
+      if (!ex)
+        continue;
+      if (glue_expr_in_scope_block_c(arena, ei, block_ref) &&
+          glue_let_name_matches_var(arena, ei, nm, nlen)) {
+        ex->resolved_type_ref = tref;
+      }
+    }
+  }
+}
+
+/**
+ * Walk block-internal lets and backfill ARRAY_LIT init types for the
+ * skip-typeck asm path (e.g. `let buf: u8[12] = [0;12]` in hello.x).
+ *
+ * Why: orchestrates the let→VAR type propagation (via
+ * glue_fill_var_types_from_lets_in_block) and then stamps ARRAY_LIT
+ * resolved_type_ref from the declared let type (via
+ * glue_fill_array_lit_from_decl). Called by the public skipped-typeck
+ * entry point pipeline_fill_array_lit_types_for_skipped_typeck.
+ *
+ * Contract: no-op if arena/block_ref invalid.
+ *
+ * PLATFORM: SHARED — pure orchestration, no arch dependency.
+ */
+static void glue_fill_array_lit_types_in_block(struct ast_ASTArena *arena, int32_t block_ref) {
+  int32_t nlet;
+  int32_t i;
+  if (!arena || block_ref <= 0 || block_ref > arena->num_blocks)
+    return;
+  glue_fill_var_types_from_lets_in_block(arena, block_ref);
+  nlet = ast_ast_block_num_lets(arena, block_ref);
+  for (i = 0; i < nlet; i++) {
+    glue_fill_array_lit_from_decl(arena, pipeline_block_let_type_ref(arena, block_ref, i),
+                                ast_pipeline_block_let_init_ref(arena, block_ref, i));
+  }
 }

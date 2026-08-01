@@ -2475,3 +2475,131 @@ static int32_t pipeline_typeck_check_call_generic_type_args_c(struct ast_Module 
   }
   return 0;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* wave1111-1112 G.7: dep return type mapping domain (2 fns) migrated from
+ * pipeline_glue.c L9400-9494. These map a dep-side (imported module) return
+ * type_ref into the caller arena, qualified with import binding prefix when
+ * the import is a binding import (e.g. vec.Vec_u8). Co-located with method
+ * call domain because cross-module call return-type resolution is the sole
+ * consumer. Static (non-extern): same-TU visibility via #include order +
+ * fwd decl at glue.c. PLATFORM: SHARED. */
+
+/**
+ * Map a dep-side TYPE_NAMED to the caller-side binding-qualified struct
+ * (e.g. vec.Vec_u8). Falls back to bare-name find_or_alloc when the import
+ * is not a binding import or dep_ix is out of range.
+ *
+ * Why: top-level dep return types arrive as bare TYPE_NAMED; the caller
+ * arena must store them with the import binding prefix so that let
+ * declarations like `let v: vec.Vec_u8` resolve to the same type_ref.
+ *
+ * Contract: entry_mod may be NULL (bare-name fallback); nm/nlen must be
+ * valid (nlen > 0). Returns 0 on failure, a caller-arena type_ref on
+ * success.
+ *
+ * PLATFORM: SHARED — pure name resolution, no arch dependency.
+ */
+static int32_t pipeline_typeck_map_import_binding_named_to_caller_c(struct ast_Module *entry_mod,
+                                                                    int32_t dep_ix,
+                                                                    struct ast_ASTArena *caller_arena,
+                                                                    uint8_t *nm, int32_t nlen) {
+  int32_t bl;
+  int32_t qlen;
+  uint8_t qnm[128];
+  int32_t i;
+
+  if (!caller_arena || !nm || nlen <= 0)
+    return 0;
+  if (!entry_mod || dep_ix < 0 || dep_ix >= entry_mod->num_imports)
+    return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
+  if (pipeline_module_import_kind_at(entry_mod, dep_ix) != 1) /* IMPORT_BINDING */
+    return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
+  bl = pipeline_module_import_binding_name_len(entry_mod, dep_ix);
+  if (bl <= 0 || bl + 1 + nlen > 127)
+    return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
+  for (i = 0; i < bl; i++)
+    qnm[i] = pipeline_module_import_binding_name_byte_at(entry_mod, dep_ix, i);
+  qnm[bl] = '.';
+  memcpy(qnm + bl + 1, nm, (size_t)nlen);
+  qlen = bl + 1 + nlen;
+  return pipeline_type_find_or_alloc_named(caller_arena, qnm, qlen);
+}
+
+/**
+ * Recursively map a dep-side return_type_ref into the caller arena.
+ * Mirrors typeck.x::dep_return_type_to_caller_arena.
+ *
+ * Why: cross-module calls return a type_ref that is only valid in the dep
+ * arena; the caller needs an equivalent type_ref in its own arena to stamp
+ * resolved_type_ref on the call expr. Primitives map directly; compound
+ * types (slice/ptr/vector/array) recurse on elem_ref; TYPE_NAMED maps via
+ * find_or_alloc_named (or binding-qualified map when entry module is set).
+ *
+ * Invariant: the returned type_ref is in caller_arena, not dep_arena.
+ * Returns 0 on failure (kind unknown, name empty, elem recursion fails).
+ *
+ * PLATFORM: SHARED — pure type_ref translation, no arch dependency.
+ */
+static int32_t pipeline_typeck_dep_return_type_to_caller_arena_impl(struct ast_ASTArena *dep_arena,
+                                                                    int32_t dep_return_type_ref,
+                                                                    struct ast_ASTArena *caller_arena) {
+  int32_t kind;
+  int32_t inner_mapped;
+  int32_t elem_ref;
+  int32_t array_size;
+  uint8_t nm[128];
+  int32_t nlen;
+
+  if (dep_return_type_ref <= 0 || !dep_arena || !caller_arena)
+    return 0;
+  kind = pipeline_type_kind_ord_at(dep_arena, dep_return_type_ref);
+  if (kind < 0)
+    return 0;
+  if (kind == (int32_t)ast_TypeKind_TYPE_I32 || kind == (int32_t)ast_TypeKind_TYPE_I64 ||
+      kind == (int32_t)ast_TypeKind_TYPE_BOOL || kind == (int32_t)ast_TypeKind_TYPE_F64 ||
+      kind == (int32_t)ast_TypeKind_TYPE_U8 || kind == (int32_t)ast_TypeKind_TYPE_U32 ||
+      kind == (int32_t)ast_TypeKind_TYPE_U64 || kind == (int32_t)ast_TypeKind_TYPE_ISIZE ||
+      kind == (int32_t)ast_TypeKind_TYPE_F32 || kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
+      kind == (int32_t)ast_TypeKind_TYPE_VOID)
+    return pipeline_type_ensure_by_kind_ord(caller_arena, kind);
+  if (kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
+    nlen = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, nm);
+    if (nlen <= 0)
+      return 0;
+    return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
+  }
+  elem_ref = pipeline_type_elem_ref_at(dep_arena, dep_return_type_ref);
+  inner_mapped = 0;
+  if (!ast_ref_is_null(elem_ref)) {
+    inner_mapped =
+        pipeline_typeck_dep_return_type_to_caller_arena_impl(dep_arena, elem_ref, caller_arena);
+    if (inner_mapped == 0)
+      return 0;
+  }
+  array_size = pipeline_type_array_size_at(dep_arena, dep_return_type_ref);
+  if (kind == (int32_t)ast_TypeKind_TYPE_SLICE) {
+    int32_t rlen = pipeline_type_region_label_len_at(dep_arena, dep_return_type_ref);
+    uint8_t rbuf[128];
+    if (rlen > 0)
+      (void)pipeline_type_region_label_into(dep_arena, dep_return_type_ref, rbuf);
+    return pipeline_type_find_or_alloc_slice(caller_arena, inner_mapped, rlen > 0 ? rbuf : NULL, rlen);
+  }
+  if (kind == (int32_t)ast_TypeKind_TYPE_PTR)
+    return pipeline_type_find_or_alloc_compound(caller_arena, (int32_t)ast_TypeKind_TYPE_PTR, inner_mapped, 0);
+  if (kind == (int32_t)ast_TypeKind_TYPE_VECTOR)
+    return pipeline_type_find_or_alloc_compound(caller_arena, (int32_t)ast_TypeKind_TYPE_VECTOR, inner_mapped,
+                                                array_size);
+  if (kind == (int32_t)ast_TypeKind_TYPE_ARRAY) {
+    if (ast_ref_is_null(elem_ref) || array_size <= 0)
+      return 0;
+    return pipeline_type_find_or_alloc_compound(caller_arena, (int32_t)ast_TypeKind_TYPE_ARRAY, inner_mapped,
+                                                array_size);
+  }
+  if (!ast_ref_is_null(elem_ref) || array_size != 0)
+    return 0;
+  nlen = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, nm);
+  if (nlen != 0)
+    return 0;
+  return pipeline_type_ensure_by_kind_ord(caller_arena, kind);
+}

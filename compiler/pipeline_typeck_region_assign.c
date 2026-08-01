@@ -19,8 +19,20 @@
  * Not compiled as a separate .o — #included from pipeline_glue.c after
  * stack_local / addr_of_block_local helpers and before call_struct_stack_escape.
  *
+ * wave1125-1129 G.7: the stack-escape helpers (typeck_find_or_alloc_ptr_stack_local_c /
+ * typeck_ptr_has_stack_local_label_c / typeck_block_tree_has_var_c /
+ * typeck_var_is_block_local_c / typeck_expr_is_addr_of_block_local_c +
+ * TYPECK_STACK_LOCAL_PTR_LBL const) were migrated to this file's EOF.
+ * Forward decl below keeps the L122/238/279 callsites visible before the
+ * EOF definitions.
+ *
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
  */
+
+/* wave1125-1129 G.7: forward decl — definition at EOF (callsites at L122/238/279
+ * precede the EOF definition). */
+static int32_t typeck_expr_is_addr_of_block_local_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                   struct ast_PipelineDepCtx *ctx, int32_t expr_ref);
 
 /** M-3：slice 域冲突（expect/src 均带 label 且不同）返回 1。 */
 static int32_t pipeline_typeck_slice_region_conflict_c(struct ast_ASTArena *arena, int32_t expect_ref,
@@ -446,4 +458,208 @@ int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena, 
     return -1;
   }
   return 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* wave1125-1129 G.7: WPO-S3 stack-escape analysis helpers (5 fns + 1 const)
+ * migrated from pipeline_glue.c L9947-10081. These form the stack-escape
+ * local-var detection cluster — natural co-located with the WPO-S3 struct
+ * stack-escape assign domain already in region_assign.c. Static (non-extern):
+ * same-TU visibility via #include order — region_assign.c #include at
+ * glue.c L10231. Glue.c L10223/10227 callsites (inside
+ * pipeline_typeck_ptr_for_addr_of_operand_c) precede the #include, so 2
+ * static fwd decls are kept in glue.c. The region_assign.c L122/238/279
+ * callsites precede these EOF definitions, so a static fwd decl is added
+ * at the top of this file. PLATFORM: SHARED. */
+
+/* Forward decl at top of file (L34) covers L122/238/279 callsites. */
+
+/** WPO-S3: *T stack-local region label (shares Type slot with slice
+ * region_label; TYPE_PTR only). Migrated from glue.c (wave1125-1129). */
+static const uint8_t TYPECK_STACK_LOCAL_PTR_LBL[] = "stack_local";
+
+/**
+ * WPO-S3: find or allocate a *elem_ref with the stack_local region label.
+ *
+ * Why: when &local_struct is taken, the resulting pointer type must carry
+ * the stack_local label so that downstream escape analysis can distinguish
+ * it from heap/param pointers. The label is stamped into the Type's
+ * region_label field (shared with slice region labels).
+ *
+ * Contract: returns 0 on failure (invalid arena/elem_ref or alloc fails).
+ * Returns an existing matching type_ref if found, or a newly allocated one.
+ *
+ * PLATFORM: SHARED — pure type_ref allocation, no arch dependency.
+ */
+static int32_t typeck_find_or_alloc_ptr_stack_local_c(struct ast_ASTArena *a, int32_t elem_ref) {
+  int32_t k;
+  struct ast_Type *t;
+  static const int32_t lbl_len = 11;
+  if (!a || elem_ref <= 0)
+    return 0;
+  for (k = 1; k <= a->num_types; k++) {
+    t = pipeline_arena_type_ptr(a, k);
+    if (t && t->kind == ast_TypeKind_TYPE_PTR && t->elem_type_ref == elem_ref && t->name_len == 0 &&
+        t->region_label_len == lbl_len &&
+        memcmp(t->region_label, TYPECK_STACK_LOCAL_PTR_LBL, (size_t)lbl_len) == 0)
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  memset(t, 0, sizeof(*t));
+  t->kind = ast_TypeKind_TYPE_PTR;
+  t->elem_type_ref = elem_ref;
+  memcpy(t->region_label, TYPECK_STACK_LOCAL_PTR_LBL, (size_t)lbl_len);
+  t->region_label_len = lbl_len;
+  return k;
+}
+
+/**
+ * WPO-S3: return 1 if ty_ref is a TYPE_PTR with the stack_local region
+ * label (marks a pointer to a block-local struct).
+ *
+ * Why: escape analysis checks this label to detect when a stack-local
+ * pointer escapes via call args or return values.
+ *
+ * Contract: returns 0 for invalid refs, non-PTR types, or PTR types
+ * without the stack_local label.
+ *
+ * PLATFORM: SHARED — pure label check, no arch dependency.
+ */
+static int32_t typeck_ptr_has_stack_local_label_c(struct ast_ASTArena *a, int32_t ty_ref) {
+  struct ast_Type *t;
+  static const int32_t lbl_len = 11;
+  if (!a || ty_ref <= 0 || ty_ref > a->num_types)
+    return 0;
+  t = pipeline_arena_type_ptr(a, ty_ref);
+  if (!t || t->kind != ast_TypeKind_TYPE_PTR)
+    return 0;
+  return (t->region_label_len == lbl_len &&
+          memcmp(t->region_label, TYPECK_STACK_LOCAL_PTR_LBL, (size_t)lbl_len) == 0)
+             ? 1
+             : 0;
+}
+
+/**
+ * WPO-S3: return 1 if a let/const named `vname` exists anywhere in the
+ * block subtree (including while/for/if-then/if-else/region bodies).
+ *
+ * Why: escape analysis needs to know whether a VAR is a block-local
+ * let/const (vs a function parameter). This walker searches the entire
+ * block tree because the current_block_ref in ctx may not be pushed
+ * during post-scan paths.
+ *
+ * Contract: returns 0 for invalid arena/block_ref/vname. Self-recursive
+ * on if-then/else and loop/region bodies. Depth is bounded by the
+ * block tree structure (no cycles expected).
+ *
+ * PLATFORM: SHARED — pure block-tree walk, no arch dependency.
+ */
+static int32_t typeck_block_tree_has_var_c(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname,
+                                           int32_t vlen) {
+  int32_t nso;
+  int32_t i;
+  if (!a || block_ref <= 0 || !vname || vlen <= 0)
+    return 0;
+  if (pipeline_block_resolve_var_type_ref(a, block_ref, vname, vlen) > 0)
+    return 1;
+  nso = ast_ast_block_num_stmt_order(a, block_ref);
+  for (i = 0; i < nso; i++) {
+    uint8_t sk = ast_ast_block_stmt_order_kind(a, block_ref, i);
+    int32_t idx = ast_ast_block_stmt_order_idx(a, block_ref, i);
+    int32_t br = 0;
+    if (sk == 3 && idx >= 0 && idx < ast_ast_block_num_loops(a, block_ref))
+      br = ast_ast_block_while_body_ref(a, block_ref, idx);
+    else if (sk == 4 && idx >= 0 && idx < ast_ast_block_num_for_loops(a, block_ref))
+      br = ast_ast_block_for_body_ref(a, block_ref, idx);
+    else if (sk == 5 && idx >= 0 && idx < ast_ast_block_num_if_stmts(a, block_ref)) {
+      int32_t tr = ast_ast_block_if_then_body_ref(a, block_ref, idx);
+      int32_t er = ast_ast_block_if_else_body_ref(a, block_ref, idx);
+      if (tr > 0 && typeck_block_tree_has_var_c(a, tr, vname, vlen))
+        return 1;
+      if (er > 0 && typeck_block_tree_has_var_c(a, er, vname, vlen))
+        return 1;
+      continue;
+    } else if (sk == 6 && idx >= 0 && idx < ast_ast_block_num_regions(a, block_ref))
+      br = ast_ast_block_region_body_ref(a, block_ref, idx);
+    if (br > 0 && typeck_block_tree_has_var_c(a, br, vname, vlen))
+      return 1;
+  }
+  return 0;
+}
+
+/**
+ * WPO-S3: return 1 if expr_ref is a VAR that is a block-local let/const
+ * (not a function parameter).
+ *
+ * Why: escape analysis needs to distinguish local lets from params.
+ * Checks the current block first (fast path), then falls back to a
+ * full function-body block-tree walk for post-scan paths where ctx
+ * may not have current_block_ref pushed.
+ *
+ * Contract: returns 0 for invalid refs, non-VAR exprs, or VARs that
+ * match a function parameter name.
+ *
+ * PLATFORM: SHARED — pure block-tree walk, no arch dependency.
+ */
+static int32_t typeck_var_is_block_local_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                           struct ast_PipelineDepCtx *ctx, int32_t expr_ref) {
+  int32_t vlen;
+  uint8_t vbuf[128];
+  int32_t func_ix;
+  int32_t body_ref;
+  if (!m || !a || !ctx || expr_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(a, expr_ref) != GLUE_EXPR_KIND_VAR)
+    return 0;
+  vlen = pipeline_expr_var_name_len(a, expr_ref);
+  if (vlen <= 0 || vlen > 127)
+    return 0;
+  pipeline_expr_var_name_into(a, expr_ref, vbuf);
+  func_ix = ctx->current_func_index;
+  if (func_ix >= 0 && pipeline_module_func_param_type_ref_for_name(m, func_ix, vbuf, vlen) > 0)
+    return 0;
+  if (ctx->current_block_ref > 0 &&
+      pipeline_block_resolve_var_type_ref(a, ctx->current_block_ref, vbuf, vlen) > 0)
+    return 1;
+  /* post-scan paths may not have ctx block pushed: fall back to
+   * function-body root block and its children for let lookup. */
+  if (func_ix >= 0) {
+    body_ref = pipeline_module_func_body_ref_at(m, func_ix);
+    if (body_ref > 0 && typeck_block_tree_has_var_c(a, body_ref, vbuf, vlen))
+      return 1;
+  }
+  return 0;
+}
+
+/**
+ * WPO-S3: return 1 if expr_ref is an address-of a block-local variable
+ * (i.e. &local_let) or already carries a stack_local pointer label.
+ *
+ * Why: call escape detection checks this to flag when a stack-local
+ * pointer is passed as a call arg or returned. The check covers both
+ * direct &local and pointers already stamped with stack_local label
+ * (e.g. from a prior &local propagation).
+ *
+ * Contract: returns 0 for invalid refs or non-address-of exprs whose
+ * resolved type is not a stack_local PTR. Returns 1 if the operand of
+ * an ADDR_OF is a block-local VAR.
+ *
+ * PLATFORM: SHARED — pure analysis, no arch dependency.
+ */
+static int32_t typeck_expr_is_addr_of_block_local_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                   struct ast_PipelineDepCtx *ctx, int32_t expr_ref) {
+  int32_t op_ref;
+  if (!m || !a || !ctx || expr_ref <= 0)
+    return 0;
+  if (typeck_ptr_has_stack_local_label_c(a, pipeline_expr_resolved_type_ref(a, expr_ref)))
+    return 1;
+  if (pipeline_expr_kind_ord_at(a, expr_ref) != (int32_t)ast_ExprKind_EXPR_ADDR_OF)
+    return 0;
+  op_ref = pipeline_expr_unary_operand_ref_at(a, expr_ref);
+  return op_ref > 0 && typeck_var_is_block_local_c(m, a, ctx, op_ref) ? 1 : 0;
 }
