@@ -3701,47 +3701,10 @@ int32_t pipeline_asm_call_arg_value_byte_size_c(struct ast_ASTArena *arena, stru
   return sz;
 }
 
-/**
- * 按 §11.1 + field_align(N) 动态计算 layout li 第 fj 字段字节偏移（权威值，勿信仅 fi*8 回退）。
- * 未命中 layout/字段时返回 fj*8。
- */
-static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t li,
-                                                       int32_t fj) {
-  int32_t current;
-  int32_t j;
-  int32_t nf;
-  if (!m || !a || li < 0 || li >= pipeline_module_num_struct_layouts_at(m) || fj < 0)
-    return fj >= 0 ? fj * 8 : 0;
-  nf = pipeline_module_struct_layout_num_fields(m, li);
-  if (fj >= nf)
-    return fj * 8;
-  current = 0;
-  for (j = 0; j <= fj; j++) {
-    int32_t ftr = pipeline_module_struct_layout_field_type_ref(m, li, j);
-    int32_t A = glue_type_align_simple(m, a, ftr, 0);
-    int32_t fa;
-    int32_t rem;
-    int32_t gap;
-    int32_t fsize;
-    if (A <= 0)
-      A = 1;
-    fa = pipeline_module_struct_layout_field_align_at(m, li, j);
-    if (fa > A)
-      A = fa;
-    rem = current % A;
-    gap = A - rem;
-    gap = gap % A;
-    if (j == fj)
-      return current + gap;
-    current = current + gap;
-    fsize = glue_type_size_simple(m, a, ftr, 0);
-    /* wave366/368: keep 0 for empty / empty-of-empty ZST; unknown size → 4. */
-    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr, 0) == 0))
-      fsize = 4;
-    current = current + fsize;
-  }
-  return fj * 8;
-}
+/* wave1044 G.7: glue_struct_layout_compute_field_offset_c migrated to
+ * pipeline_asm_emit_struct_lit.c (definition at EOF; forward decl at top
+ * serves struct_lit.c callsites L152/L158 + glue.c internal callsites
+ * L3759/3772/3774/3804 after #include 2092 — visible via that decl). */
 
 /**
  * 将 module 各 struct layout 的 field_offset 同步为 glue_struct_layout_compute_field_offset_c 结果。

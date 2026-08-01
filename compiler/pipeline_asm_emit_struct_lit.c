@@ -51,10 +51,16 @@
  * glue.c:3788/3892, after this #include at glue.c:2172).
  */
 
-/* wave1035 G.7: static forward decls — definitions later in TU (glue.c:3788/3892). */
+/* wave1035 G.7: static forward decls — definitions later in TU (glue.c:3788/3892).
+ * wave1044: glue_struct_layout_compute_field_offset_c migrated here (definition
+ * at EOF); forward decl retained for callsites at L152/L158. */
 static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t li,
                                                           int32_t fj);
 static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name, int32_t nlen);
+
+/* wave1044 G.7: forward decl — glue_type_align_simple defined later in TU
+ * (glue.c:3003); consumed by glue_struct_layout_compute_field_offset_c. */
+static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 
 /**
  * Check whether a TYPE_NAMED refers to an empty struct (ZST).
@@ -654,4 +660,59 @@ int32_t pipeline_asm_emit_struct_lit_elf_c(struct ast_ASTArena *arena,
                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                   struct backend_AsmFuncCtx *ctx, int32_t ta) {
   return pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, expr_ref, ctx, ta, -1);
+}
+
+/**
+ * Compute the byte offset of field index fj within struct layout li.
+ *
+ * Why: §11.1 + field_align(N) dynamic layout — the authoritative offset
+ * must account for per-field alignment (not just fj*8). Used by struct_lit
+ * field store offset (L152/L158) and glue.c layout sync/metrics (L3759/
+ * 3772/3774/3804, after #include 2092 — visible via forward decl at top
+ * of this file).
+ *
+ * Invariant: li >= 0 && li < module->num_struct_layouts && fj >= 0 &&
+ * fj < nf. Returns fj*8 fallback when layout/field not found.
+ *
+ * Asm/Perf: single forward pass over fields [0..fj] accumulating offset
+ * with alignment gap; O(fj) per call, bounded by struct field count.
+ *
+ * PLATFORM: SHARED — pure layout computation, arch-agnostic.
+ */
+static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t li,
+                                                       int32_t fj) {
+  int32_t current;
+  int32_t j;
+  int32_t nf;
+  if (!m || !a || li < 0 || li >= pipeline_module_num_struct_layouts_at(m) || fj < 0)
+    return fj >= 0 ? fj * 8 : 0;
+  nf = pipeline_module_struct_layout_num_fields(m, li);
+  if (fj >= nf)
+    return fj * 8;
+  current = 0;
+  for (j = 0; j <= fj; j++) {
+    int32_t ftr = pipeline_module_struct_layout_field_type_ref(m, li, j);
+    int32_t A = glue_type_align_simple(m, a, ftr, 0);
+    int32_t fa;
+    int32_t rem;
+    int32_t gap;
+    int32_t fsize;
+    if (A <= 0)
+      A = 1;
+    fa = pipeline_module_struct_layout_field_align_at(m, li, j);
+    if (fa > A)
+      A = fa;
+    rem = current % A;
+    gap = A - rem;
+    gap = gap % A;
+    if (j == fj)
+      return current + gap;
+    current = current + gap;
+    fsize = glue_type_size_simple(m, a, ftr, 0);
+    /* wave366/368: keep 0 for empty / empty-of-empty ZST; unknown size -> 4. */
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr, 0) == 0))
+      fsize = 4;
+    current = current + fsize;
+  }
+  return fj * 8;
 }
