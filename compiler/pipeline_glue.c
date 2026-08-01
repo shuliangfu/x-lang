@@ -5567,8 +5567,9 @@ static int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(
 /* wave1046 G.7: glue_func_return_byte_size_c forward decl removed —
  * definition migrated to pipeline_asm_emit_call_args.c (same-TU #include
  * at L2392, before all callsites below). */
-static int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
-                                           int32_t param_index);
+/* wave1047 G.7: glue_func_param_home_width_c forward decl removed —
+ * definition migrated to pipeline_asm_emit_call_args.c (same-TU #include
+ * at L2392, before all callsites below). */
 /* wave1045 G.7: glue_func_param_agg_byte_size_c forward decl removed —
  * definition migrated to pipeline_asm_emit_call_args.c (same-TU #include
  * at L2392, before all callsites below). */
@@ -5981,13 +5982,11 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, struct ast_ASTAren
  * - 9–16B INTEGER by-value: full dual-half home (Allocator / StrView / Result; matches formal C)
  * - else: 8B (scalar / pointer)
  */
-static int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
-                                           int32_t param_index) {
-  int32_t sz = glue_func_param_agg_byte_size_c(arena, mod, func_index, param_index);
-  if (sz > 8)
-    return (sz + 7) & ~7;
-  return 8;
-}
+/* wave1047 G.7: glue_func_param_home_width_c migrated to
+ * pipeline_asm_emit_call_args.c (definition at EOF; direct consumer of
+ * glue_func_param_agg_byte_size_c — same SysV ABI param sizing domain).
+ * Same-TU #include at L2392 makes it visible to all glue.c callsites
+ * below (L5922/6030/6186/6330/6410). */
 
 /**
  * 将函数形参填入 asm 局部 sidecar；[rbp-8] 保留给 prologue 的 saved rbx。

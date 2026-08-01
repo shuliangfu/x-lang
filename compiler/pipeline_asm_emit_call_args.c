@@ -36,6 +36,10 @@
  * size; 0 for void, 8 for TYPE_ARRAY pointer lowering, else type_size_simple)
  * migrated here from glue residual — return-value sizing twin of param sizing
  * above. Consumed by frame-size reserve + sret activation (still in glue.c).
+ * wave1047 G.7 fold: glue_func_param_home_width_c (home slot width; 8B floor,
+ * >8B aligned up to 8) migrated here from glue residual — direct consumer of
+ * glue_func_param_agg_byte_size_c above. Consumed by fill_param_slots /
+ * emit_func_param_home (still in glue.c, same TU).
  *
  * Callers: backend_call_dispatch.x / seed (extern); glue emit_expr leaf
  * VAR dual-GP via glue_load_var_as_value_to_rax_rdx_elf_c; glue
@@ -1618,4 +1622,41 @@ static int32_t glue_func_return_byte_size_c(struct ast_Module *mod, struct ast_A
   if (k == (int32_t)ast_TypeKind_TYPE_ARRAY)
     return 8;
   return glue_type_size_simple(mod, arena, rty, 0);
+}
+
+/* wave1047 G.7 fold: glue_func_param_home_width_c migrated here from
+ * pipeline_glue.c (definition was at glue.c:5984; forward decl at 5570 —
+ * both removed). Same-TU #include at glue.c:2392 makes the definition
+ * visible to all glue.c callsites (L5922/6030/6186/6330/6410 — all after
+ * include). Direct consumer of glue_func_param_agg_byte_size_c (defined
+ * above in this file) — same SysV ABI param sizing domain. */
+
+/**
+ * Home slot width for formal param (8B floor, >8B aligned up to 8).
+ *
+ * Why: §SysV ABI home slot sizing — the authoritative width consumed by
+ * fill_param_slots / emit_func_param_home / emit_func_param paths. >8B
+ * aggregates (dual-GP 9–16B or MEMORY by-value) need a full-size home
+ * (not 8B pointer slot) so arm64 emit_param_home stores both GPs at
+ * 16+i*8 / x86 high-end stores at off+width without clobbering adjacent
+ * param homes. wave599: arm64 9–16B named dual-GP formals — same polarity
+ * as asm_local_slot_reg_offset (low-end on ARM64) + store_retval half2.
+ *
+ * Invariant: returns 8 for sz <= 8 (GP slot floor); returns (sz+7)&~7
+ * for sz > 8 (aligned to 8-byte boundary). sz comes from
+ * glue_func_param_agg_byte_size_c (twin above in this file).
+ *
+ * Asm/Perf: O(1) — one call to glue_func_param_agg_byte_size_c + one
+ * branch + one align. No recursion.
+ *
+ * PLATFORM: SHARED — pure width query from byte size.
+ *   · LINUX|x86_64 SysV high-end multi-word (home=off+w, next=home+8)
+ *   · MACOS|ARM64 low-end multi-word (home=off, next=off+w)
+ */
+static int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
+                                           int32_t param_index) {
+  int32_t sz = glue_func_param_agg_byte_size_c(arena, mod, func_index, param_index);
+  if (sz > 8)
+    return (sz + 7) & ~7;
+  return 8;
 }
