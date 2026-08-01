@@ -53,7 +53,9 @@
 
 /* wave1035 G.7: static forward decls — definitions later in TU (glue.c:3788/3892).
  * wave1044: glue_struct_layout_compute_field_offset_c migrated here (definition
- * at EOF); forward decl retained for callsites at L152/L158. */
+ * at EOF); forward decl retained for callsites at L152/L158.
+ * wave1049: glue_struct_layout_index_by_type_name_c migrated here (definition
+ * at EOF below); forward decl retained for callsite at L162. */
 static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t li,
                                                           int32_t fj);
 static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name, int32_t nlen);
@@ -715,4 +717,55 @@ static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, s
     current = current + fsize;
   }
   return fj * 8;
+}
+
+/* wave1049 G.7 fold: glue_struct_layout_index_by_type_name_c migrated here
+ * from pipeline_glue.c (definition was at glue.c:3727). Same-TU #include at
+ * glue.c:2095 makes it visible to field_access.c:830/882 (field_access.c
+ * #include at L2419 > struct_lit.c L2095). struct_lit.c:59 fwd decl retained
+ * for struct_lit.c:162 callsite (definition at EOF below). glue.c has zero
+ * self-callsites — pure leaf consumed by struct_lit + field_access. */
+
+/**
+ * Look up struct layout index by type name (single-layout fallback to 0).
+ *
+ * Why: §11.1 struct layout registry — the authoritative name→index lookup
+ * consumed by struct_lit field offset (L162, via glue_struct_layout_compute
+ * _field_offset_c above) and field_access effective offset (field_access.c
+ * L830/882, via glue_field_access_effective_offset_c). Returns 0 for the
+ * single-layout module fallback (DOD-CL-S1 anonymous struct) so callers do
+ * not need to special-case missing type names.
+ *
+ * Invariant: returns -1 for invalid module/name/nlen (nlen > 127) or when
+ * no layout matches; returns the first matching layout index k otherwise;
+ * returns 0 when the module has exactly one layout (single-layout fallback).
+ *
+ * Asm/Perf: O(nlayouts * nlen) — linear scan over layouts with byte-by-byte
+ * name comparison. Bounded by module struct count (typically small).
+ *
+ * PLATFORM: SHARED — pure layout registry query; arch-agnostic.
+ */
+static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name, int32_t nlen) {
+  int32_t k;
+  int32_t j;
+  if (!m || !struct_name || nlen <= 0 || nlen > 127)
+    return -1;
+  for (k = 0; k < (int32_t)m->num_struct_layouts; k++) {
+    int32_t ln = pipeline_module_struct_layout_name_len(m, k);
+    int32_t eq = 1;
+    if (ln != nlen)
+      continue;
+    for (j = 0; j < nlen; j++) {
+      if (pipeline_module_struct_layout_name_byte_at(m, k, j) != struct_name[j]) {
+        eq = 0;
+        break;
+      }
+    }
+    if (eq)
+      return k;
+  }
+  /* Single-layout module fallback (DOD-CL-S1 anonymous struct). */
+  if (m->num_struct_layouts == 1)
+    return 0;
+  return -1;
 }

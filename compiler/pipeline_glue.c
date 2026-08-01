@@ -3724,29 +3724,12 @@ static int32_t glue_struct_layout_field_offset_by_name_c(struct ast_Module *m, s
 /**
  * 按 struct 类型名查 layout 下标；单 layout 入口模块时 layout 名偶发空仍返回 0（DOD-CL-S1 fallback）。
  */
-static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name, int32_t nlen) {
-  int32_t k;
-  int32_t j;
-  if (!m || !struct_name || nlen <= 0 || nlen > 127)
-    return -1;
-  for (k = 0; k < (int32_t)m->num_struct_layouts; k++) {
-    int32_t ln = pipeline_module_struct_layout_name_len(m, k);
-    int32_t eq = 1;
-    if (ln != nlen)
-      continue;
-    for (j = 0; j < nlen; j++) {
-      if (pipeline_module_struct_layout_name_byte_at(m, k, j) != struct_name[j]) {
-        eq = 0;
-        break;
-      }
-    }
-    if (eq)
-      return k;
-  }
-  if (m->num_struct_layouts == 1)
-    return 0;
-  return -1;
-}
+/* wave1049 G.7: glue_struct_layout_index_by_type_name_c migrated to
+ * pipeline_asm_emit_struct_lit.c (definition at EOF; struct_lit.c:59 fwd
+ * decl retained for struct_lit.c:162 callsite. field_access.c:706 fwd decl
+ * retained for field_access.c:830/882 callsite — field_access.c #include
+ * at L2419 > struct_lit.c L2095 so definition is visible there). glue.c
+ * has zero self-callsites — pure leaf consumed by struct_lit + field_access. */
 
 /**
  * 在 layout_idx 上为下一字段（类型 new_field_type_ref）计算 §11.1 对齐后的字节偏移；
