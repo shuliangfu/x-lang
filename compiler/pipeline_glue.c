@@ -3171,30 +3171,12 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
 /* wave1021: glue_array_lit_force_esz_from_elem_type_c body → pipeline_asm_emit_array_lit.c
  * (G.7; early forward above remains). */
 
-/**
- * 函数 func_index 返回类型字节宽；void/未知返回 0。
- */
-static int32_t glue_func_return_byte_size_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t func_index) {
-  int32_t rty;
-  int32_t k;
-  if (!mod || !arena || func_index < 0 || func_index >= (int32_t)mod->num_funcs)
-    return 0;
-  rty = pipeline_module_func_return_type_at(mod, func_index);
-  if (rty <= 0 || pipeline_type_kind_ord_at(arena, rty) == 15)
-    return 0;
-  /*
-   * wave417 Cap residual pure: TYPE_ARRAY return is E* (wave352 host __xlang_ar /
-   * freestanding durable ptr in rax), not SysV MEMORY by-value of the payload.
-   * Root: glue_type_size_simple(T[N]) for i32[8]=32 → sret_active + stack ARRAY_LIT
-   * return → dangling after ret (Ubuntu ret_only SIGSEGV; host-C static green).
-   * G.7: same 8B ABI as TYPE_SLICE dual-GP data half / formal T[N] pointer home.
-   * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
-   */
-  k = pipeline_type_kind_ord_at(arena, rty);
-  if (k == (int32_t)ast_TypeKind_TYPE_ARRAY)
-    return 8;
-  return glue_type_size_simple(mod, arena, rty, 0);
-}
+/* wave1046 G.7: glue_func_return_byte_size_c migrated to
+ * pipeline_asm_emit_call_args.c (definition at EOF; twin of
+ * glue_func_param_agg_byte_size_c — same SysV ABI func sizing domain).
+ * Same-TU #include at L2392 makes it visible to all glue.c callsites
+ * below (frame-size reserve L5949 + sret activation L8968).
+ * Dependencies: glue_type_size_simple (fwd decl L1887 < include 2392). */
 
 /**
  * CALL 目标返回类型字节宽；解析失败返回 -1。
@@ -5582,7 +5564,9 @@ static int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(
  * (glue_sysv_spill_rax_rdx_to_frame_c permanently bumps next_offset by 32B/reg-arg).
  * arm64 does not use that spill path — over-reserve is safe.
  */
-static int32_t glue_func_return_byte_size_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t func_index);
+/* wave1046 G.7: glue_func_return_byte_size_c forward decl removed —
+ * definition migrated to pipeline_asm_emit_call_args.c (same-TU #include
+ * at L2392, before all callsites below). */
 static int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
                                            int32_t param_index);
 /* wave1045 G.7: glue_func_param_agg_byte_size_c forward decl removed —

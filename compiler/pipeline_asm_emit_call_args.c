@@ -32,6 +32,10 @@
  * migrated here from glue residual — callee-side param sizing twin of the
  * caller-side call-arg packing. Consumed by glue_func_param_home_width_c +
  * fill_param_slots / emit_func_param_home (still in glue.c, same TU).
+ * wave1046 G.7 fold: glue_func_return_byte_size_c (func return type byte
+ * size; 0 for void, 8 for TYPE_ARRAY pointer lowering, else type_size_simple)
+ * migrated here from glue residual — return-value sizing twin of param sizing
+ * above. Consumed by frame-size reserve + sret activation (still in glue.c).
  *
  * Callers: backend_call_dispatch.x / seed (extern); glue emit_expr leaf
  * VAR dual-GP via glue_load_var_as_value_to_rax_rdx_elf_c; glue
@@ -1560,4 +1564,58 @@ static int32_t glue_func_param_agg_byte_size_c(struct ast_ASTArena *arena, struc
   if (sz <= 0)
     return 8;
   return sz;
+}
+
+/* wave1046 G.7 fold: glue_func_return_byte_size_c migrated here from
+ * pipeline_glue.c (definition was at glue.c:3177; forward decl at 5585 —
+ * both removed). Same-TU #include at glue.c:2392 makes the definition
+ * visible to all glue.c callsites (frame-size reserve at L5949 + sret
+ * activation at L8968). Twin of glue_func_param_agg_byte_size_c above
+ * (return-value byte size vs formal-param byte size — same SysV ABI domain).
+ * Dependencies already visible from this include point:
+ * - glue_type_size_simple (forward decl at glue.c:1887 < include 2392) */
+
+/**
+ * Byte size of func_index return type (0 for void / unknown).
+ *
+ * Why: §SysV ABI return-value sizing — the authoritative return byte size
+ * consumed by frame-size reserve (>16B return reserves 8B for hidden sret
+ * dest pointer at L5949) and sret activation (>16B return sets
+ * g_pipeline_asm_func_sret_active at L8968). TYPE_ARRAY return is E*
+ * (durable ptr in rax, 8B) not SysV MEMORY by-value of payload — root:
+ * glue_type_size_simple(T[N]) for i32[8]=32 → sret_active + dangling stack
+ * ARRAY_LIT return (Ubuntu ret_only SIGSEGV; host-C static green). G.7:
+ * same 8B ABI as TYPE_SLICE dual-GP data half / formal T[N] pointer home.
+ *
+ * Invariant: returns 0 for invalid module/arena/func_index or void return
+ * (kind 15); returns 8 for TYPE_ARRAY return (pointer lowering); otherwise
+ * returns glue_type_size_simple of the return type ref.
+ *
+ * Asm/Perf: O(1) — one type_ref lookup + one kind dispatch + at most one
+ * size query. No recursion.
+ *
+ * PLATFORM: SHARED — pure size query; SysV consumers use >16B to gate sret.
+ *   · LINUX+MACOS x86_64 SysV sret (rdi hidden dest for >16B return)
+ *   · MACOS|ARM64 AAPCS64 x8 (wave591)
+ */
+static int32_t glue_func_return_byte_size_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t func_index) {
+  int32_t rty;
+  int32_t k;
+  if (!mod || !arena || func_index < 0 || func_index >= (int32_t)mod->num_funcs)
+    return 0;
+  rty = pipeline_module_func_return_type_at(mod, func_index);
+  if (rty <= 0 || pipeline_type_kind_ord_at(arena, rty) == 15)
+    return 0;
+  /*
+   * wave417 Cap residual pure: TYPE_ARRAY return is E* (wave352 host __xlang_ar /
+   * freestanding durable ptr in rax), not SysV MEMORY by-value of the payload.
+   * Root: glue_type_size_simple(T[N]) for i32[8]=32 → sret_active + stack ARRAY_LIT
+   * return → dangling after ret (Ubuntu ret_only SIGSEGV; host-C static green).
+   * G.7: same 8B ABI as TYPE_SLICE dual-GP data half / formal T[N] pointer home.
+   * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
+   */
+  k = pipeline_type_kind_ord_at(arena, rty);
+  if (k == (int32_t)ast_TypeKind_TYPE_ARRAY)
+    return 8;
+  return glue_type_size_simple(mod, arena, rty, 0);
 }
