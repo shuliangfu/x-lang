@@ -11759,74 +11759,21 @@ enum {
   GLUE_TYPECK_IMPORT_SELECT = 2,
 };
 
-/** typeck.x::typeck_import_path_segment_count 的静态辅助：统计 import 路径 `.` 分段数。 */
-static int32_t pipeline_typeck_import_path_segment_count_impl(const uint8_t *path, int32_t path_len) {
-  int32_t n;
-  int32_t ii;
-
-  if (!path || path_len <= 0)
-    return 0;
-  n = 1;
-  ii = 0;
-  while (ii < path_len) {
-    if (path[ii] == 46)
-      n = n + 1;
-    ii = ii + 1;
-  }
-  return n;
-}
-
-/** typeck.x::typeck_import_path_slice_equal 的静态辅助。 */
+/* wave1085-1088 G.7: import path/binding/select name comparison helpers migrated
+ * to pipeline_typeck_method_call.c EOF (import binding resolution sub-domain of
+ * method_call + generic UFCS). Static (non-extern): same-TU — fwd decls below
+ * (before all callsites L11893+) < method_call.c #include at L14053 < def EOF.
+ * Deps: pipeline_module_import_path_byte_at /
+ * pipeline_module_import_binding_name_len / pipeline_module_import_binding_name_byte_at /
+ * pipeline_module_import_select_name_len / pipeline_module_import_select_name_byte_at
+ * (all extern). PLATFORM: SHARED. */
+static int32_t pipeline_typeck_import_path_segment_count_impl(const uint8_t *path, int32_t path_len);
 static int32_t pipeline_typeck_import_path_slice_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t off,
-                                                            int32_t seg_len, uint8_t *nm, int32_t nm_len) {
-  int32_t i;
-
-  if (seg_len != nm_len || seg_len <= 0)
-    return 0;
-  i = 0;
-  while (i < seg_len) {
-    if (pipeline_module_import_path_byte_at(module, imp_ix, off + i) != nm[i])
-      return 0;
-    i = i + 1;
-  }
-  return 1;
-}
-
-/** typeck.x::typeck_import_binding_name_equal 的静态辅助。 */
+                                                            int32_t seg_len, uint8_t *nm, int32_t nm_len);
 static int32_t pipeline_typeck_import_binding_name_equal_impl(struct ast_Module *module, int32_t imp_ix, uint8_t *nm,
-                                                              int32_t nm_len) {
-  int32_t bl;
-  int32_t i;
-
-  bl = pipeline_module_import_binding_name_len(module, imp_ix);
-  if (bl != nm_len || nm_len <= 0)
-    return 0;
-  i = 0;
-  while (i < nm_len) {
-    if (pipeline_module_import_binding_name_byte_at(module, imp_ix, i) != nm[i])
-      return 0;
-    i = i + 1;
-  }
-  return 1;
-}
-
-/** typeck.x::typeck_import_select_name_equal 的静态辅助。 */
+                                                              int32_t nm_len);
 static int32_t pipeline_typeck_import_select_name_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t sel,
-                                                             uint8_t *nm, int32_t nm_len) {
-  int32_t sl;
-  int32_t i;
-
-  sl = pipeline_module_import_select_name_len(module, imp_ix, sel);
-  if (sl != nm_len || nm_len <= 0)
-    return 0;
-  i = 0;
-  while (i < nm_len) {
-    if (pipeline_module_import_select_name_byte_at(module, imp_ix, sel, i) != nm[i])
-      return 0;
-    i = i + 1;
-  }
-  return 1;
-}
+                                                             uint8_t *nm, int32_t nm_len);
 
 /**
  * typeck.x::resolve_whole_import_qualified_call_return_type 的 C 委托：
@@ -13059,237 +13006,40 @@ int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32
   return pipeline_block_set_let_type_ref(arena, block_ref, let_idx, stamped);
 }
 
-/** 统计模块内同名非 extern 函数个数（>1 时须 overload 分派 + mangled 符号）。 */
-static int32_t pipeline_module_func_overload_count_c(struct ast_Module *m, uint8_t *name, int32_t name_len) {
-  int32_t i;
-  int32_t c;
-  if (!m || name_len <= 0 || !name)
-    return 0;
-  c = 0;
-  for (i = 0; i < m->num_funcs; i++) {
-    if (pipeline_asm_module_func_is_extern_at(m, i) != 0)
-      continue;
-    if (pipeline_module_func_name_equal_at(m, i, name, name_len))
-      c++;
-  }
-  return c;
-}
+/* wave1089 G.7: pipeline_module_func_overload_count_c migrated to
+ * pipeline_typeck_method_call.c EOF (overload gating sub-domain of method call
+ * resolution). Static (non-extern): same-TU — static fwd decl at glue.c:12315
+ * (before all callsites L13176+) < method_call.c #include at L14053 < def EOF.
+ * Deps: pipeline_asm_module_func_is_extern_at / pipeline_module_func_name_equal_at
+ * (both extern). PLATFORM: SHARED. */
+static int32_t pipeline_module_func_overload_count_c(struct ast_Module *m, uint8_t *name, int32_t name_len);
 
-/**
- * overload 实参是否可赋给形参（对齐 typeck.c type_assignable_to 的子集；精确匹配优先于隐式拓宽）。
- */
-static int32_t pipeline_typeck_call_arg_assignable_c(struct ast_ASTArena *arena, int32_t arg_ref, int32_t param_ref) {
-  int32_t arg_ty;
-  int32_t arg_kind;
-  int32_t param_kind;
-  int32_t arg_kind_ord;
-  int32_t as_tgt;
-  if (!arena || arg_ref <= 0 || param_ref <= 0)
-    return 0;
-  arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
-  arg_ty = pipeline_typeck_expr_type_ref_c(arena, arg_ref);
-  if (arg_kind == (int32_t)ast_ExprKind_EXPR_AS) {
-    as_tgt = pipeline_expr_as_target_type_ref_at(arena, arg_ref);
-    if (!ast_ref_is_null(as_tgt))
-      arg_ty = as_tgt;
-  }
-  param_kind = pipeline_type_kind_ord_at(arena, param_ref);
-  if (arg_ty > 0) {
-    if (pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_ref))
-      return 1;
-    arg_kind_ord = pipeline_type_kind_ord_at(arena, arg_ty);
-    /* wave313: refs path so NAMED i8/i16/u16 call-arg widen scores green. */
-    if (pipeline_typeck_integer_widen_ok_refs_c(arena, param_ref, arg_ty))
-      return 1;
-    /* wave314: f32→f64 call-arg widen. */
-    if (pipeline_typeck_float_widen_ok_c(param_kind, arg_kind_ord))
-      return 1;
-    /** M-3：slice 元素相同即可匹配 overload（域在 CALL 后单独查）。 */
-    if (param_kind == (int32_t)ast_TypeKind_TYPE_SLICE && arg_kind_ord == (int32_t)ast_TypeKind_TYPE_SLICE) {
-      int32_t pe = pipeline_type_elem_ref_at(arena, param_ref);
-      int32_t ae = pipeline_type_elem_ref_at(arena, arg_ty);
-      if (pe > 0 && ae > 0 && pipeline_typeck_type_refs_equal_c(arena, pe, ae))
-        return 1;
-    }
-    /** array/T → *T 衰减：`buf: u8[N]` 调用 `to_buf(buf: *u8, ...)`。 */
-    if (param_kind == (int32_t)ast_TypeKind_TYPE_PTR && arg_kind_ord == (int32_t)ast_TypeKind_TYPE_ARRAY) {
-      int32_t pe = pipeline_type_elem_ref_at(arena, param_ref);
-      int32_t ae = pipeline_type_elem_ref_at(arena, arg_ty);
-      if (pe > 0 && ae > 0 && pipeline_typeck_type_refs_equal_c(arena, pe, ae))
-        return 1;
-    }
-    return 0;
-  }
-  /** resolved_type 未填时按字面量形态匹配（CALL 分派前常见）。 */
-  if (arg_kind == (int32_t)ast_ExprKind_EXPR_LIT) {
-    int32_t iv = pipeline_expr_int_val_at(arena, arg_ref);
-    if (param_kind == (int32_t)ast_TypeKind_TYPE_I32 || param_kind == (int32_t)ast_TypeKind_TYPE_I64)
-      return 1;
-    if (param_kind == (int32_t)ast_TypeKind_TYPE_U32 && iv >= 0)
-      return 1;
-    if (param_kind == (int32_t)ast_TypeKind_TYPE_USIZE && iv >= 0)
-      return 1;
-    if (param_kind == (int32_t)ast_TypeKind_TYPE_U8 && iv >= 0 && iv <= 255)
-      return 1;
-  }
-  /*
-   * wave332: bare ARRAY_LIT vs TYPE_SLICE / TYPE_ARRAY formal — resolve runs before
-   * post-resolve stamp in check_call_slice_region; accept for overload score (elem
-   * coerce later via array_vector_lit). PLATFORM: SHARED.
-   */
-  if (arg_kind == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT &&
-      (param_kind == (int32_t)ast_TypeKind_TYPE_SLICE ||
-       param_kind == (int32_t)ast_TypeKind_TYPE_ARRAY))
-    return 1;
-  return 0;
-}
-
-/** 单候选 overload 与 CALL 实参的匹配得分；不匹配返回 -1（精确 +1000，可赋 +1）。
- * PLATFORM: SHARED — also +5000 when return type matches typeck_overload_expected_ret_peek
- * (let v: Vec_u8 = new() / zero-arg overload). Aligns with typeck.x
- * find_func_return_type_in_module_by_name_overload expected-return bonus. */
-/*
- * PLATFORM: SHARED — arg score only. Expected return is applied as a *secondary key*
- * in pipeline_typeck_pick_overload_func_index_c (must not fold +5000 here: outer main i32
- * as expected_ret made get_Vec_i32 beat exact Vec_u16 — vec_u16 BLD001).
- * Align with strict_minimal pick + typeck.x by_name_overload.
- */
+/* wave1090-1094 G.7: overload resolution domain (call_arg_assignable + match_score
+ * + expect_match + pick_overload + resolve_call_func_index) migrated to
+ * pipeline_typeck_method_call.c EOF (overload dispatch sub-domain of method call).
+ * Static (non-extern): same-TU — fwd decls below (before all callsites L12695+,
+ * L13233+ wrappers, L13360+, L13743+) < method_call.c #include at L14053 < def EOF.
+ * resolve_call_func_index_c also has static fwd decl at glue.c:12315 (before
+ * callsite L12695). Deps: pipeline_expr_kind_ord_at / pipeline_typeck_expr_type_ref_c
+ * / pipeline_expr_as_target_type_ref_at / pipeline_type_kind_ord_at /
+ * pipeline_typeck_type_refs_equal_c / pipeline_typeck_integer_widen_ok_refs_c
+ * (static, fwd decl at glue.c:10381) / pipeline_typeck_float_widen_ok_c (static,
+ * fwd decl at glue.c:10354) / pipeline_type_elem_ref_at / pipeline_expr_int_val_at
+ * / pipeline_expr_call_num_args_at / pipeline_module_func_num_params_at /
+ * pipeline_expr_call_arg_ref / pipeline_module_func_param_type_ref_at /
+ * pipeline_module_func_return_type_at / typeck_overload_expected_ret_peek
+ * (extern, declared in-function-body) / pipeline_expr_call_callee_ref_at /
+ * pipeline_arena_expr_ptr / pipeline_asm_module_func_is_extern_at /
+ * pipeline_module_func_name_equal_at / pipeline_expr_apply_call_resolve /
+ * pipeline_expr_call_resolved_func_index_at (all extern unless noted).
+ * PLATFORM: SHARED. */
+static int32_t pipeline_typeck_call_arg_assignable_c(struct ast_ASTArena *arena, int32_t arg_ref, int32_t param_ref);
 static int32_t pipeline_typeck_overload_match_score_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
-                                                      int32_t call_expr_ref) {
-  int32_t num_args;
-  int32_t np;
-  int32_t i;
-  int32_t score;
-  int32_t arg_ref;
-  int32_t param_ref;
-  if (!m || !a || func_ix < 0 || call_expr_ref <= 0)
-    return -1;
-  num_args = pipeline_expr_call_num_args_at(a, call_expr_ref);
-  np = pipeline_module_func_num_params_at(m, func_ix);
-  if (num_args != np)
-    return -1;
-  score = 0;
-  for (i = 0; i < num_args; i++) {
-    arg_ref = pipeline_expr_call_arg_ref(a, call_expr_ref, i);
-    param_ref = pipeline_module_func_param_type_ref_at(m, func_ix, i);
-    if (!pipeline_typeck_call_arg_assignable_c(a, arg_ref, param_ref))
-      return -1;
-    if (pipeline_typeck_type_refs_equal_c(
-            a, pipeline_typeck_expr_type_ref_c(a, arg_ref),
-            param_ref) ||
-        (pipeline_expr_kind_ord_at(a, arg_ref) == (int32_t)ast_ExprKind_EXPR_AS &&
-         pipeline_typeck_type_refs_equal_c(a, pipeline_expr_as_target_type_ref_at(a, arg_ref), param_ref)))
-      score += 1000;
-    else
-      score += 1;
-  }
-  return score;
-}
-
-/** 1 if func return matches typeck_overload_expected_ret_peek (let/assign context). */
+                                                      int32_t call_expr_ref);
 static int32_t pipeline_typeck_overload_expect_match_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                       int32_t func_ix) {
-  int32_t expect_ty;
-  int32_t rtr;
-  extern int32_t typeck_overload_expected_ret_peek(void);
-  if (!m || !a || func_ix < 0)
-    return 0;
-  expect_ty = typeck_overload_expected_ret_peek();
-  if (expect_ty <= 0)
-    return 0;
-  rtr = pipeline_module_func_return_type_at(m, func_ix);
-  if (rtr > 0 && pipeline_typeck_type_refs_equal_c(a, rtr, expect_ty) != 0)
-    return 1;
-  return 0;
-}
-
-/**
- * 按实参类型在模块内选取唯一 overload；成功返回 funcs[] 下标，无 overload/未找到/歧义返回 -1。
- */
+                                                       int32_t func_ix);
 static int32_t pipeline_typeck_pick_overload_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                          int32_t call_expr_ref) {
-  int32_t callee_ref;
-  struct ast_Expr *callee_ex;
-  int32_t i;
-  int32_t best_ix;
-  int32_t best_score;
-  int32_t best_expect;
-  int32_t n_at_best;
-  int32_t sc;
-  int32_t em;
-  if (!m || !a || call_expr_ref <= 0)
-    return -1;
-  callee_ref = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
-  if (callee_ref <= 0)
-    return -1;
-  callee_ex = pipeline_arena_expr_ptr(a, callee_ref);
-  if (!callee_ex || callee_ex->kind != ast_ExprKind_EXPR_VAR || callee_ex->var_name_len <= 0)
-    return -1;
-  if (pipeline_module_func_overload_count_c(m, callee_ex->var_name, callee_ex->var_name_len) <= 1)
-    return -1;
-  best_ix = -1;
-  best_score = -1;
-  best_expect = -1;
-  n_at_best = 0;
-  for (i = 0; i < m->num_funcs; i++) {
-    if (pipeline_asm_module_func_is_extern_at(m, i) != 0)
-      continue;
-    if (!pipeline_module_func_name_equal_at(m, i, callee_ex->var_name, callee_ex->var_name_len))
-      continue;
-    sc = pipeline_typeck_overload_match_score_c(m, a, i, call_expr_ref);
-    if (sc < 0)
-      continue;
-    em = pipeline_typeck_overload_expect_match_c(m, a, i);
-    if (sc > best_score || (sc == best_score && em > best_expect)) {
-      best_ix = i;
-      best_score = sc;
-      best_expect = em;
-      n_at_best = 1;
-    } else if (sc == best_score && em == best_expect) {
-      n_at_best++;
-    }
-  }
-  /* Ambiguous only when arg score *and* expect_match tie across multiple overloads. */
-  if (best_ix < 0 || n_at_best > 1)
-    return -1;
-  return best_ix;
-}
-
-static int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                         int32_t call_expr_ref) {
-  int32_t fx;
-  int32_t picked;
-  int32_t callee_ref;
-  struct ast_Expr *callee_ex;
-  int32_t i;
-  if (!m || !a || call_expr_ref <= 0)
-    return -1;
-  callee_ref = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
-  if (callee_ref > 0) {
-    callee_ex = pipeline_arena_expr_ptr(a, callee_ref);
-    if (callee_ex && callee_ex->kind == ast_ExprKind_EXPR_VAR && callee_ex->var_name_len > 0 &&
-        pipeline_module_func_overload_count_c(m, callee_ex->var_name, callee_ex->var_name_len) > 1) {
-      picked = pipeline_typeck_pick_overload_func_index_c(m, a, call_expr_ref);
-      if (picked >= 0) {
-        pipeline_expr_apply_call_resolve(a, call_expr_ref, -1, picked);
-        return picked;
-      }
-    }
-  }
-  fx = pipeline_expr_call_resolved_func_index_at(a, call_expr_ref);
-  if (fx >= 0)
-    return fx;
-  if (callee_ref <= 0)
-    return -1;
-  callee_ex = pipeline_arena_expr_ptr(a, callee_ref);
-  if (!callee_ex || callee_ex->kind != ast_ExprKind_EXPR_VAR || callee_ex->var_name_len <= 0)
-    return -1;
-  for (i = 0; i < m->num_funcs; i++) {
-    if (pipeline_module_func_name_equal_at(m, i, callee_ex->var_name, callee_ex->var_name_len))
-      return i;
-  }
-  return -1;
-}
+                                                          int32_t call_expr_ref);
 
 /** asm CALL/func emit：解析 CALL 目标 func 下标（含 overload 分派）；供 backend_call_dispatch.c 使用。 */
 int32_t pipeline_typeck_resolve_call_func_index_for_emit_c(struct ast_Module *m, struct ast_ASTArena *a,

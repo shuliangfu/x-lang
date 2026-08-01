@@ -1058,3 +1058,547 @@ static int32_t pipeline_typeck_call_arg_effective_type_c(struct ast_ASTArena *ar
   }
   return 0;
 }
+
+/**
+ * Count `.`-separated segments in an import path string.
+ *
+ * Why: typeck.x::typeck_import_path_segment_count needs to know how many dotted
+ * segments an import path carries (e.g. `a.b.c` → 3) so the binding resolver
+ * can iterate matching dep imports segment-by-segment. Bare copy of the loop
+ * lived inline in glue.c; centralizing here keeps the import path domain with
+ * the call/import binding authority.
+ *
+ * Invariant: returns 0 for NULL path or path_len <= 0; otherwise returns the
+ * segment count (a path with no dots yields 1).
+ *
+ * Asm/Perf: O(n) — single byte scan. Cold path — called per import path
+ * resolution in pipeline_typeck_map_import_binding_named_to_caller_c
+ * (glue.c:11893).
+ *
+ * PLATFORM: SHARED — import path lexing is platform-independent.
+ *
+ * wave1085 G.7: migrated from glue.c:11763 (body 15 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:11762 (before all callsites L11893+) <
+ * method_call.c #include at L14053 < def EOF. Dependencies: none (pure byte
+ * scan over caller-provided buffer).
+ */
+static int32_t pipeline_typeck_import_path_segment_count_impl(const uint8_t *path, int32_t path_len) {
+  int32_t n;
+  int32_t ii;
+
+  if (!path || path_len <= 0)
+    return 0;
+  n = 1;
+  ii = 0;
+  while (ii < path_len) {
+    if (path[ii] == 46)
+      n = n + 1;
+    ii = ii + 1;
+  }
+  return n;
+}
+
+/**
+ * Compare one import path slice (offset + seg_len) against a name buffer.
+ *
+ * Why: typeck.x::typeck_import_path_slice_equal verifies that a contiguous
+ * sub-slice of an import path (e.g. one segment between dots) equals a candidate
+ * name. Used by the binding resolver to walk dep imports segment-by-segment
+ * and by the layer-buffer path matching for nested re-exports.
+ *
+ * Invariant: returns 0 for unequal lengths or seg_len <= 0; returns 1 iff all
+ * seg_len bytes match. Module/imp_ix must be valid (caller-checked).
+ *
+ * Asm/Perf: O(n) — single byte loop. Cold path — called in
+ * pipeline_typeck_map_import_binding_named_to_caller_c (glue.c:11899/11918).
+ *
+ * PLATFORM: SHARED — import path slice compare is platform-independent.
+ *
+ * wave1086 G.7: migrated from glue.c:11780 (body 14 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:11762 (before all callsites L11899+) <
+ * method_call.c #include at L14053 < def EOF. Dependencies:
+ * pipeline_module_import_path_byte_at (extern).
+ */
+static int32_t pipeline_typeck_import_path_slice_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t off,
+                                                            int32_t seg_len, uint8_t *nm, int32_t nm_len) {
+  int32_t i;
+
+  if (seg_len != nm_len || seg_len <= 0)
+    return 0;
+  i = 0;
+  while (i < seg_len) {
+    if (pipeline_module_import_path_byte_at(module, imp_ix, off + i) != nm[i])
+      return 0;
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * Compare one import binding name (the `as` alias or declared name) against nm.
+ *
+ * Why: typeck.x::typeck_import_binding_name_equal is used by the binding
+ * resolver to find the dep import whose binding name matches a candidate
+ * (e.g. when resolving `math.floor`, the resolver walks dep imports looking
+ * for the one bound to `math`). Centralizing here keeps the import binding
+ * name comparison with the import path authority.
+ *
+ * Invariant: returns 0 for unequal lengths or nm_len <= 0; returns 1 iff all
+ * nm_len bytes match. Module/imp_ix must be valid (caller-checked).
+ *
+ * Asm/Perf: O(n) — single byte loop. Cold path — called in
+ * pipeline_typeck_map_import_binding_named_to_caller_c (glue.c:12025).
+ *
+ * PLATFORM: SHARED — import binding name compare is platform-independent.
+ *
+ * wave1087 G.7: migrated from glue.c:11796 (body 16 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:11762 (before all callsites L12025+) <
+ * method_call.c #include at L14053 < def EOF. Dependencies:
+ * pipeline_module_import_binding_name_len /
+ * pipeline_module_import_binding_name_byte_at (both extern).
+ */
+static int32_t pipeline_typeck_import_binding_name_equal_impl(struct ast_Module *module, int32_t imp_ix, uint8_t *nm,
+                                                              int32_t nm_len) {
+  int32_t bl;
+  int32_t i;
+
+  bl = pipeline_module_import_binding_name_len(module, imp_ix);
+  if (bl != nm_len || nm_len <= 0)
+    return 0;
+  i = 0;
+  while (i < nm_len) {
+    if (pipeline_module_import_binding_name_byte_at(module, imp_ix, i) != nm[i])
+      return 0;
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * Compare one import select name (a sub-binding inside a multi-name import)
+ * against nm at the given select index.
+ *
+ * Why: typeck.x::typeck_import_select_name_equal is used when an import
+ * exposes multiple names (e.g. `from foo import {a, b}`); the resolver walks
+ * each select slot comparing against the candidate name. Centralizing here
+ * keeps the select-name compare with the import binding authority.
+ *
+ * Invariant: returns 0 for unequal lengths or nm_len <= 0; returns 1 iff all
+ * nm_len bytes match. Module/imp_ix/sel must be valid (caller-checked).
+ *
+ * Asm/Perf: O(n) — single byte loop. Cold path — called in
+ * pipeline_typeck_map_import_binding_named_to_caller_c (glue.c:12106).
+ *
+ * PLATFORM: SHARED — import select name compare is platform-independent.
+ *
+ * wave1088 G.7: migrated from glue.c:11814 (body 16 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:11762 (before all callsites L12106+) <
+ * method_call.c #include at L14053 < def EOF. Dependencies:
+ * pipeline_module_import_select_name_len /
+ * pipeline_module_import_select_name_byte_at (both extern).
+ */
+static int32_t pipeline_typeck_import_select_name_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t sel,
+                                                             uint8_t *nm, int32_t nm_len) {
+  int32_t sl;
+  int32_t i;
+
+  sl = pipeline_module_import_select_name_len(module, imp_ix, sel);
+  if (sl != nm_len || nm_len <= 0)
+    return 0;
+  i = 0;
+  while (i < nm_len) {
+    if (pipeline_module_import_select_name_byte_at(module, imp_ix, sel, i) != nm[i])
+      return 0;
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * Count non-extern funcs in module m whose name equals (name, name_len).
+ *
+ * Why: typeck.x::find_func_return_type_in_module_by_name_overload and the
+ * CALL overload dispatcher both need to know whether a callee name resolves
+ * to more than one candidate (i.e. is overload-worthy). Without this gate the
+ * dispatcher would always run the full scoring loop even for unique names.
+ * Centralizing here keeps overload gating with the call resolution authority.
+ *
+ * Invariant: returns 0 for NULL m/name or name_len <= 0; otherwise returns
+ * the count of non-extern funcs whose name matches. Extern funcs are skipped
+ * (they are resolved via import binding, not overload).
+ *
+ * Asm/Perf: O(num_funcs) — linear scan with name compare. Cold path — called
+ * in pipeline_typeck_pick_overload_func_index_c (glue.c:13228) and
+ * pipeline_typeck_resolve_call_func_index_c (glue.c:13271).
+ *
+ * PLATFORM: SHARED — overload count is platform-independent.
+ *
+ * wave1089 G.7: migrated from glue.c:13063 (body 14 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:12367 (before all callsites L13228+) <
+ * method_call.c #include at L14053 < def EOF. Dependencies:
+ * pipeline_asm_module_func_is_extern_at /
+ * pipeline_module_func_name_equal_at (both extern).
+ */
+static int32_t pipeline_module_func_overload_count_c(struct ast_Module *m, uint8_t *name, int32_t name_len) {
+  int32_t i;
+  int32_t c;
+  if (!m || name_len <= 0 || !name)
+    return 0;
+  c = 0;
+  for (i = 0; i < m->num_funcs; i++) {
+    if (pipeline_asm_module_func_is_extern_at(m, i) != 0)
+      continue;
+    if (pipeline_module_func_name_equal_at(m, i, name, name_len))
+      c++;
+  }
+  return c;
+}
+
+/**
+ * Predicate: can a call arg (arg_ref) be assigned to a param (param_ref)?
+ *
+ * Why: typeck.x::type_assignable_to subset for overload scoring — exact match
+ * wins, then implicit integer widen (NAMED i8/i16/u16 + first-class), then
+ * f32→f64 float widen, then slice-element equivalence, then array→ptr decay.
+ * Without this predicate, pipeline_typeck_overload_match_score_c could not
+ * reject mismatched candidates and would over-score. Centralizing here keeps
+ * the assignability gate with the overload scoring authority.
+ *
+ * Invariant: returns 0 for NULL arena, invalid arg_ref/param_ref, or no
+ * assignable path; returns 1 iff arg can be assigned to param via the
+ * supported implicit conversions. EXPR_AS uses its target type_ref as arg_ty
+ * when present. Bare EXPR_LIT falls back to literal-form matching against
+ * param_kind (i32/i64/u32/usize/u8 with iv range gate). Bare ARRAY_LIT
+ * matches TYPE_SLICE/TYPE_ARRAY formals (post-stamp elem coerce in
+ * check_call_slice_region).
+ *
+ * Asm/Perf: O(1) — kind/type reads + equality checks + widen matrix calls.
+ * Cold path — called per (arg, param) pair in
+ * pipeline_typeck_overload_match_score_c (glue.c:13113 via wrapper).
+ *
+ * PLATFORM: SHARED — overload assignability is platform-independent.
+ *
+ * wave1090 G.7: migrated from glue.c:13019 (body 65 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:13015 (before all callsites) <
+ * method_call.c #include at L14053 < def EOF. Dependencies:
+ * pipeline_expr_kind_ord_at / pipeline_typeck_expr_type_ref_c /
+ * pipeline_expr_as_target_type_ref_at / pipeline_type_kind_ord_at /
+ * pipeline_typeck_type_refs_equal_c / pipeline_typeck_integer_widen_ok_refs_c
+ * (static, fwd decl at glue.c:10381) / pipeline_typeck_float_widen_ok_c
+ * (static, fwd decl at glue.c:10354) / pipeline_type_elem_ref_at /
+ * pipeline_expr_int_val_at (all extern).
+ */
+static int32_t pipeline_typeck_call_arg_assignable_c(struct ast_ASTArena *arena, int32_t arg_ref, int32_t param_ref) {
+  int32_t arg_ty;
+  int32_t arg_kind;
+  int32_t param_kind;
+  int32_t arg_kind_ord;
+  int32_t as_tgt;
+  if (!arena || arg_ref <= 0 || param_ref <= 0)
+    return 0;
+  arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
+  arg_ty = pipeline_typeck_expr_type_ref_c(arena, arg_ref);
+  if (arg_kind == (int32_t)ast_ExprKind_EXPR_AS) {
+    as_tgt = pipeline_expr_as_target_type_ref_at(arena, arg_ref);
+    if (!ast_ref_is_null(as_tgt))
+      arg_ty = as_tgt;
+  }
+  param_kind = pipeline_type_kind_ord_at(arena, param_ref);
+  if (arg_ty > 0) {
+    if (pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_ref))
+      return 1;
+    arg_kind_ord = pipeline_type_kind_ord_at(arena, arg_ty);
+    /* wave313: refs path so NAMED i8/i16/u16 call-arg widen scores green. */
+    if (pipeline_typeck_integer_widen_ok_refs_c(arena, param_ref, arg_ty))
+      return 1;
+    /* wave314: f32→f64 call-arg widen. */
+    if (pipeline_typeck_float_widen_ok_c(param_kind, arg_kind_ord))
+      return 1;
+    /** M-3: slice element same → overload match (region checked after CALL). */
+    if (param_kind == (int32_t)ast_TypeKind_TYPE_SLICE && arg_kind_ord == (int32_t)ast_TypeKind_TYPE_SLICE) {
+      int32_t pe = pipeline_type_elem_ref_at(arena, param_ref);
+      int32_t ae = pipeline_type_elem_ref_at(arena, arg_ty);
+      if (pe > 0 && ae > 0 && pipeline_typeck_type_refs_equal_c(arena, pe, ae))
+        return 1;
+    }
+    /** array/T → *T decay: `buf: u8[N]` calls `to_buf(buf: *u8, ...)`. */
+    if (param_kind == (int32_t)ast_TypeKind_TYPE_PTR && arg_kind_ord == (int32_t)ast_TypeKind_TYPE_ARRAY) {
+      int32_t pe = pipeline_type_elem_ref_at(arena, param_ref);
+      int32_t ae = pipeline_type_elem_ref_at(arena, arg_ty);
+      if (pe > 0 && ae > 0 && pipeline_typeck_type_refs_equal_c(arena, pe, ae))
+        return 1;
+    }
+    return 0;
+  }
+  /** resolved_type unset → literal-form match (common before CALL dispatch). */
+  if (arg_kind == (int32_t)ast_ExprKind_EXPR_LIT) {
+    int32_t iv = pipeline_expr_int_val_at(arena, arg_ref);
+    if (param_kind == (int32_t)ast_TypeKind_TYPE_I32 || param_kind == (int32_t)ast_TypeKind_TYPE_I64)
+      return 1;
+    if (param_kind == (int32_t)ast_TypeKind_TYPE_U32 && iv >= 0)
+      return 1;
+    if (param_kind == (int32_t)ast_TypeKind_TYPE_USIZE && iv >= 0)
+      return 1;
+    if (param_kind == (int32_t)ast_TypeKind_TYPE_U8 && iv >= 0 && iv <= 255)
+      return 1;
+  }
+  /*
+   * wave332: bare ARRAY_LIT vs TYPE_SLICE / TYPE_ARRAY formal — resolve runs before
+   * post-resolve stamp in check_call_slice_region; accept for overload score (elem
+   * coerce later via array_vector_lit). PLATFORM: SHARED.
+   */
+  if (arg_kind == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT &&
+      (param_kind == (int32_t)ast_TypeKind_TYPE_SLICE ||
+       param_kind == (int32_t)ast_TypeKind_TYPE_ARRAY))
+    return 1;
+  return 0;
+}
+
+/**
+ * Score one overload candidate against a CALL's args.
+ *
+ * Why: typeck.x::find_func_return_type_in_module_by_name_overload scores each
+ * same-named candidate by per-arg assignability — exact type match gives
+ * +1000, implicit-widen assignable gives +1, unassignable rejects (-1). This
+ * is the inner loop of pipeline_typeck_pick_overload_func_index_c. Expected
+ * return bonus is NOT folded here (kept as secondary key in pick) to avoid
+ * vec_u16 BLD001 false-win where outer expected i32 made get_Vec_i32 beat
+ * exact Vec_u16.
+ *
+ * Invariant: returns -1 for NULL m/a, invalid func_ix/call_expr_ref, arg count
+ * mismatch, or any unassignable arg; otherwise returns the per-arg score sum.
+ *
+ * Asm/Perf: O(num_args) — per-arg assignability check. Cold path — called per
+ * candidate in pipeline_typeck_pick_overload_func_index_c (glue.c:13177).
+ *
+ * PLATFORM: SHARED — overload scoring is platform-independent.
+ *
+ * wave1091 G.7: migrated from glue.c:13095 (body 31 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:13015 (before all callsites) <
+ * method_call.c #include at L14053 < def EOF. Dependencies:
+ * pipeline_expr_call_num_args_at / pipeline_module_func_num_params_at /
+ * pipeline_expr_call_arg_ref / pipeline_module_func_param_type_ref_at /
+ * pipeline_typeck_type_refs_equal_c / pipeline_typeck_expr_type_ref_c /
+ * pipeline_expr_kind_ord_at / pipeline_expr_as_target_type_ref_at /
+ * pipeline_typeck_call_arg_assignable_c (same file, def above) (all extern
+ * except call_arg_assignable_c).
+ */
+static int32_t pipeline_typeck_overload_match_score_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
+                                                      int32_t call_expr_ref) {
+  int32_t num_args;
+  int32_t np;
+  int32_t i;
+  int32_t score;
+  int32_t arg_ref;
+  int32_t param_ref;
+  if (!m || !a || func_ix < 0 || call_expr_ref <= 0)
+    return -1;
+  num_args = pipeline_expr_call_num_args_at(a, call_expr_ref);
+  np = pipeline_module_func_num_params_at(m, func_ix);
+  if (num_args != np)
+    return -1;
+  score = 0;
+  for (i = 0; i < num_args; i++) {
+    arg_ref = pipeline_expr_call_arg_ref(a, call_expr_ref, i);
+    param_ref = pipeline_module_func_param_type_ref_at(m, func_ix, i);
+    if (!pipeline_typeck_call_arg_assignable_c(a, arg_ref, param_ref))
+      return -1;
+    if (pipeline_typeck_type_refs_equal_c(
+            a, pipeline_typeck_expr_type_ref_c(a, arg_ref),
+            param_ref) ||
+        (pipeline_expr_kind_ord_at(a, arg_ref) == (int32_t)ast_ExprKind_EXPR_AS &&
+         pipeline_typeck_type_refs_equal_c(a, pipeline_expr_as_target_type_ref_at(a, arg_ref), param_ref)))
+      score += 1000;
+    else
+      score += 1;
+  }
+  return score;
+}
+
+/**
+ * Predicate: does func_ix's return type match the expected-return peek?
+ *
+ * Why: typeck_overload_expected_ret_peek captures the let/assign context's
+ * expected return type (e.g. `let v: Vec_u8 = new()` expects Vec_u8). This
+ * predicate is the secondary key in pick_overload — when arg scores tie, the
+ * candidate whose return matches the expected wins. Kept separate from
+ * match_score to preserve vec_u16 BLD001 fix (see match_score docblock).
+ *
+ * Invariant: returns 0 for NULL m/a, invalid func_ix, no expected-ret peek,
+ * or no return type match; returns 1 iff func return type matches peek.
+ *
+ * Asm/Perf: O(1) — one peek + one type_refs_equal. Cold path — called per
+ * candidate in pipeline_typeck_pick_overload_func_index_c (glue.c:13180).
+ *
+ * PLATFORM: SHARED — expected-return match is platform-independent.
+ *
+ * wave1092 G.7: migrated from glue.c:13128 (body 15 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:13015 (before all callsites) <
+ * method_call.c #include at L14053 < def EOF. Dependencies:
+ * typeck_overload_expected_ret_peek (extern, declared in-function-body) /
+ * pipeline_module_func_return_type_at / pipeline_typeck_type_refs_equal_c
+ * (both extern).
+ */
+static int32_t pipeline_typeck_overload_expect_match_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                       int32_t func_ix) {
+  int32_t expect_ty;
+  int32_t rtr;
+  extern int32_t typeck_overload_expected_ret_peek(void);
+  if (!m || !a || func_ix < 0)
+    return 0;
+  expect_ty = typeck_overload_expected_ret_peek();
+  if (expect_ty <= 0)
+    return 0;
+  rtr = pipeline_module_func_return_type_at(m, func_ix);
+  if (rtr > 0 && pipeline_typeck_type_refs_equal_c(a, rtr, expect_ty) != 0)
+    return 1;
+  return 0;
+}
+
+/**
+ * Pick the unique best overload for a CALL by arg score + expected-return tiebreak.
+ *
+ * Why: typeck.x::find_func_return_type_in_module_by_name_overload dispatches
+ * a CALL with multiple same-named candidates by scoring each via
+ * overload_match_score and breaking ties via overload_expect_match. Without
+ * this dispatcher, every CALL site would inline the scoring loop. Ambiguity
+ * (multiple candidates tie on both score and expect_match) returns -1 so the
+ * caller falls back to the resolved-func-index cache or name-only lookup.
+ *
+ * Invariant: returns -1 for NULL m/a, invalid call_expr_ref, callee not VAR,
+ * callee name not overloaded (count <= 1), no candidate matches, or
+ * ambiguity; otherwise returns the winning funcs[] index.
+ *
+ * Asm/Perf: O(num_funcs × num_args) — iterates funcs, scores matching ones.
+ * Cold path — called in pipeline_typeck_resolve_call_func_index_c
+ * (glue.c:13210) and pipeline_typeck_pick_overload_func_index_for_call_c
+ * wrapper (glue.c:13233+).
+ *
+ * PLATFORM: SHARED — overload dispatch is platform-independent.
+ *
+ * wave1093 G.7: migrated from glue.c:13147 (body 48 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:13015 (before all callsites) <
+ * method_call.c #include at L14053 < def EOF. Dependencies:
+ * pipeline_expr_call_callee_ref_at / pipeline_arena_expr_ptr /
+ * pipeline_module_func_overload_count_c (same file, def above) /
+ * pipeline_asm_module_func_is_extern_at / pipeline_module_func_name_equal_at
+ * / pipeline_typeck_overload_match_score_c (same file, def above) /
+ * pipeline_typeck_overload_expect_match_c (same file, def above) (mix).
+ */
+static int32_t pipeline_typeck_pick_overload_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                          int32_t call_expr_ref) {
+  int32_t callee_ref;
+  struct ast_Expr *callee_ex;
+  int32_t i;
+  int32_t best_ix;
+  int32_t best_score;
+  int32_t best_expect;
+  int32_t n_at_best;
+  int32_t sc;
+  int32_t em;
+  if (!m || !a || call_expr_ref <= 0)
+    return -1;
+  callee_ref = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
+  if (callee_ref <= 0)
+    return -1;
+  callee_ex = pipeline_arena_expr_ptr(a, callee_ref);
+  if (!callee_ex || callee_ex->kind != ast_ExprKind_EXPR_VAR || callee_ex->var_name_len <= 0)
+    return -1;
+  if (pipeline_module_func_overload_count_c(m, callee_ex->var_name, callee_ex->var_name_len) <= 1)
+    return -1;
+  best_ix = -1;
+  best_score = -1;
+  best_expect = -1;
+  n_at_best = 0;
+  for (i = 0; i < m->num_funcs; i++) {
+    if (pipeline_asm_module_func_is_extern_at(m, i) != 0)
+      continue;
+    if (!pipeline_module_func_name_equal_at(m, i, callee_ex->var_name, callee_ex->var_name_len))
+      continue;
+    sc = pipeline_typeck_overload_match_score_c(m, a, i, call_expr_ref);
+    if (sc < 0)
+      continue;
+    em = pipeline_typeck_overload_expect_match_c(m, a, i);
+    if (sc > best_score || (sc == best_score && em > best_expect)) {
+      best_ix = i;
+      best_score = sc;
+      best_expect = em;
+      n_at_best = 1;
+    } else if (sc == best_score && em == best_expect) {
+      n_at_best++;
+    }
+  }
+  /* Ambiguous only when arg score *and* expect_match tie across multiple overloads. */
+  if (best_ix < 0 || n_at_best > 1)
+    return -1;
+  return best_ix;
+}
+
+/**
+ * Resolve a CALL's target func index (overload-aware) for typeck + asm emit.
+ *
+ * Why: typeck.x::resolve_call_func_index is the single CALL→func_ix resolver
+ * used by both typeck check (struct stack-escape scan) and asm emit (CALL
+ * target mangle + param SSE class). When callee is overloaded (count > 1),
+ * delegates to pick_overload_func_index_c and stamps the resolved index back
+ * via pipeline_expr_apply_call_resolve. Otherwise falls back to the cached
+ * resolved_func_index, then to a name-only scan. Centralizing here keeps the
+ * CALL resolution authority with the overload dispatcher.
+ *
+ * Invariant: returns -1 for NULL m/a, invalid call_expr_ref, callee not VAR,
+ * or no matching func; otherwise returns the funcs[] index. Stamps
+ * apply_call_resolve(-1, picked) when overload dispatch succeeds.
+ *
+ * Asm/Perf: O(num_funcs × num_args) worst case (overload dispatch); O(1) when
+ * cached resolved_func_index hits. Cold path — called in
+ * pipeline_typeck_check_call_struct_stack_escape_c (glue.c:12695),
+ * glue_asm_resolve_call_target_module_c (glue.c:13360), and CALL emit
+ * (glue.c:13743), plus the for_emit wrapper.
+ *
+ * PLATFORM: SHARED — CALL func index resolution is platform-independent.
+ *
+ * wave1094 G.7: migrated from glue.c:13196 (body 35 LOC). Static (non-extern):
+ * same-TU — static fwd decl at glue.c:12315 (existing, before callsite
+ * L12695) and glue.c:13015 (before wrapper L13233+) < method_call.c #include
+ * at L14053 < def EOF. Dependencies: pipeline_expr_call_callee_ref_at /
+ * pipeline_arena_expr_ptr / pipeline_module_func_overload_count_c (same file,
+ * def above) / pipeline_typeck_pick_overload_func_index_c (same file, def
+ * above) / pipeline_expr_apply_call_resolve /
+ * pipeline_expr_call_resolved_func_index_at /
+ * pipeline_module_func_name_equal_at (all extern).
+ */
+static int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                         int32_t call_expr_ref) {
+  int32_t fx;
+  int32_t picked;
+  int32_t callee_ref;
+  struct ast_Expr *callee_ex;
+  int32_t i;
+  if (!m || !a || call_expr_ref <= 0)
+    return -1;
+  callee_ref = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
+  if (callee_ref > 0) {
+    callee_ex = pipeline_arena_expr_ptr(a, callee_ref);
+    if (callee_ex && callee_ex->kind == ast_ExprKind_EXPR_VAR && callee_ex->var_name_len > 0 &&
+        pipeline_module_func_overload_count_c(m, callee_ex->var_name, callee_ex->var_name_len) > 1) {
+      picked = pipeline_typeck_pick_overload_func_index_c(m, a, call_expr_ref);
+      if (picked >= 0) {
+        pipeline_expr_apply_call_resolve(a, call_expr_ref, -1, picked);
+        return picked;
+      }
+    }
+  }
+  fx = pipeline_expr_call_resolved_func_index_at(a, call_expr_ref);
+  if (fx >= 0)
+    return fx;
+  if (callee_ref <= 0)
+    return -1;
+  callee_ex = pipeline_arena_expr_ptr(a, callee_ref);
+  if (!callee_ex || callee_ex->kind != ast_ExprKind_EXPR_VAR || callee_ex->var_name_len <= 0)
+    return -1;
+  for (i = 0; i < m->num_funcs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, callee_ex->var_name, callee_ex->var_name_len))
+      return i;
+  }
+  return -1;
+}
