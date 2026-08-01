@@ -165,4 +165,17 @@ for leaf in driver_fmt driver_check driver_test driver_build driver_run driver_e
   fi
 done
 
+# wave1041: Bespoke ladder-retired (not in catalog; -E is product path via
+# ensure_host_cc_seed_o.sh try-cfg-eval-ladder). G.7: ladder is single
+# authority for cfg_eval.o (ld -r alias merge unsupported by catalog).
+# Product: src/lexer/cfg_eval.x → -E → cfg_eval_gen.c → cc → cfg_eval_x.o
+# → ld -r with cfg_eval_link_alias.from_x.c → cfg_eval.o
+# Fallback: seeds/cfg_eval_gen.linux.x86_64.c (archaeology)
+echo ""
+echo "  Bespoke ladder-retired (not in catalog; -E product path via ensure_host_cc_seed_o.sh):"
+if grep -q 'try-cfg-eval-ladder' scripts/ensure_host_cc_seed_o.sh 2>/dev/null \
+   && grep -q 'Rung 1: live -E' scripts/ensure_host_cc_seed_o.sh 2>/dev/null; then
+  echo "    cfg_eval_gen.c (src/lexer/) — retired (try-cfg-eval-ladder: .x -E→ ld -r →o; seed=archaeology)"
+fi
+
 exit 0
