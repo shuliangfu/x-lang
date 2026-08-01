@@ -3906,84 +3906,13 @@ int32_t pipeline_asm_emit_block_if_stmt_elf(struct ast_ASTArena *arena, struct p
                                             int32_t cur_block, int32_t if_idx, struct backend_AsmFuncCtx *ctx,
                                             int32_t ta, int32_t stmt_i);
 
-/**
- * 定长数组 T[N] 在栈 temp 区占用字节（array_size * elem_sz）；非 ARRAY 返回 0。
- */
-static int32_t glue_fixed_array_temp_bytes(struct ast_ASTArena *arena, int32_t type_ref) {
-  struct ast_Type *t;
-  int32_t elem_ref;
-  int32_t esz;
-  int32_t bytes;
-  if (!arena || type_ref <= 0 || type_ref > arena->num_types)
-    return 0;
-  t = pipeline_arena_type_ptr(arena, type_ref);
-  if (!t || t->array_size <= 0)
-    return 0;
-  /** Struct[N]：与 typeck / asm_local_slot_bytes 同宽（SoA 列主序或 AoS N×layout）。 */
-  if (pipeline_type_kind_ord_at(arena, type_ref) == 10) {
-    bytes = glue_type_size_simple(g_pipeline_asm_emit_module, arena, type_ref, 0);
-    if (bytes > 0)
-      return bytes;
-  }
-  elem_ref = t->elem_type_ref;
-  esz = 4;
-  if (elem_ref > 0 && elem_ref <= arena->num_types) {
-    struct ast_Type *et = pipeline_arena_type_ptr(arena, elem_ref);
-    if (et) {
-      if (pipeline_type_kind_ord_at(arena, elem_ref) == 2)
-        esz = 1;
-      else if (pipeline_type_kind_ord_at(arena, elem_ref) == 8 ||
-               pipeline_type_kind_ord_at(arena, elem_ref) == 4 ||
-               pipeline_type_kind_ord_at(arena, elem_ref) == 5 ||
-               pipeline_type_kind_ord_at(arena, elem_ref) == 6 ||
-               pipeline_type_kind_ord_at(arena, elem_ref) == 14)
-        esz = 8;
-      else
-        esz = 4;
-    }
-  }
-  bytes = t->array_size * esz;
-  return bytes > 0 ? bytes : 0;
-}
-
-/**
- * 从 let 初始化表达式推导数组 temp 字节（let type_ref 缺失时回退到 init 的 resolved_type）。
- */
-static int32_t glue_array_temp_bytes_for_let_init(struct ast_ASTArena *arena, int32_t let_type_ref,
-                                                  int32_t init_ref) {
-  int32_t bytes;
-  bytes = glue_fixed_array_temp_bytes(arena, let_type_ref);
-  if (bytes > 0)
-    return bytes;
-  if (init_ref > 0) {
-    int32_t rt;
-    rt = pipeline_expr_resolved_type_ref(arena, init_ref);
-    bytes = glue_fixed_array_temp_bytes(arena, rt);
-    if (bytes > 0)
-      return bytes;
-    if (pipeline_expr_kind_ord_at(arena, init_ref) == 46) {
-      int32_t ne;
-      int32_t esz;
-      ne = ast_pipeline_expr_array_lit_num_elems_at(arena, init_ref);
-      if (ne > 0) {
-        esz = 4;
-        {
-          int32_t inner;
-          inner = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
-          if (inner > 0 && pipeline_type_kind_ord_at(arena, inner) == 2)
-            esz = 1;
-          else if (inner > 0 && (pipeline_type_kind_ord_at(arena, inner) == 8 ||
-                                 pipeline_type_kind_ord_at(arena, inner) == 4))
-            esz = 8;
-        }
-        bytes = ne * esz;
-        if (bytes > 0)
-          return bytes;
-      }
-    }
-  }
-  return 0;
-}
+/* wave1055 G.7: glue_fixed_array_temp_bytes + glue_array_temp_bytes_for_let_init
+ * migrated to pipeline_asm_emit_array_lit.c EOF (array temp sizing domain).
+ * Definitions visible via same-TU #include at L2299 < all callsites below
+ * (L4018/4042/6402/6483 + block_body.c:473/606 via #include at L4117).
+ * Dependencies (glue_type_size_simple fwd decl L1887 < 2299; public pipeline_*
+ * / ast_pipeline_* / pipeline_asm_array_lit_elem_type_ref @ L1278) all visible
+ * at array_lit.c. No fwd decl retained in glue.c — zero callsites before L2299. */
 
 /** 将 ctx->next_offset 向上对齐到 8 字节边界。 */
 static void glue_align_next_offset(struct backend_AsmFuncCtx *ctx) {

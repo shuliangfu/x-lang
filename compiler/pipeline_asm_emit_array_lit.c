@@ -17,8 +17,10 @@
  * emitter. Nested helpers: leaf_elem_byte_sz / flat_elf live in
  * pipeline_asm_emit_vector_let.c (same TU). scalar_elem_to_rax lives in
  * pipeline_asm_emit_as.c (float_lit twin). wave1021: durable_ptr +
- * force_esz_from_elem_type folded here. bump_next_offset +
- * slice_from_array_let_init remain in pipeline_glue.c (stack/temp deps).
+ * force_esz_from_elem_type folded here. wave1055: glue_fixed_array_temp_bytes +
+ * glue_array_temp_bytes_for_let_init folded here (array temp sizing domain).
+ * bump_next_offset + slice_from_array_let_init remain in pipeline_glue.c
+ * (stack/temp deps).
  *
  * Callers: expr_elf_rec, return_impl (force_esz), block_body/inits (empty check),
  * vector_let_init / durable COMMON fill paths in glue.
@@ -53,6 +55,10 @@ static int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena
                                                       int32_t ta, int32_t stack_slot_off, int32_t leaf_esz,
                                                       int32_t *flat_i);
 static int32_t glue_fixed_array_total_bytes_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t depth);
+/* wave1055: ast_pipeline_expr_array_lit_num_elems_at defined in ast_pool.c
+ * (glue.c:16314); forward decl at glue.c:3902 > this #include (L2299), so
+ * declare locally for glue_array_temp_bytes_for_let_init body (EOF below). */
+int32_t ast_pipeline_expr_array_lit_num_elems_at(struct ast_ASTArena *a, int32_t expr_ref);
 
 /* wave1021 durable fold: helpers defined earlier in pipeline_glue TU (lea/COMMON)
  * or later (align, dual_gp body, expr_rec). Prototypes keep static linkage. */
@@ -776,4 +782,135 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
   if (ta == 1)
     return glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen);
   return glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen);
+}
+
+/* wave1055 G.7 fold: glue_fixed_array_temp_bytes + glue_array_temp_bytes_for_let_init
+ * migrated here from pipeline_glue.c (definitions were at glue.c:3912/3952).
+ * Array temp sizing domain — fixed-array T[N] stack temp byte width, colocated
+ * with ARRAY_LIT emit (same domain; consumed by bump_next_offset +
+ * block_body.c let-init temp reservation + block stmt order let_const fold).
+ *
+ * Dependencies (all visible before this #include site at glue.c:2299):
+ * - glue_type_size_simple (forward decl above at L35; definition later in TU)
+ * - pipeline_arena_type_ptr / pipeline_type_kind_ord_at (public; visible)
+ * - pipeline_expr_resolved_type_ref / pipeline_expr_kind_ord_at (public)
+ * - ast_pipeline_expr_array_lit_num_elems_at (public; ast_pool.c)
+ * - pipeline_asm_array_lit_elem_type_ref (public; defined at glue.c:1278 < 2299)
+ * - g_pipeline_asm_emit_module (global; visible)
+ *
+ * No forward decl needed in array_lit.c: zero internal callsites before EOF.
+ * All external callsites (glue.c:4018/4042/6402/6483 + block_body.c:473/606)
+ * are after this #include at glue.c:2299 — definition visible via same-TU. */
+
+/**
+ * Byte width of a fixed-length array T[N] in the stack temp area.
+ *
+ * Why: §11.1 layout step — let a:T[N]=[] needs a temp slot sized array_size *
+ * elem_sz to hold the in-progress array before lea to the let home. Non-ARRAY
+ * types return 0 (caller falls back to scalar 8B). STRUCT[N] (kind_ord 10)
+ * delegates to glue_type_size_simple for SoA column-major or AoS N×layout
+ * width — must match typeck / asm_local_slot_bytes or csv buf/line overlap.
+ *
+ * Invariant: returns 0 for invalid arena/ref or array_size <= 0; otherwise
+ * returns array_size * elem_sz where elem_sz is 1 (u8/bool), 8 (ptr/i64/u64/
+ * usize/isize/f64/named), or 4 (default: i32/u32/f32). elem_sz table mirrors
+ * glue_type_align_simple scalar width (wave1054) — do not diverge.
+ *
+ * Asm/Perf: O(1) — single arena type ptr deref + kind_ord lookup; STRUCT[N]
+ * adds one glue_type_size_simple call (O(depth) bounded by 64). Cold path —
+ * called once per let-decl with array type during frame layout.
+ *
+ * PLATFORM: SHARED — pure type sizing; arch-agnostic.
+ */
+static int32_t glue_fixed_array_temp_bytes(struct ast_ASTArena *arena, int32_t type_ref) {
+  struct ast_Type *t;
+  int32_t elem_ref;
+  int32_t esz;
+  int32_t bytes;
+  if (!arena || type_ref <= 0 || type_ref > arena->num_types)
+    return 0;
+  t = pipeline_arena_type_ptr(arena, type_ref);
+  if (!t || t->array_size <= 0)
+    return 0;
+  /* Struct[N]: match typeck / asm_local_slot_bytes width (SoA or AoS N×layout). */
+  if (pipeline_type_kind_ord_at(arena, type_ref) == 10) {
+    bytes = glue_type_size_simple(g_pipeline_asm_emit_module, arena, type_ref, 0);
+    if (bytes > 0)
+      return bytes;
+  }
+  elem_ref = t->elem_type_ref;
+  esz = 4;
+  if (elem_ref > 0 && elem_ref <= arena->num_types) {
+    struct ast_Type *et = pipeline_arena_type_ptr(arena, elem_ref);
+    if (et) {
+      if (pipeline_type_kind_ord_at(arena, elem_ref) == 2)
+        esz = 1;
+      else if (pipeline_type_kind_ord_at(arena, elem_ref) == 8 ||
+               pipeline_type_kind_ord_at(arena, elem_ref) == 4 ||
+               pipeline_type_kind_ord_at(arena, elem_ref) == 5 ||
+               pipeline_type_kind_ord_at(arena, elem_ref) == 6 ||
+               pipeline_type_kind_ord_at(arena, elem_ref) == 14)
+        esz = 8;
+      else
+        esz = 4;
+    }
+  }
+  bytes = t->array_size * esz;
+  return bytes > 0 ? bytes : 0;
+}
+
+/**
+ * Derive array temp bytes from a let init (fallback to init resolved_type
+ * when let_type_ref is missing; fallback to ARRAY_LIT num_elems * elem_sz
+ * when type-based sizing misses).
+ *
+ * Why: let a:=[] may lack an explicit type_ref — the init's resolved_type
+ * or the ARRAY_LIT element count must size the temp slot. Without this
+ * fallback, `let a:=[]` would get 0 temp bytes and the subsequent lea to
+ * home would overlap the next let's slot (csv buf/line corruption).
+ *
+ * Invariant: returns 0 if no array sizing can be derived; otherwise returns
+ * glue_fixed_array_temp_bytes(let_type_ref) > 0, else
+ * glue_fixed_array_temp_bytes(init resolved_type) > 0, else
+ * ARRAY_LIT num_elems * elem_sz (kind_ord 46 == EXPR_ARRAY_LIT).
+ *
+ * Asm/Perf: O(1) — up to 2 glue_fixed_array_temp_bytes calls + 1 ARRAY_LIT
+ * elem type lookup. Cold path — once per let-decl during frame layout.
+ *
+ * PLATFORM: SHARED — pure type/init sizing; arch-agnostic.
+ */
+static int32_t glue_array_temp_bytes_for_let_init(struct ast_ASTArena *arena, int32_t let_type_ref,
+                                                  int32_t init_ref) {
+  int32_t bytes;
+  bytes = glue_fixed_array_temp_bytes(arena, let_type_ref);
+  if (bytes > 0)
+    return bytes;
+  if (init_ref > 0) {
+    int32_t rt;
+    rt = pipeline_expr_resolved_type_ref(arena, init_ref);
+    bytes = glue_fixed_array_temp_bytes(arena, rt);
+    if (bytes > 0)
+      return bytes;
+    if (pipeline_expr_kind_ord_at(arena, init_ref) == 46) {
+      int32_t ne;
+      int32_t esz;
+      ne = ast_pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+      if (ne > 0) {
+        esz = 4;
+        {
+          int32_t inner;
+          inner = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
+          if (inner > 0 && pipeline_type_kind_ord_at(arena, inner) == 2)
+            esz = 1;
+          else if (inner > 0 && (pipeline_type_kind_ord_at(arena, inner) == 8 ||
+                                 pipeline_type_kind_ord_at(arena, inner) == 4))
+            esz = 8;
+        }
+        bytes = ne * esz;
+        if (bytes > 0)
+          return bytes;
+      }
+    }
+  }
+  return 0;
 }
