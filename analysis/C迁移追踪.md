@@ -773,11 +773,11 @@
 
 ---
 
-## 阶段 8：Pinned gen.c 退役（部分完成 · 8/30）
+## 阶段 8：Pinned gen.c 退役（部分完成 · 11/30）
 
 > **定义**：compiler/ 顶层的 *_gen.c 是 pinned 生成器，产品链权威。Track L 退役 = 构建改用 *_x.o，pinned gen 仅考古。
 
-### 8.1 已退役的 pinned gen.c（8 个）
+### 8.1 已退役的 pinned gen.c（11 个）
 
 > 产品链 PREFER_X_O；工作区考古 gen 生产体 = `ensure_archaeology_gen.sh`
 
@@ -797,8 +797,14 @@
 
 ✅ **8.1.8 driver_compile_gen.c** R2 真迁（构建用 driver_compile_x.o；考古 shell）
 
+✅ **8.1.9 lsp_io_gen.c** Track L 退役 wave1036（构建用 lsp_io_x.o via `driver_leaf_x_to_o.sh` catalog；考古 `ensure_lsp_pipeline_gen.sh`；6 个级联符号重命名复刻 historic -D flags）
 
-### 8.2 仍需退役的 pinned gen.c（22 个 · 前端核心 + 工具链 + 测试）
+✅ **8.1.10 build_gen.c** Track L 退役 wave1038（构建用 `../build.x` via `./xlang -x -E` 生成；考古 `seeds/build_gen.c`；最小文件优先策略）
+
+✅ **8.1.11 build_runner_gen.c** Track L 退役 wave1039（构建用 `../build_runner.x` via `./xlang -x -E` 生成；考古 `seeds/build_runner_gen.c`；根源修复：9 处 extern 调用包裹 `unsafe{}` + `entry` 加 `#[no_mangle] export`）
+
+
+### 8.2 仍需退役的 pinned gen.c（19 个 · 前端核心 + 工具链 + 测试）
 
 ⬜ **8.2.1 parser_gen.c** pinned（Makefile L1760 · XLANG_FORCE_REGGEN=1 to regen）
 
@@ -825,7 +831,7 @@
 
 🟡 **8.2.6 lsp_diag_gen.c** pin/seed/-E → `ensure_lsp_pipeline_gen.sh`
 
-🟡 **8.2.7 lsp_io_gen.c** pin/seed/-E → `ensure_lsp_pipeline_gen.sh`
+✅ **8.2.7 ~~lsp_io_gen.c~~** 已退役 → 见 8.1.9（wave1036）
 
 🟡 **8.2.8 lsp_gen.c** pin/seed/-E + g_lsp_state_buf post → `ensure_lsp_pipeline_gen.sh`
 
@@ -851,13 +857,9 @@
   - AST 池 v1：src/ast/ast.x
   - 注意：与 ast_gen2.c 并存（双版本），需统一去 pin
 
-⬜ **8.2.14 build_gen.c** pinned（40 行 · seeds/build_gen.c）
+✅ **8.2.14 ~~build_gen.c~~** 已退役 → 见 8.1.10（wave1038）
 
-  - build 工具生成器
-
-⬜ **8.2.15 build_runner_gen.c** pinned（93 行 · seeds/build_runner_gen.c）
-
-  - build runner 生成器
+✅ **8.2.15 ~~build_runner_gen.c~~** 已退役 → 见 8.1.11（wave1039）
 
 ⬜ **8.2.16 build_runtime_x_gen.c** pinned（245 行 · seeds/build_runtime_x_gen.c）
 
