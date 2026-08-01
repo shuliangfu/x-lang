@@ -1302,53 +1302,13 @@ int32_t pipeline_asm_array_lit_elem_type_ref(struct ast_ASTArena *arena, int32_t
   return pipeline_type_elem_ref_at(arena, arr_tr);
 }
 
-/**
- * 比较表达式 ExprKind 序数 → enc_cmp_setcc 的 cc（0=eq, 1=ne, 2=lt, 3=le, 4=gt, 5=ge）。
- * backend.x 多路 `if (kind==…) cc=N` 经 xlang-c -E 后可能全部执行，须在 C 内 switch 一次性映射。
- */
-int32_t pipeline_asm_cmp_cc_for_expr_kind_ord(int32_t kind_ord) {
-  switch (kind_ord) {
-  case 14:
-    return 0; /* EXPR_EQ */
-  case 15:
-    return 1; /* EXPR_NE */
-  case 16:
-    return 2; /* EXPR_LT */
-  case 17:
-    return 3; /* EXPR_LE */
-  case 18:
-    return 4; /* EXPR_GT */
-  case 19:
-    return 5; /* EXPR_GE */
-  default:
-    return -1;
-  }
-}
-
-/**
- * x86 风格 cc → ARM64 CSET 机器码 cond 域（0–15）。
- * CSET Wd,<cond> 等价于 CSINC Wd,WZR,WZR,invert(<cond>)，故编码域须 invert，与 GAS `cset w0, lt` 语义一致。
- * cc: 0=eq, 1=ne, 2=lt, 3=le, 4=gt, 5=ge。
- */
-int32_t pipeline_asm_arm64_cset_cond_enc_from_cc(int32_t cc) {
-  switch (cc) {
-  case 0:
-    return 1; /* eq → invert(ne) */
-  case 1:
-    return 0; /* ne → invert(eq) */
-  case 2:
-    return 10; /* lt → invert(ge) */
-  case 3:
-    return 12; /* le → invert(gt) */
-  case 4:
-    return 13; /* gt → invert(le) */
-  case 5:
-    return 11; /* ge → invert(lt) */
-  default:
-    return 0;
-  }
-}
-
+/* wave1031 G.7: pipeline_asm_cmp_cc_for_expr_kind_ord +
+ * pipeline_asm_arm64_cset_cond_enc_from_cc folded into
+ * pipeline_asm_emit_cmp.c (same TU #include at L4407; no new DEPS).
+ * Chinese docblocks converted to English per G.9. cmp.c is the sole
+ * in-TU consumer of cmp_cc_for_expr_kind_ord; arm64_cset_cond_enc_from_cc
+ * is also extern'd by arm64_enc.x / backend_enc_dispatch.x seeds — same
+ * pipeline_x.o symbol, no link change. */
 /**
  * seed asm 后端（asm_backend_partial.o）提供的 enc/emit 符号；在 C 内实现二元运算，
  * 避免 xlang-c -E 将 if/return 包进 statement expression 导致 emit_expr_elf fallthrough。

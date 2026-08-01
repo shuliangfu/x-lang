@@ -32,9 +32,75 @@
  * - pipeline_asm_typekind_variant_tag (static; defined just above this include)
  * - glue_try_binop_cmp_rbx_rax_elf_c / glue_binop_operand_is_scalar_f32/f64_elf_c
  * - glue_var_expr_stack_off_elf_c / glue_binop_var_slot_cache_invalidate_rbx
- * - pipeline_asm_cmp_cc_for_expr_kind_ord / pipeline_asm_call_return_type_kind_ord_c
+ * - pipeline_asm_call_return_type_kind_ord_c
  * - pipeline_asm_expr_lit_i32_at_c / backend_enc_*_arch / pipeline_expr_*
+ *
+ * wave1031 G.7 fold: pipeline_asm_cmp_cc_for_expr_kind_ord and
+ * pipeline_asm_arm64_cset_cond_enc_from_cc are now defined at the top
+ * of this file (sole in-TU consumer + arm64_enc.x seed extern).
  */
+
+/**
+ * Map a relational ExprKind ordinal to the enc_cmp_setcc condition code.
+ *
+ * Why: backend.x emits a multi-branch `if (kind==...) cc=N` sequence that,
+ * after xlang-c -E expansion, may execute all branches; encoding the switch
+ * here in C yields a single deterministic mapping and avoids fallthrough.
+ *
+ * Contract: returns 0..5 for EXPR_EQ/NE/LT/LE/GT/GE (kind_ord 14..19);
+ * returns -1 for any other kind. Caller must reject cc < 0.
+ */
+int32_t pipeline_asm_cmp_cc_for_expr_kind_ord(int32_t kind_ord) {
+  switch (kind_ord) {
+  case 14:
+    return 0; /* EXPR_EQ */
+  case 15:
+    return 1; /* EXPR_NE */
+  case 16:
+    return 2; /* EXPR_LT */
+  case 17:
+    return 3; /* EXPR_LE */
+  case 18:
+    return 4; /* EXPR_GT */
+  case 19:
+    return 5; /* EXPR_GE */
+  default:
+    return -1;
+  }
+}
+
+/**
+ * Map an x86-style condition code to the ARM64 CSET machine cond field (0..15).
+ *
+ * Why: CSET Wd,<cond> is encoded as CSINC Wd,WZR,WZR,invert(<cond>), so the
+ * cond field must carry the inverted condition to match GAS `cset w0, lt`
+ * semantics. This centralizes the invert table so backend.x / arm64_enc.x
+ * can call a single authority rather than open-coding per callsite.
+ *
+ * Contract: cc 0=eq,1=ne,2=lt,3=le,4=gt,5=ge → returns the ARM64 cond
+ * encoding (1,0,10,12,13,11). Returns 0 (EQ) for unknown cc.
+ *
+ * PLATFORM: SHARED — consumed by both ARM64 AAPCS64 (arm64_enc.x seed) and
+ * the x86_64 SysV cmp emit path in this file; same TU symbol, no new DEPS.
+ */
+int32_t pipeline_asm_arm64_cset_cond_enc_from_cc(int32_t cc) {
+  switch (cc) {
+  case 0:
+    return 1; /* eq → invert(ne) */
+  case 1:
+    return 0; /* ne → invert(eq) */
+  case 2:
+    return 10; /* lt → invert(ge) */
+  case 3:
+    return 12; /* le → invert(gt) */
+  case 4:
+    return 13; /* gt → invert(le) */
+  case 5:
+    return 11; /* ge → invert(lt) */
+  default:
+    return 0;
+  }
+}
 
 /** 右操作数为 TypeKind/ExprKind 枚举 FIELD_ACCESS 时返回 tag，否则 -1（不查 module 字段，避免 typeck_x_ast 中 module.x 误触）。 */
 static int32_t pipeline_asm_cmp_enum_rhs_tag_c(struct ast_ASTArena *arena, int32_t expr_ref) {
