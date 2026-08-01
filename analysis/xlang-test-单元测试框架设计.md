@@ -4,7 +4,7 @@
 > **状态**：**分析 / 规格设计（非实现 plan）** — **现在不实现**；自举主航道完成后按阶段落地  
 > **用户目标**：实现**全面、强大**的 `xlang test`，直接测 **`tests/**/*.test.x`**（及项目内同约定文件），而不是（或不仅是）转调 shell 脚本  
 > **权威交叉**：  
-> - 时机：[`自举完成后路线图.md`](自举完成后路线图.md) §3（T0–T3）· P0 基线之后  
+> - 时机：[`自举完成后功能完善及优化时序表.md`](自举完成后功能完善及优化时序表.md) — T1@P1 · T2@P3 · T3@P4；P0 基线之后 
 > - 现状 CLI：`compiler/src/driver/test.x` · `compiler/src/runtime/rt_run_exec.x` `driver_run_test`  
 > - 断言库：`std/test/`（`expect` / `runner_*` / `test_run`）  
 > - 产品闸门：`tests/run-all-bstrict.sh`（129）≠ 单元测试框架  
@@ -280,7 +280,7 @@ driver_cmd_test / cmd_test          （路由，薄）
 | **U3** | std.test 深集成 + 可选多 case | 官方模板；文档；（可选）`test_*` 多用例 | U2 + assert API 稳定 | 示例用 expect 无手写 if 海 |
 | **U4** | 并行 / JSON / toml | `-j`、JUnit、`[test]` | U3；xbuild 协同 | CI 模板 |
 
-与 [`自举完成后路线图.md`](自举完成后路线图.md) 对齐：
+与 [`自举完成后功能完善及优化时序表.md`](自举完成后功能完善及优化时序表.md) 对齐：
 
 | 路线图 | 本框架 |
 |--------|--------|
@@ -380,7 +380,7 @@ tests/
 
 | 文档 | 建议 |
 |------|------|
-| `自举完成后路线图.md` §3.4 | T2 行指向本文；写明「`*.test.x` 规格见 xlang-test-单元测试框架设计」 |
+| `自举完成后功能完善及优化时序表.md` | T2@P3 指向本文；写明「`*.test.x` 规格见 xlang-test-单元测试框架设计」 |
 | `XLANG 命令行.md` | 实现后改 test 用法 |
 | `compiler/src/driver/README.md` | 实现后改 test 行 |
 | `std/test/README.md` | 增加「与 xlang test 文件约定」交叉链接 |

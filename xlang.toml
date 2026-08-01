@@ -5,6 +5,8 @@
 #     构建由 ./xbuild / CLI + env 驱动（compiler/Makefile 已物理删除 · wave941）。
 #     实现路线（Core vs Full、解析裂缝、阶段 0–4）：
 #       analysis/xlang-toml-实现分析.md
+#     完成后时序（TOML-0→4 嵌入 P0–P4）：
+#       analysis/自举完成后功能完善及优化时序表.md（TOML-0→4）
 #     与 build.x 正交分工：
 #       analysis/build-x-强大配置能力分析.md
 #

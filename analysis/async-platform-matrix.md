@@ -3,8 +3,7 @@
 > **日期**：2026-07-28
 > **状态**：活文档（随三端后端成熟度更新）
 > **目的**：为全面异步架构（T\*）的 T5（高性能后端可选）立硬标准，画清 Linux/macOS/Windows/freestanding 各自的 Evented 后端成熟度与验收门禁。
-> **关联**：[全面异步架构-分析与准备.md](全面异步架构-分析与准备.md) §4.5 · [async-freestanding-符号依赖.md](async-freestanding-符号依赖.md)
-
+> **关联**：[全面异步架构-分析与准备.md](全面异步架构-分析与准备.md) §4.5 · [async-freestanding-符号依赖.md](async-freestanding-符号依赖.md) · 完成后时序 [自举完成后功能完善及优化时序表.md](自举完成后功能完善及优化时序表.md)（ASYNC-1 Linux · ASYNC-3 三端）
 ---
 
 ## 0. 一句话结论
