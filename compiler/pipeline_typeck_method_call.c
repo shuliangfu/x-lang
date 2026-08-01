@@ -15,8 +15,8 @@
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c after
  * try_propagate helpers and before generic_call_fixup_resolved_type.
- * pipeline_typeck_named_is_module_type_c is forward-declared here; definition
- * remains later in pipeline_glue.c (same TU).
+ * pipeline_typeck_named_is_module_type_c is forward-declared here (L348);
+ * definition at EOF (wave1095 G.7 migration from pipeline_glue.c).
  *
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
  */
@@ -1601,4 +1601,877 @@ static int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, s
       return i;
   }
   return -1;
+}
+
+/* ===========================================================================
+ * wave1095-1099 G.7: generic call inference domain (5 leaves) migrated from
+ * pipeline_glue.c. These functions form the generic call type inference and
+ * validation sub-domain of method call: type-param inference from value args,
+ * trait bound checking, type-arg count validation, and return-type mono fixup.
+ * Static (non-extern): same-TU — method_call.c #include at glue.c:L13803 <
+ * def EOF < all remaining callsites in glue.c (L14181 bootstrap_fixup,
+ * L14743 check_call_generic_type_args, L14757 glue_generic_call_fixup).
+ * pipeline_typeck_named_is_module_type_c has static fwd decl at L348 above
+ * (needed by calls at L476-L872 in this file before the EOF definition).
+ * PLATFORM: SHARED.
+ * ========================================================================== */
+
+/**
+ * Check whether a TYPE_NAMED name refers to a module-defined struct or type
+ * alias (concrete type), as opposed to a free type parameter.
+ *
+ * Why: Used by expected-return inference + generic call fixup to fail-closed
+ * when a return type is unconstrained (a concrete module type needs no mono
+ * fixup; a bare type param T does). Scans module struct_layouts and type
+ * aliases for a name match via glue_slice_equal_c byte comparison.
+ *
+ * Invariant: Returns 1 if the name matches a module struct or alias; 0
+ * otherwise (including null/empty inputs).
+ *
+ * Asm/Perf: O(N_structs + N_aliases) linear scan. Cold path — called during
+ * typeck of generic calls, not in hot codegen.
+ *
+ * PLATFORM: SHARED — typeck helper, platform-independent.
+ *
+ * wave1095 G.7: migrated from glue.c:14246 (body 40 LOC). Static fwd decl at
+ * method_call.c:348 (before callsites L476-L872). Deps: pipeline_module_num_
+ * struct_layouts_at / pipeline_module_struct_layout_name_len / pipeline_module_
+ * struct_layout_name_into / glue_slice_equal_c (same file, def above) /
+ * pipeline_module_num_type_aliases_at / pipeline_module_type_alias_name_len /
+ * pipeline_module_type_alias_name_byte_at (all extern).
+ */
+static int32_t pipeline_typeck_named_is_module_type_c(struct ast_Module *mod, struct ast_ASTArena *arena,
+                                                     const uint8_t *nm, int32_t nlen) {
+  int32_t si;
+  int32_t nsl;
+  int32_t snlen;
+  uint8_t snm[128];
+  int32_t n_alias;
+  int32_t ai;
+  (void)arena;
+  if (!mod || !nm || nlen <= 0)
+    return 0;
+  nsl = pipeline_module_num_struct_layouts_at(mod);
+  for (si = 0; si < nsl; si = si + 1) {
+    snlen = pipeline_module_struct_layout_name_len(mod, si);
+    if (snlen != nlen || snlen <= 0)
+      continue;
+    pipeline_module_struct_layout_name_into(mod, si, snm);
+    if (glue_slice_equal_c(nm, nlen, snm, snlen))
+      return 1;
+  }
+  n_alias = pipeline_module_num_type_aliases_at(mod);
+  for (ai = 0; ai < n_alias; ai = ai + 1) {
+    snlen = pipeline_module_type_alias_name_len(mod, ai);
+    if (snlen != nlen || snlen <= 0)
+      continue;
+    {
+      int32_t bi;
+      int32_t same = 1;
+      for (bi = 0; bi < snlen; bi = bi + 1) {
+        if (pipeline_module_type_alias_name_byte_at(mod, ai, bi) != nm[bi]) {
+          same = 0;
+          break;
+        }
+      }
+      if (same)
+        return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Stamp monomorphized resolved_type_ref on a generic CALL when the signature
+ * return is a compound tree with free type-params (*T, []T, T[N], nested) or
+ * a bare type param matched to a value formal / turbofish type-arg.
+ *
+ * Why: typeck_check_expr_call_resolve stamps the raw signature ret (*T);
+ * let/return assign then reports "expected *i32, found *T". This fixup opens
+ * the early gate for free-param trees and, for non-NAMED free rets, reuses
+ * glue_typeck_build_value_formal_mono_map_c + glue_typeck_subst_type_ref_c
+ * (already used for module NAMED free trees / method UFCS). No second path.
+ *
+ * Invariant: Returns 0 always (stamps resolved_type_ref in-place or leaves
+ * it unchanged when fixup cannot complete). Idempotent — skips when the
+ * stamped tree has no free params left.
+ *
+ * Asm/Perf: O(N_formals * N_args) worst case for formal scan + subst. Cold
+ * path — called during typeck post-processing of EXPR_CALL.
+ *
+ * PLATFORM: SHARED — G.7 single authority with parser type_arg storage.
+ *
+ * wave1096 G.7: migrated from glue.c:13822 (body 319 LOC). Static (non-extern):
+ * same-TU — method_call.c #include at glue.c:L13803 < def EOF < callsites
+ * glue.c:L14181 (bootstrap_expr_fixup) + L14757 (check_expr_call). Deps:
+ * pipeline_expr_resolved_type_ref / glue_typeck_type_tree_has_free_param_c
+ * (same file L385/L633) / pipeline_expr_call_callee_ref_at / pipeline_expr_
+ * kind_ord_at / pipeline_expr_var_name_len / pipeline_expr_var_name_into /
+ * pipeline_expr_field_access_name_len / pipeline_expr_field_access_name_into /
+ * pipeline_expr_call_resolved_dep_index_at / pipeline_expr_call_resolved_
+ * func_index_at / pipeline_dep_ctx_module_at / pipeline_dep_ctx_arena_at /
+ * pipeline_dep_ctx_ndep / pipeline_module_func_name_equal_at /
+ * pipeline_module_func_return_type_at / pipeline_type_kind_ord_at /
+ * glue_typeck_build_value_formal_mono_map_c (same file L545) /
+ * glue_typeck_subst_type_ref_c (same file L709) / pipeline_type_named_name_
+ * into / pipeline_module_func_num_params_at / pipeline_module_func_param_
+ * type_ref_at / glue_slice_equal_c (same file L25) / pipeline_expr_call_arg_
+ * ref / pipeline_expr_set_resolved_type_ref / glue_generic_call_subst_ret_
+ * from_formal_map_c (same file L842) / pipeline_expr_call_type_arg_ref_at
+ * (extern, decl in-body) / pipeline_module_func_num_generic_params_at (extern,
+ * decl in-body) / xlang_generic_func_type_param_index_c (extern, decl in-body)
+ * / pipeline_expr_call_num_type_args_at (extern, decl in-body) /
+ * pipeline_typeck_named_is_module_type_c (same file, def above via fwd decl
+ * L348) (all extern unless noted).
+ */
+static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                       int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx,
+                                                       int32_t expected_ret) {
+  int32_t ord_var = 3;
+  int32_t ord_field = 44;
+  int32_t ord_named = (int32_t)ast_TypeKind_TYPE_NAMED;
+  int32_t callee_ref;
+  int32_t callee_eff;
+  int32_t callee_kind;
+  int32_t func_idx;
+  int32_t ret_ty;
+  int32_t param_ty;
+  uint8_t ret_nm[128];
+  uint8_t param_nm[128];
+  int32_t ret_nlen;
+  int32_t param_nlen;
+  int32_t arg_i;
+  int32_t arg_ty;
+  int32_t num_params;
+  int32_t pi;
+  uint8_t cnm[128];
+  int32_t cnml;
+  int32_t j;
+  int32_t dep_ix;
+  struct ast_Module *search_mod;
+  struct ast_ASTArena *search_arena;
+
+  if (!module || !arena || call_expr_ref <= 0)
+    return 0;
+  /*
+   * Already fully concrete (no free type-param in tree) — nothing to fix.
+   * wave688: free *T is TYPE_PTR (non-NAMED) but still needs mono stamp;
+   * only skip when the stamped tree has no free params left.
+   */
+  {
+    int32_t cur = pipeline_expr_resolved_type_ref(arena, call_expr_ref);
+    if (cur > 0 && glue_typeck_type_tree_has_free_param_c(module, arena, cur, 0) == 0)
+      return 0;
+  }
+  callee_ref = pipeline_expr_call_callee_ref_at(arena, call_expr_ref);
+  callee_eff = callee_ref;
+  callee_kind = pipeline_expr_kind_ord_at(arena, callee_eff);
+  cnml = 0;
+  search_mod = module;
+  search_arena = arena;
+  dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
+  func_idx = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
+  if (callee_kind == ord_var) {
+    cnml = pipeline_expr_var_name_len(arena, callee_eff);
+    if (cnml <= 0 || cnml > 127)
+      return 0;
+    pipeline_expr_var_name_into(arena, callee_eff, cnm);
+  } else if (callee_kind == ord_field) {
+    /* foo.id: field name is the function; prefer call_resolved dep when set. */
+    cnml = pipeline_expr_field_access_name_len(arena, callee_eff);
+    if (cnml <= 0 || cnml > 127)
+      return 0;
+    pipeline_expr_field_access_name_into(arena, callee_eff, cnm);
+  } else {
+    return 0;
+  }
+  if (dep_ix >= 0 && ctx && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
+    struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, dep_ix);
+    struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+    if (dm) {
+      search_mod = dm;
+      if (da)
+        search_arena = da;
+    }
+  }
+  if (func_idx < 0) {
+    j = 0;
+    while (j < (int32_t)search_mod->num_funcs) {
+      if (pipeline_module_func_name_equal_at(search_mod, j, cnm, cnml) != 0) {
+        func_idx = j;
+        break;
+      }
+      j = j + 1;
+    }
+  }
+  /* Local miss: scan deps (bare id via whole/select or binding mis-resolve). */
+  if (func_idx < 0 && ctx) {
+    int32_t nd = pipeline_dep_ctx_ndep(ctx);
+    int32_t di;
+    for (di = 0; di < nd && func_idx < 0; di++) {
+      struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, di);
+      if (!dm)
+        continue;
+      j = 0;
+      while (j < (int32_t)dm->num_funcs) {
+        if (pipeline_module_func_name_equal_at(dm, j, cnm, cnml) != 0) {
+          func_idx = j;
+          search_mod = dm;
+          {
+            struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ctx, di);
+            if (da)
+              search_arena = da;
+          }
+          break;
+        }
+        j = j + 1;
+      }
+    }
+  }
+  if (func_idx < 0)
+    return 0;
+  ret_ty = pipeline_module_func_return_type_at(search_mod, func_idx);
+  /* Return type lives in search_arena; match formals by kind/name. */
+  if (ret_ty <= 0)
+    return 0;
+  /*
+   * wave688: non-NAMED return with free type-params (`*T`, `[]T`, `T[N]`).
+   * Build formal->arg mono map (identity + pattern unify for compound formals)
+   * then subst the whole ret tree. Fail-closed if map incomplete or mono still free.
+   */
+  if (pipeline_type_kind_ord_at(search_arena, ret_ty) != ord_named) {
+    int32_t n_map_c;
+    uint8_t map_names_c[W486_MONO_MAX_MAP][128];
+    int32_t map_lens_c[W486_MONO_MAX_MAP];
+    int32_t map_conc_c[W486_MONO_MAX_MAP];
+    int32_t mono_ret_c;
+    if (glue_typeck_type_tree_has_free_param_c(search_mod, search_arena, ret_ty, 0) == 0)
+      return 0;
+    n_map_c = glue_typeck_build_value_formal_mono_map_c(search_mod, search_arena, arena, call_expr_ref, func_idx,
+                                                       map_names_c, map_lens_c, map_conc_c, W486_MONO_MAX_MAP);
+    if (n_map_c <= 0)
+      return 0;
+    mono_ret_c = glue_typeck_subst_type_ref_c(search_mod, search_arena, arena, ret_ty, map_names_c, map_lens_c,
+                                             map_conc_c, n_map_c, 0);
+    if (mono_ret_c <= 0)
+      return 0;
+    if (glue_typeck_type_tree_has_free_param_c(search_mod, arena, mono_ret_c, 0) != 0)
+      return 0;
+    pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, mono_ret_c);
+    return 0;
+  }
+  ret_nlen = pipeline_type_named_name_into(search_arena, ret_ty, ret_nm);
+  if (ret_nlen <= 0)
+    return 0;
+  num_params = pipeline_module_func_num_params_at(search_mod, func_idx);
+  /*
+   * wave451: any formal TYPE_NAMED whose name equals the return type name
+   * supplies the mono type via the corresponding value argument. First match
+   * wins (wave448 unifies same-name formals, so any index is equivalent).
+   */
+  for (pi = 0; pi < num_params; pi = pi + 1) {
+    param_ty = pipeline_module_func_param_type_ref_at(search_mod, func_idx, pi);
+    if (param_ty <= 0 || pipeline_type_kind_ord_at(search_arena, param_ty) != ord_named)
+      continue;
+    param_nlen = pipeline_type_named_name_into(search_arena, param_ty, param_nm);
+    if (param_nlen <= 0 || !glue_slice_equal_c(ret_nm, ret_nlen, param_nm, param_nlen))
+      continue;
+    arg_i = pipeline_expr_call_arg_ref(arena, call_expr_ref, pi);
+    if (arg_i <= 0)
+      continue;
+    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_i);
+    if (arg_ty <= 0)
+      continue;
+    pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, arg_ty);
+    return 0;
+  }
+  /*
+   * wave494: generic method_call UFCS is handled in
+   * pipeline_typeck_check_expr_method_call_c (weak + strict_minimal strong)
+   * via pipeline_typeck_method_call_generic_ufcs_c — see that authority.
+   * This CALL-fixup path only sees EXPR_CALL with ord_field/ord_var callee;
+   * EXPR_METHOD_CALL (kind 49) never reaches here.
+   */
+  /*
+   * wave486/wave487: stamp mono ret from value-formal map.
+   * - module ret with free type-arg tree (`nest: Wrap<Wrap<T>>`) — subst tree
+   * - free type-param ret with pattern formals (`unwrap(w: Wrap<T>): T`) —
+   *   bind T from arg type-args (identity formals already handled above)
+   */
+  {
+    int32_t mono_ret =
+        glue_generic_call_subst_ret_from_formal_map_c(search_mod, search_arena, arena, call_expr_ref, func_idx,
+                                                     ret_ty);
+    if (mono_ret > 0) {
+      pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, mono_ret);
+      return 0;
+    }
+  }
+  /*
+   * wave452: ret TYPE_NAMED is a type parameter not present on any value
+   * formal (e.g. as_t<T>(i32):T / mk_default<T>():T). Map via turbofish
+   * type_arg type_refs stored by parser (sidecar). Formal path above already
+   * handled identity-style ret==param name.
+   *
+   * Type-param vs concrete named ret: if ret name is a module struct/alias,
+   * leave it (already mono). Else treat as type param.
+   *
+   * wave455: prefer declaration-order type-param names from source scan
+   * (xlang_generic_func_type_param_index_c) so multi-param generics with
+   * phantom type params (`mk2<T,U>():T`) map ret->type_arg[i] correctly.
+   * Fallback: first-appearance formals + ret (wave452), with n_gp==1 -> slot 0.
+   * PLATFORM: SHARED — G.7 single authority with parser type_arg storage.
+   */
+  {
+    extern int32_t pipeline_expr_call_type_arg_ref_at(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
+    extern int32_t pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t func_index);
+    extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena *a, int32_t expr_ref);
+    extern int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                                          const uint8_t *tp_name, int32_t tp_name_len);
+    int32_t n_gp;
+    int32_t n_ta;
+    int32_t ta_ty;
+    int32_t ret_is_module_type;
+    int32_t gnames_n;
+    uint8_t gnames[8][128];
+    int32_t glens[8];
+    int32_t gidx;
+    int32_t found_gi;
+    int32_t is_mod;
+
+    n_gp = pipeline_module_func_num_generic_params_at(search_mod, func_idx);
+    n_ta = pipeline_expr_call_num_type_args_at(arena, call_expr_ref);
+    /* Is ret name a known module type (struct)? */
+    ret_is_module_type =
+        pipeline_typeck_named_is_module_type_c(search_mod, search_arena, ret_nm, ret_nlen);
+    if (ret_is_module_type)
+      return 0;
+    /*
+     * wave453: bare call (n_ta==0) with ambient expected return — stamp call
+     * resolved type so assignment/return match and codegen mono can fall back
+     * to resolved_type_ref (codegen_call_ret_type_param_concrete_at).
+     * Requires ret TYPE_NAMED is a type param (already checked above).
+     * wave454: only stamp when expected is a module TYPE_NAMED (same gate as
+     * try_infer); refuse primitive ambient that would lie about T.
+     */
+    if (n_gp > 0 && n_ta == 0 && expected_ret > 0 &&
+        pipeline_type_kind_ord_at(arena, expected_ret) == ord_named) {
+      uint8_t exp_nm[128];
+      int32_t exp_nlen;
+      memset(exp_nm, 0, sizeof(exp_nm));
+      exp_nlen = pipeline_type_named_name_into(arena, expected_ret, exp_nm);
+      if (exp_nlen > 0 &&
+          pipeline_typeck_named_is_module_type_c(search_mod, search_arena, exp_nm, exp_nlen) != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, expected_ret);
+        return 0;
+      }
+    }
+    if (n_gp <= 0 || n_ta <= 0 || n_ta != n_gp)
+      return 0;
+
+    /*
+     * wave455 primary: declaration-order index from bound-scan registry.
+     * Callee name is cnm/cnml (resolved above). Ret name is the type param.
+     */
+    found_gi = xlang_generic_func_type_param_index_c(cnm, cnml, ret_nm, ret_nlen);
+    if (found_gi >= 0 && found_gi < n_ta) {
+      ta_ty = pipeline_expr_call_type_arg_ref_at(arena, call_expr_ref, found_gi);
+      if (ta_ty > 0) {
+        pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, ta_ty);
+        return 0;
+      }
+    }
+
+    /* Fallback wave452: collect type-param names from formals + ret. */
+    gnames_n = 0;
+    for (pi = 0; pi < num_params && gnames_n < 8; pi = pi + 1) {
+      param_ty = pipeline_module_func_param_type_ref_at(search_mod, func_idx, pi);
+      if (param_ty <= 0 || pipeline_type_kind_ord_at(search_arena, param_ty) != ord_named)
+        continue;
+      param_nlen = pipeline_type_named_name_into(search_arena, param_ty, param_nm);
+      if (param_nlen <= 0)
+        continue;
+      is_mod = pipeline_typeck_named_is_module_type_c(search_mod, search_arena, param_nm, param_nlen);
+      if (is_mod)
+        continue;
+      found_gi = -1;
+      for (gidx = 0; gidx < gnames_n; gidx = gidx + 1) {
+        if (glue_slice_equal_c(param_nm, param_nlen, gnames[gidx], glens[gidx])) {
+          found_gi = gidx;
+          break;
+        }
+      }
+      if (found_gi >= 0)
+        continue;
+      memset(gnames[gnames_n], 0, 64);
+      {
+        int32_t ci;
+        for (ci = 0; ci < param_nlen && ci < 63; ci = ci + 1)
+          gnames[gnames_n][ci] = param_nm[ci];
+      }
+      glens[gnames_n] = param_nlen;
+      gnames_n = gnames_n + 1;
+    }
+    found_gi = -1;
+    for (gidx = 0; gidx < gnames_n; gidx = gidx + 1) {
+      if (glue_slice_equal_c(ret_nm, ret_nlen, gnames[gidx], glens[gidx])) {
+        found_gi = gidx;
+        break;
+      }
+    }
+    if (found_gi < 0 && gnames_n < 8) {
+      memset(gnames[gnames_n], 0, 64);
+      {
+        int32_t ci;
+        for (ci = 0; ci < ret_nlen && ci < 63; ci = ci + 1)
+          gnames[gnames_n][ci] = ret_nm[ci];
+      }
+      glens[gnames_n] = ret_nlen;
+      found_gi = gnames_n;
+      gnames_n = gnames_n + 1;
+    }
+    if (found_gi < 0)
+      return 0;
+    /* n_gp==1 always uses slot 0 when ret is type param. */
+    if (n_gp == 1)
+      found_gi = 0;
+    else if (n_gp > 1 && gnames_n != n_gp)
+      return 0; /* incomplete formal recovery; scan path above should have hit */
+    ta_ty = pipeline_expr_call_type_arg_ref_at(arena, call_expr_ref, found_gi);
+    if (ta_ty <= 0)
+      return 0;
+    pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, ta_ty);
+    return 0;
+  }
+}
+
+/**
+ * Try to infer omitted turbofish type args from value-argument resolved types.
+ *
+ * Why: product typeck historically hard-failed generic calls with
+ * num_type_args == 0 via requires_type_args, even when every mono type is
+ * already available from typed value args (e.g. id(a) with a: A for
+ * function id<T>(x: T): T). Algorithm: (1) require nargs >= num_params and
+ * every arg has resolved_type_ref > 0 or bare lit effective type; (2) unify
+ * same-named TYPE_NAMED formals across value params; (3) success -> allow
+ * omitted type args (return 0). Failure -> -1 so caller emits
+ * requires_type_args.
+ *
+ * wave453/457: expected-return inference when ret is a type param covers
+ * zero-arg mk_default():T and multi ret-only mk2<T,U>():T; fail-closed when
+ * ret is concrete (phantom T on unit_t<T>():i32 still requires turbofish).
+ *
+ * Invariant: Returns 0 if inference succeeds (type args can be omitted);
+ * returns -1 if inference cannot complete (caller should emit diagnostic).
+ *
+ * Asm/Perf: O(N_params^2) for same-name unify scan. Cold path — called
+ * during typeck of EXPR_CALL with generic callee and no turbofish.
+ *
+ * PLATFORM: SHARED — G.7 single authority for this inference gate.
+ *
+ * wave1097 G.7: migrated from glue.c:14338 (body 130 LOC). Static (non-extern):
+ * same-TU — method_call.c #include at glue.c:L13803 < def EOF < callsite
+ * glue.c:L14664 (inside check_call_generic_type_args_c, same migration batch).
+ * Deps: pipeline_module_func_num_params_at / pipeline_expr_call_num_args_at /
+ * pipeline_typeck_call_arg_effective_type_c (same file L1030) /
+ * pipeline_module_func_param_type_ref_at / pipeline_type_kind_ord_at /
+ * pipeline_type_named_name_into / pipeline_typeck_named_is_module_type_c
+ * (same file, def above via fwd decl L348) / pipeline_typeck_type_refs_equal_c
+ * / pipeline_module_func_num_generic_params_at / pipeline_module_func_return_
+ * type_at (all extern).
+ */
+static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Module *callee_mod,
+                                                                 struct ast_ASTArena *arena,
+                                                                 int32_t expr_ref, int32_t func_ix,
+                                                                 int32_t expected_ret) {
+  int32_t np;
+  int32_t nargs;
+  int32_t i;
+  int32_t j;
+  int32_t ord_named;
+  int32_t n_gp;
+  int32_t ret_ty;
+  uint8_t ret_nm[128];
+  int32_t ret_nlen;
+
+  if (!callee_mod || !arena || expr_ref <= 0 || func_ix < 0)
+    return -1;
+  np = pipeline_module_func_num_params_at(callee_mod, func_ix);
+  nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
+  ord_named = (int32_t)ast_TypeKind_TYPE_NAMED;
+
+  /* Value-arg path (wave448 + wave685 lit effective types): formals present +
+   * each arg has resolved type OR bare lit effective type + same-name unify. */
+  if (np > 0 && nargs >= np) {
+    int32_t value_ok = 1;
+    for (i = 0; i < np; i++) {
+      int32_t arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+      int32_t arg_ty;
+      if (arg_ref <= 0) {
+        value_ok = 0;
+        break;
+      }
+      arg_ty = pipeline_typeck_call_arg_effective_type_c(arena, arg_ref);
+      if (arg_ty <= 0) {
+        value_ok = 0;
+        break;
+      }
+    }
+    if (value_ok) {
+      /* Unify same-named TYPE_NAMED formals across value params. */
+      for (i = 0; i < np; i++) {
+        int32_t pi_ty = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i);
+        uint8_t pi_nm[128];
+        int32_t pi_nlen;
+        int32_t ai_ty;
+        if (pi_ty <= 0 || pipeline_type_kind_ord_at(arena, pi_ty) != ord_named)
+          continue;
+        /* Only free type-params participate in same-name unify (not struct Wrap). */
+        {
+          memset(pi_nm, 0, sizeof(pi_nm));
+          pi_nlen = pipeline_type_named_name_into(arena, pi_ty, pi_nm);
+          if (pi_nlen <= 0)
+            continue;
+          if (pipeline_typeck_named_is_module_type_c(callee_mod, arena, pi_nm, pi_nlen) != 0)
+            continue;
+        }
+        ai_ty = pipeline_typeck_call_arg_effective_type_c(
+            arena, pipeline_expr_call_arg_ref(arena, expr_ref, i));
+        if (ai_ty <= 0)
+          return -1;
+        for (j = i + 1; j < np; j++) {
+          int32_t pj_ty = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, j);
+          uint8_t pj_nm[128];
+          int32_t pj_nlen;
+          int32_t aj_ty;
+          int32_t k;
+          int32_t same_name;
+          if (pj_ty <= 0 || pipeline_type_kind_ord_at(arena, pj_ty) != ord_named)
+            continue;
+          memset(pj_nm, 0, sizeof(pj_nm));
+          pj_nlen = pipeline_type_named_name_into(arena, pj_ty, pj_nm);
+          if (pj_nlen != pi_nlen)
+            continue;
+          same_name = 1;
+          for (k = 0; k < pi_nlen; k++) {
+            if (pi_nm[k] != pj_nm[k]) {
+              same_name = 0;
+              break;
+            }
+          }
+          if (!same_name)
+            continue;
+          aj_ty = pipeline_typeck_call_arg_effective_type_c(
+              arena, pipeline_expr_call_arg_ref(arena, expr_ref, j));
+          if (aj_ty <= 0 || pipeline_typeck_type_refs_equal_c(arena, ai_ty, aj_ty) == 0)
+            return -1;
+        }
+      }
+      return 0;
+    }
+  }
+
+  /*
+   * wave453/wave457: expected-return inference when ret is a type param.
+   * Covers zero-arg `mk_default():T` and multi ret-only bare
+   * (`mk2<T,U>():T` / `mk2u<T,U>():U`); fail-closed when ret is concrete
+   * (phantom T on unit_t<T>():i32 still requires turbofish).
+   * wave454: ambient expected must itself be a module TYPE_NAMED (struct/alias).
+   * Primitive expected (i32 from `return mk_default()` / wrong field ambient)
+   * must not pin T — that typeck-greened then BLD001 on host C body.
+   * wave457: n_gp may be >1; only the ret type param is pinned here. Fixup
+   * stamps call resolved_type_ref from expected (already multi-safe); codegen
+   * mono maps ret->concrete via concrete_at prefer resolved (wave455/456).
+   */
+  n_gp = pipeline_module_func_num_generic_params_at(callee_mod, func_ix);
+  if (n_gp < 1 || expected_ret <= 0)
+    return -1;
+  /* expected_ret must be a concrete module named type (not i32/bool/...). */
+  if (pipeline_type_kind_ord_at(arena, expected_ret) != ord_named)
+    return -1;
+  {
+    uint8_t exp_nm[128];
+    int32_t exp_nlen;
+    memset(exp_nm, 0, sizeof(exp_nm));
+    exp_nlen = pipeline_type_named_name_into(arena, expected_ret, exp_nm);
+    if (exp_nlen <= 0)
+      return -1;
+    if (pipeline_typeck_named_is_module_type_c(callee_mod, arena, exp_nm, exp_nlen) == 0)
+      return -1; /* not a known module type name */
+  }
+  ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix);
+  if (ret_ty <= 0 || pipeline_type_kind_ord_at(arena, ret_ty) != ord_named)
+    return -1;
+  memset(ret_nm, 0, sizeof(ret_nm));
+  ret_nlen = pipeline_type_named_name_into(arena, ret_ty, ret_nm);
+  if (ret_nlen <= 0)
+    return -1;
+  if (pipeline_typeck_named_is_module_type_c(callee_mod, arena, ret_nm, ret_nlen) != 0)
+    return -1; /* ret is concrete named type, not a type param */
+  return 0;
+}
+
+/**
+ * After value-arg inference succeeds (num_type_args==0), check trait bounds
+ * using the same authority as turbofish parse-time scan
+ * (xlang_generic_bound_check_type_args_c in skip_tl).
+ *
+ * Why: Type-arg slots are first-appearance order of distinct TYPE_NAMED
+ * formals among value params (matches declaration order for conventional
+ * foo<T,U>(x:T,y:U) and collapses foo<T>(x:T,y:T) to one slot). Concrete name
+ * is the TYPE_NAMED name of the corresponding value-arg type. wave453/457:
+ * when a type param lives only on the return position, append a slot from
+ * expected_ret so T: Trait bounds still fire on bare calls.
+ *
+ * Invariant: Returns 0 if bounds pass or no type params to check; returns
+ * non-zero if bound check fails.
+ *
+ * Asm/Perf: O(N_params * N_type_params) for slot collection. Cold path —
+ * called after successful inference in typeck of EXPR_CALL.
+ *
+ * PLATFORM: SHARED — G.7 single authority for post-infer bound check.
+ *
+ * wave1098 G.7: migrated from glue.c:14488 (body 124 LOC). Static (non-extern):
+ * same-TU — method_call.c #include at glue.c:L13803 < def EOF < callsite
+ * glue.c:L14666 (inside check_call_generic_type_args_c, same migration batch).
+ * Deps: pipeline_module_func_num_params_at / pipeline_module_func_param_type_
+ * ref_at / pipeline_type_kind_ord_at / pipeline_type_named_name_into /
+ * pipeline_typeck_named_is_module_type_c (same file, def above via fwd decl
+ * L348) / pipeline_expr_call_arg_ref / pipeline_expr_resolved_type_ref /
+ * pipeline_module_func_return_type_at / xlang_generic_bound_check_type_args_c
+ * (extern, decl in-body) (all extern unless noted).
+ */
+static int32_t pipeline_typeck_check_inferred_generic_bounds_c(struct ast_Module *callee_mod,
+                                                                struct ast_ASTArena *arena,
+                                                                int32_t expr_ref, int32_t func_ix,
+                                                                const uint8_t *fn_name, int32_t fn_name_len,
+                                                                int32_t line, int32_t col,
+                                                                int32_t expected_ret) {
+  /* Max type-arg slots must match XLANG_GENERIC_CALL_MAX_ARGS in skip_tl. */
+  enum { W449_MAX_TARGS = 4 };
+  uint8_t type_args[W449_MAX_TARGS][128];
+  int32_t type_arg_lens[W449_MAX_TARGS];
+  uint8_t formal_names[W449_MAX_TARGS][128];
+  int32_t formal_name_lens[W449_MAX_TARGS];
+  int32_t n_tp;
+  int32_t np;
+  int32_t i;
+  int32_t ord_named;
+  int32_t ret_ty;
+  uint8_t ret_nm[128];
+  int32_t ret_nlen;
+  extern int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                                        const uint8_t type_args[][128],
+                                                        const int32_t *type_arg_lens, int32_t nargs,
+                                                        int32_t line, int32_t col);
+
+  if (!callee_mod || !arena || expr_ref <= 0 || func_ix < 0 || !fn_name || fn_name_len <= 0)
+    return 0;
+  np = pipeline_module_func_num_params_at(callee_mod, func_ix);
+  ord_named = (int32_t)ast_TypeKind_TYPE_NAMED;
+  n_tp = 0;
+  memset(type_args, 0, sizeof(type_args));
+  memset(type_arg_lens, 0, sizeof(type_arg_lens));
+  memset(formal_names, 0, sizeof(formal_names));
+  memset(formal_name_lens, 0, sizeof(formal_name_lens));
+
+  for (i = 0; i < np && n_tp < W449_MAX_TARGS; i++) {
+    int32_t pi_ty = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i);
+    uint8_t pi_nm[128];
+    int32_t pi_nlen;
+    int32_t arg_ref;
+    int32_t arg_ty;
+    int32_t k;
+    int32_t found;
+    int32_t slot;
+    int32_t conc_len;
+
+    if (pi_ty <= 0 || pipeline_type_kind_ord_at(arena, pi_ty) != ord_named)
+      continue;
+    memset(pi_nm, 0, sizeof(pi_nm));
+    pi_nlen = pipeline_type_named_name_into(arena, pi_ty, pi_nm);
+    if (pi_nlen <= 0)
+      continue;
+    /* Skip formals that are module types (concrete), not type params. */
+    if (pipeline_typeck_named_is_module_type_c(callee_mod, arena, pi_nm, pi_nlen) != 0)
+      continue;
+    found = -1;
+    for (k = 0; k < n_tp; k++) {
+      if (formal_name_lens[k] == pi_nlen &&
+          memcmp(formal_names[k], pi_nm, (size_t)pi_nlen) == 0) {
+        found = k;
+        break;
+      }
+    }
+    if (found >= 0)
+      continue; /* same formal name already mapped (unify already checked) */
+    slot = n_tp;
+    memcpy(formal_names[slot], pi_nm, (size_t)pi_nlen);
+    formal_name_lens[slot] = pi_nlen;
+    arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+    arg_ty = (arg_ref > 0) ? pipeline_expr_resolved_type_ref(arena, arg_ref) : 0;
+    conc_len = 0;
+    if (arg_ty > 0 && pipeline_type_kind_ord_at(arena, arg_ty) == ord_named) {
+      memset(type_args[slot], 0, 64);
+      conc_len = pipeline_type_named_name_into(arena, arg_ty, type_args[slot]);
+      if (conc_len < 0)
+        conc_len = 0;
+      if (conc_len > 127)
+        conc_len = 63;
+    }
+    type_arg_lens[slot] = conc_len;
+    n_tp++;
+  }
+
+  /*
+   * wave453/wave457: ret type param not already in formal slots (zero-arg
+   * mk_default / multi ret-only mk2). Take concrete name from expected_ret.
+   */
+  ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix);
+  if (ret_ty > 0 && pipeline_type_kind_ord_at(arena, ret_ty) == ord_named && n_tp < W449_MAX_TARGS) {
+    memset(ret_nm, 0, sizeof(ret_nm));
+    ret_nlen = pipeline_type_named_name_into(arena, ret_ty, ret_nm);
+    if (ret_nlen > 0 &&
+        pipeline_typeck_named_is_module_type_c(callee_mod, arena, ret_nm, ret_nlen) == 0) {
+      int32_t found_r = -1;
+      int32_t k;
+      for (k = 0; k < n_tp; k++) {
+        if (formal_name_lens[k] == ret_nlen &&
+            memcmp(formal_names[k], ret_nm, (size_t)ret_nlen) == 0) {
+          found_r = k;
+          break;
+        }
+      }
+      if (found_r < 0 && expected_ret > 0 &&
+          pipeline_type_kind_ord_at(arena, expected_ret) == ord_named) {
+        int32_t slot = n_tp;
+        int32_t conc_len = 0;
+        memcpy(formal_names[slot], ret_nm, (size_t)ret_nlen);
+        formal_name_lens[slot] = ret_nlen;
+        memset(type_args[slot], 0, 64);
+        conc_len = pipeline_type_named_name_into(arena, expected_ret, type_args[slot]);
+        if (conc_len < 0)
+          conc_len = 0;
+        if (conc_len > 127)
+          conc_len = 63;
+        type_arg_lens[slot] = conc_len;
+        n_tp++;
+      }
+    }
+  }
+
+  if (n_tp <= 0)
+    return 0;
+  return xlang_generic_bound_check_type_args_c(fn_name, fn_name_len, type_args, type_arg_lens, n_tp,
+                                              line, col);
+}
+
+/**
+ * Validate generic call type arguments against callee's generic parameters.
+ *
+ * Why: Ensures type argument count matches generic parameter count, rejects
+ * type arguments for non-generic functions, and triggers type inference for
+ * bare calls (no turbofish) when possible. Integrates with try_infer_generic_
+ * call_from_args_c for value-based inference and check_inferred_generic_
+ * bounds_c for trait validation.
+ *
+ * Invariant: Returns 0 for valid type args or successful inference; -1 for
+ * mismatched counts, non-generic callee with type args, or failed inference/
+ * bounds check.
+ *
+ * Asm/Perf: O(1) — count checks + conditional inference. Cold path — called
+ * during typeck of EXPR_CALL with generic callee.
+ *
+ * PLATFORM: SHARED — generic type arg validation is platform-independent.
+ *
+ * wave1099 G.7: migrated from glue.c:14613 (body 67 LOC). Static (non-extern):
+ * same-TU — method_call.c #include at glue.c:L13803 < def EOF < callsite
+ * glue.c:L14743 (inside pipeline_typeck_check_expr_call_c). Deps:
+ * pipeline_expr_call_resolved_func_index_at / pipeline_expr_call_resolved_dep_
+ * index_at / pipeline_dep_ctx_module_at / pipeline_module_func_num_generic_
+ * params_at (extern, decl in-body) / pipeline_expr_call_num_type_args_at
+ * (extern, decl in-body) / pipeline_expr_line_at / pipeline_expr_col_at /
+ * pipeline_module_func_name_len_at / pipeline_module_func_name_copy64 /
+ * driver_diagnostic_typeck_call_not_generic (extern, decl in-body) /
+ * driver_diagnostic_typeck_call_requires_type_args (extern, decl in-body) /
+ * driver_diagnostic_typeck_call_wrong_num_type_args (extern, decl in-body) /
+ * pipeline_typeck_try_infer_generic_call_from_args_c (same file, def above) /
+ * pipeline_typeck_check_inferred_generic_bounds_c (same file, def above)
+ * (all extern unless noted).
+ */
+static int32_t pipeline_typeck_check_call_generic_type_args_c(struct ast_Module *module,
+                                                              struct ast_ASTArena *arena, int32_t expr_ref,
+                                                              struct ast_PipelineDepCtx *ctx,
+                                                              int32_t expected_ret) {
+  extern void driver_diagnostic_typeck_call_not_generic(int32_t line, int32_t col, const uint8_t *name,
+                                                         int32_t name_len);
+  extern void driver_diagnostic_typeck_call_wrong_num_type_args(int32_t line, int32_t col,
+                                                                 const uint8_t *name, int32_t name_len,
+                                                                 int32_t expect_n, int32_t got_n);
+  extern void driver_diagnostic_typeck_call_requires_type_args(int32_t line, int32_t col,
+                                                                const uint8_t *name, int32_t name_len);
+  extern int32_t pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t func_index);
+  extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena *a, int32_t expr_ref);
+  struct ast_Module *callee_mod;
+  int32_t func_ix;
+  int32_t dep_ix;
+  int32_t num_generic_params;
+  int32_t num_type_args;
+  int32_t line;
+  int32_t col;
+  uint8_t name[128];
+  int32_t name_len;
+
+  if (!module || !arena || expr_ref <= 0)
+    return 0;
+  func_ix = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+  if (func_ix < 0)
+    return 0;
+  dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+  callee_mod = module;
+  if (dep_ix >= 0) {
+    callee_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+    if (!callee_mod)
+      return 0;
+  }
+  num_generic_params = pipeline_module_func_num_generic_params_at(callee_mod, func_ix);
+  num_type_args = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+  if (num_generic_params == 0 && num_type_args == 0)
+    return 0;
+  line = pipeline_expr_line_at(arena, expr_ref);
+  col = pipeline_expr_col_at(arena, expr_ref);
+  name_len = pipeline_module_func_name_len_at(callee_mod, func_ix);
+  if (name_len > 127)
+    name_len = 63;
+  if (name_len > 0)
+    pipeline_module_func_name_copy64(callee_mod, func_ix, name);
+  if (num_type_args > 0 && num_generic_params == 0) {
+    driver_diagnostic_typeck_call_not_generic(line, col, name, name_len);
+    return -1;
+  }
+  if (num_generic_params > 0 && num_type_args == 0) {
+    /*
+     * wave448: allow omitted turbofish when mono types are inferable from value
+     * args. wave453: also from expected return when sole type param is ret-only
+     * (zero-arg mk_default / as_t with ambient let/return type).
+     * Fail closed to requires_type_args when inference cannot complete
+     * (phantom-only T, untyped arg, mismatched same-name formals).
+     * wave449: after successful infer, check trait bounds (parse-time scan only
+     * sees turbofish `foo<Type>(...)`; bare `foo(arg)` was false-green).
+     */
+    if (pipeline_typeck_try_infer_generic_call_from_args_c(callee_mod, arena, expr_ref, func_ix,
+                                                            expected_ret) == 0) {
+      if (pipeline_typeck_check_inferred_generic_bounds_c(callee_mod, arena, expr_ref, func_ix, name,
+                                                           name_len, line, col, expected_ret) != 0)
+        return -1;
+      return 0;
+    }
+    driver_diagnostic_typeck_call_requires_type_args(line, col, name, name_len);
+    return -1;
+  }
+  if (num_generic_params != num_type_args) {
+    driver_diagnostic_typeck_call_wrong_num_type_args(line, col, name, name_len, num_generic_params, num_type_args);
+    return -1;
+  }
+  return 0;
 }
