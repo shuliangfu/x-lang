@@ -56,9 +56,11 @@ audit_one() {
   local size=$(wc -c < "$gen" 2>/dev/null | tr -d ' ')
   local lines=$(wc -l < "$gen" 2>/dev/null | tr -d ' ')
 
-  # Check if in catalog (retired)
+  # Check if in catalog (retired) — catalog uses *_x.o keys, not *_gen.c names
+  # Map gen.c → expected x.o key, then check if catalog has that key
   local in_catalog=""
-  if [ -f "$CATALOG_SH" ] && grep -qE "$(echo "$gen" | sed 's/\./\\./g')|${base%_gen}" "$CATALOG_SH" 2>/dev/null; then
+  local leaf_key="${base%_gen}_x.o"
+  if [ -f "$CATALOG_SH" ] && grep -qE "^\s*${leaf_key}\)" "$CATALOG_SH" 2>/dev/null; then
     in_catalog="yes"
   fi
 
