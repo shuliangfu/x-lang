@@ -40,6 +40,13 @@
  * >8B aligned up to 8) migrated here from glue residual — direct consumer of
  * glue_func_param_agg_byte_size_c above. Consumed by fill_param_slots /
  * emit_func_param_home (still in glue.c, same TU).
+ * wave1048 G.7 fold: glue_call_return_byte_size_c (CALL expr return type byte
+ * size; resolves callee func_index + maps dep type_ref to caller arena)
+ * migrated here from glue residual — call-site return sizing twin of
+ * wave1046 glue_func_return_byte_size_c (func_index variant). Consumed by
+ * field_access.c:328 + struct_let.c:141 + glue.c:3269/3383 (call-arg sret).
+ * Fwd decl at L356 serves all post-#include callsites; struct_let.c:93
+ * retains its own fwd decl (struct_let.c #include at L2266 < L2392).
  *
  * Callers: backend_call_dispatch.x / seed (extern); glue emit_expr leaf
  * VAR dual-GP via glue_load_var_as_value_to_rax_rdx_elf_c; glue
@@ -349,6 +356,11 @@ static int32_t glue_call_arg_var_use_lea_not_load_elf_c(struct ast_ASTArena *are
 
 /** SysV 9–16B dual-GP size for import POD (def later near store_retval). */
 static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
+
+/* wave1048 G.7: fwd decl — definition at EOF. Visible to all callsites after
+ * this #include point (glue.c:3269/3383 + field_access.c:328). struct_let.c:93
+ * has its own fwd decl (struct_let.c #include at L2266 < call_args.c L2392). */
+static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 
 /**
  * VAR 按值装入 rax（及 9–16B struct 的 rdx）：局部 let 双 half 栈 load；形参 hidden pointer 则 deref。
@@ -1659,4 +1671,71 @@ static int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct a
   if (sz > 8)
     return (sz + 7) & ~7;
   return 8;
+}
+
+/* wave1048 G.7 fold: glue_call_return_byte_size_c migrated here from
+ * pipeline_glue.c (definition was at glue.c:3184; forward decl at 2072 —
+ * glue.c fwd decl removed; call_args.c fwd decl at L356 serves all
+ * callsites after #include at L2392; struct_let.c:93 fwd decl retained
+ * for struct_let.c:141 callsite — struct_let.c #include at L2266 < L2392).
+ * Consumed by: field_access.c:328 (CALL METHOD_FIELD return sizing) +
+ * struct_let.c:141 (CALL init return sizing) + glue.c:3269/3383
+ * (call-arg packing sret detection). Same CALL-expr return sizing domain
+ * as wave1046 glue_func_return_byte_size_c (func_index variant). */
+
+/**
+ * Byte size of a CALL expression's return type (-1 on resolve failure, 0 void).
+ *
+ * Why: §SysV ABI call-site return sizing — resolves the callee func_index
+ * via glue_asm_resolve_call_target_module_c, maps dep callee type_ref into
+ * caller arena, then sizes the return type. TYPE_ARRAY callee return is E*
+ * (8B pointer, wave417) — matches glue_func_return_byte_size_c so CALL side
+ * does not invent sret for make():T[N]. Used by field_access (METHOD_FIELD
+ * return ≥9B triggers dual-GP / sret path) + struct_let (CALL init return
+ * sizing) + glue call-arg packing (sret detection for >16B return).
+ *
+ * Invariant: returns -1 for invalid arena/ref or resolve failure; returns 0
+ * for void return (kind 15); returns 8 for TYPE_ARRAY return; otherwise
+ * returns glue_type_size_simple of the (possibly mapped) return type ref.
+ *
+ * Asm/Perf: O(1) — one resolve + one kind dispatch + at most two size
+ * queries (caller module then callee module fallback). No recursion.
+ *
+ * PLATFORM: SHARED — pure size query; SysV consumers use >16B to gate sret.
+ *   · LINUX+MACOS x86_64 SysV sret (rdi hidden dest for >16B return)
+ *   · MACOS|ARM64 AAPCS64 x8 (wave591)
+ */
+static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
+  struct ast_Module *mod;
+  int32_t fi;
+  int32_t dep_ix;
+  int32_t rty;
+  int32_t sz;
+  struct ast_Module *sz_mod;
+  if (!arena || call_expr_ref <= 0)
+    return -1;
+  if (glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &fi, &dep_ix) != 0)
+    return -1;
+  if (!mod || fi < 0)
+    return -1;
+  rty = pipeline_module_func_return_type_at(mod, fi);
+  if (rty <= 0 || pipeline_type_kind_ord_at(arena, rty) == 15)
+    return 0;
+  /* dep callee type_ref must map to caller arena, else glue_type_size_simple
+   * falls back to 4 (unknown TYPE_NAMED in caller arena). */
+  if (dep_ix >= 0 && g_pipeline_asm_emit_dep_pipe) {
+    int32_t mapped =
+        pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena, g_pipeline_asm_emit_dep_pipe);
+    if (mapped > 0)
+      rty = mapped;
+  }
+  sz_mod = g_pipeline_asm_emit_module ? g_pipeline_asm_emit_module : mod;
+  /* wave417: TYPE_ARRAY callee return is E* (8B), not payload size — match
+   * glue_func_return_byte_size_c so CALL side does not invent sret for make():T[N]. */
+  if (pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_ARRAY)
+    return 8;
+  sz = glue_type_size_simple(sz_mod, arena, rty, 0);
+  if (sz <= 0)
+    sz = glue_type_size_simple(mod, arena, rty, 0);
+  return sz > 0 ? sz : -1;
 }

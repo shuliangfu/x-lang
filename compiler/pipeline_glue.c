@@ -2069,7 +2069,10 @@ static int32_t glue_struct_field_frame_mag_c(int32_t base_off, int32_t foff, int
 static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    int32_t fa_ref);
 /* wave351 CALL field init: reuse let-init CALL store authority (defs later). */
-static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
+/* wave1048 G.7: glue_call_return_byte_size_c fwd decl removed — definition
+ * migrated to pipeline_asm_emit_call_args.c (fwd decl at call_args.c:356,
+ * visible after #include at L2392; struct_let.c:93 retains its own fwd decl
+ * for struct_let.c:141 callsite before #include at L2266). */
 static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ty_ref,
                                                    int32_t slot_off, int32_t ta, int32_t init_ref,
@@ -3178,44 +3181,11 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
  * below (frame-size reserve L5949 + sret activation L8968).
  * Dependencies: glue_type_size_simple (fwd decl L1887 < include 2392). */
 
-/**
- * CALL 目标返回类型字节宽；解析失败返回 -1。
- */
-static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
-  struct ast_Module *mod;
-  int32_t fi;
-  int32_t dep_ix;
-  int32_t rty;
-  int32_t sz;
-  struct ast_Module *sz_mod;
-  if (!arena || call_expr_ref <= 0)
-    return -1;
-  if (glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &fi, &dep_ix) != 0)
-    return -1;
-  if (!mod || fi < 0)
-    return -1;
-  rty = pipeline_module_func_return_type_at(mod, fi);
-  if (rty <= 0 || pipeline_type_kind_ord_at(arena, rty) == 15)
-    return 0;
-  /** dep callee 的 type_ref 须映到 caller arena，否则 glue_type_size_simple 回落 4。 */
-  if (dep_ix >= 0 && g_pipeline_asm_emit_dep_pipe) {
-    int32_t mapped =
-        pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena, g_pipeline_asm_emit_dep_pipe);
-    if (mapped > 0)
-      rty = mapped;
-  }
-  sz_mod = g_pipeline_asm_emit_module ? g_pipeline_asm_emit_module : mod;
-  /*
-   * wave417: TYPE_ARRAY callee return is E* (8B), not payload size — match
-   * glue_func_return_byte_size_c so CALL side does not invent sret for make():T[N].
-   */
-  if (pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_ARRAY)
-    return 8;
-  sz = glue_type_size_simple(sz_mod, arena, rty, 0);
-  if (sz <= 0)
-    sz = glue_type_size_simple(mod, arena, rty, 0);
-  return sz > 0 ? sz : -1;
-}
+/* wave1048 G.7: glue_call_return_byte_size_c migrated to
+ * pipeline_asm_emit_call_args.c (definition at EOF; fwd decl at
+ * call_args.c:356 — visible after #include at L2392 for glue.c:3269/3383
+ * callsites. struct_let.c:93 retains its own fwd decl for struct_let.c:141).
+ * Same CALL-expr return sizing domain as wave1046 glue_func_return_byte_size_c. */
 
 /* wave1025 G.7: glue_emit_sret_memcpy_rbx_to_home_elf_c +
  * glue_emit_sret_return_from_var_elf_c + glue_copy_large_struct_from_rax_ptr_elf_c
