@@ -2768,72 +2768,15 @@ static int32_t glue_lazy_append_block_let_local(struct ast_ASTArena *arena, stru
 int32_t pipeline_block_let_name_len(struct ast_ASTArena *a, int32_t br, int32_t li);
 void pipeline_block_let_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst);
 
-/* wave1019 G.7: call_arg resolve + f32 VAR slot load (+ unusable/append_at_offset
- * + var_is_param) folded into pipeline_asm_emit_call_args.c. var_decl_type_ref +
- * lazy_append stay here (shared: assign/unary/binop/block_inits before/after
- * call_args include via forward or later definition). */
+/* wave1023 G.7: var_decl_type_ref + lazy_append folded into
+ * pipeline_asm_emit_var_decl.c (shared VAR/block-let infrastructure for
+ * assign/unary/binop/call_args/expr_rec/block_inits/block_body; same TU
+ * static via this include; no new DEPS count). wave1019 note superseded:
+ * these two statics no longer "stay in glue" — extracted to leaf. */
 
-/** 局部 VAR 声明类型 ref（块内 let / 形参 / expr resolved 回落）。 */
-static int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                             int32_t var_expr_ref) {
-  uint8_t vname[128];
-  int32_t vlen;
-  int32_t scope_br;
-  int32_t tr;
-  if (!arena || !ctx || var_expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, var_expr_ref) != GLUE_EXPR_KIND_VAR)
-    return 0;
-  vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-  if (vlen <= 0 || vlen > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, var_expr_ref, vname);
-  /** 内层 let 同名 shadow 形参时以块内声明为准。 */
-  scope_br = asm_ctx_scope_block_ref_at((uint8_t *)ctx);
-  if (scope_br > 0) {
-    tr = pipeline_block_resolve_var_type_ref(arena, scope_br, vname, vlen);
-    if (tr > 0)
-      return tr;
-  }
-  /** 形参表 f32 须优先于 expr resolved（x 等短名常被 typeck 宽化为 f64，勿 64-bit load 截断为 0）。 */
-  if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
-    tr = pipeline_module_func_param_type_ref_for_name(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index,
-                                                      vname, vlen);
-    if (tr > 0)
-      return tr;
-  }
-  tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
-  if (tr > 0)
-    return tr;
-  return 0;
-}
-
-/**
- * stmt_order 路径：let 未进 fill_tree 时按 asm_local_slot_reg_offset 懒登记（勿用 backend slot 0→rbp+0）。
- */
-static int32_t glue_lazy_append_block_let_local(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                 int32_t block_ref, int32_t let_idx, uint8_t *name, int32_t name_len) {
-  int32_t tref;
-  int32_t off;
-  int32_t slot_off;
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  if (!arena || !ctx || !name || name_len <= 0 || block_ref <= 0 || let_idx < 0)
-    return -1;
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (!ly)
-    return -1;
-  if (asm_ctx_local_find_offset((uint8_t *)ctx, name, name_len) >= 0)
-    return 0;
-  /** fill_tree/ensure 已登记本块栈布局时勿再 next_offset append（with_arena 内 v 与 Arena64 重叠）。 */
-  if (asm_ctx_block_slot_get((uint8_t *)ctx, block_ref) >= 0)
-    return 0;
-  tref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
-  off = ly->next_offset;
-  slot_off = asm_local_slot_reg_offset(arena, tref, off, &off);
-  ly->next_offset = off;
-  if (asm_ctx_local_append((uint8_t *)ctx, name, name_len, slot_off) < 0)
-    return -1;
-  ly->num_locals = asm_ctx_local_count((uint8_t *)ctx);
-  return 0;
-}
+/* BC 8.3.1: asm ELF VAR-decl type-ref + lazy block-let append (shared
+ * infrastructure; same TU). */
+#include "pipeline_asm_emit_var_decl.c"
 
 /** Forward: binop operand loader paths (field_access body in field_access leaf). */
 static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);

@@ -46,10 +46,10 @@
  * - glue_type_size_simple / glue_sysv_dual_gp_byte_size_c (later)
  * - glue_slice_let_reent_deep_copy_after_dual_gp_elf_c (body in this leaf wave1022)
  * - pipeline_asm_emit_expr_elf_rec / glue_emit_float_lit_to_rax_elf_c
- * - glue_var_decl_type_ref_elf_c (static; defined in glue before this include)
+ * - glue_var_decl_type_ref_elf_c (static; body in pipeline_asm_emit_var_decl.c wave1023)
  * - glue_type_is_fixed_array / backend_enc_*
  * - glue_type_ref_is_scalar_f32_c (body in binop leaf; forward below)
- * - glue_lazy_append_block_let_local (static; defined in glue before include)
+ * - glue_lazy_append_block_let_local (static; body in pipeline_asm_emit_var_decl.c wave1023)
  * - glue_slice_dual_gp_length_off_c / glue_align_next_offset (later; early fwds)
  * - glue_asm_lea_*_common_* / glue_emit_bulk_mem_copy_spills_elf_c (earlier)
  * - g_pipeline_asm_al_nc_seq (early glue; shared durable/return/reent)
@@ -62,8 +62,9 @@
  * (from pipeline_glue residual before index_eff_addr / call_args include).
  * Same-TU static. Callers: this leaf (for_call_args); glue emit_expr_elf_fast
  * VAR arm; binop try_binop_load_operand (after this include).
- * glue_var_decl_type_ref_elf_c + glue_lazy_append_block_let_local stay in glue
- * (shared with assign/unary/block paths). Forward type_ref_is_scalar_f32
+ * glue_var_decl_type_ref_elf_c + glue_lazy_append_block_let_local moved to
+ * pipeline_asm_emit_var_decl.c (wave1023 fold; included before this leaf).
+ * Forward type_ref_is_scalar_f32
  * (body in binop leaf wave1015).
  * PLATFORM: SHARED product residual C / LINUX+MACOS SysV f32 param homing.
  * ======================================================================== */
