@@ -143,7 +143,9 @@ fi
 #   build_runner.x extern calls wrapped in unsafe{} (typeck G.9); entry marked
 #   #[no_mangle] export to preserve symbol name (no build_ module prefix).
 #   -E import closure symbols are __attribute__((weak)) — coexist with build_gen.o.
-# build_runtime_x_gen.c remains pinned (separate retirement).
+# wave1040: build_runtime_x_gen.c retired from pinned seed (same -E + fallback).
+#   build_runtime_x.x: 15 extern calls wrapped in unsafe{} expression form;
+#   copy_path/append_lit marked #[no_mangle] to preserve symbol names.
 if [ -x ./xlang ]; then
   log "build_gen.c ← ../build.x -E (wave1038 Track L retired)"
   if ! ./xlang -x -E -L .. ../build.x > build_gen.c 2>/dev/null || [ ! -s build_gen.c ]; then
@@ -162,10 +164,12 @@ if [ -x ./xlang ]; then
 else
   cp -f seeds/build_runner_gen.c build_runner_gen.c
 fi
-if [ "${XLANG_BUILD_TOOL_REGEN:-0}" = "1" ] && [ -x ./xlang ]; then
-  log "regen build_runtime_x_gen via ./xlang build -x -E"
-  ./xlang build -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c \
-    || cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c
+if [ -x ./xlang ]; then
+  log "build_runtime_x_gen.c ← ../build_runtime_x.x -E (wave1040 Track L retired)"
+  if ! ./xlang -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c 2>/dev/null || [ ! -s build_runtime_x_gen.c ]; then
+    log "build_runtime_x_gen.c: -E failed; fallback to seed (archaeology)"
+    cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c
+  fi
 else
   cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c
 fi
