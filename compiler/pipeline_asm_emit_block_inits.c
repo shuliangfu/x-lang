@@ -639,3 +639,93 @@ static void glue_fill_array_lit_types_in_block(struct ast_ASTArena *arena, int32
                                 ast_pipeline_block_let_init_ref(arena, block_ref, i));
   }
 }
+
+/* ============================================================
+ * wave1149 G.7: block locals tree fill + init reserve bytes pair
+ * (migrated from pipeline_glue.c L1583-1604 + L1679-1690).
+ *
+ * Why here: pipeline_asm_fill_block_locals_tree walks a block_ref
+ * subtree and registers all const/let into the AsmFuncCtx sidecar
+ * (via asm_ctx_fill_locals_block_tree). It is the entry-point for
+ * block-level local slot allocation — colocated with the block
+ * const/let init emit domain already in this file.
+ *
+ * glue_asm_init_expr_reserve_stack_bytes is the companion helper
+ * that computes extra temp bytes for ARRAY_LIT/STRUCT_LIT let
+ * initializers (used by pipeline_asm_let_init_stack_reserve_bytes
+ * in glue.c). Colocating both keeps block-local allocation logic
+ * in one file.
+ *
+ * Dependencies (visible via earlier decls in the TU):
+ *   - pipeline_asm_ctx_layout (static, defined at glue.c L86,
+ *     before this file's #include at L3617)
+ *   - pipeline_glue_AsmFuncCtxLayout (struct, defined at glue.c L84)
+ *   - asm_ctx_fill_locals_block_tree (extern, declared at glue.c L1557)
+ *   - asm_array_lit_reserve_stack_bytes / asm_struct_lit_reserve_stack_bytes
+ *     (extern, declared at glue.c L1676-1677)
+ *   - pipeline_asm_emit_set_module (extern, defined at glue.c L4247,
+ *     AFTER this file's #include at L3617 — extern fwd decl below)
+ *
+ * Globals: pipeline_asm_fill_block_locals_tree previously wrote to
+ *   glue.c-local static g_pipeline_asm_emit_module; replaced with
+ *   the public setter pipeline_asm_emit_set_module (G.7 single
+ *   authority for the active emit module global).
+ *
+ * Callers (all AFTER this file's #include at L3617):
+ *   - pipeline_asm_emit_block_body.c:297 (via #include at L3632)
+ *   - pipeline_asm_emit_block_if_stmt.c:73,90 (via #include at L3635)
+ *   - glue.c L5230 (pipeline_asm_emit_block_body_sync_elf caller)
+ *   - glue.c L2113 calls glue_asm_init_expr_reserve_stack_bytes
+ *     (BEFORE this file's #include at L3617 — static fwd decl added
+ *     at glue.c before L2106)
+ *
+ * PLATFORM: SHARED — pure block-local slot allocation; no platform ABI dep.
+ * ============================================================ */
+
+/* extern fwd decl: pipeline_asm_emit_set_module is defined at glue.c L4247
+ * (AFTER this file's #include at L3617). Sole use is the side-effect write
+ * in pipeline_asm_fill_block_locals_tree (replacing direct global write). */
+extern void pipeline_asm_emit_set_module(struct ast_Module *m);
+
+/**
+ * Register all const/let within a block_ref subtree into AsmFuncCtx sidecar.
+ * Side effect: sets the active emit module from ctx prefix (offset 16) via
+ * the public setter pipeline_asm_emit_set_module (G.7 single authority for
+ * g_pipeline_asm_emit_module; was a direct static-global write before wave1149).
+ */
+static void pipeline_asm_fill_block_locals_tree(struct backend_AsmFuncCtx *ctx, struct ast_ASTArena *arena,
+                                                int32_t block_ref) {
+  struct ast_Module *mod_ref;
+  pipeline_glue_AsmFuncCtxLayout *ly;
+  int32_t off;
+  int32_t nl;
+  if (!ctx || !arena || block_ref <= 0)
+    return;
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (!ly)
+    return;
+  /* module_ref at AsmFuncCtx prefix offset 16; feeds asm_local_slot_bytes
+   * struct layout queries via the active emit module global. */
+  mod_ref = *(struct ast_Module **)((uint8_t *)ctx + 16);
+  if (mod_ref)
+    pipeline_asm_emit_set_module(mod_ref);
+  off = ly->next_offset;
+  nl = ly->num_locals;
+  asm_ctx_fill_locals_block_tree((uint8_t *)ctx, arena, block_ref, &off, &nl);
+  ly->next_offset = off;
+  ly->num_locals = nl;
+}
+
+/**
+ * Extra temp stack bytes reserved for ARRAY_LIT/STRUCT_LIT let/const
+ * initializers (beyond the pointer slot). Returns 0 for non-aggregate inits.
+ */
+static int32_t glue_asm_init_expr_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref) {
+  int32_t n;
+  if (init_ref <= 0)
+    return 0;
+  n = asm_array_lit_reserve_stack_bytes(arena, init_ref);
+  if (n > 0)
+    return n;
+  return asm_struct_lit_reserve_stack_bytes(arena, init_ref);
+}

@@ -13,7 +13,9 @@
  *
  * G.7: single product-mega CMP ELF face — do not open a second setcc finish
  * or second 64-bit width table. TypeKind name→tag table
- * (pipeline_asm_typekind_variant_tag) stays in glue (shared with field_access).
+ * (pipeline_asm_typekind_variant_tag) migrated to this file's EOF at wave1146
+ * (colocated with CMP enum RHS consumer; visible to field_access.c via static
+ * fwd decl at glue.c L1958).
  * Operand load placement helper glue_try_binop_cmp_rbx_rax_elf_c lives in
  * pipeline_asm_emit_binop.c (wave1018 G.7 fold; same TU before this include).
  * (shared with binop operand stack discipline).
@@ -21,15 +23,15 @@
  * Callers: pipeline_asm_emit_expr_elf_rec cmp arms (kind 10..15).
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c at the former
- * cmp body site (after pipeline_asm_typekind_variant_tag; before block-if
- * ast_pipeline forward decls / block_inits).
+ * cmp body site (before block-if ast_pipeline forward decls / block_inits).
  *
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
  */
 
 /* Forward decls / callees defined elsewhere in the same TU:
  * - pipeline_asm_emit_expr_elf_rec (static; declared earlier)
- * - pipeline_asm_typekind_variant_tag (static; defined just above this include)
+ * - pipeline_asm_typekind_variant_tag (static; now defined at this file's EOF
+ *   since wave1146; visible via static fwd decl at glue.c L1958)
  * - glue_try_binop_cmp_rbx_rax_elf_c / glue_binop_operand_is_scalar_f32/f64_elf_c
  * - glue_var_expr_stack_off_elf_c / glue_binop_var_slot_cache_invalidate_rbx
  * - pipeline_asm_call_return_type_kind_ord_c
@@ -379,4 +381,68 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
   if (cc < 0)
     return -1;
   return glue_emit_cmp_finish_rbx_rax_elf_c(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+}
+
+/* ============================================================
+ * wave1146 G.7: TypeKind variant name → tag mapping
+ * (migrated from pipeline_glue.c L3504-3542).
+ *
+ * Why here: pipeline_asm_typekind_variant_tag is the TypeKind
+ * variant-name → ordinal-tag table used by both CMP enum RHS
+ * (pipeline_asm_cmp_enum_rhs_tag_c above, sole in-file caller at
+ * L129) and FIELD_ACCESS enum tag resolution
+ * (pipeline_asm_emit_field_access.c:648). Colocating with the CMP
+ * enum RHS sub-domain keeps the TypeKind tag table next to its
+ * primary consumer; field_access.c sees it via the static fwd
+ * decl retained at glue.c L1958 (before field_access.c #include
+ * at L2281 and this file's #include at L3547).
+ *
+ * Contract: returns 0..15 for TYPE_I32..TYPE_VARIANT names;
+ * returns -1 if buf is NULL or flen < 6. flen may carry one
+ * trailing byte (matches glue_enum_field_name_equal semantics).
+ *
+ * Dependencies: none (pure memcmp buf scan; no globals, no callees).
+ *
+ * Callers (both visible via static fwd decl at glue.c L1958):
+ *   - pipeline_asm_cmp_enum_rhs_tag_c (this file, L129)
+ *   - pipeline_asm_emit_field_access.c:648 (via #include at L2281)
+ *
+ * PLATFORM: SHARED — pure name→tag table; no platform ABI dep.
+ * ============================================================ */
+static int32_t pipeline_asm_typekind_variant_tag(const uint8_t *field_buf, int32_t flen) {
+  if (!field_buf || flen < 7)
+    return -1;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_I32", 7) == 0)
+    return 0;
+  if (flen >= 8 && memcmp(field_buf, "TYPE_BOOL", 8) == 0)
+    return 1;
+  if (flen >= 6 && memcmp(field_buf, "TYPE_U8", 6) == 0)
+    return 2;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_U32", 7) == 0)
+    return 3;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_U64", 7) == 0)
+    return 4;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_I64", 7) == 0)
+    return 5;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_USIZE", 9) == 0)
+    return 6;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_ISIZE", 9) == 0)
+    return 7;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_NAMED", 9) == 0)
+    return 8;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_PTR", 7) == 0)
+    return 9;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_ARRAY", 9) == 0)
+    return 10;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_SLICE", 9) == 0)
+    return 11;
+  if (flen >= 11 && memcmp(field_buf, "TYPE_VECTOR", 11) == 0)
+    return 12;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_F32", 7) == 0)
+    return 13;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_F64", 7) == 0)
+    return 14;
+  if (flen >= 8 && memcmp(field_buf, "TYPE_VOID", 8) == 0)
+    return 15;
+  return -1;
 }

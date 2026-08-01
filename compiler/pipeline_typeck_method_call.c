@@ -2695,3 +2695,141 @@ static int32_t typeck_check_call_ptr_struct_compat_c(struct ast_Module *module, 
   lsp_diag_report_typeck((int)line, (int)col, "no matching overload (incompatible struct pointer argument)");
   return -1;
 }
+
+/* ============================================================
+ * wave1147 G.7: debug-point D try-propagate-strong-state reporter
+ * (migrated from pipeline_glue.c L10377-10413).
+ *
+ * Why here: debug_try_propagate_report_glue_c is a debug-only HTTP
+ * POST reporter (gated by XLANG_DEBUG_RESULT_TRY env var) for the
+ * Result `?` try-propagate typeck path. Its sole caller
+ * pipeline_typeck_check_expr_try_propagate_c (glue.c L10419) is the
+ * typeck entry for EXPR_TRY_PROPAGATE — colocated with the call
+ * dispatch / overload resolution domain already in this file.
+ *
+ * Contract: no-op unless XLANG_DEBUG_RESULT_TRY is set non-zero.
+ * Reads .dbg/result-try-typeck.env (optional) for url/session
+ * override; POSTs a JSON event to the debug server via curl.
+ *
+ * Dependencies (all extern / libc; no glue.c-local state):
+ *   - link_abi_getenv / link_abi_system (extern, host-cc)
+ *   - fopen / fgets / fclose / snprintf / strncmp / strcspn (libc)
+ *
+ * Caller (in glue.c, BEFORE this file's #include at L10525):
+ *   - pipeline_typeck_check_expr_try_propagate_c (glue.c L10452)
+ * Static fwd decl added at glue.c L10377 (before caller L10452).
+ *
+ * PLATFORM: SHARED — debug reporter; no platform ABI dep (curl is
+ * invoked via link_abi_system, not raw libc system).
+ * ============================================================ */
+// #region debug-point D:try-propagate-strong-state
+static void debug_try_propagate_report_glue_c(int32_t expr_ref, int32_t func_ix, int32_t return_type_ref, int32_t func_ret,
+                                              int32_t enclosing_return_type_ref, int32_t op_ty) {
+  FILE *fp;
+  char line[512];
+  char url[256];
+  char session[64];
+  char cmd[2048];
+  const char *enabled = link_abi_getenv("XLANG_DEBUG_RESULT_TRY");
+  if (!enabled || enabled[0] == '\0' || enabled[0] == '0')
+    return;
+  snprintf(url, sizeof(url), "%s", "http://127.0.0.1:7777/event");
+  snprintf(session, sizeof(session), "%s", "result-try-typeck");
+  fp = fopen(".dbg/result-try-typeck.env", "r");
+  if (fp) {
+    while (fgets(line, sizeof(line), fp)) {
+      if (strncmp(line, "DEBUG_SERVER_URL=", 17) == 0) {
+        snprintf(url, sizeof(url), "%s", line + 17);
+      } else if (strncmp(line, "DEBUG_SESSION_ID=", 17) == 0) {
+        snprintf(session, sizeof(session), "%s", line + 17);
+      }
+    }
+    fclose(fp);
+  }
+  url[strcspn(url, "\r\n")] = '\0';
+  session[strcspn(session, "\r\n")] = '\0';
+  snprintf(cmd, sizeof(cmd),
+           "/usr/bin/curl -s -X POST '%s' -H 'Content-Type: application/json' "
+           "-d '{\"sessionId\":\"%s\",\"runId\":\"pre-fix\",\"hypothesisId\":\"D\","
+           "\"location\":\"pipeline_glue.c:try_propagate\","
+           "\"msg\":\"[DEBUG] try_propagate_state_strong\","
+           "\"data\":{\"expr_ref\":%d,\"func_ix\":%d,\"return_type_ref\":%d,\"func_ret\":%d,"
+           "\"enclosing_return_type_ref\":%d,\"op_ty\":%d}}' >/dev/null 2>&1",
+           url, session, expr_ref, func_ix, return_type_ref, func_ret, enclosing_return_type_ref, op_ty);
+  /* wave248 G.7: public pure thin link_abi_system (not raw libc system). */
+  (void)link_abi_system(cmd);
+}
+// #endregion
+
+/* ============================================================
+ * wave1148 G.7: bootstrap typeck post-processing expr fixup
+ * (migrated from pipeline_glue.c L10506-10546).
+ *
+ * Why here: pipeline_typeck_bootstrap_expr_fixup_c is the
+ * post-typeck fixup for METHOD_CALL (`i32.double` → i32 builtin
+ * return-type stamp) and generic CALL monomorphization fallback
+ * (when bootstrap parser skipped type_args). Colocated with the
+ * call dispatch / overload resolution domain already in this file;
+ * depends on glue_generic_call_fixup_resolved_type_c (wave1096,
+ * already at this file's EOF).
+ *
+ * Contract: mutates expr_ref.resolved_type_ref in place for
+ * METHOD_CALL `i32.double` (stamps TYPE_I32) and delegates generic
+ * CALL to glue_generic_call_fixup_resolved_type_c. No-op for
+ * other expr kinds.
+ *
+ * Dependencies (all extern unless noted):
+ *   - pipeline_expr_kind_ord_at / pipeline_expr_resolved_type_ref /
+ *     pipeline_expr_method_call_base_ref_at /
+ *     pipeline_expr_method_call_name_len /
+ *     pipeline_expr_method_call_name_into /
+ *     pipeline_expr_set_resolved_type_ref (extern)
+ *   - pipeline_type_kind_ord_at / pipeline_type_ensure_by_kind_ord (extern)
+ *   - ast_TypeKind_TYPE_I32 / ast_ExprKind_EXPR_METHOD_CALL /
+ *     ast_ExprKind_EXPR_CALL (global enum)
+ *   - glue_generic_call_fixup_resolved_type_c (static, wave1096,
+ *     same file — direct call, no fwd decl needed)
+ *
+ * Caller (in glue.c, BEFORE this file's #include at L10499):
+ *   - pipeline_typeck_check_expr_return_c (glue.c L8191)
+ * Static fwd decl retained at glue.c L8131 (before caller L8191).
+ *
+ * PLATFORM: SHARED — pure typeck post-processing; no platform ABI dep.
+ * ============================================================ */
+static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                   int32_t expr_ref) {
+  int32_t kind;
+  int32_t base_ref;
+  int32_t base_ty;
+  int32_t method_nlen;
+  uint8_t method_nm[128];
+  int32_t ret_ty;
+  int32_t ord_i32;
+  int32_t ord_method;
+  int32_t ord_call;
+
+  if (!module || !arena || expr_ref <= 0)
+    return;
+  kind = pipeline_expr_kind_ord_at(arena, expr_ref);
+  ord_i32 = (int32_t)ast_TypeKind_TYPE_I32;
+  ord_method = (int32_t)ast_ExprKind_EXPR_METHOD_CALL;
+  ord_call = (int32_t)ast_ExprKind_EXPR_CALL;
+  if (kind == ord_method) {
+    base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+    method_nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
+    if (method_nlen <= 0 || method_nlen > 127)
+      return;
+    pipeline_expr_method_call_name_into(arena, expr_ref, method_nm);
+    ret_ty = 0;
+    if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == ord_i32 && method_nlen == 6 &&
+        method_nm[0] == (uint8_t)'d' && method_nm[1] == (uint8_t)'o' && method_nm[2] == (uint8_t)'u' &&
+        method_nm[3] == (uint8_t)'b' && method_nm[4] == (uint8_t)'l' && method_nm[5] == (uint8_t)'e')
+      ret_ty = pipeline_type_ensure_by_kind_ord(arena, ord_i32);
+    if (ret_ty != 0)
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
+    return;
+  }
+  if (kind == ord_call)
+    (void)glue_generic_call_fixup_resolved_type_c(module, arena, expr_ref, 0, 0);
+}

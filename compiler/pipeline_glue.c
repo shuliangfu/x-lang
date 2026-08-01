@@ -1580,28 +1580,13 @@ int32_t pipeline_block_const_type_ref(struct ast_ASTArena *a, int32_t br, int32_
 int32_t pipeline_block_let_type_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
 int32_t pipeline_block_let_init_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
 
-/** 将 block_ref 子树内全部 const/let 登记到 AsmFuncCtx sidecar。 */
-static void pipeline_asm_fill_block_locals_tree(struct backend_AsmFuncCtx *ctx, struct ast_ASTArena *arena,
-                                                int32_t block_ref) {
-  struct ast_Module *mod_ref;
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  int32_t off;
-  int32_t nl;
-  if (!ctx || !arena || block_ref <= 0)
-    return;
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (!ly)
-    return;
-  /** module_ref 在 AsmFuncCtx 前缀偏移 16；供 asm_local_slot_bytes 查 struct layout。 */
-  mod_ref = *(struct ast_Module **)((uint8_t *)ctx + 16);
-  if (mod_ref)
-    g_pipeline_asm_emit_module = mod_ref;
-  off = ly->next_offset;
-  nl = ly->num_locals;
-  asm_ctx_fill_locals_block_tree((uint8_t *)ctx, arena, block_ref, &off, &nl);
-  ly->next_offset = off;
-  ly->num_locals = nl;
-}
+/* wave1149 G.7: pipeline_asm_fill_block_locals_tree migrated to
+ * pipeline_asm_emit_block_inits.c EOF (block-local slot allocation
+ * domain; colocated with const/let init emit). Visible here via
+ * #include at L3617 (before callers at L5230 / block_body.c /
+ * block_if_stmt.c). Direct g_pipeline_asm_emit_module write replaced
+ * with pipeline_asm_emit_set_module() public setter (G.7 single
+ * authority). PLATFORM: SHARED. */
 extern int32_t backend_try_fold_count_up_while_elf(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref,
                                                    int32_t loop_idx, struct backend_AsmFuncCtx *ctx, int32_t ta);
@@ -1676,18 +1661,15 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
 extern int32_t asm_array_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
 extern int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
 
-/**
- * let/const 初值为 ARRAY_LIT/STRUCT_LIT 时在指针槽后额外占用的 temp 字节数。
- */
-static int32_t glue_asm_init_expr_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref) {
-  int32_t n;
-  if (init_ref <= 0)
-    return 0;
-  n = asm_array_lit_reserve_stack_bytes(arena, init_ref);
-  if (n > 0)
-    return n;
-  return asm_struct_lit_reserve_stack_bytes(arena, init_ref);
-}
+/* wave1149 G.7: glue_asm_init_expr_reserve_stack_bytes migrated to
+ * pipeline_asm_emit_block_inits.c EOF (block-local slot allocation
+ * domain; colocated with pipeline_asm_fill_block_locals_tree).
+ * Static fwd decl below — sole caller pipeline_asm_let_init_stack_
+ * reserve_bytes at L2106 is BEFORE block_inits.c #include at L3617;
+ * definition at block_inits.c EOF (after #include). Deps:
+ * asm_array_lit_reserve_stack_bytes / asm_struct_lit_reserve_stack_bytes
+ * (extern, fwd decls above). PLATFORM: SHARED. */
+static int32_t glue_asm_init_expr_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
 
 #define PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED (-99)
 
@@ -1954,7 +1936,10 @@ static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
  * in-TU leaf consumer (2 callsites); residual glue.c caller
  * pipeline_expr_enum_namespace_field_tag is after the #include site — no
  * forward decl needed. */
-/** TypeKind 枚举变体 tag；定义见 pipeline_asm_emit_cmp_elf 前部。 */
+/* wave1146 G.7: TypeKind 枚举变体 tag (definition migrated to
+ * pipeline_asm_emit_cmp.c EOF). Static fwd decl here provides
+ * visibility to field_access.c (#include at L2281) and cmp.c
+ * (#include at L3547) — both before the definition at cmp.c EOF. */
 static int32_t pipeline_asm_typekind_variant_tag(const uint8_t *field_buf, int32_t flen);
 /** if/三元分支块 emit 深度（定义见 glue_block_emit_stmt_i 旁；此处前置供 if_arm 使用）。 */
 static int32_t glue_if_expr_arm_emit_depth;
@@ -3501,49 +3486,15 @@ int32_t pipeline_expr_binop_right_ref_at(struct ast_ASTArena *a, int32_t expr_re
   return ex ? ex->binop_right_ref : 0;
 }
 
-/** 比较 TypeKind 变体名；flen 允许多 1 尾字节，与 glue_enum_field_name_equal 一致。
- * Shared by field_access + cmp enum RHS (pipeline_asm_emit_cmp.c). */
-static int32_t pipeline_asm_typekind_variant_tag(const uint8_t *field_buf, int32_t flen) {
-  if (!field_buf || flen < 7)
-    return -1;
-  if (flen >= 7 && memcmp(field_buf, "TYPE_I32", 7) == 0)
-    return 0;
-  if (flen >= 8 && memcmp(field_buf, "TYPE_BOOL", 8) == 0)
-    return 1;
-  if (flen >= 6 && memcmp(field_buf, "TYPE_U8", 6) == 0)
-    return 2;
-  if (flen >= 7 && memcmp(field_buf, "TYPE_U32", 7) == 0)
-    return 3;
-  if (flen >= 7 && memcmp(field_buf, "TYPE_U64", 7) == 0)
-    return 4;
-  if (flen >= 7 && memcmp(field_buf, "TYPE_I64", 7) == 0)
-    return 5;
-  if (flen >= 9 && memcmp(field_buf, "TYPE_USIZE", 9) == 0)
-    return 6;
-  if (flen >= 9 && memcmp(field_buf, "TYPE_ISIZE", 9) == 0)
-    return 7;
-  if (flen >= 9 && memcmp(field_buf, "TYPE_NAMED", 9) == 0)
-    return 8;
-  if (flen >= 7 && memcmp(field_buf, "TYPE_PTR", 7) == 0)
-    return 9;
-  if (flen >= 9 && memcmp(field_buf, "TYPE_ARRAY", 9) == 0)
-    return 10;
-  if (flen >= 9 && memcmp(field_buf, "TYPE_SLICE", 9) == 0)
-    return 11;
-  if (flen >= 11 && memcmp(field_buf, "TYPE_VECTOR", 11) == 0)
-    return 12;
-  if (flen >= 7 && memcmp(field_buf, "TYPE_F32", 7) == 0)
-    return 13;
-  if (flen >= 7 && memcmp(field_buf, "TYPE_F64", 7) == 0)
-    return 14;
-  if (flen >= 8 && memcmp(field_buf, "TYPE_VOID", 8) == 0)
-    return 15;
-  return -1;
-}
+/* wave1146 G.7: pipeline_asm_typekind_variant_tag migrated to
+ * pipeline_asm_emit_cmp.c EOF (TypeKind variant-name → tag table;
+ * colocated with CMP enum RHS consumer pipeline_asm_cmp_enum_rhs_tag_c).
+ * Visible here via static fwd decl at L1958 (before field_access.c
+ * #include at L2281 and cmp.c #include at L3547). */
 
 /* BC 8.3.1: asm ELF relational CMP emit domain
  * (emit_cmp_elf + enum RHS tag + 64-bit/rex + f32/f64/int finish;
- * Cap residual pure; same TU). typekind_variant_tag stays above. */
+ * Cap residual pure; same TU). typekind_variant_tag now at cmp.c EOF. */
 #include "pipeline_asm_emit_cmp.c"
 
 
@@ -10405,43 +10356,17 @@ int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTA
 extern int32_t typeck_check_expr_try_propagate(struct ast_Module *module, struct ast_ASTArena *arena,
                                                int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
+/* wave1147 G.7: debug_try_propagate_report_glue_c migrated to
+ * pipeline_typeck_method_call.c EOF (debug-point D try-propagate
+ * reporter; colocated with call dispatch / overload resolution domain).
+ * Static fwd decl below — sole caller pipeline_typeck_check_expr_
+ * try_propagate_c at L10419 is BEFORE method_call.c #include at L10525;
+ * definition at method_call.c EOF (after #include). Deps: link_abi_getenv
+ * / link_abi_system (extern) + libc fopen/fgets/fclose/snprintf/strncmp/
+ * strcspn. PLATFORM: SHARED. */
 // #region debug-point D:try-propagate-strong-state
 static void debug_try_propagate_report_glue_c(int32_t expr_ref, int32_t func_ix, int32_t return_type_ref, int32_t func_ret,
-                                              int32_t enclosing_return_type_ref, int32_t op_ty) {
-  FILE *fp;
-  char line[512];
-  char url[256];
-  char session[64];
-  char cmd[2048];
-  const char *enabled = link_abi_getenv("XLANG_DEBUG_RESULT_TRY");
-  if (!enabled || enabled[0] == '\0' || enabled[0] == '0')
-    return;
-  snprintf(url, sizeof(url), "%s", "http://127.0.0.1:7777/event");
-  snprintf(session, sizeof(session), "%s", "result-try-typeck");
-  fp = fopen(".dbg/result-try-typeck.env", "r");
-  if (fp) {
-    while (fgets(line, sizeof(line), fp)) {
-      if (strncmp(line, "DEBUG_SERVER_URL=", 17) == 0) {
-        snprintf(url, sizeof(url), "%s", line + 17);
-      } else if (strncmp(line, "DEBUG_SESSION_ID=", 17) == 0) {
-        snprintf(session, sizeof(session), "%s", line + 17);
-      }
-    }
-    fclose(fp);
-  }
-  url[strcspn(url, "\r\n")] = '\0';
-  session[strcspn(session, "\r\n")] = '\0';
-  snprintf(cmd, sizeof(cmd),
-           "/usr/bin/curl -s -X POST '%s' -H 'Content-Type: application/json' "
-           "-d '{\"sessionId\":\"%s\",\"runId\":\"pre-fix\",\"hypothesisId\":\"D\","
-           "\"location\":\"pipeline_glue.c:try_propagate\","
-           "\"msg\":\"[DEBUG] try_propagate_state_strong\","
-           "\"data\":{\"expr_ref\":%d,\"func_ix\":%d,\"return_type_ref\":%d,\"func_ret\":%d,"
-           "\"enclosing_return_type_ref\":%d,\"op_ty\":%d}}' >/dev/null 2>&1",
-           url, session, expr_ref, func_ix, return_type_ref, func_ret, enclosing_return_type_ref, op_ty);
-  /* wave248 G.7: public pure thin link_abi_system (not raw libc system). */
-  (void)link_abi_system(cmd);
-}
+                                              int32_t enclosing_return_type_ref, int32_t op_ty);
 // #endregion
 
 /**
@@ -10560,47 +10485,16 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(struct ast_ASTArena *arena, s
  * method_call.c #include at L13803 < def EOF < callsites L14181 + L14757.
  * PLATFORM: SHARED. */
 
-/**
- * bootstrap typeck 后处理：METHOD_CALL（i32.double→i32）与泛型 CALL 单态化。
- * 在 pipeline return/check 路径调用；parser skip impl / 未存 type_args 时的兜底。
- */
-static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                   int32_t expr_ref) {
-  int32_t kind;
-  int32_t base_ref;
-  int32_t base_ty;
-  int32_t method_nlen;
-  uint8_t method_nm[128];
-  int32_t ret_ty;
-  int32_t ord_i32;
-  int32_t ord_method;
-  int32_t ord_call;
-
-  if (!module || !arena || expr_ref <= 0)
-    return;
-  kind = pipeline_expr_kind_ord_at(arena, expr_ref);
-  ord_i32 = (int32_t)ast_TypeKind_TYPE_I32;
-  ord_method = (int32_t)ast_ExprKind_EXPR_METHOD_CALL;
-  ord_call = (int32_t)ast_ExprKind_EXPR_CALL;
-  if (kind == ord_method) {
-    base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
-    method_nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
-    if (method_nlen <= 0 || method_nlen > 127)
-      return;
-    pipeline_expr_method_call_name_into(arena, expr_ref, method_nm);
-    ret_ty = 0;
-    if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == ord_i32 && method_nlen == 6 &&
-        method_nm[0] == (uint8_t)'d' && method_nm[1] == (uint8_t)'o' && method_nm[2] == (uint8_t)'u' &&
-        method_nm[3] == (uint8_t)'b' && method_nm[4] == (uint8_t)'l' && method_nm[5] == (uint8_t)'e')
-      ret_ty = pipeline_type_ensure_by_kind_ord(arena, ord_i32);
-    if (ret_ty != 0)
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
-    return;
-  }
-  if (kind == ord_call)
-    (void)glue_generic_call_fixup_resolved_type_c(module, arena, expr_ref, 0, 0);
-}
+/* wave1148 G.7: pipeline_typeck_bootstrap_expr_fixup_c migrated to
+ * pipeline_typeck_method_call.c EOF (bootstrap typeck post-processing
+ * expr fixup; colocated with glue_generic_call_fixup_resolved_type_c
+ * wave1096 + call dispatch / overload resolution domain). Static fwd
+ * decl at L8131 (before sole caller pipeline_typeck_check_expr_return_c
+ * at L8191, before method_call.c #include at L10499). Deps:
+ * pipeline_expr_kind_ord_at / pipeline_expr_resolved_type_ref /
+ * pipeline_expr_method_call_* / pipeline_expr_set_resolved_type_ref /
+ * pipeline_type_kind_ord_at / pipeline_type_ensure_by_kind_ord (all extern)
+ * + glue_generic_call_fixup_resolved_type_c (static, same file). PLATFORM: SHARED. */
 
 /**
  * EXPR_CALL：委托 typeck_x.o 后做泛型返回类型单态化 fixup（bootstrap parser 未存 call type_args）。
