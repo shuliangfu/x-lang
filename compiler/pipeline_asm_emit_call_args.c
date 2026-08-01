@@ -50,7 +50,10 @@
  * - glue_type_is_fixed_array / backend_enc_*
  * - glue_type_ref_is_scalar_f32_c (body in binop leaf; forward below)
  * - glue_lazy_append_block_let_local (static; body in pipeline_asm_emit_var_decl.c wave1023)
- * - glue_slice_dual_gp_length_off_c / glue_align_next_offset (later; early fwds)
+ * - glue_slice_dual_gp_length_off_c / glue_slice_dual_gp_bump_past_home_c
+ *   (static; bodies in pipeline_asm_emit_block_inits.c wave1024; length_off
+ *   early fwd at glue ~2017; bump_past_home same-TU later def)
+ * - glue_align_next_offset (later; early fwd)
  * - glue_asm_lea_*_common_* / glue_emit_bulk_mem_copy_spills_elf_c (earlier)
  * - g_pipeline_asm_al_nc_seq (early glue; shared durable/return/reent)
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_call_param_ty_ref / ...
