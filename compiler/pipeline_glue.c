@@ -3658,39 +3658,12 @@ int32_t pipeline_asm_call_arg_value_byte_size_c(struct ast_ASTArena *arena, stru
  * serves struct_lit.c callsites L152/L158 + glue.c internal callsites
  * L3759/3772/3774/3804 after #include 2092 — visible via that decl). */
 
-/**
- * 将 module 各 struct layout 的 field_offset 同步为 glue_struct_layout_compute_field_offset_c 结果。
- * skip .x typeck 的 asm emit 前调用，使 align(64) 等字段偏移落盘（DOD-CL-S1）。
- */
-static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_ASTArena *a) {
-  int32_t li;
-  int32_t nf;
-  int32_t j;
-  if (!m || !a)
-    return;
-  for (li = 0; li < pipeline_module_num_struct_layouts_at(m); li++) {
-    nf = pipeline_module_struct_layout_num_fields(m, li);
-    for (j = 0; j < nf; j++) {
-      int32_t off = glue_struct_layout_compute_field_offset_c(m, a, li, j);
-      pipeline_module_struct_layout_set_field_offset(m, li, j, off);
-    }
-    if (link_abi_getenv("XLANG_ASM_DEBUG") && li == 0) {
-      uint8_t fn0[128];
-      uint8_t fn1[128];
-      memset(fn0, 0, sizeof(fn0));
-      memset(fn1, 0, sizeof(fn1));
-      if (nf > 0)
-        pipeline_module_struct_layout_field_name_into(m, li, 0, fn0);
-      if (nf > 1)
-        pipeline_module_struct_layout_field_name_into(m, li, 1, fn1);
-      fprintf(stderr, "xlang: layout0 nf=%d f0=%.4s off0=%d fa0=%d f1=%.4s off1=%d fa1=%d\n", (int)nf, fn0,
-              (int)glue_struct_layout_compute_field_offset_c(m, a, li, 0),
-              (int)pipeline_module_struct_layout_field_align_at(m, li, 0), fn1,
-              nf > 1 ? (int)glue_struct_layout_compute_field_offset_c(m, a, li, 1) : -1,
-              nf > 1 ? (int)pipeline_module_struct_layout_field_align_at(m, li, 1) : -1);
-    }
-  }
-}
+/* wave1052 G.7: glue_sync_struct_layout_field_offsets_c migrated to
+ * pipeline_asm_emit_struct_lit.c (definition at EOF). Forward decl below
+ * retained for glue.c:11850 callsite (fill_struct_layouts — module layout
+ * finalization pass). struct_lit.c:77 also has a forward decl; same-TU
+ * #include at glue.c:2095 makes the definition visible to glue.c. */
+static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_ASTArena *a);
 
 /* wave1050 G.7: glue_struct_layout_field_offset_by_name_c migrated to
  * pipeline_asm_emit_field_access.c (definition at EOF; field_access.c:708 fwd

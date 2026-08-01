@@ -69,6 +69,13 @@ static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena 
 static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
                                             int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al);
 
+/* wave1052 G.7: forward decl — glue_sync_struct_layout_field_offsets_c is
+ * defined at EOF below (migrated from glue.c:3665). glue.c:11850 callsite
+ * retains its own forward decl at glue.c:3655 (same TU; visible via #include
+ * at glue.c:2095). Consumed only by glue.c fill_struct_layouts (module
+ * layout finalization pass — struct layout registry domain). */
+static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_ASTArena *a);
+
 /**
  * Check whether a TYPE_NAMED refers to an empty struct (ZST).
  *
@@ -850,4 +857,69 @@ int32_t pipeline_expr_struct_lit_value_bytes(struct ast_ASTArena *a, struct ast_
     return sz_out > 0 ? sz_out : 0;
   }
   return 0;
+}
+
+/* wave1052 G.7 fold: glue_sync_struct_layout_field_offsets_c migrated here
+ * from pipeline_glue.c (definition was at glue.c:3665). glue.c:11850 callsite
+ * (fill_struct_layouts) needs the function — forward decl at glue.c:3655
+ * retained (or use the one at struct_lit.c:77 via same-TU #include at
+ * glue.c:2095). glue.c has 1 callsite (L11850) — non-leaf but struct layout
+ * registry domain; migrating colocates with glue_struct_layout_compute_field
+ * _offset_c (wave1044) + pipeline_expr_struct_lit_value_bytes (wave1051).
+ *
+ * glue_struct_layout_compute_field_offset_c (called by the body) is defined
+ * earlier in this file (wave1044 fold). link_abi_getenv / fprintf / memset
+ * already used by struct_lit.c (L335-336/389-390/593-594). */
+
+/**
+ * Sync each module struct layout's field_offset entries to the result of
+ * glue_struct_layout_compute_field_offset_c. Called before asm emit when
+ * .x typeck is skipped, so that align(64) and other field offsets are
+ * materialized (DOD-CL-S1).
+ *
+ * Why: §11.1 struct layout registry — module struct layouts store per-field
+ * offsets that must match the cumulative §11.1 alignment computation. When
+ * the .x typeck pass is skipped (asm-only path), the offsets are not yet
+ * materialized; this function walks all layouts and writes the computed
+ * offset back via pipeline_module_struct_layout_set_field_offset. The debug
+ * branch logs layout0's first two fields when XLANG_ASM_DEBUG is set.
+ *
+ * Invariant: no-op for invalid module/arena; otherwise iterates all layouts
+ * and all fields, writing computed offsets. Debug log is gated on env var
+ * and only for layout index 0.
+ *
+ * Asm/Perf: O(nlayouts * nf) — linear scan over layouts and fields, each
+ * field invokes glue_struct_layout_compute_field_offset_c (O(nf) cumulative
+ * offset walk). Bounded by module struct count (typically small).
+ *
+ * PLATFORM: SHARED — pure layout registry sync; arch-agnostic.
+ */
+static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_ASTArena *a) {
+  int32_t li;
+  int32_t nf;
+  int32_t j;
+  if (!m || !a)
+    return;
+  for (li = 0; li < pipeline_module_num_struct_layouts_at(m); li++) {
+    nf = pipeline_module_struct_layout_num_fields(m, li);
+    for (j = 0; j < nf; j++) {
+      int32_t off = glue_struct_layout_compute_field_offset_c(m, a, li, j);
+      pipeline_module_struct_layout_set_field_offset(m, li, j, off);
+    }
+    if (link_abi_getenv("XLANG_ASM_DEBUG") && li == 0) {
+      uint8_t fn0[128];
+      uint8_t fn1[128];
+      memset(fn0, 0, sizeof(fn0));
+      memset(fn1, 0, sizeof(fn1));
+      if (nf > 0)
+        pipeline_module_struct_layout_field_name_into(m, li, 0, fn0);
+      if (nf > 1)
+        pipeline_module_struct_layout_field_name_into(m, li, 1, fn1);
+      fprintf(stderr, "xlang: layout0 nf=%d f0=%.4s off0=%d fa0=%d f1=%.4s off1=%d fa1=%d\n", (int)nf, fn0,
+              (int)glue_struct_layout_compute_field_offset_c(m, a, li, 0),
+              (int)pipeline_module_struct_layout_field_align_at(m, li, 0), fn1,
+              nf > 1 ? (int)glue_struct_layout_compute_field_offset_c(m, a, li, 1) : -1,
+              nf > 1 ? (int)pipeline_module_struct_layout_field_align_at(m, li, 1) : -1);
+    }
+  }
 }
