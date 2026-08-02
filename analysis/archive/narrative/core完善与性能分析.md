@@ -76,4 +76,3 @@
 
 - **完善度**：在现有语言与编译器下，core 已按分析文档**全部完善**；仅 map/and_then、泛型 size_of(T)、i16/u16 依赖后续语言/编译器能力。
 - **性能**：零成本抽象与布局已满足；codegen 已实现 mem_*→builtin、core.builtin copy/unreachable/abort→builtin、core.types/core.mem 的 size_of_*/align_of_* 加 inline；slice 的 **get_*_unchecked** 已在 core 中实现。
-

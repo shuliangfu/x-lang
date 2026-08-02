@@ -5855,4 +5855,3 @@ export function driver_print_usage_write(): void {
     xlang_driver_usage_write_stdout(use_color);
   }
 }
-

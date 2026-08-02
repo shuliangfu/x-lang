@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 DOC="${XLANG_OBS_ASYNC_TRACE_DOC:-analysis/obs-async-runtime-trace-v1.md}"
 MANIFEST="${XLANG_OBS_ASYNC_TRACE_TSV:-tests/baseline/obs-async-runtime-trace.tsv}"
 SCHED="${XLANG_OBS_ASYNC_TRACE_SCHED:-compiler/seeds/runtime_scheduler_glue.from_x.c}"
-SMOKE_SRC="${XLANG_OBS_ASYNC_TRACE_SMOKE:-tests/bench/async_runtime_trace_smoke.c}"
+SMOKE_SRC="${XLANG_OBS_ASYNC_TRACE_SMOKE:-bench/async_runtime_trace_smoke.c}"
 SCHED_O="std/async/scheduler.o"
 MIN_ITEMS=8
 MIN_TOPN=5

@@ -1223,7 +1223,7 @@ After (wave784):
 
 | Swallowed this wave | Still residual |
 |---------------------|----------------|
-| **B6 body** (R5 CI policy/sequence → compiler_all_ci.sh + Makefile/xbuild thin) | ~~B7 inventory~~ (wave785) · physical delete after Windows |
+| **B6 body** (R5 CI policy/sequence → compiler_all_ci.sh + Makefile/xcode thin) | ~~B7 inventory~~ (wave785) · physical delete after Windows |
 | Prior R1–R6 / prefer / pure-ld / prep / Windows+dual-end / B1–B5 | FORCE_CC · Windows PE pure-ld · stage 12 unload gcc |
 
 **Forbidden:** physical delete Makefile; claim B6 swallow = physical delete / stage 12 done; re-open bare `run_compiler_make OPT=1 all` as dual authority; mac-only wave green.
@@ -4814,5 +4814,4 @@ hardcode panic `.o` list in shell (catalog KEY only).
 
 > **Why:** DRIVER_SEED_CRT0_OBJS per-leaf recipes collapsed into single multi-target
 > FORCE thin. R2 CRT0 multi-target FORCE thin closed.
-
 

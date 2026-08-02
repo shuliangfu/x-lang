@@ -26,7 +26,7 @@
 # ─── 项目版本（权威来源） ───────────────────────────────────
 # codegen 会把此版本嵌入 binary 的 .xlang_meta section，供 --version 与
 # runtime 自省使用。semver 格式：MAJOR.MINOR.PATCH[-pre][+build]。
-version = "0.3.2"
+version = "0.1.0"
 
 # ─── 项目元数据 ─────────────────────────────────────────────
 [package]

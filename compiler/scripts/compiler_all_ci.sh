@@ -51,21 +51,21 @@ bad() { echo "compiler_all_ci: FAIL: $*" >&2; fail=1; }
 if [ "$MODE" = "check" ]; then
   fail=0
   ROOT="$(CDPATH= cd -- "$COMPILER_DIR/.." && pwd)"
-  XBUILD="$ROOT/xlang-build.sh"
+  XCODE="$ROOT/xlang-build.sh"
   MF="$COMPILER_DIR/Makefile"
 
-  if [ ! -f "$XBUILD" ]; then
+  if [ ! -f "$XCODE" ]; then
     bad "missing xlang-build.sh"
   else
     # Outer entry must call this script (not bare run_compiler_make OPT=1 all only).
-    if ! grep -q 'compiler_all_ci\.sh' "$XBUILD"; then
+    if ! grep -q 'compiler_all_ci\.sh' "$XCODE"; then
       bad "xlang-build.sh must wire compiler-all → compiler_all_ci.sh (wave784)"
     else
       note "xbuild compiler-all wires compiler_all_ci.sh"
     fi
-    if grep -nE 'compiler-all\|ci-all\)' -A6 "$XBUILD" 2>/dev/null \
+    if grep -nE 'compiler-all\|ci-all\)' -A6 "$XCODE" 2>/dev/null \
       | grep -q 'run_compiler_make.*OPT=.*all' \
-      && ! grep -nE 'compiler-all\|ci-all\)' -A8 "$XBUILD" 2>/dev/null \
+      && ! grep -nE 'compiler-all\|ci-all\)' -A8 "$XCODE" 2>/dev/null \
         | grep -q 'compiler_all_ci\.sh'; then
       bad "xbuild compiler-all still bare run_compiler_make OPT all without shell body"
     fi

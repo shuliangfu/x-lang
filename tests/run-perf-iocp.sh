@@ -75,12 +75,12 @@ xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 xlang_compiler_make ../std/io/io.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o
 
 OUT="/tmp/xlang_iocp_pipe_loop"
-if ! cc -O2 -Wall tests/bench/iocp_pipe_loop.c std/io/io.o -o "$OUT" 2>/dev/null; then
+if ! cc -O2 -Wall bench/iocp_pipe_loop.c std/io/io.o -o "$OUT" 2>/dev/null; then
   echo "run-perf-iocp: SKIP (link failed)"
   exit 0
 fi
 
-echo "=== tests/bench/iocp_pipe_loop (${ROUNDS} rounds 2×64B batch @ IOCP) ==="
+echo "=== bench/iocp_pipe_loop (${ROUNDS} rounds 2×64B batch @ IOCP) ==="
 vals=""
 i=0
 while [ "$i" -lt "$RUNS" ]; do

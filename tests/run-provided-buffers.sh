@@ -36,7 +36,7 @@ fi
 xlang_compiler_make ../std/io/io.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o
 
 OUT="/tmp/xlang_provided_smoke"
-if ! cc -O2 -Wall tests/bench/provided_buffers_smoke.c std/io/io.o -o "$OUT" -luring -lpthread 2>/dev/null; then
+if ! cc -O2 -Wall bench/provided_buffers_smoke.c std/io/io.o -o "$OUT" -luring -lpthread 2>/dev/null; then
   _provided_fail "link failed (check liburing)"
 fi
 

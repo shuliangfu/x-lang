@@ -22,8 +22,8 @@ if [ -x ./compiler/xlang-c ]; then
   PERF_COMPILE_XLANG=./compiler/xlang-c
 fi
 
-BENCH_MMAP_FILE="tests/bench/.io_mmap_bench_tmp"
-BENCH_WRITE_FILE="tests/bench/.io_write_bench_tmp"
+BENCH_MMAP_FILE="bench/.io_mmap_bench_tmp"
+BENCH_WRITE_FILE="bench/.io_write_bench_tmp"
 BENCH_MB="${XLANG_IO_BENCH_MB:-16}"
 SENDFILE_PORT_DEFAULT=38459
 BENCH_BYTES=$((BENCH_MB * 1024 * 1024))
@@ -69,7 +69,7 @@ SENDFILE_SINK_BIN="/tmp/bench_io_sendfile_sink"
 
 # 预编译 sendfile sink（计时循环外一次，避免 cc 冷启动污染 median）。
 ensure_sendfile_sink() {
-  cc -O2 tests/bench/zero_copy_sendfile_sink.c -o "$SENDFILE_SINK_BIN" 2>/dev/null || return 1
+  cc -O2 bench/zero_copy_sendfile_sink.c -o "$SENDFILE_SINK_BIN" 2>/dev/null || return 1
   [ -x "$SENDFILE_SINK_BIN" ]
 }
 
@@ -98,7 +98,7 @@ compile_shu_sendfile() {
   local out="$2"
   rm -f "$out"
   sed -e "s/16777216/${bytes}/" \
-      tests/bench/zero_copy_sendfile.x >"/tmp/bench_io_sendfile.x"
+      bench/zero_copy_sendfile.x >"/tmp/bench_io_sendfile.x"
   if ! $PERF_COMPILE_XLANG -L . "/tmp/bench_io_sendfile.x" -o "$out" >/tmp/bench_io_compile.log 2>&1; then
     cat /tmp/bench_io_compile.log >&2
     return 1
@@ -134,7 +134,7 @@ median_shu_sendfile() {
 median_c_sendfile() {
   local i vals med port exe="/tmp/bench_io_c_sendfile"
   vals=""
-  cc -O2 tests/bench/zero_copy_sendfile.c -o "$exe" 2>/dev/null || { echo "nan"; return 1; }
+  cc -O2 bench/zero_copy_sendfile.c -o "$exe" 2>/dev/null || { echo "nan"; return 1; }
   ensure_sendfile_sink || { echo "nan"; return 1; }
   port=$(pick_free_port)
   time_sendfile_client "$exe" "$port" >/dev/null 2>&1 || true
@@ -154,7 +154,7 @@ median_c_sendfile() {
 median_zig_sendfile() {
   local i vals med port exe="/tmp/bench_io_zig_sendfile"
   vals=""
-  zig_build_exe_o2 tests/bench/zero_copy_sendfile.zig "$exe" || { echo "nan"; return 0; }
+  zig_build_exe_o2 bench/zero_copy_sendfile.zig "$exe" || { echo "nan"; return 0; }
   ensure_sendfile_sink || { echo "nan"; return 0; }
   port=$(pick_free_port)
   time_sendfile_client "$exe" "$port" >/dev/null 2>&1 || true
@@ -178,13 +178,13 @@ bench_io_sendfile_case() {
   local ZIG_MED="nan"
 
   if ! fs_sendfile_supported; then
-    echo "=== tests/bench/${name} — skip (sendfile unsupported on $(uname -s)) ==="
+    echo "=== bench/${name} — skip (sendfile unsupported on $(uname -s)) ==="
     printf '\n'
     return 0
   fi
 
   ensure_io_mmap_bench_file
-  echo "=== tests/bench/${name} (${BENCH_MB}MiB file→socket sendfile @ 127.0.0.1:<dynamic>) ==="
+  echo "=== bench/${name} (${BENCH_MB}MiB file→socket sendfile @ 127.0.0.1:<dynamic>) ==="
 
   XLANG_ASM_MED=$(median_shu_sendfile)
   echo "Xlang (default asm) ${name} median real: ${XLANG_ASM_MED}s"
@@ -194,7 +194,7 @@ bench_io_sendfile_case() {
     echo "C -O2 ${name} median real: ${C_MED}s"
   fi
 
-  if command -v zig >/dev/null 2>&1 && [ -f tests/bench/zero_copy_sendfile.zig ]; then
+  if command -v zig >/dev/null 2>&1 && [ -f bench/zero_copy_sendfile.zig ]; then
     ZIG_MED=$(median_zig_sendfile)
     echo "Zig -O2 ${name} median real: ${ZIG_MED}s"
   fi
@@ -226,7 +226,7 @@ compile_shu_splice() {
   local out="$2"
   rm -f "$out"
   sed -e "s/16777216/${bytes}/" \
-      tests/bench/zero_copy_splice.x >"/tmp/bench_io_splice.x"
+      bench/zero_copy_splice.x >"/tmp/bench_io_splice.x"
   if ! $PERF_COMPILE_XLANG -L . "/tmp/bench_io_splice.x" -o "$out" >/tmp/bench_io_splice_compile.log 2>&1; then
     cat /tmp/bench_io_splice_compile.log >&2
     return 1
@@ -263,13 +263,13 @@ bench_io_splice_case() {
   local XLANG_ASM_MED="nan"
 
   if ! fs_splice_supported; then
-    echo "=== tests/bench/${name} — skip (pipe splice unsupported on $(uname -s)) ==="
+    echo "=== bench/${name} — skip (pipe splice unsupported on $(uname -s)) ==="
     printf '\n'
     return 0
   fi
 
   ensure_io_mmap_bench_file
-  echo "=== tests/bench/${name} (${BENCH_MB}MiB file→socket fs_pipe_splice @ 127.0.0.1:<dynamic>) ==="
+  echo "=== bench/${name} (${BENCH_MB}MiB file→socket fs_pipe_splice @ 127.0.0.1:<dynamic>) ==="
 
   XLANG_ASM_MED=$(median_shu_splice)
   echo "Xlang (default asm) ${name} median real: ${XLANG_ASM_MED}s"
@@ -324,7 +324,7 @@ check_io_baseline_regress() {
   if [ "$(echo "${CI:-}" | tr '[:upper:]' '[:lower:]')" = "true" ] || [ "${CI:-}" = "1" ]; then
     cap=$(awk -v c="$cap" 'BEGIN { printf "%.6f", c * 1.4 }')
   fi
-  # Docker bind-mount（尤其 macOS 宿主）：tests/bench 写放大，再放宽 cap。
+  # Docker bind-mount（尤其 macOS 宿主）：bench 写放大，再放宽 cap。
   if [ -f /.dockerenv ] || [ -n "${XLANG_CI_DOCKER:-}" ]; then
     cap=$(awk -v c="$cap" 'BEGIN { printf "%.6f", c * 3.5 }')
   fi
@@ -370,7 +370,7 @@ bench_io_case() {
   local ASM_MED="nan"
   local tag="${name}_"
 
-  echo "=== tests/bench/${name} (${desc}) ==="
+  echo "=== bench/${name} (${desc}) ==="
 
   # write 用例：每次计时前清输出文件；readv 用例：确保输入文件存在
   if [ "$name" = "io_write_throughput" ]; then
@@ -456,15 +456,15 @@ if [ "$DO_BENCH" -eq 0 ]; then
 fi
 
 BASELINE="${XLANG_PERF_IO_BASELINE:-tests/baseline/io-perf.tsv}"
-bench_io_case io_mmap_throughput tests/bench/io_mmap_throughput "${BENCH_MB}MiB mmap scan"
+bench_io_case io_mmap_throughput bench/io_mmap_throughput "${BENCH_MB}MiB mmap scan"
 rm -f "$BENCH_MMAP_FILE"
 ensure_io_mmap_bench_file
-bench_io_case io_batch_readv tests/bench/io_batch_readv "${BENCH_MB}MiB read_batch_fd 4×4KiB×1024"
+bench_io_case io_batch_readv bench/io_batch_readv "${BENCH_MB}MiB read_batch_fd 4×4KiB×1024"
 rm -f "$BENCH_MMAP_FILE"
 ensure_io_mmap_bench_file
-bench_io_case io_random_pread tests/bench/io_random_pread "${BENCH_MB}MiB fs_pread random 4KiB×1024"
+bench_io_case io_random_pread bench/io_random_pread "${BENCH_MB}MiB fs_pread random 4KiB×1024"
 rm -f "$BENCH_MMAP_FILE"
-bench_io_case io_write_throughput tests/bench/io_write_throughput "${BENCH_MB}MiB write (4KiB×4096)"
+bench_io_case io_write_throughput bench/io_write_throughput "${BENCH_MB}MiB write (4KiB×4096)"
 rm -f "$BENCH_WRITE_FILE"
 bench_io_sendfile_case
 rm -f "$BENCH_MMAP_FILE"

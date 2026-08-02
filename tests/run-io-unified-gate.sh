@@ -49,13 +49,13 @@ if [ -z "${XLANG:-}" ]; then
 fi
 
 # Linux 链 io.o 时编译器 invoke_cc 自动加 -luring（见 compiler/Makefile）。
-rm -f tests/bench/.io_batch_rw_smoke_tmp
+rm -f bench/.io_batch_rw_smoke_tmp
 
 echo "=== IO unified: batch_rw_smoke.x ($(ci_host_summary)) ==="
 $RUN_XLANG build -L . tests/io/batch_rw_smoke.x -o /tmp/xlang_io_batch_rw_smoke 2>&1
 ec=0
 /tmp/xlang_io_batch_rw_smoke || ec=$?
-rm -f tests/bench/.io_batch_rw_smoke_tmp
+rm -f bench/.io_batch_rw_smoke_tmp
 if [ "$ec" -ne 0 ]; then
   echo "run-io-unified-gate FAIL: batch_rw_smoke exit=$ec" >&2
   exit 1

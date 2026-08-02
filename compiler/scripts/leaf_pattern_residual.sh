@@ -2745,7 +2745,7 @@ fi
 cd "$ROOT"
 DOC_REL="compiler/docs/LEAF_PATTERN_RESIDUAL.md"
 SCRIPT_REL="compiler/scripts/leaf_pattern_residual.sh"
-XBUILD_REL="xlang-build.sh"
+XCODE_REL="xlang-build.sh"
 MF="compiler/Makefile"
 REBUILD_REL="compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh"
 # wave948: post_ship — bind $MF greps/awks to /dev/null so hundreds of
@@ -11361,7 +11361,7 @@ done
 note "swallowed orchestration owners present"
 
 # wave784: B6 R5 CI body live checks (xbuild + Makefile thin + script --check)
-if ! grep -q 'compiler_all_ci\.sh' "$XBUILD_REL"; then
+if ! grep -q 'compiler_all_ci\.sh' "$XCODE_REL"; then
   bad "xlang-build.sh must wire compiler-all → compiler_all_ci.sh (wave784)"
 else
   note "xbuild compiler-all → compiler_all_ci.sh (wave784)"
@@ -11993,10 +11993,10 @@ if grep -nE '[a-zA-Z0-9_./-]+\.o' "$SCRIPT_DIR/leaf_pattern_residual.sh" \
 fi
 
 # xbuild wiring
-if [ ! -f "$XBUILD_REL" ]; then
-  bad "missing $XBUILD_REL"
-elif ! grep -qE 'leaf-patterns|leaf-residual' "$XBUILD_REL" \
-  || ! grep -q 'leaf_pattern_residual\.sh' "$XBUILD_REL"; then
+if [ ! -f "$XCODE_REL" ]; then
+  bad "missing $XCODE_REL"
+elif ! grep -qE 'leaf-patterns|leaf-residual' "$XCODE_REL" \
+  || ! grep -q 'leaf_pattern_residual\.sh' "$XCODE_REL"; then
   bad "xlang-build.sh must wire leaf-patterns / leaf-residual → leaf_pattern_residual.sh"
 else
   note "xbuild leaf-patterns / leaf-residual wired"

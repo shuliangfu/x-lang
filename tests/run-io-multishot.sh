@@ -13,7 +13,7 @@ fi
 xlang_compiler_make ../std/io/io.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o
 
 if ! cc -std=c11 -Wall -Wextra -o /tmp/xlang_io_multishot_accept_smoke \
-  tests/bench/io_multishot_accept_smoke.c std/io/io.o -luring -lpthread 2>/dev/null; then
+  bench/io_multishot_accept_smoke.c std/io/io.o -luring -lpthread 2>/dev/null; then
   echo "io multishot: skip (build failed; need liburing)"
   echo "io multishot accept OK"
   exit 0

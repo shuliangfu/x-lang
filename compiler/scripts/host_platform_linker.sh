@@ -255,7 +255,7 @@ fi
 cd "$ROOT"
 DOC_REL="compiler/docs/PLATFORM_LINKER.md"
 SCRIPT_REL="compiler/scripts/host_platform_linker.sh"
-XBUILD_REL="xlang-build.sh"
+XCODE_REL="xlang-build.sh"
 LINK_BODY="compiler/scripts/bootstrap_driver_seed_link.sh"
 
 if [ ! -f "$DOC_REL" ]; then
@@ -378,10 +378,10 @@ else
 fi
 
 # xbuild wiring
-if [ ! -f "$XBUILD_REL" ]; then
-  bad "missing $XBUILD_REL"
-elif ! grep -qE 'host-platform|platform-host|linker-policy' "$XBUILD_REL" \
-  || ! grep -q 'host_platform_linker\.sh' "$XBUILD_REL"; then
+if [ ! -f "$XCODE_REL" ]; then
+  bad "missing $XCODE_REL"
+elif ! grep -qE 'host-platform|platform-host|linker-policy' "$XCODE_REL" \
+  || ! grep -q 'host_platform_linker\.sh' "$XCODE_REL"; then
   bad "xlang-build.sh must wire host-platform / linker-policy → host_platform_linker.sh"
 else
   note "xbuild host-platform / linker-policy wired"

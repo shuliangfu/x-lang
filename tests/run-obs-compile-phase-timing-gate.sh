@@ -17,7 +17,7 @@ RUNTIME="${XLANG_OBS_PHASE_TIMING_RUNTIME:-compiler/seeds/runtime_driver_abi.fro
 PIPELINE="${XLANG_OBS_PHASE_TIMING_PIPELINE:-compiler/src/pipeline/pipeline.x}"
 MIN_ITEMS=6
 OUTPUT_PREFIX="xlang: [XLANG_COMPILE_PHASE_TIMING]"
-SMOKE_FIX="tests/bench/loop_i32.x"
+SMOKE_FIX="bench/loop_i32.x"
 
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh

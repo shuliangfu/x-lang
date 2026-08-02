@@ -70,13 +70,13 @@ SERVER_BIN="/tmp/http_bench_server_$$"
 CLIENT_BIN="/tmp/http_get_bench_$$"
 bench_cleanup
 
-if ! cc -O2 -Icompiler/src/asm/http tests/bench/http_bench_server.c compiler/seeds/runtime_http_glue.from_x.c -o "$SERVER_BIN" 2>/tmp/http_bench_server_build.log; then
+if ! cc -O2 -Icompiler/src/asm/http bench/http_bench_server.c compiler/seeds/runtime_http_glue.from_x.c -o "$SERVER_BIN" 2>/tmp/http_bench_server_build.log; then
   cat /tmp/http_bench_server_build.log >&2
   exit 1
 fi
 
 port="$(pick_free_port)"
-sed -e "s/${HTTP_BENCH_PORT_DEFAULT}/${port}/g" tests/bench/http_get_bench.x >"/tmp/http_get_bench_${port}.x"
+sed -e "s/${HTTP_BENCH_PORT_DEFAULT}/${port}/g" bench/http_get_bench.x >"/tmp/http_get_bench_${port}.x"
 if ! "$XLANG_BIN" -L . "/tmp/http_get_bench_${port}.x" -o "$CLIENT_BIN" >/tmp/http_bench_compile.log 2>&1; then
   cat /tmp/http_bench_compile.log >&2
   exit 1

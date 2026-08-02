@@ -7,7 +7,7 @@
 #
 # residual host-cc/make (stage 12 zero-cc retires these packages):
 #   gcc/make still required for build_tool.sh seeds, seed graph leaves, and
-#   tests/bench differential C until stage 11.5 / 12. Removing apt packages
+#   bench differential C until stage 11.5 / 12. Removing apt packages
 #   before that is a false green.
 #
 # PLATFORM: LINUX|UBUNTU guest · SHARED entry names via ./xbuild

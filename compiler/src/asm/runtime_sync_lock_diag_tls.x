@@ -155,4 +155,3 @@ export function sync_lock_diag_append_i32(out: *u8, pos: i32, cap: i32, v: i32):
   }
   return pos;
 }
-

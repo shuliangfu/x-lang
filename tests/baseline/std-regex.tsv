@@ -21,6 +21,6 @@ smoke_class	smoke	tests/regex/class_match.x	字符类
 smoke_star	smoke	tests/regex/star_match.x	星号
 smoke_question	smoke	tests/regex/question_match.x	问号
 cross_std062	cross_ref	tests/baseline/std-regex-perf-wave.tsv	STD-062	perf
-bench_prod	bench	tests/bench/regex_match_bench.c	hot-loop
+bench_prod	bench	bench/regex_match_bench.c	hot-loop
 lib	script	lib/std-regex.sh	tests/lib/std-regex.sh
 gate	script	run-std-regex-gate.sh	tests/run-std-regex-gate.sh

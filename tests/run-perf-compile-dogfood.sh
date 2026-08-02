@@ -51,10 +51,10 @@ root = os.environ["ROOT"]
 
 # 固定用例：P0 bench 的 -o 编译 + 编译器重模块 check（frontend dogfood）
 cases = [
-    ("loop_i32", f'"{xlang}" tests/bench/loop_i32.x -o /tmp/xlang_dog_loop_i32'),
-    ("mem_copy", f'"{xlang}" tests/bench/mem_copy.x -o /tmp/xlang_dog_mem_copy'),
-    ("struct_param", f'"{xlang}" tests/bench/struct_param.x -o /tmp/xlang_dog_struct_param'),
-    ("call_boundary", f'"{xlang}" tests/bench/call_boundary.x -o /tmp/xlang_dog_call_boundary'),
+    ("loop_i32", f'"{xlang}" bench/loop_i32.x -o /tmp/xlang_dog_loop_i32'),
+    ("mem_copy", f'"{xlang}" bench/mem_copy.x -o /tmp/xlang_dog_mem_copy'),
+    ("struct_param", f'"{xlang}" bench/struct_param.x -o /tmp/xlang_dog_struct_param'),
+    ("call_boundary", f'"{xlang}" bench/call_boundary.x -o /tmp/xlang_dog_call_boundary'),
     ("perf_main", f'"{xlang}" tests/perf-baseline/main.x -o /tmp/xlang_dog_perf_main'),
     ("check_backend", f'"{xlang}" check compiler/src/asm/backend.x'),
     ("check_parser", f'"{xlang}" check compiler/src/parser/parser.x'),

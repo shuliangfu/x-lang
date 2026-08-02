@@ -114,7 +114,7 @@ while IFS=$'\t' read -r case_id script linux pol_mac pol_win want_ec notes; do
     echo "async 1M SKIP $case_id ($notes)"
     continue
   fi
-  src="tests/bench/${script}"
+  src="bench/${script}"
   if [ ! -f "$src" ]; then
     echo "async 1M FAIL $case_id: missing $src" >&2
     FAILS=$((FAILS + 1))

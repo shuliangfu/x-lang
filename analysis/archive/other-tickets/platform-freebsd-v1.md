@@ -107,4 +107,3 @@ cd compiler && XLANG_LEGACY_C_FRONTEND=1 ./scripts/capture_bootstrap_seeds.sh
 
 - 在 Linux runner 上 **交叉编译** 出可执行的 FreeBSD `bootstrap_xlangc`（动态链接/解释器不同）  
 - 用 Linux ELF 种子 **冒充** FreeBSD 冷启动
-

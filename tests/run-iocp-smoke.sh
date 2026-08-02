@@ -26,7 +26,7 @@ fi
 xlang_compiler_make ../std/io/io.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o
 
 OUT="/tmp/xlang_iocp_smoke"
-cc -O2 -Wall tests/bench/iocp_batch_smoke.c std/io/io.o -o "$OUT" 2>/dev/null || {
+cc -O2 -Wall bench/iocp_batch_smoke.c std/io/io.o -o "$OUT" 2>/dev/null || {
   echo "iocp smoke SKIP (link failed)"
   exit 0
 }

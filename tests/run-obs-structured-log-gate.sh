@@ -16,7 +16,7 @@ MANIFEST="${XLANG_OBS_STRUCT_LOG_TSV:-tests/baseline/obs-structured-log.tsv}"
 LOG_X="std/log/log.x"
 LOG_RUNTIME="compiler/seeds/runtime_log_os.from_x.c"
 LOG_X="std/log/mod.x"
-SMOKE="tests/bench/obs_structured_log_smoke.c"
+SMOKE="bench/obs_structured_log_smoke.c"
 LOG_O="std/log/log.o"
 MIN_COMP=6
 

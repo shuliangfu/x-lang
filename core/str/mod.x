@@ -138,4 +138,3 @@ export function bytes_view_starts_with(v: BytesView, prefix: *u8, prefix_len: i3
   }
   return 1;
 }
-

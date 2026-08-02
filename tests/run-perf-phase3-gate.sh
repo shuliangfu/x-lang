@@ -2,7 +2,7 @@
 # PERF-172：Phase 3 std 热路径性能烟测门禁
 #
 # 1) manifest + docs
-# 2) typeck tests/bench/phase3_std_hotpath.x
+# 2) typeck bench/phase3_std_hotpath.x
 # 3) 可选 runnable：median ≤ tests/baseline/perf-phase3.tsv
 #
 # 用法：./tests/run-perf-phase3-gate.sh
@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 DOC="${XLANG_PERF_PHASE3_DOC:-analysis/perf-phase3-v1.md}"
 MANIFEST="${XLANG_PERF_PHASE3_MANIFEST:-tests/baseline/perf-phase3-manifest.tsv}"
 BASELINE="${XLANG_PERF_PHASE3_TSV:-tests/baseline/perf-phase3.tsv}"
-BENCH_X="tests/bench/phase3_std_hotpath.x"
+BENCH_X="bench/phase3_std_hotpath.x"
 LIB="tests/lib/perf-phase3.sh"
 RUNS="${XLANG_PERF_PHASE3_RUNS:-3}"
 

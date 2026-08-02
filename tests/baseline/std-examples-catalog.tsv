@@ -58,7 +58,7 @@ ex_time	time	tests/time/main.x	stdlib	时间
 ex_error	error	tests/error/main.x	stdlib	错误码
 ex_result	result	tests/result/main.x	stdlib	Result
 ex_string_arena	string	tests/string/arena_concat_smoke.x	stdlib	ZC-4 view
-ex_async_import	async	tests/bench/async_mod_import.x	stdlib	import async
+ex_async_import	async	bench/async_mod_import.x	stdlib	import async
 ex_stdtest	std	tests/stdtest/main.x	stdlib	综合
 ex_vec	vec	tests/vec/main.x	stdlib	向量
 ex_map	map	tests/map/main.x	stdlib	映射

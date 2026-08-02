@@ -16,7 +16,7 @@ hook_suspend	event_kind	suspend	SUSPENDED
 hook_io_wake	event_kind	io_wake	xlang_async_io_wake
 hook_poll	event_kind	poll_completions	io poll
 hook_idle	event_kind	drain_idle	空转 stall
-smoke_harness	file	tests/bench/async_runtime_trace_smoke.c	C 烟测
+smoke_harness	file	bench/async_runtime_trace_smoke.c	C 烟测
 smoke_scheduler	object	std/async/scheduler.o	链接 scheduler.o
 cross_async	cross_ref	std/async/README.md	STD-004
 cross_perf	cross_ref	analysis/perf-compile-dogfood-v1.md	PERF-004 联动

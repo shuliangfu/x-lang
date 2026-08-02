@@ -581,4 +581,3 @@ export function adapter_csv_escape(src: *u8, src_len: i32, out: *u8, out_cap: i3
   let e: Encoder = encoder_new(kind_csv_escape());
   return encoder_encode(e, src, src_len, out, out_cap);
 }
-

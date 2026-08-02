@@ -17,7 +17,7 @@ cd "$(dirname "$0")/.."
 
 CASES="${XLANG_ZIG_STRATEGY_CASES:-tests/baseline/zig-strategy-cases.tsv}"
 HISTORY="${XLANG_ZIG_STRATEGY_HISTORY:-tests/baseline/zig-strategy-history.tsv}"
-BENCH_ROOT="tests/bench"
+BENCH_ROOT="bench"
 RUNS="$(zig_baseline_meta_get runs)"
 [ -n "$RUNS" ] || RUNS=3
 FAIL_FLAG="${XLANG_ZIG_STRATEGY_FAIL:-0}"
@@ -49,7 +49,7 @@ zsd_run_net_echo_client() {
   local port="$2"
   local srv spid rc
   srv="$(mktemp /tmp/xlang_zsd_echo_srv.XXXXXX)"
-  if ! cc -O2 tests/bench/net_echo_throughput_server.c -o "$srv" 2>/dev/null; then
+  if ! cc -O2 bench/net_echo_throughput_server.c -o "$srv" 2>/dev/null; then
     return 1
   fi
   "$srv" "$port" >/dev/null 2>&1 &
@@ -86,7 +86,7 @@ zsd_median_net_client() {
 
 # 确保 io mmap bench 文件存在。
 zsd_ensure_io_bench_file() {
-  local f="tests/bench/.io_mmap_bench_tmp"
+  local f="bench/.io_mmap_bench_tmp"
   local mb="${XLANG_IO_BENCH_MB:-16}"
   if [ ! -f "$f" ]; then
     dd if=/dev/zero of="$f" bs=1M count="$mb" status=none 2>/dev/null || \

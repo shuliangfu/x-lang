@@ -35,4 +35,3 @@ XLANG_F_SORT_V1_FAIL=1 ./tests/run-f-sort-v1-gate.sh
 
 - **F-base64 v1** / **F-string v1** 等其它 std 去 C
 - **F-process v2**：getcwd/self_exe 缓存迁 `.x`
-

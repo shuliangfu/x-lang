@@ -134,7 +134,7 @@ COLD_SCHEDULE=(
 
 DOC_REL="compiler/docs/BUILD_DAG.md"
 CATALOG_REL="compiler/scripts/driver_seed_obj_catalog.sh"
-XBUILD_REL="xlang-build.sh"
+XCODE_REL="xlang-build.sh"
 
 fail=0
 note() { echo "product_build_dag: $*" >&2; }
@@ -169,7 +169,7 @@ dump_product() {
   local i=0 ent id xt body
   for ent in "${PRODUCT_NODES[@]}"; do
     IFS='|' read -r id xt body <<<"$ent"
-    printf 'PRODUCT_ORDER=%d NODE=%s XBUILD=%s BODY=%s\n' "$i" "$id" "$xt" "$body"
+    printf 'PRODUCT_ORDER=%d NODE=%s XCODE=%s BODY=%s\n' "$i" "$id" "$xt" "$body"
     i=$((i + 1))
   done
   echo "PRODUCT_ENTRY=all|build|xlang BODY=build_tool→g05_build_xlang_asm.sh"
@@ -265,8 +265,8 @@ schedule_walk() {
         if [ "$step" -eq 0 ]; then
           note "cold run: prereq edges via shell ensure inside bootstrap_driver_seed (wave744)"
           note "invoking outer ./xbuild bootstrap-driver-seed (G.7 single orchestrator)"
-          if [ ! -x "$ROOT/xbuild" ] && [ ! -f "$ROOT/xbuild" ]; then
-            echo "product_build_dag: missing $ROOT/xbuild" >&2
+          if [ ! -x "$ROOT/xcode" ] && [ ! -f "$ROOT/xcode" ]; then
+            echo "product_build_dag: missing $ROOT/xcode" >&2
             return 1
           fi
           (cd "$ROOT" && bash ./xbuild bootstrap-driver-seed)
@@ -332,8 +332,8 @@ else
   note "doc $DOC_REL present"
 fi
 
-if [ ! -f "$XBUILD_REL" ]; then
-  bad "missing $XBUILD_REL"
+if [ ! -f "$XCODE_REL" ]; then
+  bad "missing $XCODE_REL"
 fi
 
 for ent in "${PRODUCT_NODES[@]}"; do
@@ -341,8 +341,8 @@ for ent in "${PRODUCT_NODES[@]}"; do
   if [ ! -f "compiler/$body" ]; then
     bad "missing product body compiler/$body (node $id)"
   fi
-  if ! grep -qE "(^|[[:space:]|])${xt}(\||[[:space:]]|\\)|$)" "$XBUILD_REL" \
-    && ! grep -q "${xt}" "$XBUILD_REL"; then
+  if ! grep -qE "(^|[[:space:]|])${xt}(\||[[:space:]]|\\)|$)" "$XCODE_REL" \
+    && ! grep -q "${xt}" "$XCODE_REL"; then
     bad "xlang-build.sh missing xbuild target for product node $id ($xt)"
   fi
 done
@@ -354,8 +354,8 @@ for ent in "${COLD_NODES[@]}"; do
     bad "missing cold body compiler/$body (node $id)"
   fi
 done
-if ! grep -q 'bootstrap-driver-seed)' "$XBUILD_REL" \
-  && ! grep -q 'bootstrap-driver-seed' "$XBUILD_REL"; then
+if ! grep -q 'bootstrap-driver-seed)' "$XCODE_REL" \
+  && ! grep -q 'bootstrap-driver-seed' "$XCODE_REL"; then
   bad "xlang-build.sh missing bootstrap-driver-seed target"
 fi
 if ! grep -q 'bootstrap_driver_seed\.sh' "compiler/scripts/bootstrap_driver_seed.sh" \
@@ -433,13 +433,13 @@ else
 fi
 
 # xbuild first-class product-dag target + 11.1.2 modes
-if grep -qE 'product-dag|build-dag|cold-dag' "$XBUILD_REL" \
-  && grep -q 'product_build_dag\.sh' "$XBUILD_REL"; then
+if grep -qE 'product-dag|build-dag|cold-dag' "$XCODE_REL" \
+  && grep -q 'product_build_dag\.sh' "$XCODE_REL"; then
   note "xbuild product-dag wired"
 else
   bad "xlang-build.sh must wire product-dag → product_build_dag.sh (wave742)"
 fi
-if ! grep -qE 'dry-run|--run|dryrun' "$XBUILD_REL"; then
+if ! grep -qE 'dry-run|--run|dryrun' "$XCODE_REL"; then
   bad "xlang-build.sh must wire product-dag --dry-run / --run (wave743 11.1.2)"
 fi
 
@@ -448,8 +448,8 @@ if [ ! -f compiler/docs/PLATFORM_LINKER.md ]; then
   bad "missing compiler/docs/PLATFORM_LINKER.md (wave745 11.1.3/4)"
 elif [ ! -f compiler/scripts/host_platform_linker.sh ]; then
   bad "missing compiler/scripts/host_platform_linker.sh (wave745)"
-elif ! grep -qE 'host-platform|linker-policy' "$XBUILD_REL" \
-  || ! grep -q 'host_platform_linker\.sh' "$XBUILD_REL"; then
+elif ! grep -qE 'host-platform|linker-policy' "$XCODE_REL" \
+  || ! grep -q 'host_platform_linker\.sh' "$XCODE_REL"; then
   bad "xlang-build.sh must wire host-platform / linker-policy (wave745)"
 elif ! grep -qE '11\.1\.3|PLATFORM_LINKER|host_platform_linker|wave745' "$DOC_REL"; then
   bad "$DOC_REL must cross-ref wave745 PLATFORM_LINKER / 11.1.3"
@@ -473,8 +473,8 @@ if [ ! -f compiler/docs/LEAF_PATTERN_RESIDUAL.md ]; then
   bad "missing compiler/docs/LEAF_PATTERN_RESIDUAL.md (wave746 11.3.1 path)"
 elif [ ! -f compiler/scripts/leaf_pattern_residual.sh ]; then
   bad "missing compiler/scripts/leaf_pattern_residual.sh (wave746)"
-elif ! grep -qE 'leaf-patterns|leaf-residual' "$XBUILD_REL" \
-  || ! grep -q 'leaf_pattern_residual\.sh' "$XBUILD_REL"; then
+elif ! grep -qE 'leaf-patterns|leaf-residual' "$XCODE_REL" \
+  || ! grep -q 'leaf_pattern_residual\.sh' "$XCODE_REL"; then
   bad "xlang-build.sh must wire leaf-patterns / leaf-residual (wave746)"
 elif ! grep -qE '11\.3\.1|LEAF_PATTERN|leaf_pattern_residual|wave746|wave747' "$DOC_REL"; then
   bad "$DOC_REL must cross-ref wave746/747 LEAF_PATTERN / 11.3.1"

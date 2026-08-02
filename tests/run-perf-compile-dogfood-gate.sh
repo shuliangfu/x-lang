@@ -30,10 +30,10 @@ native_xlang() {
 # manifest：case_id 与源路径（bash 3.2 兼容，不用关联数组）。
 compile_dogfood_case_src() {
   case "$1" in
-    loop_i32) echo tests/bench/loop_i32.x ;;
-    mem_copy) echo tests/bench/mem_copy.x ;;
-    struct_param) echo tests/bench/struct_param.x ;;
-    call_boundary) echo tests/bench/call_boundary.x ;;
+    loop_i32) echo bench/loop_i32.x ;;
+    mem_copy) echo bench/mem_copy.x ;;
+    struct_param) echo bench/struct_param.x ;;
+    call_boundary) echo bench/call_boundary.x ;;
     perf_main) echo tests/perf-baseline/main.x ;;
     check_backend) echo compiler/src/asm/backend.x ;;
     check_parser) echo compiler/src/parser/parser.x ;;

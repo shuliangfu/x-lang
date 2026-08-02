@@ -1517,7 +1517,7 @@
 
 ✅ **11.2.3 prove / bstrict / gate 脚本去 make**
 
-  - `tests/**/*.sh`（含 `tests/lib/*.sh` · `tests/bench/**/*.sh` · `tests/docker/*`）中 `make -C compiler` 清零或改为 `xbuild` / `xlang_compiler_make`
+  - `tests/**/*.sh`（含 `tests/lib/*.sh` · `bench/**/*.sh` · `tests/docker/*`）中 `make -C compiler` 清零或改为 `xbuild` / `xlang_compiler_make`
   - ✅ `tests/lib/compiler-make.sh` 单入口 `xlang_compiler_make`；tests/lib **0** raw `make -C`（hub 外）；`XLANG_COMPILER_DIR` 支持 nolibc
   - ✅ `tests/run-*.sh` **0** raw `make -C`（~456 脚本 → hub）；图仍 Makefile 至 11.3
   - ✅ 全仓 `tests/**/*.sh` 0 raw make -C（bench 本无 make -C，vacuous close）；CLI 模式供 xbuild 共用 hub
@@ -1631,7 +1631,7 @@
 
 > **背景**：`tests/` 下有 ~200 个 .c 文件（bench/、std-*/、abi/、leak/、safe/、kernel/），当前需 host cc 编译做对照/smoke。阶段 8.3 只管 compiler/ 内 residual C，**完全没覆盖 tests/ 下的对照 C**。零 cc 终局下必须决定它们的归属。
 
-🟡 **11.5.1 `tests/bench/**/*.c`（~50 个）对照基准 C**
+🟡 **11.5.1 `bench/**/*.c`（~50 个）对照基准 C**
 
   - `loop_i32.c` · `mem_copy.c` · `simd_dot.c` · `struct_param.c` · `call_boundary.c` · `zero_copy_sendfile*.c` · `regex_match_*.c` · `http_bench_server.c` · `net_*.c` · `io_*.c` · `async_*.c` · `diff/d1_int_arith.c` ~ `d6_mem_ops.c`
   - **策略裁定**：**永久 host-cc 白名单（仅差分/对照基准）** — 不进产品路径、不进 g05、不经 `./xbuild all`；与 `.x` 对照测时由 bench 脚本显式 `cc`（标 temporary residual 至阶段 12 零 cc 终局复审）。优先路径：有 `.x` 孪生则产品侧只编 `.x`；裸 `.c` 不强制本波改写

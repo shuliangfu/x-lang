@@ -41,7 +41,7 @@
 |----|------|
 | 后端实现 | `std/io/win32.x`（ReadFile/WriteFile，同步） |
 | 门禁 | `tests/run-iocp-gate.sh` + `tests/run-iocp-smoke.sh`（独立门禁，未进 run-all.sh） |
-| bench | `tests/bench/iocp_pipe_loop.c`（探针） |
+| bench | `bench/iocp_pipe_loop.c`（探针） |
 | 成熟度 | ⚠️ 探针级，非生产可用 |
 | 阻塞 T\* | T5 要求 Windows 有 Evented 后端；当前缺 |
 | 落地路径 | 新增 `std/sys/windows_iocp.x`（CreateIoCompletionPort/GetQueuedCompletionStatus 直包装）+ `std/io/evented_windows.x` |

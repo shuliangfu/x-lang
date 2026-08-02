@@ -49,7 +49,7 @@ fi
 
 RUNS="$(zig_baseline_meta_get runs)"
 [ -n "$RUNS" ] || RUNS=3
-BENCH_ROOT="tests/bench"
+BENCH_ROOT="bench"
 VERIFY_FAILS=0
 RECORD_TMP="$(mktemp)"
 

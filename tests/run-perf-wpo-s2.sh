@@ -15,8 +15,8 @@ XLANG=${XLANG:-./compiler/xlang_asm}
 if [ ! -x "$XLANG" ]; then
   xlang_compiler_make bootstrap-driver-seed 2>/dev/null || xlang_compiler_make xlang-c
 fi
-SRC="tests/bench/wpo_scale_loop.x"
-SRC_VEC="tests/bench/wpo_vec_lane0_loop.x"
+SRC="bench/wpo_scale_loop.x"
+SRC_VEC="bench/wpo_vec_lane0_loop.x"
 # 热循环次数：默认 10M；CI 可 XLANG_WPO_S2_LIMIT=1000000 缩短门禁（fold/no-fold 同 limit，ratio 仍可比）
 # compile-only（Mac Docker Rosetta）：未显式 limit 时用 1000，避免 4×bench 耗时过长
 if [ "${XLANG_WPO_S2_COMPILE_ONLY:-0}" = "1" ]; then

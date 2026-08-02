@@ -14,7 +14,7 @@ HTTP_C="compiler/seeds/runtime_http_glue.from_x.c"
 CHUNKED_INC="compiler/seeds/http/http_chunked.inc"
 LIB="tests/lib/std-http-chunked.sh"
 SMOKE="tests/http/chunked_keepalive.x"
-BENCH="tests/bench/http_chunked_decode_bench.x"
+BENCH="bench/http_chunked_decode_bench.x"
 MIN_APIS=5
 
 # shellcheck source=tests/lib/std-http-chunked.sh

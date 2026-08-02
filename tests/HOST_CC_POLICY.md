@@ -11,13 +11,13 @@
 |------|---------|
 | **Not product** | These `.c` files are **never** inputs to g05, `./xbuild all`, product link of `xlang` / `xlang_asm` / `xlang-c`, or `compiler/Makefile` product OBJ lists. |
 | **Not dual authority for std** | Product std is `std/**/*.x` (+ seed pin when required). C smokes only **drive** host-linked smoke of already-built `.o`. |
-| **Explicit cc only** | Host `cc`/`gcc` may appear only inside `tests/lib/**`, `tests/bench/**`, or named probe scripts — never as a silent product step. |
+| **Explicit cc only** | Host `cc`/`gcc` may appear only inside `tests/lib/**`, `bench/**`, or named probe scripts — never as a silent product step. |
 | **Stage 12 re-review** | Permanent whitelist ≠ forever. Stage 12 (zero-cc cold start) may rewrite smokes to `.x` or drop host-cc; until then whitelist holds. |
 
-## 11.5.1 `tests/bench/**/*.c` — permanent host-cc whitelist (diff baseline)
+## 11.5.1 `bench/**/*.c` — permanent host-cc whitelist (diff baseline)
 
 - **Ruling (wave734)**: permanent host-cc whitelist for **differential / throughput baselines only**.
-- **Count (workspace, 2026-07-29)**: ~50–60 `.c` under `tests/bench/` (many untracked local); git-tracked subset is smaller.
+- **Count (workspace, 2026-07-29)**: ~50–60 `.c` under `bench/` (many untracked local); git-tracked subset is smaller.
 - **Consumers**: bench scripts only; never g05 / product `all`.
 - **Prefer**: when a `.x` twin exists, product side compiles `.x`; bare `.c` stays host-cc baseline.
 

@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 . tests/lib/compiler-make.sh
 xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
-BENCH_MMAP_FILE="tests/bench/.io_mmap_bench_tmp"
+BENCH_MMAP_FILE="bench/.io_mmap_bench_tmp"
 BENCH_MB="${XLANG_IO_BENCH_MB:-16}"
 RUNS=3
 
@@ -66,9 +66,9 @@ if [ "$(uname -s)" != "Linux" ]; then
   echo "note: ring size A/B 仅在 Linux io_uring 生效；本机 $(uname -s) 仍跑 fixed vs 普通对照。"
 fi
 
-M512=$(bench_one "512" tests/bench/io_batch_readv.x 512)
-M2048=$(bench_one "2048" tests/bench/io_batch_readv.x 2048)
-MFIX=$(bench_one "fixed512" tests/bench/io_batch_readv_fixed.x 512)
+M512=$(bench_one "512" bench/io_batch_readv.x 512)
+M2048=$(bench_one "2048" bench/io_batch_readv.x 2048)
+MFIX=$(bench_one "fixed512" bench/io_batch_readv_fixed.x 512)
 
 printf '\n| 配置 | median real (s) |\n'
 printf '|---|----------------|\n'

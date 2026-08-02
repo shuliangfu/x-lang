@@ -2180,4 +2180,3 @@ export function pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf: *
 export function pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(arena: *u8, out: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
   return glue_arch_emit_local_slot_ptr_or_addr_text(arena, out, arg_ref, slot_off, ta, asm_ctx);
 }
-

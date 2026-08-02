@@ -110,7 +110,7 @@ bench_async_case() {
   local med="nan"
   local ns_per_op="nan"
 
-  echo "=== tests/bench/${name} (1M ping-pong rounds, 2M task steps) ==="
+  echo "=== bench/${name} (1M ping-pong rounds, 2M task steps) ==="
 
   if [[ "$x" == *sched* ]]; then
     if ! link_with_scheduler "$x" "$exe"; then
@@ -142,10 +142,10 @@ if [ "$DO_BENCH" -eq 0 ]; then
   exit 0
 fi
 
-bench_async_case async_switch tests/bench/async_switch.x
+bench_async_case async_switch bench/async_switch.x
 # scheduler jmp 烟测仅 Linux x86_64 seed asm；macOS/ARM64/Windows 记 N/A。
 if perf_async_is_linux_x64_asm; then
-  bench_async_case async_switch_jmp tests/bench/async_switch_sched.x
+  bench_async_case async_switch_jmp bench/async_switch_sched.x
 else
   echo "async_switch_jmp N/A (scheduler jmp asm requires Linux x86_64)"
 fi

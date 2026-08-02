@@ -4,7 +4,7 @@
 # Usage (cwd = compiler/): ./scripts/bootstrap_xlang_create.sh
 # Prereq: ./xlang exists (from ./xbuild build, ./build_tool ./xlang, or cold seed).
 # Preferred outer entry (wave731): repo-root ./xbuild / legacy alias ./build.sh
-# (thin forward to xbuild). Host-cc residual only in scripts/build_tool.sh.
+# (thin forward to xcode). Host-cc residual only in scripts/build_tool.sh.
 #
 # PLATFORM: SHARED tip text · no dual build graph.
 set -e
