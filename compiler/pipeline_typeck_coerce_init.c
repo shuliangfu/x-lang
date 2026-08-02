@@ -1153,3 +1153,51 @@ void pipeline_typeck_ret_coerce_integral_widen_c(struct ast_ASTArena *arena, int
   (void)got_kind;
 }
 
+/* wave1172 G.7: pipeline_typeck_check_expr_int_lit_c migrated from
+ * pipeline_glue.c L3047. Colocated with coerce_init domain — int literal
+ * type resolution (i32 vs i64) is the entry point for literal coerce.
+ * No glue.c callsites (sole caller is typeck_gen.c seed).
+ * Dependencies: glue_arena_expr_at_ref (static, glue.c L2437 < coerce_init.c
+ * #include L8661) + pipeline_type_ensure_by_kind_ord (fwd decl glue.c L769).
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+
+/**
+ * Resolve default type for EXPR_LIT: i32 when |v| fits, else i64.
+ * Why: typeck_gen seed and typeck.x share this to avoid seed drift where
+ *      large integer literals would be mis-inferred as i32.
+ * Contract: no-op when arena null, expr_ref out of range, or resolved_type_ref
+ *           already set. Keyword `null` (EXPR_LIT 0 with var_name="null") is
+ *           skipped — only TYPE_PTR coerce (typeck.x) may retype it.
+ * Dependencies: glue_arena_expr_at_ref (static, glue.c) +
+ *               pipeline_type_ensure_by_kind_ord (extern, glue.c L3238).
+ * PLATFORM: SHARED — freestanding+host int literal type resolution.
+ */
+int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+  struct ast_Expr *ex;
+  int64_t v;
+  int32_t ty;
+
+  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
+    return 0;
+  ex = glue_arena_expr_at_ref(arena, expr_ref);
+  if (!ex || ex->resolved_type_ref != 0)
+    return 0;
+  /*
+   * wave670 Cap residual: keyword `null` is EXPR_LIT 0 tagged var_name="null".
+   * Do not default-stamp as i32 — only TYPE_PTR coerce (typeck.x) may retype it.
+   * Bare INT 0 still stamps i32/i64. PLATFORM: SHARED freestanding+host.
+   */
+  if (ex->int_val == 0 && ex->var_name_len == 4 &&
+      ex->var_name[0] == (uint8_t)'n' && ex->var_name[1] == (uint8_t)'u' &&
+      ex->var_name[2] == (uint8_t)'l' && ex->var_name[3] == (uint8_t)'l')
+    return 0;
+  v = ex->int_val;
+  if (v > (int64_t)INT32_MAX || v < (int64_t)INT32_MIN)
+    ty = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I64);
+  else
+    ty = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I32);
+  if (ty != 0)
+    ex->resolved_type_ref = ty;
+  return 0;
+}
+

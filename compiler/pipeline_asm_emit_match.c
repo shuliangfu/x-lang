@@ -177,3 +177,127 @@ int32_t pipeline_asm_emit_expr_if_elf_c(struct ast_ASTArena *arena, struct platf
     return -1;
   return 0;
 }
+
+/* wave1174 G.7: codegen match subject context cluster (6 fns + 3 statics)
+ * migrated from pipeline_glue.c L6719-6813. Colocated with MATCH emit domain
+ * — the subject-field lookup is consumed by MATCH arm codegen to emit
+ * matched.x / matched.y field accesses instead of bare x/y (which would be
+ * undeclared C).
+ *
+ * No glue.c callsites (sole callers are codegen_gen.c seed via extern).
+ * No fwd decls needed (definitions in this file via #include at glue.c L1991
+ * precede codegen_gen.c extern refs).
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+
+/*
+ * wave707: host-C match field-bind emit context.
+ * typeck already resolves `Point { x, y } => x + y` VARs as subject fields
+ * (wildcard arms). Codegen must emit `matched.x` / `matched.y` — bare `x`/`y`
+ * is undeclared C.
+ * PLATFORM: SHARED — G.7 single authority with typeck subject-field lookup.
+ */
+static int32_t g_codegen_match_matched_ref = 0;
+static int32_t g_codegen_match_subject_ty = 0;
+static struct ast_Module *g_codegen_match_mod = 0;
+
+/**
+ * Set the active match subject context (module + matched expr ref + subject type).
+ * Why: codegen_gen seed calls this before emitting MATCH arms so that
+ *      field-name lookups can resolve to subject.field accesses.
+ */
+void pipeline_codegen_match_set_subject_c(struct ast_Module *module, int32_t matched_ref, int32_t subject_ty) {
+  g_codegen_match_mod = module;
+  g_codegen_match_matched_ref = matched_ref;
+  g_codegen_match_subject_ty = subject_ty;
+}
+
+/** Clear the match subject context after emitting all MATCH arms. */
+void pipeline_codegen_match_clear_subject_c(void) {
+  g_codegen_match_mod = 0;
+  g_codegen_match_matched_ref = 0;
+  g_codegen_match_subject_ty = 0;
+}
+
+/** Get the currently matched expression ref (0 if no active match context). */
+int32_t pipeline_codegen_match_matched_ref_c(void) {
+  return g_codegen_match_matched_ref;
+}
+
+/** Get the currently active subject type ref (0 if no active match context). */
+int32_t pipeline_codegen_match_subject_ty_c(void) {
+  return g_codegen_match_subject_ty;
+}
+
+/** Get the currently active match module (NULL if no active match context). */
+struct ast_Module *pipeline_codegen_match_mod_c(void) {
+  return g_codegen_match_mod;
+}
+
+/**
+ * wave707: return 1 if name is a field of the active host-C match subject
+ * struct type. Same layout scan shape as typeck match subject field lookup.
+ * Why: during MATCH arm codegen, bare field names (e.g. `x`) must be resolved
+ *      to `matched.x` to avoid undeclared C identifiers; this check tells
+ *      codegen whether a given name is a subject field.
+ * Contract: returns 0 when no active match context, or when name does not
+ *           match any field of the subject struct layout.
+ * Dependencies: pipeline_type_kind_ord_at + pipeline_type_named_name_into
+ *               (ast_pool_type.c) + pipeline_module_struct_layout_* (ast_pool.c).
+ */
+int32_t pipeline_codegen_match_name_is_subject_field_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                      uint8_t *name, int32_t name_len) {
+  int32_t ty;
+  int32_t k;
+  int32_t nsl;
+  int32_t fi;
+  int32_t nf;
+  int32_t fl;
+  int32_t j;
+  uint8_t tnm[128];
+  uint8_t fnm[128];
+  int32_t tnl;
+  if (!module || !arena || !name || name_len <= 0)
+    return 0;
+  ty = g_codegen_match_subject_ty;
+  if (ty <= 0 || g_codegen_match_mod != module || g_codegen_match_matched_ref <= 0)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, ty) != (int32_t)ast_TypeKind_TYPE_NAMED)
+    return 0;
+  tnl = pipeline_type_named_name_into(arena, ty, tnm);
+  if (tnl <= 0)
+    return 0;
+  nsl = module->num_struct_layouts;
+  for (k = 0; k < nsl; k++) {
+    fl = pipeline_module_struct_layout_name_len(module, k);
+    if (fl != tnl)
+      continue;
+    {
+      int32_t match = 1;
+      int32_t bi;
+      for (bi = 0; bi < fl && match; bi++) {
+        if (pipeline_module_struct_layout_name_byte_at(module, k, bi) != tnm[bi])
+          match = 0;
+      }
+      if (!match)
+        continue;
+    }
+    nf = pipeline_module_struct_layout_num_fields(module, k);
+    for (fi = 0; fi < nf; fi++) {
+      int32_t fnl = pipeline_module_struct_layout_field_name_len(module, k, fi);
+      if (fnl != name_len)
+        continue;
+      memset(fnm, 0, sizeof(fnm));
+      pipeline_module_struct_layout_field_name_into(module, k, fi, fnm);
+      {
+        int32_t match = 1;
+        for (j = 0; j < fnl && match; j++) {
+          if (fnm[j] != name[j])
+            match = 0;
+        }
+        if (match)
+          return 1;
+      }
+    }
+  }
+  return 0;
+}

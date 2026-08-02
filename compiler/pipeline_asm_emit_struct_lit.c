@@ -1647,3 +1647,124 @@ void pipeline_expr_struct_lit_type_name_set(struct ast_ASTArena *a, int32_t expr
   memcpy(ex->struct_lit_struct_name, name, (size_t)name_len);
   ex->struct_lit_struct_name_len = name_len;
 }
+
+/* wave1171 G.7: layout warn cluster (2 extern fns) migrated from
+ * pipeline_glue.c L2494/L2543. Colocated with glue_pad_fields_warn_enabled
+ * (L1386) + glue_hot_reorder_warn_enabled (L1437) + glue_field_type_atomic_sized
+ * (L1411) + glue_type_size_simple (EOF) — all static helpers consumed by these
+ * warn functions now in the same file. No glue.c callsites (sole callers are
+ * typeck_gen.c seed). Extern declarations for driver_diagnostic_warn_* moved
+ * here from glue.c L2476/L2531.
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+
+extern void driver_diagnostic_warn_pad_fields_same_cache_line(uint8_t *sname, int32_t sname_len, uint8_t *f0,
+                                                              int32_t f0_len, uint8_t *f1, int32_t f1_len);
+extern void driver_diagnostic_warn_hot_reorder_field(uint8_t *sname, int32_t sname_len, uint8_t *hot, int32_t hot_len,
+                                                    uint8_t *cold, int32_t cold_len);
+
+/**
+ * DOD-CL -pad-fields warning: print when adjacent fields share a 64B cache line
+ * and neither has align(64).
+ * Why: atomic head + regular data field in the same cache line causes false
+ *      sharing under concurrent access; the warning suggests align(64) padding.
+ * Contract: no-op when XLANG_PAD_FIELDS env unset or module/arena null or
+ *           layout index < 0 or fewer than 2 fields.
+ * Dependencies: glue_pad_fields_warn_enabled (static, same file L1386) +
+ *               glue_field_type_atomic_sized (static, same file L1411) +
+ *               pipeline_module_struct_layout_* (extern, ast_pool.c) +
+ *               driver_diagnostic_warn_pad_fields_same_cache_line (extern).
+ * PLATFORM: SHARED — DOD-CL cache-line false-sharing diagnostic.
+ */
+void pipeline_typeck_pad_fields_warn_layout(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li) {
+  int32_t nf;
+  int32_t j;
+  uint8_t layout_nm[128];
+  int32_t layout_nlen;
+  if (!glue_pad_fields_warn_enabled() || !module || !arena || li < 0)
+    return;
+  nf = pipeline_module_struct_layout_num_fields(module, li);
+  if (nf < 2)
+    return;
+  layout_nlen = pipeline_module_struct_layout_name_len(module, li);
+  pipeline_module_struct_layout_name_into(module, li, layout_nm);
+  for (j = 0; j + 1 < nf; j++) {
+    int32_t off0 = pipeline_module_struct_layout_field_offset_at(module, li, j);
+    int32_t off1 = pipeline_module_struct_layout_field_offset_at(module, li, j + 1);
+    int32_t ftr0 = pipeline_module_struct_layout_field_type_ref(module, li, j);
+    int32_t ftr1 = pipeline_module_struct_layout_field_type_ref(module, li, j + 1);
+    int32_t al0 = pipeline_module_struct_layout_field_align_at(module, li, j);
+    int32_t al1 = pipeline_module_struct_layout_field_align_at(module, li, j + 1);
+    uint8_t fn0[128];
+    uint8_t fn1[128];
+    int32_t fl0;
+    int32_t fl1;
+    if (al0 >= 64 || al1 >= 64)
+      continue;
+    if (off0 / 64 != off1 / 64)
+      continue;
+    if (!glue_field_type_atomic_sized(module, arena, ftr0) && !glue_field_type_atomic_sized(module, arena, ftr1))
+      continue;
+    pipeline_module_struct_layout_field_name_into(module, li, j, fn0);
+    pipeline_module_struct_layout_field_name_into(module, li, j + 1, fn1);
+    fl0 = pipeline_module_struct_layout_field_name_len(module, li, j);
+    fl1 = pipeline_module_struct_layout_field_name_len(module, li, j + 1);
+    driver_diagnostic_warn_pad_fields_same_cache_line(layout_nm, layout_nlen, fn0, fl0, fn1, fl1);
+  }
+}
+
+/**
+ * DOD-CL-S2 -hot-reorder warning: hint when a hot field (<=4B scalar) appears
+ * after a large field (>=8B), suggesting hot fields be moved earlier to reduce
+ * cache line waste.
+ * Why: packing hot data before cold data improves cache utilization; the
+ *      warning identifies suboptimal field ordering for manual reordering.
+ * Contract: no-op when XLANG_HOT_REORDER env unset or module/arena null or
+ *           layout index < 0 or fewer than 2 fields.
+ * Dependencies: glue_hot_reorder_warn_enabled (static, same file L1437) +
+ *               glue_type_size_simple (static, same file EOF wave1056) +
+ *               pipeline_module_struct_layout_* (extern, ast_pool.c) +
+ *               driver_diagnostic_warn_hot_reorder_field (extern).
+ * PLATFORM: SHARED — DOD-CL field reorder hint diagnostic.
+ */
+void pipeline_typeck_hot_reorder_warn_layout(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li) {
+  int32_t nf;
+  int32_t j;
+  int32_t i;
+  uint8_t layout_nm[128];
+  int32_t layout_nlen;
+  if (!glue_hot_reorder_warn_enabled() || !module || !arena || li < 0)
+    return;
+  nf = pipeline_module_struct_layout_num_fields(module, li);
+  if (nf < 2)
+    return;
+  layout_nlen = pipeline_module_struct_layout_name_len(module, li);
+  pipeline_module_struct_layout_name_into(module, li, layout_nm);
+  j = 1;
+  while (j < nf) {
+    int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
+    int32_t sz = glue_type_size_simple(module, arena, ftr, 0);
+    uint8_t hot_nm[128];
+    int32_t hot_len;
+    if (sz <= 0 || sz > 4) {
+      j = j + 1;
+      continue;
+    }
+    i = 0;
+    while (i < j) {
+      int32_t ftr_c = pipeline_module_struct_layout_field_type_ref(module, li, i);
+      int32_t sz_c = glue_type_size_simple(module, arena, ftr_c, 0);
+      uint8_t cold_nm[128];
+      int32_t cold_len;
+      if (sz_c >= 8) {
+        pipeline_module_struct_layout_field_name_into(module, li, j, hot_nm);
+        pipeline_module_struct_layout_field_name_into(module, li, i, cold_nm);
+        hot_len = pipeline_module_struct_layout_field_name_len(module, li, j);
+        cold_len = pipeline_module_struct_layout_field_name_len(module, li, i);
+        driver_diagnostic_warn_hot_reorder_field(layout_nm, layout_nlen, hot_nm, hot_len, cold_nm, cold_len);
+        break;
+      }
+      i = i + 1;
+    }
+    j = j + 1;
+  }
+}

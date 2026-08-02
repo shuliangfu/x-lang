@@ -885,6 +885,15 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 /** BC 8.3.2: ASTArena main-pool cold accessors domain (same-TU thin). */
 #include "ast_pool_arena.c"
 
+/* wave1166 G.7: type pool cold accessors (read/write/find-or-alloc) —
+ * migrated from pipeline_glue.c L1041-1153/L2216. Same TU via ast_pool.c
+ * #include. Depends on pipeline_arena_type_ptr / pipeline_arena_type_alloc
+ * (ast_pool_arena.c above). Forward decls retained in glue.c L761-762
+ * (kind_ord_at / array_size_at) for callsites before this #include at
+ * glue.c L5160.
+ * PLATFORM: SHARED — host-cc Cap residual; parser/typeck/codegen call these. */
+#include "ast_pool_type.c"
+
 
 static struct ast_Func *module_func_at(struct ast_Module *m, int32_t idx) {
   ModuleSidecar *sc;
