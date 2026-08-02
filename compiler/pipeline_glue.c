@@ -6765,184 +6765,21 @@ int32_t typeck_check_expr_method_call(struct ast_Module *module, struct ast_ASTA
 }
 #endif
 
-/**
- * typeck.x::check_expr_impl_mega 的 C 委托：按 ExprKind 分派至 typeck_check_expr_* 子 helper；
- * strict+pipeline 链不链整颗 typeck.o 时子 helper 来自 typeck_x_no_layout。
- */
-int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                    int32_t expr_ref, int32_t return_type_ref,
-                                                    struct ast_PipelineDepCtx *ctx) {
-  int32_t kind;
-
-  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
-    return 0;
-  kind = pipeline_expr_kind_ord_at(arena, expr_ref);
-  if (pipeline_typeck_expr_is_any_assign_kind_c(kind)) {
-    int32_t left_ref;
-    int32_t right_ref;
-    int32_t rc;
-    left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
-    right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
-    /** MEM-C1/WPO：逃逸诊断优先于 assign 类型匹配，负例 gate 须在 mismatch 前报 allocator/scope 逃逸。 */
-    if (pipeline_typeck_check_struct_stack_escape_assign_c(module, arena, expr_ref, left_ref, right_ref, ctx) != 0)
-      return -1;
-    if (pipeline_typeck_check_scope_borrow_assign_c(module, arena, expr_ref, left_ref, right_ref, ctx) != 0)
-      return -1;
-    if (pipeline_typeck_check_allocator_region_assign_c(module, arena, expr_ref, left_ref, ctx) != 0)
-      return -1;
-    rc = pipeline_typeck_check_expr_assign_c(module, arena, expr_ref, return_type_ref, ctx);
-    if (rc != 0)
-      return rc;
-    return 0;
-  }
-  if (kind == (int32_t)ast_ExprKind_EXPR_RETURN) {
-    int32_t op_ref;
-    int32_t rc;
-    op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-    /** MEM-C1/M-3：return 逃逸诊断优先于 return 类型匹配。 */
-    if (pipeline_typeck_check_scope_borrow_return_c(module, arena, expr_ref, op_ref, return_type_ref, ctx) != 0)
-      return -1;
-    if (pipeline_typeck_check_allocator_region_return_c(arena, expr_ref, return_type_ref) != 0)
-      return -1;
-    if (pipeline_typeck_check_return_slice_region_in_scope_c(arena, expr_ref, return_type_ref, ctx) != 0)
-      return -1;
-    if (pipeline_typeck_check_return_slice_region_c(arena, expr_ref, op_ref, return_type_ref) != 0)
-      return -1;
-    rc = pipeline_typeck_check_expr_return_c(module, arena, expr_ref, return_type_ref, ctx);
-    if (rc != 0)
-      return rc;
-    return 0;
-  }
-  if (kind == (int32_t)ast_ExprKind_EXPR_PANIC)
-    return typeck_check_expr_panic(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_MATCH)
-    return pipeline_typeck_check_expr_match_c(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_FIELD_ACCESS)
-    return typeck_check_expr_field_access(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_INDEX)
-    return typeck_check_expr_index(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_CALL) {
-    int32_t rc = pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
-    if (rc != 0)
-      return rc;
-    return pipeline_typeck_check_call_struct_stack_escape_c(module, arena, expr_ref, ctx);
-  }
-  if (kind == (int32_t)ast_ExprKind_EXPR_METHOD_CALL)
-    return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind >= (int32_t)ast_ExprKind_EXPR_ADD && kind <= (int32_t)ast_ExprKind_EXPR_LOGOR)
-    return typeck_check_expr_binop(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_NEG || kind == (int32_t)ast_ExprKind_EXPR_BITNOT ||
-      kind == (int32_t)ast_ExprKind_EXPR_LOGNOT)
-    return typeck_check_expr_unary(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_ADDR_OF)
-    return typeck_check_expr_addr_of(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_DEREF)
-    return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_VAR)
-    return pipeline_typeck_check_expr_var_c(module, arena, expr_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_AS)
-    return typeck_check_expr_as(module, arena, expr_ref, ctx);
-  if (kind == GLUE_EXPR_KIND_TRY_PROPAGATE || kind == GLUE_EXPR_KIND_C_TRY_PROPAGATE)
-    return typeck_check_expr_try_propagate(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_STRUCT_LIT)
-    return typeck_check_expr_struct_lit(module, arena, expr_ref, return_type_ref, ctx);
-  return 0;
-}
-
-extern int32_t typeck_check_expr_impl_mega(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                                         int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
-
-/** glue-only 链无 typeck.o 时回退 mega_c；自举 typeck_x.o 提供 typeck_check_expr_impl_mega 覆盖。 */
-XLANG_WEAK int32_t check_expr_impl_mega(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                   int32_t expr_ref, int32_t return_type_ref,
-                                                   struct ast_PipelineDepCtx *ctx) {
-  return typeck_check_expr_impl_mega(module, arena, expr_ref, return_type_ref, ctx);
-}
-
-/**
- * typeck.x::check_expr_impl 的 C 委托：简单 kind→typeck_check_expr_*；mega→check_expr_impl_mega。
- * EMIT_HEAVY 第二遍 check_expr_impl 仍 bl 本符号（勿 X 真 emit if+递归 check_expr）。
- */
-int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                                          int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  int32_t kind;
-
-  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
-    return 0;
-  kind = pipeline_expr_kind_ord_at(arena, expr_ref);
-  if (kind == (int32_t)ast_ExprKind_EXPR_FLOAT_LIT)
-    return typeck_check_expr_float_lit(arena, expr_ref);
-  if (kind == (int32_t)ast_ExprKind_EXPR_LIT)
-    return typeck_check_expr_int_lit(arena, expr_ref, return_type_ref);
-  if (kind == (int32_t)ast_ExprKind_EXPR_BOOL_LIT)
-    return typeck_check_expr_bool_lit(arena, expr_ref);
-  /** STRING_LIT(kind 59)：仅当期望为 PTR/ARRAY/SLICE 时沿用（*u8 / u8[]）；勿吞 void 等函数返回类型。 */
-  if (kind == GLUE_EXPR_STRING_LIT_ORD) {
-    int32_t u8r;
-    int32_t slice_u8;
-    int32_t exp_kind;
-    extern int32_t typeck_ensure_u8_type_ref(struct ast_ASTArena *arena);
-    extern int32_t typeck_find_or_alloc_slice_type_ref(struct ast_ASTArena *w, int32_t elem_ref);
-    if (!ast_ref_is_null(return_type_ref) && return_type_ref > 0 && return_type_ref <= arena->num_types) {
-      exp_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
-      if (exp_kind == (int32_t)ast_TypeKind_TYPE_PTR || exp_kind == (int32_t)ast_TypeKind_TYPE_ARRAY
-          || exp_kind == (int32_t)ast_TypeKind_TYPE_SLICE) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
-        return 0;
-      }
-    }
-    u8r = typeck_ensure_u8_type_ref(arena);
-    if (ast_ref_is_null(u8r))
-      return -1;
-    /* Default *u8 — see typeck_check_expr_string_lit comment in typeck_gen.c */
-    {
-      extern int32_t typeck_find_or_alloc_ptr_type_ref(struct ast_ASTArena *w, int32_t elem_ref);
-      slice_u8 = typeck_find_or_alloc_ptr_type_ref(arena, u8r);
-    }
-    if (!ast_ref_is_null(slice_u8))
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, slice_u8);
-    return 0;
-  }
-  if (kind == (int32_t)ast_ExprKind_EXPR_BREAK || kind == (int32_t)ast_ExprKind_EXPR_CONTINUE)
-    return typeck_check_expr_break_continue(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_ENUM_VARIANT)
-    return typeck_check_expr_enum_variant(arena, expr_ref);
-  if (kind == (int32_t)ast_ExprKind_EXPR_IF || kind == (int32_t)ast_ExprKind_EXPR_TERNARY)
-    return typeck_check_expr_if_ternary(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_BLOCK)
-    return typeck_check_expr_block(module, arena, expr_ref, return_type_ref, ctx);
-  if (kind == (int32_t)ast_ExprKind_EXPR_MATCH)
-    return pipeline_typeck_check_expr_match_c(module, arena, expr_ref, return_type_ref, ctx);
-  return check_expr_impl_mega(module, arena, expr_ref, return_type_ref, ctx);
-}
-
-/** glue-only 链无 typeck.o 时回退 impl_c；自举 typeck.o 在 EMIT_HEAVY 下 bl→impl_c 覆盖。 */
-XLANG_WEAK int32_t check_expr_impl(struct ast_Module *module, struct ast_ASTArena *arena,
-                                              int32_t expr_ref, int32_t return_type_ref,
-                                              struct ast_PipelineDepCtx *ctx) {
-  return pipeline_typeck_check_expr_impl_c(module, arena, expr_ref, return_type_ref, ctx);
-}
-
-/** typeck.x::check_expr 的 C 委托：边界检查后委托 pipeline_typeck_check_expr_impl_c（简单 kind C 处理 + mega 回退）。 */
-int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                                     int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  int32_t rc;
-  int32_t kind;
-
-  if (ast_ref_is_null(expr_ref))
-    return 0;
-  if (expr_ref <= 0 || !arena || expr_ref > arena->num_exprs)
-    return 0;
-  kind = pipeline_expr_kind_ord_at(arena, expr_ref);
-  if (kind == GLUE_EXPR_KIND_TRY_PROPAGATE || kind == GLUE_EXPR_KIND_C_TRY_PROPAGATE)
-    return pipeline_typeck_check_expr_try_propagate_c(module, arena, expr_ref, return_type_ref, ctx);
-  rc = pipeline_typeck_check_expr_impl_c(module, arena, expr_ref, return_type_ref, ctx);
-  if (rc != 0 && link_abi_getenv("XLANG_DEBUG_PIPE"))
-    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_expr fail func=%d expr=%d kind=%d block=%d\n",
-            ctx ? (int)ctx->current_func_index : -1, (int)expr_ref, (int)kind,
-            ctx ? (int)ctx->current_block_ref : -1);
-  return rc;
-}
+/* wave1188 G.7: typeck check_expr entry/dispatch cluster (5 fns + 2 XLANG_WEAK)
+ * migrated to pipeline_typeck_check_expr.c (same-TU #include). Members:
+ * pipeline_typeck_check_expr_impl_mega_c (full ExprKind dispatch)
+ * + XLANG_WEAK check_expr_impl_mega (glue-only fallback; typeck_x.o overrides)
+ * + pipeline_typeck_check_expr_impl_c (simple kind C path + mega fallback)
+ * + XLANG_WEAK check_expr_impl (glue-only fallback; typeck.o EMIT_HEAVY overrides)
+ * + pipeline_typeck_check_expr_c (boundary check → try_propagate / impl_c)
+ * All extern (non-static): cross-TU calls (typeck_x.o / typeck.o / seeds).
+ * XLANG_WEAK definitions retained for product pure strong-symbol override.
+ * Sub-class helpers (panic/match/return/unary/addr_of/deref/index/var) remain
+ * in pipeline_glue.c (interleaved with assign/soa/field_access domain slices).
+ * call_c + try_propagate_c remain in pipeline_glue.c (before method_call.c
+ * #include for debug_try_propagate_report_glue_c + glue_module_func_index_by_name_c).
+ * PLATFORM: SHARED. */
+#include "pipeline_typeck_check_expr.c"
 
 /* typeck check_block orchestration domain (BC 8.3.1):
  * pipeline_typeck_check_block.c */
