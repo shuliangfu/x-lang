@@ -71,6 +71,14 @@ extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct 
                                              int32_t expr_ref, struct ast_Expr e, struct backend_AsmFuncCtx *ctx,
                                              int32_t target_arch);
 
+/* wave1209: glue_field_access_layout_field_type_ref_by_name_c static fwd
+ * decl — definition in pipeline_asm_emit_field_access.c L111 (#include at
+ * glue.c L1684, AFTER this file's #include at L1660). Needed for wave1209-
+ * migrated pipeline_asm_call_arg_value_byte_size_c at EOF (FIELD_ACCESS
+ * field type resolution fallback). */
+static int32_t glue_field_access_layout_field_type_ref_by_name_c(struct ast_ASTArena *arena,
+                                                                  struct ast_Module *mod, int32_t fa_ref);
+
 /* Forward decls / callees defined elsewhere in the same TU:
  * - glue_call_arg_resolve_var_stack_off_elf_c (static; body in this leaf wave1019)
  * - glue_type_size_simple / glue_sysv_dual_gp_byte_size_c (later)
@@ -2959,4 +2967,393 @@ int32_t pipeline_asm_emit_expr_method_call_c(struct ast_ASTArena *arena, struct 
     return -1;
   e = pipeline_arena_expr_get_copy(arena, expr_ref);
   return backend_emit_expr_method_call(arena, out, expr_ref, e, ctx, target_arch);
+}
+
+/* ========================================================================== *
+ * wave1207-1209 G.7: MEMORY-by-value call-arg emit + size query cluster
+ * migrated from pipeline_glue.c L1856-2210. Colocated with call-arg emit
+ * domain (call_args.c #include at glue.c L1660).
+ *
+ * Members (3 fns):
+ *  - pipeline_asm_push_sysv_memory_by_value_elf_c   (x86_64 SysV MEMORY push; L1856-1954)
+ *  - pipeline_asm_store_memory_by_value_to_sp_elf_c (arm64 AAPCS64 MEMORY store; L1969-2070)
+ *  - pipeline_asm_call_arg_value_byte_size_c        (call-arg value byte size query; L2113-2210)
+ *
+ * Deps (all visible at #include point L1660 — verified via grep):
+ *  - glue_call_arg_resolve_var_stack_off_elf_c (static, this file L150)
+ *  - glue_call_return_byte_size_c              (static, this file L1716)
+ *  - glue_sysv_dual_gp_byte_size_c             (static, this file L1784)
+ *  - glue_type_size_simple                     (static, struct_lit.c L1270; #include L1440 < L1660)
+ *  - glue_type_is_fixed_array                  (static, vector_let.c L739; #include L1455 < L1660)
+ *  - glue_var_decl_type_ref_elf_c              (static, var_decl.c L51; #include L1610 < L1660)
+ *  - glue_field_access_field_type_ref_c        (static, index_helpers.c L241; #include L1530 < L1660)
+ *  - glue_type_named_layout_size_any_module_elf_c (static fwd decl, glue.c L1396 < L1660)
+ *  - glue_field_access_layout_field_type_ref_by_name_c (static fwd decl, glue.c L1396 < L1660)
+ *  - pipeline_asm_emit_expr_elf_rec            (static fwd decl, glue.c L1086 < L1660; def in expr_rec.c)
+ *  - pipeline_asm_emit_struct_let_init_elf_c   (static, struct_let.c L43; #include L1520 < L1660)
+ *  - pipeline_asm_emit_lvalue_eff_addr_elf_c   (static, index_helpers.c L2950; #include L1530 < L1660)
+ *  - pipeline_asm_emit_set_call_sret_reg_shift_c (extern)
+ *  - glue_arm64_mov_x0_to_x8_elf_c             (extern)
+ *  - backend_enc_*_arch                        (extern)
+ *  - g_pipeline_asm_emit_module                (static var, glue.c L133 < L1660; READ-ONLY here)
+ *  - pipeline_expr_kind_ord_at / pipeline_expr_resolved_type_ref / pipeline_type_kind_ord_at (extern)
+ *
+ * Callers: no TU-internal callsites. Sole callers are seeds
+ * (backend_call_dispatch.from_x.c L641/972/2540/2644/3783/4008/4123) via extern.
+ *
+ * PLATFORM:
+ *  - push_sysv_memory:  LINUX+MACOS x86_64 SysV (ta==0)
+ *  - store_memory_sp:   MACOS|ARM64 AAPCS64 (ta==1)
+ *  - call_arg_size:     SHARED (size query; consumers apply arch-specific packing)
+ * ========================================================================== */
+
+/**
+ * Push a MEMORY-class (>16B) by-value aggregate onto the x86_64 SysV call stack.
+ *
+ * Why: SysV ABI classifies >16B aggregates as MEMORY — caller must push the
+ *      full payload onto the stack before the call. This function materializes
+ *      the aggregate from 4 source kinds (VAR local, nested CALL sret,
+ *      STRUCT_LIT, FIELD_ACCESS) into a high-end frame temp, then pushes
+ *      qwords in reverse so [rsp+0] holds struct byte 0.
+ * Contract: ta!=0 -> -1 (x86 only); sz<=16 -> -1; unknown kind -> -1.
+ *           Returns bytes pushed (8-aligned) on success.
+ * Invariant: ly->next_offset bumped by nbytes during materialization, then
+ *            restored implicitly by the caller's frame teardown (push consumes
+ *            stack space, not frame slots).
+ * Asm/Perf: O(nbytes/8) — dominated by per-qword load/store loop.
+ * PLATFORM: LINUX+MACOS x86_64 SysV (ta==0).
+ */
+int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(struct ast_ASTArena *arena,
+                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                     struct backend_AsmFuncCtx *ctx, int32_t arg_ref, int32_t sz,
+                                                     int32_t ta) {
+  int32_t off;
+  int32_t nbytes;
+  int32_t k;
+  int32_t ko;
+  typedef struct {
+    int32_t frame_size;
+    int32_t next_offset;
+  } glue_AsmFuncCtxHead;
+  glue_AsmFuncCtxHead *ly;
+  if (!arena || !elf_ctx || !ctx || arg_ref <= 0 || sz <= 16 || ta != 0)
+    return -1;
+  nbytes = (sz + 7) & ~7;
+  ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  off = -1;
+  /* 1) Local VAR: known stack home. */
+  if (ko == 3) {
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, arg_ref);
+    if (off < 0)
+      return -1;
+  } else if (ko == 48 || ko == 49) {
+    /*
+     * 2) Nested CALL/METHOD large return: materialize via SysV sret into frame temp.
+     * Root wave601: sum(mk()) previously placed only rax→rdi (pointer) while callee
+     * param_home reads MEMORY at [rbp+0x10..].
+     */
+    int32_t ret_sz = glue_call_return_byte_size_c(arena, arg_ref);
+    if (ret_sz <= 16)
+      ret_sz = sz;
+    if (ret_sz <= 16)
+      return -1;
+    ly = (glue_AsmFuncCtxHead *)ctx;
+    /* High-end home: allocate nbytes; home = next after bump (≡ dual-GP spill / let slot). */
+    if (ly->next_offset + nbytes < ly->next_offset)
+      return -1;
+    ly->next_offset += nbytes;
+    off = ly->next_offset;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+      pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+      return -1;
+    }
+    pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+  } else if (ko == 45) {
+    /*
+     * 3) STRUCT_LIT as MEMORY call-arg: materialize fields into high-end frame temp.
+     * Root wave605: sum(Big{…}) freestanding CG002 (push returned -1); host-C green.
+     * G.7: reuse pipeline_asm_emit_struct_let_init (same as let s = Big{…}).
+     * PLATFORM: LINUX|x86 high-end — byte0 @ off via lea -off(%rbp).
+     */
+    ly = (glue_AsmFuncCtxHead *)ctx;
+    if (ly->next_offset + nbytes < ly->next_offset)
+      return -1;
+    ly->next_offset += nbytes;
+    off = ly->next_offset;
+    if (pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, arg_ref, ctx, ta, off) != 0)
+      return -1;
+  } else if (ko == 44) {
+    /*
+     * 4) FIELD_ACCESS as MEMORY call-arg: copy aggregate from lvalue address into temp.
+     * Root wave605: sum(o.t) freestanding CG002; host-C temporary `.` hid the gap.
+     * G.7: per-word lvalue_eff_addr + load_64_from_rax (SHARED) — do NOT use
+     * load_qword_from_rbx (x86-only; returns -1 for ta!=0 and broke arm64 twin).
+     * PLATFORM: LINUX|x86 high-end — store word i at off-k (k=0,8,…).
+     */
+    ly = (glue_AsmFuncCtxHead *)ctx;
+    if (ly->next_offset + nbytes < ly->next_offset)
+      return -1;
+    ly->next_offset += nbytes;
+    off = ly->next_offset;
+    for (k = 0; k < nbytes; k += 8) {
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+        return -1;
+      if (k != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, k, ta) != 0)
+        return -1;
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off - k, ta) != 0)
+        return -1;
+    }
+  } else {
+    return -1;
+  }
+  /* Push high qwords first so [rsp+0] holds struct byte 0. */
+  for (k = nbytes - 8; k >= 0; k -= 8) {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off - k, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  return nbytes;
+}
+
+/**
+ * Store a MEMORY-class (>16B) by-value aggregate to SP+offset for AAPCS64.
+ *
+ * Why: AAPCS64 (arm64) passes >16B aggregates by reference to a stack slot
+ *      allocated by the caller. This function materializes the aggregate from
+ *      4 source kinds (VAR local, nested CALL sret via x8, STRUCT_LIT,
+ *      FIELD_ACCESS) into a low-end frame temp, then copies qwords to SP+sp_off.
+ * Contract: ta!=1 -> -1 (arm64 only); sz<=16 -> -1; sp_off<0 -> -1.
+ *           Returns bytes stored (8-aligned) on success.
+ * Invariant: ly->next_offset bumped by nbytes during materialization (low-end:
+ *            byte0 @ off, fields at off+foff); restored by caller's frame teardown.
+ * Asm/Perf: O(nbytes/8) — dominated by per-qword load/store loop.
+ * PLATFORM: MACOS|ARM64 AAPCS64 (ta==1). G.7 twin of push_sysv_memory (x86).
+ */
+int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                       struct backend_AsmFuncCtx *ctx, int32_t arg_ref, int32_t sz,
+                                                       int32_t ta, int32_t sp_off) {
+  int32_t off;
+  int32_t nbytes;
+  int32_t k;
+  int32_t ko;
+  typedef struct {
+    int32_t frame_size;
+    int32_t next_offset;
+  } glue_AsmFuncCtxHead;
+  glue_AsmFuncCtxHead *ly;
+  if (!arena || !elf_ctx || !ctx || arg_ref <= 0 || sz <= 16 || ta != 1 || sp_off < 0)
+    return -1;
+  nbytes = (sz + 7) & ~7;
+  ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  off = -1;
+  /* 1) Local VAR: known stack home (wave603). */
+  if (ko == 3) {
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, arg_ref);
+    if (off < 0)
+      return -1;
+  } else if (ko == 48 || ko == 49) {
+    /*
+     * 2) Nested CALL/METHOD large return: materialize via AAPCS64 sret into frame temp.
+     * Root wave604: sum(mk()) previously returned -1 (VAR-only) → CG002; x86 push_sysv
+     * already sret+push since wave601.
+     * PLATFORM: MACOS|ARM64 — dest in x8 (wave591); low-end home byte0@off.
+     */
+    int32_t ret_sz = glue_call_return_byte_size_c(arena, arg_ref);
+    if (ret_sz <= 16)
+      ret_sz = sz;
+    if (ret_sz <= 16)
+      return -1;
+    ly = (glue_AsmFuncCtxHead *)ctx;
+    /* Low-end: allocate [off, off+nbytes); byte0 @ off. */
+    off = ly->next_offset;
+    if (off < 16)
+      off = 16;
+    if (off + nbytes < off)
+      return -1;
+    ly->next_offset = off + nbytes;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
+      return -1;
+    /* AAPCS64 Indirect Result Location = x8 (not an arg GP; no sret_reg_shift). */
+    if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+      return -1;
+  } else if (ko == 45) {
+    /*
+     * 3) STRUCT_LIT as MEMORY call-arg: materialize fields into low-end frame temp.
+     * Root wave605: sum(Big{…}) freestanding CG002 (store returned -1); host-C green.
+     * G.7: reuse pipeline_asm_emit_struct_let_init (same as let s = Big{…}).
+     * PLATFORM: MACOS|ARM64 low-end — byte0 @ off, fields at off+foff.
+     */
+    ly = (glue_AsmFuncCtxHead *)ctx;
+    off = ly->next_offset;
+    if (off < 16)
+      off = 16;
+    if (off + nbytes < off)
+      return -1;
+    ly->next_offset = off + nbytes;
+    if (pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, arg_ref, ctx, ta, off) != 0)
+      return -1;
+  } else if (ko == 44) {
+    /*
+     * 4) FIELD_ACCESS as MEMORY call-arg: copy aggregate from lvalue address into temp.
+     * Root wave605: sum(o.t) freestanding CG002; host-C temporary `.` hid the gap.
+     * G.7: per-word lvalue_eff_addr + load_64_from_rax (SHARED) — do NOT use
+     * load_qword_from_rbx (x86-only; returns -1 for ta!=0).
+     * PLATFORM: MACOS|ARM64 low-end — store word i at off+k.
+     */
+    ly = (glue_AsmFuncCtxHead *)ctx;
+    off = ly->next_offset;
+    if (off < 16)
+      off = 16;
+    if (off + nbytes < off)
+      return -1;
+    ly->next_offset = off + nbytes;
+    for (k = 0; k < nbytes; k += 8) {
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+        return -1;
+      if (k != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, k, ta) != 0)
+        return -1;
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off + k, ta) != 0)
+        return -1;
+    }
+  } else {
+    return -1;
+  }
+  for (k = 0; k < nbytes; k += 8) {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off + k, ta) != 0)
+      return -1;
+    if (backend_enc_store_x0_sp_offset_arch(elf_ctx, sp_off + k, ta) != 0)
+      return -1;
+  }
+  return nbytes;
+}
+
+/**
+ * Query the byte size of a call/method-arg value for SysV GP packing.
+ *
+ * Why: SysV ABI packs aggregates ≤16B into 1-2 GP registers (rax+rdx on x86,
+ *      x0+x1 on arm64). This function resolves the effective value size by
+ *      checking formal param type, expr resolved type, VAR decl type, and
+ *      FIELD_ACCESS field type in sequence, taking the max. Consumers
+ *      (glue_sysv_arg_gp_units_from_size) map size→GP count.
+ * Contract: returns 8 for TYPE_SLICE (pointer, 1 GP — fat value must NOT
+ *           dual-GP-pack). returns 8 for TYPE_ARRAY/fixed-array (E* decay).
+ *           returns 8 fallback when no type info resolves.
+ * Invariant: result is monotonically non-decreasing across resolution stages
+ *            (formal → resolved → VAR decl → FIELD_ACCESS → dual-GP max).
+ * Asm/Perf: O(1) — pure type/size query, no emit side effects.
+ * PLATFORM: SHARED — size query; consumers apply LINUX+MACOS SysV 2-GP for 9–16B.
+ *
+ * FIELD_ACCESS (v.al → alloc): formal pty often 0 during co-emit; must resolve field type
+ * so units=2 (rax+rdx place). units=1 left size in rsi and arena half unused → malloc(0).
+ */
+int32_t pipeline_asm_call_arg_value_byte_size_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                 int32_t arg_ref, int32_t pty) {
+  int32_t sz = 0;
+  int32_t tr;
+  /*
+   * PLATFORM: SHARED — TYPE_SLICE call/formal param is pointer (codegen.x), 1 GP (8B).
+   * Fat value size 16 must not dual-GP-pack (steals next arg's rsi). G.7 with call lea.
+   */
+  if (arena && pty > 0 &&
+      pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+    return 8;
+  if (arena && arg_ref > 0) {
+    tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == (int32_t)ast_TypeKind_TYPE_SLICE)
+      return 8;
+  }
+  /*
+   * wave635 Cap residual pure: fixed TYPE_ARRAY formal is E* (one GP), not MEMORY
+   * by-value of the payload. Twin of glue_func_param_agg_byte_size_c (wave417) and
+   * TYPE_SLICE call-arg size above.
+   * Root: prior glue_type_size_simple(T[N]) returned full payload (S24[2]=48, S12[2]=24)
+   * → glue_sysv_arg_gp_units_from_size → MEMORY (units=0) → arm64 store_memory_by_value
+   * / x86 push_sysv_memory multi-word stack copy, while callee param_home + INDEX treat
+   * the formal as a pointer in x0/rdi (wave417). Freestanding take(mk())/take(s) SEGV;
+   * pure-asm without -freestanding often CTFE-folds away the call (false green);
+   * host-C decays T[N]→E*. S8[2]=16 dual-GP + single S24 MEMORY named both green.
+   * G.7: complete call-arg size authority only — emit already lea local T[N] /
+   * load param E* / pass CALL return E* (wave417/610). Do not invent a second path.
+   * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
+   */
+  if (arena && pty > 0 &&
+      (pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_ARRAY ||
+       glue_type_is_fixed_array(arena, pty)))
+    return 8;
+  if (arena && arg_ref > 0) {
+    tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (tr > 0 &&
+        (pipeline_type_kind_ord_at(arena, tr) == (int32_t)ast_TypeKind_TYPE_ARRAY ||
+         glue_type_is_fixed_array(arena, tr))) {
+      /* When formal missing, still pass E* for fixed-array values (C decay twin). */
+      if (pty <= 0 ||
+          pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_ARRAY ||
+          glue_type_is_fixed_array(arena, pty))
+        return 8;
+    }
+  }
+  if (pty > 0)
+    sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, pty, 0);
+  if (sz <= 0 && arg_ref > 0 && arena) {
+    tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (tr > 0)
+      sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
+  }
+  if (arg_ref > 0 && arena && ctx && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, arg_ref);
+    if (tr > 0) {
+      int32_t sz2 = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
+      if (sz2 > sz)
+        sz = sz2;
+      sz2 = glue_sysv_dual_gp_byte_size_c(arena, tr);
+      if (sz2 > sz)
+        sz = sz2;
+    }
+  }
+  /* FIELD_ACCESS: field type / layout (v.al) when formal pty or resolved miss. */
+  if (arg_ref > 0 && arena && pipeline_expr_kind_ord_at(arena, arg_ref) == 44) {
+    tr = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, arg_ref);
+    if (tr <= 0 && g_pipeline_asm_emit_module)
+      tr = glue_field_access_layout_field_type_ref_by_name_c(arena, g_pipeline_asm_emit_module, arg_ref);
+    if (tr > 0) {
+      int32_t sz2 = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
+      if (sz2 > sz)
+        sz = sz2;
+      sz2 = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+      if (sz2 > sz)
+        sz = sz2;
+      sz2 = glue_sysv_dual_gp_byte_size_c(arena, tr);
+      if (sz2 > sz)
+        sz = sz2;
+    }
+  }
+  if (sz <= 8 && pty > 0) {
+    int32_t sz2 = glue_sysv_dual_gp_byte_size_c(arena, pty);
+    if (sz2 > sz)
+      sz = sz2;
+  }
+  if (sz <= 8 && arg_ref > 0 && arena) {
+    tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (tr > 0) {
+      int32_t sz2 = glue_sysv_dual_gp_byte_size_c(arena, tr);
+      if (sz2 > sz)
+        sz = sz2;
+    }
+  }
+  if (sz <= 0)
+    return 8;
+  return sz;
 }
