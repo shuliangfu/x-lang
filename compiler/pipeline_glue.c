@@ -2472,10 +2472,12 @@ static int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena 
  * / pipeline_module_func_ptr (L91) / pipeline_type_kind_ord_at (L761).
  * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
-/** INDEX 元素字节宽；委托 pipeline_asm_index_elem_byte_sz_c（勿在此重复旧 TYPE_PTR→8 逻辑）。 */
-int32_t pipeline_asm_index_elem_byte_sz(struct ast_ASTArena *a, int32_t index_expr_ref) {
-  return pipeline_asm_index_elem_byte_sz_c(a, index_expr_ref);
-}
+/* wave1202 G.7: pipeline_asm_index_elem_byte_sz public wrapper (1 fn) migrated
+ * to pipeline_asm_emit_index.c EOF (colocated with static
+ * pipeline_asm_index_elem_byte_sz_c at L43 — the sole implementation this
+ * wrapper delegates to). No glue.c callsites (sole callers are seeds:
+ * backend_try_inline_dispatch*.from_x.c via extern decl). No extern fwd decl
+ * needed — definition visible via same-TU #include at L1556. PLATFORM: SHARED. */
 
 /* wave1161 G.7: index/field_access/line/col accessor cluster (10 extern
  * fns) migrated to pipeline_asm_emit_expr_rec.c EOF (colocated with

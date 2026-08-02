@@ -433,3 +433,32 @@ int32_t pipeline_asm_emit_deref_elf_c(struct ast_ASTArena *arena, struct platfor
     return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
   return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
 }
+
+/* ========================================================================== *
+ * wave1202 G.7: pipeline_asm_index_elem_byte_sz public wrapper migrated from
+ * pipeline_glue.c L2475-2478. Colocated with the static
+ * pipeline_asm_index_elem_byte_sz_c definition above (L43) — this wrapper is
+ * the sole public (extern) face of that static implementation, exposing it to
+ * cross-TU seed callers (backend_try_inline_dispatch*.from_x.c).
+ *
+ * No glue.c callsites (sole callers are seeds via extern decl). No extern fwd
+ * decl needed in glue.c — definition visible via same-TU #include at L1556.
+ * PLATFORM: SHARED — pure delegation, no arch dependency.
+ * ========================================================================== */
+
+/**
+ * Public extern wrapper for INDEX element byte size.
+ *
+ * Why: pipeline_asm_index_elem_byte_sz_c is static to this file (single
+ *      authority for INDEX stride / load width resolution). Seed callers
+ *      (backend_try_inline_dispatch*.from_x.c) need an extern entry point;
+ *      this wrapper delegates without duplicating the TYPE_PTR->8 / pointee
+ *      / ARRAY total_bytes / VECTOR lane logic.
+ * Contract: NULL arena -> 8 (fallback via _c); valid arena -> delegates to _c.
+ * Invariant: return value matches pipeline_asm_index_elem_byte_sz_c exactly.
+ * Asm/Perf: O(1) delegation — no overhead beyond call/ret.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_asm_index_elem_byte_sz(struct ast_ASTArena *a, int32_t index_expr_ref) {
+  return pipeline_asm_index_elem_byte_sz_c(a, index_expr_ref);
+}
