@@ -17,7 +17,7 @@ MIN_BENCHES=3
 
 echo "=== STD-061: simd prod bench manifest ==="
 for f in "$DOC" "$WAVE" "$LIB" "$PARENT_DOC" "$MOD_X" \
-  bench/simd_shuffle_select.x bench/simd_shuffle_select_stub.c \
+  bench/r04_simd_shuffle_select.x bench/r04_simd_shuffle_select_stub.c \
   tests/run-perf-simd-shuffle-select.sh; do
   if [ ! -f "$f" ]; then
     echo "std-simd-prod gate FAIL: missing $f" >&2
