@@ -4510,7 +4510,7 @@ decl_kind: i32, init_kind: i32): i32 {
         return 1;
       }
       if (nlen16 == 3 && nm16[0] == 105 && nm16[1] == 49 && nm16[2] == 54
-          && int_val >= -32768 && int_val <= 32767) {
+          && int_val + 32768 >= 0 && int_val <= 32767) {
         pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
         return 1;
       }
@@ -5380,8 +5380,9 @@ export function typeck_ret_coerce_integral_widen(arena: *ASTArena, op_ref: i32, 
      * (freestanding emit promotes with SSE convert using true float32 bits).
      * wave1218: avoid digit+letter glues in comments before (void) casts;
      * lparen rewind probes can land mid-comment and sticky-L009 the parse. */
-    (void)expect_kind;
-    (void)got_kind;
+    /* wave1219: removed (void)expect_kind / (void)got_kind — C-style cast not
+     * supported in X (parsed as call to unresolved `void` function). Variables
+     * are assigned-but-unused; safe to drop the cast-to-void suppression. */
   }
 }
 
@@ -6880,7 +6881,7 @@ formal_ty: i32, arg_ty: i32, depth: i32): i32 {
       }
       fnlen = pipeline_type_named_name_into(arena, formal_ty, &fnm[0]);
       anlen = pipeline_type_named_name_into(arena, arg_ty, &anm[0]);
-      if (fnlen <= 0 || anlen <= 0 || name_equal(&fnm[0], fnlen, &anm[0], anlen) == 0) {
+      if (fnlen <= 0 || anlen <= 0 || !name_equal(&fnm[0], fnlen, &anm[0], anlen)) {
         return 0;
       }
       asz = pipeline_type_array_size_at(arena, formal_ty);
@@ -8364,12 +8365,12 @@ expr_ref: i32, base_ty: i32): i32 {
      */
     mono_base = 0;
     if (!ast.ref_is_null(base_ty) && base_ty > 0 && base_ty <= arena.num_types) {
-      if (typeck_named_type_matches_name_or_alias(module, arena, base_ty, name_buf, name_len, 0) != 0) {
+      if (typeck_named_type_matches_name_or_alias(module, arena, base_ty, name_buf, name_len, 0)) {
         mono_base = base_ty;
       } else {
         let peel: i32 = pipeline_type_elem_ref_at(arena, base_ty);
         if (!ast.ref_is_null(peel) && peel > 0
-        && typeck_named_type_matches_name_or_alias(module, arena, peel, name_buf, name_len, 0) != 0) {
+        && typeck_named_type_matches_name_or_alias(module, arena, peel, name_buf, name_len, 0)) {
           mono_base = peel;
         }
       }
@@ -9876,7 +9877,7 @@ export function typeck_x_ast_check_one_func(module: *Module, arena: *ASTArena, c
      * stay TYPE_NAMED without layout; field gate hard-fails them (wave684).
      * Keep checking: id/geta/return of T, Wrap.val mono, concrete layouts. */
     num_generic_params = pipeline_module_func_num_generic_params_at(module, func_idx);
-    (void)num_generic_params;
+    /* wave1219: removed (void)num_generic_params — C-style cast unsupported in X. */
     body_ref = pipeline_module_func_body_ref_at(module, func_idx);
     if (ast.ref_is_null(body_ref) || pipeline_module_func_is_extern_at(module, func_idx) != 0) {
       return 0;
@@ -9935,7 +9936,7 @@ func_i: i32, num_funcs: i32): i32 {
     driver_diagnostic_typeck_fn_enter(func_i, typeck_scratch64_slot(0), fn_name_len);
     /* wave684: do not skip generic bodies (see typeck_x_ast_check_one_func). */
     num_generic_params = pipeline_module_func_num_generic_params_at(module, func_i);
-    (void)num_generic_params;
+    /* wave1219: removed (void)num_generic_params — C-style cast unsupported in X. */
     body_ref = pipeline_module_func_body_ref_at(module, func_i);
     if (!ast.ref_is_null(body_ref) && pipeline_module_func_is_extern_at(module, func_i) == 0) {
       ret_ty_ref = pipeline_module_func_return_type_at(module, func_i);
