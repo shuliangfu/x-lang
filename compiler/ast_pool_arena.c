@@ -251,3 +251,127 @@ int32_t pipeline_arena_type_cap(void) { return AST_POOL_NO_LIMIT; }
 int32_t pipeline_arena_expr_cap(void) { return AST_POOL_NO_LIMIT; }
 int32_t pipeline_arena_block_cap(void) { return AST_POOL_NO_LIMIT; }
 int32_t pipeline_arena_func_cap(void) { return AST_POOL_NO_LIMIT; }
+
+/* wave1183 G.7: ast_pipeline_arena_* forwarder cluster (12 fns) migrated
+ * from pipeline_glue.c to this file's EOF.
+ *
+ * Why colocate: ast.x resolves extern pipeline_arena_* symbols with an ast_
+ * module prefix at codegen time (e.g. ast_pipeline_arena_type_get_copy),
+ * but the authoritative implementations live in ast_pool_arena.c with
+ * unprefixed C names (pipeline_arena_type_get_copy). These 12 thin
+ * forwarders exist solely to satisfy the linker name-mangling gap;
+ * colocating them here keeps pipeline_glue.c focused on real glue logic.
+ *
+ * Members (12 fns):
+ *  - ast_pipeline_arena_type_get_copy / set_copy (type arena get/set)
+ *  - ast_pipeline_arena_expr_get_copy / set_copy (expr arena get/set)
+ *  - ast_pipeline_arena_expr_write_var (write VAR name into expr)
+ *  - ast_pipeline_arena_expr_write_binop (write BINOP kind+left+right)
+ *  - ast_pipeline_arena_block_get_copy / set_copy (block arena get/set)
+ *  - ast_pipeline_arena_func_get_copy / set_copy (func arena get/set)
+ *
+ * Contract: every function here is a pure pass-through -- no state mutation,
+ *   no branch, single tail call to the underlying pipeline_arena_* impl.
+ *
+ * PLATFORM: SHARED -- forwarders are platform-agnostic.
+ */
+struct ast_Type ast_pipeline_arena_type_get_copy(struct ast_ASTArena *a, int32_t ref) {
+  return pipeline_arena_type_get_copy(a, ref);
+}
+void ast_pipeline_arena_type_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Type t) {
+  pipeline_arena_type_set_copy(a, ref, t);
+}
+struct ast_Expr ast_pipeline_arena_expr_get_copy(struct ast_ASTArena *a, int32_t ref) {
+  return pipeline_arena_expr_get_copy(a, ref);
+}
+void ast_pipeline_arena_expr_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e) {
+  pipeline_arena_expr_set_copy(a, ref, e);
+}
+void ast_pipeline_arena_expr_write_var(struct ast_ASTArena *a, int32_t ref, uint8_t *name, int32_t name_len) {
+  pipeline_arena_expr_write_var(a, ref, name, name_len);
+}
+void ast_pipeline_arena_expr_write_binop(struct ast_ASTArena *a, int32_t ref, int32_t kind_ord, int32_t left_ref,
+                                         int32_t right_ref) {
+  pipeline_arena_expr_write_binop(a, ref, kind_ord, left_ref, right_ref);
+}
+struct ast_Block ast_pipeline_arena_block_get_copy(struct ast_ASTArena *a, int32_t ref) {
+  return pipeline_arena_block_get_copy(a, ref);
+}
+void ast_pipeline_arena_block_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Block b) {
+  pipeline_arena_block_set_copy(a, ref, b);
+}
+struct ast_Func ast_pipeline_arena_func_get_copy(struct ast_ASTArena *a, int32_t ref) {
+  return pipeline_arena_func_get_copy(a, ref);
+}
+void ast_pipeline_arena_func_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Func f) {
+  pipeline_arena_func_set_copy(a, ref, f);
+}
+
+/* wave1183 G.7: Forward declarations for ast_ast_arena_type_get/set and
+ * ast_ast_arena_expr_get/set (defined in pipeline_glue.c L5179-5224 with
+ * trace debugging logic); needed because ast_arena_*_get/set twins below
+ * delegate to them before their definitions appear in the same TU. */
+struct ast_Type ast_ast_arena_type_get(struct ast_ASTArena *a, int32_t ref);
+void ast_ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t);
+struct ast_Expr ast_ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref);
+void ast_ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);
+
+/* wave1183 G.7: ast_ast_arena_*_get/set + ast_arena_*_get/set forwarder
+ * cluster (14 fns) migrated from pipeline_glue.c to this file's EOF.
+ *
+ * Why colocate: ast.x resolves extern pipeline_arena_* symbols with ast_
+ * and ast_ast_ module prefixes at codegen time, but the authoritative
+ * implementations live in ast_pool_arena.c with unprefixed C names
+ * (pipeline_arena_*_get_copy / _set_copy). These 14 thin forwarders exist
+ * solely to satisfy the linker name-mangling gap; colocating them here
+ * keeps pipeline_glue.c focused on real glue logic.
+ *
+ * Members (14 fns):
+ *  - ast_ast_arena_block_get / set (block arena get/set, ast_ast_ prefix)
+ *  - ast_ast_arena_func_get / set (func arena get/set, ast_ast_ prefix)
+ *  - ast_arena_type_get / set (type arena get/set, ast_ prefix, delegates to ast_ast_)
+ *  - ast_arena_expr_get / set (expr arena get/set, ast_ prefix, delegates to ast_ast_)
+ *  - ast_arena_block_get / set (block arena get/set, ast_ prefix, delegates to ast_ast_)
+ *  - ast_arena_func_get / set (func arena get/set, ast_ prefix, delegates to ast_ast_)
+ *
+ * Contract: every function here is a pure pass-through -- no state mutation,
+ *   no branch, single tail call to the underlying pipeline_arena_* impl.
+ *
+ * PLATFORM: SHARED -- forwarders are platform-agnostic.
+ */
+struct ast_Block ast_ast_arena_block_get(struct ast_ASTArena *a, int32_t ref) {
+  return pipeline_arena_block_get_copy(a, ref);
+}
+void ast_ast_arena_block_set(struct ast_ASTArena *a, int32_t ref, struct ast_Block b) {
+  pipeline_arena_block_set_copy(a, ref, b);
+}
+struct ast_Func ast_ast_arena_func_get(struct ast_ASTArena *a, int32_t ref) {
+  return pipeline_arena_func_get_copy(a, ref);
+}
+void ast_ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f) {
+  pipeline_arena_func_set_copy(a, ref, f);
+}
+struct ast_Type ast_arena_type_get(struct ast_ASTArena *a, int32_t ref) {
+  return ast_ast_arena_type_get(a, ref);
+}
+void ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t) {
+  ast_ast_arena_type_set(a, ref, t);
+}
+struct ast_Expr ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref) {
+  return ast_ast_arena_expr_get(a, ref);
+}
+void ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e) {
+  ast_ast_arena_expr_set(a, ref, e);
+}
+struct ast_Block ast_arena_block_get(struct ast_ASTArena *a, int32_t ref) {
+  return ast_ast_arena_block_get(a, ref);
+}
+void ast_arena_block_set(struct ast_ASTArena *a, int32_t ref, struct ast_Block b) {
+  ast_ast_arena_block_set(a, ref, b);
+}
+struct ast_Func ast_arena_func_get(struct ast_ASTArena *a, int32_t ref) {
+  return ast_ast_arena_func_get(a, ref);
+}
+void ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f) {
+  ast_ast_arena_func_set(a, ref, f);
+}

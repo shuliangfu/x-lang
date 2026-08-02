@@ -891,3 +891,203 @@ int32_t pipeline_expr_binop_right_ref_at(struct ast_ASTArena *a, int32_t expr_re
   struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
   return ex ? ex->binop_right_ref : 0;
 }
+
+/* wave1183 G.7: Forward declarations for pipeline_expr_* functions defined
+ * in ast_pool_expr_sidecar.c (included later via ast_pool.c #include L4607).
+ * Needed because the ast_pipeline_expr_* forwarders below call these before
+ * their definitions appear in the same TU. */
+int32_t pipeline_expr_append_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref);
+void pipeline_expr_on_call_created(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t pipeline_expr_prepare_call_arg_slot(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t pipeline_expr_append_method_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref);
+int32_t pipeline_expr_append_match_arm(struct ast_ASTArena *a, int32_t expr_ref, int32_t result_ref,
+                                       int32_t is_wildcard, int32_t lit_val, int32_t is_enum_variant,
+                                       int32_t variant_index);
+void pipeline_expr_match_arm_set_wildcard(struct ast_ASTArena *a, int32_t expr_ref, int32_t i, int32_t v);
+void pipeline_expr_match_arm_set_lit_val(struct ast_ASTArena *a, int32_t expr_ref, int32_t i, int32_t v);
+void pipeline_expr_match_arm_set_enum_variant(struct ast_ASTArena *a, int32_t expr_ref, int32_t i,
+                                              int32_t is_var, int32_t variant_index);
+int32_t pipeline_expr_append_struct_lit_field(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *name_bytes,
+                                              int32_t name_len, int32_t init_ref);
+int32_t pipeline_expr_append_array_lit_elem(struct ast_ASTArena *a, int32_t expr_ref, int32_t elem_ref);
+int32_t pipeline_module_import_append_select_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+
+/* wave1183 G.7: ast_pipeline_expr_* + codegen_pipeline_expr_* +
+ * backend_pipeline_expr_* forwarder cluster (40 fns) migrated from
+ * pipeline_glue.c to this file's EOF.
+ *
+ * Why colocate: ast.x / codegen.x / backend.x resolve extern pipeline_expr_*
+ * symbols with module prefixes at codegen time (ast_pipeline_expr_*,
+ * codegen_pipeline_expr_*, backend_pipeline_expr_*), but the authoritative
+ * implementations live in ast_pool_expr_sidecar.c / pipeline_asm_emit_expr_rec.c
+ * with unprefixed C names (pipeline_expr_*). These 40 thin forwarders exist
+ * solely to satisfy the linker name-mangling gap; colocating them here
+ * keeps pipeline_glue.c focused on real glue logic.
+ *
+ * Sub-clusters:
+ *  - codegen_pipeline_module_func_param_type_ref_at (1 fn: codegen_ prefix)
+ *  - ast_pipeline_expr_call_* (6 fns: append_arg/on_created/prepare_slot/
+ *    arg_ref/num_args/callee_ref -- call expr sidecar accessors)
+ *  - ast_pipeline_expr_method_call_* (5 fns: append_arg/arg_ref/num_args/
+ *    name_len/name_into -- method call sidecar accessors)
+ *  - ast_pipeline_expr_match_* (10 fns: append_arm/num_arms/result_ref/
+ *    is_wildcard/lit_val/is_enum_variant/variant_index/set_wildcard/
+ *    set_lit_val/set_enum_variant -- match arm sidecar accessors)
+ *  - ast_pipeline_expr_struct_lit/array_lit/float/if/block/match/const_folded
+ *    (12 fns: append_field/append_elem/elem_ref/num_elems/bits_lo/hi/
+ *    cond_ref/then_ref/else_ref/block_ref/matched_ref/const_folded_valid/val)
+ *  - ast_pipeline_expr_index/field_access (6 fns: base_ref/index_ref/
+ *    is_enum_variant/offset/layout_offset/load_byte_sz)
+ *  - ast_pipeline_module_import_append_select_name (1 fn: import select name)
+ *  - codegen_pipeline_expr_* + backend_pipeline_expr_* (5 fns: kind_ord/
+ *    struct_lit_num_fields/init_ref -- codegen_ and backend_ prefix twins)
+ *
+ * Contract: every function here is a pure pass-through -- no state mutation,
+ *   no branch, single tail call to the underlying pipeline_expr_* impl.
+ *
+ * PLATFORM: SHARED -- forwarders are platform-agnostic.
+ */
+int32_t codegen_pipeline_module_func_param_type_ref_at(struct ast_Module *m, int32_t func_index,
+                                                       int32_t param_index) {
+  return pipeline_module_func_param_type_ref_at(m, func_index, param_index);
+}
+
+/** Expr sidecar pool symbol forwarders called via import prefix by ast.x / typeck / codegen / backend / parser. */
+int32_t ast_pipeline_expr_append_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref) {
+  return pipeline_expr_append_call_arg(a, expr_ref, arg_ref);
+}
+void ast_pipeline_expr_on_call_created(struct ast_ASTArena *a, int32_t expr_ref) {
+  pipeline_expr_on_call_created(a, expr_ref);
+}
+int32_t ast_pipeline_expr_prepare_call_arg_slot(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_prepare_call_arg_slot(a, expr_ref);
+}
+int32_t ast_pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx) {
+  return pipeline_expr_call_arg_ref(a, expr_ref, idx);
+}
+int32_t ast_pipeline_expr_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_call_num_args_at(a, expr_ref);
+}
+int32_t ast_pipeline_expr_append_method_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref) {
+  return pipeline_expr_append_method_call_arg(a, expr_ref, arg_ref);
+}
+int32_t ast_pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx) {
+  return pipeline_expr_method_call_arg_ref(a, expr_ref, idx);
+}
+int32_t ast_pipeline_expr_append_match_arm(struct ast_ASTArena *a, int32_t expr_ref, int32_t result_ref,
+                                           int32_t is_wildcard, int32_t lit_val, int32_t is_enum_variant,
+                                           int32_t variant_index) {
+  return pipeline_expr_append_match_arm(a, expr_ref, result_ref, is_wildcard, lit_val, is_enum_variant,
+                                        variant_index);
+}
+int32_t ast_pipeline_expr_match_num_arms_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_match_num_arms_at(a, expr_ref);
+}
+int32_t ast_pipeline_expr_match_arm_result_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t i) {
+  return pipeline_expr_match_arm_result_ref(a, expr_ref, i);
+}
+int32_t ast_pipeline_expr_match_arm_is_wildcard(struct ast_ASTArena *a, int32_t expr_ref, int32_t i) {
+  return pipeline_expr_match_arm_is_wildcard(a, expr_ref, i);
+}
+int32_t ast_pipeline_expr_match_arm_lit_val(struct ast_ASTArena *a, int32_t expr_ref, int32_t i) {
+  return pipeline_expr_match_arm_lit_val(a, expr_ref, i);
+}
+int32_t ast_pipeline_expr_match_arm_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref, int32_t i) {
+  return pipeline_expr_match_arm_is_enum_variant(a, expr_ref, i);
+}
+int32_t ast_pipeline_expr_match_arm_variant_index(struct ast_ASTArena *a, int32_t expr_ref, int32_t i) {
+  return pipeline_expr_match_arm_variant_index(a, expr_ref, i);
+}
+void ast_pipeline_expr_match_arm_set_wildcard(struct ast_ASTArena *a, int32_t expr_ref, int32_t i, int32_t v) {
+  pipeline_expr_match_arm_set_wildcard(a, expr_ref, i, v);
+}
+void ast_pipeline_expr_match_arm_set_lit_val(struct ast_ASTArena *a, int32_t expr_ref, int32_t i, int32_t v) {
+  pipeline_expr_match_arm_set_lit_val(a, expr_ref, i, v);
+}
+void ast_pipeline_expr_match_arm_set_enum_variant(struct ast_ASTArena *a, int32_t expr_ref, int32_t i,
+                                                  int32_t is_var, int32_t variant_index) {
+  pipeline_expr_match_arm_set_enum_variant(a, expr_ref, i, is_var, variant_index);
+}
+int32_t ast_pipeline_expr_append_struct_lit_field(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *name_bytes,
+                                                  int32_t name_len, int32_t init_ref) {
+  return pipeline_expr_append_struct_lit_field(a, expr_ref, name_bytes, name_len, init_ref);
+}
+int32_t ast_pipeline_expr_append_array_lit_elem(struct ast_ASTArena *a, int32_t expr_ref, int32_t elem_ref) {
+  return pipeline_expr_append_array_lit_elem(a, expr_ref, elem_ref);
+}
+int32_t ast_pipeline_expr_array_lit_elem_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx) {
+  return pipeline_expr_array_lit_elem_ref(a, expr_ref, idx);
+}
+int32_t ast_pipeline_expr_array_lit_num_elems_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_array_lit_num_elems_at(a, expr_ref);
+}
+int32_t ast_pipeline_expr_float_bits_lo_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_float_bits_lo_at(a, expr_ref);
+}
+int32_t ast_pipeline_expr_float_bits_hi_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_float_bits_hi_at(a, expr_ref);
+}
+int32_t ast_pipeline_expr_call_callee_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_call_callee_ref_at(a, expr_ref);
+}
+int32_t ast_pipeline_expr_as_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_method_call_base_ref_at(a, expr_ref);
+}
+int32_t ast_pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_method_call_num_args_at(a, expr_ref);
+}
+int32_t ast_pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_method_call_name_len(a, expr_ref);
+}
+void ast_pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64) {
+  pipeline_expr_method_call_name_into(a, expr_ref, out64);
+}
+int32_t ast_pipeline_expr_if_cond_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_if_then_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_if_else_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_block_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_match_matched_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref);
+/* wave1160 G.7: 9 ast_pipeline_expr_* wrappers above (as/if/block/match/
+ * const_folded/enum_variant) migrated to pipeline_asm_emit_expr_rec.c EOF
+ * as fwd decls. wave1159: 4 method_call wrappers remain as function bodies
+ * (their pipeline_expr_* twins are in method_call.c via #include L9703). */
+/* wave1161 G.7: index/field_access_offset wrappers migrated to
+ * pipeline_asm_emit_expr_rec.c EOF as fwd decls below. */
+int32_t ast_pipeline_expr_index_base_ref(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_index_index_ref(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_field_access_is_enum_variant(a, expr_ref);
+}
+int32_t ast_pipeline_expr_field_access_offset(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t ast_pipeline_expr_field_access_layout_offset(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref) {
+  return pipeline_expr_field_access_layout_offset(a, m, expr_ref);
+}
+
+int32_t ast_pipeline_expr_field_access_load_byte_sz(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref) {
+  return pipeline_expr_field_access_load_byte_sz(a, m, expr_ref);
+}
+int32_t ast_pipeline_module_import_append_select_name(struct ast_Module *m, int32_t idx, uint8_t *bytes,
+                                                      int32_t len) {
+  return pipeline_module_import_append_select_name(m, idx, bytes, len);
+}
+
+/** backend import codegen uses codegen_ prefix for struct_lit glue. */
+int32_t codegen_pipeline_expr_kind_ord_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_kind_ord_at(a, expr_ref);
+}
+int32_t codegen_pipeline_expr_struct_lit_num_fields(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_struct_lit_num_fields(a, expr_ref);
+}
+int32_t codegen_pipeline_expr_struct_lit_init_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t j) {
+  return pipeline_expr_struct_lit_init_ref(a, expr_ref, j);
+}
+int32_t backend_pipeline_expr_struct_lit_num_fields(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_expr_struct_lit_num_fields(a, expr_ref);
+}
+int32_t backend_pipeline_expr_struct_lit_init_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t j) {
+  return pipeline_expr_struct_lit_init_ref(a, expr_ref, j);
+}

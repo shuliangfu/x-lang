@@ -5222,139 +5222,22 @@ void ast_ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr
   }
   pipeline_arena_expr_set_copy(a, ref, e);
 }
-struct ast_Block ast_ast_arena_block_get(struct ast_ASTArena *a, int32_t ref) {
-  return pipeline_arena_block_get_copy(a, ref);
-}
-void ast_ast_arena_block_set(struct ast_ASTArena *a, int32_t ref, struct ast_Block b) {
-  pipeline_arena_block_set_copy(a, ref, b);
-}
-struct ast_Func ast_ast_arena_func_get(struct ast_ASTArena *a, int32_t ref) {
-  return pipeline_arena_func_get_copy(a, ref);
-}
-void ast_ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f) {
-  pipeline_arena_func_set_copy(a, ref, f);
-}
-struct ast_Type ast_arena_type_get(struct ast_ASTArena *a, int32_t ref) {
-  return ast_ast_arena_type_get(a, ref);
-}
-void ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t) {
-  ast_ast_arena_type_set(a, ref, t);
-}
-struct ast_Expr ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref) {
-  return ast_ast_arena_expr_get(a, ref);
-}
-void ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e) {
-  ast_ast_arena_expr_set(a, ref, e);
-}
-struct ast_Block ast_arena_block_get(struct ast_ASTArena *a, int32_t ref) {
-  return ast_ast_arena_block_get(a, ref);
-}
-void ast_arena_block_set(struct ast_ASTArena *a, int32_t ref, struct ast_Block b) {
-  ast_ast_arena_block_set(a, ref, b);
-}
-struct ast_Func ast_arena_func_get(struct ast_ASTArena *a, int32_t ref) {
-  return ast_ast_arena_func_get(a, ref);
-}
-void ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f) {
-  ast_ast_arena_func_set(a, ref, f);
-}
+/* wave1183 G.7: ast_ast_arena_*_get/set + ast_arena_*_get/set forwarder
+ * cluster (14 fns) migrated to ast_pool_arena.c EOF (same-TU #include).
+ * Members: block/func get/set (ast_ast_ prefix) + type/expr/block/func
+ * get/set (ast_ prefix, delegates to ast_ast_ twins).
+ * All pure forwarders to pipeline_arena_*_get_copy/_set_copy impls. */
 
 int ast_ref_is_null(int32_t ref) {
   return ref == 0;
 }
 
-void ast_ast_arena_patch_block_parent_links(struct ast_ASTArena *arena, int32_t block_ref, int32_t parent_ref) {
-  pipeline_patch_block_parent_links(arena, block_ref, parent_ref);
-}
-
-int32_t ast_ast_block_num_consts(struct ast_ASTArena *a, int32_t br) {
-  struct ast_Block blk;
-  if (!a || br <= 0 || br > a->num_blocks)
-    return 0;
-  blk = ast_ast_arena_block_get(a, br);
-  return blk.num_consts;
-}
-int32_t ast_ast_block_num_lets(struct ast_ASTArena *a, int32_t br) {
-  struct ast_Block blk;
-  if (!a || br <= 0 || br > a->num_blocks)
-    return 0;
-  blk = ast_ast_arena_block_get(a, br);
-  return blk.num_lets;
-}
-int32_t ast_ast_block_num_loops(struct ast_ASTArena *a, int32_t br) {
-  struct ast_Block blk;
-  if (!a || br <= 0 || br > a->num_blocks)
-    return 0;
-  blk = ast_ast_arena_block_get(a, br);
-  return blk.num_loops;
-}
-int32_t ast_ast_block_num_for_loops(struct ast_ASTArena *a, int32_t br) {
-  struct ast_Block blk;
-  if (!a || br <= 0 || br > a->num_blocks)
-    return 0;
-  blk = ast_ast_arena_block_get(a, br);
-  return blk.num_for_loops;
-}
-int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t br) {
-  struct ast_Block blk;
-  if (!a || br <= 0 || br > a->num_blocks)
-    return 0;
-  blk = ast_ast_arena_block_get(a, br);
-  return blk.num_if_stmts;
-}
-/** M-3：typeck/codegen.x 经 ast_ 前缀读 Block.num_regions。 */
-int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br) {
-  struct ast_Block blk;
-  if (!a || br <= 0 || br > a->num_blocks)
-    return 0;
-  blk = ast_ast_arena_block_get(a, br);
-  return blk.num_regions;
-}
-int32_t ast_ast_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri) {
-  return pipeline_block_region_body_ref(a, br, ri);
-}
-int32_t ast_ast_block_num_expr_stmts(struct ast_ASTArena *a, int32_t br) {
-  struct ast_Block blk;
-  if (!a || br <= 0 || br > a->num_blocks)
-    return 0;
-  blk = ast_ast_arena_block_get(a, br);
-  return blk.num_expr_stmts;
-}
-int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena *a, int32_t br) {
-  struct ast_Block blk;
-  if (!a || br <= 0 || br > a->num_blocks)
-    return 0;
-  blk = ast_ast_arena_block_get(a, br);
-  return blk.num_stmt_order;
-}
-uint8_t ast_ast_block_stmt_order_kind(struct ast_ASTArena *a, int32_t br, int32_t si) {
-  return pipeline_block_stmt_order_kind(a, br, si);
-}
-int32_t ast_ast_block_stmt_order_idx(struct ast_ASTArena *a, int32_t br, int32_t si) {
-  return pipeline_block_stmt_order_idx(a, br, si);
-}
-int32_t ast_ast_block_const_init_ref(struct ast_ASTArena *a, int32_t br, int32_t ci) {
-  return pipeline_block_const_init_ref(a, br, ci);
-}
-int32_t ast_ast_block_const_type_ref(struct ast_ASTArena *a, int32_t br, int32_t ci) {
-  return pipeline_block_const_type_ref(a, br, ci);
-}
-int32_t ast_ast_block_let_init_ref(struct ast_ASTArena *a, int32_t br, int32_t li) {
-  return pipeline_block_let_init_ref(a, br, li);
-}
-int32_t ast_ast_block_let_type_ref(struct ast_ASTArena *a, int32_t br, int32_t li) {
-  return pipeline_block_let_type_ref(a, br, li);
-}
-int32_t ast_ast_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei) {
-  return pipeline_block_expr_stmt_ref(a, br, ei);
-}
-int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br) {
-  struct ast_Block blk;
-  if (!a || br <= 0 || br > a->num_blocks)
-    return 0;
-  blk = ast_ast_arena_block_get(a, br);
-  return blk.final_expr_ref;
-}
+/* wave1183 G.7: ast_ast_arena_patch + ast_ast_block_* getters cluster
+ * (20 fns) migrated to ast_pool_block.c EOF (same-TU #include already exists).
+ * Members: patch_block_parent_links + num_consts/lets/loops/for_loops/if_stmts/
+ * regions/expr_stmts/stmt_order + region_body_ref + stmt_order_kind/idx +
+ * const_init/type_ref + let_init/type_ref + expr_stmt_ref + final_expr_ref.
+ * All pure forwarders to pipeline_block_ / pipeline_patch_block_parent_links. */
 
 /**
  * typeck.x::func_body_tail_expr_ref_for_implicit_rule 的 C 委托：读块 final_expr / stmt_order 尾表达式。
@@ -8134,219 +8017,23 @@ int32_t pipeline_typeck_x_ast_c(struct ast_Module *module, struct ast_ASTArena *
   return pipeline_typeck_x_ast_impl_c(module, arena, ctx);
 }
 
-int32_t ast_ast_block_while_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t wi) {
-  return pipeline_block_while_cond_ref(a, br, wi);
-}
-int32_t ast_ast_block_while_body_ref(struct ast_ASTArena *a, int32_t br, int32_t wi) {
-  return pipeline_block_while_body_ref(a, br, wi);
-}
-int32_t ast_ast_block_for_init_ref(struct ast_ASTArena *a, int32_t br, int32_t fi) {
-  return pipeline_block_for_init_ref(a, br, fi);
-}
-int32_t ast_ast_block_for_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t fi) {
-  return pipeline_block_for_cond_ref(a, br, fi);
-}
-int32_t ast_ast_block_for_step_ref(struct ast_ASTArena *a, int32_t br, int32_t fi) {
-  return pipeline_block_for_step_ref(a, br, fi);
-}
-int32_t ast_ast_block_for_body_ref(struct ast_ASTArena *a, int32_t br, int32_t fi) {
-  return pipeline_block_for_body_ref(a, br, fi);
-}
-int32_t ast_ast_block_if_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t ii) {
-  return pipeline_block_if_cond_ref(a, br, ii);
-}
-int32_t ast_ast_block_if_then_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii) {
-  return pipeline_block_if_then_body_ref(a, br, ii);
-}
-int32_t ast_ast_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii) {
-  return pipeline_block_if_else_body_ref(a, br, ii);
-}
-int32_t ast_ast_block_resolve_var_to_type_ref(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname, int32_t vlen) {
-  return pipeline_block_resolve_var_type_ref(a, block_ref, vname, vlen);
-}
-int ast_ast_expr_disallows_implicit_tail(struct ast_ASTArena *a, int32_t expr_ref) {
-  return implicit_tail_expr_disallowed_by_glue(a, expr_ref);
-}
-void ast_ast_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t call_expr_ref, int32_t dep_ix, int32_t func_ix) {
-  pipeline_expr_apply_call_resolve(a, call_expr_ref, dep_ix, func_ix);
-}
+/* wave1183 G.7: ast_ast_block_* control flow + ast_ast_expr_* apply cluster
+ * (11 fns) migrated to ast_pool_block.c EOF (same-TU #include already exists).
+ * Members: while/for/if cond/body/init/step/then/else ref + resolve_var_to_type_ref
+ * + disallows_implicit_tail + apply_call_resolve.
+ * All pure forwarders to pipeline_block_ / pipeline_expr_ / implicit_tail_ impls. */
 
-struct ast_Type ast_pipeline_arena_type_get_copy(struct ast_ASTArena *a, int32_t ref) {
-  return pipeline_arena_type_get_copy(a, ref);
-}
-void ast_pipeline_arena_type_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Type t) {
-  pipeline_arena_type_set_copy(a, ref, t);
-}
-struct ast_Expr ast_pipeline_arena_expr_get_copy(struct ast_ASTArena *a, int32_t ref) {
-  return pipeline_arena_expr_get_copy(a, ref);
-}
-void ast_pipeline_arena_expr_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e) {
-  pipeline_arena_expr_set_copy(a, ref, e);
-}
-void ast_pipeline_arena_expr_write_var(struct ast_ASTArena *a, int32_t ref, uint8_t *name, int32_t name_len) {
-  pipeline_arena_expr_write_var(a, ref, name, name_len);
-}
-void ast_pipeline_arena_expr_write_binop(struct ast_ASTArena *a, int32_t ref, int32_t kind_ord, int32_t left_ref,
-                                         int32_t right_ref) {
-  pipeline_arena_expr_write_binop(a, ref, kind_ord, left_ref, right_ref);
-}
-struct ast_Block ast_pipeline_arena_block_get_copy(struct ast_ASTArena *a, int32_t ref) {
-  return pipeline_arena_block_get_copy(a, ref);
-}
-void ast_pipeline_arena_block_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Block b) {
-  pipeline_arena_block_set_copy(a, ref, b);
-}
-struct ast_Func ast_pipeline_arena_func_get_copy(struct ast_ASTArena *a, int32_t ref) {
-  return pipeline_arena_func_get_copy(a, ref);
-}
-void ast_pipeline_arena_func_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Func f) {
-  pipeline_arena_func_set_copy(a, ref, f);
-}
+/* wave1183 G.7: ast_pipeline_arena_* forwarder cluster (12 fns) migrated
+ * to ast_pool_arena.c EOF (same-TU #include already exists).
+ * Members: type/expr/block/func get_copy/set_copy + expr_write_var/binop.
+ * All pure forwarders to pipeline_arena_* impls in ast_pool_arena.c. */
 
-int32_t codegen_pipeline_module_func_param_type_ref_at(struct ast_Module *m, int32_t func_index,
-                                                       int32_t param_index) {
-  return pipeline_module_func_param_type_ref_at(m, func_index, param_index);
-}
-
-/** ast.x / typeck / codegen / backend / parser 经 import 前缀调用的 Expr 侧车池符号转发。 */
-int32_t ast_pipeline_expr_append_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref) {
-  return pipeline_expr_append_call_arg(a, expr_ref, arg_ref);
-}
-void ast_pipeline_expr_on_call_created(struct ast_ASTArena *a, int32_t expr_ref) {
-  pipeline_expr_on_call_created(a, expr_ref);
-}
-int32_t ast_pipeline_expr_prepare_call_arg_slot(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_prepare_call_arg_slot(a, expr_ref);
-}
-int32_t ast_pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx) {
-  return pipeline_expr_call_arg_ref(a, expr_ref, idx);
-}
-int32_t ast_pipeline_expr_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_call_num_args_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_append_method_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref) {
-  return pipeline_expr_append_method_call_arg(a, expr_ref, arg_ref);
-}
-int32_t ast_pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx) {
-  return pipeline_expr_method_call_arg_ref(a, expr_ref, idx);
-}
-int32_t ast_pipeline_expr_append_match_arm(struct ast_ASTArena *a, int32_t expr_ref, int32_t result_ref,
-                                           int32_t is_wildcard, int32_t lit_val, int32_t is_enum_variant,
-                                           int32_t variant_index) {
-  return pipeline_expr_append_match_arm(a, expr_ref, result_ref, is_wildcard, lit_val, is_enum_variant,
-                                        variant_index);
-}
-int32_t ast_pipeline_expr_match_num_arms_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_match_num_arms_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_match_arm_result_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t i) {
-  return pipeline_expr_match_arm_result_ref(a, expr_ref, i);
-}
-int32_t ast_pipeline_expr_match_arm_is_wildcard(struct ast_ASTArena *a, int32_t expr_ref, int32_t i) {
-  return pipeline_expr_match_arm_is_wildcard(a, expr_ref, i);
-}
-int32_t ast_pipeline_expr_match_arm_lit_val(struct ast_ASTArena *a, int32_t expr_ref, int32_t i) {
-  return pipeline_expr_match_arm_lit_val(a, expr_ref, i);
-}
-int32_t ast_pipeline_expr_match_arm_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref, int32_t i) {
-  return pipeline_expr_match_arm_is_enum_variant(a, expr_ref, i);
-}
-int32_t ast_pipeline_expr_match_arm_variant_index(struct ast_ASTArena *a, int32_t expr_ref, int32_t i) {
-  return pipeline_expr_match_arm_variant_index(a, expr_ref, i);
-}
-void ast_pipeline_expr_match_arm_set_wildcard(struct ast_ASTArena *a, int32_t expr_ref, int32_t i, int32_t v) {
-  pipeline_expr_match_arm_set_wildcard(a, expr_ref, i, v);
-}
-void ast_pipeline_expr_match_arm_set_lit_val(struct ast_ASTArena *a, int32_t expr_ref, int32_t i, int32_t v) {
-  pipeline_expr_match_arm_set_lit_val(a, expr_ref, i, v);
-}
-void ast_pipeline_expr_match_arm_set_enum_variant(struct ast_ASTArena *a, int32_t expr_ref, int32_t i,
-                                                  int32_t is_var, int32_t variant_index) {
-  pipeline_expr_match_arm_set_enum_variant(a, expr_ref, i, is_var, variant_index);
-}
-int32_t ast_pipeline_expr_append_struct_lit_field(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *name_bytes,
-                                                  int32_t name_len, int32_t init_ref) {
-  return pipeline_expr_append_struct_lit_field(a, expr_ref, name_bytes, name_len, init_ref);
-}
-int32_t ast_pipeline_expr_append_array_lit_elem(struct ast_ASTArena *a, int32_t expr_ref, int32_t elem_ref) {
-  return pipeline_expr_append_array_lit_elem(a, expr_ref, elem_ref);
-}
-int32_t ast_pipeline_expr_array_lit_elem_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx) {
-  return pipeline_expr_array_lit_elem_ref(a, expr_ref, idx);
-}
-int32_t ast_pipeline_expr_array_lit_num_elems_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_array_lit_num_elems_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_float_bits_lo_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_float_bits_lo_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_float_bits_hi_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_float_bits_hi_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_call_callee_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_call_callee_ref_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_as_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t ast_pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t ast_pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_method_call_base_ref_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_method_call_num_args_at(a, expr_ref);
-}
-int32_t ast_pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_method_call_name_len(a, expr_ref);
-}
-void ast_pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64) {
-  pipeline_expr_method_call_name_into(a, expr_ref, out64);
-}
-int32_t ast_pipeline_expr_if_cond_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t ast_pipeline_expr_if_then_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t ast_pipeline_expr_if_else_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t ast_pipeline_expr_block_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t ast_pipeline_expr_match_matched_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t ast_pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t ast_pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref);
-/* wave1160 G.7: 9 ast_pipeline_expr_* wrappers above (as/if/block/match/
- * const_folded/enum_variant) migrated to pipeline_asm_emit_expr_rec.c EOF
- * as fwd decls. wave1159: 4 method_call wrappers remain as function bodies
- * (their pipeline_expr_* twins are in method_call.c via #include L9703). */
-/* wave1161 G.7: index/field_access_offset wrappers migrated to
- * pipeline_asm_emit_expr_rec.c EOF as fwd decls below. */
-int32_t ast_pipeline_expr_index_base_ref(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t ast_pipeline_expr_index_index_ref(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t ast_pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_field_access_is_enum_variant(a, expr_ref);
-}
-int32_t ast_pipeline_expr_field_access_offset(struct ast_ASTArena *a, int32_t expr_ref);
-int32_t ast_pipeline_expr_field_access_layout_offset(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref) {
-  return pipeline_expr_field_access_layout_offset(a, m, expr_ref);
-}
-
-int32_t ast_pipeline_expr_field_access_load_byte_sz(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref) {
-  return pipeline_expr_field_access_load_byte_sz(a, m, expr_ref);
-}
-int32_t ast_pipeline_module_import_append_select_name(struct ast_Module *m, int32_t idx, uint8_t *bytes,
-                                                      int32_t len) {
-  return pipeline_module_import_append_select_name(m, idx, bytes, len);
-}
-
-/** backend import codegen 时 struct_lit glue 带 codegen_ 前缀。 */
-int32_t codegen_pipeline_expr_kind_ord_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_kind_ord_at(a, expr_ref);
-}
-int32_t codegen_pipeline_expr_struct_lit_num_fields(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_struct_lit_num_fields(a, expr_ref);
-}
-int32_t codegen_pipeline_expr_struct_lit_init_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t j) {
-  return pipeline_expr_struct_lit_init_ref(a, expr_ref, j);
-}
-int32_t backend_pipeline_expr_struct_lit_num_fields(struct ast_ASTArena *a, int32_t expr_ref) {
-  return pipeline_expr_struct_lit_num_fields(a, expr_ref);
-}
-int32_t backend_pipeline_expr_struct_lit_init_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t j) {
-  return pipeline_expr_struct_lit_init_ref(a, expr_ref, j);
-}
+/* wave1183 G.7: ast_pipeline_expr_* + codegen_pipeline_expr_* +
+ * backend_pipeline_expr_* forwarder cluster (40 fns) migrated to
+ * pipeline_asm_emit_expr_rec.c EOF (same-TU #include already exists).
+ * Members: call/method_call/match/struct_lit/array_lit/float/if/block/
+ * match/const_folded/index/field_access accessors + codegen_/backend_ twins.
+ * All pure forwarders to pipeline_expr_ / pipeline_module_ impls. */
 int32_t codegen_pipeline_expr_struct_lit_field_offset_at(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
                                                          int32_t field_ix) {
   return pipeline_expr_struct_lit_field_offset_at(a, m, expr_ref, field_ix);

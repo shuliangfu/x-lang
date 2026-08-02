@@ -1438,3 +1438,171 @@ void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, struct a
   }
 }
 
+
+/* wave1183 G.7: ast_ast_arena_patch + ast_ast_block_* getters + control flow
+ * cluster (31 fns) migrated from pipeline_glue.c to this file's EOF.
+ *
+ * Why colocate: ast.x / typeck.x / codegen.x / backend.x resolve extern
+ * pipeline_block_* / pipeline_patch_block_parent_links symbols with an ast_
+ * module prefix at codegen time (e.g. ast_ast_block_num_consts), but the
+ * authoritative implementations live in ast_pool_block.c with unprefixed
+ * C names (pipeline_block_num_consts). These 31 thin forwarders exist
+ * solely to satisfy the linker name-mangling gap; colocating them here
+ * keeps pipeline_glue.c focused on real glue logic.
+ *
+ * Sub-clusters:
+ *  - ast_ast_arena_patch_block_parent_links (1 fn: delegate to pipeline_patch)
+ *  - ast_ast_block_num_* (7 fns: consts/lets/loops/for_loops/if_stmts/
+ *    regions/expr_stmts/stmt_order -- read Block.num_X via arena_block_get)
+ *  - ast_ast_block_*_ref (13 fns: region_body/const_init/const_type/
+ *    let_init/let_type/expr_stmt/final_expr/while_cond/while_body/
+ *    for_init/for_cond/for_step/for_body/if_cond/if_then/if_else/
+ *    resolve_var_to_type_ref -- pure forwarders to pipeline_block_*)
+ *  - ast_ast_block_stmt_order_kind/idx (2 fns: pure forwarders)
+ *  - ast_ast_expr_disallows_implicit_tail (1 fn: delegate to implicit_tail)
+ *  - ast_ast_expr_apply_call_resolve (1 fn: delegate to pipeline_expr_apply)
+ *
+ * Contract: every function here is a pure pass-through -- no state mutation,
+ *   no branch (except num_* getters which do NULL/bounds check for safety),
+ *   single tail call to the underlying pipeline_* impl.
+ *
+ * PLATFORM: SHARED -- forwarders are platform-agnostic.
+ */
+void ast_ast_arena_patch_block_parent_links(struct ast_ASTArena *arena, int32_t block_ref, int32_t parent_ref) {
+  pipeline_patch_block_parent_links(arena, block_ref, parent_ref);
+}
+
+int32_t ast_ast_block_num_consts(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block blk;
+  if (!a || br <= 0 || br > a->num_blocks)
+    return 0;
+  blk = ast_ast_arena_block_get(a, br);
+  return blk.num_consts;
+}
+int32_t ast_ast_block_num_lets(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block blk;
+  if (!a || br <= 0 || br > a->num_blocks)
+    return 0;
+  blk = ast_ast_arena_block_get(a, br);
+  return blk.num_lets;
+}
+int32_t ast_ast_block_num_loops(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block blk;
+  if (!a || br <= 0 || br > a->num_blocks)
+    return 0;
+  blk = ast_ast_arena_block_get(a, br);
+  return blk.num_loops;
+}
+int32_t ast_ast_block_num_for_loops(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block blk;
+  if (!a || br <= 0 || br > a->num_blocks)
+    return 0;
+  blk = ast_ast_arena_block_get(a, br);
+  return blk.num_for_loops;
+}
+int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block blk;
+  if (!a || br <= 0 || br > a->num_blocks)
+    return 0;
+  blk = ast_ast_arena_block_get(a, br);
+  return blk.num_if_stmts;
+}
+/** M-3: typeck/codegen.x reads Block.num_regions via ast_ prefix. */
+int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block blk;
+  if (!a || br <= 0 || br > a->num_blocks)
+    return 0;
+  blk = ast_ast_arena_block_get(a, br);
+  return blk.num_regions;
+}
+int32_t ast_ast_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri) {
+  return pipeline_block_region_body_ref(a, br, ri);
+}
+int32_t ast_ast_block_num_expr_stmts(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block blk;
+  if (!a || br <= 0 || br > a->num_blocks)
+    return 0;
+  blk = ast_ast_arena_block_get(a, br);
+  return blk.num_expr_stmts;
+}
+int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block blk;
+  if (!a || br <= 0 || br > a->num_blocks)
+    return 0;
+  blk = ast_ast_arena_block_get(a, br);
+  return blk.num_stmt_order;
+}
+uint8_t ast_ast_block_stmt_order_kind(struct ast_ASTArena *a, int32_t br, int32_t si) {
+  return pipeline_block_stmt_order_kind(a, br, si);
+}
+int32_t ast_ast_block_stmt_order_idx(struct ast_ASTArena *a, int32_t br, int32_t si) {
+  return pipeline_block_stmt_order_idx(a, br, si);
+}
+int32_t ast_ast_block_const_init_ref(struct ast_ASTArena *a, int32_t br, int32_t ci) {
+  return pipeline_block_const_init_ref(a, br, ci);
+}
+int32_t ast_ast_block_const_type_ref(struct ast_ASTArena *a, int32_t br, int32_t ci) {
+  return pipeline_block_const_type_ref(a, br, ci);
+}
+int32_t ast_ast_block_let_init_ref(struct ast_ASTArena *a, int32_t br, int32_t li) {
+  return pipeline_block_let_init_ref(a, br, li);
+}
+int32_t ast_ast_block_let_type_ref(struct ast_ASTArena *a, int32_t br, int32_t li) {
+  return pipeline_block_let_type_ref(a, br, li);
+}
+int32_t ast_ast_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei) {
+  return pipeline_block_expr_stmt_ref(a, br, ei);
+}
+int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block blk;
+  if (!a || br <= 0 || br > a->num_blocks)
+    return 0;
+  blk = ast_ast_arena_block_get(a, br);
+  return blk.final_expr_ref;
+}
+
+/* ast_ast_block_* control flow + ast_ast_expr_* apply cluster (11 fns):
+ * while/for/if cond/body/init/step/then/else ref forwarders +
+ * resolve_var_to_type_ref + disallows_implicit_tail + apply_call_resolve.
+ * All pure pass-through to pipeline_block_ / pipeline_expr_ impls above. */
+int32_t ast_ast_block_while_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t wi) {
+  return pipeline_block_while_cond_ref(a, br, wi);
+}
+int32_t ast_ast_block_while_body_ref(struct ast_ASTArena *a, int32_t br, int32_t wi) {
+  return pipeline_block_while_body_ref(a, br, wi);
+}
+int32_t ast_ast_block_for_init_ref(struct ast_ASTArena *a, int32_t br, int32_t fi) {
+  return pipeline_block_for_init_ref(a, br, fi);
+}
+int32_t ast_ast_block_for_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t fi) {
+  return pipeline_block_for_cond_ref(a, br, fi);
+}
+int32_t ast_ast_block_for_step_ref(struct ast_ASTArena *a, int32_t br, int32_t fi) {
+  return pipeline_block_for_step_ref(a, br, fi);
+}
+int32_t ast_ast_block_for_body_ref(struct ast_ASTArena *a, int32_t br, int32_t fi) {
+  return pipeline_block_for_body_ref(a, br, fi);
+}
+int32_t ast_ast_block_if_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t ii) {
+  return pipeline_block_if_cond_ref(a, br, ii);
+}
+int32_t ast_ast_block_if_then_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii) {
+  return pipeline_block_if_then_body_ref(a, br, ii);
+}
+int32_t ast_ast_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii) {
+  return pipeline_block_if_else_body_ref(a, br, ii);
+}
+int32_t ast_ast_block_resolve_var_to_type_ref(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname, int32_t vlen) {
+  return pipeline_block_resolve_var_type_ref(a, block_ref, vname, vlen);
+}
+int ast_ast_expr_disallows_implicit_tail(struct ast_ASTArena *a, int32_t expr_ref) {
+  return implicit_tail_expr_disallowed_by_glue(a, expr_ref);
+}
+void ast_ast_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t call_expr_ref, int32_t dep_ix, int32_t func_ix) {
+  pipeline_expr_apply_call_resolve(a, call_expr_ref, dep_ix, func_ix);
+}
+
+/* Forward declarations for ast_ast_arena_block_get (defined in ast_pool_arena.c
+ * via wave1183 migration below); needed because num_* getters call it before
+ * its definition in the same TU. */
+struct ast_Block ast_ast_arena_block_get(struct ast_ASTArena *a, int32_t ref);
