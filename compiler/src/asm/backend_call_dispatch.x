@@ -164,7 +164,7 @@ export function pipeline_asm_emit_get_call_f32_xmm_c(): i32 {
 // See implementation.
 
 
-/* ---- G-02f-108 / G-02f-139：backend call dispatch helpers ---- */
+/* ---- G-02f-108 / G-02f-139: backend call dispatch helpers ---- */
 
 // glue_asm_string_lit_into: see function docblock below.
 /** Exported function `glue_asm_string_lit_into`.
@@ -236,7 +236,7 @@ export function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, b
 // See implementation.
 
 
-/* ---- G-02f-109 / G-02f-133 / G-02f-134：call_dispatch more helpers ---- */
+/* ---- G-02f-109 / G-02f-133 / G-02f-134: call_dispatch more helpers ---- */
 
 // glue_module_func_overload_count_c: see function docblock below.
 /** Exported function `glue_module_func_overload_count_c`.
@@ -352,7 +352,7 @@ export function glue_asm_fill_c_prefix_from_module_import(mod: *u8, ix: i32, pre
 // See implementation.
 
 // See implementation.
-/* ---- G-02f-110 / G-02f-141 / G-02f-142 / G-02f-145：call_dispatch emit helpers ---- */
+/* ---- G-02f-110 / G-02f-141 / G-02f-142 / G-02f-145: call_dispatch emit helpers ---- */
 
 // LE i32 load/store（AsmFuncCtx.next_offset @4）
 /** Load little-endian i32 from p[off..off+4). Null p → 0.
@@ -417,7 +417,7 @@ export function glue_asm_call_reg_max(ta: i32): i32 {
   return 8;
 }
 
-// G-02f-143 / wave108：x86_64 jmp+lea and aarch64 B+ADR string embed
+// G-02f-143 / wave108: x86_64 jmp+lea and aarch64 B+ADR string embed
 // glue_asm_emit_jmp_skip_string_then_lea: see function docblock below.
 /**
  * Embed a short string in the text stream and load its address into a GP reg.
@@ -447,7 +447,7 @@ export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, 
       let imm26: i32 = 1 + (skip / 4);
       if (imm26 <= 0) { return 0 - 1; }
       if (imm26 >= 33554432) { return 0 - 1; }
-      let b_inst: u32 = 335544320u | ((imm26 as u32) & 67108863u); // 0x14000000 | imm26
+      let b_inst: u32 = 335544320 as u32 | ((imm26 as u32) & 67108863 as u32); // 0x14000000 | imm26
       let b4: u8[4] = [];
       b4[0] = (b_inst & 255) as u8;
       b4[1] = ((b_inst / 256) & 255) as u8;
@@ -464,10 +464,10 @@ export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, 
       }
       // ADR x0, string: imm = -skip (Rd=0 for both reg_k).
       let imm: i32 = 0 - skip;
-      let imm_bits: u32 = (imm as u32) & 2097151u; // 0x1FFFFF
-      let immlo: u32 = imm_bits & 3u;
-      let immhi: u32 = (imm_bits / 4u) & 524287u; // 0x7FFFF
-      let adr_inst: u32 = 268435456u | (immlo * 536870912u) | (immhi * 32u); // 0x10000000 | ...
+      let imm_bits: u32 = (imm as u32) & 2097151 as u32; // 0x1FFFFF
+      let immlo: u32 = imm_bits & (3 as u32);
+      let immhi: u32 = (imm_bits / (4 as u32)) & 524287 as u32; // 0x7FFFF
+      let adr_inst: u32 = 268435456 as u32 | (immlo * (536870912 as u32)) | (immhi * (32 as u32)); // 0x10000000 | ...
       let adr4: u8[4] = [];
       adr4[0] = (adr_inst & 255) as u8;
       adr4[1] = ((adr_inst / 256) & 255) as u8;
@@ -1263,7 +1263,7 @@ export function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8,
   return 0 - 1;
 }
 
-// G-02f-141：emit args + call + stack cleanup
+// G-02f-141: emit args + call + stack cleanup
 /** Function `glue_asm_emit_call_with_cleanup`.
  * Purpose: implements `glue_asm_emit_call_with_cleanup`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
@@ -1478,7 +1478,7 @@ export function pipeline_asm_emit_call_args_text_c(
   return 0 - 1;
 }
 
-// G-02f-147：EXPR_METHOD_CALL ELF；module_ref@16 LE；IMPORT_BINDING=1 VAR=3
+// G-02f-147: EXPR_METHOD_CALL ELF; module_ref@16 LE; IMPORT_BINDING=1 VAR=3
 /**
  * Freestanding METHOD_CALL ELF emit (import.method + UFCS free + bootstrap i32.double).
  * wave359: when typeck did not resolve a same-module free fn, `x.double()` with 0 args

@@ -3618,7 +3618,8 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
             (void)(((se.col) = ((r.tok).col)));
             (void)(parser_expr_set_common_zeros(&(se)));
             int32_t nlen = ((r.tok).ident_len);
-            /* wave283: full span; L011 on overflow (not silent truncate). */
+            /* wave283: full span; L011 on overflow (not silent truncate).
+             * wave1222: cap 63→127 to match Expr.var_name[128] capacity. */
             if ((nlen < 0)) {
               (void)((nlen = 0));
             }
@@ -3626,7 +3627,7 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
             int32_t ri = 0;
             int32_t wi = 0;
             while ((ri < nlen)) {
-              if ((wi >= 63)) {
+              if ((wi >= 127)) {
                 lexer_note_string_lit_overflow((se.line), (se.col));
                 break;
               }
@@ -3832,7 +3833,7 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
               (void)((ri_adj = (ri_adj + 1)));
             }
             (void)(((se_adj.var_name_len) = wi_adj));
-            while ((wi_adj < 64)) {
+            while ((wi_adj < 128)) {
               (void)((((se_adj.var_name))[wi_adj] = 0));
               (void)((wi_adj = (wi_adj + 1)));
             }
@@ -8389,6 +8390,22 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     {
       extern void xlang_trait_reg_reset_c(void *arena);
       xlang_trait_reg_reset_c((void *)arena);
+    }
+    /*
+     * wave439-rootcause: refresh the generic-bound source stash for THIS file.
+     * xlang_generic_bound_stash_source_buf_c stashes a bare pointer into the
+     * current parse buffer for later tokenization by xlang_generic_bound_scan_c
+     * (invoked from xlang_trait_check_impls_complete_c). The previous design only
+     * stashed lazily inside skip_one_struct/enum/trait_into_slice_c, so a file
+     * with no top-level struct/enum/trait never refreshed the stash — the global
+     * then pointed at a PREVIOUS file's freed buffer (use-after-free → 92 L003
+     * false errors in directory check mode). Stashing at every parse_into_buf
+     * entry guarantees the stash always reflects the live buffer of the file
+     * currently being parsed, eliminating cross-file dangling. PLATFORM: SHARED.
+     */
+    {
+      extern void xlang_generic_bound_stash_source_buf_c(uint8_t *data, int32_t len);
+      xlang_generic_bound_stash_source_buf_c(data, len);
     }
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
