@@ -650,18 +650,45 @@ export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: Lexe
  */
 export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // When rewinding pos backwards by back_lp bytes to find the control-flow
+  // keyword (if/while/for) before `(`, the line/col must be recomputed by
+  // scanning source backwards from lp_base.pos counting LF bytes.  Prior code
+  // used r_in.tok.line/col (the `(` token position) directly, leaving pos
+  // behind but line/col unchanged — a (pos, line, col) desync that accumulated
+  // across nested blocks and produced wrong error line numbers (L009 etc.).
   unsafe {
   if (r_in.tok.kind == token.TokenKind.TOKEN_LPAREN) {
     let lp_base: Lexer = lex_at_token_from_result(r_in);
     let back_lp: i32 = 2;
     while (back_lp <= 128) {
-      let lex_lp: Lexer = Lexer { pos: lexer_pos_before_run(lp_base.pos, back_lp), line: r_in.tok.line, col: r_in.tok.col };
+      let new_pos: usize = lexer_pos_before_run(lp_base.pos, back_lp);
+      // Absolute line/col for new_pos: scan source[0..new_pos) counting LF.
+      // Do not reuse r_in.tok.line/col (the `(` token) — that desyncs (pos, line, col).
+      // Backward col-- after LF is also wrong; absolute scan is the authority.
+      let rew_line: i32 = 1;
+      let rew_col: i32 = 1;
+      let scan_i: usize = 0 as usize;
+      while (scan_i < new_pos && scan_i < source.length) {
+        if (source[scan_i] == 10) {
+          rew_line = rew_line + 1;
+          rew_col = 1;
+        } else {
+          rew_col = rew_col + 1;
+        }
+        scan_i = scan_i + (1 as usize);
+      }
+      let lex_lp: Lexer = Lexer { pos: new_pos, line: rew_line, col: rew_col };
       let r_lp: LexerResult = LexerResult {
         next_lex: lex_lp,
         tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
         token_start: 0
       };
       lexer.lexer_next_into(&r_lp, lex_lp, source);
+      // Probe may land mid-comment/mid-ident (digit in `cvtss2sd` inside block
+      // comment) and set sticky L009, poisoning the whole parse. Clear after
+      // every probe — only a real sequential scan should keep L009.
+      // PLATFORM: SHARED — wave1218 Cap residual root.
+      lexer.lexer_invalid_type_suffix_reset();
       if (r_lp.tok.kind == token.TokenKind.TOKEN_IF || r_lp.tok.kind == token.TokenKind.TOKEN_WHILE
       || r_lp.tok.kind == token.TokenKind.TOKEN_FOR) {
         return parser_rewind_lex_for_following_stmt(lex_in, r_lp);

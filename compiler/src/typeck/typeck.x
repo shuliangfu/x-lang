@@ -1155,7 +1155,7 @@ export function typeck_find_layout_idx_by_type_name(module: *Module, nm: *u8, nl
  * @return i32
  */
 export function typeck_x_named_builtin_align(nm: *u8, nlen: i32): i32 {
-  if (nm == 0 as * u8 || nlen <= 0) {
+  if (nm == 0 as *u8 || nlen <= 0) {
     return 0;
   }
   if (nlen == 3 && nm[0] == 105 && nm[1] == 51 && nm[2] == 50) { return 4; }
@@ -1266,7 +1266,7 @@ export function typeck_type_is_empty_struct(module: *Module, arena: *ASTArena, t
     let j: i32 = 0;
     let ftr: i32 = 0;
     let nm: *u8 = typeck_scratch64_slot(4);
-    if (module == 0 as * Module || arena == 0 as * ASTArena || ty_ref <= 0) {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ty_ref <= 0) {
       return 0;
     }
     if (ty_ref > arena.num_types || depth > 64) {
@@ -1407,7 +1407,7 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
     /* See implementation. */
     let layout_nm: *u8 = typeck_scratch64_slot(2);
     let field_nm: *u8 = typeck_scratch64_slot(3);
-    if (module == 0 as * Module || arena == 0 as * ASTArena || out_sz == 0 as * i32 || out_al == 0 as 
+    if (module == 0 as *Module || arena == 0 as *ASTArena || out_sz == 0 as *i32 || out_al == 0 as 
     *i32) {
       return - 1;
     }
@@ -1575,7 +1575,7 @@ type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
     if (r >= 0) {
       return r;
     }
-    if (ctx == 0 as * PipelineDepCtx) {
+    if (ctx == 0 as *PipelineDepCtx) {
       return - 1;
     }
     /* See implementation. */
@@ -1583,7 +1583,7 @@ type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
     let di: i32 = 0;
     while (di < nd) {
       let dm: *Module = pipeline_dep_ctx_module_at(ctx, di);
-      if (dm != 0 as * Module) {
+      if (dm != 0 as *Module) {
         r = get_field_offset_from_layout(dm, type_name, type_name_len, field_name, field_name_len);
         if (r >= 0) {
           return r;
@@ -1801,7 +1801,7 @@ export function find_or_alloc_named_type_ref(arena: *ASTArena, name: *u8, name_l
     let ord_named: i32 = 8;
     /* See implementation. */
     let nm_scr: *u8 = typeck_scratch64_slot(12);
-    if (arena == 0 as * ASTArena || name == 0 as * u8 || name_len <= 0 || name_len > 127) {
+    if (arena == 0 as *ASTArena || name == 0 as *u8 || name_len <= 0 || name_len > 127) {
       return 0;
     }
     k = 1;
@@ -1925,7 +1925,7 @@ export function typeck_ensure_primitive_by_kind_ord(arena: *ASTArena, kind_ord: 
     let asz: i32 = 0;
     /* See implementation. */
     let nm_scr: *u8 = typeck_scratch64_slot(11);
-    if (arena == 0 as * ASTArena || kind_ord < 0 || kind_ord > 16) {
+    if (arena == 0 as *ASTArena || kind_ord < 0 || kind_ord > 16) {
       return 0;
     }
     k = 1;
@@ -2053,7 +2053,7 @@ array_size: i32): i32 {
     let nlen: i32 = 0;
     let rlen: i32 = 0;
     let nm_scr: *u8 = typeck_scratch64_slot(13);
-    if (a == 0 as * ASTArena || kind_ord < 0 || kind_ord > 16) {
+    if (a == 0 as *ASTArena || kind_ord < 0 || kind_ord > 16) {
       return 0;
     }
     k = 1;
@@ -2407,7 +2407,7 @@ field_name_len: i32): i32 {
     if (r != 0) {
       return r;
     }
-    if (ctx == 0 as * PipelineDepCtx) {
+    if (ctx == 0 as *PipelineDepCtx) {
       return 0;
     }
     /* See implementation. */
@@ -2415,11 +2415,11 @@ field_name_len: i32): i32 {
     let di: i32 = 0;
     while (di < nd2) {
       let dm: *Module = pipeline_dep_ctx_module_at(ctx, di);
-      if (dm != 0 as * Module) {
+      if (dm != 0 as *Module) {
         r = get_field_type_ref_from_layout(dm, type_name, type_name_len, field_name, field_name_len);
         if (r != 0) {
           let da: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di);
-          if (da != 0 as * ASTArena) {
+          if (da != 0 as *ASTArena) {
             return dep_return_type_to_caller_arena(da, r, arena);
           }
           return r;
@@ -2667,8 +2667,8 @@ ctx: *PipelineDepCtx): void {
     /* See implementation. */
     let nd_merge: i32 = 0;
     let di: i32 = 0;
-    let dm: *Module = 0 as * Module;
-    let darena: *ASTArena = 0 as * ASTArena;
+    let dm: *Module = 0 as *Module;
+    let darena: *ASTArena = 0 as *ASTArena;
     let k: i32 = 0;
     let nl: i32 = 0;
     let nf_dep: i32 = 0;
@@ -2686,7 +2686,7 @@ ctx: *PipelineDepCtx): void {
     /* See implementation. */
     let dep_nm_buf: *u8 = typeck_scratch64_slot(9);
     let fn_buf: *u8 = typeck_scratch64_slot(10);
-    if (ctx == 0 as * PipelineDepCtx) {
+    if (ctx == 0 as *PipelineDepCtx) {
       return;
     }
     nd_merge = pipeline_dep_ctx_ndep(ctx);
@@ -2694,7 +2694,7 @@ ctx: *PipelineDepCtx): void {
     while (di < nd_merge) {
       dm = pipeline_dep_ctx_module_at(ctx, di);
       darena = pipeline_dep_ctx_arena_at(ctx, di);
-      if (dm == 0 as * Module || darena == 0 as * ASTArena) {
+      if (dm == 0 as *Module || darena == 0 as *ASTArena) {
         di = di + 1;
         continue;
       }
@@ -2793,20 +2793,20 @@ export function typeck_wpo_unify_soa_layouts(entry: *Module, ctx: *PipelineDepCt
   unsafe {
     let nd: i32 = 0;
     let mi: i32 = 0;
-    let dm: *Module = 0 as * Module;
+    let dm: *Module = 0 as *Module;
     let nsl: i32 = 0;
     let k: i32 = 0;
     let nl: i32 = 0;
     let any_soa: i32 = 0;
     let mj: i32 = 0;
-    let dm2: *Module = 0 as * Module;
+    let dm2: *Module = 0 as *Module;
     let nsl2: i32 = 0;
     let k2: i32 = 0;
     let nl2: i32 = 0;
     let li: i32 = 0;
     let nm_buf: *u8 = typeck_scratch64_slot(11);
     let nm2: *u8 = typeck_scratch64_slot(12);
-    if (entry == 0 as * Module || ctx == 0 as * PipelineDepCtx) {
+    if (entry == 0 as *Module || ctx == 0 as *PipelineDepCtx) {
       return;
     }
     nd = pipeline_dep_ctx_ndep(ctx);
@@ -2816,7 +2816,7 @@ export function typeck_wpo_unify_soa_layouts(entry: *Module, ctx: *PipelineDepCt
       if (mi >= 0) {
         dm = pipeline_dep_ctx_module_at(ctx, mi);
       }
-      if (dm == 0 as * Module) {
+      if (dm == 0 as *Module) {
         mi = mi + 1;
         continue;
       }
@@ -2834,7 +2834,7 @@ export function typeck_wpo_unify_soa_layouts(entry: *Module, ctx: *PipelineDepCt
             if (mj >= 0) {
               dm2 = pipeline_dep_ctx_module_at(ctx, mj);
             }
-            if (dm2 != 0 as * Module) {
+            if (dm2 != 0 as *Module) {
               nsl2 = pipeline_module_num_struct_layouts_at(dm2);
               k2 = 0;
               while (k2 < nsl2 && any_soa == 0) {
@@ -2858,7 +2858,7 @@ export function typeck_wpo_unify_soa_layouts(entry: *Module, ctx: *PipelineDepCt
               if (mj >= 0) {
                 dm2 = pipeline_dep_ctx_module_at(ctx, mj);
               }
-              if (dm2 != 0 as * Module) {
+              if (dm2 != 0 as *Module) {
                 li = typeck_find_layout_idx_by_type_name(dm2, nm_buf, nl);
                 if (li >= 0 && pipeline_module_struct_layout_soa_at(dm2, li) == 0) {
                   pipeline_module_struct_layout_set_soa(dm2, li, 1);
@@ -2883,14 +2883,14 @@ callee_ord: i32, call_expr_ref: i32, ctx: *PipelineDepCtx, dep_i: i32, imax: i32
 want_apply: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    let dm: *Module = 0 as * Module;
+    let dm: *Module = 0 as *Module;
     let ret: i32 = 0;
     let fn_slot: *i32 = typeck_call_resolve_func_idx_slot();
     if (dep_i >= imax) {
       return 0;
     }
     dm = pipeline_dep_ctx_module_at(ctx, dep_i);
-    if (dm != 0 as * Module) {
+    if (dm != 0 as *Module) {
       typeck_i32_ptr_store(fn_slot, 0);
       ret = find_func_return_type_in_module(dm, arena, arena, arena, callee_expr_ref, dep_i, ctx,
       fn_slot);
@@ -2925,7 +2925,7 @@ ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
     let j: i32 = 0;
     while (j < mod.num_funcs) {
       if (expr_var_name_equal_func(callee_arena, callee_expr_ref, mod, j)) {
-        if (func_index_out != 0 as * i32) {
+        if (func_index_out != 0 as *i32) {
           func_index_out[0] = j;
         }
         let ret_dep: i32 = pipeline_module_func_return_type_at(mod, j);
@@ -2958,7 +2958,7 @@ name_len: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *i32):
           j = j + 1;
           continue;
         }
-        if (func_index_out != 0 as * i32) {
+        if (func_index_out != 0 as *i32) {
           func_index_out[0] = j;
         }
         let rtr: i32 = pipeline_module_func_return_type_at(mod, j);
@@ -2987,7 +2987,7 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
     let param_ty: i32 = 0;
     let ord_as: i32 = 54;
     let as_tgt: i32 = 0;
-    if (caller_arena == 0 as * ASTArena || call_expr_ref <= 0 || arg_i < 0) {
+    if (caller_arena == 0 as *ASTArena || call_expr_ref <= 0 || arg_i < 0) {
       return -1;
     }
     arg_ref = pipeline_expr_call_arg_ref(caller_arena, call_expr_ref, arg_i);
@@ -3158,10 +3158,10 @@ func_index_out: *i32): i32 {
     let first_idx: i32 = -1;
     let first_ret: i32 = 0;
     let expect_ty: i32 = 0;
-    if (name_len <= 0 || name_len > 127 || mod == 0 as * Module) {
+    if (name_len <= 0 || name_len > 127 || mod == 0 as *Module) {
       return 0;
     }
-    if (call_expr_ref <= 0 || caller_arena == 0 as * ASTArena ||
+    if (call_expr_ref <= 0 || caller_arena == 0 as *ASTArena ||
     call_expr_ref > caller_arena.num_exprs) {
       return find_func_return_type_in_module_by_name(mod, caller_arena, name, name_len, from_dep_index,
       ctx, func_index_out);
@@ -3221,7 +3221,7 @@ func_index_out: *i32): i32 {
       j = j + 1;
     }
     if (best_idx >= 0) {
-      if (func_index_out != 0 as * i32) {
+      if (func_index_out != 0 as *i32) {
         func_index_out[0] = best_idx;
       }
       if (from_dep_index < 0) {
@@ -3251,7 +3251,7 @@ func_index_out: *i32): i32 {
       if (any_arity == 0) {
         return 0;
       }
-      if (func_index_out != 0 as * i32) {
+      if (func_index_out != 0 as *i32) {
         func_index_out[0] = first_idx;
       }
       if (from_dep_index < 0) {
@@ -3344,7 +3344,7 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
       j = j + 1;
     }
     if (best_idx >= 0) {
-      if (func_index_out != 0 as * i32) {
+      if (func_index_out != 0 as *i32) {
         func_index_out[0] = best_idx;
       }
       if (from_dep_index < 0) {
@@ -3375,7 +3375,7 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
           return 0;
         }
       }
-      if (func_index_out != 0 as * i32) {
+      if (func_index_out != 0 as *i32) {
         func_index_out[0] = first_idx;
       }
       if (from_dep_index < 0) {
@@ -3394,7 +3394,7 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
  * @return i32
  */
 export function typeck_import_path_segment_count(path: *u8, path_len: i32): i32 {
-  if (path_len <= 0 || path == 0 as * u8) {
+  if (path_len <= 0 || path == 0 as *u8) {
     return 0;
   }
   let n: i32 = 1;
@@ -3415,7 +3415,7 @@ export function typeck_import_segment_at(module: *Module, imp_ix: i32, want_seg:
 ostr: *i32, olen: *i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    if (module == 0 as * Module || imp_ix < 0 || imp_ix >= typeck_module_num_imports(module)) {
+    if (module == 0 as *Module || imp_ix < 0 || imp_ix >= typeck_module_num_imports(module)) {
       return false;
     }
     let pl: i32 = pipeline_module_import_path_len(module, imp_ix);
@@ -3459,10 +3459,10 @@ callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out:
   unsafe {
     let ord_field: i32 = 44;
     let ord_var: i32 = 3;
-    if (ctx == 0 as * PipelineDepCtx) {
+    if (ctx == 0 as *PipelineDepCtx) {
       return 0;
     }
-    if (callee_expr_ref <= 0 || callee_expr_ref > arena.num_exprs || module == 0 as * Module) {
+    if (callee_expr_ref <= 0 || callee_expr_ref > arena.num_exprs || module == 0 as *Module) {
       return 0;
     }
     if (pipeline_expr_kind_ord_at(arena, callee_expr_ref) != ord_field) {
@@ -3564,7 +3564,7 @@ callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out:
         continue;
       }
       dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
-      if (dm == 0 as * Module) {
+      if (dm == 0 as *Module) {
         dep_j = dep_j + 1;
         continue;
       }
@@ -3572,7 +3572,7 @@ callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out:
       let ret_fn: i32 = find_func_return_type_in_module_by_name(dm, arena, &layer_buf[0],
       asm_qual_sym_layer_len(0), dep_slot, ctx, func_index_out);
       if (ret_fn != 0) {
-        if (dep_index_out != 0 as * i32) {
+        if (dep_index_out != 0 as *i32) {
           typeck_i32_ptr_store(dep_index_out, dep_slot);
         }
       }
@@ -3600,12 +3600,12 @@ func_index_out: *i32): i32 {
     let field_len: i32 = 0;
     let ii: i32 = 0;
     let ret_b: i32 = 0;
-    let dm: *Module = 0 as * Module;
+    let dm: *Module = 0 as *Module;
     let import_kind: i32 = 0;
     let base_bind_nm: u8[128] = [];
     let field_nm: u8[128] = [];
-    if (callee_expr_ref <= 0 || callee_expr_ref > arena.num_exprs || module == 0 as * Module || ctx == 
-    0 as * PipelineDepCtx) {
+    if (callee_expr_ref <= 0 || callee_expr_ref > arena.num_exprs || module == 0 as *Module || ctx == 
+    0 as *PipelineDepCtx) {
       return 0;
     }
     if (pipeline_expr_kind_ord_at(arena, callee_expr_ref) != ord_field) {
@@ -3636,11 +3636,11 @@ func_index_out: *i32): i32 {
           break;
         }
         dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
-        if (dm != 0 as * Module) {
+        if (dm != 0 as *Module) {
           ret_b = find_func_return_type_in_module_by_name_overload(dm, arena, &field_nm[0], field_len,
           call_expr_ref, dep_slot, ctx, func_index_out);
           if (ret_b != 0) {
-            if (dep_index_out != 0 as * i32) {
+            if (dep_index_out != 0 as *i32) {
               typeck_i32_ptr_store(dep_index_out, dep_slot);
             }
             return ret_b;
@@ -3729,9 +3729,9 @@ func_index_out: *i32): i32 {
     let k: i32 = 0;
     let sel_cnt: i32 = 0;
     let import_kind: i32 = 0;
-    let dm: *Module = 0 as * Module;
+    let dm: *Module = 0 as *Module;
     let cv_nm: u8[128] = [];
-    if (module == 0 as * Module || ctx == 0 as * PipelineDepCtx) {
+    if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx) {
       return 0;
     }
     if (dep_ix < 0 || dep_ix >= typeck_module_num_imports(module) || callee_ord != ord_var) {
@@ -3751,7 +3751,7 @@ func_index_out: *i32): i32 {
       return 0;
     }
     dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
-    if (dm == 0 as * Module) {
+    if (dm == 0 as *Module) {
       return 0;
     }
     sel_cnt = pipeline_module_import_select_count_at(module, dep_ix);
@@ -3773,7 +3773,7 @@ func_index_out: *i32): i32 {
 export function resolve_call_callee_try_whole_import(module: *Module, arena: *ASTArena,
 callee_expr_ref: i32, ctx: *PipelineDepCtx, callee_ord: i32): i32 {
   let ord_field: i32 = 44;
-  let null_po: *i32 = 0 as * i32;
+  let null_po: *i32 = 0 as *i32;
   if (callee_ord != ord_field) {
     return 0;
   }
@@ -3788,7 +3788,7 @@ callee_expr_ref: i32, ctx: *PipelineDepCtx, callee_ord: i32): i32 {
 export function resolve_call_callee_try_binding_import(module: *Module, arena: *ASTArena,
 callee_expr_ref: i32, call_expr_ref: i32, ctx: *PipelineDepCtx, callee_ord: i32): i32 {
   let ord_field: i32 = 44;
-  let null_po: *i32 = 0 as * i32;
+  let null_po: *i32 = 0 as *i32;
   if (callee_ord != ord_field) {
     return 0;
   }
@@ -3804,7 +3804,7 @@ ctx: *PipelineDepCtx): i32 {
   /* See implementation. */
   let minus_one: i32 = -1;
   return find_func_return_type_in_module(module, arena, arena, arena, callee_expr_ref, minus_one,
-  ctx, 0 as * i32);
+  ctx, 0 as *i32);
 }
 
 /**
@@ -3814,14 +3814,14 @@ export function resolve_call_callee_scan_dep(module: *Module, arena: *ASTArena, 
 callee_ord: i32, ctx: *PipelineDepCtx, dep_i: i32, imax: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    let dm: *Module = 0 as * Module;
+    let dm: *Module = 0 as *Module;
     let ret: i32 = 0;
-    let null_po: *i32 = 0 as * i32;
+    let null_po: *i32 = 0 as *i32;
     if (dep_i >= imax) {
       return 0;
     }
     dm = pipeline_dep_ctx_module_at(ctx, dep_i);
-    if (dm != 0 as * Module) {
+    if (dm != 0 as *Module) {
       ret = find_func_return_type_in_module(dm, arena, arena, arena, callee_expr_ref, dep_i, ctx,
       null_po);
       if (ret != 0) {
@@ -4409,7 +4409,7 @@ export extern function pipeline_expr_is_null_keyword_c(arena: *ASTArena, expr_re
 export function typeck_expr_is_null_keyword(arena: *ASTArena, expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    if (arena == 0 as * ASTArena || expr_ref <= 0) {
+    if (arena == 0 as *ASTArena || expr_ref <= 0) {
       return 0;
     }
     return pipeline_expr_is_null_keyword_c(arena, expr_ref);
@@ -5376,8 +5376,10 @@ export function typeck_ret_coerce_integral_widen(arena: *ASTArena, op_ref: i32, 
       pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
       return;
     }
-    /* wave314: f32→f64 return is accepted by return_operand_matches; do not stamp
-     * (freestanding emit promotes with cvtss2sd using true f32 bits). */
+    /* wave314: f32-to-f64 return is accepted by return_operand_matches; do not stamp
+     * (freestanding emit promotes with SSE convert using true float32 bits).
+     * wave1218: avoid digit+letter glues in comments before (void) casts;
+     * lparen rewind probes can land mid-comment and sticky-L009 the parse. */
     (void)expect_kind;
     (void)got_kind;
   }
@@ -5395,7 +5397,7 @@ export function typeck_ret_coerce_null_lit_to_expect(arena: *ASTArena, op_ref: i
     let op_kind: i32 = 0;
     let expect_kind: i32 = 0;
     let int_val: i32 = 0;
-    if (arena == 0 as * ASTArena || ast.ref_is_null(op_ref) || ast.ref_is_null(expect_ref)) {
+    if (arena == 0 as *ASTArena || ast.ref_is_null(op_ref) || ast.ref_is_null(expect_ref)) {
       return;
     }
     op_kind = pipeline_expr_kind_ord_at(arena, op_ref);
@@ -5420,7 +5422,7 @@ ctx: *PipelineDepCtx): void {
   unsafe {
     let ord_call: i32 = 48;
     let op_kind: i32 = 0;
-    if (module == 0 as * Module || arena == 0 as * ASTArena || ast.ref_is_null(op_ref)) {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ast.ref_is_null(op_ref)) {
       return;
     }
     if (!ast.ref_is_null(expr_type_ref(arena, op_ref))) {
@@ -5450,7 +5452,7 @@ export function typeck_return_breadcrumb_into(arena: *ASTArena, expr_ref: i32, o
     let base_len: i32 = 0;
     let field_len: i32 = 0;
     let callee_len: i32 = 0;
-    if (arena == 0 as * ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
       return 0;
     }
     kind = pipeline_expr_kind_ord_at(arena, expr_ref);
@@ -6232,11 +6234,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let int_val: i32 = 0;
     let as_tgt: i32 = 0;
     let got: i32 = 0;
-    let eb: *u8 = 0 as * u8;
-    let gb: *u8 = 0 as * u8;
+    let eb: *u8 = 0 as *u8;
+    let gb: *u8 = 0 as *u8;
     let el: i32 = 0;
     let gl: i32 = 0;
-    if (arena == 0 as * ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
       return 0;
     }
     op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -6402,7 +6404,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let op_ref: i32 = 0;
-    if (arena == 0 as * ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
       return 0;
     }
     op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -6580,8 +6582,8 @@ ctx: *PipelineDepCtx): i32 {
     let num_args: i32 = 0;
     let fi: i32 = 0;
     let dep: i32 = 0;
-    let mod: *Module = 0 as * Module;
-    let dm: *Module = 0 as * Module;
+    let mod: *Module = 0 as *Module;
+    let dm: *Module = 0 as *Module;
     let np: i32 = 0;
     let line_a: i32 = 0;
     let col_a: i32 = 0;
@@ -6595,7 +6597,7 @@ ctx: *PipelineDepCtx): i32 {
     let j: i32 = 0;
     let name_hits: i32 = 0;
     let arity_hits: i32 = 0;
-    if (module == 0 as * Module || arena == 0 as * ASTArena || expr_ref <= 0) {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || expr_ref <= 0) {
       return 0;
     }
     num_args = pipeline_expr_call_num_args_at(arena, expr_ref);
@@ -6603,9 +6605,9 @@ ctx: *PipelineDepCtx): i32 {
     dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
     if (fi >= 0) {
       mod = module;
-      if (dep >= 0 && ctx != 0 as * PipelineDepCtx) {
+      if (dep >= 0 && ctx != 0 as *PipelineDepCtx) {
         dm = pipeline_dep_ctx_module_at(ctx, dep);
-        if (dm != 0 as * Module) {
+        if (dm != 0 as *Module) {
           mod = dm;
         }
       }
@@ -6999,8 +7001,8 @@ ctx: *PipelineDepCtx): i32 {
     let num_args: i32 = 0;
     let fi: i32 = 0;
     let dep: i32 = 0;
-    let mod: *Module = 0 as * Module;
-    let dm: *Module = 0 as * Module;
+    let mod: *Module = 0 as *Module;
+    let dm: *Module = 0 as *Module;
     let ai: i32 = 0;
     let param_raw: i32 = 0;
     let sc: i32 = 0;
@@ -7009,7 +7011,7 @@ ctx: *PipelineDepCtx): i32 {
     let col_a: i32 = 0;
     let n_gp: i32 = 0;
     let arg_ty: i32 = 0;
-    if (module == 0 as * Module || arena == 0 as * ASTArena || expr_ref <= 0) {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || expr_ref <= 0) {
       return 0;
     }
     fi = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
@@ -7019,9 +7021,9 @@ ctx: *PipelineDepCtx): i32 {
     num_args = pipeline_expr_call_num_args_at(arena, expr_ref);
     dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
     mod = module;
-    if (dep >= 0 && ctx != 0 as * PipelineDepCtx) {
+    if (dep >= 0 && ctx != 0 as *PipelineDepCtx) {
       dm = pipeline_dep_ctx_module_at(ctx, dep);
-      if (dm != 0 as * Module) {
+      if (dm != 0 as *Module) {
         mod = dm;
       }
     }
@@ -7942,7 +7944,7 @@ ctx: *PipelineDepCtx): i32 {
     let col: i32 = 0;
     let nm_tok_kind: u8[9] = [84, 111, 107, 101, 110, 75, 105, 110, 100];
     let nm_typ_kind: u8[8] = [84, 121, 112, 101, 75, 105, 110, 100];
-    if (arena == 0 as * ASTArena || module == 0 as * Module || ctx == 0 as * PipelineDepCtx
+    if (arena == 0 as *ASTArena || module == 0 as *Module || ctx == 0 as *PipelineDepCtx
     || expr_ref <= 0 || expr_ref > arena.num_exprs) {
       return 0;
     }
@@ -8592,12 +8594,12 @@ export function typeck_type_is_valid_subscript_index(module: *Module, arena: *AS
     let ord_named: i32 = 8;
     let rty: i32 = 0;
     let ko: i32 = 0;
-    if (arena == 0 as * ASTArena || ast.ref_is_null(ty_ref) || ty_ref <= 0) {
+    if (arena == 0 as *ASTArena || ast.ref_is_null(ty_ref) || ty_ref <= 0) {
       return 1;
     }
     /* Peel aliases so `type Idx = i32` stays integer-like. */
     rty = ty_ref;
-    if (module != 0 as * Module) {
+    if (module != 0 as *Module) {
       rty = typeck_resolve_type_alias_ref_local(module, arena, ty_ref, 0);
       if (ast.ref_is_null(rty) || rty <= 0) {
         rty = ty_ref;
@@ -8889,7 +8891,7 @@ ctx: *PipelineDepCtx): i32 {
     /* See implementation. */
     let ord_try_propagate: i32 = ExprKind.EXPR_TRY_PROPAGATE as i32;
     let kind: i32 = 0;
-    if (arena == 0 as * ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
       return 0;
     }
     kind = pipeline_expr_kind_ord_at(arena, expr_ref);
@@ -8967,7 +8969,7 @@ ctx: *PipelineDepCtx): i32 {
     let ord_continue: i32 = 40;
     let ord_enum_var: i32 = 50;
     let kind: i32 = 0;
-    if (arena == 0 as * ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
       return 0;
     }
     kind = pipeline_expr_kind_ord_at(arena, expr_ref);
@@ -9009,7 +9011,7 @@ ctx: *PipelineDepCtx): i32 {
   if (ast.ref_is_null(expr_ref)) {
     return 0;
   }
-  if (arena == 0 as * ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+  if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
     return 0;
   }
   rc = check_expr_impl(module, arena, expr_ref, return_type_ref, ctx);
@@ -9476,7 +9478,7 @@ return_type_ref: i32): i32 {
     let gl: i32 = 0;
     let line: i32 = 0;
     let col: i32 = 0;
-    if (arena == 0 as * ASTArena || expr_ref <= 0 || ast.ref_is_null(return_type_ref)) {
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || ast.ref_is_null(return_type_ref)) {
       return 0;
     }
     rt_k = pipeline_type_kind_ord_at(arena, return_type_ref);
@@ -9772,7 +9774,7 @@ ctx: *PipelineDepCtx): i32 {
     let nso: i32 = 0;
     let fin0: i32 = 0;
     let func_ix: i32 = 0;
-    if (arena == 0 as * ASTArena || ctx == 0 as * PipelineDepCtx || block_ref <= 0) {
+    if (arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || block_ref <= 0) {
       return - 1;
     }
     saved_block_ref = pipeline_typeck_block_impl_bind_ctx_c(ctx, block_ref);
@@ -9840,7 +9842,7 @@ ctx: *PipelineDepCtx): i32 {
   if (ast.ref_is_null(block_ref)) {
     return 0;
   }
-  if (arena == 0 as * ASTArena || block_ref <= 0 || block_ref > arena.num_blocks) {
+  if (arena == 0 as *ASTArena || block_ref <= 0 || block_ref > arena.num_blocks) {
     return 0;
   }
   return check_block_impl(module, arena, block_ref, return_type_ref, ctx);
@@ -9860,7 +9862,7 @@ export function typeck_x_ast_check_one_func(module: *Module, arena: *ASTArena, c
     let rt_kind: i32 = 0;
     let err_check_block: i32 = 5;
     let err_implicit_tail: i32 = 6;
-    if (module == 0 as * Module || arena == 0 as * ASTArena || ctx == 0 as * PipelineDepCtx) {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
       return 0;
     }
     fn_name_len = pipeline_module_func_name_len_at(module, func_idx);
@@ -10015,7 +10017,7 @@ export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *Pipel
     let pipe_marker_layout_validated: i32 = 303;
     let pipe_marker_parent_links_patched: i32 = 304;
     let pipe_marker_main_generic_base: i32 = 320;
-    if (module == 0 as * Module || arena == 0 as * ASTArena || ctx == 0 as * PipelineDepCtx) {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
       return -2;
     }
     /* wave421 Cap residual pure — missing method before per-func check_block.
@@ -10069,7 +10071,7 @@ export function typeck_x_ast_library(module: *Module, arena: *ASTArena, ctx: *Pi
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let num_funcs: i32 = 0;
-    if (module == 0 as * Module || arena == 0 as * ASTArena || ctx == 0 as * PipelineDepCtx) {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
       return -5;
     }
     if (typeck_validate_struct_layouts_zero_padding(module, arena) != 0) {
@@ -10089,7 +10091,7 @@ export function typeck_x_ast(module: *Module, arena: *ASTArena, ctx: *PipelineDe
   unsafe {
     let mi: i32 = 0;
     let num_funcs: i32 = 0;
-    if (module == 0 as * Module) {
+    if (module == 0 as *Module) {
       return -10;
     }
     mi = pipeline_module_main_func_index(module);

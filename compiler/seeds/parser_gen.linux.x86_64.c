@@ -1606,14 +1606,59 @@ struct lexer_Lexer parser_realign_lex_after_compound_stmt(struct lexer_Lexer lex
     return lex_out;
   }
 }
+/* Forward decl: used by lparen rewind probe before the later extern block. */
+extern void lexer_invalid_type_suffix_reset(void);
+
+/**
+ * wave1218: absolute (line, col) for byte pos by scanning source[0..pos).
+ * PLATFORM: SHARED — seed pin twin of parser_gen.c.
+ */
+static void parser_lexer_line_col_at_pos(struct xlang_slice_uint8_t *source, size_t pos,
+                                        int32_t *out_line, int32_t *out_col) {
+  int32_t line = 1;
+  int32_t col = 1;
+  size_t i = 0;
+  size_t lim;
+  if (!out_line || !out_col)
+    return;
+  if (!source || !source->data) {
+    *out_line = 1;
+    *out_col = 1;
+    return;
+  }
+  lim = source->length;
+  if (pos < lim)
+    lim = pos;
+  for (i = 0; i < lim; i++) {
+    if (source->data[i] == 10) {
+      line = line + 1;
+      col = 1;
+    } else {
+      col = col + 1;
+    }
+  }
+  *out_line = line;
+  *out_col = col;
+}
+
 struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct xlang_slice_uint8_t * source) {
+  /* wave1218 Cap residual: absolute line_col_at_pos when rewinding before `(`.
+   * PLATFORM: SHARED — seed pin twin of parser_gen.c / parser.x. */
   if ((((r_in.tok).kind) ==82)) {
     struct lexer_Lexer lp_base = parser_lex_at_token_from_result(r_in);
     int32_t back_lp = 2;
     while ((back_lp <=128)) {
-      struct lexer_Lexer lex_lp = (struct lexer_Lexer){ .pos = parser_lexer_pos_before_run((lp_base.pos), back_lp), .line = ((r_in.tok).line), .col = ((r_in.tok).col) };
+      size_t new_pos = parser_lexer_pos_before_run((lp_base.pos), back_lp);
+      int32_t rew_line = 1;
+      int32_t rew_col = 1;
+      parser_lexer_line_col_at_pos(source, new_pos, &rew_line, &rew_col);
+      struct lexer_Lexer lex_lp = (struct lexer_Lexer){ .pos = new_pos, .line = rew_line, .col = rew_col };
       struct lexer_LexerResult r_lp = (struct lexer_LexerResult){ .next_lex = lex_lp, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
       (void)(lexer_next_into(&(r_lp), lex_lp, source));
+      /* Probe may land mid-comment/mid-ident (digit in cvtss2sd inside a block
+       * comment). That sets sticky L009 and poisons the whole parse. Clear after
+       * every probe. PLATFORM: SHARED - wave1218 root; seed twin of parser_gen.c. */
+      lexer_invalid_type_suffix_reset();
       if ((((((r_lp.tok).kind) ==4) || (((r_lp.tok).kind) ==6)) || (((r_lp.tok).kind) ==8))) {
         return parser_rewind_lex_for_following_stmt(lex_in, r_lp);
       }

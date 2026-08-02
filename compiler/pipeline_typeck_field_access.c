@@ -708,9 +708,65 @@ void pipeline_typeck_field_lexer_fallback_c(struct ast_Module *module, struct as
  * typeck.x::typeck_check_expr_field_access 的 C 委托：prebind → check base → known_ptr/layout/slice/fallback。
  */
 /**
- * Import binding 特判：base 是 import binding（如 `backend`），field name 是 dep 模块中的函数名。
- * 从 dep 模块中查找函数，设置 field access 表达式的 resolved type 为函数返回类型。
- * 返回 1 表示命中（已处理），0 表示未命中（继续常规 field access typeck）。
+ * Stamp import.Enum as TYPE_NAMED(enum) when field_name matches a dep enum.
+ * Single authority for both import-list and const-import sugar hops (G.7).
+ * @return 1 hit, 0 miss.
+ * PLATFORM: SHARED — wave1218 Cap residual.
+ */
+static int32_t pipeline_typeck_field_import_try_dep_enum_type_c(struct ast_Module *dep_mod,
+                                                               struct ast_ASTArena *arena,
+                                                               int32_t expr_ref, int32_t base_ref,
+                                                               uint8_t *base_name, int32_t base_name_len,
+                                                               uint8_t *field_name, int32_t field_name_len) {
+  int32_t ne;
+  int32_t ek;
+  if (!dep_mod || !arena || !field_name || field_name_len <= 0)
+    return 0;
+  ne = dep_mod->num_module_enums;
+  for (ek = 0; ek < ne; ek++) {
+    int32_t el = pipeline_module_enum_name_len(dep_mod, ek);
+    int32_t bi;
+    if (el != field_name_len || el <= 0)
+      continue;
+    for (bi = 0; bi < el; bi++) {
+      if (pipeline_module_enum_name_byte_at(dep_mod, ek, bi) != field_name[bi])
+        break;
+    }
+    if (bi != el)
+      continue;
+    {
+      int32_t enum_ty = typeck_find_or_alloc_named_type_ref(arena, field_name, field_name_len);
+      if (enum_ty != 0)
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, enum_ty);
+      if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
+        int32_t nt = typeck_find_or_alloc_named_type_ref(arena, base_name, base_name_len);
+        if (nt != 0)
+          pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
+      }
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Import binding resolve: base is whole-module import binding (e.g. `token`,
+ * `backend`); field is a dep-module export.
+ *
+ * Lookup order on the matched dep (G.7 single gate — do not open a second path):
+ *  1) function → field expr type = function return type
+ *  2) top-level const → field expr type = const type (or i32 if untyped)
+ *  3) enum type name → field expr type = TYPE_NAMED(enum) so that
+ *     `token.TokenKind.TOKEN_RETURN` can resolve the outer variant via
+ *     pipeline_typeck_field_layout_named_c + enum_variant_tag_for_names(deps).
+ *
+ * Prior: only (1)(2). Missing (3) made `import.Enum.Variant` hard-fail as
+ * "unknown field on this type" (wave1218 parser.x #178 lexer_token_run_len),
+ * blocking parser_gen.c regen and cascading L009 line desync. Local
+ * `Color.RED` worked; only cross-module enum type hops failed.
+ *
+ * @return 1 hit (resolved_type_ref stamped), 0 miss (continue normal field typeck).
+ * PLATFORM: SHARED — typeck; rebuild pipeline_x.o after edit.
  */
 int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                         int32_t expr_ref, int32_t base_ref,
@@ -823,11 +879,19 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
         return 1;
       }
     }
+
+    /* wave1218: dep enum type as value namespace (token.TokenKind). */
+    if (pipeline_typeck_field_import_try_dep_enum_type_c(dep_mod, arena, expr_ref, base_ref,
+                                                        &base_name[0], base_name_len,
+                                                        &field_name[0], field_name_len))
+      return 1;
   }
   /*
    * wave702: also match `const async_mod = import("std.async")` style bindings.
    * Top-level const name equals base; scan all deps for field const (import list may
    * not register binding_name for const-import sugar). PLATFORM: SHARED.
+   *
+   * wave1218: same scan for dep enum type names (token.TokenKind / color.Color).
    */
   {
     int32_t ntl = module->num_top_level_lets;
@@ -870,6 +934,10 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
           }
           return 1;
         }
+        if (pipeline_typeck_field_import_try_dep_enum_type_c(dep_mod, arena, expr_ref, base_ref,
+                                                            &base_name[0], base_name_len,
+                                                            &field_name[0], field_name_len))
+          return 1;
       }
     }
   }
