@@ -4442,146 +4442,22 @@ int ast_ref_is_null(int32_t ref) {
  * const_init/type_ref + let_init/type_ref + expr_stmt_ref + final_expr_ref.
  * All pure forwarders to pipeline_block_ / pipeline_patch_block_parent_links. */
 
-/**
- * typeck.x::func_body_tail_expr_ref_for_implicit_rule 的 C 委托：读块 final_expr / stmt_order 尾表达式。
- * X 真 emit 在 asm 后端失败；EMIT_HEAVY 桩 bl 本符号，避免依赖 typeck_x.o 同名实现。
- */
-int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_ASTArena *arena, int32_t body_ref) {
-  int32_t fin_ref;
-  int32_t nso;
-  int32_t nes2;
-  const uint8_t stmt_order_kind_expr_stmt = 2;
-  const uint8_t stmt_order_kind_region_c_parser = 5;
-  const uint8_t stmt_order_kind_region_x_parser = 6;
-
-  nso = ast_ast_block_num_stmt_order(arena, body_ref);
-  fin_ref = ast_ast_block_final_expr_ref(arena, body_ref);
-  /* W-tail:
-   * 1) final RETURN/PANIC/BREAK/CONTINUE wins (return after unsafe assign).
-   * 2) else peel trailing unsafe region (sole `unsafe { return ... }` may leave stale EXPR_LIT final).
-   * 3) else fall through to final / expr_stmt. */
-  if (!ast_ref_is_null(fin_ref)) {
-    int32_t fin_kind = pipeline_expr_kind_ord_at(arena, fin_ref);
-    if (fin_kind == 41 || fin_kind == 42 || fin_kind == 39 || fin_kind == 40)
-      return fin_ref;
-  }
-  if (nso > 0) {
-    uint8_t last_k = (uint8_t)pipeline_block_stmt_order_kind(arena, body_ref, nso - 1);
-    if (last_k == stmt_order_kind_region_c_parser || last_k == stmt_order_kind_region_x_parser) {
-      int32_t idx = pipeline_block_stmt_order_idx(arena, body_ref, nso - 1);
-      int32_t nreg = ast_ast_block_num_regions(arena, body_ref);
-      int32_t is_unsafe =
-          (idx >= 0 && idx < nreg) ? pipeline_block_region_is_unsafe(arena, body_ref, idx) : 0;
-      if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-        fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_region_peel body=%d idx=%d nreg=%d unsafe=%d\n",
-                (int)body_ref, (int)idx, (int)nreg, (int)is_unsafe);
-      if (idx >= 0 && idx < nreg && is_unsafe != 0) {
-        int32_t inner_ref = ast_ast_block_region_body_ref(arena, body_ref, idx);
-        if (!ast_ref_is_null(inner_ref))
-          return pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(arena, inner_ref);
-      }
-    }
-  }
-  if (!ast_ref_is_null(fin_ref))
-    return fin_ref;
-  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_scan body=%d fin=%d nso=%d\n", (int)body_ref,
-            (int)fin_ref, (int)nso);
-  if (nso > 0) {
-    uint8_t last_k;
-    int32_t idx;
-    int32_t nes;
-    if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-      int32_t si;
-      int32_t nes_dbg = ast_ast_block_num_expr_stmts(arena, body_ref);
-      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_dump body=%d exprs=%d\n", (int)body_ref, (int)nes_dbg);
-      for (si = 0; si < nso; si++) {
-        int32_t so_idx = pipeline_block_stmt_order_idx(arena, body_ref, si);
-        uint8_t so_kind = (uint8_t)pipeline_block_stmt_order_kind(arena, body_ref, si);
-        int32_t expr_ref = 0;
-        int32_t expr_kind = -1;
-        if (so_kind == stmt_order_kind_expr_stmt && so_idx >= 0 && so_idx < nes_dbg) {
-          expr_ref = pipeline_block_expr_stmt_ref(arena, body_ref, so_idx);
-          expr_kind = pipeline_expr_kind_ord_at(arena, expr_ref);
-        }
-        fprintf(stderr,
-                "xlang: [XLANG_DEBUG_PIPE] implicit_tail_item body=%d si=%d so_kind=%u so_idx=%d expr=%d expr_kind=%d\n",
-                (int)body_ref, (int)si, (unsigned)so_kind, (int)so_idx, (int)expr_ref, (int)expr_kind);
-      }
-    }
-
-    last_k = (uint8_t)pipeline_block_stmt_order_kind(arena, body_ref, nso - 1);
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_last body=%d kind=%u\n", (int)body_ref,
-              (unsigned)last_k);
-    if (last_k == stmt_order_kind_expr_stmt) {
-      idx = pipeline_block_stmt_order_idx(arena, body_ref, nso - 1);
-      nes = ast_ast_block_num_expr_stmts(arena, body_ref);
-      if (idx >= 0 && idx < nes)
-        return pipeline_block_expr_stmt_ref(arena, body_ref, idx);
-    }
-    return 0;
-  }
-  nes2 = ast_ast_block_num_expr_stmts(arena, body_ref);
-  if (nes2 > 0)
-    return pipeline_block_expr_stmt_ref(arena, body_ref, nes2 - 1);
-  return 0;
-}
-
-/**
- * typeck.x::func_body_has_implicit_return_tail 的 C 委托：判定块末是否存在不允许的隐式尾返回。
- * G-02f-477: EXPR_BLOCK（如 unsafe { return ...; }）需递归检查内部 block 尾表达式，
- * 否则 unsafe 块内的 return 会被误报为 implicit tail return。
- */
-int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena *arena, int32_t body_ref) {
-  int32_t tail_ref;
-  int32_t tail_kind;
-
-  if (ast_ref_is_null(body_ref) || body_ref <= 0 || !arena || body_ref > arena->num_blocks)
-    return 0;
-  tail_ref = pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(arena, body_ref);
-  if (ast_ref_is_null(tail_ref))
-    return 0;
-  tail_kind = pipeline_expr_kind_ord_at(arena, tail_ref);
-  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_result body=%d tail=%d kind=%d\n", (int)body_ref,
-            (int)tail_ref, (int)tail_kind);
-  if (implicit_tail_expr_disallowed_by_glue(arena, tail_ref) != 0)
-    return 0;
-  /* G-02f-477: EXPR_BLOCK（ord=26）— 递归检查内部 block 是否有显式 return。
-   * 不安全块 `unsafe { return expr; }` 在 X parser 中被解析为 EXPR_BLOCK 而非 region，
-   * 需递归进入 block_ref 检查尾表达式，避免误报 implicit tail return。
-   * 用 pipeline_expr_block_ref_at accessor（与 line 19812 一致），避免直接访问 Expr 结构体。 */
-  if (tail_kind == 26) {
-    int32_t inner_block = pipeline_expr_block_ref_at(arena, tail_ref);
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_block body=%d tail=%d inner_block=%d\n",
-              (int)body_ref, (int)tail_ref, (int)inner_block);
-    if (!ast_ref_is_null(inner_block))
-      return pipeline_typeck_func_body_has_implicit_return_tail_c(arena, inner_block);
-  }
-  return 1;
-}
-
-/*
- * wave92: product pure owns pipeline_typeck_patch_all_body_parent_links_c
- * (runtime_pipeline_abi.x thin → typeck_patch_all_body_parent_links). Keep XLANG_WEAK cold
- * fallback for links without pure pipeline_abi / PREFER hybrid.
- * PLATFORM: SHARED — ELF weak overridden by pure; same walk as typeck.x.
- */
-XLANG_WEAK void pipeline_typeck_patch_all_body_parent_links_c(struct ast_Module *module,
-                                                                         struct ast_ASTArena *arena) {
-  int32_t i;
-  int32_t br;
-
-  if (!module || !arena)
-    return;
-  for (i = 0; i < module->num_funcs; i++) {
-    br = pipeline_module_func_body_ref_at(module, i);
-    if (!ast_ref_is_null(br))
-      ast_ast_arena_patch_block_parent_links(arena, br, 0);
-  }
-}
+/* wave1191 G.7: typeck func_body implicit return tail cluster (3 fns)
+ * migrated to pipeline_typeck_check_block.c EOF. Colocated with check_block
+ * walker domain — func_body tail analysis is a sub-domain of block typeck.
+ *
+ * Members: pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c +
+ *          pipeline_typeck_func_body_has_implicit_return_tail_c +
+ *          pipeline_typeck_patch_all_body_parent_links_c (XLANG_WEAK).
+ *
+ * Forward decls visible at #include point (check_block.c) via earlier decls:
+ * - ast_ast_block_* / pipeline_block_* / pipeline_expr_* (extern)
+ * - implicit_tail_expr_disallowed_by_glue (defined earlier in glue.c before
+ *   check_block.c #include — visible in same TU)
+ * - ast_ast_arena_patch_block_parent_links / pipeline_module_func_body_ref_at
+ *   (extern)
+ * - link_abi_getenv (extern)
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
 /* wave1158 G.7: typeck type_refs_equal / type_ref_is_bool / expr_type_ref
  * public wrappers (9 extern fns) migrated to pipeline_typeck_coerce_init.c
@@ -4952,45 +4828,10 @@ extern int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *module,
  * same-TU: assign.c #include L11324 < def L11682 < all callsites
  * (L11627/11706/12111). Old fwd decl at L11618 deleted — def visible
  * from #include point. Deps: parser_get_module_num_imports (extern). */
-int32_t pipeline_typeck_import_segment_at_c(struct ast_Module *module, int32_t imp_ix, int32_t want_seg,
-                                              int32_t *ostr, int32_t *olen) {
-  int32_t pl;
-  int32_t ci;
-  int32_t ss;
-  int32_t k;
-  int32_t n_imp;
-
-  n_imp = pipeline_typeck_module_num_imports_c(module);
-  if (!module || imp_ix < 0 || imp_ix >= n_imp || !ostr || !olen)
-    return 0;
-  pl = pipeline_module_import_path_len(module, imp_ix);
-  if (pl <= 0 || pl > 127)
-    return 0;
-  ci = 0;
-  ss = 0;
-  k = 0;
-  while (k <= pl) {
-    int32_t at_end_p = (k == pl);
-    int32_t dot_p = 0;
-    if (!at_end_p && k < pl)
-      dot_p = (pipeline_module_import_path_byte_at(module, imp_ix, k) == 46);
-    if (at_end_p || dot_p) {
-      int32_t seg_len_here = k - ss;
-      if (seg_len_here <= 0)
-        return 0;
-      if (ci == want_seg) {
-        ostr[0] = ss;
-        olen[0] = seg_len_here;
-        return 1;
-      }
-      if (dot_p)
-        ss = k + 1;
-      ci = ci + 1;
-    }
-    k = k + 1;
-  }
-  return 0;
-}
+/* wave1192 G.7: pipeline_typeck_import_segment_at_c migrated to
+ * pipeline_typeck_method_call.c EOF (import resolution cluster).
+ * extern above (pipeline_module_import_path_len/byte_at) remain for
+ * other glue.c callsites. PLATFORM: SHARED. */
 
 extern int32_t pipeline_module_func_name_equal_at(struct ast_Module *m, int32_t fi, uint8_t *name, int32_t name_len);
 extern uint8_t pipeline_module_func_name_byte_at(struct ast_Module *m, int32_t fi, int32_t i);
@@ -5016,53 +4857,9 @@ extern void asm_qual_sym_layer_copy(int32_t i, uint8_t *dst, int32_t cap);
 
 /* wave1066: def migrated to pipeline_typeck_assign.c EOF. */
 
-/**
- * Map entry-module import slot → dep ctx slot by import path.
- * PLATFORM: SHARED — closure seed may order deps differently from entry import
- * index (ndep > n_imports). Callers must use this; never use imp_ix as dep index.
- */
-int32_t pipeline_typeck_resolve_dep_index_for_import_c(struct ast_Module *module,
-                                                       struct ast_PipelineDepCtx *ctx, int32_t imp_ix) {
-  uint8_t imp_path[128];
-  int32_t plen;
-  int32_t n_imp;
-  int32_t di;
-  int32_t nd;
-
-  n_imp = pipeline_typeck_module_num_imports_c(module);
-  if (!module || !ctx || imp_ix < 0 || imp_ix >= n_imp)
-    return -1;
-  plen = pipeline_module_import_path_len(module, imp_ix);
-  if (plen <= 0 || plen > 127)
-    return -1;
-  di = 0;
-  while (di < plen) {
-    imp_path[di] = pipeline_module_import_path_byte_at(module, imp_ix, di);
-    di = di + 1;
-  }
-  nd = pipeline_dep_ctx_ndep(ctx);
-  di = 0;
-  while (di < nd) {
-    int32_t dep_plen = pipeline_dep_ctx_import_path_len(ctx, di);
-    if (dep_plen == plen) {
-      uint8_t dep_path[128];
-      int32_t k = 0;
-      int32_t eq = 1;
-      pipeline_dep_ctx_import_path_copy64(ctx, di, dep_path);
-      while (k < plen) {
-        if (dep_path[k] != imp_path[k]) {
-          eq = 0;
-          break;
-        }
-        k = k + 1;
-      }
-      if (eq)
-        return di;
-    }
-    di = di + 1;
-  }
-  return -1;
-}
+/* wave1192 G.7: pipeline_typeck_resolve_dep_index_for_import_c migrated to
+ * pipeline_typeck_method_call.c EOF (import resolution cluster).
+ * PLATFORM: SHARED. */
 
 /* wave1168 G.7: dep return type + entry module cluster (3 extern fns + 1 static)
  * migrated to pipeline_typeck_method_call.c EOF. Colocated with statics
@@ -5131,132 +4928,11 @@ static int32_t pipeline_typeck_import_binding_name_equal_impl(struct ast_Module 
 static int32_t pipeline_typeck_import_select_name_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t sel,
                                                              uint8_t *nm, int32_t nm_len);
 
-/**
- * typeck.x::resolve_whole_import_qualified_call_return_type 的 C 委托：
- * `platform.elf.fn(args)` 整包 import callee 返回类型解析。
- */
-int32_t pipeline_typeck_resolve_whole_import_call_ret_c(
-    struct ast_Module *module, struct ast_ASTArena *arena, int32_t callee_expr_ref, struct ast_PipelineDepCtx *ctx,
-    int32_t *dep_index_out, int32_t *func_index_out) {
-  uint8_t layer_buf[128];
-  int32_t nstack;
-  int32_t cur_ref;
-  int32_t dep_j;
-
-  if (!ctx || !module || !arena || callee_expr_ref <= 0 || callee_expr_ref > arena->num_exprs)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, callee_expr_ref) != 44)
-    return 0;
-  asm_qual_sym_layer_reset();
-  cur_ref = callee_expr_ref;
-  while (1) {
-    int32_t falen;
-    if (cur_ref <= 0 || cur_ref > arena->num_exprs)
-      return 0;
-    falen = pipeline_expr_field_access_name_len(arena, cur_ref);
-    if (pipeline_expr_kind_ord_at(arena, cur_ref) != 44 || falen <= 0 || falen > 127)
-      break;
-    pipeline_expr_field_access_name_into(arena, cur_ref, layer_buf);
-    if (asm_qual_sym_layer_push(layer_buf, falen) < 0)
-      return 0;
-    cur_ref = pipeline_expr_field_access_base_ref(arena, cur_ref);
-  }
-  nstack = asm_qual_sym_layer_count();
-  if (cur_ref <= 0 || cur_ref > arena->num_exprs)
-    return 0;
-  {
-    int32_t vnlen;
-    uint8_t vname_buf[128];
-    int32_t n_imp;
-
-    vnlen = pipeline_expr_var_name_len(arena, cur_ref);
-    if (pipeline_expr_kind_ord_at(arena, cur_ref) != 3 || vnlen <= 0 || vnlen > 127)
-      return 0;
-    pipeline_expr_var_name_into(arena, cur_ref, vname_buf);
-    n_imp = pipeline_typeck_module_num_imports_c(module);
-    dep_j = 0;
-    while (dep_j < n_imp) {
-      int32_t plen;
-      uint8_t path_cnt_buf[128];
-      int32_t pci;
-      int32_t pseg;
-      int32_t s0_rel;
-      int32_t s0_ln;
-
-      plen = pipeline_module_import_path_len(module, dep_j);
-      if (plen <= 0 || plen > 127) {
-        dep_j = dep_j + 1;
-        continue;
-      }
-      pci = 0;
-      while (pci < plen && pci < 64) {
-        path_cnt_buf[pci] = pipeline_module_import_path_byte_at(module, dep_j, pci);
-        pci = pci + 1;
-      }
-      pseg = pipeline_typeck_import_path_segment_count_impl(path_cnt_buf, plen);
-      if (pseg <= 0 || nstack != pseg) {
-        dep_j = dep_j + 1;
-        continue;
-      }
-      if (!pipeline_typeck_import_segment_at_c(module, dep_j, 0, &s0_rel, &s0_ln) ||
-          !pipeline_typeck_import_path_slice_equal_impl(module, dep_j, s0_rel, s0_ln, vname_buf, vnlen)) {
-        dep_j = dep_j + 1;
-        continue;
-      }
-      {
-        int32_t bad_mid = 0;
-        int32_t sm;
-
-        sm = 1;
-        while (sm <= pseg - 1) {
-          int32_t srv;
-          int32_t slv;
-          int32_t lay_ix;
-
-          if (!pipeline_typeck_import_segment_at_c(module, dep_j, sm, &srv, &slv)) {
-            bad_mid = 1;
-          } else {
-            lay_ix = pseg - sm;
-            asm_qual_sym_layer_copy(lay_ix, layer_buf, 64);
-            if (!pipeline_typeck_import_path_slice_equal_impl(module, dep_j, srv, slv, layer_buf,
-                                                             asm_qual_sym_layer_len(lay_ix)))
-              bad_mid = 1;
-          }
-          if (bad_mid)
-            break;
-          sm = sm + 1;
-        }
-        if (bad_mid) {
-          dep_j = dep_j + 1;
-          continue;
-        }
-      }
-      {
-        struct ast_Module *dm;
-        int32_t dep_slot;
-        int32_t ret_fn;
-
-        dep_slot = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, dep_j);
-        if (dep_slot < 0) {
-          dep_j = dep_j + 1;
-          continue;
-        }
-        dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
-        if (!dm) {
-          dep_j = dep_j + 1;
-          continue;
-        }
-        asm_qual_sym_layer_copy(0, layer_buf, 64);
-        ret_fn = pipeline_typeck_find_func_return_type_in_module_by_name_c(
-            dm, arena, layer_buf, asm_qual_sym_layer_len(0), dep_slot, ctx, func_index_out);
-        if (ret_fn != 0 && dep_index_out)
-          dep_index_out[0] = dep_slot;
-        return ret_fn;
-      }
-    }
-  }
-  return 0;
-}
+/* wave1192 G.7: pipeline_typeck_resolve_whole_import_call_ret_c migrated to
+ * pipeline_typeck_method_call.c EOF (import resolution cluster). Colocated
+ * with method_call domain — qualified import call resolution is a sub-domain
+ * of method-call target resolution.
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
 /* wave1155 G.7: pipeline_typeck_resolve_call_callee_return_type_c migrated to
  * pipeline_typeck_method_call.c EOF (colocated with resolve_call_func_index_c

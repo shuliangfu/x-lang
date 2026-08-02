@@ -534,3 +534,180 @@ reject:
   driver_diagnostic_typeck_linear_addr_of(line, col);
   return -1;
 }
+
+/* ===========================================================================
+ * wave1191 G.7: typeck func_body implicit return tail cluster (3 fns)
+ * migrated from pipeline_glue.c. Colocated with check_block walker domain
+ * — func_body tail analysis is a sub-domain of block typeck (block walk
+ * needs implicit-return-tail check at final expr).
+ *
+ * Forward decls visible at #include point (glue.c L6114) via earlier decls:
+ * - ast_ast_block_num_stmt_order / final_expr_ref / num_regions /
+ *   region_body_ref / num_expr_stmts (extern in ast_pool_block.c)
+ * - pipeline_expr_kind_ord_at / pipeline_block_stmt_order_kind/idx (extern)
+ * - pipeline_block_region_is_unsafe (extern at glue.c L4824)
+ * - pipeline_block_expr_stmt_ref (extern at glue.c L92)
+ * - pipeline_expr_block_ref_at / pipeline_module_func_body_ref_at (extern)
+ * - ast_ast_arena_patch_block_parent_links (extern)
+ * - implicit_tail_expr_disallowed_by_glue (defined at glue.c L831, before
+ *   check_block.c #include at L6114 — visible)
+ * - link_abi_getenv (extern at glue.c L51)
+ * - pipeline_debug_trace_named_func_bodies (extern at glue.c L418)
+ * PLATFORM: SHARED.
+ * ========================================================================== */
+
+/**
+ * typeck.x::func_body_tail_expr_ref_for_implicit_rule C twin.
+ *
+ * Why: W-tail analysis — find the effective tail expression of a function
+ *      body for implicit return rule. RETURN/PANIC/BREAK/CONTINUE final
+ *      wins; else peel trailing unsafe region; else fall through to final
+ *      expr / last expr_stmt.
+ * Invariant: arena non-null; body_ref valid or null (returns 0).
+ * Asm/Perf: N/A (typeck pass; no codegen).
+ * Contract: returns expr_ref > 0 if tail found; 0 if none.
+ * PLATFORM: SHARED — product path (seed typeck → this glue).
+ */
+int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_ASTArena *arena, int32_t body_ref) {
+  int32_t fin_ref;
+  int32_t nso;
+  int32_t nes2;
+  const uint8_t stmt_order_kind_expr_stmt = 2;
+  const uint8_t stmt_order_kind_region_c_parser = 5;
+  const uint8_t stmt_order_kind_region_x_parser = 6;
+
+  nso = ast_ast_block_num_stmt_order(arena, body_ref);
+  fin_ref = ast_ast_block_final_expr_ref(arena, body_ref);
+  /* W-tail:
+   * 1) final RETURN/PANIC/BREAK/CONTINUE wins (return after unsafe assign).
+   * 2) else peel trailing unsafe region (sole `unsafe { return ... }` may leave stale EXPR_LIT final).
+   * 3) else fall through to final / expr_stmt. */
+  if (!ast_ref_is_null(fin_ref)) {
+    int32_t fin_kind = pipeline_expr_kind_ord_at(arena, fin_ref);
+    if (fin_kind == 41 || fin_kind == 42 || fin_kind == 39 || fin_kind == 40)
+      return fin_ref;
+  }
+  if (nso > 0) {
+    uint8_t last_k = (uint8_t)pipeline_block_stmt_order_kind(arena, body_ref, nso - 1);
+    if (last_k == stmt_order_kind_region_c_parser || last_k == stmt_order_kind_region_x_parser) {
+      int32_t idx = pipeline_block_stmt_order_idx(arena, body_ref, nso - 1);
+      int32_t nreg = ast_ast_block_num_regions(arena, body_ref);
+      int32_t is_unsafe =
+          (idx >= 0 && idx < nreg) ? pipeline_block_region_is_unsafe(arena, body_ref, idx) : 0;
+      if (link_abi_getenv("XLANG_DEBUG_PIPE"))
+        fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_region_peel body=%d idx=%d nreg=%d unsafe=%d\n",
+                (int)body_ref, (int)idx, (int)nreg, (int)is_unsafe);
+      if (idx >= 0 && idx < nreg && is_unsafe != 0) {
+        int32_t inner_ref = ast_ast_block_region_body_ref(arena, body_ref, idx);
+        if (!ast_ref_is_null(inner_ref))
+          return pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(arena, inner_ref);
+      }
+    }
+  }
+  if (!ast_ref_is_null(fin_ref))
+    return fin_ref;
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
+    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_scan body=%d fin=%d nso=%d\n", (int)body_ref,
+            (int)fin_ref, (int)nso);
+  if (nso > 0) {
+    uint8_t last_k;
+    int32_t idx;
+    int32_t nes;
+    if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
+      int32_t si;
+      int32_t nes_dbg = ast_ast_block_num_expr_stmts(arena, body_ref);
+      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_dump body=%d exprs=%d\n", (int)body_ref, (int)nes_dbg);
+      for (si = 0; si < nso; si++) {
+        int32_t so_idx = pipeline_block_stmt_order_idx(arena, body_ref, si);
+        uint8_t so_kind = (uint8_t)pipeline_block_stmt_order_kind(arena, body_ref, si);
+        int32_t expr_ref = 0;
+        int32_t expr_kind = -1;
+        if (so_kind == stmt_order_kind_expr_stmt && so_idx >= 0 && so_idx < nes_dbg) {
+          expr_ref = pipeline_block_expr_stmt_ref(arena, body_ref, so_idx);
+          expr_kind = pipeline_expr_kind_ord_at(arena, expr_ref);
+        }
+        fprintf(stderr,
+                "xlang: [XLANG_DEBUG_PIPE] implicit_tail_item body=%d si=%d so_kind=%u so_idx=%d expr=%d expr_kind=%d\n",
+                (int)body_ref, (int)si, (unsigned)so_kind, (int)so_idx, (int)expr_ref, (int)expr_kind);
+      }
+    }
+
+    last_k = (uint8_t)pipeline_block_stmt_order_kind(arena, body_ref, nso - 1);
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
+      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_last body=%d kind=%u\n", (int)body_ref,
+              (unsigned)last_k);
+    if (last_k == stmt_order_kind_expr_stmt) {
+      idx = pipeline_block_stmt_order_idx(arena, body_ref, nso - 1);
+      nes = ast_ast_block_num_expr_stmts(arena, body_ref);
+      if (idx >= 0 && idx < nes)
+        return pipeline_block_expr_stmt_ref(arena, body_ref, idx);
+    }
+    return 0;
+  }
+  nes2 = ast_ast_block_num_expr_stmts(arena, body_ref);
+  if (nes2 > 0)
+    return pipeline_block_expr_stmt_ref(arena, body_ref, nes2 - 1);
+  return 0;
+}
+
+/**
+ * typeck.x::func_body_has_implicit_return_tail C twin.
+ *
+ * Why: G-02f-477 — determine if block tail has disallowed implicit return.
+ *      EXPR_BLOCK (ord=26) recurses into inner block to check for explicit
+ *      return (unsafe { return ...; } parsed as EXPR_BLOCK not region).
+ * Invariant: arena non-null; body_ref valid or null (returns 0).
+ * Asm/Perf: N/A (typeck pass; no codegen).
+ * Contract: returns 1 if implicit tail return present; 0 if none / disallowed.
+ * PLATFORM: SHARED — product path (seed typeck → this glue).
+ */
+int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena *arena, int32_t body_ref) {
+  int32_t tail_ref;
+  int32_t tail_kind;
+
+  if (ast_ref_is_null(body_ref) || body_ref <= 0 || !arena || body_ref > arena->num_blocks)
+    return 0;
+  tail_ref = pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(arena, body_ref);
+  if (ast_ref_is_null(tail_ref))
+    return 0;
+  tail_kind = pipeline_expr_kind_ord_at(arena, tail_ref);
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
+    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_result body=%d tail=%d kind=%d\n", (int)body_ref,
+            (int)tail_ref, (int)tail_kind);
+  if (implicit_tail_expr_disallowed_by_glue(arena, tail_ref) != 0)
+    return 0;
+  /* G-02f-477: EXPR_BLOCK (ord=26) — recurse into inner block for explicit return.
+   * Unsafe block `unsafe { return expr; }` is parsed as EXPR_BLOCK not region;
+   * must recurse into block_ref to check tail expr, avoiding false implicit
+   * tail return report. Uses pipeline_expr_block_ref_at accessor (consistent
+   * with line 19812) to avoid direct Expr struct access. */
+  if (tail_kind == 26) {
+    int32_t inner_block = pipeline_expr_block_ref_at(arena, tail_ref);
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
+      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_block body=%d tail=%d inner_block=%d\n",
+              (int)body_ref, (int)tail_ref, (int)inner_block);
+    if (!ast_ref_is_null(inner_block))
+      return pipeline_typeck_func_body_has_implicit_return_tail_c(arena, inner_block);
+  }
+  return 1;
+}
+
+/*
+ * wave92: product pure owns pipeline_typeck_patch_all_body_parent_links_c
+ * (runtime_pipeline_abi.x thin → typeck_patch_all_body_parent_links). Keep XLANG_WEAK cold
+ * fallback for links without pure pipeline_abi / PREFER hybrid.
+ * PLATFORM: SHARED — ELF weak overridden by pure; same walk as typeck.x.
+ */
+XLANG_WEAK void pipeline_typeck_patch_all_body_parent_links_c(struct ast_Module *module,
+                                                                         struct ast_ASTArena *arena) {
+  int32_t i;
+  int32_t br;
+
+  if (!module || !arena)
+    return;
+  for (i = 0; i < module->num_funcs; i++) {
+    br = pipeline_module_func_body_ref_at(module, i);
+    if (!ast_ref_is_null(br))
+      ast_ast_arena_patch_block_parent_links(arena, br, 0);
+  }
+}
