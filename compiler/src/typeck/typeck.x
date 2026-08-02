@@ -310,8 +310,12 @@ export extern function typeck_x_type_align_from_layout_glue(module: *Module, are
 depth: i32): i32;
 export extern function typeck_x_type_size_from_layout_glue(module: *Module, arena: *ASTArena, li: i32,
   depth: i32): i32;
-export extern function typeck_soa_array_storage_size_glue(module: *Module, arena: *ASTArena, elem_type_ref: i32,
-  array_len: i32, depth: i32): i32;
+/* wave1219: SoA layout helpers retained in C (pipeline_typeck_soa.c) because
+ * pipeline_typeck_field_soa_index_c also uses them. Made non-static extern so
+ * the .x authority typeck_soa_array_storage_size_glue (below) can call them. */
+export extern function typeck_soa_find_layout_idx_by_name(module: *Module, name: *u8, name_len: i32): i32;
+export extern function typeck_soa_col_base_for_field(module: *Module, arena: *ASTArena, li: i32,
+  field_idx: i32, array_len: i32, depth: i32): i32;
 /* See implementation. */
 export extern function pipeline_get_dep_arena_slot(ix: i32): *ASTArena;
 /* See implementation. */
@@ -1376,6 +1380,77 @@ export function typeck_x_type_size(module: *Module, arena: *ASTArena, ty_ref: i3
         return bsz;
       }
       return 4;
+    }
+    return 0;
+  }
+}
+
+/**
+ * DOD-S1: SoAStruct[N] column-major total byte size; returns 0 when elem is
+ * not SoA or layout not found.
+ *
+ * wave1219: migrated from C bypass (pipeline_typeck_soa.c) to .x authority.
+ * Calls extern C helpers (typeck_soa_find_layout_idx_by_name /
+ * typeck_soa_col_base_for_field) retained for pipeline_typeck_field_soa_index_c.
+ * Uses typeck_x_type_align (.x authority) instead of C glue_type_align_simple
+ * for the max-field-align tail loop (G.7 twin, same semantics).
+ *
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param elem_type_ref i32 — candidate SoA struct element type_ref
+ * @param array_len i32 — SoA array length N
+ * @param depth i32 — recursion depth (cap 64)
+ * @return i32 — column-major total bytes, or 0 if not SoA / not found
+ * PLATFORM: SHARED — G.7 single authority; .x -> typeck_gen.c -> typeck_x.o.
+ */
+export function typeck_soa_array_storage_size_glue(module: *Module, arena: *ASTArena, elem_type_ref: i32,
+  array_len: i32, depth: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let nm: u8[128] = [];
+    let nlen: i32 = 0;
+    let li: i32 = 0;
+    let nf: i32 = 0;
+    let col: i32 = 0;
+    let max_al: i32 = 0;
+    let j: i32 = 0;
+    let ftr: i32 = 0;
+    let A: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || elem_type_ref <= 0 || array_len <= 0 || depth > 64) {
+      return 0;
+    }
+    /* TYPE_NAMED ord == 8 */
+    if (pipeline_type_kind_ord_at(arena, elem_type_ref) != 8) {
+      return 0;
+    }
+    nlen = pipeline_type_named_name_into(arena, elem_type_ref, &nm[0]);
+    if (nlen <= 0 || nlen > 127) {
+      return 0;
+    }
+    li = typeck_soa_find_layout_idx_by_name(module, &nm[0], nlen);
+    if (li < 0 || pipeline_module_struct_layout_soa_at(module, li) == 0) {
+      return 0;
+    }
+    /* Only when elem is a SoA struct: column-major size; non-SoA falls back to AoS. */
+    nf = pipeline_module_struct_layout_num_fields(module, li);
+    col = typeck_soa_col_base_for_field(module, arena, li, nf, array_len, depth + 1);
+    max_al = 1;
+    j = 0;
+    while (j < nf) {
+      ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
+      if (ftr > 0) {
+        A = typeck_x_type_align(module, arena, ftr, depth + 1);
+        if (A > max_al) {
+          max_al = A;
+        }
+      }
+      j = j + 1;
+    }
+    if (max_al > 1 && (col % max_al) != 0) {
+      col = col + (max_al - (col % max_al));
+    }
+    if (col > 0) {
+      return col;
     }
     return 0;
   }
