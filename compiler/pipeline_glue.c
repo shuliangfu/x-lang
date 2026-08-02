@@ -625,16 +625,14 @@ void pipeline_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t expr_ref, 
 int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_call_resolved_func_index_at(struct ast_ASTArena *a, int32_t expr_ref);
 
-int implicit_tail_expr_disallowed_by_glue(struct ast_ASTArena *a, int32_t expr_ref) {
-  enum ast_ExprKind kd;
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return 1;
-  kd = glue_arena_expr_kind_at_ref(a, expr_ref);
-  if (kd == ast_ExprKind_EXPR_RETURN || kd == ast_ExprKind_EXPR_PANIC ||
-      kd == ast_ExprKind_EXPR_BREAK || kd == ast_ExprKind_EXPR_CONTINUE)
-    return 1;
-  return 0;
-}
+/* wave1196 G.7: implicit_tail_expr_disallowed_by_glue migrated to
+ * ast_pool_arena.c EOF (same-TU #include via ast_pool.c L886).
+ * Colocated with arena expr kind accessors. Migrated version inlines
+ * glue_arena_expr_kind_at_ref logic via pipeline_arena_expr_ptr
+ * (defined in ast_pool_arena.c L41). Callers: ast_pool_block.c L1599
+ * (via ast_ast_expr_disallows_implicit_tail wrapper) + check_block.c
+ * L677 + cross-TU seeds. PLATFORM: SHARED. */
+int implicit_tail_expr_disallowed_by_glue(struct ast_ASTArena *a, int32_t expr_ref);
 
 /* wave1166 G.7: type pool cold accessors cluster (8 fns) migrated to
  * ast_pool_type.c (included from ast_pool.c L895). Colocated with type
@@ -3735,31 +3733,13 @@ int32_t pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(struct platform_elf_ElfC
  * colocated with the asm_module_func forwarder family (wave1175).
  * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
-/** ast.x 池 init/alloc：须在 #include ast_pool.c 之前（ast_pool 内 strict parse 调 ast_ast_arena_init）。 */
-void ast_expr_layout_prime_call_resolved(void) {
-  /* ast.x expr_layout_prime_call_resolved；C glue 侧无额外状态。 */
-}
-void ast_ast_arena_init(struct ast_ASTArena *arena) {
-  if (!arena)
-    return;
-  ast_expr_layout_prime_call_resolved();
-  arena->num_types = 0;
-  arena->num_exprs = 0;
-  arena->num_blocks = 0;
-  arena->num_funcs = 0;
-}
-int32_t ast_ast_arena_type_alloc(struct ast_ASTArena *a) {
-  return pipeline_arena_type_alloc(a);
-}
-int32_t ast_ast_arena_expr_alloc(struct ast_ASTArena *a) {
-  return pipeline_arena_expr_alloc(a);
-}
-int32_t ast_ast_arena_block_alloc(struct ast_ASTArena *a) {
-  return pipeline_arena_block_alloc(a);
-}
-int32_t ast_ast_arena_func_alloc(struct ast_ASTArena *a) {
-  return pipeline_arena_func_alloc(a);
-}
+/* wave1196 G.7: ast_expr_layout_prime_call_resolved + ast_ast_arena_init
+ * + ast_ast_arena_type/expr/block/func_alloc (6 fns) migrated to
+ * ast_pool_arena.c EOF (same-TU #include via ast_pool.c L886, which
+ * is before this point). ast_pool.c L1278 calls ast_ast_arena_init
+ * after L886 #include — definition visible. pipeline_parse_orch.c
+ * L88 has extern fwd decl for L380 callsite.
+ * PLATFORM: SHARED. */
 
 /** ast_pool.c 内 pipeline_elf_ctx_resolve_patches 需前置声明（standalone TU 由 pipeline_glue_types.inc 提供）。 */
 #ifndef XLANG_PIPELINE_GLUE_STANDALONE_TU

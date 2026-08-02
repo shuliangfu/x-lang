@@ -712,3 +712,144 @@ int32_t pipeline_parser_extern_init_arena_func_and_register_c(struct ast_ASTAren
 int ast_ref_is_null(int32_t ref) {
   return ref == 0;
 }
+
+/* wave1196 G.7: ast_expr_layout_prime_call_resolved + ast_ast_arena_init
+ * + ast_ast_arena_type/expr/block/func_alloc (6 fns) migrated from
+ * pipeline_glue.c L3739-3762.
+ *
+ * Why colocate: arena init/alloc are the arena pool's core lifecycle
+ * functions. ast_ast_arena_init zeroes arena counters then calls
+ * ast_expr_layout_prime_call_resolved (empty C-side hook). The 4 alloc
+ * fns delegate to pipeline_arena_*_alloc (defined at L66-99 in this
+ * file). Colocated with arena accessors.
+ *
+ * Visibility: ast_pool.c L886 #includes this file; ast_ast_arena_init
+ * is called at ast_pool.c L1278 (after L886, so definition visible).
+ * pipeline_parse_orch.c L88 has extern fwd decl (called at L380).
+ * Cross-TU: parser/typeck/codegen seeds via extern.
+ *
+ * Members (6 fns):
+ *  - ast_expr_layout_prime_call_resolved (empty C-side hook)
+ *  - ast_ast_arena_init (zero arena counters)
+ *  - ast_ast_arena_type_alloc (delegate to pipeline_arena_type_alloc)
+ *  - ast_ast_arena_expr_alloc (delegate to pipeline_arena_expr_alloc)
+ *  - ast_ast_arena_block_alloc (delegate to pipeline_arena_block_alloc)
+ *  - ast_ast_arena_func_alloc (delegate to pipeline_arena_func_alloc)
+ *
+ * PLATFORM: SHARED — arena lifecycle is platform-agnostic. */
+
+/**
+ * ast_expr_layout_prime_call_resolved — empty C-side hook for
+ * ast.x expr_layout_prime_call_resolved.
+ *
+ * Why: ast.x expects this symbol at link time; C glue has no extra
+ *      state to prime. Called by ast_ast_arena_init.
+ * PLATFORM: SHARED.
+ */
+void ast_expr_layout_prime_call_resolved(void) {
+  /* ast.x expr_layout_prime_call_resolved; C glue side has no extra state. */
+}
+
+/**
+ * ast_ast_arena_init — initialize an ASTArena by zeroing counters.
+ *
+ * Why: ast.x pool init — must run before strict parse to ensure
+ *      num_types/exprs/blocks/funcs start at 0. Called by
+ *      ast_pool.c strict parse path + parser seeds.
+ * Contract: NULL arena is a no-op; else zeros 4 counters.
+ * PLATFORM: SHARED.
+ */
+void ast_ast_arena_init(struct ast_ASTArena *arena) {
+  if (!arena)
+    return;
+  ast_expr_layout_prime_call_resolved();
+  arena->num_types = 0;
+  arena->num_exprs = 0;
+  arena->num_blocks = 0;
+  arena->num_funcs = 0;
+}
+
+/**
+ * ast_ast_arena_type_alloc — allocate a new Type slot in the arena.
+ *
+ * Contract: delegates to pipeline_arena_type_alloc (NULL-guarded).
+ * PLATFORM: SHARED.
+ */
+int32_t ast_ast_arena_type_alloc(struct ast_ASTArena *a) {
+  return pipeline_arena_type_alloc(a);
+}
+
+/**
+ * ast_ast_arena_expr_alloc — allocate a new Expr slot in the arena.
+ *
+ * Contract: delegates to pipeline_arena_expr_alloc (NULL-guarded).
+ * PLATFORM: SHARED.
+ */
+int32_t ast_ast_arena_expr_alloc(struct ast_ASTArena *a) {
+  return pipeline_arena_expr_alloc(a);
+}
+
+/**
+ * ast_ast_arena_block_alloc — allocate a new Block slot in the arena.
+ *
+ * Contract: delegates to pipeline_arena_block_alloc (NULL-guarded).
+ * PLATFORM: SHARED.
+ */
+int32_t ast_ast_arena_block_alloc(struct ast_ASTArena *a) {
+  return pipeline_arena_block_alloc(a);
+}
+
+/**
+ * ast_ast_arena_func_alloc — allocate a new Func slot in the arena.
+ *
+ * Contract: delegates to pipeline_arena_func_alloc (NULL-guarded).
+ * PLATFORM: SHARED.
+ */
+int32_t ast_ast_arena_func_alloc(struct ast_ASTArena *a) {
+  return pipeline_arena_func_alloc(a);
+}
+
+/* wave1196 G.7: implicit_tail_expr_disallowed_by_glue migrated from
+ * pipeline_glue.c L628-637.
+ *
+ * Why colocate: arena expr kind inspection is the arena accessor
+ * domain. The original called glue_arena_expr_kind_at_ref (static in
+ * glue.c L434); migrated version inlines the same logic via
+ * pipeline_arena_expr_ptr (defined at L41 in this file).
+ *
+ * Visibility: ast_pool_block.c L1599 calls this via
+ * ast_ast_expr_disallows_implicit_tail (wave1183 wrapper).
+ * ast_pool_block.c is #included at ast_pool.c L1602 (after this
+ * file's L886 #include) — definition visible.
+ * pipeline_typeck_check_block.c L677 calls this; check_block.c is
+ * #included at pipeline_glue.c L5504 (after ast_pool.c L4005) —
+ * definition visible via ast_pool_arena.c #include chain.
+ * Cross-TU: ast_gen.c / typeck_gen.c / codegen_gen.c / parser_gen.c
+ * seeds via extern.
+ *
+ * PLATFORM: SHARED — arena expr kind inspection is platform-agnostic. */
+
+/**
+ * implicit_tail_expr_disallowed_by_glue — check if an expr kind is a
+ * control-flow terminator that disallows implicit tail returns.
+ *
+ * Why: typeck.x block tail analysis — RETURN/PANIC/BREAK/CONTINUE
+ *      are explicit control flow; a block ending in these cannot
+ *      have an implicit tail return. C reads kind directly from
+ *      arena pool (X cannot safely typeck Expr struct field access).
+ * Contract: returns 1 if expr is RETURN/PANIC/BREAK/CONTINUE (or
+ *           invalid ref), else 0.
+ * PLATFORM: SHARED.
+ */
+int implicit_tail_expr_disallowed_by_glue(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex;
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return 1;
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!ex)
+    return 1;
+  if (ex->kind == ast_ExprKind_EXPR_RETURN || ex->kind == ast_ExprKind_EXPR_PANIC ||
+      ex->kind == ast_ExprKind_EXPR_BREAK || ex->kind == ast_ExprKind_EXPR_CONTINUE)
+    return 1;
+  return 0;
+}
