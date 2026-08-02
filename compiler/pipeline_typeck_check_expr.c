@@ -38,7 +38,7 @@
  * - pipeline_typeck_check_allocator_region_return_c (extern)
  * - pipeline_typeck_check_return_slice_region_in_scope_c (extern)
  * - pipeline_typeck_check_return_slice_region_c (extern)
- * - pipeline_typeck_check_call_struct_stack_escape_c (extern)
+ * - pipeline_typeck_check_call_struct_stack_escape_c (static, region_assign.c via #include)
  * - pipeline_typeck_check_call_slice_region_c (extern)
  * - pipeline_typeck_expr_is_any_assign_kind_c (defined in coerce_init.c)
  * - pipeline_expr_kind_ord_at / pipeline_expr_binop_left/right_ref_at (extern)

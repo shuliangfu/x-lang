@@ -1355,3 +1355,118 @@ int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32
     return 0;
   return pipeline_block_set_let_type_ref(arena, block_ref, let_idx, stamped);
 }
+
+/* ========================================================================== *
+ * wave1214 G.7: pipeline_typeck_check_call_struct_stack_escape_c migrated
+ * from pipeline_glue.c L3685-3752. Colocated with region/escape assign-site
+ * domain (this file; #include at glue.c L3678).
+ *
+ * Members (1 fn):
+ *  - pipeline_typeck_check_call_struct_stack_escape_c (WPO-S3 CALL stack escape)
+ *
+ * Deps (all visible at #include point L3678):
+ *  - pipeline_typeck_resolve_call_func_index_c (static fwd decl, glue.c L3628)
+ *  - typeck_expr_is_addr_of_block_local_c (static, this file — defined earlier)
+ *  - typeck_type_is_named_struct_c (static, struct_lit.c; #include L1435 < L3678)
+ *  - pipeline_dep_ctx_typeck_unsafe_depth_at / pipeline_expr_call_num_args_at /
+ *    pipeline_module_func_num_params_at / pipeline_expr_call_arg_ref /
+ *    pipeline_expr_resolved_type_ref / pipeline_type_kind_ord_at /
+ *    pipeline_type_elem_ref_at / pipeline_module_func_param_type_ref_at /
+ *    pipeline_expr_line_at / pipeline_expr_col_at / link_abi_getenv /
+ *    lsp_diag_report_typeck (all extern)
+ *
+ * Callers: no TU-internal callsites in glue.c. Sole callers are
+ * pipeline_typeck_region_assign.c L1009 (this file) + pipeline_typeck_check_expr.c
+ * L129 (#include at glue.c L4265, after L3678 — visible).
+ *
+ * PLATFORM: SHARED — Cap-T001: inside unsafe { } skip (depth>0); safe code
+ * still hard-fails T001.
+ * ========================================================================== */
+
+/**
+ * WPO-S3: CALL path — reject when a local struct pointer is passed alongside
+ * another *Struct formal parameter (callee may write into the outer slot).
+ *
+ * Why: if a function f(&local_struct, outer_struct_ptr) is called and the
+ *      callee assigns through outer_struct_ptr, it may overwrite local_struct
+ *      whose lifetime is bounded to the caller's frame — a stack escape.
+ *      This check prevents that by scanning all arg pairs: if one arg is
+ *      &local_named_struct and another arg's formal is *NamedStruct (from a
+ *      longer-lived source), reject with a diagnostic.
+ * Contract: NULL module/arena/ctx or call_expr_ref<=0 -> 0 (no error).
+ *           unsafe_depth>0 -> 0 (Cap-T001: unsafe block opt-out).
+ *           XLANG_SKIP_STACK_ESCAPE env set -> 0 (diagnostic bypass).
+ *           Returns -1 on escape detected, 0 otherwise.
+ * Invariant: both args being &block_local is safe (same frame lifetime);
+ *            only outer-origin *Struct triggers rejection.
+ * Asm/Perf: O(num_args^2) — pairwise scan; cold path (typeck, not emit).
+ * PLATFORM: SHARED.
+ */
+static int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                         int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx) {
+  int32_t func_ix;
+  int32_t num_args;
+  int32_t np;
+  int32_t src_i;
+  int32_t dst_j;
+  int32_t line;
+  int32_t col;
+  if (!module || !arena || !ctx || call_expr_ref <= 0)
+    return 0;
+  /* Cap-T001: mega parser/typeck/codegen whole-body unsafe may pass &local with *Struct outer. */
+  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) > 0)
+    return 0;
+  func_ix = pipeline_typeck_resolve_call_func_index_c(module, arena, call_expr_ref);
+  if (func_ix < 0)
+    return 0;
+  num_args = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+  np = pipeline_module_func_num_params_at(module, func_ix);
+  if (num_args != np || num_args < 2)
+    return 0;
+  if (link_abi_getenv("XLANG_SKIP_STACK_ESCAPE") != NULL)
+    return 0;
+  for (src_i = 0; src_i < num_args; src_i++) {
+    int32_t arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, src_i);
+    int32_t arg_ty;
+    int32_t arg_elem;
+    if (!typeck_expr_is_addr_of_block_local_c(module, arena, ctx, arg_ref))
+      continue;
+    /** 仅当 &local 的类型是 *Struct 时才触发（&local_i32 不逃逸）。 */
+    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (arg_ty <= 0)
+      continue;
+    if (pipeline_type_kind_ord_at(arena, arg_ty) != (int32_t)ast_TypeKind_TYPE_PTR)
+      continue;
+    arg_elem = pipeline_type_elem_ref_at(arena, arg_ty);
+    if (arg_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, arg_elem))
+      continue;
+    for (dst_j = 0; dst_j < num_args; dst_j++) {
+      int32_t param_ref;
+      int32_t elem_ref;
+      int32_t other_arg;
+      if (dst_j == src_i)
+        continue;
+      param_ref = pipeline_module_func_param_type_ref_at(module, func_ix, dst_j);
+      if (param_ref <= 0 ||
+          pipeline_type_kind_ord_at(arena, param_ref) != (int32_t)ast_TypeKind_TYPE_PTR)
+        continue;
+      elem_ref = pipeline_type_elem_ref_at(arena, param_ref);
+      if (elem_ref <= 0 || !typeck_type_is_named_struct_c(module, arena, elem_ref))
+        continue;
+      /**
+       * 另一实参若也是「本函数块局部」的取址，则两指针同帧栈寿命，不是 outer。
+       * 误报例：emit/main 中 pipeline(..., &out, &ctx) 两个本地 struct。
+       * 仅当另一 *Struct 来自更长寿命（参数/堆/外层）时才拒。
+       */
+      other_arg = pipeline_expr_call_arg_ref(arena, call_expr_ref, dst_j);
+      if (typeck_expr_is_addr_of_block_local_c(module, arena, ctx, other_arg))
+        continue;
+      line = pipeline_expr_line_at(arena, call_expr_ref);
+      col = pipeline_expr_col_at(arena, call_expr_ref);
+      lsp_diag_report_typeck((int)line, (int)col,
+                             "struct stack escape: cannot pass address of local struct with outer struct pointer");
+      return -1;
+    }
+  }
+  return 0;
+}
