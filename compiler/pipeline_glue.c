@@ -167,15 +167,14 @@ static int32_t g_pipeline_asm_call_sret_reg_shift = 0;
  * overloads (vec.new) would otherwise pick first (Vec_i32). Let-init install sets this from
  * the declaration type (let v: Vec_u8 = vec.new()).
  */
-static int32_t g_pipeline_asm_call_expected_ret_ty = 0;
-
-void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref) {
-  g_pipeline_asm_call_expected_ret_ty = type_ref > 0 ? type_ref : 0;
-}
-
-int32_t pipeline_asm_call_expected_ret_ty_c(void) {
-  return g_pipeline_asm_call_expected_ret_ty;
-}
+/* wave1195 G.7: pipeline_asm_set/call_expected_ret_ty_c + static var
+ * g_pipeline_asm_call_expected_ret_ty migrated to
+ * pipeline_asm_emit_call_args.c EOF (same-TU #include at L1679).
+ * Colocated with call_args domain. Extern fwd decls below ensure
+ * visibility for callsites before #include (struct_let.c at L1539).
+ * PLATFORM: SHARED. */
+void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref);
+int32_t pipeline_asm_call_expected_ret_ty_c(void);
 
 int32_t pipeline_asm_emit_call_arg_active_c(void);
 /** 当前 emit 块 scope（与 asm_ctx scope_block_ref 同步）；FIELD_ACCESS 查 let 类型用。 */
@@ -659,32 +658,12 @@ int implicit_tail_expr_disallowed_by_glue(struct ast_ASTArena *a, int32_t expr_r
  * 无效、非数组或 elem 缺失时返回 0。在 C 内读池，避免 .x 中 `let e: Expr = ast_arena_expr_get` 后字段访问触发 typeck 失败，
  * 亦避免 backend import codegen 时 pipeline_type_* 调用被编成 codegen_ 前缀导致链接未定义。
  */
-int32_t pipeline_asm_array_lit_elem_type_ref(struct ast_ASTArena *arena, int32_t array_lit_expr_ref) {
-  int32_t arr_tr;
-  int32_t tk;
-  struct ast_Expr *ex;
-  if (!arena || array_lit_expr_ref <= 0 || array_lit_expr_ref > arena->num_exprs)
-    return 0;
-  ex = pipeline_arena_expr_ptr(arena, array_lit_expr_ref);
-  if (!ex)
-    return 0;
-  arr_tr = ex->resolved_type_ref;
-  if (arr_tr <= 0)
-    return 0;
-  tk = pipeline_type_kind_ord_at(arena, arr_tr);
-  /*
-   * wave631 Cap residual pure: peel TYPE_SLICE (11) as well as TYPE_ARRAY (10).
-   * Root: `let s: S24[] = [S24{…}, …]` stamps the lit as TYPE_SLICE; old gate only
-   * accepted TYPE_ARRAY → elem_ty=0 → array_lit_elem_byte_sz defaulted 4 while INDEX
-   * used NAMED layout stride 24 → durable COMMON packed 4B pointer halves (Ubuntu
-   * pure-asm RO s[0].a+s[1].a=120≠11; host-C compound green). Fixed S24[N] lit was
-   * already TYPE_ARRAY so green via vector_let_init. G.7: single elem-type face for
-   * both aggregate stamps. PLATFORM: SHARED freestanding.
-   */
-  if (tk != 10 && tk != 11)
-    return 0;
-  return pipeline_type_elem_ref_at(arena, arr_tr);
-}
+/* wave1195 G.7: pipeline_asm_array_lit_elem_type_ref migrated to
+ * pipeline_asm_emit_array_lit.c EOF (same-TU #include at L1574).
+ * Colocated with array_lit emit domain. Extern fwd decl below
+ * ensures visibility for callsites before #include (as.c L1345,
+ * vector_let.c L1476). PLATFORM: SHARED. */
+int32_t pipeline_asm_array_lit_elem_type_ref(struct ast_ASTArena *arena, int32_t array_lit_expr_ref);
 
 /* wave1031 G.7: pipeline_asm_cmp_cc_for_expr_kind_ord +
  * pipeline_asm_arm64_cset_cond_enc_from_cc folded into
@@ -4184,9 +4163,9 @@ void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, stru
  * get/set (ast_ prefix, delegates to ast_ast_ twins).
  * All pure forwarders to pipeline_arena_*_get_copy/_set_copy impls. */
 
-int ast_ref_is_null(int32_t ref) {
-  return ref == 0;
-}
+/* wave1195 G.7: ast_ref_is_null migrated to ast_pool_arena.c EOF
+ * (same-TU #include via ast_pool.c L886). Colocated with arena
+ * accessors. PLATFORM: SHARED. */
 
 /* wave1183 G.7: ast_ast_arena_patch + ast_ast_block_* getters cluster
  * (20 fns) migrated to ast_pool_block.c EOF (same-TU #include already exists).

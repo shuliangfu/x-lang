@@ -2847,3 +2847,48 @@ static int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(struct platform_e
   }
   return 0;
 }
+
+/* wave1195 G.7: pipeline_asm_set/call_expected_ret_ty_c + static var
+ * migrated from pipeline_glue.c L170-178.
+ *
+ * Why colocate: call expected return type is set/read during asm emit
+ * CALL arg processing — colocated with call_args domain. The static
+ * var g_pipeline_asm_call_expected_ret_ty is file-scoped here; access
+ * is via the two extern functions below.
+ *
+ * Members (2 fns + 1 static var):
+ *  - g_pipeline_asm_call_expected_ret_ty (file-scoped static)
+ *  - pipeline_asm_set_call_expected_ret_ty_c (setter)
+ *  - pipeline_asm_call_expected_ret_ty_c (getter)
+ *
+ * Callers (same TU): pipeline_asm_emit_struct_let.c (#include L1539 <
+ * call_args.c L1679 — sees via extern fwd decl in glue.c L170),
+ * pipeline_asm_emit_field_access.c (#include L1703 > L1679 — visible).
+ * Cross-TU callers: seeds/backend_call_dispatch.from_x.c.
+ *
+ * PLATFORM: SHARED — asm emit call ret ty tracking is platform-agnostic. */
+
+/** Current call expected return type ref (0 = none). Set during CALL emit. */
+static int32_t g_pipeline_asm_call_expected_ret_ty = 0;
+
+/**
+ * pipeline_asm_set_call_expected_ret_ty_c — set the current call's
+ * expected return type ref.
+ *
+ * Contract: type_ref <= 0 clamped to 0 (no expected type).
+ * PLATFORM: SHARED.
+ */
+void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref) {
+  g_pipeline_asm_call_expected_ret_ty = type_ref > 0 ? type_ref : 0;
+}
+
+/**
+ * pipeline_asm_call_expected_ret_ty_c — get the current call's
+ * expected return type ref.
+ *
+ * Contract: returns 0 if none set.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_asm_call_expected_ret_ty_c(void) {
+  return g_pipeline_asm_call_expected_ret_ty;
+}

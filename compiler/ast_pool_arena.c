@@ -694,3 +694,21 @@ int32_t pipeline_parser_extern_init_arena_func_and_register_c(struct ast_ASTAren
   pipeline_module_func_ref_set(module, fi, func_ref);
   return fi;
 }
+
+/* wave1195 G.7: ast_ref_is_null migrated from pipeline_glue.c L4187.
+ *
+ * Why colocate: ast_ref_is_null is a trivial arena ref validator used
+ * by 21 files (typeck / codegen / parser domains). Colocated with
+ * arena accessors since it validates arena ref semantics.
+ *
+ * PLATFORM: SHARED — arena ref validation is platform-agnostic. */
+
+/**
+ * ast_ref_is_null — check if an arena ref is null (== 0).
+ *
+ * Contract: returns 1 if ref == 0, else 0.
+ * PLATFORM: SHARED.
+ */
+int ast_ref_is_null(int32_t ref) {
+  return ref == 0;
+}

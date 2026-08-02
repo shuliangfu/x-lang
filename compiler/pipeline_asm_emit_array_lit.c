@@ -914,3 +914,55 @@ static int32_t glue_array_temp_bytes_for_let_init(struct ast_ASTArena *arena, in
   }
   return 0;
 }
+
+/* wave1195 G.7: pipeline_asm_array_lit_elem_type_ref migrated from
+ * pipeline_glue.c L662-687.
+ *
+ * Why colocate: array lit elem type ref resolution is the array_lit
+ * domain's core helper — used by vector_let_init / array_lit emit /
+ * as cast to determine the element type_ref of a TYPE_ARRAY or
+ * TYPE_SLICE stamped array literal.
+ *
+ * Deps (all declared before array_lit.c #include at L1574):
+ *  - pipeline_arena_expr_ptr (glue.c L213 fwd decl; def in ast_pool_arena.c)
+ *  - pipeline_type_kind_ord_at (glue.c L761 fwd decl; def in ast_pool_type.c)
+ *  - pipeline_type_elem_ref_at (glue.c L399 fwd decl; def in ast_pool_type.c)
+ *
+ * Callers (same TU): pipeline_asm_emit_as.c (L1345 < L1574 — sees via
+ * extern fwd decl in glue.c L662), pipeline_asm_emit_vector_let.c
+ * (L1476 < L1574 — sees via extern fwd decl in glue.c L662).
+ * Cross-TU: seeds/backend_try_inline_dispatch*.from_x.c.
+ *
+ * PLATFORM: SHARED — array lit elem type resolution is platform-agnostic. */
+
+/**
+ * pipeline_asm_array_lit_elem_type_ref — get elem_type_ref from an
+ * array literal's resolved_type_ref (TYPE_ARRAY or TYPE_SLICE).
+ *
+ * Why: backend.x asm_expr_array_lit_elem_store_sz_bytes — X cannot
+ *      safely typeck `let e: Expr = ast_arena_expr_get(...)` then
+ *      access fields; C reads resolved_type_ref directly from pool.
+ * wave631: peel TYPE_SLICE (11) as well as TYPE_ARRAY (10) — `let s:
+ *      S24[] = [S24{…}, …]` stamps lit as TYPE_SLICE; old gate only
+ *      accepted TYPE_ARRAY → elem_ty=0 → wrong elem byte sz.
+ * Contract: returns 0 if arena/ref invalid, not array/slice, or
+ *           elem_type_ref missing; else returns elem_type_ref.
+ * PLATFORM: SHARED freestanding.
+ */
+int32_t pipeline_asm_array_lit_elem_type_ref(struct ast_ASTArena *arena, int32_t array_lit_expr_ref) {
+  int32_t arr_tr;
+  int32_t tk;
+  struct ast_Expr *ex;
+  if (!arena || array_lit_expr_ref <= 0 || array_lit_expr_ref > arena->num_exprs)
+    return 0;
+  ex = pipeline_arena_expr_ptr(arena, array_lit_expr_ref);
+  if (!ex)
+    return 0;
+  arr_tr = ex->resolved_type_ref;
+  if (arr_tr <= 0)
+    return 0;
+  tk = pipeline_type_kind_ord_at(arena, arr_tr);
+  if (tk != 10 && tk != 11)
+    return 0;
+  return pipeline_type_elem_ref_at(arena, arr_tr);
+}
