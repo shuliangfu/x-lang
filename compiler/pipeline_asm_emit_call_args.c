@@ -61,6 +61,16 @@
  *   · MACOS|ARM64 dual-GP low-end polarity (wave603)
  */
 
+/* wave1205: backend_emit_expr_call / backend_emit_expr_method_call extern
+ * fwd decls — definitions in seed partial (backend_call_dispatch.from_x.c).
+ * Original fwd decls at glue.c L3223 are AFTER this file's #include at L1660;
+ * needed for wave1205-migrated EXPR_CALL/METHOD_CALL thin wrappers at EOF. */
+extern int32_t backend_emit_expr_call(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t expr_ref,
+                                      struct ast_Expr e, struct backend_AsmFuncCtx *ctx, int32_t target_arch);
+extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                             int32_t expr_ref, struct ast_Expr e, struct backend_AsmFuncCtx *ctx,
+                                             int32_t target_arch);
+
 /* Forward decls / callees defined elsewhere in the same TU:
  * - glue_call_arg_resolve_var_stack_off_elf_c (static; body in this leaf wave1019)
  * - glue_type_size_simple / glue_sysv_dual_gp_byte_size_c (later)
@@ -2891,4 +2901,62 @@ void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref) {
  */
 int32_t pipeline_asm_call_expected_ret_ty_c(void) {
   return g_pipeline_asm_call_expected_ret_ty;
+}
+
+/* ========================================================================== *
+ * wave1205 G.7: pipeline_asm_emit_expr_call_c + pipeline_asm_emit_expr_method_call_c
+ * migrated from pipeline_glue.c L3232-3251. Colocated with call-arg emit domain
+ * (call_args.c #include at glue.c L1660). Both are thin M8-tail wrappers that
+ * pool-copy ast_Expr then delegate to seed partial backend_emit_expr{,_method}_call.
+ *
+ * Members (2 fns):
+ *  - pipeline_asm_emit_expr_call_c        (EXPR_CALL thin wrapper)
+ *  - pipeline_asm_emit_expr_method_call_c (EXPR_METHOD_CALL thin wrapper)
+ *
+ * Deps (all extern, fwd decls retained in glue.c L3223-3227):
+ *  - backend_emit_expr_call / backend_emit_expr_method_call (seed partial)
+ *  - pipeline_arena_expr_get_copy (extern, ast_pool_arena.c)
+ *
+ * Callers: no TU-internal callsites. Sole callers are seeds
+ * (backend.x L1610/L1626) via extern + ast_pool.c symbol table L9812/L9813
+ * + m8_tail_thin_backend_x.pl .x delegate generator.
+ *
+ * PLATFORM: SHARED — pure delegation, no arch branch.
+ * ========================================================================== */
+
+/**
+ * Emit text asm for EXPR_CALL — thin M8-tail wrapper.
+ *
+ * Why: backend.x extern call requires a C-side pool-copy of ast_Expr
+ *      (X->C struct copy can misalign kind field); this wrapper performs
+ *      the copy then delegates to seed partial backend_emit_expr_call.
+ * Contract: expr_ref<=0 -> -1; otherwise delegates return value.
+ * Asm/Perf: O(1) — one pool copy + one tail call.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_asm_emit_expr_call_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t expr_ref,
+                                      struct backend_AsmFuncCtx *ctx, int32_t target_arch) {
+  struct ast_Expr e;
+  if (expr_ref <= 0)
+    return -1;
+  e = pipeline_arena_expr_get_copy(arena, expr_ref);
+  return backend_emit_expr_call(arena, out, expr_ref, e, ctx, target_arch);
+}
+
+/**
+ * Emit text asm for EXPR_METHOD_CALL — thin M8-tail wrapper.
+ *
+ * Why: same pool-copy requirement as EXPR_CALL (see above); delegates to
+ *      seed partial backend_emit_expr_method_call.
+ * Contract: expr_ref<=0 -> -1; otherwise delegates return value.
+ * Asm/Perf: O(1) — one pool copy + one tail call.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_asm_emit_expr_method_call_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t target_arch) {
+  struct ast_Expr e;
+  if (expr_ref <= 0)
+    return -1;
+  e = pipeline_arena_expr_get_copy(arena, expr_ref);
+  return backend_emit_expr_method_call(arena, out, expr_ref, e, ctx, target_arch);
 }

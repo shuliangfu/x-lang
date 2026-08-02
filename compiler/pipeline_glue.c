@@ -2657,30 +2657,15 @@ extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br
  * Extern fwd decl retained at L835 (pipeline_asm_emit_next_label_c — called
  * by glue.c L3173 mega_body). PLATFORM: SHARED. */
 
-/**
- * if 语句 then 块 ELF 发射：暂存/恢复 locals，fill + sync block body；与 backend.x emit_if_then_block_body_elf 一致。
- */
-int32_t pipeline_asm_emit_if_then_block_body_elf_c(struct ast_ASTArena *arena,
-                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                   int32_t then_block_ref, struct backend_AsmFuncCtx *ctx,
-                                                   int32_t ta) {
-  int32_t sv_locs;
-  int32_t sv_next;
-  int32_t r;
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  if (!ctx || !arena || then_block_ref <= 0)
-    return -1;
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (!ly)
-    return -1;
-  sv_locs = ly->num_locals;
-  sv_next = ly->next_offset;
-  pipeline_asm_fill_local_slots(ctx, arena, then_block_ref);
-  r = backend_emit_block_body_sync_elf(arena, elf_ctx, then_block_ref, ctx, ta);
-  ly->num_locals = sv_locs;
-  ly->next_offset = sv_next;
-  return r;
-}
+/* wave1206 G.7: pipeline_asm_emit_if_then_block_body_elf_c (1 fn, 21 lines)
+ * migrated to pipeline_asm_emit_block_if_stmt.c EOF (colocated with if-stmt
+ * emit domain; #include at L2421). Deps: pipeline_asm_ctx_layout (static L86,
+ * before L2421) + pipeline_glue_AsmFuncCtxLayout (struct top) +
+ * pipeline_asm_fill_local_slots (defined in context.c L2564, AFTER L2421 —
+ * extern fwd decl added at block_if_stmt.c L25) + backend_emit_block_body_sync_elf
+ * (extern fwd decl at glue.c L1068). No TU-internal callsites — sole callers
+ * are seeds (backend.x L1282) via extern + ast_pool.c symbol table L9796.
+ * PLATFORM: SHARED — pure block body emit orchestration, no arch branch. */
 
 /* wave1154 dead code delete: glue_emit_block_stmt_order_let_const_elf removed
  * (~134 LOC; zero callsites in glue.c TU — superseded by block_body_sync_elf
@@ -3226,29 +3211,15 @@ extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct 
                                              int32_t expr_ref, struct ast_Expr e, struct backend_AsmFuncCtx *ctx,
                                              int32_t target_arch);
 
-/**
- * text asm EXPR_CALL；委托 seed partial backend_emit_expr_call（M8-tail 薄包装）。
- */
-int32_t pipeline_asm_emit_expr_call_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t expr_ref,
-                                      struct backend_AsmFuncCtx *ctx, int32_t target_arch) {
-  struct ast_Expr e;
-  if (expr_ref <= 0)
-    return -1;
-  e = pipeline_arena_expr_get_copy(arena, expr_ref);
-  return backend_emit_expr_call(arena, out, expr_ref, e, ctx, target_arch);
-}
-
-/**
- * text asm EXPR_METHOD_CALL；委托 seed partial backend_emit_expr_method_call（M8-tail 薄包装）。
- */
-int32_t pipeline_asm_emit_expr_method_call_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
-                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t target_arch) {
-  struct ast_Expr e;
-  if (expr_ref <= 0)
-    return -1;
-  e = pipeline_arena_expr_get_copy(arena, expr_ref);
-  return backend_emit_expr_method_call(arena, out, expr_ref, e, ctx, target_arch);
-}
+/* wave1205 G.7: pipeline_asm_emit_expr_call_c + pipeline_asm_emit_expr_method_call_c
+ * (2 fns, 20 lines) migrated to pipeline_asm_emit_call_args.c EOF (colocated with
+ * call-arg emit domain; #include at L1660). Both are thin M8-tail wrappers that
+ * pool-copy ast_Expr then delegate to seed partial backend_emit_expr{,_method}_call.
+ * No TU-internal callsites — sole callers are seeds (backend.x L1610/L1626) via
+ * extern + ast_pool.c symbol table L9812/L9813. Extern fwd decls above are now
+ * redundant (migrated defs in call_args.c have their own fwd decls at L64-72);
+ * retained here for documentation — may be removed in a later cleanup pass.
+ * PLATFORM: SHARED — pure delegation, no arch branch. */
 
 /* wave1118-1123 G.7: skipped-typeck array-lit/var type backfill domain (5 fns)
  * migrated to pipeline_asm_emit_block_inits.c EOF (block-init domain; forms
