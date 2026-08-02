@@ -1426,7 +1426,7 @@ export function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): 
  *
  * Returns 1 to skip emit, 0 to emit.
  *
- * Contract: match tables use full "xlang_io_*" (with 'x'), never historic "shu_io_*" brand.
+ * Contract: match tables use full "xlang_io_*" (with 'x'), never historic shu-prefixed io brand.
  * Batch names are checked before short submit_read/write prefixes.
  * PLATFORM: SHARED — link-name contract; Cap force + pin product matrix.
  */
