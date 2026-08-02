@@ -3291,34 +3291,11 @@ static int32_t glue_emit_block_stmt_order_let_const_elf(struct ast_ASTArena *are
 }
 #endif
 
-/**
- * ELF 循环体 stmt_order（expr/while/for/if + final_expr）；C for 循环，避免 partial 薄包装递归。
- */
-int32_t backend_emit_loop_body_content_elf_sync(struct ast_ASTArena *arena,
-                                                struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t body_ref,
-                                                struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  if (!arena || !elf_ctx || !ctx)
-    return -1;
-  /** 空 while 体合法（`while (c) {}`）；勿因 body_ref==0  abort 整函数 codegen。 */
-  if (body_ref <= 0)
-    return 0;
-  {
-    pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
-    if (ly && ly->module_ref)
-      g_pipeline_asm_emit_module = ly->module_ref;
-  }
-  /**
-   * 与 pipeline_asm_emit_block_if_stmt_elf 的 then 分支一致：先铺局部槽再按 stmt_order 发射，
-   * 否则 while 体内赋值/调用在 asm 路径静默失败（body_ref 有效但 code_len 停在 cond+jz）。
-   */
-  backend_ensure_block_local_slots(ctx, arena, body_ref);
-  pipeline_asm_fill_block_locals_tree(ctx, arena, body_ref);
-  /** 循环体 scoped 查局部（while 内 let p 的 p.a 等 FIELD_ACCESS）。 */
-  glue_asm_ctx_set_scope_block((uint8_t *)ctx, body_ref);
-  if (pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, body_ref, ctx, ta) != 0)
-    return -1;
-  return 0;
-}
+/* wave1199 G.7: backend_emit_loop_body_content_elf_sync migrated to
+ * pipeline_asm_emit_fold_count_up_while.c EOF (colocated with while/for
+ * loop emit + count_up_while fold domain). Same-TU #include at L3395.
+ * Fwd decl at L1004 retained (before block_body.c #include at L2427
+ * which calls it at L667/L674). PLATFORM: SHARED. */
 
 /* wave1106 G.7: fold pattern detection primitives domain (13 fns)
  * migrated to pipeline_asm_emit_fold_primitives.c (same-TU #include).
@@ -3394,280 +3371,24 @@ int32_t backend_emit_loop_body_content_elf_sync(struct ast_ASTArena *arena,
  * PLATFORM: SHARED. */
 #include "pipeline_asm_emit_fold_count_up_while.c"
 
-/**
- * ELF while 循环；C glue 真实现（与 backend.x emit_while_loop_elf 语义一致）。
- */
-int32_t backend_emit_while_loop_elf_sync(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                         int32_t block_ref, int32_t loop_idx, struct backend_AsmFuncCtx *ctx,
-                                         int32_t ta) {
-  int32_t fold_rc;
-  int32_t cond_ref;
-  int32_t body_ref;
-  uint8_t loop_buf[128];
-  uint8_t exit_buf[128];
-  int32_t loop_len;
-  int32_t exit_len;
-  pipeline_glue_AsmFuncCtxLayout *ly;
+/* wave1199 G.7: backend_emit_while/for_loop_elf_sync +
+ * pipeline_asm_emit_while/for/loop_body_content_elf_c (3 thin wrappers) +
+ * pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c (6 fns) migrated to
+ * pipeline_asm_emit_fold_count_up_while.c EOF (colocated with count_up_while
+ * fold domain). Same-TU #include at L3395. All static deps visible:
+ * spill.c L1533 (glue_loop_break_exit_push/pop + glue_asm_cache_invalidate_
+ * at_cfg_merge_selective + glue_asm_loop_phi_invalidate_carried_defs +
+ * glue_asm_loop_merge_live_union + glue_live_fwd_apply_expr_effect);
+ * unary.c L1319 (glue_enc_jz_after_bool_in_eax); array_lit.c L1551 +
+ * expr_rec.c L1689 (pipeline_asm_emit_expr_elf_rec static def);
+ * glue_try_fold_* / backend_try_fold_count_up_while_elf in THIS file above;
+ * pipeline_asm_ctx_layout static at glue.c L86.
+ * Fwd decls retained: backend_emit_* at L999-1006 (before block_body.c
+ * #include at L2427); pipeline_asm_emit_next_label_c extern at L835;
+ * backend_ensure_block_local_slots extern at L837.
+ * Sole caller of skip_heavy_or_thin_stub: mega_body at L3830 (after this
+ * file's #include at L3395 — visible). PLATFORM: SHARED. */
 
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (ly && ly->module_ref)
-    g_pipeline_asm_emit_module = ly->module_ref;
-  /*
-   * 各 while fold hook：仅 rc>0 表示已完整发射并 return；rc<0 为误匹配/局部 emit 失败，
-   * 须回退通用 while（std.path path_join 等），勿像旧逻辑直接 return -1 整函数 abort。
-   */
-  {
-    int32_t mc_rc = glue_try_fold_mem_copy_outer_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
-    if (mc_rc > 0)
-      return 0;
-  }
-  /* struct_pair n²：闭式 s=n*n；hook 启用，函数体逐步恢复。 */
-  {
-    int32_t struct_rc = glue_try_fold_struct_pair_n2_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
-    if (struct_rc > 0)
-      return 0;
-  }
-  {
-    int32_t u8_rc = glue_try_fold_u8_fill_index_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
-    if (u8_rc > 0)
-      return 0;
-    u8_rc = glue_try_fold_u8_sum_index_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
-    if (u8_rc > 0)
-      return 0;
-  }
-  {
-    int32_t lcg_rc = glue_try_fold_lcg_xor_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
-    if (lcg_rc > 0)
-      return 0;
-  }
-  {
-    int32_t simd_peel_rc;
-    simd_peel_rc = glue_try_simd_peel_f32_soa_sum_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
-    if (simd_peel_rc > 0)
-      return 0;
-    simd_peel_rc = glue_try_simd_peel_index_add_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
-    if (simd_peel_rc > 0)
-      return 0;
-  }
-  fold_rc = backend_try_fold_count_up_while_elf(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
-  if (fold_rc > 0)
-    return 0;
-  /** fold 匹配但 emit 失败（fold_rc<0）时回退通用 while，勿 abort 整模块 codegen。 */
-  cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
-  body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
-  if (link_abi_getenv("XLANG_ASM_DEBUG"))
-    fprintf(stderr, "xlang: while emit br=%d wi=%d cond=%d body=%d\n", (int)block_ref, (int)loop_idx, (int)cond_ref,
-            (int)body_ref);
-  loop_len = pipeline_asm_emit_next_label_c(ctx, loop_buf, 64);
-  exit_len = pipeline_asm_emit_next_label_c(ctx, exit_buf, 64);
-  if (loop_len <= 0 || exit_len <= 0)
-    return -1;
-  if (backend_enc_label_arch(elf_ctx, loop_buf, loop_len, 0, ta) != 0)
-    return -1;
-  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, cond_ref, ctx, ta) != 0)
-    return -1;
-  if (glue_enc_jz_after_bool_in_eax(elf_ctx, exit_buf, exit_len, ta) != 0)
-    return -1;
-  if (backend_ctx_push_loop_labels(ctx, exit_buf, exit_len, loop_buf, loop_len) != 0)
-    return -1;
-  glue_loop_break_exit_push();
-  if (backend_emit_loop_body_content_elf_sync(arena, elf_ctx, body_ref, ctx, ta) != 0) {
-    glue_loop_break_exit_pop();
-    backend_ctx_pop_loop_labels(ctx);
-    return -1;
-  }
-  if (backend_enc_jmp_arch(elf_ctx, loop_buf, loop_len, ta) != 0) {
-    glue_loop_break_exit_pop();
-    backend_ctx_pop_loop_labels(ctx);
-    return -1;
-  }
-  if (backend_enc_label_arch(elf_ctx, exit_buf, exit_len, 0, ta) != 0) {
-    glue_loop_break_exit_pop();
-    backend_ctx_pop_loop_labels(ctx);
-    return -1;
-  }
-  glue_asm_cache_invalidate_at_cfg_merge_selective(arena, ctx, body_ref, 0);
-  glue_asm_loop_phi_invalidate_carried_defs(arena, ctx, body_ref);
-  glue_asm_loop_merge_live_union(arena, ctx, body_ref);
-  glue_loop_break_exit_pop();
-  backend_ctx_pop_loop_labels(ctx);
-  return 0;
-}
-
-/**
- * ELF for 循环；C glue 真实现（与 backend.x emit_for_loop_elf 语义一致）。
- *
- * wave653: continue must target the *step* label, not the cond head.
- * C for-semantics: continue → step → cond. Old path pushed loop_buf (cond) as
- * continue_label → `for (…; i = i + 1)` body `continue` skipped step → infinite
- * when i stuck (masked until loop-body final_expr no longer early-returned).
- * Empty step (`for ( ; c ; )`) still uses step label (= fall into jmp head).
- * PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
- */
-int32_t backend_emit_for_loop_elf_sync(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                       int32_t block_ref, int32_t for_idx, struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  int32_t init_ref;
-  int32_t cond_ref;
-  int32_t step_ref;
-  int32_t body_ref;
-  uint8_t loop_buf[128];
-  uint8_t exit_buf[128];
-  uint8_t step_buf[128];
-  int32_t loop_len;
-  int32_t exit_len;
-  int32_t step_len;
-
-  init_ref = ast_ast_block_for_init_ref(arena, block_ref, for_idx);
-  cond_ref = ast_ast_block_for_cond_ref(arena, block_ref, for_idx);
-  step_ref = ast_ast_block_for_step_ref(arena, block_ref, for_idx);
-  body_ref = ast_ast_block_for_body_ref(arena, block_ref, for_idx);
-  if (init_ref != 0 && pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0)
-    return -1;
-  loop_len = pipeline_asm_emit_next_label_c(ctx, loop_buf, 64);
-  exit_len = pipeline_asm_emit_next_label_c(ctx, exit_buf, 64);
-  step_len = pipeline_asm_emit_next_label_c(ctx, step_buf, 64);
-  if (loop_len <= 0 || exit_len <= 0 || step_len <= 0)
-    return -1;
-  if (backend_enc_label_arch(elf_ctx, loop_buf, loop_len, 0, ta) != 0)
-    return -1;
-  if (cond_ref != 0) {
-    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, cond_ref, ctx, ta) != 0)
-      return -1;
-    if (glue_enc_jz_after_bool_in_eax(elf_ctx, exit_buf, exit_len, ta) != 0)
-      return -1;
-  }
-  /* continue → step_buf (not loop_buf); break → exit_buf. */
-  if (backend_ctx_push_loop_labels(ctx, exit_buf, exit_len, step_buf, step_len) != 0)
-    return -1;
-  glue_loop_break_exit_push();
-  if (backend_emit_loop_body_content_elf_sync(arena, elf_ctx, body_ref, ctx, ta) != 0) {
-    glue_loop_break_exit_pop();
-    backend_ctx_pop_loop_labels(ctx);
-    return -1;
-  }
-  if (backend_enc_label_arch(elf_ctx, step_buf, step_len, 0, ta) != 0) {
-    glue_loop_break_exit_pop();
-    backend_ctx_pop_loop_labels(ctx);
-    return -1;
-  }
-  if (step_ref != 0 && pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, step_ref, ctx, ta) != 0) {
-    glue_loop_break_exit_pop();
-    backend_ctx_pop_loop_labels(ctx);
-    return -1;
-  }
-  if (backend_enc_jmp_arch(elf_ctx, loop_buf, loop_len, ta) != 0) {
-    glue_loop_break_exit_pop();
-    backend_ctx_pop_loop_labels(ctx);
-    return -1;
-  }
-  if (backend_enc_label_arch(elf_ctx, exit_buf, exit_len, 0, ta) != 0) {
-    glue_loop_break_exit_pop();
-    backend_ctx_pop_loop_labels(ctx);
-    return -1;
-  }
-  glue_asm_cache_invalidate_at_cfg_merge_selective(arena, ctx, body_ref, 0);
-  glue_asm_loop_phi_invalidate_carried_defs(arena, ctx, body_ref);
-  glue_asm_loop_merge_live_union(arena, ctx, body_ref);
-  if (step_ref != 0)
-    glue_live_fwd_apply_expr_effect(arena, ctx, step_ref);
-  glue_loop_break_exit_pop();
-  backend_ctx_pop_loop_labels(ctx);
-  return 0;
-}
-
-/**
- * ELF while 循环发射；M8-tail 薄包装入口 → C glue 真实现（勿调 partial backend_emit_while_loop_elf）。
- */
-int32_t pipeline_asm_emit_while_loop_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                           int32_t block_ref, int32_t loop_idx, struct backend_AsmFuncCtx *ctx,
-                                           int32_t ta) {
-  return backend_emit_while_loop_elf_sync(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
-}
-
-/**
- * ELF for 循环发射；M8-tail 薄包装入口 → C glue 真实现。
- */
-int32_t pipeline_asm_emit_for_loop_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                         int32_t block_ref, int32_t for_idx, struct backend_AsmFuncCtx *ctx,
-                                         int32_t ta) {
-  return backend_emit_for_loop_elf_sync(arena, elf_ctx, block_ref, for_idx, ctx, ta);
-}
-
-/**
- * ELF 循环体 stmt_order；M8-tail 薄包装入口 → C glue 真实现。
- */
-int32_t pipeline_asm_emit_loop_body_content_elf_c(struct ast_ASTArena *arena,
-                                                  struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t body_ref,
-                                                  struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  return backend_emit_loop_body_content_elf_sync(arena, elf_ctx, body_ref, ctx, ta);
-}
-
-/* wave1176: pipeline_asm_get_return_expr_ref_at migrated to
- * pipeline_asm_emit_return.c EOF (colocated with backend return-expr cluster). */
-
-/**
- * build_xlang_asm SKIP 桩：M8-tail 薄包装 emit bl C 委托 + epilogue；mega 仍 mov w0,#0 + epilogue。
- * 须在 enc_prologue(0) 之后调用；实参已由 ABI 传入 x0..xN。
- */
-int32_t pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
-                                                          struct ast_Module *mod, int32_t func_index) {
-  uint8_t cname[72];
-  int32_t clen;
-  const char *dbg_env;
-
-  clen = 0;
-  if (mod != NULL) {
-    /** 按序尝试各模块 thin delegate 表；任一命中即写 cname/clen 并停止（返回 1）。 */
-    if (asm_backend_m8_tail_thin_delegate_c_name(mod, func_index, cname, (int32_t)sizeof(cname), &clen) == 0)
-      if (asm_pipeline_m8_tail_thin_delegate_c_name(mod, func_index, cname, (int32_t)sizeof(cname), &clen) == 0)
-        if (asm_parser_m8_tail_thin_delegate_c_name(mod, func_index, cname, (int32_t)sizeof(cname), &clen) == 0)
-          if (asm_driver_m8_tail_thin_delegate_c_name(mod, func_index, cname, (int32_t)sizeof(cname), &clen) == 0)
-            (void)asm_typeck_m8_tail_thin_delegate_c_name(mod, func_index, cname, (int32_t)sizeof(cname), &clen);
-  }
-  dbg_env = link_abi_getenv("XLANG_DEBUG_PARSER_DELEGATE");
-  if (dbg_env && dbg_env[0] != '\0' && dbg_env[0] != '0' && mod != NULL) {
-    static int32_t dbg_stub_n;
-    static int32_t dbg_delegate_hit;
-    uint8_t fn[128];
-    int32_t fl;
-    dbg_stub_n++;
-    if (clen > 0)
-      dbg_delegate_hit++;
-    if (dbg_stub_n <= 8 || (clen > 0 && dbg_delegate_hit <= 5)) {
-      fl = pipeline_module_func_name_len_at(mod, func_index);
-      pipeline_module_func_name_copy64(mod, func_index, fn);
-      fprintf(stderr, "parser_delegate_stub #%d fi=%d fn=%.*s clen=%d hit_total=%d\n", (int)dbg_stub_n,
-              (int)func_index, (int)(fl > 127 ? 127 : fl), fn, (int)clen, (int)dbg_delegate_hit);
-      if (clen > 0)
-        fprintf(stderr, "  -> cname=%.*s\n", (int)(clen > 127 ? 127 : clen), cname);
-      fflush(stderr);
-    }
-    if (dbg_stub_n == 1) {
-      int32_t fi;
-      int32_t probe_clen;
-      uint8_t probe_c[72];
-      for (fi = 0; fi < (int32_t)mod->num_funcs; fi++) {
-        if (pipeline_module_func_name_equal_at(mod, fi, (uint8_t *)"first_token_kind", 16)) {
-          probe_clen = 0;
-          fprintf(stderr, "parser_delegate_probe first_token_kind fi=%d lookup_ret=%d clen=%d\n", (int)fi,
-                  (int)asm_parser_m8_tail_thin_delegate_c_name(mod, fi, probe_c, (int32_t)sizeof(probe_c),
-                                                                 &probe_clen),
-                  (int)probe_clen);
-          fflush(stderr);
-          break;
-        }
-      }
-    }
-  }
-  if (clen > 0) {
-    if (backend_enc_call_arch(elf_ctx, cname, clen, ta) != 0)
-      return -1;
-    return backend_enc_epilogue_arch(elf_ctx, ta);
-  }
-  if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
-    return -1;
-  return backend_enc_epilogue_arch(elf_ctx, ta);
-}
 
 /* wave1176: pipeline_asm_get_return_lit_ref_at migrated to
  * pipeline_asm_emit_return.c EOF (colocated with backend return-expr cluster). */
