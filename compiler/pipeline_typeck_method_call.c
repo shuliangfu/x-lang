@@ -428,6 +428,12 @@ static int32_t glue_typeck_named_num_type_args_c(struct ast_ASTArena *arena, int
 int32_t glue_typeck_type_tree_has_free_param_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t ty,
                                                      int32_t depth);
 extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+/* wave1198: pipeline_typeck_call_arg_repr_compatible_ok_c migrated to
+ * pipeline_typeck_check_expr.c EOF (#include at L5444 > this file's #include
+ * at L5307). Extern fwd decl needed for L2734 callsite in
+ * typeck_check_call_ptr_struct_compat_c. PLATFORM: SHARED. */
+extern int32_t pipeline_typeck_call_arg_repr_compatible_ok_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                              int32_t param_ref, int32_t arg_ref);
 
 static int32_t glue_typeck_mono_map_lookup_c(uint8_t names[][128], const int32_t *lens, const int32_t *conc,
                                             int32_t n_map, const uint8_t *nm, int32_t nlen) {

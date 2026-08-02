@@ -1128,3 +1128,148 @@ int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_
   *typeck_overload_expected_ret_slot() = 0;
   return 0;
 }
+
+/* wave1198 G.7: pipeline_typeck_call_arg_repr_compatible_ok_c +
+ * pipeline_typeck_check_extern_call_unsafe_boundary_c (2 fns) migrated
+ * from pipeline_glue.c to this file's EOF (same-TU #include at L5444,
+ * after struct_lit.c L1438 + vector_simd.c L1509 + ast_pool.c L3985 +
+ * method_call.c L5307 — all same-TU static deps visible).
+ *
+ * Why colocate: both functions are typeck call-checking sub-domain of
+ * check_expr — repr(compatible) ptr coerce gate + extern call unsafe
+ * boundary gate. They belong with the check_expr dispatch entry.
+ *
+ * Members (2 fns):
+ *  - pipeline_typeck_call_arg_repr_compatible_ok_c (MOD-02: *StructA vs
+ *    *StructB coercion under #[repr(compatible)] + same field shape)
+ *  - pipeline_typeck_check_extern_call_unsafe_boundary_c (LANG-007 S0:
+ *    extern calls must be inside unsafe { })
+ *
+ * Fwd decls:
+ *  - pipeline_typeck_call_arg_repr_compatible_ok_c: extern fwd decl added
+ *    in pipeline_typeck_method_call.c L435 (before L2734 callsite in
+ *    typeck_check_call_ptr_struct_compat_c < this file's #include at L5444)
+ *  - pipeline_typeck_check_extern_call_unsafe_boundary_c: fwd decl at
+ *    glue.c L5068 (before L5090 callsite in check_call_slice_region_c,
+ *    which stays in glue.c — dual-authority seed file)
+ *
+ * Static deps visible at this #include point:
+ *  - typeck_type_is_named_struct_c (struct_lit.c L2051, #include at L1438)
+ *  - typeck_struct_layouts_same_shape_c (struct_lit.c, #include at L1438)
+ *  - typeck_layout_index_for_named_type_c (struct_lit.c L1505, #include at L1438)
+ *  - glue_module_func_index_by_name_c (vector_simd.c L856, #include at L1509)
+ *
+ * PLATFORM: SHARED — pure typeck check + diagnostic; no platform ABI dep. */
+
+/**
+ * wave703 / MOD-02: 1 if *StructA vs *StructB (or &StructB) may coerce under
+ * #[repr(compatible)] + same field shape. 0 if not applicable or not ok.
+ * G.7 single authority for positive coerce; typeck_check_call_arg_types and
+ * overload score gate through this (not a second layout walker).
+ *
+ * Why: SysV ABI allows pointer-to-struct coercion when both structs have
+ *      identical field shapes AND both are annotated #[repr(compatible)].
+ *      Without this gate, typeck would reject valid cross-struct calls.
+ * Contract: param_ref<=0 or arg_ref<=0 → 0; non-PTR param → 0;
+ *           non-NAMED-struct arg → 0; same type → 1; same shape + repr → 1.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_typeck_call_arg_repr_compatible_ok_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                      int32_t param_ref, int32_t arg_ref) {
+  int32_t param_elem;
+  int32_t arg_elem;
+  int32_t arg_ty;
+  int32_t arg_kind;
+  int32_t la;
+  int32_t lb;
+  if (!module || !arena || param_ref <= 0 || arg_ref <= 0)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, param_ref) != (int32_t)ast_TypeKind_TYPE_PTR)
+    return 0;
+  param_elem = pipeline_type_elem_ref_at(arena, param_ref);
+  if (param_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, param_elem))
+    return 0;
+  arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+  arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
+  if (arg_ty <= 0 && arg_kind == (int32_t)ast_ExprKind_EXPR_ADDR_OF) {
+    int32_t op = pipeline_expr_unary_operand_ref_at(arena, arg_ref);
+    if (op > 0)
+      arg_ty = pipeline_expr_resolved_type_ref(arena, op);
+  }
+  if (arg_ty <= 0)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_NAMED) {
+    arg_elem = arg_ty;
+  } else if (pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_PTR) {
+    arg_elem = pipeline_type_elem_ref_at(arena, arg_ty);
+  } else {
+    return 0;
+  }
+  if (arg_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, arg_elem))
+    return 0;
+  param_elem = pipeline_typeck_resolve_type_alias_ref_c(arena, param_elem);
+  arg_elem = pipeline_typeck_resolve_type_alias_ref_c(arena, arg_elem);
+  if (param_elem == arg_elem)
+    return 1;
+  la = typeck_layout_index_for_named_type_c(module, arena, param_elem);
+  lb = typeck_layout_index_for_named_type_c(module, arena, arg_elem);
+  if (la < 0 || lb < 0)
+    return 0;
+  if (la == lb)
+    return 1;
+  if (typeck_struct_layouts_same_shape_c(module, arena, la, lb) &&
+      pipeline_module_struct_layout_repr_compatible_at(module, la) &&
+      pipeline_module_struct_layout_repr_compatible_at(module, lb))
+    return 1;
+  return 0;
+}
+
+/**
+ * LANG-007 v2: S0 — extern calls must be inside unsafe { }.
+ *
+ * Why: extern functions may call back into C code that violates X's
+ *      memory safety invariants; typeck gates all extern calls behind
+ *      unsafe { } blocks (depth>0). The allow_legacy escape hatch is
+ *      used by -E seed regen / typeck_x.o legacy mode.
+ * Contract: NULL module/arena or expr_ref<=0 → 0 (no-op);
+ *           allow_legacy!=0 → 0 (skip); unsafe depth>0 → 0 (allowed);
+ *           callee is extern function → emit diagnostic, return -1.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *module,
+                                                            struct ast_ASTArena *arena, int32_t expr_ref,
+                                                            struct ast_PipelineDepCtx *ctx) {
+  int32_t callee_ref;
+  int32_t callee_kind;
+  int32_t name_len;
+  uint8_t name[128];
+  int32_t fi;
+  int32_t line;
+  int32_t col;
+  /* -E seed regen / allow_legacy: typeck_x.o provides getter; default weak 0 keeps S0 enforced. */
+  extern int typeck_get_allow_legacy_extern_calls(void);
+
+  if (typeck_get_allow_legacy_extern_calls() != 0)
+    return 0;
+  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) > 0)
+    return 0;
+  if (!module || !arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
+    return 0;
+  callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+  if (callee_ref <= 0 || callee_ref > arena->num_exprs)
+    return 0;
+  callee_kind = pipeline_expr_kind_ord_at(arena, callee_ref);
+  if (callee_kind != (int32_t)ast_ExprKind_EXPR_VAR)
+    return 0;
+  name_len = pipeline_expr_var_name_len(arena, callee_ref);
+  if (name_len <= 0 || name_len > 127)
+    return 0;
+  pipeline_expr_var_name_into(arena, callee_ref, name);
+  fi = glue_module_func_index_by_name_c(module, name, name_len);
+  if (fi < 0 || pipeline_module_func_is_extern_at(module, fi) == 0)
+    return 0;
+  line = pipeline_expr_line_at(arena, expr_ref);
+  col = pipeline_expr_col_at(arena, expr_ref);
+  driver_diagnostic_typeck_extern_call_outside_unsafe(line, col);
+  return -1;
+}

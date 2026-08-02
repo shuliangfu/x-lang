@@ -4990,62 +4990,15 @@ static int32_t pipeline_typeck_pick_overload_func_index_c(struct ast_Module *m, 
  * Static (non-extern): same-TU — struct_lit.c #include at L2051 < callsite
  * (inside pipeline_typeck_call_arg_repr_compatible_ok_c). PLATFORM: SHARED. */
 
-/**
- * wave703 / MOD-02: 1 if *StructA vs *StructB (or &StructB) may coerce under
- * #[repr(compatible)] + same field shape. 0 if not applicable or not ok.
- * G.7 single authority for positive coerce; typeck_check_call_arg_types and
- * overload score gate through this (not a second layout walker).
- * PLATFORM: SHARED.
- */
-int32_t pipeline_typeck_call_arg_repr_compatible_ok_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                      int32_t param_ref, int32_t arg_ref) {
-  int32_t param_elem;
-  int32_t arg_elem;
-  int32_t arg_ty;
-  int32_t arg_kind;
-  int32_t la;
-  int32_t lb;
-  if (!module || !arena || param_ref <= 0 || arg_ref <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, param_ref) != (int32_t)ast_TypeKind_TYPE_PTR)
-    return 0;
-  param_elem = pipeline_type_elem_ref_at(arena, param_ref);
-  if (param_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, param_elem))
-    return 0;
-  arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
-  arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
-  if (arg_ty <= 0 && arg_kind == (int32_t)ast_ExprKind_EXPR_ADDR_OF) {
-    int32_t op = pipeline_expr_unary_operand_ref_at(arena, arg_ref);
-    if (op > 0)
-      arg_ty = pipeline_expr_resolved_type_ref(arena, op);
-  }
-  if (arg_ty <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_NAMED) {
-    arg_elem = arg_ty;
-  } else if (pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_PTR) {
-    arg_elem = pipeline_type_elem_ref_at(arena, arg_ty);
-  } else {
-    return 0;
-  }
-  if (arg_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, arg_elem))
-    return 0;
-  param_elem = pipeline_typeck_resolve_type_alias_ref_c(arena, param_elem);
-  arg_elem = pipeline_typeck_resolve_type_alias_ref_c(arena, arg_elem);
-  if (param_elem == arg_elem)
-    return 1;
-  la = typeck_layout_index_for_named_type_c(module, arena, param_elem);
-  lb = typeck_layout_index_for_named_type_c(module, arena, arg_elem);
-  if (la < 0 || lb < 0)
-    return 0;
-  if (la == lb)
-    return 1;
-  if (typeck_struct_layouts_same_shape_c(module, arena, la, lb) &&
-      pipeline_module_struct_layout_repr_compatible_at(module, la) &&
-      pipeline_module_struct_layout_repr_compatible_at(module, lb))
-    return 1;
-  return 0;
-}
+/* wave1198 G.7: pipeline_typeck_call_arg_repr_compatible_ok_c migrated to
+ * pipeline_typeck_check_expr.c EOF (same-TU #include at L5444, after
+ * struct_lit.c L1438 + vector_simd.c L1509 + ast_pool.c L3985 — all
+ * same-TU static deps visible). Extern fwd decl added in
+ * pipeline_typeck_method_call.c L435 for L2734 callsite in
+ * typeck_check_call_ptr_struct_compat_c (method_call.c #include at L5307
+ * < check_expr.c #include at L5444). Sole callers: typeck_check_call_ptr_
+ * struct_compat_c (method_call.c) + typeck.x typeck_check_expr_call +
+ * typeck_gen seed. PLATFORM: SHARED. */
 
 /* wave1145 G.7: typeck_check_call_ptr_struct_compat_c migrated to
  * pipeline_typeck_method_call.c EOF (colocated with overload resolution /
@@ -5335,49 +5288,15 @@ extern void driver_diagnostic_typeck_call_requires_type_args(int32_t line, int32
 extern int32_t pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t func_index);
 extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena *a, int32_t expr_ref);
 
-static int32_t glue_module_func_index_by_name_c(struct ast_Module *mod, uint8_t *name, int32_t name_len);
-
-/**
- * LANG-007 v2：S0 内 extern 调用须在 unsafe { } 内。
- * 非 static：typeck.x 的 typeck_check_expr_call 须直接调用（勿仅靠 glue 包装路径）。
- */
-int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *module,
-                                                            struct ast_ASTArena *arena, int32_t expr_ref,
-                                                            struct ast_PipelineDepCtx *ctx) {
-  int32_t callee_ref;
-  int32_t callee_kind;
-  int32_t name_len;
-  uint8_t name[128];
-  int32_t fi;
-  int32_t line;
-  int32_t col;
-  /* -E seed regen / allow_legacy: typeck_x.o 提供 getter；缺省弱 0 保持 S0 强制。 */
-  extern int typeck_get_allow_legacy_extern_calls(void);
-
-  if (typeck_get_allow_legacy_extern_calls() != 0)
-    return 0;
-  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) > 0)
-    return 0;
-  if (!module || !arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
-    return 0;
-  callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-  if (callee_ref <= 0 || callee_ref > arena->num_exprs)
-    return 0;
-  callee_kind = pipeline_expr_kind_ord_at(arena, callee_ref);
-  if (callee_kind != (int32_t)ast_ExprKind_EXPR_VAR)
-    return 0;
-  name_len = pipeline_expr_var_name_len(arena, callee_ref);
-  if (name_len <= 0 || name_len > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, callee_ref, name);
-  fi = glue_module_func_index_by_name_c(module, name, name_len);
-  if (fi < 0 || pipeline_module_func_is_extern_at(module, fi) == 0)
-    return 0;
-  line = pipeline_expr_line_at(arena, expr_ref);
-  col = pipeline_expr_col_at(arena, expr_ref);
-  driver_diagnostic_typeck_extern_call_outside_unsafe(line, col);
-  return -1;
-}
+/* wave1198 G.7: pipeline_typeck_check_extern_call_unsafe_boundary_c migrated
+ * to pipeline_typeck_check_expr.c EOF (same-TU #include at L5444, after
+ * vector_simd.c L1509 where glue_module_func_index_by_name_c static def at
+ * L856 is visible). Fwd decl at L5021 retained (before L5044 callsite in
+ * pipeline_typeck_check_call_slice_region_c which stays in glue.c —
+ * dual-authority seed file). Static fwd decl of glue_module_func_index_by_
+ * name_c removed (no remaining callers in glue.c body). Sole callers:
+ * check_call_slice_region_c (glue.c) + typeck.x typeck_check_expr_call +
+ * typeck_gen seed. PLATFORM: SHARED. */
 
 /* wave1095 G.7: pipeline_typeck_named_is_module_type_c migrated to
  * pipeline_typeck_method_call.c EOF. Static fwd decl at method_call.c:348
