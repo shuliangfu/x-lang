@@ -307,14 +307,109 @@ void ast_pipeline_arena_func_set_copy(struct ast_ASTArena *a, int32_t ref, struc
   pipeline_arena_func_set_copy(a, ref, f);
 }
 
-/* wave1183 G.7: Forward declarations for ast_ast_arena_type_get/set and
- * ast_ast_arena_expr_get/set (defined in pipeline_glue.c L5179-5224 with
- * trace debugging logic); needed because ast_arena_*_get/set twins below
- * delegate to them before their definitions appear in the same TU. */
-struct ast_Type ast_ast_arena_type_get(struct ast_ASTArena *a, int32_t ref);
-void ast_ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t);
-struct ast_Expr ast_ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref);
-void ast_ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);
+/* wave1194 G.7: ast_ast_arena_type_get/set + ast_ast_arena_expr_get/set
+ * migrated from pipeline_glue.c to this file (same-TU #include via
+ * ast_pool.c L886). Colocated with ast_ast_arena_block/func_get/set (L342)
+ * and ast_arena_* twin forwarders (L354). The ast_arena_* twins below
+ * delegate to these definitions — forward decls no longer needed.
+ *
+ * Why: type/expr get/set are the same domain as block/func get/set
+ * (arena slot accessors); pipeline_glue.c kept them only for historical
+ * trace debugging. pipeline_arena_expr_set_copy already has equivalent
+ * trace logic; the duplicate trace in expr_set is retained for now to
+ * preserve identical behavior (will be cleaned in a later dedup pass).
+ *
+ * Members (4 fns):
+ *  - ast_ast_arena_type_get (ref<=0 guard + delegate to pipeline_arena_type_get_copy)
+ *  - ast_ast_arena_type_set (delegate to pipeline_arena_type_set_copy)
+ *  - ast_ast_arena_expr_get (delegate to pipeline_arena_expr_get_copy)
+ *  - ast_ast_arena_expr_set (trace debug + delegate to pipeline_arena_expr_set_copy)
+ *
+ * PLATFORM: SHARED — arena slot accessors are platform-agnostic. */
+
+/**
+ * ast_ast_arena_type_get — read a Type slot from the arena by ref.
+ *
+ * Why: ast.x hoisted extern calls expect this symbol; ref<=0 returns
+ *      zeroed Type to avoid dereferencing an invalid slot pointer.
+ * Contract: ref<=0 → zeroed struct ast_Type; ref>0 → delegates to
+ *           pipeline_arena_type_get_copy (which NULL-guards the ptr).
+ * PLATFORM: SHARED.
+ */
+struct ast_Type ast_ast_arena_type_get(struct ast_ASTArena *a, int32_t ref) {
+  struct ast_Type empty;
+  if (ref <= 0) {
+    memset(&empty, 0, sizeof(empty));
+    return empty;
+  }
+  return pipeline_arena_type_get_copy(a, ref);
+}
+
+/**
+ * ast_ast_arena_type_set — write a Type slot in the arena by ref.
+ *
+ * Contract: delegates to pipeline_arena_type_set_copy (NULL-guarded).
+ * PLATFORM: SHARED.
+ */
+void ast_ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t) {
+  pipeline_arena_type_set_copy(a, ref, t);
+}
+
+/**
+ * ast_ast_arena_expr_get — read an Expr slot from the arena by ref.
+ *
+ * Contract: delegates to pipeline_arena_expr_get_copy (NULL-guarded,
+ *           returns zeroed struct on failure).
+ * PLATFORM: SHARED.
+ */
+struct ast_Expr ast_ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref) {
+  return pipeline_arena_expr_get_copy(a, ref);
+}
+
+/**
+ * ast_ast_arena_expr_set — write an Expr slot with optional trace debug.
+ *
+ * Why: XLANG_TRACE_EXPR_SET / _NAME / _TYPE_REF env vars enable
+ *      targeted expr-set tracing for debugging ast corruption.
+ * Note: pipeline_arena_expr_set_copy has equivalent trace logic; the
+ *       duplicate trace here is retained to preserve identical output
+ *       format ("expr ast set debug:" prefix) for existing diagnostics.
+ * Contract: trace if env var matches; always delegates to
+ *           pipeline_arena_expr_set_copy for the actual slot write.
+ * PLATFORM: SHARED.
+ */
+void ast_ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e) {
+  const char *trace_expr = link_abi_getenv("XLANG_TRACE_EXPR_SET");
+  const char *trace_name = link_abi_getenv("XLANG_TRACE_EXPR_NAME");
+  const char *trace_type = link_abi_getenv("XLANG_TRACE_TYPE_REF");
+  int trace_hit = 0;
+  int trace_ty = 0;
+  if (trace_expr && *trace_expr && atoi(trace_expr) == ref) {
+    fprintf(stderr,
+            "note: expr ast set debug: expr=%d kind=%d block=%d ty=%d left=%d right=%d name_len=%d int_val=%d\n",
+            (int)ref, (int)e.kind, (int)e.block_ref, (int)e.resolved_type_ref, (int)e.binop_left_ref,
+            (int)e.binop_right_ref, (int)e.var_name_len, (int)e.int_val);
+  }
+  if (trace_name && *trace_name && e.kind == ast_ExprKind_EXPR_VAR && e.var_name_len > 0) {
+    size_t want_len = strlen(trace_name);
+    if ((int)want_len == e.var_name_len && want_len < sizeof(e.var_name) &&
+        memcmp(e.var_name, trace_name, want_len) == 0)
+      trace_hit = 1;
+  }
+  if (trace_type && *trace_type) {
+    trace_ty = atoi(trace_type);
+    if (trace_ty != 0 && e.resolved_type_ref == trace_ty)
+      trace_hit = 1;
+  }
+  if (trace_hit) {
+    fprintf(stderr,
+            "note: expr ast watch: expr=%d kind=%d block=%d ty=%d left=%d right=%d name_len=%d int_val=%d name=%.*s\n",
+            (int)ref, (int)e.kind, (int)e.block_ref, (int)e.resolved_type_ref, (int)e.binop_left_ref,
+            (int)e.binop_right_ref, (int)e.var_name_len, (int)e.int_val, (int)e.var_name_len,
+            (const char *)e.var_name);
+  }
+  pipeline_arena_expr_set_copy(a, ref, e);
+}
 
 /* wave1183 G.7: ast_ast_arena_*_get/set + ast_arena_*_get/set forwarder
  * cluster (14 fns) migrated from pipeline_glue.c to this file's EOF.

@@ -871,3 +871,103 @@ XLANG_WEAK int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, st
   return pipeline_typeck_after_parse_ok_impl_c(arena, module, source, ctx);
 }
 #endif
+
+/* wave1194 G.7: std_io_driver batch read/write stubs + parser lvalue check
+ * + compound-assign TokenKind→ExprKind mapping migrated from pipeline_glue.c.
+ *
+ * Why colocate: these are parser-facing helpers linked by parser_gen.c /
+ * parser.x extern calls. The io driver stubs forward to io.o; the lvalue
+ * check reads arena expr kind via glue_arena_expr_kind_at_ref (static,
+ * defined in pipeline_glue.c L434 before this file's #include at L4104 —
+ * visible in same TU). The compound-assign mapper uses token.h TOKEN_*
+ * constants (included at pipeline_glue.c L38).
+ *
+ * Members (4 fns):
+ *  - std_io_driver_submit_read_batch_buf (forward to io_read_batch_buf)
+ *  - std_io_driver_submit_write_batch_buf (forward to io_write_batch_buf)
+ *  - pipeline_expr_ref_is_assign_lvalue (VAR/INDEX/DEREF/FIELD_ACCESS check)
+ *  - compound_assign_token_to_expr_kind_from_glue (TOKEN_*_EQ → EXPR_*_ASSIGN)
+ *
+ * PLATFORM: SHARED — parser/IO helpers are platform-agnostic.
+ */
+
+/* glue_arena_expr_kind_at_ref: static in pipeline_glue.c L434, visible
+ * in same TU before this file's #include point. Forward decl ensures
+ * compiler sees the prototype when parsing this file standalone. */
+static enum ast_ExprKind glue_arena_expr_kind_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
+
+/**
+ * std_io_driver_submit_read_batch_buf — batch read forwarder to io.o.
+ *
+ * Why: parser.x / std.io.driver.x extern link expects this symbol; the
+ *      actual I/O is done by io_read_batch_buf in io.o.
+ * Contract: returns -1 on failure, else number of bytes read.
+ * PLATFORM: SHARED — POSIX io via io.o.
+ */
+int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {
+  ptrdiff_t r = io_read_batch_buf((int)handle, bufs, n, timeout_ms);
+  return (r < 0) ? -1 : (int32_t)r;
+}
+
+/**
+ * std_io_driver_submit_write_batch_buf — batch write forwarder to io.o.
+ *
+ * Contract: returns -1 on failure, else number of bytes written.
+ * PLATFORM: SHARED — POSIX io via io.o.
+ */
+int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {
+  ptrdiff_t r = io_write_batch_buf((int)handle, bufs, n, timeout_ms);
+  return (r < 0) ? -1 : (int32_t)r;
+}
+
+/**
+ * pipeline_expr_ref_is_assign_lvalue — check if an expr_ref can be an
+ * assignment lvalue (VAR, INDEX, DEREF, or non-enum-variant FIELD_ACCESS).
+ *
+ * Why: parser.x expr_ref_is_assign_lvalue — X cannot safely typeck
+ *      `let e: Expr = ast_arena_expr_get(...)` then compare e.kind; C
+ *      reads kind/is_enum_variant directly from the arena pool.
+ * Contract: returns 1 if assignable lvalue, 0 otherwise.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_expr_ref_is_assign_lvalue(struct ast_ASTArena *a, int32_t expr_ref) {
+  enum ast_ExprKind kd;
+  struct ast_Expr *ex;
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs) {
+    return 0;
+  }
+  kd = glue_arena_expr_kind_at_ref(a, expr_ref);
+  if (kd == ast_ExprKind_EXPR_VAR || kd == ast_ExprKind_EXPR_INDEX || kd == ast_ExprKind_EXPR_DEREF) {
+    return 1;
+  }
+  if (kd != ast_ExprKind_EXPR_FIELD_ACCESS) {
+    return 0;
+  }
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  return ex && ex->field_access_is_enum_variant == 0 ? 1 : 0;
+}
+
+/**
+ * compound_assign_token_to_expr_kind_from_glue — map TokenKind compound
+ * assign operators to ast_ExprKind assign variants.
+ *
+ * Why: parser.x compound_assign_token_to_expr_kind — X typeck fails on
+ *      `return ExprKind.*` enum comparisons; C does the mapping directly.
+ *      Uses token.h TOKEN_* constants (not pipeline_gen's embedded
+ *      token_TokenKind which may lag behind, missing TOKEN_TRY etc.).
+ * Contract: unknown tokens default to EXPR_SHR_ASSIGN (parser safety).
+ * PLATFORM: SHARED.
+ */
+enum ast_ExprKind compound_assign_token_to_expr_kind_from_glue(int32_t kind) {
+  if (kind == (int32_t)TOKEN_PLUS_EQ) return ast_ExprKind_EXPR_ADD_ASSIGN;
+  if (kind == (int32_t)TOKEN_MINUS_EQ) return ast_ExprKind_EXPR_SUB_ASSIGN;
+  if (kind == (int32_t)TOKEN_STAR_EQ) return ast_ExprKind_EXPR_MUL_ASSIGN;
+  if (kind == (int32_t)TOKEN_SLASH_EQ) return ast_ExprKind_EXPR_DIV_ASSIGN;
+  if (kind == (int32_t)TOKEN_PERCENT_EQ) return ast_ExprKind_EXPR_MOD_ASSIGN;
+  if (kind == (int32_t)TOKEN_AMP_EQ) return ast_ExprKind_EXPR_BITAND_ASSIGN;
+  if (kind == (int32_t)TOKEN_PIPE_EQ) return ast_ExprKind_EXPR_BITOR_ASSIGN;
+  if (kind == (int32_t)TOKEN_CARET_EQ) return ast_ExprKind_EXPR_BITXOR_ASSIGN;
+  if (kind == (int32_t)TOKEN_LSHIFT_EQ) return ast_ExprKind_EXPR_SHL_ASSIGN;
+  if (kind == (int32_t)TOKEN_RSHIFT_EQ) return ast_ExprKind_EXPR_SHR_ASSIGN;
+  return ast_ExprKind_EXPR_SHR_ASSIGN;
+}

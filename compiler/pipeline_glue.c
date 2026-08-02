@@ -421,65 +421,22 @@ int32_t pipeline_asm_module_func_num_params_at(struct ast_Module *m, int32_t fun
 int32_t pipeline_asm_module_func_param_name_len_at(struct ast_Module *m, int32_t func_index, int32_t param_index);
 void pipeline_asm_module_func_param_name_copy32(struct ast_Module *m, int32_t func_index, int32_t param_index, uint8_t *dst);
 
-int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {
-  ptrdiff_t r = io_read_batch_buf((int)handle, bufs, n, timeout_ms);
-  return (r < 0) ? -1 : (int32_t)r;
-}
-
-int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {
-  ptrdiff_t r = io_write_batch_buf((int)handle, bufs, n, timeout_ms);
-  return (r < 0) ? -1 : (int32_t)r;
-}
-
-/** 读池中 expr.kind；仅供本文件与 glue 导出函数使用（X 无法用 Expr 局部安全 typeck）。 */
+/* wave1194 G.7: std_io_driver batch read/write stubs (2 fns) +
+ * pipeline_expr_ref_is_assign_lvalue + compound_assign_token_to_expr_kind_from_glue
+ * (2 fns) migrated to pipeline_parse_orch.c EOF (same-TU #include at L4104).
+ * Colocated with parse/load/typeck orchestration domain — all are
+ * parser-facing helpers (TokenKind→ExprKind mapping, lvalue check) or
+ * io driver stubs (batch read/write forwarders to io.o).
+ * glue_arena_expr_kind_at_ref (static) retained here — also called by
+ * implicit_tail_expr_disallowed_by_glue (L672) + pipeline_expr_kind_ord_at
+ * (L2396); visible to parse_orch.c via same-TU definition at L433 above.
+ * PLATFORM: SHARED. */
 static enum ast_ExprKind glue_arena_expr_kind_at_ref(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex;
   if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
     return ast_ExprKind_EXPR_LIT;
   ex = pipeline_arena_expr_ptr(a, expr_ref);
   return ex ? ex->kind : ast_ExprKind_EXPR_LIT;
-}
-
-/**
- * parser.x expr_ref_is_assign_lvalue：与 xlang-c 生成码对 struct 直读一致。
- * X 中对「let e: Expr = ast_arena_expr_get(...)」再写 e.kind == … 会在 .x typeck 路径失败（见 ast.x 注释）；由 C 从池读 kind / is_enum_variant。
- * 返回 1 表示可作为赋值左值，0 表示否。
- */
-int32_t pipeline_expr_ref_is_assign_lvalue(struct ast_ASTArena *a, int32_t expr_ref) {
-  enum ast_ExprKind kd;
-  struct ast_Expr *ex;
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs) {
-    return 0;
-  }
-  kd = glue_arena_expr_kind_at_ref(a, expr_ref);
-  if (kd == ast_ExprKind_EXPR_VAR || kd == ast_ExprKind_EXPR_INDEX || kd == ast_ExprKind_EXPR_DEREF) {
-    return 1;
-  }
-  if (kd != ast_ExprKind_EXPR_FIELD_ACCESS) {
-    return 0;
-  }
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  return ex && ex->field_access_is_enum_variant == 0 ? 1 : 0;
-}
-
-/**
- * parser.x compound_assign_token_to_expr_kind：在 C 内完成 TokenKind→ExprKind 映射，
- * 避免 .x 中 `return ExprKind.*` 与枚举比较在 typeck 下失败；符号名供 parser extern 原样链接。
- * 参数用 int32_t + include/token.h 的 TokenKind 常量：lexer_x.o 与 token.h 一致，
- * pipeline_gen 内嵌的 token_TokenKind 可能滞后（缺 TOKEN_TRY 等），不可直接比较。
- */
-enum ast_ExprKind compound_assign_token_to_expr_kind_from_glue(int32_t kind) {
-  if (kind == (int32_t)TOKEN_PLUS_EQ) return ast_ExprKind_EXPR_ADD_ASSIGN;
-  if (kind == (int32_t)TOKEN_MINUS_EQ) return ast_ExprKind_EXPR_SUB_ASSIGN;
-  if (kind == (int32_t)TOKEN_STAR_EQ) return ast_ExprKind_EXPR_MUL_ASSIGN;
-  if (kind == (int32_t)TOKEN_SLASH_EQ) return ast_ExprKind_EXPR_DIV_ASSIGN;
-  if (kind == (int32_t)TOKEN_PERCENT_EQ) return ast_ExprKind_EXPR_MOD_ASSIGN;
-  if (kind == (int32_t)TOKEN_AMP_EQ) return ast_ExprKind_EXPR_BITAND_ASSIGN;
-  if (kind == (int32_t)TOKEN_PIPE_EQ) return ast_ExprKind_EXPR_BITOR_ASSIGN;
-  if (kind == (int32_t)TOKEN_CARET_EQ) return ast_ExprKind_EXPR_BITXOR_ASSIGN;
-  if (kind == (int32_t)TOKEN_LSHIFT_EQ) return ast_ExprKind_EXPR_SHL_ASSIGN;
-  if (kind == (int32_t)TOKEN_RSHIFT_EQ) return ast_ExprKind_EXPR_SHR_ASSIGN;
-  return ast_ExprKind_EXPR_SHR_ASSIGN;
 }
 
 /* wave1101 G.7: codegen outbuf append domain (4 functions + macro) migrated to
@@ -4215,57 +4172,12 @@ void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, stru
  */
 #include "pipeline_ast_forwarders.c"
 
-/**
- * ast.x 中 ast_arena_*_get/set 仅作 extern 声明；实现在此，避免 xlang-c -E 将 get 错误 lowering 为
- * arena->exprs[] / blocks[] 直访（slim ASTArena 已无内嵌数组）。
- * ast_ast_arena_* 供 ast 模块 hoisted 声明；ast_arena_* 供 import ast 的其他模块链接。
- */
-struct ast_Type ast_ast_arena_type_get(struct ast_ASTArena *a, int32_t ref) {
-  struct ast_Type empty;
-  if (ref <= 0) {
-    memset(&empty, 0, sizeof(empty));
-    return empty;
-  }
-  return pipeline_arena_type_get_copy(a, ref);
-}
-void ast_ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t) {
-  pipeline_arena_type_set_copy(a, ref, t);
-}
-struct ast_Expr ast_ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref) {
-  return pipeline_arena_expr_get_copy(a, ref);
-}
-void ast_ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e) {
-  const char *trace_expr = link_abi_getenv("XLANG_TRACE_EXPR_SET");
-  const char *trace_name = link_abi_getenv("XLANG_TRACE_EXPR_NAME");
-  const char *trace_type = link_abi_getenv("XLANG_TRACE_TYPE_REF");
-  int trace_hit = 0;
-  int trace_ty = 0;
-  if (trace_expr && *trace_expr && atoi(trace_expr) == ref) {
-    fprintf(stderr,
-            "note: expr ast set debug: expr=%d kind=%d block=%d ty=%d left=%d right=%d name_len=%d int_val=%d\n",
-            (int)ref, (int)e.kind, (int)e.block_ref, (int)e.resolved_type_ref, (int)e.binop_left_ref,
-            (int)e.binop_right_ref, (int)e.var_name_len, (int)e.int_val);
-  }
-  if (trace_name && *trace_name && e.kind == ast_ExprKind_EXPR_VAR && e.var_name_len > 0) {
-    size_t want_len = strlen(trace_name);
-    if ((int)want_len == e.var_name_len && want_len < sizeof(e.var_name) &&
-        memcmp(e.var_name, trace_name, want_len) == 0)
-      trace_hit = 1;
-  }
-  if (trace_type && *trace_type) {
-    trace_ty = atoi(trace_type);
-    if (trace_ty != 0 && e.resolved_type_ref == trace_ty)
-      trace_hit = 1;
-  }
-  if (trace_hit) {
-    fprintf(stderr,
-            "note: expr ast watch: expr=%d kind=%d block=%d ty=%d left=%d right=%d name_len=%d int_val=%d name=%.*s\n",
-            (int)ref, (int)e.kind, (int)e.block_ref, (int)e.resolved_type_ref, (int)e.binop_left_ref,
-            (int)e.binop_right_ref, (int)e.var_name_len, (int)e.int_val, (int)e.var_name_len,
-            (const char *)e.var_name);
-  }
-  pipeline_arena_expr_set_copy(a, ref, e);
-}
+/* wave1194 G.7: ast_ast_arena_type_get/set + ast_ast_arena_expr_get/set
+ * (4 fns) migrated to ast_pool_arena.c EOF (same-TU #include via
+ * ast_pool.c L886). Colocated with block/func get/set (wave1183) +
+ * ast_arena_* twin forwarders. Forward decls in ast_pool_arena.c
+ * replaced by actual definitions; ast_arena_* twins now delegate to
+ * same-file definitions. PLATFORM: SHARED. */
 /* wave1183 G.7: ast_ast_arena_*_get/set + ast_arena_*_get/set forwarder
  * cluster (14 fns) migrated to ast_pool_arena.c EOF (same-TU #include).
  * Members: block/func get/set (ast_ast_ prefix) + type/expr/block/func
