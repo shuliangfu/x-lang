@@ -383,3 +383,118 @@ int32_t pipeline_module_struct_layout_is_export_at(struct ast_Module *m, int32_t
 int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m) {
   return m ? m->num_struct_layouts : 0;
 }
+
+/* wave1197 G.7: pipeline_asm_type_ref_byte_size_c +
+ * pipeline_struct_layout_next_field_offset_ex +
+ * pipeline_struct_layout_next_field_offset (3 fns) migrated from
+ * pipeline_glue.c to this file's EOF (same-TU #include via ast_pool.c L1615,
+ * which is #include'd into pipeline_glue.c at L3985 — after struct_lit.c
+ * at L1438 where glue_type_size_simple / glue_type_align_simple /
+ * glue_type_is_empty_struct_c are defined as statics; definitions visible).
+ *
+ * Why colocate: these 3 functions complete the struct layout sizing domain
+ * — type_ref byte size query (delegates to glue_type_size_simple) + §11.1
+ * aligned field offset computation (uses module_struct_layout_* accessors
+ * co-located in this file). Sole in-TU caller was _offset→_ex (internal,
+ * moved together); all other callers are extern (typeck.x / parser.x /
+ * backend_call_dispatch seed → resolved at link time from pipeline_x.o).
+ *
+ * Members (3 fns):
+ *  - pipeline_asm_type_ref_byte_size_c (type_ref byte size; delegates to
+ *    glue_type_size_simple with g_pipeline_asm_emit_module)
+ *  - pipeline_struct_layout_next_field_offset_ex (§11.1 aligned offset;
+ *    packed path + align(N) path)
+ *  - pipeline_struct_layout_next_field_offset (wrapper; align_req=0)
+ *
+ * PLATFORM: SHARED — struct layout sizing is platform-agnostic. */
+
+/**
+ * pipeline_asm_type_ref_byte_size_c — byte size of a type_ref for
+ * backend_call_dispatch (formal param / local sizing).
+ *
+ * Why: backend_call_dispatch needs typeck-consistent byte sizes for SysV
+ *      GP/memory classification; delegates to glue_type_size_simple (the
+ *      single type sizing authority in struct_lit.c) using the current
+ *      emit module (g_pipeline_asm_emit_module).
+ * Contract: ty_ref<=0 → glue_type_size_simple returns 0; caller falls back.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_asm_type_ref_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref) {
+  return glue_type_size_simple(g_pipeline_asm_emit_module, arena, ty_ref, 0);
+}
+
+/**
+ * pipeline_struct_layout_next_field_offset_ex — compute the §11.1-aligned
+ * byte offset for the next field (of type new_field_type_ref) on layout_idx.
+ *
+ * Why: parser struct definitions and struct_lit registration must use this
+ *      computed offset (not off+=8) to honor packed + align(N) + type align.
+ *      Two paths: packed (dense, no padding) and aligned (round up to A).
+ * Invariant: returned offset >= sum of prior field sizes; respects max(A, fa)
+ *            where A = type alignment, fa = explicit align(N) on the field.
+ * Contract: NULL module or layout_idx<0 → 0; empty struct fields get fsize=4
+ *           fallback (glue_type_is_empty_struct_c guard).
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_struct_layout_next_field_offset_ex(struct ast_Module *m, struct ast_ASTArena *a, int32_t layout_idx,
+                                                    int32_t new_field_type_ref, int32_t field_align_req) {
+  int32_t current;
+  int32_t nf;
+  int32_t j;
+  int32_t A;
+  int32_t rem;
+  int32_t gap;
+  if (!m || layout_idx < 0)
+    return 0;
+  current = 0;
+  nf = pipeline_module_struct_layout_num_fields(m, layout_idx);
+  /* packed: fields are densely packed with no alignment padding (§11.1 packed). */
+  if (pipeline_module_struct_layout_packed_at(m, layout_idx)) {
+    for (j = 0; j < nf; j++) {
+      int32_t ftr = pipeline_module_struct_layout_field_type_ref(m, layout_idx, j);
+      int32_t fsize = glue_type_size_simple(m, a, ftr, 0);
+      if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr, 0) == 0))
+        fsize = 4;
+      current = current + fsize;
+    }
+    return current;
+  }
+  for (j = 0; j < nf; j++) {
+    int32_t ftr = pipeline_module_struct_layout_field_type_ref(m, layout_idx, j);
+    int32_t fsize;
+    int32_t fa = pipeline_module_struct_layout_field_align_at(m, layout_idx, j);
+    A = glue_type_align_simple(m, a, ftr, 0);
+    if (A <= 0)
+      A = 1;
+    if (fa > A)
+      A = fa;
+    fsize = glue_type_size_simple(m, a, ftr, 0);
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr, 0) == 0))
+      fsize = 4;
+    rem = current % A;
+    gap = A - rem;
+    gap = gap % A;
+    current = current + gap + fsize;
+  }
+  A = glue_type_align_simple(m, a, new_field_type_ref, 0);
+  if (A <= 0)
+    A = 1;
+  if (field_align_req > A)
+    A = field_align_req;
+  rem = current % A;
+  gap = A - rem;
+  gap = gap % A;
+  return current + gap;
+}
+
+/**
+ * pipeline_struct_layout_next_field_offset — wrapper calling _ex with
+ * field_align_req=0 (type alignment only, no explicit align(N)).
+ *
+ * Contract: delegates to pipeline_struct_layout_next_field_offset_ex.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_struct_layout_next_field_offset(struct ast_Module *m, struct ast_ASTArena *a, int32_t layout_idx,
+                                               int32_t new_field_type_ref) {
+  return pipeline_struct_layout_next_field_offset_ex(m, a, layout_idx, new_field_type_ref, 0);
+}

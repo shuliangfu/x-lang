@@ -2105,10 +2105,11 @@ int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(struct ast_ASTArena *aren
  * (call_args.c:562), glue_deref_struct16/call_struct16_ret_needs_rax_deref
  * (#define-aliased to pipeline_asm_* externs, struct_let.c:76-77). */
 
-/** 导出给 backend_call_dispatch：形参/局部 type_ref 字节大小（与 typeck 一致）。 */
-int32_t pipeline_asm_type_ref_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref) {
-  return glue_type_size_simple(g_pipeline_asm_emit_module, arena, ty_ref, 0);
-}
+/* wave1197 G.7: pipeline_asm_type_ref_byte_size_c migrated to
+ * ast_pool_struct_layout.c EOF (same-TU #include via ast_pool.c L1615,
+ * #include'd into glue.c at L3985 — after struct_lit.c L1438 where
+ * glue_type_size_simple is defined as static; definition visible).
+ * Sole callers are extern (backend_call_dispatch seed). PLATFORM: SHARED. */
 
 /**
  * Call/method-arg value byte size for SysV GP packing (G.7 authority with dual load).
@@ -2242,70 +2243,15 @@ static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct
  * at L2419 > struct_lit.c L2095 so definition is visible there). glue.c
  * has zero self-callsites — pure leaf consumed by struct_lit + field_access. */
 
-/**
- * Compute the §11.1-aligned byte offset for the next field (of type
- * new_field_type_ref) on layout_idx; field_align_req is the minimum
- * alignment specified by align(N) (0 means type alignment only).
- */
-int32_t pipeline_struct_layout_next_field_offset_ex(struct ast_Module *m, struct ast_ASTArena *a, int32_t layout_idx,
-                                                    int32_t new_field_type_ref, int32_t field_align_req) {
-  int32_t current;
-  int32_t nf;
-  int32_t j;
-  int32_t A;
-  int32_t rem;
-  int32_t gap;
-  if (!m || layout_idx < 0)
-    return 0;
-  current = 0;
-  nf = pipeline_module_struct_layout_num_fields(m, layout_idx);
-  /** packed：字段紧密排列，无对齐填充（内存契约 §11.1 packed）。 */
-  if (pipeline_module_struct_layout_packed_at(m, layout_idx)) {
-    for (j = 0; j < nf; j++) {
-      int32_t ftr = pipeline_module_struct_layout_field_type_ref(m, layout_idx, j);
-      int32_t fsize = glue_type_size_simple(m, a, ftr, 0);
-      if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr, 0) == 0))
-        fsize = 4;
-      current = current + fsize;
-    }
-    return current;
-  }
-  for (j = 0; j < nf; j++) {
-    int32_t ftr = pipeline_module_struct_layout_field_type_ref(m, layout_idx, j);
-    int32_t fsize;
-    int32_t fa = pipeline_module_struct_layout_field_align_at(m, layout_idx, j);
-    A = glue_type_align_simple(m, a, ftr, 0);
-    if (A <= 0)
-      A = 1;
-    if (fa > A)
-      A = fa;
-    fsize = glue_type_size_simple(m, a, ftr, 0);
-    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr, 0) == 0))
-      fsize = 4;
-    rem = current % A;
-    gap = A - rem;
-    gap = gap % A;
-    current = current + gap + fsize;
-  }
-  A = glue_type_align_simple(m, a, new_field_type_ref, 0);
-  if (A <= 0)
-    A = 1;
-  if (field_align_req > A)
-    A = field_align_req;
-  rem = current % A;
-  gap = A - rem;
-  gap = gap % A;
-  return current + gap;
-}
-
-/**
- * 在 layout_idx 上为下一字段（类型 new_field_type_ref）计算 §11.1 对齐后的字节偏移；
- * parser struct 定义与 struct_lit 登记须用此值，勿 off+=8。
- */
-int32_t pipeline_struct_layout_next_field_offset(struct ast_Module *m, struct ast_ASTArena *a, int32_t layout_idx,
-                                               int32_t new_field_type_ref) {
-  return pipeline_struct_layout_next_field_offset_ex(m, a, layout_idx, new_field_type_ref, 0);
-}
+/* wave1197 G.7: pipeline_struct_layout_next_field_offset_ex +
+ * pipeline_struct_layout_next_field_offset (2 fns) migrated to
+ * ast_pool_struct_layout.c EOF (same-TU #include via ast_pool.c L1615,
+ * #include'd into glue.c at L3985 — after struct_lit.c L1438 where
+ * glue_type_size_simple / glue_type_align_simple / glue_type_is_empty_struct_c
+ * are defined as statics; definitions visible). Sole in-TU caller was
+ * _offset→_ex (internal, moved together); all other callers are extern
+ * (typeck.x / parser.x / parser_asm_struct_layout_slice.inc seed).
+ * PLATFORM: SHARED. */
 
 /* wave1051 G.7: pipeline_expr_struct_lit_value_bytes migrated to
  * pipeline_asm_emit_struct_lit.c (definition at EOF; struct_lit.c:69 fwd decl
