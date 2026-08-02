@@ -3335,52 +3335,21 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
     int32_t mono_ty;
     uint8_t bnm[128];
     int32_t bnl;
+    extern int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *module,
+                                                              struct ast_PipelineDepCtx *ctx,
+                                                              uint8_t *name, int32_t name_len);
     got_mono = pipeline_expr_resolved_type_ref(arena, expr_ref);
     if (got_mono > 0 && got_mono <= arena->num_types
         && pipeline_type_kind_ord_at(arena, got_mono) == (int32_t)ast_TypeKind_TYPE_NAMED) {
       memset(mnm, 0, sizeof(mnm));
       mnl = pipeline_type_named_name_into(arena, got_mono, mnm);
       m_concrete = 0;
-      /* wave587 Cap residual: TYPE_NAMED content ≤127 (mnm[128]).
-       * Prior mnl<=63 skipped long concrete field types → false mono stamp. */
+      /* wave1220 P4: use pipeline_typeck_named_is_module_concrete_c (G.7 single authority)
+       * — checks current module + dep modules' struct_layouts AND enums, preventing
+       * cross-module enum types (TokenKind) from being mistaken as type params.
+       * PLATFORM: SHARED — root-cause fix at the concrete-type check. */
       if (mnl > 0 && mnl <= 127) {
-        for (sk = 0; sk < module->num_struct_layouts; sk++) {
-          int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
-          uint8_t snm[128];
-          int32_t bi;
-          int32_t match;
-          if (sl != mnl)
-            continue;
-          memset(snm, 0, sizeof(snm));
-          pipeline_module_struct_layout_name_into(module, sk, snm);
-          match = 1;
-          for (bi = 0; bi < mnl; bi++) {
-            if (snm[bi] != mnm[bi]) {
-              match = 0;
-              break;
-            }
-          }
-          if (match) {
-            m_concrete = 1;
-            break;
-          }
-        }
-        if (!m_concrete) {
-          for (sk = 0; sk < module->num_module_enums; sk++) {
-            int32_t el = pipeline_module_enum_name_len(module, sk);
-            int32_t bi;
-            if (el != mnl)
-              continue;
-            for (bi = 0; bi < el; bi++) {
-              if (pipeline_module_enum_name_byte_at(module, sk, bi) != mnm[bi])
-                break;
-            }
-            if (bi == el) {
-              m_concrete = 1;
-              break;
-            }
-          }
-        }
+        m_concrete = pipeline_typeck_named_is_module_concrete_c(module, ctx, mnm, mnl);
       }
       if (!m_concrete) {
         tp_slot = 0;
@@ -3462,49 +3431,17 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
       uint8_t gnm[128];
       int32_t gnl;
       int32_t concrete = 0;
-      int32_t sk;
+      extern int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *module,
+                                                                struct ast_PipelineDepCtx *ctx,
+                                                                uint8_t *name, int32_t name_len);
       memset(gnm, 0, sizeof(gnm));
       gnl = pipeline_type_named_name_into(arena, got_ty, gnm);
-      /* wave587 Cap residual: ambient concrete scan ≤127 (gnm[128]).
-       * Prior gnl<=63 treated long concrete types as type-params → ambient overwrite. */
+      /* wave1220 P4: use pipeline_typeck_named_is_module_concrete_c (G.7 single authority)
+       * — checks current module + dep modules for concrete types, preventing ambient
+       * overwrite of cross-module enum types (TokenKind from token dep).
+       * PLATFORM: SHARED — root-cause fix at the concrete-type check. */
       if (gnl > 0 && gnl <= 127) {
-        for (sk = 0; sk < module->num_struct_layouts; sk++) {
-          int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
-          uint8_t snm[128];
-          int32_t bi;
-          int32_t match;
-          if (sl != gnl)
-            continue;
-          memset(snm, 0, sizeof(snm));
-          pipeline_module_struct_layout_name_into(module, sk, snm);
-          match = 1;
-          for (bi = 0; bi < gnl; bi++) {
-            if (snm[bi] != gnm[bi]) {
-              match = 0;
-              break;
-            }
-          }
-          if (match) {
-            concrete = 1;
-            break;
-          }
-        }
-        if (!concrete) {
-          for (sk = 0; sk < module->num_module_enums; sk++) {
-            int32_t el = pipeline_module_enum_name_len(module, sk);
-            int32_t bi;
-            if (el != gnl)
-              continue;
-            for (bi = 0; bi < el; bi++) {
-              if (pipeline_module_enum_name_byte_at(module, sk, bi) != gnm[bi])
-                break;
-            }
-            if (bi == el) {
-              concrete = 1;
-              break;
-            }
-          }
-        }
+        concrete = pipeline_typeck_named_is_module_concrete_c(module, ctx, gnm, gnl);
       }
       if (!concrete)
         use_ambient = 1;

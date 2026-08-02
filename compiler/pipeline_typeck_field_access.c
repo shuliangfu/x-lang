@@ -1070,7 +1070,9 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_c(struct ast_Module
  * parameter (e.g. field `v: T` on `struct Wrap<T>`).
  * PLATFORM: SHARED — used only to decide ambient fill of field results.
  */
-static int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *module, uint8_t *name,
+int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *module,
+                                                          struct ast_PipelineDepCtx *ctx,
+                                                          uint8_t *name,
                                                           int32_t name_len) {
   int32_t k;
   int32_t nsl;
@@ -1101,6 +1103,50 @@ static int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *mod
     if (bi == el)
       return 1;
   }
+  /*
+   * wave1220 P4: also check dependency modules for concrete types.
+   * Root cause: TokenKind / Token / Lexer are defined in the `token` / `lexer`
+   * dep modules, not in the current module. Without this dep walk,
+   * pipeline_typeck_field_apply_ambient_for_type_param_c mistook cross-module
+   * enum types (TokenKind) for free type params and overwrote their resolved
+   * type with the ambient (e.g., bool from an assignment target), causing
+   * "comparison operands have incompatible types" for r.tok.kind == TokenKind.X.
+   * G.7: single fix point at the concrete-type check; ambient + mono both benefit.
+   * PLATFORM: SHARED — no platform branch.
+   */
+  if (ctx) {
+    int32_t nd = pipeline_dep_ctx_ndep(ctx);
+    int32_t di;
+    for (di = 0; di < nd; di++) {
+      struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, di);
+      if (!dm || dm == module)
+        continue;
+      nsl = dm->num_struct_layouts;
+      for (k = 0; k < nsl; k++) {
+        int32_t sl = pipeline_module_struct_layout_name_len(dm, k);
+        uint8_t snm[128] /* wave577 Cap name into */;
+        if (sl != name_len)
+          continue;
+        memset(snm, 0, sizeof(snm));
+        pipeline_module_struct_layout_name_into(dm, k, &snm[0]);
+        if (typeck_name_equal(&snm[0], sl, name, name_len))
+          return 1;
+      }
+      ne = dm->num_module_enums;
+      for (k = 0; k < ne; k++) {
+        int32_t el = pipeline_module_enum_name_len(dm, k);
+        int32_t bi;
+        if (el != name_len)
+          continue;
+        for (bi = 0; bi < el; bi++) {
+          if (pipeline_module_enum_name_byte_at(dm, k, bi) != name[bi])
+            break;
+        }
+        if (bi == el)
+          return 1;
+      }
+    }
+  }
   return 0;
 }
 
@@ -1118,7 +1164,8 @@ static int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *mod
 static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Module *module,
                                                                 struct ast_ASTArena *arena,
                                                                 int32_t expr_ref,
-                                                                int32_t ambient_ty) {
+                                                                int32_t ambient_ty,
+                                                                struct ast_PipelineDepCtx *ctx) {
   int32_t got_ty;
   int32_t use_ambient;
   uint8_t gnm[128] /* wave577 Cap name into */;
@@ -1138,7 +1185,7 @@ static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Modu
     gnl = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
     /* wave587 Cap residual: TYPE_NAMED content ≤127 (gnm[128]).
      * Prior gnl<=63 skipped long concrete names → ambient stamped over real type. */
-    if (gnl > 0 && gnl <= 127 && !pipeline_typeck_named_is_module_concrete_c(module, &gnm[0], gnl))
+    if (gnl > 0 && gnl <= 127 && !pipeline_typeck_named_is_module_concrete_c(module, ctx, &gnm[0], gnl))
       use_ambient = 1;
   }
   if (use_ambient)
@@ -1212,7 +1259,7 @@ int32_t pipeline_typeck_mono_field_type_from_base_c(struct ast_Module *module,
   gnl = pipeline_type_named_name_into(arena, field_ty, &gnm[0]);
   if (gnl <= 0 || gnl > 127)
     return 0;
-  if (pipeline_typeck_named_is_module_concrete_c(module, &gnm[0], gnl))
+  if (pipeline_typeck_named_is_module_concrete_c(module, NULL, &gnm[0], gnl))
     return 0;
   /* Map field type name → type-param slot on base layout name. */
   memset(bnm, 0, sizeof(bnm));
@@ -1564,7 +1611,7 @@ int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, str
   pipeline_typeck_field_name_fallback_c(arena, expr_ref, base_ref);
   pipeline_typeck_field_lexer_fallback_c(module, arena, expr_ref, base_ref, ctx);
   pipeline_typeck_field_apply_mono_type_arg_c(module, arena, expr_ref, base_ty);
-  pipeline_typeck_field_apply_ambient_for_type_param_c(module, arena, expr_ref, return_type_ref);
+  pipeline_typeck_field_apply_ambient_for_type_param_c(module, arena, expr_ref, return_type_ref, ctx);
   /* wave674: hard-fail unresolved field on known base (G.7 single gate). */
   if (pipeline_typeck_field_unknown_hard_fail_c(module, arena, expr_ref, base_ref, ctx) != 0)
     return -1;

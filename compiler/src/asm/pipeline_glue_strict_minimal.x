@@ -2211,6 +2211,7 @@ export extern "C" function pipeline_expr_set_field_access_offset(arena: *u8, er:
 export extern "C" function pipeline_typeck_field_layout_named_c(module: *u8, arena: *u8, expr_ref: i32, base_ref: i32, ctx: *u8): i32;
 export extern "C" function typeck_get_field_offset_from_layout_deps(module: *u8, ctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
 export extern "C" function typeck_get_field_type_ref_from_layout_deps(module: *u8, arena: *u8, ctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
+export extern "C" function pipeline_typeck_named_is_module_concrete_c(module: *u8, ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function pipeline_expr_init_call_resolve_at_ref(arena: *u8, er: i32): void;
 export extern "C" function pipeline_expr_method_call_base_ref_at(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_method_call_name_len(arena: *u8, er: i32): i32;
@@ -2543,6 +2544,9 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
     // wave466/467: generic mono — type-pos args on base; type-param field stamps
     // matching type-arg slot (multi via layout type-param names). PLATFORM: SHARED.
     // G.7 twin of seed C + heavy. Product path uses seed C; .x stays in sync.
+    // wave1220 P4: use pipeline_typeck_named_is_module_concrete_c (G.7 single authority)
+    // — checks current module + dep modules' struct_layouts AND enums, preventing
+    // cross-module enum types (TokenKind) from being mistaken as type params.
     {
       let got_mono: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
       if (got_mono > 0) {
@@ -2550,27 +2554,8 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
           let mnm: u8[128] = [];
           let mnl: i32 = pipeline_type_named_name_into(arena, got_mono, &mnm[0]);
           let m_concrete: i32 = 0;
-          if (mnl > 0) {
-            // wave587 Cap residual: mono concrete scan ≤127 (mnm[128]).
-            if (mnl <= 127) {
-              let nslm: i32 = pipeline_module_num_struct_layouts_at(module);
-              let skm: i32 = 0;
-              while (skm < nslm) {
-                let slm: i32 = pipeline_module_struct_layout_name_len(module, skm);
-                if (slm == mnl) {
-                  let snmm: u8[128] = [];
-                  pipeline_module_struct_layout_name_into(module, skm, &snmm[0]);
-                  let bim: i32 = 0;
-                  let matchm: i32 = 1;
-                  while (bim < mnl) {
-                    if (snmm[bim] != mnm[bim]) { matchm = 0; }
-                    bim = bim + 1;
-                  }
-                  if (matchm != 0) { m_concrete = 1; }
-                }
-                skm = skm + 1;
-              }
-            }
+          if (mnl > 0 && mnl <= 127) {
+            m_concrete = pipeline_typeck_named_is_module_concrete_c(module, ctx, &mnm[0], mnl);
           }
           if (m_concrete == 0) {
             // Prefer slot0 elem until multi APIs are wired into .x surface; seed C is authority.
@@ -2586,6 +2571,9 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
     // wave472/wave479: never stamp ambient on null (Method.POST dual overload).
     // Keep wave454: ambient never applied to base. PLATFORM: SHARED.
     // Product authority is seed C; this .x stays in sync (G.7).
+    // wave1220 P4: use pipeline_typeck_named_is_module_concrete_c (G.7 single authority)
+    // — checks current module + dep modules for concrete types, preventing ambient
+    // overwrite of cross-module enum types (TokenKind from token dep).
     if (return_type_ref > 0) {
       let got_ty: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
       let use_ambient: i32 = 0;
@@ -2597,28 +2585,8 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
           let gnm: u8[128] = [];
           let gnl: i32 = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
           let concrete: i32 = 0;
-          if (gnl > 0) {
-            // wave587 Cap residual: ambient concrete scan ≤127 (gnm[128]).
-            if (gnl <= 127) {
-              let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
-              let sk: i32 = 0;
-              while (sk < nsl) {
-                let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
-                if (sl == gnl) {
-                  let snm: u8[128] = [];
-                  pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
-                  let bi: i32 = 0;
-                  /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
-                  let name_eq: i32 = 1;
-                  while (bi < gnl) {
-                    if (snm[bi] != gnm[bi]) { name_eq = 0; }
-                    bi = bi + 1;
-                  }
-                  if (name_eq != 0) { concrete = 1; }
-                }
-                sk = sk + 1;
-              }
-            }
+          if (gnl > 0 && gnl <= 127) {
+            concrete = pipeline_typeck_named_is_module_concrete_c(module, ctx, &gnm[0], gnl);
           }
           if (concrete == 0) { use_ambient = 1; }
         }
