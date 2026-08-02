@@ -314,33 +314,10 @@ uint8_t pipeline_dep_ctx_entry_dir_byte_at(struct ast_PipelineDepCtx *ctx, int32
 int32_t codegen_out_buf_len(struct codegen_CodegenOutBuf *out);
 void codegen_out_buf_set_len(struct codegen_CodegenOutBuf *out, int32_t n);
 
-/** 非 0：parse_into_buf 遇解析失败函数时整文件失败，不静默 skip。 */
-int32_t parser_parse_strict_enabled(void) {
-  extern int32_t driver_parse_strict_enabled(void);
-  return driver_parse_strict_enabled();
-}
-
-/** parse_into_buf 跳过函数时的 stderr 诊断（XLANG_DEBUG_PARSE=1 或 XLANG_PARSE_STRICT=1）。 */
-void parser_diagnostic_parse_skip(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, uint8_t *name) {
-  extern void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
-                                                    const uint8_t *name);
-  driver_diagnostic_parse_skip_function(byte_pos, num_funcs_so_far, name_len, name);
-}
-
-/** parse_into_buf commit 失败时的 stderr 诊断（XLANG_DEBUG_PARSE=1）；大模块须 skip+continue 勿 abort。 */
-void parser_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, uint8_t *name) {
-  extern void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
-                                                const uint8_t *name);
-  driver_diagnostic_parse_commit_fail(byte_pos, num_funcs_so_far, name_len, name);
-}
-
-/** parse_into/parse_into_buf 提交函数槽前打印 generic 计数（XLANG_DEBUG_PARSE_GENERIC=1）。 */
-void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t *name, int32_t name_len,
-                                          int32_t num_generic_params, int32_t is_main) {
-  extern void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name,
-                                                   int32_t name_len, int32_t num_generic_params, int32_t is_main);
-  driver_diagnostic_parse_func_generic(byte_pos, num_funcs_so_far, name, name_len, num_generic_params, is_main);
-}
+/* wave1193 G.7: parser_diagnostic cluster (4 fns) migrated to
+ * pipeline_parse_orch.c EOF. Colocated with parse orchestration
+ * domain — all are thin extern forwarders to driver_diagnostic_*
+ * in runtime.c. PLATFORM: SHARED. */
 
 /* wave1153 dead code delete: parser_diagnostic_parse_commit_shape removed
  * (static wrapper delegating to driver_diagnostic_parse_commit_shape extern;
@@ -368,18 +345,10 @@ int32_t pipeline_run_x_pipeline(struct ast_Module *module, struct ast_ASTArena *
 }
 #endif /* !XLANG_PARSER_EXE_PIPELINE_GLUE */
 
-/* PLATFORM: SHARED LP64 — layout truth via C sizeof for cold full-C bootstrap.
- * wave83: product hybrid pure owns strong pipeline_sizeof_arena/module (fixed LP64
- * constants 16/68 matching these sizeofs). Keep weak so pure.o can override without
- * dual-strong clash; cold path without pure still links these. When struct layout
- * changes, re-verify pure constants dual-end (mac + Ubuntu). */
-XLANG_WEAK size_t pipeline_sizeof_arena(void) { return sizeof(struct ast_ASTArena); }
-XLANG_WEAK size_t pipeline_sizeof_module(void) { return sizeof(struct ast_Module); }
-/** LSP / lsp_diag.x：PipelineDepCtx 体量大（含 4MiB×2 缓冲），一次性 calloc 后 memset 复用。 */
-size_t pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_PipelineDepCtx); }
-/** parser OneFuncResult 体量大（256×64 let 名等）；parse_block_into 堆分配 scratch，避免递归块解析栈溢出。 */
-size_t pipeline_sizeof_onefunc_result(void) { return (size_t)8192; }
-size_t pipeline_arena_offset_num_types(void) { return offsetof(struct ast_ASTArena, num_types); }
+/* wave1193 G.7: sizeof cluster (5 fns) migrated to pipeline_parse_orch.c
+ * EOF. Excluded: pipeline_sizeof_elf_ctx remains here (has
+ * #ifdef XLANG_PARSER_EXE_PIPELINE_GLUE guard not applicable to
+ * parse_orch.c context). PLATFORM: SHARED LP64. */
 #ifndef XLANG_PARSER_EXE_PIPELINE_GLUE
 size_t pipeline_sizeof_elf_ctx(void) { return sizeof(struct platform_elf_ElfCodegenCtx); }
 #else
@@ -388,27 +357,10 @@ size_t pipeline_sizeof_elf_ctx(void) { return (size_t)0; }
 #endif /* XLANG_PARSER_EXE_PIPELINE_GLUE */
 
 #include <stdio.h>
-void pipeline_debug_module_funcs(void *m) {
-  struct ast_Module *mod = (struct ast_Module *)m;
-  int i, n = (int)mod->num_funcs;
-  for (i = 0; i < n; i++) {
-    struct ast_Func *f = pipeline_module_func_ptr(mod, i);
-    int len = f ? (int)f->name_len : 0;
-    if (f)
-      fprintf(stderr, "[DEBUG] module func[%d] name_len=%d name=%.*s\n", i, len,
-              len > 0 && len <= 64 ? len : 0, f->name);
-  }
-}
-
-/** 供 runtime.c 诊断：返回 module 的 num_funcs（需与 pipeline 同 TU 以用 ast_Module 布局）。 */
-int driver_get_module_num_funcs(void *m) {
-  return m ? (int)((struct ast_Module *)m)->num_funcs : 0;
-}
-
-/** 供 runtime.c 烟测摘要：解析后 module.main_func_index（无 main 为 -1，与 pipeline.x parse_into_set_main_index 一致）。 */
-int driver_get_module_main_func_index(void *m) {
-  return m ? (int)((struct ast_Module *)m)->main_func_index : -2;
-}
+/* wave1193 G.7: pipeline_debug_module_funcs + driver_get_module_num_funcs
+ * + driver_get_module_main_func_index (3 fns) migrated to
+ * pipeline_parse_orch.c EOF. Colocated with parse orchestration
+ * diagnostic domain. PLATFORM: SHARED. */
 
 /** 这些 arena/block 查询与 body trace helper 在本 TU 后段实现；前置声明用于前面的调试入口。 */
 int32_t ast_ast_block_num_consts(struct ast_ASTArena *a, int32_t br);
@@ -417,132 +369,21 @@ int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena *a, int32_t br);
 int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br);
 void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena);
 
-/** 诊断：解析 entry 后打印 main 的 body_ref；日常构建关闭，排查 main 空体时取消下方注释。由 pipeline.x 在 parse 后 / codegen 前调用。 */
-void driver_diagnostic_entry_module(struct ast_Module *mod, struct ast_ASTArena *a) {
-  const char *list_env;
-  int32_t i;
-  int32_t j;
-  (void)a;
-  /** XLANG_ASM_LIST_FUNCS=1：列出 module 全部函数名与 extern 标记，排查 asm 单编缺符号（如 parse_into_buf 未注册）。 */
-  list_env = link_abi_getenv("XLANG_ASM_LIST_FUNCS");
-  if (list_env && list_env[0] != '\0' && list_env[0] != '0' && mod) {
-    for (i = 0; i < (int32_t)mod->num_funcs; i++) {
-      uint8_t nm[128];
-      int32_t nl = pipeline_module_func_name_len_at(mod, i);
-      int32_t body_ref = pipeline_module_func_body_ref_at(mod, i);
-      int32_t nlet = 0;
-      int32_t nso = 0;
-      int32_t nreg = 0;
-      pipeline_module_func_name_copy64(mod, i, nm);
-      if (body_ref > 0 && a && body_ref <= a->num_blocks) {
-        nlet = ast_ast_block_num_lets(a, body_ref);
-        nso = ast_ast_block_num_stmt_order(a, body_ref);
-        nreg = ast_ast_block_num_regions(a, body_ref);
-      }
-      fprintf(stderr, "asm_list: #%d extern=%d body_ref=%d nlet=%d nso=%d nreg=%d name=",
-              (int)i, (int)pipeline_module_func_is_extern_at(mod, i),
-              (int)body_ref, (int)nlet, (int)nso, (int)nreg);
-      for (j = 0; j < nl && j < 64; j++)
-        fputc((char)nm[j], stderr);
-      fputc('\n', stderr);
-    }
-    fflush(stderr);
-    return;
-  }
-  (void)mod;
-  /* if (mod && (mod->main_func_index >= 0 && mod->main_func_index < mod->num_funcs)) {
-    int32_t br = mod->funcs[mod->main_func_index].body_ref;
-    fprintf(stderr, "[diag] entry num_funcs=%d main_idx=%d body_ref=%d\n",
-            (int)mod->num_funcs, (int)mod->main_func_index, (int)br);
-  } else if (mod) {
-    fprintf(stderr, "[diag] entry num_funcs=%d main_idx=%d (invalid)\n",
-            (int)mod->num_funcs, (int)mod->main_func_index);
-  } */
-}
-
-/** pipeline.x -E 产出 typeck_ 前缀；实现于 runtime.c（pipeline_x.o 编译期须可见声明）。 */
-extern void driver_diagnostic_after_entry_parse(int32_t num_funcs);
-extern size_t driver_pipeline_entry_source_len(void);
-extern int32_t driver_typeck_skip_large_entry(void);
+/* wave1193 G.7: driver_diagnostic_entry_module + driver forwarding
+ * cluster + driver_diagnostic_entry_block_after_parse (15 fns +
+ * 5 driver_* extern decls) migrated to pipeline_parse_orch.c EOF.
+ * Colocated with parse/load/typeck orchestration domain — all are
+ * thin extern forwarders to driver_* in runtime.c. driver_*
+ * extern decls (driver_diagnostic_after_entry_parse /
+ * driver_pipeline_entry_source_len / driver_typeck_skip_large_entry /
+ * driver_asm_build_skip_typeck / driver_diagnostic_pipe_marker /
+ * driver_check_only_get / driver_x_pipeline_skip_typeck_get) are
+ * redeclared locally inside the migrated function bodies in
+ * parse_orch.c. PLATFORM: SHARED. */
+/* Retained extern: driver_asm_build_skip_typeck still called by
+ * pipeline_asm_emit_struct_lit.c (L1027/L1071, #include at L1663
+ * before parse_orch.c #include at L4263). */
 extern int32_t driver_asm_build_skip_typeck(void);
-
-void typeck_driver_diagnostic_after_entry_parse(int32_t num_funcs) {
-  driver_diagnostic_after_entry_parse(num_funcs);
-}
-
-/** pipeline.x 经 typeck_ 前缀调用；实现于 runtime.c。 */
-extern void driver_diagnostic_pipe_marker(int32_t id);
-
-void typeck_driver_diagnostic_pipe_marker(int32_t id) {
-  driver_diagnostic_pipe_marker(id);
-}
-
-/** typeck.x / pipeline.x：入口源码长度（runtime.c）。 */
-size_t typeck_driver_pipeline_entry_source_len(void) {
-  return driver_pipeline_entry_source_len();
-}
-
-size_t pipeline_driver_pipeline_entry_source_len(void) {
-  return driver_pipeline_entry_source_len();
-}
-
-void pipeline_driver_diagnostic_pipe_marker(int32_t id) {
-  driver_diagnostic_pipe_marker(id);
-}
-
-extern int32_t driver_check_only_get(void);
-
-int32_t xlang_pipeline_check_only(void) {
-  return driver_check_only_get();
-}
-
-/** 兼容旧 glue 名。 */
-int32_t pipeline_shu_pipeline_check_only(void) {
-  return xlang_pipeline_check_only();
-}
-
-int32_t typeck_driver_typeck_skip_large_entry(void) {
-  return driver_typeck_skip_large_entry();
-}
-
-int32_t typeck_driver_asm_build_skip_typeck(void) {
-  return driver_asm_build_skip_typeck();
-}
-
-int32_t pipeline_driver_typeck_skip_large_entry(void) {
-  return driver_typeck_skip_large_entry();
-}
-
-/** build_xlang_asm：XLANG_ASM_BUILD_SKIP_TYPECK=1 时 pipeline 跳过 .x typeck。 */
-int32_t pipeline_driver_asm_build_skip_typeck(void) {
-  return driver_asm_build_skip_typeck();
-}
-
-extern int32_t driver_x_pipeline_skip_typeck_get(void);
-
-/** asm -o：C typeck 预检已通过时跳过重复 .x typeck（见 driver_run_asm_backend）。 */
-int32_t pipeline_driver_x_pipeline_skip_typeck(void) {
-  return driver_x_pipeline_skip_typeck_get();
-}
-
-/** 诊断：解析后打印 main 对应 body block 的 num_stmt_order（C 侧调用）；日常构建保留实现不调用，排查时在 runtime.c 恢复调用。 */
-void driver_diagnostic_entry_block_after_parse(void *mod, void *arena) {
-  struct ast_Module *m = (struct ast_Module *)mod;
-  struct ast_ASTArena *a = (struct ast_ASTArena *)arena;
-  if (!m || !a || m->main_func_index < 0 || m->main_func_index >= m->num_funcs)
-    return;
-  {
-    struct ast_Func *mf = pipeline_module_func_ptr(m, m->main_func_index);
-    int32_t br = mf ? (int32_t)mf->body_ref : 0;
-    if (br <= 0 || br > a->num_blocks)
-      return;
-    (void)br;
-    (void)a;
-    /* struct ast_Block b = ast_ast_arena_block_get(a, br);
-    fprintf(stderr, "[diag] after_parse body_ref=%d num_blocks=%d block.num_stmt_order=%d\n",
-            (int)br, (int)a->num_blocks, (int)b.num_stmt_order); */
-  }
-}
 
 /* std.io.driver 单次 _buf 声明与 inline 已由 -E 产出在 pipeline_gen.c 顶部（runtime.c -E 路径 preamble），此处仅保留批量读写桩。 */
 

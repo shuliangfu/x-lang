@@ -487,6 +487,376 @@ int32_t pipeline_typeck_after_parse_ok_c(struct ast_ASTArena *arena, struct ast_
   return pipeline_typeck_after_parse_ok(arena, module, source, ctx);
 }
 
+/* ============================================================
+ * wave1193 G.7: driver diagnostic + sizeof + check_only/skip
+ * forwarding cluster (24 fns) migrated from pipeline_glue.c
+ *
+ * driver_* extern decls (were at glue.c L415-L419/L426/L445/L473):
+ * redeclared here for the migrated forwarder bodies below.
+ */
+extern void driver_diagnostic_after_entry_parse(int32_t num_funcs);
+extern size_t driver_pipeline_entry_source_len(void);
+extern int32_t driver_typeck_skip_large_entry(void);
+extern int32_t driver_asm_build_skip_typeck(void);
+extern void driver_diagnostic_pipe_marker(int32_t id);
+extern int32_t driver_check_only_get(void);
+extern int32_t driver_x_pipeline_skip_typeck_get(void);
+
+/* ============================================================
+ * wave1193 G.7: driver diagnostic + sizeof + check_only/skip
+ * forwarding cluster (24 fns) migrated from pipeline_glue.c
+ * L316-L544. Colocated with parse/load/typeck orchestration domain
+ * — these are all thin extern forwarders to driver_* functions in
+ * runtime.c, used by the parse/typeck/pipeline orchestration path.
+ *
+ * Excluded (remain in glue.c due to #ifdef guards):
+ * - pipeline_run_x_pipeline (#ifndef XLANG_PARSER_EXE_PIPELINE_GLUE)
+ * - pipeline_sizeof_elf_ctx (#ifdef XLANG_PARSER_EXE_PIPELINE_GLUE)
+ *
+ * Dependencies visible at #include point (parse_orch.c #include at
+ * glue.c L4263):
+ * - driver_* extern functions (declared in glue.c L463-L521 before
+ *   #include — visible in same TU)
+ * - link_abi_getenv (extern at glue.c L51)
+ * - pipeline_module_func_name_len_at / body_ref_at / name_copy64 /
+ *   is_extern_at (extern fwd decls at glue.c L256-L260)
+ * - ast_ast_block_num_lets / num_stmt_order / num_regions (extern
+ *   fwd decls at glue.c L413-L416)
+ * - pipeline_module_func_ptr (extern fwd decl at glue.c L91)
+ * - struct ast_ASTArena / ast_Module / ast_Func / platform_elf_ElfCodegenCtx
+ *   (defined in headers included at glue.c L33-L42)
+ * - offsetof / sizeof (from <stddef.h> at glue.c L33)
+ * - fprintf / fputc / fflush (from <stdio.h> at glue.c L390)
+ *
+ * No glue.c callsites before #include (verified: only L501
+ * pipeline_shu_pipeline_check_only -> xlang_pipeline_check_only,
+ * both migrated together here).
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU.
+ * ============================================================ */
+
+/**
+ * parser.x::parse_strict_enabled C forwarder.
+ *
+ * Why: non-zero means parse_into_buf fails the whole file on any
+ *      function parse failure instead of silently skipping.
+ * Contract: returns driver_parse_strict_enabled() value.
+ * PLATFORM: SHARED — parse orchestration diagnostic.
+ */
+int32_t parser_parse_strict_enabled(void) {
+  extern int32_t driver_parse_strict_enabled(void);
+  return driver_parse_strict_enabled();
+}
+
+/**
+ * parser.x::diagnostic_parse_skip C forwarder.
+ *
+ * Why: stderr diagnostic when parse_into_buf skips a function
+ *      (XLANG_DEBUG_PARSE=1 or XLANG_PARSE_STRICT=1).
+ * PLATFORM: SHARED — parse orchestration diagnostic.
+ */
+void parser_diagnostic_parse_skip(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, uint8_t *name) {
+  extern void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
+                                                    const uint8_t *name);
+  driver_diagnostic_parse_skip_function(byte_pos, num_funcs_so_far, name_len, name);
+}
+
+/**
+ * parser.x::diagnostic_parse_commit_fail C forwarder.
+ *
+ * Why: stderr diagnostic when parse_into_buf commit fails; large
+ *      modules must skip+continue, not abort.
+ * PLATFORM: SHARED — parse orchestration diagnostic.
+ */
+void parser_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, uint8_t *name) {
+  extern void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
+                                                const uint8_t *name);
+  driver_diagnostic_parse_commit_fail(byte_pos, num_funcs_so_far, name_len, name);
+}
+
+/**
+ * parser.x::diagnostic_parse_func_generic C forwarder.
+ *
+ * Why: prints generic param count before committing a function slot
+ *      (XLANG_DEBUG_PARSE_GENERIC=1).
+ * PLATFORM: SHARED — parse orchestration diagnostic.
+ */
+void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t *name, int32_t name_len,
+                                          int32_t num_generic_params, int32_t is_main) {
+  extern void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name,
+                                                   int32_t name_len, int32_t num_generic_params, int32_t is_main);
+  driver_diagnostic_parse_func_generic(byte_pos, num_funcs_so_far, name, name_len, num_generic_params, is_main);
+}
+
+/**
+ * pipeline.x::sizeof_arena weak C twin.
+ *
+ * Why: layout truth via C sizeof for cold full-C bootstrap. Product
+ *      hybrid pure owns strong pipeline_sizeof_arena (fixed LP64
+ *      constant 16 matching this sizeof). Keep weak so pure.o can
+ *      override without dual-strong clash.
+ * Contract: returns sizeof(struct ast_ASTArena).
+ * PLATFORM: SHARED LP64 — re-verify pure constants dual-end on change.
+ */
+XLANG_WEAK size_t pipeline_sizeof_arena(void) { return sizeof(struct ast_ASTArena); }
+
+/**
+ * pipeline.x::sizeof_module weak C twin.
+ *
+ * Why: same as sizeof_arena but for struct ast_Module (fixed LP64 68).
+ * PLATFORM: SHARED LP64.
+ */
+XLANG_WEAK size_t pipeline_sizeof_module(void) { return sizeof(struct ast_Module); }
+
+/**
+ * pipeline.x::sizeof_dep_ctx C twin.
+ *
+ * Why: LSP / lsp_diag.x — PipelineDepCtx is large (4MiB×2 buffers);
+ *      one-time calloc then memset reuse.
+ * PLATFORM: SHARED.
+ */
+size_t pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_PipelineDepCtx); }
+
+/**
+ * pipeline.x::sizeof_onefunc_result C twin.
+ *
+ * Why: parser OneFuncResult is large (256×64 let names etc.);
+ *      parse_block_into heap-allocates scratch to avoid recursive
+ *      block parse stack overflow.
+ * PLATFORM: SHARED.
+ */
+size_t pipeline_sizeof_onefunc_result(void) { return (size_t)8192; }
+
+/**
+ * pipeline.x::arena_offset_num_types C twin.
+ *
+ * Why: offsetof num_types field for runtime.c cold introspection.
+ * PLATFORM: SHARED.
+ */
+size_t pipeline_arena_offset_num_types(void) { return offsetof(struct ast_ASTArena, num_types); }
+
+/**
+ * pipeline.x::debug_module_funcs C twin.
+ *
+ * Why: stderr dump of all module function names+len for debugging
+ *      (XLANG_DEBUG_PIPE / XLANG_ASM_LIST_FUNCS).
+ * PLATFORM: SHARED — debug diagnostic.
+ */
+void pipeline_debug_module_funcs(void *m) {
+  struct ast_Module *mod = (struct ast_Module *)m;
+  int i, n = (int)mod->num_funcs;
+  for (i = 0; i < n; i++) {
+    struct ast_Func *f = pipeline_module_func_ptr(mod, i);
+    int len = f ? (int)f->name_len : 0;
+    if (f)
+      fprintf(stderr, "[DEBUG] module func[%d] name_len=%d name=%.*s\n", i, len,
+              len > 0 && len <= 64 ? len : 0, f->name);
+  }
+}
+
+/**
+ * runtime.c diagnostic: return module num_funcs.
+ *
+ * Why: runtime.c needs ast_Module layout access via same TU.
+ * PLATFORM: SHARED.
+ */
+int driver_get_module_num_funcs(void *m) {
+  return m ? (int)((struct ast_Module *)m)->num_funcs : 0;
+}
+
+/**
+ * runtime.c diagnostic: return module main_func_index.
+ *
+ * Why: smoke test summary — -1 if no main, -2 if null module.
+ * PLATFORM: SHARED.
+ */
+int driver_get_module_main_func_index(void *m) {
+  return m ? (int)((struct ast_Module *)m)->main_func_index : -2;
+}
+
+/**
+ * pipeline.x::driver_diagnostic_entry_module C twin.
+ *
+ * Why: post-parse diagnostic — lists all module functions with extern
+ *      flag, body_ref, let/stmt_order/region counts when
+ *      XLANG_ASM_LIST_FUNCS=1 (for asm single-compile missing symbol
+ *      triage). Otherwise no-op.
+ * Invariant: mod/arena may be null; checks internally.
+ * PLATFORM: SHARED — parse orchestration diagnostic.
+ */
+void driver_diagnostic_entry_module(struct ast_Module *mod, struct ast_ASTArena *a) {
+  const char *list_env;
+  int32_t i;
+  int32_t j;
+  (void)a;
+  list_env = link_abi_getenv("XLANG_ASM_LIST_FUNCS");
+  if (list_env && list_env[0] != '\0' && list_env[0] != '0' && mod) {
+    for (i = 0; i < (int32_t)mod->num_funcs; i++) {
+      uint8_t nm[128];
+      int32_t nl = pipeline_module_func_name_len_at(mod, i);
+      int32_t body_ref = pipeline_module_func_body_ref_at(mod, i);
+      int32_t nlet = 0;
+      int32_t nso = 0;
+      int32_t nreg = 0;
+      pipeline_module_func_name_copy64(mod, i, nm);
+      if (body_ref > 0 && a && body_ref <= a->num_blocks) {
+        nlet = ast_ast_block_num_lets(a, body_ref);
+        nso = ast_ast_block_num_stmt_order(a, body_ref);
+        nreg = ast_ast_block_num_regions(a, body_ref);
+      }
+      fprintf(stderr, "asm_list: #%d extern=%d body_ref=%d nlet=%d nso=%d nreg=%d name=",
+              (int)i, (int)pipeline_module_func_is_extern_at(mod, i),
+              (int)body_ref, (int)nlet, (int)nso, (int)nreg);
+      for (j = 0; j < nl && j < 64; j++)
+        fputc((char)nm[j], stderr);
+      fputc('\n', stderr);
+    }
+    fflush(stderr);
+    return;
+  }
+  (void)mod;
+}
+
+/**
+ * typeck.x::driver_diagnostic_after_entry_parse C forwarder.
+ *
+ * Why: pipeline.x -E produces typeck_ prefix; delegates to
+ *      driver_diagnostic_after_entry_parse in runtime.c.
+ * PLATFORM: SHARED — typeck orchestration diagnostic.
+ */
+void typeck_driver_diagnostic_after_entry_parse(int32_t num_funcs) {
+  driver_diagnostic_after_entry_parse(num_funcs);
+}
+
+/**
+ * typeck.x::driver_diagnostic_pipe_marker C forwarder.
+ *
+ * Why: pipeline.x via typeck_ prefix; delegates to runtime.c.
+ * PLATFORM: SHARED — typeck orchestration diagnostic.
+ */
+void typeck_driver_diagnostic_pipe_marker(int32_t id) {
+  driver_diagnostic_pipe_marker(id);
+}
+
+/**
+ * typeck.x / pipeline.x::pipeline_entry_source_len C forwarder.
+ *
+ * Why: entry source length from runtime.c.
+ * PLATFORM: SHARED — typeck orchestration diagnostic.
+ */
+size_t typeck_driver_pipeline_entry_source_len(void) {
+  return driver_pipeline_entry_source_len();
+}
+
+/**
+ * pipeline.x::pipeline_entry_source_len C forwarder (pipeline_ prefix).
+ *
+ * Why: same as typeck_ prefix twin — delegates to runtime.c.
+ * PLATFORM: SHARED — pipeline orchestration diagnostic.
+ */
+size_t pipeline_driver_pipeline_entry_source_len(void) {
+  return driver_pipeline_entry_source_len();
+}
+
+/**
+ * pipeline.x::driver_diagnostic_pipe_marker C forwarder (pipeline_ prefix).
+ *
+ * PLATFORM: SHARED — pipeline orchestration diagnostic.
+ */
+void pipeline_driver_diagnostic_pipe_marker(int32_t id) {
+  driver_diagnostic_pipe_marker(id);
+}
+
+/**
+ * pipeline.x::check_only C forwarder.
+ *
+ * Why: non-zero means pipeline runs in check-only mode (no codegen).
+ *      Delegates to driver_check_only_get in runtime.c.
+ * PLATFORM: SHARED — pipeline control flow.
+ */
+int32_t xlang_pipeline_check_only(void) {
+  return driver_check_only_get();
+}
+
+/**
+ * Legacy glue compat name for xlang_pipeline_check_only.
+ *
+ * PLATFORM: SHARED — backward compat.
+ */
+int32_t pipeline_shu_pipeline_check_only(void) {
+  return xlang_pipeline_check_only();
+}
+
+/**
+ * typeck.x::typeck_skip_large_entry C forwarder.
+ *
+ * Why: skip typeck for large entry modules (build time optimization).
+ * PLATFORM: SHARED — typeck control flow.
+ */
+int32_t typeck_driver_typeck_skip_large_entry(void) {
+  return driver_typeck_skip_large_entry();
+}
+
+/**
+ * typeck.x::asm_build_skip_typeck C forwarder.
+ *
+ * Why: XLANG_ASM_BUILD_SKIP_TYPECK=1 skips .x typeck in pipeline.
+ * PLATFORM: SHARED — typeck control flow.
+ */
+int32_t typeck_driver_asm_build_skip_typeck(void) {
+  return driver_asm_build_skip_typeck();
+}
+
+/**
+ * pipeline.x::typeck_skip_large_entry C forwarder (pipeline_ prefix).
+ *
+ * PLATFORM: SHARED — pipeline control flow.
+ */
+int32_t pipeline_driver_typeck_skip_large_entry(void) {
+  return driver_typeck_skip_large_entry();
+}
+
+/**
+ * build_xlang_asm: XLANG_ASM_BUILD_SKIP_TYPECK=1 pipeline skip .x typeck.
+ *
+ * PLATFORM: SHARED — pipeline control flow.
+ */
+int32_t pipeline_driver_asm_build_skip_typeck(void) {
+  return driver_asm_build_skip_typeck();
+}
+
+/**
+ * asm -o: skip .x typeck when C precheck already passed.
+ *
+ * Why: avoids redundant .x typeck on asm -o path
+ *      (see driver_run_asm_backend).
+ * PLATFORM: SHARED — pipeline control flow.
+ */
+int32_t pipeline_driver_x_pipeline_skip_typeck(void) {
+  return driver_x_pipeline_skip_typeck_get();
+}
+
+/**
+ * Diagnostic: print main body block num_stmt_order after parse.
+ *
+ * Why: debug diagnostic for empty-body triage; normally inactive
+ *      (commented out body); re-enable in runtime.c when needed.
+ * PLATFORM: SHARED — parse orchestration diagnostic.
+ */
+void driver_diagnostic_entry_block_after_parse(void *mod, void *arena) {
+  struct ast_Module *m = (struct ast_Module *)mod;
+  struct ast_ASTArena *a = (struct ast_ASTArena *)arena;
+  if (!m || !a || m->main_func_index < 0 || m->main_func_index >= m->num_funcs)
+    return;
+  {
+    struct ast_Func *mf = pipeline_module_func_ptr(m, m->main_func_index);
+    int32_t br = mf ? (int32_t)mf->body_ref : 0;
+    if (br <= 0 || br > a->num_blocks)
+      return;
+    (void)br;
+    (void)a;
+  }
+}
+
 /** weak default: lsp / typeck diagnostic path (standalone; build_asm pipeline.o X strong override). */
 #ifdef XLANG_PIPELINE_GLUE_STANDALONE_TU
 XLANG_WEAK int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
