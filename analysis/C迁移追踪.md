@@ -1038,7 +1038,8 @@
 
 ⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
-  - 禁止 glue 旁路第二套 field resolve
+  - ✅ wave1219: `typeck_soa_array_storage_size_glue` 已从 C bypass 迁到 typeck.x 权威（export function）；2 个 static C helpers（typeck_soa_find_layout_idx_by_name／typeck_soa_col_base_for_field）改为 non-static extern（retained for pipeline_typeck_field_soa_index_c）；.x 实现用 typeck_x_type_align 替代 C glue_type_align_simple（G.7 twin）；seed 同步；macOS L2 green
+  - ⬜ `pipeline_typeck_field_access.c` field resolve 仍 C 权威 — 禁止 glue 旁路第二套 field resolve
 
 ⬜ **8.3.4 bootstrap glue / orchestration 折叠进 8.3.1–8.3.2 或删**
 
