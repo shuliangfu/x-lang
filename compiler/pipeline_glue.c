@@ -1346,41 +1346,30 @@ static int32_t pipeline_asm_typekind_variant_tag(const uint8_t *field_buf, int32
 /** if/三元分支块 emit 深度（定义见 glue_block_emit_stmt_i 旁；此处前置供 if_arm 使用）。 */
 static int32_t glue_if_expr_arm_emit_depth;
 
-/** if/三元表达式的单条分支：EXPR_BLOCK 走 C 块体同步发射（含 let t）；非块走 rec。 */
+/* wave1217 G.7: pipeline_asm_emit_expr_if_arm_elf_c (34 lines) migrated to
+ * pipeline_asm_emit_block_body.c EOF (colocated with if-expr arm depth
+ * consumer at block_body.c L900 — sole other reader of
+ * glue_if_expr_arm_emit_depth; #include at L2095).
+ * if/ternary branch emit: EXPR_BLOCK -> C block body sync emit; non-block
+ * -> rec.
+ * Deps:
+ *  - pipeline_asm_ctx_layout (static fn, glue.c L86 — same TU, visible at
+ *    block_body.c EOF since L86 < L2095)
+ *  - glue_if_expr_arm_emit_depth (static var, glue.c L1347 — same TU,
+ *    visible at block_body.c EOF since L1347 < L2095; both write site in
+ *    this function + read site at block_body.c L900 stay in same TU)
+ *  - pipeline_expr_kind_ord_at / pipeline_expr_block_ref_at /
+ *    backend_ensure_block_local_slots / pipeline_asm_emit_block_body_sync_elf
+ *    / pipeline_asm_emit_expr_elf_rec / link_abi_getenv (all extern,
+ *    visible at block_body.c EOF via same-TU fwd decls / extern decls)
+ * Fwd decl below retained — covers match.c L87/109/156/167 (#include L1567
+ * < L2095) + expr_rec.c L124 (#include L1673 < L2095) callsites.
+ * No dual authority — seeds only declare extern, no definition.
+ * PLATFORM: SHARED — emits both x86_64 + arm64 ELF (ta param selects arch
+ * inside delegated callees; no direct arch branch in this function). */
 int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arm_ref,
-                                                   struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  int32_t ko;
-  int32_t br;
-  int32_t sv_locs;
-  int32_t sv_next;
-  int32_t r;
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  if (arm_ref <= 0)
-    return 0;
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (!ly)
-    return -1;
-  ko = pipeline_expr_kind_ord_at(arena, arm_ref);
-  if (ko == 26) {
-    br = pipeline_expr_block_ref_at(arena, arm_ref);
-    if (br <= 0)
-      return -1;
-    if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
-      fprintf(stderr, "xlang: if_arm block br=%d\n", (int)br);
-    sv_locs = ly->num_locals;
-    sv_next = ly->next_offset;
-    backend_ensure_block_local_slots(ctx, arena, br);
-    /** 分支块 final_expr 勿 jmp 函数 tail_join，否则 let x = if … { … } else … 提前 return。 */
-    glue_if_expr_arm_emit_depth = glue_if_expr_arm_emit_depth + 1;
-    r = pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, br, ctx, ta);
-    glue_if_expr_arm_emit_depth = glue_if_expr_arm_emit_depth - 1;
-    ly->num_locals = sv_locs;
-    ly->next_offset = sv_next;
-    return r;
-  }
-  return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arm_ref, ctx, ta);
-}
+                                                   struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /**
  * 表达式级 if/三元 ELF 发射（C 实现）：避免 seed partial 中 backend.x EXPR_IF 经 -E 后漏打 else 标签（.L_else_N offset=-1）。

@@ -1087,3 +1087,93 @@ static void glue_asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref) {
   g_pipeline_asm_emit_scope_block = block_ref;
   asm_ctx_set_scope_block(ctx, block_ref);
 }
+
+/* ========================================================================== *
+ * wave1217 G.7: pipeline_asm_emit_expr_if_arm_elf_c migrated from
+ * pipeline_glue.c L1350-1383. Colocated with if-expr arm depth consumer
+ * at L900 (sole other reader of glue_if_expr_arm_emit_depth static var
+ * defined in glue.c L1347; #include at glue.c L2095).
+ *
+ * Members (1 fn):
+ *  - pipeline_asm_emit_expr_if_arm_elf_c (if/ternary branch ELF emit)
+ *
+ * Deps (all visible at this EOF — block_body.c is #include'd at glue.c
+ * L2095, after all glue.c static defs/fwd decls before L2095):
+ *  - pipeline_asm_ctx_layout (static fn, glue.c L86 — same TU)
+ *  - glue_if_expr_arm_emit_depth (static var, glue.c L1347 — same TU;
+ *    read/write here + read at L900 above stay in same TU)
+ *  - pipeline_expr_kind_ord_at (extern, glue.c L1008 fwd decl)
+ *  - pipeline_expr_block_ref_at (extern)
+ *  - backend_ensure_block_local_slots (extern)
+ *  - pipeline_asm_emit_block_body_sync_elf (extern, glue.c L1068 fwd decl)
+ *  - pipeline_asm_emit_expr_elf_rec (extern)
+ *  - link_abi_getenv (extern, glue.c L51 fwd decl)
+ *
+ * Fwd decl retained at glue.c L1370 — covers match.c L87/109/156/167
+ * (#include L1567 < L2095) + expr_rec.c L124 (#include L1673 < L2095).
+ *
+ * No dual authority — seeds only declare extern, no definition.
+ *
+ * PLATFORM: SHARED — emits both x86_64 + arm64 ELF (ta param selects arch
+ * inside delegated callees; no direct arch branch in this function).
+ * ========================================================================== */
+
+/**
+ * Emit a single if/ternary branch arm.
+ *
+ * Why: EXPR_IF / EXPR_TERNARY need to emit each arm. When the arm is an
+ *      EXPR_BLOCK (ko == 26 / ExprKind_EXPR_BLOCK), it must be emitted as
+ *      a C block body sync (with let-init slots, final_expr, and proper
+ *      scope save/restore). Otherwise the arm is a plain expression and
+ *      is emitted via pipeline_asm_emit_expr_elf_rec.
+ *
+ *      The glue_if_expr_arm_emit_depth counter guards block_body.c L900
+ *      against emitting a tail-jump to the function exit when we are
+ *      inside an if-arm — `let x = if cond { ... } else { ... }` must
+ *      not early-return. The depth is pushed before emitting the arm
+ *      block body and popped after, so nested if-arms accumulate.
+ *
+ * Contract: arm_ref<=0 -> 0 (no-op); NULL ctx -> -1.
+ *           Returns the recursive emit result on non-block arms.
+ *
+ * Asm/Perf: O(1) setup + O(block_size) via block_body_sync_elf recursion.
+ *           Cold-ish path (each if-arm is emitted once per function).
+ *
+ * PLATFORM: SHARED — ta param delegates arch-specific emit to callees;
+ *           no direct arch branch in this function.
+ */
+int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
+                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arm_ref,
+                                                   struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t ko;
+  int32_t br;
+  int32_t sv_locs;
+  int32_t sv_next;
+  int32_t r;
+  pipeline_glue_AsmFuncCtxLayout *ly;
+  if (arm_ref <= 0)
+    return 0;
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (!ly)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(arena, arm_ref);
+  if (ko == 26) {
+    br = pipeline_expr_block_ref_at(arena, arm_ref);
+    if (br <= 0)
+      return -1;
+    if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
+      fprintf(stderr, "xlang: if_arm block br=%d\n", (int)br);
+    sv_locs = ly->num_locals;
+    sv_next = ly->next_offset;
+    backend_ensure_block_local_slots(ctx, arena, br);
+    /* Arm block final_expr must not jmp to function tail_join, otherwise
+     * `let x = if ... { ... } else ...` would early-return. */
+    glue_if_expr_arm_emit_depth = glue_if_expr_arm_emit_depth + 1;
+    r = pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, br, ctx, ta);
+    glue_if_expr_arm_emit_depth = glue_if_expr_arm_emit_depth - 1;
+    ly->num_locals = sv_locs;
+    ly->next_offset = sv_next;
+    return r;
+  }
+  return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arm_ref, ctx, ta);
+}
