@@ -853,3 +853,46 @@ int implicit_tail_expr_disallowed_by_glue(struct ast_ASTArena *a, int32_t expr_r
     return 1;
   return 0;
 }
+
+/* ========================================================================== *
+ * wave1203 G.7: pipeline_module_fill_u8_64_from_src_c migrated from
+ * pipeline_glue.c L1702-1716. Colocated with wave1184 parser_library_init
+ * cluster (L517-677) — the 4 primary consumers of this utility (L541/560/
+ * 584/676) are in this file. The 5th caller is in pipeline_parser_result.c
+ * (L262, via extern fwd decl at L50 — retained for cross-file visibility).
+ *
+ * Forward decl at L503 retained (callsites at L541+ precede EOF definition).
+ * No static deps — pure utility (loop + bounds check). All extern.
+ * PLATFORM: SHARED — pure byte copy, no arch dependency.
+ * ========================================================================== */
+
+/**
+ * Copy src[0..n-1] (capped at src_cap) into dst[0..63], zero-fill remainder.
+ *
+ * Why: parse_one_function_library X emit must not use per-element INDEX
+ *      ASSIGN on local Type/Expr arrays (asm INDEX emit fails). This helper
+ *      provides a C-side bulk fill for 64-byte name slots (type names, var
+ *      names, field names, func names) consumed by the wave1184 library_init
+ *      cluster above.
+ * Contract: NULL dst → no-op; n<0 → treated as 0; src_cap<0 → treated as 0.
+ *           Writes exactly 64 bytes to dst (valid bytes from src, zero-padded).
+ * Invariant: dst[0..min(n,src_cap,64)-1] = src[0..min(n,src_cap,64)-1];
+ *            dst[min(n,src_cap,64)..63] = 0.
+ * Asm/Perf: O(64) — fixed 64-iteration loop. Cold path (parser library init).
+ * PLATFORM: SHARED.
+ */
+void pipeline_module_fill_u8_64_from_src_c(uint8_t *dst, const uint8_t *src, int32_t n, int32_t src_cap) {
+  int32_t i;
+  if (!dst)
+    return;
+  if (n < 0)
+    n = 0;
+  if (src_cap < 0)
+    src_cap = 0;
+  for (i = 0; i < 64; i++) {
+    if (src && i < n && i < src_cap)
+      dst[i] = src[i];
+    else
+      dst[i] = 0;
+  }
+}

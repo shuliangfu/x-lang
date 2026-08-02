@@ -225,7 +225,11 @@ void pipeline_module_struct_layout_reset_slot(struct ast_Module *m, int32_t idx)
 void pipeline_module_struct_layout_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
 void pipeline_module_struct_layout_set_field(struct ast_Module *m, int32_t li, int32_t j, uint8_t *fname_bytes,
                                               int32_t fname_len, int32_t ftype_ref, int32_t foff);
-void pipeline_module_fill_u8_64_from_src_c(uint8_t *dst, const uint8_t *src, int32_t n, int32_t src_cap);
+/* wave1203 G.7: pipeline_module_fill_u8_64_from_src_c fwd decl removed —
+ * definition migrated to ast_pool_arena.c EOF (colocated with wave1184
+ * parser_library_init cluster — 4 of 5 callsites are there). Both consumer
+ * files have their own fwd decls: ast_pool_arena.c L503 (same file) +
+ * pipeline_parser_result.c L50 (extern, cross-file). No glue.c callsites. */
 int32_t pipeline_module_struct_layout_name_len(struct ast_Module *m, int32_t idx);
 uint8_t pipeline_module_struct_layout_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
 void pipeline_module_struct_layout_name_into(struct ast_Module *m, int32_t idx, uint8_t *out64);
@@ -332,7 +336,8 @@ void codegen_out_buf_set_len(struct codegen_CodegenOutBuf *out, int32_t n);
  * parser_lex_from_library_result_val_into / pipeline_parser_set_onefunc_fail_c /
  * pipeline_parser_onefunc_buf_into_set_success_c + 4 glue-local typedefs
  * (ExternParseResult / LibraryParseResult / TrySkipAllowResult / OneFuncResult).
- * Depends on pipeline_module_fill_u8_64_from_src_c (fwd decl at L229). All extern. */
+ * Depends on pipeline_module_fill_u8_64_from_src_c (extern fwd decl at parser_result.c L50;
+ * definition migrated to ast_pool_arena.c EOF by wave1203). All extern. */
 #include "pipeline_parser_result.c"
 
 #ifndef XLANG_PARSER_EXE_PIPELINE_GLUE
@@ -1695,25 +1700,12 @@ enum {
 
 /** func 形参 / arena copy_slot 实现见 ast_pool.c（#include 进本 TU）。 */
 
-/**
- * 将 src 前 n 字节（最多 src_cap）复制到 dst[0..63]，余下清零。
- * parse_one_function_library X 真 emit 时勿对局部 Type/Expr 数组逐元素 ASSIGN（asm INDEX 发射失败）。
- */
-void pipeline_module_fill_u8_64_from_src_c(uint8_t *dst, const uint8_t *src, int32_t n, int32_t src_cap) {
-  int32_t i;
-  if (!dst)
-    return;
-  if (n < 0)
-    n = 0;
-  if (src_cap < 0)
-    src_cap = 0;
-  for (i = 0; i < 64; i++) {
-    if (src && i < n && i < src_cap)
-      dst[i] = src[i];
-    else
-      dst[i] = 0;
-  }
-}
+/* wave1203 G.7: pipeline_module_fill_u8_64_from_src_c (1 fn, 15 lines) migrated
+ * to ast_pool_arena.c EOF (colocated with wave1184 parser_library_init cluster —
+ * 4 of 5 callsites at L541/560/584/676; 5th caller in pipeline_parser_result.c
+ * L262 via extern fwd decl at L50). Fwd decl at glue.c L228 also removed (both
+ * consumer files have their own fwd decls). No glue.c callsites. No static deps.
+ * PLATFORM: SHARED — pure byte copy utility. */
 
 /* wave1184 G.7: pipeline_parser_library_init_* + pipeline_parser_extern_init_arena_func
  * cluster (8 fns) migrated to ast_pool_arena.c EOF (same-TU #include via ast_pool.c
