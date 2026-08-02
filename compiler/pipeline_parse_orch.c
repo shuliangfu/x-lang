@@ -971,3 +971,18 @@ enum ast_ExprKind compound_assign_token_to_expr_kind_from_glue(int32_t kind) {
   if (kind == (int32_t)TOKEN_RSHIFT_EQ) return ast_ExprKind_EXPR_SHR_ASSIGN;
   return ast_ExprKind_EXPR_SHR_ASSIGN;
 }
+
+/* wave1211 G.7: glue_arena_expr_kind_at_ref migrated from pipeline_glue.c L438-444.
+ * Returns expr kind enum; invalid ref -> EXPR_LIT. Wrapper of pipeline_arena_expr_ptr.
+ * Colocated with parse_orch.c (sole external consumer; #include at glue.c L2902).
+ * Consumers: parse_orch.c L939 (this file, via existing static fwd decl at L897),
+ *            glue.c L1969 (pipeline_expr_kind_ord_at — stays in glue.c; needs
+ *            static fwd decl retained at glue.c L438).
+ * PLATFORM: SHARED. */
+static enum ast_ExprKind glue_arena_expr_kind_at_ref(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex;
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return ast_ExprKind_EXPR_LIT;
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  return ex ? ex->kind : ast_ExprKind_EXPR_LIT;
+}

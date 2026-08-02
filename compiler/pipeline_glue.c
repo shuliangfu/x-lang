@@ -349,16 +349,12 @@ int32_t pipeline_run_x_pipeline(struct ast_Module *module, struct ast_ASTArena *
 }
 #endif /* !XLANG_PARSER_EXE_PIPELINE_GLUE */
 
-/* wave1193 G.7: sizeof cluster (5 fns) migrated to pipeline_parse_orch.c
- * EOF. Excluded: pipeline_sizeof_elf_ctx remains here (has
- * #ifdef XLANG_PARSER_EXE_PIPELINE_GLUE guard not applicable to
- * parse_orch.c context). PLATFORM: SHARED LP64. */
-#ifndef XLANG_PARSER_EXE_PIPELINE_GLUE
-size_t pipeline_sizeof_elf_ctx(void) { return sizeof(struct platform_elf_ElfCodegenCtx); }
-#else
-/** parser 聚合 exe TU 不含 ElfCodegenCtx 定义：占位返回 0（该路径不调 asm 全流程 sizeof）。 */
-size_t pipeline_sizeof_elf_ctx(void) { return (size_t)0; }
-#endif /* XLANG_PARSER_EXE_PIPELINE_GLUE */
+/* wave1193 G.7: sizeof cluster (5 fns) migrated to pipeline_parse_orch.c EOF.
+ * wave1213 G.7: pipeline_sizeof_elf_ctx (6 lines, #ifdef guarded) migrated to
+ * pipeline_elf_codegen_forwarders.c EOF (ELF codegen domain; #include at L2971).
+ * #ifdef XLANG_PARSER_EXE_PIPELINE_GLUE guard is TU-level — works at any TU pos.
+ * No TU-internal callsites — sole consumers are seeds via extern.
+ * PLATFORM: SHARED LP64. */
 
 #include <stdio.h>
 /* wave1193 G.7: pipeline_debug_module_funcs + driver_get_module_num_funcs
@@ -434,14 +430,13 @@ void pipeline_asm_module_func_param_name_copy32(struct ast_Module *m, int32_t fu
  * glue_arena_expr_kind_at_ref (static) retained here — also called by
  * implicit_tail_expr_disallowed_by_glue (L672) + pipeline_expr_kind_ord_at
  * (L2396); visible to parse_orch.c via same-TU definition at L433 above.
- * PLATFORM: SHARED. */
-static enum ast_ExprKind glue_arena_expr_kind_at_ref(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex;
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return ast_ExprKind_EXPR_LIT;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  return ex ? ex->kind : ast_ExprKind_EXPR_LIT;
-}
+ * PLATFORM: SHARED.
+ *
+ * wave1211 G.7: definition migrated to pipeline_parse_orch.c EOF (colocated
+ * with sole external consumer at L939; #include at L2902). Static fwd decl
+ * below retained — covers glue.c L1967 callsite (pipeline_expr_kind_ord_at,
+ * stays in glue.c). parse_orch.c L897 has its own static fwd decl. */
+static enum ast_ExprKind glue_arena_expr_kind_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
 
 /* wave1101 G.7: codegen outbuf append domain (4 functions + macro) migrated to
  * pipeline_codegen_outbuf.c (same-TU #include). Members:
@@ -1572,27 +1567,12 @@ int32_t pipeline_asm_emit_panic_elf_c(struct ast_ASTArena *arena, struct platfor
 #include "pipeline_asm_emit_match.c"
 
 
-/**
- * 查局部 VAR 的 fp 负偏移；失败 -1。
- */
-static int32_t glue_var_expr_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                             int32_t var_expr_ref) {
-  int32_t off;
-  if (!arena || !ctx || var_expr_ref <= 0)
-    return -1;
-  if (pipeline_expr_kind_ord_at(arena, var_expr_ref) != GLUE_EXPR_KIND_VAR)
-    return -1;
-  off = glue_asm_local_var_stack_off_scoped(arena, ctx, var_expr_ref);
-  if (off < 0) {
-    uint8_t vname[128];
-    int32_t vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-    if (vlen <= 0 || vlen > 127)
-      return -1;
-    pipeline_expr_var_name_into(arena, var_expr_ref, vname);
-    off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
-  }
-  return off;
-}
+/* wave1212 G.7: glue_var_expr_stack_off_elf_c (18 lines, static) migrated to
+ * pipeline_asm_emit_index_helpers.c EOF (colocated with 30+ callsites; #include
+ * at L1530). Static fwd decl at L1109 retained — covers return.c L356
+ * (#include L1302 < L1530) + glue.c internal callsites. Deps:
+ * glue_asm_local_var_stack_off_scoped (vector_simd.c L93; #include L1513 < L1530).
+ * PLATFORM: SHARED. */
 
 static int32_t glue_lazy_append_block_let_local(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                  int32_t block_ref, int32_t let_idx, uint8_t *name, int32_t name_len);
@@ -1723,12 +1703,12 @@ enum {
 
 /** struct_layout / import / top_level / enum / func 形参池实现见 ast_pool.c（文件末尾 #include）。 */
 
-/** 读 arena expr 槽；无效 ref 返回 NULL。 */
-static struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref) {
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return NULL;
-  return pipeline_arena_expr_ptr(a, expr_ref);
-}
+/* wave1210 G.7: glue_arena_expr_at_ref (5 lines, static) migrated to
+ * pipeline_asm_emit_as.c EOF (colocated with earliest consumer; #include at L1324).
+ * No static deps — sole call is pipeline_arena_expr_ptr (extern). Consumers all
+ * #include after L1324: struct_lit (L1440), field_access (L1684), typeck_ctfe
+ * (L1736), typeck_method_call (L4182). Existing static fwd decls in as.c L41
+ * and field_access.c L712 now resolve to migrated def. PLATFORM: SHARED. */
 
 /* wave965 BC 8.3.1: typeck CTFE producer (const whitelist + fold) — same TU slice.
  * Body: pipeline_typeck_ctfe.c. Requires glue_arena_expr_at_ref above.

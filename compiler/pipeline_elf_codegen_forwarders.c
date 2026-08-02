@@ -207,3 +207,17 @@ uint8_t *codegen_pipeline_scratch_buf64(void) {
 uint8_t *codegen_pipeline_scratch_buf64_slot(int32_t slot) {
   return pipeline_scratch_buf64_slot(slot);
 }
+
+/* wave1213 G.7: pipeline_sizeof_elf_ctx migrated from pipeline_glue.c L356-361.
+ * Returns sizeof(struct platform_elf_ElfCodegenCtx); #ifdef guard for parser
+ * exe TU (XLANG_PARSER_EXE_PIPELINE_GLUE) returns 0 when struct is incomplete.
+ * Colocated with elf_codegen_forwarders.c (ELF codegen domain; #include at
+ * glue.c L2971). No TU-internal callsites — sole consumers are seeds
+ * (rt_run_asm_backend.from_x.c L393/403 via extern). The #ifdef guard is
+ * TU-level — behavior identical at any position within the same TU.
+ * PLATFORM: SHARED LP64. */
+#ifndef XLANG_PARSER_EXE_PIPELINE_GLUE
+size_t pipeline_sizeof_elf_ctx(void) { return sizeof(struct platform_elf_ElfCodegenCtx); }
+#else
+size_t pipeline_sizeof_elf_ctx(void) { return (size_t)0; }
+#endif /* XLANG_PARSER_EXE_PIPELINE_GLUE */

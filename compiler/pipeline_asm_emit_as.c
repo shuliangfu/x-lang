@@ -470,3 +470,17 @@ int32_t pipeline_asm_emit_as_elf_c(struct ast_ASTArena *arena, struct platform_e
                                    int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   return pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
 }
+
+/* wave1210 G.7: glue_arena_expr_at_ref migrated from pipeline_glue.c L1727-1731.
+ * Reads arena expr slot pointer; NULL ref -> NULL. Wrapper of pipeline_arena_expr_ptr.
+ * Colocated with as.c (earliest consumer #include at glue.c L1324). No static deps.
+ * Consumers: as.c L58/L78 (this file), struct_lit.c L191+ (#include L1440),
+ * field_access.c L929+ (#include L1684), typeck_ctfe.c (#include L1736),
+ * typeck_method_call.c L3217+ (#include L4182). All #include after L1324 — visible.
+ * Existing static fwd decl at as.c L41 now redundant (def above); retained for safety.
+ * PLATFORM: SHARED. */
+static struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref) {
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return NULL;
+  return pipeline_arena_expr_ptr(a, expr_ref);
+}

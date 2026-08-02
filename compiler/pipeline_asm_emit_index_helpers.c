@@ -3134,3 +3134,37 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_text_c(struct ast_ASTArena *arena, str
   }
   return -1;
 }
+
+/* wave1212 G.7: glue_var_expr_stack_off_elf_c migrated from pipeline_glue.c
+ * L1578-1595. Resolves VAR expression stack offset via scoped local table,
+ * falls back to name lookup. Colocated with index_helpers.c (30+ callsites;
+ * #include at glue.c L1530).
+ * Deps: glue_asm_local_var_stack_off_scoped (static, vector_simd.c L93;
+ *       #include L1513 < L1530 — visible),
+ *       pipeline_expr_kind_ord_at (extern),
+ *       pipeline_expr_var_name_len/into (extern),
+ *       asm_ctx_local_find_offset (extern fwd decl, glue.c L956),
+ *       GLUE_EXPR_KIND_VAR (macro, glue.c early).
+ * Consumers (all #include after L1530 — visible via existing static fwd decl
+ * at glue.c L1109): return.c L356 (#include L1302 — covered by glue.c fwd decl),
+ * index_helpers.c L617+ (this file), assign.c L313 (#include L1550),
+ * index_eff_addr.c L86+ (#include L1637), call_args.c L178+ (#include L1660),
+ * binop.c L106+ (#include L1678). PLATFORM: SHARED. */
+static int32_t glue_var_expr_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                             int32_t var_expr_ref) {
+  int32_t off;
+  if (!arena || !ctx || var_expr_ref <= 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, var_expr_ref) != GLUE_EXPR_KIND_VAR)
+    return -1;
+  off = glue_asm_local_var_stack_off_scoped(arena, ctx, var_expr_ref);
+  if (off < 0) {
+    uint8_t vname[128];
+    int32_t vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+    if (vlen <= 0 || vlen > 127)
+      return -1;
+    pipeline_expr_var_name_into(arena, var_expr_ref, vname);
+    off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
+  }
+  return off;
+}
