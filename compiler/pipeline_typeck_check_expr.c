@@ -898,3 +898,233 @@ int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_A
     return -1;
   return 0;
 }
+
+/* ===========================================================================
+ * wave1190 G.7: typeck check_expr try_propagate + call entry cluster (2 fns
+ * + 1 wrapper) migrated from pipeline_glue.c. Colocated with wave1188
+ * entry/dispatch domain + wave1189 sub-class cluster.
+ *
+ * try_propagate_c was in glue.c before method_call.c #include (needed static
+ * fwd decl of debug_try_propagate_report_glue_c). Now after method_call.c
+ * #include (check_expr.c #include at glue.c L6246 > method_call.c #include at
+ * L6038) — debug_try_propagate_report_glue_c definition in method_call.c EOF
+ * (wave1147) is visible; static fwd decl removed from glue.c.
+ *
+ * call_c was in glue.c after method_call.c #include (needed static helpers
+ * glue_generic_call_fixup_resolved_type_c / pipeline_typeck_check_call_generic
+ * type_args_c in method_call.c EOF). Now in check_expr.c EOF — both static
+ * helpers visible (method_call.c #include before check_expr.c #include).
+ * pipeline_typeck_check_extern_call_unsafe_boundary_c (extern, defined at
+ * glue.c L6075) visible via fwd decl at glue.c L4760+.
+ *
+ * Forward decls visible at #include point (glue.c L6246) via earlier decls:
+ * - pipeline_typeck_check_expr_c (defined above in this file)
+ * - pipeline_typeck_expr_type_ref_c (fwd decl at glue.c L4599)
+ * - pipeline_typeck_type_refs_equal_c (fwd decl at glue.c L4594)
+ * - pipeline_module_num_funcs / pipeline_module_func_return_type_at (extern)
+ * - pipeline_type_kind_ord_at / pipeline_type_named_name_into (extern)
+ * - pipeline_type_ensure_by_kind_ord (extern)
+ * - pipeline_expr_unary_operand_ref_at / pipeline_expr_line/col_at (extern)
+ * - pipeline_expr_set_resolved_type_ref / pipeline_expr_resolved_type_ref (extern)
+ * - pipeline_expr_call_num_args_at / pipeline_expr_call_callee_ref_at (extern)
+ * - driver_diagnostic_typeck_try_propagate_bad_enclosing (extern)
+ * - pipeline_typeck_check_extern_call_unsafe_boundary_c (fwd decl at glue.c L6075)
+ * - pipeline_typeck_check_call_generic_type_args_c (static in method_call.c EOF)
+ * - glue_generic_call_fixup_resolved_type_c (static in method_call.c EOF)
+ * - pipeline_typeck_resolve_call_callee_return_type_c (extern in method_call.c EOF)
+ * - pipeline_typeck_check_call_slice_region_c (extern)
+ * - typeck_check_expr_call_arg / call_resolve (extern)
+ * - typeck_check_call_arity / call_arg_types (extern)
+ * - typeck_overload_expected_ret_slot (extern)
+ * - debug_try_propagate_report_glue_c (static in method_call.c EOF, wave1147)
+ * PLATFORM: SHARED.
+ * ========================================================================== */
+
+/**
+ * ERR-01: Result `?` propagation — operand must be Result_*, enclosing function
+ * return type must match; expression type is Ok payload (Result_i32→i32).
+ *
+ * Why: contextual `?` operator desugars to early-return on Err; typeck must
+ *      verify operand is Result_<T> named type and enclosing function returns
+ *      same Result type. Payload type extracted from name suffix (i32/u8).
+ * Invariant: arena non-null; expr_ref in [1, arena->num_exprs]; operand
+ *            type-checked before payload extraction.
+ * Asm/Perf: N/A (typeck pass; no codegen).
+ * Contract: returns 0 on success (expr resolved to payload type); -1 on
+ *           typeck fail (bad enclosing / non-Result operand).
+ * PLATFORM: SHARED — product path (seed typeck_check_expr_try_propagate → this glue).
+ */
+int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                   int32_t expr_ref, int32_t return_type_ref,
+                                                   struct ast_PipelineDepCtx *ctx) {
+  int32_t op_ref;
+  int32_t op_ty;
+  int32_t enclosing_return_type_ref;
+  int32_t func_ix;
+  int32_t func_ret;
+  int32_t line;
+  int32_t col;
+  int32_t payload_ty;
+  uint8_t rname[128];
+  int32_t rlen;
+  int32_t si;
+
+  (void)module;
+  (void)ctx;
+  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
+    return 0;
+  op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  line = pipeline_expr_line_at(arena, expr_ref);
+  col = pipeline_expr_col_at(arena, expr_ref);
+  if (pipeline_typeck_check_expr_c(module, arena, op_ref, return_type_ref, ctx) != 0)
+    return -1;
+  op_ty = pipeline_typeck_expr_type_ref_c(arena, op_ref);
+  enclosing_return_type_ref = return_type_ref;
+  func_ret = 0;
+  func_ix = ctx ? ctx->current_func_index : -1;
+  if (module && ctx && func_ix >= 0 && func_ix < pipeline_module_num_funcs(module)) {
+    func_ret = pipeline_module_func_return_type_at(module, func_ix);
+    if (!ast_ref_is_null(func_ret))
+      enclosing_return_type_ref = func_ret;
+  }
+  debug_try_propagate_report_glue_c(expr_ref, func_ix, return_type_ref, func_ret, enclosing_return_type_ref, op_ty);
+  if (ast_ref_is_null(op_ty) || pipeline_type_kind_ord_at(arena, op_ty) != (int32_t)ast_TypeKind_TYPE_NAMED) {
+    driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+    return -1;
+  }
+  rlen = pipeline_type_named_name_into(arena, op_ty, rname);
+  if (rlen < 7 || rname[0] != 'R' || rname[1] != 'e' || rname[2] != 's' || rname[3] != 'u' || rname[4] != 'l' ||
+      rname[5] != 't' || rname[6] != '_') {
+    driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+    return -1;
+  }
+  if (ast_ref_is_null(enclosing_return_type_ref) ||
+      !pipeline_typeck_type_refs_equal_c(arena, enclosing_return_type_ref, op_ty)) {
+    driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+    return -1;
+  }
+  payload_ty = 0;
+  if (rlen == 10 && rname[7] == 'i' && rname[8] == '3' && rname[9] == '2')
+    payload_ty = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I32);
+  else if (rlen == 9 && rname[7] == 'u' && rname[8] == '8')
+    payload_ty = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_U8);
+  else {
+    /** Result_<T> generic family: parse scalar from suffix T (current gate: i32/u8 only). */
+    for (si = 7; si + 1 < rlen && si + 1 < 64; si++) {
+      if (rname[si] == 'i' && rname[si + 1] == '3' && rname[si + 2] == '2') {
+        payload_ty = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I32);
+        break;
+      }
+      if (rname[si] == 'u' && rname[si + 1] == '8') {
+        payload_ty = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_U8);
+        break;
+      }
+    }
+  }
+  if (payload_ty != 0)
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, payload_ty);
+  else if (!ast_ref_is_null(op_ty))
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, op_ty);
+  return 0;
+}
+
+int32_t typeck_check_expr_try_propagate(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
+                                        int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
+  return pipeline_typeck_check_expr_try_propagate_c(module, arena, expr_ref, return_type_ref, ctx);
+}
+
+/**
+ * EXPR_CALL: delegate to typeck_x.o seed sub-steps + glue resolve, then
+ * generic return-type monomorphization fixup (bootstrap parser may not store
+ * call type_args). LANG-007 v2: S0 extern calls must be inside unsafe { }.
+ *
+ * Why: full call typeck pipeline — unsafe boundary check → arg typeck →
+ *      resolve → arity check → arg type check → generic type-args gate →
+ *      slice region check → return-type resolve + generic fixup.
+ *      Expected return stored for zero-arg overload pick (let v: Vec_u8 = vec.new()).
+ * Invariant: arena non-null; expr_ref in [1, arena->num_exprs]; expected_ret
+ *            slot cleared on all exit paths (no leak across calls).
+ * Asm/Perf: N/A (typeck pass; no codegen).
+ * Contract: returns 0 on success; -1 on typeck fail (unsafe/arity/type/generic).
+ * PLATFORM: SHARED — product path (seed typeck_check_expr_call → this glue).
+ */
+int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
+                                          int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
+  int32_t rc;
+  int32_t callee_ref;
+  int32_t ret_ty;
+  int32_t expect_store;
+  extern int32_t *typeck_overload_expected_ret_slot(void);
+  if (pipeline_typeck_check_extern_call_unsafe_boundary_c(module, arena, expr_ref, ctx) != 0)
+    return -1;
+  /*
+   * PLATFORM: SHARED — install expected return for zero-arg overload pick
+   * (let v: Vec_u8 = vec.new()). Also held through generic infer + fixup
+   * (wave453 bare ret-only type-param inference). Cleared on all exit paths.
+   * Authority consumers: typeck_find_func_return_type_in_module_by_name_overload
+   * / module_overload / try_infer / glue_generic_call_fixup.
+   */
+  expect_store = 0;
+  if (!ast_ref_is_null(return_type_ref) && return_type_ref > 0)
+    expect_store = return_type_ref;
+  *typeck_overload_expected_ret_slot() = expect_store;
+  /** Do not recurse via glue typeck_check_expr_call; call seed sub-steps + glue resolve directly. */
+  rc = typeck_check_expr_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0,
+                                  pipeline_expr_call_num_args_at(arena, expr_ref));
+  if (rc != 0) {
+    *typeck_overload_expected_ret_slot() = 0;
+    return rc;
+  }
+  rc = typeck_check_expr_call_resolve(module, arena, expr_ref, ctx);
+  if (rc != 0) {
+    *typeck_overload_expected_ret_slot() = 0;
+    return rc;
+  }
+  /*
+   * wave660 Cap residual: hard-fail free-function call arity at typeck.
+   * Root: overload first_idx fallback ignored nparams vs num_args → typeck OK,
+   * host-cc BLD001 (too few/many arguments). G.7: typeck_check_call_arity.
+   * PLATFORM: SHARED — product path (seed typeck_check_expr_call → this glue).
+   */
+  {
+    extern int32_t typeck_check_call_arity(struct ast_Module *module, struct ast_ASTArena *arena,
+                                           int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
+    if (typeck_check_call_arity(module, arena, expr_ref, ctx) != 0) {
+      *typeck_overload_expected_ret_slot() = 0;
+      return -1;
+    }
+  }
+  /*
+   * wave661 Cap residual: hard-fail free-function call arg types at typeck.
+   * Root: resolve+arity OK but arg vs param never scored → host-cc BLD001 or
+   * silent C conversion false-green. G.7: typeck_check_call_arg_types (reuses
+   * typeck_overload_arg_param_score; soft-skip unknown arg/param types).
+   * PLATFORM: SHARED — product path (seed typeck_check_expr_call → this glue).
+   */
+  {
+    extern int32_t typeck_check_call_arg_types(struct ast_Module *module, struct ast_ASTArena *arena,
+                                              int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
+    if (typeck_check_call_arg_types(module, arena, expr_ref, ctx) != 0) {
+      *typeck_overload_expected_ret_slot() = 0;
+      return -1;
+    }
+  }
+  /* Keep expected_ret through generic gate + fixup (wave453); clear after. */
+  if (pipeline_typeck_check_call_generic_type_args_c(module, arena, expr_ref, ctx, expect_store) != 0) {
+    *typeck_overload_expected_ret_slot() = 0;
+    return -1;
+  }
+  if (pipeline_typeck_check_call_slice_region_c(module, arena, expr_ref, ctx) != 0) {
+    *typeck_overload_expected_ret_slot() = 0;
+    return -1;
+  }
+  if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    ret_ty = pipeline_typeck_resolve_call_callee_return_type_c(module, arena, callee_ref, expr_ref, ctx);
+    if (ret_ty != 0)
+      (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty));
+  }
+  (void)glue_generic_call_fixup_resolved_type_c(module, arena, expr_ref, ctx, expect_store);
+  *typeck_overload_expected_ret_slot() = 0;
+  return 0;
+}
