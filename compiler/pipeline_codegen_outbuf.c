@@ -118,3 +118,63 @@ static int32_t glue_codegen_out_append_int(struct codegen_CodegenOutBuf *out, in
 static int32_t glue_codegen_out_append_byte(struct codegen_CodegenOutBuf *out, uint8_t b) {
   return glue_codegen_out_append_bytes(out, &b, 1);
 }
+
+/* wave1215: pipeline_expr_unary_operand_ref_at extern fwd decl — definition
+ * is extern (ast_pool_expr.c). Original fwd decl at glue.c L1050 is AFTER
+ * this file's #include at L445; needed for wave1215-migrated
+ * pipeline_codegen_emit_expr_try_propagate_c at EOF. */
+extern int32_t pipeline_expr_unary_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+
+/* ========================================================================== *
+ * wave1215 G.7: pipeline_codegen_emit_expr_try_propagate_c migrated from
+ * pipeline_glue.c L4138-4158. Colocated with C-backend codegen outbuf domain
+ * (this file; #include at glue.c L445).
+ *
+ * Members (1 fn):
+ *  - pipeline_codegen_emit_expr_try_propagate_c (ERR-01 GNU stmt expr desugar)
+ *
+ * Deps:
+ *  - pipeline_expr_unary_operand_ref_at (extern fwd decl above; original
+ *    glue.c L1050 is after L445)
+ *  - codegen_emit_expr / codegen_emit_bytes_from_ptr (extern, declared
+ *    in-function-body — same pattern as original)
+ *
+ * Callers: no TU-internal callsites. Sole callers are seeds
+ * (codegen.x / runtime_pipeline_abi.x) via extern.
+ *
+ * PLATFORM: SHARED — C codegen path, no arch branch.
+ * ========================================================================== */
+
+/**
+ * ERR-01 C codegen: GNU statement expression desugar for `expr?` operator.
+ *
+ * Why: the `?` operator (try-propagate) needs to early-return on error and
+ *      unwrap the value on success. In C codegen, this is expressed via
+ *      GNU statement expressions: `({ Result __q = <expr>; if (__q.err) return __q; __q.value; })`.
+ *      This function emits the pre/suf wrapper around the operand expr.
+ * Contract: NULL arena/out or expr_ref<=0 -> -1; op<=0 -> -1.
+ *           Returns 0 on success, -1 on failure.
+ * Asm/Perf: O(1) — two byte appends + one recursive codegen_emit_expr call.
+ * PLATFORM: SHARED — C codegen path, no arch branch.
+ */
+int32_t pipeline_codegen_emit_expr_try_propagate_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                                   int32_t expr_ref, struct ast_PipelineDepCtx *ctx) {
+  extern int32_t codegen_emit_expr(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t expr_ref,
+                                   struct ast_PipelineDepCtx *ctx);
+  extern int32_t codegen_emit_bytes_from_ptr(struct codegen_CodegenOutBuf *out, uint8_t *p, int32_t n);
+  int32_t op;
+  static const uint8_t pre[] = "({ struct core_result_Result_i32 __xlang_q = ";
+  static const uint8_t suf[] = "; if (__xlang_q.err != 0) return __xlang_q; __xlang_q.value; })";
+
+  (void)ctx;
+  if (!arena || !out || expr_ref <= 0)
+    return -1;
+  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op <= 0)
+    return -1;
+  if (codegen_emit_bytes_from_ptr(out, (uint8_t *)pre, (int32_t)(sizeof(pre) - 1)) != 0)
+    return -1;
+  if (codegen_emit_expr(arena, out, op, ctx) != 0)
+    return -1;
+  return codegen_emit_bytes_from_ptr(out, (uint8_t *)suf, (int32_t)(sizeof(suf) - 1));
+}

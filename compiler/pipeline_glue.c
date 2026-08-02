@@ -3678,78 +3678,15 @@ int32_t pipeline_typeck_ptr_for_addr_of_operand_c(struct ast_ASTArena *arena, in
 #include "pipeline_typeck_region_assign.c"
 
 
-/**
- * WPO-S3：CALL 路径 — 局部 struct 指针与另一 *Struct 形参同传时拒绝（callee 可能写入外层槽）。
- * PLATFORM: SHARED — Cap-T001: inside unsafe { } skip (depth>0); safe code still hard-fails T001.
- */
-int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                         int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx) {
-  int32_t func_ix;
-  int32_t num_args;
-  int32_t np;
-  int32_t src_i;
-  int32_t dst_j;
-  int32_t line;
-  int32_t col;
-  if (!module || !arena || !ctx || call_expr_ref <= 0)
-    return 0;
-  /* Cap-T001: mega parser/typeck/codegen whole-body unsafe may pass &local with *Struct outer. */
-  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) > 0)
-    return 0;
-  func_ix = pipeline_typeck_resolve_call_func_index_c(module, arena, call_expr_ref);
-  if (func_ix < 0)
-    return 0;
-  num_args = pipeline_expr_call_num_args_at(arena, call_expr_ref);
-  np = pipeline_module_func_num_params_at(module, func_ix);
-  if (num_args != np || num_args < 2)
-    return 0;
-  if (link_abi_getenv("XLANG_SKIP_STACK_ESCAPE") != NULL)
-    return 0;
-  for (src_i = 0; src_i < num_args; src_i++) {
-    int32_t arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, src_i);
-    int32_t arg_ty;
-    int32_t arg_elem;
-    if (!typeck_expr_is_addr_of_block_local_c(module, arena, ctx, arg_ref))
-      continue;
-    /** 仅当 &local 的类型是 *Struct 时才触发（&local_i32 不逃逸）。 */
-    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
-    if (arg_ty <= 0)
-      continue;
-    if (pipeline_type_kind_ord_at(arena, arg_ty) != (int32_t)ast_TypeKind_TYPE_PTR)
-      continue;
-    arg_elem = pipeline_type_elem_ref_at(arena, arg_ty);
-    if (arg_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, arg_elem))
-      continue;
-    for (dst_j = 0; dst_j < num_args; dst_j++) {
-      int32_t param_ref;
-      int32_t elem_ref;
-      int32_t other_arg;
-      if (dst_j == src_i)
-        continue;
-      param_ref = pipeline_module_func_param_type_ref_at(module, func_ix, dst_j);
-      if (param_ref <= 0 ||
-          pipeline_type_kind_ord_at(arena, param_ref) != (int32_t)ast_TypeKind_TYPE_PTR)
-        continue;
-      elem_ref = pipeline_type_elem_ref_at(arena, param_ref);
-      if (elem_ref <= 0 || !typeck_type_is_named_struct_c(module, arena, elem_ref))
-        continue;
-      /**
-       * 另一实参若也是「本函数块局部」的取址，则两指针同帧栈寿命，不是 outer。
-       * 误报例：emit/main 中 pipeline(..., &out, &ctx) 两个本地 struct。
-       * 仅当另一 *Struct 来自更长寿命（参数/堆/外层）时才拒。
-       */
-      other_arg = pipeline_expr_call_arg_ref(arena, call_expr_ref, dst_j);
-      if (typeck_expr_is_addr_of_block_local_c(module, arena, ctx, other_arg))
-        continue;
-      line = pipeline_expr_line_at(arena, call_expr_ref);
-      col = pipeline_expr_col_at(arena, call_expr_ref);
-      lsp_diag_report_typeck((int)line, (int)col,
-                             "struct stack escape: cannot pass address of local struct with outer struct pointer");
-      return -1;
-    }
-  }
-  return 0;
-}
+/* wave1214 G.7: pipeline_typeck_check_call_struct_stack_escape_c (67 lines)
+ * migrated to pipeline_typeck_region_assign.c EOF (colocated with region/escape
+ * assign-site domain; #include at L3678). WPO-S3 CALL path stack escape check.
+ * Deps all visible at L3678: pipeline_typeck_resolve_call_func_index_c (static
+ * fwd decl L3628), typeck_expr_is_addr_of_block_local_c (static, this file),
+ * typeck_type_is_named_struct_c (static, struct_lit.c #include L1435).
+ * No TU-internal callsites in glue.c — sole callers are region_assign.c L1009
+ * (same file) + check_expr.c L129 (#include L4265 > L3678 — visible).
+ * PLATFORM: SHARED — Cap-T001: inside unsafe { } skip (depth>0). */
 
 /* wave1136 G.7: typeck_scan_expr_stack_escape_c migrated to
  * pipeline_typeck_region_assign.c EOF (colocated with WPO-S3 assign/return
@@ -4132,30 +4069,19 @@ extern int32_t typeck_check_expr_try_propagate(struct ast_Module *module, struct
  * (static, wave1147 in method_call.c EOF) visible at check_expr.c #include
  * point (after method_call.c #include). PLATFORM: SHARED. */
 
-/**
- * ERR-01 C codegen：GNU 语句表达式 desugar `expr?` → err 早退 + unwrap value（烟测 C 路径 codegen_x_ast）。
- */
-int32_t pipeline_codegen_emit_expr_try_propagate_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
-                                                   int32_t expr_ref, struct ast_PipelineDepCtx *ctx) {
-  extern int32_t codegen_emit_expr(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t expr_ref,
-                                   struct ast_PipelineDepCtx *ctx);
-  extern int32_t codegen_emit_bytes_from_ptr(struct codegen_CodegenOutBuf *out, uint8_t *p, int32_t n);
-  int32_t op;
-  static const uint8_t pre[] = "({ struct core_result_Result_i32 __xlang_q = ";
-  static const uint8_t suf[] = "; if (__xlang_q.err != 0) return __xlang_q; __xlang_q.value; })";
-
-  (void)ctx;
-  if (!arena || !out || expr_ref <= 0)
-    return -1;
-  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-  if (op <= 0)
-    return -1;
-  if (codegen_emit_bytes_from_ptr(out, (uint8_t *)pre, (int32_t)(sizeof(pre) - 1)) != 0)
-    return -1;
-  if (codegen_emit_expr(arena, out, op, ctx) != 0)
-    return -1;
-  return codegen_emit_bytes_from_ptr(out, (uint8_t *)suf, (int32_t)(sizeof(suf) - 1));
-}
+/* wave1215 G.7: pipeline_codegen_emit_expr_try_propagate_c (21 lines)
+ * migrated to pipeline_codegen_outbuf.c EOF (colocated with C-backend codegen
+ * outbuf append domain; #include at L445). ERR-01 GNU stmt expr desugar for
+ * `expr?` operator.
+ * Deps:
+ *  - pipeline_expr_unary_operand_ref_at (extern fwd decl at codegen_outbuf.c
+ *    L122; original glue.c fwd decl at L1050 is after L445 — redeclared in
+ *    target file to keep visibility)
+ *  - codegen_emit_expr / codegen_emit_bytes_from_ptr (extern, in-function-body
+ *    declarations preserved verbatim from original)
+ * No TU-internal callsites in glue.c — sole callers are seeds
+ * (codegen.x / runtime_pipeline_abi.x) via extern.
+ * PLATFORM: SHARED — C codegen path, no arch branch. */
 
 /* typeck method_call + generic UFCS mono domain (BC 8.3.1):
  * pipeline_typeck_method_call.c */
