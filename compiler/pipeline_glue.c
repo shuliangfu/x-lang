@@ -2652,54 +2652,17 @@ extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br
  * PLATFORM: SHARED. */
 #include "pipeline_asm_label_format.c"
 
-/**
- * 生成唯一局部标签 ".Lf<scope>_<n>" 到 buf；多 Module 共用 elf_ctx 时 scope 由 pipeline_elf_label_mod_scope_begin_module 分配。
- */
-int32_t pipeline_asm_emit_next_label_c(struct backend_AsmFuncCtx *ctx, uint8_t *buf, int32_t buf_size) {
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  int32_t n;
-  int32_t id;
-  int32_t scope;
-  int32_t off;
-  if (!ctx || !buf || buf_size < 8)
-    return -1;
-  ly = pipeline_asm_ctx_layout(ctx);
-  scope = pipeline_elf_label_mod_scope_active();
-  buf[0] = (uint8_t)'.';
-  buf[1] = (uint8_t)'L';
-  buf[2] = (uint8_t)'f';
-  off = 3;
-  n = glue_format_u32_to_buf(buf, off, buf_size - off, (uint32_t)scope);
-  if (n <= 0)
-    n = 1;
-  off = off + n;
-  if (off + 2 >= buf_size)
-    return -1;
-  buf[off] = (uint8_t)'_';
-  off = off + 1;
-  id = ly->label_counter;
-  ly->label_counter = id + 1;
-  n = glue_format_u32_to_buf(buf, off, buf_size - off, (uint32_t)id);
-  if (n <= 0)
-    n = 1;
-  return off + n;
-}
-
-/**
- * 将 label 序号格式化为 ".L_<id>" 写入 buf；与 backend.x format_label_id 一致（不推进 label_counter）。
- */
-int32_t pipeline_asm_format_label_id_c(uint8_t *buf, int32_t buf_size, int32_t id) {
-  int32_t n;
-  if (!buf || buf_size < 4)
-    return -1;
-  buf[0] = (uint8_t)'.';
-  buf[1] = (uint8_t)'L';
-  buf[2] = (uint8_t)'_';
-  n = glue_format_i32_to_buf(buf, 3, buf_size - 3, id);
-  if (n <= 0)
-    n = 1;
-  return 3 + n;
-}
+/* wave1201 G.7: asm label format public wrappers (2 fns) migrated to
+ * pipeline_asm_label_format.c EOF (colocated with wave1102 integer format
+ * primitives — sole consumers of glue_format_u32_to_buf / glue_format_i32_to_buf).
+ * Members: pipeline_asm_emit_next_label_c (".Lf<scope>_<n>") +
+ * pipeline_asm_format_label_id_c (".L_<id>").
+ * Same-TU #include at L2653 makes definitions visible to all callers below
+ * (mega_body callsite at L3173). Static deps visible at #include point:
+ * pipeline_asm_ctx_layout (L86) + pipeline_glue_AsmFuncCtxLayout (struct top)
+ * + pipeline_elf_label_mod_scope_active (extern L836).
+ * Extern fwd decl retained at L835 (pipeline_asm_emit_next_label_c — called
+ * by glue.c L3173 mega_body). PLATFORM: SHARED. */
 
 /**
  * if 语句 then 块 ELF 发射：暂存/恢复 locals，fill + sync block body；与 backend.x emit_if_then_block_body_elf 一致。
