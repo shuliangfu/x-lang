@@ -1134,3 +1134,224 @@ static int32_t typeck_scan_block_stack_escape_c(struct ast_Module *m, struct ast
   ctx->current_block_ref = saved_br;
   return 0;
 }
+
+/*
+ * wave1167 G.7: region scope + scan_module + read_ptr + stamp_let cluster
+ * (7 fns + 3 statics + 1 macro) migrated from pipeline_glue.c (was L8497-8645).
+ * Colocated with region_assign domain — all region scope push/pop/len/stamp
+ * and module-level stack-escape scan belong here with typeck_scan_block_stack_escape_c.
+ *
+ * Statics (g_typeck_region_saved_len / saved_label / scope_n) now live here
+ * alongside g_typeck_with_arena_scope_n (L307). Both are reset by
+ * pipeline_typeck_scan_module_struct_stack_escape_c before per-func scan.
+ *
+ * Forward decls at L327-329 retained for early callsites in this file
+ * (check_return_slice_region_c at L409/416, scan_block at L1112/1121/1128)
+ * which precede these EOF definitions.
+ *
+ * Extern fwd decl for pipeline_block_set_let_type_ref (defined in
+ * ast_pool_block.c, visible via ast_pool.c #include at glue.c L5281 < this
+ * file's #include at L8417).
+ *
+ * Deps (all extern, visible at region_assign.c #include L8417):
+ * - link_abi_getenv (global)
+ * - pipeline_module_num_funcs / pipeline_module_func_is_extern_at /
+ *   pipeline_module_func_num_generic_params_at /
+ *   pipeline_module_func_body_ref_at (module_func domain)
+ * - typeck_scan_block_stack_escape_c (same file, L920+)
+ * - pipeline_type_ensure_by_kind_ord (glue.c L3334)
+ * - pipeline_type_find_or_alloc_slice (ast_pool_type.c)
+ * - pipeline_type_kind_ord_at / pipeline_type_elem_ref_at /
+ *   pipeline_type_region_label_len_at (type accessor domain)
+ * - pipeline_block_let_type_ref / pipeline_block_set_let_type_ref
+ *   (ast_pool_block.c)
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU.
+ */
+
+/** M-3: typeck region domain nesting stack (max 8 levels; push/pop in C glue). */
+#define TYPECK_REGION_SCOPE_MAX 8
+static int32_t g_typeck_region_saved_len[TYPECK_REGION_SCOPE_MAX];
+static uint8_t g_typeck_region_saved_label[TYPECK_REGION_SCOPE_MAX][128];
+static int32_t g_typeck_region_scope_n;
+
+/**
+ * Save current ctx region label and set new domain label; -1 on failure.
+ * Why: region blocks (unsafe/io_read_ptr/etc.) push a domain label so that
+ *      inner let T[] declarations inherit the region tag for escape checks.
+ * Contract: null ctx / null label / label_len outside [1,127] → -1.
+ *           Stack overflow (>= TYPECK_REGION_SCOPE_MAX) → -1.
+ * PLATFORM: SHARED — region scope management for post-typeck escape scan.
+ */
+int32_t pipeline_dep_ctx_scope_region_push_c(struct ast_PipelineDepCtx *ctx, uint8_t *label, int32_t label_len) {
+  int32_t slot;
+  if (!ctx || !label || label_len <= 0 || label_len > 127)
+    return -1;
+  if (g_typeck_region_scope_n >= TYPECK_REGION_SCOPE_MAX)
+    return -1;
+  slot = g_typeck_region_scope_n;
+  g_typeck_region_saved_len[slot] = ctx->typeck_scope_region_len;
+  if (ctx->typeck_scope_region_len > 0 && ctx->typeck_scope_region_len <= 63)
+    memcpy(g_typeck_region_saved_label[slot], ctx->typeck_scope_region_label, 128);
+  memset(ctx->typeck_scope_region_label, 0, sizeof(ctx->typeck_scope_region_label));
+  memcpy(ctx->typeck_scope_region_label, label, (size_t)label_len);
+  ctx->typeck_scope_region_len = label_len;
+  g_typeck_region_scope_n++;
+  return 0;
+}
+
+/**
+ * Restore the region domain label saved by the matching push.
+ * Why: pop region scope after scanning a region block body so outer
+ *      lets are not tagged with the inner region label.
+ * Contract: null ctx / empty stack → no-op.
+ * PLATFORM: SHARED — region scope management for post-typeck escape scan.
+ */
+void pipeline_dep_ctx_scope_region_pop_c(struct ast_PipelineDepCtx *ctx) {
+  int32_t slot;
+  if (!ctx || g_typeck_region_scope_n <= 0)
+    return;
+  g_typeck_region_scope_n--;
+  slot = g_typeck_region_scope_n;
+  ctx->typeck_scope_region_len = g_typeck_region_saved_len[slot];
+  memset(ctx->typeck_scope_region_label, 0, sizeof(ctx->typeck_scope_region_label));
+  if (g_typeck_region_saved_len[slot] > 0 && g_typeck_region_saved_len[slot] <= 127)
+    memcpy(ctx->typeck_scope_region_label, g_typeck_region_saved_label[slot], 128);
+}
+
+/**
+ * Module-level post-typeck scan for struct stack-pointer escape.
+ * Why: iterate all non-extern, non-generic funcs and delegate to
+ *      typeck_scan_block_stack_escape_c (same file) for each body.
+ *      Resets both with_arena and region scope stacks before scanning.
+ * Contract: null module/arena/ctx → 0 (no-op).
+ *           XLANG_SKIP_STACK_ESCAPE env → 0 (skip).
+ * PLATFORM: SHARED — WPO-S3 struct escape gate; called from glue.c
+ *           pipeline_typeck_after_parse_ok_c and lsp_diag paths.
+ */
+int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                          struct ast_PipelineDepCtx *ctx) {
+  int32_t i;
+  int32_t nf;
+  int32_t body;
+  int32_t num_generic_params;
+  if (!module || !arena || !ctx)
+    return 0;
+  if (link_abi_getenv("XLANG_SKIP_STACK_ESCAPE") != NULL)
+    return 0;
+  g_typeck_with_arena_scope_n = 0;
+  g_typeck_region_scope_n = 0;
+  ctx->typeck_scope_region_len = 0;
+  memset(ctx->typeck_scope_region_label, 0, sizeof(ctx->typeck_scope_region_label));
+  nf = pipeline_module_num_funcs(module);
+  for (i = 0; i < nf; i++) {
+    if (pipeline_module_func_is_extern_at(module, i) != 0)
+      continue;
+    num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
+    if (num_generic_params > 0)
+      continue;
+    body = pipeline_module_func_body_ref_at(module, i);
+    if (body <= 0)
+      continue;
+    if (typeck_scan_block_stack_escape_c(module, arena, ctx, i, body) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/**
+ * Check if callee name is a read_ptr slice producer (auto-binds io_read_ptr region).
+ * Why: read_ptr_slice / xlang_io_read_ptr_slice / driver_read_ptr_slice /
+ *      io_read_ptr_slice all return u8[]<io_read_ptr> tagged slices; the typeck
+ *      auto-binds the io_read_ptr region label for escape-safe return paths.
+ * Contract: null name / name_len <= 0 → 0.
+ * PLATFORM: SHARED — M-5 read_ptr slice region binding.
+ */
+int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int32_t name_len) {
+  static const uint8_t n0[] = "read_ptr_slice";
+  static const uint8_t n1[] = "xlang_io_read_ptr_slice";
+  static const uint8_t n2[] = "driver_read_ptr_slice";
+  static const uint8_t n3[] = "io_read_ptr_slice";
+  if (!name || name_len <= 0)
+    return 0;
+  if (name_len == 14 && memcmp(name, n0, 14) == 0)
+    return 1;
+  if (name_len == 19 && memcmp(name, n1, 19) == 0)
+    return 1;
+  if (name_len == 18 && memcmp(name, n2, 18) == 0)
+    return 1;
+  if (name_len == 16 && memcmp(name, n3, 16) == 0)
+    return 1;
+  return 0;
+}
+
+/**
+ * Allocate or find the u8[]<io_read_ptr> type pool ref (read_ptr TLS buf domain).
+ * Why: read_ptr slice return type must carry the io_read_ptr region label so
+ *      the escape checker permits the return path within the region block.
+ * Contract: null arena → 0.
+ * PLATFORM: SHARED — M-5 read_ptr slice region binding.
+ */
+int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *arena) {
+  static const uint8_t lbl[] = "io_read_ptr";
+  int32_t u8_ref;
+  if (!arena)
+    return 0;
+  u8_ref = pipeline_type_ensure_by_kind_ord(arena, 2);
+  if (u8_ref <= 0)
+    return 0;
+  return pipeline_type_find_or_alloc_slice(arena, u8_ref, (uint8_t *)lbl, 11);
+}
+
+/**
+ * Read current ctx region domain label length; 0 means not inside a region block.
+ * Contract: null ctx → 0.
+ * PLATFORM: SHARED — M-3 region scope reader for let region stamping.
+ */
+int32_t pipeline_dep_ctx_scope_region_len_at(struct ast_PipelineDepCtx *ctx) {
+  if (!ctx)
+    return 0;
+  return ctx->typeck_scope_region_len > 0 ? ctx->typeck_scope_region_len : 0;
+}
+
+/* extern: defined in ast_pool_block.c (visible via ast_pool.c #include at glue.c L5281). */
+int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
+                                        int32_t type_ref);
+
+/**
+ * Stamp a block-let's T[] type with the current ctx region label.
+ * Why: region-block inner `let v = arr` where arr: T[] must inherit the
+ *      region tag (T[]<label>) so the escape checker can verify the let
+ *      does not outlive the region. In-place mutation of the shared type
+ *      node is forbidden (would corrupt function return types sharing the
+ *      same T[] ref); must find_or_alloc a new T[]<label> and write it back.
+ * Contract: null arena/ctx / invalid block_ref/let_idx → 0.
+ *           Non-TYPE_SLICE type / already-tagged → 0 (no-op).
+ *           find_or_alloc failure → -1.
+ * PLATFORM: SHARED — M-3 region tag propagation to let declarations.
+ */
+int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
+                                             struct ast_PipelineDepCtx *ctx) {
+  int32_t ty_ref;
+  int32_t rlen;
+  int32_t elem;
+  int32_t stamped;
+  if (!arena || !ctx || block_ref <= 0 || let_idx < 0)
+    return 0;
+  rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
+  if (rlen <= 0)
+    return 0;
+  ty_ref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
+  if (ty_ref <= 0 || pipeline_type_kind_ord_at(arena, ty_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
+    return 0;
+  if (pipeline_type_region_label_len_at(arena, ty_ref) > 0)
+    return 0;
+  elem = pipeline_type_elem_ref_at(arena, ty_ref);
+  if (elem <= 0)
+    return 0;
+  stamped = pipeline_type_find_or_alloc_slice(arena, elem, ctx->typeck_scope_region_label, rlen);
+  if (stamped <= 0)
+    return -1;
+  if (stamped == ty_ref)
+    return 0;
+  return pipeline_block_set_let_type_ref(arena, block_ref, let_idx, stamped);
+}

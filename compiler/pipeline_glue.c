@@ -7915,19 +7915,30 @@ int32_t pipeline_typeck_resolve_dep_index_for_import_c(struct ast_Module *module
   return -1;
 }
 
-/** typeck：当前 entry module（IMPORT_BINDING 返回类型映 caller 时加 binding 前缀）。 */
-static struct ast_Module *g_typeck_entry_module_for_dep_map;
-
-/** typeck 入口设置 entry module，供 get_dep_return_type 解析 vec.Vec_u8 等 qualified 名。 */
-void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module) {
-  g_typeck_entry_module_for_dep_map = module;
-}
-
-/* wave1111-1112 G.7: dep return type mapping domain (2 fns) migrated to
- * pipeline_typeck_method_call.c EOF (cross-module call return-type
- * resolution is a sub-domain of method call). Static fwd decls below
- * keep callsites at L9500/9530/9534/9604 visible before method_call.c
- * #include at L11693. PLATFORM: SHARED. */
+/* wave1168 G.7: dep return type + entry module cluster (3 extern fns + 1 static)
+ * migrated to pipeline_typeck_method_call.c EOF. Colocated with statics
+ * pipeline_typeck_map_import_binding_named_to_caller_c (L2522) and
+ * pipeline_typeck_dep_return_type_to_caller_arena_impl (L2563) already in
+ * method_call.c.
+ *
+ * Static g_typeck_entry_module_for_dep_map moves to method_call.c (sole access
+ * was from the 3 migrated functions).
+ *
+ * Forward decls:
+ * - pipeline_typeck_get_dep_return_type_in_caller_arena_c: fwd decl at L770
+ *   (before callsites L8033/8075 < method_call.c #include L9153)
+ * - pipeline_typeck_set_entry_module_for_dep_map_c: callsites at L9469/9536
+ *   > method_call.c #include L9153; no fwd decl needed.
+ * - pipeline_typeck_dep_return_type_to_caller_arena_c: no glue.c callsites;
+ *   extern, called from seed only.
+ *
+ * Static fwd decls below retained for callsites before method_call.c #include:
+ * - pipeline_typeck_map_import_binding_named_to_caller_c (fwd decl below;
+ *   callsite was in get_dep_return_type_in_caller_arena_c, now migrated)
+ * - pipeline_typeck_dep_return_type_to_caller_arena_impl (fwd decl below;
+ *   callsite was in dep_return_type_to_caller_arena_c + get_dep_return_type,
+ *   both migrated)
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 static int32_t pipeline_typeck_map_import_binding_named_to_caller_c(struct ast_Module *entry_mod,
                                                                     int32_t dep_ix,
                                                                     struct ast_ASTArena *caller_arena,
@@ -7936,154 +7947,19 @@ static int32_t pipeline_typeck_dep_return_type_to_caller_arena_impl(struct ast_A
                                                                     int32_t dep_return_type_ref,
                                                                     struct ast_ASTArena *caller_arena);
 
-/** typeck.x::dep_return_type_to_caller_arena 的 C 委托（EMIT_HEAVY 薄包装入口）。 */
-int32_t pipeline_typeck_dep_return_type_to_caller_arena_c(struct ast_ASTArena *dep_arena, int32_t dep_return_type_ref,
-                                                          struct ast_ASTArena *caller_arena) {
-  return pipeline_typeck_dep_return_type_to_caller_arena_impl(dep_arena, dep_return_type_ref, caller_arena);
-}
-
-/** typeck.x::get_dep_return_type_in_caller_arena 的 C 委托。 */
-int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index, int32_t dep_return_type_ref,
-                                                              struct ast_ASTArena *caller_arena,
-                                                              struct ast_PipelineDepCtx *ctx) {
-  struct ast_ASTArena *dep_arena;
-  int32_t kind;
-  uint8_t nm[128];
-  int32_t nlen;
-
-  if (from_dep_index < 0 || !ctx)
-    return 0;
-  dep_arena = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
-  if (!dep_arena) {
-    dep_arena = pipeline_get_dep_arena_slot(from_dep_index);
-    if (!dep_arena)
-      return 0;
-  }
-  /** entry import 下标可小于 ndep（闭包 seed 9 槽 vs entry 1 import）；槽已 bind 则继续。 */
-  if (from_dep_index >= pipeline_dep_ctx_ndep(ctx) && !pipeline_dep_ctx_module_at(ctx, from_dep_index))
-    return 0;
-  /** 顶层 dep 返回 TYPE_NAMED：须加 import binding 前缀，与 let v: vec.Vec_u8 声明一致。 */
-  if (g_typeck_entry_module_for_dep_map && dep_return_type_ref > 0 &&
-      dep_return_type_ref <= dep_arena->num_types) {
-    kind = pipeline_type_kind_ord_at(dep_arena, dep_return_type_ref);
-    if (kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
-      nlen = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, nm);
-      if (nlen > 0)
-        return pipeline_typeck_map_import_binding_named_to_caller_c(
-            g_typeck_entry_module_for_dep_map, from_dep_index, caller_arena, nm, nlen);
-    }
-  }
-  return pipeline_typeck_dep_return_type_to_caller_arena_impl(dep_arena, dep_return_type_ref, caller_arena);
-}
-
-/** typeck.x::expr_var_name_equal_func 的 C 委托：VAR callee 名与 module.funcs[j] 名逐字节相等。 */
-int32_t pipeline_typeck_expr_var_name_equal_func_c(struct ast_ASTArena *arena, int32_t callee_expr_ref,
-                                                   struct ast_Module *mod, int32_t func_index) {
-  uint8_t vbuf[128];
-  int32_t b_len;
-  int32_t a_len;
-  int32_t i;
-
-  if (callee_expr_ref <= 0 || !arena || callee_expr_ref > arena->num_exprs)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, callee_expr_ref) != 3)
-    return 0;
-  b_len = pipeline_expr_var_name_len(arena, callee_expr_ref);
-  if (func_index < 0 || !mod || func_index >= mod->num_funcs)
-    return 0;
-  a_len = pipeline_module_func_name_len_at(mod, func_index);
-  if (a_len != b_len || a_len <= 0 || a_len > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, callee_expr_ref, vbuf);
-  i = 0;
-  while (i < a_len) {
-    if (pipeline_module_func_name_byte_at(mod, func_index, i) != vbuf[i])
-      return 0;
-    i = i + 1;
-  }
-  return 1;
-}
-
-/** typeck.x::find_func_return_type_in_module_by_name 的 C 委托。 */
+/* wave1169 G.7: func resolution cluster (4 extern fns) migrated to
+ * pipeline_typeck_method_call.c EOF. Colocated with method_call domain —
+ * callee-name matching, func return-type lookup, and call-resolve write-back
+ * are all sub-domains of method-call resolution.
+ *
+ * Forward decl for pipeline_typeck_find_func_return_type_in_module_by_name_c
+ * below (before callsite at L8196 < method_call.c #include L9153).
+ * Other 3 fns have no glue.c callsites; extern fwd decls in call_args.c
+ * (L2479/L2483) cover asm-emit callsites before method_call.c #include.
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
     struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len,
-    int32_t from_dep_index, struct ast_PipelineDepCtx *ctx, int32_t *func_index_out) {
-  int32_t j;
-  int32_t rtr;
-
-  if (name_len <= 0 || name_len > 127)
-    return 0;
-  j = 0;
-  while (j < mod->num_funcs) {
-    if (pipeline_module_func_name_equal_at(mod, j, name, name_len) != 0) {
-      /* 模块导出：strict 下跨模块仅 is_export（compat/warn 放行）。 */
-      if (from_dep_index >= 0 && pipeline_visibility_allow_func(mod, j, 1) == 0) {
-        j = j + 1;
-        continue;
-      }
-      if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-        fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep_func_match name=%.*s func_idx=%d dep_ix=%d raw_ret=%d\n",
-                (int)name_len, name, (int)j, (int)from_dep_index, (int)pipeline_module_func_return_type_at(mod, j));
-      if (func_index_out)
-        func_index_out[0] = j;
-      rtr = pipeline_module_func_return_type_at(mod, j);
-      if (from_dep_index < 0)
-        return rtr;
-      {
-        int32_t mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, rtr, caller_arena, ctx);
-        if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-          fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep_func_map name=%.*s func_idx=%d dep_ix=%d mapped=%d\n",
-                  (int)name_len, name, (int)j, (int)from_dep_index, (int)mapped);
-        if (mapped != 0)
-          return mapped;
-        /* bootstrap：ctx dep arena 直映 primitive（import_idx 与全局 dep 槽错位时）。 */
-        {
-          struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
-          if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-            fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep_func_fallback name=%.*s func_idx=%d dep_ix=%d dep_arena=%p raw_ret=%d\n",
-                    (int)name_len, name, (int)j, (int)from_dep_index, (void *)da, (int)rtr);
-          if (da && rtr != 0)
-            return pipeline_typeck_dep_return_type_to_caller_arena_impl(da, rtr, caller_arena);
-        }
-      }
-      return 0;
-    }
-    j = j + 1;
-  }
-  return 0;
-}
-
-/** typeck.x::find_func_return_type_in_module 的 C 委托。 */
-int32_t pipeline_typeck_find_func_return_type_in_module_c(
-    struct ast_Module *mod, struct ast_ASTArena *mod_arena, struct ast_ASTArena *caller_arena,
-    struct ast_ASTArena *callee_arena, int32_t callee_expr_ref, int32_t from_dep_index,
-    struct ast_PipelineDepCtx *ctx, int32_t *func_index_out) {
-  int32_t j;
-  int32_t ret_dep;
-
-  (void)mod_arena;
-  if (!mod || !callee_arena)
-    return 0;
-  j = 0;
-  while (j < mod->num_funcs) {
-    if (pipeline_typeck_expr_var_name_equal_func_c(callee_arena, callee_expr_ref, mod, j) != 0) {
-      if (func_index_out)
-        func_index_out[0] = j;
-      ret_dep = pipeline_module_func_return_type_at(mod, j);
-      if (from_dep_index < 0)
-        return ret_dep;
-      return pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, ret_dep, caller_arena, ctx);
-    }
-    j = j + 1;
-  }
-  return 0;
-}
-
-/** typeck.x::typeck_expr_apply_call_resolve 的 C 委托：写入 CALL 结点的 resolved dep/func 下标。 */
-void pipeline_typeck_expr_apply_call_resolve_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t dep_ix,
-                                               int32_t func_ix) {
-  pipeline_expr_apply_call_resolve(arena, call_expr_ref, dep_ix, func_ix);
-}
+    int32_t from_dep_index, struct ast_PipelineDepCtx *ctx, int32_t *func_index_out);
 
 /* wave1150 G.7: GLUE_TYPECK_IMPORT_BINDING/SELECT enum moved before
  * call_args.c #include (see ~L2237). Needed by glue_asm_resolve_call_target_
@@ -8494,155 +8370,25 @@ int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *modu
  * pipeline_typeck_region_assign.c EOF (colocated with WPO-S3 assign/return
  * escape checks). Visible here via #include at L9934. */
 
-/** M-3：typeck region 域嵌套栈（最多 8 层；push/pop 在 C glue 内维护）。 */
-#define TYPECK_REGION_SCOPE_MAX 8
-static int32_t g_typeck_region_saved_len[TYPECK_REGION_SCOPE_MAX];
-static uint8_t g_typeck_region_saved_label[TYPECK_REGION_SCOPE_MAX][128];
-static int32_t g_typeck_region_scope_n;
-
-/** M-3：保存 ctx region 并设置新域标签；失败返回 -1。 */
-int32_t pipeline_dep_ctx_scope_region_push_c(struct ast_PipelineDepCtx *ctx, uint8_t *label, int32_t label_len) {
-  int32_t slot;
-  if (!ctx || !label || label_len <= 0 || label_len > 127)
-    return -1;
-  if (g_typeck_region_scope_n >= TYPECK_REGION_SCOPE_MAX)
-    return -1;
-  slot = g_typeck_region_scope_n;
-  g_typeck_region_saved_len[slot] = ctx->typeck_scope_region_len;
-  if (ctx->typeck_scope_region_len > 0 && ctx->typeck_scope_region_len <= 63)
-    memcpy(g_typeck_region_saved_label[slot], ctx->typeck_scope_region_label, 128);
-  memset(ctx->typeck_scope_region_label, 0, sizeof(ctx->typeck_scope_region_label));
-  memcpy(ctx->typeck_scope_region_label, label, (size_t)label_len);
-  ctx->typeck_scope_region_len = label_len;
-  g_typeck_region_scope_n++;
-  return 0;
-}
-
-/** M-3：恢复 push 前的 region 域。 */
-void pipeline_dep_ctx_scope_region_pop_c(struct ast_PipelineDepCtx *ctx) {
-  int32_t slot;
-  if (!ctx || g_typeck_region_scope_n <= 0)
-    return;
-  g_typeck_region_scope_n--;
-  slot = g_typeck_region_scope_n;
-  ctx->typeck_scope_region_len = g_typeck_region_saved_len[slot];
-  memset(ctx->typeck_scope_region_label, 0, sizeof(ctx->typeck_scope_region_label));
-  if (g_typeck_region_saved_len[slot] > 0 && g_typeck_region_saved_len[slot] <= 127)
-    memcpy(ctx->typeck_scope_region_label, g_typeck_region_saved_label[slot], 128);
-}
-
-/* wave1137 G.7: typeck_scan_block_stack_escape_c migrated to
- * pipeline_typeck_region_assign.c EOF (recursive post-typeck block walker;
- * colocated with scan_expr + WPO-S3 escape checks). Visible here via
- * #include at L9934; called by pipeline_typeck_scan_module_struct_stack_escape_c below. */
-
-/** WPO-S3：模块级 post-typeck 扫描 struct 栈指针逃逸。 */
-int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                          struct ast_PipelineDepCtx *ctx) {
-  int32_t i;
-  int32_t nf;
-  int32_t body;
-  int32_t num_generic_params;
-  if (!module || !arena || !ctx)
-    return 0;
-  if (link_abi_getenv("XLANG_SKIP_STACK_ESCAPE") != NULL)
-    return 0;
-  g_typeck_with_arena_scope_n = 0;
-  g_typeck_region_scope_n = 0;
-  ctx->typeck_scope_region_len = 0;
-  memset(ctx->typeck_scope_region_label, 0, sizeof(ctx->typeck_scope_region_label));
-  nf = pipeline_module_num_funcs(module);
-  for (i = 0; i < nf; i++) {
-    if (pipeline_module_func_is_extern_at(module, i) != 0)
-      continue;
-    num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
-    if (num_generic_params > 0)
-      continue;
-    body = pipeline_module_func_body_ref_at(module, i);
-    if (body <= 0)
-      continue;
-    if (typeck_scan_block_stack_escape_c(module, arena, ctx, i, body) != 0)
-      return -1;
-  }
-  return 0;
-}
-
-/** M-5：callee 名是否为 read_ptr slice 生产者（自动绑 io_read_ptr 域）。 */
-int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int32_t name_len) {
-  static const uint8_t n0[] = "read_ptr_slice";
-  static const uint8_t n1[] = "xlang_io_read_ptr_slice";
-  static const uint8_t n2[] = "driver_read_ptr_slice";
-  static const uint8_t n3[] = "io_read_ptr_slice";
-  if (!name || name_len <= 0)
-    return 0;
-  if (name_len == 14 && memcmp(name, n0, 14) == 0)
-    return 1;
-  if (name_len == 19 && memcmp(name, n1, 19) == 0)
-    return 1;
-  if (name_len == 18 && memcmp(name, n2, 18) == 0)
-    return 1;
-  if (name_len == 16 && memcmp(name, n3, 16) == 0)
-    return 1;
-  return 0;
-}
-
-/** M-5：u8[]<io_read_ptr> 类型池 ref（read_ptr TLS buf 域）。 */
-int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *arena) {
-  static const uint8_t lbl[] = "io_read_ptr";
-  int32_t u8_ref;
-  if (!arena)
-    return 0;
-  u8_ref = pipeline_type_ensure_by_kind_ord(arena, 2);
-  if (u8_ref <= 0)
-    return 0;
-  return pipeline_type_find_or_alloc_slice(arena, u8_ref, (uint8_t *)lbl, 11);
-}
-
-/** M-3 check_return_slice_region: body in pipeline_typeck_region_assign.c (included above). */
-
-
-/** M-3：读 ctx 当前 region 域标签长度；0 表示不在 region 块内。 */
-int32_t pipeline_dep_ctx_scope_region_len_at(struct ast_PipelineDepCtx *ctx) {
-  if (!ctx)
-    return 0;
-  return ctx->typeck_scope_region_len > 0 ? ctx->typeck_scope_region_len : 0;
-}
-
-/** M-3：为块内 let 声明类型（未标注域的 T[]）打上当前 ctx region 标签。 */
-int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
-                                        int32_t type_ref);
-
-/**
- * M-3：region 内未标注 T[] 继承当前域标签。
- * 【Why 根源】禁止 in-place 改共享 type 节点（否则函数返回类型 T[] 与 let 共享时被连带 stamp，
- * 逃逸检查失效，且可破坏其它引用）。须 find_or_alloc 新 T[]<label> 并写回 let.type_ref。
- */
-int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
-                                             struct ast_PipelineDepCtx *ctx) {
-  int32_t ty_ref;
-  int32_t rlen;
-  int32_t elem;
-  int32_t stamped;
-  if (!arena || !ctx || block_ref <= 0 || let_idx < 0)
-    return 0;
-  rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
-  if (rlen <= 0)
-    return 0;
-  ty_ref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
-  if (ty_ref <= 0 || pipeline_type_kind_ord_at(arena, ty_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  if (pipeline_type_region_label_len_at(arena, ty_ref) > 0)
-    return 0;
-  elem = pipeline_type_elem_ref_at(arena, ty_ref);
-  if (elem <= 0)
-    return 0;
-  stamped = pipeline_type_find_or_alloc_slice(arena, elem, ctx->typeck_scope_region_label, rlen);
-  if (stamped <= 0)
-    return -1;
-  if (stamped == ty_ref)
-    return 0;
-  return pipeline_block_set_let_type_ref(arena, block_ref, let_idx, stamped);
-}
+/* wave1167 G.7: region scope + scan_module + read_ptr + stamp_let cluster
+ * (7 extern fns + 3 statics + TYPECK_REGION_SCOPE_MAX macro) migrated to
+ * pipeline_typeck_region_assign.c EOF. Colocated with region_assign domain
+ * — all region scope push/pop/len/stamp and module-level stack-escape scan
+ * belong with typeck_scan_block_stack_escape_c (wave1137).
+ *
+ * Statics (g_typeck_region_saved_len / saved_label / scope_n) now in
+ * region_assign.c alongside g_typeck_with_arena_scope_n (L307).
+ *
+ * Forward decls:
+ * - pipeline_typeck_scan_module_struct_stack_escape_c: fwd decl at L5610
+ *   (before callsites L5645/5656/5703 < region_assign.c #include L8417)
+ * - pipeline_dep_ctx_scope_region_push_c / _pop_c / _len_at: fwd decls in
+ *   region_assign.c L327-329 (before callsites L409/416/1112/1121/1128)
+ * - pipeline_typeck_is_read_ptr_slice_callee_c /
+ *   pipeline_typeck_read_ptr_slice_return_ref_c / pipeline_type_stamp_block_let_region_c:
+ *   extern, called from seed (typeck_gen.linux.x86_64.c) not from glue.c TU;
+ *   no fwd decl needed in glue.c.
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
 /* wave1089 G.7: pipeline_module_func_overload_count_c migrated to
  * pipeline_typeck_method_call.c EOF (overload gating sub-domain of method call
@@ -8679,17 +8425,14 @@ static int32_t pipeline_typeck_overload_expect_match_c(struct ast_Module *m, str
 static int32_t pipeline_typeck_pick_overload_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                           int32_t call_expr_ref);
 
-/** asm CALL/func emit：解析 CALL 目标 func 下标（含 overload 分派）；供 backend_call_dispatch.c 使用。 */
-int32_t pipeline_typeck_resolve_call_func_index_for_emit_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                          int32_t call_expr_ref) {
-  return pipeline_typeck_resolve_call_func_index_c(m, a, call_expr_ref);
-}
-
-/** WPO call 边 / typeck：按实参类型选取 overload func 下标。 */
-int32_t pipeline_typeck_pick_overload_func_index_for_call_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                            int32_t call_expr_ref) {
-  return pipeline_typeck_pick_overload_func_index_c(m, a, call_expr_ref);
-}
+/* wave1170 G.7: overload wrapper cluster (2 extern fns:
+ * pipeline_typeck_resolve_call_func_index_for_emit_c /
+ * pipeline_typeck_pick_overload_func_index_for_call_c) migrated to
+ * pipeline_typeck_method_call.c EOF. Colocated with static overload resolvers
+ * (pipeline_typeck_resolve_call_func_index_c / _pick_overload_func_index_c,
+ * wave1090-1094, same file).
+ * Extern fwd decls at L5081/5083 cover ast_pool.c:11607 callsite.
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
 /* wave1150 G.7: glue_asm_resolve_call_target_module_c migrated to
  * pipeline_asm_emit_call_args.c EOF (CALL-target module/func_index resolver;
