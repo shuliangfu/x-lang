@@ -484,6 +484,33 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
   off = -1;
   ftr = 0;
   if (skip_layout_for_type_kind == 0) {
+    /* wave1220 P1: strip import-binding qualification prefix from type name
+     * before layout lookup. Parser stores qualified type names like
+     * "lexer.Lexer" in TYPE_NAMED (consume_qualified_type_ident_name_c),
+     * but struct_layouts are registered with the bare struct name "Lexer".
+     * Without stripping, typeck_get_field_*_from_layout_deps compares
+     * "lexer.Lexer" (11 bytes) against dep layout "Lexer" (5 bytes) and
+     * never matches — cross-module struct field access fails for all
+     * user deps. Strip the last '.' prefix so layout lookup sees "Lexer".
+     * PLATFORM: SHARED — root-cause fix at the layout-named dispatch layer.
+     * G.7: single fix point; entry + dep walk share the stripped name. */
+    {
+      int32_t dot_pos = -1;
+      int32_t si;
+      for (si = 0; si < layout_nm_len; si++) {
+        if (layout_nm_buf[si] == 46 /* '.' */)
+          dot_pos = si;
+      }
+      if (dot_pos >= 0 && dot_pos + 1 < layout_nm_len) {
+        int32_t suffix_len = layout_nm_len - (dot_pos + 1);
+        /* Shift suffix to front of buffer; both lookup and TokenKind/EOF
+         * special-case checks below use layout_nm_buf[0..suffix_len). */
+        for (si = 0; si < suffix_len; si++)
+          layout_nm_buf[si] = layout_nm_buf[dot_pos + 1 + si];
+        layout_nm_buf[suffix_len] = 0;
+        layout_nm_len = suffix_len;
+      }
+    }
     off = typeck_get_field_offset_from_layout_deps(module, ctx, &layout_nm_buf[0], layout_nm_len, &fn_buf[0], fl2);
     if (off >= 0)
       pipeline_expr_set_field_access_offset(arena, expr_ref, off);
