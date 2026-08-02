@@ -1091,3 +1091,23 @@ int32_t backend_pipeline_expr_struct_lit_num_fields(struct ast_ASTArena *a, int3
 int32_t backend_pipeline_expr_struct_lit_init_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t j) {
   return pipeline_expr_struct_lit_init_ref(a, expr_ref, j);
 }
+
+/* wave1187 G.7: codegen_/backend_ struct_lit field offset/store_sz forwarders
+ * migrated from pipeline_glue.c L7239-L7255. Pure forwarders to
+ * pipeline_expr_struct_lit_field_offset_at / _field_store_sz. */
+int32_t codegen_pipeline_expr_struct_lit_field_offset_at(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
+                                                         int32_t field_ix) {
+  return pipeline_expr_struct_lit_field_offset_at(a, m, expr_ref, field_ix);
+}
+int32_t codegen_pipeline_expr_struct_lit_field_store_sz(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
+                                                        int32_t field_ix) {
+  return pipeline_expr_struct_lit_field_store_sz(a, m, expr_ref, field_ix);
+}
+int32_t backend_pipeline_expr_struct_lit_field_offset_at(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
+                                                         int32_t field_ix) {
+  return pipeline_expr_struct_lit_field_offset_at(a, m, expr_ref, field_ix);
+}
+int32_t backend_pipeline_expr_struct_lit_field_store_sz(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
+                                                        int32_t field_ix) {
+  return pipeline_expr_struct_lit_field_store_sz(a, m, expr_ref, field_ix);
+}
