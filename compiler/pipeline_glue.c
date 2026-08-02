@@ -1071,15 +1071,12 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
 extern int32_t asm_array_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
 extern int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
 
-/* wave1149 G.7: glue_asm_init_expr_reserve_stack_bytes migrated to
- * pipeline_asm_emit_block_inits.c EOF (block-local slot allocation
- * domain; colocated with pipeline_asm_fill_block_locals_tree).
- * Static fwd decl below — sole caller pipeline_asm_let_init_stack_
- * reserve_bytes at L2106 is BEFORE block_inits.c #include at L3617;
- * definition at block_inits.c EOF (after #include). Deps:
- * asm_array_lit_reserve_stack_bytes / asm_struct_lit_reserve_stack_bytes
- * (extern, fwd decls above). PLATFORM: SHARED. */
-static int32_t glue_asm_init_expr_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
+/* wave1204 G.7: glue_asm_init_expr_reserve_stack_bytes static fwd decl
+ * removed — sole caller pipeline_asm_let_init_stack_reserve_bytes
+ * migrated to pipeline_asm_emit_block_inits.c EOF (same file as the
+ * definition). Both extern fwd decls above retained (asm_array_lit /
+ * asm_struct_lit_reserve_stack_bytes are still called by the definition
+ * in block_inits.c via same-TU #include at L2404). PLATFORM: SHARED. */
 
 #define PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED (-99)
 
@@ -1460,12 +1457,11 @@ static int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
 
 /* wave354: glue_emit_fixed_array_type_let_init_elf_c defined after glue_type_is_fixed_array. */
 
-/* wave1115-1117 G.7: vector type/let helpers domain (3 fns) migrated to
- * pipeline_asm_emit_vector_simd.c EOF (SIMD vector type introspection and
- * let-init classification, co-located with SIMD emit domain). Static fwd
- * decl below for glue.c L2205 callsite (pipeline_asm_let_init_stack_reserve_bytes)
- * which precedes vector_simd.c #include at L2218. PLATFORM: SHARED. */
-static int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref);
+/* wave1204 G.7: glue_vector_let_init_uses_direct_slot static fwd decl
+ * removed — sole caller pipeline_asm_let_init_stack_reserve_bytes
+ * migrated to pipeline_asm_emit_block_inits.c EOF. Definition in
+ * pipeline_asm_emit_vector_simd.c (L2218 #include) visible to block_inits.c
+ * (#include at L2404, after L2218). PLATFORM: SHARED. */
 
 /** TYPE_ARRAY / TYPE_SLICE 在 TypeKind 序数表中的值（与 ast.x / pipeline_type_kind_ord_at 一致）。 */
 #define GLUE_TYPE_KIND_ARRAY 10
@@ -1489,21 +1485,24 @@ int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t ref);
  * struct_let/index_helpers/spill/modlet/assign/array_lit/index/vector_simd/
  * block_inits/field_access (all #included AFTER L2076). */
 
-
-
-/**
- * let 初值在指针槽后额外占用的 temp 字节；向量/定长数组 ARRAY_LIT 直写槽时返回 0。
- * 供 fill_local_slots 与 ast_ctx_ensure_block_locals 共用。
- */
-int32_t pipeline_asm_let_init_stack_reserve_bytes(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref) {
-  if (!arena)
-    return 0;
-  if (glue_vector_let_init_uses_direct_slot(arena, type_ref, init_ref))
-    return 0;
-  if (glue_fixed_array_let_init_uses_direct_slot(arena, type_ref, init_ref))
-    return 0;
-  return glue_asm_init_expr_reserve_stack_bytes(arena, init_ref);
-}
+/* wave1204 G.7: pipeline_asm_let_init_stack_reserve_bytes (1 fn, 9 lines)
+ * migrated to pipeline_asm_emit_block_inits.c EOF (colocated with
+ * glue_asm_init_expr_reserve_stack_bytes — its sole non-zero fallback callee).
+ * 3 static callees all visible at block_inits.c #include point (L2404):
+ *   glue_vector_let_init_uses_direct_slot  (vector_simd.c L2218, before L2404)
+ *   glue_fixed_array_let_init_uses_direct_slot (vector_let.c L2063, before L2404)
+ *   glue_asm_init_expr_reserve_stack_bytes  (block_inits.c EOF, same file)
+ * Callers in context.c/ast_pool.c/ast_pool_top_level.c have same-TU visibility
+ * (all #included AFTER L2404). modlet.c L530 (#include at L1543, BEFORE L2404)
+ * uses extern fwd decl at modlet.c L336. No glue.c callsites remain.
+ * Also removed: 2 static fwd decls (glue_asm_init_expr_reserve_stack_bytes
+ * at old L1081 + glue_vector_let_init_uses_direct_slot at old L1464) — both
+ * had pipeline_asm_let_init_stack_reserve_bytes as sole caller.
+ * Root fix: original glue.c L1498 definition preceded vector_let.c #include
+ * (L2063) — glue_fixed_array_let_init_uses_direct_slot had NO fwd decl,
+ * relying on C implicit declaration. Migrating to block_inits.c (after all
+ * #includes) fixes this latent issue.
+ * PLATFORM: SHARED — pure stack byte arithmetic, no arch dependency. */
 
 
 /* BC 8.3.1: asm ELF SIMD vector lane / shuffle / select / fma domain

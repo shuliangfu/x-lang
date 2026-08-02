@@ -729,3 +729,59 @@ static int32_t glue_asm_init_expr_reserve_stack_bytes(struct ast_ASTArena *arena
     return n;
   return asm_struct_lit_reserve_stack_bytes(arena, init_ref);
 }
+
+/* ========================================================================== *
+ * wave1204 G.7: pipeline_asm_let_init_stack_reserve_bytes migrated from
+ * pipeline_glue.c L1498-1506. Colocated with glue_asm_init_expr_reserve_
+ * stack_bytes (L723 above) — its sole static callee returning non-zero
+ * fallback. Two other static callees (glue_vector_let_init_uses_direct_slot
+ * in vector_simd.c L2218 + glue_fixed_array_let_init_uses_direct_slot in
+ * vector_let.c L2063) are visible here via same-TU #include order:
+ *   vector_let.c   #include at glue.c L2063  (before this file at L2404)
+ *   vector_simd.c  #include at glue.c L2218  (before this file at L2404)
+ * Root: original glue.c L1498 definition preceded those #includes —
+ * glue_fixed_array_let_init_uses_direct_slot had NO fwd decl, relying on
+ * C implicit declaration. Migrating here fixes that latent issue.
+ *
+ * Members (1 fn):
+ *  - pipeline_asm_let_init_stack_reserve_bytes (extern; 3 static callees)
+ *
+ * Callers (4 sites, all via same-TU #include after L2404 OR via extern):
+ *  - pipeline_asm_emit_context.c L724/739 (#include at L2564, after L2404)
+ *  - ast_pool.c L8497/8511 (#include at L3186, after L2404; extern decl L8080)
+ *  - ast_pool_top_level.c L323 (via extern decl at L285)
+ *  - pipeline_asm_emit_modlet.c L530 (#include at L1543, BEFORE L2404 —
+ *    needs extern fwd decl added at modlet.c L331)
+ *
+ * Cleaned up in glue.c:
+ *  - static fwd decl for glue_asm_init_expr_reserve_stack_bytes (L1081)
+ *  - static fwd decl for glue_vector_let_init_uses_direct_slot (L1467)
+ * Both had pipeline_asm_let_init_stack_reserve_bytes as sole caller.
+ *
+ * PLATFORM: SHARED — pure stack byte arithmetic, no arch dependency.
+ * ========================================================================== */
+
+/**
+ * Extra stack bytes reserved for a let/const initializer beyond its type slot.
+ *
+ * Why: VECTOR and fixed TYPE_ARRAY let-inits that emit via ARRAY_LIT direct
+ *      slot writes need 0 extra bytes (pointer slot suffices). All other
+ *      aggregate initializers (STRUCT_LIT, nested ARRAY_LIT) need temp space
+ *      for the init expression — delegated to glue_asm_init_expr_reserve_
+ *      stack_bytes above (which checks asm_array_lit_reserve_stack_bytes
+ *      then asm_struct_lit_reserve_stack_bytes).
+ * Contract: NULL arena -> 0; type_ref<=0 or init_ref<=0 -> 0 (via callee).
+ * Invariant: returns 0 for direct-slot inits (VECTOR/fixed-array);
+ *            returns glue_asm_init_expr_reserve_stack_bytes result otherwise.
+ * Asm/Perf: O(1) — 2 boolean checks + 1 tail call. Cold path (fill_local_slots).
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_asm_let_init_stack_reserve_bytes(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref) {
+  if (!arena)
+    return 0;
+  if (glue_vector_let_init_uses_direct_slot(arena, type_ref, init_ref))
+    return 0;
+  if (glue_fixed_array_let_init_uses_direct_slot(arena, type_ref, init_ref))
+    return 0;
+  return glue_asm_init_expr_reserve_stack_bytes(arena, init_ref);
+}

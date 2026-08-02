@@ -329,6 +329,12 @@ extern uint8_t pipeline_module_top_level_let_name_byte_at(struct ast_Module *m, 
 extern int32_t pipeline_module_top_level_let_init_ref(struct ast_Module *m, int32_t tl);
 extern int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *m, int32_t tl);
 extern int32_t pipeline_expr_int_val_at(struct ast_ASTArena *a, int32_t expr_ref);
+/* wave1204: pipeline_asm_let_init_stack_reserve_bytes migrated to
+ * pipeline_asm_emit_block_inits.c EOF (colocated with glue_asm_init_expr_
+ * reserve_stack_bytes). modlet.c #include at glue.c L1543 precedes
+ * block_inits.c #include at L2404 — extern fwd decl needed for L530 call. */
+extern int32_t pipeline_asm_let_init_stack_reserve_bytes(struct ast_ASTArena *arena, int32_t type_ref,
+                                                          int32_t init_ref);
 
 /**
  * Build the modlet table and emit SHN_COMMON symbols for module mutable lets.
