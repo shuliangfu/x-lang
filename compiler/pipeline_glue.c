@@ -1941,14 +1941,17 @@ static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct
 
 /** struct_lit 字段名/init 读 API 见 ast_pool.c（侧车池）。 */
 
-/** 读 expr.kind 序数；无效 ref 返回 -1。 */
-int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *a, int32_t expr_ref) {
-  enum ast_ExprKind kd;
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return -1;
-  kd = glue_arena_expr_kind_at_ref(a, expr_ref);
-  return (int32_t)kd;
-}
+/* wave1216 G.7: pipeline_expr_kind_ord_at (7 lines) migrated to
+ * pipeline_parse_orch.c EOF (colocated with sole dep glue_arena_expr_kind_at_ref
+ * — wave1211 migrated to parse_orch.c L982; #include at L2902).
+ * ast pool expr kind ordinal reader — invalid ref -> -1.
+ * Dep: glue_arena_expr_kind_at_ref (static, parse_orch.c L982, same file —
+ *   direct call, no fwd decl needed).
+ * Fwd decls at L1008 + L2016 retained — cover all TU-internal callsites
+ * in #include'd files (parse_orch.c L2902, ast_pool.c L2847, asm_emit_*.c
+ * L1525-1673, check_block.c L4195, etc.) and seeds via extern.
+ * No dual authority (seeds only declare extern, no definition).
+ * PLATFORM: SHARED — pure reader, no arch dependency. */
 
 /* wave1162 G.7: int_val_at + int64_val_at migrated to
  * pipeline_asm_emit_expr_rec.c EOF. Fwd decls at L1530-1531. */

@@ -986,3 +986,45 @@ static enum ast_ExprKind glue_arena_expr_kind_at_ref(struct ast_ASTArena *a, int
   ex = pipeline_arena_expr_ptr(a, expr_ref);
   return ex ? ex->kind : ast_ExprKind_EXPR_LIT;
 }
+
+/* ========================================================================== *
+ * wave1216 G.7: pipeline_expr_kind_ord_at migrated from pipeline_glue.c
+ * L1945-1951. Colocated with sole static dep glue_arena_expr_kind_at_ref
+ * (wave1211, defined at L982 above — same file, direct call).
+ *
+ * Members (1 fn):
+ *  - pipeline_expr_kind_ord_at (ast pool expr kind ordinal reader)
+ *
+ * Deps:
+ *  - glue_arena_expr_kind_at_ref (static, same file L982 — direct call,
+ *    no fwd decl needed; definition precedes this EOF)
+ *
+ * Callers: covered by fwd decls retained in glue.c at L1008 + L2016
+ * (before parse_orch.c #include at L2902). All TU-internal callsites in
+ * #include'd files (asm_emit_*.c, ast_pool.c, check_block.c, etc.) and
+ * cross-TU seeds (extern) see the fwd decls.
+ *
+ * No dual authority — seeds only declare extern, no definition.
+ *
+ * PLATFORM: SHARED — pure reader, no arch dependency.
+ * ========================================================================== */
+
+/**
+ * Read the ExprKind ordinal of expr_ref.
+ *
+ * Why: typeck / asm emit / codegen frequently switch on expr kind (VAR vs
+ *      CALL vs FIELD_ACCESS vs BINOP etc.). This wraps the arena expr
+ *      pointer dereference + bounds check so callers don't repeat the
+ *      NULL/ref<=0 guards. Invalid ref returns -1 so callers can branch.
+ * Contract: NULL arena or expr_ref<=0 or expr_ref>num_exprs -> -1.
+ *           Otherwise returns (int32_t)expr->kind.
+ * Asm/Perf: O(1) — bounds check + one pointer deref. Hot path.
+ * PLATFORM: SHARED — pure reader, no arch dependency.
+ */
+int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  enum ast_ExprKind kd;
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return -1;
+  kd = glue_arena_expr_kind_at_ref(a, expr_ref);
+  return (int32_t)kd;
+}
