@@ -28,10 +28,11 @@
 7. [Self-host status](#7-self-host-status-snapshot--2026-07-31)
 8. [Milestones](#8-milestones)
 9. [Testing and quality](#9-testing-and-quality)
-10. [Tooling](#10-tooling)
-11. [Why X language — Three Highs, One Low](#11-why-x-language--three-highs-one-low)
-12. [Contributing](#12-contributing)
-13. [License](#13-license)
+10. [Performance benchmarks](#10-performance-benchmarks)
+11. [Tooling](#11-tooling)
+12. [Why X language — Three Highs, One Low](#12-why-x-language--three-highs-one-low)
+13. [Contributing](#13-contributing)
+14. [License](#14-license)
 
 ---
 
@@ -501,23 +502,67 @@ Methodology: [自举方法.md](analysis/自举方法.md) · timeline: [自举时
 
 Baselines: `tests/baseline/`. On **true cold full tests**, operators should print log paths (e.g. `/tmp/*true_cold*`, `/tmp/*true_bstrict*`).
 
-### Perf snapshot (historical · 2026-07-09 · Linux x86_64)
-
-Fair wall-time medians vs `clang -O2` (warmup 3 + 20 rounds). Refresh procedure: `analysis/perf-*`.
-
-| Benchmark | ratio (XLANG / C) | Note |
-|-----------|------------------|------|
-| `loop_i32` | ~0.87 | ✅ |
-| `mem_copy` | ~0.87 | ✅ |
-| `struct_param` | ~0.08 | ✅ |
-| `call_boundary` (fold) | ~0.00 | compile-time affine fold |
-| `call_boundary` (real) | ~1.77 | ❌ — stack-heavy ASM; regalloc still weak |
-
-Diff cases D1–D6: 5/6 pass; float D4 remains a known P2 placeholder.
+Correctness gates above are **pass/fail**. Competitive wall-time / size / compile-time numbers vs C and Zig live in **[§10 Performance benchmarks](#10-performance-benchmarks)** (`bench/` + `./bench.sh`); they are intentionally **not** part of `run-all`.
 
 ---
 
-## 10. Tooling
+## 10. Performance benchmarks
+
+Fair, reproducible comparison of **xlang vs C vs Zig** on the same algorithms. This section is the README landing page; the operational rulebook and live numbers live under `bench/`.
+
+| Doc | Role |
+|-----|------|
+| [bench/v1-methodology.md](bench/v1-methodology.md) | **Authority** — fairness rules, toolchain pins, dimension map, v1.0 snapshot |
+| [bench/v1-methodology-zh-CN.md](bench/v1-methodology-zh-CN.md) | Same, Chinese |
+
+### What v1.0 is
+
+- **Version**: **v1.0 selfhost-period baseline** (2026-08-02). Compiler still seed/bootstrap; some cases may `COMPILE FAIL` (expected). **v2.0** re-runs the full matrix after selfhost; **v3.0** adds Evented async paths.
+- **Fairness hard rules**: same algorithm / data structure / input size; same machine and run; fixed compile options; multi-run stats (median / mean / p95 — **never** “fastest only”); sources public under `bench/`; no cross-opt-level cheating; C uses asm barriers against constant-fold (xlang still lacks an equivalent — suspiciously fast X numbers are flagged).
+- **Anchors**: C `cc -std=gnu11 -O2` · Zig `zig build-exe -OReleaseFast` · xlang `xlang-c -O 2`. Gold host for claims: **Ubuntu x86_64**; macOS arm64 is trend-watching.
+- **Corpus**: ~155 sources under `bench/`, named `bench/<dim>_<name>.{c,x,zig}`.
+
+### Dimension map (prefix → domain)
+
+| Prefix | Domain | Priority |
+|--------|--------|----------|
+| `r01_`–`r10_` | Runtime compute | P0 |
+| `m01_`–`m05_` | Memory & alloc | P0 |
+| `b01_`–`b05_` | Binary size & link | P0 |
+| `bt01_`–`bt05_` | Build time | P0 |
+| `s01_`–`s05_` | Safety overhead | P1 |
+| `a01_`–`a05_` | ABI & call | P1 |
+| `cc01_`–`cc05_` | Concurrency | P1 |
+| `i01_`–`i08_` | I/O & async | P1 |
+| `e01_`–`e04_` / `l01_`–`l03_` | Embedded / language-self | P2 |
+
+### How to run
+
+```bash
+./bench.sh                 # default P0+P1 + toolchain matrix (~2 min quick view)
+./bench.sh --quick         # fewer samples
+./bench.sh --dimension r   # one dimension family
+# also: tests/run-perf-baseline.sh --bench
+#       tests/run-perf-p0-matrix.sh
+#       tests/run-perf-toolchain-matrix.sh
+```
+
+Raw logs typically land in `/tmp/xlang_perf_run.log` and `/tmp/xlang_net_perf_run.log`. Environment helpers: `tests/lib/perf-env.sh`.
+
+### v1.0 snapshot (summary only)
+
+Last full documented run in methodology: **2026-08-02 · macOS arm64** (trend). Color legend: ✅ X ≤ C and X ≤ Zig · 🟡 beats exactly one · ❌ slower than both · ⚪ X compile-fail / no data.
+
+| Slice | Tally (from methodology §6) |
+|-------|-----------------------------|
+| Headline micro/io/net table (§6.0, 13 cases with data) | ✅ 9 · 🟡 2 · ❌ 1 · ⚪ 1 |
+| Global color rollup (§6.0–§6.3b) | ✅ 26 · 🟡 6 · ❌ 5 · ⚪ 4 |
+
+Where X is red today: mostly **compile time** (bootstrap expected) and some **concurrency fallbacks**. I/O / several micro cases already show X on par with or ahead of C/Zig on that host — always re-check Ubuntu before product claims. Full tables, `vs_c` / `vs_zig` ratios, and notes (including “likely folded”) are **only** in the methodology docs.
+
+---
+
+## 11. Tooling
 
 | Component | Path |
 |-----------|------|
@@ -530,7 +575,7 @@ Plugin install: [editors/vscode/README.md](editors/vscode/README.md).
 
 ---
 
-## 11. Why X language — **Three Highs, One Low**
+## 12. Why X language — **Three Highs, One Low**
 
 **X language** is a **systems language** for kernels, drivers, runtimes, embedded targets, and high-performance tools: no GC, zero-cost abstractions, an explicit memory model, and freestanding support.
 
@@ -575,7 +620,7 @@ Longer design notes: [syntax & safety](analysis/语法与类型设计-高性能�
 
 ---
 
-## 12. Contributing
+## 13. Contributing
 
 1. Clone → `./xbuild build-tool && ./xbuild first-time` (or `./xbuild bootstrap-driver-seed`).  
 2. Daily edits → `./xbuild build`, set `XLANG=./compiler/xlang_asm`, run relevant tests / gates.  
@@ -588,7 +633,7 @@ Longer design notes: [syntax & safety](analysis/语法与类型设计-高性能�
 
 ---
 
-## 13. License
+## 14. License
 
 X language uses **layered licensing** (language libraries permissive; compiler copyleft). See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
