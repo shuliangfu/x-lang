@@ -1201,3 +1201,34 @@ int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t
   return 0;
 }
 
+/* wave1178 G.7: pipeline_expr_typeck_set_float_bits_from_val migrated from
+ * pipeline_glue.c L3146-3157. Colocated with coerce_init domain — float bits
+ * computation is the float-literal counterpart to int_lit check above (both
+ * are typeck X-emit literal helpers that avoid X struct field writes during
+ * self-host bootstrap).
+ *
+ * No glue.c callsites (sole caller is typeck_gen.c seed via extern).
+ * Dependencies: glue_arena_expr_at_ref (static, glue.c L2340 < coerce_init.c
+ * #include L8188) + typeck_float64_bits_lo/hi (extern, defined in typeck
+ * module).
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+
+/**
+ * Recompute and write float_bits_lo/hi from float_val.
+ * Why: typeck.x EXPR_FLOAT_LIT X-emit must write IEEE bits via C helper to
+ *      avoid X Expr struct field assignment typeck failures during self-host
+ *      bootstrap.
+ * Contract: no-op when arena null, expr_ref out of range, or expr ptr null.
+ */
+void pipeline_expr_typeck_set_float_bits_from_val(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex;
+
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return;
+  ex->float_bits_lo = typeck_float64_bits_lo(ex->float_val);
+  ex->float_bits_hi = typeck_float64_bits_hi(ex->float_val);
+}
+

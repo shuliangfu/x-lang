@@ -777,6 +777,14 @@ int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_i
 int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 int32_t pipeline_asm_module_func_name_len_at(struct ast_Module *m, int32_t func_index);
 void pipeline_asm_module_func_name_copy64(struct ast_Module *m, int32_t func_index, uint8_t *dst);
+/* wave1175: asm-prefixed module func forwarders migrated to
+ * ast_pool_module_func.c EOF. Fwd decls for callsites before ast_pool.c
+ * #include at L5055. */
+int32_t pipeline_asm_module_func_is_extern_at(struct ast_Module *m, int32_t func_index);
+int32_t pipeline_asm_module_func_body_ref_at(struct ast_Module *m, int32_t func_index);
+int32_t pipeline_asm_module_func_num_params_at(struct ast_Module *m, int32_t func_index);
+int32_t pipeline_asm_module_func_param_name_len_at(struct ast_Module *m, int32_t func_index, int32_t param_index);
+void pipeline_asm_module_func_param_name_copy32(struct ast_Module *m, int32_t func_index, int32_t param_index, uint8_t *dst);
 
 int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {
   ptrdiff_t r = io_read_batch_buf((int)handle, bufs, n, timeout_ms);
@@ -3108,107 +3116,19 @@ static int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena 
  * L5058; fwd decl retained defensively).
  * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
-/**
- * backend.x get_return_expr_ref：在 C 内读 Block/LabeledStmt/Expr 池，避免 X 自举 asm 对
- * stmt.is_goto / block.final_expr_ref 等 struct 字段 FIELD_ACCESS codegen 失败（fail_at=55）。
- */
-int32_t pipeline_backend_get_return_expr_ref(struct ast_ASTArena *a, struct ast_Func *f) {
-  struct ast_Block *blk;
-  int32_t j;
-  int32_t ei;
-  if (!a || !f || f->body_ref <= 0 || f->body_ref > a->num_blocks)
-    return 0;
-  blk = pipeline_arena_block_ptr(a, f->body_ref);
-  j = 0;
-  while (blk && j < blk->num_labeled_stmts) {
-    int32_t ret_ref = pipeline_block_labeled_return_expr_ref(a, f->body_ref, j);
-    if (ret_ref != 0)
-      return ret_ref;
-    j++;
-  }
-  if (blk && blk->final_expr_ref != 0) {
-    struct ast_Expr *e;
-    if (blk->final_expr_ref <= 0 || blk->final_expr_ref > a->num_exprs)
-      return blk->final_expr_ref;
-    e = pipeline_arena_expr_ptr(a, blk->final_expr_ref);
-    if (e && e->kind == ast_ExprKind_EXPR_RETURN && e->unary_operand_ref != 0)
-      return e->unary_operand_ref;
-    return blk->final_expr_ref;
-  }
-  if (!blk)
-    return 0;
-  ei = blk->num_expr_stmts - 1;
-  while (ei >= 0) {
-    int32_t ers = pipeline_block_expr_stmt_ref(a, f->body_ref, ei);
-    if (ers != 0 && ers > 0 && ers <= a->num_exprs) {
-      struct ast_Expr *es = pipeline_arena_expr_ptr(a, ers);
-      if (es && es->kind == ast_ExprKind_EXPR_RETURN) {
-        /*
-         * 显式 return 已作为 expr_stmt 由 emit_block_body 发射；勿再返回操作数供
-         * asm_codegen_ast_to_elf 二次 emit（return if (...) 会重复 cmp/if 链）。
-         */
-        return 0;
-      }
-    }
-    ei--;
-  }
-  return 0;
-}
-
-/** backend.x get_return_expr_ref：按 module 下标在 C 内读 Func.body_ref，勿传 X 侧按值拷贝的 *Func。 */
-int32_t pipeline_backend_get_return_expr_ref_at(struct ast_ASTArena *a, struct ast_Module *m,
-                                                int32_t func_index) {
-  struct ast_Func *f;
-  if (!a || !m || func_index < 0 || func_index >= (int32_t)m->num_funcs)
-    return 0;
-  if (func_index >= (int32_t)m->num_funcs)
-    return 0;
-  f = pipeline_module_func_ptr(m, func_index);
-  if (!f)
-    return 0;
-  return pipeline_backend_get_return_expr_ref(a, f);
-}
-
-/**
- * arm64.x get_return_lit_ref：同上，最小集返回值 ref 查找。
- */
-int32_t pipeline_arm64_get_return_lit_ref(struct ast_ASTArena *a, struct ast_Func *f) {
-  struct ast_Block *blk;
-  struct ast_Expr *e;
-  struct ast_Expr *inner;
-  if (!a || !f || f->body_ref <= 0 || f->body_ref > a->num_blocks)
-    return 0;
-  blk = pipeline_arena_block_ptr(a, f->body_ref);
-  if (!blk || blk->final_expr_ref <= 0 || blk->final_expr_ref > a->num_exprs)
-    return 0;
-  e = pipeline_arena_expr_ptr(a, blk->final_expr_ref);
-  if (!e)
-    return 0;
-  if (e->kind == ast_ExprKind_EXPR_LIT || e->kind == ast_ExprKind_EXPR_BOOL_LIT)
-    return blk->final_expr_ref;
-  if (e->kind == ast_ExprKind_EXPR_RETURN && e->unary_operand_ref != 0) {
-    if (e->unary_operand_ref <= 0 || e->unary_operand_ref > a->num_exprs)
-      return 0;
-    inner = pipeline_arena_expr_ptr(a, e->unary_operand_ref);
-    if (inner && (inner->kind == ast_ExprKind_EXPR_LIT || inner->kind == ast_ExprKind_EXPR_BOOL_LIT))
-      return e->unary_operand_ref;
-  }
-  return 0;
-}
-
-/** arm64.x get_return_lit_ref：按 module 下标在 C 内读 Func.body_ref。 */
-int32_t pipeline_arm64_get_return_lit_ref_at(struct ast_ASTArena *a, struct ast_Module *m,
-                                             int32_t func_index) {
-  struct ast_Func *f;
-  if (!a || !m || func_index < 0 || func_index >= (int32_t)m->num_funcs)
-    return 0;
-  if (func_index >= (int32_t)m->num_funcs)
-    return 0;
-  f = pipeline_module_func_ptr(m, func_index);
-  if (!f)
-    return 0;
-  return pipeline_arm64_get_return_lit_ref(a, f);
-}
+/* wave1176 G.7: backend return-expr ref cluster (8 fns) migrated to
+ * pipeline_asm_emit_return.c EOF (colocated with EXPR_RETURN emit domain).
+ * Members: pipeline_backend_get_return_expr_ref / _at +
+ * pipeline_arm64_get_return_lit_ref / _at + pipeline_backend_type_kind_ord_at
+ * (L3514 below, also removed) + pipeline_asm_get_return_expr_ref_at (L4546,
+ * also removed) + pipeline_asm_get_return_lit_ref_at (L4615, also removed) +
+ * arch_arm64_pipeline_asm_get_return_lit_ref_at (L4638, also removed).
+ *
+ * All deps fwd-declared before pipeline_asm_emit_return.c #include at L1731:
+ * pipeline_arena_block_ptr (L215) / pipeline_block_labeled_return_expr_ref
+ * (L203) / pipeline_arena_expr_ptr (L214) / pipeline_block_expr_stmt_ref (L92)
+ * / pipeline_module_func_ptr (L91) / pipeline_type_kind_ord_at (L761).
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
 /** INDEX 元素字节宽；委托 pipeline_asm_index_elem_byte_sz_c（勿在此重复旧 TYPE_PTR→8 逻辑）。 */
 int32_t pipeline_asm_index_elem_byte_sz(struct ast_ASTArena *a, int32_t index_expr_ref) {
@@ -3218,50 +3138,33 @@ int32_t pipeline_asm_index_elem_byte_sz(struct ast_ASTArena *a, int32_t index_ex
 /* wave1161 G.7: index/field_access/line/col accessor cluster (10 extern
  * fns) migrated to pipeline_asm_emit_expr_rec.c EOF (colocated with
  * expr ELF recursion dispatcher). Fwd decls already exist at L1554-1565.
- * Note: pipeline_expr_typeck_set_float_bits_from_val,
- * pipeline_dep_ctx_typeck_loop_depth_at, pipeline_expr_set_field_access_enum_variant,
+ * Note: pipeline_expr_set_field_access_enum_variant,
  * pipeline_expr_set_field_access_soa_stride remain in glue.c (different
  * domain / dependency). */
 
-/** 从 float_val 重算并写入 float_bits_lo/hi；typeck EXPR_FLOAT_LIT X emit 用（勿 Expr 按值 set）。 */
-void pipeline_expr_typeck_set_float_bits_from_val(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex;
+/* wave1178 G.7: pipeline_expr_typeck_set_float_bits_from_val migrated to
+ * pipeline_typeck_coerce_init.c EOF (colocated with int_lit coerce domain).
+ * pipeline_dep_ctx_typeck_loop_depth_at migrated to ast_pool_dep_ctx.c EOF
+ * (colocated with PipelineDepCtx cold accessor domain).
+ * Both have no glue.c callsites (sole callers are typeck_gen.c seed via
+ * extern). PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex)
-    return;
-  ex->float_bits_lo = typeck_float64_bits_lo(ex->float_val);
-  ex->float_bits_hi = typeck_float64_bits_hi(ex->float_val);
-}
-
-/** 读 ctx.typeck_loop_depth；break/continue X emit 勿直接读 PipelineDepCtx 字段（自举 asm SIGSEGV）。 */
-int32_t pipeline_dep_ctx_typeck_loop_depth_at(struct ast_PipelineDepCtx *ctx) {
-  return ctx ? ctx->typeck_loop_depth : 0;
-}
-
-/**
- * 写 expr.field_access_is_enum_variant 与 enum_variant_tag；供 typeck_coerce_init_expr_to_decl X emit。
- */
-void pipeline_expr_set_field_access_enum_variant(struct ast_ASTArena *a, int32_t expr_ref, int32_t tag) {
-  struct ast_Expr *ex;
-
-  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
-    return;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex)
-    return;
-  ex->field_access_is_enum_variant = 1;
-  ex->enum_variant_tag = tag;
-}
-
-/** DOD-S1：写 FIELD_ACCESS SoA 步长（与 field_access_offset 列基址配合）。 */
-void pipeline_expr_set_field_access_soa_stride(struct ast_ASTArena *a, int32_t expr_ref, int32_t stride) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (ex)
-    ex->field_access_soa_stride = stride;
-}
+/* wave1179 G.7: field_access enum/soa setter cluster (5 fns) migrated to
+ * pipeline_asm_emit_field_access.c EOF (colocated with FIELD_ACCESS emit
+ * domain). Members: pipeline_expr_set_field_access_enum_variant +
+ * pipeline_expr_set_field_access_soa_stride +
+ * pipeline_expr_field_access_is_enum_variant +
+ * pipeline_expr_enum_namespace_field_tag +
+ * pipeline_expr_enum_field_tag_via_module (def + fwd decl L3196, both
+ * removed).
+ *
+ * All deps fwd-declared before pipeline_asm_emit_field_access.c #include
+ * at L2111: glue_arena_expr_at_ref (static fwd decl in field_access.c L712)
+ * + pipeline_expr_kind_ord_at / var_name_* / field_access_name_* (L1554-1565)
+ * + pipeline_token_kind_variant_tag (L1773) + glue_enum_field_name_equal
+ * (static in field_access.c L1169) + g_pipeline_asm_emit_module (L132).
+ * No glue.c callsites (sole callers are typeck_gen.c / codegen_gen.c seeds
+ * via extern). PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
 /** typeck.x get_field_offset_from_layout_deps；asm emit 跨模块 struct 字段偏移回落。 */
 extern int32_t typeck_get_field_offset_from_layout_deps(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
@@ -3280,266 +3183,61 @@ extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *
  * glue 1726-1727 public fwd decls kept (backend_try_inline extern).
  * glue 2500 static fwd decl kept (index_helpers/assign/index_eff_addr/vector_let). */
 
-int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
-  return ex ? ex->field_access_is_enum_variant : 0;
-}
-
-int32_t pipeline_expr_enum_field_tag_via_module(uint8_t *enum_name, int32_t enum_len, uint8_t *variant_name,
-                                                int32_t variant_len);
-
 /* wave1074 G.7: glue_enum_field_name_equal migrated to
  * pipeline_asm_emit_field_access.c EOF (enum variant name prefix match,
- * consumed by pipeline_expr_enum_namespace_field_tag). Static same-TU:
- * field_access.c #include L2419 < def EOF < all callsites L4402+. Deps:
- * strlen / memcmp (libc, global). */
+ * consumed by pipeline_expr_enum_namespace_field_tag — also migrated in
+ * wave1179). Static same-TU: field_access.c #include L2111 < def EOF.
+ * Deps: strlen / memcmp (libc, global). */
 
-int32_t pipeline_expr_enum_namespace_field_tag(struct ast_ASTArena *a, int32_t expr_ref) {
-  struct ast_Expr *ex;
-  uint8_t base_buf[32];
-  uint8_t field_buf[128];
-  int32_t blen, flen;
-  if (!a || expr_ref <= 0 || pipeline_expr_kind_ord_at(a, expr_ref) != 44)
-    return -1;
-  ex = glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex)
-    return -1;
-  if (ex->field_access_base_ref <= 0)
-    return -1;
-  if (pipeline_expr_kind_ord_at(a, ex->field_access_base_ref) != 3)
-    return -1;
-  blen = pipeline_expr_var_name_len(a, ex->field_access_base_ref);
-  if (blen <= 0 || blen > 31)
-    return -1;
-  pipeline_expr_var_name_into(a, ex->field_access_base_ref, base_buf);
-  flen = pipeline_expr_field_access_name_len(a, expr_ref);
-  if (flen <= 0 || flen > 127)
-    return -1;
-  pipeline_expr_field_access_name_into(a, expr_ref, field_buf);
-  if (link_abi_getenv("XLANG_ASM_EMIT_TRACE")) {
-    fprintf(stderr, "xlang: enum_ns_tag base_len=%d field_len=%d mod=%p base='", (int)blen, (int)flen,
-            (void *)g_pipeline_asm_emit_module);
-    for (int32_t di = 0; di < blen && di < 31; di++)
-      fputc((char)base_buf[di], stderr);
-    fprintf(stderr, "' field='");
-    for (int32_t di = 0; di < flen && di < 63; di++)
-      fputc((char)field_buf[di], stderr);
-    fprintf(stderr, "'\n");
-  }
-  if (blen == 8 && memcmp(base_buf, "ExprKind", 8) == 0) {
-    if (glue_enum_field_name_equal(field_buf, flen, "EXPR_LIT"))
-      return 0;
-    if (glue_enum_field_name_equal(field_buf, flen, "EXPR_FIELD_ACCESS"))
-      return 44;
-    if (glue_enum_field_name_equal(field_buf, flen, "EXPR_CALL"))
-      return 48;
-    if (glue_enum_field_name_equal(field_buf, flen, "EXPR_VAR"))
-      return 3;
-    if (glue_enum_field_name_equal(field_buf, flen, "EXPR_BLOCK"))
-      return 26;
-  }
-  if (blen == 8 && memcmp(base_buf, "TypeKind", 8) == 0) {
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_I32"))
-      return 0;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_BOOL"))
-      return 1;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_U8"))
-      return 2;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_U32"))
-      return 3;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_U64"))
-      return 4;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_I64"))
-      return 5;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_USIZE"))
-      return 6;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_ISIZE"))
-      return 7;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_NAMED"))
-      return 8;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_PTR"))
-      return 9;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_ARRAY"))
-      return 10;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_SLICE"))
-      return 11;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_VECTOR"))
-      return 12;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_F32"))
-      return 13;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_F64"))
-      return 14;
-    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_VOID"))
-      return 15;
-  }
-  /** import token.x 的 TokenKind：快路径 pipeline_token_kind_variant_tag 处理；此处仅 module sidecar 回落。 */
-  if (blen == 9 && memcmp(base_buf, "TokenKind", 9) == 0) {
-    int32_t tk = pipeline_token_kind_variant_tag(field_buf, flen);
-    if (tk >= 0)
-      return tk;
-  }
-  {
-    int32_t mod_tag = pipeline_expr_enum_field_tag_via_module(base_buf, blen, field_buf, flen);
-    if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
-      fprintf(stderr, "xlang: enum_ns_tag mod_tag=%d\n", (int)mod_tag);
-    if (mod_tag >= 0)
-      return mod_tag;
-  }
-  return -1;
-}
+/* wave1180 G.7: asm emit context setters/getters cluster (14 fns) migrated to
+ * pipeline_asm_emit_context.c (new domain file, same-TU #include below).
+ * Members:
+ *  - pipeline_asm_emit_set_module / module_ref_c (current emit module)
+ *  - pipeline_asm_emit_set_dep_pipe / dep_pipe_c (current dep pipe)
+ *  - pipeline_asm_emit_set_arena (current emit AST arena)
+ *  - pipeline_asm_emit_set_call_param_type_ref (callee formal type_ref)
+ *  - pipeline_asm_emit_call_arg_begin_c / end_c / active_c (CALL arg depth)
+ *  - pipeline_asm_emit_set_func_index / func_index_c (current emit func idx)
+ *  - pipeline_asm_emit_set_elf_ctx (current emit ElfCodegenCtx)
+ *  - pipeline_asm_emit_func_param_is_ptr_by_name_c (lookup *T param by name)
+ *  - pipeline_asm_var_is_emit_func_param_ptr_c (VAR expr -> name lookup wrapper)
+ *
+ * Static globals STAY in glue.c (L132-188): g_pipeline_asm_emit_module /
+ * _func_index / _arena / _call_param_ty_ref / g_glue_emit_call_arg_depth /
+ * g_pipeline_asm_emit_dep_pipe / g_pipeline_asm_emit_elf_ctx — also read
+ * directly by pipeline_asm_emit_field_access.c (#include L2111) for CALL-arg
+ * struct pass-by-address classification, so cannot move with the functions.
+ *
+ * Fwd decls retained at L180 (pipeline_asm_emit_call_arg_active_c — called
+ * by field_access.c #included at L2111, before this file's #include below)
+ * and L186 (pipeline_asm_emit_dep_pipe_c — called by vector_simd.c #included
+ * at L1940, before this file's #include below).
+ *
+ * No glue.c callsites before this #include (sole early callers are via the
+ * two retained fwd decls above). Glue.c callsites after this #include:
+ * L3571 / L4538 (pipeline_asm_emit_set_func_index).
+ *
+ * External deps (declared elsewhere in pipeline_x.o TU):
+ *  - pipeline_elf_pgo_hot_enabled / pipeline_elf_ctx_set_emit_hot
+ *    / pipeline_asm_wpo_pgo_is_hot_func (PGO-Lite hot section switch)
+ *  - pipeline_module_func_param_type_ref_for_name (module formal table)
+ *  - pipeline_type_kind_ord_at / pipeline_expr_kind_ord_at
+ *    / pipeline_expr_var_name_len / _into (expr accessor domain)
+ *
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+#include "pipeline_asm_emit_context.c"
 
-/** 当前 asm_codegen_ast_to_elf 正在发射的 module；供 FIELD_ACCESS 枚举 tag 查表。 */
-void pipeline_asm_emit_set_module(struct ast_Module *m) {
-  g_pipeline_asm_emit_module = m;
-}
+/* wave1179: pipeline_expr_enum_field_tag_via_module migrated to
+ * pipeline_asm_emit_field_access.c EOF (colocated with enum_namespace_field_tag). */
+/* wave1176: pipeline_backend_type_kind_ord_at migrated to
+ * pipeline_asm_emit_return.c EOF (colocated with backend return-expr cluster). */
 
-/** 读取当前 emit module（CALL 实参对照形参类型用）。 */
-struct ast_Module *pipeline_asm_emit_module_ref_c(void) {
-  return g_pipeline_asm_emit_module;
-}
-
-/** 记录当前 emit 的 dep 池；import struct FIELD_ACCESS 查 layout 偏移用。 */
-void pipeline_asm_emit_set_dep_pipe(struct ast_PipelineDepCtx *ctx) {
-  g_pipeline_asm_emit_dep_pipe = ctx;
-}
-
-/** backend_try_inline：读取当前 emit dep 池（ctx->dep_pipe 缺失时回落）。 */
-struct ast_PipelineDepCtx *pipeline_asm_emit_dep_pipe_c(void) {
-  return g_pipeline_asm_emit_dep_pipe;
-}
-
-/** 绑定 emit 期 arena；backend.x 主循环每函数 emit 前调用。 */
-void pipeline_asm_emit_set_arena(struct ast_ASTArena *arena) {
-  g_pipeline_asm_emit_arena = arena;
-}
-
-/** CALL 路径：设置当前实参对应的 callee 形参 type_ref（0=未知）。 */
-void pipeline_asm_emit_set_call_param_type_ref(int32_t type_ref) {
-  g_pipeline_asm_emit_call_param_ty_ref = type_ref;
-}
-
-
-/** CALL 实参 emit 入口：递增嵌套深度（backend_call_dispatch 每实参 emit 前调用）。 */
-void pipeline_asm_emit_call_arg_begin_c(void) {
-  g_glue_emit_call_arg_depth++;
-}
-
-/** CALL 实参 emit 结束：递减嵌套深度。 */
-void pipeline_asm_emit_call_arg_end_c(void) {
-  if (g_glue_emit_call_arg_depth > 0)
-    g_glue_emit_call_arg_depth--;
-}
-
-/** 是否处于 CALL 实参 emit 上下文。 */
-int32_t pipeline_asm_emit_call_arg_active_c(void) {
-  return g_glue_emit_call_arg_depth > 0 ? 1 : 0;
-}
-
-/** 记录当前 emit 函数下标；backend.x 主循环每函数 emit 前调用。 */
-void pipeline_asm_emit_set_func_index(int32_t func_index) {
-  g_pipeline_asm_emit_func_index = func_index;
-  /** PGO-Lite：与 enc_label 同序切换 .text / .text.hot（partial mega 亦走此路径）。 */
-  if (g_pipeline_asm_emit_elf_ctx && g_pipeline_asm_emit_module && pipeline_elf_pgo_hot_enabled())
-    pipeline_elf_ctx_set_emit_hot((uint8_t *)g_pipeline_asm_emit_elf_ctx,
-                                  pipeline_asm_wpo_pgo_is_hot_func(g_pipeline_asm_emit_module, func_index));
-}
-
-/** asm_codegen_ast_to_elf 入口绑定 elf_ctx；emit 结束须置 NULL。 */
-void pipeline_asm_emit_set_elf_ctx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  g_pipeline_asm_emit_elf_ctx = elf_ctx;
-}
-
-/** backend_try_inline：读取当前 emit 函数下标。 */
-int32_t pipeline_asm_emit_func_index_c(void) {
-  return g_pipeline_asm_emit_func_index;
-}
-
-/**
- * 按形参名查当前 emit 函数 *T 形参（module 形参表 + TYPE_PTR）。
- * backend.x X 路径在 resolved_type 缺失时调用。
- */
-int32_t pipeline_asm_emit_func_param_is_ptr_by_name_c(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                      uint8_t *vname, int32_t vlen) {
-  int32_t fi;
-  int32_t param_ty;
-  int32_t kind;
-  if (!arena || !mod || !vname || vlen <= 0 || vlen > 127)
-    return 0;
-  fi = g_pipeline_asm_emit_func_index;
-  if (fi < 0 || fi >= mod->num_funcs)
-    return 0;
-  param_ty = pipeline_module_func_param_type_ref_for_name(mod, fi, vname, vlen);
-  if (param_ty <= 0)
-    return 0;
-  kind = pipeline_type_kind_ord_at(arena, param_ty);
-  return (kind == 9) ? 1 : 0;
-}
-
-/**
- * VAR 是否为当前 emit 函数的 *T 形参（槽内 8B 指针，field/index 须 load 勿 lea+offset）。
- * resolved_type 在部分模块 emit 时为空或非 PTR，须查 module 形参表。
- */
-int32_t pipeline_asm_var_is_emit_func_param_ptr_c(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                  uint8_t *asm_ctx, int32_t var_expr_ref) {
-  uint8_t vname[128];
-  int32_t vlen;
-  (void)asm_ctx;
-  if (!arena || !mod || var_expr_ref <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, var_expr_ref) != 3)
-    return 0;
-  vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-  if (vlen <= 0 || vlen > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, var_expr_ref, vname);
-  return pipeline_asm_emit_func_param_is_ptr_by_name_c(arena, mod, vname, vlen);
-}
-
-/** 按模块 enum sidecar 查变体 tag（TokenKind.TOKEN_EOF 等）；未命中 -1。 */
-int32_t pipeline_expr_enum_field_tag_via_module(uint8_t *enum_name, int32_t enum_len, uint8_t *variant_name,
-                                                int32_t variant_len) {
-  if (!g_pipeline_asm_emit_module)
-    return -1;
-  return pipeline_module_enum_variant_tag_for_names(g_pipeline_asm_emit_module, enum_name, enum_len, variant_name,
-                                                   variant_len);
-}
-int32_t pipeline_backend_type_kind_ord_at(struct ast_ASTArena *a, int32_t ref) {
-  return pipeline_type_kind_ord_at(a, ref);
-}
-
-/**
- * backend.x asm 主循环 / fill_param_slots：仅 backend 模块声明 extern，转发至无前缀 pipeline_module_func_*，
- * 避免经 codegen import 产生 codegen_ 前缀未定义符号。
- */
-int32_t pipeline_asm_module_func_is_extern_at(struct ast_Module *m, int32_t func_index) {
-  return pipeline_module_func_is_extern_at(m, func_index);
-}
-
-int32_t pipeline_asm_module_func_body_ref_at(struct ast_Module *m, int32_t func_index) {
-  return pipeline_module_func_body_ref_at(m, func_index);
-}
-
-int32_t pipeline_asm_module_func_name_len_at(struct ast_Module *m, int32_t func_index) {
-  return pipeline_module_func_name_len_at(m, func_index);
-}
-
-void pipeline_asm_module_func_name_copy64(struct ast_Module *m, int32_t func_index, uint8_t *dst) {
-  pipeline_module_func_name_copy64(m, func_index, dst);
-}
-
-int32_t pipeline_asm_module_func_num_params_at(struct ast_Module *m, int32_t func_index) {
-  return pipeline_module_func_num_params_at(m, func_index);
-}
-
-int32_t pipeline_asm_module_func_param_name_len_at(struct ast_Module *m, int32_t func_index,
-                                                   int32_t param_index) {
-  return pipeline_module_func_param_name_len_at(m, func_index, param_index);
-}
-
-void pipeline_asm_module_func_param_name_copy32(struct ast_Module *m, int32_t func_index,
-                                                int32_t param_index, uint8_t *dst) {
-  pipeline_module_func_param_name_copy32(m, func_index, param_index, dst);
-}
+/* wave1175 G.7: asm-prefixed module func forwarders (7 fns) migrated to
+ * ast_pool_module_func.c EOF. Colocated with pipeline_module_func_* domain.
+ * Fwd decls retained at L778/L7685 + added L767-770 for 5 fns previously
+ * without declarations. All callsites before ast_pool.c #include at L5055
+ * resolved via fwd decls.
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
 /* wave1100 G.7: modlet ELF emit domain (12 functions + typedef + macro + global)
  * migrated to pipeline_asm_emit_modlet.c (same-TU #include at L2291). Members:
@@ -4562,10 +4260,8 @@ int32_t pipeline_asm_emit_loop_body_content_elf_c(struct ast_ASTArena *arena,
   return backend_emit_loop_body_content_elf_sync(arena, elf_ctx, body_ref, ctx, ta);
 }
 
-int32_t pipeline_asm_get_return_expr_ref_at(struct ast_ASTArena *a, struct ast_Module *m,
-                                            int32_t func_index) {
-  return pipeline_backend_get_return_expr_ref_at(a, m, func_index);
-}
+/* wave1176: pipeline_asm_get_return_expr_ref_at migrated to
+ * pipeline_asm_emit_return.c EOF (colocated with backend return-expr cluster). */
 
 /**
  * build_xlang_asm SKIP 桩：M8-tail 薄包装 emit bl C 委托 + epilogue；mega 仍 mov w0,#0 + epilogue。
@@ -4631,33 +4327,15 @@ int32_t pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(struct platform_elf_ElfC
   return backend_enc_epilogue_arch(elf_ctx, ta);
 }
 
-int32_t pipeline_asm_get_return_lit_ref_at(struct ast_ASTArena *a, struct ast_Module *m,
-                                            int32_t func_index) {
-  return pipeline_arm64_get_return_lit_ref_at(a, m, func_index);
-}
+/* wave1176: pipeline_asm_get_return_lit_ref_at migrated to
+ * pipeline_asm_emit_return.c EOF (colocated with backend return-expr cluster). */
 
-/** build_asm/arm64.o 单模块编译时 arm64 模块前缀转发（与 backend 同源 glue）。 */
-int32_t arch_arm64_pipeline_asm_module_func_is_extern_at(struct ast_Module *m, int32_t func_index) {
-  return pipeline_asm_module_func_is_extern_at(m, func_index);
-}
-
-int32_t arch_arm64_pipeline_asm_module_func_body_ref_at(struct ast_Module *m, int32_t func_index) {
-  return pipeline_asm_module_func_body_ref_at(m, func_index);
-}
-
-int32_t arch_arm64_pipeline_asm_module_func_name_len_at(struct ast_Module *m, int32_t func_index) {
-  return pipeline_asm_module_func_name_len_at(m, func_index);
-}
-
-void arch_arm64_pipeline_asm_module_func_name_copy64(struct ast_Module *m, int32_t func_index,
-                                                     uint8_t *dst) {
-  pipeline_asm_module_func_name_copy64(m, func_index, dst);
-}
-
-int32_t arch_arm64_pipeline_asm_get_return_lit_ref_at(struct ast_ASTArena *a, struct ast_Module *m,
-                                                      int32_t func_index) {
-  return pipeline_asm_get_return_lit_ref_at(a, m, func_index);
-}
+/* wave1177 G.7: arch_arm64 module_func + return_lit forwarders (5 fns)
+ * migrated to ast_pool_module_func.c EOF (4 module_func forwarders) +
+ * pipeline_asm_emit_return.c EOF (arch_arm64_pipeline_asm_get_return_lit_ref_at
+ * already migrated in wave1176 block). The 4 module_func forwarders are
+ * colocated with the asm_module_func forwarder family (wave1175).
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
 /** ast.x 池 init/alloc：须在 #include ast_pool.c 之前（ast_pool 内 strict parse 调 ast_ast_arena_init）。 */
 void ast_expr_layout_prime_call_resolved(void) {
@@ -5445,65 +5123,24 @@ void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, stru
   pipeline_debug_trace_named_func_bodies("fill_array_post", m, arena);
 }
 
-/** platform.elf 模块内 call 带 platform_elf_ 前缀；转发 ast_pool 实现。 */
-uint8_t *platform_elf_pipeline_elf_ctx_reloc_sym_name_ptr(uint8_t *ctx_bytes, int32_t idx) {
-  return pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes, idx);
-}
-void platform_elf_pipeline_elf_ctx_reloc_sym_name_copy64(uint8_t *ctx_bytes, int32_t idx, uint8_t *dst) {
-  pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, idx, dst);
-}
-int32_t platform_elf_pipeline_elf_ctx_reloc_name_len(uint8_t *ctx_bytes, int32_t idx) {
-  return pipeline_elf_ctx_reloc_name_len(ctx_bytes, idx);
-}
-void platform_elf_pipeline_elf_ctx_reloc_sidecar_reset(uint8_t *ctx_bytes) {
-  pipeline_elf_ctx_reloc_sidecar_reset(ctx_bytes);
-}
-int32_t platform_elf_pipeline_elf_ctx_reloc_offset_at(uint8_t *ctx_bytes, int32_t idx) {
-  return pipeline_elf_ctx_reloc_offset_at(ctx_bytes, idx);
-}
-void platform_elf_pipeline_elf_ctx_reloc_offset_set(uint8_t *ctx_bytes, int32_t idx, int32_t offset) {
-  pipeline_elf_ctx_reloc_offset_set(ctx_bytes, idx, offset);
-}
-int32_t platform_elf_pipeline_elf_ctx_reloc_shndx_at(uint8_t *ctx_bytes, int32_t idx) {
-  return pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, idx);
-}
-int32_t platform_elf_pipeline_elf_ctx_sym_shndx_at(uint8_t *ctx_bytes, int32_t idx) {
-  return pipeline_elf_ctx_sym_shndx_at(ctx_bytes, idx);
-}
-int32_t platform_elf_pipeline_elf_pgo_hot_enabled(void) {
-  return pipeline_elf_pgo_hot_enabled();
-}
-void platform_elf_pipeline_elf_ctx_set_emit_hot(uint8_t *ctx_bytes, int32_t hot) {
-  pipeline_elf_ctx_set_emit_hot(ctx_bytes, hot);
-}
-int32_t platform_elf_pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n) {
-  return pipeline_elf_ctx_append_bytes(ctx_bytes, ptr, n);
-}
-int32_t platform_elf_pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out) {
-  return pipeline_elf_write_o_pgo_to_buf(ctx_bytes, out);
-}
-
-/** pipeline.x 经 import codegen 解析 extern 时带 codegen_ 前缀。 */
-int32_t codegen_codegen_out_buf_len(struct codegen_CodegenOutBuf *out) {
-  return codegen_out_buf_len(out);
-}
-void codegen_codegen_out_buf_set_len(struct codegen_CodegenOutBuf *out, int32_t n) {
-  codegen_out_buf_set_len(out, n);
-}
-int32_t pipeline_codegen_out_buf_len(struct codegen_CodegenOutBuf *out) {
-  return codegen_out_buf_len(out);
-}
-void pipeline_codegen_out_buf_set_len(struct codegen_CodegenOutBuf *out, int32_t n) {
-  codegen_out_buf_set_len(out, n);
-}
-
-/** asm.x 经 import codegen 解析 extern 时带 codegen_ 前缀；转发 ast_pool scratch。 */
-uint8_t *codegen_pipeline_scratch_buf64(void) {
-  return pipeline_scratch_buf64();
-}
-uint8_t *codegen_pipeline_scratch_buf64_slot(int32_t slot) {
-  return pipeline_scratch_buf64_slot(slot);
-}
+/* wave1181 G.7: elf/codegen prefix forwarder cluster (18 fns) migrated to
+ * pipeline_elf_codegen_forwarders.c (new domain file, same-TU #include below).
+ * Members:
+ *  - platform_elf_pipeline_elf_ctx_reloc_* (7 fns: sym_name_ptr/copy64/name_len,
+ *    sidecar_reset, offset_at/set, shndx_at) — ElfCodegenCtx reloc accessors
+ *  - platform_elf_pipeline_elf_ctx_sym_shndx_at (1 fn) — symtab shndx accessor
+ *  - platform_elf_pipeline_elf_pgo_hot_enabled / elf_ctx_set_emit_hot (2 fns) — PGO hot/cold tag
+ *  - platform_elf_pipeline_elf_ctx_append_bytes (1 fn) — raw byte stream into ctx
+ *  - platform_elf_pipeline_elf_write_o_pgo_to_buf (1 fn) — flush ctx to CodegenOutBuf
+ *  - codegen_codegen_out_buf_len / set_len (2 fns) — codegen_ prefix out_buf accessors
+ *  - pipeline_codegen_out_buf_len / set_len (2 fns) — pipeline_ prefix aliases
+ *  - codegen_pipeline_scratch_buf64 / _slot (2 fns) — codegen_ prefix scratch accessors
+ *
+ * All 18 are pure pass-through forwarders to unprefixed pipeline_elf_* /
+ * codegen_out_buf_* / pipeline_scratch_buf64* implementations in ast_pool.c /
+ * pipeline_elf.c / codegen.c. No static state; safe to colocate.
+ */
+#include "pipeline_elf_codegen_forwarders.c"
 
 /*
  * ast.x 中 extern pipeline_* 经 codegen 调用时带 ast_ 模块前缀（如 ast_pipeline_block_append_if），

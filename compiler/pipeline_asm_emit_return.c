@@ -878,3 +878,172 @@ static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32
   return tr > 0 ? tr : 0;
 }
 
+/* wave1176 G.7: backend return-expr ref cluster (8 fns) migrated from
+ * pipeline_glue.c L3119-3219, L3514-3516, L4546-4549, L4615-4618, L4638-4641.
+ * Colocated with EXPR_RETURN emit domain — all read return expr/lit ref from
+ * func body block for backend.x / arm64.x to avoid X self-host struct field
+ * FIELD_ACCESS codegen failures (fail_at=55).
+ *
+ * Dependencies (all fwd-declared before pipeline_asm_emit_return.c #include
+ * at glue.c L1731):
+ * - pipeline_arena_block_ptr (fwd decl glue.c L215)
+ * - pipeline_block_labeled_return_expr_ref (fwd decl glue.c L203)
+ * - pipeline_arena_expr_ptr (fwd decl glue.c L214)
+ * - pipeline_block_expr_stmt_ref (fwd decl glue.c L92)
+ * - pipeline_module_func_ptr (fwd decl glue.c L91)
+ * - pipeline_type_kind_ord_at (fwd decl glue.c L761; defined ast_pool_type.c)
+ *
+ * No glue.c callsites before L1731 for any of these 8 fns. All callers are
+ * either in glue.c after L1731 (mega_body_c L4876, forwarders L4548/L4617/
+ * L4640) or in backend.x / arm64.x seeds via extern.
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+
+/**
+ * backend.x get_return_expr_ref: read Block/LabeledStmt/Expr pool in C to
+ * avoid X self-host asm FIELD_ACCESS on stmt.is_goto / block.final_expr_ref
+ * (fail_at=55).
+ * Why: backend.x needs the return expr ref to emit the function's result expr
+ *      directly; doing the scan in X would require struct field access that
+ *      the self-host typeck cannot yet resolve.
+ * Contract: returns 0 when arena/func null, body_ref out of range, or no
+ *           return expr found. Returns the final_expr_ref or the operand of
+ *           an explicit EXPR_RETURN in the last expr_stmt.
+ */
+int32_t pipeline_backend_get_return_expr_ref(struct ast_ASTArena *a, struct ast_Func *f) {
+  struct ast_Block *blk;
+  int32_t j;
+  int32_t ei;
+  if (!a || !f || f->body_ref <= 0 || f->body_ref > a->num_blocks)
+    return 0;
+  blk = pipeline_arena_block_ptr(a, f->body_ref);
+  j = 0;
+  while (blk && j < blk->num_labeled_stmts) {
+    int32_t ret_ref = pipeline_block_labeled_return_expr_ref(a, f->body_ref, j);
+    if (ret_ref != 0)
+      return ret_ref;
+    j++;
+  }
+  if (blk && blk->final_expr_ref != 0) {
+    struct ast_Expr *e;
+    if (blk->final_expr_ref <= 0 || blk->final_expr_ref > a->num_exprs)
+      return blk->final_expr_ref;
+    e = pipeline_arena_expr_ptr(a, blk->final_expr_ref);
+    if (e && e->kind == ast_ExprKind_EXPR_RETURN && e->unary_operand_ref != 0)
+      return e->unary_operand_ref;
+    return blk->final_expr_ref;
+  }
+  if (!blk)
+    return 0;
+  ei = blk->num_expr_stmts - 1;
+  while (ei >= 0) {
+    int32_t ers = pipeline_block_expr_stmt_ref(a, f->body_ref, ei);
+    if (ers != 0 && ers > 0 && ers <= a->num_exprs) {
+      struct ast_Expr *es = pipeline_arena_expr_ptr(a, ers);
+      if (es && es->kind == ast_ExprKind_EXPR_RETURN) {
+        /*
+         * Explicit return already emitted as expr_stmt by emit_block_body;
+         * do not return the operand for asm_codegen_ast_to_elf to re-emit
+         * (return if (...) would duplicate the cmp/if chain).
+         */
+        return 0;
+      }
+    }
+    ei--;
+  }
+  return 0;
+}
+
+/**
+ * backend.x get_return_expr_ref: read Func.body_ref by module index in C,
+ * do not pass X-side by-value copy of *Func.
+ */
+int32_t pipeline_backend_get_return_expr_ref_at(struct ast_ASTArena *a, struct ast_Module *m,
+                                                int32_t func_index) {
+  struct ast_Func *f;
+  if (!a || !m || func_index < 0 || func_index >= (int32_t)m->num_funcs)
+    return 0;
+  if (func_index >= (int32_t)m->num_funcs)
+    return 0;
+  f = pipeline_module_func_ptr(m, func_index);
+  if (!f)
+    return 0;
+  return pipeline_backend_get_return_expr_ref(a, f);
+}
+
+/**
+ * arm64.x get_return_lit_ref: minimal return value ref lookup (lit only).
+ * Why: arm64 backend only needs the literal return ref for certain codegen
+ *      paths; reuses the same block/expr pool read pattern as the x86 path.
+ */
+int32_t pipeline_arm64_get_return_lit_ref(struct ast_ASTArena *a, struct ast_Func *f) {
+  struct ast_Block *blk;
+  struct ast_Expr *e;
+  struct ast_Expr *inner;
+  if (!a || !f || f->body_ref <= 0 || f->body_ref > a->num_blocks)
+    return 0;
+  blk = pipeline_arena_block_ptr(a, f->body_ref);
+  if (!blk || blk->final_expr_ref <= 0 || blk->final_expr_ref > a->num_exprs)
+    return 0;
+  e = pipeline_arena_expr_ptr(a, blk->final_expr_ref);
+  if (!e)
+    return 0;
+  if (e->kind == ast_ExprKind_EXPR_LIT || e->kind == ast_ExprKind_EXPR_BOOL_LIT)
+    return blk->final_expr_ref;
+  if (e->kind == ast_ExprKind_EXPR_RETURN && e->unary_operand_ref != 0) {
+    if (e->unary_operand_ref <= 0 || e->unary_operand_ref > a->num_exprs)
+      return 0;
+    inner = pipeline_arena_expr_ptr(a, e->unary_operand_ref);
+    if (inner && (inner->kind == ast_ExprKind_EXPR_LIT || inner->kind == ast_ExprKind_EXPR_BOOL_LIT))
+      return e->unary_operand_ref;
+  }
+  return 0;
+}
+
+/** arm64.x get_return_lit_ref: read Func.body_ref by module index in C. */
+int32_t pipeline_arm64_get_return_lit_ref_at(struct ast_ASTArena *a, struct ast_Module *m,
+                                             int32_t func_index) {
+  struct ast_Func *f;
+  if (!a || !m || func_index < 0 || func_index >= (int32_t)m->num_funcs)
+    return 0;
+  if (func_index >= (int32_t)m->num_funcs)
+    return 0;
+  f = pipeline_module_func_ptr(m, func_index);
+  if (!f)
+    return 0;
+  return pipeline_arm64_get_return_lit_ref(a, f);
+}
+
+/**
+ * backend.x type_kind_ord_at: forwarder to pipeline_type_kind_ord_at.
+ * Why: backend.x declares this as extern with backend_ prefix; without the
+ *      forwarder, the import would generate a codegen_ prefix symbol.
+ */
+int32_t pipeline_backend_type_kind_ord_at(struct ast_ASTArena *a, int32_t ref) {
+  return pipeline_type_kind_ord_at(a, ref);
+}
+
+/**
+ * asm-prefixed forwarder for backend get_return_expr_ref_at.
+ * Why: asm.x / backend.x declare these as extern with asm_ prefix; the
+ *      forwarder avoids codegen_ prefix link errors.
+ */
+int32_t pipeline_asm_get_return_expr_ref_at(struct ast_ASTArena *a, struct ast_Module *m,
+                                            int32_t func_index) {
+  return pipeline_backend_get_return_expr_ref_at(a, m, func_index);
+}
+
+/** asm-prefixed forwarder for arm64 get_return_lit_ref_at. */
+int32_t pipeline_asm_get_return_lit_ref_at(struct ast_ASTArena *a, struct ast_Module *m,
+                                            int32_t func_index) {
+  return pipeline_arm64_get_return_lit_ref_at(a, m, func_index);
+}
+
+/**
+ * build_asm/arm64.o single-module compile: arm64 module-prefixed forwarder
+ * (same source as backend glue). Delegates to pipeline_asm_get_return_lit_ref_at.
+ */
+int32_t arch_arm64_pipeline_asm_get_return_lit_ref_at(struct ast_ASTArena *a, struct ast_Module *m,
+                                                      int32_t func_index) {
+  return pipeline_asm_get_return_lit_ref_at(a, m, func_index);
+}
+

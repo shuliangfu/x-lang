@@ -512,3 +512,24 @@ void pipeline_dep_ctx_empty_param_restore(struct ast_PipelineDepCtx *ctx) {
   grow_vec_copy_append(&sc->empty_param_indices, &sc->empty_param_backup);
   ctx->current_func_empty_param_count = sc->empty_param_indices.len;
 }
+
+/* wave1178 G.7: pipeline_dep_ctx_typeck_loop_depth_at migrated from
+ * pipeline_glue.c L3159-3162. Colocated with PipelineDepCtx cold accessor
+ * domain — reads ctx.typeck_loop_depth for break/continue X-emit to avoid
+ * self-host asm SIGSEGV when typeck.x reads PipelineDepCtx fields directly.
+ *
+ * No glue.c callsites (sole callers are typeck_gen.c seed via extern:
+ * typeck_loop_depth_push/pop + break/continue emit).
+ * No static deps — reads struct field directly. Fwd decl retained in
+ * glue.c L3160 (callsite only by seed via extern, no glue.c callers).
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+
+/**
+ * Read ctx.typeck_loop_depth for break/continue X-emit.
+ * Why: typeck.x must not read PipelineDepCtx fields directly during self-host
+ *      asm emit (causes SIGSEGV); this helper provides a safe C-resident read.
+ * Contract: returns 0 when ctx is null; otherwise returns ctx->typeck_loop_depth.
+ */
+int32_t pipeline_dep_ctx_typeck_loop_depth_at(struct ast_PipelineDepCtx *ctx) {
+  return ctx ? ctx->typeck_loop_depth : 0;
+}

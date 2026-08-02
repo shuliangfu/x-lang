@@ -710,6 +710,11 @@ static int32_t glue_struct_layout_field_offset_by_name_c(struct ast_Module *m, s
 static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name,
                                                         int32_t nlen);
 static struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
+/* wave1179: pipeline_expr_enum_field_tag_via_module migrated to this file's
+ * EOF; fwd decl here so pipeline_expr_enum_namespace_field_tag (also migrated)
+ * can call it before its definition. */
+int32_t pipeline_expr_enum_field_tag_via_module(uint8_t *enum_name, int32_t enum_len, uint8_t *variant_name,
+                                                int32_t variant_len);
 /* wave1026: extern decls for typeck/dep helpers declared after this #include
  * in glue (5653-5657); duplicated here for visibility. Compatible redecls OK. */
 extern int32_t typeck_get_field_offset_from_layout_deps(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
@@ -1174,4 +1179,187 @@ static int glue_enum_field_name_equal(const uint8_t *field_buf, int32_t flen, co
   if (flen < elen)
     return 0;
   return memcmp(field_buf, expect, (size_t)elen) == 0;
+}
+
+/* wave1179 G.7: field_access enum/soa setter cluster (4 fns) migrated from
+ * pipeline_glue.c L3155-3184 + L3203-3206 + L3217-3309. Colocated with
+ * FIELD_ACCESS emit domain — all read/write ast_Expr field_access_* struct
+ * fields for typeck.x and asm emit.
+ *
+ * Dependencies:
+ * - glue_arena_expr_at_ref (static fwd decl at L712 above; defined in glue.c
+ *   L2340 < field_access.c #include L2111 — wait, L2340 > L2111, so the fwd
+ *   decl at L712 is required; resolved at link time via same-TU).
+ * - pipeline_expr_kind_ord_at / pipeline_expr_var_name_len /
+ *   pipeline_expr_var_name_into / pipeline_expr_field_access_name_len /
+ *   pipeline_expr_field_access_name_into (fwd decls at L1554-1565 in glue.c
+ *   < field_access.c #include L2111).
+ * - pipeline_token_kind_variant_tag (extern fwd decl glue.c L1773).
+ * - pipeline_expr_enum_field_tag_via_module (extern fwd decl glue.c L3208,
+ *   removed and migrated below in this same wave).
+ * - glue_enum_field_name_equal (static at L1169 above).
+ * - g_pipeline_asm_emit_module (static global glue.c L132 — but accessed via
+ *   pipeline_expr_enum_field_tag_via_module which is migrated below).
+ *
+ * No glue.c callsites for any of these 4 fns (sole callers are typeck_gen.c
+ * / codegen_gen.c seeds via extern).
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+
+/**
+ * Write expr.field_access_is_enum_variant and enum_variant_tag.
+ * Why: typeck_coerce_init_expr_to_decl X-emit must write these flags via C
+ *      helper to avoid X Expr struct field assignment typeck failures.
+ * Contract: no-op when arena null, expr_ref out of range, or expr ptr null.
+ */
+void pipeline_expr_set_field_access_enum_variant(struct ast_ASTArena *a, int32_t expr_ref, int32_t tag) {
+  struct ast_Expr *ex;
+
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return;
+  ex->field_access_is_enum_variant = 1;
+  ex->enum_variant_tag = tag;
+}
+
+/** DOD-S1: write FIELD_ACCESS SoA stride (paired with field_access_offset column base). */
+void pipeline_expr_set_field_access_soa_stride(struct ast_ASTArena *a, int32_t expr_ref, int32_t stride) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (ex)
+    ex->field_access_soa_stride = stride;
+}
+
+/** Read expr.field_access_is_enum_variant flag (1 if set, 0 otherwise). */
+int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  return ex ? ex->field_access_is_enum_variant : 0;
+}
+
+/**
+ * Look up enum variant tag for FIELD_ACCESS on enum namespace base
+ * (e.g. ExprKind.EXPR_LIT, TypeKind.TYPE_I32, TokenKind.TOKEN_EOF).
+ * Why: typeck/asm-emit FIELD_ACCESS on enum-typed base VAR must resolve the
+ *      variant tag at compile time; this scans ExprKind/TypeKind/TokenKind
+ *      built-in tables + module enum sidecar via pipeline_expr_enum_field_tag_via_module.
+ * Contract: returns -1 when arena null, expr_ref out of range, expr kind != 44
+ *           (FIELD_ACCESS), base ref invalid, base kind != 3 (VAR), or no
+ *           matching enum variant found.
+ * Dependencies: pipeline_expr_kind_ord_at + pipeline_expr_var_name_len/into
+ *               + pipeline_expr_field_access_name_len/into + glue_enum_field_name_equal
+ *               + pipeline_token_kind_variant_tag + pipeline_expr_enum_field_tag_via_module.
+ */
+int32_t pipeline_expr_enum_namespace_field_tag(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex;
+  uint8_t base_buf[32];
+  uint8_t field_buf[128];
+  int32_t blen, flen;
+  if (!a || expr_ref <= 0 || pipeline_expr_kind_ord_at(a, expr_ref) != 44)
+    return -1;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return -1;
+  if (ex->field_access_base_ref <= 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(a, ex->field_access_base_ref) != 3)
+    return -1;
+  blen = pipeline_expr_var_name_len(a, ex->field_access_base_ref);
+  if (blen <= 0 || blen > 31)
+    return -1;
+  pipeline_expr_var_name_into(a, ex->field_access_base_ref, base_buf);
+  flen = pipeline_expr_field_access_name_len(a, expr_ref);
+  if (flen <= 0 || flen > 127)
+    return -1;
+  pipeline_expr_field_access_name_into(a, expr_ref, field_buf);
+  if (link_abi_getenv("XLANG_ASM_EMIT_TRACE")) {
+    fprintf(stderr, "xlang: enum_ns_tag base_len=%d field_len=%d mod=%p base='", (int)blen, (int)flen,
+            (void *)g_pipeline_asm_emit_module);
+    for (int32_t di = 0; di < blen && di < 31; di++)
+      fputc((char)base_buf[di], stderr);
+    fprintf(stderr, "' field='");
+    for (int32_t di = 0; di < flen && di < 63; di++)
+      fputc((char)field_buf[di], stderr);
+    fprintf(stderr, "'\n");
+  }
+  if (blen == 8 && memcmp(base_buf, "ExprKind", 8) == 0) {
+    if (glue_enum_field_name_equal(field_buf, flen, "EXPR_LIT"))
+      return 0;
+    if (glue_enum_field_name_equal(field_buf, flen, "EXPR_FIELD_ACCESS"))
+      return 44;
+    if (glue_enum_field_name_equal(field_buf, flen, "EXPR_CALL"))
+      return 48;
+    if (glue_enum_field_name_equal(field_buf, flen, "EXPR_VAR"))
+      return 3;
+    if (glue_enum_field_name_equal(field_buf, flen, "EXPR_BLOCK"))
+      return 26;
+  }
+  if (blen == 8 && memcmp(base_buf, "TypeKind", 8) == 0) {
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_I32"))
+      return 0;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_BOOL"))
+      return 1;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_U8"))
+      return 2;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_U32"))
+      return 3;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_U64"))
+      return 4;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_I64"))
+      return 5;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_USIZE"))
+      return 6;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_ISIZE"))
+      return 7;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_NAMED"))
+      return 8;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_PTR"))
+      return 9;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_ARRAY"))
+      return 10;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_SLICE"))
+      return 11;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_VECTOR"))
+      return 12;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_F32"))
+      return 13;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_F64"))
+      return 14;
+    if (glue_enum_field_name_equal(field_buf, flen, "TYPE_VOID"))
+      return 15;
+  }
+  /** import token.x TokenKind: fast path via pipeline_token_kind_variant_tag; here only module sidecar fallback. */
+  if (blen == 9 && memcmp(base_buf, "TokenKind", 9) == 0) {
+    int32_t tk = pipeline_token_kind_variant_tag(field_buf, flen);
+    if (tk >= 0)
+      return tk;
+  }
+  {
+    int32_t mod_tag = pipeline_expr_enum_field_tag_via_module(base_buf, blen, field_buf, flen);
+    if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
+      fprintf(stderr, "xlang: enum_ns_tag mod_tag=%d\n", (int)mod_tag);
+    if (mod_tag >= 0)
+      return mod_tag;
+  }
+  return -1;
+}
+
+/* wave1179 G.7: pipeline_expr_enum_field_tag_via_module migrated from
+ * pipeline_glue.c L3419-3425. Colocated with FIELD_ACCESS emit domain —
+ * called only by pipeline_expr_enum_namespace_field_tag above (now in same
+ * file). Reads g_pipeline_asm_emit_module to look up enum variant tag via
+ * module enum sidecar.
+ *
+ * Dependencies: g_pipeline_asm_emit_module (static global in glue.c L132 <
+ *   field_access.c #include L2111 — visible via same-TU) +
+ *   pipeline_module_enum_variant_tag_for_names (fwd decl glue.c L129).
+ * No glue.c callsites other than the forward decl at L3208 (also removed).
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+
+/** Look up enum variant tag by module enum sidecar (e.g. TokenKind.TOKEN_EOF); -1 if not found. */
+int32_t pipeline_expr_enum_field_tag_via_module(uint8_t *enum_name, int32_t enum_len, uint8_t *variant_name,
+                                                int32_t variant_len) {
+  if (!g_pipeline_asm_emit_module)
+    return -1;
+  return pipeline_module_enum_variant_tag_for_names(g_pipeline_asm_emit_module, enum_name, enum_len, variant_name,
+                                                   variant_len);
 }

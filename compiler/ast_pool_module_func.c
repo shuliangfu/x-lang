@@ -545,3 +545,80 @@ int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t func_inde
   return f ? (int32_t)f->body_ref : 0;
 }
 
+/* wave1175 G.7: asm-prefixed module func forwarders (7 fns) migrated from
+ * pipeline_glue.c L3510-3542. Colocated with pipeline_module_func_* domain
+ * — these one-line forwarders give backend.x an asm_ prefix symbol to avoid
+ * codegen_ prefix link errors when backend imports module func accessors.
+ *
+ * Fwd decls retained in glue.c L778/L7685 for callsites before ast_pool.c
+ * #include at glue.c L5055. Additional fwd decls added for the 5 fns that
+ * had no prior declaration.
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+
+/**
+ * Forwarder: backend.x asm_ prefix for pipeline_module_func_is_extern_at.
+ * Why: backend.x declares these as extern; without the asm_ wrapper, the
+ *      import would generate a codegen_ prefix symbol → link error.
+ */
+int32_t pipeline_asm_module_func_is_extern_at(struct ast_Module *m, int32_t func_index) {
+  return pipeline_module_func_is_extern_at(m, func_index);
+}
+
+int32_t pipeline_asm_module_func_body_ref_at(struct ast_Module *m, int32_t func_index) {
+  return pipeline_module_func_body_ref_at(m, func_index);
+}
+
+int32_t pipeline_asm_module_func_name_len_at(struct ast_Module *m, int32_t func_index) {
+  return pipeline_module_func_name_len_at(m, func_index);
+}
+
+void pipeline_asm_module_func_name_copy64(struct ast_Module *m, int32_t func_index, uint8_t *dst) {
+  pipeline_module_func_name_copy64(m, func_index, dst);
+}
+
+int32_t pipeline_asm_module_func_num_params_at(struct ast_Module *m, int32_t func_index) {
+  return pipeline_module_func_num_params_at(m, func_index);
+}
+
+int32_t pipeline_asm_module_func_param_name_len_at(struct ast_Module *m, int32_t func_index,
+                                                   int32_t param_index) {
+  return pipeline_module_func_param_name_len_at(m, func_index, param_index);
+}
+
+void pipeline_asm_module_func_param_name_copy32(struct ast_Module *m, int32_t func_index,
+                                                int32_t param_index, uint8_t *dst) {
+  pipeline_module_func_param_name_copy32(m, func_index, param_index, dst);
+}
+
+/* wave1177 G.7: arch_arm64 module_func forwarders (4 fns) migrated from
+ * pipeline_glue.c L4530-4545. Colocated with the asm_module_func forwarder
+ * family (wave1175) — these are the arm64.o single-module compile variants
+ * that delegate to the same asm_module_func_* symbols.
+ *
+ * Why: build_asm/arm64.o single-module compile emits arm64 module-prefixed
+ *      symbols; without these forwarders the arm64 link would fail with
+ *      undefined arch_arm64_pipeline_asm_module_func_* references.
+ * No glue.c callsites (sole callers are arm64.o via extern).
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+
+/** arm64.o single-module compile: forwarder for pipeline_asm_module_func_is_extern_at. */
+int32_t arch_arm64_pipeline_asm_module_func_is_extern_at(struct ast_Module *m, int32_t func_index) {
+  return pipeline_asm_module_func_is_extern_at(m, func_index);
+}
+
+/** arm64.o single-module compile: forwarder for pipeline_asm_module_func_body_ref_at. */
+int32_t arch_arm64_pipeline_asm_module_func_body_ref_at(struct ast_Module *m, int32_t func_index) {
+  return pipeline_asm_module_func_body_ref_at(m, func_index);
+}
+
+/** arm64.o single-module compile: forwarder for pipeline_asm_module_func_name_len_at. */
+int32_t arch_arm64_pipeline_asm_module_func_name_len_at(struct ast_Module *m, int32_t func_index) {
+  return pipeline_asm_module_func_name_len_at(m, func_index);
+}
+
+/** arm64.o single-module compile: forwarder for pipeline_asm_module_func_name_copy64. */
+void arch_arm64_pipeline_asm_module_func_name_copy64(struct ast_Module *m, int32_t func_index,
+                                                     uint8_t *dst) {
+  pipeline_asm_module_func_name_copy64(m, func_index, dst);
+}
+
