@@ -6603,43 +6603,11 @@ int32_t pipeline_elf_ctx_reloc_name_len(uint8_t *ctx_bytes, int32_t idx) {
   return g_pipeline_elf_reloc_heap[hi].name_len;
 }
 
-/** asm .o 失败诊断：打印 ElfCodegenCtx 前几项计数（与 PipelineElfCtxAccess 布局一致）。 */
-void pipeline_elf_ctx_diag_stderr(uint8_t *ctx_bytes) {
-  PipelineElfCtxAccess *ctx;
-  int32_t l;
-  char namebuf[65];
-  if (!ctx_bytes)
-    return;
-  ctx = (PipelineElfCtxAccess *)ctx_bytes;
-  diag_reportf(NULL, 0, 0, "note", NULL,
-               "elf ctx code_len=%d num_labels=%d num_patches=%d num_relocs=%d",
-               (int)ctx->code_len, (int)ctx->num_labels, (int)ctx->num_patches, (int)ctx->num_relocs);
-  if (ctx->num_patches > 0) {
-    PipelineElfPatchEntry *p = &ctx->patches[0];
-    int32_t name_len = p->name_len > 64 ? 64 : p->name_len;
-    if (name_len < 0)
-      name_len = 0;
-    for (int32_t i = 0; i < name_len; i++)
-      namebuf[i] = (char)p->name[i];
-    namebuf[name_len] = '\0';
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "elf first patch name_len=%d name='%s'", (int)p->name_len, namebuf);
-    l = 0;
-    while (l < ctx->num_labels) {
-      int32_t same = (ctx->labels[l].name_len == p->name_len);
-      if (same && p->name_len > 0)
-        same = (memcmp(ctx->labels[l].name, p->name, (size_t)p->name_len) == 0);
-      if (same) {
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "elf label match at idx=%d offset=%d",
-                     (int)l, (int)ctx->labels[l].offset);
-        return;
-      }
-      l = l + 1;
-    }
-    diag_report(NULL, 0, 0, "note", "elf no label match for first patch", NULL);
-  }
-}
+/* wave1240 dead code delete: pipeline_elf_ctx_diag_stderr removed — defined here
+ * but had zero callers across .c/.x/.h (was an asm .o failure diagnostic helper
+ * printing ElfCodegenCtx counts). Superseded by pipeline_elf_log_unresolved_patch
+ * below, which handles unresolved-patch diagnostics via the same PipelineElfCtxAccess
+ * layout. PLATFORM: SHARED. */
 
 void pipeline_elf_log_unresolved_patch(struct platform_elf_ElfCodegenCtx *ctx, int32_t patch_idx) {
   PipelineElfCtxAccess *acc;

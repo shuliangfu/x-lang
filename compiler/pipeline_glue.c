@@ -267,15 +267,12 @@ void pipeline_module_func_param_name_copy32(struct ast_Module *m, int32_t func_i
 int32_t pipeline_module_func_param_type_ref_for_name(struct ast_Module *m, int32_t func_index, uint8_t *var_name,
                                                      int32_t var_name_len);
 int32_t pipeline_module_func_param_type_ref_at(struct ast_Module *m, int32_t func_index, int32_t param_index);
-/** asm .o 失败时打印 ElfCodegenCtx 计数（ast_pool.c）。 */
-void pipeline_elf_ctx_diag_stderr(uint8_t *ctx_bytes);
 /** macho/elf：reloc_sym_names 行读写（ast_pool.c）。 */
 uint8_t *pipeline_elf_ctx_reloc_sym_name_ptr(uint8_t *ctx_bytes, int32_t idx);
 void pipeline_elf_ctx_reloc_sym_name_copy64(uint8_t *ctx_bytes, int32_t idx, uint8_t *dst);
 int32_t pipeline_elf_ctx_reloc_name_len(uint8_t *ctx_bytes, int32_t idx);
 void pipeline_elf_ctx_reloc_sidecar_reset(uint8_t *ctx_bytes);
 int32_t pipeline_elf_ctx_reloc_offset_at(uint8_t *ctx_bytes, int32_t idx);
-void pipeline_elf_ctx_reloc_offset_set(uint8_t *ctx_bytes, int32_t idx, int32_t offset);
 int32_t pipeline_elf_ctx_reloc_shndx_at(uint8_t *ctx_bytes, int32_t idx);
 int32_t pipeline_elf_ctx_sym_shndx_at(uint8_t *ctx_bytes, int32_t idx);
 int32_t pipeline_elf_pgo_hot_enabled(void);
@@ -288,7 +285,6 @@ int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, 
 int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len);
 int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out);
 /** PLATFORM: MACOS pure-asm MH_OBJECT; strong platform_macho_write overrides Darwin weak stubs. */
-int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out);
 int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf);
 /* wave1100 G.7: pipeline_asm_modlet_name_is_shared + load_to_rax + store_from_rax +
  * prepare_and_emit migrated to pipeline_asm_emit_modlet.c (same-TU #include at L2291,
@@ -296,7 +292,6 @@ int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf);
 /* ast_pool.c — SHN_COMMON object symbols (modlet + wave341 non-const array-lit durable). */
 int32_t pipeline_elf_ctx_add_common_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t size,
                                         int32_t align);
-int32_t pipeline_elf_ctx_total_code_len(uint8_t *ctx_bytes);
 int32_t pipeline_asm_wpo_pgo_is_hot_func(struct ast_Module *m, int32_t fi);
 /** ast_pool.c WPO emit 序（#include 之后定义）；ELF mega 主循环前向声明。 */
 void pipeline_asm_wpo_pgo_emit_order_prepare(struct ast_Module *m);
