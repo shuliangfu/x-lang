@@ -262,7 +262,16 @@ static void grow_vec_free(GrowVec *v) {
   }
 }
 
-/** 确保 len 可再追加 1 个元素；成功返回 1。 */
+/**
+ * Ensure capacity for one more element. Returns 1 on success.
+ *
+ * Growth policy (PLATFORM: SHARED):
+ * - Small heap buffers: linear step AST_POOL_GROW (realloc often in-place).
+ * - mmap-backed / large: **double** capacity (geometric). mmap cannot grow
+ *   in place; linear +4096 caused O(n^2) full-array memcpy and made
+ *   `xlang check main.x` appear hung (codegen dep ~1.2M exprs → ~100GB copy).
+ * wave1242b: geometric mmap growth fix after wave1242 mmap RSS work.
+ */
 static int grow_vec_ensure(GrowVec *v) {
   int32_t need;
   int32_t nc;
@@ -278,14 +287,28 @@ static int grow_vec_ensure(GrowVec *v) {
     return 1;
   old_cap = v->cap;
   nc = v->cap > 0 ? v->cap : AST_POOL_GROW;
-  while (nc < need)
-    nc += AST_POOL_GROW;
+  /* Will this resize be mmap-path? Prefer geometric growth then. */
+  if (v->mmap_backed ||
+      (size_t)need * v->elem_sz >= GROW_VEC_MMAP_THRESH ||
+      (size_t)nc * v->elem_sz >= GROW_VEC_MMAP_THRESH) {
+    while (nc < need) {
+      if (nc > 1073741823) { /* prevent i32 overflow */
+        nc = need;
+        break;
+      }
+      nc = nc * 2;
+    }
+    if (nc < need)
+      nc = need;
+  } else {
+    while (nc < need)
+      nc += AST_POOL_GROW;
+  }
   old_bytes = (size_t)old_cap * v->elem_sz;
   new_bytes = (size_t)nc * v->elem_sz;
   /*
-   * PLATFORM: SHARED — grow path. Prefer mmap for large new_bytes so free
-   * returns RSS (check peak). Cannot realloc() an mmap region: allocate
-   * fresh + copy + dealloc old.
+   * Large path: mmap so free can munmap (RSS). Always alloc+copy+dealloc
+   * (no realloc on mmap). Geometric nc above keeps total copy O(n).
    */
   if (v->mmap_backed || new_bytes >= GROW_VEC_MMAP_THRESH) {
     p = (uint8_t *)grow_vec_alloc_bytes(new_bytes, &mm);
@@ -293,7 +316,7 @@ static int grow_vec_ensure(GrowVec *v) {
       return 0;
     if (v->data && old_bytes > 0)
       memcpy(p, v->data, old_bytes);
-    /* new tail is already zero from mmap/calloc */
+    /* new tail already zero from mmap/calloc */
     grow_vec_dealloc_bytes(v->data, old_bytes, v->mmap_backed);
     v->data = p;
     v->mmap_backed = mm;
