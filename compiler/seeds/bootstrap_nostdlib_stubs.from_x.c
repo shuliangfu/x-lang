@@ -305,12 +305,19 @@ int bootstrap_heap_grow(size_t need) { return bootstrap_heap_grow_impl(need); }
  *
  * Authority: this seed TU only (G.7). .x thin does not reimplement malloc.
  */
+/* 大块阈值：>1MB 的分配单独 mmap，header.flags 记 mmap_size 以便 free/realloc munmap 回收。
+ * Why: bump realloc 对大块 malloc+copy+不释放旧块，反复 grow 累积致 SIGKILL
+ *      (check 处理 codegen.x 时 buffer grow 600MB ×17 ≈ 10GB)。
+ *      macOS libc realloc 用 mremap 原地扩展无此问题；nostdlib 需大块独立回收。
+ * Invariant: 大块 header.flags>0 且 ==mmap_size；小块 header.flags==0。
+ * Asm/Perf: 大块单独 mmap 对齐 64K；realloc 大块需 copy（无 mREMAP），但不累积。 */
+#define BOOTSTRAP_BIG_THRESHOLD (1024UL * 1024UL)
 typedef struct {
   size_t user_size; /* exact size requested by the last malloc/realloc for this block */
-  size_t _pad;      /* keep header 16 bytes so payload stays 16-aligned */
+  size_t flags;     /* 0=small(bump pool); >0=big(standalone mmap, value=mmap_size) */
 } BootstrapHeapHdr;
 
-/** malloc minimal: bump + size header before payload. */
+/** malloc: 大块(>1MB)单独 mmap 可回收；小块 bump pool。 */
 void *malloc(size_t size) {
     size_t need;
     size_t payload;
@@ -318,6 +325,20 @@ void *malloc(size_t size) {
     BootstrapHeapHdr *hdr;
     if (size == 0)
         return NULL;
+    if (size > BOOTSTRAP_BIG_THRESHOLD) {
+        size_t big_mmap_size;
+        void *bp;
+        payload = bootstrap_align16(size);
+        need = sizeof(BootstrapHeapHdr) + payload;
+        big_mmap_size = (need + 65535UL) & ~65535UL;
+        bp = xlang_sys_mmap(0, big_mmap_size, 3, 0x22, -1, 0);
+        if (!bp || (uintptr_t)bp >= (uintptr_t)-4095)
+            return NULL;
+        hdr = (BootstrapHeapHdr *)bp;
+        hdr->user_size = size;
+        hdr->flags = big_mmap_size;
+        return (void *)((unsigned char *)bp + sizeof(BootstrapHeapHdr));
+    }
     payload = bootstrap_align16(size);
     need = sizeof(BootstrapHeapHdr) + payload;
     if (!bootstrap_heap_end || bootstrap_heap_end + need > bootstrap_heap_limit) {
@@ -328,13 +349,19 @@ void *malloc(size_t size) {
     bootstrap_heap_end += need;
     hdr = (BootstrapHeapHdr *)(void *)raw;
     hdr->user_size = size;
-    hdr->_pad = 0;
+    hdr->flags = 0;
     return (void *)(raw + sizeof(BootstrapHeapHdr));
 }
 
-/** free minimal: bump allocator no-op (payload stays reserved). */
+/** free: 大块 munmap 回收；小块 bump no-op。 */
 void free(void *ptr) {
-    (void)ptr;
+    BootstrapHeapHdr *hdr;
+    if (!ptr)
+        return;
+    hdr = (BootstrapHeapHdr *)(void *)((unsigned char *)ptr - sizeof(BootstrapHeapHdr));
+    if (hdr->flags > 0)
+        xlang_sys_munmap(hdr, (unsigned long)hdr->flags);
+    /* 小块：bump no-op */
 }
 
 /** calloc minimal: malloc then zero user_size bytes. */
@@ -346,8 +373,9 @@ void *calloc(size_t nmemb, size_t size) {
     return p;
 }
 
-/** realloc: allocate new block; copy min(old_user_size, size) only.
- * PLATFORM: SHARED — must not memcpy with `size` when growing (OOB read). */
+/** realloc: allocate new block; copy min(old_user_size, size); 旧大块 munmap 回收。
+ * PLATFORM: SHARED — must not memcpy with `size` when growing (OOB read).
+ * Why: 旧大块若不 munmap，反复 realloc grow 累积致 SIGKILL（bump no-op free）。 */
 void *realloc(void *ptr, size_t size) {
     BootstrapHeapHdr *old_hdr;
     size_t old_size;
@@ -367,6 +395,8 @@ void *realloc(void *ptr, size_t size) {
     ncopy = old_size < size ? old_size : size;
     if (ncopy > 0)
         memcpy(n, ptr, ncopy);
+    if (old_hdr->flags > 0)
+        xlang_sys_munmap(old_hdr, (unsigned long)old_hdr->flags);
     return n;
 }
 
