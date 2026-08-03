@@ -234,3 +234,135 @@ int32_t pipeline_codegen_emit_float_lit_c(struct codegen_CodegenOutBuf *out, dou
   }
   return glue_codegen_out_append_cstr(out, buf);
 }
+
+/* wave1236 G.7: codegen_try_emit_slice_init_from_array_var migrated from
+ * pipeline_glue.c to this file's EOF (colocated with glue_codegen_out_append_*
+ * callees at L41-100 — codegen outbuf append domain). All deps visible via
+ * earlier fwd decls in glue.c (before #include at L445):
+ *   - pipeline_type_kind_ord_at / _array_size_at (fwd at L396-397)
+ *   - pipeline_arena_expr_ptr (fwd at L213)
+ *   - pipeline_block_let_type_ref / _name_len / _name_copy64 (fwd at L402-404)
+ *   - pipeline_expr_var_name_len / _into (fwd at L405-406)
+ *   - glue_codegen_out_append_byte / _cstr / _bytes / _int (this file)
+ * Sole extern caller: codegen_gen.c L13530 + codegen.x seed.
+ * PLATFORM: SHARED. */
+
+/**
+ * let s: T[] = arr：写出 { .data = arr, .length = N }（对齐 codegen.c codegen_init / codegen.x）。
+ * wave348: also `let s: T[] = b.a` (FIELD_ACCESS fixed TYPE_ARRAY).
+ * @return 1 已写出；0 不适用；-1 失败。
+ * PLATFORM: SHARED host-C (dup of seed when OMIT_X_DUP not set).
+ */
+#if !defined(XLANG_PIPELINE_GLUE_STANDALONE_TU) && !defined(XLANG_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS)
+int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                                   int32_t block_ref, int32_t let_idx, int32_t let_type_ref,
+                                                   int32_t linit_ref) {
+  struct ast_Expr *init_pe;
+  struct ast_Expr *base_pe;
+  int32_t arr_sz = 0;
+  int32_t li;
+  int32_t vlen;
+  int32_t is_field = 0;
+  uint8_t vname[128];
+  if (!arena || !out || block_ref <= 0 || let_type_ref <= 0 || linit_ref <= 0 || linit_ref > arena->num_exprs)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, let_type_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
+    return 0;
+  init_pe = pipeline_arena_expr_ptr(arena, linit_ref);
+  if (!init_pe)
+    return 0;
+  if (init_pe->kind == (int32_t)ast_ExprKind_EXPR_VAR) {
+    vlen = pipeline_expr_var_name_len(arena, linit_ref);
+    if (vlen <= 0)
+      return 0;
+    pipeline_expr_var_name_into(arena, linit_ref, vname);
+    for (li = 0; li < let_idx; li++) {
+      int32_t nlen = pipeline_block_let_name_len(arena, block_ref, li);
+      if (nlen == vlen && nlen > 0) {
+        int32_t match = 1;
+        int32_t ci;
+        uint8_t nb[128];
+        pipeline_block_let_name_copy64(arena, block_ref, li, nb);
+        for (ci = 0; ci < nlen; ci++) {
+          if (nb[ci] != vname[ci]) {
+            match = 0;
+            break;
+          }
+        }
+        if (match) {
+          int32_t tr = pipeline_block_let_type_ref(arena, block_ref, li);
+          if (pipeline_type_kind_ord_at(arena, tr) == 10) {
+            arr_sz = pipeline_type_array_size_at(arena, tr);
+            break;
+          }
+        }
+      }
+    }
+    if (arr_sz <= 0 && init_pe->resolved_type_ref > 0 &&
+        pipeline_type_kind_ord_at(arena, init_pe->resolved_type_ref) == (int32_t)ast_TypeKind_TYPE_ARRAY)
+      arr_sz = pipeline_type_array_size_at(arena, init_pe->resolved_type_ref);
+  } else if (init_pe->kind == (int32_t)ast_ExprKind_EXPR_FIELD_ACCESS &&
+             init_pe->field_access_field_len > 0 && init_pe->field_access_base_ref > 0 &&
+             init_pe->field_access_base_ref <= arena->num_exprs) {
+    /* wave348: let s: T[] = b.a */
+    is_field = 1;
+    base_pe = pipeline_arena_expr_ptr(arena, init_pe->field_access_base_ref);
+    if (!base_pe || base_pe->kind != (int32_t)ast_ExprKind_EXPR_VAR || base_pe->var_name_len <= 0)
+      return 0;
+    vlen = base_pe->var_name_len;
+    if (vlen > 127)
+      return 0;
+    memcpy(vname, base_pe->var_name, (size_t)vlen);
+    if (init_pe->resolved_type_ref > 0 &&
+        pipeline_type_kind_ord_at(arena, init_pe->resolved_type_ref) == (int32_t)ast_TypeKind_TYPE_ARRAY)
+      arr_sz = pipeline_type_array_size_at(arena, init_pe->resolved_type_ref);
+  } else {
+    return 0;
+  }
+  if (arr_sz <= 0 && is_field == 0)
+    return 0;
+  if (glue_codegen_out_append_byte(out, '{') != 0)
+    return -1;
+  if (glue_codegen_out_append_cstr(out, " .data = ") != 0)
+    return -1;
+  if (glue_codegen_out_append_bytes(out, vname, vlen) != 0)
+    return -1;
+  if (is_field) {
+    if (glue_codegen_out_append_byte(out, '.') != 0)
+      return -1;
+    if (glue_codegen_out_append_bytes(out, init_pe->field_access_field_name, init_pe->field_access_field_len) != 0)
+      return -1;
+  }
+  if (glue_codegen_out_append_cstr(out, ", .length = ") != 0)
+    return -1;
+  if (arr_sz > 0) {
+    if (glue_codegen_out_append_int(out, arr_sz) != 0)
+      return -1;
+  } else if (is_field) {
+    /* sizeof(base.field)/sizeof((base.field)[0]) */
+    if (glue_codegen_out_append_cstr(out, "(sizeof(") != 0)
+      return -1;
+    if (glue_codegen_out_append_bytes(out, vname, vlen) != 0)
+      return -1;
+    if (glue_codegen_out_append_byte(out, '.') != 0)
+      return -1;
+    if (glue_codegen_out_append_bytes(out, init_pe->field_access_field_name, init_pe->field_access_field_len) != 0)
+      return -1;
+    if (glue_codegen_out_append_cstr(out, ")/sizeof((") != 0)
+      return -1;
+    if (glue_codegen_out_append_bytes(out, vname, vlen) != 0)
+      return -1;
+    if (glue_codegen_out_append_byte(out, '.') != 0)
+      return -1;
+    if (glue_codegen_out_append_bytes(out, init_pe->field_access_field_name, init_pe->field_access_field_len) != 0)
+      return -1;
+    if (glue_codegen_out_append_cstr(out, ")[0])") != 0)
+      return -1;
+  } else {
+    return 0;
+  }
+  if (glue_codegen_out_append_cstr(out, " }") != 0)
+    return -1;
+  return 1;
+}
+#endif
