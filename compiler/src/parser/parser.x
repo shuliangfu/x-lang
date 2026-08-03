@@ -2031,7 +2031,7 @@ function parse_expr_with_leading_int_as_into(arena: *ASTArena, lex_start: Lexer,
  * @param out *ParseExprResult
  * @return void
  */
-function parse_expr_with_leading_int_as_into_buf(arena: *ASTArena, lex_start: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+export function parse_expr_with_leading_int_as_into_buf(arena: *ASTArena, lex_start: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
@@ -7280,7 +7280,7 @@ function module_append_enum_variants_and_skip_body_into(module: *Module, enum_id
  * @param len i32
  * @return void
  */
-function module_append_enum_variants_and_skip_body_into_buf(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+export function module_append_enum_variants_and_skip_body_into_buf(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let depth: i32 = 1;
@@ -7371,7 +7371,7 @@ function skip_one_enum_register_into_buf(module: *Module, out: *Lexer, lex: Lexe
  * @param len i32
  * @return void
  */
-function skip_one_enum_register_buf(module: *Module, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+export function skip_one_enum_register_buf(module: *Module, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   skip_one_enum_register_into_buf(module, out, lex, data, len);
@@ -7494,7 +7494,7 @@ function skip_one_impl(lex: Lexer, source: u8[]): Lexer {
  * @param len i32
  * @return void
  */
-function skip_one_enum_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+export function skip_one_enum_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
@@ -7504,7 +7504,7 @@ function skip_one_enum_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): v
 
 
 /** skip_one_enum_buf：parser_slice_from_buf + bl skip_one_enum。 */
-function skip_one_enum_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+export function skip_one_enum_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
@@ -7530,7 +7530,7 @@ function skip_one_trait_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): 
 }
 
 /** skip_one_trait_buf：parser_slice_from_buf + bl skip_one_trait。 */
-function skip_one_trait_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+export function skip_one_trait_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
@@ -7556,7 +7556,7 @@ function skip_one_impl_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): v
 }
 
 /** skip_one_impl_buf：parser_slice_from_buf + bl skip_one_impl。 */
-function skip_one_impl_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+export function skip_one_impl_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
@@ -7646,7 +7646,7 @@ extern function parser_write_extern_params_to_pools_glue(arena: *ASTArena, modul
  * See implementation.
  * See implementation.
  */
-function write_extern_params_to_pools(arena: *ASTArena, module: *Module, func_ref: i32, fi: i32, res: *ExternParseResult): void {
+export function write_extern_params_to_pools(arena: *ASTArena, module: *Module, func_ref: i32, fi: i32, res: *ExternParseResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let pool: *u8 = extern_parse_pool_ptr(res);
@@ -7671,7 +7671,7 @@ function write_extern_params_to_pools(arena: *ASTArena, module: *Module, func_re
  * @param lex Lexer
  * @return void
  */
-function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
+export function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let empty64: u8[128] = [];
@@ -7745,7 +7745,7 @@ function parse_one_extern_skip_into_buf(out: *ExternParseResult, arena: *ASTAren
  * @param f Func
  * @return i32
  */
-function module_register_arena_func(module: *Module, func_ref: i32, f: Func): i32 {
+export function module_register_arena_func(module: *Module, func_ref: i32, f: Func): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let fi: i32 = pipeline_module_func_alloc_slot(module);
@@ -7818,7 +7818,7 @@ function skip_one_extern_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32):
 }
 
 /** skip_one_extern_buf：parser_slice_from_buf + bl skip_one_extern。 */
-function skip_one_extern_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+export function skip_one_extern_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
@@ -7912,7 +7912,7 @@ extern function parser_lex_from_try_skip_glue(t: TrySkipAllowResult): Lexer;
  * @param t TrySkipAllowResult
  * @return Lexer
  */
-function lex_from_try_skip(t: TrySkipAllowResult): Lexer {
+export function lex_from_try_skip(t: TrySkipAllowResult): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   return parser_lex_from_try_skip_glue(t);
@@ -7927,7 +7927,7 @@ extern function parser_lex_from_library_glue(lib: LibraryParseResult): Lexer;
  * @param lib LibraryParseResult
  * @return Lexer
  */
-function lex_from_library(lib: LibraryParseResult): Lexer {
+export function lex_from_library(lib: LibraryParseResult): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   return parser_lex_from_library_glue(lib);
@@ -7983,7 +7983,7 @@ extern function parser_struct_layout_name_exists_arr_glue(module: *Module, nm: u
  * @param nlen i32
  * @return bool
  */
-function struct_layout_name_exists_arr(module: *Module, nm: u8[128], nlen: i32): bool {
+export function struct_layout_name_exists_arr(module: *Module, nm: u8[128], nlen: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let k: i32 = 0;
@@ -8020,7 +8020,7 @@ extern function parser_struct_layout_first_name_match_idx_glue(module: *Module, 
  * @param nlen i32
  * @return i32
  */
-function struct_layout_first_name_match_idx(module: *Module, nm: u8[128], nlen: i32): i32 {
+export function struct_layout_first_name_match_idx(module: *Module, nm: u8[128], nlen: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let k: i32 = 0;
@@ -8057,7 +8057,7 @@ extern function parser_struct_layout_placeholder_idx_glue(module: *Module, nm: u
  * See implementation.
  * See implementation.
  */
-function struct_layout_placeholder_idx(module: *Module, nm: u8[128], nlen: i32): i32 {
+export function struct_layout_placeholder_idx(module: *Module, nm: u8[128], nlen: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let k: i32 = 0;
@@ -8174,7 +8174,7 @@ function try_skip_allow_padding_struct(lex: Lexer, source: u8[]): TrySkipAllowRe
 
 
 /** try_skip_allow_padding_struct_buf：parser_slice_from_buf + bl try_skip_allow_padding_struct。 */
-function try_skip_allow_padding_struct_buf(lex: Lexer, data: *u8, len: i32): TrySkipAllowResult {
+export function try_skip_allow_padding_struct_buf(lex: Lexer, data: *u8, len: i32): TrySkipAllowResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
@@ -8200,7 +8200,7 @@ function skip_one_struct_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32):
 }
 
 /** skip_one_struct_buf：parser_slice_from_buf + bl skip_one_struct。 */
-function skip_one_struct_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+export function skip_one_struct_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
@@ -8242,7 +8242,7 @@ function consume_qualified_type_ident_name(source: u8[], r: *LexerResult, out: *
  * @param out_len *i32
  * @return i32
  */
-function consume_qualified_type_ident_name_buf(data: *u8, len: i32, r: *LexerResult, out: *u8, out_len: *i32): i32 {
+export function consume_qualified_type_ident_name_buf(data: *u8, len: i32, r: *LexerResult, out: *u8, out_len: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
@@ -8256,7 +8256,7 @@ function consume_qualified_type_ident_name_buf(data: *u8, len: i32, r: *LexerRes
  * See implementation.
  * See implementation.
  */
-function is_pointee_type_token(kind: token.TokenKind): bool {
+export function is_pointee_type_token(kind: token.TokenKind): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   if (kind == token.TokenKind.TOKEN_IDENT) {
@@ -8310,7 +8310,7 @@ extern function parser_parser_alloc_vector_type_ref_glue(arena: *ASTArena, elem_
 /**
  * See implementation.
  */
-function parser_alloc_vector_type_ref(arena: *ASTArena, elem_ord: i32, lanes: i32): i32 {
+export function parser_alloc_vector_type_ref(arena: *ASTArena, elem_ord: i32, lanes: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let elem_tr_v: i32 = pipeline_type_ensure_by_kind_ord(arena, elem_ord);

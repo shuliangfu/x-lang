@@ -6557,7 +6557,7 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
  * @return i32 — 1 emitted, 0 not applicable, -1 fail
  * PLATFORM: SHARED host-C
  */
-function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, layout_nm: *u8, layout_nl: i32, ctx: *PipelineDepCtx): i32 {
+export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, layout_nm: *u8, layout_nl: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     if (module == 0 as *Module || arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || expr_ref <= 0) {
@@ -6948,7 +6948,7 @@ function codegen_generic_struct_combo_nest_depth(arena: *ASTArena, mono_tys: *i3
  * @return void
  * PLATFORM: SHARED host-C
  */
-function codegen_generic_struct_sort_mono_combos_by_depth(arena: *ASTArena, combos: *i32, ncombo: i32, ntp: i32): void {
+export function codegen_generic_struct_sort_mono_combos_by_depth(arena: *ASTArena, combos: *i32, ncombo: i32, ntp: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     if (arena == 0 as *ASTArena || combos == 0 as *i32 || ncombo <= 1 || ntp <= 0) {
@@ -17559,7 +17559,7 @@ function codegen_mono_subst_type(ctx: *PipelineDepCtx, arena: *ASTArena, type_re
  * PLATFORM: SHARED — mirrors codegen_find_module_func_index_by_name_overload name
  * matching but adds param0 type equality via pipeline_typeck_type_refs_equal_c.
  */
-function codegen_find_impl_method_for_type(module: *Module, arena: *ASTArena, method_name: *u8, method_name_len: i32, receiver_type_ref: i32): i32 {
+export function codegen_find_impl_method_for_type(module: *Module, arena: *ASTArena, method_name: *u8, method_name_len: i32, receiver_type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     if (module == 0 as *Module || arena == 0 as *ASTArena || method_name == 0 as *u8) {
@@ -21821,7 +21821,7 @@ function codegen_should_skip_emit_func_by_name(name: *u8, name_len: i32): i32 {
 /**
  * See implementation.
  */
-function codegen_is_submit_batch_buf_call(name: *u8, name_len: i32): i32 {
+export function codegen_is_submit_batch_buf_call(name: *u8, name_len: i32): i32 {
   let rd_batch: u8[21] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 97, 116, 99, 104, 95, 98, 117, 102];
   let wr_batch: u8[22] = [115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 97, 116, 99, 104, 95, 98, 117, 102];
   if (name == 0 as *u8) {

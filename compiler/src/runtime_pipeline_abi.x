@@ -9621,7 +9621,7 @@ function pipe_imp_ensure_select(slot: i32, need: i32): i32 {
  * @param idx i32 — import index
  * @return *u8 — entry base or null
  */
-function pipe_imp_entry_at(slot: i32, idx: i32): *u8 {
+export function pipe_imp_entry_at(slot: i32, idx: i32): *u8 {
   if (slot < 0) {
     return 0 as *u8;
   }
