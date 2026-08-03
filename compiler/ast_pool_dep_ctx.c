@@ -274,10 +274,15 @@ void pipeline_dep_ctx_free_source_buffers(struct ast_PipelineDepCtx *ctx) {
   ctx->preprocess_len = 0;
 }
 
-/** calloc 得到的 ctx：先释放堆缓冲再 free 结构体。 */
+/** calloc 得到的 ctx：先释放 DepCtx sidecar + 堆缓冲再 free 结构体。
+ * wave1228: g_xlang_depctx_sc is process-wide (MAX 64). free(ctx) alone left
+ * slots used with dangling keys → batch check exhausts table and truncates
+ * later files. PLATFORM: SHARED — release-before-free (arena/module twin). */
 void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx) {
   if (!ctx)
     return;
+  /* same-TU: pipeline_dep_ctx_sidecar_release in ast_pool.c */
+  pipeline_dep_ctx_sidecar_release(ctx);
   pipeline_dep_ctx_free_source_buffers(ctx);
   free(ctx);
 }

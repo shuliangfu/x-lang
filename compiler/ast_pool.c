@@ -849,6 +849,45 @@ static void module_sidecar_free(ModuleSidecar *sc) {
   memset(sc, 0, sizeof(*sc));
 }
 
+/**
+ * Free DepCtxSidecar GrowVecs and mark the process-wide slot unused.
+ *
+ * Why: pipeline_dep_ctx_heap_destroy used to free(ctx) only. That left
+ * g_xlang_depctx_sc[MAX=64] used with dangling ctx keys; batch check exhausts
+ * the table and subsequent dep path mapping / parse degrades (num_funcs drop).
+ * PLATFORM: SHARED — pair with free(ctx) in heap_destroy (wave1228).
+ */
+static void depctx_sidecar_free(DepCtxSidecar *sc) {
+  if (!sc)
+    return;
+  grow_vec_free(&sc->dep_modules);
+  grow_vec_free(&sc->dep_arenas);
+  grow_vec_free(&sc->dep_path_rows);
+  grow_vec_free(&sc->dep_path_lens);
+  grow_vec_free(&sc->lib_root_rows);
+  grow_vec_free(&sc->lib_root_lens);
+  grow_vec_free(&sc->empty_param_indices);
+  grow_vec_free(&sc->empty_param_backup);
+  memset(sc, 0, sizeof(*sc));
+}
+
+/**
+ * Release process-wide DepCtx sidecar for this PipelineDepCtx pointer.
+ * Call before free(ctx). Safe no-op if null or untracked.
+ * PLATFORM: SHARED — G.7 single teardown for batch check (wave1228).
+ */
+void pipeline_dep_ctx_sidecar_release(struct ast_PipelineDepCtx *ctx) {
+  int i;
+  if (!ctx)
+    return;
+  for (i = 0; i < MAX_DEP_CTX_SIDECARS; i++) {
+    if (g_xlang_depctx_sc[i].used && g_xlang_depctx_sc[i].ctx == ctx) {
+      depctx_sidecar_free(&g_xlang_depctx_sc[i]);
+      return;
+    }
+  }
+}
+
 static struct ast_Block *block_at(struct ast_ASTArena *a, int32_t br) {
   ArenaSidecar *sc;
   if (!a || br <= 0 || br > a->num_blocks)

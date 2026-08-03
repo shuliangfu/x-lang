@@ -43,6 +43,8 @@
  * of #include position. */
 
 /* ast_pool.c / ast_pool_block.c */
+extern void ast_pool_arena_release(struct ast_ASTArena *a);
+extern void ast_pool_module_release(struct ast_Module *m);
 extern void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, struct ast_ASTArena *a);
 extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena);
 extern int32_t pipeline_sync_one_dep_slot(struct ast_Module *module, struct ast_PipelineDepCtx *ctx, int32_t dep_i);
@@ -463,6 +465,9 @@ int32_t pipeline_typeck_x_stack_escape_gate_from_src_c(uint8_t *src, int32_t src
   pipeline_strict_parse_into_init((struct ast_ASTArena *)arena_heap, (struct ast_Module *)module_heap);
   pr = parser_parse_into_buf((struct ast_ASTArena *)arena_heap, (struct ast_Module *)module_heap, src, src_len);
   if (pr.ok != 0) {
+    /* wave1228: release AST sidecars before free (batch check reuse). */
+    ast_pool_arena_release((struct ast_ASTArena *)arena_heap);
+    ast_pool_module_release((struct ast_Module *)module_heap);
     free(arena_heap);
     free(module_heap);
     return -1;
@@ -472,6 +477,9 @@ int32_t pipeline_typeck_x_stack_escape_gate_from_src_c(uint8_t *src, int32_t src
                                                          (struct ast_ASTArena *)arena_heap, &ctx);
   if (rc != 0)
     driver_diagnostic_typeck_fail();
+  /* wave1228: same release-before-free as heap_destroy path. */
+  ast_pool_arena_release((struct ast_ASTArena *)arena_heap);
+  ast_pool_module_release((struct ast_Module *)module_heap);
   free(arena_heap);
   free(module_heap);
   return (rc == 0) ? 0 : -1;
