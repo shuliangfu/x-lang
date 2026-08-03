@@ -46,8 +46,15 @@
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-/** bootstrap opendir 用最小 dirent（勿链 libc libdl）。 */
+/** bootstrap opendir 用最小 dirent（勿链 libc libdl）。
+ * 必须与 glibc <dirent.h> 的 struct dirent 布局一致（d_name 在 offset 19），
+ * 否则 xlang_fmt_readdir_name（prelude #include <dirent.h>）的 ent->d_name 偏移错误。
+ * wave1241: 修复 Ubuntu check 命令截断 19 字符 bug。PLATFORM: Linux x86_64。 */
 struct dirent {
+    uint64_t d_ino;
+    int64_t d_off;
+    unsigned short d_reclen;
+    unsigned char d_type;
     char d_name[256];
 };
 
@@ -2076,6 +2083,12 @@ struct dirent *readdir(DIR *dirp) {
         d->buf_pos += de->d_reclen;
         if (de->d_name[0] == '\0')
             continue;
+        /* wave1241: 填充 glibc 标准 struct dirent 全字段，使 d_name 偏移与
+         * xlang_fmt_readdir_name（prelude #include <dirent.h>）一致。 */
+        d->ent.d_ino = de->d_ino;
+        d->ent.d_off = de->d_off;
+        d->ent.d_reclen = de->d_reclen;
+        d->ent.d_type = de->d_type;
         strncpy(d->ent.d_name, de->d_name, sizeof(d->ent.d_name) - 1);
         d->ent.d_name[sizeof(d->ent.d_name) - 1] = '\0';
         return &d->ent;
