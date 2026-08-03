@@ -1753,6 +1753,44 @@ int gettimeofday(struct timeval *tv, void *tz) {
 #endif
 }
 
+/**
+ * usleep for freestanding Linux product pure-ld (no -lc).
+ *
+ * Why: wave1227 multi-file check spinner calls usleep; Linux g05 nostdlib
+ * drops -lc so the symbol must live in bootstrap_nostdlib_stubs.
+ *
+ * Contract:
+ *  - usec is wall-clock microseconds (POSIX usleep).
+ *  - Linux x86_64: SYS_nanosleep (35); retries on EINTR (-4).
+ *  - Other hosts in this TU: no-op success (real libc provides usleep when
+ *    this stub object is not linked).
+ *
+ * PLATFORM: LINUX freestanding (x86_64); SHARED symbol name.
+ */
+int usleep(unsigned int usec) {
+#if defined(__linux__) && defined(__x86_64__)
+  struct {
+    long tv_sec;
+    long tv_nsec;
+  } req;
+  long rem_usec;
+  req.tv_sec = (long)(usec / 1000000u);
+  rem_usec = (long)(usec % 1000000u);
+  req.tv_nsec = rem_usec * 1000L;
+  for (;;) {
+    long ret = bootstrap_syscall3(35L, (long)&req, 0L, 0L);
+    if (ret == 0)
+      return 0;
+    /* -EINTR */
+    if (ret != -4L)
+      return -1;
+  }
+#else
+  (void)usec;
+  return 0;
+#endif
+}
+
 /** popen/pclose 最小桩；runtime_link_abi 仅需符号解析。 */
 FILE *popen(const char *command, const char *type) {
   (void)command;

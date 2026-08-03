@@ -1511,11 +1511,24 @@ int fmt_check_cmd_slice_marker(void) {
 /* ============================================================================
  * Multi-file check progress spinner (rotating | / - \ + relative path).
  * Called from thin.x check_progress_show/break/resume/finish.
- * PLATFORM: SHARED — pthread + usleep on POSIX; Windows: static frame only.
+ * PLATFORM: SHARED — pthread + usleep on POSIX libc builds; Windows and
+ * Linux freestanding nostdlib (sync pthread stub): single static frame.
  * ============================================================================ */
 #ifndef _WIN32
 #include <pthread.h>
+#include <unistd.h>
 #endif
+
+/*
+ * When product links bootstrap_nostdlib_stubs, pthread_create runs the start
+ * routine synchronously — an infinite spinner would hang forever. Strong
+ * symbol there returns 1. Weak default here returns 0 for -lc/-lSystem builds
+ * that do not link the nostdlib stubs object.
+ * PLATFORM: SHARED.
+ */
+__attribute__((weak)) int bootstrap_nostdlib_pthread_is_stub(void) {
+    return 0;
+}
 
 static volatile int g_ck_spin_run = 0;
 static volatile int g_ck_spin_pause = 0;
@@ -1619,10 +1632,14 @@ void check_progress_spin_start(const char *path) {
 
 #ifndef _WIN32
     g_ck_spin_have_tid = 0;
-    if (pthread_create(&g_ck_spin_tid, NULL, check_progress_spin_thread, NULL) == 0) {
+    /* nostdlib pthread_create is sync: never start an infinite spin loop. */
+    if (bootstrap_nostdlib_pthread_is_stub() != 0) {
+        g_ck_spin_run = 0;
+        check_progress_spin_write_frame();
+    } else if (pthread_create(&g_ck_spin_tid, NULL, check_progress_spin_thread, NULL) == 0) {
         g_ck_spin_have_tid = 1;
     } else {
-        /* Freestanding/stub pthread: single static frame. */
+        /* Real pthread create failed: single static frame. */
         g_ck_spin_run = 0;
         check_progress_spin_write_frame();
     }
