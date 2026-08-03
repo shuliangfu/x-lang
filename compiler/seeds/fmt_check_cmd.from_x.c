@@ -556,7 +556,10 @@ void check_argv_append_default_libs_for_path_impl(const char *path, char **check
         return;
     /* public：hybrid thin pure try_append / 冷 seed public→_impl */
     check_try_append_lib_root(check_argv, n, cwd_buf);
-    if (path && strstr(path, "compiler/src/") && *n < 56) {
+    /* wave1222: accept both "compiler/src/" and bare "compiler" (the natural
+     * `xlang check compiler` invocation). Previously only "compiler/src/"
+     * triggered lib_root injection, leaving cross-subdir imports unresolved. */
+    if (path && (strstr(path, "compiler/src/") || strstr(path, "compiler")) && *n < 56) {
         snprintf(cs, sizeof cs, "%s/compiler/src", cwd_buf);
         if (stat(cs, &st) == 0 && S_ISDIR(st.st_mode)) {
             /* public n + pure/hybrid path slots via at/store */
@@ -567,7 +570,7 @@ void check_argv_append_default_libs_for_path_impl(const char *path, char **check
                 fmt_check_lib_bufs_n_set(nb + 1);
             }
         }
-        if (strstr(path, "compiler/src/asm/") && *n < 56) {
+        if (*n < 56) /* always inject compiler/src/asm when under compiler/ (platform.elf) */ {
             snprintf(cs, sizeof cs, "%s/compiler/src/asm", cwd_buf);
             if (stat(cs, &st) == 0 && S_ISDIR(st.st_mode)) {
                 nb = fmt_check_lib_bufs_n();
@@ -1503,4 +1506,146 @@ int driver_run_compiler_check(int argc, char **argv) {
 
 int fmt_check_cmd_slice_marker(void) {
     return 1;
+}
+
+/* ============================================================================
+ * Multi-file check progress spinner (rotating | / - \ + relative path).
+ * Called from thin.x check_progress_show/break/resume/finish.
+ * PLATFORM: SHARED — pthread + usleep on POSIX; Windows: static frame only.
+ * ============================================================================ */
+#ifndef _WIN32
+#include <pthread.h>
+#endif
+
+static volatile int g_ck_spin_run = 0;
+static volatile int g_ck_spin_pause = 0;
+static char g_ck_spin_path[512];
+static int g_ck_spin_width = 0;
+static int g_ck_spin_frame = 0;
+#ifndef _WIN32
+static int g_ck_spin_have_tid = 0;
+static pthread_t g_ck_spin_tid;
+#endif
+
+static void check_progress_spin_write_frame(void) {
+    static const char frames[4] = { '|', '/', '-', '\\' };
+    char buf[640];
+    int at = 0;
+    int shown = 0;
+    int prev;
+    int pad;
+    int i;
+    char ch = frames[g_ck_spin_frame & 3];
+    g_ck_spin_frame++;
+
+    buf[at++] = '\r';
+    buf[at++] = ch;
+    buf[at++] = ' ';
+    shown = 2; /* spinner + space; path length added below */
+
+    for (i = 0; i < 511 && g_ck_spin_path[i]; i++) {
+        if (at >= 600)
+            break;
+        buf[at++] = g_ck_spin_path[i];
+        shown++;
+    }
+
+    prev = g_ck_spin_width;
+    pad = shown;
+    while (pad < prev && at < 638) {
+        buf[at++] = ' ';
+        pad++;
+    }
+    g_ck_spin_width = shown;
+
+    if (at > 0)
+        (void)write(2, buf, (size_t)at);
+}
+
+#ifndef _WIN32
+static void *check_progress_spin_thread(void *arg) {
+    (void)arg;
+    while (g_ck_spin_run) {
+        if (!g_ck_spin_pause)
+            check_progress_spin_write_frame();
+        /* ~80ms per frame — readable without flooding stderr */
+        (void)usleep(80000);
+    }
+    return NULL;
+}
+#endif
+
+/* Join spinner thread without committing a newline (next file overwrites via \r). */
+static void check_progress_spin_join_only(void) {
+#ifndef _WIN32
+    if (g_ck_spin_have_tid) {
+        g_ck_spin_run = 0;
+        (void)pthread_join(g_ck_spin_tid, NULL);
+        g_ck_spin_have_tid = 0;
+    } else {
+        g_ck_spin_run = 0;
+    }
+#else
+    g_ck_spin_run = 0;
+#endif
+    g_ck_spin_pause = 0;
+}
+
+void check_progress_spin_stop(void) {
+    check_progress_spin_join_only();
+    /* Commit spinner line so the summary/next output starts on a new line. */
+    if (g_ck_spin_width > 0) {
+        (void)write(2, "\n", 1);
+        g_ck_spin_width = 0;
+    }
+}
+
+void check_progress_spin_start(const char *path) {
+    int i;
+
+    /* Restart: join previous spinner but keep one progress line (\r overwrite). */
+    check_progress_spin_join_only();
+
+    g_ck_spin_path[0] = 0;
+    if (path) {
+        for (i = 0; i < 511 && path[i]; i++)
+            g_ck_spin_path[i] = path[i];
+        g_ck_spin_path[i] = 0;
+    }
+    /* Keep g_ck_spin_width so the next frame pads over a longer previous path. */
+    g_ck_spin_frame = 0;
+    g_ck_spin_pause = 0;
+    g_ck_spin_run = 1;
+
+#ifndef _WIN32
+    g_ck_spin_have_tid = 0;
+    if (pthread_create(&g_ck_spin_tid, NULL, check_progress_spin_thread, NULL) == 0) {
+        g_ck_spin_have_tid = 1;
+    } else {
+        /* Freestanding/stub pthread: single static frame. */
+        g_ck_spin_run = 0;
+        check_progress_spin_write_frame();
+    }
+#else
+    g_ck_spin_run = 0;
+    check_progress_spin_write_frame();
+#endif
+}
+
+void check_progress_spin_pause(void) {
+    g_ck_spin_pause = 1;
+    /* End the active spinner line so multi-line diagnostics are clean. */
+    if (g_ck_spin_width > 0) {
+        (void)write(2, "\n", 1);
+        g_ck_spin_width = 0;
+    }
+}
+
+void check_progress_spin_resume(void) {
+    if (!g_ck_spin_run) {
+        /* Threadless fallback: redraw one frame. */
+        check_progress_spin_write_frame();
+        return;
+    }
+    g_ck_spin_pause = 0;
 }

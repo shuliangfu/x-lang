@@ -102,6 +102,14 @@ export extern "C" function driver_fmt_check_only_get(): i32;
 // G.7: load/store argv[i] / char** slot (pipeline authority pair).
 export extern "C" function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern "C" function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
+// PLATFORM: POSIX write(2) for check progress / summary on stderr (fd 2).
+export extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
+// Spinner thread lives in seed rest (pthread entry ABI); thin owns orch + relative path.
+// PLATFORM: SHARED — pthread on POSIX; Windows rest falls back to static frame.
+export extern "C" function check_progress_spin_start(path: *u8): void;
+export extern "C" function check_progress_spin_stop(): void;
+export extern "C" function check_progress_spin_pause(): void;
+export extern "C" function check_progress_spin_resume(): void;
 
 // ---- Cap residual pure: collect_mode + user_passed_L + file_list/ignore/lib_bufs n ----
 // DRIVER_COLLECT_MODE_FMT=1, DRIVER_COLLECT_MODE_CHECK=2 (match seed enum).
@@ -112,6 +120,15 @@ let g_fmt_user_passed_L: i32[1] = [0];
 let g_fmt_file_list_n: i32[1] = [0];
 let g_fmt_user_ignore_n: i32[1] = [0];
 let g_fmt_check_lib_bufs_n: i32[1] = [0];
+// Multi-file check progress: visual width after last \r path (spaces pad clear).
+// PLATFORM: SHARED — stderr single-line progress; dual-host.
+let g_check_progress_width: i32[1] = [0];
+// Multi-file check summary counters (reset at run start; updated per file).
+// PLATFORM: SHARED.
+let g_check_sum_files: i32[1] = [0];
+let g_check_sum_passed: i32[1] = [0];
+let g_check_sum_errors: i32[1] = [0];
+let g_check_sum_warnings: i32[1] = [0];
 // User --ignore path slots: 32 entries × 256 bytes (match DRIVER_FMT_MAX_IGNORE × seed).
 // PLATFORM: SHARED. Pure under PREFER hybrid; cold seed keeps s_ignore_paths[][].
 let g_fmt_user_ignore_paths: u8[8192] = [];
@@ -146,6 +163,17 @@ let g_fmt_lit_dash_O: u8[3] = [45, 79, 0];
 let g_fmt_lit_backend: u8[9] = [45, 98, 97, 99, 107, 101, 110, 100, 0];
 let g_fmt_lit_no_x_paths: u8[38] = [110, 111, 32, 46, 120, 32, 102, 105, 108, 101, 115, 32, 102, 111, 117, 110, 100, 32, 117, 110, 100, 101, 114, 32, 103, 105, 118, 101, 110, 32, 112, 97, 116, 104, 40, 115, 41, 0];
 let g_fmt_lit_no_x_cwd: u8[39] = [110, 111, 32, 46, 120, 32, 102, 105, 108, 101, 115, 32, 102, 111, 117, 110, 100, 32, 105, 110, 32, 99, 117, 114, 114, 101, 110, 116, 32, 100, 105, 114, 101, 99, 116, 111, 114, 121, 0];
+// check multi-file summary line fragments (ASCII; no string syntax).
+// "check: "
+let g_fmt_lit_check_sum_pfx: u8[8] = [99, 104, 101, 99, 107, 58, 32, 0];
+// " files, "
+let g_fmt_lit_check_sum_files: u8[9] = [32, 102, 105, 108, 101, 115, 44, 32, 0];
+// " passed, "
+let g_fmt_lit_check_sum_passed: u8[10] = [32, 112, 97, 115, 115, 101, 100, 44, 32, 0];
+// " errors, "
+let g_fmt_lit_check_sum_errors: u8[10] = [32, 101, 114, 114, 111, 114, 115, 44, 32, 0];
+// " warnings\n"
+let g_fmt_lit_check_sum_warns: u8[11] = [32, 119, 97, 114, 110, 105, 110, 103, 115, 10, 0];
 // run_fmt flag / summary / verbose lits (no string syntax; no varargs diag_reportf).
 let g_fmt_lit_dash_check: u8[8] = [45, 45, 99, 104, 101, 99, 107, 0];
 let g_fmt_lit_note: u8[5] = [110, 111, 116, 101, 0];
@@ -178,6 +206,264 @@ let g_fmt_default_product_sub_3: u8[9] = [101, 120, 97, 109, 112, 108, 101, 115,
 #[no_mangle]
 export function driver_check_quiet_ok_get(): i32 {
   return 1;
+}
+
+/** Reset multi-file check summary counters and progress width.
+ * Called at the start of `driver_run_compiler_check`. PLATFORM: SHARED. */
+#[no_mangle]
+export function check_stats_reset(): void {
+  unsafe {
+    g_check_sum_files[0] = 0;
+    g_check_sum_passed[0] = 0;
+    g_check_sum_errors[0] = 0;
+    g_check_sum_warnings[0] = 0;
+    g_check_progress_width[0] = 0;
+  }
+}
+
+/** Record one checked file into summary counters.
+ * @param rc final per-file result (0 = passed)
+ * @param n_errors error diagnostics for this file (includes fallback CHK001)
+ * @param n_warnings warning diagnostics for this file
+ * PLATFORM: SHARED. */
+#[no_mangle]
+export function check_stats_add_file(rc: i32, n_errors: i32, n_warnings: i32): void {
+  unsafe {
+    g_check_sum_files[0] = g_check_sum_files[0] + 1;
+    if (rc == 0) {
+      g_check_sum_passed[0] = g_check_sum_passed[0] + 1;
+    }
+    if (n_errors > 0) {
+      g_check_sum_errors[0] = g_check_sum_errors[0] + n_errors;
+    }
+    if (n_warnings > 0) {
+      g_check_sum_warnings[0] = g_check_sum_warnings[0] + n_warnings;
+    }
+  }
+}
+
+/** Append decimal digits of non-negative `v` into buf[*at], advancing *at.
+ * Cap-safe; writes "0" for v<=0. PLATFORM: SHARED. */
+#[no_mangle]
+export function check_buf_append_u32(buf: *u8, atp: *i32, cap: i32, v: i32): void {
+  if (buf == 0 as *u8) {
+    return;
+  }
+  if (atp == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    let at: i32 = atp[0];
+    let n: i32 = v;
+    if (n < 0) {
+      n = 0;
+    }
+    if (n == 0) {
+      if (at < cap) {
+        buf[at] = 48;
+        atp[0] = at + 1;
+      }
+      return;
+    }
+    let tmp: u8[16] = [];
+    let nd: i32 = 0;
+    while (n > 0) {
+      if (nd >= 16) {
+        break;
+      }
+      let dig: i32 = n - ((n / 10) * 10);
+      tmp[nd] = (48 + dig) as u8;
+      nd = nd + 1;
+      n = n / 10;
+    }
+    let k: i32 = nd;
+    while (k > 0) {
+      k = k - 1;
+      if (at >= cap) {
+        break;
+      }
+      buf[at] = tmp[k];
+      at = at + 1;
+    }
+    atp[0] = at;
+  }
+}
+
+/** Append NUL-terminated lit bytes into buf[*at]. PLATFORM: SHARED. */
+#[no_mangle]
+export function check_buf_append_lit(buf: *u8, atp: *i32, cap: i32, lit: *u8): void {
+  if (buf == 0 as *u8) {
+    return;
+  }
+  if (atp == 0 as *i32) {
+    return;
+  }
+  if (lit == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    let at: i32 = atp[0];
+    let i: i32 = 0;
+    while (i < 64) {
+      let c: u8 = lit[i];
+      if (c == 0) {
+        break;
+      }
+      if (at >= cap) {
+        break;
+      }
+      buf[at] = c;
+      at = at + 1;
+      i = i + 1;
+    }
+    atp[0] = at;
+  }
+}
+
+/** Compute display start for progress path: strip getcwd() prefix so multi-file
+ * check prints project-relative paths (e.g. `compiler/src/driver/check.x`)
+ * instead of long absolute paths.
+ *
+ * Rules (POSIX `/` separators; SHARED product hosts):
+ *   - If `path` equals cwd → display as `.`
+ *   - If `path` is under cwd (`cwd/` + rest) → display rest only
+ *   - If `path` already relative or outside cwd → display path unchanged
+ *
+ * @param path absolute or relative path (may be null)
+ * @param out  caller buffer for a rewritten short form when needed (`.` only);
+ *             when non-null and rewrite needed, writes display bytes + NUL
+ * @param out_cap capacity of out (must be >= 2 when rewrite to `.`)
+ * @return pointer to bytes to print (either inside path, or out for `.`);
+ *         null if path is null
+ * PLATFORM: SHARED — getcwd; path compare is byte-prefix (no realpath). */
+#[no_mangle]
+export function check_progress_display_path(path: *u8, out: *u8, out_cap: i32): *u8 {
+  if (path == 0 as *u8) {
+    return 0 as *u8;
+  }
+  unsafe {
+    // Already relative (no leading `/`) — keep as-is. Drive-letter abs paths
+    // (Windows) fall through to getcwd prefix logic or full path.
+    if (path[0] != 47) {
+      return path;
+    }
+    let cwd: u8[512] = [];
+    let g: *u8 = getcwd(&cwd[0], 512);
+    if (g == 0 as *u8) {
+      return path;
+    }
+    // Match cwd as a path prefix of path.
+    let i: i32 = 0;
+    while (i < 511) {
+      let c: u8 = cwd[i];
+      if (c == 0) {
+        break;
+      }
+      if (path[i] != c) {
+        return path;
+      }
+      i = i + 1;
+    }
+    // path == cwd
+    if (path[i] == 0) {
+      if (out != 0 as *u8) {
+        if (out_cap >= 2) {
+          out[0] = 46;
+          out[1] = 0;
+          return out;
+        }
+      }
+      return path;
+    }
+    // path is cwd + "/" + rest → print rest only
+    if (path[i] == 47) {
+      return path + (i + 1);
+    }
+    // e.g. cwd=/foo path=/foobar — not a directory prefix
+    return path;
+  }
+  return path;
+}
+
+/** Start (or restart) the rotating spinner for the file being checked.
+ * Displays `|/-\\` frames + project-relative path on one stderr line, animated
+ * by a background thread so large files do not look frozen. Stops any previous
+ * spinner first. PLATFORM: SHARED — spin rest uses pthread when available. */
+#[no_mangle]
+export function check_progress_show(path: *u8): void {
+  unsafe {
+    let short_buf: u8[4] = [];
+    let disp: *u8 = check_progress_display_path(path, &short_buf[0], 4);
+    // Copy display path into a stable local NUL buffer for the spinner rest.
+    let copy: u8[520] = [];
+    let i: i32 = 0;
+    if (disp != 0 as *u8) {
+      while (i < 511) {
+        let c: u8 = disp[i];
+        copy[i] = c;
+        if (c == 0) {
+          break;
+        }
+        i = i + 1;
+      }
+    }
+    copy[i] = 0;
+    check_progress_spin_start(&copy[0]);
+  }
+}
+
+/** Pause spinner and commit the progress line (newline) before multi-line diags.
+ * PLATFORM: SHARED — spin_* is extern "C"; call must sit in unsafe. */
+#[no_mangle]
+export function check_progress_break(): void {
+  unsafe {
+    check_progress_spin_pause();
+  }
+}
+
+/** Resume spinner after multi-line diagnostics (same path, bottom line).
+ * PLATFORM: SHARED — spin_* is extern "C"; call must sit in unsafe. */
+#[no_mangle]
+export function check_progress_resume(): void {
+  unsafe {
+    check_progress_spin_resume();
+  }
+}
+
+/** Stop spinner thread and finish the progress line after the multi-file loop.
+ * PLATFORM: SHARED — spin_* is extern "C"; call must sit in unsafe. */
+#[no_mangle]
+export function check_progress_finish(): void {
+  unsafe {
+    check_progress_spin_stop();
+  }
+}
+
+/** Print multi-file check summary to stderr:
+ * `check: N files, P passed, E errors, W warnings\n`
+ * PLATFORM: SHARED. */
+#[no_mangle]
+export function check_print_summary(): void {
+  unsafe {
+    let buf: u8[256] = [];
+    let at: i32 = 0;
+    let atp: i32[1] = [0];
+    check_buf_append_lit(&buf[0], &atp[0], 250, &g_fmt_lit_check_sum_pfx[0]);
+    check_buf_append_u32(&buf[0], &atp[0], 250, g_check_sum_files[0]);
+    check_buf_append_lit(&buf[0], &atp[0], 250, &g_fmt_lit_check_sum_files[0]);
+    check_buf_append_u32(&buf[0], &atp[0], 250, g_check_sum_passed[0]);
+    check_buf_append_lit(&buf[0], &atp[0], 250, &g_fmt_lit_check_sum_passed[0]);
+    check_buf_append_u32(&buf[0], &atp[0], 250, g_check_sum_errors[0]);
+    check_buf_append_lit(&buf[0], &atp[0], 250, &g_fmt_lit_check_sum_errors[0]);
+    check_buf_append_u32(&buf[0], &atp[0], 250, g_check_sum_warnings[0]);
+    check_buf_append_lit(&buf[0], &atp[0], 250, &g_fmt_lit_check_sum_warns[0]);
+    at = atp[0];
+    if (at > 0) {
+      let n: usize = at as usize;
+      let w: isize = fs_posix_write_c(2, &buf[0], n);
+      let _keep: isize = w;
+    }
+  }
 }
 
 // fmt_walk_skip_dot_name: see function docblock below.
@@ -1191,14 +1477,23 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
     } else {
       diag_push_file(&snap[0], path, 0 as *u8, 0);
     }
-    let nd: i32 = lsp_diag_print_stderr_human(path);
+    // Count first so we can break the single-line progress before multi-line diags.
     let nd_errors: i32 = lsp_diag_count_severity(1);
     let nd_warnings: i32 = lsp_diag_count_severity(2);
     let nd_infos: i32 = lsp_diag_count_severity(3);
+    let progress_broke: i32 = 0;
+    if ((nd_errors + nd_warnings + nd_infos) > 0) {
+      check_progress_break();
+      progress_broke = 1;
+    }
+    let nd: i32 = lsp_diag_print_stderr_human(path);
     let direct_diag: i32 = driver_check_diag_emitted_get();
     diag_restore(&snap[0]);
+    let used_fallback: i32 = 0;
     if (check_one_need_fallback_diag(rc, nd, nd_errors, nd_warnings, nd_infos, direct_diag) != 0) {
       // "check failed: " + path (no reportf).
+      check_progress_break();
+      progress_broke = 1;
       let msg: u8[600] = [];
       let at: i32 = 0;
       let pfx: *u8 = &g_fmt_lit_check_failed_prefix[0];
@@ -1223,11 +1518,23 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
       }
       msg[at] = 0;
       diag_report_with_code(path, 0, 0, &g_fmt_lit_check_error[0], &g_fmt_lit_chk001[0], &msg[0], 0 as *u8);
+      used_fallback = 1;
     }
     if (nd_errors > 0) {
       rc = 1;
     }
     rc = check_one_finalize_rc(rc, nd_warnings);
+
+    // Summary: errors include fallback CHK001 when emitted.
+    let err_total: i32 = nd_errors;
+    if (used_fallback != 0) {
+      err_total = err_total + 1;
+    }
+    check_stats_add_file(rc, err_total, nd_warnings);
+    // After multi-line diags, resume the rotating spinner on the bottom line.
+    if (progress_broke != 0) {
+      check_progress_resume();
+    }
 
     lsp_diag_collect_end();
     if (have_diag_view != 0) {
@@ -1890,7 +2197,23 @@ export function check_argv_append_default_libs_for_path(path: *u8, check_argv: *
     }
     // ASCII "compiler/src/\0"
     let needle_src: u8[14] = [99, 111, 109, 112, 105, 108, 101, 114, 47, 115, 114, 99, 47, 0];
-    if (strstr(path, &needle_src[0]) == 0 as *u8) {
+    /* wave1222: also accept bare "compiler" or "compiler/..." (without /src/).
+     * Previously needle_src="compiler/src/" only matched paths already inside
+     * the src tree, so `xlang check compiler` (the natural invocation) failed
+     * to inject <cwd>/compiler/src as a lib root, breaking all cross-subdir
+     * imports like import("asm.backend") from pipeline/pipeline.x.
+     * PLATFORM: SHARED — both bare and /src/ forms now trigger lib_root inject. */
+    let needle_compiler: u8[9] = [99, 111, 109, 112, 105, 108, 101, 114, 0];
+    let matched_src: i32 = 0;
+    if (strstr(path, &needle_src[0]) != 0 as *u8) {
+      matched_src = 1;
+    }
+    if (matched_src == 0) {
+      if (strstr(path, &needle_compiler[0]) != 0 as *u8) {
+        matched_src = 1;
+      }
+    }
+    if (matched_src == 0) {
       return;
     }
     if (n[0] >= 56) {
@@ -1941,11 +2264,12 @@ export function check_argv_append_default_libs_for_path(path: *u8, check_argv: *
         }
       }
     }
-    // ASCII "compiler/src/asm/\0"
-    let needle_asm: u8[18] = [99, 111, 109, 112, 105, 108, 101, 114, 47, 115, 114, 99, 47, 97, 115, 109, 47, 0];
-    if (strstr(path, &needle_asm[0]) == 0 as *u8) {
-      return;
-    }
+    // Always inject compiler/src/asm when we already matched compiler/src.
+    // platform.elf lives under asm/platform/elf.x; without this -L, check of
+    // pipeline/*.x (and any TU that transitively imports platform.elf) fails
+    // IMP001 (entry_dir-only path .../pipeline/platform/elf/mod.x).
+    // Prior gate required path to contain "compiler/src/asm/" — too narrow.
+    // PLATFORM: SHARED — same inject as product deep sibling scan.
     if (n[0] >= 56) {
       return;
     }
@@ -2137,15 +2461,17 @@ export function driver_run_fmt(argc: i32, argv: *u8): i32 {
 
 /** Run `xlang check` (deno check: multi-file/dir; failures print diagnostics).
  * Pure under PREFER hybrid:
- *   1) collect mode CHECK + file_list_clear (pure);
+ *   1) collect mode CHECK + file_list_clear + check_stats_reset (pure);
  *   2) path_start: argv[1]=="check" → 2 else 1 (main.x vs xlang-c drop subcmd);
  *   3) check_init_user_lib_flags (pure) then argv scan:
  *      --fail-fast / --ignore= / -L|-I|-o|-backend|-O (skip value) / other -flags /
  *      path → collect_paths_from_arg (pure orch; Cap residual walk/stat);
  *   4) no path → check_collect_default_product_dirs (pure orch);
  *   5) empty list → diag CHK002 with path/cwd message;
- *   6) each path → public check_one_file (pure body under hybrid);
- *   7) quiet success (no check OK line) — matches driver_check_quiet_ok_get()==1.
+ *   6) each path → public check_one_file; when N>1 also check_progress_show
+ *      (rotating spinner + relative path on one stderr line); diags multi-line;
+ *   7) when N>1: check_progress_finish + check_print_summary;
+ *      when N==1 success: fully silent (deno check contract for run-check gate).
  * No driver_run_compiler_check_impl under hybrid (ALWAYS residual 5→4 with run_fmt pure).
  * PLATFORM: SHARED — dual-host prove + check matrix. */
 #[no_mangle]
@@ -2153,6 +2479,7 @@ export function driver_run_compiler_check(argc: i32, argv: *u8): i32 {
   // DRIVER_COLLECT_MODE_CHECK = 2 (match seed enum).
   driver_collect_mode_set(2);
   file_list_clear();
+  check_stats_reset();
   let path_start: i32 = 1;
   let fail_fast: i32 = 0;
   let any_path: i32 = 0;
@@ -2229,12 +2556,22 @@ export function driver_run_compiler_check(argc: i32, argv: *u8): i32 {
     }
     return 1;
   }
+  // Multi-file (N>1): rotating spinner + end summary.
+  // Single-file success: fully silent (deno check; tests/run-check.sh).
+  // Single-file failure: diagnostics only (no spinner/summary noise).
   unsafe {
     let n: i32 = fmt_file_list_n();
+    let multi: i32 = 0;
+    if (n > 1) {
+      multi = 1;
+    }
     let j: i32 = 0;
     while (j < n) {
       let path: *u8 = fmt_file_list_at(j);
       if (path != 0 as *u8) {
+        if (multi != 0) {
+          check_progress_show(path);
+        }
         if (check_one_file(path, argc, argv) != 0) {
           failed = 1;
           if (fail_fast != 0) {
@@ -2244,11 +2581,14 @@ export function driver_run_compiler_check(argc: i32, argv: *u8): i32 {
       }
       j = j + 1;
     }
+    if (multi != 0) {
+      check_progress_finish();
+      check_print_summary();
+    }
   }
   file_list_clear();
   if (failed != 0) {
     return 1;
   }
-  // Quiet success: seed always sets s_check_quiet_ok=1; no check OK line.
   return 0;
 }
