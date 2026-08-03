@@ -385,10 +385,11 @@ export function check_progress_display_path(path: *u8, out: *u8, out_cap: i32): 
   return path;
 }
 
-/** Start (or restart) the rotating spinner for the file being checked.
- * Displays `|/-\\` frames + project-relative path on one stderr line, animated
- * by a background thread so large files do not look frozen. Stops any previous
- * spinner first. PLATFORM: SHARED — spin rest uses pthread when available. */
+/** Start (or restart) the braille-circle spinner for the file being checked.
+ * Displays UTF-8 frames ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ + project-relative path on one stderr
+ * line. Animated so large files do not look frozen. Stops any previous spinner
+ * first. PLATFORM: SHARED — real pthread when available; Linux freestanding
+ * product uses fork + MAP_SHARED (nostdlib pthread_create is sync). */
 #[no_mangle]
 export function check_progress_show(path: *u8): void {
   unsafe {

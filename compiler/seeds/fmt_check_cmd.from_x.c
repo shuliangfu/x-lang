@@ -1509,14 +1509,25 @@ int fmt_check_cmd_slice_marker(void) {
 }
 
 /* ============================================================================
- * Multi-file check progress spinner (rotating | / - \ + relative path).
+ * Multi-file check progress spinner (braille circle + relative path).
  * Called from thin.x check_progress_show/break/resume/finish.
- * PLATFORM: SHARED — pthread + usleep on POSIX libc builds; Windows and
- * Linux freestanding nostdlib (sync pthread stub): single static frame.
+ *
+ * Frames: UTF-8 braille circle ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ (1 display column each).
+ * Erase: CSI K after path so shorter paths never leave trail (no space pad).
+ *
+ * Animation backend:
+ *  - Real pthread (macOS / -lc product): spinner thread + usleep.
+ *  - Linux freestanding (bootstrap_nostdlib pthread stub is sync): fork child
+ *    + MAP_SHARED run/pause flags. Parent never runs the infinite loop.
+ *  - Windows / fork+mmap failure: single static frame.
+ *
+ * PLATFORM: SHARED UI; LINUX freestanding uses fork path; MACOS pthread.
  * ============================================================================ */
 #ifndef _WIN32
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
 #endif
 
 /*
@@ -1530,86 +1541,157 @@ __attribute__((weak)) int bootstrap_nostdlib_pthread_is_stub(void) {
     return 0;
 }
 
+/* Shared control for fork-mode child (pause/stop visible across processes). */
+typedef struct {
+    volatile int run;
+    volatile int pause;
+} ck_spin_sh;
+
 static volatile int g_ck_spin_run = 0;
 static volatile int g_ck_spin_pause = 0;
 static char g_ck_spin_path[512];
-static int g_ck_spin_width = 0;
+static int g_ck_spin_shown = 0; /* 1 if a spinner line is active (needs \n) */
 static int g_ck_spin_frame = 0;
 #ifndef _WIN32
 static int g_ck_spin_have_tid = 0;
 static pthread_t g_ck_spin_tid;
+static pid_t g_ck_spin_pid = 0;
+static ck_spin_sh *g_ck_spin_sh = NULL;
 #endif
 
+/* Braille circle spinner (UTF-8). 10 frames; each is 3 bytes, width 1 cell. */
+static const char *const g_ck_spin_frames[10] = {
+    "\xE2\xA0\x8B", /* ⠋ */
+    "\xE2\xA0\x99", /* ⠙ */
+    "\xE2\xA0\xB9", /* ⠹ */
+    "\xE2\xA0\xB8", /* ⠸ */
+    "\xE2\xA0\xBC", /* ⠼ */
+    "\xE2\xA0\xB4", /* ⠴ */
+    "\xE2\xA0\xA6", /* ⠦ */
+    "\xE2\xA0\xA7", /* ⠧ */
+    "\xE2\xA0\x87", /* ⠇ */
+    "\xE2\xA0\x8F", /* ⠏ */
+};
+
 static void check_progress_spin_write_frame(void) {
-    static const char frames[4] = { '|', '/', '-', '\\' };
+    const char *glyph;
     char buf[640];
     int at = 0;
-    int shown = 0;
-    int prev;
-    int pad;
     int i;
-    char ch = frames[g_ck_spin_frame & 3];
+    int gi;
+
+    glyph = g_ck_spin_frames[g_ck_spin_frame % 10];
     g_ck_spin_frame++;
 
     buf[at++] = '\r';
-    buf[at++] = ch;
+    /* UTF-8 braille glyph (3 bytes) */
+    for (gi = 0; glyph[gi] && at < 8; gi++)
+        buf[at++] = glyph[gi];
     buf[at++] = ' ';
-    shown = 2; /* spinner + space; path length added below */
 
     for (i = 0; i < 511 && g_ck_spin_path[i]; i++) {
-        if (at >= 600)
+        if (at >= 620)
             break;
         buf[at++] = g_ck_spin_path[i];
-        shown++;
+    }
+    /* Erase to end of line — works across fork (no shared width state). */
+    if (at + 3 < 640) {
+        buf[at++] = '\033';
+        buf[at++] = '[';
+        buf[at++] = 'K';
     }
 
-    prev = g_ck_spin_width;
-    pad = shown;
-    while (pad < prev && at < 638) {
-        buf[at++] = ' ';
-        pad++;
-    }
-    g_ck_spin_width = shown;
-
-    if (at > 0)
+    if (at > 0) {
         (void)write(2, buf, (size_t)at);
+        g_ck_spin_shown = 1;
+    }
 }
 
 #ifndef _WIN32
+static int check_progress_spin_live_run(void) {
+    if (g_ck_spin_sh)
+        return g_ck_spin_sh->run != 0;
+    return g_ck_spin_run != 0;
+}
+
+static int check_progress_spin_live_pause(void) {
+    if (g_ck_spin_sh)
+        return g_ck_spin_sh->pause != 0;
+    return g_ck_spin_pause != 0;
+}
+
 static void *check_progress_spin_thread(void *arg) {
     (void)arg;
-    while (g_ck_spin_run) {
-        if (!g_ck_spin_pause)
+    while (check_progress_spin_live_run()) {
+        if (!check_progress_spin_live_pause())
             check_progress_spin_write_frame();
         /* ~80ms per frame — readable without flooding stderr */
         (void)usleep(80000);
     }
     return NULL;
 }
+
+/* Linux freestanding: child process animates until shared run==0, then _exit. */
+static void check_progress_spin_fork_child(void) {
+    while (check_progress_spin_live_run()) {
+        if (!check_progress_spin_live_pause())
+            check_progress_spin_write_frame();
+        (void)usleep(80000);
+    }
+    _exit(0);
+}
+
+static int check_progress_spin_ensure_shared(void) {
+    void *p;
+    if (g_ck_spin_sh)
+        return 0;
+    /* MAP_SHARED|MAP_ANONYMOUS — Linux 0x21; needed so parent stop/pause reaches child. */
+    p = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    if (p == MAP_FAILED || p == (void *)(intptr_t)-1)
+        return -1;
+    g_ck_spin_sh = (ck_spin_sh *)p;
+    g_ck_spin_sh->run = 0;
+    g_ck_spin_sh->pause = 0;
+    return 0;
+}
 #endif
 
-/* Join spinner thread without committing a newline (next file overwrites via \r). */
+/* Join spinner worker without committing a newline (next file overwrites via \r). */
 static void check_progress_spin_join_only(void) {
 #ifndef _WIN32
     if (g_ck_spin_have_tid) {
+        if (g_ck_spin_sh)
+            g_ck_spin_sh->run = 0;
         g_ck_spin_run = 0;
         (void)pthread_join(g_ck_spin_tid, NULL);
         g_ck_spin_have_tid = 0;
+    } else if (g_ck_spin_pid > 0) {
+        if (g_ck_spin_sh)
+            g_ck_spin_sh->run = 0;
+        g_ck_spin_run = 0;
+        (void)waitpid(g_ck_spin_pid, NULL, 0);
+        g_ck_spin_pid = 0;
     } else {
         g_ck_spin_run = 0;
+        if (g_ck_spin_sh)
+            g_ck_spin_sh->run = 0;
     }
 #else
     g_ck_spin_run = 0;
 #endif
     g_ck_spin_pause = 0;
+#ifndef _WIN32
+    if (g_ck_spin_sh)
+        g_ck_spin_sh->pause = 0;
+#endif
 }
 
 void check_progress_spin_stop(void) {
     check_progress_spin_join_only();
     /* Commit spinner line so the summary/next output starts on a new line. */
-    if (g_ck_spin_width > 0) {
+    if (g_ck_spin_shown) {
         (void)write(2, "\n", 1);
-        g_ck_spin_width = 0;
+        g_ck_spin_shown = 0;
     }
 }
 
@@ -1625,19 +1707,43 @@ void check_progress_spin_start(const char *path) {
             g_ck_spin_path[i] = path[i];
         g_ck_spin_path[i] = 0;
     }
-    /* Keep g_ck_spin_width so the next frame pads over a longer previous path. */
     g_ck_spin_frame = 0;
     g_ck_spin_pause = 0;
     g_ck_spin_run = 1;
 
 #ifndef _WIN32
     g_ck_spin_have_tid = 0;
-    /* nostdlib pthread_create is sync: never start an infinite spin loop. */
+    g_ck_spin_pid = 0;
+
+    /*
+     * nostdlib pthread_create is sync — never run an infinite loop on it.
+     * PLATFORM: LINUX freestanding — fork child + MAP_SHARED control.
+     * PLATFORM: MACOS / libc — real pthread path below.
+     */
     if (bootstrap_nostdlib_pthread_is_stub() != 0) {
+        if (check_progress_spin_ensure_shared() == 0) {
+            g_ck_spin_sh->run = 1;
+            g_ck_spin_sh->pause = 0;
+            {
+                pid_t child = fork();
+                if (child == 0) {
+                    check_progress_spin_fork_child();
+                } else if (child > 0) {
+                    g_ck_spin_pid = child;
+                    /* First paint immediately so multi-file UI is never blank. */
+                    check_progress_spin_write_frame();
+                    return;
+                }
+            }
+        }
+        /* fork/mmap failed: single static frame (still better than hang). */
         g_ck_spin_run = 0;
+        if (g_ck_spin_sh)
+            g_ck_spin_sh->run = 0;
         check_progress_spin_write_frame();
     } else if (pthread_create(&g_ck_spin_tid, NULL, check_progress_spin_thread, NULL) == 0) {
         g_ck_spin_have_tid = 1;
+        check_progress_spin_write_frame();
     } else {
         /* Real pthread create failed: single static frame. */
         g_ck_spin_run = 0;
@@ -1651,18 +1757,32 @@ void check_progress_spin_start(const char *path) {
 
 void check_progress_spin_pause(void) {
     g_ck_spin_pause = 1;
+#ifndef _WIN32
+    if (g_ck_spin_sh)
+        g_ck_spin_sh->pause = 1;
+#endif
     /* End the active spinner line so multi-line diagnostics are clean. */
-    if (g_ck_spin_width > 0) {
+    if (g_ck_spin_shown) {
         (void)write(2, "\n", 1);
-        g_ck_spin_width = 0;
+        g_ck_spin_shown = 0;
     }
 }
 
 void check_progress_spin_resume(void) {
-    if (!g_ck_spin_run) {
-        /* Threadless fallback: redraw one frame. */
+    int live = 0;
+#ifndef _WIN32
+    live = (g_ck_spin_have_tid || g_ck_spin_pid > 0) && check_progress_spin_live_run();
+#else
+    live = g_ck_spin_run != 0;
+#endif
+    if (!live) {
+        /* Threadless/forkless fallback: redraw one frame. */
         check_progress_spin_write_frame();
         return;
     }
     g_ck_spin_pause = 0;
+#ifndef _WIN32
+    if (g_ck_spin_sh)
+        g_ck_spin_sh->pause = 0;
+#endif
 }
