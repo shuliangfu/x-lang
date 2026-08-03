@@ -655,8 +655,11 @@ export function enc_cmp_w0_imm12(ctx: *ElfCodegenCtx, imm12: i32): i32 {
  * @return i32
  */
 export function enc_cset_w0_from_cc(ctx: *ElfCodegenCtx, cc: i32): i32 {
-  let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
-  return enc_u32_le(ctx, 446629856 | (c << 12));
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
+    return enc_u32_le(ctx, 446629856 | (c << 12));
+  }
 }
 
 /**
@@ -668,9 +671,12 @@ export function enc_cset_w0_from_cc(ctx: *ElfCodegenCtx, cc: i32): i32 {
  * arch_arm64_enc_enc_cmp_setcc_movzbl (wave388: do not re-emit cmp; honor cc).
  */
 export function enc_cmp_setcc_movzbl(ctx: *ElfCodegenCtx, cc: i32): i32 {
-  let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
-  /* CSET W0,<cond> = 0x1a9f07e0 | (invert(cond)<<12). */
-  return enc_u32_le(ctx, 446629856 | (c << 12));
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
+    /* CSET W0,<cond> = 0x1a9f07e0 | (invert(cond)<<12). */
+    return enc_u32_le(ctx, 446629856 | (c << 12));
+  }
 }
 
 /** Exported function `enc_store_rax_to_rbp`.

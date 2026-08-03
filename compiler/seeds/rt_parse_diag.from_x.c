@@ -521,18 +521,33 @@ int runtime_report_parse_recovery_diagnostics(const char *input_path, const char
     }
 
     if (t.kw == RT_KW_IF) {
+      /* wave361/wave650 parity: main parser allows `if cond {` (parentheses
+       * optional) — see seeds/parser_asm/parser_asm_if_stmt_slice.inc.
+       * Recovery scanner must NOT flag missing '(' as error when next token
+       * is a valid condition start (ident/literal/'('/'!'/unary) or '{'.
+       * Reporting here would be a double-authority mismatch with the main
+       * parser and pollute `xlang check` output with false P001 on every
+       * bare-if in the source tree. PLATFORM: SHARED. */
       if (!rt_next_tok(&sc, &n))
         break;
-      if (!(n.kw == RT_PUNCT && n.ch == '(')) {
-        rt_rec_fail(input_path, n.line, n.col, "expected '(' after 'if'");
-        errors++;
-        /* recover: don't re-consume if n is useful */
-        if (rt_is_stmt_start(&n) || (n.kw == RT_PUNCT && n.ch == '{')) {
-          sc.i = n.pos;
-          sc.line = n.line;
-          sc.col = n.col;
-        }
+      if (n.kw == RT_PUNCT && n.ch == '(') {
+        /* parenthesized form — fine, continue. */
+      } else if (rt_is_stmt_start(&n) || (n.kw == RT_PUNCT && n.ch == '{')) {
+        /* bare `if cond {` form — rewind to let outer scan pick up the
+         * condition; do NOT report an error. */
+        sc.i = n.pos;
+        sc.line = n.line;
+        sc.col = n.col;
+      } else if (n.kw == RT_KW_IDENT || n.kw == RT_KW_INT || n.kw == RT_KW_STRING
+                 || n.kw == RT_KW_TRUE || n.kw == RT_KW_FALSE) {
+        /* bare `if ident {` / `if 0 {` / `if "x" {` — valid condition start,
+         * rewind so the condition tokens get rescanned by the outer loop. */
+        sc.i = n.pos;
+        sc.line = n.line;
+        sc.col = n.col;
       }
+      /* Any other token: silently continue; the main parser will emit the
+       * precise diagnostic if it is genuinely invalid. */
       continue;
     }
 

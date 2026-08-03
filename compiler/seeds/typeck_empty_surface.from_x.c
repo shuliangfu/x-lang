@@ -2423,6 +2423,10 @@ void typeck_merge_dep_struct_layouts_into_entry(struct ast_Module * mod, struct 
           if ((((nf_dep > pipeline_module_struct_layout_num_fields(mod, ex)) || weak_entry) || is_expr_nm)) {
             (void)((need = 1));
           }
+          /* wave1220 P5: re-copy when field counts match but types may differ. */
+          if (((nf_dep > 0 && (nf_dep >= pipeline_module_struct_layout_num_fields(mod, ex))) && (pipeline_module_struct_layout_num_fields(mod, ex) > 0))) {
+            (void)((need = 1));
+          }
           if (((pipeline_module_struct_layout_soa_at(dm, k) !=0) && (pipeline_module_struct_layout_soa_at(mod, ex) ==0))) {
             (void)((need = 1));
           }
@@ -6948,7 +6952,8 @@ int32_t typeck_check_block_one_if(struct ast_Module * module, struct ast_ASTAren
   return 0;
 }
 
-/* wave663 Cap residual: void function must not use pure rvalue as stmt/final.
+/* wave663/1227: void fn must not use pure non-void rvalue as stmt/final.
+ * wave1227: void-typed expr is not a value; allow IF/BLOCK/MATCH stmts.
  * G.7 authority: typeck.x::typeck_void_reject_value_expr. PLATFORM: SHARED. */
 int32_t typeck_void_reject_value_expr(struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref) {
   {
@@ -6957,6 +6962,7 @@ int32_t typeck_void_reject_value_expr(struct ast_ASTArena * arena, int32_t expr_
     int32_t ek = 0;
     int32_t void_stmt_ok = 0;
     int32_t got = 0;
+    int32_t got_k = 0;
     uint8_t * eb = 0;
     uint8_t * gb = 0;
     int32_t el = 0;
@@ -6971,6 +6977,7 @@ int32_t typeck_void_reject_value_expr(struct ast_ASTArena * arena, int32_t expr_
       return 0;
     }
     (void)((ek = pipeline_expr_kind_ord_at(arena, expr_ref)));
+    /* IF=25 BLOCK=26 ASSIGN=28..38 BREAK=39 CONTINUE=40 RETURN=41 PANIC=42 MATCH=43 CALL=48 METHOD=49 */
     if ((ek == 41)) {
       if (ast_ref_is_null(pipeline_expr_unary_operand_ref_at(arena, expr_ref))) {
         void_stmt_ok = 1;
@@ -6979,11 +6986,20 @@ int32_t typeck_void_reject_value_expr(struct ast_ASTArena * arena, int32_t expr_
       void_stmt_ok = 1;
     } else if (((ek >= 28) && (ek <= 38))) {
       void_stmt_ok = 1;
+    } else if (((((ek == 25) || (ek == 26)) || (ek == 43)))) {
+      void_stmt_ok = 1;
     }
     if ((void_stmt_ok != 0)) {
       return 0;
     }
     (void)((got = typeck_expr_type_ref(arena, expr_ref)));
+    /* wave1227: void-typed expression is not a value-producing rvalue. */
+    if (!(ast_ref_is_null(got))) {
+      (void)((got_k = pipeline_type_kind_ord_at(arena, got)));
+      if ((got_k == void_ord)) {
+        return 0;
+      }
+    }
     (void)((eb = driver_typeck_diag_scratch_expect()));
     (void)((gb = driver_typeck_diag_scratch_found()));
     (void)((el = typeck_diag_fmt_type_or_question(arena, return_type_ref, eb)));

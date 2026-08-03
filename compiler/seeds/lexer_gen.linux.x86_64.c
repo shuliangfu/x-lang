@@ -2209,10 +2209,15 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
   return;
  }
   /* wave272: unknown byte → L003 hard diag + sticky pending (≡ lexer.x). */
-  lexer_note_illegal_char(line0, col0);
+  /* wave1222: use current lexer position — line0/col0/start from if-blocks
+   * above are block-scoped and may hold stale values from a prior parse file
+   * when the X codegen hoists let-decls to function level. */
+  { int32_t ill_line = (l).line; int32_t ill_col = (l).col; size_t ill_start = (l).pos;
+  lexer_note_illegal_char(ill_line, ill_col);
+  { struct token_Token unk = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = ill_line, .col = ill_col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   (void)(lexer_write_next_lex_into(out, l));
-  (void)(lexer_write_tok_into(out, tok));
-  ((out)->token_start = (start));
+  (void)(lexer_write_tok_into(out, unk));
+  ((out)->token_start = (ill_start)); } }
 }
 XLANG_LIB_WEAK void lexer_write_next_lex_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l) {
   (((out)->next_lex).pos = ((l).pos));

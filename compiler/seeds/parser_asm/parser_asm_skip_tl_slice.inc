@@ -1563,6 +1563,7 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   if (fi_mod < 0)
     return -1;
   pipeline_module_func_name_write(module, fi_mod, res->name, res->name_len);
+  { static int dbgac=0; if (dbgac<4000){dbgac++; fprintf(stderr,"DBG_ACOMMIT mod=%p idx=%d name=%.*s nfns=%d\n",(void*)module,(int)fi_mod,(int)(res->name_len>0?res->name_len:0),(char*)res->name,(int)pipeline_module_num_funcs(module));} }
   pipeline_module_func_set_num_params(module, fi_mod, res->num_params);
   pipeline_module_func_set_return_type(module, fi_mod, type_ref);
   pipeline_module_func_set_body_ref(module, fi_mod, block_ref);

@@ -36,7 +36,10 @@ export extern function asm_asm_codegen_elf_o(module: *u8, arena: *u8, pipeline_c
  * See implementation.
  */
 export function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
-  return asm_asm_codegen_ast(module as *u8, arena as *u8, out as *u8, ctx as *u8);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return asm_asm_codegen_ast(module as *u8, arena as *u8, out as *u8, ctx as *u8);
+  }
 }
 
 /**
@@ -47,7 +50,10 @@ export function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *Codegen
  */
 #[cfg(target_os = "linux")]
 export function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *u8, out: *CodegenOutBuf): i32 {
-  return asm_asm_codegen_elf_o(module as *u8, arena as *u8, ctx as *u8, elf_ctx as *u8, out as *u8);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return asm_asm_codegen_elf_o(module as *u8, arena as *u8, ctx as *u8, elf_ctx as *u8, out as *u8);
+  }
 }
 
 /** Exported function `asm_codegen_elf_o`.
@@ -61,5 +67,8 @@ export function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *Pipel
  */
 #[cfg(not(target_os = "linux"))]
 export function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *u8, out: *CodegenOutBuf): i32 {
-  return asm_asm_codegen_elf_o(module as *u8, arena as *u8, ctx as *u8, elf_ctx as *u8, out as *u8);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return asm_asm_codegen_elf_o(module as *u8, arena as *u8, ctx as *u8, elf_ctx as *u8, out as *u8);
+  }
 }

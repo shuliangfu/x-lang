@@ -3623,7 +3623,7 @@ export function invoke_cc_append_argv_head_flags(argv: **u8, ia: *i32, argv_cap:
     k = k + 1;
   }
   g_labi_icc_oopt_buf[2 + k] = 0;
-  labi_icc_argv_try_push_flag(argv, ia, argv_cap, g_labi_icc_oopt_buf as *u8);
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, &g_labi_icc_oopt_buf[0]);
 
   // -march=native (+ -mtune=native for -O3); CI/Docker skip via pure skip_native_tuning.
   let skip_nat: i32 = invoke_cc_skip_native_tuning();

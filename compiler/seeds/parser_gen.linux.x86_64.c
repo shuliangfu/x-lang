@@ -2189,6 +2189,11 @@ int parser_parse_if_stmt_into(struct ast_ASTArena * arena, struct lexer_Lexer le
   return parser_parse_if_stmt_into_glue(arena, lex_at_if, source, type_ref, out_cond, out_then, out_else, lex_out);
   return 0;
 }
+/* wave1226: heap OneFuncResult scratch — always release+free after body.
+ * Root: calloc without ast_pool_onefunc_release filled MAX_ONEFUNC_SIDECARS
+ * after large files; next file soft-skipped defined functions.
+ * PLATFORM: SHARED */
+static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseBlockResult * out, struct parser_OneFuncResult * temp);
 void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseBlockResult * out) {
   {
     size_t scratch_sz = pipeline_sizeof_onefunc_result();
@@ -2198,6 +2203,13 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
       return;
     }
     struct parser_OneFuncResult * temp = ((struct parser_OneFuncResult *)(scratch_raw));
+    parser_parse_block_into_with_scratch(arena, lex_after_lbrace, source, type_ref, out, temp);
+    (void)(ast_pool_onefunc_release(parser_onefunc_result_pool_ptr(temp)));
+    free(scratch_raw);
+  }
+}
+static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseBlockResult * out, struct parser_OneFuncResult * temp) {
+  {
     (void)(ast_pool_onefunc_reset(parser_onefunc_result_pool_ptr(temp)));
     (void)(((temp->ok) = 1));
     (void)(((temp->next_lex) = lex_after_lbrace));

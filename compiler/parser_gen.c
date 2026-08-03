@@ -1611,9 +1611,7 @@ extern void lexer_invalid_type_suffix_reset(void);
 
 /**
  * wave1218: absolute (line, col) for byte pos by scanning source[0..pos).
- * Authoritative line/col for any rewind — avoids (pos, line, col) desync from
- * reusing a later token's line/col while pos moves backward.
- * PLATFORM: SHARED — O(pos) per call; used only on control-stmt rewind probes.
+ * PLATFORM: SHARED — seed pin twin of parser_gen.c.
  */
 static void parser_lexer_line_col_at_pos(struct xlang_slice_uint8_t *source, size_t pos,
                                         int32_t *out_line, int32_t *out_col) {
@@ -1644,12 +1642,8 @@ static void parser_lexer_line_col_at_pos(struct xlang_slice_uint8_t *source, siz
 }
 
 struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct xlang_slice_uint8_t * source) {
-  /* wave1218 Cap residual: recompute line/col when rewinding pos before `(`.
-   * Prior used r_in.tok.line/col (the `(` token) while pos moved backward →
-   * (pos, line, col) desync → wrong L009 caret (e.g. typeck.x:3001 return -1).
-   * Use absolute line_col_at_pos (not backward col-- which breaks after LF).
-   * PLATFORM: SHARED — pin hand-sync until parser.x -E-extern typeck is green
-   * (import.struct field residual still blocks full regen). */
+  /* wave1218 Cap residual: absolute line_col_at_pos when rewinding before `(`.
+   * PLATFORM: SHARED — seed pin twin of parser_gen.c / parser.x. */
   if ((((r_in.tok).kind) ==82)) {
     struct lexer_Lexer lp_base = parser_lex_at_token_from_result(r_in);
     int32_t back_lp = 2;
@@ -1663,8 +1657,7 @@ struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer 
       (void)(lexer_next_into(&(r_lp), lex_lp, source));
       /* Probe may land mid-comment/mid-ident (digit in cvtss2sd inside a block
        * comment). That sets sticky L009 and poisons the whole parse. Clear after
-       * every probe; only a real later scan should set L009.
-       * PLATFORM: SHARED - wave1218 root. */
+       * every probe. PLATFORM: SHARED - wave1218 root; seed twin of parser_gen.c. */
       lexer_invalid_type_suffix_reset();
       if ((((((r_lp.tok).kind) ==4) || (((r_lp.tok).kind) ==6)) || (((r_lp.tok).kind) ==8))) {
         return parser_rewind_lex_for_following_stmt(lex_in, r_lp);
@@ -2196,6 +2189,11 @@ int parser_parse_if_stmt_into(struct ast_ASTArena * arena, struct lexer_Lexer le
   return parser_parse_if_stmt_into_glue(arena, lex_at_if, source, type_ref, out_cond, out_then, out_else, lex_out);
   return 0;
 }
+/* wave1226: heap OneFuncResult scratch — always release+free after body.
+ * Root: calloc without ast_pool_onefunc_release filled MAX_ONEFUNC_SIDECARS
+ * after large files; next file soft-skipped defined functions.
+ * PLATFORM: SHARED */
+static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseBlockResult * out, struct parser_OneFuncResult * temp);
 void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseBlockResult * out) {
   {
     size_t scratch_sz = pipeline_sizeof_onefunc_result();
@@ -2205,6 +2203,13 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
       return;
     }
     struct parser_OneFuncResult * temp = ((struct parser_OneFuncResult *)(scratch_raw));
+    parser_parse_block_into_with_scratch(arena, lex_after_lbrace, source, type_ref, out, temp);
+    (void)(ast_pool_onefunc_release(parser_onefunc_result_pool_ptr(temp)));
+    free(scratch_raw);
+  }
+}
+static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseBlockResult * out, struct parser_OneFuncResult * temp) {
+  {
     (void)(ast_pool_onefunc_reset(parser_onefunc_result_pool_ptr(temp)));
     (void)(((temp->ok) = 1));
     (void)(((temp->next_lex) = lex_after_lbrace));
@@ -7128,6 +7133,9 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         /* wave424: trait completeness (parse_into slice). */
         return parser_parse_into_finish_ok(module, main_idx);
       }
+      /* Latch export before body parse (G.7 ≡ struct pe_*); body must not clear pe. */
+      int32_t pe_fn = (module->pending_export);
+      (void)(((module->pending_export) = 0));
       struct lexer_Lexer lex_at_function = lexer_init();
       (void)((lex_at_function = current_tok_lex));
       (void)(parser_lex_from_next_into(&(lex), r));
@@ -8105,8 +8113,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
       (void)(pipeline_module_func_set_body_ref(module, fi, block_ref));
       (void)(pipeline_module_func_set_is_extern(module, fi, 0));
       (void)(pipeline_module_func_set_is_async(module, fi, (func_is_async_storage)[0]));
-      (void)(pipeline_module_func_set_is_export(module, fi, (module->pending_export)));
-      (void)(((module->pending_export) = 0));
+      (void)(pipeline_module_func_set_is_export(module, fi, pe_fn));
       (void)(pipeline_module_func_set_is_used(module, fi, (module->pending_used)));
       (void)(((module->pending_used) = 0));
       (void)(pipeline_module_func_set_is_naked(module, fi, (module->pending_naked)));
@@ -8699,6 +8706,9 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         /* wave424: trait completeness on freestanding -o (direct parse_into_buf). */
         return parser_parse_into_finish_ok(module, main_idx);
       }
+      /* Latch export before body parse (buf path; G.7 ≡ pe_struct). */
+      int32_t pe_fn_buf = (module->pending_export);
+      (void)(((module->pending_export) = 0));
       struct lexer_Lexer lex_at_function_buf = lexer_init();
       (void)((lex_at_function_buf = current_tok_lex_buf));
       (void)(parser_lex_from_next_into(&(lex), r));
@@ -9528,8 +9538,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
       (void)(pipeline_module_func_set_body_expr_ref(module, fi_mod, 0));
       (void)(pipeline_module_func_set_is_extern(module, fi_mod, 0));
       (void)(pipeline_module_func_set_is_async(module, fi_mod, (func_is_async_buf)[0]));
-      (void)(pipeline_module_func_set_is_export(module, fi_mod, (module->pending_export)));
-      (void)(((module->pending_export) = 0));
+      (void)(pipeline_module_func_set_is_export(module, fi_mod, pe_fn_buf));
       (void)(pipeline_module_func_set_is_used(module, fi_mod, (module->pending_used)));
       (void)(((module->pending_used) = 0));
       (void)(pipeline_module_func_set_is_naked(module, fi_mod, (module->pending_naked)));

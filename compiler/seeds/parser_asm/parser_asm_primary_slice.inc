@@ -1823,11 +1823,12 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
       int32_t nlen = r.tok.ident_len;
       int32_t ri = 0;
       int32_t wi = 0;
-      /* wave283: full span; L011 if semantic bytes would exceed 63 (not silent truncate). */
+      /* wave283: full span; L011 if semantic bytes would exceed 127 (not silent truncate).
+       * wave1222: cap 63→127 to match Expr.var_name[128] capacity. */
       if (nlen < 0)
         nlen = 0;
       while (ri < nlen) {
-        if (wi >= 63) {
+        if (wi >= 127) {
           lexer_note_string_lit_overflow(e.line, e.col);
           break;
         }
@@ -1900,15 +1901,15 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
         wi_adj = e.var_name_len;
         if (wi_adj < 0)
           wi_adj = 0;
-        if (wi_adj > 63)
-          wi_adj = 63;
+        if (wi_adj > 127)
+          wi_adj = 127;
         nlen_adj = nr.tok.ident_len;
         if (nlen_adj < 0)
           nlen_adj = 0;
         q0_adj = nr.token_start;
         ri_adj = 0;
         while (ri_adj < nlen_adj) {
-          if (wi_adj >= 63) {
+          if (wi_adj >= 127) {
             lexer_note_string_lit_overflow(e.line, e.col);
             break;
           }

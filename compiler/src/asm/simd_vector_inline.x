@@ -47,8 +47,11 @@ export function simd_try_inline_shuffle_call_elf(
   stack_slot_off: i32,
   type_ref: i32,
 ): i32 {
-  return pipeline_asm_simd_try_inline_shuffle_call_elf_c(
-    arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return pipeline_asm_simd_try_inline_shuffle_call_elf_c(
+      arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
+  }
 }
 
 /* See implementation. */
@@ -75,8 +78,11 @@ export function simd_try_inline_select_call_elf(
   stack_slot_off: i32,
   type_ref: i32,
 ): i32 {
-  return pipeline_asm_simd_try_inline_select_call_elf_c(
-    arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return pipeline_asm_simd_try_inline_select_call_elf_c(
+      arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
+  }
 }
 
 /* See implementation. */
@@ -103,8 +109,11 @@ export function simd_try_inline_binop2_call_elf(
   stack_slot_off: i32,
   type_ref: i32,
 ): i32 {
-  return pipeline_asm_simd_try_inline_binop2_call_elf_c(
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return pipeline_asm_simd_try_inline_binop2_call_elf_c(
     arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
+  }
 }
 
 /* See implementation. */
@@ -131,6 +140,9 @@ export function simd_try_inline_fma3_call_elf(
   stack_slot_off: i32,
   type_ref: i32,
 ): i32 {
-  return pipeline_asm_simd_try_inline_fma3_call_elf_c(
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return pipeline_asm_simd_try_inline_fma3_call_elf_c(
     arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
+  }
 }

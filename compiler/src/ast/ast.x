@@ -679,8 +679,8 @@ export function func_layout_prime_generic_params(): void {
     return_type_ref: 0,
     body_ref: 0,
     body_expr_ref: 0,
-    is_extern: false,
-    is_async: false
+    is_extern: 0,
+    is_async: 0
   };
   f0.num_generic_params = 0;
 }

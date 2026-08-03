@@ -35,6 +35,7 @@ export extern function preprocess_x_buf(source_buf: *u8, source_len: isize, out_
 export extern function driver_cmd_fmt(argc: i32, argv: *u8): i32;
 export extern function driver_cmd_check(argc: i32, argv: *u8): i32;
 export extern function driver_cmd_test(argc: i32, argv: *u8): i32;
+export extern function driver_print_usage_write(): void;
 
 /* See implementation. */
 export struct DriverXEmitState {
@@ -76,12 +77,15 @@ export function driver_emit_state_key(state: *DriverXEmitState): *u8 {
  * @return i32
  */
 export function driver_emit_try_append_lib_from_argv(argc: i32, argv: *u8, arg_i: i32, state: *DriverXEmitState): i32 {
-  let tmp: u8[256] = [];
-  let llen: i32 = driver_get_argv_i(argc, argv, arg_i, &tmp[0], 256);
-  if (llen >= 0 && driver_emit_append_lib_root(driver_emit_state_key(state), &tmp[0], llen) >= 0) {
-    return 1;
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    let tmp: u8[256] = [];
+    let llen: i32 = driver_get_argv_i(argc, argv, arg_i, &tmp[0], 256);
+    if (llen >= 0 && driver_emit_append_lib_root(driver_emit_state_key(state), &tmp[0], llen) >= 0) {
+      return 1;
+    }
+    return 0;
   }
-  return 0;
 }
 
 /** Exported function `driver_emit_ensure_default_lib_root`.
@@ -90,9 +94,12 @@ export function driver_emit_try_append_lib_from_argv(argc: i32, argv: *u8, arg_i
  * @return void
  */
 export function driver_emit_ensure_default_lib_root(state: *DriverXEmitState): void {
-  if (driver_emit_lib_root_count(driver_emit_state_key(state)) == 0) {
-    let dot: u8[1] = [46];
-    driver_emit_append_lib_root(driver_emit_state_key(state), &dot[0], 1);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (driver_emit_lib_root_count(driver_emit_state_key(state)) == 0) {
+      let dot: u8[1] = [46];
+      driver_emit_append_lib_root(driver_emit_state_key(state), &dot[0], 1);
+    }
   }
 }
 
@@ -103,16 +110,19 @@ export function driver_emit_ensure_default_lib_root(state: *DriverXEmitState): v
  * @return void
  */
 export function driver_emit_copy_lib_roots_to_ctx(state: *DriverXEmitState, ctx: *PipelineDepCtx): void {
-  let k: i32 = 0;
-  let n: i32 = driver_emit_lib_root_count(driver_emit_state_key(state));
-  let tmp: u8[256] = [];
-  while (k < n) {
-    let llen: i32 = driver_emit_lib_root_len(driver_emit_state_key(state), k);
-    if (llen > 0) {
-      driver_emit_lib_root_copy(driver_emit_state_key(state), k, &tmp[0], 256);
-      ast_pipeline_ctx_append_lib_root(ctx, &tmp[0], llen);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let k: i32 = 0;
+    let n: i32 = driver_emit_lib_root_count(driver_emit_state_key(state));
+    let tmp: u8[256] = [];
+    while (k < n) {
+      let llen: i32 = driver_emit_lib_root_len(driver_emit_state_key(state), k);
+      if (llen > 0) {
+        driver_emit_lib_root_copy(driver_emit_state_key(state), k, &tmp[0], 256);
+        ast_pipeline_ctx_append_lib_root(ctx, &tmp[0], llen);
+      }
+      k = k + 1;
     }
-    k = k + 1;
   }
 }
 
@@ -197,7 +207,10 @@ export extern function driver_run_compiler_full(argc: i32, argv: *u8): i32;
  * @return i32
  */
 export function run_compiler_c_impl(argc: i32, argv: *u8): i32 {
-  return driver_run_compiler_full(argc, argv);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return driver_run_compiler_full(argc, argv);
+  }
 }
 /** Exported function `run_compiler_c`.
  * Implements `run_compiler_c`.
@@ -206,14 +219,22 @@ export function run_compiler_c_impl(argc: i32, argv: *u8): i32 {
  * @return i32
  */
 export function run_compiler_c(argc: i32, argv: *u8): i32 {
-  return run_compiler_c_impl(argc, argv);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return run_compiler_c_impl(argc, argv);
+  }
 }
 
 /**
  * See implementation.
  */
 export function main_run_compiler_c(argc: i32, argv: *u8): i32 {
-  return run_compiler_c(argc, argv);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return run_compiler_c(argc, argv);
+  }
 }
 
 /** Exported function `eq_minus_L`.
@@ -415,108 +436,113 @@ export function target_contains_riscv(buf: *u8, len: i32): i32 {
  * See implementation.
  */
 export function driver_argv_parse_x_path(argc: i32, argv: *u8, state: *DriverXEmitState): i32 {
-  state.path_len = 0;
-  driver_emit_lib_root_reset(driver_emit_state_key(state));
-  state.emit_extern_imports = 0;
-  /* See implementation. */
-  state.use_asm_backend = 1;
-  state.target_arch = 0;
-  state.out_path_len = 0;
-  if (argc < 2) {
-    return 2;
-  }
-  let arg_buf: u8[512] = [];
-  let i: i32 = 1;
-  let has_o: i32 = 0;
-  while (i < argc) {
-    let len: i32 = driver_get_argv_i(argc, argv, i, arg_buf, 512);
-    if (len < 0) {
-      i = i + 1;
-      continue;
-    }
-    if (eq_minus_target(arg_buf, len) != 0 && i + 1 < argc) {
-      let tlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
-      if (tlen >= 0 && target_contains_arm(arg_buf, tlen) != 0) {
-        state.target_arch = 1;
-      }
-      if (tlen >= 0 && target_contains_riscv(arg_buf, tlen) != 0) {
-        state.target_arch = 2;
-      }
-      i = i + 2;
-      continue;
-    }
-    if (eq_minus_L(arg_buf, len) != 0) {
-      if (i + 1 >= argc) {
-        return 2;
-      }
-      driver_emit_try_append_lib_from_argv(argc, argv, i + 1, state);
-      i = i + 2;
-      continue;
-    }
-    if (eq_minus_backend(arg_buf, len) != 0 && i + 1 < argc) {
-      let vlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
-      /* See implementation. */
-      if (vlen >= 0 && vlen == 1 && arg_buf[0] == 99) {
-        state.use_asm_backend = 0;
-      }
-      if (vlen >= 0 && eq_asm(arg_buf, vlen) != 0) {
-        state.use_asm_backend = 1;
-      }
-      i = i + 2;
-      continue;
-    }
+
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    state.path_len = 0;
+    driver_emit_lib_root_reset(driver_emit_state_key(state));
+    state.emit_extern_imports = 0;
     /* See implementation. */
-    if (len == 2 && arg_buf[0] == 45 && arg_buf[1] == 111) {
-      if (i + 1 < argc) {
-        let olen: i32 = driver_get_argv_i(argc, argv, i + 1, state.out_path_buf, 512);
-        if (olen >= 0) {
-          state.out_path_len = olen;
+    state.use_asm_backend = 1;
+    state.target_arch = 0;
+    state.out_path_len = 0;
+    if (argc < 2) {
+      return 2;
+    }
+    let arg_buf: u8[512] = [];
+    let i: i32 = 1;
+    let has_o: i32 = 0;
+    while (i < argc) {
+      let len: i32 = driver_get_argv_i(argc, argv, i, arg_buf, 512);
+      if (len < 0) {
+        i = i + 1;
+        continue;
+      }
+      if (eq_minus_target(arg_buf, len) != 0 && i + 1 < argc) {
+        let tlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
+        if (tlen >= 0 && target_contains_arm(arg_buf, tlen) != 0) {
+          state.target_arch = 1;
+        }
+        if (tlen >= 0 && target_contains_riscv(arg_buf, tlen) != 0) {
+          state.target_arch = 2;
         }
         i = i + 2;
-      } else {
-        has_o = 1;
+        continue;
+      }
+      if (eq_minus_L(arg_buf, len) != 0) {
+        if (i + 1 >= argc) {
+          return 2;
+        }
+        driver_emit_try_append_lib_from_argv(argc, argv, i + 1, state);
+        i = i + 2;
+        continue;
+      }
+      if (eq_minus_backend(arg_buf, len) != 0 && i + 1 < argc) {
+        let vlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
+        /* See implementation. */
+        if (vlen >= 0 && vlen == 1 && arg_buf[0] == 99) {
+          state.use_asm_backend = 0;
+        }
+        if (vlen >= 0 && eq_asm(arg_buf, vlen) != 0) {
+          state.use_asm_backend = 1;
+        }
+        i = i + 2;
+        continue;
+      }
+      /* See implementation. */
+      if (len == 2 && arg_buf[0] == 45 && arg_buf[1] == 111) {
+        if (i + 1 < argc) {
+          let olen: i32 = driver_get_argv_i(argc, argv, i + 1, state.out_path_buf, 512);
+          if (olen >= 0) {
+            state.out_path_len = olen;
+          }
+          i = i + 2;
+        } else {
+          has_o = 1;
+          i = i + 1;
+        }
+        continue;
+      }
+      if (len == 2 && arg_buf[0] == 45 && arg_buf[1] == 79) {
         i = i + 1;
+        if (i < argc) {
+          i = i + 1;
+        }
+        continue;
       }
-      continue;
-    }
-    if (len == 2 && arg_buf[0] == 45 && arg_buf[1] == 79) {
-      i = i + 1;
-      if (i < argc) {
+      if (eq_minus_x(arg_buf, len) != 0) {
         i = i + 1;
+        continue;
       }
-      continue;
-    }
-    if (eq_minus_x(arg_buf, len) != 0) {
-      i = i + 1;
-      continue;
-    }
-    if (eq_minus_E(arg_buf, len) != 0) {
-      i = i + 1;
-      continue;
-    }
-    if (eq_minus_E_extern(arg_buf, len) != 0) {
-      i = i + 1;
-      continue;
-    }
-    if (state.path_len == 0 && len > 0) {
-      let k: i32 = 0;
-      while (k < len && k < 512) {
-        state.path_buf[k] = arg_buf[k];
-        k = k + 1;
+      if (eq_minus_E(arg_buf, len) != 0) {
+        i = i + 1;
+        continue;
       }
-      state.path_len = len;
+      if (eq_minus_E_extern(arg_buf, len) != 0) {
+        i = i + 1;
+        continue;
+      }
+      if (state.path_len == 0 && len > 0) {
+        let k: i32 = 0;
+        while (k < len && k < 512) {
+          state.path_buf[k] = arg_buf[k];
+          k = k + 1;
+        }
+        state.path_len = len;
+      }
+      i = i + 1;
     }
-    i = i + 1;
+    if (has_o != 0) {
+      return 1;
+    }
+    if (state.path_len == 0) {
+      return 2;
+    }
+    /* See implementation. */
+    driver_emit_ensure_default_lib_root(state);
+    return 0;
   }
-  if (has_o != 0) {
-    return 1;
-  }
-  if (state.path_len == 0) {
-    return 2;
-  }
-  /* See implementation. */
-  driver_emit_ensure_default_lib_root(state);
-  return 0;
 }
 
 /**
@@ -524,84 +550,89 @@ export function driver_argv_parse_x_path(argc: i32, argv: *u8, state: *DriverXEm
  * See implementation.
  */
 export function driver_argv_parse_x(argc: i32, argv: *u8, state: *DriverXEmitState): i32 {
-  state.path_len = 0;
-  driver_emit_lib_root_reset(driver_emit_state_key(state));
-  state.emit_extern_imports = 0;
-  state.use_asm_backend = 0;
-  state.target_arch = 0;
-  state.out_path_len = 0;
-  if (argc < 3) {
+
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    state.path_len = 0;
+    driver_emit_lib_root_reset(driver_emit_state_key(state));
+    state.emit_extern_imports = 0;
+    state.use_asm_backend = 0;
+    state.target_arch = 0;
+    state.out_path_len = 0;
+    if (argc < 3) {
+      return 0;
+    }
+    let arg_buf: u8[512] = [];
+    let i: i32 = 1;
+    while (i < argc) {
+      let len: i32 = driver_get_argv_i(argc, argv, i, arg_buf, 512);
+      if (len < 0) {
+        i = i + 1;
+        continue;
+      }
+      if (eq_minus_L(arg_buf, len) != 0 && i + 1 < argc) {
+        driver_emit_try_append_lib_from_argv(argc, argv, i + 1, state);
+        i = i + 2;
+        continue;
+      }
+      if (eq_minus_backend(arg_buf, len) != 0 && i + 1 < argc) {
+        let vlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
+        if (vlen >= 0 && eq_asm(arg_buf, vlen) != 0) {
+          state.use_asm_backend = 1;
+        }
+        i = i + 2;
+        continue;
+      }
+      if (eq_minus_target(arg_buf, len) != 0 && i + 1 < argc) {
+        let tlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
+        if (tlen >= 0 && target_contains_arm(arg_buf, tlen) != 0) {
+          state.target_arch = 1;
+        }
+        if (tlen >= 0 && target_contains_riscv(arg_buf, tlen) != 0) {
+          state.target_arch = 2;
+        }
+        i = i + 2;
+        continue;
+      }
+      if (eq_minus_x(arg_buf, len) != 0) {
+        i = i + 1;
+        continue;
+      }
+      if (eq_minus_E(arg_buf, len) != 0) {
+        let pi: i32 = i + 1;
+        while (pi < argc) {
+          let plen_temp: i32 = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
+          if (plen_temp > 0 && eq_minus_L(arg_buf, plen_temp) != 0 && pi + 1 < argc) {
+            driver_emit_try_append_lib_from_argv(argc, argv, pi + 1, state);
+            pi = pi + 2;
+            continue;
+          }
+          if (plen_temp > 0 && eq_minus_x(arg_buf, plen_temp) != 0) {
+            pi = pi + 1;
+            continue;
+          }
+          break;
+        }
+        if (pi < argc) {
+          let opt_len: i32 = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
+          if (opt_len >= 0 && eq_minus_E_extern(arg_buf, opt_len) != 0) {
+            state.emit_extern_imports = 1;
+            pi = pi + 1;
+          }
+        }
+        if (pi < argc) {
+          let plen: i32 = driver_get_argv_i(argc, argv, pi, state.path_buf, 512);
+          if (plen >= 0) {
+            state.path_len = plen;
+            return 1;
+          }
+        }
+      }
+      i = i + 1;
+    }
     return 0;
   }
-  let arg_buf: u8[512] = [];
-  let i: i32 = 1;
-  while (i < argc) {
-    let len: i32 = driver_get_argv_i(argc, argv, i, arg_buf, 512);
-    if (len < 0) {
-      i = i + 1;
-      continue;
-    }
-    if (eq_minus_L(arg_buf, len) != 0 && i + 1 < argc) {
-      driver_emit_try_append_lib_from_argv(argc, argv, i + 1, state);
-      i = i + 2;
-      continue;
-    }
-    if (eq_minus_backend(arg_buf, len) != 0 && i + 1 < argc) {
-      let vlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
-      if (vlen >= 0 && eq_asm(arg_buf, vlen) != 0) {
-        state.use_asm_backend = 1;
-      }
-      i = i + 2;
-      continue;
-    }
-    if (eq_minus_target(arg_buf, len) != 0 && i + 1 < argc) {
-      let tlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
-      if (tlen >= 0 && target_contains_arm(arg_buf, tlen) != 0) {
-        state.target_arch = 1;
-      }
-      if (tlen >= 0 && target_contains_riscv(arg_buf, tlen) != 0) {
-        state.target_arch = 2;
-      }
-      i = i + 2;
-      continue;
-    }
-    if (eq_minus_x(arg_buf, len) != 0) {
-      i = i + 1;
-      continue;
-    }
-    if (eq_minus_E(arg_buf, len) != 0) {
-      let pi: i32 = i + 1;
-      while (pi < argc) {
-        let plen_temp: i32 = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
-        if (plen_temp > 0 && eq_minus_L(arg_buf, plen_temp) != 0 && pi + 1 < argc) {
-          driver_emit_try_append_lib_from_argv(argc, argv, pi + 1, state);
-          pi = pi + 2;
-          continue;
-        }
-        if (plen_temp > 0 && eq_minus_x(arg_buf, plen_temp) != 0) {
-          pi = pi + 1;
-          continue;
-        }
-        break;
-      }
-      if (pi < argc) {
-        let opt_len: i32 = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
-        if (opt_len >= 0 && eq_minus_E_extern(arg_buf, opt_len) != 0) {
-          state.emit_extern_imports = 1;
-          pi = pi + 1;
-        }
-      }
-      if (pi < argc) {
-        let plen: i32 = driver_get_argv_i(argc, argv, pi, state.path_buf, 512);
-        if (plen >= 0) {
-          state.path_len = plen;
-          return 1;
-        }
-      }
-    }
-    i = i + 1;
-  }
-  return 0;
 }
 
 /**
@@ -609,91 +640,94 @@ export function driver_argv_parse_x(argc: i32, argv: *u8, state: *DriverXEmitSta
  * See implementation.
  */
 export function driver_run_x_emit_x(state: *DriverXEmitState): i32 {
-  if (state.path_len >= 0 && state.path_len < 511) {
-    state.path_buf[state.path_len] = 0 as u8;
-  }
-  let loaded_buf: u8[4194304] = [];
-  let cap_i: i32 = 4194304;
-  let n: i32 = sys.read_file_into(&state.path_buf[0], &loaded_buf[0], cap_i);
-  if (n < 0) {
-    return 1;
-  }
-  let preprocess_buf: u8[4194304] = [];
-  let out_len: i32 = preprocess_x_buf(&loaded_buf[0], n, &preprocess_buf[0], 4194304);
-  if (out_len < 0) {
-    return 1;
-  }
-  /* See implementation. */
-  let arena_buf: *u8 = driver_arena_buf();
-  let module_buf: *u8 = driver_module_buf();
-  let ctx: PipelineDepCtx = pipeline_dep_ctx_for_emit(state.use_asm_backend, state.target_arch);
-  let last_slash: i32 = -1;
-  let k: i32 = 0;
-  while (k < state.path_len && k < 512) {
-    if (state.path_buf[k] == 47) {
-      last_slash = k;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (state.path_len >= 0 && state.path_len < 511) {
+      state.path_buf[state.path_len] = 0 as u8;
     }
-    k = k + 1;
-  }
-  if (last_slash >= 0) {
-    k = 0;
-    while (k < last_slash && k < 511) {
-      ctx.entry_dir_buf[k] = state.path_buf[k];
-      k = k + 1;
-    }
-    ctx.entry_dir_buf[k] = 0;
-    ctx.entry_dir_len = k;
-  } else {
-    ctx.entry_dir_buf[0] = 46;
-    ctx.entry_dir_buf[1] = 0;
-    ctx.entry_dir_len = 1;
-  }
-  ctx.num_lib_roots = 0;
-  driver_emit_copy_lib_roots_to_ctx(state, &ctx);
-  let out: CodegenOutBuf = CodegenOutBuf { data: [], length: 0 };
-  let source_len: usize = out_len as usize;
-  let rc: i32 = pipeline_run_x_pipeline_impl(module_buf, arena_buf, preprocess_buf, source_len, &out, &ctx);
-  if (rc != 0) {
-    driver_pipeline_fail_code(rc, &ctx.path_buf[0]);
-    return 1;
-  }
-  /* See implementation. */
-  let len: i32 = out.length;
-  if (state.out_path_len == 0) {
-    driver_print_x_smoke_summary(module_buf, len as usize);
-  }
-  if (state.out_path_len > 0) {
-    let fd: i32 = driver_fs_open_write(state.out_path_buf, state.out_path_len);
-    if (fd < 0) {
+    let loaded_buf: u8[4194304] = [];
+    let cap_i: i32 = 4194304;
+    let n: i32 = sys.read_file_into(&state.path_buf[0], &loaded_buf[0], cap_i);
+    if (n < 0) {
       return 1;
     }
-    if (len > 262144) {
-      let written: isize = unsafe { fs_posix_write_c(fd, out.data, 262144) };
-      unsafe { fs_posix_close_c(fd); }
-      if (written < 0 || (written as i32) != 262144) {
+    let preprocess_buf: u8[4194304] = [];
+    let out_len: i32 = preprocess_x_buf(&loaded_buf[0], n, &preprocess_buf[0], 4194304);
+    if (out_len < 0) {
+      return 1;
+    }
+    /* See implementation. */
+    let arena_buf: *u8 = driver_arena_buf();
+    let module_buf: *u8 = driver_module_buf();
+    let ctx: PipelineDepCtx = pipeline_dep_ctx_for_emit(state.use_asm_backend, state.target_arch);
+    let last_slash: i32 = -1;
+    let k: i32 = 0;
+    while (k < state.path_len && k < 512) {
+      if (state.path_buf[k] == 47) {
+        last_slash = k;
+      }
+      k = k + 1;
+    }
+    if (last_slash >= 0) {
+      k = 0;
+      while (k < last_slash && k < 511) {
+        ctx.entry_dir_buf[k] = state.path_buf[k];
+        k = k + 1;
+      }
+      ctx.entry_dir_buf[k] = 0;
+      ctx.entry_dir_len = k;
+    } else {
+      ctx.entry_dir_buf[0] = 46;
+      ctx.entry_dir_buf[1] = 0;
+      ctx.entry_dir_len = 1;
+    }
+    ctx.num_lib_roots = 0;
+    driver_emit_copy_lib_roots_to_ctx(state, &ctx);
+    let out: CodegenOutBuf = CodegenOutBuf { data: [], length: 0 };
+    let source_len: usize = out_len as usize;
+    let rc: i32 = pipeline_run_x_pipeline_impl(module_buf, arena_buf, preprocess_buf, source_len, &out, &ctx);
+    if (rc != 0) {
+      driver_pipeline_fail_code(rc, &ctx.path_buf[0]);
+      return 1;
+    }
+    /* See implementation. */
+    let len: i32 = out.length;
+    if (state.out_path_len == 0) {
+      driver_print_x_smoke_summary(module_buf, len as usize);
+    }
+    if (state.out_path_len > 0) {
+      let fd: i32 = driver_fs_open_write(state.out_path_buf, state.out_path_len);
+      if (fd < 0) {
         return 1;
+      }
+      if (len > 262144) {
+        let written: isize = fs_posix_write_c(fd, out.data, 262144);
+        fs_posix_close_c(fd);
+        if (written < 0 || (written as i32) != 262144) {
+          return 1;
+        }
+      } else {
+        let written: isize = fs_posix_write_c(fd, out.data, len as usize);
+        fs_posix_close_c(fd);
+        if (written < 0 || (written as i32) != len) {
+          return 1;
+        }
       }
     } else {
-      let written: isize = unsafe { fs_posix_write_c(fd, out.data, len as usize) };
-      unsafe { fs_posix_close_c(fd); }
-      if (written < 0 || (written as i32) != len) {
-        return 1;
+      if (len > 262144) {
+        let written: isize = fs_posix_write_c(1, out.data, 262144);
+        if (written < 0 || (written as i32) != 262144) {
+          return 1;
+        }
+      } else {
+        let written: isize = fs_posix_write_c(1, out.data, len as usize);
+        if (written < 0 || (written as i32) != len) {
+          return 1;
+        }
       }
     }
-  } else {
-    if (len > 262144) {
-      let written: isize = unsafe { fs_posix_write_c(1, out.data, 262144) };
-      if (written < 0 || (written as i32) != 262144) {
-        return 1;
-      }
-    } else {
-      let written: isize = unsafe { fs_posix_write_c(1, out.data, len as usize) };
-      if (written < 0 || (written as i32) != len) {
-        return 1;
-      }
-    }
+    return 0;
   }
-  return 0;
 }
 
 /**
@@ -701,37 +735,46 @@ export function driver_run_x_emit_x(state: *DriverXEmitState): i32 {
  * See implementation.
  */
 export function main_run_compiler_x_path_impl(argc: i32, argv: *u8): i32 {
-  let state: DriverXEmitState = driver_emit_state_default();
-  let r: i32 = driver_argv_parse_x_path(argc, argv, &state);
-  if (r == 1) {
-    return run_compiler_c_impl(argc, argv);
+
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    let state: DriverXEmitState = driver_emit_state_default();
+    let r: i32 = driver_argv_parse_x_path(argc, argv, &state);
+    if (r == 1) {
+      return run_compiler_c_impl(argc, argv);
+    }
+    if (r == 2) {
+      return run_compiler_c_impl(argc, argv);
+    }
+    if (state.use_asm_backend != 0) {
+      return run_compiler_c_impl(argc, argv);
+    }
+    /*
+     * See implementation.
+     * See implementation.
+     * See implementation.
+     * See implementation.
+     */
+    if (state.out_path_len > 0) {
+      return run_compiler_c_impl(argc, argv);
+    }
+    return driver_run_x_emit_x(&state);
   }
-  if (r == 2) {
-    return run_compiler_c_impl(argc, argv);
-  }
-  if (state.use_asm_backend != 0) {
-    return run_compiler_c_impl(argc, argv);
-  }
-  /*
-   * See implementation.
-   * See implementation.
-   * See implementation.
-   * See implementation.
-   */
-  if (state.out_path_len > 0) {
-    return run_compiler_c_impl(argc, argv);
-  }
-  return driver_run_x_emit_x(&state);
 }
 
 /**
  * See implementation.
  */
 export function main_cmd_build(argc: i32, argv: *u8): i32 {
-  if (argc < 2) {
-    return driver_build_build_x();
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (argc < 2) {
+      return driver_build_build_x();
+    }
+    return main_run_compiler_x_path_impl(argc, argv);
   }
-  return main_run_compiler_x_path_impl(argc, argv);
 }
 
 /**
@@ -745,33 +788,37 @@ export function main_cmd_build(argc: i32, argv: *u8): i32 {
  * code themselves. PLATFORM: SHARED.
  */
 export function main_cmd_run(argc: i32, argv: *u8): i32 {
-  if (argc < 2) {
-    return 1;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (argc < 2) {
+      return 1;
+    }
+    /* Detect an explicit user-supplied -o before driver_argv_ensure_run_o runs.
+     * Why: driver_argv_ensure_run_o silently injects a temp -o when none is
+     * present, so run_argv alone cannot tell whether the user asked for
+     * compile-only. When -o is explicit, skip the exec path so the compiled
+     * program's exit code does not leak through xlang's own exit status. */
+    let has_explicit_o: i32 = main_argv_has_o_flag(argc, argv);
+    let run_argc: i32 = argc;
+    let run_argv: *u8 = driver_argv_ensure_run_o(argc, argv, &run_argc);
+    if (has_explicit_o != 0) {
+      /* Compile-only: do not set XLANG_RUN_QUIET (let cc warnings surface, since
+       * the user explicitly requested an output path) and do not exec. */
+      return main_run_compiler_x_path_impl(run_argc, run_argv);
+    }
+    /* mute generated-C warning noise so only program output is printed; cc
+       errors still surface (XLANG_RUN_QUIET only adds -w / -Wl,-w in invoke_cc). */
+    /* "XLANG_RUN_QUIET" (14 bytes) + NUL terminator; setenv needs a C string. */
+    let _q: u8[16] = [88, 76, 65, 78, 71, 95, 82, 85, 78, 95, 81, 85, 73, 69, 84, 0];
+    let _one: u8[2] = [49, 0];
+    unsafe { setenv(&_q[0], &_one[0], 1); }
+    let rc: i32 = main_run_compiler_x_path_impl(run_argc, run_argv);
+    if (rc == 0) {
+      return driver_exec_compiled(run_argc, run_argv);
+    }
+    return rc;
   }
-  /* Detect an explicit user-supplied -o before driver_argv_ensure_run_o runs.
-   * Why: driver_argv_ensure_run_o silently injects a temp -o when none is
-   * present, so run_argv alone cannot tell whether the user asked for
-   * compile-only. When -o is explicit, skip the exec path so the compiled
-   * program's exit code does not leak through xlang's own exit status. */
-  let has_explicit_o: i32 = main_argv_has_o_flag(argc, argv);
-  let run_argc: i32 = argc;
-  let run_argv: *u8 = driver_argv_ensure_run_o(argc, argv, &run_argc);
-  if (has_explicit_o != 0) {
-    /* Compile-only: do not set XLANG_RUN_QUIET (let cc warnings surface, since
-     * the user explicitly requested an output path) and do not exec. */
-    return main_run_compiler_x_path_impl(run_argc, run_argv);
-  }
-  /* mute generated-C warning noise so only program output is printed; cc
-     errors still surface (XLANG_RUN_QUIET only adds -w / -Wl,-w in invoke_cc). */
-  /* "XLANG_RUN_QUIET" (14 bytes) + NUL terminator; setenv needs a C string. */
-  let _q: u8[16] = [88, 76, 65, 78, 71, 95, 82, 85, 78, 95, 81, 85, 73, 69, 84, 0];
-  let _one: u8[2] = [49, 0];
-  unsafe { setenv(&_q[0], &_one[0], 1); }
-  let rc: i32 = main_run_compiler_x_path_impl(run_argc, run_argv);
-  if (rc == 0) {
-    return driver_exec_compiled(run_argc, run_argv);
-  }
-  return rc;
 }
 
 /* Returns 1 if any argv[i] (i in [1, argc)) equals "-o" (the canonical short
@@ -779,17 +826,22 @@ export function main_cmd_run(argc: i32, argv: *u8): i32 {
  * compile-only invocations from in-memory compile-and-run. PLATFORM: SHARED.
  * Contract: argc >= 1; argv may be null only when argc < 1 (returns 0). */
 function main_argv_has_o_flag(argc: i32, argv: *u8): i32 {
-  let i: i32 = 1;
-  let buf: u8[8] = [];
-  while (i < argc) {
-    let len: i32 = driver_get_argv_i(argc, argv, i, &buf[0], 8);
-    /* "-o" == bytes [45 ('-'), 111 ('o')] */
-    if (len == 2 && buf[0] == 45 && buf[1] == 111) {
-      return 1;
+
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    let i: i32 = 1;
+    let buf: u8[8] = [];
+    while (i < argc) {
+      let len: i32 = driver_get_argv_i(argc, argv, i, &buf[0], 8);
+      /* "-o" == bytes [45 ('-'), 111 ('o')] */
+      if (len == 2 && buf[0] == 45 && buf[1] == 111) {
+        return 1;
+      }
+      i = i + 1;
     }
-    i = i + 1;
+    return 0;
   }
-  return 0;
 }
 
 /**
@@ -832,65 +884,70 @@ export extern function typeck_lsp_main(): i32;
  * PLATFORM: SHARED — mac + Ubuntu product binary must accept the same bare form.
  */
 export function entry(argc: i32, argv: *u8): i32 {
-  let arg_buf: u8[128] = [];
-  let i: i32 = 1;
-  while (i < argc) {
-    let len: i32 = driver_get_argv_i(argc, argv, i, arg_buf, 64);
-    if (len >= 0 && eq_minus_lsp(arg_buf, len) != 0) {
-      return typeck_lsp_main();
+
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    let arg_buf: u8[128] = [];
+    let i: i32 = 1;
+    while (i < argc) {
+      let len: i32 = driver_get_argv_i(argc, argv, i, arg_buf, 64);
+      if (len >= 0 && eq_minus_lsp(arg_buf, len) != 0) {
+        return typeck_lsp_main();
+      }
+      i = i + 1;
     }
-    i = i + 1;
-  }
-  /* Dispatch named subcommands; bare .x path falls through to main_cmd_run. */
-  if (argc >= 2) {
-    let alen: i32 = driver_get_argv_i(argc, argv, 1, arg_buf, 64);
-    if (alen > 0 && arg_buf[0] != 45) {
-      let w_build: u8[5] = [98, 117, 105, 108, 100];
-      let w_run: u8[3] = [114, 117, 110];
-      let w_fmt: u8[3] = [102, 109, 116];
-      let w_check: u8[5] = [99, 104, 101, 99, 107];
-      let w_test: u8[4] = [116, 101, 115, 116];
-      if (str_eq(&arg_buf[0], alen, &w_build[0], 5) != 0) {
-        return main_cmd_build(argc - 1, driver_argv_drop_subcommand(argc, argv));
+    /* Dispatch named subcommands; bare .x path falls through to main_cmd_run. */
+    if (argc >= 2) {
+      let alen: i32 = driver_get_argv_i(argc, argv, 1, arg_buf, 64);
+      if (alen > 0 && arg_buf[0] != 45) {
+        let w_build: u8[5] = [98, 117, 105, 108, 100];
+        let w_run: u8[3] = [114, 117, 110];
+        let w_fmt: u8[3] = [102, 109, 116];
+        let w_check: u8[5] = [99, 104, 101, 99, 107];
+        let w_test: u8[4] = [116, 101, 115, 116];
+        if (str_eq(&arg_buf[0], alen, &w_build[0], 5) != 0) {
+          return main_cmd_build(argc - 1, driver_argv_drop_subcommand(argc, argv));
+        }
+        if (str_eq(&arg_buf[0], alen, &w_run[0], 3) != 0) {
+          return main_cmd_run(argc - 1, driver_argv_drop_subcommand(argc, argv));
+        }
+        if (str_eq(&arg_buf[0], alen, &w_fmt[0], 3) != 0) {
+          return driver_cmd_fmt(argc - 1, driver_argv_drop_subcommand(argc, argv));
+        }
+        if (str_eq(&arg_buf[0], alen, &w_check[0], 5) != 0) {
+          return driver_cmd_check(argc - 1, driver_argv_drop_subcommand(argc, argv));
+        }
+        if (str_eq(&arg_buf[0], alen, &w_test[0], 4) != 0) {
+          return driver_cmd_test(argc - 1, driver_argv_drop_subcommand(argc, argv));
+        }
+        /* Bare path: do not drop argv[1]; it is the input file. */
+        if (main_arg_looks_like_source_path(&arg_buf[0], alen) != 0) {
+          return main_cmd_run(argc, argv);
+        }
+        driver_print_usage_write();
+        return 1;
       }
-      if (str_eq(&arg_buf[0], alen, &w_run[0], 3) != 0) {
-        return main_cmd_run(argc - 1, driver_argv_drop_subcommand(argc, argv));
-      }
-      if (str_eq(&arg_buf[0], alen, &w_fmt[0], 3) != 0) {
-        return driver_cmd_fmt(argc - 1, driver_argv_drop_subcommand(argc, argv));
-      }
-      if (str_eq(&arg_buf[0], alen, &w_check[0], 5) != 0) {
-        return driver_cmd_check(argc - 1, driver_argv_drop_subcommand(argc, argv));
-      }
-      if (str_eq(&arg_buf[0], alen, &w_test[0], 4) != 0) {
-        return driver_cmd_test(argc - 1, driver_argv_drop_subcommand(argc, argv));
-      }
-      /* Bare path: do not drop argv[1]; it is the input file. */
-      if (main_arg_looks_like_source_path(&arg_buf[0], alen) != 0) {
-        return main_cmd_run(argc, argv);
-      }
-      driver_print_usage_write();
-      return 1;
     }
-  }
-  let state: DriverXEmitState = driver_emit_state_default();
-  if (driver_argv_parse_x(argc, argv, &state) != 0) {
+    let state: DriverXEmitState = driver_emit_state_default();
+    if (driver_argv_parse_x(argc, argv, &state) != 0) {
+      /* See implementation. */
+      /* See implementation. */
+      driver_run_x_emit_c_set_emit_extern(state.emit_extern_imports);
+      driver_run_x_emit_c_set_path(state.path_buf, state.path_len);
+      let k: i32 = 0;
+      let n_roots: i32 = driver_emit_lib_root_count(driver_emit_state_key(&state));
+      let lib_tmp: u8[256] = [];
+      while (k < n_roots) {
+        let llen: i32 = driver_emit_lib_root_len(driver_emit_state_key(&state), k);
+        driver_emit_lib_root_copy(driver_emit_state_key(&state), k, &lib_tmp[0], 256);
+        driver_run_x_emit_c_set_lib(k, &lib_tmp[0], llen);
+        k = k + 1;
+      }
+      driver_run_x_emit_c_set_n_lib_roots(n_roots);
+      return driver_run_x_emit_c();
+    }
     /* See implementation. */
-    /* See implementation. */
-    driver_run_x_emit_c_set_emit_extern(state.emit_extern_imports);
-    driver_run_x_emit_c_set_path(state.path_buf, state.path_len);
-    let k: i32 = 0;
-    let n_roots: i32 = driver_emit_lib_root_count(driver_emit_state_key(&state));
-    let lib_tmp: u8[256] = [];
-    while (k < n_roots) {
-      let llen: i32 = driver_emit_lib_root_len(driver_emit_state_key(&state), k);
-      driver_emit_lib_root_copy(driver_emit_state_key(&state), k, &lib_tmp[0], 256);
-      driver_run_x_emit_c_set_lib(k, &lib_tmp[0], llen);
-      k = k + 1;
-    }
-    driver_run_x_emit_c_set_n_lib_roots(n_roots);
-    return driver_run_x_emit_c();
+    return main_run_compiler_x_path_impl(argc, argv);
   }
-  /* See implementation. */
-  return main_run_compiler_x_path_impl(argc, argv);
 }

@@ -103,6 +103,16 @@ struct parser_asm_onefunc_result {
   int32_t func_return_type_ref;
 };
 
+/* wave-fix: parser_asm_parse_expr_result used by parser_asm_one_function_buf_slice.inc
+ * (expr_res / match_res / expr_stmt_res). Defined in sibling pthin TUs (ctrl/primary/
+ * binop/etc.) but missing here → incomplete-type error. Single authority layout matches
+ * pthin_ctrl.from_x.c. PLATFORM: SHARED. */
+struct parser_asm_parse_expr_result {
+  int32_t ok;
+  int32_t expr_ref;
+  struct parser_asm_lexer next_lex;
+};
+
 struct ast_Type {
   int32_t kind;
   uint8_t name[128];

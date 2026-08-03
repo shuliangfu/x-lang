@@ -216,6 +216,14 @@
 // wave96: pipeline_parse_into_buf is pure export function below (not Cap residual).
 // wave97: load_and_sync step5 merge+wpo call typeck.x authority below (not Cap residual hop).
 export extern "C" function strchr(s: *u8, c: i32): *u8;
+// wave1222: sibling-directory scan helpers for import resolution.
+// These are static inline in g05_try_x_to_o prologue (sed strips the extern
+// re-decl from -E output). PLATFORM: POSIX (opendir/readdir); Windows cold
+// seed C rest. Same pattern as fmt_check_cmd_thin.x lines 770-773.
+export extern "C" function xlang_fmt_opendir(name: *u8): *u8;
+export extern "C" function xlang_fmt_closedir(dirp: *u8): i32;
+export extern "C" function xlang_fmt_access(path: *u8, mode: i32): i32;
+export extern "C" function xlang_fmt_readdir_name(dirp: *u8): *u8;
 // wave88/98: complex #if → G.7 cfg_eval.x authority (surface cfg_eval_expr_c via
 // link_alias to lexer_cfg_eval_expr_c; product must not pin bootstrap stub — wave98).
 export extern "C" function cfg_eval_expr_c(start: *u8, len: i32): i32;
@@ -266,6 +274,12 @@ export extern "C" function typeck_merge_dep_struct_layouts_into_entry(mod: *u8, 
 export extern "C" function typeck_wpo_unify_soa_layouts(entry: *u8, ctx: *u8): void;
 export extern "C" function pipeline_module_main_func_index(module: *u8): i32;
 export extern "C" function free(p: *u8): void;
+/** Release process-wide ArenaSidecar GrowVecs before free(arena).
+ * PLATFORM: SHARED — required for batch check (collect_deps tmp arenas). */
+export extern "C" function ast_pool_arena_release(a: *u8): void;
+/** Release process-wide ModuleSidecar GrowVecs before free(module).
+ * PLATFORM: SHARED — see ast_pool_arena_release. */
+export extern "C" function ast_pool_module_release(m: *u8): void;
 // wave52 pure tmp_parse orch: libc malloc/memset for large tmp arena/module ensure+zero.
 // PLATFORM: SHARED — same ABI as seed cold twin; free() still releases ownership.
 export extern "C" function malloc(n: usize): *u8;
@@ -417,10 +431,96 @@ export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i
  * PLATFORM: SHARED — product hybrid pipeline_abi pure uses same face as cold seed. */
 export extern "C" function link_abi_getenv(name: *u8): *u8;
 
-/* See implementation. */
+/* wave1222: extern declarations for parser_parse_into_init body.
+ * These mirror the C authority in parser_gen.c L6318-6331 to ensure the
+ * .x strong symbol performs identical AST arena/module state reset.
+ * Without this, the empty .x body overrode the C init, causing AST arena
+ * state leakage between file checks in directory mode (T001 cascades).
+ * PLATFORM: SHARED — all externs are platform-agnostic arena/module reset. */
+export extern "C" function ast_ast_arena_init(arena: *u8): void;
+export extern "C" function ast_pool_module_reset(module: *u8): void;
+export extern "C" function ast_pool_arena_reset(arena: *u8): void;
+export extern "C" function parser_onefunc_result_layout_prime(): void;
+export extern "C" function parser_onefunc_result_layout_prime_b(): void;
+export extern "C" function parser_onefunc_result_layout_prime_c(): void;
+export extern "C" function parser_onefunc_result_layout_prime_d(): void;
+export extern "C" function parser_onefunc_result_layout_prime_d_b(): void;
+export extern "C" function parser_onefunc_result_layout_prime_e(): void;
+export extern "C" function parser_onefunc_result_layout_prime_f(): void;
+export extern "C" function parser_pipeline_module_reset_parse_counters(module: *u8): void;
+export extern "C" function pipeline_parser_set_match_module(module: *u8): void;
 
+/* wave1222: trait registry + generic bound source stash (mirrors C impl_c).
+ * Without these, directory-mode check leaks trait/generic state across files,
+ * causing the parser to misbehave (e.g. num_funcs drops from 356 to 104 for
+ * runtime_pipeline_abi.x when checked after other files).
+ * PLATFORM: SHARED — pure delegation to platform-agnostic externs. */
+export extern "C" function xlang_trait_reg_reset_c(arena: *u8): void;
+export extern "C" function xlang_generic_bound_stash_source_buf_c(data: *u8, len: i32): void;
+
+/* wave1223: extern declarations for pipeline_parse_set_main_from_buf_c body.
+ * These mirror the C authority in ast_pool.c L2367-2389 to ensure the
+ * .x strong symbol performs identical parse + main_idx set.
+ * Without this, the empty .x body (return 0) overrode the C impl, causing
+ * pipeline_run_x_pipeline to skip parsing entirely in directory mode
+ * (num_funcs=190 instead of 377 for runtime_driver_abi_thin.x).
+ * PLATFORM: SHARED — all externs are platform-agnostic parse/diag helpers. */
+export extern "C" function pipeline_lint_set_source_buf(data: *u8, len: i32): void;
+export extern "C" function pipeline_module_set_main_func_index(module: *u8, idx: i32): void;
+export extern "C" function driver_diagnostic_parse_fail(main_idx: i32, num_funcs: i32, arena_num_types: i32): void;
+export extern "C" function pipeline_arena_num_types(arena: *u8): i32;
+/* wave1224: pipeline_parse_into_with_init_buf_scalars is the C authority that
+ * performs the FULL arena/module reset via pipeline_strict_parse_into_init
+ * (which resets more module fields than parser_parse_into_init — including
+ * pending_allow_padding / pending_soa_struct / pending_cfg_skip / repr flags
+ * / num_module_enums). Calling parser_parse_into_init directly left these
+ * stale across files in directory mode, causing the parser to stop at
+ * num_funcs=190 instead of 377 for runtime_driver_abi_thin.x.
+ * Delegating to scalars guarantees byte-identical reset semantics with the
+ * C authority (ast_pool.c L2301-2323 → pipeline_parse_into_with_init_buf_impl_c
+ * → pipeline_strict_parse_into_init ast_pool.c L1571-1597).
+ * PLATFORM: SHARED — pure delegation to platform-agnostic C authority. */
+export extern "C" function pipeline_parse_into_with_init_buf_scalars(arena: *u8, module: *u8, data: *u8, len: i32, out_ok: *i32, out_main_idx: *i32): i32;
+
+/**
+ * Initialize AST arena and module state before parsing a new file.
+ *
+ * Why: this is the per-file reset point. Without it, arena counters
+ *      (num_types/num_exprs/num_blocks/num_funcs) and module parse
+ *      counters leak across files in directory check mode, causing
+ *      function index drift and cascading T001 "unresolved function"
+ *      errors that do not reproduce in single-file mode.
+ *      wave1222: also resets trait registry (xlang_trait_reg_reset_c) to
+ *      prevent cross-file trait/generic state leak that caused the parser
+ *      to truncate function lists (num_funcs 356→106) in directory mode.
+ * Contract: must be called before every parser_parse_into_buf call;
+ *           zeroes arena counters, resets module fields, primes the
+ *           onefunc result layout cache, resets trait registry, and sets
+ *           the active match module pointer for parse_match enum tag
+ *           resolution.
+ * Body mirrors parser_gen.c L6318-6331 (C authority) + trait reset.
+ * PLATFORM: SHARED — pure delegation to platform-agnostic externs.
+ */
 #[no_mangle]
 export function parser_parse_into_init(module: *u8, arena: *u8): void {
+  unsafe {
+    // wave1222: trait registry reset MUST come first; without it, stale trait
+    // entries from previous files cause the parser to misbehave in directory
+    // mode (num_funcs drops from 358 to 106 for runtime_pipeline_abi.x).
+    xlang_trait_reg_reset_c(arena);
+    ast_ast_arena_init(arena);
+    ast_pool_module_reset(module);
+    ast_pool_arena_reset(arena);
+    parser_onefunc_result_layout_prime();
+    parser_onefunc_result_layout_prime_b();
+    parser_onefunc_result_layout_prime_c();
+    parser_onefunc_result_layout_prime_d();
+    parser_onefunc_result_layout_prime_d_b();
+    parser_onefunc_result_layout_prime_e();
+    parser_onefunc_result_layout_prime_f();
+    parser_pipeline_module_reset_parse_counters(module);
+    pipeline_parser_set_match_module(module);
+  }
 }
 
 /** Exported function `parser_get_module_num_imports`.
@@ -554,17 +654,71 @@ export function xlang_asm_codegen_elf_o_product_emit(module: *u8, arena: *u8, ct
   return 0 - 1;
 }
 
-/** Exported function `pipeline_parse_set_main_from_buf_c`.
- * Implements `pipeline_parse_set_main_from_buf_c`.
- * @param m *u8
- * @param a *u8
- * @param d *u8
- * @param len i32
- * @return i32
- */
+/** Parse source buffer into module/arena, then set main_func_index.
+ *
+ * This is the pipeline entry parse function called by
+ * run_x_pipeline_parse_entry_do_parse_c (ast_pool.c L2836) during
+ * xlang_pipeline_run_x_pipeline_large_stack. It mirrors the C authority
+ * in ast_pool.c L2367-2389 exactly.
+ *
+ * Why: previously this was an empty stub (return 0) that overrode the C
+ * strong symbol via link order. In directory check mode, the pipeline path
+ * calls this function to parse each file; the empty stub caused files to
+ * be silently skipped (num_funcs=190 instead of 377 for
+ * runtime_driver_abi_thin.x), producing T001 "unresolved function call"
+ * errors for functions that were never parsed into the module.
+ *
+ * wave1224: delegate to pipeline_parse_into_with_init_buf_scalars (C authority
+ * ast_pool.c L2301-2323) instead of re-implementing the reset locally.
+ * The scalars path calls pipeline_strict_parse_into_init (ast_pool.c L1571-1597)
+ * which resets MORE module fields than parser_parse_into_init — including
+ * pending_allow_padding / pending_soa_struct / pending_cfg_skip /
+ * pending_repr_c_struct / pending_repr_compatible_struct / num_module_enums.
+ * Without these resets, stale state from a previous file caused the parser
+ * to stop at num_funcs=190 in directory mode for runtime_driver_abi_thin.x
+ * (single-file mode was unaffected because no prior file polluted the state).
+ * Trait/generic stash is already done inside scalars → impl_c, so we do NOT
+ * call xlang_trait_reg_reset_c / xlang_generic_bound_stash_source_buf_c here
+ * (calling them twice would be redundant and could double-stash).
+ *
+ * Steps (match C authority ast_pool.c L2367-2389):
+ *   1) null/length gate → -2
+ *   2) pipeline_lint_set_source_buf (anchor L7 unused-private warnings)
+ *   3) pipeline_parse_into_with_init_buf_scalars (full reset + parse + scalars)
+ *   4) on parse failure (ok != 0): driver_diagnostic_parse_fail + return -2
+ *   5) pipeline_module_set_main_func_index(module, main_idx)
+ *
+ * @param m *u8 — opaque ast_Module pointer; null → -2
+ * @param a *u8 — opaque ast_ASTArena pointer; null → -2
+ * @param d *u8 — source bytes; null → -2
+ * @param len i32 — byte length; <=0 → -2
+ * @return i32 — 0 on success, -2 on parse failure or null input
+ * wave1223: full body matching C authority (was empty stub returning 0).
+ * wave1224: delegate to scalars to guarantee byte-identical reset semantics.
+ * PLATFORM: SHARED — pure delegation to platform-agnostic C authority. */
 #[no_mangle]
 export function pipeline_parse_set_main_from_buf_c(m: *u8, a: *u8, d: *u8, len: i32): i32 {
-  return 0;
+  if (m == 0 as *u8) { return 0 - 2; }
+  if (a == 0 as *u8) { return 0 - 2; }
+  if (d == 0 as *u8) { return 0 - 2; }
+  if (len <= 0) { return 0 - 2; }
+  unsafe {
+    // L7 / LSP: anchor unused private function warnings to definition source.
+    pipeline_lint_set_source_buf(d, len);
+    // Delegate to C authority scalars: performs full arena/module reset via
+    // pipeline_strict_parse_into_init + trait/generic stash + parser_parse_into_buf
+    // and returns ok / main_idx via out parameters.
+    let ok: i32 = 0;
+    let main_idx: i32 = 0 - 1;
+    pipeline_parse_into_with_init_buf_scalars(a, m, d, len, &ok, &main_idx);
+    if (ok != 0) {
+      driver_diagnostic_parse_fail(main_idx, pipeline_module_num_funcs(m), pipeline_arena_num_types(a));
+      return 0 - 2;
+    }
+    pipeline_module_set_main_func_index(m, main_idx);
+    return 0;
+  }
+  return 0 - 2;
 }
 
 /**
@@ -2357,7 +2511,7 @@ export function pipeline_read_file(): i32 {
  * @param len i64 — byte length; negative or > INT32_MAX → -1; zero length allowed
  * @return i32 — 0 if parser ok==0; -1 on null/oversized/any non-zero ok
  * wave64 pure Cap residual orch:
- *   G.7 pure parser_parse_into_init (weak empty here; strong parser wins final link);
+ *   G.7 pure parser_parse_into_init (wave1222: full body matching C authority);
  *   G.7 pure driver_parse_into_buf_rc (unpacks Cap-struct-return ParseIntoResult.ok).
  * Contract: this API collapses every non-zero ok to -1 (including historical ok==-2).
  *   Contrast one_ctx map_impl (wave62), which accepts ok==-2 for import-table scan.
@@ -2384,7 +2538,10 @@ export function pipeline_parse_into_bytes(arena: *u8, module: *u8, data: *u8, le
   }
   let len_i32: i32 = len as i32;
   unsafe {
-    // Same order as historical seed: init then parse_into.
+    // Same order as historical impl_c: trait reset + source stash + init + parse.
+    // wave1222: trait_reg_reset + generic_bound_stash prevent cross-file state leak.
+    xlang_trait_reg_reset_c(arena);
+    xlang_generic_bound_stash_source_buf_c(data, len_i32);
     parser_parse_into_init(module, arena);
     // Cap-struct-return residual unpacks ParseIntoResult.ok; null out_main_idx.
     let pr_ok: i32 = driver_parse_into_buf_rc(arena, module, data, len_i32, 0 as *i32);
@@ -2553,7 +2710,7 @@ export function xlang_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_ar
  * @param len i64 — byte length; > INT32_MAX → -1
  * @return i32 — 0 on parse ok; -1 on null/oversized/parse fail
  * wave59 pure Cap residual:
- *   G.7 pure parser_parse_into_init (weak empty in this TU; strong parser wins final link);
+ *   G.7 pure parser_parse_into_init (wave1222: full body matching C authority);
  *   G.7 pure pipeline_parse_set_main_from_buf_c surface (real body in pipeline_glue);
  *   XLANG_ASM_DEBUG notes cold-only (seed twin keeps pipeline_asm_debug_enabled diags).
  * PLATFORM: SHARED — same return mapping as historical seed _impl (parse_rc==0 → 0 else -1).
@@ -2580,6 +2737,9 @@ export function xlang_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_aren
   unsafe {
     let len_i32: i32 = len as i32;
     // Authority parse path for dep prerun (not bare parser_parse_into).
+    // wave1222: trait_reg_reset + generic_bound_stash prevent cross-file state leak.
+    xlang_trait_reg_reset_c(dep_arena);
+    xlang_generic_bound_stash_source_buf_c(src, len_i32);
     parser_parse_into_init(dep_mod, dep_arena);
     let parse_rc: i32 = pipeline_parse_set_main_from_buf_c(dep_mod, dep_arena, src, len_i32);
     if (parse_rc == 0) {
@@ -3740,6 +3900,369 @@ export function xlang_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots
       }
     }
   }
+  // wave1222: sibling-directory scan fallback. Delegates to helper to keep
+  // this function within typeck complexity budget (deep nesting caused
+  // cascading T001 in subsequent functions during directory check).
+  // PLATFORM: POSIX (opendir/readdir via xlang_fmt_*); Windows cold seed C rest.
+  xlang_resolve_import_sibling_scan(entry_dir, import_path, path, cap);
+}
+
+/**
+ * Sibling-directory scan for import path resolution.
+ * When import("token") from parser/parser.x has token.x at lexer/token.x
+ * (sibling dir under same src/ root), all preceding lookups fail. Scan
+ * entry_dir's parent for sibling subdirs containing <name>.x or
+ * <name>/<name>.x. For dotted imports like "platform.elf" where no sibling
+ * dir matches the first segment, tries each sibling as parent (deep scan)
+ * to find nested paths like src/asm/platform/elf.x.
+ * Seed twin: runtime_pipeline_abi.from_x.c sibling scan (same semantics).
+ * PLATFORM: POSIX (opendir/readdir via xlang_fmt_*); Windows cold seed C rest.
+ */
+#[no_mangle]
+export function xlang_resolve_import_sibling_scan(entry_dir: *u8, import_path: *u8, path: *u8, cap: i32): void {
+  if (entry_dir == 0 as *u8) { return; }
+  if (import_path == 0 as *u8) { return; }
+  if (path == 0 as *u8) { return; }
+  if (cap < 16) { return; }
+  unsafe {
+    if (entry_dir[0] == 0) { return; }
+    let sib_last_slash: i32 = 0 - 1;
+    let sib_ei: i32 = 0;
+    while (sib_ei < 4096) {
+      if (entry_dir[sib_ei] == 0) { break; }
+      if (entry_dir[sib_ei] == 47) { sib_last_slash = sib_ei; }
+      sib_ei = sib_ei + 1;
+    }
+    if (sib_last_slash <= 0) { return; }
+    if (sib_last_slash >= 480) { return; }
+    let sib_parent: u8[512] = [];
+    // Temp buffer for opendir probe: <sib_parent>/<sib_dn>
+    let sib_dir_probe: u8[512] = [];
+    let sib_pi: i32 = 0;
+    while (sib_pi < sib_last_slash) {
+      sib_parent[sib_pi] = entry_dir[sib_pi];
+      sib_pi = sib_pi + 1;
+    }
+    sib_parent[sib_last_slash] = 0;
+    let sib_d: *u8 = xlang_fmt_opendir(&sib_parent[0]);
+    if (sib_d == 0 as *u8) { return; }
+    let sib_guard: i32 = 0;
+    let sib_done: i32 = 0;
+    while (sib_guard < 100000) {
+      sib_guard = sib_guard + 1;
+      if (sib_done != 0) { break; }
+      let sib_dn: *u8 = xlang_fmt_readdir_name(sib_d);
+      if (sib_dn == 0 as *u8) { break; }
+      if (sib_dn[0] == 46) { continue; }
+      // Skip non-directory entries: construct <parent>/<sib_dn> and opendir probe.
+      // Without this, files like seed_link_compat.o are treated as directories,
+      // producing bogus import paths like src/seed_link_compat.o/asm/backend.x.
+      let sib_dir_probe_off: i32 = 0;
+      while (sib_dir_probe_off < 510) {
+        let sib_dpc: u8 = sib_parent[sib_dir_probe_off];
+        sib_dir_probe[sib_dir_probe_off] = sib_dpc;
+        if (sib_dpc == 0) { break; }
+        sib_dir_probe_off = sib_dir_probe_off + 1;
+      }
+      if (sib_dir_probe_off < 510) {
+        sib_dir_probe[sib_dir_probe_off] = 47;
+        sib_dir_probe_off = sib_dir_probe_off + 1;
+        let sib_dpi: i32 = 0;
+        while (sib_dir_probe_off < 510) {
+          let sib_dpc2: u8 = sib_dn[sib_dpi];
+          if (sib_dpc2 == 0) { break; }
+          sib_dir_probe[sib_dir_probe_off] = sib_dpc2;
+          sib_dir_probe_off = sib_dir_probe_off + 1;
+          sib_dpi = sib_dpi + 1;
+        }
+        sib_dir_probe[sib_dir_probe_off] = 0;
+      }
+      let sib_dir_handle: *u8 = xlang_fmt_opendir(&sib_dir_probe[0]);
+      if (sib_dir_handle == 0 as *u8) { continue; }
+      xlang_fmt_closedir(sib_dir_handle);
+      let sib_has_dot: i32 = pipe_cstr_has_char(import_path, 46);
+      if (sib_has_dot == 0) {
+        // Single-segment: <parent>/<sibling>/<name>.x
+        let sib_off: i32 = 0;
+        while (sib_off < 511) {
+          let sib_c: u8 = sib_parent[sib_off];
+          path[sib_off] = sib_c;
+          if (sib_c == 0) { break; }
+          sib_off = sib_off + 1;
+        }
+        if (sib_off < 510) {
+          path[sib_off] = 47;
+          sib_off = sib_off + 1;
+          let sib_si: i32 = 0;
+          while (sib_off < 510) {
+            let sib_c2: u8 = sib_dn[sib_si];
+            if (sib_c2 == 0) { break; }
+            path[sib_off] = sib_c2;
+            sib_off = sib_off + 1;
+            sib_si = sib_si + 1;
+          }
+          if (sib_off < 510) {
+            path[sib_off] = 47;
+            sib_off = sib_off + 1;
+            let sib_ii: i32 = 0;
+            while (sib_off < 510) {
+              let sib_c3: u8 = import_path[sib_ii];
+              if (sib_c3 == 0) { break; }
+              path[sib_off] = sib_c3;
+              sib_off = sib_off + 1;
+              sib_ii = sib_ii + 1;
+            }
+            if (sib_off + 2 < cap) {
+              path[sib_off] = 46;
+              sib_off = sib_off + 1;
+              path[sib_off] = 120;
+              sib_off = sib_off + 1;
+              path[sib_off] = 0;
+              if (pipe_path_readable(path) != 0) {
+                sib_done = 1;
+              }
+            }
+          }
+        }
+        // Nested: <parent>/<sibling>/<name>/<name>.x
+        if (sib_done == 0) {
+          let sib_imp_len: i32 = pipe_cstr_len(import_path);
+          if (sib_imp_len > 0) {
+            if (sib_imp_len < 64) {
+              let sib_off2: i32 = 0;
+              while (sib_off2 < 511) {
+                let sib_c4: u8 = sib_parent[sib_off2];
+                path[sib_off2] = sib_c4;
+                if (sib_c4 == 0) { break; }
+                sib_off2 = sib_off2 + 1;
+              }
+              if (sib_off2 < 510) {
+                path[sib_off2] = 47;
+                sib_off2 = sib_off2 + 1;
+                let sib_si2: i32 = 0;
+                while (sib_off2 < 510) {
+                  let sib_c5: u8 = sib_dn[sib_si2];
+                  if (sib_c5 == 0) { break; }
+                  path[sib_off2] = sib_c5;
+                  sib_off2 = sib_off2 + 1;
+                  sib_si2 = sib_si2 + 1;
+                }
+                if (sib_off2 < 510) {
+                  path[sib_off2] = 47;
+                  sib_off2 = sib_off2 + 1;
+                  let sib_ii2: i32 = 0;
+                  while (sib_off2 < 510) {
+                    let sib_c6: u8 = import_path[sib_ii2];
+                    if (sib_c6 == 0) { break; }
+                    path[sib_off2] = sib_c6;
+                    sib_off2 = sib_off2 + 1;
+                    sib_ii2 = sib_ii2 + 1;
+                  }
+                  if (sib_off2 < 510) {
+                    path[sib_off2] = 47;
+                    sib_off2 = sib_off2 + 1;
+                    let sib_ii3: i32 = 0;
+                    while (sib_off2 < 510) {
+                      let sib_c7: u8 = import_path[sib_ii3];
+                      if (sib_c7 == 0) { break; }
+                      path[sib_off2] = sib_c7;
+                      sib_off2 = sib_off2 + 1;
+                      sib_ii3 = sib_ii3 + 1;
+                    }
+                    if (sib_off2 + 2 < cap) {
+                      path[sib_off2] = 46;
+                      sib_off2 = sib_off2 + 1;
+                      path[sib_off2] = 120;
+                      sib_off2 = sib_off2 + 1;
+                      path[sib_off2] = 0;
+                      if (pipe_path_readable(path) != 0) {
+                        sib_done = 1;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // Dotted: <parent>/<sibling>/<dotted-as-slashes>.x
+        // First pass: sibling dir name must match first dotted segment.
+        let sib_fsl: i32 = 0;
+        while (import_path[sib_fsl] != 0) {
+          if (import_path[sib_fsl] == 46) { break; }
+          sib_fsl = sib_fsl + 1;
+        }
+        if (sib_fsl > 0) {
+          if (sib_fsl < 64) {
+            let sib_match: i32 = 1;
+            let sib_ci: i32 = 0;
+            while (sib_ci < sib_fsl) {
+              if (sib_dn[sib_ci] != import_path[sib_ci]) { sib_match = 0; break; }
+              sib_ci = sib_ci + 1;
+            }
+            if (sib_match != 0) {
+              if (sib_dn[sib_fsl] == 0) {
+                let sib_doff: i32 = 0;
+                while (sib_doff < 511) {
+                  let sib_dc: u8 = sib_parent[sib_doff];
+                  path[sib_doff] = sib_dc;
+                  if (sib_dc == 0) { break; }
+                  sib_doff = sib_doff + 1;
+                }
+                if (sib_doff < 510) {
+                  path[sib_doff] = 47;
+                  sib_doff = sib_doff + 1;
+                  let sib_dsi: i32 = 0;
+                  while (sib_doff < 510) {
+                    let sib_dc2: u8 = sib_dn[sib_dsi];
+                    if (sib_dc2 == 0) { break; }
+                    path[sib_doff] = sib_dc2;
+                    sib_doff = sib_doff + 1;
+                    sib_dsi = sib_dsi + 1;
+                  }
+                  if (sib_doff < 510) {
+                    path[sib_doff] = 47;
+                    sib_doff = sib_doff + 1;
+                    let sib_dii: i32 = 0;
+                    while (sib_doff < 510) {
+                      let sib_dc3: u8 = import_path[sib_dii];
+                      if (sib_dc3 == 0) { break; }
+                      if (sib_dc3 == 46) {
+                        path[sib_doff] = 47;
+                      } else {
+                        path[sib_doff] = sib_dc3;
+                      }
+                      sib_doff = sib_doff + 1;
+                      sib_dii = sib_dii + 1;
+                    }
+                    if (sib_doff + 2 < cap) {
+                      path[sib_doff] = 46;
+                      sib_doff = sib_doff + 1;
+                      path[sib_doff] = 120;
+                      sib_doff = sib_doff + 1;
+                      path[sib_doff] = 0;
+                      if (pipe_path_readable(path) != 0) {
+                        sib_done = 1;
+                      }
+                    }
+                    if (sib_done == 0) {
+                      if (sib_doff + 6 < cap) {
+                        path[sib_doff] = 47;
+                        sib_doff = sib_doff + 1;
+                        path[sib_doff] = 109;
+                        sib_doff = sib_doff + 1;
+                        path[sib_doff] = 111;
+                        sib_doff = sib_doff + 1;
+                        path[sib_doff] = 100;
+                        sib_doff = sib_doff + 1;
+                        path[sib_doff] = 46;
+                        sib_doff = sib_doff + 1;
+                        path[sib_doff] = 120;
+                        sib_doff = sib_doff + 1;
+                        path[sib_doff] = 0;
+                        if (pipe_path_readable(path) != 0) {
+                          sib_done = 1;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    xlang_fmt_closedir(sib_d);
+    // Deep sibling scan: for dotted imports where no sibling dir
+    // matches the first segment, try each sibling as parent.
+    // Finds src/asm/platform/elf.x for import("platform.elf")
+    // resolved from pipeline/ (transitive from asm/backend.x).
+    if (sib_done == 0) {
+      let sib_d2: *u8 = xlang_fmt_opendir(&sib_parent[0]);
+      if (sib_d2 != 0 as *u8) {
+        let sib_guard2: i32 = 0;
+        while (sib_guard2 < 100000) {
+          sib_guard2 = sib_guard2 + 1;
+          if (sib_done != 0) { break; }
+          let sib_dn2: *u8 = xlang_fmt_readdir_name(sib_d2);
+          if (sib_dn2 == 0 as *u8) { break; }
+          if (sib_dn2[0] == 46) { continue; }
+          // Skip non-directory entries (same fix as first-pass sibling scan).
+          let sib_dp2_off: i32 = 0;
+          while (sib_dp2_off < 510) {
+            let sib_dp2c: u8 = sib_parent[sib_dp2_off];
+            sib_dir_probe[sib_dp2_off] = sib_dp2c;
+            if (sib_dp2c == 0) { break; }
+            sib_dp2_off = sib_dp2_off + 1;
+          }
+          if (sib_dp2_off < 510) {
+            sib_dir_probe[sib_dp2_off] = 47;
+            sib_dp2_off = sib_dp2_off + 1;
+            let sib_dp2i: i32 = 0;
+            while (sib_dp2_off < 510) {
+              let sib_dp2c2: u8 = sib_dn2[sib_dp2i];
+              if (sib_dp2c2 == 0) { break; }
+              sib_dir_probe[sib_dp2_off] = sib_dp2c2;
+              sib_dp2_off = sib_dp2_off + 1;
+              sib_dp2i = sib_dp2i + 1;
+            }
+            sib_dir_probe[sib_dp2_off] = 0;
+          }
+          let sib_dir_handle2: *u8 = xlang_fmt_opendir(&sib_dir_probe[0]);
+          if (sib_dir_handle2 == 0 as *u8) { continue; }
+          xlang_fmt_closedir(sib_dir_handle2);
+          let sib_doff2: i32 = 0;
+          while (sib_doff2 < 511) {
+            let sib_dc4: u8 = sib_parent[sib_doff2];
+            path[sib_doff2] = sib_dc4;
+            if (sib_dc4 == 0) { break; }
+            sib_doff2 = sib_doff2 + 1;
+          }
+          if (sib_doff2 < 510) {
+            path[sib_doff2] = 47;
+            sib_doff2 = sib_doff2 + 1;
+            let sib_dsi2: i32 = 0;
+            while (sib_doff2 < 510) {
+              let sib_dc5: u8 = sib_dn2[sib_dsi2];
+              if (sib_dc5 == 0) { break; }
+              path[sib_doff2] = sib_dc5;
+              sib_doff2 = sib_doff2 + 1;
+              sib_dsi2 = sib_dsi2 + 1;
+            }
+            if (sib_doff2 < 510) {
+              path[sib_doff2] = 47;
+              sib_doff2 = sib_doff2 + 1;
+              let sib_dii2: i32 = 0;
+              while (sib_doff2 < 510) {
+                let sib_dc6: u8 = import_path[sib_dii2];
+                if (sib_dc6 == 0) { break; }
+                if (sib_dc6 == 46) {
+                  path[sib_doff2] = 47;
+                } else {
+                  path[sib_doff2] = sib_dc6;
+                }
+                sib_doff2 = sib_doff2 + 1;
+                sib_dii2 = sib_dii2 + 1;
+              }
+              if (sib_doff2 + 2 < cap) {
+                path[sib_doff2] = 46;
+                sib_doff2 = sib_doff2 + 1;
+                path[sib_doff2] = 120;
+                sib_doff2 = sib_doff2 + 1;
+                path[sib_doff2] = 0;
+                if (pipe_path_readable(path) != 0) {
+                  sib_done = 1;
+                }
+              }
+            }
+          }
+        }
+        xlang_fmt_closedir(sib_d2);
+      }
+    }
+  }
 }
 
 /* See implementation. */
@@ -4030,7 +4553,7 @@ export function pipeline_preprocess_loaded_into_ctx(ctx: *u8): i32 {
  * @param buf_len i32 — byte length; <=0 → -1 (stricter than parse_into_bytes)
  * @return i32 — 0 if parser ok==0 after fixup; -1 on null/empty/any non-zero ok
  * Steps (match historical pipeline_parse_into_buf_impl_c):
- *   1) G.7 pure parser_parse_into_init (weak empty here; strong parser wins final link)
+ *   1) G.7 pure parser_parse_into_init (wave1222: full body matching C authority)
  *   2) G.7 pure driver_parse_into_buf_rc (unpacks Cap-struct-return ParseIntoResult.ok)
  *   3) on ok==0: same-TU pure debug_trace("parse_post") + fixup_stmt_orders +
  *      debug_trace("parse_post_fixup")
@@ -4056,7 +4579,12 @@ export function pipeline_parse_into_buf(arena: *u8, module: *u8, buf: *u8, buf_l
     return 0 - 1;
   }
   unsafe {
-    // Same order as historical impl_c: init then Cap-struct parse unpack.
+    // Same order as historical impl_c: trait reset + source stash + init + parse.
+    // wave1222: trait_reg_reset + generic_bound_stash are REQUIRED before init;
+    // without them, directory-mode check leaks trait/generic state across files
+    // (num_funcs drops 356→104 for this file when checked after other files).
+    xlang_trait_reg_reset_c(arena);
+    xlang_generic_bound_stash_source_buf_c(buf, buf_len);
     parser_parse_into_init(module, arena);
     let pr_ok: i32 = driver_parse_into_buf_rc(arena, module, buf, buf_len, 0 as *i32);
     if (pr_ok == 0) {
@@ -5743,7 +6271,7 @@ export function xlang_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_
  * @return void
  * wave62 pure Cap residual orch:
  *   G.7 pure pipeline_sizeof_arena / pipeline_sizeof_module (wave83 LP64 constants);
- *   G.7 pure parser_parse_into_init (weak empty here; strong parser wins final link);
+ *   G.7 pure parser_parse_into_init (wave1222: full body matching C authority);
  *   G.7 pure driver_parse_into_buf_rc (returns raw ok; allow 0 and -2 like historical seed);
  *   G.7 pure xlang_module_num_imports / xlang_module_import_path_cstr /
  *   xlang_find_loaded_import_index / xlang_pipeline_pctx_update_dep_slots_no_reset /
@@ -5751,6 +6279,34 @@ export function xlang_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_
  * Why not pipeline_parse_into_bytes: that maps non-zero ok to -1 and loses ok==-2
  * (under-parse still has usable import table). PLATFORM: SHARED.
  */
+
+/**
+ * Free heap arena/module after releasing process-wide AST sidecars.
+ *
+ * Why: collect_deps and dep-prerun map allocate temporary arena/module heaps,
+ * parse into them (attaching g_arena_sc / g_module_sc GrowVecs), then free.
+ * free alone leaves those slots used with dangling keys; the next malloc may
+ * reuse the address and reattach stale GrowVec data. That is why directory
+ * `xlang check` truncates large files after any importful predecessor
+ * (e.g. parser.x / codegen.x → runtime_pipeline_abi num_funcs 363→111).
+ *
+ * @param arena  temporary AST arena heap (nullable)
+ * @param module temporary Module heap (nullable)
+ * PLATFORM: SHARED — G.7 single helper for all collect/prerun tmp teardown.
+ */
+function pipe_release_tmp_arena_module(arena: *u8, module: *u8): void {
+  unsafe {
+    if (arena != 0 as *u8) {
+      ast_pool_arena_release(arena);
+      free(arena);
+    }
+    if (module != 0 as *u8) {
+      ast_pool_module_release(module);
+      free(module);
+    }
+  }
+}
+
 #[no_mangle]
 export function xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
   if (ctx == 0 as *u8) {
@@ -5772,7 +6328,7 @@ export function xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mod
   if (tmp_arena == 0 as *u8) {
     if (tmp_module != 0 as *u8) {
       unsafe {
-        free(tmp_module);
+        pipe_release_tmp_arena_module(0 as *u8, tmp_module);
       }
     }
     xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
@@ -5780,7 +6336,7 @@ export function xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mod
   }
   if (tmp_module == 0 as *u8) {
     unsafe {
-      free(tmp_arena);
+      pipe_release_tmp_arena_module(tmp_arena, 0 as *u8);
     }
     xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
     return;
@@ -5789,6 +6345,9 @@ export function xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mod
     memset(tmp_arena, 0, asz);
     memset(tmp_module, 0, msz);
     // Init before parse_into_buf residual (same order as seed map_impl).
+    // wave1222: trait_reg_reset + generic_bound_stash prevent cross-file state leak.
+    xlang_trait_reg_reset_c(tmp_arena);
+    xlang_generic_bound_stash_source_buf_c(dep_src, dep_src_len as i32);
     parser_parse_into_init(tmp_module, tmp_arena);
   }
   // INT32_MAX already gated by thin; cast for buf_rc ABI.
@@ -5803,8 +6362,7 @@ export function xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mod
   if (pr_ok != 0) {
     if (pr_ok != (0 - 2)) {
       unsafe {
-        free(tmp_arena);
-        free(tmp_module);
+        pipe_release_tmp_arena_module(tmp_arena, tmp_module);
       }
       xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
       return;
@@ -5813,8 +6371,7 @@ export function xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mod
   let n_imp: i32 = xlang_module_num_imports(tmp_module);
   if (n_imp <= 0) {
     unsafe {
-      free(tmp_arena);
-      free(tmp_module);
+      pipe_release_tmp_arena_module(tmp_arena, tmp_module);
       ast_pipeline_dep_ctx_set_ndep(ctx, 0);
     }
     return;
@@ -5845,8 +6402,7 @@ export function xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mod
     ii = ii + 1;
   }
   unsafe {
-    free(tmp_arena);
-    free(tmp_module);
+    pipe_release_tmp_arena_module(tmp_arena, tmp_module);
     ast_pipeline_dep_ctx_set_ndep(ctx, mapped);
   }
 }
@@ -8041,15 +8597,8 @@ export function xlang_collect_deps_transitive_impl(module: *u8, arena_sz: i64, m
       }
       let ta: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 0);
       let tm: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 1);
-      if (ta != 0 as *u8) {
-        unsafe {
-          free(ta);
-        }
-      }
-      if (tm != 0 as *u8) {
-        unsafe {
-          free(tm);
-        }
+      unsafe {
+        pipe_release_tmp_arena_module(ta, tm);
       }
       while (n > 0) {
         n = n - 1;
@@ -8084,15 +8633,8 @@ export function xlang_collect_deps_transitive_impl(module: *u8, arena_sz: i64, m
   }
   let ta_ok: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 0);
   let tm_ok: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 1);
-  if (ta_ok != 0 as *u8) {
-    unsafe {
-      free(ta_ok);
-    }
-  }
-  if (tm_ok != 0 as *u8) {
-    unsafe {
-      free(tm_ok);
-    }
+  unsafe {
+    pipe_release_tmp_arena_module(ta_ok, tm_ok);
   }
   unsafe {
     xlang_i32_store(n_deps, n);
@@ -8174,15 +8716,8 @@ export function xlang_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i
       }
       let ta: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 0);
       let tm: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 1);
-      if (ta != 0 as *u8) {
-        unsafe {
-          free(ta);
-        }
-      }
-      if (tm != 0 as *u8) {
-        unsafe {
-          free(tm);
-        }
+      unsafe {
+        pipe_release_tmp_arena_module(ta, tm);
       }
       while (n > 0) {
         n = n - 1;
@@ -8209,15 +8744,8 @@ export function xlang_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i
   }
   let ta_ok: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 0);
   let tm_ok: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 1);
-  if (ta_ok != 0 as *u8) {
-    unsafe {
-      free(ta_ok);
-    }
-  }
-  if (tm_ok != 0 as *u8) {
-    unsafe {
-      free(tm_ok);
-    }
+  unsafe {
+    pipe_release_tmp_arena_module(ta_ok, tm_ok);
   }
   unsafe {
     xlang_i32_store(n_deps, n);

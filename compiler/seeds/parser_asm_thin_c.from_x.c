@@ -4383,7 +4383,7 @@ struct parser_asm_seed_parse_into_result {
 };
 struct parser_asm_seed_slice_u8 {
   uint8_t *data;
-  size_t len;
+  size_t length;
 };
 struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *arena, void *module, uint8_t *data,
                                                                          int32_t len);

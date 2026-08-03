@@ -579,12 +579,12 @@ export function parse_directive_into(line_buf: u8[4096], line_len: i32, cond: u8
  * `}` or last statement is not dropped. Missing that flush historically
  * yielded parse num_funcs=0 / XP003 when files omitted a final newline.
  *
- * @param source Input source bytes (length = source.length)
+ * @param source Input source bytes (length = (source.length as i32))
  * @param out_buf Destination buffer; must have length > 0
  * @return Written byte count, or negative error
  */
 export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
-  if (out_buf.length <= 0) {
+  if ((out_buf.length as i32) <= 0) {
     return -1;
   }
   let _r: i32 = pp_reset_i32();
@@ -593,7 +593,7 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
   /* 0 = buffering; 1 = body stream (wave266); 2 = directive drain (wave267). */
   let line_stream: i32 = 0;
   let pos: i32 = 0;
-  while (pos < source.length) {
+  while (pos < (source.length as i32)) {
     let ch: u8 = source[pos];
     if (ch == 10) {
       if (line_stream == 2) {
@@ -606,7 +606,7 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
           /* Body stream: trailing LF if keeping. */
           let keeping_st: bool = preprocess_line_keeping();
           if (keeping_st) {
-            if (out_len >= out_buf.length) {
+            if (out_len >= (out_buf.length as i32)) {
               return -1;
             }
             out_buf[out_len] = 10;
@@ -627,7 +627,7 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
             if (ar != 0) {
               return ar;
             }
-            if (out_len >= out_buf.length) {
+            if (out_len >= (out_buf.length as i32)) {
               return -1;
             }
             out_buf[out_len] = 10;
@@ -637,7 +637,7 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
             if (keeping) {
               let i: i32 = 0;
               while (i < line_len) {
-                if (out_len >= out_buf.length) {
+                if (out_len >= (out_buf.length as i32)) {
                   return -1;
                 }
                 out_buf[out_len] = g_pp_line_buf[i];
@@ -645,7 +645,7 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
                 i = i + 1;
               }
             }
-            if (out_len >= out_buf.length) {
+            if (out_len >= (out_buf.length as i32)) {
               return -1;
             }
             out_buf[out_len] = 10;
@@ -664,7 +664,7 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
           /* Body overflow tail: stream one byte if keeping. */
           let keeping_tail: bool = preprocess_line_keeping();
           if (keeping_tail) {
-            if (out_len >= out_buf.length) {
+            if (out_len >= (out_buf.length as i32)) {
               return -1;
             }
             out_buf[out_len] = ch;
@@ -689,7 +689,7 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
               if (ar_ov != 0) {
                 return ar_ov;
               }
-              if (out_len >= out_buf.length) {
+              if (out_len >= (out_buf.length as i32)) {
                 return -1;
               }
               out_buf[out_len] = 10;
@@ -702,14 +702,14 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
               if (keeping_ov) {
                 let j: i32 = 0;
                 while (j < line_len) {
-                  if (out_len >= out_buf.length) {
+                  if (out_len >= (out_buf.length as i32)) {
                     return -1;
                   }
                   out_buf[out_len] = g_pp_line_buf[j];
                   out_len = out_len + 1;
                   j = j + 1;
                 }
-                if (out_len >= out_buf.length) {
+                if (out_len >= (out_buf.length as i32)) {
                   return -1;
                 }
                 out_buf[out_len] = ch;
@@ -735,7 +735,7 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
       /* Streamed body already in out; synthetic LF mirrors normal no-trailing-LF flush. */
       let keeping_st_eof: bool = preprocess_line_keeping();
       if (keeping_st_eof) {
-        if (out_len >= out_buf.length) {
+        if (out_len >= (out_buf.length as i32)) {
           return -1;
         }
         out_buf[out_len] = 10;
@@ -756,7 +756,7 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
           if (ar_eof != 0) {
             return ar_eof;
           }
-          if (out_len >= out_buf.length) {
+          if (out_len >= (out_buf.length as i32)) {
             return -1;
           }
           out_buf[out_len] = 10;
@@ -766,7 +766,7 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
           if (keeping_eof) {
             let i_eof: i32 = 0;
             while (i_eof < line_len) {
-              if (out_len >= out_buf.length) {
+              if (out_len >= (out_buf.length as i32)) {
                 return -1;
               }
               out_buf[out_len] = g_pp_line_buf[i_eof];
@@ -774,7 +774,7 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
               i_eof = i_eof + 1;
             }
           }
-          if (out_len >= out_buf.length) {
+          if (out_len >= (out_buf.length as i32)) {
             return -1;
           }
           out_buf[out_len] = 10;
@@ -810,7 +810,7 @@ export function preprocess_x_buf(source_buf: u8[4194304], source_len: isize, out
   /* 0 = buffering; 1 = body stream; 2 = directive drain (mirror preprocess_x / wave267). */
   let line_stream: i32 = 0;
   let pos: i32 = 0;
-  while (pos < source_len) {
+  while (pos < (source_len as i32)) {
     if (pos >= 4194304) {
       break;
     }

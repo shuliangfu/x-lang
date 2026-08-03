@@ -688,13 +688,12 @@ void diag_report_human_impl(const char *file, int line, int col, const char *kin
     diag_print_header(kind, code, msg, kind_color, reset);
 #endif
 
-    if (actual_file && line > 0 && col > 0) {
+    /* wave1221: always print line:col even when 0, so typeck errors without
+     * expr line/col still show file:0:0 instead of bare file path.
+     * This makes check output consistent and helps locate errors. */
+    if (actual_file) {
         fprintf(stderr, "%s --> %s:%d:%d%s\n", path_color, actual_file, line, col, reset);
-    } else if (actual_file && line > 0) {
-        fprintf(stderr, "%s --> %s:%d%s\n", path_color, actual_file, line, reset);
-    } else if (actual_file) {
-        fprintf(stderr, "%s --> %s%s\n", path_color, actual_file, reset);
-    } else if (line > 0 && col > 0) {
+    } else if (line > 0 || col > 0) {
         fprintf(stderr, "%s --> %d:%d%s\n", path_color, line, col, reset);
     }
 

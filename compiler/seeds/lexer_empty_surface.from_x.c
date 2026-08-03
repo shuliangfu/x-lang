@@ -2523,11 +2523,14 @@ void lexer_next_punct_into(struct LexerResult * out, struct Lexer l, struct xlan
     return;
   }
   /* wave272: unknown byte → L003 hard diag + sticky pending (≡ lexer.x). */
-  lexer_note_illegal_char(line0, col0);
-  struct token_Token unk = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  /* wave1222: use current lexer position — line0/col0/start from if-blocks
+   * above are block-scoped and may hold stale values from a prior parse file. */
+  { int32_t ill_line = l.line; int32_t ill_col = l.col; size_t ill_start = l.pos;
+  lexer_note_illegal_char(ill_line, ill_col);
+  struct token_Token unk = (struct Token){ .kind = 0, .line = ill_line, .col = ill_col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   (void)(write_next_lex_into(out, l));
   (void)(write_tok_into(out, unk));
-  (void)(((out->token_start) = start));
+  (void)(((out->token_start) = ill_start)); }
 }
 void write_next_lex_into(struct LexerResult * out, struct Lexer l) {
   (void)((((out->next_lex).pos) = (l.pos)));

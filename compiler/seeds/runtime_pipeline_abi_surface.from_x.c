@@ -3680,6 +3680,14 @@ void xlang_pipeline_fill_ctx_path_buffers(uint8_t * ctx, uint8_t * entry_dir, ui
     (void)((i = (i + 1)));
   }
 }
+
+/* wave1225: release sidecars before free — see runtime_pipeline_abi.x pipe_release_tmp. */
+extern void ast_pool_arena_release(void *a);
+extern void ast_pool_module_release(void *m);
+static void pipe_release_tmp_arena_module(void *arena, void *module) {
+  if (arena) { ast_pool_arena_release(arena); free(arena); }
+  if (module) { ast_pool_module_release(module); free(module); }
+}
 int32_t pipe_cstr_len(uint8_t * s) {
   if ((s ==0)) {
     return 0;
@@ -3756,13 +3764,13 @@ void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(uint8_t * ctx, uint8_t * dep
   (void)((tmp_module = malloc(msz)));
   if ((tmp_arena ==0)) {
     if ((tmp_module !=0)) {
-      (void)(free(tmp_module));
+      (void)(pipe_release_tmp_arena_module(NULL, tmp_module));
     }
     (void)(xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep));
     return;
   }
   if ((tmp_module ==0)) {
-    (void)(free(tmp_arena));
+    (void)(pipe_release_tmp_arena_module(tmp_arena, NULL));
     (void)(xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep));
     return;
   }
@@ -3774,16 +3782,14 @@ void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(uint8_t * ctx, uint8_t * dep
   (void)((pr_ok = driver_parse_into_buf_rc(tmp_arena, tmp_module, dep_src, len_i32, 0)));
   if ((pr_ok !=0)) {
     if ((pr_ok !=-2)) {
-      (void)(free(tmp_arena));
-      (void)(free(tmp_module));
+      (void)(pipe_release_tmp_arena_module(tmp_arena, tmp_module));
       (void)(xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep));
       return;
     }
   }
   int32_t n_imp = xlang_module_num_imports(tmp_module);
   if ((n_imp <=0)) {
-    (void)(free(tmp_arena));
-    (void)(free(tmp_module));
+    (void)(pipe_release_tmp_arena_module(tmp_arena, tmp_module));
     (void)(ast_pipeline_dep_ctx_set_ndep(ctx, 0));
     return;
   }
@@ -3811,8 +3817,7 @@ void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(uint8_t * ctx, uint8_t * dep
     (void)((mapped = (mapped + 1)));
     (void)((ii = (ii + 1)));
   }
-  (void)(free(tmp_arena));
-  (void)(free(tmp_module));
+  (void)(pipe_release_tmp_arena_module(tmp_arena, tmp_module));
   (void)(ast_pipeline_dep_ctx_set_ndep(ctx, mapped));
 }
 void xlang_pipeline_one_ctx_for_dep_prerun(uint8_t * ctx, int32_t j, uint8_t * dep_mods, uint8_t * dep_ars, uint8_t * dep_paths, int32_t ndep, uint8_t * dep_src, int64_t dep_src_len) {

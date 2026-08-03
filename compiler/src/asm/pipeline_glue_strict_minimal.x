@@ -8,21 +8,30 @@
 // See implementation.
 // See implementation.
 
-export extern "C" function pipeline_type_named_name_into(arena: *u8, tr: i32, out64: *u8): i32;
-export extern "C" function pipeline_module_import_binding_name_len(mod: *u8, idx: i32): i32;
-export extern "C" function pipeline_module_import_binding_name_byte_at(mod: *u8, idx: i32, off: i32): u8;
-export extern "C" function parser_get_module_num_imports(mod: *u8): i32;
-export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_module_func_param_name_len_at(mod: *u8, fi: i32, pix: i32): i32;
-export extern "C" function pipeline_module_func_param_name_copy32(mod: *u8, fi: i32, pix: i32, dst: *u8): void;
-export extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
-export extern "C" function pipeline_type_region_label_into(arena: *u8, tr: i32, out64: *u8): i32;
+
+/* Forward decls: monofile typeck is single-pass by function order; callees defined later need early surface. PLATFORM: SHARED. */
+export extern function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i32;
+export extern function pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(mod: *u8, arena: *u8, name: *u8, name_len: i32, from_dep_index: i32, want_arity: i32, call_expr_ref: i32, is_method: i32, ctx: *u8, func_index_out: *i32): i32;
+
+export extern function pipeline_typeck_import_binding_name_equal_strict_minimal(module: *u8, dep_ix: i32, name: *u8, name_len: i32): i32;
+export extern function pipeline_typeck_resolve_dep_index_for_import_c(module: *u8, ctx: *u8, imp_ix: i32): i32;
+/* deduped: pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal */
+
+export extern function pipeline_type_named_name_into(arena: *u8, tr: i32, out64: *u8): i32;
+export extern function pipeline_module_import_binding_name_len(mod: *u8, idx: i32): i32;
+export extern function pipeline_module_import_binding_name_byte_at(mod: *u8, idx: i32, off: i32): u8;
+export extern function parser_get_module_num_imports(mod: *u8): i32;
+export extern function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
+export extern function pipeline_module_func_param_name_len_at(mod: *u8, fi: i32, pix: i32): i32;
+export extern function pipeline_module_func_param_name_copy32(mod: *u8, fi: i32, pix: i32, dst: *u8): void;
+export extern function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
+export extern function pipeline_type_region_label_into(arena: *u8, tr: i32, out64: *u8): i32;
 // wave494: generic method_call UFCS — exported from pipeline_glue.c (G.7 single
 // authority). Pattern-unifies formal self param with concrete receiver type
 // and substitutes the return type. Called after non-generic UFCS fails.
 // PLATFORM: SHARED typeck.
-export extern "C" function pipeline_typeck_method_call_generic_ufcs_c(module: *u8, arena: *u8, expr_ref: i32, base_ty: i32, method_nm: *u8, method_nlen: i32, num_args: i32): i32;
+export extern function pipeline_typeck_method_call_generic_ufcs_c(module: *u8, arena: *u8, expr_ref: i32, base_ty: i32, method_nm: *u8, method_nlen: i32, num_args: i32): i32;
 
 /** Exported function `pipeline_glue_strict_minimal_x_doc_anchor`.
  * Implements `pipeline_glue_strict_minimal_x_doc_anchor`.
@@ -44,7 +53,7 @@ export function pipeline_glue_strict_minimal_x_doc_anchor(): i32 {
  */
 #[no_mangle]
 export function pipeline_typeck_named_equal_strict_minimal(arena: *u8, a: i32, b: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   unsafe {
     let buf_a: u8[128] = [];
     let buf_b: u8[128] = [];
@@ -87,8 +96,8 @@ export function pipeline_typeck_named_equal_strict_minimal(arena: *u8, a: i32, b
  */
 #[no_mangle]
 export function pipeline_typeck_import_binding_name_equal_strict_minimal(module: *u8, dep_ix: i32, name: *u8, name_len: i32): i32 {
-  if (module == 0) { return 0; }
-  if (name == 0) { return 0; }
+  if (module == 0 as *u8) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (name_len <= 0) { return 0; }
   if (dep_ix < 0) { return 0; }
   unsafe {
@@ -119,8 +128,8 @@ export function pipeline_typeck_import_binding_name_equal_strict_minimal(module:
  */
 #[no_mangle]
 export function pipeline_expr_is_func_param_at_strict_minimal(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32 {
-  if (arena == 0) { return 0; }
-  if (mod == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
+  if (mod == 0 as *u8) { return 0; }
   unsafe {
     if (pipeline_expr_kind_ord_at(arena, expr_ref) != 3) { return 0; }
     let plen: i32 = pipeline_module_func_param_name_len_at(mod, func_idx, param_ix);
@@ -146,31 +155,31 @@ export function pipeline_expr_is_func_param_at_strict_minimal(arena: *u8, mod: *
 
 // See implementation.
 /* defined G-02f-221 */
-export extern "C" function pipeline_type_kind_ord_at(arena: *u8, tr: i32): i32;
-export extern "C" function pipeline_type_region_label_len_at(arena: *u8, tr: i32): i32;
-export extern "C" function pipeline_arena_block_ptr(arena: *u8, br: i32): *u8;
-export extern "C" function pipeline_module_num_funcs(mod: *u8): i32;
-export extern "C" function pipeline_dep_ctx_current_func_index(ctx: *u8): i32;
-export extern "C" function pipeline_dep_ctx_current_block_ref_at(ctx: *u8): i32;
-export extern "C" function pipeline_module_func_param_type_ref_for_name(mod: *u8, fi: i32, name: *u8, nlen: i32): i32;
-export extern "C" function pipeline_module_func_body_ref_at(mod: *u8, fi: i32): i32;
-export extern "C" function pipeline_block_find_var_decl_block_ref(arena: *u8, br: i32, name: *u8, nlen: i32): i32;
-export extern "C" function pipeline_expr_unary_operand_ref_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_type_elem_ref_at(arena: *u8, tr: i32): i32;
-export extern "C" function pipeline_type_array_size_at(arena: *u8, tr: i32): i32;
-export extern "C" function pipeline_type_find_or_alloc_slice(arena: *u8, elem: i32, rlab: *u8, rlen: i32): i32;
-export extern "C" function pipeline_type_find_or_alloc_compound(arena: *u8, kind: i32, elem: i32, asz: i32): i32;
-export extern "C" function pipeline_module_func_name_equal_at(mod: *u8, fi: i32, name: *u8, nlen: i32): i32;
-export extern "C" function pipeline_module_func_num_params_at(mod: *u8, fi: i32): i32;
-export extern "C" function pipeline_module_func_return_type_at(mod: *u8, fi: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, tr: i32): i32;
+export extern function pipeline_type_region_label_len_at(arena: *u8, tr: i32): i32;
+export extern function pipeline_arena_block_ptr(arena: *u8, br: i32): *u8;
+export extern function pipeline_module_num_funcs(mod: *u8): i32;
+export extern function pipeline_dep_ctx_current_func_index(ctx: *u8): i32;
+export extern function pipeline_dep_ctx_current_block_ref_at(ctx: *u8): i32;
+export extern function pipeline_module_func_param_type_ref_for_name(mod: *u8, fi: i32, name: *u8, nlen: i32): i32;
+export extern function pipeline_module_func_body_ref_at(mod: *u8, fi: i32): i32;
+export extern function pipeline_block_find_var_decl_block_ref(arena: *u8, br: i32, name: *u8, nlen: i32): i32;
+export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, er: i32): i32;
+export extern function pipeline_type_elem_ref_at(arena: *u8, tr: i32): i32;
+export extern function pipeline_type_array_size_at(arena: *u8, tr: i32): i32;
+export extern function pipeline_type_find_or_alloc_slice(arena: *u8, elem: i32, rlab: *u8, rlen: i32): i32;
+export extern function pipeline_type_find_or_alloc_compound(arena: *u8, kind: i32, elem: i32, asz: i32): i32;
+export extern function pipeline_module_func_name_equal_at(mod: *u8, fi: i32, name: *u8, nlen: i32): i32;
+export extern function pipeline_module_func_num_params_at(mod: *u8, fi: i32): i32;
+export extern function pipeline_module_func_return_type_at(mod: *u8, fi: i32): i32;
 /* get_dep_return defined G-02f-220 below */
-export extern "C" function pipeline_module_import_kind_at(mod: *u8, dep: i32): i32;
-export extern "C" function pipeline_type_find_or_alloc_named(arena: *u8, name: *u8, nlen: i32): i32;
-export extern "C" function pipeline_type_ensure_by_kind_ord(arena: *u8, kind: i32): i32;
-export extern "C" function pipeline_expr_line_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_col_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_index_base_ref(arena: *u8, er: i32): i32;
+export extern function pipeline_module_import_kind_at(mod: *u8, dep: i32): i32;
+export extern function pipeline_type_find_or_alloc_named(arena: *u8, name: *u8, nlen: i32): i32;
+export extern function pipeline_type_ensure_by_kind_ord(arena: *u8, kind: i32): i32;
+export extern function pipeline_expr_line_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_col_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_index_base_ref(arena: *u8, er: i32): i32;
 // See implementation.
 // See implementation.
 
@@ -178,7 +187,7 @@ export extern "C" function pipeline_expr_index_base_ref(arena: *u8, er: i32): i3
 
 // See implementation.
 // See implementation.
-export extern "C" function pipeline_visibility_allow_func(mod: *u8, fi: i32, cross_module: i32): i32;
+export extern function pipeline_visibility_allow_func(mod: *u8, fi: i32, cross_module: i32): i32;
 
 /** Exported function `pipeline_typeck_find_func_index_in_module_by_name_strict_minimal`.
  * Implements `pipeline_typeck_find_func_index_in_module_by_name_strict_minimal`.
@@ -190,8 +199,8 @@ export extern "C" function pipeline_visibility_allow_func(mod: *u8, fi: i32, cro
  */
 #[no_mangle]
 export function pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(mod: *u8, name: *u8, name_len: i32, want_arity: i32): i32 {
-  if (mod == 0) { return 0 - 1; }
-  if (name == 0) { return 0 - 1; }
+  if (mod == 0 as *u8) { return 0 - 1; }
+  if (name == 0 as *u8) { return 0 - 1; }
   if (name_len <= 0) { return 0 - 1; }
   unsafe {
     let first_match: i32 = 0 - 1;
@@ -211,6 +220,42 @@ export function pipeline_typeck_find_func_index_in_module_by_name_strict_minimal
   return 0 - 1;
 }
 
+/**
+ * Resolve free/export func return type by name + arity (+ optional call-site overload later).
+ * Monofile typeck needs a real .x body (export extern alone was not registered for this long name).
+ * Product seed C may provide arg-score overload under FROM_X=0; this body is arity-first twin.
+ * call_expr_ref / is_method reserved for overload scoring (seed pick_func path).
+ * PLATFORM: SHARED — G.7 keep seed twin when product is not FROM_X.
+ */
+#[no_mangle]
+export function pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+  mod: *u8, arena: *u8, name: *u8, name_len: i32, from_dep_index: i32, want_arity: i32,
+  call_expr_ref: i32, is_method: i32, ctx: *u8, func_index_out: *i32
+): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    // silence reserved overload args until pick_func is ported to .x
+    let _cs: i32 = call_expr_ref;
+    let _im: i32 = is_method;
+    if (_cs < 0) { _cs = 0; }
+    if (_im < 0) { _im = 0; }
+    let func_ix: i32 = pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(mod, name, name_len, want_arity);
+    if (func_ix < 0) { return 0; }
+    if (from_dep_index >= 0) {
+      if (pipeline_visibility_allow_func(mod, func_ix, 1) == 0) {
+        return 0;
+      }
+    }
+    if (func_index_out != 0 as *i32) {
+      func_index_out[0] = func_ix;
+    }
+    let ret_ty: i32 = pipeline_module_func_return_type_at(mod, func_ix);
+    if (from_dep_index < 0) { return ret_ty; }
+    return pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, ret_ty, arena, ctx);
+  }
+  return 0;
+}
+
 // See implementation.
 /** Function `pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal`.
  * Purpose: implements `pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal`; params/returns as declared (may be multi-line).
@@ -221,19 +266,9 @@ export function pipeline_typeck_find_func_return_type_in_module_by_name_strict_m
   mod: *u8, caller_arena: *u8, name: *u8, name_len: i32, from_dep_index: i32, want_arity: i32, ctx: *u8, func_index_out: *i32
 ): i32 {
   unsafe {
-    let func_ix: i32 = pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(mod, name, name_len, want_arity);
-    if (func_ix < 0) { return 0; }
-    if (from_dep_index >= 0) {
-      if (pipeline_visibility_allow_func(mod, func_ix, 1) == 0) {
-        return 0;
-      }
-    }
-    if (func_index_out != 0) {
-      func_index_out[0] = func_ix;
-    }
-    let ret_ty: i32 = pipeline_module_func_return_type_at(mod, func_ix);
-    if (from_dep_index < 0) { return ret_ty; }
-    return pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, ret_ty, caller_arena, ctx);
+    return pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+      mod, caller_arena, name, name_len, from_dep_index, want_arity, 0, 0, ctx, func_index_out
+    );
   }
   return 0;
 }
@@ -297,7 +332,7 @@ export function pipeline_typeck_map_import_binding_named_to_caller_strict_minima
  */
 #[no_mangle]
 export function pipeline_typeck_slice_region_conflict_strict_minimal(arena: *u8, expect_ref: i32, src_ref: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expect_ref <= 0) { return 0; }
   if (src_ref <= 0) { return 0; }
   unsafe {
@@ -332,7 +367,7 @@ export function pipeline_typeck_slice_region_conflict_strict_minimal(arena: *u8,
  */
 #[no_mangle]
 export function pipeline_typeck_slice_region_escape_strict_minimal(arena: *u8, expect_ref: i32, src_ref: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expect_ref <= 0) { return 0; }
   if (src_ref <= 0) { return 0; }
   unsafe {
@@ -360,7 +395,7 @@ export function pipeline_typeck_slice_region_escape_strict_minimal(arena: *u8, e
 export function pipeline_typeck_expr_diag_line_col_strict_minimal(arena: *u8, expr_ref: i32, line: *i32, col: *i32): void {
   if (line != 0) { line[0] = 0; }
   if (col != 0) { col[0] = 0; }
-  if (arena == 0) { return; }
+  if (arena == 0 as *u8) { return; }
   if (expr_ref <= 0) { return; }
   unsafe {
     if (line != 0) { line[0] = pipeline_expr_line_at(arena, expr_ref); }
@@ -394,7 +429,7 @@ export function g02f_load_i32_le(p: *u8, off: i32): i32 {
  */
 #[no_mangle]
 export function typeck_block_is_strict_ancestor_strict_minimal(arena: *u8, ancestor: i32, descendant: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (ancestor <= 0) { return 0; }
   if (descendant <= 0) { return 0; }
   if (ancestor == descendant) { return 0; }
@@ -425,9 +460,9 @@ export function typeck_block_is_strict_ancestor_strict_minimal(arena: *u8, ances
  */
 #[no_mangle]
 export function typeck_expr_lval_root_var_strict_minimal(arena: *u8, expr_ref: i32, out: *u8, out_len: *i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expr_ref <= 0) { return 0; }
-  if (out == 0) { return 0; }
+  if (out == 0 as *u8) { return 0; }
   if (out_len == 0) { return 0; }
   unsafe {
     let cur: i32 = expr_ref;
@@ -468,10 +503,10 @@ export function typeck_expr_lval_root_var_strict_minimal(arena: *u8, expr_ref: i
  */
 #[no_mangle]
 export function typeck_name_is_block_local_strict_minimal(module: *u8, arena: *u8, ctx: *u8, name: *u8, name_len: i32): i32 {
-  if (module == 0) { return 0; }
-  if (arena == 0) { return 0; }
-  if (ctx == 0) { return 0; }
-  if (name == 0) { return 0; }
+  if (module == 0 as *u8) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (name_len <= 0) { return 0; }
   unsafe {
     let func_ix: i32 = pipeline_dep_ctx_current_func_index(ctx);
@@ -505,9 +540,9 @@ export function typeck_name_is_block_local_strict_minimal(module: *u8, arena: *u
  */
 #[no_mangle]
 export function typeck_expr_is_addr_of_block_local_strict_minimal(module: *u8, arena: *u8, ctx: *u8, expr_ref: i32): i32 {
-  if (module == 0) { return 0; }
-  if (arena == 0) { return 0; }
-  if (ctx == 0) { return 0; }
+  if (module == 0 as *u8) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
     if (pipeline_expr_kind_ord_at(arena, expr_ref) != 51) { return 0; }
@@ -528,10 +563,10 @@ export function typeck_expr_is_addr_of_block_local_strict_minimal(module: *u8, a
 // See implementation.
 // See implementation.
 
-export extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_array_lit_elem_ref(arena: *u8, er: i32, i: i32): i32;
-export extern "C" function pipeline_expr_binop_left_ref_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_binop_right_ref_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_array_lit_elem_ref(arena: *u8, er: i32, i: i32): i32;
+export extern function pipeline_expr_binop_left_ref_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_binop_right_ref_at(arena: *u8, er: i32): i32;
 
 // g02f_load_ptr_at: see function docblock below.
 /** Exported function `g02f_load_ptr_at`.
@@ -667,7 +702,7 @@ export function pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_are
  */
 #[no_mangle]
 export function pipeline_typeck_const_expr_ref_strict_minimal(arena: *u8, expr_ref: i32, const_names: *u8, n_const_names: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
     let kind: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
@@ -740,8 +775,8 @@ export function pipeline_typeck_const_expr_ref_strict_minimal(arena: *u8, expr_r
  */
 #[no_mangle]
 export function pipeline_typeck_result_payload_type_from_name_strict_minimal(arena: *u8, name: *u8, name_len: i32): i32 {
-  if (arena == 0) { return 0; }
-  if (name == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (name_len <= 0) { return 0; }
   if (name_len < 7) { return 0; }
   // "Result_"
@@ -869,7 +904,7 @@ export function pipeline_typeck_expr_is_any_assign_kind_strict_minimal(kind: i32
  */
 #[no_mangle]
 export function pipeline_typeck_const_name_matches_strict_minimal(name: *u8, name_len: i32, lit: *u8): i32 {
-  if (name == 0) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (lit == 0) { return 0; }
   if (name_len <= 0) { return 0; }
   let i: i32 = 0;
@@ -911,7 +946,7 @@ export function pipeline_typeck_named_unqual_offset_strict_minimal(buf: *u8, len
  */
 #[no_mangle]
 export function field_name_equal_strict_minimal(buf: *u8, len: i32, lit: *u8): i32 {
-  if (buf == 0) { return 0; }
+  if (buf == 0 as *u8) { return 0; }
   if (lit == 0) { return 0; }
   if (len <= 0) { return 0; }
   let i: i32 = 0;
@@ -924,14 +959,14 @@ export function field_name_equal_strict_minimal(buf: *u8, len: i32, lit: *u8): i
   return 1;
 }
 
-export extern "C" function parser_parse_into_init(module: *u8, arena: *u8): void;
-export extern "C" function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function pipeline_expr_call_resolved_func_index_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_call_callee_ref_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_apply_call_resolve(arena: *u8, call_er: i32, dep: i32, fi: i32): void;
-export extern "C" function typeck_typeck_struct_layout_metrics(module: *u8, arena: *u8, li: i32, depth: i32, flags: i32, out_sz: *i32, out_al: *i32): i32;
+export extern function parser_parse_into_init(module: *u8, arena: *u8): void;
+export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_expr_call_resolved_func_index_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_call_callee_ref_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_apply_call_resolve(arena: *u8, call_er: i32, dep: i32, fi: i32): void;
+export extern function typeck_typeck_struct_layout_metrics(module: *u8, arena: *u8, li: i32, depth: i32, flags: i32, out_sz: *i32, out_al: *i32): i32;
 /* type_refs_equal defined G-02f-222 */
-export extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
+export extern function driver_run_compiler_full(argc: i32, argv: *u8): i32;
 
 /* ---- G-02f-210：pure weak / residual shells ---- */
 
@@ -944,8 +979,8 @@ export extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
  */
 #[no_mangle]
 export function parse_into_init(module: *u8, arena: *u8): void {
-  if (module == 0) { return; }
-  if (arena == 0) { return; }
+  if (module == 0 as *u8) { return; }
+  if (arena == 0 as *u8) { return; }
   unsafe {
     parser_parse_into_init(module, arena);
   }
@@ -963,9 +998,9 @@ export function parse_into_init(module: *u8, arena: *u8): void {
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
-  if (arena == 0) { return 0 - 1; }
+  if (arena == 0 as *u8) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
-  if (ctx == 0) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
   if (expr_ref <= 0) { return 0 - 1; }
   unsafe {
     let op_ref: i32 = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -1043,7 +1078,7 @@ export function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u
  */
 #[no_mangle]
 export function pipeline_asm_init_is_empty_array_lit_c(arena: *u8, init_ref: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (init_ref <= 0) { return 0; }
   unsafe {
     // EXPR_ARRAY_LIT=46
@@ -1102,7 +1137,7 @@ export function typeck_x_type_align_from_layout_glue(module: *u8, arena: *u8, li
  */
 #[no_mangle]
 export function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *u8): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   unsafe {
     // TYPE_U8=2
     let u8_ref: i32 = pipeline_type_ensure_by_kind_ord(arena, 2);
@@ -1127,7 +1162,7 @@ export function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *u8): i32 {
  */
 #[no_mangle]
 export function pipeline_typeck_linear_accepts_init_c(arena: *u8, decl_ref: i32, init_ref: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (decl_ref <= 0) { return 0; }
   if (init_ref <= 0) { return 0; }
   unsafe {
@@ -1226,13 +1261,13 @@ export function main_run_compiler_c(argc: i32, argv: *u8): i32 {
 
 /* See implementation. */
 
-export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, er: i32, ty: i32): void;
-export extern "C" function pipeline_block_region_body_ref(arena: *u8, br: i32, idx: i32): i32;
-export extern "C" function typeck_check_block(module: *u8, arena: *u8, body_ref: i32, return_type_ref: i32, ctx: *u8): i32;
+export extern function pipeline_expr_set_resolved_type_ref(arena: *u8, er: i32, ty: i32): void;
+export extern function pipeline_block_region_body_ref(arena: *u8, br: i32, idx: i32): i32;
+export extern function typeck_check_block(module: *u8, arena: *u8, body_ref: i32, return_type_ref: i32, ctx: *u8): i32;
 /* defined G-02f-221 */
-export extern "C" function pipeline_lsp_diag_parse_typeck_buf_impl_c(module: *u8, arena: *u8, source_data: *u8, source_len: i32, ctx: *u8): i32;
-export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_int64_val_at(arena: *u8, er: i32): i64;
+export extern function pipeline_lsp_diag_parse_typeck_buf_impl_c(module: *u8, arena: *u8, source_data: *u8, source_len: i32, ctx: *u8): i32;
+export extern function pipeline_expr_resolved_type_ref(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_int64_val_at(arena: *u8, er: i32): i64;
 
 // glue_name_bytes_eq_c: see function docblock below.
 /** Exported function `glue_name_bytes_eq_c`.
@@ -1244,7 +1279,7 @@ export extern "C" function pipeline_expr_int64_val_at(arena: *u8, er: i32): i64;
  * @return i32
  */
 export function glue_name_bytes_eq_c(name: *u8, name_len: i32, lit: *u8, lit_len: i32): i32 {
-  if (name == 0) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (lit == 0) { return 0; }
   if (name_len != lit_len) { return 0; }
   if (name_len <= 0) { return 0; }
@@ -1329,7 +1364,7 @@ export function pipeline_asm_build_import_binding_call_sym_c(pre: *u8, pre_len: 
  */
 #[no_mangle]
 export function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: i32): i32 {
-  if (name == 0) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (name_len <= 0) { return 0; }
   // "read_ptr_slice" 14
   let n0: u8[16] = [];
@@ -1387,7 +1422,7 @@ export function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: 
  */
 #[no_mangle]
 export function pipeline_typeck_coerce_init_int_binop_to_decl_c(arena: *u8, init_ref: i32, decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (init_ref <= 0) { return 0; }
   if (decl_kind != 0) {
     if (decl_kind != 4) {
@@ -1447,9 +1482,9 @@ export function pipeline_typeck_coerce_init_int_binop_to_decl_c(arena: *u8, init
  */
 #[no_mangle]
 export function pipeline_typeck_check_block_one_region_c(module: *u8, arena: *u8, block_ref: i32, region_idx: i32, return_type_ref: i32, ctx: *u8): i32 {
-  if (module == 0) { return 0; }
-  if (arena == 0) { return 0; }
-  if (ctx == 0) { return 0; }
+  if (module == 0 as *u8) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
   if (block_ref <= 0) { return 0; }
   if (region_idx < 0) { return 0; }
   unsafe {
@@ -1505,7 +1540,7 @@ export function pipeline_lsp_diag_parse_typeck_buf(module: *u8, arena: *u8, sour
  */
 #[no_mangle]
 export function pipeline_typeck_check_expr_int_lit_c(arena: *u8, expr_ref: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
     if (pipeline_expr_resolved_type_ref(arena, expr_ref) != 0) { return 0; }
@@ -1534,16 +1569,16 @@ export function pipeline_typeck_check_expr_int_lit_c(arena: *u8, expr_ref: i32):
 
 /* ---- G-02f-217：reject linear / soa storage / const diag / scope borrow / stack escape ---- */
 
-export extern "C" function pipeline_block_resolve_var_type_ref(arena: *u8, br: i32, name: *u8, nlen: i32): i32;
-export extern "C" function typeck_x_type_size(module: *u8, arena: *u8, tr: i32, depth: i32): i32;
-export extern "C" function typeck_x_type_align(module: *u8, arena: *u8, tr: i32, depth: i32): i32;
-export extern "C" function typeck_entry_module_find_struct_layout_index(mod: *u8, nm: *u8, nlen: i32): i32;
-export extern "C" function pipeline_module_struct_layout_soa_at(mod: *u8, li: i32): i32;
-export extern "C" function pipeline_module_struct_layout_num_fields(mod: *u8, li: i32): i32;
-export extern "C" function pipeline_module_struct_layout_field_type_ref(mod: *u8, li: i32, j: i32): i32;
-export extern "C" function driver_diagnostic_typeck_linear_addr_of(line: i32, col: i32): void;
-export extern "C" function pipeline_module_func_param_type_ref_at(mod: *u8, fi: i32, pi: i32): i32;
-export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, fmt: *u8): void;
+export extern function pipeline_block_resolve_var_type_ref(arena: *u8, br: i32, name: *u8, nlen: i32): i32;
+export extern function typeck_x_type_size(module: *u8, arena: *u8, tr: i32, depth: i32): i32;
+export extern function typeck_x_type_align(module: *u8, arena: *u8, tr: i32, depth: i32): i32;
+export extern function typeck_entry_module_find_struct_layout_index(mod: *u8, nm: *u8, nlen: i32): i32;
+export extern function pipeline_module_struct_layout_soa_at(mod: *u8, li: i32): i32;
+export extern function pipeline_module_struct_layout_num_fields(mod: *u8, li: i32): i32;
+export extern function pipeline_module_struct_layout_field_type_ref(mod: *u8, li: i32, j: i32): i32;
+export extern function driver_diagnostic_typeck_linear_addr_of(line: i32, col: i32): void;
+export extern function pipeline_module_func_param_type_ref_at(mod: *u8, fi: i32, pi: i32): i32;
+export extern function lsp_diag_report_typeck(line: i32, col: i32, fmt: *u8): void;
 
 // pipeline_typeck_reject_addr_of_linear_c: see function docblock below.
 /** Exported function `pipeline_typeck_reject_addr_of_linear_c`.
@@ -1557,9 +1592,9 @@ export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, fmt: *u8)
  */
 #[no_mangle]
 export function pipeline_typeck_reject_addr_of_linear_c(arena: *u8, op_ref: i32, addr_expr_ref: i32, module: *u8, ctx: *u8): i32 {
-  if (arena == 0) { return 0; }
-  if (module == 0) { return 0; }
-  if (ctx == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
+  if (module == 0 as *u8) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
   if (op_ref <= 0) { return 0; }
   unsafe {
     if (pipeline_expr_kind_ord_at(arena, op_ref) != 3) { return 0; }
@@ -1618,8 +1653,8 @@ export function pipeline_typeck_reject_addr_of_linear_c(arena: *u8, op_ref: i32,
  */
 #[no_mangle]
 export function typeck_soa_array_storage_size_glue(module: *u8, arena: *u8, elem_type_ref: i32, array_len: i32, depth: i32): i32 {
-  if (module == 0) { return 0; }
-  if (arena == 0) { return 0; }
+  if (module == 0 as *u8) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (elem_type_ref <= 0) { return 0; }
   if (array_len <= 0) { return 0; }
   if (depth > 64) { return 0; }
@@ -1699,9 +1734,9 @@ export function pipeline_typeck_const_init_not_constant_c(line: i32, col: i32): 
  */
 #[no_mangle]
 export function pipeline_typeck_check_scope_borrow_assign_c(module: *u8, arena: *u8, site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8): i32 {
-  if (module == 0) { return 0; }
-  if (arena == 0) { return 0; }
-  if (ctx == 0) { return 0; }
+  if (module == 0 as *u8) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
   if (left_ref <= 0) { return 0; }
   if (right_ref <= 0) { return 0; }
   unsafe {
@@ -1761,9 +1796,9 @@ export function pipeline_typeck_check_scope_borrow_assign_c(module: *u8, arena: 
  */
 #[no_mangle]
 export function pipeline_typeck_check_struct_stack_escape_assign_c(module: *u8, arena: *u8, site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8): i32 {
-  if (module == 0) { return 0; }
-  if (arena == 0) { return 0; }
-  if (ctx == 0) { return 0; }
+  if (module == 0 as *u8) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
   if (left_ref <= 0) { return 0; }
   if (right_ref <= 0) { return 0; }
   unsafe {
@@ -1818,13 +1853,13 @@ export function pipeline_typeck_check_struct_stack_escape_assign_c(module: *u8, 
 
 /* ---- G-02f-218：slice region assign/return/call + try_propagate ---- */
 
-export extern "C" function typeck_check_expr(module: *u8, arena: *u8, er: i32, ret_ty: i32, ctx: *u8): i32;
-export extern "C" function driver_diagnostic_typeck_try_propagate_bad_enclosing(line: i32, col: i32): void;
-export extern "C" function pipeline_expr_call_resolved_dep_index_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, er: i32, idx: i32): i32;
-export extern "C" function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
-export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, fmt: *u8): void;
+export extern function typeck_check_expr(module: *u8, arena: *u8, er: i32, ret_ty: i32, ctx: *u8): i32;
+export extern function driver_diagnostic_typeck_try_propagate_bad_enclosing(line: i32, col: i32): void;
+export extern function pipeline_expr_call_resolved_dep_index_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_call_arg_ref(arena: *u8, er: i32, idx: i32): i32;
+export extern function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
+export extern function lsp_diag_report_typeck(line: i32, col: i32, fmt: *u8): void;
 
 // glue_msg_append_c: see function docblock below.
 /** Exported function `glue_msg_append_c`.
@@ -1901,7 +1936,7 @@ export function glue_msg_with_label_c(dst: *u8, cap: i32, pre: *u8, pre_n: i32, 
  */
 #[no_mangle]
 export function pipeline_typeck_check_slice_region_assign_c(arena: *u8, site_expr_ref: i32, expect_ref: i32, src_ref: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expect_ref <= 0) { return 0; }
   if (src_ref <= 0) { return 0; }
   unsafe {
@@ -1982,7 +2017,7 @@ export function pipeline_typeck_check_slice_region_assign_c(arena: *u8, site_exp
  */
 #[no_mangle]
 export function pipeline_typeck_check_return_slice_region_c(arena: *u8, ret_site_ref: i32, op_ref: i32, func_return_ref: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (op_ref <= 0) { return 0; }
   if (func_return_ref <= 0) { return 0; }
   unsafe {
@@ -2063,8 +2098,8 @@ export function pipeline_typeck_check_return_slice_region_c(arena: *u8, ret_site
  */
 #[no_mangle]
 export function pipeline_typeck_check_call_slice_region_c(module: *u8, arena: *u8, call_expr_ref: i32, ctx: *u8): i32 {
-  if (module == 0) { return 0; }
-  if (arena == 0) { return 0; }
+  if (module == 0 as *u8) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (call_expr_ref <= 0) { return 0; }
   unsafe {
     let func_ix: i32 = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
@@ -2075,9 +2110,9 @@ export function pipeline_typeck_check_call_slice_region_c(module: *u8, arena: *u
     if (func_ix < 0) { return 0; }
     let callee_mod: *u8 = module;
     if (dep_ix >= 0) {
-      if (ctx != 0) {
+      if (ctx != 0 as *u8) {
         let dm: *u8 = pipeline_dep_ctx_module_at(ctx, dep_ix);
-        if (dm != 0) { callee_mod = dm; }
+        if (dm != 0 as *u8) { callee_mod = dm; }
       }
     }
     let num_args: i32 = pipeline_expr_call_num_args_at(arena, call_expr_ref);
@@ -2110,8 +2145,8 @@ export function pipeline_typeck_check_call_slice_region_c(module: *u8, arena: *u
  */
 #[no_mangle]
 export function pipeline_typeck_check_expr_try_propagate_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
-  if (module == 0) { return 0; }
-  if (arena == 0) { return 0; }
+  if (module == 0 as *u8) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
     let op_ref: i32 = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -2124,7 +2159,7 @@ export function pipeline_typeck_check_expr_try_propagate_c(module: *u8, arena: *
     let enclosing: i32 = return_type_ref;
     let func_ret: i32 = 0;
     let func_ix: i32 = 0 - 1;
-    if (ctx != 0) {
+    if (ctx != 0 as *u8) {
       func_ix = pipeline_dep_ctx_current_func_index(ctx);
     }
     if (func_ix >= 0) {
@@ -2197,48 +2232,48 @@ export function pipeline_typeck_check_expr_try_propagate_c(module: *u8, arena: *
 
 /* ---- G-02f-219：match / field_access / method_call / expr_impl dispatch ---- */
 
-export extern "C" function typeck_check_expr(module: *u8, arena: *u8, er: i32, ret_ty: i32, ctx: *u8): i32;
-export extern "C" function driver_diagnostic_typeck_enum_no_variant(line: i32, col: i32): void;
-export extern "C" function pipeline_expr_match_matched_ref_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_match_num_arms_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_match_arm_is_enum_variant(arena: *u8, er: i32, idx: i32): i32;
-export extern "C" function pipeline_expr_match_arm_variant_index(arena: *u8, er: i32, idx: i32): i32;
-export extern "C" function pipeline_expr_match_arm_result_ref(arena: *u8, er: i32, idx: i32): i32;
-export extern "C" function pipeline_expr_field_access_name_len(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_field_access_name_into(arena: *u8, er: i32, out: *u8): void;
-export extern "C" function pipeline_expr_set_field_access_offset(arena: *u8, er: i32, off: i32): void;
+export extern function typeck_check_expr(module: *u8, arena: *u8, er: i32, ret_ty: i32, ctx: *u8): i32;
+export extern function driver_diagnostic_typeck_enum_no_variant(line: i32, col: i32): void;
+export extern function pipeline_expr_match_matched_ref_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_match_num_arms_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_match_arm_is_enum_variant(arena: *u8, er: i32, idx: i32): i32;
+export extern function pipeline_expr_match_arm_variant_index(arena: *u8, er: i32, idx: i32): i32;
+export extern function pipeline_expr_match_arm_result_ref(arena: *u8, er: i32, idx: i32): i32;
+export extern function pipeline_expr_field_access_name_len(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_field_access_name_into(arena: *u8, er: i32, out: *u8): void;
+export extern function pipeline_expr_set_field_access_offset(arena: *u8, er: i32, off: i32): void;
 /* wave479: heavy field_layout_named (user enum TypeName.Variant → TYPE_NAMED). */
-export extern "C" function pipeline_typeck_field_layout_named_c(module: *u8, arena: *u8, expr_ref: i32, base_ref: i32, ctx: *u8): i32;
-export extern "C" function typeck_get_field_offset_from_layout_deps(module: *u8, ctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
-export extern "C" function typeck_get_field_type_ref_from_layout_deps(module: *u8, arena: *u8, ctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
-export extern "C" function pipeline_typeck_named_is_module_concrete_c(module: *u8, ctx: *u8, name: *u8, name_len: i32): i32;
-export extern "C" function pipeline_expr_init_call_resolve_at_ref(arena: *u8, er: i32): void;
-export extern "C" function pipeline_expr_method_call_base_ref_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_method_call_name_len(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_method_call_name_into(arena: *u8, er: i32, out: *u8): void;
-export extern "C" function pipeline_expr_method_call_num_args_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_method_call_arg_ref(arena: *u8, er: i32, idx: i32): i32;
-export extern "C" function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
+export extern function pipeline_typeck_field_layout_named_c(module: *u8, arena: *u8, expr_ref: i32, base_ref: i32, ctx: *u8): i32;
+export extern function typeck_get_field_offset_from_layout_deps(module: *u8, ctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
+export extern function typeck_get_field_type_ref_from_layout_deps(module: *u8, arena: *u8, ctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
+export extern function pipeline_typeck_named_is_module_concrete_c(module: *u8, ctx: *u8, name: *u8, name_len: i32): i32;
+export extern function pipeline_expr_init_call_resolve_at_ref(arena: *u8, er: i32): void;
+export extern function pipeline_expr_method_call_base_ref_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_method_call_name_len(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_method_call_name_into(arena: *u8, er: i32, out: *u8): void;
+export extern function pipeline_expr_method_call_num_args_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_method_call_arg_ref(arena: *u8, er: i32, idx: i32): i32;
+export extern function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
 /** Used by METHOD_CALL dep fallback when path-matched slot is empty (freestanding prerun). */
-export extern "C" function pipeline_dep_ctx_ndep(ctx: *u8): i32;
-export extern "C" function typeck_check_expr_assign(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_return(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_panic(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_index(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_call(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_binop(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_unary(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_addr_of(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_deref(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_var(module: *u8, arena: *u8, er: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_as(module: *u8, arena: *u8, er: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_struct_lit(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_float_lit(arena: *u8, er: i32): i32;
-export extern "C" function typeck_check_expr_bool_lit(arena: *u8, er: i32): i32;
-export extern "C" function typeck_check_expr_break_continue(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_enum_variant(arena: *u8, er: i32): i32;
-export extern "C" function typeck_check_expr_if_ternary(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function typeck_check_expr_block(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function pipeline_dep_ctx_ndep(ctx: *u8): i32;
+export extern function typeck_check_expr_assign(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_return(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_panic(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_index(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_call(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_binop(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_unary(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_addr_of(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_deref(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_var(module: *u8, arena: *u8, er: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_as(module: *u8, arena: *u8, er: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_struct_lit(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_float_lit(arena: *u8, er: i32): i32;
+export extern function typeck_check_expr_bool_lit(arena: *u8, er: i32): i32;
+export extern function typeck_check_expr_break_continue(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_enum_variant(arena: *u8, er: i32): i32;
+export extern function typeck_check_expr_if_ternary(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function typeck_check_expr_block(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
 
 // pipeline_typeck_check_expr_match_c: see function docblock below.
 /** Exported function `pipeline_typeck_check_expr_match_c`.
@@ -2252,7 +2287,7 @@ export extern "C" function typeck_check_expr_block(module: *u8, arena: *u8, er: 
  */
 #[no_mangle]
 export function pipeline_typeck_check_expr_match_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
     let matched_ref: i32 = pipeline_expr_match_matched_ref_at(arena, expr_ref);
@@ -2286,11 +2321,11 @@ export function pipeline_typeck_check_expr_match_c(module: *u8, arena: *u8, expr
 // See implementation.
 // SLICE=11 PTR=9 NAMED=8 USIZE=6 I32=0
 // EXPR_CALL=48 EXPR_METHOD_CALL=49 EXPR_VAR=3
-export extern "C" function pipeline_module_struct_layout_field_name_len(mod: *u8, li: i32, j: i32): i32;
-export extern "C" function pipeline_module_struct_layout_field_name_into(mod: *u8, li: i32, j: i32, out: *u8): void;
-export extern "C" function pipeline_module_struct_layout_name_len(mod: *u8, idx: i32): i32;
-export extern "C" function pipeline_module_struct_layout_name_into(mod: *u8, idx: i32, out: *u8): void;
-export extern "C" function pipeline_module_num_struct_layouts_at(mod: *u8): i32;
+export extern function pipeline_module_struct_layout_field_name_len(mod: *u8, li: i32, j: i32): i32;
+export extern function pipeline_module_struct_layout_field_name_into(mod: *u8, li: i32, j: i32, out: *u8): void;
+export extern function pipeline_module_struct_layout_name_len(mod: *u8, idx: i32): i32;
+export extern function pipeline_module_struct_layout_name_into(mod: *u8, idx: i32, out: *u8): void;
+export extern function pipeline_module_num_struct_layouts_at(mod: *u8): i32;
 
 /**
  * wave454: unique owner TYPE_NAMED of a field name among module struct layouts.
@@ -2303,64 +2338,67 @@ export extern "C" function pipeline_module_num_struct_layouts_at(mod: *u8): i32;
  * PLATFORM: SHARED — product Darwin g05 field_access authority (strict_minimal).
  */
 function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u8, arena: *u8, expr_ref: i32): i32 {
-  if (module == 0) { return 0; }
-  if (arena == 0) { return 0; }
-  if (expr_ref <= 0) { return 0; }
-  let fl: i32 = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0) { return 0; }
-  if (fl > 127) { return 0; }
-  let fn_buf: u8[128] = [];
-  pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
-  let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
-  if (nsl <= 0) { return 0; }
-  let hits: i32 = 0;
-  let unique_ty: i32 = 0;
-  let k: i32 = 0;
-  while (k < nsl) {
-    let nf: i32 = pipeline_module_struct_layout_num_fields(module, k);
-    let j: i32 = 0;
-    while (j < nf) {
-      let fjl: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
-      if (fjl == fl) {
-        let fjn: u8[128] = [];
-        pipeline_module_struct_layout_field_name_into(module, k, j, &fjn[0]);
-        /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
-        let name_eq: i32 = 1;
-        let bi: i32 = 0;
-        while (bi < fl) {
-          if (fjn[bi] != fn_buf[bi]) { name_eq = 0; }
-          bi = bi + 1;
-        }
-        if (name_eq != 0) {
-          let lnl: i32 = pipeline_module_struct_layout_name_len(module, k);
-          if (lnl > 0) {
-            // wave587 Cap residual: layout name content ≤127 (lnm[128]).
-            if (lnl <= 127) {
-              let lnm: u8[128] = [];
-              pipeline_module_struct_layout_name_into(module, k, &lnm[0]);
-              let nty: i32 = pipeline_type_find_or_alloc_named(arena, &lnm[0], lnl);
-              if (nty > 0) {
-                if (hits == 1) {
-                  if (unique_ty == nty) {
-                    // same owner again — ignore
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *u8) { return 0; }
+    if (arena == 0 as *u8) { return 0; }
+    if (expr_ref <= 0) { return 0; }
+    let fl: i32 = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (fl <= 0) { return 0; }
+    if (fl > 127) { return 0; }
+    let fn_buf: u8[128] = [];
+    pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
+    let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+    if (nsl <= 0) { return 0; }
+    let hits: i32 = 0;
+    let unique_ty: i32 = 0;
+    let k: i32 = 0;
+    while (k < nsl) {
+      let nf: i32 = pipeline_module_struct_layout_num_fields(module, k);
+      let j: i32 = 0;
+      while (j < nf) {
+        let fjl: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
+        if (fjl == fl) {
+          let fjn: u8[128] = [];
+          pipeline_module_struct_layout_field_name_into(module, k, j, &fjn[0]);
+          /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
+          let name_eq: i32 = 1;
+          let bi: i32 = 0;
+          while (bi < fl) {
+            if (fjn[bi] != fn_buf[bi]) { name_eq = 0; }
+            bi = bi + 1;
+          }
+          if (name_eq != 0) {
+            let lnl: i32 = pipeline_module_struct_layout_name_len(module, k);
+            if (lnl > 0) {
+              // wave587 Cap residual: layout name content ≤127 (lnm[128]).
+              if (lnl <= 127) {
+                let lnm: u8[128] = [];
+                pipeline_module_struct_layout_name_into(module, k, &lnm[0]);
+                let nty: i32 = pipeline_type_find_or_alloc_named(arena, &lnm[0], lnl);
+                if (nty > 0) {
+                  if (hits == 1) {
+                    if (unique_ty == nty) {
+                      // same owner again — ignore
+                    } else {
+                      return 0;
+                    }
                   } else {
-                    return 0;
+                    hits = hits + 1;
+                    unique_ty = nty;
                   }
-                } else {
-                  hits = hits + 1;
-                  unique_ty = nty;
                 }
               }
             }
           }
         }
+        j = j + 1;
       }
-      j = j + 1;
+      k = k + 1;
     }
-    k = k + 1;
+    if (hits == 1) { return unique_ty; }
+    return 0;
   }
-  if (hits == 1) { return unique_ty; }
-  return 0;
 }
 
 /**
@@ -2382,8 +2420,8 @@ function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u
  */
 #[no_mangle]
 export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
-  if (module == 0) { return 0; }
-  if (arena == 0) { return 0; }
+  if (module == 0 as *u8) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
     let base_ref: i32 = pipeline_expr_field_access_base_ref(arena, expr_ref);
@@ -2398,7 +2436,7 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
             let prebind_name: u8[128] = [];
             pipeline_expr_var_name_into(arena, base_ref, &prebind_name[0]);
             let do_prebind: i32 = 1;
-            if (ctx != 0) {
+            if (ctx != 0 as *u8) {
               let cfi: i32 = pipeline_dep_ctx_current_func_index(ctx);
               if (cfi >= 0) {
                 if (pipeline_module_func_param_type_ref_for_name(module, cfi, &prebind_name[0], prebind_len) > 0) {
@@ -2605,11 +2643,8 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
  * overload via call_strict_minimal after args are typed. Product authority is seed C;
  * this .x stays in sync (G.7).
  */
-export extern "C" function pipeline_typeck_resolve_dep_index_for_import_c(module: *u8, ctx: *u8, imp_ix: i32): i32;
-export extern "C" function pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-  mod: *u8, arena: *u8, name: *u8, name_len: i32, from_dep_index: i32, want_arity: i32,
-  call_expr_ref: i32, is_method: i32, ctx: *u8, func_index_out: *i32
-): i32;
+export extern function pipeline_typeck_resolve_dep_index_for_import_c(module: *u8, ctx: *u8, imp_ix: i32): i32;
+/* deduped: pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal */
 
 /** Exported function `pipeline_typeck_check_expr_method_call_c`.
  * Implements `pipeline_typeck_check_expr_method_call_c`.
@@ -2622,8 +2657,8 @@ export extern "C" function pipeline_typeck_find_func_return_type_in_module_by_na
  */
 #[no_mangle]
 export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
-  if (module == 0) { return 0; }
-  if (arena == 0) { return 0; }
+  if (module == 0 as *u8) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
     pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
@@ -2669,7 +2704,7 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
     let dep_ix: i32 = 0 - 1;
     let func_ix: i32 = 0 - 1;
     let import_ret_ty: i32 = 0;
-    if (ctx != 0) {
+    if (ctx != 0 as *u8) {
       if (base_kind == 3) {
         let base_nlen: i32 = pipeline_expr_var_name_len(arena, base_ref);
         if (base_nlen > 0) {
@@ -2690,7 +2725,7 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
                   let fout: i32 = 0 - 1;
                   if (dep_slot >= 0) {
                     let dm: *u8 = pipeline_dep_ctx_module_at(ctx, dep_slot);
-                    if (dm != 0) {
+                    if (dm != 0 as *u8) {
                       if (pipeline_module_num_funcs(dm) > 0) {
                         import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
                           dm, arena, &method_nm[0], method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &fout
@@ -2709,7 +2744,7 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
                     while (try_di < nd) {
                       if (try_di != dep_slot) {
                         let try_dm: *u8 = pipeline_dep_ctx_module_at(ctx, try_di);
-                        if (try_dm != 0) {
+                        if (try_dm != 0 as *u8) {
                           if (pipeline_module_num_funcs(try_dm) > 0) {
                             fout = 0 - 1;
                             let try_ret: i32 = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
@@ -2859,7 +2894,7 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
  */
 #[no_mangle]
 export function pipeline_typeck_check_expr_impl_mega_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
     let kind: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
@@ -2905,7 +2940,7 @@ export function pipeline_typeck_check_expr_impl_mega_c(module: *u8, arena: *u8, 
  */
 #[no_mangle]
 export function pipeline_typeck_check_expr_impl_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
     let kind: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
@@ -2926,31 +2961,31 @@ export function pipeline_typeck_check_expr_impl_c(module: *u8, arena: *u8, expr_
 
 /* ---- G-02f-220：check_block_impl + dep map entry + generic_params ---- */
 
-export extern "C" function pipeline_typeck_block_impl_bind_ctx_c(ctx: *u8, block_ref: i32): i32;
-export extern "C" function pipeline_typeck_block_impl_restore_ctx_c(ctx: *u8, saved: i32): void;
-export extern "C" function typeck_check_block_stmt_order_one(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, si: i32, nso: i32, nc: i32, nl: i32, nes: i32, nlp: i32, nfp: i32, nif: i32, nreg: i32): i32;
-export extern "C" function typeck_check_block_one_const(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, idx: i32): i32;
-export extern "C" function typeck_check_block_one_let(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, idx: i32): i32;
-export extern "C" function typeck_check_block_one_while(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, idx: i32): i32;
-export extern "C" function typeck_check_block_one_for(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, idx: i32): i32;
-export extern "C" function typeck_check_block_one_if(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, idx: i32): i32;
-export extern "C" function typeck_check_block_final(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, fin0: i32): i32;
-export extern "C" function typeck_check_expr(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
-export extern "C" function ast_ast_block_num_consts(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_num_lets(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_num_loops(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_num_for_loops(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_num_if_stmts(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_num_regions(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_num_expr_stmts(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_num_stmt_order(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_expr_stmt_ref(arena: *u8, br: i32, idx: i32): i32;
-export extern "C" function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
-export extern "C" function pipeline_dep_ctx_ndep(ctx: *u8): i32;
-export extern "C" function pipeline_get_dep_arena_slot(ix: i32): *u8;
-export extern "C" function pipeline_module_func_num_generic_params_at(mod: *u8, fi: i32): i32;
-export extern "C" function getenv(name: *u8): *u8;
+export extern function pipeline_typeck_block_impl_bind_ctx_c(ctx: *u8, block_ref: i32): i32;
+export extern function pipeline_typeck_block_impl_restore_ctx_c(ctx: *u8, saved: i32): void;
+export extern function typeck_check_block_stmt_order_one(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, si: i32, nso: i32, nc: i32, nl: i32, nes: i32, nlp: i32, nfp: i32, nif: i32, nreg: i32): i32;
+export extern function typeck_check_block_one_const(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, idx: i32): i32;
+export extern function typeck_check_block_one_let(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, idx: i32): i32;
+export extern function typeck_check_block_one_while(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, idx: i32): i32;
+export extern function typeck_check_block_one_for(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, idx: i32): i32;
+export extern function typeck_check_block_one_if(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, idx: i32): i32;
+export extern function typeck_check_block_final(module: *u8, arena: *u8, br: i32, rt: i32, ctx: *u8, fin0: i32): i32;
+export extern function typeck_check_expr(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
+export extern function ast_ast_block_num_consts(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_num_lets(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_num_loops(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_num_for_loops(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_num_if_stmts(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_num_regions(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_num_expr_stmts(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_num_stmt_order(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_final_expr_ref(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_expr_stmt_ref(arena: *u8, br: i32, idx: i32): i32;
+export extern function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
+export extern function pipeline_dep_ctx_ndep(ctx: *u8): i32;
+export extern function pipeline_get_dep_arena_slot(ix: i32): *u8;
+export extern function pipeline_module_func_num_generic_params_at(mod: *u8, fi: i32): i32;
+export extern function getenv(name: *u8): *u8;
 
 // See implementation.
 let g_typeck_entry_module_for_dep_map_x: *u8 = 0;
@@ -2978,7 +3013,7 @@ export function pipeline_typeck_set_entry_module_for_dep_map_c(module: *u8): voi
 #[no_mangle]
 export function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32, dep_return_type_ref: i32, caller_arena: *u8, ctx: *u8): i32 {
   if (from_dep_index < 0) { return 0; }
-  if (ctx == 0) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
   unsafe {
     let dep_arena: *u8 = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
     if (dep_arena == 0) {
@@ -3037,8 +3072,8 @@ export function ast_pipeline_module_func_num_generic_params_at(m: *u8, fi: i32):
  */
 #[no_mangle]
 export function pipeline_typeck_check_block_impl_c(module: *u8, arena: *u8, block_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
-  if (arena == 0) { return 0 - 1; }
-  if (ctx == 0) { return 0 - 1; }
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
   if (block_ref <= 0) { return 0 - 1; }
   unsafe {
     let saved_block_ref: i32 = pipeline_typeck_block_impl_bind_ctx_c(ctx, block_ref);
@@ -3138,20 +3173,20 @@ export function pipeline_typeck_check_block_impl_c(module: *u8, arena: *u8, bloc
 
 /* See implementation. */
 
-export extern "C" function pipeline_strict_parse_into_init(arena: *u8, module: *u8): void;
-export extern "C" function pipeline_parse_into_with_init_slice_scalars_sidecar(arena: *u8, module: *u8, source: *u8): void;
-export extern "C" function pipeline_parse_scalars_ok_get(): i32;
-export extern "C" function pipeline_parse_scalars_main_idx_get(): i32;
-export extern "C" function pipeline_module_set_main_func_index(module: *u8, idx: i32): void;
-export extern "C" function pipeline_typeck_set_active_ctx_c(module: *u8, ctx: *u8): void;
-export extern "C" function pipeline_module_main_func_index(module: *u8): i32;
-export extern "C" function typeck_typeck_x_ast_library(module: *u8, arena: *u8, ctx: *u8): i32;
-export extern "C" function typeck_typeck_x_ast(module: *u8, arena: *u8, ctx: *u8): i32;
-export extern "C" function driver_diagnostic_typeck_fail(): void;
-export extern "C" function pipeline_block_const_name_len(arena: *u8, br: i32, idx: i32): i32;
-export extern "C" function pipeline_block_const_name_copy64(arena: *u8, br: i32, idx: i32, dst: *u8): void;
-export extern "C" function pipeline_block_const_init_ref(arena: *u8, br: i32, idx: i32): i32;
-export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, fmt: *u8): void;
+export extern function pipeline_strict_parse_into_init(arena: *u8, module: *u8): void;
+export extern function pipeline_parse_into_with_init_slice_scalars_sidecar(arena: *u8, module: *u8, source: *u8): void;
+export extern function pipeline_parse_scalars_ok_get(): i32;
+export extern function pipeline_parse_scalars_main_idx_get(): i32;
+export extern function pipeline_module_set_main_func_index(module: *u8, idx: i32): void;
+export extern function pipeline_typeck_set_active_ctx_c(module: *u8, ctx: *u8): void;
+export extern function pipeline_module_main_func_index(module: *u8): i32;
+export extern function typeck_typeck_x_ast_library(module: *u8, arena: *u8, ctx: *u8): i32;
+export extern function typeck_typeck_x_ast(module: *u8, arena: *u8, ctx: *u8): i32;
+export extern function driver_diagnostic_typeck_fail(): void;
+export extern function pipeline_block_const_name_len(arena: *u8, br: i32, idx: i32): i32;
+export extern function pipeline_block_const_name_copy64(arena: *u8, br: i32, idx: i32, dst: *u8): void;
+export extern function pipeline_block_const_init_ref(arena: *u8, br: i32, idx: i32): i32;
+export extern function lsp_diag_report_typeck(line: i32, col: i32, fmt: *u8): void;
 
 // See implementation.
 let g_lin_moved_n: i32 = 0;
@@ -3177,7 +3212,7 @@ export function glue_lin_name_base(i: i32): i32 {
  */
 #[no_mangle]
 export function pipeline_typeck_linear_name_already_moved_strict_minimal(name: *u8, name_len: i32): i32 {
-  if (name == 0) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (name_len <= 0) { return 0; }
   let i: i32 = 0;
   while (i < g_lin_moved_n) {
@@ -3223,8 +3258,8 @@ export function pipeline_typeck_linear_reset_c(): void {
  */
 #[no_mangle]
 export function pipeline_typeck_linear_use_var_c(arena: *u8, type_ref: i32, expr_ref: i32, name: *u8, name_len: i32): i32 {
-  if (arena == 0) { return 0; }
-  if (name == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (name_len <= 0) { return 0; }
   if (name_len > 127) { return 0; }
   if (type_ref <= 0) { return 0; }
@@ -3271,10 +3306,10 @@ export function pipeline_typeck_linear_use_var_c(arena: *u8, type_ref: i32, expr
  */
 #[no_mangle]
 export function pipeline_typeck_after_parse_ok_impl_c(arena: *u8, module: *u8, source: *u8, ctx: *u8): i32 {
-  if (arena == 0) { return 0 - 1; }
-  if (module == 0) { return 0 - 1; }
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (module == 0 as *u8) { return 0 - 1; }
   if (source == 0) { return 0 - 1; }
-  if (ctx == 0) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
   unsafe {
     pipeline_strict_parse_into_init(arena, module);
     pipeline_parse_into_with_init_slice_scalars_sidecar(arena, module, source);
@@ -3312,8 +3347,8 @@ export function pipeline_typeck_after_parse_ok_impl_c(arena: *u8, module: *u8, s
  * @return i32
  */
 export function glue_block_prior_const_name_match(arena: *u8, block_ref: i32, const_idx: i32, name: *u8, name_len: i32): i32 {
-  if (arena == 0) { return 0; }
-  if (name == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (name_len <= 0) { return 0; }
   unsafe {
     let i: i32 = 0;
@@ -3355,7 +3390,7 @@ export function glue_block_prior_const_name_match(arena: *u8, block_ref: i32, co
  * @return i32
  */
 export function glue_block_const_expr_is_const(arena: *u8, expr_ref: i32, block_ref: i32, const_idx: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (expr_ref <= 0) { return 0; }
   unsafe {
     let kind: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
@@ -3411,7 +3446,7 @@ export function glue_block_const_expr_is_const(arena: *u8, expr_ref: i32, block_
  */
 #[no_mangle]
 export function pipeline_typeck_block_const_init_is_const_c(arena: *u8, block_ref: i32, const_idx: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (const_idx < 0) { return 0; }
   unsafe {
     let init_ref: i32 = pipeline_block_const_init_ref(arena, block_ref, const_idx);
@@ -3423,23 +3458,23 @@ export function pipeline_typeck_block_const_init_is_const_c(arena: *u8, block_re
 
 /* See implementation. */
 
-export extern "C" function driver_diagnostic_parse_func_generic(byte_pos: i32, num_funcs: i32, name: *u8, name_len: i32, ngen: i32, is_main: i32): void;
-export extern "C" function pipeline_onefunc_num_consts(pool: *u8): i32;
-export extern "C" function pipeline_onefunc_num_lets(pool: *u8): i32;
-export extern "C" function pipeline_onefunc_num_if_stmts(pool: *u8): i32;
-export extern "C" function pipeline_onefunc_num_regions(pool: *u8): i32;
-export extern "C" function pipeline_onefunc_num_src_stmt_order(pool: *u8): i32;
-export extern "C" function driver_diagnostic_parse_commit_shape(
+export extern function driver_diagnostic_parse_func_generic(byte_pos: i32, num_funcs: i32, name: *u8, name_len: i32, ngen: i32, is_main: i32): void;
+export extern function pipeline_onefunc_num_consts(pool: *u8): i32;
+export extern function pipeline_onefunc_num_lets(pool: *u8): i32;
+export extern function pipeline_onefunc_num_if_stmts(pool: *u8): i32;
+export extern function pipeline_onefunc_num_regions(pool: *u8): i32;
+export extern function pipeline_onefunc_num_src_stmt_order(pool: *u8): i32;
+export extern function driver_diagnostic_parse_commit_shape(
   byte_pos: i32, num_funcs: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32,
   pool_nc: i32, pool_nl: i32, pool_nif: i32, pool_nreg: i32, pool_nso: i32,
   blk_nc: i32, blk_nl: i32, blk_nif: i32, blk_nreg: i32, blk_nso: i32, final_er: i32
 ): void;
-export extern "C" function ast_ast_block_num_consts(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_num_lets(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_num_if_stmts(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_num_regions(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_num_stmt_order(arena: *u8, br: i32): i32;
-export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_num_consts(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_num_lets(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_num_if_stmts(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_num_regions(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_num_stmt_order(arena: *u8, br: i32): i32;
+export extern function ast_ast_block_final_expr_ref(arena: *u8, br: i32): i32;
 
 // See implementation.
 // NAMED=8 PTR=9 LINEAR=12 SLICE=11 ARRAY=10 VECTOR=13
@@ -3449,7 +3484,7 @@ export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, br: i32): i3
  * @return i32 — underlying type_ref (or type_ref if not an alias)
  * PLATFORM: SHARED — uses g_typeck_active_module from typeck_parsed_module_c.
  */
-export extern "C" function pipeline_typeck_resolve_type_alias_ref_c(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_typeck_resolve_type_alias_ref_c(arena: *u8, type_ref: i32): i32;
 
 /**
  * Type equality for product typeck (weak surface may win over pipeline_glue).
@@ -3463,18 +3498,19 @@ export extern "C" function pipeline_typeck_resolve_type_alias_ref_c(arena: *u8, 
  */
 #[no_mangle]
 export function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (a == 0) {
     if (b == 0) { return 1; }
     return 0;
   }
   if (b == 0) { return 0; }
   if (a == b) { return 1; }
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   // Peel aliases first (wave376); same as pipeline_glue.c type_refs_equal_c.
   a = pipeline_typeck_resolve_type_alias_ref_c(arena, a);
   b = pipeline_typeck_resolve_type_alias_ref_c(arena, b);
   if (a == b) { return 1; }
-  unsafe {
     let kind: i32 = pipeline_type_kind_ord_at(arena, a);
     if (kind != pipeline_type_kind_ord_at(arena, b)) { return 0; }
     if (kind == 8) {
@@ -3608,7 +3644,7 @@ export function parser_diagnostic_parse_commit_post(arena: *u8, name: *u8, name_
     let blk_nreg: i32 = 0;
     let blk_nso: i32 = 0;
     let final_er: i32 = 0;
-    if (arena != 0) {
+    if (arena != 0 as *u8) {
       blk_nc = ast_ast_block_num_consts(arena, block_ref);
       blk_nl = ast_ast_block_num_lets(arena, block_ref);
       blk_nif = ast_ast_block_num_if_stmts(arena, block_ref);

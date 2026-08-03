@@ -118,7 +118,7 @@ export function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32)
   if (name_len <= 0) { return 0 - 1; }
   unsafe {
     // 0x94000000 BL imm26 placeholder
-    if (backend_enc_append_u32_le_c(elf_ctx, 2483027968) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c(elf_ctx, (2483027968 as u32)) != 0) { return 0 - 1; }
     let at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
     if (at < 0) { return 0 - 1; }
     // wave580 Cap residual: G.7 API only — never hardcode ElfCodegenCtx offsets
@@ -160,9 +160,9 @@ export function backend_enc_arm64_add_sp_imm12_c(elf_ctx: *u8, imm: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (imm <= 0) { return 0; }
   if (imm > 4095) {
-    return backend_enc_append_u32_le_c(elf_ctx, 2432697343 | (4095 * 1024));
+    return backend_enc_append_u32_le_c(elf_ctx, (2432697343 as u32) | (4095 * 1024));
   }
-  return backend_enc_append_u32_le_c(elf_ctx, 2432697343 | ((imm as u32) * 1024));
+  return backend_enc_append_u32_le_c(elf_ctx, (2432697343 as u32) | ((imm as u32) * 1024));
 }
 
 // SUB X31, X31, #imm12 — 0xd10003ff | (imm12<<10)
@@ -177,9 +177,9 @@ export function backend_enc_arm64_sub_sp_imm12_c(elf_ctx: *u8, imm: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (imm <= 0) { return 0; }
   if (imm > 4095) {
-    return backend_enc_append_u32_le_c(elf_ctx, 3506439167 | (4095 * 1024));
+    return backend_enc_append_u32_le_c(elf_ctx, (3506439167 as u32) | (4095 * 1024));
   }
-  return backend_enc_append_u32_le_c(elf_ctx, 3506439167 | ((imm as u32) * 1024));
+  return backend_enc_append_u32_le_c(elf_ctx, (3506439167 as u32) | ((imm as u32) * 1024));
 }
 
 // STR X0, [SP, #imm12*8] — 0xf90003e0 | (imm12<<10)
@@ -193,12 +193,12 @@ export function backend_enc_arm64_sub_sp_imm12_c(elf_ctx: *u8, imm: i32): i32 {
 export function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (off_bytes < 0) {
-    return backend_enc_append_u32_le_c(elf_ctx, 4177527776);
+    return backend_enc_append_u32_le_c(elf_ctx, (4177527776 as u32));
   }
   if (off_bytes / 8 > 4095) {
-    return backend_enc_append_u32_le_c(elf_ctx, 4177527776 | (4095 * 1024));
+    return backend_enc_append_u32_le_c(elf_ctx, (4177527776 as u32) | (4095 * 1024));
   }
-  return backend_enc_append_u32_le_c(elf_ctx, 4177527776 | (((off_bytes / 8) as u32) * 1024));
+  return backend_enc_append_u32_le_c(elf_ctx, (4177527776 as u32) | (((off_bytes / 8) as u32) * 1024));
 }
 
 // LDUR w0, [x29, #-offset] — 0xB8400000 | (u9<<12) | (29<<5)
@@ -214,13 +214,13 @@ export function arm64_enc_load_w0_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   if (offset < 0) { return 0 - 1; }
   if (offset > 256) {
     unsafe {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, (3091202048 | (256 * 4096) | 928) as i32);
+      return arch_arm64_enc_enc_u32_le(elf_ctx, ((3091202048 as u32) | (256 * 4096) | 928) as i32);
     }
     return 0 - 1;
   }
   unsafe {
     let u9: i32 = (0 - offset) & 511;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (3091202048 | ((u9 as u32) * 4096) | 928) as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((3091202048 as u32) | ((u9 as u32) * 4096) | 928) as i32);
   }
   return 0 - 1;
 }
@@ -241,7 +241,7 @@ export function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   if ((offset / 4) > 4095) { return 0 - 1; }
   unsafe {
     /* STR W0,[x29,#off]: 0xB9000000 | ((off/4)<<10) | (29<<5) */
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (3103785888 | (((offset / 4) as u32) * 1024)) as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((3103785888 as u32) | (((offset / 4) as u32) * 1024)) as i32);
   }
   return 0 - 1;
 }
@@ -1566,7 +1566,7 @@ export function backend_enc_store_x0_sp_offset_arch(elf_ctx: *u8, off_bytes: i32
 export function backend_enc_index_scratch_add_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 184746050); }
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, (184746050 as i32)); }
   if (ta == 2) { return arch_riscv64_enc_enc_add_a2_a3(elf_ctx); }
   return arch_x86_64_enc_enc_add_ecx_edx(elf_ctx);
   }
@@ -1583,7 +1583,7 @@ export function backend_enc_index_scratch_add_secondary_arch(elf_ctx: *u8, ta: i
 export function backend_enc_index_scratch_sub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487874); }
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, (1258487874 as i32)); }
   if (ta == 2) { return arch_riscv64_enc_enc_sub_a2_a3(elf_ctx); }
   return arch_x86_64_enc_enc_sub_ecx_edx(elf_ctx);
   }
@@ -1600,7 +1600,7 @@ export function backend_enc_index_scratch_sub_secondary_arch(elf_ctx: *u8, ta: i
 export function backend_enc_index_scratch_rsub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258422370); }
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, (1258422370 as i32)); }
   if (ta == 2) { return arch_riscv64_enc_enc_rsub_a2_a3(elf_ctx); }
   return arch_x86_64_enc_enc_rsub_ecx_edx(elf_ctx);
   }
@@ -1617,7 +1617,7 @@ export function backend_enc_index_scratch_rsub_secondary_arch(elf_ctx: *u8, ta: 
 export function backend_enc_rbx_index_rsub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258356833); }
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, (1258356833 as i32)); }
   if (ta == 2) { return arch_riscv64_enc_enc_rsub_rbx_a3(elf_ctx); }
   return arch_x86_64_enc_enc_rsub_ebx_edx(elf_ctx);
   }
@@ -1634,7 +1634,7 @@ export function backend_enc_rbx_index_rsub_secondary_arch(elf_ctx: *u8, ta: i32)
 export function backend_enc_rbx_index_add_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 184746017); }
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, (184746017 as i32)); }
   if (ta == 2) { return arch_riscv64_enc_enc_add_rbx_a3(elf_ctx); }
   return arch_x86_64_enc_enc_add_ebx_edx(elf_ctx);
   }
@@ -1651,7 +1651,7 @@ export function backend_enc_rbx_index_add_secondary_arch(elf_ctx: *u8, ta: i32):
 export function backend_enc_rbx_index_sub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487841); }
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, (1258487841 as i32)); }
   if (ta == 2) { return arch_riscv64_enc_enc_sub_rbx_a3(elf_ctx); }
   return arch_x86_64_enc_enc_sub_ebx_edx(elf_ctx);
   }
@@ -1668,7 +1668,7 @@ export function backend_enc_rbx_index_sub_secondary_arch(elf_ctx: *u8, ta: i32):
 export function backend_enc_index_scratch_mul_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 453213250); }
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, (453213250 as i32)); }
   if (ta == 2) { return arch_riscv64_enc_enc_mul_a2_a3(elf_ctx); }
   return arch_x86_64_enc_enc_imul_ecx_edx(elf_ctx);
   }
@@ -1685,7 +1685,7 @@ export function backend_enc_index_scratch_mul_secondary_arch(elf_ctx: *u8, ta: i
 export function backend_enc_rbx_index_mul_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 453213217); }
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, (453213217 as i32)); }
   if (ta == 2) { return arch_riscv64_enc_enc_mul_rbx_a3(elf_ctx); }
   return arch_x86_64_enc_enc_imul_ebx_edx(elf_ctx);
   }
@@ -2093,7 +2093,7 @@ export function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32,
   }
 }
 
-// G-02f-207：arm64 ldr x0,[x29,#pos] — 0xf9400000 | (imm12<<10) | (29<<5) ≈ 4181722016 base
+// G-02f-207：arm64 ldr x0,[x29,#pos] — 0xf9400000 | (imm12<<10) | (29<<5) ≈ (4181722016 as u32) base
 /** Exported function `backend_enc_load_x29_pos_to_rax_arch`.
  * Implements `backend_enc_load_x29_pos_to_rax_arch`.
  * @param elf_ctx *u8
@@ -2110,7 +2110,7 @@ export function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32,
     if (off < 0) { off = 0; }
     let imm12: i32 = off / 8;
     if (imm12 > 4095) { imm12 = 4095; }
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (4181722016 | ((imm12 as u32) * 1024)) as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((4181722016 as u32) | ((imm12 as u32) * 1024)) as i32);
   }
   return 0 - 1;
   }
@@ -2160,7 +2160,7 @@ export function backend_enc_add_imm_to_index_scratch_arch(elf_ctx: *u8, imm: i32
     if (imm == 0) { return 0; }
     let imm12: i32 = imm;
     if (imm12 > 4095) { imm12 = 4095; }
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (285213762 + ((imm12 - 1) * 1024)) as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((285213762 as u32) + ((imm12 - 1) * 1024)) as i32);
   }
   if (ta == 2) { return arch_riscv64_enc_enc_add_imm_to_a2(elf_ctx, imm); }
   return arch_x86_64_enc_enc_add_imm_to_ecx(elf_ctx, imm);
@@ -2182,7 +2182,7 @@ export function backend_enc_sub_imm_from_index_scratch_arch(elf_ctx: *u8, imm: i
     if (imm == 0) { return 0; }
     let imm12: i32 = imm;
     if (imm12 > 4095) { imm12 = 4095; }
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (1358955586 + ((imm12 - 1) * 1024)) as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((1358955586 as u32) + ((imm12 - 1) * 1024)) as i32);
   }
   if (ta == 2) { return arch_riscv64_enc_enc_sub_imm_from_a2(elf_ctx, imm); }
   return arch_x86_64_enc_enc_sub_imm_from_ecx(elf_ctx, imm);
@@ -2204,7 +2204,7 @@ export function backend_enc_add_imm_to_rbx_index_arch(elf_ctx: *u8, imm: i32, ta
   if (ta == 1) {
     let imm12: i32 = imm;
     if (imm12 > 4095) { imm12 = 4095; }
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (285213729 + ((imm12 - 1) * 1024)) as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((285213729 as u32) + ((imm12 - 1) * 1024)) as i32);
   }
   if (ta == 2) { return arch_riscv64_enc_enc_add_imm_to_rbx(elf_ctx, imm); }
   return arch_x86_64_enc_enc_add_imm_to_ebx_index(elf_ctx, imm);
@@ -2226,7 +2226,7 @@ export function backend_enc_sub_imm_from_rbx_index_arch(elf_ctx: *u8, imm: i32, 
   if (ta == 1) {
     let imm12: i32 = imm;
     if (imm12 > 4095) { imm12 = 4095; }
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (1358955553 + ((imm12 - 1) * 1024)) as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((1358955553 as u32) + ((imm12 - 1) * 1024)) as i32);
   }
   if (ta == 2) { return arch_riscv64_enc_enc_sub_imm_from_rbx_index(elf_ctx, imm); }
   return arch_x86_64_enc_enc_sub_imm_from_ebx_index(elf_ctx, imm);
@@ -2248,7 +2248,7 @@ export function backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx: *u8, 
     let simm9: i32 = 0 - offset;
     if (simm9 < 0 - 256) { simm9 = 0 - 256; }
     let u9: i32 = simm9 & 511;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (3090513920 | ((u9 as u32) * 4096) | (29 * 32) | 3) as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((3090513920 as u32) | ((u9 as u32) * 4096) | (29 * 32) | 3) as i32);
   }
   if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_a3(elf_ctx, offset); }
   return arch_x86_64_enc_enc_load_rbp_to_edx(elf_ctx, offset);
@@ -2269,8 +2269,8 @@ export function backend_enc_mul_imm_to_index_scratch_arch(elf_ctx: *u8, lit: i32
   if (lit <= 1) { return 0; }
   if (lit > 65535) { return 0 - 1; }
   if (ta == 1) {
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, (1384120320 | ((lit as u32) * 32) | 3) as i32) != 0) { return 0 - 1; }
-    return arch_arm64_enc_enc_u32_le(elf_ctx, 453213250);
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, ((1384120320 as u32) | ((lit as u32) * 32) | 3) as i32) != 0) { return 0 - 1; }
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (453213250 as i32));
   }
   if (ta == 2) { return arch_riscv64_enc_enc_mul_imm_to_a2(elf_ctx, lit); }
   return arch_x86_64_enc_enc_imul_imm_to_ecx(elf_ctx, lit);
@@ -2291,8 +2291,8 @@ export function backend_enc_mul_imm_to_rbx_arch(elf_ctx: *u8, lit: i32, ta: i32)
   if (lit <= 1) { return 0; }
   if (lit > 65535) { return 0 - 1; }
   if (ta == 1) {
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, (1384120320 | ((lit as u32) * 32) | 3) as i32) != 0) { return 0 - 1; }
-    return arch_arm64_enc_enc_u32_le(elf_ctx, 453213217);
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, ((1384120320 as u32) | ((lit as u32) * 32) | 3) as i32) != 0) { return 0 - 1; }
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (453213217 as i32));
   }
   if (ta == 2) { return arch_riscv64_enc_enc_mul_imm_to_rbx(elf_ctx, lit); }
   return arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx, lit);
@@ -2818,7 +2818,7 @@ export function arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx: *u8, imm12: i32): i32 {
   // See implementation.
   unsafe {
   let imm: i32 = imm12 & 4095;
-  return arch_arm64_enc_enc_u32_le(elf_ctx, (1895825439 | (imm * 1024)) as i32);
+  return arch_arm64_enc_enc_u32_le(elf_ctx, ((1895825439 as u32) | (imm * 1024)) as i32);
   }
 }
 
@@ -2833,7 +2833,7 @@ export function arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx: *u8, imm12: i32): i32 {
 export function arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx: *u8, cc: i32): i32 {
   unsafe {
     let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (446629856 | (c * 4096)) as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((446629856 as u32) | (c * 4096)) as i32);
   }
   return 0 - 1;
 }

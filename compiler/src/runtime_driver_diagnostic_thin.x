@@ -468,8 +468,7 @@ export function driver_diagnostic_typeck_break_continue_outside(line: i32, col: 
 #[no_mangle]
 export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
-      "invalid pointer arithmetic (ptr+ptr / non-offset ops / unary -~ not allowed; use integer offset, std.string, or adjacent string literals)");
+    lsp_diag_report_typeck(line, col, "invalid pointer arithmetic (ptr+ptr / non-offset ops)");
   }
 }
 
@@ -485,7 +484,7 @@ export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32):
 export function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col,
-      "invalid float operation (bitwise / mod / shift / unary ~ not allowed on f32/f64; use + - * / and unary - only)");
+      "invalid float op (no bitwise/mod/shift/unary ~ on f32/f64; use + - * / and unary -)");
   }
 }
 
@@ -518,7 +517,7 @@ export function driver_diagnostic_typeck_invalid_aggregate_cmp(line: i32, col: i
 export function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col,
-      "invalid cast (as not allowed for aggregate or float↔pointer; use numeric/ptr casts or fields)");
+      "invalid cast (as not allowed for aggregate or float<->pointer; use numeric/ptr casts or fields)");
   }
 }
 
@@ -674,7 +673,7 @@ export function driver_diagnostic_typeck_assign_to_const(line: i32, col: i32): v
 export function driver_diagnostic_typeck_duplicate_local(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col,
-      "duplicate local binding in the same block (redeclaration of let/const or parameter name)");
+      "duplicate let/const binding (same-block local, parameter clash, or module-scope redecl)");
   }
 }
 

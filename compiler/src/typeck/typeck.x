@@ -2809,6 +2809,17 @@ ctx: *PipelineDepCtx): void {
             ex) || weak_entry || is_expr_nm) {
               need = 1;
             }
+            // wave1220 P5: also re-copy when field counts match but types may differ.
+            // Root cause: typeck_ensure_struct_layout_from_struct_lit creates layouts
+            // from struct literal init expressions (e.g. token_start: 0 → I32 instead
+            // of USIZE). When the dep module's authoritative layout has the same field
+            // count, the old `>` condition skipped the re-copy, leaving wrong field
+            // types. Using `>=` ensures dep authority always overwrites struct-lit
+            // guesses. PLATFORM: SHARED — typeck only, no runtime impact.
+            if (nf_dep > 0 && nf_dep >= pipeline_module_struct_layout_num_fields(mod,
+            ex) && pipeline_module_struct_layout_num_fields(mod, ex) > 0) {
+              need = 1;
+            }
             /* See implementation. */
             if (pipeline_module_struct_layout_soa_at(dm, k) != 0
             && pipeline_module_struct_layout_soa_at(mod, ex) == 0) {
@@ -9530,13 +9541,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
  *
  * Parser often lowers `return e` / bare `e` in void functions to a non-RETURN
  * expr_stmt or final_expr; host-C then emits `(void)(e)` without typeck error.
- * Allow statement-like kinds only: bare RETURN, CALL, METHOD_CALL, ASSIGN*,
- * BREAK, CONTINUE, PANIC. Pure rvalues hard-fail via return_mismatch.
+ * Allow statement-like kinds: bare RETURN, CALL, METHOD_CALL, ASSIGN*,
+ * BREAK, CONTINUE, PANIC, IF, BLOCK, MATCH.
+ *
+ * wave1227 root fix: if the expression already resolved to TYPE_VOID, it is not a
+ * value-producing rvalue — accept it. Prior allowlist missed EXPR_IF/EXPR_BLOCK/
+ * EXPR_MATCH as statements, which produced the false positive
+ * "return expression type mismatch: expected void, found void" (same type ref on
+ * both sides; e.g. `driver_parsed_work_cleanup` with nested `if` expr_stmts).
  *
  * @param arena *ASTArena — holds expr_ref and return_type_ref
  * @param expr_ref i32 — candidate expression (final or expr_stmt)
  * @param return_type_ref i32 — enclosing function return type
- * @return i32 — 0 ok (not void, or statement-like), -1 void value rejected
+ * @return i32 — 0 ok (not void, or statement-like / void-typed), -1 void value rejected
  * PLATFORM: SHARED — typeck.x + typeck_gen + empty_surface same commit.
  */
 export function typeck_void_reject_value_expr(arena: *ASTArena, expr_ref: i32,
@@ -9548,6 +9565,7 @@ return_type_ref: i32): i32 {
     let ek: i32 = 0;
     let void_stmt_ok: i32 = 0;
     let got: i32 = 0;
+    let got_k: i32 = 0;
     let eb: *u8 = 0 as *u8;
     let gb: *u8 = 0 as *u8;
     let el: i32 = 0;
@@ -9562,6 +9580,8 @@ return_type_ref: i32): i32 {
       return 0;
     }
     ek = pipeline_expr_kind_ord_at(arena, expr_ref);
+    /* ExprKind ordinals: IF=25 BLOCK=26 ASSIGN..=28..38 BREAK=39 CONTINUE=40
+     * RETURN=41 PANIC=42 MATCH=43 CALL=48 METHOD_CALL=49. */
     if (ek == 41) {
       if (ast.ref_is_null(pipeline_expr_unary_operand_ref_at(arena, expr_ref))) {
         void_stmt_ok = 1;
@@ -9570,11 +9590,23 @@ return_type_ref: i32): i32 {
       void_stmt_ok = 1;
     } else if (ek >= 28 && ek <= 38) {
       void_stmt_ok = 1;
+    } else if (ek == 25 || ek == 26 || ek == 43) {
+      void_stmt_ok = 1;
     }
     if (void_stmt_ok != 0) {
       return 0;
     }
     got = expr_type_ref(arena, expr_ref);
+    /*
+     * wave1227: void-typed expression is statement-shaped, not a value rvalue.
+     * Closes expected-void/found-void FP when kind allowlist lags (if/block/match).
+     */
+    if (!ast.ref_is_null(got)) {
+      got_k = pipeline_type_kind_ord_at(arena, got);
+      if (got_k == void_ord) {
+        return 0;
+      }
+    }
     eb = driver_typeck_diag_scratch_expect();
     gb = driver_typeck_diag_scratch_found();
     el = typeck_diag_fmt_type_or_question(arena, return_type_ref, eb);

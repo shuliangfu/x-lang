@@ -6,101 +6,107 @@
 // See implementation.
 // See implementation.
 
+
+/* Forward decls: monofile typeck is single-pass by function order; callees defined later need early surface. PLATFORM: SHARED. */
+export extern function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
+export extern function glue_asm_build_import_binding_call_sym(pre: *u8, plen: i32, field: *u8, flen: i32, out: *u8): i32;
+export extern function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, out: *u8, out_cap: i32): i32;
+export extern function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void;
 // PLATFORM: SHARED — all export extern "C" hoisted before first use so -E emits
 // short-name prototypes matching call sites (late mid-file externs caused type-mangle
 // decls vs short calls → undeclared + cc fail). Product ABI = short pipeline_* names.
 /* wave231 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * PLATFORM: SHARED — product hybrid full.x path owns f32 xmm / WPO fold env gates. */
-export extern "C" function link_abi_getenv(name: *u8): *u8;
-export extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
-export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_var_name_len_for_string_lit_c(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_asm_call_param_type_ref_at_c(arena: *u8, call: i32, pix: i32): i32;
-export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
-export extern "C" function parser_get_module_import_path(mod: *u8, ix: i32, path_bytes: *u8): void;
-export extern "C" function pipeline_module_num_funcs(m: *u8): i32;
-export extern "C" function pipeline_asm_module_func_is_extern_at(m: *u8, i: i32): i32;
-export extern "C" function pipeline_module_func_name_equal_at(m: *u8, i: i32, name: *u8, nlen: i32): i32;
-export extern "C" function parser_get_module_num_imports(mod: *u8): i32;
-export extern "C" function pipeline_module_import_path_len(mod: *u8, idx: i32): i32;
-export extern "C" function pipeline_module_import_path_byte_at(mod: *u8, idx: i32, k: i32): u8;
-export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
-export extern "C" function pipeline_asm_redirect_std_c_wrapper_sym(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
-export extern "C" function backend_enc_call_arch(elf: *u8, name: *u8, nlen: i32, ta: i32): i32;
-export extern "C" function backend_enc_call_stack_cleanup_arch(elf: *u8, nbytes: i32, ta: i32): i32;
-export extern "C" function pipeline_asm_emit_call_sret_reg_shift_c(): i32;
-export extern "C" function backend_enc_store_x0_sp_offset_arch(elf: *u8, off_bytes: i32, ta: i32): i32;
-export extern "C" function pipeline_asm_emit_set_call_param_type_ref(tr: i32): void;
-export extern "C" function pipeline_asm_emit_call_arg_begin_c(): void;
-export extern "C" function pipeline_asm_emit_call_arg_end_c(): void;
-export extern "C" function pipeline_asm_emit_expr_elf_for_call_args(arena: *u8, elf: *u8, ar: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *u8, call: i32): i32;
-export extern "C" function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf: *u8, ta: i32): i32;
-export extern "C" function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, er: i32, i: i32): i32;
-export extern "C" function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
-export extern "C" function backend_enc_mov_imm32_to_rbx_arch(elf: *u8, imm: i32, ta: i32): i32;
-export extern "C" function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
+export extern function link_abi_getenv(name: *u8): *u8;
+export extern function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
+export extern function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_var_name_len_for_string_lit_c(arena: *u8, er: i32): i32;
+export extern function pipeline_asm_call_param_type_ref_at_c(arena: *u8, call: i32, pix: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function parser_get_module_import_path(mod: *u8, ix: i32, path_bytes: *u8): void;
+export extern function pipeline_module_num_funcs(m: *u8): i32;
+export extern function pipeline_asm_module_func_is_extern_at(m: *u8, i: i32): i32;
+export extern function pipeline_module_func_name_equal_at(m: *u8, i: i32, name: *u8, nlen: i32): i32;
+export extern function parser_get_module_num_imports(mod: *u8): i32;
+export extern function pipeline_module_import_path_len(mod: *u8, idx: i32): i32;
+export extern function pipeline_module_import_path_byte_at(mod: *u8, idx: i32, k: i32): u8;
+export extern function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+export extern function pipeline_asm_redirect_std_c_wrapper_sym(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
+export extern function backend_enc_call_arch(elf: *u8, name: *u8, nlen: i32, ta: i32): i32;
+export extern function backend_enc_call_stack_cleanup_arch(elf: *u8, nbytes: i32, ta: i32): i32;
+export extern function pipeline_asm_emit_call_sret_reg_shift_c(): i32;
+export extern function backend_enc_store_x0_sp_offset_arch(elf: *u8, off_bytes: i32, ta: i32): i32;
+export extern function pipeline_asm_emit_set_call_param_type_ref(tr: i32): void;
+export extern function pipeline_asm_emit_call_arg_begin_c(): void;
+export extern function pipeline_asm_emit_call_arg_end_c(): void;
+export extern function pipeline_asm_emit_expr_elf_for_call_args(arena: *u8, elf: *u8, ar: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *u8, call: i32): i32;
+export extern function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf: *u8, ta: i32): i32;
+export extern function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_call_arg_ref(arena: *u8, er: i32, i: i32): i32;
+export extern function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
+export extern function backend_enc_mov_imm32_to_rbx_arch(elf: *u8, imm: i32, ta: i32): i32;
+export extern function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
 /** wave359: freestanding i32.double → x*2 (mov+add self). */
-export extern "C" function backend_enc_mov_rax_to_rbx_arch(elf: *u8, ta: i32): i32;
-export extern "C" function backend_enc_add_rax_rbx_arch(elf: *u8, ta: i32): i32;
-export extern "C" function pipeline_expr_call_resolved_func_index_at(arena: *u8, er: i32): i32;
-export extern "C" function driver_get_current_dep_path_for_codegen(): *u8;
-export extern "C" function pipeline_asm_module_func_name_len_at(m: *u8, fi: i32): i32;
-export extern "C" function pipeline_asm_module_func_name_copy64(m: *u8, fi: i32, dst: *u8): void;
-export extern "C" function pipeline_module_func_num_params_at(m: *u8, fi: i32): i32;
-export extern "C" function pipeline_module_func_param_type_ref_at(m: *u8, fi: i32, pi: i32): i32;
-export extern "C" function pipeline_type_elem_ref_at(a: *u8, tr: i32): i32;
+export extern function backend_enc_mov_rax_to_rbx_arch(elf: *u8, ta: i32): i32;
+export extern function backend_enc_add_rax_rbx_arch(elf: *u8, ta: i32): i32;
+export extern function pipeline_expr_call_resolved_func_index_at(arena: *u8, er: i32): i32;
+export extern function driver_get_current_dep_path_for_codegen(): *u8;
+export extern function pipeline_asm_module_func_name_len_at(m: *u8, fi: i32): i32;
+export extern function pipeline_asm_module_func_name_copy64(m: *u8, fi: i32, dst: *u8): void;
+export extern function pipeline_module_func_num_params_at(m: *u8, fi: i32): i32;
+export extern function pipeline_module_func_param_type_ref_at(m: *u8, fi: i32, pi: i32): i32;
+export extern function pipeline_type_elem_ref_at(a: *u8, tr: i32): i32;
 /** wave360: UFCS auto-ref helpers (type equal + lvalue lea). */
-export extern "C" function pipeline_typeck_type_refs_equal_c(a: *u8, x: i32, y: i32): i32;
-export extern "C" function pipeline_type_kind_ord_at(a: *u8, tr: i32): i32;
-export extern "C" function pipeline_expr_resolved_type_ref(a: *u8, er: i32): i32;
-export extern "C" function pipeline_asm_emit_lvalue_eff_addr_elf_c(a: *u8, elf: *u8, lr: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function pipeline_asm_type_ref_byte_size_c(arena: *u8, pty: i32): i32;
-export extern "C" function backend_enc_store_rax_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
-export extern "C" function backend_enc_store_rdx_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
-export extern "C" function backend_enc_lea_rbp_to_rax_arch(elf: *u8, off: i32, ta: i32): i32;
-export extern "C" function backend_enc_call_stack_reserve_arch(elf: *u8, nbytes: i32, ta: i32): i32;
-export extern "C" function backend_enc_push_rax_arch(elf: *u8, ta: i32): i32;
-export extern "C" function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
-export extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_call_resolved_dep_index_at(arena: *u8, call: i32): i32;
-export extern "C" function pipeline_dep_ctx_ndep(dep: *u8): i32;
-export extern "C" function pipeline_dep_ctx_module_at(dep: *u8, j: i32): *u8;
-export extern "C" function pipeline_dep_ctx_import_path_copy64(dep: *u8, j: i32, path: *u8): void;
-export extern "C" function pipeline_module_func_is_extern_at(m: *u8, fi: i32): i32;
-export extern "C" function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8, call: i32): i32;
-export extern "C" function asm_qual_sym_layer_reset(): void;
-export extern "C" function asm_qual_sym_layer_push(bytes: *u8, len: i32): i32;
-export extern "C" function asm_qual_sym_layer_count(): i32;
-export extern "C" function asm_qual_sym_layer_len(i: i32): i32;
-export extern "C" function asm_qual_sym_layer_copy(i: i32, dst: *u8, cap: i32): void;
-export extern "C" function pipeline_expr_field_access_name_len(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_field_access_name_into(arena: *u8, er: i32, out: *u8): void;
-export extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_call_callee_ref_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_module_import_kind_at(m: *u8, j: i32): i32;
-export extern "C" function pipeline_codegen_call_num_args_override(pre: *u8, plen: i32, field: *u8, flen: i32, nargs: i32): i32;
-export extern "C" function try_inline_param0_single_field_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function try_inline_param0_field_sum_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function try_inline_x_plus_k_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function try_call_wpo_mono_symbol_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function try_call_wpo_mono_vector_lane_of_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function try_inline_wpo_const_vector_lane_of_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function try_inline_wpo_const_scalar_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function pipeline_expr_method_call_base_ref_at(a: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_method_call_num_args_at(a: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_method_call_name_len(a: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_method_call_name_into(a: *u8, er: i32, out: *u8): void;
-export extern "C" function pipeline_expr_method_call_arg_ref(a: *u8, er: i32, idx: i32): i32;
-export extern "C" function pipeline_asm_emit_expr_c(arena: *u8, out: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function backend_arch_emit_mov_rax_to_arg_reg(out: *u8, i: i32, ta: i32): i32;
-export extern "C" function backend_arch_emit_push_rax(out: *u8, ta: i32): i32;
-export extern "C" function backend_arch_emit_ldr_sp_offset_to_wi(out: *u8, i: i32, ta: i32): i32;
-export extern "C" function backend_arch_emit_add_sp_imm(out: *u8, imm: i32, ta: i32): i32;
-export extern "C" function pipeline_module_import_binding_name_len(mod: *u8, ix: i32): i32;
-export extern "C" function pipeline_module_import_binding_name_byte_at(mod: *u8, ix: i32, i: i32): u8;
+export extern function pipeline_typeck_type_refs_equal_c(a: *u8, x: i32, y: i32): i32;
+export extern function pipeline_type_kind_ord_at(a: *u8, tr: i32): i32;
+export extern function pipeline_expr_resolved_type_ref(a: *u8, er: i32): i32;
+export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(a: *u8, elf: *u8, lr: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_type_ref_byte_size_c(arena: *u8, pty: i32): i32;
+export extern function backend_enc_store_rax_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
+export extern function backend_enc_store_rdx_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
+export extern function backend_enc_lea_rbp_to_rax_arch(elf: *u8, off: i32, ta: i32): i32;
+export extern function backend_enc_call_stack_reserve_arch(elf: *u8, nbytes: i32, ta: i32): i32;
+export extern function backend_enc_push_rax_arch(elf: *u8, ta: i32): i32;
+export extern function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
+export extern function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_call_resolved_dep_index_at(arena: *u8, call: i32): i32;
+export extern function pipeline_dep_ctx_ndep(dep: *u8): i32;
+export extern function pipeline_dep_ctx_module_at(dep: *u8, j: i32): *u8;
+export extern function pipeline_dep_ctx_import_path_copy64(dep: *u8, j: i32, path: *u8): void;
+export extern function pipeline_module_func_is_extern_at(m: *u8, fi: i32): i32;
+export extern function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8, call: i32): i32;
+export extern function asm_qual_sym_layer_reset(): void;
+export extern function asm_qual_sym_layer_push(bytes: *u8, len: i32): i32;
+export extern function asm_qual_sym_layer_count(): i32;
+export extern function asm_qual_sym_layer_len(i: i32): i32;
+export extern function asm_qual_sym_layer_copy(i: i32, dst: *u8, cap: i32): void;
+export extern function pipeline_expr_field_access_name_len(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_field_access_name_into(arena: *u8, er: i32, out: *u8): void;
+export extern function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
+export extern function pipeline_expr_call_callee_ref_at(arena: *u8, er: i32): i32;
+export extern function pipeline_module_import_kind_at(m: *u8, j: i32): i32;
+export extern function pipeline_codegen_call_num_args_override(pre: *u8, plen: i32, field: *u8, flen: i32, nargs: i32): i32;
+export extern function try_inline_param0_single_field_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern function try_inline_param0_field_sum_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern function try_inline_x_plus_k_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern function try_call_wpo_mono_symbol_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern function try_call_wpo_mono_vector_lane_of_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern function try_inline_wpo_const_vector_lane_of_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern function try_inline_wpo_const_scalar_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_expr_method_call_base_ref_at(a: *u8, er: i32): i32;
+export extern function pipeline_expr_method_call_num_args_at(a: *u8, er: i32): i32;
+export extern function pipeline_expr_method_call_name_len(a: *u8, er: i32): i32;
+export extern function pipeline_expr_method_call_name_into(a: *u8, er: i32, out: *u8): void;
+export extern function pipeline_expr_method_call_arg_ref(a: *u8, er: i32, idx: i32): i32;
+export extern function pipeline_asm_emit_expr_c(arena: *u8, out: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern function backend_arch_emit_mov_rax_to_arg_reg(out: *u8, i: i32, ta: i32): i32;
+export extern function backend_arch_emit_push_rax(out: *u8, ta: i32): i32;
+export extern function backend_arch_emit_ldr_sp_offset_to_wi(out: *u8, i: i32, ta: i32): i32;
+export extern function backend_arch_emit_add_sp_imm(out: *u8, imm: i32, ta: i32): i32;
+export extern function pipeline_module_import_binding_name_len(mod: *u8, ix: i32): i32;
+export extern function pipeline_module_import_binding_name_byte_at(mod: *u8, ix: i32, i: i32): u8;
 
 /** Exported function `backend_call_dispatch_x_doc_anchor`.
  * Implements `backend_call_dispatch_x_doc_anchor`.
@@ -182,7 +188,7 @@ export function glue_asm_string_lit_into(arena: *u8, er: i32, out64: *u8): void 
     out64[zi] = 0;
     zi = zi + 1;
   }
-  if (arena == 0) { return; }
+  if (arena == 0 as *u8) { return; }
   unsafe {
     if (glue_asm_string_lit_len(arena, er) <= 0) { return; }
     pipeline_expr_var_name_into(arena, er, out64);
@@ -199,11 +205,11 @@ export function glue_asm_string_lit_into(arena: *u8, er: i32, out64: *u8): void 
  */
 #[no_mangle]
 export function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void {
-  if (buf == 0) { return; }
+  if (buf == 0 as *u8) { return; }
   if (buf_cap <= 0) { return; }
   let off: i32 = 0;
   let pi: i32 = 0;
-  if (path != 0) {
+  if (path != 0 as *u8) {
     while (1 == 1) {
       let ch: u8 = path[pi];
       if (ch == 0) { break; }
@@ -249,7 +255,7 @@ export function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, b
 #[no_mangle]
 export function glue_module_func_overload_count_c(m: *u8, name: *u8, nlen: i32): i32 {
   if (m == 0) { return 0; }
-  if (name == 0) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (nlen <= 0) { return 0; }
   unsafe {
     let c: i32 = 0;
@@ -280,7 +286,7 @@ export function glue_module_func_overload_count_c(m: *u8, name: *u8, nlen: i32):
  */
 #[no_mangle]
 export function glue_asm_import_segment_at(mod: *u8, ix: i32, want_seg: i32, ostr: *i32, olen: *i32): i32 {
-  if (mod == 0) { return 0; }
+  if (mod == 0 as *u8) { return 0; }
   if (ix < 0) { return 0; }
   if (ostr == 0) { return 0; }
   if (olen == 0) { return 0; }
@@ -328,7 +334,7 @@ export function glue_asm_import_segment_at(mod: *u8, ix: i32, want_seg: i32, ost
  */
 #[no_mangle]
 export function glue_asm_fill_c_prefix_from_module_import(mod: *u8, ix: i32, pre: *u8): i32 {
-  if (mod == 0) { return 0 - 1; }
+  if (mod == 0 as *u8) { return 0 - 1; }
   if (pre == 0) { return 0 - 1; }
   let path_bytes: u8[128] = [];
   unsafe {
@@ -567,9 +573,9 @@ export function glue_sysv_x86_call_arg_slot_c(
 #[no_mangle]
 export function glue_spill_struct16_call_arg_to_lea_elf_c(arena: *u8, elf: *u8, ctx: *u8, pty: i32, ta: i32): i32 {
   // Keep signature for G.7 single symbol; body is intentionally a no-op (SysV by-value).
-  if (arena == 0) { return 0; }
-  if (elf == 0) { return 0; }
-  if (ctx == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
+  if (elf == 0 as *u8) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
   if (pty < 0) { return 0; }
   if (ta < 0) { return 0; }
   return 0;
@@ -589,9 +595,9 @@ export function glue_spill_struct16_call_arg_to_lea_elf_c(arena: *u8, elf: *u8, 
  */
 #[no_mangle]
 export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32, nargs: i32): i32 {
-  if (arena == 0) { return 0 - 1; }
-  if (elf == 0) { return 0 - 1; }
-  if (ctx == 0) { return 0 - 1; }
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (elf == 0 as *u8) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
   if (nargs < 0) { return 0 - 1; }
   if (nargs > 96) { return 0 - 1; }
   unsafe {
@@ -682,9 +688,9 @@ export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er:
 export function glue_emit_one_call_arg_elf_c(
   arena: *u8, elf_ctx: *u8, call_expr_ref: i32, arg_ref: i32, arg_index: i32, ctx: *u8, ta: i32
 ): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (elf_ctx == 0) { return 0; }
-  if (ctx == 0) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
   if (arg_ref == 0) { return 0; }
   unsafe {
     let pty0: i32 = glue_call_param_type_ref_at(arena, call_expr_ref, arg_index);
@@ -727,9 +733,9 @@ export function glue_emit_one_call_arg_elf_c(
 export function glue_asm_build_call_export_sym_c(
   arena: *u8, call_expr_ref: i32, callee_ref: i32, mod: *u8, dep_pipe: *u8, out: *u8, out_cap: i32
 ): i32 {
-  if (arena == 0) { return 0 - 1; }
+  if (arena == 0 as *u8) { return 0 - 1; }
   if (callee_ref <= 0) { return 0 - 1; }
-  if (out == 0) { return 0 - 1; }
+  if (out == 0 as *u8) { return 0 - 1; }
   if (out_cap <= 0) { return 0 - 1; }
   unsafe {
     let clen: i32 = pipeline_expr_var_name_len(arena, callee_ref);
@@ -741,12 +747,12 @@ export function glue_asm_build_call_export_sym_c(
     if (rlen > 0) { return rlen; }
     let dep_ix: i32 = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
     if (dep_ix < 0) {
-      if (dep_pipe != 0) {
+      if (dep_pipe != 0 as *u8) {
         let nd: i32 = pipeline_dep_ctx_ndep(dep_pipe);
         let j: i32 = 0;
         while (j < nd) {
           let dm: *u8 = pipeline_dep_ctx_module_at(dep_pipe, j);
-          if (dm != 0) {
+          if (dm != 0 as *u8) {
             let nfunc: i32 = pipeline_module_num_funcs(dm);
             let fi: i32 = 0;
             while (fi < nfunc) {
@@ -763,7 +769,7 @@ export function glue_asm_build_call_export_sym_c(
       }
     }
     if (dep_ix >= 0) {
-      if (dep_pipe != 0) {
+      if (dep_pipe != 0 as *u8) {
         // See implementation.
         let dep_mod: *u8 = pipeline_dep_ctx_module_at(dep_pipe, dep_ix);
         if (dep_mod != 0) {
@@ -810,7 +816,7 @@ export function glue_asm_build_call_export_sym_c(
         }
       }
     }
-    if (mod != 0) {
+    if (mod != 0 as *u8) {
       let func_ix: i32 = pipeline_typeck_resolve_call_func_index_for_emit_c(mod, arena, call_expr_ref);
       if (func_ix >= 0) {
         if (pipeline_module_func_is_extern_at(mod, func_ix) != 0) {
@@ -855,9 +861,9 @@ export function glue_asm_build_call_export_sym_c(
  */
 #[no_mangle]
 export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *u8, out_cap: i32): i32 {
-  if (name == 0) { return 0 - 1; }
+  if (name == 0 as *u8) { return 0 - 1; }
   if (name_len <= 0) { return 0 - 1; }
-  if (out == 0) { return 0 - 1; }
+  if (out == 0 as *u8) { return 0 - 1; }
   if (out_cap <= 0) { return 0 - 1; }
   unsafe {
     let dep_path: *u8 = driver_get_current_dep_path_for_codegen();
@@ -911,7 +917,7 @@ export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, o
   if (m == 0) { return 0 - 1; }
   if (a == 0) { return 0 - 1; }
   if (func_ix < 0) { return 0 - 1; }
-  if (out == 0) { return 0 - 1; }
+  if (out == 0 as *u8) { return 0 - 1; }
   if (out_cap <= 0) { return 0 - 1; }
   unsafe {
     let fname_len: i32 = pipeline_asm_module_func_name_len_at(m, func_ix);
@@ -1005,9 +1011,9 @@ export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
   arena: *u8, elf_ctx: *u8, call_expr_ref: i32, ctx: *u8, ta: i32,
   pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32
 ): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (elf_ctx == 0) { return 0; }
-  if (ctx == 0) { return 0; }
+  if (ctx == 0 as *u8) { return 0; }
   if (call_expr_ref <= 0) { return 0; }
   if (ta != 0) {
     if (ta != 1) { return 0; }
@@ -1090,7 +1096,7 @@ export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
  */
 #[no_mangle]
 export function glue_asm_enc_call_redirected(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
-  if (name == 0) { return 0 - 1; }
+  if (name == 0 as *u8) { return 0 - 1; }
   if (name_len <= 0) { return 0 - 1; }
   unsafe {
     let redir: u8[128] = [];
@@ -1245,7 +1251,7 @@ export function pipeline_asm_emit_call_args_elf_c(
  */
 #[no_mangle]
 export function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32 {
-  if (arena == 0) { return 0 - 1; }
+  if (arena == 0 as *u8) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
   if (str_expr_ref <= 0) { return 0 - 1; }
   if (ta != 0) {
@@ -1326,7 +1332,7 @@ export function glue_asm_call_stack_cleanup_bytes(ta: i32, nargs: i32): i32 {
 export function pipeline_asm_resolve_whole_import_qualified_symbol_c(
   arena: *u8, cur_mod: *u8, callee_expr_ref: i32, sym_flat: *u8, out_match_imp_j: *i32
 ): i32 {
-  if (arena == 0) { return 0 - 1; }
+  if (arena == 0 as *u8) { return 0 - 1; }
   if (cur_mod == 0) { return 0 - 1; }
   if (sym_flat == 0) { return 0 - 1; }
   if (callee_expr_ref <= 0) { return 0 - 1; }
@@ -1440,9 +1446,9 @@ export function pipeline_asm_resolve_whole_import_qualified_symbol_c(
 export function pipeline_asm_emit_call_args_text_c(
   arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32, nargs: i32
 ): i32 {
-  if (arena == 0) { return 0 - 1; }
-  if (out == 0) { return 0 - 1; }
-  if (ctx == 0) { return 0 - 1; }
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (out == 0 as *u8) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
   if (expr_ref <= 0) { return 0 - 1; }
   if (nargs < 0) { return 0 - 1; }
   if (nargs > 6) { return 0 - 1; }
@@ -1497,9 +1503,9 @@ export function pipeline_asm_emit_call_args_text_c(
  */
 #[no_mangle]
 export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
-  if (arena == 0) { return 0 - 1; }
+  if (arena == 0 as *u8) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
-  if (ctx == 0) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
   unsafe {
     let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
     let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
@@ -1708,9 +1714,9 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
  */
 #[no_mangle]
 export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
-  if (arena == 0) { return 0 - 1; }
+  if (arena == 0 as *u8) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
-  if (ctx == 0) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
   unsafe {
     let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
     if (callee_ref <= 0) { return 0 - 1; }
@@ -1940,7 +1946,7 @@ export function glue_asm_prefix_is_fmt_or_debug(pre: *u8, pre_len: i32): i32 {
  * PLATFORM: SHARED kind / LINUX+MACOS x86_64 SysV xmm class. */
 #[no_mangle]
 export function glue_call_param_is_f32_c(arena: *u8, tr: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (tr <= 0) { return 0; }
   unsafe {
     let k: i32 = pipeline_type_kind_ord_at(arena, tr);
@@ -2002,7 +2008,7 @@ export function glue_asm_append_export_c_suffix(sym: *u8, slen: i32, cap: i32): 
  */
 #[no_mangle]
 export function glue_asm_import_path_segment_count(path: *u8, plen: i32): i32 {
-  if (path == 0) { return 0; }
+  if (path == 0 as *u8) { return 0; }
   if (plen <= 0) { return 0; }
   let n: i32 = 1;
   let ii: i32 = 0;
@@ -2029,7 +2035,7 @@ export function glue_asm_import_path_segment_count(path: *u8, plen: i32): i32 {
 export function glue_asm_c_prefix_redundant_with_name(pre: *u8, plen: i32, name: *u8, nlen: i32): i32 {
   // prefix must be "build_" (6 chars) and name starts with it
   if (pre == 0) { return 0; }
-  if (name == 0) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (plen != 6) { return 0; }
   if (nlen < plen) { return 0; }
   // build_
@@ -2056,7 +2062,7 @@ export function glue_asm_c_prefix_redundant_with_name(pre: *u8, plen: i32, name:
  */
 #[no_mangle]
 export function glue_type_kind_to_suffix_c(kind: i32, out: *u8, cap: i32): i32 {
-  if (out == 0) { return 0; }
+  if (out == 0 as *u8) { return 0; }
   if (cap <= 0) { return 0; }
   // default i32
   let s0: u8 = 105; let s1: u8 = 51; let s2: u8 = 50; let s3: u8 = 0; let s4: u8 = 0;
@@ -2183,7 +2189,7 @@ export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32):
  */
 #[no_mangle]
 export function glue_asm_string_lit_len(arena: *u8, er: i32): i32 {
-  if (arena == 0) { return 0; }
+  if (arena == 0 as *u8) { return 0; }
   if (er <= 0) { return 0; }
   unsafe {
     let k: i32 = pipeline_expr_kind_ord_at(arena, er);
@@ -2205,7 +2211,7 @@ export function glue_asm_string_lit_len(arena: *u8, er: i32): i32 {
  */
 #[no_mangle]
 export function glue_asm_build_import_binding_call_sym(pre: *u8, plen: i32, field: *u8, flen: i32, out: *u8): i32 {
-  if (out == 0) { return 0 - 1; }
+  if (out == 0 as *u8) { return 0 - 1; }
   let pos: i32 = 0;
   let skip_pre: i32 = 0;
   if (plen > 0) {
@@ -2262,9 +2268,9 @@ export function glue_call_param_type_ref_at(arena: *u8, call: i32, pix: i32): i3
  */
 #[no_mangle]
 export function glue_try_std_string_xlang_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
-  if (name == 0) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (nlen <= 11) { return 0; }
-  if (out == 0) { return 0; }
+  if (out == 0 as *u8) { return 0; }
   if (cap <= 0) { return 0; }
   // "std_string_"
   if (name[0]!=115||name[1]!=116||name[2]!=100||name[3]!=95||name[4]!=115||name[5]!=116
@@ -2298,8 +2304,8 @@ export function glue_try_std_string_xlang_redirect_sym_local(name: *u8, nlen: i3
  */
 #[no_mangle]
 export function glue_try_std_encoding_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
-  if (name == 0) { return 0; }
-  if (out == 0) { return 0; }
+  if (name == 0 as *u8) { return 0; }
+  if (out == 0 as *u8) { return 0; }
   if (cap <= 0) { return 0; }
   let prefix_len: i32 = 13; // "std_encoding_"
   if (nlen <= prefix_len) { return 0; }
@@ -2337,9 +2343,9 @@ export function glue_try_std_encoding_redirect_sym_local(name: *u8, nlen: i32, o
  */
 #[no_mangle]
 export function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
-  if (name == 0) { return 0; }
+  if (name == 0 as *u8) { return 0; }
   if (nlen <= 0) { return 0; }
-  if (out == 0) { return 0; }
+  if (out == 0 as *u8) { return 0; }
   if (cap <= 0) { return 0; }
   if (nlen == 5) {
     if (name[0]==97 && name[1]==108 && name[2]==108 && name[3]==111 && name[4]==99) {

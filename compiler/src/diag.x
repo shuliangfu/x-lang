@@ -130,21 +130,14 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
       }
     }
     diag_print_header(kind, code, msg, kind_color, reset);
+    /* wave1221: always print line:col even when 0, so typeck errors without
+     * expr line/col still show file:0:0 instead of bare file path.
+     * This makes check output consistent and helps locate errors. */
     if (actual_file != 0) {
-      if (line > 0) {
-        if (col > 0) {
-          diag_io_fprint_loc_file_line_col(err, path_color, actual_file, line, col, reset);
-        } else {
-          diag_io_fprint_loc_file_line(err, path_color, actual_file, line, reset);
-        }
-      } else {
-        diag_io_fprint_loc_file(err, path_color, actual_file, reset);
-      }
+      diag_io_fprint_loc_file_line_col(err, path_color, actual_file, line, col, reset);
     } else {
-      if (line > 0) {
-        if (col > 0) {
-          diag_io_fprint_loc_line_col(err, path_color, line, col, reset);
-        }
+      if (line > 0 || col > 0) {
+        diag_io_fprint_loc_line_col(err, path_color, line, col, reset);
       }
     }
     if (have_line == 0) {
