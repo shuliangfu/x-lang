@@ -3254,89 +3254,12 @@ extern void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t 
 
 #include "pipeline_typeck_soa.c"
 
-/** skip typeck 时从 STRUCT_LIT 补登记 module.struct_layouts（typeck.x ensure_struct_layout_from_struct_lit）。 */
-extern int32_t typeck_ensure_struct_layout_from_struct_lit(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                           int32_t expr_ref);
-
-/**
- * asm emit 前：为 `arr[i].field` SoA 读/写补 col_base + stride（C/X typeck 遗漏或 skip 时）。
- * 须在 glue_fill_var_types_from_lets 之后（INDEX 基址须 resolved T[N]）。
- */
-void pipeline_fill_soa_field_access_for_asm_emit(struct ast_Module *m, struct ast_ASTArena *arena) {
-  int32_t fi;
-  int32_t ei;
-  int32_t saved_fi;
-  if (!m || !arena)
-    return;
-  pipeline_debug_trace_named_func_bodies("fill_cl_pre", m, arena);
-  /** skip typeck：STRUCT_LIT 字段合并进 module.struct_layouts（parser 仅登记 head 时补 tail 等）。 */
-  for (ei = 1; ei <= arena->num_exprs; ei++) {
-    if (pipeline_expr_kind_ord_at(arena, ei) == (int32_t)ast_ExprKind_EXPR_STRUCT_LIT)
-      (void)typeck_ensure_struct_layout_from_struct_lit(m, arena, ei);
-  }
-  /** DOD-CL：parser 偶发只写首字段 align(N) 时，后继 u32 字段继承同 line 对齐再重算 offset。 */
-  {
-    int32_t li;
-    int32_t nf2;
-    int32_t j;
-    for (li = 0; li < pipeline_module_num_struct_layouts_at(m); li++) {
-      nf2 = pipeline_module_struct_layout_num_fields(m, li);
-      for (j = 0; j + 1 < nf2; j++) {
-        int32_t fa0 = pipeline_module_struct_layout_field_align_at(m, li, j);
-        if (fa0 >= 64 && pipeline_module_struct_layout_field_align_at(m, li, j + 1) == 0)
-          pipeline_module_struct_layout_set_field_align(m, li, j + 1, fa0);
-      }
-    }
-  }
-  /** DOD-CL-S1：align(N) 字段 offset 按 field_align 重算并落盘，再填 FIELD_ACCESS。 */
-  glue_sync_struct_layout_field_offsets_c(m, arena);
-  if (link_abi_getenv("XLANG_ASM_DEBUG")) {
-    fprintf(stderr, "xlang: fill_cl n_layouts=%d n_exprs=%d\n", (int)pipeline_module_num_struct_layouts_at(m),
-            (int)arena->num_exprs);
-  }
-  saved_fi = g_pipeline_asm_emit_func_index;
-  for (fi = 0; fi < (int32_t)m->num_funcs; fi++) {
-    int32_t br;
-    /** parser EMIT_HEAVY：extern bl→glue 声明占 func 槽但无 body/params；fill 会 SIGSEGV。 */
-    if (pipeline_asm_module_func_is_extern_at(m, fi) != 0)
-      continue;
-    br = pipeline_module_func_body_ref_at(m, fi);
-    if (br <= 0)
-      continue;
-    g_pipeline_asm_emit_func_index = fi;
-    glue_fill_var_types_from_lets_in_block(arena, br);
-    glue_fill_var_types_from_params_for_func(m, arena, fi);
-  }
-  if (link_abi_getenv("XLANG_ASM_DEBUG"))
-    fprintf(stderr, "xlang: fill_cl func_loop done nf=%d\n", (int)m->num_funcs);
-  for (ei = 1; ei <= arena->num_exprs; ei++) {
-    int32_t base_ref;
-    int32_t flen;
-    uint8_t fname[128];
-    int32_t layout_off;
-    if (pipeline_expr_kind_ord_at(arena, ei) != 44)
-      continue;
-    base_ref = pipeline_expr_field_access_base_ref(arena, ei);
-    if (base_ref <= 0)
-      continue;
-    if (pipeline_expr_kind_ord_at(arena, base_ref) == 47)
-      (void)pipeline_typeck_field_soa_index_c(m, arena, ei, base_ref);
-    flen = pipeline_expr_field_access_name_len(arena, ei);
-    if (flen <= 0 || flen > 127)
-      continue;
-    pipeline_expr_field_access_name_into(arena, ei, fname);
-    /** SoA arr[i].field：col_base+stride 已由 typeck_field_soa_index 写入 offset；勿用 AoS layout 覆盖 y 列等。 */
-    if (pipeline_expr_field_access_soa_stride(arena, ei) > 0)
-      continue;
-    layout_off = glue_field_layout_offset_for_base_field(arena, m, base_ref, fname, flen);
-    if (layout_off >= 0)
-      pipeline_expr_set_field_access_offset(arena, ei, layout_off);
-  }
-  if (link_abi_getenv("XLANG_ASM_DEBUG"))
-    fprintf(stderr, "xlang: fill_cl expr_loop done\n");
-  g_pipeline_asm_emit_func_index = saved_fi;
-  pipeline_debug_trace_named_func_bodies("fill_cl_post", m, arena);
-}
+/* wave1230 G.7: pipeline_fill_soa_field_access_for_asm_emit migrated to
+ * pipeline_typeck_soa.c (after pipeline_typeck_field_soa_index_c — primary
+ * SoA callee; same DOD-S1 arr[i].field domain). #include above < former def
+ * site; definition visible to later same-TU callsites and cross-TU via
+ * extern (ast_pool / pipeline_abi). No glue.c body retained.
+ * PLATFORM: SHARED. */
 
 /* EXPR_FIELD_ACCESS 子逻辑（prebind/known_ptr/layout/slice/fallback）见 pipeline_typeck_field_access.c */
 #include "pipeline_typeck_field_access.c"
