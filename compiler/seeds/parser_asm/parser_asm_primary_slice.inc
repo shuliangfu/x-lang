@@ -843,7 +843,14 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       struct parser_asm_ast_expr fae;
       int32_t fa_ref;
       int32_t tlen;
-      uint8_t tnm[64];
+      /*
+       * wave1244 / PLATFORM: SHARED — qualified `Mod.Type { ... }` temp name buffer.
+       * Must be 128 to match field_access_field_name[128] / struct_lit_struct_name[128]
+       * (same as finish_struct_lit tnm[128]). Prior tnm[64] + while(ti<128) stack-smashed
+       * the canary → silent exit(127) on Ubuntu when check hit lexer.x token.Token { ... }.
+       * Mac could appear green depending on stack layout / protector placement.
+       */
+      uint8_t tnm[128];
       int32_t ti;
       int32_t tj;
       int32_t prefer_block;
@@ -865,7 +872,8 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
         return;
       }
       tlen = fae.field_access_field_len;
-      if (tlen <= 0 || tlen > 63) {
+      /* Cap matches struct_lit_struct_name[128] content max (finish_struct_lit uses >127). */
+      if (tlen <= 0 || tlen > 127) {
         out->ok = 0;
         return;
       }
