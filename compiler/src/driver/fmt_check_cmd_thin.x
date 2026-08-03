@@ -463,6 +463,10 @@ export function check_print_summary(): void {
       let w: isize = fs_posix_write_c(2, &buf[0], n);
       let _keep: isize = w;
     }
+    /* 汇总后空行：提升多文件 check 打印可读性 */
+    let nl: u8[1] = [10];
+    let wnl: isize = fs_posix_write_c(2, &nl[0], 1);
+    let _keepnl: isize = wnl;
   }
 }
 
