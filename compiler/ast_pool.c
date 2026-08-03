@@ -9,6 +9,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
+#if defined(__APPLE__) || defined(__linux__)
+#include <sys/mman.h>
+#endif
 #include <xlang_weak.h>
 #include "diag.h"
 
@@ -154,39 +157,108 @@ typedef struct {
   int32_t is_export;
 } ModuleEnumEntry;
 
-/** 通用 grow 向量：元素大小 elem_sz，失败返回 0。 */
+/**
+ * Growable vector of fixed-size elements.
+ *
+ * PLATFORM: SHARED — large buffers (>= GROW_VEC_MMAP_THRESH) use anonymous
+ * mmap so grow_vec_free can munmap and return RSS immediately. Small buffers
+ * stay on malloc/calloc. This is the root fix for `xlang check` peak RSS:
+ * sequential mega-dep parses must not leave multi-GB high-water on macOS
+ * (system free keeps pages) or Ubuntu (zone freelist).
+ */
 typedef struct {
   uint8_t *data;
   int32_t cap;
   int32_t len;
   size_t elem_sz;
+  /** 1 = data from mmap(MAP_ANON); free via munmap. 0 = malloc/calloc/realloc. */
+  int32_t mmap_backed;
 } GrowVec;
 
+/** Byte size at which GrowVec switches to mmap (1 MiB). */
+#ifndef GROW_VEC_MMAP_THRESH
+#define GROW_VEC_MMAP_THRESH ((size_t)(1024 * 1024))
+#endif
+
+/**
+ * Allocate nbytes for a GrowVec. Uses mmap for large blocks.
+ * @param nbytes size in bytes; must be > 0
+ * @param out_mmap set to 1 if mmap, 0 if calloc
+ * @return pointer or NULL
+ */
+static void *grow_vec_alloc_bytes(size_t nbytes, int32_t *out_mmap) {
+  if (out_mmap)
+    *out_mmap = 0;
+  if (nbytes == 0)
+    return NULL;
+#if defined(__APPLE__) || defined(__linux__)
+  if (nbytes >= GROW_VEC_MMAP_THRESH) {
+    void *p = mmap(NULL, nbytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    if (p != MAP_FAILED) {
+      if (out_mmap)
+        *out_mmap = 1;
+      return p;
+    }
+    /* fall through to calloc on mmap failure */
+  }
+#endif
+  return calloc(1, nbytes);
+}
+
+/**
+ * Deallocate GrowVec data (mmap munmap or free).
+ * @param p data pointer; may be null
+ * @param nbytes size when mmap_backed (ignored for free)
+ * @param mmap_backed 1 if p is mmap
+ */
+static void grow_vec_dealloc_bytes(void *p, size_t nbytes, int32_t mmap_backed) {
+  if (!p)
+    return;
+#if defined(__APPLE__) || defined(__linux__)
+  if (mmap_backed) {
+    if (nbytes > 0)
+      (void)munmap(p, nbytes);
+    return;
+  }
+#else
+  (void)nbytes;
+  (void)mmap_backed;
+#endif
+  free(p);
+}
+
 static int grow_vec_init(GrowVec *v, size_t elem_sz, int32_t initial_cap) {
+  size_t nbytes;
+  int32_t mm = 0;
   v->data = NULL;
   v->cap = 0;
   v->len = 0;
   v->elem_sz = elem_sz;
+  v->mmap_backed = 0;
   /* Default to the smaller INIT_CAP (256) instead of the grow step (4096)
    * so that fresh pools do not zerofill 4.3 MB per ArenaSidecar. Pools that
    * outgrow INIT_CAP will realloc by AST_POOL_GROW (4096) elements. */
   if (initial_cap <= 0)
     initial_cap = AST_POOL_INIT_CAP;
-  v->data = (uint8_t *)calloc((size_t)initial_cap, elem_sz);
+  nbytes = (size_t)initial_cap * elem_sz;
+  v->data = (uint8_t *)grow_vec_alloc_bytes(nbytes, &mm);
   if (!v->data)
     return 0;
+  v->mmap_backed = mm;
   v->cap = initial_cap;
   return 1;
 }
 
 static void grow_vec_free(GrowVec *v) {
   if (v && v->data) {
-    free(v->data);
+    size_t nbytes = (size_t)v->cap * v->elem_sz;
+    grow_vec_dealloc_bytes(v->data, nbytes, v->mmap_backed);
     v->data = NULL;
   }
   if (v) {
     v->cap = 0;
     v->len = 0;
+    v->mmap_backed = 0;
   }
 }
 
@@ -194,20 +266,46 @@ static void grow_vec_free(GrowVec *v) {
 static int grow_vec_ensure(GrowVec *v) {
   int32_t need;
   int32_t nc;
+  int32_t old_cap;
+  int32_t mm = 0;
+  size_t old_bytes;
+  size_t new_bytes;
   uint8_t *p;
   if (!v)
     return 0;
   need = v->len + 1;
   if (need <= v->cap)
     return 1;
+  old_cap = v->cap;
   nc = v->cap > 0 ? v->cap : AST_POOL_GROW;
   while (nc < need)
     nc += AST_POOL_GROW;
-  p = (uint8_t *)realloc(v->data, (size_t)nc * v->elem_sz);
+  old_bytes = (size_t)old_cap * v->elem_sz;
+  new_bytes = (size_t)nc * v->elem_sz;
+  /*
+   * PLATFORM: SHARED — grow path. Prefer mmap for large new_bytes so free
+   * returns RSS (check peak). Cannot realloc() an mmap region: allocate
+   * fresh + copy + dealloc old.
+   */
+  if (v->mmap_backed || new_bytes >= GROW_VEC_MMAP_THRESH) {
+    p = (uint8_t *)grow_vec_alloc_bytes(new_bytes, &mm);
+    if (!p)
+      return 0;
+    if (v->data && old_bytes > 0)
+      memcpy(p, v->data, old_bytes);
+    /* new tail is already zero from mmap/calloc */
+    grow_vec_dealloc_bytes(v->data, old_bytes, v->mmap_backed);
+    v->data = p;
+    v->mmap_backed = mm;
+    v->cap = nc;
+    return 1;
+  }
+  p = (uint8_t *)realloc(v->data, new_bytes);
   if (!p)
     return 0;
-  memset(p + (size_t)v->cap * v->elem_sz, 0, (size_t)(nc - v->cap) * v->elem_sz);
+  memset(p + old_bytes, 0, new_bytes - old_bytes);
   v->data = p;
+  v->mmap_backed = 0;
   v->cap = nc;
   return 1;
 }
@@ -1212,6 +1310,139 @@ void ast_pool_module_release(struct ast_Module *m) {
       module_sidecar_free(&g_module_sc[i]);
       return;
     }
+  }
+}
+
+/**
+ * Drop function-body AST pools after a dep parse, keeping signatures for typeck.
+ *
+ * Why (check peak RSS): `xlang check` of modules that import parser/typeck/codegen
+ * (e.g. pipeline.x) holds full body ASTs of every transitive dep at once. Each
+ * mega module alone is ~0.6–2GB because `struct ast_Expr` embeds four 128-byte
+ * name arrays (~600B+/node). Directory `check compiler` peak matched single-file
+ * pipeline.x (~4.9GB) — not multi-session leak (cleanup already frees deps).
+ *
+ * For check, deps are already parse_only (no library body typeck). Entry typeck
+ * only needs dep export signatures: Func name/params/return + Type pool +
+ * struct_layouts / imports / type_aliases. Body expr/block GrowVecs are pure
+ * waste after parse_only and dominate RSS.
+ *
+ * What is kept:
+ *   - ArenaSidecar: types, type_type_arg_*, func_params
+ *   - ModuleSidecar: funcs (headers), imports, struct_layouts, type_aliases, enums
+ * What is freed (body pools):
+ *   - exprs, blocks, consts/lets/ifs/regions/loops, stmt_order, call/match/lit arg pools
+ * Func body_ref / body_expr_ref are nulled so typeck treats them as body-less
+ * (same as extern / empty library stubs).
+ *
+ * Invariant: call only after dep parse_only for check sessions; never on the
+ * entry module while entry typeck still needs its own bodies.
+ * PLATFORM: SHARED — mac + Ubuntu check RSS; dual L2 after change.
+ */
+void ast_pool_drop_bodies_for_check(struct ast_ASTArena *a, struct ast_Module *m) {
+  ArenaSidecar *sc;
+  int32_t i;
+  int32_t n;
+  size_t freed_approx = 0;
+  int32_t n_expr = 0;
+  int32_t n_block = 0;
+  int32_t n_type = 0;
+
+  if (m) {
+    n = m->num_funcs;
+    for (i = 0; i < n; i++) {
+      struct ast_Func *f = module_func_at(m, i);
+      if (!f)
+        continue;
+      f->body_ref = 0;
+      f->body_expr_ref = 0;
+    }
+  }
+  if (!a)
+    return;
+  sc = arena_sidecar_get(a, 0);
+  if (!sc)
+    return;
+  n_expr = sc->exprs.len;
+  n_block = sc->blocks.len;
+  n_type = sc->types.len;
+  freed_approx += (size_t)sc->exprs.cap * sc->exprs.elem_sz;
+  freed_approx += (size_t)sc->blocks.cap * sc->blocks.elem_sz;
+  freed_approx += (size_t)sc->consts.cap * sc->consts.elem_sz;
+  freed_approx += (size_t)sc->lets.cap * sc->lets.elem_sz;
+  freed_approx += (size_t)sc->ifs.cap * sc->ifs.elem_sz;
+  freed_approx += (size_t)sc->regions.cap * sc->regions.elem_sz;
+  freed_approx += (size_t)sc->loops.cap * sc->loops.elem_sz;
+  freed_approx += (size_t)sc->for_loops.cap * sc->for_loops.elem_sz;
+  freed_approx += (size_t)sc->stmt_order.cap * sc->stmt_order.elem_sz;
+  freed_approx += (size_t)sc->expr_call_arg_refs.cap * sc->expr_call_arg_refs.elem_sz;
+  freed_approx += (size_t)sc->expr_method_call_arg_refs.cap * sc->expr_method_call_arg_refs.elem_sz;
+  freed_approx += (size_t)sc->expr_match_arms.cap * sc->expr_match_arms.elem_sz;
+  freed_approx += (size_t)sc->expr_struct_lit_fields.cap * sc->expr_struct_lit_fields.elem_sz;
+  /* Free body-associated GrowVec data; keep types + func_params. */
+  grow_vec_free(&sc->exprs);
+  grow_vec_free(&sc->blocks);
+  grow_vec_free(&sc->consts);
+  grow_vec_free(&sc->lets);
+  grow_vec_free(&sc->ifs);
+  grow_vec_free(&sc->regions);
+  grow_vec_free(&sc->loops);
+  grow_vec_free(&sc->for_loops);
+  grow_vec_free(&sc->defer_block_refs);
+  grow_vec_free(&sc->labeled_stmts);
+  grow_vec_free(&sc->expr_stmt_refs);
+  grow_vec_free(&sc->stmt_order);
+  grow_vec_free(&sc->expr_call_arg_refs);
+  grow_vec_free(&sc->expr_call_type_arg_refs);
+  grow_vec_free(&sc->expr_call_type_arg_bases);
+  grow_vec_free(&sc->expr_method_call_arg_refs);
+  grow_vec_free(&sc->expr_match_arms);
+  grow_vec_free(&sc->expr_struct_lit_fields);
+  grow_vec_free(&sc->expr_array_lit_elem_refs);
+  /* Arena-local func pool (if any) is not the module Func table; bodies live in
+   * module funcs + expr/block pools. Keep sc->funcs / sc->func_params intact. */
+  a->num_exprs = 0;
+  a->num_blocks = 0;
+  /*
+   * PLATFORM: SHARED — return freed pages to the OS so directory/mega-import
+   * check peak RSS is max(single dep) not sum(sequential parse peaks).
+   * macOS keeps free'd large blocks in-process by default (high-water climbs);
+   * Linux glibc similarly retains arenas without malloc_trim.
+   * Ubuntu nostdlib: malloc_trim is weak no-op if not linked; large mmap free
+   * already munmaps in bootstrap_nostdlib_stubs (wave1241).
+   */
+#if defined(__APPLE__)
+  {
+    extern void *malloc_default_zone(void);
+    extern size_t malloc_zone_pressure_relief(void *zone, size_t goal);
+    (void)malloc_zone_pressure_relief(malloc_default_zone(), 0);
+  }
+#elif defined(__linux__)
+  {
+    extern int malloc_trim(size_t pad) __attribute__((weak));
+    if (malloc_trim)
+      (void)malloc_trim(0);
+  }
+#endif
+  if (link_abi_getenv("XLANG_DEBUG_CHECK_MEM")) {
+    size_t live_expr_cap = 0;
+    size_t live_type_cap = 0;
+    int live_arenas = 0;
+    int j;
+    for (j = 0; j < MAX_ARENA_SIDECARS; j++) {
+      if (!g_arena_sc[j].used)
+        continue;
+      live_arenas++;
+      live_expr_cap += (size_t)g_arena_sc[j].exprs.cap * g_arena_sc[j].exprs.elem_sz;
+      live_type_cap += (size_t)g_arena_sc[j].types.cap * g_arena_sc[j].types.elem_sz;
+    }
+    fprintf(stderr,
+            "xlang: [CHECK_MEM] drop_bodies arena=%p n_expr=%d n_block=%d n_type=%d "
+            "n_func=%d freed_body_approx=%zuMB | live_arenas=%d live_expr_cap=%zuMB "
+            "live_type_cap=%zuMB\n",
+            (void *)a, (int)n_expr, (int)n_block, (int)n_type,
+            m ? (int)m->num_funcs : -1, freed_approx / (1024 * 1024), live_arenas,
+            live_expr_cap / (1024 * 1024), live_type_cap / (1024 * 1024));
   }
 }
 

@@ -21,6 +21,12 @@ export extern function ast_pool_arena_release(a: *u8): void;
  * Must be called before free(module). See ast_pool_arena_release.
  * PLATFORM: SHARED. */
 export extern function ast_pool_module_release(m: *u8): void;
+/**
+ * After dep parse_only in check mode: free body expr/block GrowVecs, keep
+ * signatures (types + Func headers + layouts). Authority: ast_pool.c.
+ * PLATFORM: SHARED — check peak RSS root fix (pipeline.x / directory check).
+ */
+export extern function ast_pool_drop_bodies_for_check(arena: *u8, module: *u8): void;
 export extern function memset(p: *u8, c: i32, n: usize): *u8;
 export extern function strlen(s: *u8): usize;
 /* wave238 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
@@ -1026,6 +1032,16 @@ export function rt_cp_step_prerun(): i32 {
       unsafe {
         ec = xlang_pipeline_dep_prerun_parse_only(
           driver_ptr_table_get(dmod, j), driver_ptr_table_get(dar, j), dep_src, dep_len);
+        /* check / skip-typeck deps: entry typeck only needs export signatures.
+         * Drop body AST pools immediately so mega deps (codegen/parser/typeck)
+         * do not pin multi-GB expr GrowVecs for the rest of the session.
+         * PLATFORM: SHARED — check peak RSS root (not multi-session leak). */
+        if (ec == 0) {
+          if (check != 0) {
+            ast_pool_drop_bodies_for_check(
+              driver_ptr_table_get(dar, j), driver_ptr_table_get(dmod, j));
+          }
+        }
       }
     } else {
       unsafe {
