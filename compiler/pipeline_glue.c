@@ -960,96 +960,17 @@ static int32_t glue_emit_index_rax_plus_rbx_scaled_elf_c(struct platform_elf_Elf
  * before all consuming leaves: assign/array_lit/index/index_eff_addr/call_args/
  * field_access/block_inits). glue.c has no direct call sites — fwd was redundant. */
 
-/**
- * 压入嵌套循环 break/continue 标签栈；与 backend.x ctx_push_loop_labels 一致。
- * C glue 真实现：避免 partial 与 mega_body 栈上 AsmFuncCtx 布局漂移时误读 loop_label_depth。
- */
+/* wave1237 G.7: backend_ctx_push_loop_labels / backend_ctx_pop_loop_labels
+ * migrated to pipeline_asm_emit_fold_count_up_while.c EOF (colocated with sole
+ * caller — loop folding domain consumes the AsmFuncCtx loop-label stack via
+ * backend_try_fold_count_up_while_elf at L1413/1484). Fwd decls kept here
+ * (before #include at L2405) so the call sites in fold_count_up_while.c see
+ * them; definitions at fold_count_up_while.c EOF. Deps visible at #include
+ * L2405: pipeline_glue_AsmFuncCtxLayout typedef (L84) + pipeline_asm_ctx_layout
+ * static (L86). PLATFORM: SHARED. */
 int32_t backend_ctx_push_loop_labels(struct backend_AsmFuncCtx *ctx, uint8_t *exit_buf, int32_t exit_len,
-                                     uint8_t *loop_buf, int32_t loop_len) {
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  int32_t d;
-  int32_t base_off;
-  int32_t k;
-  if (!ctx || !exit_buf || !loop_buf || exit_len <= 0 || loop_len <= 0)
-    return -1;
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (!ly)
-    return -1;
-  d = ly->loop_label_depth;
-  if (d >= 8)
-    return -1;
-  base_off = d * 64;
-  k = 0;
-  while (k < exit_len && k < 64) {
-    ly->loop_break_label_stack[base_off + k] = exit_buf[k];
-    k++;
-  }
-  ly->loop_break_len_stack[d] = exit_len;
-  k = 0;
-  while (k < loop_len && k < 64) {
-    ly->loop_continue_label_stack[base_off + k] = loop_buf[k];
-    k++;
-  }
-  ly->loop_continue_len_stack[d] = loop_len;
-  ly->loop_label_depth = d + 1;
-  k = 0;
-  while (k < exit_len && k < 64) {
-    ly->break_label[k] = exit_buf[k];
-    k++;
-  }
-  ly->break_len = exit_len;
-  k = 0;
-  while (k < loop_len && k < 64) {
-    ly->continue_label[k] = loop_buf[k];
-    k++;
-  }
-  ly->continue_len = loop_len;
-  return 0;
-}
-
-/** 弹出循环标签栈顶；与 backend.x ctx_pop_loop_labels 一致。 */
-void backend_ctx_pop_loop_labels(struct backend_AsmFuncCtx *ctx) {
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  int32_t d;
-  int32_t prev;
-  int32_t base_off;
-  int32_t bl;
-  int32_t cl;
-  int32_t k;
-  if (!ctx)
-    return;
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (!ly || ly->loop_label_depth <= 0) {
-    if (ly) {
-      ly->break_len = 0;
-      ly->continue_len = 0;
-    }
-    return;
-  }
-  ly->loop_label_depth = ly->loop_label_depth - 1;
-  d = ly->loop_label_depth;
-  if (d <= 0) {
-    ly->break_len = 0;
-    ly->continue_len = 0;
-    return;
-  }
-  prev = d - 1;
-  base_off = prev * 64;
-  bl = ly->loop_break_len_stack[prev];
-  cl = ly->loop_continue_len_stack[prev];
-  k = 0;
-  while (k < bl && k < 64) {
-    ly->break_label[k] = ly->loop_break_label_stack[base_off + k];
-    k++;
-  }
-  ly->break_len = bl;
-  k = 0;
-  while (k < cl && k < 64) {
-    ly->continue_label[k] = ly->loop_continue_label_stack[base_off + k];
-    k++;
-  }
-  ly->continue_len = cl;
-}
+                                     uint8_t *loop_buf, int32_t loop_len);
+void backend_ctx_pop_loop_labels(struct backend_AsmFuncCtx *ctx);
 
 /** EXPR_RETURN：可选 emit 操作数后 jmp 函数尾汇合标签 tail_join_label。 */
 static int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
