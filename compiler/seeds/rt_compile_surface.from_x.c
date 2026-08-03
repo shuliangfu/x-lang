@@ -798,7 +798,8 @@ int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t * * argv, struct 
 struct RtCompileState * driver_compile_state_alloc_c(void) {
   struct RtCompileState * state = ((struct RtCompileState *)(0));
   uint8_t * p = ((uint8_t *)(0));
-  size_t sz = ((size_t)(1664));
+  /* RtCompileState 总大小=1728B（须与 .x rt_compile.x sz 一致；旧值 1664 堆溢出）。 */
+  size_t sz = ((size_t)(1728));
   {
     (void)((p = malloc(sz)));
   }

@@ -949,7 +949,10 @@ export function driver_compile_parse_argv_impl_c(argc: i32, argv: **u8, state: *
 export function driver_compile_state_alloc_c(): *RtCompileState {
   let state: *RtCompileState = 0 as *RtCompileState;
   let p: *u8 = 0 as *u8;
-  let sz: usize = 1664 as usize;
+  /* RtCompileState 总大小=1728B（.x 无 sizeof，须与 seeds DriverCompileStateSU sizeof 对齐）。
+   * 旧值 1664 是 target_cpu_buf[64] 时代残留；buf 扩到 128 后 target_cpu_len 落在
+   * offset 1712 > 1664 → malloc/memset 越界，读堆残留致 check 段错误。wave1241 修正。 */
+  let sz: usize = 1728 as usize;
   unsafe {
     p = malloc(sz);
   }
