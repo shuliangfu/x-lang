@@ -641,6 +641,65 @@ static void glue_fill_array_lit_types_in_block(struct ast_ASTArena *arena, int32
 }
 
 /* ============================================================
+ * wave1229 G.7: public skipped-typeck ARRAY_LIT fill entry
+ * (migrated from pipeline_glue.c; colocated with glue_fill_array_lit_types_in_block).
+ *
+ * Why here: sole non-trivial callee is glue_fill_array_lit_types_in_block
+ * (static above). Public entry walks module funcs and fills each body block
+ * so asm emit can resolve ARRAY_LIT elem stride when .x typeck was skipped.
+ *
+ * Callers (cross-TU / same-TU after this #include):
+ *  - ast_pool.c (extern decl + call on skip-typeck path)
+ *  - runtime_pipeline_abi.x / seeds (export / surface)
+ *  - runtime_driver_strict_glue_stubs.from_x.c (XLANG_WEAK cold stub)
+ *
+ * Deps: pipeline_debug_trace_named_func_bodies / pipeline_asm_module_func_is_extern_at /
+ *       pipeline_module_func_body_ref_at — declared in pipeline_glue.c before this
+ *       file's #include, so same-TU visible without local fwd decl.
+ *
+ * PLATFORM: SHARED — pure orchestration, no arch dependency.
+ * ============================================================ */
+
+/**
+ * Backfill ARRAY_LIT resolved_type_ref for all non-extern function bodies when
+ * C precheck skipped .x typeck (e.g. `let buf: u8[N] = [..]` in hello.x).
+ *
+ * Why: pipeline_asm_array_lit_elem_type_ref needs stamped elem type so emit
+ * uses the correct lane stride (avoid Hello packing as H\\0e\\0…).
+ *
+ * Contract:
+ *  - NULL module or arena → no-op.
+ *  - Skips extern func slots (EMIT_HEAVY declarations without body; walking
+ *    them would SIGSEGV).
+ *  - body_ref <= 0 → skip that func.
+ *
+ * Invariant: for each walked body, delegates to glue_fill_array_lit_types_in_block
+ * (let→VAR type prop + ARRAY_LIT stamp from decl type).
+ *
+ * PLATFORM: SHARED.
+ */
+void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, struct ast_ASTArena *arena) {
+  int32_t fi;
+  int32_t nf;
+  if (!m || !arena)
+    return;
+  pipeline_debug_trace_named_func_bodies("fill_array_pre", m, arena);
+  nf = m->num_funcs;
+  for (fi = 0; fi < nf; fi++) {
+    int32_t br;
+    /* parser EMIT_HEAVY: extern bl→glue declarations occupy func slots without
+     * a body; walking them would SIGSEGV. */
+    if (pipeline_asm_module_func_is_extern_at(m, fi) != 0)
+      continue;
+    br = pipeline_module_func_body_ref_at(m, fi);
+    if (br <= 0)
+      continue;
+    glue_fill_array_lit_types_in_block(arena, br);
+  }
+  pipeline_debug_trace_named_func_bodies("fill_array_post", m, arena);
+}
+
+/* ============================================================
  * wave1149 G.7: block locals tree fill + init reserve bytes pair
  * (migrated from pipeline_glue.c L1583-1604 + L1679-1690).
  *

@@ -2899,29 +2899,12 @@ extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct 
  * #include at L3689 < all callsites (L8981+ public skipped-typeck path).
  * Zero fwd decls required. PLATFORM: SHARED. */
 
-/**
- * C 预检后跳过 .x typeck 时：为各函数体块内 `let buf: u8[N] = [..]` 回填 ARRAY_LIT 的 resolved_type_ref，
- * 使 pipeline_asm_array_lit_elem_type_ref 能取 u8 步长（避免 Hello 打成 H\\0e\\0…）。
- */
-void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, struct ast_ASTArena *arena) {
-  int32_t fi;
-  int32_t nf;
-  if (!m || !arena)
-    return;
-  pipeline_debug_trace_named_func_bodies("fill_array_pre", m, arena);
-  nf = m->num_funcs;
-  for (fi = 0; fi < nf; fi++) {
-    int32_t br;
-    /** parser EMIT_HEAVY：extern bl→glue 声明占 func 槽但无 body；遍历会 SIGSEGV。 */
-    if (pipeline_asm_module_func_is_extern_at(m, fi) != 0)
-      continue;
-    br = pipeline_module_func_body_ref_at(m, fi);
-    if (br <= 0)
-      continue;
-    glue_fill_array_lit_types_in_block(arena, br);
-  }
-  pipeline_debug_trace_named_func_bodies("fill_array_post", m, arena);
-}
+/* wave1229 G.7: pipeline_fill_array_lit_types_for_skipped_typeck migrated to
+ * pipeline_asm_emit_block_inits.c (after glue_fill_array_lit_types_in_block —
+ * sole callee; same skipped-typeck array-lit domain as wave1118-1123).
+ * #include at L2072 < former def site; definition visible to all later
+ * same-TU callsites and to cross-TU via extern (ast_pool / pipeline_abi).
+ * No glue.c body retained. PLATFORM: SHARED. */
 
 /* wave1181 G.7: elf/codegen prefix forwarder cluster (18 fns) migrated to
  * pipeline_elf_codegen_forwarders.c (new domain file, same-TU #include below).
