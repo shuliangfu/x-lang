@@ -3743,53 +3743,15 @@ static int32_t pipeline_typeck_pick_overload_func_index_c(struct ast_Module *m, 
  * colocated with pipeline_typeck_check_slice_region_assign_c). Sole extern caller:
  * typeck.x typeck_check_expr_call + typeck_gen seed. PLATFORM: SHARED. */
 
-/**
- * M-3 / MEM-C1：typeck 单条 region 或 with_arena 块。
- * with_arena 无域标签，旧实现 label_len<=0 直接 return 0 会跳过体块 typeck，导致 AL-04 assign 逃逸漏报。
- */
-int32_t pipeline_typeck_unsafe_depth_push_c(struct ast_PipelineDepCtx *ctx);
-void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved_unsafe_depth);
-
-int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                 int32_t block_ref, int32_t region_idx, int32_t return_type_ref,
-                                                 struct ast_PipelineDepCtx *ctx) {
-  uint8_t label[128];
-  int32_t label_len;
-  int32_t body_ref;
-  int32_t wa_cap;
-  int32_t rc;
-  extern int32_t typeck_check_block(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
-                                    int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
-  if (!module || !arena || !ctx || block_ref <= 0 || region_idx < 0)
-    return 0;
-  body_ref = pipeline_block_region_body_ref(arena, block_ref, region_idx);
-  if (body_ref <= 0)
-    return 0;
-  if (pipeline_block_region_is_unsafe(arena, block_ref, region_idx)) {
-    int32_t saved_ud;
-    saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
-    rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
-    pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
-    return rc;
-  }
-  wa_cap = pipeline_block_region_with_arena_cap_ref(arena, block_ref, region_idx);
-  if (wa_cap > 0) {
-    /** MEM-C1：push with_arena 栈，使 check_expr_impl_mega / post-scan 能报 allocator region escape。 */
-    typeck_with_arena_scope_push_c(body_ref);
-    rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
-    typeck_with_arena_scope_pop_c();
-    return rc;
-  }
-  label_len = pipeline_block_region_label_len(arena, block_ref, region_idx);
-  if (label_len <= 0)
-    return 0;
-  pipeline_block_region_label_copy64(arena, block_ref, region_idx, label);
-  if (pipeline_dep_ctx_scope_region_push_c(ctx, label, label_len) != 0)
-    return -1;
-  rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
-  pipeline_dep_ctx_scope_region_pop_c(ctx);
-  return rc;
-}
+/* wave1234 G.7: pipeline_typeck_check_block_one_region_c migrated to
+ * pipeline_typeck_region_assign.c EOF (colocated with with_arena scope +
+ * region scope push/pop — M-3 / MEM-C1 region dispatch domain).
+ * Deps visible via earlier fwd decls: pipeline_block_region_* (ast_pool.c
+ * #include L2839) + unsafe_depth_push/pop (fwd at L3238-3239) +
+ * typeck_with_arena_scope_push/pop + pipeline_dep_ctx_scope_region_push/pop
+ * (both in region_assign.c). Redundant unsafe_depth fwd decls (were L3750-3751)
+ * dropped — L3238-3239 already covers all callsites.
+ * Sole extern caller: typeck_gen.c L9100 + typeck.x seed. PLATFORM: SHARED. */
 
 /* typeck coerce-init domain (lit/float/enum/call/array/vector/struct/slice):
  * pipeline_typeck_coerce_init.c */

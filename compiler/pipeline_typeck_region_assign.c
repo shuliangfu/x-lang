@@ -1609,3 +1609,62 @@ int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, str
   }
   return 0;
 }
+
+/* wave1234 G.7: pipeline_typeck_check_block_one_region_c migrated from
+ * pipeline_glue.c to this file's EOF (colocated with with_arena scope +
+ * region scope push/pop — M-3 / MEM-C1 region dispatch domain).
+ * Dependencies visible via earlier fwd decls in glue.c (before #include at
+ * L3576):
+ *   - pipeline_block_region_body_ref / _is_unsafe / _with_arena_cap_ref /
+ *     _label_len / _label_copy64 (ast_pool_block.c via ast_pool.c #include L2839)
+ *   - pipeline_typeck_unsafe_depth_push_c / _pop_c (fwd at glue.c L3238-3239;
+ *     definitions in pipeline_typeck_check_block.c #include L3959)
+ *   - typeck_with_arena_scope_push_c / _pop_c (defined at L315/322 this file)
+ *   - pipeline_dep_ctx_scope_region_push_c / _pop_c (defined in this file)
+ *   - typeck_check_block (extern decl inside function body)
+ * Sole extern caller: typeck_gen.c L9100 + typeck.x seed. PLATFORM: SHARED. */
+
+/**
+ * M-3 / MEM-C1：typeck 单条 region 或 with_arena 块。
+ * with_arena 无域标签，旧实现 label_len<=0 直接 return 0 会跳过体块 typeck，导致 AL-04 assign 逃逸漏报。
+ */
+int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                 int32_t block_ref, int32_t region_idx, int32_t return_type_ref,
+                                                 struct ast_PipelineDepCtx *ctx) {
+  uint8_t label[128];
+  int32_t label_len;
+  int32_t body_ref;
+  int32_t wa_cap;
+  int32_t rc;
+  extern int32_t typeck_check_block(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
+                                    int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
+  if (!module || !arena || !ctx || block_ref <= 0 || region_idx < 0)
+    return 0;
+  body_ref = pipeline_block_region_body_ref(arena, block_ref, region_idx);
+  if (body_ref <= 0)
+    return 0;
+  if (pipeline_block_region_is_unsafe(arena, block_ref, region_idx)) {
+    int32_t saved_ud;
+    saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
+    rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
+    pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
+    return rc;
+  }
+  wa_cap = pipeline_block_region_with_arena_cap_ref(arena, block_ref, region_idx);
+  if (wa_cap > 0) {
+    /** MEM-C1：push with_arena 栈，使 check_expr_impl_mega / post-scan 能报 allocator region escape。 */
+    typeck_with_arena_scope_push_c(body_ref);
+    rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
+    typeck_with_arena_scope_pop_c();
+    return rc;
+  }
+  label_len = pipeline_block_region_label_len(arena, block_ref, region_idx);
+  if (label_len <= 0)
+    return 0;
+  pipeline_block_region_label_copy64(arena, block_ref, region_idx, label);
+  if (pipeline_dep_ctx_scope_region_push_c(ctx, label, label_len) != 0)
+    return -1;
+  rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
+  pipeline_dep_ctx_scope_region_pop_c(ctx);
+  return rc;
+}
