@@ -524,7 +524,14 @@ typedef struct {
   GrowVec empty_param_backup;
 } DepCtxSidecar;
 
-/** driver -x -E  argv 解析：DriverXEmitState* 键控 lib_root grow 池。 */
+/** driver -x -E / check compile argv: DriverCompileState* (or emit state) keyed lib_root pool.
+ *
+ * wave1243: slots were never released when heap `driver_compile_state_free_c` ran.
+ * Directory `xlang check` allocs a unique state per file → after 32 files every
+ * sidecar is occupied, `driver_emit_append_lib_root` fails, -L roots vanish, and
+ * import resolve falls back to a stale/wrong entry_dir (often reporting paths under
+ * `.../asm/http/...` as IMP001). PLATFORM: SHARED — mac + Ubuntu check matrix.
+ */
 typedef struct {
   void *state;
   int used;
@@ -532,7 +539,9 @@ typedef struct {
   GrowVec lib_root_lens;
 } DriverEmitSidecar;
 
-#define MAX_DRIVER_EMIT_SIDECARS 32
+/* 32 was the hard failure point for `check compiler` (32×tiny + next file IMP001).
+ * Keep modest headroom; release on free is the real fix. */
+#define MAX_DRIVER_EMIT_SIDECARS 64
 
 #define MAX_DEP_CTX_SIDECARS 64
 /* PLATFORM: SHARED — sidecar table caps (pointer-keyed global pools).
@@ -3768,6 +3777,29 @@ void driver_emit_lib_root_reset(uint8_t *state) {
     return;
   sc->lib_root_rows.len = 0;
   sc->lib_root_lens.len = 0;
+}
+
+/**
+ * Release the DriverEmitSidecar for `state` (free GrowVecs, mark slot free).
+ *
+ * Must be called before free(state) for any heap compile/emit state that used
+ * driver_emit_append_lib_root. Without this, directory check exhausts the table
+ * after MAX_DRIVER_EMIT_SIDECARS sessions and import -L roots stop applying.
+ * PLATFORM: SHARED — dual-host check after change.
+ */
+void driver_emit_lib_root_release(uint8_t *state) {
+  int i;
+  if (!state)
+    return;
+  for (i = 0; i < MAX_DRIVER_EMIT_SIDECARS; i++) {
+    if (!g_driver_emit_sc[i].used || g_driver_emit_sc[i].state != state)
+      continue;
+    grow_vec_free(&g_driver_emit_sc[i].lib_root_rows);
+    grow_vec_free(&g_driver_emit_sc[i].lib_root_lens);
+    g_driver_emit_sc[i].state = NULL;
+    g_driver_emit_sc[i].used = 0;
+    return;
+  }
 }
 
 int32_t driver_emit_append_lib_root(uint8_t *state, uint8_t *path, int32_t len) {

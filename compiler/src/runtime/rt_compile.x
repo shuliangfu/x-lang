@@ -969,8 +969,14 @@ export function driver_compile_state_alloc_c(): *RtCompileState {
   return state;
 }
 
+/** Release driver_emit lib_root sidecar keyed by compile state pointer.
+ * Must run before free(state) so directory `xlang check` does not exhaust the
+ * 32/64 emit sidecar table (wave1243 IMP001 after ~32 files). PLATFORM: SHARED. */
+export extern function driver_emit_lib_root_release(state: *u8): void;
+
 /** Exported function `driver_compile_state_free_c`.
  * Memory management helper `driver_compile_state_free_c`.
+ * Releases emit lib_root sidecar (wave1243) then frees the state heap block.
  * @param state *RtCompileState
  * @return void
  */
@@ -980,6 +986,8 @@ export function driver_compile_state_free_c(state: *RtCompileState): void {
     return;
   }
   unsafe {
+    /* wave1243: free emit sidecar before heap free — key is the state pointer. */
+    driver_emit_lib_root_release(state as *u8);
     free(state as *u8);
   }
 }

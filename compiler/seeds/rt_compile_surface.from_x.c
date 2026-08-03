@@ -815,10 +815,17 @@ struct RtCompileState * driver_compile_state_alloc_c(void) {
   (void)(((state->opt_level_len) = 1));
   return state;
 }
+/* wave1243: declare release so seed free path matches product (sidecar leak → IMP001). */
+extern void driver_emit_lib_root_release(uint8_t *state);
+
 void driver_compile_state_free_c(struct RtCompileState * state) {
   if ((state ==((struct RtCompileState *)(0)))) {
     return;
   }
+  /* wave1243: release driver_emit lib_root sidecar keyed by this state pointer
+   * before free — directory check allocs one state per file; without release the
+   * table fills after MAX_DRIVER_EMIT_SIDECARS and -L roots stop applying. */
+  driver_emit_lib_root_release((uint8_t *)state);
   {
     (void)(free(((uint8_t *)(state))));
   }
