@@ -1553,10 +1553,19 @@ __attribute__((weak)) int bootstrap_nostdlib_pthread_is_stub(void) {
     return 0;
 }
 
-/* Shared control for fork-mode child (pause/stop visible across processes). */
+/*
+ * Shared control for fork-mode spinner child.
+ * path[] lives here so one long-lived child can animate every multi-file path
+ * without re-forking after the parent heap has grown to multi-GB (COW fork of
+ * a huge RSS was the Ubuntu hang root: waitpid stuck / shell process-group
+ * wait on an orphan spinner after summary).
+ * PLATFORM: LINUX freestanding (MAP_SHARED); MACOS uses pthread path.
+ */
 typedef struct {
     volatile int run;
     volatile int pause;
+    volatile int frame;
+    char path[512];
 } ck_spin_sh;
 
 static volatile int g_ck_spin_run = 0;
@@ -1575,7 +1584,7 @@ static ck_spin_sh *g_ck_spin_sh = NULL;
 /*
  * Async-signal-safe interrupt path for `xlang check`.
  * PLATFORM: SHARED — POSIX signal(2)/sigaction; Windows uses signal().
- * Does not pthread_join (not async-safe); kills fork spinner child if any.
+ * Does not pthread_join/waitpid (not async-safe); kills fork spinner child if any.
  */
 static void check_interrupt_handler(int sig) {
     const char msg[] = "\ncheck: interrupted\n";
@@ -1589,6 +1598,7 @@ static void check_interrupt_handler(int sig) {
     }
     if (g_ck_spin_pid > 0) {
         (void)kill(g_ck_spin_pid, SIGKILL);
+        /* Do not waitpid here (not async-signal-safe); parent is _exit-ing. */
         g_ck_spin_pid = 0;
     }
 #endif
@@ -1643,15 +1653,43 @@ static const char *const g_ck_spin_frames[10] = {
     "\xE2\xA0\x8F", /* ⠏ */
 };
 
+/* Copy path into parent-local buffer and (when present) shared path for child. */
+static void check_progress_spin_set_path(const char *path) {
+    int i;
+    g_ck_spin_path[0] = 0;
+    if (path) {
+        for (i = 0; i < 511 && path[i]; i++)
+            g_ck_spin_path[i] = path[i];
+        g_ck_spin_path[i] = 0;
+    }
+#ifndef _WIN32
+    if (g_ck_spin_sh) {
+        for (i = 0; i < 511 && g_ck_spin_path[i]; i++)
+            g_ck_spin_sh->path[i] = g_ck_spin_path[i];
+        g_ck_spin_sh->path[i] = 0;
+    }
+#endif
+}
+
 static void check_progress_spin_write_frame(void) {
     const char *glyph;
+    const char *path_src;
     char buf[640];
     int at = 0;
     int i;
     int gi;
+    int frame;
 
-    glyph = g_ck_spin_frames[g_ck_spin_frame % 10];
-    g_ck_spin_frame++;
+#ifndef _WIN32
+    if (g_ck_spin_sh)
+        frame = g_ck_spin_sh->frame++;
+    else
+#endif
+    {
+        frame = g_ck_spin_frame++;
+    }
+
+    glyph = g_ck_spin_frames[frame % 10];
 
     buf[at++] = '\r';
     /* UTF-8 braille glyph (3 bytes) */
@@ -1659,10 +1697,16 @@ static void check_progress_spin_write_frame(void) {
         buf[at++] = glyph[gi];
     buf[at++] = ' ';
 
-    for (i = 0; i < 511 && g_ck_spin_path[i]; i++) {
+    /* Prefer shared path so long-lived fork child tracks parent path updates. */
+    path_src = g_ck_spin_path;
+#ifndef _WIN32
+    if (g_ck_spin_sh)
+        path_src = g_ck_spin_sh->path;
+#endif
+    for (i = 0; i < 511 && path_src[i]; i++) {
         if (at >= 620)
             break;
-        buf[at++] = g_ck_spin_path[i];
+        buf[at++] = path_src[i];
     }
     /* Erase to end of line — works across fork (no shared width state). */
     if (at + 3 < 640) {
@@ -1701,9 +1745,9 @@ static void *check_progress_spin_thread(void *arg) {
     return NULL;
 }
 
-/* Linux freestanding: child process animates until shared run==0, then _exit.
- * Also exit if parent dies (reparent to init/launchd → getppid()==1) so Ctrl+C
- * / kill of the check parent never leaves an orphan spinner on the TTY.
+/* Linux freestanding: long-lived child animates until shared run==0, then _exit.
+ * Reads path from MAP_SHARED so parent can advance files without re-fork.
+ * Exits if parent dies (reparent → getppid()==1).
  * PLATFORM: LINUX freestanding (fork path); MACOS product uses pthread. */
 static void check_progress_spin_fork_child(void) {
     while (check_progress_spin_live_run()) {
@@ -1720,14 +1764,46 @@ static int check_progress_spin_ensure_shared(void) {
     void *p;
     if (g_ck_spin_sh)
         return 0;
-    /* MAP_SHARED|MAP_ANONYMOUS — Linux 0x21; needed so parent stop/pause reaches child. */
+    /* MAP_SHARED|MAP_ANONYMOUS — needed so parent stop/path updates reach child. */
     p = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     if (p == MAP_FAILED || p == (void *)(intptr_t)-1)
         return -1;
     g_ck_spin_sh = (ck_spin_sh *)p;
     g_ck_spin_sh->run = 0;
     g_ck_spin_sh->pause = 0;
+    g_ck_spin_sh->frame = 0;
+    g_ck_spin_sh->path[0] = 0;
     return 0;
+}
+
+/*
+ * Reap fork spinner: cooperative run=0 first, then SIGKILL + waitpid.
+ * Must not leave a live child in the shell process group after summary
+ * (interactive shell then appears hung even though parent returned).
+ * PLATFORM: LINUX freestanding / POSIX waitpid+kill.
+ */
+static void check_progress_spin_reap_fork_child(pid_t pid) {
+    int st = 0;
+    pid_t w;
+    int tries;
+    if (pid <= 0)
+        return;
+    for (tries = 0; tries < 5; tries++) {
+        w = waitpid(pid, &st, WNOHANG);
+        if (w == pid)
+            return;
+        if (w < 0) {
+            /* ECHILD: already reaped (or never a child). */
+            return;
+        }
+        (void)usleep(20000); /* 20ms; child usleep is 80ms — ~100ms window */
+    }
+    (void)kill(pid, SIGKILL);
+    for (;;) {
+        w = waitpid(pid, &st, 0);
+        if (w == pid || w < 0)
+            return;
+    }
 }
 #endif
 
@@ -1741,11 +1817,12 @@ static void check_progress_spin_join_only(void) {
         (void)pthread_join(g_ck_spin_tid, NULL);
         g_ck_spin_have_tid = 0;
     } else if (g_ck_spin_pid > 0) {
+        pid_t pid = g_ck_spin_pid;
         if (g_ck_spin_sh)
             g_ck_spin_sh->run = 0;
         g_ck_spin_run = 0;
-        (void)waitpid(g_ck_spin_pid, NULL, 0);
         g_ck_spin_pid = 0;
+        check_progress_spin_reap_fork_child(pid);
     } else {
         g_ck_spin_run = 0;
         if (g_ck_spin_sh)
@@ -1771,44 +1848,51 @@ void check_progress_spin_stop(void) {
 }
 
 void check_progress_spin_start(const char *path) {
-    int i;
-
     /* Ensure Ctrl+C works even if thin.x forgot to install (defense in depth). */
     check_install_interrupt_handlers();
 
-    /* Restart: join previous spinner but keep one progress line (\r overwrite). */
-    check_progress_spin_join_only();
-
-    g_ck_spin_path[0] = 0;
-    if (path) {
-        for (i = 0; i < 511 && path[i]; i++)
-            g_ck_spin_path[i] = path[i];
-        g_ck_spin_path[i] = 0;
-    }
-    g_ck_spin_frame = 0;
+    check_progress_spin_set_path(path);
     g_ck_spin_pause = 0;
     g_ck_spin_run = 1;
 
 #ifndef _WIN32
-    g_ck_spin_have_tid = 0;
-    g_ck_spin_pid = 0;
-
     /*
-     * nostdlib pthread_create is sync — never run an infinite loop on it.
-     * PLATFORM: LINUX freestanding — fork child + MAP_SHARED control.
-     * PLATFORM: MACOS / libc — real pthread path below.
+     * Long-lived worker: if a spinner child/thread is already alive, only update
+     * the shared path (no join/re-fork). Re-forking after multi-GB heap COW was
+     * the Ubuntu bare-check hang root.
+     * PLATFORM: LINUX freestanding — one fork + MAP_SHARED path/control.
+     * PLATFORM: MACOS / libc — real pthread (reuse if already running).
      */
-    if (bootstrap_nostdlib_pthread_is_stub() != 0) {
-        if (check_progress_spin_ensure_shared() == 0) {
+    if (g_ck_spin_have_tid || g_ck_spin_pid > 0) {
+        if (g_ck_spin_sh) {
             g_ck_spin_sh->run = 1;
             g_ck_spin_sh->pause = 0;
+        }
+        /* Parent paints immediately so path change is visible even mid-usleep. */
+        check_progress_spin_write_frame();
+        return;
+    }
+
+    if (bootstrap_nostdlib_pthread_is_stub() != 0) {
+        if (check_progress_spin_ensure_shared() == 0) {
+            /* Re-copy path now that shared page exists. */
+            check_progress_spin_set_path(path);
+            g_ck_spin_sh->run = 1;
+            g_ck_spin_sh->pause = 0;
+            g_ck_spin_sh->frame = 0;
             {
                 pid_t child = fork();
                 if (child == 0) {
+                    /*
+                     * Leave shell foreground process group so a stuck spinner
+                     * cannot hold the interactive shell after parent exits.
+                     * PLATFORM: LINUX — setsid freestanding stub or libc.
+                     */
+                    (void)setsid();
                     check_progress_spin_fork_child();
+                    _exit(0);
                 } else if (child > 0) {
                     g_ck_spin_pid = child;
-                    /* First paint immediately so multi-file UI is never blank. */
                     check_progress_spin_write_frame();
                     return;
                 }

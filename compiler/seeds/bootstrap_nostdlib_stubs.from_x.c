@@ -1799,15 +1799,53 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 #endif
 }
 
-/** waitpid：Linux syscall 61。 */
+/**
+ * waitpid for freestanding Linux product pure-ld (no -lc).
+ *
+ * Contract:
+ *  - Linux x86_64 SYS_wait4 (61) with rusage=NULL (POSIX waitpid face).
+ *  - Negative kernel errno → -1 + bootstrap_errno (EINTR/ECHILD callers need this).
+ *  - Prior raw-negative return broke check spinner reap (treated as success, orphan
+ *    child left in shell process group → "check finished but process never exits").
+ *
+ * PLATFORM: LINUX freestanding (x86_64); SHARED symbol name.
+ */
 pid_t waitpid(pid_t pid, int *status, int options) {
 #if defined(__linux__) && defined(__x86_64__)
-    return (pid_t)bootstrap_syscall4(61L, (long)pid, (long)status, (long)options, 0L);
+    long ret = bootstrap_syscall4(61L, (long)pid, (long)status, (long)options, 0L);
+    if (ret < 0) {
+        bootstrap_errno = (int)(-ret);
+        return (pid_t)-1;
+    }
+    return (pid_t)ret;
 #else
     (void)pid;
     (void)status;
     (void)options;
     return -1;
+#endif
+}
+
+/**
+ * setsid for freestanding Linux product pure-ld (no -lc).
+ *
+ * Why: check spinner child must leave the shell foreground process group so a
+ * unreaped (or slow-to-die) spinner cannot keep the interactive shell waiting
+ * after the parent has printed the summary and returned.
+ *
+ * Contract: Linux x86_64 SYS_setsid (112); negative errno → -1.
+ * PLATFORM: LINUX freestanding (x86_64); SHARED symbol name.
+ */
+pid_t setsid(void) {
+#if defined(__linux__) && defined(__x86_64__)
+    long ret = bootstrap_syscall3(112L, 0L, 0L, 0L);
+    if (ret < 0) {
+        bootstrap_errno = (int)(-ret);
+        return (pid_t)-1;
+    }
+    return (pid_t)ret;
+#else
+    return (pid_t)-1;
 #endif
 }
 
