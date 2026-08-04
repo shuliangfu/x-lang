@@ -111,6 +111,7 @@ PRODUCT_RESIDUAL_ROWS=(
   # --- 8.3.3 typeck slices often pulled by glue ---
   "compiler/pipeline_typeck_field_access.c|8.3.3|field_access slice|500|present"
   "compiler/pipeline_typeck_soa.c|8.3.3|typeck SOA helper|50|present"
+  "compiler/pipeline_elf_write_o.c|8.3.2|ELF/Mach-O .o writers (wave1246)|50|present"
   # --- 8.3.4 bootstrap glue / orchestration ---
   "compiler/ast_pool_bootstrap_glue.c|8.3.4|cold-start ast bridge|100|present"
   "compiler/pipeline_bootstrap_orchestration.c|8.3.4|orchestration wrapper → seed|1|present"
