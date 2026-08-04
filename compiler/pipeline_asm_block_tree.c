@@ -270,3 +270,40 @@ int32_t asm_sum_block_wa_temp_bytes(struct ast_ASTArena *arena, int32_t block_re
     total += 8 - (total % 8);
   return total;
 }
+
+/* asm_ctx_fill_locals_block_tree（自 ast_pool 抽出；block tree 遍历填 locals，归 block_tree 域）。
+   依赖 asm_ctx_ensure_block_locals（slot_bytes.c，先于此 include）+ asm_block_tree_push_*（本文件）。 */
+
+void asm_ctx_fill_locals_block_tree(uint8_t *ctx, struct ast_ASTArena *arena, int32_t block_ref,
+                                   int32_t *inout_next_offset, int32_t *inout_num_locals) {
+  GrowVec stack;
+  int32_t sp;
+  int32_t cur;
+  int32_t *pref;
+  if (!ctx || !arena || !inout_next_offset || !inout_num_locals || block_ref <= 0)
+    return;
+  if (!grow_vec_init(&stack, sizeof(int32_t), AST_POOL_INIT_CAP))
+    return;
+  {
+    int32_t visits = 0;
+    asm_block_tree_push_ref(&stack, block_ref);
+    while (stack.len > 0) {
+      sp = stack.len - 1;
+      pref = (int32_t *)grow_vec_at(&stack, sp);
+      if (!pref)
+        break;
+      cur = *pref;
+      stack.len = sp;
+      if (cur <= 0 || cur > arena->num_blocks)
+        continue;
+      visits++;
+      if (visits > 8192)
+        break;
+      asm_ctx_ensure_block_locals(ctx, arena, cur, inout_next_offset, inout_num_locals);
+      asm_block_tree_push_children(arena, &stack, cur);
+      /** MEM-C1：with_arena / region 子块 let 须与 wa 临时区同序登记，避免 arena@8 与 Vec 局部重叠。 */
+      asm_block_tree_push_region_children(arena, &stack, cur);
+    }
+  }
+  grow_vec_free(&stack);
+}
