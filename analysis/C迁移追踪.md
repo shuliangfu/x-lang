@@ -34,7 +34,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-04 实测**）：`pipeline_glue.c` **~1.74k**（**0 函数体**；domain `#include` + early/mid/backend/typeck/typeck_mid/emit/emit_block/emit_lea/emit_mid_fwd 壳 + statics）；`pipeline_glue_early_fwd.c` **~0.23k** + `pipeline_glue_mid_fwd.c` **~0.13k** + `pipeline_glue_backend_fwd.c` **~0.61k** + `pipeline_glue_typeck_fwd.c` **~0.33k** + `pipeline_glue_typeck_mid_fwd.c` **~0.29k** + `pipeline_glue_emit_fwd.c` **~0.11k** + `pipeline_glue_emit_block_fwd.c` **~0.07k** + `pipeline_glue_emit_lea_fwd.c` **~0.08k** + `pipeline_glue_emit_mid_fwd.c` **~0.06k**（纯 fwd/extern）；`ast_pool.c` **~0.18k**（纯 `#include` 编排）。**bc-inventory 诚实**：present residual product C rows **~112**；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + fold 域 ✅ 子项**；**8.3.3 field_access／soa 已抽出仍 host-cc 🟡**；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-04 实测**）：`pipeline_glue.c` **~1.71k**（**0 函数体**；domain `#include` + early/mid/backend/typeck/typeck_mid/emit/emit_block/emit_lea/emit_mid_fwd 壳 + statics 壳）；`pipeline_glue_early_fwd.c` **~0.23k** + `pipeline_glue_mid_fwd.c` **~0.13k** + `pipeline_glue_backend_fwd.c` **~0.61k** + `pipeline_glue_typeck_fwd.c` **~0.33k** + `pipeline_glue_typeck_mid_fwd.c` **~0.29k** + `pipeline_glue_emit_fwd.c` **~0.11k** + `pipeline_glue_emit_block_fwd.c` **~0.07k** + `pipeline_glue_emit_lea_fwd.c` **~0.08k** + `pipeline_glue_emit_mid_fwd.c` **~0.06k** + `pipeline_glue_statics.c` **~0.07k**（纯 fwd/extern/statics）；`ast_pool.c` **~0.18k**（纯 `#include` 编排）。**bc-inventory 诚实**：present residual product C rows **~113**；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + fold 域 ✅ 子项**；**8.3.3 field_access／soa 已抽出仍 host-cc 🟡**；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -908,7 +908,7 @@
 
 | 文件（compiler/） | LOC | 角色 | 状态 |
 |-------------------|-----|------|------|
-| `pipeline_glue.c` | **~1,741** | 产品 mega glue 壳（`#include` + statics；**0 函数体**） | 🟡 **静态叶基本收口**；仍 host-cc 入 `pipeline_x` |
+| `pipeline_glue.c` | **~1,707** | 产品 mega glue 壳（`#include` + statics；**0 函数体**） | 🟡 **静态叶基本收口**；仍 host-cc 入 `pipeline_x` |
 | `pipeline_glue_early_fwd.c` | **~230** | glue 头段 pure fwd/extern 早域（同 TU） | 🟡 **已抽出**；仍 host-cc |
 | `pipeline_glue_mid_fwd.c` | **~125** | glue mid pure fwd/extern（parser_result 后、outbuf 前） | 🟡 **已抽出**；仍 host-cc |
 | `pipeline_glue_backend_fwd.c` | **~605** | glue backend/emit-path pure extern 壳（outbuf 后、lea 前） | 🟡 **已抽出**；仍 host-cc |
@@ -918,6 +918,7 @@
 | `pipeline_glue_emit_block_fwd.c` | **~70** | glue block-accessor pure fwd（cmp 后、next_offset 前） | 🟡 **已抽出**；仍 host-cc |
 | `pipeline_glue_emit_lea_fwd.c` | **~78** | glue lea/return inter-include pure fwd/define（lea_common 后、return 前；ARRAY_LIT cap + binop 分类器原型） | 🟡 **已抽出**（wave1288）；仍 host-cc |
 | `pipeline_glue_emit_mid_fwd.c` | **~63** | glue mid-emit inter-include pure fwd/ordinal（emit_fwd 后、struct_lit 前；TypeKind／ExprKind 序数 + call／method／panic + field_access 快道 fwd 合并） | 🟡 **已抽出**（wave1289）；仍 host-cc |
+| `pipeline_glue_statics.c` | **~65** | glue emit/typeck active-context 静态全局单一定义点（early_fwd 后；module／arena／elf_ctx／func_index／scope_block／dep_pipe／active_module／call state／sret×4 · 13 statics） | 🟡 **已抽出**（wave1290）；仍 host-cc |
 | `pipeline_typeck_ctfe.c` | 1,177 | typeck CTFE 生产者切片（同 TU `#include`） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_assign.c` | 348 | typeck assign 域切片（lit 收窄 + EXPR_ASSIGN） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_coerce_init.c` | 460 | typeck coerce-init 域切片（lit/float/enum/call/array/struct…） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
