@@ -72,11 +72,10 @@ export extern function pipeline_typeck_check_expr_field_access_c(module: *Module
  */
 export extern function pipeline_typeck_mono_field_type_from_base_c(module: *Module, arena: *ASTArena,
 field_ty: i32, base_ty: i32): i32;
-/* See implementation. */
+/* R2 (8.3.3): prebind / field_slice / name_fallback / lexer_fallback authority in typeck.x; C thin. */
 export extern function pipeline_typeck_field_prebind_c(module: *Module, arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): void;
 export extern function pipeline_typeck_field_known_ptr_types_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, num_layouts: i32): i32;
 export extern function pipeline_typeck_field_layout_named_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32;
-/* R2 (8.3.3): field_slice / name_fallback / lexer_fallback authority in typeck.x; C thin. */
 export extern function pipeline_typeck_field_slice_c(arena: *ASTArena, expr_ref: i32, base_ref: i32): void;
 export extern function pipeline_typeck_field_name_fallback_c(arena: *ASTArena, expr_ref: i32, base_ref: i32): void;
 export extern function pipeline_typeck_field_lexer_fallback_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): void;
@@ -2293,6 +2292,73 @@ export function typeck_soa_fill_field_access_for_asm_emit(module: *Module, arena
     }
     pipeline_asm_emit_set_func_index(saved_fi);
     pipeline_debug_trace_named_func_bodies("fill_cl_post", module, arena);
+  }
+}
+
+/**
+ * R2 (8.3.3): EXPR_FIELD_ACCESS prebind for untyped VAR bases.
+ *
+ * Migrated from C `pipeline_typeck_field_prebind_c`
+ * (pipeline_typeck_field_access.c) to .x authority. Public surface
+ * `pipeline_typeck_field_prebind_c` remains a thin C forwarder for
+ * field_access orchestration.
+ *
+ * When FIELD_ACCESS base is EXPR_VAR with null resolved_type_ref, and the name
+ * is not a current-function formal, allocate/find a TYPE_NAMED with the same
+ * spelling and stamp it on the base. This lets layout_named / known_ptr see a
+ * type before full var resolution (self-host Lexer/Parser pattern: bare type
+ * name used as temporary base).
+ *
+ * @param module *Module — param table for formal-name skip
+ * @param arena *ASTArena — expr/type arena
+ * @param expr_ref i32 — FIELD_ACCESS expr
+ * @param ctx *PipelineDepCtx — current_func_index (null → skip formal check)
+ * @return void
+ * PLATFORM: SHARED — G.7; first knife in field_access orchestration order.
+ */
+export function typeck_field_prebind(module: *Module, arena: *ASTArena, expr_ref: i32,
+ctx: *PipelineDepCtx): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let base_ref: i32 = 0;
+    let vnlen: i32 = 0;
+    let vbuf: u8[128] = [];
+    let param_pre: i32 = 0;
+    let nt_pre: i32 = 0;
+    let fi: i32 = 0;
+    if (arena == 0 as *ASTArena || module == 0 as *Module) {
+      return;
+    }
+    base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
+      return;
+    }
+    /* EXPR_VAR = 3 */
+    if (pipeline_expr_kind_ord_at(arena, base_ref) != 3) {
+      return;
+    }
+    if (!ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
+      return;
+    }
+    vnlen = pipeline_expr_var_name_len(arena, base_ref);
+    if (vnlen <= 0 || vnlen > 127) {
+      return;
+    }
+    pipeline_expr_var_name_into(arena, base_ref, &vbuf[0]);
+    /* Skip prebind when name matches a formal (param already owns the type). */
+    if (ctx != 0 as *PipelineDepCtx) {
+      fi = pipeline_dep_ctx_current_func_index(ctx);
+      if (fi >= 0 && fi < module.num_funcs) {
+        param_pre = pipeline_module_func_param_type_ref_for_name(module, fi, &vbuf[0], vnlen);
+        if (!ast.ref_is_null(param_pre)) {
+          return;
+        }
+      }
+    }
+    nt_pre = find_or_alloc_named_type_ref(arena, &vbuf[0], vnlen);
+    if (nt_pre != 0) {
+      pipeline_expr_set_resolved_type_ref(arena, base_ref, nt_pre);
+    }
   }
 }
 

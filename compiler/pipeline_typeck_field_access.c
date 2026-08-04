@@ -148,35 +148,17 @@ extern int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct as
                                             int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
 /**
- * EXPR_FIELD_ACCESS：base VAR 未绑定时按命名类型预绑定（glue 读 var 池）。
+ * EXPR_FIELD_ACCESS: prebind untyped VAR base as TYPE_NAMED of same spelling.
+ * R2 (8.3.3): body migrated to typeck.x as typeck_field_prebind.
+ * Zero business logic — thin surface for field_access orchestration.
+ * PLATFORM: SHARED.
  */
-void pipeline_typeck_field_prebind_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                                            struct ast_PipelineDepCtx *ctx) {
-  int32_t base_ref;
-  int32_t vnlen;
-  uint8_t vbuf[128] /* wave577 Cap name into */;
-  int32_t param_pre;
-  int32_t nt_pre;
+void typeck_field_prebind(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
+                          struct ast_PipelineDepCtx *ctx);
 
-  base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
-  if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
-    return;
-  if (pipeline_expr_kind_ord_at(arena, base_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
-    return;
-  if (!ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref)))
-    return;
-  vnlen = pipeline_expr_var_name_len(arena, base_ref);
-  if (vnlen <= 0)
-    return;
-  pipeline_expr_var_name_into(arena, base_ref, &vbuf[0]);
-  if (ctx->current_func_index >= 0 && ctx->current_func_index < module->num_funcs) {
-    param_pre = pipeline_module_func_param_type_ref_for_name(module, ctx->current_func_index, &vbuf[0], vnlen);
-    if (!ast_ref_is_null(param_pre))
-      return;
-  }
-  nt_pre = typeck_find_or_alloc_named_type_ref(arena, &vbuf[0], vnlen);
-  if (nt_pre != 0)
-    pipeline_expr_set_resolved_type_ref(arena, base_ref, nt_pre);
+void pipeline_typeck_field_prebind_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
+                                    struct ast_PipelineDepCtx *ctx) {
+  typeck_field_prebind(module, arena, expr_ref, ctx);
 }
 
 /**

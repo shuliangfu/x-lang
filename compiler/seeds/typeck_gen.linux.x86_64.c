@@ -1993,6 +1993,7 @@ extern int32_t typeck_get_field_type_ref_from_layout(struct ast_Module * module,
 extern int32_t typeck_get_field_offset_from_layout_deps(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, uint8_t * type_name, int32_t type_name_len, uint8_t * field_name, int32_t field_name_len);
 extern int32_t typeck_ensure_struct_layout_from_struct_lit(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref);
 extern void typeck_soa_fill_field_access_for_asm_emit(struct ast_Module * module, struct ast_ASTArena * arena);
+extern void typeck_field_prebind(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern void typeck_field_slice(struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref);
 extern void typeck_field_name_fallback(struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref);
 extern void typeck_field_lexer_fallback(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref, struct ast_PipelineDepCtx * ctx);
@@ -3694,6 +3695,47 @@ void typeck_soa_fill_field_access_for_asm_emit(struct ast_Module * module, struc
     }
     (void)(pipeline_asm_emit_set_func_index(saved_fi));
     (void)(pipeline_debug_trace_named_func_bodies(((uint8_t *)"\x66\x69\x6c\x6c\x5f\x63\x6c\x5f\x70\x6f\x73\x74"), module, arena));
+  }
+}
+void typeck_field_prebind(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
+  {
+    int32_t base_ref = 0;
+    int32_t vnlen = 0;
+    uint8_t vbuf[128] = {};
+    int32_t param_pre = 0;
+    int32_t nt_pre = 0;
+    int32_t fi = 0;
+    if (((arena ==0) || (module ==0))) {
+      return;
+    }
+    (void)((base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref)));
+    if (((ast_ref_is_null(base_ref) || (base_ref <=0)) || (base_ref > ((arena)->num_exprs)))) {
+      return;
+    }
+    if ((pipeline_expr_kind_ord_at(arena, base_ref) !=3)) {
+      return;
+    }
+    if (!(ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref)))) {
+      return;
+    }
+    (void)((vnlen = pipeline_expr_var_name_len(arena, base_ref)));
+    if (((vnlen <=0) || (vnlen > 127))) {
+      return;
+    }
+    (void)(pipeline_expr_var_name_into(arena, base_ref, &((vbuf)[0])));
+    if ((ctx !=0)) {
+      (void)((fi = pipeline_dep_ctx_current_func_index(ctx)));
+      if (((fi >=0) && (fi < ((module)->num_funcs)))) {
+        (void)((param_pre = pipeline_module_func_param_type_ref_for_name(module, fi, &((vbuf)[0]), vnlen)));
+        if (!(ast_ref_is_null(param_pre))) {
+          return;
+        }
+      }
+    }
+    (void)((nt_pre = typeck_find_or_alloc_named_type_ref(arena, &((vbuf)[0]), vnlen)));
+    if ((nt_pre !=0)) {
+      (void)(pipeline_expr_set_resolved_type_ref(arena, base_ref, nt_pre));
+    }
   }
 }
 void typeck_field_slice(struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref) {
