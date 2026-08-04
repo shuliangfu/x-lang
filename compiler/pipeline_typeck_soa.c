@@ -36,118 +36,31 @@ int32_t typeck_soa_col_base_for_field(struct ast_Module *module, struct ast_ASTA
 
 /* wave1219 G.3/G.4 + 8.3.3 R2: typeck_soa_array_storage_size_glue,
  * typeck_soa_col_base_for_field / typeck_soa_find_layout_idx_by_name /
- * typeck_soa_find_layout_module_and_idx are .x authority (typeck.x → typeck_x.o).
+ * typeck_soa_find_layout_module_and_idx / typeck_soa_field_soa_index
+ * are .x authority (typeck.x → typeck_x.o).
  * This file keeps:
- *   - extern decls for the helpers (same-TU field_soa_index calls)
- *   - pipeline_typeck_field_soa_index_c (still C; uses glue_type_size_simple for stride)
+ *   - extern decls for the helpers (same-TU fill_soa / emit callers)
+ *   - pipeline_fill_soa_field_access_for_asm_emit orchestration (still C)
  */
 
 /**
- * EXPR_FIELD_ACCESS 且 base 为 INDEX：SoA 数组 `arr[i].field` 写 col_base + stride。
- * 返回 1 表示已处理；0 表示非 SoA 路径。
+ * EXPR_FIELD_ACCESS with INDEX base: SoA `arr[i].field` stamps col_base + stride.
+ * Returns 1 if handled; 0 if not SoA.
+ * R2 (8.3.3): impl migrated to typeck.x as typeck_soa_field_soa_index
+ * (stride via typeck_x_type_size). Surface name kept for emit/typeck callers.
+ * PLATFORM: SHARED — visible via pipeline_x.o TU + typeck_x.o.
+ */
+int32_t typeck_soa_field_soa_index(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
+                                   int32_t base_ref);
+
+/**
+ * Stable surface for historical callers (emit / field_access / fill_soa).
+ * Zero business logic — forwards to typeck.x authority.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_field_soa_index_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                           int32_t base_ref) {
-  int32_t ix_base_ref;
-  int32_t base_ty;
-  int32_t bt_kind;
-  int32_t elem_ty;
-  int32_t array_sz;
-  /* wave583 Cap residual: SoA name/field buffers 64→128. */
-  uint8_t elem_nm[128];
-  int32_t elem_nlen;
-  int32_t li;
-  int32_t fl;
-  uint8_t fn_buf[128];
-  int32_t j;
-  int32_t fnlen;
-  int32_t ftr;
-  int32_t col_base;
-  int32_t stride;
-  struct ast_Module *layout_mod;
-  if (!module || !arena || expr_ref <= 0 || base_ref <= 0)
-    return 0;
-  layout_mod = module;
-  if (pipeline_expr_kind_ord_at(arena, base_ref) != 47)
-    return 0;
-  ix_base_ref = pipeline_expr_index_base_ref(arena, base_ref);
-  if (ix_base_ref <= 0)
-    return 0;
-  base_ty = pipeline_expr_resolved_type_ref(arena, ix_base_ref);
-  /** skip .x typeck：形参 VAR 常无 resolved_type；按 emit 函数或全 module 形参表回落。 */
-  if (base_ty <= 0 && pipeline_expr_kind_ord_at(arena, ix_base_ref) == 3) {
-    int32_t fi;
-    uint8_t vname[128];
-    int32_t vlen = pipeline_expr_var_name_len(arena, ix_base_ref);
-    if (vlen > 0 && vlen <= 127) {
-      pipeline_expr_var_name_into(arena, ix_base_ref, vname);
-      fi = g_pipeline_asm_emit_func_index;
-      if (fi >= 0 && fi < (int32_t)module->num_funcs)
-        base_ty = pipeline_module_func_param_type_ref_for_name(module, fi, vname, vlen);
-      if (base_ty <= 0) {
-        for (fi = 0; fi < (int32_t)module->num_funcs; fi++) {
-          base_ty = pipeline_module_func_param_type_ref_for_name(module, fi, vname, vlen);
-          if (base_ty > 0)
-            break;
-        }
-      }
-      if (base_ty > 0)
-        pipeline_expr_set_resolved_type_ref(arena, ix_base_ref, base_ty);
-    }
-  }
-  if (base_ty <= 0 || base_ty > arena->num_types)
-    return 0;
-  bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
-  if (bt_kind != 10 && bt_kind != 13)
-    return 0;
-  elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
-  array_sz = pipeline_type_array_size_at(arena, base_ty);
-  if (elem_ty <= 0 || array_sz <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, elem_ty) != 8)
-    return 0;
-  elem_nlen = pipeline_type_named_name_into(arena, elem_ty, elem_nm);
-  if (elem_nlen <= 0 || elem_nlen > 127)
-    return 0;
-  li = typeck_soa_find_layout_module_and_idx(module, elem_nm, elem_nlen, &layout_mod);
-  if (li < 0 || !layout_mod || pipeline_module_struct_layout_soa_at(layout_mod, li) == 0)
-    return 0;
-  fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 127)
-    return 0;
-  pipeline_expr_field_access_name_into(arena, expr_ref, fn_buf);
-  ftr = 0;
-  stride = 0;
-  col_base = 0;
-  for (j = 0; j < pipeline_module_struct_layout_num_fields(layout_mod, li); j++) {
-    fnlen = pipeline_module_struct_layout_field_name_len(layout_mod, li, j);
-    int32_t feq = 1;
-    int32_t fi;
-    if (fnlen != fl)
-      continue;
-    for (fi = 0; fi < fnlen; fi++) {
-      uint8_t fb[128];
-      pipeline_module_struct_layout_field_name_into(layout_mod, li, j, fb);
-      if (fb[fi] != fn_buf[fi]) {
-        feq = 0;
-        break;
-      }
-    }
-    if (!feq)
-      continue;
-    ftr = pipeline_module_struct_layout_field_type_ref(layout_mod, li, j);
-    stride = glue_type_size_simple(layout_mod, arena, ftr, 0);
-    if (stride <= 0)
-      stride = 4;
-    col_base = typeck_soa_col_base_for_field(layout_mod, arena, li, j, array_sz, 0);
-    break;
-  }
-  if (ftr <= 0)
-    return 0;
-  pipeline_expr_set_field_access_offset(arena, expr_ref, col_base);
-  pipeline_expr_set_field_access_soa_stride(arena, expr_ref, stride);
-  pipeline_expr_set_resolved_type_ref(arena, expr_ref, ftr);
-  return 1;
+  return typeck_soa_field_soa_index(module, arena, expr_ref, base_ref);
 }
 
 /* ============================================================

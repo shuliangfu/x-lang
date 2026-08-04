@@ -310,11 +310,16 @@ export extern function typeck_x_type_align_from_layout_glue(module: *Module, are
 depth: i32): i32;
 export extern function typeck_x_type_size_from_layout_glue(module: *Module, arena: *ASTArena, li: i32,
   depth: i32): i32;
-/* R2 (8.3.3): typeck_soa_col_base_for_field + find_layout_module_and_idx migrated
+/* R2 (8.3.3): typeck_soa_col_base / find_layout_* / field_soa_index migrated
  * to .x authority below. pipeline_typeck_soa.c keeps only extern decls for
- * same-TU field_soa_index callers. */
+ * same-TU fill_soa / emit callers. */
 /* WPO dep pipe for SoA layout cross-module lookup (emit context). */
 export extern function pipeline_asm_emit_dep_pipe_c(): *PipelineDepCtx;
+/* Current asm-emit function index (-1 unbound); VAR param fallback for SoA. */
+export extern function pipeline_asm_emit_func_index_c(): i32;
+/* Stamp SoA column stride on FIELD_ACCESS (emit reads via field_access_soa_stride). */
+export extern function pipeline_expr_set_field_access_soa_stride(arena: *ASTArena, expr_ref: i32,
+stride: i32): void;
 /* See implementation. */
 export extern function pipeline_get_dep_arena_slot(ix: i32): *ASTArena;
 /* See implementation. */
@@ -1536,6 +1541,162 @@ export function typeck_soa_col_base_for_field(module: *Module, arena: *ASTArena,
       j = j + 1;
     }
     return col;
+  }
+}
+
+/**
+ * R2 (8.3.3): EXPR_FIELD_ACCESS with INDEX base — SoA `arr[i].field` stamps
+ * col_base + stride on the field-access node.
+ *
+ * Migrated from C `pipeline_typeck_field_soa_index_c` (pipeline_typeck_soa.c)
+ * to .x authority. Stride uses typeck_x_type_size (G.7 twin) instead of
+ * host-cc glue_type_size_simple so column math no longer depends on glue residual.
+ *
+ * Contract:
+ *  - Returns 1 when this is a SoA path and col_base/stride/type were written.
+ *  - Returns 0 when not SoA / incomplete types / layout miss (caller falls back).
+ *  - Skip-typeck VAR bases without resolved_type fall back to emit-func params
+ *    then a full-module param scan (matches prior C behavior).
+ *
+ * @param module *Module — primary module (layouts may resolve via WPO deps)
+ * @param arena *ASTArena — expr/type arena
+ * @param expr_ref i32 — FIELD_ACCESS expr
+ * @param base_ref i32 — field base; must be INDEX (kind ord 47) for SoA path
+ * @return i32 — 1 handled SoA, 0 not handled
+ * PLATFORM: SHARED — G.7 single authority; .x -> typeck_gen.c -> typeck_x.o.
+ */
+export function typeck_soa_field_soa_index(module: *Module, arena: *ASTArena, expr_ref: i32,
+  base_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ix_base_ref: i32 = 0;
+    let base_ty: i32 = 0;
+    let bt_kind: i32 = 0;
+    let elem_ty: i32 = 0;
+    let array_sz: i32 = 0;
+    let elem_nm: u8[128] = [];
+    let elem_nlen: i32 = 0;
+    let li: i32 = 0;
+    let fl: i32 = 0;
+    let fn_buf: u8[128] = [];
+    let j: i32 = 0;
+    let fnlen: i32 = 0;
+    let ftr: i32 = 0;
+    let col_base: i32 = 0;
+    let stride: i32 = 0;
+    let layout_mod: *Module = module;
+    let fi: i32 = 0;
+    let vname: u8[128] = [];
+    let vlen: i32 = 0;
+    let nfuncs: i32 = 0;
+    let feq: i32 = 0;
+    let bi: i32 = 0;
+    let fb: u8[128] = [];
+    if (module == 0 as *Module || arena == 0 as *ASTArena || expr_ref <= 0 || base_ref <= 0) {
+      return 0;
+    }
+    /* INDEX kind ord == 47 */
+    if (pipeline_expr_kind_ord_at(arena, base_ref) != 47) {
+      return 0;
+    }
+    ix_base_ref = pipeline_expr_index_base_ref(arena, base_ref);
+    if (ix_base_ref <= 0) {
+      return 0;
+    }
+    base_ty = pipeline_expr_resolved_type_ref(arena, ix_base_ref);
+    /* Skip-.x typeck: param VAR often lacks resolved_type; recover from emit func
+     * formal table, then scan all module funcs (same as prior C path). */
+    if (base_ty <= 0 && pipeline_expr_kind_ord_at(arena, ix_base_ref) == 3) {
+      vlen = pipeline_expr_var_name_len(arena, ix_base_ref);
+      if (vlen > 0 && vlen <= 127) {
+        pipeline_expr_var_name_into(arena, ix_base_ref, &vname[0]);
+        nfuncs = pipeline_module_num_funcs(module);
+        fi = pipeline_asm_emit_func_index_c();
+        if (fi >= 0 && fi < nfuncs) {
+          base_ty = pipeline_module_func_param_type_ref_for_name(module, fi, &vname[0], vlen);
+        }
+        if (base_ty <= 0) {
+          fi = 0;
+          while (fi < nfuncs) {
+            base_ty = pipeline_module_func_param_type_ref_for_name(module, fi, &vname[0], vlen);
+            if (base_ty > 0) {
+              break;
+            }
+            fi = fi + 1;
+          }
+        }
+        if (base_ty > 0) {
+          pipeline_expr_set_resolved_type_ref(arena, ix_base_ref, base_ty);
+        }
+      }
+    }
+    if (base_ty <= 0 || base_ty > arena.num_types) {
+      return 0;
+    }
+    bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
+    /* TYPE_ARRAY=10, TYPE_ARRAY_SLICE-like storage=13 (product uses both). */
+    if (bt_kind != 10 && bt_kind != 13) {
+      return 0;
+    }
+    elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
+    array_sz = pipeline_type_array_size_at(arena, base_ty);
+    if (elem_ty <= 0 || array_sz <= 0) {
+      return 0;
+    }
+    /* TYPE_NAMED ord == 8 */
+    if (pipeline_type_kind_ord_at(arena, elem_ty) != 8) {
+      return 0;
+    }
+    elem_nlen = pipeline_type_named_name_into(arena, elem_ty, &elem_nm[0]);
+    if (elem_nlen <= 0 || elem_nlen > 127) {
+      return 0;
+    }
+    li = typeck_soa_find_layout_module_and_idx(module, &elem_nm[0], elem_nlen, &layout_mod);
+    if (li < 0 || layout_mod == 0 as *Module || pipeline_module_struct_layout_soa_at(layout_mod, li) == 0) {
+      return 0;
+    }
+    fl = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (fl <= 0 || fl > 127) {
+      return 0;
+    }
+    pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
+    ftr = 0;
+    stride = 0;
+    col_base = 0;
+    j = 0;
+    while (j < pipeline_module_struct_layout_num_fields(layout_mod, li)) {
+      fnlen = pipeline_module_struct_layout_field_name_len(layout_mod, li, j);
+      if (fnlen == fl) {
+        pipeline_module_struct_layout_field_name_into(layout_mod, li, j, &fb[0]);
+        feq = 1;
+        bi = 0;
+        while (bi < fnlen) {
+          if (fb[bi] != fn_buf[bi]) {
+            feq = 0;
+            break;
+          }
+          bi = bi + 1;
+        }
+        if (feq != 0) {
+          ftr = pipeline_module_struct_layout_field_type_ref(layout_mod, li, j);
+          /* G.7: stride from typeck_x_type_size authority (not glue_type_size_simple). */
+          stride = typeck_x_type_size(layout_mod, arena, ftr, 0);
+          if (stride <= 0) {
+            stride = 4;
+          }
+          col_base = typeck_soa_col_base_for_field(layout_mod, arena, li, j, array_sz, 0);
+          break;
+        }
+      }
+      j = j + 1;
+    }
+    if (ftr <= 0) {
+      return 0;
+    }
+    pipeline_expr_set_field_access_offset(arena, expr_ref, col_base);
+    pipeline_expr_set_field_access_soa_stride(arena, expr_ref, stride);
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, ftr);
+    return 1;
   }
 }
 
