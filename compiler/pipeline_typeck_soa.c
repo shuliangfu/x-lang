@@ -17,8 +17,28 @@ extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
  * (L153 below) also uses it for arr[i].field SoA col_base + stride resolution.
  * PLATFORM: SHARED — visible via pipeline_x.o TU.
  */
-/* R2 (8.3.3): impl migrated to typeck.x authority; .c callers resolve via link to typeck_x.o. */
-int32_t typeck_soa_find_layout_idx_by_name(struct ast_Module *module, uint8_t *name, int32_t name_len);
+int32_t typeck_soa_find_layout_idx_by_name(struct ast_Module *module, uint8_t *name, int32_t name_len) {
+  int32_t k;
+  int32_t j;
+  /* wave583 Cap residual: layout name content ≤127 (StructLayout.name[128]). */
+  if (!module || !name || name_len <= 0 || name_len > 127)
+    return -1;
+  for (k = 0; k < (int32_t)module->num_struct_layouts; k++) {
+    int32_t ln = pipeline_module_struct_layout_name_len(module, k);
+    int32_t eq = 1;
+    if (ln != name_len)
+      continue;
+    for (j = 0; j < name_len; j++) {
+      if (pipeline_module_struct_layout_name_byte_at(module, k, j) != name[j]) {
+        eq = 0;
+        break;
+      }
+    }
+    if (eq)
+      return k;
+  }
+  return -1;
+}
 
 /**
  * 在当前 module 或 WPO dep 池中按名查 SoA layout；命中时写 *out_layout_mod。
