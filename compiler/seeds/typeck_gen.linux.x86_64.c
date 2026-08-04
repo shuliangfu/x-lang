@@ -1112,6 +1112,7 @@ struct ast_ASTArena {
 #define typeck_typeck_get_field_type_ref_from_layout typeck_get_field_type_ref_from_layout
 #define typeck_typeck_get_field_offset_from_layout_deps typeck_get_field_offset_from_layout_deps
 #define typeck_typeck_ensure_struct_layout_from_struct_lit typeck_ensure_struct_layout_from_struct_lit
+#define typeck_typeck_field_layout_named typeck_field_layout_named
 #define typeck_typeck_expr_var_name_equal_func typeck_expr_var_name_equal_func
 #define typeck_typeck_find_or_alloc_named_type_ref typeck_find_or_alloc_named_type_ref
 #define typeck_typeck_field_access_lexer_wrapper_fallback typeck_field_access_lexer_wrapper_fallback
@@ -1994,6 +1995,7 @@ extern int32_t typeck_get_field_offset_from_layout_deps(struct ast_Module * modu
 extern int32_t typeck_ensure_struct_layout_from_struct_lit(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref);
 extern void typeck_soa_fill_field_access_for_asm_emit(struct ast_Module * module, struct ast_ASTArena * arena);
 extern void typeck_field_prebind(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
+extern int32_t typeck_field_layout_named(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref, struct ast_PipelineDepCtx * ctx);
 extern void typeck_field_slice(struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref);
 extern void typeck_field_name_fallback(struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref);
 extern void typeck_field_lexer_fallback(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref, struct ast_PipelineDepCtx * ctx);
@@ -3736,6 +3738,197 @@ void typeck_field_prebind(struct ast_Module * module, struct ast_ASTArena * aren
     if ((nt_pre !=0)) {
       (void)(pipeline_expr_set_resolved_type_ref(arena, base_ref, nt_pre));
     }
+  }
+}
+int32_t typeck_field_layout_named(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref, struct ast_PipelineDepCtx * ctx) {
+  {
+    int32_t base_ty = 0;
+    int32_t bt_kind = 0;
+    int32_t layout_named_ref = 0;
+    uint8_t layout_nm_buf[128] = {};
+    int32_t layout_nm_len = 0;
+    uint8_t fn_buf[128] = {};
+    int32_t fl2 = 0;
+    int32_t user_ev_tag = 0;
+    uint8_t nm_type_kind_ty[8] = {84, 121, 112, 101, 75, 105, 110, 100};
+    int32_t skip_layout_for_type_kind = 0;
+    int32_t vv = 0;
+    int32_t off = 0;
+    int32_t ftr = 0;
+    int32_t i32r_tk = 0;
+    int32_t i32r_eof = 0;
+    uint8_t nm_tok_kind_ty[9] = {84, 111, 107, 101, 110, 75, 105, 110, 100};
+    uint8_t nm_eof_variant[9] = {84, 79, 75, 69, 78, 95, 69, 79, 70};
+    int32_t elem_ty = 0;
+    int32_t peeled = 0;
+    int32_t peeled_e = 0;
+    int32_t dot_pos = 0;
+    int32_t si = 0;
+    int32_t suffix_len = 0;
+    uint8_t s_i32[8] = {84, 121, 112, 101, 95, 73, 51, 50};
+    uint8_t s_bool[9] = {84, 121, 112, 101, 95, 66, 79, 79, 76};
+    uint8_t s_u8[7] = {84, 121, 112, 101, 95, 85, 56};
+    uint8_t s_u32[8] = {84, 121, 112, 101, 95, 85, 51, 50};
+    uint8_t s_u64[8] = {84, 121, 112, 101, 95, 85, 54, 52};
+    uint8_t s_i64[8] = {84, 121, 112, 101, 95, 73, 54, 52};
+    uint8_t s_usize[10] = {84, 121, 112, 101, 95, 85, 83, 73, 90, 69};
+    uint8_t s_isize[10] = {84, 121, 112, 101, 95, 73, 83, 73, 90, 69};
+    uint8_t s_named[10] = {84, 121, 112, 101, 95, 78, 65, 77, 69, 68};
+    uint8_t s_ptr[8] = {84, 121, 112, 101, 95, 80, 84, 82};
+    uint8_t s_arr[10] = {84, 121, 112, 101, 95, 65, 82, 82, 65, 89};
+    uint8_t s_sli[10] = {84, 121, 112, 101, 95, 83, 76, 73, 67, 69};
+    uint8_t s_vec[11] = {84, 121, 112, 101, 95, 86, 69, 67, 84, 79, 82};
+    uint8_t s_f32[8] = {84, 121, 112, 101, 95, 70, 51, 50};
+    uint8_t s_f64[8] = {84, 121, 112, 101, 95, 70, 54, 52};
+    uint8_t s_void[9] = {84, 121, 112, 101, 95, 86, 79, 73, 68};
+    if (((arena ==0) || (module ==0))) {
+      return 0;
+    }
+    if (((ast_ref_is_null(base_ref) || (base_ref <=0)) || (base_ref > ((arena)->num_exprs)))) {
+      return 0;
+    }
+    (void)((base_ty = pipeline_expr_resolved_type_ref(arena, base_ref)));
+    if (((ast_ref_is_null(base_ty) || (base_ty <=0)) || (base_ty > ((arena)->num_types)))) {
+      return 0;
+    }
+    (void)((peeled = typeck_resolve_type_alias_ref_local(module, arena, base_ty, 0)));
+    if (((!(ast_ref_is_null(peeled)) && (peeled > 0)) && (peeled <=((arena)->num_types)))) {
+      (void)((base_ty = peeled));
+    }
+    (void)((bt_kind = pipeline_type_kind_ord_at(arena, base_ty)));
+    (void)((layout_named_ref = 0));
+    if ((bt_kind ==9)) {
+      (void)((elem_ty = pipeline_type_elem_ref_at(arena, base_ty)));
+      if ((!(ast_ref_is_null(elem_ty)) && (elem_ty > 0))) {
+        (void)((peeled_e = typeck_resolve_type_alias_ref_local(module, arena, elem_ty, 0)));
+        if (((!(ast_ref_is_null(peeled_e)) && (peeled_e > 0)) && (peeled_e <=((arena)->num_types)))) {
+          (void)((elem_ty = peeled_e));
+        }
+      }
+      if ((!(ast_ref_is_null(elem_ty)) && (pipeline_type_kind_ord_at(arena, elem_ty) ==8))) {
+        (void)((layout_named_ref = elem_ty));
+      }
+    } else {
+      if ((bt_kind ==8)) {
+        (void)((layout_named_ref = base_ty));
+      }
+    }
+    if ((layout_named_ref ==0)) {
+      return 0;
+    }
+    (void)((layout_nm_len = pipeline_type_named_name_into(arena, layout_named_ref, &((layout_nm_buf)[0]))));
+    if (((layout_nm_len <=0) || (pipeline_type_kind_ord_at(arena, layout_named_ref) !=8))) {
+      return 0;
+    }
+    (void)((fl2 = pipeline_expr_field_access_name_len(arena, expr_ref)));
+    if (((fl2 <=0) || (fl2 > 127))) {
+      return 0;
+    }
+    (void)(pipeline_expr_field_access_name_into(arena, expr_ref, &((fn_buf)[0])));
+    (void)((user_ev_tag = pipeline_module_enum_variant_tag_for_names(module, &((layout_nm_buf)[0]), layout_nm_len, &((fn_buf)[0]), fl2)));
+    if ((user_ev_tag >=0)) {
+      (void)(pipeline_expr_set_field_access_enum_variant(arena, expr_ref, user_ev_tag));
+      (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, layout_named_ref));
+      return 2;
+    }
+    (void)((vv = -1));
+    (void)((skip_layout_for_type_kind = 0));
+    if (((layout_nm_len ==8) && typeck_name_equal(&((layout_nm_buf)[0]), layout_nm_len, &((nm_type_kind_ty)[0]), 8))) {
+      if ((((vv < 0) && (fl2 ==8)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_i32)[0]), 8))) {
+        (void)((vv = 0));
+      }
+      if ((((vv < 0) && (fl2 ==9)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_bool)[0]), 9))) {
+        (void)((vv = 1));
+      }
+      if ((((vv < 0) && (fl2 ==7)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_u8)[0]), 7))) {
+        (void)((vv = 2));
+      }
+      if ((((vv < 0) && (fl2 ==8)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_u32)[0]), 8))) {
+        (void)((vv = 3));
+      }
+      if ((((vv < 0) && (fl2 ==8)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_u64)[0]), 8))) {
+        (void)((vv = 4));
+      }
+      if ((((vv < 0) && (fl2 ==8)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_i64)[0]), 8))) {
+        (void)((vv = 5));
+      }
+      if ((((vv < 0) && (fl2 ==10)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_usize)[0]), 10))) {
+        (void)((vv = 6));
+      }
+      if ((((vv < 0) && (fl2 ==10)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_isize)[0]), 10))) {
+        (void)((vv = 7));
+      }
+      if ((((vv < 0) && (fl2 ==10)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_named)[0]), 10))) {
+        (void)((vv = 8));
+      }
+      if ((((vv < 0) && (fl2 ==8)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_ptr)[0]), 8))) {
+        (void)((vv = 9));
+      }
+      if ((((vv < 0) && (fl2 ==10)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_arr)[0]), 10))) {
+        (void)((vv = 10));
+      }
+      if ((((vv < 0) && (fl2 ==10)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_sli)[0]), 10))) {
+        (void)((vv = 11));
+      }
+      if ((((vv < 0) && (fl2 ==11)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_vec)[0]), 11))) {
+        (void)((vv = 12));
+      }
+      if ((((vv < 0) && (fl2 ==8)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_f32)[0]), 8))) {
+        (void)((vv = 13));
+      }
+      if ((((vv < 0) && (fl2 ==8)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_f64)[0]), 8))) {
+        (void)((vv = 14));
+      }
+      if ((((vv < 0) && (fl2 ==9)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((s_void)[0]), 9))) {
+        (void)((vv = 15));
+      }
+      if ((vv >=0)) {
+        (void)((i32r_tk = typeck_ensure_i32_type_ref(arena)));
+        if ((i32r_tk !=0)) {
+          (void)(pipeline_expr_set_field_access_enum_variant(arena, expr_ref, vv));
+          (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_tk));
+        }
+        (void)((skip_layout_for_type_kind = 1));
+      }
+    }
+    (void)((off = -1));
+    (void)((ftr = 0));
+    if ((skip_layout_for_type_kind ==0)) {
+      (void)((dot_pos = -1));
+      (void)((si = 0));
+      while ((si < layout_nm_len)) {
+        if (((layout_nm_buf)[si] ==46)) {
+          (void)((dot_pos = si));
+        }
+        (void)((si = (si + 1)));
+      }
+      if (((dot_pos >=0) && ((dot_pos + 1) < layout_nm_len))) {
+        (void)((suffix_len = (layout_nm_len - (dot_pos + 1))));
+        (void)((si = 0));
+        while ((si < suffix_len)) {
+          (void)(((layout_nm_buf)[si] = (layout_nm_buf)[((dot_pos + 1) + si)]));
+          (void)((si = (si + 1)));
+        }
+        (void)(((layout_nm_buf)[suffix_len] = 0));
+        (void)((layout_nm_len = suffix_len));
+      }
+      (void)((off = typeck_get_field_offset_from_layout_deps(module, ctx, &((layout_nm_buf)[0]), layout_nm_len, &((fn_buf)[0]), fl2)));
+      if ((off >=0)) {
+        (void)(pipeline_expr_set_field_access_offset(arena, expr_ref, off));
+      }
+      (void)((ftr = typeck_get_field_type_ref_from_layout_deps(module, arena, ctx, &((layout_nm_buf)[0]), layout_nm_len, &((fn_buf)[0]), fl2)));
+      if ((ftr !=0)) {
+        (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ftr));
+      }
+    }
+    if (((((((off < 0) && (ftr ==0)) && (layout_nm_len ==9)) && typeck_name_equal(&((layout_nm_buf)[0]), layout_nm_len, &((nm_tok_kind_ty)[0]), 9)) && (fl2 ==9)) && typeck_name_equal(&((fn_buf)[0]), fl2, &((nm_eof_variant)[0]), 9))) {
+      (void)((i32r_eof = typeck_ensure_i32_type_ref(arena)));
+      if ((i32r_eof !=0)) {
+        (void)(pipeline_expr_set_field_access_enum_variant(arena, expr_ref, 0));
+        (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_eof));
+      }
+    }
+    return 0;
   }
 }
 void typeck_field_slice(struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref) {

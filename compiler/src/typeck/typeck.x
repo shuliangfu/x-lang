@@ -72,7 +72,7 @@ export extern function pipeline_typeck_check_expr_field_access_c(module: *Module
  */
 export extern function pipeline_typeck_mono_field_type_from_base_c(module: *Module, arena: *ASTArena,
 field_ty: i32, base_ty: i32): i32;
-/* R2 (8.3.3): prebind / field_slice / name_fallback / lexer_fallback authority in typeck.x; C thin. */
+/* R2 (8.3.3): prebind / layout_named / field_slice / name_fallback / lexer_fallback in typeck.x; C thin. */
 export extern function pipeline_typeck_field_prebind_c(module: *Module, arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): void;
 export extern function pipeline_typeck_field_known_ptr_types_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, num_layouts: i32): i32;
 export extern function pipeline_typeck_field_layout_named_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32;
@@ -2359,6 +2359,242 @@ ctx: *PipelineDepCtx): void {
     if (nt_pre != 0) {
       pipeline_expr_set_resolved_type_ref(arena, base_ref, nt_pre);
     }
+  }
+}
+
+/**
+ * R2 (8.3.3): EXPR_FIELD_ACCESS named-type layout / enum / TypeKind / TokenKind.
+ *
+ * Migrated from C `pipeline_typeck_field_layout_named_c`
+ * (pipeline_typeck_field_access.c) to .x authority. Public surface
+ * `pipeline_typeck_field_layout_named_c` remains a thin C forwarder for
+ * field_access orchestration and strict_glue / seed call sites.
+ *
+ * Semantics (G.7 single authority):
+ *  - Peel type aliases on base (and PTR pointee) before layout name lookup.
+ *  - TYPE_PTR(*Named) or TYPE_NAMED → layout type name.
+ *  - User enum variant: stamp enum_variant tag + resolved TYPE_NAMED(enum); return 2
+ *    so the orchestrator short-circuits further fallbacks.
+ *  - TypeKind.TYPE_* builtin variants: stamp tag + i32 type; skip struct layout.
+ *  - Strip last `mod.` prefix on qualified type names so dep layouts match bare names.
+ *  - Layout field offset + field type via get_field_*_from_layout_deps.
+ *  - TokenKind.TOKEN_EOF residual special-case when layout miss.
+ *
+ * @param module *Module — entry + dep enum / layout tables
+ * @param arena *ASTArena — expr/type arena
+ * @param expr_ref i32 — FIELD_ACCESS expr
+ * @param base_ref i32 — field base expr (resolved type required)
+ * @param ctx *PipelineDepCtx — dep walk for cross-module layouts (null-safe)
+ * @return i32 — 2 = user enum done (caller returns 0); 0 = continue field fallbacks
+ * PLATFORM: SHARED — G.7; import-qualified type name strip at this single gate.
+ */
+export function typeck_field_layout_named(module: *Module, arena: *ASTArena, expr_ref: i32,
+base_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let base_ty: i32 = 0;
+    let bt_kind: i32 = 0;
+    let layout_named_ref: i32 = 0;
+    let layout_nm_buf: u8[128] = [];
+    let layout_nm_len: i32 = 0;
+    let fn_buf: u8[128] = [];
+    let fl2: i32 = 0;
+    let user_ev_tag: i32 = 0;
+    /* "TypeKind" */
+    let nm_type_kind_ty: u8[8] = [84, 121, 112, 101, 75, 105, 110, 100];
+    let skip_layout_for_type_kind: i32 = 0;
+    let vv: i32 = 0;
+    let off: i32 = 0;
+    let ftr: i32 = 0;
+    let i32r_tk: i32 = 0;
+    let i32r_eof: i32 = 0;
+    /* "TokenKind" */
+    let nm_tok_kind_ty: u8[9] = [84, 111, 107, 101, 110, 75, 105, 110, 100];
+    /* "TOKEN_EOF" */
+    let nm_eof_variant: u8[9] = [84, 79, 75, 69, 78, 95, 69, 79, 70];
+    let elem_ty: i32 = 0;
+    let peeled: i32 = 0;
+    let peeled_e: i32 = 0;
+    let dot_pos: i32 = 0;
+    let si: i32 = 0;
+    let suffix_len: i32 = 0;
+    /* TypeKind variant spellings */
+    let s_i32: u8[8] = [84, 121, 112, 101, 95, 73, 51, 50];
+    let s_bool: u8[9] = [84, 121, 112, 101, 95, 66, 79, 79, 76];
+    let s_u8: u8[7] = [84, 121, 112, 101, 95, 85, 56];
+    let s_u32: u8[8] = [84, 121, 112, 101, 95, 85, 51, 50];
+    let s_u64: u8[8] = [84, 121, 112, 101, 95, 85, 54, 52];
+    let s_i64: u8[8] = [84, 121, 112, 101, 95, 73, 54, 52];
+    let s_usize: u8[10] = [84, 121, 112, 101, 95, 85, 83, 73, 90, 69];
+    let s_isize: u8[10] = [84, 121, 112, 101, 95, 73, 83, 73, 90, 69];
+    let s_named: u8[10] = [84, 121, 112, 101, 95, 78, 65, 77, 69, 68];
+    let s_ptr: u8[8] = [84, 121, 112, 101, 95, 80, 84, 82];
+    let s_arr: u8[10] = [84, 121, 112, 101, 95, 65, 82, 82, 65, 89];
+    let s_sli: u8[10] = [84, 121, 112, 101, 95, 83, 76, 73, 67, 69];
+    let s_vec: u8[11] = [84, 121, 112, 101, 95, 86, 69, 67, 84, 79, 82];
+    let s_f32: u8[8] = [84, 121, 112, 101, 95, 70, 51, 50];
+    let s_f64: u8[8] = [84, 121, 112, 101, 95, 70, 54, 52];
+    let s_void: u8[9] = [84, 121, 112, 101, 95, 86, 79, 73, 68];
+
+    if (arena == 0 as *ASTArena || module == 0 as *Module) {
+      return 0;
+    }
+    if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
+      return 0;
+    }
+    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+    if (ast.ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena.num_types) {
+      return 0;
+    }
+    /* Peel type aliases so `type P = Point; p.x` uses Point layout. */
+    peeled = typeck_resolve_type_alias_ref_local(module, arena, base_ty, 0);
+    if (!ast.ref_is_null(peeled) && peeled > 0 && peeled <= arena.num_types) {
+      base_ty = peeled;
+    }
+    bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
+    layout_named_ref = 0;
+    /* TYPE_PTR = 9: peel pointee; TYPE_NAMED = 8. */
+    if (bt_kind == 9) {
+      elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
+      if (!ast.ref_is_null(elem_ty) && elem_ty > 0) {
+        peeled_e = typeck_resolve_type_alias_ref_local(module, arena, elem_ty, 0);
+        if (!ast.ref_is_null(peeled_e) && peeled_e > 0 && peeled_e <= arena.num_types) {
+          elem_ty = peeled_e;
+        }
+      }
+      if (!ast.ref_is_null(elem_ty) && pipeline_type_kind_ord_at(arena, elem_ty) == 8) {
+        layout_named_ref = elem_ty;
+      }
+    } else if (bt_kind == 8) {
+      layout_named_ref = base_ty;
+    }
+    if (layout_named_ref == 0) {
+      return 0;
+    }
+    layout_nm_len = pipeline_type_named_name_into(arena, layout_named_ref, &layout_nm_buf[0]);
+    if (layout_nm_len <= 0 || pipeline_type_kind_ord_at(arena, layout_named_ref) != 8) {
+      return 0;
+    }
+    fl2 = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (fl2 <= 0 || fl2 > 127) {
+      return 0;
+    }
+    pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
+    user_ev_tag = pipeline_module_enum_variant_tag_for_names(module, &layout_nm_buf[0],
+    layout_nm_len, &fn_buf[0], fl2);
+    if (user_ev_tag >= 0) {
+      /* User enum variant: resolved TYPE_NAMED(enum); codegen uses tag for discriminant. */
+      pipeline_expr_set_field_access_enum_variant(arena, expr_ref, user_ev_tag);
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, layout_named_ref);
+      return 2;
+    }
+    vv = -1;
+    skip_layout_for_type_kind = 0;
+    if (layout_nm_len == 8 && name_equal(&layout_nm_buf[0], layout_nm_len, &nm_type_kind_ty[0], 8)) {
+      if (vv < 0 && fl2 == 8 && name_equal(&fn_buf[0], fl2, &s_i32[0], 8)) {
+        vv = 0;
+      }
+      if (vv < 0 && fl2 == 9 && name_equal(&fn_buf[0], fl2, &s_bool[0], 9)) {
+        vv = 1;
+      }
+      if (vv < 0 && fl2 == 7 && name_equal(&fn_buf[0], fl2, &s_u8[0], 7)) {
+        vv = 2;
+      }
+      if (vv < 0 && fl2 == 8 && name_equal(&fn_buf[0], fl2, &s_u32[0], 8)) {
+        vv = 3;
+      }
+      if (vv < 0 && fl2 == 8 && name_equal(&fn_buf[0], fl2, &s_u64[0], 8)) {
+        vv = 4;
+      }
+      if (vv < 0 && fl2 == 8 && name_equal(&fn_buf[0], fl2, &s_i64[0], 8)) {
+        vv = 5;
+      }
+      if (vv < 0 && fl2 == 10 && name_equal(&fn_buf[0], fl2, &s_usize[0], 10)) {
+        vv = 6;
+      }
+      if (vv < 0 && fl2 == 10 && name_equal(&fn_buf[0], fl2, &s_isize[0], 10)) {
+        vv = 7;
+      }
+      if (vv < 0 && fl2 == 10 && name_equal(&fn_buf[0], fl2, &s_named[0], 10)) {
+        vv = 8;
+      }
+      if (vv < 0 && fl2 == 8 && name_equal(&fn_buf[0], fl2, &s_ptr[0], 8)) {
+        vv = 9;
+      }
+      if (vv < 0 && fl2 == 10 && name_equal(&fn_buf[0], fl2, &s_arr[0], 10)) {
+        vv = 10;
+      }
+      if (vv < 0 && fl2 == 10 && name_equal(&fn_buf[0], fl2, &s_sli[0], 10)) {
+        vv = 11;
+      }
+      if (vv < 0 && fl2 == 11 && name_equal(&fn_buf[0], fl2, &s_vec[0], 11)) {
+        vv = 12;
+      }
+      if (vv < 0 && fl2 == 8 && name_equal(&fn_buf[0], fl2, &s_f32[0], 8)) {
+        vv = 13;
+      }
+      if (vv < 0 && fl2 == 8 && name_equal(&fn_buf[0], fl2, &s_f64[0], 8)) {
+        vv = 14;
+      }
+      if (vv < 0 && fl2 == 9 && name_equal(&fn_buf[0], fl2, &s_void[0], 9)) {
+        vv = 15;
+      }
+      if (vv >= 0) {
+        i32r_tk = ensure_i32_type_ref(arena);
+        if (i32r_tk != 0) {
+          pipeline_expr_set_field_access_enum_variant(arena, expr_ref, vv);
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_tk);
+        }
+        skip_layout_for_type_kind = 1;
+      }
+    }
+    off = -1;
+    ftr = 0;
+    if (skip_layout_for_type_kind == 0) {
+      /*
+       * Strip import-binding qualification: "lexer.Lexer" → "Lexer" so layout
+       * tables registered under bare struct names match. Last '.' only.
+       */
+      dot_pos = -1;
+      si = 0;
+      while (si < layout_nm_len) {
+        if (layout_nm_buf[si] == 46) {
+          /* '.' */
+          dot_pos = si;
+        }
+        si = si + 1;
+      }
+      if (dot_pos >= 0 && dot_pos + 1 < layout_nm_len) {
+        suffix_len = layout_nm_len - (dot_pos + 1);
+        si = 0;
+        while (si < suffix_len) {
+          layout_nm_buf[si] = layout_nm_buf[dot_pos + 1 + si];
+          si = si + 1;
+        }
+        layout_nm_buf[suffix_len] = 0;
+        layout_nm_len = suffix_len;
+      }
+      off = get_field_offset_from_layout_deps(module, ctx, &layout_nm_buf[0], layout_nm_len,
+      &fn_buf[0], fl2);
+      if (off >= 0) {
+        pipeline_expr_set_field_access_offset(arena, expr_ref, off);
+      }
+      ftr = get_field_type_ref_from_layout_deps(module, arena, ctx, &layout_nm_buf[0],
+      layout_nm_len, &fn_buf[0], fl2);
+      if (ftr != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, ftr);
+      }
+    }
+    if (off < 0 && ftr == 0 && layout_nm_len == 9 &&
+    name_equal(&layout_nm_buf[0], layout_nm_len, &nm_tok_kind_ty[0], 9) && fl2 == 9 &&
+    name_equal(&fn_buf[0], fl2, &nm_eof_variant[0], 9)) {
+      i32r_eof = ensure_i32_type_ref(arena);
+      if (i32r_eof != 0) {
+        pipeline_expr_set_field_access_enum_variant(arena, expr_ref, 0);
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_eof);
+      }
+    }
+    return 0;
   }
 }
 

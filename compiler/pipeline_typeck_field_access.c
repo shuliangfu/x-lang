@@ -325,191 +325,20 @@ int32_t pipeline_typeck_field_known_ptr_types_c(struct ast_Module *module, struc
 }
 
 /**
- * EXPR_FIELD_ACCESS：具名类型 layout/enum/TypeKind/TokenKind 字段。
- * 返回 2 表示用户 enum 已解析完毕（caller 应 return 0）；0 表示继续 field 回落逻辑。
+ * EXPR_FIELD_ACCESS: named-type layout / enum / TypeKind / TokenKind.
+ * R2 (8.3.3): body migrated to typeck.x as typeck_field_layout_named.
+ * Zero business logic — thin surface for field_access orchestration.
+ * PLATFORM: SHARED.
+ * @return 2 = user enum done (caller returns 0); 0 = continue field fallbacks.
  */
+int32_t typeck_field_layout_named(struct ast_Module *module, struct ast_ASTArena *arena,
+                                  int32_t expr_ref, int32_t base_ref,
+                                  struct ast_PipelineDepCtx *ctx);
+
 int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     int32_t expr_ref, int32_t base_ref,
                                                     struct ast_PipelineDepCtx *ctx) {
-  int32_t base_ty;
-  int32_t bt_kind;
-  int32_t layout_named_ref;
-  uint8_t layout_nm_buf[128] /* wave577 Cap name into */;
-  int32_t layout_nm_len;
-  uint8_t fn_buf[128] /* wave577 Cap name into */;
-  int32_t fl2;
-  int32_t user_ev_tag;
-  static const uint8_t nm_type_kind_ty[8] = {84, 121, 112, 101, 75, 105, 110, 100};
-  int32_t skip_layout_for_type_kind;
-  int32_t vv;
-  int32_t off;
-  int32_t ftr;
-  int32_t i32r_ev;
-  int32_t i32r_tk;
-  int32_t i32r_eof;
-  static const uint8_t nm_tok_kind_ty[9] = {84, 111, 107, 101, 110, 75, 105, 110, 100};
-  static const uint8_t nm_eof_variant[9] = {84, 79, 75, 69, 78, 95, 69, 79, 70};
-  int32_t elem_ty;
-
-  if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
-    return 0;
-  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
-  if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena->num_types)
-    return 0;
-  /*
-   * wave702 Cap residual: peel type aliases before layout/name lookup.
-   * `type P = Point; let p: P = ...; p.x` must use Point's struct layout, not NAMED "P".
-   * G.7: typeck_resolve_type_alias_ref_local (same authority as assign/call).
-   * PLATFORM: SHARED.
-   */
-  {
-    extern int32_t typeck_resolve_type_alias_ref_local(struct ast_Module *m, struct ast_ASTArena *a,
-                                                       int32_t ty, int32_t depth);
-    int32_t peeled = typeck_resolve_type_alias_ref_local(module, arena, base_ty, 0);
-    if (!ast_ref_is_null(peeled) && peeled > 0 && peeled <= arena->num_types)
-      base_ty = peeled;
-  }
-  bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
-  layout_named_ref = 0;
-  if (bt_kind == (int32_t)ast_TypeKind_TYPE_PTR) {
-    elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
-    if (!ast_ref_is_null(elem_ty) && elem_ty > 0) {
-      extern int32_t typeck_resolve_type_alias_ref_local(struct ast_Module *m, struct ast_ASTArena *a,
-                                                         int32_t ty, int32_t depth);
-      int32_t peeled_e = typeck_resolve_type_alias_ref_local(module, arena, elem_ty, 0);
-      if (!ast_ref_is_null(peeled_e) && peeled_e > 0 && peeled_e <= arena->num_types)
-        elem_ty = peeled_e;
-    }
-    if (!ast_ref_is_null(elem_ty) && pipeline_type_kind_ord_at(arena, elem_ty) == (int32_t)ast_TypeKind_TYPE_NAMED)
-      layout_named_ref = elem_ty;
-  } else if (bt_kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
-    layout_named_ref = base_ty;
-  }
-  if (layout_named_ref == 0)
-    return 0;
-  layout_nm_len = pipeline_type_named_name_into(arena, layout_named_ref, &layout_nm_buf[0]);
-  if (layout_nm_len <= 0 || pipeline_type_kind_ord_at(arena, layout_named_ref) != (int32_t)ast_TypeKind_TYPE_NAMED)
-    return 0;
-  fl2 = pipeline_expr_field_access_name_len(arena, expr_ref);
-  /* wave582 Cap residual: field name content ≤127. */
-  if (fl2 <= 0 || fl2 > 127)
-    return 0;
-  pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
-  user_ev_tag = pipeline_module_enum_variant_tag_for_names(module, &layout_nm_buf[0], layout_nm_len, &fn_buf[0], fl2);
-  if (user_ev_tag >= 0) {
-    /* 用户 enum 变体：resolved 为枚举 TYPE_NAMED（非 i32 tag），使 return Method.GET 等与签名匹配。
-     * codegen 仍读 field_access_is_enum_variant + enum_variant_tag 发射整型判别值。 */
-    pipeline_expr_set_field_access_enum_variant(arena, expr_ref, user_ev_tag);
-    pipeline_expr_set_resolved_type_ref(arena, expr_ref, layout_named_ref);
-    return 2;
-  }
-  vv = -1;
-  skip_layout_for_type_kind = 0;
-  if (layout_nm_len == 8 && typeck_name_equal(&layout_nm_buf[0], layout_nm_len, (uint8_t *)&nm_type_kind_ty[0], 8)) {
-    static const uint8_t s_i32[8] = {84, 121, 112, 101, 95, 73, 51, 50};
-    static const uint8_t s_bool[9] = {84, 121, 112, 101, 95, 66, 79, 79, 76};
-    static const uint8_t s_u8[7] = {84, 121, 112, 101, 95, 85, 56};
-    static const uint8_t s_u32[8] = {84, 121, 112, 101, 95, 85, 51, 50};
-    static const uint8_t s_u64[8] = {84, 121, 112, 101, 95, 85, 54, 52};
-    static const uint8_t s_i64[8] = {84, 121, 112, 101, 95, 73, 54, 52};
-    static const uint8_t s_usize[10] = {84, 121, 112, 101, 95, 85, 83, 73, 90, 69};
-    static const uint8_t s_isize[10] = {84, 121, 112, 101, 95, 73, 83, 73, 90, 69};
-    static const uint8_t s_named[10] = {84, 121, 112, 101, 95, 78, 65, 77, 69, 68};
-    static const uint8_t s_ptr[8] = {84, 121, 112, 101, 95, 80, 84, 82};
-    static const uint8_t s_arr[10] = {84, 121, 112, 101, 95, 65, 82, 82, 65, 89};
-    static const uint8_t s_sli[10] = {84, 121, 112, 101, 95, 83, 76, 73, 67, 69};
-    static const uint8_t s_vec[11] = {84, 121, 112, 101, 95, 86, 69, 67, 84, 79, 82};
-    static const uint8_t s_f32[8] = {84, 121, 112, 101, 95, 70, 51, 50};
-    static const uint8_t s_f64[8] = {84, 121, 112, 101, 95, 70, 54, 52};
-    static const uint8_t s_void[9] = {84, 121, 112, 101, 95, 86, 79, 73, 68};
-    if (vv < 0 && fl2 == 8 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_i32[0], 8))
-      vv = 0;
-    if (vv < 0 && fl2 == 9 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_bool[0], 9))
-      vv = 1;
-    if (vv < 0 && fl2 == 7 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_u8[0], 7))
-      vv = 2;
-    if (vv < 0 && fl2 == 8 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_u32[0], 8))
-      vv = 3;
-    if (vv < 0 && fl2 == 8 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_u64[0], 8))
-      vv = 4;
-    if (vv < 0 && fl2 == 8 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_i64[0], 8))
-      vv = 5;
-    if (vv < 0 && fl2 == 10 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_usize[0], 10))
-      vv = 6;
-    if (vv < 0 && fl2 == 10 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_isize[0], 10))
-      vv = 7;
-    if (vv < 0 && fl2 == 10 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_named[0], 10))
-      vv = 8;
-    if (vv < 0 && fl2 == 8 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_ptr[0], 8))
-      vv = 9;
-    if (vv < 0 && fl2 == 10 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_arr[0], 10))
-      vv = 10;
-    if (vv < 0 && fl2 == 10 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_sli[0], 10))
-      vv = 11;
-    if (vv < 0 && fl2 == 11 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_vec[0], 11))
-      vv = 12;
-    if (vv < 0 && fl2 == 8 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_f32[0], 8))
-      vv = 13;
-    if (vv < 0 && fl2 == 8 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_f64[0], 8))
-      vv = 14;
-    if (vv < 0 && fl2 == 9 && typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&s_void[0], 9))
-      vv = 15;
-    if (vv >= 0) {
-      i32r_tk = typeck_ensure_i32_type_ref(arena);
-      if (i32r_tk != 0) {
-        pipeline_expr_set_field_access_enum_variant(arena, expr_ref, vv);
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_tk);
-      }
-      skip_layout_for_type_kind = 1;
-    }
-  }
-  off = -1;
-  ftr = 0;
-  if (skip_layout_for_type_kind == 0) {
-    /* wave1220 P1: strip import-binding qualification prefix from type name
-     * before layout lookup. Parser stores qualified type names like
-     * "lexer.Lexer" in TYPE_NAMED (consume_qualified_type_ident_name_c),
-     * but struct_layouts are registered with the bare struct name "Lexer".
-     * Without stripping, typeck_get_field_*_from_layout_deps compares
-     * "lexer.Lexer" (11 bytes) against dep layout "Lexer" (5 bytes) and
-     * never matches — cross-module struct field access fails for all
-     * user deps. Strip the last '.' prefix so layout lookup sees "Lexer".
-     * PLATFORM: SHARED — root-cause fix at the layout-named dispatch layer.
-     * G.7: single fix point; entry + dep walk share the stripped name. */
-    {
-      int32_t dot_pos = -1;
-      int32_t si;
-      for (si = 0; si < layout_nm_len; si++) {
-        if (layout_nm_buf[si] == 46 /* '.' */)
-          dot_pos = si;
-      }
-      if (dot_pos >= 0 && dot_pos + 1 < layout_nm_len) {
-        int32_t suffix_len = layout_nm_len - (dot_pos + 1);
-        /* Shift suffix to front of buffer; both lookup and TokenKind/EOF
-         * special-case checks below use layout_nm_buf[0..suffix_len). */
-        for (si = 0; si < suffix_len; si++)
-          layout_nm_buf[si] = layout_nm_buf[dot_pos + 1 + si];
-        layout_nm_buf[suffix_len] = 0;
-        layout_nm_len = suffix_len;
-      }
-    }
-    off = typeck_get_field_offset_from_layout_deps(module, ctx, &layout_nm_buf[0], layout_nm_len, &fn_buf[0], fl2);
-    if (off >= 0)
-      pipeline_expr_set_field_access_offset(arena, expr_ref, off);
-    ftr = typeck_get_field_type_ref_from_layout_deps(module, arena, ctx, &layout_nm_buf[0], layout_nm_len, &fn_buf[0], fl2);
-    if (ftr != 0)
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ftr);
-  }
-  if (off < 0 && ftr == 0 && layout_nm_len == 9 &&
-      typeck_name_equal(&layout_nm_buf[0], layout_nm_len, (uint8_t *)&nm_tok_kind_ty[0], 9) && fl2 == 9 &&
-      typeck_name_equal(&fn_buf[0], fl2, (uint8_t *)&nm_eof_variant[0], 9)) {
-    i32r_eof = typeck_ensure_i32_type_ref(arena);
-    if (i32r_eof != 0) {
-      pipeline_expr_set_field_access_enum_variant(arena, expr_ref, 0);
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_eof);
-    }
-  }
-  return 0;
+  return typeck_field_layout_named(module, arena, expr_ref, base_ref, ctx);
 }
 
 /**
