@@ -57,7 +57,10 @@ void parser_asm_import_path_dot_segment_copy_slice_c(struct parser_asm_slice_u8 
 }
 
 /**
- * struct_field_name_from_tok：结构体字段名（ident / soa / packed 关键字）。
+ * struct_field_name_from_tok：结构体字段名（ident / keyword-as-ident）。
+ * PLATFORM: SHARED — field names may reuse keyword tokens (soa/packed/type).
+ * Root fix for std/schema: field `type: i32` was TOKEN_TYPE; prior code returned
+ * -1 here → layout parse aborted mid-struct → later fields "unknown field".
  */
 int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_result r,
                                                       struct parser_asm_slice_u8 *source, uint8_t *out) {
@@ -83,16 +86,26 @@ int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_re
     out[5] = (uint8_t)'d';
     return 6;
   }
+  /* Keyword `type` (TOKEN_TYPE) is a valid field name: `type: i32` in struct bodies. */
+  if (r.tok.kind == (int32_t)TOKEN_TYPE) {
+    out[0] = (uint8_t)'t';
+    out[1] = (uint8_t)'y';
+    out[2] = (uint8_t)'p';
+    out[3] = (uint8_t)'e';
+    return 4;
+  }
   return -1;
 }
 
 /**
  * struct_field_name_tok_kind：token kind 是否为合法字段名起点。
+ * PLATFORM: SHARED — include TOKEN_TYPE (keyword-as-field-name).
  */
 int32_t parser_asm_struct_field_name_tok_kind_c(int32_t k) {
   if (parser_asm_stretch_struct_field_name_kind_c(k) != 0)
     return 1;
-  return k == (int32_t)TOKEN_IDENT || k == (int32_t)TOKEN_SOA || k == (int32_t)TOKEN_PACKED;
+  return k == (int32_t)TOKEN_IDENT || k == (int32_t)TOKEN_SOA || k == (int32_t)TOKEN_PACKED ||
+         k == (int32_t)TOKEN_TYPE;
 }
 
 /**

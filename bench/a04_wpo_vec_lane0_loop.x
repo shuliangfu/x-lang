@@ -28,8 +28,11 @@ function main(): i32 {
   let limit: i32 = 10000000;
   let s: i32 = 0;
   let i: i32 = 0;
+  // Typed vector locals so call args are i32x4 (bare array lit is array type).
+  let a: i32x4 = [1, 2, 3, 4];
+  let b: i32x4 = [10, 20, 30, 40];
   while (i < limit) {
-    s = s + lane0(vec_add4([1, 2, 3, 4], [10, 20, 30, 40]));
+    s = s + lane0(vec_add4(a, b));
     i = i + 1;
   }
   /* See implementation. */

@@ -178,7 +178,9 @@ static char s_check_current_file[512];
 #ifndef XLANG_L2_FMT_CHECK_THIN_FROM_X
 static const char *s_builtin_ignore[] = {
     "/.git/", "/build_asm/", "/build/", "/node_modules/", "/.cursor/", "/compiler/build_asm/",
-    "/compiler/build/", "/compiler/tests/", NULL};
+    "/compiler/build/", "/compiler/tests/",
+    /* Repo-root tests/: intentional negative fixtures; bare check is product-only. */
+    "/tests/", NULL};
 #endif
 
 /**
@@ -995,25 +997,15 @@ void fmt_walk_cwd_fallback(void) {
 #endif
 
 /**
- * 无路径参数时 check 的默认扫描范围（产品树，不含 tests 负例目录）。
+ * Bare `xlang check` (no path args): recursively collect all *.x under cwd.
+ * Builtin path_should_ignore still skips .git/build/node_modules/compiler/tests
+ * etc. Name kept for ABI stability (was product-subdir-only).
  * pure 编排权威：thin.x check_collect_default_product_dirs；
- * 冷启动保留 _impl + public；try_walk getcwd/stat 🔒 Cap residual；
- * cwd fallback 调 public fmt_walk_cwd_fallback（hybrid thin pure / 冷 seed）。
+ * 冷启动保留 _impl + public；cwd walk 调 public fmt_walk_cwd_fallback。
  */
 #ifndef XLANG_L2_FMT_CHECK_THIN_FROM_X
 void check_collect_default_product_dirs_impl(void) {
-    int any_product = 0;
-    int i;
-    for (i = 0;; i++) {
-        const char *sub = fmt_default_product_sub_at(i);
-        if (!sub)
-            break;
-        /* 调 public：与 thin pure 同形 */
-        if (fmt_try_walk_if_product_subdir(sub))
-            any_product = 1;
-    }
-    if (!any_product)
-        fmt_walk_cwd_fallback();
+    fmt_walk_cwd_fallback();
 }
 
 void check_collect_default_product_dirs(void) {
@@ -1402,6 +1394,9 @@ int check_one_file(const char *path, int argc, char **argv) {
 
 
 
+/* Defined with spinner block below; cold _impl installs early for single-file too. */
+void check_install_interrupt_handlers(void);
+
 /**
  * 运行 xlang check（deno check 语义：多文件/目录，失败打印诊断）。
  * pure 权威：thin.x driver_run_compiler_check（full orch + public APIs）；
@@ -1415,6 +1410,10 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
     int failed = 0;
     int checked = 0;
     int path_start = 1;
+
+    /* Ctrl+C / SIGTERM force-exit even when stuck in parse/typeck or join.
+     * PLATFORM: SHARED — also installed from spin_start (multi-file). */
+    check_install_interrupt_handlers();
 
     s_check_quiet_ok = 1;
     /* public set：hybrid thin pure BSS / 冷 seed static */
@@ -1521,6 +1520,15 @@ int fmt_check_cmd_slice_marker(void) {
  *    + MAP_SHARED run/pause flags. Parent never runs the infinite loop.
  *  - Windows / fork+mmap failure: single static frame.
  *
+ * Ctrl+C / SIGTERM:
+ *  - check_install_interrupt_handlers() installs async-signal-safe handlers
+ *    that stop the spinner (no pthread_join) and _exit(128+sig).
+ *  - Needed so multi-file check stuck in parse/typeck (or large-stack
+ *    pthread_join) still dies immediately when the user hits Ctrl+C;
+ *    spinner thread alone keeps animating and looks "unkillable" if the
+ *    process does not exit.
+ *  - Respects SIG_IGN (shell background job control).
+ *
  * PLATFORM: SHARED UI; LINUX freestanding uses fork path; MACOS pthread.
  * ============================================================================ */
 #ifndef _WIN32
@@ -1528,6 +1536,10 @@ int fmt_check_cmd_slice_marker(void) {
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <signal.h>
+#endif
+#ifdef _WIN32
+#include <signal.h>
 #endif
 
 /*
@@ -1552,12 +1564,70 @@ static volatile int g_ck_spin_pause = 0;
 static char g_ck_spin_path[512];
 static int g_ck_spin_shown = 0; /* 1 if a spinner line is active (needs \n) */
 static int g_ck_spin_frame = 0;
+static int g_ck_interrupt_installed = 0;
 #ifndef _WIN32
 static int g_ck_spin_have_tid = 0;
 static pthread_t g_ck_spin_tid;
 static pid_t g_ck_spin_pid = 0;
 static ck_spin_sh *g_ck_spin_sh = NULL;
 #endif
+
+/*
+ * Async-signal-safe interrupt path for `xlang check`.
+ * PLATFORM: SHARED — POSIX signal(2)/sigaction; Windows uses signal().
+ * Does not pthread_join (not async-safe); kills fork spinner child if any.
+ */
+static void check_interrupt_handler(int sig) {
+    const char msg[] = "\ncheck: interrupted\n";
+    (void)write(2, msg, sizeof(msg) - 1);
+    g_ck_spin_run = 0;
+    g_ck_spin_pause = 0;
+#ifndef _WIN32
+    if (g_ck_spin_sh) {
+        g_ck_spin_sh->run = 0;
+        g_ck_spin_sh->pause = 0;
+    }
+    if (g_ck_spin_pid > 0) {
+        (void)kill(g_ck_spin_pid, SIGKILL);
+        g_ck_spin_pid = 0;
+    }
+#endif
+    if (g_ck_spin_shown) {
+        (void)write(2, "\n", 1);
+        g_ck_spin_shown = 0;
+    }
+    /* 128+sig is shell convention for death-by-signal (SIGINT → 130). */
+    _exit(128 + (sig & 127));
+}
+
+/* Install SIGINT/SIGTERM handlers once per process for check.
+ * Skip if currently SIG_IGN so shell background jobs keep job-control semantics.
+ * PLATFORM: SHARED. */
+void check_install_interrupt_handlers(void) {
+    if (g_ck_interrupt_installed)
+        return;
+    g_ck_interrupt_installed = 1;
+#ifndef _WIN32
+    {
+        struct sigaction sa;
+        struct sigaction old;
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = check_interrupt_handler;
+        sigemptyset(&sa.sa_mask);
+        /* No SA_RESTART: long syscalls should surface EINTR when possible. */
+        sa.sa_flags = 0;
+        if (sigaction(SIGINT, NULL, &old) == 0 && old.sa_handler != SIG_IGN)
+            (void)sigaction(SIGINT, &sa, NULL);
+        if (sigaction(SIGTERM, NULL, &old) == 0 && old.sa_handler != SIG_IGN)
+            (void)sigaction(SIGTERM, &sa, NULL);
+    }
+#else
+    if (signal(SIGINT, SIG_IGN) != SIG_IGN)
+        (void)signal(SIGINT, check_interrupt_handler);
+    if (signal(SIGTERM, SIG_IGN) != SIG_IGN)
+        (void)signal(SIGTERM, check_interrupt_handler);
+#endif
+}
 
 /* Braille circle spinner (UTF-8). 10 frames; each is 3 bytes, width 1 cell. */
 static const char *const g_ck_spin_frames[10] = {
@@ -1631,9 +1701,14 @@ static void *check_progress_spin_thread(void *arg) {
     return NULL;
 }
 
-/* Linux freestanding: child process animates until shared run==0, then _exit. */
+/* Linux freestanding: child process animates until shared run==0, then _exit.
+ * Also exit if parent dies (reparent to init/launchd → getppid()==1) so Ctrl+C
+ * / kill of the check parent never leaves an orphan spinner on the TTY.
+ * PLATFORM: LINUX freestanding (fork path); MACOS product uses pthread. */
 static void check_progress_spin_fork_child(void) {
     while (check_progress_spin_live_run()) {
+        if (getppid() <= 1)
+            _exit(0);
         if (!check_progress_spin_live_pause())
             check_progress_spin_write_frame();
         (void)usleep(80000);
@@ -1697,6 +1772,9 @@ void check_progress_spin_stop(void) {
 
 void check_progress_spin_start(const char *path) {
     int i;
+
+    /* Ensure Ctrl+C works even if thin.x forgot to install (defense in depth). */
+    check_install_interrupt_handlers();
 
     /* Restart: join previous spinner but keep one progress line (\r overwrite). */
     check_progress_spin_join_only();

@@ -391,30 +391,15 @@ export function walk_dir_collect(dir: *u8): void {
 }
 
 // check_collect_default_product_dirs: see function docblock below.
-/** Exported function `check_collect_default_product_dirs`.
- * Implements `check_collect_default_product_dirs`.
+/** Default bare-check collect: recursive cwd walk for all *.x.
+ * Same contract as thin.x check_collect_default_product_dirs (ABI name kept).
+ * Builtin ignores still apply. PLATFORM: SHARED.
  * @return void
  */
 #[no_mangle]
 export function check_collect_default_product_dirs(): void {
-  let any: i32 = 0;
-  let i: i32 = 0;
-  while (i < 8) {
-    unsafe {
-      let sub: *u8 = fmt_default_product_sub_at(i);
-      if (sub == 0 as *u8) {
-        break;
-      }
-      if (fmt_try_walk_if_product_subdir(sub) != 0) {
-        any = 1;
-      }
-    }
-    i = i + 1;
-  }
-  if (any == 0) {
-    unsafe {
-      fmt_walk_cwd_fallback_impl();
-    }
+  unsafe {
+    fmt_walk_cwd_fallback_impl();
   }
 }
 

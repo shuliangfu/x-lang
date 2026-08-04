@@ -207,7 +207,7 @@
  * Called by build_tool / C build_runtime.
  * @return 1 = asm-only product path; 0 would re-enable hybrid C emit paths
  */
-function build_use_asm_only(): i32 {
+export function build_use_asm_only(): i32 {
   return 1;
 }
 
@@ -217,7 +217,7 @@ function build_use_asm_only(): i32 {
  * @param i i32 zero-based step index in [0, build_get_step_count())
  * @return i32 step id, or -1 if out of range
  */
-function build_get_step_at(i: i32): i32 {
+export function build_get_step_at(i: i32): i32 {
   if (i == 0) { return 0; }
   if (i == 1) { return 6; }
   if (i == 2) { return 1; }
@@ -232,6 +232,6 @@ function build_get_step_at(i: i32): i32 {
  * Number of bootstrap strategy steps (stable ABI for C build_runtime).
  * @return i32 always 7 until 11.1.1–4 replace the step table with a DAG
  */
-function build_get_step_count(): i32 {
+export function build_get_step_count(): i32 {
   return 7;
 }

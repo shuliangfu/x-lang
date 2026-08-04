@@ -1641,28 +1641,75 @@ static void parser_lexer_line_col_at_pos(struct xlang_slice_uint8_t *source, siz
   *out_col = col;
 }
 
+/* Anti-loop: same re-sync target accepted >32 times → refuse (twin of parser.x). */
+static size_t g_lparen_ctrl_last_pos = 0;
+static int32_t g_lparen_ctrl_hits = 0;
+
 struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct xlang_slice_uint8_t * source) {
-  /* wave1218 Cap residual: absolute line_col_at_pos when rewinding before `(`.
-   * PLATFORM: SHARED — seed pin twin of parser_gen.c / parser.x. */
+  /* PLATFORM: SHARED — seed pin twin of parser.x / parser_gen.linux.x86_64.c.
+   * Only re-sync when if/while/for is the *immediate* predecessor of `(`
+   * (whitespace only between). Prior 128-byte scan false-matched outer `if`
+   * for nested paren exprs inside conditions:
+   *   if (f(unsafe { (1) }) != 0) { ... }
+   * → infinite parse_if_stmt recursion / stack overflow.
+   * Safety: same new_pos >32 times → return lex_in (no hang / unkillable spinner). */
   if ((((r_in.tok).kind) ==82)) {
     struct lexer_Lexer lp_base = parser_lex_at_token_from_result(r_in);
-    int32_t back_lp = 2;
-    while ((back_lp <=128)) {
-      size_t new_pos = parser_lexer_pos_before_run((lp_base.pos), back_lp);
-      int32_t rew_line = 1;
-      int32_t rew_col = 1;
-      parser_lexer_line_col_at_pos(source, new_pos, &rew_line, &rew_col);
-      struct lexer_Lexer lex_lp = (struct lexer_Lexer){ .pos = new_pos, .line = rew_line, .col = rew_col };
-      struct lexer_LexerResult r_lp = (struct lexer_LexerResult){ .next_lex = lex_lp, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
-      (void)(lexer_next_into(&(r_lp), lex_lp, source));
-      /* Probe may land mid-comment/mid-ident (digit in cvtss2sd inside a block
-       * comment). That sets sticky L009 and poisons the whole parse. Clear after
-       * every probe. PLATFORM: SHARED - wave1218 root; seed twin of parser_gen.c. */
-      lexer_invalid_type_suffix_reset();
-      if ((((((r_lp.tok).kind) ==4) || (((r_lp.tok).kind) ==6)) || (((r_lp.tok).kind) ==8))) {
-        return parser_rewind_lex_for_following_stmt(lex_in, r_lp);
+    size_t lp_pos = (lp_base.pos);
+    size_t end = lp_pos;
+    while (end > 0) {
+      uint8_t c = (source)->data[end - 1];
+      if (c == 32 || c == 9 || c == 10 || c == 13) {
+        end = end - 1;
+        continue;
       }
-      (void)((back_lp = (back_lp + 1)));
+      break;
+    }
+    if (end == 0) {
+      return lex_in;
+    }
+    int32_t kw_len = 0;
+    if (end >= 5
+        && (source)->data[end - 5] == 119 && (source)->data[end - 4] == 104
+        && (source)->data[end - 3] == 105 && (source)->data[end - 2] == 108
+        && (source)->data[end - 1] == 101) {
+      kw_len = 5; /* while */
+    } else if (end >= 3
+        && (source)->data[end - 3] == 102 && (source)->data[end - 2] == 111
+        && (source)->data[end - 1] == 114) {
+      kw_len = 3; /* for */
+    } else if (end >= 2
+        && (source)->data[end - 2] == 105 && (source)->data[end - 1] == 102) {
+      kw_len = 2; /* if */
+    }
+    if (kw_len == 0) {
+      return lex_in;
+    }
+    size_t new_pos = end - (size_t)kw_len;
+    if (new_pos > 0) {
+      uint8_t b = (source)->data[new_pos - 1];
+      if ((b >= 97 && b <= 122) || (b >= 65 && b <= 90) || (b >= 48 && b <= 57) || b == 95) {
+        return lex_in;
+      }
+    }
+    if (new_pos == g_lparen_ctrl_last_pos) {
+      g_lparen_ctrl_hits = g_lparen_ctrl_hits + 1;
+      if (g_lparen_ctrl_hits > 32) {
+        return lex_in;
+      }
+    } else {
+      g_lparen_ctrl_last_pos = new_pos;
+      g_lparen_ctrl_hits = 1;
+    }
+    int32_t rew_line = 1;
+    int32_t rew_col = 1;
+    parser_lexer_line_col_at_pos(source, new_pos, &rew_line, &rew_col);
+    struct lexer_Lexer lex_lp = (struct lexer_Lexer){ .pos = new_pos, .line = rew_line, .col = rew_col };
+    struct lexer_LexerResult r_lp = (struct lexer_LexerResult){ .next_lex = lex_lp, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+    (void)(lexer_next_into(&(r_lp), lex_lp, source));
+    lexer_invalid_type_suffix_reset();
+    if ((((((r_lp.tok).kind) ==4) || (((r_lp.tok).kind) ==6)) || (((r_lp.tok).kind) ==8))) {
+      return parser_rewind_lex_for_following_stmt(lex_in, r_lp);
     }
   }
   return lex_in;

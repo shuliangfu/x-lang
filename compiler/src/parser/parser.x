@@ -652,52 +652,109 @@ export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: Lexe
  * See implementation.
  * See implementation.
  */
+/* Anti-loop state for lparen→if/while/for re-sync.
+ * Same keyword start pos rewound many times = infinite parse_if re-entry
+ * (spinner keeps animating; Ctrl+C used to feel stuck on large-stack workers).
+ * PLATFORM: SHARED monofile BSS. */
+let g_lparen_ctrl_last_pos: usize[1] = [0 as usize];
+let g_lparen_ctrl_hits: i32[1] = [0];
+
 export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  // When rewinding pos backwards by back_lp bytes to find the control-flow
-  // keyword (if/while/for) before `(`, the line/col must be recomputed by
-  // scanning source backwards from lp_base.pos counting LF bytes.  Prior code
-  // used r_in.tok.line/col (the `(` token position) directly, leaving pos
-  // behind but line/col unchanged — a (pos, line, col) desync that accumulated
-  // across nested blocks and produced wrong error line numbers (L009 etc.).
+  //
+  // When the block stmt loop sees `(` it may have already consumed the control
+  // keyword; re-sync only when `if`/`while`/`for` is the **immediate** predecessor
+  // of `(` (whitespace only between keyword and `(`).
+  //
+  // Prior: walk back up to 128 bytes and accept any IF/WHILE/FOR token found.
+  // That false-matched the outer `if` when nested paren exprs appeared inside
+  // the condition, e.g. `if (f(unsafe { (1) }) != 0) { ... }`:
+  //   block body of unsafe saw `(1)` → rewind found outer `if` → re-enter
+  //   parse_if_stmt on the same tokens → stack overflow (chkstk / SEGV).
+  // Socket.io std + any `if (call(unsafe { (expr) }))` hit this.
+  //
+  // Safety net: if the same new_pos is accepted more than 32 times in a row,
+  // refuse further re-sync (breaks residual infinite re-entry without SEGV).
+  // Absolute line/col for the keyword start still scans source[0..pos).
   unsafe {
   if (r_in.tok.kind == token.TokenKind.TOKEN_LPAREN) {
     let lp_base: Lexer = lex_at_token_from_result(r_in);
-    let back_lp: i32 = 2;
-    while (back_lp <= 128) {
-      let new_pos: usize = lexer_pos_before_run(lp_base.pos, back_lp);
-      // Absolute line/col for new_pos: scan source[0..new_pos) counting LF.
-      // Do not reuse r_in.tok.line/col (the `(` token) — that desyncs (pos, line, col).
-      // Backward col-- after LF is also wrong; absolute scan is the authority.
-      let rew_line: i32 = 1;
-      let rew_col: i32 = 1;
-      let scan_i: usize = 0 as usize;
-      while (scan_i < new_pos && scan_i < source.length) {
-        if (source[scan_i] == 10) {
-          rew_line = rew_line + 1;
-          rew_col = 1;
-        } else {
-          rew_col = rew_col + 1;
-        }
-        scan_i = scan_i + (1 as usize);
+    let lp_pos: usize = lp_base.pos;
+    // Skip whitespace immediately before `(` (exclusive end of potential keyword).
+    let end: usize = lp_pos;
+    while (end > (0 as usize)) {
+      let c: u8 = source[end - (1 as usize)];
+      if (c == 32 || c == 9 || c == 10 || c == 13) {
+        end = end - (1 as usize);
+        continue;
       }
-      let lex_lp: Lexer = Lexer { pos: new_pos, line: rew_line, col: rew_col };
-      let r_lp: LexerResult = LexerResult {
-        next_lex: lex_lp,
-        tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
-        token_start: (0 as usize)
-      };
-      lexer.lexer_next_into(&r_lp, lex_lp, source);
-      // Probe may land mid-comment/mid-ident (digit in `cvtss2sd` inside block
-      // comment) and set sticky L009, poisoning the whole parse. Clear after
-      // every probe — only a real sequential scan should keep L009.
-      // PLATFORM: SHARED — wave1218 Cap residual root.
-      lexer.lexer_invalid_type_suffix_reset();
-      if (r_lp.tok.kind == token.TokenKind.TOKEN_IF || r_lp.tok.kind == token.TokenKind.TOKEN_WHILE
-      || r_lp.tok.kind == token.TokenKind.TOKEN_FOR) {
-        return parser_rewind_lex_for_following_stmt(lex_in, r_lp);
+      break;
+    }
+    if (end == (0 as usize)) {
+      return lex_in;
+    }
+    // Longest-first keyword match ending at `end`, with non-ident boundary before.
+    let kw_len: i32 = 0;
+    if (end >= (5 as usize)
+        && source[end - (5 as usize)] == 119 && source[end - (4 as usize)] == 104
+        && source[end - (3 as usize)] == 105 && source[end - (2 as usize)] == 108
+        && source[end - (1 as usize)] == 101) {
+      kw_len = 5; // while
+    } else if (end >= (3 as usize)
+        && source[end - (3 as usize)] == 102 && source[end - (2 as usize)] == 111
+        && source[end - (1 as usize)] == 114) {
+      kw_len = 3; // for
+    } else if (end >= (2 as usize)
+        && source[end - (2 as usize)] == 105 && source[end - (1 as usize)] == 102) {
+      kw_len = 2; // if
+    }
+    if (kw_len == 0) {
+      return lex_in;
+    }
+    let new_pos: usize = end - (kw_len as usize);
+    // Keyword must not be a suffix of a larger ident (e.g. `notif (`).
+    if (new_pos > (0 as usize)) {
+      let b: u8 = source[new_pos - (1 as usize)];
+      if ((b >= 97 && b <= 122) || (b >= 65 && b <= 90) || (b >= 48 && b <= 57) || b == 95) {
+        return lex_in;
       }
-      back_lp = back_lp + 1;
+    }
+    // Refuse the same re-sync target repeatedly (infinite if-reentry guard).
+    if (new_pos == g_lparen_ctrl_last_pos[0]) {
+      g_lparen_ctrl_hits[0] = g_lparen_ctrl_hits[0] + 1;
+      if (g_lparen_ctrl_hits[0] > 32) {
+        return lex_in;
+      }
+    } else {
+      g_lparen_ctrl_last_pos[0] = new_pos;
+      g_lparen_ctrl_hits[0] = 1;
+    }
+    // Absolute line/col for new_pos.
+    let rew_line: i32 = 1;
+    let rew_col: i32 = 1;
+    let scan_i: usize = 0 as usize;
+    while (scan_i < new_pos && scan_i < source.length) {
+      if (source[scan_i] == 10) {
+        rew_line = rew_line + 1;
+        rew_col = 1;
+      } else {
+        rew_col = rew_col + 1;
+      }
+      scan_i = scan_i + (1 as usize);
+    }
+    let lex_lp: Lexer = Lexer { pos: new_pos, line: rew_line, col: rew_col };
+    let r_lp: LexerResult = LexerResult {
+      next_lex: lex_lp,
+      tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
+      token_start: (0 as usize)
+    };
+    lexer.lexer_next_into(&r_lp, lex_lp, source);
+    // Probe must not leave sticky L009 from mid-ident landing (defensive).
+    // PLATFORM: SHARED — wave1218 Cap residual root.
+    lexer.lexer_invalid_type_suffix_reset();
+    if (r_lp.tok.kind == token.TokenKind.TOKEN_IF || r_lp.tok.kind == token.TokenKind.TOKEN_WHILE
+    || r_lp.tok.kind == token.TokenKind.TOKEN_FOR) {
+      return parser_rewind_lex_for_following_stmt(lex_in, r_lp);
     }
   }
   return lex_in;
@@ -5176,15 +5233,19 @@ export function struct_field_name_from_tok_buf(r: LexerResult, data: *u8, len: i
  */
 export function struct_field_name_tok_kind(k: token.TokenKind): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // Accept IDENT + keyword-as-field-name tokens (soa/packed/type).
+  // TOKEN_TYPE required so struct fields named `type` register subsequent fields.
   unsafe {
   if (k == token.TokenKind.TOKEN_IDENT) {
     return true;
   }
-  let ko: i32 = k as i32;
-  if (ko == 18) {
+  if (k == token.TokenKind.TOKEN_SOA) {
     return true;
   }
-  if (ko == 17) {
+  if (k == token.TokenKind.TOKEN_PACKED) {
+    return true;
+  }
+  if (k == token.TokenKind.TOKEN_TYPE) {
     return true;
   }
   return false;

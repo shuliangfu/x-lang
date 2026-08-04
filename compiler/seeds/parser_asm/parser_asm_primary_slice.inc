@@ -498,12 +498,27 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       struct parser_asm_ast_expr me;
       parser_asm_lex_from_result_val_into(lex, *r);
       lexer_next_into(r, *lex, source);
-      if (r->tok.kind != (int32_t)TOKEN_IDENT) {
+      /**
+       * Field / method name after `.`: IDENT or keyword-as-ident.
+       * PLATFORM: SHARED — TOKEN_TYPE/SOA/PACKED may spell field names
+       * (`s.type`, `x.soa`). Prior: only TOKEN_IDENT → `.type` aborted the
+       * suffix loop and left a broken expr (function uncallable in typeck).
+       */
+      mname_len = -1;
+      if (r->tok.kind == (int32_t)TOKEN_IDENT && r->tok.ident_len > 0) {
+        mname_len = r->tok.ident_len;
+      } else if (r->tok.kind == (int32_t)TOKEN_TYPE) {
+        mname_len = 4; /* "type" */
+      } else if (r->tok.kind == (int32_t)TOKEN_SOA) {
+        mname_len = 3; /* "soa" */
+      } else if (r->tok.kind == (int32_t)TOKEN_PACKED) {
+        mname_len = 6; /* "packed" */
+      }
+      if (mname_len < 0) {
         out->next_lex = *lex;
         return;
       }
-      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_field_access_name_audit_c(source, r->token_start, r->tok.ident_len));
-      mname_len = r->tok.ident_len;
+      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_field_access_name_audit_c(source, r->token_start, mname_len));
       if (mname_len > 127)
         mname_len = 127;
       {

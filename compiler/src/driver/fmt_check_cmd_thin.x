@@ -110,6 +110,9 @@ export extern "C" function check_progress_spin_start(path: *u8): void;
 export extern "C" function check_progress_spin_stop(): void;
 export extern "C" function check_progress_spin_pause(): void;
 export extern "C" function check_progress_spin_resume(): void;
+/* Install SIGINT/SIGTERM → force-exit for check (async-safe; see seed).
+ * PLATFORM: SHARED — call once at driver_run_compiler_check entry. */
+export extern "C" function check_install_interrupt_handlers(): void;
 
 // ---- Cap residual pure: collect_mode + user_passed_L + file_list/ignore/lib_bufs n ----
 // DRIVER_COLLECT_MODE_FMT=1, DRIVER_COLLECT_MODE_CHECK=2 (match seed enum).
@@ -192,6 +195,12 @@ let g_fmt_builtin_ignore_4: u8[11] = [47, 46, 99, 117, 114, 115, 111, 114, 47, 0
 let g_fmt_builtin_ignore_5: u8[21] = [47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0];
 let g_fmt_builtin_ignore_6: u8[17] = [47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 98, 117, 105, 108, 100, 47, 0];
 let g_fmt_builtin_ignore_7: u8[17] = [47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 116, 101, 115, 116, 115, 47, 0];
+// Repo-root tests/ holds intentional negative fixtures (*_fail, typeck bad, parser recovery).
+// Bare `xlang check` must not treat those as product errors; `xlang check tests` still walks
+// via collect_paths_from_arg only when path is not substring-matched — path_should_ignore
+// applies always, so explicit tests/ paths are skipped by design (use harness scripts).
+// PLATFORM: SHARED — dual-host.
+let g_fmt_builtin_ignore_8: u8[8] = [47, 116, 101, 115, 116, 115, 47, 0];
 
 let g_fmt_default_product_sub_0: u8[13] = [99, 111, 109, 112, 105, 108, 101, 114, 47, 115, 114, 99, 0];
 let g_fmt_default_product_sub_1: u8[5] = [99, 111, 114, 101, 0];
@@ -674,6 +683,9 @@ export function fmt_builtin_ignore_at(i: i32): *u8 {
   }
   if (i == 7) {
     return &g_fmt_builtin_ignore_7[0];
+  }
+  if (i == 8) {
+    return &g_fmt_builtin_ignore_8[0];
   }
   return 0 as *u8;
 }
@@ -1900,29 +1912,19 @@ export function fmt_walk_cwd_fallback(): void {
 }
 
 // check_collect_default_product_dirs: see function docblock below.
-/** Exported function `check_collect_default_product_dirs`.
- * Implements `check_collect_default_product_dirs`.
+/** Default collect when `xlang check` has no path arguments.
+ * Recursively walks the current working directory for all `*.x` files
+ * (via fmt_walk_cwd_fallback → walk_dir_collect). Builtin ignores still
+ * apply: /.git/, /build/, /build_asm/, /node_modules/, /.cursor/,
+ * /compiler/build/, /compiler/build_asm/, /compiler/tests/, plus any
+ * `--ignore=` prefixes. Name kept for ABI/link stability (historical
+ * product-subdir-only scope). PLATFORM: SHARED — dual-host prove.
  * @return void
  */
 #[no_mangle]
 export function check_collect_default_product_dirs(): void {
-  unsafe {
-    let any_product: i32 = 0;
-    let i: i32 = 0;
-    while (i < 64) {
-      let sub: *u8 = fmt_default_product_sub_at(i);
-      if (sub == 0 as *u8) {
-        break;
-      }
-      if (fmt_try_walk_if_product_subdir(sub) != 0) {
-        any_product = 1;
-      }
-      i = i + 1;
-    }
-    if (any_product == 0) {
-      fmt_walk_cwd_fallback();
-    }
-  }
+  // Full project tree under cwd — not limited to compiler/src|core|std|examples.
+  fmt_walk_cwd_fallback();
 }
 
 /** Report a missing/inaccessible path diagnostic (no printf/reportf).
@@ -2471,7 +2473,7 @@ export function driver_run_fmt(argc: i32, argv: *u8): i32 {
  *   3) check_init_user_lib_flags (pure) then argv scan:
  *      --fail-fast / --ignore= / -L|-I|-o|-backend|-O (skip value) / other -flags /
  *      path → collect_paths_from_arg (pure orch; Cap residual walk/stat);
- *   4) no path → check_collect_default_product_dirs (pure orch);
+ *   4) no path → check_collect_default_product_dirs (cwd recursive *.x);
  *   5) empty list → diag CHK002 with path/cwd message;
  *   6) each path → public check_one_file; when N>1 also check_progress_show
  *      (rotating spinner + relative path on one stderr line); diags multi-line;
@@ -2481,6 +2483,12 @@ export function driver_run_fmt(argc: i32, argv: *u8): i32 {
  * PLATFORM: SHARED — dual-host prove + check matrix. */
 #[no_mangle]
 export function driver_run_compiler_check(argc: i32, argv: *u8): i32 {
+  // Ctrl+C / SIGTERM must kill check even when stuck in parse/typeck or
+  // large-stack pthread_join; spinner alone would otherwise keep animating.
+  // PLATFORM: SHARED — seed installs async-signal-safe handlers.
+  unsafe {
+    check_install_interrupt_handlers();
+  }
   // DRIVER_COLLECT_MODE_CHECK = 2 (match seed enum).
   driver_collect_mode_set(2);
   file_list_clear();

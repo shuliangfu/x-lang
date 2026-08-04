@@ -495,13 +495,14 @@ export function sch_i32_to_str(buf: *u8, cap: i32, val: i32): i32 {
   }
   if (v < 0) {
     neg = 1;
-    if (v == -2147483648) {
+    // i32 min cannot be written as a single i32 literal (-2147483648 parses as
+    // unary-minus of an out-of-range positive). Use (-2147483647 - 1).
+    if (v == (-2147483647 - 1)) {
       let min_s: *u8 = &SCH_LIT_N2147483648[0];
       if (cap < 12) { return -1; }
       if (neg != 0) { buf[0] = 45; j = 1; }
       sch_strncpy(buf + j, min_s, cap - j);
       unsafe { return (strlen(buf) as i32); }
-  return 0; // unreachable — typeck workaround
     }
     v = -v;
   }
@@ -777,7 +778,18 @@ export function schema_clear_c(handle: i64): void {
  * See implementation.
  * See implementation.
  */
-export function schema_add_field_c(handle: i64, name: *u8, name_len: i32, type: i32,
+/**
+ * Register a schema field.
+ * @param handle i64 — schema handle from schema_create_c
+ * @param name *u8 — field name bytes
+ * @param name_len i32 — name length
+ * @param field_type i32 — SCH_TYPE_* (not named `type`: keyword-as-param breaks typeck call resolve)
+ * @param optional i32 — nonzero if optional
+ * @param col_index i32 — CSV column index
+ * @return i32 — SCH_OK or SCH_ERR_*
+ * PLATFORM: SHARED
+ */
+export function schema_add_field_c(handle: i64, name: *u8, name_len: i32, field_type: i32,
   optional: i32, col_index: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let key: u8[64];
@@ -789,10 +801,10 @@ export function schema_add_field_c(handle: i64, name: *u8, name_len: i32, type: 
   if (sch_find_field(sch, &key[0]) >= 0) { return SCH_ERR_INVALID; }
   fi = sch.field_count;
   sch_strncpy(&sch.fields[fi].name[0], &key[0], SCH_NAME_MAX);
-  sch.fields[fi].type = type;
+  sch.fields[fi].type = field_type;
   sch.fields[fi].optional = optional != 0 ? 1 : 0;
   sch.fields[fi].col_index = col_index;
-  sch.values[fi].type = type;
+  sch.values[fi].type = field_type;
   sch.field_count = sch.field_count + 1;
   return SCH_OK;
 }
@@ -819,7 +831,9 @@ export function schema_decode_json_c(handle: i64, json: *u8, json_len: i32): i32
     return SCH_ERR_INVALID;
   }
   empty[0] = 0;
-  rc = sch_decode_json_object(sch, &cur, &empty[0]);
+  // Cap-T001: same-frame &cur + outer *SchSchema trips stack-escape scan;
+  // callee only borrows both for the call (no stored escape of &cur).
+  unsafe { rc = sch_decode_json_object(sch, &cur, &empty[0]); }
   if (rc != SCH_OK) { return rc; }
   return sch_check_required(sch);
 }

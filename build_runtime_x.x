@@ -54,7 +54,7 @@ function append_lit(buf: *u8, size: i32, off: i32, lit: *u8, len: i32): i32 {
  * @param step_id i32
  * @return i32
  */
-function build_patch_after_step(step_id: i32): i32 {
+export function build_patch_after_step(step_id: i32): i32 {
   if (step_id == 1) { return build_patch_pipeline_gen_c(); }
   if (step_id == 3) { return build_patch_driver_gen_c(); }
   return 0;
@@ -66,7 +66,7 @@ function build_patch_after_step(step_id: i32): i32 {
  * @param xlang_path *u8
  * @return i32
  */
-function build_run_step(step_id: i32, xlang_path: *u8): i32 {
+export function build_run_step(step_id: i32, xlang_path: *u8): i32 {
   let cmd: u8[4096] = [];
   let off: i32 = 0;
   if (step_id == 0) {
