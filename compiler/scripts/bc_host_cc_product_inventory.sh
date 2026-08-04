@@ -69,7 +69,7 @@ esac
 PRODUCT_RESIDUAL_ROWS=(
   # --- 8.3.1 / 8.3.2 host shells (post-thin floors · wave1281 honesty) ---
   # glue ~3.4k residual body + #include face; not the historical ~18k mega.
-  "compiler/pipeline_glue.c|8.3.1|product glue host shell (typeck/codegen/asm residual + domain #includes)|2500|present"
+  "compiler/pipeline_glue.c|8.3.1|product glue host shell (typeck/codegen/asm residual + domain #includes)|1800|present"
   # ast_pool ~0.18k pure #include orchestration; domain bodies live in leaves.
   "compiler/ast_pool.c|8.3.2|AST pool host shell (#include orchestration only)|100|present"
   # --- 8.3.2 ast_pool domain leaves (same-TU into pipeline_x) ---
@@ -138,6 +138,8 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_codegen_residual.c|8.3.2|codegen residual name/predicate (wave1251)|130|present"
   "compiler/pipeline_asm_ctx_layout.c|8.3.1|AsmFuncCtx layout + cast helper early domain (wave1283)|40|present"
   "compiler/pipeline_glue_early_fwd.c|8.3|glue early forward-decl/extern shell (wave1284)|180|present"
+  "compiler/pipeline_glue_mid_fwd.c|8.3|glue mid forward-decl/extern shell after parser_result (wave1285)|90|present"
+  "compiler/pipeline_glue_backend_fwd.c|8.3|glue backend/emit-path forward-decl extern shell (wave1285)|500|present"
   "compiler/pipeline_asm_locals.c|8.3.2|asm locals + block slot sidecar (wave1252)|200|present"
   "compiler/pipeline_asm_slot_bytes.c|8.3.2|asm slot bytes + ensure_block_locals (wave1253)|320|present"
   "compiler/pipeline_asm_block_tree.c|8.3.2|asm block tree traversal + frame sizing (wave1254)|210|present"
