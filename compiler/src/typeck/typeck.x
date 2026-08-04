@@ -310,8 +310,11 @@ export extern function typeck_x_type_align_from_layout_glue(module: *Module, are
 depth: i32): i32;
 export extern function typeck_x_type_size_from_layout_glue(module: *Module, arena: *ASTArena, li: i32,
   depth: i32): i32;
-/* R2 (8.3.3): typeck_soa_col_base_for_field migrated to .x authority below.
- * pipeline_typeck_soa.c keeps only an extern decl for same-TU field_soa_index. */
+/* R2 (8.3.3): typeck_soa_col_base_for_field + find_layout_module_and_idx migrated
+ * to .x authority below. pipeline_typeck_soa.c keeps only extern decls for
+ * same-TU field_soa_index callers. */
+/* WPO dep pipe for SoA layout cross-module lookup (emit context). */
+export extern function pipeline_asm_emit_dep_pipe_c(): *PipelineDepCtx;
 /* See implementation. */
 export extern function pipeline_get_dep_arena_slot(ix: i32): *ASTArena;
 /* See implementation. */
@@ -1414,6 +1417,65 @@ export function typeck_soa_find_layout_idx_by_name(module: *Module, name: *u8, n
         }
       }
       k = k + 1;
+    }
+    return -1;
+  }
+}
+
+/**
+ * R2 (8.3.3): Find SoA struct layout by name in the current module or the
+ * WPO dep pool; on hit write the owning module into *out_layout_mod.
+ *
+ * Migrated from C static helper (pipeline_typeck_soa.c) to .x authority.
+ * First probes the local module via typeck_soa_find_layout_idx_by_name; if
+ * miss, walks pipeline_asm_emit_dep_pipe_c() deps with the same name probe.
+ *
+ * @param module *Module — primary module (also default *out_layout_mod)
+ * @param name *u8 — layout / TYPE_NAMED bytes (not required to be NUL-terminated)
+ * @param name_len i32 — byte count; must be > 0 (caller caps typically <= 127)
+ * @param out_layout_mod **Module — optional out: module that owns the hit layout
+ * @return i32 — layout index >= 0 on hit; -1 when not found / bad input
+ * PLATFORM: SHARED — G.7 single authority; .x -> typeck_gen.c -> typeck_x.o.
+ */
+export function typeck_soa_find_layout_module_and_idx(module: *Module, name: *u8, name_len: i32,
+  out_layout_mod: **Module): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let li: i32 = 0;
+    let pipe: *PipelineDepCtx = 0 as *PipelineDepCtx;
+    let nd: i32 = 0;
+    let di: i32 = 0;
+    let dm: *Module = 0 as *Module;
+    let om_bytes: *u8 = out_layout_mod as *u8;
+    /* Default out owner to primary module when out pointer is non-null. */
+    if (om_bytes != 0 as *u8) {
+      out_layout_mod[0] = module;
+    }
+    if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0) {
+      return -1;
+    }
+    li = typeck_soa_find_layout_idx_by_name(module, name, name_len);
+    if (li >= 0) {
+      return li;
+    }
+    pipe = pipeline_asm_emit_dep_pipe_c();
+    if (pipe == 0 as *PipelineDepCtx) {
+      return -1;
+    }
+    nd = pipeline_dep_ctx_ndep(pipe);
+    di = 0;
+    while (di < nd) {
+      dm = pipeline_dep_ctx_module_at(pipe, di);
+      if (dm != 0 as *Module) {
+        li = typeck_soa_find_layout_idx_by_name(dm, name, name_len);
+        if (li >= 0) {
+          if (om_bytes != 0 as *u8) {
+            out_layout_mod[0] = dm;
+          }
+          return li;
+        }
+      }
+      di = di + 1;
     }
     return -1;
   }

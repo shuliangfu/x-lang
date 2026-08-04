@@ -1115,6 +1115,7 @@ struct ast_ASTArena {
 #define typeck_typeck_type_is_empty_struct typeck_type_is_empty_struct
 #define typeck_typeck_x_type_size typeck_x_type_size
 #define typeck_typeck_soa_find_layout_idx_by_name typeck_soa_find_layout_idx_by_name
+#define typeck_typeck_soa_find_layout_module_and_idx typeck_soa_find_layout_module_and_idx
 #define typeck_typeck_soa_col_base_for_field typeck_soa_col_base_for_field
 #define typeck_typeck_soa_array_storage_size_glue typeck_soa_array_storage_size_glue
 #define typeck_typeck_struct_layout_metrics typeck_struct_layout_metrics
@@ -1524,6 +1525,7 @@ struct ast_ASTArena {
 #define ast_pipeline_module_top_level_name_is_const pipeline_module_top_level_name_is_const
 #define ast_pipeline_block_local_name_redecl_c pipeline_block_local_name_redecl_c
 #define ast_pipeline_patch_block_parent_links pipeline_patch_block_parent_links
+#define ast_pipeline_asm_emit_dep_pipe_c pipeline_asm_emit_dep_pipe_c
 #define ast_pipeline_get_dep_arena_slot pipeline_get_dep_arena_slot
 #define ast_pipeline_module_func_param_type_ref_for_name pipeline_module_func_param_type_ref_for_name
 #define ast_pipeline_module_num_funcs pipeline_module_num_funcs
@@ -1987,6 +1989,7 @@ extern int32_t typeck_x_type_align(struct ast_Module * module, struct ast_ASTAre
 extern int32_t typeck_type_is_empty_struct(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref, int32_t depth);
 extern int32_t typeck_x_type_size(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref, int32_t depth);
 extern int32_t typeck_soa_find_layout_idx_by_name(struct ast_Module * module, uint8_t * name, int32_t name_len);
+extern int32_t typeck_soa_find_layout_module_and_idx(struct ast_Module * module, uint8_t * name, int32_t name_len, struct ast_Module * * out_layout_mod);
 extern int32_t typeck_soa_col_base_for_field(struct ast_Module * module, struct ast_ASTArena * arena, int32_t li, int32_t field_idx, int32_t array_len, int32_t depth);
 extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module * module, struct ast_ASTArena * arena, int32_t elem_type_ref, int32_t array_len, int32_t depth);
 extern int32_t typeck_struct_layout_metrics(struct ast_Module * module, struct ast_ASTArena * arena, int32_t li, int32_t depth, int32_t check_pad, int32_t * out_sz, int32_t * out_al);
@@ -2256,6 +2259,7 @@ extern int32_t typeck_layout_metrics_sz_read_depth(int32_t depth);
 extern void typeck_layout_metrics_init_slot(void);
 extern int32_t typeck_x_type_align_from_layout_glue(struct ast_Module * module, struct ast_ASTArena * arena, int32_t li, int32_t depth);
 extern int32_t typeck_x_type_size_from_layout_glue(struct ast_Module * module, struct ast_ASTArena * arena, int32_t li, int32_t depth);
+extern struct ast_PipelineDepCtx * pipeline_asm_emit_dep_pipe_c(void);
 extern struct ast_ASTArena * pipeline_get_dep_arena_slot(int32_t ix);
 extern int32_t pipeline_module_func_param_type_ref_for_name(struct ast_Module * module, int32_t func_index, uint8_t * vname, int32_t vname_len);
 extern int32_t pipeline_module_num_funcs(struct ast_Module * module);
@@ -3030,6 +3034,46 @@ int32_t typeck_soa_find_layout_idx_by_name(struct ast_Module * module, uint8_t *
         }
       }
       (void)((k = (k + 1)));
+    }
+    return -1;
+  }
+}
+int32_t typeck_soa_find_layout_module_and_idx(struct ast_Module * module, uint8_t * name, int32_t name_len, struct ast_Module * * out_layout_mod) {
+  {
+    int32_t li = 0;
+    struct ast_PipelineDepCtx * pipe = 0;
+    int32_t nd = 0;
+    int32_t di = 0;
+    struct ast_Module * dm = 0;
+    uint8_t * om_bytes = ((uint8_t *)(out_layout_mod));
+    if ((om_bytes !=0)) {
+      (void)(((out_layout_mod)[0] = module));
+    }
+    if ((((module ==0) || (name ==0)) || (name_len <=0))) {
+      return -1;
+    }
+    (void)((li = typeck_soa_find_layout_idx_by_name(module, name, name_len)));
+    if ((li >=0)) {
+      return li;
+    }
+    (void)((pipe = pipeline_asm_emit_dep_pipe_c()));
+    if ((pipe ==0)) {
+      return -1;
+    }
+    (void)((nd = pipeline_dep_ctx_ndep(pipe)));
+    (void)((di = 0));
+    while ((di < nd)) {
+      (void)((dm = pipeline_dep_ctx_module_at(pipe, di)));
+      if ((dm !=0)) {
+        (void)((li = typeck_soa_find_layout_idx_by_name(dm, name, name_len)));
+        if ((li >=0)) {
+          if ((om_bytes !=0)) {
+            (void)(((out_layout_mod)[0] = dm));
+          }
+          return li;
+        }
+      }
+      (void)((di = (di + 1)));
     }
     return -1;
   }

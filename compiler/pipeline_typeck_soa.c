@@ -12,48 +12,18 @@ extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
 
 /**
  * Find struct layout index by name in module.struct_layouts; -1 if not found.
- * wave1219: made non-static extern — typeck.x authority typeck_soa_array_storage_size_glue
- * calls this (extern decl at typeck.x). Retained here because pipeline_typeck_field_soa_index_c
- * (L153 below) also uses it for arr[i].field SoA col_base + stride resolution.
- * PLATFORM: SHARED — visible via pipeline_x.o TU.
+ * R2 (8.3.3): impl migrated to typeck.x authority; .c callers resolve via link to typeck_x.o.
+ * PLATFORM: SHARED — visible via pipeline_x.o TU + typeck_x.o.
  */
-/* R2 (8.3.3): impl migrated to typeck.x authority; .c callers resolve via link to typeck_x.o. */
 int32_t typeck_soa_find_layout_idx_by_name(struct ast_Module *module, uint8_t *name, int32_t name_len);
 
 /**
- * 在当前 module 或 WPO dep 池中按名查 SoA layout；命中时写 *out_layout_mod。
+ * Find SoA layout by name in primary module or WPO dep pool; on hit write *out_layout_mod.
+ * R2 (8.3.3): impl migrated to typeck.x authority; same-TU field_soa_index resolves via link.
+ * PLATFORM: SHARED — visible via pipeline_x.o TU + typeck_x.o.
  */
-static int32_t typeck_soa_find_layout_module_and_idx(struct ast_Module *module, uint8_t *name, int32_t name_len,
-                                                   struct ast_Module **out_layout_mod) {
-  int32_t li;
-  struct ast_PipelineDepCtx *pipe;
-  int32_t nd;
-  int32_t di;
-  struct ast_Module *dm;
-  if (out_layout_mod)
-    *out_layout_mod = module;
-  if (!module || !name || name_len <= 0)
-    return -1;
-  li = typeck_soa_find_layout_idx_by_name(module, name, name_len);
-  if (li >= 0)
-    return li;
-  pipe = pipeline_asm_emit_dep_pipe_c();
-  if (!pipe)
-    return -1;
-  nd = pipeline_dep_ctx_ndep(pipe);
-  for (di = 0; di < nd; di++) {
-    dm = pipeline_dep_ctx_module_at(pipe, di);
-    if (!dm)
-      continue;
-    li = typeck_soa_find_layout_idx_by_name(dm, name, name_len);
-    if (li >= 0) {
-      if (out_layout_mod)
-        *out_layout_mod = dm;
-      return li;
-    }
-  }
-  return -1;
-}
+int32_t typeck_soa_find_layout_module_and_idx(struct ast_Module *module, uint8_t *name, int32_t name_len,
+                                             struct ast_Module **out_layout_mod);
 
 /**
  * SoA column base: columns before field fi occupy N * sizeof(field) (with align).
@@ -64,10 +34,11 @@ static int32_t typeck_soa_find_layout_module_and_idx(struct ast_Module *module, 
 int32_t typeck_soa_col_base_for_field(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
                                       int32_t field_idx, int32_t array_len, int32_t depth);
 
-/* wave1219 G.3/G.4 + 8.3.3 R2: typeck_soa_array_storage_size_glue and
- * typeck_soa_col_base_for_field / typeck_soa_find_layout_idx_by_name are .x
- * authority (typeck.x → typeck_x.o). This file keeps:
- *   - extern decls for the two helpers (same-TU field_soa_index calls)
+/* wave1219 G.3/G.4 + 8.3.3 R2: typeck_soa_array_storage_size_glue,
+ * typeck_soa_col_base_for_field / typeck_soa_find_layout_idx_by_name /
+ * typeck_soa_find_layout_module_and_idx are .x authority (typeck.x → typeck_x.o).
+ * This file keeps:
+ *   - extern decls for the helpers (same-TU field_soa_index calls)
  *   - pipeline_typeck_field_soa_index_c (still C; uses glue_type_size_simple for stride)
  */
 
