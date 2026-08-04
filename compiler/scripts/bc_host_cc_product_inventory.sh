@@ -30,14 +30,18 @@
 # PLATFORM: SHARED — inventory of sources; ABI lives in the residual bodies.
 # Wave: 963 open BC + 8.3.9 orphan gone (analysis/_debug_io_ctx_gen.c was
 # gitignored local scratch; --check asserts ABSENT).
-# 8.3.1 domain thin cuts: ctfe + assign + coerce_init + method_call + check_block + region_assign + asm_emit_unary + asm_emit_as + asm_emit_return + asm_emit_logand + asm_emit_block_body + asm_emit_block_if_stmt + asm_emit_block_inits + asm_emit_assign + asm_emit_array_lit + asm_emit_index + asm_emit_match (#include TU).
-# 8.3.2 domain thin cuts: ast_pool_module_import + ast_pool_struct_layout +
-#   ast_pool_top_level + ast_pool_type_alias + ast_pool_expr_sidecar +
-#   ast_pool_module_enum + ast_pool_onefunc + ast_pool_dep_ctx +
-#   ast_pool_module_func + ast_pool_arena + ast_pool_block
-#   (wave989–990 + wave992: block + parent/resolve + stmt_order rebuild/fixup residual)
-#   (wave993–994: top_level name_is_const/hoist + hoist_target/sum residual 有则补全)
-#   (#include into ast_pool TU).
+# 8.3.1 domain thin cuts: typeck (ctfe/assign/coerce/method/check_block/region) +
+#   asm emit leaves (unary…expr_rec + async_cps/lea/var_decl/with_arena/x86_enc)
+#   (#include into pipeline_glue TU).
+# 8.3.2 domain thin cuts (wave978–1280): ast_pool shell is #include orchestration
+#   only (~0.18k); domain leaves cover lifecycle/typedefs/sidecar/GrowVec + pool
+#   cold accessors + pipeline orchestration (resolve/import/parse/codegen/lsp) +
+#   ELF write/ctx + codegen type-to-c/skip/struct/residual + asm locals…WPO +
+#   EMIT_HEAVY env/safe_helper/parser + skip_dispatch/diag + backend wrapper +
+#   scratch. All same-TU #include into pipeline_x (still host-cc).
+# wave1281: honesty pass — shell min_loc floors match post-thin reality; register
+#   ~40 extracted domain leaves that were already on PIPELINE_X_DEPS but missing
+#   from this inventory (bc-inventory --check was red on glue/ast_pool floors).
 
 set -euo pipefail
 
@@ -63,9 +67,12 @@ esac
 # expect: present | absent
 # min_loc: for present rows, soft floor (0 = any non-empty / placeholder OK)
 PRODUCT_RESIDUAL_ROWS=(
-  # --- 8.3.1 / 8.3.2 volume main debt ---
-  "compiler/pipeline_glue.c|8.3.1|product mega glue (typeck/codegen/asm/match)|18000|present"
-  "compiler/ast_pool.c|8.3.2|AST pool / MatchArm / sidecar|10000|present"
+  # --- 8.3.1 / 8.3.2 host shells (post-thin floors · wave1281 honesty) ---
+  # glue ~3.4k residual body + #include face; not the historical ~18k mega.
+  "compiler/pipeline_glue.c|8.3.1|product glue host shell (typeck/codegen/asm residual + domain #includes)|2500|present"
+  # ast_pool ~0.18k pure #include orchestration; domain bodies live in leaves.
+  "compiler/ast_pool.c|8.3.2|AST pool host shell (#include orchestration only)|100|present"
+  # --- 8.3.2 ast_pool domain leaves (same-TU into pipeline_x) ---
   "compiler/ast_pool_module_import.c|8.3.2|module ImportEntry cold-twin accessors slice|180|present"
   "compiler/ast_pool_struct_layout.c|8.3.2|module StructLayout cold accessors slice|360|present"
   "compiler/ast_pool_top_level.c|8.3.2|module TopLevelLetEntry cold accessors + name_is_const/hoist + hoist_target/sum residual slice|290|present"
@@ -77,6 +84,15 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_module_func.c|8.3.2|module Func cold accessors + param sidecar slice|400|present"
   "compiler/ast_pool_arena.c|8.3.2|ASTArena main-pool cold accessors slice|200|present"
   "compiler/ast_pool_block.c|8.3.2|block append/region/defer + loop/labeled/getters + parent/resolve + stmt_order rebuild/fixup residual slice|1300|present"
+  "compiler/ast_pool_lifecycle.c|8.3.2|ast_pool lifecycle/reset/release domain (wave1273)|330|present"
+  "compiler/ast_pool_ptr_at.c|8.3.2|ast_pool core ptr_at accessors (wave1278)|25|present"
+  "compiler/ast_pool_sidecar_pool.c|8.3.2|ast_pool sidecar pool management (wave1276)|340|present"
+  "compiler/ast_pool_typedefs.c|8.3.2|ast_pool early typedef domain (wave1278)|220|present"
+  "compiler/ast_pool_type.c|8.3.2|ast_pool type pool cold accessors (wave1166)|230|present"
+  "compiler/pipeline_grow_vec.c|8.3.2|GrowVec leaf (wave1275)|150|present"
+  "compiler/pipeline_lint_meta.c|8.3.2|pipeline lint + module metadata (wave1274)|260|present"
+  "compiler/pipeline_backend_asm_wrapper.c|8.3.2|backend asm thin wrappers (wave1279)|65|present"
+  "compiler/pipeline_scratch_bufs.c|8.3.2|codegen path/prefix scratch bufs (wave1279)|35|present"
   # --- 8.3.1 domain thin slices (#include into pipeline_glue TU; not separate .o) ---
   "compiler/pipeline_typeck_ctfe.c|8.3.1|typeck CTFE producer slice|1000|present"
   "compiler/pipeline_typeck_assign.c|8.3.1|typeck assign domain slice|250|present"
@@ -108,10 +124,43 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_spill.c|8.3.1|asm ELF 7.3 live/Chaitin spill/bulk_mem + break/continue faces slice|2000|present"
   "compiler/pipeline_asm_emit_index_eff_addr.c|8.3.1|asm ELF INDEX eff-addr (scaled+bounds+base twins+public faces) slice|700|present"
   "compiler/pipeline_asm_emit_expr_rec.c|8.3.1|asm ELF expr recursion + fast (lit_i32 + rec + emit_expr_elf_c + fast) slice|300|present"
+  "compiler/pipeline_asm_emit_async_cps.c|8.3.1|asm ELF async/CPS emit domain|160|present"
+  "compiler/pipeline_asm_emit_lea_common.c|8.3.1|asm ELF lea common helpers|140|present"
+  "compiler/pipeline_asm_emit_var_decl.c|8.3.1|asm ELF var decl emit|85|present"
+  "compiler/pipeline_asm_emit_with_arena.c|8.3.1|asm ELF with_arena emit|90|present"
+  "compiler/pipeline_asm_emit_x86_enc_helpers.c|8.3.1|asm x86 enc helpers|300|present"
+  # --- 8.3.2 pipeline/asm/codegen domain leaves (wave1246–1280; still host-cc) ---
+  "compiler/pipeline_elf_write_o.c|8.3.2|ELF/Mach-O .o writers (wave1246)|50|present"
+  "compiler/pipeline_elf_ctx.c|8.3.2|ELF/Mach-O ctx accessors (wave1247)|700|present"
+  "compiler/pipeline_codegen_type_to_c.c|8.3.2|codegen type-to-c (wave1248)|240|present"
+  "compiler/pipeline_codegen_skip_force.c|8.3.2|codegen skip/force predicates (wave1249)|270|present"
+  "compiler/pipeline_codegen_struct_emit.c|8.3.2|codegen struct emit (wave1250)|170|present"
+  "compiler/pipeline_codegen_residual.c|8.3.2|codegen residual name/predicate (wave1251)|130|present"
+  "compiler/pipeline_asm_locals.c|8.3.2|asm locals + block slot sidecar (wave1252)|200|present"
+  "compiler/pipeline_asm_slot_bytes.c|8.3.2|asm slot bytes + ensure_block_locals (wave1253)|320|present"
+  "compiler/pipeline_asm_block_tree.c|8.3.2|asm block tree traversal + frame sizing (wave1254)|210|present"
+  "compiler/pipeline_asm_ctx_loop.c|8.3.2|asm ctx loop + block emit cont (wave1255)|130|present"
+  "compiler/pipeline_asm_wpo.c|8.3.2|asm WPO v0 DCE + PGO-Lite (wave1256)|1050|present"
+  "compiler/pipeline_asm_selfhost.c|8.3.2|asm module self-host classification (wave1257)|190|present"
+  "compiler/pipeline_asm_thin_delegate.c|8.3.2|asm M8-tail thin delegate tables (wave1258)|220|present"
+  "compiler/pipeline_asm_emit_heavy_safe_helper.c|8.3.2|EMIT_HEAVY safe-helper classifiers (wave1259)|470|present"
+  "compiler/pipeline_asm_parser_emit_heavy.c|8.3.2|asm parser EMIT_HEAVY domain (wave1260)|380|present"
+  "compiler/pipeline_asm_diag.c|8.3.2|asm diagnostics (wave1263)|65|present"
+  "compiler/pipeline_asm_skip_dispatch.c|8.3.2|asm skip/stub dispatch (wave1264)|220|present"
+  "compiler/pipeline_asm_emit_heavy_env.c|8.3.2|EMIT_HEAVY env/thresholds/path/whitelist (wave1280)|210|present"
+  "compiler/pipeline_resolve_path.c|8.3.2|import path resolve (wave1266)|260|present"
+  "compiler/pipeline_import_bind.c|8.3.2|fs read + import bind/sync (wave1270)|100|present"
+  "compiler/pipeline_parse_typeck_dispatch.c|8.3.2|parse entry + typeck dispatch (wave1271)|330|present"
+  "compiler/pipeline_run_x_pipeline.c|8.3.2|run_x_pipeline core orchestration (wave1272)|90|present"
+  "compiler/pipeline_loop_glue.c|8.3.2|run_x_pipeline loop glue (wave1272)|45|present"
+  "compiler/pipeline_codegen_dep.c|8.3.2|codegen dep orchestration (wave1268)|360|present"
+  "compiler/pipeline_lsp_diag.c|8.3.2|LSP diag C glue (wave1269)|60|present"
+  "compiler/pipeline_emit_sidecar.c|8.3.2|emit sidecar state (wave1267)|140|present"
+  "compiler/pipeline_preprocess_if.c|8.3.2|preprocess #if stack cold fallback (wave1267)|55|present"
+  "compiler/pipeline_typeck_slots.c|8.3.2|typeck scratch/infer/layout slots (wave1267)|250|present"
   # --- 8.3.3 typeck slices often pulled by glue ---
   "compiler/pipeline_typeck_field_access.c|8.3.3|field_access slice|500|present"
   "compiler/pipeline_typeck_soa.c|8.3.3|typeck SOA helper|50|present"
-  "compiler/pipeline_elf_write_o.c|8.3.2|ELF/Mach-O .o writers (wave1246)|50|present"
   # --- 8.3.4 bootstrap glue / orchestration ---
   "compiler/ast_pool_bootstrap_glue.c|8.3.4|cold-start ast bridge|100|present"
   "compiler/pipeline_bootstrap_orchestration.c|8.3.4|orchestration wrapper → seed|1|present"
@@ -196,7 +245,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 pipeline_glue / 8.3.2 ast_pool thin slices (host-cc still required)"
+  echo "NEXT=8.3 shells thin residual / 8.3.3 field_access RCA / leave host-cc (BC endgame still open)"
 }
 
 run_check() {
@@ -286,7 +335,7 @@ run_check() {
     echo "bc_host_cc_product_inventory: --check FAILED" >&2
     exit 1
   fi
-  echo "bc_host_cc_product_inventory: CHECK OK (BC open · 8.3.1 typeck+asm slices + 8.3.2 ast_pool module_import+struct_layout+top_level(name_is_const/hoist)+type_alias+expr_sidecar+module_enum+onefunc+dep_ctx+module_func+arena+block present · 8.3.9 absent · host-cc residual still required)" >&2
+  echo "bc_host_cc_product_inventory: CHECK OK (BC open · wave1281 honesty · glue/ast_pool shell floors honest · 8.3.1 typeck+asm leaves + 8.3.2 domain leaves (lifecycle…emit-heavy_env…WPO) present · 8.3.9 absent · host-cc residual still required)" >&2
 }
 
 case "$MODE" in

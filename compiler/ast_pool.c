@@ -79,7 +79,10 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
  * BC 8.3.2 wave993+994: name_is_const + hoist + asm hoist_target / sum stack live in
  * ast_pool_top_level.c (include below; after block so static prepend_lets is visible).
  * BC 8.3.2 wave1280: emit-heavy env/thresholds + path helpers / whitelist →
- * pipeline_asm_emit_heavy_env.c (before selfhost). Shell residual: #include orchestration. */
+ * pipeline_asm_emit_heavy_env.c (before selfhost).
+ * wave1281 shell scan: no function bodies remain here — host shell is #include
+ * orchestration + pool macros + link_abi_getenv extern + one forward decl only.
+ * PLATFORM: SHARED same-TU into pipeline_glue / pipeline_x (still host-cc). */
 
 /** ---------- Module import / struct_layout / top_level / enum 动态池 ---------- */
 
