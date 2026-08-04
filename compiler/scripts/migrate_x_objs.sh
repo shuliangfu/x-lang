@@ -166,6 +166,11 @@ want_ensure_gen() {
       || ! grep -Fq 'typeck_type_is_valid_subscript_index' "$gen"; then
       return 0
     fi
+    # Post-pull: tip seed newer than gitignored pin → re-enter ensure (8.3.3).
+    if [ -n "$seed" ] && [ -f "$seed" ] && [ "$seed" -nt "$gen" ] \
+      && ! cmp -s "$seed" "$gen" 2>/dev/null; then
+      return 0
+    fi
   fi
   return 1
 }

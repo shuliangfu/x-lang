@@ -78,16 +78,35 @@ lexer_gen_contract_ok() {
 
 refresh_gen_from_seed_if_stale() {
   # $1=local gen  $2=seed  $3=contract_fn_name  $4=label
-  # If local pin fails contract and tip seed passes, replace pin from seed.
+  # Refresh gitignored local pin from tip seed when:
+  #   (A) local fails product contract and tip seed passes, or
+  #   (B) tip seed is newer (mtime) and byte-differs (post-pull pin advance).
+  # PLATFORM: SHARED — without (B), Ubuntu keeps pre-pull typeck_gen.c that still
+  # passes contract but lacks new export bodies → pure-ld UNDEF (8.3.3 L2 lesson).
+  # FORCE_REGEN path leaves gen newer than seed until seed is re-pinned; we do
+  # not clobber that mid-wave local -E (only seed -nt gen triggers (B)).
   local gen="$1" seed="$2" contract="$3" label="$4"
   if [ ! -s "$gen" ]; then
     return 1
   fi
-  if "$contract" "$gen"; then
+  if ! seed_ok "$seed"; then
+    if ! "$contract" "$gen"; then
+      log "${label}: pin fails product contract and no tip seed ($seed)"
+    fi
     return 1
   fi
-  if ! seed_ok "$seed"; then
-    log "${label}: pin fails product contract and no tip seed ($seed)"
+  # (B) tip seed newer + content drift → take seed (post-pull dual-end L2).
+  if [ "$seed" -nt "$gen" ] && ! cmp -s "$seed" "$gen" 2>/dev/null; then
+    if ! "$contract" "$seed"; then
+      log "${label}: tip seed newer but fails contract ($seed) — need FORCE regen"
+      return 1
+    fi
+    cp -f "$seed" "$gen"
+    log "${label}: refreshed from tip seed (seed newer than gitignored pin; PLATFORM SHARED)"
+    return 0
+  fi
+  # (A) local contract fail, seed ok.
+  if "$contract" "$gen"; then
     return 1
   fi
   if ! "$contract" "$seed"; then
