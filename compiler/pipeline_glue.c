@@ -255,9 +255,8 @@ static int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
 #include "pipeline_asm_emit_modlet.c"
 
 
-/** 前向声明：assign / binop f32 路径用（定义见本文件后部 glue_var_expr_stack_off 附近）。 */
-static int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                             int32_t var_expr_ref);
+/* wave1291 G.7: glue_var_decl_type_ref_elf_c late redecl removed — now covered
+ * by pipeline_glue_emit_lea_fwd.c (wave1288, same-TU before this site). */
 
 /* BC 8.3.1: asm ELF EXPR_ASSIGN emit domain (lhs f32 + rhs + assign_elf; same TU). */
 #include "pipeline_asm_emit_assign.c"
@@ -317,8 +316,8 @@ void pipeline_block_let_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t 
  * moved to after field_access — see wave1020 include below. Early forward
  * decls for rec/fast/lit_i32 remain above for index_helpers / array_lit. */
 
-/** 与 typeck.x typeck_x_type_size 一致（前向声明，定义见本文件后部）。 */
-static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+/* wave1291 G.7: glue_type_size_simple late redecl removed — now covered by
+ * pipeline_glue_emit_fwd.c (wave1287, same-TU before this site). */
 
 /** typeck ImportKind.IMPORT_BINDING / IMPORT_SELECT（与 ast.x 序数一致）。
  * wave1150 G.7: moved here from L8947 (was after call_args.c #include) so
@@ -427,7 +426,7 @@ extern void driver_diagnostic_typeck_struct_field_bad_size(uint8_t *sname, int32
                                                            int32_t fname_len);
 
 static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
-static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+/* wave1291 G.7: glue_type_size_simple late redecl removed — covered by pipeline_glue_emit_fwd.c. */
 
 /* wave1053 G.7: glue_struct_layout_metrics_c + typeck_typeck_struct_layout_metrics
  * migrated to pipeline_asm_emit_struct_lit.c (definitions at EOF). Static fwd
@@ -722,17 +721,9 @@ static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct
  * Deps: ast_ast_block_* / ast_pipeline_block_* / pipeline_expr_kind_ord_at
  * / pipeline_block_labeled_* (all extern). */
 
-/* wave1021: durable body already in pipeline_asm_emit_array_lit.c; late redecl OK. */
-static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
-                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                            int32_t expr_ref, int32_t force_esz, int32_t ta,
-                                                            struct backend_AsmFuncCtx *ctx);
-/* wave647: ARRAY_LIT scalar elem → rax (FLOAT_LIT force_ty for f32 pack). */
-static int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena *arena,
-                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                            int32_t array_lit_ref, int32_t elem_ref,
-                                                            struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                            int32_t force_esz);
+/* wave1291 G.7: glue_asm_emit_array_lit_durable_ptr_rax_elf_c +
+ * glue_array_lit_emit_scalar_elem_to_rax_elf_c late redecls removed — both
+ * now covered by pipeline_glue_emit_lea_fwd.c (wave1288, same-TU before here). */
 
 /* wave1024 G.7: glue_slice_dual_gp_length_off_c + bump_past_home +
  * glue_emit_slice_from_array_let_init_elf_c folded into
