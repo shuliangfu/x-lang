@@ -72,7 +72,7 @@ export extern function pipeline_typeck_check_expr_field_access_c(module: *Module
  */
 export extern function pipeline_typeck_mono_field_type_from_base_c(module: *Module, arena: *ASTArena,
 field_ty: i32, base_ty: i32): i32;
-/* R2 (8.3.3): prebind / layout_named / field_slice / name_fallback / lexer_fallback in typeck.x; C thin. */
+/* R2 (8.3.3): prebind / known_ptr / layout_named / field_slice / name_fallback / lexer_fallback in typeck.x; C thin. */
 export extern function pipeline_typeck_field_prebind_c(module: *Module, arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): void;
 export extern function pipeline_typeck_field_known_ptr_types_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, num_layouts: i32): i32;
 export extern function pipeline_typeck_field_layout_named_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32;
@@ -2359,6 +2359,206 @@ ctx: *PipelineDepCtx): void {
     if (nt_pre != 0) {
       pipeline_expr_set_resolved_type_ref(arena, base_ref, nt_pre);
     }
+  }
+}
+
+/**
+ * R2 (8.3.3): EXPR_FIELD_ACCESS hard-coded fields on *ASTArena / *Module.
+ *
+ * Migrated from C `pipeline_typeck_field_known_ptr_types_c`
+ * (pipeline_typeck_field_access.c) to .x authority. Public surface
+ * `pipeline_typeck_field_known_ptr_types_c` remains a thin C forwarder for
+ * field_access orchestration.
+ *
+ * When the field base type is TYPE_PTR to a TYPE_NAMED "ASTArena" or "Module",
+ * stamp resolved_type_ref (and for ASTArena, hard-coded byte offsets matching
+ * the self-host arena / module layouts) for known SoA pool fields:
+ *   ASTArena: types/num_types, exprs/num_exprs, blocks/num_blocks, funcs/num_funcs
+ *   Module:   funcs, struct_layouts, num_funcs, num_struct_layouts
+ * Offsets and array bounds are product ABI constants used by the compiler when
+ * typechecking its own ASTArena/Module field access (self-host path).
+ *
+ * @param module *Module — reserved for ABI parity with C surface (unused body)
+ * @param arena *ASTArena — expr/type arena
+ * @param expr_ref i32 — FIELD_ACCESS expr
+ * @param base_ref i32 — field base expr (must be *Named with resolved type)
+ * @param num_struct_layouts i32 — diagnostic only (driver_diagnostic_typeck_ptr_field)
+ * @return i32 — 1 = matched and stamped; 0 = not a known ptr field (continue)
+ * PLATFORM: SHARED — G.7; layout offsets are ABI constants, not platform forks.
+ */
+export function typeck_field_known_ptr(module: *Module, arena: *ASTArena, expr_ref: i32,
+base_ref: i32, num_struct_layouts: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let base_ty: i32 = 0;
+    let bt_kind: i32 = 0;
+    let elem_ty: i32 = 0;
+    let inner_nm_buf: u8[128] = [];
+    let inner_nm_len: i32 = 0;
+    let inner_ord: i32 = 0;
+    let fl: i32 = 0;
+    let fn_buf: u8[128] = [];
+    /* "ASTArena" */
+    let nm_astarena: u8[8] = [65, 83, 84, 65, 114, 101, 110, 97];
+    /* "types" / "num_types" / "exprs" / "num_exprs" / "blocks" / "num_blocks" / "funcs" / "num_funcs" */
+    let nm_types: u8[5] = [116, 121, 112, 101, 115];
+    let nm_num_types: u8[9] = [110, 117, 109, 95, 116, 121, 112, 101, 115];
+    let nm_exprs: u8[5] = [101, 120, 112, 114, 115];
+    let nm_num_exprs: u8[9] = [110, 117, 109, 95, 101, 120, 112, 114, 115];
+    let nm_blocks: u8[6] = [98, 108, 111, 99, 107, 115];
+    let nm_num_blocks: u8[10] = [110, 117, 109, 95, 98, 108, 111, 99, 107, 115];
+    let nm_funcs: u8[5] = [102, 117, 110, 99, 115];
+    let nm_num_funcs: u8[9] = [110, 117, 109, 95, 102, 117, 110, 99, 115];
+    /* array elem names: "Type" / "Expr" / "Block" / "Func" */
+    let nm_ty: u8[4] = [84, 121, 112, 101];
+    let nm_ex: u8[4] = [69, 120, 112, 114];
+    let nm_bl: u8[5] = [66, 108, 111, 99, 107];
+    let nm_fu: u8[4] = [70, 117, 110, 99];
+    /* "Module" */
+    let nm_module: u8[6] = [77, 111, 100, 117, 108, 101];
+    /* Module fields reuse funcs/num_funcs; plus struct_layouts / num_struct_layouts */
+    let nm_struct_layouts_m: u8[14] = [115, 116, 114, 117, 99, 116, 95, 108, 97, 121, 111, 117, 116, 115];
+    /* "num_struct_layouts" (18) */
+    let nm_num_struct_layouts_m: u8[18] = [110, 117, 109, 95, 115, 116, 114, 117, 99, 116, 95, 108, 97, 121, 111, 117, 116, 115];
+    /* "StructLayout" */
+    let nm_sl_m: u8[12] = [83, 116, 114, 117, 99, 116, 76, 97, 121, 111, 117, 116];
+    let i32r_at: i32 = 0;
+    let i32r_mod: i32 = 0;
+    let matched: i32 = 0;
+    let arr_ty: i32 = 0;
+    /* `module` is ABI-only (C surface parity); body never dereferences it. */
+    if (arena == 0 as *ASTArena) {
+      return 0;
+    }
+    if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
+      return 0;
+    }
+    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+    if (ast.ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena.num_types) {
+      return 0;
+    }
+    /* TYPE_PTR = 9 */
+    bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
+    if (bt_kind != 9) {
+      return 0;
+    }
+    elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
+    if (ast.ref_is_null(elem_ty)) {
+      return 0;
+    }
+    inner_nm_len = pipeline_type_named_name_into(arena, elem_ty, &inner_nm_buf[0]);
+    inner_ord = pipeline_type_kind_ord_at(arena, elem_ty);
+    driver_diagnostic_typeck_ptr_field(9, inner_ord, inner_nm_len, base_ty, num_struct_layouts);
+    fl = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (fl <= 0 || fl > 127) {
+      return 0;
+    }
+    pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
+    i32r_at = ensure_i32_type_ref(arena);
+    i32r_mod = ensure_i32_type_ref(arena);
+    matched = 0;
+    /* TYPE_NAMED = 8; *ASTArena fields (hard-coded offsets). */
+    if (inner_ord == 8 && inner_nm_len == 8 &&
+    name_equal(&inner_nm_buf[0], inner_nm_len, &nm_astarena[0], 8)) {
+      if (fl == 5 && name_equal(&fn_buf[0], fl, &nm_types[0], 5)) {
+        pipeline_expr_set_field_access_offset(arena, expr_ref, 0);
+        arr_ty = ensure_array_type_ref_named_elem(arena, &nm_ty[0], 4, 512);
+        if (arr_ty != 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
+          matched = 1;
+        }
+      }
+      if (matched == 0 && fl == 9 && name_equal(&fn_buf[0], fl, &nm_num_types[0], 9)) {
+        pipeline_expr_set_field_access_offset(arena, expr_ref, 40960);
+        if (i32r_at != 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_at);
+          matched = 1;
+        }
+      }
+      if (matched == 0 && fl == 5 && name_equal(&fn_buf[0], fl, &nm_exprs[0], 5)) {
+        pipeline_expr_set_field_access_offset(arena, expr_ref, 40968);
+        arr_ty = ensure_array_type_ref_named_elem(arena, &nm_ex[0], 4, 32768);
+        if (arr_ty != 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
+          matched = 1;
+        }
+      }
+      if (matched == 0 && fl == 9 && name_equal(&fn_buf[0], fl, &nm_num_exprs[0], 9)) {
+        pipeline_expr_set_field_access_offset(arena, expr_ref, 6234120);
+        if (i32r_at != 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_at);
+          matched = 1;
+        }
+      }
+      if (matched == 0 && fl == 6 && name_equal(&fn_buf[0], fl, &nm_blocks[0], 6)) {
+        pipeline_expr_set_field_access_offset(arena, expr_ref, 6234124);
+        arr_ty = ensure_array_type_ref_named_elem(arena, &nm_bl[0], 5, 8192);
+        if (arr_ty != 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
+          matched = 1;
+        }
+      }
+      if (matched == 0 && fl == 10 && name_equal(&fn_buf[0], fl, &nm_num_blocks[0], 10)) {
+        pipeline_expr_set_field_access_offset(arena, expr_ref, 17184780);
+        if (i32r_at != 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_at);
+          matched = 1;
+        }
+      }
+      if (matched == 0 && fl == 5 && name_equal(&fn_buf[0], fl, &nm_funcs[0], 5)) {
+        pipeline_expr_set_field_access_offset(arena, expr_ref, 17184784);
+        arr_ty = ensure_array_type_ref_named_elem(arena, &nm_fu[0], 4, 256);
+        if (arr_ty != 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
+          matched = 1;
+        }
+      }
+      if (matched == 0 && fl == 9 && name_equal(&fn_buf[0], fl, &nm_num_funcs[0], 9)) {
+        pipeline_expr_set_field_access_offset(arena, expr_ref, 17371152);
+        if (i32r_at != 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_at);
+          matched = 1;
+        }
+      }
+      if (matched != 0) {
+        return 1;
+      }
+    }
+    /* *Module fields (type only; offsets left for layout path). */
+    if (inner_ord == 8 && inner_nm_len == 6 &&
+    name_equal(&inner_nm_buf[0], inner_nm_len, &nm_module[0], 6)) {
+      matched = 0;
+      if (fl == 5 && name_equal(&fn_buf[0], fl, &nm_funcs[0], 5)) {
+        arr_ty = ensure_array_type_ref_named_elem(arena, &nm_fu[0], 4, 256);
+        if (arr_ty != 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
+          matched = 1;
+        }
+      }
+      if (matched == 0 && fl == 14 && name_equal(&fn_buf[0], fl, &nm_struct_layouts_m[0], 14)) {
+        arr_ty = ensure_array_type_ref_named_elem(arena, &nm_sl_m[0], 12, 32);
+        if (arr_ty != 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
+          matched = 1;
+        }
+      }
+      if (matched == 0 && fl == 9 && name_equal(&fn_buf[0], fl, &nm_num_funcs[0], 9)) {
+        if (i32r_mod != 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_mod);
+          matched = 1;
+        }
+      }
+      if (matched == 0 && fl == 18 && name_equal(&fn_buf[0], fl, &nm_num_struct_layouts_m[0], 18)) {
+        if (i32r_mod != 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_mod);
+          matched = 1;
+        }
+      }
+    }
+    if (matched != 0) {
+      return 1;
+    }
+    return 0;
   }
 }
 

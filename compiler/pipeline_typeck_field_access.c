@@ -162,166 +162,20 @@ void pipeline_typeck_field_prebind_c(struct ast_Module *module, struct ast_ASTAr
 }
 
 /**
- * EXPR_FIELD_ACCESS：*ASTArena / *Module 已知字段特判。
- * 返回 1 表示已写入 resolved_type_ref+offset，0 表示未命中。
+ * EXPR_FIELD_ACCESS: *ASTArena / *Module known-field special-case.
+ * R2 (8.3.3): body migrated to typeck.x as typeck_field_known_ptr.
+ * Zero business logic — thin surface for field_access orchestration.
+ * PLATFORM: SHARED.
+ * @return 1 = matched and stamped; 0 = continue field fallbacks.
  */
+int32_t typeck_field_known_ptr(struct ast_Module *module, struct ast_ASTArena *arena,
+                               int32_t expr_ref, int32_t base_ref,
+                               int32_t num_struct_layouts);
+
 int32_t pipeline_typeck_field_known_ptr_types_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                        int32_t expr_ref, int32_t base_ref,
                                                        int32_t num_struct_layouts) {
-  int32_t base_ty;
-  int32_t bt_kind;
-  int32_t elem_ty;
-  uint8_t inner_nm_buf[128] /* wave577 Cap name into */;
-  int32_t inner_nm_len;
-  int32_t inner_ord;
-  int32_t fl;
-  uint8_t fn_buf[128] /* wave577 Cap name into */;
-  static const uint8_t nm_astarena[8] = {65, 83, 84, 65, 114, 101, 110, 97};
-  static const uint8_t nm_types[5] = {116, 121, 112, 101, 115};
-  static const uint8_t nm_num_types[9] = {110, 117, 109, 95, 116, 121, 112, 101, 115};
-  static const uint8_t nm_exprs[5] = {101, 120, 112, 114, 115};
-  static const uint8_t nm_num_exprs[9] = {110, 117, 109, 95, 101, 120, 112, 114, 115};
-  static const uint8_t nm_blocks[6] = {98, 108, 111, 99, 107, 115};
-  static const uint8_t nm_num_blocks[10] = {110, 117, 109, 95, 98, 108, 111, 99, 107, 115};
-  static const uint8_t nm_funcs[5] = {102, 117, 110, 99, 115};
-  static const uint8_t nm_num_funcs[9] = {110, 117, 109, 95, 102, 117, 110, 99, 115};
-  static const uint8_t nm_ty[4] = {84, 121, 112, 101};
-  static const uint8_t nm_ex[4] = {69, 120, 112, 114};
-  static const uint8_t nm_bl[5] = {66, 108, 111, 99, 107};
-  static const uint8_t nm_fu[4] = {70, 117, 110, 99};
-  static const uint8_t nm_module[6] = {77, 111, 100, 117, 108, 101};
-  static const uint8_t nm_funcs_m[5] = {102, 117, 110, 99, 115};
-  static const uint8_t nm_num_funcs_m[9] = {110, 117, 109, 95, 102, 117, 110, 99, 115};
-  static const uint8_t nm_struct_layouts_m[14] = {115, 116, 114, 117, 99, 116, 95, 108, 97, 121, 111, 117, 116, 115};
-  static const uint8_t nm_num_struct_layouts_m[18] = {110, 117, 109, 95, 115, 116, 114, 117, 99, 116, 95, 108, 97,
-                                                     121, 111, 117, 116, 115};
-  static const uint8_t nm_fu_m[4] = {70, 117, 110, 99};
-  static const uint8_t nm_sl_m[12] = {83, 116, 114, 117, 99, 116, 76, 97, 121, 111, 117, 116};
-  int32_t i32r_at;
-  int32_t i32r_mod;
-  int32_t matched;
-  int32_t arr_ty;
-
-  if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
-    return 0;
-  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
-  if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena->num_types)
-    return 0;
-  bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
-  if (bt_kind != (int32_t)ast_TypeKind_TYPE_PTR)
-    return 0;
-  elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
-  if (ast_ref_is_null(elem_ty))
-    return 0;
-  inner_nm_len = pipeline_type_named_name_into(arena, elem_ty, &inner_nm_buf[0]);
-  inner_ord = pipeline_type_kind_ord_at(arena, elem_ty);
-  driver_diagnostic_typeck_ptr_field((int32_t)ast_TypeKind_TYPE_PTR, inner_ord, inner_nm_len, base_ty,
-                                     num_struct_layouts);
-  fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 127)
-    return 0;
-  pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
-  i32r_at = typeck_ensure_i32_type_ref(arena);
-  i32r_mod = typeck_ensure_i32_type_ref(arena);
-  matched = 0;
-  if (inner_ord == (int32_t)ast_TypeKind_TYPE_NAMED && inner_nm_len == 8 &&
-      typeck_name_equal(&inner_nm_buf[0], inner_nm_len, (uint8_t *)&nm_astarena[0], 8)) {
-    if (fl == 5 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&nm_types[0], 5)) {
-      pipeline_expr_set_field_access_offset(arena, expr_ref, 0);
-      arr_ty = typeck_ensure_array_type_ref_named_elem(arena, (uint8_t *)&nm_ty[0], 4, 512);
-      if (arr_ty != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
-        matched = 1;
-      }
-    }
-    if (matched == 0 && fl == 9 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&nm_num_types[0], 9)) {
-      pipeline_expr_set_field_access_offset(arena, expr_ref, 40960);
-      if (i32r_at != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_at);
-        matched = 1;
-      }
-    }
-    if (matched == 0 && fl == 5 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&nm_exprs[0], 5)) {
-      pipeline_expr_set_field_access_offset(arena, expr_ref, 40968);
-      arr_ty = typeck_ensure_array_type_ref_named_elem(arena, (uint8_t *)&nm_ex[0], 4, 32768);
-      if (arr_ty != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
-        matched = 1;
-      }
-    }
-    if (matched == 0 && fl == 9 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&nm_num_exprs[0], 9)) {
-      pipeline_expr_set_field_access_offset(arena, expr_ref, 6234120);
-      if (i32r_at != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_at);
-        matched = 1;
-      }
-    }
-    if (matched == 0 && fl == 6 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&nm_blocks[0], 6)) {
-      pipeline_expr_set_field_access_offset(arena, expr_ref, 6234124);
-      arr_ty = typeck_ensure_array_type_ref_named_elem(arena, (uint8_t *)&nm_bl[0], 5, 8192);
-      if (arr_ty != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
-        matched = 1;
-      }
-    }
-    if (matched == 0 && fl == 10 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&nm_num_blocks[0], 10)) {
-      pipeline_expr_set_field_access_offset(arena, expr_ref, 17184780);
-      if (i32r_at != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_at);
-        matched = 1;
-      }
-    }
-    if (matched == 0 && fl == 5 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&nm_funcs[0], 5)) {
-      pipeline_expr_set_field_access_offset(arena, expr_ref, 17184784);
-      arr_ty = typeck_ensure_array_type_ref_named_elem(arena, (uint8_t *)&nm_fu[0], 4, 256);
-      if (arr_ty != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
-        matched = 1;
-      }
-    }
-    if (matched == 0 && fl == 9 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&nm_num_funcs[0], 9)) {
-      pipeline_expr_set_field_access_offset(arena, expr_ref, 17371152);
-      if (i32r_at != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_at);
-        matched = 1;
-      }
-    }
-    if (matched != 0)
-      return 1;
-  }
-  if (inner_ord == (int32_t)ast_TypeKind_TYPE_NAMED && inner_nm_len == 6 &&
-      typeck_name_equal(&inner_nm_buf[0], inner_nm_len, (uint8_t *)&nm_module[0], 6)) {
-    matched = 0;
-    if (fl == 5 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&nm_funcs_m[0], 5)) {
-      arr_ty = typeck_ensure_array_type_ref_named_elem(arena, (uint8_t *)&nm_fu_m[0], 4, 256);
-      if (arr_ty != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
-        matched = 1;
-      }
-    }
-    if (matched == 0 && fl == 14 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&nm_struct_layouts_m[0], 14)) {
-      arr_ty = typeck_ensure_array_type_ref_named_elem(arena, (uint8_t *)&nm_sl_m[0], 12, 32);
-      if (arr_ty != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
-        matched = 1;
-      }
-    }
-    if (matched == 0 && fl == 9 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&nm_num_funcs_m[0], 9)) {
-      if (i32r_mod != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_mod);
-        matched = 1;
-      }
-    }
-    if (matched == 0 && fl == 18 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&nm_num_struct_layouts_m[0], 18)) {
-      if (i32r_mod != 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_mod);
-        matched = 1;
-      }
-    }
-  }
-  if (matched != 0)
-    return 1;
-  return 0;
+  return typeck_field_known_ptr(module, arena, expr_ref, base_ref, num_struct_layouts);
 }
 
 /**

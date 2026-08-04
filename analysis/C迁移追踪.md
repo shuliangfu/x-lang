@@ -1142,7 +1142,8 @@
   - ✅ `typeck_field_lexer_fallback` → typeck.x（`typeck_field_access_lexer_wrapper_fallback` + EXPR_VAR formal hop）；C thin `pipeline_typeck_field_lexer_fallback_c` 转调
   - ✅ `typeck_field_prebind` → typeck.x（未绑 VAR base → TYPE_NAMED 同名预绑定；形参名跳过）；C thin `pipeline_typeck_field_prebind_c` 转调
   - ✅ `typeck_field_layout_named` → typeck.x（alias peel + PTR/NAMED layout + 用户 enum 返 2 + TypeKind 变体 + `mod.T` 去前缀 + layout deps offset/type + TokenKind.TOKEN_EOF）；C thin `pipeline_typeck_field_layout_named_c` 转调
-  - ⬜ `pipeline_typeck_field_access.c` known_ptr／import_binding／主编排 **仍 C 权威** — 禁止 glue 旁路第二套；**整项未 ✅**
+  - ✅ `typeck_field_known_ptr` → typeck.x（`*ASTArena`／`*Module` 硬编码 SoA 字段 + 偏移／数组类型；`driver_diagnostic_typeck_ptr_field`）；C thin `pipeline_typeck_field_known_ptr_types_c` 转调
+  - ⬜ `pipeline_typeck_field_access.c` import_binding／主编排 **仍 C 权威** — 禁止 glue 旁路第二套；**整项未 ✅**
 
 ⬜ **8.3.4 bootstrap glue / orchestration 折叠进 8.3.1–8.3.2 或删**
 
