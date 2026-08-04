@@ -37,7 +37,7 @@ export function validateXlangLanguageServer(command: string): XlangLspValidation
   if (!fs.existsSync(command)) {
     return {
       ok: false,
-      message: t('{0} not found. Run in repo root: ./xcode bootstrap-driver-seed', command),
+      message: t('{0} not found. Set xlang.serverPath to the xlang binary location.', command),
     };
   }
 
