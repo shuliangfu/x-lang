@@ -185,6 +185,12 @@ static int32_t g_pipeline_asm_al_nc_seq;
  * pipeline_glue_emit_fwd.c (same-TU #include). Pure decls + glue_if_expr_arm_emit_depth
  * static + GLUE_TYPE_NAMED; no function bodies. PLATFORM: SHARED. */
 #include "pipeline_glue_emit_fwd.c"
+/* wave1289 G.7: mid-emit inter-include forward-decl / ordinal shell
+ * (TypeKind/ExprKind ordinals + call/method/panic entry fwd + binop/field
+ * operand loader fwd) migrated to pipeline_glue_emit_mid_fwd.c (same-TU
+ * #include, hoisted before struct_lit — all consumers are later). Pure decls
+ * + #defines; no function bodies. PLATFORM: SHARED. */
+#include "pipeline_glue_emit_mid_fwd.c"
 
 /* BC 8.3.1: asm ELF STRUCT_LIT emit domain
  * (field_store_sz + public wrapper + DEST_IN_RBX/rehome + fields + struct_lit_elf;
@@ -215,18 +221,6 @@ static int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
  * migrated to pipeline_asm_emit_block_inits.c EOF. Definition in
  * pipeline_asm_emit_vector_simd.c (L2218 #include) visible to block_inits.c
  * (#include at L2404, after L2218). PLATFORM: SHARED. */
-
-/** TYPE_ARRAY / TYPE_SLICE 在 TypeKind 序数表中的值（与 ast.x / pipeline_type_kind_ord_at 一致）。 */
-#define GLUE_TYPE_KIND_ARRAY 10
-#define GLUE_TYPE_KIND_SLICE 11
-int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t ref);
-/** TYPE_F32 在 TypeKind 序数表中的值（与 pipeline_asm_index_elem_byte_sz_c 一致）。 */
-#define GLUE_TYPE_KIND_F32_ORD 14
-/** TYPE_F64（ast TypeKind with LINEAR；与 TYPE_F32 同属 SysV SSE 浮点类）。 */
-#define GLUE_TYPE_KIND_F64_ORD 15
-
-/** EXPR_VAR kind 序数（与 ast_ExprKind 一致）。 */
-#define GLUE_EXPR_KIND_VAR 3
 
 /* wave1141-1144 G.7: fixed TYPE_ARRAY local let helpers cluster migrated to
  * pipeline_asm_emit_vector_let.c EOF (glue_type_is_fixed_array +
@@ -313,13 +307,6 @@ static int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct b
 #include "pipeline_asm_emit_index.c"
 
 
-int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                     int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
-int32_t pipeline_asm_emit_method_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
-int32_t pipeline_asm_emit_panic_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                      int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
-
 /* BC 8.3.1: asm ELF EXPR_MATCH / EXPR_IF emit domain
  * (match + expr_if; Cap residual pure; same TU). */
 #include "pipeline_asm_emit_match.c"
@@ -346,20 +333,6 @@ void pipeline_block_let_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t 
 /* BC 8.3.1: asm ELF VAR-decl type-ref + lazy block-let append (shared
  * infrastructure; same TU). */
 #include "pipeline_asm_emit_var_decl.c"
-
-/** Forward: binop operand loader paths (field_access body in field_access leaf). */
-static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);
-static int32_t pipeline_asm_emit_var_field_access_elf_c(struct ast_ASTArena *arena,
-                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
-                                                        struct backend_AsmFuncCtx *ctx, int32_t ta);
-/** Forward: FIELD_ACCESS for binop operand (body in field_access leaf). */
-static int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *arena,
-                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
-                                                           int32_t ta);
-
-int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                        int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /* wave1018 G.7: glue_binop_as_needs_full_emit + try_binop residual
  * (load_operand / clobber / preserve-restore / commutative / left_rax /
