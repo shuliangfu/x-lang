@@ -1137,7 +1137,8 @@
   - ✅ `typeck_soa_find_layout_module_and_idx` → typeck.x（WPO dep 池按名查 layout；C 仅 extern；消费 `pipeline_asm_emit_dep_pipe_c`）
   - ✅ `typeck_soa_field_soa_index` → typeck.x（`arr[i].field` col_base+stride；stride=`typeck_x_type_size` 非 glue；C thin `pipeline_typeck_field_soa_index_c` 转调）
   - ✅ `typeck_soa_fill_field_access_for_asm_emit` → typeck.x（fill 编排：STRUCT_LIT ensure + DOD-CL align inherit + sync offsets + var type backfill + FIELD_ACCESS SoA/AoS stamp）；C thin `pipeline_fill_soa_field_access_for_asm_emit` 转调；4 个 glue static 升 link 面供 typeck_x.o 调用
-  - ⬜ `pipeline_typeck_field_access.c` field resolve **仍 C 权威** — 禁止 glue 旁路第二套；**整项未 ✅**
+  - ✅ `typeck_field_slice` → typeck.x（ARRAY/VECTOR `.length`→usize；SLICE `.length`/@8 + `.data`→*elem/@0）；C thin `pipeline_typeck_field_slice_c` 转调
+  - ⬜ `pipeline_typeck_field_access.c` prebind／layout／name_fallback／lexer_fallback／主编排 **仍 C 权威** — 禁止 glue 旁路第二套；**整项未 ✅**
 
 ⬜ **8.3.4 bootstrap glue / orchestration 折叠进 8.3.1–8.3.2 或删**
 

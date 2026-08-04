@@ -549,58 +549,16 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
  * G.7: extend this authority — no second field_array helper. Emit paths use array_size_at.
  * PLATFORM: SHARED — typeck; host+fs emit co-land same wave.
  */
-void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t base_ref) {
-  int32_t base_ty;
-  int32_t elem_ty;
-  int32_t fl;
-  int32_t bt_kind;
-  uint8_t fn_buf[128] /* wave577 Cap name into */;
-  static const uint8_t len_nm[6] = {108, 101, 110, 103, 116, 104};
-  static const uint8_t dat_nm[4] = {100, 97, 116, 97};
-  int32_t ut;
-  int32_t ptr_ref;
+/**
+ * EXPR_FIELD_ACCESS: slice / fixed-array / vector built-in field typing.
+ * R2 (8.3.3): body migrated to typeck.x as typeck_field_slice.
+ * Zero business logic — thin surface for field_access orchestration.
+ * PLATFORM: SHARED.
+ */
+void typeck_field_slice(struct ast_ASTArena *arena, int32_t expr_ref, int32_t base_ref);
 
-  if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
-    return;
-  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
-  if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena->num_types)
-    return;
-  bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
-  fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 127)
-    return;
-  pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
-  /* wave346: fixed T[N] / SIMD vector lanes — `.length` is compile-time N as usize.
-   * No fat-pointer offset (emit must not load from stack); stamp type only. */
-  if ((bt_kind == (int32_t)ast_TypeKind_TYPE_ARRAY || bt_kind == (int32_t)ast_TypeKind_TYPE_VECTOR)
-      && fl == 6 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&len_nm[0], 6)) {
-    if (pipeline_type_array_size_at(arena, base_ty) <= 0)
-      return;
-    ut = typeck_ensure_usize_type_ref(arena);
-    if (ut != 0)
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ut);
-    return;
-  }
-  if (bt_kind != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return;
-  elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
-  if (ast_ref_is_null(elem_ty))
-    return;
-  if (fl == 6 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&len_nm[0], 6)) {
-    ut = typeck_ensure_usize_type_ref(arena);
-    if (ut != 0)
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ut);
-    /** G.7 authority: fat pointer second word at +8 (layout half, not rbp-distance). */
-    pipeline_expr_set_field_access_offset(arena, expr_ref, 8);
-    return;
-  }
-  if (fl == 4 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&dat_nm[0], 4)) {
-    /** G.7 authority: .data is *elem for every slice element kind (i32/u8/u64/…). */
-    pipeline_expr_set_field_access_offset(arena, expr_ref, 0);
-    ptr_ref = find_or_alloc_ptr_type_ref(arena, elem_ty);
-    if (ptr_ref != 0)
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ptr_ref);
-  }
+void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t base_ref) {
+  typeck_field_slice(arena, expr_ref, base_ref);
 }
 
 /**

@@ -76,6 +76,7 @@ field_ty: i32, base_ty: i32): i32;
 export extern function pipeline_typeck_field_prebind_c(module: *Module, arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): void;
 export extern function pipeline_typeck_field_known_ptr_types_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, num_layouts: i32): i32;
 export extern function pipeline_typeck_field_layout_named_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32;
+/* R2 (8.3.3): field_slice authority is typeck_field_slice below; C surface is thin. */
 export extern function pipeline_typeck_field_slice_c(arena: *ASTArena, expr_ref: i32, base_ref: i32): void;
 export extern function pipeline_typeck_field_name_fallback_c(arena: *ASTArena, expr_ref: i32, base_ref: i32): void;
 export extern function pipeline_typeck_field_lexer_fallback_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): void;
@@ -2292,6 +2293,91 @@ export function typeck_soa_fill_field_access_for_asm_emit(module: *Module, arena
     }
     pipeline_asm_emit_set_func_index(saved_fi);
     pipeline_debug_trace_named_func_bodies("fill_cl_post", module, arena);
+  }
+}
+
+/**
+ * R2 (8.3.3): EXPR_FIELD_ACCESS built-in field typing for slices / fixed arrays /
+ * SIMD vectors.
+ *
+ * Migrated from C `pipeline_typeck_field_slice_c` (pipeline_typeck_field_access.c)
+ * to .x authority. Public surface `pipeline_typeck_field_slice_c` remains a thin
+ * C forwarder so EMIT_HEAVY field_access orchestration keeps the same call name.
+ *
+ * Semantics (G.7 single authority; match asm emit fat layout):
+ *  - TYPE_ARRAY / TYPE_VECTOR `.length` → usize when array_size > 0; no offset
+ *    stamp (compile-time N; emit must not load from stack).
+ *  - TYPE_SLICE `.length` → usize + field_access_offset = 8 (fat second word).
+ *  - TYPE_SLICE `.data` → *elem + field_access_offset = 0.
+ *
+ * @param arena *ASTArena — expr/type arena (null → no-op)
+ * @param expr_ref i32 — FIELD_ACCESS expr
+ * @param base_ref i32 — field base expr (must have resolved_type_ref)
+ * @return void
+ * PLATFORM: SHARED — G.7; data@0 length@8 fat layout shared with asm emit.
+ */
+export function typeck_field_slice(arena: *ASTArena, expr_ref: i32, base_ref: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let base_ty: i32 = 0;
+    let elem_ty: i32 = 0;
+    let fl: i32 = 0;
+    let bt_kind: i32 = 0;
+    let fn_buf: u8[128] = [];
+    /* "length" / "data" as byte arrays (no string lit dependence). */
+    let len_nm: u8[6] = [108, 101, 110, 103, 116, 104];
+    let dat_nm: u8[4] = [100, 97, 116, 97];
+    let ut: i32 = 0;
+    let ptr_ref: i32 = 0;
+    if (arena == 0 as *ASTArena || base_ref <= 0 || base_ref > arena.num_exprs) {
+      return;
+    }
+    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+    if (base_ty <= 0 || base_ty > arena.num_types) {
+      return;
+    }
+    bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
+    fl = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (fl <= 0 || fl > 127) {
+      return;
+    }
+    pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
+    /* TYPE_ARRAY=10, TYPE_VECTOR=13: fixed T[N] / SIMD lanes — .length is N. */
+    if ((bt_kind == 10 || bt_kind == 13) && fl == 6 && name_equal(&fn_buf[0], fl, &len_nm[0], 6)) {
+      if (pipeline_type_array_size_at(arena, base_ty) <= 0) {
+        return;
+      }
+      ut = ensure_usize_type_ref(arena);
+      if (ut != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, ut);
+      }
+      return;
+    }
+    /* TYPE_SLICE=11 */
+    if (bt_kind != 11) {
+      return;
+    }
+    elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
+    if (elem_ty <= 0) {
+      return;
+    }
+    if (fl == 6 && name_equal(&fn_buf[0], fl, &len_nm[0], 6)) {
+      ut = ensure_usize_type_ref(arena);
+      if (ut != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, ut);
+      }
+      /* G.7: fat pointer second word at +8 (layout half, not rbp-distance). */
+      pipeline_expr_set_field_access_offset(arena, expr_ref, 8);
+      return;
+    }
+    if (fl == 4 && name_equal(&fn_buf[0], fl, &dat_nm[0], 4)) {
+      /* G.7: .data is *elem for every slice element kind. */
+      pipeline_expr_set_field_access_offset(arena, expr_ref, 0);
+      ptr_ref = find_or_alloc_ptr_type_ref(arena, elem_ty);
+      if (ptr_ref != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, ptr_ref);
+      }
+    }
   }
 }
 
