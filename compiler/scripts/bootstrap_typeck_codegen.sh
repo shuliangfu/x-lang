@@ -251,7 +251,7 @@ run_force_gen() {
   # $1 = typeck|codegen|...
   log "ensure_migrate_gen FORCE_REGEN $1"
   MAKE="$MAKE" XLANG_C="$XLANG_C" XLANG_FORCE_REGEN_GEN=1 \
-    sh scripts/ensure_migrate_gen.sh "$1"
+    bash scripts/ensure_migrate_gen.sh "$1"
 }
 
 run_migrate() {

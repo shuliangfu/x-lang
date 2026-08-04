@@ -151,7 +151,7 @@ ensure_gen_file() {
   fi
   log "missing $gen → ensure_lsp_pipeline_gen $mode"
   MAKE="$MAKE" XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}" \
-    sh scripts/ensure_lsp_pipeline_gen.sh "$mode"
+    bash scripts/ensure_lsp_pipeline_gen.sh "$mode"
 }
 
 build_lsp_io_x() {
@@ -278,7 +278,7 @@ build_lexer_x() {
   # PLATFORM: SHARED.
   if [ -f scripts/ensure_migrate_gen.sh ]; then
     MAKE="$MAKE" XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}" \
-      sh scripts/ensure_migrate_gen.sh lexer || return 1
+      bash scripts/ensure_migrate_gen.sh lexer || return 1
   elif [ ! -f lexer_gen.c ]; then
     log "missing lexer_gen.c (run ensure_migrate_gen lexer / make lexer_gen.c first)"
     return 1
