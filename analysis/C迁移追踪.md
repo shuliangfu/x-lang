@@ -1,6 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
+> **状态刷新**：2026-08-04（对照 tip residual：glue ~3.4k／ast_pool ~11.6k／ELF write 域抽出；**只改勾选与事实 LOC**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -32,8 +33,8 @@
 | **R2 真迁退役** | 🟡 ~85% | 128 prove 模块中 ~120 已 R2；Cap residual 待消灭 ~8 模块 |
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
-| **Pinned gen.c 退役** | 🟡 12/30 | Track L 退役 12 个（wave1036 lsp_io_gen + wave1038 build_gen + wave1039 build_runner_gen + wave1040 build_runtime_x_gen）；build_*_gen 三件套全退役；仍 pinned 18 个（前端核心 + 工具链 + 测试） |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3：`pipeline_glue` ~16.7k + `ast_pool` ~12.9k；8.3.1 五十二刀（+…／array_lit durable／**slice reent**／**var_decl+lazy_append 共享叶**／**slice dual-GP+slice_from_array 同叶**／**sret return path 同叶**／**field_access layout/offset 同叶**／**lea/arm64 sret helpers 同叶**／**async CPS emit domain 同叶**／**x86 micro-encoders 同叶**／**with_arena scope domain 同叶**／**cmp cc helpers 同叶**／**empty struct check 同叶**／**TokenKind variant tag 同叶**／**float bits lo/hi 同叶**／**struct_lit field offset/type_ref 同叶**／**16 个 try_index_var_* fwd 清理**／**block_final_expr 同叶**／**array_let_empty_init 同叶**／**struct_layout_compute_field_offset 同叶**／**func_param_agg_byte_size 同叶**／**func_return_byte_size 同叶**／**func_param_home_width 同叶**／**call_return_byte_size 同叶**／**struct_layout_index_by_type_name 同叶**／**struct_layout_field_offset_by_name 同叶**／**struct_lit_value_bytes 同叶**）+ 8.3.2 …+top_level residual 已切；8.3.9 ✅；其余 ⬜ |
+| **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-04 实测**）：`pipeline_glue.c` **~3.4k**（静态叶基本 fold 完，文件多为 domain `#include` + 薄 wrapper）；`ast_pool.c` **~11.6k**（域 thin 已切 + **ELF/Mach-O write → pipeline_elf_write_o.c ~1.6k**；ELF ctx／WPO／skip 等仍 core）。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + write 域 ✅ 子项**；**8.3.3 field_access／soa 已抽出仍 host-cc 🟡**；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -51,7 +52,7 @@
 | 层 | 含义 | 今日状态 | 失败时的假绿 |
 |----|------|----------|--------------|
 | **MG · 编排层** | 不依赖 `make` / `compiler/Makefile` / 顶层 `Makefile` 完成 build / L4 / bootstrap | ✅ Makefile 物理删除 · bootstrap 0 make · catalog 单权威（mk/*.mk）· 双端 L4 绿 | 只删入口 Makefile、实现层仍 `make -C compiler` |
-| **BC · 自举编译层** | 编译器自身 TU **不**再被 host `cc/gcc/clang` 编译（.x→纯 asm `.o` 或等价） | 🟡 已开（库存机检冻结；glue/ast 仍 host-cc） | seed 用 xlang `-E` 出 C 再交给 gcc |
+| **BC · 自举编译层** | 编译器自身 TU **不**再被 host `cc/gcc/clang` 编译（.x→纯 asm `.o` 或等价） | 🟡 已开（inventory 冻结；**glue 叶已 fold、ast_pool 续迁**；`pipeline_x` 仍 host-cc mega-TU） | seed 用 xlang `-E` 出 C 再交给 gcc |
 | **PC · 产品默认后端** | 用户程序默认 **`-backend asm`**（或纯自研目标）；**不**默认 emit C 再 `exec` host-cc；`labi_invoke_cc*` 退役或仅 opt-in | ⬜ `-backend c` 与 labi invoke_cc 仍在产品面 | 自举绿但用户 `-o` 仍调 gcc |
 
 > **用户主目标对齐**：以 **去掉 Makefile（MG）** 为终局叙事主闸门；MG 物理删除的**前置**是 BC 足够小（glue/gen 可被 xbuild 用 xlang 编）且编排逻辑迁到 xbuild / g05 已覆盖的 shell·.x。  
@@ -86,6 +87,8 @@
 ✅ **0.2 工程轨 vs 产品轨分清**（禁止工程轨绿当自举完成）2026-07-15
 
 ✅ **0.3 日常真测 vs 真冷全测节奏**（L2/L3 日常 · L4 整波收口）2026-07-16
+
+✅ **0.3b 每步自举先 `xlang check` 再 L2**（skill §3.3.0 · 自举验证 §4.0）2026-08-04
 
 ✅ **0.4 双端验证纪律**（macOS 开发 + Ubuntu 金标）
 
@@ -895,15 +898,17 @@
 ### 8.3 非 gen 产品 C / 链接桩（原文档大漏 · **删 Makefile 体积主债**）
 
 > **定义**：不叫 `*_gen.c`，但 **产品链 / bootstrap-driver-seed / g05** 仍 `$(CC) -c` 的 C 体与符号桩。  
-> **规模（2026-07-29 仓库实测）**：仅 glue+ast_pool 系 **~60,574 LOC**，远大于多数 gen 单文件；不迁完则 xbuild **无法**在 BC 层摆脱 host-cc。  
+> **规模（2026-07-29 初测）**：glue+ast_pool 系曾 **~60k LOC**。  
+> **规模（2026-08-04 刷新）**：`pipeline_glue.c` **~3.4k** + `ast_pool.c` **~11.6k** + 已抽出 domain 叶合计仍大（同 TU `#include` 入 `pipeline_x`，**仍 host-cc**）；不离 host-cc 则 **BC 终局未达成**。  
 > **G.7**：glue 与 typeck.x / codegen.x 禁止长期双权威；迁时同 commit 收敛。  
-> **地图用途**：动 8.3 前先查消费方，禁止只改一端。
+> **地图用途**：动 8.3 前先查消费方，禁止只改一端。  
+> **勾选语义**：域 thin「已抽出」= ✅ 子项；**整项 8.3.x 离 host-cc** 才把父项改 ✅。
 
-#### 8.3 体积地图（主债文件 · 实测 LOC）
+#### 8.3 体积地图（主债文件 · 2026-08-04 实测 LOC）
 
 | 文件（compiler/） | LOC | 角色 | 状态 |
 |-------------------|-----|------|------|
-| `pipeline_glue.c` | ~27,808 | 产品 mega glue（typeck/codegen/asm…） | 🟡 CTFE+…+asm_emit_binop+asm_emit_cmp 域已切出；其余仍在 |
+| `pipeline_glue.c` | **~3,408** | 产品 mega glue 壳（多为 `#include` + 薄 wrapper） | 🟡 **静态叶基本收口**；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_ctfe.c` | 1,177 | typeck CTFE 生产者切片（同 TU `#include`） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_assign.c` | 348 | typeck assign 域切片（lit 收窄 + EXPR_ASSIGN） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_coerce_init.c` | 460 | typeck coerce-init 域切片（lit/float/enum/call/array/struct…） | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
@@ -932,7 +937,7 @@
 | `pipeline_asm_emit_struct_let.c` | ~215 | asm ELF struct let-init（struct_let_init + type_let_init + sret shift）切片 | 🟡 已抽出（wave1007）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_index_helpers.c` | ~3135 | asm ELF INDEX residual helpers（slot+esz+try_index forest+lvalue_eff_addr elf+text）切片 | 🟡 已抽出；lvalue_text wave1013 有则补全；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_spill.c` | ~2549 | asm ELF 7.3 live／Chaitin spill／bulk_mem + break／continue faces 切片 | 🟡 已抽出；break／continue faces wave1014 有则补全；仍 host-cc 入 `pipeline_x` |
-| `ast_pool.c` | ~12,875 | AST 池 / MatchArm / sidecar | 🟡 module_import+…+top_level hoist_target／sum residual 已切；backend asm wrappers／path helpers 仍 core |
+| `ast_pool.c` | **~11,624** | AST 池 / MatchArm / sidecar / ELF ctx / WPO | 🟡 多域 thin 已切 + **ELF/Mach-O write 已切出**；ELF ctx／resolve_patches／WPO／skip／path 等仍 core |
 | `ast_pool_module_import.c` | ~226 | module ImportEntry cold-twin accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_struct_layout.c` | ~385 | module StructLayout cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_top_level.c` | ~326 | module TopLevelLetEntry + name_is_const／hoist + hoist_target／sum residual 切片 | 🟡 已抽出（wave980+993–994 有则补全）；仍 host-cc 入 `pipeline_x` |
@@ -944,12 +949,18 @@
 | `ast_pool_module_func.c` | ~445 | module Func cold accessors + param sidecar 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_arena.c` | ~248 | ASTArena main-pool cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_block.c` | ~1,439 | block append/region/defer + loop/labeled/getters + parent/resolve + stmt_order rebuild residual 切片 | 🟡 已抽出（wave988–990+992 有则补全）；仍 host-cc 入 `pipeline_x` |
-| `pipeline_typeck_field_access.c` | 1,477 | field_access 权威切片（常被 glue 拉入） | ⬜ |
-| `pipeline_typeck_soa.c` | 255 | typeck SOA 辅助 | ⬜ |
-| `ast_pool_bootstrap_glue.c` | 632 | 冷启动 ast 桥 | ⬜ |
-| `pipeline_bootstrap_orchestration.c` | 5 | 编排占位 | ⬜ |
-| `pipeline_glue_strict_minimal`（seed → 产品链） | — | 产品 weak 孪生 | ⬜ |
-| bare link alias / stubs 族 | 小 | `*_bare_link_alias.c` · `_stubs.c` · `xlang_x_stubs.c` · `typeck_c_module_stubs.c` 等 | ⬜ |
+| `pipeline_typeck_field_access.c` | **~1,619** | field_access 权威切片（同 TU 入 glue） | 🟡 **已抽出**；仍 host-cc；**.x 权威收敛 8.3.3 未完** |
+| `pipeline_typeck_soa.c` | **~375** | typeck SOA 辅助 | 🟡 **已抽出**；部分 helper 已进 typeck.x；仍 host-cc |
+| `pipeline_elf_write_o.c` | **~1,581** | ELF64 ET_REL + Mach-O MH_OBJECT `.o` writers | 🟡 **已抽出**（8.3.2）；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_codegen_mega_body.c` | ~223 | asm codegen mega_body 主循环 | 🟡 **已抽出**；仍 host-cc |
+| `pipeline_parse_orch.c` | ~1,038 | parse/load/typeck 编排 | 🟡 **已抽出**；仍 host-cc |
+| `pipeline_ast_forwarders.c` | ~667 | ast_pipeline_* forwarder 簇 | 🟡 **已抽出**；仍 host-cc |
+| `pipeline_elf_codegen_forwarders.c` | ~223 | elf/codegen 前缀 forwarder | 🟡 **已抽出**；仍 host-cc |
+| `pipeline_asm_emit_context.c` | ~743 | AsmFuncCtx setters/getters | 🟡 **已抽出**；仍 host-cc |
+| `ast_pool_bootstrap_glue.c` | 632 | 冷启动 ast 桥 | 🟡 已在产品链；**折叠／删 8.3.4 ⬜** |
+| `pipeline_bootstrap_orchestration.c` | 5 | 编排占位 | 🟡 占位存在；**折叠／删 8.3.4 ⬜** |
+| `pipeline_glue_strict_minimal`（seed → 产品链） | — | 产品 weak 孪生 | 🟡 仍在链；**退役策略 8.3.6 ⬜** |
+| bare link alias / stubs 族 | 小 | `*_bare_link_alias.c` · `_stubs.c` · `xlang_x_stubs.c` · `typeck_c_module_stubs.c` 等 | 🟡 仍在链；**8.3.5 退役 ⬜** |
 
 #### 8.3 消费方地图（谁还拉 glue · 迁时必同改）
 
@@ -966,7 +977,8 @@
 🟡 **8.3.1 `pipeline_glue.c` → .x（或按域切 thin + 唯一权威）**
 
   - 爆炸半径：几乎所有 typeck/codegen/asm 产品路径
-  - 验收：产品链不再 `cc -c pipeline_glue.c`；Ubuntu L4 + 129
+  - 验收（父项 ✅ 条件）：产品链不再 host-cc 编 glue mega-TU；Ubuntu L4 + 129
+  - **进度（2026-08-04）**：glue 文件 **~3.4k**；**业务 static 叶基本 fold 完**（残留 mainly `#include` + 极薄 wrapper）；**父项仍 🟡**（未离 host-cc）
   - ✅ CTFE 域 thin：`pipeline_typeck_ctfe.c`（const whitelist + fold 生产者）自 glue 同 TU `#include` 抽出
   - ✅ assign 域 thin：`pipeline_typeck_assign.c`（lit i16/u16 收窄 + `check_expr_assign` 生产者）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` / g05 STALE / inventory 已收
   - ✅ coerce_init 域 thin：`pipeline_typeck_coerce_init.c`（lit/float/enum/call/array｜vector/int binop/struct/slice + `coerce_init_expr_to_decl` 分发）自 glue 同 TU `#include` 抽出；`PIPELINE_X_DEPS` COUNT 23→24 / g05 STALE / inventory 已收
@@ -991,11 +1003,18 @@
   - ✅ asm CALL-arg emit domain thin：`pipeline_asm_emit_call_args.c`（lea_not_load + dual-GP load_var + named layout size + pass_addr + for_call_args · ~792 LOC body／~831 file）自 glue 同 TU `#include` 抽出；resolve_* 仍 glue（leaf VAR 共享）；CALL／METHOD_CALL 仍 seed；`PIPELINE_X_DEPS` COUNT 53→54 / g05 STALE / inventory 已收（wave1003）
   - ✅ asm STRUCT_LIT emit domain thin：`pipeline_asm_emit_struct_lit.c`（field_store_sz + public wrapper + DEST_IN_RBX/rehome + fields + struct_lit_elf · ~444 LOC body／~484 file）自 glue 同 TU `#include` 抽出；store_fixed_array_field／vector_let 本波后进 vector_let 叶；`PIPELINE_X_DEPS` COUNT 54→55 / g05 STALE / inventory 已收（wave1004）
   - ✅ asm vector_let／fixed-array field store domain thin：`pipeline_asm_emit_vector_let.c`（leaf_elem_byte_sz + array_lit_flat + vector_let_init + field_frame_mag + store_fixed_array_field · ~645 LOC body／~686 file）自 glue 同 TU `#include` 抽出；glue_emit_fixed_array_type_let_init 仍 glue 薄包装；SIMD lane 仍 glue；`PIPELINE_X_DEPS` COUNT 55→56 / g05 STALE / inventory 已收（wave1005）
-  - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
+  - ✅ glue 静态叶迁移基本收口：剩余 static 为跨域基础设施（ctx_layout／arena accessor／var stack off／type kind 映射等），不宜再硬拆；业务 leaf 已 fold；文件 ~3.4k 多为 `#include`
+  - ✅ asm mega_body 主循环域 thin：`pipeline_asm_codegen_mega_body.c`
+  - ✅ asm loop_labels／slice_init／float_lit／region／call_slice_region／fill_soa／fill_array_lit 等续 fold（同 TU 入既有域文件）
+  - ✅ dead fn + 冗余 fwd decl 清理（glue／ast_pool 零 caller 符号）
+  - ✅ `#if 0` 死代码块物理删除（glue）
+  - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）— **域 thin 子项 ✅ ≠ 父项 BC 完成**
 
 🟡 **8.3.2 `ast_pool.c` → .x / 已有 ast.x 权威收敛**
 
   - MatchArm / GrowVec / module sidecar 与 parser pin 同生命周期
+  - 验收（父项 ✅ 条件）：ast_pool 业务体不再 host-cc；与 ast.x 单权威
+  - **进度（2026-08-04）**：core **~11.6k**；多域 thin 已切 + **ELF/Mach-O write 已切出**；ELF ctx／WPO／skip／path 仍 core
   - ✅ module_import 域 thin：`ast_pool_module_import.c`（XLANG_WEAK ImportEntry cold twins ~208 LOC）自 `ast_pool.c` 同 TU `#include` 抽出；COUNT 34→35
   - ✅ struct_layout 域 thin：`ast_pool_struct_layout.c`（`pipeline_module_struct_layout_*` + num + type_param meta ~365 LOC）同 TU 抽出；COUNT 35→36 / g05 STALE / inventory 已收
   - ✅ top_level 域 thin：`ast_pool_top_level.c`（`pipeline_module_top_level_let_*` ~113 LOC）同 TU 抽出；COUNT 36→37 / g05 STALE / inventory 已收
@@ -1013,7 +1032,8 @@
   - ✅ stmt_order rebuild residual 有则补全：`ast_pool_block.c` insert/fixup/sparse_ifs/module_fixup（~299 LOC；file ~1439）；COUNT 仍 45；name_is_const + hoist 仍 core（wave992）
   - ✅ top_level name_is_const／hoist residual 有则补全：`ast_pool_top_level.c` 迁入 name_is_const + hoist_top_level_lets_into_main（~115 LOC；file ~249）；COUNT 仍 45；block 后 include 可见 static prepend_lets（wave993）
   - ✅ top_level hoist_target／sum residual 有则补全：`ast_pool_top_level.c` 迁入 `pipeline_asm_hoist_target_func_index` + `pipeline_asm_sum_module_top_level_lets_stack`（~77 LOC；file ~326）；COUNT 仍 45；modlet／slot helpers 仍 glue extern（wave994）
-  - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）
+  - ✅ ELF/Mach-O `.o` writers 域 thin：`pipeline_elf_write_o.c`（standard + PGO ELF + macho + `platform_macho_write_macho_o_to_buf` · ~1.6k）；g05 STALE／inventory／`PIPELINE_X_DEPS` 已收
+  - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）— **域 thin 子项 ✅ ≠ 父项 BC 完成**
   - ✅ asm struct let-init domain thin：`pipeline_asm_emit_struct_let.c`（struct_let_init + glue_emit_struct_type_let_init + sret reg shift · ~176 LOC body／~215 file）自 glue 同 TU `#include` 抽出；store_retval／type_size 仍 glue；`PIPELINE_X_DEPS` COUNT 57→58 / g05 STALE / inventory 已收（wave1007）
   - ✅ asm INDEX residual helpers domain thin：`pipeline_asm_emit_index_helpers.c`（module_from_ctx + param/local slot + field_type_ref + fixed_array_total_bytes + index_elem_byte_sz_from_type_ref + try_index forest + soa_index_field_addr + lvalue_eff_addr · ~2988 LOC body／~3038 file）自 glue 同 TU `#include` 抽出；eff_addr_scaled／assign finish_store／bulk_mem_copy／Chaitin spill 仍 glue；`PIPELINE_X_DEPS` COUNT 58→59 / g05 STALE / inventory 已收（wave1008）
   - ✅ asm 7.3 live／Chaitin spill／bulk_mem／index-assign residual thin：`pipeline_asm_emit_spill.c`（live_fwd + CFG phi + color + bulk_mem_copy_spills + index_assign_finish_store + index scratch／binop_stack_spill methods · ~2487 LOC body／~2532 file）自 glue 同 TU `#include` 抽出；CAP statics 仍 index_helpers；eff_addr_scaled 仍 glue；`PIPELINE_X_DEPS` COUNT 59→60 / g05 STALE / inventory 已收（wave1009）
@@ -1034,32 +1054,40 @@
   - ✅ asm slice dual-GP helpers + slice_from_array G.7 同叶 fold：`pipeline_asm_emit_block_inits.c` 迁入 `glue_slice_dual_gp_length_off_c`（~5 LOC）+ `glue_slice_dual_gp_bump_past_home_c`（~14 LOC）+ `glue_emit_slice_from_array_let_init_elf_c`（~150 LOC 自 glue residual；file ~171→~402）；COUNT 仍 62；glue ~18.7k→~18.5k；被 block_inits + call_args（slice_let_reent_deep_copy）共享（length_off 早期 fwd 保留供 call_args）（wave1024）
   - ✅ asm sret return path helpers G.7 同叶 fold：`pipeline_asm_emit_return.c` 迁入 `glue_emit_sret_memcpy_rbx_to_home_elf_c` + `glue_emit_sret_return_from_var_elf_c` + `glue_copy_large_struct_from_rax_ptr_elf_c`（~103 LOC body 自 glue residual；file ~643→~772）；COUNT 仍 62；glue ~18.5k→~18.4k；被 return + struct_lit（sret_memcpy）+ struct_let（copy_large_struct via store_retval_pair）共享（glue 1989-1993 fwd 保留；新增 glue_enc_local_slot_ptr_or_addr_rbx_elf_c fwd——index_helpers 在 return 之后 #include）（wave1025）
   - ✅ asm field_access layout/offset helpers G.7 同叶 fold：`pipeline_asm_emit_field_access.c` 迁入 `glue_dep_layout_field_offset_by_name_c` + `glue_field_layout_offset_for_{var_base,base}_field` + `glue_field_access_effective_offset_c` + `pipeline_expr_field_access_layout_offset` + `glue_field_access_load_bytes_for_type_ref` + `pipeline_expr_field_access_load_byte_sz`（~395 LOC body 自 glue residual；file ~632→~1025）；COUNT 仍 62；glue ~18.4k→~18.0k；被 field_access + index_helpers／assign／index_eff_addr／vector_let 共享（glue 1726-1727 public fwd 保留；2500 static fwd 保留；新增 typeck_get_field_offset_from_layout_deps／pipeline_dep_ctx_ndep／pipeline_dep_ctx_module_at extern）（wave1026）
-  - ⬜ 下一域候选：8.3.1 其它 leaf residual 或 8.3.3 soa
+  - 🟡 下一域候选（父项仍 🟡）：ast_pool ELF ctx／resolve_patches／WPO／skip；或 8.3.3 field_access 权威收敛
 
-⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
+🟡 **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
-  - ✅ wave1219: `typeck_soa_array_storage_size_glue` 已从 C bypass 迁到 typeck.x 权威（export function）；2 个 static C helpers（typeck_soa_find_layout_idx_by_name／typeck_soa_col_base_for_field）改为 non-static extern（retained for pipeline_typeck_field_soa_index_c）；.x 实现用 typeck_x_type_align 替代 C glue_type_align_simple（G.7 twin）；seed 同步；macOS L2 green
-  - ⬜ `pipeline_typeck_field_access.c` field resolve 仍 C 权威 — 禁止 glue 旁路第二套 field resolve
+  - 验收（父项 ✅）：field resolve 唯一权威在 typeck.x；C 叶仅 thin 或删
+  - ✅ 文件已抽出同 TU：`pipeline_typeck_field_access.c` ~1.6k · `pipeline_typeck_soa.c` ~375（仍 host-cc）
+  - ✅ `typeck_soa_array_storage_size_glue` 已从 C bypass 迁到 typeck.x 权威；2 static helpers 改为 non-static extern（供 field_soa_index）；.x 用 typeck_x_type_align（G.7 twin）
+  - ⬜ `pipeline_typeck_field_access.c` field resolve **仍 C 权威** — 禁止 glue 旁路第二套；**整项未 ✅**
 
 ⬜ **8.3.4 bootstrap glue / orchestration 折叠进 8.3.1–8.3.2 或删**
+
+  - 🟡 `ast_pool_bootstrap_glue.c`／`pipeline_bootstrap_orchestration.c` **仍在链**（未折叠／未删）
 
 ⬜ **8.3.5 链接桩 / bare alias 退役**
 
   - `ast_asm_bare_link_alias.c` · `backend_asm_*_alias.c` · `typeck_asm_bare_link_alias.c` · `x_frontend_link_alias.c` · `_stubs.c` · `_x_stubs2.c` · `xlang_x_stubs.c` · `typeck_c_module_stubs.c`
   - 目标：符号面由 .x `#[no_mangle]` / 单一 mangle 权威提供，无「为让 ld 安静」的永久 C 桩
+  - 🟡 **桩文件仍在链** — 未退役
 
 ⬜ **8.3.6 `seeds/*.from_x.c` 全表退役策略**
 
   - 今日 **~329** 个 seeds `.c`：分 **产品 pin** / **prove surface** / **EMPTY surface** / **strict_minimal**
   - 终局：冷启动不读 from_x 业务体；surface 仅考古或生成物不入库（策略二选一写清）
+  - ⬜ 策略未定稿／未执行
 
 ⬜ **8.3.7 scripts 下 asm stub C**
 
   - `compiler/scripts/asm_text_stub.c` · `asm_xlang_lsp_diag_stub.c` 等 — 随 xbuild/g05 迁走或删
+  - 🟡 文件仍存在
 
 ⬜ **8.3.8 `build_asm/gen_driver/*.c`（10 个 · 物理在 compiler/ 外）**
 
   - `build_asm/gen_driver/pipeline_gen.c` · `lsp_io_gen.c` · `driver_check.c` · `preprocess_gen.c` · `driver_fmt.c` · `lsp_gen.c` · `lsp_io_std_heap_gen.c` · `driver_gen.c` · `driver_test.c`
+  - 🟡 仍被 g05／partial 引用
   - 被 g05 / partial 脚本引用；属构建链产物，物理位置在 compiler/ 之外
 
 ✅ **8.3.9 `analysis/_debug_io_ctx_gen.c` 孤儿 .c**
