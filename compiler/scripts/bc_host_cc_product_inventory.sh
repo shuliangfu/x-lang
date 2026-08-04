@@ -137,6 +137,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_codegen_struct_emit.c|8.3.2|codegen struct emit (wave1250)|170|present"
   "compiler/pipeline_codegen_residual.c|8.3.2|codegen residual name/predicate (wave1251)|130|present"
   "compiler/pipeline_asm_ctx_layout.c|8.3.1|AsmFuncCtx layout + cast helper early domain (wave1283)|40|present"
+  "compiler/pipeline_glue_early_fwd.c|8.3|glue early forward-decl/extern shell (wave1284)|180|present"
   "compiler/pipeline_asm_locals.c|8.3.2|asm locals + block slot sidecar (wave1252)|200|present"
   "compiler/pipeline_asm_slot_bytes.c|8.3.2|asm slot bytes + ensure_block_locals (wave1253)|320|present"
   "compiler/pipeline_asm_block_tree.c|8.3.2|asm block tree traversal + frame sizing (wave1254)|210|present"
