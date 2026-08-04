@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-04（对照 tip residual：glue ~3.4k／ast_pool ~8.6k／ELF write + ELF ctx + type-to-c + skip/force + struct emit + residual + asm locals + slot bytes + block tree 域抽出；**只改勾选与事实 LOC**，无波次流水）  
+> **状态刷新**：2026-08-04（对照 tip residual：glue ~3.4k／ast_pool ~8.4k／ELF write + ELF ctx + type-to-c + skip/force + struct emit + residual + asm locals + slot bytes + block tree + ctx loop 域抽出；**只改勾选与事实 LOC**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -34,7 +34,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-04 实测**）：`pipeline_glue.c` **~3.4k**（静态叶基本 fold 完，文件多为 domain `#include` + 薄 wrapper）；`ast_pool.c` **~8.6k**（域 thin 已切 + **ELF write → pipeline_elf_write_o.c ~1.6k** + **ELF ctx → pipeline_elf_ctx.c ~1k** + **type-to-c → pipeline_codegen_type_to_c.c ~350** + **skip/force → pipeline_codegen_skip_force.c ~393** + **struct emit → pipeline_codegen_struct_emit.c ~243** + **residual → pipeline_codegen_residual.c ~188** + **asm locals → pipeline_asm_locals.c ~296** + **slot bytes → pipeline_asm_slot_bytes.c ~462** + **block tree → pipeline_asm_block_tree.c ~272**；WPO 等仍 core）。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + write 域 ✅ 子项**；**8.3.3 field_access／soa 已抽出仍 host-cc 🟡**；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-04 实测**）：`pipeline_glue.c` **~3.4k**（静态叶基本 fold 完，文件多为 domain `#include` + 薄 wrapper）；`ast_pool.c` **~8.4k**（域 thin 已切 + **ELF write → pipeline_elf_write_o.c ~1.6k** + **ELF ctx → pipeline_elf_ctx.c ~1k** + **type-to-c → pipeline_codegen_type_to_c.c ~350** + **skip/force → pipeline_codegen_skip_force.c ~393** + **struct emit → pipeline_codegen_struct_emit.c ~243** + **residual → pipeline_codegen_residual.c ~188** + **asm locals → pipeline_asm_locals.c ~296** + **slot bytes → pipeline_asm_slot_bytes.c ~462** + **block tree → pipeline_asm_block_tree.c ~272** + **ctx loop → pipeline_asm_ctx_loop.c ~189**；WPO 等仍 core）。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + write 域 ✅ 子项**；**8.3.3 field_access／soa 已抽出仍 host-cc 🟡**；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -937,7 +937,7 @@
 | `pipeline_asm_emit_struct_let.c` | ~215 | asm ELF struct let-init（struct_let_init + type_let_init + sret shift）切片 | 🟡 已抽出（wave1007）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_index_helpers.c` | ~3135 | asm ELF INDEX residual helpers（slot+esz+try_index forest+lvalue_eff_addr elf+text）切片 | 🟡 已抽出；lvalue_text wave1013 有则补全；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_spill.c` | ~2549 | asm ELF 7.3 live／Chaitin spill／bulk_mem + break／continue faces 切片 | 🟡 已抽出；break／continue faces wave1014 有则补全；仍 host-cc 入 `pipeline_x` |
-| `ast_pool.c` | **~9,697** | AST 池 / MatchArm / sidecar / WPO | 🟡 多域 thin 已切 + **ELF/Mach-O write 已切出** + **ELF ctx 已切出** + **type-to-c 已切出** + **skip/force 已切出** + **struct emit 已切出**；WPO 等仍 core |
+| `ast_pool.c` | **~6,899** | AST 池 / MatchArm / sidecar 残余 | 🟡 多域 thin 已切 + **ELF/Mach-O write 已切出** + **ELF ctx 已切出** + **type-to-c 已切出** + **skip/force 已切出** + **struct emit 已切出** + **codegen residual 已切出** + **asm locals/slot_bytes/block_tree/ctx_loop 已切出** + **WPO v0 DCE 已切出**；残余 core |
 | `ast_pool_module_import.c` | ~226 | module ImportEntry cold-twin accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_struct_layout.c` | ~385 | module StructLayout cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_top_level.c` | ~326 | module TopLevelLetEntry + name_is_const／hoist + hoist_target／sum residual 切片 | 🟡 已抽出（wave980+993–994 有则补全）；仍 host-cc 入 `pipeline_x` |
@@ -956,6 +956,7 @@
 | `pipeline_codegen_type_to_c.c` | **~349** | TypeKind/VECTOR → C type name repr（type_kind_cstr/copy + vector_type_cstr/copy + type_to_c_repr） | 🟡 **已抽出**（8.3.2 wave1248）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_codegen_skip_force.c` | **~393** | codegen skip/force/override/path 谓词（call_num_args_override + dep_skip_* + should_skip_emit_* + force_param_*） | 🟡 **已抽出**（8.3.2 wave1249）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_codegen_struct_emit.c` | **~243** | C co-emit struct tag + outbuf append + struct field emit（struct_tag_try_claim + out_append_* + emit_struct_field_*） | 🟡 **已抽出**（8.3.2 wave1250）；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_wpo.c` | **~1,482** | asm WPO v0 DCE + PGO-Lite reach/emit order（AsmWpoReachState + reach BFS + PGO hot/depth + should_emit_func + emit_order） | 🟡 **已抽出**（8.3.2 wave1256）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_codegen_mega_body.c` | ~223 | asm codegen mega_body 主循环 | 🟡 **已抽出**；仍 host-cc |
 | `pipeline_parse_orch.c` | ~1,038 | parse/load/typeck 编排 | 🟡 **已抽出**；仍 host-cc |
 | `pipeline_ast_forwarders.c` | ~667 | ast_pipeline_* forwarder 簇 | 🟡 **已抽出**；仍 host-cc |
@@ -1018,7 +1019,7 @@
 
   - MatchArm / GrowVec / module sidecar 与 parser pin 同生命周期
   - 验收（父项 ✅ 条件）：ast_pool 业务体不再 host-cc；与 ast.x 单权威
-  - **进度（2026-08-04）**：core **~9.7k**；多域 thin 已切 + **ELF/Mach-O write 已切出** + **ELF ctx 已切出** + **type-to-c 已切出** + **skip/force 已切出** + **struct emit 已切出**；WPO 仍 core
+  - **进度（2026-08-04）**：core **~6.9k**；多域 thin 已切 + **ELF/Mach-O write 已切出** + **ELF ctx 已切出** + **type-to-c 已切出** + **skip/force 已切出** + **struct emit 已切出** + **codegen residual 已切出** + **asm locals/slot_bytes/block_tree/ctx_loop 已切出** + **WPO v0 DCE 已切出**；残余 core
   - ✅ module_import 域 thin：`ast_pool_module_import.c`（XLANG_WEAK ImportEntry cold twins ~208 LOC）自 `ast_pool.c` 同 TU `#include` 抽出；COUNT 34→35
   - ✅ struct_layout 域 thin：`ast_pool_struct_layout.c`（`pipeline_module_struct_layout_*` + num + type_param meta ~365 LOC）同 TU 抽出；COUNT 35→36 / g05 STALE / inventory 已收
   - ✅ top_level 域 thin：`ast_pool_top_level.c`（`pipeline_module_top_level_let_*` ~113 LOC）同 TU 抽出；COUNT 36→37 / g05 STALE / inventory 已收
@@ -1041,6 +1042,12 @@
   - ✅ codegen type-to-c 域 thin：`pipeline_codegen_type_to_c.c`（type_kind_cstr/copy + vector_type_cstr/copy + type_kind_append + type_to_c_repr_inner + type_to_c_repr · ~336 LOC body）；g05 STALE／`PIPELINE_X_DEPS` 已收（wave1248）
   - ✅ codegen skip/force 域 thin：`pipeline_codegen_skip_force.c`（call_num_args_override + is_std_io_driver_bridge + path_is_std_io_* + dep_skip_* + should_skip_emit_* + entry_is_lsp_* + force_param_* · ~379 LOC body）；g05 STALE／`PIPELINE_X_DEPS` 已收（wave1249）
   - ✅ codegen struct emit 域 thin：`pipeline_codegen_struct_emit.c`（c_file_prologue_done + struct_tag_try_claim + out_append_bytes/byte/format_int + emit_struct_field_type_inner/type/decl · ~230 LOC body）；g05 STALE／`PIPELINE_X_DEPS` 已收（wave1250）
+  - ✅ codegen residual 域 thin：`pipeline_codegen_residual.c`（use_buf_wrapper + skip_emit_extern_io_batch_buf + should_skip_emit_func_by_name + emit_seed_mega_enabled + is_submit_batch_buf_call + should_skip_emit_func_core_read_ptr + asm_io_core_extern_callee_sym + io_driver_buf_call_sym + std_io_fixed_fd_emit_impl · ~172 LOC body）；g05 STALE／`PIPELINE_X_DEPS` 已收（wave1251）
+  - ✅ asm locals + block slot sidecar 域 thin：`pipeline_asm_locals.c`（AsmLocalSlotEntry／AsmLocalsSidecar／AsmBlockSlotSidecar + sidecar_get + asm_ctx_local_reset/count/append/name_len/name_byte_at/name_copy64/offset_at/find_offset + pipeline_asm_local_offset_c + asm_ctx_block_slot_reset/set/get · ~280 LOC body）；g05 STALE／`PIPELINE_X_DEPS` 已收（wave1252）
+  - ✅ asm slot bytes + ensure_block_locals 域 thin：`pipeline_asm_slot_bytes.c`（asm_slot_bytes_named_in_mod + asm_fixed_array_total_bytes_mod + asm_ctx_module_ref + asm_local_slot_bytes_mod + asm_local_slot_bytes + asm_ctx_ensure_block_locals · ~445 LOC body）；g05 STALE／`PIPELINE_X_DEPS` 已收（wave1253）
+  - ✅ asm block tree traversal + frame sizing 域 thin：`pipeline_asm_block_tree.c`（asm_block_tree_push_ref/children/region_children + asm_sum_block_local_slot_bytes + asm_count_block_stack_slots + asm_fixed_array_temp_bytes + asm_sum_block_array_temp_bytes + asm_sum_block_wa_temp_bytes · ~253 LOC body）；g05 STALE／`PIPELINE_X_DEPS` 已收（wave1254）
+  - ✅ asm ctx loop + block emit cont 域 thin：`pipeline_asm_ctx_loop.c`（AsmLoopLabelsSidecar + asm_loop_sidecar_get + asm_ctx_loop_reset/push/pop/depth + AsmBlockEmitCont + g_asm_be_cont + asm_be_cont_reset/suspend/resume/depth · ~174 LOC body）；g05 STALE／`PIPELINE_X_DEPS` 已收（wave1255）
+  - ✅ asm WPO v0 DCE + PGO-Lite reach/emit order 域 thin：`pipeline_asm_wpo.c`（AsmWpoReachState + g_asm_wpo + g_asm_wpo_pgo_{hot,depth,emit_*} + asm_wpo_mod_index/register_mod/func_id_of/register_func/func_id_in_module/func_id_by_name/add_edge + asm_wpo_call_callee_name/callee_id + asm_wpo_collect_edges_from_expr/from_stmt_order_one/from_block + asm_wpo_is_user_single_file_pgo_entry/is_user_program_entry/user_main_func_id + asm_wpo_scan_func_body_calls/precollect_all_func_edges + asm_wpo_user_pgo_force_main_callee_edge/prune_main_edges + asm_wpo_reach_fixpoint_expand/build_reach + asm_wpo_mod_is_std_heap/close_std_heap_helpers + asm_wpo_mark_pgo_hot/depth_user_from_main/depth/depth_of + asm_wpo_dce_env_enabled/pipeline_strict_preserve_emit + pipeline_asm_wpo_reach_clear/reach_compute_for_elf + pipeline_asm_wpo_should_emit_func + pipeline_asm_wpo_pgo_emit_order_prepare/count/at/is_hot_func · ~1482 LOC body）；g05 STALE／`PIPELINE_X_DEPS` 已收（wave1256）
   - 🟡 仍 host-cc 编入 `pipeline_x`（未 .x 化 / 未离 host-cc）— **域 thin 子项 ✅ ≠ 父项 BC 完成**
   - ✅ asm struct let-init domain thin：`pipeline_asm_emit_struct_let.c`（struct_let_init + glue_emit_struct_type_let_init + sret reg shift · ~176 LOC body／~215 file）自 glue 同 TU `#include` 抽出；store_retval／type_size 仍 glue；`PIPELINE_X_DEPS` COUNT 57→58 / g05 STALE / inventory 已收（wave1007）
   - ✅ asm INDEX residual helpers domain thin：`pipeline_asm_emit_index_helpers.c`（module_from_ctx + param/local slot + field_type_ref + fixed_array_total_bytes + index_elem_byte_sz_from_type_ref + try_index forest + soa_index_field_addr + lvalue_eff_addr · ~2988 LOC body／~3038 file）自 glue 同 TU `#include` 抽出；eff_addr_scaled／assign finish_store／bulk_mem_copy／Chaitin spill 仍 glue；`PIPELINE_X_DEPS` COUNT 58→59 / g05 STALE / inventory 已收（wave1008）
@@ -1062,7 +1069,7 @@
   - ✅ asm slice dual-GP helpers + slice_from_array G.7 同叶 fold：`pipeline_asm_emit_block_inits.c` 迁入 `glue_slice_dual_gp_length_off_c`（~5 LOC）+ `glue_slice_dual_gp_bump_past_home_c`（~14 LOC）+ `glue_emit_slice_from_array_let_init_elf_c`（~150 LOC 自 glue residual；file ~171→~402）；COUNT 仍 62；glue ~18.7k→~18.5k；被 block_inits + call_args（slice_let_reent_deep_copy）共享（length_off 早期 fwd 保留供 call_args）（wave1024）
   - ✅ asm sret return path helpers G.7 同叶 fold：`pipeline_asm_emit_return.c` 迁入 `glue_emit_sret_memcpy_rbx_to_home_elf_c` + `glue_emit_sret_return_from_var_elf_c` + `glue_copy_large_struct_from_rax_ptr_elf_c`（~103 LOC body 自 glue residual；file ~643→~772）；COUNT 仍 62；glue ~18.5k→~18.4k；被 return + struct_lit（sret_memcpy）+ struct_let（copy_large_struct via store_retval_pair）共享（glue 1989-1993 fwd 保留；新增 glue_enc_local_slot_ptr_or_addr_rbx_elf_c fwd——index_helpers 在 return 之后 #include）（wave1025）
   - ✅ asm field_access layout/offset helpers G.7 同叶 fold：`pipeline_asm_emit_field_access.c` 迁入 `glue_dep_layout_field_offset_by_name_c` + `glue_field_layout_offset_for_{var_base,base}_field` + `glue_field_access_effective_offset_c` + `pipeline_expr_field_access_layout_offset` + `glue_field_access_load_bytes_for_type_ref` + `pipeline_expr_field_access_load_byte_sz`（~395 LOC body 自 glue residual；file ~632→~1025）；COUNT 仍 62；glue ~18.4k→~18.0k；被 field_access + index_helpers／assign／index_eff_addr／vector_let 共享（glue 1726-1727 public fwd 保留；2500 static fwd 保留；新增 typeck_get_field_offset_from_layout_deps／pipeline_dep_ctx_ndep／pipeline_dep_ctx_module_at extern）（wave1026）
-  - 🟡 下一域候选（父项仍 🟡）：ast_pool WPO／use_buf_wrapper 等残余 codegen 域；或 8.3.3 field_access 权威收敛
+  - 🟡 下一域候选（父项仍 🟡）：EMIT_HEAVY 阈值／asm module 自举判定域；或 8.3.3 field_access 权威收敛
 
 🟡 **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
