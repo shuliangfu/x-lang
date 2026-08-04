@@ -8,6 +8,9 @@
 #   min_asm_gcc_link ./compiler/xlang_asm tests/typeck/ctfe/i64_min_not_zero.x /tmp/i64_exe
 
 # shellcheck source=tests/lib/build-std-c-o.sh
+
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 . "$(dirname "${BASH_SOURCE[0]:-$0}")/build-std-c-o.sh"
 
 # 解析 gcc 可执行路径（Docker gcc 镜像优先 /usr/local/bin/gcc）。
@@ -62,7 +65,7 @@ min_asm_gcc_link() {
   fi
   # std.io 烟测才链 io 桩；须容器内 -B 重编 -fPIE（避免 macOS 挂载 .o 与 -fPIE 链冲突）。
   if [ -n "${XLANG_MIN_LINK_IO:-}" ]; then
-    make -C compiler -B runtime_asm_io_stubs.o
+    xlang_compiler_make -B runtime_asm_io_stubs.o
     extra+=(compiler/runtime_asm_io_stubs.o)
   fi
 

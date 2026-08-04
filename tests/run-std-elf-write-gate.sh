@@ -2,6 +2,8 @@
 # STD-121：std.elf 最小写入门禁
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="analysis/std-elf-write-v1.md"
 MANIFEST="tests/baseline/std-elf-write-manifest.tsv"
@@ -59,7 +61,7 @@ std_elf_write_run_c_smoke "$ELF_O" && C_OK=1 || exit 1
 X_OK=0
 SKIP=0
 if [ -x ./compiler/xlang-c ]; then
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
   std_elf_write_run_x_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
 else

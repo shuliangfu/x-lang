@@ -537,7 +537,7 @@ export function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // Covers export-extern C glue and lsp_io import surface calls.
   unsafe {
-  let header: u8[64] = [];
+  let header: u8[128] = [];
   header[0] = 67;
   header[1] = 111;
   header[2] = 110;

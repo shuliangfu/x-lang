@@ -6,7 +6,9 @@
 # 可选：XLANG_S3_UPDATE_BASELINE=1 — 更新 tests/baseline/s3-pipeline-o.tsv
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler xlang-c -q 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make xlang-c -q 2>/dev/null || xlang_compiler_make xlang-c
 
 XLANG=${XLANG:-./compiler/xlang-c}
 PIPELINE_X="compiler/src/pipeline/pipeline.x"

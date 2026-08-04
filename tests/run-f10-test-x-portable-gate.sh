@@ -2,6 +2,8 @@
 # F-10 v1：make test_x + Stage2 portable 子集（无 xlang 时 SKIP 不 FAIL）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F10_TEST_X_PORTABLE_FAIL:-0}
 DOC="analysis/phase-f-f10-v1.md"
 MANIFEST="tests/baseline/f10-test-x-portable.tsv"
@@ -44,7 +46,7 @@ fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== F-10: make test_x (XLANG=$XLANG_BIN) ==="
-  make -C compiler test_x >/dev/null 2>&1 || die "make test_x failed"
+  xlang_compiler_make test_x >/dev/null 2>&1 || die "make test_x failed"
 else
   echo "f10 SKIP make test_x (no native xlang)" >&2
 fi

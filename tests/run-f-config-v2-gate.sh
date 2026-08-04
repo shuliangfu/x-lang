@@ -2,6 +2,8 @@
 # F-config v2：std.config 逻辑下沉（TOML/YAML/ENV → config.x；F-ZC 纯 .x 无 io glue）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_CONFIG_V2_FAIL:-0}
 DOC="analysis/phase-f-config-v2.md"
 MANIFEST="tests/baseline/f-config-v2-closure.tsv"
@@ -29,7 +31,7 @@ grep -q 'config_read_file_c' std/config/config.x || die "config.x missing read_f
 grep -q 'fs_open_read_c' std/config/config.x || die "config.x missing fs IO"
 grep -q 'config.x' compiler/Makefile || die "Makefile missing config.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/config/config.o >/dev/null 2>&1 || die "make config.o failed"
+  xlang_compiler_make ../std/config/config.o >/dev/null 2>&1 || die "make config.o failed"
 else
   echo "f-config-v2 SKIP config.o build (no xlang-c)" >&2
 fi

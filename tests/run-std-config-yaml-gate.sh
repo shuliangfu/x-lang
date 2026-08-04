@@ -2,6 +2,8 @@
 # STD-119：std.config YAML 可选后端门禁
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="analysis/std-config-yaml-v1.md"
 MANIFEST="tests/baseline/std-config-yaml-manifest.tsv"
@@ -61,7 +63,7 @@ else
 fi
 
 if [ -x ./compiler/xlang-c ]; then
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
   std_config_yaml_run_x_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
 else

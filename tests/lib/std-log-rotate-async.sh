@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-log-rotate-async.sh — STD-106 manifest 与烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_LOG_ROTATE_ASYNC_PREFIX="${XLANG_STD106_LOG_ROTATE_ASYNC_PREFIX:-xlang: [XLANG_STD106_LOG_ROTATE_ASYNC]}"
 
 # 校验 manifest 中 api/symbol/file。
@@ -80,7 +82,7 @@ std_log_rotate_async_run_c_smoke() {
     return 1
   fi
   if [ ! -f "$rt_o" ]; then
-    make -C compiler -q runtime_log_os.o 2>/dev/null || make -C compiler runtime_log_os.o >/dev/null 2>&1 || true
+    xlang_compiler_make -q runtime_log_os.o 2>/dev/null || xlang_compiler_make runtime_log_os.o >/dev/null 2>&1 || true
   fi
   if [ ! -f "$rt_o" ]; then
     echo "std-log-rotate-async FAIL: missing $rt_o" >&2

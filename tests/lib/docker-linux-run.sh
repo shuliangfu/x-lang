@@ -2,7 +2,7 @@
 # docker-linux-run.sh — 在预构建 Linux amd64 镜像内执行命令（默认免 apt-get）
 #
 # 用法（仓库根）：
-#   ./tests/lib/docker-linux-run.sh 'make -C compiler bootstrap-verify'
+#   ./tests/lib/docker-linux-run.sh 'xlang_compiler_make bootstrap-verify'
 #   ./tests/lib/docker-linux-run.sh compiler './scripts/preflight_g06_coldstart.sh --asm-e'
 #
 # 环境：

@@ -2,6 +2,8 @@
 # F-sync v1：std.sync 去 C（sync.x + seeds/runtime_sync_os.from_x.c + seeds/runtime_sync_lock_diag_tls.from_x.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_SYNC_V1_FAIL:-0}
 DOC="analysis/phase-f-sync-v1.md"
 MANIFEST="tests/baseline/f-sync-v1-closure.tsv"
@@ -25,10 +27,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'runtime_sync_os' compiler/Makefile || die "Makefile missing runtime_sync_os"
-make -C compiler -q runtime_sync_os.o runtime_sync_lock_diag_tls.o 2>/dev/null || \
-  make -C compiler runtime_sync_os.o runtime_sync_lock_diag_tls.o >/dev/null 2>&1 || die "runtime sync build failed"
+xlang_compiler_make -q runtime_sync_os.o runtime_sync_lock_diag_tls.o 2>/dev/null || \
+  xlang_compiler_make runtime_sync_os.o runtime_sync_lock_diag_tls.o >/dev/null 2>&1 || die "runtime sync build failed"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/sync/sync.o >/dev/null 2>&1 || die "make sync.o failed"
+  xlang_compiler_make ../std/sync/sync.o >/dev/null 2>&1 || die "make sync.o failed"
 else
   echo "f-sync-v1 SKIP sync.o build (no xlang-c)" >&2
 fi

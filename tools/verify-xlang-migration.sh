@@ -21,7 +21,7 @@ fi
 
 note "── §12.3 xlang CLI ──"
 if [ ! -x ./compiler/xlang ]; then
-  bad "compiler/xlang missing (run make -C compiler bootstrap-driver-seed)"
+  bad "compiler/xlang missing (run: ./xbuild bootstrap-driver-seed)"
 else
   ./compiler/xlang --help 2>&1 | head -3
   ./compiler/xlang --help 2>&1 | grep -q '\.x' || bad "xlang --help missing .x"

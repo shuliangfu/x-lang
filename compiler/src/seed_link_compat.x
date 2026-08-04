@@ -247,9 +247,9 @@ export function xlang_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32,
     let vlen: i32 = pipeline_expr_var_name_len(arena, expr_ref);
     if (plen <= 0) { return 0; }
     if (plen != vlen) { return 0; }
-    if (plen > 31) { return 0; }
-    let pbuf: u8[32] = [];
-    let vbuf: u8[64] = [];
+    if (plen > 127) { return 0; }
+    let pbuf: u8[128] = [];
+    let vbuf: u8[128] = [];
     pipeline_module_func_param_name_copy32(mod, func_idx, param_ix, &pbuf[0]);
     pipeline_expr_var_name_into(arena, expr_ref, &vbuf[0]);
     let k: i32 = 0;
@@ -298,14 +298,14 @@ export function xlang_module_func_index_by_name(mod: *u8, name: *u8, name_len: i
   if (mod == 0) { return 0 - 1; }
   if (name == 0) { return 0 - 1; }
   if (name_len <= 0) { return 0 - 1; }
-  if (name_len > 63) { return 0 - 1; }
+  if (name_len > 127) { return 0 - 1; }
   unsafe {
     let nfuncs: i32 = pipeline_module_num_funcs(mod);
     let fi: i32 = 0;
     while (fi < nfuncs) {
       let flen: i32 = pipeline_asm_module_func_name_len_at(mod, fi);
       if (flen == name_len) {
-        let fb: u8[64] = [];
+        let fb: u8[128] = [];
         pipeline_asm_module_func_name_copy64(mod, fi, &fb[0]);
         let k: i32 = 0;
         let ok: i32 = 1;

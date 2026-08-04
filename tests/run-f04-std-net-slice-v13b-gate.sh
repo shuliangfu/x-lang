@@ -5,6 +5,8 @@
 # 环境：XLANG_F04_NET_SLICE_V13B_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_F04_NET_SLICE_V13B_FAIL:-0}
 DOC="analysis/phase-f-f04-v13b.md"
@@ -36,7 +38,7 @@ if [ -f "$NET_C" ] && grep -q 'xlang_net_set_addr_port' "$NET_C" 2>/dev/null; th
 fi
 grep -q 'udp_batch.x' compiler/Makefile || die "Makefile missing udp_batch.x"
 grep -q 'runtime_net_udp_batch' compiler/Makefile || die "Makefile missing runtime_net_udp_batch"
-make -C compiler -q runtime_net_udp_batch.o 2>/dev/null || make -C compiler runtime_net_udp_batch.o >/dev/null 2>&1 || die "runtime_net_udp_batch.o build failed"
+xlang_compiler_make -q runtime_net_udp_batch.o 2>/dev/null || xlang_compiler_make runtime_net_udp_batch.o >/dev/null 2>&1 || die "runtime_net_udp_batch.o build failed"
 
 if [ -f tests/run-f04-std-net-slice-v13-gate.sh ]; then
   echo "=== F-04 v13b: delegate v13 gate ==="

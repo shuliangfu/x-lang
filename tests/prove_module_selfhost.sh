@@ -448,6 +448,84 @@ MODULES=(
   #   rest 含 30 extern bridges (driver_/path_/fmt_/file_/check_/walk_/collect_/parse_);
   #   prove 锁 mixed surface IDENTICAL (25 #[no_mangle] · no doc_anchor)
   "fmt_check_cmd|src/driver/fmt_check_cmd.x|seeds/fmt_check_cmd_surface.from_x.c||"
+  # runtime_lsp_glue R2 mixed (wave566)：.x 54 nm T symbols (46 #[no_mangle] + 8 non-mangle global)
+  #   (37 DIRECT compute + 17 thin+rest forwards to _impl);
+  #   rest 含 23 extern bridges (17 *_impl + 6 lsp_entry_*/lsp_json_key_*);
+  #   prove 锁 mixed surface IDENTICAL (54 nm T · has doc_anchor runtime_lsp_glue_x_doc_anchor)
+  "runtime_lsp_glue|src/asm/runtime_lsp_glue.x|seeds/runtime_lsp_glue_surface.from_x.c||"
+  # backend_try_inline_dispatch_thin R2 mixed (wave566)：.x 50 nm T symbols
+  #   (8 DIRECT compute + 42 thin+rest forwards to _impl);
+  #   rest 含 42 extern bridges (37 *_impl + 5 pipeline_/asm_ctx_/backend_);
+  #   prove 锁 mixed surface IDENTICAL (50 nm T · no doc_anchor)
+  "backend_try_inline_dispatch_thin|src/asm/backend_try_inline_dispatch_thin.x|seeds/backend_try_inline_dispatch_thin_surface.from_x.c||"
+  # backend_call_dispatch_thin R2 mixed (wave567)：.x 44 nm T symbols
+  #   (6 DIRECT compute + 1 thin forward + 37 thin+rest forwards to _impl);
+  #   rest 含 40 extern bridges (36 *_impl + 4 pipeline_);
+  #   prove 锁 mixed surface IDENTICAL (44 nm T · no doc_anchor)
+  "backend_call_dispatch_thin|src/asm/backend_call_dispatch_thin.x|seeds/backend_call_dispatch_thin_surface.from_x.c||"
+  # backend_arch_emit_dispatch_thin R2 mixed (wave567)：.x 47 nm T symbols
+  #   (43 pure dispatch by ta + 4 dispatch with DIRECT return 0 fallback);
+  #   rest 含 135 extern bridges (45 arch_arm64_* + 45 arch_riscv64_* + 45 arch_x86_64_*);
+  #   prove 锁 mixed surface IDENTICAL (47 nm T · no doc_anchor)
+  "backend_arch_emit_dispatch_thin|src/asm/backend_arch_emit_dispatch_thin.x|seeds/backend_arch_emit_dispatch_thin_surface.from_x.c||"
+  # runtime_driver_strict_glue_thin R2 mixed (wave568)：.x 11 nm T symbols
+  #   (8 DIRECT compute + 3 thin+rest forwards to driver_*);
+  #   rest 含 9 extern bridges (3 driver_* + 6 typeck_*_slot/slot_depth);
+  #   prove 锁 mixed surface IDENTICAL (11 nm T · no doc_anchor)
+  "runtime_driver_strict_glue_thin|src/runtime_driver_strict_glue_thin.x|seeds/runtime_driver_strict_glue_thin_surface.from_x.c||"
+  # simd_enc_thin R2 mixed (wave568)：.x 74 nm T symbols
+  #   (3 DIRECT compute + 71 thin+rest forwards to _impl);
+  #   rest 含 71 extern bridges (*_impl);
+  #   prove 锁 mixed surface IDENTICAL (74 nm T · no doc_anchor)
+  "simd_enc_thin|src/asm/simd_enc_thin.x|seeds/simd_enc_thin_surface.from_x.c||"
+  # diag_thin R2 mixed (wave569)：.x 78 nm T symbols
+  #   (19 DIRECT compute + 59 thin+rest forwards to _impl);
+  #   rest 含 53 extern bridges (*_impl);
+  #   prove 锁 mixed surface IDENTICAL (78 nm T · no doc_anchor)
+  #   注：diag_thin.x ≠ diag.x（diag.x 有 Cap residual 已排除，diag_thin.x 的 -E 成功）
+  "diag_thin|src/diag_thin.x|seeds/diag_thin_surface.from_x.c||"
+  # runtime_driver_abi R2 mixed (wave569)：.x 61 nm T symbols
+  #   (54 DIRECT compute + 7 thin+rest forwards to _impl);
+  #   rest 含 39 extern bridges (driver_*_flag_slot + getenv + *_impl);
+  #   prove 锁 mixed surface IDENTICAL (61 nm T · no doc_anchor)
+  #   注：full 变体，thin 已注册为 driver_abi 模块
+  "runtime_driver_abi|src/runtime_driver_abi.x|seeds/runtime_driver_abi_surface.from_x.c||"
+  # backend_x86_64_enc_c R2 mixed (wave570)：.x 104 nm T symbols
+  #   (104 DIRECT compute · 0 thin+rest);
+  #   rest 含 9 extern bridges (pipeline_elf_ctx_*);
+  #   prove 锁 mixed surface IDENTICAL (104 nm T · has doc_anchor backend_x86_64_enc_c_x_doc_anchor)
+  "backend_x86_64_enc_c|src/asm/backend_x86_64_enc_c.x|seeds/backend_x86_64_enc_c_surface.from_x.c||"
+  # diag R2 mixed (wave571)：.x 42 nm T symbols
+  #   (35 DIRECT compute + 7 thin+rest forwards to diag_ctx_*/diag_code_table_*/diag_entry_*/link_abi_getenv);
+  #   rest 含 39 extern bridges (diag_io_* + diag_ctx_* + diag_code_table_* + diag_entry_* + link_abi_getenv);
+  #   prove 锁 mixed surface IDENTICAL (42 nm T · no doc_anchor)
+  #   注：wave571 修复 diag_io_fputc 参数顺序 bug (c,o)→(o,c)，-E + cc -c 全绿，L2 真测通过
+  "diag|src/diag.x|seeds/diag_surface.from_x.c||"
+  # runtime R2 mixed (wave572)：.x 110 nm T symbols
+  #   (30 DIRECT compute + 80 thin+rest forwards to _impl);
+  #   rest 含 95 extern bridges (*_impl) + 7 helper externs (link_abi_getenv + diag_json_enabled + ...);
+  #   prove 锁 mixed surface IDENTICAL (110 nm T · no doc_anchor)
+  "runtime|src/runtime.x|seeds/runtime_surface.from_x.c||"
+  # runtime_link_abi R2 mixed (wave573)：.x 145 nm T symbols
+  #   (75 DIRECT compute + 70 thin+rest forwards to _impl);
+  #   rest 含 91 extern bridges (*_impl) + 7 helper externs;
+  #   prove 锁 mixed surface IDENTICAL (145 nm T · no doc_anchor)
+  "runtime_link_abi|src/runtime_link_abi.x|seeds/runtime_link_abi_surface.from_x.c||"
+  # backend_enc_dispatch_thin R2 thin full (wave574)：.x 133 nm T symbols
+  #   (arm64/riscv64/x86_64 enc dispatch + arch_*_enc_* forwards to _impl +
+  #    DIRECT compute: arm64_add/sub_sp_imm12/str_x0/load_store_w0/call 等);
+  #   rest 含 arch_*_enc_* extern bridges (per-arch enc helpers) + *_impl externs;
+  #   prove 锁 thin full surface IDENTICAL (133 nm T · no doc_anchor)
+  "backend_enc_dispatch_thin|src/asm/backend_enc_dispatch_thin.x|seeds/backend_enc_dispatch_thin_surface.from_x.c||"
+  # runtime_pipeline_abi R2 full (wave575)：.x 270 nm T symbols
+  #   (DIRECT compute: pipeline import/load/sync/parse/typeck orch + module import storage +
+  #    debug_trace + diag_emitted + dep_seeded + ndep + cfg_eval complex ops);
+  #   rest 含 333 extern bridges (parser_*/asm_*/pipeline_*/typeck_*/cfg_eval_*/driver_*/xlang_*) +
+  #   48 static BSS slots (g_import_open_*/g_pipe_*) + init_globals;
+  #   Ubuntu xlang_asm -E 给非 #[no_mangle] 的 pipe_* export function 加 pipeline_ 前缀；
+  #   macOS clang 不加。sym_rename 在 .x-E 上将 pipeline_pipe_* → pipe_* 匹配 surface
+  #   prove 锁 full surface IDENTICAL (270 nm T · no doc_anchor)
+  "runtime_pipeline_abi|src/runtime_pipeline_abi.x|seeds/runtime_pipeline_abi_surface.from_x.c|pipeline_pipe_append_suffix:pipe_append_suffix,pipeline_pipe_cstr_contains:pipe_cstr_contains,pipeline_pipe_cstr_copy:pipe_cstr_copy,pipeline_pipe_cstr_eq:pipe_cstr_eq,pipeline_pipe_cstr_has_char:pipe_cstr_has_char,pipeline_pipe_cstr_join_slash:pipe_cstr_join_slash,pipeline_pipe_cstr_len:pipe_cstr_len,pipeline_pipe_dir_tail:pipe_dir_tail,pipeline_pipe_imp_ensure_entries:pipe_imp_ensure_entries,pipeline_pipe_imp_ensure_select:pipe_imp_ensure_select,pipeline_pipe_imp_entry_at:pipe_imp_entry_at,pipeline_pipe_imp_entry_off:pipe_imp_entry_off,pipeline_pipe_imp_entry_size:pipe_imp_entry_size,pipeline_pipe_imp_find_or_create:pipe_imp_find_or_create,pipeline_pipe_imp_find_slot:pipe_imp_find_slot,pipeline_pipe_imp_get_header_n:pipe_imp_get_header_n,pipeline_pipe_imp_off_num_imports:pipe_imp_off_num_imports,pipeline_pipe_imp_set_header_n:pipe_imp_set_header_n,pipeline_pipe_imp_soft_sync:pipe_imp_soft_sync,pipeline_pipe_load_i32_le:pipe_load_i32_le,pipeline_pipe_load_ptr_slot:pipe_load_ptr_slot,pipeline_pipe_path_readable:pipe_path_readable,pipeline_pipe_pctx_off_entry_dir_buf:pipe_pctx_off_entry_dir_buf,pipeline_pipe_pctx_off_entry_dir_len:pipe_pctx_off_entry_dir_len,pipeline_pipe_pctx_off_loaded_len:pipe_pctx_off_loaded_len,pipeline_pipe_pctx_off_num_lib_roots:pipe_pctx_off_num_lib_roots,pipeline_pipe_pctx_off_preprocess_len:pipe_pctx_off_preprocess_len,pipeline_pipe_store_i32_le:pipe_store_i32_le,pipeline_pipe_store_i64_zero:pipe_store_i64_zero,pipeline_pipe_store_ptr_slot:pipe_store_ptr_slot,pipeline_pipe_strip_prefix_seg:pipe_strip_prefix_seg,pipeline_pipe_write_nested_name_x:pipe_write_nested_name_x,pipeline_pipe_write_root_dotted_imp:pipe_write_root_dotted_imp|"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +

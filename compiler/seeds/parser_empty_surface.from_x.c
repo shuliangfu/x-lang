@@ -14,7 +14,7 @@ struct lexer_LexerResult {
   size_t token_start;
 };
 
-enum token_TokenKind { token_TokenKind_TOKEN_EOF, token_TokenKind_TOKEN_FUNCTION, token_TokenKind_TOKEN_LET, token_TokenKind_TOKEN_CONST, token_TokenKind_TOKEN_IF, token_TokenKind_TOKEN_ELSE, token_TokenKind_TOKEN_WHILE, token_TokenKind_TOKEN_LOOP, token_TokenKind_TOKEN_FOR, token_TokenKind_TOKEN_BREAK, token_TokenKind_TOKEN_CONTINUE, token_TokenKind_TOKEN_RETURN, token_TokenKind_TOKEN_PANIC, token_TokenKind_TOKEN_DEFER, token_TokenKind_TOKEN_TRY, token_TokenKind_TOKEN_CATCH, token_TokenKind_TOKEN_REGION, token_TokenKind_TOKEN_WITH_ARENA, token_TokenKind_TOKEN_MATCH, token_TokenKind_TOKEN_STRUCT, token_TokenKind_TOKEN_TYPE, token_TokenKind_TOKEN_PACKED, token_TokenKind_TOKEN_SOA, token_TokenKind_TOKEN_ATTR_SOA, token_TokenKind_TOKEN_ATTR_CFG, token_TokenKind_TOKEN_ATTR_REPR_C, token_TokenKind_TOKEN_ATTR_REPR_COMPATIBLE, token_TokenKind_TOKEN_ATTR_ALLOC, token_TokenKind_TOKEN_ATTR_LINK_SECTION, token_TokenKind_TOKEN_ATTR_NAKED, token_TokenKind_TOKEN_ATTR_ENTRY, token_TokenKind_TOKEN_ATTR_USED, token_TokenKind_TOKEN_ATTR_NO_MANGLE, token_TokenKind_TOKEN_ATTR_LINK_NAME, token_TokenKind_TOKEN_ATTR_MAX_STACK, token_TokenKind_TOKEN_ATTR_INTERRUPT, token_TokenKind_TOKEN_ATTR_SEND, token_TokenKind_TOKEN_ATTR_SYNC, token_TokenKind_TOKEN_ATTR_GLOBAL_ALLOCATOR, token_TokenKind_TOKEN_ATTR_COLD, token_TokenKind_TOKEN_ATTR_INLINE_NEVER, token_TokenKind_TOKEN_ATTR_INLINE_ALWAYS, token_TokenKind_TOKEN_ATTR_EXPORT_NAME, token_TokenKind_TOKEN_ATTR_PANIC_HANDLER, token_TokenKind_TOKEN_ATTR_THREAD_LOCAL, token_TokenKind_TOKEN_ATTR_PERCPU, token_TokenKind_TOKEN_ALIGN, token_TokenKind_TOKEN_ENUM, token_TokenKind_TOKEN_GOTO, token_TokenKind_TOKEN_TRAIT, token_TokenKind_TOKEN_IMPL, token_TokenKind_TOKEN_SELF, token_TokenKind_TOKEN_UNDERSCORE, token_TokenKind_TOKEN_IMPORT, token_TokenKind_TOKEN_EXTERN, token_TokenKind_TOKEN_ASYNC, token_TokenKind_TOKEN_AWAIT, token_TokenKind_TOKEN_RUN, token_TokenKind_TOKEN_SPAWN, token_TokenKind_TOKEN_IDENT, token_TokenKind_TOKEN_I32, token_TokenKind_TOKEN_BOOL, token_TokenKind_TOKEN_U8, token_TokenKind_TOKEN_U32, token_TokenKind_TOKEN_U64, token_TokenKind_TOKEN_I64, token_TokenKind_TOKEN_USIZE, token_TokenKind_TOKEN_ISIZE, token_TokenKind_TOKEN_I32X4, token_TokenKind_TOKEN_I32X8, token_TokenKind_TOKEN_I32X16, token_TokenKind_TOKEN_U32X4, token_TokenKind_TOKEN_U32X8, token_TokenKind_TOKEN_U32X16, token_TokenKind_TOKEN_F32X4, token_TokenKind_TOKEN_TRUE, token_TokenKind_TOKEN_FALSE, token_TokenKind_TOKEN_F32, token_TokenKind_TOKEN_F64, token_TokenKind_TOKEN_VOID, token_TokenKind_TOKEN_INT, token_TokenKind_TOKEN_FLOAT, token_TokenKind_TOKEN_LPAREN, token_TokenKind_TOKEN_RPAREN, token_TokenKind_TOKEN_LBRACE, token_TokenKind_TOKEN_RBRACE, token_TokenKind_TOKEN_LBRACKET, token_TokenKind_TOKEN_RBRACKET, token_TokenKind_TOKEN_ARROW, token_TokenKind_TOKEN_FATARROW, token_TokenKind_TOKEN_COMMA, token_TokenKind_TOKEN_COLON, token_TokenKind_TOKEN_DOT, token_TokenKind_TOKEN_DOTDOT, token_TokenKind_TOKEN_ELLIPSIS, token_TokenKind_TOKEN_SEMICOLON, token_TokenKind_TOKEN_PLUS, token_TokenKind_TOKEN_MINUS, token_TokenKind_TOKEN_STAR, token_TokenKind_TOKEN_SLASH, token_TokenKind_TOKEN_PERCENT, token_TokenKind_TOKEN_AMP, token_TokenKind_TOKEN_PIPE, token_TokenKind_TOKEN_CARET, token_TokenKind_TOKEN_LSHIFT, token_TokenKind_TOKEN_RSHIFT, token_TokenKind_TOKEN_PLUS_EQ, token_TokenKind_TOKEN_MINUS_EQ, token_TokenKind_TOKEN_STAR_EQ, token_TokenKind_TOKEN_SLASH_EQ, token_TokenKind_TOKEN_PERCENT_EQ, token_TokenKind_TOKEN_AMP_EQ, token_TokenKind_TOKEN_PIPE_EQ, token_TokenKind_TOKEN_CARET_EQ, token_TokenKind_TOKEN_LSHIFT_EQ, token_TokenKind_TOKEN_RSHIFT_EQ, token_TokenKind_TOKEN_TILDE, token_TokenKind_TOKEN_ASSIGN, token_TokenKind_TOKEN_EQ, token_TokenKind_TOKEN_NE, token_TokenKind_TOKEN_LT, token_TokenKind_TOKEN_GT, token_TokenKind_TOKEN_LE, token_TokenKind_TOKEN_GE, token_TokenKind_TOKEN_AMPAMP, token_TokenKind_TOKEN_PIPEPIPE, token_TokenKind_TOKEN_BANG, token_TokenKind_TOKEN_QUESTION, token_TokenKind_TOKEN_AS, token_TokenKind_TOKEN_AT, token_TokenKind_TOKEN_STRING, token_TokenKind_TOKEN_EXPORT };
+enum token_TokenKind { token_TokenKind_TOKEN_EOF, token_TokenKind_TOKEN_FUNCTION, token_TokenKind_TOKEN_LET, token_TokenKind_TOKEN_CONST, token_TokenKind_TOKEN_IF, token_TokenKind_TOKEN_ELSE, token_TokenKind_TOKEN_WHILE, token_TokenKind_TOKEN_LOOP, token_TokenKind_TOKEN_FOR, token_TokenKind_TOKEN_BREAK, token_TokenKind_TOKEN_CONTINUE, token_TokenKind_TOKEN_RETURN, token_TokenKind_TOKEN_PANIC, token_TokenKind_TOKEN_DEFER, token_TokenKind_TOKEN_TRY, token_TokenKind_TOKEN_CATCH, token_TokenKind_TOKEN_REGION, token_TokenKind_TOKEN_WITH_ARENA, token_TokenKind_TOKEN_MATCH, token_TokenKind_TOKEN_STRUCT, token_TokenKind_TOKEN_TYPE, token_TokenKind_TOKEN_PACKED, token_TokenKind_TOKEN_SOA, token_TokenKind_TOKEN_ATTR_SOA, token_TokenKind_TOKEN_ATTR_CFG, token_TokenKind_TOKEN_ATTR_REPR_C, token_TokenKind_TOKEN_ATTR_REPR_COMPATIBLE, token_TokenKind_TOKEN_ATTR_ALLOC, token_TokenKind_TOKEN_ATTR_LINK_SECTION, token_TokenKind_TOKEN_ATTR_NAKED, token_TokenKind_TOKEN_ATTR_ENTRY, token_TokenKind_TOKEN_ATTR_USED, token_TokenKind_TOKEN_ATTR_NO_MANGLE, token_TokenKind_TOKEN_ATTR_LINK_NAME, token_TokenKind_TOKEN_ATTR_MAX_STACK, token_TokenKind_TOKEN_ATTR_INTERRUPT, token_TokenKind_TOKEN_ATTR_SEND, token_TokenKind_TOKEN_ATTR_SYNC, token_TokenKind_TOKEN_ATTR_GLOBAL_ALLOCATOR, token_TokenKind_TOKEN_ATTR_COLD, token_TokenKind_TOKEN_ATTR_INLINE_NEVER, token_TokenKind_TOKEN_ATTR_INLINE_ALWAYS, token_TokenKind_TOKEN_ATTR_EXPORT_NAME, token_TokenKind_TOKEN_ATTR_PANIC_HANDLER, token_TokenKind_TOKEN_ATTR_THREAD_LOCAL, token_TokenKind_TOKEN_ATTR_PERCPU, token_TokenKind_TOKEN_ALIGN, token_TokenKind_TOKEN_ENUM, token_TokenKind_TOKEN_GOTO, token_TokenKind_TOKEN_TRAIT, token_TokenKind_TOKEN_IMPL, token_TokenKind_TOKEN_SELF, token_TokenKind_TOKEN_UNDERSCORE, token_TokenKind_TOKEN_IMPORT, token_TokenKind_TOKEN_EXTERN, token_TokenKind_TOKEN_ASYNC, token_TokenKind_TOKEN_AWAIT, token_TokenKind_TOKEN_RUN, token_TokenKind_TOKEN_SPAWN, token_TokenKind_TOKEN_IDENT, token_TokenKind_TOKEN_I32, token_TokenKind_TOKEN_BOOL, token_TokenKind_TOKEN_U8, token_TokenKind_TOKEN_U32, token_TokenKind_TOKEN_U64, token_TokenKind_TOKEN_I64, token_TokenKind_TOKEN_USIZE, token_TokenKind_TOKEN_ISIZE, token_TokenKind_TOKEN_I32X4, token_TokenKind_TOKEN_I32X8, token_TokenKind_TOKEN_I32X16, token_TokenKind_TOKEN_U32X4, token_TokenKind_TOKEN_U32X8, token_TokenKind_TOKEN_U32X16, token_TokenKind_TOKEN_F32X4, token_TokenKind_TOKEN_TRUE, token_TokenKind_TOKEN_FALSE, token_TokenKind_TOKEN_F32, token_TokenKind_TOKEN_F64, token_TokenKind_TOKEN_VOID, token_TokenKind_TOKEN_INT, token_TokenKind_TOKEN_FLOAT, token_TokenKind_TOKEN_LPAREN, token_TokenKind_TOKEN_RPAREN, token_TokenKind_TOKEN_LBRACE, token_TokenKind_TOKEN_RBRACE, token_TokenKind_TOKEN_LBRACKET, token_TokenKind_TOKEN_RBRACKET, token_TokenKind_TOKEN_ARROW, token_TokenKind_TOKEN_FATARROW, token_TokenKind_TOKEN_COMMA, token_TokenKind_TOKEN_COLON, token_TokenKind_TOKEN_DOT, token_TokenKind_TOKEN_DOTDOT, token_TokenKind_TOKEN_ELLIPSIS, token_TokenKind_TOKEN_SEMICOLON, token_TokenKind_TOKEN_PLUS, token_TokenKind_TOKEN_MINUS, token_TokenKind_TOKEN_STAR, token_TokenKind_TOKEN_SLASH, token_TokenKind_TOKEN_PERCENT, token_TokenKind_TOKEN_AMP, token_TokenKind_TOKEN_PIPE, token_TokenKind_TOKEN_CARET, token_TokenKind_TOKEN_LSHIFT, token_TokenKind_TOKEN_RSHIFT, token_TokenKind_TOKEN_PLUS_EQ, token_TokenKind_TOKEN_MINUS_EQ, token_TokenKind_TOKEN_STAR_EQ, token_TokenKind_TOKEN_SLASH_EQ, token_TokenKind_TOKEN_PERCENT_EQ, token_TokenKind_TOKEN_AMP_EQ, token_TokenKind_TOKEN_PIPE_EQ, token_TokenKind_TOKEN_CARET_EQ, token_TokenKind_TOKEN_LSHIFT_EQ, token_TokenKind_TOKEN_RSHIFT_EQ, token_TokenKind_TOKEN_TILDE, token_TokenKind_TOKEN_ASSIGN, token_TokenKind_TOKEN_EQ, token_TokenKind_TOKEN_NE, token_TokenKind_TOKEN_LT, token_TokenKind_TOKEN_GT, token_TokenKind_TOKEN_LE, token_TokenKind_TOKEN_GE, token_TokenKind_TOKEN_AMPAMP, token_TokenKind_TOKEN_PIPEPIPE, token_TokenKind_TOKEN_BANG, token_TokenKind_TOKEN_QUESTION, token_TokenKind_TOKEN_AS, token_TokenKind_TOKEN_AT, token_TokenKind_TOKEN_STRING, token_TokenKind_TOKEN_EXPORT, token_TokenKind_TOKEN_NULL };
 struct token_Token {
   int32_t kind;
   int32_t line;
@@ -30,11 +30,11 @@ enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_Expr
 enum ast_ImportKind { ast_ImportKind_IMPORT_WHOLE, ast_ImportKind_IMPORT_BINDING, ast_ImportKind_IMPORT_SELECT };
 struct ast_Type {
   int32_t kind;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t elem_type_ref;
   int32_t array_size;
-  uint8_t region_label[64];
+  uint8_t region_label[128];
   int32_t region_label_len;
 };
 
@@ -45,7 +45,7 @@ struct ast_Expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[64];
+  uint8_t var_name[128];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -58,7 +58,7 @@ struct ast_Expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[64];
+  uint8_t field_access_field_name[128];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -71,14 +71,14 @@ struct ast_Expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[64];
+  uint8_t method_call_name[128];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[64];
+  uint8_t struct_lit_struct_name[128];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -94,14 +94,14 @@ struct ast_Expr {
 };
 
 struct ast_ConstDecl {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
 };
 
 struct ast_LetDecl {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
@@ -131,10 +131,10 @@ struct ast_StmtOrderItem {
 };
 
 struct ast_LabeledStmt {
-  uint8_t label[32];
+  uint8_t label[128];
   int32_t label_len;
   int32_t is_goto;
-  uint8_t goto_target[32];
+  uint8_t goto_target[128];
   int32_t goto_target_len;
   int32_t return_expr_ref;
 };
@@ -172,7 +172,7 @@ struct ast_Param {
 };
 
 struct ast_Func {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t param_base;
   int32_t num_params;
@@ -193,7 +193,7 @@ struct ast_Func {
 };
 
 struct ast_StructLayout {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t field_base;
   int32_t num_fields;
@@ -258,13 +258,13 @@ struct ast_PipelineDepCtx {
   struct ast_Module * current_codegen_module;
   struct ast_ASTArena * current_codegen_arena;
   int32_t current_codegen_dep_index;
-  uint8_t current_codegen_prefix_mirror[64];
+  uint8_t current_codegen_prefix_mirror[128];
   int32_t current_codegen_prefix_len;
   int32_t asm_entry_module_only;
-  uint8_t entry_module_import_path_mirror[64];
+  uint8_t entry_module_import_path_mirror[128];
   int32_t entry_module_import_path_len;
   int32_t typeck_scope_region_len;
-  uint8_t typeck_scope_region_label[64];
+  uint8_t typeck_scope_region_label[128];
 };
 
 struct lexer_Lexer;
@@ -295,7 +295,7 @@ extern int32_t ast_ast_placeholder(void);
 struct OneFuncResult {
   int ok;
   struct lexer_Lexer next_lex;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t num_params;
   int32_t num_generic_params;
@@ -315,9 +315,9 @@ struct OneFuncResult {
   int has_unary_neg;
   int32_t return_val;
   int has_call_expr;
-  uint8_t call_callee_name[64];
+  uint8_t call_callee_name[128];
   int32_t call_callee_len;
-  uint8_t return_var_name[64];
+  uint8_t return_var_name[128];
   int32_t return_var_name_len;
   int32_t return_expr_ref;
   int has_final_expr;
@@ -369,7 +369,7 @@ struct ParseBlockResult {
 
 struct ExternParseResult {
   struct lexer_Lexer next_lex;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t return_ty_ref;
   int32_t num_params;
@@ -387,7 +387,7 @@ struct LibraryParseResult {
   int ok;
   uint8_t _pad[4];
   struct lexer_Lexer next_lex;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   uint8_t _pad_tail[4];
 };
@@ -396,13 +396,13 @@ struct LibraryParseScanResult {
   int ok;
   uint8_t _pad[4];
   struct lexer_Lexer next_lex;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   uint8_t param_name[32];
   int32_t param_name_len;
-  uint8_t param_type_name[64];
+  uint8_t param_type_name[128];
   int32_t param_type_len;
-  uint8_t field_name[64];
+  uint8_t field_name[128];
   int32_t field_len;
   uint8_t _pad_tail[4];
   uint8_t _pad_tail2[4];
@@ -424,15 +424,15 @@ static uint8_t sep;
 static struct xlang_slice_uint8_t slice;
 static struct xlang_slice_uint8_t slice;
 static struct xlang_slice_uint8_t slice;
-static uint8_t z64[64];
+static uint8_t z64[128];
 static struct OneFuncResult _prime;
 static struct lexer_LexerResult r_tail;
 static struct lexer_Lexer lex_tail;
 static struct OneFuncResult _q2;
 static struct OneFuncResult _q3;
-static uint8_t ccn[64];
+static uint8_t ccn[128];
 static struct OneFuncResult _q4;
-static uint8_t rvn[64];
+static uint8_t rvn[128];
 static struct OneFuncResult _q4b;
 static struct OneFuncResult _q5;
 static struct OneFuncResult _q6;
@@ -447,7 +447,7 @@ static struct OneFuncResult _w;
 static struct OneFuncResult _w;
 static struct OneFuncResult _w;
 static struct OneFuncResult _w;
-static uint8_t dummy_name[64];
+static uint8_t dummy_name[128];
 static struct OneFuncResult res;
 static int32_t rvni;
 static int32_t _so;
@@ -518,11 +518,11 @@ static int32_t cap_ref;
 static struct ParseExprResult cap_res;
 static struct ParseBlockResult block_res_wa;
 static int32_t wa_pool_i;
-static uint8_t reg_label_blk[64];
+static uint8_t reg_label_blk[128];
 static int32_t reg_label_len_blk;
 static struct ParseBlockResult block_res_reg;
 static int32_t reg_pool_i;
-static uint8_t unsafe_nm[64];
+static uint8_t unsafe_nm[128];
 static struct ParseBlockResult block_res_unsafe;
 static int32_t unsafe_pool_i;
 static struct lexer_Lexer if_start;
@@ -561,7 +561,7 @@ static int32_t let_ty_ref;
 static int32_t is_discard_name;
 static int32_t name_len;
 static size_t name_start;
-static uint8_t name_row[64];
+static uint8_t name_row[128];
 static int32_t ni;
 static int32_t zi;
 static int let_omit_init;
@@ -636,7 +636,7 @@ static int32_t i;
 static int32_t i;
 static struct OneFuncResult out_clean;
 static struct OneFuncResult * out_ref;
-static uint8_t dummy_name[64];
+static uint8_t dummy_name[128];
 static struct OneFuncResult impl_snap;
 static int return_type_is_bool;
 static int32_t return_expr_ref_storage;
@@ -669,11 +669,11 @@ static int32_t def_idx_fn;
 static struct ParseExprResult cap_res_fn;
 static struct ParseBlockResult block_res_wa_fn;
 static int32_t wa_idx_fn;
-static uint8_t reg_nm_fn[64];
+static uint8_t reg_nm_fn[128];
 static int32_t reg_nlen_fn;
 static struct ParseBlockResult block_res_reg_fn;
 static int32_t reg_idx_fn;
-static uint8_t unsafe_nm_fn[64];
+static uint8_t unsafe_nm_fn[128];
 static struct ParseBlockResult block_res_unsafe_fn;
 static int32_t unsafe_idx_fn;
 static struct lexer_LexerResult colon_fn;
@@ -755,7 +755,7 @@ static size_t slen;
 static struct lexer_LexerResult r;
 static int32_t vlen;
 static size_t vstart;
-static uint8_t vb[64];
+static uint8_t vb[128];
 static int32_t nk;
 static size_t ix;
 static struct xlang_slice_uint8_t slice;
@@ -770,7 +770,7 @@ static int32_t p;
 static uint8_t pname32[32];
 static int32_t plen;
 static int32_t pty;
-static uint8_t empty64[64];
+static uint8_t empty64[128];
 static int32_t ni;
 static struct xlang_slice_uint8_t slice;
 static int32_t fi;
@@ -818,9 +818,9 @@ static int32_t nen_before;
 static struct TrySkipAllowResult try_res;
 static int32_t out_idx_storage[1];
 static struct lexer_Lexer lex_at_function;
-static uint8_t parse_into_empty64[64];
+static uint8_t parse_into_empty64[128];
 static struct OneFuncResult res;
-static uint8_t empty64_lib_first[64];
+static uint8_t empty64_lib_first[128];
 static struct LibraryParseResult lib_first;
 static int32_t is_main_storage[1];
 static int32_t type_ref;
@@ -967,12 +967,12 @@ static struct TopLevelLetResult toplevel_res;
 static struct TrySkipAllowResult try_res;
 static int32_t out_idx_storage[1];
 static struct lexer_Lexer lex_at_function_buf;
-static uint8_t empty64_buf[64];
+static uint8_t empty64_buf[128];
 static struct OneFuncResult res;
 static struct xlang_slice_uint8_t slice_for_impl;
-static uint8_t empty64_lib_buf_first[64];
+static uint8_t empty64_lib_buf_first[128];
 static struct LibraryParseResult lib_buf_first;
-static uint8_t skip_name[64] = {0};
+static uint8_t skip_name[128] = {0};
 static int32_t skip_nlen;
 static int32_t is_main_storage[1];
 static int32_t type_ref;
@@ -1058,7 +1058,7 @@ static uint8_t buf[128];
 static ssize_t n;
 static struct xlang_slice_uint8_t sl;
 static struct ParseResult res;
-static uint8_t src[64] = {102, 117, 110, 99, 116, 105, 111, 110, 32, 109, 97, 105, 110, 40, 41, 58, 32, 105, 51, 50, 32, 123, 32, 114, 101, 116, 117, 114, 110, 32, 48, 59, 32, 125, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static uint8_t src[128] = {102, 117, 110, 99, 116, 105, 111, 110, 32, 109, 97, 105, 110, 40, 41, 58, 32, 105, 51, 50, 32, 123, 32, 114, 101, 116, 117, 114, 110, 32, 48, 59, 32, 125, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static struct xlang_slice_uint8_t sl;
 static struct ParseResult res;
 static void init_globals(void) {

@@ -2,6 +2,8 @@
 # xlang check（deno check 语义）：合法静默通过；非法打印 path:line:col - error: 并 exit 1。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 XLANG=${XLANG:-./compiler/xlang}
 # run-all 默认 C 流水线：仅 RUN_ALL_USE_C 显式要求时改绑 xlang-c。
 # 旧逻辑在 XLANG_RUN_ALL_BOOTSTRAP_XLANG 下把 xlang/xlang_asm 改成 pin xlang-c：
@@ -14,7 +16,7 @@ export XLANG
 chmod +x tests/run-fmt-wrap.sh 2>/dev/null || true
 ./tests/run-fmt-wrap.sh
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q 2>/dev/null || make -C compiler bootstrap-driver-seed
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make bootstrap-driver-seed
 fi
 ROOT=$(pwd)
 case "$XLANG" in

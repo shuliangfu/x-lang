@@ -4,6 +4,8 @@
 # 环境：XLANG_DOCKER_PLATFORM=linux/amd64（默认 Darwin/ARM64 宿主自动选 amd64）
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "run-linux-a09-a11-gate FAIL: docker not found" >&2
@@ -41,7 +43,7 @@ INNER='
 set -e
 progress() { echo "[$(date +%H:%M:%S)] $*"; }
 progress "make clean ..."
-make -C compiler clean >/dev/null 2>&1 || true
+xlang_compiler_make clean >/dev/null 2>&1 || true
 progress "purge host core/std .o (Docker Linux must relink native objects) ..."
 find ../core ../std -name '"'"'*.o'"'"' -delete 2>/dev/null || true
 chmod +x tests/run-linux-a09-a11-gate-inner.sh

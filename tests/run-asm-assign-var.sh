@@ -3,7 +3,9 @@
 # 含 struct 字面量：-o 走 bootstrap LINK（bstrict 为 xlang-c），与 run-asm-binop-field-index 一致。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 XLANG=${XLANG:-./compiler/xlang}

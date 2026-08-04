@@ -183,17 +183,27 @@ void parse_expr_into(void *arena, struct parser_asm_lexer lex, struct parser_asm
   out->next_lex.col = mega_out.next_lex.col;
 }
 
-/* ---- G-02e-7：原 parser_asm_link_alias（pipeline / runtime 链接别名 + 弱 parse 桩）---- */
+/* ---- G-02e-7: parser_asm_link_alias (pipeline/runtime link aliases + weak parse stubs) ----
+ *
+ * PLATFORM: WINDOWS | PE — XLANG_WEAK is empty (strong defs). Empty parse_into*
+ *   stubs MUST NOT ship in product TUs compiled with
+ *   -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS: hybrid link puts this .o before
+ *   parser_x.o (GEN_DRIVER_BSTRICT then GEN_DRIVER_X_PIPELINE), so PE
+ *   --allow-multiple-definition FIRST-wins selected the empty stub →
+ *   num_funcs=0 / XP003 (ec=0, out_len=0). Observed 2026-07-30 hybrid live9.
+ * PLATFORM: SHARED ELF — weak stubs remain only for cold seed paths that omit
+ *   parser_x / bootstrap (no SKIP define). Product/G05 always passes SKIP.
+ */
 
 #ifndef PARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
-/** runtime 期望 parser_diag_token_after_collect_imports；委托 thin_c glue。 */
+/** runtime expects parser_diag_token_after_collect_imports; delegate thin glue. */
 int32_t parser_diag_token_after_collect_imports(struct xlang_slice_uint8_t *source, void *module) {
   return parser_diag_token_after_collect_imports_glue(source, module);
 }
-#endif
 
 /**
- * seed ./xlang 链无 parser_parse_bootstrap.o 时提供弱裸名桩；experimental 链入真 bootstrap .o 后覆盖。
+ * Cold seed without parser_parse_bootstrap.o: empty bare-name stubs.
+ * Experimental/product link real bootstrap or parser_x (SKIP path has no stubs).
  */
 XLANG_WEAK struct parser_ParseIntoResult parse_into_buf(void *arena, void *module, uint8_t *data,
                                                                    int32_t len) {
@@ -223,39 +233,28 @@ XLANG_WEAK void parse_into_set_main_index(void *module, int32_t main_idx) {
   (void)main_idx;
 }
 
-/** parser_parse_bootstrap.o 真 emit 时覆盖上述弱裸名桩。 */
-
-#ifndef PARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
-/**
- * pipeline 期望 parser_copy_module_import_path64；委托 thin C copy+len。
- */
-int32_t parser_copy_module_import_path64(struct ASTModule *module, int32_t i, uint8_t out[64]) {
+/** pipeline expects parser_copy_module_import_path64; delegate thin C copy+len. */
+int32_t parser_copy_module_import_path64(struct ASTModule *module, int32_t i, uint8_t out[128]) {
   return parser_asm_copy_module_import_path64_c(module, i, out);
 }
-#endif
 
-#ifndef PARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
-/**
- * pipeline 期望 (arena, source) 两参；委托 parse_one_function_ok_for_pipeline_glue。
- */
+/** pipeline expects (arena, source); delegate parse_one_function_ok_for_pipeline_glue. */
 int32_t parser_parse_one_function_ok_for_pipeline(void *arena, struct xlang_slice_uint8_t *source) {
   return parser_parse_one_function_ok_for_pipeline_glue(arena, source);
 }
-#endif
 
-/** runtime 期望 parser_parse_into_buf；legacy .text / bootstrap .o 强符号覆盖弱默认。 */
+/** runtime expects parser_parse_into_*; cold weak defaults (ELF only effective). */
 XLANG_WEAK struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data,
                                                                           int32_t len) {
   return parse_into_buf(arena, module, data, len);
 }
 
-/** runtime 期望 parser_parse_into；legacy .text / bootstrap .o 强符号覆盖弱默认。 */
 XLANG_WEAK struct parser_ParseIntoResult parser_parse_into(void *arena, void *module,
                                                                        struct xlang_slice_uint8_t *source) {
   return parse_into(arena, module, source);
 }
 
-/** runtime 期望 parser_parse_into_set_main_index；legacy .text / bootstrap .o 强符号覆盖弱默认。 */
 XLANG_WEAK void parser_parse_into_set_main_index(void *module, int32_t main_idx) {
   parse_into_set_main_index(module, main_idx);
 }
+#endif /* !PARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS */

@@ -172,7 +172,7 @@ export function driver_diagnostic_typeck_break_continue_outside(line: i32, col: 
 export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col,
-      "invalid pointer arithmetic (ptr+ptr / non-offset ops / unary -~ not allowed; use integer offset, std.string, or adjacent string literals)");
+      "invalid pointer arithmetic (use integer offset or std.string; no ptr+ptr/unary -~)");
   }
 }
 
@@ -187,7 +187,91 @@ export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32):
 export function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col,
-      "invalid float operation (bitwise / mod / shift / unary ~ not allowed on f32/f64; use + - * / and unary - only)");
+      "invalid float op (no bitwise/mod/shift/unary ~ on f32/f64; use + - * / and unary -)");
+  }
+}
+
+/**
+ * Report illegal aggregate binop (wave657 cmp + wave658 arith Cap residual).
+ * Closes soft residual: typeck stamped bool/result for struct/slice/array cmp or arith
+ * → host-cc BLD001 or silent array pointer-identity false green.
+ * @param line i32 — 1-based source line of the binop
+ * @param col i32 — 1-based source column of the binop
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_aggregate_cmp(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid aggregate operation (cmp/arith/unary -/~/! not allowed on array/slice/struct; use scalars or fields)");
+  }
+}
+
+/**
+ * Report illegal `as` cast (wave659 Cap residual).
+ * Closes soft residual: typeck stamped cast target for struct/array→scalar (false green)
+ * or float→ptr (host-cc BLD001).
+ * @param line i32 — 1-based source line of the cast
+ * @param col i32 — 1-based source column of the cast
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid cast (as not allowed for aggregate or float<->pointer; use numeric/ptr casts or fields)");
+  }
+}
+
+/**
+ * Report free-function call arity mismatch (wave660 Cap residual).
+ * Closes soft residual: typeck bound first same-name func ignoring arity → host-cc BLD001.
+ * @param line i32 — 1-based source line of the CALL
+ * @param col i32 — 1-based source column of the CALL
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_call_arity_mismatch(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "wrong number of arguments in function call (arity mismatch)");
+  }
+}
+
+/**
+ * Report free-function call argument type mismatch (wave661 Cap residual).
+ * Closes soft residual: typeck bound resolved func but never checked arg vs param
+ * types → host-cc BLD001 or silent C conversion false-green (f32/bool→i32).
+ * @param line i32 — 1-based source line of the CALL
+ * @param col i32 — 1-based source column of the CALL
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_call_arg_type_mismatch(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "argument type mismatch in function call");
+  }
+}
+
+/**
+ * Report unresolved free-function CALL (wave675 Cap residual).
+ * Closes soft residual: bare VAR callee with no module name hit left typeck OK → host BLD001
+ * undeclared function (also covers silent parse-drop of bad formals + call).
+ * @param line i32 — 1-based source line of the CALL
+ * @param col i32 — 1-based source column of the CALL
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_call_unresolved(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "unresolved function call (no matching function)");
   }
 }
 
@@ -215,6 +299,123 @@ export function driver_diagnostic_typeck_enum_no_variant(line: i32, col: i32): v
 export function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col, "subscript base must be array, slice or pointer");
+  }
+}
+
+/**
+ * Report non-integer array/slice/pointer subscript index (wave664 Cap residual).
+ * Closes soft residual: typeck accepted ptr/float/struct/bool indices → host-cc
+ * BLD001 ("array subscript is not an integer") or freestanding silent false green.
+ * @param line i32 — 1-based source line of the INDEX
+ * @param col i32 — 1-based source column of the INDEX
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_subscript_index(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "subscript index must be an integer type");
+  }
+}
+
+/**
+ * Report non-bool operand of && / || / ! (wave665 Cap residual).
+ * Closes soft residual: typeck accepted i32/f32 logical operands → freestanding/host
+ * C truthiness false green. Aligns with if/while/for condition bool gate (docs/04).
+ * @param line i32 — 1-based source line of the logical expr
+ * @param col i32 — 1-based source column of the logical expr
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_logical_operand_not_bool(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "logical operand must be bool (no implicit int-to-bool)");
+  }
+}
+
+/**
+ * Report incompatible comparison operand types (wave666 Cap residual).
+ * Closes soft residual: typeck stamped bool for mixed i32/f32/i64/bool/ptr
+ * pairs → freestanding/host C promotion false green.
+ * @param line i32 — 1-based source line of the comparison
+ * @param col i32 — 1-based source column of the comparison
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_comparison_type_mismatch(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "comparison operands have incompatible types");
+  }
+}
+
+/**
+ * Report void used in arithmetic or unary -/~ (wave667 Cap residual).
+ * Closes soft residual: typeck stamped a result for void operands → host-cc BLD001.
+ * @param line i32 — 1-based source line of the op
+ * @param col i32 — 1-based source column of the op
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_void_binop(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid void operation (void cannot be used in arithmetic or unary -/~)");
+  }
+}
+
+/**
+ * Report bool used in arithmetic / bitops / shifts or unary -/~ (wave677 Cap residual).
+ * Closes soft residual: typeck promoted bool→i32 in binop arith (allow_i32_fallback)
+ * and stamped unary -/ ~ on bool → freestanding/host false green.
+ * @param line i32 — 1-based source line of the op
+ * @param col i32 — 1-based source column of the op
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ * LANG-006 let/const scalar bool→int is product-retained and not covered here.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_bool_binop(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid bool operation (bool cannot be used in arithmetic, bitops, shifts, or unary -/~; use logical ops or `as`)");
+  }
+}
+
+/**
+ * Report assignment / compound-assign to a const binding (wave678 Cap residual).
+ * @param line i32 — 1-based source line of the assign
+ * @param col i32 — 1-based source column of the assign
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ * docs/06: const is immutable; let reassignment remains allowed.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_assign_to_const(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "cannot assign to const binding (const is immutable; use let for a mutable variable)");
+  }
+}
+
+/**
+ * Report same-block let/const redecl or function-body param name clash (wave680 Cap residual).
+ * @param line i32 — 1-based source line of the second declaration
+ * @param col i32 — 1-based source column of the second declaration
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ * Nested-block shadowing remains allowed; only same block / param+body local conflict.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_duplicate_local(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "duplicate let/const binding (same-block local, parameter clash, or module-scope redecl)");
   }
 }
 

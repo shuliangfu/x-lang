@@ -2,6 +2,8 @@
 # F-thread v1：std.thread 去 C（thread.x + seeds/runtime_thread_glue.from_x.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_THREAD_V1_FAIL:-0}
 DOC="analysis/phase-f-thread-v1.md"
 MANIFEST="tests/baseline/f-thread-v1-closure.tsv"
@@ -22,9 +24,9 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'runtime_thread_glue' compiler/Makefile || die "Makefile missing runtime_thread_glue"
-make -C compiler -q runtime_thread_glue.o 2>/dev/null || make -C compiler runtime_thread_glue.o >/dev/null 2>&1 || die "runtime_thread_glue.o build failed"
+xlang_compiler_make -q runtime_thread_glue.o 2>/dev/null || xlang_compiler_make runtime_thread_glue.o >/dev/null 2>&1 || die "runtime_thread_glue.o build failed"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/thread/thread.o >/dev/null 2>&1 || die "make thread.o failed"
+  xlang_compiler_make ../std/thread/thread.o >/dev/null 2>&1 || die "make thread.o failed"
 else
   echo "f-thread-v1 SKIP thread.o build (no xlang-c)" >&2
 fi

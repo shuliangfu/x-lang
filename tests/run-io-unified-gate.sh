@@ -9,6 +9,8 @@
 #   ./tests/run-io-unified-gate.sh --perf    # smoke + 平台 perf 子集
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DO_PERF=0
 for arg in "$@"; do
@@ -30,10 +32,10 @@ done
 # shellcheck source=tests/lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 # F-03 v2/v3：io 已纯 .x，不再 build ../std/io/io.o
-make -C compiler ../std/process/process.o -q 2>/dev/null \
-  || make -C compiler ../std/process/process.o
+xlang_compiler_make ../std/process/process.o -q 2>/dev/null \
+  || xlang_compiler_make ../std/process/process.o
 
 if [ -z "${XLANG:-}" ]; then
   if [ -x ./compiler/xlang-c ]; then
@@ -47,13 +49,13 @@ if [ -z "${XLANG:-}" ]; then
 fi
 
 # Linux 链 io.o 时编译器 invoke_cc 自动加 -luring（见 compiler/Makefile）。
-rm -f tests/bench/.io_batch_rw_smoke_tmp
+rm -f bench/.io_batch_rw_smoke_tmp
 
 echo "=== IO unified: batch_rw_smoke.x ($(ci_host_summary)) ==="
 $RUN_XLANG build -L . tests/io/batch_rw_smoke.x -o /tmp/xlang_io_batch_rw_smoke 2>&1
 ec=0
 /tmp/xlang_io_batch_rw_smoke || ec=$?
-rm -f tests/bench/.io_batch_rw_smoke_tmp
+rm -f bench/.io_batch_rw_smoke_tmp
 if [ "$ec" -ne 0 ]; then
   echo "run-io-unified-gate FAIL: batch_rw_smoke exit=$ec" >&2
   exit 1

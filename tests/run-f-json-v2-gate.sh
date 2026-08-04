@@ -2,6 +2,8 @@
 # F-json v2：std.json 逻辑下沉（解析/游标/序列化 → json.x；删除 json_parse_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_JSON_V2_FAIL:-0}
 DOC="analysis/phase-f-json-v2.md"
 MANIFEST="tests/baseline/f-json-v2-closure.tsv"
@@ -26,7 +28,7 @@ grep -q 'json_f_json_v2_marker_c' std/json/json.x || die "json.x missing v2 mark
 grep -q 'json.x' compiler/Makefile || die "Makefile missing json.x"
 grep -q 'json_parse_glue.c' compiler/Makefile && die "Makefile still references json_parse_glue.c"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/json/json.o >/dev/null 2>&1 || die "make json.o failed"
+  xlang_compiler_make ../std/json/json.o >/dev/null 2>&1 || die "make json.o failed"
 else
   echo "f-json-v2 SKIP json.o build (no xlang-c)" >&2
 fi

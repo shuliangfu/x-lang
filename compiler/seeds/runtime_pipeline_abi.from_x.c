@@ -154,6 +154,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <dirent.h>
+#include <sys/stat.h>
+#endif
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
  *            macOS/Linux delegate to system <unistd.h> via #include_next.
@@ -184,6 +188,24 @@ void xlang_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_path
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena);
 int xlang_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
     int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n);
+
+/* wave1225: release AST sidecars before free on collect/prerun tmp arenas.
+ * free alone leaves g_arena_sc / g_module_sc used; malloc address reuse reattaches
+ * stale GrowVec data (directory check truncates large files after importful peers).
+ * PLATFORM: SHARED — cold twin of pipe_release_tmp_arena_module in .x. */
+extern void ast_pool_arena_release(void *a);
+extern void ast_pool_module_release(void *m);
+static void pipe_release_tmp_arena_module(void *arena, void *module) {
+    if (arena) {
+        ast_pool_arena_release(arena);
+        free(arena);
+    }
+    if (module) {
+        ast_pool_module_release(module);
+        free(module);
+    }
+}
+
 int xlang_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps);
@@ -580,7 +602,7 @@ void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module
         return;
     nf = pipeline_module_num_funcs(module);
     for (fi = 0; fi < nf; fi++) {
-        uint8_t raw_name[64];
+        uint8_t raw_name[128];
         char name[65];
         int32_t name_len;
         int32_t body_ref;
@@ -1252,6 +1274,84 @@ void xlang_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib
             (void)snprintf(path + off, path_size - off, "/mod.x");
         if (access(path, R_OK) == 0)
             return;
+    }
+    /* wave1222: single-segment import sibling-directory scan. When `import("token")`
+     * is used from parser/parser.x but token.x lives in lexer/token.x (sibling
+     * directory under the same src/ root), all preceding lookups fail. Scan
+     * entry_dir's parent directory for sibling subdirs containing <name>.x or
+     * <name>/<name>.x. This mirrors how modern module resolvers fall back to a
+     * parent-level search when a bare name is not found in the current dir.
+     * PLATFORM: POSIX (opendir/readdir); Windows skips (rare in bootstrap path). */
+    if (entry_dir && entry_dir[0] && path_size >= 16) {
+        const char *last_slash = strrchr(entry_dir, '/');
+        if (last_slash) {
+            size_t parent_len = (size_t)(last_slash - entry_dir);
+            if (parent_len > 0 && parent_len < 480) {
+                char parent_buf[512];
+                (void)memcpy(parent_buf, entry_dir, parent_len);
+                parent_buf[parent_len] = '\0';
+#if !defined(_WIN32) && !defined(_WIN64)
+                DIR *d = opendir(parent_buf);
+                if (d) {
+                    struct dirent *de;
+                    while ((de = readdir(d)) != NULL) {
+                        const char *dn = de->d_name;
+                        if (dn[0] == '.') continue;
+                        if (strchr(import_path, '.') == NULL) {
+                            /* Single-segment: <parent>/<sibling>/<name>.x
+                             * and <parent>/<sibling>/<name>/<name>.x */
+                            (void)snprintf(path, path_size, "%s/%s/%.200s.x",
+                                           parent_buf, dn, import_path);
+                            if (access(path, R_OK) == 0) {
+                                closedir(d);
+                                return;
+                            }
+                            int imp_n = (int)strlen(import_path);
+                            if (imp_n > 0 && imp_n < 64) {
+                                (void)snprintf(path, path_size, "%s/%s/%.64s/%.64s.x",
+                                               parent_buf, dn, import_path, import_path);
+                                if (access(path, R_OK) == 0) {
+                                    closedir(d);
+                                    return;
+                                }
+                            }
+                        } else {
+                            /* Dotted: <parent>/<sibling>/<dotted-as-slashes>.x
+                             * e.g. import("asm.backend") from pipeline/ →
+                             * <src>/asm/backend.x when sibling dir "asm" matches
+                             * the first dotted segment. */
+                            const char *first_dot = strchr(import_path, '.');
+                            size_t first_seg_len = first_dot
+                                ? (size_t)(first_dot - import_path) : 0;
+                            if (first_seg_len > 0 && first_seg_len < 64 &&
+                                strlen(dn) == first_seg_len &&
+                                strncmp(dn, import_path, first_seg_len) == 0) {
+                                size_t off = (size_t)snprintf(path, path_size,
+                                    "%s/%s/", parent_buf, dn);
+                                for (const char *s = import_path; *s && off + 1 < path_size; s++)
+                                    path[off++] = (char)(*s == '.' ? '/' : *s);
+                                if (off + 5 <= path_size) {
+                                    (void)snprintf(path + off, path_size - off, ".x");
+                                    if (access(path, R_OK) == 0) {
+                                        closedir(d);
+                                        return;
+                                    }
+                                }
+                                if (off + 9 <= path_size) {
+                                    (void)snprintf(path + off, path_size - off, "/mod.x");
+                                    if (access(path, R_OK) == 0) {
+                                        closedir(d);
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    closedir(d);
+                }
+#endif
+            }
+        }
     }
 }
 
@@ -2133,8 +2233,7 @@ void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *c
     tmp_arena = malloc(pipeline_sizeof_arena());
     tmp_module = malloc(pipeline_sizeof_module());
     if (!tmp_arena || !tmp_module) {
-        free(tmp_arena);
-        free(tmp_module);
+        pipe_release_tmp_arena_module(tmp_arena, tmp_module);
         xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
         return;
     }
@@ -2146,21 +2245,19 @@ void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *c
         struct parser_ParseIntoResult pr = parser_parse_into(tmp_arena, tmp_module, &dep_slice);
         n_imp = parser_get_module_num_imports(tmp_module);
     if (pr.ok != 0 && pr.ok != -2) {
-            free(tmp_arena);
-            free(tmp_module);
+            pipe_release_tmp_arena_module(tmp_arena, tmp_module);
             xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
             return;
         }
         if (n_imp <= 0) {
-            free(tmp_arena);
-            free(tmp_module);
+            pipe_release_tmp_arena_module(tmp_arena, tmp_module);
             ast_pipeline_dep_ctx_set_ndep(ctx, 0);
             return;
         }
     }
     mapped = 0;
     for (int32_t ii = 0; ii < n_imp; ii++) {
-        uint8_t path_buf[64];
+        uint8_t path_buf[128];
         char path_c[65];
         size_t k = 0;
         int g;
@@ -2182,8 +2279,7 @@ void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *c
         }
         mapped = mapped + 1;
     }
-    free(tmp_arena);
-    free(tmp_module);
+    pipe_release_tmp_arena_module(tmp_arena, tmp_module);
     ast_pipeline_dep_ctx_set_ndep(ctx, mapped);
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
@@ -2804,7 +2900,7 @@ int xlang_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, c
         return load_rc;
     }
     if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-        uint8_t dep_path_buf[64];
+        uint8_t dep_path_buf[128];
         memset(dep_path_buf, 0, sizeof(dep_path_buf));
         pipeline_dep_ctx_import_path_copy64((struct ast_PipelineDepCtx *)one_ctx, 0, dep_path_buf);
         diag_reportf(NULL, 0, 0, "note", NULL,
@@ -3068,7 +3164,7 @@ int xlang_load_direct_imports_for_asm_layout_impl(void *module, const char **lib
     if (n_imports <= 0)
         return 0;
     for (int i = 0; i < n_imports && i < XLANG_DRIVER_DEP_SLOT_MAX && mi < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
-        uint8_t path_buf[64];
+        uint8_t path_buf[128];
         char path_c[65];
         size_t k = 0;
 
@@ -3138,7 +3234,7 @@ int xlang_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports
 
     memset(used, 0, sizeof used);
     for (int i = 0; i < n_imports && i < XLANG_DRIVER_DEP_SLOT_MAX && mi < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
-        uint8_t path_buf[64];
+        uint8_t path_buf[128];
         char path_c[65];
         size_t k = 0;
         int found = -1;
@@ -3205,7 +3301,7 @@ int xlang_merge_direct_then_transitive_deps(void *module, int32_t n_imports, cha
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-234：import path 拷到 C 字符串（供 .x merge pure） */
 void xlang_module_import_path_cstr(void *module, int32_t idx, uint8_t *buf, int32_t cap) {
-    uint8_t path_buf[64];
+    uint8_t path_buf[128];
     int32_t k = 0;
     if (!buf || cap <= 0)
         return;
@@ -3247,7 +3343,7 @@ int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_im
 
     memset(used, 0, sizeof used);
     for (int i = 0; i < n_imports && i < XLANG_DRIVER_DEP_SLOT_MAX && mi < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
-        uint8_t path_buf[64];
+        uint8_t path_buf[128];
         char path_c[65];
         size_t k = 0;
         int found = -1;
@@ -3333,7 +3429,7 @@ int xlang_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
     *to_load_n = 0;
     n_imports = xlang_module_num_imports(module);
     for (j = 0; j < n_imports && j < XLANG_DRIVER_DEP_SLOT_MAX && *to_load_n < XLANG_DRIVER_DEP_SLOT_MAX; j++) {
-        uint8_t path_buf[64];
+        uint8_t path_buf[128];
         char path_c[65];
         size_t k = 0;
 
@@ -3386,7 +3482,7 @@ void xlang_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int
     if (n_imp <= 0)
         return;
     for (jj = 0; jj < n_imp && jj < XLANG_DRIVER_DEP_SLOT_MAX && *to_load_n < XLANG_DRIVER_DEP_SLOT_MAX; jj++) {
-        uint8_t sub_buf[64];
+        uint8_t sub_buf[128];
         char sub_c[65];
         size_t kk = 0;
 
@@ -3501,10 +3597,7 @@ int xlang_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t mod
         to_load_n--;
         free(to_load[to_load_n]);
     }
-    if (tmp_arena)
-        free(tmp_arena);
-    if (tmp_module)
-        free(tmp_module);
+    pipe_release_tmp_arena_module(tmp_arena, tmp_module);
     *n_deps = n;
     return 0;
 fail_to_load:
@@ -3512,10 +3605,7 @@ fail_to_load:
         to_load_n--;
         free(to_load[to_load_n]);
     }
-    if (tmp_arena)
-        free(tmp_arena);
-    if (tmp_module)
-        free(tmp_module);
+    pipe_release_tmp_arena_module(tmp_arena, tmp_module);
     while (n > 0) {
         n--;
         free(dep_sources[n]);
@@ -3636,10 +3726,7 @@ int xlang_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_
         to_load_n--;
         free(to_load[to_load_n]);
     }
-    if (tmp_arena)
-        free(tmp_arena);
-    if (tmp_module)
-        free(tmp_module);
+    pipe_release_tmp_arena_module(tmp_arena, tmp_module);
     *n_deps = n;
     return 0;
 fail_to_load:
@@ -3647,10 +3734,7 @@ fail_to_load:
         to_load_n--;
         free(to_load[to_load_n]);
     }
-    if (tmp_arena)
-        free(tmp_arena);
-    if (tmp_module)
-        free(tmp_module);
+    pipe_release_tmp_arena_module(tmp_arena, tmp_module);
     while (n > 0) {
         n--;
         free(dep_paths[n]);

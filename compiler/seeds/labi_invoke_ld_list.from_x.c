@@ -530,15 +530,16 @@ int labi_net_tls_buf_append(char *dst, int cap, int pos, const char *src) {
   return pos;
 }
 
+/* wave944: 0-make hub (tests/lib/compiler-make.sh) after Makefile delete. */
 int labi_net_tls_build_make_cmd(char *cmd, int cap, const char *repo_root, const char *target) {
   int pos = 0;
-  pos = labi_net_tls_buf_append(cmd, cap, pos, "make -C '");
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "bash '");
   if (pos < 0)
     return 0;
   pos = labi_net_tls_buf_append(cmd, cap, pos, repo_root);
   if (pos < 0)
     return 0;
-  pos = labi_net_tls_buf_append(cmd, cap, pos, "'/compiler' ");
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "/tests/lib/compiler-make.sh' ");
   if (pos < 0)
     return 0;
   pos = labi_net_tls_buf_append(cmd, cap, pos, target);
@@ -635,13 +636,14 @@ int labi_formal_std_build_make_cmd(char *cmd, int cap, const char *xlang_bin,
   pos = labi_net_tls_buf_append(cmd, cap, pos, xlang_bin);
   if (pos < 0)
     return 0;
-  pos = labi_net_tls_buf_append(cmd, cap, pos, "' make -C '");
+  /* wave944: 0-make hub after Makefile delete (G.7 single body with tests hub). */
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "' bash '");
   if (pos < 0)
     return 0;
   pos = labi_net_tls_buf_append(cmd, cap, pos, repo_root);
   if (pos < 0)
     return 0;
-  pos = labi_net_tls_buf_append(cmd, cap, pos, "/compiler' '");
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "/tests/lib/compiler-make.sh' '");
   if (pos < 0)
     return 0;
   pos = labi_net_tls_buf_append(cmd, cap, pos, make_target);

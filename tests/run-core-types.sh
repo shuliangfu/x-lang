@@ -2,9 +2,11 @@
 # 测试 core.types（size_of_*）与 core.debug.assert
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 # core.types 符号由 base64.o 提供（co-emit skip）；须预编 .o 供 asm -o 链入。
-make -C compiler -q ../std/base64/base64.o 2>/dev/null || make -C compiler ../std/base64/base64.o
+xlang_compiler_make -q ../std/base64/base64.o 2>/dev/null || xlang_compiler_make ../std/base64/base64.o
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 LINK_XLANG="$RUN_XLANG"

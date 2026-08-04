@@ -3,8 +3,10 @@
 # 含 import/spawn/IO 全链路的 .x 编译：import/hex 优先 xlang（refresh 后），否则回退 xlang-c。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o
 
 # Linux：链 std/io/io.o 时须 -luring -lpthread（与 invoke_cc / run-io-multishot 一致）
 XLANG_IO_CC_LIBS=""
@@ -87,7 +89,7 @@ fi
 
 # async_switch -o：见 async_host_compile_o（Win xlang-c / macOS -backend c / Linux x86_64 asm）。
 async_switch_compile_o() {
-  async_host_compile_o tests/bench/async_switch.x /tmp/xlang_async_switch
+  async_host_compile_o bench/async_switch.x /tmp/xlang_async_switch
 }
 
 # relink 后 xlang 的 -E 仅 parse/typeck 摘要；须 grep C/XLANG_ASYNC_FRAME 的烟测统一走 xlang-c。
@@ -120,7 +122,7 @@ echo "async_switch OK"
 # scheduler jmp 烟测仅 Linux x86_64 seed asm 支持；seed 未 bootstrap 时 N/A（Tier P 早于 bootstrap-driver-seed）。
 if async_is_linux_x64_asm; then
   sched_log=/tmp/async_switch_sched_compile.log
-  if "$XLANG" build -L . tests/bench/async_switch_sched.x -backend asm -o /tmp/xlang_async_sched >"$sched_log" 2>&1; then
+  if "$XLANG" build -L . bench/async_switch_sched.x -backend asm -o /tmp/xlang_async_sched >"$sched_log" 2>&1; then
     rc=$(/tmp/xlang_async_sched; echo $?)
     [ "$rc" = "0" ] || { echo "async_switch_sched failed exit=$rc"; exit 1; }
     echo "async_switch_sched OK"
@@ -141,7 +143,7 @@ XLANG_IMPORT=${XLANG_IMPORT:-$XLANG} build if ! async_is_linux_x64_asm && [ -x .
 elif ! "$XLANG_IMPORT" -L . -E tests/parser/import_std_async.x >/dev/null 2>&1; then
   XLANG_IMPORT=./compiler/xlang-c
 fi
-"$XLANG_IMPORT" -L . tests/bench/async_mod_import.x -o /tmp/xlang_async_mod_import 2>&1 || {
+"$XLANG_IMPORT" -L . bench/async_mod_import.x -o /tmp/xlang_async_mod_import 2>&1 || {
   echo "async_mod_import FAIL: compile ($XLANG_IMPORT)"
   exit 1
 }
@@ -319,8 +321,8 @@ echo "$out_await" | grep -q 'bytes=12 awaits=1' || {
 echo "async struct await liveness OK"
 
 echo "async CPS yield: XLANG_ASYNC_YIELD=1 double poll ..."
-make -C compiler ../std/async/scheduler.o -q 2>/dev/null \
-  || make -C compiler ../std/async/scheduler.o
+xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null \
+  || xlang_compiler_make ../std/async/scheduler.o
 if [ -f compiler/../std/async/scheduler.o ] || [ -f std/async/scheduler.o ]; then
   # 须用 relink 后 xlang（runtime 按需链 scheduler.o）；xlang-c 链接路径缺 xlang_async_cps_suspend。
   XLANG_ASYNC_YIELD=1 async_host_compile_o tests/parser/async_cps_yield.x /tmp/xlang_async_cps_yield 2>&1 || {
@@ -351,7 +353,7 @@ fi
 
 echo "async scheduler A4: task queue drain (C harness) ..."
 "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_scheduler_queue \
-  tests/bench/async_scheduler_queue.c std/async/scheduler.o 2>&1 || {
+  bench/async_scheduler_queue.c std/async/scheduler.o 2>&1 || {
   echo "async scheduler A4 FAIL: build async_scheduler_queue.c"
   exit 1
 }
@@ -361,7 +363,7 @@ echo "async scheduler A4 OK"
 
 echo "async scheduler MPSC: dual-thread submit + drain ..."
 if "${XLANG_ASYNC_CC[@]}" -pthread -o /tmp/xlang_async_scheduler_mpsc \
-  tests/bench/async_scheduler_mpsc.inc std/async/scheduler.o 2>/dev/null; then
+  bench/async_scheduler_mpsc.inc std/async/scheduler.o 2>/dev/null; then
   rc=$(/tmp/xlang_async_scheduler_mpsc; echo $?)
   [ "$rc" = "0" ] || { echo "async scheduler MPSC FAIL: exit=$rc"; exit 1; }
   echo "async scheduler MPSC OK"
@@ -371,7 +373,7 @@ fi
 
 echo "async scheduler workers: per-worker ring + dual consumer drain ..."
 if XLANG_ASYNC_WORKERS=2 "${XLANG_ASYNC_CC[@]}" -pthread -o /tmp/xlang_async_scheduler_workers \
-  tests/bench/async_scheduler_workers.c std/async/scheduler.o 2>/dev/null; then
+  bench/async_scheduler_workers.c std/async/scheduler.o 2>/dev/null; then
   rc=$(/tmp/xlang_async_scheduler_workers; echo $?)
   [ "$rc" = "0" ] || { echo "async scheduler workers FAIL: exit=$rc"; exit 1; }
   echo "async scheduler workers OK"
@@ -381,7 +383,7 @@ fi
 
 echo "async scheduler worker affinity: XLANG_ASYNC_AFFINITY=1 + workers drain ..."
 if XLANG_ASYNC_WORKERS=2 XLANG_ASYNC_AFFINITY=1 "${XLANG_ASYNC_CC[@]}" -pthread -o /tmp/xlang_async_scheduler_workers_aff \
-  tests/bench/async_scheduler_workers.c std/async/scheduler.o 2>/dev/null; then
+  bench/async_scheduler_workers.c std/async/scheduler.o 2>/dev/null; then
   rc=$(XLANG_ASYNC_WORKERS=2 XLANG_ASYNC_AFFINITY=1 /tmp/xlang_async_scheduler_workers_aff; echo $?)
   [ "$rc" = "0" ] || { echo "async scheduler worker affinity FAIL: exit=$rc"; exit 1; }
   echo "async scheduler worker affinity OK"
@@ -391,7 +393,7 @@ fi
 
 echo "async scheduler IO-A5: io wait queue + wake ..."
 "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_scheduler_io_wake \
-  tests/bench/async_scheduler_io_wake.c std/async/scheduler.o 2>&1 || {
+  bench/async_scheduler_io_wake.c std/async/scheduler.o 2>&1 || {
   echo "async scheduler IO-A5 FAIL: build async_scheduler_io_wake.c"
   exit 1
 }
@@ -401,7 +403,7 @@ echo "async scheduler IO-A5 OK"
 
 echo "async scheduler IO-A5: suspend_io flag without XLANG_ASYNC_IO_WAIT ..."
 "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_scheduler_io_await_flag \
-  tests/bench/async_scheduler_io_await_flag.c std/async/scheduler.o 2>&1 || {
+  bench/async_scheduler_io_await_flag.c std/async/scheduler.o 2>&1 || {
   echo "async scheduler IO-A5 await flag FAIL: build async_scheduler_io_await_flag.c"
   exit 1
 }
@@ -506,13 +508,13 @@ echo "async await IO dual OK"
 
 # io_uring harness 链 std/io/io.o；probe 通过时先确保 io.o 已编译。
 if ! async_io_uring_unavailable; then
-  make -C compiler ../std/io/io.o -q 2>/dev/null || make -C compiler ../std/io/io.o
+  xlang_compiler_make ../std/io/io.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o
 fi
 
 echo "io read async: submit_read_async + complete (C harness) ..."
 if ! async_io_uring_skip_na "io read async"; then
   if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_io_read_async \
-    tests/bench/io_read_async.c std/io/io.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/io_read_async.c std/io/io.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(/tmp/xlang_io_read_async; echo $?)
     [ "$rc" = "0" ] || { echo "io read async FAIL: exit=$rc"; exit 1; }
     echo "io read async OK"
@@ -524,7 +526,7 @@ fi
 echo "io read async multi: dual in-flight submit + slot complete ..."
 if ! async_io_uring_skip_na "io read async multi"; then
   if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_io_read_async_multi \
-    tests/bench/io_read_async_multi.c std/io/io.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/io_read_async_multi.c std/io/io.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(/tmp/xlang_io_read_async_multi; echo $?)
     [ "$rc" = "0" ] || { echo "io read async multi FAIL: exit=$rc"; exit 1; }
     echo "io read async multi OK"
@@ -536,7 +538,7 @@ fi
 echo "io write async: submit_write_async + complete (C harness) ..."
 if ! async_io_uring_skip_na "io write async"; then
   if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_io_write_async \
-    tests/bench/io_write_async.c std/io/io.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/io_write_async.c std/io/io.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(/tmp/xlang_io_write_async; echo $?)
     [ "$rc" = "0" ] || { echo "io write async FAIL: exit=$rc"; exit 1; }
     echo "io write async OK"
@@ -548,7 +550,7 @@ fi
 echo "io write async multi: dual in-flight submit + slot complete ..."
 if ! async_io_uring_skip_na "io write async multi"; then
   if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_io_write_async_multi \
-    tests/bench/io_write_async_multi.c std/io/io.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/io_write_async_multi.c std/io/io.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(/tmp/xlang_io_write_async_multi; echo $?)
     [ "$rc" = "0" ] || { echo "io write async multi FAIL: exit=$rc"; exit 1; }
     echo "io write async multi OK"
@@ -560,7 +562,7 @@ fi
 echo "async scheduler IO read e2e: submit + suspend_io + wake + complete ..."
 if ! async_io_uring_skip_na "async scheduler IO read e2e"; then
   if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_scheduler_io_read_e2e \
-    tests/bench/async_scheduler_io_read_e2e.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/async_scheduler_io_read_e2e.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(/tmp/xlang_async_scheduler_io_read_e2e; echo $?)
     [ "$rc" = "0" ] || { echo "async scheduler IO read e2e FAIL: exit=$rc"; exit 1; }
     echo "async scheduler IO read e2e OK"
@@ -572,7 +574,7 @@ fi
 echo "async scheduler IO read multi e2e: dual task + slot pool + wake ..."
 if ! async_io_uring_skip_na "async scheduler IO read multi e2e"; then
   if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_scheduler_io_read_multi_e2e \
-    tests/bench/async_scheduler_io_read_multi_e2e.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/async_scheduler_io_read_multi_e2e.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(/tmp/xlang_async_scheduler_io_read_multi_e2e; echo $?)
     [ "$rc" = "0" ] || { echo "async scheduler IO read multi e2e FAIL: exit=$rc"; exit 1; }
     echo "async scheduler IO read multi e2e OK"
@@ -584,7 +586,7 @@ fi
 echo "async scheduler IO write multi e2e: dual task + slot pool + wake ..."
 if ! async_io_uring_skip_na "async scheduler IO write multi e2e"; then
   if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_scheduler_io_write_multi_e2e \
-    tests/bench/async_scheduler_io_write_multi_e2e.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/async_scheduler_io_write_multi_e2e.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(/tmp/xlang_async_scheduler_io_write_multi_e2e; echo $?)
     [ "$rc" = "0" ] || { echo "async scheduler IO write multi e2e FAIL: exit=$rc"; exit 1; }
     echo "async scheduler IO write multi e2e OK"
@@ -606,7 +608,7 @@ echo "$out" | grep -q '__xlang_frame.__phase = 0' || {
   echo "async scheduler drain FAIL: missing __phase reset on return"
   exit 1
 }
-if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
+if xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null; then
   # 部分平台 xlang 链 run+drain 仍可能崩溃；-E 烟测已通过，run 失败则 skip（CI 不 grep drain run OK）。
   if XLANG_ASYNC_YIELD=1 "$COMPILE_XLANG" -L . tests/parser/async_scheduler_drain.x -o /tmp/xlang_async_sched_drain 2>/tmp/xlang_async_sched_drain.log; then
     if file /tmp/xlang_async_sched_drain 2>/dev/null | grep -q "executable"; then
@@ -659,7 +661,7 @@ else
   echo "run async v1 FAIL: run arg count mismatch should be rejected"
   exit 1
 fi
-if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
+if xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null; then
   "$COMPILE_XLANG" -L . tests/parser/run_async_arg.x -o /tmp/xlang_run_async_arg 2>&1 || {
     echo "run async v1 FAIL: compile run_async_arg.x"
     exit 1
@@ -711,7 +713,7 @@ else
   echo "run async v2 FAIL: run with three args to one-param fn should be rejected"
   exit 1
 fi
-if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
+if xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null; then
   "$COMPILE_XLANG" -L . tests/parser/run_async_arg2.x -o /tmp/xlang_run_async_arg2 2>&1 || {
     echo "run async v2 FAIL: compile run_async_arg2.x"
     exit 1
@@ -809,7 +811,7 @@ echo "run async v4 OK"
 
 echo "async run seed: xlang_async_run_seed_* (C harness) ..."
 if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_run_seed \
-  tests/bench/async_run_seed.c std/async/scheduler.o 2>&1; then
+  bench/async_run_seed.c std/async/scheduler.o 2>&1; then
   rc=$(/tmp/xlang_async_run_seed; echo $?)
   [ "$rc" = "0" ] || { echo "async run seed FAIL: exit=$rc"; exit 1; }
   echo "async run seed OK"
@@ -823,11 +825,11 @@ if [ -x ./compiler/xlang-c ]; then
   if async_io_uring_unavailable; then
     echo "async linux full: IO run N/A (io_uring unavailable on this kernel)"
     ASYNC_LINUX_FULL_IO=0
-    make -C compiler ../std/async/scheduler.o -q 2>/dev/null \
-      || make -C compiler ../std/async/scheduler.o
+    xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null \
+      || xlang_compiler_make ../std/async/scheduler.o
   else
-    make -C compiler ../std/io/io.o ../std/async/scheduler.o -q 2>/dev/null \
-      || make -C compiler ../std/io/io.o ../std/async/scheduler.o
+    xlang_compiler_make ../std/io/io.o ../std/async/scheduler.o -q 2>/dev/null \
+      || xlang_compiler_make ../std/io/io.o ../std/async/scheduler.o
   fi
 
   ./compiler/xlang-c -L . tests/parser/run_async_arg.x -o /tmp/xlang_run_async_arg_full 2>&1 || {
@@ -873,7 +875,7 @@ if [ -x ./compiler/xlang-c ]; then
     }
     if file /tmp/xlang_async_run_io_dual_pipe 2>/dev/null | grep -q "executable"; then
       if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_run_io_dual_pipe_wrapper \
-        tests/bench/async_run_io_dual_pipe_wrapper.c 2>&1; then
+        bench/async_run_io_dual_pipe_wrapper.c 2>&1; then
         rc=$(/tmp/xlang_async_run_io_dual_pipe_wrapper /tmp/xlang_async_run_io_dual_pipe; echo $?)
         [ "$rc" = "0" ] || { echo "async linux full FAIL: async_run_io_dual_pipe exit=$rc want 0"; exit 1; }
         echo "async linux full async_run_io_dual_pipe OK"
@@ -890,7 +892,7 @@ if [ -x ./compiler/xlang-c ]; then
     }
     if file /tmp/xlang_async_run_io_dual_parallel 2>/dev/null | grep -q "executable"; then
       if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_run_io_dual_pipe_wrapper \
-        tests/bench/async_run_io_dual_pipe_wrapper.c 2>&1; then
+        bench/async_run_io_dual_pipe_wrapper.c 2>&1; then
         rc=$(/tmp/xlang_async_run_io_dual_pipe_wrapper /tmp/xlang_async_run_io_dual_parallel; echo $?)
         [ "$rc" = "0" ] || { echo "async linux full FAIL: async_run_io_dual_parallel exit=$rc want 0"; exit 1; }
         echo "async linux full async_run_io_dual_parallel OK"
@@ -909,7 +911,7 @@ echo "async linux full OK"
 echo "async scheduler IO-A5 poll wake: xlang_io_poll_async_completions + drain ..."
 if ! async_io_uring_skip_na "async scheduler IO-A5 poll wake"; then
   if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_scheduler_io_poll_wake \
-    tests/bench/async_scheduler_io_poll_wake.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/async_scheduler_io_poll_wake.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(/tmp/xlang_async_scheduler_io_poll_wake; echo $?)
     [ "$rc" = "0" ] || { echo "async scheduler IO-A5 poll wake FAIL: exit=$rc"; exit 1; }
     echo "async scheduler IO-A5 poll wake OK"
@@ -921,7 +923,7 @@ fi
 echo "async run dual pipe: two run_i32 + dual pipe (C harness) ..."
 if ! async_io_uring_skip_na "async run dual pipe"; then
   if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_run_io_dual_pipe \
-    tests/bench/async_run_io_dual_pipe.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/async_run_io_dual_pipe.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(XLANG_ASYNC_YIELD=1 /tmp/xlang_async_run_io_dual_pipe; echo $?)
     [ "$rc" = "0" ] || { echo "async run dual pipe FAIL: exit=$rc"; exit 1; }
     echo "async run dual pipe OK"
@@ -959,7 +961,7 @@ echo "async spawn v4 OK"
 echo "async scheduler IO parallel poll: dual task + poll wake ..."
 if ! async_io_uring_skip_na "async scheduler IO parallel poll"; then
   if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_scheduler_io_parallel_poll \
-    tests/bench/async_scheduler_io_read_parallel_poll.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/async_scheduler_io_read_parallel_poll.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(/tmp/xlang_async_scheduler_io_parallel_poll; echo $?)
     [ "$rc" = "0" ] || { echo "async scheduler IO parallel poll FAIL: exit=$rc"; exit 1; }
     echo "async scheduler IO parallel poll OK"
@@ -971,7 +973,7 @@ fi
 echo "async spawn parallel IO: push+submit x2 + drain_until_idle (C harness) ..."
 if ! async_io_uring_skip_na "async spawn parallel IO"; then
   if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_run_io_spawn_parallel \
-    tests/bench/async_run_io_spawn_parallel.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/async_run_io_spawn_parallel.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(XLANG_ASYNC_YIELD=1 /tmp/xlang_async_run_io_spawn_parallel; echo $?)
     [ "$rc" = "0" ] || { echo "async spawn parallel IO FAIL: exit=$rc"; exit 1; }
     echo "async spawn parallel IO OK"
@@ -983,7 +985,7 @@ fi
 echo "async spawn workers IO: XLANG_ASYNC_WORKERS=2 + spawn parallel drain ..."
 if ! async_io_uring_skip_na "async spawn workers IO"; then
   if XLANG_ASYNC_WORKERS=2 "${XLANG_ASYNC_CC[@]}" -pthread -o /tmp/xlang_async_run_io_spawn_workers \
-    tests/bench/async_run_io_spawn_workers.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/async_run_io_spawn_workers.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(XLANG_ASYNC_YIELD=1 XLANG_ASYNC_WORKERS=2 /tmp/xlang_async_run_io_spawn_workers; echo $?)
     [ "$rc" = "0" ] || { echo "async spawn workers IO FAIL: exit=$rc"; exit 1; }
     echo "async spawn workers IO OK"
@@ -995,7 +997,7 @@ fi
 echo "async run_i32 IO stdin: run_i32 + wake/drain loop (C harness) ..."
 if ! async_io_uring_skip_na "async run_i32 IO stdin"; then
   if "${XLANG_ASYNC_CC[@]}" -o /tmp/xlang_async_run_i32_io_stdin \
-    tests/bench/async_run_i32_io_stdin.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
+    bench/async_run_i32_io_stdin.c std/io/io.o std/async/scheduler.o $XLANG_IO_CC_LIBS 2>&1; then
     rc=$(printf 'abcd' | XLANG_ASYNC_YIELD=1 /tmp/xlang_async_run_i32_io_stdin; echo $?)
     [ "$rc" = "0" ] || { echo "async run_i32 IO stdin FAIL: exit=$rc"; exit 1; }
     echo "async run_i32 IO stdin OK"

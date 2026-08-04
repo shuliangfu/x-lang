@@ -343,6 +343,11 @@ export extern "C" function driver_get_module_num_funcs(m: *u8): i32;
 export extern "C" function driver_get_module_main_func_index(m: *u8): i32;
 export extern "C" function xlang_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 export extern "C" function free(p: *u8): void;
+/** Free ArenaSidecar GrowVecs for arena before free(arena).
+ * PLATFORM: SHARED — required for batch xlang check (see driver_parsed_work_cleanup). */
+export extern "C" function ast_pool_arena_release(a: *u8): void;
+/** Free ModuleSidecar GrowVecs for module before free(module). PLATFORM: SHARED. */
+export extern "C" function ast_pool_module_release(m: *u8): void;
 export extern "C" function bootstrap_nostdlib_pthread_is_stub(): i32;
 
 // pure: return address of module BSS flag cell (cold seed keeps C static + flag_slot).
@@ -2128,8 +2133,8 @@ export function driver_x_emit_work_cleanup(): void {
 // Cold seed keeps C static + accessor twins under #ifndef XLANG_L2_RDABI_THIN_FROM_X.
 // Defined before work_reset so pure reset can call same-TU accessors.
 
-let g_driver_asm_tmp_path_slot: u8[64] = [];
-let g_driver_parsed_tmp_c_slot: u8[64] = [];
+let g_driver_asm_tmp_path_slot: u8[128] = [];
+let g_driver_parsed_tmp_c_slot: u8[128] = [];
 let g_driver_parsed_tmp_c_buf: u8[256] = [];
 
 /**
@@ -2491,8 +2496,16 @@ export function driver_parsed_work_z_set(i: i32, v: usize): void {
  * then if emit_stdout (i[5]) is 0: driver_parsed_fclose(cf p[19]) and unlink tmp_c
  * (p[20] if non-empty, else seed driver_parsed_tmp_c_buf). Finally free arena/module/src
  * (p[3]/p[4]/p[1]), kind/code/msg (p[13..15]), and tmp_c heap (p[20]).
- * free(null)/fclose(null) are safe. Wave18 pure; matches cold seed order.
- * PLATFORM: SHARED — hybrid pure under PREFER. */
+ *
+ * CRITICAL: call ast_pool_arena_release / ast_pool_module_release before free on
+ * every arena/module pointer. free alone leaves process-wide g_arena_sc /
+ * g_module_sc slots used with dangling keys; the next malloc may reuse the same
+ * address and reattach stale GrowVec data. That is why single-file
+ * `xlang check file.x` is green while `xlang check compiler` truncates large
+ * files (e.g. runtime_pipeline_abi num_funcs 363→111). Safe no-op if already
+ * released or null. Wave18 pure + wave1225 release-before-free; matches cold seed.
+ * PLATFORM: SHARED — hybrid pure under PREFER.
+ */
 #[no_mangle]
 export function driver_parsed_work_cleanup(): void {
   unsafe {
@@ -2506,10 +2519,18 @@ export function driver_parsed_work_cleanup(): void {
     let i: i32 = 0;
     while (i < n) {
       if (da != 0 as *u8) {
-        free(xlang_ptr_slot_get(da, i));
+        let dep_a: *u8 = xlang_ptr_slot_get(da, i);
+        if (dep_a != 0 as *u8) {
+          ast_pool_arena_release(dep_a);
+          free(dep_a);
+        }
       }
       if (dm != 0 as *u8) {
-        free(xlang_ptr_slot_get(dm, i));
+        let dep_m: *u8 = xlang_ptr_slot_get(dm, i);
+        if (dep_m != 0 as *u8) {
+          ast_pool_module_release(dep_m);
+          free(dep_m);
+        }
       }
       if (ds != 0 as *u8) {
         free(xlang_ptr_slot_get(ds, i));
@@ -2556,8 +2577,18 @@ export function driver_parsed_work_cleanup(): void {
         }
       }
     }
-    free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 3));
-    free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 4));
+    {
+      let arena: *u8 = xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 3);
+      let module: *u8 = xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 4);
+      if (arena != 0 as *u8) {
+        ast_pool_arena_release(arena);
+        free(arena);
+      }
+      if (module != 0 as *u8) {
+        ast_pool_module_release(module);
+        free(module);
+      }
+    }
     free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 1));
     free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 13));
     free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 14));
@@ -5219,7 +5250,7 @@ export extern "C" function lexer_invalid_escape_pending(): i32;
  */
 export extern "C" function lexer_string_lit_overflow_reset(): void;
 /**
- * wave283: non-zero if string decode would exceed Expr.var_name cap 63 (L011).
+ * wave283: non-zero if string decode would exceed Expr.var_name cap 127 (L011).
  * PLATFORM: SHARED
  */
 export extern "C" function lexer_string_lit_overflow_pending(): i32;
@@ -5229,7 +5260,7 @@ export extern "C" function lexer_string_lit_overflow_pending(): i32;
  */
 export extern "C" function lexer_ident_too_long_reset(): void;
 /**
- * wave284: non-zero if non-keyword ident span exceeds AST name cap 63 (L012).
+ * wave284: non-zero if non-keyword ident span exceeds AST name cap 127 (L012).
  * PLATFORM: SHARED
  */
 export extern "C" function lexer_ident_too_long_pending(): i32;
@@ -5855,4 +5886,3 @@ export function driver_print_usage_write(): void {
     xlang_driver_usage_write_stdout(use_color);
   }
 }
-

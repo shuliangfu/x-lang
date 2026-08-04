@@ -1067,7 +1067,7 @@ export function arch_x86_64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32
     if (is_func == 0) { return 0; }
     // Mach-O: export with leading underscore when host requests it.
     if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
-      let mn: u8[64] = [0];
+      let mn: u8[128] = [0];
       mn[0] = 95;
       let k: i32 = 0;
       while (k < name_len && k < 63) {
@@ -1425,7 +1425,7 @@ export function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32)
   unsafe {
     let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
     if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
-      let rn: u8[64] = [0];
+      let rn: u8[128] = [0];
       rn[0] = 95;
       let k: i32 = 0;
       while (k < name_len && k < 63) {

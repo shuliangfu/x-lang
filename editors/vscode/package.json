@@ -39,8 +39,8 @@
         ],
         "configuration": "./language-configuration.json",
         "icon": {
-          "light": "./icons/x-128.png",
-          "dark": "./icons/x-128.png"
+          "light": "./icons/x-200.png",
+          "dark": "./icons/x-200.png"
         }
       }
     ],
@@ -94,7 +94,7 @@
         },
         "xlang.serverPath": {
           "type": "string",
-          "default": "compiler/xlang",
+          "default": "xlang",
           "markdownDescription": "%xlang.config.serverPath%",
           "scope": "machine-overridable"
         },

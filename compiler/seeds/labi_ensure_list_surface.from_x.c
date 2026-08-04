@@ -75,6 +75,8 @@ extern uint8_t * xlang_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0);
 extern int32_t xlang_link_freestanding_enabled(int32_t driver_freestanding);
 extern int32_t xlang_freestanding_user_o_needs_panic(uint8_t * user_o);
 extern int32_t xlang_freestanding_user_o_needs_io(uint8_t * user_o);
+/* wave592: nostdlib face forces freestanding_io companion. */
+extern int32_t link_abi_user_o_needs_freestanding_nostdlib_face(uint8_t * user_o);
 extern int32_t xlang_ensure_crt0_user_o(uint8_t * argv0, int32_t driver_freestanding);
 extern int32_t xlang_ensure_freestanding_io_o(uint8_t * argv0, int32_t driver_freestanding);
 extern int32_t labi_user_needs_runtime_process_argv(uint8_t * user_o);
@@ -1644,8 +1646,12 @@ int32_t xlang_asm_ld_prepare_for_exe_link(uint8_t * link_eff, uint8_t * user_o, 
   if ((rc != 0)) {
     return -1;
   }
+  /* wave592: ensure freestanding_io when needs_io *or* nostdlib face (memcpy→stubs→mmap). */
   if ((fs != 0)) {
     (void)((need = xlang_freestanding_user_o_needs_io(user_o)));
+    if ((need == 0)) {
+      (void)((need = link_abi_user_o_needs_freestanding_nostdlib_face(user_o)));
+    }
     if ((need != 0)) {
       (void)((rc = xlang_ensure_freestanding_io_o(link_eff, driver_freestanding)));
       if ((rc != 0)) {

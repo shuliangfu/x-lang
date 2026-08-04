@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-test-bench-fuzz.sh — STD-054 manifest 与烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_TEST_BENCH_FUZZ_PREFIX="${XLANG_STD_TEST_BENCH_FUZZ_PREFIX:-xlang: [XLANG_STD_TEST_BENCH_FUZZ]}"
 
 std_test_bench_fuzz_symbols_ok() {
@@ -73,8 +75,8 @@ std_test_bench_fuzz_run_c_smoke() {
     echo "std-test-bench-fuzz FAIL: missing $test_o" >&2
     return 1
   fi
-  make -C compiler -q runtime_test_fn_invoke.o runtime_time_os.o runtime_env_os.o ../std/time/time.o ../std/env/env.o 2>/dev/null \
-    || make -C compiler runtime_test_fn_invoke.o runtime_time_os.o runtime_env_os.o ../std/time/time.o ../std/env/env.o 2>/dev/null || true
+  xlang_compiler_make -q runtime_test_fn_invoke.o runtime_time_os.o runtime_env_os.o ../std/time/time.o ../std/env/env.o 2>/dev/null \
+    || xlang_compiler_make runtime_test_fn_invoke.o runtime_time_os.o runtime_env_os.o ../std/time/time.o ../std/env/env.o 2>/dev/null || true
   if ! cc -std=c11 -O1 -o "$out" "$src" "$test_o" \
     "$comp_dir/runtime_test_fn_invoke.o" "$comp_dir/runtime_time_os.o" "$comp_dir/runtime_env_os.o" ../std/time/time.o ../std/env/env.o -lc 2>/dev/null; then
     echo "std-test-bench-fuzz FAIL: compile $src" >&2

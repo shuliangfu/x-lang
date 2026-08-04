@@ -170,7 +170,7 @@ int32_t asm_pool_expr_is_var_named(uint8_t * a, int32_t er, uint8_t * name, int3
     if ((vlen !=nlen)) {
       return 0;
     }
-    uint8_t vbuf[64] = {};
+    uint8_t vbuf[128] = {};
     (void)(pipeline_expr_var_name_into(a, er, &((vbuf)[0])));
     int32_t i = 0;
     while ((i < nlen)) {
@@ -334,7 +334,7 @@ int32_t asm_pool_type_size_bytes(uint8_t * a, uint8_t * m, int32_t type_ref) {
       return 8;
     }
     if ((kind ==8)) {
-      uint8_t name[64] = {};
+      uint8_t name[128] = {};
       int32_t nlen = pipeline_type_named_name_into(a, type_ref, &((name)[0]));
       if ((nlen <=0)) {
         return 8;
@@ -402,7 +402,7 @@ void asm_pool_live_add(uint8_t * lay, uint8_t * name, int32_t nlen, int32_t sz) 
   if ((nlen <=0)) {
     return;
   }
-  if ((nlen > 63)) {
+  if ((nlen > 127)) {
     return;
   }
   {
@@ -412,8 +412,8 @@ void asm_pool_live_add(uint8_t * lay, uint8_t * name, int32_t nlen, int32_t sz) 
     }
     int32_t i = 0;
     while ((i < num)) {
-      int32_t base = (12 + (i * 76));
-      int32_t elen = asm_pool_load_i32_le(lay, (base + 64));
+      int32_t base = (12 + (i * 140));
+      int32_t elen = asm_pool_load_i32_le(lay, (base + 128));
       if ((elen ==nlen)) {
         int32_t eq = 1;
         int32_t j = 0;
@@ -433,24 +433,24 @@ void asm_pool_live_add(uint8_t * lay, uint8_t * name, int32_t nlen, int32_t sz) 
     int32_t off = 0;
     (void)((i = 0));
     while ((i < num)) {
-      int32_t base2 = (12 + (i * 76));
-      (void)((off = (off + asm_pool_load_i32_le(lay, (base2 + 68)))));
+      int32_t base2 = (12 + (i * 140));
+      (void)((off = (off + asm_pool_load_i32_le(lay, (base2 + 132)))));
       (void)((i = (i + 1)));
     }
-    int32_t slot = (12 + (num * 76));
+    int32_t slot = (12 + (num * 140));
     int32_t k = 0;
     while ((k < nlen)) {
       (void)(((lay)[(slot + k)] = (name)[k]));
       (void)((k = (k + 1)));
     }
     (void)(((lay)[(slot + nlen)] = 0));
-    (void)(asm_pool_store_i32_le(lay, (slot + 64), nlen));
+    (void)(asm_pool_store_i32_le(lay, (slot + 128), nlen));
     int32_t sz2 = sz;
     if ((sz2 <=0)) {
       (void)((sz2 = 4));
     }
-    (void)(asm_pool_store_i32_le(lay, (slot + 68), sz2));
-    (void)(asm_pool_store_i32_le(lay, (slot + 72), off));
+    (void)(asm_pool_store_i32_le(lay, (slot + 132), sz2));
+    (void)(asm_pool_store_i32_le(lay, (slot + 136), off));
     (void)(asm_pool_store_i32_le(lay, 8, (num + 1)));
   }
 }
@@ -521,7 +521,7 @@ int32_t async_asm_pool_build_layout(uint8_t * arena, uint8_t * mod, int32_t func
     return -1;
   }
   int32_t zi = 0;
-  while ((zi < 4880)) {
+  while ((zi < 8976)) {
     (void)(((out)[zi] = 0));
     (void)((zi = (zi + 1)));
   }
@@ -529,12 +529,12 @@ int32_t async_asm_pool_build_layout(uint8_t * arena, uint8_t * mod, int32_t func
     return 1;
   }
   {
-    uint8_t fname[64] = {};
+    uint8_t fname[128] = {};
     int32_t fnlen = pipeline_module_func_name_len_at(mod, func_index);
     (void)(pipeline_module_func_name_copy64(mod, func_index, fname));
     uint32_t fid = async_asm_pool_fn_id_from_name(fname, fnlen);
     (void)(asm_pool_store_i32_le(out, 0, ((int32_t)(fid))));
-    (void)(asm_pool_store_i32_le(out, 4876, -1));
+    (void)(asm_pool_store_i32_le(out, 8972, -1));
     int32_t br = pipeline_module_func_body_ref_at(mod, func_index);
     int32_t nso = ast_ast_block_num_stmt_order(arena, br);
     int32_t defined_lets[64] = {};
@@ -552,9 +552,9 @@ int32_t async_asm_pool_build_layout(uint8_t * arena, uint8_t * mod, int32_t func
               if ((asm_pool_expr_has_await(arena, init) !=0)) {
                 int32_t na = asm_pool_load_i32_le(out, 4);
                 (void)(asm_pool_store_i32_le(out, 4, (na + 1)));
-                int32_t cur_await = asm_pool_load_i32_le(out, 4876);
+                int32_t cur_await = asm_pool_load_i32_le(out, 8972);
                 if ((cur_await < 0)) {
-                  (void)(asm_pool_store_i32_le(out, 4876, si));
+                  (void)(asm_pool_store_i32_le(out, 8972, si));
                 }
                 int32_t li = 0;
                 while ((li < n_def)) {
@@ -562,7 +562,7 @@ int32_t async_asm_pool_build_layout(uint8_t * arena, uint8_t * mod, int32_t func
                   int32_t dlen = pipeline_block_let_name_len(arena, br, def_idx);
                   if ((dlen > 0)) {
                     if ((dlen <=63)) {
-                      uint8_t dname[64] = {};
+                      uint8_t dname[128] = {};
                       (void)(pipeline_block_let_name_copy64(arena, br, def_idx, dname));
                       if ((asm_pool_block_rest_refs_name(arena, br, si, dname, dlen) !=0)) {
                         int32_t tref = pipeline_block_let_type_ref(arena, br, def_idx);
@@ -573,7 +573,7 @@ int32_t async_asm_pool_build_layout(uint8_t * arena, uint8_t * mod, int32_t func
                   }
                   (void)((li = (li + 1)));
                 }
-                uint8_t cur_nb[64] = {};
+                uint8_t cur_nb[128] = {};
                 int32_t cur_len = pipeline_block_let_name_len(arena, br, idx);
                 if ((cur_len > 0)) {
                   if ((cur_len <=63)) {

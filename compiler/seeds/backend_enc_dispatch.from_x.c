@@ -171,6 +171,7 @@ int32_t backend_enc_subsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
 int32_t backend_enc_mulsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_divsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_ucomisd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_ucomiss_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_fp_cmp_setcc_movzbl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc, int32_t ta);
 int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta);
 #endif
@@ -181,6 +182,8 @@ extern int32_t pipeline_elf_ctx_ensure_label(uint8_t *ctx_bytes, uint8_t *name, 
 extern int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, uint8_t *name, int32_t name_len,
                                               int32_t imm_bits);
 extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len);
+/* G.7 wave580: single authority for Darwin leading '_' (never hardcode ElfCodegenCtx offsetof). */
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
 
 /**
  * x86_64 条件跳转 rel32：0F opcode2 00 00 00 00 + patch（与 x86_64_enc.x enc_jle/enc_jl 一致）。
@@ -256,7 +259,7 @@ int32_t backend_enc_append_u8_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
 /* G-02f-146：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-419：实现体始终 seed；public PREFER 时 thin pure forward */
 int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
-  uint8_t reloc_name[64];
+  uint8_t reloc_name[128];
   int32_t at;
   int32_t reloc_len;
   int32_t i;
@@ -268,10 +271,14 @@ int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
   at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 4;
   if (at < 0)
     return -1;
-  macho_leading_underscore = *(int32_t *)((uint8_t *)elf_ctx + 598052);
-  if (macho_leading_underscore != 0 && name_len <= 63 && name[0] != (uint8_t)'_') {
+  /* wave580 Cap residual: NEVER hardcode ElfCodegenCtx field offsets (598052 was
+   * pre-Cap name[64]; after name[128] tables, offsetof is ~9e6). G.7 authority =
+   * pipeline_elf_ctx_macho_leading_underscore (ast_pool offsetof).
+   * PLATFORM: MACOS|DARWIN arm64 BL reloc; LINUX flag stays 0. */
+  macho_leading_underscore = pipeline_elf_ctx_macho_leading_underscore((uint8_t *)elf_ctx);
+  if (macho_leading_underscore != 0 && name_len > 0 && name_len <= 127 && name[0] != (uint8_t)'_') {
     reloc_name[0] = (uint8_t)'_';
-    for (i = 0; i < name_len && i < 63; i++)
+    for (i = 0; i < name_len && i < 127; i++)
       reloc_name[i + 1] = name[i];
     reloc_len = name_len + 1;
     return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, at, reloc_name, reloc_len);
@@ -783,6 +790,15 @@ int32_t backend_enc_addss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
   static const uint8_t movd_xmm1_ebx[4] = {0x66, 0x0f, 0x6e, 0xcb};
   static const uint8_t addss_xmm0_xmm1[4] = {0xf3, 0x0f, 0x58, 0xc1};
   static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270000u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270021u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e212800u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e260000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_eax, 4) != 0)
@@ -809,6 +825,15 @@ int32_t backend_enc_mulss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
   static const uint8_t movd_xmm1_ebx[4] = {0x66, 0x0f, 0x6e, 0xcb};
   static const uint8_t mulss_xmm0_xmm1[4] = {0xf3, 0x0f, 0x59, 0xc1};
   static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270000u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270021u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e210800u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e260000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_eax, 4) != 0)
@@ -835,6 +860,15 @@ int32_t backend_enc_subss_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ct
   static const uint8_t movd_xmm1_eax[4] = {0x66, 0x0f, 0x6e, 0xc8};
   static const uint8_t subss_xmm0_xmm1[4] = {0xf3, 0x0f, 0x5c, 0xc1};
   static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270020u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270001u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e213800u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e260000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_ebx, 4) != 0)
@@ -859,6 +893,15 @@ int32_t backend_enc_subss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
   static const uint8_t movd_xmm1_ebx[4] = {0x66, 0x0f, 0x6e, 0xcb};
   static const uint8_t subss_xmm0_xmm1[4] = {0xf3, 0x0f, 0x5c, 0xc1};
   static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270000u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270021u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e213800u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e260000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_eax, 4) != 0)
@@ -885,6 +928,15 @@ int32_t backend_enc_divss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
   static const uint8_t movd_xmm1_ebx[4] = {0x66, 0x0f, 0x6e, 0xcb};
   static const uint8_t divss_xmm0_xmm1[4] = {0xf3, 0x0f, 0x5e, 0xc1};
   static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270000u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270021u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e211800u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e260000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_eax, 4) != 0)
@@ -905,6 +957,13 @@ int32_t backend_enc_divss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
 int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t movd_xmm0_eax[4] = {0x66, 0x0f, 0x6e, 0xc0};
   static const uint8_t cvttss2si_eax_xmm0[4] = {0xf3, 0x0f, 0x2c, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270000u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e380000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_eax, 4) != 0)
@@ -925,6 +984,13 @@ int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCode
 int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t movq_xmm0_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc0};
   static const uint8_t cvttsd2si_eax_xmm0[4] = {0xf2, 0x0f, 0x2c, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670000u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e780000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rax, 5) != 0)
@@ -945,6 +1011,13 @@ int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(struct platform_elf_ElfCode
 int32_t backend_enc_cvttss2si_rax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t movd_xmm0_eax[4] = {0x66, 0x0f, 0x6e, 0xc0};
   static const uint8_t cvttss2si_rax_xmm0[5] = {0xf3, 0x48, 0x0f, 0x2c, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270000u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e380000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_eax, 4) != 0)
@@ -964,6 +1037,13 @@ int32_t backend_enc_cvttss2si_rax_from_f32_bits_arch(struct platform_elf_ElfCode
 int32_t backend_enc_cvttsd2si_rax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t movq_xmm0_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc0};
   static const uint8_t cvttsd2si_rax_xmm0[5] = {0xf2, 0x48, 0x0f, 0x2c, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670000u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e780000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rax, 5) != 0)
@@ -982,6 +1062,14 @@ int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodeg
   static const uint8_t movq_xmm0_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc0};
   static const uint8_t cvtsd2ss_xmm0_xmm0[4] = {0xf2, 0x0f, 0x5a, 0xc0};
   static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670000u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e624000u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e260000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rax, 5) != 0)
@@ -1000,6 +1088,13 @@ int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodeg
 int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t cvtsi2ss_xmm0_eax[4] = {0xf3, 0x0f, 0x2a, 0xc0};
   static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e220000u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e260000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cvtsi2ss_xmm0_eax, 4) != 0)
@@ -1021,6 +1116,13 @@ int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx
 int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t cvtsi2ss_xmm0_rax[5] = {0xf3, 0x48, 0x0f, 0x2a, 0xc0};
   static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e220000u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e260000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cvtsi2ss_xmm0_rax, 5) != 0)
@@ -1041,6 +1143,13 @@ int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(struct platform_elf_ElfCodegenCtx
 int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t cvtsi2sd_xmm0_eax[4] = {0xf2, 0x0f, 0x2a, 0xc0};
   static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e620000u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e660000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cvtsi2sd_xmm0_eax, 4) != 0)
@@ -1062,6 +1171,13 @@ int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(struct platform_elf_ElfCodegenCtx
 int32_t backend_enc_cvtsi2sd_rax_from_i64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t cvtsi2sd_xmm0_rax[5] = {0xf2, 0x48, 0x0f, 0x2a, 0xc0};
   static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e620000u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e660000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cvtsi2sd_xmm0_rax, 5) != 0)
@@ -1100,6 +1216,13 @@ int32_t backend_enc_cvtsi2sd_rax_from_u64_arch(struct platform_elf_ElfCodegenCtx
       0xf2, 0x48, 0x0f, 0x2a, 0xc0,       /* .Lfit: cvtsi2sd xmm0,rax */
       0x66, 0x48, 0x0f, 0x7e, 0xc0        /* movq rax,xmm0 */
   };
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e630000u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e660000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)seq, 43);
@@ -1130,6 +1253,13 @@ int32_t backend_enc_cvtsi2ss_eax_from_u64_arch(struct platform_elf_ElfCodegenCtx
       0xf3, 0x48, 0x0f, 0x2a, 0xc0,       /* .Lfit: cvtsi2ss xmm0,rax */
       0x66, 0x0f, 0x7e, 0xc0              /* movd eax,xmm0 */
   };
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e230000u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e260000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)seq, 41);
@@ -1150,6 +1280,14 @@ int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(struct platform_elf_ElfCodeg
   static const uint8_t movd_xmm0_eax[4] = {0x66, 0x0f, 0x6e, 0xc0};
   static const uint8_t cvtss2sd_xmm0_xmm0[4] = {0xf3, 0x0f, 0x5a, 0xc0};
   static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270000u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e22c000u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e660000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_eax, 4) != 0)
@@ -1233,6 +1371,15 @@ int32_t backend_enc_addsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
   static const uint8_t movq_xmm1_rbx[5] = {0x66, 0x48, 0x0f, 0x6e, 0xcb};
   static const uint8_t addsd_xmm0_xmm1[4] = {0xf2, 0x0f, 0x58, 0xc1};
   static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670000u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670021u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e612800u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e660000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rax, 5) != 0)
@@ -1253,6 +1400,15 @@ int32_t backend_enc_subsd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ct
   static const uint8_t movq_xmm1_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc8};
   static const uint8_t subsd_xmm0_xmm1[4] = {0xf2, 0x0f, 0x5c, 0xc1};
   static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670020u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670001u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e613800u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e660000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rbx, 5) != 0)
@@ -1272,6 +1428,15 @@ int32_t backend_enc_subsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
   static const uint8_t movq_xmm1_rbx[5] = {0x66, 0x48, 0x0f, 0x6e, 0xcb};
   static const uint8_t subsd_xmm0_xmm1[4] = {0xf2, 0x0f, 0x5c, 0xc1};
   static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670000u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670021u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e613800u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e660000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rax, 5) != 0)
@@ -1293,6 +1458,15 @@ int32_t backend_enc_mulsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
   static const uint8_t movq_xmm1_rbx[5] = {0x66, 0x48, 0x0f, 0x6e, 0xcb};
   static const uint8_t mulsd_xmm0_xmm1[4] = {0xf2, 0x0f, 0x59, 0xc1};
   static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670000u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670021u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e610800u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e660000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rax, 5) != 0)
@@ -1315,6 +1489,15 @@ int32_t backend_enc_divsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
   static const uint8_t movq_xmm1_rbx[5] = {0x66, 0x48, 0x0f, 0x6e, 0xcb};
   static const uint8_t divsd_xmm0_xmm1[4] = {0xf2, 0x0f, 0x5e, 0xc1};
   static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670000u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670021u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e611800u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e660000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rax, 5) != 0)
@@ -1336,6 +1519,14 @@ int32_t backend_enc_ucomisd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_
   static const uint8_t movq_xmm0_rbx[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc3};
   static const uint8_t movq_xmm1_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc8};
   static const uint8_t ucomisd_xmm0_xmm1[4] = {0x66, 0x0f, 0x2e, 0xc1};
+  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670020u) != 0) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670001u) != 0) return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e612000u);
+  }
+
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rbx, 5) != 0)
@@ -1343,6 +1534,36 @@ int32_t backend_enc_ucomisd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm1_rax, 5) != 0)
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)ucomisd_xmm0_xmm1, 4);
+}
+
+/**
+ * PLATFORM: LINUX+MACOS x86_64 / MACOS|ARM64 — ordered f32 compare: left in rbx/x1, right in rax/x0.
+ * wave621 Cap residual: freestanding f32 ==/!=/<> used integer cmp of 64-bit stack loads
+ * (high half garbage → equal floats fail; signed order wrong for negatives).
+ * x86_64: movd xmm0,ebx; movd xmm1,eax; ucomiss xmm0,xmm1 (low 32 only; CF/ZF setcc).
+ * arm64: fmov s0,w1; fmov s1,w0; fcmp s0,s1 (Wn = low 32 of Xn).
+ * Pair with backend_enc_fp_cmp_setcc_movzbl_arch (same CF/ZF / NZCV contract as f64).
+ * G.7: sibling of backend_enc_ucomisd_rbx_rax_arch — do not reuse ucomisd for f32.
+ */
+int32_t backend_enc_ucomiss_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  /* movd xmm0, ebx (no REX.W — 32-bit GP → xmm); movd xmm1, eax; ucomiss xmm0, xmm1 */
+  static const uint8_t movd_xmm0_ebx[4] = {0x66, 0x0f, 0x6e, 0xc3};
+  static const uint8_t movd_xmm1_eax[4] = {0x66, 0x0f, 0x6e, 0xc8};
+  static const uint8_t ucomiss_xmm0_xmm1[3] = {0x0f, 0x2e, 0xc1};
+  /* PLATFORM: MACOS|ARM64 — fmov s0,w1; fmov s1,w0; fcmp s0,s1 */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270020u) != 0) return -1; /* fmov s0, w1 */
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270001u) != 0) return -1; /* fmov s1, w0 */
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e212000u);             /* fcmp s0, s1 */
+  }
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_ebx, 4) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm1_eax, 4) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)ucomiss_xmm0_xmm1, 3);
 }
 
 /**
@@ -1354,6 +1575,9 @@ int32_t backend_enc_fp_cmp_setcc_movzbl_arch(struct platform_elf_ElfCodegenCtx *
   uint8_t op = 0x94; /* sete */
   static const uint8_t movzbl_al_eax[3] = {0x0f, 0xb6, 0xc0};
   uint8_t s[3];
+  /* wave616: after arm64 fcmp (ucomisd twin), NZCV matches integer cset eq/ne/lt/le/gt/ge. */
+  if (ta == 1)
+    return arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
   if (ta != 0 || !elf_ctx)
     return -1;
   if (cc == 1)
@@ -2055,17 +2279,21 @@ int32_t backend_enc_load_rbp_lane_to_rbx_arch(struct platform_elf_ElfCodegenCtx 
  */
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+/**
+ * wave616 Cap residual: STR W0, [x29, #offset] positive product frame polarity.
+ * Prior STUR [x29,#-offset] mismatched load_rbp_to_rax positive LDR → f32 let
+ * freestanding run=0. Encoding: 0xB9000000 | ((off/4)<<10) | (29<<5) | 0.
+ * PLATFORM: MACOS|ARM64 product pure-asm.
+ */
 int32_t arm64_enc_store_w0_to_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  int32_t simm9;
-  int32_t u9;
   uint32_t insn;
   if (!elf_ctx || offset < 0)
     return -1;
-  simm9 = 0 - offset;
-  if (simm9 < -256)
-    simm9 = -256;
-  u9 = simm9 & 511;
-  insn = 0xB8000000u | ((uint32_t)u9 << 12) | (29u << 5);
+  if ((offset % 4) != 0)
+    return -1;
+  if ((offset / 4) > 4095)
+    return -1;
+  insn = 0xB9000000u | (((uint32_t)(offset / 4)) << 10) | (29u << 5);
   return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)insn);
 }
 #endif

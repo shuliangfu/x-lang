@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SIMD-S4 验收：tests/bench/simd_dot.x ≥ 0.90× tests/bench/simd_dot.c（-O2 -msse2）。
+# SIMD-S4 验收：bench/r04_simd_dot.x ≥ 0.90× bench/r04_simd_dot.c（-O2 -msse2）。
 # 用法：
 #   ./tests/run-perf-simd-dot.sh
 #   XLANG=./compiler/xlang_asm ./tests/run-perf-simd-dot.sh
@@ -8,8 +8,9 @@ set -e
 cd "$(dirname "$0")/.."
 
 XLANG_BIN="${XLANG:-./compiler/xlang_asm}"
-X_SRC="tests/bench/simd_dot.x"
-C_SRC="tests/bench/simd_dot.c"
+# PLATFORM: SHARED — fixture names follow r04_ bench id (wave1191 rename; do not use bare simd_dot.*).
+X_SRC="bench/r04_simd_dot.x"
+C_SRC="bench/r04_simd_dot.c"
 X_EXE="/tmp/xlang_simd_dot_bench"
 C_EXE="/tmp/xlang_simd_dot_c_bench"
 RUNS="${XLANG_SIMD_DOT_RUNS:-3}"

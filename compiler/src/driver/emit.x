@@ -49,13 +49,13 @@ allow(padding) struct PipelineDepCtx {
   current_codegen_module: *u8;
   current_codegen_arena: *u8;
   current_codegen_dep_index: i32;
-  current_codegen_prefix_mirror: u8[64];
+  current_codegen_prefix_mirror: u8[128];
   current_codegen_prefix_len: i32;
   asm_entry_module_only: i32;
-  entry_module_import_path_mirror: u8[64];
+  entry_module_import_path_mirror: u8[128];
   entry_module_import_path_len: i32;
   typeck_scope_region_len: i32;
-  typeck_scope_region_label: u8[64];
+  typeck_scope_region_label: u8[128];
   /*
    * wave445 C5: monomorphization type-substitution state for generic function
    * body emit. When mono_active=1, emit_type replaces any type_ref matching

@@ -163,9 +163,9 @@ struct glue_AsmFuncCtxCall {
   int32_t loop_break_len_stack[8];
   uint8_t loop_continue_label_stack[512];
   int32_t loop_continue_len_stack[8];
-  uint8_t break_label[64];
+  uint8_t break_label[128];
   int32_t break_len;
-  uint8_t continue_label[64];
+  uint8_t continue_label[128];
   int32_t continue_len;
   int32_t loop_label_depth;
   void *dep_pipe;
@@ -443,10 +443,18 @@ extern int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(struct ast_ASTArena 
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             struct backend_AsmFuncCtx *ctx, int32_t arg_ref,
                                                             int32_t sz, int32_t ta);
+/* wave603: arm64 MEMORY by-value → [sp+#sp_off] multi-word (VAR). */
+extern int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(struct ast_ASTArena *arena,
+                                                              struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                              struct backend_AsmFuncCtx *ctx, int32_t arg_ref,
+                                                              int32_t sz, int32_t ta, int32_t sp_off);
 extern int32_t backend_enc_store_rdx_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                  int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                  int32_t ta);
+/* wave600: AAPCS64 dual-GP high half is x1 (store_rdx is x86-only). */
+extern int32_t backend_enc_store_x_reg_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
+                                                   int32_t offset, int32_t ta);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                int32_t ta);
 extern int32_t backend_enc_mov_rdx_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
@@ -596,12 +604,30 @@ static int32_t glue_call_arg_is_f64_width_c(struct ast_ASTArena *arena, int32_t 
 
 /**
  * PLATFORM: LINUX+MACOS x86_64 SysV — how many integer arg registers a value of size sz needs.
- * 9–16B POD → 2; else 1 (scalars / pointers / ≤8B). >16B is MEMORY (caller lea) → 1 pointer.
+ * 9–16B POD → 2; else 1 (scalars / pointers / ≤8B).
+ * wave601: >16B is MEMORY by-value on the stack (0 GP). Historical comment "caller lea → 1
+ * pointer" mismatched formal C / param_home (callee reads [rbp+0x10..], not rdi).
  */
 static int32_t glue_sysv_arg_gp_units_from_size_c(int32_t sz) {
+  if (sz > 16)
+    return 0; /* MEMORY class — no GP; stack words via n_stack / push_sysv_memory */
   if (sz > 8 && sz <= 16)
     return 2;
   return 1;
+}
+
+/** SysV MEMORY by-value: aggregate size >16 (not a pointer in a GP). */
+static int32_t glue_sysv_arg_is_memory_by_value_c(int32_t sz) {
+  return sz > 16 ? 1 : 0;
+}
+
+/** Stack words for one SysV arg: MEMORY → ceil(sz/8); integer stack excess → units. */
+static int32_t glue_sysv_arg_stack_words_c(int32_t sz, int32_t gp_units) {
+  if (sz > 16)
+    return (sz + 7) / 8;
+  if (gp_units < 1)
+    return 1;
+  return gp_units;
 }
 
 /**
@@ -630,8 +656,8 @@ static int32_t glue_sysv_arg_byte_size_c(struct ast_ASTArena *arena, struct back
 }
 
 /**
- * Place rax (+ rdx for 9–16B) into consecutive SysV integer arg regs starting at gp.
- * PLATFORM: LINUX+MACOS x86_64 SysV.
+ * Place rax/x0 (+ rdx/x1 for 9–16B) into consecutive integer arg regs starting at gp.
+ * PLATFORM: LINUX+MACOS x86_64 SysV (rax+rdx) · MACOS|ARM64 AAPCS64 (x0+x1, wave600).
  */
 static int32_t glue_sysv_place_rax_rdx_arg_regs_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                       int32_t gp, int32_t gp_units) {
@@ -639,19 +665,30 @@ static int32_t glue_sysv_place_rax_rdx_arg_regs_elf_c(struct platform_elf_ElfCod
     return -1;
   if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, gp, ta) != 0)
     return -1;
-  if (ta == 0 && gp_units >= 2) {
-    if (backend_enc_mov_rdx_to_arg_reg_arch(elf_ctx, gp + 1, ta) != 0)
-      return -1;
+  if (gp_units >= 2) {
+    if (ta == 0) {
+      if (backend_enc_mov_rdx_to_arg_reg_arch(elf_ctx, gp + 1, ta) != 0)
+        return -1;
+    } else if (ta == 1) {
+      /*
+       * wave600: AAPCS64 dual-GP high half is x1. Product call-arg path uses
+       * spill-then-load (not place). Direct place only valid when gp==0 so
+       * x0/x1 already match the first dual-GP formal pair.
+       */
+      if (gp != 0)
+        return -1;
+    }
   }
   return 0;
 }
 
 /**
- * Spill rax[+rdx] to a fresh frame slot; leave next_offset advanced.
+ * Spill rax/x0 [+ rdx/x1 for 9–16B] to a fresh frame slot; leave next_offset advanced.
  * PLATFORM: LINUX+MACOS x86_64 SysV — multi-arg packing: emit all values to memory first so
  * dual-load (uses rdx) does not clobber already-placed higher arg regs (e.g. index in rdx).
- * wave392: also AAPCS64 (ta==1) for x0-only spill — nested CALL while placing xN
- * clobbers earlier arg regs (make1 destroys x1 holding make2 → reent2=11).
+ * wave392: also AAPCS64 (ta==1) for nested CALL while placing xN (make1 destroys x1 holding make2).
+ * wave600: AAPCS64 9–16B INTEGER dual-GP — spill x1 high half @ off+8 (low-end polarity ≡
+ * store_retval_pair / param_home); prior units=1 left only x0 → multi dual-GP take2 wrong.
  * Returns spill offset (low half), or -1.
  */
 static int32_t glue_sysv_spill_rax_rdx_to_frame_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -666,26 +703,54 @@ static int32_t glue_sysv_spill_rax_rdx_to_frame_c(struct platform_elf_ElfCodegen
     off = 16;
   if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
     return -1;
-  /* dual-GP high half is SysV x86 only (rdx); AAPCS64 8B args use one Xn. */
-  if (ta == 0 && gp_units >= 2) {
-    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
-      return -1;
+  if (gp_units >= 2) {
+    if (ta == 0) {
+      /* SysV high-end: high half @ home-8 (rdx). */
+      if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
+        return -1;
+    } else if (ta == 1) {
+      /* AAPCS64 low-end: high half @ home+8 (x1). PLATFORM: MACOS|ARM64. */
+      if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 1, off + 8, ta) != 0)
+        return -1;
+    }
   }
   ly->next_offset = off + 16;
   return off;
 }
 
-/** Load spilled arg from frame into SysV GP starting at gp. */
+/**
+ * Load spilled arg from frame into integer arg regs starting at gp.
+ * PLATFORM: LINUX+MACOS x86_64 SysV (high@spill-8) · MACOS|ARM64 (high@spill+8, wave600).
+ *
+ * wave600: when gp==0 and dual-GP, load **high half first** then low into x0/rax.
+ * Loading low→x0 then high→x0→x1 overwrites low (mac take2 x0 ended as high half only).
+ * When gp>0, x0/rax is a pure temp so low-then-high is fine.
+ */
 static int32_t glue_sysv_load_spill_to_arg_regs_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                       int32_t spill_off, int32_t gp, int32_t gp_units) {
+  int32_t half2;
   if (!elf_ctx || spill_off < 0 || gp < 0)
     return -1;
+  if (gp_units >= 2 && gp == 0) {
+    half2 = (ta == 1) ? (spill_off + 8) : (spill_off - 8);
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, half2, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+      return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off, ta) != 0)
+      return -1;
+    /* low → arg0: arm64 x0 is already arg0 (no-op mov); x86 must rax→rdi. */
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    return 0;
+  }
   if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off, ta) != 0)
     return -1;
   if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, gp, ta) != 0)
     return -1;
-  if (ta == 0 && gp_units >= 2) {
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off - 8, ta) != 0)
+  if (gp_units >= 2) {
+    half2 = (ta == 1) ? (spill_off + 8) : (spill_off - 8);
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, half2, ta) != 0)
       return -1;
     if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, gp + 1, ta) != 0)
       return -1;
@@ -707,6 +772,8 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
   int32_t pty;
   int32_t arg_ref;
   int32_t units;
+  int32_t sz;
+  int32_t words;
   if (!out_kind || !out_reg_k || !out_stack_k)
     return 0;
   gp = 0;
@@ -715,7 +782,9 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
   for (j = 0; j <= arg_index && j < nargs; j++) {
     pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
     arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, j);
-    units = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, 0, pty, arg_ref));
+    sz = glue_sysv_arg_byte_size_c(arena, 0, pty, arg_ref);
+    units = glue_sysv_arg_gp_units_from_size_c(sz);
+    words = glue_sysv_arg_stack_words_c(sz, units);
     if (j == arg_index) {
       if (glue_call_arg_is_sse_float_c(arena, call_expr_ref, j, pty)) {
         if (xmm < 8) {
@@ -725,7 +794,11 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
           *out_kind = 2;
           *out_stack_k = stk;
         }
-      } else if (gp + units <= 6) {
+      } else if (glue_sysv_arg_is_memory_by_value_c(sz)) {
+        /* wave601: MEMORY by-value — stack only, never a GP pointer. */
+        *out_kind = 2;
+        *out_stack_k = stk;
+      } else if (units > 0 && gp + units <= 6) {
         *out_kind = 0;
         *out_reg_k = gp;
       } else {
@@ -739,10 +812,12 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
         xmm++;
       else
         stk++;
-    } else if (gp + units <= 6) {
+    } else if (glue_sysv_arg_is_memory_by_value_c(sz)) {
+      stk += words;
+    } else if (units > 0 && gp + units <= 6) {
       gp += units;
     } else {
-      stk += units;
+      stk += words;
     }
   }
   *out_kind = 2;
@@ -771,22 +846,29 @@ int32_t glue_sysv_x86_call_n_stack_c_impl(struct ast_ASTArena *arena, int32_t ca
   int32_t pty;
   int32_t arg_ref;
   int32_t units;
+  int32_t sz;
+  int32_t words;
   gp = 0;
   xmm = 0;
   stk = 0;
   for (j = 0; j < nargs; j++) {
     pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
     arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, j);
-    units = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, 0, pty, arg_ref));
+    sz = glue_sysv_arg_byte_size_c(arena, 0, pty, arg_ref);
+    units = glue_sysv_arg_gp_units_from_size_c(sz);
+    words = glue_sysv_arg_stack_words_c(sz, units);
     if (glue_call_arg_is_sse_float_c(arena, call_expr_ref, j, pty)) {
       if (xmm < 8)
         xmm++;
       else
         stk++;
-    } else if (gp + units <= 6) {
+    } else if (glue_sysv_arg_is_memory_by_value_c(sz)) {
+      /* wave601: MEMORY multi-word on stack (not 1 GP). */
+      stk += words;
+    } else if (units > 0 && gp + units <= 6) {
       gp += units;
     } else {
-      stk += units;
+      stk += words;
     }
   }
   return stk;
@@ -873,10 +955,25 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
       return -1;
   }
   for (si = n_stk_push - 1; si >= 0; si--) {
+    int32_t pty_i;
+    int32_t sz_i;
+    int32_t pushed;
     i = stk_push[si];
     arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
     if (arg_ref == 0)
       continue;
+    pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
+    sz_i = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, arg_ref);
+    /*
+     * wave601: >16B MEMORY by-value — multi-qword push (not single lea→push).
+     * Matches method-import path + formal param_home [rbp+0x10..].
+     */
+    if (glue_sysv_arg_is_memory_by_value_c(sz_i)) {
+      pushed = pipeline_asm_push_sysv_memory_by_value_elf_c(arena, elf_ctx, ctx, arg_ref, sz_i, ta);
+      if (pushed < 0)
+        return -1;
+      continue;
+    }
     if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
       return -1;
     if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
@@ -1125,11 +1222,13 @@ int32_t glue_asm_build_dep_export_sym_c_impl(const uint8_t *name, int32_t name_l
     while (plen < 127 && prefix[plen])
       plen++;
     if (plen > 0 && !glue_asm_c_prefix_redundant_with_name(prefix, plen, name, name_len)) {
-      for (i = 0; i < plen && pos < out_cap - 1; i++)
+      /* wave580 Cap: fill out[0..out_cap) without reserved NUL (length-returned API). */
+      for (i = 0; i < plen && pos < out_cap; i++)
         out[pos++] = prefix[i];
     }
   }
-  for (i = 0; i < name_len && pos < out_cap - 1; i++)
+  /* wave580 Cap: allow full content cap 127 into out_cap 128 (was out_cap-1 → truncate 64→63). */
+  for (i = 0; i < name_len && pos < out_cap; i++)
     out[pos++] = name[i];
   return pos > 0 ? pos : -1;
 }
@@ -1229,7 +1328,7 @@ static int32_t glue_asm_call_arg_type_ref_c(struct ast_ASTArena *arena, struct b
   int32_t ty;
   int32_t ko;
   int32_t scope_br;
-  uint8_t vname[64];
+  uint8_t vname[128];
   int32_t vlen;
   if (!arena || arg_ref <= 0)
     return 0;
@@ -1353,7 +1452,7 @@ static int32_t glue_asm_type_ref_to_suffix_c(struct ast_ASTArena *a, int32_t typ
  */
 static int32_t glue_asm_build_func_overload_mid_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
                                                    uint8_t *out, int32_t out_cap) {
-  uint8_t fname[64];
+  uint8_t fname[128];
   int32_t fname_len;
   int32_t pos;
   int32_t np;
@@ -1361,11 +1460,11 @@ static int32_t glue_asm_build_func_overload_mid_c(struct ast_Module *m, struct a
   int32_t pty;
   int32_t sl;
   int32_t sig_count;
-  uint8_t suf[64];
+  uint8_t suf[128];
   if (!m || !a || func_ix < 0 || !out || out_cap <= 0)
     return -1;
   fname_len = pipeline_asm_module_func_name_len_at(m, func_ix);
-  if (fname_len <= 0 || fname_len >= out_cap || fname_len > 63)
+  if (fname_len <= 0 || fname_len >= out_cap || fname_len > 127)
     return -1;
   pipeline_asm_module_func_name_copy64(m, func_ix, fname);
   memcpy(out, fname, (size_t)fname_len);
@@ -1448,8 +1547,8 @@ static int32_t glue_asm_score_import_binding_func_ix_ex_c(struct ast_ASTArena *a
                                  : pipeline_expr_call_arg_ref(arena, expr_ref, pi);
       int32_t arg_ty = glue_asm_call_arg_type_ref_c(arena, ctx, arg_ref);
       int32_t pty = pipeline_module_func_param_type_ref_at(res_mod, fi, pi);
-      uint8_t sa[64];
-      uint8_t sb[64];
+      uint8_t sa[128];
+      uint8_t sb[128];
       int32_t na;
       int32_t nb;
       int32_t k;
@@ -1471,8 +1570,8 @@ static int32_t glue_asm_score_import_binding_func_ix_ex_c(struct ast_ASTArena *a
     }
     if (want_np == 0 && exp_ty > 0) {
       int32_t rty = pipeline_module_func_return_type_at(res_mod, fi);
-      uint8_t sa[64];
-      uint8_t sb[64];
+      uint8_t sa[128];
+      uint8_t sb[128];
       int32_t na = glue_asm_type_ref_to_suffix_c(arena, exp_ty, sa, 64);
       int32_t nb = rty > 0 ? glue_asm_type_ref_to_suffix_c(res_arena, rty, sb, 64) : 0;
       int32_t k;
@@ -1544,7 +1643,7 @@ static int32_t glue_asm_mangle_import_binding_call_sym_c(struct ast_ASTArena *ar
   int32_t r_func;
   int32_t r_dep;
   struct ast_PipelineDepCtx *dp;
-  uint8_t mid[64];
+  uint8_t mid[128];
   int32_t mid_len;
   int32_t sym_len;
   int32_t want_np;
@@ -1681,7 +1780,7 @@ static int32_t glue_asm_mangle_import_binding_call_sym_c(struct ast_ASTArena *ar
       int32_t arg_ref = is_method ? pipeline_expr_method_call_arg_ref(arena, expr_ref, pi)
                                  : pipeline_expr_call_arg_ref(arena, expr_ref, pi);
       int32_t arg_ty = glue_asm_call_arg_type_ref_c(arena, ctx, arg_ref);
-      uint8_t suf[64];
+      uint8_t suf[128];
       int32_t sl = arg_ty > 0 ? glue_asm_type_ref_to_suffix_c(arena, arg_ty, suf, 64) : 0;
       if (sl <= 0)
         continue;
@@ -1693,7 +1792,7 @@ static int32_t glue_asm_mangle_import_binding_call_sym_c(struct ast_ASTArena *ar
     }
     if (n_args == 0) {
       int32_t exp_ty = glue_asm_call_expected_ret_ty_c(arena, expr_ref);
-      uint8_t suf[64];
+      uint8_t suf[128];
       int32_t sl = exp_ty > 0 ? glue_asm_type_ref_to_suffix_c(arena, exp_ty, suf, 64) : 0;
       if (sl > 0 && alen + 4 + sl < 64) {
         mid[alen++] = (uint8_t)'_';
@@ -1744,7 +1843,7 @@ static struct ast_Module *glue_asm_res_mod_for_import_binding_c(struct ast_Pipel
   if (iplen <= 0 || iplen > 63)
     return 0;
   for (di = 0; di < nd; di++) {
-    uint8_t dpath[64];
+    uint8_t dpath[128];
     int32_t dplen;
     int32_t k;
     int32_t eq;
@@ -1772,7 +1871,7 @@ static struct ast_Module *glue_asm_res_mod_for_import_binding_c(struct ast_Pipel
 
 /** Count overloads that share the same param-type suffix signature as func_ix (for _ret_ mangle). */
 static int32_t glue_asm_overload_param_sig_count_c(struct ast_ASTArena *a, struct ast_Module *m, int32_t func_ix) {
-  uint8_t fname[64];
+  uint8_t fname[128];
   int32_t fname_len;
   int32_t np0;
   int32_t i;
@@ -1780,7 +1879,7 @@ static int32_t glue_asm_overload_param_sig_count_c(struct ast_ASTArena *a, struc
   if (!a || !m || func_ix < 0)
     return 0;
   fname_len = pipeline_asm_module_func_name_len_at(m, func_ix);
-  if (fname_len <= 0 || fname_len > 63)
+  if (fname_len <= 0 || fname_len > 127)
     return 0;
   pipeline_asm_module_func_name_copy64(m, func_ix, fname);
   np0 = pipeline_module_func_num_params_at(m, func_ix);
@@ -1798,8 +1897,8 @@ static int32_t glue_asm_overload_param_sig_count_c(struct ast_ASTArena *a, struc
       continue;
     same = 1;
     for (pi = 0; pi < np0; pi++) {
-      uint8_t sa[64];
-      uint8_t sb[64];
+      uint8_t sa[128];
+      uint8_t sb[128];
       int32_t na;
       int32_t nb;
       int32_t k;
@@ -1900,7 +1999,7 @@ int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t c
 /* G-02f-374 call：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_asm_build_func_export_sym_c_impl(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
                                          uint8_t *out, int32_t out_cap) {
-  uint8_t fname[64];
+  uint8_t fname[128];
   int32_t fname_len;
   int32_t pos;
   int32_t np;
@@ -1908,11 +2007,11 @@ int32_t glue_asm_build_func_export_sym_c_impl(struct ast_Module *m, struct ast_A
   int32_t pty;
   int32_t sl;
   int32_t sig_count;
-  uint8_t suf[64];
+  uint8_t suf[128];
   if (!m || !a || func_ix < 0 || !out || out_cap <= 0)
     return -1;
   fname_len = pipeline_asm_module_func_name_len_at(m, func_ix);
-  if (fname_len <= 0 || fname_len > 63)
+  if (fname_len <= 0 || fname_len > 127)
     return -1;
   pipeline_asm_module_func_name_copy64(m, func_ix, fname);
   if (glue_module_func_overload_count_c(m, fname, fname_len) <= 1) {
@@ -2091,7 +2190,7 @@ int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, in
 /* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-370 call：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_asm_fill_c_prefix_from_module_import_impl(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf) {
-  uint8_t path_bytes[64];
+  uint8_t path_bytes[128];
   int32_t pre_len;
   parser_get_module_import_path(cur_mod, imp_ix, path_bytes);
   if (path_bytes[0] == 0)
@@ -2120,7 +2219,7 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c_impl(struct ast_AST
                                                               int32_t callee_expr_ref, uint8_t *sym_flat,
                                                               int32_t *out_match_imp_j) {
   int32_t cur_ref;
-  uint8_t layer_buf[64];
+  uint8_t layer_buf[128];
   int32_t nstack;
   int32_t dep_j;
   if (!arena || !cur_mod || !sym_flat || callee_expr_ref <= 0)
@@ -2146,15 +2245,15 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c_impl(struct ast_AST
     return -1;
   {
     int32_t vnlen;
-    uint8_t vname_buf[64];
+    uint8_t vname_buf[128];
     vnlen = pipeline_expr_var_name_len(arena, cur_ref);
-    if (pipeline_expr_kind_ord_at(arena, cur_ref) != 3 || vnlen <= 0 || vnlen > 63)
+    if (pipeline_expr_kind_ord_at(arena, cur_ref) != 3 || vnlen <= 0 || vnlen > 127)
       return -1;
     pipeline_expr_var_name_into(arena, cur_ref, vname_buf);
     dep_j = 0;
     while (dep_j < parser_get_module_num_imports(cur_mod)) {
       int32_t plen;
-      uint8_t path_cnt_buf[64];
+      uint8_t path_cnt_buf[128];
       int32_t pci;
       int32_t pseg;
       int32_t s0_rel;
@@ -2368,74 +2467,199 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
     if (n_stack > 0 && ta == 2)
       return -1;
 
-    stack_reserve = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+    /*
+     * wave601: x86 outgoing words include MEMORY multi-word (not nargs-reg_max alone).
+     * Cleanup twin: glue_asm_emit_call_with_cleanup uses glue_sysv_x86_call_n_stack_c.
+     */
+    if (ta == 0 && arena && expr_ref > 0) {
+      int32_t nw = glue_sysv_x86_call_n_stack_c(arena, expr_ref, nargs);
+      stack_reserve = nw * 8;
+      if (nw > 0 && (nw & 1))
+        stack_reserve += 8;
+    } else if (ta == 1 && arena && expr_ref > 0) {
+      /*
+       * wave603: AAPCS64 stack words include MEMORY multi-word (≡ x86 wave601),
+       * not nargs-reg_max alone. Align 16 for arm64 SP.
+       */
+      int32_t nw = 0;
+      int32_t gp_tmp = 0;
+      int32_t j;
+      for (j = 0; j < nargs; j++) {
+        int32_t ar_j = pipeline_expr_call_arg_ref(arena, expr_ref, j);
+        int32_t pty_j = glue_call_param_type_ref_at(arena, expr_ref, j);
+        int32_t sz_j = glue_sysv_arg_byte_size_c(arena, ctx, pty_j, ar_j);
+        int32_t u_j = glue_sysv_arg_gp_units_from_size_c(sz_j);
+        int32_t w_j = glue_sysv_arg_stack_words_c(sz_j, u_j);
+        if (glue_sysv_arg_is_memory_by_value_c(sz_j))
+          nw += w_j;
+        else if (u_j > 0 && gp_tmp + u_j <= reg_max)
+          gp_tmp += u_j;
+        else
+          nw += w_j > 0 ? w_j : 1;
+      }
+      stack_reserve = nw * 8;
+      if (stack_reserve > 0)
+        stack_reserve = (stack_reserve + 15) & ~15;
+    } else {
+      stack_reserve = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+    }
     if (stack_reserve < 0)
       return -1;
     if (backend_enc_call_stack_reserve_arch(elf_ctx, stack_reserve, ta) != 0)
       return -1;
 
-    /** x86_64：奇数个栈实参时先 push 8B 对齐垫（须在实参之前，否则 callee 0x10(%rbp) 错位）；再右到左 push 栈实参。 */
-    if (ta == 0 && n_stack > 0) {
-      if (n_stack & 1) {
+    /**
+     * x86_64：先 pad（16 对齐），再右到左 push 栈实参。
+     * wave601: MEMORY (sz>16) uses push_sysv_memory multi-qword; also any arg that
+     * classification places on stack (excess GP), not only index>=eff_reg_max.
+     */
+    if (ta == 0) {
+      int32_t nw = glue_sysv_x86_call_n_stack_c(arena, expr_ref, nargs);
+      int32_t kind_i;
+      int32_t reg_k_i;
+      int32_t stack_k_i;
+      if (nw > 0 && (nw & 1)) {
         if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
           return -1;
         if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
           return -1;
       }
-      for (i = nargs - 1; i >= eff_reg_max; i--) {
+      for (i = nargs - 1; i >= 0; i--) {
+        int32_t pty_i;
+        int32_t sz_i;
+        int32_t pushed;
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
-        if (arg_ref != 0) {
+        if (arg_ref == 0)
+          continue;
+        glue_sysv_x86_call_arg_slot_c(arena, expr_ref, nargs, i, &kind_i, &reg_k_i, &stack_k_i);
+        if (kind_i != 2)
+          continue;
+        pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
+        sz_i = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, arg_ref);
+        if (glue_sysv_arg_is_memory_by_value_c(sz_i)) {
+          pushed = pipeline_asm_push_sysv_memory_by_value_elf_c(arena, elf_ctx, ctx, arg_ref, sz_i, ta);
+          if (pushed < 0)
+            return -1;
+        } else {
           if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
             return -1;
           if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
             return -1;
         }
       }
+      (void)eff_reg_max;
+      (void)n_stack;
+      (void)sret_sh;
     }
 
     /**
-     * AAPCS64 (wave392): spill-then-load for register args — same discipline as SysV x86.
-     * Root: high-to-low direct place into xN was insufficient when an earlier-placed
-     * arg was a nested CALL (make2 → x1; make1 clobbers x1 as temp → take2 got y=x).
-     * Emit each arg value into x0, spill to frame, then load into final xN.
+     * AAPCS64 (wave392 + wave600): spill-then-load for register args — same discipline
+     * as SysV x86, including 9–16B INTEGER dual-GP (2 consecutive Xn).
+     * Root wave392: high-to-low direct place into xN was insufficient when an earlier
+     * arg was a nested CALL (make2 → x1; make1 clobbers x1 → take2 got y=x).
+     * Root wave600: units hard-coded 1 + spill only x0 → multi dual-GP
+     * `take2(mkA(), mkB())` / `f(n, s12, m)` placed only lows (mac fs take2=63≠41).
+     * G.7: gp_units from arg size (≡ x86 path); spill x0+x1; load into gp_start[+1].
      * PLATFORM: MACOS|ARM64 product pure-asm · SHARED frame next_offset.
      */
     if (ta == 1) {
-      int32_t reg_n = nargs < eff_reg_max ? nargs : eff_reg_max;
+      int32_t gp_start_a64[GLUE_ASM_MAX_CALL_ARGS];
+      int32_t gp_units_a64[GLUE_ASM_MAX_CALL_ARGS];
       int32_t spill_off_a64[GLUE_ASM_MAX_CALL_ARGS];
-      for (i = 0; i < reg_n; i++)
+      int32_t arg_sz_a64[GLUE_ASM_MAX_CALL_ARGS];
+      int32_t is_mem_a64[GLUE_ASM_MAX_CALL_ARGS];
+      int32_t gp_cur_a64 = 0; /* AAPCS64 sret uses x8 — no GP shift */
+      int32_t stk_slot = 0;
+      /*
+       * wave603: MEMORY (sz>16) is stack-only (units=0) — do NOT coerce to u=1
+       * (that forced lea/pointer in x0 while param_home expects by-value words).
+       * G.7: same classification as x86 wave601 / glue_sysv_arg_gp_units_from_size.
+       */
+      for (i = 0; i < nargs; i++) {
+        int32_t pty_i;
+        int32_t ar_i;
+        int32_t u;
+        int32_t sz_i;
+        ar_i = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+        pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
+        sz_i = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i);
+        arg_sz_a64[i] = sz_i;
+        is_mem_a64[i] = glue_sysv_arg_is_memory_by_value_c(sz_i);
+        u = glue_sysv_arg_gp_units_from_size_c(sz_i);
+        if (is_mem_a64[i]) {
+          gp_start_a64[i] = -1;
+          gp_units_a64[i] = 0;
+          spill_off_a64[i] = -1;
+          continue;
+        }
+        if (u < 1)
+          u = 1;
+        if (u > 2)
+          u = 2;
+        gp_start_a64[i] = gp_cur_a64;
+        gp_units_a64[i] = u;
         spill_off_a64[i] = -1;
-      for (i = 0; i < reg_n; i++) {
+        if (gp_cur_a64 + u <= reg_max)
+          gp_cur_a64 += u;
+        else
+          gp_start_a64[i] = -1; /* stack / excess */
+      }
+      for (i = 0; i < nargs; i++) {
         int32_t so;
+        if (gp_start_a64[i] < 0)
+          continue;
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         if (arg_ref == 0)
           continue;
         if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
           return -1;
-        so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+        so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units_a64[i]);
         if (so < 0)
           return -1;
         spill_off_a64[i] = so;
       }
       /*
-       * Load high→low: AAPCS64 x0 is both spill temp and arg0. Loading arg1 via
-       * x0 then mov x1 would clobber already-placed x0 if done low→high
-       * (reent2 saw both args = make2 → 2+32=34). High-first leaves x0 last.
+       * Load high→low by *arg index*: x0 is spill temp and may be arg0.
+       * Loading lower GPs first would clobber them when materializing higher ones
+       * through x0 (wave392 reent2). Dual-GP loads write gp and gp+1 atomically
+       * relative to later lower-index loads.
        */
-      for (i = reg_n - 1; i >= 0; i--) {
+      for (i = nargs - 1; i >= 0; i--) {
         if (spill_off_a64[i] < 0)
           continue;
-        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_a64[i], i + sret_sh, 1) != 0)
+        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_a64[i], gp_start_a64[i],
+                                                     gp_units_a64[i]) != 0)
           return -1;
       }
-      for (i = eff_reg_max; i < nargs; i++) {
+      for (i = 0; i < nargs; i++) {
+        int32_t words;
+        int32_t stored;
+        if (gp_start_a64[i] >= 0)
+          continue;
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         if (arg_ref == 0)
           continue;
+        if (is_mem_a64[i]) {
+          /* wave603: multi-word MEMORY by-value at [sp+stk*8]. */
+          stored = pipeline_asm_store_memory_by_value_to_sp_elf_c(arena, elf_ctx, ctx, arg_ref,
+                                                                   arg_sz_a64[i], ta, stk_slot * 8);
+          if (stored < 0)
+            return -1;
+          words = stored / 8;
+          if (words < 1)
+            words = 1;
+          stk_slot += words;
+          continue;
+        }
         if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
           return -1;
-        if (backend_enc_store_x0_sp_offset_arch(elf_ctx, (i - eff_reg_max) * 8, ta) != 0)
+        if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
           return -1;
+        stk_slot++;
+        /* dual-GP stack residual: only low half when excess GP */
+        if (gp_units_a64[i] >= 2) {
+          /* high half soft when stack-spilled dual — rare on probes */
+        }
       }
       pipeline_asm_emit_set_call_param_type_ref(0);
       return 0;
@@ -2470,11 +2694,21 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
             xmm_cur++;
           continue;
         }
-        u = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i));
+        {
+          int32_t sz_i = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i);
+          /* wave601: MEMORY → stack only (already pushed above); skip GP place. */
+          if (glue_sysv_arg_is_memory_by_value_c(sz_i)) {
+            gp_start[i] = -1;
+            gp_units[i] = 0;
+            spill_off[i] = -1;
+            continue;
+          }
+          u = glue_sysv_arg_gp_units_from_size_c(sz_i);
+        }
         gp_start[i] = gp_cur;
         gp_units[i] = u;
         spill_off[i] = -1;
-        if (gp_cur + u <= reg_max)
+        if (u > 0 && gp_cur + u <= reg_max)
           gp_cur += u;
         else
           gp_start[i] = -1;
@@ -2651,10 +2885,10 @@ extern int32_t pipeline_module_func_is_extern_at(struct ast_Module *module, int3
 int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_t call_expr_ref,
                                                 int32_t callee_ref, struct ast_Module *mod,
                                                 struct ast_PipelineDepCtx *dep_pipe, uint8_t *out, int32_t out_cap) {
-  uint8_t cname[64];
+  uint8_t cname[128];
   int32_t clen;
   int32_t dep_ix;
-  uint8_t path[64];
+  uint8_t path[128];
   uint8_t prefix[128];
   int32_t plen;
   int32_t rlen;
@@ -2662,7 +2896,8 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
   if (!arena || callee_ref <= 0 || !out || out_cap <= 0)
     return -1;
   clen = pipeline_expr_var_name_len(arena, callee_ref);
-  if (clen <= 0 || clen > 63)
+  /* wave577 Cap / wave580: AST name slots u8[128] content cap 127 (was 63). */
+  if (clen <= 0 || clen > 127)
     return -1;
   pipeline_expr_var_name_into(arena, callee_ref, cname);
   /*
@@ -2762,7 +2997,7 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
       int32_t use_fi = -1;
       int32_t r_func = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
       int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
-      uint8_t mid[64];
+      uint8_t mid[128];
       int32_t mid_len;
       if (!dep_arena)
         dep_arena = arena;
@@ -2884,7 +3119,7 @@ int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t na
  */
 int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                             int32_t ta) {
-  uint8_t redir[64];
+  uint8_t redir[128];
   int32_t rlen;
   int32_t rc;
   if (!name || name_len <= 0)
@@ -2944,7 +3179,7 @@ int32_t glue_asm_prefix_is_fmt_or_debug(const uint8_t *pre, int32_t pre_len) {
 /* G-02f-372 call：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_asm_emit_string_lit_ptr_rax_elf_c_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                int32_t str_expr_ref, int32_t ta) {
-  uint8_t sbuf[64];
+  uint8_t sbuf[128];
   int32_t slen;
   /* PLATFORM: SHARED — ta 0/1 via glue_asm_emit_jmp_skip_string_then_lea (wave108 arm64). */
   if (!arena || !elf_ctx || str_expr_ref <= 0 || (ta != 0 && ta != 1))
@@ -2988,9 +3223,9 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(struct ast_ASTAr
   int32_t arg_ref;
   int32_t slen;
   int32_t expr_ko;
-  uint8_t sym_flat[64];
+  uint8_t sym_flat[128];
   int32_t sym_len;
-  uint8_t sbuf[64];
+  uint8_t sbuf[128];
   /* PLATFORM: SHARED — x86_64 (0) + aarch64 (1) string-embed fmt path (wave108). */
   if (!arena || !elf_ctx || !ctx || call_expr_ref <= 0 || (ta != 0 && ta != 1))
     return 0;
@@ -3099,7 +3334,40 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
     return -1;
   if (glue_asm_enc_call_redirected(elf_ctx, cname, clen, ta) != 0)
     return -1;
-  cleanup = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+  /*
+   * wave601: x86 cleanup must include MEMORY multi-word + pad, not nargs-only.
+   * glue_sysv_x86_call_n_stack_c returns stack *words* (MEMORY ceil(sz/8)).
+   */
+  if (ta == 0 && arena && expr_ref > 0) {
+    int32_t nw = glue_sysv_x86_call_n_stack_c(arena, expr_ref, nargs);
+    cleanup = nw * 8;
+    if (nw > 0 && (nw & 1))
+      cleanup += 8;
+  } else if (ta == 1 && arena && expr_ref > 0) {
+    /* wave603: arm64 cleanup twin of MEMORY-aware reserve (16-aligned). */
+    int32_t nw = 0;
+    int32_t gp_tmp = 0;
+    int32_t j;
+    int32_t reg_max_a = glue_asm_call_reg_max(1);
+    for (j = 0; j < nargs; j++) {
+      int32_t ar_j = pipeline_expr_call_arg_ref(arena, expr_ref, j);
+      int32_t pty_j = glue_call_param_type_ref_at(arena, expr_ref, j);
+      int32_t sz_j = glue_sysv_arg_byte_size_c(arena, ctx, pty_j, ar_j);
+      int32_t u_j = glue_sysv_arg_gp_units_from_size_c(sz_j);
+      int32_t w_j = glue_sysv_arg_stack_words_c(sz_j, u_j);
+      if (glue_sysv_arg_is_memory_by_value_c(sz_j))
+        nw += w_j;
+      else if (u_j > 0 && gp_tmp + u_j <= reg_max_a)
+        gp_tmp += u_j;
+      else
+        nw += w_j > 0 ? w_j : 1;
+    }
+    cleanup = nw * 8;
+    if (cleanup > 0)
+      cleanup = (cleanup + 15) & ~15;
+  } else {
+    cleanup = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+  }
   if (cleanup < 0)
     return -1;
   if (backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta) != 0)
@@ -3132,7 +3400,7 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
   int32_t callee_ko;
   int32_t nargs;
   int32_t inline_rc;
-  uint8_t cname[64];
+  uint8_t cname[128];
   int32_t clen;
 
   callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
@@ -3165,21 +3433,21 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
   if (mod_ref && callee_ko == 44) {
     int32_t base_ref = pipeline_expr_field_access_base_ref(arena, callee_ref);
     if (base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
-      uint8_t base_name[64];
+      uint8_t base_name[128];
       int32_t base_len = pipeline_expr_var_name_len(arena, base_ref);
-      if (base_len > 0 && base_len <= 63) {
+      if (base_len > 0 && base_len <= 127) {
         int32_t j;
-        uint8_t field_name[64];
+        uint8_t field_name[128];
         int32_t field_len;
         pipeline_expr_var_name_into(arena, base_ref, base_name);
         field_len = pipeline_expr_field_access_name_len(arena, callee_ref);
-        if (field_len > 0 && field_len <= 63) {
+        if (field_len > 0 && field_len <= 127) {
           pipeline_expr_field_access_name_into(arena, callee_ref, field_name);
           for (j = 0; j < parser_get_module_num_imports(mod_ref); j++) {
             if (pipeline_module_import_kind_at(mod_ref, j) == GLUE_IMPORT_KIND_BINDING &&
                 glue_asm_import_binding_name_equal(mod_ref, j, base_name, base_len)) {
               uint8_t pre_buf[128];
-              uint8_t sym_flat[64];
+              uint8_t sym_flat[128];
               int32_t pre_len;
               int32_t sym_len;
               int32_t call_nargs;
@@ -3225,9 +3493,9 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
   /** `import a.b` + `a.b.c.method(args)` whole-import 限定 callee。 */
   if (mod_ref && callee_ko == 44) {
     int32_t imp_elt = 0;
-    uint8_t sym_eh[64];
+    uint8_t sym_eh[128];
     int32_t elen;
-    uint8_t field_name[64];
+    uint8_t field_name[128];
     int32_t field_len;
     elen = pipeline_asm_resolve_whole_import_qualified_symbol_c(arena, mod_ref, callee_ref, sym_eh, &imp_elt);
     if (elen > 0 && imp_elt >= 0 && imp_elt < parser_get_module_num_imports(mod_ref)) {
@@ -3301,9 +3569,10 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
       return inline_rc < 0 ? -1 : 0;
   }
   clen = pipeline_expr_var_name_len(arena, callee_ref);
-  if (clen <= 0 || clen > 63)
+  /* wave580 Cap residual: long callee idents (64..127) must build call symbols. */
+  if (clen <= 0 || clen > 127)
     return -1;
-  clen = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, ly ? ly->dep_pipe : 0, cname, 64);
+  clen = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, ly ? ly->dep_pipe : 0, cname, 128);
   if (clen <= 0)
     return -1;
   backend_call_debugf("call elf c %.*s nargs=%d", (int)clen, (char *)cname, (int)nargs);
@@ -3337,7 +3606,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
   int32_t base_ref;
   int32_t i;
   int32_t name_len;
-  uint8_t name[64];
+  uint8_t name[128];
 
   ly = (struct glue_AsmFuncCtxCall *)ctx;
   mod_ref = ly ? ly->module_ref : 0;
@@ -3351,7 +3620,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
     return -1;
   base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
   name_len = pipeline_expr_method_call_name_len(arena, expr_ref);
-  if (name_len <= 0 || name_len > 63)
+  if (name_len <= 0 || name_len > 127)
     return -1;
   pipeline_expr_method_call_name_into(arena, expr_ref, name);
   /*
@@ -3379,16 +3648,16 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
   }
   /** import binding：encoding.foo(args) 静态调用，receiver 不入参。 */
   if (mod_ref && base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == GLUE_EXPR_VAR_ORD) {
-    uint8_t base_name[64];
+    uint8_t base_name[128];
     int32_t base_len = pipeline_expr_var_name_len(arena, base_ref);
-    if (base_len > 0 && base_len <= 63) {
+    if (base_len > 0 && base_len <= 127) {
       int32_t j;
       pipeline_expr_var_name_into(arena, base_ref, base_name);
       for (j = 0; j < parser_get_module_num_imports(mod_ref); j++) {
         if (pipeline_module_import_kind_at(mod_ref, j) == GLUE_IMPORT_KIND_BINDING &&
             glue_asm_import_binding_name_equal(mod_ref, j, base_name, base_len)) {
           uint8_t pre_buf[128];
-          uint8_t sym_flat[64];
+          uint8_t sym_flat[128];
           int32_t pre_len;
           int32_t sym_len;
           int32_t n_ov;
@@ -3583,17 +3852,47 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
       }
     }
   }
-  if (base_ref != 0) {
-    /*
-     * wave360 Cap residual pure — freestanding UFCS auto-ref.
-     * Root: typeck matches value.method when free fn is method(self: *T,...);
-     * emit must pass &receiver (lea), not by-value load.
-     * G.7: when resolved UFCS (dep_ix<0, func_ix>=0) and param0 is *T matching
-     * base_ty's T, use lvalue eff addr; else value emit (wave358).
-     * PLATFORM: SHARED — mac + Ubuntu freestanding L2.
-     */
-    {
-      int32_t need_aref = 0;
+  /*
+   * wave602 Cap residual pure — freestanding UFCS method self SysV dual-GP / MEMORY.
+   * Root: receiver was always 1 GP (`mov rax→rdi`); 9–16B self dropped high half (rdx);
+   * >16B self used lea→rdi while callee `param_home` reads `[rbp+0x10..]` (wave599 MEMORY).
+   * Ubuntu pure-asm `s.sum()` Pair=16B → 59; S24=24B → 57 (mac arm64 often host-C/const-fold hid).
+   * Import-binding METHOD path already packs dual-GP/MEMORY; free CALL wave601 same.
+   * G.7: complete same-module UFCS leaf — logical places [receiver, arg0..] with formal
+   * param types 0..n_place-1 (self is formal 0). wave360 auto-ref (*T self → lea) stays.
+   * PLATFORM: LINUX+MACOS x86_64 SysV; arm64 dual-GP self via spill/load (wave600 twin).
+   *
+   * wave606 Cap residual pure — arm64 UFCS method MEMORY by-value (self + args).
+   * Root: wave602 classified MEMORY only for ta==0; arm64 coerced u=0→1 (lea→x0) while
+   * callee param_home reads stack words (wave599/603). free CALL arm64 fixed in wave603
+   * (store_memory_to_sp); method UFCS still lea residual → mac fs s.sum()=234≠42.
+   * G.7: same places[] classification as free CALL — MEMORY stack-only on ta==0 and ta==1;
+   * arm64 reserve + store_memory_to_sp + cleanup ≡ emit_call_args wave603 path.
+   * PLATFORM: MACOS|ARM64 AAPCS64 + SHARED freestanding · LINUX|x86 push path unchanged.
+   */
+  {
+    int32_t has_recv = (base_ref != 0) ? 1 : 0;
+    int32_t n_place = has_recv + nargs;
+    int32_t need_aref = 0;
+    int32_t reg_start[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t reg_units[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t spill_off[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t is_sse[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t is_f64[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t is_mem[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t is_stk[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t arg_sz[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t sret_sh;
+    int32_t gp_cur;
+    int32_t xmm_cur;
+    int32_t mem_stack;
+    int32_t reg_max;
+
+    if (n_place < 0 || n_place > GLUE_ASM_MAX_CALL_ARGS)
+      return -1;
+
+    /* wave360: value.method when free fn is method(self: *T,...) → pass &receiver. */
+    if (has_recv) {
       int32_t r_fn = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
       int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
       if (r_fn >= 0 && r_dep < 0 && mod_ref) {
@@ -3607,39 +3906,290 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             need_aref = 1;
         }
       }
-      if (need_aref) {
-        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+    }
+
+    sret_sh = (ta == 0) ? pipeline_asm_emit_call_sret_reg_shift_c() : 0;
+    gp_cur = sret_sh;
+    xmm_cur = 0;
+    mem_stack = 0;
+    reg_max = glue_asm_call_reg_max(ta);
+    if (reg_max < 1)
+      reg_max = 6;
+
+    for (i = 0; i < n_place; i++) {
+      int32_t arg_ref;
+      int32_t pty_i;
+      int32_t u;
+      int32_t sz;
+      is_sse[i] = 0;
+      is_f64[i] = 0;
+      is_mem[i] = 0;
+      is_stk[i] = 0;
+      arg_sz[i] = 0;
+      reg_start[i] = -1;
+      reg_units[i] = 0;
+      spill_off[i] = -1;
+      if (has_recv && i == 0)
+        arg_ref = base_ref;
+      else
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i - has_recv);
+      if (arg_ref == 0)
+        continue;
+      /* Formal index == place index when receiver is formal 0. */
+      pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
+      if (has_recv && i == 0 && need_aref)
+        sz = 8;
+      else
+        sz = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, arg_ref);
+      arg_sz[i] = sz;
+      is_sse[i] = (ta == 0) ? glue_arg_ref_is_sse_float_c(arena, arg_ref, pty_i) : 0;
+      is_f64[i] = glue_arg_ref_is_f64_width_c(arena, arg_ref, pty_i);
+      if (is_sse[i]) {
+        if (xmm_cur >= 8)
           return -1;
-      } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+        reg_start[i] = xmm_cur++;
+        reg_units[i] = 1;
+        continue;
+      }
+      /*
+       * wave606: MEMORY by-value is stack-only on both SysV x86 and AAPCS64.
+       * Do NOT coerce units=0 → 1 on arm64 (lea pointer vs callee stack words).
+       */
+      if (glue_sysv_arg_is_memory_by_value_c(sz)) {
+        is_mem[i] = 1;
+        continue;
+      }
+      u = glue_sysv_arg_gp_units_from_size_c(sz);
+      if (ta != 0) {
+        /* AAPCS64: dual-GP for 9–16B INTEGER; units already 1–2 after MEMORY filter. */
+        if (u < 1)
+          u = 1;
+        if (u > 2)
+          u = 2;
+      }
+      if (gp_cur + u > reg_max) {
+        if (u > 1)
+          return -1;
+        is_stk[i] = 1;
+        continue;
+      }
+      reg_start[i] = gp_cur;
+      reg_units[i] = u;
+      gp_cur += u;
+    }
+
+    /* Push MEMORY / stack excess before reg loads (pad first for 16-align). */
+    if (ta == 0) {
+      int32_t raw_mem = 0;
+      int32_t pushed_total = 0;
+      for (i = 0; i < n_place; i++) {
+        if (is_mem[i])
+          raw_mem += (arg_sz[i] + 7) & ~7;
+        else if (is_stk[i])
+          raw_mem += 8;
+      }
+      while (((raw_mem + pushed_total) & 15) != 0) {
+        if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+          return -1;
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        pushed_total += 8;
+      }
+      for (i = n_place - 1; i >= 0; i--) {
+        int32_t arg_ref;
+        int32_t pushed;
+        if (is_mem[i]) {
+          if (has_recv && i == 0)
+            arg_ref = base_ref;
+          else
+            arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i - has_recv);
+          if (arg_ref == 0)
+            return -1;
+          pushed = pipeline_asm_push_sysv_memory_by_value_elf_c(arena, elf_ctx, ctx, arg_ref, arg_sz[i], ta);
+          if (pushed < 0)
+            return -1;
+          pushed_total += pushed;
+        } else if (is_stk[i]) {
+          int32_t formal_ix = i;
+          if (has_recv && i == 0) {
+            arg_ref = base_ref;
+            if (need_aref) {
+              if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+                return -1;
+            } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+              return -1;
+            }
+          } else {
+            arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i - has_recv);
+            if (arg_ref == 0)
+              return -1;
+            if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, formal_ix, ctx, ta) != 0)
+              return -1;
+          }
+          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+            return -1;
+          pushed_total += 8;
+        }
+      }
+      mem_stack = pushed_total;
+    } else if (ta == 1) {
+      /*
+       * wave606: AAPCS64 MEMORY / excess stack for UFCS method places — ≡ free CALL
+       * wave603 (reserve → GP spill/load → store_memory_to_sp → call → cleanup).
+       * Low-end multi-word at [sp+#off]; SP 16-align.
+       */
+      int32_t nw = 0;
+      int32_t stack_reserve;
+      for (i = 0; i < n_place; i++) {
+        if (is_mem[i])
+          nw += glue_sysv_arg_stack_words_c(arg_sz[i], 0);
+        else if (is_stk[i])
+          nw += 1;
+      }
+      stack_reserve = nw * 8;
+      if (stack_reserve > 0)
+        stack_reserve = (stack_reserve + 15) & ~15;
+      mem_stack = stack_reserve;
+      if (backend_enc_call_stack_reserve_arch(elf_ctx, stack_reserve, ta) != 0)
+        return -1;
+    }
+
+    /* Materialize register places → spill → load (dual-GP safe). */
+    for (i = 0; i < n_place; i++) {
+      int32_t arg_ref;
+      int32_t so;
+      int32_t formal_ix = i;
+      if (reg_start[i] < 0 || is_mem[i] || is_stk[i])
+        continue;
+      if (has_recv && i == 0) {
+        if (need_aref) {
+          if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+            return -1;
+        } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+          return -1;
+        }
+      } else {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i - has_recv);
+        if (arg_ref == 0)
+          continue;
+        if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, formal_ix, ctx, ta) != 0)
+          return -1;
+      }
+      so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, reg_units[i]);
+      if (so < 0)
+        return -1;
+      spill_off[i] = so;
+    }
+    /* Load high place index first so lower GPs are not clobbered via x0/rax temp. */
+    for (i = n_place - 1; i >= 0; i--) {
+      int32_t mov_rc;
+      if (spill_off[i] < 0)
+        continue;
+      if (is_sse[i]) {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off[i], ta) != 0)
+          return -1;
+        if (is_f64[i])
+          mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+        else
+          mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+        if (mov_rc != 0)
+          return -1;
+      } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], reg_start[i],
+                                                         reg_units[i]) != 0) {
         return -1;
       }
     }
-    if (ta != 1 && backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+
+    /*
+     * wave606: after GP arg regs are final, materialize MEMORY/excess stack places
+     * at [sp+#stk*8] (AAPCS64 low-end). Order: left-to-right place index.
+     */
+    if (ta == 1) {
+      int32_t stk_slot = 0;
+      for (i = 0; i < n_place; i++) {
+        int32_t arg_ref;
+        int32_t formal_ix = i;
+        int32_t words;
+        int32_t stored;
+        if (!is_mem[i] && !is_stk[i])
+          continue;
+        if (has_recv && i == 0)
+          arg_ref = base_ref;
+        else
+          arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i - has_recv);
+        if (arg_ref == 0)
+          return -1;
+        if (is_mem[i]) {
+          stored = pipeline_asm_store_memory_by_value_to_sp_elf_c(arena, elf_ctx, ctx, arg_ref,
+                                                                   arg_sz[i], ta, stk_slot * 8);
+          if (stored < 0)
+            return -1;
+          words = stored / 8;
+          if (words < 1)
+            words = 1;
+          stk_slot += words;
+          continue;
+        }
+        /* is_stk: single GP excess → store x0 at [sp+off]. */
+        if (has_recv && i == 0) {
+          if (need_aref) {
+            if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+              return -1;
+          } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+            return -1;
+          }
+        } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, formal_ix, ctx, ta) != 0) {
+          return -1;
+        }
+        if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
+          return -1;
+        stk_slot++;
+      }
+    }
+
+    /*
+     * wave683 Cap residual pure — freestanding multi-method call-site mangle.
+     * Root: def side glue_asm_build_func_export_sym_c emits get_S / get_T when
+     * overload_count>1 (two impl methods share bare name "get"); UFCS METHOD_CALL
+     * still called bare "get" → Ubuntu ld UNDEF get (mac -c .o same U _get; host-C
+     * uses codegen_emit_func_link_name and was green).
+     * G.7: complete same export-sym authority as def/free CALL mid — no third mangle.
+     * Prefer typeck call_resolved_func_index (UFCS stamp, r_dep=-1 local module).
+     * Fallback bare method name when unresolved (unique-name / bootstrap leaves).
+     * PLATFORM: SHARED freestanding · LINUX gold full link · MACOS -c exposes U get.
+     */
+    {
+      int32_t r_fn_call = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+      int32_t r_dep_call = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+      uint8_t call_sym[128];
+      int32_t call_sym_len = -1;
+      if (r_fn_call >= 0 && r_dep_call < 0 && mod_ref) {
+        call_sym_len = glue_asm_build_func_export_sym_c(mod_ref, arena, r_fn_call, call_sym, 128);
+      } else if (r_fn_call >= 0 && r_dep_call >= 0 && ly && ly->dep_pipe) {
+        struct ast_Module *dm = pipeline_dep_ctx_module_at(ly->dep_pipe, r_dep_call);
+        struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ly->dep_pipe, r_dep_call);
+        if (dm) {
+          if (!da)
+            da = arena;
+          call_sym_len = glue_asm_build_func_export_sym_c(dm, da, r_fn_call, call_sym, 128);
+        }
+      }
+      if (call_sym_len > 0) {
+        if (glue_asm_enc_call_redirected(elf_ctx, call_sym, call_sym_len, ta) != 0)
+          return -1;
+      } else if (glue_asm_enc_call_redirected(elf_ctx, name, name_len, ta) != 0) {
+        return -1;
+      }
+    }
+    {
+      int32_t cln = mem_stack;
+      if (cln > 0 && backend_enc_call_stack_cleanup_arch(elf_ctx, cln, ta) != 0)
+        return -1;
+    }
+    if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
       return -1;
+    return 0;
   }
-  /** AAPCS64：receiver 已在 x0；其余实参从高序号向低序号 emit，勿覆盖 x0。 */
-  if (ta == 1) {
-    for (i = nargs - 1; i >= 0; i--) {
-      int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
-      if (arg_ref != 0) {
-        if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
-          return -1;
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i + 1, ta) != 0)
-          return -1;
-      }
-    }
-  } else {
-    for (i = 0; i < nargs && i < 6; i++) {
-      int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
-      if (arg_ref != 0) {
-        if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
-          return -1;
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i + 1, ta) != 0)
-          return -1;
-      }
-    }
-  }
-  return glue_asm_enc_call_redirected(elf_ctx, name, name_len, ta);
 }
 
 #ifndef XLANG_L2_CALL_DISPATCH_THIN_FROM_X

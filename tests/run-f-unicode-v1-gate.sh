@@ -2,6 +2,8 @@
 # F-unicode v1：std.unicode 去 C（unicode.c → unicode.x；v2 后逻辑全在 unicode.x）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_UNICODE_V1_FAIL:-0}
 DOC="analysis/phase-f-unicode-v1.md"
 MANIFEST="tests/baseline/f-unicode-v1-closure.tsv"
@@ -21,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'unicode.x' compiler/Makefile || die "Makefile missing unicode.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/unicode/unicode.o >/dev/null 2>&1 || die "make unicode.o failed"
+  xlang_compiler_make ../std/unicode/unicode.o >/dev/null 2>&1 || die "make unicode.o failed"
 else
   echo "f-unicode-v1 SKIP unicode.o build (no xlang-c)" >&2
 fi

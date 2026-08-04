@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-http-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_HTTP_DOC:-analysis/std-http-bench-v1.md}"
 MANIFEST="${XLANG_STD_HTTP_MANIFEST:-tests/baseline/std-http-manifest.tsv}"
@@ -162,7 +164,7 @@ if [ -z "$XLANG_BIN" ]; then
 fi
 
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/http/http.o

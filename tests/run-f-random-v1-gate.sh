@@ -5,6 +5,8 @@
 # 环境：XLANG_F_RANDOM_V1_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_F_RANDOM_V1_FAIL:-0}
 DOC="analysis/phase-f-random-v1.md"
@@ -45,7 +47,7 @@ if grep -q 'std/random/random\.c' compiler/Makefile 2>/dev/null; then
 fi
 
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/random/random.o >/dev/null 2>&1 || die "make random.o failed"
+  xlang_compiler_make ../std/random/random.o >/dev/null 2>&1 || die "make random.o failed"
 else
   echo "f-random-v1 SKIP random.o build (no xlang-c)" >&2
 fi

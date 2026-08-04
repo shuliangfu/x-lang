@@ -2,6 +2,8 @@
 # STD-090/093：std.async ↔ std.context 联动 + spawn 自动绑 Context 门禁
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
@@ -64,7 +66,7 @@ ensure_std_c_o ../std/task/task.o
 
 echo "=== STD-093: C smoke ==="
 if nm std/context/context.o 2>/dev/null | grep -qF 'ctx_background_c'; then
-  make -C compiler runtime_time_os.o >/dev/null 2>&1 || true
+  xlang_compiler_make runtime_time_os.o >/dev/null 2>&1 || true
   if ! cc -std=c11 -O1 -pthread -o /tmp/xlang_std093_spawn_ctx_smoke \
     tests/async/spawn_context_smoke.c std/async/scheduler.o std/context/context.o std/time/time.o compiler/runtime_time_os.o 2>/dev/null; then
     echo "async-context gate FAIL: build spawn_context_smoke.c" >&2

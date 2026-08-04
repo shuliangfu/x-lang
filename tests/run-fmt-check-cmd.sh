@@ -2,6 +2,8 @@
 # xlang fmt --check（deno fmt --check 语义）：已格式化 exit 0 且无输出；需格式化 exit 1 并列出文件。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 XLANG=${XLANG:-./compiler/xlang}
 FMT_TMP="${TMPDIR:-/tmp}"
 _IS_MSYS=0
@@ -15,7 +17,7 @@ case "$(uname -s 2>/dev/null)" in
 esac
 mkdir -p "$FMT_TMP" 2>/dev/null || true
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q 2>/dev/null || make -C compiler xlang-c 2>/dev/null || make -C compiler xlang
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || xlang_compiler_make xlang
 fi
 
 OK_FILE="$FMT_TMP/xlang_fmt_check_ok.x"

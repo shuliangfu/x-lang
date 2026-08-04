@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-sqlite-prereq-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_SQLITE_DOC:-analysis/std-sqlite-prereq-v1.md}"
 MANIFEST="${XLANG_STD_SQLITE_MANIFEST:-tests/baseline/std-sqlite-manifest.tsv}"
@@ -115,7 +117,7 @@ echo "std-sqlite manifest OK (apis=${API_N}, layers=${LAYER_N})"
 XLANG_BIN=""
 if XLANG_BIN="$(std_sqlite_resolve_shu 2>/dev/null)"; then
   echo "=== STD-010: draft typeck smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   if ! std_sqlite_run_typeck "$XLANG_BIN" tests/std-sqlite/draft_typeck.x draft_typeck; then
     echo "std-sqlite gate FAIL: typeck" >&2
     exit 1

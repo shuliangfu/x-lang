@@ -3,10 +3,12 @@
 # seed asm：dep 前缀导出 + user_asm_seed_bridge 编入各 dep（L5）；仍可用 XLANG_LINK_XLANG 覆盖。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 fi
 
 # seed/xlang_asm：非 TTY stdout 会挂起；须 tee|cat Drain（nohup >>log / W3 bstrict 同根因）。

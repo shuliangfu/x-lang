@@ -118,7 +118,7 @@ int32_t asm_pool_expr_has_await(struct ast_ASTArena *a, int32_t er) {
 /* G-02f-142：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t asm_pool_expr_is_var_named(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
     int32_t vlen;
-    uint8_t vbuf[64];
+    uint8_t vbuf[128];
     int32_t i;
     if (!a || er <= 0 || !name || nlen <= 0)
         return 0;
@@ -195,7 +195,7 @@ int32_t asm_pool_block_rest_refs_name(struct ast_ASTArena *a, int32_t br, int32_
 /* G-02f-142：避免 m->num_struct_layouts（forward Module）；走 pipeline_module_num_struct_layouts_at */
 int32_t asm_pool_type_size_bytes(struct ast_ASTArena *a, struct ast_Module *m, int32_t type_ref) {
     int32_t kind;
-    uint8_t name[64];
+    uint8_t name[128];
     int32_t nlen;
     int32_t k;
     int32_t nlay;
@@ -241,7 +241,7 @@ int32_t asm_pool_type_size_bytes(struct ast_ASTArena *a, struct ast_Module *m, i
 void asm_pool_live_add(AsyncAsmPoolLayout *lay, const uint8_t *name, int32_t nlen, int32_t sz) {
     int32_t i;
     int32_t off;
-    if (!lay || !name || nlen <= 0 || nlen > 63 || lay->num_live >= ASYNC_LIVE_MAX_VARS)
+    if (!lay || !name || nlen <= 0 || nlen > 127 || lay->num_live >= ASYNC_LIVE_MAX_VARS)
         return;
     for (i = 0; i < lay->num_live; i++) {
         if (lay->live[i].name_len == nlen && memcmp(lay->live[i].name, name, (size_t)nlen) == 0)
@@ -301,9 +301,9 @@ int32_t async_asm_pool_build_layout(struct ast_ASTArena *arena, struct ast_Modul
     int32_t br;
     int32_t nso;
     int32_t si;
-    uint8_t fname[64];
+    uint8_t fname[128];
     int32_t fnlen;
-    uint8_t defined_names[ASYNC_LIVE_MAX_VARS][64];
+    uint8_t defined_names[ASYNC_LIVE_MAX_VARS][128];
     int32_t defined_lens[ASYNC_LIVE_MAX_VARS];
     int32_t n_def;
     if (!arena || !mod || !out || func_index < 0)
@@ -336,7 +336,7 @@ int32_t async_asm_pool_build_layout(struct ast_ASTArena *arena, struct ast_Modul
                         int32_t j;
                         for (j = 0; j < ast_ast_block_num_lets(arena, br); j++) {
                             if (pipeline_block_let_name_len(arena, br, j) == defined_lens[li]) {
-                                uint8_t nb[64];
+                                uint8_t nb[128];
                                 pipeline_block_let_name_copy64(arena, br, j, nb);
                                 if (memcmp(nb, defined_names[li], (size_t)defined_lens[li]) == 0) {
                                     tref = pipeline_block_let_type_ref(arena, br, j);
@@ -350,9 +350,9 @@ int32_t async_asm_pool_build_layout(struct ast_ASTArena *arena, struct ast_Modul
                 }
                 /** await let 自身（如 mid）若后续仍引用，suspend 前须入帧（同 C static hoist）。 */
                 {
-                    uint8_t cur_nb[64];
+                    uint8_t cur_nb[128];
                     int32_t cur_len = pipeline_block_let_name_len(arena, br, idx);
-                    if (cur_len > 0 && cur_len <= 63) {
+                    if (cur_len > 0 && cur_len <= 127) {
                         pipeline_block_let_name_copy64(arena, br, idx, cur_nb);
                         if (asm_pool_block_rest_refs_name(arena, br, si, cur_nb, cur_len)) {
                             int32_t tref = pipeline_block_let_type_ref(arena, br, idx);
@@ -363,9 +363,9 @@ int32_t async_asm_pool_build_layout(struct ast_ASTArena *arena, struct ast_Modul
             }
         }
         {
-            uint8_t lnb[64];
+            uint8_t lnb[128];
             int32_t llen = pipeline_block_let_name_len(arena, br, idx);
-            if (llen > 0 && llen <= 63 && n_def < ASYNC_LIVE_MAX_VARS) {
+            if (llen > 0 && llen <= 127 && n_def < ASYNC_LIVE_MAX_VARS) {
                 pipeline_block_let_name_copy64(arena, br, idx, lnb);
                 memcpy(defined_names[n_def], lnb, (size_t)llen);
                 defined_lens[n_def] = llen;

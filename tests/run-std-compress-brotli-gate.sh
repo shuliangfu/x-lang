@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-compress-brotli-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="analysis/std-compress-brotli-v1.md"
 MANIFEST="tests/baseline/std-compress-brotli-manifest.tsv"
@@ -61,7 +63,7 @@ if std_compress_brotli_try_build; then
     BROTLI_OK=1
     SKIP=0
     if [ -x ./compiler/xlang-c ]; then
-      make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+      xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
       ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
       std_compress_brotli_run_x_smoke ./compiler/xlang-c "$SMOKE_X" || exit 1
     fi

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-sqlite-stub.sh — STD-139 manifest 与 stub 烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_DB_STUB_PREFIX="${XLANG_STD139_PREFIX:-xlang: [XLANG_STD139_DB_STUB]}"
 
 # 复用 STD-057 SQLite 探测。
@@ -70,7 +72,7 @@ std_sqlite_stub_run_c_smoke() {
   local out="/tmp/xlang_std_sqlite_stub_$$"
   local sqlite_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
-  if ! make -C compiler sqlite-o-stub >/dev/null 2>&1; then
+  if ! xlang_compiler_make sqlite-o-stub >/dev/null 2>&1; then
     echo "std-sqlite-stub FAIL: make sqlite-o-stub" >&2
     return 1
   fi
@@ -80,12 +82,12 @@ std_sqlite_stub_run_c_smoke() {
   fi
   if ! std_sqlite_o_has_x_symbols "$sqlite_o"; then
     echo "std-sqlite-stub SKIP c smoke (sqlite.o missing .x symbols; need xlang-c)" >&2
-    make -C compiler ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
+    xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
     return 2
   fi
   if ! cc -std=c11 -O1 -o "$out" "$src" "$sqlite_o" 2>/dev/null; then
     echo "std-sqlite-stub FAIL: compile $src (stub.o)" >&2
-    make -C compiler ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
+    xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
     return 1
   fi
   set +e
@@ -93,7 +95,7 @@ std_sqlite_stub_run_c_smoke() {
   local ec=$?
   set -e
   rm -f "$out"
-  make -C compiler ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
+  xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
   if [ "$ec" -ne 0 ]; then
     echo "std-sqlite-stub FAIL: c smoke exit=$ec" >&2
     return 1

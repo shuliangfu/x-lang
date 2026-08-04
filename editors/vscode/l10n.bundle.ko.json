@@ -59,7 +59,7 @@
   "Errors: {0}": "오류: {0}",
   "Warnings: {0}": "경고: {0}",
   "xlang.serverPath is empty. Set it to compiler/xlang or an absolute path to xlang.": "xlang.serverPath가 비어 있습니다. compiler/xlang 또는 xlang의 절대 경로로 설정하세요.",
-  "{0} not found. Run in repo root: make -C compiler bootstrap-driver-seed": "{0}을(를) 찾을 수 없습니다. 저장소 루트에서 실행: make -C compiler bootstrap-driver-seed",
+  "{0} not found. Run in repo root: ./xbuild bootstrap-driver-seed": "{0}을(를) 찾을 수 없습니다. 저장소 루트에서 실행: ./xbuild bootstrap-driver-seed",
   "xlang is not executable: {0}": "xlang를 실행할 수 없습니다: {0}",
   "Current xlang does not support --lsp (commonly xlang-c). Use bootstrap-built compiler/xlang as xlang.serverPath.": "현재 xlang가 --lsp를 지원하지 않습니다 (일반적으로 xlang-c). bootstrap으로 빌드한 compiler/xlang를 xlang.serverPath로 사용하세요.",
   "xlang --lsp probe exited abnormally (code {0}). See Xlang output channel.": "xlang --lsp 프로브가 비정상 종료되었습니다 (code {0}). Xlang 출력 채널을 확인하세요.",

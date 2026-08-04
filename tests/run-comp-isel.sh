@@ -4,6 +4,8 @@
 # 用法：./tests/run-comp-isel.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/comp-isel.sh
 . tests/lib/comp-isel.sh
@@ -22,7 +24,7 @@ if [ -z "$XLANG_BIN" ]; then
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 echo "=== COMP-006: isel smoke (XLANG=$XLANG_BIN) ==="
 chmod +x tests/run-asm-binop-var.sh tests/run-asm-binop-index-lit.sh \

@@ -2,6 +2,8 @@
 # F-queue v1：std.queue 去 C（queue.c → queue.x；胶层 v2 已拆，见 run-f-queue-v2-gate.sh）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_QUEUE_V1_FAIL:-0}
 DOC="analysis/phase-f-queue-v1.md"
 MANIFEST="tests/baseline/f-queue-v1-closure.tsv"
@@ -21,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'queue.x' compiler/Makefile || die "Makefile missing queue.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/queue/queue.o >/dev/null 2>&1 || die "make queue.o failed"
+  xlang_compiler_make ../std/queue/queue.o >/dev/null 2>&1 || die "make queue.o failed"
 else
   echo "f-queue-v1 SKIP queue.o build (no xlang-c)" >&2
 fi

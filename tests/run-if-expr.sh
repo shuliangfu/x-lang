@@ -2,7 +2,9 @@
 # 验证 if/else 条件表达式；then/else 分支为单表达式，else 可省略（生成 0）。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang-c}
 
 # if 1<2 { 10 } else { 20 } -> 10

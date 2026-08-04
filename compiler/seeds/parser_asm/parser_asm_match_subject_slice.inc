@@ -125,6 +125,8 @@ extern int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, 
                                                             uint8_t *variant_name, int32_t variant_len);
 extern int32_t pipeline_expr_append_match_arm(void *arena, int32_t expr_ref, int32_t result_ref, int32_t is_wildcard,
                                               int32_t lit_val, int32_t is_enum_variant, int32_t variant_index);
+/* wave700: optional match-arm guard (`pat if cond =>`). */
+extern void pipeline_expr_match_arm_set_guard_ref(void *arena, int32_t expr_ref, int32_t i, int32_t guard_ref);
 
 /** 与 parser.x ast.expr_init_match_enum 一致。 */
 static void parser_asm_expr_init_match_enum_c(struct ast_Expr *e) {
@@ -199,14 +201,15 @@ void parser_asm_parse_match_subject_into_c(void *arena, struct parser_asm_lexer 
       return;
     e = ast_ast_arena_expr_get(arena, ref);
     e.kind = 3; /* AST_EXPR_VAR */
+    /* wave582 Cap residual: Expr.var_name is u8[128]; clamp 63→127, pad 128. */
     name_len = r.tok.ident_len;
-    if (name_len > 63)
-      name_len = 63;
+    if (name_len > 127)
+      name_len = 127;
     e.var_name_len = name_len;
     start = r.token_start;
     for (ni = 0; ni < name_len && start + (size_t)ni < source->length; ni++)
       e.var_name[ni] = source->data[start + ni];
-    for (; ni < 64; ni++)
+    for (; ni < 128; ni++)
       e.var_name[ni] = 0;
     e.line = 0;
     e.col = 0;
@@ -240,10 +243,10 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
   int32_t var_idx;
   int32_t enum_len;
   size_t enum_start;
-  uint8_t enum_buf[64];
+  uint8_t enum_buf[128]; /* wave582 Cap residual: match Enum.Variant names ≤127 */
   int32_t variant_len;
   size_t variant_start;
-  uint8_t variant_buf[64];
+  uint8_t variant_buf[128];
   struct ast_Module *mod_m;
   struct parser_asm_parse_expr_result arm_res;
   int32_t arm_i;
@@ -254,6 +257,10 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
   int32_t pat_var_idx[16];
   int32_t pat_n;
   int32_t pat_i;
+  int32_t arm_via_guard; /* wave700: 1 = arm fully handled in TOKEN_IF path */
+  /* wave708: implicit guard expr for struct field lit patterns (`Point { x: 0, y: 0 }`).
+   * 0 = no guard; >0 = expr_ref to `subject.field == val && ...` chain. */
+  int32_t pat_guard_ref[16];
   if (!arena || !source || !out)
     return;
   out->ok = 0;
@@ -1067,6 +1074,7 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
     }
     /* wave327: collect one or more patterns joined by TOKEN_PIPE before =>. */
     pat_n = 0;
+    arm_via_guard = 0;
     for (;;) {
       if (pat_n >= 16)
         return;
@@ -1074,6 +1082,7 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
       lit_v = 0;
       is_ev = 0;
       var_idx = -1;
+      pat_guard_ref[pat_n] = 0; /* wave708: reset implicit guard */
       if (r.tok.kind == (int32_t)TOKEN_INT) {
         lit_v = r.tok.int_val;
         parser_lex_from_next_into_glue(&lex, r);
@@ -1081,9 +1090,10 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
         is_wc = 1;
         parser_lex_from_next_into_glue(&lex, r);
       } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+        /* wave582 Cap residual: enum/variant pattern names content ≤127. */
         enum_len = r.tok.ident_len;
-        if (enum_len > 63)
-          enum_len = 63;
+        if (enum_len > 127)
+          enum_len = 127;
         enum_start = r.token_start;
         if (enum_start == 0)
           enum_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, enum_len);
@@ -1091,25 +1101,128 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
         parser_asm_copy_slice_to_name64_slice_c(source, enum_start, enum_len, enum_buf);
         parser_lex_from_next_into_glue(&lex, r);
         lexer_next_into(&r, lex, source);
-        if (r.tok.kind != (int32_t)TOKEN_DOT)
+        /*
+         * wave708: struct field pattern `Point { x: 0, y: 0 }` / `Point { x, y }`.
+         * After type name IDENT, TOKEN_LBRACE starts field patterns (not enum DOT).
+         * For `field: lit_val`, build implicit guard `subject.field == lit_val`
+         * chained with LOGAND. For `field` (bind), skip (wave707 field bind handles).
+         * Arm stays wildcard; guard_ref carries field lit comparisons.
+         * PLATFORM: SHARED — parser_asm match arm authority.
+         */
+        if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+          int32_t field_guard = 0; /* 0 = no guard yet; >0 = expr_ref */
+          parser_lex_from_next_into_glue(&lex, r);
+          lexer_next_into(&r, lex, source);
+          while (r.tok.kind != (int32_t)TOKEN_RBRACE && r.tok.kind != (int32_t)TOKEN_EOF) {
+            if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+              uint8_t fname[128];
+              int32_t flen = r.tok.ident_len;
+              size_t fstart = r.token_start;
+              int32_t fi;
+              if (flen > 127) flen = 127;
+              memset(fname, 0, sizeof(fname));
+              for (fi = 0; fi < flen && fstart + (size_t)fi < source->length; fi++)
+                fname[fi] = source->data[fstart + fi];
+              parser_lex_from_next_into_glue(&lex, r);
+              lexer_next_into(&r, lex, source);
+              if (r.tok.kind == (int32_t)TOKEN_COLON) {
+                /* `field: lit_val` — literal comparison */
+                int32_t fval;
+                int32_t fref, lit_ref, eq_ref;
+                struct ast_Expr fe, le, ee;
+                parser_lex_from_next_into_glue(&lex, r);
+                lexer_next_into(&r, lex, source);
+                /* wave709: `field: _` — wildcard field value, skip (no guard). */
+                if (r.tok.kind == (int32_t)TOKEN_UNDERSCORE) {
+                  parser_lex_from_next_into_glue(&lex, r);
+                  lexer_next_into(&r, lex, source);
+                } else {
+                  if (r.tok.kind != (int32_t)TOKEN_INT)
+                    return;
+                  fval = r.tok.int_val;
+                  parser_lex_from_next_into_glue(&lex, r);
+                  lexer_next_into(&r, lex, source); /* wave708: get next token (, or }) */
+                  /* construct FIELD_ACCESS: subject.field */
+                  fref = ast_ast_arena_expr_alloc(arena);
+                  if (fref == 0) return;
+                  fe = ast_ast_arena_expr_get(arena, fref);
+                  memset(&fe, 0, sizeof(fe));
+                  fe.kind = 44; /* EXPR_FIELD_ACCESS */
+                  fe.field_access_base_ref = matched_res.expr_ref;
+                  memcpy(fe.field_access_field_name, fname, (size_t)flen);
+                  fe.field_access_field_len = flen;
+                  ast_ast_arena_expr_set(arena, fref, fe);
+                  /* construct INT_LIT: val */
+                  lit_ref = ast_ast_arena_expr_alloc(arena);
+                  if (lit_ref == 0) return;
+                  le = ast_ast_arena_expr_get(arena, lit_ref);
+                  memset(&le, 0, sizeof(le));
+                  le.kind = 0; /* EXPR_LIT */
+                  le.int_val = (int64_t)fval;
+                  ast_ast_arena_expr_set(arena, lit_ref, le);
+                  /* construct EQ: field == val */
+                  eq_ref = ast_ast_arena_expr_alloc(arena);
+                  if (eq_ref == 0) return;
+                  ee = ast_ast_arena_expr_get(arena, eq_ref);
+                  memset(&ee, 0, sizeof(ee));
+                  ee.kind = 14; /* EXPR_EQ */
+                  ee.binop_left_ref = fref;
+                  ee.binop_right_ref = lit_ref;
+                  ast_ast_arena_expr_set(arena, eq_ref, ee);
+                  /* chain with LOGAND */
+                  if (field_guard == 0) {
+                    field_guard = eq_ref;
+                  } else {
+                    int32_t and_ref = ast_ast_arena_expr_alloc(arena);
+                    struct ast_Expr ae;
+                    if (and_ref == 0) return;
+                    ae = ast_ast_arena_expr_get(arena, and_ref);
+                    memset(&ae, 0, sizeof(ae));
+                    ae.kind = 20; /* EXPR_LOGAND */
+                    ae.binop_left_ref = field_guard;
+                    ae.binop_right_ref = eq_ref;
+                    ast_ast_arena_expr_set(arena, and_ref, ae);
+                    field_guard = and_ref;
+                  }
+                }
+              }
+              /* `field` bind mode — skip (wave707 field bind handles) */
+              /* skip comma */
+              if (r.tok.kind == (int32_t)TOKEN_COMMA) {
+                parser_lex_from_next_into_glue(&lex, r);
+                lexer_next_into(&r, lex, source);
+              }
+            } else {
+              return;
+            }
+          }
+          /* consume closing RBRACE */
+          if (r.tok.kind == (int32_t)TOKEN_RBRACE)
+            parser_lex_from_next_into_glue(&lex, r);
+          is_wc = 1;
+          pat_guard_ref[pat_n] = field_guard;
+        } else if (r.tok.kind == (int32_t)TOKEN_DOT) {
+          parser_lex_from_next_into_glue(&lex, r);
+          lexer_next_into(&r, lex, source);
+          if (r.tok.kind != (int32_t)TOKEN_IDENT)
+            return;
+          variant_len = r.tok.ident_len;
+          if (variant_len > 127)
+            variant_len = 127;
+          variant_start = r.token_start;
+          if (variant_start == 0)
+            variant_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, variant_len);
+          memset(variant_buf, 0, sizeof(variant_buf));
+          parser_asm_copy_slice_to_name64_slice_c(source, variant_start, variant_len, variant_buf);
+          parser_lex_from_next_into_glue(&lex, r);
+          is_ev = 1;
+          mod_m = pipeline_parser_get_match_module();
+          if (mod_m)
+            var_idx = pipeline_module_enum_variant_tag_for_names(mod_m, enum_buf, enum_len, variant_buf,
+                                                                variant_len);
+        } else {
           return;
-        parser_lex_from_next_into_glue(&lex, r);
-        lexer_next_into(&r, lex, source);
-        if (r.tok.kind != (int32_t)TOKEN_IDENT)
-          return;
-        variant_len = r.tok.ident_len;
-        if (variant_len > 63)
-          variant_len = 63;
-        variant_start = r.token_start;
-        if (variant_start == 0)
-          variant_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, variant_len);
-        memset(variant_buf, 0, sizeof(variant_buf));
-        parser_asm_copy_slice_to_name64_slice_c(source, variant_start, variant_len, variant_buf);
-        parser_lex_from_next_into_glue(&lex, r);
-        is_ev = 1;
-        mod_m = pipeline_parser_get_match_module();
-        if (mod_m)
-          var_idx = pipeline_module_enum_variant_tag_for_names(mod_m, enum_buf, enum_len, variant_buf, variant_len);
+        }
       } else {
         return;
       }
@@ -1125,20 +1238,67 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
         lexer_next_into(&r, lex, source);
         continue;
       }
-      if (r.tok.kind != (int32_t)TOKEN_FATARROW)
+      /*
+       * wave700 Cap residual: optional guard `pat if cond => result`.
+       * After the pattern list, TOKEN_IF starts a boolean guard expr, then FATARROW.
+       * PLATFORM: SHARED — G.7 single authority (this parse path + MatchArmEntry.guard_ref).
+       */
+      if (r.tok.kind == (int32_t)TOKEN_IF) {
+        struct parser_asm_parse_expr_result guard_res;
+        parser_lex_from_next_into_glue(&lex, r);
+        memset(&guard_res, 0, sizeof(guard_res));
+        guard_res.next_lex = lex;
+        parse_expr_into(arena, lex, source, &guard_res);
+        if (!guard_res.ok) {
+          return;
+        }
+        lex = guard_res.next_lex;
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != (int32_t)TOKEN_FATARROW) {
+          return;
+        }
+        parser_lex_from_next_into_glue(&lex, r);
+        memset(&arm_res, 0, sizeof(arm_res));
+        arm_res.next_lex = lex;
+        parse_expr_into(arena, lex, source, &arm_res);
+        if (!arm_res.ok) {
+          return;
+        }
+        lex = arm_res.next_lex;
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
+          return;
+        }
+        parser_lex_from_next_into_glue(&lex, r);
+        for (pat_i = 0; pat_i < pat_n; pat_i = pat_i + 1) {
+          arm_i = pipeline_expr_append_match_arm(arena, mref, arm_res.expr_ref, pat_is_wc[pat_i],
+                                                pat_lit_v[pat_i], pat_is_ev[pat_i], pat_var_idx[pat_i]);
+          if (arm_i < 0)
+            return;
+          pipeline_expr_match_arm_set_guard_ref(arena, mref, arm_i, guard_res.expr_ref);
+        }
+        arm_via_guard = 1;
+        break; /* leave pattern loop; outer arm loop continues */
+      }
+      if (r.tok.kind != (int32_t)TOKEN_FATARROW) {
         return;
+      }
       break;
     }
+    if (arm_via_guard != 0)
+      continue; /* next outer arm (guard path already appended) */
     parser_lex_from_next_into_glue(&lex, r);
     memset(&arm_res, 0, sizeof(arm_res));
     arm_res.next_lex = lex;
     parse_expr_into(arena, lex, source, &arm_res);
-    if (!arm_res.ok)
+    if (!arm_res.ok) {
       return;
+    }
     lex = arm_res.next_lex;
     lexer_next_into(&r, lex, source);
-    if (r.tok.kind != (int32_t)TOKEN_SEMICOLON)
+    if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
       return;
+    }
     parser_lex_from_next_into_glue(&lex, r);
     /* Expand multi-pattern to N arms sharing the same result expr (G.7: reuse MatchArmEntry). */
     for (pat_i = 0; pat_i < pat_n; pat_i = pat_i + 1) {
@@ -1146,6 +1306,9 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
                                             pat_lit_v[pat_i], pat_is_ev[pat_i], pat_var_idx[pat_i]);
       if (arm_i < 0)
         return;
+      /* wave708: set implicit guard for struct field lit patterns */
+      if (pat_guard_ref[pat_i] > 0)
+        pipeline_expr_match_arm_set_guard_ref(arena, mref, arm_i, pat_guard_ref[pat_i]);
     }
   }
   out->ok = 1;

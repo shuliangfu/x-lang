@@ -173,6 +173,9 @@ extern int32_t driver_parsed_work_i_get(int32_t i);
 extern void driver_parsed_work_i_set(int32_t i, int32_t v);
 extern size_t driver_parsed_work_z_get(int32_t i);
 extern void driver_parsed_work_z_set(int32_t i, size_t v);
+/* wave1225: release sidecars before free — see mono seed / rt_run_compiler_parsed.x */
+extern void ast_pool_arena_release(void *a);
+extern void ast_pool_module_release(void *m);
 extern void driver_parsed_work_cleanup(void);
 int32_t pp_path(void) {
   return 0;
@@ -775,6 +778,7 @@ int32_t rt_cp_step_parse(void) {
   if ((arena ==((uint8_t *)(0)))) {
     if ((module !=((uint8_t *)(0)))) {
       {
+        (void)(ast_pool_module_release(module));
         (void)(free(module));
       }
     }
@@ -782,6 +786,7 @@ int32_t rt_cp_step_parse(void) {
   }
   if ((module ==((uint8_t *)(0)))) {
     {
+      (void)(ast_pool_arena_release(arena));
       (void)(free(arena));
     }
     return 1;
@@ -789,7 +794,9 @@ int32_t rt_cp_step_parse(void) {
   if ((src_len > ((size_t)(max_i32)))) {
     (void)(rt_cp_diag(path, 3, 7, 4));
     {
+      (void)(ast_pool_arena_release(arena));
       (void)(free(arena));
+      (void)(ast_pool_module_release(module));
       (void)(free(module));
     }
     return 1;
@@ -808,7 +815,9 @@ int32_t rt_cp_step_parse(void) {
       (void)(rt_cp_diag(path, 4, 9, 5));
     }
     {
+      (void)(ast_pool_arena_release(arena));
       (void)(free(arena));
+      (void)(ast_pool_module_release(module));
       (void)(free(module));
     }
     return 1;

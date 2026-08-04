@@ -5,9 +5,11 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # 阶段 10.2：CI 下也跑本测试；用 run_timeout 限时，超时则失败（exit 1）避免假绿。
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 # 可移植超时：执行一条命令，超时秒数 $1，命令为 "${@:2}"；超时返回 124
 run_timeout() {
@@ -22,7 +24,7 @@ run_timeout() {
 
 # 生成 xlang_x（bootstrap-pipeline + 编译 pipeline_gen.c）整段限 120s，避免卡在 make
 make_ret=0
-run_timeout 120 bash -c 'make -C compiler bootstrap-pipeline 2>/dev/null || true; make -C compiler xlang-x-pipeline 2>/dev/null || true' || make_ret=$?
+run_timeout 120 bash -c 'xlang_compiler_make bootstrap-pipeline 2>/dev/null || true; xlang_compiler_make xlang-x-pipeline 2>/dev/null || true' || make_ret=$?
 if [ "$make_ret" -eq 124 ]; then
   echo "run-x-pipeline FAIL (make bootstrap-pipeline / xlang-x-pipeline timed out after 120s)"
   exit 1
@@ -60,7 +62,7 @@ if [ "$ec" -ne 0 ]; then
   fi
   if [ "$ec" -eq 126 ]; then
     rm -f "$out" "$err"
-    echo "run-x-pipeline SKIP (xlang_x not runnable in this env, e.g. wrong libc in container; run make -C compiler clean first)"
+    echo "run-x-pipeline SKIP (xlang_x not runnable in this env, e.g. wrong libc in container; run xlang_compiler_make clean first)"
     exit 0
   fi
   echo "run-x-pipeline: $X_XLANG -x -E $MIN_X failed (exit $ec)"

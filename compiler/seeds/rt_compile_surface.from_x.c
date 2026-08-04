@@ -33,7 +33,7 @@ struct RtCompileState {
   int32_t backend_asm_explicit;
   int32_t use_freestanding;
   int32_t parse_saw_target;
-  uint8_t target_cpu_buf[64];
+  uint8_t target_cpu_buf[128];
   int32_t target_cpu_len;
   int32_t target_cpu_features;
   int32_t print_target_cpu;
@@ -798,7 +798,8 @@ int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t * * argv, struct 
 struct RtCompileState * driver_compile_state_alloc_c(void) {
   struct RtCompileState * state = ((struct RtCompileState *)(0));
   uint8_t * p = ((uint8_t *)(0));
-  size_t sz = ((size_t)(1664));
+  /* RtCompileState 总大小=1728B（须与 .x rt_compile.x sz 一致；旧值 1664 堆溢出）。 */
+  size_t sz = ((size_t)(1728));
   {
     (void)((p = malloc(sz)));
   }
@@ -814,10 +815,17 @@ struct RtCompileState * driver_compile_state_alloc_c(void) {
   (void)(((state->opt_level_len) = 1));
   return state;
 }
+/* wave1243: declare release so seed free path matches product (sidecar leak → IMP001). */
+extern void driver_emit_lib_root_release(uint8_t *state);
+
 void driver_compile_state_free_c(struct RtCompileState * state) {
   if ((state ==((struct RtCompileState *)(0)))) {
     return;
   }
+  /* wave1243: release driver_emit lib_root sidecar keyed by this state pointer
+   * before free — directory check allocs one state per file; without release the
+   * table fills after MAX_DRIVER_EMIT_SIDECARS and -L roots stop applying. */
+  driver_emit_lib_root_release((uint8_t *)state);
   {
     (void)(free(((uint8_t *)(state))));
   }

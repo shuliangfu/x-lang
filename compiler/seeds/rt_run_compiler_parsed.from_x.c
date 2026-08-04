@@ -142,6 +142,27 @@ extern int content_has_compound_assign_syntax(const char *content, size_t n);
 extern const char *xlang_entry_lib_name_from_path(const char *path);
 extern void xlang_emit_pipeline_glue_include(void);
 
+
+/* wave1225: release process-wide AST sidecars before free(arena/module).
+ * free alone leaves g_arena_sc / g_module_sc used with dangling keys; the next
+ * malloc may reuse the same address and reattach stale GrowVec data. That is
+ * why single-file `xlang check file.x` is green while batch/directory check
+ * truncates large files (e.g. runtime_pipeline_abi num_funcs 363→111).
+ * Safe no-op if pointer never registered or already released.
+ * PLATFORM: SHARED — cold mono twin of rt_run_compiler_parsed.x rt_cp_release. */
+extern void ast_pool_arena_release(void *a);
+extern void ast_pool_module_release(void *m);
+static void rt_cp_release_arena_module(void *arena, void *module) {
+    if (arena) {
+        ast_pool_arena_release(arena);
+        free(arena);
+    }
+    if (module) {
+        ast_pool_module_release(module);
+        free(module);
+    }
+}
+
 /**
  * argv 已解析后的编译执行：泛型降级、asm/C 分派、pipeline/cc。
  * 由 driver/compile.x 经 driver_run_compiler_dispatch_c 调用。
@@ -640,8 +661,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     void *arena = malloc(arena_sz);
     void *module = malloc(module_sz);
     if (!arena || !module) {
-        free(arena);
-        free(module);
+        rt_cp_release_arena_module(arena, module);
         free(src);
         return 1;
     }
@@ -652,8 +672,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP007, NULL,
                                "entry source too large for parser (>%d bytes): '%s'",
                                INT32_MAX, input_path ? input_path : "?");
-        free(arena);
-        free(module);
+        rt_cp_release_arena_module(arena, module);
         free(src);
         return 1;
     }
@@ -661,15 +680,13 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     struct parser_ParseIntoResult pr = parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
     if (pr.ok != 0) {
         if (runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
-            free(arena);
-            free(module);
+            rt_cp_release_arena_module(arena, module);
             free(src);
             return 1;
         }
         /* multi-error recovery 诊断（check/run-parser 闸门） */
         if (runtime_report_parse_recovery_diagnostics(input_path, src, src_len) > 0) {
-            free(arena);
-            free(module);
+            rt_cp_release_arena_module(arena, module);
             free(src);
             return 1;
         }
@@ -685,8 +702,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             diag_reportf(input_path, 0, 0, "note", NULL,
                          "src_len=%zu first_bytes=%.*s",
                          src_len, (int)(src_len > 60 ? 60 : src_len), src);
-        free(arena);
-        free(module);
+        rt_cp_release_arena_module(arena, module);
         free(src);
         return 1;
     }
@@ -708,8 +724,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     if (n_imports > 0 && n_imports <= 32) {
         if (xlang_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines,
                 ndefines, dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
-            free(arena);
-            free(module);
+            rt_cp_release_arena_module(arena, module);
             free(src);
             return 1;
         }
@@ -734,7 +749,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         if (fd < 0) {
             runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-            free(arena); free(module); free(src);
+            rt_cp_release_arena_module(arena, module); free(src);
             return 1;
         }
         /* PLATFORM: WINDOWS | POSIX — close fd BEFORE rename; Windows forbids
@@ -745,7 +760,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
             unlink(tmp);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-            free(arena); free(module); free(src);
+            rt_cp_release_arena_module(arena, module); free(src);
             return 1;
         }
         cf = fopen(tmp_c, "w");
@@ -753,7 +768,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             runtime_diag_errno_path(input_path, "build error", "fopen", tmp_c);
             unlink(tmp_c);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-            free(arena); free(module); free(src);
+            rt_cp_release_arena_module(arena, module); free(src);
             return 1;
         }
     }
@@ -768,10 +783,10 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         if (!dep_arenas[j] || !dep_modules[j]) {
             diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                   ".x path dependency allocation failed", NULL);
-            while (j > 0) { j--; free(dep_arenas[j]); free(dep_modules[j]); }
+            while (j > 0) { j--; rt_cp_release_arena_module(dep_arenas[j], dep_modules[j]); }
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-            free(arena); free(module); free(src);
+            rt_cp_release_arena_module(arena, module); free(src);
             return 1;
         }
         memset(dep_arenas[j], 0, arena_sz);
@@ -782,10 +797,10 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     if (!out_buf || !pctx) {
         diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                               ".x path output/context allocation failed", NULL);
-        for (int jj = 0; jj < n_deps; jj++) { free(dep_arenas[jj]); free(dep_modules[jj]); }
+        for (int jj = 0; jj < n_deps; jj++) { rt_cp_release_arena_module(dep_arenas[jj], dep_modules[jj]); }
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
         while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-        free(arena); free(module); free(src);
+        rt_cp_release_arena_module(arena, module); free(src);
         if (out_buf) free(out_buf);
         if (pctx) pipeline_dep_ctx_heap_destroy(pctx);
         return 1;
@@ -836,10 +851,10 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             free(dep_out);
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
-            for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
+            for (int k = 0; k < n_deps; k++) { rt_cp_release_arena_module(dep_arenas[k], dep_modules[k]); }
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-            free(arena); free(module); free(src);
+            rt_cp_release_arena_module(arena, module); free(src);
             return 1;
         }
         xlang_pipeline_fill_ctx_path_buffers(one_ctx, xlang_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots),
@@ -870,10 +885,10 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                                    dep_paths[j] ? dep_paths[j] : "?", ec_dep);
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
-            for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
+            for (int k = 0; k < n_deps; k++) { rt_cp_release_arena_module(dep_arenas[k], dep_modules[k]); }
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-            free(arena); free(module); free(src);
+            rt_cp_release_arena_module(arena, module); free(src);
             return 1;
         }
         driver_dep_publish_slot(j, dep_arenas[j], dep_modules[j], dep_paths[j]);
@@ -911,6 +926,14 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: before entry memset arena_sz=%zu", arena_sz);
+    /* wave1225: drop first-pass sidecar GrowVecs before reusing the same
+     * arena/module heap for pipeline re-parse. parse_into_init resets lens when
+     * a sidecar still matches, but release+recreate is the authoritative clean
+     * slate (and pairs with free-path release-before-free above). */
+    if (arena)
+        ast_pool_arena_release(arena);
+    if (module)
+        ast_pool_module_release(module);
     memset(arena, 0, arena_sz);
     memset(module, 0, module_sz);
     parser_parse_into_init(module, arena);
@@ -929,11 +952,10 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             driver_x_pipeline_skip_typeck_set(0);
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
-            for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
+            for (int k = 0; k < n_deps; k++) { rt_cp_release_arena_module(dep_arenas[k], dep_modules[k]); }
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-            free(arena);
-            free(module);
+            rt_cp_release_arena_module(arena, module);
             free(src);
             return 1;
         }
@@ -954,16 +976,14 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx);
         for (int k = 0; k < n_deps; k++) {
-            free(dep_arenas[k]);
-            free(dep_modules[k]);
+            rt_cp_release_arena_module(dep_arenas[k], dep_modules[k]);
         }
         while (n_deps > 0) {
             n_deps--;
             free(dep_sources[n_deps]);
             free(dep_paths[n_deps]);
         }
-        free(arena);
-        free(module);
+        rt_cp_release_arena_module(arena, module);
         free(src);
         return 0;
     }
@@ -975,7 +995,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                      "pipeline debug: after pipeline_run ec=%d", ec);
     driver_dep_seeded_clear_all();
     codegen_set_dep_slots_for_x_pipeline(NULL, NULL, 0);
-    for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
+    for (int j = n_deps - 1; j >= 0; j--) { rt_cp_release_arena_module(dep_arenas[j], dep_modules[j]); }
     while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
     if (ec != 0 || (!driver_check_only_get() && out_buf->length == 0)) {
         diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
@@ -988,8 +1008,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                          (const char *)out_buf->data);
         }
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
-        free(arena);
-        free(module);
+        rt_cp_release_arena_module(arena, module);
         free(src);
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx);
@@ -999,18 +1018,14 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         int nfuncs_ck = driver_get_module_num_funcs(module);
         int rec_n = 0;
         int fail_ck = 0;
-        /* 【Why 根源】check_only 时 out_buf 可空（无 codegen），不可据此当成功。
-         * 始终跑 multi-error recovery（top_level 可能仍有 2 个 ok 函数）；
-         * 0 函数再兜底 P001。 */
+        /* Why: check_only verifies syntax + types, not function presence.
+         * Parse succeeded (pr.ok == 0) reaching here. Empty modules (comment-only
+         * skeleton files, declaration-only files) are syntactically valid.
+         * Only flag failure when parse recovery found real syntax errors. */
         rec_n = runtime_report_parse_recovery_diagnostics(input_path, src, src_len);
         if (rec_n > 0)
             fail_ck = 1;
-        if (nfuncs_ck <= 0) {
-            if (rec_n <= 0)
-                diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
-                             "parse produced no functions for '%s'", input_path ? input_path : "?");
-            fail_ck = 1;
-        }
+        /* nfuncs_ck <= 0 with rec_n <= 0: empty module, not an error. */
         if (driver_check_diag_emitted_get())
             fail_ck = 1;
         if (fail_ck) {
@@ -1018,8 +1033,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                 fclose(cf);
                 unlink(tmp_c);
             }
-            free(arena);
-            free(module);
+            rt_cp_release_arena_module(arena, module);
             free(src);
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
@@ -1030,8 +1044,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             fclose(cf);
             unlink(tmp_c);
         }
-        free(arena);
-        free(module);
+        rt_cp_release_arena_module(arena, module);
         free(src);
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx);
@@ -1040,8 +1053,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     /* 无 -o、将生成的 C 写 stdout 之前：stderr 烟测两行，与 driver_run_x_emit_x 及 run-std/run-stdlib-import 的 grep 一致。 */
     if (emit_to_stdout)
         driver_print_x_smoke_summary(module, (size_t)out_buf->length);
-    free(arena);
-    free(module);
+    rt_cp_release_arena_module(arena, module);
     free(src);
     {
         /* 内联 std.io / std.net / fs / path / map / error ABI；不再 #include std/*_abi.h。

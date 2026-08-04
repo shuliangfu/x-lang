@@ -234,7 +234,7 @@ int32_t lsp_diag_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, 
       return 1;
     }
     if (((ko ==8) && (out_cap > 0))) {
-      uint8_t nm[64] = {};
+      uint8_t nm[128] = {};
       int32_t nlen = pipeline_type_named_name_into(arena, type_ref, &((nm)[0]));
       if ((((nlen > 0) && (nlen <=64)) && (out_cap > nlen))) {
         int32_t i = 0;
@@ -420,7 +420,7 @@ int32_t lsp_source_find_function_def(uint8_t * source, int32_t sl, uint8_t * nam
 int32_t lsp_func_def_pos_in_source(uint8_t * source, int32_t sl, struct ast_Module * module, int32_t func_index, int32_t * out_line, int32_t * out_col) {
   {
     int32_t nl = pipeline_module_func_name_len_at(module, func_index);
-    uint8_t nm[64] = {};
+    uint8_t nm[128] = {};
     if ((((module ==((struct ast_Module *)(0))) || (func_index < 0)) || (func_index >=(module->num_funcs)))) {
       return 0;
     }
@@ -623,7 +623,7 @@ int32_t lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * doc_buf, in
     int32_t n_tokens = lsp_collect_semantic_tokens(arena, token_data, token_cap);
     int32_t json_cap = 262144;
     uint8_t * json_ptr = std_heap_alloc(((size_t)(json_cap)));
-    uint8_t prefix[64] = {};
+    uint8_t prefix[128] = {};
     int32_t pi = 0;
     uint8_t id_str[12] = {};
     int32_t id_len = 0;

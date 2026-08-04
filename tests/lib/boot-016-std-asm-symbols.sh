@@ -6,6 +6,8 @@
 #   boot016_verify_std_objs RUNTIME TSV
 #   boot016_emit_report status obj_ok sym_miss runtime_miss skip
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 BOOT016_PREFIX="${XLANG_BOOT016_PREFIX:-xlang: [XLANG_BOOT016]}"
 
 # 判断 .o 中是否已定义符号 sym（兼容 macOS `_` 前缀与 GNU nm）。
@@ -26,7 +28,7 @@ boot016_ensure_obj() {
   local obj_rel="$1"
   local mk_target="../${obj_rel}"
   if [ ! -f "$obj_rel" ]; then
-    make -C compiler -q "$mk_target" 2>/dev/null || make -C compiler "$mk_target" >/dev/null 2>&1
+    xlang_compiler_make -q "$mk_target" 2>/dev/null || xlang_compiler_make "$mk_target" >/dev/null 2>&1
   fi
   [ -f "$obj_rel" ]
 }

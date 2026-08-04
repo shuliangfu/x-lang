@@ -7,6 +7,8 @@
 # 用法：./tests/run-comp-regalloc-quality-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_COMP013_DOC:-analysis/comp-regalloc-quality-v1.md}"
 MANIFEST="${XLANG_COMP013_WAVE_TSV:-tests/baseline/comp-regalloc-quality-wave.tsv}"
@@ -78,7 +80,7 @@ SKIP=1
 
 if comp_regalloc_native_xlang_asm "$XLANG_ASM"; then
   echo "=== COMP-013: run quality metrics (XLANG=$XLANG_ASM) ==="
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   while IFS=$'\t' read -r metric_id _arch _strategy _threshold script _notes; do
     [ -z "${metric_id:-}" ] && continue
     case "$metric_id" in \#*|min_*) continue ;; esac

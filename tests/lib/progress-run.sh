@@ -3,7 +3,7 @@
 #
 # 用法：
 #   ./tests/lib/progress-run.sh <label> <logfile> -- <command...>
-#   ./tests/lib/progress-run.sh "L1 bstrict" /tmp/bstrict.log -- make -C compiler bootstrap-driver-bstrict
+#   ./tests/lib/progress-run.sh "L1 bstrict" /tmp/bstrict.log -- xlang_compiler_make bootstrap-driver-bstrict
 #
 # 环境：
 #   XLANG_PROGRESS_QUIET=1 — 不打印子命令 stdout（仍写入 log）

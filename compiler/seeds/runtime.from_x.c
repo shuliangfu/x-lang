@@ -1037,14 +1037,14 @@ extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struc
 #define RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP 16384
 
 typedef struct {
-    uint8_t name[64];
+    uint8_t name[128];
     int32_t name_len;
     int32_t offset;
 } RuntimePipelineElfLabelEntry;
 
 typedef struct {
     int32_t rel32_offset;
-    uint8_t name[64];
+    uint8_t name[128];
     int32_t name_len;
     int32_t patch_imm_bits;
 } RuntimePipelineElfPatchEntry;
@@ -1840,7 +1840,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
 #else
         if (n_imports > 0 && n_imports <= 32) {
             for (int i = 0; i < n_imports && n_deps < MAX_ALL_DEPS; i++) {
-                uint8_t path_buf[64];
+                uint8_t path_buf[128];
                 parser_get_module_import_path(module, i, path_buf);
                 char path_c[65];
                 size_t k = 0;
@@ -3241,10 +3241,10 @@ int run_compiler_x_path(int argc, char **argv) {
     if (driver_check_only_get()) {
         int nfuncs_ck = driver_get_module_num_funcs(module);
         int rec_n = runtime_report_parse_recovery_diagnostics(input_path, src, src_len);
-        int fail_ck = (rec_n > 0) || (nfuncs_ck <= 0) || driver_check_diag_emitted_get();
-        if (nfuncs_ck <= 0 && rec_n <= 0)
-            diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
-                         "parse produced no functions for '%s'", input_path ? input_path : "?");
+        /* Why: check verifies syntax + types, not function presence.
+         * Empty modules (comment-only skeletons) are syntactically valid.
+         * Only fail on real parse errors (recovery diagnostics) or diag emissions. */
+        int fail_ck = (rec_n > 0) || driver_check_diag_emitted_get();
         if (fail_ck) {
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             free(out_buf);
@@ -4475,7 +4475,14 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP001, NULL,
                              ".x pipeline failed for '%s' (stage=parse_into/typeck_x_ast/codegen_x_ast)",
                              input_path ? input_path : "?");
-            else if (smoke_num_funcs <= 0)
+            else if (smoke_num_funcs <= 0 && !driver_check_only_get())
+                /* wave1222: a file with zero top-level functions is a legal
+                 * module in `xlang check` (header/doc-only .x, pure import
+                 * re-export, skeleton stub). Reporting P001 here was masking
+                 * real layout work and polluting check output with ~84 false
+                 * failures across the source tree. Compile/codegen paths
+                 * (non-check_only) still treat 0 funcs as an error because
+                 * they need a main symbol to emit. PLATFORM: SHARED. */
                 diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                              "parse produced no functions for '%s'", input_path ? input_path : "?");
             else if (driver_check_only_get() && smoke_diag_emitted) {
@@ -4497,7 +4504,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 typeck_ndep_store((int32_t)(0));
                 return 1;
             }
-            if (smoke_num_funcs <= 0) {
+            if (smoke_num_funcs <= 0 && !driver_check_only_get()) {
+                /* wave1222: see above — 0-func files are legal under check_only. */
                 driver_dep_seeded_clear_all();
                 typeck_ndep_store((int32_t)(0));
                 return 1;
@@ -4620,7 +4628,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                          input_path ? input_path : "?");
         }
     }
-    if (ec == 0 && emit_elf_o && driver_get_module_num_funcs(module) <= 0) {
+    if (ec == 0 && emit_elf_o && !driver_check_only_get() && driver_get_module_num_funcs(module) <= 0) {
+        /* wave1222: 0-func files legal under check_only (doc/import-only stubs). */
         diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                      "parse produced no functions in '%s'", input_path ? input_path : "?");
         ec = -1;
@@ -5906,17 +5915,13 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         int nfuncs_ck = driver_get_module_num_funcs(module);
         int rec_n = 0;
         int fail_ck = 0;
-        /* 【Why 根源】parser 宽容 pr.ok=0 可吞 let/if 语法错；check 必须跑词法 recovery。
-         * 与 seeds/rt_run_compiler_parsed.from_x.c 同形（禁止双权威漂移）。 */
+        /* Why: check verifies syntax + types, not function presence.
+         * Empty modules (comment-only skeletons) are syntactically valid.
+         * Only fail on real parse errors (recovery diagnostics) or diag emissions. */
         rec_n = runtime_report_parse_recovery_diagnostics(input_path, src, src_len);
         if (rec_n > 0)
             fail_ck = 1;
-        if (nfuncs_ck <= 0) {
-            if (rec_n <= 0)
-                diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
-                             "parse produced no functions for '%s'", input_path ? input_path : "?");
-            fail_ck = 1;
-        }
+        /* nfuncs_ck <= 0 with rec_n <= 0: empty module, not an error. */
         if (driver_check_diag_emitted_get())
             fail_ck = 1;
         if (fail_ck) {
@@ -6152,7 +6157,7 @@ typedef struct DriverCompileStateSU {
     int32_t backend_asm_explicit;
     int32_t use_freestanding;
     int32_t parse_saw_target;
-    uint8_t target_cpu_buf[64];
+    uint8_t target_cpu_buf[128];
     int32_t target_cpu_len;
     int32_t target_cpu_features;
     int32_t print_target_cpu;
@@ -7950,7 +7955,8 @@ int driver_run_x_emit_c(void) {
                              ".x pipeline failed for '%s'",
                              input_path ? input_path : "?");
             } else if (out_buf->length <= 0) {
-                if (driver_get_module_num_funcs(module) <= 0) {
+                if (driver_get_module_num_funcs(module) <= 0 && !driver_check_only_get()) {
+                    /* wave1222: 0-func files legal under check_only. */
                     if (!runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
                         diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                                                "parse produced no functions in '%s'",

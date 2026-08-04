@@ -2,6 +2,8 @@
 # F-context v2：std.context 节点存储全量 .x（删除 context_node_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_CONTEXT_V2_FAIL:-0}
 DOC="analysis/phase-f-context-v2.md"
 MANIFEST="tests/baseline/f-context-v2-closure.tsv"
@@ -26,7 +28,7 @@ grep -q 'ctx_smoke_c' std/context/context.x || die "context.x missing smoke"
 grep -q 'ctx_f_context_v2_marker_c' std/context/context.x || die "context.x missing v2 marker"
 grep -q 'F-context v2' compiler/Makefile || die "Makefile missing F-context v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/context/context.o >/dev/null 2>&1 || die "make context.o failed"
+  xlang_compiler_make ../std/context/context.o >/dev/null 2>&1 || die "make context.o failed"
 else
   echo "f-context-v2 SKIP context.o build (no xlang-c)" >&2
 fi

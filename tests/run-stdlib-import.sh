@@ -5,6 +5,8 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # 可执行链接优先 xlang-c；无 xlang-c 时回退 XLANG / xlang。
 stdlib_import_pick_link_shu() {
@@ -43,7 +45,7 @@ elif [ -x ./compiler/xlang-c ]; then
 elif [ -x ./compiler/xlang ]; then
   XLANG=./compiler/xlang
 else
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   XLANG=./compiler/xlang-c
 fi
 
@@ -63,14 +65,14 @@ case "$(basename "$LINK_XLANG")" in
 esac
 
 # main.x 不 import std.process；process.o 需 asm backend，arm64 xlang-c 上可选。
-make -C compiler -q ../std/process/process.o 2>/dev/null \
-  || make -C compiler ../std/process/process.o 2>/dev/null || true
+xlang_compiler_make -q ../std/process/process.o 2>/dev/null \
+  || xlang_compiler_make ../std/process/process.o 2>/dev/null || true
 # run-all 入口已 make 时跳过（XLANG_SKIP_SUBSCRIPT_MAKE=1）。
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ]; then
-    make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
+    xlang_compiler_make bootstrap-driver-seed -q 2>/dev/null || xlang_compiler_make bootstrap-driver-seed
   else
-    make -C compiler -q 2>/dev/null || make -C compiler
+    xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   fi
 fi
 # bootstrap seed：typeck 走 .x pipeline（check）；多模块可执行链接仍用 xlang-c（seed -o 常 cc failed）。

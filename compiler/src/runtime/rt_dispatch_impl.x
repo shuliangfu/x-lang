@@ -25,7 +25,7 @@ export struct RtDispatchState {
   backend_asm_explicit: i32;
   use_freestanding: i32;
   parse_saw_target: i32;
-  target_cpu_buf: u8[64];
+  target_cpu_buf: u8[128];
   target_cpu_len: i32;
   target_cpu_features: i32;
   print_target_cpu: i32;

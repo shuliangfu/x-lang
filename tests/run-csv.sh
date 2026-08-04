@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 ensure_std_c_o ../std/csv/csv.o
 XLANG="${XLANG:-./compiler/xlang}"
 # shellcheck source=lib/bootstrap-link-xlang.sh

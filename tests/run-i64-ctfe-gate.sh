@@ -5,6 +5,8 @@
 # 用法：./tests/run-i64-ctfe-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="analysis/安全与性能.md"
 SRC="tests/typeck/ctfe/i64_min_not_zero.x"
@@ -33,7 +35,7 @@ if [ ! -x "$XLANG_BIN" ] && [ -x ./compiler/xlang-c ]; then
   XLANG_BIN=./compiler/xlang-c
 fi
 if [ ! -x "$XLANG_BIN" ]; then
-  make -C compiler -q xlang 2>/dev/null || make -C compiler xlang
+  xlang_compiler_make -q xlang 2>/dev/null || xlang_compiler_make xlang
   XLANG_BIN=./compiler/xlang
 fi
 

@@ -6,10 +6,12 @@
 #
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 # 确保 compiler 与 std/sync/sync.o 已构建（链接阶段需要 sync.o）
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 # W3 gold best-effort：跳过 ensure_std_c_o（make+seed xlang 易挂起/进程风暴）。
 if [ -z "${XLANG_W3_SKIP_STD_ENSURE:-}" ]; then
   ensure_std_c_o ../std/sync/sync.o

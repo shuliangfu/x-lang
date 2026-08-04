@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-dynlib-windows-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_DYNLIB_WIN_DOC:-analysis/std-dynlib-windows-v1.md}"
 MANIFEST="${XLANG_STD_DYNLIB_WIN_TSV:-tests/baseline/std-dynlib-windows.tsv}"
@@ -82,7 +84,7 @@ if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
     exit 1
   fi
   SKIP=0
-  make -C compiler -q ../std/dynlib/dynlib.o runtime_dynlib_os.o 2>/dev/null || make -C compiler ../std/dynlib/dynlib.o runtime_dynlib_os.o
+  xlang_compiler_make -q ../std/dynlib/dynlib.o runtime_dynlib_os.o 2>/dev/null || xlang_compiler_make ../std/dynlib/dynlib.o runtime_dynlib_os.o
   ld_extra=""
   case "$(uname -s)" in
     Linux*) ld_extra="-ldl" ;;
@@ -102,7 +104,7 @@ if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
     echo "std-dynlib-windows gate FAIL: compile win_path_smoke.c" >&2
     exit 1
   fi
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   # shellcheck source=tests/lib/bootstrap-link-xlang.sh
   . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
   if $RUN_XLANG build -L . "$SMOKE" -o /tmp/xlang_std_dynlib_osc 2>/tmp/xlang_std_dynlib_osc_build.log; then

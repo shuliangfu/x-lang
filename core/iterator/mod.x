@@ -106,4 +106,3 @@ export function iter_remaining_u64(it: *SliceIter_u64): usize {
   if (it.index >= it.length) { return 0 as usize; }
   return it.length - it.index;
 }
-

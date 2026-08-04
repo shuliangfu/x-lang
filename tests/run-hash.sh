@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG="${XLANG:-./compiler/xlang}"
 exe="/tmp/xlang_hash_$$"
 if ! $XLANG build -L . tests/hash/main.x -o "$exe" 2>&1; then echo "hash test: compile failed"; rm -f "$exe"; exit 1; fi

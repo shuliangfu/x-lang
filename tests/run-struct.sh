@@ -2,9 +2,11 @@
 # 结构体：定义、字面量、字段访问、allow(padding)；负例：未 allow 的隐式 padding 报错
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 CALLER_XLANG="${XLANG:-}"
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ] && [ -z "$CALLER_XLANG" ]; then
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 fi
 XLANG=${XLANG:-./compiler/xlang}
 # shellcheck source=lib/bootstrap-link-xlang.sh

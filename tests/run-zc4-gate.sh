@@ -5,6 +5,8 @@
 #   XLANG=./compiler/xlang_asm ./tests/run-zc4-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 XLANG_BIN="${XLANG:-}"
 case "$XLANG_BIN" in
@@ -51,7 +53,7 @@ zc4_pick_native_xlang() {
 CHECK_XLANG="$(zc4_pick_native_xlang ./compiler/xlang-c ./compiler/xlang ./compiler/xlang_asm)" || CHECK_XLANG=""
 
 if [ -z "$CHECK_XLANG" ]; then
-  if make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null; then
+  if xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null; then
     if [ -x ./compiler/xlang-c ]; then
       CHECK_XLANG=./compiler/xlang-c
     fi

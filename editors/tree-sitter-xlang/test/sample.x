@@ -37,5 +37,5 @@ export function demo(x: i32, n: i32, arr: *i32): void {
 
   let p: *u8 = "hello";
   let v: i32 = (1 as i32);
-  defer printf(p);
+  defer { printf(p); }
 }

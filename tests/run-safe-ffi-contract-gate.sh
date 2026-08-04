@@ -8,6 +8,8 @@
 # 用法：./tests/run-safe-ffi-contract-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_SAFE_FFI_DOC:-analysis/safe-ffi-contract-v1.md}"
 MANIFEST="${XLANG_SAFE_FFI_MANIFEST:-tests/baseline/safe-ffi-contract.tsv}"
@@ -133,7 +135,7 @@ fi
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== SAFE-004: contract cases (XLANG=$XLANG_BIN) ==="
   if [ ! -x ./compiler/xlang-c ] && [ ! -x ./compiler/xlang ]; then
-    make -C compiler xlang-c
+    xlang_compiler_make xlang-c
   fi
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh

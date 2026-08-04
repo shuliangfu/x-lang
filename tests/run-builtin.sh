@@ -3,7 +3,9 @@
 # G-01：无 core/builtin/builtin.c，C 后端经 codegen __builtin_* 映射。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make xlang-c
 # shellcheck source=tests/lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 # 产品轨：bstrict 注入的 XLANG/xlang_asm 优先（可完整 -o + xlang_panic_）。

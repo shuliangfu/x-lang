@@ -2,7 +2,9 @@
 # 阶段 8 体积基线：编译固定用例，输出可执行文件大小（默认 -O2 -s，便于对比）
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 echo "=== 体积基线（-O2，产出已 strip）==="
 ./compiler/xlang examples/hello.x -o /tmp/xlang_baseline_hello 2>&1

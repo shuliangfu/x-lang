@@ -2,7 +2,9 @@
 # MEM-A2 BCE v1：循环内 arr[i] 证明在界内时 codegen 省略 xlang_panic_ 边界检查。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 XLANG="${XLANG:-./compiler/xlang-c}"
 SRC="tests/mem/bce_array.x"
 OUT="/tmp/xlang_bce_array"

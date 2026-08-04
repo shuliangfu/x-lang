@@ -6,6 +6,8 @@
 #   XLANG=./compiler/xlang-c ./tests/run-sanitize-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
@@ -14,7 +16,7 @@ if [ -z "$XLANG_BIN" ]; then
   elif [ -x ./compiler/xlang ]; then
     XLANG_BIN=./compiler/xlang
   else
-    make -C compiler -q 2>/dev/null || make -C compiler
+    xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
     XLANG_BIN=./compiler/xlang-c
   fi
 fi

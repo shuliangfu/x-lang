@@ -4,6 +4,8 @@
 # 用法：./tests/run-debug-symbols.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/tool-debug-symbols.sh
 . tests/lib/tool-debug-symbols.sh
@@ -12,7 +14,7 @@ XLANG="${XLANG:-./compiler/xlang}"
 SRC=tests/debug/symbols_marker.x
 EXE="/tmp/xlang_debug_symbols_$$"
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 if ! "$XLANG" -O 0 -L . "$SRC" -o "$EXE" 2>&1; then
   echo "run-debug-symbols FAIL: compile $SRC" >&2

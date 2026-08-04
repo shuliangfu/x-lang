@@ -54,6 +54,8 @@ const char *xlang_bootstrap_nostdlib_stubs_o_path(const char *argv0);
 int xlang_link_freestanding_enabled(int driver_freestanding);
 int xlang_freestanding_user_o_needs_panic(const char *user_o);
 int xlang_freestanding_user_o_needs_io(const char *user_o);
+/* wave592: nostdlib face forces freestanding_io companion. */
+int link_abi_user_o_needs_freestanding_nostdlib_face(const char *user_o);
 int xlang_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
 int xlang_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
 int labi_user_needs_runtime_process_argv(const char *user_o);
@@ -318,9 +320,9 @@ int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_b
     *flags_out = labi_ensure_catalog_flags(i);
   if (hint_out) {
     if (i == 0)
-      *hint_out = "try: make -C compiler runtime_asm_io_stubs.o";
+      *hint_out = "try: ./xbuild compiler-make runtime_asm_io_stubs.o";
     else if (i == 1)
-      *hint_out = "try: make -C compiler runtime_process_argv.o";
+      *hint_out = "try: ./xbuild compiler-make runtime_process_argv.o";
     else
       *hint_out = NULL;
   }
@@ -366,9 +368,9 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   if (rc != 0) {
     const char *hint = NULL;
     if (catalog_idx == 0)
-      hint = "try: make -C compiler runtime_asm_io_stubs.o";
+      hint = "try: ./xbuild compiler-make runtime_asm_io_stubs.o";
     else if (catalog_idx == 1)
-      hint = "try: make -C compiler runtime_process_argv.o";
+      hint = "try: ./xbuild compiler-make runtime_process_argv.o";
     link_diag_runtime_obj_resolve_fail(out_base, hint);
     return -1;
   }
@@ -493,7 +495,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
     return 0;
   rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc != 0) {
-    link_diag_runtime_obj_resolve_fail("runtime_panic.o", "try: make -C compiler runtime_panic.o");
+    link_diag_runtime_obj_resolve_fail("runtime_panic.o", "try: ./xbuild compiler-make runtime_panic.o");
     return -1;
   }
   dn = 0;
@@ -725,7 +727,7 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
   rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc != 0) {
     link_diag_runtime_obj_resolve_fail("runtime_test_fn_invoke.o",
-                                       "try: make -C compiler runtime_test_fn_invoke.o");
+                                       "try: ./xbuild compiler-make runtime_test_fn_invoke.o");
     return -1;
   }
   dn = 0;
@@ -1224,8 +1226,13 @@ int xlang_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o,
   rc = xlang_ensure_crt0_user_o(link_eff, driver_freestanding);
   if (rc != 0)
     return -1;
+  /* PLATFORM: LINUX freestanding (wave592) — ensure freestanding_io when ld will
+   * need_io: direct UNDEF xlang_sys_* *or* nostdlib face (memcpy/malloc).
+   * Stubs need xlang_sys_mmap from freestanding_io; prepare must not lag ld force. */
   if (fs != 0) {
     need = xlang_freestanding_user_o_needs_io(user_o);
+    if (need == 0)
+      need = link_abi_user_o_needs_freestanding_nostdlib_face(user_o);
     if (need != 0) {
       rc = xlang_ensure_freestanding_io_o(link_eff, driver_freestanding);
       if (rc != 0)

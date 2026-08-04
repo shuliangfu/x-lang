@@ -36,7 +36,7 @@ jobs:
           pwd && ls -la
           which cc make 2>/dev/null || true
       - name: Build compiler (xlang)
-        run: make -C compiler OPT=1 all
+        run: ./xbuild compiler-all
         env:
           CC: cc
       - name: Verify compiler/xlang was built
@@ -80,11 +80,11 @@ jobs:
       - name: Install dependencies (liburing, zlib, brotli — 与主编译 job 对齐)
         run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev strace
       - name: Build compiler (xlang + xlang-c)
-        run: make -C compiler OPT=1 all
+        run: ./xbuild compiler-all
         env:
           CC: cc
       - name: Produce asm-capable xlang (Goal 2)
-        run: make -C compiler bootstrap-driver-seed
+        run: ./xbuild bootstrap-driver-seed
         env:
           CC: cc
         timeout-minutes: 12
@@ -116,7 +116,7 @@ jobs:
           echo "Runner OS: $RUNNER_OS | Linux ARM64"
           uname -a && pwd && which cc make 2>/dev/null || true
       - name: Build compiler (xlang)
-        run: make -C compiler OPT=1 all
+        run: ./xbuild compiler-all
         env:
           CC: cc
       - name: Verify compiler/xlang was built
@@ -162,7 +162,7 @@ jobs:
           echo "Runner OS: $RUNNER_OS | ${{ matrix.os }}"
           uname -a && pwd && which cc make 2>/dev/null || true
       - name: Build compiler (xlang)
-        run: make -C compiler OPT=1 all
+        run: ./xbuild compiler-all
         env:
           CC: cc
       - name: Verify compiler/xlang was built
@@ -212,7 +212,7 @@ jobs:
           update: false
           install: make gcc diffutils python3 sed gawk zlib-devel brotli curl unzip
       - name: Build compiler (xlang)
-        run: make -C compiler OPT=1 all
+        run: ./xbuild compiler-all
         env:
           CC: gcc
       - name: Verify compiler/xlang was built
@@ -253,7 +253,7 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev strace
       - name: Build std .o and xlang (no ASan)
-        run: make -C compiler clean && make -C compiler all
+        run: ./xbuild clean && ./xbuild compiler-make all
         env:
           CC: cc
       - name: Rebuild only compiler with ASan
@@ -261,7 +261,7 @@ jobs:
           rm -f compiler/src/main.o compiler/src/runtime.o compiler/src/preprocess.o \
             compiler/src/lexer/lexer.o compiler/src/ast/ast.o compiler/src/parser/parser.o \
             compiler/src/typeck/typeck.o compiler/src/codegen/codegen.o
-          make -C compiler all \
+          ./xbuild compiler-make all \
             CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc -O0 -g -fsanitize=address,undefined -fno-omit-frame-pointer"
         env:
           CC: cc
@@ -299,8 +299,9 @@ jobs:
                 apt-get update -qq && apt-get install -y -qq build-essential bash diffutils python3 perl file liburing-dev zlib1g-dev libzstd-dev libbrotli-dev libsqlite3-dev curl xz-utils
               fi &&
               export XLANG_CC_EXTRA="-std=gnu11" &&
-              make -C compiler clean &&
-              make -C compiler OPT=1 all &&
+              chmod +x ./xbuild ./xlang-build.sh &&
+              ./xbuild clean &&
+              ./xbuild compiler-all &&
               chmod +x tests/run-ci-full-suite.sh &&
               ./tests/run-ci-full-suite.sh
             '

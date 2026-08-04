@@ -184,4 +184,3 @@ unique UNDEF（L6 后 err）= **0**（L5=9；L4+ ≈41；L3b ≈147；L3 ≈156�
 - pure static si -o dual-depctx — ✅ **L8+ 已达**
 - 默认 `XLANG_BOOTSTRAP_NOSTDLIB=1`
 - pthread/io_uring 去系统库
-

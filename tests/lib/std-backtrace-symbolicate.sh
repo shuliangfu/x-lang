@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-backtrace-symbolicate.sh — STD-052 manifest 与烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_BACKTRACE_SYM_PREFIX="${XLANG_STD_BACKTRACE_SYM_PREFIX:-xlang: [XLANG_STD_BACKTRACE_SYM]}"
 
 # 探测宿主是否支持 execinfo/backtrace（Alpine/musl 无 glibc execinfo）。
@@ -107,7 +109,7 @@ std_backtrace_sym_run_c_gold() {
     return 1
   fi
   if [ ! -f "$rt_o" ]; then
-    make -C compiler -q runtime_backtrace_platform.o 2>/dev/null || make -C compiler runtime_backtrace_platform.o >/dev/null 2>&1 || true
+    xlang_compiler_make -q runtime_backtrace_platform.o 2>/dev/null || xlang_compiler_make runtime_backtrace_platform.o >/dev/null 2>&1 || true
   fi
   if [ ! -f "$rt_o" ]; then
     echo "std-backtrace-symbolicate FAIL: missing $rt_o" >&2

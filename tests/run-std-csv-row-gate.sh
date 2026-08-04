@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-csv-row-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_CSV_ROW_DOC:-analysis/std-csv-row-v1.md}"
 MANIFEST="${XLANG_STD_CSV_ROW_TSV:-tests/baseline/std-csv-row.tsv}"
@@ -67,7 +69,7 @@ if [ -n "$XLANG_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/csv/csv.o 2>/dev/null || true
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$RT_X" >/dev/null 2>&1; then
     echo "std-csv-row gate FAIL: typeck $RT_X" >&2
     "$XLANG_BIN" check -L . "$RT_X" 2>&1 | tail -10 >&2 || true

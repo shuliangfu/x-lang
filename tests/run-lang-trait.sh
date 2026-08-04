@@ -4,6 +4,8 @@
 # 用法：./tests/run-lang-trait.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/lang-trait.sh
 . tests/lib/lang-trait.sh
@@ -24,7 +26,7 @@ if [ -z "$XLANG_BIN" ] || ! lang_trait_native_xlang "$XLANG_BIN"; then
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 echo "=== LANG-004: trait smoke (XLANG=$XLANG_BIN) ==="
 chmod +x tests/run-trait.sh

@@ -3739,6 +3739,10 @@ void driver_parsed_work_z_set(int32_t i, size_t v) {
     g_parsed_work_z[i] = v;
 }
 
+/* wave1225: release AST sidecars before free — see thin.x driver_parsed_work_cleanup. */
+extern void ast_pool_arena_release(void *a);
+extern void ast_pool_module_release(void *m);
+
 void driver_parsed_work_cleanup(void) {
     int32_t n = g_parsed_work_i[1]; /* ndeps */
     int32_t emit_stdout = g_parsed_work_i[5];
@@ -3749,14 +3753,25 @@ void driver_parsed_work_cleanup(void) {
     void *dl = g_parsed_work_p[8];
     void *da = g_parsed_work_p[9];
     void *dm = g_parsed_work_p[10];
+    if (link_abi_getenv && link_abi_getenv("XLANG_DEBUG_SIDECAR")) {
+        fprintf(stderr,
+                "xlang: [SIDECAR] cleanup enter n_deps=%d arena=%p module=%p da=%p dm=%p\n", n,
+                g_parsed_work_p[3], g_parsed_work_p[4], da, dm);
+    }
     for (i = 0; i < n; i++) {
         if (da) {
             p = ((void **)da)[i];
-            free(p);
+            if (p) {
+                ast_pool_arena_release(p);
+                free(p);
+            }
         }
         if (dm) {
             p = ((void **)dm)[i];
-            free(p);
+            if (p) {
+                ast_pool_module_release(p);
+                free(p);
+            }
         }
         if (ds) {
             p = ((void **)ds)[i];
@@ -3782,8 +3797,15 @@ void driver_parsed_work_cleanup(void) {
         else if (g_driver_parsed_tmp_c[0])
             unlink(g_driver_parsed_tmp_c);
     }
-    free(g_parsed_work_p[3]);  /* arena */
-    free(g_parsed_work_p[4]);  /* module */
+    /* wave1225: release-before-free (batch check sidecar leak / address reuse). */
+    if (g_parsed_work_p[3]) {
+        ast_pool_arena_release(g_parsed_work_p[3]);
+        free(g_parsed_work_p[3]);
+    }
+    if (g_parsed_work_p[4]) {
+        ast_pool_module_release(g_parsed_work_p[4]);
+        free(g_parsed_work_p[4]);
+    }
     free(g_parsed_work_p[1]);  /* src */
     free(g_parsed_work_p[13]); /* kind */
     free(g_parsed_work_p[14]); /* code */

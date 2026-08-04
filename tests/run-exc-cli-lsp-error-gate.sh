@@ -8,6 +8,8 @@
 # 用法：./tests/run-exc-cli-lsp-error-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_EXC_CLI_LSP_DOC:-analysis/exc-cli-lsp-error-v1.md}"
 MATRIX="${XLANG_EXC_CLI_LSP_TSV:-tests/baseline/exc-cli-lsp-error.tsv}"
@@ -100,7 +102,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "exc-cli-lsp-error manifest OK (items=${FOUND})"
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then

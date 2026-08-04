@@ -406,17 +406,17 @@ export function url_query_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i3
  * @return void
  */
 export function url_path_pop_segment(path: *u8, path_len: *i32): void {
-  let len: i32 = *path_len;
+  let len: i32 = unsafe { *path_len };
   while (len > 0 && path[len - 1] == 47) { len = len - 1; }
   while (len > 0 && path[len - 1] != 47) { len = len - 1; }
   if (len <= 0) {
     path[0] = 47;
     path[1] = 0;
-    *path_len = 1;
+    unsafe { *path_len = 1; }
     return;
   }
   path[len] = 0;
-  *path_len = len;
+  unsafe { *path_len = len; }
 }
 
 /** Exported function `url_merge_paths`.

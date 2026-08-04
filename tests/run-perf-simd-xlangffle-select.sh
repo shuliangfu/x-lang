@@ -7,8 +7,9 @@ set -e
 cd "$(dirname "$0")/.."
 
 XLANG_BIN="${XLANG:-./compiler/xlang_asm}"
-X_SRC="tests/bench/simd_shuffle_select.x"
-STUB_SRC="tests/bench/simd_shuffle_select_stub.c"
+# PLATFORM: SHARED — xlangffle fixture (not shuffle alias); r04_ id after wave1191 rename.
+X_SRC="bench/r04_simd_xlangffle_select.x"
+STUB_SRC="bench/r04_simd_xlangffle_select_stub.c"
 X_EXE="/tmp/xlang_simd_ss_bench"
 STUB_EXE="/tmp/xlang_simd_ss_stub_bench"
 RUNS="${XLANG_SIMD_SS_RUNS:-3}"

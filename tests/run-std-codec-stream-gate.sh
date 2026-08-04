@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-codec-stream-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD110_DOC:-analysis/std-codec-stream-v1.md}"
 MANIFEST="${XLANG_STD110_TSV:-tests/baseline/std-codec-stream.tsv}"
@@ -74,7 +76,7 @@ if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== STD-110: .x smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-codec-stream gate FAIL: typeck $SMOKE_X" >&2
     "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true

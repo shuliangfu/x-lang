@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-http-chunked-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_HTTP_CHUNKED_DOC:-analysis/std-http-chunked-v1.md}"
 MANIFEST="${XLANG_STD_HTTP_CHUNKED_TSV:-tests/baseline/std-http-chunked.tsv}"
@@ -12,7 +14,7 @@ HTTP_C="compiler/seeds/runtime_http_glue.from_x.c"
 CHUNKED_INC="compiler/seeds/http/http_chunked.inc"
 LIB="tests/lib/std-http-chunked.sh"
 SMOKE="tests/http/chunked_keepalive.x"
-BENCH="tests/bench/http_chunked_decode_bench.x"
+BENCH="bench/http_chunked_decode_bench.x"
 MIN_APIS=5
 
 # shellcheck source=tests/lib/std-http-chunked.sh
@@ -99,7 +101,7 @@ if [ -n "$XLANG_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/http/http.o
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   for x in "$SMOKE" "$BENCH"; do
     if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "std-http-chunked gate FAIL: typeck $x" >&2

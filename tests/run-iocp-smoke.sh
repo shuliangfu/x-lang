@@ -3,7 +3,9 @@
 # 用法：./tests/run-iocp-smoke.sh
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 # 仅 Windows MSYS2/MINGW 实跑；其它平台 SKIP（C 侧为 stub main）
 _is_windows_msys() {
@@ -21,10 +23,10 @@ if ! _is_windows_msys; then
   exit 0
 fi
 
-make -C compiler ../std/io/io.o -q 2>/dev/null || make -C compiler ../std/io/io.o
+xlang_compiler_make ../std/io/io.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o
 
 OUT="/tmp/xlang_iocp_smoke"
-cc -O2 -Wall tests/bench/iocp_batch_smoke.c std/io/io.o -o "$OUT" 2>/dev/null || {
+cc -O2 -Wall bench/iocp_batch_smoke.c std/io/io.o -o "$OUT" 2>/dev/null || {
   echo "iocp smoke SKIP (link failed)"
   exit 0
 }

@@ -8,6 +8,8 @@
 # 用法：./tests/run-std-error-unify-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
 MATRIX="${XLANG_STD_ERROR_UNIFY_TSV:-tests/baseline/std-error-unify.tsv}"
@@ -119,7 +121,7 @@ if ! grep -qF 'std-error-unify.tsv' "$DOC" 2>/dev/null; then
 fi
 echo "std-error-unify manifest OK (modules=${MOD_N})"
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then

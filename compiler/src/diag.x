@@ -130,21 +130,14 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
       }
     }
     diag_print_header(kind, code, msg, kind_color, reset);
+    /* wave1221: always print line:col even when 0, so typeck errors without
+     * expr line/col still show file:0:0 instead of bare file path.
+     * This makes check output consistent and helps locate errors. */
     if (actual_file != 0) {
-      if (line > 0) {
-        if (col > 0) {
-          diag_io_fprint_loc_file_line_col(err, path_color, actual_file, line, col, reset);
-        } else {
-          diag_io_fprint_loc_file_line(err, path_color, actual_file, line, reset);
-        }
-      } else {
-        diag_io_fprint_loc_file(err, path_color, actual_file, reset);
-      }
+      diag_io_fprint_loc_file_line_col(err, path_color, actual_file, line, col, reset);
     } else {
-      if (line > 0) {
-        if (col > 0) {
-          diag_io_fprint_loc_line_col(err, path_color, line, col, reset);
-        }
+      if (line > 0 || col > 0) {
+        diag_io_fprint_loc_line_col(err, path_color, line, col, reset);
       }
     }
     if (have_line == 0) {
@@ -173,15 +166,15 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
       if (i < line_len) {
         if (line_start != 0) {
           if (line_start[i] == 9) {
-            diag_io_fputc(9, err);
+            diag_io_fputc(err, 9);
           } else {
-            diag_io_fputc(32, err);
+            diag_io_fputc(err, 32);
           }
         } else {
-          diag_io_fputc(32, err);
+          diag_io_fputc(err, 32);
         }
       } else {
-        diag_io_fputc(32, err);
+        diag_io_fputc(err, 32);
       }
       i = i + 1;
     }
@@ -540,7 +533,7 @@ export function diag_print_known_codes(out: *u8): void {
       }
       i = i + 1;
     }
-    diag_io_fputc(10, o);
+    diag_io_fputc(o, 10);
   }
 }
 
@@ -564,19 +557,19 @@ export function diag_print_code_explain(out: *u8, code: *u8): void {
       return;
     }
     diag_io_fputs(ec, o);
-    diag_io_fputc(10, o);
+    diag_io_fputc(o, 10);
     diag_io_fputs("Kind: ", o);
     let k: *u8 = diag_entry_kind(code);
     if (k != 0) { diag_io_fputs(k, o); }
-    diag_io_fputc(10, o);
+    diag_io_fputc(o, 10);
     diag_io_fputs("Summary: ", o);
     let s: *u8 = diag_entry_summary(code);
     if (s != 0) { diag_io_fputs(s, o); }
-    diag_io_fputc(10, o);
+    diag_io_fputc(o, 10);
     diag_io_fputs("Details: ", o);
     let d: *u8 = diag_entry_details(code);
     if (d != 0) { diag_io_fputs(d, o); }
-    diag_io_fputc(10, o);
+    diag_io_fputc(o, 10);
   }
 }
 
@@ -793,22 +786,22 @@ export function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u
     if (rs == 0) { rs = ""; }
     if (k[0] == 0) {
       diag_io_fputs(m, err);
-      diag_io_fputc(10, err);
+      diag_io_fputc(err, 10);
       return;
     }
     diag_io_fputs(kc, err);
     diag_io_fputs(k, err);
     if (code != 0) {
       if (code[0] != 0) {
-        diag_io_fputc(91, err);
+        diag_io_fputc(err, 91);
         diag_io_fputs(code, err);
-        diag_io_fputc(93, err);
+        diag_io_fputc(err, 93);
       }
     }
     diag_io_fputs(rs, err);
     diag_io_fputs(": ", err);
     diag_io_fputs(m, err);
-    diag_io_fputc(10, err);
+    diag_io_fputc(err, 10);
   }
 }
 
@@ -877,7 +870,7 @@ export function diag_json_write_str(out: *u8, s: *u8): void {
   unsafe {
     let p: *u8 = s;
     if (p == 0) { p = ""; }
-    diag_io_fputc(34, out);
+    diag_io_fputc(out, 34);
     let i: i32 = 0;
     while (i < 1048576) {
       let c: u8 = p[i];
@@ -906,7 +899,7 @@ export function diag_json_write_str(out: *u8, s: *u8): void {
                     if (c < 32) {
                       diag_io_fputs_u04x(out, c as i32);
                     } else {
-                      diag_io_fputc(c as i32, out);
+                      diag_io_fputc(out, c as i32);
                     }
                   }
                 }
@@ -917,7 +910,7 @@ export function diag_json_write_str(out: *u8, s: *u8): void {
       }
       i = i + 1;
     }
-    diag_io_fputc(34, out);
+    diag_io_fputc(out, 34);
   }
 }
 

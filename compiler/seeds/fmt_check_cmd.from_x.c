@@ -178,7 +178,9 @@ static char s_check_current_file[512];
 #ifndef XLANG_L2_FMT_CHECK_THIN_FROM_X
 static const char *s_builtin_ignore[] = {
     "/.git/", "/build_asm/", "/build/", "/node_modules/", "/.cursor/", "/compiler/build_asm/",
-    "/compiler/build/", "/compiler/tests/", NULL};
+    "/compiler/build/", "/compiler/tests/",
+    /* Repo-root tests/: intentional negative fixtures; bare check is product-only. */
+    "/tests/", NULL};
 #endif
 
 /**
@@ -556,7 +558,10 @@ void check_argv_append_default_libs_for_path_impl(const char *path, char **check
         return;
     /* public：hybrid thin pure try_append / 冷 seed public→_impl */
     check_try_append_lib_root(check_argv, n, cwd_buf);
-    if (path && strstr(path, "compiler/src/") && *n < 56) {
+    /* wave1222: accept both "compiler/src/" and bare "compiler" (the natural
+     * `xlang check compiler` invocation). Previously only "compiler/src/"
+     * triggered lib_root injection, leaving cross-subdir imports unresolved. */
+    if (path && (strstr(path, "compiler/src/") || strstr(path, "compiler")) && *n < 56) {
         snprintf(cs, sizeof cs, "%s/compiler/src", cwd_buf);
         if (stat(cs, &st) == 0 && S_ISDIR(st.st_mode)) {
             /* public n + pure/hybrid path slots via at/store */
@@ -567,7 +572,7 @@ void check_argv_append_default_libs_for_path_impl(const char *path, char **check
                 fmt_check_lib_bufs_n_set(nb + 1);
             }
         }
-        if (strstr(path, "compiler/src/asm/") && *n < 56) {
+        if (*n < 56) /* always inject compiler/src/asm when under compiler/ (platform.elf) */ {
             snprintf(cs, sizeof cs, "%s/compiler/src/asm", cwd_buf);
             if (stat(cs, &st) == 0 && S_ISDIR(st.st_mode)) {
                 nb = fmt_check_lib_bufs_n();
@@ -992,25 +997,15 @@ void fmt_walk_cwd_fallback(void) {
 #endif
 
 /**
- * 无路径参数时 check 的默认扫描范围（产品树，不含 tests 负例目录）。
+ * Bare `xlang check` (no path args): recursively collect all *.x under cwd.
+ * Builtin path_should_ignore still skips .git/build/node_modules/compiler/tests
+ * etc. Name kept for ABI stability (was product-subdir-only).
  * pure 编排权威：thin.x check_collect_default_product_dirs；
- * 冷启动保留 _impl + public；try_walk getcwd/stat 🔒 Cap residual；
- * cwd fallback 调 public fmt_walk_cwd_fallback（hybrid thin pure / 冷 seed）。
+ * 冷启动保留 _impl + public；cwd walk 调 public fmt_walk_cwd_fallback。
  */
 #ifndef XLANG_L2_FMT_CHECK_THIN_FROM_X
 void check_collect_default_product_dirs_impl(void) {
-    int any_product = 0;
-    int i;
-    for (i = 0;; i++) {
-        const char *sub = fmt_default_product_sub_at(i);
-        if (!sub)
-            break;
-        /* 调 public：与 thin pure 同形 */
-        if (fmt_try_walk_if_product_subdir(sub))
-            any_product = 1;
-    }
-    if (!any_product)
-        fmt_walk_cwd_fallback();
+    fmt_walk_cwd_fallback();
 }
 
 void check_collect_default_product_dirs(void) {
@@ -1399,6 +1394,9 @@ int check_one_file(const char *path, int argc, char **argv) {
 
 
 
+/* Defined with spinner block below; cold _impl installs early for single-file too. */
+void check_install_interrupt_handlers(void);
+
 /**
  * 运行 xlang check（deno check 语义：多文件/目录，失败打印诊断）。
  * pure 权威：thin.x driver_run_compiler_check（full orch + public APIs）；
@@ -1412,6 +1410,10 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
     int failed = 0;
     int checked = 0;
     int path_start = 1;
+
+    /* Ctrl+C / SIGTERM force-exit even when stuck in parse/typeck or join.
+     * PLATFORM: SHARED — also installed from spin_start (multi-file). */
+    check_install_interrupt_handlers();
 
     s_check_quiet_ok = 1;
     /* public set：hybrid thin pure BSS / 冷 seed static */
@@ -1503,4 +1505,446 @@ int driver_run_compiler_check(int argc, char **argv) {
 
 int fmt_check_cmd_slice_marker(void) {
     return 1;
+}
+
+/* ============================================================================
+ * Multi-file check progress spinner (braille circle + relative path).
+ * Called from thin.x check_progress_show/break/resume/finish.
+ *
+ * Frames: UTF-8 braille circle ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ (1 display column each).
+ * Erase: CSI K after path so shorter paths never leave trail (no space pad).
+ *
+ * Animation backend:
+ *  - Real pthread (macOS / -lc product): spinner thread + usleep.
+ *  - Linux freestanding (bootstrap_nostdlib pthread stub is sync): fork child
+ *    + MAP_SHARED run/pause flags. Parent never runs the infinite loop.
+ *  - Windows / fork+mmap failure: single static frame.
+ *
+ * Ctrl+C / SIGTERM:
+ *  - check_install_interrupt_handlers() installs async-signal-safe handlers
+ *    that stop the spinner (no pthread_join) and _exit(128+sig).
+ *  - Needed so multi-file check stuck in parse/typeck (or large-stack
+ *    pthread_join) still dies immediately when the user hits Ctrl+C;
+ *    spinner thread alone keeps animating and looks "unkillable" if the
+ *    process does not exit.
+ *  - Respects SIG_IGN (shell background job control).
+ *
+ * PLATFORM: SHARED UI; LINUX freestanding uses fork path; MACOS pthread.
+ * ============================================================================ */
+#ifndef _WIN32
+#include <pthread.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
+#include <signal.h>
+#endif
+#ifdef _WIN32
+#include <signal.h>
+#endif
+
+/*
+ * When product links bootstrap_nostdlib_stubs, pthread_create runs the start
+ * routine synchronously — an infinite spinner would hang forever. Strong
+ * symbol there returns 1. Weak default here returns 0 for -lc/-lSystem builds
+ * that do not link the nostdlib stubs object.
+ * PLATFORM: SHARED.
+ */
+__attribute__((weak)) int bootstrap_nostdlib_pthread_is_stub(void) {
+    return 0;
+}
+
+/*
+ * Shared control for fork-mode spinner child.
+ * path[] lives here so one long-lived child can animate every multi-file path
+ * without re-forking after the parent heap has grown to multi-GB (COW fork of
+ * a huge RSS was the Ubuntu hang root: waitpid stuck / shell process-group
+ * wait on an orphan spinner after summary).
+ * PLATFORM: LINUX freestanding (MAP_SHARED); MACOS uses pthread path.
+ */
+typedef struct {
+    volatile int run;
+    volatile int pause;
+    volatile int frame;
+    char path[512];
+} ck_spin_sh;
+
+static volatile int g_ck_spin_run = 0;
+static volatile int g_ck_spin_pause = 0;
+static char g_ck_spin_path[512];
+static int g_ck_spin_shown = 0; /* 1 if a spinner line is active (needs \n) */
+static int g_ck_spin_frame = 0;
+static int g_ck_interrupt_installed = 0;
+#ifndef _WIN32
+static int g_ck_spin_have_tid = 0;
+static pthread_t g_ck_spin_tid;
+static pid_t g_ck_spin_pid = 0;
+static ck_spin_sh *g_ck_spin_sh = NULL;
+#endif
+
+/*
+ * Async-signal-safe interrupt path for `xlang check`.
+ * PLATFORM: SHARED — POSIX signal(2)/sigaction; Windows uses signal().
+ * Does not pthread_join/waitpid (not async-safe); kills fork spinner child if any.
+ */
+static void check_interrupt_handler(int sig) {
+    const char msg[] = "\ncheck: interrupted\n";
+    (void)write(2, msg, sizeof(msg) - 1);
+    g_ck_spin_run = 0;
+    g_ck_spin_pause = 0;
+#ifndef _WIN32
+    if (g_ck_spin_sh) {
+        g_ck_spin_sh->run = 0;
+        g_ck_spin_sh->pause = 0;
+    }
+    if (g_ck_spin_pid > 0) {
+        (void)kill(g_ck_spin_pid, SIGKILL);
+        /* Do not waitpid here (not async-signal-safe); parent is _exit-ing. */
+        g_ck_spin_pid = 0;
+    }
+#endif
+    if (g_ck_spin_shown) {
+        (void)write(2, "\n", 1);
+        g_ck_spin_shown = 0;
+    }
+    /* 128+sig is shell convention for death-by-signal (SIGINT → 130). */
+    _exit(128 + (sig & 127));
+}
+
+/* Install SIGINT/SIGTERM handlers once per process for check.
+ * Skip if currently SIG_IGN so shell background jobs keep job-control semantics.
+ * PLATFORM: SHARED. */
+void check_install_interrupt_handlers(void) {
+    if (g_ck_interrupt_installed)
+        return;
+    g_ck_interrupt_installed = 1;
+#ifndef _WIN32
+    {
+        struct sigaction sa;
+        struct sigaction old;
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = check_interrupt_handler;
+        sigemptyset(&sa.sa_mask);
+        /* No SA_RESTART: long syscalls should surface EINTR when possible. */
+        sa.sa_flags = 0;
+        if (sigaction(SIGINT, NULL, &old) == 0 && old.sa_handler != SIG_IGN)
+            (void)sigaction(SIGINT, &sa, NULL);
+        if (sigaction(SIGTERM, NULL, &old) == 0 && old.sa_handler != SIG_IGN)
+            (void)sigaction(SIGTERM, &sa, NULL);
+    }
+#else
+    if (signal(SIGINT, SIG_IGN) != SIG_IGN)
+        (void)signal(SIGINT, check_interrupt_handler);
+    if (signal(SIGTERM, SIG_IGN) != SIG_IGN)
+        (void)signal(SIGTERM, check_interrupt_handler);
+#endif
+}
+
+/* Braille circle spinner (UTF-8). 10 frames; each is 3 bytes, width 1 cell. */
+static const char *const g_ck_spin_frames[10] = {
+    "\xE2\xA0\x8B", /* ⠋ */
+    "\xE2\xA0\x99", /* ⠙ */
+    "\xE2\xA0\xB9", /* ⠹ */
+    "\xE2\xA0\xB8", /* ⠸ */
+    "\xE2\xA0\xBC", /* ⠼ */
+    "\xE2\xA0\xB4", /* ⠴ */
+    "\xE2\xA0\xA6", /* ⠦ */
+    "\xE2\xA0\xA7", /* ⠧ */
+    "\xE2\xA0\x87", /* ⠇ */
+    "\xE2\xA0\x8F", /* ⠏ */
+};
+
+/* Copy path into parent-local buffer and (when present) shared path for child. */
+static void check_progress_spin_set_path(const char *path) {
+    int i;
+    g_ck_spin_path[0] = 0;
+    if (path) {
+        for (i = 0; i < 511 && path[i]; i++)
+            g_ck_spin_path[i] = path[i];
+        g_ck_spin_path[i] = 0;
+    }
+#ifndef _WIN32
+    if (g_ck_spin_sh) {
+        for (i = 0; i < 511 && g_ck_spin_path[i]; i++)
+            g_ck_spin_sh->path[i] = g_ck_spin_path[i];
+        g_ck_spin_sh->path[i] = 0;
+    }
+#endif
+}
+
+static void check_progress_spin_write_frame(void) {
+    const char *glyph;
+    const char *path_src;
+    char buf[640];
+    int at = 0;
+    int i;
+    int gi;
+    int frame;
+
+#ifndef _WIN32
+    if (g_ck_spin_sh)
+        frame = g_ck_spin_sh->frame++;
+    else
+#endif
+    {
+        frame = g_ck_spin_frame++;
+    }
+
+    glyph = g_ck_spin_frames[frame % 10];
+
+    buf[at++] = '\r';
+    /* UTF-8 braille glyph (3 bytes) */
+    for (gi = 0; glyph[gi] && at < 8; gi++)
+        buf[at++] = glyph[gi];
+    buf[at++] = ' ';
+
+    /* Prefer shared path so long-lived fork child tracks parent path updates. */
+    path_src = g_ck_spin_path;
+#ifndef _WIN32
+    if (g_ck_spin_sh)
+        path_src = g_ck_spin_sh->path;
+#endif
+    for (i = 0; i < 511 && path_src[i]; i++) {
+        if (at >= 620)
+            break;
+        buf[at++] = path_src[i];
+    }
+    /* Erase to end of line — works across fork (no shared width state). */
+    if (at + 3 < 640) {
+        buf[at++] = '\033';
+        buf[at++] = '[';
+        buf[at++] = 'K';
+    }
+
+    if (at > 0) {
+        (void)write(2, buf, (size_t)at);
+        g_ck_spin_shown = 1;
+    }
+}
+
+#ifndef _WIN32
+static int check_progress_spin_live_run(void) {
+    if (g_ck_spin_sh)
+        return g_ck_spin_sh->run != 0;
+    return g_ck_spin_run != 0;
+}
+
+static int check_progress_spin_live_pause(void) {
+    if (g_ck_spin_sh)
+        return g_ck_spin_sh->pause != 0;
+    return g_ck_spin_pause != 0;
+}
+
+static void *check_progress_spin_thread(void *arg) {
+    (void)arg;
+    while (check_progress_spin_live_run()) {
+        if (!check_progress_spin_live_pause())
+            check_progress_spin_write_frame();
+        /* ~80ms per frame — readable without flooding stderr */
+        (void)usleep(80000);
+    }
+    return NULL;
+}
+
+/* Linux freestanding: long-lived child animates until shared run==0, then _exit.
+ * Reads path from MAP_SHARED so parent can advance files without re-fork.
+ * Exits if parent dies (reparent → getppid()==1).
+ * PLATFORM: LINUX freestanding (fork path); MACOS product uses pthread. */
+static void check_progress_spin_fork_child(void) {
+    while (check_progress_spin_live_run()) {
+        if (getppid() <= 1)
+            _exit(0);
+        if (!check_progress_spin_live_pause())
+            check_progress_spin_write_frame();
+        (void)usleep(80000);
+    }
+    _exit(0);
+}
+
+static int check_progress_spin_ensure_shared(void) {
+    void *p;
+    if (g_ck_spin_sh)
+        return 0;
+    /* MAP_SHARED|MAP_ANONYMOUS — needed so parent stop/path updates reach child. */
+    p = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    if (p == MAP_FAILED || p == (void *)(intptr_t)-1)
+        return -1;
+    g_ck_spin_sh = (ck_spin_sh *)p;
+    g_ck_spin_sh->run = 0;
+    g_ck_spin_sh->pause = 0;
+    g_ck_spin_sh->frame = 0;
+    g_ck_spin_sh->path[0] = 0;
+    return 0;
+}
+
+/*
+ * Reap fork spinner: cooperative run=0 first, then SIGKILL + waitpid.
+ * Must not leave a live child in the shell process group after summary
+ * (interactive shell then appears hung even though parent returned).
+ * PLATFORM: LINUX freestanding / POSIX waitpid+kill.
+ */
+static void check_progress_spin_reap_fork_child(pid_t pid) {
+    int st = 0;
+    pid_t w;
+    int tries;
+    if (pid <= 0)
+        return;
+    for (tries = 0; tries < 5; tries++) {
+        w = waitpid(pid, &st, WNOHANG);
+        if (w == pid)
+            return;
+        if (w < 0) {
+            /* ECHILD: already reaped (or never a child). */
+            return;
+        }
+        (void)usleep(20000); /* 20ms; child usleep is 80ms — ~100ms window */
+    }
+    (void)kill(pid, SIGKILL);
+    for (;;) {
+        w = waitpid(pid, &st, 0);
+        if (w == pid || w < 0)
+            return;
+    }
+}
+#endif
+
+/* Join spinner worker without committing a newline (next file overwrites via \r). */
+static void check_progress_spin_join_only(void) {
+#ifndef _WIN32
+    if (g_ck_spin_have_tid) {
+        if (g_ck_spin_sh)
+            g_ck_spin_sh->run = 0;
+        g_ck_spin_run = 0;
+        (void)pthread_join(g_ck_spin_tid, NULL);
+        g_ck_spin_have_tid = 0;
+    } else if (g_ck_spin_pid > 0) {
+        pid_t pid = g_ck_spin_pid;
+        if (g_ck_spin_sh)
+            g_ck_spin_sh->run = 0;
+        g_ck_spin_run = 0;
+        g_ck_spin_pid = 0;
+        check_progress_spin_reap_fork_child(pid);
+    } else {
+        g_ck_spin_run = 0;
+        if (g_ck_spin_sh)
+            g_ck_spin_sh->run = 0;
+    }
+#else
+    g_ck_spin_run = 0;
+#endif
+    g_ck_spin_pause = 0;
+#ifndef _WIN32
+    if (g_ck_spin_sh)
+        g_ck_spin_sh->pause = 0;
+#endif
+}
+
+void check_progress_spin_stop(void) {
+    check_progress_spin_join_only();
+    /* Commit spinner line so the summary/next output starts on a new line. */
+    if (g_ck_spin_shown) {
+        (void)write(2, "\n", 1);
+        g_ck_spin_shown = 0;
+    }
+}
+
+void check_progress_spin_start(const char *path) {
+    /* Ensure Ctrl+C works even if thin.x forgot to install (defense in depth). */
+    check_install_interrupt_handlers();
+
+    check_progress_spin_set_path(path);
+    g_ck_spin_pause = 0;
+    g_ck_spin_run = 1;
+
+#ifndef _WIN32
+    /*
+     * Long-lived worker: if a spinner child/thread is already alive, only update
+     * the shared path (no join/re-fork). Re-forking after multi-GB heap COW was
+     * the Ubuntu bare-check hang root.
+     * PLATFORM: LINUX freestanding — one fork + MAP_SHARED path/control.
+     * PLATFORM: MACOS / libc — real pthread (reuse if already running).
+     */
+    if (g_ck_spin_have_tid || g_ck_spin_pid > 0) {
+        if (g_ck_spin_sh) {
+            g_ck_spin_sh->run = 1;
+            g_ck_spin_sh->pause = 0;
+        }
+        /* Parent paints immediately so path change is visible even mid-usleep. */
+        check_progress_spin_write_frame();
+        return;
+    }
+
+    if (bootstrap_nostdlib_pthread_is_stub() != 0) {
+        if (check_progress_spin_ensure_shared() == 0) {
+            /* Re-copy path now that shared page exists. */
+            check_progress_spin_set_path(path);
+            g_ck_spin_sh->run = 1;
+            g_ck_spin_sh->pause = 0;
+            g_ck_spin_sh->frame = 0;
+            {
+                pid_t child = fork();
+                if (child == 0) {
+                    /*
+                     * Leave shell foreground process group so a stuck spinner
+                     * cannot hold the interactive shell after parent exits.
+                     * PLATFORM: LINUX — setsid freestanding stub or libc.
+                     */
+                    (void)setsid();
+                    check_progress_spin_fork_child();
+                    _exit(0);
+                } else if (child > 0) {
+                    g_ck_spin_pid = child;
+                    check_progress_spin_write_frame();
+                    return;
+                }
+            }
+        }
+        /* fork/mmap failed: single static frame (still better than hang). */
+        g_ck_spin_run = 0;
+        if (g_ck_spin_sh)
+            g_ck_spin_sh->run = 0;
+        check_progress_spin_write_frame();
+    } else if (pthread_create(&g_ck_spin_tid, NULL, check_progress_spin_thread, NULL) == 0) {
+        g_ck_spin_have_tid = 1;
+        check_progress_spin_write_frame();
+    } else {
+        /* Real pthread create failed: single static frame. */
+        g_ck_spin_run = 0;
+        check_progress_spin_write_frame();
+    }
+#else
+    g_ck_spin_run = 0;
+    check_progress_spin_write_frame();
+#endif
+}
+
+void check_progress_spin_pause(void) {
+    g_ck_spin_pause = 1;
+#ifndef _WIN32
+    if (g_ck_spin_sh)
+        g_ck_spin_sh->pause = 1;
+#endif
+    /* End the active spinner line so multi-line diagnostics are clean. */
+    if (g_ck_spin_shown) {
+        (void)write(2, "\n", 1);
+        g_ck_spin_shown = 0;
+    }
+}
+
+void check_progress_spin_resume(void) {
+    int live = 0;
+#ifndef _WIN32
+    live = (g_ck_spin_have_tid || g_ck_spin_pid > 0) && check_progress_spin_live_run();
+#else
+    live = g_ck_spin_run != 0;
+#endif
+    if (!live) {
+        /* Threadless/forkless fallback: redraw one frame. */
+        check_progress_spin_write_frame();
+        return;
+    }
+    g_ck_spin_pause = 0;
+#ifndef _WIN32
+    if (g_ck_spin_sh)
+        g_ck_spin_sh->pause = 0;
+#endif
 }

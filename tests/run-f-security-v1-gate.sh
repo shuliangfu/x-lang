@@ -2,6 +2,8 @@
 # F-security v1：std.security 去 C（security.c → security.x；F-ZC 纯 .x 无 os glue）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_SECURITY_V1_FAIL:-0}
 DOC="analysis/phase-f-security-v1.md"
 MANIFEST="tests/baseline/f-security-v1-closure.tsv"
@@ -24,7 +26,7 @@ grep -q 'security_mlock_c' std/security/security.x || die "security.x missing ml
 grep -q 'security_f_zero_c_marker_c' std/security/security.x || die "security.x missing zero-c marker"
 grep -q 'security.x' compiler/Makefile || die "Makefile missing security.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/security/security.o >/dev/null 2>&1 || die "make security.o failed"
+  xlang_compiler_make ../std/security/security.o >/dev/null 2>&1 || die "make security.o failed"
 else
   echo "f-security-v1 SKIP security.o build (no xlang-c)" >&2
 fi

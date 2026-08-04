@@ -4,6 +4,8 @@
 # 用法：./tests/run-pkgmgr-resolve.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 MANIFEST=tests/fixtures/pkgmgr/xlang.pkg.tsv
 MAIN=tests/fixtures/pkgmgr/main.x
@@ -25,7 +27,7 @@ native_xlang() {
 }
 
 if [ -n "$XLANG" ] && native_xlang "$XLANG"; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   EXE="/tmp/xlang_pkgmgr_demo_$$"
   if ! "$XLANG" build -L . "$MAIN" -o "$EXE" 2>&1; then
     echo "run-pkgmgr-resolve FAIL: compile $MAIN" >&2

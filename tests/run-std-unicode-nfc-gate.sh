@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-unicode-nfc-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_UNICODE_NFC_DOC:-analysis/std-unicode-nfc-v1.md}"
 MANIFEST="${XLANG_STD_UNICODE_NFC_TSV:-tests/baseline/std-unicode-nfc.tsv}"
@@ -102,7 +104,7 @@ if [ -n "$XLANG_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/unicode/unicode.o
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$NFC_X" >/dev/null 2>&1; then
     echo "std-unicode-nfc gate FAIL: typeck $NFC_X" >&2
     "$XLANG_BIN" check -L . "$NFC_X" 2>&1 | tail -10 >&2 || true

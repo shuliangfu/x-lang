@@ -6,6 +6,8 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 if [ -n "$XLANG" ]; then
   # test_c 传 XLANG=./compiler/xlang-c 时用其跑负例；test_x 传 XLANG=./compiler/xlang 时用 xlang_x
   LEXER_XLANG="$XLANG"
@@ -18,11 +20,11 @@ if [ -n "$XLANG" ]; then
   "$NEG_XLANG" build tests/lexer/invalid_char.x -o /tmp/xlang_lexer_fail 2>/dev/null && { echo "lexer: expected compile failure for invalid char"; exit 1; }
   rm -f "$out"
 else
-  make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make xlang-c 2>/dev/null || true
   if [ -f ./compiler/xlang-c ]; then
     LEXER_XLANG=./compiler/xlang-c
   else
-    make -C compiler
+    xlang_compiler_make
     LEXER_XLANG=./compiler/xlang
   fi
   out=$(mktemp)

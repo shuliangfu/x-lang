@@ -1099,31 +1099,27 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
   parser_lex_from_next_into_glue(&lex_cur, r);
   lexer_next_into(&r, lex_cur, source);
   /**
-   * wave361: docs/03 `if cond { then }` — parentheses optional.
-   * Paren form keeps field-cond sync via sync_lex_after_if_cond_paren.
-   * Bare form starts cond at current token; cond_res.next_lex + advance_past (LBRACE).
-   * PLATFORM: SHARED — G.7 single if-stmt cond path.
+   * wave361/wave650: docs/03 `if cond { then }` — parentheses optional.
+   * wave650: do NOT strip a leading `(` before parse_cond. The leading paren is
+   * part of the condition expression (primary grouping): e.g.
+   *   if (x >> 2) != 4 { ... }   → cond is `(x >> 2) != 4`
+   *   if (s.b) { ... }           → cond is `(s.b)`
+   * Stripping made the first form parse only `x >> 2`, leave `!= 4` outside the
+   * cond, fail LBRACE check, silent-drop main → XP003 out_len=0. Bare
+   * `if x >> 2 != 4` and double-paren `if ((x >> 2) != 4)` already worked.
+   * Field-cond sync (sync_lex_after_if_cond_paren) was a strip-path workaround;
+   * with inclusive parens, trust cond_res.next_lex (same as bare path).
+   * PLATFORM: SHARED — G.7 single if-stmt cond path (expr primary owns parens).
    */
   {
-    int32_t bare_cond = 0;
-    if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
-      lex_cur = r.next_lex;
-    } else {
-      bare_cond = 1;
-      lex_cur = parser_asm_lex_at_token_from_result_c(r);
-    }
+    lex_cur = parser_asm_lex_at_token_from_result_c(r);
     memset(&cond_res, 0, sizeof(cond_res));
     cond_res.next_lex = lex_cur;
     parser_parse_cond_expr_into_glue(arena, lex_cur, source, &cond_res);
     if (!cond_res.ok)
       return 0;
     cond_ref = cond_res.expr_ref;
-    if (bare_cond != 0) {
-      lex_cur = cond_res.next_lex;
-    } else {
-      /** field cond 后勿信 cond_res.next_lex；按源码括号深度对齐至 ')' 之后。 */
-      lex_cur = parser_asm_sync_lex_after_if_cond_paren_c(lex_at_if, source);
-    }
+    lex_cur = cond_res.next_lex;
   }
   if (parser_advance_past_cond_rparen_into_glue(&r, lex_cur, source) == 0)
     return 0;

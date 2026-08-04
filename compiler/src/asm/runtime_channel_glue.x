@@ -199,4 +199,3 @@ export function channel_select_wait_recv_one(c: *u8): void {
 export function channel_select_wait_send_one(c: *u8): void {
   unsafe { channel_select_wait_send_one_impl(c); }
 }
-

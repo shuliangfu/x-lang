@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-log-multi-sink.sh — STD-053 manifest 与烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_LOG_MULTI_SINK_PREFIX="${XLANG_STD_LOG_MULTI_SINK_PREFIX:-xlang: [XLANG_STD_LOG_MULTI_SINK]}"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
@@ -86,7 +88,7 @@ std_log_multi_sink_run_c_smoke() {
     return 1
   fi
   if [ ! -f "$rt_o" ]; then
-    make -C compiler -q runtime_log_os.o 2>/dev/null || make -C compiler runtime_log_os.o >/dev/null 2>&1 || true
+    xlang_compiler_make -q runtime_log_os.o 2>/dev/null || xlang_compiler_make runtime_log_os.o >/dev/null 2>&1 || true
   fi
   if [ ! -f "$rt_o" ]; then
     echo "std-log-multi-sink FAIL: missing $rt_o" >&2

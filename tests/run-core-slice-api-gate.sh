@@ -4,6 +4,8 @@
 # 用法：./tests/run-core-slice-api-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_CORE_SLICE_DOC:-analysis/core-slice-api-v1.md}"
 MANIFEST="${XLANG_CORE_SLICE_TSV:-tests/baseline/core-slice-api.tsv}"
@@ -74,7 +76,7 @@ if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
     exit 1
   fi
   SKIP=0
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   # shellcheck source=tests/lib/bootstrap-link-xlang.sh
   . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
   if $RUN_XLANG build -L . "$SMOKE" -o /tmp/xlang_core_slice_api 2>/tmp/xlang_core_slice_api_build.log; then

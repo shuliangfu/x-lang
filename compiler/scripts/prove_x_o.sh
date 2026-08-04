@@ -168,6 +168,7 @@ strip_libc_redecls() {
     echo '/* prove_x_o prologue */'
     echo '#include <stddef.h>'
     echo '#include <stdint.h>'
+    echo '#include "xlang_weak.h"'
     echo '#include <sys/types.h>'
     echo '#ifndef _WIN32'
     echo '#include <unistd.h>'
@@ -200,7 +201,7 @@ postprocess_generated_c() {
   _out="$2"
   strip_libc_redecls "$_in" "$_out"
   if [ "${G05_X_O_WEAK:-0}" = "1" ]; then
-    perl -i -pe 's/^((?:void|int64_t|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_out" || true
+    perl -i -pe 's/^((?:void|int64_t|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/XLANG_WEAK $1 $2(/' "$_out" || true
   fi
 }
 

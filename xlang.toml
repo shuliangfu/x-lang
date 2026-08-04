@@ -2,9 +2,11 @@
 #
 # ============================================================================
 # ⚠️  本文件为【Full 设计示例 / 语言仓库超集】，编译器尚未读取。
-#     构建仍由 compiler/Makefile + CLI + env 驱动。
+#     构建由 ./xbuild / CLI + env 驱动（compiler/Makefile 已物理删除 · wave941）。
 #     实现路线（Core vs Full、解析裂缝、阶段 0–4）：
 #       analysis/xlang-toml-实现分析.md
+#     完成后时序（TOML-0→4 嵌入 P0–P4）：
+#       analysis/自举完成后功能完善及优化时序表.md（TOML-0→4）
 #     与 build.x 正交分工：
 #       analysis/build-x-强大配置能力分析.md
 #
@@ -24,7 +26,7 @@
 # ─── 项目版本（权威来源） ───────────────────────────────────
 # codegen 会把此版本嵌入 binary 的 .xlang_meta section，供 --version 与
 # runtime 自省使用。semver 格式：MAJOR.MINOR.PATCH[-pre][+build]。
-version = "0.3.2"
+version = "0.1.0"
 
 # ─── 项目元数据 ─────────────────────────────────────────────
 [package]

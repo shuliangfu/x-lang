@@ -8,6 +8,8 @@
 # 用法：./tests/run-zc-copy-proof-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_ZC_COPY_PROOF_DOC:-analysis/zc-copy-proof-v1.md}"
 MATRIX="${XLANG_ZC_COPY_PROOF_TSV:-tests/baseline/zc-copy-proof.tsv}"
@@ -143,7 +145,7 @@ if [ "$FAILS" -gt 0 ]; then
   exit 1
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then

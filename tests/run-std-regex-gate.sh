@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-regex-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
@@ -106,7 +108,7 @@ SKIP=0
 XLANG_BIN=""
 if [ -x ./compiler/xlang-c ] && ! ./compiler/xlang-c check -L . tests/regex/literal_match.x >/dev/null 2>&1; then
   echo "std-regex gate: rebuild xlang-c (C frontend) for match API" >&2
-  XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c >/dev/null 2>&1 || true
+  XLANG_LEGACY_C_FRONTEND=1 xlang_compiler_make xlang-c >/dev/null 2>&1 || true
 fi
 stdlib_cm_native_xlang() {
   local f="$1"

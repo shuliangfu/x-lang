@@ -4,6 +4,8 @@
 # 启用：XLANG_SOCKETIO_NPM_ROOM=1 ./tests/run-std-socketio-npm-room-live.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 NPM_DIR="tests/socketio/npm_live"
 LIVE_X="tests/socketio/npm_live_room.x"
@@ -52,7 +54,7 @@ done
 . tests/lib/build-std-c-o.sh
 ensure_std_c_o ../std/socketio/socketio.o
 ensure_std_c_o ../std/net/net.o
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
 
 echo "=== STD-SOCKETIO-001: npm install socket.io ==="
 if ! (cd "$NPM_DIR" && npm install --no-audit --no-fund >/tmp/xlang_socketio_npm_room_install_$$.log 2>&1); then

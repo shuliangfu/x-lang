@@ -293,7 +293,8 @@ export function sync_try_pop(sq: *SyncQueue_i32, out: *i32): i32 {
 export function length(sq: SyncQueue_i32): i32 {
   if (sq.lock == 0) { return 0; }
   if (sync.lock(sq.lock) != 0) { return 0; }
-  let n: i32 = len(sq.q);
+  /* G.7: Queue_i32 length overload (not a bare `len` name). */
+  let n: i32 = length(sq.q);
   sync.unlock(sq.lock);
   return n;
 }

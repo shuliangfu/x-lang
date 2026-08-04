@@ -2,7 +2,7 @@
 # PERF-170：SQLite stub/loop 性能烟测门禁
 #
 # 1) manifest + docs/07 锚点
-# 2) typeck tests/bench/sqlite_is_available_loop.x
+# 2) typeck bench/sqlite_is_available_loop.x
 # 3) 可选 runnable：median ≤ tests/baseline/perf-sqlite.tsv
 #
 # 用法：./tests/run-perf-sqlite-gate.sh
@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${XLANG_PERF_SQLITE_DOC:-analysis/perf-sqlite-v1.md}"
 BASELINE="${XLANG_PERF_SQLITE_TSV:-tests/baseline/perf-sqlite.tsv}"
-BENCH_X="tests/bench/sqlite_is_available_loop.x"
+BENCH_X="bench/sqlite_is_available_loop.x"
 STUB_X="tests/stub/sqlite_net_stub.x"
 LIB="tests/lib/perf-sqlite.sh"
 RUNS="${XLANG_PERF_SQLITE_RUNS:-3}"

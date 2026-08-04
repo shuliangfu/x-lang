@@ -3419,4 +3419,3 @@ export function link_diag_code_for_kind(kind: *u8): *u8 {
   }
   return 0 as *u8;
 }
-

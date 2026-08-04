@@ -2,7 +2,9 @@
 # asm 7.3：arr[i] = a + b 须先 emit 右值再 INDEX 址→rbx（arm64 x1 不被 binop clobber）。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 $XLANG build tests/asm/assign_index_binop_fast.x -o /tmp/xlang_asm_assign_index_binop 2>&1

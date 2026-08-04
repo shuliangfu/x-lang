@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
-make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
+xlang_compiler_make -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 xlang_compiler_make xlang-c 2>/dev/null || true
 # shellcheck source=tests/lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 ensure_std_c_o ../std/json/json.o

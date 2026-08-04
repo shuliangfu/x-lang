@@ -2,16 +2,18 @@
 # 测试 std.net 占位：Ipv4Addr、TcpStream、TcpListener、connect、listen、accept；UDP 切片化 udp_recv_many_buf/udp_send_many_buf
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 # B-strict gate 显式 XLANG_LINK_XLANG=xlang_asm 时不必构建 xlang-c（mac/无 seed 会失败）。
 if [ -z "${XLANG_LINK_XLANG:-}" ]; then
   if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-    make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+    xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   fi
 else
   if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-    make -C compiler -q xlang-c 2>/dev/null || true
+    xlang_compiler_make -q xlang-c 2>/dev/null || true
   fi
 fi
 ensure_std_c_o ../std/net/net.o

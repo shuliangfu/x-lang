@@ -20,6 +20,8 @@
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 PROGRESS="./tests/lib/progress-run.sh"
 DOCKER="./tests/lib/docker-linux-run.sh"
@@ -101,7 +103,7 @@ if [ "$RUN_W2_D03_ONLY" = "1" ]; then
   progress "=== W2 d03-only (~5s; needs compiler/xlang_asm_stage1 + xlang_asm2) ==="
   run_step "W2 d03 hash only" "$LOG_DIR/w2-d03-only.log" \
     env XLANG_D03_FAIL=1 "${BSTRICT_FAST_ENV[@]}" "$DOCKER" compiler \
-    'test -f xlang_asm_stage1 && test -f xlang_asm2 || { echo "missing xlang_asm_stage1/2; run: make -C compiler bootstrap-driver-bstrict (with BSTRICT_FAST skips) && verify-selfhost-stage2-bstrict.sh" >&2; exit 1; }; cd .. && ./tests/run-d03-stage2-hash-gate.sh'
+    'test -f xlang_asm_stage1 && test -f xlang_asm2 || { echo "missing xlang_asm_stage1/2; run: xlang_compiler_make bootstrap-driver-bstrict (with BSTRICT_FAST skips) && verify-selfhost-stage2-bstrict.sh" >&2; exit 1; }; cd .. && ./tests/run-d03-stage2-hash-gate.sh'
   progress "OK W2 d03-only"
   progress "logs: $LOG_DIR"
   exit 0

@@ -2,6 +2,8 @@
 # F-async v1：std.async 去 C（scheduler/future.c → .x + *_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_ASYNC_V1_FAIL:-0}
 DOC="analysis/phase-f-async-v1.md"
 MANIFEST="tests/baseline/f-async-v1-closure.tsv"
@@ -26,11 +28,11 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'scheduler.x' compiler/Makefile || die "Makefile missing scheduler.x"
 grep -q 'runtime_scheduler_glue' compiler/Makefile || die "Makefile missing runtime_scheduler_glue"
-make -C compiler -q runtime_scheduler_glue.o 2>/dev/null || make -C compiler runtime_scheduler_glue.o >/dev/null 2>&1 || die "runtime_scheduler_glue.o build failed"
+xlang_compiler_make -q runtime_scheduler_glue.o 2>/dev/null || xlang_compiler_make runtime_scheduler_glue.o >/dev/null 2>&1 || die "runtime_scheduler_glue.o build failed"
 grep -q 'future.x' compiler/Makefile || die "Makefile missing future.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/async/scheduler.o >/dev/null 2>&1 || die "make scheduler.o failed"
-  make -C compiler ../std/async/future.o >/dev/null 2>&1 || die "make future.o failed"
+  xlang_compiler_make ../std/async/scheduler.o >/dev/null 2>&1 || die "make scheduler.o failed"
+  xlang_compiler_make ../std/async/future.o >/dev/null 2>&1 || die "make future.o failed"
 else
   echo "f-async-v1 SKIP scheduler/future.o build (no xlang-c)" >&2
 fi

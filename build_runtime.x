@@ -68,7 +68,7 @@ function append_lit(buf: *u8, size: i32, off: i32, lit: *u8, len: i32): i32 {
  * @param step_id i32
  * @return i32
  */
-function build_patch_after_step(step_id: i32): i32 {
+export function build_patch_after_step(step_id: i32): i32 {
   if (step_id == 1) { return build_patch_pipeline_gen_c(); }
   if (step_id == 3) { return build_patch_driver_gen_c(); }
   return 0;
@@ -80,7 +80,7 @@ function build_patch_after_step(step_id: i32): i32 {
  * @param xlang_path *u8
  * @return i32
  */
-function build_run_step(step_id: i32, xlang_path: *u8): i32 {
+export function build_run_step(step_id: i32, xlang_path: *u8): i32 {
   let cmd: u8[4096] = [];
   let off: i32 = 0;
   if (step_id == 0) {
@@ -88,7 +88,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, 0, L0, 1120);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     return 0;
   }
   if (step_id == 1) {
@@ -104,7 +104,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L1, 157);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     if (build_patch_pipeline_gen_c() != 0) { return -1; }
     return 0;
   }
@@ -115,7 +115,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, 0, L2, 71);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     return 0;
   }
   if (step_id == 3) {
@@ -130,7 +130,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L3, 138);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     return 0;
   }
   if (step_id == 4) {
@@ -140,7 +140,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, 0, L4, 67);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     return 0;
   }
   if (step_id == 5) {
@@ -148,7 +148,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, 0, L5, 417);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     return 0;
   }
   if (step_id == 6) {
@@ -161,12 +161,12 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_0, 79);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_1: u8[166] = [112, 101, 114, 108, 32, 45, 105, 32, 45, 110, 101, 32, 39, 112, 114, 105, 110, 116, 32, 117, 110, 108, 101, 115, 115, 32, 47, 94, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 117, 105, 110, 116, 56, 95, 116, 47, 32, 38, 38, 32, 36, 115, 101, 101, 110, 43, 43, 39, 32, 112, 97, 114, 115, 101, 114, 95, 103, 101, 110, 46, 99, 32, 38, 38, 32, 99, 99, 32, 45, 87, 97, 108, 108, 32, 45, 87, 101, 120, 116, 114, 97, 32, 45, 73, 46, 32, 45, 73, 105, 110, 99, 108, 117, 100, 101, 32, 45, 73, 115, 114, 99, 32, 45, 105, 110, 99, 108, 117, 100, 101, 32, 97, 115, 116, 46, 104, 32, 45, 99, 32, 112, 97, 114, 115, 101, 114, 95, 103, 101, 110, 46, 99, 32, 45, 111, 32, 112, 97, 114, 115, 101, 114, 95, 115, 120, 46, 111];
     off = append_lit(cmd, 4096, 0, L6_1, 165);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_2: u8[150] = [32,45,76,32,46,46,32,45,76,32,115,114,99,47,108,101,120,101,114,32,45,
     76,32,115,114,99,47,97,115,116,32,45,69,32,45,69,45,101,120,116,101,114,110,32,115,114,99,
     47,116,121,112,101,99,107,47,116,121,112,101,99,107,46,115,120,32,62,32,116,121,112,101,99,
@@ -178,7 +178,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_2, 150);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_3: u8[183] = [32,45,76,32,46,46,32,45,76,32,115,114,99,47,108,101,120,101,114,32,45,
     76,32,115,114,99,47,97,115,116,32,45,76,32,115,114,99,47,112,97,114,115,101,114,32,45,76,32,
     115,114,99,47,116,121,112,101,99,107,32,45,69,32,45,69,45,101,120,116,101,114,110,32,115,
@@ -192,7 +192,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_3, 183);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_4: u8[105] = [32,45,69,32,45,69,45,101,120,116,101,114,110,32,115,114,99,47,97,115,
     116,47,97,115,116,46,115,120,32,62,32,97,115,116,95,103,101,110,46,99,32,38,38,32,99,99,32,
     45,87,97,108,108,32,45,87,101,120,116,114,97,32,45,73,46,32,45,73,105,110,99,108,117,100,
@@ -203,7 +203,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_4, 105);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_5: u8[128] = [32,45,76,32,115,114,99,47,108,101,120,101,114,32,45,69,32,45,69,45,101,
     120,116,101,114,110,32,115,114,99,47,108,101,120,101,114,47,116,111,107,101,110,46,115,120,
     32,62,32,116,111,107,101,110,95,103,101,110,46,99,32,38,38,32,99,99,32,45,87,97,108,108,32,
@@ -215,7 +215,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_5, 128);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_6: u8[128] = [32,45,76,32,115,114,99,47,108,101,120,101,114,32,45,69,32,45,69,45,101,
     120,116,101,114,110,32,115,114,99,47,108,101,120,101,114,47,108,101,120,101,114,46,115,120,
     32,62,32,108,101,120,101,114,95,103,101,110,46,99,32,38,38,32,99,99,32,45,87,97,108,108,32,
@@ -227,7 +227,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_6, 128);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_7: u8[74] = [32,45,76,32,115,114,99,47,108,101,120,101,114,32,45,69,32,45,69,45,101,
     120,116,101,114,110,32,115,114,99,47,112,114,101,112,114,111,99,101,115,115,47,112,114,101,
     112,114,111,99,101,115,115,46,115,120,32,62,32,112,114,101,112,114,111,99,101,115,115,95,
@@ -237,7 +237,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_7, 74);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_8: u8[75] = [99,99,32,45,87,97,108,108,32,45,87,101,120,116,114,97,32,45,73,46,32,45,
     73,105,110,99,108,117,100,101,32,45,73,115,114,99,32,45,99,32,112,114,101,112,114,111,99,
     101,115,115,95,103,101,110,46,99,32,45,111,32,112,114,101,112,114,111,99,101,115,115,95,115,
@@ -245,7 +245,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, 0, L6_8, 75);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     return 0;
   }
   return -1;
@@ -256,7 +256,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
  * @param xlang_path *u8
  * @return i32
  */
-function build_run_asm_build(xlang_path: *u8): i32 {
+export function build_run_asm_build(xlang_path: *u8): i32 {
   let cmd: u8[4096] = [];
     let asm_prefix: u8[40] = [88, 76, 65, 78, 71, 95, 65, 83, 77, 95, 69, 88, 80, 69, 82, 73, 77, 69, 78, 84, 65, 76, 95, 83, 75, 73, 80, 95, 71, 69, 78, 61, 49, 32, 88, 76, 65, 78, 71, 61];
     let asm_suffix: u8[29] = [32, 46, 47, 115, 99, 114, 105, 112, 116, 115, 47, 98, 117, 105, 108, 100, 95, 120, 108, 97, 110, 103, 95, 97, 115, 109, 46, 115, 104];
@@ -267,7 +267,7 @@ function build_run_asm_build(xlang_path: *u8): i32 {
   off = append_lit(cmd, 4096, off, asm_suffix, 28);
   if (off < 0) { return -1; }
   cmd[off] = 0;
-  if (build_exec_system(cmd) != 0) { return -1; }
+  if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
   return 0;
 }
 
@@ -275,9 +275,9 @@ function build_run_asm_build(xlang_path: *u8): i32 {
  * Implements `build_copy_xlang_asm`.
  * @return i32
  */
-function build_copy_xlang_asm(): i32 {
+export function build_copy_xlang_asm(): i32 {
   let cp_cmd: u8[22] = [99, 112, 32, 45, 102, 32, 120, 108, 97, 110, 103, 95, 97, 115, 109, 32, 120, 108, 97, 110, 103, 0];
-  if (build_exec_system(cp_cmd) != 0) {
+  if (unsafe { build_exec_system(cp_cmd) } != 0) {
     return -1;
   }
   return 0;

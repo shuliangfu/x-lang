@@ -2,6 +2,8 @@
 # F-tar v1：std.tar 去 C（tar.c → tar.x；胶层 v2 已删，见 run-f-tar-v2-gate.sh）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_TAR_V1_FAIL:-0}
 DOC="analysis/phase-f-tar-v1.md"
 MANIFEST="tests/baseline/f-tar-v1-closure.tsv"
@@ -21,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'tar.x' compiler/Makefile || die "Makefile missing tar.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/tar/tar.o >/dev/null 2>&1 || die "make tar.o failed"
+  xlang_compiler_make ../std/tar/tar.o >/dev/null 2>&1 || die "make tar.o failed"
 else
   echo "f-tar-v1 SKIP tar.o build (no xlang-c)" >&2
 fi

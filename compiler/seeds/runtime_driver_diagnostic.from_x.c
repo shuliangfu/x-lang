@@ -639,6 +639,123 @@ void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col)
 #endif
 
 
+
+/* wave657 Cap residual: pure authority thin.x driver_diagnostic_typeck_invalid_aggregate_cmp;
+ * cold-start full C; FROM_X no pure-dup _impl. PLATFORM: SHARED. */
+#ifndef XLANG_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid aggregate operation (cmp/arith/unary -/~/! not allowed on array/slice/struct; use scalars or fields)"));
+  return;
+}
+#endif
+
+/* wave659 Cap residual: pure authority thin.x driver_diagnostic_typeck_invalid_as_cast;
+ * cold-start full C; FROM_X no pure-dup _impl. PLATFORM: SHARED. */
+#ifndef XLANG_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_invalid_as_cast(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid cast (as not allowed for aggregate or float↔pointer; use numeric/ptr casts or fields)"));
+  return;
+}
+
+/* wave660 Cap residual: pure authority thin.x driver_diagnostic_typeck_call_arity_mismatch;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_call_arity_mismatch(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "wrong number of arguments in function call (arity mismatch)"));
+  return;
+}
+
+/* wave661 Cap residual: pure authority thin.x driver_diagnostic_typeck_call_arg_type_mismatch;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_call_arg_type_mismatch(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "argument type mismatch in function call"));
+  return;
+}
+
+/* wave675 Cap residual: pure authority thin.x driver_diagnostic_typeck_call_unresolved;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_call_unresolved(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "unresolved function call (no matching function)"));
+  return;
+}
+
+/* wave664 Cap residual: pure authority thin.x driver_diagnostic_typeck_subscript_index;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "subscript index must be an integer type"));
+  return;
+}
+
+/* wave665 Cap residual: pure authority thin.x driver_diagnostic_typeck_logical_operand_not_bool;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "logical operand must be bool (no implicit int-to-bool)"));
+  return;
+}
+
+/* wave666 Cap residual: pure authority thin.x driver_diagnostic_typeck_comparison_type_mismatch;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_comparison_type_mismatch(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "comparison operands have incompatible types"));
+  return;
+}
+
+/* wave667 Cap residual: pure authority thin.x driver_diagnostic_typeck_invalid_void_binop;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_invalid_void_binop(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid void operation (void cannot be used in arithmetic or unary -/~)"));
+  return;
+}
+#endif
+
+/* wave677 Cap residual: pure authority thin.x driver_diagnostic_typeck_invalid_bool_binop;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+#ifndef XLANG_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_invalid_bool_binop(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid bool operation (bool cannot be used in arithmetic, bitops, shifts, or unary -/~; use logical ops or `as`)"));
+  return;
+}
+#endif
+
+/* wave678 Cap residual: pure authority thin.x driver_diagnostic_typeck_assign_to_const. */
+#ifndef XLANG_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_assign_to_const(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "cannot assign to const binding (const is immutable; use let for a mutable variable)"));
+  return;
+}
+#endif
+
+/* wave680 Cap residual: pure authority thin.x driver_diagnostic_typeck_duplicate_local. */
+#ifndef XLANG_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_duplicate_local(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "duplicate local binding in the same block (redeclaration of let/const or parameter name)"));
+  return;
+}
+#endif
+
 /* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col)

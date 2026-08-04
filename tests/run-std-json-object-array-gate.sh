@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-json-object-array-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_JOA_DOC:-analysis/std-json-object-array-v1.md}"
 MANIFEST="${XLANG_STD_JOA_TSV:-tests/baseline/std-json-object-array.tsv}"
@@ -69,8 +71,8 @@ resolve_shu() {
 
 if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-034: typeck + smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q ../std/json/json.o 2>/dev/null || make -C compiler ../std/json/json.o 2>/dev/null || true
-  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q ../std/json/json.o 2>/dev/null || xlang_compiler_make ../std/json/json.o 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$OA_X" >/dev/null 2>&1; then
     echo "std-json-object-array gate FAIL: typeck $OA_X" >&2
     "$XLANG_BIN" check -L . "$OA_X" 2>&1 | tail -10 >&2 || true

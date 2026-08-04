@@ -5,6 +5,8 @@
 # 环境：XLANG_F_PATH_V1_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_F_PATH_V1_FAIL:-0}
 DOC="analysis/phase-f-path-v1.md"
@@ -45,7 +47,7 @@ grep -q 'extern function sep' std/path/mod.x && die "mod.x still extern sep"
 
 # path.o 构建（无 xlang-c 时 SKIP smoke，不 FAIL）
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/path/path.o >/dev/null 2>&1 || die "make path.o failed"
+  xlang_compiler_make ../std/path/path.o >/dev/null 2>&1 || die "make path.o failed"
   if strings ../std/path/path.o 2>/dev/null | grep -q 'path_sep'; then
     echo "f-path-v1: path.o symbols OK"
   else

@@ -4,6 +4,8 @@
 # Mac：P5 + docker ubuntu-gates 提示；Linux：可追加 ./tests/run-perf-p1-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 echo "=== push-ready: pre-push P5 ==="
 chmod +x tests/run-pre-push-p5.sh
@@ -18,7 +20,7 @@ echo ""
 echo "=== push-ready: WPO-S3 (struct promote + await/yield asm) ==="
 chmod +x tests/run-wpo-s3-gate.sh tests/lib/wpo-s3-disasm.sh
 if [ -x ./compiler/xlang_asm ] && { [ "$(uname -s)" = "Linux" ] || file ./compiler/xlang_asm 2>/dev/null | grep -q Mach-O; }; then
-  make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
+  xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o
   XLANG=./compiler/xlang_asm ./tests/run-wpo-s3-gate.sh | tee /tmp/xlang_wpo_s3_push.log
   grep -q 'wpo-s3 await asm OK' /tmp/xlang_wpo_s3_push.log
   grep -q 'wpo-s3 await_yield asm OK' /tmp/xlang_wpo_s3_push.log
@@ -40,7 +42,7 @@ fi
 echo ""
 if [ ! -x ./compiler/xlang_asm ]; then
   echo "note: compiler/xlang_asm missing (docker make clean / no bootstrap)"
-  echo "  P0/asm: ./scripts/docker-ci-local.sh ubuntu-gates  or  make -C compiler bootstrap-driver-bstrict"
+  echo "  P0/asm: ./scripts/docker-ci-local.sh ubuntu-gates  or  xlang_compiler_make bootstrap-driver-bstrict"
   echo "  WPO-S2: ./scripts/docker-ci-local.sh ubuntu-wpo-s2"
 fi
 if command -v gh >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then

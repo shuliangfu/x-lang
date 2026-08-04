@@ -93,6 +93,8 @@ export extern "C" function link_diag_runtime_obj_missing(obj_name: *u8, out_o: *
 export extern "C" function xlang_link_freestanding_enabled(driver_freestanding: i32): i32;
 export extern "C" function xlang_freestanding_user_o_needs_panic(user_o: *u8): i32;
 export extern "C" function xlang_freestanding_user_o_needs_io(user_o: *u8): i32;
+// wave592: nostdlib face (memcpy/malloc) forces freestanding_io companion (mmap).
+export extern "C" function link_abi_user_o_needs_freestanding_nostdlib_face(user_o: *u8): i32;
 export extern "C" function xlang_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i32;
 export extern "C" function xlang_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i32): i32;
 export extern "C" function labi_user_needs_runtime_process_argv(user_o: *u8): i32;
@@ -541,11 +543,11 @@ export function labi_ensure_catalog_step_at(
   if (hint_out != 0 as *usize) {
     // empty hints: only i==0 and i==1 have non-null
     if (i == 0) {
-      let p: *u8 = "try: make -C compiler runtime_asm_io_stubs.o";
+      let p: *u8 = "try: ./xbuild compiler-make runtime_asm_io_stubs.o";
       hint_out[0] = p as usize;
     } else {
       if (i == 1) {
-        let p: *u8 = "try: make -C compiler runtime_process_argv.o";
+        let p: *u8 = "try: ./xbuild compiler-make runtime_process_argv.o";
         hint_out[0] = p as usize;
       } else {
         hint_out[0] = 0 as usize;
@@ -616,10 +618,10 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
     // Hints only for catalog 0/1 (≡ mega step_at / thin historic make tips).
     let hint: *u8 = 0 as *u8;
     if (catalog_idx == 0) {
-      hint = "try: make -C compiler runtime_asm_io_stubs.o";
+      hint = "try: ./xbuild compiler-make runtime_asm_io_stubs.o";
     } else {
       if (catalog_idx == 1) {
-        hint = "try: make -C compiler runtime_process_argv.o";
+        hint = "try: ./xbuild compiler-make runtime_process_argv.o";
       }
     }
     unsafe {
@@ -860,7 +862,7 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
     rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
   }
   if (rc != 0) {
-    let hint: *u8 = "try: make -C compiler runtime_panic.o";
+    let hint: *u8 = "try: ./xbuild compiler-make runtime_panic.o";
     unsafe {
       link_diag_runtime_obj_resolve_fail("runtime_panic.o", hint);
     }
@@ -1296,7 +1298,7 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   if (rc != 0) {
     // Match mega: resolve_fail with make hint for test_fn_invoke.
     unsafe {
-      link_diag_runtime_obj_resolve_fail("runtime_test_fn_invoke.o", "try: make -C compiler runtime_test_fn_invoke.o");
+      link_diag_runtime_obj_resolve_fail("runtime_test_fn_invoke.o", "try: ./xbuild compiler-make runtime_test_fn_invoke.o");
     }
     return -1;
   }
@@ -2549,13 +2551,21 @@ export function xlang_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dr
   if (crc != 0) {
     return 0 - 1;
   }
-  // Freestanding + needs_io → freestanding_io ensure (non-Linux fs==0 skips).
+  // Freestanding + needs freestanding_io.o → ensure (non-Linux fs==0 skips).
+  // PLATFORM: LINUX freestanding product residual (wave592).
+  // Root: true-sret / large struct paths call memcpy → nostdlib face
+  // (bootstrap_nostdlib_stubs) forces need_io because stubs use xlang_sys_mmap
+  // from freestanding_io. Prepare only gated on UNDEF xlang_sys_* → missing
+  // freestanding_io.o and BLD001 "xlang_sys_write" while user never refs write.
+  // G.7: ensure whenever ld will need_io (direct UNDEF *or* nostdlib face).
   if (fs != 0) {
     let need_io: i32 = 0;
+    let need_face: i32 = 0;
     unsafe {
       need_io = xlang_freestanding_user_o_needs_io(user_o);
+      need_face = link_abi_user_o_needs_freestanding_nostdlib_face(user_o);
     }
-    if (need_io != 0) {
+    if (need_io != 0 || need_face != 0) {
       let irc: i32 = 0;
       unsafe {
         irc = xlang_ensure_freestanding_io_o(link_eff, driver_freestanding);

@@ -367,6 +367,9 @@ extern void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, i
 extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break);
 extern void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col);
+extern void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t col);
+extern void driver_diagnostic_typeck_invalid_as_cast(int32_t line, int32_t col);
+extern void driver_diagnostic_typeck_call_arity_mismatch(int32_t line, int32_t col);
 extern int32_t parser_is_ident_allow(uint8_t * ident, int32_t len);
 extern void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
 extern void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep);
@@ -729,6 +732,86 @@ void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col) {
 void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col) {
   (void)(lsp_diag_report_typeck(line, col,
       ((uint8_t *)"invalid float operation (bitwise / mod / shift / unary ~ not allowed on f32/f64; use + - * / and unary - only)")));
+  (void)(0);
+  return;
+}
+/* wave657 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_aggregate_cmp */
+void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"invalid aggregate operation (cmp/arith/unary -/~/! not allowed on array/slice/struct; use scalars or fields)")));
+  (void)(0);
+  return;
+}
+/* wave659 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_as_cast */
+void driver_diagnostic_typeck_invalid_as_cast(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"invalid cast (as not allowed for aggregate or float↔pointer; use numeric/ptr casts or fields)")));
+  (void)(0);
+  return;
+}
+/* wave660 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_call_arity_mismatch */
+void driver_diagnostic_typeck_call_arity_mismatch(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"wrong number of arguments in function call (arity mismatch)")));
+  (void)(0);
+  return;
+}
+/* wave661 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_call_arg_type_mismatch */
+void driver_diagnostic_typeck_call_arg_type_mismatch(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"argument type mismatch in function call")));
+  (void)(0);
+  return;
+}
+/* wave675 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_call_unresolved */
+void driver_diagnostic_typeck_call_unresolved(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"unresolved function call (no matching function)")));
+  (void)(0);
+  return;
+}
+/* wave664 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_subscript_index */
+void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"subscript index must be an integer type")));
+  (void)(0);
+  return;
+}
+/* wave666 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_comparison_type_mismatch */
+void driver_diagnostic_typeck_comparison_type_mismatch(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      "comparison operands have incompatible types"));
+  return;
+}
+/* wave667 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_void_binop */
+void driver_diagnostic_typeck_invalid_void_binop(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid void operation (void cannot be used in arithmetic or unary -/~)"));
+  return;
+}
+/* wave677 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_bool_binop */
+void driver_diagnostic_typeck_invalid_bool_binop(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid bool operation (bool cannot be used in arithmetic, bitops, shifts, or unary -/~; use logical ops or `as`)"));
+  return;
+}
+/* wave678 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_assign_to_const */
+void driver_diagnostic_typeck_assign_to_const(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      "cannot assign to const binding (const is immutable; use let for a mutable variable)"));
+  return;
+}
+/* wave680 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_duplicate_local */
+void driver_diagnostic_typeck_duplicate_local(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      "duplicate local binding in the same block (redeclaration of let/const or parameter name)"));
+  return;
+}
+
+/* wave665 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_logical_operand_not_bool */
+void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"logical operand must be bool (no implicit int-to-bool)")));
   (void)(0);
   return;
 }

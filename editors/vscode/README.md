@@ -32,7 +32,7 @@ A complete development experience extension for `.x` (Xlang) language in VS Code
    LSP requires a workspace folder; opening a single file still enables syntax highlighting and snippets, but diagnostics, navigation, and completion won't start.
 3. **Prepare the `xlang` compiler** — if `compiler/xlang` already exists and supports `--lsp`, skip this step; otherwise run in the repo root:
    ```bash
-   make -C compiler bootstrap-driver-seed
+   ./xbuild bootstrap-driver-seed
    ```
    Verify `compiler/xlang` exists and supports `--lsp` (the `xlang-c` seed compiler does **not** support LSP).
 4. **Open any `.x` file** — the extension auto-starts `xlang --lsp`; parse/typeck diagnostics appear in the Problems panel.
@@ -309,7 +309,7 @@ Enable: `Ctrl+Shift+P` → **Preferences: File Icon Theme** → select **Xlang I
 |---------|-----|
 | No diagnostics / completion / navigation | Confirm **Open Folder** was used to open project root; check **Xlang** output channel for startup errors |
 | `Current xlang does not support --lsp` | `xlang.serverPath` points to `xlang-c`; change to bootstrap-built `compiler/xlang` |
-| `compiler/xlang not found` | Run `make -C compiler bootstrap-driver-seed` in repo root |
+| `compiler/xlang not found` | Run `./xbuild bootstrap-driver-seed` in repo root |
 | Import Ctrl+Click fails | Check `xlang.compiler.libRoots` includes the module's directory; restart language server after changes |
 | LSP crashes frequently | Set `xlang.server.trace` to `verbose`, reproduce, then check output; temporarily disable `xlang.server.restartOnCrash` for debugging |
 | Config changes not taking effect | Server-related settings require **Xlang: Restart Language Server**; the extension prompts when needed |

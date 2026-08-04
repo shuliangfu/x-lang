@@ -2,6 +2,8 @@
 # STD-117：std.metrics 观测上下文关联门禁
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="analysis/std-metrics-obs-v1.md"
 MANIFEST="tests/baseline/std-metrics-obs-manifest.tsv"
@@ -43,7 +45,7 @@ sym_miss="$(std_metrics_obs_symbols_ok "$MOD_X" "$MANIFEST" || true)"
 X_OK=0
 SKIP=0
 if [ -x ./compiler/xlang-c ]; then
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! grep -q 'metrics.counter(' "$SMOKE_X" 2>/dev/null; then
     echo "std-metrics-obs gate FAIL: obs smoke missing metrics.counter" >&2
     exit 1

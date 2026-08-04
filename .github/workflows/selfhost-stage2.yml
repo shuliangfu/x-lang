@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev
       - name: Build xlang and xlang-c
-        run: make -C compiler OPT=1 all
+        run: ./xbuild compiler-all
       - name: Run verify-selfhost-stage2.sh
         run: cd compiler && sh ./verify-selfhost-stage2.sh
         timeout-minutes: 45
@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev
       - name: Build seed xlang
-        run: make -C compiler OPT=1 all
+        run: ./xbuild compiler-all
       - name: Run verify-selfhost-stage2-bstrict.sh
         run: cd compiler && sh ./verify-selfhost-stage2-bstrict.sh
         timeout-minutes: 45
@@ -50,7 +50,7 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev
       - name: Build xlang (for lang-unsafe check)
-        run: make -C compiler OPT=1 all
+        run: ./xbuild compiler-all
         env:
           CC: cc
       - name: G-FFI-5 release-ci gate

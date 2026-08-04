@@ -57,13 +57,17 @@ void parser_asm_import_path_dot_segment_copy_slice_c(struct parser_asm_slice_u8 
 }
 
 /**
- * struct_field_name_from_tok：结构体字段名（ident / soa / packed 关键字）。
+ * struct_field_name_from_tok：结构体字段名（ident / keyword-as-ident）。
+ * PLATFORM: SHARED — field names may reuse keyword tokens (soa/packed/type).
+ * Root fix for std/schema: field `type: i32` was TOKEN_TYPE; prior code returned
+ * -1 here → layout parse aborted mid-struct → later fields "unknown field".
  */
 int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_result r,
                                                       struct parser_asm_slice_u8 *source, uint8_t *out) {
   if (!out)
     return -1;
-  if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0 && r.tok.ident_len <= 63) {
+  /* wave583 Cap residual: field name content ≤127 (StructLayoutFieldEntry.name[128]). */
+  if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0 && r.tok.ident_len <= 127) {
     parser_asm_copy_slice_to_name64_at_end_slice_c(source, r.next_lex.pos, r.tok.ident_len, out);
     return r.tok.ident_len;
   }
@@ -82,16 +86,26 @@ int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_re
     out[5] = (uint8_t)'d';
     return 6;
   }
+  /* Keyword `type` (TOKEN_TYPE) is a valid field name: `type: i32` in struct bodies. */
+  if (r.tok.kind == (int32_t)TOKEN_TYPE) {
+    out[0] = (uint8_t)'t';
+    out[1] = (uint8_t)'y';
+    out[2] = (uint8_t)'p';
+    out[3] = (uint8_t)'e';
+    return 4;
+  }
   return -1;
 }
 
 /**
  * struct_field_name_tok_kind：token kind 是否为合法字段名起点。
+ * PLATFORM: SHARED — include TOKEN_TYPE (keyword-as-field-name).
  */
 int32_t parser_asm_struct_field_name_tok_kind_c(int32_t k) {
   if (parser_asm_stretch_struct_field_name_kind_c(k) != 0)
     return 1;
-  return k == (int32_t)TOKEN_IDENT || k == (int32_t)TOKEN_SOA || k == (int32_t)TOKEN_PACKED;
+  return k == (int32_t)TOKEN_IDENT || k == (int32_t)TOKEN_SOA || k == (int32_t)TOKEN_PACKED ||
+         k == (int32_t)TOKEN_TYPE;
 }
 
 /**
@@ -164,6 +178,9 @@ int32_t parser_asm_lexer_token_run_len_c(struct parser_asm_token tok) {
   case TOKEN_ELSE:
     return 4;
   case TOKEN_TRUE:
+    return 4;
+  case TOKEN_NULL:
+    /* wave668: keyword null span length. PLATFORM: SHARED. */
     return 4;
   case TOKEN_ENUM:
     return 4;
@@ -307,11 +324,28 @@ void parser_asm_parse_block_return_end_tail_c(struct parser_asm_lexer_result *r,
 }
 
 /**
- * advance_past_stmt_semicolon_into：表达式语句后同步到 ; 之后（或合法后继 token）。
+ * advance_past_stmt_semicolon_into: sync past `;` after an expression statement,
+ * or accept a legal ASI following token that clearly starts the next statement.
+ *
+ * Historical ASI allowlist: `;` · unsafe · let/const · return · if/while/for · `}`.
+ * That omitted IDENT and other stmt heads, so mid-block
+ *   break
+ *   s = 99
+ * (and assign chains `x = 1` / `y = 2`) failed with XP003 while the same break
+ * before `}` or before `if` already succeeded.
+ *
+ * wave654 Cap residual: G.7 extend the same authority — also accept IDENT,
+ * BREAK/CONTINUE, MATCH/LOOP, PANIC/DEFER/GOTO, STAR (*p = …), SELF as
+ * following-stmt heads. Expr parse already finished before this call, so
+ * IDENT cannot continue the prior expr (no sticky binop across ASI).
+ *
+ * PLATFORM: SHARED — parse ASI; docs/08 still recommends `;` mid-block;
+ * product accepts keyword ASI (wave361+) and IDENT/control heads here.
  */
 int32_t parser_asm_advance_past_stmt_semicolon_into_slice_c(struct parser_asm_lexer_result *r_out,
                                                             struct parser_asm_lexer lex,
                                                             struct parser_asm_slice_u8 *source) {
+  int32_t k;
   if (!r_out || !source)
     return 0;
   lexer_next_into(r_out, lex, source);
@@ -319,10 +353,13 @@ int32_t parser_asm_advance_past_stmt_semicolon_into_slice_c(struct parser_asm_le
     return 1;
   if (parser_asm_ident_is_unsafe_stmt_slice_c(*r_out, source) != 0)
     return 1;
-  if (r_out->tok.kind == (int32_t)TOKEN_LET || r_out->tok.kind == (int32_t)TOKEN_CONST ||
-      r_out->tok.kind == (int32_t)TOKEN_RETURN || r_out->tok.kind == (int32_t)TOKEN_IF ||
-      r_out->tok.kind == (int32_t)TOKEN_WHILE || r_out->tok.kind == (int32_t)TOKEN_FOR ||
-      r_out->tok.kind == (int32_t)TOKEN_RBRACE)
+  k = r_out->tok.kind;
+  if (k == (int32_t)TOKEN_LET || k == (int32_t)TOKEN_CONST || k == (int32_t)TOKEN_RETURN ||
+      k == (int32_t)TOKEN_IF || k == (int32_t)TOKEN_WHILE || k == (int32_t)TOKEN_FOR ||
+      k == (int32_t)TOKEN_RBRACE || k == (int32_t)TOKEN_IDENT || k == (int32_t)TOKEN_BREAK ||
+      k == (int32_t)TOKEN_CONTINUE || k == (int32_t)TOKEN_MATCH || k == (int32_t)TOKEN_LOOP ||
+      k == (int32_t)TOKEN_PANIC || k == (int32_t)TOKEN_DEFER || k == (int32_t)TOKEN_GOTO ||
+      k == (int32_t)TOKEN_STAR || k == (int32_t)TOKEN_SELF)
     return 1;
   return 0;
 }

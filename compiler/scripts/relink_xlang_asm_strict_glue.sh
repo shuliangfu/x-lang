@@ -1474,15 +1474,21 @@ else
 fi
 ensure_asm_backend_compat_stubs_obj
 # lsp_state.o 依赖 typeck_lsp_main_impl（lsp.x -E → lsp_x.o）；与 build_xlang_asm ensure_asm_experimental_lsp_objs 一致。
+# wave937: shell-primary (was make -s lsp_io_gen.c lsp_gen.c ...). Mirrors
+# build_xlang_asm.sh ensure_asm_experimental_lsp_objs shell path (wave930).
 ensure_strict_glue_lsp_objs() {
   GEN_DIR="$BUILD_DIR/gen_driver"
   mkdir -p "$GEN_DIR"
-  if [ ! -f Makefile ] || ! command -v make >/dev/null 2>&1; then
-  strict_glue_warn "cannot make lsp_x.o (no Makefile/make)"
-  return 1
-  fi
   strict_glue_info "ensure lsp_x.o (+ lsp_io) for lsp_state (typeck_lsp_main_impl)"
-  make -s lsp_io_gen.c lsp_gen.c lsp_io_std_heap_gen.c lsp_x.o lsp_io_x.o lsp_io_std_heap_x.o
+  # LSP pipeline gen sources + .o via shell (G.7 single body; no Makefile).
+  bash scripts/ensure_lsp_pipeline_gen.sh lsp
+  bash scripts/ensure_archaeology_gen.sh lsp_io_std_heap
+  bash scripts/ensure_host_cc_seed_o.sh try-heat lsp_x.o
+  bash scripts/ensure_host_cc_seed_o.sh try-heat lsp_io_x.o
+  # lsp_io_std_heap_x.o: driver_leaf product obj (via driver_leaf_x_to_o.sh ensure).
+  if [ ! -f lsp_io_std_heap_x.o ]; then
+    bash scripts/driver_leaf_x_to_o.sh ensure lsp_io_std_heap_x.o
+  fi
   cp -f lsp_x.o lsp_io_x.o lsp_io_std_heap_x.o "$GEN_DIR/"
 }
 ensure_strict_glue_lsp_objs || true

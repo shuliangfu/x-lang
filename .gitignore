@@ -253,7 +253,8 @@ DONE
 *.psdb
 
 # IO benchmark 临时 mmap 文件（run-perf-io / zc5 / syscall-batch 等生成，体积大）
-tests/bench/.io_mmap_bench_tmp
+bench/.io_mmap_bench_tmp
+bench/.io_write_bench_tmp
 
 # std.db.kv 烟测运行时数据（gate 执行后生成，非源码）
 tests/std-db/.kv_smoke

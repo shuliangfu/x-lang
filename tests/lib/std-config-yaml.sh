@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-config-yaml.sh — STD-119 manifest 与烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_CONFIG_YAML_PREFIX="${XLANG_STD119_CONFIG_YAML_PREFIX:-xlang: [XLANG_STD119_CONFIG_YAML]}"
 
 std_config_yaml_symbols_ok() {
@@ -51,7 +53,7 @@ std_config_yaml_run_c_smoke() {
   local proc_o="$3"
   local rpav_o="${4:-$(cd compiler && pwd)/runtime_process_argv.o}"
   local out="/tmp/xlang_std_config_yaml_c_$$"
-  make -C compiler -q runtime_process_argv.o 2>/dev/null || make -C compiler runtime_process_argv.o 2>/dev/null || true
+  xlang_compiler_make -q runtime_process_argv.o 2>/dev/null || xlang_compiler_make runtime_process_argv.o 2>/dev/null || true
   cc -std=c11 -O1 -o "$out" tests/std-config/yaml_smoke_ok.c "$cfg_o" "$env_o" "$proc_o" "$rpav_o" 2>/dev/null || return 1
   set +e
   "$out" >/dev/null 2>&1

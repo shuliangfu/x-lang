@@ -2,6 +2,8 @@
 # F-backtrace v1：std.backtrace 去 C（backtrace.c → backtrace.x；胶层 v2 已拆，见 run-f-backtrace-v2-gate.sh）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_BACKTRACE_V1_FAIL:-0}
 DOC="analysis/phase-f-backtrace-v1.md"
 MANIFEST="tests/baseline/f-backtrace-v1-closure.tsv"
@@ -21,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'backtrace.x' compiler/Makefile || die "Makefile missing backtrace.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/backtrace/backtrace.o >/dev/null 2>&1 || die "make backtrace.o failed"
+  xlang_compiler_make ../std/backtrace/backtrace.o >/dev/null 2>&1 || die "make backtrace.o failed"
 else
   echo "f-backtrace-v1 SKIP backtrace.o build (no xlang-c)" >&2
 fi

@@ -6,6 +6,8 @@
 # 用法：./tests/run-tst-003-std-roundtrip-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_TST003_DOC:-analysis/tst-003-std-roundtrip-v1.md}"
 MANIFEST="${XLANG_TST003_TSV:-tests/baseline/std-roundtrip.tsv}"
@@ -67,7 +69,7 @@ fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== TST-003: round-trip smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   # Homebrew libzstd（macOS 常见）；无则链接受限时 SKIP。
   if [ -d /opt/homebrew/lib ]; then
     export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"

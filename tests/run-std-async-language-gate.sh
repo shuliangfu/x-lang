@@ -5,6 +5,8 @@
 # 用法：./tests/run-std-async-language-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_ALANG_DOC:-analysis/std-async-language-v1.md}"
 MANIFEST="${XLANG_STD_ALANG_TSV:-tests/baseline/std-async-language.tsv}"
@@ -73,8 +75,8 @@ resolve_shu() {
 
 if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-041: typeck + smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q ../std/async/scheduler.o 2>/dev/null || make -C compiler ../std/async/scheduler.o 2>/dev/null || true
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q ../std/async/scheduler.o 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   for x in "$RUN_X" "$MOD_TEST_X"; do
     if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "std-async-language gate FAIL: typeck $x" >&2

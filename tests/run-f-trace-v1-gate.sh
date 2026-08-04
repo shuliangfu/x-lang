@@ -2,6 +2,8 @@
 # F-trace v1：std.trace 去 C（trace.c → trace.x；v2 后逻辑全在 trace.x）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_TRACE_V1_FAIL:-0}
 DOC="analysis/phase-f-trace-v1.md"
 MANIFEST="tests/baseline/f-trace-v1-closure.tsv"
@@ -21,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'trace.x' compiler/Makefile || die "Makefile missing trace.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/trace/trace.o >/dev/null 2>&1 || die "make trace.o failed"
+  xlang_compiler_make ../std/trace/trace.o >/dev/null 2>&1 || die "make trace.o failed"
 else
   echo "f-trace-v1 SKIP trace.o build (no xlang-c)" >&2
 fi

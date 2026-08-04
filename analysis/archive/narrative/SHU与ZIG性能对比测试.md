@@ -42,4 +42,3 @@ Web 服务：简单 HTTP server（如果有网络支持），测 QPS、延迟。
 跨平台一致性：在 Linux/Windows/macOS/不同 CPU 上的表现。
 SIMD / 向量化：手动或 auto-vectorization 效果。
 FFI / C 互操作 开销。
-

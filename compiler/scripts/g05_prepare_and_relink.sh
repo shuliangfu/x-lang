@@ -6,13 +6,53 @@
 # Makefile **不**参与产品路径（仅冷启动 / 单文件 .o 规则兜底）。
 #
 # 用法（compiler/ 目录）：
-#   bash scripts/g05_prepare_and_relink.sh
-#   G05_SYNC_ASM=1 bash scripts/g05_prepare_and_relink.sh   # 默认 1
+#   bash scripts/g05_prepare_and_relink.sh              # default: sync xlang → xlang_asm
+#   bash scripts/g05_prepare_and_relink.sh --no-sync     # xlang only (relink-xlang)
+#   bash scripts/g05_prepare_and_relink.sh --sync        # force sync (explicit)
+#   G05_SYNC_ASM=0 bash scripts/g05_prepare_and_relink.sh  # env still honored when no CLI flag
+#
+# wave885 B7B residual G05_SYNC inject hygiene (G.7 有则补全):
+#   Makefile no longer injects G05_SYNC_ASM=0/1 on recipes. CLI --no-sync is the
+#   intentional override for relink-xlang; bare call defaults to sync (=1).
+#   Env G05_SYNC_ASM remains for xbuild / refresh / probes (not recipe inject).
+# PLATFORM: SHARED — product link path identical on mac / Ubuntu / Windows host.
+# NOT physical delete — thin edges + B2 + mk lists + LD / pipeline bags remain.
 
 set -e
 cd "$(dirname "$0")/.."
 
+# Default: sync xlang_asm (historic G05_SYNC_ASM:-1).
 SYNC_ASM="${G05_SYNC_ASM:-1}"
+_cli_sync_set=0
+for arg in "$@"; do
+  case "$arg" in
+    --no-sync|nosync|0)
+      SYNC_ASM=0
+      _cli_sync_set=1
+      ;;
+    --sync|sync|1)
+      SYNC_ASM=1
+      _cli_sync_set=1
+      ;;
+    -h|--help)
+      cat <<'EOF'
+Usage: g05_prepare_and_relink.sh [--no-sync|--sync]
+  --no-sync  build/relink xlang only (do not cp to xlang_asm)
+  --sync     also sync xlang → xlang_asm (default when unset)
+  G05_SYNC_ASM=0|1 still honored when no CLI flag is given
+EOF
+      exit 0
+      ;;
+    *)
+      echo "g05_prepare_and_relink: unknown arg: $arg (try --help)" >&2
+      exit 2
+      ;;
+  esac
+done
+# CLI flag is authoritative when present; else env/default already applied.
+if [ "$_cli_sync_set" = "1" ]; then
+  :
+fi
 
 echo "g05_prepare_and_relink: ensure prereqs (shell, no make)"
 bash scripts/g05_ensure_relink_prereqs.sh
@@ -21,6 +61,8 @@ echo "g05_prepare_and_relink: export link env (shell) + final link"
 # shellcheck disable=SC2046
 eval "$(bash scripts/g05_relink_env.sh)"
 export G05_CC G05_CFLAGS G05_OUT G05_XLANG_C G05_BOOTSTRAP G05_OBJS
+# g05_relink_xlang also reads G05_SYNC_ASM; prepare owns outer cp when SYNC_ASM=1.
+# Keep inner sync off so we do not double-cp; outer block below is the authority.
 export G05_SYNC_ASM=0
 bash scripts/g05_relink_xlang.sh
 

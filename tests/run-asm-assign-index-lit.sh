@@ -2,7 +2,9 @@
 # asm 7.3：arr[lit]=value 字面量下标赋值直 lea/add→rbx，main 内无 mov x2。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 $XLANG build tests/asm/assign_index_lit_fast.x -o /tmp/xlang_asm_assign_index_lit 2>&1

@@ -8,6 +8,8 @@
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 progress() { echo "[$(date +%H:%M:%S)] $*"; }
 
@@ -76,7 +78,7 @@ if [ "$W3_RESUME" = "p0" ]; then
     || { progress "FAIL: missing xlang_asm_stage1/2 for p0 resume" >&2; exit 1; }
   if [ ! -x ./compiler/xlang ]; then
     progress "=== restore xlang (bootstrap-driver-seed) for P0/L5 ==="
-    make -C compiler bootstrap-driver-seed
+    xlang_compiler_make bootstrap-driver-seed
   fi
 elif [ "$W3_RESUME" = "l5" ]; then
   progress "=== W3 resume from L5 (skip seed through P0) ==="
@@ -84,21 +86,21 @@ elif [ "$W3_RESUME" = "l5" ]; then
     || { progress "FAIL: missing xlang_asm2 for l5 resume" >&2; exit 1; }
   cp -f compiler/xlang_asm2 compiler/xlang_asm 2>/dev/null || true
   if [ ! -x ./compiler/xlang ]; then
-    make -C compiler bootstrap-driver-seed
+    xlang_compiler_make bootstrap-driver-seed
   fi
 elif [ "$W3_RESUME" = "p1" ]; then
   progress "=== W3 resume from P1 (skip seed through L5) ==="
   test -f compiler/xlang_asm2 && test -x compiler/xlang_asm2 \
     || { progress "FAIL: missing xlang_asm2 for p1 resume" >&2; exit 1; }
   if [ ! -x ./compiler/xlang-c ]; then
-    make -C compiler xlang-c
+    xlang_compiler_make xlang-c
   fi
 elif [ "$W3_RESUME" != "ensure" ]; then
   # shellcheck source=tests/lib/bootstrap-anti-collapse.sh
   source tests/lib/bootstrap-anti-collapse.sh
   bootstrap_anti_collapse_reset_audit
   progress "=== build seed (bootstrap-driver-seed; anti-collapse strict) ==="
-  env "${W3_ANTI_COLLAPSE_ENV[@]}" make -C compiler bootstrap-driver-seed
+  env "${W3_ANTI_COLLAPSE_ENV[@]}" xlang_compiler_make bootstrap-driver-seed
   progress "=== gen1 build (seed -> xlang_asm_stage1) ==="
   cd compiler
   env -u CI "${W3_ASM_FAST_ENV[@]}" "${W3_ANTI_COLLAPSE_ENV[@]}" XLANG=./xlang \
@@ -242,14 +244,14 @@ chmod +x tests/run-scope-borrow-gate.sh tests/run-al06-gate.sh \
   tests/run-typeck-region.sh tests/run-ub.sh tests/run-with-arena-vec-gate.sh
 # macOS bind-mount 可能留下 Mach-O bootstrap_xlangc；Linux Codespace 勿覆盖 xlang-c。
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  make -C compiler bootstrap_xlangc
+  xlang_compiler_make bootstrap_xlangc
 fi
 # shellcheck source=tests/lib/bootstrap-link-xlang.sh
 . tests/lib/bootstrap-link-xlang.sh
 # P0 typeck 负例 gate 须 xlang-c（C 前端诊断完整）；seed xlang 缺 scope borrow 文案。
 P0_XLANG=./compiler/xlang-c
 if [ ! -x "$P0_XLANG" ]; then
-  make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make xlang-c 2>/dev/null || true
 fi
 if [ ! -x "$P0_XLANG" ] && [ -x ./compiler/xlang ]; then
   P0_XLANG=./compiler/xlang
@@ -331,7 +333,7 @@ chmod +x tests/run-safe-ffi-contract-gate.sh tests/run-safe-leak-nightly.sh \
   tests/run-layout-overflow-gate.sh tests/run-link-hardening-gate.sh
 # shellcheck source=lib/w3-bstrict-fast.sh
 . "$(dirname "$0")/lib/w3-bstrict-fast.sh"
-make -C compiler xlang-c
+xlang_compiler_make xlang-c
 _w3_p1_gate() {
   local name="$1"
   shift

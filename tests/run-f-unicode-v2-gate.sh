@@ -2,6 +2,8 @@
 # F-unicode v2：std.unicode 逻辑全量 .x（删除 unicode_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_UNICODE_V2_FAIL:-0}
 DOC="analysis/phase-f-unicode-v2.md"
 MANIFEST="tests/baseline/f-unicode-v2-closure.tsv"
@@ -27,7 +29,7 @@ grep -q 'unicode_grapheme_case_smoke_c' std/unicode/unicode.x || die "unicode.x 
 grep -q 'unicode_f_unicode_v2_marker_c' std/unicode/unicode.x || die "unicode.x missing v2 marker"
 grep -q 'F-unicode v2' compiler/Makefile || die "Makefile missing F-unicode v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/unicode/unicode.o >/dev/null 2>&1 || die "make unicode.o failed"
+  xlang_compiler_make ../std/unicode/unicode.o >/dev/null 2>&1 || die "make unicode.o failed"
 else
   echo "f-unicode-v2 SKIP unicode.o build (no xlang-c)" >&2
 fi

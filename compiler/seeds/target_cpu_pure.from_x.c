@@ -5,8 +5,10 @@
  * G-02f-110 helper gates.
  * G-02f-103 helper gates.
  * G-02f-97 pure helper gates.
- * G-02f-257：XLANG_L2_TARGET_CPU_FLAGS_FROM_X 时省略所有 .x 业务函数
- *           （由 src/driver/target_cpu_pure.x → .o 提供，再 ld -r）。
+ * G-02f-257 / wave577 Cap：XLANG_L2_TARGET_CPU_FLAGS_FROM_X 仅省略
+ *   target_cpu_flags.x 提供的 5 个函数（pending×2 + tcp_tolower + tcp_eq5/6）；
+ *   其余业务函数（resolve/simd/append_feat_name/…）始终在本 TU 编译，
+ *   避免 hybrid ld -r 后符号两端缺失。历史「省略全部业务」守卫过宽已废。
  *
  * Source of truth: src/driver/target_cpu_pure.x (+ print is stdio C co-located; f-5)
  * Hand-synced when full xlang-c -E hangs on multi-helper TUs.
@@ -52,6 +54,18 @@ uint8_t tcp_tolower(uint8_t c) {
     return (uint8_t)(c + 32);
   return c;
 }
+#else
+/* wave577 Cap fix: under FROM_X only 5 flag helpers come from target_cpu_flags.x;
+ * remaining business funcs (tcp_eq_at, parse_named, resolve, simd_star helpers,
+ * append_feat_name, flags_has_token) always compile in this TU so hybrid ld -r
+ * does not lose symbols. (Avoid star-slash sequences inside this block comment.) */
+extern void driver_set_pending_target_cpu_features(uint32_t features);
+extern uint32_t driver_get_pending_target_cpu_features(void);
+extern uint8_t tcp_tolower(uint8_t c);
+extern int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4);
+extern int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
+                       uint8_t a5);
+#endif
 
 /** Compare name[base..base+n) case-insensitively to lowercase lit[0..n). */
 /* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -157,6 +171,9 @@ int xlang_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out) {
   return tcp_parse_named(s, start, end, out);
 }
 
+/* PLATFORM: SHARED — cold-start C bodies; hybrid FROM_X omits these (target_cpu_flags.x).
+ * wave577 Cap: only the 5 flag helpers come from .x under XLANG_L2_TARGET_CPU_FLAGS_FROM_X. */
+#ifndef XLANG_L2_TARGET_CPU_FLAGS_FROM_X
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
   uint8_t lit[5];
@@ -180,6 +197,7 @@ int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t
   lit[5] = a5;
   return tcp_eq_at(name, 0, 6, lit);
 }
+#endif
 
 int xlang_simd_is_vector_type_spelling(const char *name, size_t name_len) {
   const uint8_t *n = (const uint8_t *)name;
@@ -267,25 +285,6 @@ int flags_has_token(const char *hay, const char *token) {
     }
     return 0;
 }
-
-#else
-/* FROM_X: .x provides all business funcs; rest TU only has language-limit residual */
-extern void driver_set_pending_target_cpu_features(uint32_t features);
-extern uint32_t driver_get_pending_target_cpu_features(void);
-extern uint8_t tcp_tolower(uint8_t c);
-extern int32_t tcp_eq_at(const uint8_t *name, size_t base, size_t n, const uint8_t *lit);
-extern void tcp_set_u32(uint32_t *out, uint32_t f);
-extern int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uint32_t *out);
-extern int xlang_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out);
-extern int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4);
-extern int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
-                       uint8_t a5);
-extern int xlang_simd_is_vector_type_spelling(const char *name, size_t name_len);
-extern int xlang_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, int32_t *out_lanes,
-                                                    int32_t *out_esz);
-extern void append_feat_name(char *buf, size_t cap, size_t *pos, const char *name);
-extern int flags_has_token(const char *hay, const char *token);
-#endif
 
 /* slice_marker: indicates business funcs are provided by .x (R2 full) */
 int target_cpu_pure_slice_marker(void) {

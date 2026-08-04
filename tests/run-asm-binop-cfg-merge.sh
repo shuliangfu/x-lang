@@ -2,9 +2,11 @@
 # asm 7.3：if/while/for 汇合 live ∪；嵌套/混合/多轮/break/continue；ldur b 门禁。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/wpo-main-disasm.sh
 . tests/lib/wpo-main-disasm.sh
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || true

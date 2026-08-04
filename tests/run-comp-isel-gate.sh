@@ -19,7 +19,7 @@ echo "=== COMP-006: instruction selection manifest ==="
 for f in "$DOC" "$MANIFEST" "$BENCH" \
   compiler/src/asm/peephole.x compiler/src/asm/backend.x \
   tests/asm/binop_var_fast.x tests/asm/binop_index_lit_fast.x \
-  tests/bench/loop_i32.x tests/run-bcmp-gate.sh; do
+  bench/loop_i32.x tests/run-bcmp-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-isel gate FAIL: missing $f" >&2
     exit 1

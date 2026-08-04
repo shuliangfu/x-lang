@@ -14,7 +14,8 @@ struct ast_PipelineDepCtx;
 struct codegen_CodegenOutBuf;
 
 /* —— 外部依赖（pipeline_gen / runtime / parser / typeck / codegen / asm） —— */
-extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);
+/* wave577 Cap: AST name slots 128; import path buffer matches seed pipeline_gen out[128]. */
+extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[128]);
 extern int32_t parser_get_module_num_imports(struct ast_Module *module);
 extern void parser_parse_into_set_main_index(struct ast_Module *module, int32_t main_idx);
 extern struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena *arena,
@@ -328,7 +329,8 @@ int32_t asm_ctx_local_find_offset_scoped(uint8_t *ctx, struct ast_ASTArena *aren
       extern int32_t asm_ctx_local_name_len(uint8_t *ctx, int32_t idx);
       extern void asm_ctx_local_name_copy64(uint8_t *ctx, int32_t idx, uint8_t *out);
       extern int32_t asm_ctx_local_offset_at(uint8_t *ctx, int32_t idx);
-      uint8_t nb[64];
+      /* wave581 Cap residual: asm_ctx_local_name_copy64 writes 128 bytes. */
+      uint8_t nb[128];
       int32_t nlen;
       int32_t k;
       nlen = asm_ctx_local_name_len(ctx, i);

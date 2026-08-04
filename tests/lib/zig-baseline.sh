@@ -129,8 +129,8 @@ zig_baseline_validate_tsv() {
     local src
     src=$(awk -F'\t' -v c="$case_id" '$1=="case" && $2==c {print $4; exit}' "$tsv")
     [ -n "$src" ] || continue
-    if [ ! -f "tests/bench/$src" ] && [ ! -f "$src" ]; then
-      echo "zig-baseline FAIL: case $case_id missing source tests/bench/$src" >&2
+    if [ ! -f "bench/$src" ] && [ ! -f "$src" ]; then
+      echo "zig-baseline FAIL: case $case_id missing source bench/$src" >&2
       missing=$((missing + 1))
     fi
   done < "$tsv"

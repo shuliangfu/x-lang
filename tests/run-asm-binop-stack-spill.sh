@@ -2,7 +2,9 @@
 # asm 7.3：十～十二 VAR return 链；允许实栈 push spill（sub sp,#16），与 block-var 无 push 门禁分离。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 run_one() {

@@ -2,7 +2,9 @@
 # 裸指针 *T：类型与 0 初始化
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 $XLANG build tests/pointer/main.x -o /tmp/xlang_ptr 2>&1

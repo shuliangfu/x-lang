@@ -1,5 +1,5 @@
 #!/bin/sh
-# xlang_compile_std_module.sh — 用 -x -E + cc -c 编译 std 模块为 .o（F 闭合）
+# xlang_compile_std_module.sh — formal std/core module .o via -x -E + cc -c (F 闭合)
 #
 # 【Why 根源】G-02a 删除 C 前端后，-E-extern 模式不可用（runtime.c 在
 # XLANG_NO_C_FRONTEND 定义时直接报 BLD001）。-x -E 走 .x pipeline 路径，
@@ -13,29 +13,411 @@
 #      需传 --bare-impl 参数启用此模式。
 # cc -c 编译为 .o，多文件时用 ld -r 合并。
 #
-# 用法：xlang_compile_std_module.sh [--bare-impl] <out.o> <x1> [x2] [x3] ...
+# Usage (cwd = compiler/):
+#   xlang_compile_std_module.sh [--bare-impl] <out.o> <x1> [x2] ...   # legacy explicit
+#   xlang_compile_std_module.sh ensure <out.o>                        # wave812 catalog
+#   xlang_compile_std_module.sh auto <out.o>                          # alias of ensure
+#   xlang_compile_std_module.sh list                                  # catalog keys
+#   xlang_compile_std_module.sh --check                               # catalog + thin greps
+#
+# wave812 (G.7 有则补全): formal_mod product table lives here — bare flag + sources
+# + fs_formal dispatch. Makefile thin-calls `ensure $@` only.
+# wave826 (G.7 有则补全): FORCE dep-thin — Makefile prereqs are FORCE + script only;
+# shell owns catalog source mtime (skip up-to-date). NOT physical delete; thin edges
+# + B2 try-heat + mk lists still form std_core_product_make_graph residual.
+# wave894 (G.7 有则补全): make-graph inventory → mk/formal_mod_product_objs.mk;
+# Makefile multi-target $(FORMAL_MOD_PRODUCT_OBJS) FORCE thin ensure only.
+#
 # 约定：mod.x 编译为带前缀符号（std_<module>_*）。
 #   --bare-impl：非 mod.x 文件用 -lib-name ""（裸符号）；否则用路径提取前缀。
-# 环境：XLANG=编译器路径（默认 ./xlang-c，回退 ./xlang_asm → ./xlang）
+# 环境：XLANG=编译器路径（默认 ./xlang → ./xlang_asm → ./xlang-c）
+# PLATFORM: SHARED — catalog + compile body; host-cc CFLAGS may add LINUX -D_GNU_SOURCE.
 set -e
 
-BARE_IMPL=0
-if [ "$1" = "--bare-impl" ]; then
-  BARE_IMPL=1
-  shift
-fi
+# ---------------------------------------------------------------------------
+# wave812: formal_mod shell-primary catalog (G.7 有则补全; not physical delete)
+# Spec line: kind|bare|src1[|src2...]
+#   kind = mod (this script body) | fs_formal (xlang_compile_std_fs_formal.sh)
+#   bare = 0|1  (--bare-impl for non-mod.x / extern-function modules)
+# Keys accept: ../std/.../x.o | std/.../x.o | *std/.../x.o
+# ---------------------------------------------------------------------------
 
-out_o="$1"
-shift
-if [ -z "$out_o" ] || [ "$#" -lt 1 ]; then
-  echo "usage: xlang_compile_std_module.sh [--bare-impl] <out.o> <x1> [x2] ..." >&2
-  exit 1
-fi
+formal_mod_key_for_out() {
+  _o="$1"
+  case "$_o" in
+    ../std/string/string.o|std/string/string.o|*std/string/string.o) printf '%s' "std/string/string.o" ;;
+    ../std/heap/heap.o|std/heap/heap.o|*std/heap/heap.o) printf '%s' "std/heap/heap.o" ;;
+    ../std/heap/page_mmap.o|std/heap/page_mmap.o|*std/heap/page_mmap.o) printf '%s' "std/heap/page_mmap.o" ;;
+    ../std/sys/sys.o|std/sys/sys.o|*std/sys/sys.o) printf '%s' "std/sys/sys.o" ;;
+    ../std/sys/linux.o|std/sys/linux.o|*std/sys/linux.o) printf '%s' "std/sys/linux.o" ;;
+    ../core/mem/mem.o|core/mem/mem.o|*core/mem/mem.o) printf '%s' "core/mem/mem.o" ;;
+    ../core/types/types.o|core/types/types.o|*core/types/types.o) printf '%s' "core/types/types.o" ;;
+    ../core/option/option.o|core/option/option.o|*core/option/option.o) printf '%s' "core/option/option.o" ;;
+    ../core/result/result.o|core/result/result.o|*core/result/result.o) printf '%s' "core/result/result.o" ;;
+    ../core/debug/debug.o|core/debug/debug.o|*core/debug/debug.o) printf '%s' "core/debug/debug.o" ;;
+    ../core/slice/mod.o|core/slice/mod.o|*core/slice/mod.o) printf '%s' "core/slice/mod.o" ;;
+    ../std/map/map.o|std/map/map.o|*std/map/map.o) printf '%s' "std/map/map.o" ;;
+    ../std/set/set.o|std/set/set.o|*std/set/set.o) printf '%s' "std/set/set.o" ;;
+    ../std/vec/vec.o|std/vec/vec.o|*std/vec/vec.o) printf '%s' "std/vec/vec.o" ;;
+    ../std/thread/thread.o|std/thread/thread.o|*std/thread/thread.o) printf '%s' "std/thread/thread.o" ;;
+    ../std/time/time.o|std/time/time.o|*std/time/time.o) printf '%s' "std/time/time.o" ;;
+    ../std/random/random.o|std/random/random.o|*std/random/random.o) printf '%s' "std/random/random.o" ;;
+    ../std/env/env.o|std/env/env.o|*std/env/env.o) printf '%s' "std/env/env.o" ;;
+    ../std/fs/fs.o|std/fs/fs.o|*std/fs/fs.o) printf '%s' "std/fs/fs.o" ;;
+    ../std/sync/sync.o|std/sync/sync.o|*std/sync/sync.o) printf '%s' "std/sync/sync.o" ;;
+    ../std/queue/queue.o|std/queue/queue.o|*std/queue/queue.o) printf '%s' "std/queue/queue.o" ;;
+    ../std/encoding/encoding.o|std/encoding/encoding.o|*std/encoding/encoding.o) printf '%s' "std/encoding/encoding.o" ;;
+    ../std/base64/base64.o|std/base64/base64.o|*std/base64/base64.o) printf '%s' "std/base64/base64.o" ;;
+    ../std/crypto/crypto.o|std/crypto/crypto.o|*std/crypto/crypto.o) printf '%s' "std/crypto/crypto.o" ;;
+    ../std/log/log.o|std/log/log.o|*std/log/log.o) printf '%s' "std/log/log.o" ;;
+    ../std/test/test.o|std/test/test.o|*std/test/test.o) printf '%s' "std/test/test.o" ;;
+    ../std/atomic/atomic.o|std/atomic/atomic.o|*std/atomic/atomic.o) printf '%s' "std/atomic/atomic.o" ;;
+    ../std/hash/hash.o|std/hash/hash.o|*std/hash/hash.o) printf '%s' "std/hash/hash.o" ;;
+    ../std/math/math.o|std/math/math.o|*std/math/math.o) printf '%s' "std/math/math.o" ;;
+    ../std/sort/sort.o|std/sort/sort.o|*std/sort/sort.o) printf '%s' "std/sort/sort.o" ;;
+    ../std/ffi/ffi.o|std/ffi/ffi.o|*std/ffi/ffi.o) printf '%s' "std/ffi/ffi.o" ;;
+    ../std/context/context.o|std/context/context.o|*std/context/context.o) printf '%s' "std/context/context.o" ;;
+    ../std/error/error.o|std/error/error.o|*std/error/error.o) printf '%s' "std/error/error.o" ;;
+    ../std/json/json.o|std/json/json.o|*std/json/json.o) printf '%s' "std/json/json.o" ;;
+    ../std/csv/csv.o|std/csv/csv.o|*std/csv/csv.o) printf '%s' "std/csv/csv.o" ;;
+    ../std/dynlib/dynlib.o|std/dynlib/dynlib.o|*std/dynlib/dynlib.o) printf '%s' "std/dynlib/dynlib.o" ;;
+    ../std/http/http.o|std/http/http.o|*std/http/http.o) printf '%s' "std/http/http.o" ;;
+    ../std/tar/tar.o|std/tar/tar.o|*std/tar/tar.o) printf '%s' "std/tar/tar.o" ;;
+    *) printf '%s' "" ;;
+  esac
+}
+
+# Authority body sources (match historic Makefile recipe args, not always full prereqs).
+formal_mod_spec_for_key() {
+  case "$1" in
+    std/string/string.o) printf '%s' "mod|1|../std/string/mod.x|../std/string/string.x" ;;
+    std/heap/heap.o) printf '%s' "mod|0|../std/heap/mod.x|../std/heap/libc.x|../std/heap/ops.x" ;;
+    std/heap/page_mmap.o) printf '%s' "mod|0|../std/heap/page_mmap.x" ;;
+    std/sys/sys.o) printf '%s' "mod|0|../std/sys/mod.x" ;;
+    std/sys/linux.o) printf '%s' "mod|0|../std/sys/linux.x" ;;
+    core/mem/mem.o) printf '%s' "mod|0|../core/mem/mod.x" ;;
+    core/types/types.o) printf '%s' "mod|0|../core/types/mod.x" ;;
+    core/option/option.o) printf '%s' "mod|0|../core/option/mod.x" ;;
+    core/result/result.o) printf '%s' "mod|0|../core/result/mod.x" ;;
+    core/debug/debug.o) printf '%s' "mod|0|../core/debug/mod.x" ;;
+    core/slice/mod.o) printf '%s' "mod|0|../core/slice/mod.x" ;;
+    std/map/map.o) printf '%s' "mod|1|../std/map/mod.x" ;;
+    std/set/set.o) printf '%s' "mod|1|../std/set/mod.x" ;;
+    std/vec/vec.o) printf '%s' "mod|0|../std/vec/mod.x" ;;
+    std/thread/thread.o) printf '%s' "mod|0|../std/thread/mod.x" ;;
+    std/time/time.o) printf '%s' "mod|1|../std/time/mod.x" ;;
+    std/random/random.o) printf '%s' "mod|1|../std/random/mod.x|../std/random/random.x" ;;
+    std/env/env.o) printf '%s' "mod|0|../std/env/mod.x" ;;
+    std/fs/fs.o) printf '%s' "fs_formal|0|" ;;
+    std/sync/sync.o) printf '%s' "mod|1|../std/sync/mod.x|../std/sync/sync.x" ;;
+    std/queue/queue.o) printf '%s' "mod|1|../std/queue/mod.x|../std/queue/queue.x" ;;
+    std/encoding/encoding.o) printf '%s' "mod|1|../std/encoding/mod.x|../std/encoding/encoding.x" ;;
+    std/base64/base64.o) printf '%s' "mod|1|../std/base64/mod.x|../std/base64/base64.x" ;;
+    std/crypto/crypto.o) printf '%s' "mod|1|../std/crypto/mod.x|../std/crypto/core.x|../std/crypto/aes_gcm.x|../std/crypto/chacha20_poly1305.x|../std/crypto/chacha20_aead.x|../std/crypto/ed25519.x" ;;
+    std/log/log.o) printf '%s' "mod|1|../std/log/mod.x|../std/log/log.x" ;;
+    std/test/test.o) printf '%s' "mod|1|../std/test/mod.x|../std/test/test.x" ;;
+    std/atomic/atomic.o) printf '%s' "mod|1|../std/atomic/mod.x|../std/atomic/atomic.x" ;;
+    std/hash/hash.o) printf '%s' "mod|1|../std/hash/mod.x|../std/hash/hash.x" ;;
+    std/math/math.o) printf '%s' "mod|1|../std/math/mod.x|../std/math/math.x" ;;
+    std/sort/sort.o) printf '%s' "mod|0|../std/sort/mod.x|../std/sort/sort.x" ;;
+    std/ffi/ffi.o) printf '%s' "mod|1|../std/ffi/mod.x|../std/ffi/ffi.x" ;;
+    std/context/context.o) printf '%s' "mod|1|../std/context/mod.x|../std/context/context.x" ;;
+    std/error/error.o) printf '%s' "mod|0|../std/error/mod.x" ;;
+    std/json/json.o) printf '%s' "mod|1|../std/json/mod.x|../std/json/json.x" ;;
+    std/csv/csv.o) printf '%s' "mod|1|../std/csv/mod.x|../std/csv/csv.x" ;;
+    std/dynlib/dynlib.o) printf '%s' "mod|1|../std/dynlib/mod.x|../std/dynlib/dynlib.x" ;;
+    std/http/http.o) printf '%s' "mod|1|../std/http/mod.x|../std/http/http.x" ;;
+    std/tar/tar.o) printf '%s' "mod|1|../std/tar/mod.x|../std/tar/tar.x" ;;
+    *) printf '%s' "" ;;
+  esac
+}
+
+formal_mod_all_keys() {
+  printf '%s\n' \
+    std/string/string.o \
+    std/heap/heap.o \
+    std/heap/page_mmap.o \
+    std/sys/sys.o \
+    std/sys/linux.o \
+    core/mem/mem.o \
+    core/types/types.o \
+    core/option/option.o \
+    core/result/result.o \
+    core/debug/debug.o \
+    core/slice/mod.o \
+    std/map/map.o \
+    std/set/set.o \
+    std/vec/vec.o \
+    std/thread/thread.o \
+    std/time/time.o \
+    std/random/random.o \
+    std/env/env.o \
+    std/fs/fs.o \
+    std/sync/sync.o \
+    std/queue/queue.o \
+    std/encoding/encoding.o \
+    std/base64/base64.o \
+    std/crypto/crypto.o \
+    std/log/log.o \
+    std/test/test.o \
+    std/atomic/atomic.o \
+    std/hash/hash.o \
+    std/math/math.o \
+    std/sort/sort.o \
+    std/ffi/ffi.o \
+    std/context/context.o \
+    std/error/error.o \
+    std/json/json.o \
+    std/csv/csv.o \
+    std/dynlib/dynlib.o \
+    std/http/http.o \
+    std/tar/tar.o
+}
+
+formal_mod_out_for_key() {
+  # Makefile targets use ../ prefix from compiler/
+  case "$1" in
+    core/*) printf '../%s' "$1" ;;
+    std/*) printf '../%s' "$1" ;;
+    *) printf '../%s' "$1" ;;
+  esac
+}
+
+formal_mod_list() {
+  formal_mod_all_keys | while IFS= read -r _k; do
+    _sp="$(formal_mod_spec_for_key "$_k")"
+    printf '%s  %s\n' "$_k" "$_sp"
+  done
+}
+
+formal_mod_check() {
+  _bad=0
+  _n=0
+  _here="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+  _mk="$_here/../Makefile"
+  [ -f "$_mk" ] || _mk="$_here/Makefile"
+  while IFS= read -r _k; do
+    _n=$((_n + 1))
+    _sp="$(formal_mod_spec_for_key "$_k")"
+    if [ -z "$_sp" ]; then
+      echo "formal_mod --check: empty spec for $_k" >&2
+      _bad=1
+      continue
+    fi
+    _kind="${_sp%%|*}"
+    _rest="${_sp#*|}"
+    _bare="${_rest%%|*}"
+    _srcs="${_rest#*|}"
+    if [ "$_kind" = "fs_formal" ]; then
+      if [ ! -x "$_here/xlang_compile_std_fs_formal.sh" ] && [ ! -f "$_here/xlang_compile_std_fs_formal.sh" ]; then
+        echo "formal_mod --check: missing xlang_compile_std_fs_formal.sh" >&2
+        _bad=1
+      fi
+    else
+      _old_ifs=$IFS
+      IFS='|'
+      # shellcheck disable=SC2086
+      set -- $_srcs
+      IFS=$_old_ifs
+      for _s in "$@"; do
+        [ -n "$_s" ] || continue
+        if [ ! -f "$_here/$_s" ] && [ ! -f "$_s" ]; then
+          echo "formal_mod --check: missing source $_s for $_k" >&2
+          _bad=1
+        fi
+      done
+    fi
+    _tgt="$(formal_mod_out_for_key "$_k")"
+    # Makefile thin-call: ensure|auto only (wave812); FORCE dep-thin (wave826).
+    # wave894: multi-target $(FORMAL_MOD_PRODUCT_OBJS) + mk list (no per-leaf target line).
+    # Accept A) legacy per-leaf `^OUT:` FORCE+ensure, or B) OUT in mk list + multi-target rule.
+    if [ -f "$_mk" ]; then
+      _fm_mk="$_here/../mk/formal_mod_product_objs.mk"
+      [ -f "$_fm_mk" ] || _fm_mk="$_here/mk/formal_mod_product_objs.mk"
+      _ok_leaf=0
+      if awk -v tgt="$_tgt" '
+        $0 ~ ("^" tgt ":") {
+          line=$0
+          if (line !~ /FORCE/) { exit 1 }
+          if (line ~ /\.x([[:space:]]|$)/) { exit 1 }
+          hit=1; next
+        }
+        hit && /^[^#[:space:]]/ { exit 1 }
+        hit && /xlang_compile_std_module\.sh/ {
+          if ($0 ~ /ensure|auto/) { found=1; exit 0 }
+        }
+        hit && /xlang_compile_std_fs_formal\.sh/ {
+          if (tgt ~ /fs\/fs\.o/) { found=1; exit 0 }
+        }
+        END { exit found ? 0 : 1 }
+      ' "$_mk" 2>/dev/null; then
+        _ok_leaf=1
+      elif [ -f "$_fm_mk" ] \
+        && grep -qF "$_tgt" "$_fm_mk" \
+        && grep -qE '\$\(FORMAL_MOD_PRODUCT_OBJS\):[[:space:]]*FORCE' "$_mk" \
+        && awk '
+          /\$\(FORMAL_MOD_PRODUCT_OBJS\):/ { hit=1; next }
+          hit && /^[^#[:space:]\t]/ { exit 1 }
+          hit && /xlang_compile_std_module\.sh/ && /ensure|auto/ { found=1; exit 0 }
+          END { exit found ? 0 : 1 }
+        ' "$_mk"; then
+        _ok_leaf=1
+      fi
+      if [ "$_ok_leaf" -ne 1 ]; then
+        echo "formal_mod --check: Makefile/mk $_tgt must FORCE + ensure|auto (wave826/wave894)" >&2
+        _bad=1
+      fi
+    fi
+  done <<'KEYS'
+std/string/string.o
+std/heap/heap.o
+std/heap/page_mmap.o
+std/sys/sys.o
+std/sys/linux.o
+core/mem/mem.o
+core/types/types.o
+core/option/option.o
+core/result/result.o
+core/debug/debug.o
+core/slice/mod.o
+std/map/map.o
+std/set/set.o
+std/vec/vec.o
+std/thread/thread.o
+std/time/time.o
+std/random/random.o
+std/env/env.o
+std/fs/fs.o
+std/sync/sync.o
+std/queue/queue.o
+std/encoding/encoding.o
+std/base64/base64.o
+std/crypto/crypto.o
+std/log/log.o
+std/test/test.o
+std/atomic/atomic.o
+std/hash/hash.o
+std/math/math.o
+std/sort/sort.o
+std/ffi/ffi.o
+std/context/context.o
+std/error/error.o
+std/json/json.o
+std/csv/csv.o
+std/dynlib/dynlib.o
+std/http/http.o
+std/tar/tar.o
+KEYS
+  if [ "$_n" -ne 38 ]; then
+    echo "formal_mod --check: expected 38 keys, counted $_n" >&2
+    _bad=1
+  fi
+  if [ "$_bad" -ne 0 ]; then
+    echo "formal_mod --check: FAIL" >&2
+    return 1
+  fi
+  echo "formal_mod --check: OK (38 leaves; catalog + mk list + multi-target FORCE+ensure wave894; not physical delete)"
+  return 0
+}
+
+# Mode dispatch (wave812). Legacy [--bare-impl] OUT sources remains supported.
+BARE_IMPL=0
+case "${1:-}" in
+  list)
+    formal_mod_list
+    exit 0
+    ;;
+  --check)
+    formal_mod_check
+    exit $?
+    ;;
+  ensure|auto)
+    if [ -z "${2:-}" ]; then
+      echo "usage: xlang_compile_std_module.sh ensure <out.o>" >&2
+      exit 1
+    fi
+    out_o="$2"
+    _key="$(formal_mod_key_for_out "$out_o")"
+    if [ -z "$_key" ]; then
+      echo "xlang_compile_std_module.sh ensure: unknown formal_mod leaf: $out_o" >&2
+      exit 3
+    fi
+    _spec="$(formal_mod_spec_for_key "$_key")"
+    _kind="${_spec%%|*}"
+    _rest="${_spec#*|}"
+    _bare="${_rest%%|*}"
+    _srcs="${_rest#*|}"
+    if [ "$_kind" = "fs_formal" ]; then
+      # PLATFORM: SHARED — fs formal vehicle authority stays in dedicated script.
+      _fs_sh="$(dirname "$0")/xlang_compile_std_fs_formal.sh"
+      [ -f "$_fs_sh" ] || _fs_sh="./xlang_compile_std_fs_formal.sh"
+      exec sh "$_fs_sh" "$out_o"
+    fi
+    BARE_IMPL="$_bare"
+    # Rebuild positional args as sources for shared compile body below (out_o already set).
+    # PLATFORM: SHARED — catalog sources use ../std|core paths from compiler/ cwd.
+    _fm_srcs=""
+    _old_ifs=$IFS
+    IFS='|'
+    for _s in $_srcs; do
+      [ -n "$_s" ] || continue
+      if [ -z "$_fm_srcs" ]; then
+        _fm_srcs="$_s"
+      else
+        _fm_srcs="$_fm_srcs $_s"
+      fi
+    done
+    IFS=$_old_ifs
+    if [ -z "$_fm_srcs" ]; then
+      echo "xlang_compile_std_module.sh ensure: no sources for $_key" >&2
+      exit 1
+    fi
+    # wave826: FORCE-thin mtime — shell owns catalog source freshness (G.7).
+    # Makefile always invokes via FORCE; skip recompile when OUT is newer than all
+    # catalog sources. FORCE=1 forces rebuild (tests / explicit). PLATFORM: SHARED.
+    if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ]; then
+      _fm_stale=0
+      for _s in $_fm_srcs; do
+        [ -n "$_s" ] || continue
+        if [ -f "$_s" ] && [ "$_s" -nt "$out_o" ]; then
+          _fm_stale=1
+          break
+        fi
+      done
+      if [ "$_fm_stale" = "0" ]; then
+        echo "xlang_compile_std_module: skip up-to-date $out_o (formal_mod/$_key)" >&2
+        exit 0
+      fi
+    fi
+    # shellcheck disable=SC2086
+    set -- $_fm_srcs
+    ;;
+  --bare-impl)
+    BARE_IMPL=1
+    shift
+    out_o="$1"
+    shift
+    if [ -z "$out_o" ] || [ "$#" -lt 1 ]; then
+      echo "usage: xlang_compile_std_module.sh [--bare-impl] <out.o> <x1> [x2] ..." >&2
+      exit 1
+    fi
+    ;;
+  *)
+    out_o="$1"
+    shift
+    if [ -z "$out_o" ] || [ "$#" -lt 1 ]; then
+      echo "usage: xlang_compile_std_module.sh [--bare-impl|ensure|list|--check] ..." >&2
+      exit 1
+    fi
+    ;;
+esac
 
 # 【Why 根源】优先 ./xlang（.x pipeline，支持 -x -E）；LEGACY xlang-c 不支持 -x 选项。
 # G-02a 后 -E-extern 不可用，必须用 -x -E 走 .x pipeline，故 ./xlang 优先。
 # XLANG 可能是项目根目录相对路径（./compiler/xlang），Makefile 在 compiler/ 下执行时
 # 该路径不存在，需回退到 compiler/ 本地的 ./xlang。
+# wave812: string.o historic Makefile host-pick (xlang_asm→xlang) is already covered
+# by this ladder + XLANG env; no second ladder in Makefile.
 XLANG_BIN="${XLANG:-./xlang}"
 [ -x "$XLANG_BIN" ] || XLANG_BIN="./xlang"
 [ -x "$XLANG_BIN" ] || XLANG_BIN="./xlang_asm"

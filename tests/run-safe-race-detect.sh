@@ -6,6 +6,8 @@
 #   XLANG_RACE_PROBE=1 ./tests/run-safe-race-detect.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 MANIFEST="${XLANG_RACE_MANIFEST:-tests/baseline/safe-race-detect.tsv}"
 DO_PROBE=0
@@ -37,7 +39,7 @@ if [ -z "$XLANG_BIN" ]; then
 fi
 
 echo "=== SAFE-006: race detect experimental line ==="
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 CASES_OK=0
 CASES_FAIL=0

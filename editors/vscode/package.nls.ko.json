@@ -63,7 +63,7 @@
   "xlang.walkthrough.openProject.title": "Xlang 프로젝트 열기",
   "xlang.walkthrough.openProject.description": "**폴더 열기**로 xlang 저장소 루트를 엽니다. LSP는 진단, 탐색, 자동 완성을 시작하려면 워크스페이스가 필요합니다.",
   "xlang.walkthrough.buildCompiler.title": "Xlang 컴파일러 빌드",
-  "xlang.walkthrough.buildCompiler.description": "`make -C compiler bootstrap-driver-seed`를 실행하여 LSP에 필요한 `compiler/xlang` 바이너리를 얻으세요.",
+  "xlang.walkthrough.buildCompiler.description": "`./xbuild bootstrap-driver-seed`를 실행하여 LSP에 필요한 `compiler/xlang` 바이너리를 얻으세요.",
   "xlang.walkthrough.openXFile.title": ".x 파일 열어서 체험",
   "xlang.walkthrough.openXFile.description": "아무 `.x` 파일이나 열어 구문 강조, 접기, CodeLens, 상태 표시줄을 확인하세요.",
   "xlang.walkthrough.runFile.title": ".x 파일 실행",
@@ -72,7 +72,7 @@
   "xlang.taskDefinition.task.description": "Xlang 작업 유형: build / build-file / run / check",
 
   "xlang.walkthrough.openProject.media": "`Ctrl+K Ctrl+O`를 눌러 프로젝트 루트 디렉터리 (`compiler/` 포함)를 엽니다.",
-  "xlang.walkthrough.buildCompiler.media": "터미널에서 실행:\n```\nmake -C compiler bootstrap-driver-seed\n```\n빌드 성공 후, `compiler/xlang`가 언어 서버로 작동합니다.",
+  "xlang.walkthrough.buildCompiler.media": "터미널에서 실행:\n```\n./xbuild bootstrap-driver-seed\n```\n빌드 성공 후, `compiler/xlang`가 언어 서버로 작동합니다.",
   "xlang.walkthrough.openXFile.media": "`compiler/src/lexer/lexer.x` 또는 `tests/` 아래의 아무 테스트 파일이나 열어보세요.",
   "xlang.walkthrough.runFile.media": "CodeLens `▶ Run`이 `function main` 정의 줄에 나타납니다."
 }

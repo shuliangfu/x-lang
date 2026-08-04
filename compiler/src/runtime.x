@@ -2004,4 +2004,3 @@ export function driver_x_emit_asm_dep_parse_only_ok(input_path: *u8, dep_path: *
   }
   return 0;
 }
-

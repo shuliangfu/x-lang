@@ -209,14 +209,14 @@ static int parser_asm_suffix_debug_enabled(void) {
   return v && *v && *v != '0';
 }
 
-/** 从 source[token_start..] 拷贝 ident 到 e.var_name（最多 63 字节 + 零填充）。 */
+/** Copy ident into e.var_name (wave577 Cap: up to 127 bytes + zero-pad to 128). */
 static void parser_asm_primary_copy_ident_to_var_c(struct parser_asm_ast_expr *e, struct parser_asm_slice_u8 *source,
                                                    size_t start, int32_t len) {
   int32_t i;
   if (!e)
     return;
-  if (len > 63)
-    len = 63;
+  if (len > 127)
+    len = 127;
   e->var_name_len = len;
   for (i = 0; i < len; i++) {
     if (start + (size_t)i < source->length)
@@ -224,7 +224,7 @@ static void parser_asm_primary_copy_ident_to_var_c(struct parser_asm_ast_expr *e
     else
       e->var_name[i] = 0;
   }
-  while (i < 64) {
+  while (i < 128) {
     e->var_name[i] = 0;
     i++;
   }
@@ -498,14 +498,29 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       struct parser_asm_ast_expr me;
       parser_asm_lex_from_result_val_into(lex, *r);
       lexer_next_into(r, *lex, source);
-      if (r->tok.kind != (int32_t)TOKEN_IDENT) {
+      /**
+       * Field / method name after `.`: IDENT or keyword-as-ident.
+       * PLATFORM: SHARED — TOKEN_TYPE/SOA/PACKED may spell field names
+       * (`s.type`, `x.soa`). Prior: only TOKEN_IDENT → `.type` aborted the
+       * suffix loop and left a broken expr (function uncallable in typeck).
+       */
+      mname_len = -1;
+      if (r->tok.kind == (int32_t)TOKEN_IDENT && r->tok.ident_len > 0) {
+        mname_len = r->tok.ident_len;
+      } else if (r->tok.kind == (int32_t)TOKEN_TYPE) {
+        mname_len = 4; /* "type" */
+      } else if (r->tok.kind == (int32_t)TOKEN_SOA) {
+        mname_len = 3; /* "soa" */
+      } else if (r->tok.kind == (int32_t)TOKEN_PACKED) {
+        mname_len = 6; /* "packed" */
+      }
+      if (mname_len < 0) {
         out->next_lex = *lex;
         return;
       }
-      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_field_access_name_audit_c(source, r->token_start, r->tok.ident_len));
-      mname_len = r->tok.ident_len;
-      if (mname_len > 63)
-        mname_len = 63;
+      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_field_access_name_audit_c(source, r->token_start, mname_len));
+      if (mname_len > 127)
+        mname_len = 127;
       {
         size_t mname_start = r->token_start;
         parser_asm_lex_from_result_val_into(lex, *r);
@@ -527,7 +542,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
             me.method_call_name[fi] = source->data[mname_start + (size_t)fi];
             fi++;
           }
-          while (fi < 64) {
+          while (fi < 128) {
             me.method_call_name[fi] = 0;
             fi++;
           }
@@ -595,7 +610,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
             fe.field_access_field_name[fi] = source->data[mname_start + (size_t)fi];
             fi++;
           }
-          while (fi < 64) {
+          while (fi < 128) {
             fe.field_access_field_name[fi] = 0;
             fi++;
           }
@@ -843,7 +858,14 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       struct parser_asm_ast_expr fae;
       int32_t fa_ref;
       int32_t tlen;
-      uint8_t tnm[64];
+      /*
+       * wave1244 / PLATFORM: SHARED — qualified `Mod.Type { ... }` temp name buffer.
+       * Must be 128 to match field_access_field_name[128] / struct_lit_struct_name[128]
+       * (same as finish_struct_lit tnm[128]). Prior tnm[64] + while(ti<128) stack-smashed
+       * the canary → silent exit(127) on Ubuntu when check hit lexer.x token.Token { ... }.
+       * Mac could appear green depending on stack layout / protector placement.
+       */
+      uint8_t tnm[128];
       int32_t ti;
       int32_t tj;
       int32_t prefer_block;
@@ -865,12 +887,13 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
         return;
       }
       tlen = fae.field_access_field_len;
-      if (tlen <= 0 || tlen > 63) {
+      /* Cap matches struct_lit_struct_name[128] content max (finish_struct_lit uses >127). */
+      if (tlen <= 0 || tlen > 127) {
         out->ok = 0;
         return;
       }
       ti = 0;
-      while (ti < 64) {
+      while (ti < 128) {
         tnm[ti] = fae.field_access_field_name[ti];
         ti = ti + 1;
       }
@@ -878,7 +901,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       fae.kind = PARSER_ASM_FINISH_STRUCT_LIT_KIND;
       fae.struct_lit_struct_name_len = tlen;
       tj = 0;
-      while (tj < 64) {
+      while (tj < 128) {
         fae.struct_lit_struct_name[tj] = tnm[tj];
         tj = tj + 1;
       }
@@ -889,7 +912,17 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       parser_asm_arena_expr_set_c(arena, fa_ref, fae);
       *lex = r->next_lex;
       parser_asm_parse_struct_lit_fields_c(arena, fa_ref, *lex, source, out);
-      return;
+      if (!out->ok)
+        return;
+      /**
+       * wave607 / PLATFORM: SHARED — qualified `Mod.Type { ... }.method()` /
+       * `.field` continues the suffix chain (same as bare Type { } primary).
+       * G.7: stay in this loop; do not open a second postfix path.
+       */
+      *lex = out->next_lex;
+      lexer_next_into(r, *lex, source);
+      first_suffix = 1;
+      continue;
     } else {
       out->next_lex = *lex;
       return;
@@ -1813,11 +1846,12 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
       int32_t nlen = r.tok.ident_len;
       int32_t ri = 0;
       int32_t wi = 0;
-      /* wave283: full span; L011 if semantic bytes would exceed 63 (not silent truncate). */
+      /* wave283: full span; L011 if semantic bytes would exceed 127 (not silent truncate).
+       * wave1222: cap 63→127 to match Expr.var_name[128] capacity. */
       if (nlen < 0)
         nlen = 0;
       while (ri < nlen) {
-        if (wi >= 63) {
+        if (wi >= 127) {
           lexer_note_string_lit_overflow(e.line, e.col);
           break;
         }
@@ -1862,7 +1896,7 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
         ri++;
       }
       e.var_name_len = wi;
-      while (wi < 64) {
+      while (wi < 128) {
         e.var_name[wi] = 0;
         wi++;
       }
@@ -1890,15 +1924,15 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
         wi_adj = e.var_name_len;
         if (wi_adj < 0)
           wi_adj = 0;
-        if (wi_adj > 63)
-          wi_adj = 63;
+        if (wi_adj > 127)
+          wi_adj = 127;
         nlen_adj = nr.tok.ident_len;
         if (nlen_adj < 0)
           nlen_adj = 0;
         q0_adj = nr.token_start;
         ri_adj = 0;
         while (ri_adj < nlen_adj) {
-          if (wi_adj >= 63) {
+          if (wi_adj >= 127) {
             lexer_note_string_lit_overflow(e.line, e.col);
             break;
           }
@@ -1943,7 +1977,7 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
           ri_adj++;
         }
         e.var_name_len = wi_adj;
-        while (wi_adj < 64) {
+        while (wi_adj < 128) {
           e.var_name[wi_adj] = 0;
           wi_adj++;
         }
@@ -2010,6 +2044,42 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     out->ok = 1;
     out->expr_ref = ref;
     out->next_lex = r.next_lex;
+    return;
+  }
+  /**
+   * wave668 Cap residual: TOKEN_NULL → EXPR_LIT int_val=0 (null pointer literal).
+   * wave670: tag keyword null via var_name="null"/len=4 so typeck can hard-fail
+   * null→non-ptr while bare INT 0 stays integer-coercible. Still EXPR_LIT 0 for
+   * emit (no new ExprKind / ordinal churn). G.7 single primary path.
+   * PLATFORM: SHARED.
+   */
+  if (r.tok.kind == (int32_t)TOKEN_NULL) {
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out->ok = 0;
+      return;
+    }
+    e = parser_asm_arena_expr_get_c(arena, ref);
+    e.kind = PARSER_ASM_EXPR_LIT;
+    e.line = r.tok.line;
+    e.col = r.tok.col;
+    e.int_val = 0;
+    parser_asm_expr_set_common_zeros_c(&e);
+    parser_asm_arena_expr_set_c(arena, ref, e);
+    /*
+     * Tag on live ast_Expr (G.7 pipeline_expr_tag_null_keyword_c) so
+     * parser_asm_ast_expr memcpy layout drift cannot drop the keyword mark.
+     */
+    {
+      extern void pipeline_expr_tag_null_keyword_c(void *arena, int32_t expr_ref);
+      pipeline_expr_tag_null_keyword_c(arena, ref);
+    }
+    out->ok = 1;
+    out->expr_ref = ref;
+    lex = r.next_lex;
+    lexer_next_into(&r, lex, source);
+    parser_asm_primary_ident_suffix_loop_c(arena, source, &lex, &r, out, 1);
+    out->next_lex = lex;
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_BREAK || r.tok.kind == (int32_t)TOKEN_CONTINUE) {
@@ -2133,6 +2203,20 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
         return;
       }
       parser_finish_struct_lit_from_type_ident_into_glue(arena, ref, r.next_lex, source, out);
+      if (!out->ok)
+        return;
+      /**
+       * wave607 / PLATFORM: SHARED — STRUCT_LIT is not a suffix-chain terminal.
+       * `Type { ... }.method()` / `.field` / `[i]` must continue the same suffix
+       * loop as `(expr).method()`. Historical early return left `.sum()` unparsed
+       * → return-stmt parse fail → main dropped (num_funcs=1, main_idx=-1) →
+       * ld undefined `_main` (soft residual "STRUCT_LIT as method base").
+       * G.7: reuse parser_asm_primary_ident_suffix_loop_c (no second postfix path).
+       */
+      lex = out->next_lex;
+      lexer_next_into(&r, lex, source);
+      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_suffix_chain_probe_c(lex, source));
+      parser_asm_primary_ident_suffix_loop_c(arena, source, &lex, &r, out, 1);
       return;
     }
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_suffix_chain_probe_c(lex, source));
@@ -2165,6 +2249,19 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
   if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_array_lit_head_audit_c(parser_asm_lex_at_token_from_result_c(r), source));
     parser_asm_primary_parse_array_lit_c(arena, source, &lex, &r, out);
+    if (!out->ok)
+      return;
+    /**
+     * wave611 / PLATFORM: SHARED — array literal is not a suffix-chain endpoint.
+     * `[e0, e1][i]` / `[..][0] + …` need the same G.7 postfix loop as `(expr)`
+     * and anonymous `{…}` (INDEX / CALL / FIELD). Early return left the trailing
+     * `[` for the outer expr layer → whole-function parse skip (XP003 out_len=0).
+     * G.7: reuse parser_asm_primary_ident_suffix_loop_c only; no second path.
+     */
+    lex = out->next_lex;
+    lexer_next_into(&r, lex, source);
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_suffix_chain_probe_c(lex, source));
+    parser_asm_primary_ident_suffix_loop_c(arena, source, &lex, &r, out, 1);
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_IF) {
@@ -2186,6 +2283,16 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     }
     /** 匿名 struct 字面量 `{ fd, x: 1 }`（let p: PollFd = { ... }）。 */
     parser_asm_parse_anonymous_struct_lit_c(arena, r.next_lex, source, out);
+    if (!out->ok)
+      return;
+    /**
+     * wave607 / PLATFORM: SHARED — anonymous `{ ... }.field` / `.method()` suffix.
+     * Same G.7 suffix loop as named Type { } (no second path).
+     */
+    lex = out->next_lex;
+    lexer_next_into(&r, lex, source);
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_suffix_chain_probe_c(lex, source));
+    parser_asm_primary_ident_suffix_loop_c(arena, source, &lex, &r, out, 1);
     return;
   }
   out->ok = 0;

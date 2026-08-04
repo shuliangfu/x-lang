@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-backtrace-xplat.sh — STD-147 manifest 与跨平台质量烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD147_PREFIX="${XLANG_STD147_BACKTRACE_XPLAT_PREFIX:-xlang: [XLANG_STD147_BACKTRACE_XPLAT]}"
 
 # 校验 manifest；echo 缺失数。
@@ -90,7 +92,7 @@ std_backtrace_xplat_run_smoke() {
     return 1
   fi
   if [ ! -f "$rt_o" ]; then
-    make -C compiler -q runtime_backtrace_platform.o 2>/dev/null || make -C compiler runtime_backtrace_platform.o >/dev/null 2>&1 || true
+    xlang_compiler_make -q runtime_backtrace_platform.o 2>/dev/null || xlang_compiler_make runtime_backtrace_platform.o >/dev/null 2>&1 || true
   fi
   if [ ! -f "$rt_o" ]; then
     echo "std-backtrace-xplat FAIL: missing $rt_o" >&2

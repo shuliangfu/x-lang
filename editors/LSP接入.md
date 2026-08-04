@@ -68,7 +68,7 @@ xlang --lsp [--diagnostic-level=<level>] [--target-dir=<path>] [<extra-args>...]
 在 macOS / Ubuntu 上，从仓库根目录执行：
 
 ```
-make -C compiler bootstrap-driver-seed
+./xbuild bootstrap-driver-seed
 ```
 
 产物为 [compiler/xlang](file:///home/shuliangfu/worker/xlang/x-lang/compiler/xlang)。该产物内置 LSP 服务（[lsp.x](file:///home/shuliangfu/worker/xlang/x-lang/compiler/src/lsp/lsp.x) 等 `.x` 源被 bootstrap 编译进二进制），可直接用 `--lsp` 启动。

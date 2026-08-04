@@ -5,6 +5,8 @@
 # 环境：XLANG_F04_CRYPTO_V19_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_F04_CRYPTO_V19_FAIL:-0}
 DOC="analysis/phase-f-f04-v19.md"
@@ -59,7 +61,7 @@ if [ -f "$MANIFEST" ]; then
   done < "$MANIFEST"
 fi
 
-make -C compiler ../std/crypto/crypto.o runtime_ed25519_ref10_glue.o runtime_crypto_inc_glue.o >/dev/null 2>&1 || die "make crypto.o failed"
+xlang_compiler_make ../std/crypto/crypto.o runtime_ed25519_ref10_glue.o runtime_crypto_inc_glue.o >/dev/null 2>&1 || die "make crypto.o failed"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT

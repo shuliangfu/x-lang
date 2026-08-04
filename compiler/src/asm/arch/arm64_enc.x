@@ -584,10 +584,13 @@ export function enc_idiv_rbx(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 448859136);
 }
 
-/** Exported function `enc_mov_edx_to_eax`.
- * Implements `enc_mov_edx_to_eax`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * arm64 signed remainder: w0 = w0 % w1 (x86 name is historical edx:eax rem).
+ * @param ctx *ElfCodegenCtx — code buffer
+ * @return i32 — 0 success, -1 encode failure
+ * PLATFORM: MACOS|ARM64 — product rem_mod (ta==1) calls only this (no cltd/idiv).
+ * G.7 twin of seeds/backend_arm64_enc_c.from_x.c arch_arm64_enc_enc_mov_edx_to_eax
+ * (wave645: product seed was a no-op stub; .x already had sdiv+msub).
  */
 export function enc_mov_edx_to_eax(ctx: *ElfCodegenCtx): i32 {
   /* sdiv w2, w0, w1 */
@@ -652,8 +655,11 @@ export function enc_cmp_w0_imm12(ctx: *ElfCodegenCtx, imm12: i32): i32 {
  * @return i32
  */
 export function enc_cset_w0_from_cc(ctx: *ElfCodegenCtx, cc: i32): i32 {
-  let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
-  return enc_u32_le(ctx, 446629856 | (c << 12));
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
+    return enc_u32_le(ctx, 446629856 | (c << 12));
+  }
 }
 
 /**
@@ -665,9 +671,12 @@ export function enc_cset_w0_from_cc(ctx: *ElfCodegenCtx, cc: i32): i32 {
  * arch_arm64_enc_enc_cmp_setcc_movzbl (wave388: do not re-emit cmp; honor cc).
  */
 export function enc_cmp_setcc_movzbl(ctx: *ElfCodegenCtx, cc: i32): i32 {
-  let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
-  /* CSET W0,<cond> = 0x1a9f07e0 | (invert(cond)<<12). */
-  return enc_u32_le(ctx, 446629856 | (c << 12));
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
+    /* CSET W0,<cond> = 0x1a9f07e0 | (invert(cond)<<12). */
+    return enc_u32_le(ctx, 446629856 | (c << 12));
+  }
 }
 
 /** Exported function `enc_store_rax_to_rbp`.
@@ -826,7 +835,7 @@ export function enc_memset_rbp_zero(ctx: *ElfCodegenCtx, rbp_off: i32, nbytes: i
   if (enc_mov_imm32_to_rbx(ctx, 0) != 0) {
     return -1;
   }
-  let memset_nm: u8[64] = [109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  let memset_nm: u8[128] = [109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   return enc_call(ctx, memset_nm, 6);
@@ -945,38 +954,39 @@ export function enc_load_rbp_to_x2(ctx: *ElfCodegenCtx, offset: i32): i32 {
 }
 
 /**
- * Encode ADD X0, X1, X2, LSL #0 — base@x1 + index@x2 → EA@x0 (×1).
+ * Encode ADD X1, X1, X2, LSL #0 — base@x1 + index@x2 → EA@x1 (×1).
  * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
  * @return i32 — 0 on success
- * PLATFORM: MACOS|ARM64 — twin product seed (result in x0 for [x0] load).
+ * wave614: EA in x1 (rbx) for INDEX assign finish_store (was Rd=x0).
+ * PLATFORM: MACOS|ARM64 — G.7 twin product seed backend_arm64_enc_c.from_x.c.
  */
 export function enc_rbx_plus_x2_scale1(ctx: *ElfCodegenCtx): i32 {
-  /* 0x8b020020 */
-  return enc_u32_le(ctx, 2332164128);
+  /* 0x8b020021 */
+  return enc_u32_le(ctx, 2332164129);
 }
 
 /**
- * Encode ADD X0, X1, X2, LSL #2 — base@x1 + index@x2 → EA@x0 (×4).
+ * Encode ADD X1, X1, X2, LSL #2 — base@x1 + index@x2 → EA@x1 (×4).
  * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
  * @return i32 — 0 on success
- * wave417: was wrong imm6 (×64). G.7 twin product seed.
- * PLATFORM: MACOS|ARM64
+ * wave417: imm6 scale fix; wave614: Rd=x1 for assign store [x1].
+ * PLATFORM: MACOS|ARM64 — G.7 twin product seed.
  */
 export function enc_rbx_plus_x2_scale4(ctx: *ElfCodegenCtx): i32 {
-  /* 0x8b020820 */
-  return enc_u32_le(ctx, 2332166176);
+  /* 0x8b020821 */
+  return enc_u32_le(ctx, 2332166177);
 }
 
 /**
- * Encode ADD X0, X1, X2, LSL #3 — base@x1 + index@x2 → EA@x0 (×8).
+ * Encode ADD X1, X1, X2, LSL #3 — base@x1 + index@x2 → EA@x1 (×8).
  * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
  * @return i32 — 0 on success
- * wave417: was wrong imm6 (×128). G.7 twin product seed.
- * PLATFORM: MACOS|ARM64
+ * wave417: imm6 scale fix; wave614: Rd=x1 for assign store [x1].
+ * PLATFORM: MACOS|ARM64 — G.7 twin product seed.
  */
 export function enc_rbx_plus_x2_scale8(ctx: *ElfCodegenCtx): i32 {
-  /* 0x8b020c20 */
-  return enc_u32_le(ctx, 2332167200);
+  /* 0x8b020c21 */
+  return enc_u32_le(ctx, 2332167201);
 }
 
 /** ldr x0, [x0]。 */
@@ -1162,7 +1172,7 @@ export function enc_call(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
   * See implementation.
   */
   if (ctx.macho_leading_underscore != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
-    let rn: u8[64] = [];
+    let rn: u8[128] = [];
     rn[0] = 95;
     let k: i32 = 0;
     while (k < name_len && k < 63) {
@@ -1189,7 +1199,7 @@ export function enc_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, is_func
   if (elf.elf_add_label(ctx, name, name_len) != 0) { return -1; }
   if (is_func != 0) {
     if (ctx.macho_leading_underscore != 0) {
-      let macho_name: u8[64] = [];
+      let macho_name: u8[128] = [];
       macho_name[0] = 95;
       let k: i32 = 0;
       while (k < name_len && k < 63) {

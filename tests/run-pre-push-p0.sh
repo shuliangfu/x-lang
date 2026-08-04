@@ -3,11 +3,13 @@
 # 用法：XLANG=./compiler/xlang_asm ./tests/run-pre-push-p0.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=lib/ensure-compiler-seed.sh
 source "$(dirname "$0")/lib/ensure-compiler-seed.sh"
 export XLANG="${XLANG:-./compiler/xlang_asm}"
 if [ ! -x "$XLANG" ]; then
-  echo "run-pre-push-p0: missing $XLANG build (make -C compiler bootstrap-driver-bstrict)" >&2
+  echo "run-pre-push-p0: missing $XLANG build (xlang_compiler_make bootstrap-driver-bstrict)" >&2
   exit 1
 fi
 

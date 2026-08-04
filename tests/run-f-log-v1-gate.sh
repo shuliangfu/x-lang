@@ -2,6 +2,8 @@
 # F-log v1：std.log 去 C（log.c → log.x + seeds/runtime_log_os.from_x.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_LOG_V1_FAIL:-0}
 DOC="analysis/phase-f-log-v1.md"
 MANIFEST="tests/baseline/f-log-v1-closure.tsv"
@@ -24,7 +26,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'runtime_log_os' compiler/Makefile || die "Makefile missing runtime_log_os"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/log/log.o >/dev/null 2>&1 || die "make log.o failed"
+  xlang_compiler_make ../std/log/log.o >/dev/null 2>&1 || die "make log.o failed"
 else
   echo "f-log-v1 SKIP log.o build (no xlang-c)" >&2
 fi

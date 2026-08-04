@@ -1579,19 +1579,23 @@ export function labi_net_tls_buf_append(dst: *u8, cap: i32, pos: i32, src: *u8):
 }
 
 /**
- * Build `make -C '<repo>/compiler' <target> >/dev/null 2>&1` into `cmd` (cap 640).
+ * Build net-tls ensure shell command into `cmd` (cap 640).
+ * wave944 0-make:
+ *   bash '<repo>/tests/lib/compiler-make.sh' <target> >/dev/null 2>&1
+ * Historical: `make -C '<repo>/compiler' <target> >/dev/null 2>&1` (Makefile deleted).
  * @param cmd *u8 — destination shell buffer
  * @param cap i32 — capacity (use 640 ≡ mega)
  * @param repo_root *u8 — absolute repo root (already non-empty)
- * @param target *u8 — make target (e.g. net-o-openssl)
+ * @param target *u8 — leaf target (e.g. net-o-openssl)
  * @return i32 — 1 on success, 0 on overflow
+ * PLATFORM: SHARED — G.7 hub = tests/lib/compiler-make.sh
  * Track-L: #[no_mangle] keeps surface short name for prove IDENTICAL.
  */
 #[no_mangle]
 export function labi_net_tls_build_make_cmd(cmd: *u8, cap: i32, repo_root: *u8, target: *u8): i32 {
   let pos: i32 = 0;
-  // Prefix: make -C '
-  pos = labi_net_tls_buf_append(cmd, cap, pos, "make -C '");
+  // wave944: bash '<repo>/tests/lib/compiler-make.sh' <target> >/dev/null 2>&1
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "bash '");
   if (pos < 0) {
     return 0;
   }
@@ -1599,8 +1603,7 @@ export function labi_net_tls_build_make_cmd(cmd: *u8, cap: i32, repo_root: *u8, 
   if (pos < 0) {
     return 0;
   }
-  // '/compiler' <target> >/dev/null 2>&1
-  pos = labi_net_tls_buf_append(cmd, cap, pos, "'/compiler' ");
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "/tests/lib/compiler-make.sh' ");
   if (pos < 0) {
     return 0;
   }
@@ -1824,14 +1827,17 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
 
 /**
  * Build formal-std ensure shell command into `cmd` (cap 768 ≡ mega).
- * Format: XLANG_FORMAL_STD_ENSURE=1 XLANG='{bin}' make -C '{repo}/compiler' '{target}'
+ * Format (wave944 post-delete 0-make):
+ *   XLANG_FORMAL_STD_ENSURE=1 XLANG='{bin}' bash '{repo}/tests/lib/compiler-make.sh' '{target}'
+ * Historical (pre-wave944): `make -C '{repo}/compiler' '{target}'` — Makefile gone (MG).
  * Pure byte join (G.7 reuses labi_net_tls_buf_append).
  * @param cmd *u8 — destination shell buffer
  * @param cap i32 — capacity including trailing NUL (use 768 ≡ mega)
  * @param xlang_bin *u8 — absolute (or fallback) product host path for XLANG=
  * @param repo_root *u8 — absolute repository root
- * @param make_target *u8 — make target relative to compiler/ (e.g. ../std/vec/vec.o)
+ * @param make_target *u8 — leaf target relative to compiler/ (e.g. ../std/vec/vec.o)
  * @return i32 — 1 on success, 0 on overflow/null
+ * PLATFORM: SHARED — shell hub is tests/lib/compiler-make.sh (G.7 single ensure body).
  * Track-L: #[no_mangle] keeps surface short name for prove IDENTICAL.
  */
 #[no_mangle]
@@ -1845,7 +1851,8 @@ export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, xlang_bin: *u
   if (pos < 0) {
     return 0;
   }
-  pos = labi_net_tls_buf_append(cmd, cap, pos, "' make -C '");
+  // wave944: 0-make hub (G.7). Do not reintroduce make -C after MG delete.
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "' bash '");
   if (pos < 0) {
     return 0;
   }
@@ -1853,7 +1860,7 @@ export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, xlang_bin: *u
   if (pos < 0) {
     return 0;
   }
-  pos = labi_net_tls_buf_append(cmd, cap, pos, "/compiler' '");
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "/tests/lib/compiler-make.sh' '");
   if (pos < 0) {
     return 0;
   }
@@ -1870,28 +1877,30 @@ export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, xlang_bin: *u
 
 /**
  * Ensure a formal std|core .o exists under the repo (gitignored after L4 wipe).
- * If `repo_root/rel_from_repo` is missing, run:
- *   XLANG_FORMAL_STD_ENSURE=1 XLANG='{bin}' make -C '{repo}/compiler' '{make_target}'
+ * If `repo_root/rel_from_repo` is missing, run (wave944 0-make):
+ *   XLANG_FORMAL_STD_ENSURE=1 XLANG='{bin}' bash '{repo}/tests/lib/compiler-make.sh' '{make_target}'
+ * Historical pre-wave944 used `make -C '{repo}/compiler' '{make_target}'` (Makefile deleted).
  * Reentrancy: nested ensure while compiling formal .o sees XLANG_FORMAL_STD_ENSURE set
- * and only re-checks existence (no second make / no fork-bomb).
+ * and only re-checks existence (no second ensure / no fork-bomb).
  * Product host binary: getenv("XLANG") if X_OK, else first of
  *   {repo}/compiler/{xlang_asm,xlang,xlang-c} that is X_OK; realpath preferred.
  * @param repo_root *u8 — absolute repository root; null/empty → 0
  * @param rel_from_repo *u8 — path under repo (e.g. std/vec/vec.o); null/empty → 0
- * @param make_target *u8 — make target under compiler/ (e.g. ../std/vec/vec.o); null/empty → 0
+ * @param make_target *u8 — leaf target under compiler/ (e.g. ../std/vec/vec.o); null/empty → 0
  * @return i32 — 1 if object exists after ensure, 0 otherwise
- * Pure orch: path join + XLANG discovery loop + make-cmd join (G.7 labi_net_tls_* helpers).
+ * Pure orch: path join + XLANG discovery loop + ensure-cmd join (G.7 labi_net_tls_* helpers).
  * Cap residual: link_abi_getenv (pure thin → _impl; wave222); link_abi_path_executable
  *   (X_OK pure thin → _impl; wave221); link_abi_realpath_cap;
- *   link_abi_system (make shell pure thin → _impl; wave224);
+ *   link_abi_system (shell ensure pure thin → _impl; wave224);
  *   asm_link_obj_skip_missing (stat existence).
  * Why (wave188): hybrid still had always-mega C body for formal_std_make (getenv+access+
  *   realpath+system make orch). Soft residual sibling of wave187 ensure_std_net.
  * wave221: raw access(X_OK) closed — public pure thin path_executable owns X_OK probe.
  * wave222: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
- * wave224: raw system closed — public pure thin link_abi_system owns shell make.
+ * wave224: raw system closed — public pure thin link_abi_system owns shell ensure.
+ * wave944: cmd authority = tests/lib/compiler-make.sh (0-make; G.7 with tests hub).
  * Note: export signature must stay single-line (multi-line export drops the function).
- * PLATFORM: SHARED orch — system/make is host shell (LINUX/MACOS product hosts).
+ * PLATFORM: SHARED orch — system/bash is host shell (LINUX/MACOS product hosts).
  * Track-L: #[no_mangle] keeps surface short name for invoke_cc / on_demand call sites.
  */
 #[no_mangle]

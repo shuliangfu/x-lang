@@ -59,7 +59,7 @@ export extern function pipeline_elf_log_unresolved_patch(ctx: *ElfCodegenCtx, pa
 
 /* See implementation. */
 export struct ElfLabelEntry {
-  name: u8[64];
+  name: u8[128];
   name_len: i32;
   offset: i32;
 }
@@ -67,7 +67,7 @@ export struct ElfLabelEntry {
 /** See implementation for details. */
 export struct ElfPatchEntry {
   rel32_offset: i32;
-  name: u8[64];
+  name: u8[128];
   name_len: i32;
   /* See implementation. */
   patch_imm_bits: i32;
@@ -84,12 +84,12 @@ export struct ElfRelocEntry {
 }
 
 export struct ElfRelocSymName64 {
-  bytes: u8[64];
+  bytes: u8[128];
 }
 
 /* See implementation. */
 export struct ElfSymEntry {
-  name: u8[64];
+  name: u8[128];
   name_len: i32;
   offset: i32;
   /** ELF st_shndx：1=.text，2=.text.hot（PGO-Lite）。 */
@@ -218,8 +218,11 @@ export function elf_ctx_reset(ctx: *ElfCodegenCtx): void {
   ctx.num_syms = 0;
   ctx.sym_name_len = 0;
   ctx.macho_leading_underscore = 0;
-  pipeline_elf_label_mod_scope_reset();
-  pipeline_elf_ctx_reloc_sidecar_reset(ctx as *u8);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    pipeline_elf_label_mod_scope_reset();
+    pipeline_elf_ctx_reloc_sidecar_reset(ctx as *u8);
+  }
 }
 
 /** Exported function `elf_section_code_len`.
@@ -228,10 +231,13 @@ export function elf_ctx_reset(ctx: *ElfCodegenCtx): void {
  * @return i32
  */
 export function elf_section_code_len(ctx: *ElfCodegenCtx): i32 {
-  if (pipeline_elf_pgo_hot_enabled() != 0 && ctx.emit_hot != 0) {
-    return ctx.code_hot_len;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (pipeline_elf_pgo_hot_enabled() != 0 && ctx.emit_hot != 0) {
+      return ctx.code_hot_len;
+    }
+    return ctx.code_len;
   }
-  return ctx.code_len;
 }
 
 /** Exported function `append_elf_bytes`.
@@ -242,7 +248,10 @@ export function elf_section_code_len(ctx: *ElfCodegenCtx): i32 {
  * @return i32
  */
 export function append_elf_bytes(ctx: *ElfCodegenCtx, ptr: *u8, n: i32): i32 {
-  return pipeline_elf_ctx_append_bytes(ctx as *u8, ptr, n);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return pipeline_elf_ctx_append_bytes(ctx as *u8, ptr, n);
+  }
 }
 
 /** Exported function `elf_pad_code_to_4`.
@@ -268,7 +277,10 @@ export function elf_pad_code_to_4(ctx: *ElfCodegenCtx): i32 {
  * @return i32
  */
 export function elf_add_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
-  return pipeline_elf_ctx_add_label(ctx as *u8, name, name_len, elf_section_code_len(ctx));
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return pipeline_elf_ctx_add_label(ctx as *u8, name, name_len, elf_section_code_len(ctx));
+  }
 }
 
 /** Exported function `elf_ensure_label_slot`.
@@ -279,7 +291,10 @@ export function elf_add_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i3
  * @return i32
  */
 export function elf_ensure_label_slot(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
-  return pipeline_elf_ctx_ensure_label(ctx as *u8, name, name_len);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return pipeline_elf_ctx_ensure_label(ctx as *u8, name, name_len);
+  }
 }
 
 /** Exported function `elf_add_patch`.
@@ -297,7 +312,10 @@ export function elf_add_patch(ctx: *ElfCodegenCtx, rel32_offset: i32, name: *u8,
 /* See implementation. */
 export function elf_add_patch_with_bits(ctx: *ElfCodegenCtx, rel32_offset: i32, name: *u8, name_len: i32,
 imm_bits: i32): i32 {
-  return pipeline_elf_ctx_append_patch(ctx as *u8, rel32_offset, name, name_len, imm_bits);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return pipeline_elf_ctx_append_patch(ctx as *u8, rel32_offset, name, name_len, imm_bits);
+  }
 }
 
 /** Exported function `elf_add_reloc`.
@@ -309,7 +327,10 @@ imm_bits: i32): i32 {
  * @return i32
  */
 export function elf_add_reloc(ctx: *ElfCodegenCtx, offset: i32, name: *u8, name_len: i32): i32 {
-  return pipeline_elf_ctx_append_reloc(ctx as *u8, offset, name, name_len);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return pipeline_elf_ctx_append_reloc(ctx as *u8, offset, name, name_len);
+  }
 }
 
 /**
@@ -333,47 +354,53 @@ export function elf_sym_name_ptr(ctx: *ElfCodegenCtx, sym_idx: i32): *u8 {
 * See implementation.
 */
 export function elf_add_sym(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, offset: i32): i32 {
-  if (ctx.num_syms >= 16384) {
-    return -1;
+
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (ctx.num_syms >= 16384) {
+      return -1;
+    }
+    let copy_len: i32 = name_len;
+    // wave580 Cap residual: link-name pool up to 128 ('_' + 127 AST content); was 64.
+    if (copy_len > 128) {
+      copy_len = 128;
+    }
+    if (copy_len < 0) {
+      copy_len = 0;
+    }
+    if (ctx.sym_name_len + copy_len > 131072) {
+      return -1;
+    }
+    let k: i32 = 0;
+    while (k < copy_len) {
+      ctx.sym_name_data[ctx.sym_name_len] = name[k];
+      ctx.sym_name_len = ctx.sym_name_len + 1;
+      k = k + 1;
+    }
+    ctx.syms[ctx.num_syms].name_len = copy_len;
+    ctx.syms[ctx.num_syms].offset = offset;
+    if (pipeline_elf_pgo_hot_enabled() != 0 && ctx.emit_hot != 0) {
+      ctx.syms[ctx.num_syms].sym_shndx = 2;
+    } else if (pipeline_elf_pgo_hot_enabled() != 0) {
+      ctx.syms[ctx.num_syms].sym_shndx = 3;
+    } else {
+      ctx.syms[ctx.num_syms].sym_shndx = 1;
+    }
+    ctx.num_syms = ctx.num_syms + 1;
+    return 0;
   }
-  let copy_len: i32 = name_len;
-  if (copy_len > 64) {
-    copy_len = 64;
-  }
-  if (copy_len < 0) {
-    copy_len = 0;
-  }
-  if (ctx.sym_name_len + copy_len > 131072) {
-    return -1;
-  }
-  let k: i32 = 0;
-  while (k < copy_len) {
-    ctx.sym_name_data[ctx.sym_name_len] = name[k];
-    ctx.sym_name_len = ctx.sym_name_len + 1;
-    k = k + 1;
-  }
-  ctx.syms[ctx.num_syms].name_len = copy_len;
-  ctx.syms[ctx.num_syms].offset = offset;
-  if (pipeline_elf_pgo_hot_enabled() != 0 && ctx.emit_hot != 0) {
-    ctx.syms[ctx.num_syms].sym_shndx = 2;
-  } else if (pipeline_elf_pgo_hot_enabled() != 0) {
-    ctx.syms[ctx.num_syms].sym_shndx = 3;
-  } else {
-    ctx.syms[ctx.num_syms].sym_shndx = 1;
-  }
-  ctx.num_syms = ctx.num_syms + 1;
-  return 0;
 }
 
 /** Exported function `elf_name_eq`.
  * Implements `elf_name_eq`.
- * @param a u8[64]
+ * @param a u8[128]
  * @param a_len i32
- * @param b u8[64]
+ * @param b u8[128]
  * @param b_len i32
  * @return i32
  */
-export function elf_name_eq(a: u8[64], a_len: i32, b: u8[64], b_len: i32): i32 {
+export function elf_name_eq(a: u8[128], a_len: i32, b: u8[128], b_len: i32): i32 {
   if (a_len != b_len) {
     return 0;
   }
@@ -391,7 +418,7 @@ export function elf_name_eq(a: u8[64], a_len: i32, b: u8[64], b_len: i32): i32 {
 * See implementation.
 * See implementation.
 */
-export function elf_name_eq_arr_to_pool(name: u8[64], name_len: i32, pool: *u8, pool_len: i32): i32 {
+export function elf_name_eq_arr_to_pool(name: u8[128], name_len: i32, pool: *u8, pool_len: i32): i32 {
   if (name_len != pool_len) {
     return 0;
   }
@@ -412,17 +439,22 @@ export function elf_name_eq_arr_to_pool(name: u8[64], name_len: i32, pool: *u8, 
  * @return i32
  */
 export function elf_reloc_target_is_defined(ctx: *ElfCodegenCtx, reloc_idx: i32): i32 {
-  let m: i32 = 0;
-  let r_sym_buf: u8[64] = [];
-  pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, reloc_idx, &r_sym_buf[0]);
-  let rlen: i32 = pipeline_elf_ctx_reloc_name_len(ctx as *u8, reloc_idx);
-  while (m < ctx.num_syms) {
-    if (elf_name_eq_arr_to_pool(r_sym_buf, rlen, elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
-      return 1;
+
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    let m: i32 = 0;
+    let r_sym_buf: u8[128] = [];
+    pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, reloc_idx, &r_sym_buf[0]);
+    let rlen: i32 = pipeline_elf_ctx_reloc_name_len(ctx as *u8, reloc_idx);
+    while (m < ctx.num_syms) {
+      if (elf_name_eq_arr_to_pool(r_sym_buf, rlen, elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
+        return 1;
+      }
+      m = m + 1;
     }
-    m = m + 1;
+    return 0;
   }
-  return 0;
 }
 
 /**
@@ -489,7 +521,10 @@ export function elf_write_u32_le(ctx: *ElfCodegenCtx, off: i32, word: i32): void
  * @return i32
  */
 export function elf_resolve_patches(ctx: *ElfCodegenCtx): i32 {
-  return pipeline_elf_ctx_resolve_patches(ctx as *u8);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return pipeline_elf_ctx_resolve_patches(ctx as *u8);
+  }
 }
 
 /** Exported function `elf_append`.
@@ -519,5 +554,8 @@ export function elf_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
  * @return i32
  */
 export function write_elf_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
-  return pipeline_elf_write_o_standard_to_buf_c(ctx as *u8, out);
+  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  unsafe {
+    return pipeline_elf_write_o_standard_to_buf_c(ctx as *u8, out);
+  }
 }

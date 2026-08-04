@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-fmt-multi-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_FMT_MULTI_DOC:-analysis/std-fmt-multi-v1.md}"
 MANIFEST="${XLANG_STD_FMT_MULTI_TSV:-tests/baseline/std-fmt-multi.tsv}"
@@ -74,7 +76,7 @@ if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
     exit 1
   fi
   SKIP=0
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   # shellcheck source=tests/lib/xlang-link-env.sh
   . "$(dirname "$0")/lib/xlang-link-env.sh"
   # shellcheck source=tests/lib/bootstrap-link-xlang.sh

@@ -1,21 +1,66 @@
 #!/bin/sh
-# cc_inc_tu.sh — 从 .inc 编译单一 TU（G-02e-15：薄 alias 去手写 .c）
+# cc_inc_tu.sh — compile one TU from .inc / seed .c (G-02e-15 thin alias)
 #
-# 用法（compiler/ 目录）：
-#   sh scripts/cc_inc_tu.sh <rel-or-abs.inc> <out.o> [extra cc flags...]
+# Usage (from compiler/):
+#   sh scripts/cc_inc_tu.sh <rel-or-abs.inc|.c> <out.o> [extra cc flags...]
 #
-# 写临时 wrap.c：#include "绝对路径.inc"，cc -c，再删除 wrap。
+# Writes a temporary wrap.c that #includes the absolute source path, runs
+# cc -c, then removes the wrap.
+#
+# wave831 (G.7 有则补全; not physical delete):
+#   Makefile residual leaves use FORCE + this script only (no seed make-graph
+#   prereq). Shell owns freshness:
+#     - skip when OUT exists and is newer than INC and optional peers
+#     - XLANG_CC_INC_TU_PEERS: space-separated extra inputs (.x, twin .c, …)
+#     - XLANG_CC_INC_TU_FORCE=1: always recompile
+# wave887 (G.7 有则补全): when PEERS env is *unset*, apply seed-map defaults
+#   for known from_x ↔ product .x pairs (cfg_eval_bootstrap_stub). Explicit
+#   PEERS= (even empty) still wins — no dual authority with Makefile inject.
+#   PLATFORM: SHARED — cheap mtime skip on every FORCE recipe run.
 set -e
 cd "$(dirname "$0")/.."
 
-if [ "$#" -lt 2 ]; then
-  echo "usage: cc_inc_tu.sh <file.inc> <out.o> [extra cflags...]" >&2
-  exit 2
-fi
+# wave917: seed-map for multi-target recipe (--auto mode).
+# Why: Makefile multi-target $(CC_INC_TU_OBJS) needs single body; seed path
+#      varies per leaf (e.g. lsp_diag_pipeline_sizes → _weak suffix). Map here
+#      to keep G.7 single authority (no Makefile case dispatch).
+# Invariant: only used when first arg == "--auto"; explicit INC path still
+#            authoritative for all other callers (72+ call sites unchanged).
+# PLATFORM: SHARED.
+cc_inc_tu_seed_for_out() {
+  case "$(basename "$1")" in
+    asm_experimental_symbol_bridge.o) printf '%s\n' seeds/asm_experimental_symbol_bridge.from_x.c ;;
+    lsp_diag_pipeline_sizes.o) printf '%s\n' seeds/lsp_diag_pipeline_sizes_weak.from_x.c ;;
+    cfg_eval_bootstrap_stub.o) printf '%s\n' seeds/cfg_eval_bootstrap_stub.from_x.c ;;
+    typeck_lsp_io_stub.o) printf '%s\n' seeds/typeck_lsp_io_stub.from_x.c ;;
+    build_tool_main.o) printf '%s\n' seeds/build_tool_main.from_x.c ;;
+    bootstrap_nostdlib_stubs.o) printf '%s\n' seeds/bootstrap_nostdlib_stubs.from_x.c ;;
+    *) return 1 ;;
+  esac
+}
 
-INC="$1"
-OUT="$2"
-shift 2
+# wave917: --auto mode for Makefile multi-target $(CC_INC_TU_OBJS).
+# Explicit seed path mode (72+ existing call sites) is unchanged.
+if [ "$1" = "--auto" ]; then
+  if [ "$#" -lt 2 ]; then
+    echo "usage: cc_inc_tu.sh --auto <out.o> [extra cflags...]" >&2
+    exit 2
+  fi
+  OUT="$2"
+  INC="$(cc_inc_tu_seed_for_out "$OUT")" || {
+    echo "cc_inc_tu --auto: unknown OUT '$OUT' (not in seed-map)" >&2
+    exit 1
+  }
+  shift 2
+else
+  if [ "$#" -lt 2 ]; then
+    echo "usage: cc_inc_tu.sh <file.inc> <out.o> [extra cflags...]" >&2
+    exit 2
+  fi
+  INC="$1"
+  OUT="$2"
+  shift 2
+fi
 
 case "$INC" in
   /*) INC_ABS="$INC" ;;
@@ -36,6 +81,33 @@ fi
 if [ ! -f "$INC_ABS" ]; then
   echo "cc_inc_tu: missing $INC_ABS" >&2
   exit 1
+fi
+
+# wave887: seed-map peers when XLANG_CC_INC_TU_PEERS is unset (Makefile no longer
+# injects). Basename match keeps abs/rel INC paths working.
+# PLATFORM: SHARED.
+if [ -z "${XLANG_CC_INC_TU_PEERS+set}" ]; then
+  case "$(basename "$INC")" in
+    cfg_eval_bootstrap_stub.from_x.c)
+      XLANG_CC_INC_TU_PEERS='src/lexer/cfg_eval_bootstrap_stub.x'
+      ;;
+  esac
+fi
+
+# wave831: FORCE recipes always enter this script; skip rebuild when fresh.
+# Peers (optional): e.g. matching .x beside a seed.from_x.c.
+# PLATFORM: SHARED.
+if [ -z "${XLANG_CC_INC_TU_FORCE:-}" ] && [ -f "$OUT" ] && [ "$OUT" -nt "$INC_ABS" ]; then
+  _fresh=1
+  for _peer in ${XLANG_CC_INC_TU_PEERS:-}; do
+    if [ -f "$_peer" ] && [ "$_peer" -nt "$OUT" ]; then
+      _fresh=0
+      break
+    fi
+  done
+  if [ "$_fresh" -eq 1 ]; then
+    exit 0
+  fi
 fi
 
 CC="${CC:-cc}"

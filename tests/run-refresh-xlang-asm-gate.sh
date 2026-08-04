@@ -4,6 +4,8 @@
 # 环境：XLANG_FORCE_REFRESH_ASM_GATE=1 强制重编 parser/lexer/typeck/codegen .o（忽略 mtime）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 if [ "$(uname -s)" != "Linux" ] && [ -z "${CI:-}" ]; then
   echo "refresh xlang asm gate SKIP (local non-Linux only; CI always runs single-platform relink)"
@@ -13,13 +15,14 @@ if [ "$(uname -s)" != "Linux" ] && [ -n "${CI:-}" ]; then
   echo "refresh xlang asm gate: CI non-Linux — Mach-O/PE single-platform relink"
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler OPT=1
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make OPT=1
 
 chmod +x tests/run-migrate-x-gen-gate.sh
 XLANG_FORCE_REFRESH_ASM_GATE="${XLANG_FORCE_REFRESH_ASM_GATE:-0}" ./tests/run-migrate-x-gen-gate.sh
 
 # 不覆盖 release xlang；仅 cp xlang -> xlang_asm 供 asm struct mk 门禁对齐
-XLANG_BSTRICT_NO_REPLACE=1 make -C compiler refresh-xlang-asm-gate
+# wave734: G.7 body = scripts/refresh_xlang_asm_gate.sh (xbuild first-class; no make recipe body)
+XLANG_BSTRICT_NO_REPLACE=1 ./xbuild refresh-gate
 
 echo "refresh xlang asm gate: verify xlang import std.async + 0x const ..."
 out_import=$(./compiler/xlang build -L . -E tests/parser/import_std_async.x 2>&1) || {

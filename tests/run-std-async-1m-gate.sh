@@ -5,6 +5,8 @@
 # 用法：./tests/run-std-async-1m-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
@@ -51,8 +53,8 @@ if [ ! -f "$MATRIX" ]; then
   exit 1
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o
 
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
@@ -112,7 +114,7 @@ while IFS=$'\t' read -r case_id script linux pol_mac pol_win want_ec notes; do
     echo "async 1M SKIP $case_id ($notes)"
     continue
   fi
-  src="tests/bench/${script}"
+  src="bench/${script}"
   if [ ! -f "$src" ]; then
     echo "async 1M FAIL $case_id: missing $src" >&2
     FAILS=$((FAILS + 1))

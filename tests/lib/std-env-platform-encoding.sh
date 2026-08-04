@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-env-platform-encoding.sh — STD-132 manifest 与烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_ENV_PLATFORM_ENCODING_PREFIX="${XLANG_STD132_ENV_PLATFORM_ENCODING_PREFIX:-xlang: [XLANG_STD132_ENV_PLATFORM_ENCODING]}"
 
 # 校验 manifest 条目；echo 缺失数。
@@ -75,7 +77,7 @@ std_env_platform_encoding_run_c_smoke() {
       'int main(void) { return env_platform_encoding_smoke_c() != 0; }' > "$src"
   fi
   if [ ! -f "$runtime_env_o" ]; then
-    make -C compiler -q runtime_env_os.o 2>/dev/null || make -C compiler runtime_env_os.o >/dev/null 2>&1 || true
+    xlang_compiler_make -q runtime_env_os.o 2>/dev/null || xlang_compiler_make runtime_env_os.o >/dev/null 2>&1 || true
   fi
   if ! cc -std=c11 -O1 -o "$out" "$src" "$env_o" "$runtime_env_o" 2>/dev/null; then
     echo "std-env-platform-encoding FAIL: link C smoke" >&2

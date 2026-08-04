@@ -5,6 +5,8 @@
 # 跨模块 stack_promote_cross：typeck 始终跑；asm 链默认开启（需可 exec 的 Linux xlang_asm）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/wpo-s3-disasm.sh
 . tests/lib/wpo-s3-disasm.sh
 
@@ -32,7 +34,7 @@ if [ -z "$CHECK_XLANG" ]; then
   elif [ -n "$XLANG_ASM_BIN" ] && [ "$XLANG_ASM_NATIVE" = "1" ]; then
     CHECK_XLANG="$XLANG_ASM_BIN"
   else
-    make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+    xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
     CHECK_XLANG=./compiler/xlang-c
   fi
 fi
@@ -192,7 +194,7 @@ elif [ "$XLANG_ASM_NATIVE" = "1" ]; then
   echo "wpo-s3 await asm OK (struct across await exit 10)"
 
   # struct 跨 await + XLANG_ASYNC_YIELD 双 poll：帧须保留 Pair，resume 后 exit 0
-  make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
+  xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o
   AWAIT_YIELD_OUT="/tmp/xlang_wpo_stack_promote_await_yield"
   XLANG_ASYNC_YIELD=1 "$XLANG_ASM_BIN" -L . tests/wpo/stack_promote_await_yield.x -o "$AWAIT_YIELD_OUT" 2>/tmp/xlang_wpo_s3_await_yield_build.log
   if [ ! -x "$AWAIT_YIELD_OUT" ]; then
