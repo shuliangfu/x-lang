@@ -144,6 +144,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_glue_typeck_mid_fwd.c|8.3|glue typeck mid forward-decl/extern shell after field_access (wave1286)|220|present"
   "compiler/pipeline_glue_emit_fwd.c|8.3|glue early emit inter-include forward-decl/static shell after logand (wave1287)|80|present"
   "compiler/pipeline_glue_emit_block_fwd.c|8.3|glue block-accessor pure-fwd shell after cmp (wave1287)|50|present"
+  "compiler/pipeline_glue_emit_lea_fwd.c|8.3|glue lea/return inter-include forward-decl/define shell after lea_common (wave1288)|70|present"
   "compiler/pipeline_asm_locals.c|8.3.2|asm locals + block slot sidecar (wave1252)|200|present"
   "compiler/pipeline_asm_slot_bytes.c|8.3.2|asm slot bytes + ensure_block_locals (wave1253)|320|present"
   "compiler/pipeline_asm_block_tree.c|8.3.2|asm block tree traversal + frame sizing (wave1254)|210|present"

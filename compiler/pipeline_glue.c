@@ -152,60 +152,15 @@ static int32_t g_pipeline_asm_al_nc_seq;
  * pipeline_elf_ctx_append_reloc_typed extern also moved into the leaf.
  * Forward decls preserved in array_lit/return/call_args/field_access/struct_let leaves. */
 #include "pipeline_asm_emit_lea_common.c"
-
-/**
- * wave413 Cap residual pure: freestanding ARRAY_LIT element cap 256→512.
- * wave415 Cap residual pure: raise durable byte payload + elem face again.
- * Root (wave415): n_arr≤512 and nbytes≤2048 still CG002 for i32[n] n>512
- * (host-C green; durable text-embed / COMMON / escape shared the 2048B hard cap).
- * G.7: single pair of #defines for freestanding ARRAY_LIT / fixed-array face.
- *   MAX_ELEMS=1024 · MAX_PAYLOAD=4096 → u8[1024] / i32[1024] / i64[512].
- * Host deep-copy __xlang_sdN[512] (wave412) stays reentrancy soft, not this face.
- * PLATFORM: SHARED freestanding.
- */
-#define GLUE_ARRAY_LIT_MAX_ELEMS 1024
-#define GLUE_ARRAY_LIT_MAX_PAYLOAD 4096
-
-/* wave647: ARRAY_LIT scalar elem → rax (FLOAT_LIT force_ty for f32 pack). Def later. */
-static int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena *arena,
-                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                            int32_t array_lit_ref, int32_t elem_ref,
-                                                            struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                            int32_t force_esz);
-
-/* wave335 durable ARRAY_LIT → rax; wave1021 body → pipeline_asm_emit_array_lit.c (G.7). */
-static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
-                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                            int32_t expr_ref, int32_t force_esz, int32_t ta,
-                                                            struct backend_AsmFuncCtx *ctx);
-
-/** WPO-S3 async CPS：return 前 reset phase；定义见 glue_async_cps_emit_phase_reset. */
-static int32_t glue_async_cps_emit_phase_reset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
-/* wave1130-1131 G.7: glue_maybe_promote_f32_to_f64_rax_elf_c /
- * glue_float_promote_src_ty_ref_c fwd decls removed — definitions now at
- * pipeline_asm_emit_return.c EOF (#include @ L1913 below provides same-TU
- * visibility to all subsequent callsites incl. assign/block_inits/block_body
- * and glue.c L5553-5554). */
-extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
+/* wave1288 G.7: early emit inter-include forward-decl / define shell
+ * (ARRAY_LIT caps + array_lit / async_cps_phase_reset / return_type_at
+ * prototypes + binop scalar classifiers / var_decl / binop_mul prototypes
+ * hoisted before return) migrated to pipeline_glue_emit_lea_fwd.c (same-TU
+ * #include). Pure decls + #defines; no function bodies. PLATFORM: SHARED. */
+#include "pipeline_glue_emit_lea_fwd.c"
 
 /* BC 8.3.1: asm ELF return emit domain (slice escape + return_impl; same TU). */
 #include "pipeline_asm_emit_return.c"
-
-/* Forward decls: used by EXPR_NEG / assign before f32/f64 classifiers and mul helper. */
-static int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                       int32_t expr_ref);
-static int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                       int32_t expr_ref);
-static int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
-static int32_t glue_type_ref_is_scalar_f64_c(struct ast_ASTArena *arena, int32_t type_ref);
-static int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                           int32_t var_expr_ref);
-static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
-                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                   struct backend_AsmFuncCtx *ctx, int32_t left_ref,
-                                                   int32_t right_ref, int32_t ta);
-/* wave1130-1131 G.7: float promote pair fwd decls removed — definitions now
- * at pipeline_asm_emit_return.c EOF (visible via #include @ L1913 above). */
 
 /* BC 8.3.1: asm ELF unary emit domain (NEG/LOGNOT/BITNOT + sxt/jz; same TU). */
 #include "pipeline_asm_emit_unary.c"
