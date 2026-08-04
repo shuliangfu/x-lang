@@ -313,6 +313,7 @@ export extern function typeck_x_type_size_from_layout_glue(module: *Module, aren
 /* wave1219: SoA layout helpers retained in C (pipeline_typeck_soa.c) because
  * pipeline_typeck_field_soa_index_c also uses them. Made non-static extern so
  * the .x authority typeck_soa_array_storage_size_glue (below) can call them. */
+export extern function typeck_soa_find_layout_idx_by_name(module: *Module, name: *u8, name_len: i32): i32;
 export extern function typeck_soa_col_base_for_field(module: *Module, arena: *ASTArena, li: i32,
   field_idx: i32, array_len: i32, depth: i32): i32;
 /* See implementation. */
@@ -1381,44 +1382,6 @@ export function typeck_x_type_size(module: *Module, arena: *ASTArena, ty_ref: i3
       return 4;
     }
     return 0;
-  }
-}
-
-/**
- * R2 (8.3.3): SoA layout 按名查索引 — migrated from C bypass (pipeline_typeck_soa.c)
- * to .x authority. 按名比对 module 的 struct_layouts，命中返回 idx，未命中 -1。
- * PLATFORM: SHARED — G.7 single authority; .x -> typeck_gen.c -> typeck_x.o.
- */
-export function typeck_soa_find_layout_idx_by_name(module: *Module, name: *u8, name_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    let k: i32 = 0;
-    let j: i32 = 0;
-    let ln: i32 = 0;
-    let eq: i32 = 0;
-    if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0 || name_len > 127) {
-      return -1;
-    }
-    k = 0;
-    while (k < pipeline_module_num_struct_layouts_at(module)) {
-      ln = pipeline_module_struct_layout_name_len(module, k);
-      if (ln == name_len) {
-        j = 0;
-        eq = 1;
-        while (j < name_len) {
-          if (pipeline_module_struct_layout_name_byte_at(module, k, j) != name[j]) {
-            eq = 0;
-            break;
-          }
-          j = j + 1;
-        }
-        if (eq != 0) {
-          return k;
-        }
-      }
-      k = k + 1;
-    }
-    return -1;
   }
 }
 
