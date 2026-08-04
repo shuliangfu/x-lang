@@ -16,7 +16,9 @@
  * 覆盖 bootstrap 链常见未定义符号：string/mem、stdio 最小格式化
  * （NL-07 L2 fflush；NL-07 L6 fileno/isatty/puts/strerror/fread/ferror/stdin/remove/__ctype_b_loc）、
  * getenv、libm（freestanding soft math，禁 __builtin_* 自递归）、fenv 空实现、posix_memalign、POSIX open/read/close/fstat/waitpid、
- * readlink/realpath/getcwd/opendir（NL-07 v5 runtime_link_abi / fmt_check 路径）。
+ * readlink/realpath/getcwd/opendir（NL-07 v5 runtime_link_abi / fmt_check 路径）、
+ * getppid/kill/sigemptyset/sigaction（fmt_check spinner parent-death + Ctrl+C interrupt handlers；
+ *   wave bare-check rebuild: Linux pure-ld nostdlib has no -lc, so these must live here）。
  * L1–L5 companions 后 residual 应仅为本 libc 面；失败时 build_xlang_asm 回退 -lc/-lm。
  *
  * 【依赖】
@@ -46,6 +48,7 @@
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
+#include <signal.h>
 /** bootstrap opendir 用最小 dirent（勿链 libc libdl）。
  * 必须与 glibc <dirent.h> 的 struct dirent 布局一致（d_name 在 offset 19），
  * 否则 xlang_fmt_readdir_name（prelude #include <dirent.h>）的 ent->d_name 偏移错误。
@@ -1660,6 +1663,138 @@ pid_t getpid(void) {
     return (pid_t)bootstrap_syscall3(39L, 0L, 0L, 0L);
 #else
     return 1;
+#endif
+}
+
+/**
+ * getppid for freestanding Linux product pure-ld (no -lc).
+ *
+ * Why: fmt_check_cmd spinner child calls getppid() to exit when the check
+ * parent dies (reparent to init → ppid==1). Linux g05 nostdlib drops -lc.
+ *
+ * Contract: Linux x86_64 SYS_getppid (110); other hosts return 1.
+ * PLATFORM: LINUX freestanding (x86_64); SHARED symbol name.
+ */
+pid_t getppid(void) {
+#if defined(__linux__) && defined(__x86_64__)
+    return (pid_t)bootstrap_syscall3(110L, 0L, 0L, 0L);
+#else
+    return 1;
+#endif
+}
+
+/**
+ * kill for freestanding Linux product pure-ld (no -lc).
+ *
+ * Why: check_interrupt_handler kills the fork spinner child on SIGINT/SIGTERM.
+ * Contract: Linux x86_64 SYS_kill (62); negative kernel errno → -1 + bootstrap_errno.
+ * PLATFORM: LINUX freestanding (x86_64); SHARED symbol name.
+ */
+int kill(pid_t pid, int sig) {
+#if defined(__linux__) && defined(__x86_64__)
+    long ret = bootstrap_syscall3(62L, (long)pid, (long)sig, 0L);
+    if (ret < 0) {
+        bootstrap_errno = (int)(-ret);
+        return -1;
+    }
+    return 0;
+#else
+    (void)pid;
+    (void)sig;
+    return -1;
+#endif
+}
+
+/**
+ * sigemptyset for freestanding pure-ld (userspace only).
+ *
+ * Why: check_install_interrupt_handlers zeros sa_mask before sigaction.
+ * Contract: clear all bits in *set; set==NULL → -1.
+ * PLATFORM: SHARED symbol; no syscall.
+ */
+int sigemptyset(sigset_t *set) {
+    if (!set)
+        return -1;
+    memset(set, 0, sizeof(*set));
+    return 0;
+}
+
+#if defined(__linux__) && defined(__x86_64__)
+/* Kernel ABI for SYS_rt_sigaction (13) — not glibc struct sigaction layout.
+ * PLATFORM: LINUX x86_64 nostdlib only. */
+struct bootstrap_k_sigaction {
+    void (*sa_handler)(int);
+    unsigned long sa_flags;
+    void (*sa_restorer)(void);
+    unsigned long sa_mask;
+};
+
+#ifndef SA_RESTORER
+#define SA_RESTORER 0x04000000
+#endif
+
+/* SA_RESTORER trampoline: SYS_rt_sigreturn (15). Async-signal path only. */
+static void bootstrap_rt_sigreturn(void) {
+    __asm__ volatile(
+        "mov $15, %%rax\n"
+        "syscall\n"
+        :
+        :
+        : "rax", "rcx", "r11", "memory");
+}
+#endif
+
+/**
+ * sigaction for freestanding Linux product pure-ld (no -lc).
+ *
+ * Why: check_install_interrupt_handlers installs SIGINT/SIGTERM handlers so
+ * Ctrl+C stops multi-file check cleanly (and kills spinner child).
+ *
+ * Contract:
+ *  - Translates glibc struct sigaction → kernel k_sigaction + SA_RESTORER.
+ *  - Linux x86_64 SYS_rt_sigaction (13) with sigsetsize=8.
+ *  - Other hosts: -1 (real libc provides when this object is not linked).
+ *
+ * PLATFORM: LINUX freestanding (x86_64); SHARED symbol name.
+ * Authority: G.7 this freestanding face only — do not open a second signal
+ * installer for check; product path uses this + fmt_check_cmd handler.
+ */
+int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact) {
+#if defined(__linux__) && defined(__x86_64__)
+    struct bootstrap_k_sigaction kact;
+    struct bootstrap_k_sigaction kold;
+    long ret;
+    memset(&kact, 0, sizeof(kact));
+    memset(&kold, 0, sizeof(kold));
+    if (act) {
+        kact.sa_handler = act->sa_handler;
+        kact.sa_flags = (unsigned long)act->sa_flags | (unsigned long)SA_RESTORER;
+        kact.sa_restorer = bootstrap_rt_sigreturn;
+        /* Kernel mask width on x86_64 is 8 bytes (first word of glibc sigset_t). */
+        memcpy(&kact.sa_mask, &act->sa_mask, sizeof(kact.sa_mask));
+    }
+    ret = bootstrap_syscall4(
+        13L,
+        (long)signum,
+        act ? (long)(uintptr_t)&kact : 0L,
+        oldact ? (long)(uintptr_t)&kold : 0L,
+        8L);
+    if (ret < 0) {
+        bootstrap_errno = (int)(-ret);
+        return -1;
+    }
+    if (oldact) {
+        memset(oldact, 0, sizeof(*oldact));
+        oldact->sa_handler = kold.sa_handler;
+        oldact->sa_flags = (int)(kold.sa_flags & ~(unsigned long)SA_RESTORER);
+        memcpy(&oldact->sa_mask, &kold.sa_mask, sizeof(kold.sa_mask));
+    }
+    return 0;
+#else
+    (void)signum;
+    (void)act;
+    (void)oldact;
+    return -1;
 #endif
 }
 
