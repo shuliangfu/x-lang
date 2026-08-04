@@ -134,7 +134,7 @@ ensure_gen_via_shell() {
     exit 1
   fi
   MAKE="$MAKE" XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}" \
-    babash scripts/ensure_migrate_gen.sh "$mode"
+    bash scripts/ensure_migrate_gen.sh "$mode"
 }
 
 # Skip ensure when gen already present (make only re-runs recipe when .x is newer).
