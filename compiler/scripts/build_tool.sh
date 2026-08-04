@@ -164,13 +164,21 @@ if [ -x ./xlang ]; then
 else
   cp -f seeds/build_runner_gen.c build_runner_gen.c
 fi
-if [ -x ./xlang ]; then
-  log "build_runtime_x_gen.c ← ../build_runtime_x.x -E (wave1040 Track L retired)"
+if [ -x ./xlang ] && [ -n "${XLANG_BUILD_RUNTIME_X_E:-}" ]; then
+  log "build_runtime_x_gen.c ← ../build_runtime_x.x -E (wave1040 Track L retired; opt-in)"
   if ! ./xlang -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c 2>/dev/null || [ ! -s build_runtime_x_gen.c ]; then
     log "build_runtime_x_gen.c: -E failed; fallback to seed (archaeology)"
     cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c
   fi
 else
+  # wave1040: build_runtime_x_gen.c is retired/pinned to the seed. Always use
+  # the seed by default — build_runtime.x was refactored (build_run_step dropped
+  # for build_run_legacy_steps) but build_runner (also pinned seed) still
+  # references build_run_step, so the -E regen produced an incomplete gen that
+  # broke the build_tool link on L4 cold. The pinned seed (defines build_run_step
+  # + build_run_asm_build + build_copy_xlang_asm) is the retired authority.
+  # Set XLANG_BUILD_RUNTIME_X_E=1 to force the (currently incomplete) -E path.
+  log "build_runtime_x_gen.c ← seed (wave1040 retired/pinned; -E regen drops build_run_step)"
   cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c
 fi
 
