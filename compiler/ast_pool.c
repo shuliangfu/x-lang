@@ -78,7 +78,7 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 /* BC 8.3.2 wave991: onefunc fill residual lives in ast_pool_onefunc.c (include later).
  * BC 8.3.2 wave993+994: name_is_const + hoist + asm hoist_target / sum stack live in
  * ast_pool_top_level.c (include below; after block so static prepend_lets is visible).
- * core residual: backend asm wrappers + fill_* decls / path helpers / module enum … */
+ * core residual: emit-heavy env/thresholds + path helpers / whitelist / module enum … */
 
 /** ---------- Module import / struct_layout / top_level / enum 动态池 ---------- */
 
@@ -94,83 +94,9 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 /** BC 8.3.2: module TypeAliasEntry cold accessors (same-TU thin). */
 #include "ast_pool_type_alias.c"
 
-/** seed partial（build_seed_asm_host）导出的 mega 全量实现；勿与薄包装 backend_asm_codegen_ast 混调（会递归）。 */
-extern int32_t backend_asm_codegen_ast_seed_mega(struct ast_Module *m, struct ast_ASTArena *a,
-                                                 struct codegen_CodegenOutBuf *out,
-                                                 struct ast_PipelineDepCtx *pipeline_ctx);
-extern int32_t backend_asm_codegen_ast_to_elf_seed_mega(struct ast_Module *m, struct ast_ASTArena *a,
-                                                        struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                        struct ast_PipelineDepCtx *pipeline_ctx);
-extern void pipeline_asm_emit_set_elf_ctx(struct platform_elf_ElfCodegenCtx *elf_ctx);
-extern void pipeline_asm_emit_set_dep_pipe(struct ast_PipelineDepCtx *ctx);
-extern void pipeline_asm_emit_set_module(struct ast_Module *m);
-extern void pipeline_asm_emit_set_arena(struct ast_ASTArena *arena);
-
-/**
- * M8-tail：`asm_codegen_ast` 薄包装 C 委托；顶层 let hoist 后调 seed partial mega。
- */
-int32_t pipeline_backend_asm_codegen_ast_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                            struct codegen_CodegenOutBuf *out,
-                                            struct ast_PipelineDepCtx *pipeline_ctx) {
-  if (!m || !a || !out || !pipeline_ctx)
-    return -1;
-  if (m->num_top_level_lets > 0)
-    pipeline_module_hoist_top_level_lets_into_main(m, a);
-  return backend_asm_codegen_ast_seed_mega(m, a, out, pipeline_ctx);
-}
-
-/** skip .x typeck 时 dep/entry 各模块 emit 前补 ARRAY_LIT / SoA 字段类型（定义见 pipeline_glue.c 后部）。 */
-void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, struct ast_ASTArena *arena);
-void pipeline_fill_soa_field_access_for_asm_emit(struct ast_Module *m, struct ast_ASTArena *arena);
-extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena);
-extern void typeck_typeck_merge_dep_struct_layouts_into_entry(struct ast_Module *mod, struct ast_ASTArena *arena,
-                                                              struct ast_PipelineDepCtx *ctx);
-extern void typeck_typeck_wpo_unify_soa_layouts(struct ast_Module *entry, struct ast_PipelineDepCtx *ctx);
-
-/** EMIT_HEAVY parser 模块判定（定义见本文件后部 static 实现）。 */
-static int32_t asm_module_is_parser_emit_heavy(struct ast_Module *m);
-
-/**
- * M8-tail：`asm_codegen_ast_to_elf` 薄包装 C 委托；顶层 let hoist 后调 seed partial mega。
- */
-int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                   struct ast_PipelineDepCtx *pipeline_ctx) {
-  int32_t rc;
-  if (!m || !a || !elf_ctx || !pipeline_ctx)
-    return -1;
-  pipeline_debug_trace_named_func_bodies("backend_pre_hoist_top_level_lets", m, a);
-  if (m->num_top_level_lets > 0)
-    pipeline_module_hoist_top_level_lets_into_main(m, a);
-  pipeline_debug_trace_named_func_bodies("backend_post_hoist_top_level_lets", m, a);
-  /** DOD-S3：skip .x typeck 时仍须 dep SoA layout 并入 entry + 全图升档，再 fill stride。 */
-  pipeline_debug_trace_named_func_bodies("backend_pre_merge_dep_layouts", m, a);
-  typeck_typeck_merge_dep_struct_layouts_into_entry(m, a, pipeline_ctx);
-  pipeline_debug_trace_named_func_bodies("backend_post_merge_dep_layouts", m, a);
-  typeck_typeck_wpo_unify_soa_layouts(m, pipeline_ctx);
-  pipeline_debug_trace_named_func_bodies("backend_post_unify_soa_layouts", m, a);
-  /** dep co-emit 与 entry 均须 SoA stride / 形参类型 / FIELD_ACCESS 偏移，否则跨模块 call 链 SIGSEGV。 */
-  pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
-  pipeline_fill_array_lit_types_for_skipped_typeck(m, a);
-  pipeline_fill_soa_field_access_for_asm_emit(m, a);
-  if (link_abi_getenv("XLANG_ASM_DEBUG"))
-    fprintf(stderr, "xlang: backend_asm_codegen fill done, calling mega_body_c\n");
-  glue_wpo_mono_reset_pending();
-  /** dep+entry 顺序写入同一 elf_ctx：为 tail_join/loop 等局部标签分配唯一 scope。 */
-  pipeline_elf_label_mod_scope_begin_module();
-  /** WPO-S3：import struct FIELD_ACCESS 查 layout 时须可见 dep 池（backend.x mega 亦会设置）。 */
-  pipeline_asm_emit_set_module(m);
-  pipeline_asm_emit_set_arena(a);
-  pipeline_asm_emit_set_elf_ctx(elf_ctx);
-  if (link_abi_getenv("XLANG_ASM_DEBUG") && m && asm_module_is_parser_emit_heavy(m))
-    fprintf(stderr, "xlang: seed_mega parser nfunc=%d elf_ctx=%p code_len=%d\n", (int)m->num_funcs, (void *)elf_ctx,
-            elf_ctx ? (int)elf_ctx->code_len : -1);
-  rc = pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(m, a, elf_ctx, pipeline_ctx);
-  pipeline_asm_emit_set_elf_ctx(NULL);
-  if (rc != 0)
-    return rc;
-  return pipeline_asm_emit_wpo_mono_thunks_elf_c(m, a, elf_ctx, pipeline_ctx);
-}
+/* BC 8.3.2 wave1279: M8-tail backend asm thin wrappers → pipeline_backend_asm_wrapper.c
+ * (after top_level hoist; before module_enum). PLATFORM: SHARED same-TU. */
+#include "pipeline_backend_asm_wrapper.c"
 
 #include "ast_pool_module_enum.c"
 
@@ -206,45 +132,9 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
 
 #include "pipeline_elf_ctx.c"
 
-/** codegen.x：路径/前缀 scratch（避免 `u8[64] = []` 在 asm emit 时 ExprKind=-1）。 */
-static uint8_t g_scratch64[4][128];
-static uint8_t g_scratch128[2][128];
-static uint8_t g_scratch256[2][256];
-
-uint8_t *pipeline_scratch_buf64(void) {
-  return g_scratch64[0];
-}
-
-uint8_t *pipeline_scratch_buf64_slot(int32_t slot) {
-  if (slot < 0 || slot >= 4)
-    return g_scratch64[0];
-  return g_scratch64[slot];
-}
-
-uint8_t *pipeline_scratch_buf128(void) {
-  return g_scratch128[0];
-}
-
-uint8_t *pipeline_scratch_buf128_slot(int32_t slot) {
-  if (slot < 0 || slot >= 2)
-    return g_scratch128[0];
-  return g_scratch128[slot];
-}
-
-uint8_t *pipeline_scratch_buf96(void) {
-  static uint8_t s[96];
-  return s;
-}
-
-uint8_t *pipeline_scratch_buf256(void) {
-  return g_scratch256[0];
-}
-
-uint8_t *pipeline_scratch_buf256_slot(int32_t slot) {
-  if (slot < 0 || slot >= 2)
-    return g_scratch256[0];
-  return g_scratch256[slot];
-}
+/* BC 8.3.2 wave1279: codegen path/prefix scratch buffers → pipeline_scratch_bufs.c
+ * (after elf_ctx; before type_to_c). PLATFORM: SHARED same-TU. */
+#include "pipeline_scratch_bufs.c"
 
 #include "pipeline_codegen_type_to_c.c"
 
