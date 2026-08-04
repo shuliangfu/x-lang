@@ -511,3 +511,164 @@ static int32_t asm_skip_heavy_backend_helper_keep(struct ast_Module *m, int32_t 
 #undef ASMB_KEEP_PREFIX
   return 0;
 }
+
+/* ── EMIT_HEAVY 第二遍 backend/typeck mega + m8-tail skip 入口分类器（补全 skip_heavy 全集；自 ast_pool.c 抽出）── */
+
+/**
+ * M8-tail：backend 薄包装 helper 按名真 emit，须先于 #87+ 索引桩（emit_block_body_elf #179 等）。
+ * 不含 fold_/asm_import_ 等前缀体，避免 Abort 带内误放行大函数。
+ */
+static int32_t asm_skip_heavy_backend_m8_tail_thin_keep(struct ast_Module *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_backend_selfhost(m))
+    return 0;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"fill_param_slots", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"fill_local_slots", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"compute_frame_size", 18))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_block_body_elf", 19))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_block_inits_elf", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_if_then_block_body_elf", 27))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_while_loop_elf", 18))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_for_loop_elf", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_loop_body_content", 22))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_loop_body_content_elf", 26))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_next_label", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"format_label_id", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_elf_call", 18))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_elf_method_call", 25))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"asm_emit_call_args_elf", 22))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_block_inits", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_block_body", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_while_loop", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_for_loop", 13))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_if_then_block_body_text", 28))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr", 9))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_call", 14))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_expr_method_call", 21))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_index_eff_addr_text", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_index_eff_addr_elf", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_lvalue_eff_addr_text", 25))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_lvalue_eff_addr_elf", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"asm_emit_call_args_text", 23))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"local_offset", 12))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"asm_resolve_whole_import_qualified_symbol", 41))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"emit_skip_heavy_stub_elf", 24))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"simd_try_inline_shuffle_call_elf", 32))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"simd_try_inline_select_call_elf", 31))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"simd_try_inline_binop2_call_elf", 31))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"simd_try_inline_fma3_call_elf", 29))
+    return 1;
+  return 0;
+}
+
+/**
+ * typeck EMIT_HEAVY 第二遍：layout/diag 小 helper 真 emit（ExprKind=51 已修；槽位过大仍走 mega/默认桩）。
+ */
+static int32_t asm_skip_heavy_typeck_helper_keep(struct ast_Module *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_typeck_selfhost(m))
+    return 0;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_", 14))
+    return 0;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_type_align", 20) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_type_size", 19))
+    return 0;
+  return 0;
+}
+
+/**
+ * backend 第二遍 EMIT_HEAVY：按符号名桩化 mega codegen/emit 入口（expr 树递归、块体、入口 asm_codegen_ast）。
+ * 小 helper（arch_emit_*、try_fold_*、fill_param_slots 等）仍真 emit，扩 backend.o __text 且避免宿主栈 Abort。
+ */
+static int32_t asm_skip_heavy_backend_mega_entry(struct ast_Module *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_backend_selfhost(m))
+    return 0;
+#define ASMB_MEGA(name, nlen)                                                                                          \
+  do {                                                                                                                 \
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)(name), (nlen)))                                  \
+      return 1;                                                                                                        \
+  } while (0)
+  ASMB_MEGA("asm_codegen_ast", 15);
+  ASMB_MEGA("asm_codegen_ast_to_elf", 22);
+  ASMB_MEGA("asm_codegen_ast_seed_mega", 25);
+  ASMB_MEGA("asm_codegen_ast_to_elf_seed_mega", 32);
+  /** emit_expr / emit_block_* / loop / if-then / fill_* / call / local_offset：thin_keep 真 emit（C/partial 委托）。 */
+  /** extern/C sidecar glue：.x 体含 ExprKind 54 等 asm 未支持形态，须桩化。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"asm_ctx_key", 11))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_ctx_local_", 14))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_ctx_block_", 14))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_ctx_loop_", 13))
+    return 1;
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_ctx_ensure_", 15))
+    return 1;
+  return 0;
+}
+
+/** typeck 第二遍 emit：桩化巨型 typecheck/diag/implicit-return 入口；layout/helper 须真 emit 过 8KiB。 */
+static int32_t asm_skip_heavy_typeck_mega_entry(struct ast_Module *m, int32_t func_index) {
+  if (!m || func_index < 0)
+    return 0;
+  if (/** typeck_skip_heavy_selfhost 等 mega 入口仍桩化。 */
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_skip_heavy_selfhost_func_body", 36))
+    return 1;
+  /**
+   * check_* mega：宿主编译器真 emit 会 SIGSEGV；EMIT_HEAVY 第二遍 ret0 桩。
+   * 子 helper 经 asm_typeck_emit_heavy_safe_helper 分片 X 真 emit。
+   */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_expr_impl_mega", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_expr_impl", 15))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_block_impl", 16))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_stmt_order_one", 33))
+    return 1;
+  /** 遍历全模块函数：槽位高；EMIT_HEAVY 第二遍 ret0 桩（子 helper check_one_func 仍 X）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_impl", 17))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_library", 20))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_check_all_funcs_loop", 33))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_check_one_func", 27))
+    return 1;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast", 12))
+    return 1;
+  /** type_kind_ordinal 在瘦 typeck #0 须真 emit；勿在此 mega 桩。 */
+  return 0;
+}

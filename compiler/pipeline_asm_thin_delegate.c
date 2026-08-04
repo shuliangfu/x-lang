@@ -246,3 +246,75 @@ static const AsmBackendThinDelegateRow k_asm_parser_thin_delegate[] = {
     {"try_skip_allow_padding_struct_buf", 33, "parser_try_skip_allow_padding_struct_buf_glue", 45},
     {"try_skip_allow_padding_struct", 29, "parser_try_skip_allow_padding_struct_glue", 41},
 };
+
+/* ── driver / typeck M8-tail 薄委托表（补全五表域；自 ast_pool.c 抽出）── */
+/* k_asm_driver_thin_delegate + k_asm_typeck_thin_delegate 及其 m8 查找符号。 */
+
+/** M8-tail：driver compile 薄 bl 表已空；run_compiler_full_x* 堆 state + X post_parse 真 emit。 */
+static const AsmBackendThinDelegateRow k_asm_driver_thin_delegate[] = {
+};
+
+/**
+ * 查 driver/compile.x 薄包装 func 的 C 委托符号；成功写 out/out_len 并返回 1。
+ */
+int32_t asm_driver_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
+                                                 int32_t out_cap, int32_t *out_len) {
+  int32_t i;
+  int32_t nrows;
+  if (!m || func_index < 0 || !out || !out_len || out_cap <= 0 || !asm_module_is_driver_compile_selfhost(m))
+    return 0;
+  nrows = (int32_t)(sizeof(k_asm_driver_thin_delegate) / sizeof(k_asm_driver_thin_delegate[0]));
+  for (i = 0; i < nrows; i++) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_driver_thin_delegate[i].x_name,
+                                           k_asm_driver_thin_delegate[i].x_len)) {
+      if (k_asm_driver_thin_delegate[i].c_len >= out_cap)
+        return 0;
+      memcpy(out, k_asm_driver_thin_delegate[i].c_name, (size_t)k_asm_driver_thin_delegate[i].c_len);
+      out[k_asm_driver_thin_delegate[i].c_len] = 0;
+      *out_len = k_asm_driver_thin_delegate[i].c_len;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/** typeck EMIT_HEAVY 薄委托：仅剩须 C 维持的入口（typeck 主体已 X emit）。 */
+static const AsmBackendThinDelegateRow k_asm_typeck_thin_delegate[] = {
+};
+
+/**
+ * typeck EMIT_HEAVY 第二遍：SKIP 桩路径 bl→C 委托或 typeck_x.o 同名实现（首遍 SKIP 仍 ret0）。
+ * 实参已在 ABI 寄存器；Mach-O 由 backend_enc_call_arch 加 leading `_`。
+ */
+int32_t asm_typeck_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
+                                                 int32_t out_cap, int32_t *out_len) {
+  int32_t i;
+  int32_t nrows;
+  int32_t nl;
+
+  if (!m || func_index < 0 || !out || !out_len || out_cap <= 0)
+    return 0;
+  if (!asm_module_is_typeck_selfhost(m) || asm_env_entry_emit_heavy() == 0)
+    return 0;
+  if (pipeline_asm_module_func_is_extern_at(m, func_index) != 0)
+    return 0;
+  nrows = (int32_t)(sizeof(k_asm_typeck_thin_delegate) / sizeof(k_asm_typeck_thin_delegate[0]));
+  for (i = 0; i < nrows; i++) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_typeck_thin_delegate[i].x_name,
+                                           k_asm_typeck_thin_delegate[i].x_len)) {
+      if (k_asm_typeck_thin_delegate[i].c_len >= out_cap)
+        return 0;
+      memcpy(out, k_asm_typeck_thin_delegate[i].c_name, (size_t)k_asm_typeck_thin_delegate[i].c_len);
+      out[k_asm_typeck_thin_delegate[i].c_len] = 0;
+      *out_len = k_asm_typeck_thin_delegate[i].c_len;
+      return 1;
+    }
+  }
+  nl = pipeline_module_func_name_len_at(m, func_index);
+  if (nl <= 0 || nl >= out_cap)
+    return 0;
+  pipeline_asm_module_func_name_copy64(m, func_index, out);
+  out[nl] = 0;
+  *out_len = nl;
+  return 1;
+}
