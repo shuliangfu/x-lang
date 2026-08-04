@@ -4786,40 +4786,6 @@ void asm_empty_text_stub_label(struct ast_Module *m, uint8_t *out, int32_t out_c
   *out_len = pos;
 }
 
-/**
- * 模块是否 ast.x 自举单元（~40–222 func；须桩化首遍 emit，否则 seed xlang 全量真 emit 极慢）。
- * 须先于 typeck ndef 启发式识别（ast ndef≈75–155 会被误判为 typeck.x）。
- */
-static int32_t asm_module_is_ast_selfhost(struct ast_Module *m) {
-  int32_t i;
-  int32_t has_arena_init;
-  int32_t has_placeholder;
-  if (!m || m->num_funcs < 15 || m->num_funcs > 250)
-    return 0;
-  has_arena_init = 0;
-  has_placeholder = 0;
-  for (i = 0; i < m->num_funcs; i++) {
-    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"ast_arena_init", 14))
-      has_arena_init = 1;
-    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"ast_placeholder", 15))
-      has_placeholder = 1;
-  }
-  if (has_arena_init == 0 || has_placeholder == 0)
-    return 0;
-  if (asm_module_is_backend_selfhost(m) || asm_module_is_pipeline_selfhost(m) ||
-      asm_module_is_parser_selfhost(m))
-    return 0;
-  return 1;
-}
-
-/** 模块是否为 compiler .x 自举单元；用户小程序（pool-limits / 普通 -o）不在此列。 */
-static int32_t asm_module_is_compiler_selfhost(struct ast_Module *m) {
-  return asm_module_is_ast_selfhost(m) || asm_module_is_backend_selfhost(m) ||
-         asm_module_is_typeck_selfhost(m) || asm_module_is_pipeline_selfhost(m) ||
-         asm_module_is_parser_selfhost(m) || asm_module_is_parser_emit_heavy(m) ||
-         asm_module_is_driver_compile_selfhost(m) || asm_module_is_main_driver_selfhost(m);
-}
-
 int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTArena *arena, int32_t func_index) {
   int32_t body_ref;
   int32_t slots;
