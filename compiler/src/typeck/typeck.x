@@ -76,7 +76,7 @@ field_ty: i32, base_ty: i32): i32;
 export extern function pipeline_typeck_field_prebind_c(module: *Module, arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): void;
 export extern function pipeline_typeck_field_known_ptr_types_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, num_layouts: i32): i32;
 export extern function pipeline_typeck_field_layout_named_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32;
-/* R2 (8.3.3): field_slice authority is typeck_field_slice below; C surface is thin. */
+/* R2 (8.3.3): field_slice / name_fallback / lexer_fallback authority in typeck.x; C thin. */
 export extern function pipeline_typeck_field_slice_c(arena: *ASTArena, expr_ref: i32, base_ref: i32): void;
 export extern function pipeline_typeck_field_name_fallback_c(arena: *ASTArena, expr_ref: i32, base_ref: i32): void;
 export extern function pipeline_typeck_field_lexer_fallback_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): void;
@@ -2377,6 +2377,203 @@ export function typeck_field_slice(arena: *ASTArena, expr_ref: i32, base_ref: i3
       if (ptr_ref != 0) {
         pipeline_expr_set_resolved_type_ref(arena, expr_ref, ptr_ref);
       }
+    }
+  }
+}
+
+/**
+ * R2 (8.3.3): EXPR_FIELD_ACCESS name fallback when layout / known_ptr / slice miss.
+ *
+ * Migrated from C `pipeline_typeck_field_name_fallback_c`
+ * (pipeline_typeck_field_access.c) to .x authority. Public surface
+ * `pipeline_typeck_field_name_fallback_c` remains a thin C forwarder for
+ * EMIT_HEAVY field_access orchestration.
+ *
+ * Order (no dual authority with layout path — only runs when field type still null):
+ *  1. CodegenOutBuf.data → u8[8388608] (self-host CodegenOutBuf buffer field).
+ *  2. Inline u8[64] field names (name / var_name / …).
+ *  3. Inline i32[16] field names (call_arg_refs / match_arm_* / …).
+ *  4. Scalar field-name heuristic (`expr_field_access_fallback_scalar_type_ref`).
+ *
+ * @param arena *ASTArena — expr/type arena (null → no-op)
+ * @param expr_ref i32 — FIELD_ACCESS expr (must still have null resolved_type)
+ * @param base_ref i32 — field base expr (used only for CodegenOutBuf.data path)
+ * @return void
+ * PLATFORM: SHARED — G.7 single authority; self-host + product field resolve.
+ */
+export function typeck_field_name_fallback(arena: *ASTArena, expr_ref: i32, base_ref: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let fl: i32 = 0;
+    let fn_buf: u8[128] = [];
+    let base_ty: i32 = 0;
+    let bt_kind: i32 = 0;
+    let named_ref: i32 = 0;
+    let cob_nm: u8[128] = [];
+    let cob_len: i32 = 0;
+    let nm_dat: u8[4] = [100, 97, 116, 97];
+    /* "CodegenOutBuf" */
+    let nm_cob: u8[13] = [67, 111, 100, 101, 103, 101, 110, 79, 117, 116, 66, 117, 102];
+    let u8r_cob: i32 = 0;
+    let arr_cob: i32 = 0;
+    let u8_fb: i32 = 0;
+    let arr_fb: i32 = 0;
+    let scalar_fb: i32 = 0;
+    let elem_r: i32 = 0;
+    if (arena == 0 as *ASTArena) {
+      return;
+    }
+    /* Already stamped by layout / slice / known_ptr — do not overwrite. */
+    if (!ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
+      return;
+    }
+    fl = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (fl <= 0 || fl > 127) {
+      return;
+    }
+    pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
+    /* CodegenOutBuf.data → large u8 array (self-host outbuf buffer). */
+    if (fl == 4 && !ast.ref_is_null(base_ref) && base_ref > 0 && base_ref <= arena.num_exprs) {
+      base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+      if (!ast.ref_is_null(base_ty) && base_ty > 0 && base_ty <= arena.num_types) {
+        bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
+        named_ref = 0;
+        /* TYPE_PTR=9: peel to pointee TYPE_NAMED; TYPE_NAMED=8: use base. */
+        if (bt_kind == 9) {
+          elem_r = pipeline_type_elem_ref_at(arena, base_ty);
+          if (!ast.ref_is_null(elem_r) && pipeline_type_kind_ord_at(arena, elem_r) == 8) {
+            named_ref = elem_r;
+          }
+        } else if (bt_kind == 8) {
+          named_ref = base_ty;
+        }
+        if (named_ref != 0 && name_equal(&fn_buf[0], fl, &nm_dat[0], 4)) {
+          cob_len = pipeline_type_named_name_into(arena, named_ref, &cob_nm[0]);
+          if (cob_len == 13 && name_equal(&cob_nm[0], cob_len, &nm_cob[0], 13)) {
+            u8r_cob = ensure_u8_type_ref(arena);
+            if (u8r_cob != 0) {
+              arr_cob = find_or_alloc_array_type_ref(arena, u8r_cob, 8388608);
+              if (arr_cob != 0) {
+                pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_cob);
+                return;
+              }
+            }
+          }
+        }
+      }
+    }
+    if (!ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
+      return;
+    }
+    u8_fb = typeck_inline_u8_64_array_field_type_ref(arena, &fn_buf[0], fl);
+    if (u8_fb != 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, u8_fb);
+      return;
+    }
+    arr_fb = typeck_expr_inline_array_field_type_ref(arena, &fn_buf[0], fl);
+    if (arr_fb != 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_fb);
+      return;
+    }
+    scalar_fb = expr_field_access_fallback_scalar_type_ref(arena, &fn_buf[0], fl);
+    if (scalar_fb != 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, scalar_fb);
+    }
+  }
+}
+
+/**
+ * R2 (8.3.3): EXPR_FIELD_ACCESS lexer-wrapper / param-type field fallback.
+ *
+ * Migrated from C `pipeline_typeck_field_lexer_fallback_c`
+ * (pipeline_typeck_field_access.c) to .x authority. Public surface
+ * `pipeline_typeck_field_lexer_fallback_c` remains a thin C forwarder.
+ *
+ * Uses existing authority `typeck_field_access_lexer_wrapper_fallback` for
+ * Lexer / LexerResult / Parse*Result field names. Additional hop: when base is
+ * EXPR_VAR and still untyped after resolved_type attempts, look up the current
+ * function formal type by name and retry the same wrapper table.
+ *
+ * @param module *Module — current module (param table)
+ * @param arena *ASTArena — expr/type arena
+ * @param expr_ref i32 — FIELD_ACCESS expr (must still have null resolved_type)
+ * @param base_ref i32 — field base expr
+ * @param ctx *PipelineDepCtx — current_func_index for param lookup
+ * @return void
+ * PLATFORM: SHARED — G.7; self-host lexer.x / parser result field resolve.
+ */
+export function typeck_field_lexer_fallback(module: *Module, arena: *ASTArena, expr_ref: i32,
+base_ref: i32, ctx: *PipelineDepCtx): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let base_ty: i32 = 0;
+    let elem_ty: i32 = 0;
+    let fl: i32 = 0;
+    let fn_buf: u8[128] = [];
+    let vbuf: u8[128] = [];
+    let vnlen: i32 = 0;
+    let pr_fb: i32 = 0;
+    let lx_fb: i32 = 0;
+    let fi: i32 = 0;
+    if (arena == 0 as *ASTArena || module == 0 as *Module) {
+      return;
+    }
+    if (!ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
+      return;
+    }
+    if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
+      return;
+    }
+    fl = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (fl <= 0 || fl > 127) {
+      return;
+    }
+    pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
+    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+    if (!ast.ref_is_null(base_ty) && base_ty > 0 && base_ty <= arena.num_types) {
+      lx_fb = typeck_field_access_lexer_wrapper_fallback(arena, base_ty, &fn_buf[0], fl);
+      if (lx_fb != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, lx_fb);
+        return;
+      }
+      /* TYPE_PTR=9: peel and retry on pointee (e.g. *LexerResult). */
+      if (pipeline_type_kind_ord_at(arena, base_ty) == 9) {
+        elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
+        if (!ast.ref_is_null(elem_ty)) {
+          lx_fb = typeck_field_access_lexer_wrapper_fallback(arena, elem_ty, &fn_buf[0], fl);
+          if (lx_fb != 0) {
+            pipeline_expr_set_resolved_type_ref(arena, expr_ref, lx_fb);
+            return;
+          }
+        }
+      }
+    }
+    if (!ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
+      return;
+    }
+    /* EXPR_VAR=3: formal-type hop when base resolved_type still missing. */
+    if (pipeline_expr_kind_ord_at(arena, base_ref) != 3) {
+      return;
+    }
+    vnlen = pipeline_expr_var_name_len(arena, base_ref);
+    if (vnlen <= 0 || vnlen > 127) {
+      return;
+    }
+    if (ctx == 0 as *PipelineDepCtx) {
+      return;
+    }
+    fi = pipeline_dep_ctx_current_func_index(ctx);
+    if (fi < 0 || fi >= module.num_funcs) {
+      return;
+    }
+    pipeline_expr_var_name_into(arena, base_ref, &vbuf[0]);
+    pr_fb = pipeline_module_func_param_type_ref_for_name(module, fi, &vbuf[0], vnlen);
+    if (ast.ref_is_null(pr_fb)) {
+      return;
+    }
+    lx_fb = typeck_field_access_lexer_wrapper_fallback(arena, pr_fb, &fn_buf[0], fl);
+    if (lx_fb != 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, lx_fb);
     }
   }
 }
