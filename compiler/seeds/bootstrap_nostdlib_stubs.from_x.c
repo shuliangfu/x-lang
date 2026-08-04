@@ -1721,12 +1721,13 @@ int sigemptyset(sigset_t *set) {
 
 #if defined(__linux__) && defined(__x86_64__)
 /* Kernel ABI for SYS_rt_sigaction (13) — not glibc struct sigaction layout.
+ * Field names intentionally avoid sa_handler/sa_mask (glibc macros).
  * PLATFORM: LINUX x86_64 nostdlib only. */
 struct bootstrap_k_sigaction {
-    void (*sa_handler)(int);
-    unsigned long sa_flags;
-    void (*sa_restorer)(void);
-    unsigned long sa_mask;
+    void (*handler)(int);
+    unsigned long flags;
+    void (*restorer)(void);
+    unsigned long mask;
 };
 
 #ifndef SA_RESTORER
@@ -1767,11 +1768,11 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
     memset(&kact, 0, sizeof(kact));
     memset(&kold, 0, sizeof(kold));
     if (act) {
-        kact.sa_handler = act->sa_handler;
-        kact.sa_flags = (unsigned long)act->sa_flags | (unsigned long)SA_RESTORER;
-        kact.sa_restorer = bootstrap_rt_sigreturn;
+        kact.handler = act->sa_handler;
+        kact.flags = (unsigned long)act->sa_flags | (unsigned long)SA_RESTORER;
+        kact.restorer = bootstrap_rt_sigreturn;
         /* Kernel mask width on x86_64 is 8 bytes (first word of glibc sigset_t). */
-        memcpy(&kact.sa_mask, &act->sa_mask, sizeof(kact.sa_mask));
+        memcpy(&kact.mask, &act->sa_mask, sizeof(kact.mask));
     }
     ret = bootstrap_syscall4(
         13L,
@@ -1785,9 +1786,9 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
     }
     if (oldact) {
         memset(oldact, 0, sizeof(*oldact));
-        oldact->sa_handler = kold.sa_handler;
-        oldact->sa_flags = (int)(kold.sa_flags & ~(unsigned long)SA_RESTORER);
-        memcpy(&oldact->sa_mask, &kold.sa_mask, sizeof(kold.sa_mask));
+        oldact->sa_handler = kold.handler;
+        oldact->sa_flags = (int)(kold.flags & ~(unsigned long)SA_RESTORER);
+        memcpy(&oldact->sa_mask, &kold.mask, sizeof(kold.mask));
     }
     return 0;
 #else
