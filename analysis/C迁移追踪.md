@@ -908,7 +908,7 @@
 
 | 文件（compiler/） | LOC | 角色 | 状态 |
 |-------------------|-----|------|------|
-| `pipeline_glue.c` | **~1,707** | 产品 mega glue 壳（`#include` + statics；**0 函数体**） | 🟡 **静态叶基本收口**；仍 host-cc 入 `pipeline_x` |
+| `pipeline_glue.c` | **~1,698** | 产品 mega glue 壳（`#include` + statics；**0 函数体**） | 🟡 **静态叶基本收口**；仍 host-cc 入 `pipeline_x` |
 | `pipeline_glue_early_fwd.c` | **~230** | glue 头段 pure fwd/extern 早域（同 TU） | 🟡 **已抽出**；仍 host-cc |
 | `pipeline_glue_mid_fwd.c` | **~125** | glue mid pure fwd/extern（parser_result 后、outbuf 前） | 🟡 **已抽出**；仍 host-cc |
 | `pipeline_glue_backend_fwd.c` | **~605** | glue backend/emit-path pure extern 壳（outbuf 后、lea 前） | 🟡 **已抽出**；仍 host-cc |
