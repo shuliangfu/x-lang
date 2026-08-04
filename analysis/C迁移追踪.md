@@ -34,7 +34,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-04 实测**）：`pipeline_glue.c` **~3.4k**（静态叶基本 fold 完，多为 domain `#include` + 壳 residual）；`ast_pool.c` **~0.18k**（**壳再扫无函数体**；纯 `#include` 编排；域 thin 含 typedefs/ptr_at/wrapper/scratch/**emit-heavy env** 等）。已抽出域叶合计仍大（同 TU 入 `pipeline_x`，**仍 host-cc**）。**bc-inventory 诚实**：present residual product C rows **~102**（lifecycle／GrowVec／WPO／emit-heavy_env／… 全量域叶入账）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + fold 域 ✅ 子项**；**8.3.3 field_access／soa 已抽出仍 host-cc 🟡**；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-04 wave1282 实测**）：`pipeline_glue.c` **~3.3k**（静态叶基本 fold 完；**剩余函数体 2**：`pipeline_asm_ctx_layout` + `pipeline_run_x_pipeline`；余为 domain `#include` + fwd/extern 壳）；`ast_pool.c` **~0.18k**（纯 `#include` 编排）。wave1282 将 glue residual body 折入既有域（region_assign／check_block／emit_context／orch／check_expr；无新 DEPS）。**bc-inventory 诚实**：present residual product C rows **~102**；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + fold 域 ✅ 子项**；**8.3.3 field_access／soa 已抽出仍 host-cc 🟡**；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
