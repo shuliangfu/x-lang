@@ -246,13 +246,13 @@ export function cfg_trim(s: *u8, out_len: *i32): *u8 {
   let start: i32 = 0;
   let end: i32 = 0;
   if (s == 0) {
-    if (out_len != 0) { *out_len = 0; }
+    if (out_len != 0) { unsafe { *out_len = 0; } }
     return s;
   }
   while (s[start] != 0 && cfg_isspace(s[start]) != 0) { start = start + 1; }
   unsafe { end = strlen(s + start) as i32; }
   while (end > 0 && cfg_isspace(s[(start + end - 1)]) != 0) { end = end - 1; }
-  if (out_len != 0) { *out_len = end; }
+  if (out_len != 0) { unsafe { *out_len = end; } }
   return s + start;
 }
 
@@ -1008,8 +1008,9 @@ export function cfg_yaml_indent(line: *u8): i32 {
  * @return void
  */
 export function cfg_yaml_pop_to(stack: *YamlFrame, depth: *i32, target_indent: i32): void {
-  while (*depth > 0 && stack[(*depth - 1)].indent >= target_indent) {
-    depth[0] = depth[0] - 1;
+  // *depth is pointer load/store — must be inside unsafe.
+  while (unsafe { *depth } > 0 && stack[(unsafe { *depth } - 1)].indent >= target_indent) {
+    unsafe { depth[0] = depth[0] - 1; }
   }
 }
 
@@ -1301,7 +1302,11 @@ export function cfg_load_yaml_buf_impl(store: *CfgStore, buf: *u8, len: i32, ove
     if (c == 10 || c == 0) {
       line[line_pos] = 0;
       if (line_pos > 0) {
-        let r: i32 = cfg_yaml_parse_line(store, &line[0], &ctx, override);
+        // Cap-T001: same-frame &ctx + outer *CfgStore trips stack-escape
+        // (callee only borrows both for the call; no stored escape of &ctx).
+        // unsafe opts out of WPO-S3 pairwise outer-struct scan.
+        let r: i32 = 0;
+        unsafe { r = cfg_yaml_parse_line(store, &line[0], &ctx, override); }
         if (r != CFG_OK) { return r; }
       }
       line_pos = 0;

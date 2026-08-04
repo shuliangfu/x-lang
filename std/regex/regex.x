@@ -337,9 +337,7 @@ export function regex_min_search_literal(state: *RegexMinImpl, text: *u8, len: i
     if (hit == 0) { return -1; }
     i = (hit - text) as i32;
     if (i + plen > len) { return -1; }
-    /* See implementation. */
-    unsafe { _uc_4_0 = memcmp(...); }
-    if (_uc_4_0 == 0): unsafe expression is void vs int compare */
+    // Compare candidate hit against the full literal pattern.
     let cmp_rc: i32 = 0;
     unsafe { cmp_rc = memcmp(hit, state.pat, plen); }
     if (cmp_rc == 0) {

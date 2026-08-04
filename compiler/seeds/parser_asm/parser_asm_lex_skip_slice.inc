@@ -54,13 +54,17 @@ void parser_asm_copy_slice_to_name64_at_end_buf_c(uint8_t *source, int32_t sourc
   parser_asm_copy_slice_to_name64_buf_c(source, source_len, end_pos - (size_t)nlen, nlen, out);
 }
 
-/** copy_slice_to_param32（slice 路径，固定 32 字节槽）。 */
+/**
+ * copy_slice_to_param32 (slice path).
+ * wave585 Cap residual: ABI name *param32; payload row 32→128 (content ≤127).
+ * Callers must pass dst of at least 128 bytes. PLATFORM: SHARED
+ */
 void parser_asm_copy_slice_to_param32_slice_c(struct parser_asm_slice_u8 *source, size_t start, int32_t nlen,
                                               uint8_t *out) {
   int32_t i;
   if (!out)
     return;
-  for (i = 0; i < 32; i++) {
+  for (i = 0; i < 128; i++) {
     if (i < nlen && source && source->data && start + (size_t)i < source->length)
       out[i] = source->data[start + (size_t)i];
     else
@@ -68,13 +72,16 @@ void parser_asm_copy_slice_to_param32_slice_c(struct parser_asm_slice_u8 *source
   }
 }
 
-/** copy_slice_to_param32_buf（buf 路径，固定 32 字节槽并 zero-pad）。 */
+/**
+ * copy_slice_to_param32_buf (buf path).
+ * wave585 Cap residual: fill 128-byte row. PLATFORM: SHARED
+ */
 void parser_asm_copy_slice_to_param32_buf_c(uint8_t *source, int32_t source_len, size_t start, int32_t nlen,
                                             uint8_t *out) {
   int32_t i;
   if (!out)
     return;
-  for (i = 0; i < 32; i++) {
+  for (i = 0; i < 128; i++) {
     if (i < nlen && source && start + (size_t)i < (size_t)source_len)
       out[i] = source[start + (size_t)i];
     else

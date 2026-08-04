@@ -60,7 +60,7 @@ int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, in
 int32_t arch_arm64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                  int32_t is_func) {
   uint8_t *cb;
-  uint8_t mn[64];
+  uint8_t mn[128];
   int32_t k;
   if (!elf_ctx || !name || name_len < 0)
     return -1;
@@ -71,10 +71,12 @@ int32_t arch_arm64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
     return -1;
   if (is_func == 0)
     return 0;
-  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+  /* wave580 Cap: mn is u8[128] → '_' + up to 127 content bytes (was 63).
+   * PLATFORM: MACOS|DARWIN arm64 pure-asm export syms. */
+  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 127 && name[0] != 95) {
     mn[0] = 95;
     k = 0;
-    while (k < name_len && k < 63) {
+    while (k < name_len && k < 127) {
       mn[k + 1] = name[k];
       k = k + 1;
     }
@@ -212,7 +214,14 @@ int32_t arch_arm64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx) 
   return arm64_enc_u32_le(elf_ctx, 3596551104u);
 }
 
-/** Strong: MOVZ/MOVK w0 (same encoding as xlang_arm64_mov_imm32_to_w0_c). */
+/**
+ * Strong: MOVZ/MOVK w0 for full 32-bit imm (f32 IEEE bits, large i32).
+ * PLATFORM: MACOS|ARM64 product pure-asm.
+ * wave616 Cap residual: prior MOVK used hw=0 (0x7280… = lsl #0) so high half
+ * of imm landed in bits 0–15 → freestanding f32 lit 42.0 stored 0x4228 not
+ * 0x42280000 → fcvtzs run=0. G.7 match arch/arm64_enc.x enc_mov_imm32_to_w0:
+ * MOVZ w0,#lo; MOVK w0,#hi,lsl#16 (0x72a0… hw=1).
+ */
 int32_t arch_arm64_enc_enc_mov_imm32_to_w0(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
   uint32_t lo;
   uint32_t hi;
@@ -220,14 +229,19 @@ int32_t arch_arm64_enc_enc_mov_imm32_to_w0(struct platform_elf_ElfCodegenCtx *el
     return -1;
   lo = (uint32_t)imm32 & 65535u;
   hi = ((uint32_t)imm32 >> 16) & 65535u;
+  /* MOVZ w0, #lo */
   if (arm64_enc_u32_le(elf_ctx, 0x52800000u | (lo << 5)) != 0)
     return -1;
-  if (hi != 0 && arm64_enc_u32_le(elf_ctx, 0x72800000u | (hi << 5)) != 0)
+  /* MOVK w0, #hi, lsl #16 — hw=1 (0x72a00000), not hw=0 (0x72800000). */
+  if (hi != 0 && arm64_enc_u32_le(elf_ctx, 0x72a00000u | (hi << 5)) != 0)
     return -1;
   return 0;
 }
 
-/** Strong: MOVZ/MOVK w1 (rbx alias on arm64 path). */
+/**
+ * Strong: MOVZ/MOVK w1 (rbx alias on arm64 path).
+ * PLATFORM: MACOS|ARM64 — wave616: same MOVK hw=1 fix as mov_imm32_to_w0.
+ */
 int32_t arch_arm64_enc_enc_mov_imm32_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
   uint32_t lo;
   uint32_t hi;
@@ -238,7 +252,8 @@ int32_t arch_arm64_enc_enc_mov_imm32_to_rbx(struct platform_elf_ElfCodegenCtx *e
   /* MOVZ w1, #lo */
   if (arm64_enc_u32_le(elf_ctx, 0x52800001u | (lo << 5)) != 0)
     return -1;
-  if (hi != 0 && arm64_enc_u32_le(elf_ctx, 0x72800001u | (hi << 5)) != 0)
+  /* MOVK w1, #hi, lsl #16 */
+  if (hi != 0 && arm64_enc_u32_le(elf_ctx, 0x72a00001u | (hi << 5)) != 0)
     return -1;
   return 0;
 }
@@ -504,9 +519,24 @@ int32_t arch_arm64_enc_enc_cltd(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return 0; /* no-op on arm64 (idiv path uses sdiv) */
 }
 
+/**
+ * wave645 Cap residual: arm64 signed remainder w0 = w0 % w1.
+ *
+ * PLATFORM: MACOS|ARM64 product seed authority (linked as backend_arm64_enc_c.o).
+ * G.7 twin of arch/arm64_enc.x enc_mov_edx_to_eax — rem_mod dispatch (ta==1) calls
+ * ONLY this helper (no cltd/idiv first). Prior seed was a no-op → freestanding
+ * `x % n` / `x %= n` left dividend in w0 (host-C green; Ubuntu x86 rem_mod does
+ * cltd+idiv+mov_edx so Linux gold was already green).
+ *
+ * Sequence: sdiv w2,w0,w1 ; msub w0,w2,w1,w0  (rem = dividend - quot*divisor).
+ * Encodings match arm64_enc.x (0x1ac10c02 / 0x1b018040).
+ */
 int32_t arch_arm64_enc_enc_mov_edx_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  (void)elf_ctx;
-  return 0;
+  /* sdiv w2, w0, w1 */
+  if (arm64_enc_u32_le(elf_ctx, 0x1ac10c02u) != 0)
+    return -1;
+  /* msub w0, w2, w1, w0 */
+  return arm64_enc_u32_le(elf_ctx, 0x1b018040u);
 }
 
 int32_t arch_arm64_enc_enc_mov_rbx_to_ecx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
@@ -739,22 +769,51 @@ int32_t arch_arm64_enc_enc_rax_plus_rbx_scale8(struct platform_elf_ElfCodegenCtx
   return arm64_enc_u32_le(elf_ctx, 0x8b010c00u);
 }
 
+/*
+ * wave614 Cap residual pure: INDEX assign EA must land in x1 (rbx twin).
+ *
+ * Root: prior `add x0, x1, x2, lsl #n` left EA in x0. Assign path is
+ *   push rhs → base@x1 + index@x2 → finish_store: pop rhs@x0; str [x1]
+ * so EA@x0 was clobbered by pop and store wrote base[0] (a[i]=32 hit a[0]).
+ * x86 twin lea rbx,[rbx+rcx*scale] and riscv add a1,a1,a2 already leave EA in
+ * the rbx slot; arm64 was the only polarity mismatch.
+ * G.7: product seed + arch/arm64_enc.x same commit; API name is *_to_rbx*.
+ * PLATFORM: MACOS|ARM64 · assign-only consumer (backend_enc_rbx_plus_index_scratch_scaled).
+ */
 int32_t arch_arm64_enc_enc_rbx_plus_x2_scale1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x0, x1, x2, lsl #0 — EA in x0 for subsequent [x0] load */
-  return arm64_enc_u32_le(elf_ctx, 0x8b020020u);
+  /* add x1, x1, x2, lsl #0 — EA in x1 (was add x0,x1,x2 pre-wave614) */
+  return arm64_enc_u32_le(elf_ctx, 0x8b020021u);
 }
 
 int32_t arch_arm64_enc_enc_rbx_plus_x2_scale4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x0, x1, x2, lsl #2 — was 0x8b021820 (lsl #6) pre-wave417 */
-  return arm64_enc_u32_le(elf_ctx, 0x8b020820u);
+  /* add x1, x1, x2, lsl #2 — was 0x8b020820 (Rd=x0) pre-wave614; scale fix wave417 */
+  return arm64_enc_u32_le(elf_ctx, 0x8b020821u);
 }
 
 int32_t arch_arm64_enc_enc_rbx_plus_x2_scale8(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x0, x1, x2, lsl #3 — was 0x8b021c20 (lsl #7) pre-wave417 */
-  return arm64_enc_u32_le(elf_ctx, 0x8b020c20u);
+  /* add x1, x1, x2, lsl #3 — was 0x8b020c20 (Rd=x0) pre-wave614 */
+  return arm64_enc_u32_le(elf_ctx, 0x8b020c21u);
 }
 
-int32_t arch_arm64_enc_enc_store_rax_to_rbx_indirect(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/*
+ * wave614 Cap residual pure: store value@x0 into [x1] with correct width.
+ *
+ * Root: product seed took only elf_ctx and always encoded STR X (str x0,[x1]).
+ * INDEX assign passes elem_sz (i32→4) via dispatch but seed ignored it → 8B store
+ * wiped neighbor slots (m[0][1]=32; m[0][0]=10 → m[0][1] zeroed; host-C OK).
+ * wave391 already fixed the offset twin (store_rax_to_rbx_offset + store_size).
+ *
+ * G.7: same width table as arch/arm64_enc.x enc_store_rax_to_rbx_indirect +
+ * arch_x86_64_enc_enc_store_rax_to_rbx_indirect (1/4/8). Opcodes match arm64_enc.x:
+ *   strb w0,[x1]=0x39000020 · str w0,[x1]=0xb9000020 · str x0,[x1]=0xf9000020
+ * PLATFORM: MACOS|ARM64 product pure-asm (ta==1). Authority twin: arch/arm64_enc.x.
+ */
+int32_t arch_arm64_enc_enc_store_rax_to_rbx_indirect(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                     int32_t elem_sz) {
+  if (elem_sz == 1)
+    return arm64_enc_u32_le(elf_ctx, 0x39000020u); /* strb w0, [x1] */
+  if (elem_sz == 4)
+    return arm64_enc_u32_le(elf_ctx, 0xb9000020u); /* str w0, [x1] */
   return arm64_enc_u32_le(elf_ctx, 0xf9000020u); /* str x0, [x1] */
 }
 

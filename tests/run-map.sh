@@ -3,13 +3,15 @@
 # 权威链接与 run-set/run-heap 一致：collection_link_exe（禁手写残缺 gcc 清单）
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
-make -C compiler -q ../std/map/map.o ../std/heap/heap.o 2>/dev/null \
-  || make -C compiler ../std/map/map.o ../std/heap/heap.o
+xlang_compiler_make -q ../std/map/map.o ../std/heap/heap.o 2>/dev/null \
+  || xlang_compiler_make ../std/map/map.o ../std/heap/heap.o
 # heap.o 传递依赖：page_mmap + process argv（std 模块编译会带入 process_* UNDEF）
-make -C compiler -q ../std/heap/page_mmap.o 2>/dev/null \
-  || make -C compiler ../std/heap/page_mmap.o
+xlang_compiler_make -q ../std/heap/page_mmap.o 2>/dev/null \
+  || xlang_compiler_make ../std/heap/page_mmap.o
 ensure_runtime_panic_o
 ensure_runtime_process_argv_o
 # shellcheck source=lib/bootstrap-link-xlang.sh

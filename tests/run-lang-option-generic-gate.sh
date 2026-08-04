@@ -4,6 +4,8 @@
 # 用法：./tests/run-lang-option-generic-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_LANG009_DOC:-analysis/lang-option-generic-v1.md}"
 MANIFEST="${XLANG_LANG009_TSV:-tests/baseline/lang-option-generic.tsv}"
@@ -69,7 +71,7 @@ fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== LANG-009: typeck + smoke ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   TC_OK=0
   for x in "$SMOKE1" "$SMOKE2"; do
     if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then

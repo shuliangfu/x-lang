@@ -9,6 +9,11 @@
 #   1) 当前 ./bootstrap_xlangc 若可执行
 #   2) ./seeds/bootstrap_xlangc.<os>.<arch>（如 linux.x86_64 / darwin.arm64）
 #   3) 可执行的 ./xlang 或 ./xlang_asm（并复制为 bootstrap_xlangc）
+#
+# wave838: Makefile bootstrap_xlangc is FORCE + this script only (G.7 有则补全).
+# Make always re-enters; body cheap-skips via can_run. create.sh is NOT a make
+# prereq — select invokes bootstrap_xlangc_create.sh only when needed.
+# PLATFORM: SHARED — host seed pick; NOT physical delete of compiler/Makefile.
 
 set -e
 cd "$(dirname "$0")/.."

@@ -2,6 +2,8 @@
 # F-http v1：std.http 去 C（http.c → http.x + http_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_HTTP_V1_FAIL:-0}
 DOC="analysis/phase-f-http-v1.md"
 MANIFEST="tests/baseline/f-http-v1-closure.tsv"
@@ -14,7 +16,7 @@ grep -q 'F-http v1' "$DOC" || die "doc marker"
 [ ! -f std/http/http_glue.c ] || die "http_glue.c should be deleted (F-ZC)"
 [ ! -f std/http/http.c ] || die "http.c should be deleted"
 grep -q 'runtime_http_glue' compiler/Makefile || die "Makefile missing runtime_http_glue"
-make -C compiler -q runtime_http_glue.o 2>/dev/null || make -C compiler runtime_http_glue.o >/dev/null 2>&1 || die "runtime_http_glue.o build failed"
+xlang_compiler_make -q runtime_http_glue.o 2>/dev/null || xlang_compiler_make runtime_http_glue.o >/dev/null 2>&1 || die "runtime_http_glue.o build failed"
 while IFS=$'\t' read -r item_id kind anchor _n; do
   [ -z "${item_id:-}" ] && continue
   case "$item_id" in \#*) continue ;; esac
@@ -25,7 +27,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'http.x' compiler/Makefile || die "Makefile missing http.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/http/http.o >/dev/null 2>&1 || die "make http.o failed"
+  xlang_compiler_make ../std/http/http.o >/dev/null 2>&1 || die "make http.o failed"
 else
   echo "f-http-v1 SKIP http.o build (no xlang-c)" >&2
 fi

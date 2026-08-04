@@ -4,6 +4,8 @@
 # 用法：./tests/run-doc-phase2-close-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_DOC08_DOC:-analysis/doc-phase2-close-v1.md}"
 MANIFEST="${XLANG_DOC08_TSV:-tests/baseline/doc-phase2-close.tsv}"
@@ -68,7 +70,7 @@ fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== DOC-008: cookbook HTTP-02 typeck ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$COOKBOOK" >/dev/null 2>&1; then
     echo "doc-phase2-close gate FAIL: typeck $COOKBOOK" >&2
     "$XLANG_BIN" check -L . "$COOKBOOK" 2>&1 | tail -8 >&2 || true

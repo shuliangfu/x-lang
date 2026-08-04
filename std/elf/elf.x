@@ -275,7 +275,8 @@ export function elf64_read_phdr_c(ptr: *u8, len: i32, phoff: u64, phnum: i32, id
   out.vaddr = 0;
   out.filesz = 0;
   out.memsz = 0;
-  phb = ptr + off;
+  /* Pointer offset must be integer offset type (usize), not u64. */
+  phb = ptr + (off as usize);
   out.p_type = elf64_u32le(phb + 0) as i32;
   out.p_flags = elf64_u32le(phb + 4) as i32;
   out.offset = elf64_u64le(phb + 8);
@@ -299,7 +300,7 @@ export function elf64_read_shdr_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, id
   out.addr = 0;
   out.offset = 0;
   out.size = 0;
-  sh = ptr + off;
+  sh = ptr + (off as usize);
   out.name_off = elf64_u32le(sh + 0) as i32;
   out.sh_type = elf64_u32le(sh + 4) as i32;
   out.addr = elf64_u64le(sh + 16);
@@ -395,7 +396,7 @@ export function elf64_read_sym_c(ptr: *u8, len: i32, sym_off: u64, sym_size: u64
   out.shndx = 0;
   out.value = 0;
   out.size = 0;
-  sb = ptr + off;
+  sb = ptr + (off as usize);
   out.name_off = elf64_u32le(sb + 0) as i32;
   st_info = sb[4];
   out.bind = (st_info >> 4) as i32;
@@ -420,7 +421,7 @@ export function elf64_read_rela_c(ptr: *u8, len: i32, rela_off: u64, rela_size: 
   out.sym_idx = 0;
   out.reloc_type = 0;
   out.addend = 0;
-  rb = ptr + off;
+  rb = ptr + (off as usize);
   out.offset = elf64_u64le(rb + 0);
   r_info = elf64_u64le(rb + 8);
   out.sym_idx = (r_info >> 32) as i32;

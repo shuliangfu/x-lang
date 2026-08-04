@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-sqlite-stmt-cache-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD070_DOC:-analysis/std-sqlite-stmt-cache-v1.md}"
 MANIFEST="${XLANG_STD070_TSV:-tests/baseline/std-sqlite-stmt-cache.tsv}"
@@ -92,7 +94,7 @@ if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
 if [ -n "$XLANG_BIN" ] && [ "$SKIP" -eq 0 ]; then
   echo "=== STD-070: .x smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-sqlite-stmt-cache gate SKIP .x smoke (typeck fail)" >&2
   elif std_sqlite_run_smoke "$XLANG_BIN" "$SMOKE_X" "stmt_bind"; then

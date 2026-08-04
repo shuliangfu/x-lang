@@ -27,13 +27,13 @@ typedef struct {
   int32_t loop_break_len_stack[8];
   uint8_t loop_continue_label_stack[512];
   int32_t loop_continue_len_stack[8];
-  uint8_t break_label[64];
+  uint8_t break_label[128];
   int32_t break_len;
-  uint8_t continue_label[64];
+  uint8_t continue_label[128];
   int32_t continue_len;
   int32_t loop_label_depth;
   void *dep_pipe;
-  uint8_t tail_join_label[64];
+  uint8_t tail_join_label[128];
   int32_t tail_join_label_len;
 } pipeline_glue_AsmFuncCtxLayout;
 
@@ -109,7 +109,7 @@ int32_t backend_asm_codegen_ast_seed_mega(struct ast_Module *module, struct ast_
                                           struct codegen_CodegenOutBuf *out,
                                           struct ast_PipelineDepCtx *pipeline_ctx) {
   pipeline_glue_AsmFuncCtxLayout ctx;
-  uint8_t fname_buf[64];
+  uint8_t fname_buf[128];
   int32_t ta;
   int32_t i;
 

@@ -2,7 +2,9 @@
 # MEM-AUTO-005：Allocator 域逃逸 — scope_alloc 块外须 typeck 拒错。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 XLANG="${XLANG:-./compiler/xlang-c}"
 SRC="tests/typeck/allocator_escape.x"
 if "$XLANG" build "$SRC" -o /tmp/xlang_alloc_escape_bad 2>/tmp/xlang_alloc_escape.log; then

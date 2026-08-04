@@ -8,6 +8,8 @@
 # 用法：./tests/run-boot-015-semantic-smoke-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_BOOT015_DOC:-analysis/boot-015-semantic-smoke-v1.md}"
 MANIFEST="${XLANG_BOOT015_TSV:-tests/baseline/boot-015-semantic-smoke.tsv}"
@@ -121,7 +123,7 @@ LINK_OK=0
 SKIP=1
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== BOOT-015: bootstrap subset runner (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   chmod +x "$RUNNER"
   if XLANG="$XLANG_BIN" BOOT015_SKIP_LINK="${BOOT015_SKIP_LINK:-}" "$RUNNER" >/tmp/boot015_subset.log 2>&1; then
     grep -q 'bootstrap-semantic-smoke vec/map/heap OK' /tmp/boot015_subset.log

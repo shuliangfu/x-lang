@@ -57,11 +57,14 @@ extern function arrow_column_f32_dot_c(handle_a: i64, handle_b: i64, n: i32): f3
  * See implementation.
  */
 export function arrow_alloc_aligned(size: usize): *u8 {
-  let out: *u8 = 0 as *u8;
-  unsafe { if (posix_memalign(&out, ARROW_ALIGN, size) != 0) {
-    return 0 as *u8;
-  } }
-  return out;
+  /* posix_memalign wants **void; keep a void* slot then cast to *u8. */
+  let slot: *void = 0 as *void;
+  unsafe {
+    if (posix_memalign(&slot, ARROW_ALIGN, size) != 0) {
+      return 0 as *u8;
+    }
+  }
+  return slot as *u8;
 }
 
 /**
@@ -557,12 +560,13 @@ export function arrow_simd_smoke_inner(): i32 {
       || arrow_column_i32_append_null_c(ci, 20, 1) != 0) {
     return -2;
   }
-  if (arrow_column_f32_append_c(cf, 1.0) != 0 || arrow_column_f32_append_c(cf, 2.0) != 0
-      || arrow_column_f32_append_c(cf, 3.0) != 0 || arrow_column_f32_append_c(cf, 4.0) != 0) {
+  /* Float lits default to f64; append API takes f32. */
+  if (arrow_column_f32_append_c(cf, 1.0 as f32) != 0 || arrow_column_f32_append_c(cf, 2.0 as f32) != 0
+      || arrow_column_f32_append_c(cf, 3.0 as f32) != 0 || arrow_column_f32_append_c(cf, 4.0 as f32) != 0) {
     return -3;
   }
-  if (arrow_column_f32_append_c(cf2, 0.5) != 0 || arrow_column_f32_append_c(cf2, 0.5) != 0
-      || arrow_column_f32_append_c(cf2, 0.5) != 0 || arrow_column_f32_append_c(cf2, 0.5) != 0) {
+  if (arrow_column_f32_append_c(cf2, 0.5 as f32) != 0 || arrow_column_f32_append_c(cf2, 0.5 as f32) != 0
+      || arrow_column_f32_append_c(cf2, 0.5 as f32) != 0 || arrow_column_f32_append_c(cf2, 0.5 as f32) != 0) {
     return -4;
   }
   unsafe { sum_i = arrow_column_i32_sum_valid_c(ci, 3); }
@@ -572,16 +576,16 @@ export function arrow_simd_smoke_inner(): i32 {
   arrow_column_destroy_c(ci);
   arrow_column_destroy_c(cf);
   arrow_column_destroy_c(cf2);
-  if (sv < 9.99 || sv > 10.01) {
+  if (sv < (9.99 as f32) || sv > (10.01 as f32)) {
     return -8;
   }
   if (sum_i != 30) {
     return -5;
   }
-  if (sum_f < 9.99 || sum_f > 10.01) {
+  if (sum_f < (9.99 as f32) || sum_f > (10.01 as f32)) {
     return -6;
   }
-  if (dot < 4.99 || dot > 5.01) {
+  if (dot < (4.99 as f32) || dot > (5.01 as f32)) {
     return -7;
   }
   return 0;
@@ -608,7 +612,7 @@ export function arrow_smoke_c(): i32 {
   if (ci == 0 || cf == 0 || cf64 == 0) {
     return -1;
   }
-  if (arrow_column_i32_append_null_c(ci, 42, 1) != 0 || arrow_column_f32_append_c(cf, 3.14) != 0
+  if (arrow_column_i32_append_null_c(ci, 42, 1) != 0 || arrow_column_f32_append_c(cf, 3.14 as f32) != 0
       || arrow_column_f64_append_c(cf64, 2.718) != 0) {
     return -2;
   }

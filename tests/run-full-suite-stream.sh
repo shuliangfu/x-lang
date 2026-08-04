@@ -14,6 +14,8 @@
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 PROGRESS="./tests/lib/progress-run.sh"
 LOG_DIR="${XLANG_FULL_SUITE_LOG_DIR:-/tmp/xlang-full-suite-$$}"
@@ -49,8 +51,8 @@ run_tier() {
 require_linux_x86
 
 if [ ! -x compiler/xlang ] && [ ! -f compiler/xlang ]; then
-  progress_suite "seed xlang missing; building make -C compiler OPT=1 all ..."
-  make -C compiler OPT=1 all
+  progress_suite "seed xlang missing; building xlang_compiler_make OPT=1 all ..."
+  xlang_compiler_make OPT=1 all
 fi
 
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
@@ -61,7 +63,7 @@ progress_suite "START log_dir=$LOG_DIR host=$(ci_host_summary)"
 
 # Tier 1：B-strict 日常发布链
 run_tier "T1 bootstrap-driver-bstrict" "$LOG_DIR/t1-bstrict.log" \
-  make -C compiler bootstrap-driver-bstrict
+  xlang_compiler_make bootstrap-driver-bstrict
 
 # Tier 2：Stage2 SHA256 金标准（须 Tier 1 产物）
 run_tier "T2 d03 stage2 hash" "$LOG_DIR/t2-d03.log" \

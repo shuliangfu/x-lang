@@ -44,16 +44,19 @@ export extern function pipeline_driver_x_pipeline_skip_typeck(): i32;
  * See implementation.
  */
 export function pipeline_should_skip_x_typeck(ctx: *PipelineDepCtx): i32 {
-  if (pipeline_driver_x_pipeline_skip_typeck() != 0) {
-    return 1;
-  }
-  if (pipeline_dep_ctx_asm_entry_module_only(ctx) == 0) {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (pipeline_driver_x_pipeline_skip_typeck() != 0) {
+      return 1;
+    }
+    if (pipeline_dep_ctx_asm_entry_module_only(ctx) == 0) {
+      return 0;
+    }
+    if (pipeline_driver_asm_build_skip_typeck() != 0) {
+      return 1;
+    }
     return 0;
   }
-  if (pipeline_driver_asm_build_skip_typeck() != 0) {
-    return 1;
-  }
-  return 0;
 }
 
 /* See implementation. */
@@ -165,7 +168,11 @@ export extern function pipeline_parse_into_buf_c(arena: *ASTArena, module: *Modu
  * @return i32
  */
 export function pipeline_parse_into_buf(arena: *ASTArena, module: *Module, buf: *u8, buf_len: i32): i32 {
-  return pipeline_parse_into_buf_c(arena, module, buf, buf_len);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_parse_into_buf_c(arena, module, buf, buf_len);
+  }
 }
 
 /* See implementation. */
@@ -182,7 +189,11 @@ export extern function pipeline_path_append_import_path_c(ctx: *PipelineDepCtx, 
  * @return i32
  */
 export function path_append_from_buf_256(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32 {
-  return pipeline_path_append_from_buf_256_c(ctx, off, buf, len);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_path_append_from_buf_256_c(ctx, off, buf, len);
+  }
 }
 
 /** Exported function `path_append_from_buf_512`.
@@ -194,7 +205,11 @@ export function path_append_from_buf_256(ctx: *PipelineDepCtx, off: i32, buf: *u
  * @return i32
  */
 export function path_append_from_buf_512(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32 {
-  return pipeline_path_append_from_buf_512_c(ctx, off, buf, len);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_path_append_from_buf_512_c(ctx, off, buf, len);
+  }
 }
 
 /** Exported function `path_append_import_path`.
@@ -206,7 +221,11 @@ export function path_append_from_buf_512(ctx: *PipelineDepCtx, off: i32, buf: *u
  * @return i32
  */
 export function path_append_import_path(ctx: *PipelineDepCtx, off: i32, import_path: *u8, path_len: i32): i32 {
-  return pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
+  }
 }
 
 /** Exported function `resolve_path_import_has_dot`.
@@ -216,17 +235,21 @@ export function path_append_import_path(ctx: *PipelineDepCtx, off: i32, import_p
  * @return i32
  */
 export function resolve_path_import_has_dot(import_path: *u8, path_len: i32): i32 {
-  if (import_path == 0 as *u8 || path_len <= 0) {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (import_path == 0 as *u8 || path_len <= 0) {
+      return 0;
+    }
+    let k: i32 = 0;
+    while (k < path_len && k < 64) {
+      if (import_path[k] == 46 as u8) {
+        return 1;
+      }
+      k = k + 1;
+    }
     return 0;
   }
-  let k: i32 = 0;
-  while (k < path_len && k < 64) {
-    if (import_path[k] == 46 as u8) {
-      return 1;
-    }
-    k = k + 1;
-  }
-  return 0;
 }
 
 /**
@@ -241,23 +264,31 @@ export extern function pipeline_resolve_path_probe_export_c(ctx: *PipelineDepCtx
  * @return i32
  */
 export function resolve_path_probe_dot_x_and_mod(ctx: *PipelineDepCtx, off: i32): i32 {
-  return pipeline_resolve_path_probe_export_c(ctx, off);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_resolve_path_probe_export_c(ctx, off);
+  }
 }
 
 /**
  * See implementation.
  */
 export function resolve_path_try_flat_import_under_lib(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
-  if (ctx == 0 as *PipelineDepCtx || lib_idx < 0) {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (ctx == 0 as *PipelineDepCtx || lib_idx < 0) {
+      return -1;
+    }
+    if (pipeline_flat_import_build_path_c(ctx, lib_idx, import_path, path_len) != 0) {
+      return -1;
+    }
+    if (pipeline_flat_import_probe_open_c(ctx) == 0) {
+      return 0;
+    }
     return -1;
   }
-  if (pipeline_flat_import_build_path_c(ctx, lib_idx, import_path, path_len) != 0) {
-    return -1;
-  }
-  if (pipeline_flat_import_probe_open_c(ctx) == 0) {
-    return 0;
-  }
-  return -1;
 }
 
 /** Exported function `resolve_path_try_one_lib_root`.
@@ -269,24 +300,28 @@ export function resolve_path_try_flat_import_under_lib(ctx: *PipelineDepCtx, lib
  * @return i32
  */
 export function resolve_path_try_one_lib_root(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
-  if (ctx == 0 as *PipelineDepCtx || lib_idx < 0) {
-    return -1;
-  }
-  if (pipeline_resolve_path_lib_root_prefix_off_c(ctx, lib_idx) < 0) {
-    return -1;
-  }
-  if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
-    return -1;
-  }
-  if (resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c()) == 0) {
-    return 0;
-  }
-  if (path_len > 0 && path_len < 64 && resolve_path_import_has_dot(import_path, path_len) == 0) {
-    if (resolve_path_try_flat_import_under_lib(ctx, lib_idx, import_path, path_len) == 0) {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (ctx == 0 as *PipelineDepCtx || lib_idx < 0) {
+      return -1;
+    }
+    if (pipeline_resolve_path_lib_root_prefix_off_c(ctx, lib_idx) < 0) {
+      return -1;
+    }
+    if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
+      return -1;
+    }
+    if (resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c()) == 0) {
       return 0;
     }
+    if (path_len > 0 && path_len < 64 && resolve_path_import_has_dot(import_path, path_len) == 0) {
+      if (resolve_path_try_flat_import_under_lib(ctx, lib_idx, import_path, path_len) == 0) {
+        return 0;
+      }
+    }
+    return -1;
   }
-  return -1;
 }
 
 /** Exported function `resolve_path_try_entry_dir`.
@@ -297,19 +332,23 @@ export function resolve_path_try_one_lib_root(ctx: *PipelineDepCtx, lib_idx: i32
  * @return i32
  */
 export function resolve_path_try_entry_dir(ctx: *PipelineDepCtx, import_path: *u8, path_len: i32): i32 {
-  if (ctx == 0 as *PipelineDepCtx) {
-    return -1;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (ctx == 0 as *PipelineDepCtx) {
+      return -1;
+    }
+    if (pipeline_dep_ctx_entry_dir_len(ctx) <= 0 || resolve_path_import_has_dot(import_path, path_len) != 0) {
+      return -1;
+    }
+    if (pipeline_resolve_path_entry_dir_prefix_off_c(ctx) < 0) {
+      return -1;
+    }
+    if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
+      return -1;
+    }
+    return resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c());
   }
-  if (pipeline_dep_ctx_entry_dir_len(ctx) <= 0 || resolve_path_import_has_dot(import_path, path_len) != 0) {
-    return -1;
-  }
-  if (pipeline_resolve_path_entry_dir_prefix_off_c(ctx) < 0) {
-    return -1;
-  }
-  if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
-    return -1;
-  }
-  return resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c());
 }
 
 /** Exported function `resolve_path_x`.
@@ -320,23 +359,27 @@ export function resolve_path_try_entry_dir(ctx: *PipelineDepCtx, import_path: *u
  * @return i32
  */
 export function resolve_path_x(ctx: *PipelineDepCtx, import_path: *u8, path_len: i32): i32 {
-  if (ctx == 0 as *PipelineDepCtx || path_len <= 0) {
-    return -1;
-  }
-  let lib_i: i32 = 0;
-  while (1 == 1) {
-    if (pipeline_loop_should_continue_lib_root_c(ctx, lib_i) == 0) {
-      break;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (ctx == 0 as *PipelineDepCtx || path_len <= 0) {
+      return -1;
     }
-    if (resolve_path_try_one_lib_root(ctx, lib_i, import_path, path_len) == 0) {
+    let lib_i: i32 = 0;
+    while (1 == 1) {
+      if (pipeline_loop_should_continue_lib_root_c(ctx, lib_i) == 0) {
+        break;
+      }
+      if (resolve_path_try_one_lib_root(ctx, lib_i, import_path, path_len) == 0) {
+        return 0;
+      }
+      lib_i = lib_i + 1;
+    }
+    if (resolve_path_try_entry_dir(ctx, import_path, path_len) == 0) {
       return 0;
     }
-    lib_i = lib_i + 1;
+    return -1;
   }
-  if (resolve_path_try_entry_dir(ctx, import_path, path_len) == 0) {
-    return 0;
-  }
-  return -1;
 }
 
 /** Exported function `pipeline_loaded_buf_cap`.
@@ -387,21 +430,33 @@ export extern function pipeline_read_file_x_impl_c(ctx: *PipelineDepCtx): i32;
  * @return i32
  */
 export function read_file_x(ctx: *PipelineDepCtx): i32 {
-  return pipeline_read_file_x_impl_c(ctx);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_read_file_x_impl_c(ctx);
+  }
 }
 
 /**
  * See implementation.
  */
 export function parse_into_with_init_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
-  return pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
+  }
 }
 
 /**
  * See implementation.
  */
 export function pipeline_parse_apply_main_from_scalars(module: *Module, arena: *ASTArena): i32 {
-  return pipeline_parse_apply_main_from_scalars_c(module, arena);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_parse_apply_main_from_scalars_c(module, arena);
+  }
 }
 
 /**
@@ -411,24 +466,36 @@ export function pipeline_parse_apply_main_from_scalars(module: *Module, arena: *
  * See implementation.
  */
 export function pipeline_parse_set_main_from_buf(module: *Module, arena: *ASTArena, data: *u8, len: i32): i32 {
-  return pipeline_parse_set_main_from_buf_c(module, arena, data, len);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_parse_set_main_from_buf_c(module, arena, data, len);
+  }
 }
 
 /**
  * See implementation.
  */
 export function pipeline_typeck_parsed_module(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, fail_mapped: i32): i32 {
-  return pipeline_typeck_parsed_module_c(module, arena, ctx, fail_mapped);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_typeck_parsed_module_c(module, arena, ctx, fail_mapped);
+  }
 }
 
 /**
  * See implementation.
  */
 export function pipeline_typeck_entry_module(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-    return -1;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+      return -1;
+    }
+    return pipeline_typeck_parsed_module(module, arena, ctx, 0);
   }
-  return pipeline_typeck_parsed_module(module, arena, ctx, 0);
 }
 
 /**
@@ -441,7 +508,11 @@ export extern function pipeline_try_bind_seeded_import(ctx: *PipelineDepCtx, imp
  * See implementation.
  */
 export function pipeline_load_import_resolve_read(module: *Module, ctx: *PipelineDepCtx, import_idx: i32): i32 {
-  return pipeline_load_import_resolve_read_c(module, ctx, import_idx);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_load_import_resolve_read_c(module, ctx, import_idx);
+  }
 }
 
 /**
@@ -449,14 +520,22 @@ export function pipeline_load_import_resolve_read(module: *Module, ctx: *Pipelin
  * See implementation.
  */
 export function pipeline_load_import_from_disk(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32 {
-  return pipeline_load_import_from_disk_impl_c(module, arena, ctx, import_idx);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_load_import_from_disk_impl_c(module, arena, ctx, import_idx);
+  }
 }
 
 /**
  * See implementation.
  */
 export function pipeline_load_one_import_slot(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32 {
-  return pipeline_load_one_import_slot_c(module, arena, ctx, import_idx);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_load_one_import_slot_c(module, arena, ctx, import_idx);
+  }
 }
 
 /* See implementation. */
@@ -473,7 +552,11 @@ export extern function pipeline_sync_one_dep_slot(module: *Module, ctx: *Pipelin
  * PLATFORM: SHARED.
  */
 export function pipeline_sync_dep_slots_from_driver(module: *Module, ctx: *PipelineDepCtx): i32 {
-  return pipeline_sync_dep_slots_from_driver_impl_c(module, ctx);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_sync_dep_slots_from_driver_impl_c(module, ctx);
+  }
 }
 
 /**
@@ -481,7 +564,11 @@ export function pipeline_sync_dep_slots_from_driver(module: *Module, ctx: *Pipel
  * See implementation.
  */
 export function pipeline_load_and_sync_direct_import_deps(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  return pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
+  }
 }
 
 /** Exported function `lsp_diag_parse_entry_buf`.
@@ -493,39 +580,51 @@ export function pipeline_load_and_sync_direct_import_deps(module: *Module, arena
  * @return i32
  */
 export function lsp_diag_parse_entry_buf(module: *Module, arena: *ASTArena, source_data: *u8, source_len: i32): i32 {
-  return pipeline_parse_set_main_from_buf(module, arena, source_data, source_len);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return pipeline_parse_set_main_from_buf(module, arena, source_data, source_len);
+  }
 }
 
 /**
  * See implementation.
  */
 export function lsp_diag_typeck_after_load(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-    return -1;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+      return -1;
+    }
+    if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {
+      return -1;
+    }
+    if (run_x_pipeline_typecheck_entry(module, arena, ctx) != 0) {
+      return -3;
+    }
+    return 0;
   }
-  if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {
-    return -1;
-  }
-  if (run_x_pipeline_typecheck_entry(module, arena, ctx) != 0) {
-    return -3;
-  }
-  return 0;
 }
 
 /**
  * See implementation.
  */
 export function lsp_diag_parse_typeck_buf(module: *Module, arena: *ASTArena, source_data: *u8, source_len: i32, ctx: *PipelineDepCtx): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || source_data == 0 as *u8) {
-    return -1;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || source_data == 0 as *u8) {
+      return -1;
+    }
+    if (pipeline_parse_set_main_from_buf(module, arena, source_data, source_len) != 0) {
+      return -2;
+    }
+    if (lsp_diag_typeck_after_load(module, arena, ctx) != 0) {
+      return -3;
+    }
+    return 0;
   }
-  if (pipeline_parse_set_main_from_buf(module, arena, source_data, source_len) != 0) {
-    return -2;
-  }
-  if (lsp_diag_typeck_after_load(module, arena, ctx) != 0) {
-    return -3;
-  }
-  return 0;
 }
 
 /* See implementation. */
@@ -572,94 +671,122 @@ export extern function run_x_pipeline_codegen_entry_emit(module: *Module, arena:
  * See implementation.
  */
 export function run_x_pipeline_parse_entry_do_parse(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32 {
-  return run_x_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return run_x_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
+  }
 }
 
 /**
  * See implementation.
  */
 export function run_x_pipeline_parse_entry_if_needed(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-    return -1;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+      return -1;
+    }
+    driver_diagnostic_entry_already(pipeline_dep_ctx_entry_already_parsed(ctx));
+    if (pipeline_dep_ctx_entry_already_parsed(ctx) != 0) {
+      driver_diagnostic_after_entry_parse(pipeline_module_num_funcs(module));
+      driver_diagnostic_entry_module(module, arena);
+      return 0;
+    }
+    return run_x_pipeline_parse_entry_do_parse(module, arena, source_data, source_len, ctx);
   }
-  driver_diagnostic_entry_already(pipeline_dep_ctx_entry_already_parsed(ctx));
-  if (pipeline_dep_ctx_entry_already_parsed(ctx) != 0) {
-    driver_diagnostic_after_entry_parse(pipeline_module_num_funcs(module));
-    driver_diagnostic_entry_module(module, arena);
-    return 0;
-  }
-  return run_x_pipeline_parse_entry_do_parse(module, arena, source_data, source_len, ctx);
 }
 
 /**
  * See implementation.
  */
 export function run_x_pipeline_load_deps_after_parse(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-    run_x_pipeline_last_rc_store_c(-1);
-    return run_x_pipeline_last_rc_get();
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+      run_x_pipeline_last_rc_store_c(-1);
+      return run_x_pipeline_last_rc_get();
+    }
+    if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {
+      run_x_pipeline_last_rc_store_c(-1);
+      return run_x_pipeline_last_rc_get();
+    }
+    run_x_pipeline_last_rc_store_c(0);
+    return 0;
   }
-  if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {
-    run_x_pipeline_last_rc_store_c(-1);
-    return run_x_pipeline_last_rc_get();
-  }
-  run_x_pipeline_last_rc_store_c(0);
-  return 0;
 }
 
 /**
  * See implementation.
  */
 export function run_x_pipeline_typecheck_after_load(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  return run_x_pipeline_typecheck_after_load_c(module, arena, ctx);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return run_x_pipeline_typecheck_after_load_c(module, arena, ctx);
+  }
 }
 
 /**
  * See implementation.
  */
 export function run_x_pipeline_typecheck_entry(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
-    return -1;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+      return -1;
+    }
+    if (pipeline_driver_x_pipeline_skip_typeck() != 0) {
+      return run_x_pipeline_typecheck_entry_emit_c(module, arena, ctx);
+    }
+    if (pipeline_should_skip_x_typeck(ctx) != 0) {
+      return 0;
+    }
+    return pipeline_typeck_entry_module(module, arena, ctx);
   }
-  if (pipeline_driver_x_pipeline_skip_typeck() != 0) {
-    return run_x_pipeline_typecheck_entry_emit_c(module, arena, ctx);
-  }
-  if (pipeline_should_skip_x_typeck(ctx) != 0) {
-    return 0;
-  }
-  return pipeline_typeck_entry_module(module, arena, ctx);
 }
 
 /**
  * See implementation.
  */
 export function run_x_pipeline_fill_dep_import_path(module: *Module, ctx: *PipelineDepCtx, dep_j: i32): i32 {
-  return run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    return run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j);
+  }
 }
 
 /**
  * See implementation.
  */
 export function run_x_pipeline_codegen_one_dep(module: *Module, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx, dep_j: i32, skip_asm_dep_codegen: i32): i32 {
-  if (module == 0 as *Module || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx || dep_j < 0) {
-    return -1;
-  }
-  if (dep_j == 0 && driver_skip_codegen_dep_0_get() != 0) {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (module == 0 as *Module || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx || dep_j < 0) {
+      return -1;
+    }
+    if (dep_j == 0 && driver_skip_codegen_dep_0_get() != 0) {
+      return 0;
+    }
+    if (run_x_pipeline_fill_dep_import_path(module, ctx, dep_j) != 0) {
+      return -1;
+    }
+    if (run_x_pipeline_codegen_one_dep_prepare_c(ctx, dep_j) != 0) {
+      return -1;
+    }
+    /* See implementation. */
+    if (run_x_pipeline_codegen_one_dep_emit(pipeline_dep_ctx_module_at(ctx, dep_j), out_buf, ctx, dep_j, skip_asm_dep_codegen, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {
+      driver_diagnostic_codegen_fail(dep_j, 1);
+      return -6;
+    }
+    pipeline_finish_dep_codegen_diag(dep_j, out_buf);
     return 0;
   }
-  if (run_x_pipeline_fill_dep_import_path(module, ctx, dep_j) != 0) {
-    return -1;
-  }
-  if (run_x_pipeline_codegen_one_dep_prepare_c(ctx, dep_j) != 0) {
-    return -1;
-  }
-  /* See implementation. */
-  if (run_x_pipeline_codegen_one_dep_emit(pipeline_dep_ctx_module_at(ctx, dep_j), out_buf, ctx, dep_j, skip_asm_dep_codegen, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {
-    driver_diagnostic_codegen_fail(dep_j, 1);
-    return -6;
-  }
-  pipeline_finish_dep_codegen_diag(dep_j, out_buf);
-  return 0;
 }
 
 /**
@@ -667,29 +794,37 @@ export function run_x_pipeline_codegen_one_dep(module: *Module, out_buf: *Codege
  * See implementation.
  */
 export function run_x_pipeline_codegen_deps(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx, skip_asm_dep_codegen: i32): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
-    return -1;
-  }
-  let dep_codegen_i: i32 = 0;
-  while (1 == 1) {
-    if (pipeline_loop_should_continue_ndep_c(ctx, dep_codegen_i) == 0) {
-      break;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+      return -1;
     }
-    if (run_x_pipeline_codegen_one_dep(module, out_buf, ctx, dep_codegen_i, skip_asm_dep_codegen) != 0) {
-      return -6;
+    let dep_codegen_i: i32 = 0;
+    while (1 == 1) {
+      if (pipeline_loop_should_continue_ndep_c(ctx, dep_codegen_i) == 0) {
+        break;
+      }
+      if (run_x_pipeline_codegen_one_dep(module, out_buf, ctx, dep_codegen_i, skip_asm_dep_codegen) != 0) {
+        return -6;
+      }
+      dep_codegen_i = dep_codegen_i + 1;
     }
-    dep_codegen_i = dep_codegen_i + 1;
+    return 0;
   }
-  return 0;
 }
 
 /**
  * See implementation.
  */
 export function pipeline_prepare_dep_codegen_path(ctx: *PipelineDepCtx, dep_j: i32, dst: *u8): i32 {
-  pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dst);
-  driver_set_current_dep_path_for_codegen(dst);
-  return 0;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dst);
+    driver_set_current_dep_path_for_codegen(dst);
+    return 0;
+  }
 }
 
 /** Exported function `pipeline_finish_dep_codegen_diag`.
@@ -699,25 +834,33 @@ export function pipeline_prepare_dep_codegen_path(ctx: *PipelineDepCtx, dep_j: i
  * @return i32
  */
 export function pipeline_finish_dep_codegen_diag(dep_j: i32, out_buf: *CodegenOutBuf): i32 {
-  driver_diagnostic_after_dep_codegen(dep_j, codegen_out_buf_len(out_buf));
-  driver_set_current_dep_path_for_codegen(0 as *u8);
-  return 0;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    driver_diagnostic_after_dep_codegen(dep_j, codegen_out_buf_len(out_buf));
+    driver_set_current_dep_path_for_codegen(0 as *u8);
+    return 0;
+  }
 }
 
 /**
  * See implementation.
  */
 export function run_x_pipeline_codegen_entry(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
-    return -1;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+      return -1;
+    }
+    driver_diagnostic_entry_module(module, arena);
+    /* See implementation. */
+    if (run_x_pipeline_codegen_entry_emit(module, arena, out_buf, ctx, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {
+      driver_diagnostic_codegen_fail(0, 0);
+      return -6;
+    }
+    return 0;
   }
-  driver_diagnostic_entry_module(module, arena);
-  /* See implementation. */
-  if (run_x_pipeline_codegen_entry_emit(module, arena, out_buf, ctx, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {
-    driver_diagnostic_codegen_fail(0, 0);
-    return -6;
-  }
-  return 0;
 }
 
 /**
@@ -725,52 +868,56 @@ export function run_x_pipeline_codegen_entry(module: *Module, arena: *ASTArena, 
  * See implementation.
  */
 export function run_x_pipeline_impl(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
-  if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
-    return -1;
-  }
-  driver_compile_phase_timing_begin(0);
-  if (run_x_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0) {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+      return -1;
+    }
+    driver_compile_phase_timing_begin(0);
+    if (run_x_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0) {
+      driver_compile_phase_timing_end(0);
+      driver_compile_phase_timing_flush();
+      return -2;
+    }
+    /* See implementation. */
+    if (run_x_pipeline_load_deps_after_parse(module, arena, ctx) != 0) {
+      driver_compile_phase_timing_end(0);
+      driver_compile_phase_timing_flush();
+      return run_x_pipeline_last_rc_get();
+    }
     driver_compile_phase_timing_end(0);
-    driver_compile_phase_timing_flush();
-    return -2;
-  }
-  /* See implementation. */
-  if (run_x_pipeline_load_deps_after_parse(module, arena, ctx) != 0) {
-    driver_compile_phase_timing_end(0);
-    driver_compile_phase_timing_flush();
-    return run_x_pipeline_last_rc_get();
-  }
-  driver_compile_phase_timing_end(0);
-  driver_compile_phase_timing_begin(1);
-  if (run_x_pipeline_typecheck_after_load(module, arena, ctx) != 0) {
+    driver_compile_phase_timing_begin(1);
+    if (run_x_pipeline_typecheck_after_load(module, arena, ctx) != 0) {
+      driver_compile_phase_timing_end(1);
+      driver_compile_phase_timing_flush();
+      return run_x_pipeline_last_rc_get();
+    }
     driver_compile_phase_timing_end(1);
-    driver_compile_phase_timing_flush();
-    return run_x_pipeline_last_rc_get();
-  }
-  driver_compile_phase_timing_end(1);
-  if (driver_check_only_get() != 0) {
+    if (driver_check_only_get() != 0) {
+      driver_compile_phase_timing_flush();
+      return 0;
+    }
+    if (driver_x_pipeline_skip_codegen_get() != 0) {
+      driver_compile_phase_timing_flush();
+      return 0;
+    }
+    codegen_out_buf_set_len(out_buf, 0);
+    driver_diagnostic_before_codegen(pipeline_module_num_funcs(module), 0);
+    driver_compile_phase_timing_begin(2);
+    /* See implementation. */
+    if (run_x_pipeline_codegen_deps(module, arena, out_buf, ctx, pipeline_dep_ctx_asm_entry_module_only(ctx)) != 0) {
+      driver_compile_phase_timing_end(2);
+      driver_compile_phase_timing_flush();
+      return -6;
+    }
+    if (run_x_pipeline_codegen_entry(module, arena, out_buf, ctx) != 0) {
+      driver_compile_phase_timing_end(2);
+      driver_compile_phase_timing_flush();
+      return -6;
+    }
+    driver_compile_phase_timing_end(2);
     driver_compile_phase_timing_flush();
     return 0;
   }
-  if (driver_x_pipeline_skip_codegen_get() != 0) {
-    driver_compile_phase_timing_flush();
-    return 0;
-  }
-  codegen_out_buf_set_len(out_buf, 0);
-  driver_diagnostic_before_codegen(pipeline_module_num_funcs(module), 0);
-  driver_compile_phase_timing_begin(2);
-  /* See implementation. */
-  if (run_x_pipeline_codegen_deps(module, arena, out_buf, ctx, pipeline_dep_ctx_asm_entry_module_only(ctx)) != 0) {
-    driver_compile_phase_timing_end(2);
-    driver_compile_phase_timing_flush();
-    return -6;
-  }
-  if (run_x_pipeline_codegen_entry(module, arena, out_buf, ctx) != 0) {
-    driver_compile_phase_timing_end(2);
-    driver_compile_phase_timing_flush();
-    return -6;
-  }
-  driver_compile_phase_timing_end(2);
-  driver_compile_phase_timing_flush();
-  return 0;
 }

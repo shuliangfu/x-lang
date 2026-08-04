@@ -254,23 +254,8 @@ void walk_dir_collect(uint8_t * dir) {
   (void)(walk_dir_collect_impl(dir));
 }
 void check_collect_default_product_dirs(void) {
-  int32_t any = 0;
-  int32_t i = 0;
-  while ((i < 8)) {
-    {
-      uint8_t * sub = fmt_default_product_sub_at(i);
-      if ((sub ==0)) {
-        break;
-      }
-      if ((fmt_try_walk_if_product_subdir(sub) !=0)) {
-        (void)((any = 1));
-      }
-    }
-    (void)((i = (i + 1)));
-  }
-  if ((any ==0)) {
-    (void)(fmt_walk_cwd_fallback_impl());
-  }
+  /* Bare check: recursive cwd *.x (match thin.x / cold seed). */
+  (void)(fmt_walk_cwd_fallback_impl());
 }
 void collect_paths_from_arg(uint8_t * arg) {
   if ((arg ==0)) {

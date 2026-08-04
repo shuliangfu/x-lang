@@ -360,10 +360,10 @@ export function cache_lru_purge_expired_c(handle: i64): i32 {
 export function cache_lru_stats_c(handle: i64, hits: *i64, misses: *i64, evictions: *i64, size: *i32): void {
   let c: *LruCacheMem = lru_from_handle(handle);
   if (c == 0) { return; }
-  if (hits != 0) { *hits = c.hits; }
-  if (misses != 0) { *misses = c.misses; }
-  if (evictions != 0) { *evictions = c.evictions; }
-  if (size != 0) { *size = c.count; }
+  if (hits != 0) { unsafe { *hits = c.hits; } }
+  if (misses != 0) { unsafe { *misses = c.misses; } }
+  if (evictions != 0) { unsafe { *evictions = c.evictions; } }
+  if (size != 0) { unsafe { *size = c.count; } }
 }
 
 /** Exported function `cache_pool_create_c`.
@@ -528,10 +528,11 @@ export function cache_pool_stats_c(handle: i64, idle: *i32, in_use: *i32, unheal
     }
     i = i + 1;
   }
-  if (idle != 0) { *idle = p.idle_count; }
-  if (in_use != 0) { *in_use = used; }
-  if (unhealthy != 0) { *unhealthy = bad; }
-  if (acquires != 0) { *acquires = p.acquire_count; }
+  // Pointer stores require unsafe (language rule: *T write is deref).
+  if (idle != 0) { unsafe { *idle = p.idle_count; } }
+  if (in_use != 0) { unsafe { *in_use = used; } }
+  if (unhealthy != 0) { unsafe { *unhealthy = bad; } }
+  if (acquires != 0) { unsafe { *acquires = p.acquire_count; } }
 }
 
 /** Exported function `cache_smoke_c`.

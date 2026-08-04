@@ -44,14 +44,18 @@ static int32_t parser_asm_type_angle_close_gt_or_rshift_c(struct parser_asm_lexe
   return 0;
 }
 
-/** 与 ast.x Type 布局一致。 */
+/** 与 ast.x Type 布局一致。
+ * wave577 Cap: name/region_label [64]→[128] must match arena Type (ast.x / pipeline_gen).
+ * Wrong local sizeof tore by-value get/set on AArch64 → return type expected ?.
+ * PLATFORM: SHARED — product type_ref path.
+ */
 struct ast_Type {
   int32_t kind;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t elem_type_ref;
   int32_t array_size;
-  uint8_t region_label[64];
+  uint8_t region_label[128];
   int32_t region_label_len;
 };
 
@@ -93,7 +97,11 @@ extern int32_t parser_asm_stretch_slice_type_bracket_audit_c(struct parser_asm_l
                                                              struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_stretch_builtin_vec_token_audit_c(int32_t kind);
 
-/** 从 r 当前 IDENT 起解析 `a.b.Type` 限定名，写入 out 并设置 *out_len；失败 -1。 */
+/**
+ * Consume qualified type IDENT path `a.b.Type` into out[0..*out_len).
+ * wave582 Cap residual: content cap 63→127 (Type.name[128] / AST Cap wave577).
+ * Caller out must have capacity ≥128. PLATFORM: SHARED product type_ref path.
+ */
 int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u8 *source,
                                                          struct parser_asm_lexer_result *r, uint8_t *out,
                                                          int32_t *out_len) {
@@ -107,8 +115,8 @@ int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u
   if (r->tok.kind != (int32_t)TOKEN_IDENT || r->tok.ident_len <= 0)
     return -1;
   seg_len = r->tok.ident_len;
-  if (seg_len > 63)
-    seg_len = 63;
+  if (seg_len > 127)
+    seg_len = 127;
   parser_asm_copy_slice_to_name64_at_end_slice_c(source, r->next_lex.pos, seg_len, out);
   total = seg_len;
   for (;;) {
@@ -123,7 +131,7 @@ int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u
       *out_len = total;
       return 0;
     }
-    if (total >= 63)
+    if (total >= 127)
       return -1;
     out[total] = 46;
     total++;
@@ -131,8 +139,8 @@ int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u
     if (r->tok.kind != (int32_t)TOKEN_IDENT || r->tok.ident_len <= 0)
       return -1;
     seg_len = r->tok.ident_len;
-    if (total + seg_len > 63)
-      seg_len = 63 - total;
+    if (total + seg_len > 127)
+      seg_len = 127 - total;
     if (seg_len <= 0)
       return -1;
     parser_asm_copy_slice_to_name64_at_end_slice_c(source, r->next_lex.pos, seg_len, &out[total]);

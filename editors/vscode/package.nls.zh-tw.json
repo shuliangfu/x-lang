@@ -63,7 +63,7 @@
   "xlang.walkthrough.openProject.title": "開啟 Xlang 專案",
   "xlang.walkthrough.openProject.description": "使用 **開啟資料夾** 開啟 xlang 儲存庫根目錄。LSP 需要工作區才能啟動診斷、導覽與自動補全。",
   "xlang.walkthrough.buildCompiler.title": "建置 Xlang 編譯器",
-  "xlang.walkthrough.buildCompiler.description": "執行 `make -C compiler bootstrap-driver-seed` 以取得 LSP 所需的 `compiler/xlang` 二進位檔。",
+  "xlang.walkthrough.buildCompiler.description": "執行 `./xbuild bootstrap-driver-seed` 以取得 LSP 所需的 `compiler/xlang` 二進位檔。",
   "xlang.walkthrough.openXFile.title": "開啟 .x 檔案體驗",
   "xlang.walkthrough.openXFile.description": "開啟任意 `.x` 檔案以驗證語法突顯、摺疊、CodeLens 與狀態列。",
   "xlang.walkthrough.runFile.title": "執行 .x 檔案",
@@ -72,7 +72,7 @@
   "xlang.taskDefinition.task.description": "Xlang 工作類型：build / build-file / run / check",
 
   "xlang.walkthrough.openProject.media": "按 `Ctrl+K Ctrl+O` 開啟專案根目錄 (包含 `compiler/`)。",
-  "xlang.walkthrough.buildCompiler.media": "在終端機中執行：\n```\nmake -C compiler bootstrap-driver-seed\n```\n建置成功後，`compiler/xlang` 將作為語言伺服器。",
+  "xlang.walkthrough.buildCompiler.media": "在終端機中執行：\n```\n./xbuild bootstrap-driver-seed\n```\n建置成功後，`compiler/xlang` 將作為語言伺服器。",
   "xlang.walkthrough.openXFile.media": "嘗試開啟 `compiler/src/lexer/lexer.x` 或 `tests/` 下的任意測試檔案。",
   "xlang.walkthrough.runFile.media": "CodeLens `▶ Run` 顯示於 `function main` 定義行。"
 }

@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-socketio-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_SOCKETIO_DOC:-analysis/std-socketio-v1.md}"
 MANIFEST="${XLANG_STD_SOCKETIO_TSV:-tests/baseline/std-socketio.tsv}"
@@ -113,7 +115,7 @@ if [ -n "$XLANG_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/socketio/socketio.o
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   for smoke_x in "$FRAME_X" "$NODE_X" "$SERVER_X" "$NS_ACK_X" "$NS_ROUTER_X" "$NS_SESSIONS_X" "$WS_HUB_X" "$ROOM_X" "$HUB_SYNC_X" "$SESSION_SYNC_X" "$CLUSTER_SYNC_X" "$CLUSTER_ADAPTER_X" "$CLUSTER_RING_X" "$P3_COMPLETE_X"; do
     if ! "$XLANG_BIN" check -L . "$smoke_x" >/dev/null 2>&1; then
       echo "std-socketio gate FAIL: typeck $smoke_x" >&2

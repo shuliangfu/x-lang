@@ -33,11 +33,11 @@ for f in \
   analysis/perf-net-zig-v1.md \
   tests/baseline/net-perf.tsv \
   tests/baseline/net-perf-latency.tsv \
-  tests/bench/net_echo_throughput.zig \
-  tests/bench/net_mixed_conns_requests.c \
-  tests/bench/net_mixed_conns_requests.zig \
-  tests/bench/net_mixed_conns_requests.x \
-  tests/bench/net_mixed_conns_requests_server.c; do
+  bench/net_echo_throughput.zig \
+  bench/net_mixed_conns_requests.c \
+  bench/net_mixed_conns_requests.zig \
+  bench/net_mixed_conns_requests.x \
+  bench/net_mixed_conns_requests_server.c; do
   if [ ! -f "$f" ]; then
     echo "perf-net-zig gate FAIL: missing $f" >&2
     exit 1

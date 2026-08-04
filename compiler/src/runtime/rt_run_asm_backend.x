@@ -9,10 +9,10 @@
 // PLATFORM: SHARED — surface short names are the link-name contract (Track L).
 // Comment rule: never put star-slash sequences inside block comments.
 
-export extern "C" function malloc(n: usize): *u8;
-export extern "C" function free(p: *u8): void;
-export extern "C" function memset(p: *u8, c: i32, n: usize): *u8;
-export extern "C" function strlen(s: *u8): usize;
+export extern function malloc(n: usize): *u8;
+export extern function free(p: *u8): void;
+export extern function memset(p: *u8, c: i32, n: usize): *u8;
+export extern function strlen(s: *u8): usize;
 /* wave239 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * PLATFORM: SHARED — cold seed twin (rt_run_asm_backend.from_x.c #ifndef FROM_X)
@@ -20,159 +20,159 @@ export extern "C" function strlen(s: *u8): usize;
  * XLANG_ASM_ENTRY_ONLY_DEBUG / XLANG_ASM_SKIP_C_TYPECK_PRECHECK.
  * Product PREFER full .x rest is marker (H=0); keep the same public face here.
  */
-export extern "C" function link_abi_getenv(name: *u8): *u8;
-export extern "C" function unlink(path: *u8): i32;
-export extern "C" function runtime_read_file_malloc(path: *u8, out_len: *usize): *u8;
-export extern "C" function xlang_preprocess_with_path(
+export extern function link_abi_getenv(name: *u8): *u8;
+export extern function unlink(path: *u8): i32;
+export extern function runtime_read_file_malloc(path: *u8, out_len: *usize): *u8;
+export extern function xlang_preprocess_with_path(
   data: *u8, len: usize, path: *u8, defines: *u8, n_defines: i32, out_len: *usize): *u8;
-export extern "C" function pipeline_diag_emitted_reset(): void;
-export extern "C" function pipeline_diag_emitted_get(): i32;
-export extern "C" function diag_set_file(path: *u8, src: *u8, len: usize): void;
-export extern "C" function pipeline_sizeof_arena(): usize;
-export extern "C" function pipeline_sizeof_module(): usize;
-export extern "C" function parser_parse_into_init(module: *u8, arena: *u8): void;
-export extern "C" function parser_parse_into_set_main_index(module: *u8, main_idx: i32): void;
-export extern "C" function driver_get_module_num_funcs(m: *u8): i32;
-export extern "C" function parser_get_module_num_imports(module: *u8): i32;
-export extern "C" function xlang_get_entry_dir(path: *u8, out: *u8, out_sz: usize): void;
-export extern "C" function driver_dep_seeded_clear_all(): void;
-export extern "C" function driver_dep_publish_slot(j: i32, arena: *u8, module: *u8, path: *u8): void;
-export extern "C" function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void;
-export extern "C" function driver_dep_seed_slots(arenas: *u8, modules: *u8, n: i32): void;
-export extern "C" function codegen_set_dep_slots_for_x_pipeline(mods: *u8, paths: *u8, n: i32): void;
-export extern "C" function codegen_set_preamble_has_core_option_result(on: i32): void;
-export extern "C" function runtime_report_precise_parse_failure_if_known(
+export extern function pipeline_diag_emitted_reset(): void;
+export extern function pipeline_diag_emitted_get(): i32;
+export extern function diag_set_file(path: *u8, src: *u8, len: usize): void;
+export extern function pipeline_sizeof_arena(): usize;
+export extern function pipeline_sizeof_module(): usize;
+export extern function parser_parse_into_init(module: *u8, arena: *u8): void;
+export extern function parser_parse_into_set_main_index(module: *u8, main_idx: i32): void;
+export extern function driver_get_module_num_funcs(m: *u8): i32;
+export extern function parser_get_module_num_imports(module: *u8): i32;
+export extern function xlang_get_entry_dir(path: *u8, out: *u8, out_sz: usize): void;
+export extern function driver_dep_seeded_clear_all(): void;
+export extern function driver_dep_publish_slot(j: i32, arena: *u8, module: *u8, path: *u8): void;
+export extern function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void;
+export extern function driver_dep_seed_slots(arenas: *u8, modules: *u8, n: i32): void;
+export extern function codegen_set_dep_slots_for_x_pipeline(mods: *u8, paths: *u8, n: i32): void;
+export extern function codegen_set_preamble_has_core_option_result(on: i32): void;
+export extern function runtime_report_precise_parse_failure_if_known(
   input_path: *u8, src: *u8, src_len: usize): i32;
-export extern "C" function pipeline_dep_ctx_heap_destroy(ctx: *u8): void;
-export extern "C" function xlang_pipeline_run_x_pipeline_large_stack(
+export extern function pipeline_dep_ctx_heap_destroy(ctx: *u8): void;
+export extern function xlang_pipeline_run_x_pipeline_large_stack(
   module: *u8, arena: *u8, src: *u8, src_len: usize, out_buf: *u8, pctx: *u8): i32;
-export extern "C" function xlang_pipeline_fill_ctx_path_buffers(
+export extern function xlang_pipeline_fill_ctx_path_buffers(
   ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib: i32): void;
-export extern "C" function xlang_pipeline_pctx_seed_dep_slots(
+export extern function xlang_pipeline_pctx_seed_dep_slots(
   ctx: *u8, dep_mods: *u8, dep_ar: *u8, dep_paths: *u8, n: i32): void;
-export extern "C" function xlang_pipeline_one_ctx_for_dep_prerun(
+export extern function xlang_pipeline_one_ctx_for_dep_prerun(
   ctx: *u8, j: i32, dep_mods: *u8, dep_ar: *u8, dep_paths: *u8, n: i32,
   dep_src: *u8, dep_len: usize): void;
-export extern "C" function xlang_load_direct_imports_for_asm_layout(
+export extern function xlang_load_direct_imports_for_asm_layout(
   module: *u8, lib_roots: *u8, n_lib: i32, entry_dir: *u8,
   defines: *u8, n_defines: i32,
   dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32;
-export extern "C" function xlang_collect_deps_transitive(
+export extern function xlang_collect_deps_transitive(
   module: *u8, arena_sz: usize, module_sz: usize, lib_roots: *u8, n_lib: i32,
   entry_dir: *u8, defines: *u8, n_defines: i32,
   cls: *u8, clens: *u8, cpaths: *u8, n_closure: *i32): i32;
-export extern "C" function xlang_merge_direct_then_transitive_deps(
+export extern function xlang_merge_direct_then_transitive_deps(
   module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32,
   dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32;
-export extern "C" function xlang_dep_prerun_entry_dir(
+export extern function xlang_dep_prerun_entry_dir(
   entry_dir: *u8, lib_roots: *u8, n_lib: i32): *u8;
-export extern "C" function xlang_pipeline_dep_prerun_parse_only(
+export extern function xlang_pipeline_dep_prerun_parse_only(
   mod: *u8, arena: *u8, src: *u8, len: usize): i32;
-export extern "C" function xlang_pipeline_dep_prerun_parse_skip_typeck(
+export extern function xlang_pipeline_dep_prerun_parse_skip_typeck(
   mod: *u8, arena: *u8, src: *u8, len: usize, out: *u8, ctx: *u8): i32;
-export extern "C" function xlang_pipeline_dep_prerun_for_asm_module_o(
+export extern function xlang_pipeline_dep_prerun_for_asm_module_o(
   mod: *u8, arena: *u8, src: *u8, len: usize, out: *u8, ctx: *u8): i32;
-export extern "C" function xlang_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32;
-export extern "C" function xlang_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32;
-export extern "C" function xlang_asm_user_std_net_dep_path(dep_path: *u8): i32;
-export extern "C" function pipeline_asm_seed_std_net_struct_layouts(m: *u8): void;
-export extern "C" function pipeline_asm_user_deps_need_coemit(dep_paths: *u8, n: i32): i32;
-export extern "C" function xlang_output_want_exe(path: *u8): i32;
-export extern "C" function xlang_output_is_elf_o(path: *u8): i32;
-export extern "C" function xlang_asm_out_buf_is_object(data: *u8, len: usize): i32;
-export extern "C" function xlang_driver_asm_prepare_entry_elf_emit(
+export extern function xlang_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32;
+export extern function xlang_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32;
+export extern function xlang_asm_user_std_net_dep_path(dep_path: *u8): i32;
+export extern function pipeline_asm_seed_std_net_struct_layouts(m: *u8): void;
+export extern function pipeline_asm_user_deps_need_coemit(dep_paths: *u8, n: i32): i32;
+export extern function xlang_output_want_exe(path: *u8): i32;
+export extern function xlang_output_is_elf_o(path: *u8): i32;
+export extern function xlang_asm_out_buf_is_object(data: *u8, len: usize): i32;
+export extern function xlang_driver_asm_prepare_entry_elf_emit(
   module: *u8, arena: *u8, pctx: *u8): void;
-export extern "C" function xlang_asm_codegen_elf_o_large_stack(
+export extern function xlang_asm_codegen_elf_o_large_stack(
   module: *u8, arena: *u8, pctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
-export extern "C" function xlang_invoke_ld_for_exe(
+export extern function xlang_invoke_ld_for_exe(
   o_path: *u8, exe_path: *u8, target: *u8, use_macho: i32, use_coff: i32,
   link_argv0: *u8, lib_roots: *u8, n_lib: i32): i32;
 /** G.7 single authority: CLI user .o table shared with invoke_cc (historical name).
  * PLATFORM: SHARED — set before invoke_ld; clear after (stale argv pointers). */
-export extern "C" function xlang_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: *u8): void;
-export extern "C" function xlang_invoke_cc_clear_user_o_files(): void;
-export extern "C" function runtime_pipeline_elf_ctx_diag_note(ctx_bytes: *u8): void;
-export extern "C" function runtime_diag_errno_path(
+export extern function xlang_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: *u8): void;
+export extern function xlang_invoke_cc_clear_user_o_files(): void;
+export extern function runtime_pipeline_elf_ctx_diag_note(ctx_bytes: *u8): void;
+export extern function runtime_diag_errno_path(
   file: *u8, kind: *u8, op: *u8, path: *u8): void;
-export extern "C" function driver_unlink_failed_output(out_path: *u8): void;
-export extern "C" function driver_bump_stack_limit(): void;
-export extern "C" function cfg_apply_compile_target_from_triple(triple: *u8, len: i32): void;
-export extern "C" function cfg_reset_compile_target(): void;
-export extern "C" function driver_set_pipeline_entry_source_len(len: usize): void;
-export extern "C" function driver_asm_build_skip_typeck(): i32;
-export extern "C" function driver_asm_entry_module_only_from_env(): i32;
-export extern "C" function driver_asm_parse_metric_only_from_env(): i32;
-export extern "C" function driver_freestanding_get(): i32;
-export extern "C" function driver_check_only_get(): i32;
-export extern "C" function driver_check_diag_emitted_get(): i32;
-export extern "C" function driver_x_pipeline_skip_typeck_set(v: i32): void;
-export extern "C" function driver_x_pipeline_skip_codegen_set(v: i32): void;
-export extern "C" function driver_deps_are_std_core_closure_only(dep_paths: *u8, n: i32): i32;
-export extern "C" function driver_print_x_smoke_summary(module: *u8, codegen_len: usize): void;
-export extern "C" function driver_print_check_ok(input_path: *u8): void;
-export extern "C" function driver_diagnostic_after_entry_parse(num_funcs: i32): void;
-export extern "C" function driver_diagnostic_after_entry_parse_module(module: *u8): void;
-export extern "C" function diag_report_with_code(
+export extern function driver_unlink_failed_output(out_path: *u8): void;
+export extern function driver_bump_stack_limit(): void;
+export extern function cfg_apply_compile_target_from_triple(triple: *u8, len: i32): void;
+export extern function cfg_reset_compile_target(): void;
+export extern function driver_set_pipeline_entry_source_len(len: usize): void;
+export extern function driver_asm_build_skip_typeck(): i32;
+export extern function driver_asm_entry_module_only_from_env(): i32;
+export extern function driver_asm_parse_metric_only_from_env(): i32;
+export extern function driver_freestanding_get(): i32;
+export extern function driver_check_only_get(): i32;
+export extern function driver_check_diag_emitted_get(): i32;
+export extern function driver_x_pipeline_skip_typeck_set(v: i32): void;
+export extern function driver_x_pipeline_skip_codegen_set(v: i32): void;
+export extern function driver_deps_are_std_core_closure_only(dep_paths: *u8, n: i32): i32;
+export extern function driver_print_x_smoke_summary(module: *u8, codegen_len: usize): void;
+export extern function driver_print_check_ok(input_path: *u8): void;
+export extern function driver_diagnostic_after_entry_parse(num_funcs: i32): void;
+export extern function driver_diagnostic_after_entry_parse_module(module: *u8): void;
+export extern function diag_report_with_code(
   file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 
-export extern "C" function driver_codegen_outbuf_calloc(): *u8;
-export extern "C" function driver_codegen_outbuf_free(p: *u8): void;
-export extern "C" function driver_codegen_outbuf_len(p: *u8): i32;
-export extern "C" function driver_codegen_outbuf_data(p: *u8): *u8;
-export extern "C" function driver_pipeline_dep_ctx_calloc(): *u8;
-export extern "C" function driver_ptr_table_calloc(n: i32): *u8;
-export extern "C" function driver_ptr_table_free(t: *u8): void;
-export extern "C" function driver_ptr_table_get(t: *u8, i: i32): *u8;
-export extern "C" function driver_ptr_table_set(t: *u8, i: i32, p: *u8): void;
-export extern "C" function driver_size_table_calloc(n: i32): *u8;
-export extern "C" function driver_size_table_free(t: *u8): void;
-export extern "C" function driver_size_table_get(t: *u8, i: i32): usize;
-export extern "C" function driver_size_table_set(t: *u8, i: i32, v: usize): void;
-export extern "C" function driver_parse_into_buf_rc(
+export extern function driver_codegen_outbuf_calloc(): *u8;
+export extern function driver_codegen_outbuf_free(p: *u8): void;
+export extern function driver_codegen_outbuf_len(p: *u8): i32;
+export extern function driver_codegen_outbuf_data(p: *u8): *u8;
+export extern function driver_pipeline_dep_ctx_calloc(): *u8;
+export extern function driver_ptr_table_calloc(n: i32): *u8;
+export extern function driver_ptr_table_free(t: *u8): void;
+export extern function driver_ptr_table_get(t: *u8, i: i32): *u8;
+export extern function driver_ptr_table_set(t: *u8, i: i32, p: *u8): void;
+export extern function driver_size_table_calloc(n: i32): *u8;
+export extern function driver_size_table_free(t: *u8): void;
+export extern function driver_size_table_get(t: *u8, i: i32): usize;
+export extern function driver_size_table_set(t: *u8, i: i32, v: usize): void;
+export extern function driver_parse_into_buf_rc(
   arena: *u8, module: *u8, data: *u8, len: i32, out_main_idx: *i32): i32;
-export extern "C" function driver_typeck_ndep_set(n: i32): void;
-export extern "C" function driver_typeck_dep_ptrs_set(j: i32, mod: *u8, arena: *u8): void;
-export extern "C" function driver_entry_dir_slot(): *u8;
-export extern "C" function driver_pipeline_dep_ctx_set_use_asm(ctx: *u8, v: i32): void;
-export extern "C" function driver_pipeline_dep_ctx_set_target_arch(ctx: *u8, v: i32): void;
-export extern "C" function driver_pipeline_dep_ctx_set_target_cpu_features(ctx: *u8, v: i32): void;
-export extern "C" function driver_pipeline_dep_ctx_set_use_macho_o(ctx: *u8, v: i32): void;
-export extern "C" function driver_pipeline_dep_ctx_set_use_coff_o(ctx: *u8, v: i32): void;
-export extern "C" function driver_pipeline_dep_ctx_set_entry_already_parsed(ctx: *u8, v: i32): void;
-export extern "C" function driver_pipeline_dep_ctx_set_asm_entry_module_only(ctx: *u8, v: i32): void;
-export extern "C" function driver_pipeline_dep_ctx_get_asm_entry_module_only(ctx: *u8): i32;
-export extern "C" function driver_pipeline_dep_ctx_get_use_macho_o(ctx: *u8): i32;
-export extern "C" function driver_pipeline_dep_ctx_get_use_coff_o(ctx: *u8): i32;
-export extern "C" function driver_asm_pctx_apply_host_defaults(
+export extern function driver_typeck_ndep_set(n: i32): void;
+export extern function driver_typeck_dep_ptrs_set(j: i32, mod: *u8, arena: *u8): void;
+export extern function driver_entry_dir_slot(): *u8;
+export extern function driver_pipeline_dep_ctx_set_use_asm(ctx: *u8, v: i32): void;
+export extern function driver_pipeline_dep_ctx_set_target_arch(ctx: *u8, v: i32): void;
+export extern function driver_pipeline_dep_ctx_set_target_cpu_features(ctx: *u8, v: i32): void;
+export extern function driver_pipeline_dep_ctx_set_use_macho_o(ctx: *u8, v: i32): void;
+export extern function driver_pipeline_dep_ctx_set_use_coff_o(ctx: *u8, v: i32): void;
+export extern function driver_pipeline_dep_ctx_set_entry_already_parsed(ctx: *u8, v: i32): void;
+export extern function driver_pipeline_dep_ctx_set_asm_entry_module_only(ctx: *u8, v: i32): void;
+export extern function driver_pipeline_dep_ctx_get_asm_entry_module_only(ctx: *u8): i32;
+export extern function driver_pipeline_dep_ctx_get_use_macho_o(ctx: *u8): i32;
+export extern function driver_pipeline_dep_ctx_get_use_coff_o(ctx: *u8): i32;
+export extern function driver_asm_pctx_apply_host_defaults(
   ctx: *u8, target: *u8, emit_elf_o: i32): void;
-export extern "C" function driver_asm_fopen_wb(path: *u8): *u8;
-export extern "C" function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8;
-export extern "C" function driver_asm_fclose(fp: *u8): void;
-export extern "C" function driver_asm_fwrite(fp: *u8, data: *u8, len: i32): i32;
-export extern "C" function driver_asm_fflush_stdout(): void;
-export extern "C" function driver_asm_write_metric_o(path: *u8): i32;
-export extern "C" function driver_asm_elf_ctx_calloc(): *u8;
-export extern "C" function driver_asm_elf_ctx_free(p: *u8): void;
-export extern "C" function driver_asm_tmp_path_slot(): *u8;
-export extern "C" function driver_asm_collect_defines(argc: i32, argv: *u8): i32;
-export extern "C" function driver_asm_defines_as_u8(): *u8;
-export extern "C" function driver_asm_ndefines_get(): i32;
-export extern "C" function driver_asm_bind_lib_roots(
+export extern function driver_asm_fopen_wb(path: *u8): *u8;
+export extern function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8;
+export extern function driver_asm_fclose(fp: *u8): void;
+export extern function driver_asm_fwrite(fp: *u8, data: *u8, len: i32): i32;
+export extern function driver_asm_fflush_stdout(): void;
+export extern function driver_asm_write_metric_o(path: *u8): i32;
+export extern function driver_asm_elf_ctx_calloc(): *u8;
+export extern function driver_asm_elf_ctx_free(p: *u8): void;
+export extern function driver_asm_tmp_path_slot(): *u8;
+export extern function driver_asm_collect_defines(argc: i32, argv: *u8): i32;
+export extern function driver_asm_defines_as_u8(): *u8;
+export extern function driver_asm_ndefines_get(): i32;
+export extern function driver_asm_bind_lib_roots(
   lib_roots: *u8, n: i32, n_out: *i32): *u8;
-export extern "C" function driver_asm_argv0(argv: *u8): *u8;
-export extern "C" function driver_asm_try_c_frontend_early(
+export extern function driver_asm_argv0(argv: *u8): *u8;
+export extern function driver_asm_try_c_frontend_early(
   input_path: *u8, src: *u8, lib_roots: *u8, n_lib: i32, out_path: *u8): i32;
-export extern "C" function driver_asm_try_c_typeck_precheck(
+export extern function driver_asm_try_c_typeck_precheck(
   input_path: *u8, src: *u8, lib_roots: *u8, n_lib: i32): i32;
-export extern "C" function driver_asm_use_compiler_impl_c(): i32;
-export extern "C" function driver_asm_work_reset(): void;
-export extern "C" function driver_asm_work_p_get(i: i32): *u8;
-export extern "C" function driver_asm_work_p_set(i: i32, v: *u8): void;
-export extern "C" function driver_asm_work_i_get(i: i32): i32;
-export extern "C" function driver_asm_work_i_set(i: i32, v: i32): void;
-export extern "C" function driver_asm_work_z_get(i: i32): usize;
-export extern "C" function driver_asm_work_z_set(i: i32, v: usize): void;
-export extern "C" function driver_asm_work_cleanup(): void;
+export extern function driver_asm_use_compiler_impl_c(): i32;
+export extern function driver_asm_work_reset(): void;
+export extern function driver_asm_work_p_get(i: i32): *u8;
+export extern function driver_asm_work_p_set(i: i32, v: *u8): void;
+export extern function driver_asm_work_i_get(i: i32): i32;
+export extern function driver_asm_work_i_set(i: i32, v: i32): void;
+export extern function driver_asm_work_z_get(i: i32): usize;
+export extern function driver_asm_work_z_set(i: i32, v: usize): void;
+export extern function driver_asm_work_cleanup(): void;
 
 /* work pointer indices */
 /** Work-slot index for entry path pointer.
@@ -331,6 +331,12 @@ export function ai_smoke(): i32 { return 6; }
  * PLATFORM: SHARED — link-name contract; dual-host prove. */
 #[no_mangle]
 export function ai_ndef(): i32 { return 7; }
+/** Work-int index for CLI argc (user .o collection at finish).
+ * Slot 8 is free between ai_ndef(7) and ai_ec(9).
+ * Track-L: no_mangle keeps surface short name (not module-prefix mangled).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function ai_argc(): i32 { return 8; }
 /** Work-int index for exit/error code.
  * Track-L: no_mangle keeps surface short name (not module-prefix mangled).
  * PLATFORM: SHARED — link-name contract; dual-host prove. */
@@ -1521,6 +1527,7 @@ export function rt_ab_step_finish(): i32 {
   let argv0: *u8 = 0 as *u8;
   let ld_ok: i32 = 0;
   let exe_out: *u8 = 0 as *u8;
+  let argc: i32 = 0;
   unsafe {
     path = driver_asm_work_p_get(ap_path());
     outp = driver_asm_work_p_get(ap_out_path());
@@ -1543,6 +1550,7 @@ export function rt_ab_step_finish(): i32 {
     emit_elf = driver_asm_work_i_get(ai_emit_elf());
     want_exe = driver_asm_work_i_get(ai_want_exe());
     ec = driver_asm_work_i_get(ai_ec());
+    argc = driver_asm_work_i_get(ai_argc());
     out_len = driver_codegen_outbuf_len(out_buf);
     out_data = driver_codegen_outbuf_data(out_buf);
   }
@@ -1787,6 +1795,7 @@ export function driver_run_asm_backend(
     lib = driver_asm_bind_lib_roots(lib_roots, n_lib_roots, &nlib);
     driver_asm_work_p_set(ap_lib(), lib);
     driver_asm_work_i_set(ai_nlib(), nlib);
+    driver_asm_work_i_set(ai_argc(), argc);
     ndef = driver_asm_collect_defines(argc, argv);
     defs = driver_asm_defines_as_u8();
     driver_asm_work_i_set(ai_ndef(), ndef);

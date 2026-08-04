@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-compress-unified-stream-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD122_COMPRESS_UNIFIED_DOC:-analysis/std-compress-unified-stream-v1.md}"
 MANIFEST="${XLANG_STD122_COMPRESS_UNIFIED_TSV:-tests/baseline/std-compress-unified-stream-manifest.tsv}"
@@ -78,7 +80,7 @@ STREAM_OK=0
 SKIP=1
 if XLANG_BIN="$(std_compress_resolve_shu)"; then
   echo "=== STD-122: typeck + smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   std_compress_try_libs
   # F-04 v7+：compress 纯 .x，不再 ensure compress.o
   if ! "$XLANG_BIN" check -L . "$STREAM_X" >/dev/null 2>&1; then

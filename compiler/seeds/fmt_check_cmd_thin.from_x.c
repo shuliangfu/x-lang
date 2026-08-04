@@ -453,6 +453,7 @@ static uint8_t g_fmt_builtin_ignore_4[11] = {47, 46, 99, 117, 114, 115, 111, 114
 static uint8_t g_fmt_builtin_ignore_5[21] = {47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0};
 static uint8_t g_fmt_builtin_ignore_6[17] = {47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 98, 117, 105, 108, 100, 47, 0};
 static uint8_t g_fmt_builtin_ignore_7[17] = {47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 116, 101, 115, 116, 115, 47, 0};
+static uint8_t g_fmt_builtin_ignore_8[8] = {47, 116, 101, 115, 116, 115, 47, 0};
 static uint8_t g_fmt_default_product_sub_0[13] = {99, 111, 109, 112, 105, 108, 101, 114, 47, 115, 114, 99, 0};
 static uint8_t g_fmt_default_product_sub_1[5] = {99, 111, 114, 101, 0};
 static uint8_t g_fmt_default_product_sub_2[4] = {115, 116, 100, 0};
@@ -607,6 +608,9 @@ uint8_t * fmt_builtin_ignore_at(int32_t i) {
   }
   if ((i ==7)) {
     return &((g_fmt_builtin_ignore_7)[0]);
+  }
+  if ((i ==8)) {
+    return &((g_fmt_builtin_ignore_8)[0]);
   }
   return ((uint8_t *)(0));
 }
@@ -1524,23 +1528,8 @@ void fmt_walk_cwd_fallback(void) {
   return;
 }
 void check_collect_default_product_dirs(void) {
-  {
-    int32_t any_product = 0;
-    int32_t i = 0;
-    while ((i < 64)) {
-      uint8_t * sub = fmt_default_product_sub_at(i);
-      if ((sub ==((uint8_t *)(0)))) {
-        break;
-      }
-      if ((fmt_try_walk_if_product_subdir(sub) !=0)) {
-        (void)((any_product = 1));
-      }
-      (void)((i = (i + 1)));
-    }
-    if ((any_product ==0)) {
-      (void)(fmt_walk_cwd_fallback());
-    }
-  }
+  /* Bare check: recursive cwd *.x (match thin.x / cold seed). */
+  (void)(fmt_walk_cwd_fallback());
   (void)(0);
   return;
 }
@@ -1784,8 +1773,24 @@ void check_argv_append_default_libs_for_path(uint8_t * path, uint8_t * check_arg
     if ((path ==((uint8_t *)(0)))) {
       return;
     }
-    if ((strstr(path, &((needle_src)[0])) ==((uint8_t *)(0)))) {
-      return;
+    /* wave1222: also accept bare "compiler" or "compiler/..." (without /src/).
+     * Previously needle_src="compiler/src/" only matched paths already inside
+     * the src tree, so `xlang check compiler` (the natural invocation) failed
+     * to inject <cwd>/compiler/src as a lib root, breaking all cross-subdir
+     * imports like import("asm.backend") from pipeline/pipeline.x.
+     * PLATFORM: SHARED — both bare and /src/ forms now trigger lib_root inject. */
+    {
+      int matched = (strstr(path, &((needle_src)[0])) !=((uint8_t *)(0))) ? 1 : 0;
+      if (!matched) {
+        /* Try needle_compiler = "compiler" (bare form). */
+        uint8_t needle_compiler[9] = {99, 111, 109, 112, 105, 108, 101, 114, 0};
+        if (strstr(path, &((needle_compiler)[0])) !=((uint8_t *)(0))) {
+          matched = 1;
+        }
+      }
+      if (!matched) {
+        return;
+      }
     }
     if (((n)[0] >=56)) {
       return;
@@ -1830,9 +1835,7 @@ void check_argv_append_default_libs_for_path(uint8_t * path, uint8_t * check_arg
         }
       }
     }
-    if ((strstr(path, &((needle_asm)[0])) ==((uint8_t *)(0)))) {
-      return;
-    }
+    /* always inject compiler/src/asm after compiler/src match */
     if (((n)[0] >=56)) {
       return;
     }

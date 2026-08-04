@@ -2,8 +2,10 @@
 # 测试 std.path：path_empty_len、path_join、path_basename、path_dirname、path_extension、path_stem、path_is_absolute、path_sep、path_clean
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 fi
 XLANG=${XLANG:-./compiler/xlang}
 

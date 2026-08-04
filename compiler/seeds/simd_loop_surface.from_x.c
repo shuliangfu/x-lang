@@ -66,8 +66,8 @@ int32_t glue_expr_same_var_c(uint8_t * arena, int32_t a_ref, int32_t b_ref) {
   {
     int32_t alen = pipeline_expr_var_name_len(arena, a_ref);
     int32_t blen = pipeline_expr_var_name_len(arena, b_ref);
-    uint8_t an[64] = {};
-    uint8_t bn[64] = {};
+    uint8_t an[128] = {};
+    uint8_t bn[128] = {};
     int32_t k = 0;
     if ((pipeline_expr_kind_ord_at(arena, a_ref) !=3)) {
       return 0;
@@ -175,7 +175,7 @@ int32_t glue_block_let_init_lit_c(uint8_t * arena, int32_t block_ref, int32_t va
   }
   {
     int32_t vlen = pipeline_expr_var_name_len(arena, var_ref);
-    uint8_t vbuf[64] = {};
+    uint8_t vbuf[128] = {};
     int32_t nlet = ast_ast_block_num_lets(arena, block_ref);
     int32_t li = 0;
     if ((pipeline_expr_kind_ord_at(arena, var_ref) !=3)) {
@@ -191,7 +191,7 @@ int32_t glue_block_let_init_lit_c(uint8_t * arena, int32_t block_ref, int32_t va
     while ((li < nlet)) {
       int32_t llen = pipeline_block_let_name_len(arena, block_ref, li);
       if ((llen ==vlen)) {
-        uint8_t lb[64] = {};
+        uint8_t lb[128] = {};
         (void)(pipeline_block_let_name_copy64(arena, block_ref, li, &((lb)[0])));
         int32_t matched = 1;
         int32_t k = 0;
@@ -393,7 +393,7 @@ int32_t glue_simd_local_var_stack_off_c(uint8_t * arena, uint8_t * ctx, int32_t 
     if ((vlen > 63)) {
       return (0 - 1);
     }
-    uint8_t vname[64] = {};
+    uint8_t vname[128] = {};
     (void)(pipeline_expr_var_name_into(arena, var_expr_ref, &((vname)[0])));
     int32_t off = asm_ctx_local_find_offset_scoped(ctx, arena, &((vname)[0]), vlen);
     if ((off < 0)) {
@@ -866,9 +866,9 @@ int32_t glue_emit_runtime_strip_loop_c(uint8_t * arena, uint8_t * elf_ctx, uint8
   if ((ta !=0)) {
     return 0;
   }
-  uint8_t vec_loop[64] = {};
-  uint8_t epi_loop[64] = {};
-  uint8_t epi_done[64] = {};
+  uint8_t vec_loop[128] = {};
+  uint8_t epi_loop[128] = {};
+  uint8_t epi_done[128] = {};
   int32_t vec_len = 0;
   int32_t epi_len = 0;
   int32_t done_len = 0;
@@ -1059,10 +1059,10 @@ int32_t glue_emit_f32_soa_sum_strip_c(uint8_t * arena, uint8_t * elf_ctx, uint8_
   if (((feats & 1) ==0)) {
     return 0;
   }
-  uint8_t vec_loop[64] = {};
-  uint8_t epi_merge[64] = {};
-  uint8_t epi_loop[64] = {};
-  uint8_t epi_done[64] = {};
+  uint8_t vec_loop[128] = {};
+  uint8_t epi_merge[128] = {};
+  uint8_t epi_loop[128] = {};
+  uint8_t epi_done[128] = {};
   int32_t vec_len = 0;
   int32_t merge_len = 0;
   int32_t epi_len = 0;

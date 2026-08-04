@@ -6,6 +6,8 @@
 # 用法：./tests/run-lexer-bounds-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="analysis/安全与性能.md"
 MANIFEST="tests/baseline/lexer-bounds.tsv"
@@ -30,7 +32,7 @@ echo "lexer-bounds manifest OK"
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 XLANG_BIN="${XLANG:-${RUN_XLANG:-./compiler/xlang-c}}"
 if [ ! -x "$XLANG_BIN" ]; then
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   XLANG_BIN=./compiler/xlang-c
 fi
 

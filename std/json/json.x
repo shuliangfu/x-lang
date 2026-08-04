@@ -515,23 +515,6 @@ let g_json_object_keybuf: u8[64] = [];
 let g_json_object_key_len: i32 = 0;
 /* See implementation. */
 let g_json_decode_consumed: i32 = 0;
-/** Internal function `json_cursor_load_into_c`.
- * Implements `json_cursor_load_into_c`.
- * @param dst *JsonCursor
- * @param src *JsonCursor
- * @return void
- */
-function json_cursor_load_into_c(dst: *JsonCursor, src: *JsonCursor): void {
-  let p: *u8 = 0 as *u8;
-  let ln: i32 = 0;
-  let of: i32 = 0;
-  if (dst == 0 || src == 0) { return; }
-  p = src.ptr;
-  ln = src.length;
-  of = src.off;
-  json_cursor_write_fields(dst, p, ln, of);
-}
-
 /** Internal function `json_decode_consumed_ptr_c`.
  * Implements `json_decode_consumed_ptr_c`.
  * @return *i32
@@ -609,14 +592,14 @@ function json_cursor_skip_value_c(cur: *JsonCursor): i32 {
   return json_cursor_skip_value_impl(cur);
 }
 
-/** Internal function `json_skip_value_c`.
+/** Exported function `json_skip_value_c`.
  * Implements `json_skip_value_c`.
  * @param ptr *u8
  * @param len i32
  * @param consumed *i32
  * @return i32
  */
-function json_skip_value_c(ptr: *u8, len: i32, consumed: *i32): i32 {
+export function json_skip_value_c(ptr: *u8, len: i32, consumed: *i32): i32 {
   let cur: JsonCursor;
   if (ptr == 0 || len < 0 || consumed == 0) { return -1; }
   json_cursor_init_c(&cur, ptr, len);
@@ -625,7 +608,7 @@ function json_skip_value_c(ptr: *u8, len: i32, consumed: *i32): i32 {
   return 0;
 }
 
-/** Internal function `json_parse_string_view_c`.
+/** Exported function `json_parse_string_view_c`.
  * Implements `json_parse_string_view_c`.
  * @param ptr *u8
  * @param len i32
@@ -633,7 +616,7 @@ function json_skip_value_c(ptr: *u8, len: i32, consumed: *i32): i32 {
  * @param consumed *i32
  * @return *u8
  */
-function json_parse_string_view_c(ptr: *u8, len: i32, out_len: *i32, consumed: *i32): *u8 {
+export function json_parse_string_view_c(ptr: *u8, len: i32, out_len: *i32, consumed: *i32): *u8 {
   let i: i32 = 0;
   if (ptr == 0 || len < 2 || ptr[0] != 34 || out_len == 0 || consumed == 0) { return 0 as *u8; }
   i = 1;
@@ -816,45 +799,45 @@ function json_key_eq_path(key_buf: *u8, key_len: i32, path: *u8, path_off: i32, 
   return 1;
 }
 
-/** Internal function `json_decode_i32_at_cursor_c`.
+/** Exported function `json_decode_i32_at_cursor_c`.
  * Implements `json_decode_i32_at_cursor_c`.
  * @param cur *JsonCursor
  * @param consumed *i32
  * @param out *i32
  * @return i32
  */
-function json_decode_i32_at_cursor_c(cur: *JsonCursor, consumed: *i32, out: *i32): i32 {
+export function json_decode_i32_at_cursor_c(cur: *JsonCursor, consumed: *i32, out: *i32): i32 {
   return json_decode_i32_at_c(json_cursor_value_ptr_at_c(cur), json_cursor_value_len_at_c(cur),
     consumed, out);
 }
 
-/** Internal function `json_decode_bool_at_cursor_c`.
+/** Exported function `json_decode_bool_at_cursor_c`.
  * Implements `json_decode_bool_at_cursor_c`.
  * @param cur *JsonCursor
  * @param consumed *i32
  * @param out *i32
  * @return i32
  */
-function json_decode_bool_at_cursor_c(cur: *JsonCursor, consumed: *i32, out: *i32): i32 {
+export function json_decode_bool_at_cursor_c(cur: *JsonCursor, consumed: *i32, out: *i32): i32 {
   return json_decode_bool_at_c(json_cursor_value_ptr_at_c(cur), json_cursor_value_len_at_c(cur),
     consumed, out);
 }
 
 /* See implementation. */
-function json_decode_string_at_cursor_c(cur: *JsonCursor, out: *u8, out_cap: i32, out_len: *i32,
+export function json_decode_string_at_cursor_c(cur: *JsonCursor, out: *u8, out_cap: i32, out_len: *i32,
   consumed: *i32): i32 {
   return json_decode_string_at_c(json_cursor_value_ptr_at_c(cur), json_cursor_value_len_at_c(cur),
     out, out_cap, out_len, consumed);
 }
 
-/** Internal function `json_decode_f64_at_cursor_c`.
+/** Exported function `json_decode_f64_at_cursor_c`.
  * Implements `json_decode_f64_at_cursor_c`.
  * @param cur *JsonCursor
  * @param consumed *i32
  * @param out *f64
  * @return i32
  */
-function json_decode_f64_at_cursor_c(cur: *JsonCursor, consumed: *i32, out: *f64): i32 {
+export function json_decode_f64_at_cursor_c(cur: *JsonCursor, consumed: *i32, out: *f64): i32 {
   return json_decode_f64_at_c(json_cursor_value_ptr_at_c(cur), json_cursor_value_len_at_c(cur),
     consumed, out);
 }
@@ -1070,7 +1053,7 @@ function json_cursor_find_array_index_inplace(c: *JsonCursor, index: i32): i32 {
   return -1;
 }
 
-/** Internal function `json_cursor_find_key`.
+/** Exported function `json_cursor_find_key`.
  * Implements `json_cursor_find_key`.
  * @param cur *JsonCursor
  * @param key *u8
@@ -1078,7 +1061,7 @@ function json_cursor_find_array_index_inplace(c: *JsonCursor, index: i32): i32 {
  * @param out_at *JsonCursor
  * @return i32
  */
-function json_cursor_find_key(cur: *JsonCursor, key: *u8, key_len: i32, out_at: *JsonCursor): i32 {
+export function json_cursor_find_key(cur: *JsonCursor, key: *u8, key_len: i32, out_at: *JsonCursor): i32 {
   let src_ptr: *u8 = 0 as *u8;
   let src_len: i32 = 0;
   let src_off: i32 = 0;
@@ -1111,14 +1094,14 @@ function json_path_seg_is_index(path: *u8, off: i32, seg_len: i32, out_idx: *i32
   return 1;
 }
 
-/** Internal function `json_cursor_find_array_index`.
+/** Exported function `json_cursor_find_array_index`.
  * Implements `json_cursor_find_array_index`.
  * @param cur *JsonCursor
  * @param index i32
  * @param out_at *JsonCursor
  * @return i32
  */
-function json_cursor_find_array_index(cur: *JsonCursor, index: i32, out_at: *JsonCursor): i32 {
+export function json_cursor_find_array_index(cur: *JsonCursor, index: i32, out_at: *JsonCursor): i32 {
   let src_ptr: *u8 = 0 as *u8;
   let src_len: i32 = 0;
   let src_off: i32 = 0;
@@ -1148,7 +1131,7 @@ function json_cursor_follow_path_seg_inplace(c: *JsonCursor, path: *u8, seg_off:
 }
 
 /* See implementation. */
-function json_cursor_follow_path_seg(cur: *JsonCursor, seg: *u8, seg_len: i32,
+export function json_cursor_follow_path_seg(cur: *JsonCursor, seg: *u8, seg_len: i32,
   out_at: *JsonCursor): i32 {
   let src_ptr: *u8 = 0 as *u8;
   let src_len: i32 = 0;
@@ -1212,7 +1195,7 @@ function json_object_decode_dotted_inplace(c: *JsonCursor, path: *u8, path_len: 
 }
 
 /* See implementation. */
-function json_object_decode_dotted_at(cur: *JsonCursor, path: *u8, path_len: i32,
+export function json_object_decode_dotted_at(cur: *JsonCursor, path: *u8, path_len: i32,
   out_at: *JsonCursor): i32 {
   let src_ptr: *u8 = 0 as *u8;
   let src_len: i32 = 0;
@@ -1427,11 +1410,11 @@ function json_smoke_decode_dotted_f64_c(doc: *u8, doc_len: i32, path: *u8, path_
   return json_object_decode_dotted_f64_c(&cur, path, path_len, out);
 }
 
-/** Internal function `json_typed_decode_smoke_c`.
+/** Exported function `json_typed_decode_smoke_c`.
  * Implements `json_typed_decode_smoke_c`.
  * @return i32
  */
-function json_typed_decode_smoke_c(): i32 {
+export function json_typed_decode_smoke_c(): i32 {
   let age: i32 = 0;
   let ok: i32 = 0;
   let name_len: i32 = 0;
@@ -1482,72 +1465,72 @@ function json_typed_decode_smoke_c(): i32 {
   return 0;
 }
 
-/** Internal function `json_append_object_c`.
+/** Exported function `json_append_object_c`.
  * Implements `json_append_object_c`.
  * @param buf *u8
  * @param cap i32
  * @param off i32
  * @return i32
  */
-function json_append_object_c(buf: *u8, cap: i32, off: i32): i32 {
+export function json_append_object_c(buf: *u8, cap: i32, off: i32): i32 {
   if (buf == 0 || off < 0 || off >= cap) { return -1; }
   buf[off] = 123;
   return 1;
 }
 
-/** Internal function `json_append_object_end_c`.
+/** Exported function `json_append_object_end_c`.
  * Implements `json_append_object_end_c`.
  * @param buf *u8
  * @param cap i32
  * @param off i32
  * @return i32
  */
-function json_append_object_end_c(buf: *u8, cap: i32, off: i32): i32 {
+export function json_append_object_end_c(buf: *u8, cap: i32, off: i32): i32 {
   if (buf == 0 || off < 0 || off >= cap) { return -1; }
   buf[off] = 125;
   return 1;
 }
 
-/** Internal function `json_append_array_c`.
+/** Exported function `json_append_array_c`.
  * Implements `json_append_array_c`.
  * @param buf *u8
  * @param cap i32
  * @param off i32
  * @return i32
  */
-function json_append_array_c(buf: *u8, cap: i32, off: i32): i32 {
+export function json_append_array_c(buf: *u8, cap: i32, off: i32): i32 {
   if (buf == 0 || off < 0 || off >= cap) { return -1; }
   buf[off] = 91;
   return 1;
 }
 
-/** Internal function `json_append_array_end_c`.
+/** Exported function `json_append_array_end_c`.
  * Implements `json_append_array_end_c`.
  * @param buf *u8
  * @param cap i32
  * @param off i32
  * @return i32
  */
-function json_append_array_end_c(buf: *u8, cap: i32, off: i32): i32 {
+export function json_append_array_end_c(buf: *u8, cap: i32, off: i32): i32 {
   if (buf == 0 || off < 0 || off >= cap) { return -1; }
   buf[off] = 93;
   return 1;
 }
 
-/** Internal function `json_append_comma_c`.
+/** Exported function `json_append_comma_c`.
  * Implements `json_append_comma_c`.
  * @param buf *u8
  * @param cap i32
  * @param off i32
  * @return i32
  */
-function json_append_comma_c(buf: *u8, cap: i32, off: i32): i32 {
+export function json_append_comma_c(buf: *u8, cap: i32, off: i32): i32 {
   if (buf == 0 || off < 0 || off >= cap) { return -1; }
   buf[off] = 44;
   return 1;
 }
 
-/** Internal function `json_append_key_c`.
+/** Exported function `json_append_key_c`.
  * Implements `json_append_key_c`.
  * @param buf *u8
  * @param cap i32
@@ -1556,7 +1539,7 @@ function json_append_comma_c(buf: *u8, cap: i32, off: i32): i32 {
  * @param key_len i32
  * @return i32
  */
-function json_append_key_c(buf: *u8, cap: i32, off: i32, key: *u8, key_len: i32): i32 {
+export function json_append_key_c(buf: *u8, cap: i32, off: i32, key: *u8, key_len: i32): i32 {
   let i: i32 = off;
   let n: i32 = 0;
   if (buf == 0 || key == 0 || key_len < 0 || off < 0) { return -1; }
@@ -1571,7 +1554,7 @@ function json_append_key_c(buf: *u8, cap: i32, off: i32, key: *u8, key_len: i32)
   return i - off;
 }
 
-/** Internal function `json_append_string_value_c`.
+/** Exported function `json_append_string_value_c`.
  * Implements `json_append_string_value_c`.
  * @param buf *u8
  * @param cap i32
@@ -1580,7 +1563,7 @@ function json_append_key_c(buf: *u8, cap: i32, off: i32, key: *u8, key_len: i32)
  * @param val_len i32
  * @return i32
  */
-function json_append_string_value_c(buf: *u8, cap: i32, off: i32, val: *u8, val_len: i32): i32 {
+export function json_append_string_value_c(buf: *u8, cap: i32, off: i32, val: *u8, val_len: i32): i32 {
   let i: i32 = off;
   let n: i32 = 0;
   if (buf == 0 || val == 0 || val_len < 0 || off < 0) { return -1; }
@@ -1594,7 +1577,7 @@ function json_append_string_value_c(buf: *u8, cap: i32, off: i32, val: *u8, val_
   return i - off;
 }
 
-/** Internal function `json_append_number_at_c`.
+/** Exported function `json_append_number_at_c`.
  * Implements `json_append_number_at_c`.
  * @param buf *u8
  * @param cap i32
@@ -1602,7 +1585,7 @@ function json_append_string_value_c(buf: *u8, cap: i32, off: i32, val: *u8, val_
  * @param val f64
  * @return i32
  */
-function json_append_number_at_c(buf: *u8, cap: i32, off: i32, val: f64): i32 {
+export function json_append_number_at_c(buf: *u8, cap: i32, off: i32, val: f64): i32 {
   let tmp: u8[32] = [];
   let n: i32 = 0;
   let i: i32 = 0;
@@ -1616,8 +1599,8 @@ function json_append_number_at_c(buf: *u8, cap: i32, off: i32, val: f64): i32 {
   return n;
 }
 
-/** Internal function `json_module_anchor`.
+/** Exported function `json_module_anchor`.
  * Implements `json_module_anchor`.
  * @return i32
  */
-function json_module_anchor(): i32 { return 0; }
+export function json_module_anchor(): i32 { return 0; }

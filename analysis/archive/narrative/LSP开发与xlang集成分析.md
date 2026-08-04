@@ -229,4 +229,3 @@
 - [vscode-languageserver (Node)](https://github.com/microsoft/vscode-languageserver)
 - [VSCode 语言服务器扩展指南](https://code.visualstudio.com/api/language-extensions/language-server-extension-guide)
 - 本项目：`analysis/VSCode插件分析与实现指南.md`、`compiler/include/ast.h`、`compiler/include/token.h`、`compiler/src/typeck/typeck.c`、`compiler/src/parser/parser.c`、`compiler/src/pipeline/pipeline.x`（.x 调用 parse/typeck 的现有入口）
-

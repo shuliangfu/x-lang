@@ -2,7 +2,9 @@
 # asm 7.3：嵌套 VAR 返回链免 x2 暂存（活跃性原型：VAR→rbx 不 clobber rax）。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 run_case() {

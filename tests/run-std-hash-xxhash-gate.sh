@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-hash-xxhash-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD105_DOC:-analysis/std-hash-xxhash-v1.md}"
 MANIFEST="${XLANG_STD105_TSV:-tests/baseline/std-hash-xxhash.tsv}"
@@ -85,7 +87,7 @@ stdlib_cm_native_xlang() {
   esac
 }
 if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
-  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 xlang_compiler_make xlang-c 2>/dev/null || true
 elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi

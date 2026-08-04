@@ -4,6 +4,8 @@
 # 用法：./tests/run-core-fmt-f64-special-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_CORE_FMT_F64_SPECIAL_DOC:-analysis/core-fmt-f64-special-v1.md}"
 MANIFEST="${XLANG_CORE_FMT_F64_SPECIAL_TSV:-tests/baseline/core-fmt-f64-special.tsv}"
@@ -96,7 +98,7 @@ if [ -z "$XLANG_BIN" ]; then
   done
 fi
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
     SKIP=0

@@ -14,13 +14,13 @@ comp_isel_native_xlang() {
   esac
 }
 
-# 解析 isel bench 的 .x 路径（tests/asm 或 tests/bench）。
+# 解析 isel bench 的 .x 路径（tests/asm 或 bench）。
 comp_isel_bench_path() {
   local file="$1"
   if [ -f "tests/asm/${file}" ]; then
     echo "tests/asm/${file}"
-  elif [ -f "tests/bench/${file}" ]; then
-    echo "tests/bench/${file}"
+  elif [ -f "bench/${file}" ]; then
+    echo "bench/${file}"
   else
     return 1
   fi

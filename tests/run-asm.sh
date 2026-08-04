@@ -6,6 +6,8 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # CI 下默认跳过；设 XLANG_CI_FORCE_ASM=1 时仍执行（可选 job 与本机等价验证）
 if { [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; } && [ -z "${XLANG_CI_FORCE_ASM:-}" ]; then
@@ -13,16 +15,16 @@ if { [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${CI:-}" ]; } && [ -z "${XLANG_CI_FOR
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 # CI asm-smoke job 已 bootstrap-driver-seed；勿重跑 bootstrap-driver（会全量 build_xlang_asm 12min+ 超时）。
 if [ ! -x compiler/xlang ]; then
-  make -C compiler bootstrap-driver-seed 2>/dev/null || true
-  make -C compiler bootstrap-pipeline 2>/dev/null || true
-  make -C compiler xlang-x-pipeline 2>/dev/null || true
+  xlang_compiler_make bootstrap-driver-seed 2>/dev/null || true
+  xlang_compiler_make bootstrap-pipeline 2>/dev/null || true
+  xlang_compiler_make xlang-x-pipeline 2>/dev/null || true
 elif [ -z "${CI:-}" ]; then
-  make -C compiler bootstrap-driver 2>/dev/null || true
-  make -C compiler bootstrap-pipeline 2>/dev/null || true
-  make -C compiler xlang-x-pipeline 2>/dev/null || true
+  xlang_compiler_make bootstrap-driver 2>/dev/null || true
+  xlang_compiler_make bootstrap-pipeline 2>/dev/null || true
+  xlang_compiler_make xlang-x-pipeline 2>/dev/null || true
 fi
 if [ -x compiler/xlang ]; then XLANG=./compiler/xlang; elif [ -x compiler/xlang_x ]; then XLANG=./compiler/xlang_x; else XLANG=./compiler/xlang; fi
 [ -x "$XLANG" ] || { echo "compiler/xlang not found"; exit 1; }

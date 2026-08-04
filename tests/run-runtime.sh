@@ -2,9 +2,11 @@
 # 【文件职责】std.runtime 回归：runtime_ready + panic_hook_align（STD-028）
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler -q ../std/runtime/runtime.o 2>/dev/null || make -C compiler ../std/runtime/runtime.o
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+xlang_compiler_make -q ../std/runtime/runtime.o 2>/dev/null || xlang_compiler_make ../std/runtime/runtime.o
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 
 # shellcheck source=tests/lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"

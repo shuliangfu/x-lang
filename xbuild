@@ -1,0 +1,23 @@
+#!/bin/sh
+# xbuild — preferred product-path entry name (Track MG 11.0.4).
+#
+# G.7 single authority: body is ONLY xlang-build.sh in this repo root.
+# Do not reimplement targets here. compiler/Makefile remains the
+# implementation-layer dep graph until 11.3; daily work must not depend on
+# the root Makefile (which is help-only).
+#
+# Usage:
+#   ./xbuild build
+#   ./xbuild help
+#   ./xbuild test
+# PLATFORM: SHARED (shell entry)
+
+set -e
+ROOT="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+# wave784: body (xlang-build.sh) uses bash arrays (host-cc-seed etc.).
+# Ubuntu /bin/sh = dash rejects `_hcs_args=()` → Syntax error; always exec bash.
+# PLATFORM: SHARED — entry portability; bash is required by the body already.
+if command -v bash >/dev/null 2>&1; then
+  exec bash "$ROOT/xlang-build.sh" "$@"
+fi
+exec sh "$ROOT/xlang-build.sh" "$@"

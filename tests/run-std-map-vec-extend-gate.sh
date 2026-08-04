@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-map-vec-extend-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_MVE_DOC:-analysis/std-map-vec-extend-v1.md}"
 MANIFEST="${XLANG_STD_MVE_TSV:-tests/baseline/std-map-vec-extend.tsv}"
@@ -65,7 +67,7 @@ resolve_shu() {
 }
 if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-013/014: typeck (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if "$XLANG_BIN" check -L . tests/map/boundary.x >/dev/null 2>&1; then
     MAP_OK=1
   else

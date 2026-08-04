@@ -274,17 +274,19 @@ int32_t arch_x86_64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx)
 /* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_label */
 int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_func) {
   uint8_t *cb;
-  uint8_t mn[64];
+  uint8_t mn[128];
   int32_t k;
   if (!elf_ctx || !name || name_len < 0) return -1;
   cb = x86_enc_ctx_bytes(elf_ctx);
   if (is_func != 0 && pipeline_elf_ctx_pad_code_to_4(cb) != 0) return -1;
   if (pipeline_elf_ctx_add_label(cb, name, name_len, pipeline_elf_ctx_emit_code_len(cb)) != 0) return -1;
   if (is_func == 0) return 0;
-  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+  /* wave580 Cap: mn u8[128] holds '_' + up to 127 content (was 63).
+   * PLATFORM: MACOS|DARWIN x86_64 Mach-O export; LINUX bare name. */
+  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 127 && name[0] != 95) {
     mn[0] = 95;
     k = 0;
-    while (k < name_len && k < 63) { mn[k + 1] = name[k]; k = k + 1; }
+    while (k < name_len && k < 127) { mn[k + 1] = name[k]; k = k + 1; }
     return pipeline_elf_ctx_add_sym(cb, mn, name_len + 1, pipeline_elf_ctx_emit_code_len(cb));
   }
   return pipeline_elf_ctx_add_sym(cb, name, name_len, pipeline_elf_ctx_emit_code_len(cb));
@@ -1125,16 +1127,18 @@ int32_t arch_x86_64_enc_enc_jmp(struct platform_elf_ElfCodegenCtx *elf_ctx, uint
 int32_t arch_x86_64_enc_enc_call(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
   int32_t rel32_at;
   uint8_t *cb;
-  uint8_t rn[64];
+  uint8_t rn[128];
   int32_t k;
   if (!elf_ctx || !name || name_len <= 0) return -1;
   cb = x86_enc_ctx_bytes(elf_ctx);
   if (x86_enc_u8(elf_ctx, 232) != 0) return -1;
   if (x86_enc_u32_le(elf_ctx, 0) != 0) return -1;
   rel32_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
-  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+  /* wave580 Cap: rn u8[128] holds '_' + up to 127 content (was 63).
+   * PLATFORM: MACOS|DARWIN x86_64 call reloc. */
+  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 127 && name[0] != 95) {
     rn[0] = 95; k = 0;
-    while (k < name_len && k < 63) { rn[k + 1] = name[k]; k = k + 1; }
+    while (k < name_len && k < 127) { rn[k + 1] = name[k]; k = k + 1; }
     return pipeline_elf_ctx_append_reloc(cb, rel32_at, rn, name_len + 1);
   }
   return pipeline_elf_ctx_append_reloc(cb, rel32_at, name, name_len);

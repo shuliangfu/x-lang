@@ -29,6 +29,8 @@ extern int32_t typeck_expr_inline_array_field_type_ref(struct ast_ASTArena *aren
                                                        int32_t field_name_len);
 extern int32_t pipeline_module_top_level_let_is_const(struct ast_Module *m, int32_t idx);
 extern int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *m, int32_t idx);
+extern int32_t pipeline_module_top_level_let_name_len(struct ast_Module *m, int32_t idx);
+extern uint8_t pipeline_module_top_level_let_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
 extern int32_t typeck_top_level_let_name_equal(struct ast_Module *module, int32_t tl_idx, uint8_t *name,
                                                int32_t name_len);
 extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
@@ -41,7 +43,9 @@ extern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *mo
 extern int32_t pipeline_typeck_field_soa_index_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                                 int32_t base_ref);
 
-/** dep 模块顶层 const 是否匹配 name；命中时写出 type_ref。 */
+/** dep 模块顶层 const 是否匹配 name；命中时写出 type_ref。
+ * When type_ref is 0 (const without `: Type`), still match and write 0 so the
+ * caller can stamp i32 from its arena (wave703). */
 static int32_t pipeline_typeck_dep_top_level_const_match(struct ast_Module *dep_mod, uint8_t *name, int32_t name_len,
                                                          int32_t *out_type_ref) {
   int32_t tl;
@@ -56,8 +60,7 @@ static int32_t pipeline_typeck_dep_top_level_const_match(struct ast_Module *dep_
     if (!typeck_top_level_let_name_equal(dep_mod, tl, name, name_len))
       continue;
     tr = pipeline_module_top_level_let_type_ref(dep_mod, tl);
-    if (tr <= 0)
-      continue;
+    /* Allow tr==0: caller fills default (i32) in its arena. */
     *out_type_ref = tr;
     return 1;
   }
@@ -151,7 +154,7 @@ void pipeline_typeck_field_prebind_c(struct ast_Module *module, struct ast_ASTAr
                                             struct ast_PipelineDepCtx *ctx) {
   int32_t base_ref;
   int32_t vnlen;
-  uint8_t vbuf[64];
+  uint8_t vbuf[128] /* wave577 Cap name into */;
   int32_t param_pre;
   int32_t nt_pre;
 
@@ -186,11 +189,11 @@ int32_t pipeline_typeck_field_known_ptr_types_c(struct ast_Module *module, struc
   int32_t base_ty;
   int32_t bt_kind;
   int32_t elem_ty;
-  uint8_t inner_nm_buf[64];
+  uint8_t inner_nm_buf[128] /* wave577 Cap name into */;
   int32_t inner_nm_len;
   int32_t inner_ord;
   int32_t fl;
-  uint8_t fn_buf[64];
+  uint8_t fn_buf[128] /* wave577 Cap name into */;
   static const uint8_t nm_astarena[8] = {65, 83, 84, 65, 114, 101, 110, 97};
   static const uint8_t nm_types[5] = {116, 121, 112, 101, 115};
   static const uint8_t nm_num_types[9] = {110, 117, 109, 95, 116, 121, 112, 101, 115};
@@ -233,7 +236,7 @@ int32_t pipeline_typeck_field_known_ptr_types_c(struct ast_Module *module, struc
   driver_diagnostic_typeck_ptr_field((int32_t)ast_TypeKind_TYPE_PTR, inner_ord, inner_nm_len, base_ty,
                                      num_struct_layouts);
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  if (fl <= 0 || fl > 127)
     return 0;
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
   i32r_at = typeck_ensure_i32_type_ref(arena);
@@ -349,9 +352,9 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
   int32_t base_ty;
   int32_t bt_kind;
   int32_t layout_named_ref;
-  uint8_t layout_nm_buf[64];
+  uint8_t layout_nm_buf[128] /* wave577 Cap name into */;
   int32_t layout_nm_len;
-  uint8_t fn_buf[64];
+  uint8_t fn_buf[128] /* wave577 Cap name into */;
   int32_t fl2;
   int32_t user_ev_tag;
   static const uint8_t nm_type_kind_ty[8] = {84, 121, 112, 101, 75, 105, 110, 100};
@@ -371,10 +374,30 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
   base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
   if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena->num_types)
     return 0;
+  /*
+   * wave702 Cap residual: peel type aliases before layout/name lookup.
+   * `type P = Point; let p: P = ...; p.x` must use Point's struct layout, not NAMED "P".
+   * G.7: typeck_resolve_type_alias_ref_local (same authority as assign/call).
+   * PLATFORM: SHARED.
+   */
+  {
+    extern int32_t typeck_resolve_type_alias_ref_local(struct ast_Module *m, struct ast_ASTArena *a,
+                                                       int32_t ty, int32_t depth);
+    int32_t peeled = typeck_resolve_type_alias_ref_local(module, arena, base_ty, 0);
+    if (!ast_ref_is_null(peeled) && peeled > 0 && peeled <= arena->num_types)
+      base_ty = peeled;
+  }
   bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
   layout_named_ref = 0;
   if (bt_kind == (int32_t)ast_TypeKind_TYPE_PTR) {
     elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
+    if (!ast_ref_is_null(elem_ty) && elem_ty > 0) {
+      extern int32_t typeck_resolve_type_alias_ref_local(struct ast_Module *m, struct ast_ASTArena *a,
+                                                         int32_t ty, int32_t depth);
+      int32_t peeled_e = typeck_resolve_type_alias_ref_local(module, arena, elem_ty, 0);
+      if (!ast_ref_is_null(peeled_e) && peeled_e > 0 && peeled_e <= arena->num_types)
+        elem_ty = peeled_e;
+    }
     if (!ast_ref_is_null(elem_ty) && pipeline_type_kind_ord_at(arena, elem_ty) == (int32_t)ast_TypeKind_TYPE_NAMED)
       layout_named_ref = elem_ty;
   } else if (bt_kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
@@ -386,7 +409,8 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
   if (layout_nm_len <= 0 || pipeline_type_kind_ord_at(arena, layout_named_ref) != (int32_t)ast_TypeKind_TYPE_NAMED)
     return 0;
   fl2 = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl2 <= 0 || fl2 > 63)
+  /* wave582 Cap residual: field name content ≤127. */
+  if (fl2 <= 0 || fl2 > 127)
     return 0;
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
   user_ev_tag = pipeline_module_enum_variant_tag_for_names(module, &layout_nm_buf[0], layout_nm_len, &fn_buf[0], fl2);
@@ -460,6 +484,33 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
   off = -1;
   ftr = 0;
   if (skip_layout_for_type_kind == 0) {
+    /* wave1220 P1: strip import-binding qualification prefix from type name
+     * before layout lookup. Parser stores qualified type names like
+     * "lexer.Lexer" in TYPE_NAMED (consume_qualified_type_ident_name_c),
+     * but struct_layouts are registered with the bare struct name "Lexer".
+     * Without stripping, typeck_get_field_*_from_layout_deps compares
+     * "lexer.Lexer" (11 bytes) against dep layout "Lexer" (5 bytes) and
+     * never matches — cross-module struct field access fails for all
+     * user deps. Strip the last '.' prefix so layout lookup sees "Lexer".
+     * PLATFORM: SHARED — root-cause fix at the layout-named dispatch layer.
+     * G.7: single fix point; entry + dep walk share the stripped name. */
+    {
+      int32_t dot_pos = -1;
+      int32_t si;
+      for (si = 0; si < layout_nm_len; si++) {
+        if (layout_nm_buf[si] == 46 /* '.' */)
+          dot_pos = si;
+      }
+      if (dot_pos >= 0 && dot_pos + 1 < layout_nm_len) {
+        int32_t suffix_len = layout_nm_len - (dot_pos + 1);
+        /* Shift suffix to front of buffer; both lookup and TokenKind/EOF
+         * special-case checks below use layout_nm_buf[0..suffix_len). */
+        for (si = 0; si < suffix_len; si++)
+          layout_nm_buf[si] = layout_nm_buf[dot_pos + 1 + si];
+        layout_nm_buf[suffix_len] = 0;
+        layout_nm_len = suffix_len;
+      }
+    }
     off = typeck_get_field_offset_from_layout_deps(module, ctx, &layout_nm_buf[0], layout_nm_len, &fn_buf[0], fl2);
     if (off >= 0)
       pipeline_expr_set_field_access_offset(arena, expr_ref, off);
@@ -503,7 +554,7 @@ void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref,
   int32_t elem_ty;
   int32_t fl;
   int32_t bt_kind;
-  uint8_t fn_buf[64];
+  uint8_t fn_buf[128] /* wave577 Cap name into */;
   static const uint8_t len_nm[6] = {108, 101, 110, 103, 116, 104};
   static const uint8_t dat_nm[4] = {100, 97, 116, 97};
   int32_t ut;
@@ -516,7 +567,7 @@ void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref,
     return;
   bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  if (fl <= 0 || fl > 127)
     return;
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
   /* wave346: fixed T[N] / SIMD vector lanes — `.length` is compile-time N as usize.
@@ -557,11 +608,11 @@ void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref,
  */
 void pipeline_typeck_field_name_fallback_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t base_ref) {
   int32_t fl;
-  uint8_t fn_buf[64];
+  uint8_t fn_buf[128] /* wave577 Cap name into */;
   int32_t base_ty;
   int32_t bt_kind;
   int32_t named_ref;
-  uint8_t cob_nm[64];
+  uint8_t cob_nm[128] /* wave577 Cap name into */;
   int32_t cob_len;
   static const uint8_t nm_dat[4] = {100, 97, 116, 97};
   static const uint8_t nm_cob[13] = {67, 111, 100, 101, 103, 101, 110, 79, 117, 116, 66, 117, 102};
@@ -575,7 +626,7 @@ void pipeline_typeck_field_name_fallback_c(struct ast_ASTArena *arena, int32_t e
   if (!ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref)))
     return;
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  if (fl <= 0 || fl > 127)
     return;
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
   if (fl == 4 && !ast_ref_is_null(base_ref) && base_ref > 0 && base_ref <= arena->num_exprs) {
@@ -630,8 +681,8 @@ void pipeline_typeck_field_lexer_fallback_c(struct ast_Module *module, struct as
   int32_t base_ty;
   int32_t elem_ty;
   int32_t fl;
-  uint8_t fn_buf[64];
-  uint8_t vbuf[64];
+  uint8_t fn_buf[128] /* wave577 Cap name into */;
+  uint8_t vbuf[128] /* wave577 Cap name into */;
   int32_t vnlen;
   int32_t pr_fb;
   int32_t lx_fb;
@@ -641,7 +692,7 @@ void pipeline_typeck_field_lexer_fallback_c(struct ast_Module *module, struct as
   if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
     return;
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  if (fl <= 0 || fl > 127)
     return;
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
   base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
@@ -667,7 +718,7 @@ void pipeline_typeck_field_lexer_fallback_c(struct ast_Module *module, struct as
   if (pipeline_expr_kind_ord_at(arena, base_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
     return;
   vnlen = pipeline_expr_var_name_len(arena, base_ref);
-  if (vnlen <= 0 || vnlen > 63)
+  if (vnlen <= 0 || vnlen > 127)
     return;
   if (ctx->current_func_index < 0 || ctx->current_func_index >= module->num_funcs)
     return;
@@ -684,16 +735,72 @@ void pipeline_typeck_field_lexer_fallback_c(struct ast_Module *module, struct as
  * typeck.x::typeck_check_expr_field_access 的 C 委托：prebind → check base → known_ptr/layout/slice/fallback。
  */
 /**
- * Import binding 特判：base 是 import binding（如 `backend`），field name 是 dep 模块中的函数名。
- * 从 dep 模块中查找函数，设置 field access 表达式的 resolved type 为函数返回类型。
- * 返回 1 表示命中（已处理），0 表示未命中（继续常规 field access typeck）。
+ * Stamp import.Enum as TYPE_NAMED(enum) when field_name matches a dep enum.
+ * Single authority for both import-list and const-import sugar hops (G.7).
+ * @return 1 hit, 0 miss.
+ * PLATFORM: SHARED — wave1218 Cap residual.
+ */
+static int32_t pipeline_typeck_field_import_try_dep_enum_type_c(struct ast_Module *dep_mod,
+                                                               struct ast_ASTArena *arena,
+                                                               int32_t expr_ref, int32_t base_ref,
+                                                               uint8_t *base_name, int32_t base_name_len,
+                                                               uint8_t *field_name, int32_t field_name_len) {
+  int32_t ne;
+  int32_t ek;
+  if (!dep_mod || !arena || !field_name || field_name_len <= 0)
+    return 0;
+  ne = dep_mod->num_module_enums;
+  for (ek = 0; ek < ne; ek++) {
+    int32_t el = pipeline_module_enum_name_len(dep_mod, ek);
+    int32_t bi;
+    if (el != field_name_len || el <= 0)
+      continue;
+    for (bi = 0; bi < el; bi++) {
+      if (pipeline_module_enum_name_byte_at(dep_mod, ek, bi) != field_name[bi])
+        break;
+    }
+    if (bi != el)
+      continue;
+    {
+      int32_t enum_ty = typeck_find_or_alloc_named_type_ref(arena, field_name, field_name_len);
+      if (enum_ty != 0)
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, enum_ty);
+      if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
+        int32_t nt = typeck_find_or_alloc_named_type_ref(arena, base_name, base_name_len);
+        if (nt != 0)
+          pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
+      }
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Import binding resolve: base is whole-module import binding (e.g. `token`,
+ * `backend`); field is a dep-module export.
+ *
+ * Lookup order on the matched dep (G.7 single gate — do not open a second path):
+ *  1) function → field expr type = function return type
+ *  2) top-level const → field expr type = const type (or i32 if untyped)
+ *  3) enum type name → field expr type = TYPE_NAMED(enum) so that
+ *     `token.TokenKind.TOKEN_RETURN` can resolve the outer variant via
+ *     pipeline_typeck_field_layout_named_c + enum_variant_tag_for_names(deps).
+ *
+ * Prior: only (1)(2). Missing (3) made `import.Enum.Variant` hard-fail as
+ * "unknown field on this type" (wave1218 parser.x #178 lexer_token_run_len),
+ * blocking parser_gen.c regen and cascading L009 line desync. Local
+ * `Color.RED` worked; only cross-module enum type hops failed.
+ *
+ * @return 1 hit (resolved_type_ref stamped), 0 miss (continue normal field typeck).
+ * PLATFORM: SHARED — typeck; rebuild pipeline_x.o after edit.
  */
 int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                         int32_t expr_ref, int32_t base_ref,
                                                         struct ast_PipelineDepCtx *ctx) {
-  uint8_t base_name[64];
+  uint8_t base_name[128]; /* wave577 Cap */
   int32_t base_name_len;
-  uint8_t field_name[64];
+  uint8_t field_name[128]; /* wave577 Cap */
   int32_t field_name_len;
   int32_t i;
   int32_t n_imp;
@@ -706,12 +813,12 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
     return 0;
 
   base_name_len = pipeline_expr_var_name_len(arena, base_ref);
-  if (base_name_len <= 0 || base_name_len > 63)
+  if (base_name_len <= 0 || base_name_len > 127)
     return 0;
   pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
 
   field_name_len = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (field_name_len <= 0 || field_name_len > 63)
+  if (field_name_len <= 0 || field_name_len > 127)
     return 0;
   pipeline_expr_field_access_name_into(arena, expr_ref, &field_name[0]);
 
@@ -761,7 +868,7 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
         continue;
       for (k = 0; k < fn_len && match; k++) {
         /* 用 scratch buffer 比较 */
-        uint8_t fn_buf[64];
+        uint8_t fn_buf[128] /* wave577 Cap name into */;
         pipeline_module_func_name_copy64(dep_mod, j, fn_buf);
         if (fn_buf[k] != field_name[k])
           match = 0;
@@ -786,13 +893,78 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
     {
       int32_t const_ty = 0;
       if (pipeline_typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len, &const_ty)) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
+        /* wave703: untyped dep const (type_ref=0) → stamp i32 in caller arena. */
+        if (const_ty <= 0)
+          const_ty = typeck_ensure_i32_type_ref(arena);
+        if (const_ty > 0)
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
         if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
           int32_t nt = typeck_find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
           if (nt != 0)
             pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
         }
         return 1;
+      }
+    }
+
+    /* wave1218: dep enum type as value namespace (token.TokenKind). */
+    if (pipeline_typeck_field_import_try_dep_enum_type_c(dep_mod, arena, expr_ref, base_ref,
+                                                        &base_name[0], base_name_len,
+                                                        &field_name[0], field_name_len))
+      return 1;
+  }
+  /*
+   * wave702: also match `const async_mod = import("std.async")` style bindings.
+   * Top-level const name equals base; scan all deps for field const (import list may
+   * not register binding_name for const-import sugar). PLATFORM: SHARED.
+   *
+   * wave1218: same scan for dep enum type names (token.TokenKind / color.Color).
+   */
+  {
+    int32_t ntl = module->num_top_level_lets;
+    int32_t tl;
+    int32_t nd;
+    int32_t di;
+    for (tl = 0; tl < ntl; tl++) {
+      int32_t tlen;
+      int32_t k;
+      int32_t match = 1;
+      if (!pipeline_module_top_level_let_is_const(module, tl))
+        continue;
+      tlen = pipeline_module_top_level_let_name_len(module, tl);
+      if (tlen != base_name_len || tlen <= 0)
+        continue;
+      for (k = 0; k < tlen && match; k++) {
+        if (pipeline_module_top_level_let_name_byte_at(module, tl, k) != base_name[k])
+          match = 0;
+      }
+      if (!match)
+        continue;
+      if (!ctx)
+        continue;
+      nd = pipeline_dep_ctx_ndep(ctx);
+      for (di = 0; di < nd; di++) {
+        struct ast_Module *dep_mod = pipeline_dep_ctx_module_at(ctx, di);
+        int32_t const_ty = 0;
+        if (!dep_mod)
+          continue;
+        if (pipeline_typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len, &const_ty)) {
+          /* wave703: untyped dep const → i32 in caller arena. */
+          if (const_ty <= 0)
+            const_ty = typeck_ensure_i32_type_ref(arena);
+          if (const_ty > 0)
+            pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
+          if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
+            int32_t nt = typeck_find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
+            if (nt != 0)
+              pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
+          }
+          return 1;
+        }
+        if (pipeline_typeck_field_import_try_dep_enum_type_c(dep_mod, arena, expr_ref, base_ref,
+                                                            &base_name[0], base_name_len,
+                                                            &field_name[0], field_name_len))
+          return 1;
       }
     }
   }
@@ -825,7 +997,7 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_c(struct ast_Module
                                                               struct ast_ASTArena *arena,
                                                               int32_t expr_ref,
                                                               int32_t outer_expected) {
-  uint8_t fn_buf[64];
+  uint8_t fn_buf[128] /* wave577 Cap name into */;
   int32_t fl;
   int32_t nsl;
   int32_t k;
@@ -835,7 +1007,7 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_c(struct ast_Module
   if (!module || !arena || expr_ref <= 0)
     return 0;
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  if (fl <= 0 || fl > 127)
     return 0;
   memset(fn_buf, 0, sizeof(fn_buf));
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
@@ -851,10 +1023,10 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_c(struct ast_Module
     int32_t j;
     for (j = 0; j < nf; j++) {
       int32_t fjl;
-      uint8_t fjn[64];
+      uint8_t fjn[128] /* wave577 Cap name into */;
       int32_t bi;
       int32_t match;
-      uint8_t lnm[64];
+      uint8_t lnm[128] /* wave577 Cap name into */;
       int32_t lnl;
       int32_t nty;
 
@@ -873,7 +1045,7 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_c(struct ast_Module
       if (!match)
         continue;
       lnl = pipeline_module_struct_layout_name_len(module, k);
-      if (lnl <= 0 || lnl > 63)
+      if (lnl <= 0 || lnl > 127)
         continue;
       memset(lnm, 0, sizeof(lnm));
       pipeline_module_struct_layout_name_into(module, k, &lnm[0]);
@@ -898,17 +1070,19 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_c(struct ast_Module
  * parameter (e.g. field `v: T` on `struct Wrap<T>`).
  * PLATFORM: SHARED — used only to decide ambient fill of field results.
  */
-static int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *module, uint8_t *name,
+int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *module,
+                                                          struct ast_PipelineDepCtx *ctx,
+                                                          uint8_t *name,
                                                           int32_t name_len) {
   int32_t k;
   int32_t nsl;
   int32_t ne;
-  if (!module || !name || name_len <= 0 || name_len > 63)
+  if (!module || !name || name_len <= 0 || name_len > 127)
     return 0;
   nsl = module->num_struct_layouts;
   for (k = 0; k < nsl; k++) {
     int32_t sl = pipeline_module_struct_layout_name_len(module, k);
-    uint8_t snm[64];
+    uint8_t snm[128] /* wave577 Cap name into */;
     if (sl != name_len)
       continue;
     memset(snm, 0, sizeof(snm));
@@ -929,6 +1103,50 @@ static int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *mod
     if (bi == el)
       return 1;
   }
+  /*
+   * wave1220 P4: also check dependency modules for concrete types.
+   * Root cause: TokenKind / Token / Lexer are defined in the `token` / `lexer`
+   * dep modules, not in the current module. Without this dep walk,
+   * pipeline_typeck_field_apply_ambient_for_type_param_c mistook cross-module
+   * enum types (TokenKind) for free type params and overwrote their resolved
+   * type with the ambient (e.g., bool from an assignment target), causing
+   * "comparison operands have incompatible types" for r.tok.kind == TokenKind.X.
+   * G.7: single fix point at the concrete-type check; ambient + mono both benefit.
+   * PLATFORM: SHARED — no platform branch.
+   */
+  if (ctx) {
+    int32_t nd = pipeline_dep_ctx_ndep(ctx);
+    int32_t di;
+    for (di = 0; di < nd; di++) {
+      struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, di);
+      if (!dm || dm == module)
+        continue;
+      nsl = dm->num_struct_layouts;
+      for (k = 0; k < nsl; k++) {
+        int32_t sl = pipeline_module_struct_layout_name_len(dm, k);
+        uint8_t snm[128] /* wave577 Cap name into */;
+        if (sl != name_len)
+          continue;
+        memset(snm, 0, sizeof(snm));
+        pipeline_module_struct_layout_name_into(dm, k, &snm[0]);
+        if (typeck_name_equal(&snm[0], sl, name, name_len))
+          return 1;
+      }
+      ne = dm->num_module_enums;
+      for (k = 0; k < ne; k++) {
+        int32_t el = pipeline_module_enum_name_len(dm, k);
+        int32_t bi;
+        if (el != name_len)
+          continue;
+        for (bi = 0; bi < el; bi++) {
+          if (pipeline_module_enum_name_byte_at(dm, k, bi) != name[bi])
+            break;
+        }
+        if (bi == el)
+          return 1;
+      }
+    }
+  }
   return 0;
 }
 
@@ -946,10 +1164,11 @@ static int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *mod
 static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Module *module,
                                                                 struct ast_ASTArena *arena,
                                                                 int32_t expr_ref,
-                                                                int32_t ambient_ty) {
+                                                                int32_t ambient_ty,
+                                                                struct ast_PipelineDepCtx *ctx) {
   int32_t got_ty;
   int32_t use_ambient;
-  uint8_t gnm[64];
+  uint8_t gnm[128] /* wave577 Cap name into */;
   int32_t gnl;
 
   if (!module || !arena || expr_ref <= 0)
@@ -964,7 +1183,9 @@ static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Modu
   } else if (pipeline_type_kind_ord_at(arena, got_ty) == (int32_t)ast_TypeKind_TYPE_NAMED) {
     memset(gnm, 0, sizeof(gnm));
     gnl = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
-    if (gnl > 0 && gnl <= 63 && !pipeline_typeck_named_is_module_concrete_c(module, &gnm[0], gnl))
+    /* wave587 Cap residual: TYPE_NAMED content ≤127 (gnm[128]).
+     * Prior gnl<=63 skipped long concrete names → ambient stamped over real type. */
+    if (gnl > 0 && gnl <= 127 && !pipeline_typeck_named_is_module_concrete_c(module, ctx, &gnm[0], gnl))
       use_ambient = 1;
   }
   if (use_ambient)
@@ -976,10 +1197,14 @@ static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Modu
  *
  * When the base type is TYPE_NAMED with type-position args (`Wrap<i32>` /
  * `Pair<A,B>`) and the field result is still an unconstrained TYPE_NAMED
- * type-param (`v: T` / `b: U` from layout), stamp the matching type arg:
+ * type-param (`v: T` / `b: U` from layout), map to the matching type arg:
  *   - wave467: map field type name → layout type-param slot → type_arg[slot]
  *   - wave466: slot0 via elem_type_ref when no type-param registry
  * Prefer this over ambient so `take(w.v)` / return without expected still resolve.
+ *
+ * wave682 Cap residual: exported for STRUCT_LIT field-init coerce (layout still
+ * stores free T/U; expected `Wrap<i32>` / `Pair<i32,i32>` supplies mono args).
+ * G.7 single authority — field access stamp + struct-lit coerce both call this.
  * PLATFORM: SHARED.
  */
 extern int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx);
@@ -988,24 +1213,35 @@ extern int32_t pipeline_module_struct_layout_type_param_name_len(struct ast_Modu
 extern void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, int32_t li, int32_t j,
                                                               uint8_t *out64);
 
-static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *module,
-                                                       struct ast_ASTArena *arena,
-                                                       int32_t expr_ref,
-                                                       int32_t base_ty) {
-  int32_t got_ty;
+/**
+ * Resolve a free type-param field type against a monomorphized base type.
+ *
+ * @param module Module — layout + type-param registry
+ * @param arena ASTArena — type pool / type-arg sidecar
+ * @param field_ty type_ref of layout field (often free TYPE_NAMED T/U)
+ * @param base_ty type_ref of base (`Wrap<i32>`, `*Wrap<i32>`, …)
+ * @return mono concrete type_ref, or 0 if no substitution applies
+ * PLATFORM: SHARED — G.7 mono field authority (wave466/467/682).
+ */
+int32_t pipeline_typeck_mono_field_type_from_base_c(struct ast_Module *module,
+                                                   struct ast_ASTArena *arena,
+                                                   int32_t field_ty,
+                                                   int32_t base_ty) {
   int32_t mono_ty;
   int32_t bt_kind;
-  uint8_t gnm[64];
+  uint8_t gnm[128] /* wave577 Cap name into */;
   int32_t gnl;
-  uint8_t bnm[64];
+  uint8_t bnm[128] /* wave577 Cap name into */;
   int32_t bnl;
   int32_t sk;
   int32_t tp_slot;
 
-  if (!module || !arena || expr_ref <= 0)
-    return;
+  if (!module || !arena)
+    return 0;
+  if (field_ty <= 0 || field_ty > arena->num_types)
+    return 0;
   if (base_ty <= 0 || base_ty > arena->num_types)
-    return;
+    return 0;
   bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
   if (bt_kind == (int32_t)ast_TypeKind_TYPE_PTR) {
     int32_t elem = pipeline_type_elem_ref_at(arena, base_ty);
@@ -1013,21 +1249,18 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
         && pipeline_type_kind_ord_at(arena, elem) == (int32_t)ast_TypeKind_TYPE_NAMED)
       base_ty = elem;
     else
-      return;
+      return 0;
   } else if (bt_kind != (int32_t)ast_TypeKind_TYPE_NAMED) {
-    return;
+    return 0;
   }
-  got_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
-  if (ast_ref_is_null(got_ty) || got_ty <= 0 || got_ty > arena->num_types)
-    return;
-  if (pipeline_type_kind_ord_at(arena, got_ty) != (int32_t)ast_TypeKind_TYPE_NAMED)
-    return;
+  if (pipeline_type_kind_ord_at(arena, field_ty) != (int32_t)ast_TypeKind_TYPE_NAMED)
+    return 0;
   memset(gnm, 0, sizeof(gnm));
-  gnl = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
-  if (gnl <= 0 || gnl > 63)
-    return;
-  if (pipeline_typeck_named_is_module_concrete_c(module, &gnm[0], gnl))
-    return;
+  gnl = pipeline_type_named_name_into(arena, field_ty, &gnm[0]);
+  if (gnl <= 0 || gnl > 127)
+    return 0;
+  if (pipeline_typeck_named_is_module_concrete_c(module, NULL, &gnm[0], gnl))
+    return 0;
   /* Map field type name → type-param slot on base layout name. */
   memset(bnm, 0, sizeof(bnm));
   bnl = pipeline_type_named_name_into(arena, base_ty, &bnm[0]);
@@ -1035,7 +1268,7 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
   if (bnl > 0) {
     for (sk = 0; sk < module->num_struct_layouts; sk++) {
       int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
-      uint8_t snm[64];
+      uint8_t snm[128] /* wave577 Cap name into */;
       int32_t bi;
       int32_t match;
       int32_t ntp;
@@ -1058,7 +1291,7 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
         tp_slot = -1;
         for (tj = 0; tj < ntp; tj++) {
           int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, sk, tj);
-          uint8_t tpn[64];
+          uint8_t tpn[128] /* wave577 Cap name into */;
           int32_t pi;
           int32_t peq;
           if (tpl != gnl)
@@ -1078,7 +1311,7 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
           }
         }
         if (tp_slot < 0)
-          return;
+          return 0;
       }
       break;
     }
@@ -1087,8 +1320,227 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
   if (mono_ty <= 0 && tp_slot == 0)
     mono_ty = pipeline_type_elem_ref_at(arena, base_ty);
   if (mono_ty <= 0 || mono_ty > arena->num_types)
+    return 0;
+  return mono_ty;
+}
+
+static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *module,
+                                                       struct ast_ASTArena *arena,
+                                                       int32_t expr_ref,
+                                                       int32_t base_ty) {
+  int32_t got_ty;
+  int32_t mono_ty;
+
+  if (!module || !arena || expr_ref <= 0)
+    return;
+  got_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  if (ast_ref_is_null(got_ty) || got_ty <= 0 || got_ty > arena->num_types)
+    return;
+  mono_ty = pipeline_typeck_mono_field_type_from_base_c(module, arena, got_ty, base_ty);
+  if (mono_ty <= 0 || mono_ty == got_ty)
     return;
   pipeline_expr_set_resolved_type_ref(arena, expr_ref, mono_ty);
+}
+
+/**
+ * wave674 Cap residual: hard-fail unknown field when base type is known field-bearing.
+ *
+ * Prior: layout miss left field type null; assign LHS then stamped RHS onto the
+ * unresolved FIELD → typeck green, host-C BLD001 (`no member named 'nope'`).
+ * Same false-green on compound assign / nested / *S / slice.nope / E.Nope.
+ *
+ * Soft residual (still return 0): base type unknown; TYPE_NAMED type-param with
+ * no struct/enum layout in module+deps (generic mono path).
+ *
+ * G.7 single gate — called from heavy check_expr_field_access and the
+ * strict_minimal weak twin so product link order cannot skip the fail.
+ *
+ * @param module *Module — entry module (struct/enum layouts)
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_FIELD_ACCESS
+ * @param base_ref i32 — field base expr
+ * @param ctx *PipelineDepCtx — optional dep modules for cross-module layouts
+ * @return i32 — 0 ok (resolved or soft-skip), -1 unknown field (diag emitted)
+ * PLATFORM: SHARED — typeck field resolve; dual L2 mac+Ubuntu.
+ */
+int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                 int32_t expr_ref, int32_t base_ref,
+                                                 struct ast_PipelineDepCtx *ctx) {
+  int32_t got_ty;
+  int32_t base_ty;
+  int32_t bt_kind;
+  int32_t check_ty;
+  int32_t elem_ty;
+  int32_t line_f;
+  int32_t col_f;
+  int32_t nlen;
+  uint8_t nbuf[128];
+  int32_t has_struct;
+  int32_t has_enum;
+  int32_t di;
+  int32_t nd;
+  struct ast_Module *dm;
+  extern void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col);
+
+  if (!module || !arena || expr_ref <= 0 || base_ref <= 0)
+    return 0;
+  got_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  /* Resolved field type → already known member / enum variant / slice .length/.data. */
+  if (!ast_ref_is_null(got_ty) && got_ty > 0 && got_ty <= arena->num_types)
+    return 0;
+  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena->num_types)
+    return 0; /* soft: unknown base type */
+  /* wave702: peel type aliases so `type P = Point` is concrete for unknown-field gate. */
+  {
+    extern int32_t typeck_resolve_type_alias_ref_local(struct ast_Module *m, struct ast_ASTArena *a,
+                                                       int32_t ty, int32_t depth);
+    int32_t peeled = typeck_resolve_type_alias_ref_local(module, arena, base_ty, 0);
+    if (!ast_ref_is_null(peeled) && peeled > 0 && peeled <= arena->num_types)
+      base_ty = peeled;
+  }
+  bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
+  check_ty = base_ty;
+  /* Peel *S → S for layout/enum concrete check. */
+  if (bt_kind == (int32_t)ast_TypeKind_TYPE_PTR) {
+    elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
+    if (ast_ref_is_null(elem_ty) || elem_ty <= 0 || elem_ty > arena->num_types) {
+      line_f = pipeline_expr_line_at(arena, expr_ref);
+      col_f = pipeline_expr_col_at(arena, expr_ref);
+      lsp_diag_report_typeck((int)line_f, (int)col_f, "unknown field on this type");
+      return -1;
+    }
+    {
+      extern int32_t typeck_resolve_type_alias_ref_local(struct ast_Module *m, struct ast_ASTArena *a,
+                                                         int32_t ty, int32_t depth);
+      int32_t peeled_e = typeck_resolve_type_alias_ref_local(module, arena, elem_ty, 0);
+      if (!ast_ref_is_null(peeled_e) && peeled_e > 0 && peeled_e <= arena->num_types)
+        elem_ty = peeled_e;
+    }
+    check_ty = elem_ty;
+    bt_kind = pipeline_type_kind_ord_at(arena, check_ty);
+  }
+  /* Slice / fixed array / vector: only .length / .data (slice) resolve above. */
+  if (bt_kind == (int32_t)ast_TypeKind_TYPE_SLICE || bt_kind == (int32_t)ast_TypeKind_TYPE_ARRAY
+      || bt_kind == (int32_t)ast_TypeKind_TYPE_VECTOR) {
+    line_f = pipeline_expr_line_at(arena, expr_ref);
+    col_f = pipeline_expr_col_at(arena, expr_ref);
+    lsp_diag_report_typeck((int)line_f, (int)col_f, "unknown field on this type");
+    return -1;
+  }
+  if (bt_kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
+    memset(nbuf, 0, sizeof(nbuf));
+    nlen = pipeline_type_named_name_into(arena, check_ty, &nbuf[0]);
+    if (nlen <= 0 || nlen > 127)
+      return 0;
+    has_struct = 0;
+    has_enum = 0;
+    /* Local module concrete? */
+    {
+      int32_t k;
+      int32_t nsl = module->num_struct_layouts;
+      int32_t ne = module->num_module_enums;
+      for (k = 0; k < nsl; k++) {
+        int32_t sl = pipeline_module_struct_layout_name_len(module, k);
+        uint8_t snm[128];
+        if (sl != nlen)
+          continue;
+        memset(snm, 0, sizeof(snm));
+        pipeline_module_struct_layout_name_into(module, k, &snm[0]);
+        if (typeck_name_equal(&snm[0], sl, &nbuf[0], nlen)) {
+          has_struct = 1;
+          break;
+        }
+      }
+      for (k = 0; k < ne; k++) {
+        int32_t el = pipeline_module_enum_name_len(module, k);
+        int32_t bi;
+        if (el != nlen)
+          continue;
+        for (bi = 0; bi < el; bi++) {
+          if (pipeline_module_enum_name_byte_at(module, k, bi) != nbuf[bi])
+            break;
+        }
+        if (bi == el) {
+          has_enum = 1;
+          break;
+        }
+      }
+    }
+    /* Dep modules (import structs/enums). */
+    if ((!has_struct || !has_enum) && ctx) {
+      nd = pipeline_dep_ctx_ndep(ctx);
+      for (di = 0; di < nd; di++) {
+        dm = pipeline_dep_ctx_module_at(ctx, di);
+        if (!dm)
+          continue;
+        if (!has_struct) {
+          int32_t k;
+          int32_t nsl = dm->num_struct_layouts;
+          for (k = 0; k < nsl; k++) {
+            int32_t sl = pipeline_module_struct_layout_name_len(dm, k);
+            uint8_t snm[128];
+            if (sl != nlen)
+              continue;
+            memset(snm, 0, sizeof(snm));
+            pipeline_module_struct_layout_name_into(dm, k, &snm[0]);
+            if (typeck_name_equal(&snm[0], sl, &nbuf[0], nlen)) {
+              has_struct = 1;
+              break;
+            }
+          }
+        }
+        if (!has_enum) {
+          int32_t k;
+          int32_t ne = dm->num_module_enums;
+          for (k = 0; k < ne; k++) {
+            int32_t el = pipeline_module_enum_name_len(dm, k);
+            int32_t bi;
+            if (el != nlen)
+              continue;
+            for (bi = 0; bi < el; bi++) {
+              if (pipeline_module_enum_name_byte_at(dm, k, bi) != nbuf[bi])
+                break;
+            }
+            if (bi == el) {
+              has_enum = 1;
+              break;
+            }
+          }
+        }
+        if (has_struct && has_enum)
+          break;
+      }
+    }
+    /*
+     * wave684 Cap residual: free type-param / incomplete TYPE_NAMED had soft
+     * return 0 here → generic bodies (historically skipped) and bare `x: T`
+     * could write `x.nope` with typeck green. No layout ⇒ no fields; hard-fail
+     * same diagnostic as concrete unknown field. PLATFORM: SHARED.
+     */
+    if (!has_struct && !has_enum) {
+      line_f = pipeline_expr_line_at(arena, expr_ref);
+      col_f = pipeline_expr_col_at(arena, expr_ref);
+      lsp_diag_report_typeck((int)line_f, (int)col_f, "unknown field on this type");
+      return -1;
+    }
+    line_f = pipeline_expr_line_at(arena, expr_ref);
+    col_f = pipeline_expr_col_at(arena, expr_ref);
+    if (has_enum && !has_struct) {
+      driver_diagnostic_typeck_enum_no_variant(line_f, col_f);
+      return -1;
+    }
+    lsp_diag_report_typeck((int)line_f, (int)col_f, "unknown field on this type");
+    return -1;
+  }
+  /*
+   * Scalar / other first-class types (i32, bool, ptr already peeled, …): no fields.
+   * Hard-fail so `x.nope` cannot stamp through assign.
+   */
+  line_f = pipeline_expr_line_at(arena, expr_ref);
+  col_f = pipeline_expr_col_at(arena, expr_ref);
+  lsp_diag_report_typeck((int)line_f, (int)col_f, "unknown field on this type");
+  return -1;
 }
 
 /*
@@ -1159,6 +1611,9 @@ int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, str
   pipeline_typeck_field_name_fallback_c(arena, expr_ref, base_ref);
   pipeline_typeck_field_lexer_fallback_c(module, arena, expr_ref, base_ref, ctx);
   pipeline_typeck_field_apply_mono_type_arg_c(module, arena, expr_ref, base_ty);
-  pipeline_typeck_field_apply_ambient_for_type_param_c(module, arena, expr_ref, return_type_ref);
+  pipeline_typeck_field_apply_ambient_for_type_param_c(module, arena, expr_ref, return_type_ref, ctx);
+  /* wave674: hard-fail unresolved field on known base (G.7 single gate). */
+  if (pipeline_typeck_field_unknown_hard_fail_c(module, arena, expr_ref, base_ref, ctx) != 0)
+    return -1;
   return 0;
 }

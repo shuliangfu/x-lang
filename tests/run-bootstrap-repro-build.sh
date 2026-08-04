@@ -4,11 +4,13 @@
 # 用法：./tests/run-bootstrap-repro-build.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
 if [ ! -f compiler/xlang ] || [ ! -x compiler/xlang ]; then
-  echo "bootstrap-repro-build: seed xlang missing; run: make -C compiler OPT=1 all" >&2
+  echo "bootstrap-repro-build: seed xlang missing; run: xlang_compiler_make OPT=1 all" >&2
   exit 127
 fi
 
@@ -26,7 +28,7 @@ if [ -n "${CI:-}" ] && [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
 fi
 
 echo "bootstrap-repro-build: make bootstrap-driver-bstrict ..."
-make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/bootstrap_repro_build.log
+xlang_compiler_make bootstrap-driver-bstrict 2>&1 | tee /tmp/bootstrap_repro_build.log
 
 if ! grep -qE 'Target-B-strict|B-strict OK|LINK_MODE=asm_only_strict' /tmp/bootstrap_repro_build.log; then
   echo "bootstrap-repro-build FAIL: expected B-strict markers in log" >&2

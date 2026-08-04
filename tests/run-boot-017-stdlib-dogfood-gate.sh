@@ -4,6 +4,8 @@
 # 用法：./tests/run-boot-017-stdlib-dogfood-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_BOOT017_DOC:-analysis/boot-017-stdlib-dogfood-v1.md}"
 MANIFEST="${XLANG_BOOT017_MANIFEST:-tests/baseline/boot-017-stdlib-dogfood.tsv}"
@@ -108,7 +110,7 @@ fi
 if XLANG_BIN="$(boot017_resolve_shu 2>/dev/null)"; then
   echo "=== BOOT-017: per-module timing (XLANG=$XLANG_BIN) ==="
   chmod +x "$RUNNER" "$LIB"
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   set -o pipefail
   if ! XLANG="$XLANG_BIN" ./"$RUNNER" 2>&1 | tee /tmp/boot017_stdlib_dogfood.log; then
     set +o pipefail

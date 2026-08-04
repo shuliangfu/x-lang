@@ -2,6 +2,10 @@
 # 本地用 Docker 复现 CI：Alpine/Debian（docker-distro）、Ubuntu（linux job 同环境）
 # 用法：在仓库根目录执行 ./scripts/docker-ci-local.sh [alpine|debian|ubuntu|ubuntu-gates|ubuntu-zc-gates|ubuntu-wpo-s2|...]
 # Mac 上跑 ubuntu / ubuntu-gates 即可复现 CI 的 linux (Ubuntu) job；先本地通过再推 CI。
+#
+# wave730 · 11.4.3：外层 0× `make -C compiler` — 一律 `./xbuild`（G.7）。
+# 产品 g05 用 `./xbuild build`；CI host-cc/seed 用 `./xbuild compiler-all`。
+# PLATFORM: SHARED (docker host path; guest is Linux)
 
 set -e
 cd "$(dirname "$0")/.."
@@ -21,13 +25,14 @@ run_one() {
         apt-get update -qq && apt-get install -y -qq build-essential bash diffutils python3 liburing-dev zlib1g-dev libbrotli-dev perl
       fi &&
       export XLANG_CC_EXTRA="-std=gnu11" &&
-      make -C compiler clean &&
-      make -C compiler OPT=1 all &&
-      make -C compiler test_c &&
-      make -C compiler test_x &&
+      chmod +x ./xbuild ./xlang-build.sh &&
+      ./xbuild clean &&
+      ./xbuild compiler-all &&
+      ./xbuild test_c &&
+      ./xbuild test_x &&
       chmod +x tests/run-bootstrap-bstrict-ci.sh tests/run-freestanding-hello.sh &&
       ./tests/run-bootstrap-bstrict-ci.sh &&
-      make -C compiler bootstrap-verify &&
+      ./xbuild bootstrap-verify &&
       ./tests/run-freestanding-hello.sh
     '
 }
@@ -41,9 +46,10 @@ run_ubuntu_gates() {
     sh -c '
       apt-get update -qq && apt-get install -y -qq build-essential bash perl python3 liburing-dev zlib1g-dev libbrotli-dev lsof file pkg-config >/dev/null &&
       export XLANG_CC_EXTRA="-std=gnu11" &&
-      make -C compiler clean &&
-      make -C compiler OPT=1 all &&
-      make -C compiler bootstrap-driver-seed &&
+      chmod +x ./xbuild ./xlang-build.sh &&
+      ./xbuild clean &&
+      ./xbuild compiler-all &&
+      ./xbuild bootstrap-driver-seed &&
       cd compiler && XLANG=./xlang ./scripts/build_xlang_asm.sh &&
       cd .. &&
       chmod +x tests/run-pre-push-p5.sh tests/run-refresh-xlang-asm-gate.sh tests/run-f32-xmm-gates.sh tests/lib/dod-native-exe.sh &&
@@ -60,14 +66,15 @@ run_ubuntu_zc_gates() {
     sh -c '
       apt-get update -qq && apt-get install -y -qq build-essential bash perl python3 liburing-dev zlib1g-dev libbrotli-dev strace lsof file pkg-config >/dev/null &&
       export XLANG_CC_EXTRA="-std=gnu11" &&
-      make -C compiler clean &&
-      make -C compiler OPT=1 all &&
-      make -C compiler bootstrap-driver-seed &&
+      chmod +x ./xbuild ./xlang-build.sh &&
+      ./xbuild clean &&
+      ./xbuild compiler-all &&
+      ./xbuild bootstrap-driver-seed &&
       cd compiler && XLANG=./xlang ./scripts/build_xlang_asm.sh &&
       cd .. &&
       test -x ./compiler/xlang_asm || { echo "ubuntu-zc-gates: xlang_asm missing after build" >&2; exit 1; } &&
-      make -C compiler ../std/process/process.o ../std/io/io.o ../std/fs/fs.o ../std/net/net.o ../std/heap/heap.o ../std/string/string.o -q 2>/dev/null \
-        || make -C compiler ../std/process/process.o ../std/io/io.o ../std/fs/fs.o ../std/net/net.o ../std/heap/heap.o ../std/string/string.o &&
+      ./xbuild compiler-make -q ../std/process/process.o ../std/io/io.o ../std/fs/fs.o ../std/net/net.o ../std/heap/heap.o ../std/string/string.o 2>/dev/null \
+        || ./xbuild compiler-make ../std/process/process.o ../std/io/io.o ../std/fs/fs.o ../std/net/net.o ../std/heap/heap.o ../std/string/string.o &&
       chmod +x tests/run-zc-gates.sh &&
       XLANG=./compiler/xlang_asm ./tests/run-zc-gates.sh
     '
@@ -82,9 +89,10 @@ run_ubuntu_wpo_s2() {
     sh -c '
       apt-get update -qq && apt-get install -y -qq build-essential bash perl python3 liburing-dev zlib1g-dev libbrotli-dev &&
       export XLANG_CC_EXTRA="-std=gnu11" &&
-      make -C compiler clean &&
-      make -C compiler OPT=1 all &&
-      make -C compiler bootstrap-driver-seed &&
+      chmod +x ./xbuild ./xlang-build.sh &&
+      ./xbuild clean &&
+      ./xbuild compiler-all &&
+      ./xbuild bootstrap-driver-seed &&
       cd compiler && XLANG=./xlang ./scripts/build_xlang_asm.sh &&
       cd .. &&
       chmod +x tests/run-wpo-s2.sh tests/run-perf-wpo-s2.sh tests/lib/wpo-main-disasm.sh tests/run-wpo-s3-gate.sh tests/lib/wpo-s3-disasm.sh tests/run-wpo-s3-cross-bisect.sh &&
@@ -104,12 +112,13 @@ run_ubuntu_wpo_s3_full() {
     sh -c '
       apt-get update -qq && apt-get install -y -qq build-essential bash perl python3 liburing-dev zlib1g-dev libbrotli-dev binutils >/dev/null &&
       export XLANG_CC_EXTRA="-std=gnu11" &&
-      make -C compiler clean &&
-      make -C compiler OPT=1 all &&
-      make -C compiler bootstrap-driver-seed &&
+      chmod +x ./xbuild ./xlang-build.sh &&
+      ./xbuild clean &&
+      ./xbuild compiler-all &&
+      ./xbuild bootstrap-driver-seed &&
       cd compiler && XLANG=./xlang ./scripts/build_xlang_asm.sh &&
       cd .. &&
-      make -C compiler ../std/async/scheduler.o &&
+      ./xbuild compiler-make ../std/async/scheduler.o &&
       chmod +x tests/run-wpo-s3-gate.sh tests/lib/wpo-s3-disasm.sh tests/lib/wpo-main-disasm.sh &&
       XLANG=./compiler/xlang_asm ./tests/run-wpo-s3-gate.sh
     '
@@ -123,9 +132,10 @@ run_ubuntu_wpo_s3() {
     ubuntu:22.04 \
     sh -c '
       apt-get update -qq && apt-get install -y -qq build-essential binutils liburing-dev >/dev/null &&
+      chmod +x ./xbuild ./xlang-build.sh &&
       test -x ./compiler/xlang_asm || test -x ./compiler/xlang_asm.experimental || { echo "missing xlang_asm; run ubuntu-wpo-s3-full first" >&2; exit 1; } &&
       if [ ! -x ./compiler/xlang_asm ] && [ -x ./compiler/xlang_asm.experimental ]; then cp ./compiler/xlang_asm.experimental ./compiler/xlang_asm; fi &&
-      make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o &&
+      ./xbuild compiler-make -q ../std/async/scheduler.o 2>/dev/null || ./xbuild compiler-make ../std/async/scheduler.o &&
       chmod +x tests/run-wpo-s3-gate.sh tests/lib/wpo-s3-disasm.sh tests/lib/wpo-main-disasm.sh tests/run-wpo-s3-cross-bisect.sh &&
       XLANG=./compiler/xlang_asm ./tests/run-wpo-s3-gate.sh &&
       XLANG=./compiler/xlang_asm ./tests/run-wpo-s3-cross-bisect.sh
@@ -141,9 +151,10 @@ run_ubuntu_wpo_s4_full() {
     sh -c '
       apt-get update -qq && apt-get install -y -qq build-essential bash perl python3 liburing-dev zlib1g-dev libbrotli-dev binutils >/dev/null &&
       export XLANG_CC_EXTRA="-std=gnu11" &&
-      make -C compiler clean &&
-      make -C compiler OPT=1 all &&
-      make -C compiler bootstrap-driver-seed &&
+      chmod +x ./xbuild ./xlang-build.sh &&
+      ./xbuild clean &&
+      ./xbuild compiler-all &&
+      ./xbuild bootstrap-driver-seed &&
       cd compiler && XLANG_ASM_SKIP_STRICT_SMOKE=1 XLANG=./xlang ./scripts/build_xlang_asm.sh &&
       cd .. &&
       chmod +x tests/run-wpo-s4-gate.sh tests/run-perf-wpo-dce-xlang-asm-text.sh tests/lib/wpo-ab-proxy.sh &&
@@ -176,8 +187,9 @@ run_ubuntu_wpo_stretch() {
       apt-get update -qq && apt-get install -y -qq build-essential bash perl python3 liburing-dev zlib1g-dev libbrotli-dev lsof file pkg-config binutils >/dev/null &&
       export XLANG_CC_EXTRA="-std=gnu11" &&
       ulimit -s 65532 2>/dev/null || true &&
-      make -C compiler OPT=1 all &&
-      test -x compiler/xlang_asm || make -C compiler bootstrap-driver-bstrict &&
+      chmod +x ./xbuild ./xlang-build.sh &&
+      ./xbuild compiler-all &&
+      test -x compiler/xlang_asm || ./xbuild bootstrap-driver-bstrict &&
       chmod +x tests/run-wpo-full-chain-gate.sh tests/run-bcmp-gate.sh tests/run-wpo-strict-glue-text-gate.sh &&
       ./tests/run-wpo-full-chain-gate.sh &&
       chmod +x tests/run-wpo-stretch-gate.sh tests/run-bcmp-gate.sh &&
@@ -196,14 +208,15 @@ run_ubuntu_net_zc1() {
     sh -c '
       apt-get update -qq && apt-get install -y -qq build-essential bash perl liburing-dev zlib1g-dev libbrotli-dev python3 lsof strace file pkg-config >/dev/null &&
       export XLANG_CC_EXTRA="-std=gnu11" &&
-      make -C compiler clean &&
-      make -C compiler OPT=1 all &&
-      make -C compiler bootstrap-driver-seed &&
+      chmod +x ./xbuild ./xlang-build.sh &&
+      ./xbuild clean &&
+      ./xbuild compiler-all &&
+      ./xbuild bootstrap-driver-seed &&
       cd compiler && XLANG=./xlang ./scripts/build_xlang_asm.sh &&
       cd .. &&
       test -x ./compiler/xlang_asm || { echo "ubuntu-net-zc1: xlang_asm missing after build" >&2; exit 1; } &&
-      make -C compiler ../std/net/net.o ../std/thread/thread.o ../std/io/io.o ../std/fs/fs.o ../std/process/process.o -q 2>/dev/null \
-        || make -C compiler ../std/net/net.o ../std/thread/thread.o ../std/io/io.o ../std/fs/fs.o ../std/process/process.o &&
+      ./xbuild compiler-make -q ../std/net/net.o ../std/thread/thread.o ../std/io/io.o ../std/fs/fs.o ../std/process/process.o 2>/dev/null \
+        || ./xbuild compiler-make ../std/net/net.o ../std/thread/thread.o ../std/io/io.o ../std/fs/fs.o ../std/process/process.o &&
       chmod +x tests/run-zc-gates.sh &&
       XLANG=./compiler/xlang_asm ./tests/run-zc-gates.sh --perf
     '

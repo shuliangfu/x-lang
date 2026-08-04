@@ -4,6 +4,8 @@
 # 环境：XLANG_PARSER_X_STRICT_FAIL=1 硬失败（CI 默认）
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_PARSER_X_STRICT_FAIL:-1}
 # 兼容旧 env 名（迁移期）
@@ -17,7 +19,7 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
 fi
 
 if [ ! -f "$PARSER_X" ]; then
-  echo "parser-x-strict-gate: SKIP (no $PARSER_X; make -C compiler parser_x.o)"
+  echo "parser-x-strict-gate: SKIP (no $PARSER_X; xlang_compiler_make parser_x.o)"
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi

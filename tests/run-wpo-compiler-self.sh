@@ -4,7 +4,9 @@
 # 门禁：XLANG_WPO_FAIL_ON_COMPILER_SELF=1 — dead% 须 ≥ baseline min_dead_pct
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler xlang-c -q 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make xlang-c -q 2>/dev/null || xlang_compiler_make xlang-c
 
 GRAPH="/tmp/xlang_wpo_compiler_main.json"
 LOG="/tmp/wpo_compiler_self.log"

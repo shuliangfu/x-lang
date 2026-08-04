@@ -63,7 +63,7 @@
   "xlang.walkthrough.openProject.title": "Xlang プロジェクトを開く",
   "xlang.walkthrough.openProject.description": "**フォルダーを開く** で xlang リポジトリルートを開きます。LSP は診断、ナビゲーション、補完を開始するためにワークスペースが必要です。",
   "xlang.walkthrough.buildCompiler.title": "Xlang コンパイラをビルド",
-  "xlang.walkthrough.buildCompiler.description": "`make -C compiler bootstrap-driver-seed` を実行して LSP に必要な `compiler/xlang` バイナリを取得してください。",
+  "xlang.walkthrough.buildCompiler.description": "`./xbuild bootstrap-driver-seed` を実行して LSP に必要な `compiler/xlang` バイナリを取得してください。",
   "xlang.walkthrough.openXFile.title": ".x ファイルを開いて体験",
   "xlang.walkthrough.openXFile.description": "任意の `.x` ファイルを開いて、シンタックスハイライト、折りたたみ、CodeLens、ステータスバーを確認してください。",
   "xlang.walkthrough.runFile.title": ".x ファイルを実行",
@@ -72,7 +72,7 @@
   "xlang.taskDefinition.task.description": "Xlang タスクタイプ: build / build-file / run / check",
 
   "xlang.walkthrough.openProject.media": "`Ctrl+K Ctrl+O` を押してプロジェクトルートディレクトリ (`compiler/` を含む) を開きます。",
-  "xlang.walkthrough.buildCompiler.media": "ターミナルで実行:\n```\nmake -C compiler bootstrap-driver-seed\n```\nビルド成功後、`compiler/xlang` が言語サーバーとして機能します。",
+  "xlang.walkthrough.buildCompiler.media": "ターミナルで実行:\n```\n./xbuild bootstrap-driver-seed\n```\nビルド成功後、`compiler/xlang` が言語サーバーとして機能します。",
   "xlang.walkthrough.openXFile.media": "`compiler/src/lexer/lexer.x` または `tests/` 以下のテストファイルを開いてみてください。",
   "xlang.walkthrough.runFile.media": "CodeLens `▶ Run` が `function main` 定義行に表示されます。"
 }

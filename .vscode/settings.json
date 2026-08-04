@@ -5,7 +5,7 @@
 
   // --- 语言服务（LSP）---
   // xlang 可执行文件路径（相对工作区根）；LSP、运行、诊断均依赖此路径
-  "xlang.serverPath": "compiler/xlang",
+  "xlang.serverPath": "/home/xlang/x-lang/compiler/xlang",
   // LSP 通信日志：off | messages | verbose（排查问题时改为 verbose）
   "xlang.server.trace": "off",
   // LSP 进程异常退出时是否自动重启

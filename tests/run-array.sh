@@ -2,8 +2,10 @@
 # 固定长数组 T[N]：初值 0、字面量初始化、下标
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 fi
 XLANG=${XLANG:-./compiler/xlang}
 # PLATFORM: SHARED — product bstrict uses this-SHA xlang_asm; leftover xlang_asm2

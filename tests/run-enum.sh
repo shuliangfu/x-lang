@@ -2,7 +2,9 @@
 # 无负载枚举：定义、Name.Variant / Name::Variant、match 分支
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 $XLANG build tests/enum/minimal.x -o /tmp/xlang_enum_min 2>&1

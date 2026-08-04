@@ -18,6 +18,7 @@ extern function build_exec_system(cmd: *u8): i32;
  * @param path *u8
  * @return i32
  */
+#[no_mangle]
 function copy_path(buf: *u8, size: i32, off: i32, path: *u8): i32 {
   let i: i32 = 0;
   while (path[i] != 0 && off + i < size - 1) {
@@ -37,6 +38,7 @@ function copy_path(buf: *u8, size: i32, off: i32, path: *u8): i32 {
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 function append_lit(buf: *u8, size: i32, off: i32, lit: *u8, len: i32): i32 {
   if (off + len >= size) { return -1; }
   let i: i32 = 0;
@@ -52,7 +54,7 @@ function append_lit(buf: *u8, size: i32, off: i32, lit: *u8, len: i32): i32 {
  * @param step_id i32
  * @return i32
  */
-function build_patch_after_step(step_id: i32): i32 {
+export function build_patch_after_step(step_id: i32): i32 {
   if (step_id == 1) { return build_patch_pipeline_gen_c(); }
   if (step_id == 3) { return build_patch_driver_gen_c(); }
   return 0;
@@ -64,7 +66,7 @@ function build_patch_after_step(step_id: i32): i32 {
  * @param xlang_path *u8
  * @return i32
  */
-function build_run_step(step_id: i32, xlang_path: *u8): i32 {
+export function build_run_step(step_id: i32, xlang_path: *u8): i32 {
   let cmd: u8[4096] = [];
   let off: i32 = 0;
   if (step_id == 0) {
@@ -72,7 +74,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, 0, L0, 466);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     return 0;
   }
   if (step_id == 1) {
@@ -91,7 +93,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L1, 149);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     if (build_patch_pipeline_gen_c() != 0) { return -1; }
     return 0;
   }
@@ -102,7 +104,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, 0, L2, 70);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     return 0;
   }
   if (step_id == 3) {
@@ -120,7 +122,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L3, 130);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     return 0;
   }
   if (step_id == 4) {
@@ -130,7 +132,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, 0, L4, 66);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     return 0;
   }
   if (step_id == 5) {
@@ -138,7 +140,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, 0, L5, 268);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     return 0;
   }
   if (step_id == 6) {
@@ -152,12 +154,12 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_0, 71);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_1: u8[165] = [112, 101, 114, 108, 32, 45, 105, 32, 45, 110, 101, 32, 39, 112, 114, 105, 110, 116, 32, 117, 110, 108, 101, 115, 115, 32, 47, 94, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 117, 105, 110, 116, 56, 95, 116, 47, 32, 38, 38, 32, 36, 115, 101, 101, 110, 43, 43, 39, 32, 112, 97, 114, 115, 101, 114, 95, 103, 101, 110, 46, 99, 32, 38, 38, 32, 99, 99, 32, 45, 87, 97, 108, 108, 32, 45, 87, 101, 120, 116, 114, 97, 32, 45, 73, 46, 32, 45, 73, 105, 110, 99, 108, 117, 100, 101, 32, 45, 73, 115, 114, 99, 32, 45, 105, 110, 99, 108, 117, 100, 101, 32, 97, 115, 116, 46, 104, 32, 45, 99, 32, 112, 97, 114, 115, 101, 114, 95, 103, 101, 110, 46, 99, 32, 45, 111, 32, 112, 97, 114, 115, 101, 114, 95, 120, 46, 111];
     off = append_lit(cmd, 4096, 0, L6_1, 164);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_2: u8[141] = [32,45,76,32,46,46,32,45,76,32,115,114,99,47,108,101,
     120,101,114,32,45,76,32,115,114,99,47,97,115,116,32,45,
     120,32,45,69,32,115,114,99,47,116,121,112,101,99,107,47,
@@ -172,7 +174,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_2, 141);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_3: u8[174] = [32,45,76,32,46,46,32,45,76,32,115,114,99,47,108,101,
     120,101,114,32,45,76,32,115,114,99,47,97,115,116,32,45,
     76,32,115,114,99,47,112,97,114,115,101,114,32,45,76,32,
@@ -189,7 +191,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_3, 174);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_4: u8[96] = [32,45,120,32,45,69,32,115,114,99,47,97,115,116,47,97,
     115,116,46,120,32,62,32,97,115,116,95,103,101,110,46,
     99,32,38,38,32,99,99,32,45,87,97,108,108,32,45,87,
@@ -201,7 +203,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_4, 96);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_5: u8[119] = [32,45,76,32,115,114,99,47,108,101,120,101,114,32,45,120,
     32,45,69,32,115,114,99,47,108,101,120,101,114,47,116,111,
     107,101,110,46,120,32,62,32,116,111,107,101,110,95,103,
@@ -215,7 +217,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_5, 119);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_6: u8[119] = [32,45,76,32,115,114,99,47,108,101,120,101,114,32,45,120,
     32,45,69,32,115,114,99,47,108,101,120,101,114,47,108,101,
     120,101,114,46,120,32,62,32,108,101,120,101,114,95,103,
@@ -229,7 +231,7 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_6, 119);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_7: u8[66] = [32,45,76,32,115,114,99,47,108,101,120,101,114,32,45,120,
     32,45,69,32,115,114,99,47,112,114,101,112,114,111,99,101,
     115,115,47,112,114,101,112,114,111,99,101,115,115,46,120,
@@ -240,14 +242,14 @@ function build_run_step(step_id: i32, xlang_path: *u8): i32 {
     off = append_lit(cmd, 4096, off, L6_7, 66);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     let L6_8: u8[74] = [99,99,32,45,87,97,108,108,32,45,87,101,120,116,114,97,32,45,73,46,32,45,
     73,105,110,99,108,117,100,101,32,45,73,115,114,99,32,45,99,32,112,114,101,112,114,111,99,
     101,115,115,95,103,101,110,46,99,32,45,111,32,112,114,101,112,114,111,99,101,115,115,95,120,46,111];
     off = append_lit(cmd, 4096, 0, L6_8, 74);
     if (off < 0) { return -1; }
     cmd[off] = 0;
-    if (build_exec_system(cmd) != 0) { return -1; }
+    if (unsafe { build_exec_system(cmd) } != 0) { return -1; }
     return 0;
   }
   return -1;

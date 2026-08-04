@@ -2,6 +2,8 @@
 # WPO v0 烟测：asm 后端 DCE 剔除 dead export（跨 import 库）
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/wpo-main-disasm.sh
 . tests/lib/wpo-main-disasm.sh
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || true
@@ -14,7 +16,7 @@ fi
 
 XLANG_BIN="${XLANG:-./compiler/xlang_asm}"
 if [ ! -x "$XLANG_BIN" ]; then
-  make -C compiler xlang-c -q 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make xlang-c -q 2>/dev/null || xlang_compiler_make xlang-c
   XLANG_BIN="./compiler/xlang-c"
 fi
 

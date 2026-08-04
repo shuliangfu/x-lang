@@ -5,8 +5,10 @@
 # 更新：XLANG_PERF_UPDATE_ASYNC_BASELINE=1 ./tests/run-perf-async.sh --bench
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o
 
 # 与 run-async.sh 一致：外部已设 XLANG（CI macOS 传 xlang-c）时保留；否则 xlang 优先。
 if [ -z "${XLANG:-}" ]; then
@@ -108,7 +110,7 @@ bench_async_case() {
   local med="nan"
   local ns_per_op="nan"
 
-  echo "=== tests/bench/${name} (1M ping-pong rounds, 2M task steps) ==="
+  echo "=== bench/${name} (1M ping-pong rounds, 2M task steps) ==="
 
   if [[ "$x" == *sched* ]]; then
     if ! link_with_scheduler "$x" "$exe"; then
@@ -140,10 +142,10 @@ if [ "$DO_BENCH" -eq 0 ]; then
   exit 0
 fi
 
-bench_async_case async_switch tests/bench/async_switch.x
+bench_async_case async_switch bench/async_switch.x
 # scheduler jmp 烟测仅 Linux x86_64 seed asm；macOS/ARM64/Windows 记 N/A。
 if perf_async_is_linux_x64_asm; then
-  bench_async_case async_switch_jmp tests/bench/async_switch_sched.x
+  bench_async_case async_switch_jmp bench/async_switch_sched.x
 else
   echo "async_switch_jmp N/A (scheduler jmp asm requires Linux x86_64)"
 fi

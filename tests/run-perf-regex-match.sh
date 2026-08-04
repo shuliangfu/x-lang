@@ -6,8 +6,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-BENCH_SRC="tests/bench/regex_match_bench.c"
-STUB_SRC="tests/bench/regex_match_naive_stub.c"
+BENCH_SRC="bench/regex_match_bench.c"
+STUB_SRC="bench/regex_match_naive_stub.c"
 REGEX_X="std/regex/regex.x"
 BENCH_EXE="/tmp/xlang_regex_match_bench"
 STUB_EXE="/tmp/xlang_regex_match_stub_bench"

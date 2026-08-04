@@ -2,7 +2,9 @@
 # VEC-V1 + MEM-A2：autovec 点积路径无 xlang_panic_ 边界检查（BCE/指针索引）。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 XLANG="${XLANG:-./compiler/xlang-c}"
 SRC="tests/vec/autovec_dot_loop.x"
 C_OUT="/tmp/xlang_autovec_bce.c"

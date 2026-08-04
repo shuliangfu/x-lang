@@ -672,7 +672,7 @@ static int32_t parser_asm_seed_commit_onefunc_c(void *arena, void *module, struc
   pipeline_module_func_set_is_extern(module, fi_mod, 0);
   pipeline_module_func_set_is_async(module, fi_mod, func_is_async);
   for (p_copy = 0; p_copy < res->num_params; p_copy++) {
-    uint8_t pname32[32];
+    uint8_t pname32[128];
     memset(pname32, 0, sizeof(pname32));
     pipeline_onefunc_param_name_copy32(pool, p_copy, pname32);
     pipeline_module_func_param_write(module, fi_mod, p_copy, pname32,
@@ -1004,7 +1004,7 @@ static void xlang_seed_hoist_default_methods_c(void *module, int32_t for_kind, i
         pipeline_module_func_set_return_type(module, new_fi, rty);
         for (pi = 0; pi < nparams; pi++) {
           int32_t pty = pipeline_module_func_param_type_ref_at(module, new_fi, pi);
-          uint8_t pname32[32];
+          uint8_t pname32[128];
           int32_t plen;
           memset(pname32, 0, sizeof(pname32));
           plen = pipeline_module_func_param_name_len_at(module, new_fi, pi);
@@ -2656,6 +2656,12 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
     if (!res.ok)
       parser_asm_parse_one_function_buf_into_c(&res, arena, fn_start, data, len);
     if (!res.ok) {
+      /* wave676: P011 sticky → hard abort (same as main parse_into_buf loop). */
+      {
+        extern int32_t parser_sig_type_hard_pending_c(void);
+        if (parser_sig_type_hard_pending_c() != 0)
+          return -2;
+      }
       parser_skip_one_function_full_into_buf_glue(&body, fn_start, data, len);
       if (body.pos == fn_start.pos && body.pos < (size_t)len)
         body.pos++;
@@ -2689,6 +2695,12 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
   out.main_idx = -1;
   if (!arena || !module || !data || len <= 0)
     return out;
+
+  /* wave676: clear sticky P011 so a prior file cannot poison this parse. */
+  {
+    extern void parser_sig_type_hard_reset_c(void);
+    parser_sig_type_hard_reset_c();
+  }
 
   /* wave421/wave425: per-module trait method registry (+ ret kinds; stash arena). */
   xlang_trait_reg_reset_c(arena);
@@ -3592,9 +3604,21 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_layout_deep_buf_audit_c(lex, data, len));
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_struct_layout_full_deep_buf_audit_c(lex, data, len));
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_struct_layout_mega_full_deep_buf_audit_c(lex, data, len));
-      if (parser_parse_struct_record_layout_into_glue(arena, module, lex, &slice, &out_lex, ap, ps, pc) != 0)
+      if (parser_parse_struct_record_layout_into_glue(arena, module, lex, &slice, &out_lex, ap, ps, pc) != 0) {
+        /*
+         * wave679 Cap residual: P012 duplicate field must not soft-skip+continue.
+         * PLATFORM: SHARED parse.
+         */
+        {
+          extern int32_t parser_sig_type_hard_pending_c(void);
+          if (parser_sig_type_hard_pending_c() != 0) {
+            out.ok = -2;
+            out.main_idx = -1;
+            return out;
+          }
+        }
         parser_skip_one_struct_into_buf_glue(&lex, iter_start, data, len);
-      else
+      } else
         lex = out_lex;
       if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
         lex.pos++;
@@ -3837,9 +3861,27 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       }
       res = parser_asm_seed_onefunc_wired_c(lex);
       parser_parse_one_function_impl(&res, arena, lex, &slice);
-      if (!res.ok)
-        parser_asm_parse_one_function_buf_into_c(&res, arena, lex_at_function, data, len);
       if (!res.ok) {
+        /* wave676: skip buf retry when P011 already sticky (avoid double diag). */
+        extern int32_t parser_sig_type_hard_pending_c(void);
+        if (parser_sig_type_hard_pending_c() == 0)
+          parser_asm_parse_one_function_buf_into_c(&res, arena, lex_at_function, data, len);
+      }
+      if (!res.ok) {
+        /*
+         * wave676 Cap residual: P011 untyped formal / missing return type must not
+         * soft-skip+continue (silent drop → false green when main remains).
+         * G.7: sticky from parser_report_untyped_formal_p011_c.
+         * PLATFORM: SHARED parse.
+         */
+        {
+          extern int32_t parser_sig_type_hard_pending_c(void);
+          if (parser_sig_type_hard_pending_c() != 0) {
+            out.ok = -2;
+            out.main_idx = -1;
+            return out;
+          }
+        }
         /* 与 parser.x parse_into_buf 一致：跳过前打印函数名，供 A-11 typeck 截断 bisect。 */
         {
           uint8_t skip_name[64];

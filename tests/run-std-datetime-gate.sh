@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-datetime-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_DATETIME_DOC:-analysis/std-datetime-v1.md}"
 MANIFEST="${XLANG_STD_DATETIME_MANIFEST:-tests/baseline/std-datetime-manifest.tsv}"
@@ -75,7 +77,7 @@ X_OK=0
 SKIP=0
 
 echo "=== STD-074: datetime c smoke ==="
-make -C compiler ../std/datetime/datetime.o ../std/time/time.o runtime_time_os.o >/dev/null 2>&1
+xlang_compiler_make ../std/datetime/datetime.o ../std/time/time.o runtime_time_os.o >/dev/null 2>&1
 if nm std/time/time.o 2>/dev/null | grep -qF 'time_now_wall_sec_c'; then
   if cc -std=c11 -O1 -o /tmp/xlang_dt_smoke \
     "$SMOKE_C" std/datetime/datetime.o std/time/time.o compiler/runtime_time_os.o 2>/dev/null; then

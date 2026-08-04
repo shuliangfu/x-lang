@@ -468,8 +468,7 @@ export function driver_diagnostic_typeck_break_continue_outside(line: i32, col: 
 #[no_mangle]
 export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
-      "invalid pointer arithmetic (ptr+ptr / non-offset ops / unary -~ not allowed; use integer offset, std.string, or adjacent string literals)");
+    lsp_diag_report_typeck(line, col, "invalid pointer arithmetic (ptr+ptr / non-offset ops)");
   }
 }
 
@@ -485,7 +484,196 @@ export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32):
 export function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col,
-      "invalid float operation (bitwise / mod / shift / unary ~ not allowed on f32/f64; use + - * / and unary - only)");
+      "invalid float op (no bitwise/mod/shift/unary ~ on f32/f64; use + - * / and unary -)");
+  }
+}
+
+/**
+ * Report illegal aggregate binop (wave657 cmp + wave658 arith Cap residual).
+ * Closes soft residual: typeck stamped bool/result for struct/slice/array cmp or arith
+ * → host-cc BLD001 or silent array pointer-identity false green.
+ * @param line i32 — 1-based source line of the binop
+ * @param col i32 — 1-based source column of the binop
+ * @return void
+ * PLATFORM: SHARED — seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X same commit.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_aggregate_cmp(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid aggregate operation (cmp/arith/unary -/~/! not allowed on array/slice/struct; use scalars or fields)");
+  }
+}
+
+/**
+ * Report illegal `as` cast (wave659 Cap residual pure leaf).
+ * Closes soft residual: typeck stamped cast target for aggregate/float↔ptr false green/BLD001.
+ * @param line i32 — 1-based source line of the cast
+ * @param col i32 — 1-based source column of the cast
+ * @return void
+ * PLATFORM: SHARED — seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X same commit.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid cast (as not allowed for aggregate or float<->pointer; use numeric/ptr casts or fields)");
+  }
+}
+
+/**
+ * Report free-function call arity mismatch (wave660 Cap residual pure leaf).
+ * @param line i32 — 1-based source line of the CALL
+ * @param col i32 — 1-based source column of the CALL
+ * @return void
+ * PLATFORM: SHARED — seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X same commit.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_call_arity_mismatch(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "wrong number of arguments in function call (arity mismatch)");
+  }
+}
+
+/**
+ * Report free-function call argument type mismatch (wave661 Cap residual pure leaf).
+ * @param line i32 — 1-based source line of the CALL
+ * @param col i32 — 1-based source column of the CALL
+ * @return void
+ * PLATFORM: SHARED — seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X same commit.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_call_arg_type_mismatch(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "argument type mismatch in function call");
+  }
+}
+
+/**
+ * Report unresolved free-function CALL (wave675 Cap residual pure leaf).
+ * Closes soft residual: bare VAR callee with no module name hit left typeck OK → host BLD001
+ * undeclared function (also covers silent parse-drop of bad formals + call).
+ * @param line i32 — 1-based source line of the CALL
+ * @param col i32 — 1-based source column of the CALL
+ * @return void
+ * PLATFORM: SHARED — seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X same commit.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_call_unresolved(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "unresolved function call (no matching function)");
+  }
+}
+
+/**
+ * Report non-integer array/slice/pointer subscript index (wave664 Cap residual pure leaf).
+ * @param line i32 — 1-based source line of the INDEX
+ * @param col i32 — 1-based source column of the INDEX
+ * @return void
+ * PLATFORM: SHARED — seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X same commit.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_subscript_index(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "subscript index must be an integer type");
+  }
+}
+
+/**
+ * Report non-bool operand of && / || / ! (wave665 Cap residual pure leaf).
+ * @param line i32 — 1-based source line of the logical expr
+ * @param col i32 — 1-based source column of the logical expr
+ * @return void
+ * PLATFORM: SHARED — seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X same commit.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_logical_operand_not_bool(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "logical operand must be bool (no implicit int-to-bool)");
+  }
+}
+
+/**
+ * Report incompatible comparison operand types (wave666 Cap residual pure leaf).
+ * @param line i32 — 1-based source line of the comparison
+ * @param col i32 — 1-based source column of the comparison
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ runtime_driver_diagnostic.x.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_comparison_type_mismatch(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "comparison operands have incompatible types");
+  }
+}
+
+/**
+ * Report void used in arithmetic or unary -/~ (wave667 Cap residual pure leaf).
+ * @param line i32 — 1-based source line of the op
+ * @param col i32 — 1-based source column of the op
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ runtime_driver_diagnostic.x.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_void_binop(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid void operation (void cannot be used in arithmetic or unary -/~)");
+  }
+}
+
+/**
+ * Report bool used in arithmetic / bitops / shifts or unary -/~ (wave677 Cap residual).
+ * @param line i32 — 1-based source line of the op
+ * @param col i32 — 1-based source column of the op
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ runtime_driver_diagnostic.x.
+ * LANG-006 scalar let/const bool→int remains allowed; this rejects bool as an
+ * arithmetic/bit operand (true+false, x<<true, -true, ~true, true&false).
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_bool_binop(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid bool operation (bool cannot be used in arithmetic, bitops, shifts, or unary -/~; use logical ops or `as`)");
+  }
+}
+
+/**
+ * Report assignment / compound-assign to a const binding (wave678 Cap residual).
+ * @param line i32 — 1-based source line of the assign
+ * @param col i32 — 1-based source column of the assign
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ runtime_driver_diagnostic.x.
+ * docs/06: const bindings are immutable; let remains reassignable (mut is spelling only).
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_assign_to_const(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "cannot assign to const binding (const is immutable; use let for a mutable variable)");
+  }
+}
+
+/**
+ * Report same-block let/const redecl or function-body param name clash (wave680 Cap residual).
+ * @param line i32 — 1-based source line of the second declaration
+ * @param col i32 — 1-based source column of the second declaration
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ runtime_driver_diagnostic.x.
+ * Nested-block shadowing remains allowed; only same block / param+body local conflict.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_duplicate_local(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "duplicate let/const binding (same-block local, parameter clash, or module-scope redecl)");
   }
 }
 
@@ -1647,7 +1835,7 @@ export function driver_diagnostic_warn_pad_fields_same_cache_line(sname: *u8, sn
   at = driver_diag_append_name(&msg[0], 384, at, f0, f0_len);
   at = driver_diag_append_cstr(&msg[0], 384, at, "' and '");
   at = driver_diag_append_name(&msg[0], 384, at, f1, f1_len);
-  // Split long cstr: product codegen string-lit cap ~63 bytes (G.9 / no silent truncate).
+  // Split long cstr: product codegen string-lit cap ~127 bytes (G.9 / no silent truncate).
   at = driver_diag_append_cstr(&msg[0], 384, at, "' share a 64-byte cache line; ");
   at = driver_diag_append_cstr(&msg[0], 384, at, "consider align(64) to avoid false sharing");
   unsafe {
@@ -1721,7 +1909,7 @@ export function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref:
   driver_diag_fill_expr_part(&left_buf[0], 112, left_ty, left_ty_len);
   driver_diag_fill_expr_part(&right_buf[0], 112, right_ty, right_ty_len);
   let msg: u8[384] = [];
-  // Split long cstrs: product codegen string-lit cap ~63 bytes.
+  // Split long cstrs: product codegen string-lit cap ~127 bytes.
   let at: i32 = driver_diag_append_cstr(&msg[0], 384, 0, "typeck binop debug: expr=");
   at = driver_diag_append_i32(&msg[0], 384, at, expr_ref);
   at = driver_diag_append_cstr(&msg[0], 384, at, " left_ref=");

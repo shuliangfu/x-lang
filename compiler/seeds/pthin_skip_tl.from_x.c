@@ -44,7 +44,7 @@ struct parser_asm_slice_u8 {
 
 struct parser_asm_extern_parse_result {
   struct parser_asm_lexer next_lex;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t return_ty_ref;
   int32_t num_params;
@@ -54,7 +54,7 @@ struct parser_asm_extern_parse_result {
 };
 
 struct ast_Func {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t param_base;
   int32_t num_params;

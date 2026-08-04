@@ -2,6 +2,8 @@
 # xlang fmt 折行回归：注释不折、代码在 ; / , / 空格处折、数组逗号后补空格、fmt 后须能 check 通过。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 ROOT=$(pwd)
 XLANG=${XLANG:-./compiler/xlang}
 # fmt/check 必须用真实编译器二进制，禁止 bootstrap-link 的 -backend wrap。
@@ -73,9 +75,9 @@ run_one_case() {
 }
 
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler src/lsp/lsp_diag.o -q 2>/dev/null || true
+  xlang_compiler_make src/lsp/lsp_diag.o -q 2>/dev/null || true
   if [ -f compiler/build_asm/seed_host/asm_backend_partial.o ]; then
-    make -C compiler relink-xlang -q 2>/dev/null || true
+    xlang_compiler_make relink-xlang -q 2>/dev/null || true
   fi
 fi
 

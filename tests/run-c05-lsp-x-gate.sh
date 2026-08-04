@@ -8,6 +8,8 @@
 #   XLANG=./compiler/xlang      — 默认 bootstrap seed xlang
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_C05_FAIL:-0}
 DOC="analysis/phase-c-c05-v1.md"
@@ -68,7 +70,7 @@ fi
 
 if ! "$XLANG_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
   echo "c05: building bootstrap-driver-seed for --lsp ..."
-  make -C compiler bootstrap-driver-seed >/dev/null
+  xlang_compiler_make bootstrap-driver-seed >/dev/null
   XLANG_BIN=./compiler/xlang
 fi
 

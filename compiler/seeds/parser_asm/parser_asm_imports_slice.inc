@@ -14,7 +14,8 @@ int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *lex,
   struct parser_asm_lexer_result r2;
   struct parser_asm_lexer_result r3;
   struct parser_asm_collect_imports_result dummy;
-  uint8_t path_buf[64];
+  /* wave584 Cap residual: import path content ≤127 (dep_path_rows[128] / typeck). */
+  uint8_t path_buf[128];
   int32_t path_len = 0;
   int32_t i;
 
@@ -91,14 +92,19 @@ struct parser_asm_lexer parser_asm_skip_imports_buf_c(struct parser_asm_lexer le
   return parser_asm_skip_imports_slice_c(lex, &source);
 }
 
-/** 将 source[token_start..+tok_len) 复制到 64 字节缓冲（不足 zero-pad）。 */
+/**
+ * Copy source[token_start..+tok_len) into a 128-byte buffer (zero-pad remainder).
+ * wave584 Cap residual: binding-name content ≤127 (ImportEntry.binding_name[128]).
+ * Historical name kept for symbol stability; width is 128.
+ * PLATFORM: SHARED — product import collect path (this .inc → thin glue).
+ */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void parser_asm_copy_token_bytes_to_buf64(struct parser_asm_slice_u8 *source, size_t token_start,
                                                  int32_t tok_len, uint8_t *buf) {
   int32_t bi;
   if (!buf)
     return;
-  for (bi = 0; bi < 64; bi++) {
+  for (bi = 0; bi < 128; bi++) {
     if (bi < tok_len && source && source->data && token_start + (size_t)bi < source->length)
       buf[bi] = source->data[token_start + bi];
     else
@@ -126,17 +132,18 @@ int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_import
     return 0;
   parser_asm_lex_from_result_val_into(&out->lex, r);
   lexer_next_into(&r, out->lex, source);
-  if (r.tok.kind == (int32_t)TOKEN_STRING && r.tok.ident_len > 0 && r.tok.ident_len <= 63) {
+  /* wave584 Cap residual: import path content ≤127 (dep_path_rows[128] + typeck plen). */
+  if (r.tok.kind == (int32_t)TOKEN_STRING && r.tok.ident_len > 0 && r.tok.ident_len <= 127) {
     parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, r.tok.ident_len, path_buf);
     *path_len = r.tok.ident_len;
-  } else if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0 && r.tok.ident_len <= 63
+  } else if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0 && r.tok.ident_len <= 127
       && source->data && r.token_start < source->length && source->data[r.token_start] == (uint8_t)'"') {
-    /* 兼容：词法未产出 TOKEN_STRING 时从源码复制引号内字节 */
+    /* Compat: when lexer did not emit TOKEN_STRING, copy bytes between quotes. */
     size_t q0 = r.token_start + 1;
     size_t q1 = q0;
     while (q1 < source->length && source->data[q1] != (uint8_t)'"')
       q1++;
-    if (q1 >= source->length || q1 - q0 > 63)
+    if (q1 >= source->length || q1 - q0 > 127)
       return 0;
     {
       size_t k;
@@ -179,9 +186,10 @@ int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_import
  */
 void parser_asm_collect_imports_slice_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source, void *module,
                                         struct parser_asm_collect_imports_result *out) {
-  uint8_t path_buf[64];
-  uint8_t bind_buf[64];
-  uint8_t sel_buf[64];
+  /* wave584 Cap residual: path ≤127 (dep row[128]); binding ≤127 (binding_name[128]). */
+  uint8_t path_buf[128];
+  uint8_t bind_buf[128];
+  uint8_t sel_buf[128];
   int32_t path_len;
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer_result r2;
@@ -966,7 +974,8 @@ void parser_asm_collect_imports_slice_c(struct parser_asm_lexer lex, struct pars
     }
     if (r.tok.kind == (int32_t)TOKEN_CONST) {
       lexer_next_into(&r2, r.next_lex, source);
-      if (r2.tok.kind == (int32_t)TOKEN_IDENT && r2.tok.ident_len > 0 && r2.tok.ident_len <= 63) {
+      /* wave584 Cap residual: binding name content ≤127 (binding_name[128]). */
+      if (r2.tok.kind == (int32_t)TOKEN_IDENT && r2.tok.ident_len > 0 && r2.tok.ident_len <= 127) {
         lexer_next_into(&r3, r2.next_lex, source);
         if (r3.tok.kind == (int32_t)TOKEN_ASSIGN) {
           /*

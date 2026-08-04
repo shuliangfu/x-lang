@@ -63,7 +63,7 @@
   "xlang.walkthrough.openProject.title": "Xlang Projesini Aç",
   "xlang.walkthrough.openProject.description": "xlang deposu kökünü açmak için **Open Folder** kullanın. LSP, tanılama, gezinme ve tamamlamayı başlatmak için bir çalışma alanı gerektirir.",
   "xlang.walkthrough.buildCompiler.title": "Xlang Derleyicisini Derle",
-  "xlang.walkthrough.buildCompiler.description": "LSP için gereken `compiler/xlang` ikili dosyasını elde etmek üzere `make -C compiler bootstrap-driver-seed` çalıştırın.",
+  "xlang.walkthrough.buildCompiler.description": "LSP için gereken `compiler/xlang` ikili dosyasını elde etmek üzere `./xbuild bootstrap-driver-seed` çalıştırın.",
   "xlang.walkthrough.openXFile.title": "Deneyimlemek için .x Dosyası Aç",
   "xlang.walkthrough.openXFile.description": "Sözdizimi vurgulamasını, katlamayı, CodeLens'i ve durum çubuğunu doğrulamak için herhangi bir `.x` dosyasını açın.",
   "xlang.walkthrough.runFile.title": ".x Dosyasını Çalıştır",
@@ -72,7 +72,7 @@
   "xlang.taskDefinition.task.description": "Xlang görev türü: build / build-file / run / check",
 
   "xlang.walkthrough.openProject.media": "Proje kök dizinini (`compiler/` içeren) açmak için `Ctrl+K Ctrl+O` tuşlarına basın.",
-  "xlang.walkthrough.buildCompiler.media": "Terminalde çalıştırın:\n```\nmake -C compiler bootstrap-driver-seed\n```\nDerleme başarılı olduktan sonra `compiler/xlang` dil sunucusu olarak hizmet verecektir.",
+  "xlang.walkthrough.buildCompiler.media": "Terminalde çalıştırın:\n```\n./xbuild bootstrap-driver-seed\n```\nDerleme başarılı olduktan sonra `compiler/xlang` dil sunucusu olarak hizmet verecektir.",
   "xlang.walkthrough.openXFile.media": "`compiler/src/lexer/lexer.x` veya `tests/` altındaki herhangi bir test dosyasını açmayı deneyin.",
   "xlang.walkthrough.runFile.media": "CodeLens `▶ Run`, `function main` tanım satırında görünür."
 }

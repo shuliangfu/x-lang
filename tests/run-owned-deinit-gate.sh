@@ -2,7 +2,9 @@
 # MEM-B1：owned(Vec_u8) 块尾自动 emit vec_u8_deinit。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 XLANG="${XLANG:-./compiler/xlang-c}"
 SRC="tests/mem/owned_vec_u8.x"
 OUT="/tmp/xlang_owned_vec_$$"

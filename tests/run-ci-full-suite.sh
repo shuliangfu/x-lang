@@ -5,6 +5,8 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 export CI="${CI:-1}"
 export XLANG_CI_FULL_SUITE="${XLANG_CI_FULL_SUITE:-1}"
@@ -174,7 +176,7 @@ if ci_is_linux_arm64_ci_lite || ci_is_windows_msys_ci_lite; then
   grep -q 'run-portable-c OK' /tmp/portable_c.log
   echo "Test C OK (portable regression; ubuntu x86_64 covers full run-all-c)"
 else
-  make -C compiler test_c
+  xlang_compiler_make test_c
 fi
 
 # ── Perf（全平台须 Zig 对照，禁止 skip） ─────────────────────────────────
@@ -224,7 +226,7 @@ echo "── refresh xlang_asm gate ──"
 chmod +x tests/run-refresh-xlang-asm-gate.sh
 if ci_is_windows_msys_ci_lite; then
   # MSYS2 上 relink-xlang / build_xlang_asm typeck EMIT_HEAVY 易挂起 45min+；seed xlang 作 xlang_asm 足够 DOD/ZC 烟测。
-  make -C compiler migrate-x-objs 2>/dev/null || make -C compiler migrate-x-objs
+  xlang_compiler_make migrate-x-objs 2>/dev/null || xlang_compiler_make migrate-x-objs
   cp -f compiler/xlang compiler/xlang_asm
   {
     echo "refresh xlang asm gate: CI non-Linux — Mach-O/PE single-platform relink"
@@ -307,13 +309,13 @@ if ci_is_linux_arm64_ci_lite; then
 elif ci_is_windows_msys_ci_lite; then
   echo "ci-full-suite: bootstrap run-all N/A on Windows MSYS2 (bootstrap-xlang-gate OK; Linux x86_64 covers run-all)"
 else
-  make -C compiler bootstrap-driver-seed
+  xlang_compiler_make bootstrap-driver-seed
   ./tests/run-all-seed.sh
 fi
 
 echo "── test_x (LSP + run-all-x) ──"
 if ci_is_linux_arm64_ci_lite; then
-  make -C compiler bootstrap-driver-seed
+  xlang_compiler_make bootstrap-driver-seed
   chmod +x tests/run-lsp.sh
   ./tests/run-lsp.sh
   echo "ci-full-suite: run-all-x N/A on Linux ARM64 (x86_64 covers xlang_x full run-all)"
@@ -322,7 +324,7 @@ elif ci_is_windows_msys_ci_lite; then
   ./tests/run-lsp.sh
   echo "ci-full-suite: run-all-x N/A on Windows MSYS2 (Linux x86_64 covers xlang_x full run-all)"
 else
-  make -C compiler test_x
+  xlang_compiler_make test_x
 fi
 
 # ── Tier A 边界：lite 平台跳过 build_xlang_asm/bstrict，仍跑 Tier B（DOD/WPO-S2 等） ──
@@ -556,7 +558,7 @@ else
   XLANG=./compiler/xlang_asm XLANG_PERF_FAIL_ON_WPO_S2_REGRESSION=1 XLANG_WPO_S2_RUNS=1 XLANG_WPO_S2_LIMIT=1000000 ./tests/run-perf-wpo-s2.sh --bench | tee /tmp/wpo_s2_perf.log
 fi
 grep -q 'wpo-s2 perf OK' /tmp/wpo_s2_perf.log
-make -C compiler ../std/async/scheduler.o
+xlang_compiler_make ../std/async/scheduler.o
 XLANG=./compiler/xlang_asm ./tests/run-wpo-s3-gate.sh | tee /tmp/wpo_s3.log
 grep -q 'wpo-s3 gate OK' /tmp/wpo_s3.log
 XLANG_WPO_PGO_HOT=1 XLANG=./compiler/xlang_asm ./tests/run-wpo-s4-gate.sh | tee /tmp/wpo_s4.log
@@ -570,13 +572,13 @@ elif ci_is_linux && ci_is_x86_64_host; then
     # Docker 容器：xlang_asm.experimental 在 cfg-merge 等 asm 烟测偶发 SIGSEGV；完整 bstrict 由 native linux job 覆盖。
     echo "ci-full-suite: bootstrap-bstrict-ci N/A in Docker (native linux ubuntu job covers)"
     echo "── bootstrap-verify ──"
-    make -C compiler bootstrap-verify
+    xlang_compiler_make bootstrap-verify
   else
     chmod +x tests/run-bootstrap-bstrict-ci.sh
     ./tests/run-bootstrap-bstrict-ci.sh
 
     echo "── bootstrap-verify ──"
-    make -C compiler bootstrap-verify
+    xlang_compiler_make bootstrap-verify
   fi
 else
   echo "ci-full-suite: bootstrap-bstrict/verify N/A on $(ci_host_os)/$(ci_host_arch) (B-strict primary path Linux x86_64)"

@@ -13,12 +13,32 @@
 #
 # Usage: xlang_compile_std_fs_formal.sh <out.o>
 # Env: XLANG=compiler binary (default ./xlang_asm → ./xlang → ./xlang-c)
+# wave826: FORCE-thin mtime skip when formal_mod ensure dispatches here (not physical delete).
 set -e
 
 out_o="$1"
 if [ -z "$out_o" ]; then
   echo "usage: xlang_compile_std_fs_formal.sh <out.o>" >&2
   exit 1
+fi
+
+# wave826: FORCE-thin mtime for formal_mod fs leaf (G.7 shell owns source freshness).
+# Catalog sources: std/fs/mod.x + posix.x (vehicle imports std.fs). PLATFORM: SHARED.
+if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ]; then
+  _fs_stale=0
+  for _s in ../std/fs/mod.x ../std/fs/posix.x std/fs/mod.x std/fs/posix.x; do
+    if [ -f "$_s" ] && [ "$_s" -nt "$out_o" ]; then
+      _fs_stale=1
+      break
+    fi
+  done
+  if [ "$_fs_stale" = "0" ]; then
+    # Only skip if at least one real source path exists (avoid skip when tree missing).
+    if [ -f ../std/fs/mod.x ] || [ -f std/fs/mod.x ]; then
+      echo "xlang_compile_std_fs_formal: skip up-to-date $out_o (formal_mod/fs)" >&2
+      exit 0
+    fi
+  fi
 fi
 
 XLANG_BIN="${XLANG:-./xlang_asm}"

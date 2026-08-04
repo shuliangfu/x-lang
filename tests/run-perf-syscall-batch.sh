@@ -20,7 +20,7 @@ mkdir -p "$OUT_DIR"
 FAIL_FLAG="${XLANG_SYSCALL_BATCH_FAIL:-0}"
 REQUIRE_STRACE="${XLANG_SYSCALL_BATCH_REQUIRE_STRACE:-0}"
 BENCH_MB="${XLANG_IO_BENCH_MB:-16}"
-BENCH_FILE="tests/bench/.io_mmap_bench_tmp"
+BENCH_FILE="bench/.io_mmap_bench_tmp"
 BENCH_BYTES=$((BENCH_MB * 1048576))
 EXPECT_ZC_RC=$((BENCH_BYTES & 255))
 SINK_BIN="/tmp/xlang_syscall_batch_sink"
@@ -71,7 +71,7 @@ fi
 
 ensure_std_c_o ../std/net/net.o
 
-cc -O2 tests/bench/zero_copy_sendfile_sink.c -o "$SINK_BIN" 2>/dev/null || {
+cc -O2 bench/zero_copy_sendfile_sink.c -o "$SINK_BIN" 2>/dev/null || {
   echo "syscall-batch perf SKIP: compile sink failed"
   exit 0
 }

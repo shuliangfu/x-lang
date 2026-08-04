@@ -2,12 +2,14 @@
 # 测试 std.string：string_empty、string_from_slice/eq/len、string_compare/append/find/starts_with/ends_with/copy_to
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   # F-string v1：string.o 由 asm 编译 string.x（ensure_std_c_o 对纯 .x 模块为 no-op）。
-  make -C compiler -q ../std/string/string.o 2>/dev/null || make -C compiler ../std/string/string.o
+  xlang_compiler_make -q ../std/string/string.o 2>/dev/null || xlang_compiler_make ../std/string/string.o
 fi
 XLANG=${XLANG:-./compiler/xlang}
 # shellcheck source=lib/bootstrap-link-xlang.sh

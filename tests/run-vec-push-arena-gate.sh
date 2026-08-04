@@ -2,7 +2,9 @@
 # MEM-C1：with_arena 内 vec_u8_push 单态化为 push_arena（heap_arena64_alloc_c 直调）。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 XLANG="${XLANG:-./compiler/xlang-c}"
 SRC="tests/mem/with_arena_vec_push.x"
 OUT="/tmp/xlang_vec_push_arena_$$"

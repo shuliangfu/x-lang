@@ -5135,10 +5135,18 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
                 return -1;
             }
             io_p = NULL;
-            if (need_io)
+            /* PLATFORM: LINUX freestanding (wave592) — G.7: ensure before skip_missing,
+             * same pattern as bootstrap_nostdlib_stubs below. prepare may also ensure
+             * when needs_io | nostdlib_face; ld still ensures when force need_io so a
+             * cold tree without compiler/freestanding_io.o self-heals (cc .s → .o). */
+            if (need_io) {
+                if (xlang_ensure_freestanding_io_o(link_eff, driver_freestanding) != 0)
+                    return -1;
                 io_p = asm_link_obj_skip_missing(xlang_freestanding_io_o_path(link_eff));
+            }
             if (need_io && !io_p) {
-                link_diag_freestanding_missing("freestanding_io.o", "xlang_sys_write");
+                link_diag_freestanding_missing("freestanding_io.o",
+                    need_nostdlib_face ? "memcpy/xlang_sys_mmap" : "xlang_sys_write");
                 return -1;
             }
             stubs_p = NULL;

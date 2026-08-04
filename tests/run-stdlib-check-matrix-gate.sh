@@ -4,6 +4,8 @@
 # 用法：./tests/run-stdlib-check-matrix-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STDLIB_CHECK_DOC:-analysis/boot-stdlib-check-matrix-v1.md}"
 MANIFEST="${XLANG_STDLIB_CHECK_TSV:-tests/baseline/stdlib-check-matrix.tsv}"
@@ -90,7 +92,7 @@ echo "stdlib-check-matrix manifest OK (modules=${MOD_N}, core=${CORE_N}, std=${S
 if XLANG_BIN="$(stdlib_cm_resolve_shu 2>/dev/null)"; then
   echo "=== BOOT-013: runnable matrix (XLANG=$XLANG_BIN) ==="
   chmod +x "$RUNNER" "$LIB"
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   set -o pipefail
   if ! ./"$RUNNER" 2>&1 | tee /tmp/stdlib_check_matrix.log; then
     set +o pipefail

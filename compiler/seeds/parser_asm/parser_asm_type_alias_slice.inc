@@ -34,11 +34,18 @@ extern void parser_asm_copy_slice_to_name64_slice_c(struct parser_asm_slice_u8 *
  * parse_one_type_alias_into：解析单条顶层 type 别名，写入 module 侧车与 out。
  * lex 位于消费掉 `type` 关键字之后。
  */
+/**
+ * Parse one top-level `type Alias = Target;`.
+ * wave582 Cap residual: Alias name content ≤127 (TypeAliasEntry.name[128] + AST Cap).
+ * Prior name_buf[64] + name_len>63 rejected long aliases while type_ref still
+ * truncated use-sites to 63 → typeck "expected NAMED, found i32".
+ * PLATFORM: SHARED product type_alias path (this .inc → thin glue).
+ */
 void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, struct parser_asm_lexer lex,
                                                   struct parser_asm_slice_u8 *source,
                                                   struct parser_asm_type_alias_result *out) {
   struct parser_asm_lexer_result r;
-  uint8_t name_buf[64];
+  uint8_t name_buf[128];
   int32_t name_len;
   int32_t target_ref;
   int32_t alias_ix;
@@ -52,7 +59,7 @@ void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, str
   if (r.tok.kind != (int32_t)TOKEN_IDENT)
     return;
   name_len = r.tok.ident_len;
-  if (name_len <= 0 || name_len > 63)
+  if (name_len <= 0 || name_len > 127)
     return;
   parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, name_len, name_buf);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_name_audit_c(name_buf, name_len));

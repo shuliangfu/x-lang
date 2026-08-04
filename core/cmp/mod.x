@@ -106,4 +106,3 @@ export function cmp_ptr(a: *u8, b: *u8): Ordering {
   if (ua > ub) { return ordering_greater(); }
   return ordering_equal();
 }
-

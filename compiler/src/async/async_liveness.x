@@ -1404,7 +1404,7 @@ export function frame_build_tag(f: *u8, out: *u8, cap: i32): void {
   } else {
     if (name[0] == 0) { name = "fn"; }
   }
-  let m: u8[64] = [];
+  let m: u8[128] = [];
   frame_mangle_ident(name, &m[0], 64);
   let pref: *u8 = "__xlang_async_frame_";
   let j: i32 = 0;
@@ -1541,7 +1541,7 @@ export function async_live_sort_frame_names(out: *u8): void {
   if (n <= 1) { return; }
   let i: i32 = 1;
   while (i < n) {
-    let key: u8[64] = [];
+    let key: u8[128] = [];
     let src: *u8 = frame_live_row_ptr(out, i);
     let k: i32 = 0;
     while (k < 64) {
@@ -1670,7 +1670,7 @@ export function async_liveness_type_to_c_buf(ty: *u8, buf: *u8, cap: i32): void 
   if (kind == 9) {
     let elem: *u8 = async_live_load_ptr(ty, 16);
     if (elem != 0) {
-      let inner: u8[64] = [];
+      let inner: u8[128] = [];
       async_liveness_type_to_c_buf(elem, &inner[0], 64);
       // "%s *"
       let j: i32 = 0;
@@ -2107,7 +2107,7 @@ export function async_liveness_emit_frame_typedef(f: *u8, layout: *u8, out: *u8)
   if (layout[4108] == 0) {
     tag = "__xlang_async_frame_fn";
   }
-  // String literal cap ~63 bytes in current -E; split long RT decls (G.9: host product cold
+  // String literal cap ~127 bytes in current -E; split long RT decls (G.9: host product cold
   // path still uses seed fprintf; pure .x must still emit complete text for hybrid).
   unsafe {
     driver_preamble_fputs("#ifndef XLANG_ASYNC_CPS_RT_DECL\n", out);

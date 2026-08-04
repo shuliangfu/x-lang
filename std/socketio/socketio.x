@@ -88,9 +88,9 @@ export const SIO_LIT_N42_CHAT_MESSAGE_HELLO: u8[27] = [52, 50, 91, 34, 99, 104, 
 export const SIO_LIT_N42_NEWS_UPDATE: u8[20] = [52, 50, 91, 34, 110, 101, 119, 115, 34, 44, 34, 117, 112, 100, 97, 116, 101, 34, 93, 0];
 export const SIO_LIT_N5: u8[2] = [53, 0];
 export const SIO_LIT_EIO_4: u8[6] = [69, 73, 79, 61, 52, 0];
-export const SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_CHARSET_UTF_8_R_CONNECTION_KEEP_ALIVE_R_CONTENT_LENGTH: u8[102] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116, 61, 85, 84, 70, 45, 56, 92, 114, 10, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110, 58, 32, 107, 101, 101, 112, 45, 97, 108, 105, 118, 101, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 0];
-export const SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_CHARSET_UTF_8_R_CONNECTION_KEEP_ALIVE_R_R_0_SID_OXLMYI_UPGRADES_WEBSOCKET_PINGINTERVAL_25000_PINGTIMEOUT_20000_MAXPAYLOAD_1000000: u8[193] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116, 61, 85, 84, 70, 45, 56, 92, 114, 10, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110, 58, 32, 107, 101, 101, 112, 45, 97, 108, 105, 118, 101, 92, 114, 10, 92, 114, 10, 48, 123, 34, 115, 105, 100, 34, 58, 34, 111, 88, 76, 77, 121, 105, 34, 44, 34, 117, 112, 103, 114, 97, 100, 101, 115, 34, 58, 91, 34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 93, 44, 34, 112, 105, 110, 103, 73, 110, 116, 101, 114, 118, 97, 108, 34, 58, 50, 53, 48, 48, 48, 44, 34, 112, 105, 110, 103, 84, 105, 109, 101, 111, 117, 116, 34, 58, 50, 48, 48, 48, 48, 44, 34, 109, 97, 120, 80, 97, 121, 108, 111, 97, 100, 34, 58, 49, 48, 48, 48, 48, 48, 48, 125, 0];
-export const SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_R_CONTENT_LENGTH_52_R_R_0_SID_ABC123_UPGRADES_WEBSOCKET_PINGINTERVAL_25000: u8[133] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 53, 50, 92, 114, 10, 92, 114, 10, 48, 123, 34, 115, 105, 100, 34, 58, 34, 97, 98, 99, 49, 50, 51, 34, 44, 34, 117, 112, 103, 114, 97, 100, 101, 115, 34, 58, 91, 34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 93, 44, 34, 112, 105, 110, 103, 73, 110, 116, 101, 114, 118, 97, 108, 34, 58, 50, 53, 48, 48, 48, 125, 0];
+export const SIO_LIT_HTTP_HDR_PLAIN: u8[102] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116, 61, 85, 84, 70, 45, 56, 92, 114, 10, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110, 58, 32, 107, 101, 101, 112, 45, 97, 108, 105, 118, 101, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 0];
+export const SIO_LIT_HTTP_HANDSHAKE_FULL: u8[193] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116, 61, 85, 84, 70, 45, 56, 92, 114, 10, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110, 58, 32, 107, 101, 101, 112, 45, 97, 108, 105, 118, 101, 92, 114, 10, 92, 114, 10, 48, 123, 34, 115, 105, 100, 34, 58, 34, 111, 88, 76, 77, 121, 105, 34, 44, 34, 117, 112, 103, 114, 97, 100, 101, 115, 34, 58, 91, 34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 93, 44, 34, 112, 105, 110, 103, 73, 110, 116, 101, 114, 118, 97, 108, 34, 58, 50, 53, 48, 48, 48, 44, 34, 112, 105, 110, 103, 84, 105, 109, 101, 111, 117, 116, 34, 58, 50, 48, 48, 48, 48, 44, 34, 109, 97, 120, 80, 97, 121, 108, 111, 97, 100, 34, 58, 49, 48, 48, 48, 48, 48, 48, 125, 0];
+export const SIO_LIT_HTTP_HANDSHAKE_ABC: u8[133] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 53, 50, 92, 114, 10, 92, 114, 10, 48, 123, 34, 115, 105, 100, 34, 58, 34, 97, 98, 99, 49, 50, 51, 34, 44, 34, 117, 112, 103, 114, 97, 100, 101, 115, 34, 58, 91, 34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 93, 44, 34, 112, 105, 110, 103, 73, 110, 116, 101, 114, 118, 97, 108, 34, 58, 50, 53, 48, 48, 48, 125, 0];
 export const SIO_LIT_UPGRADES_WEBSOCKET_PINGINTERVAL_25000_PINGTIMEOUT_20000: u8[69] = [34, 44, 34, 117, 112, 103, 114, 97, 100, 101, 115, 34, 58, 91, 34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 93, 44, 34, 112, 105, 110, 103, 73, 110, 116, 101, 114, 118, 97, 108, 34, 58, 50, 53, 48, 48, 48, 44, 34, 112, 105, 110, 103, 84, 105, 109, 101, 111, 117, 116, 34, 58, 50, 48, 48, 48, 48, 125, 0];
 export const SIO_LIT_WEBSOCKET: u8[12] = [34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 0];
 export const SIO_LIT_R_R: u8[7] = [92, 114, 10, 92, 114, 10, 0];
@@ -263,7 +263,15 @@ export function socketio_f_socketio_v2_marker_c(): i32 { return 1; }
  * @param off *i32
  * @return void
  */
-export function sio_bump_off(off: *i32): void { *off = *off + 1; }
+export function sio_bump_off(off: *i32): void {
+  unsafe { *off = *off + 1; }
+}
+/** Cap-T001-safe strlen as i32. */
+export function sio_strlen_i32(s: *u8): i32 {
+  let n: i32 = 0;
+  n = sio_strlen_i32(s);
+  return n;
+}
 
 /** Exported function `sio_append_bytes`.
  * Implements `sio_append_bytes`.
@@ -276,11 +284,15 @@ export function sio_bump_off(off: *i32): void { *off = *off + 1; }
  */
 export function sio_append_bytes(out: *u8, cap: i32, off: *i32, s: *u8, slen: i32): i32 {
   let i: i32 = 0;
-  if (out == 0 || off == 0 || *off < 0) { return -1; }
+  let o: i32 = 0;
+  if (out == 0 || off == 0) { return -1; }
+  unsafe { o = *off; }
+  if (o < 0) { return -1; }
   if (slen > 0 && s == 0) { return -1; }
   while (i < slen) {
-    if (*off >= cap) { return -1; }
-    out[*off] = s[i];
+    unsafe { o = *off; }
+    if (o >= cap) { return -1; }
+    out[o] = s[i];
     sio_bump_off(off);
     i = i + 1;
   }
@@ -301,7 +313,8 @@ export function sio_append_u32_dec(out: *u8, cap: i32, off: *i32, v: u32): i32 {
   let i: i32 = 0;
   let j: i32 = 0;
   let vv: u32 = v;
-  if (out == 0 || off == 0 || *off < 0) { return -1; }
+  if (out == 0 || off == 0) { return -1; }
+  unsafe { if (*off < 0) { return -1; } }
   if (vv == 0) { tmp[0] = 48; n = 1; }
   else {
     while (vv > 0 && n < 12) { tmp[n] = (48 + (vv % 10)) as u8; n = n + 1; vv = vv / 10; }
@@ -326,14 +339,14 @@ export function sio_append_u32_dec(out: *u8, cap: i32, off: *i32, v: u32): i32 {
  */
 export function sio_server_wrap_http_body_c(body: *u8, blen: i32, out: *u8, out_cap: i32): i32 {
   let off: i32 = 0;
-  let prefix: *u8 = &SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_CHARSET_UTF_8_R_CONNECTION_KEEP_ALIVE_R_CONTENT_LENGTH[0];
+  let prefix: *u8 = &SIO_LIT_HTTP_HDR_PLAIN[0];
   let suffix: *u8 = &SIO_LIT_R_R[0];
   if (body == 0 || blen <= 0 || out == 0 || out_cap < blen + 64) { return -1; }
-  if (sio_append_bytes(out, out_cap, &off, prefix, unsafe { strlen(prefix) as i32 }) != 0) { return -1; }
+  if (sio_append_bytes(out, out_cap, &off, prefix, sio_strlen_i32(prefix)) != 0) { return -1; }
   if (sio_append_u32_dec(out, out_cap, &off, blen as u32) != 0) { return -1; }
-  if (sio_append_bytes(out, out_cap, &off, suffix, unsafe { strlen(suffix) as i32 }) != 0) { return -1; }
+  if (sio_append_bytes(out, out_cap, &off, suffix, sio_strlen_i32(suffix)) != 0) { return -1; }
   if (off + blen > out_cap) { return -1; }
-  if (blen > 0) { unsafe { memcpy(out + off, body, blen); } }
+  if (blen > 0) { unsafe { memcpy(out + off, body, blen as usize); } }
   return off + blen;
 }
 
@@ -396,10 +409,10 @@ export function sio_build_eio_url_c(base: *u8, base_len: i32, sid: *u8, sid_len:
         }
     if (transport == SIO_TRANSPORT_WEBSOCKET) {
         suffix = path_ws;
-        unsafe { suffix_len = ((strlen(path_ws) as i32)); }
+        suffix_len = sio_strlen_i32(path_ws);
     } else {
         suffix = path_poll;
-        unsafe { suffix_len = ((strlen(path_poll) as i32)); }
+        suffix_len = sio_strlen_i32(path_poll);
     }
     i = base_len - 1;
     while (i >= 0) {
@@ -426,7 +439,7 @@ export function sio_build_eio_url_c(base: *u8, base_len: i32, sid: *u8, sid_len:
           return -1;
         }
     if (sid_len > 0) {
-        if (sio_append_bytes(out, out_cap, &off, sid_q, unsafe { ((strlen(sid_q) as i32)) }) != 0)
+        if (sio_append_bytes(out, out_cap, &off, sid_q, sio_strlen_i32(sid_q)) != 0)
             {
               return -1;
             }
@@ -527,11 +540,11 @@ export function sio_polling_handshake_parse_c(http: *u8, http_len: i32, out_sid:
         {
           return -1;
         }
-    if (sio_http_extract_body_c(http, http_len, body,  ((body as usize) as i32), &blen) != 0)
+    if (sio_http_extract_body_c(http, http_len, &body[0],  512, &blen) != 0)
         {
           return -1;
         }
-    if (sio_eio_decode_packet_c(body, blen, &etype, payload,  ((payload as usize) as i32), &plen) != 0)
+    if (sio_eio_decode_packet_c(body, blen, &etype, &payload[0],  480, &plen) != 0)
         {
           return -1;
         }
@@ -572,13 +585,13 @@ export function sio_polling_handshake_c(base_url: *u8, base_len: i32, out_sid: *
         {
           return -1;
         }
-    url_len = sio_build_eio_url_c(base_url, base_len, 0, 0, SIO_TRANSPORT_POLLING, url,
-                                   ((url as usize) as i32));
+    url_len = sio_build_eio_url_c(base_url, base_len, 0, 0, SIO_TRANSPORT_POLLING, &url[0],
+                                   384);
     if (url_len <= 0)
         {
           return -1;
         }
-    unsafe { n = http_get_timeout_c(url, url_len, resp,  ((resp as usize) as i32), timeout_ms); }
+    unsafe { n = http_get_timeout_c(url, url_len, &resp[0],  4096, timeout_ms); }
     if (n <= 0)
         {
           return -1;
@@ -612,8 +625,8 @@ export function sio_polling_post_packet_c(base_url: *u8, base_len: i32, sid: *u8
         {
           return -1;
         }
-    url_len = sio_build_eio_url_c(base_url, base_len, sid, sid_len, SIO_TRANSPORT_POLLING, url,
-                                   ((url as usize) as i32));
+    url_len = sio_build_eio_url_c(base_url, base_len, sid, sid_len, SIO_TRANSPORT_POLLING, &url[0],
+                                   384);
     if (url_len <= 0)
         {
           return -1;
@@ -630,13 +643,13 @@ export function sio_polling_smoke_c(): i32 {
 
     let base: *u8 = &SIO_LIT_HTTP_127_0_0_1_3000[0];
     let sid: *u8 = &SIO_LIT_ABC123[0];
-    let http_ok: *u8 = &SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_R_CONTENT_LENGTH_52_R_R_0_SID_ABC123_UPGRADES_WEBSOCKET_PINGINTERVAL_25000[0];
+    let http_ok: *u8 = &SIO_LIT_HTTP_HANDSHAKE_ABC[0];
     let url: u8[128] = [];
     let url2: u8[128] = [];
     let sid_out: u8[16] = [];
     let has_ws: i32 = 0;
     let n: i32 = 0;
-    n = sio_build_eio_url_c(base, unsafe { ((strlen(base) as i32)) }, 0, 0, SIO_TRANSPORT_POLLING, url,
+    n = sio_build_eio_url_c(base, sio_strlen_i32(base), 0, 0, SIO_TRANSPORT_POLLING, &url[0],
                             128);
     if (n <= 0)
         {
@@ -648,7 +661,7 @@ export function sio_polling_smoke_c(): i32 {
         {
           return 2;
         }
-    n = sio_build_eio_url_c(base, unsafe { ((strlen(base) as i32)) }, sid, 6, SIO_TRANSPORT_WEBSOCKET, url2, 128);
+    n = sio_build_eio_url_c(base, sio_strlen_i32(base), &sid[0], 6, SIO_TRANSPORT_WEBSOCKET, &url2[0], 128);
     if (n <= 0)
         {
           return 3;
@@ -657,13 +670,13 @@ export function sio_polling_smoke_c(): i32 {
         {
           return 4;
         }
-    n = sio_polling_handshake_parse_c(http_ok, unsafe { ((strlen(http_ok) as i32)) }, sid_out, 16, &has_ws);
+    n = sio_polling_handshake_parse_c(http_ok, sio_strlen_i32(http_ok), &sid_out[0], 16, &has_ws);
     if (n != 6 || has_ws != 1)
         {
           return 5;
         }
     let _u_rc_2: i32 = 0;
-    unsafe { _u_rc_2 = memcmp(sid_out, sid, 6); }
+    unsafe { _u_rc_2 = memcmp(sid_out, &sid[0], 6); }
     if (_u_rc_2 != 0)
         {
           return 6;
@@ -764,7 +777,7 @@ export function sio_build_ws_connect_url_c(http_base: *u8, base_len: i32, sid: *
         {
           return -1;
         }
-    wl = sio_http_to_ws_base_c(http_base, base_len, ws_base,  ((ws_base as usize) as i32));
+    wl = sio_http_to_ws_base_c(http_base, base_len, &ws_base[0],  384);
     if (wl <= 0)
         {
           return -1;
@@ -797,7 +810,7 @@ export function sio_eio_ws_upgrade_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i3
           return -1;
         }
     let _u_rc_4: i32 = 0;
-    unsafe { _u_rc_4 = net_ws_read_frame_c(fd, tls_ctx, &opcode, buf, 16, &plen, timeout_ms); }
+    unsafe { _u_rc_4 = net_ws_read_frame_c(fd, tls_ctx, &opcode, &buf[0], 16, &plen, timeout_ms); }
     if (_u_rc_4 != 0)
         {
           return -1;
@@ -867,26 +880,26 @@ export function sio_connect_smoke_c(): i32 {
     let url: u8[160] = [];
     let pkt: u8[8] = [];
     let n: i32 = 0;
-    n = sio_http_to_ws_base_c(http_base, unsafe { ((strlen(http_base) as i32)) }, ws_base, 64);
+    n = sio_http_to_ws_base_c(http_base, sio_strlen_i32(http_base), &ws_base[0], 64);
     let _uc_3_0: i32 = 0;
     unsafe { _uc_3_0 = memcmp(ws_base, &SIO_LIT_WS_127_0_0_1_3000[0], 19); }
     if (n != 19 || _uc_3_0 != 0)
         {
           return 1;
         }
-    n = sio_http_to_ws_base_c(https_base, unsafe { ((strlen(https_base) as i32)) }, ws_base, 64);
+    n = sio_http_to_ws_base_c(https_base, sio_strlen_i32(https_base), &ws_base[0], 64);
     let _uc_4_0: i32 = 0;
     unsafe { _uc_4_0 = memcmp(ws_base, &SIO_LIT_WSS_EXAMPLE_COM_8443[0], 22); }
     if (n != 22 || _uc_4_0 != 0)
         {
           return 2;
         }
-    n = sio_build_ws_connect_url_c(http_base, unsafe { ((strlen(http_base) as i32)) }, sid, 6, url, 160);
+    n = sio_build_ws_connect_url_c(http_base, sio_strlen_i32(http_base), &sid[0], 6, &url[0], 160);
     if (n <= 0 || url[0] != (119 as u8) || url[n - 1] != (50 as u8))
         {
           return 3;
         }
-    n = sio_encode_connect_packet_c(pkt, 8);
+    n = sio_encode_connect_packet_c(&pkt[0], 8);
     if (n != 2 || pkt[0] != (52 as u8) || pkt[1] != (48 as u8))
         {
           return 4;
@@ -908,7 +921,7 @@ export function sio_connect_smoke_c(): i32 {
  */
 export function sio_node_interop_smoke_c(): i32 {
 
-    let node_http_open: *u8 = &SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_CHARSET_UTF_8_R_CONNECTION_KEEP_ALIVE_R_R_0_SID_OXLMYI_UPGRADES_WEBSOCKET_PINGINTERVAL_25000_PINGTIMEOUT_20000_MAXPAYLOAD_1000000[0];
+    let node_http_open: *u8 = &SIO_LIT_HTTP_HANDSHAKE_FULL[0];
     let node_sid: *u8 = &SIO_LIT_OXLMYI[0];
     let node_ws_event: *u8 = &SIO_LIT_N42_CHAT_MESSAGE_HELLO[0];
     let evt_name: *u8 = &SIO_LIT_CHAT_MESSAGE[0];
@@ -924,16 +937,16 @@ export function sio_node_interop_smoke_c(): i32 {
     let n: i32 = 0;
     let etype: i32 = -1;
     let plen: i32 = 0;
-    let node_evt_len: i32 = unsafe { ((strlen(node_ws_event) as i32)) };
+    let node_evt_len: i32 = sio_strlen_i32(node_ws_event);
 
-    n = sio_polling_handshake_parse_c(node_http_open, unsafe { ((strlen(node_http_open) as i32)) }, sid, 16, &has_ws);
+    n = sio_polling_handshake_parse_c(node_http_open, sio_strlen_i32(node_http_open), &sid[0], 16, &has_ws);
     let _uc_5_0: i32 = 0;
     unsafe { _uc_5_0 = memcmp(sid, node_sid, 6); }
     if (n != 6 || has_ws != 1 || _uc_5_0 != 0)
         {
           return 1;
         }
-    if (sio_eio_decode_packet_c(node_ws_event, node_evt_len, &etype, eio_payload, 32, &plen) != 0)
+    if (sio_eio_decode_packet_c(node_ws_event, node_evt_len, &etype, &eio_payload[0], 32, &plen) != 0)
         {
           return 2;
         }
@@ -949,19 +962,19 @@ export function sio_node_interop_smoke_c(): i32 {
         {
           return 5;
         }
-    n = sio_encode_event_packet_c(evt_name, 12, evt_data, 5, enc, 64);
+    n = sio_encode_event_packet_c(evt_name, 12, evt_data, 5, &enc[0], 64);
     let _uc_6_0: i32 = 0;
     unsafe { _uc_6_0 = memcmp(enc, node_ws_event,  (n as usize)); }
     if (n != node_evt_len || _uc_6_0 != 0)
         {
           return 6;
         }
-    n = sio_encode_connect_packet_c(enc, 64);
+    n = sio_encode_connect_packet_c(&enc[0], 64);
     if (n != 2 || enc[0] != (52 as u8) || enc[1] != (48 as u8))
         {
           return 7;
         }
-    n = sio_eio_encode_packet_c(SIO_EIO_PONG, 0, 0, pong, 4);
+    n = sio_eio_encode_packet_c(SIO_EIO_PONG, 0, 0, &pong[0], 4);
     if (n != 1 || pong[0] != ((48 as u8) +  SIO_EIO_PONG))
         {
           return 8;
@@ -986,7 +999,7 @@ export function sio_server_build_open_json_c(sid: *u8, sid_len: i32, out: *u8, o
         {
           return -1;
         }
-    need = unsafe { ((strlen(prefix) as i32)) + sid_len + ((strlen(suffix) as i32)) };
+    need = sio_strlen_i32(prefix) + sid_len + sio_strlen_i32(suffix);
     if (need >= out_cap)
         {
           return -1;
@@ -1013,12 +1026,12 @@ export function sio_server_build_open_packet_c(sid: *u8, sid_len: i32, out: *u8,
         {
           return -1;
         }
-    jl = sio_server_build_open_json_c(sid, sid_len, json,  ((json as usize) as i32));
+    jl = sio_server_build_open_json_c(sid, sid_len, &json[0],  128);
     if (jl <= 0)
         {
           return -1;
         }
-    return sio_eio_encode_packet_c(SIO_EIO_OPEN, json, jl, out, out_cap);
+    return sio_eio_encode_packet_c(SIO_EIO_OPEN, &json[0], jl, out, out_cap);
 }
 
 /** Exported function `sio_server_build_http_open_response_c`.
@@ -1037,7 +1050,7 @@ export function sio_server_build_http_open_response_c(sid: *u8, sid_len: i32, ou
         {
           return -1;
         }
-    blen = sio_server_build_open_packet_c(sid, sid_len, body,  ((body as usize) as i32));
+    blen = sio_server_build_open_packet_c(sid, sid_len, &body[0],  160);
     if (blen <= 0)
         {
           return -1;
@@ -1109,7 +1122,7 @@ export function sio_server_is_connect_packet_c(pkt: *u8, len: i32): i32 {
         {
           return 1;
         }
-    if (sio_eio_decode_packet_c(pkt, len, &etype, inner,  ((inner as usize) as i32), &plen) != 0)
+    if (sio_eio_decode_packet_c(pkt, len, &etype, &inner[0],  128, &plen) != 0)
         {
           return 0;
         }
@@ -1165,7 +1178,7 @@ export function sio_server_build_http_event_response_c(event: *u8, event_len: i3
         {
           return -1;
         }
-    blen = sio_server_emit_event_c(event, event_len, data, data_len, body,  ((body as usize) as i32));
+    blen = sio_server_emit_event_c(event, event_len, data, data_len, &body[0],  512);
     if (blen <= 0)
         {
           return -1;
@@ -1190,21 +1203,21 @@ export function sio_server_emit_smoke_c(): i32 {
     let body_len: i32 = 0;
     let dlen: i32 = 0;
     let n: i32 = 0;
-    n = sio_server_emit_event_c(evt, 4, payload, 6, frame, 64);
+    n = sio_server_emit_event_c(&evt[0], 4, &payload[0], 6, &frame[0], 64);
     let expect_len: i32 = 0;
     let cmp_fr: i32 = 0;
-    unsafe { expect_len = strlen(expect) as i32; }
+    expect_len = sio_strlen_i32(expect);
     unsafe { cmp_fr = memcmp(frame, expect, (n as usize)); }
     if (n != expect_len || cmp_fr != 0)
         {
           return 1;
         }
-    n = sio_server_build_http_event_response_c(evt, 4, payload, 6, http, 256);
+    n = sio_server_build_http_event_response_c(&evt[0], 4, &payload[0], 6, &http[0], 256);
     if (n <= 0)
         {
           return 2;
         }
-    if (sio_http_extract_body_c(http, n, body, 128, &body_len) != 0)
+    if (sio_http_extract_body_c(http, n, &body[0], 128, &body_len) != 0)
         {
           return 3;
         }
@@ -1237,31 +1250,31 @@ export function sio_server_smoke_c(): i32 {
     let sid_out: u8[16] = [];
     let has_ws: i32 = 0;
     let n: i32 = 0;
-    n = sio_server_build_open_packet_c(sid, 6, body, 160);
+    n = sio_server_build_open_packet_c(&sid[0], 6, &body[0], 160);
     if (n <= 0 || body[0] != ((48 as u8) +  SIO_EIO_OPEN))
         {
           return 1;
         }
-    n = sio_server_build_http_open_response_c(sid, 6, http, 256);
+    n = sio_server_build_http_open_response_c(&sid[0], 6, &http[0], 256);
     if (n <= 0)
         {
           return 2;
         }
-    if (sio_polling_handshake_parse_c(http, n, sid_out, 16, &has_ws) != 6)
+    if (sio_polling_handshake_parse_c(http, n, &sid_out[0], 16, &has_ws) != 6)
         {
           return 3;
         }
     let _u_rc_9: i32 = 0;
-    unsafe { _u_rc_9 = memcmp(sid_out, sid, 6); }
+    unsafe { _u_rc_9 = memcmp(sid_out, &sid[0], 6); }
     if (_u_rc_9 != 0 || has_ws != 1)
         {
           return 4;
         }
-    if (sio_server_is_polling_handshake_c(path_ok, unsafe { ((strlen(path_ok) as i32)) }) != 1)
+    if (sio_server_is_polling_handshake_c(path_ok, sio_strlen_i32(path_ok)) != 1)
         {
           return 5;
         }
-    if (sio_server_is_polling_handshake_c(path_sid, unsafe { ((strlen(path_sid) as i32)) }) != 0)
+    if (sio_server_is_polling_handshake_c(path_sid, sio_strlen_i32(path_sid)) != 0)
         {
           return 6;
         }
@@ -1306,17 +1319,17 @@ export function sio_encode_connect_ns_packet_c(ns: *u8, ns_len: i32, out: *u8, o
         }
     inner[off] = ((48 as u8) +  SIO_SIO_CONNECT);
     off = off + 1;
-    if (sio_append_bytes(inner,  ((inner as usize) as i32), &off, ns, ns_len) != 0)
+    if (sio_append_bytes(&inner[0],  128, &off, ns, ns_len) != 0)
         {
           return -1;
         }
-    if (off + 1 >=  ((inner) as i32))
+    if (off + 1 >=  256)
         {
           return -1;
         }
     inner[off] = (44 as u8);
     off = off + 1;
-    return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
+    return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, &inner[0], off, out, out_cap);
 }
 
 /** Exported function `sio_parse_sio_packet_head_c`.
@@ -1331,7 +1344,7 @@ export function sio_encode_connect_ns_packet_c(ns: *u8, ns_len: i32, out: *u8, o
 export function sio_parse_sio_packet_head_c(pkt: *u8, len: i32, out_type: *i32, out_id: *i32, out_payload_off: *i32): i32 {
 
     let i: i32 = 0;
-    let type: i32 = 0;
+    let pkt_ty: i32 = 0;
     let id: i32 = 0;
     if ((pkt == 0) || len <= 0 || (out_type == 0) || (out_payload_off == 0))
         {
@@ -1341,7 +1354,7 @@ export function sio_parse_sio_packet_head_c(pkt: *u8, len: i32, out_type: *i32, 
         {
           return -1;
         }
-    type = (pkt[0] - (48 as u8));
+    pkt_ty = (pkt[0] - (48 as u8));
     i = 1;
     id = -1;
     if (i < len && pkt[i] >= (48 as u8) && pkt[i] <= (57 as u8)) {
@@ -1351,7 +1364,7 @@ export function sio_parse_sio_packet_head_c(pkt: *u8, len: i32, out_type: *i32, 
             i = i + 1;
         }
     }
-    out_type[0] = type;
+    out_type[0] = pkt_ty;
     if (out_id != 0)
         {
           out_id[0] = id;
@@ -1386,7 +1399,7 @@ export function sio_server_is_connect_ns_packet_c(pkt: *u8, len: i32, ns: *u8, n
         {
           return ((ns == 0) || ns_len == 0 || (ns_len == 1 && ns[0] == (47 as u8))) ? 1 : 0;
         }
-    if (sio_eio_decode_packet_c(pkt, len, &etype, inner,  ((inner as usize) as i32), &plen) != 0)
+    if (sio_eio_decode_packet_c(pkt, len, &etype, &inner[0],  128, &plen) != 0)
         {
           return 0;
         }
@@ -1438,7 +1451,7 @@ export function sio_parse_connect_ns_packet_c(pkt: *u8, len: i32, out_ns: *u8, o
         out_ns[0] = (47 as u8);
         return 1;
     }
-    if (sio_eio_decode_packet_c(pkt, len, &etype, inner,  ((inner as usize) as i32), &plen) != 0)
+    if (sio_eio_decode_packet_c(pkt, len, &etype, &inner[0],  128, &plen) != 0)
         {
           return -1;
         }
@@ -1623,12 +1636,12 @@ export function sio_ns_router_smoke_c(): i32 {
         {
           return 3;
         }
-    n = sio_encode_connect_packet_c(pkt_root, 8);
+    n = sio_encode_connect_packet_c(&pkt_root[0], 8);
     if (n <= 0)
         {
           return 4;
         }
-    if (sio_parse_connect_ns_packet_c(pkt_root, n, ns_out, 24) != 1 || ns_out[0] != (47 as u8))
+    if (sio_parse_connect_ns_packet_c(pkt_root, n, &ns_out[0], 24) != 1 || ns_out[0] != (47 as u8))
         {
           return 5;
         }
@@ -1636,12 +1649,12 @@ export function sio_ns_router_smoke_c(): i32 {
         {
           return 6;
         }
-    n = sio_encode_connect_ns_packet_c(ns_chat, 5, pkt_chat, 16);
+    n = sio_encode_connect_ns_packet_c(ns_chat, 5, &pkt_chat[0], 16);
     if (n <= 0)
         {
           return 7;
         }
-    if (sio_parse_connect_ns_packet_c(pkt_chat, n, ns_out, 24) != 5)
+    if (sio_parse_connect_ns_packet_c(pkt_chat, n, &ns_out[0], 24) != 5)
         {
           return 8;
         }
@@ -1654,7 +1667,7 @@ export function sio_ns_router_smoke_c(): i32 {
         {
           return 10;
         }
-    n = sio_encode_connect_ns_packet_c(ns_admin, 6, pkt_admin, 16);
+    n = sio_encode_connect_ns_packet_c(ns_admin, 6, &pkt_admin[0], 16);
     if (n <= 0)
         {
           return 11;
@@ -1870,17 +1883,17 @@ export function sio_ns_sessions_smoke_c(): i32 {
         {
           return 4;
         }
-    n = sio_encode_connect_packet_c(pkt_root, 8);
+    n = sio_encode_connect_packet_c(&pkt_root[0], 8);
     if (n <= 0 || sio_ns_sessions_connect_c(&sessions, &router, pkt_root, n) != 0)
         {
           return 5;
         }
-    n = sio_encode_connect_ns_packet_c(ns_chat, 5, pkt_chat, 16);
+    n = sio_encode_connect_ns_packet_c(ns_chat, 5, &pkt_chat[0], 16);
     if (n <= 0 || sio_ns_sessions_connect_c(&sessions, &router, pkt_chat, n) != 10)
         {
           return 6;
         }
-    n = sio_encode_connect_ns_packet_c(ns_admin, 6, pkt_admin, 16);
+    n = sio_encode_connect_ns_packet_c(ns_admin, 6, &pkt_admin[0], 16);
     if (n <= 0 || sio_ns_sessions_connect_c(&sessions, &router, pkt_admin, n) != 20)
         {
           return 7;
@@ -1893,7 +1906,7 @@ export function sio_ns_sessions_smoke_c(): i32 {
         {
           return 9;
         }
-    n = sio_encode_connect_ns_packet_c(ns_chat, 5, pkt_chat, 16);
+    n = sio_encode_connect_ns_packet_c(ns_chat, 5, &pkt_chat[0], 16);
     if (n <= 0 || sio_ns_sessions_connect_c(&sessions, &router, pkt_chat, n) != 10)
         {
           return 10;
@@ -2152,7 +2165,7 @@ export function sio_ws_hub_emit_event_ns_c(h: *SioWsHubMem, slot_id: i32, ns: *u
         {
           return -1;
         }
-    n = sio_encode_event_ns_packet_c(ns, ns_len, event, event_len, data, data_len, frame,  ((frame as usize) as i32));
+    n = sio_encode_event_ns_packet_c(ns, ns_len, event, event_len, data, data_len, &frame[0],  256);
     if (n <= 0)
         {
           return -1;
@@ -2202,27 +2215,27 @@ export function sio_server_build_connect_ns_ack_c(ns: *u8, ns_len: i32, sid: *u8
         {
           return -1;
         }
-    jl = unsafe { ((strlen(jp) as i32)) + sid_len + ((strlen(js) as i32)) };
-    if (jl + 16 >=  ((inner) as i32))
+    jl = sio_strlen_i32(jp) + sid_len + sio_strlen_i32(js);
+    if (jl + 16 >=  256)
         {
           return -1;
         }
     if ((ns == 0) || ns_len == 0 || (ns_len == 1 && ns[0] == (47 as u8))) {
         inner[off] = ((48 as u8) +  SIO_SIO_CONNECT);
     off = off + 1;
-        if (sio_append_bytes(inner,  ((inner as usize) as i32), &off, jp, unsafe { ((strlen(jp) as i32)) }) != 0)
+        if (sio_append_bytes(&inner[0],  128, &off, jp, sio_strlen_i32(jp)) != 0)
             {
               return -1;
             }
-        if (sio_append_bytes(inner,  ((inner as usize) as i32), &off, sid, sid_len) != 0)
+        if (sio_append_bytes(&inner[0],  128, &off, sid, sid_len) != 0)
             {
               return -1;
             }
-        if (sio_append_bytes(inner,  ((inner as usize) as i32), &off, js, unsafe { ((strlen(js) as i32)) }) != 0)
+        if (sio_append_bytes(&inner[0],  128, &off, js, sio_strlen_i32(js)) != 0)
             {
               return -1;
             }
-        return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
+        return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, &inner[0], off, out, out_cap);
     }
     if (ns[0] != (47 as u8))
         {
@@ -2230,29 +2243,29 @@ export function sio_server_build_connect_ns_ack_c(ns: *u8, ns_len: i32, sid: *u8
         }
     inner[off] = ((48 as u8) +  SIO_SIO_CONNECT);
     off = off + 1;
-    if (sio_append_bytes(inner,  ((inner as usize) as i32), &off, ns, ns_len) != 0)
+    if (sio_append_bytes(&inner[0],  128, &off, ns, ns_len) != 0)
         {
           return -1;
         }
-    if (off + 1 >=  ((inner) as i32))
+    if (off + 1 >=  256)
         {
           return -1;
         }
     inner[off] = (44 as u8);
     off = off + 1;
-    if (sio_append_bytes(inner,  ((inner as usize) as i32), &off, jp, unsafe { ((strlen(jp) as i32)) }) != 0)
+    if (sio_append_bytes(&inner[0],  128, &off, jp, sio_strlen_i32(jp)) != 0)
         {
           return -1;
         }
-    if (sio_append_bytes(inner,  ((inner as usize) as i32), &off, sid, sid_len) != 0)
+    if (sio_append_bytes(&inner[0],  128, &off, sid, sid_len) != 0)
         {
           return -1;
         }
-    if (sio_append_bytes(inner,  ((inner as usize) as i32), &off, js, unsafe { ((strlen(js) as i32)) }) != 0)
+    if (sio_append_bytes(&inner[0],  128, &off, js, sio_strlen_i32(js)) != 0)
         {
           return -1;
         }
-    return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
+    return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, &inner[0], off, out, out_cap);
 }
 
 /** Exported function `sio_ws_hub_smoke_c`.
@@ -2296,7 +2309,7 @@ export function sio_ws_hub_smoke_c(): i32 {
         {
           return 4;
         }
-    pkt_len = sio_encode_connect_ns_packet_c(ns_chat, 5, pkt_chat, 16);
+    pkt_len = sio_encode_connect_ns_packet_c(ns_chat, 5, &pkt_chat[0], 16);
     if (pkt_len <= 0)
         {
           return 5;
@@ -2310,7 +2323,7 @@ export function sio_ws_hub_smoke_c(): i32 {
         {
           return 7;
         }
-    ack_len = sio_server_build_connect_ns_ack_c(ns_chat, 5, &SIO_LIT_SUB[0], 3, ack, 64);
+    ack_len = sio_server_build_connect_ns_ack_c(ns_chat, 5, &SIO_LIT_SUB[0], 3, &ack[0], 64);
     let _uc_7_0: i32 = 0;
     unsafe { _uc_7_0 = memcmp(&ack[0], &expect_ack[0], 21); }
     if (ack_len != 21 || _uc_7_0 != 0)
@@ -2359,7 +2372,7 @@ export function sio_ws_hub_emit_event_ns_conn_c(h: *SioWsHubMem, conn_idx: i32, 
         {
           return 0;
         }
-    n = sio_encode_event_ns_packet_c(ns, ns_len, event, event_len, data, data_len, frame,  ((frame as usize) as i32));
+    n = sio_encode_event_ns_packet_c(ns, ns_len, event, event_len, data, data_len, &frame[0],  256);
     if (n <= 0)
         {
           return -1;
@@ -2770,7 +2783,7 @@ export function sio_room_smoke_c(): i32 {
         {
           return 5;
         }
-    snap_len = sio_ws_hub_export_c(&hub, snap, 256);
+    snap_len = sio_ws_hub_export_c(&hub, &snap[0], 256);
     if (snap_len != sio_ws_hub_snapshot_bytes_c())
         {
           return 6;
@@ -2903,7 +2916,7 @@ export function sio_hub_sync_smoke_c(): i32 {
     let rl: i32 = 0;
     sio_ws_hub_init_c(&hub_a);
     sio_room_registry_init_c(&reg_a);
-    if (sio_ws_hub_register_c(&hub_a, 20, 0, sid, 5) != 0)
+    if (sio_ws_hub_register_c(&hub_a, 20, 0, &sid[0], 5) != 0)
         {
           return 1;
         }
@@ -2915,8 +2928,8 @@ export function sio_hub_sync_smoke_c(): i32 {
         {
           return 3;
         }
-    hl = sio_ws_hub_export_c(&hub_a, hub_snap, 256);
-    rl = sio_room_registry_export_c(&reg_a, room_snap, 256);
+    hl = sio_ws_hub_export_c(&hub_a, &hub_snap[0], 256);
+    rl = sio_room_registry_export_c(&reg_a, &room_snap[0], 256);
     if (hl != sio_ws_hub_snapshot_bytes_c() || rl != sio_room_registry_snapshot_bytes_c())
         {
           return 4;
@@ -2931,7 +2944,7 @@ export function sio_hub_sync_smoke_c(): i32 {
         {
           return 6;
         }
-    if (sio_ws_hub_find_by_sid_c(&hub_b, sid, 5) != 0 || hub_b.count != 1)
+    if (sio_ws_hub_find_by_sid_c(&hub_b, &sid[0], 5) != 0 || hub_b.count != 1)
         {
           return 7;
         }
@@ -3049,7 +3062,7 @@ export function sio_session_sync_smoke_c(): i32 {
     let sent: i32 = 0;
     sio_ws_hub_init_c(&hub_a);
     sio_room_registry_init_c(&reg_a);
-    if (sio_ws_hub_register_c(&hub_a, 30, 0, sid, 5) != 0)
+    if (sio_ws_hub_register_c(&hub_a, 30, 0, &sid[0], 5) != 0)
         {
           return 1;
         }
@@ -3061,7 +3074,7 @@ export function sio_session_sync_smoke_c(): i32 {
         {
           return 3;
         }
-    blen = sio_session_bundle_export_c(&hub_a, &reg_a, bundle_buf, 512);
+    blen = sio_session_bundle_export_c(&hub_a, &reg_a, &bundle_buf[0], 512);
     if (blen != sio_session_bundle_bytes_c())
         {
           return 4;
@@ -3076,7 +3089,7 @@ export function sio_session_sync_smoke_c(): i32 {
         {
           return 6;
         }
-    idx = sio_ws_hub_register_or_rebind_c(&hub_b, 88, 0, sid, 5);
+    idx = sio_ws_hub_register_or_rebind_c(&hub_b, 88, 0, &sid[0], 5);
     if (idx != 0 || hub_b.slot[0].fd != 88)
         {
           return 7;
@@ -3145,7 +3158,8 @@ export function sio_ws_hub_append_from_c(dst: *SioWsHubMem, src: *SioWsHubMem): 
             {
               start = j;
             }
-        dst.slot[j] = *sl;
+        /* Cap-T001: copy through *sl requires unsafe pointer deref. */
+        unsafe { dst.slot[j] = *sl; }
         dst.slot[j].fd = -1;
         dst.slot[j].tls_ctx = 0;
     }
@@ -3222,18 +3236,21 @@ export function sio_cluster_sync_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, bu
         {
           return -1;
         }
-    sio_ws_hub_init_c(&hub_b);
-    sio_room_registry_init_c(&reg_b);
-    if (sio_session_bundle_import_c(&hub_b, &reg_b, bundle_b, len_b) != 0)
-        {
-          return -1;
-        }
-    off = sio_ws_hub_append_from_c(h, &hub_b);
-    if (off < 0)
-        {
-          return -1;
-        }
-    return sio_room_registry_merge_offset_c(reg, &reg_b, off);
+    /* Cap-T001 / stack-escape: same-frame &hub_b/&reg_b passed into *Struct APIs. */
+    unsafe {
+      sio_ws_hub_init_c(&hub_b);
+      sio_room_registry_init_c(&reg_b);
+      if (sio_session_bundle_import_c(&hub_b, &reg_b, bundle_b, len_b) != 0)
+          {
+            return -1;
+          }
+      off = sio_ws_hub_append_from_c(h, &hub_b);
+      if (off < 0)
+          {
+            return -1;
+          }
+      return sio_room_registry_merge_offset_c(reg, &reg_b, off);
+    }
 }
 
 /** Exported function `sio_cluster_sync_smoke_c`.
@@ -3283,8 +3300,8 @@ export function sio_cluster_sync_smoke_c(): i32 {
         {
           return 6;
         }
-    len_a = sio_session_bundle_export_c(&hub_a, &reg_a, bundle_a, 512);
-    len_b = sio_session_bundle_export_c(&hub_b, &reg_b, bundle_b, 512);
+    len_a = sio_session_bundle_export_c(&hub_a, &reg_a, &bundle_a[0], 512);
+    len_b = sio_session_bundle_export_c(&hub_b, &reg_b, &bundle_b[0], 512);
     if (len_a != sio_session_bundle_bytes_c() || len_b != sio_session_bundle_bytes_c())
         {
           return 7;
@@ -3477,7 +3494,7 @@ export function sio_cluster_adapter_smoke_c(): i32 {
     sio_cluster_adapter_init_c(&adapter, 2);
     sio_ws_hub_init_c(&hub);
     sio_room_registry_init_c(&reg);
-    if (sio_ws_hub_register_c(&hub, 50, 0, sid, 3) != 0)
+    if (sio_ws_hub_register_c(&hub, 50, 0, &sid[0], 3) != 0)
         {
           return 1;
         }
@@ -3575,7 +3592,7 @@ export function sio_cluster_adapter_import_merge_c(a: *SioClusterAdapterMem, buf
               return -1;
             }
         dst = &a.msg[j];
-        *dst = *src;
+        unsafe { *dst = *src; }
         merged = merged + 1;
         a.count = a.count + 1;
     }
@@ -3603,7 +3620,7 @@ export function sio_cluster_ring_sync_smoke_c(): i32 {
     sio_cluster_adapter_init_c(&adapter_b, 2);
     sio_ws_hub_init_c(&hub);
     sio_room_registry_init_c(&reg);
-    if (sio_ws_hub_register_c(&hub, 60, 0, sid, 3) != 0)
+    if (sio_ws_hub_register_c(&hub, 60, 0, &sid[0], 3) != 0)
         {
           return 1;
         }
@@ -3619,7 +3636,7 @@ export function sio_cluster_ring_sync_smoke_c(): i32 {
         {
           return 4;
         }
-    slen = sio_cluster_adapter_export_c(&adapter_a, snap, 512);
+    slen = sio_cluster_adapter_export_c(&adapter_a, &snap[0], 512);
     if (slen != sio_cluster_adapter_snapshot_bytes_c())
         {
           return 5;
@@ -3647,14 +3664,14 @@ export function sio_cluster_ring_sync_smoke_c(): i32 {
  * @param out_cap i32
  * @return i32
  */
-export function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_eio_encode_packet_c(pkt_type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
 
     let n: i32 = 0;
     if ((out == 0) || out_cap < 1)
         {
           return -1;
         }
-    if (type < 0 || type > 9)
+    if (pkt_type < 0 || pkt_type > 9)
         {
           return -1;
         }
@@ -3670,7 +3687,7 @@ export function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i3
         {
           return -1;
         }
-    out[0] = (48 + type) as u8;
+    out[0] = (48 + pkt_type) as u8;
     n = 1;
     if (payload_len > 0) {
         unsafe { memcpy(out + 1, payload, (payload_len as usize)); }
@@ -3691,7 +3708,7 @@ export function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i3
  */
 export function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_payload: *u8, out_cap: i32, out_payload_len: *i32): i32 {
 
-    let type: i32 = 0;
+    let pkt_ty: i32 = 0;
     let plen: i32 = 0;
     if ((buf == 0) || len <= 0 || (out_type == 0) || (out_payload_len == 0))
         {
@@ -3701,7 +3718,7 @@ export function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_
         {
           return -1;
         }
-    type = (buf[0] - (48 as u8)) as i32;
+    pkt_ty = (buf[0] - (48 as u8)) as i32;
     plen = len - 1;
     if (plen < 0)
         {
@@ -3718,7 +3735,7 @@ export function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_
             }
         unsafe { memcpy(out_payload, buf + 1, (plen as usize)); }
     }
-    out_type[0] = type;
+    out_type[0] = pkt_ty;
     out_payload_len[0] = plen;
     return 0;
 }
@@ -3733,10 +3750,16 @@ export function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_
  * @return i32
  */
 export function sio_append_json_string(out: *u8, cap: i32, off: *i32, s: *u8, slen: i32): i32 {
-
     let i: i32 = 0;
     let c: u8 = 0;
-    if ((out == 0) || (off == 0) || *off < 0)
+    let o: i32 = 0;
+    if ((out == 0) || (off == 0))
+        {
+          return -1;
+        }
+    /* Cap-T001: load/store *off in unsafe; do not use void sio_bump_off as index. */
+    unsafe { o = *off; }
+    if (o < 0)
         {
           return -1;
         }
@@ -3744,33 +3767,39 @@ export function sio_append_json_string(out: *u8, cap: i32, off: *i32, s: *u8, sl
         {
           return -1;
         }
-    if (*off + 1 >= cap)
+    if (o + 1 >= cap)
         {
           return -1;
         }
-    out[sio_bump_off(off)] = (34 as u8);
+    out[o] = (34 as u8);
+    o = o + 1;
     for (i = 0; i < slen; i = i + 1) {
         c = s[i];
         if (c == (34 as u8) || c == (92 as u8)) {
-            if (*off + 2 >= cap)
+            if (o + 2 >= cap)
                 {
                   return -1;
                 }
-            out[sio_bump_off(off)] = (92 as u8);
-            out[sio_bump_off(off)] = c;
+            out[o] = (92 as u8);
+            o = o + 1;
+            out[o] = c;
+            o = o + 1;
             continue;
         }
-        if (*off >= cap)
+        if (o >= cap)
             {
               return -1;
             }
-        out[sio_bump_off(off)] = c;
+        out[o] = c;
+        o = o + 1;
     }
-    if (*off >= cap)
+    if (o >= cap)
         {
           return -1;
         }
-    out[sio_bump_off(off)] = (34 as u8);
+    out[o] = (34 as u8);
+    o = o + 1;
+    unsafe { *off = o; }
     return 0;
 }
 
@@ -3808,31 +3837,31 @@ export function sio_encode_event_packet_c(event: *u8, event_len: i32, data: *u8,
     off = off + 1;
     inner[off] = (91 as u8);
     off = off + 1;
-    if (sio_append_json_string(inner, ((inner as usize) as i32), &off, event, event_len) != 0)
+    if (sio_append_json_string(&inner[0], 512, &off, event, event_len) != 0)
         {
           return -1;
         }
-    if (off + 1 >= ((inner as usize) as i32))
+    if (off + 1 >= 512)
         {
           return -1;
         }
     inner[off] = (44 as u8);
     off = off + 1;
     if (data_len == 0) {
-        if (sio_append_bytes(inner, ((inner as usize) as i32), &off, &SIO_LIT_NULL[0], 4) != 0)
+        if (sio_append_bytes(&inner[0], 512, &off, &SIO_LIT_NULL[0], 4) != 0)
             {
               return -1;
             }
-    } else if (sio_append_json_string(inner, ((inner as usize) as i32), &off, data, data_len) != 0) {
+    } else if (sio_append_json_string(&inner[0], 512, &off, data, data_len) != 0) {
         return -1;
     }
-    if (off >= ((inner as usize) as i32))
+    if (off >= 512)
         {
           return -1;
         }
     inner[off] = (93 as u8);
     off = off + 1;
-    return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
+    return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, &inner[0], off, out, out_cap);
 }
 
 /** Exported function `sio_encode_event_ns_packet_c`.
@@ -3881,7 +3910,7 @@ export function sio_encode_event_ns_packet_c(ns: *u8, ns_len: i32, event: *u8, e
         }
     inner[off] = (48 + SIO_SIO_EVENT) as u8;
     off = off + 1;
-    if (sio_append_bytes(inner, ((inner as usize) as i32), &off, ns, ns_len) != 0)
+    if (sio_append_bytes(&inner[0], 512, &off, ns, ns_len) != 0)
         {
           return -1;
         }
@@ -3889,31 +3918,31 @@ export function sio_encode_event_ns_packet_c(ns: *u8, ns_len: i32, event: *u8, e
     off = off + 1;
     inner[off] = (91 as u8);
     off = off + 1;
-    if (sio_append_json_string(inner, ((inner as usize) as i32), &off, event, event_len) != 0)
+    if (sio_append_json_string(&inner[0], 512, &off, event, event_len) != 0)
         {
           return -1;
         }
-    if (off + 1 >= ((inner as usize) as i32))
+    if (off + 1 >= 512)
         {
           return -1;
         }
     inner[off] = (44 as u8);
     off = off + 1;
     if (data_len == 0) {
-        if (sio_append_bytes(inner, ((inner as usize) as i32), &off, &SIO_LIT_NULL[0], 4) != 0)
+        if (sio_append_bytes(&inner[0], 512, &off, &SIO_LIT_NULL[0], 4) != 0)
             {
               return -1;
             }
-    } else if (sio_append_json_string(inner, ((inner as usize) as i32), &off, data, data_len) != 0) {
+    } else if (sio_append_json_string(&inner[0], 512, &off, data, data_len) != 0) {
         return -1;
     }
-    if (off >= ((inner as usize) as i32))
+    if (off >= 512)
         {
           return -1;
         }
     inner[off] = (93 as u8);
     off = off + 1;
-    return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
+    return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, &inner[0], off, out, out_cap);
 }
 
 /** Exported function `sio_encode_event_ack_packet_c`.
@@ -3949,37 +3978,37 @@ export function sio_encode_event_ack_packet_c(ack_id: i32, event: *u8, event_len
         }
     inner[off] = (48 + SIO_SIO_EVENT) as u8;
     off = off + 1;
-    if (sio_append_u32_dec(inner, ((inner as usize) as i32), &off, ack_id as u32) != 0)
+    if (sio_append_u32_dec(&inner[0], 512, &off, ack_id as u32) != 0)
         {
           return -1;
         }
     inner[off] = (91 as u8);
     off = off + 1;
-    if (sio_append_json_string(inner, ((inner as usize) as i32), &off, event, event_len) != 0)
+    if (sio_append_json_string(&inner[0], 512, &off, event, event_len) != 0)
         {
           return -1;
         }
-    if (off + 1 >= ((inner as usize) as i32))
+    if (off + 1 >= 512)
         {
           return -1;
         }
     inner[off] = (44 as u8);
     off = off + 1;
     if (data_len == 0) {
-        if (sio_append_bytes(inner, ((inner as usize) as i32), &off, &SIO_LIT_NULL[0], 4) != 0)
+        if (sio_append_bytes(&inner[0], 512, &off, &SIO_LIT_NULL[0], 4) != 0)
             {
               return -1;
             }
-    } else if (sio_append_json_string(inner, ((inner as usize) as i32), &off, data, data_len) != 0) {
+    } else if (sio_append_json_string(&inner[0], 512, &off, data, data_len) != 0) {
         return -1;
     }
-    if (off >= ((inner as usize) as i32))
+    if (off >= 512)
         {
           return -1;
         }
     inner[off] = (93 as u8);
     off = off + 1;
-    return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
+    return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, &inner[0], off, out, out_cap);
 }
 /** Exported function `sio_encode_ack_packet_c`.
  * Implements `sio_encode_ack_packet_c`.
@@ -4008,19 +4037,19 @@ export function sio_encode_ack_packet_c(ack_id: i32, data: *u8, data_len: i32, o
         }
     inner[off] = ((48 as u8) +  SIO_SIO_ACK);
     off = off + 1;
-    if (sio_append_u32_dec(inner,  ((inner as usize) as i32), &off, ack_id as u32) != 0)
+    if (sio_append_u32_dec(&inner[0],  256, &off, ack_id as u32) != 0)
         {
           return -1;
         }
     inner[off] = (91 as u8);
     off = off + 1;
-    if (sio_append_json_string(inner,  ((inner as usize) as i32), &off, data, data_len) != 0)
+    if (sio_append_json_string(&inner[0],  256, &off, data, data_len) != 0)
         {
           return -1;
         }
     inner[off] = (93 as u8);
     off = off + 1;
-    return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
+    return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, &inner[0], off, out, out_cap);
 }
 
 /** Exported function `sio_ns_ack_smoke_c`.
@@ -4044,10 +4073,10 @@ export function sio_ns_ack_smoke_c(): i32 {
     let poff: i32 = 0;
     let dlen: i32 = 0;
     let n: i32 = 0;
-    n = sio_encode_connect_ns_packet_c(ns_chat, 5, enc, 64);
+    n = sio_encode_connect_ns_packet_c(ns_chat, 5, &enc[0], 64);
     let expect_ns_len: i32 = 0;
     let cmp_ns: i32 = 0;
-    unsafe { expect_ns_len = strlen(expect_ns) as i32; }
+    expect_ns_len = sio_strlen_i32(expect_ns);
     unsafe { cmp_ns = memcmp(&enc[0], expect_ns, (n as usize)); }
     if (n != expect_ns_len || cmp_ns != 0)
         {
@@ -4061,7 +4090,7 @@ export function sio_ns_ack_smoke_c(): i32 {
         {
           return 3;
         }
-    n = sio_encode_event_ack_packet_c(123, evt, 4, data, 4, enc, 64);
+    n = sio_encode_event_ack_packet_c(123, &evt[0], 4, &data[0], 4, &enc[0], 64);
     let _uc_8_0: i32 = 0;
     unsafe { _uc_8_0 = memcmp(&enc[0], &expect_evt_ack[0], 20); }
     if (n != 20 || _uc_8_0 != 0)
@@ -4080,7 +4109,7 @@ export function sio_ns_ack_smoke_c(): i32 {
         {
           return 7;
         }
-    n = sio_encode_event_ns_packet_c(ns_chat, 5, evt, 4, &SIO_LIT_X[0], 1, enc, 64);
+    n = sio_encode_event_ns_packet_c(ns_chat, 5, &evt[0], 4, &SIO_LIT_X[0], 1, &enc[0], 64);
     let _uc_9_0: i32 = 0;
     unsafe { _uc_9_0 = memcmp(&enc[0], &expect_evt_ns[0], 21); }
     if (n != 21 || _uc_9_0 != 0)
@@ -4095,7 +4124,7 @@ export function sio_ns_ack_smoke_c(): i32 {
         {
           return 13;
         }
-    n = sio_encode_ack_packet_c(53, &SIO_LIT_OK[0], 2, enc, 64);
+    n = sio_encode_ack_packet_c(53, &SIO_LIT_OK[0], 2, &enc[0], 64);
     let _uc_10_0: i32 = 0;
     unsafe { _uc_10_0 = memcmp(&enc[0], &expect_ack[0], 10); }
     if (n != 10 || _uc_10_0 != 0)
@@ -4290,11 +4319,11 @@ export function sio_packet_smoke_c(): i32 {
     let sid: u8[16] = [];
     let sid_expect: *u8 = &SIO_LIT_ABC[0];
     let n: i32 = 0;
-    let type: i32 = -1;
+    let pkt_ty: i32 = -1;
     let plen: i32 = 0;
     let dlen: i32 = 0;
     let jl: i32 = 0;
-    jl = sio_server_build_open_json_c(sid_expect, 3, open_json, ((open_json as usize) as i32));
+    jl = sio_server_build_open_json_c(sid_expect, 3, &open_json[0], 128);
     if (jl <= 0)
         {
           return 1;
@@ -4304,11 +4333,11 @@ export function sio_packet_smoke_c(): i32 {
         {
           return 1;
         }
-    if (sio_eio_decode_packet_c(&enc[0], n, &type, &dec_payload[0], 64, &plen) != 0)
+    if (sio_eio_decode_packet_c(&enc[0], n, &pkt_ty, &dec_payload[0], 64, &plen) != 0)
         {
           return 2;
         }
-    if (type != SIO_EIO_OPEN || plen != jl)
+    if (pkt_ty != SIO_EIO_OPEN || plen != jl)
         {
           return 3;
         }

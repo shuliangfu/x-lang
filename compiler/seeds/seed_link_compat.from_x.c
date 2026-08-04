@@ -299,8 +299,8 @@ XLANG_WEAK int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_
 #ifndef XLANG_SEED_LINK_COMPAT_FROM_X
 int32_t xlang_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
                                           int32_t param_ix) {
-  uint8_t pbuf[32];
-  uint8_t vbuf[64];
+  uint8_t pbuf[128];
+  uint8_t vbuf[128];
   int32_t plen;
   int32_t vlen;
   int32_t k;
@@ -335,10 +335,10 @@ int32_t xlang_expr_is_param0_field_access(void *arena, struct ast_Module *mod, i
 int32_t xlang_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t fi;
   int32_t flen;
-  uint8_t fb[64];
+  uint8_t fb[128];
   int32_t k;
 
-  if (!mod || !name || name_len <= 0 || name_len > 63)
+  if (!mod || !name || name_len <= 0 || name_len > 127)
     return -1;
   for (fi = 0; fi < pipeline_module_num_funcs(mod); fi++) {
     flen = pipeline_asm_module_func_name_len_at(mod, fi);
@@ -390,7 +390,7 @@ XLANG_WEAK int32_t backend_fold_func_x_plus_k_chain(void *arena, struct ast_Modu
   int32_t arg0;
   int32_t callee_ref;
   int32_t clen;
-  uint8_t cname[64];
+  uint8_t cname[128];
   int32_t inner_fi;
   int32_t inner_k;
   int32_t addend;

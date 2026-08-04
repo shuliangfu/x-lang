@@ -2,6 +2,8 @@
 # STD-130：std.random 可复现 PRNG 门禁
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 DOC="analysis/std-random-rng-v1.md"
 MANIFEST="tests/baseline/std-random-rng-manifest.tsv"
 MOD_X="std/random/mod.x"
@@ -62,7 +64,7 @@ if [ -x ./compiler/xlang-c ]; then
       exit 1
     fi
   done
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   # shellcheck source=tests/lib/bootstrap-link-xlang.sh
   . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
   # x pipeline compile/run 待 random co-emit 闭合；typeck + manifest + grep 通过即 OK。

@@ -63,7 +63,7 @@
   "xlang.walkthrough.openProject.title": "Xlang-Projekt öffnen",
   "xlang.walkthrough.openProject.description": "Verwenden Sie **Open Folder**, um den Root des xlang-Repositorys zu öffnen. LSP erfordert einen Workspace, um Diagnose, Navigation und Vervollständigung zu starten.",
   "xlang.walkthrough.buildCompiler.title": "Xlang-Compiler erstellen",
-  "xlang.walkthrough.buildCompiler.description": "Führen Sie `make -C compiler bootstrap-driver-seed` aus, um die `compiler/xlang`-Binärdatei zu erhalten, die für LSP erforderlich ist.",
+  "xlang.walkthrough.buildCompiler.description": "Führen Sie `./xbuild bootstrap-driver-seed` aus, um die `compiler/xlang`-Binärdatei zu erhalten, die für LSP erforderlich ist.",
   "xlang.walkthrough.openXFile.title": ".x-Datei zum Ausprobieren öffnen",
   "xlang.walkthrough.openXFile.description": "Öffnen Sie eine beliebige `.x`-Datei, um Syntaxhervorhebung, Folding, CodeLens und Statusleiste zu überprüfen.",
   "xlang.walkthrough.runFile.title": ".x-Datei ausführen",
@@ -72,7 +72,7 @@
   "xlang.taskDefinition.task.description": "Xlang-Aufgabentyp: build / build-file / run / check",
 
   "xlang.walkthrough.openProject.media": "Drücken Sie `Ctrl+K Ctrl+O`, um das Projekt-Root-Verzeichnis (das `compiler/` enthält) zu öffnen.",
-  "xlang.walkthrough.buildCompiler.media": "Im Terminal ausführen:\n```\nmake -C compiler bootstrap-driver-seed\n```\nNach erfolgreicher Erstellung dient `compiler/xlang` als Sprachserver.",
+  "xlang.walkthrough.buildCompiler.media": "Im Terminal ausführen:\n```\n./xbuild bootstrap-driver-seed\n```\nNach erfolgreicher Erstellung dient `compiler/xlang` als Sprachserver.",
   "xlang.walkthrough.openXFile.media": "Versuchen Sie, `compiler/src/lexer/lexer.x` oder eine beliebige Testdatei unter `tests/` zu öffnen.",
   "xlang.walkthrough.runFile.media": "CodeLens `▶ Run` erscheint auf der `function main`-Definitionszeile."
 }

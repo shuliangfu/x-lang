@@ -63,13 +63,13 @@ struct ast_Module;
 struct ast_ASTArena;
 struct ast_PipelineDepCtx;
 struct platform_elf_ElfLabelEntry {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t offset;
 };
 struct platform_elf_ElfPatchEntry {
   int32_t rel32_offset;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t patch_imm_bits;
 };
@@ -78,10 +78,10 @@ struct platform_elf_ElfRelocEntry {
   int32_t name_len;
 };
 struct platform_elf_ElfRelocSymName64 {
-  uint8_t bytes[64];
+  uint8_t bytes[128];
 };
 struct platform_elf_ElfSymEntry {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t offset;
   int32_t sym_shndx;
@@ -191,15 +191,19 @@ extern int32_t backend_asm_codegen_ast(void *module, void *arena, void *out_buf,
 extern int32_t backend_asm_codegen_ast_to_elf(void *module, void *arena, void *elf_ctx, void *ctx);
 extern int32_t peephole_run(void *out_buf);
 extern int32_t peephole_elf_run(void *elf_ctx);
-/** ElfCodegenCtx.macho_leading_underscore 偏移（与 ast_pool.c kPipelineElfCtxMachoUnderscoreOff / elf.x 4096 表一致）。 */
-#define XLANG_ELF_CTX_MACHO_UNDERSCORE_OFF 598052
-
-/** Darwin -o：call/reloc 符号须 leading `_`（与 asm.x::asm_codegen_elf_o 一致）。 */
+/**
+ * Darwin -o: call/reloc symbols need leading `_` (same as asm_codegen_elf_o).
+ * wave580 Cap residual: NEVER hardcode offsetof (pre-Cap 598052 is stale after
+ * name[64]→[128] tables; real offsetof is ~9e6). G.7: write the field via the
+ * local ElfCodegenCtx mirror (layout must match elf.x / ast_pool PipelineElfCtxAccess).
+ * PLATFORM: MACOS|DARWIN product pure-asm; no-op effect on LINUX when flag left 0.
+ */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void seed_elf_ctx_set_macho_leading_underscore(void *elf_ctx, int32_t on) {
-  if (!elf_ctx)
+  struct platform_elf_ElfCodegenCtx *ctx = (struct platform_elf_ElfCodegenCtx *)elf_ctx;
+  if (!ctx)
     return;
-  *(int32_t *)((uint8_t *)elf_ctx + XLANG_ELF_CTX_MACHO_UNDERSCORE_OFF) = on ? 1 : 0;
+  ctx->macho_leading_underscore = on ? 1 : 0;
 }
 
 
@@ -357,7 +361,7 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
     for (jdep = 0; jdep < ndep_elf; jdep++) {
       struct ast_Module *dep_mod;
       struct ast_ASTArena *dep_ar;
-      uint8_t dep_path_buf[64];
+      uint8_t dep_path_buf[128];
       int pk;
       int dup;
       if (jdep == 0 && driver_skip_codegen_dep_0_get() != 0)

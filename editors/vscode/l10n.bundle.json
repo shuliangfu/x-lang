@@ -59,7 +59,7 @@
   "Errors: {0}": "Errors: {0}",
   "Warnings: {0}": "Warnings: {0}",
   "xlang.serverPath is empty. Set it to compiler/xlang or an absolute path to xlang.": "xlang.serverPath is empty. Set it to compiler/xlang or an absolute path to xlang.",
-  "{0} not found. Run in repo root: make -C compiler bootstrap-driver-seed": "{0} not found. Run in repo root: make -C compiler bootstrap-driver-seed",
+  "{0} not found. Run in repo root: ./xbuild bootstrap-driver-seed": "{0} not found. Run in repo root: ./xbuild bootstrap-driver-seed",
   "xlang is not executable: {0}": "xlang is not executable: {0}",
   "Current xlang does not support --lsp (commonly xlang-c). Use bootstrap-built compiler/xlang as xlang.serverPath.": "Current xlang does not support --lsp (commonly xlang-c). Use bootstrap-built compiler/xlang as xlang.serverPath.",
   "xlang --lsp probe exited abnormally (code {0}). See Xlang output channel.": "xlang --lsp probe exited abnormally (code {0}). See Xlang output channel.",

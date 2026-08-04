@@ -270,15 +270,24 @@ int32_t parser_asm_stretch_import_path_validate_c(const uint8_t *path, int32_t p
 }
 
 /**
- * 结构体字段名 token 分类：IDENT / SOA(18) / PACKED(17) / ALIGN(33) 等。
+ * 结构体字段名 token 分类：IDENT / SOA / PACKED / TYPE / ALIGN 等。
  * 返回 1 可作字段名起点，0 否。
+ * PLATFORM: SHARED — TOKEN_TYPE accepted so `type: T` fields register fully
+ * (fields after `type` no longer drop out of layout). Prefer TOKEN_* macros
+ * over stale hardcoded 17/18 when available in this TU.
  */
 int32_t parser_asm_stretch_struct_field_name_kind_c(int32_t kind) {
   if (kind == STRETCH_TOKEN_IDENT)
     return 1;
-  if (kind == 17)
+  if (kind == 17) /* TOKEN_PACKED (legacy hardcode; keep for old stretch pins) */
     return 1;
-  if (kind == 18)
+  if (kind == 18) /* TOKEN_SOA (legacy hardcode) */
+    return 1;
+  if (kind == (int32_t)TOKEN_TYPE)
+    return 1;
+  if (kind == (int32_t)TOKEN_PACKED)
+    return 1;
+  if (kind == (int32_t)TOKEN_SOA)
     return 1;
   if (kind == STRETCH_TOKEN_ALIGN)
     return 1;

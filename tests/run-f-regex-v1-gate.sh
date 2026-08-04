@@ -2,6 +2,8 @@
 # F-regex v1：std.regex 去 C（regex.c → regex.x；v2 后引擎全在 regex.x）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_REGEX_V1_FAIL:-0}
 DOC="analysis/phase-f-regex-v1.md"
 MANIFEST="tests/baseline/f-regex-v1-closure.tsv"
@@ -21,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'regex.x' compiler/Makefile || die "Makefile missing regex.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/regex/regex.o >/dev/null 2>&1 || die "make regex.o failed"
+  xlang_compiler_make ../std/regex/regex.o >/dev/null 2>&1 || die "make regex.o failed"
 else
   echo "f-regex-v1 SKIP regex.o build (no xlang-c)" >&2
 fi

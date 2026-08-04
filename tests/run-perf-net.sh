@@ -9,12 +9,14 @@
 #   XLANG_PERF_UPDATE_NET_BASELINE=1 — 用本次 median 刷新 net-perf.tsv / net-perf-latency.tsv
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/zig-baseline.sh
 . "$(dirname "$0")/lib/zig-baseline.sh"
 # shellcheck source=tests/lib/perf-net-zc.sh
 . "$(dirname "$0")/lib/perf-net-zc.sh"
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/net/net.o ../std/thread/thread.o -q 2>/dev/null || make -C compiler ../std/net/net.o ../std/thread/thread.o
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+xlang_compiler_make ../std/net/net.o ../std/thread/thread.o -q 2>/dev/null || xlang_compiler_make ../std/net/net.o ../std/thread/thread.o
 
 NET_BENCH_PORT_DEFAULT=38456
 NET_ECHO_PORT_DEFAULT=38457
@@ -272,9 +274,9 @@ bench_net_accept_case() {
   local C_MED="nan"
   local CLIENT="/tmp/bench_net_client_${tag}"
 
-  echo "=== tests/bench/${name} (${NET_BENCH_CONNS} conns @ 127.0.0.1:<dynamic>, default ${NET_BENCH_PORT_DEFAULT}) ==="
+  echo "=== bench/${name} (${NET_BENCH_CONNS} conns @ 127.0.0.1:<dynamic>, default ${NET_BENCH_PORT_DEFAULT}) ==="
 
-  if ! cc -O2 tests/bench/net_accept_many_client.c -o "$CLIENT" 2>/dev/null; then
+  if ! cc -O2 bench/net_accept_many_client.c -o "$CLIENT" 2>/dev/null; then
     echo "run-perf-net: failed to build client" >&2
     exit 1
   fi
@@ -364,9 +366,9 @@ bench_net_echo_case() {
   local XLANG_MED="nan"
   local C_MED="nan"
   local ZIG_MED="nan"
-  local zig_src="tests/bench/${name}.zig"
+  local zig_src="bench/${name}.zig"
 
-  echo "=== tests/bench/${name} (4×4KiB×1024 echo @ 127.0.0.1:<dynamic>, default ${NET_ECHO_PORT_DEFAULT}) ==="
+  echo "=== bench/${name} (4×4KiB×1024 echo @ 127.0.0.1:<dynamic>, default ${NET_ECHO_PORT_DEFAULT}) ==="
 
   XLANG_MED=$(median_echo_pair "$su_client" "$c_server" "$c_client" "$tag" 1)
   echo "Xlang (stream_*_batch) ${name} median real: ${XLANG_MED}s"
@@ -484,9 +486,9 @@ bench_net_mixed_case() {
   local C_PAIR="nan:nan"
   local ZIG_PAIR="nan:nan"
   local XLANG_MED C_MED ZIG_MED XLANG_P99 C_P99 ZIG_P99
-  local zig_src="tests/bench/${name}.zig"
+  local zig_src="bench/${name}.zig"
 
-  echo "=== tests/bench/${name} (256×16×512B connect+echo @ 127.0.0.1:<dynamic>, default ${NET_MIXED_PORT_DEFAULT}) ==="
+  echo "=== bench/${name} (256×16×512B connect+echo @ 127.0.0.1:<dynamic>, default ${NET_MIXED_PORT_DEFAULT}) ==="
 
   if ! ./compiler/xlang build -L . "$su_client" -o "/tmp/bench_net_shu_${tag}" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
@@ -539,9 +541,9 @@ bench_net_echo_provided_case() {
   local XLANG_MED="nan"
   local BATCH_MED="nan"
 
-  echo "=== tests/bench/${name} (ZC-1 provided read + batch write @ 127.0.0.1:<dynamic>) ==="
+  echo "=== bench/${name} (ZC-1 provided read + batch write @ 127.0.0.1:<dynamic>) ==="
 
-  XLANG_MED=$(median_echo_pair "$su_client" "$c_server" tests/bench/net_echo_throughput.c "$tag" 1)
+  XLANG_MED=$(median_echo_pair "$su_client" "$c_server" bench/net_echo_throughput.c "$tag" 1)
   echo "Xlang (stream_read_batch_provided) ${name} median real: ${XLANG_MED}s"
 
   BATCH_MED=$(net_case_median_from_meds net_echo_throughput || true)
@@ -582,7 +584,7 @@ bench_net_echo_provided_case() {
         prov_cycles="$perf_nz_cycles"
         nz_cpm_prov=$(perf_nz_cycles_per_mib "$prov_cycles" 33554432)
         batch_exe="/tmp/bench_net_shu_nz_batch_$$"
-        if ./compiler/xlang build -L . tests/bench/net_echo_throughput.x -o "$batch_exe" 2>/dev/null \
+        if ./compiler/xlang build -L . bench/net_echo_throughput.x -o "$batch_exe" 2>/dev/null \
           && [ -x "$batch_exe" ]; then
           port=$(pick_free_port)
           if perf_nz_run_echo_cycles "$batch_exe" "$c_server" "$port"; then
@@ -678,9 +680,9 @@ bench_net_udp_case() {
   local C_MED="nan"
   local CLIENT="/tmp/bench_net_udp_client_${tag}"
 
-  echo "=== tests/bench/${name} (${NET_UDP_PKTS} pkts×${NET_UDP_PKT_LEN}B batch=${NET_UDP_BATCH} @ 127.0.0.1:<dynamic>) ==="
+  echo "=== bench/${name} (${NET_UDP_PKTS} pkts×${NET_UDP_PKT_LEN}B batch=${NET_UDP_BATCH} @ 127.0.0.1:<dynamic>) ==="
 
-  if ! cc -O2 tests/bench/net_udp_many_client.c -o "$CLIENT" 2>/dev/null; then
+  if ! cc -O2 bench/net_udp_many_client.c -o "$CLIENT" 2>/dev/null; then
     echo "run-perf-net: failed to build udp client" >&2
     exit 1
   fi
@@ -709,24 +711,24 @@ fi
 
 BASELINE="${XLANG_PERF_NET_BASELINE:-tests/baseline/net-perf.tsv}"
 LAT_BASELINE="${XLANG_PERF_NET_LATENCY_BASELINE:-tests/baseline/net-perf-latency.tsv}"
-bench_net_accept_case net_accept_many tests/bench/net_accept_many.x tests/bench/net_accept_many_server.c
-bench_net_echo_case net_echo_throughput tests/bench/net_echo_throughput.x \
-  tests/bench/net_echo_throughput_server.c tests/bench/net_echo_throughput.c
-bench_net_mixed_case net_mixed_conns_requests tests/bench/net_mixed_conns_requests.x \
-  tests/bench/net_mixed_conns_requests_server.c tests/bench/net_mixed_conns_requests.c
+bench_net_accept_case net_accept_many bench/net_accept_many.x bench/net_accept_many_server.c
+bench_net_echo_case net_echo_throughput bench/net_echo_throughput.x \
+  bench/net_echo_throughput_server.c bench/net_echo_throughput.c
+bench_net_mixed_case net_mixed_conns_requests bench/net_mixed_conns_requests.x \
+  bench/net_mixed_conns_requests_server.c bench/net_mixed_conns_requests.c
 if [ "$(uname -s)" = "Linux" ]; then
   # shellcheck source=tests/lib/io-uring-probe.sh
   . tests/lib/io-uring-probe.sh
   if io_uring_available; then
     chmod +x tests/run-provided-buffers.sh 2>/dev/null || true
     ./tests/run-provided-buffers.sh
-    bench_net_echo_provided_case net_echo_throughput_provided tests/bench/net_echo_throughput_provided.x \
-      tests/bench/net_echo_throughput_server.c
+    bench_net_echo_provided_case net_echo_throughput_provided bench/net_echo_throughput_provided.x \
+      bench/net_echo_throughput_server.c
   else
     echo "ZC-1 provided bench SKIP (io_uring unavailable on this kernel; e.g. Mac Docker linuxkit)"
   fi
 fi
-bench_net_udp_case net_udp_many tests/bench/net_udp_many.x tests/bench/net_udp_many_server.c
+bench_net_udp_case net_udp_many bench/net_udp_many.x bench/net_udp_many_server.c
 
 if [ "${XLANG_PERF_UPDATE_NET_BASELINE:-0}" = "1" ]; then
   {

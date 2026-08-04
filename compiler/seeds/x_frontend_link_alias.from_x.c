@@ -219,3 +219,32 @@ XLANG_WEAK uint8_t *pipeline_asm_emit_dep_pipe_c_retu8_ptr(void) {
 XLANG_WEAK uint8_t pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8(uint8_t *m, int32_t i, int32_t j) {
   return pipeline_module_import_path_byte_at(m, i, j);
 }
+
+/* wave L7-check residual: backend_call_dispatch X-ABI mangled faces → C product symbols.
+ * Needed when call_dispatch.o expects mangled names not produced by host-cc seed path.
+ * PLATFORM: SHARED link residual (G.7 alias face; not dual implementation). */
+extern int32_t glue_asm_build_func_export_sym_c(void *a, void *b, int32_t c, void *d, int32_t e);
+int32_t glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32(
+    void *a, void *b, int32_t c, void *d, int32_t e) {
+  return glue_asm_build_func_export_sym_c(a, b, c, d, e);
+}
+extern int32_t glue_asm_build_import_binding_call_sym(void *a, int32_t b, void *c, int32_t d, void *e);
+int32_t glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_reti32(
+    void *a, int32_t b, void *c, int32_t d, void *e) {
+  return glue_asm_build_import_binding_call_sym(a, b, c, d, e);
+}
+extern void glue_codegen_import_path_to_c_prefix_into(void *a, void *b, int32_t c);
+void glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32(void *a, void *b, int32_t c) {
+  glue_codegen_import_path_to_c_prefix_into(a, b, c);
+}
+extern int32_t pipeline_type_kind_ord_at(void *a, int32_t r);
+int32_t pipeline_type_kind_ord_at_u8_ptr_i32_reti32(void *a, int32_t r) {
+  return pipeline_type_kind_ord_at(a, r);
+}
+/* weak: product may already define a real heap redirect local */
+XLANG_WEAK int32_t glue_try_std_heap_redirect_sym_local(void *name, int32_t nlen, void *out) {
+  (void)name;
+  (void)nlen;
+  (void)out;
+  return 0;
+}

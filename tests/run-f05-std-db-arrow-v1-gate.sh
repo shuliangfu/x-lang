@@ -5,6 +5,8 @@
 # 环境：XLANG_F05_DB_ARROW_V1_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_F05_DB_ARROW_V1_FAIL:-0}
 DOC="analysis/phase-f-f05-v1.md"
@@ -31,7 +33,7 @@ if grep -q 'std/db/arrow/arrow\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references arrow.c"
 fi
 
-make -C compiler ../std/db/arrow/arrow.o runtime_arrow_simd_glue.o >/dev/null 2>&1 || die "make arrow.o failed"
+xlang_compiler_make ../std/db/arrow/arrow.o runtime_arrow_simd_glue.o >/dev/null 2>&1 || die "make arrow.o failed"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT

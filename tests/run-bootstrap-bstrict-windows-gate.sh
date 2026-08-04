@@ -11,6 +11,8 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
@@ -23,7 +25,7 @@ fi
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
 if [ ! -x compiler/xlang ] && [ ! -x compiler/xlang-x ]; then
-  echo "bootstrap-bstrict-windows-gate FAIL: need seed (make -C compiler OPT=1 all)" >&2
+  echo "bootstrap-bstrict-windows-gate FAIL: need seed (xlang_compiler_make OPT=1 all)" >&2
   exit 127
 fi
 
@@ -41,7 +43,7 @@ if [ "$WIN_BSTRICT" = "1" ]; then
   #      exited 0. B-hybrid branch below already captures SEED_RC; B-strict
   #      must do the same for its single make call.
   set -o pipefail
-  make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/boot_win_bstrict.log
+  xlang_compiler_make bootstrap-driver-bstrict 2>&1 | tee /tmp/boot_win_bstrict.log
   BOOT_RC=${PIPESTATUS[0]}
   set +o pipefail
   if [ "$BOOT_RC" -ne 0 ]; then
@@ -67,13 +69,13 @@ else
   # PLATFORM: WINDOWS | MSYS | MINGW (script only runs on MSYS2 hosts; see
   #           ci_is_windows_msys guard above).
   echo "bootstrap-bstrict-windows-gate: make bootstrap-driver-seed (full symbol set) then bootstrap-driver-hybrid (B-hybrid default) ..."
-  make -C compiler bootstrap-driver-seed 2>&1 | tee /tmp/boot_win_seed.log
+  xlang_compiler_make bootstrap-driver-seed 2>&1 | tee /tmp/boot_win_seed.log
   SEED_RC=${PIPESTATUS[0]}
   if [ "$SEED_RC" -ne 0 ]; then
     echo "bootstrap-bstrict-windows-gate FAIL: bootstrap-driver-seed rc=$SEED_RC" >&2
     exit 1
   fi
-  make -C compiler bootstrap-driver-hybrid 2>&1 | tee /tmp/boot_win_hybrid.log
+  xlang_compiler_make bootstrap-driver-hybrid 2>&1 | tee /tmp/boot_win_hybrid.log
   BOOT_LOG=/tmp/boot_win_hybrid.log
   EXPECT_MARKER='Target-B-hybrid|B-hybrid|bootstrap-driver-hybrid OK'
 fi

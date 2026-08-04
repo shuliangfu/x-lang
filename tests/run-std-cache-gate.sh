@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-cache-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_CACHE_DOC:-analysis/std-cache-v1.md}"
 MANIFEST="${XLANG_STD_CACHE_MANIFEST:-tests/baseline/std-cache-manifest.tsv}"
@@ -67,7 +69,7 @@ SKIP=0
 
 echo "=== STD-087: cache c smoke ==="
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/cache/cache.o ../std/time/time.o runtime_time_os.o >/dev/null 2>&1
+  xlang_compiler_make ../std/cache/cache.o ../std/time/time.o runtime_time_os.o >/dev/null 2>&1
   if cc -std=c11 -O1 -o /tmp/xlang_cache_smoke \
     "$SMOKE_C" std/cache/cache.o std/time/time.o compiler/runtime_time_os.o 2>/dev/null; then
     if /tmp/xlang_cache_smoke >/dev/null 2>&1; then C_OK=1; fi

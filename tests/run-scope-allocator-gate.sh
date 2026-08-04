@@ -4,7 +4,9 @@
 # 环境：XLANG_SCOPE_ALLOC_GATE_FAIL=1 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 XLANG="${XLANG:-./compiler/xlang-c}"
 FAIL="${XLANG_SCOPE_ALLOC_GATE_FAIL:-0}"
 SRC="tests/mem/with_arena_smoke.x"

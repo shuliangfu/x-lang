@@ -22,7 +22,7 @@ MIN_BENCHES=3
 
 echo "=== STD-062: regex perf manifest ==="
 for f in "$DOC" "$WAVE" "$XPLAT" "$LIB" "$PARENT_DOC" "$MIN_INC" "$MOD_X" \
-  tests/bench/regex_match_bench.c tests/bench/regex_match_naive_stub.c \
+  bench/regex_match_bench.c bench/regex_match_naive_stub.c \
   tests/run-perf-regex-match.sh; do
   if [ ! -f "$f" ]; then
     echo "std-regex-perf gate FAIL: missing $f" >&2

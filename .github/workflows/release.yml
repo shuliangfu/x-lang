@@ -89,8 +89,8 @@ jobs:
 
       - name: Cold bootstrap + product relink
         run: |
+          ./xbuild bootstrap-driver-seed
           cd compiler
-          make bootstrap-driver-seed
           FULL=0 bash scripts/g05_prepare_and_relink.sh
           ls -la xlang xlang_asm xlang-c bootstrap_xlangc
           test -x xlang_asm

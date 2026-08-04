@@ -373,4 +373,3 @@ export function resolve(out: *u8, out_max: i32, base: *u8, base_len: i32, ref: *
  */
 export function module_anchor(): i32 { return 0; }
 
-

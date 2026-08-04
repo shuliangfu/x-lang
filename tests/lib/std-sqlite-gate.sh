@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-sqlite-gate.sh — STD-057 manifest 与 SQLite 烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_SQLITE_PREFIX="${XLANG_STD_SQLITE_PREFIX:-xlang: [XLANG_STD_SQLITE]}"
 
 # 探测本机是否可链 libsqlite3。
@@ -20,7 +22,7 @@ EOF
 
 # 确保 sqlite.o 已构建（默认 SQLite3）。
 std_sqlite_build_o() {
-  if ! make -C compiler ../std/db/sqlite/sqlite.o >/dev/null 2>&1; then
+  if ! xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1; then
     echo "std-sqlite FAIL: make ../std/db/sqlite/sqlite.o" >&2
     return 1
   fi
@@ -29,7 +31,7 @@ std_sqlite_build_o() {
 
 # 恢复默认 SQLite3 sqlite.o。
 std_sqlite_restore_default_o() {
-  make -C compiler ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
+  xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
 }
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。

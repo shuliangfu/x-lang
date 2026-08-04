@@ -8,13 +8,15 @@
 # 用法：./tests/run-obs-structured-log-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_OBS_STRUCT_LOG_DOC:-analysis/obs-structured-log-v1.md}"
 MANIFEST="${XLANG_OBS_STRUCT_LOG_TSV:-tests/baseline/obs-structured-log.tsv}"
 LOG_X="std/log/log.x"
 LOG_RUNTIME="compiler/seeds/runtime_log_os.from_x.c"
 LOG_X="std/log/mod.x"
-SMOKE="tests/bench/obs_structured_log_smoke.c"
+SMOKE="bench/obs_structured_log_smoke.c"
 LOG_O="std/log/log.o"
 MIN_COMP=6
 
@@ -115,7 +117,7 @@ echo "obs-structured-log manifest OK (components=${COMP})"
 
 echo "=== OBS-003: structured log smoke ==="
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/log/log.o runtime_log_os.o -q 2>/dev/null || make -C compiler ../std/log/log.o runtime_log_os.o
+  xlang_compiler_make ../std/log/log.o runtime_log_os.o -q 2>/dev/null || xlang_compiler_make ../std/log/log.o runtime_log_os.o
 else
   echo "obs-structured-log gate SKIP smoke (no xlang-c)" >&2
   echo "obs-structured-log gate OK"

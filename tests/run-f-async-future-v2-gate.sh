@@ -2,6 +2,8 @@
 # F-async-future v2：std.async Future 逻辑全量 .x（删除 future_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_ASYNC_FUTURE_V2_FAIL:-0}
 DOC="analysis/phase-f-async-future-v2.md"
 MANIFEST="tests/baseline/f-async-future-v2-closure.tsv"
@@ -33,7 +35,7 @@ grep -q 'xlang_async_run_drain_until_idle' std/async/future.x || die "future.x m
 grep -q 'xlang_io_poll_async_completions' std/async/future.x || die "future.x missing io poll extern"
 grep -q 'F-async-future v2' compiler/Makefile || die "Makefile missing F-async-future v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/async/future.o >/dev/null 2>&1 || die "make future.o failed"
+  xlang_compiler_make ../std/async/future.o >/dev/null 2>&1 || die "make future.o failed"
 else
   echo "f-async-future-v2 SKIP future.o build (no xlang-c)" >&2
 fi

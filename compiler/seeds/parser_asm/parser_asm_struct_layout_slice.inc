@@ -255,7 +255,8 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
                                                              struct parser_asm_lexer *out_lex, int32_t allow_pad,
                                                              int32_t force_soa, int32_t repr_compat) {
   struct parser_asm_lexer_result r;
-  uint8_t sname_buf[64];
+  /* wave583 Cap residual: struct/field name content ≤127 (layout name[128] / field name[128]). */
+  uint8_t sname_buf[128];
   int32_t sname_len;
   int32_t is_soa;
   int32_t is_packed;
@@ -264,7 +265,7 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
   int32_t replace_idx;
   int32_t layout_idx;
   int32_t nf;
-  uint8_t fname_buf[64];
+  uint8_t fname_buf[128];
   int32_t field_align_req;
   int32_t fn_len;
   int32_t tr;
@@ -972,7 +973,8 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
   /** 调用方 lex 已在 struct 名首字节；勿再 double-advance（曾误吞 Header、把 packed 当名 → typeck 隐式 padding）。 */
   lexer_next_into(&r, lex, source);
-  if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0 || r.tok.ident_len > 63)
+  /* wave583 Cap residual: struct type name content ≤127 (storage name[128]). */
+  if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0 || r.tok.ident_len > 127)
     return -1;
   sname_len = r.tok.ident_len;
   parser_asm_copy_slice_to_name64_at_end_slice_c(source, r.next_lex.pos, sname_len, sname_buf);
@@ -987,10 +989,11 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
    * wave466: skip angles so field loop records `v: T`.
    * wave467: capture type-param IDENT names (optional `: Bound` soft-skip) into
    * layout sidecar so multi mono maps field type `T`/`U` → type-arg slots.
+   * wave583: type-param IDENT content ≤127 (LayoutTypeParamEntry.name[128]).
    * PLATFORM: SHARED parse.
    */
   {
-    uint8_t tp_names[8][64];
+    uint8_t tp_names[8][128];
     int32_t tp_lens[8];
     int32_t n_tp;
     int32_t tpi;
@@ -999,7 +1002,7 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
       parser_asm_lex_from_result_val_into(&lex, r);
       for (;;) {
         lexer_next_into(&r, lex, source);
-        if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0 || r.tok.ident_len > 63) {
+        if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0 || r.tok.ident_len > 127) {
           /* Malformed angle list — fall back to skip so layout still registers. */
           parser_asm_skip_generic_angle_list_into_slice_c(&lex, lex, source);
           n_tp = 0;
@@ -1008,7 +1011,7 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
         }
         if (n_tp < 8) {
           int32_t k;
-          for (k = 0; k < 64; k++)
+          for (k = 0; k < 128; k++)
             tp_names[n_tp][k] = 0;
           parser_asm_copy_slice_to_name64_at_end_slice_c(source, r.next_lex.pos, r.tok.ident_len,
                                                          tp_names[n_tp]);
@@ -1131,6 +1134,37 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
     fn_len = parser_struct_field_name_from_tok_glue(r, source, fname_buf);
     if (fn_len < 0)
       return -1;
+    /*
+     * wave679 Cap residual: duplicate struct field name was typeck green → host
+     * BLD001 "duplicate member". Hard-fail with P012 + sticky (parse abort).
+     * Scan fields already written this layout (indices 0..nf-1).
+     * PLATFORM: SHARED parse.
+     */
+    {
+      extern int32_t pipeline_module_struct_layout_field_name_len(void *module, int32_t li, int32_t j);
+      extern void pipeline_module_struct_layout_field_name_into(void *module, int32_t li, int32_t j,
+                                                                uint8_t *out128);
+      extern void parser_report_duplicate_name_p012_c(int32_t line, int32_t col, int32_t kind);
+      int32_t fj;
+      int32_t fl;
+      int32_t fk;
+      uint8_t prev_name[128];
+      for (fj = 0; fj < nf; fj++) {
+        fl = pipeline_module_struct_layout_field_name_len(module, layout_idx, fj);
+        if (fl != fn_len)
+          continue;
+        memset(prev_name, 0, sizeof(prev_name));
+        pipeline_module_struct_layout_field_name_into(module, layout_idx, fj, prev_name);
+        for (fk = 0; fk < fn_len; fk++) {
+          if (prev_name[fk] != fname_buf[fk])
+            break;
+        }
+        if (fk == fn_len) {
+          parser_report_duplicate_name_p012_c((int32_t)r.tok.line, (int32_t)r.tok.col, 1);
+          return -1;
+        }
+      }
+    }
     parser_asm_lex_from_result_val_into(&lex, r);
     lexer_next_into(&r, lex, source);
     if (r.tok.kind != (int32_t)TOKEN_COLON)

@@ -2,6 +2,8 @@
 # F-cli v1：std.cli 去 C（cli.c → cli.x）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_CLI_V1_FAIL:-0}
 DOC="analysis/phase-f-cli-v1.md"
 MANIFEST="tests/baseline/f-cli-v1-closure.tsv"
@@ -22,7 +24,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'cli.x' compiler/Makefile || die "Makefile missing cli.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/cli/cli.o >/dev/null 2>&1 || die "make cli.o failed"
+  xlang_compiler_make ../std/cli/cli.o >/dev/null 2>&1 || die "make cli.o failed"
 else
   echo "f-cli-v1 SKIP cli.o build (no xlang-c)" >&2
 fi

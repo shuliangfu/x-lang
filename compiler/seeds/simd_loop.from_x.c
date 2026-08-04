@@ -121,8 +121,8 @@ extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, i
 /* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-384：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_expr_same_var_c_impl(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref) {
-    uint8_t an[64];
-    uint8_t bn[64];
+    uint8_t an[128];
+    uint8_t bn[128];
     int32_t alen;
     int32_t blen;
     int32_t k;
@@ -199,7 +199,7 @@ int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
 /* G-02f-165/214：逻辑源 .x；G-02f-411：实现体始终 seed；public PREFER 时 thin pure forward */
 int32_t glue_block_let_init_lit_c_impl(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
                                          int32_t *out_lit) {
-    uint8_t vbuf[64];
+    uint8_t vbuf[128];
     int32_t vlen;
     int32_t nlet;
     int32_t li;
@@ -213,7 +213,7 @@ int32_t glue_block_let_init_lit_c_impl(struct ast_ASTArena *arena, int32_t block
     pipeline_expr_var_name_into(arena, var_ref, vbuf);
     nlet = ast_ast_block_num_lets(arena, block_ref);
     for (li = 0; li < nlet; li++) {
-        uint8_t lb[64];
+        uint8_t lb[128];
         int32_t llen;
         int32_t init_ref;
         int32_t k;
@@ -409,7 +409,7 @@ int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, i
 /* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-404：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_simd_local_var_stack_off_c_impl(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t var_expr_ref) {
-    uint8_t vname[64];
+    uint8_t vname[128];
     int32_t vlen;
     int32_t off;
     if (!arena || !ctx || var_expr_ref <= 0)
@@ -565,9 +565,9 @@ int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
 /* G-02f-215：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-404：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_emit_runtime_strip_loop_c_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref, int32_t binop_ko, int32_t off_i, int32_t off_n, int32_t off_a, int32_t off_b, int32_t off_d, int32_t array_n, int32_t lanes, uint32_t feats) {
-    uint8_t vec_loop[64];
-    uint8_t epi_loop[64];
-    uint8_t epi_done[64];
+    uint8_t vec_loop[128];
+    uint8_t epi_loop[128];
+    uint8_t epi_done[128];
     int32_t vec_len;
     int32_t epi_len;
     int32_t done_len;
@@ -773,10 +773,10 @@ int32_t glue_emit_f32_soa_sum_strip_c_impl(struct ast_ASTArena *arena, struct pl
                                               struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref,
                                               int32_t off_col0, int32_t off_s, int32_t off_i, int32_t off_n,
                                               int32_t n_lit, int32_t lanes, uint32_t feats) {
-    uint8_t vec_loop[64];
-    uint8_t epi_merge[64];
-    uint8_t epi_loop[64];
-    uint8_t epi_done[64];
+    uint8_t vec_loop[128];
+    uint8_t epi_merge[128];
+    uint8_t epi_loop[128];
+    uint8_t epi_done[128];
     int32_t vec_len;
     int32_t merge_len;
     int32_t epi_len;

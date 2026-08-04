@@ -9,6 +9,8 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
@@ -18,7 +20,7 @@ bootstrap_ci_is_docker() {
 }
 
 if [ ! -f compiler/xlang ] || [ ! -x compiler/xlang ]; then
-  echo "bootstrap-bstrict-ci: seed xlang missing; run: make -C compiler OPT=1 all" >&2
+  echo "bootstrap-bstrict-ci: seed xlang missing; run: xlang_compiler_make OPT=1 all" >&2
   exit 127
 fi
 
@@ -97,7 +99,7 @@ if [ -n "${CI:-}" ] && [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
   export XLANG_ASM_SKIP_STRICT_SMOKE=1
   echo "bootstrap-bstrict-ci: XLANG_ASM_CI_SKIP_FAST=1 (strict relink for asm-73 cfg-merge)"
 fi
-make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/build_bstrict.log
+xlang_compiler_make bootstrap-driver-bstrict 2>&1 | tee /tmp/build_bstrict.log
 
 if ! grep -qE 'Target-B-strict|B-strict OK|LINK_MODE=asm_only_strict' /tmp/build_bstrict.log; then
   echo "bootstrap-bstrict-ci: expected Target-B-strict / B-strict OK / asm_only_strict in build log" >&2

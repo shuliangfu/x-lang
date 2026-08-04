@@ -1,24 +1,26 @@
 #!/usr/bin/env bash
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 fi
 # PLATFORM: SHARED — C backend prelinks crypto.o (std_crypto_sha256/hmac/mem_eq).
 # XLANG_SKIP_SUBSCRIPT_MAKE must not skip this ensure. Stale/partial crypto.o
 # (mtime ok but missing std_crypto_*) → mac L4 UNDEF; force rebuild if gate fails.
-make -C compiler -q ../std/crypto/crypto.o 2>/dev/null \
-  || make -C compiler ../std/crypto/crypto.o
+xlang_compiler_make -q ../std/crypto/crypto.o 2>/dev/null \
+  || xlang_compiler_make ../std/crypto/crypto.o
 if ! nm std/crypto/crypto.o 2>/dev/null | grep -q 'std_crypto_sha256'; then
   echo "run-crypto: crypto.o missing std_crypto_sha256 — force rebuild" >&2
   rm -f std/crypto/crypto.o
-  make -C compiler ../std/crypto/crypto.o
+  xlang_compiler_make ../std/crypto/crypto.o
 fi
 # libm/inc glue for crypto_*_c UNDEF from bare-impl bodies
-make -C compiler -q runtime_crypto_inc_glue.o 2>/dev/null \
-  || make -C compiler runtime_crypto_inc_glue.o
+xlang_compiler_make -q runtime_crypto_inc_glue.o 2>/dev/null \
+  || xlang_compiler_make runtime_crypto_inc_glue.o
 XLANG="${XLANG:-./compiler/xlang}"
 exe="/tmp/xlang_crypto_$$"
 if ! $XLANG build -L . tests/crypto/main.x -o "$exe" 2>&1; then echo "crypto test: compile failed"; rm -f "$exe"; exit 1; fi

@@ -5,9 +5,11 @@
 # 环境：XLANG_FORCE_MIGRATE_X_GEN=1 强制重编（忽略 mtime）；兼容 XLANG_FORCE_MIGRATE_X_GEN。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 if [ ! -x ./compiler/xlang-c ]; then
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 fi
 
 # M-3：ast/typeck/codegen 变更须与 parser 一并重编
@@ -49,7 +51,7 @@ if [ "$need_rebuild" = "1" ]; then
     compiler/typeck_gen.c compiler/typeck_x.o \
     compiler/codegen_gen.c compiler/codegen_x.o \
     compiler/ast_gen2.c
-  make -C compiler parser_x.o lexer_x.o typeck_x.o codegen_x.o
+  xlang_compiler_make parser_x.o lexer_x.o typeck_x.o codegen_x.o
 fi
 
 # M-3 region 相关符号须出现在 gen 产物（防 x 路径静默退化）

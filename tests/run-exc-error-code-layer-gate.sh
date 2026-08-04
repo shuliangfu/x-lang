@@ -8,6 +8,8 @@
 # 用法：./tests/run-exc-error-code-layer-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_EXC_CODE_LAYER_DOC:-analysis/exc-error-code-layer-v1.md}"
 MATRIX="${XLANG_EXC_CODE_LAYER_TSV:-tests/baseline/exc-error-code-layer.tsv}"
@@ -92,7 +94,7 @@ if ! grep -q 'EXC-003' analysis/exc-result-error-v1-rfc.md 2>/dev/null; then
   echo "exc-error-code-layer WARN: exc-result-error-v1-rfc.md has no EXC-003 ref" >&2
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then

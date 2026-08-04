@@ -2,6 +2,8 @@
 # F-csv v1：std.csv 去 C（csv.c → csv.x）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_CSV_V1_FAIL:-0}
 DOC="analysis/phase-f-csv-v1.md"
 MANIFEST="tests/baseline/f-csv-v1-closure.tsv"
@@ -21,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'csv.x' compiler/Makefile || die "Makefile missing csv.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/csv/csv.o >/dev/null 2>&1 || die "make csv.o failed"
+  xlang_compiler_make ../std/csv/csv.o >/dev/null 2>&1 || die "make csv.o failed"
 else
   echo "f-csv-v1 SKIP csv.o build (no xlang-c)" >&2
 fi

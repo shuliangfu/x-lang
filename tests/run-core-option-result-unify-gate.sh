@@ -4,6 +4,8 @@
 # 用法：./tests/run-core-option-result-unify-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_CORE016_DOC:-analysis/core-option-result-unify-v1.md}"
 MANIFEST="${XLANG_CORE016_TSV:-tests/baseline/core-option-result-unify.tsv}"
@@ -69,7 +71,7 @@ fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== CORE-016: typeck + smoke ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   for x in "$SMOKE1" "$SMOKE2"; do
     if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "core-option-result-unify gate FAIL: typeck $x" >&2

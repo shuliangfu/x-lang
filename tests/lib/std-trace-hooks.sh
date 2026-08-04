@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-trace-hooks.sh — STD-118 manifest 与烟测辅助（F-trace v2：纯 trace.x）
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_TRACE_HOOKS_PREFIX="${XLANG_STD118_TRACE_HOOKS_PREFIX:-xlang: [XLANG_STD118_TRACE_HOOKS]}"
 
 # 遍历 manifest；symbol 在 trace.x。
@@ -63,7 +65,7 @@ std_trace_hooks_run_c_smoke() {
   local time_o="$2"
   local random_o="$3"
   local out="/tmp/xlang_std_trace_hooks_c_$$"
-  make -C compiler runtime_time_os.o runtime_random_fill.o >/dev/null 2>&1 || true
+  xlang_compiler_make runtime_time_os.o runtime_random_fill.o >/dev/null 2>&1 || true
   cc -std=c11 -O1 -o "$out" tests/std-trace/hooks_smoke_ok.c "$trace_o" "$time_o" compiler/runtime_time_os.o "$random_o" compiler/runtime_random_fill.o 2>/dev/null || return 1
   set +e
   "$out" >/dev/null 2>&1

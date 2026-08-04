@@ -8,6 +8,8 @@
 # 用法：./tests/run-boot-019-stage2-dogfood-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_BOOT019_DOC:-analysis/boot-019-stage2-dogfood-v1.md}"
 MANIFEST="${XLANG_BOOT019_TSV:-tests/baseline/boot-019-stage2-dogfood.tsv}"
@@ -121,7 +123,7 @@ LINK_OK=0
 SKIP=1
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== BOOT-019: bootstrap subset runner (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   chmod +x "$RUNNER"
   if XLANG="$XLANG_BIN" BOOT019_SKIP_LINK="${BOOT019_SKIP_LINK:-}" "$RUNNER" >/tmp/boot019_subset.log 2>&1; then
     grep -q 'bootstrap-stage2-dogfood parser/typeck OK' /tmp/boot019_subset.log

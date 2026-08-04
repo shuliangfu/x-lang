@@ -2,6 +2,8 @@
 # F-context v1：std.context 去 C（context.c → context.x；v2 后节点也在 context.x）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_CONTEXT_V1_FAIL:-0}
 DOC="analysis/phase-f-context-v1.md"
 MANIFEST="tests/baseline/f-context-v1-closure.tsv"
@@ -21,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'context.x' compiler/Makefile || die "Makefile missing context.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/context/context.o >/dev/null 2>&1 || die "make context.o failed"
+  xlang_compiler_make ../std/context/context.o >/dev/null 2>&1 || die "make context.o failed"
 else
   echo "f-context-v1 SKIP context.o build (no xlang-c)" >&2
 fi

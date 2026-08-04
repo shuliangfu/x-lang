@@ -4,6 +4,8 @@
 # 用法：./tests/run-safe-leak-nightly-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_LEAK_DOC:-analysis/safe-leak-nightly-v1.md}"
 MANIFEST="${XLANG_LEAK_MANIFEST:-tests/baseline/safe-leak-nightly.tsv}"
@@ -132,7 +134,7 @@ if [ "$(uname -s)" = "Linux" ] && safe_leak_asan_ok; then
   fi
   if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
     echo "=== SAFE-005: leak nightly smoke (1 case) ==="
-    make -C compiler -q 2>/dev/null || make -C compiler
+    xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
     # F-03 v2：heap 已纯 .x，不再 ensure heap.o
     if safe_leak_run_x "$XLANG_BIN" tests/leak/no_leak_heap.x case_heap; then
       echo "safe-leak-nightly smoke OK"

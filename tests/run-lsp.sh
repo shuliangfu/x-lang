@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # LSP 测试：启动 xlang --lsp，发送 initialize / didOpen / diagnostics / textDocument/formatting / shutdown / exit，校验 stdout 含预期 JSON-RPC 响应。
-# 依赖：带 LSP 的 xlang（make -C compiler bootstrap-driver-seed）。
+# 依赖：带 LSP 的 xlang（xlang_compiler_make bootstrap-driver-seed）。
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 XLANG="${XLANG:-./compiler/xlang}"
 
 # 构建带 LSP 的 xlang（若尚未构建或无 --lsp 则先 bootstrap-driver-seed）
 if ! "$XLANG" --help 2>/dev/null | grep -q '\-\-lsp'; then
-  make -C compiler bootstrap-driver-seed
+  xlang_compiler_make bootstrap-driver-seed
   XLANG=./compiler/xlang
 fi
 

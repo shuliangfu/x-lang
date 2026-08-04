@@ -5,6 +5,8 @@
 #   XLANG=./compiler/xlang_asm ./tests/run-zc2-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 XLANG_BIN="${XLANG:-}"
 case "$XLANG_BIN" in
@@ -51,7 +53,7 @@ rm -f "$GEN_OUT" "$MMAP_OUT" "$VIEW_OUT"
 echo "=== ZC-2: read_ptr gen + mmap absolute view ==="
 
 if [ -z "$CHECK_XLANG" ]; then
-  if make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null; then
+  if xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null; then
     [ -x ./compiler/xlang-c ] && CHECK_XLANG=./compiler/xlang-c
   fi
 fi
@@ -61,8 +63,8 @@ if [ -z "$CHECK_XLANG" ]; then
   exit 0
 fi
 
-make -C compiler -q ../std/process/process.o ../std/io/io.o ../std/fs/fs.o 2>/dev/null \
-  || make -C compiler ../std/process/process.o ../std/io/io.o ../std/fs/fs.o
+xlang_compiler_make -q ../std/process/process.o ../std/io/io.o ../std/fs/fs.o 2>/dev/null \
+  || xlang_compiler_make ../std/process/process.o ../std/io/io.o ../std/fs/fs.o
 
 GEN_SRC="tests/io/read_ptr_gen_smoke.x"
 MMAP_SRC="tests/io/read_ptr_mmap_smoke.x"

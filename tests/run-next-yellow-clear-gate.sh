@@ -4,6 +4,8 @@
 # 用法：./tests/run-next-yellow-clear-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="analysis/next-yellow-clear-v1.md"
 MANIFEST="tests/baseline/next-yellow-clear.tsv"
@@ -94,8 +96,8 @@ if [ -n "$XLANG_BIN" ]; then
   done
   CHECK_OK=1
   SKIP=0
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
-  make -C compiler -q ../core/builtin/builtin.o 2>/dev/null || make -C compiler ../core/builtin/builtin.o
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
+  xlang_compiler_make -q ../core/builtin/builtin.o 2>/dev/null || xlang_compiler_make ../core/builtin/builtin.o
   # shellcheck source=tests/lib/bootstrap-link-xlang.sh
   . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
   RUN_LIST=(

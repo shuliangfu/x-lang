@@ -59,7 +59,7 @@
   "Errors: {0}": "错误: {0}",
   "Warnings: {0}": "警告: {0}",
   "xlang.serverPath is empty. Set it to compiler/xlang or an absolute path to xlang.": "xlang.serverPath 为空。请设置为 compiler/xlang 或 xlang 的绝对路径。",
-  "{0} not found. Run in repo root: make -C compiler bootstrap-driver-seed": "未找到 {0}。请在仓库根目录执行：make -C compiler bootstrap-driver-seed",
+  "{0} not found. Run in repo root: ./xbuild bootstrap-driver-seed": "未找到 {0}。请在仓库根目录执行：./xbuild bootstrap-driver-seed",
   "xlang is not executable: {0}": "xlang 不可执行：{0}",
   "Current xlang does not support --lsp (commonly xlang-c). Use bootstrap-built compiler/xlang as xlang.serverPath.": "当前 xlang 不支持 --lsp（常见为 xlang-c）。请使用 bootstrap 构建的 compiler/xlang 作为 xlang.serverPath。",
   "xlang --lsp probe exited abnormally (code {0}). See Xlang output channel.": "xlang --lsp 探针异常退出 (code {0})。详见 Xlang 输出通道。",

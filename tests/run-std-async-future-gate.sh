@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-async-future-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 MOD_X="std/async/mod.x"
 FUT_X="std/async/future.x"
@@ -41,7 +43,7 @@ X_OK=0
 SKIP=0
 
 echo "=== STD-041: future c smoke ==="
-make -C compiler ../std/async/future.o >/dev/null 2>&1
+xlang_compiler_make ../std/async/future.o >/dev/null 2>&1
 if cc -std=c11 -O1 -o /tmp/xlang_async_future_smoke \
   "$SMOKE_C" std/async/future.o 2>/dev/null; then
   if /tmp/xlang_async_future_smoke >/dev/null 2>&1; then C_OK=1; fi

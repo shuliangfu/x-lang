@@ -2,8 +2,10 @@
 # 切片 T[]：从数组初始化、下标访问；core.slice len_i32；u8[] 字段 .data/.length
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 fi
 
 if [ -n "$XLANG" ]; then
@@ -50,8 +52,8 @@ esac
 # core/slice C 实现（length.x / subslice_split_chunks 等依赖 runtime_slice_glue）。
 # PLATFORM: SHARED — 始终确保 slice.o 存在。XLANG_SKIP_SUBSCRIPT_MAKE 只跳过 xlang-c
 # 重建（防 seed 挂起），不得跳过本 glue；冷树缺 slice.o 时 -o 会 UNDEF core_subslice_*。
-make -C compiler -q ../core/slice/slice.o 2>/dev/null \
-  || make -C compiler ../core/slice/slice.o 2>/dev/null || true
+xlang_compiler_make -q ../core/slice/slice.o 2>/dev/null \
+  || xlang_compiler_make ../core/slice/slice.o 2>/dev/null || true
 
 # main.x / data_field.x：asm slice 栈槽问题或 exit 不符时回退 seed -E+cc。
 slice_simple_link_o() {

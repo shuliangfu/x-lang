@@ -4,6 +4,8 @@
 # 用法：./tests/run-core-types-generic-layout-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_CORE_TYPES_GL_DOC:-analysis/core-types-generic-layout-v1.md}"
 MANIFEST="${XLANG_CORE_TYPES_GL_TSV:-tests/baseline/core-types-generic-layout.tsv}"
@@ -69,7 +71,7 @@ fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== CORE-001: typeck + smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$GENERIC_X" >/dev/null 2>&1; then
     echo "core-types-generic-layout gate FAIL: typeck $GENERIC_X" >&2
     "$XLANG_BIN" check -L . "$GENERIC_X" 2>&1 | tail -10 >&2 || true

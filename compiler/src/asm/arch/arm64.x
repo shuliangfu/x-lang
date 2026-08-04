@@ -41,11 +41,11 @@ export function emit_section_text(out: *CodegenOutBuf): i32 {
 /** Exported function `emit_globl`.
  * Implements `emit_globl`.
  * @param out *CodegenOutBuf
- * @param name u8[64]
+ * @param name u8[128]
  * @param name_len i32
  * @return i32
  */
-export function emit_globl(out: *CodegenOutBuf, name: u8[64], name_len: i32): i32 {
+export function emit_globl(out: *CodegenOutBuf, name: u8[128], name_len: i32): i32 {
   let buf: u8[96] = [];
   buf[0] = 46;
   buf[1] = 103;

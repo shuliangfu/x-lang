@@ -5,6 +5,9 @@
 #   ./tests/lib/exc-error-recovery.sh              # 全量 runnable（需 native xlang）
 #   ./tests/lib/exc-error-recovery.sh case_id      # 单 case
 #   XLANG=./compiler/xlang-c ./tests/lib/exc-error-recovery.sh
+
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 set -e
 cd "$(dirname "$0")/../.."
 
@@ -110,7 +113,7 @@ else
   exit 2
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 FAILS=0

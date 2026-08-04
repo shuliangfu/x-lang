@@ -2,6 +2,8 @@
 # F-test v2：std.test 逻辑下沉 + F-ZC 纯 .x。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_TEST_V2_FAIL:-0}
 DOC="analysis/phase-f-test-v2.md"
 MANIFEST="tests/baseline/f-test-v2-closure.tsv"
@@ -30,7 +32,7 @@ grep -q 'test_io_bench_line_c' std/test/test.x || die "test.x missing IO bench"
 grep -q 'test_f_zero_c_marker_c' std/test/test.x || die "test.x missing F-ZC marker"
 grep -q 'runtime_test_fn_invoke' compiler/Makefile || die "Makefile missing runtime_test_fn_invoke.o"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler runtime_test_fn_invoke.o ../std/test/test.o >/dev/null 2>&1 || die "make test.o failed"
+  xlang_compiler_make runtime_test_fn_invoke.o ../std/test/test.o >/dev/null 2>&1 || die "make test.o failed"
 else
   echo "f-test-v2 SKIP test.o build (no xlang-c)" >&2
 fi

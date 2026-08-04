@@ -4,7 +4,9 @@
 # XLANG_CI_NO_SKIP=1 且 Linux：禁止 silent SKIP，须 io_uring + liburing 可用。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 # 非 Linux 无 io_uring：由调用方处理；Linux 内核无 PROVIDE_BUFFERS 时为 N/A（非 skip）。
 _provided_na() {
@@ -31,10 +33,10 @@ if ! pkg-config --exists liburing 2>/dev/null && [ ! -f /usr/include/liburing.h 
   _provided_fail "no liburing (install liburing-dev)"
 fi
 
-make -C compiler ../std/io/io.o -q 2>/dev/null || make -C compiler ../std/io/io.o
+xlang_compiler_make ../std/io/io.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o
 
 OUT="/tmp/xlang_provided_smoke"
-if ! cc -O2 -Wall tests/bench/provided_buffers_smoke.c std/io/io.o -o "$OUT" -luring -lpthread 2>/dev/null; then
+if ! cc -O2 -Wall bench/provided_buffers_smoke.c std/io/io.o -o "$OUT" -luring -lpthread 2>/dev/null; then
   _provided_fail "link failed (check liburing)"
 fi
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-math-fenv.sh — STD-059 manifest 与烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_MATH_FENV_PREFIX="${XLANG_STD_MATH_FENV_PREFIX:-xlang: [XLANG_STD_MATH_FENV]}"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
@@ -56,7 +58,7 @@ std_math_fenv_run_c_smoke() {
   local out="/tmp/xlang_std_math_fenv_$$"
   local rt_o="compiler/runtime_math_libm.o"
   if [ ! -f "$rt_o" ]; then
-    make -C compiler -q runtime_math_libm.o 2>/dev/null || make -C compiler runtime_math_libm.o >/dev/null 2>&1 || true
+    xlang_compiler_make -q runtime_math_libm.o 2>/dev/null || xlang_compiler_make runtime_math_libm.o >/dev/null 2>&1 || true
   fi
   if [ ! -f "$rt_o" ]; then
     echo "std-math-fenv FAIL: missing $rt_o" >&2

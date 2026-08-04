@@ -2,7 +2,9 @@
 # asm 7.3：VAR+VAR INDEX 直 load/lea（无 push/pop）；反汇编须无 sub sp 临时保存 base。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 $XLANG build tests/asm/index_var_fast.x -o /tmp/xlang_asm_index_var 2>&1

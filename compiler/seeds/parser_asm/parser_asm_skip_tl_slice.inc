@@ -1563,6 +1563,7 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   if (fi_mod < 0)
     return -1;
   pipeline_module_func_name_write(module, fi_mod, res->name, res->name_len);
+  { static int dbgac=0; if (dbgac<4000){dbgac++; fprintf(stderr,"DBG_ACOMMIT mod=%p idx=%d name=%.*s nfns=%d\n",(void*)module,(int)fi_mod,(int)(res->name_len>0?res->name_len:0),(char*)res->name,(int)pipeline_module_num_funcs(module));} }
   pipeline_module_func_set_num_params(module, fi_mod, res->num_params);
   pipeline_module_func_set_return_type(module, fi_mod, type_ref);
   pipeline_module_func_set_body_ref(module, fi_mod, block_ref);
@@ -1571,7 +1572,7 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   pipeline_module_func_set_is_async(module, fi_mod, 0);
   pool = parser_asm_onefunc_result_pool_ptr_c(res);
   for (p_copy = 0; p_copy < res->num_params; p_copy++) {
-    uint8_t pname32[32];
+    uint8_t pname32[128];
     int32_t pty;
     memset(pname32, 0, sizeof(pname32));
     if (pool)
@@ -3809,7 +3810,7 @@ void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_pars
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer lex_cur;
   uint8_t name_buf[64];
-  uint8_t pname_ex[32];
+  uint8_t pname_ex[128];
   uint8_t *ex_pool;
   int32_t name_len;
   int32_t n_ex;
@@ -3902,7 +3903,7 @@ void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_pars
         return;
       }
       plen_ex = r.tok.ident_len;
-      if (plen_ex <= 0 || plen_ex > 31) {
+      if (plen_ex <= 0 || plen_ex > 127) {
         parser_asm_extern_parse_set_fail_c(out, lex);
         return;
       }
@@ -4091,7 +4092,7 @@ void parser_asm_write_extern_params_to_pools_c(void *arena, void *module, int32_
                                                struct parser_asm_extern_parse_result *res) {
   uint8_t *pool;
   int32_t p;
-  uint8_t pname32[32];
+  uint8_t pname32[128];
   int32_t plen;
   int32_t pty;
   if (!res)
@@ -4216,10 +4217,11 @@ void parser_asm_module_append_enum_variants_and_skip_body_into_slice_c(
     } else if (depth == 1 && enum_idx >= 0 && r.tok.kind == (int32_t)TOKEN_IDENT) {
       int32_t vlen;
       size_t vstart;
-      uint8_t vb[64];
+      /* wave582 Cap residual: variant name content ≤127 (variant_name[][128]). */
+      uint8_t vb[128];
       vlen = r.tok.ident_len;
-      if (vlen > 63)
-        vlen = 63;
+      if (vlen > 127)
+        vlen = 127;
       vstart = r.token_start;
       if (vstart == 0)
         vstart = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, vlen);
@@ -4237,12 +4239,16 @@ void parser_asm_module_append_enum_variants_and_skip_body_into_slice_c(
 /**
  * skip_one_enum_register_into：登记 enum 名并 skip 整条 enum 定义，结果写入 *out。
  */
+/**
+ * Register enum name and skip whole enum definition.
+ * wave582 Cap residual: enum name content ≤127 (nb[128]). PLATFORM: SHARED
+ */
 void parser_asm_skip_one_enum_register_into_slice_c(void *module, struct parser_asm_lexer *out,
                                                     struct parser_asm_lexer lex,
                                                     struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
   int32_t enum_idx;
-  uint8_t nb[64];
+  uint8_t nb[128];
   if (!out || !source)
     return;
   enum_idx = -1;
@@ -4261,7 +4267,7 @@ void parser_asm_skip_one_enum_register_into_slice_c(void *module, struct parser_
     out->col = lex.col;
     return;
   }
-  if (r.tok.ident_len > 0 && r.tok.ident_len <= 63) {
+  if (r.tok.ident_len > 0 && r.tok.ident_len <= 127) {
     parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, r.tok.ident_len, nb);
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_collect_imports_bind_audit_c(nb, r.tok.ident_len));
     enum_idx = parser_asm_module_try_register_enum_name_c(module, nb, r.tok.ident_len);

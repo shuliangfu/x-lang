@@ -2,6 +2,8 @@
 # F-datetime v1：std.datetime 去 C（datetime.c → datetime.x + datetime_tz_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_DATETIME_V1_FAIL:-0}
 DOC="analysis/phase-f-datetime-v1.md"
 MANIFEST="tests/baseline/f-datetime-v1-closure.tsv"
@@ -22,7 +24,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'datetime.x' compiler/Makefile || die "Makefile missing datetime.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/datetime/datetime.o >/dev/null 2>&1 || die "make datetime.o failed"
+  xlang_compiler_make ../std/datetime/datetime.o >/dev/null 2>&1 || die "make datetime.o failed"
 else
   echo "f-datetime-v1 SKIP datetime.o build (no xlang-c)" >&2
 fi

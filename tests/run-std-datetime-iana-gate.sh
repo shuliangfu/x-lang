@@ -2,6 +2,8 @@
 # STD-136：std.datetime IANA 时区 + DST 门禁
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 MANIFEST="tests/baseline/std-datetime-iana-manifest.tsv"
 MOD_X="std/datetime/mod.x"
 DT_X="std/datetime/datetime.x"
@@ -43,7 +45,7 @@ if nm std/time/time.o 2>/dev/null | grep -qF 'time_now_wall_sec_c'; then
 extern int32_t datetime_iana_dst_smoke_c(void);
 int main(void) { return datetime_iana_dst_smoke_c() != 0; }
 EOF
-  make -C compiler runtime_time_os.o >/dev/null 2>&1 || true
+  xlang_compiler_make runtime_time_os.o >/dev/null 2>&1 || true
   cc -std=c11 -O1 -o "$OUT" /tmp/xlang_std_dt_iana_c_main.c "$DT_O" "$TIME_O" compiler/runtime_time_os.o
   "$OUT" || { echo "std-datetime-iana FAIL: C smoke" >&2; rm -f "$OUT"; exit 1; }
   rm -f "$OUT" /tmp/xlang_std_dt_iana_c_main.c

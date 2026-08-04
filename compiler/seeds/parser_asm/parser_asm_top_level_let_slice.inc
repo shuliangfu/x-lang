@@ -38,7 +38,7 @@ extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, str
                                                                 struct parser_asm_slice_u8 *source,
                                                                 struct parser_asm_lexer *out_lex);
 
-/** 从 slice 复制 ident 名到 name_buf（最多 64 字节）。 */
+/** Copy ident into name_buf (content up to 127; buffer capacity 128). wave581 Cap residual. */
 static void parser_asm_top_level_let_copy_ident_name_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                        int32_t name_len, uint8_t *name_buf) {
   if (!name_buf || name_len <= 0)
@@ -54,7 +54,8 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
                                                      struct parser_asm_top_level_let_result *out) {
   struct parser_asm_lexer_result r;
   struct parser_asm_parse_expr_result expr_res;
-  uint8_t name_buf[64];
+  /* wave581 Cap residual: top-level let/const name content cap 127. */
+  uint8_t name_buf[128];
   int32_t name_len;
   int32_t type_ref;
   int32_t tl_ix;
@@ -67,6 +68,7 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_top_level_let_probe_c(lex, source, is_const));
   memset(&r, 0, sizeof(r));
   memset(&expr_res, 0, sizeof(expr_res));
+  memset(name_buf, 0, sizeof(name_buf));
   lexer_next_into(&r, lex, source);
   /* wave385: optional IDENT "mut" after let (not const). PLATFORM: SHARED G.7 with parse_body_lets. */
   if (is_const == 0 && r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len == 3) {
@@ -80,7 +82,8 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
   if (r.tok.kind != (int32_t)TOKEN_IDENT)
     return;
   name_len = r.tok.ident_len;
-  if (name_len <= 0 || name_len > 63)
+  /* wave581 Cap residual: content cap 127 (was 63). PLATFORM: SHARED parse. */
+  if (name_len <= 0 || name_len > 127)
     return;
   parser_asm_top_level_let_copy_ident_name_c(source, r.token_start, name_len, name_buf);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_name_audit_c(name_buf, name_len));

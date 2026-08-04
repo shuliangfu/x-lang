@@ -2,7 +2,9 @@
 # asm 7.3：arr[i+lit] assign scratch 寻址；return INDEX 加法链。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 $XLANG build tests/asm/assign_index_var_plus_lit.x -o /tmp/xlang_asm_assign_index_var_plus_lit 2>&1

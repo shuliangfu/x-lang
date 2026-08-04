@@ -30,7 +30,7 @@ const types = import("asm.types");
  * @return i32
  */
 export function emit_prologue(out: *CodegenOutBuf, frame_size: i32): i32 {
-  let line: u8[64] = [112, 117, 115, 104, 113, 32, 37, 114, 98, 112, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  let line: u8[128] = [112, 117, 115, 104, 113, 32, 37, 114, 98, 112, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   if (types.append_asm_line(out, line, 11) != 0) {
@@ -63,7 +63,7 @@ export function emit_prologue(out: *CodegenOutBuf, frame_size: i32): i32 {
  * @return i32
  */
 export function emit_epilogue(out: *CodegenOutBuf): i32 {
-  let line: u8[64] = [109, 111, 118, 113, 32, 37, 114, 115, 112, 44, 32, 37, 114, 98, 112, 0, 0, 0,
+  let line: u8[128] = [109, 111, 118, 113, 32, 37, 114, 115, 112, 44, 32, 37, 114, 98, 112, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = 15;
@@ -155,7 +155,7 @@ export function emit_mov_imm64_to_rax(out: *CodegenOutBuf, lo: i32, hi: i32): i3
  */
 export function emit_add(out: *CodegenOutBuf, dst_reg: *u8, dst_len: i32, src_reg: *u8, src_len: i32): i32
 {
-  let line: u8[64] = [97, 100, 100, 113, 32, 37, 114, 97, 120, 44, 32, 37, 114, 98, 120, 0, 0, 0,
+  let line: u8[128] = [97, 100, 100, 113, 32, 37, 114, 97, 120, 44, 32, 37, 114, 98, 120, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = 15;
@@ -190,11 +190,11 @@ export function emit_mov_rax_to_arg_reg(out: *CodegenOutBuf, k: i32): i32 {
 /** Exported function `emit_call`.
  * Implements `emit_call`.
  * @param out *CodegenOutBuf
- * @param name u8[64]
+ * @param name u8[128]
  * @param name_len i32
  * @return i32
  */
-export function emit_call(out: *CodegenOutBuf, name: u8[64], name_len: i32): i32 {
+export function emit_call(out: *CodegenOutBuf, name: u8[128], name_len: i32): i32 {
   let buf: u8[80] = [];
   buf[0] = 99;
   buf[1] = 97;
@@ -222,11 +222,11 @@ export function emit_section_text(out: *CodegenOutBuf): i32 {
 /** Exported function `emit_globl`.
  * Implements `emit_globl`.
  * @param out *CodegenOutBuf
- * @param name u8[64]
+ * @param name u8[128]
  * @param name_len i32
  * @return i32
  */
-export function emit_globl(out: *CodegenOutBuf, name: u8[64], name_len: i32): i32 {
+export function emit_globl(out: *CodegenOutBuf, name: u8[128], name_len: i32): i32 {
   let buf: u8[80] = [];
   buf[0] = 46;
   buf[1] = 103;

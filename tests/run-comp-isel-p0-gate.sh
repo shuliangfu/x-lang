@@ -7,6 +7,8 @@
 # 用法：./tests/run-comp-isel-p0-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_COMP014_DOC:-analysis/comp-isel-p0-v1.md}"
 WAVE="${XLANG_COMP014_WAVE_TSV:-tests/baseline/comp-isel-p0-wave.tsv}"
@@ -99,7 +101,7 @@ SKIP=1
 
 if comp_isel_native_xlang "$XLANG_ASM"; then
   echo "=== COMP-014: run P0 hooks (XLANG=$XLANG_ASM) ==="
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   while IFS=$'\t' read -r item_id kind anchor _src tier _notes; do
     [ -z "${item_id:-}" ] && continue
     case "$item_id" in \#*|min_*) continue ;; esac

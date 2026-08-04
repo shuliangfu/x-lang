@@ -9,6 +9,9 @@
 #   XLANG_NOLIBC_N07_LINK_SMOKE_WITH_PANIC=1 — 额外链入 runtime_panic.o
 
 # 在 Linux x86_64 上编译并链入 crt0 + freestanding_io + bootstrap 桩 + smoke main_entry。
+
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 nolibc_n07_run_bootstrap_link_smoke() {
   local cc="${CC:-cc}"
   local compiler_dir="${1:-compiler}"
@@ -34,7 +37,7 @@ nolibc_n07_run_bootstrap_link_smoke() {
     "$compiler_dir/src/asm/crt0_x86_64.o" \
     "$compiler_dir/runtime_panic.o" 2>/dev/null || true
 
-  if ! make -C "$compiler_dir" \
+  if ! XLANG_COMPILER_DIR="$compiler_dir" xlang_compiler_make \
     src/asm/crt0_x86_64.o \
     src/asm/freestanding_io_x86_64.o \
     src/asm/bootstrap_nostdlib_stubs.o \

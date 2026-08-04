@@ -2,7 +2,9 @@
 # MEM-D1：小 struct call SROA — main 内 make_pair 替换为栈复合字面量，运行正确。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 XLANG="${XLANG:-./compiler/xlang-c}"
 SRC="tests/mem/sroa_struct_call.x"
 OUT="/tmp/xlang_sroa_struct_call"

@@ -89,7 +89,11 @@ build_xlang_asm_is_msys() {
   return 1
 }
 
-XLANG="${XLANG:-./xlang}"
+# wave887: when XLANG unset, default to ./$TARGET (TARGET default xlang).
+# Makefile bootstrap-asm-full no longer injects XLANG=./$(TARGET); CLI/env still win.
+# PLATFORM: SHARED.
+TARGET="${TARGET:-xlang}"
+XLANG="${XLANG:-./$TARGET}"
 BUILD_LIST_X="src/asm/asm_build_list.x"
 BUILD_DIR="build_asm"
 mkdir -p "$BUILD_DIR"
@@ -1039,9 +1043,16 @@ ensure_experimental_ast_pool_for_wpo() {
   elif [ -f "$gen_drv" ] && { [ ast_pool.c -nt "$gen_drv" ] || [ pipeline_glue.c -nt "$gen_drv" ]; }; then
   need=1
   fi
-  if [ "$need" -eq 1 ] && command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-  build_xlang_asm_info "ast_pool/glue stale - make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1"
-  make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || return 1
+  if [ "$need" -eq 1 ]; then
+  # Wave929: shell try-heat with PIPELINE_X_FORCE_COMPILE=1 (no make).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    build_xlang_asm_info "ast_pool/glue stale - make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1"
+    make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || return 1
+  else
+    build_xlang_asm_info "ast_pool/glue stale - try-heat pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 (wave929)"
+    PIPELINE_X_FORCE_COMPILE=1 bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o || return 1
+  fi
   fi
   if [ ! -x ./scripts/relink_xlang_asm_experimental_bootstrap.sh ]; then
   return 1
@@ -3392,14 +3403,32 @@ ensure_crt0_codegen_parser_companion_objs() {
   if [ ! -f src/lsp/lsp_diag_pipeline_sizes_nostub.o ]; then
   if [ -f seeds/lsp_diag_pipeline_sizes_nostub.from_x.c ] || [ -f src/lsp/lsp_diag_pipeline_sizes_nostub.c ]; then
   build_xlang_asm_info "crt0 L5: build lsp_diag_pipeline_sizes_nostub.o"
-  make -s src/lsp/lsp_diag_pipeline_sizes_nostub.o 2>/dev/null || true
+  # Wave931: shell try-heat (B3_LSP_SAT_SEED_OBJS · wave911; no make).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    make -s src/lsp/lsp_diag_pipeline_sizes_nostub.o 2>/dev/null || true
+  else
+    bash scripts/ensure_host_cc_seed_o.sh try-heat src/lsp/lsp_diag_pipeline_sizes_nostub.o 2>/dev/null || true
+  fi
   fi
   fi
   if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ]; then
-  make -s src/lsp/lsp_diag_pipeline_ctx.o 2>/dev/null || true
+  # Wave928: shell ensure_host_cc_seed_o try-ldpc-prefer (wave767 authority; no make).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    make -s src/lsp/lsp_diag_pipeline_ctx.o 2>/dev/null || true
+  else
+    bash scripts/ensure_host_cc_seed_o.sh try-ldpc-prefer src/lsp/lsp_diag_pipeline_ctx.o 2>/dev/null || true
+  fi
   fi
   if [ ! -f src/driver/fmt_check_cmd_driver.o ]; then
-  make -s src/driver/fmt_check_cmd_driver.o 2>/dev/null || true
+  # Wave928: shell ensure_host_cc_seed_o try-other-l2-prefer (wave771/775 authority; no make).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    make -s src/driver/fmt_check_cmd_driver.o 2>/dev/null || true
+  else
+    bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer src/driver/fmt_check_cmd_driver.o 2>/dev/null || true
+  fi
   fi
   if [ ! -f src/lexer/cfg_eval.o ]; then
   ensure_asm_bootstrap_support_extra_objs || true
@@ -3702,63 +3731,122 @@ ensure_pipeline_run_x_link_alias_obj() {
 # 瘦 pipeline_x.o 须链 parser_x/typeck_x/codegen_x/lexer_x、std_fs_shim、seed_host backend partial；
 # 首遍勿并 build_asm/*.o（各模块 __xlang_asm_mod_stub 重复 → Darwin ld 失败）。
 ensure_asm_bootstrap_x_companion_objs() {
+  # Presence of the full companion set (not only READY flag): seed/g05 leaves on disk.
+  _x_companions_present=0
+  if [ -f parser_x.o ] && [ -f lexer_x.o ] && [ -f typeck_x.o ] \
+    && [ -f codegen_x.o ] && [ -f preprocess_x.o ] \
+    && [ -f driver_x.o ] && [ -f driver_fmt_x.o ] && [ -f driver_check_x.o ] \
+    && [ -f driver_test_x.o ] && [ -f driver_build_x.o ] && [ -f driver_run_x.o ] \
+    && [ -f driver_compile_x.o ] && [ -f driver_emit_x.o ] \
+    && [ -f lsp_io_std_heap_x.o ] && [ -f x_frontend_link_alias.o ]; then
+    _x_companions_present=1
+  fi
   if [ "${XLANG_ASM_BOOTSTRAP_X_COMPANIONS_READY:-0}" = "1" ] \
-  && [ -f parser_x.o ] && [ -f lexer_x.o ] && [ -f typeck_x.o ] \
-  && [ -f codegen_x.o ] && [ -f preprocess_x.o ] \
-  && [ -f driver_x.o ] && [ -f driver_fmt_x.o ] && [ -f driver_check_x.o ] \
-  && [ -f driver_test_x.o ] && [ -f driver_build_x.o ] && [ -f driver_run_x.o ] \
-  && [ -f driver_compile_x.o ] && [ -f driver_emit_x.o ] \
-  && [ -f lsp_io_std_heap_x.o ]; then
-  build_xlang_asm_info "reuse X companion objs (already ensured in this run)"
-  return 0
+    && [ "$_x_companions_present" = "1" ]; then
+    build_xlang_asm_info "reuse X companion objs (already ensured in this run)"
+    return 0
   fi
   detect_pipeline_gen_cflags
   ensure_pipeline_x_o_fresh
   # runtime-only relink：X companion .o 已存在时勿 make typeck_x.o（stale typeck_gen 会阻断 relink）。
   if [ -n "${XLANG_ASM_BSTRICT_RELINK_ONLY:-}" ] \
-  && [ -f parser_x.o ] && [ -f lexer_x.o ] && [ -f typeck_x.o ] \
-  && [ -f codegen_x.o ] && [ -f preprocess_x.o ]; then
-  build_xlang_asm_info "BSTRICT_RELINK_ONLY - skip X companion make (reuse existing *_x.o)"
-  return 0
-  elif [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-  build_xlang_asm_info "ensure X companion objs (parser/lexer/typeck/codegen/preprocess/compile)"
-  # 瘦 pipeline_x.o 仍引用 codegen_codegen_* / typeck_typeck_* / lexer_lexer_init；须与 bootstrap-driver-seed 同款 link alias。
-  # x 命名 迁移：链接行仍引用 *_x.o，须 make 别名目标（cp *_x.o）。
-  make -s parser_x.o lexer_x.o typeck_x.o codegen_x.o preprocess_x.o \
-  lexer_x.o codegen_x.o typeck_x.o preprocess_x.o \
-  x_frontend_link_alias.o \
-  driver_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o \
-  driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-  driver_fmt_x.o driver_check_x.o driver_test_x.o \
-  driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-  lsp_io_std_heap_x.o \
-  src/runtime_io_abi.o src/asm/parser_asm_parse_expr_link.o
+    && [ -f parser_x.o ] && [ -f lexer_x.o ] && [ -f typeck_x.o ] \
+    && [ -f codegen_x.o ] && [ -f preprocess_x.o ]; then
+    build_xlang_asm_info "BSTRICT_RELINK_ONLY - skip X companion make (reuse existing *_x.o)"
+  elif [ "$_x_companions_present" = "1" ]; then
+    # G.7: when seed/g05 already produced the bag, never re-enter make (all platforms).
+    # PLATFORM: WINDOWS — nested MinGW make was the hang/fail (sh.dll "C:", typeck_f64_bits arch).
+    build_xlang_asm_info "reuse seed X companion bag (skip nested make)"
+  elif build_xlang_asm_is_msys; then
+    # PLATFORM: WINDOWS | MINGW | MSYS — never nest make for companions; hybrid continues with
+    # whatever seed objs exist + direct cc below. Missing leaves may fail at link (real signal).
+    build_xlang_asm_info "win: skip nested make for X companions (missing seed bag; link may fail)"
+  else
+    # Wave931: shell multi-family ensure (default; no make).
+    # Companion list spans 6 multi-target families (G.7 single-body per family):
+    #   MIGRATE_X (wave919): parser_x.o typeck_x.o codegen_x.o
+    #   GEN_C_TO_O (wave910): lexer_x.o preprocess_x.o driver_x.o
+    #   R1_ALIAS_STUBS (wave902): x_frontend_link_alias.o
+    #   DRIVER_LEAF (wave896): driver_{fmt,check,test,build,run,compile,emit}_x.o + lsp_io_std_heap_x.o
+    #   R3_COLD (wave906): src/runtime_io_abi.o
+    #   R1_EXTRA_CFLAGS (wave903): src/asm/parser_asm_parse_expr_link.o
+    # Thin pipeline_x.o still references codegen_codegen_* / typeck_typeck_* / lexer_lexer_init;
+    # must use same link alias as bootstrap-driver-seed.
+    # x-naming migration: link line still references *_x.o; alias targets cp *_x.o.
+    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+      build_xlang_asm_info "ensure X companion objs (parser/lexer/typeck/codegen/preprocess/compile)"
+      make parser_x.o lexer_x.o typeck_x.o codegen_x.o preprocess_x.o \
+        lexer_x.o codegen_x.o typeck_x.o preprocess_x.o \
+        x_frontend_link_alias.o \
+        driver_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o \
+        driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
+        driver_fmt_x.o driver_check_x.o driver_test_x.o \
+        driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
+        lsp_io_std_heap_x.o \
+        src/runtime_io_abi.o src/asm/parser_asm_parse_expr_link.o
+    else
+      build_xlang_asm_info "wave931: shell ensure X companion objs (6 families)"
+      # MIGRATE_X_OBJS (wave919): parser_x.o typeck_x.o codegen_x.o
+      bash scripts/migrate_x_objs.sh parser_x.o
+      bash scripts/migrate_x_objs.sh typeck_x.o
+      bash scripts/migrate_x_objs.sh codegen_x.o
+      # GEN_C_TO_O_SEED_OBJS (wave910): lexer_x.o preprocess_x.o driver_x.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat lexer_x.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat preprocess_x.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat driver_x.o
+      # R1_ALIAS_STUBS_OBJS (wave902): x_frontend_link_alias.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat x_frontend_link_alias.o
+      # DRIVER_LEAF_PRODUCT_OBJS (wave896): driver_*_x.o + lsp_io_std_heap_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_fmt_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_check_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_test_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_build_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_run_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_compile_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure driver_emit_x.o
+      bash scripts/driver_leaf_x_to_o.sh ensure lsp_io_std_heap_x.o
+      # R3_COLD_SEED_OBJS (wave906): src/runtime_io_abi.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat src/runtime_io_abi.o
+      # R1_EXTRA_CFLAGS_OBJS (wave903): src/asm/parser_asm_parse_expr_link.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat src/asm/parser_asm_parse_expr_link.o
+    fi
   fi
   # G-02e: fs/sys shim symbols live in runtime_io_abi.o
   if [ ! -f src/runtime_io_abi.o ] || [ seeds/runtime_io_abi.from_x.c -nt src/runtime_io_abi.o ]; then
-  echo " cc -c seeds/runtime_io_abi.from_x.c -> src/runtime_io_abi.o"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi.o
+    echo " cc -c seeds/runtime_io_abi.from_x.c -> src/runtime_io_abi.o"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi.o
   fi
   if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "seeds/x_seed_bridge.from_x.c" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
-  echo " cc -c seeds/x_seed_bridge.from_x.c -> $BUILD_DIR/x_seed_bridge.o (G-02f-11)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/x_seed_bridge.from_x.c -o "$BUILD_DIR/x_seed_bridge.o"
+    echo " cc -c seeds/x_seed_bridge.from_x.c -> $BUILD_DIR/x_seed_bridge.o (G-02f-11)"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/x_seed_bridge.from_x.c -o "$BUILD_DIR/x_seed_bridge.o"
   fi
   if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "seeds/seed_link_compat.from_x.c" -nt "$BUILD_DIR/seed_link_compat.o" ]; then
-  echo " cc -c seeds/seed_link_compat.from_x.c -> $BUILD_DIR/seed_link_compat.o (G-02f-11)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/seed_link_compat.from_x.c -o "$BUILD_DIR/seed_link_compat.o"
+    echo " cc -c seeds/seed_link_compat.from_x.c -> $BUILD_DIR/seed_link_compat.o (G-02f-11)"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/seed_link_compat.from_x.c -o "$BUILD_DIR/seed_link_compat.o"
   fi
   # preprocess_if_stack_* 由 pipeline_x.o（ast_pool.c via pipeline_glue.c）提供，bridge 已删除。
   # dispatch TU 须先于 build_seed_asm_host（partial 导出须 nm 四份 dispatch .o）。
   ensure_bstrict_seed_support_objs
   if [ -n "${XLANG_ASM_BSTRICT_RELINK_ONLY:-}" ] && [ -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
-  :
+    :
   elif [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.x" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
-  build_xlang_asm_info "build_seed_asm_host (backend_enc_* for pipeline_x.o)"
-  ./scripts/build_seed_asm_host.sh
+    build_xlang_asm_info "build_seed_asm_host (backend_enc_* for pipeline_x.o)"
+    ./scripts/build_seed_asm_host.sh
   fi
   ensure_ast_pool_l5_bridge_obj
   if [ ! -f pipeline_bootstrap_orchestration.o ] || [ seeds/pipeline_bootstrap_orchestration.from_x.c -nt pipeline_bootstrap_orchestration.o ]; then
-  make pipeline_bootstrap_orchestration.o
+    # Wave928: all platforms cc direct from seed (unified with WINDOWS path; no make).
+    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+      make pipeline_bootstrap_orchestration.o
+    elif [ -f seeds/pipeline_bootstrap_orchestration.from_x.c ]; then
+      echo " cc pipeline_bootstrap_orchestration.o <- seeds (wave928; unified all platforms)"
+      $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/pipeline_bootstrap_orchestration.from_x.c \
+        -o pipeline_bootstrap_orchestration.o
+    else
+      build_xlang_asm_info "WARN missing pipeline_bootstrap_orchestration.o seed"
+    fi
   fi
   XLANG_ASM_BOOTSTRAP_X_COMPANIONS_READY=1
 }
@@ -3810,14 +3898,26 @@ refresh_bstrict_link_variants() {
   fi
   fi
   BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
-  GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+  # Keep full_link_stubs next to partial (same as module-level GEN_DRIVER_BSTRICT_COMPANIONS).
+  GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
 }
 
 # gen_driver 回退链须与 bootstrap-driver-seed 同款 companion：pipeline_x.o 引用 std_fs_shim / try_inline 分派等。
-GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+# PLATFORM: SHARED — include asm_full_link_stubs after partial (g05 USER_ASM_LINK /
+#   Makefile USER_ASM_SEED_HOST_STUBS). PE hybrid needs strong platform_coff_* when
+#   partial is thin/stale; ELF uses them as U-fill too. Order: partial then stubs.
+GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
 
-# gen_driver 回退链：pipeline_x.o / runtime_driver 须 parser/lexer/codegen X + driver 子命令 + orchestration（Darwin 勿仅 SEED parser.o）。
-GEN_DRIVER_X_PIPELINE_COMPANIONS="parser_x.o lexer_x.o codegen_x.o x_frontend_link_alias.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o pipeline_bootstrap_orchestration.o src/runtime_driver_strict_glue_stubs.o"
+# gen_driver fallback: pipeline_x.o / runtime_driver need parser/lexer/codegen X + driver
+# subcmds + orchestration (Darwin: not seed parser.o alone).
+# PLATFORM: SHARED — do NOT put runtime_driver_strict_glue_stubs.o here. Stubs go at
+#   link END (GEN_DRIVER_GLUE_SUFFIX) so PE --allow-multiple-definition FIRST-wins
+#   keeps real pipeline_x / parser_x / typeck_x (Makefile DRIVER_SEED_GLUE_SUFFIX /
+#   g05 _GLUE_SUFFIX). Early stubs shadowed driver_get_module_num_funcs → num_funcs=0.
+# PLATFORM: WINDOWS | PE — also link GEN_DRIVER_X_PIPELINE_COMPANIONS (parser_x.o)
+#   BEFORE GEN_DRIVER_BSTRICT_COMPANIONS: parser_asm_parse_expr_link.o used to emit
+#   strong empty parser_parse_into* when XLANG_WEAK is empty; first-wins → XP003.
+GEN_DRIVER_X_PIPELINE_COMPANIONS="parser_x.o lexer_x.o codegen_x.o x_frontend_link_alias.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o pipeline_bootstrap_orchestration.o"
 
 # 与 Makefile bootstrap-driver-seed / relink-xlang 对齐：pipeline_x.o 经 glue 引用的 backend 桥与 check/fmt C 实现。
 ensure_bstrict_seed_support_objs() {
@@ -4096,7 +4196,22 @@ ensure_asm_experimental_lsp_objs() {
   rm -f lsp_io_std_heap_gen.c
   fi
   build_xlang_asm_info "ensure lsp_x.o (+ lsp_io) for lsp_state (typeck_lsp_main_impl)"
-  make -s lsp_io_gen.c lsp_gen.c lsp_io_std_heap_gen.c lsp_x.o lsp_io_x.o lsp_io_std_heap_x.o
+  # Wave930: shell gen + try-heat (no make; lsp_gen.c via ensure_lsp_pipeline_gen.sh,
+  # lsp_io_std_heap_gen.c via ensure_archaeology_gen.sh, *_x.o via try-heat / cc).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    make -s lsp_io_gen.c lsp_gen.c lsp_io_std_heap_gen.c lsp_x.o lsp_io_x.o lsp_io_std_heap_x.o
+  else
+    bash scripts/ensure_lsp_pipeline_gen.sh lsp
+    bash scripts/ensure_archaeology_gen.sh lsp_io_std_heap
+    bash scripts/ensure_host_cc_seed_o.sh try-heat lsp_x.o
+    bash scripts/ensure_host_cc_seed_o.sh try-heat lsp_io_x.o
+    # lsp_io_std_heap_x.o: no Makefile rule (via driver_leaf / direct cc); cc -c from gen.c.
+    if [ ! -f lsp_io_std_heap_x.o ] && [ -f lsp_io_std_heap_gen.c ]; then
+      "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+        -c lsp_io_std_heap_gen.c -o lsp_io_std_heap_x.o
+    fi
+  fi
   cp -f lsp_x.o lsp_io_x.o lsp_io_std_heap_x.o "$GEN_DIR/"
 }
 
@@ -4128,8 +4243,17 @@ ensure_pipeline_x_o_fresh() {
   fi
   done
   if [ "$need" -eq 1 ]; then
-  build_xlang_asm_info "rebuild pipeline_x.o (PIPELINE_X_DEPS / ast_pool newer than pipeline_x.o)"
-  make bootstrap-pipeline pipeline_x.o
+  # Wave930: shell ensure_lsp_pipeline_gen + try-heat (no make; bootstrap-pipeline
+  # target thin-calls ensure_lsp_pipeline_gen.sh pipeline; pipeline_x.o via GEN_C_TO_O).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    build_xlang_asm_info "rebuild pipeline_x.o (PIPELINE_X_DEPS / ast_pool newer than pipeline_x.o)"
+    make bootstrap-pipeline pipeline_x.o
+  else
+    build_xlang_asm_info "rebuild pipeline_x.o (wave930; ensure_lsp_pipeline_gen + try-heat)"
+    bash scripts/ensure_lsp_pipeline_gen.sh pipeline
+    bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o
+  fi
   fi
   # gen_driver 与 strict partial 须与 compiler/pipeline_x.o 同步；parser_x.o 变更后须失效旧 partial。
   if [ -f pipeline_x.o ]; then
@@ -4157,8 +4281,15 @@ ensure_parser_x_o_for_strict_link() {
   return 0
   fi
   if [ ! -f parser_x.o ] || [ src/parser/parser.x -nt parser_x.o ]; then
-  build_xlang_asm_info "make parser_x.o (strict link must override seed parser.o)"
-  make -s parser_x.o
+  # Wave929: shell migrate_x_objs.sh (no make; MIGRATE_X_OBJS body authority).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && command -v make >/dev/null 2>&1; then
+    build_xlang_asm_info "make parser_x.o (strict link must override seed parser.o)"
+    make -s parser_x.o
+  else
+    build_xlang_asm_info "migrate_x_objs parser_x.o (wave929; strict link override)"
+    bash scripts/migrate_x_objs.sh parser_x.o
+  fi
   fi
 }
 
@@ -4246,7 +4377,12 @@ ensure_asm_gen_driver_x_objs() {
   echo " pinned driver_gen.c -> $GEN_DIR/driver_gen.c ($(wc -c <driver_gen.c | tr -d ' ') bytes)"
   cp -f driver_gen.c "$GEN_DIR/driver_gen.c"
   else
+  # PLATFORM: SHARED — parity with scripts/ensure_driver_gen.sh: try xlang-x / xlang-c -E,
+  # then seed fallback. Empty -E must not leave 0-byte driver_gen (Windows hybrid gate
+  # previously died here when workspace pin was older than MAIN_X_DEPS).
   driver_gen_tmp="$GEN_DIR/driver_gen.c.tmp"
+  driver_gen_seed="seeds/driver_gen.linux.x86_64.c"
+  driver_gen_ok=0
   rm -f "$driver_gen_tmp"
   if [ -x ./xlang-x ]; then
   echo " ./xlang-x -x -E main.x (-E-extern) -> $GEN_DIR/driver_gen.c ..."
@@ -4254,10 +4390,32 @@ ensure_asm_gen_driver_x_objs() {
   fi
   if [ -s "$driver_gen_tmp" ] && grep -q 'argc < 3' "$driver_gen_tmp" && grep -q 'main_eq_minus_E(arg_buf, len) != 0' "$driver_gen_tmp"; then
   mv -f "$driver_gen_tmp" "$GEN_DIR/driver_gen.c"
+  driver_gen_ok=1
   else
   rm -f "$driver_gen_tmp"
   echo " $XLANG_E -E main.x (-E-extern) -> $GEN_DIR/driver_gen.c ..."
-  "$XLANG_E" $LIB_E_MAIN src/main.x -E -E-extern >"$GEN_DIR/driver_gen.c"
+  "$XLANG_E" $LIB_E_MAIN src/main.x -E -E-extern >"$driver_gen_tmp" 2>/dev/null || true
+  if [ -s "$driver_gen_tmp" ] && grep -q 'argc < 3' "$driver_gen_tmp" && grep -q 'main_eq_minus_E(arg_buf, len) != 0' "$driver_gen_tmp"; then
+  mv -f "$driver_gen_tmp" "$GEN_DIR/driver_gen.c"
+  driver_gen_ok=1
+  else
+  rm -f "$driver_gen_tmp"
+  if [ -f "$driver_gen_seed" ] && [ -s "$driver_gen_seed" ]; then
+  echo " driver_gen: -E failed/empty; fallback seed $driver_gen_seed (ensure_driver_gen parity)"
+  cp -f "$driver_gen_seed" "$GEN_DIR/driver_gen.c"
+  # Keep workspace pin warm so a later pin-check can skip broken tip -E.
+  cp -f "$driver_gen_seed" driver_gen.c
+  touch driver_gen.c
+  driver_gen_ok=1
+  else
+  echo " driver_gen: FAIL (-E failed and no seed $driver_gen_seed)" >&2
+  : >"$GEN_DIR/driver_gen.c"
+  fi
+  fi
+  fi
+  if [ "$driver_gen_ok" != "1" ]; then
+  echo "ensure_asm_gen_driver_x_objs: driver_gen.c missing/empty after pin/-E/seed" >&2
+  return 1
   fi
   fi
   dedupe_xlang_slice_struct "$GEN_DIR/driver_gen.c"
@@ -4287,23 +4445,64 @@ ensure_asm_gen_driver_x_objs() {
   cp -f "$GEN_DIR/driver_check_x.o" driver_check_x.o 2>/dev/null || true
   cp -f "$GEN_DIR/driver_test_x.o" driver_test_x.o 2>/dev/null || true
 
-  # pipeline/driver/preprocess：优先复用 Makefile gen-x-driver-objs（与 bootstrap-driver-seed 同源依赖）
-  if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-  echo " make gen-x-driver-objs -> copy pipeline_x.o driver_x.o preprocess_x.o to $GEN_DIR/"
-  make -s gen-x-driver-objs
-  cp -f pipeline_x.o "$GEN_DIR/"
-  cp -f driver_x.o "$GEN_DIR/driver_x.o"
-  cp -f preprocess_x.o "$GEN_DIR/preprocess_x.o"
+  # pipeline/driver/preprocess: same products as Makefile gen-x-driver-objs.
+  # G.7 on Linux/Darwin: `make gen-x-driver-objs` → FORCE leaves → ensure try-heat.
+  #
+  # PLATFORM: WINDOWS | MINGW | MSYS — do NOT:
+  #   1) nest MinGW `make gen-x-driver-objs` (sh.dll "C:", empty UNAME_M, 0-CPU stall)
+  #   2) call `ensure try-heat pipeline_x.o` from this script on MinGW — observed
+  #      recursive re-entry (parent chain of ensure_host_cc_seed_o.sh try-heat
+  #      pipeline_x.o with no gcc, frozen hybrid log_bytes) until kill.
+  # Seed/g05 already owns pipeline_x.o / driver_x.o / preprocess_x.o on the
+  # hybrid host; reuse when present, else direct cc -c of pinned gen.c.
+  # PLATFORM: SHARED Linux/Darwin — keep `make gen-x-driver-objs`.
+  if build_xlang_asm_is_msys; then
+    if [ -f pipeline_x.o ] && [ -f driver_x.o ] && [ -f preprocess_x.o ]; then
+      echo " win: reuse seed pipeline_x.o driver_x.o preprocess_x.o (skip nested make + try-heat)"
+      cp -f pipeline_x.o "$GEN_DIR/"
+      cp -f driver_x.o "$GEN_DIR/driver_x.o"
+      cp -f preprocess_x.o "$GEN_DIR/preprocess_x.o"
+    else
+      echo " win: cc -c gen_driver/*_x.o (missing seed objs; no nested make/try-heat)"
+      "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I.. \
+        -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len \
+        -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr \
+        -c "$GEN_DIR/pipeline_gen.c" -o "$GEN_DIR/pipeline_x.o"
+      "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -include src/x_stubs.h \
+        -Dstd_fs_fs_read=fs_posix_read_c -Dstd_fs_fs_write=fs_posix_write_c -Dstd_fs_fs_close=fs_posix_close_c \
+        -c "$GEN_DIR/driver_gen.c" -o "$GEN_DIR/driver_x.o"
+      "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -c "$GEN_DIR/preprocess_gen.c" -o "$GEN_DIR/preprocess_x.o"
+      cp -f "$GEN_DIR/pipeline_x.o" pipeline_x.o 2>/dev/null || true
+      cp -f "$GEN_DIR/driver_x.o" driver_x.o 2>/dev/null || true
+      cp -f "$GEN_DIR/preprocess_x.o" preprocess_x.o 2>/dev/null || true
+    fi
+  elif [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    # Wave930: shell try-heat for 3 leaves (no make; gen-x-driver-objs target
+    # body is @true — only triggers pipeline_x.o + driver_x.o + preprocess_x.o
+    # FORCE rebuild via GEN_C_TO_O_SEED_OBJS + GEN_X_SEED_OBJS bodies).
+    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ]; then
+      echo " make gen-x-driver-objs -> copy pipeline_x.o driver_x.o preprocess_x.o to $GEN_DIR/"
+      make gen-x-driver-objs
+    else
+      echo " wave930: try-heat pipeline_x.o + driver_x.o + preprocess_x.o -> $GEN_DIR/"
+      bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat driver_x.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat preprocess_x.o
+    fi
+    cp -f pipeline_x.o "$GEN_DIR/"
+    cp -f driver_x.o "$GEN_DIR/driver_x.o"
+    cp -f preprocess_x.o "$GEN_DIR/preprocess_x.o"
   else
-  echo " cc -c gen_driver/*_x.o <- pipeline/driver/lsp/preprocess -E 产物 (no Makefile make)"
-  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I.. \
-  -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len \
-  -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr \
-  -c "$GEN_DIR/pipeline_gen.c" -o "$GEN_DIR/pipeline_x.o"
-  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -include src/x_stubs.h \
-  -Dstd_fs_fs_read=fs_posix_read_c -Dstd_fs_fs_write=fs_posix_write_c -Dstd_fs_fs_close=fs_posix_close_c \
-  -c "$GEN_DIR/driver_gen.c" -o "$GEN_DIR/driver_x.o"
-  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -c "$GEN_DIR/preprocess_gen.c" -o "$GEN_DIR/preprocess_x.o"
+    echo " cc -c gen_driver/*_x.o <- pipeline/driver/lsp/preprocess -E product (no Makefile make)"
+    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I.. \
+      -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len \
+      -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr \
+      -c "$GEN_DIR/pipeline_gen.c" -o "$GEN_DIR/pipeline_x.o"
+    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -include src/x_stubs.h \
+      -Dstd_fs_fs_read=fs_posix_read_c -Dstd_fs_fs_write=fs_posix_write_c -Dstd_fs_fs_close=fs_posix_close_c \
+      -c "$GEN_DIR/driver_gen.c" -o "$GEN_DIR/driver_x.o"
+    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -c "$GEN_DIR/preprocess_gen.c" -o "$GEN_DIR/preprocess_x.o"
   fi
 
   echo " cc -c gen_driver/lsp*.o <- lsp -E 产物"
@@ -4319,16 +4518,38 @@ ensure_asm_gen_driver_x_objs() {
   XLANG_ASM_GEN_DRIVER_X_READY=1
 }
 
-# gen_driver 回退链：pipeline_x.o 内 mega C 直接调用 typeck_check_*（typeck.x -E 导出），须链 typeck_x.o 与 alias。
+# gen_driver fallback: pipeline_x.o mega C calls typeck_check_* (from typeck.x -E);
+# must link typeck_x.o + x_frontend_link_alias.o.
+# PLATFORM: WINDOWS | MINGW | MSYS — never nest MinGW make for these leaves:
+#   make typeck_x.o / x_frontend_link_alias.o → FORCE try-heat re-entry hang
+#   (same class as pipeline_x.o ensure recursion). Reuse seed/g05 objs when present.
+# PLATFORM: SHARED Linux/Darwin — make remains the ensure graph authority.
 ensure_gen_driver_typeck_companion_objs() {
   if [ "${XLANG_ASM_GEN_DRIVER_TYPECK_READY:-0}" = "1" ] \
-  && [ -f typeck_x.o ] && [ -f x_frontend_link_alias.o ]; then
-  build_xlang_asm_info "reuse gen_driver typeck companions (already ensured in this run)"
-  return 0
+    && [ -f typeck_x.o ] && [ -f x_frontend_link_alias.o ]; then
+    build_xlang_asm_info "reuse gen_driver typeck companions (already ensured in this run)"
+    return 0
+  fi
+  if build_xlang_asm_is_msys; then
+    if [ -f typeck_x.o ] && [ -f x_frontend_link_alias.o ]; then
+      build_xlang_asm_info "win: reuse seed typeck_x.o + x_frontend_link_alias.o (skip nested make)"
+    else
+      build_xlang_asm_info "win: WARN missing typeck companions; hybrid link may fail (no nested make)"
+    fi
+    XLANG_ASM_GEN_DRIVER_TYPECK_READY=1
+    return 0
   fi
   if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-  build_xlang_asm_info "gen_driver typeck companions (typeck_x.o + link alias)"
-  make -s typeck_x.o x_frontend_link_alias.o
+    # Wave929: shell migrate + try-heat (no make; MIGRATE_X_OBJS + R1_ALIAS_STUBS bodies).
+    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ]; then
+      build_xlang_asm_info "gen_driver typeck companions (typeck_x.o + link alias)"
+      make typeck_x.o x_frontend_link_alias.o
+    else
+      build_xlang_asm_info "gen_driver typeck companions (wave929; migrate + try-heat)"
+      bash scripts/migrate_x_objs.sh typeck_x.o
+      bash scripts/ensure_host_cc_seed_o.sh try-heat x_frontend_link_alias.o
+    fi
   fi
   XLANG_ASM_GEN_DRIVER_TYPECK_READY=1
 }
@@ -4540,26 +4761,51 @@ asm_bootstrap_support_extra_link() {
   echo "src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_driver_strict_glue_stubs.o runtime_process_argv.o src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
 }
 
-# 确保 typeck_f64_bits.o 存在（pipeline_x / parser 浮点字面量位拆分）。
+# Ensure typeck_f64_bits.o (pipeline_x / parser f64 literal bit-split).
+# wave762 G.7: body = ensure_host_cc_seed_o.sh try-r2 (catalog DRIVER_SEED_TYPECK_F64_OBJS).
+# PLATFORM: WINDOWS | MINGW | MSYS — try-r2 re-parses catalog via
+#   driver_seed_obj_catalog.sh --shell without XLANG_CATALOG_CACHE_FILE → known stall
+#   (ensure_host header documents this). If seed .o already present, reuse it.
+#   Cold miss: compile mingw .s directly (no ensure script / no catalog).
+# PLATFORM: SHARED Linux/Darwin — try-r2 remains authority when ensure script exists.
 ensure_typeck_f64_bits_obj() {
+  local _f64o="src/typeck/typeck_f64_bits.o"
+  local _f64s=""
+  if build_xlang_asm_is_msys; then
+    if [ -f "$_f64o" ]; then
+      echo " win: reuse $_f64o (skip try-r2 catalog stall)"
+      return 0
+    fi
+    if [ -f src/typeck/typeck_f64_bits_x86_64_mingw.s ]; then
+      _f64s=src/typeck/typeck_f64_bits_x86_64_mingw.s
+      echo " win: cc -c $_f64s → $_f64o (no try-r2)"
+      "$CC" -c -o "$_f64o" "$_f64s" \
+        || { echo "ensure_typeck_f64_bits_obj: win cc failed" >&2; return 1; }
+      return 0
+    fi
+    echo "ensure_typeck_f64_bits_obj: win missing $_f64o and mingw .s" >&2
+    return 1
+  fi
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    echo " ensure try-r2 $_f64o (wave762 R2 typeck_f64)"
+    CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 "$_f64o" \
+      || { echo "ensure_typeck_f64_bits_obj: try-r2 failed" >&2; return 1; }
+    return 0
+  fi
+  # Fallback only if ensure script missing (should not happen on product tree).
   UNAME_S=$(uname -s 2>/dev/null || echo Unknown)
   UNAME_M=$(uname -m 2>/dev/null || echo Unknown)
-  # G-02e：全平台 .s，不再回退 typeck_f64_bits.c
   if [ "$UNAME_S" = "Linux" ] && [ "$UNAME_M" = "x86_64" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
-  echo " cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_x86_64.s"
-  "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_x86_64.s
+    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_x86_64.s
   elif [ "$UNAME_S" = "Linux" ] && [ "$UNAME_M" = "aarch64" ] && [ -f src/typeck/typeck_f64_bits_aarch64_elf.s ]; then
-  echo " cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_aarch64_elf.s"
-  "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_aarch64_elf.s
+    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_aarch64_elf.s
   elif [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "arm64" ] && [ -f src/typeck/typeck_f64_bits_arm64.s ]; then
-  echo " cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_arm64.s"
-  "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_arm64.s
+    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_arm64.s
   elif [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "x86_64" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
-  echo " cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_x86_64.s"
-  "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_x86_64.s
+    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_x86_64.s
   else
-  echo "ensure_typeck_f64_bits_obj: missing platform .s for $UNAME_S/$UNAME_M" >&2
-  return 1
+    echo "ensure_typeck_f64_bits_obj: missing platform .s for $UNAME_S/$UNAME_M" >&2
+    return 1
   fi
 }
 
@@ -4579,24 +4825,64 @@ ensure_typeck_asm_bare_link_alias_obj() {
   fi
 }
 
-# 确保 runtime_panic.o / crt0 / typeck_f64_bits 存在（逻辑与 compiler/Makefile 中对应规则一致）
+# Ensure runtime_panic.o / crt0 / typeck_f64_bits exist.
+# wave760/762 G.7: try-r2 body for panic/crt0; typeck_f64 via ensure_typeck_f64_bits_obj.
+# PLATFORM: WINDOWS | MINGW | MSYS — never call try-r2 here: catalog parse without
+#   XLANG_CATALOG_CACHE_FILE stalls / re-enters (observed stacked try-r2 bash).
+#   Reuse seed panic.o or compile portable seed C; crt0 is Linux/Darwin only.
+# PLATFORM: SHARED Linux/Darwin — try-r2 remains authority when ensure script exists.
 ensure_asm_link_objs() {
   UNAME_S=$(uname -s 2>/dev/null || echo Unknown)
   ALPINE=0
   test -f /etc/alpine-release && ALPINE=1
-  if [ "$UNAME_S" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
-  echo " cc -c runtime_panic.o <- src/asm/runtime_panic_x86_64.s"
-  "$CC" -c -o runtime_panic.o src/asm/runtime_panic_x86_64.s
-  elif [ -f seeds/runtime_panic_arm64.from_x.c ] && { [ "$(uname -m 2>/dev/null)" = "aarch64" ] || [ "$(uname -m 2>/dev/null)" = "arm64" ]; }; then
-  echo " cc_inc_tu runtime_panic.o <- seeds/runtime_panic_arm64.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic_arm64.from_x.c -o runtime_panic.o
+  if build_xlang_asm_is_msys; then
+    if [ -f runtime_panic.o ]; then
+      echo " win: reuse runtime_panic.o (skip try-r2 catalog stall)"
+    elif [ -f seeds/runtime_panic.from_x.c ]; then
+      echo " win: cc -c runtime_panic.o <- seeds/runtime_panic.from_x.c (no try-r2)"
+      $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o runtime_panic.o \
+        || { echo "ensure_asm_link_objs: win panic cc failed" >&2; return 1; }
+    else
+      echo "ensure_asm_link_objs: win missing runtime_panic.o and seed" >&2
+      return 1
+    fi
+  elif [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    echo " ensure try-r2 runtime_panic.o (wave760 R2 cold body)"
+    CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 runtime_panic.o \
+      || { echo "ensure_asm_link_objs: try-r2 runtime_panic.o failed" >&2; return 1; }
+    # PLATFORM: LINUX — product crt0 path; other hosts use MAIN_LINK via g05/make.
+    if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/crt0_x86_64.s ]; then
+      echo " ensure try-r2 src/asm/crt0_x86_64.o (wave762 R2 crt0)"
+      CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 src/asm/crt0_x86_64.o \
+        || { echo "ensure_asm_link_objs: try-r2 crt0_x86_64.o failed" >&2; return 1; }
+    elif [ "$UNAME_S" = "Darwin" ]; then
+      UNAME_M=$(uname -m 2>/dev/null || echo unknown)
+      if { [ "$UNAME_M" = "arm64" ] || [ "$UNAME_M" = "aarch64" ]; } && [ -f src/asm/crt0_arm64.s ]; then
+        echo " ensure try-r2 src/asm/crt0_arm64.o (wave762 R2 crt0)"
+        CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 src/asm/crt0_arm64.o \
+          || { echo "ensure_asm_link_objs: try-r2 crt0_arm64.o failed" >&2; return 1; }
+      elif [ -f src/asm/crt0_darwin_x86_64.s ]; then
+        echo " ensure try-r2 src/asm/crt0_darwin_x86_64.o (wave762 R2 crt0)"
+        CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 src/asm/crt0_darwin_x86_64.o \
+          || { echo "ensure_asm_link_objs: try-r2 crt0_darwin_x86_64.o failed" >&2; return 1; }
+      fi
+    fi
   else
-  echo " cc_inc_tu runtime_panic.o <- seeds/runtime_panic.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o runtime_panic.o
-  fi
-  if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/crt0_x86_64.s ]; then
-  echo " cc -c src/asm/crt0_x86_64.o <- src/asm/crt0_x86_64.s"
-  "$CC" -c -o src/asm/crt0_x86_64.o src/asm/crt0_x86_64.s
+    # Fallback only if ensure script missing (should not happen on product tree).
+    if [ "$UNAME_S" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
+      echo " cc -c runtime_panic.o <- src/asm/runtime_panic_x86_64.s"
+      "$CC" -c -o runtime_panic.o src/asm/runtime_panic_x86_64.s
+    elif [ -f seeds/runtime_panic_arm64.from_x.c ] && { [ "$(uname -m 2>/dev/null)" = "aarch64" ] || [ "$(uname -m 2>/dev/null)" = "arm64" ]; }; then
+      echo " cc -c runtime_panic.o <- seeds/runtime_panic_arm64.from_x.c"
+      $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic_arm64.from_x.c -o runtime_panic.o
+    else
+      echo " cc -c runtime_panic.o <- seeds/runtime_panic.from_x.c"
+      $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o runtime_panic.o
+    fi
+    if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/crt0_x86_64.s ]; then
+      echo " cc -c src/asm/crt0_x86_64.o <- src/asm/crt0_x86_64.s"
+      "$CC" -c -o src/asm/crt0_x86_64.o src/asm/crt0_x86_64.s
+    fi
   fi
   ensure_typeck_f64_bits_obj
   # atoi: G.7 authority = scripts/bootstrap_nostdlib_shared.sh ensure_atoi_stub_obj.
@@ -4659,6 +4945,9 @@ fi
 
 # crt0 链尾参数（无 PIPELINE_LIBS）。
 # PLATFORM: LINUX — nostdlib tail is Linux x86_64 bootstrap only.
+# PLATFORM: WINDOWS | MINGW | MSYS — never emit bare -lc/-lm: MinGW has no
+#   free-standing lib "c" for ld (msvcrt is pulled by the gcc driver). Explicit
+#   `-lc` fails with `cannot find -lc` and aborts hybrid after multidef noise.
 # Callers capture stdout: BOOT_CRT0_TAIL=$(bootstrap_link_tail_crt0).
 # ensure_* may print " cc -c ..." progress; must go to stderr or $(...) pollutes the
 # link line with a bare -c and fails: cannot specify '-o' with '-c' with multiple files.
@@ -4667,6 +4956,8 @@ bootstrap_link_tail_crt0() {
   ensure_freestanding_io_x86_64_obj
   ensure_bootstrap_nostdlib_stubs_obj
   echo "-nostdlib -static -Wl,--gc-sections src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o"
+  elif build_xlang_asm_is_msys; then
+  echo ""
   else
   echo "-lc -lm"
   fi
@@ -4674,11 +4965,14 @@ bootstrap_link_tail_crt0() {
 
 # driver / experimental / strict 链尾（保留 PIPELINE_LIBS，仅去 -lc/-lm）。
 # PLATFORM: LINUX — same stdout purity rule as bootstrap_link_tail_crt0 (NL-07).
+# PLATFORM: WINDOWS | MINGW | MSYS — no -lc/-lm; keep PIPELINE_LIBS only (usually empty).
 bootstrap_link_tail_driver() {
   if bootstrap_wants_nostdlib; then
   ensure_freestanding_io_x86_64_obj
   ensure_bootstrap_nostdlib_stubs_obj
   echo "-nostdlib -static -Wl,--gc-sections src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o ${PIPELINE_LIBS}"
+  elif build_xlang_asm_is_msys; then
+  echo "${PIPELINE_LIBS}"
   else
   echo "-lm -lc ${PIPELINE_LIBS}"
   fi
@@ -5072,7 +5366,17 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ensure_asm_experimental_lsp_objs
   ensure_ast_pool_l5_bridge_obj
   if [ ! -f pipeline_bootstrap_orchestration.o ] || [ seeds/pipeline_bootstrap_orchestration.from_x.c -nt pipeline_bootstrap_orchestration.o ]; then
-  make pipeline_bootstrap_orchestration.o
+  # Wave928: all platforms cc direct from seed (unified; no make).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
+    make pipeline_bootstrap_orchestration.o
+  elif [ -f seeds/pipeline_bootstrap_orchestration.from_x.c ]; then
+    echo " cc pipeline_bootstrap_orchestration.o <- seeds (wave928; unified all platforms)"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/pipeline_bootstrap_orchestration.from_x.c \
+      -o pipeline_bootstrap_orchestration.o
+  else
+    build_xlang_asm_info "WARN missing pipeline_bootstrap_orchestration.o seed"
+  fi
   fi
   SEED_O="$BUILD_DIR/asm_driver_seed"
   GEN_O="$BUILD_DIR/gen_driver"
@@ -5788,9 +6092,15 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ensure_asm_bootstrap_support_extra_objs
   ensure_asm_pipeline_glue_strict_minimal_obj
   BSTRICT_SEED_SUPPORT=$(asm_bootstrap_support_extra_link)
+  # PLATFORM: SHARED — strip early strict_glue from support bag; reals must link first
+  # so PE --allow-multiple-definition keeps pipeline_x/parser_x (Makefile L2008-2019).
+  BSTRICT_SEED_SUPPORT=$(echo "$BSTRICT_SEED_SUPPORT" | sed 's|[[:space:]]*src/runtime_driver_strict_glue_stubs\.o||g')
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
+  ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
+  # Glue suffix at END only (once): mirrors DRIVER_SEED_GLUE_SUFFIX / g05 _GLUE_SUFFIX.
+  GEN_DRIVER_GLUE_SUFFIX="$BUILD_DIR/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o"
   # shellcheck disable=SC2086
-  "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
+  "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
   $BOOT_ENTRY_OBJ \
   src/runtime_io_abi.o \
   src/runtime_link_abi.o \
@@ -5807,19 +6117,18 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   "$GEN_O/driver_check_x.o" \
   "$GEN_O/driver_test_x.o" \
   "$GEN_O/pipeline_x.o" \
-  "$BUILD_DIR/pipeline_glue_strict_minimal.o" \
   "$GEN_O/preprocess_x.o" \
   $GEN_DRIVER_TYPECK_COMPANIONS \
-  $GEN_DRIVER_BSTRICT_COMPANIONS \
   $GEN_DRIVER_X_PIPELINE_COMPANIONS \
+  $GEN_DRIVER_BSTRICT_COMPANIONS \
   "$GEN_O/lsp_x.o" \
-  "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" \
-  src/runtime_driver_strict_glue_stubs.o \
   "$GEN_O/lsp_io_x.o" \
   "$GEN_O/lsp_io_std_heap_x.o" \
   "$LSP_DIAG_SEED_O" \
   src/lsp/lsp_diag_pipeline_sizes.o \
   src/lsp/lsp_diag_pipeline_ctx.o \
+  "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" \
+  $GEN_DRIVER_GLUE_SUFFIX \
   $BOOT_DRIVER_TAIL
   FB_RC=$?
   set -e
@@ -5860,10 +6169,15 @@ else
   set +e
   ensure_runtime_driver_asm_strict_obj
   ensure_asm_bootstrap_support_extra_objs
+  ensure_asm_pipeline_glue_strict_minimal_obj
   BSTRICT_SEED_SUPPORT=$(asm_bootstrap_support_extra_link)
+  # PLATFORM: SHARED — same PE first-wins glue-end discipline as main gen_driver hybrid.
+  BSTRICT_SEED_SUPPORT=$(echo "$BSTRICT_SEED_SUPPORT" | sed 's|[[:space:]]*src/runtime_driver_strict_glue_stubs\.o||g')
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
+  ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
+  GEN_DRIVER_GLUE_SUFFIX="$BUILD_DIR/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o"
   # shellcheck disable=SC2086
-  "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
+  "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
   $BOOT_ENTRY_OBJ \
   src/runtime_io_abi.o \
   src/runtime_link_abi.o \
@@ -5882,17 +6196,17 @@ else
   "$GEN_O/pipeline_x.o" \
   "$GEN_O/preprocess_x.o" \
   $GEN_DRIVER_TYPECK_COMPANIONS \
-  $GEN_DRIVER_BSTRICT_COMPANIONS \
   $GEN_DRIVER_X_PIPELINE_COMPANIONS \
+  $GEN_DRIVER_BSTRICT_COMPANIONS \
   "$GEN_O/lsp_x.o" \
-  "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" \
   "$BUILD_DIR/typeck_lsp_io_stub.o" \
-  src/runtime_driver_strict_glue_stubs.o \
   "$GEN_O/lsp_io_x.o" \
   "$GEN_O/lsp_io_std_heap_x.o" \
   "$LSP_DIAG_SEED_O" \
   src/lsp/lsp_diag_pipeline_sizes.o \
   src/lsp/lsp_diag_pipeline_ctx.o \
+  "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" \
+  $GEN_DRIVER_GLUE_SUFFIX \
   $BOOT_DRIVER_TAIL
   FB_RC=$?
   set -e

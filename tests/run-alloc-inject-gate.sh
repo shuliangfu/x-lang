@@ -2,7 +2,9 @@
 # MEM-C1 AL-01/02：default_alloc 块内 scope / 块外 heap 注入烟测。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 XLANG="${XLANG:-./compiler/xlang-c}"
 FAIL="${XLANG_ALLOC_INJECT_GATE_FAIL:-0}"
 SRC="tests/mem/default_alloc.x"

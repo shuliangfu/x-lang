@@ -564,7 +564,7 @@ export function enc_memset_rbp_zero(ctx: *ElfCodegenCtx, rbp_off: i32, nbytes: i
   if (enc_mov_rax_to_arg_reg(ctx, 2) != 0) {
     return -1;
   }
-  let memset_nm: u8[64] = [109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  let memset_nm: u8[128] = [109, 101, 109, 115, 101, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   return enc_call(ctx, memset_nm, 6);
@@ -1208,11 +1208,11 @@ export function enc_add_rsp_imm(ctx: *ElfCodegenCtx, nbytes: i32): i32 {
 /** Exported function `enc_call`.
  * Implements `enc_call`.
  * @param ctx *ElfCodegenCtx
- * @param name u8[64]
+ * @param name u8[128]
  * @param name_len i32
  * @return i32
  */
-export function enc_call(ctx: *ElfCodegenCtx, name: u8[64], name_len: i32): i32 {
+export function enc_call(ctx: *ElfCodegenCtx, name: u8[128], name_len: i32): i32 {
   /* See implementation. */
   if (name_len <= 0) {
     return -1;
@@ -1222,7 +1222,7 @@ export function enc_call(ctx: *ElfCodegenCtx, name: u8[64], name_len: i32): i32 
   let rel32_at: i32 = ctx.code_len - 4;
 /** See implementation for details. */
   if (ctx.macho_leading_underscore != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
-    let rn: u8[64] = [];
+    let rn: u8[128] = [];
     rn[0] = 95;
     let k: i32 = 0;
     while (k < name_len && k < 63) {
@@ -1249,7 +1249,7 @@ export function enc_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, is_func
   if (elf.elf_add_label(ctx, name, name_len) != 0) { return -1; }
   if (is_func != 0) {
     if (ctx.macho_leading_underscore != 0) {
-      let mn: u8[64] = [];
+      let mn: u8[128] = [];
       mn[0] = 95;
       let k: i32 = 0;
       while (k < name_len && k < 63) {

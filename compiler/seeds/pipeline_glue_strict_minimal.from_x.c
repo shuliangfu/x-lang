@@ -63,13 +63,13 @@ struct ast_PipelineDepCtx {
   struct ast_Module *current_codegen_module;
   struct ast_ASTArena *current_codegen_arena;
   int32_t current_codegen_dep_index;
-  uint8_t current_codegen_prefix_mirror[64];
+  uint8_t current_codegen_prefix_mirror[128];
   int32_t current_codegen_prefix_len;
   int32_t asm_entry_module_only;
-  uint8_t entry_module_import_path_mirror[64];
+  uint8_t entry_module_import_path_mirror[128];
   int32_t entry_module_import_path_len;
   int32_t typeck_scope_region_len;
-  uint8_t typeck_scope_region_label[64];
+  uint8_t typeck_scope_region_label[128];
 };
 struct ast_ASTArena {
   int32_t num_types;
@@ -768,7 +768,7 @@ XLANG_WEAK int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *modul
 XLANG_WEAK int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module,
                                                                  struct ast_ASTArena *arena, int32_t elem_type_ref,
                                                                  int32_t array_len, int32_t depth) {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t nlen;
   int32_t li;
   int32_t nf;
@@ -849,8 +849,8 @@ int32_t pipeline_typeck_named_unqual_offset_strict_minimal(const uint8_t *buf, i
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_named_equal_strict_minimal(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  uint8_t buf_a[64];
-  uint8_t buf_b[64];
+  uint8_t buf_a[128];
+  uint8_t buf_b[128];
   int32_t na;
   int32_t nb;
   int32_t i;
@@ -897,7 +897,7 @@ int32_t pipeline_typeck_import_binding_name_equal_strict_minimal(struct ast_Modu
   if (!module || !name || name_len <= 0 || dep_ix < 0 || dep_ix >= module->num_imports)
     return 0;
   bind_len = pipeline_module_import_binding_name_len(module, dep_ix);
-  if (bind_len != name_len || bind_len <= 0 || bind_len > 63)
+  if (bind_len != name_len || bind_len <= 0 || bind_len > 127)
     return 0;
   for (i = 0; i < bind_len; i++) {
     if (pipeline_module_import_binding_name_byte_at(module, dep_ix, i) != name[i])
@@ -992,7 +992,19 @@ static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTA
    */
   if (pipeline_expr_kind_ord_at(caller_arena, arg_ref) == 0) {
     pk = pipeline_type_kind_ord_at(caller_arena, param_ty);
+    /* wave670: keyword null only → *T (G.7 ≡ typeck.x / pipeline_expr_is_null_keyword_c). */
+    {
+      extern int32_t pipeline_expr_is_null_keyword_c(struct ast_ASTArena *a, int32_t expr_ref);
+      if (pipeline_expr_is_null_keyword_c(caller_arena, arg_ref) != 0) {
+        if (pk == 9)
+          return 100;
+        return -1;
+      }
+    }
     if (pk == 0 || pk == 2 || pk == 3 || pk == 4 || pk == 5 || pk == 6 || pk == 7)
+      return 100;
+    /* wave668: bare EXPR_LIT 0 → *T (TYPE_PTR=9). */
+    if (pk == 9 && pipeline_expr_int64_val_at(caller_arena, arg_ref) == 0)
       return 100;
   }
   if (arg_ty > 0) {
@@ -1027,14 +1039,14 @@ static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTA
      * Mirror typeck_integer_widen_ok_refs (name-based family tags 10/11/12).
      * PLATFORM: SHARED — G.7 align typeck.x + typeck_gen seed.
      *
-     * wave363 L4: pipeline_type_named_name_into always memcpy's the full Type.name[64]
+     * wave363 L4: pipeline_type_named_name_into always memcpy's the full Type.name[128]
      * (see pipeline_glue.c). Prior pnm[8]/anm[8] stack-smashed on any TYPE_NAMED score
      * path (String/StrView len overloads → __stack_chk_fail → silent exit 127).
-     * Buffers must be 64 bytes (G.7 out64 contract).
+     * Buffers must be 128 bytes (G.7 out128 contract, wave577 Cap).
      */
     if (pk == 8 || ak == 8) {
-      uint8_t pnm[64];
-      uint8_t anm[64];
+      uint8_t pnm[128];
+      uint8_t anm[128];
       int32_t pnl = 0;
       int32_t anl = 0;
       int32_t pf = -1;
@@ -1094,6 +1106,24 @@ static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTA
     /* TYPE_PTR=9：*u8 与 *i32 同 kind 但元素不同，不得给分，否则 best 平局回退首同名(i32)
      *（sort_impl.sort(*u8) 误调 sort_i32 → abort）。须比 elem。 */
     if (ak == 9 && pk == 9) {
+      int32_t ae = pipeline_type_elem_ref_at(caller_arena, arg_ty);
+      int32_t pe = pipeline_type_elem_ref_at(caller_arena, param_ty);
+      if (ae > 0 && pe > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, ae, pe) != 0)
+        return 1000;
+      return -1;
+    }
+    /* wave672: TYPE_ARRAY/SLICE same-kind requires matching elem (bool[N]≠i32[N]). */
+    if (ak == 10 && pk == 10) {
+      int32_t ae = pipeline_type_elem_ref_at(caller_arena, arg_ty);
+      int32_t pe = pipeline_type_elem_ref_at(caller_arena, param_ty);
+      int32_t asz = pipeline_type_array_size_at(caller_arena, arg_ty);
+      int32_t psz = pipeline_type_array_size_at(caller_arena, param_ty);
+      if (ae > 0 && pe > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, ae, pe) != 0
+          && (asz <= 0 || psz <= 0 || asz == psz))
+        return 1000;
+      return -1;
+    }
+    if (ak == 11 && pk == 11) {
       int32_t ae = pipeline_type_elem_ref_at(caller_arena, arg_ty);
       int32_t pe = pipeline_type_elem_ref_at(caller_arena, param_ty);
       if (ae > 0 && pe > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, ae, pe) != 0)
@@ -1174,7 +1204,7 @@ static int32_t pipeline_typeck_pick_func_index_by_name_args_strict_minimal(
           /* Last-segment NAMED: bare Vec_u8 vs vec.Vec_u8 (strict_minimal equal may be exact-only). */
           if (!eq) {
             extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *a, int32_t tr, uint8_t *buf);
-            uint8_t na[64], nb[64];
+            uint8_t na[128], nb[128];
             int32_t la = pipeline_type_named_name_into(caller_arena, mapped, na);
             int32_t lb = pipeline_type_named_name_into(caller_arena, expect_ty, nb);
             if (la > 0 && lb > 0) {
@@ -1250,7 +1280,7 @@ int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(struct
   int32_t bl;
   int32_t qlen;
   int32_t i;
-  uint8_t qnm[64];
+  uint8_t qnm[128];
   if (!caller_arena || !nm || nlen <= 0)
     return 0;
   if (!entry_mod || dep_ix < 0)
@@ -1258,7 +1288,7 @@ int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(struct
   if (pipeline_module_import_kind_at(entry_mod, dep_ix) != 1)
     return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
   bl = pipeline_module_import_binding_name_len(entry_mod, dep_ix);
-  if (bl <= 0 || bl + 1 + nlen > 63)
+  if (bl <= 0 || bl + 1 + nlen > 127)
     return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
   for (i = 0; i < bl; i++)
     qnm[i] = pipeline_module_import_binding_name_byte_at(entry_mod, dep_ix, i);
@@ -1280,7 +1310,7 @@ int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTA
   int32_t inner_mapped;
   int32_t elem_ref;
   int32_t array_size;
-  uint8_t nm[64];
+  uint8_t nm[128];
   int32_t nlen;
   if (dep_return_type_ref <= 0 || !dep_arena || !caller_arena)
     return 0;
@@ -1310,7 +1340,7 @@ int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTA
   array_size = pipeline_type_array_size_at(dep_arena, dep_return_type_ref);
   if (kind == (int32_t)ast_TypeKind_TYPE_SLICE) {
     int32_t rlen = pipeline_type_region_label_len_at(dep_arena, dep_return_type_ref);
-    uint8_t rbuf[64];
+    uint8_t rbuf[128];
     if (rlen > 0)
       (void)pipeline_type_region_label_into(dep_arena, dep_return_type_ref, rbuf);
     return pipeline_type_find_or_alloc_slice(caller_arena, inner_mapped, rlen > 0 ? rbuf : NULL, rlen);
@@ -1404,13 +1434,13 @@ XLANG_WEAK int32_t pipeline_typeck_reject_addr_of_linear_c(struct ast_ASTArena *
   int32_t pr;
   int32_t line;
   int32_t col;
-  uint8_t vbuf[64];
+  uint8_t vbuf[128];
   if (!arena || !module || !ctx || op_ref <= 0)
     return 0;
   if (pipeline_expr_kind_ord_at(arena, op_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
     return 0;
   vnlen = pipeline_expr_var_name_len(arena, op_ref);
-  if (vnlen <= 0 || vnlen > 63)
+  if (vnlen <= 0 || vnlen > 127)
     return 0;
   pipeline_expr_var_name_into(arena, op_ref, vbuf);
   block_ref = pipeline_dep_ctx_current_block_ref_at(ctx);
@@ -1479,7 +1509,7 @@ XLANG_WEAK int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *
   int32_t callee_ref;
   int32_t callee_name_len;
   int32_t i;
-  uint8_t callee_name[64];
+  uint8_t callee_name[128];
   if (!m || !a || call_expr_ref <= 0)
     return -1;
   fx = pipeline_expr_call_resolved_func_index_at(a, call_expr_ref);
@@ -1491,7 +1521,7 @@ XLANG_WEAK int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *
   if (pipeline_expr_kind_ord_at(a, callee_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
     return -1;
   callee_name_len = pipeline_expr_var_name_len(a, callee_ref);
-  if (callee_name_len <= 0 || callee_name_len > 63)
+  if (callee_name_len <= 0 || callee_name_len > 127)
     return -1;
   pipeline_expr_var_name_into(a, callee_ref, callee_name);
   for (i = 0; i < pipeline_module_num_funcs(m); i++) {
@@ -1576,7 +1606,7 @@ XLANG_WEAK int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTArena *arena, 
                                                                int32_t expr_ref, uint8_t *name, int32_t name_len) {
   int32_t line;
   int32_t col;
-  if (!arena || !name || name_len <= 0 || name_len > 63)
+  if (!arena || !name || name_len <= 0 || name_len > 127)
     return 0;
   if (type_ref <= 0 || pipeline_type_kind_ord_at(arena, type_ref) != (int32_t)ast_TypeKind_TYPE_LINEAR)
     return 0;
@@ -1621,8 +1651,8 @@ int32_t pipeline_typeck_slice_region_conflict_strict_minimal(struct ast_ASTArena
                                                                     int32_t src_ref) {
   int32_t ek;
   int32_t sk;
-  uint8_t eb[64];
-  uint8_t sb[64];
+  uint8_t eb[128];
+  uint8_t sb[128];
   if (!arena || expect_ref <= 0 || src_ref <= 0)
     return 0;
   if (pipeline_type_kind_ord_at(arena, expect_ref) != (int32_t)ast_TypeKind_TYPE_SLICE ||
@@ -1664,8 +1694,8 @@ int32_t pipeline_typeck_slice_region_escape_strict_minimal(struct ast_ASTArena *
 /* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int pipeline_expr_is_func_param_at_strict_minimal(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                          int32_t func_idx, int32_t expr_ref, int32_t param_ix) {
-  uint8_t pbuf[32];
-  uint8_t vbuf[64];
+  uint8_t pbuf[128];
+  uint8_t vbuf[128];
   int32_t plen;
   int32_t vlen;
   int32_t k;
@@ -1745,7 +1775,8 @@ int32_t typeck_expr_lval_root_var_strict_minimal(struct ast_ASTArena *arena, int
     kind = pipeline_expr_kind_ord_at(arena, cur);
     if (kind == (int32_t)ast_ExprKind_EXPR_VAR) {
       *out_len = pipeline_expr_var_name_len(arena, cur);
-      if (*out_len <= 0 || *out_len > 63)
+      /* wave587 Cap residual: var name content ≤127 (Expr.var_name[128]). */
+      if (*out_len <= 0 || *out_len > 127)
         return 0;
       pipeline_expr_var_name_into(arena, cur, out);
       return 1;
@@ -1790,7 +1821,7 @@ int32_t typeck_name_is_block_local_strict_minimal(struct ast_Module *module, str
 /* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t typeck_expr_is_addr_of_block_local_strict_minimal(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                  struct ast_PipelineDepCtx *ctx, int32_t expr_ref) {
-  uint8_t vbuf[64];
+  uint8_t vbuf[128];
   int32_t vlen;
   int32_t op_ref;
   if (!module || !arena || !ctx || expr_ref <= 0)
@@ -1815,9 +1846,9 @@ XLANG_WEAK int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTAre
                                                                           int32_t src_ref) {
   int32_t line;
   int32_t col;
-  uint8_t sb[64];
+  uint8_t sb[128];
   int32_t slen;
-  uint8_t eb[64];
+  uint8_t eb[128];
   int32_t elen;
   if (!arena || expect_ref <= 0 || src_ref <= 0)
     return 0;
@@ -1866,7 +1897,7 @@ XLANG_WEAK int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast
   int32_t col;
   int32_t base_ref;
   int32_t op_ref;
-  uint8_t name_buf[64];
+  uint8_t name_buf[128];
   int32_t name_len;
   if (!module || !arena || !ctx || left_ref <= 0 || right_ref <= 0)
     return 0;
@@ -1876,7 +1907,7 @@ XLANG_WEAK int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast
   if (pipeline_expr_kind_ord_at(arena, op_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
     return 0;
   name_len = pipeline_expr_var_name_len(arena, op_ref);
-  if (name_len <= 0 || name_len > 63)
+  if (name_len <= 0 || name_len > 127)
     return 0;
   pipeline_expr_var_name_into(arena, op_ref, name_buf);
   if (pipeline_dep_ctx_current_block_ref_at(ctx) <= 0 ||
@@ -1935,7 +1966,7 @@ XLANG_WEAK int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_AS
     return 0;
   /* TYPE_NAMED: i8/i16 + u16 (TYPE_U8 is builtin). */
   if (decl_kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
-    uint8_t nm[64] = { 0 };
+    uint8_t nm[128] = { 0 };
     int32_t nlen = pipeline_type_named_name_into(arena, decl_ty_ref, nm);
     if (!((nlen == 2 && nm[0] == 105 && nm[1] == 56) ||                 /* "i8" */
           (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54) ||   /* "i16" */
@@ -1986,7 +2017,7 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
                                                              const char *const_names[], int32_t n_const_names) {
   int32_t kind;
   int32_t i;
-  uint8_t name_buf[64];
+  uint8_t name_buf[128];
   int32_t name_len;
   if (!arena || expr_ref <= 0)
     return 0;
@@ -1996,7 +2027,7 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
     return 1;
   if (kind == (int32_t)ast_ExprKind_EXPR_VAR) {
     name_len = pipeline_expr_var_name_len(arena, expr_ref);
-    if (name_len <= 0 || name_len > 63)
+    if (name_len <= 0 || name_len > 127)
       return 0;
     pipeline_expr_var_name_into(arena, expr_ref, name_buf);
     for (i = 0; i < n_const_names; i++) {
@@ -2054,13 +2085,13 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
    *
    * PLATFORM: SHARED — g_typeck_active_module is populated identically on
    *           macOS arm64 and Ubuntu x86_64 at module typeck entry.
-   *           Mirrors glue_is_const_expr_ref in pipeline_glue.c (kept in
+   *           Mirrors glue_is_const_expr_ref in pipeline_typeck_ctfe.c (wave965 slice) (kept in
    *           sync per "seed 与 glue 副本同 commit" rule).
    */
   if (kind == (int32_t)ast_ExprKind_EXPR_FIELD_ACCESS) {
     /* C5-enum-variant: pre-mark via the active-module getter (defined in
      * pipeline_glue.c) so enum-variant shapes pass; runtime obj.field
-     * stays non-const. See glue_is_const_expr_ref in pipeline_glue.c for
+     * stays non-const. See glue_is_const_expr_ref in pipeline_typeck_ctfe.c (wave965) for
      * the full rationale (kept in sync per "seed 与 glue 副本同 commit"). */
     struct ast_Module *active_mod = pipeline_typeck_active_module_c();
     pipeline_expr_try_mark_enum_field_access(active_mod, arena, expr_ref);
@@ -2083,7 +2114,7 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
    * Invariant: Recurses into all three children (cond, then, else). If any
    *            child is non-const the whole expression is non-const.
    *
-   * PLATFORM: SHARED — Mirrors glue_is_const_expr_ref in pipeline_glue.c
+   * PLATFORM: SHARED — Mirrors glue_is_const_expr_ref in pipeline_typeck_ctfe.c (wave965 slice)
    *           (kept in sync per "seed 与 glue 副本同 commit" rule; Darwin
    *           filtered pipeline localizes glue's strong version, so this
    *           seed weak version is what's actually called on Darwin).
@@ -2116,7 +2147,7 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
    *            handler in glue_typeck_fold_expr_ref mirrors this check and
    *            stamps e->const_folded_val from the final expr's folded value.
    *
-   * PLATFORM: SHARED — Mirrors glue_is_const_expr_ref in pipeline_glue.c
+   * PLATFORM: SHARED — Mirrors glue_is_const_expr_ref in pipeline_typeck_ctfe.c (wave965 slice)
    *           (kept in sync per "seed 与 glue 副本同 commit" rule; Darwin
    *           filtered pipeline localizes glue's strong version, so this
    *           seed weak version is what's actually called on Darwin).
@@ -2319,7 +2350,7 @@ XLANG_WEAK int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t
                                                                                       struct ast_PipelineDepCtx *ctx) {
   struct ast_ASTArena *dep_arena;
   int32_t kind;
-  uint8_t nm[64];
+  uint8_t nm[128];
   int32_t nlen;
   if (from_dep_index < 0 || !ctx)
     return 0;
@@ -2351,11 +2382,21 @@ XLANG_WEAK int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t
 XLANG_WEAK int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int64_t value;
   int32_t ty;
+  int32_t nlen;
+  uint8_t nbuf[8];
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
     return 0;
   if (pipeline_expr_resolved_type_ref(arena, expr_ref) != 0)
     return 0;
+  /* wave670: keyword null — do not default-stamp i32. G.7 ≡ pipeline_glue. */
   value = pipeline_expr_int64_val_at(arena, expr_ref);
+  nlen = pipeline_expr_var_name_len(arena, expr_ref);
+  if (value == 0 && nlen == 4) {
+    pipeline_expr_var_name_into(arena, expr_ref, nbuf);
+    if (nbuf[0] == (uint8_t)'n' && nbuf[1] == (uint8_t)'u' &&
+        nbuf[2] == (uint8_t)'l' && nbuf[3] == (uint8_t)'l')
+      return 0;
+  }
   if (value > (int64_t)INT32_MAX || value < (int64_t)INT32_MIN)
     ty = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I64);
   else
@@ -2369,6 +2410,13 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *are
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/*
+ * wave703: product live match typeck (weak). Sets match-subject field binds via
+ * heavy pipeline_typeck_check_expr_match_c when linked strong; here mirror subject
+ * type into the same static used by pipeline_typeck_match_subject_field_type_c.
+ * Prefer calling the strong body when available — but weak wins on g05, so keep
+ * logic here and call match_subject setup + guards. PLATFORM: SHARED.
+ */
 XLANG_WEAK int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                  int32_t expr_ref, int32_t return_type_ref,
                                                                  struct ast_PipelineDepCtx *ctx) {
@@ -2377,6 +2425,11 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module,
   int32_t arm_i;
   int32_t line;
   int32_t col;
+  int32_t matched_ty;
+  int32_t guard_ref;
+  extern int32_t pipeline_typeck_match_set_subject_c(struct ast_Module *module, int32_t ty);
+  extern void pipeline_typeck_match_clear_subject_c(void);
+  extern int32_t pipeline_expr_match_arm_guard_ref(struct ast_ASTArena *arena, int32_t expr_ref, int32_t i);
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
     return 0;
   matched_ref = pipeline_expr_match_matched_ref_at(arena, expr_ref);
@@ -2385,17 +2438,28 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module,
   col = pipeline_expr_col_at(arena, expr_ref);
   if (typeck_check_expr(module, arena, matched_ref, return_type_ref, ctx) != 0)
     return -1;
+  matched_ty = pipeline_expr_resolved_type_ref(arena, matched_ref);
+  pipeline_typeck_match_set_subject_c(module, matched_ty);
   for (arm_i = 0; arm_i < num_arms; arm_i++) {
     int32_t arm_res;
     if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, arm_i) != 0 &&
         pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i) < 0) {
+      pipeline_typeck_match_clear_subject_c();
       driver_diagnostic_typeck_enum_no_variant(line, col);
       return -1;
     }
-    arm_res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
-    if (typeck_check_expr(module, arena, arm_res, return_type_ref, ctx) != 0)
+    guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, arm_i);
+    if (guard_ref > 0 && typeck_check_expr(module, arena, guard_ref, 0, ctx) != 0) {
+      pipeline_typeck_match_clear_subject_c();
       return -1;
+    }
+    arm_res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+    if (typeck_check_expr(module, arena, arm_res, return_type_ref, ctx) != 0) {
+      pipeline_typeck_match_clear_subject_c();
+      return -1;
+    }
   }
+  pipeline_typeck_match_clear_subject_c();
   if (return_type_ref > 0)
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
   return 0;
@@ -2427,8 +2491,8 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
   int32_t import_ret_ty;
   int32_t import_kind;
   int32_t ii;
-  uint8_t method_nm[64];
-  uint8_t base_nm[64];
+  uint8_t method_nm[128];
+  uint8_t base_nm[128];
   int32_t ret_ty;
   int32_t num_args;
   int32_t arg_i;
@@ -2443,7 +2507,7 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
   base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
   base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
   method_nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
-  if (method_nlen <= 0 || method_nlen > 63)
+  if (method_nlen <= 0 || method_nlen > 127)
     return -1;
   pipeline_expr_method_call_name_into(arena, expr_ref, method_nm);
   ret_ty = 0;
@@ -2470,7 +2534,7 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
   }
   if (ctx && base_kind == (int32_t)ast_ExprKind_EXPR_VAR) {
     base_nlen = pipeline_expr_var_name_len(arena, base_ref);
-    if (base_nlen > 0 && base_nlen <= 63) {
+    if (base_nlen > 0 && base_nlen <= 127) {
       pipeline_expr_var_name_into(arena, base_ref, base_nm);
       for (ii = 0; ii < module->num_imports; ii++) {
         import_kind = pipeline_module_import_kind_at(module, ii);
@@ -2656,8 +2720,8 @@ XLANG_WEAK int32_t pipeline_typeck_check_scope_borrow_assign_c(struct ast_Module
                                                                           int32_t site_expr_ref, int32_t left_ref,
                                                                           int32_t right_ref,
                                                                           struct ast_PipelineDepCtx *ctx) {
-  uint8_t lname[64];
-  uint8_t rname[64];
+  uint8_t lname[128];
+  uint8_t rname[128];
   int32_t llen;
   int32_t rlen;
   int32_t op_ref;
@@ -2678,7 +2742,8 @@ XLANG_WEAK int32_t pipeline_typeck_check_scope_borrow_assign_c(struct ast_Module
   if (op_ref <= 0 || pipeline_expr_kind_ord_at(arena, op_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
     return 0;
   rlen = pipeline_expr_var_name_len(arena, op_ref);
-  if (rlen <= 0 || rlen > 63)
+  /* wave587 Cap residual: borrow RHS var name ≤127 (rname[128]). */
+  if (rlen <= 0 || rlen > 127)
     return 0;
   pipeline_expr_var_name_into(arena, op_ref, rname);
   site_block = ctx->current_block_ref;
@@ -2724,9 +2789,9 @@ XLANG_WEAK int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTAre
   int32_t got_ref;
   int32_t line;
   int32_t col;
-  uint8_t sb[64];
+  uint8_t sb[128];
   int32_t slen;
-  uint8_t eb[64];
+  uint8_t eb[128];
   int32_t elen;
   if (!arena || op_ref <= 0 || func_return_ref <= 0)
     return 0;
@@ -2841,7 +2906,7 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module 
   int32_t line;
   int32_t col;
   int32_t payload_ty;
-  uint8_t rname[64];
+  uint8_t rname[128];
   int32_t rlen;
   if (!module || !arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
     return 0;
@@ -2932,7 +2997,7 @@ XLANG_WEAK int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *m
                                                                        struct ast_ASTArena *arena, int32_t block_ref,
                                                                        int32_t region_idx, int32_t return_type_ref,
                                                                        struct ast_PipelineDepCtx *ctx) {
-  uint8_t label[64];
+  uint8_t label[128];
   int32_t label_len;
   int32_t body_ref;
   int32_t wa_cap;
@@ -3003,7 +3068,7 @@ int32_t field_name_equal_strict_minimal(uint8_t *buf, int32_t len, const char *l
 static int32_t pipeline_typeck_field_reverse_infer_base_type_strict_minimal_c(struct ast_Module *module,
                                                                                struct ast_ASTArena *arena,
                                                                                int32_t expr_ref) {
-  uint8_t fn_buf[64];
+  uint8_t fn_buf[128];
   int32_t fl;
   int32_t nsl;
   int32_t k;
@@ -3013,7 +3078,8 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_strict_minimal_c(st
   if (!module || !arena || expr_ref <= 0)
     return 0;
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  /* wave587 Cap residual: field name content ≤127 (wave583 storage). */
+  if (fl <= 0 || fl > 127)
     return 0;
   memset(fn_buf, 0, sizeof(fn_buf));
   pipeline_expr_field_access_name_into(arena, expr_ref, fn_buf);
@@ -3027,10 +3093,10 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_strict_minimal_c(st
     int32_t j;
     for (j = 0; j < nf; j++) {
       int32_t fjl;
-      uint8_t fjn[64];
+      uint8_t fjn[128];
       int32_t bi;
       int32_t match;
-      uint8_t lnm[64];
+      uint8_t lnm[128];
       int32_t lnl;
       int32_t nty;
 
@@ -3049,7 +3115,8 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_strict_minimal_c(st
       if (!match)
         continue;
       lnl = pipeline_module_struct_layout_name_len(module, k);
-      if (lnl <= 0 || lnl > 63)
+      /* wave582 Cap residual: layout name content ≤127. */
+      if (lnl <= 0 || lnl > 127)
         continue;
       memset(lnm, 0, sizeof(lnm));
       pipeline_module_struct_layout_name_into(module, k, lnm);
@@ -3076,22 +3143,34 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
   int32_t bt_kind;
   int32_t elem_ty;
   int32_t field_len;
-  uint8_t field_name[64];
-  uint8_t type_name[64];
+  uint8_t field_name[128];
+  uint8_t type_name[128];
   int32_t type_name_len;
   int32_t field_ty;
   int32_t field_off;
   int32_t prebind_len;
-  uint8_t prebind_name[64];
+  uint8_t prebind_name[128];
   int32_t base_expected;
   int32_t base_kind;
   base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
   if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
     return -1;
+  /*
+   * wave703 Cap residual: product path is THIS weak twin (g05 links
+   * pipeline_glue_strict_minimal.o; heavy check_expr_field_access_c is not
+   * the live symbol). Call heavy import-binding resolve for
+   * `const m = import(...); m.CONST` / `import m = "..."; m.fn` field types.
+   * G.7: single authority pipeline_typeck_field_import_binding_resolve_c —
+   * no second const-lookup implementation here. PLATFORM: SHARED.
+   */
+  if (pipeline_typeck_field_import_binding_resolve_c(module, arena, expr_ref, base_ref, ctx))
+    return 0;
   if (pipeline_expr_kind_ord_at(arena, base_ref) == (int32_t)ast_ExprKind_EXPR_VAR &&
       ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
     prebind_len = pipeline_expr_var_name_len(arena, base_ref);
-    if (prebind_len > 0 && prebind_len <= 63) {
+    /* wave582 Cap residual: Type/enum names up to 127 (Expr.var_name[128]).
+     * Prior prebind_len<=63 skipped LongEnum.Variant → check_expr base fail. */
+    if (prebind_len > 0 && prebind_len <= 127) {
       pipeline_expr_var_name_into(arena, base_ref, prebind_name);
       if (!ctx || ctx->current_func_index < 0 ||
           pipeline_module_func_param_type_ref_for_name(module, ctx->current_func_index, prebind_name, prebind_len) <= 0)
@@ -3118,7 +3197,8 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
   if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena->num_types)
     return 0;
   field_len = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (field_len <= 0 || field_len > 63)
+  /* wave582 Cap residual: field name content ≤127. */
+  if (field_len <= 0 || field_len > 127)
     return 0;
   pipeline_expr_field_access_name_into(arena, expr_ref, field_name);
   bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
@@ -3134,6 +3214,39 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
           arena, expr_ref, pipeline_type_find_or_alloc_compound(arena, (int32_t)ast_TypeKind_TYPE_PTR, elem_ty, 0));
       return 0;
     }
+    /*
+     * wave674: unknown field on TYPE_SLICE (not .length/.data). Prior path fell
+     * through to non-NAMED early return 0 → host-C BLD001. G.7 hard_fail gate.
+     */
+    {
+      extern int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module,
+                                                              struct ast_ASTArena *arena, int32_t expr_ref,
+                                                              int32_t base_ref, struct ast_PipelineDepCtx *ctx);
+      if (pipeline_typeck_field_unknown_hard_fail_c(module, arena, expr_ref, base_ref, ctx) != 0)
+        return -1;
+    }
+    return 0;
+  }
+  /*
+   * wave674: fixed array / vector .length is handled in heavy twin; this weak
+   * path only had TYPE_SLICE. Unknown field on TYPE_ARRAY/VECTOR must hard-fail
+   * before the non-NAMED soft return below.
+   */
+  if (bt_kind == (int32_t)ast_TypeKind_TYPE_ARRAY || bt_kind == (int32_t)ast_TypeKind_TYPE_VECTOR) {
+    if (field_name_equal_strict_minimal(field_name, field_len, "length")
+        && pipeline_type_array_size_at(arena, base_ty) > 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref,
+                                          pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_USIZE));
+      return 0;
+    }
+    {
+      extern int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module,
+                                                              struct ast_ASTArena *arena, int32_t expr_ref,
+                                                              int32_t base_ref, struct ast_PipelineDepCtx *ctx);
+      if (pipeline_typeck_field_unknown_hard_fail_c(module, arena, expr_ref, base_ref, ctx) != 0)
+        return -1;
+    }
+    return 0;
   }
   elem_ty = 0;
   if (bt_kind == (int32_t)ast_TypeKind_TYPE_PTR) {
@@ -3141,8 +3254,19 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
     if (elem_ty > 0 && pipeline_type_kind_ord_at(arena, elem_ty) == (int32_t)ast_TypeKind_TYPE_NAMED)
       base_ty = elem_ty;
   }
-  if (pipeline_type_kind_ord_at(arena, base_ty) != (int32_t)ast_TypeKind_TYPE_NAMED)
+  /*
+   * wave674: non-NAMED base (scalar / ptr-to-scalar / …) after peel — hard-fail
+   * unknown field (was soft return 0 → assign false-green / host-C BLD001).
+   * G.7: pipeline_typeck_field_unknown_hard_fail_c.
+   */
+  if (pipeline_type_kind_ord_at(arena, base_ty) != (int32_t)ast_TypeKind_TYPE_NAMED) {
+    extern int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module,
+                                                            struct ast_ASTArena *arena, int32_t expr_ref,
+                                                            int32_t base_ref, struct ast_PipelineDepCtx *ctx);
+    if (pipeline_typeck_field_unknown_hard_fail_c(module, arena, expr_ref, base_ref, ctx) != 0)
+      return -1;
     return 0;
+  }
   /*
    * wave479 Cap residual pure: user enum TypeName.Variant (Method.POST).
    * Heavy pipeline_typeck_field_access.c resolves via field_layout_named_c →
@@ -3203,58 +3327,29 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
     extern void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, int32_t li, int32_t j,
                                                                   uint8_t *out64);
     int32_t got_mono;
-    uint8_t mnm[64];
+    uint8_t mnm[128];
     int32_t mnl;
     int32_t m_concrete;
     int32_t sk;
     int32_t tp_slot;
     int32_t mono_ty;
-    uint8_t bnm[64];
+    uint8_t bnm[128];
     int32_t bnl;
+    extern int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *module,
+                                                              struct ast_PipelineDepCtx *ctx,
+                                                              uint8_t *name, int32_t name_len);
     got_mono = pipeline_expr_resolved_type_ref(arena, expr_ref);
     if (got_mono > 0 && got_mono <= arena->num_types
         && pipeline_type_kind_ord_at(arena, got_mono) == (int32_t)ast_TypeKind_TYPE_NAMED) {
       memset(mnm, 0, sizeof(mnm));
       mnl = pipeline_type_named_name_into(arena, got_mono, mnm);
       m_concrete = 0;
-      if (mnl > 0 && mnl <= 63) {
-        for (sk = 0; sk < module->num_struct_layouts; sk++) {
-          int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
-          uint8_t snm[64];
-          int32_t bi;
-          int32_t match;
-          if (sl != mnl)
-            continue;
-          memset(snm, 0, sizeof(snm));
-          pipeline_module_struct_layout_name_into(module, sk, snm);
-          match = 1;
-          for (bi = 0; bi < mnl; bi++) {
-            if (snm[bi] != mnm[bi]) {
-              match = 0;
-              break;
-            }
-          }
-          if (match) {
-            m_concrete = 1;
-            break;
-          }
-        }
-        if (!m_concrete) {
-          for (sk = 0; sk < module->num_module_enums; sk++) {
-            int32_t el = pipeline_module_enum_name_len(module, sk);
-            int32_t bi;
-            if (el != mnl)
-              continue;
-            for (bi = 0; bi < el; bi++) {
-              if (pipeline_module_enum_name_byte_at(module, sk, bi) != mnm[bi])
-                break;
-            }
-            if (bi == el) {
-              m_concrete = 1;
-              break;
-            }
-          }
-        }
+      /* wave1220 P4: use pipeline_typeck_named_is_module_concrete_c (G.7 single authority)
+       * — checks current module + dep modules' struct_layouts AND enums, preventing
+       * cross-module enum types (TokenKind) from being mistaken as type params.
+       * PLATFORM: SHARED — root-cause fix at the concrete-type check. */
+      if (mnl > 0 && mnl <= 127) {
+        m_concrete = pipeline_typeck_named_is_module_concrete_c(module, ctx, mnm, mnl);
       }
       if (!m_concrete) {
         tp_slot = 0;
@@ -3263,7 +3358,7 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
         if (bnl > 0) {
           for (sk = 0; sk < module->num_struct_layouts; sk++) {
             int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
-            uint8_t snm[64];
+            uint8_t snm[128];
             int32_t bi;
             int32_t match;
             int32_t ntp;
@@ -3286,7 +3381,7 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
               tp_slot = -1;
               for (tj = 0; tj < ntp; tj++) {
                 int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, sk, tj);
-                uint8_t tpn[64];
+                uint8_t tpn[128];
                 int32_t pi;
                 int32_t peq;
                 if (tpl != mnl)
@@ -3333,56 +3428,39 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
     if (ast_ref_is_null(got_ty) || got_ty <= 0 || got_ty > arena->num_types) {
       use_ambient = 0; /* wave479: leave unresolved; never invent ambient */
     } else if (pipeline_type_kind_ord_at(arena, got_ty) == (int32_t)ast_TypeKind_TYPE_NAMED) {
-      uint8_t gnm[64];
+      uint8_t gnm[128];
       int32_t gnl;
       int32_t concrete = 0;
-      int32_t sk;
+      extern int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *module,
+                                                                struct ast_PipelineDepCtx *ctx,
+                                                                uint8_t *name, int32_t name_len);
       memset(gnm, 0, sizeof(gnm));
       gnl = pipeline_type_named_name_into(arena, got_ty, gnm);
-      if (gnl > 0 && gnl <= 63) {
-        for (sk = 0; sk < module->num_struct_layouts; sk++) {
-          int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
-          uint8_t snm[64];
-          int32_t bi;
-          int32_t match;
-          if (sl != gnl)
-            continue;
-          memset(snm, 0, sizeof(snm));
-          pipeline_module_struct_layout_name_into(module, sk, snm);
-          match = 1;
-          for (bi = 0; bi < gnl; bi++) {
-            if (snm[bi] != gnm[bi]) {
-              match = 0;
-              break;
-            }
-          }
-          if (match) {
-            concrete = 1;
-            break;
-          }
-        }
-        if (!concrete) {
-          for (sk = 0; sk < module->num_module_enums; sk++) {
-            int32_t el = pipeline_module_enum_name_len(module, sk);
-            int32_t bi;
-            if (el != gnl)
-              continue;
-            for (bi = 0; bi < el; bi++) {
-              if (pipeline_module_enum_name_byte_at(module, sk, bi) != gnm[bi])
-                break;
-            }
-            if (bi == el) {
-              concrete = 1;
-              break;
-            }
-          }
-        }
+      /* wave1220 P4: use pipeline_typeck_named_is_module_concrete_c (G.7 single authority)
+       * — checks current module + dep modules for concrete types, preventing ambient
+       * overwrite of cross-module enum types (TokenKind from token dep).
+       * PLATFORM: SHARED — root-cause fix at the concrete-type check. */
+      if (gnl > 0 && gnl <= 127) {
+        concrete = pipeline_typeck_named_is_module_concrete_c(module, ctx, gnm, gnl);
       }
       if (!concrete)
         use_ambient = 1;
     }
     if (use_ambient)
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
+  }
+  /*
+   * wave674 Cap residual: hard-fail unknown field on known base.
+   * G.7: single gate pipeline_typeck_field_unknown_hard_fail_c (heavy field_access.c);
+   * do not open a second matcher here. Soft: type-param / unknown base.
+   * PLATFORM: SHARED — product weak twin must call the same gate.
+   */
+  {
+    extern int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module,
+                                                            struct ast_ASTArena *arena, int32_t expr_ref,
+                                                            int32_t base_ref, struct ast_PipelineDepCtx *ctx);
+    if (pipeline_typeck_field_unknown_hard_fail_c(module, arena, expr_ref, base_ref, ctx) != 0)
+      return -1;
   }
   return 0;
 }

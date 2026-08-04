@@ -8,6 +8,8 @@
 # 环境：XLANG_BSTRICT_SKIP_BUILD=1 — 复用已有 xlang_asm（bootstrap-ci 已构建时）
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
@@ -40,7 +42,7 @@ if extra:
 PY
 
 if [ ! -x compiler/xlang_asm ] && [ -z "${XLANG_BSTRICT_SKIP_BUILD:-}" ]; then
-  echo "l5-parity-gate: need xlang_asm (make -C compiler bootstrap-driver-bstrict)" >&2
+  echo "l5-parity-gate: need xlang_asm (xlang_compiler_make bootstrap-driver-bstrict)" >&2
   exit 127
 fi
 

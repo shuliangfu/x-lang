@@ -734,7 +734,7 @@ int32_t http_request_method_timeout_c(uint8_t method_u8, const uint8_t *url, int
 int32_t http_timeout_smoke_c(void) {
   /* 240.0.0.0/4（Class E）通常无路由，connect poll 超时；TEST-NET 在部分环境会快速失败返回 0。 */
   static const uint8_t url[] = "http://240.0.0.1:1/";
-  uint8_t buf[64];
+  uint8_t buf[128];
   int32_t r = http_get_timeout_c(url, (int32_t)(sizeof(url) - 1), buf, (int32_t)sizeof(buf), 200u);
   return (r == HTTP_ERR_TIMEOUT) ? 0 : 1;
 }

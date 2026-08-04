@@ -5,6 +5,8 @@
 # 用法：./tests/run-tst-002-boundary-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_TST002_DOC:-analysis/tst-002-boundary-wave2-v1.md}"
 MANIFEST="${XLANG_TST002_TSV:-tests/baseline/tst-002-boundary-wave2.tsv}"
@@ -93,9 +95,9 @@ done
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== TST-002: typeck + smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
-  make -C compiler -q ../std/heap/heap.o ../std/process/process.o 2>/dev/null \
-    || make -C compiler ../std/heap/heap.o ../std/process/process.o 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
+  xlang_compiler_make -q ../std/heap/heap.o ../std/process/process.o 2>/dev/null \
+    || xlang_compiler_make ../std/heap/heap.o ../std/process/process.o 2>/dev/null || true
   for x in tests/heap/boundary.x tests/vec/boundary.x tests/map/boundary.x tests/process/boundary.x; do
     if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "tst-002-boundary gate FAIL: typeck $x" >&2

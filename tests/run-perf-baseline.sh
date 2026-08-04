@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # 阶段 8 性能基线：编译 perf-baseline 用例并以 time 多次运行，输出耗时便于对比与防回退
-# 用法：./tests/run-perf-baseline.sh [--bench]  # --bench 额外跑 tests/bench（需本机 cc；zig 可选）
+# 用法：./tests/run-perf-baseline.sh [--bench]  # --bench 额外跑 bench（需本机 cc；zig 可选）
 # 门禁：
 #   XLANG_PERF_FAIL_ON_ZIG=1 — default asm 中位数 ≤ Zig -O2（无 zig 则跳过该项）
 #   XLANG_PERF_FAIL_ON_C_O3=1 — default asm 中位数 ≤ XLANG_PERF_C_O3_RATIO× C -O3（B-CMP/L2；无 cc 则跳过）
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 # PERF-001：Zig 编译参数与版本 pin 见 tests/lib/zig-baseline.sh
 # shellcheck source=tests/lib/zig-baseline.sh
@@ -93,7 +95,7 @@ bench_case() {
   local ASM_MED="nan"
   local tag="${name}_"
 
-  echo "=== tests/bench/${name} ==="
+  echo "=== bench/${name} ==="
 
   if [ "$PERF_FAIL_C_O3" -eq 1 ] && [ "$PERF_COMPILE_XLANG" = "./compiler/xlang-c" ]; then
     if bcmp_compile_shu_codegen "$x" "/tmp/bench_shu_${tag}" "$tag" 2>&1; then
@@ -214,10 +216,10 @@ for i in $(seq 1 "$RUNS"); do
 done
 
 if [ "$DO_BENCH" -eq 1 ]; then
-  bench_case loop_i32 tests/bench/loop_i32
-  bench_case mem_copy tests/bench/mem_copy
-  bench_case struct_param tests/bench/struct_param
-  bench_case call_boundary tests/bench/call_boundary
+  bench_case loop_i32 bench/loop_i32
+  bench_case mem_copy bench/mem_copy
+  bench_case struct_param bench/struct_param
+  bench_case call_boundary bench/call_boundary
   echo "（完整说明见 analysis/perf-zig-baseline-v1.md；P0：loop_i32 + mem_copy + struct_param + call_boundary）"
   if [ "$PERF_FAIL_ZIG" -eq 1 ] && [ "$PERF_ZIG_FAILS" -gt 0 ]; then
     echo "perf baseline FAIL: ${PERF_ZIG_FAILS} case(s) slower than Zig -O2" >&2

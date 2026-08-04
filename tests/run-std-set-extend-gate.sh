@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-set-extend-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_SET_EXTEND_DOC:-analysis/std-set-extend-v1.md}"
 MANIFEST="${XLANG_STD_SET_EXTEND_TSV:-tests/baseline/std-set-extend.tsv}"
@@ -73,7 +75,7 @@ if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
     exit 1
   fi
   SKIP=0
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   # shellcheck source=tests/lib/bootstrap-link-xlang.sh
   . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
   if $RUN_XLANG build -L . "$SMOKE" -o /tmp/xlang_std_set_extend 2>/tmp/xlang_std_set_extend_build.log; then

@@ -1574,7 +1574,8 @@ int32_t parser_asm_parse_one_function_library_scan_slice_c(struct parser_asm_lex
     return 0;
   } else {
     result->name_len = r.tok.ident_len;
-    if (result->name_len <= 0 || result->name_len > 63) {
+    /* wave584 Cap residual: library scan fn name content ≤127 (LibraryParseResult.name[128]). */
+    if (result->name_len <= 0 || result->name_len > 127) {
       result->next_lex = r.next_lex;
       return 0;
     }
@@ -1594,7 +1595,7 @@ int32_t parser_asm_parse_one_function_library_scan_slice_c(struct parser_asm_lex
     return 0;
   }
   result->param_name_len = r.tok.ident_len;
-  if (result->param_name_len <= 0 || result->param_name_len > 31) {
+  if (result->param_name_len <= 0 || result->param_name_len > 127) {
     result->next_lex = r.next_lex;
     return 0;
   }
@@ -1614,7 +1615,8 @@ int32_t parser_asm_parse_one_function_library_scan_slice_c(struct parser_asm_lex
     return 0;
   }
   result->param_type_len = r.tok.ident_len;
-  if (result->param_type_len <= 0 || result->param_type_len > 63) {
+  /* wave584 Cap residual: param type name content ≤127 (param_type_name[128]). */
+  if (result->param_type_len <= 0 || result->param_type_len > 127) {
     result->next_lex = r.next_lex;
     return 0;
   }
@@ -1681,7 +1683,8 @@ int32_t parser_asm_parse_one_function_library_scan_slice_c(struct parser_asm_lex
     return 0;
   }
   result->field_len = r.tok.ident_len;
-  if (result->field_len <= 0 || result->field_len > 63) {
+  /* wave584 Cap residual: library field name content ≤127 (field_name[128]). */
+  if (result->field_len <= 0 || result->field_len > 127) {
     result->next_lex = r.next_lex;
     return 0;
   }

@@ -4,6 +4,8 @@
 # 用法：./tests/run-types-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 XLANG="${XLANG:-./compiler/xlang-c}"
 CHECK_CASES=(
@@ -24,7 +26,7 @@ for f in "${CHECK_CASES[@]}" "${RUN_CASES[@]}"; do
 done
 
 if [ ! -x "$XLANG" ]; then
-  make -C compiler xlang-c
+  xlang_compiler_make xlang-c
   XLANG=./compiler/xlang-c
 fi
 

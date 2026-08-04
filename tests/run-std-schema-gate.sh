@@ -2,6 +2,8 @@
 # STD-090：std.schema 门禁
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_SCHEMA_DOC:-analysis/std-schema-v1.md}"
 MANIFEST="${XLANG_STD_SCHEMA_MANIFEST:-tests/baseline/std-schema-manifest.tsv}"
@@ -65,8 +67,8 @@ SKIP=0
 
 echo "=== STD-090: schema c smoke ==="
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/schema/schema.o ../std/json/json.o >/dev/null 2>&1
-  make -C compiler ../std/csv/csv.o >/dev/null 2>&1 || true
+  xlang_compiler_make ../std/schema/schema.o ../std/json/json.o >/dev/null 2>&1
+  xlang_compiler_make ../std/csv/csv.o >/dev/null 2>&1 || true
   if [ -f std/csv/csv.o ] && [ -f std/json/json.o ] && [ -f std/schema/schema.o ]; then
     if cc -std=c11 -O1 -o /tmp/xlang_schema_smoke \
       "$SMOKE_C" std/schema/schema.o std/json/json.o std/csv/csv.o 2>/dev/null; then

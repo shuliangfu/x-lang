@@ -2,6 +2,8 @@
 # STD-132：std.env 平台编码 / 环境块边界门禁
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 DOC="analysis/std-env-platform-encoding-v1.md"
 MANIFEST="tests/baseline/std-env-platform-encoding-manifest.tsv"
 MOD_X="std/env/mod.x"
@@ -19,7 +21,7 @@ sym_miss="$(std_env_platform_encoding_symbols_ok "$MOD_X" "$ENV_IMPL" "$ENV_GLUE
 C_OK=0
 SKIP=0
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/env/env.o >/dev/null 2>&1 || true
+  xlang_compiler_make ../std/env/env.o >/dev/null 2>&1 || true
   ENV_O="$(cd compiler && pwd)/../std/env/env.o"
   if [ -f "$ENV_O" ] && std_env_platform_encoding_run_c_smoke "$ENV_O"; then
     C_OK=1

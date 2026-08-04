@@ -18,8 +18,8 @@ MIN_BENCHES=6
 echo "=== TYPE-005: zero-cost abstraction manifest ==="
 for f in "$DOC" "$MANIFEST" "$BENCH" \
   analysis/type-linear-v1-rfc.md analysis/type-region-v1-rfc.md \
-  tests/bench/{loop_i32,mem_copy,struct_param,call_boundary}.x \
-  tests/bench/generic_id_i32.x tests/typeck/linear/move_ok.x \
+  bench/{loop_i32,mem_copy,struct_param,call_boundary}.x \
+  bench/generic_id_i32.x tests/typeck/linear/move_ok.x \
   tests/run-bcmp-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "type-zero-cost gate FAIL: missing $f" >&2

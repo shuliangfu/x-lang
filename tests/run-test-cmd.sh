@@ -2,6 +2,8 @@
 # xlang test 子命令：跑轻量脚本（非全量 run-all，避免 CI 重复）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 XLANG=${XLANG:-./compiler/xlang}
 # bootstrap xlang_asm：test 子命令走 xlang-c（与 run-check/run-fmt-cmd 一致）。
 if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -x ./compiler/xlang-c ]; then
@@ -11,9 +13,9 @@ if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -x ./compiler/xlang-c ]; the
 fi
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ]; then
-    make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
+    xlang_compiler_make bootstrap-driver-seed -q 2>/dev/null || xlang_compiler_make bootstrap-driver-seed
   else
-    make -C compiler -q 2>/dev/null || make -C compiler bootstrap-driver-seed
+    xlang_compiler_make -q 2>/dev/null || xlang_compiler_make bootstrap-driver-seed
   fi
 fi
 

@@ -2,7 +2,9 @@
 # VEC-V2：while + f32 reduction autovec — emit 含 xlang_autovec_sum_f32，运行正确。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 XLANG="${XLANG:-./compiler/xlang-c}"
 SRC="tests/vec/autovec_sum_while.x"
 OUT="/tmp/xlang_autovec_sum_while"

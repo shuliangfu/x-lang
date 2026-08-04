@@ -2,6 +2,8 @@
 # F-datetime v2：std.datetime 逻辑下沉（F-ZC 纯 .x；本地偏移经 std.time）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_DATETIME_V2_FAIL:-0}
 DOC="analysis/phase-f-datetime-v2.md"
 MANIFEST="tests/baseline/f-datetime-v2-closure.tsv"
@@ -30,7 +32,7 @@ grep -q 'datetime_local_offset_min_c' std/datetime/datetime.x || die "datetime.x
 grep -q 'time_wall_local_offset_min_c' std/datetime/datetime.x || die "datetime.x missing time extern"
 grep -q 'datetime.x' compiler/Makefile || die "Makefile missing datetime.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/datetime/datetime.o >/dev/null 2>&1 || die "make datetime.o failed"
+  xlang_compiler_make ../std/datetime/datetime.o >/dev/null 2>&1 || die "make datetime.o failed"
 else
   echo "f-datetime-v2 SKIP datetime.o build (no xlang-c)" >&2
 fi

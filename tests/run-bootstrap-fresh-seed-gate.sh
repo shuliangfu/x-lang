@@ -5,6 +5,8 @@
 # 用法：./tests/run-bootstrap-fresh-seed-gate.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/gate-progress.sh
 source tests/lib/gate-progress.sh
@@ -45,7 +47,7 @@ SMOKE="compiler/scripts/bootstrap_driver_seed_smoke.sh"
 
 if [ "${XLANG_BOOTSTRAP_FRESH_SEED_BUILD:-0}" = "1" ]; then
   gate_progress "V6: make bootstrap-driver-seed（耗时长）..."
-  gate_progress_run "bootstrap-driver-seed" make -C compiler bootstrap-driver-seed XLANG_FORCE_REGEN_GEN=1
+  gate_progress_run "bootstrap-driver-seed" xlang_compiler_make bootstrap-driver-seed XLANG_FORCE_REGEN_GEN=1
 fi
 
 TARGET="${XLANG_BOOTSTRAP_FRESH_SEED_BIN:-./compiler/xlang-c}"
@@ -64,7 +66,7 @@ if [ -f compiler/seeds/runtime_process_argv.from_x.c ]; then
   if [ ! -f compiler/runtime_process_argv.o ] \
      || [ compiler/seeds/runtime_process_argv.from_x.c -nt compiler/runtime_process_argv.o ]; then
     gate_progress "V6: 重编 runtime_process_argv.o ..."
-    gate_progress_run "runtime_process_argv.o" make -C compiler runtime_process_argv.o
+    gate_progress_run "runtime_process_argv.o" xlang_compiler_make runtime_process_argv.o
   fi
 fi
 

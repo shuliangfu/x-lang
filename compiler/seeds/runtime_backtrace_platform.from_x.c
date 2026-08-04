@@ -428,7 +428,7 @@ void backtrace_gold_anchor_c(void) {
 
 /** STD-052 C smoke: symbolicate gold_anchor + capture path. */
 int32_t backtrace_symbolicate_smoke_c(void) {
-  uint8_t buf[64];
+  uint8_t buf[128];
   uint8_t names[128];
   g_sym_capture_result = 12;
   backtrace_write_frame_addr_c(buf, 0, backtrace_gold_anchor_addr_c());

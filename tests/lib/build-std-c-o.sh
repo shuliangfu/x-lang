@@ -2,6 +2,12 @@
 # 文件职责：按需构建 std 下由 C 实现的 .o，供 asm/-o 链接解析 mod.x 中的 extern（如 std.csv.next_field）。
 # bootstrap-driver-seed 仅链 io/fs/heap，不构建全量 STD_AND_PANIC_O；依赖本脚本的 run-*.sh 须先 ensure。
 # 用法：. "$(dirname "$0")/lib/build-std-c-o.sh" && ensure_std_c_o ../std/csv/csv.o
+#
+# wave727 · 11.2.3: make -C compiler goes through tests/lib/compiler-make.sh
+# (single call path; future xbuild swap without touching every gate).
+
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 
 # 探测本机是否可链 libsqlite3（与 tests/lib/std-sqlite-gate.sh 一致）。
 _std_c_o_probe_sqlite3() {
@@ -45,7 +51,7 @@ ensure_std_c_o() {
     echo "ensure_std_c_o: missing path (e.g. ../std/csv/csv.o)" >&2
     return 1
   fi
-  # make -C compiler 使用 compiler/ 为 cwd 的相对路径；gate 从仓库根 source 时传入 ../std/...。
+  # xlang_compiler_make 使用 compiler/ 为 cwd 的相对路径；gate 从仓库根 source 时传入 ../std/...。
   local make_rel="$rel"
   local repo_rel="$rel"
   case "$rel" in
@@ -62,7 +68,7 @@ ensure_std_c_o() {
         rm -f "$repo_rel"
       fi
       if ! _std_c_o_probe_sqlite3; then
-        make -C compiler sqlite-o-stub >/dev/null 2>&1 || {
+        xlang_compiler_make sqlite-o-stub >/dev/null 2>&1 || {
           echo "ensure_std_c_o FAIL: sqlite-o-stub (no libsqlite3)" >&2
           return 1
         }
@@ -70,7 +76,7 @@ ensure_std_c_o() {
       fi
       ;;
   esac
-  make -C compiler -q "$make_rel" 2>/dev/null || make -C compiler "$make_rel"
+  xlang_compiler_make -q "$make_rel" 2>/dev/null || xlang_compiler_make "$make_rel"
   # PLATFORM: SHARED — multi-file bare-impl std .o can be mtime-fresh yet lack
   # mod.x wrappers (only preamble / bare *_c). L4 cold mac then UNDEF on -o.
   # Reject partial objects and force one rebuild.
@@ -79,28 +85,28 @@ ensure_std_c_o() {
       if ! nm "$repo_rel" 2>/dev/null | grep -q 'std_test_expect'; then
         echo "ensure_std_c_o: $repo_rel missing std_test_expect — force rebuild" >&2
         rm -f "$repo_rel"
-        make -C compiler "$make_rel" || return 1
+        xlang_compiler_make "$make_rel" || return 1
       fi
       ;;
     std/crypto/crypto.o)
       if ! nm "$repo_rel" 2>/dev/null | grep -q 'std_crypto_sha256'; then
         echo "ensure_std_c_o: $repo_rel missing std_crypto_sha256 — force rebuild" >&2
         rm -f "$repo_rel"
-        make -C compiler "$make_rel" || return 1
+        xlang_compiler_make "$make_rel" || return 1
       fi
       ;;
     std/error/error.o)
       if ! nm "$repo_rel" 2>/dev/null | grep -q 'std_error_ok'; then
         echo "ensure_std_c_o: $repo_rel missing std_error_ok — force rebuild" >&2
         rm -f "$repo_rel"
-        make -C compiler "$make_rel" || return 1
+        xlang_compiler_make "$make_rel" || return 1
       fi
       ;;
     std/base64/base64.o)
       if ! nm "$repo_rel" 2>/dev/null | grep -q 'std_base64_encode_standard'; then
         echo "ensure_std_c_o: $repo_rel missing std_base64_encode_standard — force rebuild" >&2
         rm -f "$repo_rel"
-        make -C compiler "$make_rel" || return 1
+        xlang_compiler_make "$make_rel" || return 1
       fi
       ;;
   esac
@@ -108,122 +114,122 @@ ensure_std_c_o() {
 
 # F-ZC：确保 runtime_time_os.o 存在；C 烟测链 time.o 时须一并链接。
 ensure_runtime_time_os_o() {
-  make -C compiler -q runtime_time_os.o 2>/dev/null || make -C compiler runtime_time_os.o
+  xlang_compiler_make -q runtime_time_os.o 2>/dev/null || xlang_compiler_make runtime_time_os.o
 }
 
 # F-ZC：确保 runtime_random_fill.o 存在；C 烟测链 random.o 时须一并链接。
 ensure_runtime_random_fill_o() {
-  make -C compiler -q runtime_random_fill.o 2>/dev/null || make -C compiler runtime_random_fill.o
+  xlang_compiler_make -q runtime_random_fill.o 2>/dev/null || xlang_compiler_make runtime_random_fill.o
 }
 
 # F-ZC：确保 runtime_dynlib_os.o 存在；C 烟测链 dynlib.o 时须一并链接。
 ensure_runtime_dynlib_os_o() {
-  make -C compiler -q runtime_dynlib_os.o 2>/dev/null || make -C compiler runtime_dynlib_os.o
+  xlang_compiler_make -q runtime_dynlib_os.o 2>/dev/null || xlang_compiler_make runtime_dynlib_os.o
 }
 
 # F-ZC：确保 runtime_env_os.o 存在；C 烟测链 env.o 时须一并链接。
 ensure_runtime_env_os_o() {
-  make -C compiler -q runtime_env_os.o 2>/dev/null || make -C compiler runtime_env_os.o
+  xlang_compiler_make -q runtime_env_os.o 2>/dev/null || xlang_compiler_make runtime_env_os.o
 }
 
 # F-ZC：确保 runtime_queue_contention.o 存在；C 烟测链 queue.o 时须一并链接。
 ensure_runtime_queue_contention_o() {
-  make -C compiler -q runtime_queue_contention.o 2>/dev/null || make -C compiler runtime_queue_contention.o
+  xlang_compiler_make -q runtime_queue_contention.o 2>/dev/null || xlang_compiler_make runtime_queue_contention.o
 }
 
 # F-ZC：确保 runtime_backtrace_platform.o 存在；C 烟测链 backtrace.o 时须一并链接。
 ensure_runtime_backtrace_platform_o() {
-  make -C compiler -q runtime_backtrace_platform.o 2>/dev/null || make -C compiler runtime_backtrace_platform.o
+  xlang_compiler_make -q runtime_backtrace_platform.o 2>/dev/null || xlang_compiler_make runtime_backtrace_platform.o
 }
 
 # F-ZC：确保 runtime_log_os.o 存在；C 烟测链 log.o 时须一并链接。
 ensure_runtime_log_os_o() {
-  make -C compiler -q runtime_log_os.o 2>/dev/null || make -C compiler runtime_log_os.o
+  xlang_compiler_make -q runtime_log_os.o 2>/dev/null || xlang_compiler_make runtime_log_os.o
 }
 
 # F-ZC：确保 runtime_math_libm.o 存在；C 烟测链 math.o 时须一并链接。
 ensure_runtime_math_libm_o() {
-  make -C compiler -q runtime_math_libm.o 2>/dev/null || make -C compiler runtime_math_libm.o
+  xlang_compiler_make -q runtime_math_libm.o 2>/dev/null || xlang_compiler_make runtime_math_libm.o
 }
 
 # F-ZC：确保 runtime_atomic_glue.o 存在；C 烟测链 atomic.o 时须一并链接。
 ensure_runtime_atomic_glue_o() {
-  make -C compiler -q runtime_atomic_glue.o 2>/dev/null || make -C compiler runtime_atomic_glue.o
+  xlang_compiler_make -q runtime_atomic_glue.o 2>/dev/null || xlang_compiler_make runtime_atomic_glue.o
 }
 
 # F-ZC：确保 runtime_channel_glue.o 存在；C 烟测链 channel.o 时须一并链接。
 ensure_runtime_channel_glue_o() {
-  make -C compiler -q runtime_channel_glue.o 2>/dev/null || make -C compiler runtime_channel_glue.o
+  xlang_compiler_make -q runtime_channel_glue.o 2>/dev/null || xlang_compiler_make runtime_channel_glue.o
 }
 
 # F-ZC：确保 runtime_net_udp_batch.o / runtime_net_workers.o 存在；链 net.o 时须一并链接。
 ensure_runtime_net_udp_batch_o() {
-  make -C compiler -q runtime_net_udp_batch.o 2>/dev/null || make -C compiler runtime_net_udp_batch.o
+  xlang_compiler_make -q runtime_net_udp_batch.o 2>/dev/null || xlang_compiler_make runtime_net_udp_batch.o
 }
 
 ensure_runtime_net_workers_o() {
-  make -C compiler -q runtime_net_workers.o 2>/dev/null || make -C compiler runtime_net_workers.o
+  xlang_compiler_make -q runtime_net_workers.o 2>/dev/null || xlang_compiler_make runtime_net_workers.o
 }
 
 # F-ZC：asm -o 最小链 / net gcc 回退须 runtime_asm_io_stubs.o、runtime_panic.o、runtime_process_argv.o。
 ensure_runtime_asm_io_stubs_o() {
-  make -C compiler -q runtime_asm_io_stubs.o 2>/dev/null || make -C compiler runtime_asm_io_stubs.o
+  xlang_compiler_make -q runtime_asm_io_stubs.o 2>/dev/null || xlang_compiler_make runtime_asm_io_stubs.o
 }
 
 ensure_runtime_panic_o() {
-  make -C compiler -q runtime_panic.o 2>/dev/null || make -C compiler runtime_panic.o
+  xlang_compiler_make -q runtime_panic.o 2>/dev/null || xlang_compiler_make runtime_panic.o
 }
 
 ensure_runtime_process_argv_o() {
-  make -C compiler -q runtime_process_argv.o 2>/dev/null || make -C compiler runtime_process_argv.o
+  xlang_compiler_make -q runtime_process_argv.o 2>/dev/null || xlang_compiler_make runtime_process_argv.o
 }
 
 # F-ZC：确保 runtime_sync_os.o / runtime_sync_lock_diag_tls.o；链 sync.o 时须一并链接。
 ensure_runtime_sync_os_o() {
-  make -C compiler -q runtime_sync_os.o 2>/dev/null || make -C compiler runtime_sync_os.o
+  xlang_compiler_make -q runtime_sync_os.o 2>/dev/null || xlang_compiler_make runtime_sync_os.o
 }
 
 ensure_runtime_sync_lock_diag_tls_o() {
-  make -C compiler -q runtime_sync_lock_diag_tls.o 2>/dev/null || make -C compiler runtime_sync_lock_diag_tls.o
+  xlang_compiler_make -q runtime_sync_lock_diag_tls.o 2>/dev/null || xlang_compiler_make runtime_sync_lock_diag_tls.o
 }
 
 ensure_runtime_thread_glue_o() {
-  make -C compiler -q runtime_thread_glue.o 2>/dev/null || make -C compiler runtime_thread_glue.o
+  xlang_compiler_make -q runtime_thread_glue.o 2>/dev/null || xlang_compiler_make runtime_thread_glue.o
 }
 
 # F-ZC：确保 runtime_process_os_glue.o；链 process.o 时须一并链接。
 ensure_runtime_process_os_glue_o() {
-  make -C compiler -q runtime_process_os_glue.o 2>/dev/null || make -C compiler runtime_process_os_glue.o
+  xlang_compiler_make -q runtime_process_os_glue.o 2>/dev/null || xlang_compiler_make runtime_process_os_glue.o
 }
 
 ensure_runtime_scheduler_glue_o() {
-  make -C compiler -q runtime_scheduler_glue.o 2>/dev/null || make -C compiler runtime_scheduler_glue.o
+  xlang_compiler_make -q runtime_scheduler_glue.o 2>/dev/null || xlang_compiler_make runtime_scheduler_glue.o
 }
 
 ensure_runtime_http_glue_o() {
-  make -C compiler -q runtime_http_glue.o 2>/dev/null || make -C compiler runtime_http_glue.o
+  xlang_compiler_make -q runtime_http_glue.o 2>/dev/null || xlang_compiler_make runtime_http_glue.o
 }
 
 ensure_runtime_kv_mmap_glue_o() {
-  make -C compiler -q runtime_kv_mmap_glue.o 2>/dev/null || make -C compiler runtime_kv_mmap_glue.o
+  xlang_compiler_make -q runtime_kv_mmap_glue.o 2>/dev/null || xlang_compiler_make runtime_kv_mmap_glue.o
 }
 
 ensure_runtime_arrow_simd_glue_o() {
-  make -C compiler -q runtime_arrow_simd_glue.o 2>/dev/null || make -C compiler runtime_arrow_simd_glue.o
+  xlang_compiler_make -q runtime_arrow_simd_glue.o 2>/dev/null || xlang_compiler_make runtime_arrow_simd_glue.o
 }
 
 ensure_runtime_sqlite_glue_o() {
-  make -C compiler -q runtime_sqlite_glue.o 2>/dev/null || make -C compiler runtime_sqlite_glue.o
+  xlang_compiler_make -q runtime_sqlite_glue.o 2>/dev/null || xlang_compiler_make runtime_sqlite_glue.o
 }
 
 ensure_runtime_crypto_inc_glue_o() {
-  make -C compiler -q runtime_crypto_inc_glue.o 2>/dev/null || make -C compiler runtime_crypto_inc_glue.o
+  xlang_compiler_make -q runtime_crypto_inc_glue.o 2>/dev/null || xlang_compiler_make runtime_crypto_inc_glue.o
 }
 
 ensure_runtime_ed25519_ref10_glue_o() {
-  make -C compiler -q runtime_ed25519_ref10_glue.o 2>/dev/null || make -C compiler runtime_ed25519_ref10_glue.o
+  xlang_compiler_make -q runtime_ed25519_ref10_glue.o 2>/dev/null || xlang_compiler_make runtime_ed25519_ref10_glue.o
 }
 
 ensure_runtime_tls_mbedtls_bio_o() {
-  make -C compiler -q runtime_tls_mbedtls_bio.o 2>/dev/null || make -C compiler runtime_tls_mbedtls_bio.o
+  xlang_compiler_make -q runtime_tls_mbedtls_bio.o 2>/dev/null || xlang_compiler_make runtime_tls_mbedtls_bio.o
 }

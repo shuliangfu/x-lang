@@ -41,14 +41,18 @@ extern function build_copy_xlang_asm(): i32;
  * @return i32
  */
 function build_run_legacy_steps(xlang_path: *u8): i32 {
-  let n: i32 = build_get_step_count();
+  let n: i32 = 0;
+  unsafe { n = build_get_step_count(); }
   let i: i32 = 0;
   while (i < n) {
-    let step_id: i32 = build_get_step_at(i);
+    let step_id: i32 = 0;
+    unsafe { step_id = build_get_step_at(i); }
     if (step_id < 0) {
       return 1;
     }
-    if (build_run_step(step_id, xlang_path) != 0) {
+    let rc: i32 = 0;
+    unsafe { rc = build_run_step(step_id, xlang_path); }
+    if (rc != 0) {
       return 1;
     }
     i = i + 1;
@@ -89,9 +93,11 @@ function build_argv2_is_legacy(arg2: *u8, l2: i32): i32 {
  * @param argv *u8
  * @return i32
  */
-function entry(argc: i32, argv: *u8): i32 {
+#[no_mangle]
+export function entry(argc: i32, argv: *u8): i32 {
   let xlang_buf: u8[256] = [];
-  let len: i32 = driver_get_argv_i(argc, argv, 1, xlang_buf, 256);
+  let len: i32 = 0;
+  unsafe { len = driver_get_argv_i(argc, argv, 1, xlang_buf, 256); }
   if (len < 0) {
     xlang_buf[0] = 46;
     xlang_buf[1] = 47;
@@ -104,9 +110,12 @@ function entry(argc: i32, argv: *u8): i32 {
     xlang_buf[len] = 0;
   }
   let arg2: u8[8] = [];
-  let l2: i32 = driver_get_argv_i(argc, argv, 2, arg2, 8);
+  let l2: i32 = 0;
+  unsafe { l2 = driver_get_argv_i(argc, argv, 2, arg2, 8); }
   if (build_argv2_is_asm(arg2, l2) != 0) {
-    if (build_run_asm_build(xlang_buf) != 0) {
+    let rc: i32 = 0;
+    unsafe { rc = build_run_asm_build(xlang_buf); }
+    if (rc != 0) {
       return 1;
     }
     return 0;
@@ -117,9 +126,15 @@ function entry(argc: i32, argv: *u8): i32 {
     }
     return 0;
   }
-  if (build_use_asm_only() != 0) {
-    if (build_run_asm_build(xlang_buf) == 0) {
-      if (build_copy_xlang_asm() != 0) {
+  let use_asm: i32 = 0;
+  unsafe { use_asm = build_use_asm_only(); }
+  if (use_asm != 0) {
+    let rc: i32 = 0;
+    unsafe { rc = build_run_asm_build(xlang_buf); }
+    if (rc == 0) {
+      let rc2: i32 = 0;
+      unsafe { rc2 = build_copy_xlang_asm(); }
+      if (rc2 != 0) {
         return 1;
       }
       return 0;

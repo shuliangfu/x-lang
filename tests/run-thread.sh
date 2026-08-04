@@ -2,7 +2,9 @@
 # 测试 std.thread：thread_self、thread_create、thread_join
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 $XLANG build -L . tests/thread/main.x -o /tmp/xlang_thread 2>&1

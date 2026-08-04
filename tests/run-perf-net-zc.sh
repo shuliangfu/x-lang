@@ -6,6 +6,8 @@
 #   XLANG=./compiler/xlang-c ./tests/run-perf-net-zc.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/perf-net-zc.sh
 . tests/lib/perf-net-zc.sh
@@ -67,9 +69,9 @@ if ! perf_nz_probe_ok; then
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/net/net.o ../std/io/io.o ../std/thread/thread.o -q 2>/dev/null \
-  || make -C compiler ../std/net/net.o ../std/io/io.o ../std/thread/thread.o
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+xlang_compiler_make ../std/net/net.o ../std/io/io.o ../std/thread/thread.o -q 2>/dev/null \
+  || xlang_compiler_make ../std/net/net.o ../std/io/io.o ../std/thread/thread.o
 
 declare -A NZ_CYCLES NZ_CPM
 HARD_FAIL=0

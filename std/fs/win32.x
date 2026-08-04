@@ -348,23 +348,25 @@ export function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64 {
   }
   while (copied < len) {
     chunk = (len - copied) as u32;
-    if (chunk > 262144) {
-      chunk = 262144;
+    /* Compare u32 against u32 — bare int lit 262144 is i32 and fails T001. */
+    if (chunk > (262144 as u32)) {
+      chunk = 262144 as u32;
     }
     unsafe { if (ReadFile(hIn, buf, chunk, &nr, 0 as *u8) == 0 || nr == 0) {
       break;
     } }
     unsafe { if (WriteFile(hOut, buf, nr, &nw, 0 as *u8) == 0 || nw != nr) {
-      copied = 0xffffffffffffffff;
+      /* Sentinel: all-ones usize means write failure (returned as -1 below). */
+      copied = 0xffffffffffffffff as usize;
       break;
     } }
-    copied = copied + (nr);
+    copied = copied + (nr as usize);
     if (nr < chunk) {
       break;
     }
   }
   unsafe { free(buf); }
-  if (copied as i64 == -1) {
+  if (copied == (0xffffffffffffffff as usize)) {
     return -1;
   }
   return copied as i64;
@@ -724,14 +726,15 @@ export function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   }
   while (i < n) {
     len = b[i].length as u32;
-    if (b[i].length > 0x7fffffff) {
+    if (b[i].length > (0x7fffffff as usize)) {
       len = 0x7fffffff;
     }
     unsafe { if (ReadFile(h, b[i].ptr, len, &got, 0 as *u8) == 0) {
       return -1;
     } }
     total = total + (got as i64);
-    if ((got) < b[i].length) {
+    /* got is u32; FsIovecBuf.length is usize — compare same-width. */
+    if ((got as usize) < b[i].length) {
       return total;
     }
     i = i + 1;
@@ -762,14 +765,14 @@ export function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   }
   while (i < n) {
     len = b[i].length as u32;
-    if (b[i].length > 0x7fffffff) {
+    if (b[i].length > (0x7fffffff as usize)) {
       len = 0x7fffffff;
     }
     unsafe { if (WriteFile(h, b[i].ptr, len, &written, 0 as *u8) == 0) {
       return -1;
     } }
     total = total + (written as i64);
-    if ((written) < b[i].length) {
+    if ((written as usize) < b[i].length) {
       return total;
     }
     i = i + 1;

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-security.sh — STD-079 manifest 与烟测辅助（F-security v1 + F-ZC：纯 security.x）
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_SECURITY_PREFIX="${XLANG_STD_SECURITY_PREFIX:-xlang: [XLANG_STD_SECURITY]}"
 
 # 遍历 manifest；symbol 在 security.x。
@@ -55,7 +57,7 @@ std_security_run_c_smoke() {
     return 1
   fi
   if [ ! -f "$crypto_o" ]; then
-    make -C compiler ../std/crypto/crypto.o >/dev/null 2>&1 || true
+    xlang_compiler_make ../std/crypto/crypto.o >/dev/null 2>&1 || true
   fi
   if ! cc -std=c11 -O1 -o "$out" "$src" "$sec_o" "$crypto_o" 2>/dev/null; then
     echo "std-security FAIL: compile c smoke" >&2

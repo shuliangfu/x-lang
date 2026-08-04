@@ -4,6 +4,8 @@
 # 用法：XLANG_CRASH_EVIDENCE=1 ./tests/run-safe-crash-evidence.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/safe-crash.sh
 . tests/lib/safe-crash.sh
@@ -34,9 +36,9 @@ if ! native_xlang "$XLANG_BIN"; then
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 ensure_std_c_o ../std/backtrace/backtrace.o
-make -C compiler runtime_panic.o -q 2>/dev/null || make -C compiler runtime_panic.o
+xlang_compiler_make runtime_panic.o -q 2>/dev/null || xlang_compiler_make runtime_panic.o
 
 echo "=== SAFE-007: manual evidence ==="
 EXE="/tmp/xlang_crash_manual_$$"

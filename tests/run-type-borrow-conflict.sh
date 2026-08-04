@@ -4,6 +4,8 @@
 # 用法：./tests/run-type-borrow-conflict.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 MATRIX="${XLANG_TYPE_BORROW_CASES:-tests/baseline/type-borrow-conflict-cases.tsv}"
 
@@ -27,7 +29,7 @@ if [ -z "$XLANG_BIN" ] || ! type_borrow_native_xlang "$XLANG_BIN"; then
   exit 1
 fi
 
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 
 echo "=== TYPE-003: borrow conflict smoke (XLANG=$XLANG_BIN) ==="
 FAILS=0

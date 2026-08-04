@@ -5,6 +5,8 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 XLANG=${XLANG:-./compiler/xlang}
 
 # 探测二进制是否支持 -x（链 pipeline）；纯 C 前端 xlang-c 会报 unknown option。
@@ -63,7 +65,7 @@ if [ -n "${RUN_ALL_USE_C:-}" ]; then
   # run-all 默认 C 流水线；run-all 入口已 make 时跳过（XLANG_SKIP_SUBSCRIPT_MAKE=1），
   # 避免子脚本 `make all` 触发默认 xlang-c target（cp -f bootstrap_xlangc）覆盖真正 C 前端。
   if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-    make -C compiler -q all 2>/dev/null || make -C compiler all
+    xlang_compiler_make -q all 2>/dev/null || xlang_compiler_make all
   fi
   if [ -x ./compiler/xlang-c ]; then
     HELLO_COMPILE_XLANG=./compiler/xlang-c

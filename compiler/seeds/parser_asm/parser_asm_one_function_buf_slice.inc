@@ -141,7 +141,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   struct parser_asm_lexer_result r;
   struct parser_asm_slice_u8 source;
   uint8_t dummy_name[64];
-  uint8_t pname_buf[32];
+  uint8_t pname_buf[128];
   uint8_t *out_pool;
   int32_t param_idx;
   int32_t param_name_len;
@@ -921,11 +921,25 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         pname_buf[4] = 0;
       } else {
         param_name_len = r.tok.ident_len;
-        if (param_name_len <= 0 || param_name_len > 31) {
+        if (param_name_len <= 0 || param_name_len > 127) {
           parser_asm_set_onefunc_fail_c(out, lex);
           return;
         }
         parser_asm_copy_slice_to_param32_buf_c(data, len, r.token_start, param_name_len, pname_buf);
+      }
+      /*
+       * wave679 Cap residual: duplicate param name → host BLD001. P012 + sticky.
+       * PLATFORM: SHARED parse (buf path twin of parser.x / parser_gen).
+       */
+      {
+        extern int32_t parser_onefunc_param_name_dup_c(uint8_t *pool, int32_t nparams, uint8_t *name,
+                                                      int32_t name_len);
+        extern void parser_report_duplicate_name_p012_c(int32_t line, int32_t col, int32_t kind);
+        if (parser_onefunc_param_name_dup_c(out_pool, out->num_params, pname_buf, param_name_len) != 0) {
+          parser_report_duplicate_name_p012_c((int32_t)r.tok.line, (int32_t)r.tok.col, 0);
+          parser_asm_set_onefunc_fail_c(out, lex);
+          return;
+        }
       }
       param_idx = pipeline_onefunc_append_param(out_pool, pname_buf, param_name_len, 0);
       if (param_idx < 0) {
@@ -935,11 +949,17 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       out->num_params = param_idx + 1;
       parser_lex_from_next_into_glue(&lex, r);
       r = lexer_next_buf(lex, data, len);
-      if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
-        parser_lex_from_next_into_glue(&lex, r);
-        break;
-      }
+      /*
+       * wave676 Cap residual: do not accept bare `name)` as untyped formal.
+       * Prior soft residual: RPAREN without `: Type` → param_type_ref left 0 →
+       * `function bad(x): i32` compiled green. Require `: Type` always.
+       * wave493 untyped self remains non-product (skip) — still needs `: Type`
+       * or fails here with P011 (clearer than typeck `found ?`).
+       * PLATFORM: SHARED parse.
+       */
       if (r.tok.kind != (int32_t)TOKEN_COLON) {
+        extern void parser_report_untyped_formal_p011_c(int32_t line, int32_t col, int32_t kind);
+        parser_report_untyped_formal_p011_c((int32_t)r.tok.line, (int32_t)r.tok.col, 0);
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
       }
@@ -968,7 +988,10 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     }
   }
   r = lexer_next_buf(lex, data, len);
+  /* wave676: missing return `: Type` after `)` was silent set_onefunc_fail. */
   if (r.tok.kind != (int32_t)TOKEN_COLON) {
+    extern void parser_report_untyped_formal_p011_c(int32_t line, int32_t col, int32_t kind);
+    parser_report_untyped_formal_p011_c((int32_t)r.tok.line, (int32_t)r.tok.col, 1);
     parser_asm_set_onefunc_fail_c(out, lex);
     return;
   }

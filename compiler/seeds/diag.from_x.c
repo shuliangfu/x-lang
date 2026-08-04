@@ -125,11 +125,11 @@ static const DiagCodeExplain g_diag_code_table[] = {
      "Typical action: use a supported escape or write the byte as `\\xHH`."},
     {"L011", "lexer error", "Lexer found a string literal that exceeds AST storage capacity.",
      "Used when a decoded string literal (including C-style adjacent concatenation) would exceed "
-     "63 semantic bytes stored in Expr.var_name. Prior soft residual silently truncated. "
+     "127 semantic bytes stored in Expr.var_name. Prior soft residual silently truncated. "
      "Typical action: shorten the literal, split into multiple strings with runtime concat "
      "(std.string), or await a future larger AST string pool."},
     {"L012", "lexer error", "Lexer found an identifier that exceeds AST name storage capacity.",
-     "Used when a non-keyword identifier span is longer than 63 bytes (AST name[64] content cap). "
+     "Used when a non-keyword identifier span is longer than 127 bytes (AST name[128] content cap). "
      "Prior soft residual could silent-clamp names or fail with opaque XP003/typeck mismatch. "
      "Typical action: shorten the identifier, or await a future larger AST name layout."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",
@@ -688,13 +688,12 @@ void diag_report_human_impl(const char *file, int line, int col, const char *kin
     diag_print_header(kind, code, msg, kind_color, reset);
 #endif
 
-    if (actual_file && line > 0 && col > 0) {
+    /* wave1221: always print line:col even when 0, so typeck errors without
+     * expr line/col still show file:0:0 instead of bare file path.
+     * This makes check output consistent and helps locate errors. */
+    if (actual_file) {
         fprintf(stderr, "%s --> %s:%d:%d%s\n", path_color, actual_file, line, col, reset);
-    } else if (actual_file && line > 0) {
-        fprintf(stderr, "%s --> %s:%d%s\n", path_color, actual_file, line, reset);
-    } else if (actual_file) {
-        fprintf(stderr, "%s --> %s%s\n", path_color, actual_file, reset);
-    } else if (line > 0 && col > 0) {
+    } else if (line > 0 || col > 0) {
         fprintf(stderr, "%s --> %d:%d%s\n", path_color, line, col, reset);
     }
 

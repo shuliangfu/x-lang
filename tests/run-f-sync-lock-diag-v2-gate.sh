@@ -2,6 +2,8 @@
 # F-sync-lock-diag v2：锁诊断逻辑在 sync.x，TLS 在 runtime_sync_lock_diag_tls.inc。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_SYNC_LOCK_DIAG_V2_FAIL:-0}
 DOC="analysis/phase-f-sync-lock-diag-v2.md"
 MANIFEST="tests/baseline/f-sync-lock-diag-v2-closure.tsv"
@@ -28,7 +30,7 @@ grep -q 'sync_lock_diag_tls_push_c' "$SYNC_TLS_RUNTIME" || die "runtime tls miss
 grep -q 'runtime_sync_lock_diag_tls' compiler/Makefile || die "Makefile missing runtime tls"
 grep -q 'sync_lock_diag_glue.c' compiler/Makefile && die "Makefile still references diag glue"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/sync/sync.o >/dev/null 2>&1 || die "make sync.o failed"
+  xlang_compiler_make ../std/sync/sync.o >/dev/null 2>&1 || die "make sync.o failed"
 else
   echo "f-sync-lock-diag-v2 SKIP sync.o build (no xlang-c)" >&2
 fi

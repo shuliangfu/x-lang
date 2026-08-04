@@ -189,6 +189,13 @@ export enum TokenKind {
   TOKEN_STRING,
   /* See implementation. */
   TOKEN_EXPORT,
+  /**
+   * wave668 Cap residual: keyword `null` (null pointer literal).
+   * Enum-end only — do not insert before IDENT/TRUE/EXPORT (hardcoded ordinals).
+   * Ordinal 132. Parser → EXPR_LIT 0; typeck reuses 0→*T paths.
+   * PLATFORM: SHARED.
+   */
+  TOKEN_NULL,
 }
 
 // See implementation.
@@ -206,12 +213,17 @@ export allow(padding) struct Token {
 }
 
 /**
-* See implementation.
-* See implementation.
-* See implementation.
-* See implementation.
-* See implementation.
-*/
+ * True when token is EOF.
+ * @param t Token — token value
+ * @return bool — true iff kind is TOKEN_EOF
+ * PLATFORM: SHARED
+ *
+ * Body uses a local binding for TOKEN_EOF. Direct `t.kind == TokenKind.TOKEN_EOF`
+ * has been observed to leave Func.is_export=0 under L7 (pe_fn stack latch lost
+ * across heavy OneFuncResult / enum-field compare parse). Prefer heap latch of
+ * pending_export in a follow-up; this form is the stable source-side guard.
+ */
 export function token_is_eof(t: Token): bool {
-  return t.kind == TokenKind.TOKEN_EOF;
+  let eof_kind: TokenKind = TokenKind.TOKEN_EOF;
+  return t.kind == eof_kind;
 }

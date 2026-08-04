@@ -16,6 +16,7 @@ function main(): i32 {
   let bad: i32 = -1;
   let rw: i64 = fs.writev_buf(bad, &bufs[0], 2);
   let rr: i64 = fs.readv_buf(bad, &bufs[0], 1);
-  if (rw != -1 || rr != -1) { return 1; }
+  /* i64 vs i32 lit: cast -1 to i64 (strict typeck). */
+  if (rw != (-1 as i64) || rr != (-1 as i64)) { return 1; }
   return 0;
 }

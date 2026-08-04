@@ -15,6 +15,8 @@ if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): xlang_asm_stage1 OOM"; ex
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 if [ ! -f compiler/xlang_asm ] || [ ! -x compiler/xlang_asm ]; then
   if [ -n "${XLANG_BOOTSTRAP_MIN_SKIP_BUILD:-}" ]; then
@@ -22,7 +24,7 @@ if [ ! -f compiler/xlang_asm ] || [ ! -x compiler/xlang_asm ]; then
     exit 127
   fi
   echo "run-bootstrap-min-gate: make bootstrap-driver-bstrict ..."
-  make -C compiler bootstrap-driver-bstrict
+  xlang_compiler_make bootstrap-driver-bstrict
 fi
 
 export XLANG=./compiler/xlang

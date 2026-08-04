@@ -385,7 +385,8 @@ export function peephole_elf_remove_redundant_push_pop(ctx: *ElfCodegenCtx, e_ma
  * See implementation.
  */
 export function peephole_elf_arm64_mov_u32(rd: i32, rn: i32): i32 {
-  return 2852127712 | (rn << 16) | rd;
+  /* ARM64 ORR-form mov encoding base 0xAA0003E0; keep i32 via cast (lit alone is i64). */
+  return (2852127712 as i32) | (rn << 16) | rd;
 }
 
 /**

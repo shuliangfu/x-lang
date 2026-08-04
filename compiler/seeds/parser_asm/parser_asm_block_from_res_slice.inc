@@ -99,7 +99,8 @@ static int32_t parser_asm_block_append_one_let_c(void *arena, int32_t block_ref,
                                                  int32_t type_ref) {
   int32_t let_decl_ty;
   int32_t init_ref;
-  uint8_t lname_buf[64];
+  /* wave581 Cap residual: OneFunc let names are 128B (content <=127). */
+  uint8_t lname_buf[128];
   let_decl_ty = type_ref;
   if (pipeline_onefunc_let_type_ref(pool, src_i) != 0)
     let_decl_ty = pipeline_onefunc_let_type_ref(pool, src_i);
@@ -133,7 +134,8 @@ int32_t parser_asm_fill_block_const_let_from_res_c(void *arena, int32_t block_re
   int32_t nl;
   int32_t cinit_ref;
   int32_t const_decl_ty;
-  uint8_t cname_buf[64];
+  /* wave581 Cap residual: OneFunc const names are 128B (content <=127). */
+  uint8_t cname_buf[128];
   if (!arena || !res)
     return 0;
   pool = parser_asm_onefunc_result_pool_ptr_c(res);

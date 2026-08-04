@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-http-reqresp-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_HTTP_REQRESP_DOC:-analysis/std-http-reqresp-v0.md}"
 MANIFEST="${XLANG_STD_HTTP_REQRESP_TSV:-tests/baseline/std-http-reqresp.tsv}"
@@ -105,7 +107,7 @@ fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== STD-HTTP-REQRESP: typeck + smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-http-reqresp gate FAIL: typeck $SMOKE_X" >&2
     "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -15 >&2 || true

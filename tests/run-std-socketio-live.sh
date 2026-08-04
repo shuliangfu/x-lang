@@ -4,6 +4,8 @@
 # 默认 SKIP；启用：XLANG_SOCKETIO_LIVE=1 ./tests/run-std-socketio-live.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 LIVE_X="tests/socketio/live_handshake.x"
 MOCK_JS="tests/socketio/mock_eio_polling_server.js"
@@ -51,7 +53,7 @@ done
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
 ensure_std_c_o ../std/socketio/socketio.o
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
 
 MOCK_PID=""
 cleanup() {

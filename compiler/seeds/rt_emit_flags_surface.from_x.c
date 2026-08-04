@@ -36,7 +36,7 @@ struct RtEmitFlagsState {
   int32_t backend_asm_explicit;
   int32_t use_freestanding;
   int32_t parse_saw_target;
-  uint8_t target_cpu_buf[64];
+  uint8_t target_cpu_buf[128];
   int32_t target_cpu_len;
   int32_t target_cpu_features;
   int32_t print_target_cpu;

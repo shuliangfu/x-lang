@@ -16,7 +16,9 @@
  * 覆盖 bootstrap 链常见未定义符号：string/mem、stdio 最小格式化
  * （NL-07 L2 fflush；NL-07 L6 fileno/isatty/puts/strerror/fread/ferror/stdin/remove/__ctype_b_loc）、
  * getenv、libm（freestanding soft math，禁 __builtin_* 自递归）、fenv 空实现、posix_memalign、POSIX open/read/close/fstat/waitpid、
- * readlink/realpath/getcwd/opendir（NL-07 v5 runtime_link_abi / fmt_check 路径）。
+ * readlink/realpath/getcwd/opendir（NL-07 v5 runtime_link_abi / fmt_check 路径）、
+ * getppid/kill/sigemptyset/sigaction（fmt_check spinner parent-death + Ctrl+C interrupt handlers；
+ *   wave bare-check rebuild: Linux pure-ld nostdlib has no -lc, so these must live here）。
  * L1–L5 companions 后 residual 应仅为本 libc 面；失败时 build_xlang_asm 回退 -lc/-lm。
  *
  * 【依赖】
@@ -46,8 +48,16 @@
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-/** bootstrap opendir 用最小 dirent（勿链 libc libdl）。 */
+#include <signal.h>
+/** bootstrap opendir 用最小 dirent（勿链 libc libdl）。
+ * 必须与 glibc <dirent.h> 的 struct dirent 布局一致（d_name 在 offset 19），
+ * 否则 xlang_fmt_readdir_name（prelude #include <dirent.h>）的 ent->d_name 偏移错误。
+ * wave1241: 修复 Ubuntu check 命令截断 19 字符 bug。PLATFORM: Linux x86_64。 */
 struct dirent {
+    uint64_t d_ino;
+    int64_t d_off;
+    unsigned short d_reclen;
+    unsigned char d_type;
     char d_name[256];
 };
 
@@ -298,12 +308,19 @@ int bootstrap_heap_grow(size_t need) { return bootstrap_heap_grow_impl(need); }
  *
  * Authority: this seed TU only (G.7). .x thin does not reimplement malloc.
  */
+/* 大块阈值：>1MB 的分配单独 mmap，header.flags 记 mmap_size 以便 free/realloc munmap 回收。
+ * Why: bump realloc 对大块 malloc+copy+不释放旧块，反复 grow 累积致 SIGKILL
+ *      (check 处理 codegen.x 时 buffer grow 600MB ×17 ≈ 10GB)。
+ *      macOS libc realloc 用 mremap 原地扩展无此问题；nostdlib 需大块独立回收。
+ * Invariant: 大块 header.flags>0 且 ==mmap_size；小块 header.flags==0。
+ * Asm/Perf: 大块单独 mmap 对齐 64K；realloc 大块需 copy（无 mREMAP），但不累积。 */
+#define BOOTSTRAP_BIG_THRESHOLD (1024UL * 1024UL)
 typedef struct {
   size_t user_size; /* exact size requested by the last malloc/realloc for this block */
-  size_t _pad;      /* keep header 16 bytes so payload stays 16-aligned */
+  size_t flags;     /* 0=small(bump pool); >0=big(standalone mmap, value=mmap_size) */
 } BootstrapHeapHdr;
 
-/** malloc minimal: bump + size header before payload. */
+/** malloc: 大块(>1MB)单独 mmap 可回收；小块 bump pool。 */
 void *malloc(size_t size) {
     size_t need;
     size_t payload;
@@ -311,6 +328,20 @@ void *malloc(size_t size) {
     BootstrapHeapHdr *hdr;
     if (size == 0)
         return NULL;
+    if (size > BOOTSTRAP_BIG_THRESHOLD) {
+        size_t big_mmap_size;
+        void *bp;
+        payload = bootstrap_align16(size);
+        need = sizeof(BootstrapHeapHdr) + payload;
+        big_mmap_size = (need + 65535UL) & ~65535UL;
+        bp = xlang_sys_mmap(0, big_mmap_size, 3, 0x22, -1, 0);
+        if (!bp || (uintptr_t)bp >= (uintptr_t)-4095)
+            return NULL;
+        hdr = (BootstrapHeapHdr *)bp;
+        hdr->user_size = size;
+        hdr->flags = big_mmap_size;
+        return (void *)((unsigned char *)bp + sizeof(BootstrapHeapHdr));
+    }
     payload = bootstrap_align16(size);
     need = sizeof(BootstrapHeapHdr) + payload;
     if (!bootstrap_heap_end || bootstrap_heap_end + need > bootstrap_heap_limit) {
@@ -321,13 +352,19 @@ void *malloc(size_t size) {
     bootstrap_heap_end += need;
     hdr = (BootstrapHeapHdr *)(void *)raw;
     hdr->user_size = size;
-    hdr->_pad = 0;
+    hdr->flags = 0;
     return (void *)(raw + sizeof(BootstrapHeapHdr));
 }
 
-/** free minimal: bump allocator no-op (payload stays reserved). */
+/** free: 大块 munmap 回收；小块 bump no-op。 */
 void free(void *ptr) {
-    (void)ptr;
+    BootstrapHeapHdr *hdr;
+    if (!ptr)
+        return;
+    hdr = (BootstrapHeapHdr *)(void *)((unsigned char *)ptr - sizeof(BootstrapHeapHdr));
+    if (hdr->flags > 0)
+        xlang_sys_munmap(hdr, (unsigned long)hdr->flags);
+    /* 小块：bump no-op */
 }
 
 /** calloc minimal: malloc then zero user_size bytes. */
@@ -339,8 +376,9 @@ void *calloc(size_t nmemb, size_t size) {
     return p;
 }
 
-/** realloc: allocate new block; copy min(old_user_size, size) only.
- * PLATFORM: SHARED — must not memcpy with `size` when growing (OOB read). */
+/** realloc: allocate new block; copy min(old_user_size, size); 旧大块 munmap 回收。
+ * PLATFORM: SHARED — must not memcpy with `size` when growing (OOB read).
+ * Why: 旧大块若不 munmap，反复 realloc grow 累积致 SIGKILL（bump no-op free）。 */
 void *realloc(void *ptr, size_t size) {
     BootstrapHeapHdr *old_hdr;
     size_t old_size;
@@ -360,6 +398,8 @@ void *realloc(void *ptr, size_t size) {
     ncopy = old_size < size ? old_size : size;
     if (ncopy > 0)
         memcpy(n, ptr, ncopy);
+    if (old_hdr->flags > 0)
+        xlang_sys_munmap(old_hdr, (unsigned long)old_hdr->flags);
     return n;
 }
 
@@ -1626,15 +1666,186 @@ pid_t getpid(void) {
 #endif
 }
 
-/** waitpid：Linux syscall 61。 */
+/**
+ * getppid for freestanding Linux product pure-ld (no -lc).
+ *
+ * Why: fmt_check_cmd spinner child calls getppid() to exit when the check
+ * parent dies (reparent to init → ppid==1). Linux g05 nostdlib drops -lc.
+ *
+ * Contract: Linux x86_64 SYS_getppid (110); other hosts return 1.
+ * PLATFORM: LINUX freestanding (x86_64); SHARED symbol name.
+ */
+pid_t getppid(void) {
+#if defined(__linux__) && defined(__x86_64__)
+    return (pid_t)bootstrap_syscall3(110L, 0L, 0L, 0L);
+#else
+    return 1;
+#endif
+}
+
+/**
+ * kill for freestanding Linux product pure-ld (no -lc).
+ *
+ * Why: check_interrupt_handler kills the fork spinner child on SIGINT/SIGTERM.
+ * Contract: Linux x86_64 SYS_kill (62); negative kernel errno → -1 + bootstrap_errno.
+ * PLATFORM: LINUX freestanding (x86_64); SHARED symbol name.
+ */
+int kill(pid_t pid, int sig) {
+#if defined(__linux__) && defined(__x86_64__)
+    long ret = bootstrap_syscall3(62L, (long)pid, (long)sig, 0L);
+    if (ret < 0) {
+        bootstrap_errno = (int)(-ret);
+        return -1;
+    }
+    return 0;
+#else
+    (void)pid;
+    (void)sig;
+    return -1;
+#endif
+}
+
+/**
+ * sigemptyset for freestanding pure-ld (userspace only).
+ *
+ * Why: check_install_interrupt_handlers zeros sa_mask before sigaction.
+ * Contract: clear all bits in *set; set==NULL → -1.
+ * PLATFORM: SHARED symbol; no syscall.
+ */
+int sigemptyset(sigset_t *set) {
+    if (!set)
+        return -1;
+    memset(set, 0, sizeof(*set));
+    return 0;
+}
+
+#if defined(__linux__) && defined(__x86_64__)
+/* Kernel ABI for SYS_rt_sigaction (13) — not glibc struct sigaction layout.
+ * Field names intentionally avoid sa_handler/sa_mask (glibc macros).
+ * PLATFORM: LINUX x86_64 nostdlib only. */
+struct bootstrap_k_sigaction {
+    void (*handler)(int);
+    unsigned long flags;
+    void (*restorer)(void);
+    unsigned long mask;
+};
+
+#ifndef SA_RESTORER
+#define SA_RESTORER 0x04000000
+#endif
+
+/* SA_RESTORER trampoline: SYS_rt_sigreturn (15). Async-signal path only. */
+static void bootstrap_rt_sigreturn(void) {
+    __asm__ volatile(
+        "mov $15, %%rax\n"
+        "syscall\n"
+        :
+        :
+        : "rax", "rcx", "r11", "memory");
+}
+#endif
+
+/**
+ * sigaction for freestanding Linux product pure-ld (no -lc).
+ *
+ * Why: check_install_interrupt_handlers installs SIGINT/SIGTERM handlers so
+ * Ctrl+C stops multi-file check cleanly (and kills spinner child).
+ *
+ * Contract:
+ *  - Translates glibc struct sigaction → kernel k_sigaction + SA_RESTORER.
+ *  - Linux x86_64 SYS_rt_sigaction (13) with sigsetsize=8.
+ *  - Other hosts: -1 (real libc provides when this object is not linked).
+ *
+ * PLATFORM: LINUX freestanding (x86_64); SHARED symbol name.
+ * Authority: G.7 this freestanding face only — do not open a second signal
+ * installer for check; product path uses this + fmt_check_cmd handler.
+ */
+int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact) {
+#if defined(__linux__) && defined(__x86_64__)
+    struct bootstrap_k_sigaction kact;
+    struct bootstrap_k_sigaction kold;
+    long ret;
+    memset(&kact, 0, sizeof(kact));
+    memset(&kold, 0, sizeof(kold));
+    if (act) {
+        kact.handler = act->sa_handler;
+        kact.flags = (unsigned long)act->sa_flags | (unsigned long)SA_RESTORER;
+        kact.restorer = bootstrap_rt_sigreturn;
+        /* Kernel mask width on x86_64 is 8 bytes (first word of glibc sigset_t). */
+        memcpy(&kact.mask, &act->sa_mask, sizeof(kact.mask));
+    }
+    ret = bootstrap_syscall4(
+        13L,
+        (long)signum,
+        act ? (long)(uintptr_t)&kact : 0L,
+        oldact ? (long)(uintptr_t)&kold : 0L,
+        8L);
+    if (ret < 0) {
+        bootstrap_errno = (int)(-ret);
+        return -1;
+    }
+    if (oldact) {
+        memset(oldact, 0, sizeof(*oldact));
+        oldact->sa_handler = kold.handler;
+        oldact->sa_flags = (int)(kold.flags & ~(unsigned long)SA_RESTORER);
+        memcpy(&oldact->sa_mask, &kold.mask, sizeof(kold.mask));
+    }
+    return 0;
+#else
+    (void)signum;
+    (void)act;
+    (void)oldact;
+    return -1;
+#endif
+}
+
+/**
+ * waitpid for freestanding Linux product pure-ld (no -lc).
+ *
+ * Contract:
+ *  - Linux x86_64 SYS_wait4 (61) with rusage=NULL (POSIX waitpid face).
+ *  - Negative kernel errno → -1 + bootstrap_errno (EINTR/ECHILD callers need this).
+ *  - Prior raw-negative return broke check spinner reap (treated as success, orphan
+ *    child left in shell process group → "check finished but process never exits").
+ *
+ * PLATFORM: LINUX freestanding (x86_64); SHARED symbol name.
+ */
 pid_t waitpid(pid_t pid, int *status, int options) {
 #if defined(__linux__) && defined(__x86_64__)
-    return (pid_t)bootstrap_syscall4(61L, (long)pid, (long)status, (long)options, 0L);
+    long ret = bootstrap_syscall4(61L, (long)pid, (long)status, (long)options, 0L);
+    if (ret < 0) {
+        bootstrap_errno = (int)(-ret);
+        return (pid_t)-1;
+    }
+    return (pid_t)ret;
 #else
     (void)pid;
     (void)status;
     (void)options;
     return -1;
+#endif
+}
+
+/**
+ * setsid for freestanding Linux product pure-ld (no -lc).
+ *
+ * Why: check spinner child must leave the shell foreground process group so a
+ * unreaped (or slow-to-die) spinner cannot keep the interactive shell waiting
+ * after the parent has printed the summary and returned.
+ *
+ * Contract: Linux x86_64 SYS_setsid (112); negative errno → -1.
+ * PLATFORM: LINUX freestanding (x86_64); SHARED symbol name.
+ */
+pid_t setsid(void) {
+#if defined(__linux__) && defined(__x86_64__)
+    long ret = bootstrap_syscall3(112L, 0L, 0L, 0L);
+    if (ret < 0) {
+        bootstrap_errno = (int)(-ret);
+        return (pid_t)-1;
+    }
+    return (pid_t)ret;
+#else
+    return (pid_t)-1;
 #endif
 }
 
@@ -1749,6 +1960,44 @@ int gettimeofday(struct timeval *tv, void *tz) {
 #else
   tv->tv_sec = 0;
   tv->tv_usec = 0;
+  return 0;
+#endif
+}
+
+/**
+ * usleep for freestanding Linux product pure-ld (no -lc).
+ *
+ * Why: wave1227 multi-file check spinner calls usleep; Linux g05 nostdlib
+ * drops -lc so the symbol must live in bootstrap_nostdlib_stubs.
+ *
+ * Contract:
+ *  - usec is wall-clock microseconds (POSIX usleep).
+ *  - Linux x86_64: SYS_nanosleep (35); retries on EINTR (-4).
+ *  - Other hosts in this TU: no-op success (real libc provides usleep when
+ *    this stub object is not linked).
+ *
+ * PLATFORM: LINUX freestanding (x86_64); SHARED symbol name.
+ */
+int usleep(unsigned int usec) {
+#if defined(__linux__) && defined(__x86_64__)
+  struct {
+    long tv_sec;
+    long tv_nsec;
+  } req;
+  long rem_usec;
+  req.tv_sec = (long)(usec / 1000000u);
+  rem_usec = (long)(usec % 1000000u);
+  req.tv_nsec = rem_usec * 1000L;
+  for (;;) {
+    long ret = bootstrap_syscall3(35L, (long)&req, 0L, 0L);
+    if (ret == 0)
+      return 0;
+    /* -EINTR */
+    if (ret != -4L)
+      return -1;
+  }
+#else
+  (void)usec;
   return 0;
 #endif
 }
@@ -2038,6 +2287,12 @@ struct dirent *readdir(DIR *dirp) {
         d->buf_pos += de->d_reclen;
         if (de->d_name[0] == '\0')
             continue;
+        /* wave1241: 填充 glibc 标准 struct dirent 全字段，使 d_name 偏移与
+         * xlang_fmt_readdir_name（prelude #include <dirent.h>）一致。 */
+        d->ent.d_ino = de->d_ino;
+        d->ent.d_off = de->d_off;
+        d->ent.d_reclen = de->d_reclen;
+        d->ent.d_type = de->d_type;
         strncpy(d->ent.d_name, de->d_name, sizeof(d->ent.d_name) - 1);
         d->ent.d_name[sizeof(d->ent.d_name) - 1] = '\0';
         return &d->ent;

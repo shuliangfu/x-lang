@@ -2,6 +2,8 @@
 # F-ffi v1：std.ffi 去 C（ffi.c → ffi.x；F-ZC 纯 .x 无 cb glue）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_FFI_V1_FAIL:-0}
 DOC="analysis/phase-f-ffi-v1.md"
 MANIFEST="tests/baseline/f-ffi-v1-closure.tsv"
@@ -26,7 +28,7 @@ grep -q 'ffi_invoke_i32_cb_c' std/ffi/ffi.x || die "ffi.x missing invoke"
 grep -q 'ffi_f_zero_c_marker_c' std/ffi/ffi.x || die "ffi.x missing zero-c marker"
 grep -q 'ffi.x' compiler/Makefile || die "Makefile missing ffi.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/ffi/ffi.o >/dev/null 2>&1 || die "make ffi.o failed"
+  xlang_compiler_make ../std/ffi/ffi.o >/dev/null 2>&1 || die "make ffi.o failed"
 else
   echo "f-ffi-v1 SKIP ffi.o build (no xlang-c)" >&2
 fi

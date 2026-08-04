@@ -2,6 +2,8 @@
 # F-queue v2：std.queue 竞争烟测 F-ZC（queue_contention_os_glue.c → runtime_queue_contention.inc）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_QUEUE_V2_FAIL:-0}
 DOC="analysis/phase-f-queue-v2.md"
 MANIFEST="tests/baseline/f-queue-v2-closure.tsv"
@@ -28,7 +30,7 @@ grep -q 'queue_os_run_two_workers_c' compiler/seeds/runtime_queue_contention.fro
 grep -q 'queue_glue.c' compiler/Makefile && die "Makefile still references queue_glue.c"
 grep -q 'runtime_queue_contention' compiler/Makefile || die "Makefile missing runtime_queue_contention.o"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/queue/queue.o >/dev/null 2>&1 || die "make queue.o failed"
+  xlang_compiler_make ../std/queue/queue.o >/dev/null 2>&1 || die "make queue.o failed"
 else
   echo "f-queue-v2 SKIP queue.o build (no xlang-c)" >&2
 fi

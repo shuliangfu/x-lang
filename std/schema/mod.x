@@ -82,7 +82,7 @@ export function err_full(): i32 { return -5; }
 extern function schema_create_c(): i64;
 extern function schema_free_c(handle: i64): void;
 extern function schema_clear_c(handle: i64): void;
-extern function schema_add_field_c(handle: i64, name: *u8, name_len: i32, type: i32, optional: i32, col_index: i32): i32;
+extern function schema_add_field_c(handle: i64, name: *u8, name_len: i32, field_type: i32, optional: i32, col_index: i32): i32;
 extern function schema_decode_json_c(handle: i64, json: *u8, json_len: i32): i32;
 extern function schema_decode_csv_row_c(handle: i64, row: *u8, row_len: i32, offset: i32): i32;
 extern function schema_map_columns_c(handle: i64, row: *u8, col_starts: *i32, col_lens: *i32, count: i32): i32;
@@ -132,11 +132,21 @@ export function clear(sch: *Schema): void {
  * See implementation.
  * See implementation.
  */
-export function add_field(sch: *Schema, name: *u8, name_len: i32, type: i32, optional: i32, col_index: i32): i32 {
+/**
+ * Add a field to the schema.
+ * @param sch *Schema — schema object
+ * @param name *u8 — field name
+ * @param name_len i32 — name byte length
+ * @param field_type i32 — SCH_TYPE_* (avoid param name `type`: keyword)
+ * @param optional i32 — nonzero if optional
+ * @param col_index i32 — CSV column index
+ * @return i32 — SCH_OK / error
+ * PLATFORM: SHARED
+ */
+export function add_field(sch: *Schema, name: *u8, name_len: i32, field_type: i32, optional: i32, col_index: i32): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero || name == 0) { return err_null(); }
-  unsafe { return schema_add_field_c(sch.handle, name, name_len, type, optional, col_index); }
-  return 0; // unreachable — typeck workaround
+  unsafe { return schema_add_field_c(sch.handle, name, name_len, field_type, optional, col_index); }
 }
 
 /** Exported function `decode_json`.

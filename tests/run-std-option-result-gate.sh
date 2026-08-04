@@ -2,6 +2,8 @@
 # STD-080/081：std.option + std.result 门禁
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_OPTION_RESULT_DOC:-analysis/std-option-result-v1.md}"
 OPT_MANIFEST="${XLANG_STD_OPTION_MANIFEST:-tests/baseline/std-option-manifest.tsv}"
@@ -51,7 +53,7 @@ if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== STD-080/081: typeck + API rename grep (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-option-result gate FAIL: typeck" >&2
     "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true

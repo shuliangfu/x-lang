@@ -5,6 +5,8 @@
 #   XLANG=./compiler/xlang_asm ./tests/run-zc5-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/perf-syscall-batch.sh
 . "$(dirname "$0")/lib/perf-syscall-batch.sh"
@@ -53,7 +55,7 @@ rm -f "$SMOKE_OUT" "$BENCH_OUT"
 echo "=== ZC-5: fs_pipe_splice smoke + bench ==="
 
 if [ -z "$CHECK_XLANG" ]; then
-  if make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null; then
+  if xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null; then
     [ -x ./compiler/xlang-c ] && CHECK_XLANG=./compiler/xlang-c
   fi
 fi
@@ -68,7 +70,7 @@ fi
 ensure_std_c_o ../std/net/net.o
 
 SMOKE_SRC="tests/fs/splice_smoke.x"
-BENCH_SRC="tests/bench/zero_copy_splice.x"
+BENCH_SRC="bench/zero_copy_splice.x"
 
 if ! "$CHECK_XLANG" check -L . "$SMOKE_SRC" >/dev/null 2>&1; then
   echo "zc5 FAIL: typeck $SMOKE_SRC" >&2
@@ -124,7 +126,7 @@ if [ "$(uname -s)" != "Linux" ] || ! zc5_native_exe "$RUN_XLANG"; then
 fi
 
 BENCH_MB="${XLANG_IO_BENCH_MB:-16}"
-BENCH_FILE="tests/bench/.io_mmap_bench_tmp"
+BENCH_FILE="bench/.io_mmap_bench_tmp"
 if [ ! -f "$BENCH_FILE" ]; then
   dd if=/dev/zero of="$BENCH_FILE" bs=1M count="$BENCH_MB" status=none 2>/dev/null || \
     dd if=/dev/zero of="$BENCH_FILE" bs=1048576 count="$BENCH_MB" 2>/dev/null
@@ -132,7 +134,7 @@ fi
 
 SINK_BIN="/tmp/xlang_zc5_splice_sink"
 SINK_PORT=38460
-cc -O2 tests/bench/zero_copy_sendfile_sink.c -o "$SINK_BIN" 2>/dev/null || {
+cc -O2 bench/zero_copy_sendfile_sink.c -o "$SINK_BIN" 2>/dev/null || {
   echo "zc5: bench SKIP (compile sink failed)"
   echo "zc5 gate OK"
   exit 0

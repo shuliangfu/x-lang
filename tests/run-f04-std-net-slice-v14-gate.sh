@@ -5,6 +5,8 @@
 # 环境：XLANG_F04_NET_SLICE_V14_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_F04_NET_SLICE_V14_FAIL:-0}
 DOC="analysis/phase-f-f04-v14.md"
@@ -28,7 +30,7 @@ grep -q 'net_run_accept_workers_c_real' std/net/workers.x || die "workers.x miss
 grep -q 'xlang_net_worker_accept_entry_ptr_c' "$NET_RUNTIME" || die "runtime missing entry ptr"
 grep -q 'workers.x' compiler/Makefile || die "Makefile missing workers.x"
 grep -q 'runtime_net_workers' compiler/Makefile || die "Makefile missing runtime_net_workers"
-make -C compiler -q runtime_net_workers.o 2>/dev/null || make -C compiler runtime_net_workers.o >/dev/null 2>&1 || die "runtime_net_workers.o build failed"
+xlang_compiler_make -q runtime_net_workers.o 2>/dev/null || xlang_compiler_make runtime_net_workers.o >/dev/null 2>&1 || die "runtime_net_workers.o build failed"
 if grep -q 'std/net/net\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/net/net.c"
 fi

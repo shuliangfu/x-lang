@@ -2,7 +2,9 @@
 # asm 7.3：非交换 div/shift 左 binop + 右 INDEX 须 preserve rbx；块内连续 INDEX assign 无 x2。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 $XLANG build tests/asm/binop_div_index_binop.x -o /tmp/xlang_asm_div_index_binop 2>&1

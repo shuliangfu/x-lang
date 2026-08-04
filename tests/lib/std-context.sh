@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-context.sh — STD-071 manifest 与烟测辅助（F-context v2：纯 context.x）
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_CONTEXT_PREFIX="${XLANG_STD_CONTEXT_PREFIX:-xlang: [XLANG_STD_CONTEXT]}"
 
 # 遍历 manifest 校验 symbol/file/smoke；symbol 在 context.x。
@@ -55,9 +57,9 @@ std_context_run_c_smoke() {
     return 1
   fi
   if [ ! -f "$time_o" ]; then
-    make -C compiler ../std/time/time.o >/dev/null 2>&1 || true
+    xlang_compiler_make ../std/time/time.o >/dev/null 2>&1 || true
   fi
-  make -C compiler runtime_time_os.o >/dev/null 2>&1 || true
+  xlang_compiler_make runtime_time_os.o >/dev/null 2>&1 || true
   if ! cc -std=c11 -O1 -o "$out" "$src" "$ctx_o" "$time_o" compiler/runtime_time_os.o 2>/dev/null; then
     echo "std-context FAIL: compile c smoke" >&2
     return 1

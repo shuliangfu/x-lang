@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-heap-allocator-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD112_DOC:-analysis/std-heap-allocator-v1.md}"
 MANIFEST="${XLANG_STD112_TSV:-tests/baseline/std-heap-allocator.tsv}"
@@ -69,7 +71,7 @@ if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== STD-112: .x smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-heap-allocator gate FAIL: typeck $SMOKE_X" >&2
     "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true

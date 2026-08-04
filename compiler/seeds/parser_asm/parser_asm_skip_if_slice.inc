@@ -95,14 +95,16 @@ struct parser_asm_lexer_result parser_asm_skip_one_if_core_buf_c(struct parser_a
 }
 
 /**
- * module_try_register_enum_name：登记顶层 enum 名（去重），返回 sidecar 下标或 -1。
+ * Register top-level enum name (dedupe); returns sidecar index or -1.
+ * wave582 Cap residual: name_len content cap 63→127 (ModuleEnumEntry.name[128]).
+ * PLATFORM: SHARED product enum path.
  */
 int32_t parser_asm_module_try_register_enum_name_c(void *module, uint8_t *name, int32_t name_len) {
   int32_t ei;
   int32_t j;
   int32_t slot;
   int32_t cur_len;
-  if (!module || !name || name_len <= 0 || name_len > 63)
+  if (!module || !name || name_len <= 0 || name_len > 127)
     return -1;
   ei = 0;
   for (;;) {

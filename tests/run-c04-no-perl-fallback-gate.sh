@@ -5,6 +5,8 @@
 # 环境：XLANG_C04_NO_PERL_FAIL=1 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_C04_NO_PERL_FAIL:-0}
 LOG="/tmp/xlang_c04_no_perl_$$.log"
@@ -21,10 +23,10 @@ if grep -E 'parser_gen\.c:|lsp_diag_gen\.c:' compiler/Makefile | grep -q 'fix_sl
   exit 0
 fi
 
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c >/dev/null
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c >/dev/null
 rm -f compiler/parser_gen.c compiler/lsp_diag_gen.c 2>/dev/null || true
 
-if ! make -C compiler parser_gen.c lsp_diag_gen.c 2>"$LOG" | tee -a "$LOG"; then
+if ! xlang_compiler_make parser_gen.c lsp_diag_gen.c 2>"$LOG" | tee -a "$LOG"; then
   echo "c04-no-perl gate FAIL: make parser_gen.c/lsp_diag_gen.c" >&2
   tail -n 12 "$LOG" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1

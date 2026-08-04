@@ -13,32 +13,35 @@ extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function close(fd: i32): i32;
 
-/** mod  libc close  unsafe； close 。 */
+/** Wrap libc close under unsafe; module-private. */
 function fs_mod_close(fd: i32): i32 {
   unsafe { return close(fd); }
 }
 
-/**  path（NUL ）； -1。 */
-function open(path: *u8): i32 {
+/** Open path (NUL-terminated) for read; -1 on error. */
+export function open(path: *u8): i32 {
   unsafe { return fs_open_read_c(path); }
 }
 
-/**  fd； 0， -1。 */
+/**
+ * Close fd; 0 on success, -1 on error.
+ * Not export: name collides with libc extern close for L7 surface.
+ */
 function close(fd: i32): i32 {
   return fs_mod_close(fd);
 }
 
 /**  fd  count  buf。 */
-function read(fd: i32, buf: *u8, count: usize): isize {
+export function read(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return fs_posix_read_c(fd, buf, count); }
 }
 
 /**  buf[0..count-1]  fd。 */
-function write(fd: i32, buf: *u8, count: usize): isize {
+export function write(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return fs_posix_write_c(fd, buf, count); }
 }
 
 /** ： import。 */
-function placeholder(): i32 {
+export function placeholder(): i32 {
   return 0;
 }

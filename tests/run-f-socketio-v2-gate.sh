@@ -2,6 +2,8 @@
 # F-socketio v2：std.socketio 逻辑下沉（EIO/SIO → socketio.x；删除 socketio_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_SOCKETIO_V2_FAIL:-0}
 DOC="analysis/phase-f-socketio-v2.md"
 MANIFEST="tests/baseline/f-socketio-v2-closure.tsv"
@@ -27,7 +29,7 @@ grep -q 'socketio_f_socketio_v2_marker_c' std/socketio/socketio.x || die "socket
 grep -q 'socketio.x' compiler/Makefile || die "Makefile missing socketio.x"
 grep -q 'socketio_glue.c' compiler/Makefile && die "Makefile still references socketio_glue.c"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/socketio/socketio.o >/dev/null 2>&1 || die "make socketio.o failed"
+  xlang_compiler_make ../std/socketio/socketio.o >/dev/null 2>&1 || die "make socketio.o failed"
 else
   echo "f-socketio-v2 SKIP socketio.o build (no xlang-c)" >&2
 fi
