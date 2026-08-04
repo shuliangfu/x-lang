@@ -43,28 +43,18 @@ extern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *mo
 extern int32_t pipeline_typeck_field_soa_index_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                                 int32_t base_ref);
 
-/** dep 模块顶层 const 是否匹配 name；命中时写出 type_ref。
- * When type_ref is 0 (const without `: Type`), still match and write 0 so the
- * caller can stamp i32 from its arena (wave703). */
+/**
+ * Dep top-level const name match.
+ * R2 (8.3.3): body migrated to typeck.x as typeck_dep_top_level_const_match.
+ * Zero business logic — thin surface for bare-import-const diagnostics.
+ * PLATFORM: SHARED.
+ */
+int32_t typeck_dep_top_level_const_match(struct ast_Module *dep_mod, uint8_t *name, int32_t name_len,
+                                         int32_t *out_type_ref);
+
 static int32_t pipeline_typeck_dep_top_level_const_match(struct ast_Module *dep_mod, uint8_t *name, int32_t name_len,
                                                          int32_t *out_type_ref) {
-  int32_t tl;
-  int32_t ntl;
-  int32_t tr;
-  if (!dep_mod || name_len <= 0 || !out_type_ref)
-    return 0;
-  ntl = dep_mod->num_top_level_lets;
-  for (tl = 0; tl < ntl; tl++) {
-    if (!pipeline_module_top_level_let_is_const(dep_mod, tl))
-      continue;
-    if (!typeck_top_level_let_name_equal(dep_mod, tl, name, name_len))
-      continue;
-    tr = pipeline_module_top_level_let_type_ref(dep_mod, tl);
-    /* Allow tr==0: caller fills default (i32) in its arena. */
-    *out_type_ref = tr;
-    return 1;
-  }
-  return 0;
+  return typeck_dep_top_level_const_match(dep_mod, name, name_len, out_type_ref);
 }
 
 /** 写出含 const 的 import binding 名，供裸名 const 报错提示。 */
@@ -256,240 +246,20 @@ void pipeline_typeck_field_lexer_fallback_c(struct ast_Module *module, struct as
  * typeck.x::typeck_check_expr_field_access 的 C 委托：prebind → check base → known_ptr/layout/slice/fallback。
  */
 /**
- * Stamp import.Enum as TYPE_NAMED(enum) when field_name matches a dep enum.
- * Single authority for both import-list and const-import sugar hops (G.7).
- * @return 1 hit, 0 miss.
- * PLATFORM: SHARED — wave1218 Cap residual.
+ * EXPR_FIELD_ACCESS: import binding resolve (dep function / const / enum).
+ * R2 (8.3.3): body migrated to typeck.x as typeck_field_import_binding.
+ * Zero business logic — thin surface for field_access orchestration.
+ * PLATFORM: SHARED.
+ * @return 1 = matched and stamped; 0 = continue field typeck.
  */
-static int32_t pipeline_typeck_field_import_try_dep_enum_type_c(struct ast_Module *dep_mod,
-                                                               struct ast_ASTArena *arena,
-                                                               int32_t expr_ref, int32_t base_ref,
-                                                               uint8_t *base_name, int32_t base_name_len,
-                                                               uint8_t *field_name, int32_t field_name_len) {
-  int32_t ne;
-  int32_t ek;
-  if (!dep_mod || !arena || !field_name || field_name_len <= 0)
-    return 0;
-  ne = dep_mod->num_module_enums;
-  for (ek = 0; ek < ne; ek++) {
-    int32_t el = pipeline_module_enum_name_len(dep_mod, ek);
-    int32_t bi;
-    if (el != field_name_len || el <= 0)
-      continue;
-    for (bi = 0; bi < el; bi++) {
-      if (pipeline_module_enum_name_byte_at(dep_mod, ek, bi) != field_name[bi])
-        break;
-    }
-    if (bi != el)
-      continue;
-    {
-      int32_t enum_ty = typeck_find_or_alloc_named_type_ref(arena, field_name, field_name_len);
-      if (enum_ty != 0)
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, enum_ty);
-      if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
-        int32_t nt = typeck_find_or_alloc_named_type_ref(arena, base_name, base_name_len);
-        if (nt != 0)
-          pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
-      }
-      return 1;
-    }
-  }
-  return 0;
-}
+int32_t typeck_field_import_binding(struct ast_Module *module, struct ast_ASTArena *arena,
+                                    int32_t expr_ref, int32_t base_ref,
+                                    struct ast_PipelineDepCtx *ctx);
 
-/**
- * Import binding resolve: base is whole-module import binding (e.g. `token`,
- * `backend`); field is a dep-module export.
- *
- * Lookup order on the matched dep (G.7 single gate — do not open a second path):
- *  1) function → field expr type = function return type
- *  2) top-level const → field expr type = const type (or i32 if untyped)
- *  3) enum type name → field expr type = TYPE_NAMED(enum) so that
- *     `token.TokenKind.TOKEN_RETURN` can resolve the outer variant via
- *     pipeline_typeck_field_layout_named_c + enum_variant_tag_for_names(deps).
- *
- * Prior: only (1)(2). Missing (3) made `import.Enum.Variant` hard-fail as
- * "unknown field on this type" (wave1218 parser.x #178 lexer_token_run_len),
- * blocking parser_gen.c regen and cascading L009 line desync. Local
- * `Color.RED` worked; only cross-module enum type hops failed.
- *
- * @return 1 hit (resolved_type_ref stamped), 0 miss (continue normal field typeck).
- * PLATFORM: SHARED — typeck; rebuild pipeline_x.o after edit.
- */
 int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                         int32_t expr_ref, int32_t base_ref,
                                                         struct ast_PipelineDepCtx *ctx) {
-  uint8_t base_name[128]; /* wave577 Cap */
-  int32_t base_name_len;
-  uint8_t field_name[128]; /* wave577 Cap */
-  int32_t field_name_len;
-  int32_t i;
-  int32_t n_imp;
-
-  if (!module || !arena || base_ref <= 0 || !ctx)
-    return 0;
-
-  /* base 必须是 EXPR_VAR */
-  if (pipeline_expr_kind_ord_at(arena, base_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
-    return 0;
-
-  base_name_len = pipeline_expr_var_name_len(arena, base_ref);
-  if (base_name_len <= 0 || base_name_len > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
-
-  field_name_len = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (field_name_len <= 0 || field_name_len > 127)
-    return 0;
-  pipeline_expr_field_access_name_into(arena, expr_ref, &field_name[0]);
-
-  /* 检查 base_name 是否匹配某个 import binding */
-  n_imp = module->num_imports;
-  for (i = 0; i < n_imp; i++) {
-    int32_t bind_len;
-    struct ast_Module *dep_mod;
-    int32_t j;
-    int32_t nf;
-    int32_t nd;
-
-    bind_len = pipeline_module_import_binding_name_len(module, i);
-    if (bind_len <= 0 || bind_len != base_name_len)
-      continue;
-
-    /* 逐字节比较 binding name 与 base_name */
-    {
-      int32_t k;
-      int32_t match = 1;
-      for (k = 0; k < bind_len && match; k++) {
-        if (pipeline_module_import_binding_name_byte_at(module, i, k) != base_name[k])
-          match = 0;
-      }
-      if (!match)
-        continue;
-    }
-
-    /* 找到匹配的 import binding；dep 槽与 import 下标对齐 */
-    dep_mod = 0;
-    if (ctx) {
-      nd = pipeline_dep_ctx_ndep(ctx);
-      if (i < nd)
-        dep_mod = pipeline_dep_ctx_module_at(ctx, i);
-    }
-    if (!dep_mod)
-      continue;
-
-    /* 在 dep 模块中查找函数 field_name */
-    nf = pipeline_module_num_funcs(dep_mod);
-    for (j = 0; j < nf; j++) {
-      int32_t fn_len;
-      int32_t k;
-      int32_t match = 1;
-      fn_len = pipeline_module_func_name_len_at(dep_mod, j);
-      if (fn_len != field_name_len)
-        continue;
-      for (k = 0; k < fn_len && match; k++) {
-        /* 用 scratch buffer 比较 */
-        uint8_t fn_buf[128] /* wave577 Cap name into */;
-        pipeline_module_func_name_copy64(dep_mod, j, fn_buf);
-        if (fn_buf[k] != field_name[k])
-          match = 0;
-      }
-      if (match) {
-        /* 找到函数；设置 resolved type */
-        int32_t ret_ty = pipeline_module_func_return_type_at(dep_mod, j);
-        if (ret_ty > 0) {
-          pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
-        }
-        /* 也设置 base 的 resolved type 为 named type */
-        if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
-          int32_t nt = typeck_find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
-          if (nt != 0)
-            pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
-        }
-        return 1;
-      }
-    }
-
-    /* 在 dep 模块中查找顶层 const field_name（如 async_mod.POLL_PENDING） */
-    {
-      int32_t const_ty = 0;
-      if (pipeline_typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len, &const_ty)) {
-        /* wave703: untyped dep const (type_ref=0) → stamp i32 in caller arena. */
-        if (const_ty <= 0)
-          const_ty = typeck_ensure_i32_type_ref(arena);
-        if (const_ty > 0)
-          pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
-        if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
-          int32_t nt = typeck_find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
-          if (nt != 0)
-            pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
-        }
-        return 1;
-      }
-    }
-
-    /* wave1218: dep enum type as value namespace (token.TokenKind). */
-    if (pipeline_typeck_field_import_try_dep_enum_type_c(dep_mod, arena, expr_ref, base_ref,
-                                                        &base_name[0], base_name_len,
-                                                        &field_name[0], field_name_len))
-      return 1;
-  }
-  /*
-   * wave702: also match `const async_mod = import("std.async")` style bindings.
-   * Top-level const name equals base; scan all deps for field const (import list may
-   * not register binding_name for const-import sugar). PLATFORM: SHARED.
-   *
-   * wave1218: same scan for dep enum type names (token.TokenKind / color.Color).
-   */
-  {
-    int32_t ntl = module->num_top_level_lets;
-    int32_t tl;
-    int32_t nd;
-    int32_t di;
-    for (tl = 0; tl < ntl; tl++) {
-      int32_t tlen;
-      int32_t k;
-      int32_t match = 1;
-      if (!pipeline_module_top_level_let_is_const(module, tl))
-        continue;
-      tlen = pipeline_module_top_level_let_name_len(module, tl);
-      if (tlen != base_name_len || tlen <= 0)
-        continue;
-      for (k = 0; k < tlen && match; k++) {
-        if (pipeline_module_top_level_let_name_byte_at(module, tl, k) != base_name[k])
-          match = 0;
-      }
-      if (!match)
-        continue;
-      if (!ctx)
-        continue;
-      nd = pipeline_dep_ctx_ndep(ctx);
-      for (di = 0; di < nd; di++) {
-        struct ast_Module *dep_mod = pipeline_dep_ctx_module_at(ctx, di);
-        int32_t const_ty = 0;
-        if (!dep_mod)
-          continue;
-        if (pipeline_typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len, &const_ty)) {
-          /* wave703: untyped dep const → i32 in caller arena. */
-          if (const_ty <= 0)
-            const_ty = typeck_ensure_i32_type_ref(arena);
-          if (const_ty > 0)
-            pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
-          if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
-            int32_t nt = typeck_find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
-            if (nt != 0)
-              pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
-          }
-          return 1;
-        }
-        if (pipeline_typeck_field_import_try_dep_enum_type_c(dep_mod, arena, expr_ref, base_ref,
-                                                            &base_name[0], base_name_len,
-                                                            &field_name[0], field_name_len))
-          return 1;
-      }
-    }
-  }
-  return 0;
+  return typeck_field_import_binding(module, arena, expr_ref, base_ref, ctx);
 }
 
 /**

@@ -962,7 +962,7 @@
 | `ast_pool_module_func.c` | ~445 | module Func cold accessors + param sidecar 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_arena.c` | ~248 | ASTArena main-pool cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_block.c` | ~1,439 | block append/region/defer + loop/labeled/getters + parent/resolve + stmt_order rebuild residual 切片 | 🟡 已抽出（wave988–990+992 有则补全）；仍 host-cc 入 `pipeline_x` |
-| `pipeline_typeck_field_access.c` | **~1,619** | field_access 权威切片（同 TU 入 glue） | 🟡 **已抽出**；仍 host-cc；**.x 权威收敛 8.3.3 未完** |
+| `pipeline_typeck_field_access.c` | **~910** | field_access 编排 + residual（同 TU 入 glue；子叶多 thin） | 🟡 **已抽出**；仍 host-cc；**.x 权威收敛 8.3.3 未完**（主编排仍 C） |
 | `pipeline_typeck_soa.c` | **~375** | typeck SOA 辅助 | 🟡 **已抽出**；部分 helper 已进 typeck.x；仍 host-cc |
 | `pipeline_elf_write_o.c` | **~1,581** | ELF64 ET_REL + Mach-O MH_OBJECT `.o` writers | 🟡 **已抽出**（8.3.2）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_elf_ctx.c` | **~1,001** | ELF/Mach-O codegen ctx accessors + PGO-Lite + reloc/label/patch/shndx/common sidecar | 🟡 **已抽出**（8.3.2 wave1247）；仍 host-cc 入 `pipeline_x` |
@@ -1143,7 +1143,8 @@
   - ✅ `typeck_field_prebind` → typeck.x（未绑 VAR base → TYPE_NAMED 同名预绑定；形参名跳过）；C thin `pipeline_typeck_field_prebind_c` 转调
   - ✅ `typeck_field_layout_named` → typeck.x（alias peel + PTR/NAMED layout + 用户 enum 返 2 + TypeKind 变体 + `mod.T` 去前缀 + layout deps offset/type + TokenKind.TOKEN_EOF）；C thin `pipeline_typeck_field_layout_named_c` 转调
   - ✅ `typeck_field_known_ptr` → typeck.x（`*ASTArena`／`*Module` 硬编码 SoA 字段 + 偏移／数组类型；`driver_diagnostic_typeck_ptr_field`）；C thin `pipeline_typeck_field_known_ptr_types_c` 转调
-  - ⬜ `pipeline_typeck_field_access.c` import_binding／主编排 **仍 C 权威** — 禁止 glue 旁路第二套；**整项未 ✅**
+  - ✅ `typeck_field_import_binding` → typeck.x（import binding／const-import sugar：dep 函数返回类型 + 顶层 const + enum 类型名；`typeck_dep_top_level_const_match` + `typeck_field_import_try_dep_enum_type` 同叶；裸 import-const 诊断共用 const_match）；C thin `pipeline_typeck_field_import_binding_resolve_c` 转调
+  - ⬜ `pipeline_typeck_field_access.c` 主编排（`pipeline_typeck_check_expr_field_access_c`）+ reverse_infer／unknown_hard_fail／mono／ambient **仍 C 权威** — 禁止 glue 旁路第二套；**整项未 ✅**
 
 ⬜ **8.3.4 bootstrap glue / orchestration 折叠进 8.3.1–8.3.2 或删**
 

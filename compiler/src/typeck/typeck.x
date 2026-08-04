@@ -72,13 +72,17 @@ export extern function pipeline_typeck_check_expr_field_access_c(module: *Module
  */
 export extern function pipeline_typeck_mono_field_type_from_base_c(module: *Module, arena: *ASTArena,
 field_ty: i32, base_ty: i32): i32;
-/* R2 (8.3.3): prebind / known_ptr / layout_named / field_slice / name_fallback / lexer_fallback in typeck.x; C thin. */
+/* R2 (8.3.3): prebind / import_binding / known_ptr / layout_named / field_slice / name_fallback / lexer_fallback in typeck.x; C thin. */
 export extern function pipeline_typeck_field_prebind_c(module: *Module, arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): void;
+export extern function pipeline_typeck_field_import_binding_resolve_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_field_known_ptr_types_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, num_layouts: i32): i32;
 export extern function pipeline_typeck_field_layout_named_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_field_slice_c(arena: *ASTArena, expr_ref: i32, base_ref: i32): void;
 export extern function pipeline_typeck_field_name_fallback_c(arena: *ASTArena, expr_ref: i32, base_ref: i32): void;
 export extern function pipeline_typeck_field_lexer_fallback_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): void;
+/* Module enum table accessors (dep enum type hop for import_binding). */
+export extern function pipeline_module_enum_name_len(module: *Module, idx: i32): i32;
+export extern function pipeline_module_enum_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 /* See implementation. */
 export extern function driver_diagnostic_typeck_ptr_field(bt_kind: i32, inner_kind: i32, inner_nlen: i32,
 base_resolved_ref: i32, num_struct_layouts: i32): void;
@@ -2557,6 +2561,279 @@ base_ref: i32, num_struct_layouts: i32): i32 {
     }
     if (matched != 0) {
       return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Match a top-level `const` in a dep module by name; write its type_ref.
+ *
+ * When the const has no `: Type` annotation (type_ref == 0), still match and
+ * write 0 so the caller can stamp i32 from the *caller* arena (cross-module
+ * type refs are not portable). Shared by import_binding resolve and bare
+ * import-const diagnostics (G.7 single gate).
+ *
+ * @param dep_mod *Module — dependency module to scan
+ * @param name *u8 — const identifier bytes
+ * @param name_len i32 — byte length; must be > 0
+ * @param out_type_ref *i32 — written on hit (may be 0 for untyped const)
+ * @return i32 — 1 hit, 0 miss
+ * PLATFORM: SHARED
+ */
+export function typeck_dep_top_level_const_match(dep_mod: *Module, name: *u8, name_len: i32,
+out_type_ref: *i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let tl: i32 = 0;
+    let ntl: i32 = 0;
+    let tr: i32 = 0;
+    if (dep_mod == 0 as *Module || name == 0 as *u8 || name_len <= 0 || out_type_ref == 0 as *i32) {
+      return 0;
+    }
+    ntl = dep_mod.num_top_level_lets;
+    while (tl < ntl) {
+      if (pipeline_module_top_level_let_is_const(dep_mod, tl) != 0) {
+        if (typeck_top_level_let_name_equal(dep_mod, tl, name, name_len)) {
+          tr = pipeline_module_top_level_let_type_ref(dep_mod, tl);
+          /* Allow tr==0: caller fills default (i32) in its arena. */
+          *out_type_ref = tr;
+          return 1;
+        }
+      }
+      tl = tl + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Stamp import.Enum as TYPE_NAMED(enum) when field_name matches a dep enum.
+ *
+ * Single authority for both import-list and const-import sugar hops (G.7).
+ * Also stamps base as TYPE_NAMED(base_name) when base is still untyped so the
+ * outer `binding.Enum.Variant` hop can peel via layout_named.
+ *
+ * @param dep_mod *Module — dependency with module enum table
+ * @param arena *ASTArena — caller arena for named type alloc
+ * @param expr_ref i32 — FIELD_ACCESS expr to stamp
+ * @param base_ref i32 — binding/base VAR expr
+ * @param base_name *u8 — binding name bytes (for base TYPE_NAMED)
+ * @param base_name_len i32 — binding name length
+ * @param field_name *u8 — field spelling (enum type name)
+ * @param field_name_len i32 — field name length
+ * @return i32 — 1 hit, 0 miss
+ * PLATFORM: SHARED
+ */
+export function typeck_field_import_try_dep_enum_type(dep_mod: *Module, arena: *ASTArena,
+expr_ref: i32, base_ref: i32, base_name: *u8, base_name_len: i32, field_name: *u8,
+field_name_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ne: i32 = 0;
+    let ek: i32 = 0;
+    let el: i32 = 0;
+    let bi: i32 = 0;
+    let enum_ty: i32 = 0;
+    let nt: i32 = 0;
+    if (dep_mod == 0 as *Module || arena == 0 as *ASTArena || field_name == 0 as *u8 ||
+    field_name_len <= 0) {
+      return 0;
+    }
+    ne = dep_mod.num_module_enums;
+    while (ek < ne) {
+      el = pipeline_module_enum_name_len(dep_mod, ek);
+      if (el == field_name_len && el > 0) {
+        bi = 0;
+        while (bi < el) {
+          if (pipeline_module_enum_name_byte_at(dep_mod, ek, bi) != field_name[bi]) {
+            break;
+          }
+          bi = bi + 1;
+        }
+        if (bi == el) {
+          enum_ty = find_or_alloc_named_type_ref(arena, field_name, field_name_len);
+          if (enum_ty != 0) {
+            pipeline_expr_set_resolved_type_ref(arena, expr_ref, enum_ty);
+          }
+          if (ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
+            if (base_name != 0 as *u8 && base_name_len > 0) {
+              nt = find_or_alloc_named_type_ref(arena, base_name, base_name_len);
+              if (nt != 0) {
+                pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
+              }
+            }
+          }
+          return 1;
+        }
+      }
+      ek = ek + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * R2 (8.3.3): EXPR_FIELD_ACCESS import binding resolve.
+ *
+ * Migrated from C `pipeline_typeck_field_import_binding_resolve_c`
+ * (pipeline_typeck_field_access.c) to .x authority. Public surface
+ * `pipeline_typeck_field_import_binding_resolve_c` remains a thin C forwarder
+ * for field_access orchestration (runs before base check_expr).
+ *
+ * When base is EXPR_VAR matching a whole-module import binding (e.g. `token`,
+ * `backend`), resolve field against the dep module export surface:
+ *  1) function → field expr type = function return type
+ *  2) top-level const → field expr type = const type (or i32 if untyped)
+ *  3) enum type name → TYPE_NAMED(enum) so `token.TokenKind.TOKEN_RETURN`
+ *     can finish via layout_named + enum_variant_tag_for_names(deps)
+ *
+ * Wave702 residual: also match `const async_mod = import("std.async")` style
+ * bindings (top-level const name equals base; scan all deps) for const + enum.
+ *
+ * @param module *Module — entry module (import list + top-level const sugar)
+ * @param arena *ASTArena — expr/type arena
+ * @param expr_ref i32 — FIELD_ACCESS expr
+ * @param base_ref i32 — field base (must be EXPR_VAR)
+ * @param ctx *PipelineDepCtx — dep modules aligned with import indices
+ * @return i32 — 1 hit (resolved_type_ref stamped); 0 miss (continue field typeck)
+ * PLATFORM: SHARED — G.7 single import-binding field gate.
+ */
+export function typeck_field_import_binding(module: *Module, arena: *ASTArena, expr_ref: i32,
+base_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let base_name: u8[128] = [];
+    let base_name_len: i32 = 0;
+    let field_name: u8[128] = [];
+    let field_name_len: i32 = 0;
+    let i: i32 = 0;
+    let n_imp: i32 = 0;
+    let dep_mod: *Module = 0 as *Module;
+    let j: i32 = 0;
+    let nf: i32 = 0;
+    let nd: i32 = 0;
+    let ret_ty: i32 = 0;
+    let const_ty: i32 = 0;
+    let nt: i32 = 0;
+    let ntl: i32 = 0;
+    let tl: i32 = 0;
+    let di: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || base_ref <= 0 ||
+    ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    /* base must be EXPR_VAR (= 3) */
+    if (pipeline_expr_kind_ord_at(arena, base_ref) != 3) {
+      return 0;
+    }
+    base_name_len = pipeline_expr_var_name_len(arena, base_ref);
+    if (base_name_len <= 0 || base_name_len > 127) {
+      return 0;
+    }
+    pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
+    field_name_len = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (field_name_len <= 0 || field_name_len > 127) {
+      return 0;
+    }
+    pipeline_expr_field_access_name_into(arena, expr_ref, &field_name[0]);
+    /* Path A: import binding list — dep slot aligned with import index. */
+    n_imp = module.num_imports;
+    while (i < n_imp) {
+      if (typeck_import_binding_name_equal(module, i, &base_name[0], base_name_len)) {
+        dep_mod = 0 as *Module;
+        nd = pipeline_dep_ctx_ndep(ctx);
+        if (i < nd) {
+          dep_mod = pipeline_dep_ctx_module_at(ctx, i);
+        }
+        if (dep_mod != 0 as *Module) {
+          /* (1) dep function */
+          nf = pipeline_module_num_funcs(dep_mod);
+          j = 0;
+          while (j < nf) {
+            if (pipeline_module_func_name_equal_at(dep_mod, j, &field_name[0], field_name_len) != 0) {
+              ret_ty = pipeline_module_func_return_type_at(dep_mod, j);
+              if (ret_ty > 0) {
+                pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
+              }
+              if (ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
+                nt = find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
+                if (nt != 0) {
+                  pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
+                }
+              }
+              return 1;
+            }
+            j = j + 1;
+          }
+          /* (2) dep top-level const */
+          const_ty = 0;
+          if (typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len, &const_ty) != 0) {
+            if (const_ty <= 0) {
+              const_ty = ensure_i32_type_ref(arena);
+            }
+            if (const_ty > 0) {
+              pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
+            }
+            if (ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
+              nt = find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
+              if (nt != 0) {
+                pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
+              }
+            }
+            return 1;
+          }
+          /* (3) dep enum type as value namespace */
+          if (typeck_field_import_try_dep_enum_type(dep_mod, arena, expr_ref, base_ref,
+          &base_name[0], base_name_len, &field_name[0], field_name_len) != 0) {
+            return 1;
+          }
+        }
+      }
+      i = i + 1;
+    }
+    /*
+     * Path B (wave702): const-import sugar `const m = import("path")`.
+     * Top-level const name equals base; scan all deps for field const / enum
+     * (import list may not register binding_name for this sugar).
+     */
+    ntl = module.num_top_level_lets;
+    tl = 0;
+    while (tl < ntl) {
+      if (pipeline_module_top_level_let_is_const(module, tl) != 0) {
+        if (typeck_top_level_let_name_equal(module, tl, &base_name[0], base_name_len)) {
+          nd = pipeline_dep_ctx_ndep(ctx);
+          di = 0;
+          while (di < nd) {
+            dep_mod = pipeline_dep_ctx_module_at(ctx, di);
+            if (dep_mod != 0 as *Module) {
+              const_ty = 0;
+              if (typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len,
+              &const_ty) != 0) {
+                if (const_ty <= 0) {
+                  const_ty = ensure_i32_type_ref(arena);
+                }
+                if (const_ty > 0) {
+                  pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
+                }
+                if (ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
+                  nt = find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
+                  if (nt != 0) {
+                    pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
+                  }
+                }
+                return 1;
+              }
+              if (typeck_field_import_try_dep_enum_type(dep_mod, arena, expr_ref, base_ref,
+              &base_name[0], base_name_len, &field_name[0], field_name_len) != 0) {
+                return 1;
+              }
+            }
+            di = di + 1;
+          }
+        }
+      }
+      tl = tl + 1;
     }
     return 0;
   }
