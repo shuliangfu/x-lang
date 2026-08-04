@@ -57,58 +57,19 @@ static int32_t typeck_soa_find_layout_module_and_idx(struct ast_Module *module, 
 
 /**
  * SoA column base: columns before field fi occupy N * sizeof(field) (with align).
- * wave1219: made non-static extern — typeck.x authority typeck_soa_array_storage_size_glue
- * calls this (extern decl at typeck.x). Retained here because pipeline_typeck_field_soa_index_c
- * (L153 below) also uses it. Still calls static glue_type_align_simple / glue_type_size_simple
- * (visible in same pipeline_glue.c TU via #include).
- * PLATFORM: SHARED — visible via pipeline_x.o TU.
+ * R2 (8.3.3): impl migrated to typeck.x authority (uses typeck_x_type_align/size).
+ * .c callers (pipeline_typeck_field_soa_index_c below) resolve via link to typeck_x.o.
+ * PLATFORM: SHARED — visible via pipeline_x.o TU + typeck_x.o.
  */
 int32_t typeck_soa_col_base_for_field(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
-                                      int32_t field_idx, int32_t array_len, int32_t depth) {
-  int32_t col;
-  int32_t j;
-  int32_t nf;
-  if (!module || !arena || li < 0 || field_idx < 0 || array_len <= 0 || depth > 64)
-    return 0;
-  col = 0;
-  nf = pipeline_module_struct_layout_num_fields(module, li);
-  for (j = 0; j < nf && j < field_idx; j++) {
-    int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
-    int32_t A;
-    int32_t fsize;
-    int32_t rem;
-    int32_t gap;
-    if (ftr <= 0)
-      continue;
-    A = glue_type_align_simple(module, arena, ftr, depth);
-    fsize = glue_type_size_simple(module, arena, ftr, depth);
-    if (A <= 0)
-      A = 1;
-    if (fsize <= 0)
-      fsize = 4;
-    rem = col % A;
-    gap = A - rem;
-    gap = gap % A;
-    col = col + gap + array_len * fsize;
-  }
-  return col;
-}
+                                      int32_t field_idx, int32_t array_len, int32_t depth);
 
-/* wave1219 G.3/G.4: typeck_soa_array_storage_size_glue migrated to typeck.x
- * authority (export function at typeck.x L313). This C bypass definition
- * deleted — eliminates the last C-side authority for SoA array storage sizing.
- *
- * The .x implementation calls:
- *   - typeck_soa_find_layout_idx_by_name (extern, retained below at L20)
- *   - typeck_soa_col_base_for_field (extern, retained below at L86)
- *   - typeck_x_type_align (.x authority, replaces C glue_type_align_simple
- *     for the max-field-align tail loop; G.7 twin, same semantics)
- *
- * C callers (ast_pool.c + pipeline_asm_emit_struct_lit.c + typeck_gen.c
- * callers) resolve to the typeck_gen.c-generated definition at link time.
- *
- * The 2 extern helpers above remain here because pipeline_typeck_field_soa_index_c
- * (L153 below) still uses them for arr[i].field SoA col_base + stride resolution. */
+/* wave1219 G.3/G.4 + 8.3.3 R2: typeck_soa_array_storage_size_glue and
+ * typeck_soa_col_base_for_field / typeck_soa_find_layout_idx_by_name are .x
+ * authority (typeck.x → typeck_x.o). This file keeps:
+ *   - extern decls for the two helpers (same-TU field_soa_index calls)
+ *   - pipeline_typeck_field_soa_index_c (still C; uses glue_type_size_simple for stride)
+ */
 
 /**
  * EXPR_FIELD_ACCESS 且 base 为 INDEX：SoA 数组 `arr[i].field` 写 col_base + stride。

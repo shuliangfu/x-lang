@@ -1130,8 +1130,11 @@
 🟡 **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
 
   - 验收（父项 ✅）：field resolve 唯一权威在 typeck.x；C 叶仅 thin 或删
-  - ✅ 文件已抽出同 TU：`pipeline_typeck_field_access.c` ~1.6k · `pipeline_typeck_soa.c` ~375（仍 host-cc）
-  - ✅ `typeck_soa_array_storage_size_glue` 已从 C bypass 迁到 typeck.x 权威；2 static helpers 改为 non-static extern（供 field_soa_index）；.x 用 typeck_x_type_align（G.7 twin）
+  - ✅ 文件已抽出同 TU：`pipeline_typeck_field_access.c` ~1.6k · `pipeline_typeck_soa.c` ~355（仍 host-cc）
+  - ✅ `typeck_soa_array_storage_size_glue` 已从 C bypass 迁到 typeck.x 权威
+  - ✅ `typeck_soa_find_layout_idx_by_name` → typeck.x（tip `72addb527`）
+  - ✅ `typeck_soa_col_base_for_field` → typeck.x（用 typeck_x_type_align/size 替 glue_type_*；C 仅 extern）
+  - 🟡 C 仍留：`typeck_soa_find_layout_module_and_idx`（static）+ `pipeline_typeck_field_soa_index_c`（主路径；stride 仍 glue_type_size_simple）
   - ⬜ `pipeline_typeck_field_access.c` field resolve **仍 C 权威** — 禁止 glue 旁路第二套；**整项未 ✅**
 
 ⬜ **8.3.4 bootstrap glue / orchestration 折叠进 8.3.1–8.3.2 或删**
