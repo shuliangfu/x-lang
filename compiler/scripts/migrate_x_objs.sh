@@ -134,7 +134,7 @@ ensure_gen_via_shell() {
     exit 1
   fi
   MAKE="$MAKE" XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}" \
-    sh scripts/ensure_migrate_gen.sh "$mode"
+    babash scripts/ensure_migrate_gen.sh "$mode"
 }
 
 # Skip ensure when gen already present (make only re-runs recipe when .x is newer).
@@ -207,7 +207,7 @@ build_typeck() {
   $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c typeck_gen.c -o typeck_x.o
   sz=$(obj_size typeck_x.o)
   if [ "$sz" -le 10000 ]; then
-    log "typeck_x.o too small ($sz; corrupt gen? rm typeck_gen.c && sh scripts/ensure_migrate_gen.sh typeck)"
+    log "typeck_x.o too small ($sz; corrupt gen? rm typeck_gen.c && bash scripts/ensure_migrate_gen.sh typeck)"
     exit 1
   fi
   log "typeck_x.o OK ($sz bytes)"
@@ -225,7 +225,7 @@ build_codegen() {
   $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c codegen_gen.c -o codegen_x.o
   sz=$(obj_size codegen_x.o)
   if [ "$sz" -le 50000 ]; then
-    log "codegen_x.o too small ($sz; corrupt gen? rm codegen_gen.c && sh scripts/ensure_migrate_gen.sh codegen)"
+    log "codegen_x.o too small ($sz; corrupt gen? rm codegen_gen.c && bash scripts/ensure_migrate_gen.sh codegen)"
     exit 1
   fi
   log "codegen_x.o OK ($sz bytes)"

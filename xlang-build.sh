@@ -77,25 +77,25 @@ run_migrate_x_objs() {
 # product frontend *_gen.c pin/seed/-E (wave736 migrate trio · wave737 +lexer).
 # G.7 body = scripts/ensure_migrate_gen.sh (parser/typeck/codegen; lexer via mode).
 run_ensure_migrate_gen() {
-  (cd compiler && sh scripts/ensure_migrate_gen.sh all)
+  (cd compiler && bash scripts/ensure_migrate_gen.sh all)
 }
 run_ensure_lexer_gen() {
-  (cd compiler && sh scripts/ensure_migrate_gen.sh lexer)
+  (cd compiler && bash scripts/ensure_migrate_gen.sh lexer)
 }
 # product driver/preprocess *_gen.c pin/seed/-E (wave738).
 # G.7 body = scripts/ensure_driver_gen.sh
 run_ensure_driver_gen() {
-  (cd compiler && sh scripts/ensure_driver_gen.sh all)
+  (cd compiler && bash scripts/ensure_driver_gen.sh all)
 }
 # product LSP + pipeline *_gen.c pin/seed/-E (wave739).
 # G.7 body = scripts/ensure_lsp_pipeline_gen.sh
 run_ensure_lsp_pipeline_gen() {
-  (cd compiler && sh scripts/ensure_lsp_pipeline_gen.sh all)
+  (cd compiler && bash scripts/ensure_lsp_pipeline_gen.sh all)
 }
 # Track L archaeology *_gen.c pin/seed/-E (wave740; product link does not use).
 # G.7 body = scripts/ensure_archaeology_gen.sh
 run_ensure_archaeology_gen() {
-  (cd compiler && sh scripts/ensure_archaeology_gen.sh all)
+  (cd compiler && bash scripts/ensure_archaeology_gen.sh all)
 }
 case "$TARGET" in
   # === 编译器（G-05 日常）===
@@ -170,7 +170,7 @@ case "$TARGET" in
       codegen-gen) _gen_mode=codegen ;;
       lexer-gen|ensure-lexer-gen) _gen_mode=lexer ;;
     esac
-    (cd compiler && sh scripts/ensure_migrate_gen.sh "$_gen_mode")
+    (cd compiler && bash scripts/ensure_migrate_gen.sh "$_gen_mode")
     ;;
   driver-gen|ensure-driver-gen|preprocess-gen|ensure-preprocess-gen)
     # Wave738 · 11.1.6: driver_gen.c + preprocess_gen.c via ensure_driver_gen.sh
@@ -185,7 +185,7 @@ case "$TARGET" in
         if [ -z "${2:-}" ]; then _dgen_mode=all; fi
         ;;
     esac
-    (cd compiler && sh scripts/ensure_driver_gen.sh "$_dgen_mode")
+    (cd compiler && bash scripts/ensure_driver_gen.sh "$_dgen_mode")
     ;;
   lsp-gen|ensure-lsp-gen|pipeline-gen|ensure-pipeline-gen|lsp-pipeline-gen|ensure-lsp-pipeline-gen)
     # Wave739 · 11.1.6: lsp_*_gen.c + pipeline_gen.c via ensure_lsp_pipeline_gen.sh
@@ -205,7 +205,7 @@ case "$TARGET" in
         if [ -z "${2:-}" ]; then _lp_mode=all; fi
         ;;
     esac
-    (cd compiler && sh scripts/ensure_lsp_pipeline_gen.sh "$_lp_mode")
+    (cd compiler && bash scripts/ensure_lsp_pipeline_gen.sh "$_lp_mode")
     ;;
   archaeology-gen|ensure-archaeology-gen|driver-subcmd-gen|ensure-driver-subcmd-gen)
     # Wave740 · 11.1.6: Track L archaeology driver_*_gen + lsp_io_std_heap_gen
@@ -224,7 +224,7 @@ case "$TARGET" in
         if [ -z "${2:-}" ]; then _arch_mode=driver-all; fi
         ;;
     esac
-    (cd compiler && sh scripts/ensure_archaeology_gen.sh "$_arch_mode")
+    (cd compiler && bash scripts/ensure_archaeology_gen.sh "$_arch_mode")
     ;;
 
   # === 11.1.1 inventory + 11.1.2 schedule (wave742/743 · not full .x import graph) ===
