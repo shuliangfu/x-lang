@@ -100,7 +100,8 @@ extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int
  * retains its own forward decl at glue.c:3655 (same TU; visible via #include
  * at glue.c:2095). Consumed only by glue.c fill_struct_layouts (module
  * layout finalization pass — struct layout registry domain). */
-static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_ASTArena *a);
+/* Non-static: typeck.x fill_soa orchestration links this (8.3.3 R2). */
+void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_ASTArena *a);
 
 /**
  * Check whether a TYPE_NAMED refers to an empty struct (ZST).
@@ -919,8 +920,10 @@ int32_t pipeline_expr_struct_lit_value_bytes(struct ast_ASTArena *a, struct ast_
  * offset walk). Bounded by module struct count (typically small).
  *
  * PLATFORM: SHARED — pure layout registry sync; arch-agnostic.
+ * Link surface: non-static so typeck_soa_fill_field_access_for_asm_emit
+ * (typeck_x.o) can call after 8.3.3 R2 migration. Same-TU callers unchanged.
  */
-static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_ASTArena *a) {
+void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_ASTArena *a) {
   int32_t li;
   int32_t nf;
   int32_t j;

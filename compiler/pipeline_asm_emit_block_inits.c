@@ -537,9 +537,11 @@ static int32_t glue_expr_in_scope_block_c(struct ast_ASTArena *arena, int32_t ex
  * is skipped.
  *
  * PLATFORM: SHARED — pure type_ref propagation, no arch dependency.
+ * Link surface: non-static so typeck_soa_fill_field_access_for_asm_emit
+ * (typeck_x.o) can call after 8.3.3 R2 migration.
  */
-static void glue_fill_var_types_from_params_for_func(struct ast_Module *m, struct ast_ASTArena *arena,
-                                                     int32_t func_index) {
+void glue_fill_var_types_from_params_for_func(struct ast_Module *m, struct ast_ASTArena *arena,
+                                              int32_t func_index) {
   int32_t np;
   int32_t pi;
   int32_t ei;
@@ -583,8 +585,10 @@ static void glue_fill_var_types_from_params_for_func(struct ast_Module *m, struc
  * block-local — there is no cross-function collision risk.
  *
  * PLATFORM: SHARED — pure type_ref propagation, no arch dependency.
+ * Link surface: non-static so typeck_soa_fill_field_access_for_asm_emit
+ * (typeck_x.o) can call after 8.3.3 R2 migration.
  */
-static void glue_fill_var_types_from_lets_in_block(struct ast_ASTArena *arena, int32_t block_ref) {
+void glue_fill_var_types_from_lets_in_block(struct ast_ASTArena *arena, int32_t block_ref) {
   int32_t nlet;
   int32_t li;
   int32_t ei;

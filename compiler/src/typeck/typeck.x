@@ -310,16 +310,30 @@ export extern function typeck_x_type_align_from_layout_glue(module: *Module, are
 depth: i32): i32;
 export extern function typeck_x_type_size_from_layout_glue(module: *Module, arena: *ASTArena, li: i32,
   depth: i32): i32;
-/* R2 (8.3.3): typeck_soa_col_base / find_layout_* / field_soa_index migrated
- * to .x authority below. pipeline_typeck_soa.c keeps only extern decls for
- * same-TU fill_soa / emit callers. */
+/* R2 (8.3.3): typeck_soa_col_base / find_layout_* / field_soa_index /
+ * fill_field_access_for_asm_emit migrated to .x authority below.
+ * pipeline_typeck_soa.c keeps thin public surface + extern decls. */
 /* WPO dep pipe for SoA layout cross-module lookup (emit context). */
 export extern function pipeline_asm_emit_dep_pipe_c(): *PipelineDepCtx;
 /* Current asm-emit function index (-1 unbound); VAR param fallback for SoA. */
 export extern function pipeline_asm_emit_func_index_c(): i32;
+/* Bind current emit func index (fill_soa func walk sets this for param fallback). */
+export extern function pipeline_asm_emit_set_func_index(func_index: i32): void;
 /* Stamp SoA column stride on FIELD_ACCESS (emit reads via field_access_soa_stride). */
 export extern function pipeline_expr_set_field_access_soa_stride(arena: *ASTArena, expr_ref: i32,
 stride: i32): void;
+/* Read SoA stride stamped on FIELD_ACCESS; >0 means SoA path already filled. */
+export extern function pipeline_expr_field_access_soa_stride(arena: *ASTArena, expr_ref: i32): i32;
+/* Optional debug walk of named func bodies (XLANG_ASM_DEBUG / trace paths). */
+export extern function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *Module,
+arena: *ASTArena): void;
+/* Host-cc layout sync + skip-typeck var type backfill (link surfaces for fill_soa). */
+export extern function glue_sync_struct_layout_field_offsets_c(module: *Module, arena: *ASTArena): void;
+export extern function glue_fill_var_types_from_lets_in_block(arena: *ASTArena, block_ref: i32): void;
+export extern function glue_fill_var_types_from_params_for_func(module: *Module, arena: *ASTArena,
+func_index: i32): void;
+export extern function glue_field_layout_offset_for_base_field(arena: *ASTArena, module: *Module,
+base_ref: i32, field_name: *u8, flen: i32): i32;
 /* See implementation. */
 export extern function pipeline_get_dep_arena_slot(ix: i32): *ASTArena;
 /* See implementation. */
@@ -2137,6 +2151,147 @@ expr_ref: i32): i32 {
       j = j + 1;
     }
     return 0;
+  }
+}
+
+/**
+ * R2 (8.3.3): Before asm emit, fill SoA col_base+stride and AoS layout
+ * offsets for FIELD_ACCESS when C/X typeck was skipped or incomplete.
+ *
+ * Migrated from C `pipeline_fill_soa_field_access_for_asm_emit`
+ * (pipeline_typeck_soa.c) to .x authority. Public surface name stays on a
+ * thin C forwarder so runtime_pipeline_abi empty export / weak stubs do not
+ * collide with a second no_mangle body.
+ *
+ * Steps (same as prior C):
+ *  1. Merge STRUCT_LIT fields into module.struct_layouts
+ *     (ensure_struct_layout_from_struct_lit authority).
+ *  2. DOD-CL: inherit field_align from prior field when next is 0 and prior
+ *     align >= 64 (align(N) column inheritance).
+ *  3. Sync layout field offsets (glue_sync_struct_layout_field_offsets_c).
+ *  4. Per non-extern func: bind emit func index, backfill VAR types from
+ *     lets/params (skip-typeck INDEX base types).
+ *  5. Per FIELD_ACCESS: SoA INDEX base → typeck_soa_field_soa_index; else
+ *     stamp AoS layout offset unless soa_stride already set.
+ *
+ * @param module *Module — primary module (layouts + funcs)
+ * @param arena *ASTArena — expr pool
+ * @return void — no-op on null module/arena
+ * PLATFORM: SHARED — G.7 single authority; .x -> typeck_gen.c -> typeck_x.o.
+ */
+export function typeck_soa_fill_field_access_for_asm_emit(module: *Module, arena: *ASTArena): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let fi: i32 = 0;
+    let ei: i32 = 0;
+    let saved_fi: i32 = 0;
+    let li: i32 = 0;
+    let nf2: i32 = 0;
+    let j: i32 = 0;
+    let fa0: i32 = 0;
+    let br: i32 = 0;
+    let base_ref: i32 = 0;
+    let flen: i32 = 0;
+    let fname: u8[128] = [];
+    let layout_off: i32 = 0;
+    let nfuncs: i32 = 0;
+    let nlayouts: i32 = 0;
+    let nexprs: i32 = 0;
+    let ens_rc: i32 = 0;
+    let soa_rc: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena) {
+      return;
+    }
+    pipeline_debug_trace_named_func_bodies("fill_cl_pre", module, arena);
+    /* skip typeck: merge STRUCT_LIT fields into module.struct_layouts. */
+    nexprs = arena.num_exprs;
+    ei = 1;
+    while (ei <= nexprs) {
+      /* EXPR_STRUCT_LIT kind ord == 45 */
+      if (pipeline_expr_kind_ord_at(arena, ei) == 45) {
+        /* Discard return: merge failure is soft for skip-typeck emit path. */
+        ens_rc = ensure_struct_layout_from_struct_lit(module, arena, ei);
+        if (ens_rc != 0) {
+          /* keep walking other STRUCT_LIT nodes */
+        }
+      }
+      ei = ei + 1;
+    }
+    /* DOD-CL: inherit align(N) from field j onto j+1 when next align is 0. */
+    nlayouts = pipeline_module_num_struct_layouts_at(module);
+    li = 0;
+    while (li < nlayouts) {
+      nf2 = pipeline_module_struct_layout_num_fields(module, li);
+      j = 0;
+      while (j + 1 < nf2) {
+        fa0 = pipeline_module_struct_layout_field_align_at(module, li, j);
+        if (fa0 >= 64 && pipeline_module_struct_layout_field_align_at(module, li, j + 1) == 0) {
+          pipeline_module_struct_layout_set_field_align(module, li, j + 1, fa0);
+        }
+        j = j + 1;
+      }
+      li = li + 1;
+    }
+    /* DOD-CL-S1: recompute field offsets from field_align, then fill FA. */
+    glue_sync_struct_layout_field_offsets_c(module, arena);
+    saved_fi = pipeline_asm_emit_func_index_c();
+    nfuncs = pipeline_module_num_funcs(module);
+    fi = 0;
+    while (fi < nfuncs) {
+      /* EMIT_HEAVY extern slots have no body/params; fill would SIGSEGV. */
+      if (pipeline_module_func_is_extern_at(module, fi) != 0) {
+        fi = fi + 1;
+        continue;
+      }
+      br = pipeline_module_func_body_ref_at(module, fi);
+      if (br <= 0) {
+        fi = fi + 1;
+        continue;
+      }
+      pipeline_asm_emit_set_func_index(fi);
+      glue_fill_var_types_from_lets_in_block(arena, br);
+      glue_fill_var_types_from_params_for_func(module, arena, fi);
+      fi = fi + 1;
+    }
+    ei = 1;
+    while (ei <= nexprs) {
+      /* EXPR_FIELD_ACCESS kind ord == 44 */
+      if (pipeline_expr_kind_ord_at(arena, ei) != 44) {
+        ei = ei + 1;
+        continue;
+      }
+      base_ref = pipeline_expr_field_access_base_ref(arena, ei);
+      if (base_ref <= 0) {
+        ei = ei + 1;
+        continue;
+      }
+      /* INDEX kind ord == 47 → SoA arr[i].field */
+      if (pipeline_expr_kind_ord_at(arena, base_ref) == 47) {
+        /* Discard return: 0 means not-SoA; AoS offset path still runs below. */
+        soa_rc = typeck_soa_field_soa_index(module, arena, ei, base_ref);
+        if (soa_rc != 0) {
+          /* SoA stamps already written */
+        }
+      }
+      flen = pipeline_expr_field_access_name_len(arena, ei);
+      if (flen <= 0 || flen > 127) {
+        ei = ei + 1;
+        continue;
+      }
+      pipeline_expr_field_access_name_into(arena, ei, &fname[0]);
+      /* SoA path already wrote col_base+stride; do not overwrite with AoS off. */
+      if (pipeline_expr_field_access_soa_stride(arena, ei) > 0) {
+        ei = ei + 1;
+        continue;
+      }
+      layout_off = glue_field_layout_offset_for_base_field(arena, module, base_ref, &fname[0], flen);
+      if (layout_off >= 0) {
+        pipeline_expr_set_field_access_offset(arena, ei, layout_off);
+      }
+      ei = ei + 1;
+    }
+    pipeline_asm_emit_set_func_index(saved_fi);
+    pipeline_debug_trace_named_func_bodies("fill_cl_post", module, arena);
   }
 }
 

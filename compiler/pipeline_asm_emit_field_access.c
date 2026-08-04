@@ -858,9 +858,11 @@ static int32_t glue_field_layout_offset_for_var_base_field(struct ast_ASTArena *
  * FIELD_ACCESS 基址 expr：按 base 的 struct 类型名 + 字段名查 layout 偏移。
  * VAR 走 glue_field_layout_offset_for_var_base_field（形参/let 回落）；其余走 resolved *T/NAMED + dep 池。
  * 命中返回 offset，未命中返回 -1。
+ * Link surface: non-static so typeck_soa_fill_field_access_for_asm_emit
+ * (typeck_x.o) can call after 8.3.3 R2 migration. PLATFORM: SHARED.
  */
-static int32_t glue_field_layout_offset_for_base_field(struct ast_ASTArena *a, struct ast_Module *m, int32_t base_ref,
-                                                       uint8_t *field_name, int32_t flen) {
+int32_t glue_field_layout_offset_for_base_field(struct ast_ASTArena *a, struct ast_Module *m, int32_t base_ref,
+                                                uint8_t *field_name, int32_t flen) {
   int32_t base_ty;
   struct ast_Type *tp;
   uint8_t struct_name[128];

@@ -592,7 +592,8 @@ extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, str
  * retained for glue.c:11850 callsite (fill_struct_layouts — module layout
  * finalization pass). struct_lit.c:77 also has a forward decl; same-TU
  * #include at glue.c:2095 makes the definition visible to glue.c. */
-static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_ASTArena *a);
+/* Non-static after 8.3.3 R2 (typeck_x.o fill_soa calls this). */
+void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_ASTArena *a);
 
 /* wave1050 G.7: glue_struct_layout_field_offset_by_name_c migrated to
  * pipeline_asm_emit_field_access.c (definition at EOF; field_access.c:708 fwd
