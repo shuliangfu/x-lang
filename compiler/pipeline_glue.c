@@ -71,47 +71,13 @@ struct xlang_slice_uint8_t {
  * static emit globals remain below. PLATFORM: SHARED. */
 #include "pipeline_glue_early_fwd.c"
 
-/* Emit / typeck active context statics — must stay in glue shell so all
- * domain #includes below share one definition (same TU). wave1284 left
- * these in glue; early_fwd holds only declarations. PLATFORM: SHARED. */
-/** 当前 asm_codegen_ast_to_elf 正在发射的 module（定义见本文件后部 pipeline_asm_emit_set_module）。 */
-static struct ast_Module *g_pipeline_asm_emit_module;
-/** WPO-S3 / LANG-006 call-site CTFE: set by pipeline_typeck_set_active_ctx_c before check. */
-static struct ast_Module *g_typeck_active_module;
-/** 当前 asm emit 函数下标；供形参 *T 槽 load/leа 判定（driver compile.x state 等）。 */
-static int32_t g_pipeline_asm_emit_func_index = -1;
-/** 当前 emit 用的 AST arena（param homing 形参 kind 查询）。 */
-static struct ast_ASTArena *g_pipeline_asm_emit_arena;
-/** CALL 实参 emit 时对照的 callee 形参 type_ref（f32 须 32-bit 位型）。 */
-static int32_t g_pipeline_asm_emit_call_param_ty_ref;
-/** CALL 实参 emit 嵌套深度（>0 时 FIELD_ACCESS 可区分传址 struct 字段）。 */
-static int32_t g_glue_emit_call_arg_depth;
-/**
- * Large-struct (>16B) return home: stack slot holding the caller's dest pointer.
- * PLATFORM: LINUX+MACOS x86_64 SysV — hidden dest arrives in rdi, saved here.
- * PLATFORM: MACOS|ARM64 AAPCS64 — Indirect Result Location arrives in x8, saved here.
- * (-1 = current function is not an sret return target.)
- */
-static int32_t g_pipeline_asm_sret_home_off = -1;
-/**
- * 1 = current emit function writes large struct return via hidden dest (sret).
- * PLATFORM: LINUX+MACOS x86_64 SysV (rdi) · MACOS|ARM64 AAPCS64 (x8).
- */
-static int32_t g_pipeline_asm_func_sret_active = 0;
-/** Current emit function sret return byte width (valid when >16). */
-static int32_t g_pipeline_asm_func_sret_ret_sz = 0;
-/**
- * CALL-side sret: how many GP arg slots shift (0 or 1).
- * PLATFORM: LINUX+MACOS x86_64 SysV only — rdi already holds dest, args start at rsi.
- * PLATFORM: MACOS|ARM64 AAPCS64 — x8 is separate from x0–x7; always 0 (no GP shift).
- */
-static int32_t g_pipeline_asm_call_sret_reg_shift = 0;
-/** 当前 emit 块 scope（与 asm_ctx scope_block_ref 同步）；FIELD_ACCESS 查 let 类型用。 */
-static int32_t g_pipeline_asm_emit_scope_block = 0;
-/** 当前 asm emit 的 dep 池；import struct layout 查字段偏移用（WPO-S3 cross_ret 等）。 */
-static struct ast_PipelineDepCtx *g_pipeline_asm_emit_dep_pipe;
-/** 当前 asm_codegen_ast_to_elf 正在写入的 elf_ctx（PGO-Lite emit 段切换）。 */
-static struct platform_elf_ElfCodegenCtx *g_pipeline_asm_emit_elf_ctx;
+/* wave1290 G.7: emit/typeck active-context static globals (13: module / arena
+ * / elf_ctx / func_index / scope_block / dep_pipe / active_module / call state
+ * / sret home+active+ret_sz+reg_shift) migrated to pipeline_glue_statics.c
+ * (same-TU single-definition site; all domain #includes below share it).
+ * wave1284 had left these in glue; early_fwd holds only declarations.
+ * PLATFORM: SHARED. */
+#include "pipeline_glue_statics.c"
 
 /* wave1185 G.7: parser result copy/lex/slice helper cluster (20 fns + 4 typedefs)
  * migrated to pipeline_parser_result.c (same-TU #include). Members: parser_slice_from_buf /
