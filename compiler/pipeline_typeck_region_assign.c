@@ -1668,3 +1668,30 @@ int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module, stru
   pipeline_dep_ctx_scope_region_pop_c(ctx);
   return rc;
 }
+
+/* wave1282 G.7: pipeline_typeck_ptr_for_addr_of_operand_c migrated from
+ * pipeline_glue.c (was immediately before this file's #include). Colocated
+ * with WPO-S3 stack-escape helpers at EOF (typeck_var_is_block_local_c /
+ * typeck_find_or_alloc_ptr_stack_local_c) — sole callees of this public
+ * face. typeck_type_is_named_struct_c is static in struct_lit.c (included
+ * earlier in the same TU).
+ *
+ * Callers: check_expr.c addr_of path (after this #include) + typeck_gen seed
+ * via extern. PLATFORM: SHARED — Cap residual &local struct → stack_local *T.
+ */
+
+/**
+ * WPO-S3: when operand is a block-local VAR of named struct type, return a
+ * stack_local *T type_ref; otherwise 0 (caller falls back to ordinary *T).
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_typeck_ptr_for_addr_of_operand_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t elem_ty,
+                                                  struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
+  if (!arena || !module || !ctx || op_ref <= 0 || elem_ty <= 0)
+    return 0;
+  if (!typeck_var_is_block_local_c(module, arena, ctx, op_ref))
+    return 0;
+  if (!typeck_type_is_named_struct_c(module, arena, elem_ty))
+    return 0;
+  return typeck_find_or_alloc_ptr_stack_local_c(arena, elem_ty);
+}

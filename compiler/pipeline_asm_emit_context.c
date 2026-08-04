@@ -79,6 +79,15 @@ struct ast_Module *pipeline_asm_emit_module_ref_c(void) {
 }
 
 /**
+ * wave1282 G.7: alias of pipeline_asm_emit_module_ref_c for asm_local_slot_bytes
+ * (ast_pool path). Same authority as module_ref_c — single g_pipeline_asm_emit_module
+ * static; do not open a second emit-module face. PLATFORM: SHARED.
+ */
+struct ast_Module *pipeline_asm_glue_emit_module_ref(void) {
+  return g_pipeline_asm_emit_module;
+}
+
+/**
  * Bind the current emit dep pipe (PipelineDepCtx).
  * Why: import-struct FIELD_ACCESS needs to walk dep_arenas/dep_modules for
  *      layout offset resolution when the struct is defined in an imported

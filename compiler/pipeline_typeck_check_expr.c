@@ -1273,3 +1273,26 @@ int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *m
   driver_diagnostic_typeck_extern_call_outside_unsafe(line, col);
   return -1;
 }
+
+/* wave1282 G.7: non-standalone typeck_check_expr_{call,deref,method_call}
+ * thin wrappers migrated from pipeline_glue.c. Delegates to pipeline_typeck_*_c
+ * authorities defined earlier in this domain. Omitted when
+ * XLANG_PIPELINE_GLUE_STANDALONE_TU or XLANG_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS
+ * (strict_glue: typeck_x.o is sole export). PLATFORM: SHARED.
+ */
+#if !defined(XLANG_PIPELINE_GLUE_STANDALONE_TU) && !defined(XLANG_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS)
+int32_t typeck_check_expr_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
+                               int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
+  return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
+}
+
+int32_t typeck_check_expr_deref(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
+                                int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
+  return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
+}
+
+int32_t typeck_check_expr_method_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
+                                      int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
+  return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
+}
+#endif

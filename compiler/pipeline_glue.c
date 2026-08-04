@@ -2227,10 +2227,9 @@ void driver_diagnostic_asm_elf_unresolved_patch(const uint8_t *name, int32_t nam
 struct platform_elf_ElfCodegenCtx;
 void pipeline_elf_log_unresolved_patch(struct platform_elf_ElfCodegenCtx *ctx, int32_t patch_idx);
 
-/** ast_pool asm_local_slot_bytes 读取 codegen 期 module（struct layout 真实尺寸）。 */
-struct ast_Module *pipeline_asm_glue_emit_module_ref(void) {
-  return g_pipeline_asm_emit_module;
-}
+/* wave1282 G.7: pipeline_asm_glue_emit_module_ref migrated to
+ * pipeline_asm_emit_context.c (alias of pipeline_asm_emit_module_ref_c —
+ * same g_pipeline_asm_emit_module static). PLATFORM: SHARED. */
 
 extern int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     int32_t li, int32_t depth);
@@ -2663,9 +2662,11 @@ extern int32_t find_or_alloc_ptr_type_ref(struct ast_ASTArena *arena, int32_t el
  * pipeline_typeck_check_expr.c EOF (colocated with check_expr sub-class
  * cluster). PLATFORM: SHARED. */
 
-/** WPO-S3：&local struct → stack_local *T；定义在 typeck_var_is_block_local_c 之后。 */
-int32_t pipeline_typeck_ptr_for_addr_of_operand_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t elem_ty,
-                                                  struct ast_Module *module, struct ast_PipelineDepCtx *ctx);
+/* wave1282 G.7: pipeline_typeck_ptr_for_addr_of_operand_c migrated to
+ * pipeline_typeck_region_assign.c EOF (colocated with stack-escape helpers).
+ * No glue.c fwd decl needed — sole same-TU caller is check_expr.c
+ * (#include after region_assign). Cross-TU seeds keep their own extern.
+ * PLATFORM: SHARED. */
 
 /* wave1189 G.7: pipeline_typeck_check_expr_addr_of_c migrated to
  * pipeline_typeck_check_expr.c EOF (colocated with check_expr sub-class
@@ -2677,8 +2678,8 @@ int32_t pipeline_dep_ctx_typeck_unsafe_depth_at(struct ast_PipelineDepCtx *ctx);
 int32_t pipeline_typeck_unsafe_depth_push_c(struct ast_PipelineDepCtx *ctx);
 void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved_unsafe_depth);
 
-/** LANG-007 v2：unsafe { } 嵌套深度侧车（不扩 PipelineDepCtx，避免 seed 结构体漂移）。 */
-static int32_t g_typeck_unsafe_depth;
+/* wave1282 G.7: g_typeck_unsafe_depth migrated to pipeline_typeck_check_block.c
+ * top (sole consumers: unsafe_depth push/pop/at in that domain). PLATFORM: SHARED. */
 
 extern void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col);
 
@@ -2920,43 +2921,20 @@ extern int32_t check_block_impl(struct ast_Module *module, struct ast_ASTArena *
                                 int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break);
 
-/*
- * wave92: product pure owns pipeline_typeck_validate_struct_layouts_zero_padding_c
- * (runtime_pipeline_abi.x thin → typeck_validate_struct_layouts_zero_padding). Keep XLANG_WEAK
- * cold fallback for links without pure pipeline_abi / PREFER hybrid (still glue metrics fork).
- * PLATFORM: SHARED — ELF weak overridden by pure; cold uses typeck_validate_*_glue.
- */
-XLANG_WEAK int32_t pipeline_typeck_validate_struct_layouts_zero_padding_c(
-    struct ast_Module *module, struct ast_ASTArena *arena) {
-  return typeck_validate_struct_layouts_zero_padding_glue(module, arena);
-}
+/* wave1282 G.7: XLANG_WEAK pipeline_typeck_validate_struct_layouts_zero_padding_c
+ * migrated to pipeline_typeck_orch.c EOF (colocated with orch callers).
+ * PLATFORM: SHARED — pure strong-symbol override unchanged. */
 
 extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
 
 /** M-3 slice region assign / helpers: body in pipeline_typeck_region_assign.c (included below). */
 
 
-/** M-4：线性类型 use-once move 跟踪（按变量名；每函数 reset）。 */
-#define TYPECK_LINEAR_MOVED_MAX 128
-static int g_typeck_linear_moved_n;
-static char g_typeck_linear_moved_names[TYPECK_LINEAR_MOVED_MAX][128];
-static int32_t g_typeck_linear_moved_lens[TYPECK_LINEAR_MOVED_MAX];
-
-/** WPO-S3：typeck 活跃 module/ctx（call slice 检查等 C glue 无 ctx 参数时回落）。 */
-static struct ast_PipelineDepCtx *g_typeck_active_ctx;
-
 /* wave1157 G.7: linear type use-once move tracking cluster (6 fns) migrated
- * to pipeline_typeck_check_block.c EOF (colocated with typeck_linear_name_
- * already_moved wave1132 + check_block walker domain). Extern (non-static):
- * set_active_ctx_c extern fwd decl at L6099 (before callsite at L6109 <
- * check_block.c #include at L10250); linear_reset_c callsites at L10267/
- * 10331/10398 are AFTER #include L10250 — visible. Other 4 fns have no
- * glue.c callsites (called from typeck.x / ast_pool.c / seeds — cross-TU).
- * Globals above (g_typeck_linear_moved_*, g_typeck_active_ctx, TYPECK_LINEAR_
- * MOVED_MAX) stay here — visible in check_block.c via #include after L10250.
- * wave1132 static fwd decl for typeck_linear_name_already_moved removed
- * (sole caller linear_use_var_c now in same file — direct call, no fwd
- * needed). PLATFORM: SHARED. */
+ * to pipeline_typeck_check_block.c EOF.
+ * wave1282 G.7: TYPECK_LINEAR_MOVED_MAX + g_typeck_linear_moved_* +
+ * g_typeck_active_ctx also moved to check_block.c top (sole consumers of
+ * those statics). PLATFORM: SHARED. */
 
 /* wave1125-1129 G.7: TYPECK_STACK_LOCAL_PTR_LBL const migrated to
  * pipeline_typeck_region_assign.c (with the 5 stack-escape helpers that
@@ -2976,40 +2954,13 @@ static int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Modul
  * L11189+ / L11240+ / L11363+). PLATFORM: SHARED. */
 
 /* wave1125-1129 G.7: WPO-S3 stack-escape analysis helpers (5 fns + const)
- * migrated to pipeline_typeck_region_assign.c EOF (stack-escape local-var
- * detection cluster, co-located with WPO-S3 struct stack-escape assign).
- * Members: typeck_find_or_alloc_ptr_stack_local_c /
- * typeck_ptr_has_stack_local_label_c / typeck_block_tree_has_var_c /
- * typeck_var_is_block_local_c / typeck_expr_is_addr_of_block_local_c
- * (definitions at region_assign.c EOF). Glue.c L10223/10227 callsites
- * (inside pipeline_typeck_ptr_for_addr_of_operand_c) precede #include
- * L10231, so 2 static fwd decls below keep them visible.
+ * migrated to pipeline_typeck_region_assign.c EOF.
+ * wave1282 G.7: pipeline_typeck_ptr_for_addr_of_operand_c also folded into
+ * region_assign.c EOF — glue body + static fwd decls for
+ * typeck_var_is_block_local_c / typeck_find_or_alloc_ptr_stack_local_c
+ * removed (no remaining glue.c callsites before #include).
+ * wave1133-1135 G.7: lval param ptr field cluster also in region_assign EOF.
  * PLATFORM: SHARED. */
-static int32_t typeck_var_is_block_local_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                           struct ast_PipelineDepCtx *ctx, int32_t expr_ref);
-static int32_t typeck_find_or_alloc_ptr_stack_local_c(struct ast_ASTArena *a, int32_t elem_ref);
-
-/* wave1133-1135 G.7: lval param ptr field cluster migrated to
- * pipeline_typeck_region_assign.c EOF (colocated with WPO-S3 stack-escape
- * helpers wave1125-1129; same-TU visibility via #include @ L10059 below).
- * Cluster: typeck_lval_is_param_ptr_field_c / typeck_block_expr_stmts_store_scan_c /
- * typeck_block_final_expr_store_scan_c / typeck_block_stores_param_into_param_field_c /
- * typeck_func_stores_param_into_param_field_c. region_assign.c L141 callsite
- * sees definition via static fwd decl at file top L37. */
-
-/**
- * WPO-S3：&local struct 时返回 stack_local *T，否则 0（调用方回落普通 *T）。
- */
-int32_t pipeline_typeck_ptr_for_addr_of_operand_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t elem_ty,
-                                                  struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
-  if (!arena || !module || !ctx || op_ref <= 0 || elem_ty <= 0)
-    return 0;
-  if (!typeck_var_is_block_local_c(module, arena, ctx, op_ref))
-    return 0;
-  if (!typeck_type_is_named_struct_c(module, arena, elem_ty))
-    return 0;
-  return typeck_find_or_alloc_ptr_stack_local_c(arena, elem_ty);
-}
 
 /* BC 8.3.1: region/escape assign-site domain (same TU). */
 #include "pipeline_typeck_region_assign.c"
@@ -3321,23 +3272,8 @@ extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena *a, int32
  * at L6010) visible via fwd decl. typeck_check_expr_call wrapper below stays
  * (calls call_c via fwd decl at L4777). PLATFORM: SHARED. */
 
-/** 非 standalone TU 保留旧 glue wrapper；strict_glue 改由 typeck_x.o 作为唯一导出方。 */
-#if !defined(XLANG_PIPELINE_GLUE_STANDALONE_TU) && !defined(XLANG_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS)
-int32_t typeck_check_expr_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                               int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
-}
-
-int32_t typeck_check_expr_deref(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                                int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
-}
-
-int32_t typeck_check_expr_method_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                                      int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
-}
-#endif
+/* wave1282 G.7: typeck_check_expr_{call,deref,method_call} wrappers migrated
+ * to pipeline_typeck_check_expr.c EOF. PLATFORM: SHARED. */
 
 /* wave1188 G.7: typeck check_expr entry/dispatch cluster (5 fns + 2 XLANG_WEAK)
  * migrated to pipeline_typeck_check_expr.c (same-TU #include). Members:

@@ -17,10 +17,26 @@
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c after
  * pipeline_typeck_check_expr_c and before x_ast_check_one_func.
- * g_typeck_unsafe_depth remains a static earlier in pipeline_glue.c (same TU).
  *
- * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
+ * wave1282 G.7: typeck sidecar process-state folded here (was glue residual):
+ *   g_typeck_unsafe_depth · TYPECK_LINEAR_MOVED_MAX / g_typeck_linear_moved_*
+ *   g_typeck_active_ctx
+ * Sole same-TU consumers of these statics are this file (unsafe/linear APIs).
+ * g_typeck_active_module stays early in pipeline_glue.c (ctfe/assign/coerce
+ * read it before this #include). PLATFORM: SHARED.
  */
+
+/** LANG-007 v2: unsafe { } nest depth sidecar (no PipelineDepCtx ABI growth). */
+static int32_t g_typeck_unsafe_depth;
+
+/** M-4: linear type use-once move tracking (per-func reset). */
+#define TYPECK_LINEAR_MOVED_MAX 128
+static int g_typeck_linear_moved_n;
+static char g_typeck_linear_moved_names[TYPECK_LINEAR_MOVED_MAX][128];
+static int32_t g_typeck_linear_moved_lens[TYPECK_LINEAR_MOVED_MAX];
+
+/** WPO-S3: active typeck ctx for call-slice C glue without ctx param. */
+static struct ast_PipelineDepCtx *g_typeck_active_ctx;
 
 /** check_block_impl：绑定 ctx.current_block_ref，返回 saved。 */
 int32_t pipeline_typeck_block_impl_bind_ctx_c(struct ast_PipelineDepCtx *ctx, int32_t block_ref) {

@@ -431,3 +431,14 @@ int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module, struct a
     return 1;
   return al2 > 0 ? al2 : 1;
 }
+
+/* wave1282 G.7: XLANG_WEAK cold fallback for zero-padding validate migrated
+ * from pipeline_glue.c. Product pure (runtime_pipeline_abi) owns the strong
+ * symbol; this weak path uses typeck_validate_struct_layouts_zero_padding_glue
+ * when pure is not linked. Colocated with typeck orch (sole same-TU callers
+ * of the public face). PLATFORM: SHARED — ELF weak overridden by pure.
+ */
+XLANG_WEAK int32_t pipeline_typeck_validate_struct_layouts_zero_padding_c(
+    struct ast_Module *module, struct ast_ASTArena *arena) {
+  return typeck_validate_struct_layouts_zero_padding_glue(module, arena);
+}
