@@ -61,31 +61,10 @@ struct xlang_slice_uint8_t {
   size_t length;
 };
 
-struct backend_AsmFuncCtx;
-
-typedef struct {
-  int32_t frame_size;
-  int32_t next_offset;
-  int32_t num_locals;
-  int32_t label_counter;
-  struct ast_Module *module_ref;
-  uint8_t loop_break_label_stack[512];
-  int32_t loop_break_len_stack[8];
-  uint8_t loop_continue_label_stack[512];
-  int32_t loop_continue_len_stack[8];
-  uint8_t break_label[128];
-  int32_t break_len;
-  uint8_t continue_label[128];
-  int32_t continue_len;
-  int32_t loop_label_depth;
-  void *dep_pipe;
-  uint8_t tail_join_label[128];
-  int32_t tail_join_label_len;
-} pipeline_glue_AsmFuncCtxLayout;
-
-static pipeline_glue_AsmFuncCtxLayout *pipeline_asm_ctx_layout(struct backend_AsmFuncCtx *ctx) {
-  return (pipeline_glue_AsmFuncCtxLayout *)ctx;
-}
+/* wave1283 G.7: pipeline_glue_AsmFuncCtxLayout typedef + pipeline_asm_ctx_layout
+ * cast helper migrated to pipeline_asm_ctx_layout.c (early same-TU domain).
+ * Must stay before any asm emit domain #include that touches frame/locals. */
+#include "pipeline_asm_ctx_layout.c"
 
 /** ast_pool.c 提供；须在下方 glue 之前声明（ast_pool.c 在文件末尾 #include）。 */
 struct ast_Func *pipeline_module_func_ptr(struct ast_Module *m, int32_t func_index);
@@ -335,14 +314,9 @@ void codegen_out_buf_set_len(struct codegen_CodegenOutBuf *out, int32_t n);
  * definition migrated to ast_pool_arena.c EOF by wave1203). All extern. */
 #include "pipeline_parser_result.c"
 
-#ifndef XLANG_PARSER_EXE_PIPELINE_GLUE
-/* C 包装：以 (data, len) 形式调用 pipeline，impl 内用 parse_into_with_init_buf 解析，无需组 slice。 */
-extern int32_t pipeline_run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data, size_t source_len, struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx);
-
-int32_t pipeline_run_x_pipeline(struct ast_Module *module, struct ast_ASTArena *arena, const uint8_t *source_data, size_t source_len, struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx) {
-  return pipeline_run_x_pipeline_impl(module, arena, (uint8_t *)source_data, source_len, out_buf, ctx);
-}
-#endif /* !XLANG_PARSER_EXE_PIPELINE_GLUE */
+/* wave1283 G.7: pipeline_run_x_pipeline const-buf thin wrapper migrated to
+ * pipeline_run_x_pipeline.c EOF (same-TU domain; under !XLANG_PARSER_EXE_PIPELINE_GLUE).
+ * runtime.c is the sole external consumer (buf+len face → _impl). */
 
 /* wave1193 G.7: sizeof cluster (5 fns) migrated to pipeline_parse_orch.c EOF.
  * wave1213 G.7: pipeline_sizeof_elf_ctx (6 lines, #ifdef guarded) migrated to

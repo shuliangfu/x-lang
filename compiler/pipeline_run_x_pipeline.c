@@ -1,14 +1,17 @@
-/* pipeline_run_x_pipeline.c — run_x_pipeline 核心编排骨域（自 ast_pool.c 抽出）
+/* pipeline_run_x_pipeline.c — run_x_pipeline core orchestration domain
+ * (extracted from ast_pool.c; wave1283 also hosts the public const-buf face).
  *
- * run_x_pipeline_typecheck_entry_c：EMIT_HEAVY typecheck entry C glue（asm emit 失败回退）。
- * g_run_x_pipeline_last_rc + get/store：pipeline 末次 rc sidecar。
- * pipeline_typeck_fail_return_c／null_fail_return_c：typeck 失败码映射。
- * run_x_pipeline_load_deps_after_parse／typecheck_after_load：parse 后 load deps / typeck。
- * run_x_pipeline_parse_entry_do_parse：entry 尚未解析时 parse_into + set_main + 收尾 diag。
- * run_x_pipeline_typecheck_entry_emit：entry typecheck + codegen emit 编排。
- * 依赖：pipeline_typeck_*／parse_*／load_and_sync_*（parse_typeck_dispatch.c，先于 include）+
- *   pipeline_should_skip_x_typeck。同 TU #include（parse_typeck_dispatch 之后、codegen_dep 之前）；
- *   无 codegen_dep 前向引用。公共符号 + static rc。 */
+ * run_x_pipeline_typecheck_entry_c: EMIT_HEAVY typecheck entry C glue.
+ * g_run_x_pipeline_last_rc + get/store: last pipeline rc sidecar.
+ * pipeline_typeck_fail_return_c / null_fail_return_c: typeck fail mapping.
+ * run_x_pipeline_load_deps_after_parse / typecheck_after_load: post-parse.
+ * run_x_pipeline_parse_entry_do_parse: parse_into + set_main + diag.
+ * run_x_pipeline_typecheck_entry_emit: entry typecheck + codegen emit.
+ * pipeline_run_x_pipeline: public runtime face (const buf+len → _impl).
+ * Deps: pipeline_typeck_* / parse_* / load_and_sync_* (parse_typeck_dispatch
+ * before this include) + pipeline_should_skip_x_typeck. Same-TU #include
+ * (after parse_typeck_dispatch, before codegen_dep). Public symbols + static rc.
+ * PLATFORM: SHARED — host-cc residual. */
 
 /**
  * run_x_pipeline_impl EMIT_HEAVY：typecheck entry 同模块 CALL asm emit 失败时走 C glue。
@@ -128,3 +131,23 @@ int32_t run_x_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct 
     return 0;
   return pipeline_typeck_entry_module_c(module, arena, ctx);
 }
+
+#ifndef XLANG_PARSER_EXE_PIPELINE_GLUE
+/**
+ * wave1283 G.7: public C face for runtime.c — (data, len) thin wrapper over
+ * pipeline_run_x_pipeline_impl (const source → non-const for parse_into path).
+ * Guard matches former glue.c site: omitted from parser.x single-file exe TU.
+ * PLATFORM: SHARED — sole external consumer is runtime product path.
+ */
+extern int32_t pipeline_run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *arena,
+                                           uint8_t *source_data, size_t source_len,
+                                           struct codegen_CodegenOutBuf *out_buf,
+                                           struct ast_PipelineDepCtx *ctx);
+
+int32_t pipeline_run_x_pipeline(struct ast_Module *module, struct ast_ASTArena *arena,
+                               const uint8_t *source_data, size_t source_len,
+                               struct codegen_CodegenOutBuf *out_buf,
+                               struct ast_PipelineDepCtx *ctx) {
+  return pipeline_run_x_pipeline_impl(module, arena, (uint8_t *)source_data, source_len, out_buf, ctx);
+}
+#endif /* !XLANG_PARSER_EXE_PIPELINE_GLUE */
