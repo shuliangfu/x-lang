@@ -166,7 +166,8 @@ static int32_t glue_call_arg_resolve_anon_body_let_elf_c(struct ast_ASTArena *ar
 /**
  * CALL 实参：解析局部 VAR 栈偏移；while/if 子块 scoped lookup 失败时懒登记函数体 let。
  */
-static int32_t glue_call_arg_resolve_var_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+/* wave152: was static; pure expr_rec leave Cap residual (link-visible). */
+int32_t glue_call_arg_resolve_var_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                             int32_t var_expr_ref) {
   int32_t off;
   int32_t body_ref;
@@ -406,7 +407,8 @@ static int32_t glue_copy_large_struct_from_rax_ptr_elf_c(struct platform_elf_Elf
  * G.7: complete dual load for ta==1 with low-end polarity ≡ param_home /
  * store_retval_pair / glue_sysv_spill (wave599/600); no second authority.
  */
-static int32_t glue_load_var_as_value_to_rax_rdx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* wave152: was static; pure expr_rec leave Cap residual (link-visible). */
+int32_t glue_load_var_as_value_to_rax_rdx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                         struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                         int32_t var_expr_ref, int32_t off, int32_t ta) {
   int32_t tr;

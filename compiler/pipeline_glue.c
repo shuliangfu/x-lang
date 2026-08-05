@@ -544,13 +544,13 @@ extern int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
 
 
 
-/* BC 8.3.1 wave1020: asm ELF expr recursion + fast path domain
- * (lit_i32 + emit_expr_elf_rec + emit_expr_elf_c + emit_expr_elf_fast;
- *  Cap residual pure; same TU). G.7 fold fast residual into expr_rec leaf.
- * Include AFTER field_access / call_args / binop so fast callees exist.
- * Early forward decls (PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED / rec / fast)
- * remain near durable helpers for index_helpers / array_lit. */
-#include "pipeline_asm_emit_expr_rec.c"
+/* wave152 pure-owned leave: pipeline_asm_emit_expr_rec.c deleted.
+ * live = runtime_pipeline_abi pure (lit_i32 + emit_expr_elf_rec + emit_expr_elf_c +
+ * emit_expr_elf_fast + match subject field-var hop); seed cold twin under #ifndef FROM_X.
+ * Cap residual pool accessors relocated to ast_pool_expr_sidecar.c.
+ * Residual block_body/index_helpers/fold_count call pure faces — extern via backend_fwd.
+ * G.7: do not re-open a second freestanding expr ELF recursion face.
+ * PLATFORM: SHARED freestanding emit. */
 
 /* wave1166 G.7: pipeline_type_array_size_at migrated to ast_pool_type.c
  * (included from ast_pool.c L895). Fwd decls retained at L762 + L1887

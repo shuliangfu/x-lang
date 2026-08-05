@@ -993,3 +993,50 @@ int32_t glue_ieee_f32_bits_to_f64_hi(int32_t fb) {
   memcpy(&u64, &dv, sizeof(u64));
   return (int32_t)(u64 >> 32);
 }
+
+/**
+ * wave152 Cap residual: convert signed i32 integer value to IEEE f32 bit pattern.
+ * G.7 complete next to glue_ieee_f64_bits_to_f32_bits — pure expr_elf_fast CTFE /
+ * EXPR_LIT f32 stamp cannot host-cast float; residual C owns the cast.
+ * @param v integer payload (const_folded_val / narrow imm)
+ * @return f32 bits as i32 (bitcast)
+ * PLATFORM: SHARED freestanding emit.
+ */
+int32_t glue_i32_to_f32_bits(int32_t v) {
+  float fv = (float)v;
+  uint32_t fb = 0;
+  memcpy(&fb, &fv, sizeof(fb));
+  return (int32_t)fb;
+}
+
+/**
+ * wave152 Cap residual: convert signed i64 integer value to IEEE f32 bit pattern.
+ * Used by EXPR_LIT i64 payload stamped as f32 (`let a: f32 = 6` after coerce).
+ * @param v integer payload (pipeline_expr_int64_val_at)
+ * @return f32 bits as i32 (bitcast)
+ * PLATFORM: SHARED freestanding emit.
+ */
+int32_t glue_i64_to_f32_bits(int64_t v) {
+  float fv = (float)v;
+  uint32_t fb = 0;
+  memcpy(&fb, &fv, sizeof(fb));
+  return (int32_t)fb;
+}
+
+/**
+ * wave152 Cap residual: convert signed i64 integer value to IEEE f64 bit pattern.
+ * Writes lo/hi 32-bit halves for backend_enc_mov_imm64_to_rax_arch.
+ * @param v integer payload
+ * @param lo out low 32 bits (nullable → no-op for that half)
+ * @param hi out high 32 bits (nullable → no-op for that half)
+ * PLATFORM: SHARED freestanding emit.
+ */
+void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi) {
+  double dv = (double)v;
+  uint64_t u = 0;
+  memcpy(&u, &dv, sizeof(u));
+  if (lo)
+    *lo = (int32_t)(u & 0xffffffffu);
+  if (hi)
+    *hi = (int32_t)(u >> 32);
+}

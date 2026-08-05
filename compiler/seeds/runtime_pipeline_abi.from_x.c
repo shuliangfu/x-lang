@@ -23272,4 +23272,498 @@ int32_t pipeline_expr_enum_field_tag_via_module(uint8_t *enum_name, int32_t enum
                                                    variant_len);
 }
 
+
+/* ========================================================================
+ * wave152 cold twins: pipeline_asm_emit_expr_rec pure-owned leave.
+ * Faithful C bodies under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS co-path.
+ * ======================================================================== */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+#ifndef PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED
+#define PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED (-99)
+#endif
+#ifndef GLUE_TYPE_KIND_F32_ORD
+#define GLUE_TYPE_KIND_F32_ORD 14
+#endif
+#ifndef GLUE_TYPE_KIND_F64_ORD
+#define GLUE_TYPE_KIND_F64_ORD 15
+#endif
+#ifndef GLUE_EXPR_KIND_TRY_PROPAGATE
+#define GLUE_EXPR_KIND_TRY_PROPAGATE 58
+#endif
+#ifndef GLUE_EXPR_KIND_C_TRY_PROPAGATE
+#define GLUE_EXPR_KIND_C_TRY_PROPAGATE 57
+#endif
+#ifndef ast_ExprKind_EXPR_VAR
+#define ast_ExprKind_EXPR_VAR 3
+#endif
+#ifndef ast_ExprKind_EXPR_CALL
+#define ast_ExprKind_EXPR_CALL 48
+#endif
+#ifndef ast_ExprKind_EXPR_RETURN
+#define ast_ExprKind_EXPR_RETURN 41
+#endif
+#ifndef ast_TypeKind_TYPE_U8
+#define ast_TypeKind_TYPE_U8 2
+#endif
+#ifndef ast_TypeKind_TYPE_U32
+#define ast_TypeKind_TYPE_U32 3
+#endif
+#ifndef ast_TypeKind_TYPE_NAMED
+#define ast_TypeKind_TYPE_NAMED 8
+#endif
+
+/* Cap residual callees for cold twin */
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_int_val_at(void *arena, int32_t expr_ref);
+extern int64_t pipeline_expr_int64_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_const_folded_valid_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_const_folded_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64);
+extern int32_t pipeline_expr_enum_variant_tag_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_enum_namespace_field_tag(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t pipeline_expr_binop_left_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_right_ref_at(void *arena, int32_t expr_ref);
+extern void *pipeline_arena_expr_ptr(void *a, int32_t expr_ref);
+extern char *link_abi_getenv(const char *name);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_load_zext8_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_32_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t glue_emit_float_lit_to_rax_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t ta, int32_t force_ty_ref, int32_t call_abi_widen_f64);
+extern int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
+extern int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t asm_module_top_level_const_lit_i32(void *m, void *a, uint8_t *name, int32_t name_len, int32_t *out_imm);
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t glue_load_f32_var_slot_to_rax_elf_c(void *elf_ctx, void *arena, void *ctx, int32_t var_expr_ref, int32_t off, int32_t ta);
+extern int32_t glue_load_var_as_value_to_rax_rdx_elf_c(void *elf_ctx, void *arena, void *ctx, int32_t var_expr_ref, int32_t off, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_add_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_sub_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_mul_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_div_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_mod_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_and_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_shift_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta, int32_t op);
+extern int32_t pipeline_asm_emit_binop_bitwise_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta, int32_t is_xor);
+extern int32_t pipeline_asm_emit_expr_if_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_expr_if_arm_elf_c(void *arena, void *elf_ctx, int32_t arm_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_panic_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_call_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_method_call_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t str_expr_ref, int32_t ta);
+extern int32_t pipeline_asm_emit_cmp_elf(void *arena, void *elf_ctx, int32_t cmp_expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_return_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_break_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_continue_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_neg_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_bitnot_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_lognot_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_expr_is_await_at_c(void *arena, int32_t expr_ref);
+extern int32_t glue_expr_is_x_as_cast_at_c(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_emit_await_sync_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_try_propagate_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_expr_kind_is_assign_like_ord(int32_t ko);
+extern int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_logand_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_logor_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t backend_emit_expr_elf_slow(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_codegen_match_name_is_subject_field_c(void *module, void *arena, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_codegen_match_matched_ref_c(void);
+extern int32_t pipeline_codegen_match_subject_ty_c(void);
+extern int32_t glue_field_layout_offset_for_var_base_field(void *a, void *m, int32_t base_var_ref, uint8_t *field_name, int32_t flen);
+extern int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_t var_ref, int32_t var_off, void *ctx, int32_t ta);
+extern int32_t glue_struct_layout_index_by_type_name_c(void *m, uint8_t *struct_name, int32_t nlen);
+extern int32_t pipeline_module_struct_layout_num_fields(void *module, int32_t layout_idx);
+extern int32_t pipeline_module_struct_layout_field_name_len(void *module, int32_t layout_idx, int32_t fi);
+extern void pipeline_module_struct_layout_field_name_into(void *module, int32_t layout_idx, int32_t fi, uint8_t *out64);
+extern int32_t pipeline_module_struct_layout_field_type_ref(void *module, int32_t li, int32_t j);
+extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+extern int32_t glue_i32_to_f32_bits(int32_t v);
+extern int32_t glue_i64_to_f32_bits(int64_t v);
+extern void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi);
+extern void *g_pipeline_asm_emit_module;
+extern void *pipeline_asm_emit_module_ref_c(void);
+
+/* Minimal Expr view for cold twin const_folded fields (LP64 layout match product). */
+struct wave152_ExprView {
+  int32_t kind_pad[0]; /* unused: access via known field offsets is fragile — use Cap residual accessors */
+};
+
+/* Prefer Cap residual accessors over direct field peeks for cold twin fidelity. */
+
+/* wave152 cold twin pipeline_asm_expr_lit_i32_at_c. PLATFORM: SHARED. */
+int32_t pipeline_asm_expr_lit_i32_at_c(void *arena, int32_t expr_ref, int32_t *out_imm) {
+  int32_t ko;
+  if (expr_ref == 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == 0 || ko == 2) {
+    if (out_imm)
+      *out_imm = pipeline_expr_int_val_at(arena, expr_ref);
+    return 1;
+  }
+  return 0;
+}
+
+/* wave152 cold twin glue_try_emit_match_subject_field_var_elf_c. PLATFORM: SHARED. */
+int32_t glue_try_emit_match_subject_field_var_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t ta,
+                                                    uint8_t *vname, int32_t vlen) {
+  int32_t mref;
+  int32_t foff;
+  int32_t base_off;
+  int32_t load_sz;
+  void *mod;
+  if (!arena || !elf_ctx || !ctx || !vname || vlen <= 0)
+    return -1;
+  mod = pipeline_asm_emit_module_ref_c();
+  if (!mod)
+    return -1;
+  if (pipeline_codegen_match_name_is_subject_field_c(mod, arena, vname, vlen) == 0)
+    return -1;
+  mref = pipeline_codegen_match_matched_ref_c();
+  if (mref <= 0 || pipeline_expr_kind_ord_at(arena, mref) != 3)
+    return -1;
+  foff = glue_field_layout_offset_for_var_base_field(arena, mod, mref, vname, vlen);
+  if (foff < 0)
+    return -1;
+  base_off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, mref);
+  if (base_off < 0)
+    base_off = glue_var_expr_stack_off_elf_c(arena, ctx, mref);
+  if (base_off < 0)
+    return -1;
+  if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, mref, base_off, ctx, ta) != 0)
+    return -1;
+  if (foff != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, foff, ta) != 0)
+    return -1;
+  load_sz = 4;
+  {
+    int32_t subj_ty = pipeline_codegen_match_subject_ty_c();
+    if (subj_ty > 0 && pipeline_type_kind_ord_at(arena, subj_ty) == 8) {
+      uint8_t tnm[128];
+      int32_t tnl = pipeline_type_named_name_into(arena, subj_ty, tnm);
+      int32_t k;
+      if (tnl > 0) {
+        k = glue_struct_layout_index_by_type_name_c(mod, tnm, tnl);
+        if (k >= 0) {
+          int32_t nf = pipeline_module_struct_layout_num_fields(mod, k);
+          int32_t fi;
+          for (fi = 0; fi < nf; fi++) {
+            int32_t fnl = pipeline_module_struct_layout_field_name_len(mod, k, fi);
+            if (fnl != vlen)
+              continue;
+            {
+              uint8_t fnm[128];
+              int32_t j;
+              int32_t match = 1;
+              pipeline_module_struct_layout_field_name_into(mod, k, fi, fnm);
+              for (j = 0; j < fnl && match; j++) {
+                if (fnm[j] != vname[j])
+                  match = 0;
+              }
+              if (match) {
+                int32_t ftr = pipeline_module_struct_layout_field_type_ref(mod, k, fi);
+                if (ftr > 0) {
+                  int32_t sz = glue_type_size_simple(mod, arena, ftr, 0);
+                  if (sz == 1 || sz == 4 || sz == 8)
+                    load_sz = sz;
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  if (load_sz == 1)
+    return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+  if (load_sz == 8)
+    return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+  return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+}
+
+/* forward */
+int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+
+/* wave152 cold twin pipeline_asm_emit_expr_elf_rec. PLATFORM: SHARED. */
+int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t dbg_on;
+  int32_t dbg_depth_now;
+  int32_t dbg_log_now;
+  int32_t r;
+  int32_t ko;
+  int32_t out_rc;
+  static int32_t dbg_depth = 0;
+  static int32_t dbg_max_depth = 0;
+  static int32_t dbg_prev_expr_ref = -1;
+  static int32_t dbg_prev_ko = -1;
+  static int32_t dbg_same_expr_streak = 0;
+  dbg_on = link_abi_getenv("XLANG_DEBUG_REGEX_EMIT") != NULL ? 1 : 0;
+  dbg_depth_now = 0;
+  dbg_log_now = 0;
+  ko = expr_ref > 0 ? pipeline_expr_kind_ord_at(arena, expr_ref) : -1;
+  if (dbg_on) {
+    dbg_depth = dbg_depth + 1;
+    dbg_depth_now = dbg_depth;
+    if (expr_ref == dbg_prev_expr_ref && ko == dbg_prev_ko)
+      dbg_same_expr_streak = dbg_same_expr_streak + 1;
+    else
+      dbg_same_expr_streak = 1;
+    dbg_prev_expr_ref = expr_ref;
+    dbg_prev_ko = ko;
+    if (dbg_depth_now <= 24 || dbg_depth_now > dbg_max_depth ||
+        dbg_same_expr_streak == 2 || dbg_same_expr_streak == 4 || dbg_same_expr_streak == 8 ||
+        dbg_same_expr_streak == 16 || dbg_same_expr_streak == 32 || dbg_same_expr_streak == 64) {
+      dbg_log_now = 1;
+      if (dbg_depth_now > dbg_max_depth)
+        dbg_max_depth = dbg_depth_now;
+    }
+    if (dbg_log_now) {
+      fprintf(stderr,
+              "xlang: [XLANG_DEBUG_REGEX_EMIT] rec depth=%d expr_ref=%d ko=%d streak=%d ctx=%p ta=%d\\n",
+              (int)dbg_depth_now, (int)expr_ref, (int)ko, (int)dbg_same_expr_streak, (void *)ctx, (int)ta);
+    }
+  }
+  r = pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta);
+  if (r != PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED) {
+    out_rc = r;
+    goto debug_done;
+  }
+  if (ko == 25 || ko == 27)
+    out_rc = pipeline_asm_emit_expr_if_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 26)
+    out_rc = pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 43)
+    out_rc = pipeline_asm_emit_match_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 42)
+    out_rc = pipeline_asm_emit_panic_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 45)
+    out_rc = pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 46)
+    out_rc = pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 47)
+    out_rc = pipeline_asm_emit_index_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 51)
+    out_rc = pipeline_asm_emit_addr_of_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 52)
+    out_rc = pipeline_asm_emit_deref_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 48)
+    out_rc = pipeline_asm_emit_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 49)
+    out_rc = pipeline_asm_emit_method_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 59)
+    out_rc = glue_asm_emit_string_lit_ptr_rax_elf_c(arena, elf_ctx, expr_ref, ta);
+  else if (ko >= 14 && ko <= 19)
+    out_rc = pipeline_asm_emit_cmp_elf(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 41)
+    out_rc = pipeline_asm_emit_return_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 39)
+    out_rc = pipeline_asm_emit_break_elf_c(arena, elf_ctx, ctx, ta);
+  else if (ko == 40)
+    out_rc = pipeline_asm_emit_continue_elf_c(arena, elf_ctx, ctx, ta);
+  else if (ko == 22)
+    out_rc = pipeline_asm_emit_neg_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 23)
+    out_rc = pipeline_asm_emit_bitnot_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 24)
+    out_rc = pipeline_asm_emit_lognot_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (glue_expr_is_await_at_c(arena, expr_ref))
+    out_rc = pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (glue_expr_is_x_as_cast_at_c(arena, expr_ref))
+    out_rc = pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == GLUE_EXPR_KIND_TRY_PROPAGATE || ko == GLUE_EXPR_KIND_C_TRY_PROPAGATE)
+    out_rc = pipeline_asm_emit_try_propagate_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 28 || (ko >= 29 && ko <= 38))
+    out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 20)
+    out_rc = pipeline_asm_emit_logand_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 21)
+    out_rc = pipeline_asm_emit_logor_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 44) {
+    int32_t ns_tag = pipeline_expr_enum_namespace_field_tag(arena, expr_ref);
+    if (ns_tag >= 0)
+      out_rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, ns_tag, ta);
+    else
+      out_rc = -1;
+  } else
+    out_rc = backend_emit_expr_elf_slow(arena, elf_ctx, expr_ref, ctx, ta);
+debug_done:
+  if (dbg_on && dbg_log_now && out_rc == PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED) {
+    fprintf(stderr,
+            "xlang: [XLANG_DEBUG_REGEX_EMIT] unhandled depth=%d expr_ref=%d ko=%d\\n",
+            (int)dbg_depth_now, (int)expr_ref, (int)ko);
+  }
+  if (dbg_on && dbg_depth > 0)
+    dbg_depth = dbg_depth - 1;
+  return out_rc;
+}
+
+/* wave152 cold twin pipeline_asm_emit_expr_elf_c. PLATFORM: SHARED. */
+int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+/* wave152 cold twin pipeline_asm_emit_expr_elf_fast. PLATFORM: SHARED. */
+int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t ko;
+  int32_t nexprs;
+  if (expr_ref == 0)
+    return -1;
+  if (!arena)
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+  /* num_exprs @ offset 4 (LP64 ASTArena) */
+  nexprs = *(int32_t *)((uint8_t *)arena + 4);
+  if (expr_ref <= 0 || expr_ref > nexprs)
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (pipeline_expr_const_folded_valid_at(arena, expr_ref) != 0 && ko != 3) {
+    int32_t cfold_imm = pipeline_expr_const_folded_val_at(arena, expr_ref);
+    int32_t cfold_use_imm32 = 1;
+    if (ko == 48) {
+      const char *wpo_mono = link_abi_getenv("XLANG_WPO_MONO");
+      const char *wpo_nofold = link_abi_getenv("XLANG_WPO_NO_FOLD");
+      if ((wpo_mono && wpo_mono[0]) || (wpo_nofold && wpo_nofold[0]))
+        cfold_use_imm32 = 0;
+    }
+    if (cfold_use_imm32) {
+      int32_t cfold_tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      int32_t cfold_k = (cfold_tr > 0) ? pipeline_type_kind_ord_at(arena, cfold_tr) : -1;
+      if (cfold_k == 2)
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)((uint32_t)cfold_imm & 0xffu), ta);
+      if (cfold_k == 3)
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm, ta);
+      if (cfold_k == 8) {
+        uint8_t nm[128];
+        int32_t nlen = pipeline_type_named_name_into(arena, cfold_tr, nm);
+        if (nlen == 3 && nm[0] == (uint8_t)'u' && nm[1] == (uint8_t)'1' && nm[2] == (uint8_t)'6')
+          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)((uint32_t)cfold_imm & 0xffffu), ta);
+      }
+      if (cfold_k == GLUE_TYPE_KIND_F32_ORD)
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, glue_i32_to_f32_bits(cfold_imm), ta);
+      if (cfold_k == GLUE_TYPE_KIND_F64_ORD) {
+        int32_t lo = 0, hi = 0;
+        glue_i64_to_f64_bits((int64_t)cfold_imm, &lo, &hi);
+        return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+      }
+      if (cfold_imm >= 0)
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm, ta);
+      {
+        int64_t v64 = (int64_t)cfold_imm;
+        uint64_t u = (uint64_t)v64;
+        int32_t lo = (int32_t)(u & 0xffffffffu);
+        int32_t hi = (int32_t)(u >> 32);
+        return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+      }
+    }
+  }
+  if (ko == 0 || ko == 2) {
+    int64_t v64 = pipeline_expr_int64_val_at(arena, expr_ref);
+    if (ko == 0) {
+      int32_t rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      if (rty > 0) {
+        int32_t rk = pipeline_type_kind_ord_at(arena, rty);
+        if (rk == GLUE_TYPE_KIND_F32_ORD)
+          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, glue_i64_to_f32_bits(v64), ta);
+        if (rk == GLUE_TYPE_KIND_F64_ORD) {
+          int32_t lo = 0, hi = 0;
+          glue_i64_to_f64_bits(v64, &lo, &hi);
+          return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+        }
+      }
+    }
+    if (ko == 2 || (v64 >= 0 && v64 <= (int64_t)2147483647))
+      return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)v64, ta);
+    {
+      uint64_t u = (uint64_t)v64;
+      int32_t lo = (int32_t)(u & 0xffffffffu);
+      int32_t hi = (int32_t)(u >> 32);
+      return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+    }
+  }
+  if (ko == 1)
+    return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, expr_ref, ta, 0, 0);
+  if (ko == 50)
+    return backend_enc_mov_imm32_to_w0_arch(elf_ctx, pipeline_expr_enum_variant_tag_at(arena, expr_ref), ta);
+  if (ko == 44)
+    return pipeline_asm_emit_field_access_elf_fast_c(arena, elf_ctx, expr_ref, ctx, ta);
+  if (ko == 3) {
+    uint8_t vname[128];
+    int32_t vlen = pipeline_expr_var_name_len(arena, expr_ref);
+    int32_t off;
+    if (vlen <= 0)
+      return -1;
+    pipeline_expr_var_name_into(arena, expr_ref, vname);
+    if (pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx, vname, vlen, ta) == 0)
+      return 0;
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, expr_ref);
+    if (off < 0) {
+      int32_t mod_imm;
+      void *mod = pipeline_asm_emit_module_ref_c();
+      if (mod && asm_module_top_level_const_lit_i32(mod, arena, vname, vlen, &mod_imm) != 0)
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, mod_imm, ta);
+      if (glue_try_emit_match_subject_field_var_elf_c(arena, elf_ctx, ctx, ta, vname, vlen) == 0)
+        return 0;
+      return -1;
+    }
+    {
+      int32_t vtr = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
+      if (vtr > 0 && pipeline_type_kind_ord_at(arena, vtr) == GLUE_TYPE_KIND_F32_ORD)
+        return glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
+    }
+    return glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
+  }
+  if (ko == 41)
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+  if (ko == 4)
+    return pipeline_asm_emit_binop_add_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                              pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+  if (ko == 5)
+    return pipeline_asm_emit_binop_sub_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                              pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+  if (ko == 6)
+    return pipeline_asm_emit_binop_mul_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                              pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+  if (ko == 7)
+    return pipeline_asm_emit_binop_div_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                              pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+  if (ko == 8)
+    return pipeline_asm_emit_binop_mod_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                              pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+  if (ko == 11)
+    return pipeline_asm_emit_binop_and_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                              pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+  if (ko == 9)
+    return pipeline_asm_emit_binop_shift_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                               pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 0);
+  if (ko == 10)
+    return pipeline_asm_emit_binop_shift_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                               pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 1);
+  if (ko == 12)
+    return pipeline_asm_emit_binop_bitwise_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                                 pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 0);
+  if (ko == 13)
+    return pipeline_asm_emit_binop_bitwise_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                                 pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 1);
+  return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

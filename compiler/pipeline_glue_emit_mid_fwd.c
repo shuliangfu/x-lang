@@ -50,11 +50,18 @@ int32_t pipeline_asm_emit_method_call_elf_c(struct ast_ASTArena *arena, struct p
 extern int32_t pipeline_asm_emit_panic_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                              int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 
-/* Forward: binop operand loader paths (bodies in field_access / expr_rec leaves). */
-static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);
-static int32_t pipeline_asm_emit_var_field_access_elf_c(struct ast_ASTArena *arena,
+/* wave152 pure-owned leave: lit_i32 public pure face (was static same-TU). */
+int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);
+/* wave151 pure-owned leave: var_field_access public pure face (was static). */
+int32_t pipeline_asm_emit_var_field_access_elf_c(struct ast_ASTArena *arena,
                                                         struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                         struct backend_AsmFuncCtx *ctx, int32_t ta);
+/* wave152 pure-owned leave: public expr_elf_c (was same-TU def in expr_rec). */
+int32_t pipeline_asm_emit_expr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                     int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+/* wave152 pure-owned leave: public expr_elf_rec (was static same-TU). */
+int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                       int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 /* Forward: FIELD_ACCESS for binop operand (body in field_access leaf). */
 /* wave149 Cap residual non-static (def field_access.c). */
 int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *arena,

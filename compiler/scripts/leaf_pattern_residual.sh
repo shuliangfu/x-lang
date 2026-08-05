@@ -1347,7 +1347,7 @@ B7B_RELINK_LEGACY_LIST_MK=mk/driver_seed_composites.mk
 B7B_RELINK_LEGACY_LIST_WAVE=wave822
 # wave823: B7B source-path inventories → mk/x_source_deps.mk (G.7).
 # SRCS (4) + MAIN_X_DEPS (4) + PREPROCESS_X_DEPS (1) + PIPELINE_X_DEPS fixed
-# paths (53; excludes $(PIPELINE_ASM_X_DEPS) wildcard token) = COUNT=62.
+# paths (52; excludes $(PIPELINE_ASM_X_DEPS) wildcard token) = COUNT=61.
 # 8.3.1+8.3.2: +43 #include slices (ctfe/.../soa + asm_emit_assign + asm_emit_index +
 #   asm_emit_match + asm_emit_panic + asm_emit_field_access + (binop pure wave149) + asm_emit_cmp +
 #   asm_emit_call_args + asm_emit_struct_lit + asm_emit_vector_let + (vector_simd pure wave148) +
@@ -1360,7 +1360,7 @@ B7B_RELINK_LEGACY_LIST_WAVE=wave822
 # NOT physical delete — thin edges + std_core product make graph remain.
 PHYS_DEL_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823/8.3.1
-PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=62
+PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=61
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_VIA=mk_x_source_deps
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_NOTE=list_authority_mk_include_only_thin_edges_remain
 SWALLOWED_B7B_SOURCE_DEPS_LIST=1
@@ -4467,8 +4467,8 @@ fi
 if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823"
 fi
-if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=62' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=62 (8.3.1 expr_rec emit face)"
+if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=61' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=61 (wave152 expr_rec pure leave)"
 fi
 if ! grep -q 'SWALLOWED_B7B_SOURCE_DEPS_LIST=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7B_SOURCE_DEPS_LIST=1 (wave823)"
@@ -9041,7 +9041,7 @@ fi
 if ! grep -qE '^PIPELINE_X_DEPS\s*=' "$_XSD_MK"; then
   bad "$_XSD_MK must define PIPELINE_X_DEPS (wave823)"
 fi
-# Fixed multi-token authority COUNT=62 (8.3.1: +1 asm_emit_expr_rec slice):
+# Fixed multi-token authority COUNT=61 (wave152: -1 asm_emit_expr_rec pure leave):
 #   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths 53
 #   (exclude $(PIPELINE_ASM_X_DEPS) expansion token).
 _xsd_n=$(awk '
@@ -9180,6 +9180,13 @@ fi
 if [ -f "$ROOT/compiler/pipeline_asm_emit_field_access.c" ]; then
   bad "pipeline_asm_emit_field_access.c must be deleted (wave151 pure-owned leave)"
 fi
+# wave152 pure-owned leave: expr_rec faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_expr_rec\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_expr_rec.c (wave152 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_expr_rec.c" ]; then
+  bad "pipeline_asm_emit_expr_rec.c must be deleted (wave152 pure-owned leave)"
+fi
 # wave149 pure-owned leave: binop faces live in runtime_pipeline_abi pure
 if grep -qE 'pipeline_asm_emit_binop\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_binop.c (wave149 pure-owned leave)"
@@ -9221,9 +9228,7 @@ fi
 if [ -f "$ROOT/compiler/pipeline_asm_emit_index_eff_addr.c" ]; then
   bad "pipeline_asm_emit_index_eff_addr.c must be deleted (wave147 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_expr_rec\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_expr_rec.c (8.3.1 asm_emit_expr_rec slice)"
-fi
+# wave152: expr_rec pure-owned leave — must-not list above (was must-list)
 if ! grep -qE 'ast_pool_module_import\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_module_import.c (8.3.2 module_import slice)"
 fi

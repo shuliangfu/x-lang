@@ -510,18 +510,22 @@ extern int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, in
 
 #define PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED (-99)
 
+/* wave152 pure-owned leave: expr_elf_fast / rec / c / lit_i32 live in pure (or cold twin). */
 int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                         int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                   int32_t cmp_expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
-static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                               int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+int32_t pipeline_asm_emit_expr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                     int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 /**
  * wave589/593/608 FIELD on CALL/METHOD/STRUCT_LIT rvalue; leave_addr=1 → field slot
  * address in rax (INDEX base), leave_addr=0 → load field (rvalue).
  * Def later; INDEX base helpers (wave609) call before the body is defined.
  */
-static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *arena,
+/* wave151 pure-owned leave: public pure face (was static same-TU). */
+int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *arena,
                                                         struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                         struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t leave_addr);
 /* wave140 pure leave Cap residual: public face (was static same-TU). PLATFORM: SHARED. */
@@ -536,7 +540,8 @@ static int32_t glue_binop_preserve_rax_for_rbx_load_elf_c(struct platform_elf_El
                                                             int32_t ta, struct backend_AsmFuncCtx *ctx);
 static int32_t glue_binop_restore_rax_after_rbx_load_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                int32_t ta);
-static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);
+/* wave152 pure-owned leave: was static same-TU; pure provides public face. */
+int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);
 /* wave140 pure leave Cap residual: public face (was static same-TU). PLATFORM: SHARED. */
 int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr);
 int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
