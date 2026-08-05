@@ -1164,7 +1164,7 @@ int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_
  *  - typeck_type_is_named_struct_c (struct_lit.c L2051, #include at L1438)
  *  - typeck_struct_layouts_same_shape_c (struct_lit.c, #include at L1438)
  *  - typeck_layout_index_for_named_type_c (struct_lit.c L1505, #include at L1438)
- *  - glue_module_func_index_by_name_c (vector_simd.c L856, #include at L1509)
+ *  - glue_module_func_index_by_name_c (runtime_pipeline_abi pure wave148)
  *
  * PLATFORM: SHARED — pure typeck check + diagnostic; no platform ABI dep. */
 

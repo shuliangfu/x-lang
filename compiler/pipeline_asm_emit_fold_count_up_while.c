@@ -41,7 +41,7 @@
  *   glue_enc_x86_add_ecx_rbp_off / glue_enc_x86_xor_edx_edx
  *   glue_enc_x86_xor_eax_eax / glue_enc_x86_cmpl_edx_imm32
  *   glue_emit_lcg_xor_body_x86_c
- * - glue_asm_local_var_stack_off_scoped (from pipeline_asm_emit_vector_simd.c)
+ * - glue_asm_local_var_stack_off_scoped (runtime_pipeline_abi pure wave148)
  * - glue_enc_local_slot_ptr_or_addr_rbx_elf_c (from pipeline_asm_emit_index_helpers.c)
  * - pipeline_asm_emit_next_label_c (from pipeline_glue.c)
  * - glue_asm_ctx_set_scope_block (from pipeline_glue.c)

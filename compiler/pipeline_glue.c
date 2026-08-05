@@ -255,7 +255,7 @@ extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
 
 /* wave1204 G.7: glue_vector_let_init_uses_direct_slot static fwd decl
  * removed — sole caller pipeline_asm_let_init_stack_reserve_bytes pure wave145.
- * Definition in pipeline_asm_emit_vector_simd.c (same TU #include). PLATFORM: SHARED. */
+ * Definition pure runtime_pipeline_abi (wave148 leave). PLATFORM: SHARED. */
 
 /* wave1204 G.7: pipeline_asm_let_init_stack_reserve_bytes (1 fn, 9 lines)
  * migrated to pipeline_asm_emit_block_inits.c EOF (colocated with
@@ -282,7 +282,31 @@ extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
  *  shuffle/select/fma/binop2 inline + emit_vector_type_let_init +
  *  colocated pure-call fold helpers; Cap residual pure; same TU).
  * glue_vector_type_lanes_esz / is_lane_binop / fixed-array wrappers stay above. */
-#include "pipeline_asm_emit_vector_simd.c"
+/* wave148 pure-owned leave: pipeline_asm_emit_vector_simd.c deleted.
+ * SIMD vector lane / shuffle / select / fma / CTFE fold faces live in
+ * runtime_pipeline_abi pure (glue_block_let_is_simd_vector_type,
+ * glue_emit_vector_type_let_init_elf_c, pipeline_asm_simd_try_inline_*,
+ * glue_asm_local_var_stack_off_scoped, glue_module_func_index_by_name_c,
+ * glue_fold_func_return_operand_ref_c, glue_expr_is_func_param_at_c, ...);
+ * seed cold twins under #ifndef FROM_X. PLATFORM: SHARED. */
+/* wave148 Cap residual externs for pure-owned faces (same-TU residual callers). */
+extern int32_t glue_asm_local_var_stack_off_scoped(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t var_expr_ref);
+extern int32_t glue_module_func_index_by_name_c(struct ast_Module *mod, uint8_t *name, int32_t name_len);
+extern int32_t glue_try_eval_pure_param0_scalar_func_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t arg_val, int32_t *out);
+extern int32_t glue_fold_func_returns_param01_scalar_binop_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_binop_ko);
+extern int32_t glue_fold_func_returns_param0_index_const_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_lane);
+extern int32_t glue_fold_func_returns_param01_vector_binop_ctfe_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_binop_ko);
+extern int32_t glue_try_array_lit_lane_const_i32_c(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane, int32_t *out);
+extern int32_t glue_fold_func_return_operand_ref_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx);
+extern int32_t glue_expr_is_func_param_at_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref, int32_t param_ix);
+extern int32_t glue_block_let_is_simd_vector_type(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx);
+extern int32_t glue_emit_vector_type_let_init_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off, int32_t type_ref);
+extern int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref);
+extern int32_t pipeline_asm_simd_try_inline_shuffle_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off, int32_t type_ref);
+extern int32_t pipeline_asm_simd_try_inline_select_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off, int32_t type_ref);
+extern int32_t pipeline_asm_simd_try_inline_fma3_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off, int32_t type_ref);
+extern int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off, int32_t type_ref);
+
 
 
 /* wave132 pure-owned leave: pipeline_asm_emit_struct_let.c deleted.
@@ -1185,7 +1209,7 @@ extern int32_t glue_enc_x86_imul_eax_eax(struct platform_elf_ElfCodegenCtx *elf_
  *   glue_fold_parse_affine_sum_body_c / backend_try_fold_count_up_while_elf.
  * Deps: fold primitives (wave136 pure leave faces) +
  *   x86 encoders (wave135 pure leave faces) +
- *   glue_asm_local_var_stack_off_scoped (pipeline_asm_emit_vector_simd.c) +
+ *   glue_asm_local_var_stack_off_scoped (runtime_pipeline_abi pure wave148) +
  *   glue_enc_local_slot_ptr_or_addr_rbx_elf_c (pipeline_asm_emit_index_helpers.c) +
  *   pipeline_asm_emit_next_label_c / glue_asm_ctx_set_scope_block (pipeline_glue.c) +
  *   glue_body_expr_stmt_at_c / glue_field_assign_pair_base_ref_c (pipeline_asm_emit_assign.c).

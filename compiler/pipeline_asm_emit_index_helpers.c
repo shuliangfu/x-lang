@@ -3173,7 +3173,7 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_text_c(struct ast_ASTArena *arena, str
  * L1578-1595. Resolves VAR expression stack offset via scoped local table,
  * falls back to name lookup. Colocated with index_helpers.c (30+ callsites;
  * #include at glue.c L1530).
- * Deps: glue_asm_local_var_stack_off_scoped (static, vector_simd.c L93;
+ * Deps: glue_asm_local_var_stack_off_scoped (runtime_pipeline_abi pure wave148;
  *       #include L1513 < L1530 — visible),
  *       pipeline_expr_kind_ord_at (extern),
  *       pipeline_expr_var_name_len/into (extern),

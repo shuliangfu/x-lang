@@ -1350,7 +1350,7 @@ B7B_RELINK_LEGACY_LIST_WAVE=wave822
 # paths (53; excludes $(PIPELINE_ASM_X_DEPS) wildcard token) = COUNT=62.
 # 8.3.1+8.3.2: +43 #include slices (ctfe/.../soa + asm_emit_assign + asm_emit_index +
 #   asm_emit_match + asm_emit_panic + asm_emit_field_access + asm_emit_binop + asm_emit_cmp +
-#   asm_emit_call_args + asm_emit_struct_lit + asm_emit_vector_let + asm_emit_vector_simd +
+#   asm_emit_call_args + asm_emit_struct_lit + asm_emit_vector_let + (vector_simd pure wave148) +
 #   asm_emit_struct_let + asm_emit_index_helpers + asm_emit_spill +
 #   asm_emit_expr_rec +
 #   ast_pool_module_import + ast_pool_struct_layout + ast_pool_top_level +
@@ -9190,8 +9190,12 @@ if ! grep -qE 'pipeline_asm_emit_struct_lit\.c' "$_XSD_MK"; then
 fi
 # wave146: vector_let pure leave — must-not check above
 
-if ! grep -qE 'pipeline_asm_emit_vector_simd\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_vector_simd.c (8.3.1 asm_emit_vector_simd slice)"
+# wave148 pure-owned leave: vector_simd faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_vector_simd\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_vector_simd.c (wave148 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_vector_simd.c" ]; then
+  bad "pipeline_asm_emit_vector_simd.c must be deleted (wave148 pure-owned leave)"
 fi
 if grep -qE 'pipeline_asm_emit_struct_let\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_struct_let.c (wave132 pure-owned leave)"
