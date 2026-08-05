@@ -184,10 +184,20 @@ uint8_t *ast_pipeline_scratch_buf256(void) {
 uint8_t *ast_pipeline_scratch_buf256_slot(int32_t slot) {
   return pipeline_scratch_buf256_slot(slot);
 }
-/* wave109: type_to_c faces live in runtime_pipeline_abi pure (no same-TU body).
+/* wave110: struct_emit faces live in runtime_pipeline_abi pure (no same-TU body).
+ * wave109: type_to_c faces live in runtime_pipeline_abi pure (no same-TU body).
  * wave108: skip_force predicates live in runtime_pipeline_abi pure (no same-TU body).
  * wave107: residual predicates live in runtime_pipeline_abi pure (no same-TU body).
  * PLATFORM: SHARED — extern faces for ast_ thin wrappers in pipeline_x host-cc TU. */
+extern int32_t pipeline_codegen_c_file_prologue_done_get(void);
+extern void pipeline_codegen_c_file_prologue_done_set(int32_t v);
+extern void pipeline_codegen_c_file_prologue_done_reset(void);
+extern int32_t pipeline_codegen_struct_tag_try_claim(uint8_t *prefix, int32_t prefix_len, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_codegen_emit_struct_field_type(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                                      int32_t type_ref, uint8_t *struct_prefix, int32_t struct_prefix_len);
+extern int32_t pipeline_codegen_emit_struct_field_decl(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                                      int32_t type_ref, uint8_t *field_name, int32_t field_name_len,
+                                                      uint8_t *struct_prefix, int32_t struct_prefix_len);
 extern int32_t pipeline_codegen_type_kind_copy(uint8_t *dst, int32_t cap, int32_t kind);
 extern int32_t pipeline_codegen_type_kind_append(uint8_t *scratch, int32_t cap, int32_t w, int32_t kind);
 extern int32_t pipeline_codegen_vector_type_copy(uint8_t *dst, int32_t cap, int32_t elem_kind, int32_t lanes);

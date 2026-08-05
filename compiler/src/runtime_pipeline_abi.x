@@ -13836,3 +13836,448 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
   }
   return pipeline_codegen_type_kind_copy(scratch, cap, 0);
 }
+
+// ---------------------------------------------------------------------------
+// wave110: codegen struct_emit pure-owned leave (was pipeline_codegen_struct_emit.c).
+// G.7 product authority for C co-emit prologue flag + struct tag claim table +
+//   CodegenOutBuf append helpers + emit_struct_field_type / _decl.
+// Public faces: c_file_prologue_done_{get,set,reset} / struct_tag_try_claim /
+//   emit_struct_field_type / emit_struct_field_decl.
+// Depends on wave109 type_to_c (type_kind_copy / vector_type_copy / type_to_c_repr)
+//   and wave105 codegen_out_buf_len|set_len.
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+// PIPELINE_CODEGEN_STRUCT_TAG_MAX=256, CAP=128 -> flat BSS 256*128.
+let g_cg_se_prologue_done: i32 = 0;
+let g_cg_se_tag_n: i32 = 0;
+let g_cg_se_tags: u8[32768] = [];
+
+/**
+ * Read single-file C co-emit prologue-done flag.
+ * @return i32 - 1 if prologue already emitted, else 0
+ * wave110 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_c_file_prologue_done_get(): i32 {
+  return g_cg_se_prologue_done;
+}
+
+/**
+ * Set single-file C co-emit prologue-done flag (nonzero -> 1).
+ * @param v i32 - new flag value
+ * @return void
+ * wave110 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_c_file_prologue_done_set(v: i32): void {
+  if (v != 0) {
+    g_cg_se_prologue_done = 1;
+  } else {
+    g_cg_se_prologue_done = 0;
+  }
+}
+
+/**
+ * Reset prologue-done flag and clear struct tag claim table.
+ * @return void
+ * wave110 pure: G.7 single product authority (new C unit co-emit session).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_c_file_prologue_done_reset(): void {
+  g_cg_se_prologue_done = 0;
+  g_cg_se_tag_n = 0;
+}
+
+/**
+ * Try to claim a C struct tag (prefix+name) for first full emit in this unit.
+ * @param prefix *u8 - optional tag prefix bytes; null treated as empty
+ * @param prefix_len i32 - prefix length; <0 clamped to 0
+ * @param name *u8 - struct name; null or empty -> -1
+ * @param name_len i32 - name length
+ * @return i32 - 1 first claim (caller should emit def), 0 already claimed or table full, -1 bad args
+ * wave110 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_struct_tag_try_claim(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32): i32 {
+  if (name == 0 as *u8) {
+    return -1;
+  }
+  if (name_len <= 0) {
+    return -1;
+  }
+  let plen: i32 = prefix_len;
+  if (plen < 0) {
+    plen = 0;
+  }
+  if (prefix == 0 as *u8) {
+    plen = 0;
+  }
+  let tlen: i32 = plen + name_len;
+  // CAP 128 including NUL
+  if (tlen <= 0) {
+    return -1;
+  }
+  if (tlen >= 128) {
+    return -1;
+  }
+  let tag: u8[128] = [];
+  let i: i32 = 0;
+  while (i < plen) {
+    unsafe {
+      tag[i] = prefix[i];
+    }
+    i = i + 1;
+  }
+  let j: i32 = 0;
+  while (j < name_len) {
+    unsafe {
+      tag[plen + j] = name[j];
+    }
+    j = j + 1;
+  }
+  unsafe {
+    tag[tlen] = 0;
+  }
+  // Linear scan claimed tags.
+  let k: i32 = 0;
+  while (k < g_cg_se_tag_n) {
+    let base: i32 = k * 128;
+    let same: i32 = 1;
+    let ti: i32 = 0;
+    while (ti < tlen) {
+      let a: u8 = 0;
+      let b: u8 = 0;
+      unsafe {
+        a = g_cg_se_tags[base + ti];
+        b = tag[ti];
+      }
+      if (a != b) {
+        same = 0;
+        break;
+      }
+      ti = ti + 1;
+    }
+    if (same != 0) {
+      let z: u8 = 0;
+      unsafe {
+        z = g_cg_se_tags[base + tlen];
+      }
+      if (z == 0) {
+        return 0;
+      }
+    }
+    k = k + 1;
+  }
+  // Table full: conservative skip re-emit (avoid C redefinition).
+  if (g_cg_se_tag_n >= 256) {
+    return 0;
+  }
+  let base2: i32 = g_cg_se_tag_n * 128;
+  let ci: i32 = 0;
+  while (ci <= tlen) {
+    unsafe {
+      g_cg_se_tags[base2 + ci] = tag[ci];
+    }
+    ci = ci + 1;
+  }
+  g_cg_se_tag_n = g_cg_se_tag_n + 1;
+  return 1;
+}
+
+/**
+ * Append n bytes into CodegenOutBuf (data[9437184] + len i32 LE).
+ * @param out *u8 - opaque CodegenOutBuf*
+ * @param p *u8 - source bytes
+ * @param n i32 - byte count; n<0 -> -1
+ * @return i32 - 0 ok, -1 overflow/null
+ * wave110 pure: private helper (historical pipeline_codegen_out_append_bytes).
+ * Cap gate matches historical struct_emit: len+n > 9437184.
+ * PLATFORM: SHARED.
+ */
+function cg_se_out_append_bytes(out: *u8, p: *u8, n: i32): i32 {
+  if (out == 0 as *u8) {
+    return -1;
+  }
+  if (p == 0 as *u8) {
+    return -1;
+  }
+  if (n < 0) {
+    return -1;
+  }
+  let len: i32 = codegen_out_buf_len(out);
+  if (len + n > 9437184) {
+    return -1;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    unsafe {
+      out[len + i] = p[i];
+    }
+    i = i + 1;
+  }
+  codegen_out_buf_set_len(out, len + n);
+  return 0;
+}
+
+/**
+ * Append one byte into CodegenOutBuf.
+ * @param out *u8 - opaque CodegenOutBuf*
+ * @param b u8 - byte
+ * @return i32 - 0 ok, -1 fail
+ * wave110 pure: private helper.
+ * PLATFORM: SHARED.
+ */
+function cg_se_out_append_byte(out: *u8, b: u8): i32 {
+  let one: u8[1] = [0];
+  unsafe {
+    one[0] = b;
+  }
+  return cg_se_out_append_bytes(out, &one[0], 1);
+}
+
+/**
+ * Append decimal i32 into CodegenOutBuf (no snprintf).
+ * @param out *u8 - opaque CodegenOutBuf*
+ * @param val i32 - value (array sizes typically non-negative)
+ * @return i32 - 0 ok, -1 fail
+ * wave110 pure: private helper via pipe_diag_msg_append_i32.
+ * PLATFORM: SHARED.
+ */
+function cg_se_out_format_int(out: *u8, val: i32): i32 {
+  if (out == 0 as *u8) {
+    return -1;
+  }
+  let buf: u8[16] = [];
+  let n: i32 = pipe_diag_msg_append_i32(&buf[0], 16, 0, val);
+  if (n <= 0) {
+    return -1;
+  }
+  if (n >= 16) {
+    return -1;
+  }
+  return cg_se_out_append_bytes(out, &buf[0], n);
+}
+
+/**
+ * Recursive emit of struct field C type into out (TypeKind ord == ast.x).
+ * @param arena *u8 - ASTArena*
+ * @param out *u8 - CodegenOutBuf*
+ * @param type_ref i32 - type pool ref
+ * @param struct_prefix *u8 - optional struct tag prefix
+ * @param struct_prefix_len i32 - prefix length
+ * @return i32 - 0 ok, -1 fail
+ * wave110 pure: private recursive core for emit_struct_field_type.
+ * PLATFORM: SHARED.
+ */
+function pipeline_codegen_emit_struct_field_type_inner(arena: *u8, out: *u8, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
+  let scratch: u8[256] = [];
+  let nm: u8[128] = [];
+  let ord: i32 = -1;
+  if (arena != 0 as *u8 && type_ref > 0) {
+    unsafe {
+      ord = pipeline_type_kind_ord_at(arena, type_ref);
+    }
+  }
+  if (arena == 0 as *u8 || type_ref <= 0 || ord < 0) {
+    return cg_se_out_append_bytes(out, "int32_t", 7);
+  }
+  // TYPE_PTR (9): elem then " *"
+  if (ord == 9) {
+    let inner: i32 = 0;
+    unsafe {
+      inner = pipeline_type_elem_ref_at(arena, type_ref);
+    }
+    if (pipeline_codegen_emit_struct_field_type_inner(arena, out, inner, struct_prefix, struct_prefix_len) != 0) {
+      return -1;
+    }
+    if (cg_se_out_append_byte(out, 32) != 0) {
+      return -1;
+    }
+    return cg_se_out_append_byte(out, 42);
+  }
+  // TYPE_ARRAY (10): elem then [size]
+  if (ord == 10) {
+    let inner2: i32 = 0;
+    let asz: i32 = 0;
+    unsafe {
+      inner2 = pipeline_type_elem_ref_at(arena, type_ref);
+      asz = pipeline_type_array_size_at(arena, type_ref);
+    }
+    if (pipeline_codegen_emit_struct_field_type_inner(arena, out, inner2, struct_prefix, struct_prefix_len) != 0) {
+      return -1;
+    }
+    if (cg_se_out_append_byte(out, 91) != 0) {
+      return -1;
+    }
+    if (cg_se_out_format_int(out, asz) != 0) {
+      return -1;
+    }
+    return cg_se_out_append_byte(out, 93);
+  }
+  // TYPE_NAMED (8): "struct " + optional prefix + name
+  if (ord == 8) {
+    let nl: i32 = 0;
+    unsafe {
+      nl = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
+    }
+    if (nl <= 0) {
+      return cg_se_out_append_bytes(out, "int32_t", 7);
+    }
+    if (cg_se_out_append_bytes(out, "struct ", 7) != 0) {
+      return -1;
+    }
+    if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+      if (cg_se_out_append_bytes(out, struct_prefix, struct_prefix_len) != 0) {
+        return -1;
+      }
+    }
+    // wave624: empty prefix -> bare name (entry); match type_to_c_repr.
+    return cg_se_out_append_bytes(out, &nm[0], nl);
+  }
+  // TYPE_SLICE (11): public type_to_c_repr then append
+  if (ord == 11) {
+    let nl2: i32 = pipeline_codegen_type_to_c_repr(arena, &scratch[0], 256, type_ref, struct_prefix, struct_prefix_len);
+    if (nl2 <= 0) {
+      return -1;
+    }
+    return cg_se_out_append_bytes(out, &scratch[0], nl2);
+  }
+  // TYPE_LINEAR (12): decay to elem
+  if (ord == 12) {
+    let inner3: i32 = 0;
+    unsafe {
+      inner3 = pipeline_type_elem_ref_at(arena, type_ref);
+    }
+    return pipeline_codegen_emit_struct_field_type_inner(arena, out, inner3, struct_prefix, struct_prefix_len);
+  }
+  // TYPE_VECTOR (13): vector_type_copy fallback type_kind_copy(0)
+  if (ord == 13) {
+    let lanes_v: i32 = 0;
+    let inner4: i32 = 0;
+    let ik: i32 = 0;
+    unsafe {
+      lanes_v = pipeline_type_array_size_at(arena, type_ref);
+      inner4 = pipeline_type_elem_ref_at(arena, type_ref);
+      ik = pipeline_type_kind_ord_at(arena, inner4);
+    }
+    let sn: i32 = pipeline_codegen_vector_type_copy(&scratch[0], 256, ik, lanes_v);
+    if (sn > 0) {
+      return cg_se_out_append_bytes(out, &scratch[0], sn);
+    }
+    sn = pipeline_codegen_type_kind_copy(&scratch[0], 256, 0);
+    if (sn > 0) {
+      return cg_se_out_append_bytes(out, &scratch[0], sn);
+    }
+    return -1;
+  }
+  // builtins
+  let sn2: i32 = pipeline_codegen_type_kind_copy(&scratch[0], 256, ord);
+  if (sn2 > 0) {
+    return cg_se_out_append_bytes(out, &scratch[0], sn2);
+  }
+  sn2 = pipeline_codegen_type_kind_copy(&scratch[0], 256, 0);
+  if (sn2 > 0) {
+    return cg_se_out_append_bytes(out, &scratch[0], sn2);
+  }
+  return -1;
+}
+
+/**
+ * Emit C type text for a struct field (codegen.x via_pipeline face).
+ * @param arena *u8 - ASTArena*
+ * @param out *u8 - CodegenOutBuf*
+ * @param type_ref i32 - field type ref
+ * @param struct_prefix *u8 - optional tag prefix
+ * @param struct_prefix_len i32 - prefix length
+ * @return i32 - 0 ok, -1 fail
+ * wave110 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_emit_struct_field_type(arena: *u8, out: *u8, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
+  return pipeline_codegen_emit_struct_field_type_inner(arena, out, type_ref, struct_prefix, struct_prefix_len);
+}
+
+/**
+ * Emit struct field declaration: type name or type name[n][m] for array chains.
+ * Peels outermost TYPE_ARRAY chain only; inner types (e.g. ptr) via field_type emitter.
+ * @param arena *u8 - ASTArena*
+ * @param out *u8 - CodegenOutBuf*
+ * @param type_ref i32 - field type ref
+ * @param field_name *u8 - field name bytes
+ * @param field_name_len i32 - name length
+ * @param struct_prefix *u8 - optional tag prefix
+ * @param struct_prefix_len i32 - prefix length
+ * @return i32 - 0 ok, -1 fail
+ * wave110 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_emit_struct_field_decl(arena: *u8, out: *u8, type_ref: i32, field_name: *u8, field_name_len: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
+  if (arena == 0 as *u8) {
+    return -1;
+  }
+  if (out == 0 as *u8) {
+    return -1;
+  }
+  if (type_ref <= 0) {
+    return -1;
+  }
+  if (field_name == 0 as *u8) {
+    return -1;
+  }
+  if (field_name_len <= 0) {
+    return -1;
+  }
+  let base_type_ref: i32 = type_ref;
+  let dims: i32[8] = [0, 0, 0, 0, 0, 0, 0, 0];
+  let ndim: i32 = 0;
+  while (base_type_ref > 0 && ndim < 8) {
+    let kord: i32 = 0;
+    unsafe {
+      kord = pipeline_type_kind_ord_at(arena, base_type_ref);
+    }
+    if (kord != 10) {
+      break;
+    }
+    unsafe {
+      dims[ndim] = pipeline_type_array_size_at(arena, base_type_ref);
+      base_type_ref = pipeline_type_elem_ref_at(arena, base_type_ref);
+    }
+    ndim = ndim + 1;
+  }
+  if (pipeline_codegen_emit_struct_field_type_inner(arena, out, base_type_ref, struct_prefix, struct_prefix_len) != 0) {
+    return -1;
+  }
+  if (cg_se_out_append_byte(out, 32) != 0) {
+    return -1;
+  }
+  if (cg_se_out_append_bytes(out, field_name, field_name_len) != 0) {
+    return -1;
+  }
+  let i: i32 = 0;
+  while (i < ndim) {
+    if (cg_se_out_append_byte(out, 91) != 0) {
+      return -1;
+    }
+    let d: i32 = 0;
+    unsafe {
+      d = dims[i];
+    }
+    if (cg_se_out_format_int(out, d) != 0) {
+      return -1;
+    }
+    if (cg_se_out_append_byte(out, 93) != 0) {
+      return -1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+

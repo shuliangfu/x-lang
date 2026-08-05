@@ -166,11 +166,14 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 
 /* 2026-08-05: pipeline_codegen_type_to_c.c pure-owned leave retired (wave109).
  * Live face: runtime_pipeline_abi.x (type_kind_copy / type_kind_append /
- * vector_type_copy / type_to_c_repr). struct_emit residual calls public
- * type_to_c_repr (was same-TU static inner).
+ * vector_type_copy / type_to_c_repr).
  * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
-#include "pipeline_codegen_struct_emit.c"
+/* 2026-08-05: pipeline_codegen_struct_emit.c pure-owned leave retired (wave110).
+ * Live face: runtime_pipeline_abi.x (c_file_prologue_done_* / struct_tag_try_claim /
+ * emit_struct_field_type / emit_struct_field_decl). Depends on wave109 type_to_c
+ * public faces + wave105 codegen_out_buf_len|set_len.
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 /* 2026-08-05: pipeline_codegen_skip_force.c pure-owned leave retired (wave108).
  * Live face: runtime_pipeline_abi.x (call_num_args_override / path_is_std_io_* /
