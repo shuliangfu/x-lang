@@ -188,7 +188,11 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 
 #include "pipeline_asm_skip_dispatch.c"
 
-#include "pipeline_asm_diag.c"
+/* 2026-08-05: pipeline_asm_diag.c pure-owned leave retired.
+ * Live = runtime_pipeline_abi pure asm_diag_start_func_skip + BODY/FUNC_TRACE.
+ * Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * Callers: backend.x / pipeline_asm_codegen_mega_body (start_func_skip);
+ * early_fwd still declares extern. PLATFORM: SHARED. */
 
 #include "pipeline_asm_wpo.c"
 

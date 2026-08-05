@@ -271,6 +271,8 @@ export extern "C" function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
 export extern "C" function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *u8): *u8;
 // wave101: pipeline_dep_ctx_preprocess_len_get is pure export below (not Cap residual
 //   host-cc field load). 2026-08-05: import_bind host-cc leave — pure sole provider.
+// wave102: asm_diag_* pure export below (start_func_skip + BODY/FUNC_TRACE).
+//   2026-08-05: pipeline_asm_diag.c host-cc leave — pure sole provider.
 // wave97: G.7 typeck.x merge/wpo authority (same symbols as typeck_x.o product).
 // PLATFORM: SHARED — pure load_and_sync step5 routes here (not typeck_typeck_* hop).
 export extern "C" function typeck_merge_dep_struct_layouts_into_entry(mod: *u8, arena: *u8, ctx: *u8): void;
@@ -424,10 +426,15 @@ export extern "C" function pipeline_module_func_name_copy64(module: *u8, fi: i32
 export extern "C" function pipeline_module_func_body_ref_at(module: *u8, fi: i32): i32;
 export extern "C" function ast_ast_block_num_consts(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_loops(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_for_loops(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_if_stmts(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_regions(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_stmt_order(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
+// wave102: POSIX write for asm_diag BODY/FUNC_TRACE lines (stderr fd=2).
+// PLATFORM: SHARED — hosted product; freestanding not on this leave path.
+export extern "C" function write(fd: i32, buf: *u8, count: i64): i64;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
@@ -10550,4 +10557,310 @@ export function pipeline_module_import_select_name_byte_at(module: *u8, idx: i32
     b = rows[abs * 64 + off];
   }
   return b;
+}
+
+// ---------------------------------------------------------------------------
+// wave102: asm_diag pure-owned leave (was pipeline_asm_diag.c host-cc residual).
+// G.7 product authority for XLANG_ASM_START_FUNC skip + BODY/FUNC_TRACE stderr.
+// PLATFORM: SHARED — dual-end L2 after leave; cold twins under seed #ifndef FROM_X.
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse non-negative decimal digits from NUL-C string (strtol subset).
+ * @param s *u8 — digit start; null → 0 and *any_out=0
+ * @param any_out *i32 — set 1 if at least one digit consumed
+ * @return i32 — parsed value clamped later by caller; 0 if no digits
+ * PLATFORM: SHARED — pure substitute for libc strtol on START_FUNC env.
+ */
+function asm_diag_parse_u_decimal(s: *u8, any_out: *i32): i32 {
+  unsafe {
+    any_out[0] = 0;
+  }
+  if (s == 0 as *u8) {
+    return 0;
+  }
+  let v: i32 = 0;
+  let i: i32 = 0;
+  while (i < 16) {
+    let c: u8 = 0;
+    unsafe {
+      c = s[i];
+    }
+    if (c < 48) {
+      break;
+    }
+    if (c > 57) {
+      break;
+    }
+    unsafe {
+      any_out[0] = 1;
+    }
+    // Cap intermediate growth before caller clamp at 100000.
+    if (v > 1000000) {
+      return 1000000;
+    }
+    v = v * 10 + (c as i32 - 48);
+    i = i + 1;
+  }
+  return v;
+}
+
+/**
+ * Env truthy: non-null, non-empty, first byte not '0'.
+ * @param e *u8 — getenv result; null → 0
+ * @return i32 — 1 truthy, 0 otherwise
+ * PLATFORM: SHARED — matches historical C `e && e[0] && e[0] != '0'`.
+ */
+function asm_diag_env_truthy(e: *u8): i32 {
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  let c: u8 = 0;
+  unsafe {
+    c = e[0];
+  }
+  if (c == 0) {
+    return 0;
+  }
+  if (c == 48) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Write buf[0..n) to stderr (fd 2). No-op on n<=0 or null.
+ * @param buf *u8 — bytes
+ * @param n i32 — byte count
+ * PLATFORM: SHARED — hosted write; ignores write errors (debug traces).
+ */
+function asm_diag_stderr_write(buf: *u8, n: i32): void {
+  if (buf == 0 as *u8) {
+    return;
+  }
+  if (n <= 0) {
+    return;
+  }
+  unsafe {
+    write(2, buf, n as i64);
+  }
+}
+
+/**
+ * Read XLANG_ASM_START_FUNC: skip first N funcs in module emit (debug bisect).
+ * build_xlang_asm must env -u XLANG_ASM_START_FUNC; if N>=num_funcs the module
+ * emits only an empty __text stub. XLANG_ASM_ALLOW_START_FUNC=1 enables skip
+ * even under build ENTRY_MODULE_ONLY + BUILD_SKIP_TYPECK (manual bisect).
+ * @return i32 — N in [0,100000]; 0 when unset/invalid/gated off
+ * wave102 pure: G.7 single product authority (historical pipeline_asm_diag.c).
+ * PLATFORM: SHARED — sole provider after asm_diag leave; backend.x + mega_body call.
+ */
+#[no_mangle]
+export function asm_diag_start_func_skip(): i32 {
+  let e: *u8 = 0 as *u8;
+  let allow: *u8 = 0 as *u8;
+  unsafe {
+    e = link_abi_getenv("XLANG_ASM_START_FUNC");
+    allow = link_abi_getenv("XLANG_ASM_ALLOW_START_FUNC");
+  }
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  let e0: u8 = 0;
+  unsafe {
+    e0 = e[0];
+  }
+  if (e0 == 0) {
+    return 0;
+  }
+  // Match C: without ALLOW, BUILD_SKIP_TYPECK + ENTRY_MODULE_ONLY disables skip.
+  let allow_on: i32 = asm_diag_env_truthy(allow);
+  if (allow_on == 0) {
+    let skip_e: *u8 = 0 as *u8;
+    let em: *u8 = 0 as *u8;
+    unsafe {
+      skip_e = link_abi_getenv("XLANG_ASM_BUILD_SKIP_TYPECK");
+      em = link_abi_getenv("XLANG_ASM_ENTRY_MODULE_ONLY");
+    }
+    if (asm_diag_env_truthy(skip_e) != 0) {
+      if (asm_diag_env_truthy(em) != 0) {
+        return 0;
+      }
+    }
+  }
+  let any: i32[1] = [0];
+  let v: i32 = asm_diag_parse_u_decimal(e, &any[0]);
+  if (any[0] == 0) {
+    return 0;
+  }
+  if (v < 0) {
+    return 0;
+  }
+  if (v > 100000) {
+    return 100000;
+  }
+  return v;
+}
+
+/**
+ * XLANG_ASM_BODY_TRACE=1: print block scale for body_ref (fill/emit crash bisect).
+ * @param arena *u8 — ASTArena; null → no-op
+ * @param body_ref i32 — block ref; <=0 → no-op
+ * wave102 pure: G.7 authority (historical pipeline_asm_diag.c). Uses write(2)
+ * + pipe_diag_msg_append_* (no libc fprintf). Invalid refs print "invalid".
+ * PLATFORM: SHARED — sole provider after asm_diag leave.
+ */
+#[no_mangle]
+export function asm_diag_trace_func_body(arena: *u8, body_ref: i32): void {
+  if (arena == 0 as *u8) {
+    return;
+  }
+  if (body_ref <= 0) {
+    return;
+  }
+  let trace: *u8 = 0 as *u8;
+  unsafe {
+    trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
+  }
+  if (asm_diag_env_truthy(trace) == 0) {
+    return;
+  }
+  let msg: u8[256];
+  let cap: i32 = 256;
+  let at: i32 = 0;
+  // Heuristic invalid: all zero metrics + final_expr 0 is possible for empty
+  // blocks; C used block_at null. Pure has no block_at — print metrics always.
+  let n_const: i32 = 0;
+  let n_let: i32 = 0;
+  let n_loop: i32 = 0;
+  let n_for: i32 = 0;
+  let n_if: i32 = 0;
+  let n_so: i32 = 0;
+  let fin: i32 = 0;
+  unsafe {
+    n_const = ast_ast_block_num_consts(arena, body_ref);
+    n_let = ast_ast_block_num_lets(arena, body_ref);
+    n_loop = ast_ast_block_num_loops(arena, body_ref);
+    n_for = ast_ast_block_num_for_loops(arena, body_ref);
+    n_if = ast_ast_block_num_if_stmts(arena, body_ref);
+    n_so = ast_ast_block_num_stmt_order(arena, body_ref);
+    fin = ast_ast_block_final_expr_ref(arena, body_ref);
+  }
+  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, "asm_body: ref=");
+  at = pipe_diag_msg_append_i32(&msg[0], cap, at, body_ref);
+  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " consts=");
+  at = pipe_diag_msg_append_i32(&msg[0], cap, at, n_const);
+  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " lets=");
+  at = pipe_diag_msg_append_i32(&msg[0], cap, at, n_let);
+  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " loops=");
+  at = pipe_diag_msg_append_i32(&msg[0], cap, at, n_loop);
+  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " for=");
+  at = pipe_diag_msg_append_i32(&msg[0], cap, at, n_for);
+  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " ifs=");
+  at = pipe_diag_msg_append_i32(&msg[0], cap, at, n_if);
+  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " stmt_order=");
+  at = pipe_diag_msg_append_i32(&msg[0], cap, at, n_so);
+  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " final_expr=");
+  at = pipe_diag_msg_append_i32(&msg[0], cap, at, fin);
+  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, "\n");
+  asm_diag_stderr_write(&msg[0], at);
+}
+
+/**
+ * XLANG_ASM_BODY_TRACE=1: print body_ref only.
+ * @param body_ref i32 — block ref value to print
+ * wave102 pure: G.7 authority (historical pipeline_asm_diag.c).
+ * PLATFORM: SHARED — sole provider after asm_diag leave.
+ */
+#[no_mangle]
+export function asm_diag_trace_body_ref(body_ref: i32): void {
+  let trace: *u8 = 0 as *u8;
+  unsafe {
+    trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
+  }
+  if (asm_diag_env_truthy(trace) == 0) {
+    return;
+  }
+  let msg: u8[64];
+  let at: i32 = 0;
+  at = pipe_diag_msg_append_cstr(&msg[0], 64, at, "asm_body_ref=");
+  at = pipe_diag_msg_append_i32(&msg[0], 64, at, body_ref);
+  at = pipe_diag_msg_append_cstr(&msg[0], 64, at, "\n");
+  asm_diag_stderr_write(&msg[0], at);
+}
+
+/**
+ * XLANG_ASM_BODY_TRACE=1: emit phase marker (1=fill 2=prologue 3=emit_body).
+ * @param phase i32 — phase id
+ * wave102 pure: G.7 authority (historical pipeline_asm_diag.c).
+ * PLATFORM: SHARED — sole provider after asm_diag leave.
+ */
+#[no_mangle]
+export function asm_diag_trace_emit_phase(phase: i32): void {
+  let trace: *u8 = 0 as *u8;
+  unsafe {
+    trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
+  }
+  if (asm_diag_env_truthy(trace) == 0) {
+    return;
+  }
+  let msg: u8[64];
+  let at: i32 = 0;
+  at = pipe_diag_msg_append_cstr(&msg[0], 64, at, "asm_emit_phase=");
+  at = pipe_diag_msg_append_i32(&msg[0], 64, at, phase);
+  at = pipe_diag_msg_append_cstr(&msg[0], 64, at, "\n");
+  asm_diag_stderr_write(&msg[0], at);
+}
+
+/**
+ * XLANG_ASM_FUNC_TRACE=1: print optional func index + name bytes to stderr.
+ * @param func_idx i32 — >=0 prints "#N "; <0 omits index (trace_func wrapper)
+ * @param name *u8 — name bytes; null or name_len<=0 → no-op
+ * @param name_len i32 — byte count; capped at 64 in output
+ * wave102 pure: G.7 authority (historical pipeline_asm_diag.c).
+ * PLATFORM: SHARED — sole provider after asm_diag leave.
+ */
+#[no_mangle]
+export function asm_diag_trace_func_idx(func_idx: i32, name: *u8, name_len: i32): void {
+  if (name == 0 as *u8) {
+    return;
+  }
+  if (name_len <= 0) {
+    return;
+  }
+  let trace: *u8 = 0 as *u8;
+  unsafe {
+    trace = link_abi_getenv("XLANG_ASM_FUNC_TRACE");
+  }
+  if (asm_diag_env_truthy(trace) == 0) {
+    return;
+  }
+  let msg: u8[128];
+  let at: i32 = 0;
+  if (func_idx >= 0) {
+    at = pipe_diag_msg_append_cstr(&msg[0], 128, at, "asm_trace: #");
+    at = pipe_diag_msg_append_i32(&msg[0], 128, at, func_idx);
+    at = pipe_diag_msg_append_cstr(&msg[0], 128, at, " ");
+  } else {
+    at = pipe_diag_msg_append_cstr(&msg[0], 128, at, "asm_trace: ");
+  }
+  let n: i32 = name_len;
+  if (n > 64) {
+    n = 64;
+  }
+  at = pipe_diag_msg_append_name(&msg[0], 128, at, name, n);
+  at = pipe_diag_msg_append_cstr(&msg[0], 128, at, "\n");
+  asm_diag_stderr_write(&msg[0], at);
+}
+
+/**
+ * XLANG_ASM_FUNC_TRACE=1 wrapper: print name without func index.
+ * @param name *u8 — name bytes
+ * @param name_len i32 — byte count
+ * wave102 pure: G.7 authority (historical pipeline_asm_diag.c).
+ * PLATFORM: SHARED — sole provider after asm_diag leave.
+ */
+#[no_mangle]
+export function asm_diag_trace_func(name: *u8, name_len: i32): void {
+  asm_diag_trace_func_idx(0 - 1, name, name_len);
 }

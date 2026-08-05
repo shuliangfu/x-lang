@@ -4245,5 +4245,88 @@ int32_t pipeline_sync_one_dep_slot(void *module, void *ctx, int32_t dep_i) {
   ast_pipeline_dep_ctx_set_arena((struct ast_PipelineDepCtx *)ctx, dep_i, (struct ast_ASTArena *)driver_dep_arena_buf(sync_slot));
   return 0;
 }
+
+/* wave102 asm_diag leave cold twins — former pipeline_asm_diag.c.
+ * PLATFORM: SHARED — only when pure FROM_X object is not linked. Product pure
+ * owns strong asm_diag_* after host-cc leave. Product hybrid defines FROM_X so
+ * this block is excluded; pure prints full BODY_TRACE metrics via write(2). */
+extern char *link_abi_getenv(const char *name);
+/* Cold twin of static asm_env_build_skip_typeck (emit_heavy_env same-TU helper). */
+static int32_t wave102_asm_env_build_skip_typeck(void) {
+  const char *e = link_abi_getenv("XLANG_ASM_BUILD_SKIP_TYPECK");
+  return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
+}
+
+int32_t asm_diag_start_func_skip(void) {
+  const char *e = link_abi_getenv("XLANG_ASM_START_FUNC");
+  const char *allow = link_abi_getenv("XLANG_ASM_ALLOW_START_FUNC");
+  char *end = NULL;
+  long v;
+  if (!e || e[0] == '\0')
+    return 0;
+  if ((allow == NULL || allow[0] == '\0' || allow[0] == '0') &&
+      wave102_asm_env_build_skip_typeck() != 0 &&
+      link_abi_getenv("XLANG_ASM_ENTRY_MODULE_ONLY") != NULL) {
+    const char *em = link_abi_getenv("XLANG_ASM_ENTRY_MODULE_ONLY");
+    if (em && em[0] != '\0' && em[0] != '0')
+      return 0;
+  }
+  v = strtol(e, &end, 10);
+  if (end == e || v < 0)
+    return 0;
+  if (v > 100000)
+    return 100000;
+  return (int32_t)v;
+}
+
+void asm_diag_trace_func_body(struct ast_ASTArena *arena, int32_t body_ref) {
+  const char *trace;
+  if (!arena || body_ref <= 0)
+    return;
+  trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
+  if (!trace || trace[0] == '\0' || trace[0] == '0')
+    return;
+  /* Cold twin lacks Block layout; pure product path prints full metrics. */
+  fprintf(stderr, "asm_body: ref=%d (cold)\n", (int)body_ref);
+  fflush(stderr);
+}
+
+void asm_diag_trace_body_ref(int32_t body_ref) {
+  const char *trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
+  if (!trace || trace[0] == '\0' || trace[0] == '0')
+    return;
+  fprintf(stderr, "asm_body_ref=%d\n", (int)body_ref);
+  fflush(stderr);
+}
+
+void asm_diag_trace_emit_phase(int32_t phase) {
+  const char *trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
+  if (!trace || trace[0] == '\0' || trace[0] == '0')
+    return;
+  fprintf(stderr, "asm_emit_phase=%d\n", (int)phase);
+  fflush(stderr);
+}
+
+void asm_diag_trace_func_idx(int32_t func_idx, uint8_t *name, int32_t name_len) {
+  const char *trace;
+  int32_t i;
+  if (!name || name_len <= 0)
+    return;
+  trace = link_abi_getenv("XLANG_ASM_FUNC_TRACE");
+  if (!trace || trace[0] == '\0' || trace[0] == '0')
+    return;
+  if (func_idx >= 0)
+    fprintf(stderr, "asm_trace: #%d ", (int)func_idx);
+  else
+    fprintf(stderr, "asm_trace: ");
+  for (i = 0; i < name_len && i < 64; i++)
+    fputc(name[i], stderr);
+  fputc('\n', stderr);
+  fflush(stderr);
+}
+
+void asm_diag_trace_func(uint8_t *name, int32_t name_len) {
+  asm_diag_trace_func_idx(-1, name, name_len);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
