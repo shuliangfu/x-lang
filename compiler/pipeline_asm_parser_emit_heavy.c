@@ -26,7 +26,8 @@
 #define ASM_EMIT_HEAVY_PARSER_SLOT_MAX 16
 
 /** XLANG_ASM_DEBUG=1 时打印 parser EMIT_HEAVY 真 emit 决策（定位 seed_mega SIGSEGV）。 */
-static void asm_parser_emit_heavy_dbg_real(struct ast_Module *m, int32_t fi, const char *why) {
+/** wave118: non-static for pure skip_dispatch Cap residual extern. */
+void asm_parser_emit_heavy_dbg_real(struct ast_Module *m, int32_t fi, const char *why) {
   uint8_t fn[128];
   int32_t fl;
   if (!link_abi_getenv("XLANG_ASM_DEBUG") || !m || fi < 0 || !why)
@@ -38,7 +39,8 @@ static void asm_parser_emit_heavy_dbg_real(struct ast_Module *m, int32_t fi, con
 }
 
 /** 调试/二分：XLANG_PARSER_EMIT_HEAVY_BISECT_N=N 上限 func_index；STUB_ONLY=1 仅 delegate 桩。 */
-static int32_t asm_parser_emit_heavy_bisect_max_index(void) {
+/** wave118: non-static for pure skip_dispatch Cap residual extern. */
+int32_t asm_parser_emit_heavy_bisect_max_index(void) {
   const char *stub = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_STUB_ONLY");
   char *end = NULL;
   long v;
@@ -57,7 +59,8 @@ static int32_t asm_parser_emit_heavy_bisect_max_index(void) {
 }
 
 /** XLANG_PARSER_EMIT_HEAVY_SLOT_MAX=N 覆盖槽位 fallback 上限（默认 8）。 */
-static int32_t asm_parser_emit_heavy_slot_max(void) {
+/** wave118: non-static for pure skip_dispatch Cap residual extern. */
+int32_t asm_parser_emit_heavy_slot_max(void) {
   const char *e = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_SLOT_MAX");
   char *end = NULL;
   long v;
@@ -132,7 +135,8 @@ static int32_t asm_parser_bootstrap_mega_emit_allowed(struct ast_Module *m, int3
  * parser.x EMIT_HEAVY 第二遍：巨型 parse_into/expr 入口 ret0 桩（strict 链由 parser.o / C alias 提供）。
  * XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1：experimental 重链用 ./xlang 编 parser 真 parse_into*（仅 bootstrap .o，非 gate EMIT_HEAVY）。
  */
-static int32_t asm_skip_heavy_parser_mega_entry(struct ast_Module *m, int32_t func_index) {
+/** wave118: non-static for pure skip_dispatch Cap residual extern. */
+int32_t asm_skip_heavy_parser_mega_entry(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
     return 0;
 #define PARSER_MEGA_EQ(n, l)                                                                                           \
@@ -167,7 +171,8 @@ static int32_t asm_skip_heavy_parser_mega_entry(struct ast_Module *m, int32_t fu
 /**
  * parser EMIT_HEAVY 第二遍：须 ret0 桩（X 真 emit Segfault / code_len 爆炸）；勿 safe_helper 白名单。
  */
-static int32_t asm_parser_emit_heavy_force_stub(struct ast_Module *m, int32_t func_index) {
+/** wave118: non-static for pure skip_dispatch Cap residual extern. */
+int32_t asm_parser_emit_heavy_force_stub(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
     return 0;
 #define PARSER_STUB_EQ(n, l)                                                                                           \
@@ -199,7 +204,8 @@ static int32_t asm_parser_emit_heavy_force_stub(struct ast_Module *m, int32_t fu
 /**
  * parser EMIT_HEAVY 第二遍：按名判定可安全 X 真 emit 的小 helper（扩 __text；名长须与 module 表一致）。
  */
-static int32_t asm_parser_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index) {
+/** wave118: non-static for pure skip_dispatch Cap residual extern. */
+int32_t asm_parser_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
     return 0;
 #define PARSER_SAFE_EQ(n, l)                                                                                           \
@@ -599,7 +605,8 @@ static const AsmBackendThinDelegateRow k_asm_parser_thin_delegate[] = {
 };
 
 /** 查 func 是否在 k_asm_parser_thin_delegate 表（EMIT_HEAVY bl→C glue）。 */
-static int32_t asm_parser_func_is_thin_delegate(struct ast_Module *m, int32_t func_index) {
+/** wave118: non-static for pure skip_dispatch Cap residual extern. */
+int32_t asm_parser_func_is_thin_delegate(struct ast_Module *m, int32_t func_index) {
   int32_t i;
   int32_t nrows;
   if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))

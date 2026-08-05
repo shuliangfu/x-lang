@@ -271,8 +271,14 @@ extern int32_t asm_typeck_m8_tail_thin_delegate_c_name(struct ast_Module *m, int
 
 #include "pipeline_asm_parser_emit_heavy.c"
 
-
-#include "pipeline_asm_skip_dispatch.c"
+/* 2026-08-05: pipeline_asm_skip_dispatch.c pure-owned leave (wave118).
+ * Live face: runtime_pipeline_abi.x (asm_empty_text_stub_label +
+ * asm_skip_heavy_module_func_body + set_pipeline_ctx BSS).
+ * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * Residual same-TU callers (codegen_mega_body / call_args) + early_fwd
+ * link pure via extern. PLATFORM: SHARED — no host-cc twin in pipeline_x. */
+extern void asm_empty_text_stub_label(struct ast_Module *m, uint8_t *out, int32_t out_cap, int32_t *out_len);
+extern int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTArena *arena, int32_t func_index);
 
 /* 2026-08-05: pipeline_asm_diag.c pure-owned leave retired.
  * Live = runtime_pipeline_abi pure asm_diag_start_func_skip + BODY/FUNC_TRACE.

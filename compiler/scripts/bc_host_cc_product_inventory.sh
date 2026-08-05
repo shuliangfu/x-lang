@@ -157,7 +157,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_heavy_safe_helper.c|8.3.2|EMIT_HEAVY safe-helper classifiers (wave117 pure-owned leave)|470|absent"
   "compiler/pipeline_asm_parser_emit_heavy.c|8.3.2|asm parser EMIT_HEAVY domain (wave1260)|380|present"
   "compiler/pipeline_asm_diag.c|8.3.2|asm diagnostics retired (runtime_pipeline_abi pure; host-cc leave)|0|absent"
-  "compiler/pipeline_asm_skip_dispatch.c|8.3.2|asm skip/stub dispatch (wave1264)|220|present"
+  "compiler/pipeline_asm_skip_dispatch.c|8.3.2|asm skip/stub dispatch pure-owned leave wave118|0|absent"
   "compiler/pipeline_asm_emit_heavy_env.c|8.3.2|EMIT_HEAVY env/thresholds/path/whitelist (wave1280)|210|present"
   "compiler/pipeline_resolve_path.c|8.3.2|import path resolve retired (runtime_pipeline_abi pure; host-cc leave)|0|absent"
   "compiler/pipeline_import_bind.c|8.3.2|fs read + import bind/sync (wave1270; pure leave 2026-08-05)|100|absent"
@@ -256,7 +256,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: safe_helper + thin_delegate + selfhost + asm_ctx_loop + backend_asm_wrapper + parse_typeck_dispatch + codegen_dep + struct_emit + type_to_c + skip_force + codegen_residual + run_x_pipeline + resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
+  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: skip_dispatch + safe_helper + thin_delegate + selfhost + asm_ctx_loop + backend_asm_wrapper + parse_typeck_dispatch + codegen_dep + struct_emit + type_to_c + skip_force + codegen_residual + run_x_pipeline + resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
 }
 
 run_check() {

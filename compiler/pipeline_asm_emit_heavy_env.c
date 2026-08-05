@@ -43,8 +43,9 @@
 /** typeck layout helpers may use slightly larger frames (merge_dep dual loop ~110 slots). */
 #define ASM_EMIT_HEAVY_TYPECK_LAYOUT_SLOT_MAX 128
 
-/** Read XLANG_ASM_EMIT_ABORT_LO/HI: bisect Abort ranges (defaults = large-entry constants). */
-static int32_t asm_emit_heavy_abort_lo(void) {
+/** Read XLANG_ASM_EMIT_ABORT_LO/HI: bisect Abort ranges (defaults = large-entry constants).
+ * wave118: non-static for pure skip_dispatch Cap residual extern. */
+int32_t asm_emit_heavy_abort_lo(void) {
   const char *e = link_abi_getenv("XLANG_ASM_EMIT_ABORT_LO");
   char *end = NULL;
   long v;
@@ -56,7 +57,7 @@ static int32_t asm_emit_heavy_abort_lo(void) {
   return (int32_t)v;
 }
 
-static int32_t asm_emit_heavy_abort_hi(void) {
+int32_t asm_emit_heavy_abort_hi(void) {
   const char *e = link_abi_getenv("XLANG_ASM_EMIT_ABORT_HI");
   char *end = NULL;
   long v;
@@ -147,8 +148,9 @@ int32_t asm_module_top_level_const_lit_i32(struct ast_Module *m, struct ast_ASTA
   return 0;
 }
 
-/** XLANG_ASM_BUILD_SKIP_TYPECK=1: build_xlang_asm uses stub path (avoid stack overflow). */
-static int32_t asm_env_build_skip_typeck(void) {
+/** XLANG_ASM_BUILD_SKIP_TYPECK=1: build_xlang_asm uses stub path (avoid stack overflow).
+ * wave118: non-static for pure skip_dispatch Cap residual extern. */
+int32_t asm_env_build_skip_typeck(void) {
   const char *e = link_abi_getenv("XLANG_ASM_BUILD_SKIP_TYPECK");
   return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
@@ -176,7 +178,8 @@ extern int32_t asm_module_is_parser_selfhost(struct ast_Module *m);
  * (experimental asm-only chain and xlang_asm smoke tests). Return 1 = do not stub via asm_skip_heavy.
  * Large modules (backend.x) also define asm_codegen_ast; full emit of that would abort on host stack.
  */
-static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t func_index) {
+/** wave118: non-static for pure skip_dispatch Cap residual extern. */
+int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t func_index) {
   static const struct {
     const char *name;
     int32_t len;
@@ -282,12 +285,11 @@ int32_t asm_orchestration_extern_only_func(struct ast_Module *m, int32_t func_in
   return 0;
 }
 
-/** Current asm codegen PipelineDepCtx; backend.x sets before emit loop (ENTRY_MODULE_ONLY -o gate). */
-static struct ast_PipelineDepCtx *g_asm_skip_pipeline_ctx;
-
-void asm_skip_heavy_set_pipeline_ctx(struct ast_PipelineDepCtx *ctx) {
-  g_asm_skip_pipeline_ctx = ctx;
-}
+/* 2026-08-05 wave118: g_asm_skip_pipeline_ctx + asm_skip_heavy_set_pipeline_ctx
+ * pure-owned leave (runtime_pipeline_abi.x BSS). Residual host-cc no longer
+ * defines the setter (G.7 single authority). skip_dispatch pure reads pure BSS.
+ * PLATFORM: SHARED. */
+extern void asm_skip_heavy_set_pipeline_ctx(struct ast_PipelineDepCtx *ctx);
 
 /** XLANG_ASM_ENTRY_EMIT_HEAVY=1: ENTRY_MODULE_ONLY real emit (typeck second pass); skip only pipeline typecheck. */
 int32_t asm_env_entry_emit_heavy(void) { /* wave116: global for pure typeck thin_delegate extern */

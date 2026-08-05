@@ -515,6 +515,22 @@ export extern "C" function pipeline_asm_module_func_is_extern_at(module: *u8, fi
 export extern "C" function asm_env_entry_emit_heavy(): i32;
 // wave117 Cap residual: module func name prefix probe for safe_helper pure leave.
 export extern "C" function pipeline_module_func_name_has_prefix_at(module: *u8, fi: i32, pfx: *u8, plen: i32): i32;
+// wave118 Cap residual: skip_dispatch pure leave callees still host-cc residual.
+// PLATFORM: SHARED — pure owns dispatch face; env/parser_heavy/block_tree stay residual.
+export extern "C" function asm_env_build_skip_typeck(): i32;
+export extern "C" function asm_skip_typeck_entry_whitelist(m: *u8, func_index: i32): i32;
+export extern "C" function asm_emit_heavy_abort_lo(): i32;
+export extern "C" function asm_emit_heavy_abort_hi(): i32;
+export extern "C" function driver_typeck_skip_large_entry(): i32;
+export extern "C" function asm_count_block_stack_slots(arena: *u8, block_ref: i32): i32;
+export extern "C" function asm_skip_heavy_parser_mega_entry(m: *u8, func_index: i32): i32;
+export extern "C" function asm_parser_emit_heavy_bisect_max_index(): i32;
+export extern "C" function asm_parser_emit_heavy_safe_helper(m: *u8, func_index: i32): i32;
+export extern "C" function asm_parser_emit_heavy_force_stub(m: *u8, func_index: i32): i32;
+export extern "C" function asm_parser_func_is_thin_delegate(m: *u8, func_index: i32): i32;
+export extern "C" function asm_parser_emit_heavy_slot_max(): i32;
+export extern "C" function asm_parser_emit_heavy_dbg_real(m: *u8, fi: i32, why: *u8): void;
+export extern "C" function pipeline_module_func_name_byte_at(module: *u8, fi: i32, i: i32): i32;
 export extern "C" function ast_ast_block_num_consts(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_loops(arena: *u8, block_ref: i32): i32;
@@ -683,13 +699,21 @@ export function parser_copy_module_import_path64(module: *u8, i: i32, out: *u8):
   return path_len;
 }
 
-/** Exported function `asm_skip_heavy_set_pipeline_ctx`.
- * Implements `asm_skip_heavy_set_pipeline_ctx`.
- * @param ctx *u8
+// wave118 pure BSS: PipelineDepCtx* for EMIT_HEAVY ENTRY_MODULE_ONLY skip gate.
+// G.7 single authority (was static g_asm_skip_pipeline_ctx in emit_heavy_env.c).
+// PLATFORM: SHARED — product hybrid pure owns store/load; no host-cc twin.
+let g_asm_skip_pipeline_ctx: *u8 = 0 as *u8;
+
+/**
+ * wave118 pure: store PipelineDepCtx for EMIT_HEAVY ENTRY_MODULE_ONLY skip gate.
+ * G.7 single product authority (was empty pure stub + host-cc emit_heavy_env twin).
+ * @param ctx *u8 — PipelineDepCtx* or null to clear
  * @return void
+ * PLATFORM: SHARED — pure BSS; residual skip_dispatch leave reads via pure face.
  */
 #[no_mangle]
 export function asm_skip_heavy_set_pipeline_ctx(ctx: *u8): void {
+  g_asm_skip_pipeline_ctx = ctx;
 }
 
 /** Exported function `pipeline_fill_array_lit_types_for_skipped_typeck`.
@@ -17401,14 +17425,18 @@ export function asm_skip_heavy_backend_mega_entry(m: *u8, func_index: i32): i32 
   }
 }
 
-/** wave117 pure: G.7 single product authority (was safe_helper.c). PLATFORM: SHARED. */
+/** wave117 pure: G.7 single product authority (was safe_helper.c).
+ * wave118: removed dead early `return 1` (aligned with seed cold twin name table).
+ * PLATFORM: SHARED. */
 #[no_mangle]
 export function asm_skip_heavy_typeck_mega_entry(m: *u8, func_index: i32): i32 {
   unsafe {
     if (m == 0 as *u8 || func_index < 0) {
       return 0;
     }
-    return 1;
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_skip_heavy_selfhost_func_body", 36) != 0) {
+      return 1;
+    }
     if (pipeline_module_func_name_equal_at(m, func_index, "check_expr_impl_mega", 20) != 0) {
       return 1;
     }
@@ -17435,6 +17463,400 @@ export function asm_skip_heavy_typeck_mega_entry(m: *u8, func_index: i32): i32 {
     }
     if (pipeline_module_func_name_equal_at(m, func_index, "typeck_x_ast", 12) != 0) {
       return 1;
+    }
+    return 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// wave118: asm skip_dispatch pure-owned leave (was pipeline_asm_skip_dispatch.c).
+// G.7 product authority for:
+//   asm_empty_text_stub_label (FNV-1a → _xlang_asm_stu_<dec>)
+//   asm_skip_heavy_module_func_body (EMIT_HEAVY / SKIP_TYPECK central dispatch)
+// Cap residual: env gates / parser_emit_heavy classifiers / block slot count /
+//   name accessors / dep_ctx. Selfhost + safe_helper same-TU pure.
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED — dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/** Slot thresholds (≡ former ASM_* macros in emit_heavy_env.c). PLATFORM: SHARED. */
+let ASM_HEAVY_BODY_SLOT_THRESHOLD: i32 = 48;
+let ASM_EMIT_HEAVY_SLOT_THRESHOLD: i32 = 256;
+let ASM_EMIT_HEAVY_BACKEND_INDEX_LO: i32 = 87;
+let ASM_EMIT_HEAVY_TYPECK_INDEX_LO: i32 = 90;
+let ASM_EMIT_HEAVY_TYPECK_INDEX_HI: i32 = 159;
+let ASM_EMIT_HEAVY_LARGE_BACKEND_SLOT_THRESHOLD: i32 = 96;
+let ASM_EMIT_HEAVY_BACKEND_HELPER_SLOT_MAX: i32 = 48;
+let ASM_EMIT_HEAVY_TYPECK_LAYOUT_SLOT_MAX: i32 = 128;
+
+/**
+ * wave118 pure: empty __text stub label from FNV-1a over module func names.
+ * @param m *u8 — Module* (null/empty → hash imports)
+ * @param out *u8 — output buffer; capacity >= 24
+ * @param out_cap i32 — buffer capacity
+ * @param out_len *i32 — written length excluding NUL
+ * @return void
+ * PLATFORM: SHARED — sole provider after skip_dispatch leave.
+ */
+#[no_mangle]
+export function asm_empty_text_stub_label(m: *u8, out: *u8, out_cap: i32, out_len: *i32): void {
+  unsafe {
+    if (out == 0 as *u8 || out_cap < 24 || out_len == 0 as *i32) {
+      if (out_len != 0 as *i32) {
+        *out_len = 0;
+      }
+      return;
+    }
+    let h: i64 = 2166136261;
+    if (m != 0 as *u8) {
+      let nfuncs: i32 = pipeline_module_num_funcs(m);
+      if (nfuncs > 0) {
+        let i: i32 = 0;
+        while (i < nfuncs) {
+          let nl: i32 = pipeline_module_func_name_len_at(m, i);
+          let k: i32 = 0;
+          while (k < nl) {
+            let b: i32 = pipeline_module_func_name_byte_at(m, i, k);
+            h = (h ^ (b as i64)) * 16777619;
+            h = h & 4294967295;
+            k = k + 1;
+          }
+          i = i + 1;
+        }
+      } else {
+        let nimp: i32 = xlang_module_num_imports(m);
+        h = (h ^ (nimp as i64)) * 16777619;
+        h = h & 4294967295;
+      }
+    } else {
+      h = (h ^ 0) * 16777619;
+      h = h & 4294967295;
+    }
+    // prefix "_xlang_asm_stu_" (15 bytes)
+    out[0] = 95;
+    out[1] = 120;
+    out[2] = 108;
+    out[3] = 97;
+    out[4] = 110;
+    out[5] = 103;
+    out[6] = 95;
+    out[7] = 97;
+    out[8] = 115;
+    out[9] = 109;
+    out[10] = 95;
+    out[11] = 115;
+    out[12] = 116;
+    out[13] = 117;
+    out[14] = 95;
+    let pos: i32 = 15;
+    let digits: u8[16] = [];
+    let nd: i32 = 0;
+    let v: i64 = h;
+    if (v == 0) {
+      digits[0] = 48;
+      nd = 1;
+    } else {
+      while (v > 0 && nd < 16) {
+        let dig: i64 = v % 10;
+        digits[nd] = (48 + (dig as i32)) as u8;
+        nd = nd + 1;
+        v = v / 10;
+      }
+    }
+    let d: i32 = nd - 1;
+    while (d >= 0) {
+      out[pos] = digits[d];
+      pos = pos + 1;
+      d = d - 1;
+    }
+    out[pos] = 0;
+    *out_len = pos;
+  }
+}
+
+/**
+ * wave118 pure: central EMIT_HEAVY / SKIP_TYPECK body skip dispatch.
+ * @param m *u8 — Module*
+ * @param arena *u8 — ASTArena* (slot counting; may be null)
+ * @param func_index i32 — function index
+ * @return i32 — 1 = ret0 stub body; 0 = real emit
+ * PLATFORM: SHARED — sole provider after skip_dispatch leave.
+ */
+#[no_mangle]
+export function asm_skip_heavy_module_func_body(m: *u8, arena: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0) {
+      return 0;
+    }
+    // User programs (non compiler selfhost): always real emit.
+    if (asm_module_is_compiler_selfhost(m) == 0) {
+      return 0;
+    }
+    // ast.x first-pass SKIP: stub all but whitelist.
+    if (asm_module_is_ast_selfhost(m) != 0 && asm_env_build_skip_typeck() != 0 &&
+        asm_env_entry_emit_heavy() == 0) {
+      if (asm_skip_typeck_entry_whitelist(m, func_index) != 0) {
+        return 0;
+      }
+      return 1;
+    }
+    // User import+exe ENTRY_MODULE_ONLY (non large-entry): full real emit.
+    if (g_asm_skip_pipeline_ctx != 0 as *u8 &&
+        pipeline_dep_ctx_asm_entry_module_only(g_asm_skip_pipeline_ctx) != 0 &&
+        pipeline_dep_ctx_use_asm_backend(g_asm_skip_pipeline_ctx) != 0 &&
+        driver_typeck_skip_large_entry() == 0 &&
+        asm_env_build_skip_typeck() == 0 &&
+        asm_env_entry_emit_heavy() == 0) {
+      return 0;
+    }
+    // build_xlang_asm SKIP_TYPECK default stub path.
+    if (asm_env_build_skip_typeck() != 0 && asm_env_entry_emit_heavy() == 0) {
+      if (pipeline_asm_module_func_is_extern_at(m, func_index) != 0) {
+        return 0;
+      }
+      if (asm_skip_typeck_entry_whitelist(m, func_index) != 0) {
+        return 0;
+      }
+      return 1;
+    }
+    // Small modules: first 10 funcs stub under SKIP_TYPECK.
+    let nfuncs: i32 = pipeline_module_num_funcs(m);
+    if (asm_env_build_skip_typeck() != 0 && asm_env_entry_emit_heavy() == 0 && nfuncs > 0 &&
+        nfuncs <= 32 && func_index < 10) {
+      return 1;
+    }
+    // First-pass SKIP: mega check_* by name.
+    if (asm_env_entry_emit_heavy() == 0) {
+      if (pipeline_module_func_name_equal_at(m, func_index, "check_expr", 10) != 0) {
+        return 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, func_index, "check_expr_impl", 15) != 0) {
+        return 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, func_index, "check_block", 11) != 0) {
+        return 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, func_index, "check_block_impl", 16) != 0) {
+        return 1;
+      }
+    }
+    // ENTRY_EMIT_HEAVY second pass.
+    if (asm_env_entry_emit_heavy() != 0) {
+      let typeck_ndef: i32 = 0;
+      if (asm_module_is_typeck_selfhost(m) != 0) {
+        typeck_ndef = asm_module_num_defined_funcs(m);
+      }
+      let typeck_ord: i32 = asm_module_defined_func_ordinal(m, func_index);
+      // parser.x EMIT_HEAVY second pass first.
+      if (asm_module_is_parser_emit_heavy(m) != 0) {
+        if (asm_skip_heavy_parser_mega_entry(m, func_index) != 0) {
+          return 1;
+        }
+        if (asm_parser_emit_heavy_bisect_max_index() == 0) {
+          return 1;
+        }
+        if (asm_parser_emit_heavy_safe_helper(m, func_index) != 0) {
+          asm_parser_emit_heavy_dbg_real(m, func_index, "safe_helper");
+          return 0;
+        }
+        if (asm_parser_emit_heavy_force_stub(m, func_index) != 0) {
+          return 1;
+        }
+        if (asm_parser_func_is_thin_delegate(m, func_index) != 0) {
+          return 1;
+        }
+        if (func_index >= asm_parser_emit_heavy_bisect_max_index()) {
+          return 1;
+        }
+        let body_ref: i32 = pipeline_module_func_body_ref_at(m, func_index);
+        if (arena == 0 as *u8 || body_ref <= 0) {
+          return 1;
+        }
+        let slots: i32 = asm_count_block_stack_slots(arena, body_ref);
+        if (slots > asm_parser_emit_heavy_slot_max()) {
+          return 1;
+        }
+        asm_parser_emit_heavy_dbg_real(m, func_index, "slot_fallback");
+        return 0;
+      }
+      // fat typeck ~160–180 defined funcs.
+      if (asm_module_is_typeck_selfhost(m) != 0 && typeck_ndef >= 160 && typeck_ndef <= 180) {
+        if (typeck_ord < 0) {
+          return 1;
+        }
+        if (asm_skip_heavy_typeck_mega_entry(m, func_index) != 0) {
+          return 1;
+        }
+        if (asm_typeck_emit_heavy_safe_helper(m, func_index) != 0) {
+          return 0;
+        }
+        if (typeck_ord >= 118 && typeck_ord <= ASM_EMIT_HEAVY_TYPECK_INDEX_HI) {
+          return 1;
+        }
+        if (pipeline_module_func_name_equal_at(m, func_index, "type_kind_ordinal", 17) != 0) {
+          return 0;
+        }
+        if (asm_typeck_emit_heavy_safe_helper(m, func_index) != 0) {
+          return 0;
+        }
+        if (typeck_ord < 90) {
+          return 1;
+        }
+        return 1;
+      }
+      // thin typeck: safe_helper + slot gate.
+      if (typeck_ndef >= 75 && typeck_ndef <= 200 && asm_module_is_backend_selfhost(m) == 0 &&
+          asm_module_is_parser_emit_heavy(m) == 0) {
+        if (typeck_ord < 0) {
+          return 1;
+        }
+        if (asm_skip_heavy_typeck_mega_entry(m, func_index) != 0) {
+          return 1;
+        }
+        if (pipeline_module_func_name_equal_at(m, func_index, "typeck_merge_dep_struct_layouts_into_entry", 42) != 0) {
+          return 0;
+        }
+        if (pipeline_module_func_name_equal_at(m, func_index, "typeck_wpo_unify_soa_layouts", 28) != 0) {
+          return 0;
+        }
+        if (asm_typeck_emit_heavy_safe_helper(m, func_index) == 0) {
+          return 1;
+        }
+        let body_ref_thin: i32 = pipeline_module_func_body_ref_at(m, func_index);
+        if (arena == 0 as *u8 || body_ref_thin <= 0) {
+          return 1;
+        }
+        let slots_thin: i32 = asm_count_block_stack_slots(arena, body_ref_thin);
+        if (slots_thin > ASM_EMIT_HEAVY_TYPECK_LAYOUT_SLOT_MAX) {
+          return 1;
+        }
+        return 0;
+      }
+      // pipeline.x orchestration.
+      if (asm_module_is_pipeline_selfhost(m) != 0) {
+        if (asm_pipeline_emit_heavy_safe_helper(m, func_index) != 0) {
+          return 0;
+        }
+        return 1;
+      }
+      // main.x: only entry real emit.
+      if (asm_module_is_main_driver_selfhost(m) != 0) {
+        if (pipeline_module_func_name_equal_at(m, func_index, "entry", 5) != 0) {
+          return 0;
+        }
+        return 1;
+      }
+      // driver/compile.x.
+      if (asm_module_is_driver_compile_selfhost(m) != 0) {
+        if (asm_driver_compile_emit_heavy_safe_helper(m, func_index) != 0) {
+          return 0;
+        }
+        return 1;
+      }
+      // M8-tail backend thin keep → still stub.
+      if (asm_module_is_backend_selfhost(m) != 0 &&
+          asm_skip_heavy_backend_m8_tail_thin_keep(m, func_index) != 0) {
+        return 1;
+      }
+      // backend helper whitelist real emit when num_funcs <= 150.
+      if (asm_module_is_backend_selfhost(m) != 0 && nfuncs <= 150 &&
+          (asm_skip_heavy_backend_helper_keep(m, func_index) != 0 ||
+           asm_skip_heavy_backend_m8_helper_keep(m, func_index) != 0)) {
+        let body_ref_be: i32 = pipeline_module_func_body_ref_at(m, func_index);
+        if (arena == 0 as *u8 || body_ref_be <= 0 ||
+            asm_count_block_stack_slots(arena, body_ref_be) <= ASM_EMIT_HEAVY_BACKEND_HELPER_SLOT_MAX) {
+          return 0;
+        }
+      }
+      if (asm_module_is_typeck_selfhost(m) != 0 &&
+          asm_skip_heavy_typeck_helper_keep(m, func_index) != 0) {
+        if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_", 14) != 0) {
+          return 1;
+        }
+        if (pipeline_module_func_name_equal_at(m, func_index, "typeck_x_type_align", 20) != 0) {
+          return 1;
+        }
+        if (pipeline_module_func_name_equal_at(m, func_index, "typeck_x_type_size", 19) != 0) {
+          return 1;
+        }
+        if (func_index >= ASM_EMIT_HEAVY_TYPECK_INDEX_LO &&
+            func_index <= ASM_EMIT_HEAVY_TYPECK_INDEX_HI) {
+          return 1;
+        }
+        let body_ref_tk: i32 = pipeline_module_func_body_ref_at(m, func_index);
+        if (arena == 0 as *u8 || body_ref_tk <= 0) {
+          return 0;
+        }
+        if (asm_count_block_stack_slots(arena, body_ref_tk) <= ASM_EMIT_HEAVY_TYPECK_LAYOUT_SLOT_MAX) {
+          return 0;
+        }
+      }
+      if (asm_skip_heavy_typeck_mega_entry(m, func_index) != 0) {
+        return 1;
+      }
+      if (asm_skip_heavy_backend_mega_entry(m, func_index) != 0) {
+        return 1;
+      }
+      if (asm_module_is_typeck_selfhost(m) != 0 && typeck_ndef >= 90 && typeck_ord >= 0 &&
+          typeck_ord >= ASM_EMIT_HEAVY_TYPECK_INDEX_LO &&
+          typeck_ord <= ASM_EMIT_HEAVY_TYPECK_INDEX_HI) {
+        if (asm_typeck_emit_heavy_safe_helper(m, func_index) != 0) {
+          return 0;
+        }
+        return 1;
+      }
+      if (asm_module_is_backend_selfhost(m) != 0 && nfuncs >= 80) {
+        let be_hi: i32 = asm_emit_heavy_abort_hi();
+        if (be_hi >= nfuncs) {
+          be_hi = nfuncs - 1;
+        }
+        if (func_index >= asm_emit_heavy_abort_lo() && func_index <= be_hi) {
+          return 1;
+        }
+      } else if (driver_typeck_skip_large_entry() != 0 && nfuncs >= 175) {
+        if (func_index >= asm_emit_heavy_abort_lo() && func_index <= asm_emit_heavy_abort_hi()) {
+          return 1;
+        }
+      } else if (nfuncs >= 160 && func_index >= 72 && asm_module_is_backend_selfhost(m) == 0 &&
+                 asm_module_is_typeck_selfhost(m) == 0 &&
+                 asm_module_is_parser_emit_heavy(m) == 0) {
+        return 1;
+      }
+      let body_ref2: i32 = pipeline_module_func_body_ref_at(m, func_index);
+      let slot_threshold: i32 = ASM_EMIT_HEAVY_SLOT_THRESHOLD;
+      if (asm_module_is_backend_selfhost(m) != 0 && func_index < ASM_EMIT_HEAVY_BACKEND_INDEX_LO) {
+        slot_threshold = ASM_EMIT_HEAVY_SLOT_THRESHOLD;
+      } else if ((asm_module_is_backend_selfhost(m) != 0 && nfuncs >= 80) ||
+                 (driver_typeck_skip_large_entry() != 0 && nfuncs >= 175)) {
+        slot_threshold = ASM_EMIT_HEAVY_LARGE_BACKEND_SLOT_THRESHOLD;
+      }
+      if (arena != 0 as *u8 && body_ref2 > 0) {
+        let slots2: i32 = asm_count_block_stack_slots(arena, body_ref2);
+        if (slots2 > slot_threshold) {
+          return 1;
+        }
+      }
+      if (asm_module_is_backend_selfhost(m) != 0) {
+        return 1;
+      }
+      if (asm_module_is_typeck_selfhost(m) != 0) {
+        if (asm_typeck_emit_heavy_safe_helper(m, func_index) != 0) {
+          return 0;
+        }
+        return 0;
+      }
+      return 0;
+    }
+    // Default large module coarse filter (non EMIT_HEAVY second pass).
+    if (nfuncs >= 160 && func_index >= 72) {
+      return 1;
+    }
+    let body_ref3: i32 = pipeline_module_func_body_ref_at(m, func_index);
+    if (arena != 0 as *u8 && body_ref3 > 0) {
+      let slots3: i32 = asm_count_block_stack_slots(arena, body_ref3);
+      if (slots3 > ASM_HEAVY_BODY_SLOT_THRESHOLD) {
+        return 1;
+      }
     }
     return 0;
   }
