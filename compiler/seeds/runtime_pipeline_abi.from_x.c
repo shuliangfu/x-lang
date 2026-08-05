@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave138: as pure leave cold twins under #ifndef FROM_X (as/await/try/float-lit).
  * wave137: cmp pure leave cold twins under #ifndef FROM_X (cmp_elf/cc/typekind/arm64_cset).
  * wave135: x86_enc_helpers pure leave cold twins under #ifndef FROM_X (glue_enc_x86_* + lcg body).
  * wave134: match pure leave cold twins under #ifndef FROM_X (match_elf/expr_if_elf/subject).
@@ -12128,7 +12129,249 @@ int32_t pipeline_asm_emit_cmp_elf(void *arena, void *elf_ctx, int32_t cmp_expr_r
   cc = pipeline_asm_cmp_cc_for_expr_kind_ord(pipeline_expr_kind_ord_at(arena, cmp_expr_ref));
   if (cc < 0)
     return -1;
-  return glue_emit_cmp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+  return glue_emit_c
+
+/*
+ * wave138: pipeline_asm_emit_as pure-owned leave cold twins.
+ * PREFER pure; cold path when PREFER!=1 / hybrid fail.
+ * Faces: is_await / is_x_as_cast / await_sync / try_propagate /
+ *   float_lit / array_scalar / as_elf_impl / as_elf_c.
+ * Cap residual: float_bits, IEEE pack, cast encoders, emit_expr, cleanup.
+ */
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_as_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_as_target_type_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_expr_float_bits_lo_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_float_bits_hi_at(void *arena, int32_t expr_ref);
+extern int32_t glue_ieee_f64_bits_to_f32_bits(int32_t lo, int32_t hi);
+extern int32_t glue_ieee_f32_bits_to_f64_lo(int32_t fb);
+extern int32_t glue_ieee_f32_bits_to_f64_hi(int32_t fb);
+extern int32_t pipeline_asm_array_lit_elem_type_ref(void *arena, int32_t array_lit_expr_ref);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_next_label_c(void *ctx, uint8_t *buf, int32_t buf_size);
+extern int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta);
+extern int32_t glue_async_cps_emit_phase_reset(void *elf_ctx, int32_t ta);
+extern void *pipeline_asm_ctx_layout(void *ctx);
+extern int32_t arch_x86_64_enc_enc_test_edx_edx(void *elf_ctx);
+extern int32_t backend_enc_test_rbx_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_jz_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_global, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern int32_t pipeline_elf_ctx_append_bytes(void *ctx, uint8_t *ptr, int32_t n);
+extern int32_t glue_binop_operand_is_scalar_f64_elf_c(void *arena, void *ctx, int32_t expr_ref);
+extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttss2si_rax_from_f32_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttsd2si_rax_from_f64_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_u64_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_u64_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_i64_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(void *elf_ctx, int32_t ta);
+
+int32_t glue_expr_is_await_at_c(void *arena, int32_t expr_ref) {
+  int32_t ko, uop;
+  if (!arena || expr_ref <= 0) return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == 55) {
+    uop = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    return uop > 0 ? 1 : 0;
+  }
+  if (ko != 54) return 0;
+  if (pipeline_expr_as_target_type_ref_at(arena, expr_ref) > 0 ||
+      pipeline_expr_as_operand_ref_at(arena, expr_ref) > 0)
+    return 0;
+  uop = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  return uop > 0 ? 1 : 0;
+}
+
+int32_t glue_expr_is_x_as_cast_at_c(void *arena, int32_t expr_ref) {
+  int32_t ko;
+  if (!arena || expr_ref <= 0) return 0;
+  if (glue_expr_is_await_at_c(arena, expr_ref)) return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko != 54) return 0;
+  return pipeline_expr_as_operand_ref_at(arena, expr_ref) > 0 ? 1 : 0;
+}
+
+int32_t pipeline_asm_emit_await_sync_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op <= 0) return -1;
+  return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+}
+
+int32_t pipeline_asm_emit_try_propagate_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op, ok_len, tj_len, i;
+  uint8_t ok_lbl[128];
+  uint8_t tj_lbl[128];
+  uint8_t *ly;
+  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op <= 0) return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+  ok_len = pipeline_asm_emit_next_label_c(ctx, ok_lbl, 128);
+  if (ok_len <= 0) return -1;
+  if (ta == 0) {
+    if (arch_x86_64_enc_enc_test_edx_edx(elf_ctx) != 0) return -1;
+  } else if (backend_enc_test_rbx_rbx_arch(elf_ctx, ta) != 0) {
+    return -1;
+  }
+  if (backend_enc_jz_arch(elf_ctx, ok_lbl, ok_len, ta) != 0) return -1;
+  if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0) return -1;
+  if (glue_async_cps_emit_phase_reset(elf_ctx, ta) != 0) return -1;
+  ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
+  if (!ly) return -1;
+  memcpy(&tj_len, ly + 1520, 4);
+  if (tj_len <= 0) return -1;
+  if (tj_len > 128) tj_len = 128;
+  for (i = 0; i < tj_len; i++) tj_lbl[i] = ly[1392 + i];
+  if (backend_enc_jmp_arch(elf_ctx, tj_lbl, tj_len, ta) != 0) return -1;
+  if (backend_enc_label_arch(elf_ctx, ok_lbl, ok_len, 0, ta) != 0) return -1;
+  return 0;
+}
+
+int32_t glue_emit_float_lit_to_rax_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t ta,
+                                         int32_t force_ty_ref, int32_t call_abi_widen_f64) {
+  int32_t lo, hi, tr, tk, fb;
+  lo = pipeline_expr_float_bits_lo_at(arena, expr_ref);
+  hi = pipeline_expr_float_bits_hi_at(arena, expr_ref);
+  tr = force_ty_ref > 0 ? force_ty_ref : pipeline_expr_resolved_type_ref(arena, expr_ref);
+  if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == 14) {
+    fb = glue_ieee_f64_bits_to_f32_bits(lo, hi);
+    if (call_abi_widen_f64 != 0) {
+      lo = glue_ieee_f32_bits_to_f64_lo(fb);
+      hi = glue_ieee_f32_bits_to_f64_hi(fb);
+      return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+    }
+    return backend_enc_mov_imm32_to_w0_arch(elf_ctx, fb, ta);
+  }
+  return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+}
+
+int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(void *arena, void *elf_ctx, int32_t array_lit_ref,
+                                                     int32_t elem_ref, void *ctx, int32_t ta, int32_t force_esz) {
+  int32_t eko, ety, ek, lo, hi, fb;
+  if (!arena || !elf_ctx || elem_ref <= 0) return -1;
+  eko = pipeline_expr_kind_ord_at(arena, elem_ref);
+  if (eko == 1) {
+    ety = pipeline_asm_array_lit_elem_type_ref(arena, array_lit_ref);
+    ek = ety > 0 ? pipeline_type_kind_ord_at(arena, ety) : -1;
+    if (ek == 14 || ek == 15)
+      return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, elem_ref, ta, ety, 0);
+    if (force_esz == 4) {
+      lo = pipeline_expr_float_bits_lo_at(arena, elem_ref);
+      hi = pipeline_expr_float_bits_hi_at(arena, elem_ref);
+      fb = glue_ieee_f64_bits_to_f32_bits(lo, hi);
+      return backend_enc_mov_imm32_to_w0_arch(elf_ctx, fb, ta);
+    }
+    return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, elem_ref, ta, 0, 0);
+  }
+  if (!ctx) return -1;
+  return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta);
+}
+
+int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op, tgt, tgt_kind, src_tr, src_kind, op_ko, src_is_f32, src_is_f64;
+  static const uint8_t mov_eax_eax[2] = {0x89, 0xc0};
+  if (glue_expr_is_await_at_c(arena, expr_ref))
+    return pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  op = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+  if (op == 0) return -1;
+  tgt = pipeline_expr_as_target_type_ref_at(arena, expr_ref);
+  if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 14 &&
+      pipeline_expr_kind_ord_at(arena, op) == 1)
+    return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, op, ta, tgt, 0);
+  if (tgt > 0) {
+    tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
+    src_tr = pipeline_expr_resolved_type_ref(arena, op);
+    src_kind = src_tr > 0 ? pipeline_type_kind_ord_at(arena, src_tr) : -1;
+    op_ko = pipeline_expr_kind_ord_at(arena, op);
+    src_is_f32 = (src_kind == 14);
+    src_is_f64 = (src_kind == 15 || (src_kind <= 0 && op_ko == 1) ||
+                  glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op));
+    if (src_is_f32 || src_is_f64) {
+      if (tgt_kind == 0 || tgt_kind == 3) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        if (src_is_f32) return backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx, ta);
+        return backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx, ta);
+      }
+      if (tgt_kind == 4 || tgt_kind == 5 || tgt_kind == 6 || tgt_kind == 7) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        if (src_is_f32) return backend_enc_cvttss2si_rax_from_f32_bits_arch(elf_ctx, ta);
+        return backend_enc_cvttsd2si_rax_from_f64_bits_arch(elf_ctx, ta);
+      }
+    }
+  }
+  if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 14) {
+    src_tr = pipeline_expr_resolved_type_ref(arena, op);
+    if (src_tr > 0) {
+      src_kind = pipeline_type_kind_ord_at(arena, src_tr);
+      if (src_kind == 0 || src_kind == 2 || src_kind == 8) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx, ta);
+      }
+      if (src_kind == 3) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        if (pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)mov_eax_eax, 2) != 0) return -1;
+        return backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx, ta);
+      }
+      if (src_kind == 4 || src_kind == 6) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsi2ss_eax_from_u64_arch(elf_ctx, ta);
+      }
+      if (src_kind == 5 || src_kind == 7) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx, ta);
+      }
+      if (src_kind == 15 || glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op)) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx, ta);
+      }
+    }
+  }
+  if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 15) {
+    src_tr = pipeline_expr_resolved_type_ref(arena, op);
+    if (src_tr > 0) {
+      src_kind = pipeline_type_kind_ord_at(arena, src_tr);
+      if (src_kind == 4 || src_kind == 6) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsi2sd_rax_from_u64_arch(elf_ctx, ta);
+      }
+      if (src_kind == 5 || src_kind == 7) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx, ta);
+      }
+      if (src_kind == 3) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        if (pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)mov_eax_eax, 2) != 0) return -1;
+        return backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx, ta);
+      }
+      if (src_kind == 0 || src_kind == 2 || src_kind == 8) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx, ta);
+      }
+      if (src_kind == 14) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta);
+      }
+    }
+  }
+  return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+}
+
+int32_t pipeline_asm_emit_as_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  return pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+
+mp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
 }
 
 

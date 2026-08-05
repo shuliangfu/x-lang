@@ -53,7 +53,8 @@
  * bounds-checked Expr pointer retrieval. Safe within same TU (C11
  * allows static fwd decl within same translation unit).
  */
-static struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
+/* wave138: Cap residual in ast_pool_arena.c (non-static). */
+struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
 
 /** 字面量判定：kind 序 0/2。 */
 static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm) {

@@ -9088,8 +9088,8 @@ fi
 if grep -qE 'pipeline_asm_emit_unary\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_unary.c (wave133 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_as\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_as.c (8.3.1 asm_emit_as slice)"
+if grep -qE 'pipeline_asm_emit_as\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_as.c (wave138 pure-owned leave)"
 fi
 if ! grep -qE 'pipeline_asm_emit_return\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_return.c (8.3.1 asm_emit_return slice)"

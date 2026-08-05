@@ -896,3 +896,100 @@ void pipeline_module_fill_u8_64_from_src_c(uint8_t *dst, const uint8_t *src, int
       dst[i] = 0;
   }
 }
+
+/* wave138: typeck float bit helpers (asm symbols; product mega TU). */
+extern int typeck_float64_bits_lo(double d);
+extern int typeck_float64_bits_hi(double d);
+
+
+/* wave138 Cap residual (was pipeline_asm_emit_as.c): arena expr slot + float bits.
+ * G.7: pool accessors live with pipeline_arena_expr_ptr; pure as emit Cap residual
+ * calls these faces. PLATFORM: SHARED host-cc residual. */
+
+/**
+ * Arena expr slot pointer with bounds check.
+ * Thin wrapper over pipeline_arena_expr_ptr (same bounds).
+ * Residual C leaves keep the glue_arena_expr_at_ref name for historical
+ * call sites (field_access / struct_lit / expr_rec / typeck_* / coerce).
+ * wave138: un-static + moved from as.c EOF after pure-owned leave.
+ * PLATFORM: SHARED.
+ */
+struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref) {
+  return pipeline_arena_expr_ptr(a, expr_ref);
+}
+
+/**
+ * Low 32 bits of float64 IEEE-754 representation for expr_ref.
+ * FLOAT_LIT: recompute from float_val via typeck_float64_bits_lo.
+ * Else: stored float_bits_lo field.
+ * wave138 Cap residual (was as.c); pure float-lit emit Cap residual this face.
+ * PLATFORM: SHARED — typeck_float64_bits_lo is external asm.
+ */
+int32_t pipeline_expr_float_bits_lo_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!ex)
+    return 0;
+  if (ex->kind == ast_ExprKind_EXPR_FLOAT_LIT)
+    return typeck_float64_bits_lo(ex->float_val);
+  return ex->float_bits_lo;
+}
+
+/**
+ * High 32 bits of float64 IEEE-754 representation for expr_ref.
+ * Symmetric to pipeline_expr_float_bits_lo_at.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_expr_float_bits_hi_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!ex)
+    return 0;
+  if (ex->kind == ast_ExprKind_EXPR_FLOAT_LIT)
+    return typeck_float64_bits_hi(ex->float_val);
+  return ex->float_bits_hi;
+}
+
+/**
+ * Convert f64 IEEE bits (lo/hi) to f32 IEEE bits (truncating convert).
+ * wave138 Cap residual for pure float-lit / array scalar pack (host float ops).
+ * PLATFORM: SHARED.
+ */
+int32_t glue_ieee_f64_bits_to_f32_bits(int32_t lo, int32_t hi) {
+  double dv;
+  float fv;
+  uint32_t fb;
+  int32_t parts[2];
+  parts[0] = lo;
+  parts[1] = hi;
+  memcpy(&dv, parts, sizeof(dv));
+  fv = (float)dv;
+  memcpy(&fb, &fv, sizeof(fb));
+  return (int32_t)fb;
+}
+
+/**
+ * Widen f32 IEEE bits to f64 IEEE lo half.
+ * PLATFORM: SHARED.
+ */
+int32_t glue_ieee_f32_bits_to_f64_lo(int32_t fb) {
+  float fv;
+  double dv;
+  uint64_t u64;
+  memcpy(&fv, &fb, sizeof(fv));
+  dv = (double)fv;
+  memcpy(&u64, &dv, sizeof(u64));
+  return (int32_t)(u64 & 0xffffffffu);
+}
+
+/**
+ * Widen f32 IEEE bits to f64 IEEE hi half.
+ * PLATFORM: SHARED.
+ */
+int32_t glue_ieee_f32_bits_to_f64_hi(int32_t fb) {
+  float fv;
+  double dv;
+  uint64_t u64;
+  memcpy(&fv, &fb, sizeof(fv));
+  dv = (double)fv;
+  memcpy(&u64, &dv, sizeof(u64));
+  return (int32_t)(u64 >> 32);
+}

@@ -926,7 +926,7 @@
 | `pipeline_typeck_check_block.c` | 312 | typeck check_block 编排切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_region_assign.c` | 450 | typeck region/escape assign-site 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_unary.c` | ~279 | asm ELF unary emit（NEG/LOGNOT/BITNOT + sxt/jz） | ✅ wave133 pure-owned leave；live＝runtime_pipeline_abi pure |
-| `pipeline_asm_emit_as.c` | ~422 | asm ELF as/await/try/float-lit emit（+ public as face）切片 | 🟡 已抽出；thin face wave1014 有则补全；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_as.c` | **0（leave）** | asm ELF as/await/try/float-lit emit（is_await／is_x_as／await_sync／try／float_lit／array_scalar／as_elf） | ✅ wave138 pure-owned leave；live＝runtime_pipeline_abi pure；seed cold twin under #ifndef FROM_X；host 叶已删；float_bits＋glue_arena Cap residual in ast_pool_arena |
 | `pipeline_asm_emit_return.c` | ~643 | asm ELF return emit（slice escape + impl + public face）切片 | 🟡 已抽出；thin face wave1014 有则补全；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_logand.c` | ~102 | asm ELF LOGAND/LOGOR short-circuit emit 切片 | ✅ wave128 pure-owned leave；live＝runtime_pipeline_abi pure；host 叶已删 |
 | `pipeline_asm_emit_block_body.c` | ~809 | asm ELF block body sync emit（defer + body_sync + accessors）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |

@@ -36,7 +36,8 @@
  * domain calls that are defined after this include point. */
 /* wave132: type_size_simple + struct_type_let_init are public Cap residual / pure faces. */
 int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
-static int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena *arena,
+/* wave138 pure leave */
+extern int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             int32_t array_lit_ref, int32_t elem_ref,
                                                             struct backend_AsmFuncCtx *ctx, int32_t ta,

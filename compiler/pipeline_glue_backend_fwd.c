@@ -446,10 +446,13 @@ int32_t pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr
 int32_t pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_binop_right_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
-/* wave1034 G.7: pipeline_expr_float_bits_lo/hi_at folded into
- * pipeline_asm_emit_as.c (same TU #include; no new DEPS). as.c is the
- * sole in-TU leaf consumer (4 callsites); ast_pool.c wrapper is after
- * as.c #include — definition visible, no forward decl needed. */
+/* wave138 Cap residual: pipeline_expr_float_bits_lo/hi_at live in
+ * ast_pool_arena.c (was as.c). Pure float-lit emit Cap residual these faces. */
+/* wave138 Cap residual faces (ast_pool_arena.c). */
+int32_t pipeline_expr_float_bits_lo_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t pipeline_expr_float_bits_hi_at(struct ast_ASTArena *a, int32_t expr_ref);
+struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
+
 int32_t pipeline_expr_struct_lit_num_fields(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_struct_lit_init_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t j);
 int32_t pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref);
@@ -564,7 +567,8 @@ int32_t backend_ctx_push_loop_labels(struct backend_AsmFuncCtx *ctx, uint8_t *ex
 void backend_ctx_pop_loop_labels(struct backend_AsmFuncCtx *ctx);
 
 /** EXPR_RETURN：可选 emit 操作数后 jmp 函数尾汇合标签 tail_join_label。 */
-static int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/* wave138 Cap residual for pure try_propagate. */
+int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** SysV sret 写回（定义见 glue_type_size_simple 之后）。 */
 static int32_t glue_emit_sret_memcpy_rbx_to_home_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t sz,
                                                        int32_t ta);

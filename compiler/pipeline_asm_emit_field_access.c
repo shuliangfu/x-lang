@@ -714,7 +714,8 @@ static int32_t glue_struct_layout_field_offset_by_name_c(struct ast_Module *m, s
                                                           int32_t li, uint8_t *name, int32_t nlen);
 static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name,
                                                         int32_t nlen);
-static struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
+/* wave138: Cap residual in ast_pool_arena.c (non-static). */
+struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
 /* wave1179: pipeline_expr_enum_field_tag_via_module migrated to this file's
  * EOF; fwd decl here so pipeline_expr_enum_namespace_field_tag (also migrated)
  * can call it before its definition. */

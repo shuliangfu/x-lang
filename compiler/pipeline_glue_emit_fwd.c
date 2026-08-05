@@ -53,6 +53,26 @@ extern int32_t glue_enc_jz_after_bool_in_eax(struct platform_elf_ElfCodegenCtx *
                                              int32_t label_len, int32_t ta);
 extern int32_t glue_enc_sxt_i32_result_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 
+/* wave138 pure-owned leave: as/await/try/float-lit ELF faces (was same-TU
+ * pipeline_asm_emit_as.c). Residual expr_rec / binop / block_body / struct_lit
+ * / array_lit call these pure symbols. PLATFORM: SHARED freestanding emit. */
+extern int32_t glue_expr_is_await_at_c(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t glue_expr_is_x_as_cast_at_c(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_emit_await_sync_elf_impl(struct ast_ASTArena *arena,
+                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                     struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_try_propagate_elf_impl(struct ast_ASTArena *arena,
+                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                        struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t glue_emit_float_lit_to_rax_elf_c(struct ast_ASTArena *arena,
+                                                 struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                 int32_t ta, int32_t force_ty_ref, int32_t call_abi_widen_f64);
+extern int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                             int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_as_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+
+
 /* wave134 pure-owned leave: MATCH/EXPR_IF + subject context (was same-TU
  * pipeline_asm_emit_match.c). Residual expr_rec (MATCH/IF ko) + host-C
  * codegen_gen seed call pure symbols. PLATFORM: SHARED freestanding emit. */

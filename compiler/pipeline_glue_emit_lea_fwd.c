@@ -40,8 +40,9 @@
 #define GLUE_ARRAY_LIT_MAX_ELEMS 1024
 #define GLUE_ARRAY_LIT_MAX_PAYLOAD 4096
 
-/* wave647: ARRAY_LIT scalar elem -> rax (FLOAT_LIT force_ty for f32 pack). Def later. */
-static int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena *arena,
+/* wave138 pure-owned leave: ARRAY_LIT scalar elem lives in runtime_pipeline_abi pure
+ * (was static same-TU in pipeline_asm_emit_as.c). PLATFORM: SHARED freestanding emit. */
+extern int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             int32_t array_lit_ref, int32_t elem_ref,
                                                             struct backend_AsmFuncCtx *ctx, int32_t ta,

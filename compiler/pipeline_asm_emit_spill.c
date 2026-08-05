@@ -2346,7 +2346,8 @@ static int32_t glue_index_reload_scratch_slot_to_rbx_elf_c(struct platform_elf_E
 }
 
 /** Pop all INDEX scratch spills (LIFO) and clear cache metadata. */
-static int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+/* wave138 Cap residual for pure try_propagate leave: non-static face. */
+int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   while (glue_index_scratch_stack_depth > 0) {
     if (glue_enc_pop_index_scratch_stack_arm64_elf_c(elf_ctx, ta) != 0)
       return -1;

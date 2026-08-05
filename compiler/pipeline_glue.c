@@ -173,8 +173,21 @@ extern int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegen
  * match/fold call pure faces via emit_fwd extern decls — do not re-open a
  * second unary ELF face (G.7). PLATFORM: SHARED freestanding emit. */
 
-/* BC 8.3.1: asm ELF as/await/try/float-lit emit domain (same TU). */
-#include "pipeline_asm_emit_as.c"
+/* wave138 pure-owned leave: pipeline_asm_emit_as.c deleted.
+ * live = runtime_pipeline_abi pure (is_await / is_x_as_cast / await_sync /
+ * try_propagate / float_lit / array_scalar / as_elf_impl / as_elf_c);
+ * seed cold twins under #ifndef FROM_X. Cap residual float_bits + glue_arena
+ * in ast_pool_arena.c; residual expr_rec/binop/block_body/struct_lit/array_lit
+ * call pure faces via emit_fwd/lea_fwd extern decls — do not re-open a second
+ * EXPR_AS ELF face (G.7). PLATFORM: SHARED freestanding emit. */
+/* wave138: expr-kind ordinal macros kept in residual shell (was as.c header).
+ * C AWAIT=54 / X EXPR_AS=54 collision; X EXPR_AWAIT=55; TRY_PROPAGATE 57/58;
+ * STRING_LIT=59. Residual typeck_assign / check_expr / expr_rec consume these. */
+#define GLUE_EXPR_KIND_ORD54 54
+#define GLUE_EXPR_KIND_X_AWAIT 55
+#define GLUE_EXPR_KIND_TRY_PROPAGATE 58
+#define GLUE_EXPR_KIND_C_TRY_PROPAGATE 57
+#define GLUE_EXPR_STRING_LIT_ORD 59
 
 /* wave131 pure-owned leave: pipeline_asm_emit_async_cps.c deleted.
  * live = runtime_pipeline_abi pure (after_await + phase_reset + entry + end_func

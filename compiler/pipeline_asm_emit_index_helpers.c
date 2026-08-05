@@ -1404,7 +1404,8 @@ static int32_t glue_index_minus_pair_cache_spill_after_sub_elf_c(struct ast_ASTA
                                                                   int32_t j_ref, int32_t ta);
 static int32_t glue_index_reload_scratch_slot_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                      int32_t slot_depth);
-static int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/* wave138 Cap residual (non-static; def spill.c). */
+int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 static int32_t glue_index_subadd3_sum_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                  int32_t i_ref, int32_t j_ref, int32_t k_ref, int32_t ta);
 static int32_t glue_index_reload_scratch_slot_to_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
@@ -1811,7 +1812,8 @@ static int32_t glue_index_minus_pair_cache_spill_after_sub_elf_c(struct ast_ASTA
                                                                   int32_t j_ref, int32_t ta);
 static int32_t glue_index_minus_pair_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                 int32_t i_ref, int32_t j_ref, int32_t ta);
-static int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/* wave138 Cap residual (non-static; def spill.c). */
+int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 static int32_t glue_index_subadd3_spill_pop_top_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 static int32_t glue_index_reload_scratch_slot_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                      int32_t slot_depth);

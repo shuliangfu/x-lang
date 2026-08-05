@@ -4,6 +4,7 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave138: pipeline_asm_emit_as.c pure-owned leave (as/await/try/float-lit faces).
 // wave137: pipeline_asm_emit_cmp.c pure-owned leave (cmp_elf + cc + typekind + arm64_cset).
 // wave136: pipeline_asm_emit_fold_primitives.c pure-owned leave (13 fold detectors).
 // wave135: pipeline_asm_emit_x86_enc_helpers.c pure-owned leave (27 glue_enc_x86_*
@@ -657,7 +658,9 @@ export extern "C" function pipeline_expr_call_num_args_at(arena: *u8, expr_ref: 
 export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
 export extern "C" function glue_expr_is_func_param_at_c(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32;
 export extern "C" function glue_fold_func_return_operand_ref_c(arena: *u8, mod: *u8, func_idx: i32): i32;
-export extern "C" function glue_expr_is_x_as_cast_at_c(arena: *u8, expr_ref: i32): i32;
+// wave138: glue_expr_is_x_as_cast_at_c is pure export (#[no_mangle]) — was Cap residual for
+// fold_primitives leave when as.c still host-cc; do not re-declare export extern "C" or
+// pure call sites mangle to _glue_expr_is_x_as_cast_at_c_u8_ptr_i32_reti32 (G.7 single face).
 // wave137 Cap residual: cmp pure leave callees (operand placement + encoders + CTFE accessors).
 // PLATFORM: SHARED freestanding emit — pure owns CMP ELF + typekind tag + cc maps.
 export extern "C" function pipeline_expr_const_folded_valid_at(arena: *u8, expr_ref: i32): i32;
@@ -670,6 +673,31 @@ export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function backend_enc_ucomisd_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_ucomiss_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32;
+// wave138 Cap residual: as pure leave callees (pool float bits + IEEE pack +
+// cast encoders + try cleanup + as target type + array lit elem type).
+// PLATFORM: SHARED freestanding emit — pure owns as/await/try/float-lit faces.
+export extern "C" function pipeline_expr_float_bits_lo_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_float_bits_hi_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function glue_ieee_f64_bits_to_f32_bits(lo: i32, hi: i32): i32;
+export extern "C" function glue_ieee_f32_bits_to_f64_lo(fb: i32): i32;
+export extern "C" function glue_ieee_f32_bits_to_f64_hi(fb: i32): i32;
+export extern "C" function pipeline_expr_as_target_type_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_asm_array_lit_elem_type_ref(arena: *u8, array_lit_expr_ref: i32): i32;
+export extern "C" function glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function arch_x86_64_enc_enc_test_edx_edx(elf_ctx: *u8): i32;
+export extern "C" function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cvttss2si_rax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cvttsd2si_rax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cvtsi2ss_eax_from_u64_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cvtsi2sd_rax_from_u64_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32;
+
 export extern "C" function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32;
 export extern "C" function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern "C" function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
@@ -26857,4 +26885,683 @@ export function pipeline_asm_emit_cmp_elf(arena: *u8, elf_ctx: *u8, cmp_expr_ref
     return 0 - 1;
   }
   return glue_emit_cmp_finish_rbx_rax_elf_c(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+}
+
+// ---------------------------------------------------------------------------
+// wave138: pipeline_asm_emit_as pure-owned leave
+// (was pipeline_asm_emit_as.c).
+// G.7 product authority for:
+//   glue_expr_is_await_at_c
+//   glue_expr_is_x_as_cast_at_c
+//   pipeline_asm_emit_await_sync_elf_impl
+//   pipeline_asm_emit_try_propagate_elf_impl
+//   glue_emit_float_lit_to_rax_elf_c
+//   glue_array_lit_emit_scalar_elem_to_rax_elf_c
+//   pipeline_asm_emit_as_elf_impl
+//   pipeline_asm_emit_as_elf_c
+// Cap residual: float_bits lo/hi + IEEE pack + emit_expr_elf_c + cast encoders
+//   + as_target/array_lit_elem_type + index_scratch cleanup + test_edx +
+//   f32/f64 classifiers + next_label + ctx_layout tail_join + phase_reset +
+//   elf_ctx_append_bytes.
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED freestanding cast · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect await expression (X EXPR_AWAIT=55 or C ord-54 non-as).
+ * @param arena *u8 - ASTArena*
+ * @param expr_ref i32 - candidate expr
+ * @return i32 - 1 if await; 0 otherwise
+ * wave138 pure: G.7 authority (was static in as.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_expr_is_await_at_c(arena: *u8, expr_ref: i32): i32 {
+  let ko: i32 = 0;
+  let uop: i32 = 0;
+  if (arena == 0 as *u8 || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  // GLUE_EXPR_KIND_X_AWAIT = 55
+  if (ko == 55) {
+    unsafe {
+      uop = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    }
+    if (uop > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  // GLUE_EXPR_KIND_ORD54 = 54
+  if (ko != 54) {
+    return 0;
+  }
+  unsafe {
+    if (pipeline_expr_as_target_type_ref_at(arena, expr_ref) > 0) {
+      return 0;
+    }
+    if (pipeline_expr_as_operand_ref_at(arena, expr_ref) > 0) {
+      return 0;
+    }
+    uop = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  }
+  if (uop > 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Detect X pool EXPR_AS (kind 54 + as_operand; not C await).
+ * @param arena *u8 - ASTArena*
+ * @param expr_ref i32 - candidate expr
+ * @return i32 - 1 if as-cast; 0 otherwise
+ * wave138 pure: G.7 authority (was as.c; wave136 Cap residual face).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_expr_is_x_as_cast_at_c(arena: *u8, expr_ref: i32): i32 {
+  let ko: i32 = 0;
+  let as_op: i32 = 0;
+  if (arena == 0 as *u8 || expr_ref <= 0) {
+    return 0;
+  }
+  if (glue_expr_is_await_at_c(arena, expr_ref) != 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  // EXPR_AS = 54 (X); also accept ORD54
+  if (ko != 54) {
+    return 0;
+  }
+  unsafe {
+    as_op = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+  }
+  if (as_op > 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * WPO-S3 await sync stub: eval unary operand (no CPS suspend).
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - await expr
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 failure
+ * wave138 pure: G.7 authority (was static await_sync_elf_impl).
+ * Cap residual: pipeline_asm_emit_expr_elf_c.
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_await_sync_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let op: i32 = 0;
+  let rc: i32 = 0;
+  unsafe {
+    op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  }
+  if (op <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+  }
+  return rc;
+}
+
+/**
+ * ERR-01 Result `?` propagate: eval operand; err!=0 → cleanup + jmp tail_join.
+ * Ok payload remains in eax/w0.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - TRY_PROPAGATE expr
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 failure
+ * wave138 pure: G.7 authority (was static try_propagate_elf_impl).
+ * Cap residual: emit_expr + test_edx/test_rbx + jz/jmp/label + next_label +
+ *   index_scratch cleanup + phase_reset + ctx_layout tail_join@1392/1520.
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_try_propagate_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let op: i32 = 0;
+  let ok_lbl: u8[128] = [];
+  let ok_len: i32 = 0;
+  let rc: i32 = 0;
+  let ly: *u8 = 0 as *u8;
+  let tj_len: i32 = 0;
+  let tj_lbl: u8[128] = [];
+  let tk: i32 = 0;
+  unsafe {
+    op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  }
+  if (op <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ok_len = pipeline_asm_emit_next_label_c(ctx, &ok_lbl[0], 128);
+  }
+  if (ok_len <= 0) {
+    return 0 - 1;
+  }
+  // Second slot err: x86 edx; arm64/riscv via test_rbx (w1/a1)
+  if (ta == 0) {
+    unsafe {
+      rc = arch_x86_64_enc_enc_test_edx_edx(elf_ctx);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  } else {
+    unsafe {
+      rc = backend_enc_test_rbx_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    rc = backend_enc_jz_arch(elf_ctx, &ok_lbl[0], ok_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = glue_async_cps_emit_phase_reset(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (ly == 0 as *u8) {
+    return 0 - 1;
+  }
+  tj_len = pipe_load_i32_le(ly, 1520);
+  if (tj_len <= 0) {
+    return 0 - 1;
+  }
+  tk = 0;
+  while (tk < tj_len && tk < 128) {
+    unsafe {
+      tj_lbl[tk] = ly[1392 + tk];
+    }
+    tk = tk + 1;
+  }
+  unsafe {
+    rc = backend_enc_jmp_arch(elf_ctx, &tj_lbl[0], tj_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &ok_lbl[0], ok_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Emit FLOAT_LIT to rax/x0; force TYPE_F32 → 32-bit IEEE bits.
+ * call_abi_widen_f64: CALL 8B int-reg slot needs f64 bits after f32 convert.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - FLOAT_LIT expr
+ * @param ta i32 - target arch
+ * @param force_ty_ref i32 - optional TYPE_F32 force (0 → resolved)
+ * @param call_abi_widen_f64 i32 - non-zero → widen f32 pack to f64 bits
+ * @return i32 - 0 ok; -1 failure
+ * wave138 pure: G.7 authority (was static glue_emit_float_lit_to_rax_elf_c).
+ * Cap residual: float_bits + IEEE pack + mov_imm32/imm64.
+ * PLATFORM: SHARED freestanding float lit emit.
+ */
+#[no_mangle]
+export function glue_emit_float_lit_to_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32, force_ty_ref: i32, call_abi_widen_f64: i32): i32 {
+  let lo: i32 = 0;
+  let hi: i32 = 0;
+  let tr: i32 = 0;
+  let tk: i32 = 0;
+  let fb: i32 = 0;
+  let rc: i32 = 0;
+  unsafe {
+    lo = pipeline_expr_float_bits_lo_at(arena, expr_ref);
+    hi = pipeline_expr_float_bits_hi_at(arena, expr_ref);
+  }
+  if (force_ty_ref > 0) {
+    tr = force_ty_ref;
+  } else {
+    unsafe {
+      tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    }
+  }
+  // TYPE_F32 kind ordinal in residual C path is 14 (type_kind_ord_at)
+  if (tr > 0) {
+    unsafe {
+      tk = pipeline_type_kind_ord_at(arena, tr);
+    }
+    if (tk == 14) {
+      unsafe {
+        fb = glue_ieee_f64_bits_to_f32_bits(lo, hi);
+      }
+      if (call_abi_widen_f64 != 0) {
+        unsafe {
+          lo = glue_ieee_f32_bits_to_f64_lo(fb);
+          hi = glue_ieee_f32_bits_to_f64_hi(fb);
+          rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+        }
+        return rc;
+      }
+      unsafe {
+        rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, fb, ta);
+      }
+      return rc;
+    }
+  }
+  unsafe {
+    rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+  }
+  return rc;
+}
+
+/**
+ * Emit one ARRAY_LIT scalar element to rax (f32 pack when force_esz==4).
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param array_lit_ref i32 - parent ARRAY_LIT
+ * @param elem_ref i32 - element expr
+ * @param ctx *u8 - AsmFuncCtx* (required for non-lit)
+ * @param ta i32 - target arch
+ * @param force_esz i32 - formal element bytes (4→f32 pack)
+ * @return i32 - 0 ok; -1 failure
+ * wave138 pure: G.7 authority (was static array_lit_emit_scalar_elem).
+ * PLATFORM: SHARED freestanding array pack.
+ */
+#[no_mangle]
+export function glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena: *u8, elf_ctx: *u8, array_lit_ref: i32, elem_ref: i32, ctx: *u8, ta: i32, force_esz: i32): i32 {
+  let eko: i32 = 0;
+  let ety: i32 = 0;
+  let ek: i32 = 0;
+  let lo: i32 = 0;
+  let hi: i32 = 0;
+  let fb: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || elem_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    eko = pipeline_expr_kind_ord_at(arena, elem_ref);
+  }
+  // EXPR_FLOAT_LIT = 1
+  if (eko == 1) {
+    unsafe {
+      ety = pipeline_asm_array_lit_elem_type_ref(arena, array_lit_ref);
+    }
+    if (ety > 0) {
+      unsafe {
+        ek = pipeline_type_kind_ord_at(arena, ety);
+      }
+    } else {
+      ek = 0 - 1;
+    }
+    // TYPE_F32=14 TYPE_F64=15
+    if (ek == 14 || ek == 15) {
+      return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, elem_ref, ta, ety, 0);
+    }
+    if (force_esz == 4) {
+      unsafe {
+        lo = pipeline_expr_float_bits_lo_at(arena, elem_ref);
+        hi = pipeline_expr_float_bits_hi_at(arena, elem_ref);
+        fb = glue_ieee_f64_bits_to_f32_bits(lo, hi);
+        rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, fb, ta);
+      }
+      return rc;
+    }
+    return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, elem_ref, ta, 0, 0);
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta);
+  }
+  return rc;
+}
+
+/**
+ * Product-mega freestanding EXPR_AS ELF face (int/float cast family).
+ * Routes await via sync stub; float-lit f32 force_ty; float↔int / int↔float / f32↔f64.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - AS or await expr
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 failure
+ * wave138 pure: G.7 authority (was pipeline_asm_emit_as_elf_impl).
+ * Cap residual: emit_expr_elf_c + cast encoders + f32/f64 classifiers +
+ *   float_lit face + elf append (u32 zext mov eax,eax).
+ * PLATFORM: SHARED freestanding cast emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let op: i32 = 0;
+  let tgt: i32 = 0;
+  let tgt_kind: i32 = 0;
+  let src_tr: i32 = 0;
+  let src_kind: i32 = 0;
+  let op_ko: i32 = 0;
+  let src_is_f32: i32 = 0;
+  let src_is_f64: i32 = 0;
+  let rc: i32 = 0;
+  let mov_eax: u8[2] = [];
+  if (glue_expr_is_await_at_c(arena, expr_ref) != 0) {
+    return pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  }
+  unsafe {
+    op = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+  }
+  if (op == 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    tgt = pipeline_expr_as_target_type_ref_at(arena, expr_ref);
+  }
+  if (tgt > 0) {
+    unsafe {
+      tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
+      op_ko = pipeline_expr_kind_ord_at(arena, op);
+    }
+    // f32 target + FLOAT_LIT force_ty
+    if (tgt_kind == 14 && op_ko == 1) {
+      return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, op, ta, tgt, 0);
+    }
+  }
+  // float → integer truncate
+  if (tgt > 0) {
+    unsafe {
+      tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
+      src_tr = pipeline_expr_resolved_type_ref(arena, op);
+    }
+    if (src_tr > 0) {
+      unsafe {
+        src_kind = pipeline_type_kind_ord_at(arena, src_tr);
+      }
+    } else {
+      src_kind = 0 - 1;
+    }
+    unsafe {
+      op_ko = pipeline_expr_kind_ord_at(arena, op);
+    }
+    src_is_f32 = 0;
+    src_is_f64 = 0;
+    if (src_kind == 14) {
+      src_is_f32 = 1;
+    }
+    if (src_kind == 15 || (src_kind <= 0 && op_ko == 1)) {
+      src_is_f64 = 1;
+    }
+    if (src_is_f64 == 0) {
+      unsafe {
+        if (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op) != 0) {
+          src_is_f64 = 1;
+        }
+      }
+    }
+    if (src_is_f32 != 0 || src_is_f64 != 0) {
+      if (tgt_kind == 0 || tgt_kind == 3) {
+        unsafe {
+          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        if (src_is_f32 != 0) {
+          unsafe {
+            rc = backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx, ta);
+          }
+          return rc;
+        }
+        unsafe {
+          rc = backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx, ta);
+        }
+        return rc;
+      }
+      if (tgt_kind == 4 || tgt_kind == 5 || tgt_kind == 6 || tgt_kind == 7) {
+        unsafe {
+          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        if (src_is_f32 != 0) {
+          unsafe {
+            rc = backend_enc_cvttss2si_rax_from_f32_bits_arch(elf_ctx, ta);
+          }
+          return rc;
+        }
+        unsafe {
+          rc = backend_enc_cvttsd2si_rax_from_f64_bits_arch(elf_ctx, ta);
+        }
+        return rc;
+      }
+    }
+  }
+  // integer → f32
+  if (tgt > 0) {
+    unsafe {
+      tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
+    }
+    if (tgt_kind == 14) {
+      unsafe {
+        src_tr = pipeline_expr_resolved_type_ref(arena, op);
+      }
+      if (src_tr > 0) {
+        unsafe {
+          src_kind = pipeline_type_kind_ord_at(arena, src_tr);
+        }
+        if (src_kind == 0 || src_kind == 2 || src_kind == 8) {
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx, ta);
+          }
+          return rc;
+        }
+        if (src_kind == 3) {
+          mov_eax[0] = 137 as u8; // 0x89
+          mov_eax[1] = 192 as u8; // 0xc0
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = pipeline_elf_ctx_append_bytes(elf_ctx, &mov_eax[0], 2);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx, ta);
+          }
+          return rc;
+        }
+        if (src_kind == 4 || src_kind == 6) {
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_cvtsi2ss_eax_from_u64_arch(elf_ctx, ta);
+          }
+          return rc;
+        }
+        if (src_kind == 5 || src_kind == 7) {
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx, ta);
+          }
+          return rc;
+        }
+        if (src_kind == 15) {
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx, ta);
+          }
+          return rc;
+        }
+        unsafe {
+          if (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op) != 0) {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            rc = backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx, ta);
+            return rc;
+          }
+        }
+      }
+    }
+  }
+  // integer → f64
+  if (tgt > 0) {
+    unsafe {
+      tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
+    }
+    if (tgt_kind == 15) {
+      unsafe {
+        src_tr = pipeline_expr_resolved_type_ref(arena, op);
+      }
+      if (src_tr > 0) {
+        unsafe {
+          src_kind = pipeline_type_kind_ord_at(arena, src_tr);
+        }
+        if (src_kind == 4 || src_kind == 6) {
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_cvtsi2sd_rax_from_u64_arch(elf_ctx, ta);
+          }
+          return rc;
+        }
+        if (src_kind == 5 || src_kind == 7) {
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx, ta);
+          }
+          return rc;
+        }
+        if (src_kind == 3) {
+          mov_eax[0] = 137 as u8;
+          mov_eax[1] = 192 as u8;
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = pipeline_elf_ctx_append_bytes(elf_ctx, &mov_eax[0], 2);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx, ta);
+          }
+          return rc;
+        }
+        if (src_kind == 0 || src_kind == 2 || src_kind == 8) {
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx, ta);
+          }
+          return rc;
+        }
+        if (src_kind == 14) {
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta);
+          }
+          return rc;
+        }
+      }
+    }
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+  }
+  return rc;
+}
+
+/**
+ * Public EXPR_AS ELF face (thin delegate to as_elf_impl).
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - AS expr
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 failure
+ * wave138 pure: G.7 authority (was pipeline_asm_emit_as_elf_c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_as_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  return pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
 }
