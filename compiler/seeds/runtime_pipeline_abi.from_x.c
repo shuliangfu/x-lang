@@ -24935,5 +24935,17 @@ void glue_asm73_compute_spill_color_chaitin(int32_t peak_i, const void *peak_liv
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/*
+ * wave165 cold twin: glue_asm73_compute_spill_color_pins.
+ * Freestanding-safe no-op stub. Hybrid product links pure.
+ * PLATFORM: SHARED.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+void glue_asm73_compute_spill_color_pins(void) {
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

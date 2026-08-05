@@ -1016,7 +1016,7 @@ export extern "C" function glue_live_fwd_add_u8(live: *u8, off: i32): void;
 export extern "C" function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_ref: i32, j: i32): i32;
 export extern "C" function glue_block_compute_cfg_peak_live_and_color(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32): void;
 export extern "C" function glue_block_compute_linear_live_in(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32): void;
-export extern "C" function glue_asm73_compute_spill_color_pins(): void;
+/* wave165: pure owns glue_asm73_compute_spill_color_pins (#[no_mangle] below). */
 export extern "C" function glue_asm73_clear_spill_color_map(): void;
 export extern "C" function glue_block_live_fwd_before_stmt(stmt_i: i32, ta: i32, elf_ctx: *u8): void;
 export extern "C" function glue_block_live_fwd_apply_top_stmt(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32, stmt_i: i32): void;
@@ -1033,6 +1033,11 @@ export extern "C" function glue_asm73_set_spill_color(off: i32, which: i32): voi
 export extern "C" function glue_asm73_off_spill_color_which(off: i32): i32;
 export extern "C" function glue_asm73_pin_spill_off_set(which: i32, off: i32): void;
 /* wave164: pure owns glue_asm73_compute_spill_color_chaitin (#[no_mangle] below). */
+/* wave165 Cap residual: thin faces for pure linear interf-build color pins. */
+export extern "C" function glue_asm73_interf_clear(): void;
+export extern "C" function glue_asm73_interf_add_live_at_stmt(stmt_i: i32): void;
+export extern "C" function glue_asm73_live_at_stmt_n_get(stmt_i: i32): i32;
+export extern "C" function glue_asm73_live_at_stmt_as_u8(stmt_i: i32): *u8;
 export extern "C" function glue_binop_var_slot_cache_valid_x10_get(): i32;
 export extern "C" function glue_binop_var_slot_cache_valid_x11_get(): i32;
 export extern "C" function glue_binop_var_slot_cache_valid_x12_get(): i32;
@@ -53239,3 +53244,62 @@ export function glue_asm73_compute_spill_color_chaitin(peak_i: i32, peak_live: *
 }
 
 // end wave164 pure-owned leave
+
+// ============================================================================
+// wave165 pure-owned leave: glue_asm73_compute_spill_color_pins
+// (was Cap residual spill; linear interf build + peak pick + pure chaitin).
+// Cap residual: interf BSS + live_at_stmt[] + thin clear / add_live_at_stmt /
+// live_at_stmt_n_get / live_at_stmt_as_u8.
+// Cold twin under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * Linear-block spill coloring entry: rebuild interf from live_at_stmt[0..nso),
+ * pick peak-|live| stmt, then call pure Chaitin color+pin (wave164).
+ * No-op when peak |live| < 2 (matches former residual early return).
+ * @return void
+ * wave165 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_compute_spill_color_pins(): void {
+  let nso: i32 = 0;
+  let i: i32 = 0;
+  let peak: i32 = 0;
+  let peak_i: i32 = 0;
+  let n: i32 = 0;
+  let live: *u8 = 0 as *u8;
+  unsafe {
+    glue_asm73_interf_clear();
+    nso = glue_asm73_linear_nso_get();
+  }
+  if (nso <= 0) {
+    return;
+  }
+  // Cap residual caches at most 32 stmt live sets.
+  if (nso > 32) {
+    nso = 32;
+  }
+  i = 0;
+  while (i < nso) {
+    unsafe {
+      glue_asm73_interf_add_live_at_stmt(i);
+      n = glue_asm73_live_at_stmt_n_get(i);
+    }
+    if (n > peak) {
+      peak = n;
+      peak_i = i;
+    }
+    i = i + 1;
+  }
+  if (peak < 2) {
+    return;
+  }
+  unsafe {
+    live = glue_asm73_live_at_stmt_as_u8(peak_i);
+    glue_asm73_compute_spill_color_chaitin(peak_i, live);
+  }
+}
+
+// end wave165 pure-owned leave

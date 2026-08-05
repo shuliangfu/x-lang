@@ -1327,7 +1327,8 @@ extern int32_t glue_enc_x86_imul_eax_eax(struct platform_elf_ElfCodegenCtx *elf_
  * glue_live_fwd_apply_expr_effect (wave161 pure) +
  * pipeline_asm_emit_break/continue_elf_c (wave162 pure) +
  * glue_binop_cache_intersect_live_fwd (wave163 pure) +
- * glue_asm73_compute_spill_color_chaitin (wave164 pure));
+ * glue_asm73_compute_spill_color_chaitin (wave164 pure) +
+ * glue_asm73_compute_spill_color_pins (wave165 pure));
  * unary.c L1319 (glue_enc_jz_after_bool_in_eax); array_lit.c L1551 +
  * expr_rec.c L1689 (pipeline_asm_emit_expr_elf_rec static def);
  * glue_try_fold_* / backend_try_fold_count_up_while_elf in THIS file above;

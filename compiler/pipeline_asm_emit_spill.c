@@ -50,13 +50,18 @@
  * wave164 pure-owned Chaitin K=6 coloring core (same pure TU):
  *   · glue_asm73_compute_spill_color_chaitin
  * Residual keeps interf graph BSS + pin/color maps + next-use scan +
- * thin interf/pin/color/nso accessors; compute_spill_color_pins / cfg peak
- * still residual (build graph then call pure color).
+ * thin interf/pin/color/nso accessors.
+ *
+ * wave165 pure-owned linear interf-build + peak + color pins (same pure TU):
+ *   · glue_asm73_compute_spill_color_pins
+ * Residual keeps interf BSS + live_at_stmt[] + thin clear/add_live_at_stmt /
+ * live_at_stmt_n / live_at_stmt_as_u8; cfg peak path still residual
+ * (simulate + note_cfg_live_peak then pure chaitin).
  *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
  *   · 7.3 live_fwd BSS / break-continue note + push/pop
- *   · Chaitin interf build + stack-spill preference + evict
+ *   · Chaitin interf BSS + cfg interf build + stack-spill preference + evict
  *   · index scratch spill methods + binop_stack_spill bodies
  *     (CAP statics in pipeline_asm_emit_index_helpers.c)
  *
@@ -133,6 +138,10 @@ void glue_binop_cache_intersect_live_fwd(void);
 /* wave164 pure-owned face (extern; live in runtime_pipeline_abi pure).
  * Residual: interf BSS + pin/color maps + next-use + thin accessors. PLATFORM: SHARED. */
 void glue_asm73_compute_spill_color_chaitin(int32_t peak_i, const void *peak_live);
+
+/* wave165 pure-owned face (extern; live in runtime_pipeline_abi pure).
+ * Residual: interf BSS + live_at_stmt + thin clear/add/n/as_u8. PLATFORM: SHARED. */
+void glue_asm73_compute_spill_color_pins(void);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -669,8 +678,12 @@ static int32_t glue_asm73_interf_stack_n[GLUE_ASM73_INTERF_STACK_DEPTH];
 static int32_t glue_asm73_interf_stack_off[GLUE_ASM73_INTERF_STACK_DEPTH][GLUE_ASM73_INTERF_MAX];
 static uint32_t glue_asm73_interf_stack_adj[GLUE_ASM73_INTERF_STACK_DEPTH][GLUE_ASM73_INTERF_MAX];
 
-/** 清空干涉图（块入口着色前调用）。 */
-static void glue_asm73_interf_clear(void) {
+/**
+ * Clear interference graph (block entry / pure linear color pins).
+ * wave165 Cap residual: non-static face for pure compute_spill_color_pins.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_asm73_interf_clear(void) {
   glue_asm73_interf_n = 0;
 }
 
@@ -1263,28 +1276,8 @@ int32_t glue_asm73_off_spill_color_which(int32_t off) {
 }
 
 /* wave164: pure owns glue_asm73_compute_spill_color_chaitin (extern above).
- * Residual builds interf graph then calls pure coloring. PLATFORM: SHARED. */
-
-/** 7.3 线性块：全块 live_in 建干涉图后 Chaitin 着色。 */
-void glue_asm73_compute_spill_color_pins(void) {
-  int32_t peak;
-  int32_t peak_i;
-  int32_t i;
-  glue_asm73_interf_clear();
-  for (i = 0; i < glue_asm73_linear_nso; i++)
-    glue_asm73_interf_add_live_set(&glue_block_live_at_stmt[i]);
-  peak = 0;
-  peak_i = 0;
-  for (i = 0; i < glue_asm73_linear_nso; i++) {
-    if (glue_block_live_at_stmt[i].n > peak) {
-      peak = glue_block_live_at_stmt[i].n;
-      peak_i = i;
-    }
-  }
-  if (peak < 2)
-    return;
-  glue_asm73_compute_spill_color_chaitin(peak_i, &glue_block_live_at_stmt[peak_i]);
-}
+ * wave165: pure owns glue_asm73_compute_spill_color_pins (linear interf build
+ * + peak pick + pure chaitin). Residual: BSS + thin faces. PLATFORM: SHARED. */
 
 /** 返回 spill 槽 which（0=x10…5=x15）当前保存的栈 off；-1 表示空。 */
 static int32_t glue_asm73_spill_slot_held_off(int32_t which) {
@@ -2454,4 +2447,44 @@ void glue_asm73_pin_spill_off_set(int32_t which, int32_t off) {
   if (which < 0 || which > 5)
     return;
   glue_asm73_pin_spill_off[which] = off;
+}
+
+/* ========================================================================== *
+ * wave165 Cap residual: thin faces for pure linear interf-build color pins.
+ * Pure owns glue_asm73_compute_spill_color_pins; residual owns live_at_stmt[]
+ * BSS + interf_add_live_set (G.7). PLATFORM: SHARED freestanding 7.3.
+ * ========================================================================== */
+
+/**
+ * Add undirected interf edges for all pairs in precomputed live_at_stmt[stmt_i].
+ * @param stmt_i int32_t - linear stmt index 0..nso-1; OOB → no-op
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_asm73_interf_add_live_at_stmt(int32_t stmt_i) {
+  if (stmt_i < 0 || stmt_i >= 32)
+    return;
+  glue_asm73_interf_add_live_set(&glue_block_live_at_stmt[stmt_i]);
+}
+
+/**
+ * |live| at precomputed live_at_stmt[stmt_i].
+ * @param stmt_i int32_t - 0..31; OOB → 0
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_asm73_live_at_stmt_n_get(int32_t stmt_i) {
+  if (stmt_i < 0 || stmt_i >= 32)
+    return 0;
+  return glue_block_live_at_stmt[stmt_i].n;
+}
+
+/**
+ * Opaque pointer to glue_block_live_at_stmt[stmt_i] for pure chaitin peak_live.
+ * @param stmt_i int32_t - 0..31; OOB → null
+ * @return void* - GlueBlockLiveFwd* or null
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void *glue_asm73_live_at_stmt_as_u8(int32_t stmt_i) {
+  if (stmt_i < 0 || stmt_i >= 32)
+    return (void *)0;
+  return (void *)&glue_block_live_at_stmt[stmt_i];
 }
