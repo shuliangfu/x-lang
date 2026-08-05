@@ -35,10 +35,12 @@
 //   XLANG_WEAK cold twin. Closes Cap residual parse_into_buf leaf under load_import.
 // wave95: pure pipeline_resolve_path_x / pipeline_read_file_x /
 //   pipeline_preprocess_loaded_into_ctx orch under wave94 pure load_import;
-//   Cap residual try_one_lib_root / try_entry_dir / path+loaded buf accessors /
-//   set_loaded_len / preprocess_x_buf + pure preprocess_len store; parse_into_buf
-//   wave96→pure. 2026-08-05: host-cc pipeline_import_bind.c retired (pure-owned
-//   WEAK + remaining strongs pure-complete → whole-file delete-only leave).
+//   Cap residual try_one_lib_root / try_entry_dir (pipeline.x product surface) /
+//   path+loaded buf accessors / set_loaded_len / preprocess_x_buf + pure
+//   preprocess_len store; parse_into_buf wave96→pure. 2026-08-05: host-cc
+//   pipeline_import_bind.c retired (pure-owned leave). wave105: host-cc
+//   pipeline_resolve_path.c pure-owned leave (path_append_*_c / probe / flat /
+//   off-sidecar / codegen_out_buf_* / resolve_path_x_impl_c|_c).
 //   Closes Cap residual resolve/read/pp leaves.
 // wave94: pure pipeline_load_import_from_disk_c orch + pure
 //   pipeline_sync_dep_slots_from_driver_c orch + same-TU pure
@@ -265,6 +267,16 @@ export extern "C" function pipeline_dep_ctx_path_buf_ptr(ctx: *u8): *u8;
 export extern "C" function pipeline_dep_ctx_loaded_buf_ptr(ctx: *u8): *u8;
 export extern "C" function pipeline_dep_ctx_set_loaded_len(ctx: *u8, n: i64): void;
 export extern "C" function xlang_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
+// wave105 resolve_path pure-owned leave Cap residual (dep_ctx path byte + entry_dir +
+//   lib_root copy + fs open/close). PRODUCT: pipeline_x / std.fs strong; pure only calls.
+// PLATFORM: SHARED — sole host-cc body retired with pipeline_resolve_path.c.
+export extern "C" function pipeline_dep_ctx_set_path_buf_byte(ctx: *u8, off: i32, b: u8): void;
+export extern "C" function pipeline_dep_ctx_entry_dir_len(ctx: *u8): i32;
+export extern "C" function pipeline_dep_ctx_entry_dir_copy(ctx: *u8, dst: *u8, cap: i32): void;
+export extern "C" function pipeline_copy_lib_root_to_buf256(ctx: *u8, lib_idx: i32, dst: *u8): i32;
+export extern "C" function pipeline_ctx_lib_root_count(ctx: *u8): i32;
+export extern "C" function std_fs_fs_open_read(path: *u8): i32;
+export extern "C" function std_fs_fs_close(fd: i32): i32;
 // wave95 Cap residual under pure load_import orch (arena/prep ptr accessors).
 // wave96: pipeline_parse_into_buf is pure export function below (not export-extern).
 export extern "C" function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
@@ -4839,6 +4851,11 @@ let g_pipe_emit_lens: i32[2048] = [];
 let g_pipe_qual_n: i32 = 0;
 let g_pipe_qual_rows: u8[2048] = [];
 let g_pipe_qual_lens: i32[32] = [];
+
+// wave105 pure resolve_path leave (was pipeline_resolve_path.c host-cc residual).
+// PLATFORM: SHARED — off sidecar for EMIT_HEAVY orch (lib_root/entry prefix + append).
+// Historical static g_pipeline_resolve_path_off_sidecar in host-cc leaf.
+let g_pipe_resolve_off: i32 = 0;
 
 // wave90 pure typeck soft-suppress flag (G.7 single authority for XT001 soft diags).
 // PLATFORM: SHARED — same ABI as glue static g_pipeline_typeck_diag_soft_suppress (0/1).
@@ -11423,4 +11440,474 @@ export function asm_qual_sym_layer_copy(i: i32, dst: *u8, cap: i32): void {
     }
     k = k + 1;
   }
+}
+
+// ---------------------------------------------------------------------------
+// wave105: resolve_path pure-owned leave (was pipeline_resolve_path.c).
+// G.7 product authority for path_append_*_c / resolve probe / flat_import /
+//   off-sidecar / codegen_out_buf_len|set_len / resolve_path_x_impl_c|_c.
+// Product surfaces try_one_lib_root / try_entry_dir remain pipeline.x strong
+//   (thin → these pure _c helpers). Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED — dual-end L2 after leave; preserves historical probe bytes
+//   ('.' 46 + 115 + 117 + NUL and /mod + same) matching host-cc contract.
+// ---------------------------------------------------------------------------
+
+/**
+ * Append buf[0..len) into ctx.path_buf at off; clamp path_buf end at 508.
+ * @param ctx *u8 — PipelineDepCtx; null → off unchanged
+ * @param off i32 — write cursor into path_buf
+ * @param buf *u8 — source bytes; null → off unchanged
+ * @param len i32 — byte count; <=0 → off unchanged
+ * @return i32 — new off after copy
+ * wave105 pure: G.7 single product authority (historical path_append_from_buf_256_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_path_append_from_buf_256_c(ctx: *u8, off: i32, buf: *u8, len: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return off;
+  }
+  if (buf == 0 as *u8) {
+    return off;
+  }
+  if (len <= 0) {
+    return off;
+  }
+  let k: i32 = 0;
+  let o: i32 = off;
+  while (k < len) {
+    if (o >= 508) {
+      break;
+    }
+    let b: u8 = 0 as u8;
+    unsafe {
+      b = buf[k];
+      pipeline_dep_ctx_set_path_buf_byte(ctx, o, b);
+    }
+    o = o + 1;
+    k = k + 1;
+  }
+  return o;
+}
+
+/**
+ * Same as path_append_from_buf_256_c (caller guarantees buf capacity).
+ * @param ctx *u8 — PipelineDepCtx
+ * @param off i32 — write cursor
+ * @param buf *u8 — source bytes
+ * @param len i32 — byte count
+ * @return i32 — new off
+ * wave105 pure: G.7 single authority (historical path_append_from_buf_512_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_path_append_from_buf_512_c(ctx: *u8, off: i32, buf: *u8, len: i32): i32 {
+  return pipeline_path_append_from_buf_256_c(ctx, off, buf, len);
+}
+
+/**
+ * Append import_path with '.' (46) rewritten to '/' (47) into path_buf.
+ * @param ctx *u8 — PipelineDepCtx; null → off
+ * @param off i32 — write cursor
+ * @param import_path *u8 — import path bytes; null → off
+ * @param path_len i32 — byte length; <=0 → off
+ * @return i32 — new off
+ * wave105 pure: G.7 single authority (historical path_append_import_path_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_path_append_import_path_c(ctx: *u8, off: i32, import_path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return off;
+  }
+  if (import_path == 0 as *u8) {
+    return off;
+  }
+  if (path_len <= 0) {
+    return off;
+  }
+  let k: i32 = 0;
+  let o: i32 = off;
+  while (k < path_len) {
+    if (o >= 508) {
+      break;
+    }
+    let b: u8 = 0 as u8;
+    unsafe {
+      b = import_path[k];
+    }
+    if (b == 46 as u8) {
+      b = 47 as u8;
+    }
+    unsafe {
+      pipeline_dep_ctx_set_path_buf_byte(ctx, o, b);
+    }
+    o = o + 1;
+    k = k + 1;
+  }
+  return o;
+}
+
+/**
+ * Return 1 if import_path[0..path_len) contains '.' within first 64 bytes.
+ * @param import_path *u8 — import path; null → 0
+ * @param path_len i32 — length; <=0 → 0
+ * @return i32 — 1 has dot, 0 otherwise
+ * wave105 pure: G.7 single authority (historical resolve_path_import_has_dot_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_import_has_dot_c(import_path: *u8, path_len: i32): i32 {
+  if (import_path == 0 as *u8) {
+    return 0;
+  }
+  if (path_len <= 0) {
+    return 0;
+  }
+  let k: i32 = 0;
+  while (k < path_len) {
+    if (k >= 64) {
+      break;
+    }
+    let b: u8 = 0 as u8;
+    unsafe {
+      b = import_path[k];
+    }
+    if (b == 46 as u8) {
+      return 1;
+    }
+    k = k + 1;
+  }
+  return 0;
+}
+
+/**
+ * Read CodegenOutBuf.length (i32 LE immediately after data[9437184]).
+ * @param out *u8 — opaque CodegenOutBuf*; null → 0
+ * @return i32 — length field
+ * wave105 pure: G.7 single authority (historical codegen_out_buf_len in resolve_path.c).
+ * Layout ≡ codegen.x CodegenOutBuf { data: u8[9437184]; length: i32 }.
+ * PLATFORM: SHARED — sole provider after resolve_path leave; used by elf/codegen host-cc.
+ */
+#[no_mangle]
+export function codegen_out_buf_len(out: *u8): i32 {
+  if (out == 0 as *u8) {
+    return 0;
+  }
+  // PIPELINE_CODEGEN_OUTBUF_CAP
+  return pipe_load_i32_le(out, 9437184);
+}
+
+/**
+ * Write CodegenOutBuf.length (clamp n < 0 → 0).
+ * @param out *u8 — opaque CodegenOutBuf*; null → no-op
+ * @param n i32 — new length
+ * @return void
+ * wave105 pure: G.7 single authority (historical codegen_out_buf_set_len).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function codegen_out_buf_set_len(out: *u8, n: i32): void {
+  if (out == 0 as *u8) {
+    return;
+  }
+  let v: i32 = n;
+  if (v < 0) {
+    v = 0;
+  }
+  pipe_store_i32_le(out, 9437184, v);
+}
+
+/**
+ * Read resolve-path orchestration off sidecar.
+ * @return i32 — last off written by prefix/append helpers
+ * wave105 pure: G.7 single authority (historical last_off_get_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_last_off_get_c(): i32 {
+  return g_pipe_resolve_off;
+}
+
+/**
+ * Probe path_buf at off with historical ".su" then "/mod.su" open_read (host-cc contract).
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @param off i32 — suffix write position
+ * @return i32 — 0 if open_read succeeds, -1 otherwise
+ * wave105 pure helper. PLATFORM: SHARED — byte sequence matches former host-cc leaf.
+ */
+function resolve_path_probe_dot_x_and_mod(ctx: *u8, off: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (off + 4 <= 512) {
+    unsafe {
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off, 46 as u8);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 1, 115 as u8);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 2, 117 as u8);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 3, 0 as u8);
+    }
+    let path: *u8 = 0 as *u8;
+    let fd: i32 = 0 - 1;
+    unsafe {
+      path = pipeline_dep_ctx_path_buf_ptr(ctx);
+      fd = std_fs_fs_open_read(path);
+    }
+    if (fd >= 0) {
+      unsafe {
+        std_fs_fs_close(fd);
+      }
+      return 0;
+    }
+    if (off + 8 <= 512) {
+      unsafe {
+        pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47 as u8);
+        pipeline_dep_ctx_set_path_buf_byte(ctx, off + 1, 109 as u8);
+        pipeline_dep_ctx_set_path_buf_byte(ctx, off + 2, 111 as u8);
+        pipeline_dep_ctx_set_path_buf_byte(ctx, off + 3, 100 as u8);
+        pipeline_dep_ctx_set_path_buf_byte(ctx, off + 4, 46 as u8);
+        pipeline_dep_ctx_set_path_buf_byte(ctx, off + 5, 115 as u8);
+        pipeline_dep_ctx_set_path_buf_byte(ctx, off + 6, 117 as u8);
+        pipeline_dep_ctx_set_path_buf_byte(ctx, off + 7, 0 as u8);
+      }
+      unsafe {
+        path = pipeline_dep_ctx_path_buf_ptr(ctx);
+        fd = std_fs_fs_open_read(path);
+      }
+      if (fd >= 0) {
+        unsafe {
+          std_fs_fs_close(fd);
+        }
+        return 0;
+      }
+    }
+  }
+  return 0 - 1;
+}
+
+/**
+ * Export surface for pipeline.x resolve_path_probe_dot_x_and_mod thin.
+ * @param ctx *u8 — PipelineDepCtx
+ * @param off i32 — suffix position
+ * @return i32 — 0 ok open, -1 fail
+ * wave105 pure: G.7 single authority (historical probe_export_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_probe_export_c(ctx: *u8, off: i32): i32 {
+  return resolve_path_probe_dot_x_and_mod(ctx, off);
+}
+
+/**
+ * Write lib_root[lib_idx] + '/' into path_buf; update off sidecar.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @param lib_idx i32 — lib root index; <0 → -1
+ * @return i32 — new off, or -1 on null
+ * wave105 pure: G.7 single authority (historical lib_root_prefix_off_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_lib_root_prefix_off_c(ctx: *u8, lib_idx: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (lib_idx < 0) {
+    return 0 - 1;
+  }
+  let lr_buf: u8[256] = [];
+  let z: i32 = 0;
+  while (z < 256) {
+    lr_buf[z] = 0 as u8;
+    z = z + 1;
+  }
+  let lr_len: i32 = 0;
+  unsafe {
+    lr_len = pipeline_copy_lib_root_to_buf256(ctx, lib_idx, &lr_buf[0]);
+  }
+  let off: i32 = 0;
+  if (lr_len > 0) {
+    off = pipeline_path_append_from_buf_256_c(ctx, 0, &lr_buf[0], lr_len);
+  }
+  if (off < 509) {
+    unsafe {
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47 as u8);
+    }
+    off = off + 1;
+  }
+  g_pipe_resolve_off = off;
+  return off;
+}
+
+/**
+ * Append import_path at off into path_buf; update off sidecar.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @param off i32 — start cursor; <0 → -1
+ * @param import_path *u8 — import bytes; null → -1
+ * @param path_len i32 — length
+ * @return i32 — new off, or -1
+ * wave105 pure: G.7 single authority (historical path_append_import_path_sidecar_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_path_append_import_path_sidecar_c(ctx: *u8, off: i32, import_path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (import_path == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (off < 0) {
+    return 0 - 1;
+  }
+  let new_off: i32 = pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
+  if (new_off < 0) {
+    return 0 - 1;
+  }
+  g_pipe_resolve_off = new_off;
+  return new_off;
+}
+
+/**
+ * Write entry_dir + '/' into path_buf; update off sidecar.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — new off, or -1 if no entry_dir
+ * wave105 pure: G.7 single authority (historical entry_dir_prefix_off_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_entry_dir_prefix_off_c(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let ed_len: i32 = 0;
+  unsafe {
+    ed_len = pipeline_dep_ctx_entry_dir_len(ctx);
+  }
+  if (ed_len <= 0) {
+    return 0 - 1;
+  }
+  let ed_buf: u8[512] = [];
+  let z: i32 = 0;
+  while (z < 512) {
+    ed_buf[z] = 0 as u8;
+    z = z + 1;
+  }
+  unsafe {
+    pipeline_dep_ctx_entry_dir_copy(ctx, &ed_buf[0], 512);
+  }
+  let off: i32 = pipeline_path_append_from_buf_512_c(ctx, 0, &ed_buf[0], ed_len);
+  if (off < 509) {
+    unsafe {
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47 as u8);
+    }
+    off = off + 1;
+  }
+  g_pipe_resolve_off = off;
+  return off;
+}
+
+/**
+ * Build flat import path lib_root/name/name.su into path_buf (host-cc contract).
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @param lib_idx i32 — lib root index; <0 → -1
+ * @param import_path *u8 — single-segment name; null → -1
+ * @param path_len i32 — name length
+ * @return i32 — 0 success, -1 fail
+ * wave105 pure: G.7 single authority (historical flat_import_build_path_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_flat_import_build_path_c(ctx: *u8, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (import_path == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (lib_idx < 0) {
+    return 0 - 1;
+  }
+  if (pipeline_resolve_path_lib_root_prefix_off_c(ctx, lib_idx) < 0) {
+    return 0 - 1;
+  }
+  let off_base: i32 = g_pipe_resolve_off;
+  if (pipeline_path_append_import_path_sidecar_c(ctx, off_base, import_path, path_len) < 0) {
+    return 0 - 1;
+  }
+  off_base = g_pipe_resolve_off;
+  if (off_base < 509) {
+    unsafe {
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off_base, 47 as u8);
+    }
+    g_pipe_resolve_off = off_base + 1;
+  }
+  if (pipeline_path_append_import_path_sidecar_c(ctx, g_pipe_resolve_off, import_path, path_len) < 0) {
+    return 0 - 1;
+  }
+  off_base = g_pipe_resolve_off;
+  if (off_base + 4 > 512) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base, 46 as u8);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 1, 115 as u8);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 2, 117 as u8);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 3, 0 as u8);
+  }
+  return 0;
+}
+
+/**
+ * open_read probe on current path_buf; close fd on success.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 if readable, -1 otherwise
+ * wave105 pure: G.7 single authority (historical flat_import_probe_open_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_flat_import_probe_open_c(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let path: *u8 = 0 as *u8;
+  let fd: i32 = 0 - 1;
+  unsafe {
+    path = pipeline_dep_ctx_path_buf_ptr(ctx);
+    fd = std_fs_fs_open_read(path);
+  }
+  if (fd >= 0) {
+    unsafe {
+      std_fs_fs_close(fd);
+    }
+    return 0;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Cold/seed target for pipeline.x thin: same body as pure pipeline_resolve_path_x.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @param import_path *u8 — import path; null → -1
+ * @param path_len i32 — length; <=0 → -1
+ * @return i32 — 0 resolved, -1 miss
+ * wave105 pure: G.7 single authority (historical resolve_path_x_impl_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_x_impl_c(ctx: *u8, import_path: *u8, path_len: i32): i32 {
+  return pipeline_resolve_path_x(ctx, import_path, path_len);
+}
+
+/**
+ * C dispatch alias: call product pure pipeline_resolve_path_x.
+ * @param ctx *u8 — PipelineDepCtx
+ * @param import_path *u8 — import path
+ * @param path_len i32 — length
+ * @return i32 — 0 resolved, -1 miss
+ * wave105 pure: G.7 single authority (historical resolve_path_x_c).
+ * PLATFORM: SHARED — sole provider after resolve_path leave.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_x_c(ctx: *u8, import_path: *u8, path_len: i32): i32 {
+  return pipeline_resolve_path_x(ctx, import_path, path_len);
 }

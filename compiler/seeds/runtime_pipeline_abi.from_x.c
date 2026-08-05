@@ -4562,5 +4562,307 @@ void asm_qual_sym_layer_copy(int32_t i, uint8_t *dst, int32_t cap) {
   for (k = 0; k < n; k++)
     dst[k] = wave104_qual_rows[base + k];
 }
+
+/* wave105 resolve_path leave cold twins — former pipeline_resolve_path.c.
+ * PLATFORM: SHARED — only when pure FROM_X object is not linked. Product pure
+ * owns strong path_append_*_c / probe / flat / off-sidecar / codegen_out_buf_* /
+ * resolve_path_x_impl_c|_c after host-cc leave. Probe bytes match historical
+ * host-cc leaf (46,115,117 and /mod + same). Prefer void* like wave101. */
+extern void pipeline_dep_ctx_set_path_buf_byte(void *ctx, int32_t off, uint8_t b);
+extern uint8_t *pipeline_dep_ctx_path_buf_ptr(void *ctx);
+extern int32_t pipeline_dep_ctx_entry_dir_len(void *ctx);
+extern void pipeline_dep_ctx_entry_dir_copy(void *ctx, uint8_t *dst, int32_t cap);
+extern int32_t pipeline_copy_lib_root_to_buf256(void *ctx, int32_t lib_idx, uint8_t *dst);
+extern int32_t pipeline_ctx_lib_root_count(void *ctx);
+extern int32_t std_fs_fs_open_read(uint8_t *path);
+extern int32_t std_fs_fs_close(int32_t fd);
+extern int32_t pipeline_resolve_path_x(void *ctx, uint8_t *import_path, int32_t path_len);
+
+static int32_t wave105_resolve_off;
+
+int32_t pipeline_path_append_from_buf_256_c(void *ctx, int32_t off, uint8_t *buf, int32_t len) {
+  int32_t k;
+  if (!ctx || !buf || len <= 0)
+    return off;
+  k = 0;
+  while (k < len && off < 508) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, buf[k]);
+    off++;
+    k++;
+  }
+  return off;
+}
+
+int32_t pipeline_path_append_from_buf_512_c(void *ctx, int32_t off, uint8_t *buf, int32_t len) {
+  return pipeline_path_append_from_buf_256_c(ctx, off, buf, len);
+}
+
+int32_t pipeline_path_append_import_path_c(void *ctx, int32_t off, uint8_t *import_path, int32_t path_len) {
+  int32_t k;
+  uint8_t b;
+  if (!ctx || !import_path || path_len <= 0)
+    return off;
+  k = 0;
+  while (k < path_len && off < 508) {
+    b = import_path[k];
+    if (b == 46)
+      b = 47;
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, b);
+    off++;
+    k++;
+  }
+  return off;
+}
+
+int32_t pipeline_resolve_path_import_has_dot_c(uint8_t *import_path, int32_t path_len) {
+  int32_t k;
+  if (!import_path || path_len <= 0)
+    return 0;
+  k = 0;
+  while (k < path_len && k < 64) {
+    if (import_path[k] == 46)
+      return 1;
+    k++;
+  }
+  return 0;
+}
+
+#define WAVE105_CODEGEN_OUTBUF_CAP 9437184
+
+int32_t codegen_out_buf_len(void *out) {
+  if (!out)
+    return 0;
+  return *(int32_t *)((uint8_t *)out + (ptrdiff_t)WAVE105_CODEGEN_OUTBUF_CAP);
+}
+
+void codegen_out_buf_set_len(void *out, int32_t n) {
+  if (out)
+    *(int32_t *)((uint8_t *)out + (ptrdiff_t)WAVE105_CODEGEN_OUTBUF_CAP) = n > 0 ? n : 0;
+}
+
+static int32_t wave105_probe_dot_x_and_mod(void *ctx, int32_t off) {
+  int32_t fd;
+  if (!ctx)
+    return -1;
+  if (off + 4 <= 512) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, 46);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off + 1, 115);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off + 2, 117);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off + 3, 0);
+    fd = std_fs_fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx));
+    if (fd >= 0) {
+      std_fs_fs_close(fd);
+      return 0;
+    }
+    if (off + 8 <= 512) {
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 1, 109);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 2, 111);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 3, 100);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 4, 46);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 5, 115);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 6, 117);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 7, 0);
+      fd = std_fs_fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx));
+      if (fd >= 0) {
+        std_fs_fs_close(fd);
+        return 0;
+      }
+    }
+  }
+  return -1;
+}
+
+int32_t pipeline_resolve_path_last_off_get_c(void) {
+  return wave105_resolve_off;
+}
+
+int32_t pipeline_resolve_path_lib_root_prefix_off_c(void *ctx, int32_t lib_idx) {
+  uint8_t lr_buf[256];
+  int32_t lr_len;
+  int32_t off;
+  if (!ctx || lib_idx < 0)
+    return -1;
+  memset(lr_buf, 0, sizeof(lr_buf));
+  lr_len = pipeline_copy_lib_root_to_buf256(ctx, lib_idx, lr_buf);
+  off = 0;
+  if (lr_len > 0)
+    off = pipeline_path_append_from_buf_256_c(ctx, 0, lr_buf, lr_len);
+  if (off < 509) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47);
+    off = off + 1;
+  }
+  wave105_resolve_off = off;
+  return off;
+}
+
+int32_t pipeline_path_append_import_path_sidecar_c(void *ctx, int32_t off, uint8_t *import_path, int32_t path_len) {
+  int32_t new_off;
+  if (!ctx || !import_path || off < 0)
+    return -1;
+  new_off = pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
+  if (new_off < 0)
+    return -1;
+  wave105_resolve_off = new_off;
+  return new_off;
+}
+
+int32_t pipeline_resolve_path_entry_dir_prefix_off_c(void *ctx) {
+  int32_t ed_len;
+  uint8_t ed_buf[512];
+  int32_t off;
+  if (!ctx)
+    return -1;
+  ed_len = pipeline_dep_ctx_entry_dir_len(ctx);
+  if (ed_len <= 0)
+    return -1;
+  memset(ed_buf, 0, sizeof(ed_buf));
+  pipeline_dep_ctx_entry_dir_copy(ctx, ed_buf, 512);
+  off = pipeline_path_append_from_buf_512_c(ctx, 0, ed_buf, ed_len);
+  if (off < 509) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47);
+    off = off + 1;
+  }
+  wave105_resolve_off = off;
+  return off;
+}
+
+int32_t pipeline_flat_import_build_path_c(void *ctx, int32_t lib_idx, uint8_t *import_path, int32_t path_len) {
+  int32_t off_base;
+  if (!ctx || !import_path || lib_idx < 0)
+    return -1;
+  if (pipeline_resolve_path_lib_root_prefix_off_c(ctx, lib_idx) < 0)
+    return -1;
+  off_base = wave105_resolve_off;
+  if (pipeline_path_append_import_path_sidecar_c(ctx, off_base, import_path, path_len) < 0)
+    return -1;
+  off_base = wave105_resolve_off;
+  if (off_base < 509) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base, 47);
+    wave105_resolve_off = off_base + 1;
+  }
+  if (pipeline_path_append_import_path_sidecar_c(ctx, wave105_resolve_off, import_path, path_len) < 0)
+    return -1;
+  off_base = wave105_resolve_off;
+  if (off_base + 4 > 512)
+    return -1;
+  pipeline_dep_ctx_set_path_buf_byte(ctx, off_base, 46);
+  pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 1, 115);
+  pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 2, 117);
+  pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 3, 0);
+  return 0;
+}
+
+int32_t pipeline_flat_import_probe_open_c(void *ctx) {
+  int32_t fd_dir;
+  if (!ctx)
+    return -1;
+  fd_dir = std_fs_fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx));
+  if (fd_dir >= 0) {
+    std_fs_fs_close(fd_dir);
+    return 0;
+  }
+  return -1;
+}
+
+int32_t pipeline_resolve_path_probe_export_c(void *ctx, int32_t off) {
+  return wave105_probe_dot_x_and_mod(ctx, off);
+}
+
+static int32_t wave105_try_flat_import_under_lib(void *ctx, int32_t lib_idx, uint8_t *import_path, int32_t path_len) {
+  uint8_t lr_buf[256];
+  int32_t lr_len;
+  int32_t off_base;
+  if (!ctx || !import_path)
+    return -1;
+  lr_len = pipeline_copy_lib_root_to_buf256(ctx, lib_idx, lr_buf);
+  off_base = 0;
+  if (lr_len > 0)
+    off_base = pipeline_path_append_from_buf_256_c(ctx, 0, lr_buf, lr_len);
+  if (off_base < 509) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base, 47);
+    off_base = off_base + 1;
+  }
+  off_base = pipeline_path_append_import_path_c(ctx, off_base, import_path, path_len);
+  if (off_base < 509) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base, 47);
+    off_base = off_base + 1;
+  }
+  off_base = pipeline_path_append_import_path_c(ctx, off_base, import_path, path_len);
+  if (off_base + 4 <= 512) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base, 46);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 1, 115);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 2, 117);
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off_base + 3, 0);
+    if (std_fs_fs_open_read(pipeline_dep_ctx_path_buf_ptr(ctx)) >= 0)
+      return 0;
+  }
+  return -1;
+}
+
+static int32_t wave105_try_one_lib_root(void *ctx, int32_t lib_idx, uint8_t *import_path, int32_t path_len) {
+  uint8_t lr_buf[256];
+  int32_t lr_len;
+  int32_t off;
+  if (!ctx || !import_path)
+    return -1;
+  lr_len = pipeline_copy_lib_root_to_buf256(ctx, lib_idx, lr_buf);
+  off = 0;
+  if (lr_len > 0)
+    off = pipeline_path_append_from_buf_256_c(ctx, 0, lr_buf, lr_len);
+  if (off < 509) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47);
+    off = off + 1;
+  }
+  off = pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
+  if (wave105_probe_dot_x_and_mod(ctx, off) == 0)
+    return 0;
+  if (path_len > 0 && path_len < 64 && pipeline_resolve_path_import_has_dot_c(import_path, path_len) == 0) {
+    if (wave105_try_flat_import_under_lib(ctx, lib_idx, import_path, path_len) == 0)
+      return 0;
+  }
+  return -1;
+}
+
+static int32_t wave105_try_entry_dir(void *ctx, uint8_t *import_path, int32_t path_len) {
+  int32_t ed_len;
+  uint8_t ed_buf[512];
+  int32_t off;
+  if (!ctx || !import_path)
+    return -1;
+  ed_len = pipeline_dep_ctx_entry_dir_len(ctx);
+  if (ed_len <= 0 || pipeline_resolve_path_import_has_dot_c(import_path, path_len) != 0)
+    return -1;
+  pipeline_dep_ctx_entry_dir_copy(ctx, ed_buf, 512);
+  off = pipeline_path_append_from_buf_512_c(ctx, 0, ed_buf, ed_len);
+  if (off < 509) {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47);
+    off = off + 1;
+  }
+  off = pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
+  return wave105_probe_dot_x_and_mod(ctx, off);
+}
+
+int32_t pipeline_resolve_path_x_impl_c(void *ctx, uint8_t *import_path, int32_t path_len) {
+  int32_t r;
+  int32_t n_lib;
+  if (!ctx || !import_path || path_len <= 0)
+    return -1;
+  n_lib = pipeline_ctx_lib_root_count(ctx);
+  r = 0;
+  while (r < n_lib) {
+    if (wave105_try_one_lib_root(ctx, r, import_path, path_len) == 0)
+      return 0;
+    r = r + 1;
+  }
+  if (wave105_try_entry_dir(ctx, import_path, path_len) == 0)
+    return 0;
+  return -1;
+}
+
+int32_t pipeline_resolve_path_x_c(void *ctx, uint8_t *import_path, int32_t path_len) {
+  return pipeline_resolve_path_x(ctx, import_path, path_len);
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 

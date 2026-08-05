@@ -115,7 +115,10 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 #include "ast_pool_dep_ctx.c"
 
 
-#include "pipeline_resolve_path.c"
+/* 2026-08-05: pipeline_resolve_path.c pure-owned leave retired.
+ * Live face: runtime_pipeline_abi.x (path_append_*_c / resolve probe / flat_import /
+ * off-sidecar / codegen_out_buf_len|set_len / resolve_path_x_impl_c|_c).
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 /* 2026-08-05: pipeline_import_bind.c pure-owned leave retired.
  * Live face: runtime_pipeline_abi.x (read_file_x / preprocess_loaded /
