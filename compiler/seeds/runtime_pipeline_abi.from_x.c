@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave171: index-scratch enc push/reload/pop pure leave cold twins under #ifndef FROM_X
  * wave170: binop try_reload pure leave cold twin under #ifndef FROM_X
  * wave169: index-scratch pure leave cold twins under #ifndef FROM_X
  * wave168: cfg simulate walk pure leave cold twins under #ifndef FROM_X
@@ -25076,6 +25077,47 @@ int32_t glue_binop_try_reload_spill_off_elf_c(void *elf_ctx, void *ctx, int32_t 
   (void)off;
   (void)ta;
   (void)to_rbx;
+  return 0;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/*
+ * wave171 cold twins: index-scratch enc push/reload/pop + slot reload faces.
+ * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+int32_t glue_enc_push_index_scratch_arm64_elf_c(void *elf_ctx, int32_t ta) {
+  (void)elf_ctx;
+  (void)ta;
+  return 0;
+}
+
+int32_t glue_enc_reload_index_scratch_from_stack_arm64_elf_c(void *elf_ctx, int32_t ta) {
+  (void)elf_ctx;
+  (void)ta;
+  return 0;
+}
+
+int32_t glue_enc_pop_index_scratch_stack_arm64_elf_c(void *elf_ctx, int32_t ta) {
+  (void)elf_ctx;
+  (void)ta;
+  return 0;
+}
+
+int32_t glue_index_reload_scratch_slot_elf_c(void *elf_ctx, int32_t ta, int32_t slot_depth) {
+  (void)elf_ctx;
+  (void)ta;
+  (void)slot_depth;
+  return 0;
+}
+
+int32_t glue_index_reload_scratch_slot_to_rbx_elf_c(void *elf_ctx, int32_t ta, int32_t slot_depth) {
+  (void)elf_ctx;
+  (void)ta;
+  (void)slot_depth;
   return 0;
 }
 

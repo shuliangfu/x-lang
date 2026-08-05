@@ -968,7 +968,7 @@ export extern "C" function pipeline_expr_as_target_type_ref_at(arena: *u8, expr_
 /* wave169: pure owns glue_index_scratch_spills_cleanup_all_elf_c (#[no_mangle] below). */
 /* wave169 Cap residual: thin faces for pure index-scratch leave. */
 export extern "C" function glue_index_scratch_stack_depth_get(): i32;
-export extern "C" function glue_enc_pop_index_scratch_stack_arm64_elf_c(elf_ctx: *u8, ta: i32): i32;
+/* wave171: pure owns glue_enc_pop_index_scratch_stack_arm64_elf_c (#[no_mangle] below). */
 export extern "C" function glue_index_scratch_caches_hit_var(arena: *u8, var_ref: i32): i32;
 export extern "C" function glue_binop_stack_spill_append_at_depth(off: i32, depth: i32): i32;
 export extern "C" function glue_binop_stack_spill_cap_get(): i32;
@@ -53974,15 +53974,15 @@ export function glue_block_simulate_cfg_live_from_empty(arena: *u8, ctx: *u8, bl
 //   · glue_index_scratch_spill_invalidate_var
 //   · glue_binop_stack_spill_push_elf_c
 // Cap residual: CAP BSS (depth / minus_pair / subadd3 / stack_spill tables)
-// + thin depth_get/set / pop_enc / caches_hit_var / append_at_depth / cap_get
-// + enc push/reload + try_reload + cache spill helpers.
+// + thin depth_get/set / caches_hit_var / append_at_depth / cap_get
+// + cache spill helpers (minus_pair/subadd3). wave171 owns enc push/reload/pop.
 // Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
 // PLATFORM: SHARED freestanding 7.3 · dual-end L2.
 // ============================================================================
 
 /**
  * Pop all INDEX scratch spills (LIFO) and clear (i-j+k)/(i-j) cache metadata.
- * Each pop emits arm64 add sp,#16 when ta==1 (via residual pop_enc).
+ * Each pop emits arm64 add sp,#16 when ta==1 (via pure pop_enc, wave171).
  * @param elf_ctx *u8 - ElfCodegenCtx* (may be null when depth already 0)
  * @param ta i32 - target arch (0 x86_64, 1 arm64, …)
  * @return i32 - 0 ok; -1 enc pop fail
@@ -54116,7 +54116,7 @@ export function glue_binop_stack_spill_push_elf_c(elf_ctx: *u8, ta: i32, off: i3
 // Public face:
 //   · glue_binop_try_reload_spill_off_elf_c
 // Cap residual: stack_try_reload thin + x10–x15 BSS accessors + enc mov
-// + index-scratch enc push/reload + cache spill helpers (minus_pair/subadd3).
+// + cache spill helpers (minus_pair/subadd3). wave171 owns enc push/reload/pop.
 // Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
 // PLATFORM: SHARED freestanding 7.3 · dual-end L2.
 // ============================================================================
@@ -54277,3 +54277,180 @@ export function glue_binop_try_reload_spill_off_elf_c(elf_ctx: *u8, ctx: *u8, of
 }
 
 // end wave170 pure-owned leave
+
+// ============================================================================
+// wave171 pure-owned leave: index-scratch enc push/reload/pop + slot reload
+// (was Cap residual spill; CAP depth BSS stays residual).
+// Public faces:
+//   · glue_enc_push_index_scratch_arm64_elf_c
+//   · glue_enc_reload_index_scratch_from_stack_arm64_elf_c
+//   · glue_enc_pop_index_scratch_stack_arm64_elf_c
+//   · glue_index_reload_scratch_slot_elf_c
+//   · glue_index_reload_scratch_slot_to_rbx_elf_c
+// Cap residual: depth BSS + thin depth_get/set + minus_pair/subadd3 helpers.
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * arm64: push primary index scratch (x2) on the real stack and bump residual depth.
+ * Emits: sub sp,sp,#16 ; str x2,[sp]. No-op when ta!=1.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch (only arm64 emits)
+ * @return i32 - 0 ok/no-op; -1 enc fail
+ * wave171 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64 index scratch stack.
+ */
+#[no_mangle]
+export function glue_enc_push_index_scratch_arm64_elf_c(elf_ctx: *u8, ta: i32): i32 {
+  let rc: i32 = 0;
+  let depth: i32 = 0;
+  // arm64 word patterns as i32 bit-casts (unsigned encoding immediates).
+  let sub_sp16: i32 = 0 - 788511745; // 0xd10043ff sub sp,sp,#16
+  let str_x2: i32 = 0 - 117439518; // 0xf90003e2 str x2,[sp]
+  if (ta != 1) {
+    return 0;
+  }
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = arch_arm64_enc_enc_u32_le(elf_ctx, sub_sp16);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = arch_arm64_enc_enc_u32_le(elf_ctx, str_x2);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  // Residual CAP depth BSS: bump after successful push (matches residual order).
+  unsafe {
+    depth = glue_index_scratch_stack_depth_get();
+    glue_index_scratch_stack_depth_set(depth + 1);
+  }
+  return 0;
+}
+
+/**
+ * arm64: reload primary index scratch from [sp] into x2 without popping.
+ * Emits: ldr x2,[sp]. No-op when ta!=1.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok/no-op; -1 enc fail
+ * wave171 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_enc_reload_index_scratch_from_stack_arm64_elf_c(elf_ctx: *u8, ta: i32): i32 {
+  let ldr_x2: i32 = 0 - 113245214; // 0xf94003e2 ldr x2,[sp]
+  if (ta != 1) {
+    return 0;
+  }
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ldr_x2);
+  }
+}
+
+/**
+ * arm64: balance one prior push_index_scratch (add sp,#16). Does not change depth;
+ * caller (cleanup / subadd3 pop) adjusts residual depth BSS.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok/no-op; -1 enc fail
+ * wave171 pure-owned (was Cap residual thin for wave169 cleanup).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_enc_pop_index_scratch_stack_arm64_elf_c(elf_ctx: *u8, ta: i32): i32 {
+  let add_sp16: i32 = 0 - 1862253569; // 0x910043ff add sp,sp,#16
+  if (ta != 1) {
+    return 0;
+  }
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    return arch_arm64_enc_enc_u32_le(elf_ctx, add_sp16);
+  }
+}
+
+/**
+ * Reload index scratch (x2) from the spill slot recorded at slot_depth.
+ * slot_depth is 1-based depth after the original push; computes sp offset from
+ * residual current depth. off==0 uses top-of-stack reload.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch
+ * @param slot_depth i32 - recorded CAP slot depth at push time
+ * @return i32 - 0 ok; -1 bad depth / enc fail
+ * wave171 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_index_reload_scratch_slot_elf_c(elf_ctx: *u8, ta: i32, slot_depth: i32): i32 {
+  let depth: i32 = 0;
+  let off_bytes: i32 = 0;
+  let imm12: i32 = 0;
+  let word: i32 = 0;
+  let base: i32 = 0 - 113245214; // 0xf94003e2 ldr x2,[sp,#0]
+  if (slot_depth <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    depth = glue_index_scratch_stack_depth_get();
+  }
+  if (depth < slot_depth) {
+    return 0 - 1;
+  }
+  off_bytes = (depth - slot_depth) * 16;
+  if (off_bytes == 0) {
+    return glue_enc_reload_index_scratch_from_stack_arm64_elf_c(elf_ctx, ta);
+  }
+  if (ta != 1) {
+    return 0;
+  }
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  // imm12 is scaled byte offset / 8 for unsigned LDR offset encoding.
+  imm12 = off_bytes >> 3;
+  word = base | (imm12 << 10);
+  unsafe {
+    return arch_arm64_enc_enc_u32_le(elf_ctx, word);
+  }
+}
+
+/**
+ * Reload stack-spilled index scratch into rbx/x1 (INDEX read fast paths).
+ * First reloads x2 from slot_depth, then mov x2→x1 when ta==1.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch
+ * @param slot_depth i32 - recorded CAP slot depth
+ * @return i32 - 0 ok; -1 reload/mov fail
+ * wave171 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_index_reload_scratch_slot_to_rbx_elf_c(elf_ctx: *u8, ta: i32, slot_depth: i32): i32 {
+  let rc: i32 = 0;
+  rc = glue_index_reload_scratch_slot_elf_c(elf_ctx, ta, slot_depth);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    if (elf_ctx == (0 as *u8)) {
+      return 0 - 1;
+    }
+    unsafe {
+      return arch_arm64_enc_enc_mov_x2_to_rbx(elf_ctx);
+    }
+  }
+  return 0;
+}
+
+// end wave171 pure-owned leave

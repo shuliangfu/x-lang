@@ -89,14 +89,22 @@
  * wave170 pure-owned binop spill try-reload (same pure TU):
  *   · glue_binop_try_reload_spill_off_elf_c
  * Residual keeps VAR cache BSS + stack-spill tables + thin find_depth /
- * depth_get / set_valid_x* / set_rax|rbx_off + stack_try_reload thin +
- * enc push/reload + cache spill helpers (minus_pair / subadd3).
+ * depth_get / set_valid_x* / set_rax|rbx_off + stack_try_reload thin.
+ *
+ * wave171 pure-owned index-scratch enc push/reload/pop + slot reload:
+ *   · glue_enc_push_index_scratch_arm64_elf_c
+ *   · glue_enc_reload_index_scratch_from_stack_arm64_elf_c
+ *   · glue_enc_pop_index_scratch_stack_arm64_elf_c
+ *   · glue_index_reload_scratch_slot_elf_c
+ *   · glue_index_reload_scratch_slot_to_rbx_elf_c
+ * Residual keeps CAP BSS (depth / minus_pair / subadd3) + thin depth_get/set
+ * + cache spill helpers (minus_pair / subadd3) that call pure enc faces.
  *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
  *   · 7.3 live_fwd BSS / break-continue note + push/pop
  *   · Chaitin interf BSS + gen_kill/collect + stack-spill preference
- *   · index scratch CAP BSS + thin + enc/reload + cache spill helpers
+ *   · index scratch CAP BSS + thin + cache spill helpers (minus_pair/subadd3)
  *     (CAP statics in pipeline_asm_emit_index_helpers.c)
  *
  * G.7: do not re-define pure-owned faces above in this file.
@@ -217,6 +225,18 @@ int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf
 int32_t glue_binop_try_reload_spill_off_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                              struct backend_AsmFuncCtx *ctx, int32_t off, int32_t ta,
                                              int32_t to_rbx);
+
+/* wave171 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * Residual: CAP depth BSS + minus_pair/subadd3 helpers call these.
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64. */
+int32_t glue_enc_push_index_scratch_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t glue_enc_reload_index_scratch_from_stack_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                            int32_t ta);
+int32_t glue_enc_pop_index_scratch_stack_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t glue_index_reload_scratch_slot_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+                                            int32_t slot_depth);
+int32_t glue_index_reload_scratch_slot_to_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+                                                   int32_t slot_depth);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -1604,70 +1624,16 @@ void glue_index_minus_pair_cache_clear(void) {
   glue_index_minus_pair_cache.slot_depth = 0;
 }
 
-/** arm64: push primary index scratch (x2) on real stack for cross-stmt reuse. */
-static int32_t glue_enc_push_index_scratch_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  if (ta != 1)
-    return 0;
-  /** sub sp, sp, #16 — 同 enc_push_rax */
-  if (arch_arm64_enc_enc_u32_le(elf_ctx, 3506455551) != 0)
-    return -1;
-  /** str x2, [sp] — Rt=x2 */
-  if (arch_arm64_enc_enc_u32_le(elf_ctx, 4177527778) != 0)
-    return -1;
-  glue_index_scratch_stack_depth++;
-  return 0;
-}
-
-/** arm64: reload primary index scratch from stack slot without popping. */
-static int32_t glue_enc_reload_index_scratch_from_stack_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                     int32_t ta) {
-  if (ta != 1)
-    return 0;
-  /** ldr x2, [sp] */
-  return arch_arm64_enc_enc_u32_le(elf_ctx, 4181722082);
-}
-
-/**
- * arm64: balance one prior push_index_scratch (add sp, #16).
- * wave169 Cap residual: non-static thin face for pure cleanup leave.
- * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
- */
-int32_t glue_enc_pop_index_scratch_stack_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  if (ta != 1)
-    return 0;
-  /** add sp, sp, #16 — same as enc_pop_rax */
-  return arch_arm64_enc_enc_u32_le(elf_ctx, 2432713727);
-}
-
-/** Reload w2 from stack slot recorded at slot_depth (1=first push from current top). */
-static int32_t glue_index_reload_scratch_slot_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
-                                                     int32_t slot_depth) {
-  int32_t off_bytes;
-  int32_t imm12;
-  if (slot_depth <= 0 || glue_index_scratch_stack_depth < slot_depth)
-    return -1;
-  off_bytes = (glue_index_scratch_stack_depth - slot_depth) * 16;
-  if (off_bytes == 0)
-    return glue_enc_reload_index_scratch_from_stack_arm64_elf_c(elf_ctx, ta);
-  if (ta != 1)
-    return 0;
-  imm12 = off_bytes >> 3;
-  /** ldr x2, [sp, #off] — 基底 4181722082 == ldr x2,[sp,#0] */
-  return arch_arm64_enc_enc_u32_le(elf_ctx, 4181722082 | ((uint32_t)imm12 << 10));
-}
-
-/** Reload stack-spilled index scratch (x2) into rbx/x1 for INDEX read fast paths. */
-static int32_t glue_index_reload_scratch_slot_to_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
-                                                              int32_t slot_depth) {
-  if (glue_index_reload_scratch_slot_elf_c(elf_ctx, ta, slot_depth) != 0)
-    return -1;
-  if (ta == 1)
-    return arch_arm64_enc_enc_mov_x2_to_rbx(elf_ctx);
-  return 0;
-}
+/* wave171: pure owns glue_enc_push_index_scratch_arm64_elf_c /
+ * glue_enc_reload_index_scratch_from_stack_arm64_elf_c /
+ * glue_enc_pop_index_scratch_stack_arm64_elf_c /
+ * glue_index_reload_scratch_slot_elf_c /
+ * glue_index_reload_scratch_slot_to_rbx_elf_c (extern above).
+ * Residual: CAP depth BSS (index_helpers) + thin depth_get/set +
+ * minus_pair/subadd3 cache spill helpers. PLATFORM: SHARED freestanding 7.3. */
 
 /* wave169: pure owns glue_index_scratch_spills_cleanup_all_elf_c (extern above).
- * Residual thin: pop_enc + depth_get/set + cache clears. PLATFORM: SHARED. */
+ * Residual thin: pure pop_enc + depth_get/set + cache clears. PLATFORM: SHARED. */
 
 /**
  * wave169 Cap residual: 1 when subadd3 or minus_pair cache tracks var_ref key.
