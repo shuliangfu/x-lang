@@ -105,7 +105,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_modlet.c|8.3.1|asm ELF modlet COMMON cell emit (wave139 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_return.c|8.3.1|asm ELF return emit (wave144 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_logand.c|8.3.1|asm ELF LOGAND/LOGOR short-circuit emit (wave128 pure-owned leave)|0|absent"
-  "compiler/pipeline_asm_emit_block_body.c|8.3.1|asm ELF block body sync emit (defer + body_sync) slice|700|present"
+  "compiler/pipeline_asm_emit_block_body.c|8.3.1|asm ELF block body sync emit (wave153 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_block_if_stmt.c|8.3.1|asm ELF block-level if-stmt emit (wave129 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_wpo_mono.c|8.3.1|asm ELF WPO-S2 mono thunk bag+emit (wave130 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_block_inits.c|8.3.1|asm ELF block const/let init emit slice (wave145 pure-owned leave)|0|absent"

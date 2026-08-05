@@ -14,7 +14,7 @@
  * Sub-clusters (order preserved):
  *  - pipeline_asm_emit_logand/logor_elf_impl public pure faces (wave128 leave)
  *  - pipeline_asm_typekind_variant_tag static fwd (def at cmp.c EOF)
- *  - glue_if_expr_arm_emit_depth static (if/ternary arm depth; read in block_body)
+ *  - glue_if_expr_arm_emit_depth static + get/set (wave153 pure block_body leave)
  *  - pipeline_asm_emit_expr_if_arm_elf_c public fwd (def at block_body EOF)
  *  - dual-GP / named layout / type_size_simple / vector_let_init / struct field
  *    store / frame mag / field offset / store_retval / emit_module / struct
@@ -128,8 +128,19 @@ extern int32_t pipeline_asm_typekind_variant_tag(const uint8_t *field_buf, int32
 /** if/三元分支块 emit 深度（定义见 glue_block_emit_stmt_i 旁；此处前置供 if_arm 使用）。 */
 static int32_t glue_if_expr_arm_emit_depth;
 
+/* wave153 Cap residual: pure block_body / if_arm leave reads/writes depth via
+ * Cap residual get/set (cannot touch host static BSS). PLATFORM: SHARED. */
+int32_t glue_if_expr_arm_emit_depth_get(void) {
+  return glue_if_expr_arm_emit_depth;
+}
+
+void glue_if_expr_arm_emit_depth_set(int32_t v) {
+  glue_if_expr_arm_emit_depth = v;
+}
+
+
 /* wave1217 G.7: pipeline_asm_emit_expr_if_arm_elf_c (34 lines) migrated to
- * pipeline_asm_emit_block_body.c EOF (colocated with if-expr arm depth
+ * runtime_pipeline_abi pure (wave153 leave) EOF (colocated with if-expr arm depth
  * consumer at block_body.c L900 — sole other reader of
  * glue_if_expr_arm_emit_depth; #include at L2095).
  * if/ternary branch emit: EXPR_BLOCK -> C block body sync emit; non-block

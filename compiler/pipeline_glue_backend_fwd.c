@@ -495,8 +495,24 @@ int32_t pipeline_expr_match_arm_is_wildcard(struct ast_ASTArena *a, int32_t expr
 int32_t pipeline_expr_match_arm_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
 int32_t pipeline_expr_match_arm_lit_val(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
 int32_t pipeline_expr_match_arm_variant_index(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
-int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                              int32_t block_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+/* wave153 pure leave: block_body faces live in runtime_pipeline_abi pure
+ * (or seed cold twin). Residual C (mega_body / region_assign / fold_count)
+ * Cap residual via these externs. PLATFORM: SHARED. */
+extern int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                     int32_t block_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t backend_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                int32_t block_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_block_final_expr_ref_at(struct ast_ASTArena *a, int32_t br);
+extern int32_t pipeline_asm_block_num_stmt_order_at(struct ast_ASTArena *a, int32_t br);
+extern int32_t pipeline_asm_block_stmt_order_has_return(struct ast_ASTArena *a, int32_t br);
+extern int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t block_ref);
+extern int32_t glue_emit_array_let_empty_init(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                              struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off);
+extern int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                          int32_t block_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                  int32_t arm_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+/* see wave153 block above for pipeline_asm_emit_block_body_sync_elf */
 
 extern int32_t asm_array_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
 extern int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);

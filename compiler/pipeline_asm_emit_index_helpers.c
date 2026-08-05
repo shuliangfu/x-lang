@@ -1417,8 +1417,22 @@ int32_t glue_binop_rax_frame_spill_depth(void) {
   return glue_binop_rax_frame_spill_n;
 }
 
+/* wave153 Cap residual: pure block_body leave CAP depth setters.
+ * CAP arrays stay residual (G.7); pure only clears depths at body entry.
+ * PLATFORM: SHARED freestanding emit.
+ */
+void glue_binop_rax_frame_spill_n_set(int32_t v) {
+  glue_binop_rax_frame_spill_n = v < 0 ? 0 : v;
+}
 
-static void glue_binop_stack_spill_clear(void);
+void glue_index_scratch_stack_depth_set(int32_t v) {
+  glue_index_scratch_stack_depth = v < 0 ? 0 : v;
+}
+
+
+
+/* wave153 Cap residual: def in spill.c */
+void glue_binop_stack_spill_clear(void);
 static void glue_binop_stack_spill_drop_off(int32_t off);
 static int32_t glue_binop_stack_spill_find_depth(int32_t off);
 /* wave149 Cap residual non-static (def spill.c). */

@@ -27,6 +27,27 @@
  * PLATFORM: SHARED — asm codegen orchestrator, arch branches via ta param.
  */
 
+/**
+ * wave153 Cap residual: reset per-func AsmFuncCtx between mega emit iterations.
+ * Relocated from pipeline_asm_emit_block_body.c (public, next to sole callsite).
+ * label_counter intentionally preserved for unique .L_N across whole mega emit.
+ * PLATFORM: SHARED — ctx layout platform-independent.
+ */
+void pipeline_asm_ctx_reset_for_func_c(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod) {
+  if (!ctx)
+    return;
+  ctx->frame_size = 0;
+  ctx->next_offset = 0;
+  ctx->num_locals = 0;
+  ctx->module_ref = mod;
+  ctx->break_len = 0;
+  ctx->continue_len = 0;
+  ctx->loop_label_depth = 0;
+  ctx->dep_pipe = NULL;
+  ctx->tail_join_label_len = 0;
+  asm_ctx_local_reset((uint8_t *)ctx);
+}
+
 int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                              struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                              struct ast_PipelineDepCtx *pipeline_ctx) {

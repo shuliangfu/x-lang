@@ -96,15 +96,8 @@ struct ast_PipelineDepCtx *pipeline_asm_emit_dep_pipe_c(void);
 /** asm_ctx scope 设置（定义见本文件后部；前置声明供 glue_asm_ctx_set_scope_block 调用）。 */
 void asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref);
 
-/* wave1152 G.7: glue_asm_ctx_set_scope_block migrated to
- * pipeline_asm_emit_block_body.c EOF (block scope setter; colocated
- * with block_body_sync domain — all 13 callsites are in block_body.c /
- * block_if_stmt.c / fold_count_up_while.c / glue.c:5121, all after
- * block_body.c #include at L3623).
- *
- * Static fwd decl at block_body.c:53 (callsites at lines 295/700/865
- * precede EOF definition). Deps g_pipeline_asm_emit_scope_block (L182)
- * + asm_ctx_set_scope_block (L191) both before #include L3623 — visible.
+/* wave1152/wave153 G.7: glue_asm_ctx_set_scope_block Cap residual in
+ * pipeline_glue_statics.c (pure block_body leave Cap residual face).
  * PLATFORM: SHARED. */
 int32_t pipeline_block_labeled_return_expr_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
 /* wave379/wave387: labeled pool accessors (stmt_order kind=7 goto/label/labeled-return). */

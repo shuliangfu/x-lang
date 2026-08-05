@@ -934,7 +934,14 @@ extern int32_t glue_emit_with_arena_deinit_elf(struct platform_elf_ElfCodegenCtx
 
 
 /* BC 8.3.1: asm ELF block body sync emit domain (defer + body_sync + accessors; same TU). */
-#include "pipeline_asm_emit_block_body.c"
+/* wave153 pure-owned leave: pipeline_asm_emit_block_body.c deleted.
+ * live = runtime_pipeline_abi pure (body_sync + defer + final_expr + if_arm +
+ * block accessors + array_let_empty_init + stmt_order_has_return);
+ * seed cold twin under #ifndef FROM_X.
+ * Cap residual: spill live/Chaitin BSS accessors + set_scope (statics) +
+ * ctx_reset (mega_body) + while/for residual. G.7: do not re-open a second
+ * freestanding block body ELF emit face.
+ * PLATFORM: SHARED freestanding emit. */
 
 /* wave129 pure-owned leave: pipeline_asm_emit_block_if_stmt.c deleted.
  * live = runtime_pipeline_abi pure (block_if_stmt_elf + if_then_block_body_elf_c);
@@ -1362,7 +1369,7 @@ extern int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module, s
  * PLATFORM: SHARED. */
 
 /* wave1067 G.7: pipeline_asm_ctx_reset_for_func_c migrated to
- * pipeline_asm_emit_block_body.c EOF (per-func ctx reset). Static
+ * pipeline_asm_codegen_mega_body.c (wave153 relocate). Public
  * same-TU: block_body.c #include L3872 < def L8255 < callsite L8342.
  * Deps: pipeline_glue_AsmFuncCtxLayout (struct < L3872);
  * asm_ctx_local_reset (extern). */

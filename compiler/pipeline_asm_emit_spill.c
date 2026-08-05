@@ -195,14 +195,14 @@ void glue_binop_var_slot_cache_kill_def_at_slot(int32_t off) {
 }
 
 /** EXPR_ASSIGN / EXPR_*_ASSIGN（ko 28..38）是否为赋值类语句表达式。 */
-static int32_t glue_expr_kind_is_assign_like_ord(int32_t ko) {
+int32_t glue_expr_kind_is_assign_like_ord(int32_t ko) {
   return ko == 28 || (ko >= 29 && ko <= 38);
 }
 
 /**
  * 7.3 块内赋值语句：仅 kill 左值 VAR 栈槽在 binop 缓存中的命中（保留 rbx 中其他 VAR，如 a+= 后仍复用 b）。
  */
-static void glue_binop_kill_assign_lhs_slots_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+void glue_binop_kill_assign_lhs_slots_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                     int32_t assign_expr_ref) {
   int32_t left_ref;
   int32_t off;
@@ -523,7 +523,7 @@ static int32_t glue_asm73_linear_nconst;
 static int32_t glue_asm73_linear_nlet;
 static int32_t glue_asm73_linear_nso;
 
-static void glue_live_fwd_clear(GlueBlockLiveFwd *live) {
+void glue_live_fwd_clear(GlueBlockLiveFwd *live) {
   if (live)
     live->n = 0;
 }
@@ -539,7 +539,7 @@ static int32_t glue_live_fwd_contains(const GlueBlockLiveFwd *live, int32_t off)
   return 0;
 }
 
-static void glue_live_fwd_add(GlueBlockLiveFwd *live, int32_t off) {
+void glue_live_fwd_add(GlueBlockLiveFwd *live, int32_t off) {
   if (!live || off < 0)
     return;
   glue_cfg_def_offs_add(live->offs, GLUE_CFG_DEF_OFFS_CAP, &live->n, off);
@@ -677,7 +677,7 @@ static void glue_live_fwd_remove(GlueBlockLiveFwd *live, int32_t off) {
 }
 
 /** 块 stmt_order 是否含 if/while/for/goto（有则不做线性前向活跃）。 */
-static int32_t glue_block_stmt_order_has_cfg(struct ast_ASTArena *arena, int32_t block_ref) {
+int32_t glue_block_stmt_order_has_cfg(struct ast_ASTArena *arena, int32_t block_ref) {
   int32_t nso;
   int32_t i;
   if (!arena || block_ref <= 0)
@@ -695,7 +695,7 @@ static int32_t glue_block_stmt_order_has_cfg(struct ast_ASTArena *arena, int32_t
 /**
  * 收集表达式中出现的 VAR 栈槽（用于 gen 集）；仅 VAR/二元/RETURN 操作数，够覆盖 binop 块测例。
  */
-static void glue_live_fwd_collect_expr_uses(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+void glue_live_fwd_collect_expr_uses(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                             int32_t expr_ref, GlueBlockLiveFwd *gen) {
   int32_t ko;
   int32_t left_ref;
@@ -724,7 +724,7 @@ static void glue_live_fwd_collect_expr_uses(struct ast_ASTArena *arena, struct b
 }
 
 /** 按当前前向活跃集修剪 binop 槽缓存（死槽不再命中 rax/rbx）。 */
-static void glue_binop_cache_intersect_live_fwd(void) {
+void glue_binop_cache_intersect_live_fwd(void) {
   int32_t i;
   if (!glue_block_live_fwd_active)
     return;
@@ -1117,7 +1117,7 @@ static void glue_block_simulate_cfg_live(struct ast_ASTArena *arena, struct back
 }
 
 /** 7.3：cfg 父块入口——前向峰值 live + 设置线性上下文并做 Chaitin 着色。 */
-static void glue_block_compute_cfg_peak_live_and_color(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+void glue_block_compute_cfg_peak_live_and_color(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                         int32_t block_ref, int32_t slot_base, int32_t nconst,
                                                         int32_t nlet) {
   GlueBlockLiveFwd live_start;
@@ -1146,7 +1146,7 @@ static void glue_block_compute_cfg_peak_live_and_color(struct ast_ASTArena *aren
   glue_asm73_cfg_coloring_active = 0;
 }
 
-static void glue_block_compute_linear_live_in(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+void glue_block_compute_linear_live_in(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                int32_t block_ref, int32_t slot_base, int32_t nconst, int32_t nlet) {
   struct ast_Block *blk;
   GlueBlockLiveFwd live_out;
@@ -1190,7 +1190,7 @@ static void glue_block_compute_linear_live_in(struct ast_ASTArena *arena, struct
 /**
  * 7.3：线性子块出口活跃集（无控制流 stmt_order）；含 cfg 则清空 out。
  */
-static void glue_block_compute_live_end_linear(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+void glue_block_compute_live_end_linear(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                 int32_t block_ref, GlueBlockLiveFwd *out) {
   struct ast_Block *blk;
   GlueBlockLiveFwd live_out;
@@ -1247,7 +1247,7 @@ void glue_block_fill_live_end_for_merge(struct ast_ASTArena *arena, struct backe
 /**
  * 7.3 含 cfg 父块：单条 def 后前向更新 glue_block_live_fwd（live = (live-kill)∪gen∪{def}）。
  */
-static void glue_live_fwd_forward_after_def(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+void glue_live_fwd_forward_after_def(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                              int32_t def_off, int32_t gen_expr) {
   GlueBlockLiveFwd gen;
   int32_t i;
@@ -1482,7 +1482,7 @@ static int32_t glue_asm73_off_is_spill_pin(int32_t off) {
 }
 
 /** 清空本块 spill 着色表。 */
-static void glue_asm73_clear_spill_color_map(void) {
+void glue_asm73_clear_spill_color_map(void) {
   glue_asm73_spill_color_n = 0;
 }
 
@@ -1612,7 +1612,7 @@ static void glue_asm73_compute_spill_color_chaitin(int32_t peak_i, const GlueBlo
 }
 
 /** 7.3 线性块：全块 live_in 建干涉图后 Chaitin 着色。 */
-static void glue_asm73_compute_spill_color_pins(void) {
+void glue_asm73_compute_spill_color_pins(void) {
   int32_t peak;
   int32_t peak_i;
   int32_t i;
@@ -2169,7 +2169,7 @@ static void glue_asm73_linear_scan_evict_cache_if_pressure(int32_t stmt_i, int32
 }
 
 /** 7.3 cfg 父块：顶层 const/let/expr_stmt 发射后前向更新 glue_block_live_fwd。 */
-static void glue_block_live_fwd_apply_top_stmt(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+void glue_block_live_fwd_apply_top_stmt(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                 int32_t block_ref, int32_t slot_base, int32_t nconst, int32_t nlet,
                                                 int32_t stmt_i) {
   GlueBlockLiveFwd gen;
@@ -2180,7 +2180,7 @@ static void glue_block_live_fwd_apply_top_stmt(struct ast_ASTArena *arena, struc
   glue_live_fwd_apply_stmt_gen_kill(&glue_block_live_fwd, &gen, &kill);
 }
 
-static void glue_block_live_fwd_before_stmt(int32_t stmt_i, int32_t ta,
+void glue_block_live_fwd_before_stmt(int32_t stmt_i, int32_t ta,
                                               struct platform_elf_ElfCodegenCtx *elf_ctx) {
   if (!glue_block_live_fwd_active)
     return;
@@ -2307,7 +2307,7 @@ int32_t glue_index_load_from_cached_assign_addr_elf_c(struct platform_elf_ElfCod
  * 读后清 assign cache（下一笔 assign 须重算址，见 assign_index_block_read_between）。
  * 返回 1=已发射，0=不适用，-1=错误。
  */
-static int32_t glue_try_block_let_index_init_from_assign_cache_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_block_let_index_init_from_assign_cache_elf_c(struct ast_ASTArena *arena,
                                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                       struct backend_AsmFuncCtx *ctx,
                                                                       int32_t init_ref, int32_t ta) {
@@ -2336,13 +2336,13 @@ static int32_t glue_try_block_let_index_init_from_assign_cache_elf_c(struct ast_
  */
 
 /** Clear (i-j+k) spill cache metadata (does not emit stack cleanup). */
-static void glue_index_subadd3_sum_cache_clear(void) {
+void glue_index_subadd3_sum_cache_clear(void) {
   glue_index_subadd3_sum_cache.valid = 0;
   glue_index_subadd3_sum_cache.slot_depth = 0;
 }
 
 /** Clear (i-j) spill cache metadata (does not emit stack cleanup). */
-static void glue_index_minus_pair_cache_clear(void) {
+void glue_index_minus_pair_cache_clear(void) {
   glue_index_minus_pair_cache.valid = 0;
   glue_index_minus_pair_cache.slot_depth = 0;
 }
@@ -2419,7 +2419,7 @@ int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodeg
 }
 
 /** 清空 7.3 binop 栈帧 spill 元数据（块入口；物理 pop 由 glue_index_scratch_spills_cleanup_all_elf_c）。 */
-static void glue_binop_stack_spill_clear(void) {
+void glue_binop_stack_spill_clear(void) {
   glue_binop_stack_spill_n = 0;
 }
 
@@ -2972,4 +2972,121 @@ int32_t glue_asm_sum_block_call_spill_bytes(struct ast_ASTArena *arena, int32_t 
     }
   }
   return total;
+}
+
+
+/* ========================================================================== *
+ * wave153 Cap residual: block_body pure leave BSS / live global accessors.
+ * Pure owns block_body_sync / defer / final_expr / if_arm faces; residual keeps
+ * GlueBlockLiveFwd BSS + Chaitin maps (G.7 single authority for spill domain).
+ * PLATFORM: SHARED freestanding emit · host-cc residual shell.
+ * ========================================================================== */
+
+int32_t glue_asm73_cfg_coloring_active_get(void) {
+  return glue_asm73_cfg_coloring_active;
+}
+
+void glue_asm73_cfg_coloring_active_set(int32_t v) {
+  glue_asm73_cfg_coloring_active = v ? 1 : 0;
+}
+
+int32_t glue_block_live_cfg_parent_get(void) {
+  return glue_block_live_cfg_parent;
+}
+
+void glue_block_live_cfg_parent_set(int32_t v) {
+  glue_block_live_cfg_parent = v ? 1 : 0;
+}
+
+int32_t glue_block_live_fwd_active_get(void) {
+  return glue_block_live_fwd_active;
+}
+
+void glue_block_live_fwd_active_set(int32_t v) {
+  glue_block_live_fwd_active = v ? 1 : 0;
+}
+
+void glue_block_emit_stmt_i_set(int32_t v) {
+  glue_block_emit_stmt_i = v;
+}
+
+int32_t glue_block_emit_stmt_i_get(void) {
+  return glue_block_emit_stmt_i;
+}
+
+void glue_asm73_pin_spill_off_clear_all(void) {
+  glue_asm73_pin_spill_off[0] = -1;
+  glue_asm73_pin_spill_off[1] = -1;
+  glue_asm73_pin_spill_off[2] = -1;
+  glue_asm73_pin_spill_off[3] = -1;
+  glue_asm73_pin_spill_off[4] = -1;
+  glue_asm73_pin_spill_off[5] = -1;
+}
+
+int32_t glue_asm73_cfg_peak_live_n_get(void) {
+  return glue_asm73_cfg_peak_live.n;
+}
+
+void glue_block_live_fwd_clear_global(void) {
+  glue_live_fwd_clear(&glue_block_live_fwd);
+}
+
+void glue_live_snap_before_if_copy_from_block_live_fwd(void) {
+  glue_live_fwd_copy(&glue_live_snap_before_if, &glue_block_live_fwd);
+}
+
+void glue_block_live_sub_exit_snap_clear(void) {
+  glue_live_fwd_clear(&glue_block_live_sub_exit_snap);
+}
+
+void glue_block_live_sub_exit_snap_copy_from_block_live_fwd(void) {
+  glue_live_fwd_copy(&glue_block_live_sub_exit_snap, &glue_block_live_fwd);
+}
+
+/**
+ * wave153 Cap residual: compute linear live_end into global sub_exit snap.
+ * PLATFORM: SHARED freestanding emit.
+ */
+void glue_block_compute_live_end_linear_to_sub_exit_snap(struct ast_ASTArena *arena,
+                                                        struct backend_AsmFuncCtx *ctx,
+                                                        int32_t block_ref) {
+  glue_block_compute_live_end_linear(arena, ctx, block_ref, &glue_block_live_sub_exit_snap);
+}
+
+/**
+ * wave153 Cap residual: clear global live_fwd then collect uses of final_expr.
+ * PLATFORM: SHARED freestanding emit.
+ */
+void glue_block_live_fwd_set_from_expr_uses(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                           int32_t expr_ref) {
+  glue_live_fwd_clear(&glue_block_live_fwd);
+  if (expr_ref > 0)
+    glue_live_fwd_collect_expr_uses(arena, ctx, expr_ref, &glue_block_live_fwd);
+}
+
+/**
+ * wave153 Cap residual: live buffer n / offs accessors for pure defer fixpoint
+ * (opaque u8[136] overlays of GlueBlockLiveFwd).
+ * PLATFORM: SHARED freestanding emit.
+ */
+int32_t glue_live_fwd_n_get(const void *live) {
+  if (!live)
+    return 0;
+  return ((const GlueBlockLiveFwd *)live)->n;
+}
+
+int32_t glue_live_fwd_off_at(const void *live, int32_t i) {
+  const GlueBlockLiveFwd *lv = (const GlueBlockLiveFwd *)live;
+  if (!lv || i < 0 || i >= lv->n)
+    return -1;
+  return lv->offs[i];
+}
+
+/* wave153 Cap residual: void* overloads for pure *u8 live buffers (same ABI). */
+void glue_live_fwd_clear_u8(void *live) {
+  glue_live_fwd_clear((GlueBlockLiveFwd *)live);
+}
+
+void glue_live_fwd_add_u8(void *live, int32_t off) {
+  glue_live_fwd_add((GlueBlockLiveFwd *)live, off);
 }

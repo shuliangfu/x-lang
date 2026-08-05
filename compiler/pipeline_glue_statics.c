@@ -20,6 +20,9 @@
 
 /** Module currently being emitted by asm_codegen_ast_to_elf
  * (set by pipeline_asm_emit_set_module, defined later in the TU). */
+/* wave153: Cap residual set_scope needs asm_ctx face (same mega TU). */
+extern void asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref);
+
 static struct ast_Module *g_pipeline_asm_emit_module;
 /** WPO-S3 / LANG-006 call-site CTFE: set by pipeline_typeck_set_active_ctx_c before check. */
 static struct ast_Module *g_typeck_active_module;
@@ -133,6 +136,18 @@ int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void) {
 int32_t pipeline_asm_emit_ctx_scope_block_get(void) {
   return g_pipeline_asm_emit_scope_block;
 }
+
+/**
+ * wave153 Cap residual: set TU-wide emit scope block + per-ctx scope_block_ref.
+ * Was defined in pipeline_asm_emit_block_body.c; relocated so pure block_body
+ * leave can Cap residual this face while residual C still shares one authority.
+ * PLATFORM: SHARED pure scope bookkeeping.
+ */
+void glue_asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref) {
+  g_pipeline_asm_emit_scope_block = block_ref;
+  asm_ctx_set_scope_block(ctx, block_ref);
+}
+
 /**
  * Host compile-time ISA polarity for frame/param home layout.
  * Matches residual #if __aarch64__/__arm64__ (product freestanding ISA == host).
@@ -144,4 +159,24 @@ int32_t pipeline_asm_host_is_arm64_c(void) {
 #else
   return 0;
 #endif
+}
+
+
+/**
+ * wave153 Cap residual: bind emit module + dep_pipe from AsmFuncCtx layout.
+ * Used by pure backend_emit_block_body_sync_elf / glue_emit_block_final_expr_elf
+ * (pure cannot load layout pointers without Cap residual helpers).
+ * PLATFORM: SHARED freestanding emit.
+ */
+void glue_block_body_bind_module_dep_from_ctx(uint8_t *ctx) {
+  pipeline_glue_AsmFuncCtxLayout *ly;
+  if (!ctx)
+    return;
+  ly = pipeline_asm_ctx_layout((struct backend_AsmFuncCtx *)ctx);
+  if (!ly)
+    return;
+  if (ly->module_ref)
+    g_pipeline_asm_emit_module = ly->module_ref;
+  if (ly->dep_pipe)
+    g_pipeline_asm_emit_dep_pipe = (struct ast_PipelineDepCtx *)ly->dep_pipe;
 }
