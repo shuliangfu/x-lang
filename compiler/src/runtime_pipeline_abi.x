@@ -1022,7 +1022,7 @@ export extern "C" function glue_block_live_fwd_before_stmt(stmt_i: i32, ta: i32,
 export extern "C" function glue_block_live_fwd_apply_top_stmt(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32, stmt_i: i32): void;
 export extern "C" function glue_live_fwd_forward_after_def(arena: *u8, ctx: *u8, def_off: i32, init_ref: i32): void;
 export extern "C" function glue_binop_cache_intersect_live_fwd(): void;
-export extern "C" function glue_block_stmt_order_has_cfg(arena: *u8, block_ref: i32): i32;
+// wave159 pure-owned: glue_block_stmt_order_has_cfg body in EOF section (was Cap residual spill).
 // wave156 pure-owned: glue_expr_kind_is_assign_like_ord + try_block_let_index_init + kill_assign_lhs in EOF.
 export extern "C" function glue_index_subadd3_sum_cache_clear(): void;
 export extern "C" function glue_index_minus_pair_cache_clear(): void;
@@ -1061,10 +1061,10 @@ export extern "C" function glue_live_fwd_copy_from_snap_before_if(dst_live: *u8)
 // wave158 pure-owned: glue_asm_cache_invalidate_at_cfg_merge_selective +
 // glue_asm_if_phi_invalidate_both_branch_defs + glue_cfg_collect/add/contains
 // live in EOF section (was Cap residual spill).
+// wave159 pure-owned: glue_asm_loop_phi_invalidate_carried_defs body in EOF.
 // wave155 Cap residual (spill un-static): loop live-merge faces for pure while/for leave.
 export extern "C" function glue_loop_break_exit_push(): void;
 export extern "C" function glue_loop_break_exit_pop(): void;
-export extern "C" function glue_asm_loop_phi_invalidate_carried_defs(arena: *u8, ctx: *u8, body_ref: i32): void;
 export extern "C" function glue_asm_loop_merge_live_union(arena: *u8, ctx: *u8, body_ref: i32): void;
 export extern "C" function glue_live_fwd_apply_expr_effect(arena: *u8, ctx: *u8, expr_ref: i32): void;
 export extern "C" function glue_asm_if_merge_live_union_from_ends(arena: *u8, ctx: *u8, then_live: *u8, else_live: *u8): void;
@@ -52508,3 +52508,118 @@ export function glue_asm_if_phi_invalidate_both_branch_defs(arena: *u8, ctx: *u8
 }
 
 // end wave158 pure-owned leave
+
+// ============================================================================
+// wave159 pure-owned leave: loop φ carried-def invalidate + stmt_order has_cfg
+// (was Cap residual spill next to wave158 if-φ / live_fwd helpers).
+// Public faces:
+//   · glue_asm_loop_phi_invalidate_carried_defs
+//   · glue_block_stmt_order_has_cfg
+// Cap residual remaining in spill: binop VAR slot cache BSS, live_fwd BSS +
+// merge/union/Chaitin, break-continue, index-scratch methods.
+// Uses pure collect (wave158) + residual snap copy / n_get / off_at accessors.
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 loop φ · dual-end L2.
+// ============================================================================
+
+/**
+ * True when block stmt_order contains if/while/for/goto control flow.
+ * Kind codes: 3=while, 4=for, 5=if, 7=labeled/goto (wave387 class).
+ * Linear live-fwd is disabled when this returns 1 (cfg parent path).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param block_ref i32 - block pool ref; <=0 → 0
+ * @return i32 - 1 has cfg stmt; 0 linear / invalid
+ * wave159 pure-owned (was Cap residual spill). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_block_stmt_order_has_cfg(arena: *u8, block_ref: i32): i32 {
+  let nso: i32 = 0;
+  let i: i32 = 0;
+  let k: i32 = 0;
+  if (arena == (0 as *u8) || block_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    nso = ast_ast_block_num_stmt_order(arena, block_ref);
+  }
+  i = 0;
+  while (i < nso) {
+    unsafe {
+      k = ast_ast_block_stmt_order_kind(arena, block_ref, i);
+    }
+    // while / for / if / labeled-goto
+    if (k == 3 || k == 4 || k == 5 || k == 7) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * 7.3 loop φ (minimal): slots live at loop entry (snap_before_if) that are
+ * redefined inside body lose binop-cache homes (carried redefine).
+ * Complements wave158 if-φ (both-branch dual-write); loop is entry ∩ body_defs.
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param body_ref i32 - loop body block; <=0 no-op
+ * wave159 pure-owned (was Cap residual spill; while/for call sites).
+ * PLATFORM: SHARED freestanding 7.3 CFG.
+ */
+#[no_mangle]
+export function glue_asm_loop_phi_invalidate_carried_defs(arena: *u8, ctx: *u8, body_ref: i32): void {
+  let body_offs: i32[32] = [];
+  let n_slot: i32[1] = [];
+  let snap: u8[136] = [];
+  let n: i32 = 0;
+  let sn: i32 = 0;
+  let i: i32 = 0;
+  let j: i32 = 0;
+  let off: i32 = 0;
+  let so: i32 = 0;
+  let hit: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || body_ref <= 0) {
+    return;
+  }
+  n_slot[0] = 0;
+  glue_cfg_collect_block_def_offs_elf_c(arena, ctx, body_ref, &body_offs[0], 32, &n_slot[0]);
+  n = n_slot[0];
+  // Opaque overlay of residual GlueBlockLiveFwd (offs[32]+n; Cap residual casts).
+  unsafe {
+    glue_live_fwd_copy_from_snap_before_if(&snap[0]);
+  }
+  hit = 0;
+  i = 0;
+  while (i < n) {
+    off = body_offs[i];
+    if (off >= 0) {
+      unsafe {
+        sn = glue_live_fwd_n_get(&snap[0]);
+      }
+      j = 0;
+      while (j < sn) {
+        unsafe {
+          so = glue_live_fwd_off_at(&snap[0], j);
+        }
+        if (so == off) {
+          unsafe {
+            glue_binop_var_slot_cache_invalidate_slot(off);
+          }
+          hit = 1;
+          // break inner: j past end
+          j = sn;
+        } else {
+          j = j + 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  if (hit != 0) {
+    unsafe {
+      glue_binop_var_slot_cache_invalidate_rax();
+    }
+  }
+}
+
+// end wave159 pure-owned leave

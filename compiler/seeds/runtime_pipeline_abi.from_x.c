@@ -24842,4 +24842,23 @@ void glue_asm_if_phi_invalidate_both_branch_defs(void *arena, void *ctx, int32_t
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
+/*
+ * wave159 cold twins: loop φ carried-def invalidate + stmt_order has_cfg.
+ * Freestanding-safe stubs (no-op / return 0). Hybrid product links pure.
+ * PLATFORM: SHARED.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+int32_t glue_block_stmt_order_has_cfg(void *arena, int32_t block_ref) {
+  (void)arena; (void)block_ref;
+  return 0;
+}
+
+void glue_asm_loop_phi_invalidate_carried_defs(void *arena, void *ctx, int32_t body_ref) {
+  (void)arena; (void)ctx; (void)body_ref;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

@@ -21,9 +21,13 @@
  *   · glue_asm_cache_invalidate_at_cfg_merge_selective
  *   · glue_asm_if_phi_invalidate_both_branch_defs
  *
+ * wave159 pure-owned loop φ + stmt_order has_cfg (same pure TU):
+ *   · glue_asm_loop_phi_invalidate_carried_defs
+ *   · glue_block_stmt_order_has_cfg
+ *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + accessors
- *   · 7.3 live_fwd / break/continue / loop live-merge
+ *   · 7.3 live_fwd BSS / break/continue / loop live-merge union
  *   · Chaitin K=6 coloring + stack-spill preference + evict
  *   · index scratch spill methods + binop_stack_spill bodies
  *     (CAP statics in pipeline_asm_emit_index_helpers.c)
@@ -59,7 +63,7 @@ void glue_binop_kill_assign_lhs_slots_elf_c(struct ast_ASTArena *arena, struct b
                                             int32_t assign_expr_ref);
 
 /* wave158 pure-owned faces (extern; live in runtime_pipeline_abi pure).
- * Residual live_fwd_add + loop_phi call collect/add. PLATFORM: SHARED. */
+ * Residual live_fwd_add calls pure collect/add. PLATFORM: SHARED. */
 int32_t glue_cfg_def_offs_contains(const int32_t *buf, int32_t n, int32_t off);
 void glue_cfg_def_offs_add(int32_t *buf, int32_t cap, int32_t *n, int32_t off);
 void glue_cfg_collect_block_def_offs_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
@@ -68,6 +72,12 @@ void glue_asm_cache_invalidate_at_cfg_merge_selective(struct ast_ASTArena *arena
                                                       int32_t branch_a_ref, int32_t branch_b_ref);
 void glue_asm_if_phi_invalidate_both_branch_defs(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                  int32_t then_ref, int32_t else_ref);
+
+/* wave159 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * Residual linear live paths call has_cfg; while/for pure call loop_phi. PLATFORM: SHARED. */
+int32_t glue_block_stmt_order_has_cfg(struct ast_ASTArena *arena, int32_t block_ref);
+void glue_asm_loop_phi_invalidate_carried_defs(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                               int32_t body_ref);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -525,21 +535,7 @@ static void glue_live_fwd_remove(GlueBlockLiveFwd *live, int32_t off) {
   }
 }
 
-/** 块 stmt_order 是否含 if/while/for/goto（有则不做线性前向活跃）。 */
-int32_t glue_block_stmt_order_has_cfg(struct ast_ASTArena *arena, int32_t block_ref) {
-  int32_t nso;
-  int32_t i;
-  if (!arena || block_ref <= 0)
-    return 0;
-  nso = ast_ast_block_num_stmt_order(arena, block_ref);
-  for (i = 0; i < nso; i++) {
-    uint8_t k = ast_ast_block_stmt_order_kind(arena, block_ref, i);
-    /* wave387: kind 7 labeled/goto is control flow (same class as if/while/for). */
-    if (k == 3 || k == 4 || k == 5 || k == 7)
-      return 1;
-  }
-  return 0;
-}
+/* wave159: pure owns glue_block_stmt_order_has_cfg (extern above). PLATFORM: SHARED. */
 
 /**
  * 收集表达式中出现的 VAR 栈槽（用于 gen 集）；仅 VAR/二元/RETURN 操作数，够覆盖 binop 块测例。
@@ -1163,30 +1159,9 @@ void glue_asm_if_merge_live_union_from_ends(struct ast_ASTArena *arena, struct b
  * 门禁：run-asm-73-gate.sh；run-bootstrap-bstrict-ci.sh；run-pre-push-p0.sh。
  */
 
-/**
- * 7.3 loop φ（最小）：循环入口活跃且循环体内 redefine 的栈槽，汇合后失效 binop cache（携带重定义）。
- */
-/* wave155: un-static for pure fold_count leave Cap residual. PLATFORM: SHARED. */
-void glue_asm_loop_phi_invalidate_carried_defs(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                       int32_t body_ref) {
-  int32_t body_offs[GLUE_CFG_DEF_OFFS_CAP];
-  int32_t n;
-  int32_t i;
-  int32_t hit;
-  if (!arena || !ctx || body_ref <= 0)
-    return;
-  n = 0;
-  glue_cfg_collect_block_def_offs_elf_c(arena, ctx, body_ref, body_offs, GLUE_CFG_DEF_OFFS_CAP, &n);
-  hit = 0;
-  for (i = 0; i < n; i++) {
-    if (body_offs[i] >= 0 && glue_live_fwd_contains(&glue_live_snap_before_if, body_offs[i])) {
-      glue_binop_var_slot_cache_invalidate_slot(body_offs[i]);
-      hit = 1;
-    }
-  }
-  if (hit)
-    glue_binop_var_slot_cache_invalidate_rax();
-}
+/* wave159: pure owns glue_asm_loop_phi_invalidate_carried_defs (extern above).
+ * Residual snap BSS still owned here; pure copies via glue_live_fwd_copy_from_snap_before_if.
+ * PLATFORM: SHARED. */
 
 /**
  * 7.3 while/for 出口活跃汇合：break/continue/体尾/入口 ∪，并做单轮回边 head 精炼。
