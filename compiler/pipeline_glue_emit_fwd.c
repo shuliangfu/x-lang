@@ -40,6 +40,20 @@ extern int32_t pipeline_asm_emit_logor_elf_impl(struct ast_ASTArena *arena,
                                                struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                struct backend_AsmFuncCtx *ctx, int32_t ta);
 
+/* wave131 pure-owned leave: async CPS ELF faces (was same-TU in
+ * pipeline_asm_emit_async_cps.c). Residual block_body (after_await) + mega_body
+ * (entry/end) call these pure symbols. phase_reset is declared earlier in
+ * pipeline_glue_emit_lea_fwd.c for return/as #include order.
+ * PLATFORM: SHARED freestanding emit. */
+extern int32_t glue_async_cps_emit_after_await(struct ast_ASTArena *arena,
+                                               struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                               struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_async_cps_entry_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                       struct backend_AsmFuncCtx *ctx, struct ast_Module *mod,
+                                                       int32_t func_index, int32_t ta);
+extern void pipeline_asm_emit_async_cps_end_func_elf_c(void);
+
 /* wave1033 G.7: pipeline_token_kind_variant_tag folded into
  * pipeline_asm_emit_field_access.c (same TU #include at L2489; no new DEPS).
  * Chinese docblock converted to English per G.9. field_access.c is the sole

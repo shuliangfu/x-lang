@@ -53,8 +53,10 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
                                                             int32_t expr_ref, int32_t force_esz, int32_t ta,
                                                             struct backend_AsmFuncCtx *ctx);
 
-/** WPO-S3 async CPS: reset phase before return; definition at glue_async_cps_emit_phase_reset. */
-static int32_t glue_async_cps_emit_phase_reset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/* wave131 pure-owned leave: phase_reset lives in runtime_pipeline_abi pure
+ * (was static same-TU in pipeline_asm_emit_async_cps.c). Visible before
+ * return.c / as.c #includes. PLATFORM: SHARED freestanding emit. */
+extern int32_t glue_async_cps_emit_phase_reset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /* wave1130-1131 G.7: glue_maybe_promote_f32_to_f64_rax_elf_c /
  * glue_float_promote_src_ty_ref_c fwd decls removed — definitions now at
  * pipeline_asm_emit_return.c EOF (#include below provides same-TU

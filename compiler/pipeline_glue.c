@@ -173,16 +173,12 @@ extern int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegen
 /* BC 8.3.1: asm ELF as/await/try/float-lit emit domain (same TU). */
 #include "pipeline_asm_emit_as.c"
 
-/* wave1028 G.7: GlueAsyncCpsEmitState + g_glue_async_cps_emit +
- * pipeline_module_func_is_async_at extern + glue_async_cps_mov_imm32_to_rax +
- * glue_async_cps_emit_frame_phase_ptr + glue_async_cps_call_frame_memop +
- * glue_async_cps_save_live + glue_async_cps_restore_live +
- * glue_async_cps_emit_after_await + glue_async_cps_emit_phase_reset +
- * pipeline_asm_emit_async_cps_entry_elf_c + pipeline_asm_emit_async_cps_end_func_elf_c
- * folded into pipeline_asm_emit_async_cps.c (same TU #include; no new DEPS).
- * L2066 forward decl for glue_async_cps_emit_phase_reset preserved for
- * as.c / return.c (both #included before this site). */
-#include "pipeline_asm_emit_async_cps.c"
+/* wave131 pure-owned leave: pipeline_asm_emit_async_cps.c deleted.
+ * live = runtime_pipeline_abi pure (after_await + phase_reset + entry + end_func
+ * + pure-owned CPS bag BSS 9124); seed cold twins under #ifndef FROM_X.
+ * Residual as.c / return.c / block_body / mega_body call pure faces via
+ * lea_fwd + emit_fwd extern decls — do not re-open a second async CPS ELF face (G.7).
+ * PLATFORM: SHARED freestanding emit. */
 
 /* wave128 pure-owned leave: pipeline_asm_emit_logand.c deleted.
  * live = runtime_pipeline_abi pure (logand_elf_impl + logor_elf_impl);

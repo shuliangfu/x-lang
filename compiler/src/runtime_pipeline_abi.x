@@ -656,6 +656,17 @@ export extern "C" function glue_asm_if_phi_invalidate_both_branch_defs(arena: *u
 export extern "C" function glue_asm_if_merge_live_union_from_ends(arena: *u8, ctx: *u8, then_live: *u8, else_live: *u8): void;
 export extern "C" function pipeline_asm_fill_local_slots(ctx: *u8, arena: *u8, block_ref: i32): void;
 export extern "C" function backend_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32;
+// wave131 Cap residual: async_cps pure leave callees (encoders + async_asm_pool + local offset).
+// PLATFORM: SHARED freestanding emit — pure owns CPS bag + entry/end/await/phase_reset faces.
+// async_asm_pool_build_layout already pure (async_asm_pool.x); Cap as link face.
+// push/pop/load32/mov_rbx/cmp/jeq are backend_enc_dispatch pure; Cap residual for this TU.
+export extern "C" function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i32, out: *u8): i32;
+export extern "C" function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cmp_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_jeq_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 -> _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
@@ -22579,4 +22590,498 @@ export function pipeline_asm_emit_wpo_mono_thunks_elf_c(entry: *u8, arena: *u8, 
     ti = ti + 1;
   }
   return 0;
+}
+
+// ---------------------------------------------------------------------------
+// wave131: pipeline_asm_emit_async_cps pure-owned leave
+// (was pipeline_asm_emit_async_cps.c).
+// G.7 product authority for:
+//   glue_async_cps_emit_after_await  (await boundary: save/suspend/resume)
+//   glue_async_cps_emit_phase_reset  (preserve rax; reset frame phase)
+//   pipeline_asm_emit_async_cps_entry_elf_c  (phase==1 → resume label)
+//   pipeline_asm_emit_async_cps_end_func_elf_c  (clear CPS bag)
+// Pure-owned bag: GlueAsyncCpsEmitState = 9124B BSS
+//   active@0 ta@4 fn_id@8 next_phase@12 layout@16 (AsyncAsmPoolLayout 8976)
+//   resume_label@8992 resume_label_len@9120
+// LiveVar = 140 (name[128]@0 name_len@128 size@132 frame_data_off@136)
+// Cap residual: async_asm_pool_build_layout + asm_ctx_local_find_offset +
+//   pipeline_asm_ctx_layout + next_label + glue_enc_jz_after_bool_in_eax +
+//   backend_enc_* (mov_imm64/arg/call/lea/push/pop/load32/mov_rbx/cmp/jeq/
+//   mov_imm32_w0/jmp/label) + memset.
+// AsmFuncCtxLayout: tail_join_label@1392 tail_join_label_len@1520 (LP64).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
+// ---------------------------------------------------------------------------
+
+// wave131: async CPS emit bag (GlueAsyncCpsEmitState = 9124).
+let g_async_cps_emit: u8[9124] = [];
+
+/**
+ * Load imm32 into rax/x0 via Cap residual mov_imm64 (hi=0).
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param imm i32 - value
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; nonzero encoder failure
+ * wave131 pure helper (was static glue_async_cps_mov_imm32_to_rax).
+ * PLATFORM: SHARED.
+ */
+function glue_async_cps_mov_imm32_to_rax(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  let rc: i32 = 0;
+  unsafe {
+    rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta);
+  }
+  return rc;
+}
+
+/**
+ * Call xlang_async_asm_frame_phase_by_id(fn_id); phase pointer lands in rax.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param fn_id i32 - coroutine frame id (u32 bit pattern)
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 encoder failure
+ * wave131 pure helper (was static glue_async_cps_emit_frame_phase_ptr).
+ * Cap residual: mov_imm64 + mov_rax_to_arg + call_arch.
+ * PLATFORM: SHARED.
+ */
+function glue_async_cps_emit_frame_phase_ptr(elf_ctx: *u8, fn_id: i32, ta: i32): i32 {
+  let nm: u8[40] = [];
+  // "xlang_async_asm_frame_phase_by_id" len=33
+  nm[0] = 120 as u8; nm[1] = 108 as u8; nm[2] = 97 as u8; nm[3] = 110 as u8; nm[4] = 103 as u8;
+  nm[5] = 95 as u8; nm[6] = 97 as u8; nm[7] = 115 as u8; nm[8] = 121 as u8; nm[9] = 110 as u8;
+  nm[10] = 99 as u8; nm[11] = 95 as u8; nm[12] = 97 as u8; nm[13] = 115 as u8; nm[14] = 109 as u8;
+  nm[15] = 95 as u8; nm[16] = 102 as u8; nm[17] = 114 as u8; nm[18] = 97 as u8; nm[19] = 109 as u8;
+  nm[20] = 101 as u8; nm[21] = 95 as u8; nm[22] = 112 as u8; nm[23] = 104 as u8; nm[24] = 97 as u8;
+  nm[25] = 115 as u8; nm[26] = 101 as u8; nm[27] = 95 as u8; nm[28] = 98 as u8; nm[29] = 121 as u8;
+  nm[30] = 95 as u8; nm[31] = 105 as u8; nm[32] = 100 as u8; nm[33] = 0 as u8;
+  let rc: i32 = glue_async_cps_mov_imm32_to_rax(elf_ctx, fn_id, ta);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_call_arch(elf_ctx, &nm[0], 33, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Call frame store/load helper: arg0=fn_id, arg1=data_off, arg2=ptr, arg3=nbytes.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param cname *u8 - helper symbol
+ * @param cname_len i32 - symbol length
+ * @param fn_id i32 - frame id
+ * @param data_off i32 - frame data offset
+ * @param stack_off i32 - rbp-relative stack slot
+ * @param nbytes i32 - copy size
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 encoder failure
+ * wave131 pure helper (was static glue_async_cps_call_frame_memop).
+ * PLATFORM: SHARED.
+ */
+function glue_async_cps_call_frame_memop(elf_ctx: *u8, cname: *u8, cname_len: i32, fn_id: i32, data_off: i32, stack_off: i32, nbytes: i32, ta: i32): i32 {
+  let rc: i32 = 0;
+  unsafe {
+    rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_off, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  rc = glue_async_cps_mov_imm32_to_rax(elf_ctx, nbytes, ta);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 3, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  rc = glue_async_cps_mov_imm32_to_rax(elf_ctx, data_off, ta);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  rc = glue_async_cps_mov_imm32_to_rax(elf_ctx, fn_id, ta);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_call_arch(elf_ctx, cname, cname_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Save all live vars in layout bag to frame data area via store helper.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 missing local or encoder failure
+ * wave131 pure helper (was static glue_async_cps_save_live).
+ * PLATFORM: SHARED.
+ */
+function glue_async_cps_save_live(elf_ctx: *u8, ctx: *u8, ta: i32): i32 {
+  let store_nm: u8[40] = [];
+  // "xlang_async_asm_frame_store_from_ptr" len=36
+  store_nm[0] = 120 as u8; store_nm[1] = 108 as u8; store_nm[2] = 97 as u8; store_nm[3] = 110 as u8; store_nm[4] = 103 as u8;
+  store_nm[5] = 95 as u8; store_nm[6] = 97 as u8; store_nm[7] = 115 as u8; store_nm[8] = 121 as u8; store_nm[9] = 110 as u8;
+  store_nm[10] = 99 as u8; store_nm[11] = 95 as u8; store_nm[12] = 97 as u8; store_nm[13] = 115 as u8; store_nm[14] = 109 as u8;
+  store_nm[15] = 95 as u8; store_nm[16] = 102 as u8; store_nm[17] = 114 as u8; store_nm[18] = 97 as u8; store_nm[19] = 109 as u8;
+  store_nm[20] = 101 as u8; store_nm[21] = 95 as u8; store_nm[22] = 115 as u8; store_nm[23] = 116 as u8; store_nm[24] = 111 as u8;
+  store_nm[25] = 114 as u8; store_nm[26] = 101 as u8; store_nm[27] = 95 as u8; store_nm[28] = 102 as u8; store_nm[29] = 114 as u8;
+  store_nm[30] = 111 as u8; store_nm[31] = 109 as u8; store_nm[32] = 95 as u8; store_nm[33] = 112 as u8; store_nm[34] = 116 as u8;
+  store_nm[35] = 114 as u8; store_nm[36] = 0 as u8;
+  let num_live: i32 = pipe_load_i32_le(&g_async_cps_emit[0], 24);
+  let fn_id: i32 = pipe_load_i32_le(&g_async_cps_emit[0], 8);
+  let i: i32 = 0;
+  while (i < num_live) {
+    let live_off: i32 = 28 + i * 140;
+    let name_len: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 128);
+    let size_bytes: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 132);
+    let frame_data_off: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 136);
+    let stack_off: i32 = 0;
+    unsafe {
+      stack_off = asm_ctx_local_find_offset(ctx, &g_async_cps_emit[live_off], name_len);
+    }
+    if (stack_off < 0) {
+      return 0 - 1;
+    }
+    let rc: i32 = glue_async_cps_call_frame_memop(elf_ctx, &store_nm[0], 36, fn_id, frame_data_off, stack_off, size_bytes, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Restore all live vars from frame data area to stack slots via load helper.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 missing local or encoder failure
+ * wave131 pure helper (was static glue_async_cps_restore_live).
+ * PLATFORM: SHARED.
+ */
+function glue_async_cps_restore_live(elf_ctx: *u8, ctx: *u8, ta: i32): i32 {
+  let load_nm: u8[40] = [];
+  // "xlang_async_asm_frame_load_to_ptr" len=33
+  load_nm[0] = 120 as u8; load_nm[1] = 108 as u8; load_nm[2] = 97 as u8; load_nm[3] = 110 as u8; load_nm[4] = 103 as u8;
+  load_nm[5] = 95 as u8; load_nm[6] = 97 as u8; load_nm[7] = 115 as u8; load_nm[8] = 121 as u8; load_nm[9] = 110 as u8;
+  load_nm[10] = 99 as u8; load_nm[11] = 95 as u8; load_nm[12] = 97 as u8; load_nm[13] = 115 as u8; load_nm[14] = 109 as u8;
+  load_nm[15] = 95 as u8; load_nm[16] = 102 as u8; load_nm[17] = 114 as u8; load_nm[18] = 97 as u8; load_nm[19] = 109 as u8;
+  load_nm[20] = 101 as u8; load_nm[21] = 95 as u8; load_nm[22] = 108 as u8; load_nm[23] = 111 as u8; load_nm[24] = 97 as u8;
+  load_nm[25] = 100 as u8; load_nm[26] = 95 as u8; load_nm[27] = 116 as u8; load_nm[28] = 111 as u8; load_nm[29] = 95 as u8;
+  load_nm[30] = 112 as u8; load_nm[31] = 116 as u8; load_nm[32] = 114 as u8; load_nm[33] = 0 as u8;
+  let num_live: i32 = pipe_load_i32_le(&g_async_cps_emit[0], 24);
+  let fn_id: i32 = pipe_load_i32_le(&g_async_cps_emit[0], 8);
+  let i: i32 = 0;
+  while (i < num_live) {
+    let live_off: i32 = 28 + i * 140;
+    let name_len: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 128);
+    let size_bytes: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 132);
+    let frame_data_off: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 136);
+    let stack_off: i32 = 0;
+    unsafe {
+      stack_off = asm_ctx_local_find_offset(ctx, &g_async_cps_emit[live_off], name_len);
+    }
+    if (stack_off < 0) {
+      return 0 - 1;
+    }
+    let rc: i32 = glue_async_cps_call_frame_memop(elf_ctx, &load_nm[0], 33, fn_id, frame_data_off, stack_off, size_bytes, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Await boundary: save live → suspend → jz resume / return SUSPENDED → restore.
+ * @param arena *u8 - ASTArena* (unused; retained for residual ABI)
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok or inactive; -1 encoder/layout failure
+ * wave131 pure: G.7 authority (was static in pipeline_asm_emit_async_cps.c).
+ * Cap residual: jz_after_bool + ctx_layout tail_join@1392/len@1520 + encoders.
+ * PLATFORM: SHARED - sole provider after async_cps leave; block_body await arm.
+ */
+#[no_mangle]
+export function glue_async_cps_emit_after_await(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32): i32 {
+  let active: i32 = pipe_load_i32_le(&g_async_cps_emit[0], 0);
+  let suspend_nm: u8[32] = [];
+  let next_ph: i32 = 0;
+  let fn_id: i32 = 0;
+  let resume_len: i32 = 0;
+  let rc: i32 = 0;
+  let ly: *u8 = 0 as *u8;
+  let tj_len: i32 = 0;
+  if (arena != 0 as *u8) {
+    // silence unused; residual ABI keeps arena param
+  }
+  if (active == 0) {
+    return 0;
+  }
+  next_ph = pipe_load_i32_le(&g_async_cps_emit[0], 12);
+  pipe_store_i32_le(&g_async_cps_emit[0], 12, next_ph + 1);
+  if (glue_async_cps_save_live(elf_ctx, ctx, ta) != 0) {
+    return 0 - 1;
+  }
+  fn_id = pipe_load_i32_le(&g_async_cps_emit[0], 8);
+  if (glue_async_cps_emit_frame_phase_ptr(elf_ctx, fn_id, ta) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (glue_async_cps_mov_imm32_to_rax(elf_ctx, next_ph, ta) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  // "xlang_async_cps_suspend" len=23
+  suspend_nm[0] = 120 as u8; suspend_nm[1] = 108 as u8; suspend_nm[2] = 97 as u8; suspend_nm[3] = 110 as u8; suspend_nm[4] = 103 as u8;
+  suspend_nm[5] = 95 as u8; suspend_nm[6] = 97 as u8; suspend_nm[7] = 115 as u8; suspend_nm[8] = 121 as u8; suspend_nm[9] = 110 as u8;
+  suspend_nm[10] = 99 as u8; suspend_nm[11] = 95 as u8; suspend_nm[12] = 99 as u8; suspend_nm[13] = 112 as u8; suspend_nm[14] = 115 as u8;
+  suspend_nm[15] = 95 as u8; suspend_nm[16] = 115 as u8; suspend_nm[17] = 117 as u8; suspend_nm[18] = 115 as u8; suspend_nm[19] = 112 as u8;
+  suspend_nm[20] = 101 as u8; suspend_nm[21] = 110 as u8; suspend_nm[22] = 100 as u8; suspend_nm[23] = 0 as u8;
+  unsafe {
+    rc = backend_enc_call_arch(elf_ctx, &suspend_nm[0], 23, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  resume_len = pipe_load_i32_le(&g_async_cps_emit[0], 9120);
+  unsafe {
+    rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &g_async_cps_emit[8992], resume_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (ly == 0 as *u8) {
+    return 0 - 1;
+  }
+  tj_len = pipe_load_i32_le(ly, 1520);
+  if (tj_len <= 0) {
+    return 0 - 1;
+  }
+  // Copy AsmFuncCtxLayout.tail_join_label@1392 into local (opaque *u8 has no &ly[off]).
+  let tj_lbl: u8[128] = [];
+  let tk: i32 = 0;
+  while (tk < tj_len && tk < 128) {
+    unsafe {
+      tj_lbl[tk] = ly[1392 + tk];
+    }
+    tk = tk + 1;
+  }
+  // SUSPENDED magic 0x41535700
+  unsafe {
+    rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, 1095972608, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_jmp_arch(elf_ctx, &tj_lbl[0], tj_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &g_async_cps_emit[8992], resume_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return glue_async_cps_restore_live(elf_ctx, ctx, ta);
+}
+
+/**
+ * Reset coroutine phase before return (preserve rax via push/pop).
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok or inactive; -1 encoder failure
+ * wave131 pure: G.7 authority (was static in pipeline_asm_emit_async_cps.c).
+ * Cap residual: push/pop + mov_imm + call reset_by_id.
+ * PLATFORM: SHARED - sole provider; as.c / return.c residual callers.
+ */
+#[no_mangle]
+export function glue_async_cps_emit_phase_reset(elf_ctx: *u8, ta: i32): i32 {
+  let active: i32 = pipe_load_i32_le(&g_async_cps_emit[0], 0);
+  let reset_nm: u8[40] = [];
+  let fn_id: i32 = 0;
+  let rc: i32 = 0;
+  if (active == 0) {
+    return 0;
+  }
+  // "xlang_async_asm_frame_reset_by_id" len=33
+  reset_nm[0] = 120 as u8; reset_nm[1] = 108 as u8; reset_nm[2] = 97 as u8; reset_nm[3] = 110 as u8; reset_nm[4] = 103 as u8;
+  reset_nm[5] = 95 as u8; reset_nm[6] = 97 as u8; reset_nm[7] = 115 as u8; reset_nm[8] = 121 as u8; reset_nm[9] = 110 as u8;
+  reset_nm[10] = 99 as u8; reset_nm[11] = 95 as u8; reset_nm[12] = 97 as u8; reset_nm[13] = 115 as u8; reset_nm[14] = 109 as u8;
+  reset_nm[15] = 95 as u8; reset_nm[16] = 102 as u8; reset_nm[17] = 114 as u8; reset_nm[18] = 97 as u8; reset_nm[19] = 109 as u8;
+  reset_nm[20] = 101 as u8; reset_nm[21] = 95 as u8; reset_nm[22] = 114 as u8; reset_nm[23] = 101 as u8; reset_nm[24] = 115 as u8;
+  reset_nm[25] = 101 as u8; reset_nm[26] = 116 as u8; reset_nm[27] = 95 as u8; reset_nm[28] = 98 as u8; reset_nm[29] = 121 as u8;
+  reset_nm[30] = 95 as u8; reset_nm[31] = 105 as u8; reset_nm[32] = 100 as u8; reset_nm[33] = 0 as u8;
+  unsafe {
+    rc = backend_enc_push_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  fn_id = pipe_load_i32_le(&g_async_cps_emit[0], 8);
+  if (glue_async_cps_mov_imm32_to_rax(elf_ctx, fn_id, ta) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_call_arch(elf_ctx, &reset_nm[0], 33, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * After prologue/param_home: async+await phase dispatch (phase==1 → resume).
+ * No-op when async_asm_pool_build_layout returns non-0 (no await / not CPS).
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param mod *u8 - Module*
+ * @param func_index i32 - function index in mod
+ * @param ta i32 - target arch 0..2
+ * @return i32 - 0 ok/no-op; -1 label/encoder failure
+ * wave131 pure: G.7 authority (was pipeline_asm_emit_async_cps.c).
+ * Cap residual: async_asm_pool_build_layout + next_label + load32/cmp/jeq.
+ * PLATFORM: SHARED - sole provider; mega_body / backend.x entry.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_async_cps_entry_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, mod: *u8, func_index: i32, ta: i32): i32 {
+  let lr: i32 = 0;
+  let resume_len: i32 = 0;
+  let fn_id: i32 = 0;
+  let rc: i32 = 0;
+  unsafe {
+    memset(&g_async_cps_emit[0], 0, 9124 as usize);
+  }
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || mod == 0 as *u8 || func_index < 0) {
+    return 0;
+  }
+  if (ta < 0 || ta > 2) {
+    return 0;
+  }
+  // layout overlay at bag+16 (8976 bytes)
+  unsafe {
+    lr = async_asm_pool_build_layout(arena, mod, func_index, &g_async_cps_emit[16]);
+  }
+  if (lr != 0) {
+    return 0;
+  }
+  pipe_store_i32_le(&g_async_cps_emit[0], 0, 1);
+  pipe_store_i32_le(&g_async_cps_emit[0], 4, ta);
+  fn_id = pipe_load_i32_le(&g_async_cps_emit[0], 16);
+  pipe_store_i32_le(&g_async_cps_emit[0], 8, fn_id);
+  pipe_store_i32_le(&g_async_cps_emit[0], 12, 1);
+  unsafe {
+    resume_len = pipeline_asm_emit_next_label_c(ctx, &g_async_cps_emit[8992], 64);
+  }
+  if (resume_len <= 0) {
+    return 0 - 1;
+  }
+  pipe_store_i32_le(&g_async_cps_emit[0], 9120, resume_len);
+  if (glue_async_cps_emit_frame_phase_ptr(elf_ctx, fn_id, ta) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (glue_async_cps_mov_imm32_to_rax(elf_ctx, 1, ta) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_cmp_rbx_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_jeq_arch(elf_ctx, &g_async_cps_emit[8992], resume_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Function emit end: clear CPS bag.
+ * @return void
+ * wave131 pure: G.7 authority (was pipeline_asm_emit_async_cps.c).
+ * PLATFORM: SHARED - sole provider after async_cps leave.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_async_cps_end_func_elf_c(): void {
+  unsafe {
+    memset(&g_async_cps_emit[0], 0, 9124 as usize);
+  }
 }
