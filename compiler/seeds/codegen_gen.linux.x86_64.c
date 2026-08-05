@@ -18858,3 +18858,52 @@ int32_t codegen_std_io_fixed_fd_emit_impl(uint8_t * prefix, int32_t prefix_len, 
   }
   return 0;
 }
+
+
+/* ============================================================================
+ * 8.3.2 host-cc leave: pipeline_scratch_bufs.c retired from pipeline_x mega-TU.
+ * Live path/prefix scratch buffer accessors live here in codegen_x.o.
+ * Mangled thin faces (codegen_pipeline_scratch_buf64* / ast_pipeline_scratch_buf*)
+ * remain in pipeline_x host-cc forwarders and call these symbols.
+ * PLATFORM: SHARED — BSS only; no business logic; G.7 single authority pools.
+ * ============================================================================ */
+
+/** codegen path/prefix scratch (avoid `u8[N] = []` ExprKind=-1 under asm emit). */
+static uint8_t g_pipeline_scratch64[4][128];
+static uint8_t g_pipeline_scratch128[2][128];
+static uint8_t g_pipeline_scratch256[2][256];
+
+uint8_t *pipeline_scratch_buf64(void) {
+  return g_pipeline_scratch64[0];
+}
+
+uint8_t *pipeline_scratch_buf64_slot(int32_t slot) {
+  if (slot < 0 || slot >= 4)
+    return g_pipeline_scratch64[0];
+  return g_pipeline_scratch64[slot];
+}
+
+uint8_t *pipeline_scratch_buf128(void) {
+  return g_pipeline_scratch128[0];
+}
+
+uint8_t *pipeline_scratch_buf128_slot(int32_t slot) {
+  if (slot < 0 || slot >= 2)
+    return g_pipeline_scratch128[0];
+  return g_pipeline_scratch128[slot];
+}
+
+uint8_t *pipeline_scratch_buf96(void) {
+  static uint8_t s[96];
+  return s;
+}
+
+uint8_t *pipeline_scratch_buf256(void) {
+  return g_pipeline_scratch256[0];
+}
+
+uint8_t *pipeline_scratch_buf256_slot(int32_t slot) {
+  if (slot < 0 || slot >= 2)
+    return g_pipeline_scratch256[0];
+  return g_pipeline_scratch256[slot];
+}

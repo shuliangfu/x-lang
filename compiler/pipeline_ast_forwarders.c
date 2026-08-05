@@ -13,7 +13,8 @@
  *  - ast_pipeline_module_func_* (module function accessors)
  *  - ast_pipeline_dep_ctx_* (dependency context accessors)
  *  - ast_pipeline_ctx_lib_root_* (lib root path accessors)
- *  - ast_pipeline_scratch_buf* (scratch buffer accessors: 64/96/128/256)
+ *  - ast_pipeline_scratch_buf* (scratch buffer accessors: 64/96/128/256;
+ *    authority = codegen_x.o after 8.3.2 host-cc leave of pipeline_scratch_bufs)
  *  - ast_pipeline_codegen_* (codegen helpers: type kind/vector/skip-emit/force-param)
  *  - ast_pipeline_elf_ctx_* (elf context helpers: append_patch/reloc)
  *  - ast_pipeline_block_* (block statement accessors: const/let/if/while/for/stmt_order)
@@ -153,6 +154,15 @@ int32_t ast_pipeline_dep_ctx_use_asm_backend(struct ast_PipelineDepCtx *ctx) {
 uint8_t ast_pipeline_dep_ctx_entry_dir_byte_at(struct ast_PipelineDepCtx *ctx, int32_t off) {
   return pipeline_dep_ctx_entry_dir_byte_at(ctx, off);
 }
+/* PLATFORM: SHARED — pipeline_scratch_buf* defined in codegen_x.o (seed leave). */
+extern uint8_t *pipeline_scratch_buf64(void);
+extern uint8_t *pipeline_scratch_buf64_slot(int32_t slot);
+extern uint8_t *pipeline_scratch_buf128(void);
+extern uint8_t *pipeline_scratch_buf128_slot(int32_t slot);
+extern uint8_t *pipeline_scratch_buf96(void);
+extern uint8_t *pipeline_scratch_buf256(void);
+extern uint8_t *pipeline_scratch_buf256_slot(int32_t slot);
+
 uint8_t *ast_pipeline_scratch_buf64(void) {
   return pipeline_scratch_buf64();
 }

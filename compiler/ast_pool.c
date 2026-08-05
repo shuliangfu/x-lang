@@ -137,9 +137,10 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 
 #include "pipeline_elf_ctx.c"
 
-/* BC 8.3.2 wave1279: codegen path/prefix scratch buffers → pipeline_scratch_bufs.c
- * (after elf_ctx; before type_to_c). PLATFORM: SHARED same-TU. */
-#include "pipeline_scratch_bufs.c"
+/* 8.3.2 host-cc leave: pipeline_scratch_bufs.c retired — path/prefix
+ * scratch BSS accessors live in codegen_x.o (codegen_gen seed append).
+ * ast_/codegen_ mangled thin faces stay in pipeline_*_forwarders (host-cc).
+ */
 
 #include "pipeline_codegen_type_to_c.c"
 

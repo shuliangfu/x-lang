@@ -183,14 +183,20 @@ void pipeline_codegen_out_buf_set_len(struct codegen_CodegenOutBuf *out, int32_t
 
 /* --- codegen_ prefix scratch_buf64 forwarders (2 fns) -------------------
  * asm.x resolves extern scratch accessors with a codegen_ prefix; forward
- * to the canonical pipeline_scratch_buf64* impl in ast_pool.c.
+ * to the canonical pipeline_scratch_buf64* impl in codegen_x.o
+ * (8.3.2 host-cc leave: was pipeline_scratch_bufs.c in pipeline_x).
+ * PLATFORM: SHARED — thin rename only; BSS authority is codegen_gen seed.
  */
+
+/* PLATFORM: SHARED — defined in codegen_x.o (codegen_gen seed append). */
+extern uint8_t *pipeline_scratch_buf64(void);
+extern uint8_t *pipeline_scratch_buf64_slot(int32_t slot);
 
 /**
  * Return a pointer to the 64-byte scratch buffer (slot 0).
  * Why: asm backend uses a fixed 64-byte scratch for temporary byte assembly
  *      (e.g. building a reloc name field) without stack allocation; the
- *      authoritative static buffer lives in ast_pool.c.
+ *      authoritative static buffer lives in codegen_x.o.
  * Contract: returns a stable pointer valid until the next call.
  */
 uint8_t *codegen_pipeline_scratch_buf64(void) {
