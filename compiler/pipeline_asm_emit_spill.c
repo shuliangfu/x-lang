@@ -120,8 +120,14 @@
  *   · glue_binop_spill_reg_to_spill_elf_c
  *   · glue_asm73_evict_rax_cache_entry
  *   · glue_asm73_evict_rbx_cache_entry
- * Residual keeps VAR cache BSS + thin mov_reg_to_spill / try_colored /
- * pick_evict / slot_farthest / stack_spill_enabled / max_live_n_get.
+ *
+ * wave175 pure-owned Chaitin/color physical-slot thin remainder:
+ *   · glue_binop_spill_mov_reg_to_spill_elf_c
+ *   · glue_asm73_try_spill_to_colored_slot
+ *   · glue_asm73_spill_slot_farthest
+ *   · glue_asm73_spill_pick_evict_which
+ * Residual keeps VAR cache BSS + thin set_spill_slot / off_is_spill_pin /
+ * stack_spill_enabled / max_live_n_get / color which / next_use.
  *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
@@ -129,7 +135,6 @@
  *   · Chaitin interf BSS + gen_kill/collect + stack-spill preference
  *   · index scratch CAP BSS + thin valid/slot/ctx/keys/record + clear
  *     (CAP statics in pipeline_asm_emit_index_helpers.c)
- *   · spill physical-slot thin (mov/colored/pick/farthest/enabled)
  *
  * G.7: do not re-define pure-owned faces above in this file.
  * Not a separate .o — #included from pipeline_glue.c after index_helpers.
@@ -293,13 +298,22 @@ void glue_block_live_fwd_apply_top_stmt(struct ast_ASTArena *arena, struct backe
                                         int32_t stmt_i);
 
 /* wave174 pure-owned faces (extern; live in runtime_pipeline_abi pure).
- * Residual thin: mov_reg_to_spill / try_colored / pick_evict / farthest /
- * stack_spill_enabled / max_live_n_get + VAR cache invalidate.
  * PLATFORM: SHARED freestanding 7.3. */
 int32_t glue_binop_spill_reg_to_spill_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
                                            int32_t from_rbx, int32_t stmt_i);
 void glue_asm73_evict_rax_cache_entry(int32_t stmt_i, int32_t ta, struct platform_elf_ElfCodegenCtx *elf_ctx);
 void glue_asm73_evict_rbx_cache_entry(int32_t stmt_i, int32_t ta, struct platform_elf_ElfCodegenCtx *elf_ctx);
+
+/* wave175 pure-owned Chaitin/color physical-slot thin (extern; live pure).
+ * Residual thin: set_spill_slot / off_is_spill_pin / stack_spill_enabled /
+ * max_live_n_get + color which / next_use.
+ * PLATFORM: SHARED freestanding 7.3. */
+int32_t glue_binop_spill_mov_reg_to_spill_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+                                               int32_t off, int32_t from_rbx, int32_t spill_which);
+int32_t glue_asm73_try_spill_to_colored_slot(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
+                                            int32_t from_rbx);
+int32_t glue_asm73_spill_slot_farthest(int32_t stmt_i);
+int32_t glue_asm73_spill_pick_evict_which(int32_t stmt_i, int32_t new_off, int32_t dist_new);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -1211,8 +1225,14 @@ int32_t glue_asm73_linear_next_use_dist(int32_t from_stmt, int32_t off) {
   return 9999;
 }
 
-/** 7.3：栈槽 off 是否为当前块 spill 着色 pin（更近 next-use，不宜被远槽覆盖）。 */
-static int32_t glue_asm73_off_is_spill_pin(int32_t off) {
+/**
+ * wave175 Cap residual thin: 1 when stack slot off is a current-block spill pin
+ * (closer next-use; prefer not to overwrite with a farther slot).
+ * @param off int32_t - stack slot; <0 → 0
+ * @return int32_t - 1 pin; 0 not pin / OOB
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_asm73_off_is_spill_pin(int32_t off) {
   if (off < 0)
     return 0;
   return off == glue_asm73_pin_spill_off[0] || off == glue_asm73_pin_spill_off[1] ||
@@ -1267,28 +1287,6 @@ int32_t glue_asm73_off_spill_color_which(int32_t off) {
  * wave165: pure owns glue_asm73_compute_spill_color_pins (linear interf build
  * + peak pick + pure chaitin). Residual: BSS + thin faces. PLATFORM: SHARED. */
 
-/** 返回 spill 槽 which（0=x10…5=x15）当前保存的栈 off；-1 表示空。 */
-static int32_t glue_asm73_spill_slot_held_off(int32_t which) {
-  if (which == 5 && glue_binop_var_slot_cache.valid_x15)
-    return glue_binop_var_slot_cache.x15_off;
-  if (which == 4 && glue_binop_var_slot_cache.valid_x14)
-    return glue_binop_var_slot_cache.x14_off;
-  if (which == 3 && glue_binop_var_slot_cache.valid_x13)
-    return glue_binop_var_slot_cache.x13_off;
-  if (which == 2 && glue_binop_var_slot_cache.valid_x12)
-    return glue_binop_var_slot_cache.x12_off;
-  if (which == 1 && glue_binop_var_slot_cache.valid_x11)
-    return glue_binop_var_slot_cache.x11_off;
-  if (which == 0 && glue_binop_var_slot_cache.valid_x10)
-    return glue_binop_var_slot_cache.x10_off;
-  return -1;
-}
-
-/**
- * 7.3：是否启用栈帧 spill（which=6，sub sp,#16 + str）。
- * 线性块：|live|max≥15（十～十四元 block-var 走 x10–x15 驱逐）。
- * cfg 父块：final_expr 直接 VAR 使用数≥12（长 return 加链；binop_var_fast 仅 9 个操作数不启）。
- */
 /**
  * wave174 Cap residual thin: whether stack-frame spill (which=6) is enabled.
  * Linear: |live|max≥15; cfg parent: final_expr VAR uses ≥12.
@@ -1309,261 +1307,54 @@ int32_t glue_asm73_var_prefers_stack_spill(int32_t off) {
 }
 
 /**
- * 7.3：是否允许用新溢出槽 new_off 覆盖物理 spill 槽 which（已考虑最远 next-use 与 pin）。
+ * wave175 Cap residual thin: stamp VAR cache for physical spill which
+ * (0=x10 … 5=x15) after pure enc mov rax/rbx → xN.
+ * @param which int32_t - 0..5; OOB → no-op
+ * @param off int32_t - stack-slot off held in that spill home
+ * PLATFORM: SHARED freestanding 7.3.
  */
-static int32_t glue_asm73_spill_overwrite_ok(int32_t which, int32_t stmt_i, int32_t new_off, int32_t dist_new,
-                                               int32_t dist_far) {
-  int32_t held;
-  int32_t dist_held;
-  if (dist_new <= dist_far)
-    return 0;
-  held = glue_asm73_spill_slot_held_off(which);
-  if (held < 0)
-    return 1;
-  if (!glue_asm73_off_is_spill_pin(held))
-    return 1;
-  dist_held = glue_asm73_linear_next_use_dist(stmt_i, held);
-  /** pin 可被 next-use 更近的新槽抢占（Chaitin 第十步）。 */
-  return glue_asm73_linear_next_use_dist(stmt_i, new_off) < dist_held;
-}
-
-/**
- * wave174 Cap residual thin: arm64 mov rax/rbx → spill physical reg x10..x15
- * and stamp VAR cache (valid_xN + xN_off). spill_which: 0=x10 … 5=x15.
- * @return 0 OK/no-op; -1 enc fail
- * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
- */
-int32_t glue_binop_spill_mov_reg_to_spill_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
-                                               int32_t off, int32_t from_rbx, int32_t spill_which) {
-  if (ta != 1 || off < 0 || !elf_ctx)
-    return 0;
-  if (spill_which == 5) {
-    if (from_rbx != 0) {
-      if (arch_arm64_enc_enc_mov_rbx_to_x15(elf_ctx) != 0)
-        return -1;
-    } else if (arch_arm64_enc_enc_mov_rax_to_x15(elf_ctx) != 0) {
-      return -1;
-    }
-    glue_binop_var_slot_cache.valid_x15 = 1;
-    glue_binop_var_slot_cache.x15_off = off;
-    return 0;
+void glue_binop_var_slot_cache_set_spill_slot(int32_t which, int32_t off) {
+  if (which == 0) {
+    glue_binop_var_slot_cache.valid_x10 = 1;
+    glue_binop_var_slot_cache.x10_off = off;
+    return;
   }
-  if (spill_which == 4) {
-    if (from_rbx != 0) {
-      if (arch_arm64_enc_enc_mov_rbx_to_x14(elf_ctx) != 0)
-        return -1;
-    } else if (arch_arm64_enc_enc_mov_rax_to_x14(elf_ctx) != 0) {
-      return -1;
-    }
-    glue_binop_var_slot_cache.valid_x14 = 1;
-    glue_binop_var_slot_cache.x14_off = off;
-    return 0;
-  }
-  if (spill_which == 3) {
-    if (from_rbx != 0) {
-      if (arch_arm64_enc_enc_mov_rbx_to_x13(elf_ctx) != 0)
-        return -1;
-    } else if (arch_arm64_enc_enc_mov_rax_to_x13(elf_ctx) != 0) {
-      return -1;
-    }
-    glue_binop_var_slot_cache.valid_x13 = 1;
-    glue_binop_var_slot_cache.x13_off = off;
-    return 0;
-  }
-  if (spill_which == 2) {
-    if (from_rbx != 0) {
-      if (arch_arm64_enc_enc_mov_rbx_to_x12(elf_ctx) != 0)
-        return -1;
-    } else if (arch_arm64_enc_enc_mov_rax_to_x12(elf_ctx) != 0) {
-      return -1;
-    }
-    glue_binop_var_slot_cache.valid_x12 = 1;
-    glue_binop_var_slot_cache.x12_off = off;
-    return 0;
-  }
-  if (spill_which == 1) {
-    if (from_rbx != 0) {
-      if (arch_arm64_enc_enc_mov_rbx_to_x11(elf_ctx) != 0)
-        return -1;
-    } else if (arch_arm64_enc_enc_mov_rax_to_x11(elf_ctx) != 0) {
-      return -1;
-    }
+  if (which == 1) {
     glue_binop_var_slot_cache.valid_x11 = 1;
     glue_binop_var_slot_cache.x11_off = off;
-    return 0;
+    return;
   }
-  if (from_rbx != 0) {
-    if (arch_arm64_enc_enc_mov_rbx_to_x10(elf_ctx) != 0)
-      return -1;
-  } else if (arch_arm64_enc_enc_mov_rax_to_x10(elf_ctx) != 0) {
-    return -1;
+  if (which == 2) {
+    glue_binop_var_slot_cache.valid_x12 = 1;
+    glue_binop_var_slot_cache.x12_off = off;
+    return;
   }
-  glue_binop_var_slot_cache.valid_x10 = 1;
-  glue_binop_var_slot_cache.x10_off = off;
-  return 0;
+  if (which == 3) {
+    glue_binop_var_slot_cache.valid_x13 = 1;
+    glue_binop_var_slot_cache.x13_off = off;
+    return;
+  }
+  if (which == 4) {
+    glue_binop_var_slot_cache.valid_x14 = 1;
+    glue_binop_var_slot_cache.x14_off = off;
+    return;
+  }
+  if (which == 5) {
+    glue_binop_var_slot_cache.valid_x15 = 1;
+    glue_binop_var_slot_cache.x15_off = off;
+  }
 }
 
-/**
- * wave174 Cap residual thin: if Chaitin preference home is free, occupy it
- * (x10–x15 or stack push). 0=written; -1=need fill/evict path.
- * PLATFORM: SHARED freestanding 7.3.
- */
-int32_t glue_asm73_try_spill_to_colored_slot(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
-                                            int32_t off, int32_t from_rbx) {
-  int32_t pref;
-  if (ta != 1 || off < 0 || !elf_ctx)
-    return -1;
-  pref = glue_asm73_off_spill_color_which(off);
-  if (pref < 0)
-    return -1;
-  if (pref == 0 && !glue_binop_var_slot_cache.valid_x10)
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 0);
-  if (pref == 1 && glue_asm73_linear_max_live_n >= 5 && !glue_binop_var_slot_cache.valid_x11)
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 1);
-  if (pref == 2 && glue_asm73_linear_max_live_n >= 6 && !glue_binop_var_slot_cache.valid_x12)
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 2);
-  if (pref == 3 && glue_asm73_linear_max_live_n >= 7 && !glue_binop_var_slot_cache.valid_x13)
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 3);
-  if (pref == 4 && glue_asm73_linear_max_live_n >= 8 && !glue_binop_var_slot_cache.valid_x14)
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 4);
-  if (pref == 5 && glue_asm73_linear_max_live_n >= 9 && !glue_binop_var_slot_cache.valid_x15)
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 5);
-  if (pref == GLUE_ASM73_SPILL_WHICH_STACK && glue_asm73_stack_spill_enabled())
-    return glue_binop_stack_spill_push_elf_c(elf_ctx, ta, off, from_rbx);
-  return -1;
-}
-
-/**
- * wave174 Cap residual thin: occupied spill slot (0=x10…5=x15) with farthest
- * next-use; -1 if none.
- * PLATFORM: SHARED freestanding 7.3.
- */
-int32_t glue_asm73_spill_slot_farthest(int32_t stmt_i) {
-  int32_t which;
-  int32_t best_dist;
-  int32_t d;
-  which = -1;
-  best_dist = -1;
-  if (glue_binop_var_slot_cache.valid_x10) {
-    which = 0;
-    best_dist = glue_asm73_linear_next_use_dist(stmt_i, glue_binop_var_slot_cache.x10_off);
-  }
-  if (glue_asm73_linear_max_live_n >= 5 && glue_binop_var_slot_cache.valid_x11) {
-    d = glue_asm73_linear_next_use_dist(stmt_i, glue_binop_var_slot_cache.x11_off);
-    if (d > best_dist) {
-      which = 1;
-      best_dist = d;
-    }
-  }
-  if (glue_asm73_linear_max_live_n >= 6 && glue_binop_var_slot_cache.valid_x12) {
-    d = glue_asm73_linear_next_use_dist(stmt_i, glue_binop_var_slot_cache.x12_off);
-    if (d > best_dist) {
-      which = 2;
-      best_dist = d;
-    }
-  }
-  if (glue_asm73_linear_max_live_n >= 7 && glue_binop_var_slot_cache.valid_x13) {
-    d = glue_asm73_linear_next_use_dist(stmt_i, glue_binop_var_slot_cache.x13_off);
-    if (d > best_dist) {
-      which = 3;
-      best_dist = d;
-    }
-  }
-  if (glue_asm73_linear_max_live_n >= 8 && glue_binop_var_slot_cache.valid_x14) {
-    d = glue_asm73_linear_next_use_dist(stmt_i, glue_binop_var_slot_cache.x14_off);
-    if (d > best_dist) {
-      which = 4;
-      best_dist = d;
-    }
-  }
-  if (glue_asm73_linear_max_live_n >= 9 && glue_binop_var_slot_cache.valid_x15) {
-    d = glue_asm73_linear_next_use_dist(stmt_i, glue_binop_var_slot_cache.x15_off);
-    if (d > best_dist) {
-      which = 5;
-      best_dist = d;
-    }
-  }
-  return which;
-}
-
-/**
- * wave174 Cap residual thin: when spill homes full, pick overwrite victim
- * (prefer non-home of new_off, then farthest next-use). -1 if none.
- * PLATFORM: SHARED freestanding 7.3.
- */
-int32_t glue_asm73_spill_pick_evict_which(int32_t stmt_i, int32_t new_off, int32_t dist_new) {
-  int32_t pref;
-  int32_t which;
-  int32_t held;
-  int32_t dist_held;
-  int32_t best_which;
-  int32_t best_dist;
-  int32_t home_which;
-  int32_t home_dist;
-  best_which = -1;
-  best_dist = -1;
-  home_which = -1;
-  home_dist = -1;
-  pref = glue_asm73_off_spill_color_which(new_off);
-  for (which = 0; which <= 5; which++) {
-    if (which == 1 && glue_asm73_linear_max_live_n < 5)
-      continue;
-    if (which == 2 && glue_asm73_linear_max_live_n < 6)
-      continue;
-    if (which == 3 && glue_asm73_linear_max_live_n < 7)
-      continue;
-    if (which == 4 && glue_asm73_linear_max_live_n < 8)
-      continue;
-    if (which == 5 && glue_asm73_linear_max_live_n < 9)
-      continue;
-    if (which == 0 && !glue_binop_var_slot_cache.valid_x10)
-      continue;
-    if (which == 1 && !glue_binop_var_slot_cache.valid_x11)
-      continue;
-    if (which == 2 && !glue_binop_var_slot_cache.valid_x12)
-      continue;
-    if (which == 3 && !glue_binop_var_slot_cache.valid_x13)
-      continue;
-    if (which == 4 && !glue_binop_var_slot_cache.valid_x14)
-      continue;
-    if (which == 5 && !glue_binop_var_slot_cache.valid_x15)
-      continue;
-    if (which == 0)
-      held = glue_binop_var_slot_cache.x10_off;
-    else if (which == 1)
-      held = glue_binop_var_slot_cache.x11_off;
-    else if (which == 2)
-      held = glue_binop_var_slot_cache.x12_off;
-    else if (which == 3)
-      held = glue_binop_var_slot_cache.x13_off;
-    else if (which == 4)
-      held = glue_binop_var_slot_cache.x14_off;
-    else
-      held = glue_binop_var_slot_cache.x15_off;
-    dist_held = glue_asm73_linear_next_use_dist(stmt_i, held);
-    if (!glue_asm73_spill_overwrite_ok(which, stmt_i, new_off, dist_new, dist_held))
-      continue;
-    if (pref >= 0 && which == pref) {
-      if (dist_held > home_dist) {
-        home_which = which;
-        home_dist = dist_held;
-      }
-      continue;
-    }
-    if (dist_held > best_dist) {
-      best_which = which;
-      best_dist = dist_held;
-    }
-  }
-  if (best_which >= 0)
-    return best_which;
-  return home_which;
-}
+/* wave175: pure owns glue_binop_spill_mov_reg_to_spill_elf_c,
+ * glue_asm73_try_spill_to_colored_slot, glue_asm73_spill_slot_farthest,
+ * glue_asm73_spill_pick_evict_which (extern above). Residual thin:
+ * set_spill_slot / off_is_spill_pin / stack_spill_enabled / max_live_n_get +
+ * color which / next_use / VAR cache valid|off getters.
+ * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave174: pure owns glue_binop_spill_reg_to_spill_elf_c,
  * glue_asm73_evict_rax_cache_entry, glue_asm73_evict_rbx_cache_entry
- * (extern above). Residual thin: mov_reg_to_spill / try_colored / pick_evict /
- * farthest / stack_spill_enabled / max_live_n_get + VAR cache accessors.
+ * (extern above). Residual: VAR cache BSS + wave175 thin stamp/pin.
  * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave170: pure owns glue_binop_try_reload_spill_off_elf_c (extern above).

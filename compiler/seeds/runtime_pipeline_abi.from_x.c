@@ -3,6 +3,7 @@
  * wave172: minus_pair/subadd3 cache spill pure leave cold twins under #ifndef FROM_X
  * wave171: index-scratch enc push/reload/pop pure leave cold twins under #ifndef FROM_X
  * wave174: spill_reg_to_spill + evict_rax|rbx pure leave cold twins under #ifndef FROM_X
+ * wave175: color thin mov/try/farthest/pick pure leave cold twins under #ifndef FROM_X
  * wave170: binop try_reload pure leave cold twin under #ifndef FROM_X
  * wave169: index-scratch pure leave cold twins under #ifndef FROM_X
  * wave168: cfg simulate walk pure leave cold twins under #ifndef FROM_X
@@ -25245,6 +25246,45 @@ void glue_asm73_evict_rbx_cache_entry(int32_t stmt_i, int32_t ta, void *elf_ctx)
   (void)stmt_i;
   (void)ta;
   (void)elf_ctx;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/*
+ * wave175 cold twins: Chaitin/color physical-slot thin (mov/try/farthest/pick).
+ * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+int32_t glue_binop_spill_mov_reg_to_spill_elf_c(void *elf_ctx, int32_t ta, int32_t off, int32_t from_rbx,
+                                               int32_t spill_which) {
+  (void)elf_ctx;
+  (void)ta;
+  (void)off;
+  (void)from_rbx;
+  (void)spill_which;
+  return 0;
+}
+
+int32_t glue_asm73_try_spill_to_colored_slot(void *elf_ctx, int32_t ta, int32_t off, int32_t from_rbx) {
+  (void)elf_ctx;
+  (void)ta;
+  (void)off;
+  (void)from_rbx;
+  return -1;
+}
+
+int32_t glue_asm73_spill_slot_farthest(int32_t stmt_i) {
+  (void)stmt_i;
+  return -1;
+}
+
+int32_t glue_asm73_spill_pick_evict_which(int32_t stmt_i, int32_t new_off, int32_t dist_new) {
+  (void)stmt_i;
+  (void)new_off;
+  (void)dist_new;
+  return -1;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

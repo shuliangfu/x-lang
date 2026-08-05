@@ -1078,13 +1078,12 @@ export extern "C" function glue_asm73_pressure_live_thresh_get(): i32;
 export extern "C" function glue_binop_stack_spill_find_depth(off: i32): i32;
 /* wave174: pure owns glue_asm73_evict_rax|rbx_cache_entry (#[no_mangle] below). */
 /* wave166: pure owns pressure eviction faces (#[no_mangle] below). */
-/* wave174 Cap residual: thin faces for pure spill_reg_to_spill leave. */
-export extern "C" function glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx: *u8, ta: i32, off: i32, from_rbx: i32, spill_which: i32): i32;
-export extern "C" function glue_asm73_try_spill_to_colored_slot(elf_ctx: *u8, ta: i32, off: i32, from_rbx: i32): i32;
-export extern "C" function glue_asm73_spill_pick_evict_which(stmt_i: i32, new_off: i32, dist_new: i32): i32;
-export extern "C" function glue_asm73_spill_slot_farthest(stmt_i: i32): i32;
+/* wave175: pure owns mov_reg_to_spill / try_colored / farthest / pick_evict (#[no_mangle] below). */
+/* wave175 Cap residual: thin stamp/pin + stack_enabled / max_live for pure color-slot leave. */
 export extern "C" function glue_asm73_stack_spill_enabled(): i32;
 export extern "C" function glue_asm73_linear_max_live_n_get(): i32;
+export extern "C" function glue_asm73_off_is_spill_pin(off: i32): i32;
+export extern "C" function glue_binop_var_slot_cache_set_spill_slot(which: i32, off: i32): void;
 export extern "C" function glue_binop_var_slot_cache_valid_x10_get(): i32;
 export extern "C" function glue_binop_var_slot_cache_valid_x11_get(): i32;
 export extern "C" function glue_binop_var_slot_cache_valid_x12_get(): i32;
@@ -40730,6 +40729,19 @@ export extern "C" function arch_arm64_enc_enc_mov_x14_to_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_x14_to_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_x15_to_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_x15_to_rbx(elf_ctx: *u8): i32;
+/* wave175: pure mov_reg_to_spill needs rax|rbx → x10..x15 enc. */
+export extern "C" function arch_arm64_enc_enc_mov_rax_to_x10(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_rbx_to_x10(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_rax_to_x11(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_rbx_to_x11(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_rax_to_x12(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_rbx_to_x12(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_rax_to_x13(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_rbx_to_x13(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_rax_to_x14(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_rbx_to_x14(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_rax_to_x15(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_rbx_to_x15(elf_ctx: *u8): i32;
 /* wave169: pure owns glue_binop_stack_spill_push_elf_c (#[no_mangle] below). */
 /* wave173: pure owns glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c (#[no_mangle] below). */
 /* wave166: pure owns glue_asm73_evict_cache_if_live_pressure_elf_c (#[no_mangle] below). */
@@ -54829,15 +54841,447 @@ export function glue_block_live_fwd_apply_top_stmt(arena: *u8, ctx: *u8, block_r
 // end wave173 pure-owned leave
 
 // ============================================================================
+// wave175 pure-owned leave: Chaitin/color physical-slot thin remainder
+// (was Cap residual spill after wave174 orchestration leave).
+// Public faces:
+//   · glue_binop_spill_mov_reg_to_spill_elf_c
+//   · glue_asm73_try_spill_to_colored_slot
+//   · glue_asm73_spill_slot_farthest
+//   · glue_asm73_spill_pick_evict_which
+// Cap residual: VAR cache BSS + set_spill_slot / off_is_spill_pin /
+// stack_spill_enabled / max_live_n_get / color which / next_use.
+// Pure callees: stack_spill_push (wave169); enc rax|rbx→x10..x15.
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * Private helper: return stack off held in physical spill which (0=x10…5=x15);
+ * -1 if empty / OOB. Uses residual VAR-cache valid/off getters.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+function w175_spill_slot_held_off(which: i32): i32 {
+  let v: i32 = 0;
+  let off: i32 = 0;
+  if (which == 0) {
+    unsafe { v = glue_binop_var_slot_cache_valid_x10_get(); }
+    if (v == 0) { return 0 - 1; }
+    unsafe { off = glue_binop_var_slot_cache_x10_off_get(); }
+    return off;
+  }
+  if (which == 1) {
+    unsafe { v = glue_binop_var_slot_cache_valid_x11_get(); }
+    if (v == 0) { return 0 - 1; }
+    unsafe { off = glue_binop_var_slot_cache_x11_off_get(); }
+    return off;
+  }
+  if (which == 2) {
+    unsafe { v = glue_binop_var_slot_cache_valid_x12_get(); }
+    if (v == 0) { return 0 - 1; }
+    unsafe { off = glue_binop_var_slot_cache_x12_off_get(); }
+    return off;
+  }
+  if (which == 3) {
+    unsafe { v = glue_binop_var_slot_cache_valid_x13_get(); }
+    if (v == 0) { return 0 - 1; }
+    unsafe { off = glue_binop_var_slot_cache_x13_off_get(); }
+    return off;
+  }
+  if (which == 4) {
+    unsafe { v = glue_binop_var_slot_cache_valid_x14_get(); }
+    if (v == 0) { return 0 - 1; }
+    unsafe { off = glue_binop_var_slot_cache_x14_off_get(); }
+    return off;
+  }
+  if (which == 5) {
+    unsafe { v = glue_binop_var_slot_cache_valid_x15_get(); }
+    if (v == 0) { return 0 - 1; }
+    unsafe { off = glue_binop_var_slot_cache_x15_off_get(); }
+    return off;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Private helper: may overwrite physical spill which with new_off?
+ * Matches residual spill_overwrite_ok (pin + next-use).
+ * @param which i32 - 0..5 physical home
+ * @param stmt_i i32 - current stmt for next-use distances
+ * @param new_off i32 - candidate stack off
+ * @param dist_new i32 - next-use distance of new_off
+ * @param dist_far i32 - next-use distance of currently held off in which
+ * @return i32 - 1 ok; 0 reject
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+function w175_spill_overwrite_ok(which: i32, stmt_i: i32, new_off: i32, dist_new: i32, dist_far: i32): i32 {
+  let held: i32 = 0;
+  let dist_held: i32 = 0;
+  let is_pin: i32 = 0;
+  let dist_new2: i32 = 0;
+  if (dist_new <= dist_far) {
+    return 0;
+  }
+  held = w175_spill_slot_held_off(which);
+  if (held < 0) {
+    return 1;
+  }
+  unsafe { is_pin = glue_asm73_off_is_spill_pin(held); }
+  if (is_pin == 0) {
+    return 1;
+  }
+  unsafe {
+    dist_held = glue_asm73_linear_next_use_dist(stmt_i, held);
+    dist_new2 = glue_asm73_linear_next_use_dist(stmt_i, new_off);
+  }
+  // Pin may be stolen only by a closer next-use (Chaitin step 10).
+  if (dist_new2 < dist_held) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * arm64 mov rax (from_rbx==0) or rbx → physical spill reg x10..x15 and stamp
+ * VAR cache (valid_xN + xN_off) via residual set_spill_slot.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch (1=arm64 only)
+ * @param off i32 - stack-slot off being placed in spill home
+ * @param from_rbx i32 - non-zero → source rbx/x1; else rax/x0
+ * @param spill_which i32 - 0=x10 … 5=x15
+ * @return i32 - 0 OK/no-op; -1 enc fail
+ * wave175 pure-owned (was Cap residual thin).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx: *u8, ta: i32, off: i32, from_rbx: i32, spill_which: i32): i32 {
+  let rc: i32 = 0;
+  if (ta != 1 || off < 0 || elf_ctx == (0 as *u8)) {
+    return 0;
+  }
+  if (spill_which == 5) {
+    unsafe {
+      if (from_rbx != 0) {
+        rc = arch_arm64_enc_enc_mov_rbx_to_x15(elf_ctx);
+      } else {
+        rc = arch_arm64_enc_enc_mov_rax_to_x15(elf_ctx);
+      }
+    }
+    if (rc != 0) { return 0 - 1; }
+    unsafe { glue_binop_var_slot_cache_set_spill_slot(5, off); }
+    return 0;
+  }
+  if (spill_which == 4) {
+    unsafe {
+      if (from_rbx != 0) {
+        rc = arch_arm64_enc_enc_mov_rbx_to_x14(elf_ctx);
+      } else {
+        rc = arch_arm64_enc_enc_mov_rax_to_x14(elf_ctx);
+      }
+    }
+    if (rc != 0) { return 0 - 1; }
+    unsafe { glue_binop_var_slot_cache_set_spill_slot(4, off); }
+    return 0;
+  }
+  if (spill_which == 3) {
+    unsafe {
+      if (from_rbx != 0) {
+        rc = arch_arm64_enc_enc_mov_rbx_to_x13(elf_ctx);
+      } else {
+        rc = arch_arm64_enc_enc_mov_rax_to_x13(elf_ctx);
+      }
+    }
+    if (rc != 0) { return 0 - 1; }
+    unsafe { glue_binop_var_slot_cache_set_spill_slot(3, off); }
+    return 0;
+  }
+  if (spill_which == 2) {
+    unsafe {
+      if (from_rbx != 0) {
+        rc = arch_arm64_enc_enc_mov_rbx_to_x12(elf_ctx);
+      } else {
+        rc = arch_arm64_enc_enc_mov_rax_to_x12(elf_ctx);
+      }
+    }
+    if (rc != 0) { return 0 - 1; }
+    unsafe { glue_binop_var_slot_cache_set_spill_slot(2, off); }
+    return 0;
+  }
+  if (spill_which == 1) {
+    unsafe {
+      if (from_rbx != 0) {
+        rc = arch_arm64_enc_enc_mov_rbx_to_x11(elf_ctx);
+      } else {
+        rc = arch_arm64_enc_enc_mov_rax_to_x11(elf_ctx);
+      }
+    }
+    if (rc != 0) { return 0 - 1; }
+    unsafe { glue_binop_var_slot_cache_set_spill_slot(1, off); }
+    return 0;
+  }
+  // spill_which == 0 → x10 (default for other values too, matching residual)
+  unsafe {
+    if (from_rbx != 0) {
+      rc = arch_arm64_enc_enc_mov_rbx_to_x10(elf_ctx);
+    } else {
+      rc = arch_arm64_enc_enc_mov_rax_to_x10(elf_ctx);
+    }
+  }
+  if (rc != 0) { return 0 - 1; }
+  unsafe { glue_binop_var_slot_cache_set_spill_slot(0, off); }
+  return 0;
+}
+
+/**
+ * If Chaitin preference home for off is free, occupy it (x10–x15 or stack push).
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch (1=arm64)
+ * @param off i32 - stack-slot off to spill
+ * @param from_rbx i32 - source reg flag
+ * @return i32 - 0 written; -1 need fill/evict path (or invalid args)
+ * wave175 pure-owned (was Cap residual thin).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_try_spill_to_colored_slot(elf_ctx: *u8, ta: i32, off: i32, from_rbx: i32): i32 {
+  let pref: i32 = 0;
+  let max_live: i32 = 0;
+  let valid: i32 = 0;
+  let en: i32 = 0;
+  // SPILL_WHICH_STACK = 6 (index_helpers define)
+  let which_stack: i32 = 6;
+  if (ta != 1 || off < 0 || elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    pref = glue_asm73_off_spill_color_which(off);
+    max_live = glue_asm73_linear_max_live_n_get();
+  }
+  if (pref < 0) {
+    return 0 - 1;
+  }
+  if (pref == 0) {
+    unsafe { valid = glue_binop_var_slot_cache_valid_x10_get(); }
+    if (valid == 0) {
+      return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 0);
+    }
+  }
+  if (pref == 1 && max_live >= 5) {
+    unsafe { valid = glue_binop_var_slot_cache_valid_x11_get(); }
+    if (valid == 0) {
+      return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 1);
+    }
+  }
+  if (pref == 2 && max_live >= 6) {
+    unsafe { valid = glue_binop_var_slot_cache_valid_x12_get(); }
+    if (valid == 0) {
+      return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 2);
+    }
+  }
+  if (pref == 3 && max_live >= 7) {
+    unsafe { valid = glue_binop_var_slot_cache_valid_x13_get(); }
+    if (valid == 0) {
+      return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 3);
+    }
+  }
+  if (pref == 4 && max_live >= 8) {
+    unsafe { valid = glue_binop_var_slot_cache_valid_x14_get(); }
+    if (valid == 0) {
+      return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 4);
+    }
+  }
+  if (pref == 5 && max_live >= 9) {
+    unsafe { valid = glue_binop_var_slot_cache_valid_x15_get(); }
+    if (valid == 0) {
+      return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 5);
+    }
+  }
+  if (pref == which_stack) {
+    unsafe { en = glue_asm73_stack_spill_enabled(); }
+    if (en != 0) {
+      return glue_binop_stack_spill_push_elf_c(elf_ctx, ta, off, from_rbx);
+    }
+  }
+  return 0 - 1;
+}
+
+/**
+ * Occupied physical spill slot (0=x10…5=x15) with farthest next-use; -1 if none.
+ * @param stmt_i i32 - current stmt index for next-use scan
+ * @return i32 - which 0..5 or -1
+ * wave175 pure-owned (was Cap residual thin).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_spill_slot_farthest(stmt_i: i32): i32 {
+  let which: i32 = 0 - 1;
+  let best_dist: i32 = 0 - 1;
+  let d: i32 = 0;
+  let max_live: i32 = 0;
+  let v: i32 = 0;
+  let off: i32 = 0;
+  unsafe { max_live = glue_asm73_linear_max_live_n_get(); }
+  unsafe {
+    v = glue_binop_var_slot_cache_valid_x10_get();
+    if (v != 0) {
+      off = glue_binop_var_slot_cache_x10_off_get();
+      which = 0;
+      best_dist = glue_asm73_linear_next_use_dist(stmt_i, off);
+    }
+    if (max_live >= 5) {
+      v = glue_binop_var_slot_cache_valid_x11_get();
+      if (v != 0) {
+        off = glue_binop_var_slot_cache_x11_off_get();
+        d = glue_asm73_linear_next_use_dist(stmt_i, off);
+        if (d > best_dist) {
+          which = 1;
+          best_dist = d;
+        }
+      }
+    }
+    if (max_live >= 6) {
+      v = glue_binop_var_slot_cache_valid_x12_get();
+      if (v != 0) {
+        off = glue_binop_var_slot_cache_x12_off_get();
+        d = glue_asm73_linear_next_use_dist(stmt_i, off);
+        if (d > best_dist) {
+          which = 2;
+          best_dist = d;
+        }
+      }
+    }
+    if (max_live >= 7) {
+      v = glue_binop_var_slot_cache_valid_x13_get();
+      if (v != 0) {
+        off = glue_binop_var_slot_cache_x13_off_get();
+        d = glue_asm73_linear_next_use_dist(stmt_i, off);
+        if (d > best_dist) {
+          which = 3;
+          best_dist = d;
+        }
+      }
+    }
+    if (max_live >= 8) {
+      v = glue_binop_var_slot_cache_valid_x14_get();
+      if (v != 0) {
+        off = glue_binop_var_slot_cache_x14_off_get();
+        d = glue_asm73_linear_next_use_dist(stmt_i, off);
+        if (d > best_dist) {
+          which = 4;
+          best_dist = d;
+        }
+      }
+    }
+    if (max_live >= 9) {
+      v = glue_binop_var_slot_cache_valid_x15_get();
+      if (v != 0) {
+        off = glue_binop_var_slot_cache_x15_off_get();
+        d = glue_asm73_linear_next_use_dist(stmt_i, off);
+        if (d > best_dist) {
+          which = 5;
+          best_dist = d;
+        }
+      }
+    }
+  }
+  return which;
+}
+
+/**
+ * When spill homes are full, pick overwrite victim: prefer non-home of new_off,
+ * then farthest next-use among homes that pass overwrite_ok. -1 if none.
+ * @param stmt_i i32 - current stmt index
+ * @param new_off i32 - stack off seeking a home
+ * @param dist_new i32 - next-use distance of new_off
+ * @return i32 - which 0..5 or -1
+ * wave175 pure-owned (was Cap residual thin).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_spill_pick_evict_which(stmt_i: i32, new_off: i32, dist_new: i32): i32 {
+  let pref: i32 = 0;
+  let which: i32 = 0;
+  let held: i32 = 0;
+  let dist_held: i32 = 0;
+  let best_which: i32 = 0 - 1;
+  let best_dist: i32 = 0 - 1;
+  let home_which: i32 = 0 - 1;
+  let home_dist: i32 = 0 - 1;
+  let max_live: i32 = 0;
+  let v: i32 = 0;
+  let ok: i32 = 0;
+  unsafe {
+    pref = glue_asm73_off_spill_color_which(new_off);
+    max_live = glue_asm73_linear_max_live_n_get();
+  }
+  which = 0;
+  while (which <= 5) {
+    if (which == 1 && max_live < 5) { which = which + 1; continue; }
+    if (which == 2 && max_live < 6) { which = which + 1; continue; }
+    if (which == 3 && max_live < 7) { which = which + 1; continue; }
+    if (which == 4 && max_live < 8) { which = which + 1; continue; }
+    if (which == 5 && max_live < 9) { which = which + 1; continue; }
+    if (which == 0) {
+      unsafe { v = glue_binop_var_slot_cache_valid_x10_get(); }
+      if (v == 0) { which = which + 1; continue; }
+      unsafe { held = glue_binop_var_slot_cache_x10_off_get(); }
+    } else if (which == 1) {
+      unsafe { v = glue_binop_var_slot_cache_valid_x11_get(); }
+      if (v == 0) { which = which + 1; continue; }
+      unsafe { held = glue_binop_var_slot_cache_x11_off_get(); }
+    } else if (which == 2) {
+      unsafe { v = glue_binop_var_slot_cache_valid_x12_get(); }
+      if (v == 0) { which = which + 1; continue; }
+      unsafe { held = glue_binop_var_slot_cache_x12_off_get(); }
+    } else if (which == 3) {
+      unsafe { v = glue_binop_var_slot_cache_valid_x13_get(); }
+      if (v == 0) { which = which + 1; continue; }
+      unsafe { held = glue_binop_var_slot_cache_x13_off_get(); }
+    } else if (which == 4) {
+      unsafe { v = glue_binop_var_slot_cache_valid_x14_get(); }
+      if (v == 0) { which = which + 1; continue; }
+      unsafe { held = glue_binop_var_slot_cache_x14_off_get(); }
+    } else {
+      unsafe { v = glue_binop_var_slot_cache_valid_x15_get(); }
+      if (v == 0) { which = which + 1; continue; }
+      unsafe { held = glue_binop_var_slot_cache_x15_off_get(); }
+    }
+    unsafe { dist_held = glue_asm73_linear_next_use_dist(stmt_i, held); }
+    ok = w175_spill_overwrite_ok(which, stmt_i, new_off, dist_new, dist_held);
+    if (ok == 0) {
+      which = which + 1;
+      continue;
+    }
+    if (pref >= 0 && which == pref) {
+      if (dist_held > home_dist) {
+        home_which = which;
+        home_dist = dist_held;
+      }
+      which = which + 1;
+      continue;
+    }
+    if (dist_held > best_dist) {
+      best_which = which;
+      best_dist = dist_held;
+    }
+    which = which + 1;
+  }
+  if (best_which >= 0) {
+    return best_which;
+  }
+  return home_which;
+}
+
+// end wave175 pure-owned leave
+
+// ============================================================================
 // wave174 pure-owned leave: spill_reg_to_spill + rax/rbx cache evict entries
-// (was Cap residual spill; VAR cache BSS + colored/pick/mov thin stay residual).
+// (was Cap residual spill; wave175 now owns colored/pick/mov thin).
 // Public faces:
 //   · glue_binop_spill_reg_to_spill_elf_c
 //   · glue_asm73_evict_rax_cache_entry
 //   · glue_asm73_evict_rbx_cache_entry
-// Cap residual: mov_reg_to_spill / try_colored / pick_evict / farthest /
-// stack_spill_enabled / max_live_n_get + VAR cache invalidate thin.
-// Pure callees: stack_spill_push (wave169).
+// Cap residual: stack_spill_enabled / max_live_n_get + VAR cache invalidate thin.
+// Pure callees: stack_spill_push (wave169) + wave175 color-slot faces.
 // Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
 // PLATFORM: SHARED freestanding 7.3 · dual-end L2.
 // ============================================================================
@@ -54866,9 +55310,7 @@ export function glue_binop_spill_reg_to_spill_elf_c(elf_ctx: *u8, ta: i32, off: 
   if (ta != 1 || off < 0 || elf_ctx == (0 as *u8)) {
     return 0;
   }
-  unsafe {
-    colored = glue_asm73_try_spill_to_colored_slot(elf_ctx, ta, off, from_rbx);
-  }
+  colored = glue_asm73_try_spill_to_colored_slot(elf_ctx, ta, off, from_rbx);
   if (colored == 0) {
     return 0;
   }
@@ -54893,27 +55335,21 @@ export function glue_binop_spill_reg_to_spill_elf_c(elf_ctx: *u8, ta: i32, off: 
       return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 5);
     }
     dist_new = glue_asm73_linear_next_use_dist(stmt_i, off);
-    which = glue_asm73_spill_pick_evict_which(stmt_i, off, dist_new);
   }
+  which = glue_asm73_spill_pick_evict_which(stmt_i, off, dist_new);
   if (which < 0) {
-    unsafe {
-      which = glue_asm73_spill_slot_farthest(stmt_i);
-    }
+    which = glue_asm73_spill_slot_farthest(stmt_i);
   }
   if (which < 0) {
     unsafe {
       en = glue_asm73_stack_spill_enabled();
     }
     if (en != 0) {
-      unsafe {
-        return glue_binop_stack_spill_push_elf_c(elf_ctx, ta, off, from_rbx);
-      }
+      return glue_binop_stack_spill_push_elf_c(elf_ctx, ta, off, from_rbx);
     }
     return 0;
   }
-  unsafe {
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, which);
-  }
+  return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, which);
 }
 
 /**
