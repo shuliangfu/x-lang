@@ -1189,15 +1189,12 @@ extern int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module, st
 extern int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                      int32_t li, int32_t depth);
 
-/* wave1104 G.7: WPO-S2 mono thunk domain (5 fns + 3 macros + 2 typedefs + 1 global)
- * migrated to pipeline_asm_emit_wpo_mono.c (same-TU #include).
- * Members: glue_wpo_mono_has_sym / _reset_pending / _register_thunk_n / _register_thunk
- * + pipeline_asm_emit_wpo_mono_thunks_elf_c + GLUE_WPO_MONO_* macros + GlueWpoMonoThunk[s]
- * typedef + g_glue_wpo_mono_pending global.
- * Extern deps: codegen_wpo_mono_sym_format (moved to domain file); backend_enc_*_arch
- * (decl L1278+); link_abi_getenv (decl L51). No static deps on other glue domains.
+/* wave1104 G.7: WPO-S2 mono thunk domain was pipeline_asm_emit_wpo_mono.c
+ * (same-TU #include). wave130 pure-owned leave: live =
+ * runtime_pipeline_abi pure (reset/register_n/register + emit_thunks + bag BSS).
+ * Cap residual: codegen_wpo_mono_sym_format + backend_enc_*_arch +
+ * pipeline_dep_ctx_target_arch + link_abi_getenv. Leaf deleted.
  * PLATFORM: SHARED. */
-#include "pipeline_asm_emit_wpo_mono.c"
 
 /* wave1067 G.7: pipeline_asm_ctx_reset_for_func_c migrated to
  * pipeline_asm_emit_block_body.c EOF (per-func ctx reset). Static

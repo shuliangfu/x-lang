@@ -4,6 +4,10 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave130: pipeline_asm_emit_wpo_mono.c pure-owned leave (reset/register_n/register +
+//   emit_wpo_mono_thunks_elf_c + pending bag BSS). Cap residual: codegen_wpo_mono_sym_format
+//   + backend_enc_label/prologue/mov_imm64/epilogue + pipeline_dep_ctx_target_arch +
+//   link_abi_getenv + memset/memcpy.
 // wave129: pipeline_asm_emit_block_if_stmt.c pure-owned leave (block_if_stmt_elf +
 //   if_then_block_body_elf_c). Cap residual: block if refs + scope/jz/body_sync +
 //   live-end merge faces + ensure/fill locals + enc jmp/label + next_label + emit_expr_elf_c.
@@ -420,10 +424,16 @@ export extern "C" function pipeline_asm_emit_set_elf_ctx(elf_ctx: *u8): void;
 export extern "C" function pipeline_asm_emit_set_dep_pipe(ctx: *u8): void;
 export extern "C" function pipeline_asm_emit_set_module(module: *u8): void;
 export extern "C" function pipeline_asm_emit_set_arena(arena: *u8): void;
-export extern "C" function glue_wpo_mono_reset_pending(): void;
+// wave130: glue_wpo_mono_reset_pending + pipeline_asm_emit_wpo_mono_thunks_elf_c are pure below.
 export extern "C" function pipeline_elf_label_mod_scope_begin_module(): void;
 export extern "C" function pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(module: *u8, arena: *u8, elf_ctx: *u8, ctx: *u8): i32;
-export extern "C" function pipeline_asm_emit_wpo_mono_thunks_elf_c(module: *u8, arena: *u8, elf_ctx: *u8, ctx: *u8): i32;
+// wave130 Cap residual for wpo_mono pure leave (sym format + enc thunk body + target_arch).
+// PLATFORM: SHARED - host-cc residual faces; pure owns bag + register/emit orch.
+export extern "C" function codegen_wpo_mono_sym_format(base: *u8, nargs: i32, args: *i32, out: *u8, cap: i32): i32;
+export extern "C" function backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta: i32): i32;
+export extern "C" function backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
+export extern "C" function pipeline_dep_ctx_target_arch(ctx: *u8): i32;
 
 // wave78: xlang_fputs_stdout / driver_asm_fp_is_stdout / driver_asm_fclose_file are pure below.
 // g05 prologue harness (same as driver_abi wave22/26): FILE* cast residual for pure .x.
@@ -22341,4 +22351,232 @@ export function pipeline_asm_emit_if_then_block_body_elf_c(arena: *u8, elf_ctx: 
   pipe_store_i32_le(ly, pipe_asm_ctx_off_num_locals(), sv_locs);
   pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), sv_next);
   return r;
+}
+
+// ---------------------------------------------------------------------------
+// wave130: pipeline_asm_emit_wpo_mono pure-owned leave
+// (was pipeline_asm_emit_wpo_mono.c).
+// G.7 product authority for:
+//   glue_wpo_mono_reset_pending / glue_wpo_mono_register_thunk_n /
+//   glue_wpo_mono_register_thunk / pipeline_asm_emit_wpo_mono_thunks_elf_c
+// Pending bag BSS layout ≡ C GlueWpoMonoThunks:
+//   64 thunks * 136B (sym[128]@0, result_imm@128, valid@132) + n@8704 = 8708B.
+// Cap residual: codegen_wpo_mono_sym_format + backend_enc_label/prologue/mov_imm64/
+//   epilogue + pipeline_dep_ctx_target_arch + link_abi_getenv + memset/memcpy.
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
+// ---------------------------------------------------------------------------
+
+// wave130: mono thunk pending bag (max 64). Reset each ELF module codegen.
+// PLATFORM: SHARED - layout matches host-cc GlueWpoMonoThunks (thunk=136, bag=8708).
+let g_wpo_mono_pending: u8[8708] = [];
+
+/**
+ * Return 1 if a valid pending thunk already has the same NUL-terminated sym.
+ * @param sym *u8 - candidate symbol; null -> 0
+ * @return i32 - 1 if present, 0 otherwise
+ * wave130 pure: was static glue_wpo_mono_has_sym in pipeline_asm_emit_wpo_mono.c.
+ * PLATFORM: SHARED - linear scan of bag; cold codegen path only.
+ */
+function glue_wpo_mono_has_sym(sym: *u8): i32 {
+  if (sym == 0 as *u8) {
+    return 0;
+  }
+  let n: i32 = pipe_load_i32_le(&g_wpo_mono_pending[0], 8704);
+  let i: i32 = 0;
+  while (i < n) {
+    let off: i32 = i * 136;
+    let valid: i32 = 0;
+    unsafe {
+      valid = g_wpo_mono_pending[off + 132] as i32;
+    }
+    if (valid != 0) {
+      if (pipe_cstr_eq(&g_wpo_mono_pending[off], sym) != 0) {
+        return 1;
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Clear the mono thunk pending bag at the start of a new ELF module codegen.
+ * @return void
+ * wave130 pure: G.7 authority (was pipeline_asm_emit_wpo_mono.c).
+ * PLATFORM: SHARED - sole provider after wpo_mono leave; called from backend_to_elf orch.
+ */
+#[no_mangle]
+export function glue_wpo_mono_reset_pending(): void {
+  // Cap residual: libc memset on pure BSS bag.
+  unsafe {
+    memset(&g_wpo_mono_pending[0], 0, 8708 as usize);
+  }
+}
+
+/**
+ * Register a monomorphization thunk when try_call matches all-constant args.
+ * No-op when base is null, XLANG_WPO_MONO unset, bag full, or sym already pending.
+ * @param base *u8 - callee base name (NUL-terminated); null rejected
+ * @param nargs i32 - arg count; clamped to [0, 8]
+ * @param args *i32 - arg values for symbol format (may be null when nargs==0)
+ * @param folded i32 - compile-time fold result returned by the thunk
+ * @return void
+ * wave130 pure: G.7 authority (was pipeline_asm_emit_wpo_mono.c).
+ * Cap residual: codegen_wpo_mono_sym_format + link_abi_getenv + memset/memcpy.
+ * PLATFORM: SHARED - sole provider after leave; backend_try_inline_dispatch callsite.
+ */
+#[no_mangle]
+export function glue_wpo_mono_register_thunk_n(base: *u8, nargs: i32, args: *i32, folded: i32): void {
+  if (base == 0 as *u8) {
+    return;
+  }
+  let env: *u8 = 0 as *u8;
+  unsafe {
+    env = link_abi_getenv("XLANG_WPO_MONO");
+  }
+  if (env == 0 as *u8) {
+    return;
+  }
+  let nn: i32 = nargs;
+  if (nn < 0) {
+    nn = 0;
+  }
+  if (nn > 8) {
+    nn = 8;
+  }
+  let sym: u8[128] = [];
+  let sym_len: i32 = 0;
+  unsafe {
+    sym_len = codegen_wpo_mono_sym_format(base, nn, args, &sym[0], 128);
+  }
+  if (sym_len <= 0) {
+    return;
+  }
+  if (glue_wpo_mono_has_sym(&sym[0]) != 0) {
+    return;
+  }
+  let n: i32 = pipe_load_i32_le(&g_wpo_mono_pending[0], 8704);
+  if (n >= 64) {
+    return;
+  }
+  let slot: i32 = n * 136;
+  unsafe {
+    memset(&g_wpo_mono_pending[slot], 0, 136 as usize);
+    memcpy(&g_wpo_mono_pending[slot], &sym[0], (sym_len + 1) as usize);
+  }
+  pipe_store_i32_le(&g_wpo_mono_pending[0], slot + 128, folded);
+  unsafe {
+    g_wpo_mono_pending[slot + 132] = 1 as u8;
+  }
+  pipe_store_i32_le(&g_wpo_mono_pending[0], 8704, n + 1);
+}
+
+/**
+ * Register a scalar 2-argument monomorphization thunk (convenience wrapper).
+ * @param base *u8 - callee base name
+ * @param av0 i32 - first constant arg
+ * @param av1 i32 - second constant arg
+ * @param folded i32 - fold result
+ * @return void
+ * wave130 pure: G.7 authority (was pipeline_asm_emit_wpo_mono.c).
+ * PLATFORM: SHARED - delegates to register_thunk_n.
+ */
+#[no_mangle]
+export function glue_wpo_mono_register_thunk(base: *u8, av0: i32, av1: i32, folded: i32): void {
+  let args: i32[2] = [];
+  args[0] = av0;
+  args[1] = av1;
+  glue_wpo_mono_register_thunk_n(base, 2, &args[0], folded);
+}
+
+/**
+ * Emit all pending monomorphization thunk bodies after regular function emit.
+ * Each thunk: global label + empty prologue + mov imm64 + epilogue (ret).
+ * @param entry *u8 - Module* (unused; reserved for future module-scoped bags)
+ * @param arena *u8 - ASTArena* (unused)
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null -> -1
+ * @param pipeline_ctx *u8 - PipelineDepCtx* (target_arch); null -> -1
+ * @return i32 - 0 ok / env unset no-op; -1 null or encoder/sym failure
+ * wave130 pure: G.7 authority (was pipeline_asm_emit_wpo_mono.c).
+ * Cap residual: pipeline_dep_ctx_target_arch + backend_enc_*_arch + link_abi_getenv.
+ * PLATFORM: SHARED - sole provider after leave; backend_to_elf orch tail.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_wpo_mono_thunks_elf_c(entry: *u8, arena: *u8, elf_ctx: *u8, pipeline_ctx: *u8): i32 {
+  if (entry != 0 as *u8) {
+    // silence unused; bag is module-global for this pass.
+  }
+  if (arena != 0 as *u8) {
+    // silence unused.
+  }
+  if (elf_ctx == 0 as *u8 || pipeline_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let env: *u8 = 0 as *u8;
+  unsafe {
+    env = link_abi_getenv("XLANG_WPO_MONO");
+  }
+  if (env == 0 as *u8) {
+    return 0;
+  }
+  let ta: i32 = 0;
+  unsafe {
+    ta = pipeline_dep_ctx_target_arch(pipeline_ctx);
+  }
+  let n: i32 = pipe_load_i32_le(&g_wpo_mono_pending[0], 8704);
+  let ti: i32 = 0;
+  while (ti < n) {
+    let off: i32 = ti * 136;
+    let valid: i32 = 0;
+    unsafe {
+      valid = g_wpo_mono_pending[off + 132] as i32;
+    }
+    if (valid != 0) {
+      let sym_len: i32 = pipe_cstr_len(&g_wpo_mono_pending[off]);
+      if (sym_len <= 0 || sym_len >= 128) {
+        return 0 - 1;
+      }
+      let sym: u8[128] = [];
+      let k: i32 = 0;
+      while (k < sym_len) {
+        unsafe {
+          sym[k] = g_wpo_mono_pending[off + k];
+        }
+        k = k + 1;
+      }
+      let rc: i32 = 0;
+      unsafe {
+        rc = backend_enc_label_arch(elf_ctx, &sym[0], sym_len, 1, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_prologue_arch(elf_ctx, 0, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      let result_imm: i32 = pipe_load_i32_le(&g_wpo_mono_pending[0], off + 128);
+      let hi: i32 = 0;
+      if (result_imm < 0) {
+        hi = 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, result_imm, hi, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_epilogue_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+    }
+    ti = ti + 1;
+  }
+  return 0;
 }
