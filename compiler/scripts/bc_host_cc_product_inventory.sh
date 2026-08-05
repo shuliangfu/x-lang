@@ -135,7 +135,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_codegen_type_to_c.c|8.3.2|codegen type-to-c (wave1248)|240|present"
   "compiler/pipeline_codegen_skip_force.c|8.3.2|codegen skip/force predicates (wave1249)|270|present"
   "compiler/pipeline_codegen_struct_emit.c|8.3.2|codegen struct emit (wave1250)|170|present"
-  "compiler/pipeline_codegen_residual.c|8.3.2|codegen residual name/predicate (wave1251)|130|present"
+  "compiler/pipeline_codegen_residual.c|8.3.2|codegen residual name/predicate (wave1251 pure-owned leave)|130|absent"
   "compiler/pipeline_asm_ctx_layout.c|8.3.1|AsmFuncCtx layout + cast helper early domain (wave1283)|40|present"
   "compiler/pipeline_glue_early_fwd.c|8.3|glue early forward-decl/extern shell (wave1284)|180|present"
   "compiler/pipeline_glue_mid_fwd.c|8.3|glue mid forward-decl/extern shell after parser_result (wave1285)|90|present"
@@ -256,7 +256,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: run_x_pipeline + resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
+  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: codegen_residual + run_x_pipeline + resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
 }
 
 run_check() {

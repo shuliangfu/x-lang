@@ -220,6 +220,18 @@ int32_t ast_pipeline_codegen_should_skip_emit_func(uint8_t *dep_path, uint8_t *p
                                                    uint8_t *name, int32_t name_len) {
   return pipeline_codegen_should_skip_emit_func(dep_path, prefix, prefix_len, name, name_len);
 }
+/* wave107: residual predicates live in runtime_pipeline_abi pure (no same-TU body).
+ * PLATFORM: SHARED — extern faces for ast_ thin wrappers in pipeline_x host-cc TU. */
+extern int32_t pipeline_codegen_skip_emit_extern_io_batch_buf(uint8_t *name, int32_t name_len);
+extern int32_t pipeline_codegen_use_buf_wrapper(uint8_t *name, int32_t name_len, int32_t num_args);
+extern int32_t pipeline_codegen_should_skip_emit_func_by_name(uint8_t *name, int32_t name_len);
+extern int32_t pipeline_codegen_is_submit_batch_buf_call(uint8_t *name, int32_t name_len);
+extern int32_t pipeline_codegen_should_skip_emit_func_core_read_ptr(uint8_t *name, int32_t name_len);
+extern int32_t pipeline_codegen_io_driver_buf_call_sym(uint8_t *name, int32_t name_len, int32_t num_args,
+                                                      uint8_t *sym_out, int32_t sym_cap);
+extern int32_t pipeline_codegen_std_io_fixed_fd_emit_impl(uint8_t *prefix, int32_t prefix_len, uint8_t *name,
+                                                          int32_t name_len);
+
 int32_t ast_pipeline_codegen_skip_emit_extern_io_batch_buf(uint8_t *name, int32_t name_len) {
   return pipeline_codegen_skip_emit_extern_io_batch_buf(name, name_len);
 }

@@ -12206,3 +12206,486 @@ export function pipeline_run_x_pipeline(module: *u8, arena: *u8, source_data: *u
   }
   return rc;
 }
+
+// ---------------------------------------------------------------------------
+// wave107: codegen residual pure-owned leave (was pipeline_codegen_residual.c).
+// G.7 product authority for io.core/driver name predicates + symbol rewrites
+//   (use_buf_wrapper / skip_emit_extern_io_batch_buf / should_skip_emit_func_by_name
+//   / emit_seed_mega_enabled / is_submit_batch_buf_call / should_skip_emit_func_core_read_ptr
+//   / asm_io_core_extern_callee_sym / io_driver_buf_call_sym / std_io_fixed_fd_emit_impl).
+// Private prefix_eq replaces same-TU static codegen_name_prefix_eq from skip_force
+//   (host residual skip_force still keeps its static helper for its own predicates).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED — dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * Prefix equality: name[0..plen) equals pfx[0..plen); requires name_len >= plen.
+ * @param name *u8 — candidate name bytes; null → 0
+ * @param name_len i32 — candidate length
+ * @param pfx *u8 — prefix bytes (usually string literal); null → 0
+ * @param plen i32 — prefix length
+ * @return i32 — 1 match, 0 otherwise
+ * wave107 pure: G.7 private helper (historical static codegen_name_prefix_eq).
+ * PLATFORM: SHARED — sole pure helper for residual name tables.
+ */
+function cg_residual_name_prefix_eq(name: *u8, name_len: i32, pfx: *u8, plen: i32): i32 {
+  if (name == 0 as *u8) {
+    return 0;
+  }
+  if (pfx == 0 as *u8) {
+    return 0;
+  }
+  if (name_len < plen) {
+    return 0;
+  }
+  if (plen <= 0) {
+    return 1;
+  }
+  let i: i32 = 0;
+  while (i < plen) {
+    let a: u8 = 0;
+    let b: u8 = 0;
+    unsafe {
+      a = name[i];
+      b = pfx[i];
+    }
+    if (a != b) {
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * Env truthy for XLANG_EMIT_SEED_MEGA gate (non-null, non-empty, first != '0').
+ * @param e *u8 — getenv result; null → 0
+ * @return i32 — 1 truthy, 0 otherwise
+ * PLATFORM: SHARED — matches residual C `e && e[0] && e[0] != '0'`.
+ */
+function cg_residual_env_truthy(e: *u8): i32 {
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  let c: u8 = 0;
+  unsafe {
+    c = e[0];
+  }
+  if (c == 0) {
+    return 0;
+  }
+  if (c == 48) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * codegen.x: append _buf for std.io.core xlang_io_* call names.
+ * @param name *u8 — callee name bytes; null or name_len<=0 → 0
+ * @param name_len i32 — name length
+ * @param num_args i32 — call arity (must match table)
+ * @return i32 — 1 use buf wrapper, 0 otherwise
+ * wave107 pure: G.7 single product authority (historical host residual).
+ * PLATFORM: SHARED — sole provider after codegen_residual leave.
+ */
+#[no_mangle]
+export function pipeline_codegen_use_buf_wrapper(name: *u8, name_len: i32, num_args: i32): i32 {
+  if (name == 0 as *u8) {
+    return 0;
+  }
+  if (name_len <= 0) {
+    return 0;
+  }
+  if (num_args == 1) {
+    if (name_len == 15) {
+      if (cg_residual_name_prefix_eq(name, name_len, "xlang_io_register", 15) != 0) {
+        return 1;
+      }
+    }
+  }
+  if (num_args == 2) {
+    if (name_len == 18) {
+      if (cg_residual_name_prefix_eq(name, name_len, "xlang_io_submit_read", 18) != 0) {
+        return 1;
+      }
+    }
+    if (name_len == 19) {
+      if (cg_residual_name_prefix_eq(name, name_len, "xlang_io_submit_write", 19) != 0) {
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * codegen.x: skip extern emit for driver io_* batch_buf names (preamble/io.o).
+ * @param name *u8 — symbol name; null → 0
+ * @param name_len i32 — length
+ * @return i32 — 1 skip, 0 otherwise
+ * wave107 pure: G.7 single product authority.
+ * PLATFORM: SHARED — sole provider after codegen_residual leave.
+ */
+#[no_mangle]
+export function pipeline_codegen_skip_emit_extern_io_batch_buf(name: *u8, name_len: i32): i32 {
+  if (name == 0 as *u8) {
+    return 0;
+  }
+  if (name_len == 17) {
+    if (cg_residual_name_prefix_eq(name, name_len, "io_read_batch_buf", 17) != 0) {
+      return 1;
+    }
+  }
+  if (name_len == 18) {
+    if (cg_residual_name_prefix_eq(name, name_len, "io_write_batch_buf", 18) != 0) {
+      return 1;
+    }
+  }
+  if (name_len == 23) {
+    if (cg_residual_name_prefix_eq(name, name_len, "io_register_buffers_buf", 23) != 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * codegen.x: skip emit for placeholder/string stub + seed_mega (env gated).
+ * @param name *u8 — function name; null → 0
+ * @param name_len i32 — length
+ * @return i32 — 1 skip, 0 otherwise
+ * wave107 pure: G.7 single product authority; XLANG_EMIT_SEED_MEGA via link_abi_getenv.
+ * PLATFORM: SHARED — sole provider after codegen_residual leave.
+ */
+#[no_mangle]
+export function pipeline_codegen_should_skip_emit_func_by_name(name: *u8, name_len: i32): i32 {
+  if (name == 0 as *u8) {
+    return 0;
+  }
+  if (name_len == 11) {
+    if (cg_residual_name_prefix_eq(name, name_len, "placeholder", 11) != 0) {
+      return 1;
+    }
+  }
+  if (name_len == 22) {
+    if (cg_residual_name_prefix_eq(name, name_len, "std_string_placeholder", 22) != 0) {
+      return 1;
+    }
+  }
+  if (name_len == 10) {
+    if (cg_residual_name_prefix_eq(name, name_len, "string_new", 10) != 0) {
+      return 1;
+    }
+  }
+  if (name_len == 22) {
+    if (cg_residual_name_prefix_eq(name, name_len, "std_string_string_new", 22) != 0) {
+      return 1;
+    }
+  }
+  if (name_len == 21) {
+    if (cg_residual_name_prefix_eq(name, name_len, "std_string_string_new", 21) != 0) {
+      return 1;
+    }
+  }
+  // bootstrap -E: seed_mega body too large; XLANG_EMIT_SEED_MEGA=1 still emits.
+  let seed_mega: *u8 = 0 as *u8;
+  unsafe {
+    seed_mega = link_abi_getenv("XLANG_EMIT_SEED_MEGA");
+  }
+  if (seed_mega == 0 as *u8) {
+    if (name_len == 25) {
+      if (cg_residual_name_prefix_eq(name, name_len, "asm_codegen_ast_seed_mega", 25) != 0) {
+        return 1;
+      }
+    }
+    if (name_len == 32) {
+      if (cg_residual_name_prefix_eq(name, name_len, "asm_codegen_ast_to_elf_seed_mega", 32) != 0) {
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * codegen.x: XLANG_EMIT_SEED_MEGA=1 enables seed_mega emit on bootstrap -E.
+ * @return i32 — 1 enabled, 0 otherwise
+ * wave107 pure: G.7 single product authority.
+ * PLATFORM: SHARED — sole provider after codegen_residual leave.
+ */
+#[no_mangle]
+export function pipeline_codegen_emit_seed_mega_enabled(): i32 {
+  let e: *u8 = 0 as *u8;
+  unsafe {
+    e = link_abi_getenv("XLANG_EMIT_SEED_MEGA");
+  }
+  return cg_residual_env_truthy(e);
+}
+
+/**
+ * codegen.x: submit_*_batch_buf calls need a 4th timeout_ms arg.
+ * @param name *u8 — callee name; null → 0
+ * @param name_len i32 — length
+ * @return i32 — 1 match, 0 otherwise
+ * wave107 pure: G.7 single product authority.
+ * PLATFORM: SHARED — sole provider after codegen_residual leave.
+ */
+#[no_mangle]
+export function pipeline_codegen_is_submit_batch_buf_call(name: *u8, name_len: i32): i32 {
+  if (name == 0 as *u8) {
+    return 0;
+  }
+  if (name_len == 21) {
+    if (cg_residual_name_prefix_eq(name, name_len, "submit_read_batch_buf", 21) != 0) {
+      return 1;
+    }
+  }
+  if (name_len == 22) {
+    if (cg_residual_name_prefix_eq(name, name_len, "submit_write_batch_buf", 22) != 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * codegen.x: skip body emit for std.io.core xlang_io_* already provided by io.o.
+ * @param name *u8 — function name; null → 0
+ * @param name_len i32 — length
+ * @return i32 — 1 skip, 0 otherwise
+ * wave107 pure: G.7 single product authority.
+ * PLATFORM: SHARED — sole provider after codegen_residual leave.
+ */
+#[no_mangle]
+export function pipeline_codegen_should_skip_emit_func_core_read_ptr(name: *u8, name_len: i32): i32 {
+  if (name == 0 as *u8) {
+    return 0;
+  }
+  if (name_len >= 19) {
+    if (cg_residual_name_prefix_eq(name, name_len, "xlang_io_read_ptr_len", 19) != 0) {
+      return 1;
+    }
+  }
+  if (name_len == 15) {
+    if (cg_residual_name_prefix_eq(name, name_len, "xlang_io_read_ptr", 15) != 0) {
+      return 1;
+    }
+    if (cg_residual_name_prefix_eq(name, name_len, "xlang_io_register", 15) != 0) {
+      return 1;
+    }
+  }
+  if (name_len == 23) {
+    if (cg_residual_name_prefix_eq(name, name_len, "xlang_io_register_buffers", 23) != 0) {
+      return 1;
+    }
+  }
+  if (name_len == 25) {
+    if (cg_residual_name_prefix_eq(name, name_len, "xlang_io_unregister_buffers", 25) != 0) {
+      return 1;
+    }
+  }
+  if (name_len == 20) {
+    if (cg_residual_name_prefix_eq(name, name_len, "xlang_io_wait_readable", 20) != 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * asm path: redirect std.io.core thin wrappers to extern io_* symbols.
+ * @param name *u8 — bare xlang_io_* or std_io_core_xlang_io_*; null/empty → 0
+ * @param name_len i32 — name length
+ * @param sym_out *u8 — destination buffer for rewritten symbol
+ * @param sym_cap i32 — capacity of sym_out
+ * @return i32 — symbol length on hit; 0 no match; -1 buffer too small
+ * wave107 pure: G.7 single product authority (slen values twin historical C).
+ * PLATFORM: SHARED — sole provider after codegen_residual leave.
+ */
+#[no_mangle]
+export function pipeline_asm_io_core_extern_callee_sym(name: *u8, name_len: i32, sym_out: *u8, sym_cap: i32): i32 {
+  if (name == 0 as *u8) {
+    return 0;
+  }
+  if (name_len <= 0) {
+    return 0;
+  }
+  if (sym_out == 0 as *u8) {
+    return 0;
+  }
+  if (sym_cap <= 0) {
+    return 0;
+  }
+  let bare: *u8 = name;
+  let blen: i32 = name_len;
+  // G.7: offset via pure xlang_cstr_offset (not raw pointer + N).
+  if (name_len > 12) {
+    if (cg_residual_name_prefix_eq(name, name_len, "std_io_core_", 12) != 0) {
+      bare = xlang_cstr_offset(name, 12);
+      blen = name_len - 12;
+    }
+  }
+  let sym: *u8 = 0 as *u8;
+  let slen: i32 = 0;
+  if (blen == 23) {
+    if (cg_residual_name_prefix_eq(bare, blen, "xlang_io_register_buffers", 23) != 0) {
+      // Historical C slen=23 for "io_register_buffers_4" (21 chars); twin exactly.
+      sym = "io_register_buffers_4";
+      slen = 23;
+    }
+  }
+  if (sym == 0 as *u8) {
+    if (blen == 25) {
+      if (cg_residual_name_prefix_eq(bare, blen, "xlang_io_unregister_buffers", 25) != 0) {
+        sym = "io_unregister_buffers";
+        slen = 21;
+      }
+    }
+  }
+  if (sym == 0 as *u8) {
+    if (blen == 15) {
+      if (cg_residual_name_prefix_eq(bare, blen, "xlang_io_register", 15) != 0) {
+        // Historical C slen=19 for "io_register_buffer" (18 chars); twin exactly.
+        sym = "io_register_buffer";
+        slen = 19;
+      }
+    }
+  }
+  if (sym == 0 as *u8) {
+    if (blen == 19) {
+      if (cg_residual_name_prefix_eq(bare, blen, "xlang_io_read_ptr_len", 19) != 0) {
+        sym = "io_read_ptr_len";
+        slen = 15;
+      }
+    }
+  }
+  if (sym == 0 as *u8) {
+    if (blen == 15) {
+      if (cg_residual_name_prefix_eq(bare, blen, "xlang_io_read_ptr", 15) != 0) {
+        sym = "io_read_ptr";
+        slen = 11;
+      }
+    }
+  }
+  if (sym == 0 as *u8) {
+    if (blen == 20) {
+      if (cg_residual_name_prefix_eq(bare, blen, "xlang_io_wait_readable", 20) != 0) {
+        // Historical C slen=17 for "io_wait_readable" (16 chars); twin exactly.
+        sym = "io_wait_readable";
+        slen = 17;
+      }
+    }
+  }
+  if (sym == 0 as *u8) {
+    return 0;
+  }
+  if (sym_cap < slen) {
+    return 0 - 1;
+  }
+  unsafe {
+    memcpy(sym_out, sym, slen as usize);
+  }
+  return slen;
+}
+
+/**
+ * codegen.x: map driver short names register/submit_* to xlang_io_*_buf.
+ * @param name *u8 — short name; null/empty → 0
+ * @param name_len i32 — length
+ * @param num_args i32 — call arity
+ * @param sym_out *u8 — destination buffer
+ * @param sym_cap i32 — capacity
+ * @return i32 — symbol length on hit; 0 no match; -1 buffer too small
+ * wave107 pure: G.7 single product authority.
+ * PLATFORM: SHARED — sole provider after codegen_residual leave.
+ */
+#[no_mangle]
+export function pipeline_codegen_io_driver_buf_call_sym(name: *u8, name_len: i32, num_args: i32, sym_out: *u8, sym_cap: i32): i32 {
+  if (name == 0 as *u8) {
+    return 0;
+  }
+  if (name_len <= 0) {
+    return 0;
+  }
+  let sym: *u8 = 0 as *u8;
+  let sym_len: i32 = 0;
+  if (num_args == 1) {
+    if (name_len == 8) {
+      if (cg_residual_name_prefix_eq(name, name_len, "register", 8) != 0) {
+        sym = "xlang_io_register_buf";
+        sym_len = 20;
+      }
+    }
+  }
+  if (sym == 0 as *u8) {
+    if (num_args == 2) {
+      if (name_len == 11) {
+        if (cg_residual_name_prefix_eq(name, name_len, "submit_read", 11) != 0) {
+          sym = "xlang_io_submit_read_buf";
+          sym_len = 23;
+        }
+      }
+      if (name_len == 12) {
+        if (cg_residual_name_prefix_eq(name, name_len, "submit_write", 12) != 0) {
+          sym = "xlang_io_submit_write_buf";
+          sym_len = 24;
+        }
+      }
+    }
+  }
+  if (sym == 0 as *u8) {
+    return 0;
+  }
+  if (sym_out == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (sym_cap < sym_len) {
+    return 0 - 1;
+  }
+  unsafe {
+    memcpy(sym_out, sym, sym_len as usize);
+  }
+  return sym_len;
+}
+
+/**
+ * codegen.x: std_io read_fixed_fd/write_fixed_fd need _impl suffix.
+ * @param prefix *u8 — module/prefix bytes; null → 0
+ * @param prefix_len i32 — prefix length (must be >= 7 for std_io_)
+ * @param name *u8 — function short name; null → 0
+ * @param name_len i32 — name length
+ * @return i32 — 1 need _impl, 0 otherwise
+ * wave107 pure: G.7 single product authority.
+ * PLATFORM: SHARED — sole provider after codegen_residual leave.
+ */
+#[no_mangle]
+export function pipeline_codegen_std_io_fixed_fd_emit_impl(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32): i32 {
+  if (prefix == 0 as *u8) {
+    return 0;
+  }
+  if (name == 0 as *u8) {
+    return 0;
+  }
+  if (prefix_len < 7) {
+    return 0;
+  }
+  if (name_len <= 0) {
+    return 0;
+  }
+  if (cg_residual_name_prefix_eq(prefix, prefix_len, "std_io_", 7) == 0) {
+    return 0;
+  }
+  if (name_len >= 13) {
+    if (cg_residual_name_prefix_eq(name, name_len, "read_fixed_fd", 13) != 0) {
+      return 1;
+    }
+  }
+  if (name_len >= 14) {
+    if (cg_residual_name_prefix_eq(name, name_len, "write_fixed_fd", 14) != 0) {
+      return 1;
+    }
+  }
+  return 0;
+}

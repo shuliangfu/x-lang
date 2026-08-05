@@ -385,6 +385,7 @@ void driver_asm_fclose_file(FILE *fp);
 /* wave79 pure OS residual — always-seed resolve_*_impl / pure resolve_file call under hybrid. */
 void xlang_path_try_realpath_inplace(char *path, size_t path_size);
 /* pipeline_diag_preprocess_directive_code already declared above */
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-33 / wave73: hybrid pure owns flag BSS + slot; cold twin under #ifndef FROM_X.
@@ -4965,6 +4966,176 @@ int32_t run_x_pipeline_typecheck_entry_emit_c(void *module, void *arena, void *c
 int32_t pipeline_run_x_pipeline(void *module, void *arena, const uint8_t *source_data, size_t source_len, void *out_buf,
                                void *ctx) {
   return pipeline_run_x_pipeline_impl(module, arena, (uint8_t *)source_data, source_len, out_buf, ctx);
+}
+
+/* wave107 codegen residual leave cold twins — former pipeline_codegen_residual.c.
+ * PLATFORM: SHARED — only when pure FROM_X object is not linked. Product pure
+ * owns strong name predicates + io.core/driver symbol rewrites after host-cc leave.
+ * Prefer void*/uint8_t* like wave101/105/106. Historical slen quirks twin C. */
+static int wave107_name_prefix_eq(uint8_t *name, int32_t name_len, const char *pfx, int32_t plen) {
+  if (!name || name_len < plen || !pfx)
+    return 0;
+  return memcmp(name, pfx, (size_t)plen) == 0 ? 1 : 0;
+}
+
+int32_t pipeline_codegen_use_buf_wrapper(uint8_t *name, int32_t name_len, int32_t num_args) {
+  if (!name || name_len <= 0)
+    return 0;
+  if (num_args == 1 && name_len == 15 && wave107_name_prefix_eq(name, name_len, "xlang_io_register", 15))
+    return 1;
+  if (num_args == 2 && name_len == 18 && wave107_name_prefix_eq(name, name_len, "xlang_io_submit_read", 18))
+    return 1;
+  if (num_args == 2 && name_len == 19 && wave107_name_prefix_eq(name, name_len, "xlang_io_submit_write", 19))
+    return 1;
+  return 0;
+}
+
+int32_t pipeline_codegen_skip_emit_extern_io_batch_buf(uint8_t *name, int32_t name_len) {
+  if (!name)
+    return 0;
+  if (name_len == 17 && memcmp(name, "io_read_batch_buf", 17) == 0)
+    return 1;
+  if (name_len == 18 && memcmp(name, "io_write_batch_buf", 18) == 0)
+    return 1;
+  if (name_len == 23 && memcmp(name, "io_register_buffers_buf", 23) == 0)
+    return 1;
+  return 0;
+}
+
+int32_t pipeline_codegen_should_skip_emit_func_by_name(uint8_t *name, int32_t name_len) {
+  if (!name)
+    return 0;
+  if (name_len == 11 && wave107_name_prefix_eq(name, name_len, "placeholder", 11))
+    return 1;
+  if (name_len == 22 && wave107_name_prefix_eq(name, name_len, "std_string_placeholder", 22))
+    return 1;
+  if (name_len == 10 && wave107_name_prefix_eq(name, name_len, "string_new", 10))
+    return 1;
+  if (name_len == 22 && wave107_name_prefix_eq(name, name_len, "std_string_string_new", 22))
+    return 1;
+  if (name_len == 21 && wave107_name_prefix_eq(name, name_len, "std_string_string_new", 21))
+    return 1;
+  if (!link_abi_getenv("XLANG_EMIT_SEED_MEGA")) {
+    if (name_len == 25 && memcmp(name, "asm_codegen_ast_seed_mega", 25) == 0)
+      return 1;
+    if (name_len == 32 && memcmp(name, "asm_codegen_ast_to_elf_seed_mega", 32) == 0)
+      return 1;
+  }
+  return 0;
+}
+
+int32_t pipeline_codegen_emit_seed_mega_enabled(void) {
+  const char *e = (const char *)link_abi_getenv("XLANG_EMIT_SEED_MEGA");
+  return (e && e[0] && e[0] != '0') ? 1 : 0;
+}
+
+int32_t pipeline_codegen_is_submit_batch_buf_call(uint8_t *name, int32_t name_len) {
+  if (!name)
+    return 0;
+  if (name_len == 21 && wave107_name_prefix_eq(name, name_len, "submit_read_batch_buf", 21))
+    return 1;
+  if (name_len == 22 && wave107_name_prefix_eq(name, name_len, "submit_write_batch_buf", 22))
+    return 1;
+  return 0;
+}
+
+int32_t pipeline_codegen_should_skip_emit_func_core_read_ptr(uint8_t *name, int32_t name_len) {
+  if (!name)
+    return 0;
+  if (name_len >= 19 && wave107_name_prefix_eq(name, name_len, "xlang_io_read_ptr_len", 19))
+    return 1;
+  if (name_len == 15 && wave107_name_prefix_eq(name, name_len, "xlang_io_read_ptr", 15))
+    return 1;
+  if (name_len == 15 && wave107_name_prefix_eq(name, name_len, "xlang_io_register", 15))
+    return 1;
+  if (name_len == 23 && wave107_name_prefix_eq(name, name_len, "xlang_io_register_buffers", 23))
+    return 1;
+  if (name_len == 25 && wave107_name_prefix_eq(name, name_len, "xlang_io_unregister_buffers", 25))
+    return 1;
+  if (name_len == 20 && wave107_name_prefix_eq(name, name_len, "xlang_io_wait_readable", 20))
+    return 1;
+  return 0;
+}
+
+int32_t pipeline_asm_io_core_extern_callee_sym(uint8_t *name, int32_t name_len, uint8_t *sym_out, int32_t sym_cap) {
+  uint8_t *bare;
+  int32_t blen;
+  const char *sym;
+  int32_t slen;
+  if (!name || name_len <= 0 || !sym_out || sym_cap <= 0)
+    return 0;
+  bare = name;
+  blen = name_len;
+  if (name_len > 12 && memcmp(name, "std_io_core_", 12) == 0) {
+    bare = name + 12;
+    blen = name_len - 12;
+  }
+  sym = NULL;
+  slen = 0;
+  if (blen == 23 && wave107_name_prefix_eq(bare, blen, "xlang_io_register_buffers", 23)) {
+    sym = "io_register_buffers_4";
+    slen = 23;
+  } else if (blen == 25 && wave107_name_prefix_eq(bare, blen, "xlang_io_unregister_buffers", 25)) {
+    sym = "io_unregister_buffers";
+    slen = 21;
+  } else if (blen == 15 && wave107_name_prefix_eq(bare, blen, "xlang_io_register", 15)) {
+    sym = "io_register_buffer";
+    slen = 19;
+  } else if (blen == 19 && wave107_name_prefix_eq(bare, blen, "xlang_io_read_ptr_len", 19)) {
+    sym = "io_read_ptr_len";
+    slen = 15;
+  } else if (blen == 15 && wave107_name_prefix_eq(bare, blen, "xlang_io_read_ptr", 15)) {
+    sym = "io_read_ptr";
+    slen = 11;
+  } else if (blen == 20 && wave107_name_prefix_eq(bare, blen, "xlang_io_wait_readable", 20)) {
+    sym = "io_wait_readable";
+    slen = 17;
+  }
+  if (!sym)
+    return 0;
+  if (sym_cap < slen)
+    return -1;
+  memcpy(sym_out, sym, (size_t)slen);
+  return slen;
+}
+
+int32_t pipeline_codegen_io_driver_buf_call_sym(uint8_t *name, int32_t name_len, int32_t num_args, uint8_t *sym_out,
+                                                int32_t sym_cap) {
+  const char *sym;
+  int32_t sym_len;
+  if (!name || name_len <= 0)
+    return 0;
+  sym = NULL;
+  sym_len = 0;
+  if (num_args == 1 && name_len == 8 && wave107_name_prefix_eq(name, name_len, "register", 8)) {
+    sym = "xlang_io_register_buf";
+    sym_len = 20;
+  } else if (num_args == 2 && name_len == 11 && wave107_name_prefix_eq(name, name_len, "submit_read", 11)) {
+    sym = "xlang_io_submit_read_buf";
+    sym_len = 23;
+  } else if (num_args == 2 && name_len == 12 && wave107_name_prefix_eq(name, name_len, "submit_write", 12)) {
+    sym = "xlang_io_submit_write_buf";
+    sym_len = 24;
+  }
+  if (!sym)
+    return 0;
+  if (!sym_out || sym_cap < sym_len)
+    return -1;
+  memcpy(sym_out, sym, (size_t)sym_len);
+  return sym_len;
+}
+
+int32_t pipeline_codegen_std_io_fixed_fd_emit_impl(uint8_t *prefix, int32_t prefix_len, uint8_t *name,
+                                                   int32_t name_len) {
+  if (!prefix || !name || prefix_len < 7 || name_len <= 0)
+    return 0;
+  if (!wave107_name_prefix_eq(prefix, prefix_len, "std_io_", 7))
+    return 0;
+  if (name_len >= 13 && wave107_name_prefix_eq(name, name_len, "read_fixed_fd", 13))
+    return 1;
+  if (name_len >= 14 && wave107_name_prefix_eq(name, name_len, "write_fixed_fd", 14))
+    return 1;
+  return 0;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
