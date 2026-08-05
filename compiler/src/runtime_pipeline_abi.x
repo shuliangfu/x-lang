@@ -613,6 +613,16 @@ export extern "C" function backend_enc_jne_arch(elf_ctx: *u8, label: *u8, label_
 export extern "C" function backend_enc_label_arch(elf_ctx: *u8, name: *u8, name_len: i32, is_global: i32, ta: i32): i32;
 export extern "C" function pipeline_asm_emit_next_label_c(ctx: *u8, buf: *u8, buf_size: i32): i32;
 export extern "C" function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
+// wave128 Cap residual: logand/logor pure leave callees (binop faces + short-circuit encoders).
+// PLATFORM: SHARED freestanding emit — pure owns LOGAND/LOGOR ELF face only.
+// Operand emit uses public pipeline_asm_emit_expr_elf_c (→ host-cc _rec); do not Cap residual
+// the static _rec symbol (G.7 public face only).
+export extern "C" function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_binop_right_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_jz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern "C" function backend_enc_jnz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern "C" function backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 -> _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
@@ -21891,6 +21901,227 @@ export function pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx: *u8, ctx
   }
   unsafe {
     rc = backend_enc_label_arch(elf_ctx, &ok_lbl[0], ok_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+// wave128: pipeline_asm_emit_logand pure-owned leave
+// (was pipeline_asm_emit_logand.c).
+// G.7 product authority for:
+//   pipeline_asm_emit_logand_elf_impl  (EXPR_LOGAND short-circuit &&)
+//   pipeline_asm_emit_logor_elf_impl   (EXPR_LOGOR  short-circuit ||)
+// Cap residual: binop left/right + emit_expr_elf_c + enc test/jz/jnz/jmp/mov/label + next_label.
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
+// ---------------------------------------------------------------------------
+
+/**
+ * EXPR_LOGAND (&&) short-circuit: left false → 0; else right truthy → 1 else 0.
+ * Emits test/jz to false label, then right test/jz, then mov 1 / jmp end / false: mov 0 / end.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - EXPR_LOGAND expr_ref
+ * @param ctx *u8 - AsmFuncCtx* (next_label + nested expr emit)
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 null/bad refs/encoder/expr failure
+ * wave128 pure: G.7 authority (was static in pipeline_asm_emit_logand.c).
+ * Cap residual: emit_expr_elf_c (not static _rec) + enc_* + next_label + binop faces.
+ * PLATFORM: SHARED - sole provider after logand leave; expr_rec ko==20 dispatches here.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_logand_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let false_lbl: u8[128] = [];
+  let end_lbl: u8[128] = [];
+  let false_len: i32 = 0;
+  let end_len: i32 = 0;
+  let rc: i32 = 0;
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    false_len = pipeline_asm_emit_next_label_c(ctx, &false_lbl[0], 64);
+    end_len = pipeline_asm_emit_next_label_c(ctx, &end_lbl[0], 64);
+  }
+  if (false_len <= 0 || end_len <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_test_eax_eax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_jz_arch(elf_ctx, &false_lbl[0], false_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_test_eax_eax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_jz_arch(elf_ctx, &false_lbl[0], false_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, 1, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_jmp_arch(elf_ctx, &end_lbl[0], end_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &false_lbl[0], false_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &end_lbl[0], end_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * EXPR_LOGOR (||) short-circuit: left true → 1; else right truthy → 1 else 0.
+ * Emits test/jnz to true label, then right test/jnz, then mov 0 / jmp end / true: mov 1 / end.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - EXPR_LOGOR expr_ref
+ * @param ctx *u8 - AsmFuncCtx* (next_label + nested expr emit)
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 null/bad refs/encoder/expr failure
+ * wave128 pure: G.7 authority (was static in pipeline_asm_emit_logand.c).
+ * Cap residual: same faces as logand_elf_impl.
+ * PLATFORM: SHARED - sole provider after logand leave; expr_rec ko==21 dispatches here.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_logor_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let true_lbl: u8[128] = [];
+  let end_lbl: u8[128] = [];
+  let true_len: i32 = 0;
+  let end_len: i32 = 0;
+  let rc: i32 = 0;
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    true_len = pipeline_asm_emit_next_label_c(ctx, &true_lbl[0], 64);
+    end_len = pipeline_asm_emit_next_label_c(ctx, &end_lbl[0], 64);
+  }
+  if (true_len <= 0 || end_len <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_test_eax_eax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_jnz_arch(elf_ctx, &true_lbl[0], true_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_test_eax_eax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_jnz_arch(elf_ctx, &true_lbl[0], true_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_jmp_arch(elf_ctx, &end_lbl[0], end_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &true_lbl[0], true_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, 1, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &end_lbl[0], end_len, 0, ta);
   }
   if (rc != 0) {
     return 0 - 1;

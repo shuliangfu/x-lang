@@ -184,8 +184,12 @@ extern int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegen
  * as.c / return.c (both #included before this site). */
 #include "pipeline_asm_emit_async_cps.c"
 
-/* BC 8.3.1: asm ELF LOGAND/LOGOR short-circuit emit domain (same TU). */
-#include "pipeline_asm_emit_logand.c"
+/* wave128 pure-owned leave: pipeline_asm_emit_logand.c deleted.
+ * live = runtime_pipeline_abi pure (logand_elf_impl + logor_elf_impl);
+ * seed cold twin under #ifndef FROM_X. Residual expr_rec ko==20/21 calls these
+ * public faces — prototypes in pipeline_glue_emit_fwd.c; do not re-open a
+ * second LOGAND/LOGOR short-circuit ELF face (G.7).
+ * PLATFORM: SHARED freestanding emit. */
 /* wave1287 G.7: early emit inter-include forward-decl / static shell migrated to
  * pipeline_glue_emit_fwd.c (same-TU #include). Pure decls + glue_if_expr_arm_emit_depth
  * static + GLUE_TYPE_NAMED; no function bodies. PLATFORM: SHARED. */

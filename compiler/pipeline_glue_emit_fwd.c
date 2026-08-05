@@ -1,14 +1,18 @@
 /**
  * pipeline_glue_emit_fwd.c — Early emit inter-include forward-decl / static shell
- * after logand domain (BC 8.3 shell thin).
+ * (BC 8.3 shell thin; after async_cps; logand host leaf left at wave128).
  *
  * wave1287 BC 8.3 G.7 same-TU domain fold from pipeline_glue.c:
  * pure forward declarations, static prototypes, and shared static state that
- * must be visible after pipeline_asm_emit_logand.c and before
- * pipeline_asm_emit_struct_lit.c (STRUCT_LIT / vector_let / field_access /
- * match / expr_rec chain).
+ * must be visible before pipeline_asm_emit_struct_lit.c (STRUCT_LIT /
+ * vector_let / field_access / match / expr_rec chain).
+ *
+ * wave128 pure-owned leave: LOGAND/LOGOR short-circuit live in
+ * runtime_pipeline_abi pure — extern decls below for residual expr_rec
+ * (ko==20/21); do not re-define host-cc bodies (G.7).
  *
  * Sub-clusters (order preserved):
+ *  - pipeline_asm_emit_logand/logor_elf_impl public pure faces (wave128 leave)
  *  - pipeline_asm_typekind_variant_tag static fwd (def at cmp.c EOF)
  *  - glue_if_expr_arm_emit_depth static (if/ternary arm depth; read in block_body)
  *  - pipeline_asm_emit_expr_if_arm_elf_c public fwd (def at block_body EOF)
@@ -18,13 +22,23 @@
  *  - pipeline_asm_emit_set_call_sret_reg_shift_c public face
  *  - GLUE_TYPE_NAMED kind ordinal macro
  *
- * Include site: pipeline_glue.c immediately after pipeline_asm_emit_logand.c
+ * Include site: pipeline_glue.c after async_cps (was after logand host leaf)
  * and before STRUCT_LIT domain #include.
  * Not a separate .o — host-cc via pipeline_x.o.
  *
  * G.7: declarations + shared static only; no second implementation of any face.
  * PLATFORM: SHARED — host-cc residual shell.
  */
+
+/* wave128 pure-owned leave: LOGAND/LOGOR short-circuit ELF faces (was same-TU
+ * static in pipeline_asm_emit_logand.c). Residual expr_rec dispatches ko 20/21
+ * via these public pure symbols. PLATFORM: SHARED freestanding emit. */
+extern int32_t pipeline_asm_emit_logand_elf_impl(struct ast_ASTArena *arena,
+                                                struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_logor_elf_impl(struct ast_ASTArena *arena,
+                                               struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                               struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /* wave1033 G.7: pipeline_token_kind_variant_tag folded into
  * pipeline_asm_emit_field_access.c (same TU #include at L2489; no new DEPS).

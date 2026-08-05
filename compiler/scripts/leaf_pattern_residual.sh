@@ -9094,8 +9094,8 @@ fi
 if ! grep -qE 'pipeline_asm_emit_return\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_return.c (8.3.1 asm_emit_return slice)"
 fi
-if ! grep -qE 'pipeline_asm_emit_logand\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_logand.c (8.3.1 asm_emit_logand slice)"
+if grep -qE 'pipeline_asm_emit_logand\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_logand.c (wave128 pure-owned leave)"
 fi
 if ! grep -qE 'pipeline_asm_emit_block_body\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_block_body.c (8.3.1 asm_emit_block_body slice)"
