@@ -9130,6 +9130,14 @@ fi
 if [ -f "$ROOT/compiler/pipeline_asm_emit_index.c" ]; then
   bad "pipeline_asm_emit_index.c must be deleted (wave140 pure-owned leave)"
 fi
+
+# wave141 pure-owned leave: context faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_context\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_context.c (wave141 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_context.c" ]; then
+  bad "pipeline_asm_emit_context.c must be deleted (wave141 pure-owned leave)"
+fi
 if grep -qE 'pipeline_asm_emit_match\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_match.c (wave134 pure-owned leave)"
 fi

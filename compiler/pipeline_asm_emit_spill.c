@@ -2753,7 +2753,8 @@ static void glue_asm_sum_expr_call_spill_bytes(struct ast_ASTArena *arena, int32
  * @param block_ref function body block
  * @return total payload bytes to reserve (>=0)
  */
-static int32_t glue_sum_block_slice_reent_dc_bytes_c(struct ast_ASTArena *arena, int32_t block_ref) {
+/* wave141 pure leave Cap residual: was static; pure compute_frame_size links here. */
+int32_t glue_sum_block_slice_reent_dc_bytes_c(struct ast_ASTArena *arena, int32_t block_ref) {
   int32_t total = 0;
   int32_t stack[GLUE_ASM_FRAME_WALK_DEPTH_MAX];
   int32_t sp = 0;
@@ -2846,7 +2847,8 @@ static int32_t glue_sum_block_slice_reent_dc_bytes_c(struct ast_ASTArena *arena,
  * @param block_ref function body (or nested) block
  * @return estimated spill bytes (>=0)
  */
-static int32_t glue_asm_sum_block_call_spill_bytes(struct ast_ASTArena *arena, int32_t block_ref) {
+/* wave141 pure leave Cap residual: was static; pure compute_frame_size links here. */
+int32_t glue_asm_sum_block_call_spill_bytes(struct ast_ASTArena *arena, int32_t block_ref) {
   int32_t total = 0;
   int32_t visits = 0;
   int32_t stack[GLUE_ASM_FRAME_WALK_DEPTH_MAX];

@@ -396,8 +396,9 @@ void pipeline_asm_patch_module_parent_links(struct ast_Module *m, struct ast_AST
 void asm_ctx_fill_locals_block_tree(uint8_t *ctx, struct ast_ASTArena *arena, int32_t block_ref,
                                     int32_t *inout_next_offset, int32_t *inout_num_locals);
 void asm_ctx_local_reset(uint8_t *ctx);
-int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, struct ast_ASTArena *arena, int32_t block_ref,
-                                          struct ast_Module *mod, int32_t func_index);
+/* wave141: compute_frame_size_c live in runtime_pipeline_abi pure (extern). */
+extern int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, struct ast_ASTArena *arena, int32_t block_ref,
+                                                 struct ast_Module *mod, int32_t func_index);
 int32_t pipeline_asm_hoist_target_func_index(struct ast_Module *m);
 int32_t pipeline_asm_sum_module_top_level_lets_stack(struct ast_ASTArena *a, struct ast_Module *m, int32_t off);
 int32_t pipeline_module_top_level_let_name_len(struct ast_Module *m, int32_t idx);

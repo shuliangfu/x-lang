@@ -936,43 +936,14 @@ extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *
  * wave1179). Static same-TU: field_access.c #include L2111 < def EOF.
  * Deps: strlen / memcmp (libc, global). */
 
-/* wave1180 G.7: asm emit context setters/getters cluster (14 fns) migrated to
- * pipeline_asm_emit_context.c (new domain file, same-TU #include below).
- * Members:
- *  - pipeline_asm_emit_set_module / module_ref_c (current emit module)
- *  - pipeline_asm_emit_set_dep_pipe / dep_pipe_c (current dep pipe)
- *  - pipeline_asm_emit_set_arena (current emit AST arena)
- *  - pipeline_asm_emit_set_call_param_type_ref (callee formal type_ref)
- *  - pipeline_asm_emit_call_arg_begin_c / end_c / active_c (CALL arg depth)
- *  - pipeline_asm_emit_set_func_index / func_index_c (current emit func idx)
- *  - pipeline_asm_emit_set_elf_ctx (current emit ElfCodegenCtx)
- *  - pipeline_asm_emit_func_param_is_ptr_by_name_c (lookup *T param by name)
- *  - pipeline_asm_var_is_emit_func_param_ptr_c (VAR expr -> name lookup wrapper)
- *
- * Static globals STAY in glue.c (L132-188): g_pipeline_asm_emit_module /
- * _func_index / _arena / _call_param_ty_ref / g_glue_emit_call_arg_depth /
- * g_pipeline_asm_emit_dep_pipe / g_pipeline_asm_emit_elf_ctx — also read
- * directly by pipeline_asm_emit_field_access.c (#include L2111) for CALL-arg
- * struct pass-by-address classification, so cannot move with the functions.
- *
- * Fwd decls retained at L180 (pipeline_asm_emit_call_arg_active_c — called
- * by field_access.c #included at L2111, before this file's #include below)
- * and L186 (pipeline_asm_emit_dep_pipe_c — called by vector_simd.c #included
- * at L1940, before this file's #include below).
- *
- * No glue.c callsites before this #include (sole early callers are via the
- * two retained fwd decls above). Glue.c callsites after this #include:
- * L3571 / L4538 (pipeline_asm_emit_set_func_index).
- *
- * External deps (declared elsewhere in pipeline_x.o TU):
- *  - pipeline_elf_pgo_hot_enabled / pipeline_elf_ctx_set_emit_hot
- *    / pipeline_asm_wpo_pgo_is_hot_func (PGO-Lite hot section switch)
- *  - pipeline_module_func_param_type_ref_for_name (module formal table)
- *  - pipeline_type_kind_ord_at / pipeline_expr_kind_ord_at
- *    / pipeline_expr_var_name_len / _into (expr accessor domain)
- *
- * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
-#include "pipeline_asm_emit_context.c"
+/* wave141 pure-owned leave: pipeline_asm_emit_context.c deleted.
+ * Live = runtime_pipeline_abi pure (set/get context + param-ptr lookup +
+ * compute_frame_size + fill_param_slots + param_home_elf + fill_local_slots).
+ * Cap residual: glue_statics cells via pipeline_asm_emit_ctx_*_get/set +
+ * host_is_arm64 + param width/agg/return + frame walk sums + enc/sret/PGO.
+ * Residual C may still direct-access g_pipeline_asm_emit_* statics (same cells).
+ * Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED freestanding. */
 
 /* wave1179: pipeline_expr_enum_field_tag_via_module migrated to
  * pipeline_asm_emit_field_access.c EOF (colocated with enum_namespace_field_tag). */

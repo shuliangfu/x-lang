@@ -207,6 +207,35 @@ extern int32_t pipeline_asm_emit_struct_let_init_elf_c(struct ast_ASTArena *aren
 extern void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t shift);
 extern int32_t pipeline_asm_emit_call_sret_reg_shift_c(void);
 
+/* wave141 pure-owned leave: pipeline_asm_emit_context.c deleted.
+ * Live = runtime_pipeline_abi pure; residual mega_body / block_inits / call_args /
+ * vector_simd / slot_bytes Cap residual these faces. PLATFORM: SHARED. */
+extern void pipeline_asm_emit_set_module(struct ast_Module *m);
+extern struct ast_Module *pipeline_asm_emit_module_ref_c(void);
+extern struct ast_Module *pipeline_asm_glue_emit_module_ref(void);
+extern void pipeline_asm_emit_set_dep_pipe(struct ast_PipelineDepCtx *ctx);
+extern struct ast_PipelineDepCtx *pipeline_asm_emit_dep_pipe_c(void);
+extern void pipeline_asm_emit_set_arena(struct ast_ASTArena *arena);
+extern void pipeline_asm_emit_set_call_param_type_ref(int32_t type_ref);
+extern void pipeline_asm_emit_call_arg_begin_c(void);
+extern void pipeline_asm_emit_call_arg_end_c(void);
+extern int32_t pipeline_asm_emit_call_arg_active_c(void);
+extern void pipeline_asm_emit_set_func_index(int32_t func_index);
+extern void pipeline_asm_emit_set_elf_ctx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t pipeline_asm_emit_func_index_c(void);
+extern int32_t pipeline_asm_emit_func_param_is_ptr_by_name_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                             uint8_t *vname, int32_t vlen);
+extern int32_t pipeline_asm_var_is_emit_func_param_ptr_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                         uint8_t *asm_ctx, int32_t var_expr_ref);
+extern int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, struct ast_ASTArena *arena, int32_t block_ref,
+                                                 struct ast_Module *mod, int32_t func_index);
+extern void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Module *mod, int32_t func_index);
+extern int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                  struct backend_AsmFuncCtx *ctx, struct ast_Module *mod,
+                                                  int32_t func_index, int32_t ta);
+extern void pipeline_asm_fill_local_slots(struct backend_AsmFuncCtx *ctx, struct ast_ASTArena *arena,
+                                          int32_t block_ref);
+
 /* wave132: include-order fwd decls formerly only in pipeline_asm_emit_struct_let.c.
  * Keep visibility for call_args / field_access / index_eff_addr / binop without
  * re-opening a second struct_let face (G.7). PLATFORM: SHARED. */

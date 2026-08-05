@@ -1553,8 +1553,9 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
  *   · LINUX+MACOS x86_64 SysV ≤16B dual-GP / >16B MEMORY classification
  *   · MACOS|ARM64 AAPCS64 same pointer lowering for SLICE/ARRAY formals
  */
-static int32_t glue_func_param_agg_byte_size_c(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                              int32_t func_index, int32_t param_index) {
+/* wave141 pure leave Cap residual: was static; pure compute_frame/fill_param/param_home links here. */
+int32_t glue_func_param_agg_byte_size_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                       int32_t func_index, int32_t param_index) {
   int32_t pty;
   int32_t k;
   int32_t sz;
@@ -1639,7 +1640,8 @@ static int32_t glue_func_param_agg_byte_size_c(struct ast_ASTArena *arena, struc
  *   · LINUX+MACOS x86_64 SysV sret (rdi hidden dest for >16B return)
  *   · MACOS|ARM64 AAPCS64 x8 (wave591)
  */
-static int32_t glue_func_return_byte_size_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t func_index) {
+/* wave141 pure leave Cap residual: was static; pure compute_frame_size links here. */
+int32_t glue_func_return_byte_size_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t func_index) {
   int32_t rty;
   int32_t k;
   if (!mod || !arena || func_index < 0 || func_index >= (int32_t)mod->num_funcs)
@@ -1690,8 +1692,9 @@ static int32_t glue_func_return_byte_size_c(struct ast_Module *mod, struct ast_A
  *   · LINUX|x86_64 SysV high-end multi-word (home=off+w, next=home+8)
  *   · MACOS|ARM64 low-end multi-word (home=off, next=off+w)
  */
-static int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
-                                           int32_t param_index) {
+/* wave141 pure leave Cap residual: was static; pure fill_param/compute_frame/param_home links here. */
+int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
+                                    int32_t param_index) {
   int32_t sz = glue_func_param_agg_byte_size_c(arena, mod, func_index, param_index);
   if (sz > 8)
     return (sz + 7) & ~7;
@@ -2760,10 +2763,11 @@ static int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena,
  * - else: one GP
  * Hidden sret uses rdi → gp starts at 1 when sret_active.
  */
-static int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                               struct backend_AsmFuncCtx *ctx,
-                                                               struct ast_Module *mod, int32_t func_index,
-                                                               int32_t np) {
+/* wave141 pure leave Cap residual: was static; pure param_home_elf_c Cap residual this path. */
+int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                        struct backend_AsmFuncCtx *ctx,
+                                                        struct ast_Module *mod, int32_t func_index,
+                                                        int32_t np) {
   struct ast_ASTArena *arena;
   int32_t i;
   int32_t off;

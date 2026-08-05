@@ -58,3 +58,75 @@ static int32_t g_pipeline_asm_emit_scope_block = 0;
 static struct ast_PipelineDepCtx *g_pipeline_asm_emit_dep_pipe;
 /** elf_ctx currently being written by asm_codegen_ast_to_elf (PGO-Lite emit seg switch). */
 static struct platform_elf_ElfCodegenCtx *g_pipeline_asm_emit_elf_ctx;
+
+/* ========================================================================== *
+ * wave141 Cap residual storage for pure emit-context leave
+ * (pipeline_asm_emit_context.c pure-owned leave).
+ *
+ * Pure public faces live in runtime_pipeline_abi; residual C in this same TU
+ * still reads/writes the statics above directly. Pure Cap residual these
+ * get/set faces so product hybrid shares one storage (G.7 single authority
+ * for public API; Cap residual owns process-local cells until statics leave).
+ * PLATFORM: SHARED — host-cc residual shell.
+ * ========================================================================== */
+
+void *pipeline_asm_emit_ctx_module_get(void) {
+  return (void *)g_pipeline_asm_emit_module;
+}
+void pipeline_asm_emit_ctx_module_set(void *m) {
+  g_pipeline_asm_emit_module = (struct ast_Module *)m;
+}
+int32_t pipeline_asm_emit_ctx_func_index_get(void) {
+  return g_pipeline_asm_emit_func_index;
+}
+void pipeline_asm_emit_ctx_func_index_set(int32_t fi) {
+  g_pipeline_asm_emit_func_index = fi;
+}
+void *pipeline_asm_emit_ctx_arena_get(void) {
+  return (void *)g_pipeline_asm_emit_arena;
+}
+void pipeline_asm_emit_ctx_arena_set(void *arena) {
+  g_pipeline_asm_emit_arena = (struct ast_ASTArena *)arena;
+}
+int32_t pipeline_asm_emit_ctx_call_param_ty_get(void) {
+  return g_pipeline_asm_emit_call_param_ty_ref;
+}
+void pipeline_asm_emit_ctx_call_param_ty_set(int32_t type_ref) {
+  g_pipeline_asm_emit_call_param_ty_ref = type_ref;
+}
+int32_t pipeline_asm_emit_ctx_call_arg_depth_get(void) {
+  return g_glue_emit_call_arg_depth;
+}
+void pipeline_asm_emit_ctx_call_arg_depth_set(int32_t d) {
+  g_glue_emit_call_arg_depth = d;
+}
+void *pipeline_asm_emit_ctx_dep_pipe_get(void) {
+  return (void *)g_pipeline_asm_emit_dep_pipe;
+}
+void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx) {
+  g_pipeline_asm_emit_dep_pipe = (struct ast_PipelineDepCtx *)ctx;
+}
+void *pipeline_asm_emit_ctx_elf_ctx_get(void) {
+  return (void *)g_pipeline_asm_emit_elf_ctx;
+}
+void pipeline_asm_emit_ctx_elf_ctx_set(void *elf_ctx) {
+  g_pipeline_asm_emit_elf_ctx = (struct platform_elf_ElfCodegenCtx *)elf_ctx;
+}
+int32_t pipeline_asm_emit_ctx_sret_active_get(void) {
+  return g_pipeline_asm_func_sret_active;
+}
+int32_t pipeline_asm_emit_ctx_sret_home_off_get(void) {
+  return g_pipeline_asm_sret_home_off;
+}
+/**
+ * Host compile-time ISA polarity for frame/param home layout.
+ * Matches residual #if __aarch64__/__arm64__ (product freestanding ISA == host).
+ * PLATFORM: SHARED — 1 on MACOS|ARM64 / LINUX aarch64; 0 on x86_64.
+ */
+int32_t pipeline_asm_host_is_arm64_c(void) {
+#if defined(__aarch64__) || defined(__arm64__)
+  return 1;
+#else
+  return 0;
+#endif
+}

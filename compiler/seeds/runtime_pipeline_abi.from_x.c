@@ -13048,4 +13048,447 @@ int32_t pipeline_asm_emit_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_r
 }
 
 
+
+/*
+ * wave141: pipeline_asm_emit_context pure-owned leave cold twins.
+ * PREFER pure; cold path when PREFER!=1 / hybrid fail.
+ * Faces: set/get module/dep/arena/call_arg/func_index/elf + param-ptr lookup +
+ *   compute_frame_size + fill_param_slots + param_home_elf + fill_local_slots.
+ * Cap residual storage: pipeline_asm_emit_ctx_*_get/set (glue_statics cells;
+ *   residual C still direct-accesses the same statics — G.7 single storage).
+ * PLATFORM: SHARED freestanding · continues same #ifndef FROM_X as wave140.
+ */
+
+extern void *pipeline_asm_emit_ctx_module_get(void);
+extern void pipeline_asm_emit_ctx_module_set(void *m);
+extern int32_t pipeline_asm_emit_ctx_func_index_get(void);
+extern void pipeline_asm_emit_ctx_func_index_set(int32_t fi);
+extern void *pipeline_asm_emit_ctx_arena_get(void);
+extern void pipeline_asm_emit_ctx_arena_set(void *arena);
+extern int32_t pipeline_asm_emit_ctx_call_param_ty_get(void);
+extern void pipeline_asm_emit_ctx_call_param_ty_set(int32_t type_ref);
+extern int32_t pipeline_asm_emit_ctx_call_arg_depth_get(void);
+extern void pipeline_asm_emit_ctx_call_arg_depth_set(int32_t d);
+extern void *pipeline_asm_emit_ctx_dep_pipe_get(void);
+extern void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx);
+extern void *pipeline_asm_emit_ctx_elf_ctx_get(void);
+extern void pipeline_asm_emit_ctx_elf_ctx_set(void *elf_ctx);
+extern int32_t pipeline_asm_emit_ctx_sret_active_get(void);
+extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
+extern int32_t pipeline_asm_host_is_arm64_c(void);
+extern int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index, int32_t param_index);
+extern int32_t glue_func_param_agg_byte_size_c(void *arena, void *mod, int32_t func_index, int32_t param_index);
+extern int32_t glue_func_return_byte_size_c(void *mod, void *arena, int32_t func_index);
+extern int32_t glue_asm_sum_block_call_spill_bytes(void *arena, int32_t block_ref);
+extern int32_t glue_sum_block_slice_reent_dc_bytes_c(void *arena, int32_t block_ref);
+extern int32_t asm_sum_block_array_temp_bytes(void *arena, int32_t block_ref);
+extern int32_t asm_sum_block_wa_temp_bytes(void *arena, int32_t block_ref);
+extern int32_t pipeline_asm_hoist_target_func_index(void *m);
+extern int32_t pipeline_asm_sum_module_top_level_lets_stack(void *a, void *m, int32_t off);
+extern void asm_ctx_local_reset(void *ctx);
+extern void asm_ctx_fill_locals_block_tree(void *ctx, void *arena, int32_t block_ref, int32_t *next_off, int32_t *num_loc);
+extern int32_t pipeline_asm_module_func_num_params_at(void *mod, int32_t func_index);
+extern void pipeline_asm_module_func_param_name_copy32(void *mod, int32_t func_index, int32_t param_index, uint8_t *dst);
+extern int32_t pipeline_asm_module_func_param_name_len_at(void *mod, int32_t func_index, int32_t param_index);
+extern int32_t asm_ctx_local_append(void *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t asm_ctx_local_count(void *ctx);
+extern int32_t asm_ctx_block_slot_get(void *ctx, int32_t block_ref);
+extern void asm_ctx_block_slot_set(void *ctx, int32_t block_ref, int32_t slot_base);
+extern int32_t asm_local_slot_reg_offset(void *arena, int32_t type_ref, int32_t off, int32_t *inout_off);
+extern int32_t pipeline_asm_let_init_stack_reserve_bytes(void *arena, int32_t type_ref, int32_t init_ref);
+extern int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
+extern void ast_pipeline_block_const_name_copy64(void *arena, int32_t block_ref, int32_t i, uint8_t *dst);
+extern int32_t ast_pipeline_block_const_name_len(void *arena, int32_t block_ref, int32_t i);
+extern int32_t pipeline_block_const_type_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_pipeline_block_const_init_ref(void *arena, int32_t block_ref, int32_t i);
+extern void ast_pipeline_block_let_name_copy64(void *arena, int32_t block_ref, int32_t i, uint8_t *dst);
+extern int32_t ast_pipeline_block_let_name_len(void *arena, int32_t block_ref, int32_t i);
+extern int32_t pipeline_block_let_type_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_pipeline_block_let_init_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(void *elf_ctx, void *ctx, void *mod, int32_t func_index, int32_t np);
+extern int32_t pipeline_asm_abi_f32_xmm_enabled_c(void);
+extern int32_t backend_enc_mov_arg_reg_to_rax_arch(void *elf_ctx, int32_t k, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_store_x_reg_to_rbp_arch(void *elf_ctx, int32_t reg, int32_t offset, int32_t ta);
+extern int32_t backend_enc_load_rbp_pos_to_rax_arch(void *elf_ctx, int32_t off_pos, int32_t ta);
+extern int32_t backend_enc_load_x29_pos_to_rax_arch(void *elf_ctx, int32_t off_pos, int32_t ta);
+extern int32_t pipeline_elf_pgo_hot_enabled(void);
+extern void pipeline_elf_ctx_set_emit_hot(uint8_t *ctx_bytes, int32_t hot);
+extern int32_t pipeline_asm_wpo_pgo_is_hot_func(void *m, int32_t fi);
+extern int32_t pipeline_module_func_param_type_ref_for_name(void *mod, int32_t fi, uint8_t *vname, int32_t vlen);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+
+void pipeline_asm_emit_set_module(void *m) {
+  pipeline_asm_emit_ctx_module_set(m);
+}
+void *pipeline_asm_emit_module_ref_c(void) {
+  return pipeline_asm_emit_ctx_module_get();
+}
+void *pipeline_asm_glue_emit_module_ref(void) {
+  return pipeline_asm_emit_ctx_module_get();
+}
+void pipeline_asm_emit_set_dep_pipe(void *ctx) {
+  pipeline_asm_emit_ctx_dep_pipe_set(ctx);
+}
+void *pipeline_asm_emit_dep_pipe_c(void) {
+  return pipeline_asm_emit_ctx_dep_pipe_get();
+}
+void pipeline_asm_emit_set_arena(void *arena) {
+  pipeline_asm_emit_ctx_arena_set(arena);
+}
+void pipeline_asm_emit_set_call_param_type_ref(int32_t type_ref) {
+  pipeline_asm_emit_ctx_call_param_ty_set(type_ref);
+}
+void pipeline_asm_emit_call_arg_begin_c(void) {
+  pipeline_asm_emit_ctx_call_arg_depth_set(pipeline_asm_emit_ctx_call_arg_depth_get() + 1);
+}
+void pipeline_asm_emit_call_arg_end_c(void) {
+  int32_t d = pipeline_asm_emit_ctx_call_arg_depth_get();
+  if (d > 0)
+    pipeline_asm_emit_ctx_call_arg_depth_set(d - 1);
+}
+int32_t pipeline_asm_emit_call_arg_active_c(void) {
+  return pipeline_asm_emit_ctx_call_arg_depth_get() > 0 ? 1 : 0;
+}
+void pipeline_asm_emit_set_func_index(int32_t func_index) {
+  void *elf;
+  void *mod;
+  pipeline_asm_emit_ctx_func_index_set(func_index);
+  elf = pipeline_asm_emit_ctx_elf_ctx_get();
+  mod = pipeline_asm_emit_ctx_module_get();
+  if (elf && mod && pipeline_elf_pgo_hot_enabled())
+    pipeline_elf_ctx_set_emit_hot((uint8_t *)elf, pipeline_asm_wpo_pgo_is_hot_func(mod, func_index));
+}
+void pipeline_asm_emit_set_elf_ctx(void *elf_ctx) {
+  pipeline_asm_emit_ctx_elf_ctx_set(elf_ctx);
+}
+int32_t pipeline_asm_emit_func_index_c(void) {
+  return pipeline_asm_emit_ctx_func_index_get();
+}
+int32_t pipeline_asm_emit_func_param_is_ptr_by_name_c(void *arena, void *mod, uint8_t *vname, int32_t vlen) {
+  int32_t fi;
+  int32_t param_ty;
+  int32_t kind;
+  if (!arena || !mod || !vname || vlen <= 0 || vlen > 127)
+    return 0;
+  fi = pipeline_asm_emit_ctx_func_index_get();
+  if (fi < 0)
+    return 0;
+  param_ty = pipeline_module_func_param_type_ref_for_name(mod, fi, vname, vlen);
+  if (param_ty <= 0)
+    return 0;
+  kind = pipeline_type_kind_ord_at(arena, param_ty);
+  return (kind == 9) ? 1 : 0;
+}
+int32_t pipeline_asm_var_is_emit_func_param_ptr_c(void *arena, void *mod, uint8_t *asm_ctx, int32_t var_expr_ref) {
+  uint8_t vname[128];
+  int32_t vlen;
+  (void)asm_ctx;
+  if (!arena || !mod || var_expr_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, var_expr_ref) != 3)
+    return 0;
+  vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+  if (vlen <= 0 || vlen > 127)
+    return 0;
+  pipeline_expr_var_name_into(arena, var_expr_ref, vname);
+  return pipeline_asm_emit_func_param_is_ptr_by_name_c(arena, mod, vname, vlen);
+}
+
+int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, void *arena, int32_t block_ref, void *mod, int32_t func_index) {
+  uint8_t ctx_buf[128];
+  int32_t next_off;
+  int32_t num_loc;
+  int32_t size;
+  int32_t arr_temp;
+  int32_t call_spill;
+  int32_t scratch;
+  void *prev_mod;
+  int32_t is_arm;
+  if (!arena || block_ref <= 0)
+    return 64;
+  memset(ctx_buf, 0, sizeof(ctx_buf));
+  *(void **)(ctx_buf + 16) = mod;
+  prev_mod = pipeline_asm_emit_ctx_module_get();
+  pipeline_asm_emit_ctx_module_set(mod);
+  asm_ctx_local_reset(ctx_buf);
+  next_off = 16;
+  is_arm = pipeline_asm_host_is_arm64_c();
+  if (num_params > 0 && mod && func_index >= 0) {
+    int32_t pi;
+    for (pi = 0; pi < num_params; pi++) {
+      int32_t w = glue_func_param_home_width_c(arena, mod, func_index, pi);
+      if (is_arm)
+        next_off += (w > 8) ? w : 8;
+      else
+        next_off += (w > 8) ? (w + 8) : 8;
+    }
+  } else if (num_params > 0) {
+    next_off = 16 + num_params * 8;
+  }
+  if (mod && func_index >= 0 && glue_func_return_byte_size_c(mod, arena, func_index) > 16)
+    next_off += 8;
+  if (mod && func_index >= 0 && func_index != pipeline_asm_hoist_target_func_index(mod))
+    next_off = pipeline_asm_sum_module_top_level_lets_stack(arena, mod, next_off);
+  num_loc = 0;
+  asm_ctx_fill_locals_block_tree(ctx_buf, arena, block_ref, &next_off, &num_loc);
+  arr_temp = asm_sum_block_array_temp_bytes(arena, block_ref);
+  call_spill = glue_asm_sum_block_call_spill_bytes(arena, block_ref);
+  pipeline_asm_emit_ctx_module_set(prev_mod);
+  {
+    int32_t wa_temp = asm_sum_block_wa_temp_bytes(arena, block_ref);
+    int32_t reent_dc = glue_sum_block_slice_reent_dc_bytes_c(arena, block_ref);
+    size = next_off + arr_temp + wa_temp + reent_dc;
+  }
+  if (size > 0 && size % 16 != 0)
+    size += 16 - (size % 16);
+  scratch = call_spill;
+  if (scratch < 512)
+    scratch = 512;
+  size += scratch;
+  return size + 64;
+}
+
+void pipeline_asm_fill_param_slots(void *ctx, void *mod, int32_t func_index) {
+  int32_t off;
+  int32_t np;
+  int32_t i;
+  uint8_t pname_buf[128];
+  int32_t plen;
+  void *arena;
+  int32_t is_arm;
+  if (!ctx || !mod)
+    return;
+  pipeline_asm_emit_ctx_module_set(mod);
+  arena = pipeline_asm_emit_ctx_arena_get();
+  off = 16;
+  np = pipeline_asm_module_func_num_params_at(mod, func_index);
+  is_arm = pipeline_asm_host_is_arm64_c();
+  for (i = 0; i < np; i++) {
+    int32_t width;
+    int32_t slot_off;
+    pipeline_asm_module_func_param_name_copy32(mod, func_index, i, pname_buf);
+    plen = pipeline_asm_module_func_param_name_len_at(mod, func_index, i);
+    width = arena ? glue_func_param_home_width_c(arena, mod, func_index, i) : 8;
+    if (is_arm) {
+      slot_off = off;
+      if (asm_ctx_local_append(ctx, pname_buf, plen, slot_off) < 0)
+        return;
+      *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count(ctx); /* num_locals@8 */
+      off = (width > 8) ? (off + width) : (off + 8);
+    } else {
+      if (width > 8)
+        slot_off = off + width;
+      else
+        slot_off = off;
+      if (asm_ctx_local_append(ctx, pname_buf, plen, slot_off) < 0)
+        return;
+      *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count(ctx);
+      off = (width > 8) ? (slot_off + 8) : (off + 8);
+    }
+  }
+  *(int32_t *)((uint8_t *)ctx + 4) = off; /* next_offset@4 */
+}
+
+int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, int32_t func_index, int32_t ta) {
+  int32_t np;
+  int32_t reg_max;
+  int32_t i;
+  int32_t sret_act;
+  int32_t sret_off;
+  if (!elf_ctx || !ctx || !mod || func_index < 0)
+    return -1;
+  pipeline_asm_emit_set_func_index(func_index);
+  np = pipeline_asm_module_func_num_params_at(mod, func_index);
+  sret_act = pipeline_asm_emit_ctx_sret_active_get();
+  sret_off = pipeline_asm_emit_ctx_sret_home_off_get();
+  if (sret_act && sret_off >= 0) {
+    if (ta == 0) {
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, sret_off, ta) != 0)
+        return -1;
+    } else if (ta == 1) {
+      if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 8, sret_off, ta) != 0)
+        return -1;
+    }
+  }
+  if (np <= 0)
+    return 0;
+  if (ta == 0 && pipeline_asm_abi_f32_xmm_enabled_c() != 0)
+    return pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx, ctx, mod, func_index, np);
+  if (ta == 0) {
+    void *arena = pipeline_asm_emit_ctx_arena_get();
+    int32_t gp = sret_act ? 1 : 0;
+    int32_t stack_pos = 16;
+    int32_t cur = 16;
+    int32_t k;
+    if (!arena)
+      return -1;
+    for (i = 0; i < np; i++) {
+      int32_t psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
+      int32_t home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
+      int32_t home = (home_w > 8) ? (cur + home_w) : cur;
+      if (psz > 16) {
+        int32_t nbytes = (psz + 7) & ~7;
+        for (k = 0; k < nbytes; k += 8) {
+          if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos + k, 0) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - k, 0) != 0)
+            return -1;
+        }
+        stack_pos += nbytes;
+      } else if (psz > 8) {
+        if (gp + 2 <= 6) {
+          if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
+            return -1;
+          if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp + 1, 0) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, 0) != 0)
+            return -1;
+          gp += 2;
+        } else {
+          if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
+            return -1;
+          if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos + 8, 0) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, 0) != 0)
+            return -1;
+          stack_pos += 16;
+        }
+      } else if (gp < 6) {
+        if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
+          return -1;
+        gp++;
+      } else {
+        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
+          return -1;
+        stack_pos += 8;
+      }
+      cur = (home_w > 8) ? (home + 8) : (cur + 8);
+    }
+    return 0;
+  }
+  reg_max = 8;
+  {
+    void *arena = pipeline_asm_emit_ctx_arena_get();
+    int32_t gp = 0;
+    int32_t stack_pos = 16;
+    int32_t cur = 16;
+    int32_t k;
+    if (!arena)
+      return -1;
+    if (ctx) {
+      int32_t fs = *(int32_t *)((uint8_t *)ctx + 0); /* frame_size@0 */
+      if (fs > 16)
+        stack_pos = fs;
+    }
+    for (i = 0; i < np; i++) {
+      int32_t psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
+      int32_t home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
+      int32_t home = cur;
+      if (psz > 16) {
+        int32_t nbytes = (psz + 7) & ~7;
+        for (k = 0; k < nbytes; k += 8) {
+          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos + k, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home + k, ta) != 0)
+            return -1;
+        }
+        stack_pos += nbytes;
+      } else if (psz > 8) {
+        if (gp + 2 <= reg_max) {
+          if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, gp, home, ta) != 0)
+            return -1;
+          if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, gp + 1, home + 8, ta) != 0)
+            return -1;
+          gp += 2;
+        } else {
+          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+            return -1;
+          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos + 8, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home + 8, ta) != 0)
+            return -1;
+          stack_pos += 16;
+        }
+      } else if (gp < reg_max) {
+        if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, gp, home, ta) != 0)
+          return -1;
+        gp++;
+      } else {
+        if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+          return -1;
+        stack_pos += 8;
+      }
+      cur = (home_w > 8) ? (cur + home_w) : (cur + 8);
+    }
+  }
+  return 0;
+}
+
+void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref) {
+  int32_t off;
+  int32_t i;
+  int32_t nconst;
+  int32_t nlet;
+  uint8_t name_buf[128];
+  int32_t nlen;
+  int32_t init_ref;
+  int32_t slot_base;
+  if (!ctx || !arena || block_ref <= 0)
+    return;
+  if (asm_ctx_block_slot_get(ctx, block_ref) >= 0)
+    return;
+  slot_base = asm_ctx_local_count(ctx);
+  off = *(int32_t *)((uint8_t *)ctx + 4); /* next_offset@4 */
+  nconst = ast_ast_block_num_consts(arena, block_ref);
+  for (i = 0; i < nconst; i++) {
+    int32_t type_ref;
+    int32_t slot_off;
+    ast_pipeline_block_const_name_copy64(arena, block_ref, i, name_buf);
+    nlen = ast_pipeline_block_const_name_len(arena, block_ref, i);
+    type_ref = pipeline_block_const_type_ref(arena, block_ref, i);
+    slot_off = asm_local_slot_reg_offset(arena, type_ref, off, &off);
+    if (asm_ctx_local_append(ctx, name_buf, nlen, slot_off) < 0)
+      return;
+    *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count(ctx);
+    init_ref = ast_pipeline_block_const_init_ref(arena, block_ref, i);
+    off += pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+  }
+  nlet = ast_ast_block_num_lets(arena, block_ref);
+  for (i = 0; i < nlet; i++) {
+    int32_t type_ref;
+    int32_t slot_off;
+    ast_pipeline_block_let_name_copy64(arena, block_ref, i, name_buf);
+    nlen = ast_pipeline_block_let_name_len(arena, block_ref, i);
+    type_ref = pipeline_block_let_type_ref(arena, block_ref, i);
+    slot_off = asm_local_slot_reg_offset(arena, type_ref, off, &off);
+    if (asm_ctx_local_append(ctx, name_buf, nlen, slot_off) < 0)
+      return;
+    *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count(ctx);
+    init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, i);
+    off += pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+  }
+  *(int32_t *)((uint8_t *)ctx + 4) = off;
+  asm_ctx_block_slot_set(ctx, block_ref, slot_base);
+}
+
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
