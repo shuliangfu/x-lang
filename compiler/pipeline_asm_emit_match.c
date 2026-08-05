@@ -41,15 +41,24 @@ int32_t pipeline_codegen_match_matched_ref_c(void);
 int32_t pipeline_codegen_match_subject_ty_c(void);
 struct ast_Module *pipeline_codegen_match_mod_c(void);
 
+/* wave700/708: optional `pat if cond` / struct field-lit implicit guard. */
+extern int32_t pipeline_expr_match_arm_guard_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
+
 /**
- * EXPR_MATCH ELF emit: matched value in rbx; per-arm cmp+jeq; wildcard/default;
- * arm results join at done.
+ * EXPR_MATCH ELF emit — sequential first-match arm chain (host-C twin).
+ *
+ * Shape (mirrors codegen_emit_match_from_arm / codegen_emit_match_as_stmt):
+ *   - pure wildcard (no guard) → terminal default arm
+ *   - wildcard + guard → emit guard; jz next; body; jmp done
+ *     (struct field-lit `Point { x:0, y:0 }` is stored as wildcard+implicit guard)
+ *   - lit/enum [+ optional guard] → re-emit subject; cmp; jne next; [guard]; body
+ * Arms join at done. RETURN arm skips join (wave372).
  *
  * wave707 freestanding twin: set host-C match subject context for the duration
  * of arm/guard emit so bare field-bind VARs (`Point { x, y } => x + y`) resolve
  * as subject.field loads (see glue_try_emit_match_subject_field_var_elf_c in
  * expr_rec). Without this hop, Ubuntu pure-asm CG002s (VAR has no stack slot).
- * G.7: same pipeline_codegen_match_* subject authority as host-C codegen.
+ * G.7: same pipeline_codegen_match_* subject + guard_ref authority as host-C.
  * PLATFORM: SHARED freestanding · LINUX gold (Ubuntu pure-asm) · MACOS co-path.
  *
  * Avoids ko==43 → backend_emit_expr_elf_slow ↔ emit_expr_elf_c recursion SIGSEGV.
@@ -58,31 +67,29 @@ int32_t pipeline_asm_emit_match_elf_c(struct ast_ASTArena *arena, struct platfor
                                       int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   int32_t matched_ref;
   int32_t num_arms;
-  int32_t wild_idx;
   int32_t i;
   int32_t cmp_val;
-  int32_t arm_lbl_len[32];
-  uint8_t arm_lbl[32][128];
+  int32_t is_wild;
+  int32_t guard_ref;
   uint8_t done_lbl[128];
+  uint8_t next_lbl[128];
   int32_t done_len;
+  int32_t next_len;
   int32_t result_ref;
   struct ast_Module *prev_mod;
   int32_t prev_mref;
   int32_t prev_ty;
   int32_t rc;
+  int32_t saw_terminal_wild;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return -1;
   matched_ref = pipeline_expr_match_matched_ref_at(arena, expr_ref);
   num_arms = pipeline_expr_match_num_arms_at(arena, expr_ref);
   if (matched_ref <= 0 || num_arms <= 0 || num_arms > 32)
     return -1;
-  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, matched_ref, ctx, ta) != 0)
-    return -1;
-  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-    return -1;
   /*
-   * Freestanding field-bind: activate subject context before any arm result /
-   * guard emit. Nested MATCH saves/restores prev_* like host-C codegen_emit_match.
+   * Freestanding field-bind + guards: activate subject context before any arm
+   * result / guard emit. Nested MATCH saves/restores prev_* like host-C.
    */
   prev_mod = pipeline_codegen_match_mod_c();
   prev_mref = pipeline_codegen_match_matched_ref_c();
@@ -103,60 +110,85 @@ int32_t pipeline_asm_emit_match_elf_c(struct ast_ASTArena *arena, struct platfor
       pipeline_codegen_match_set_subject_c(g_pipeline_asm_emit_module, matched_ref, subj_ty);
   }
   rc = -1;
-  wild_idx = -1;
-  for (i = 0; i < num_arms; i++) {
-    if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0) {
-      wild_idx = i;
-      continue;
-    }
-    arm_lbl_len[i] = pipeline_asm_emit_next_label_c(ctx, arm_lbl[i], 64);
-    if (arm_lbl_len[i] <= 0)
-      goto match_elf_done;
-    if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0)
-      cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
-    else
-      cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
-    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, cmp_val, ta) != 0)
-      goto match_elf_done;
-    if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
-      goto match_elf_done;
-    if (backend_enc_jeq_arch(elf_ctx, arm_lbl[i], arm_lbl_len[i], ta) != 0)
-      goto match_elf_done;
-  }
+  saw_terminal_wild = 0;
   done_len = pipeline_asm_emit_next_label_c(ctx, done_lbl, 64);
   if (done_len <= 0)
     goto match_elf_done;
-  if (wild_idx >= 0) {
-    result_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, wild_idx);
-    if (result_ref <= 0 || pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
+  for (i = 0; i < num_arms; i++) {
+    is_wild = pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i);
+    guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, i);
+    result_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+    if (result_ref <= 0)
       goto match_elf_done;
     /*
-     * wave372: EXPR_RETURN arm already jmps to function tail_join — do not fall
-     * through / jmp done (same discipline as if-then with return in stmt_order).
-     * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64/aarch64.
+     * Terminal pure wildcard (no guard): default arm — emit body and end chain.
+     * Host-C: first pure wild ends ternary / becomes else. Arms after are dead.
      */
-    if (pipeline_expr_kind_ord_at(arena, result_ref) != 41) {
-      if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
+    if (is_wild != 0 && guard_ref <= 0) {
+      if (pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
         goto match_elf_done;
+      /* wave372: RETURN arm already jmps to function tail_join — skip join. */
+      if (pipeline_expr_kind_ord_at(arena, result_ref) != 41) {
+        if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
+          goto match_elf_done;
+      }
+      saw_terminal_wild = 1;
+      break;
     }
-  } else if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) {
-    goto match_elf_done;
-  } else if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0) {
-    goto match_elf_done;
-  }
-  for (i = 0; i < num_arms; i++) {
-    if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0)
-      continue;
-    if (backend_enc_label_arch(elf_ctx, arm_lbl[i], arm_lbl_len[i], 0, ta) != 0)
+    next_len = pipeline_asm_emit_next_label_c(ctx, next_lbl, 64);
+    if (next_len <= 0)
       goto match_elf_done;
-    result_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
-    if (result_ref <= 0 || pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
+    if (is_wild != 0) {
+      /*
+       * wave708: wildcard + guard — condition is the guard only
+       * (struct field-lit patterns + `_ if cond`).
+       * Guard expr reloads subject from stack/VAR; no rbx subject cache needed.
+       */
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, guard_ref, ctx, ta) != 0)
+        goto match_elf_done;
+      if (glue_enc_jz_after_bool_in_eax(elf_ctx, next_lbl, next_len, ta) != 0)
+        goto match_elf_done;
+    } else {
+      /*
+       * Lit / enum arm: re-emit subject each arm so guard / field-lit paths that
+       * clobber rbx cannot poison later scalar compares (host-C re-emits too).
+       */
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, matched_ref, ctx, ta) != 0)
+        goto match_elf_done;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        goto match_elf_done;
+      if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0)
+        cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
+      else
+        cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
+      if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, cmp_val, ta) != 0)
+        goto match_elf_done;
+      if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
+        goto match_elf_done;
+      if (backend_enc_jne_arch(elf_ctx, next_lbl, next_len, ta) != 0)
+        goto match_elf_done;
+      /* wave708: non-wildcard + guard — append guard test after lit match. */
+      if (guard_ref > 0) {
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, guard_ref, ctx, ta) != 0)
+          goto match_elf_done;
+        if (glue_enc_jz_after_bool_in_eax(elf_ctx, next_lbl, next_len, ta) != 0)
+          goto match_elf_done;
+      }
+    }
+    if (pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
       goto match_elf_done;
     /* wave372: RETURN arm → real early return; skip join to done. */
     if (pipeline_expr_kind_ord_at(arena, result_ref) != 41) {
       if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
         goto match_elf_done;
     }
+    if (backend_enc_label_arch(elf_ctx, next_lbl, next_len, 0, ta) != 0)
+      goto match_elf_done;
+  }
+  /* Exhausted arms with no pure-wild default: result 0 (host-C emits '0'). */
+  if (saw_terminal_wild == 0) {
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+      goto match_elf_done;
   }
   if (backend_enc_label_arch(elf_ctx, done_lbl, done_len, 0, ta) != 0)
     goto match_elf_done;
