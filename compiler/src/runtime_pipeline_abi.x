@@ -273,6 +273,8 @@ export extern "C" function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *u8): *u8;
 //   host-cc field load). 2026-08-05: import_bind host-cc leave — pure sole provider.
 // wave102: asm_diag_* pure export below (start_func_skip + BODY/FUNC_TRACE).
 //   2026-08-05: pipeline_asm_diag.c host-cc leave — pure sole provider.
+// wave103: lsp_diag_*_c pure export below (typeck_after_load / parse_entry / parse_typeck).
+//   2026-08-05: pipeline_lsp_diag.c host-cc leave — pure sole provider.
 // wave97: G.7 typeck.x merge/wpo authority (same symbols as typeck_x.o product).
 // PLATFORM: SHARED — pure load_and_sync step5 routes here (not typeck_typeck_* hop).
 export extern "C" function typeck_merge_dep_struct_layouts_into_entry(mod: *u8, arena: *u8, ctx: *u8): void;
@@ -319,6 +321,11 @@ export extern "C" function asm_asm_codegen_elf_o(module: *u8, arena: *u8, ctx: *
 export extern "C" function driver_set_pipeline_entry_source_len(len: i64): void;
 export extern "C" function pipeline_run_x_pipeline(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
 export extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void;
+// wave103: lsp_diag pure-owned leave — typeck after parse/load (host-cc residual body).
+// PLATFORM: SHARED — still host-cc in pipeline_parse_typeck_dispatch.c until later leave.
+export extern "C" function pipeline_typeck_parsed_module_c(module: *u8, arena: *u8, ctx: *u8, fail_mapped: i32): i32;
+// wave103: large-stack gate for LSP typeck (driver_abi pure authority).
+export extern "C" function driver_is_large_stack_thread(): i32;
 
 // wave78: xlang_fputs_stdout / driver_asm_fp_is_stdout / driver_asm_fclose_file are pure below.
 // g05 prologue harness (same as driver_abi wave22/26): FILE* cast residual for pure .x.
@@ -10863,4 +10870,201 @@ export function asm_diag_trace_func_idx(func_idx: i32, name: *u8, name_len: i32)
 #[no_mangle]
 export function asm_diag_trace_func(name: *u8, name_len: i32): void {
   asm_diag_trace_func_idx(0 - 1, name, name_len);
+}
+
+// ---------------------------------------------------------------------------
+// wave103: lsp_diag pure-owned leave (was pipeline_lsp_diag.c host-cc residual).
+// G.7 product authority for LSP parse/typeck orch faces used by parse_orch
+// _impl_c and pipeline.x. Large-stack path reuses driver_run_thread_on_large_stack
+// + Cap-fn-ptr (fn as *u8), same pattern as pipeline_run_x_thread_fn.
+// PLATFORM: SHARED — dual-end L2 after leave; cold twins under seed #ifndef FROM_X.
+// ---------------------------------------------------------------------------
+
+/**
+ * LSP: load/sync direct import deps then typeck (typeck fail maps to -3).
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — AST arena; null → -1
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 ok; load_rc on load fail; typeck fail_mapped (-3) on typeck fail
+ * wave103 pure: G.7 single product authority (historical pipeline_lsp_diag.c).
+ * PLATFORM: SHARED — sole provider after lsp_diag leave.
+ */
+#[no_mangle]
+export function lsp_diag_typeck_after_load_c(module: *u8, arena: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let load_rc: i32 = 0;
+  unsafe {
+    load_rc = pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
+  }
+  if (load_rc != 0) {
+    return load_rc;
+  }
+  let tk: i32 = 0;
+  unsafe {
+    tk = pipeline_typeck_parsed_module_c(module, arena, ctx, 0 - 3);
+  }
+  return tk;
+}
+
+/**
+ * LSP entry parse only: same path as pipeline_parse_set_main_from_buf_c.
+ * @param module *u8 — AST module
+ * @param arena *u8 — AST arena
+ * @param source_data *u8 — source bytes
+ * @param source_len i32 — byte length
+ * @return i32 — parse status from set_main_from_buf_c
+ * wave103 pure: G.7 single product authority (historical pipeline_lsp_diag.c).
+ * PLATFORM: SHARED — sole provider after lsp_diag leave.
+ */
+#[no_mangle]
+export function lsp_diag_parse_entry_buf_c(module: *u8, arena: *u8, source_data: *u8, source_len: i32): i32 {
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_parse_set_main_from_buf_c(module, arena, source_data, source_len);
+  }
+  return rc;
+}
+
+/**
+ * Core LSP path body: set_main + load/sync + typeck (fail_mapped -3).
+ * @param module *u8 — AST module; null → -2
+ * @param arena *u8 — AST arena; null → -2
+ * @param source_data *u8 — source bytes; null → -2
+ * @param source_len i32 — must be > 0 else -2
+ * @param ctx *u8 — PipelineDepCtx; null → -2
+ * @return i32 — 0 ok; parse/load rc; typeck -3
+ * wave103 pure: G.7 body for large-stack and direct call paths.
+ * PLATFORM: SHARED — sole provider after lsp_diag leave.
+ */
+function lsp_diag_parse_typeck_buf_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i32, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 2;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 2;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 2;
+  }
+  if (source_data == 0 as *u8) {
+    return 0 - 2;
+  }
+  if (source_len <= 0) {
+    return 0 - 2;
+  }
+  let parse_rc: i32 = 0;
+  unsafe {
+    parse_rc = pipeline_parse_set_main_from_buf_c(module, arena, source_data, source_len);
+  }
+  if (parse_rc != 0) {
+    return parse_rc;
+  }
+  let load_rc: i32 = 0;
+  unsafe {
+    load_rc = pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
+  }
+  if (load_rc != 0) {
+    return load_rc;
+  }
+  let tk: i32 = 0;
+  unsafe {
+    tk = pipeline_typeck_parsed_module_c(module, arena, ctx, 0 - 3);
+  }
+  return tk;
+}
+
+/**
+ * pthread start_routine for LSP parse+typeck on large stack.
+ * Pack LP64 (48B): module@0 arena@8 source_data@16 source_len@24 ctx@32 result@40.
+ * @param arg *u8 — pack base; null → null
+ * @return *u8 — always null (pthread contract)
+ * wave103 pure: Cap-fn-ptr surface via (fn as *u8) for driver large-stack.
+ * PLATFORM: SHARED LP64 little-endian.
+ */
+#[no_mangle]
+export function lsp_diag_parse_typeck_thread_fn(arg: *u8): *u8 {
+  if (arg == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let module: *u8 = pipe_load_ptr_slot(arg, 0);
+  let arena: *u8 = pipe_load_ptr_slot(arg, 1);
+  let source_data: *u8 = pipe_load_ptr_slot(arg, 2);
+  let source_len: i32 = xlang_size_slot_get(arg, 3) as i32;
+  let ctx: *u8 = pipe_load_ptr_slot(arg, 4);
+  let rc: i32 = 0;
+  unsafe {
+    rc = lsp_diag_parse_typeck_buf_impl(module, arena, source_data, source_len, ctx);
+  }
+  // result i32 at byte 40 = slot 5; write full LE cell (pad ok).
+  xlang_size_slot_set(arg, 5, rc as i64);
+  return 0 as *u8;
+}
+
+/**
+ * Cap-fn-ptr surface: opaque address of lsp_diag_parse_typeck_thread_fn.
+ * @return *u8 — function address as opaque byte pointer
+ * wave103 pure: G.7 Cap-fn-ptr (same wave84/wave100 pattern as pipeline_run_x).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function lsp_diag_parse_typeck_thread_fn_ptr(): *u8 {
+  return (lsp_diag_parse_typeck_thread_fn as *u8);
+}
+
+/**
+ * Full LSP path: parse entry + load deps + typeck on 256MiB stack when needed.
+ * If already on large-stack thread, run impl directly (avoid nested stack alloc).
+ * Else pack args, run thread_fn via driver_run_thread_on_large_stack; if result
+ * still sentinel -99 (pthread create failed), fall back to current-thread impl.
+ * @param module *u8 — AST module
+ * @param arena *u8 — AST arena
+ * @param source_data *u8 — source bytes
+ * @param source_len i32 — byte length
+ * @param ctx *u8 — PipelineDepCtx
+ * @return i32 — 0 ok; parse/load/typeck status; -2 null/empty; -99 should not escape
+ * wave103 pure: G.7 single product authority (historical pipeline_lsp_diag.c).
+ * PLATFORM: SHARED — sole provider after lsp_diag leave; Alpine/ARM64 deep typeck.
+ */
+#[no_mangle]
+export function lsp_diag_parse_typeck_buf_c(module: *u8, arena: *u8, source_data: *u8, source_len: i32, ctx: *u8): i32 {
+  let already: i32 = 0;
+  unsafe {
+    already = driver_is_large_stack_thread();
+  }
+  if (already != 0) {
+    return lsp_diag_parse_typeck_buf_impl(module, arena, source_data, source_len, ctx);
+  }
+  // LP64 pack 48B matching historical LspDiagParseTypeckArgs.
+  let pack: u8[48];
+  let zi: i32 = 0;
+  while (zi < 48) {
+    unsafe {
+      pack[zi] = 0;
+    }
+    zi = zi + 1;
+  }
+  pipe_store_ptr_slot(&pack[0], 0, module);
+  pipe_store_ptr_slot(&pack[0], 1, arena);
+  pipe_store_ptr_slot(&pack[0], 2, source_data);
+  xlang_size_slot_set(&pack[0], 3, source_len as i64);
+  pipe_store_ptr_slot(&pack[0], 4, ctx);
+  // result sentinel -99 at slot 5 (@40).
+  xlang_size_slot_set(&pack[0], 5, 0 - 99);
+  let fn: *u8 = lsp_diag_parse_typeck_thread_fn_ptr();
+  unsafe {
+    driver_run_thread_on_large_stack(fn, &pack[0]);
+  }
+  let res: i32 = xlang_size_slot_get(&pack[0], 5) as i32;
+  if (res == 0 - 99) {
+    return lsp_diag_parse_typeck_buf_impl(module, arena, source_data, source_len, ctx);
+  }
+  return res;
 }

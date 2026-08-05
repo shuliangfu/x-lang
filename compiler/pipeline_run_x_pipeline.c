@@ -73,7 +73,10 @@ int32_t run_x_pipeline_typecheck_after_load_c(struct ast_Module *module, struct 
   return g_run_x_pipeline_last_rc;
 }
 
-#include "pipeline_lsp_diag.c"
+/* 2026-08-05: pipeline_lsp_diag.c pure-owned leave retired.
+ * Live = runtime_pipeline_abi pure lsp_diag_typeck_after_load_c /
+ * lsp_diag_parse_entry_buf_c / lsp_diag_parse_typeck_buf_c (+ large-stack thread_fn).
+ * parse_orch _impl_c still dispatches to those symbols (no same-TU include). */
 
 /**
  * entry 尚未解析：parse_into_with_init_buf + set_main + 收尾诊断；C glue（scalars 路径）。

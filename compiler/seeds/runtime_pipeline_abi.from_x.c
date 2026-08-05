@@ -4328,5 +4328,86 @@ void asm_diag_trace_func_idx(int32_t func_idx, uint8_t *name, int32_t name_len) 
 void asm_diag_trace_func(uint8_t *name, int32_t name_len) {
   asm_diag_trace_func_idx(-1, name, name_len);
 }
+
+/* wave103 lsp_diag leave cold twins — former pipeline_lsp_diag.c.
+ * PLATFORM: SHARED — only when pure FROM_X object is not linked. Product pure
+ * owns strong lsp_diag_*_c after host-cc leave. */
+extern int32_t pipeline_load_and_sync_direct_import_deps_c(void *module, void *arena, void *ctx);
+extern int32_t pipeline_typeck_parsed_module_c(void *module, void *arena, void *ctx, int32_t fail_mapped);
+extern int32_t pipeline_parse_set_main_from_buf_c(void *module, void *arena, uint8_t *data, int32_t len);
+extern int32_t driver_is_large_stack_thread(void);
+extern void driver_run_thread_on_large_stack(uint8_t *fn, uint8_t *arg);
+
+int32_t lsp_diag_typeck_after_load_c(void *module, void *arena, void *ctx) {
+  int32_t load_rc;
+  if (!module || !arena || !ctx)
+    return -1;
+  load_rc = pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
+  if (load_rc != 0)
+    return load_rc;
+  return pipeline_typeck_parsed_module_c(module, arena, ctx, -3);
+}
+
+int32_t lsp_diag_parse_entry_buf_c(void *module, void *arena, uint8_t *source_data, int32_t source_len) {
+  return pipeline_parse_set_main_from_buf_c(module, arena, source_data, source_len);
+}
+
+static int32_t wave103_lsp_diag_parse_typeck_buf_impl(void *module, void *arena, uint8_t *source_data,
+                                                     int32_t source_len, void *ctx) {
+  int32_t parse_rc;
+  int32_t load_rc;
+  if (!module || !arena || !ctx || !source_data || source_len <= 0)
+    return -2;
+  parse_rc = pipeline_parse_set_main_from_buf_c(module, arena, source_data, source_len);
+  if (parse_rc != 0)
+    return parse_rc;
+  load_rc = pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
+  if (load_rc != 0)
+    return load_rc;
+  return pipeline_typeck_parsed_module_c(module, arena, ctx, -3);
+}
+
+/* LP64 pack matches pure: module@0 arena@8 src@16 len@24 ctx@32 result@40. */
+typedef struct {
+  void *module;
+  void *arena;
+  uint8_t *source_data;
+  int32_t source_len;
+  void *ctx;
+  int32_t result;
+} Wave103LspDiagArgs;
+
+static void *wave103_lsp_diag_parse_typeck_thread_fn(void *arg) {
+  Wave103LspDiagArgs *a = (Wave103LspDiagArgs *)arg;
+  a->result = wave103_lsp_diag_parse_typeck_buf_impl(a->module, a->arena, a->source_data, a->source_len, a->ctx);
+  return NULL;
+}
+
+uint8_t *lsp_diag_parse_typeck_thread_fn(uint8_t *arg) {
+  (void)wave103_lsp_diag_parse_typeck_thread_fn(arg);
+  return NULL;
+}
+
+uint8_t *lsp_diag_parse_typeck_thread_fn_ptr(void) {
+  return (uint8_t *)(void *)&wave103_lsp_diag_parse_typeck_thread_fn;
+}
+
+int32_t lsp_diag_parse_typeck_buf_c(void *module, void *arena, uint8_t *source_data, int32_t source_len,
+                                   void *ctx) {
+  Wave103LspDiagArgs args;
+  if (driver_is_large_stack_thread())
+    return wave103_lsp_diag_parse_typeck_buf_impl(module, arena, source_data, source_len, ctx);
+  args.module = module;
+  args.arena = arena;
+  args.source_data = source_data;
+  args.source_len = source_len;
+  args.ctx = ctx;
+  args.result = -99;
+  driver_run_thread_on_large_stack((uint8_t *)(void *)&wave103_lsp_diag_parse_typeck_thread_fn,
+                                   (uint8_t *)&args);
+  if (args.result == -99)
+    return wave103_lsp_diag_parse_typeck_buf_impl(module, arena, source_data, source_len, ctx);
+  return args.result;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
