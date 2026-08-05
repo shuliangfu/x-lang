@@ -1020,13 +1020,20 @@ export extern "C" function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_re
 export extern "C" function glue_block_compute_linear_live_in(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32): void;
 /* wave167 Cap residual: thin faces for pure cfg interf peak + color entry. */
 export extern "C" function glue_asm73_cfg_interf_prepare(): void;
-export extern "C" function glue_block_simulate_cfg_live_from_empty(arena: *u8, ctx: *u8, block_ref: i32): void;
+/* wave168: pure owns glue_block_simulate_cfg_live + from_empty (#[no_mangle] below). */
 export extern "C" function glue_asm73_linear_ctx_bind(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32, nso: i32): void;
 export extern "C" function glue_asm73_cfg_peak_stmt_i_get(): i32;
 export extern "C" function glue_asm73_cfg_peak_live_as_u8(): *u8;
 export extern "C" function glue_asm73_interf_add_live_set_u8(live: *u8): void;
 export extern "C" function glue_asm73_linear_max_live_n_maybe_raise(n: i32): void;
 export extern "C" function glue_asm73_cfg_peak_snapshot_from_u8(live: *u8, stmt_i: i32): void;
+/* wave168 Cap residual: thin faces for pure cfg simulate walk. */
+export extern "C" function glue_live_fwd_copy_u8(dst: *u8, src: *u8): void;
+export extern "C" function glue_block_stmt_gen_kill_u8(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32, stmt_i: i32, gen: *u8, kill: *u8): void;
+export extern "C" function glue_live_fwd_apply_stmt_gen_kill_u8(live: *u8, gen: *u8, kill: *u8): void;
+export extern "C" function glue_asm73_interf_push(): void;
+export extern "C" function glue_asm73_interf_pop_merge(): void;
+export extern "C" function glue_asm73_cfg_final_expr_use_n_set(n: i32): void;
 /* wave165: pure owns glue_asm73_compute_spill_color_pins (#[no_mangle] below). */
 export extern "C" function glue_asm73_clear_spill_color_map(): void;
 export extern "C" function glue_block_live_fwd_before_stmt(stmt_i: i32, ta: i32, elf_ctx: *u8): void;
@@ -53526,8 +53533,8 @@ export function glue_asm73_note_cfg_live_peak(live: *u8, stmt_i: i32, nso: i32, 
 }
 
 /**
- * CFG-parent spill coloring entry: prepare interf/peak BSS, residual-simulate
- * live through if/while/for (calls pure note at each program point), bind
+ * CFG-parent spill coloring entry: prepare interf/peak BSS, pure-simulate
+ * live through if/while/for (wave168; pure note at each program point), bind
  * linear next-use context, then pure Chaitin color+pin (wave164).
  * @param arena *u8 - ast_ASTArena*
  * @param ctx *u8 - backend_AsmFuncCtx*
@@ -53546,7 +53553,9 @@ export function glue_block_compute_cfg_peak_live_and_color(arena: *u8, ctx: *u8,
   let peak_live: *u8 = 0 as *u8;
   unsafe {
     glue_asm73_cfg_interf_prepare();
-    glue_block_simulate_cfg_live_from_empty(arena, ctx, block_ref);
+  }
+  glue_block_simulate_cfg_live_from_empty(arena, ctx, block_ref);
+  unsafe {
     nso = ast_ast_block_num_stmt_order(arena, block_ref);
   }
   if (nso > 32) {
@@ -53563,3 +53572,376 @@ export function glue_block_compute_cfg_peak_live_and_color(arena: *u8, ctx: *u8,
 }
 
 // end wave167 pure-owned leave
+
+// ============================================================================
+// wave168 pure-owned leave: cfg simulate walk
+// (was Cap residual spill; glue_block_simulate_cfg_live + from_empty).
+// Cap residual: live_fwd/interf stack BSS + gen_kill/collect + thin copy_u8 /
+// gen_kill_u8 / apply_stmt_gen_kill_u8 / interf_push / interf_pop_merge /
+// final_expr_use_n_set.
+// Opaque live buffers: u8[136] overlays GlueBlockLiveFwd (offs[32]+n).
+// Cold twin under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * Private: union all slots from src into dst via add_u8 (set-union).
+ * wave168 helper for cfg simulate if/while/for merge (mirrors residual union_into).
+ * @param dst *u8 - GlueBlockLiveFwd overlay; null → no-op
+ * @param src *u8 - GlueBlockLiveFwd overlay; null → no-op
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+function w168_live_union_into(dst: *u8, src: *u8): void {
+  let n: i32 = 0;
+  let i: i32 = 0;
+  let off: i32 = 0;
+  if (dst == (0 as *u8) || src == (0 as *u8)) {
+    return;
+  }
+  unsafe {
+    n = glue_live_fwd_n_get(src);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      off = glue_live_fwd_off_at(src, i);
+    }
+    if (off >= 0) {
+      unsafe {
+        glue_live_fwd_add_u8(dst, off);
+      }
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * Private: add final_expr VAR uses into live and record final_expr_use_n + peak.
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param block_ref i32 - block arena ref
+ * @param live *u8 - working live overlay
+ * @param gen *u8 - scratch gen overlay
+ * @param nso i32 - stmt_order count (peak at final uses nso as stmt_i)
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+function w168_sim_final_expr_uses(arena: *u8, ctx: *u8, block_ref: i32, live: *u8, gen: *u8, nso: i32): void {
+  let fin: i32 = 0;
+  let n: i32 = 0;
+  let i: i32 = 0;
+  let off: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || live == (0 as *u8) || gen == (0 as *u8) || block_ref <= 0) {
+    return;
+  }
+  unsafe {
+    fin = ast_ast_block_final_expr_ref(arena, block_ref);
+  }
+  if (fin <= 0) {
+    return;
+  }
+  unsafe {
+    glue_live_fwd_clear_u8(gen);
+    glue_live_fwd_collect_expr_uses(arena, ctx, fin, gen);
+    n = glue_live_fwd_n_get(gen);
+    glue_asm73_cfg_final_expr_use_n_set(n);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      off = glue_live_fwd_off_at(gen, i);
+    }
+    if (off >= 0) {
+      unsafe {
+        glue_live_fwd_add_u8(live, off);
+      }
+    }
+    i = i + 1;
+  }
+  unsafe {
+    glue_asm73_note_cfg_live_peak(live, nso, nso, 1);
+  }
+}
+
+/**
+ * CFG parent forward live simulate: walk stmt_order; linear path applies
+ * gen/kill + pure note; if/while/for push interf, recurse child, pop-merge,
+ * union exit live (while/for also fold cond/step uses). Depth cap 8.
+ * @param arena *u8 - ast_ASTArena*
+ * @param ctx *u8 - backend_AsmFuncCtx*
+ * @param block_ref i32 - block arena ref; <=0 → copy live_in to live_out
+ * @param live_in *u8 - entry live overlay; null with live_out → no-op
+ * @param live_out *u8 - exit live overlay; null → no-op
+ * @param depth i32 - recursion depth; >8 → copy live_in and return
+ * @return void
+ * wave168 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_block_simulate_cfg_live(arena: *u8, ctx: *u8, block_ref: i32, live_in: *u8, live_out: *u8, depth: i32): void {
+  let live: u8[136] = [];
+  let gen: u8[136] = [];
+  let kill: u8[136] = [];
+  let snap: u8[136] = [];
+  let sub_end: u8[136] = [];
+  let else_end: u8[136] = [];
+  let merged: u8[136] = [];
+  let slot_base: i32 = 0;
+  let nconst: i32 = 0;
+  let nlet: i32 = 0;
+  let nso: i32 = 0;
+  let i: i32 = 0;
+  let item_kind: i32 = 0;
+  let idx: i32 = 0;
+  let then_ref: i32 = 0;
+  let else_ref: i32 = 0;
+  let body_ref: i32 = 0;
+  let cond_ref: i32 = 0;
+  let step_ref: i32 = 0;
+  let j: i32 = 0;
+  let n_if: i32 = 0;
+  let n_loop: i32 = 0;
+  let n_for: i32 = 0;
+  let has_cfg: i32 = 0;
+  let off: i32 = 0;
+  let gn: i32 = 0;
+  if (live_out == (0 as *u8)) {
+    return;
+  }
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || block_ref <= 0 || depth > 8) {
+    if (live_in != (0 as *u8)) {
+      unsafe {
+        glue_live_fwd_copy_u8(live_out, live_in);
+      }
+    }
+    return;
+  }
+  if (live_in == (0 as *u8)) {
+    unsafe {
+      glue_live_fwd_clear_u8(live_out);
+    }
+    return;
+  }
+  unsafe {
+    glue_live_fwd_copy_u8(&live[0], live_in);
+    slot_base = backend_block_slot_base_for(ctx, arena, block_ref);
+    nconst = ast_ast_block_num_consts(arena, block_ref);
+    nlet = ast_ast_block_num_lets(arena, block_ref);
+    nso = ast_ast_block_num_stmt_order(arena, block_ref);
+  }
+  if (nso > 32) {
+    nso = 32;
+  }
+  has_cfg = glue_block_stmt_order_has_cfg(arena, block_ref);
+  if (has_cfg == 0) {
+    i = 0;
+    while (i < nso) {
+      unsafe {
+        glue_block_stmt_gen_kill_u8(arena, ctx, block_ref, slot_base, nconst, nlet, i, &gen[0], &kill[0]);
+        glue_live_fwd_apply_stmt_gen_kill_u8(&live[0], &gen[0], &kill[0]);
+        glue_asm73_note_cfg_live_peak(&live[0], i, nso, 1);
+      }
+      i = i + 1;
+    }
+    w168_sim_final_expr_uses(arena, ctx, block_ref, &live[0], &gen[0], nso);
+    unsafe {
+      glue_live_fwd_copy_u8(live_out, &live[0]);
+    }
+    return;
+  }
+  i = 0;
+  while (i < nso) {
+    unsafe {
+      item_kind = ast_ast_block_stmt_order_kind(arena, block_ref, i);
+      idx = ast_ast_block_stmt_order_idx(arena, block_ref, i);
+    }
+    if (item_kind <= 2) {
+      unsafe {
+        glue_block_stmt_gen_kill_u8(arena, ctx, block_ref, slot_base, nconst, nlet, i, &gen[0], &kill[0]);
+        glue_live_fwd_apply_stmt_gen_kill_u8(&live[0], &gen[0], &kill[0]);
+        glue_asm73_note_cfg_live_peak(&live[0], i, nso, 1);
+      }
+    } else if (item_kind == 5) {
+      unsafe {
+        n_if = ast_ast_block_num_if_stmts(arena, block_ref);
+      }
+      if (idx >= 0 && idx < n_if) {
+        unsafe {
+          then_ref = ast_pipeline_block_if_then_body_ref(arena, block_ref, idx);
+          else_ref = ast_pipeline_block_if_else_body_ref(arena, block_ref, idx);
+          glue_live_fwd_copy_u8(&snap[0], &live[0]);
+          glue_live_fwd_clear_u8(&merged[0]);
+        }
+        w168_live_union_into(&merged[0], &snap[0]);
+        if (then_ref > 0) {
+          unsafe {
+            glue_asm73_interf_push();
+          }
+          glue_block_simulate_cfg_live(arena, ctx, then_ref, &snap[0], &sub_end[0], depth + 1);
+          unsafe {
+            glue_asm73_interf_pop_merge();
+          }
+          w168_live_union_into(&merged[0], &sub_end[0]);
+        }
+        if (else_ref > 0) {
+          unsafe {
+            glue_asm73_interf_push();
+          }
+          glue_block_simulate_cfg_live(arena, ctx, else_ref, &snap[0], &else_end[0], depth + 1);
+          unsafe {
+            glue_asm73_interf_pop_merge();
+          }
+          w168_live_union_into(&merged[0], &else_end[0]);
+        } else {
+          w168_live_union_into(&merged[0], &snap[0]);
+        }
+        unsafe {
+          glue_live_fwd_copy_u8(&live[0], &merged[0]);
+          glue_asm73_note_cfg_live_peak(&live[0], i, nso, 0);
+        }
+      }
+    } else if (item_kind == 3) {
+      unsafe {
+        n_loop = ast_ast_block_num_loops(arena, block_ref);
+      }
+      if (idx >= 0 && idx < n_loop) {
+        unsafe {
+          body_ref = ast_ast_block_while_body_ref(arena, block_ref, idx);
+          cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, idx);
+          glue_live_fwd_copy_u8(&snap[0], &live[0]);
+        }
+        if (cond_ref > 0) {
+          unsafe {
+            glue_live_fwd_clear_u8(&gen[0]);
+            glue_live_fwd_collect_expr_uses(arena, ctx, cond_ref, &gen[0]);
+            gn = glue_live_fwd_n_get(&gen[0]);
+          }
+          j = 0;
+          while (j < gn) {
+            unsafe {
+              off = glue_live_fwd_off_at(&gen[0], j);
+            }
+            if (off >= 0) {
+              unsafe {
+                glue_live_fwd_add_u8(&live[0], off);
+              }
+            }
+            j = j + 1;
+          }
+        }
+        unsafe {
+          glue_live_fwd_clear_u8(&merged[0]);
+        }
+        w168_live_union_into(&merged[0], &snap[0]);
+        if (body_ref > 0) {
+          unsafe {
+            glue_asm73_interf_push();
+          }
+          glue_block_simulate_cfg_live(arena, ctx, body_ref, &snap[0], &sub_end[0], depth + 1);
+          unsafe {
+            glue_asm73_interf_pop_merge();
+          }
+          w168_live_union_into(&merged[0], &sub_end[0]);
+        }
+        unsafe {
+          glue_live_fwd_copy_u8(&live[0], &merged[0]);
+          glue_asm73_note_cfg_live_peak(&live[0], i, nso, 0);
+        }
+      }
+    } else if (item_kind == 4) {
+      unsafe {
+        n_for = ast_ast_block_num_for_loops(arena, block_ref);
+      }
+      if (idx >= 0 && idx < n_for) {
+        unsafe {
+          body_ref = ast_ast_block_for_body_ref(arena, block_ref, idx);
+          cond_ref = ast_ast_block_for_cond_ref(arena, block_ref, idx);
+          step_ref = ast_ast_block_for_step_ref(arena, block_ref, idx);
+          glue_live_fwd_copy_u8(&snap[0], &live[0]);
+        }
+        if (cond_ref > 0) {
+          unsafe {
+            glue_live_fwd_clear_u8(&gen[0]);
+            glue_live_fwd_collect_expr_uses(arena, ctx, cond_ref, &gen[0]);
+            gn = glue_live_fwd_n_get(&gen[0]);
+          }
+          j = 0;
+          while (j < gn) {
+            unsafe {
+              off = glue_live_fwd_off_at(&gen[0], j);
+            }
+            if (off >= 0) {
+              unsafe {
+                glue_live_fwd_add_u8(&live[0], off);
+              }
+            }
+            j = j + 1;
+          }
+        }
+        unsafe {
+          glue_live_fwd_clear_u8(&merged[0]);
+        }
+        w168_live_union_into(&merged[0], &snap[0]);
+        if (body_ref > 0) {
+          unsafe {
+            glue_asm73_interf_push();
+          }
+          glue_block_simulate_cfg_live(arena, ctx, body_ref, &snap[0], &sub_end[0], depth + 1);
+          unsafe {
+            glue_asm73_interf_pop_merge();
+          }
+          w168_live_union_into(&merged[0], &sub_end[0]);
+        }
+        if (step_ref > 0) {
+          unsafe {
+            glue_live_fwd_clear_u8(&gen[0]);
+            glue_live_fwd_collect_expr_uses(arena, ctx, step_ref, &gen[0]);
+            gn = glue_live_fwd_n_get(&gen[0]);
+          }
+          j = 0;
+          while (j < gn) {
+            unsafe {
+              off = glue_live_fwd_off_at(&gen[0], j);
+            }
+            if (off >= 0) {
+              unsafe {
+                glue_live_fwd_add_u8(&live[0], off);
+              }
+            }
+            j = j + 1;
+          }
+        }
+        unsafe {
+          glue_live_fwd_copy_u8(&live[0], &merged[0]);
+          glue_asm73_note_cfg_live_peak(&live[0], i, nso, 0);
+        }
+      }
+    }
+    i = i + 1;
+  }
+  w168_sim_final_expr_uses(arena, ctx, block_ref, &live[0], &gen[0], nso);
+  unsafe {
+    glue_live_fwd_copy_u8(live_out, &live[0]);
+  }
+}
+
+/**
+ * Entry helper: simulate cfg live from empty live_in (depth 0).
+ * Writes interf + peak BSS via pure note_cfg_live_peak during the walk.
+ * @param arena *u8 - ast_ASTArena*
+ * @param ctx *u8 - backend_AsmFuncCtx*
+ * @param block_ref i32 - block arena ref
+ * @return void
+ * wave168 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_block_simulate_cfg_live_from_empty(arena: *u8, ctx: *u8, block_ref: i32): void {
+  let live_start: u8[136] = [];
+  let live_end: u8[136] = [];
+  unsafe {
+    glue_live_fwd_clear_u8(&live_start[0]);
+  }
+  glue_block_simulate_cfg_live(arena, ctx, block_ref, &live_start[0], &live_end[0], 0);
+}
+
+// end wave168 pure-owned leave

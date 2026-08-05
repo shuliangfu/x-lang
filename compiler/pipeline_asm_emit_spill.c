@@ -68,14 +68,20 @@
  * wave167 pure-owned cfg interf peak + color entry (same pure TU):
  *   · glue_asm73_note_cfg_live_peak
  *   · glue_block_compute_cfg_peak_live_and_color
- * Residual keeps interf/peak BSS + simulate_cfg_live walk + thin prepare /
- * add_live_set_u8 / max_live raise / peak snapshot / linear_ctx_bind /
- * peak_stmt_i_get / peak_live_as_u8 / simulate_from_empty.
+ * Residual keeps interf/peak BSS + thin prepare / add_live_set_u8 /
+ * max_live raise / peak snapshot / linear_ctx_bind / peak getters.
+ *
+ * wave168 pure-owned cfg simulate walk (same pure TU):
+ *   · glue_block_simulate_cfg_live
+ *   · glue_block_simulate_cfg_live_from_empty
+ * Residual keeps live_fwd / interf stack BSS + gen_kill/collect helpers +
+ * thin copy_u8 / gen_kill_u8 / apply_stmt_gen_kill_u8 / interf_push /
+ * interf_pop_merge / final_expr_use_n_set.
  *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
  *   · 7.3 live_fwd BSS / break-continue note + push/pop
- *   · Chaitin interf BSS + cfg simulate walk + stack-spill preference
+ *   · Chaitin interf BSS + gen_kill/collect + stack-spill preference
  *   · index scratch spill methods + binop_stack_spill bodies
  *     (CAP statics in pipeline_asm_emit_index_helpers.c)
  *
@@ -167,12 +173,20 @@ void glue_asm73_linear_scan_evict_cache_if_pressure(int32_t stmt_i, int32_t ta,
 void glue_asm73_evict_cache_if_live_pressure_elf_c(int32_t ta, struct platform_elf_ElfCodegenCtx *elf_ctx);
 
 /* wave167 pure-owned faces (extern; live in runtime_pipeline_abi pure).
- * Residual: interf/peak BSS + simulate walk + thin prepare/bind/snapshot.
+ * Residual: interf/peak BSS + thin prepare/bind/snapshot.
  * PLATFORM: SHARED freestanding 7.3. */
 void glue_asm73_note_cfg_live_peak(const void *live, int32_t stmt_i, int32_t nso, int32_t add_interf_edges);
 void glue_block_compute_cfg_peak_live_and_color(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                int32_t block_ref, int32_t slot_base, int32_t nconst,
                                                int32_t nlet);
+
+/* wave168 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * Residual: live_fwd/interf BSS + gen_kill helpers + thin u8 faces.
+ * PLATFORM: SHARED freestanding 7.3. */
+void glue_block_simulate_cfg_live(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t block_ref,
+                                 const void *live_in, void *live_out, int32_t depth);
+void glue_block_simulate_cfg_live_from_empty(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                            int32_t block_ref);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -762,8 +776,12 @@ static int32_t glue_asm73_interf_merge_into(int32_t dst_n, int32_t *dst_off, uin
   return dn;
 }
 
-/** 进入子块模拟：保存父干涉图并清空当前层。 */
-static void glue_asm73_interf_push(void) {
+/**
+ * Enter child-block cfg simulate: push parent interf graph and clear current.
+ * wave168 Cap residual: non-static face for pure simulate walk.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_asm73_interf_push(void) {
   int32_t d;
   if (glue_asm73_interf_stack_depth >= GLUE_ASM73_INTERF_STACK_DEPTH)
     return;
@@ -775,8 +793,12 @@ static void glue_asm73_interf_push(void) {
   glue_asm73_interf_clear();
 }
 
-/** 子块模拟结束：将子图并入保存的父图并恢复为当前干涉图。 */
-static void glue_asm73_interf_pop_merge(void) {
+/**
+ * Exit child-block cfg simulate: merge child interf into saved parent graph.
+ * wave168 Cap residual: non-static face for pure simulate walk.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_asm73_interf_pop_merge(void) {
   int32_t d;
   int32_t merged_n;
   int32_t child_n;
@@ -833,154 +855,13 @@ static void glue_asm73_interf_add_live_set(const GlueBlockLiveFwd *live) {
   }
 }
 
-/* wave167: pure owns glue_asm73_note_cfg_live_peak (extern above).
- * Residual simulate walk calls pure note; Cap residual thin faces at EOF.
+/* wave168: pure owns glue_block_simulate_cfg_live + from_empty (extern above).
+ * Cap residual thin: copy_u8 / gen_kill_u8 / apply_stmt_gen_kill_u8 /
+ * interf_push / interf_pop_merge / final_expr_use_n_set (EOF).
  * PLATFORM: SHARED freestanding 7.3. */
 
-/**
- * 7.3：cfg 父块前向模拟活跃集（递归子块；while/for 保守 ∪ 入口与体尾）。
- */
-static void glue_block_simulate_cfg_live(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                        int32_t block_ref, const GlueBlockLiveFwd *live_in, GlueBlockLiveFwd *live_out,
-                                        int32_t depth) {
-  struct ast_Block *blk;
-  GlueBlockLiveFwd live;
-  GlueBlockLiveFwd gen;
-  GlueBlockLiveFwd kill;
-  GlueBlockLiveFwd snap;
-  GlueBlockLiveFwd sub_end;
-  GlueBlockLiveFwd else_end;
-  GlueBlockLiveFwd merged;
-  int32_t slot_base;
-  int32_t nconst;
-  int32_t nlet;
-  int32_t nso;
-  int32_t i;
-  uint8_t item_kind;
-  int32_t idx;
-  if (!arena || !ctx || !live_out || block_ref <= 0 || depth > 8) {
-    if (live_out && live_in)
-      glue_live_fwd_copy(live_out, live_in);
-    return;
-  }
-  glue_live_fwd_copy(&live, live_in);
-  slot_base = backend_block_slot_base_for(ctx, arena, block_ref);
-  nconst = ast_ast_block_num_consts(arena, block_ref);
-  nlet = ast_ast_block_num_lets(arena, block_ref);
-  nso = ast_ast_block_num_stmt_order(arena, block_ref);
-  if (nso > 32)
-    nso = 32;
-  if (!glue_block_stmt_order_has_cfg(arena, block_ref)) {
-    for (i = 0; i < nso; i++) {
-      glue_block_stmt_gen_kill(arena, ctx, block_ref, slot_base, nconst, nlet, i, &gen, &kill);
-      glue_live_fwd_apply_stmt_gen_kill(&live, &gen, &kill);
-      glue_asm73_note_cfg_live_peak(&live, i, nso, 1);
-    }
-    blk = pipeline_arena_block_ptr(arena, block_ref);
-    if (blk && blk->final_expr_ref > 0) {
-      glue_live_fwd_clear(&gen);
-      glue_live_fwd_collect_expr_uses(arena, ctx, blk->final_expr_ref, &gen);
-      glue_asm73_cfg_final_expr_use_n = gen.n;
-      for (i = 0; i < gen.n; i++)
-        glue_live_fwd_add(&live, gen.offs[i]);
-      glue_asm73_note_cfg_live_peak(&live, nso, nso, 1);
-    }
-    glue_live_fwd_copy(live_out, &live);
-    return;
-  }
-  for (i = 0; i < nso; i++) {
-    item_kind = ast_ast_block_stmt_order_kind(arena, block_ref, i);
-    idx = ast_ast_block_stmt_order_idx(arena, block_ref, i);
-    if (item_kind <= 2) {
-      glue_block_stmt_gen_kill(arena, ctx, block_ref, slot_base, nconst, nlet, i, &gen, &kill);
-      glue_live_fwd_apply_stmt_gen_kill(&live, &gen, &kill);
-      glue_asm73_note_cfg_live_peak(&live, i, nso, 1);
-    } else if (item_kind == 5 && idx >= 0 && idx < ast_ast_block_num_if_stmts(arena, block_ref)) {
-      int32_t then_ref = ast_pipeline_block_if_then_body_ref(arena, block_ref, idx);
-      int32_t else_ref = ast_pipeline_block_if_else_body_ref(arena, block_ref, idx);
-      glue_live_fwd_copy(&snap, &live);
-      glue_live_fwd_clear(&merged);
-      glue_live_fwd_union_into(&merged, &snap);
-      if (then_ref > 0) {
-        glue_asm73_interf_push();
-        glue_block_simulate_cfg_live(arena, ctx, then_ref, &snap, &sub_end, depth + 1);
-        glue_asm73_interf_pop_merge();
-        glue_live_fwd_union_into(&merged, &sub_end);
-      }
-      if (else_ref > 0) {
-        glue_asm73_interf_push();
-        glue_block_simulate_cfg_live(arena, ctx, else_ref, &snap, &else_end, depth + 1);
-        glue_asm73_interf_pop_merge();
-        glue_live_fwd_union_into(&merged, &else_end);
-      } else
-        glue_live_fwd_union_into(&merged, &snap);
-      glue_live_fwd_copy(&live, &merged);
-      glue_asm73_note_cfg_live_peak(&live, i, nso, 0);
-    } else if (item_kind == 3 && idx >= 0 && idx < ast_ast_block_num_loops(arena, block_ref)) {
-      int32_t body_ref = ast_ast_block_while_body_ref(arena, block_ref, idx);
-      int32_t cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, idx);
-      int32_t j;
-      glue_live_fwd_copy(&snap, &live);
-      if (cond_ref > 0) {
-        glue_live_fwd_clear(&gen);
-        glue_live_fwd_collect_expr_uses(arena, ctx, cond_ref, &gen);
-        for (j = 0; j < gen.n; j++)
-          glue_live_fwd_add(&live, gen.offs[j]);
-      }
-      glue_live_fwd_clear(&merged);
-      glue_live_fwd_union_into(&merged, &snap);
-      if (body_ref > 0) {
-        glue_asm73_interf_push();
-        glue_block_simulate_cfg_live(arena, ctx, body_ref, &snap, &sub_end, depth + 1);
-        glue_asm73_interf_pop_merge();
-        glue_live_fwd_union_into(&merged, &sub_end);
-      }
-      glue_live_fwd_copy(&live, &merged);
-      glue_asm73_note_cfg_live_peak(&live, i, nso, 0);
-    } else if (item_kind == 4 && idx >= 0 && idx < ast_ast_block_num_for_loops(arena, block_ref)) {
-      int32_t body_ref = ast_ast_block_for_body_ref(arena, block_ref, idx);
-      int32_t cond_ref = ast_ast_block_for_cond_ref(arena, block_ref, idx);
-      int32_t step_ref = ast_ast_block_for_step_ref(arena, block_ref, idx);
-      int32_t j;
-      glue_live_fwd_copy(&snap, &live);
-      if (cond_ref > 0) {
-        glue_live_fwd_clear(&gen);
-        glue_live_fwd_collect_expr_uses(arena, ctx, cond_ref, &gen);
-        for (j = 0; j < gen.n; j++)
-          glue_live_fwd_add(&live, gen.offs[j]);
-      }
-      glue_live_fwd_clear(&merged);
-      glue_live_fwd_union_into(&merged, &snap);
-      if (body_ref > 0) {
-        glue_asm73_interf_push();
-        glue_block_simulate_cfg_live(arena, ctx, body_ref, &snap, &sub_end, depth + 1);
-        glue_asm73_interf_pop_merge();
-        glue_live_fwd_union_into(&merged, &sub_end);
-      }
-      if (step_ref > 0) {
-        glue_live_fwd_clear(&gen);
-        glue_live_fwd_collect_expr_uses(arena, ctx, step_ref, &gen);
-        for (j = 0; j < gen.n; j++)
-          glue_live_fwd_add(&live, gen.offs[j]);
-      }
-      glue_live_fwd_copy(&live, &merged);
-      glue_asm73_note_cfg_live_peak(&live, i, nso, 0);
-    }
-  }
-  blk = pipeline_arena_block_ptr(arena, block_ref);
-  if (blk && blk->final_expr_ref > 0) {
-    glue_live_fwd_clear(&gen);
-    glue_live_fwd_collect_expr_uses(arena, ctx, blk->final_expr_ref, &gen);
-    glue_asm73_cfg_final_expr_use_n = gen.n;
-    for (i = 0; i < gen.n; i++)
-      glue_live_fwd_add(&live, gen.offs[i]);
-    glue_asm73_note_cfg_live_peak(&live, nso, nso, 1);
-  }
-  glue_live_fwd_copy(live_out, &live);
-}
-
 /* wave167: pure owns glue_block_compute_cfg_peak_live_and_color (extern above).
- * Residual thin: prepare / simulate_from_empty / linear_ctx_bind / peak getters.
+ * Residual thin: prepare / linear_ctx_bind / peak getters (EOF).
  * PLATFORM: SHARED freestanding 7.3. */
 
 void glue_block_compute_linear_live_in(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
@@ -2448,7 +2329,7 @@ void *glue_block_live_fwd_as_u8(void) {
 /* ========================================================================== *
  * wave167 Cap residual: thin faces for pure cfg interf peak + color entry.
  * Pure owns note_cfg_live_peak + compute_cfg_peak_live_and_color; residual owns
- * interf/peak BSS + simulate_cfg_live walk (G.7). PLATFORM: SHARED freestanding 7.3.
+ * interf/peak BSS (G.7). PLATFORM: SHARED freestanding 7.3.
  * ========================================================================== */
 
 /**
@@ -2462,22 +2343,6 @@ void glue_asm73_cfg_interf_prepare(void) {
   glue_asm73_cfg_peak_stmt_i = 0;
   glue_asm73_cfg_final_expr_use_n = 0;
   glue_live_fwd_clear(&glue_asm73_cfg_peak_live);
-}
-
-/**
- * Run residual cfg live simulate from empty live_in (writes interf + peak BSS
- * via pure note_cfg_live_peak called from walk).
- * @param arena ast_ASTArena*
- * @param ctx backend_AsmFuncCtx*
- * @param block_ref int32_t - block arena ref
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_block_simulate_cfg_live_from_empty(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                            int32_t block_ref) {
-  GlueBlockLiveFwd live_start;
-  GlueBlockLiveFwd live_end;
-  glue_live_fwd_clear(&live_start);
-  glue_block_simulate_cfg_live(arena, ctx, block_ref, &live_start, &live_end, 0);
 }
 
 /**
@@ -2544,4 +2409,60 @@ void glue_asm73_cfg_peak_snapshot_from_u8(const void *live, int32_t stmt_i) {
     return;
   glue_live_fwd_copy(&glue_asm73_cfg_peak_live, (const GlueBlockLiveFwd *)live);
   glue_asm73_cfg_peak_stmt_i = stmt_i;
+}
+
+/* ========================================================================== *
+ * wave168 Cap residual: thin faces for pure cfg simulate walk.
+ * Pure owns glue_block_simulate_cfg_live + from_empty; residual owns live_fwd /
+ * interf stack BSS + stmt gen_kill / collect_expr_uses (G.7).
+ * PLATFORM: SHARED freestanding 7.3.
+ * ========================================================================== */
+
+/**
+ * Copy opaque live set src → dst (sizeof GlueBlockLiveFwd).
+ * @param dst void* - destination overlay; null → no-op
+ * @param src const void* - source overlay; null → no-op
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_live_fwd_copy_u8(void *dst, const void *src) {
+  if (!dst || !src)
+    return;
+  glue_live_fwd_copy((GlueBlockLiveFwd *)dst, (const GlueBlockLiveFwd *)src);
+}
+
+/**
+ * Fill gen/kill for stmt_order[stmt_i] into opaque live overlays.
+ * @param arena / ctx / block_ref / slot_base / nconst / nlet / stmt_i - as residual gen_kill
+ * @param gen void* - GlueBlockLiveFwd* uses; null → no-op
+ * @param kill void* - GlueBlockLiveFwd* defs; null → no-op
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_block_stmt_gen_kill_u8(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t block_ref,
+                                 int32_t slot_base, int32_t nconst, int32_t nlet, int32_t stmt_i, void *gen,
+                                 void *kill) {
+  if (!gen || !kill)
+    return;
+  glue_block_stmt_gen_kill(arena, ctx, block_ref, slot_base, nconst, nlet, stmt_i, (GlueBlockLiveFwd *)gen,
+                           (GlueBlockLiveFwd *)kill);
+}
+
+/**
+ * Apply stmt gen/kill to opaque live (kill remove, gen add, kill re-add as live after def).
+ * @param live / gen / kill void* - GlueBlockLiveFwd* overlays; any null → no-op
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_live_fwd_apply_stmt_gen_kill_u8(void *live, const void *gen, const void *kill) {
+  if (!live || !gen || !kill)
+    return;
+  glue_live_fwd_apply_stmt_gen_kill((GlueBlockLiveFwd *)live, (const GlueBlockLiveFwd *)gen,
+                                    (const GlueBlockLiveFwd *)kill);
+}
+
+/**
+ * Set glue_asm73_cfg_final_expr_use_n (final_expr direct VAR-slot use count).
+ * @param n int32_t - use count from collect_expr_uses
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_asm73_cfg_final_expr_use_n_set(int32_t n) {
+  glue_asm73_cfg_final_expr_use_n = n;
 }

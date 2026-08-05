@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave168: cfg simulate walk pure leave cold twins under #ifndef FROM_X
  * wave167: cfg interf peak+color pure leave cold twins under #ifndef FROM_X
  * wave166: pressure-evict pure leave cold twins under #ifndef FROM_X
  * wave155: fold_count_up_while pure leave cold twins under #ifndef FROM_X
@@ -24999,6 +25000,31 @@ void glue_block_compute_cfg_peak_live_and_color(void *arena, void *ctx, int32_t 
   (void)slot_base;
   (void)nconst;
   (void)nlet;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/*
+ * wave168 cold twins: cfg simulate walk faces.
+ * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+void glue_block_simulate_cfg_live(void *arena, void *ctx, int32_t block_ref, const void *live_in, void *live_out,
+                                 int32_t depth) {
+  (void)arena;
+  (void)ctx;
+  (void)block_ref;
+  (void)live_in;
+  (void)live_out;
+  (void)depth;
+}
+
+void glue_block_simulate_cfg_live_from_empty(void *arena, void *ctx, int32_t block_ref) {
+  (void)arena;
+  (void)ctx;
+  (void)block_ref;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
