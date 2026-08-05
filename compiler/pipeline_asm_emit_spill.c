@@ -31,6 +31,11 @@
  * Residual keeps live_fwd BSS + break/continue stacks + fill_live_end +
  * thin accessors (copy_from_u8 / depth_get / stack union_into_u8).
  *
+ * wave161 pure-owned for-step live effect (same pure TU):
+ *   · glue_live_fwd_apply_expr_effect
+ * Residual keeps collect_expr_uses + forward_after_def +
+ * thin glue_block_live_fwd_union_from_u8.
+ *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + accessors
  *   · 7.3 live_fwd BSS / break-continue note + push/pop / Chaitin
@@ -91,6 +96,11 @@ void glue_asm_if_merge_live_union_from_ends(struct ast_ASTArena *arena, struct b
                                            void *then_live, void *else_live);
 void glue_asm_loop_merge_live_union(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                     int32_t body_ref);
+
+/* wave161 pure-owned face (extern; live in runtime_pipeline_abi pure).
+ * Residual: collect_expr_uses + forward_after_def + union_from_u8. PLATFORM: SHARED. */
+void glue_live_fwd_apply_expr_effect(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                     int32_t expr_ref);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -1163,33 +1173,9 @@ void glue_live_fwd_forward_after_def(struct ast_ASTArena *arena, struct backend_
  * Residual: snap / break-continue stacks / fill_live_end + thin union_into_u8 accessors.
  * PLATFORM: SHARED. */
 
-/**
- * 7.3 for step 表达式对出口活跃集的前向修正（step 在回跳前已执行，仅更新追踪集）。
- */
-/* wave155: un-static for pure fold_count leave Cap residual. PLATFORM: SHARED. */
-void glue_live_fwd_apply_expr_effect(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                             int32_t expr_ref) {
-  int32_t ko;
-  int32_t left_ref;
-  int32_t off;
-  GlueBlockLiveFwd gen;
-  int32_t i;
-  if (!expr_ref || !arena || !ctx)
-    return;
-  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-  if (glue_expr_kind_is_assign_like_ord(ko)) {
-    left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
-    if (left_ref > 0 && pipeline_expr_kind_ord_at(arena, left_ref) == GLUE_EXPR_KIND_VAR) {
-      off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
-      glue_live_fwd_forward_after_def(arena, ctx, off, pipeline_expr_binop_right_ref_at(arena, expr_ref));
-    }
-    return;
-  }
-  gen.n = 0;
-  glue_live_fwd_collect_expr_uses(arena, ctx, expr_ref, &gen);
-  for (i = 0; i < gen.n; i++)
-    glue_live_fwd_add(&glue_block_live_fwd, gen.offs[i]);
-}
+/* wave161: pure owns glue_live_fwd_apply_expr_effect (extern above).
+ * Residual: collect_expr_uses + forward_after_def + glue_block_live_fwd_union_from_u8.
+ * PLATFORM: SHARED. */
 
 /**
  * 7.3 cfg 父块：从 from_stmt 起前向扫描顶层 stmt_order/final_expr 的下次使用距离。
@@ -2468,4 +2454,21 @@ void glue_loop_continue_head_live_union_into_u8(void *dst, int32_t d) {
   if (!dst || d < 0 || d >= GLUE_LOOP_BREAK_LIVE_DEPTH)
     return;
   glue_live_fwd_union_into((GlueBlockLiveFwd *)dst, &glue_loop_continue_head_live_stack[d]);
+}
+
+/* ========================================================================== *
+ * wave161 Cap residual: thin BSS accessor for pure apply_expr_effect leave.
+ * Pure owns for-step effect algorithm; residual owns global live_fwd BSS
+ * (G.7 single authority). PLATFORM: SHARED.
+ * ========================================================================== */
+
+/**
+ * Union opaque live buffer into global glue_block_live_fwd (set-union).
+ * @param src void* - GlueBlockLiveFwd* overlay; null → no-op
+ * PLATFORM: SHARED freestanding emit.
+ */
+void glue_block_live_fwd_union_from_u8(void *src) {
+  if (!src)
+    return;
+  glue_live_fwd_union_into(&glue_block_live_fwd, (const GlueBlockLiveFwd *)src);
 }

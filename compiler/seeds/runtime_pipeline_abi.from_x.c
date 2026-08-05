@@ -24877,5 +24877,18 @@ void glue_asm_loop_merge_live_union(void *arena, void *ctx, int32_t body_ref) {
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/*
+ * wave161 cold twin: glue_live_fwd_apply_expr_effect.
+ * Freestanding-safe no-op stub. Hybrid product links pure.
+ * PLATFORM: SHARED.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+void glue_live_fwd_apply_expr_effect(void *arena, void *ctx, int32_t expr_ref) {
+  (void)arena; (void)ctx; (void)expr_ref;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

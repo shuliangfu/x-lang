@@ -1064,12 +1064,16 @@ export extern "C" function glue_live_fwd_copy_from_snap_before_if(dst_live: *u8)
 // wave159 pure-owned: glue_asm_loop_phi_invalidate_carried_defs body in EOF.
 // wave160 pure-owned: glue_asm_if_merge_live_union_from_ends +
 // glue_asm_loop_merge_live_union body in EOF (was Cap residual spill).
-// wave155 Cap residual (spill un-static): break push/pop + step expr effect.
+// wave161 pure-owned: glue_live_fwd_apply_expr_effect body in EOF (was Cap residual).
+// wave155 Cap residual (spill un-static): break push/pop (step effect → pure wave161).
 export extern "C" function glue_loop_break_exit_push(): void;
 export extern "C" function glue_loop_break_exit_pop(): void;
-export extern "C" function glue_live_fwd_apply_expr_effect(arena: *u8, ctx: *u8, expr_ref: i32): void;
+// Cap residual collect for apply_expr_effect gen set (VAR/binop/RETURN only).
+export extern "C" function glue_live_fwd_collect_expr_uses(arena: *u8, ctx: *u8, expr_ref: i32, gen: *u8): void;
 // wave160 Cap residual thin accessors for pure live-merge leave (BSS still spill).
 export extern "C" function glue_block_live_fwd_copy_from_u8(src: *u8): void;
+// wave161 Cap residual: union opaque gen into global block_live_fwd.
+export extern "C" function glue_block_live_fwd_union_from_u8(src: *u8): void;
 export extern "C" function glue_loop_break_exit_depth_get(): i32;
 export extern "C" function glue_loop_break_exit_live_union_into_u8(dst: *u8, d: i32): void;
 export extern "C" function glue_loop_continue_head_live_union_into_u8(dst: *u8, d: i32): void;
@@ -52768,3 +52772,65 @@ export function glue_asm_loop_merge_live_union(arena: *u8, ctx: *u8, body_ref: i
 }
 
 // end wave160 pure-owned leave
+
+// ============================================================================
+// wave161 pure-owned leave: glue_live_fwd_apply_expr_effect
+// (was Cap residual spill; for-loop step live correction at while/for faces).
+// Cap residual: live_fwd BSS + collect_expr_uses + forward_after_def +
+// thin glue_block_live_fwd_union_from_u8. Opaque gen: u8[136].
+// Cold twin under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 for-step · dual-end L2.
+// ============================================================================
+
+/**
+ * 7.3 for-step / expr effect on global block_live_fwd:
+ * assign-like with VAR lhs → forward_after_def (kill+gen+def);
+ * otherwise collect uses and union into global live set.
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param expr_ref i32 - step or side-effect expr; 0 → no-op
+ * wave161 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 CFG.
+ */
+#[no_mangle]
+export function glue_live_fwd_apply_expr_effect(arena: *u8, ctx: *u8, expr_ref: i32): void {
+  let ko: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let off: i32 = 0;
+  let gen: u8[136] = [];
+  if (expr_ref == 0 || arena == (0 as *u8) || ctx == (0 as *u8)) {
+    return;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  // Assign-like: lhs VAR → residual forward_after_def on global live_fwd.
+  if (glue_expr_kind_is_assign_like_ord(ko) != 0) {
+    unsafe {
+      left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    }
+    if (left_ref > 0) {
+      unsafe {
+        ko = pipeline_expr_kind_ord_at(arena, left_ref);
+      }
+      // GLUE_EXPR_KIND_VAR == 3 (pipeline_glue_emit_mid_fwd).
+      if (ko == 3) {
+        unsafe {
+          off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
+          right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+          glue_live_fwd_forward_after_def(arena, ctx, off, right_ref);
+        }
+      }
+    }
+    return;
+  }
+  // Non-assign: residual collect (VAR/binop/RETURN) → union into global live.
+  unsafe {
+    glue_live_fwd_clear_u8(&gen[0]);
+    glue_live_fwd_collect_expr_uses(arena, ctx, expr_ref, &gen[0]);
+    glue_block_live_fwd_union_from_u8(&gen[0]);
+  }
+}
+
+// end wave161 pure-owned leave
