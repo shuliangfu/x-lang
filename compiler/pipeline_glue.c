@@ -173,8 +173,12 @@ extern int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegen
  * #include). Pure decls + #defines; no function bodies. PLATFORM: SHARED. */
 #include "pipeline_glue_emit_lea_fwd.c"
 
-/* BC 8.3.1: asm ELF return emit domain (slice escape + return_impl; same TU). */
-#include "pipeline_asm_emit_return.c"
+/* wave144 pure-owned leave: pipeline_asm_emit_return.c deleted.
+ * live = runtime_pipeline_abi pure (slice escape + return_elf_impl/_c + sret
+ * memcpy/return_from_var + float promote pair + backend/asm/arm64 return_expr/lit);
+ * seed cold twins under #ifndef FROM_X. Cap residual: expr_rec + float_widen +
+ * enc slot + dual-gp length (block_inits) + type_size + spills + array_lit pure.
+ * residual present 69→68. PLATFORM: SHARED freestanding emit. */
 
 /* wave133 pure-owned leave: pipeline_asm_emit_unary.c deleted.
  * live = runtime_pipeline_abi pure (neg/lognot/bitnot + sxt + jz_after_bool);
@@ -597,7 +601,7 @@ extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, str
 
 /* wave1025 G.7: glue_emit_sret_memcpy_rbx_to_home_elf_c +
  * glue_emit_sret_return_from_var_elf_c + glue_copy_large_struct_from_rax_ptr_elf_c
- * folded into pipeline_asm_emit_return.c (same TU #include; no new DEPS).
+ * wave144 pure leave: sret helpers live in runtime_pipeline_abi pure.
  * glue 1989-1991 forward decls kept (struct_lit/struct_let call them). */
 
 /* wave1207 G.7: pipeline_asm_push_sysv_memory_by_value_elf_c (99 lines,
@@ -876,14 +880,14 @@ extern int32_t glue_emit_with_arena_deinit_elf(struct platform_elf_ElfCodegenCtx
  * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
 /* wave1176 G.7: backend return-expr ref cluster (8 fns) migrated to
- * pipeline_asm_emit_return.c EOF (colocated with EXPR_RETURN emit domain).
+ * runtime_pipeline_abi pure (wave144 leave) (colocated with EXPR_RETURN emit domain).
  * Members: pipeline_backend_get_return_expr_ref / _at +
  * pipeline_arm64_get_return_lit_ref / _at + pipeline_backend_type_kind_ord_at
  * (L3514 below, also removed) + pipeline_asm_get_return_expr_ref_at (L4546,
  * also removed) + pipeline_asm_get_return_lit_ref_at (L4615, also removed) +
  * arch_arm64_pipeline_asm_get_return_lit_ref_at (L4638, also removed).
  *
- * All deps fwd-declared before pipeline_asm_emit_return.c #include at L1731:
+ * wave144 pure leave: faces live in runtime_pipeline_abi pure; Cap residual:
  * pipeline_arena_block_ptr (L215) / pipeline_block_labeled_return_expr_ref
  * (L203) / pipeline_arena_expr_ptr (L214) / pipeline_block_expr_stmt_ref (L92)
  * / pipeline_module_func_ptr (L91) / pipeline_type_kind_ord_at (L761).
@@ -962,7 +966,7 @@ extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *
 /* wave1179: pipeline_expr_enum_field_tag_via_module migrated to
  * pipeline_asm_emit_field_access.c EOF (colocated with enum_namespace_field_tag). */
 /* wave1176: pipeline_backend_type_kind_ord_at migrated to
- * pipeline_asm_emit_return.c EOF (colocated with backend return-expr cluster). */
+ * runtime_pipeline_abi pure (wave144 leave) (colocated with backend return-expr cluster). */
 
 /* wave1175 G.7: asm-prefixed module func forwarders (7 fns) migrated to
  * ast_pool_module_func.c EOF. Colocated with pipeline_module_func_* domain.
@@ -1224,11 +1228,11 @@ extern int32_t glue_enc_x86_imul_eax_eax(struct platform_elf_ElfCodegenCtx *elf_
 
 
 /* wave1176: pipeline_asm_get_return_lit_ref_at migrated to
- * pipeline_asm_emit_return.c EOF (colocated with backend return-expr cluster). */
+ * runtime_pipeline_abi pure (wave144 leave) (colocated with backend return-expr cluster). */
 
 /* wave1177 G.7: arch_arm64 module_func + return_lit forwarders (5 fns)
  * migrated to ast_pool_module_func.c EOF (4 module_func forwarders) +
- * pipeline_asm_emit_return.c EOF (arch_arm64_pipeline_asm_get_return_lit_ref_at
+ * runtime_pipeline_abi pure (wave144 leave) (arch_arm64_pipeline_asm_get_return_lit_ref_at
  * already migrated in wave1176 block). The 4 module_func forwarders are
  * colocated with the asm_module_func forwarder family (wave1175).
  * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */

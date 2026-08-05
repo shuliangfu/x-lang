@@ -517,7 +517,9 @@ static int32_t pipeline_typeck_expr_is_any_assign_kind_c(int32_t kind_ord) {
  * #include at L14126 < def EOF. Dependencies: ast_TypeKind_TYPE_F32 /
  * ast_TypeKind_TYPE_F64 (global enum).
  */
-static int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind) {
+/* wave144: non-static — pure return leave Cap residual (glue_maybe_promote).
+ * Same-TU typeck leaves still call via typeck_fwd extern. G.7 single authority. */
+int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind) {
   if (dest_kind == src_kind) {
     if (dest_kind == (int32_t)ast_TypeKind_TYPE_F32 || dest_kind == (int32_t)ast_TypeKind_TYPE_F64)
       return 1;

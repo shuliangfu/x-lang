@@ -9097,8 +9097,12 @@ fi
 if [ -f "$ROOT/compiler/pipeline_asm_emit_modlet.c" ]; then
   bad "pipeline_asm_emit_modlet.c must be deleted (wave139 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_return\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_return.c (8.3.1 asm_emit_return slice)"
+# wave144 pure-owned leave: return faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_return\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_return.c (wave144 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_return.c" ]; then
+  bad "pipeline_asm_emit_return.c must be deleted (wave144 pure-owned leave)"
 fi
 if grep -qE 'pipeline_asm_emit_logand\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_logand.c (wave128 pure-owned leave)"

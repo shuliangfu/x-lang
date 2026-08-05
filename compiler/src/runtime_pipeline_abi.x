@@ -4,6 +4,10 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave144: pipeline_asm_emit_return.c pure-owned leave (slice escape + return_elf_impl/_c +
+//   sret memcpy/return_from_var + float promote pair + backend/asm/arm64 return_expr/lit helpers).
+//   Cap residual: emit_expr_elf_c + float_widen_ok + enc slot + dual-gp length + type_size +
+//   spills + async_cps reset + array_lit pure + var_decl pure + pool/enc.
 // wave143: pipeline_asm_emit_array_lit.c pure-owned leave (elem_byte_sz + empty +
 //   emit/force_esz + force_esz_from_elem + durable + fixed/array_temp_bytes +
 //   elem_type_ref). Cap residual: leaf/flat vector_let + may_clobber + slice dual-gp +
@@ -549,6 +553,28 @@ export extern "C" function pipeline_asm_wpo_pgo_is_hot_func(mod: *u8, fi: i32): 
 // Operand/elem emit uses public pipeline_asm_emit_expr_elf_c (not static _rec).
 // GLUE_ARRAY_LIT_MAX_ELEMS=1024 GLUE_ARRAY_LIT_MAX_PAYLOAD=4096
 // TypeKind: ARRAY=10 SLICE=11 F32=14 F64=15; ExprKind: ARRAY_LIT=46 STRUCT_LIT=45.
+// wave144 Cap residual: return pure leave callees still host-cc / pure elsewhere.
+// PLATFORM: SHARED freestanding emit — pure owns public RETURN faces.
+// Operand emit uses public pipeline_asm_emit_expr_elf_c (not static _rec).
+// GLUE_SLICE_ESC_WALK_DEPTH_MAX=256 GLUE_SLICE_ESC_WALK_VISIT_MAX=4096
+// GLUE_ARRAY_LIT_MAX_ELEMS=1024 GLUE_ARRAY_LIT_MAX_PAYLOAD=4096
+// TypeKind: ARRAY=10 SLICE=11 F32=14 F64=15
+// ExprKind: LIT=0 BOOL=2 VAR=3 BLOCK=26 RETURN=41 FIELD=44 ARRAY_LIT=46
+export extern "C" function pipeline_typeck_float_widen_ok_c(dest_kind: i32, src_kind: i32): i32;
+export extern "C" function pipeline_module_func_return_type_at(mod: *u8, fi: i32): i32;
+export extern "C" function pipeline_expr_block_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function ast_ast_block_num_expr_stmts(arena: *u8, block_ref: i32): i32;
+export extern "C" function pipeline_block_while_body_ref(arena: *u8, block_ref: i32, wi: i32): i32;
+export extern "C" function pipeline_block_for_body_ref(arena: *u8, block_ref: i32, fi: i32): i32;
+export extern "C" function pipeline_block_region_body_ref(arena: *u8, block_ref: i32, ri: i32): i32;
+export extern "C" function pipeline_block_num_labeled_stmts(arena: *u8, block_ref: i32): i32;
+export extern "C" function pipeline_block_labeled_return_expr_ref(arena: *u8, block_ref: i32, li: i32): i32;
+export extern "C" function pipeline_module_func_ptr(mod: *u8, fi: i32): *u8;
+export extern "C" function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
+export extern "C" function pipeline_asm_emit_ctx_scope_block_get(): i32;
+export extern "C" function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
 // wave142 Cap residual: assign pure leave callees (binop/try_index/spill/slice/
 //   float promote/fixed_array/field offset/enc store-div-shift/array_lit).
 // PLATFORM: SHARED freestanding emit — pure owns public assign faces.
@@ -575,8 +601,7 @@ export extern "C" function glue_index_assign_finish_store_elf_c(arena: *u8, elf_
 export extern "C" function glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx: *u8, src_spill: i32, dst_spill: i32, nbytes: i32, ta: i32): i32;
 export extern "C" function glue_index_scratch_spill_invalidate_var(arena: *u8, elf_ctx: *u8, ctx: *u8, var_ref: i32, ta: i32): void;
 export extern "C" function glue_field_access_effective_offset_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
-export extern "C" function glue_maybe_promote_f32_to_f64_rax_elf_c(arena: *u8, elf_ctx: *u8, lhs_ty: i32, src_ty: i32, ta: i32): i32;
-export extern "C" function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32;
+// wave144 pure leave: glue_maybe_promote_f32_to_f64_rax_elf_c + glue_float_promote_src_ty_ref_c live in this file.
 export extern "C" function glue_slice_dual_gp_length_off_c(data_home: i32, ta: i32): i32;
 export extern "C" function glue_slice_dual_gp_bump_past_home_c(ctx: *u8, data_home: i32, ta: i32): void;
 export extern "C" function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, arr_ty: i32, stack_off: i32): i32;
@@ -32526,3 +32551,1564 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
     return glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
   }
 }
+
+
+// ---------------------------------------------------------------------------
+// wave144: pipeline_asm_emit_return pure-owned leave
+// (was pipeline_asm_emit_return.c).
+// G.7 product authority for:
+//   glue_match_slice_escape_lets_in_block_c
+//   pipeline_find_fixed_array_slice_escape
+//   glue_try_return_slice_escape_from_fixed_array_elf_c
+//   pipeline_asm_emit_return_elf_impl
+//   pipeline_asm_emit_return_elf_c
+//   glue_emit_sret_memcpy_rbx_to_home_elf_c
+//   glue_emit_sret_return_from_var_elf_c
+//   glue_maybe_promote_f32_to_f64_rax_elf_c
+//   glue_float_promote_src_ty_ref_c
+//   pipeline_backend_get_return_expr_ref / _at
+//   pipeline_arm64_get_return_lit_ref / _at
+//   pipeline_backend_type_kind_ord_at
+//   pipeline_asm_get_return_expr_ref_at / get_return_lit_ref_at
+//   arch_arm64_pipeline_asm_get_return_lit_ref_at
+// Cap residual: emit_expr_elf_c (not static _rec) + float_widen_ok + enc slot +
+//   dual-gp length (block_inits) + type_size_simple + spills cleanup +
+//   async_cps_phase_reset pure + array_lit pure faces + var_decl pure +
+//   lea_common pure + pool/enc + al_nc_seq_take + sret/scope getters.
+// GLUE_SLICE_ESC_WALK_DEPTH_MAX=256  GLUE_SLICE_ESC_WALK_VISIT_MAX=4096
+// GLUE_ARRAY_LIT_MAX_ELEMS=1024  GLUE_ARRAY_LIT_MAX_PAYLOAD=4096
+// Ordinals: TYPE ARRAY=10 SLICE=11 F32=14 F64=15
+//   EXPR LIT=0 BOOL=2 VAR=3 BLOCK=26 RETURN=41 FIELD=44 ARRAY_LIT=46
+// Func.body_ref@148  Arena.num_exprs@4 num_blocks@8  Module.num_funcs@0
+// AsmFuncCtxLayout: tail_join_label@1392 tail_join_label_len@1520 (LP64)
+// Cold twins under seed #ifndef FROM_X.
+// All Cap residual / pool / enc calls live in unsafe blocks (T001).
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path
+// ---------------------------------------------------------------------------
+
+// wave144: DFS walk stack for pipeline_find_fixed_array_slice_escape (depth max 256).
+// Soft leave-off: reentrancy last-wins BSS (matches historical static/COMMON note).
+let g_pipe_slice_esc_walk_stack: i32[256] = [];
+
+/**
+ * Match `let s: T[] = a` / FIELD where a is fixed TYPE_ARRAY in one block.
+ * @param arena *u8 - ASTArena*
+ * @param block_ref i32 - block ref
+ * @param vname *u8 - slice let name bytes
+ * @param vlen i32 - name length
+ * @param out_arr_sz *i32 - capacity N
+ * @param out_elem_tr *i32 - element type_ref
+ * @param out_arr_init_ref *i32 - optional init expr_ref (may be null)
+ * @return i32 - 1 found; 0 not in this block
+ * wave144 pure: G.7 authority (was static glue_match_slice_escape_lets_in_block_c).
+ * PLATFORM: SHARED (host+fs escape capacity).
+ */
+/**
+ * Match `let s: T[] = a` / FIELD where a is fixed TYPE_ARRAY in one block.
+ * @param arena *u8 - ASTArena*
+ * @param block_ref i32 - block ref
+ * @param vname *u8 - slice let name bytes
+ * @param vlen i32 - name length
+ * @param out_arr_sz *i32 - capacity N
+ * @param out_elem_tr *i32 - element type_ref
+ * @param out_arr_init_ref *i32 - optional init expr_ref (may be null)
+ * @return i32 - 1 found; 0 not in this block
+ * wave144 pure: G.7 authority (was static glue_match_slice_escape_lets_in_block_c).
+ * PLATFORM: SHARED (host+fs escape capacity).
+ */
+/**
+ * DFS from body_ref: match slice escape lets in body and nested blocks.
+ * Nested: if/while/for/region + EXPR_BLOCK (26).
+ * Soft leave-off: walk stack is BSS last-wins (g_pipe_slice_esc_walk_stack).
+ * @return i32 - 1 found; 0 not found
+ * wave144 pure: G.7 authority (was pipeline_find_fixed_array_slice_escape).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_find_fixed_array_slice_escape(arena: *u8, body_ref: i32, vname: *u8, vlen: i32, out_arr_sz: *i32, out_elem_tr: *i32, out_arr_init_ref: *i32): i32 {
+  let sp: i32 = 0;
+  let seen: i32 = 0;
+  let cur: i32 = 0;
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let ch: i32 = 0;
+  let er: i32 = 0;
+  let fin: i32 = 0;
+  let ko: i32 = 0;
+  let matched: i32 = 0;
+  if (arena == (0 as *u8) || body_ref <= 0 || vname == (0 as *u8) || vlen <= 0 || out_arr_sz == (0 as *i32) || out_elem_tr == (0 as *i32)) {
+    return 0;
+  }
+  out_arr_sz[0] = 0;
+  out_elem_tr[0] = 0;
+  if (out_arr_init_ref != (0 as *i32)) {
+    out_arr_init_ref[0] = 0;
+  }
+  g_pipe_slice_esc_walk_stack[0] = body_ref;
+  sp = 1;
+  while (sp > 0) {
+    if (seen >= 4096) {
+      return 0;
+    }
+    seen = seen + 1;
+    sp = sp - 1;
+    cur = g_pipe_slice_esc_walk_stack[sp];
+    if (cur > 0) {
+      matched = glue_match_slice_escape_lets_in_block_c(arena, cur, vname, vlen, out_arr_sz, out_elem_tr, out_arr_init_ref);
+      if (matched != 0) {
+        return 1;
+      }
+      unsafe {
+        n = ast_ast_block_num_expr_stmts(arena, cur);
+      }
+      i = 0;
+      while (i < n) {
+        unsafe {
+          er = ast_pipeline_block_expr_stmt_ref(arena, cur, i);
+        }
+        if (er > 0) {
+          unsafe {
+            ko = pipeline_expr_kind_ord_at(arena, er);
+          }
+          if (ko == 26) {
+            unsafe {
+              ch = pipeline_expr_block_ref_at(arena, er);
+            }
+            if (ch > 0 && sp < 256) {
+              g_pipe_slice_esc_walk_stack[sp] = ch;
+              sp = sp + 1;
+            }
+          }
+        }
+        i = i + 1;
+      }
+      unsafe {
+        fin = ast_ast_block_final_expr_ref(arena, cur);
+      }
+      if (fin > 0) {
+        unsafe {
+          ko = pipeline_expr_kind_ord_at(arena, fin);
+        }
+        if (ko == 26) {
+          unsafe {
+            ch = pipeline_expr_block_ref_at(arena, fin);
+          }
+          if (ch > 0 && sp < 256) {
+            g_pipe_slice_esc_walk_stack[sp] = ch;
+            sp = sp + 1;
+          }
+        }
+      }
+      unsafe {
+        n = ast_ast_block_num_if_stmts(arena, cur);
+      }
+      i = 0;
+      while (i < n) {
+        unsafe {
+          ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
+        }
+        if (ch > 0 && sp < 256) {
+          g_pipe_slice_esc_walk_stack[sp] = ch;
+          sp = sp + 1;
+        }
+        unsafe {
+          ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
+        }
+        if (ch > 0 && sp < 256) {
+          g_pipe_slice_esc_walk_stack[sp] = ch;
+          sp = sp + 1;
+        }
+        i = i + 1;
+      }
+      unsafe {
+        n = ast_ast_block_num_loops(arena, cur);
+      }
+      i = 0;
+      while (i < n) {
+        unsafe {
+          ch = pipeline_block_while_body_ref(arena, cur, i);
+        }
+        if (ch > 0 && sp < 256) {
+          g_pipe_slice_esc_walk_stack[sp] = ch;
+          sp = sp + 1;
+        }
+        i = i + 1;
+      }
+      unsafe {
+        n = ast_ast_block_num_for_loops(arena, cur);
+      }
+      i = 0;
+      while (i < n) {
+        unsafe {
+          ch = pipeline_block_for_body_ref(arena, cur, i);
+        }
+        if (ch > 0 && sp < 256) {
+          g_pipe_slice_esc_walk_stack[sp] = ch;
+          sp = sp + 1;
+        }
+        i = i + 1;
+      }
+      unsafe {
+        n = ast_ast_block_num_regions(arena, cur);
+      }
+      i = 0;
+      while (i < n) {
+        unsafe {
+          ch = pipeline_block_region_body_ref(arena, cur, i);
+        }
+        if (ch > 0 && sp < 256) {
+          g_pipe_slice_esc_walk_stack[sp] = ch;
+          sp = sp + 1;
+        }
+        i = i + 1;
+      }
+    }
+  }
+  return 0;
+}
+
+export function glue_try_return_slice_escape_from_fixed_array_elf_c(arena: *u8, elf_ctx: *u8, ret_op: i32, ctx: *u8, ta: i32): i32 {
+  let body_ref: i32 = 0;
+  let vlen: i32 = 0;
+  let arr_sz: i32 = 0;
+  let arr_init_ref: i32 = 0;
+  let s_off: i32 = 0;
+  let esz: i32 = 0;
+  let nbytes: i32 = 0;
+  let ai: i32 = 0;
+  let elem_tr: i32 = 0;
+  let seq: i32 = 0;
+  let v: i32 = 0;
+  let nd: i32 = 0;
+  let di: i32 = 0;
+  let llen: i32 = 0;
+  let end_len: i32 = 0;
+  let vname: u8[128] = [];
+  let label: u8[24] = [];
+  let end_lbl: u8[32] = [];
+  let digs: u8[8] = [];
+  let rty: i32 = 0;
+  let sty: i32 = 0;
+  let slice_ret: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let fi: i32 = 0;
+  let tk: i32 = 0;
+  let ko: i32 = 0;
+  let rc: i32 = 0;
+  let keep_lbl: u8[32] = [];
+  let keep_len: i32 = 0;
+  let keep2: u8[32] = [];
+  let k2: i32 = 0;
+  let len_arg: i32 = 0;
+  let max_payload: i32 = 4096;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || ret_op <= 0 || (ta != 0 && ta != 1)) {
+    return 0;
+  }
+  unsafe {
+    mod = pipeline_asm_emit_module_ref_c();
+    fi = pipeline_asm_emit_func_index_c();
+  }
+  if (mod == (0 as *u8) || fi < 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, ret_op);
+  }
+  if (ko != 3) {
+    return 0;
+  }
+  unsafe {
+    rty = pipeline_module_func_return_type_at(mod, fi);
+    sty = pipeline_expr_resolved_type_ref(arena, ret_op);
+  }
+  slice_ret = 0;
+  if (rty > 0) {
+    unsafe {
+      tk = pipeline_type_kind_ord_at(arena, rty);
+    }
+    if (tk == 11) {
+      slice_ret = 1;
+    }
+  }
+  if (slice_ret == 0 && sty > 0) {
+    unsafe {
+      tk = pipeline_type_kind_ord_at(arena, sty);
+    }
+    if (tk == 11) {
+      slice_ret = 1;
+    }
+  }
+  if (slice_ret == 0) {
+    return 0;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, ret_op);
+  }
+  if (vlen <= 0 || vlen > 127) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, ret_op, &vname[0]);
+    body_ref = pipeline_module_func_body_ref_at(mod, fi);
+  }
+  if (body_ref <= 0) {
+    return 0;
+  }
+  if (pipeline_find_fixed_array_slice_escape(arena, body_ref, &vname[0], vlen, &arr_sz, &elem_tr, &arr_init_ref) == 0) {
+    return 0;
+  }
+  // GLUE_ARRAY_LIT_MAX_ELEMS = 1024
+  if (arr_sz <= 0 || arr_sz > 1024 || arr_init_ref <= 0 || elem_tr <= 0) {
+    return 0;
+  }
+  unsafe {
+    s_off = glue_var_expr_stack_off_elf_c(arena, ctx, ret_op);
+  }
+  if (s_off < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
+  }
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
+    esz = 4;
+  }
+  if (arr_sz > max_payload / esz) {
+    return 0 - 1;
+  }
+  nbytes = arr_sz * esz;
+  if (nbytes <= 0 || nbytes > max_payload) {
+    return 0 - 1;
+  }
+  unsafe {
+    seq = glue_pipeline_asm_al_nc_seq_take_c();
+  }
+  if (seq < 0 || seq > 999999) {
+    seq = 0;
+  }
+  // label "Lxlang_esc_" + decimal seq
+  label[0] = 76 as u8; label[1] = 120 as u8; label[2] = 108 as u8; label[3] = 97 as u8;
+  label[4] = 110 as u8; label[5] = 103 as u8; label[6] = 95 as u8; label[7] = 101 as u8;
+  label[8] = 115 as u8; label[9] = 99 as u8; label[10] = 95 as u8;
+  llen = 11;
+  v = seq;
+  nd = 0;
+  if (v == 0) {
+    digs[0] = 48 as u8;
+    nd = 1;
+  } else {
+    while (v > 0 && nd < 8) {
+      digs[nd] = (48 + (v % 10)) as u8;
+      nd = nd + 1;
+      v = v / 10;
+    }
+  }
+  di = nd - 1;
+  while (di >= 0 && llen < 23) {
+    label[llen] = digs[di];
+    llen = llen + 1;
+    di = di - 1;
+  }
+  unsafe {
+    rc = pipeline_elf_ctx_add_common_sym(elf_ctx, &label[0], llen, nbytes, esz);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    end_len = pipeline_asm_emit_next_label_c(ctx, &end_lbl[0], 32);
+  }
+  if (end_len <= 0) {
+    return 0 - 1;
+  }
+  ai = 0;
+  while (ai < arr_sz) {
+    unsafe {
+      rc = backend_enc_mov_imm32_to_rbx_arch(elf_ctx, arr_sz, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_push_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(s_off, ta), ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_cmp_rax_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      keep_len = pipeline_asm_emit_next_label_c(ctx, &keep_lbl[0], 32);
+    }
+    if (keep_len <= 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_jge_arch(elf_ctx, &keep_lbl[0], keep_len, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_label_arch(elf_ctx, &keep_lbl[0], keep_len, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, ai, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_cmp_rax_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_jge_arch(elf_ctx, &end_lbl[0], end_len, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, s_off, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    if (ai * esz != 0) {
+      unsafe {
+        rc = backend_enc_add_imm_to_rax_arch(elf_ctx, ai * esz, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+    }
+    if (esz == 1) {
+      unsafe {
+        rc = backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+      }
+    } else {
+      if (esz == 8) {
+        unsafe {
+          rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+        }
+      } else {
+        unsafe {
+          rc = backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+        }
+      }
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_push_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    if (ta == 1) {
+      unsafe {
+        rc = glue_asm_lea_rbx_common_adrp_arm64(elf_ctx, &label[0], llen);
+      }
+    } else {
+      unsafe {
+        rc = glue_asm_lea_rbx_common_rip_x86(elf_ctx, &label[0], llen);
+      }
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    ai = ai + 1;
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &end_lbl[0], end_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  // length = min(s.length, N); data@rax = COMMON
+  unsafe {
+    rc = backend_enc_mov_imm32_to_rbx_arch(elf_ctx, arr_sz, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_push_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(s_off, ta), ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_cmp_rax_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    k2 = pipeline_asm_emit_next_label_c(ctx, &keep2[0], 32);
+  }
+  if (k2 <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_jge_arch(elf_ctx, &keep2[0], k2, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &keep2[0], k2, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    len_arg = 1;
+  } else {
+    len_arg = 2;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_arg, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    unsafe {
+      rc = glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &label[0], llen);
+    }
+  } else {
+    unsafe {
+      rc = glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
+    }
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 1;
+}
+
+/**
+ * sret write-back: rbx = source struct base; memcpy into caller dest at sret_home.
+ * @return i32 - 0 ok; -1 fail
+ * wave144 pure: G.7 authority (was static glue_emit_sret_memcpy_rbx_to_home_elf_c).
+ * Public for Cap residual struct_lit leaf (same-TU was static).
+ * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx: *u8, sz: i32, ta: i32): i32 {
+  let memcpy_sym: u8[8] = [];
+  let home: i32 = 0;
+  let rc: i32 = 0;
+  // "memcpy"
+  memcpy_sym[0] = 109 as u8; memcpy_sym[1] = 101 as u8; memcpy_sym[2] = 109 as u8;
+  memcpy_sym[3] = 99 as u8; memcpy_sym[4] = 112 as u8; memcpy_sym[5] = 121 as u8; memcpy_sym[6] = 0 as u8;
+  if ((ta != 0 && ta != 1) || elf_ctx == (0 as *u8) || sz <= 16) {
+    return 0 - 1;
+  }
+  unsafe {
+    home = pipeline_asm_emit_ctx_sret_home_off_get();
+  }
+  if (home < 0) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    unsafe {
+      rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      return backend_enc_call_arch(elf_ctx, &memcpy_sym[0], 6, ta);
+    }
+  }
+  unsafe {
+    rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_push_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    return backend_enc_call_arch(elf_ctx, &memcpy_sym[0], 6, ta);
+  }
+}
+
+/**
+ * sret return path: return local_var copies by-value struct to caller hidden dest.
+ * @return i32 - 0 ok; -1 fail
+ * wave144 pure: G.7 authority (was static glue_emit_sret_return_from_var_elf_c).
+ * Cap residual: type_size_simple + enc_local_slot + var_decl pure.
+ * PLATFORM: SHARED freestanding.
+ */
+#[no_mangle]
+export function glue_emit_sret_return_from_var_elf_c(arena: *u8, elf_ctx: *u8, var_expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let vname: u8[128] = [];
+  let vlen: i32 = 0;
+  let off: i32 = 0;
+  let tr: i32 = 0;
+  let sz: i32 = 0;
+  let sret_act: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || var_expr_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    sret_act = pipeline_asm_emit_ctx_sret_active_get();
+  }
+  if (sret_act == 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+  }
+  if (vlen <= 0 || vlen > 127) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
+    off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
+  }
+  if (off < 0) {
+    unsafe {
+      off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
+    }
+  }
+  if (off < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
+  }
+  if (tr <= 0) {
+    unsafe {
+      tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
+    }
+  }
+  unsafe {
+    mod = pipeline_asm_emit_module_ref_c();
+    sz = glue_type_size_simple(mod, arena, tr, 0);
+  }
+  if (sz <= 16) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, var_expr_ref, off, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx, sz, ta);
+}
+
+/**
+ * Promote f32 bits in eax to f64 when dest is f64 and widen ok.
+ * @return i32 - 0 ok/no-op; -1 encode fail
+ * wave144 pure: G.7 authority (was glue_maybe_promote_f32_to_f64_rax_elf_c).
+ * Cap residual: pipeline_typeck_float_widen_ok_c (coerce_init residual, now extern).
+ * PLATFORM: SHARED typeck gate / LINUX+MACOS x86_64|arm64 encode.
+ */
+#[no_mangle]
+export function glue_maybe_promote_f32_to_f64_rax_elf_c(arena: *u8, elf_ctx: *u8, dest_ty_ref: i32, src_ty_ref: i32, ta: i32): i32 {
+  let dk: i32 = 0;
+  let sk: i32 = 0;
+  let ok: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || dest_ty_ref <= 0 || src_ty_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    dk = pipeline_type_kind_ord_at(arena, dest_ty_ref);
+    sk = pipeline_type_kind_ord_at(arena, src_ty_ref);
+    ok = pipeline_typeck_float_widen_ok_c(dk, sk);
+  }
+  if (ok == 0) {
+    return 0;
+  }
+  if (dk == 15 && sk == 14) {
+    unsafe {
+      return backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta);
+    }
+  }
+  return 0;
+}
+
+/**
+ * Resolve source type for float promote (decl/param before resolved stamp).
+ * @return i32 - type_ref > 0 if resolved; 0 if not found
+ * wave144 pure: G.7 authority (was glue_float_promote_src_ty_ref_c).
+ * PLATFORM: SHARED — pure typeck resolver.
+ */
+#[no_mangle]
+export function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32 {
+  let tr: i32 = 0;
+  let vname: u8[128] = [];
+  let vlen: i32 = 0;
+  let ko: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let fi: i32 = 0;
+  let scope_br: i32 = 0;
+  let body_ref: i32 = 0;
+  if (arena == (0 as *u8) || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko == 3) {
+    unsafe {
+      vlen = pipeline_expr_var_name_len(arena, expr_ref);
+    }
+    if (vlen > 0 && vlen <= 63) {
+      unsafe {
+        pipeline_expr_var_name_into(arena, expr_ref, &vname[0]);
+        mod = pipeline_asm_emit_module_ref_c();
+        fi = pipeline_asm_emit_func_index_c();
+      }
+      if (fi >= 0 && mod != (0 as *u8)) {
+        unsafe {
+          tr = pipeline_module_func_param_type_ref_for_name(mod, fi, &vname[0], vlen);
+        }
+        if (tr > 0) {
+          return tr;
+        }
+      }
+      unsafe {
+        scope_br = pipeline_asm_emit_ctx_scope_block_get();
+      }
+      if (scope_br > 0) {
+        unsafe {
+          tr = pipeline_block_resolve_var_type_ref(arena, scope_br, &vname[0], vlen);
+        }
+        if (tr > 0) {
+          return tr;
+        }
+      }
+      if (fi >= 0 && mod != (0 as *u8)) {
+        unsafe {
+          body_ref = pipeline_module_func_body_ref_at(mod, fi);
+        }
+        if (body_ref > 0) {
+          unsafe {
+            tr = pipeline_block_resolve_var_type_ref(arena, body_ref, &vname[0], vlen);
+          }
+          if (tr > 0) {
+            return tr;
+          }
+        }
+      }
+    }
+  }
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  }
+  if (tr > 0) {
+    return tr;
+  }
+  return 0;
+}
+
+
+/**
+ * EXPR_RETURN ELF emit impl (sret / slice escape / ARRAY_LIT dual-GP / float / tail_join).
+ * @return i32 - 0 ok; -1 fail
+ * wave144 pure: G.7 authority (was static pipeline_asm_emit_return_elf_impl).
+ * Public for expr_rec residual callsite. Operand emit uses public emit_expr_elf_c.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let ly: *u8 = 0 as *u8;
+  let ret_op: i32 = 0;
+  let sret_act: i32 = 0;
+  let sret_sz: i32 = 0;
+  let ko: i32 = 0;
+  let esc: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let fi: i32 = 0;
+  let rty: i32 = 0;
+  let sty: i32 = 0;
+  let tk: i32 = 0;
+  let slice_ty: i32 = 0;
+  let n_arr: i32 = 0;
+  let force_esz: i32 = 0;
+  let durable: i32 = 0;
+  let len_arg: i32 = 0;
+  let rc: i32 = 0;
+  let tj_len: i32 = 0;
+  let tj_lbl: u8[128] = [];
+  let ti: i32 = 0;
+  let handled: i32 = 0;
+  ly = pipeline_asm_ctx_layout(ctx);
+  unsafe {
+    ret_op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  }
+  if (ret_op != 0) {
+    handled = 0;
+    unsafe {
+      sret_act = pipeline_asm_emit_ctx_sret_active_get();
+      sret_sz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+      ko = pipeline_expr_kind_ord_at(arena, ret_op);
+      mod = pipeline_asm_emit_module_ref_c();
+      fi = pipeline_asm_emit_func_index_c();
+    }
+    // Path A: sret return local VAR of large struct
+    if (handled == 0 && sret_act != 0 && sret_sz > 16 && (ta == 0 || ta == 1) && ko == 3) {
+      if (glue_emit_sret_return_from_var_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      handled = 1;
+    }
+    // Path B: VAR + module — slice escape or emit+float promote
+    if (handled == 0 && arena != (0 as *u8) && ctx != (0 as *u8) && elf_ctx != (0 as *u8) && (ta == 0 || ta == 1) && ko == 3 && mod != (0 as *u8) && fi >= 0) {
+      esc = glue_try_return_slice_escape_from_fixed_array_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+      if (esc < 0) {
+        return 0 - 1;
+      }
+      if (esc == 0) {
+        unsafe {
+          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rty = pipeline_module_func_return_type_at(mod, fi);
+        }
+        sty = glue_float_promote_src_ty_ref_c(arena, ret_op);
+        if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+      handled = 1;
+    }
+    // Path C: ARRAY_LIT + module — durable TYPE_ARRAY / dual-GP TYPE_SLICE
+    if (handled == 0 && arena != (0 as *u8) && ctx != (0 as *u8) && elf_ctx != (0 as *u8) && (ta == 0 || ta == 1) && ko == 46 && mod != (0 as *u8) && fi >= 0) {
+      unsafe {
+        rty = pipeline_module_func_return_type_at(mod, fi);
+        sty = pipeline_expr_resolved_type_ref(arena, ret_op);
+      }
+      slice_ty = 0;
+      if (rty > 0) {
+        unsafe {
+          tk = pipeline_type_kind_ord_at(arena, rty);
+        }
+        if (tk == 11) {
+          slice_ty = rty;
+        }
+      }
+      if (slice_ty == 0 && sty > 0) {
+        unsafe {
+          tk = pipeline_type_kind_ord_at(arena, sty);
+        }
+        if (tk == 11) {
+          slice_ty = sty;
+        }
+      }
+      if (slice_ty == 0 && rty > 0) {
+        unsafe {
+          tk = pipeline_type_kind_ord_at(arena, rty);
+        }
+        if (tk == 10) {
+          unsafe {
+            n_arr = pipeline_expr_array_lit_num_elems_at(arena, ret_op);
+            force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, pipeline_type_elem_ref_at(arena, rty));
+          }
+          if (n_arr < 0 || n_arr > 1024) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx);
+          }
+          if (rc != 0) {
+            unsafe {
+              rc = pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, ret_op, ctx, ta, force_esz);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            if (n_arr > 0) {
+              unsafe {
+                pipeline_asm_bump_next_offset_for_array_lit(arena, ret_op, ctx);
+              }
+            }
+          }
+          handled = 1;
+        }
+      }
+      if (handled == 0 && slice_ty > 0) {
+        unsafe {
+          n_arr = pipeline_expr_array_lit_num_elems_at(arena, ret_op);
+          force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, pipeline_type_elem_ref_at(arena, slice_ty));
+        }
+        if (n_arr < 0 || n_arr > 1024) {
+          return 0 - 1;
+        }
+        durable = 0;
+        unsafe {
+          rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx);
+        }
+        if (rc == 0) {
+          durable = 1;
+        } else {
+          unsafe {
+            rc = pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, ret_op, ctx, ta, force_esz);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
+        unsafe {
+          rc = backend_enc_push_rax_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        if (ta == 1) {
+          len_arg = 1;
+        } else {
+          len_arg = 2;
+        }
+        unsafe {
+          rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_arg, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        if (durable == 0 && n_arr > 0) {
+          unsafe {
+            pipeline_asm_bump_next_offset_for_array_lit(arena, ret_op, ctx);
+          }
+        }
+        handled = 1;
+      }
+      if (handled == 0) {
+        unsafe {
+          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rty = pipeline_module_func_return_type_at(mod, fi);
+        }
+        sty = glue_float_promote_src_ty_ref_c(arena, ret_op);
+        if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta) != 0) {
+          return 0 - 1;
+        }
+        handled = 1;
+      }
+    }
+    // Path D: general operand emit + float promote
+    if (handled == 0) {
+      unsafe {
+        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      if (mod != (0 as *u8) && fi >= 0) {
+        unsafe {
+          rty = pipeline_module_func_return_type_at(mod, fi);
+        }
+        sty = glue_float_promote_src_ty_ref_c(arena, ret_op);
+        if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+  }
+  unsafe {
+    rc = glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  rc = glue_async_cps_emit_phase_reset(elf_ctx, ta);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (ly == (0 as *u8)) {
+    return 0 - 1;
+  }
+  tj_len = pipe_load_i32_le(ly, 1520);
+  if (tj_len <= 0) {
+    return 0 - 1;
+  }
+  ti = 0;
+  while (ti < tj_len && ti < 128) {
+    unsafe {
+      tj_lbl[ti] = ly[1392 + ti];
+    }
+    ti = ti + 1;
+  }
+  unsafe {
+    return backend_enc_jmp_arch(elf_ctx, &tj_lbl[0], tj_len, ta);
+  }
+}
+
+/**
+ * EXPR_RETURN ELF public face (thin wrapper).
+ * wave144 pure: G.7 authority (was pipeline_asm_emit_return_elf_c).
+ * PLATFORM: SHARED freestanding.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_return_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  return pipeline_asm_emit_return_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+/**
+ * backend.x get_return_expr_ref: scan body for final/labeled return expr.
+ * Uses pool accessors (no X struct FIELD_ACCESS).
+ * Func.body_ref@148; Arena.num_blocks@8 num_exprs@4.
+ * wave144 pure: G.7 authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_backend_get_return_expr_ref(a: *u8, f: *u8): i32 {
+  let body_ref: i32 = 0;
+  let nblocks: i32 = 0;
+  let nexprs: i32 = 0;
+  let j: i32 = 0;
+  let nlab: i32 = 0;
+  let ret_ref: i32 = 0;
+  let fin: i32 = 0;
+  let ei: i32 = 0;
+  let nstmt: i32 = 0;
+  let ers: i32 = 0;
+  let ko: i32 = 0;
+  let op: i32 = 0;
+  if (a == (0 as *u8) || f == (0 as *u8)) {
+    return 0;
+  }
+  body_ref = pipe_load_i32_le(f, 148);
+  nblocks = pipe_load_i32_le(a, 8);
+  nexprs = pipe_load_i32_le(a, 4);
+  if (body_ref <= 0 || body_ref > nblocks) {
+    return 0;
+  }
+  unsafe {
+    nlab = pipeline_block_num_labeled_stmts(a, body_ref);
+  }
+  j = 0;
+  while (j < nlab) {
+    unsafe {
+      ret_ref = pipeline_block_labeled_return_expr_ref(a, body_ref, j);
+    }
+    if (ret_ref != 0) {
+      return ret_ref;
+    }
+    j = j + 1;
+  }
+  unsafe {
+    fin = ast_ast_block_final_expr_ref(a, body_ref);
+  }
+  if (fin != 0) {
+    if (fin <= 0 || fin > nexprs) {
+      return fin;
+    }
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(a, fin);
+      op = pipeline_expr_unary_operand_ref_at(a, fin);
+    }
+    // EXPR_RETURN = 41
+    if (ko == 41 && op != 0) {
+      return op;
+    }
+    return fin;
+  }
+  unsafe {
+    nstmt = ast_ast_block_num_expr_stmts(a, body_ref);
+  }
+  ei = nstmt - 1;
+  while (ei >= 0) {
+    unsafe {
+      ers = ast_pipeline_block_expr_stmt_ref(a, body_ref, ei);
+    }
+    if (ers != 0 && ers > 0 && ers <= nexprs) {
+      unsafe {
+        ko = pipeline_expr_kind_ord_at(a, ers);
+      }
+      if (ko == 41) {
+        return 0;
+      }
+    }
+    ei = ei - 1;
+  }
+  return 0;
+}
+
+/**
+ * backend.x get_return_expr_ref by module func index.
+ * wave144 pure: G.7 authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_backend_get_return_expr_ref_at(a: *u8, m: *u8, func_index: i32): i32 {
+  let f: *u8 = 0 as *u8;
+  let nf: i32 = 0;
+  if (a == (0 as *u8) || m == (0 as *u8) || func_index < 0) {
+    return 0;
+  }
+  nf = pipeline_module_num_funcs(m);
+  if (func_index >= nf) {
+    return 0;
+  }
+  unsafe {
+    f = pipeline_module_func_ptr(m, func_index);
+  }
+  if (f == (0 as *u8)) {
+    return 0;
+  }
+  return pipeline_backend_get_return_expr_ref(a, f);
+}
+
+/**
+ * arm64.x get_return_lit_ref: literal return value only.
+ * wave144 pure: G.7 authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arm64_get_return_lit_ref(a: *u8, f: *u8): i32 {
+  let body_ref: i32 = 0;
+  let nblocks: i32 = 0;
+  let nexprs: i32 = 0;
+  let fin: i32 = 0;
+  let ko: i32 = 0;
+  let op: i32 = 0;
+  let iko: i32 = 0;
+  if (a == (0 as *u8) || f == (0 as *u8)) {
+    return 0;
+  }
+  body_ref = pipe_load_i32_le(f, 148);
+  nblocks = pipe_load_i32_le(a, 8);
+  nexprs = pipe_load_i32_le(a, 4);
+  if (body_ref <= 0 || body_ref > nblocks) {
+    return 0;
+  }
+  unsafe {
+    fin = ast_ast_block_final_expr_ref(a, body_ref);
+  }
+  if (fin <= 0 || fin > nexprs) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(a, fin);
+  }
+  // LIT=0 BOOL_LIT=2
+  if (ko == 0 || ko == 2) {
+    return fin;
+  }
+  if (ko == 41) {
+    unsafe {
+      op = pipeline_expr_unary_operand_ref_at(a, fin);
+    }
+    if (op != 0) {
+      if (op <= 0 || op > nexprs) {
+        return 0;
+      }
+      unsafe {
+        iko = pipeline_expr_kind_ord_at(a, op);
+      }
+      if (iko == 0 || iko == 2) {
+        return op;
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * arm64.x get_return_lit_ref by module func index.
+ * wave144 pure: G.7 authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arm64_get_return_lit_ref_at(a: *u8, m: *u8, func_index: i32): i32 {
+  let f: *u8 = 0 as *u8;
+  let nf: i32 = 0;
+  if (a == (0 as *u8) || m == (0 as *u8) || func_index < 0) {
+    return 0;
+  }
+  nf = pipeline_module_num_funcs(m);
+  if (func_index >= nf) {
+    return 0;
+  }
+  unsafe {
+    f = pipeline_module_func_ptr(m, func_index);
+  }
+  if (f == (0 as *u8)) {
+    return 0;
+  }
+  return pipeline_arm64_get_return_lit_ref(a, f);
+}
+
+/**
+ * backend.x type_kind_ord_at forwarder (avoid codegen_ prefix).
+ * wave144 pure: G.7 authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_backend_type_kind_ord_at(a: *u8, ref: i32): i32 {
+  unsafe {
+    return pipeline_type_kind_ord_at(a, ref);
+  }
+}
+
+/**
+ * asm-prefixed forwarder for backend get_return_expr_ref_at.
+ * wave144 pure: G.7 authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_get_return_expr_ref_at(a: *u8, m: *u8, func_index: i32): i32 {
+  return pipeline_backend_get_return_expr_ref_at(a, m, func_index);
+}
+
+/**
+ * asm-prefixed forwarder for arm64 get_return_lit_ref_at.
+ * wave144 pure: G.7 authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_get_return_lit_ref_at(a: *u8, m: *u8, func_index: i32): i32 {
+  return pipeline_arm64_get_return_lit_ref_at(a, m, func_index);
+}
+
+/**
+ * arm64 module-prefixed forwarder for get_return_lit_ref_at.
+ * wave144 pure: G.7 authority.
+ * PLATFORM: SHARED.
+ */
+/**
+ * Match `let s: T[] = a` / FIELD where a is fixed TYPE_ARRAY in one block.
+ * Copies vname into local buffer (do not index *u8 param — typeck T001).
+ * @return i32 - 1 found; 0 not in this block
+ * wave144 pure: G.7 authority (was static glue_match_slice_escape_lets_in_block_c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_match_slice_escape_lets_in_block_c(arena: *u8, block_ref: i32, vname: *u8, vlen: i32, out_arr_sz: *i32, out_elem_tr: *i32, out_arr_init_ref: *i32): i32 {
+  let nlet: i32 = 0;
+  let li: i32 = 0;
+  let nlen: i32 = 0;
+  let is_match: i32 = 0;
+  let ci: i32 = 0;
+  let nb: u8[128] = [];
+  let vn: u8[128] = [];
+  let tr: i32 = 0;
+  let init_ref: i32 = 0;
+  let lj: i32 = 0;
+  let arr_sz: i32 = 0;
+  let arr_ty: i32 = 0;
+  let init_ko: i32 = 0;
+  let irty: i32 = 0;
+  let tk: i32 = 0;
+  let avlen: i32 = 0;
+  let aname: u8[128] = [];
+  let alen: i32 = 0;
+  let am: i32 = 0;
+  let ac: i32 = 0;
+  let ab: u8[128] = [];
+  let atr: i32 = 0;
+  let elem: i32 = 0;
+  if (arena == (0 as *u8) || block_ref <= 0 || vname == (0 as *u8) || vlen <= 0 || out_arr_sz == (0 as *i32) || out_elem_tr == (0 as *i32)) {
+    return 0;
+  }
+  if (vlen > 127) {
+    return 0;
+  }
+  ci = 0;
+  while (ci < vlen) {
+    vn[ci] = vname[ci];
+    ci = ci + 1;
+  }
+  unsafe {
+    nlet = ast_ast_block_num_lets(arena, block_ref);
+  }
+  li = 0;
+  while (li < nlet) {
+    unsafe {
+      nlen = pipeline_block_let_name_len(arena, block_ref, li);
+    }
+    if (nlen == vlen && nlen > 0) {
+      is_match = 1;
+      unsafe {
+        pipeline_block_let_name_copy64(arena, block_ref, li, &nb[0]);
+      }
+      ci = 0;
+      while (ci < nlen) {
+        if (nb[ci] != vn[ci]) {
+          is_match = 0;
+        }
+        ci = ci + 1;
+      }
+      if (is_match != 0) {
+        unsafe {
+          tr = pipeline_block_let_type_ref(arena, block_ref, li);
+        }
+        if (tr > 0) {
+          unsafe {
+            tk = pipeline_type_kind_ord_at(arena, tr);
+          }
+          if (tk == 11) {
+            unsafe {
+              init_ref = pipeline_block_let_init_ref(arena, block_ref, li);
+            }
+            if (init_ref > 0) {
+              unsafe {
+                init_ko = pipeline_expr_kind_ord_at(arena, init_ref);
+              }
+              arr_sz = 0;
+              arr_ty = 0;
+              unsafe {
+                irty = pipeline_expr_resolved_type_ref(arena, init_ref);
+              }
+              if (irty > 0) {
+                unsafe {
+                  tk = pipeline_type_kind_ord_at(arena, irty);
+                }
+                if (tk == 10) {
+                  unsafe {
+                    arr_sz = pipeline_type_array_size_at(arena, irty);
+                  }
+                  arr_ty = irty;
+                }
+              }
+              if (arr_sz <= 0 && init_ko == 3) {
+                unsafe {
+                  avlen = pipeline_expr_var_name_len(arena, init_ref);
+                }
+                if (avlen > 0 && avlen <= 127) {
+                  unsafe {
+                    pipeline_expr_var_name_into(arena, init_ref, &aname[0]);
+                  }
+                  lj = 0;
+                  while (lj < nlet) {
+                    unsafe {
+                      alen = pipeline_block_let_name_len(arena, block_ref, lj);
+                    }
+                    if (alen == avlen && alen > 0) {
+                      am = 1;
+                      unsafe {
+                        pipeline_block_let_name_copy64(arena, block_ref, lj, &ab[0]);
+                      }
+                      ac = 0;
+                      while (ac < alen) {
+                        if (ab[ac] != aname[ac]) {
+                          am = 0;
+                        }
+                        ac = ac + 1;
+                      }
+                      if (am != 0) {
+                        unsafe {
+                          atr = pipeline_block_let_type_ref(arena, block_ref, lj);
+                        }
+                        if (atr > 0) {
+                          unsafe {
+                            tk = pipeline_type_kind_ord_at(arena, atr);
+                          }
+                          if (tk == 10) {
+                            unsafe {
+                              arr_sz = pipeline_type_array_size_at(arena, atr);
+                            }
+                            arr_ty = atr;
+                            lj = nlet;
+                          }
+                        }
+                      }
+                    }
+                    lj = lj + 1;
+                  }
+                }
+              }
+              if (arr_sz <= 0 && init_ko == 44) {
+                unsafe {
+                  elem = pipeline_type_elem_ref_at(arena, tr);
+                }
+                if (elem > 0) {
+                  out_arr_sz[0] = 64;
+                  out_elem_tr[0] = elem;
+                  if (out_arr_init_ref != (0 as *i32)) {
+                    out_arr_init_ref[0] = init_ref;
+                  }
+                  return 1;
+                }
+              }
+              if (arr_sz > 0 && arr_ty > 0) {
+                if (init_ko == 3 || init_ko == 44) {
+                  out_arr_sz[0] = arr_sz;
+                  unsafe {
+                    out_elem_tr[0] = pipeline_type_elem_ref_at(arena, arr_ty);
+                  }
+                  if (out_arr_init_ref != (0 as *i32)) {
+                    out_arr_init_ref[0] = init_ref;
+                  }
+                  return 1;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    li = li + 1;
+  }
+  return 0;
+}
+
+

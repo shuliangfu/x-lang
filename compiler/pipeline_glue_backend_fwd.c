@@ -572,12 +572,25 @@ void backend_ctx_pop_loop_labels(struct backend_AsmFuncCtx *ctx);
 /** EXPR_RETURN：可选 emit 操作数后 jmp 函数尾汇合标签 tail_join_label。 */
 /* wave138 Cap residual for pure try_propagate. */
 int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
-/** SysV sret 写回（定义见 glue_type_size_simple 之后）。 */
-static int32_t glue_emit_sret_memcpy_rbx_to_home_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t sz,
+/* wave144 pure leave: sret helpers live in runtime_pipeline_abi pure (was static
+ * same-TU in pipeline_asm_emit_return.c). Cap residual struct_lit calls sret_memcpy. */
+extern int32_t glue_emit_sret_memcpy_rbx_to_home_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t sz,
                                                        int32_t ta);
-static int32_t glue_emit_sret_return_from_var_elf_c(struct ast_ASTArena *arena,
+extern int32_t glue_emit_sret_return_from_var_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t var_expr_ref,
                                                     struct backend_AsmFuncCtx *ctx, int32_t ta);
+/* wave144 pure leave: return_elf_impl public for expr_rec residual. */
+extern int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
+                                                 struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                 struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_return_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                             int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                       int32_t dest_ty_ref, int32_t src_ty_ref, int32_t ta);
+extern int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_get_return_expr_ref_at(struct ast_ASTArena *a, struct ast_Module *m, int32_t func_index);
+extern int32_t pipeline_backend_get_return_expr_ref_at(struct ast_ASTArena *a, struct ast_Module *m, int32_t func_index);
 /* wave333: return ARRAY_LIT→TYPE_SLICE dual-GP (defs later).
  * wave631: force_esz>0 overrides lit-inferred elem width (TYPE_SLICE formal / large NAMED). */
 /* wave143 pure leave: array_lit faces live in runtime_pipeline_abi pure. */
@@ -609,6 +622,9 @@ int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int3
 extern int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *arena, int32_t et);
 /* wave692: used by durable TYPE_SLICE fat pack before full defs later in TU. */
 int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
+/* wave144: bump_past was only same-TU via return.c mid decls; keep public for
+ * call_args residual (include order before block_inits def). */
+void glue_slice_dual_gp_bump_past_home_c(struct backend_AsmFuncCtx *ctx, int32_t data_home, int32_t ta);
 /* wave126 pure leave: glue_align_next_offset live = runtime_pipeline_abi pure (no longer static). */
 void glue_align_next_offset(struct backend_AsmFuncCtx *ctx);
 /* wave132 pure-owned leave: struct let-init live in runtime_pipeline_abi pure

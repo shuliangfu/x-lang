@@ -928,7 +928,7 @@
 | `pipeline_asm_emit_unary.c` | ~279 | asm ELF unary emit（NEG/LOGNOT/BITNOT + sxt/jz） | ✅ wave133 pure-owned leave；live＝runtime_pipeline_abi pure |
 | `pipeline_asm_emit_as.c` | **0（leave）** | asm ELF as/await/try/float-lit emit（is_await／is_x_as／await_sync／try／float_lit／array_scalar／as_elf） | ✅ wave138 pure-owned leave；live＝runtime_pipeline_abi pure；seed cold twin under #ifndef FROM_X；host 叶已删；float_bits＋glue_arena Cap residual in ast_pool_arena |
 | `pipeline_asm_emit_modlet.c` | **0（leave）** | asm ELF modlet COMMON cell emit（table + load/store/prepare/seed/register） | ✅ wave139 pure-owned leave；live＝runtime_pipeline_abi pure bag BSS；seed cold twin under #ifndef FROM_X；host 叶已删 |
-| `pipeline_asm_emit_return.c` | ~643 | asm ELF return emit（slice escape + impl + public face）切片 | 🟡 已抽出；thin face wave1014 有则补全；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_return.c` | **0（leave）** | asm ELF EXPR_RETURN emit（slice escape + impl + sret + float promote + return_expr/lit） | ✅ **pure-owned leave**（wave144 · 2026-08-05）；live＝runtime_pipeline_abi pure；Cap residual expr_rec+float_widen+enc slot+dual-gp+type_size+spills；seed cold twin under #ifndef FROM_X |
 | `pipeline_asm_emit_logand.c` | ~102 | asm ELF LOGAND/LOGOR short-circuit emit 切片 | ✅ wave128 pure-owned leave；live＝runtime_pipeline_abi pure；host 叶已删 |
 | `pipeline_asm_emit_block_body.c` | ~809 | asm ELF block body sync emit（defer + body_sync + accessors）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_block_if_stmt.c` | ~106 | asm ELF block-level if-stmt emit（then-first jz）切片 | ✅ wave129 pure-owned leave；live＝runtime_pipeline_abi pure；host 叶已删 |

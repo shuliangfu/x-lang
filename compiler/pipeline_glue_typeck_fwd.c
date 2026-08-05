@@ -140,7 +140,8 @@ static int32_t pipeline_typeck_resolve_type_alias_ref_impl_c(struct ast_Module *
  * pipeline_typeck_coerce_init.c EOF (f32→f64 IEEE float widen gate).
  * Static same-TU: fwd decl below (before all callsites L10570/10650/11132/
  * 13272) < coerce_init.c #include L14126 < def EOF. Deps: ast_TypeKind_* (global). */
-static int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind);
+/* wave144: pure return leave Cap residual — static→extern (def coerce_init). */
+int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind);
 
 /* wave1077 G.7: pipeline_typeck_integer_widen_ok_c migrated to
  * pipeline_typeck_coerce_init.c EOF (first-class integer widen gate).
@@ -174,10 +175,12 @@ static int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *aren
  * pipeline_typeck_coerce_init.c EOF (f32→f64 IEEE float widen gate).
  * Static fwd decl at L10435 (before all callsites). Body 10 LOC. */
 
-/* wave1130-1131 G.7: glue_maybe_promote_f32_to_f64_rax_elf_c /
- * glue_float_promote_src_ty_ref_c migrated to pipeline_asm_emit_return.c EOF
- * (colocated with wave314 return float-widen callsites at L542/543/630/631/
- * 640/641). Same-TU visibility via #include @ L1913. */
+/* wave1130-1131: float promote pair migrated to return.c;
+ * wave144 pure leave: live = runtime_pipeline_abi pure (extern below). */
+extern int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                       int32_t dest_ty_ref, int32_t src_ty_ref, int32_t ta);
+extern int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
 
 /**
  * typeck.x::typeck_return_operand_matches C twin (G.7 single semantic).

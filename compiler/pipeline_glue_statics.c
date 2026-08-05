@@ -119,6 +119,21 @@ int32_t pipeline_asm_emit_ctx_sret_home_off_get(void) {
   return g_pipeline_asm_sret_home_off;
 }
 /**
+ * wave144 Cap residual: pure return leave reads sret return byte width.
+ * PLATFORM: SHARED — process-local emit cell; pure Cap residual getter.
+ */
+int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void) {
+  return g_pipeline_asm_func_sret_ret_sz;
+}
+/**
+ * wave144 Cap residual: pure float_promote / field path scope block.
+ * Synced by glue_asm_ctx_set_scope_block (block_body residual).
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_asm_emit_ctx_scope_block_get(void) {
+  return g_pipeline_asm_emit_scope_block;
+}
+/**
  * Host compile-time ISA polarity for frame/param home layout.
  * Matches residual #if __aarch64__/__arm64__ (product freestanding ISA == host).
  * PLATFORM: SHARED — 1 on MACOS|ARM64 / LINUX aarch64; 0 on x86_64.
