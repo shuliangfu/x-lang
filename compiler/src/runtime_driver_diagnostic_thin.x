@@ -851,14 +851,31 @@ export function driver_diagnostic_typeck_ret_fail(stage: i32, op_expr_ref: i32, 
 let g_type_diag_scratch_expect: u8[96] = [];
 let g_type_diag_scratch_found: u8[96] = [];
 
-/** Exported function `driver_parse_strict_enabled`.
- * Implements `driver_parse_strict_enabled`.
- * @return i32
+/**
+ * Whether parse_into_buf must hard-fail (and emit skip diags) instead of
+ * silently soft-skipping a failed top-level function / unexpected token.
+ *
+ * True when:
+ * - `XLANG_PARSE_STRICT` is truthy, or
+ * - `driver_check_only_get()` is set (`xlang check` path).
+ *
+ * Why check_only is included (2026-08-05 root fix): without this, parse_into_buf
+ * soft-skipped bad `function` bodies, returned empty-module success (pr.ok=0),
+ * recovery found nothing, and `xlang check` exited 0 on obvious syntax errors
+ * while typeck errors still worked. Header contract already said PARSE_STRICT
+ * returns -2 on single-function failure; check is the product syntax gate and
+ * must imply the same strictness.
+ *
+ * @return i32 — 1 strict, 0 soft-skip allowed (compile path default)
+ * PLATFORM: SHARED — dual-host check matrix after change.
  */
 #[no_mangle]
 export function driver_parse_strict_enabled(): i32 {
-  // PLATFORM: SHARED - LANG-007 S0: extern call boundary (see analysis doc sec 0.25).
+  // PLATFORM: SHARED — check_only OR env; see analysis / check false-green.
   unsafe {
+    if (driver_check_only_get() != 0) {
+      return 1;
+    }
     return driver_env_flag_truthy("XLANG_PARSE_STRICT");
   }
 }

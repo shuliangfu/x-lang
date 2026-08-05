@@ -162,7 +162,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_resolve_path.c|8.3.2|import path resolve retired (runtime_pipeline_abi pure; host-cc leave)|0|absent"
   "compiler/pipeline_import_bind.c|8.3.2|fs read + import bind/sync (wave1270; pure leave 2026-08-05)|100|absent"
   "compiler/pipeline_parse_typeck_dispatch.c|8.3.2|parse entry + typeck dispatch (wave1271)|330|present"
-  "compiler/pipeline_run_x_pipeline.c|8.3.2|run_x_pipeline core orchestration (wave1272)|90|present"
+  "compiler/pipeline_run_x_pipeline.c|8.3.2|run_x_pipeline core orchestration (wave1272)|90|absent"
   "compiler/pipeline_loop_glue.c|8.3.2|loop glue retired (codegen_x.o; host-cc leave)|0|absent"
   "compiler/pipeline_codegen_dep.c|8.3.2|codegen dep orchestration (wave1268)|360|present"
   "compiler/pipeline_lsp_diag.c|8.3.2|LSP diag retired (runtime_pipeline_abi pure; host-cc leave)|0|absent"
@@ -256,7 +256,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
+  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: run_x_pipeline + resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
 }
 
 run_check() {

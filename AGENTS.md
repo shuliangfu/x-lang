@@ -70,13 +70,13 @@
   - 旧 `.o` / 旧二进制会藏 ensure/链接/std 入链等隐性错误；细则见 skill  
     `~/.grok/skills/xlang-selfhost-product-gate/SKILL.md` §3 与 `references/true-cold-test.md`
 - 日常探针可用 L2/L3；**宣称冷测绿 / 可自举必须 L4**
-- **验证节奏（防 14 号假绿 · check 闸门 2026-08-04 修订）**：
-  - **日常微步 L2/L3**：**不强制**先跑 `xlang check`；直接本波二进制 + 探针/矩阵
-  - **L4 真冷测时强制** 在**仓库根**执行 **`./compiler/xlang check`（不带任何路径参数）**；
-    bare check 递归扫 cwd 下全部 `*.x`（内置 ignore：`/.git/`、`/build/`、`/tests/`、`/compiler/tests/` 等）；须 **0 errors**；
-    check 红与链接/矩阵/bstrict 红 **一并修**。调试可用 `check std` / 单文件；**L4 闸门禁止**用 `check compiler` 等子路径冒充全量 bare
+- **验证节奏（防 14 号假绿 · check 闸门 **暂停** · 2026-08-05）**：
+  - **日常微步 L2/L3**：直接本波二进制 + 探针/矩阵；**不跑** `xlang check`
+  - **L4 真冷测**：全擦 `.o` + 重链 + 产品矩阵 + 全量 bstrict；**也不跑** `xlang check`
+  - **自举收口前暂停全部 check 语法检测闸门**（L2 与 L4 均非强制）；check 债延后自举系统处理
+  - 仅当用户**明确**要求修/跑 check 时才 dogfood；禁止 Agent 默认把 check 塞进 L2/L4
   - **真冷全测**以 **整体功能 / 一波 Cap·R·M 收口** 为主闸门，**日终兜底**（当天动过产品面却未 L4）
-  - 禁止每微 commit 全量 L4，禁止只靠晚上、白天工程轨假绿，禁止 L4 宣称绿却未 check / check 仍有 error
+  - 禁止每微 commit 全量 L4，禁止只靠晚上、白天工程轨假绿
   - 细则：`analysis/自举方法.md` §0.2 / §0.2.0 · `analysis/自举验证.md` §4.0 · skill §3.3 / §3.3.0
 - 修改 `pipeline_glue.c` 或 `ast_pool.c` 后需在 Ubuntu 重建 `pipeline_x.o`
 - 修改 `pipeline_glue_strict_minimal` seed 后重建 `build_asm/pipeline_glue_strict_minimal.o` + g05

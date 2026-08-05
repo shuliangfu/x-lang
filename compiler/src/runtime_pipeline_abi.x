@@ -270,6 +270,8 @@ export extern "C" function xlang_read_file_into_path(path: *u8, buf: *u8, cap: i
 // wave105 resolve_path pure-owned leave Cap residual (dep_ctx path byte + entry_dir +
 //   lib_root copy + fs open/close). PRODUCT: pipeline_x / std.fs strong; pure only calls.
 // PLATFORM: SHARED — sole host-cc body retired with pipeline_resolve_path.c.
+// wave106: pipeline_run_x_pipeline.c pure-owned leave (last_rc / typeck_fail /
+//   parse_entry_do_parse / typecheck_entry_emit / const-buf face).
 export extern "C" function pipeline_dep_ctx_set_path_buf_byte(ctx: *u8, off: i32, b: u8): void;
 export extern "C" function pipeline_dep_ctx_entry_dir_len(ctx: *u8): i32;
 export extern "C" function pipeline_dep_ctx_entry_dir_copy(ctx: *u8, dst: *u8, cap: i32): void;
@@ -331,8 +333,24 @@ export extern "C" function asm_asm_codegen_elf_o(module: *u8, arena: *u8, ctx: *
 // PLATFORM: SHARED — g05 may still define dead xlang_driver_*_thread_fn_ptr helpers (optional).
 // wave56 pure pipeline large-stack orch: set entry source_len + run pipeline.
 export extern "C" function driver_set_pipeline_entry_source_len(len: i64): void;
-export extern "C" function pipeline_run_x_pipeline(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
+// wave106: pipeline_run_x_pipeline is pure export below (const-buf face over
+//   pipeline_run_x_pipeline_impl). 2026-08-05: host-cc pipeline_run_x_pipeline.c leave.
 export extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void;
+// wave106 run_x_pipeline pure-owned leave Cap residual (typeck entry / skip / diags /
+//   impl face). PRODUCT: pipeline_x typeck_entry_module_c + should_skip + driver_abi
+//   skip getters + diagnostic; pure only calls. PLATFORM: SHARED.
+export extern "C" function pipeline_typeck_entry_module_c(module: *u8, arena: *u8, ctx: *u8): i32;
+export extern "C" function pipeline_should_skip_x_typeck(ctx: *u8): i32;
+export extern "C" function driver_diagnostic_typeck_fail(): void;
+export extern "C" function driver_diagnostic_source_len(len: i32): void;
+export extern "C" function driver_diagnostic_after_entry_parse(num_funcs: i32): void;
+export extern "C" function driver_diagnostic_after_entry_parse_module(module: *u8): void;
+export extern "C" function driver_diagnostic_entry_module(module: *u8, arena: *u8): void;
+export extern "C" function driver_x_pipeline_skip_typeck_get(): i32;
+export extern "C" function driver_x_pipeline_skip_codegen_get(): i32;
+export extern "C" function pipeline_driver_asm_build_skip_typeck(): i32;
+export extern "C" function pipeline_dep_ctx_ndep(ctx: *u8): i32;
+export extern "C" function pipeline_run_x_pipeline_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
 // wave103: lsp_diag pure-owned leave — typeck after parse/load (host-cc residual body).
 // PLATFORM: SHARED — still host-cc in pipeline_parse_typeck_dispatch.c until later leave.
 export extern "C" function pipeline_typeck_parsed_module_c(module: *u8, arena: *u8, ctx: *u8, fail_mapped: i32): i32;
@@ -11910,4 +11928,281 @@ export function pipeline_resolve_path_x_impl_c(ctx: *u8, import_path: *u8, path_
 #[no_mangle]
 export function pipeline_resolve_path_x_c(ctx: *u8, import_path: *u8, path_len: i32): i32 {
   return pipeline_resolve_path_x(ctx, import_path, path_len);
+}
+
+// ---------------------------------------------------------------------------
+// wave106: run_x_pipeline pure-owned leave (was pipeline_run_x_pipeline.c).
+// G.7 product authority for last_rc sidecar + typeck fail map + load/typecheck
+//   phase C glue + parse_entry_do_parse diags + typecheck_entry_emit skip matrix
+//   + const-buf public face pipeline_run_x_pipeline → _impl.
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED — dual-end L2 after leave; DEBUG_PIPE fprintf omitted (gate
+//   control-flow unchanged for non-debug product path).
+// ---------------------------------------------------------------------------
+
+/** Last pipeline phase rc sidecar (EMIT_HEAVY X avoids re-call). wave106 pure BSS. */
+let g_run_x_pipeline_last_rc: i32 = 0;
+
+/**
+ * Read last run_x_pipeline phase return code sidecar.
+ * @return i32 — last stored rc (0 default)
+ * wave106 pure: G.7 single product authority (historical last_rc_get).
+ * PLATFORM: SHARED — sole provider after run_x_pipeline leave.
+ */
+#[no_mangle]
+export function run_x_pipeline_last_rc_get(): i32 {
+  return g_run_x_pipeline_last_rc;
+}
+
+/**
+ * Store last run_x_pipeline phase return code sidecar.
+ * @param rc i32 — phase return code to stash
+ * wave106 pure: G.7 single product authority (historical last_rc_store_c).
+ * PLATFORM: SHARED — sole provider after run_x_pipeline leave.
+ */
+#[no_mangle]
+export function run_x_pipeline_last_rc_store_c(rc: i32): void {
+  g_run_x_pipeline_last_rc = rc;
+}
+
+/**
+ * typeck failure unified return: emit typeck_fail diag then fail_mapped or -1.
+ * @param fail_mapped i32 — non-zero preferred fail code
+ * @return i32 — fail_mapped if non-zero else -1
+ * wave106 pure: G.7 single product authority (historical typeck_fail_return_c).
+ * PLATFORM: SHARED — sole provider after run_x_pipeline leave.
+ */
+#[no_mangle]
+export function pipeline_typeck_fail_return_c(fail_mapped: i32): i32 {
+  unsafe {
+    driver_diagnostic_typeck_fail();
+  }
+  if (fail_mapped != 0) {
+    return fail_mapped;
+  }
+  return 0 - 1;
+}
+
+/**
+ * typeck null-check failure return (no diag); fail_mapped or -1.
+ * @param fail_mapped i32 — non-zero preferred fail code
+ * @return i32 — fail_mapped if non-zero else -1
+ * wave106 pure: G.7 single product authority (historical typeck_null_fail_return_c).
+ * PLATFORM: SHARED — sole provider after run_x_pipeline leave.
+ */
+#[no_mangle]
+export function pipeline_typeck_null_fail_return_c(fail_mapped: i32): i32 {
+  if (fail_mapped != 0) {
+    return fail_mapped;
+  }
+  return 0 - 1;
+}
+
+/**
+ * EMIT_HEAVY typecheck entry C glue: skip gate then typeck_entry_module_c.
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — AST arena; null → -1
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 when skip; typeck rc; -1 on null
+ * wave106 pure: G.7 single product authority (historical typecheck_entry_c).
+ * PLATFORM: SHARED — sole provider after run_x_pipeline leave.
+ */
+#[no_mangle]
+export function run_x_pipeline_typecheck_entry_c(module: *u8, arena: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let skip: i32 = 0;
+  unsafe {
+    skip = pipeline_should_skip_x_typeck(ctx);
+  }
+  if (skip != 0) {
+    return 0;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_typeck_entry_module_c(module, arena, ctx);
+  }
+  return rc;
+}
+
+/**
+ * Load/sync direct import deps after parse; stash rc in last_rc sidecar.
+ * @param module *u8 — AST module
+ * @param arena *u8 — AST arena
+ * @param ctx *u8 — PipelineDepCtx
+ * @return i32 — load_and_sync rc (also stored in last_rc)
+ * wave106 pure: G.7 single product authority (historical load_deps_after_parse_c).
+ * PLATFORM: SHARED — sole provider after run_x_pipeline leave.
+ */
+#[no_mangle]
+export function run_x_pipeline_load_deps_after_parse_c(module: *u8, arena: *u8, ctx: *u8): i32 {
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
+  }
+  g_run_x_pipeline_last_rc = rc;
+  return g_run_x_pipeline_last_rc;
+}
+
+/**
+ * Typecheck entry after load; stash rc in last_rc sidecar.
+ * @param module *u8 — AST module
+ * @param arena *u8 — AST arena
+ * @param ctx *u8 — PipelineDepCtx
+ * @return i32 — typecheck_entry_c rc (also stored in last_rc)
+ * wave106 pure: G.7 single product authority (historical typecheck_after_load_c).
+ * PLATFORM: SHARED — sole provider after run_x_pipeline leave.
+ */
+#[no_mangle]
+export function run_x_pipeline_typecheck_after_load_c(module: *u8, arena: *u8, ctx: *u8): i32 {
+  let rc: i32 = run_x_pipeline_typecheck_entry_c(module, arena, ctx);
+  g_run_x_pipeline_last_rc = rc;
+  return g_run_x_pipeline_last_rc;
+}
+
+/**
+ * Entry not yet parsed: set_main_from_buf + after_entry_parse diags.
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — AST arena; null → -1
+ * @param source_data *u8 — source bytes
+ * @param source_len i64 — byte length (cast to i32 for diag/parse)
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 ok; parse_rc on fail; -1 on null
+ * wave106 pure: G.7 single product authority (historical parse_entry_do_parse_c).
+ * PLATFORM: SHARED — sole provider after run_x_pipeline leave.
+ */
+#[no_mangle]
+export function run_x_pipeline_parse_entry_do_parse_c(module: *u8, arena: *u8, source_data: *u8, source_len: i64, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let len_i32: i32 = source_len as i32;
+  unsafe {
+    driver_diagnostic_source_len(len_i32);
+  }
+  let parse_rc: i32 = 0;
+  unsafe {
+    parse_rc = pipeline_parse_set_main_from_buf_c(module, arena, source_data, len_i32);
+  }
+  if (parse_rc != 0) {
+    return parse_rc;
+  }
+  let nf: i32 = 0;
+  unsafe {
+    nf = pipeline_module_num_funcs(module);
+    driver_diagnostic_after_entry_parse(nf);
+    driver_diagnostic_after_entry_parse_module(module);
+    driver_diagnostic_entry_module(module, arena);
+  }
+  return 0;
+}
+
+/**
+ * Entry typecheck emit: runtime skip_typeck matrix + should_skip + full typeck.
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — AST arena; null → -1
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — typeck rc; 0 when skip; -1 on null
+ * wave106 pure: G.7 single product authority (historical typecheck_entry_emit_c).
+ * Prefer driver_x_pipeline_skip_typeck_get over pure-only should_skip for
+ *   freestanding asm -o field_access_offset fill (historical host-cc contract).
+ * PLATFORM: SHARED — sole provider after run_x_pipeline leave.
+ */
+#[no_mangle]
+export function run_x_pipeline_typecheck_entry_emit_c(module: *u8, arena: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  // DEBUG_PIPE fprintf omitted in pure (host residual); non-debug product path identical.
+  let skip_tk: i32 = 0;
+  unsafe {
+    skip_tk = driver_x_pipeline_skip_typeck_get();
+  }
+  if (skip_tk != 0) {
+    // User asm -o single-file: runtime still sets skip_typeck but full typeck
+    // is required for field_access_offset; multi-file XLANG_ASM_BUILD_SKIP_TYPECK
+    // uses dep_prerun only; user -o with imports still needs full typeck.
+    let n_imp: i32 = 0;
+    let skip_cg: i32 = 0;
+    let asm_skip: i32 = 0;
+    unsafe {
+      n_imp = parser_get_module_num_imports(module);
+      skip_cg = driver_x_pipeline_skip_codegen_get();
+      asm_skip = pipeline_driver_asm_build_skip_typeck();
+    }
+    if (n_imp == 0) {
+      if (skip_cg != 0) {
+        let rc0: i32 = 0;
+        unsafe {
+          rc0 = pipeline_typeck_entry_module_c(module, arena, ctx);
+        }
+        return rc0;
+      }
+    }
+    if (asm_skip != 0) {
+      let rc1: i32 = 0;
+      unsafe {
+        rc1 = pipeline_typeck_dep_prerun_module_c(module, arena, ctx);
+      }
+      return rc1;
+    }
+    let rc2: i32 = 0;
+    unsafe {
+      rc2 = pipeline_typeck_entry_module_c(module, arena, ctx);
+    }
+    return rc2;
+  }
+  let skip_x: i32 = 0;
+  unsafe {
+    skip_x = pipeline_should_skip_x_typeck(ctx);
+  }
+  if (skip_x != 0) {
+    return 0;
+  }
+  let rc3: i32 = 0;
+  unsafe {
+    rc3 = pipeline_typeck_entry_module_c(module, arena, ctx);
+  }
+  return rc3;
+}
+
+/**
+ * Public runtime face: (data, len) thin wrapper over pipeline_run_x_pipeline_impl.
+ * @param module *u8 — AST module
+ * @param arena *u8 — AST arena
+ * @param source_data *u8 — source bytes (const in C face; pure *u8)
+ * @param source_len i64 — byte length (size_t in C ABI)
+ * @param out_buf *u8 — CodegenOutBuf
+ * @param ctx *u8 — PipelineDepCtx
+ * @return i32 — pipeline_run_x_pipeline_impl rc
+ * wave106 pure: G.7 single product authority (historical host-cc const cast face).
+ * PLATFORM: SHARED — sole provider after run_x_pipeline leave; large_stack pthread
+ *   and runtime product path call this symbol.
+ */
+#[no_mangle]
+export function pipeline_run_x_pipeline(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_run_x_pipeline_impl(module, arena, source_data, source_len, out_buf, ctx);
+  }
+  return rc;
 }

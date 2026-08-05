@@ -13,6 +13,7 @@
 | [自举验证.md](./自举验证.md) | **验证手册**（日常 L2/L3、L4 真冷、双端、bstrict 照抄；防假绿） |
 | [C迁移追踪.md](./C迁移追踪.md) | 终局债勾选 / 删 Makefile DAG（状态 only） |
 | [问题分析文档.md](./问题分析文档.md) | 产品/大债地图（默认不改） |
+| [语言语义诊断与LSP跟踪能力分析.md](./语言语义诊断与LSP跟踪能力分析.md) | **语义校验 + LSP 跟踪地图**（A 分号 ASI / B 模块重名 / C unused 无调用点 / D definition·references·hover）；**已决策：默认自举后完善（P2a）· 仅 D-references 可空窗插队 · 不抢 residual**（2026-08-05） |
 | [IR核心设计.md](./IR核心设计.md) | IR v4 架构冻结 |
 | [安全路线.md](./安全路线.md) · [FFI隔离.md](./FFI隔离.md) · [lang-unsafe-v1-rfc.md](./lang-unsafe-v1-rfc.md) | 安全 / FFI |
 | [std标准库全量清单与优先级.md](./std标准库全量清单与优先级.md) | std 总表 |
@@ -21,6 +22,7 @@
 | [自举完成后功能完善及优化时序表.md](./自举完成后功能完善及优化时序表.md) | **完成后纯时序清单**：P0→P4 · CLI/test · TOML-0→4 · ASYNC-0→3 · IR · 语言/std/生态（无长分析） |
 | [xlang-mcp-服务分析.md](./xlang-mcp-服务分析.md) | **`xlang --mcp`（与 `--lsp` 同级）**：AI 编辑器 MCP 工具箱；Tools/Resources/Prompts 全清单、与 LSP 分工、安全与分阶段（2026-08-02） |
 | [xlang-官方Skills分析.md](./xlang-官方Skills分析.md) | **官方 AI Skills（应用轨）**：与 MCP 互补；S0–S10 清单、写法规范、和 selfhost skill 分轨、黄金剧本（2026-08-02） |
+| [VSCode插件语法高亮完善分析.md](./VSCode插件语法高亮完善分析.md) | **VSCode 插件语法高亮与编辑体验全面盘点**：allow(padding)白色根因/TextMate逐段审查/language-configuration/semanticTokens/P0-P4修复方案，交办grok（2026-08-05） |
 | [全面异步架构-分析与准备.md](./全面异步架构-分析与准备.md) · [异步事件循环.md](./异步事件循环.md) · [async-platform-matrix.md](./async-platform-matrix.md) | **异步分析专文**；完成顺序见上表 P1 ASYNC-0 → P2f ASYNC-1/2 → P3–P4 ASYNC-3/T\* |
 | [基础类型缺口与自举时机分析.md](./基础类型缺口与自举时机分析.md) | 语言级 string 等基础类型：自举前/后时机（2026-07-24） |
 | [xlang-项目重命名重构分析.md](./xlang-项目重命名重构分析.md) | **Xlang→Xlang 全库重命名**（文档/CLI/Env/ABI）；主域 **`xlang.dev`**；自举暂停至 R3 验收 |

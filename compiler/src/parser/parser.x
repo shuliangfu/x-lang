@@ -61,6 +61,12 @@ export function parse_peek_function_name_buf(lex: Lexer, data: *u8, len: i32, ou
 export extern function parser_slice_from_buf(data: *u8, len: i32): u8[];
 /* See implementation. */
 export extern function parser_diagnostic_parse_skip(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void;
+/**
+ * Parse-strict gate (pipeline_parse_orch → driver_parse_strict_enabled).
+ * Non-zero under `xlang check` or XLANG_PARSE_STRICT: hard-fail soft-skips.
+ * PLATFORM: SHARED
+ */
+export extern function parser_parse_strict_enabled(): i32;
 /* See implementation. */
 export extern function parser_skip_generic_angle_list_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 /* See implementation. */
@@ -11019,6 +11025,16 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       if (r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
       }
+      /*
+       * wave check-false-green (2026-08-05): under parse_strict (check path),
+       * do not silent-swallow unexpected top-level tokens (junk / bad keywords).
+       * Soft byte-advance was empty-module success → xlang check false green.
+       * PLATFORM: SHARED
+       */
+      if (parser_parse_strict_enabled() != 0) {
+        parser_diagnostic_parse_skip((iter_start_buf.pos) as i32, module.num_funcs, 0, 0 as *u8);
+        return ParseIntoResult { ok: -2, main_idx: -1 };
+      }
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
         lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
@@ -11098,6 +11114,15 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       let skip_name: u8[128] = [0];
       let skip_nlen: i32 = parse_peek_function_name_buf(lex_at_function_buf, data, len, &skip_name[0]);
       parser_diagnostic_parse_skip((lex_at_function_buf.pos) as i32, module.num_funcs, skip_nlen, &skip_name[0]);
+      /*
+       * Header contract + check gate: under parse_strict (includes check_only),
+       * do not soft-skip a failed function into empty-module success.
+       * PLATFORM: SHARED — 2026-08-05 check false-green root.
+       */
+      if (parser_parse_strict_enabled() != 0) {
+        ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
+        return ParseIntoResult { ok: -2, main_idx: -1 };
+      }
       skip_one_function_full_into_buf(&lex, lex_at_function_buf, data, len);
       ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
       if (lex.pos == lex_at_function_buf.pos && lex.pos < (len as usize)) {
@@ -11118,6 +11143,10 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       type_ref = ast.ast_arena_type_alloc(arena);
       if (type_ref == 0) {
         parser_diagnostic_parse_skip((lex_at_function_buf.pos) as i32, module.num_funcs, res.name_len, &res.name[0]);
+        if (parser_parse_strict_enabled() != 0) {
+          ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
+          return ParseIntoResult { ok: -2, main_idx: -1 };
+        }
         skip_one_function_full_into_buf(&lex, lex_at_function_buf, data, len);
         ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
         if (lex.pos == lex_at_function_buf.pos && lex.pos < (len as usize)) {

@@ -240,28 +240,26 @@ void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t a
 
 
 /**
- * 非 0 时 parse_into_buf 在单函数 impl/buf 均失败时返回 -2，不再静默 skip（与 parse_into slice 路径对齐）。
- * 环境变量 XLANG_PARSE_STRICT=1。
- * pure 权威：thin.x driver_parse_strict_enabled；冷启动保留 public 体；FROM_X 剔除 pure-dup（H↓）。
+ * Non-zero: parse_into_buf hard-fails on soft-skip paths (ok=-2) and skip diags fire.
+ * True when XLANG_PARSE_STRICT is truthy OR driver_check_only_get() (xlang check).
+ * pure authority: thin.x; cold keeps public body; FROM_X drops pure-dup.
+ * PLATFORM: SHARED — 2026-08-05 check false-green root (soft empty module).
  */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 int32_t driver_parse_strict_enabled(void)
 {
-  (void)(({   {
-    uint8_t * e = link_abi_getenv("XLANG_PARSE_STRICT");
-    if ((e ==((uint8_t *)(0)))) {
+  if (driver_check_only_get() != 0)
+    return 1;
+  {
+    uint8_t *e = link_abi_getenv("XLANG_PARSE_STRICT");
+    if (e == ((uint8_t *)(0)))
       return 0;
-    }
-    if (((e)[0] ==0)) {
+    if (e[0] == 0)
       return 0;
-    }
-    if (((e)[0] ==48)) {
+    if (e[0] == 48)
       return 0;
-    }
     return 1;
   }
- }));
-  return 0;
 }
 #endif
 

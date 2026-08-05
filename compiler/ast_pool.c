@@ -128,7 +128,11 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 
 #include "pipeline_parse_typeck_dispatch.c"
 
-#include "pipeline_run_x_pipeline.c"
+/* 2026-08-05: pipeline_run_x_pipeline.c pure-owned leave retired.
+ * Live face: runtime_pipeline_abi.x (last_rc get/store + typeck_fail/null_return
+ * + load_deps_after_parse_c + typecheck_after_load_c + parse_entry_do_parse_c
+ * + typecheck_entry_emit_c + pipeline_run_x_pipeline const-buf face).
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 #include "pipeline_codegen_dep.c"
 

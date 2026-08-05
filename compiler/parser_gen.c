@@ -1328,6 +1328,7 @@ int32_t parser_parse_peek_function_name_buf(struct lexer_Lexer lex, uint8_t * da
 }
 extern struct xlang_slice_uint8_t parser_slice_from_buf(uint8_t * data, int32_t len);
 extern void parser_diagnostic_parse_skip(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, uint8_t * name);
+extern int32_t parser_parse_strict_enabled(void);
 extern void parser_skip_generic_angle_list_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_skip_generic_angle_list_count_into_glue(struct lexer_Lexer * out, int32_t * count, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, uint8_t * name);
@@ -8741,6 +8742,11 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         if ((((r.tok).kind) ==0)) {
           break;
         }
+        /* wave check-false-green (2026-08-05): parse_strict (check) hard-fails unexpected top-level. */
+        if (parser_parse_strict_enabled() != 0) {
+          (void)(parser_diagnostic_parse_skip(((int32_t)((iter_start_buf.pos))), (module->num_funcs), 0, ((uint8_t *)(0))));
+          return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
+        }
         if ((((lex.pos) ==(iter_start_buf.pos)) && ((lex.pos) < ((size_t)(len))))) {
           (void)((lex = (struct lexer_Lexer){ .pos = ((lex.pos) + 1), .line = (lex.line), .col = ((lex.col) + 1) }));
         }
@@ -8798,6 +8804,11 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         uint8_t skip_name[128] = {0};
         int32_t skip_nlen = parser_parse_peek_function_name_buf(lex_at_function_buf, data, len, &((skip_name)[0]));
         (void)(parser_diagnostic_parse_skip(((int32_t)((lex_at_function_buf.pos))), (module->num_funcs), skip_nlen, &((skip_name)[0])));
+        /* wave check-false-green (2026-08-05): parse_strict/check hard-fail failed function. */
+        if (parser_parse_strict_enabled() != 0) {
+          (void)(ast_pool_onefunc_release(parser_onefunc_result_pool_ptr(&(res))));
+          return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
+        }
         (void)(parser_skip_one_function_full_into_buf(&(lex), lex_at_function_buf, data, len));
         (void)(ast_pool_onefunc_release(parser_onefunc_result_pool_ptr(&(res))));
         if ((((lex.pos) ==(lex_at_function_buf.pos)) && ((lex.pos) < ((size_t)(len))))) {
@@ -8816,6 +8827,10 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         (void)((type_ref = ast_ast_arena_type_alloc(arena)));
         if ((type_ref ==0)) {
           (void)(parser_diagnostic_parse_skip(((int32_t)((lex_at_function_buf.pos))), (module->num_funcs), (res.name_len), &(((res.name))[0])));
+          if (parser_parse_strict_enabled() != 0) {
+            (void)(ast_pool_onefunc_release(parser_onefunc_result_pool_ptr(&(res))));
+            return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
+          }
           (void)(parser_skip_one_function_full_into_buf(&(lex), lex_at_function_buf, data, len));
           (void)(ast_pool_onefunc_release(parser_onefunc_result_pool_ptr(&(res))));
           if ((((lex.pos) ==(lex_at_function_buf.pos)) && ((lex.pos) < ((size_t)(len))))) {

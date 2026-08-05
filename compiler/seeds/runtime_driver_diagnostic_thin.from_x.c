@@ -937,9 +937,14 @@ void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32
   (void)((at = driver_diag_append_i32(&((msg)[0]), 200, at, got_ty_ref)));
   (void)(driver_diag_note(&((msg)[0])));
 }
+/* wave check-false-green (2026-08-05): check_only OR XLANG_PARSE_STRICT.
+ * Seed hex was SHUX_PARSE_STRICT (rename residual); product .x uses XLANG_*.
+ * PLATFORM: SHARED — keep seed ≡ thin.x. */
 int32_t driver_parse_strict_enabled(void) {
-  return driver_env_flag_truthy(((uint8_t *)"\x53\x48\x55\x58\x5f\x50\x41\x52\x53\x45\x5f\x53\x54\x52\x49\x43\x54"));
-  return 0;
+  if (driver_check_only_get() != 0)
+    return 1;
+  /* "XLANG_PARSE_STRICT" */
+  return driver_env_flag_truthy((uint8_t *)"XLANG_PARSE_STRICT");
 }
 void driver_diag_note(uint8_t * msg) {
   {

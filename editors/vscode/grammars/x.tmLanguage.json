@@ -38,11 +38,14 @@
           }
         },
         {
-          "comment": "allow(padding) 直接前缀形式（非 #[...] 属性）",
-          "match": "\\ballow\\((padding)\\)",
+          "comment": "allow(padding) 直接前缀形式（非 #[...] 属性）；allow=关键字色，padding=attribute-name 色，()=属性标点色，避免 meta 容器导致整段白色",
+          "match": "(\\ballow)(\\()([a-zA-Z_][a-zA-Z0-9_]*)(\\))",
           "captures": {
             "0": { "name": "meta.attribute.xlang" },
-            "1": { "name": "constant.other.attribute" }
+            "1": { "name": "keyword.other.attribute" },
+            "2": { "name": "punctuation.section.attribute" },
+            "3": { "name": "entity.other.attribute-name" },
+            "4": { "name": "punctuation.section.attribute" }
           }
         }
       ]
@@ -90,12 +93,17 @@
     "struct-body": {
       "patterns": [
         {
-          "comment": "结构体定义体：字段名与类型分色（支持 allow(padding) 前缀）",
-          "begin": "(\\b(?:allow\\(padding\\)\\s+)?)(struct)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\{",
+          "comment": "结构体定义体：字段名/类型分色；支持 export + allow(padding) 前缀；每个前缀 token 独立着色 scope（避免 meta 容器导致 allow(padding) 整段白色）",
+          "begin": "(\\b(?:(export)\\s+)?(?:(allow)(\\()([a-zA-Z_][a-zA-Z0-9_]*)(\\))\\s+)?)(struct)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\{",
           "beginCaptures": {
             "1": { "name": "meta.attribute.xlang" },
-            "2": { "name": "storage.type" },
-            "3": { "name": "entity.name.type" }
+            "2": { "name": "storage.modifier" },
+            "3": { "name": "keyword.other.attribute" },
+            "4": { "name": "punctuation.section.attribute" },
+            "5": { "name": "entity.other.attribute-name" },
+            "6": { "name": "punctuation.section.attribute" },
+            "7": { "name": "storage.type" },
+            "8": { "name": "entity.name.type" }
           },
           "end": "\\}",
           "name": "meta.block.struct",

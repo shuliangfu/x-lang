@@ -4864,5 +4864,108 @@ int32_t pipeline_resolve_path_x_c(void *ctx, uint8_t *import_path, int32_t path_
   return pipeline_resolve_path_x(ctx, import_path, path_len);
 }
 
+/* wave106 run_x_pipeline leave cold twins — former pipeline_run_x_pipeline.c.
+ * PLATFORM: SHARED — only when pure FROM_X object is not linked. Product pure
+ * owns strong last_rc / typeck_fail / load_deps / typecheck_after_load /
+ * parse_entry_do_parse / typecheck_entry_emit / pipeline_run_x_pipeline after
+ * host-cc leave. Prefer void* like wave101/105. */
+extern int32_t pipeline_should_skip_x_typeck(void *ctx);
+extern int32_t pipeline_typeck_entry_module_c(void *module, void *arena, void *ctx);
+extern int32_t pipeline_typeck_dep_prerun_module_c(void *module, void *arena, void *ctx);
+extern int32_t pipeline_load_and_sync_direct_import_deps_c(void *module, void *arena, void *ctx);
+extern int32_t pipeline_parse_set_main_from_buf_c(void *module, void *arena, uint8_t *data, int32_t len);
+extern int32_t pipeline_module_num_funcs(void *module);
+extern int32_t pipeline_dep_ctx_ndep(void *ctx);
+extern int32_t parser_get_module_num_imports(void *module);
+extern void driver_diagnostic_typeck_fail(void);
+extern void driver_diagnostic_source_len(int32_t len);
+extern void driver_diagnostic_after_entry_parse(int32_t num_funcs);
+extern void driver_diagnostic_after_entry_parse_module(void *module);
+extern void driver_diagnostic_entry_module(void *module, void *arena);
+extern int32_t driver_x_pipeline_skip_typeck_get(void);
+extern int32_t driver_x_pipeline_skip_codegen_get(void);
+extern int32_t pipeline_driver_asm_build_skip_typeck(void);
+extern int32_t pipeline_run_x_pipeline_impl(void *module, void *arena, uint8_t *source_data, size_t source_len,
+                                           void *out_buf, void *ctx);
+
+static int32_t wave106_last_rc;
+
+int32_t run_x_pipeline_last_rc_get(void) {
+  return wave106_last_rc;
+}
+
+void run_x_pipeline_last_rc_store_c(int32_t rc) {
+  wave106_last_rc = rc;
+}
+
+int32_t pipeline_typeck_fail_return_c(int32_t fail_mapped) {
+  driver_diagnostic_typeck_fail();
+  if (fail_mapped != 0)
+    return fail_mapped;
+  return -1;
+}
+
+int32_t pipeline_typeck_null_fail_return_c(int32_t fail_mapped) {
+  if (fail_mapped != 0)
+    return fail_mapped;
+  return -1;
+}
+
+int32_t run_x_pipeline_typecheck_entry_c(void *module, void *arena, void *ctx) {
+  if (!module || !arena || !ctx)
+    return -1;
+  if (pipeline_should_skip_x_typeck(ctx) != 0)
+    return 0;
+  return pipeline_typeck_entry_module_c(module, arena, ctx);
+}
+
+int32_t run_x_pipeline_load_deps_after_parse_c(void *module, void *arena, void *ctx) {
+  wave106_last_rc = pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
+  return wave106_last_rc;
+}
+
+int32_t run_x_pipeline_typecheck_after_load_c(void *module, void *arena, void *ctx) {
+  wave106_last_rc = run_x_pipeline_typecheck_entry_c(module, arena, ctx);
+  return wave106_last_rc;
+}
+
+int32_t run_x_pipeline_parse_entry_do_parse_c(void *module, void *arena, uint8_t *source_data, size_t source_len,
+                                             void *ctx) {
+  int32_t len_i32;
+  int32_t parse_rc;
+  if (!module || !arena || !ctx)
+    return -1;
+  len_i32 = (int32_t)source_len;
+  driver_diagnostic_source_len(len_i32);
+  parse_rc = pipeline_parse_set_main_from_buf_c(module, arena, source_data, len_i32);
+  if (parse_rc != 0)
+    return parse_rc;
+  driver_diagnostic_after_entry_parse(pipeline_module_num_funcs(module));
+  driver_diagnostic_after_entry_parse_module(module);
+  driver_diagnostic_entry_module(module, arena);
+  return 0;
+}
+
+int32_t run_x_pipeline_typecheck_entry_emit_c(void *module, void *arena, void *ctx) {
+  if (!module || !arena || !ctx)
+    return -1;
+  /* DEBUG_PIPE fprintf omitted in cold twin; product non-debug path identical. */
+  if (driver_x_pipeline_skip_typeck_get() != 0) {
+    if (parser_get_module_num_imports(module) == 0 && driver_x_pipeline_skip_codegen_get() != 0)
+      return pipeline_typeck_entry_module_c(module, arena, ctx);
+    if (pipeline_driver_asm_build_skip_typeck() != 0)
+      return pipeline_typeck_dep_prerun_module_c(module, arena, ctx);
+    return pipeline_typeck_entry_module_c(module, arena, ctx);
+  }
+  if (pipeline_should_skip_x_typeck(ctx) != 0)
+    return 0;
+  return pipeline_typeck_entry_module_c(module, arena, ctx);
+}
+
+int32_t pipeline_run_x_pipeline(void *module, void *arena, const uint8_t *source_data, size_t source_len, void *out_buf,
+                               void *ctx) {
+  return pipeline_run_x_pipeline_impl(module, arena, (uint8_t *)source_data, source_len, out_buf, ctx);
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
