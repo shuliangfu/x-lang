@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave123: lea_common pure leave cold twins under #ifndef FROM_X.
  * wave121: lint_meta pure leave cold twins under #ifndef FROM_X.
  * wave110: pure ImportEntry storage (pipeline_module_import_* + storage_release) in .x
  *   product hybrid; Cap ast_pool XLANG_WEAK cold twins. Structure debt close.
@@ -9502,5 +9503,137 @@ int32_t glue_emit_with_arena_deinit_elf(void *elf_ctx, int32_t wa_off, int32_t t
   if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
     return -1;
   return backend_enc_call_arch(elf_ctx, (uint8_t *)deinit_sym, (int32_t)(sizeof(deinit_sym) - 1), ta);
+}
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/* wave123: pipeline_asm_emit_lea_common pure leave cold twins under #ifndef FROM_X.
+ * PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
+ * PREFER pure; cold path when PREFER!=1 / hybrid fail. */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx, uint8_t *ptr, int32_t n);
+extern int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx);
+extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx, int32_t at, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx, int32_t at, uint8_t *name, int32_t name_len,
+                                                   int32_t r_type, int32_t r_pcrel);
+
+/* PLATFORM: LINUX+MACOS x86_64 SysV — lea rax, [rip+disp32] + R_X86_64_PC32. */
+int32_t glue_asm_lea_rax_common_rip_x86(void *elf_ctx, uint8_t *name, int32_t name_len) {
+  uint8_t lea7[7];
+  int32_t rel32_at;
+  if (!elf_ctx || !name || name_len <= 0)
+    return -1;
+  lea7[0] = 0x48;
+  lea7[1] = 0x8d;
+  lea7[2] = 0x05;
+  lea7[3] = 0;
+  lea7[4] = 0;
+  lea7[5] = 0;
+  lea7[6] = 0;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, lea7, 7) != 0)
+    return -1;
+  rel32_at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 4;
+  return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, rel32_at, name, name_len);
+}
+
+/* PLATFORM: LINUX+MACOS x86_64 SysV — lea rbx, [rip+disp32] + R_X86_64_PC32. */
+int32_t glue_asm_lea_rbx_common_rip_x86(void *elf_ctx, uint8_t *name, int32_t name_len) {
+  uint8_t lea7[7];
+  int32_t rel32_at;
+  if (!elf_ctx || !name || name_len <= 0)
+    return -1;
+  lea7[0] = 0x48;
+  lea7[1] = 0x8d;
+  lea7[2] = 0x1d;
+  lea7[3] = 0;
+  lea7[4] = 0;
+  lea7[5] = 0;
+  lea7[6] = 0;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, lea7, 7) != 0)
+    return -1;
+  rel32_at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 4;
+  return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, rel32_at, name, name_len);
+}
+
+/* PLATFORM: MACOS|ARM64 AAPCS64 — mov x8, x0 (ORR X8, XZR, X0). */
+int32_t glue_arm64_mov_x0_to_x8_elf_c(void *elf_ctx) {
+  uint8_t insn[4];
+  if (!elf_ctx)
+    return -1;
+  insn[0] = 0xe8;
+  insn[1] = 0x03;
+  insn[2] = 0x00;
+  insn[3] = 0xaa;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, insn, 4);
+}
+
+/* PLATFORM: MACOS|ARM64 AAPCS64 — mov x0, x8 (ORR X0, XZR, X8). */
+int32_t glue_arm64_mov_x8_to_x0_elf_c(void *elf_ctx) {
+  uint8_t insn[4];
+  if (!elf_ctx)
+    return -1;
+  insn[0] = 0xe0;
+  insn[1] = 0x03;
+  insn[2] = 0x08;
+  insn[3] = 0xaa;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, insn, 4);
+}
+
+/* PLATFORM: MACOS|ARM64 — adrp x1 + add pageoff → COMMON in x1 (rbx).
+ * r_type 3 = PAGE_HI21 pcrel=1; 4 = LO12_NC pcrel=0. */
+int32_t glue_asm_lea_rbx_common_adrp_arm64(void *elf_ctx, uint8_t *name, int32_t name_len) {
+  uint8_t *cb;
+  uint8_t adrp4[4];
+  uint8_t add4[4];
+  int32_t adrp_at;
+  int32_t add_at;
+  if (!elf_ctx || !name || name_len <= 0)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  adrp4[0] = 0x01;
+  adrp4[1] = 0x00;
+  adrp4[2] = 0x00;
+  adrp4[3] = 0x90;
+  if (pipeline_elf_ctx_append_bytes(cb, adrp4, 4) != 0)
+    return -1;
+  adrp_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  if (pipeline_elf_ctx_append_reloc_typed(cb, adrp_at, name, name_len, 3, 1) != 0)
+    return -1;
+  add4[0] = 0x21;
+  add4[1] = 0x00;
+  add4[2] = 0x00;
+  add4[3] = 0x91;
+  if (pipeline_elf_ctx_append_bytes(cb, add4, 4) != 0)
+    return -1;
+  add_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc_typed(cb, add_at, name, name_len, 4, 0);
+}
+
+/* PLATFORM: MACOS|ARM64 — adrp x0 + add pageoff → COMMON in x0 (rax). */
+int32_t glue_asm_lea_rax_common_adrp_arm64(void *elf_ctx, uint8_t *name, int32_t name_len) {
+  uint8_t *cb;
+  uint8_t adrp4[4];
+  uint8_t add4[4];
+  int32_t adrp_at;
+  int32_t add_at;
+  if (!elf_ctx || !name || name_len <= 0)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  adrp4[0] = 0x00;
+  adrp4[1] = 0x00;
+  adrp4[2] = 0x00;
+  adrp4[3] = 0x90;
+  if (pipeline_elf_ctx_append_bytes(cb, adrp4, 4) != 0)
+    return -1;
+  adrp_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  if (pipeline_elf_ctx_append_reloc_typed(cb, adrp_at, name, name_len, 3, 1) != 0)
+    return -1;
+  add4[0] = 0x00;
+  add4[1] = 0x00;
+  add4[2] = 0x00;
+  add4[3] = 0x91;
+  if (pipeline_elf_ctx_append_bytes(cb, add4, 4) != 0)
+    return -1;
+  add_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc_typed(cb, add_at, name, name_len, 4, 0);
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

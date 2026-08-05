@@ -111,13 +111,23 @@ struct xlang_slice_uint8_t {
 
 static int32_t g_pipeline_asm_al_nc_seq;
 
-/* wave1027 G.7: glue_asm_lea_rax_common_rip_x86 + glue_asm_lea_rbx_common_rip_x86 +
- * glue_arm64_mov_x0_to_x8_elf_c + glue_arm64_mov_x8_to_x0_elf_c +
- * glue_asm_lea_rbx_common_adrp_arm64 + glue_asm_lea_rax_common_adrp_arm64
- * folded into pipeline_asm_emit_lea_common.c (same TU #include; no new DEPS).
- * pipeline_elf_ctx_append_reloc_typed extern also moved into the leaf.
- * Forward decls preserved in array_lit/return/call_args/field_access/struct_let leaves. */
-#include "pipeline_asm_emit_lea_common.c"
+/* wave123 pure-owned leave: pipeline_asm_emit_lea_common.c deleted.
+ * live = runtime_pipeline_abi pure (glue_asm_lea_*_common_* +
+ * glue_arm64_mov_x{0,8}_to_x{8,0}_elf_c); seed cold twin under #ifndef FROM_X.
+ * Residual mega leaves (array_lit / return / call_args / field_access /
+ * struct_let) call these public faces — extern prototypes only; do not re-open
+ * a second COMMON lea / arm64 sret mov path (G.7).
+ * PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64. */
+extern int32_t glue_asm_lea_rax_common_rip_x86(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+                                               int32_t name_len);
+extern int32_t glue_asm_lea_rbx_common_rip_x86(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+                                               int32_t name_len);
+extern int32_t glue_arm64_mov_x0_to_x8_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t glue_arm64_mov_x8_to_x0_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t glue_asm_lea_rbx_common_adrp_arm64(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+                                                   int32_t name_len);
+extern int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+                                                   int32_t name_len);
 /* wave1288 G.7: early emit inter-include forward-decl / define shell
  * (ARRAY_LIT caps + array_lit / async_cps_phase_reset / return_type_at
  * prototypes + binop scalar classifiers / var_decl / binop_mul prototypes

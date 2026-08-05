@@ -571,6 +571,12 @@ export extern "C" function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8
 export extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern "C" function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern "C" function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
+// wave123 Cap residual: lea_common pure leave callees (pipeline_elf_ctx still host-cc).
+// PLATFORM: SHARED freestanding emit · append_bytes / code_len / reloc (+typed PAGE21/12).
+export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+export extern "C" function pipeline_elf_ctx_emit_code_len(ctx: *u8): i32;
+export extern "C" function pipeline_elf_ctx_append_reloc(ctx: *u8, at: i32, name: *u8, name_len: i32): i32;
+export extern "C" function pipeline_elf_ctx_append_reloc_typed(ctx: *u8, at: i32, name: *u8, name_len: i32, r_type: i32, r_pcrel: i32): i32;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 -> _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
@@ -21081,6 +21087,259 @@ export function glue_emit_with_arena_deinit_elf(elf_ctx: *u8, wa_off: i32, ta: i
   }
   unsafe {
     rc = backend_enc_call_arch(elf_ctx, &deinit_sym[0], 21, ta);
+  }
+  return rc;
+}
+
+// ---------------------------------------------------------------------------
+// wave123: pipeline_asm_emit_lea_common pure-owned leave
+// G.7 single product authority for COMMON/durable label LEA + arm64 sret mov.
+// Was static same-TU in pipeline_asm_emit_lea_common.c; now no_mangle public
+// so residual mega leaves (array_lit / return / call_args / field_access /
+// struct_let) call one pure face. Cap residual: pipeline_elf_ctx_*.
+// PLATFORM: SHARED freestanding emit
+//   · LINUX+MACOS x86_64 SysV — rip-relative lea + R_X86_64_PC32
+//   · MACOS|ARM64 AAPCS64 — adrp+add PAGE21/PAGEOFF12 + sret x8 mov
+// ---------------------------------------------------------------------------
+
+/**
+ * Emit x86_64 lea rax, [rip+disp32] for a named COMMON/durable label.
+ * Opcode 48 8d 05 disp32 (7B) + R_X86_64_PC32 reloc at the disp32 slot.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null rejected
+ * @param name *u8 - reloc symbol bytes (not required to be NUL-terminated)
+ * @param name_len i32 - symbol byte count; must be > 0
+ * @return i32 - 0 on success; -1 on null/encode/reloc failure
+ * wave123 pure: G.7 authority (was pipeline_asm_emit_lea_common.c static).
+ * PLATFORM: LINUX+MACOS x86_64 SysV — rip-relative addressing.
+ */
+#[no_mangle]
+export function glue_asm_lea_rax_common_rip_x86(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (elf_ctx == 0 as *u8 || name == 0 as *u8 || name_len <= 0) {
+    return 0 - 1;
+  }
+  // 48 8d 05 00 00 00 00  →  lea rax, [rip+disp32]
+  let lea7: u8[8] = [];
+  lea7[0] = 0x48 as u8;
+  lea7[1] = 0x8d as u8;
+  lea7[2] = 0x05 as u8;
+  lea7[3] = 0 as u8;
+  lea7[4] = 0 as u8;
+  lea7[5] = 0 as u8;
+  lea7[6] = 0 as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &lea7[0], 7);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let rel32_at: i32 = 0;
+  unsafe {
+    rel32_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, name, name_len);
+  }
+  return rc;
+}
+
+/**
+ * Emit x86_64 lea rbx, [rip+disp32] for a named COMMON/durable label.
+ * Opcode 48 8d 1d disp32 (7B) + R_X86_64_PC32 reloc at the disp32 slot.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null rejected
+ * @param name *u8 - reloc symbol bytes
+ * @param name_len i32 - symbol byte count; must be > 0
+ * @return i32 - 0 on success; -1 on null/encode/reloc failure
+ * wave123 pure: G.7 authority (was pipeline_asm_emit_lea_common.c static).
+ * PLATFORM: LINUX+MACOS x86_64 SysV — rip-relative addressing.
+ */
+#[no_mangle]
+export function glue_asm_lea_rbx_common_rip_x86(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (elf_ctx == 0 as *u8 || name == 0 as *u8 || name_len <= 0) {
+    return 0 - 1;
+  }
+  // 48 8d 1d 00 00 00 00  →  lea rbx, [rip+disp32]
+  let lea7: u8[8] = [];
+  lea7[0] = 0x48 as u8;
+  lea7[1] = 0x8d as u8;
+  lea7[2] = 0x1d as u8;
+  lea7[3] = 0 as u8;
+  lea7[4] = 0 as u8;
+  lea7[5] = 0 as u8;
+  lea7[6] = 0 as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &lea7[0], 7);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let rel32_at: i32 = 0;
+  unsafe {
+    rel32_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, name, name_len);
+  }
+  return rc;
+}
+
+/**
+ * Emit AAPCS64 mov x8, x0 (Indirect Result Location = dest) for large-struct CALL sret.
+ * Encoding: ORR X8, XZR, X0 → 0xAA0003E8 (LE bytes e8 03 00 aa).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null rejected
+ * @return i32 - 0 on success; -1 on null/encode failure
+ * wave123 pure: G.7 authority (was pipeline_asm_emit_lea_common.c static).
+ * PLATFORM: MACOS|ARM64 AAPCS64 — x8 is not an arg-reg index (0..7).
+ */
+#[no_mangle]
+export function glue_arm64_mov_x0_to_x8_elf_c(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let insn: u8[4] = [];
+  insn[0] = 0xe8 as u8;
+  insn[1] = 0x03 as u8;
+  insn[2] = 0x00 as u8;
+  insn[3] = 0xaa as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &insn[0], 4);
+  }
+  return rc;
+}
+
+/**
+ * Emit AAPCS64 mov x0, x8 (save incoming sret dest for callee store).
+ * Encoding: ORR X0, XZR, X8 → 0xAA0803E0 (LE bytes e0 03 08 aa).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null rejected
+ * @return i32 - 0 on success; -1 on null/encode failure
+ * wave123 pure: G.7 authority (was pipeline_asm_emit_lea_common.c static).
+ * PLATFORM: MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_arm64_mov_x8_to_x0_elf_c(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let insn: u8[4] = [];
+  insn[0] = 0xe0 as u8;
+  insn[1] = 0x03 as u8;
+  insn[2] = 0x08 as u8;
+  insn[3] = 0xaa as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &insn[0], 4);
+  }
+  return rc;
+}
+
+/**
+ * Emit arm64 adrp x1 + add pageoff for named COMMON address in x1 (rbx twin).
+ * Reloc types: 3 = R_AARCH64_ADR_PREL_PG_HI21 (pcrel=1);
+ *              4 = R_AARCH64_ADD_ABS_LO12_NC (pcrel=0).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null rejected
+ * @param name *u8 - reloc symbol bytes
+ * @param name_len i32 - symbol byte count; must be > 0
+ * @return i32 - 0 on success; -1 on null/encode/reloc failure
+ * wave123 pure: G.7 authority (was pipeline_asm_emit_lea_common.c static).
+ * PLATFORM: MACOS|ARM64 AAPCS64 — durable ARRAY_LIT / named struct pass_addr.
+ */
+#[no_mangle]
+export function glue_asm_lea_rbx_common_adrp_arm64(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (elf_ctx == 0 as *u8 || name == 0 as *u8 || name_len <= 0) {
+    return 0 - 1;
+  }
+  // adrp x1, #0 → 0x90000001
+  let adrp4: u8[4] = [];
+  adrp4[0] = 0x01 as u8;
+  adrp4[1] = 0x00 as u8;
+  adrp4[2] = 0x00 as u8;
+  adrp4[3] = 0x90 as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &adrp4[0], 4);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let adrp_at: i32 = 0;
+  unsafe {
+    adrp_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, adrp_at, name, name_len, 3, 1);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  // add x1, x1, #0 → 0x91000021
+  let add4: u8[4] = [];
+  add4[0] = 0x21 as u8;
+  add4[1] = 0x00 as u8;
+  add4[2] = 0x00 as u8;
+  add4[3] = 0x91 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &add4[0], 4);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let add_at: i32 = 0;
+  unsafe {
+    add_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, name, name_len, 4, 0);
+  }
+  return rc;
+}
+
+/**
+ * Emit arm64 adrp x0 + add pageoff for named COMMON address in x0 (rax twin).
+ * Reloc types: 3 = R_AARCH64_ADR_PREL_PG_HI21 (pcrel=1);
+ *              4 = R_AARCH64_ADD_ABS_LO12_NC (pcrel=0).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null rejected
+ * @param name *u8 - reloc symbol bytes
+ * @param name_len i32 - symbol byte count; must be > 0
+ * @return i32 - 0 on success; -1 on null/encode/reloc failure
+ * wave123 pure: G.7 authority (was pipeline_asm_emit_lea_common.c static).
+ * PLATFORM: MACOS|ARM64 AAPCS64 — durable ARRAY_LIT return/let-init final lea.
+ */
+#[no_mangle]
+export function glue_asm_lea_rax_common_adrp_arm64(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (elf_ctx == 0 as *u8 || name == 0 as *u8 || name_len <= 0) {
+    return 0 - 1;
+  }
+  // adrp x0, #0 → 0x90000000
+  let adrp4: u8[4] = [];
+  adrp4[0] = 0x00 as u8;
+  adrp4[1] = 0x00 as u8;
+  adrp4[2] = 0x00 as u8;
+  adrp4[3] = 0x90 as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &adrp4[0], 4);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let adrp_at: i32 = 0;
+  unsafe {
+    adrp_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, adrp_at, name, name_len, 3, 1);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  // add x0, x0, #0 → 0x91000000
+  let add4: u8[4] = [];
+  add4[0] = 0x00 as u8;
+  add4[1] = 0x00 as u8;
+  add4[2] = 0x00 as u8;
+  add4[3] = 0x91 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &add4[0], 4);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let add_at: i32 = 0;
+  unsafe {
+    add_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, name, name_len, 4, 0);
   }
   return rc;
 }

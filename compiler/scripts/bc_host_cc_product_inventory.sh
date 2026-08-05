@@ -125,7 +125,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_index_eff_addr.c|8.3.1|asm ELF INDEX eff-addr (scaled+bounds+base twins+public faces) slice|700|present"
   "compiler/pipeline_asm_emit_expr_rec.c|8.3.1|asm ELF expr recursion + fast (lit_i32 + rec + emit_expr_elf_c + fast) slice|300|present"
   "compiler/pipeline_asm_emit_async_cps.c|8.3.1|asm ELF async/CPS emit domain|160|present"
-  "compiler/pipeline_asm_emit_lea_common.c|8.3.1|asm ELF lea common helpers|140|present"
+  "compiler/pipeline_asm_emit_lea_common.c|8.3.1|asm ELF lea common helpers (wave123 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_var_decl.c|8.3.1|asm ELF var decl emit|85|present"
   "compiler/pipeline_asm_emit_with_arena.c|8.3.1|asm ELF with_arena emit (wave122 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_x86_enc_helpers.c|8.3.1|asm x86 enc helpers|300|present"
@@ -256,7 +256,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: with_arena + lint_meta + parser_emit_heavy + emit_heavy_env + skip_dispatch + safe_helper + thin_delegate + selfhost + asm_ctx_loop + backend_asm_wrapper + parse_typeck_dispatch + codegen_dep + struct_emit + type_to_c + skip_force + codegen_residual + run_x_pipeline + resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
+  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: lea_common + with_arena + lint_meta + parser_emit_heavy + emit_heavy_env + skip_dispatch + safe_helper + thin_delegate + selfhost + asm_ctx_loop + backend_asm_wrapper + parse_typeck_dispatch + codegen_dep + struct_emit + type_to_c + skip_force + codegen_residual + run_x_pipeline + resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
 }
 
 run_check() {

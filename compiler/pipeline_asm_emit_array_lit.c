@@ -66,13 +66,14 @@ static void glue_align_next_offset(struct backend_AsmFuncCtx *ctx);
 static int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                     int32_t src_spill, int32_t dst_spill, int32_t esz,
                                                     int32_t ta);
-static int32_t glue_asm_lea_rax_common_rip_x86(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+/* wave123: lea_common pure leave — public no_mangle faces (not same-TU static). */
+extern int32_t glue_asm_lea_rax_common_rip_x86(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
                                                int32_t name_len);
-static int32_t glue_asm_lea_rbx_common_rip_x86(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+extern int32_t glue_asm_lea_rbx_common_rip_x86(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
                                                int32_t name_len);
-static int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+extern int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
                                                   int32_t name_len);
-static int32_t glue_asm_lea_rbx_common_adrp_arm64(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+extern int32_t glue_asm_lea_rbx_common_adrp_arm64(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
                                                   int32_t name_len);
 static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena,
                                               struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
