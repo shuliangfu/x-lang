@@ -1023,6 +1023,16 @@ export extern "C" function glue_block_live_fwd_apply_top_stmt(arena: *u8, ctx: *
 export extern "C" function glue_live_fwd_forward_after_def(arena: *u8, ctx: *u8, def_off: i32, init_ref: i32): void;
 /* wave163: pure owns glue_binop_cache_intersect_live_fwd (#[no_mangle] below). */
 export extern "C" function glue_block_live_fwd_contains_off(off: i32): i32;
+/* wave164 Cap residual: thin faces for pure Chaitin coloring leave. */
+export extern "C" function glue_asm73_interf_n_get(): i32;
+export extern "C" function glue_asm73_interf_off_at(i: i32): i32;
+export extern "C" function glue_asm73_interf_has_edge(i: i32, j: i32): i32;
+export extern "C" function glue_asm73_linear_nso_get(): i32;
+export extern "C" function glue_asm73_linear_next_use_dist(from_stmt: i32, off: i32): i32;
+export extern "C" function glue_asm73_set_spill_color(off: i32, which: i32): void;
+export extern "C" function glue_asm73_off_spill_color_which(off: i32): i32;
+export extern "C" function glue_asm73_pin_spill_off_set(which: i32, off: i32): void;
+/* wave164: pure owns glue_asm73_compute_spill_color_chaitin (#[no_mangle] below). */
 export extern "C" function glue_binop_var_slot_cache_valid_x10_get(): i32;
 export extern "C" function glue_binop_var_slot_cache_valid_x11_get(): i32;
 export extern "C" function glue_binop_var_slot_cache_valid_x12_get(): i32;
@@ -53064,3 +53074,168 @@ export function glue_binop_cache_intersect_live_fwd(): void {
 }
 
 // end wave163 pure-owned leave
+
+// ============================================================================
+// wave164 pure-owned leave: glue_asm73_compute_spill_color_chaitin
+// (was Cap residual spill; greedy K=6 color + pin pick on residual interf graph).
+// Cap residual: interf graph BSS + color/pin maps + next-use walk +
+// thin interf_n/off/has_edge / nso / next_use / set_color / which / pin_set.
+// Cold twin under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * Chaitin-style greedy coloring of the residual interference graph (K=6).
+ * Vertices are stack-slot offs; colors 0..5 map to arm64 x10–x15 homes;
+ * uncolorable verts get which=6 (stack-frame spill preference).
+ * Order: ascending next-use distance at peak_i, then pin nearest live offs
+ * per color (with |live| peak gates for higher spill slots).
+ * @param peak_i i32 - stmt index used for next-use distance queries
+ * @param peak_live *u8 - opaque GlueBlockLiveFwd* peak live set; null → no-op
+ * @return void
+ * wave164 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 x10–x15 homes.
+ */
+#[no_mangle]
+export function glue_asm73_compute_spill_color_chaitin(peak_i: i32, peak_live: *u8): void {
+  // Working arrays sized to residual GLUE_ASM73_INTERF_MAX (32).
+  let order: i32[32] = [];
+  let dist: i32[32] = [];
+  let color_of: i32[32] = [];
+  let peak: i32 = 0;
+  let n: i32 = 0;
+  let nso: i32 = 0;
+  let i: i32 = 0;
+  let j: i32 = 0;
+  let k: i32 = 0;
+  let idx: i32 = 0;
+  let off: i32 = 0;
+  let c: i32 = 0;
+  let used: i32 = 0;
+  let best_off: i32 = 0;
+  let best_d: i32 = 0;
+  let d: i32 = 0;
+  let col_j: i32 = 0;
+  let which_stack: i32 = 6;
+  unsafe {
+    glue_asm73_pin_spill_off_clear_all();
+    glue_asm73_clear_spill_color_map();
+    nso = glue_asm73_linear_nso_get();
+    n = glue_asm73_interf_n_get();
+  }
+  if (peak_live == (0 as *u8) || nso <= 0 || n <= 0) {
+    return;
+  }
+  if (n > 32) {
+    n = 32;
+  }
+  unsafe {
+    peak = glue_live_fwd_n_get(peak_live);
+  }
+  // Single-variable peak: no coloring (matches residual peak < 2).
+  if (peak < 2) {
+    return;
+  }
+  i = 0;
+  while (i < n) {
+    order[i] = i;
+    unsafe {
+      dist[i] = glue_asm73_linear_next_use_dist(peak_i, glue_asm73_interf_off_at(i));
+    }
+    color_of[i] = -1;
+    i = i + 1;
+  }
+  // Sort vertex indices by ascending next-use distance (stable selection sort).
+  i = 0;
+  while (i < n - 1) {
+    j = i + 1;
+    while (j < n) {
+      if (dist[order[j]] < dist[order[i]]) {
+        k = order[i];
+        order[i] = order[j];
+        order[j] = k;
+      }
+      j = j + 1;
+    }
+    i = i + 1;
+  }
+  // Greedy color: assign lowest free color among neighbors; else stack (which=6).
+  i = 0;
+  while (i < n) {
+    idx = order[i];
+    used = 0;
+    j = 0;
+    while (j < n) {
+      if (j != idx) {
+        unsafe {
+          if (glue_asm73_interf_has_edge(idx, j) != 0) {
+            col_j = color_of[j];
+            if (col_j >= 0 && col_j < 6) {
+              used = used | (1 << col_j);
+            }
+          }
+        }
+      }
+      j = j + 1;
+    }
+    c = 0;
+    while (c < 6) {
+      if ((used & (1 << c)) == 0) {
+        color_of[idx] = c;
+        unsafe {
+          glue_asm73_set_spill_color(glue_asm73_interf_off_at(idx), c);
+        }
+        break;
+      }
+      c = c + 1;
+    }
+    if (color_of[idx] < 0) {
+      unsafe {
+        glue_asm73_set_spill_color(glue_asm73_interf_off_at(idx), which_stack);
+      }
+    }
+    i = i + 1;
+  }
+  // Pin nearest next-use live off per color; higher slots gated by peak |live|.
+  c = 0;
+  while (c < 6) {
+    if (c == 2 && peak < 5) {
+      c = c + 1;
+      continue;
+    }
+    if (c == 3 && peak < 6) {
+      c = c + 1;
+      continue;
+    }
+    if (c == 4 && peak < 8) {
+      c = c + 1;
+      continue;
+    }
+    if (c == 5 && peak < 9) {
+      c = c + 1;
+      continue;
+    }
+    best_off = -1;
+    best_d = 9999;
+    j = 0;
+    while (j < peak) {
+      unsafe {
+        off = glue_live_fwd_off_at(peak_live, j);
+        if (glue_asm73_off_spill_color_which(off) == c) {
+          d = glue_asm73_linear_next_use_dist(peak_i, off);
+          if (d < best_d) {
+            best_d = d;
+            best_off = off;
+          }
+        }
+      }
+      j = j + 1;
+    }
+    unsafe {
+      glue_asm73_pin_spill_off_set(c, best_off);
+    }
+    c = c + 1;
+  }
+}
+
+// end wave164 pure-owned leave

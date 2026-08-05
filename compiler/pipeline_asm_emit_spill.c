@@ -47,10 +47,16 @@
  * Residual keeps binop VAR cache BSS + live_fwd BSS + stack-spill tables +
  * thin x10–x15 / contains_off / stack_spill n·off·drop accessors.
  *
+ * wave164 pure-owned Chaitin K=6 coloring core (same pure TU):
+ *   · glue_asm73_compute_spill_color_chaitin
+ * Residual keeps interf graph BSS + pin/color maps + next-use scan +
+ * thin interf/pin/color/nso accessors; compute_spill_color_pins / cfg peak
+ * still residual (build graph then call pure color).
+ *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
- *   · 7.3 live_fwd BSS / break-continue note + push/pop / Chaitin
- *   · Chaitin K=6 coloring + stack-spill preference + evict
+ *   · 7.3 live_fwd BSS / break-continue note + push/pop
+ *   · Chaitin interf build + stack-spill preference + evict
  *   · index scratch spill methods + binop_stack_spill bodies
  *     (CAP statics in pipeline_asm_emit_index_helpers.c)
  *
@@ -123,6 +129,10 @@ int32_t pipeline_asm_emit_continue_elf_c(struct ast_ASTArena *arena, struct plat
 /* wave163 pure-owned face (extern; live in runtime_pipeline_abi pure).
  * Residual: cache BSS + live_fwd contains + stack_spill drop thin faces. PLATFORM: SHARED. */
 void glue_binop_cache_intersect_live_fwd(void);
+
+/* wave164 pure-owned face (extern; live in runtime_pipeline_abi pure).
+ * Residual: interf BSS + pin/color maps + next-use + thin accessors. PLATFORM: SHARED. */
+void glue_asm73_compute_spill_color_chaitin(int32_t peak_i, const void *peak_live);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -645,7 +655,6 @@ static void glue_live_fwd_apply_stmt_gen_kill(GlueBlockLiveFwd *live, const Glue
     glue_live_fwd_add(live, kill->offs[i]);
 }
 
-static void glue_asm73_compute_spill_color_chaitin(int32_t peak_i, const GlueBlockLiveFwd *peak_live);
 static int32_t glue_asm73_stack_spill_enabled(void);
 
 /** 7.3 Chaitin 原型：干涉图顶点（栈槽 off）与邻接位图（最多 32 槽）。 */
@@ -1166,8 +1175,9 @@ static int32_t glue_asm73_cfg_forward_next_use_dist(int32_t from_stmt, int32_t o
 
 /**
  * 7.3 线性 scan：从 stmt from_stmt 起（含）到块尾/final_expr，栈槽 off 的下次使用距离；无使用返回 9999。
+ * wave164 Cap residual: non-static face for pure Chaitin leave. PLATFORM: SHARED.
  */
-static int32_t glue_asm73_linear_next_use_dist(int32_t from_stmt, int32_t off) {
+int32_t glue_asm73_linear_next_use_dist(int32_t from_stmt, int32_t off) {
   struct ast_ASTArena *arena;
   struct backend_AsmFuncCtx *ctx;
   int32_t block_ref;
@@ -1215,9 +1225,11 @@ void glue_asm73_clear_spill_color_map(void) {
 }
 
 /**
- * 记录栈槽 off 的 spill 偏好（0=x10 … 5=x15，6=栈帧 spill）；表满则忽略。
+ * wave164 Cap residual: non-static face for pure Chaitin leave.
+ * Record spill preference for stack slot off (0=x10 … 5=x15, 6=stack frame).
+ * PLATFORM: SHARED freestanding 7.3.
  */
-static void glue_asm73_set_spill_color(int32_t off, int32_t which) {
+void glue_asm73_set_spill_color(int32_t off, int32_t which) {
   int32_t i;
   if (off < 0 || which < 0 || which > GLUE_ASM73_SPILL_WHICH_STACK)
     return;
@@ -1234,8 +1246,12 @@ static void glue_asm73_set_spill_color(int32_t off, int32_t which) {
   glue_asm73_spill_color_n++;
 }
 
-/** 返回 off 的偏好 spill 槽；-1 表示未着色。 */
-static int32_t glue_asm73_off_spill_color_which(int32_t off) {
+/**
+ * wave164 Cap residual: non-static face for pure Chaitin leave.
+ * Return preferred spill slot for off; -1 if uncolored.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_asm73_off_spill_color_which(int32_t off) {
   int32_t i;
   if (off < 0)
     return -1;
@@ -1246,98 +1262,8 @@ static int32_t glue_asm73_off_spill_color_which(int32_t off) {
   return -1;
 }
 
-/**
- * 7.3 Chaitin 原型（K=6）：在已建干涉图上按峰值 next-use 升序贪心着色，绑定 x10–x15 家园并设 pin。
- */
-static void glue_asm73_compute_spill_color_chaitin(int32_t peak_i, const GlueBlockLiveFwd *peak_live) {
-  int32_t peak;
-  int32_t order[GLUE_ASM73_INTERF_MAX];
-  int32_t dist[GLUE_ASM73_INTERF_MAX];
-  int8_t color_of[GLUE_ASM73_INTERF_MAX];
-  int32_t n;
-  int32_t i;
-  int32_t j;
-  int32_t k;
-  int32_t idx;
-  int32_t off;
-  int32_t c;
-  uint32_t used;
-  int32_t best_off;
-  int32_t best_d;
-  int32_t d;
-  glue_asm73_pin_spill_off[0] = -1;
-  glue_asm73_pin_spill_off[1] = -1;
-  glue_asm73_pin_spill_off[2] = -1;
-  glue_asm73_pin_spill_off[3] = -1;
-  glue_asm73_pin_spill_off[4] = -1;
-  glue_asm73_pin_spill_off[5] = -1;
-  glue_asm73_clear_spill_color_map();
-  if (!peak_live || glue_asm73_linear_nso <= 0 || glue_asm73_interf_n <= 0)
-    return;
-  peak = peak_live->n;
-  /** cfg 父块 peak 在 final_expr；单变量块不着色。 */
-  if (peak < 2)
-    return;
-  n = glue_asm73_interf_n;
-  for (i = 0; i < n; i++) {
-    order[i] = i;
-    dist[i] = glue_asm73_linear_next_use_dist(peak_i, glue_asm73_interf_off[i]);
-    color_of[i] = -1;
-  }
-  for (i = 0; i < n - 1; i++) {
-    for (j = i + 1; j < n; j++) {
-      if (dist[order[j]] < dist[order[i]]) {
-        k = order[i];
-        order[i] = order[j];
-        order[j] = k;
-      }
-    }
-  }
-  for (i = 0; i < n; i++) {
-    idx = order[i];
-    used = 0;
-    for (j = 0; j < n; j++) {
-      if (j == idx)
-        continue;
-      if (!(glue_asm73_interf_adj[idx] & (uint32_t)(1u << j)))
-        continue;
-      if (color_of[j] >= 0)
-        used |= (uint32_t)(1u << color_of[j]);
-    }
-    for (c = 0; c < 6; c++) {
-      if (!(used & (uint32_t)(1u << c))) {
-        color_of[idx] = (int8_t)c;
-        glue_asm73_set_spill_color(glue_asm73_interf_off[idx], c);
-        break;
-      }
-    }
-    if (color_of[idx] < 0)
-      glue_asm73_set_spill_color(glue_asm73_interf_off[idx], GLUE_ASM73_SPILL_WHICH_STACK);
-  }
-  for (c = 0; c < 6; c++) {
-    if (c == 2 && peak < 5)
-      continue;
-    if (c == 3 && peak < 6)
-      continue;
-    if (c == 4 && peak < 8)
-      continue;
-    if (c == 5 && peak < 9)
-      continue;
-    best_off = -1;
-    best_d = 9999;
-    for (j = 0; j < peak_live->n; j++) {
-      off = peak_live->offs[j];
-      if (glue_asm73_off_spill_color_which(off) != c)
-        continue;
-      d = glue_asm73_linear_next_use_dist(peak_i, off);
-      if (d < best_d) {
-        best_d = d;
-        best_off = off;
-      }
-    }
-    glue_asm73_pin_spill_off[c] = best_off;
-  }
-}
+/* wave164: pure owns glue_asm73_compute_spill_color_chaitin (extern above).
+ * Residual builds interf graph then calls pure coloring. PLATFORM: SHARED. */
 
 /** 7.3 线性块：全块 live_in 建干涉图后 Chaitin 着色。 */
 void glue_asm73_compute_spill_color_pins(void) {
@@ -2476,4 +2402,56 @@ int32_t glue_binop_stack_spill_off_at(int32_t i) {
   if (i < 0 || i >= glue_binop_stack_spill_n)
     return -1;
   return glue_binop_stack_spill_off[i];
+}
+
+/* ========================================================================== *
+ * wave164 Cap residual: thin BSS accessors for pure Chaitin coloring leave.
+ * Pure owns greedy K=6 color + pin pick; residual owns interf graph BSS,
+ * color/pin maps, next-use walk (G.7 single authority). PLATFORM: SHARED.
+ * ========================================================================== */
+
+/** Current interference graph vertex count (0..GLUE_ASM73_INTERF_MAX). PLATFORM: SHARED. */
+int32_t glue_asm73_interf_n_get(void) {
+  return glue_asm73_interf_n;
+}
+
+/**
+ * Stack-slot off for interf vertex i.
+ * @param i int32_t - 0..n-1; out of range → -1
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_asm73_interf_off_at(int32_t i) {
+  if (i < 0 || i >= glue_asm73_interf_n)
+    return -1;
+  return glue_asm73_interf_off[i];
+}
+
+/**
+ * True when undirected edge (i,j) exists in interf adjacency bitmaps.
+ * @param i int32_t - vertex index
+ * @param j int32_t - vertex index
+ * @return int32_t - 1 edge present; 0 absent / OOB
+ * PLATFORM: SHARED freestanding 7.3 (avoids pure u32 1<<j for j up to 31).
+ */
+int32_t glue_asm73_interf_has_edge(int32_t i, int32_t j) {
+  if (i < 0 || j < 0 || i >= glue_asm73_interf_n || j >= glue_asm73_interf_n)
+    return 0;
+  return (glue_asm73_interf_adj[i] & (uint32_t)(1u << j)) ? 1 : 0;
+}
+
+/** Linear-block stmt_order count cached for next-use / Chaitin. PLATFORM: SHARED. */
+int32_t glue_asm73_linear_nso_get(void) {
+  return glue_asm73_linear_nso;
+}
+
+/**
+ * Set pin spill home which (0=x10 … 5=x15) to stack off (-1 clears).
+ * @param which int32_t - physical spill color 0..5
+ * @param off int32_t - stack slot off or -1
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_asm73_pin_spill_off_set(int32_t which, int32_t off) {
+  if (which < 0 || which > 5)
+    return;
+  glue_asm73_pin_spill_off[which] = off;
 }
