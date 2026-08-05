@@ -11,6 +11,14 @@
  *
  * PLATFORM: SHARED.
  * ============================================================================ */
+
+/* wave109: type_to_c pure-owned leave — faces from runtime_pipeline_abi pure.
+ * PLATFORM: SHARED — was same-TU static type_to_c_repr_inner / type_kind_copy. */
+extern int32_t pipeline_codegen_type_kind_copy(uint8_t *dst, int32_t cap, int32_t kind);
+extern int32_t pipeline_codegen_vector_type_copy(uint8_t *dst, int32_t cap, int32_t elem_kind, int32_t lanes);
+extern int32_t pipeline_codegen_type_to_c_repr(struct ast_ASTArena *arena, uint8_t *scratch, int32_t cap,
+                                               int32_t type_ref, uint8_t *struct_prefix, int32_t struct_prefix_len);
+
 /**
  * 单文件 C co-emit：header + 全 dep 类型 + forward 只允许 emit 一次。
  * pipeline 对每个 dep 与 entry 各调 codegen_x_ast；无此标志会中途再 #include、enum redefinition。
@@ -162,7 +170,8 @@ static int32_t pipeline_codegen_emit_struct_field_type_inner(struct ast_ASTArena
     return pipeline_codegen_out_append_bytes(out, nm, nl);
   }
   if (ord == 11) {
-    nl = pipeline_codegen_type_to_c_repr_inner(arena, scratch, 256, type_ref, struct_prefix, struct_prefix_len);
+    /* wave109: public type_to_c_repr (was same-TU static inner; pure owns body). */
+    nl = pipeline_codegen_type_to_c_repr(arena, scratch, 256, type_ref, struct_prefix, struct_prefix_len);
     if (nl <= 0)
       return -1;
     return pipeline_codegen_out_append_bytes(out, scratch, nl);

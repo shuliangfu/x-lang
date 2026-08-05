@@ -164,7 +164,11 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
  * ast_/codegen_ mangled thin faces stay in pipeline_*_forwarders (host-cc).
  */
 
-#include "pipeline_codegen_type_to_c.c"
+/* 2026-08-05: pipeline_codegen_type_to_c.c pure-owned leave retired (wave109).
+ * Live face: runtime_pipeline_abi.x (type_kind_copy / type_kind_append /
+ * vector_type_copy / type_to_c_repr). struct_emit residual calls public
+ * type_to_c_repr (was same-TU static inner).
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 #include "pipeline_codegen_struct_emit.c"
 

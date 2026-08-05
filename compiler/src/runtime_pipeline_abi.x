@@ -13437,3 +13437,402 @@ export function pipeline_codegen_force_param_uint32_t(prefix: *u8, prefix_len: i
   }
   return 0;
 }
+
+// ---------------------------------------------------------------------------
+// wave109: codegen type_to_c pure-owned leave (was pipeline_codegen_type_to_c.c).
+// G.7 product authority for TypeKind/VECTOR C name tables + recursive
+//   type_to_c_repr (TYPE_PTR / ARRAY / SLICE / LINEAR / VECTOR / NAMED short ints).
+// Public faces: type_kind_copy / type_kind_append / vector_type_copy / type_to_c_repr.
+//   (type_kind_cstr / vector_type_cstr were internal-only; pure uses direct copy.)
+// struct_emit host residual calls public type_to_c_repr (was same-TU static inner).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/** Arena type pool accessors for type_to_c (wave109).
+ * Use extern "C" so Cap residual does not mangle *u8 arena to *_u8_ptr_* names.
+ * pipeline_arena_num_types already declared earlier in this file with "C". */
+export extern "C" function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
+export extern "C" function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32;
+export extern "C" function pipeline_type_array_size_at(arena: *u8, ref: i32): i32;
+export extern "C" function pipeline_type_named_name_into(arena: *u8, ref: i32, out64: *u8): i32;
+
+/**
+ * Copy n bytes from src into dst when cap is large enough.
+ * @param dst *u8 - destination; null -> -1
+ * @param cap i32 - destination capacity
+ * @param src *u8 - source bytes; null -> -1
+ * @param n i32 - byte count; n<=0 -> -1
+ * @return i32 - n on success, -1 on failure
+ * wave109 pure: private helper for type kind/vector tables.
+ * PLATFORM: SHARED.
+ */
+function cg_ttc_write_bytes(dst: *u8, cap: i32, src: *u8, n: i32): i32 {
+  if (dst == 0 as *u8) {
+    return -1;
+  }
+  if (src == 0 as *u8) {
+    return -1;
+  }
+  if (n <= 0) {
+    return -1;
+  }
+  if (cap < n) {
+    return -1;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    unsafe {
+      dst[i] = src[i];
+    }
+    i = i + 1;
+  }
+  return n;
+}
+
+/**
+ * TypeKind builtin -> C type name into dst (no NUL).
+ * @param dst *u8 - destination buffer
+ * @param cap i32 - capacity
+ * @param kind i32 - TypeKind ordinal (0..16); 8..13 compound kinds return -1
+ * @return i32 - byte count, or -1 if unsupported / overflow
+ * wave109 pure: G.7 single product authority (was type_kind_cstr+copy).
+ * PLATFORM: SHARED - F32/F64/VOID ordinals match ast.x TypeKind (wave618).
+ */
+#[no_mangle]
+export function pipeline_codegen_type_kind_copy(dst: *u8, cap: i32, kind: i32): i32 {
+  if (kind == 0) {
+    return cg_ttc_write_bytes(dst, cap, "int32_t", 7);
+  }
+  if (kind == 1) {
+    return cg_ttc_write_bytes(dst, cap, "int", 3);
+  }
+  if (kind == 2) {
+    return cg_ttc_write_bytes(dst, cap, "uint8_t", 7);
+  }
+  if (kind == 3) {
+    return cg_ttc_write_bytes(dst, cap, "uint32_t", 8);
+  }
+  if (kind == 4) {
+    return cg_ttc_write_bytes(dst, cap, "uint64_t", 8);
+  }
+  if (kind == 5) {
+    return cg_ttc_write_bytes(dst, cap, "int64_t", 7);
+  }
+  if (kind == 6) {
+    return cg_ttc_write_bytes(dst, cap, "size_t", 6);
+  }
+  if (kind == 7) {
+    return cg_ttc_write_bytes(dst, cap, "ssize_t", 7);
+  }
+  // 8..13: NAMED/PTR/ARRAY/SLICE/LINEAR/VECTOR handled in type_to_c_repr
+  if (kind == 14) {
+    return cg_ttc_write_bytes(dst, cap, "float", 5);
+  }
+  if (kind == 15) {
+    return cg_ttc_write_bytes(dst, cap, "double", 6);
+  }
+  if (kind == 16) {
+    return cg_ttc_write_bytes(dst, cap, "void", 4);
+  }
+  return -1;
+}
+
+/**
+ * VECTOR type C name into dst (elem_kind x lanes).
+ * @param dst *u8 - destination buffer
+ * @param cap i32 - capacity
+ * @param elem_kind i32 - ord_i32=0 / ord_u32=3 / ord_f32=14
+ * @param lanes i32 - 4 / 8 / 16
+ * @return i32 - byte count, or -1 if no match / overflow
+ * wave109 pure: G.7 single product authority (was vector_type_cstr+copy).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_vector_type_copy(dst: *u8, cap: i32, elem_kind: i32, lanes: i32): i32 {
+  if (elem_kind == 0) {
+    if (lanes == 4) {
+      return cg_ttc_write_bytes(dst, cap, "i32x4_t", 7);
+    }
+    if (lanes == 8) {
+      return cg_ttc_write_bytes(dst, cap, "i32x8_t", 7);
+    }
+    if (lanes == 16) {
+      return cg_ttc_write_bytes(dst, cap, "i32x16_t", 8);
+    }
+  }
+  if (elem_kind == 3) {
+    if (lanes == 4) {
+      return cg_ttc_write_bytes(dst, cap, "u32x4_t", 7);
+    }
+    if (lanes == 8) {
+      return cg_ttc_write_bytes(dst, cap, "u32x8_t", 7);
+    }
+    if (lanes == 16) {
+      return cg_ttc_write_bytes(dst, cap, "u32x16_t", 8);
+    }
+  }
+  // F32 vector (Vec4f / f32x4 / f32x8 / f32x16). elem_kind=14 == ord_f32.
+  if (elem_kind == 14) {
+    if (lanes == 4) {
+      return cg_ttc_write_bytes(dst, cap, "f32x4_t", 7);
+    }
+    if (lanes == 8) {
+      return cg_ttc_write_bytes(dst, cap, "f32x8_t", 7);
+    }
+    if (lanes == 16) {
+      return cg_ttc_write_bytes(dst, cap, "f32x16_t", 8);
+    }
+  }
+  return -1;
+}
+
+/**
+ * Append TypeKind C name onto scratch[w..); return next write index.
+ * @param scratch *u8 - scratch buffer
+ * @param cap i32 - capacity
+ * @param w i32 - current write index
+ * @param kind i32 - TypeKind ordinal
+ * @return i32 - next write index, or -1 on overflow / unsupported
+ * wave109 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_type_kind_append(scratch: *u8, cap: i32, w: i32, kind: i32): i32 {
+  let tmp: u8[16] = [];
+  let n: i32 = pipeline_codegen_type_kind_copy(&tmp[0], 16, kind);
+  if (n <= 0) {
+    return -1;
+  }
+  if (scratch == 0 as *u8) {
+    return -1;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    if (w >= cap - 1) {
+      return -1;
+    }
+    unsafe {
+      scratch[w] = tmp[i];
+    }
+    w = w + 1;
+    i = i + 1;
+  }
+  return w;
+}
+
+/**
+ * Recursive type_to_c_repr: write C type name for type_ref into scratch (no NUL).
+ * @param arena *u8 - ASTArena* (opaque)
+ * @param scratch *u8 - destination
+ * @param cap i32 - capacity; <16 rejects
+ * @param type_ref i32 - type pool index
+ * @param struct_prefix *u8 - optional NAMED struct prefix (e.g. dep module); null ok
+ * @param struct_prefix_len i32 - prefix length; 0 => bare NAMED (entry module)
+ * @return i32 - byte count, or -1 on overflow
+ * wave109 pure: G.7 single product authority (was type_to_c_repr_inner + entry).
+ * Uses stack inner/eb for recursive SLICE/PTR (wave691; no static re-entry).
+ * PLATFORM: SHARED host-C type_to_c_repr authority.
+ */
+#[no_mangle]
+export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i32, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
+  let inner: u8[256] = [];
+  let eb: u8[256] = [];
+  let nm: u8[128] = [];
+  if (cap < 16) {
+    return -1;
+  }
+  if (scratch == 0 as *u8) {
+    return -1;
+  }
+  // Fallback int32_t when arena/type_ref invalid (matches host residual).
+  let nt: i32 = 0;
+  if (arena != 0 as *u8) {
+    unsafe {
+      nt = pipeline_arena_num_types(arena);
+    }
+  }
+  if (arena == 0 as *u8 || type_ref <= 0 || type_ref > nt) {
+    return cg_ttc_write_bytes(scratch, cap, "int32_t", 7);
+  }
+  let tk: i32 = 0;
+  let elem_ref: i32 = 0;
+  let arr_sz: i32 = 0;
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, type_ref);
+    elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+    arr_sz = pipeline_type_array_size_at(arena, type_ref);
+  }
+  // TYPE_PTR (9): elem " *"
+  if (tk == 9 && elem_ref > 0) {
+    let n: i32 = pipeline_codegen_type_to_c_repr(arena, &inner[0], 256, elem_ref, struct_prefix, struct_prefix_len);
+    if (n < 0 || n + 2 >= cap) {
+      return -1;
+    }
+    let j: i32 = 0;
+    while (j < n) {
+      unsafe {
+        scratch[j] = inner[j];
+      }
+      j = j + 1;
+    }
+    unsafe {
+      scratch[n] = 32;
+      scratch[n + 1] = 42;
+    }
+    return n + 2;
+  }
+  // TYPE_ARRAY (10): decay to elem C type
+  if (tk == 10 && elem_ref > 0) {
+    return pipeline_codegen_type_to_c_repr(arena, scratch, cap, elem_ref, struct_prefix, struct_prefix_len);
+  }
+  // TYPE_VECTOR (13)
+  if (tk == 13 && elem_ref > 0) {
+    let elem_kind: i32 = 0;
+    unsafe {
+      elem_kind = pipeline_type_kind_ord_at(arena, elem_ref);
+    }
+    let n: i32 = pipeline_codegen_vector_type_copy(scratch, cap, elem_kind, arr_sz);
+    if (n >= 0) {
+      return n;
+    }
+    return pipeline_codegen_type_kind_copy(scratch, cap, 0);
+  }
+  // TYPE_LINEAR (12): decay to elem
+  if (tk == 12 && elem_ref > 0) {
+    return pipeline_codegen_type_to_c_repr(arena, scratch, cap, elem_ref, struct_prefix, struct_prefix_len);
+  }
+  // TYPE_SLICE (11): struct xlang_slice_<elemC> (strip leading "struct ")
+  if (tk == 11 && elem_ref > 0) {
+    let n: i32 = pipeline_codegen_type_to_c_repr(arena, &eb[0], 256, elem_ref, struct_prefix, struct_prefix_len);
+    if (n < 0 || n >= 256) {
+      return -1;
+    }
+    let sp: i32 = 0;
+    if (n >= 7) {
+      let is_struct: i32 = 0;
+      unsafe {
+        if (eb[0] == 115 && eb[1] == 116 && eb[2] == 114 && eb[3] == 117 && eb[4] == 99 && eb[5] == 116 && eb[6] == 32) {
+          is_struct = 1;
+        }
+      }
+      if (is_struct != 0) {
+        sp = 7;
+        while (sp < n) {
+          let ch: u8 = 0;
+          unsafe {
+            ch = eb[sp];
+          }
+          if (ch != 32) {
+            break;
+          }
+          sp = sp + 1;
+        }
+      }
+    }
+    let plen: i32 = n - sp;
+    if (plen <= 0 || 19 + plen >= cap) {
+      return -1;
+    }
+    // "struct xlang_slice_" = 19 bytes
+    let hi: i32 = 0;
+    let hdr: u8[19] = [115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95];
+    while (hi < 19) {
+      unsafe {
+        scratch[hi] = hdr[hi];
+      }
+      hi = hi + 1;
+    }
+    let pi: i32 = 0;
+    while (pi < plen) {
+      unsafe {
+        scratch[19 + pi] = eb[sp + pi];
+      }
+      pi = pi + 1;
+    }
+    return 19 + plen;
+  }
+  // TYPE_NAMED (8) or named short ints / struct tags
+  let name_len: i32 = 0;
+  unsafe {
+    name_len = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
+  }
+  if (tk == 8 && name_len > 0) {
+    // short ints without TypeKind (wave313 i8/i16/u16) -> stdint C names
+    if (name_len == 2) {
+      let a: u8 = 0;
+      let b: u8 = 0;
+      unsafe {
+        a = nm[0];
+        b = nm[1];
+      }
+      if (a == 105 && b == 56) {
+        // i8
+        return cg_ttc_write_bytes(scratch, cap, "int8_t", 6);
+      }
+    }
+    if (name_len == 3) {
+      let a: u8 = 0;
+      let b: u8 = 0;
+      let c: u8 = 0;
+      unsafe {
+        a = nm[0];
+        b = nm[1];
+        c = nm[2];
+      }
+      if (a == 105 && b == 49 && c == 54) {
+        // i16
+        return cg_ttc_write_bytes(scratch, cap, "int16_t", 7);
+      }
+      if (a == 117 && b == 49 && c == 54) {
+        // u16
+        return cg_ttc_write_bytes(scratch, cap, "uint16_t", 8);
+      }
+    }
+    // "struct " + optional prefix + name
+    let w: i32 = 0;
+    let h: i32 = 0;
+    let hdr2: u8[7] = [115, 116, 114, 117, 99, 116, 32];
+    while (h < 7) {
+      if (w >= cap - 1) {
+        return -1;
+      }
+      unsafe {
+        scratch[w] = hdr2[h];
+      }
+      w = w + 1;
+      h = h + 1;
+    }
+    if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+      let pi: i32 = 0;
+      while (pi < struct_prefix_len) {
+        if (w >= cap - 1) {
+          return -1;
+        }
+        unsafe {
+          scratch[w] = struct_prefix[pi];
+        }
+        w = w + 1;
+        pi = pi + 1;
+      }
+    }
+    // empty prefix -> bare name (entry module; wave624)
+    let pi2: i32 = 0;
+    while (pi2 < name_len && pi2 < 64) {
+      if (w >= cap - 1) {
+        return -1;
+      }
+      unsafe {
+        scratch[w] = nm[pi2];
+      }
+      w = w + 1;
+      pi2 = pi2 + 1;
+    }
+    return w;
+  }
+  let sn: i32 = pipeline_codegen_type_kind_copy(scratch, cap, tk);
+  if (sn > 0) {
+    return sn;
+  }
+  return pipeline_codegen_type_kind_copy(scratch, cap, 0);
+}

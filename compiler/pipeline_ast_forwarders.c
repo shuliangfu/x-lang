@@ -184,6 +184,15 @@ uint8_t *ast_pipeline_scratch_buf256(void) {
 uint8_t *ast_pipeline_scratch_buf256_slot(int32_t slot) {
   return pipeline_scratch_buf256_slot(slot);
 }
+/* wave109: type_to_c faces live in runtime_pipeline_abi pure (no same-TU body).
+ * wave108: skip_force predicates live in runtime_pipeline_abi pure (no same-TU body).
+ * wave107: residual predicates live in runtime_pipeline_abi pure (no same-TU body).
+ * PLATFORM: SHARED — extern faces for ast_ thin wrappers in pipeline_x host-cc TU. */
+extern int32_t pipeline_codegen_type_kind_copy(uint8_t *dst, int32_t cap, int32_t kind);
+extern int32_t pipeline_codegen_type_kind_append(uint8_t *scratch, int32_t cap, int32_t w, int32_t kind);
+extern int32_t pipeline_codegen_vector_type_copy(uint8_t *dst, int32_t cap, int32_t elem_kind, int32_t lanes);
+extern int32_t pipeline_codegen_type_to_c_repr(struct ast_ASTArena *arena, uint8_t *scratch, int32_t cap,
+                                               int32_t type_ref, uint8_t *struct_prefix, int32_t struct_prefix_len);
 int32_t ast_pipeline_codegen_type_kind_copy(uint8_t *dst, int32_t cap, int32_t kind) {
   return pipeline_codegen_type_kind_copy(dst, cap, kind);
 }
@@ -193,9 +202,6 @@ int32_t ast_pipeline_codegen_type_kind_append(uint8_t *scratch, int32_t cap, int
 int32_t ast_pipeline_codegen_vector_type_copy(uint8_t *dst, int32_t cap, int32_t elem_kind, int32_t lanes) {
   return pipeline_codegen_vector_type_copy(dst, cap, elem_kind, lanes);
 }
-/* wave108: skip_force predicates live in runtime_pipeline_abi pure (no same-TU body).
- * wave107: residual predicates live in runtime_pipeline_abi pure (no same-TU body).
- * PLATFORM: SHARED — extern faces for ast_ thin wrappers in pipeline_x host-cc TU. */
 extern int32_t pipeline_codegen_call_num_args_override_lookup(uint8_t *buf, int32_t full, int32_t num_args);
 extern int32_t pipeline_codegen_call_num_args_override(uint8_t *prefix, int32_t prefix_len, uint8_t *name,
                                                        int32_t name_len, int32_t num_args);
