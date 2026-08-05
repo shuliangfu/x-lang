@@ -108,6 +108,14 @@
  * Residual keeps CAP cache BSS + key hash + thin valid/slot/ctx/keys/record
  * + clear faces; pure owns spill orchestration + hit meta checks.
  *
+ * wave173 pure-owned binop left_assoc + live_fwd before/apply orchestration:
+ *   · glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c
+ *   · glue_block_live_fwd_before_stmt
+ *   · glue_block_live_fwd_apply_top_stmt
+ * Residual keeps VAR cache / live_fwd / live_at_stmt BSS + thin
+ * active/cfg_parent/emit_stmt_i / contains_off / as_u8 / copy / gen_kill +
+ * thin evict_rbx; pure owns orchestration (calls wave163/166 pure faces).
+ *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
  *   · 7.3 live_fwd BSS / break-continue note + push/pop
@@ -262,6 +270,19 @@ int32_t glue_index_subadd3_sum_cache_spill_store_elf_c(struct ast_ASTArena *aren
 int32_t glue_index_subadd3_sum_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                         int32_t i_ref, int32_t j_ref, int32_t k_ref, int32_t ta);
 int32_t glue_index_subadd3_spill_pop_top_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+
+/* wave173 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * Residual: VAR cache / live_fwd BSS + thin active/cfg_parent/emit_stmt_i +
+ * contains_off / live_at_stmt_as_u8 / copy_from_u8 / gen_kill_u8 /
+ * live_fwd_as_u8 / apply_stmt_gen_kill_u8 + thin evict_rbx.
+ * PLATFORM: SHARED freestanding 7.3. */
+void glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(struct ast_ASTArena *arena,
+                                                           struct backend_AsmFuncCtx *ctx, int32_t right_ref,
+                                                           int32_t ta, struct platform_elf_ElfCodegenCtx *elf_ctx);
+void glue_block_live_fwd_before_stmt(int32_t stmt_i, int32_t ta, struct platform_elf_ElfCodegenCtx *elf_ctx);
+void glue_block_live_fwd_apply_top_stmt(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                        int32_t block_ref, int32_t slot_base, int32_t nconst, int32_t nlet,
+                                        int32_t stmt_i);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -1577,52 +1598,17 @@ void glue_asm73_evict_rbx_cache_entry(int32_t stmt_i, int32_t ta,
   glue_binop_var_slot_cache_invalidate_rbx();
 }
 
-/**
- * 7.3：左结合交换律链 ((…){op}VAR) — 右 VAR 装入 rbx 前，若 rbx 仍缓存其它活跃槽则 spill 到 x10。
- */
-/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
-void glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(struct ast_ASTArena *arena,
-                                                                   struct backend_AsmFuncCtx *ctx,
-                                                                   int32_t right_ref, int32_t ta,
-                                                                   struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  int32_t roff;
-  roff = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref);
-  if (roff >= 0 && glue_binop_var_slot_cache.valid_rbx && glue_binop_var_slot_cache.ctx_key == (size_t)ctx &&
-      glue_binop_var_slot_cache.rbx_off != roff && glue_block_live_fwd_active && !glue_block_live_cfg_parent &&
-      glue_live_fwd_contains(&glue_block_live_fwd, glue_binop_var_slot_cache.rbx_off))
-    glue_asm73_evict_rbx_cache_entry(glue_block_emit_stmt_i, ta, elf_ctx);
-}
+/* wave173: pure owns glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c,
+ * glue_block_live_fwd_before_stmt, and glue_block_live_fwd_apply_top_stmt
+ * (extern above). Residual: VAR cache / live_fwd BSS + thin accessors +
+ * thin evict_rax|rbx (spill_reg_to_spill stays residual).
+ * PLATFORM: SHARED freestanding 7.3. */
 
-/** 发射 stmt i 前：套用预计算的 live_in 并修剪 binop 槽缓存。 */
 /* wave166: pure owns glue_asm73_linear_scan_evict_cache_if_pressure_live,
  * glue_asm73_linear_scan_evict_cache_if_pressure, and
  * glue_asm73_evict_cache_if_live_pressure_elf_c (extern above).
  * Residual: thin thresh / find_depth / evict_rax|rbx / live_fwd_as_u8.
  * PLATFORM: SHARED freestanding 7.3. */
-
-/** 7.3 cfg 父块：顶层 const/let/expr_stmt 发射后前向更新 glue_block_live_fwd。 */
-void glue_block_live_fwd_apply_top_stmt(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                int32_t block_ref, int32_t slot_base, int32_t nconst, int32_t nlet,
-                                                int32_t stmt_i) {
-  GlueBlockLiveFwd gen;
-  GlueBlockLiveFwd kill;
-  if (!glue_block_live_cfg_parent || stmt_i < 0)
-    return;
-  glue_block_stmt_gen_kill(arena, ctx, block_ref, slot_base, nconst, nlet, stmt_i, &gen, &kill);
-  glue_live_fwd_apply_stmt_gen_kill(&glue_block_live_fwd, &gen, &kill);
-}
-
-void glue_block_live_fwd_before_stmt(int32_t stmt_i, int32_t ta,
-                                              struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!glue_block_live_fwd_active)
-    return;
-  if (!glue_block_live_cfg_parent && stmt_i >= 0 && stmt_i < 32) {
-    glue_live_fwd_copy(&glue_block_live_fwd, &glue_block_live_at_stmt[stmt_i]);
-    glue_asm73_linear_scan_evict_cache_if_pressure(stmt_i, ta, elf_ctx);
-  } else if (glue_block_live_cfg_parent)
-    glue_asm73_linear_scan_evict_cache_if_pressure(stmt_i, ta, elf_ctx);
-  glue_binop_cache_intersect_live_fwd();
-}
 
 /** Return 1 when rbx still holds the effective addr for the same INDEX lvalue shape. */
 

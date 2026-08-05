@@ -1054,8 +1054,7 @@ export extern "C" function glue_asm73_interf_pop_merge(): void;
 export extern "C" function glue_asm73_cfg_final_expr_use_n_set(n: i32): void;
 /* wave165: pure owns glue_asm73_compute_spill_color_pins (#[no_mangle] below). */
 export extern "C" function glue_asm73_clear_spill_color_map(): void;
-export extern "C" function glue_block_live_fwd_before_stmt(stmt_i: i32, ta: i32, elf_ctx: *u8): void;
-export extern "C" function glue_block_live_fwd_apply_top_stmt(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32, stmt_i: i32): void;
+/* wave173: pure owns glue_block_live_fwd_before_stmt + apply_top_stmt (#[no_mangle] below). */
 export extern "C" function glue_live_fwd_forward_after_def(arena: *u8, ctx: *u8, def_off: i32, init_ref: i32): void;
 /* wave163: pure owns glue_binop_cache_intersect_live_fwd (#[no_mangle] below). */
 export extern "C" function glue_block_live_fwd_contains_off(off: i32): i32;
@@ -40726,7 +40725,7 @@ export extern "C" function arch_arm64_enc_enc_mov_x14_to_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_x15_to_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_x15_to_rbx(elf_ctx: *u8): i32;
 /* wave169: pure owns glue_binop_stack_spill_push_elf_c (#[no_mangle] below). */
-export extern "C" function glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(arena: *u8, ctx: *u8, right_ref: i32, ta: i32, elf_ctx: *u8): void;
+/* wave173: pure owns glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c (#[no_mangle] below). */
 /* wave166: pure owns glue_asm73_evict_cache_if_live_pressure_elf_c (#[no_mangle] below). */
 export extern "C" function glue_load_f32_var_slot_to_rax_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32;
 export extern "C" function glue_load_f32_var_slot_to_rbx_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32;
@@ -54665,3 +54664,160 @@ export function glue_index_subadd3_spill_pop_top_elf_c(elf_ctx: *u8, ta: i32): i
 }
 
 // end wave172 pure-owned leave
+
+// ============================================================================
+// wave173 pure-owned leave: binop left_assoc spill + live_fwd before/apply
+// (was Cap residual spill; VAR cache BSS + live_fwd/live_at_stmt BSS stay residual).
+// Public faces:
+//   · glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c
+//   · glue_block_live_fwd_before_stmt
+//   · glue_block_live_fwd_apply_top_stmt
+// Cap residual: cache/live BSS + thin active/cfg_parent/emit_stmt_i +
+// contains_off / live_at_stmt_as_u8 / copy_from_u8 / gen_kill_u8 /
+// live_fwd_as_u8 / apply_stmt_gen_kill_u8 + thin evict_rbx.
+// Pure callees: pressure (wave166) + cache∩live (wave163).
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * Left-associative commutative binop ((…){op}VAR): before loading right VAR
+ * into rbx, spill the currently cached rbx slot if it holds a different live
+ * frame offset (linear block only; cfg parent uses pressure path elsewhere).
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx* (must match residual cache ctx_key)
+ * @param right_ref i32 - right operand expr ref (VAR preferred)
+ * @param ta i32 - target arch (passed through to residual evict)
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @return void
+ * wave173 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 linear-scan spill homes.
+ */
+#[no_mangle]
+export function glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(arena: *u8, ctx: *u8, right_ref: i32, ta: i32, elf_ctx: *u8): void {
+  let roff: i32 = 0;
+  let rbx_off: i32 = 0;
+  let stmt_i: i32 = 0;
+  let active: i32 = 0;
+  let cfg_parent: i32 = 0;
+  let valid_rbx: i32 = 0;
+  let ctx_ok: i32 = 0;
+  let live_hit: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8)) {
+    return;
+  }
+  unsafe {
+    roff = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref);
+  }
+  if (roff < 0) {
+    return;
+  }
+  unsafe {
+    valid_rbx = glue_binop_var_slot_cache_valid_rbx_get();
+    ctx_ok = glue_binop_var_slot_cache_ctx_matches(ctx);
+    rbx_off = glue_binop_var_slot_cache_rbx_off_get();
+    active = glue_block_live_fwd_active_get();
+    cfg_parent = glue_block_live_cfg_parent_get();
+  }
+  if (valid_rbx == 0 || ctx_ok == 0 || rbx_off == roff) {
+    return;
+  }
+  if (active == 0 || cfg_parent != 0) {
+    return;
+  }
+  unsafe {
+    live_hit = glue_block_live_fwd_contains_off(rbx_off);
+  }
+  if (live_hit == 0) {
+    return;
+  }
+  unsafe {
+    stmt_i = glue_block_emit_stmt_i_get();
+    glue_asm73_evict_rbx_cache_entry(stmt_i, ta, elf_ctx);
+  }
+}
+
+/**
+ * Before emitting stmt i: refresh global live_fwd from precomputed
+ * live_at_stmt[i] (linear blocks), run linear-scan pressure eviction, then
+ * intersect binop VAR cache with the live set.
+ * cfg parent: pressure only (live_fwd already maintained by apply_top_stmt).
+ * No-op when live_fwd inactive.
+ * @param stmt_i i32 - statement index in current block order
+ * @param ta i32 - target arch
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @return void
+ * wave173 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_block_live_fwd_before_stmt(stmt_i: i32, ta: i32, elf_ctx: *u8): void {
+  let active: i32 = 0;
+  let cfg_parent: i32 = 0;
+  let live: *u8 = 0 as *u8;
+  unsafe {
+    active = glue_block_live_fwd_active_get();
+  }
+  if (active == 0) {
+    return;
+  }
+  unsafe {
+    cfg_parent = glue_block_live_cfg_parent_get();
+  }
+  if (cfg_parent == 0 && stmt_i >= 0 && stmt_i < 32) {
+    unsafe {
+      live = glue_asm73_live_at_stmt_as_u8(stmt_i);
+      glue_block_live_fwd_copy_from_u8(live);
+      glue_asm73_linear_scan_evict_cache_if_pressure(stmt_i, ta, elf_ctx);
+    }
+  } else {
+    if (cfg_parent != 0) {
+      unsafe {
+        glue_asm73_linear_scan_evict_cache_if_pressure(stmt_i, ta, elf_ctx);
+      }
+    }
+  }
+  unsafe {
+    glue_binop_cache_intersect_live_fwd();
+  }
+}
+
+/**
+ * After a top-level const/let/expr_stmt in a cfg parent block: apply that
+ * stmt's gen/kill to the global forward live set (residual BSS).
+ * No-op when not cfg parent or stmt_i < 0.
+ * Opaque gen/kill buffers are u8[136] overlays of GlueBlockLiveFwd.
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param block_ref i32 - block pool ref
+ * @param slot_base i32 - first local slot base offset
+ * @param nconst i32 - number of const decls in block
+ * @param nlet i32 - number of let decls in block
+ * @param stmt_i i32 - statement index just emitted
+ * @return void
+ * wave173 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_block_live_fwd_apply_top_stmt(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32, stmt_i: i32): void {
+  let cfg_parent: i32 = 0;
+  let live: *u8 = 0 as *u8;
+  let gen: u8[136] = [];
+  let kill: u8[136] = [];
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || stmt_i < 0) {
+    return;
+  }
+  unsafe {
+    cfg_parent = glue_block_live_cfg_parent_get();
+  }
+  if (cfg_parent == 0) {
+    return;
+  }
+  unsafe {
+    glue_block_stmt_gen_kill_u8(arena, ctx, block_ref, slot_base, nconst, nlet, stmt_i, &gen[0], &kill[0]);
+    live = glue_block_live_fwd_as_u8();
+    glue_live_fwd_apply_stmt_gen_kill_u8(live, &gen[0], &kill[0]);
+  }
+}
+
+// end wave173 pure-owned leave

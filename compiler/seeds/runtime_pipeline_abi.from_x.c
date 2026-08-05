@@ -25182,5 +25182,40 @@ int32_t glue_index_subadd3_spill_pop_top_elf_c(void *elf_ctx, int32_t ta) {
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/*
+ * wave173 cold twins: left_assoc spill + live_fwd before/apply faces.
+ * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+void glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(void *arena, void *ctx, int32_t right_ref, int32_t ta,
+                                                           void *elf_ctx) {
+  (void)arena;
+  (void)ctx;
+  (void)right_ref;
+  (void)ta;
+  (void)elf_ctx;
+}
+
+void glue_block_live_fwd_before_stmt(int32_t stmt_i, int32_t ta, void *elf_ctx) {
+  (void)stmt_i;
+  (void)ta;
+  (void)elf_ctx;
+}
+
+void glue_block_live_fwd_apply_top_stmt(void *arena, void *ctx, int32_t block_ref, int32_t slot_base, int32_t nconst,
+                                        int32_t nlet, int32_t stmt_i) {
+  (void)arena;
+  (void)ctx;
+  (void)block_ref;
+  (void)slot_base;
+  (void)nconst;
+  (void)nlet;
+  (void)stmt_i;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
