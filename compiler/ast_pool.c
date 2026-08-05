@@ -134,7 +134,11 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
  * + typecheck_entry_emit_c + pipeline_run_x_pipeline const-buf face).
  * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
-#include "pipeline_codegen_dep.c"
+/* 2026-08-05: pipeline_codegen_dep.c pure-owned leave retired (wave111).
+ * Live face: runtime_pipeline_abi.x (one_dep_emit / entry_emit / parse_entry_if_needed_c /
+ * fill/prepare/finish path glue / one_dep_c / deps_c / entry_c + entry_arena_for_mono).
+ * Omits DEBUG_PIPE dump; product skip/rebind/emit control-flow preserved.
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 /* 8.3.2 host-cc leave: pipeline_loop_glue.c retired — bounded-loop predicates
  * + one_dep prepare glue live in codegen_x.o (codegen_gen seed append).

@@ -4,6 +4,7 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave111: pipeline_codegen_dep.c pure-owned leave (dep/entry codegen orch).
 // wave110: pure ImportEntry storage (structure debt) - multi-module malloc map + full
 //   pipeline_module_import_* API set (alloc/path/kind/binding/select + storage_release).
 //   G.7 single authority under product PREFER hybrid; ast_pool Cap demoted XLANG_WEAK cold.
@@ -356,6 +357,25 @@ export extern "C" function pipeline_run_x_pipeline_impl(module: *u8, arena: *u8,
 export extern "C" function pipeline_typeck_parsed_module_c(module: *u8, arena: *u8, ctx: *u8, fail_mapped: i32): i32;
 // wave103: large-stack gate for LSP typeck (driver_abi pure authority).
 export extern "C" function driver_is_large_stack_thread(): i32;
+// wave111: codegen_dep pure-owned leave Cap residual (asm/C emit + dep_ctx path faces).
+// PRODUCT: pipeline_x / codegen_x / driver_abi / link_abi; pure only orchestrates.
+// PLATFORM: SHARED.
+export extern "C" function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
+export extern "C" function pipeline_dep_ctx_import_path_len(ctx: *u8, idx: i32): i32;
+export extern "C" function pipeline_dep_ctx_import_path_copy64(ctx: *u8, idx: i32, dst: *u8): void;
+export extern "C" function pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, path: *u8, len: i32): void;
+export extern "C" function pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void;
+export extern "C" function pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a: *u8): void;
+export extern "C" function pipeline_dep_ctx_use_asm_backend(ctx: *u8): i32;
+export extern "C" function pipeline_dep_ctx_entry_already_parsed(ctx: *u8): i32;
+export extern "C" function asm_asm_codegen_ast(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8): i32;
+export extern "C" function codegen_codegen_x_ast(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8, dep_index: i32): i32;
+export extern "C" function driver_set_current_dep_path_for_codegen(path: *u8): void;
+export extern "C" function driver_diagnostic_after_dep_codegen(j: i32, out_len: i32): void;
+export extern "C" function driver_diagnostic_codegen_fail(dep_index: i32, is_dep: i32): void;
+export extern "C" function driver_skip_codegen_dep_0_get(): i32;
+export extern "C" function driver_diagnostic_entry_already(v: i32): void;
+export extern "C" function pipeline_codegen_std_dep_link_only(path: *u8): i32;
 
 // wave78: xlang_fputs_stdout / driver_asm_fp_is_stdout / driver_asm_fclose_file are pure below.
 // g05 prologue harness (same as driver_abi wave22/26): FILE* cast residual for pure .x.
@@ -14281,3 +14301,656 @@ export function pipeline_codegen_emit_struct_field_decl(arena: *u8, out: *u8, ty
   return 0;
 }
 
+// ---------------------------------------------------------------------------
+// wave111: codegen_dep pure-owned leave (was pipeline_codegen_dep.c).
+// G.7 product authority for dep/entry codegen orchestration:
+//   one_dep_emit / entry_emit / parse_entry_if_needed_c /
+//   fill_dep_import_path_* / resolve_path_x_from_buf64_c /
+//   prepare_dep_codegen_path_c / finish_dep_codegen_diag_c /
+//   one_dep_c / deps_c / entry_c + entry_arena_for_mono BSS + path de-dupe.
+// Omits XLANG_DEBUG_PIPE fprintf dump (wave106 style): product control-flow
+//   for non-debug path unchanged (skip/rebind/emit still run).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/** Entry arena pointer for cross-dep mono while deps emit first (LP64 BSS). */
+let g_codegen_entry_arena_for_mono: *u8 = 0 as *u8;
+
+/**
+ * Scan NUL-terminated path_buf length capped at 127 (dep_path_rows content).
+ * @param path_buf *u8 - path bytes; null -> 0
+ * @return i32 - length in [0,127]
+ * wave111 pure private helper.
+ * PLATFORM: SHARED.
+ */
+function cg_dep_path_len127(path_buf: *u8): i32 {
+  if (path_buf == 0 as *u8) {
+    return 0;
+  }
+  let path_len: i32 = 0;
+  while (path_len < 127) {
+    let b: u8 = 0 as u8;
+    unsafe {
+      b = path_buf[path_len];
+    }
+    if (b == 0 as u8) {
+      break;
+    }
+    path_len = path_len + 1;
+  }
+  return path_len;
+}
+
+/**
+ * Byte equality for path[0..n).
+ * @param a *u8 - left
+ * @param b *u8 - right
+ * @param n i32 - length
+ * @return i32 - 1 equal, 0 otherwise
+ * wave111 pure private helper.
+ * PLATFORM: SHARED.
+ */
+function cg_dep_path_eq(a: *u8, b: *u8, n: i32): i32 {
+  if (a == 0 as *u8) {
+    return 0;
+  }
+  if (b == 0 as *u8) {
+    return 0;
+  }
+  if (n <= 0) {
+    return 1;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    let ba: u8 = 0 as u8;
+    let bb: u8 = 0 as u8;
+    unsafe {
+      ba = a[i];
+      bb = b[i];
+    }
+    if (ba != bb) {
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * True if an earlier dep slot shares the same import path (de-dupe emit).
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param dep_j i32 - current dep index
+ * @return i32 - 1 if earlier same path, 0 otherwise
+ * wave111 pure: G.7 single product authority (was static has_earlier_same_import_path_c).
+ * PLATFORM: SHARED.
+ */
+function pipeline_dep_ctx_has_earlier_same_import_path_c(ctx: *u8, dep_j: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  if (dep_j <= 0) {
+    return 0;
+  }
+  let path_len: i32 = 0;
+  unsafe {
+    path_len = pipeline_dep_ctx_import_path_len(ctx, dep_j);
+  }
+  if (path_len <= 0) {
+    return 0;
+  }
+  if (path_len > 128) {
+    return 0;
+  }
+  let path_buf: u8[128] = [];
+  unsafe {
+    memset(&path_buf[0], 0, 128 as usize);
+    pipeline_dep_ctx_import_path_copy64(ctx, dep_j, &path_buf[0]);
+  }
+  let prev_j: i32 = 0;
+  while (prev_j < dep_j) {
+    let prev_len: i32 = 0;
+    unsafe {
+      prev_len = pipeline_dep_ctx_import_path_len(ctx, prev_j);
+    }
+    if (prev_len == path_len && prev_len > 0 && prev_len <= 128) {
+      let prev_buf: u8[128] = [];
+      unsafe {
+        memset(&prev_buf[0], 0, 128 as usize);
+        pipeline_dep_ctx_import_path_copy64(ctx, prev_j, &prev_buf[0]);
+      }
+      if (cg_dep_path_eq(&prev_buf[0], &path_buf[0], path_len) != 0) {
+        return 1;
+      }
+    }
+    prev_j = prev_j + 1;
+  }
+  return 0;
+}
+
+/**
+ * Emit one dep module via asm or C backend after skip/link-only gates.
+ * Rebinds NULL dep_mod from driver_dep_* publish slots (wave578 Cap residual).
+ * @param dep_mod *u8 - Module* (may be null; rebind from driver slots)
+ * @param out_buf *u8 - CodegenOutBuf*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param dep_j i32 - dep index
+ * @param skip_asm_dep_codegen i32 - non-zero skip co-emit
+ * @param use_asm_backend i32 - non-zero -> asm_asm_codegen_ast else codegen_x_ast
+ * @return i32 - 0 ok, -1 null, -6 emit fail
+ * wave111 pure: G.7 single product authority.
+ * PLATFORM: SHARED - sole provider after codegen_dep leave.
+ */
+#[no_mangle]
+export function run_x_pipeline_codegen_one_dep_emit(dep_mod: *u8, out_buf: *u8, ctx: *u8, dep_j: i32, skip_asm_dep_codegen: i32, use_asm_backend: i32): i32 {
+  if (out_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dep_j < 0) {
+    return 0 - 1;
+  }
+  if (pipeline_dep_ctx_has_earlier_same_import_path_c(ctx, dep_j) != 0) {
+    return 0;
+  }
+  let dep_path_buf: u8[128] = [];
+  unsafe {
+    memset(&dep_path_buf[0], 0, 128 as usize);
+    pipeline_dep_ctx_import_path_copy64(ctx, dep_j, &dep_path_buf[0]);
+  }
+  let mod: *u8 = dep_mod;
+  if (mod == 0 as *u8) {
+    let sync_slot: i32 = 0;
+    unsafe {
+      sync_slot = driver_dep_slot_for_path(&dep_path_buf[0]);
+    }
+    if (sync_slot < 0) {
+      sync_slot = dep_j;
+    }
+    unsafe {
+      mod = driver_dep_module_buf(sync_slot);
+    }
+    if (mod != 0 as *u8) {
+      let ar: *u8 = 0 as *u8;
+      unsafe {
+        ar = driver_dep_arena_buf(sync_slot);
+        pipeline_dep_ctx_set_module(ctx, dep_j, mod);
+        pipeline_dep_ctx_set_arena(ctx, dep_j, ar);
+      }
+    }
+  }
+  let skip_boot: i32 = 0;
+  unsafe {
+    skip_boot = pipeline_codegen_dep_skip_x_bootstrap_partial(&dep_path_buf[0]);
+  }
+  if (skip_boot != 0) {
+    return 0;
+  }
+  let link_only: i32 = 0;
+  unsafe {
+    link_only = pipeline_codegen_std_dep_link_only(&dep_path_buf[0]);
+  }
+  if (link_only != 0) {
+    return 0;
+  }
+  if (skip_asm_dep_codegen != 0) {
+    return 0;
+  }
+  if (mod != 0 as *u8) {
+    let nf: i32 = 0;
+    unsafe {
+      nf = pipeline_module_num_funcs(mod);
+    }
+    if (nf > 0) {
+      let arena_j: *u8 = 0 as *u8;
+      unsafe {
+        arena_j = pipeline_dep_ctx_arena_at(ctx, dep_j);
+      }
+      if (use_asm_backend != 0) {
+        let rc: i32 = 0;
+        unsafe {
+          rc = asm_asm_codegen_ast(mod, arena_j, out_buf, ctx);
+        }
+        if (rc != 0) {
+          return 0 - 6;
+        }
+      } else {
+        let rc2: i32 = 0;
+        unsafe {
+          rc2 = codegen_codegen_x_ast(mod, arena_j, out_buf, ctx, dep_j);
+        }
+        if (rc2 != 0) {
+          return 0 - 6;
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * Emit entry module via asm or C backend.
+ * @param module *u8 - entry Module*
+ * @param arena *u8 - entry ASTArena*
+ * @param out_buf *u8 - CodegenOutBuf*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param use_asm_backend i32 - non-zero asm else C
+ * @return i32 - 0 ok, -1 null, -6 emit fail
+ * wave111 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function run_x_pipeline_codegen_entry_emit(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8, use_asm_backend: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (use_asm_backend != 0) {
+    let rc: i32 = 0;
+    unsafe {
+      rc = asm_asm_codegen_ast(module, arena, out_buf, ctx);
+    }
+    if (rc != 0) {
+      return 0 - 6;
+    }
+  } else {
+    let rc2: i32 = 0;
+    unsafe {
+      rc2 = codegen_codegen_x_ast(module, arena, out_buf, ctx, 0 - 1);
+    }
+    if (rc2 != 0) {
+      return 0 - 6;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Parse entry if not already parsed; otherwise entry diags only.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param source_data *u8 - source bytes
+ * @param source_len i64 - length
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - 0 ok/already, do_parse rc, -1 null
+ * wave111 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function run_x_pipeline_parse_entry_if_needed_c(module: *u8, arena: *u8, source_data: *u8, source_len: i64, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let already: i32 = 0;
+  unsafe {
+    already = pipeline_dep_ctx_entry_already_parsed(ctx);
+    driver_diagnostic_entry_already(already);
+  }
+  if (already != 0) {
+    let nf: i32 = 0;
+    unsafe {
+      nf = pipeline_module_num_funcs(module);
+      driver_diagnostic_after_entry_parse(nf);
+      driver_diagnostic_entry_module(module, arena);
+    }
+    return 0;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = run_x_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
+  }
+  return rc;
+}
+
+/**
+ * If path_buf non-empty, write import_path on ctx slot dep_j.
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param dep_j i32 - slot index
+ * @param path_buf *u8 - NUL-terminated path (scan <=127)
+ * @return i32 - 0 ok, -1 null/bad index
+ * wave111 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_fill_dep_import_path_from_buf_c(ctx: *u8, dep_j: i32, path_buf: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (path_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dep_j < 0) {
+    return 0 - 1;
+  }
+  let path_len: i32 = cg_dep_path_len127(path_buf);
+  if (path_len > 0) {
+    unsafe {
+      pipeline_dep_ctx_set_import_path(ctx, dep_j, path_buf, path_len);
+    }
+  }
+  return 0;
+}
+
+/**
+ * Scan path_buf length then pipeline_resolve_path_x.
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param path_buf *u8 - NUL-terminated path
+ * @return i32 - resolve rc, -1 null/empty
+ * wave111 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_x_from_buf64_c(ctx: *u8, path_buf: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (path_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  let path_len: i32 = cg_dep_path_len127(path_buf);
+  if (path_len <= 0) {
+    return 0 - 1;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_resolve_path_x(ctx, path_buf, path_len);
+  }
+  return rc;
+}
+
+/**
+ * Fill empty ctx import_path slot from entry module import[dep_j].
+ * Preserves non-empty ctx path (closure seed authority; wave net/driver bugfix).
+ * @param module *u8 - entry Module*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param dep_j i32 - slot index
+ * @return i32 - 0 ok, -1 null
+ * wave111 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function run_x_pipeline_fill_dep_import_path_c(module: *u8, ctx: *u8, dep_j: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dep_j < 0) {
+    return 0 - 1;
+  }
+  let existing: i32 = 0;
+  unsafe {
+    existing = pipeline_dep_ctx_import_path_len(ctx, dep_j);
+  }
+  if (existing > 0) {
+    return 0;
+  }
+  let path_buf: u8[128] = [];
+  unsafe {
+    memset(&path_buf[0], 0, 128 as usize);
+    parser_copy_module_import_path64(module, dep_j, &path_buf[0]);
+  }
+  let path_len: i32 = cg_dep_path_len127(&path_buf[0]);
+  if (path_len > 0) {
+    unsafe {
+      pipeline_dep_ctx_set_import_path(ctx, dep_j, &path_buf[0], path_len);
+    }
+  }
+  return 0;
+}
+
+/**
+ * Copy dep path into dst and set current dep path for codegen prefix.
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param dep_j i32 - slot
+ * @param dst *u8 - out path buf (>=128)
+ * @return i32 - 0 ok, -1 null
+ * wave111 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_prepare_dep_codegen_path_c(ctx: *u8, dep_j: i32, dst: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dst == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dep_j < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dst);
+    driver_set_current_dep_path_for_codegen(dst);
+  }
+  return 0;
+}
+
+/**
+ * After dep emit: diag with out_buf len and clear current dep path prefix.
+ * @param dep_j i32 - dep index
+ * @param out_buf *u8 - CodegenOutBuf*
+ * @return i32 - 0 ok, -1 null out_buf
+ * wave111 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_finish_dep_codegen_diag_c(dep_j: i32, out_buf: *u8): i32 {
+  if (out_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  let olen: i32 = 0;
+  unsafe {
+    olen = codegen_out_buf_len(out_buf);
+    driver_diagnostic_after_dep_codegen(dep_j, olen);
+    driver_set_current_dep_path_for_codegen(0 as *u8);
+  }
+  return 0;
+}
+
+/**
+ * One-dep codegen orchestration: fill path, prepare, skip gates, emit, finish diag.
+ * @param module *u8 - entry Module* (for fill_dep import)
+ * @param out_buf *u8 - CodegenOutBuf*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param dep_j i32 - dep index
+ * @param skip_asm_dep_codegen i32 - skip co-emit
+ * @return i32 - 0 ok/skip, -1 null, -6 emit fail
+ * wave111 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function run_x_pipeline_codegen_one_dep_c(module: *u8, out_buf: *u8, ctx: *u8, dep_j: i32, skip_asm_dep_codegen: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dep_j < 0) {
+    return 0 - 1;
+  }
+  if (dep_j == 0) {
+    let sk0: i32 = 0;
+    unsafe {
+      sk0 = driver_skip_codegen_dep_0_get();
+    }
+    if (sk0 != 0) {
+      return 0;
+    }
+  }
+  if (run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j) != 0) {
+    return 0 - 1;
+  }
+  let dep_path_buf: u8[128] = [];
+  unsafe {
+    memset(&dep_path_buf[0], 0, 128 as usize);
+  }
+  if (pipeline_prepare_dep_codegen_path_c(ctx, dep_j, &dep_path_buf[0]) != 0) {
+    return 0 - 1;
+  }
+  let dep_mod: *u8 = 0 as *u8;
+  unsafe {
+    dep_mod = pipeline_dep_ctx_module_at(ctx, dep_j);
+  }
+  if (dep_mod == 0 as *u8) {
+    let sync_slot: i32 = 0;
+    unsafe {
+      sync_slot = driver_dep_slot_for_path(&dep_path_buf[0]);
+    }
+    if (sync_slot < 0) {
+      sync_slot = dep_j;
+    }
+    unsafe {
+      dep_mod = driver_dep_module_buf(sync_slot);
+    }
+    if (dep_mod != 0 as *u8) {
+      let ar: *u8 = 0 as *u8;
+      unsafe {
+        ar = driver_dep_arena_buf(sync_slot);
+        pipeline_dep_ctx_set_module(ctx, dep_j, dep_mod);
+        pipeline_dep_ctx_set_arena(ctx, dep_j, ar);
+      }
+    }
+  }
+  let skip_boot: i32 = 0;
+  unsafe {
+    skip_boot = pipeline_codegen_dep_skip_x_bootstrap_partial(&dep_path_buf[0]);
+  }
+  if (skip_boot != 0) {
+    unsafe {
+      driver_set_current_dep_path_for_codegen(0 as *u8);
+    }
+    return 0;
+  }
+  let use_asm: i32 = 0;
+  unsafe {
+    use_asm = pipeline_dep_ctx_use_asm_backend(ctx);
+  }
+  if (run_x_pipeline_codegen_one_dep_emit(dep_mod, out_buf, ctx, dep_j, skip_asm_dep_codegen, use_asm) != 0) {
+    unsafe {
+      driver_diagnostic_codegen_fail(dep_j, 1);
+    }
+    return 0 - 6;
+  }
+  pipeline_finish_dep_codegen_diag_c(dep_j, out_buf);
+  return 0;
+}
+
+/**
+ * Entry arena for mono while deps emit before entry (set in deps_c).
+ * @return *u8 - ASTArena* or null
+ * wave111 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_entry_arena_for_mono_get(): *u8 {
+  return g_codegen_entry_arena_for_mono;
+}
+
+/**
+ * Codegen all deps: stash entry arena, reset C prologue, loop one_dep_c with de-dupe.
+ * @param module *u8 - entry Module*
+ * @param arena *u8 - entry arena (mono scan)
+ * @param out_buf *u8 - CodegenOutBuf*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param skip_asm_dep_codegen i32 - skip co-emit for deps
+ * @return i32 - 0 ok, -1 null, -6 dep fail
+ * wave111 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function run_x_pipeline_codegen_deps_c(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8, skip_asm_dep_codegen: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  g_codegen_entry_arena_for_mono = arena;
+  unsafe {
+    pipeline_codegen_c_file_prologue_done_reset();
+  }
+  let ndep: i32 = 0;
+  unsafe {
+    ndep = pipeline_dep_ctx_ndep(ctx);
+  }
+  let j: i32 = 0;
+  while (j < ndep) {
+    if (pipeline_dep_ctx_has_earlier_same_import_path_c(ctx, j) != 0) {
+      j = j + 1;
+      continue;
+    }
+    if (run_x_pipeline_codegen_one_dep_c(module, out_buf, ctx, j, skip_asm_dep_codegen) != 0) {
+      return 0 - 6;
+    }
+    j = j + 1;
+  }
+  return 0;
+}
+
+/**
+ * Entry module final codegen orchestration with entry_module diag.
+ * @param module *u8 - entry Module*
+ * @param arena *u8 - ASTArena*
+ * @param out_buf *u8 - CodegenOutBuf*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - 0 ok, -1 null, -6 emit fail
+ * wave111 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function run_x_pipeline_codegen_entry_c(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    driver_diagnostic_entry_module(module, arena);
+  }
+  let use_asm: i32 = 0;
+  unsafe {
+    use_asm = pipeline_dep_ctx_use_asm_backend(ctx);
+  }
+  if (run_x_pipeline_codegen_entry_emit(module, arena, out_buf, ctx, use_asm) != 0) {
+    unsafe {
+      driver_diagnostic_codegen_fail(0, 0);
+    }
+    return 0 - 6;
+  }
+  return 0;
+}

@@ -184,7 +184,8 @@ uint8_t *ast_pipeline_scratch_buf256(void) {
 uint8_t *ast_pipeline_scratch_buf256_slot(int32_t slot) {
   return pipeline_scratch_buf256_slot(slot);
 }
-/* wave110: struct_emit faces live in runtime_pipeline_abi pure (no same-TU body).
+/* wave111: codegen_dep orchestration live in runtime_pipeline_abi pure (no same-TU body).
+ * wave110: struct_emit faces live in runtime_pipeline_abi pure (no same-TU body).
  * wave109: type_to_c faces live in runtime_pipeline_abi pure (no same-TU body).
  * wave108: skip_force predicates live in runtime_pipeline_abi pure (no same-TU body).
  * wave107: residual predicates live in runtime_pipeline_abi pure (no same-TU body).

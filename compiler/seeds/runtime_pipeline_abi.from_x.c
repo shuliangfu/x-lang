@@ -6046,5 +6046,260 @@ int32_t pipeline_codegen_emit_struct_field_decl(void *arena, void *out, int32_t 
   return 0;
 }
 
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/* wave111 codegen_dep leave cold twins — former pipeline_codegen_dep.c.
+ * Product hybrid PREFER: pure runtime_pipeline_abi.x owns strong orchestration.
+ * Continues #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X from wave101 leave twins.
+ * PLATFORM: SHARED — cold only when pure FROM_X object is not linked.
+ */
+
+/* Cap residual faces not yet declared earlier in this cold block. */
+extern int32_t pipeline_dep_ctx_import_path_len(struct ast_PipelineDepCtx *ctx, int32_t idx);
+extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *dst);
+extern void *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
+extern void *pipeline_dep_ctx_arena_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
+extern int32_t pipeline_dep_ctx_use_asm_backend(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_dep_ctx_entry_already_parsed(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
+extern void pipeline_dep_ctx_set_import_path(void *ctx, int32_t idx, uint8_t *path, int32_t len);
+extern void ast_pipeline_dep_ctx_set_module(struct ast_PipelineDepCtx *ctx, int32_t idx, struct ast_Module *m);
+extern void ast_pipeline_dep_ctx_set_arena(struct ast_PipelineDepCtx *ctx, int32_t idx, struct ast_ASTArena *a);
+extern int32_t pipeline_module_num_funcs(void *m);
+extern int32_t driver_dep_slot_for_path(const char *path);
+extern uint8_t *driver_dep_module_buf(int32_t i);
+extern uint8_t *driver_dep_arena_buf(int32_t i);
+extern int pipeline_codegen_std_dep_link_only(uint8_t *path);
+extern int32_t asm_asm_codegen_ast(void *module, void *arena, void *out_buf, void *ctx);
+extern int32_t codegen_codegen_x_ast(void *module, void *arena, void *out_buf, void *ctx, int32_t dep_index);
+extern void driver_set_current_dep_path_for_codegen(const char *path);
+extern void driver_diagnostic_after_dep_codegen(int32_t j, int32_t out_len);
+extern void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep);
+extern int32_t driver_skip_codegen_dep_0_get(void);
+extern void driver_diagnostic_entry_already(int32_t v);
+extern void driver_diagnostic_after_entry_parse(int32_t num_funcs);
+extern void driver_diagnostic_entry_module(void *module, void *arena);
+extern int32_t parser_copy_module_import_path64(void *module, int32_t i, uint8_t out[128]);
+extern int32_t pipeline_resolve_path_x(void *ctx, uint8_t *import_path, int32_t path_len);
+
+static int32_t pipeline_dep_ctx_has_earlier_same_import_path_c_w111(struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
+  int32_t path_len, prev_j;
+  uint8_t path_buf[128];
+  if (!ctx || dep_j <= 0)
+    return 0;
+  path_len = pipeline_dep_ctx_import_path_len(ctx, dep_j);
+  if (path_len <= 0 || path_len > (int32_t)sizeof(path_buf))
+    return 0;
+  memset(path_buf, 0, sizeof(path_buf));
+  pipeline_dep_ctx_import_path_copy64(ctx, dep_j, path_buf);
+  for (prev_j = 0; prev_j < dep_j; prev_j++) {
+    int32_t prev_len = pipeline_dep_ctx_import_path_len(ctx, prev_j);
+    uint8_t prev_buf[128];
+    if (prev_len == path_len && prev_len > 0 && prev_len <= (int32_t)sizeof(prev_buf)) {
+      memset(prev_buf, 0, sizeof(prev_buf));
+      pipeline_dep_ctx_import_path_copy64(ctx, prev_j, prev_buf);
+      if (memcmp(prev_buf, path_buf, (size_t)path_len) == 0)
+        return 1;
+    }
+  }
+  return 0;
+}
+
+int32_t run_x_pipeline_codegen_one_dep_emit(void *dep_mod, void *out_buf, void *ctx_v, int32_t dep_j,
+                                            int32_t skip_asm_dep_codegen, int32_t use_asm_backend) {
+  struct ast_PipelineDepCtx *ctx = (struct ast_PipelineDepCtx *)ctx_v;
+  uint8_t dep_path_buf[128];
+  void *mod = dep_mod;
+  if (!out_buf || !ctx || dep_j < 0)
+    return -1;
+  if (pipeline_dep_ctx_has_earlier_same_import_path_c_w111(ctx, dep_j) != 0)
+    return 0;
+  memset(dep_path_buf, 0, sizeof(dep_path_buf));
+  pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dep_path_buf);
+  if (!mod) {
+    int32_t sync_slot = driver_dep_slot_for_path((const char *)dep_path_buf);
+    if (sync_slot < 0)
+      sync_slot = dep_j;
+    mod = driver_dep_module_buf(sync_slot);
+    if (mod) {
+      ast_pipeline_dep_ctx_set_module(ctx, dep_j, (struct ast_Module *)mod);
+      ast_pipeline_dep_ctx_set_arena(ctx, dep_j, (struct ast_ASTArena *)driver_dep_arena_buf(sync_slot));
+    }
+  }
+  if (pipeline_codegen_dep_skip_x_bootstrap_partial(dep_path_buf) != 0)
+    return 0;
+  if (pipeline_codegen_std_dep_link_only(dep_path_buf) != 0)
+    return 0;
+  if (skip_asm_dep_codegen != 0)
+    return 0;
+  if (mod && pipeline_module_num_funcs(mod) > 0) {
+    void *arena_j = pipeline_dep_ctx_arena_at(ctx, dep_j);
+    if (use_asm_backend != 0) {
+      if (asm_asm_codegen_ast(mod, arena_j, out_buf, ctx) != 0)
+        return -6;
+    } else if (codegen_codegen_x_ast(mod, arena_j, out_buf, ctx, dep_j) != 0) {
+      return -6;
+    }
+  }
+  return 0;
+}
+
+int32_t run_x_pipeline_codegen_entry_emit(void *module, void *arena, void *out_buf, void *ctx,
+                                          int32_t use_asm_backend) {
+  if (!module || !arena || !out_buf || !ctx)
+    return -1;
+  if (use_asm_backend != 0) {
+    if (asm_asm_codegen_ast(module, arena, out_buf, ctx) != 0)
+      return -6;
+  } else if (codegen_codegen_x_ast(module, arena, out_buf, ctx, -1) != 0) {
+    return -6;
+  }
+  return 0;
+}
+
+int32_t run_x_pipeline_parse_entry_if_needed_c(void *module, void *arena, uint8_t *source_data,
+                                               size_t source_len, void *ctx_v) {
+  struct ast_PipelineDepCtx *ctx = (struct ast_PipelineDepCtx *)ctx_v;
+  if (!module || !arena || !ctx)
+    return -1;
+  driver_diagnostic_entry_already(pipeline_dep_ctx_entry_already_parsed(ctx));
+  if (pipeline_dep_ctx_entry_already_parsed(ctx) != 0) {
+    driver_diagnostic_after_entry_parse(pipeline_module_num_funcs(module));
+    driver_diagnostic_entry_module(module, arena);
+    return 0;
+  }
+  return run_x_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
+}
+
+int32_t pipeline_fill_dep_import_path_from_buf_c(void *ctx, int32_t dep_j, uint8_t *path_buf) {
+  int32_t path_len = 0;
+  if (!ctx || !path_buf || dep_j < 0)
+    return -1;
+  while (path_len < 127 && path_buf[path_len] != 0)
+    path_len++;
+  if (path_len > 0)
+    pipeline_dep_ctx_set_import_path(ctx, dep_j, path_buf, path_len);
+  return 0;
+}
+
+int32_t pipeline_resolve_path_x_from_buf64_c(void *ctx, uint8_t *path_buf) {
+  int32_t path_len = 0;
+  if (!ctx || !path_buf)
+    return -1;
+  while (path_len < 127 && path_buf[path_len] != 0)
+    path_len++;
+  if (path_len <= 0)
+    return -1;
+  return pipeline_resolve_path_x(ctx, path_buf, path_len);
+}
+
+int32_t run_x_pipeline_fill_dep_import_path_c(void *module, void *ctx_v, int32_t dep_j) {
+  struct ast_PipelineDepCtx *ctx = (struct ast_PipelineDepCtx *)ctx_v;
+  uint8_t path_buf[128];
+  int32_t path_len = 0;
+  int32_t existing;
+  if (!module || !ctx || dep_j < 0)
+    return -1;
+  existing = pipeline_dep_ctx_import_path_len(ctx, dep_j);
+  if (existing > 0)
+    return 0;
+  memset(path_buf, 0, sizeof(path_buf));
+  (void)parser_copy_module_import_path64(module, dep_j, path_buf);
+  while (path_len < 127 && path_buf[path_len] != 0)
+    path_len++;
+  if (path_len > 0)
+    pipeline_dep_ctx_set_import_path(ctx, dep_j, path_buf, path_len);
+  return 0;
+}
+
+int32_t pipeline_prepare_dep_codegen_path_c(void *ctx_v, int32_t dep_j, uint8_t *dst) {
+  struct ast_PipelineDepCtx *ctx = (struct ast_PipelineDepCtx *)ctx_v;
+  if (!ctx || !dst || dep_j < 0)
+    return -1;
+  pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dst);
+  driver_set_current_dep_path_for_codegen((const char *)dst);
+  return 0;
+}
+
+int32_t pipeline_finish_dep_codegen_diag_c(int32_t dep_j, void *out_buf) {
+  if (!out_buf)
+    return -1;
+  driver_diagnostic_after_dep_codegen(dep_j, codegen_out_buf_len(out_buf));
+  driver_set_current_dep_path_for_codegen(NULL);
+  return 0;
+}
+
+int32_t run_x_pipeline_codegen_one_dep_c(void *module, void *out_buf, void *ctx_v, int32_t dep_j,
+                                         int32_t skip_asm_dep_codegen) {
+  struct ast_PipelineDepCtx *ctx = (struct ast_PipelineDepCtx *)ctx_v;
+  uint8_t dep_path_buf[128];
+  void *dep_mod;
+  int32_t use_asm;
+  if (!module || !out_buf || !ctx || dep_j < 0)
+    return -1;
+  if (dep_j == 0 && driver_skip_codegen_dep_0_get() != 0)
+    return 0;
+  if (run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j) != 0)
+    return -1;
+  memset(dep_path_buf, 0, sizeof(dep_path_buf));
+  pipeline_prepare_dep_codegen_path_c(ctx, dep_j, dep_path_buf);
+  dep_mod = pipeline_dep_ctx_module_at(ctx, dep_j);
+  if (!dep_mod) {
+    int32_t sync_slot = driver_dep_slot_for_path((const char *)dep_path_buf);
+    if (sync_slot < 0)
+      sync_slot = dep_j;
+    dep_mod = driver_dep_module_buf(sync_slot);
+    if (dep_mod) {
+      ast_pipeline_dep_ctx_set_module(ctx, dep_j, (struct ast_Module *)dep_mod);
+      ast_pipeline_dep_ctx_set_arena(ctx, dep_j, (struct ast_ASTArena *)driver_dep_arena_buf(sync_slot));
+    }
+  }
+  if (pipeline_codegen_dep_skip_x_bootstrap_partial(dep_path_buf) != 0) {
+    driver_set_current_dep_path_for_codegen(NULL);
+    return 0;
+  }
+  use_asm = pipeline_dep_ctx_use_asm_backend(ctx);
+  if (run_x_pipeline_codegen_one_dep_emit(dep_mod, out_buf, ctx, dep_j, skip_asm_dep_codegen, use_asm) != 0) {
+    driver_diagnostic_codegen_fail(dep_j, 1);
+    return -6;
+  }
+  pipeline_finish_dep_codegen_diag_c(dep_j, out_buf);
+  return 0;
+}
+
+static void *g_codegen_entry_arena_for_mono_w111;
+
+void *pipeline_codegen_entry_arena_for_mono_get(void) {
+  return g_codegen_entry_arena_for_mono_w111;
+}
+
+int32_t run_x_pipeline_codegen_deps_c(void *module, void *arena, void *out_buf, void *ctx_v,
+                                      int32_t skip_asm_dep_codegen) {
+  struct ast_PipelineDepCtx *ctx = (struct ast_PipelineDepCtx *)ctx_v;
+  int32_t ndep, j;
+  if (!module || !arena || !out_buf || !ctx)
+    return -1;
+  g_codegen_entry_arena_for_mono_w111 = arena;
+  pipeline_codegen_c_file_prologue_done_reset();
+  ndep = pipeline_dep_ctx_ndep(ctx);
+  for (j = 0; j < ndep; j++) {
+    if (pipeline_dep_ctx_has_earlier_same_import_path_c_w111(ctx, j) != 0)
+      continue;
+    if (run_x_pipeline_codegen_one_dep_c(module, out_buf, ctx, j, skip_asm_dep_codegen) != 0)
+      return -6;
+  }
+  return 0;
+}
+
+int32_t run_x_pipeline_codegen_entry_c(void *module, void *arena, void *out_buf, void *ctx_v) {
+  struct ast_PipelineDepCtx *ctx = (struct ast_PipelineDepCtx *)ctx_v;
+  if (!module || !arena || !out_buf || !ctx)
+    return -1;
+  driver_diagnostic_entry_module(module, arena);
+  if (run_x_pipeline_codegen_entry_emit(module, arena, out_buf, ctx, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {
+    driver_diagnostic_codegen_fail(0, 0);
+    return -6;
+  }
+  return 0;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
