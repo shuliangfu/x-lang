@@ -76,3 +76,16 @@ extern int32_t pipeline_asm_emit_if_then_block_body_elf_c(struct ast_ASTArena *a
                                                          int32_t then_block_ref, struct backend_AsmFuncCtx *ctx,
                                                          int32_t ta);
 
+/* wave145 pure leave: slice_from_array + block_inits faces (was same-TU static in
+ * pipeline_asm_emit_block_inits.c). Residual block_body calls these pure symbols.
+ * PLATFORM: SHARED freestanding emit. */
+extern int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         int32_t block_ref, int32_t let_idx, int32_t init_ref,
+                                                         int32_t let_type_ref, struct backend_AsmFuncCtx *ctx,
+                                                         int32_t ta, int32_t slice_slot_off);
+extern int32_t pipeline_asm_emit_block_inits_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                   int32_t block_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                   int32_t slot_base);
+extern void pipeline_asm_fill_block_locals_tree(struct backend_AsmFuncCtx *ctx, struct ast_ASTArena *arena,
+                                               int32_t block_ref);

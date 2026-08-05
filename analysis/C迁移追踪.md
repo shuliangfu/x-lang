@@ -934,7 +934,7 @@
 | `pipeline_asm_emit_block_if_stmt.c` | ~106 | asm ELF block-level if-stmt emit（then-first jz）切片 | ✅ wave129 pure-owned leave；live＝runtime_pipeline_abi pure；host 叶已删 |
 | `pipeline_asm_emit_async_cps.c` | ~240 | asm ELF async/CPS emit（entry/end/await/phase_reset + bag） | ✅ wave131 pure-owned leave；live＝runtime_pipeline_abi pure bag BSS；host 叶已删 |
 | `pipeline_asm_emit_wpo_mono.c` | ~235 | WPO-S2 mono thunk bag + emit（reset/register/thunks） | ✅ wave130 pure-owned leave；live＝runtime_pipeline_abi pure bag BSS；host 叶已删 |
-| `pipeline_asm_emit_block_inits.c` | ~171 | asm ELF block const/let init emit 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_block_inits.c` | 0 | asm ELF block const/let init emit 切片 | ✅ wave145 pure-owned leave（0 absent） |
 | `pipeline_asm_emit_assign.c` | **0（leave）** | asm ELF EXPR_ASSIGN emit（lhs f32 + rhs + assign_rhs_to_rax + assign_elf + field_assign_pair + body_expr_stmt_at） | ✅ wave142 pure-owned leave；live＝runtime_pipeline_abi pure；seed cold twin under #ifndef FROM_X；host 叶已删 |
 | `pipeline_asm_emit_array_lit.c` | **0（leave）** | asm ELF EXPR_ARRAY_LIT emit（elem_sz + empty + force_esz + durable + temp_bytes + elem_type_ref） | ✅ **pure-owned leave**（wave143 · 2026-08-05）；live＝runtime_pipeline_abi pure；Cap residual leaf/flat vector_let static→extern + al_nc_seq_take；seed cold twin under #ifndef FROM_X |
 | `pipeline_asm_emit_index.c` | **0（leave）** | asm ELF INDEX/ADDR_OF/DEREF + esz | ✅ wave140 pure-owned leave；live＝runtime_pipeline_abi pure；seed cold twin under #ifndef FROM_X；host 叶已删 |

@@ -814,13 +814,12 @@ void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_AS
  * glue_array_lit_emit_scalar_elem_to_rax_elf_c late redecls removed — both
  * now covered by pipeline_glue_emit_lea_fwd.c (wave1288, same-TU before here). */
 
-/* wave1024 G.7: glue_slice_dual_gp_length_off_c + bump_past_home +
- * glue_emit_slice_from_array_let_init_elf_c folded into
- * pipeline_asm_emit_block_inits.c (same TU #include; no new DEPS).
- * glue ~2017 forward decl for length_off kept (call_args leaf uses it).
- * bump_past_home: call_args leaf calls it (no explicit fwd; same TU later def). */
-/* BC 8.3.1: asm ELF block const/let init emit domain (same TU). */
-#include "pipeline_asm_emit_block_inits.c"
+/* wave145 pure-owned leave: pipeline_asm_emit_block_inits.c deleted.
+ * Faces live in runtime_pipeline_abi.x (+ seed cold twins under ifndef FROM_X):
+ * dual_gp, slice_from_array, block_inits_elf, skip-typeck fill cluster,
+ * fill_block_locals_tree, let_init_stack_reserve. Residual C Cap residual.
+ * PLATFORM: SHARED freestanding emit.
+ */
 
 
 /* wave122 pure-owned leave: pipeline_asm_emit_with_arena.c deleted.

@@ -783,7 +783,8 @@ int32_t glue_emit_fixed_array_type_let_init_elf_c(struct ast_ASTArena *arena,
  *
  * PLATFORM: SHARED — pure type kind comparison; no platform ABI dependency.
  */
-static int32_t glue_block_let_is_fixed_array_type(struct ast_ASTArena *arena, int32_t block_ref,
+/* wave145 pure Cap residual: static→extern. */
+int32_t glue_block_let_is_fixed_array_type(struct ast_ASTArena *arena, int32_t block_ref,
                                                   int32_t let_idx) {
   int32_t tr;
   if (!arena || block_ref <= 0 || let_idx < 0)
@@ -805,7 +806,8 @@ static int32_t glue_block_let_is_fixed_array_type(struct ast_ASTArena *arena, in
  *
  * PLATFORM: SHARED — pure kind comparison; no platform ABI dependency.
  */
-static int32_t glue_fixed_array_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref,
+/* wave145 pure Cap residual: static→extern. */
+int32_t glue_fixed_array_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref,
                                                           int32_t init_ref) {
   if (!glue_type_is_fixed_array(arena, type_ref) || init_ref <= 0)
     return 0;

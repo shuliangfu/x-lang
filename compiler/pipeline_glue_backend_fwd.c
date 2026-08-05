@@ -420,13 +420,10 @@ int32_t pipeline_block_const_type_ref(struct ast_ASTArena *a, int32_t br, int32_
 int32_t pipeline_block_let_type_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
 int32_t pipeline_block_let_init_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
 
-/* wave1149 G.7: pipeline_asm_fill_block_locals_tree migrated to
- * pipeline_asm_emit_block_inits.c EOF (block-local slot allocation
- * domain; colocated with const/let init emit). Visible here via
- * #include at L3617 (before callers at L5230 / block_body.c /
- * block_if_stmt.c). Direct g_pipeline_asm_emit_module write replaced
- * with pipeline_asm_emit_set_module() public setter (G.7 single
- * authority). PLATFORM: SHARED. */
+/* wave145 pure leave: pipeline_asm_fill_block_locals_tree live in
+ * runtime_pipeline_abi pure (was block_inits.c). PLATFORM: SHARED. */
+void pipeline_asm_fill_block_locals_tree(struct backend_AsmFuncCtx *ctx, struct ast_ASTArena *arena,
+                                         int32_t block_ref);
 extern int32_t backend_try_fold_count_up_while_elf(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref,
                                                    int32_t loop_idx, struct backend_AsmFuncCtx *ctx, int32_t ta);
@@ -621,9 +618,8 @@ int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int3
 /* wave143 pure leave */
 extern int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *arena, int32_t et);
 /* wave692: used by durable TYPE_SLICE fat pack before full defs later in TU. */
+/* wave145 pure leave: dual-gp faces live in runtime_pipeline_abi pure. */
 int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
-/* wave144: bump_past was only same-TU via return.c mid decls; keep public for
- * call_args residual (include order before block_inits def). */
 void glue_slice_dual_gp_bump_past_home_c(struct backend_AsmFuncCtx *ctx, int32_t data_home, int32_t ta);
 /* wave126 pure leave: glue_align_next_offset live = runtime_pipeline_abi pure (no longer static). */
 void glue_align_next_offset(struct backend_AsmFuncCtx *ctx);
@@ -642,3 +638,17 @@ int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *
                                                      int32_t ta);
 /* wave1021: durable doc/body folded into pipeline_asm_emit_array_lit.c.
  * Seq counter for non-const COMMON labels (shared: durable + return escape + reent). */
+
+/* wave145 pure leave: block_inits public faces (residual mega_body / block_body). */
+extern int32_t pipeline_asm_emit_block_inits_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                   int32_t block_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                   int32_t slot_base);
+extern int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         int32_t block_ref, int32_t let_idx, int32_t init_ref,
+                                                         int32_t let_type_ref, struct backend_AsmFuncCtx *ctx,
+                                                         int32_t ta, int32_t slice_slot_off);
+extern int32_t pipeline_asm_let_init_stack_reserve_bytes(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref);
+extern void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, struct ast_ASTArena *arena);
+extern void glue_fill_var_types_from_params_for_func(struct ast_Module *m, struct ast_ASTArena *arena, int32_t func_index);
+extern void glue_fill_var_types_from_lets_in_block(struct ast_ASTArena *arena, int32_t block_ref);

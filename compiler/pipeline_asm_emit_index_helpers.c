@@ -186,7 +186,8 @@ static int32_t glue_local_var_slot_needs_ptr_load_elf_c(struct ast_ASTArena *are
 /**
  * 局部 VAR 槽地址：*T 为 load 指针；定长 T[N] / struct / 向量等为 lea 栈槽（按值存放）。
  */
-static int32_t glue_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena,
+/* wave145 pure Cap residual: static→extern. */
+int32_t glue_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena,
                                                      struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t var_expr_ref,
                                                      int32_t stack_off, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   if (glue_local_var_slot_needs_ptr_load_elf_c(arena, var_expr_ref, stack_off, ctx) != 0)
@@ -601,7 +602,8 @@ int32_t glue_var_expr_type_ref_with_decl_fallback_c(struct ast_ASTArena *arena, 
  * PLATFORM: SHARED — lit-index fast path and scaled INDEX both use this (must match
  * glue_emit_index_eff_addr_base_* slice load at +0).
  */
-static int32_t glue_try_index_var_or_field_base_to_rax_elf_c(struct ast_ASTArena *arena,
+/* wave145 pure Cap residual: static→extern. */
+int32_t glue_try_index_var_or_field_base_to_rax_elf_c(struct ast_ASTArena *arena,
                                                               struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                               int32_t base_ref, struct backend_AsmFuncCtx *ctx,
                                                               int32_t ta) {

@@ -4,6 +4,9 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave145: pipeline_asm_emit_block_inits.c pure-owned leave (block const/let inits + dual-gp +
+//   slice_from_array + skip-typeck fill cluster + fill_block_locals_tree + let_init_stack_reserve).
+//   Cap residual: vector/struct/fixed let-init + emit_expr_elf_c + enc/pool + reserve helpers.
 // wave144: pipeline_asm_emit_return.c pure-owned leave (slice escape + return_elf_impl/_c +
 //   sret memcpy/return_from_var + float promote pair + backend/asm/arm64 return_expr/lit helpers).
 //   Cap residual: emit_expr_elf_c + float_widen_ok + enc slot + dual-gp length + type_size +
@@ -473,7 +476,7 @@ export extern "C" function pipeline_module_top_level_let_is_const(module: *u8, i
 export extern "C" function pipeline_module_top_level_let_type_ref(module: *u8, idx: i32): i32;
 export extern "C" function pipeline_elf_ctx_add_common_sym(ctx: *u8, name: *u8, name_len: i32, sym_size: i32, sym_align: i32): i32;
 export extern "C" function pipeline_asm_hoist_target_func_index(module: *u8): i32;
-export extern "C" function pipeline_asm_let_init_stack_reserve_bytes(arena: *u8, type_ref: i32, init_ref: i32): i32;
+// wave145 pure leave: pipeline_asm_let_init_stack_reserve_bytes live in this file.
 export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz: i32, ta: i32): i32;
 export extern "C" function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
@@ -529,7 +532,7 @@ export extern "C" function pipeline_asm_module_func_num_params_at(mod: *u8, func
 export extern "C" function pipeline_asm_module_func_param_name_copy32(mod: *u8, func_index: i32, param_index: i32, dst: *u8): void;
 export extern "C" function pipeline_asm_module_func_param_name_len_at(mod: *u8, func_index: i32, param_index: i32): i32;
 export extern "C" function asm_ctx_block_slot_set(ctx: *u8, block_ref: i32, slot_base: i32): void;
-// pipeline_asm_let_init_stack_reserve_bytes already Cap residual above (wave139/modlet).
+// wave145: pipeline_asm_let_init_stack_reserve_bytes pure-owned (block_inits leave).
 export extern "C" function ast_pipeline_block_const_name_copy64(arena: *u8, block_ref: i32, i: i32, dst: *u8): void;
 export extern "C" function ast_pipeline_block_const_name_len(arena: *u8, block_ref: i32, i: i32): i32;
 export extern "C" function pipeline_block_const_type_ref(arena: *u8, block_ref: i32, i: i32): i32;
@@ -575,6 +578,26 @@ export extern "C" function pipeline_asm_emit_ctx_scope_block_get(): i32;
 export extern "C" function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+// wave145 Cap residual: block_inits pure leave callees still host-cc / pure elsewhere.
+// PLATFORM: SHARED freestanding emit — pure owns block const/let init faces.
+// Operand emit uses public pipeline_asm_emit_expr_elf_c (not static _rec).
+// GLUE_ARRAY_LIT_MAX_ELEMS=1024; TYPE ARRAY=10 SLICE=11; EXPR VAR=3 FIELD=44 ARRAY_LIT=46.
+// Arena num_types@0 num_exprs@4 num_blocks@8; Block.parent_block_ref@88; AsmFuncCtx module@16.
+export extern "C" function glue_emit_vector_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_off: i32, type_ref: i32): i32;
+export extern "C" function glue_block_let_is_simd_vector_type(arena: *u8, block_ref: i32, let_idx: i32): i32;
+export extern "C" function glue_block_let_is_fixed_array_type(arena: *u8, block_ref: i32, let_idx: i32): i32;
+export extern "C" function glue_vector_let_init_uses_direct_slot(arena: *u8, type_ref: i32, init_ref: i32): i32;
+export extern "C" function glue_fixed_array_let_init_uses_direct_slot(arena: *u8, type_ref: i32, init_ref: i32): i32;
+export extern "C" function glue_type_ref_is_scalar_f64_c(arena: *u8, type_ref: i32): i32;
+export extern "C" function glue_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf_ctx: *u8, var_ref: i32, var_off: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32;
+export extern "C" function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32;
+export extern "C" function asm_struct_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32;
+export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_ref: i32, type_ref: i32): void;
+export extern "C" function pipeline_arena_block_ptr(arena: *u8, ref: i32): *u8;
+export extern "C" function pipeline_module_func_param_type_ref_at(mod: *u8, func_index: i32, param_index: i32): i32;
+
 // wave142 Cap residual: assign pure leave callees (binop/try_index/spill/slice/
 //   float promote/fixed_array/field offset/enc store-div-shift/array_lit).
 // PLATFORM: SHARED freestanding emit — pure owns public assign faces.
@@ -602,8 +625,7 @@ export extern "C" function glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx: *u8, sr
 export extern "C" function glue_index_scratch_spill_invalidate_var(arena: *u8, elf_ctx: *u8, ctx: *u8, var_ref: i32, ta: i32): void;
 export extern "C" function glue_field_access_effective_offset_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
 // wave144 pure leave: glue_maybe_promote_f32_to_f64_rax_elf_c + glue_float_promote_src_ty_ref_c live in this file.
-export extern "C" function glue_slice_dual_gp_length_off_c(data_home: i32, ta: i32): i32;
-export extern "C" function glue_slice_dual_gp_bump_past_home_c(ctx: *u8, data_home: i32, ta: i32): void;
+// wave145 pure leave: glue_slice_dual_gp_length_off_c + bump_past_home live in this file.
 export extern "C" function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, arr_ty: i32, stack_off: i32): i32;
 export extern "C" function glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena: *u8, elf_ctx: *u8, var_ref: i32, var_off: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function glue_try_index_var_lit_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
@@ -922,7 +944,7 @@ export extern "C" function glue_asm_ctx_set_scope_block(ctx: *u8, block_ref: i32
 // wave133: glue_enc_jz_after_bool_in_eax is pure export below (unary leave).
 // Was Cap residual when host leaf owned the face; block_if / async_cps call pure.
 export extern "C" function backend_ensure_block_local_slots(ctx: *u8, arena: *u8, block_ref: i32): void;
-export extern "C" function pipeline_asm_fill_block_locals_tree(ctx: *u8, arena: *u8, block_ref: i32): void;
+// wave145 pure leave: pipeline_asm_fill_block_locals_tree live in this file.
 export extern "C" function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function glue_block_fill_live_end_for_merge(arena: *u8, ctx: *u8, block_ref: i32, out_live: *u8): void;
 export extern "C" function glue_block_stmt_order_has_return(arena: *u8, block_ref: i32): i32;
@@ -1162,15 +1184,9 @@ export function asm_skip_heavy_set_pipeline_ctx(ctx: *u8): void {
   g_asm_skip_pipeline_ctx = ctx;
 }
 
-/** Exported function `pipeline_fill_array_lit_types_for_skipped_typeck`.
- * Implements `pipeline_fill_array_lit_types_for_skipped_typeck`.
- * @param m *u8
- * @param a *u8
- * @return void
- */
-#[no_mangle]
-export function pipeline_fill_array_lit_types_for_skipped_typeck(m: *u8, a: *u8): void {
-}
+/* wave145: pipeline_fill_array_lit_types_for_skipped_typeck full body at EOF
+ * (block_inits pure leave). Historical empty pure stub removed — G.7 single
+ * authority with skip-typeck fill cluster. */
 
 /**
  * SoA FIELD_ACCESS fill before emit (skip-typeck repair path).
@@ -32572,7 +32588,7 @@ export function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ct
 //   pipeline_asm_get_return_expr_ref_at / get_return_lit_ref_at
 //   arch_arm64_pipeline_asm_get_return_lit_ref_at
 // Cap residual: emit_expr_elf_c (not static _rec) + float_widen_ok + enc slot +
-//   dual-gp length (block_inits) + type_size_simple + spills cleanup +
+//   dual-gp length pure wave145 + type_size_simple + spills cleanup +
 //   async_cps_phase_reset pure + array_lit pure faces + var_decl pure +
 //   lea_common pure + pool/enc + al_nc_seq_take + sret/scope getters.
 // GLUE_SLICE_ESC_WALK_DEPTH_MAX=256  GLUE_SLICE_ESC_WALK_VISIT_MAX=4096
@@ -34111,4 +34127,962 @@ export function glue_match_slice_escape_lets_in_block_c(arena: *u8, block_ref: i
   return 0;
 }
 
+// ---------------------------------------------------------------------------
 
+
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// wave145: pipeline_asm_emit_block_inits pure-owned leave
+// (was pipeline_asm_emit_block_inits.c ~851 LOC).
+// G.7 product authority for:
+//   glue_slice_dual_gp_length_off_c
+//   glue_slice_dual_gp_bump_past_home_c
+//   glue_emit_slice_from_array_let_init_elf_c
+//   pipeline_asm_emit_block_inits_elf_c
+//   glue_let_name_matches_var
+//   glue_fill_array_lit_from_decl
+//   glue_expr_in_scope_block_c
+//   glue_fill_var_types_from_params_for_func
+//   glue_fill_var_types_from_lets_in_block
+//   glue_fill_array_lit_types_in_block
+//   pipeline_fill_array_lit_types_for_skipped_typeck  (complete empty stub)
+//   pipeline_asm_fill_block_locals_tree
+//   glue_asm_init_expr_reserve_stack_bytes
+//   pipeline_asm_let_init_stack_reserve_bytes
+// Cap residual: emit_expr_elf_c + vector_simd/vector_let fixed/vector let-init
+//   + struct_let pure + lazy_append pure + empty/force_esz/durable pure +
+//   bump_next_offset pure + float promote pure + enc/pool + field_access +
+//   asm_ctx_fill_locals_block_tree + array/struct reserve + set_module pure +
+//   debug_trace pure + module_func_is_extern pure + param/type faces.
+// GLUE_ARRAY_LIT_MAX_ELEMS=1024
+// Ordinals: TYPE ARRAY=10 SLICE=11; EXPR VAR=3 FIELD=44 ARRAY_LIT=46
+// Arena: num_types@0 num_exprs@4 num_blocks@8
+// Block.parent_block_ref@88; AsmFuncCtx module_ref@16 next_offset@4 num_locals@8
+// Cold twins under seed #ifndef FROM_X.
+// All Cap residual / pool / enc calls live in unsafe blocks (T001).
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path
+// ---------------------------------------------------------------------------
+
+/**
+ * TYPE_SLICE dual-GP length half product offset (arch polarity).
+ * Memory layout authority = C fat {data at lower address, length at data+8}.
+ * - x86_64 [rbp-off]: length half is data_home-8
+ * - arm64 [x29+off]: length half is data_home+8
+ * - riscv treated as x86 polarity
+ * @param data_home i32 - product slot offset of the data pointer half
+ * @param ta i32 - 0=x86_64, 1=arm64, 2=riscv
+ * @return i32 - product offset of the length half
+ * wave145 pure: G.7 authority (was glue_slice_dual_gp_length_off_c).
+ * PLATFORM: SHARED freestanding · MACOS|ARM64 vs LINUX|x86_64 frame polarity.
+ */
+#[no_mangle]
+export function glue_slice_dual_gp_length_off_c(data_home: i32, ta: i32): i32 {
+  if (ta == 1) {
+    return data_home + 8;
+  }
+  return data_home - 8;
+}
+
+/**
+ * Advance AsmFuncCtx.next_offset past both dual-GP halves of a TYPE_SLICE home.
+ * x86: past = data_home+8; arm64: past = data_home+16. Aligns to 8B.
+ * @param ctx *u8 - AsmFuncCtx*; null → no-op
+ * @param data_home i32 - dual-GP data half product offset
+ * @param ta i32 - target arch (1=arm64)
+ * @return void
+ * wave145 pure: G.7 authority (was glue_slice_dual_gp_bump_past_home_c).
+ * PLATFORM: SHARED freestanding stack temp discipline.
+ */
+#[no_mangle]
+export function glue_slice_dual_gp_bump_past_home_c(ctx: *u8, data_home: i32, ta: i32): void {
+  let ly: *u8 = 0 as *u8;
+  let past: i32 = 0;
+  let cur: i32 = 0;
+  if (ctx == (0 as *u8)) {
+    return;
+  }
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (ly == (0 as *u8)) {
+    return;
+  }
+  if (ta == 1) {
+    past = data_home + 16;
+  } else {
+    past = data_home + 8;
+  }
+  cur = pipe_load_i32_le(ly, pipe_asm_ctx_off_next_offset());
+  if (cur < past) {
+    pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), past);
+  }
+  glue_align_next_offset(ctx);
+}
+
+/**
+ * Let s: T[] = arr / [..] — write dual-GP {data,length} into slice stack slot.
+ * ARRAY_LIT (46): durable text/BSS preferred; stack force_esz fallback.
+ * VAR (3): prior fixed TYPE_ARRAY local; FIELD (44): fixed array field lea.
+ * @return i32 - 1 written; 0 not applicable; -1 failure
+ * wave145 pure: G.7 authority (was static glue_emit_slice_from_array_let_init_elf_c).
+ * PLATFORM: SHARED freestanding dual-GP · LINUX|x86_64 · MACOS|ARM64.
+ */
+#[no_mangle]
+export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, let_idx: i32, init_ref: i32, let_type_ref: i32, ctx: *u8, ta: i32, slice_slot_off: i32): i32 {
+  let arr_sz: i32 = 0;
+  let li: i32 = 0;
+  let vlen: i32 = 0;
+  let arr_off: i32 = 0;
+  let init_ko: i32 = 0;
+  let vname: u8[128] = [];
+  let n_arr: i32 = 0;
+  let durable: i32 = 0;
+  let force_esz: i32 = 0;
+  let et: i32 = 0;
+  let tk: i32 = 0;
+  let nlen: i32 = 0;
+  let matched: i32 = 0;
+  let ci: i32 = 0;
+  let nb: u8[128] = [];
+  let tr: i32 = 0;
+  let init_tr: i32 = 0;
+  let ftr: i32 = 0;
+  let lea_rc: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || block_ref <= 0 || let_type_ref <= 0 || init_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, let_type_ref);
+  }
+  if (tk != 11) {
+    return 0;
+  }
+  unsafe {
+    init_ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  }
+  if (init_ko == 46) {
+    unsafe {
+      n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    }
+    if (n_arr < 0 || n_arr > 1024) {
+      return 0 - 1;
+    }
+    unsafe {
+      et = pipeline_type_elem_ref_at(arena, let_type_ref);
+      force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, et);
+    }
+    durable = 0;
+    if (ta == 0 || ta == 1) {
+      unsafe {
+        rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, init_ref, force_esz, ta, ctx);
+      }
+      if (rc == 0) {
+        durable = 1;
+      } else {
+        unsafe {
+          rc = pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, init_ref, ctx, ta, force_esz);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      }
+    } else {
+      unsafe {
+        rc = pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, init_ref, ctx, ta, force_esz);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+    }
+    unsafe {
+      rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(slice_slot_off, ta), ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    if (durable == 0 && n_arr > 0) {
+      pipeline_asm_bump_next_offset_for_array_lit(arena, init_ref, ctx);
+    }
+    glue_slice_dual_gp_bump_past_home_c(ctx, slice_slot_off, ta);
+    return 1;
+  }
+  if (init_ko == 3) {
+    unsafe {
+      vlen = pipeline_expr_var_name_len(arena, init_ref);
+    }
+    if (vlen <= 0 || vlen > 127) {
+      return 0;
+    }
+    unsafe {
+      pipeline_expr_var_name_into(arena, init_ref, &vname[0]);
+    }
+    li = 0;
+    while (li < let_idx) {
+      unsafe {
+        nlen = pipeline_block_let_name_len(arena, block_ref, li);
+      }
+      if (nlen == vlen && nlen > 0) {
+        matched = 1;
+        unsafe {
+          pipeline_block_let_name_copy64(arena, block_ref, li, &nb[0]);
+        }
+        ci = 0;
+        while (ci < nlen) {
+          if (nb[ci] != vname[ci]) {
+            matched = 0;
+            break;
+          }
+          ci = ci + 1;
+        }
+        if (matched != 0) {
+          unsafe {
+            tr = pipeline_block_let_type_ref(arena, block_ref, li);
+            tk = pipeline_type_kind_ord_at(arena, tr);
+          }
+          if (tk == 10) {
+            unsafe {
+              arr_sz = pipeline_type_array_size_at(arena, tr);
+            }
+          }
+          if (arr_sz > 0) {
+            break;
+          }
+        }
+      }
+      li = li + 1;
+    }
+    if (arr_sz <= 0) {
+      unsafe {
+        init_tr = pipeline_expr_resolved_type_ref(arena, init_ref);
+      }
+      if (init_tr > 0) {
+        unsafe {
+          tk = pipeline_type_kind_ord_at(arena, init_tr);
+        }
+        if (tk == 10) {
+          unsafe {
+            arr_sz = pipeline_type_array_size_at(arena, init_tr);
+          }
+        }
+      }
+    }
+    if (arr_sz <= 0) {
+      return 0;
+    }
+    unsafe {
+      arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+    }
+    if (arr_off < 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, init_ref, arr_off, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  } else if (init_ko == 44) {
+    unsafe {
+      rc = pipeline_expr_field_access_is_enum_variant(arena, init_ref);
+    }
+    if (rc != 0) {
+      return 0;
+    }
+    unsafe {
+      init_tr = pipeline_expr_resolved_type_ref(arena, init_ref);
+    }
+    if (init_tr > 0) {
+      unsafe {
+        tk = pipeline_type_kind_ord_at(arena, init_tr);
+      }
+      if (tk == 10) {
+        unsafe {
+          arr_sz = pipeline_type_array_size_at(arena, init_tr);
+        }
+      }
+    }
+    if (arr_sz <= 0) {
+      unsafe {
+        mod = pipeline_asm_emit_module_ref_c();
+        ftr = glue_field_access_field_type_ref_c(arena, mod, init_ref);
+      }
+      if (ftr > 0) {
+        unsafe {
+          tk = pipeline_type_kind_ord_at(arena, ftr);
+        }
+        if (tk == 10) {
+          unsafe {
+            arr_sz = pipeline_type_array_size_at(arena, ftr);
+          }
+        }
+      }
+    }
+    if (arr_sz <= 0) {
+      return 0;
+    }
+    unsafe {
+      lea_rc = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+    }
+    if (lea_rc != 0) {
+      if (lea_rc < 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
+  } else {
+    return 0;
+  }
+  unsafe {
+    rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(slice_slot_off, ta), ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  glue_slice_dual_gp_bump_past_home_c(ctx, slice_slot_off, ta);
+  return 1;
+}
+
+/**
+ * ELF path: block const/let initialization for product-mega freestanding emit.
+ * Handles TYPE_VECTOR / TYPE_SLICE / fixed-array / struct let inits + empty-array dual-GP.
+ * @return i32 - 0 ok; -1 failure
+ * wave145 pure: G.7 authority (was pipeline_asm_emit_block_inits_elf_c).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32, slot_base: i32): i32 {
+  let nconst: i32 = 0;
+  let nlet: i32 = 0;
+  let idx: i32 = 0;
+  let i: i32 = 0;
+  let ly: *u8 = 0 as *u8;
+  let num_locals: i32 = 0;
+  let init_ref: i32 = 0;
+  let slot: i32 = 0;
+  let type_ref: i32 = 0;
+  let lnb: u8[128] = [];
+  let llen: i32 = 0;
+  let slice_st: i32 = 0;
+  let vst: i32 = 0;
+  let arr_st: i32 = 0;
+  let st: i32 = 0;
+  let slot_off: i32 = 0;
+  let dty: i32 = 0;
+  let src_ty: i32 = 0;
+  let empty: i32 = 0;
+  let is_simd: i32 = 0;
+  let is_fixed: i32 = 0;
+  let iko: i32 = 0;
+  let rc: i32 = 0;
+  let is_f64: i32 = 0;
+  let is_f32: i32 = 0;
+  let done: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || block_ref <= 0) {
+    return 0 - 1;
+  }
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (ly == (0 as *u8)) {
+    return 0 - 1;
+  }
+  num_locals = pipe_load_i32_le(ly, pipe_asm_ctx_off_num_locals());
+  unsafe {
+    nconst = ast_ast_block_num_consts(arena, block_ref);
+    nlet = ast_ast_block_num_lets(arena, block_ref);
+  }
+  idx = 0;
+  i = 0;
+  while (i < nconst && (slot_base + idx) < num_locals) {
+    unsafe {
+      init_ref = ast_pipeline_block_const_init_ref(arena, block_ref, i);
+      empty = glue_init_is_empty_array_lit(arena, init_ref);
+    }
+    if (init_ref != 0 && empty == 0) {
+      unsafe {
+        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        slot_off = backend_asm_ctx_slot_offset(ctx, slot_base + idx);
+        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+    }
+    idx = idx + 1;
+    i = i + 1;
+  }
+  i = 0;
+  while (i < nlet && (slot_base + idx) < num_locals) {
+    done = 0;
+    unsafe {
+      init_ref = pipeline_block_let_init_ref(arena, block_ref, i);
+    }
+    slot = slot_base + idx;
+    if (init_ref == 0) {
+      done = 1;
+    }
+    if (done == 0) {
+      unsafe {
+        empty = glue_init_is_empty_array_lit(arena, init_ref);
+      }
+      if (empty != 0) {
+        unsafe {
+          llen = pipeline_block_let_name_len(arena, block_ref, i);
+        }
+        if (llen > 0) {
+          unsafe {
+            pipeline_block_let_name_copy64(arena, block_ref, i, &lnb[0]);
+            rc = glue_lazy_append_block_let_local(arena, ctx, block_ref, i, &lnb[0], llen);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
+        unsafe {
+          type_ref = pipeline_block_let_type_ref(arena, block_ref, i);
+          slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+          slice_st = glue_emit_slice_from_array_let_init_elf_c(arena, elf_ctx, block_ref, i, init_ref, type_ref, ctx, ta, slot_off);
+        }
+        if (slice_st < 0) {
+          return 0 - 1;
+        }
+        done = 1;
+      }
+    }
+    if (done == 0) {
+      unsafe {
+        llen = pipeline_block_let_name_len(arena, block_ref, i);
+      }
+      if (llen > 0) {
+        unsafe {
+          pipeline_block_let_name_copy64(arena, block_ref, i, &lnb[0]);
+          rc = glue_lazy_append_block_let_local(arena, ctx, block_ref, i, &lnb[0], llen);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      }
+      unsafe {
+        type_ref = pipeline_block_let_type_ref(arena, block_ref, i);
+        is_simd = glue_block_let_is_simd_vector_type(arena, block_ref, i);
+      }
+      if (is_simd != 0) {
+        unsafe {
+          slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+          vst = glue_emit_vector_type_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, slot_off, type_ref);
+        }
+        if (vst == 0 - 1) {
+          return 0 - 1;
+        }
+        if (vst != 0) {
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+            rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
+        done = 1;
+      }
+    }
+    if (done == 0) {
+      unsafe {
+        is_fixed = glue_block_let_is_fixed_array_type(arena, block_ref, i);
+      }
+      if (is_fixed != 0) {
+        unsafe {
+          slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+          arr_st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, type_ref, slot_off);
+        }
+        if (arr_st != 0) {
+          return 0 - 1;
+        }
+        done = 1;
+      }
+    }
+    if (done == 0) {
+      unsafe {
+        slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+        slice_st = glue_emit_slice_from_array_let_init_elf_c(arena, elf_ctx, block_ref, i, init_ref, type_ref, ctx, ta, slot_off);
+      }
+      if (slice_st == 1) {
+        done = 1;
+      } else {
+        if (slice_st < 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    if (done == 0) {
+      unsafe {
+        slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+        st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, type_ref, slot_off);
+      }
+      if (st == 0) {
+        done = 1;
+      } else {
+        if (st == 0 - 1) {
+          return 0 - 1;
+        }
+      }
+    }
+    if (done == 0) {
+      unsafe {
+        iko = pipeline_expr_kind_ord_at(arena, init_ref);
+      }
+      if (iko == 46) {
+        unsafe {
+          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+          rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        pipeline_asm_bump_next_offset_after_let_init(arena, block_ref, i, init_ref, ctx);
+      } else {
+        unsafe {
+          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        if (type_ref > 0) {
+          dty = type_ref;
+        } else {
+          unsafe {
+            dty = pipeline_block_let_type_ref(arena, block_ref, i);
+          }
+        }
+        unsafe {
+          is_f64 = glue_type_ref_is_scalar_f64_c(arena, dty);
+          is_f32 = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, init_ref);
+        }
+        if (is_f64 != 0 && is_f32 != 0) {
+          unsafe {
+            rc = backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        } else {
+          unsafe {
+            src_ty = glue_float_promote_src_ty_ref_c(arena, init_ref);
+            rc = glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, dty, src_ty, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
+        unsafe {
+          slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+          rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    idx = idx + 1;
+    i = i + 1;
+  }
+  return 0;
+}
+
+
+
+/**
+ * Check whether a block-internal let name matches an EXPR_VAR (length + bytes).
+ * @return i32 - 1 match; 0 no match / invalid
+ * wave145 pure: G.7 authority (was static glue_let_name_matches_var).
+ * PLATFORM: SHARED — name comparison is platform-independent.
+ */
+#[no_mangle]
+export function glue_let_name_matches_var(arena: *u8, expr_ref: i32, let_nm: *u8, let_nlen: i32): i32 {
+  let vn: u8[128] = [];
+  let ln: u8[128] = [];
+  let vlen: i32 = 0;
+  let j: i32 = 0;
+  let ko: i32 = 0;
+  if (arena == (0 as *u8) || let_nm == (0 as *u8) || let_nlen <= 0 || expr_ref <= 0) { return 0; }
+  if (let_nlen > 127) { return 0; }
+  unsafe { ko = pipeline_expr_kind_ord_at(arena, expr_ref); }
+  if (ko != 3) { return 0; }
+  unsafe { vlen = pipeline_expr_var_name_len(arena, expr_ref); }
+  if (vlen != let_nlen) { return 0; }
+  unsafe { pipeline_expr_var_name_into(arena, expr_ref, &vn[0]); }
+  j = 0;
+  while (j < let_nlen) { ln[j] = let_nm[j]; j = j + 1; }
+  j = 0;
+  while (j < let_nlen) {
+    if (vn[j] != ln[j]) { return 0; }
+    j = j + 1;
+  }
+  return 1;
+}
+
+/**
+ * Backfill ARRAY_LIT init resolved_type_ref from declared TYPE_ARRAY T[N].
+ * No-op if invalid refs / non-ARRAY decl / non-ARRAY_LIT init.
+ * wave145 pure: G.7 authority (was static glue_fill_array_lit_from_decl).
+ * PLATFORM: SHARED — pure type_ref stamp, no arch dependency.
+ */
+#[no_mangle]
+export function glue_fill_array_lit_from_decl(arena: *u8, decl_ty_ref: i32, init_ref: i32): void {
+  let ntypes: i32 = 0;
+  let nexprs: i32 = 0;
+  let tk: i32 = 0;
+  let ko: i32 = 0;
+  if (arena == (0 as *u8) || decl_ty_ref <= 0 || init_ref <= 0) {
+    return;
+  }
+  ntypes = pipe_load_i32_le(arena, 0);
+  nexprs = pipe_load_i32_le(arena, pipe_arena_off_num_exprs());
+  if (decl_ty_ref > ntypes || init_ref > nexprs) {
+    return;
+  }
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, decl_ty_ref);
+  }
+  if (tk != 10) {
+    return;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  }
+  if (ko != 46) {
+    return;
+  }
+  unsafe {
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+  }
+}
+
+/**
+ * Return 1 if expr_ref lives in scope_block_ref or any ancestor child path.
+ * Depth-limited to 128 to prevent cyclic walks.
+ * @return i32 - 1 in scope; 0 otherwise
+ * wave145 pure: G.7 authority (was static glue_expr_in_scope_block_c).
+ * PLATFORM: SHARED — pure block-tree walk.
+ */
+#[no_mangle]
+export function glue_expr_in_scope_block_c(arena: *u8, expr_ref: i32, scope_block_ref: i32): i32 {
+  let cur: i32 = 0;
+  let depth: i32 = 0;
+  let nblocks: i32 = 0;
+  let bp: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || expr_ref <= 0 || scope_block_ref <= 0) {
+    return 0;
+  }
+  nblocks = pipe_load_i32_le(arena, 8);
+  if (scope_block_ref > nblocks) {
+    return 0;
+  }
+  unsafe {
+    cur = pipeline_expr_block_ref_at(arena, expr_ref);
+  }
+  if (cur == scope_block_ref) {
+    return 1;
+  }
+  depth = 0;
+  while (cur > 0 && cur <= nblocks && depth < 128) {
+    unsafe {
+      bp = pipeline_arena_block_ptr(arena, cur);
+    }
+    if (bp == (0 as *u8)) {
+      break;
+    }
+    // Block.parent_block_ref @88 (LP64 all-i32 header)
+    cur = pipe_load_i32_le(bp, 88);
+    if (cur == scope_block_ref) {
+      return 1;
+    }
+    depth = depth + 1;
+  }
+  return 0;
+}
+
+/**
+ * Backfill resolved_type_ref for EXPR_VAR matching function parameter names.
+ * Only writes when resolved_type_ref is still 0 (cross-func same-name safe).
+ * wave145 pure: G.7 authority (was glue_fill_var_types_from_params_for_func).
+ * PLATFORM: SHARED — pure type_ref propagation.
+ */
+#[no_mangle]
+export function glue_fill_var_types_from_params_for_func(m: *u8, arena: *u8, func_index: i32): void {
+  let np: i32 = 0;
+  let pi: i32 = 0;
+  let ei: i32 = 0;
+  let body_ref: i32 = 0;
+  let nm: u8[128] = [];
+  let nlen: i32 = 0;
+  let tref: i32 = 0;
+  let nfuncs: i32 = 0;
+  let nexprs: i32 = 0;
+  let in_scope: i32 = 0;
+  let matched: i32 = 0;
+  let rtr: i32 = 0;
+  if (m == (0 as *u8) || arena == (0 as *u8) || func_index < 0) { return; }
+  nfuncs = pipeline_module_num_funcs(m);
+  if (func_index >= nfuncs) { return; }
+  unsafe { body_ref = pipeline_module_func_body_ref_at(m, func_index); }
+  if (body_ref <= 0) { return; }
+  unsafe { np = pipeline_asm_module_func_num_params_at(m, func_index); }
+  nexprs = pipe_load_i32_le(arena, pipe_arena_off_num_exprs());
+  pi = 0;
+  while (pi < np) {
+    unsafe { nlen = pipeline_asm_module_func_param_name_len_at(m, func_index, pi); }
+    if (nlen > 0 && nlen <= 127) {
+      unsafe {
+        pipeline_asm_module_func_param_name_copy32(m, func_index, pi, &nm[0]);
+        tref = pipeline_module_func_param_type_ref_at(m, func_index, pi);
+      }
+      if (tref > 0) {
+        ei = 1;
+        while (ei <= nexprs) {
+          in_scope = glue_expr_in_scope_block_c(arena, ei, body_ref);
+          matched = glue_let_name_matches_var(arena, ei, &nm[0], nlen);
+          if (in_scope != 0 && matched != 0) {
+            unsafe { rtr = pipeline_expr_resolved_type_ref(arena, ei); }
+            if (rtr <= 0) {
+              unsafe { pipeline_expr_set_resolved_type_ref(arena, ei, tref); }
+            }
+          }
+          ei = ei + 1;
+        }
+      }
+    }
+    pi = pi + 1;
+  }
+}
+
+/**
+ * Backfill resolved_type_ref for EXPR_VAR matching block-internal let names.
+ * Overwrites unconditionally (block-local — no cross-func collision risk).
+ * wave145 pure: G.7 authority (was glue_fill_var_types_from_lets_in_block).
+ * PLATFORM: SHARED — pure type_ref propagation.
+ */
+#[no_mangle]
+export function glue_fill_var_types_from_lets_in_block(arena: *u8, block_ref: i32): void {
+  let nlet: i32 = 0;
+  let li: i32 = 0;
+  let ei: i32 = 0;
+  let tref: i32 = 0;
+  let nm: u8[128] = [];
+  let nlen: i32 = 0;
+  let nblocks: i32 = 0;
+  let nexprs: i32 = 0;
+  let in_scope: i32 = 0;
+  let matched: i32 = 0;
+  if (arena == (0 as *u8) || block_ref <= 0) { return; }
+  nblocks = pipe_load_i32_le(arena, 8);
+  if (block_ref > nblocks) { return; }
+  unsafe { nlet = ast_ast_block_num_lets(arena, block_ref); }
+  nexprs = pipe_load_i32_le(arena, pipe_arena_off_num_exprs());
+  li = 0;
+  while (li < nlet) {
+    unsafe { tref = pipeline_block_let_type_ref(arena, block_ref, li); }
+    if (tref > 0) {
+      unsafe { nlen = pipeline_block_let_name_len(arena, block_ref, li); }
+      if (nlen > 0 && nlen <= 127) {
+        unsafe { pipeline_block_let_name_copy64(arena, block_ref, li, &nm[0]); }
+        ei = 1;
+        while (ei <= nexprs) {
+          in_scope = glue_expr_in_scope_block_c(arena, ei, block_ref);
+          matched = glue_let_name_matches_var(arena, ei, &nm[0], nlen);
+          if (in_scope != 0 && matched != 0) {
+            unsafe { pipeline_expr_set_resolved_type_ref(arena, ei, tref); }
+          }
+          ei = ei + 1;
+        }
+      }
+    }
+    li = li + 1;
+  }
+}
+
+/**
+ * Walk block-internal lets: VAR type prop + ARRAY_LIT stamp from decl type.
+ * wave145 pure: G.7 authority (was static glue_fill_array_lit_types_in_block).
+ * PLATFORM: SHARED — pure orchestration.
+ */
+#[no_mangle]
+export function glue_fill_array_lit_types_in_block(arena: *u8, block_ref: i32): void {
+  let nlet: i32 = 0;
+  let i: i32 = 0;
+  let nblocks: i32 = 0;
+  let tref: i32 = 0;
+  let init_ref: i32 = 0;
+  if (arena == (0 as *u8) || block_ref <= 0) { return; }
+  nblocks = pipe_load_i32_le(arena, 8);
+  if (block_ref > nblocks) { return; }
+  unsafe { nlet = ast_ast_block_num_lets(arena, block_ref); }
+  i = 0;
+  while (i < nlet) {
+    unsafe {
+      tref = pipeline_block_let_type_ref(arena, block_ref, i);
+      init_ref = pipeline_block_let_init_ref(arena, block_ref, i);
+    }
+    glue_fill_array_lit_from_decl(arena, tref, init_ref);
+    i = i + 1;
+  }
+}
+
+/**
+ * Backfill ARRAY_LIT resolved_type_ref for all non-extern function bodies
+ * when C precheck skipped .x typeck.
+ * Completes empty pure stub (G.7 single authority with host leaf leave).
+ * wave145 pure: G.7 authority (was pipeline_fill_array_lit_types_for_skipped_typeck).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_fill_array_lit_types_for_skipped_typeck(m: *u8, arena: *u8): void {
+  let fi: i32 = 0;
+  let nf: i32 = 0;
+  let br: i32 = 0;
+  let is_ext: i32 = 0;
+  if (m == (0 as *u8) || arena == (0 as *u8)) { return; }
+  pipeline_debug_trace_named_func_bodies("fill_array_pre", m, arena);
+  nf = pipeline_module_num_funcs(m);
+  fi = 0;
+  while (fi < nf) {
+    unsafe { is_ext = pipeline_asm_module_func_is_extern_at(m, fi); }
+    if (is_ext == 0) {
+      unsafe { br = pipeline_module_func_body_ref_at(m, fi); }
+      if (br > 0) {
+        glue_fill_var_types_from_lets_in_block(arena, br);
+        glue_fill_array_lit_types_in_block(arena, br);
+      }
+    }
+    fi = fi + 1;
+  }
+  pipeline_debug_trace_named_func_bodies("fill_array_post", m, arena);
+}
+
+/**
+ * Register all const/let within a block_ref subtree into AsmFuncCtx sidecar.
+ * Side effect: sets active emit module from ctx prefix offset 16.
+ * wave145 pure: G.7 authority (was pipeline_asm_fill_block_locals_tree).
+ * PLATFORM: SHARED — pure block-local slot allocation.
+ */
+#[no_mangle]
+export function pipeline_asm_fill_block_locals_tree(ctx: *u8, arena: *u8, block_ref: i32): void {
+  let mod_ref: *u8 = 0 as *u8;
+  let ly: *u8 = 0 as *u8;
+  let off: i32 = 0;
+  let nl: i32 = 0;
+  let off_slot: i32[1] = [];
+  let nl_slot: i32[1] = [];
+  if (ctx == (0 as *u8) || arena == (0 as *u8) || block_ref <= 0) {
+    return;
+  }
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (ly == (0 as *u8)) {
+    return;
+  }
+  // module_ref at AsmFuncCtx prefix offset 16 (LP64 pointer)
+  mod_ref = pipe_load_ptr_slot(ctx, 2);
+  if (mod_ref != (0 as *u8)) {
+    pipeline_asm_emit_set_module(mod_ref);
+  }
+  off = pipe_load_i32_le(ly, pipe_asm_ctx_off_next_offset());
+  nl = pipe_load_i32_le(ly, pipe_asm_ctx_off_num_locals());
+  off_slot[0] = off;
+  nl_slot[0] = nl;
+  unsafe {
+    asm_ctx_fill_locals_block_tree(ctx, arena, block_ref, &off_slot[0], &nl_slot[0]);
+  }
+  pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), off_slot[0]);
+  pipe_store_i32_le(ly, pipe_asm_ctx_off_num_locals(), nl_slot[0]);
+}
+
+/**
+ * Extra temp stack bytes for ARRAY_LIT/STRUCT_LIT let/const initializers.
+ * @return i32 - reserved bytes; 0 for non-aggregate inits
+ * wave145 pure: G.7 authority (was static glue_asm_init_expr_reserve_stack_bytes).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_asm_init_expr_reserve_stack_bytes(arena: *u8, init_ref: i32): i32 {
+  let n: i32 = 0;
+  if (init_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    n = asm_array_lit_reserve_stack_bytes(arena, init_ref);
+  }
+  if (n > 0) {
+    return n;
+  }
+  unsafe {
+    return asm_struct_lit_reserve_stack_bytes(arena, init_ref);
+  }
+}
+
+/**
+ * Extra stack bytes reserved for a let/const initializer beyond its type slot.
+ * VECTOR / fixed TYPE_ARRAY direct-slot inits → 0; else array/struct reserve.
+ * @return i32 - reserved bytes
+ * wave145 pure: G.7 authority (was pipeline_asm_let_init_stack_reserve_bytes).
+ * PLATFORM: SHARED — pure stack byte arithmetic.
+ */
+#[no_mangle]
+export function pipeline_asm_let_init_stack_reserve_bytes(arena: *u8, type_ref: i32, init_ref: i32): i32 {
+  let d: i32 = 0;
+  if (arena == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    d = glue_vector_let_init_uses_direct_slot(arena, type_ref, init_ref);
+  }
+  if (d != 0) {
+    return 0;
+  }
+  unsafe {
+    d = glue_fixed_array_let_init_uses_direct_slot(arena, type_ref, init_ref);
+  }
+  if (d != 0) {
+    return 0;
+  }
+  return glue_asm_init_expr_reserve_stack_bytes(arena, init_ref);
+}

@@ -46,7 +46,8 @@
 static int32_t glue_vector_type_lanes_esz_c(struct ast_ASTArena *arena, int32_t type_ref, int32_t *out_lanes,
                                             int32_t *out_esz);
 static int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko);
-static int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref);
+/* wave145: non-static Cap residual for pure block_inits. */
+int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref);
 
 /**
  * 块内 let 是否为 SIMD 向量（声明 type_ref 或 16B 槽宽 + 向量形初值）。
@@ -59,7 +60,8 @@ static int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena,
  * memcpy-ing array bytes into the slice slot → Ubuntu bounds guard panics (length=0), mac may
  * false-green via stack garbage. Exclude TYPE_SLICE / TYPE_ARRAY from the heuristic (authority).
  */
-static int32_t glue_block_let_is_simd_vector_type(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx) {
+/* wave145 pure Cap residual: static→extern for pure block_inits leave. */
+int32_t glue_block_let_is_simd_vector_type(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx) {
   int32_t tr;
   int32_t init_ref;
   int32_t ko;
@@ -1412,7 +1414,8 @@ int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(struct ast_ASTArena *aren
  * let v: TYPE_VECTOR 初始化：ARRAY_LIT / VAR 拷贝 / 逐 lane binop / 两参向量 CALL 内联。
  * 0=已处理，-1=错误，-2=非向量 let init。
  */
-static int32_t glue_emit_vector_type_let_init_elf_c(struct ast_ASTArena *arena,
+/* wave145 pure Cap residual: static→extern. */
+int32_t glue_emit_vector_type_let_init_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
                                                     struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off,
                                                     int32_t type_ref) {
@@ -1545,7 +1548,8 @@ static int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko) {
  *
  * PLATFORM: SHARED — pure classification, no arch dependency.
  */
-static int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref) {
+/* wave145 pure Cap residual: static→extern. */
+int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref, int32_t init_ref) {
   int32_t ko;
   if (!asm_type_is_simd_vector_spelling(arena, type_ref) || init_ref <= 0)
     return 0;

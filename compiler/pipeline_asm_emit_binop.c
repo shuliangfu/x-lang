@@ -806,7 +806,8 @@ static int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t
 }
 
 /** 类型 ref 是否为标量 f64。 */
-static int32_t glue_type_ref_is_scalar_f64_c(struct ast_ASTArena *arena, int32_t type_ref) {
+/* wave145 pure Cap residual: static→extern for pure block_inits leave. */
+int32_t glue_type_ref_is_scalar_f64_c(struct ast_ASTArena *arena, int32_t type_ref) {
   if (!arena || type_ref <= 0)
     return 0;
   return pipeline_type_kind_ord_at(arena, type_ref) == GLUE_TYPE_KIND_F64_ORD ? 1 : 0;

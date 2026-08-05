@@ -9119,8 +9119,12 @@ fi
 if grep -qE 'pipeline_asm_emit_async_cps\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_async_cps.c (wave131 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_block_inits\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_block_inits.c (8.3.1 asm_emit_block_inits slice)"
+# wave145 pure-owned leave: block_inits faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_block_inits\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_block_inits.c (wave145 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_block_inits.c" ]; then
+  bad "pipeline_asm_emit_block_inits.c must be deleted (wave145 pure-owned leave)"
 fi
 # wave142 pure-owned leave: assign faces live in runtime_pipeline_abi pure
 if grep -qE 'pipeline_asm_emit_assign\.c' "$_XSD_MK"; then
