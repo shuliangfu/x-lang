@@ -23,7 +23,7 @@
  * pipeline_asm_emit_index.c; index assign finish_store / bulk_mem_copy_spills /
  * Chaitin spill live in pipeline_asm_emit_spill.c (same TU, next include);
  * glue_emit_index_eff_addr_scaled_elf_c + local_slot_text live in
- * pipeline_asm_emit_index_eff_addr.c (same TU, after binop residual helpers).
+ * runtime_pipeline_abi pure (wave147 pure-owned leave).
  *
  * Callers: pipeline_asm_emit_index.c; assign INDEX lhs; call-arg base;
  * field_access INDEX-rooted chains; expr_elf_rec INDEX/ADDR_OF/DEREF;
@@ -43,7 +43,7 @@
  * - glue_type_size_simple / glue_type_ref_is_named_struct_layout_elf_c
  *   (named_struct body in call_args leaf wave1017; same-TU forward here)
  * - glue_var_expr_stack_off_elf_c (def after assign/index includes)
- * - glue_emit_index_eff_addr_scaled_elf_c (pipeline_asm_emit_index_eff_addr.c)
+ * - glue_emit_index_eff_addr_scaled_elf_c (runtime_pipeline_abi pure wave147)
  * - glue_binop_stack_spill_* / glue_asm73_var_prefers_stack_spill (defs later)
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / asm_ctx_local_*
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index
@@ -148,7 +148,8 @@ int32_t pipeline_asm_emit_func_param_is_indirect_struct_slot_c(struct ast_ASTAre
  * Without this, a.length / a[i] on slice params lea the pointer slot and read stack junk
  * (Ubuntu freestanding sum([1,2,3]) / len(b) residual after call-arg stamp).
  */
-static int32_t glue_local_var_slot_needs_ptr_load_elf_c(struct ast_ASTArena *arena, int32_t var_expr_ref,
+/* wave147 pure Cap residual: static→extern (index_eff_addr pure leave). PLATFORM: SHARED. */
+int32_t glue_local_var_slot_needs_ptr_load_elf_c(struct ast_ASTArena *arena, int32_t var_expr_ref,
                                                          int32_t stack_off, struct backend_AsmFuncCtx *ctx) {
   struct ast_Module *mod;
   if (asm_local_var_slot_holds_indirect_ptr(arena, var_expr_ref, glue_emit_module_from_ctx(ctx), (uint8_t *)ctx) != 0)
@@ -510,7 +511,8 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int3
  * *T or TYPE_SLICE fat, load the pointer (`.data` @ +0 for slice). G.7 with VAR slice path.
  * PLATFORM: SHARED — sp.left[i] / Split_*.left INDEX (subslice_split_chunks).
  */
-static int32_t glue_index_deref_ptr_field_slot_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern (index_eff_addr pure leave). PLATFORM: SHARED. */
+int32_t glue_index_deref_ptr_field_slot_rax_elf_c(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           int32_t fa_ref, int32_t ta) {
   int32_t ftr;
@@ -2025,7 +2027,8 @@ int32_t glue_try_index_var_plus_var_mul_lit_idx_addr_to_rbx_elf_c(struct ast_AST
  * INDEX 读/址：VAR/FIELD 基址 + (VAR*lit) MUL 下标 → 有效地址入 rax（base + rbx*esz）。
  * 0=OK，-1=错，-2=不适用（assign 用 glue_try_index_var_mul_lit_idx_addr_to_rbx）。
  */
-static int32_t glue_try_index_var_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                               struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                               int32_t base_ref, int32_t idx_ref,
                                                               struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2073,7 +2076,8 @@ static int32_t glue_try_index_var_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena
 /**
  * INDEX 读/址：VAR/FIELD 基址 + (VAR*VAR) MUL 下标 → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_mul_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_mul_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                               struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                               int32_t base_ref, int32_t idx_ref,
                                                               struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2116,7 +2120,8 @@ static int32_t glue_try_index_var_mul_var_eff_addr_rax_elf_c(struct ast_ASTArena
 /**
  * INDEX 读/址：VAR/FIELD 基址 + (VAR+lit) ADD 下标 → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_plus_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_plus_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                int32_t base_ref, int32_t idx_ref,
                                                                struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2162,7 +2167,8 @@ static int32_t glue_try_index_var_plus_lit_eff_addr_rax_elf_c(struct ast_ASTAren
 /**
  * INDEX 读/址：VAR/FIELD 基址 + (VAR-lit) SUB 下标 → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_minus_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_minus_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                 struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                 int32_t base_ref, int32_t idx_ref,
                                                                 struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2202,7 +2208,8 @@ static int32_t glue_try_index_var_minus_lit_eff_addr_rax_elf_c(struct ast_ASTAre
 /**
  * INDEX 读/址：VAR/FIELD 基址 + (VAR+VAR) ADD 下标 → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_plus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_plus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                int32_t base_ref, int32_t idx_ref,
                                                                struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2245,7 +2252,8 @@ static int32_t glue_try_index_var_plus_var_eff_addr_rax_elf_c(struct ast_ASTAren
 /**
  * INDEX 读/址：VAR/FIELD 基址 + (VAR-VAR) SUB 下标 → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_minus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_minus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                 struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                 int32_t base_ref, int32_t idx_ref,
                                                                 struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2289,7 +2297,8 @@ static int32_t glue_try_index_var_minus_var_eff_addr_rax_elf_c(struct ast_ASTAre
  * INDEX 读/址：VAR/FIELD 基址 + ((VAR+VAR)+VAR) ADD 链 → 有效地址入 rax。
  * 支持 i+j+k 与 i+(j+k) 两种结合性。
  */
-static int32_t glue_try_index_var_plus_var_plus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_plus_var_plus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                         int32_t base_ref, int32_t idx_ref,
                                                                         struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2331,7 +2340,8 @@ static int32_t glue_try_index_var_plus_var_plus_var_eff_addr_rax_elf_c(struct as
 /**
  * INDEX 读/址：VAR/FIELD 基址 + ((VAR-VAR)+VAR) 混合 ADD/SUB → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_minus_var_plus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_minus_var_plus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                          int32_t base_ref, int32_t idx_ref,
                                                                          struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2403,7 +2413,8 @@ static int32_t glue_try_index_var_minus_var_plus_var_eff_addr_rax_elf_c(struct a
 /**
  * INDEX 读/址：VAR/FIELD 基址 + ((VAR-VAR)-VAR) 混合 SUB → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_minus_var_minus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_minus_var_minus_var_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                           int32_t base_ref, int32_t idx_ref,
                                                                           struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2469,7 +2480,8 @@ static int32_t glue_try_index_var_minus_var_minus_var_eff_addr_rax_elf_c(struct 
 /**
  * INDEX 读/址：VAR/FIELD 基址 + (VAR-(VAR+VAR)) 右结合 SUB → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_minus_add3_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_minus_add3_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                    int32_t base_ref, int32_t idx_ref,
                                                                    struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2522,7 +2534,8 @@ static int32_t glue_try_index_var_minus_add3_eff_addr_rax_elf_c(struct ast_ASTAr
 /**
  * INDEX 读/址：VAR/FIELD 基址 + ((VAR-(VAR+VAR))*lit) MUL 嵌套 → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_minus_add3_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_minus_add3_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                            int32_t base_ref, int32_t idx_ref,
                                                                            struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2584,7 +2597,8 @@ static int32_t glue_try_index_var_minus_add3_mul_lit_eff_addr_rax_elf_c(struct a
 /**
  * INDEX 读/址：VAR/FIELD 基址 + ((VAR-VAR)*lit) MUL 嵌套 → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_minus_var_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_minus_var_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                         int32_t base_ref, int32_t idx_ref,
                                                                         struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2647,7 +2661,8 @@ static int32_t glue_try_index_var_minus_var_mul_lit_eff_addr_rax_elf_c(struct as
 /**
  * INDEX 读/址：VAR/FIELD 基址 + ((VAR-VAR+VAR)*lit) MUL 嵌套 → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_subadd3_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_subadd3_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                       int32_t base_ref, int32_t idx_ref,
                                                                       struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2717,7 +2732,8 @@ static int32_t glue_try_index_var_subadd3_mul_lit_eff_addr_rax_elf_c(struct ast_
 /**
  * INDEX 读/址：VAR/FIELD 基址 + ((VAR-VAR-VAR)*lit) MUL 嵌套 → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_subsub3_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_subsub3_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                       int32_t base_ref, int32_t idx_ref,
                                                                       struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2779,7 +2795,8 @@ static int32_t glue_try_index_var_subsub3_mul_lit_eff_addr_rax_elf_c(struct ast_
 /**
  * INDEX 读/址：VAR/FIELD 基址 + ((VAR+VAR+VAR)*lit) MUL 嵌套 → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_add3_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_add3_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                    int32_t base_ref, int32_t idx_ref,
                                                                    struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2841,7 +2858,8 @@ static int32_t glue_try_index_var_add3_mul_lit_eff_addr_rax_elf_c(struct ast_AST
 /**
  * INDEX 读/址：VAR/FIELD 基址 + ((VAR+VAR)*lit) MUL 嵌套 → 有效地址入 rax。
  */
-static int32_t glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure Cap residual: static→extern. PLATFORM: SHARED. */
+int32_t glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(struct ast_ASTArena *arena,
                                                                        struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                        int32_t base_ref, int32_t idx_ref,
                                                                        struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -2942,15 +2960,15 @@ static int32_t glue_emit_soa_index_field_addr_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * Forward decls for lvalue text twin (defined later in same TU):
- * - pipeline_asm_emit_index_eff_addr_text_c — public face in index_eff_addr leaf
- * - glue_arch_emit_local_slot_ptr_or_addr_text_c — static helper in index_eff_addr
- *   (wave1012 fold); same-TU static forward decl is valid C.
+ * Forward decls for lvalue text twin (wave147 pure-owned leave):
+ * - pipeline_asm_emit_index_eff_addr_text_c — pure public face
+ * - glue_arch_emit_local_slot_ptr_or_addr_text_c — pure helper (was static in leaf)
+ * residual calls via extern. PLATFORM: SHARED.
  */
-int32_t pipeline_asm_emit_index_eff_addr_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+extern int32_t pipeline_asm_emit_index_eff_addr_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                 int32_t ix_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                 int32_t elem_sz);
-static int32_t glue_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena,
+extern int32_t glue_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena,
                                                             struct codegen_CodegenOutBuf *out, int32_t var_expr_ref,
                                                             int32_t stack_off, struct backend_AsmFuncCtx *ctx,
                                                             int32_t ta);

@@ -543,11 +543,12 @@ int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t
 /* wave137 Cap residual: non-static (cmp pure leave). */
 int32_t glue_var_expr_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                               int32_t var_expr_ref);
-static int32_t glue_emit_index_add_index_to_base_rax_elf_c(struct ast_ASTArena *arena,
+/* wave147 pure-owned leave: index scale/add faces live in pure; residual extern. PLATFORM: SHARED. */
+extern int32_t glue_emit_index_add_index_to_base_rax_elf_c(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             int32_t idx_ref, struct backend_AsmFuncCtx *ctx,
                                                             int32_t ta, int32_t esz);
-static int32_t glue_emit_index_rax_plus_rbx_scaled_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t esz,
+extern int32_t glue_emit_index_rax_plus_rbx_scaled_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t esz,
                                                           int32_t ta);
 /* wave1037: 16 glue_try_index_var_* fwd declarations removed (G.7 same-leaf fold).
  * Definitions live in pipeline_asm_emit_index_helpers.c (included at line ~2352,

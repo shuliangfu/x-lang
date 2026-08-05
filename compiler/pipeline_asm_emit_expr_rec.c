@@ -752,6 +752,38 @@ void pipeline_expr_set_index_proven_in_bounds(struct ast_ASTArena *a, int32_t ex
 }
 
 /**
+ * Read index_base_is_slice on EXPR_INDEX (wave147 pure Cap residual getter).
+ * G.7: pool face twin of pipeline_expr_set_index_base_is_slice.
+ * @return 0 if invalid ref / unset; else flag value
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_expr_index_base_is_slice_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex;
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return 0;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return 0;
+  return ex->index_base_is_slice;
+}
+
+/**
+ * Read index_proven_in_bounds on EXPR_INDEX (wave147 pure Cap residual getter).
+ * G.7: pool face twin of pipeline_expr_set_index_proven_in_bounds.
+ * @return 0 if invalid ref / unset; else flag value
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_expr_index_proven_in_bounds_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex;
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return 0;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return 0;
+  return ex->index_proven_in_bounds;
+}
+
+/**
  * Read source line number from Expr. Returns 0 for invalid ref.
  * Used by break/continue diagnostics and typeck error reporting.
  */

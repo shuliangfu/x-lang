@@ -2158,7 +2158,7 @@ int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegen
  * size_simple. Cold path — called per struct16 CALL retval in
  * glue_store_retval_pair_to_rbp_elf_c (wave1058, call_args.c:1878) and
  * glue_load_var_as_value_to_rax_rdx_elf_c (call_args.c) on the let-init /
- * by-value load path. Also called from pipeline_asm_emit_index_eff_addr.c
+ * by-value load path. Also called from runtime_pipeline_abi pure (wave147 index_eff_addr)
  * (249, 420) for INDEX-on-call-base fat materialize gate.
  *
  * PLATFORM: SHARED classifier — LINUX gold + MACOS|ARM64 co-path. The flag

@@ -311,7 +311,7 @@ extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
 /* BC 8.3.1: asm ELF 7.3 live / Chaitin spill / bulk_mem / index-assign
  * residual domain (live_fwd + color + bulk_mem_copy_spills +
  * index_assign_finish_store + index scratch spill methods; Cap residual
- * pure; same TU). eff_addr_scaled → pipeline_asm_emit_index_eff_addr.c. */
+ * pure; same TU). eff_addr_scaled → runtime_pipeline_abi pure (wave147). */
 #include "pipeline_asm_emit_spill.c"
 
 /* wave139 pure-owned leave: pipeline_asm_emit_modlet.c deleted.
@@ -339,7 +339,7 @@ extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
 /* wave140 pure-owned leave: pipeline_asm_emit_index.c deleted.
  * Live = runtime_pipeline_abi pure (esz + INDEX/ADDR_OF/DEREF ELF faces); seed cold twins
  * under #ifndef FROM_X. Residual C callsites (expr_rec/assign/binop/helpers) use extern
- * decls in pipeline_glue_emit_fwd.c. Cap residual helpers remain index_helpers/spill/eff_addr.
+ * decls in pipeline_glue_emit_fwd.c. Cap residual helpers remain index_helpers/spill (eff_addr pure wave147).
  * PLATFORM: SHARED. */
 
 
@@ -379,13 +379,12 @@ void pipeline_block_let_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t 
  *  cmp_rbx_rax) folded into pipeline_asm_emit_binop.c.
  * wave1019: f32 VAR slot load + call_arg resolve folded into call_args leaf. */
 
-/* BC 8.3.1: asm ELF INDEX effective-address domain
- * (rax_plus_rbx_scaled + bounds_guard + rvalue_slice_once +
- *  eff_addr_scaled entry + base twins + public index_eff_addr faces;
- *  Cap residual pure; same TU). G.7 fold base/public into this leaf (wave1012).
- * try_index forest + lvalue_eff_addr_{elf,text} stay in index_helpers
- * (text folded wave1013); face in index/assign. */
-#include "pipeline_asm_emit_index_eff_addr.c"
+/* wave147 pure-owned leave: pipeline_asm_emit_index_eff_addr.c deleted.
+ * live = runtime_pipeline_abi pure (scaled + bounds + rvalue_slice_once + base/text
+ * twins + public index_eff_addr elf/text faces); seed cold twins under #ifndef FROM_X.
+ * Cap residual try_index forest + lvalue_eff_addr stay in index_helpers (static→extern
+ * for eff_addr_rax helpers pure links). PLATFORM: SHARED freestanding emit.
+ */
 
 /* wave1020: expr_rec leaf (lit_i32 + rec + fast + emit_expr_elf_c) include
  * moved to after field_access — see wave1020 include below. Early forward

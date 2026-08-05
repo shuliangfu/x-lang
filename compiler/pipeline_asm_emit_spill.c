@@ -16,7 +16,7 @@
  * G.7: single product-mega 7.3 live/spill face — do not open a second Chaitin
  * color map or bulk_mem_copy path. Face emitters (assign/index/binop) stay in
  * their slices; glue_emit_index_eff_addr_scaled_elf_c lives in
- * pipeline_asm_emit_index_eff_addr.c (same TU, after binop residual helpers).
+ * runtime_pipeline_abi pure (wave147 pure-owned leave).
  * Thin public break/continue faces (pipeline_asm_emit_{break,continue}_elf_c)
  * live next to their static impls in this leaf (wave1014 fold).
  *
@@ -34,7 +34,7 @@
 
 /* Forward decls / callees defined elsewhere in the same TU:
  * - glue_var_expr_stack_off_elf_c (def after assign/index includes)
- * - glue_emit_index_eff_addr_scaled_elf_c (pipeline_asm_emit_index_eff_addr.c)
+ * - glue_emit_index_eff_addr_scaled_elf_c (runtime_pipeline_abi pure wave147)
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / asm_ctx_local_*
  * - CAP statics: glue_binop_stack_spill_* arrays, glue_index_scratch_stack_depth,
  *   glue_index_minus_pair_cache, glue_index_subadd3_sum_cache
