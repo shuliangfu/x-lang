@@ -1429,7 +1429,13 @@ void glue_index_scratch_stack_depth_set(int32_t v) {
   glue_index_scratch_stack_depth = v < 0 ? 0 : v;
 }
 
-
+/**
+ * wave169 Cap residual: thin get for pure index-scratch leave.
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 index scratch stack.
+ */
+int32_t glue_index_scratch_stack_depth_get(void) {
+  return glue_index_scratch_stack_depth;
+}
 
 /* wave153 Cap residual: def in spill.c */
 void glue_binop_stack_spill_clear(void);
@@ -1437,7 +1443,7 @@ void glue_binop_stack_spill_clear(void);
 void glue_binop_stack_spill_drop_off(int32_t off);
 /* wave166 Cap residual: non-static face for pure pressure-evict leave (def spill.c). */
 int32_t glue_binop_stack_spill_find_depth(int32_t off);
-/* wave149 Cap residual non-static (def spill.c). */
+/* wave169 pure-owned: glue_binop_stack_spill_push_elf_c (runtime_pipeline_abi pure). */
 int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
                                                   int32_t from_rbx);
 static int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
@@ -1453,7 +1459,7 @@ static int32_t glue_index_minus_pair_cache_spill_after_sub_elf_c(struct ast_ASTA
                                                                   int32_t j_ref, int32_t ta);
 static int32_t glue_index_reload_scratch_slot_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                      int32_t slot_depth);
-/* wave138 Cap residual (non-static; def spill.c). */
+/* wave169 pure-owned: glue_index_scratch_spills_cleanup_all_elf_c (runtime_pipeline_abi pure). */
 int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 static int32_t glue_index_subadd3_sum_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                  int32_t i_ref, int32_t j_ref, int32_t k_ref, int32_t ta);

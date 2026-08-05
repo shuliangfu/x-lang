@@ -125,7 +125,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_vector_simd.c|8.3.1|asm ELF SIMD vector lane / shuffle / select / fma (wave148 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_struct_let.c|8.3.1|asm ELF struct let-init domain (wave132 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_index_helpers.c|8.3.1|asm ELF INDEX residual helpers (slot+esz+try_index forest+lvalue_eff_addr elf+text) slice|2500|present"
-  "compiler/pipeline_asm_emit_spill.c|8.3.1|asm ELF 7.3 live/Chaitin Cap residual (wave168 pure: cfg simulate walk; residual interf/gen_kill BSS+index-scratch)|2000|present"
+  "compiler/pipeline_asm_emit_spill.c|8.3.1|asm ELF 7.3 live/Chaitin Cap residual (wave169 pure: index-scratch cleanup/invalidate/push; residual CAP BSS+thin+enc/reload)|1900|present"
   "compiler/pipeline_asm_emit_index_eff_addr.c|8.3.1|asm ELF INDEX eff-addr (wave147 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_expr_rec.c|8.3.1|asm ELF expr recursion + fast (lit_i32 + rec + emit_expr_elf_c + fast) slice|0|absent"
   "compiler/pipeline_asm_emit_async_cps.c|8.3.1|asm ELF async/CPS emit domain (wave131 pure-owned leave)|0|absent"

@@ -673,7 +673,7 @@ export extern "C" function glue_binop_var_slot_cache_clear(): void;
 export extern "C" function glue_binop_var_slot_cache_invalidate_slot(off: i32): void;
 export extern "C" function glue_binop_var_slot_cache_kill_def_at_slot(off: i32): void;
 // wave156 pure-owned: glue_index_assign_finish_store_elf_c + glue_emit_bulk_mem_copy_spills_elf_c in EOF.
-export extern "C" function glue_index_scratch_spill_invalidate_var(arena: *u8, elf_ctx: *u8, ctx: *u8, var_ref: i32, ta: i32): void;
+/* wave169: pure owns glue_index_scratch_spill_invalidate_var (#[no_mangle] below). */
 // wave151 pure-owned leave: glue_field_access_effective_offset_c lives in EOF wave151 section.
 // wave144 pure leave: glue_maybe_promote_f32_to_f64_rax_elf_c + glue_float_promote_src_ty_ref_c live in this file.
 // wave145 pure leave: glue_slice_dual_gp_length_off_c + bump_past_home live in this file.
@@ -965,7 +965,13 @@ export extern "C" function glue_i64_to_f32_bits(v: i64): i32;
 export extern "C" function glue_i64_to_f64_bits(v: i64, lo: *i32, hi: *i32): void;
 export extern "C" function pipeline_expr_as_target_type_ref_at(arena: *u8, expr_ref: i32): i32;
 // wave143 pure leave: pipeline_asm_array_lit_elem_type_ref live in this file.
-export extern "C" function glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx: *u8, ta: i32): i32;
+/* wave169: pure owns glue_index_scratch_spills_cleanup_all_elf_c (#[no_mangle] below). */
+/* wave169 Cap residual: thin faces for pure index-scratch leave. */
+export extern "C" function glue_index_scratch_stack_depth_get(): i32;
+export extern "C" function glue_enc_pop_index_scratch_stack_arm64_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function glue_index_scratch_caches_hit_var(arena: *u8, var_ref: i32): i32;
+export extern "C" function glue_binop_stack_spill_append_at_depth(off: i32, depth: i32): i32;
+export extern "C" function glue_binop_stack_spill_cap_get(): i32;
 export extern "C" function arch_x86_64_enc_enc_test_edx_edx(elf_ctx: *u8): i32;
 export extern "C" function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32;
@@ -40693,7 +40699,7 @@ export extern "C" function glue_binop_var_slot_cache_set_rbx_off(off: i32): void
 // wave156 pure-owned: glue_enc_swap_rax_rbx_arm64_elf_c lives in EOF.
 export extern "C" function glue_asm73_var_prefers_stack_spill(off: i32): i32;
 export extern "C" function glue_binop_try_reload_spill_off_elf_c(elf_ctx: *u8, ctx: *u8, off: i32, ta: i32, to_rbx: i32): i32;
-export extern "C" function glue_binop_stack_spill_push_elf_c(elf_ctx: *u8, ta: i32, off: i32, from_rbx: i32): i32;
+/* wave169: pure owns glue_binop_stack_spill_push_elf_c (#[no_mangle] below). */
 export extern "C" function glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(arena: *u8, ctx: *u8, right_ref: i32, ta: i32, elf_ctx: *u8): void;
 /* wave166: pure owns glue_asm73_evict_cache_if_live_pressure_elf_c (#[no_mangle] below). */
 export extern "C" function glue_load_f32_var_slot_to_rax_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32;
@@ -53945,3 +53951,147 @@ export function glue_block_simulate_cfg_live_from_empty(arena: *u8, ctx: *u8, bl
 }
 
 // end wave168 pure-owned leave
+
+// ============================================================================
+// wave169 pure-owned leave: index-scratch public faces
+// (was Cap residual spill; CAP BSS stays residual).
+// Public faces:
+//   · glue_index_scratch_spills_cleanup_all_elf_c
+//   · glue_index_scratch_spill_invalidate_var
+//   · glue_binop_stack_spill_push_elf_c
+// Cap residual: CAP BSS (depth / minus_pair / subadd3 / stack_spill tables)
+// + thin depth_get/set / pop_enc / caches_hit_var / append_at_depth / cap_get
+// + enc push/reload + try_reload + cache spill helpers.
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * Pop all INDEX scratch spills (LIFO) and clear (i-j+k)/(i-j) cache metadata.
+ * Each pop emits arm64 add sp,#16 when ta==1 (via residual pop_enc).
+ * @param elf_ctx *u8 - ElfCodegenCtx* (may be null when depth already 0)
+ * @param ta i32 - target arch (0 x86_64, 1 arm64, …)
+ * @return i32 - 0 ok; -1 enc pop fail
+ * wave169 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 index scratch stack.
+ */
+#[no_mangle]
+export function glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx: *u8, ta: i32): i32 {
+  let depth: i32 = 0;
+  let rc: i32 = 0;
+  while (true) {
+    unsafe {
+      depth = glue_index_scratch_stack_depth_get();
+    }
+    if (depth <= 0) {
+      break;
+    }
+    unsafe {
+      rc = glue_enc_pop_index_scratch_stack_arm64_elf_c(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      depth = glue_index_scratch_stack_depth_get();
+      glue_index_scratch_stack_depth_set(depth - 1);
+    }
+  }
+  unsafe {
+    glue_index_subadd3_sum_cache_clear();
+    glue_index_minus_pair_cache_clear();
+  }
+  return 0;
+}
+
+/**
+ * Invalidate INDEX scratch spills when an assigned local is a key of the
+ * residual (i-j+k) or (i-j) spill caches. On hit, runs full cleanup_all.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx* (for cleanup enc)
+ * @param ctx *u8 - AsmFuncCtx* (ABI parity; unused)
+ * @param var_ref i32 - assigned VAR expr ref
+ * @param ta i32 - target arch
+ * @return void
+ * wave169 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_scratch_spill_invalidate_var(arena: *u8, elf_ctx: *u8, ctx: *u8, var_ref: i32, ta: i32): void {
+  let hit: i32 = 0;
+  // Touch ctx for ABI parity with residual (void)ctx.
+  if (ctx == (0 as *u8) && arena == (0 as *u8)) {
+    // no-op
+  }
+  if (arena == (0 as *u8) || var_ref <= 0) {
+    return;
+  }
+  unsafe {
+    hit = glue_index_scratch_caches_hit_var(arena, var_ref);
+  }
+  if (hit != 0) {
+    unsafe {
+      hit = glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta);
+    }
+    // cleanup return ignored (matches residual (void) cast).
+    if (hit != 0) {
+      // no-op: still cleared what we could; caller does not surface enc fail
+    }
+  }
+}
+
+/**
+ * Push rax/rbx VAR into the real stack (arm64 sub sp,#16 + str) and record
+ * off + depth in the residual binop stack-spill table.
+ * No-op when ta!=1, off<0, null elf_ctx, or off already recorded.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch (only arm64 records)
+ * @param off i32 - stack-slot offset for the VAR
+ * @param from_rbx i32 - non-zero → push rbx/x1; else push rax/x0
+ * @return i32 - 0 ok/no-op; -1 table full or enc fail
+ * wave169 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_binop_stack_spill_push_elf_c(elf_ctx: *u8, ta: i32, off: i32, from_rbx: i32): i32 {
+  let n: i32 = 0;
+  let cap: i32 = 0;
+  let depth: i32 = 0;
+  let rc: i32 = 0;
+  if (ta != 1 || off < 0 || elf_ctx == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    if (glue_binop_stack_spill_find_depth(off) >= 0) {
+      return 0;
+    }
+    n = glue_binop_stack_spill_n_get();
+    cap = glue_binop_stack_spill_cap_get();
+  }
+  if (n >= cap) {
+    return 0 - 1;
+  }
+  if (from_rbx != 0) {
+    unsafe {
+      rc = backend_enc_push_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  } else {
+    unsafe {
+      rc = backend_enc_push_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    depth = glue_index_scratch_stack_depth_get() + 1;
+    glue_index_scratch_stack_depth_set(depth);
+    rc = glue_binop_stack_spill_append_at_depth(off, depth);
+  }
+  return rc;
+}
+
+// end wave169 pure-owned leave

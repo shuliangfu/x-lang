@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave169: index-scratch pure leave cold twins under #ifndef FROM_X
  * wave168: cfg simulate walk pure leave cold twins under #ifndef FROM_X
  * wave167: cfg interf peak+color pure leave cold twins under #ifndef FROM_X
  * wave166: pressure-evict pure leave cold twins under #ifndef FROM_X
@@ -25025,6 +25026,38 @@ void glue_block_simulate_cfg_live_from_empty(void *arena, void *ctx, int32_t blo
   (void)arena;
   (void)ctx;
   (void)block_ref;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/*
+ * wave169 cold twins: index-scratch public faces.
+ * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta) {
+  (void)elf_ctx;
+  (void)ta;
+  return 0;
+}
+
+void glue_index_scratch_spill_invalidate_var(void *arena, void *elf_ctx, void *ctx, int32_t var_ref,
+                                             int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)ctx;
+  (void)var_ref;
+  (void)ta;
+}
+
+int32_t glue_binop_stack_spill_push_elf_c(void *elf_ctx, int32_t ta, int32_t off, int32_t from_rbx) {
+  (void)elf_ctx;
+  (void)ta;
+  (void)off;
+  (void)from_rbx;
+  return 0;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

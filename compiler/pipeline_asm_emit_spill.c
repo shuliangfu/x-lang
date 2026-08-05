@@ -78,11 +78,19 @@
  * thin copy_u8 / gen_kill_u8 / apply_stmt_gen_kill_u8 / interf_push /
  * interf_pop_merge / final_expr_use_n_set.
  *
+ * wave169 pure-owned index-scratch public faces (same pure TU):
+ *   · glue_index_scratch_spills_cleanup_all_elf_c
+ *   · glue_index_scratch_spill_invalidate_var
+ *   · glue_binop_stack_spill_push_elf_c
+ * Residual keeps CAP BSS (depth / minus_pair / subadd3 / stack_spill tables
+ * in index_helpers) + thin depth_get / pop_enc / caches_hit_var /
+ * stack_spill_append + enc push/reload + try_reload + cache spill helpers.
+ *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
  *   · 7.3 live_fwd BSS / break-continue note + push/pop
  *   · Chaitin interf BSS + gen_kill/collect + stack-spill preference
- *   · index scratch spill methods + binop_stack_spill bodies
+ *   · index scratch CAP BSS + thin + enc/reload + cache spill helpers
  *     (CAP statics in pipeline_asm_emit_index_helpers.c)
  *
  * G.7: do not re-define pure-owned faces above in this file.
@@ -187,6 +195,15 @@ void glue_block_simulate_cfg_live(struct ast_ASTArena *arena, struct backend_Asm
                                  const void *live_in, void *live_out, int32_t depth);
 void glue_block_simulate_cfg_live_from_empty(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                             int32_t block_ref);
+
+/* wave169 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * Residual: CAP BSS + thin depth/pop/hit/append. PLATFORM: SHARED freestanding 7.3. */
+int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+void glue_index_scratch_spill_invalidate_var(struct ast_ASTArena *arena,
+                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                             struct backend_AsmFuncCtx *ctx, int32_t var_ref, int32_t ta);
+int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
+                                          int32_t from_rbx);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -1705,11 +1722,15 @@ static int32_t glue_enc_reload_index_scratch_from_stack_arm64_elf_c(struct platf
   return arch_arm64_enc_enc_u32_le(elf_ctx, 4181722082);
 }
 
-/** arm64: balance one prior push_index_scratch (add sp, #16). */
-static int32_t glue_enc_pop_index_scratch_stack_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+/**
+ * arm64: balance one prior push_index_scratch (add sp, #16).
+ * wave169 Cap residual: non-static thin face for pure cleanup leave.
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
+ */
+int32_t glue_enc_pop_index_scratch_stack_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   if (ta != 1)
     return 0;
-  /** add sp, sp, #16 — 同 enc_pop_rax */
+  /** add sp, sp, #16 — same as enc_pop_rax */
   return arch_arm64_enc_enc_u32_le(elf_ctx, 2432713727);
 }
 
@@ -1740,17 +1761,55 @@ static int32_t glue_index_reload_scratch_slot_to_rbx_elf_c(struct platform_elf_E
   return 0;
 }
 
-/** Pop all INDEX scratch spills (LIFO) and clear cache metadata. */
-/* wave138 Cap residual for pure try_propagate leave: non-static face. */
-int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  while (glue_index_scratch_stack_depth > 0) {
-    if (glue_enc_pop_index_scratch_stack_arm64_elf_c(elf_ctx, ta) != 0)
-      return -1;
-    glue_index_scratch_stack_depth--;
-  }
-  glue_index_subadd3_sum_cache_clear();
-  glue_index_minus_pair_cache_clear();
+/* wave169: pure owns glue_index_scratch_spills_cleanup_all_elf_c (extern above).
+ * Residual thin: pop_enc + depth_get/set + cache clears. PLATFORM: SHARED. */
+
+/**
+ * wave169 Cap residual: 1 when subadd3 or minus_pair cache tracks var_ref key.
+ * Pure invalidate leave uses this hit face (key hash stays residual).
+ * @param arena ASTArena*
+ * @param var_ref expr ref of assigned local
+ * @return 1 hit (caller should cleanup spills); 0 miss / null / bad ref
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_index_scratch_caches_hit_var(struct ast_ASTArena *arena, int32_t var_ref) {
+  uint64_t vkey;
+  if (!arena || var_ref <= 0)
+    return 0;
+  vkey = glue_index_expr_struct_key_elf_c(arena, var_ref);
+  if (glue_index_subadd3_sum_cache.valid &&
+      (vkey == glue_index_subadd3_sum_cache.i_key || vkey == glue_index_subadd3_sum_cache.j_key ||
+       vkey == glue_index_subadd3_sum_cache.k_key))
+    return 1;
+  if (glue_index_minus_pair_cache.valid &&
+      (vkey == glue_index_minus_pair_cache.i_key || vkey == glue_index_minus_pair_cache.j_key))
+    return 1;
   return 0;
+}
+
+/**
+ * wave169 Cap residual: append one binop stack-spill table row at depth.
+ * Pure push leave records metadata after physical enc push.
+ * @param off stack slot offset
+ * @param depth glue_index_scratch_stack_depth after push
+ * @return 0 ok; -1 table full (GLUE_BINOP_STACK_SPILL_CAP)
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_binop_stack_spill_append_at_depth(int32_t off, int32_t depth) {
+  if (glue_binop_stack_spill_n >= GLUE_BINOP_STACK_SPILL_CAP)
+    return -1;
+  glue_binop_stack_spill_off[glue_binop_stack_spill_n] = off;
+  glue_binop_stack_spill_at_depth[glue_binop_stack_spill_n] = depth;
+  glue_binop_stack_spill_n++;
+  return 0;
+}
+
+/**
+ * wave169 Cap residual: stack-spill table capacity (GLUE_BINOP_STACK_SPILL_CAP).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_binop_stack_spill_cap_get(void) {
+  return GLUE_BINOP_STACK_SPILL_CAP;
 }
 
 /** 清空 7.3 binop 栈帧 spill 元数据（块入口；物理 pop 由 glue_index_scratch_spills_cleanup_all_elf_c）。 */
@@ -1793,31 +1852,9 @@ int32_t glue_binop_stack_spill_find_depth(int32_t off) {
   return -1;
 }
 
-/**
- * 7.3：将 rax/rbx 中 VAR 压入实栈（sub sp,#16 + str x0/x1,[sp]），记录 off 与深度。
- * 0=OK，-1=错。
- */
-/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
-int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
-                                                  int32_t from_rbx) {
-  if (ta != 1 || off < 0 || !elf_ctx)
-    return 0;
-  if (glue_binop_stack_spill_find_depth(off) >= 0)
-    return 0;
-  if (glue_binop_stack_spill_n >= GLUE_BINOP_STACK_SPILL_CAP)
-    return -1;
-  if (from_rbx != 0) {
-    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
-      return -1;
-  } else if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
-    return -1;
-  }
-  glue_index_scratch_stack_depth++;
-  glue_binop_stack_spill_off[glue_binop_stack_spill_n] = off;
-  glue_binop_stack_spill_at_depth[glue_binop_stack_spill_n] = glue_index_scratch_stack_depth;
-  glue_binop_stack_spill_n++;
-  return 0;
-}
+/* wave169: pure owns glue_binop_stack_spill_push_elf_c (extern above).
+ * Residual thin: find_depth / n_get / cap_get / append_at_depth / depth_get/set
+ * + backend_enc_push_{rax,rbx}_arch. PLATFORM: SHARED. */
 
 /**
  * 7.3：若 off 已在栈帧 spill 表，则从对应 [sp,#slot*16] 装入 rax/rbx；1=命中，0=未命中，-1=错。
@@ -1866,28 +1903,8 @@ static int32_t glue_index_subadd3_sum_cache_stack_cleanup_elf_c(struct platform_
   return glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta);
 }
 
-/** Invalidate scratch spills when i/j/k (or i/j) locals are assigned. */
-void glue_index_scratch_spill_invalidate_var(struct ast_ASTArena *arena,
-                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                     struct backend_AsmFuncCtx *ctx, int32_t var_ref,
-                                                     int32_t ta) {
-  uint64_t vkey;
-  int32_t hit;
-  if (!arena || var_ref <= 0)
-    return;
-  vkey = glue_index_expr_struct_key_elf_c(arena, var_ref);
-  hit = 0;
-  if (glue_index_subadd3_sum_cache.valid &&
-      (vkey == glue_index_subadd3_sum_cache.i_key || vkey == glue_index_subadd3_sum_cache.j_key ||
-       vkey == glue_index_subadd3_sum_cache.k_key))
-    hit = 1;
-  if (glue_index_minus_pair_cache.valid &&
-      (vkey == glue_index_minus_pair_cache.i_key || vkey == glue_index_minus_pair_cache.j_key))
-    hit = 1;
-  if (hit)
-    (void)glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta);
-  (void)ctx;
-}
+/* wave169: pure owns glue_index_scratch_spill_invalidate_var (extern above).
+ * Residual thin: glue_index_scratch_caches_hit_var + pure cleanup. PLATFORM: SHARED. */
 
 /** After sub w2=w2-w3 yields (i-j), push w2 and remember keys. */
 static int32_t glue_index_minus_pair_cache_spill_after_sub_elf_c(struct ast_ASTArena *arena,
