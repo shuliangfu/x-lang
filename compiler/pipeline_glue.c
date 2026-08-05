@@ -508,10 +508,40 @@ extern int32_t pipeline_asm_emit_binop_shift_elf_c(struct ast_ASTArena *arena,
     struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t op);
 
 
-/* BC 8.3.1: asm ELF EXPR_FIELD_ACCESS emit domain
- * (layout_by_name + call_arg struct/agg + call_base rvalue +
- * var_field_access + field_access_elf_fast; Cap residual pure; same TU). */
-#include "pipeline_asm_emit_field_access.c"
+/* wave151 pure-owned leave: pipeline_asm_emit_field_access.c deleted.
+ * live = runtime_pipeline_abi pure (field_access_elf_fast + call_base_rvalue +
+ * var_field_access + layout/offset/load_byte_sz + enum/soa setters +
+ * token_kind_variant_tag + enum_namespace_field_tag); seed cold twin under #ifndef FROM_X.
+ * Residual expr_rec/INDEX/typeck call pure faces — extern below.
+ * G.7: do not re-open a second FIELD_ACCESS ELF face. PLATFORM: SHARED freestanding emit. */
+
+/* wave151 Cap residual externs for pure-owned faces (same-TU residual callers). */
+extern int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+    int32_t fa_ref);
+extern int32_t pipeline_expr_field_access_layout_offset(struct ast_ASTArena *a, struct ast_Module *m,
+    int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_load_byte_sz(struct ast_ASTArena *a, struct ast_Module *m,
+    int32_t expr_ref);
+extern int32_t glue_field_layout_offset_for_base_field(struct ast_ASTArena *a, struct ast_Module *m,
+    int32_t base_ref, uint8_t *field_name, int32_t flen);
+extern int32_t glue_field_layout_offset_for_var_base_field(struct ast_ASTArena *a, struct ast_Module *m,
+    int32_t base_var_ref, uint8_t *field_name, int32_t flen);
+extern void pipeline_expr_set_field_access_enum_variant(struct ast_ASTArena *a, int32_t expr_ref,
+    int32_t tag);
+extern void pipeline_expr_set_field_access_soa_stride(struct ast_ASTArena *a, int32_t expr_ref,
+    int32_t stride);
+extern int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_enum_namespace_field_tag(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_enum_field_tag_via_module(uint8_t *enum_name, int32_t enum_len,
+    uint8_t *variant_name, int32_t variant_len);
+extern int32_t pipeline_token_kind_variant_tag(const uint8_t *variant_name, int32_t variant_len);
+extern int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
+    int32_t ta, int32_t leave_addr);
+
 
 
 /* BC 8.3.1 wave1020: asm ELF expr recursion + fast path domain

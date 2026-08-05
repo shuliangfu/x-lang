@@ -76,7 +76,8 @@ extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct 
  * glue.c L1684, AFTER this file's #include at L1660). Needed for wave1209-
  * migrated pipeline_asm_call_arg_value_byte_size_c at EOF (FIELD_ACCESS
  * field type resolution fallback). */
-static int32_t glue_field_access_layout_field_type_ref_by_name_c(struct ast_ASTArena *arena,
+/* wave151 Cap residual: pure field_access leave (was static fwd). PLATFORM: SHARED. */
+extern int32_t glue_field_access_layout_field_type_ref_by_name_c(struct ast_ASTArena *arena,
                                                                   struct ast_Module *mod, int32_t fa_ref);
 
 /* Forward decls / callees defined elsewhere in the same TU:
@@ -377,7 +378,8 @@ static int32_t glue_call_arg_var_use_lea_not_load_elf_c(struct ast_ASTArena *are
 /* wave1057 G.7: glue_sysv_dual_gp_byte_size_c now defined at EOF of this
  * file (migrated from glue.c:3216). Forward decl retained for callsites
  * at L396/L410/L1571 before the EOF definition. */
-static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
+/* wave151 Cap residual: pure field_access leave (was static). PLATFORM: SHARED. */
+int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 
 /* wave1048 G.7: fwd decl — definition at EOF. wave132 Cap residual: non-static. */
 int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
@@ -551,7 +553,8 @@ int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena,
  * PLATFORM: LINUX+MACOS x86_64 SysV — pass named struct by address only when MEMORY class
  * (>16B). 9–16B INTEGER class is by value in two GPRs (matches formal C ABI).
  */
-static int32_t glue_call_param_named_struct_pass_addr_elf_c(struct ast_ASTArena *arena, int32_t pty) {
+/* wave151 Cap residual: pure field_access leave (was static). PLATFORM: SHARED. */
+int32_t glue_call_param_named_struct_pass_addr_elf_c(struct ast_ASTArena *arena, int32_t pty) {
   return glue_type_named_layout_size_any_module_elf_c(arena, pty) > 16 ? 1 : 0;
 }
 
@@ -1804,7 +1807,8 @@ int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_ex
  * callsite at L279 (struct_lit.c #include at glue.c:2095 < call_args.c
  * #include at glue.c:2395).
  */
-static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref) {
+/* wave151 Cap residual: pure field_access leave (was static). PLATFORM: SHARED. */
+int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref) {
   uint8_t name[128];
   int32_t nlen;
   int32_t sz;

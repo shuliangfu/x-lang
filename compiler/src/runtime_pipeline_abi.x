@@ -663,7 +663,7 @@ export extern "C" function glue_binop_var_slot_cache_kill_def_at_slot(off: i32):
 export extern "C" function glue_index_assign_finish_store_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, base_ref: i32, idx_ref: i32, esz: i32, ta: i32): i32;
 export extern "C" function glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx: *u8, src_spill: i32, dst_spill: i32, nbytes: i32, ta: i32): i32;
 export extern "C" function glue_index_scratch_spill_invalidate_var(arena: *u8, elf_ctx: *u8, ctx: *u8, var_ref: i32, ta: i32): void;
-export extern "C" function glue_field_access_effective_offset_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
+// wave151 pure-owned leave: glue_field_access_effective_offset_c lives in EOF wave151 section.
 // wave144 pure leave: glue_maybe_promote_f32_to_f64_rax_elf_c + glue_float_promote_src_ty_ref_c live in this file.
 // wave145 pure leave: glue_slice_dual_gp_length_off_c + bump_past_home live in this file.
 // wave146 pure leave: glue_emit_fixed_array_type_let_init_elf_c + glue_type_is_fixed_array +
@@ -705,8 +705,8 @@ export extern "C" function backend_enc_sar_cl_eax_arch(elf_ctx: *u8, ta: i32): i
 export extern "C" function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, off: i32, load_sz: i32, ta: i32): i32;
 export extern "C" function backend_enc_store_rdx_to_rbp_arch(elf_ctx: *u8, slot_off: i32, ta: i32): i32;
 export extern "C" function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
-export extern "C" function pipeline_expr_field_access_load_byte_sz(arena: *u8, mod: *u8, expr_ref: i32): i32;
-export extern "C" function pipeline_expr_field_access_is_enum_variant(arena: *u8, expr_ref: i32): i32;
+// wave151 pure-owned leave: pipeline_expr_field_access_load_byte_sz lives in EOF wave151 section.
+// wave151 pure-owned leave: pipeline_expr_field_access_is_enum_variant lives in EOF wave151 section.
 export extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
 // wave143 pure leave: pipeline_asm_emit_array_lit_elf_c live in this file (no Cap residual).
 export extern "C" function ast_ast_block_stmt_order_kind(arena: *u8, block_ref: i32, si: i32): i32;
@@ -932,7 +932,7 @@ export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, expr_ref: i32,
 // PLATFORM: SHARED freestanding emit — pure owns CMP ELF + typekind tag + cc maps.
 export extern "C" function pipeline_expr_const_folded_valid_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_const_folded_val_at(arena: *u8, expr_ref: i32): i32;
-export extern "C" function pipeline_expr_enum_namespace_field_tag(arena: *u8, expr_ref: i32): i32;
+// wave151 pure-owned leave: pipeline_expr_enum_namespace_field_tag lives in EOF wave151 section.
 export extern "C" function pipeline_asm_call_return_type_kind_ord_c(arena: *u8, call_expr_ref: i32): i32;
 // wave149 pure-owned faces: bodies in EOF section (#[no_mangle] export; no dual export extern).
 export extern "C" function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
@@ -40534,7 +40534,7 @@ export extern "C" function glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c
 export extern "C" function glue_asm73_evict_cache_if_live_pressure_elf_c(ta: i32, elf_ctx: *u8): void;
 export extern "C" function glue_load_f32_var_slot_to_rax_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32;
 export extern "C" function glue_load_f32_var_slot_to_rbx_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32;
-export extern "C" function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+// wave151 pure-owned leave: pipeline_asm_emit_field_access_elf_fast_c lives in EOF wave151 section.
 export extern "C" function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function glue_binop_rax_frame_spill_push(home: i32): i32;
 export extern "C" function glue_binop_rax_frame_spill_pop(): i32;
@@ -43130,5 +43130,2293 @@ export function pipeline_asm_emit_binop_mod_elf_c(arena: *u8, elf_ctx: *u8, left
       return backend_enc_rem_mod_unsigned_arch(elf_ctx, ta);
     }
     return backend_enc_rem_mod_arch(elf_ctx, ta);
+  }
+}
+
+
+// wave151 Cap residual: field_access pure leave callees (still host-cc residual / pool / enc).
+// PLATFORM: SHARED freestanding emit — pure owns FIELD_ACCESS ELF + layout/offset + enum/soa.
+export extern "C" function glue_call_param_named_struct_pass_addr_elf_c(arena: *u8, pty: i32): i32;
+export extern "C" function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32;
+export extern "C" function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function pipeline_expr_struct_lit_value_bytes(arena: *u8, mod: *u8, expr_ref: i32): i32;
+export extern "C" function glue_struct_layout_index_by_type_name_c(m: *u8, struct_name: *u8, nlen: i32): i32;
+export extern "C" function glue_struct_layout_compute_field_offset_c(m: *u8, a: *u8, li: i32, j: i32): i32;
+export extern "C" function typeck_get_field_offset_from_layout_deps(module: *u8, ctx: *u8, type_name: *u8, type_name_len: i32, field_name: *u8, field_name_len: i32): i32;
+export extern "C" function pipeline_module_struct_layout_field_type_ref(module: *u8, li: i32, j: i32): i32;
+export extern "C" function pipeline_module_struct_layout_field_offset_at(module: *u8, li: i32, j: i32): i32;
+export extern "C" function pipeline_module_enum_variant_tag_for_names(m: *u8, enum_name: *u8, enum_len: i32, variant_name: *u8, variant_len: i32): i32;
+export extern "C" function glue_arena_expr_at_ref(a: *u8, expr_ref: i32): *u8;
+export extern "C" function pipeline_expr_field_access_offset(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_field_access_soa_stride(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_enum_variant_tag_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function typeck_soa_field_soa_index(module: *u8, arena: *u8, expr_ref: i32, base_ref: i32): i32;
+export extern "C" function glue_emit_soa_index_field_addr_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, expr_ref: i32, ctx: *u8, ta: i32): i32;
+// pipeline_asm_emit_expr_elf_c already Cap residual earlier (wave149 operand emit).
+
+// ============================================================================
+// wave151 pure-owned leave: pipeline_asm_emit_field_access domain
+// (was compiler/pipeline_asm_emit_field_access.c ~1374 LOC).
+// G.7 single FIELD_ACCESS ELF + layout/offset + enum/soa faces.
+// Cap residual: struct_lit layout index/compute (un-static); call_args
+// dual-GP/pass_addr; index_helpers soa addr; expr_rec name/offset/soa_stride
+// readers; typeck_soa_field_soa_index; pool layout/enum faces.
+// PLATFORM: SHARED freestanding emit · LINUX gold · MACOS|ARM64 co-path.
+// ============================================================================
+
+/**
+ * Byte equality for len bytes (field_access name match helper).
+ * @param a *u8 - left
+ * @param b *u8 - right
+ * @param len i32 - byte count
+ * @return i32 - 1 equal; 0 otherwise
+ * PLATFORM: SHARED pure helper.
+ */
+function wave151_bytes_eq(a: *u8, b: *u8, len: i32): i32 {
+  let i: i32 = 0;
+  if (a == (0 as *u8) || b == (0 as *u8) || len <= 0) {
+    return 0;
+  }
+  while (i < len) {
+    if (a[i] != b[i]) {
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * Prefix/lenient enum field name match (parser may append trailing NUL in flen).
+ * @param field_buf *u8 - field name bytes
+ * @param flen i32 - claimed length (may be +1)
+ * @param expect *u8 - expected spelling
+ * @param elen i32 - expected length
+ * @return i32 - 1 match; 0 miss
+ * wave151 pure: G.7 authority (was static glue_enum_field_name_equal).
+ * PLATFORM: SHARED.
+ */
+function glue_enum_field_name_equal(field_buf: *u8, flen: i32, expect: *u8, elen: i32): i32 {
+  if (field_buf == (0 as *u8) || expect == (0 as *u8) || flen <= 0 || elen <= 0) {
+    return 0;
+  }
+  if (flen < elen) {
+    return 0;
+  }
+  return wave151_bytes_eq(field_buf, expect, elen);
+}
+
+/**
+ * LP64 offsetof(ast_Expr, field_access_is_enum_variant) = 340.
+ * PLATFORM: SHARED LP64 Expr layout (pipeline_gen product).
+ */
+function pipe_expr_off_fa_is_enum(): i32 {
+  return 340;
+}
+
+/**
+ * LP64 offsetof(ast_Expr, field_access_offset) = 344.
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_expr_off_fa_offset(): i32 {
+  return 344;
+}
+
+/**
+ * LP64 offsetof(ast_Expr, field_access_soa_stride) = 348.
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_expr_off_fa_soa_stride(): i32 {
+  return 348;
+}
+
+/**
+ * LP64 offsetof(ast_Expr, enum_variant_tag) = 692.
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_expr_off_enum_variant_tag(): i32 {
+  return 692;
+}
+
+/**
+ * Resolve TokenKind variant name to ordinal (include/token.h order).
+ * @param variant_name *u8 - name bytes (not required NUL-terminated)
+ * @param variant_len i32 - length; may carry trailing byte
+ * @return i32 - 0..N-1 on match; -1 miss/null
+ * wave151 pure: G.7 authority (was static pipeline_token_kind_variant_tag).
+ * PLATFORM: SHARED — names table lockstep with token.h.
+ */
+#[no_mangle]
+export function pipeline_token_kind_variant_tag(variant_name: *u8, variant_len: i32): i32 {
+  let flen: i32 = variant_len;
+  if (variant_name == (0 as *u8) || flen <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    {
+      let nm: u8[9] = [84, 79, 75, 69, 78, 95, 69, 79, 70];
+      if (flen == 9 && wave151_bytes_eq(variant_name, &nm[0], 9) != 0) {
+        return 0;
+      }
+    }
+    {
+      let nm: u8[14] = [84, 79, 75, 69, 78, 95, 70, 85, 78, 67, 84, 73, 79, 78];
+      if (flen == 14 && wave151_bytes_eq(variant_name, &nm[0], 14) != 0) {
+        return 1;
+      }
+    }
+    {
+      let nm: u8[9] = [84, 79, 75, 69, 78, 95, 76, 69, 84];
+      if (flen == 9 && wave151_bytes_eq(variant_name, &nm[0], 9) != 0) {
+        return 2;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 67, 79, 78, 83, 84];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 3;
+      }
+    }
+    {
+      let nm: u8[8] = [84, 79, 75, 69, 78, 95, 73, 70];
+      if (flen == 8 && wave151_bytes_eq(variant_name, &nm[0], 8) != 0) {
+        return 4;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 69, 76, 83, 69];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 5;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 87, 72, 73, 76, 69];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 6;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 76, 79, 79, 80];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 7;
+      }
+    }
+    {
+      let nm: u8[9] = [84, 79, 75, 69, 78, 95, 70, 79, 82];
+      if (flen == 9 && wave151_bytes_eq(variant_name, &nm[0], 9) != 0) {
+        return 8;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 66, 82, 69, 65, 75];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 9;
+      }
+    }
+    {
+      let nm: u8[14] = [84, 79, 75, 69, 78, 95, 67, 79, 78, 84, 73, 78, 85, 69];
+      if (flen == 14 && wave151_bytes_eq(variant_name, &nm[0], 14) != 0) {
+        return 10;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 82, 69, 84, 85, 82, 78];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 11;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 80, 65, 78, 73, 67];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 12;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 68, 69, 70, 69, 82];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 13;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 77, 65, 84, 67, 72];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 14;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 83, 84, 82, 85, 67, 84];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 15;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 80, 65, 67, 75, 69, 68];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 16;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 69, 78, 85, 77];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 17;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 71, 79, 84, 79];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 18;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 84, 82, 65, 73, 84];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 19;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 73, 77, 80, 76];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 20;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 83, 69, 76, 70];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 21;
+      }
+    }
+    {
+      let nm: u8[16] = [84, 79, 75, 69, 78, 95, 85, 78, 68, 69, 82, 83, 67, 79, 82, 69];
+      if (flen == 16 && wave151_bytes_eq(variant_name, &nm[0], 16) != 0) {
+        return 22;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 73, 77, 80, 79, 82, 84];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 23;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 69, 88, 84, 69, 82, 78];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 24;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 73, 68, 69, 78, 84];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 25;
+      }
+    }
+    {
+      let nm: u8[9] = [84, 79, 75, 69, 78, 95, 73, 51, 50];
+      if (flen == 9 && wave151_bytes_eq(variant_name, &nm[0], 9) != 0) {
+        return 26;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 66, 79, 79, 76];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 27;
+      }
+    }
+    {
+      let nm: u8[8] = [84, 79, 75, 69, 78, 95, 85, 56];
+      if (flen == 8 && wave151_bytes_eq(variant_name, &nm[0], 8) != 0) {
+        return 28;
+      }
+    }
+    {
+      let nm: u8[9] = [84, 79, 75, 69, 78, 95, 85, 51, 50];
+      if (flen == 9 && wave151_bytes_eq(variant_name, &nm[0], 9) != 0) {
+        return 29;
+      }
+    }
+    {
+      let nm: u8[9] = [84, 79, 75, 69, 78, 95, 85, 54, 52];
+      if (flen == 9 && wave151_bytes_eq(variant_name, &nm[0], 9) != 0) {
+        return 30;
+      }
+    }
+    {
+      let nm: u8[9] = [84, 79, 75, 69, 78, 95, 73, 54, 52];
+      if (flen == 9 && wave151_bytes_eq(variant_name, &nm[0], 9) != 0) {
+        return 31;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 85, 83, 73, 90, 69];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 32;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 73, 83, 73, 90, 69];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 33;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 73, 51, 50, 88, 52];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 34;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 73, 51, 50, 88, 56];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 35;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 73, 51, 50, 88, 49, 54];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 36;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 85, 51, 50, 88, 52];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 37;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 85, 51, 50, 88, 56];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 38;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 85, 51, 50, 88, 49, 54];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 39;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 70, 51, 50, 88, 52];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 40;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 84, 82, 85, 69];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 41;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 70, 65, 76, 83, 69];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 42;
+      }
+    }
+    {
+      let nm: u8[9] = [84, 79, 75, 69, 78, 95, 70, 51, 50];
+      if (flen == 9 && wave151_bytes_eq(variant_name, &nm[0], 9) != 0) {
+        return 43;
+      }
+    }
+    {
+      let nm: u8[9] = [84, 79, 75, 69, 78, 95, 70, 54, 52];
+      if (flen == 9 && wave151_bytes_eq(variant_name, &nm[0], 9) != 0) {
+        return 44;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 86, 79, 73, 68];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 45;
+      }
+    }
+    {
+      let nm: u8[9] = [84, 79, 75, 69, 78, 95, 73, 78, 84];
+      if (flen == 9 && wave151_bytes_eq(variant_name, &nm[0], 9) != 0) {
+        return 46;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 70, 76, 79, 65, 84];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 47;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 76, 80, 65, 82, 69, 78];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 48;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 82, 80, 65, 82, 69, 78];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 49;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 76, 66, 82, 65, 67, 69];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 50;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 82, 66, 82, 65, 67, 69];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 51;
+      }
+    }
+    {
+      let nm: u8[14] = [84, 79, 75, 69, 78, 95, 76, 66, 82, 65, 67, 75, 69, 84];
+      if (flen == 14 && wave151_bytes_eq(variant_name, &nm[0], 14) != 0) {
+        return 52;
+      }
+    }
+    {
+      let nm: u8[14] = [84, 79, 75, 69, 78, 95, 82, 66, 82, 65, 67, 75, 69, 84];
+      if (flen == 14 && wave151_bytes_eq(variant_name, &nm[0], 14) != 0) {
+        return 53;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 65, 82, 82, 79, 87];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 54;
+      }
+    }
+    {
+      let nm: u8[14] = [84, 79, 75, 69, 78, 95, 70, 65, 84, 65, 82, 82, 79, 87];
+      if (flen == 14 && wave151_bytes_eq(variant_name, &nm[0], 14) != 0) {
+        return 55;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 67, 79, 77, 77, 65];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 56;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 67, 79, 76, 79, 78];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 57;
+      }
+    }
+    {
+      let nm: u8[9] = [84, 79, 75, 69, 78, 95, 68, 79, 84];
+      if (flen == 9 && wave151_bytes_eq(variant_name, &nm[0], 9) != 0) {
+        return 58;
+      }
+    }
+    {
+      let nm: u8[15] = [84, 79, 75, 69, 78, 95, 83, 69, 77, 73, 67, 79, 76, 79, 78];
+      if (flen == 15 && wave151_bytes_eq(variant_name, &nm[0], 15) != 0) {
+        return 59;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 80, 76, 85, 83];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 60;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 77, 73, 78, 85, 83];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 61;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 83, 84, 65, 82];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 62;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 83, 76, 65, 83, 72];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 63;
+      }
+    }
+    {
+      let nm: u8[13] = [84, 79, 75, 69, 78, 95, 80, 69, 82, 67, 69, 78, 84];
+      if (flen == 13 && wave151_bytes_eq(variant_name, &nm[0], 13) != 0) {
+        return 64;
+      }
+    }
+    {
+      let nm: u8[9] = [84, 79, 75, 69, 78, 95, 65, 77, 80];
+      if (flen == 9 && wave151_bytes_eq(variant_name, &nm[0], 9) != 0) {
+        return 65;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 80, 73, 80, 69];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 66;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 67, 65, 82, 69, 84];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 67;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 76, 83, 72, 73, 70, 84];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 68;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 82, 83, 72, 73, 70, 84];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 69;
+      }
+    }
+    {
+      let nm: u8[13] = [84, 79, 75, 69, 78, 95, 80, 76, 85, 83, 95, 69, 81];
+      if (flen == 13 && wave151_bytes_eq(variant_name, &nm[0], 13) != 0) {
+        return 70;
+      }
+    }
+    {
+      let nm: u8[14] = [84, 79, 75, 69, 78, 95, 77, 73, 78, 85, 83, 95, 69, 81];
+      if (flen == 14 && wave151_bytes_eq(variant_name, &nm[0], 14) != 0) {
+        return 71;
+      }
+    }
+    {
+      let nm: u8[13] = [84, 79, 75, 69, 78, 95, 83, 84, 65, 82, 95, 69, 81];
+      if (flen == 13 && wave151_bytes_eq(variant_name, &nm[0], 13) != 0) {
+        return 72;
+      }
+    }
+    {
+      let nm: u8[14] = [84, 79, 75, 69, 78, 95, 83, 76, 65, 83, 72, 95, 69, 81];
+      if (flen == 14 && wave151_bytes_eq(variant_name, &nm[0], 14) != 0) {
+        return 73;
+      }
+    }
+    {
+      let nm: u8[16] = [84, 79, 75, 69, 78, 95, 80, 69, 82, 67, 69, 78, 84, 95, 69, 81];
+      if (flen == 16 && wave151_bytes_eq(variant_name, &nm[0], 16) != 0) {
+        return 74;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 65, 77, 80, 95, 69, 81];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 75;
+      }
+    }
+    {
+      let nm: u8[13] = [84, 79, 75, 69, 78, 95, 80, 73, 80, 69, 95, 69, 81];
+      if (flen == 13 && wave151_bytes_eq(variant_name, &nm[0], 13) != 0) {
+        return 76;
+      }
+    }
+    {
+      let nm: u8[14] = [84, 79, 75, 69, 78, 95, 67, 65, 82, 69, 84, 95, 69, 81];
+      if (flen == 14 && wave151_bytes_eq(variant_name, &nm[0], 14) != 0) {
+        return 77;
+      }
+    }
+    {
+      let nm: u8[15] = [84, 79, 75, 69, 78, 95, 76, 83, 72, 73, 70, 84, 95, 69, 81];
+      if (flen == 15 && wave151_bytes_eq(variant_name, &nm[0], 15) != 0) {
+        return 78;
+      }
+    }
+    {
+      let nm: u8[15] = [84, 79, 75, 69, 78, 95, 82, 83, 72, 73, 70, 84, 95, 69, 81];
+      if (flen == 15 && wave151_bytes_eq(variant_name, &nm[0], 15) != 0) {
+        return 79;
+      }
+    }
+    {
+      let nm: u8[11] = [84, 79, 75, 69, 78, 95, 84, 73, 76, 68, 69];
+      if (flen == 11 && wave151_bytes_eq(variant_name, &nm[0], 11) != 0) {
+        return 80;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 65, 83, 83, 73, 71, 78];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 81;
+      }
+    }
+    {
+      let nm: u8[8] = [84, 79, 75, 69, 78, 95, 69, 81];
+      if (flen == 8 && wave151_bytes_eq(variant_name, &nm[0], 8) != 0) {
+        return 82;
+      }
+    }
+    {
+      let nm: u8[8] = [84, 79, 75, 69, 78, 95, 78, 69];
+      if (flen == 8 && wave151_bytes_eq(variant_name, &nm[0], 8) != 0) {
+        return 83;
+      }
+    }
+    {
+      let nm: u8[8] = [84, 79, 75, 69, 78, 95, 76, 84];
+      if (flen == 8 && wave151_bytes_eq(variant_name, &nm[0], 8) != 0) {
+        return 84;
+      }
+    }
+    {
+      let nm: u8[8] = [84, 79, 75, 69, 78, 95, 71, 84];
+      if (flen == 8 && wave151_bytes_eq(variant_name, &nm[0], 8) != 0) {
+        return 85;
+      }
+    }
+    {
+      let nm: u8[8] = [84, 79, 75, 69, 78, 95, 76, 69];
+      if (flen == 8 && wave151_bytes_eq(variant_name, &nm[0], 8) != 0) {
+        return 86;
+      }
+    }
+    {
+      let nm: u8[8] = [84, 79, 75, 69, 78, 95, 71, 69];
+      if (flen == 8 && wave151_bytes_eq(variant_name, &nm[0], 8) != 0) {
+        return 87;
+      }
+    }
+    {
+      let nm: u8[12] = [84, 79, 75, 69, 78, 95, 65, 77, 80, 65, 77, 80];
+      if (flen == 12 && wave151_bytes_eq(variant_name, &nm[0], 12) != 0) {
+        return 88;
+      }
+    }
+    {
+      let nm: u8[14] = [84, 79, 75, 69, 78, 95, 80, 73, 80, 69, 80, 73, 80, 69];
+      if (flen == 14 && wave151_bytes_eq(variant_name, &nm[0], 14) != 0) {
+        return 89;
+      }
+    }
+    {
+      let nm: u8[10] = [84, 79, 75, 69, 78, 95, 66, 65, 78, 71];
+      if (flen == 10 && wave151_bytes_eq(variant_name, &nm[0], 10) != 0) {
+        return 90;
+      }
+    }
+    {
+      let nm: u8[14] = [84, 79, 75, 69, 78, 95, 81, 85, 69, 83, 84, 73, 79, 78];
+      if (flen == 14 && wave151_bytes_eq(variant_name, &nm[0], 14) != 0) {
+        return 91;
+      }
+    }
+    {
+      let nm: u8[8] = [84, 79, 75, 69, 78, 95, 65, 83];
+      if (flen == 8 && wave151_bytes_eq(variant_name, &nm[0], 8) != 0) {
+        return 92;
+      }
+    }
+    {
+      let nm: u8[8] = [84, 79, 75, 69, 78, 95, 65, 84];
+      if (flen == 8 && wave151_bytes_eq(variant_name, &nm[0], 8) != 0) {
+        return 93;
+      }
+    }
+  }
+  return 0 - 1;
+}
+
+/**
+ * Layout scan: field type_ref by field name across module struct layouts.
+ * @param arena *u8 - ASTArena*
+ * @param mod *u8 - Module*
+ * @param fa_ref i32 - FIELD_ACCESS expr ref
+ * @return i32 - field type_ref or 0
+ * wave151 pure: G.7 authority (was static glue_field_access_layout_field_type_ref_by_name_c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_field_access_layout_field_type_ref_by_name_c(arena: *u8, mod: *u8, fa_ref: i32): i32 {
+  let flen: i32 = 0;
+  let field_name: u8[128] = [];
+  let k: i32 = 0;
+  let j: i32 = 0;
+  let nsl: i32 = 0;
+  let nf: i32 = 0;
+  let fnlen: i32 = 0;
+  let feq: i32 = 0;
+  let fi: i32 = 0;
+  let fb: u8[128] = [];
+  if (arena == (0 as *u8) || mod == (0 as *u8) || fa_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    flen = pipeline_expr_field_access_name_len(arena, fa_ref);
+  }
+  if (flen <= 0 || flen > 127) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_field_access_name_into(arena, fa_ref, &field_name[0]);
+    nsl = pipeline_module_num_struct_layouts_at(mod);
+  }
+  k = 0;
+  while (k < nsl) {
+    unsafe {
+      nf = pipeline_module_struct_layout_num_fields(mod, k);
+    }
+    j = 0;
+    while (j < nf) {
+      unsafe {
+        fnlen = pipeline_module_struct_layout_field_name_len(mod, k, j);
+      }
+      feq = 1;
+      if (fnlen != flen) {
+        feq = 0;
+      } else {
+        unsafe {
+          pipeline_module_struct_layout_field_name_into(mod, k, j, &fb[0]);
+        }
+        fi = 0;
+        while (fi < fnlen) {
+          if (fb[fi] != field_name[fi]) {
+            feq = 0;
+            break;
+          }
+          fi = fi + 1;
+        }
+      }
+      if (feq != 0) {
+        unsafe {
+          return pipeline_module_struct_layout_field_type_ref(mod, k, j);
+        }
+      }
+      j = j + 1;
+    }
+    k = k + 1;
+  }
+  return 0;
+}
+
+
+/**
+ * CALL-arg FIELD_ACCESS: MEMORY class (>16B) leave address in rax.
+ * @param arena *u8 - ASTArena*
+ * @param fa_ref i32 - FIELD_ACCESS expr ref
+ * @return i32 - non-zero if by-addr; 0 otherwise
+ * wave151 pure: G.7 authority (was static glue_field_access_call_arg_struct_by_addr_elf_c).
+ * PLATFORM: SHARED LINUX+MACOS x86_64 SysV (9–16B dual-GP by-value).
+ */
+#[no_mangle]
+export function glue_field_access_call_arg_struct_by_addr_elf_c(arena: *u8, fa_ref: i32): i32 {
+  let fty: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let pty: i32 = 0;
+  unsafe {
+    if (pipeline_asm_emit_call_arg_active_c() == 0) {
+      return 0;
+    }
+    pty = pipeline_asm_emit_ctx_call_param_ty_get();
+    if (pty > 0) {
+      return glue_call_param_named_struct_pass_addr_elf_c(arena, pty);
+    }
+    mod = pipeline_asm_emit_module_ref_c();
+    fty = glue_field_access_field_type_ref_c(arena, mod, fa_ref);
+    if (fty <= 0 && mod != (0 as *u8)) {
+      fty = glue_field_access_layout_field_type_ref_by_name_c(arena, mod, fa_ref);
+    }
+    if (fty > 0) {
+      return glue_call_param_named_struct_pass_addr_elf_c(arena, fty);
+    }
+  }
+  return 0;
+}
+
+/**
+ * After field lvalue address in rax: load CALL-arg aggregate by SysV class.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param fa_ref i32 - FIELD_ACCESS expr ref
+ * @param ta i32 - target arch
+ * @return i32 - 1 handled; 0 not aggregate; -1 emit error
+ * wave151 pure: G.7 authority (was static glue_field_call_arg_try_load_agg_from_rax_elf_c).
+ * PLATFORM: SHARED LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_field_call_arg_try_load_agg_from_rax_elf_c(arena: *u8, elf_ctx: *u8, fa_ref: i32, ta: i32): i32 {
+  let fty: i32 = 0;
+  let sz: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let pty: i32 = 0;
+  let kord: i32 = 0;
+  unsafe {
+    if (pipeline_asm_emit_call_arg_active_c() == 0 || arena == (0 as *u8) || elf_ctx == (0 as *u8)) {
+      return 0;
+    }
+    fty = 0;
+    pty = pipeline_asm_emit_ctx_call_param_ty_get();
+    if (pty > 0) {
+      kord = pipeline_type_kind_ord_at(arena, pty);
+      if (kord == 8) {
+        fty = pty;
+      }
+    }
+    mod = pipeline_asm_emit_module_ref_c();
+    if (fty <= 0) {
+      fty = glue_field_access_field_type_ref_c(arena, mod, fa_ref);
+    }
+    if (fty <= 0 && mod != (0 as *u8)) {
+      fty = glue_field_access_layout_field_type_ref_by_name_c(arena, mod, fa_ref);
+    }
+    if (fty <= 0 || pipeline_type_kind_ord_at(arena, fty) != 8) {
+      return 0;
+    }
+    sz = glue_type_named_layout_size_any_module_elf_c(arena, fty);
+    if (sz <= 0) {
+      sz = glue_type_size_simple(mod, arena, fty, 0);
+    }
+    if (sz <= 0) {
+      return 0;
+    }
+    if (sz > 16) {
+      return 0;
+    }
+    if (sz > 8) {
+      if (pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      return 1;
+    }
+    if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Load width for a type_ref (bool/u8=1, i32/u32/f32=4, i64/ptr=8).
+ * @param a *u8 - ASTArena*
+ * @param ty_ref i32 - type ref
+ * @return i32 - byte size
+ * wave151 pure: G.7 authority (was static glue_field_access_load_bytes_for_type_ref).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): i32 {
+  let kind_ord: i32 = 0;
+  let ntypes: i32 = 0;
+  if (a == (0 as *u8) || ty_ref <= 0) {
+    return 8;
+  }
+  unsafe {
+    ntypes = pipeline_arena_num_types(a);
+  }
+  if (ty_ref > ntypes) {
+    return 8;
+  }
+  unsafe {
+    kind_ord = pipeline_type_kind_ord_at(a, ty_ref);
+  }
+  if (kind_ord == 2 || kind_ord == 1) {
+    return 1;
+  }
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
+    return 4;
+  }
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9) {
+    return 8;
+  }
+  if (kind_ord == 8) {
+    return 8;
+  }
+  return 4;
+}
+
+/**
+ * Struct layout field offset by field name within layout li.
+ * @param m *u8 - Module*
+ * @param a *u8 - ASTArena*
+ * @param li i32 - layout index
+ * @param field_name *u8 - field name
+ * @param flen i32 - name length
+ * @return i32 - offset or -1
+ * wave151 pure: G.7 authority (was static glue_struct_layout_field_offset_by_name_c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_struct_layout_field_offset_by_name_c(m: *u8, a: *u8, li: i32, field_name: *u8, flen: i32): i32 {
+  let j: i32 = 0;
+  let nf: i32 = 0;
+  let fnlen: i32 = 0;
+  let feq: i32 = 0;
+  let fi: i32 = 0;
+  let fb: u8[128] = [];
+  if (m == (0 as *u8) || a == (0 as *u8) || li < 0 || field_name == (0 as *u8) || flen <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    nf = pipeline_module_struct_layout_num_fields(m, li);
+  }
+  j = 0;
+  while (j < nf) {
+    unsafe {
+      fnlen = pipeline_module_struct_layout_field_name_len(m, li, j);
+    }
+    feq = 1;
+    if (fnlen != flen) {
+      feq = 0;
+    } else {
+      unsafe {
+        pipeline_module_struct_layout_field_name_into(m, li, j, &fb[0]);
+      }
+      fi = 0;
+      while (fi < fnlen) {
+        if (fb[fi] != field_name[fi]) {
+          feq = 0;
+          break;
+        }
+        fi = fi + 1;
+      }
+    }
+    if (feq != 0) {
+      unsafe {
+        return glue_struct_layout_compute_field_offset_c(m, a, li, j);
+      }
+    }
+    j = j + 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Dep-unit layout field offset by field name.
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param field_name *u8 - field name
+ * @param flen i32 - length
+ * @return i32 - offset or -1
+ * wave151 pure: G.7 authority (was static glue_dep_layout_field_offset_by_name_c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_dep_layout_field_offset_by_name_c(ctx: *u8, field_name: *u8, flen: i32): i32 {
+  let nd: i32 = 0;
+  let di: i32 = 0;
+  let k: i32 = 0;
+  let j: i32 = 0;
+  let dm: *u8 = 0 as *u8;
+  let nsl: i32 = 0;
+  let nf: i32 = 0;
+  let fnlen: i32 = 0;
+  let feq: i32 = 0;
+  let fi: i32 = 0;
+  let fb: u8[128] = [];
+  if (ctx == (0 as *u8) || field_name == (0 as *u8) || flen <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    nd = pipeline_dep_ctx_ndep(ctx);
+  }
+  di = 0;
+  while (di < nd) {
+    unsafe {
+      dm = pipeline_dep_ctx_module_at(ctx, di);
+    }
+    if (dm != (0 as *u8)) {
+      unsafe {
+        nsl = pipeline_module_num_struct_layouts_at(dm);
+      }
+      k = 0;
+      while (k < nsl) {
+        unsafe {
+          nf = pipeline_module_struct_layout_num_fields(dm, k);
+        }
+        j = 0;
+        while (j < nf) {
+          unsafe {
+            fnlen = pipeline_module_struct_layout_field_name_len(dm, k, j);
+          }
+          feq = 1;
+          if (fnlen != flen) {
+            feq = 0;
+          } else {
+            unsafe {
+              pipeline_module_struct_layout_field_name_into(dm, k, j, &fb[0]);
+            }
+            fi = 0;
+            while (fi < fnlen) {
+              if (fb[fi] != field_name[fi]) {
+                feq = 0;
+                break;
+              }
+              fi = fi + 1;
+            }
+          }
+          if (feq != 0) {
+            unsafe {
+              return pipeline_module_struct_layout_field_offset_at(dm, k, j);
+            }
+          }
+          j = j + 1;
+        }
+        k = k + 1;
+      }
+    }
+    di = di + 1;
+  }
+  return 0 - 1;
+}
+
+
+/**
+ * VAR base FIELD_ACCESS: layout offset by base struct type + field name.
+ * @param a *u8 - ASTArena*
+ * @param m *u8 - Module*
+ * @param base_var_ref i32 - VAR base ref
+ * @param field_name *u8 - field name
+ * @param flen i32 - length
+ * @return i32 - offset or -1
+ * wave151 pure: G.7 authority (was static glue_field_layout_offset_for_var_base_field).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_field_layout_offset_for_var_base_field(a: *u8, m: *u8, base_var_ref: i32, field_name: *u8, flen: i32): i32 {
+  let base_ty: i32 = 0;
+  let fi: i32 = 0;
+  let vname: u8[128] = [];
+  let vlen: i32 = 0;
+  let struct_name: u8[128] = [];
+  let nlen: i32 = 0;
+  let k: i32 = 0;
+  let off: i32 = 0;
+  let ko: i32 = 0;
+  let nfuncs: i32 = 0;
+  let nsl: i32 = 0;
+  let scope_blk: i32 = 0;
+  let body_ref: i32 = 0;
+  let dep: *u8 = 0 as *u8;
+  let dep_off: i32 = 0;
+  let kord: i32 = 0;
+  if (a == (0 as *u8) || m == (0 as *u8) || base_var_ref <= 0 || field_name == (0 as *u8) || flen <= 0 || flen > 127) {
+    return 0 - 1;
+  }
+  base_ty = 0;
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(a, base_var_ref);
+  }
+  if (ko == 3) {
+    unsafe {
+      fi = pipeline_asm_emit_func_index_c();
+      vlen = pipeline_expr_var_name_len(a, base_var_ref);
+      nfuncs = pipeline_module_num_funcs(m);
+    }
+    if (fi >= 0 && fi < nfuncs && vlen > 0 && vlen <= 63) {
+      unsafe {
+        pipeline_expr_var_name_into(a, base_var_ref, &vname[0]);
+        base_ty = pipeline_module_func_param_type_ref_for_name(m, fi, &vname[0], vlen);
+      }
+    }
+  }
+  if (base_ty <= 0) {
+    unsafe {
+      base_ty = pipeline_expr_resolved_type_ref(a, base_var_ref);
+    }
+  }
+  unsafe {
+    scope_blk = pipeline_asm_emit_ctx_scope_block_get();
+  }
+  if (base_ty <= 0 && ko == 3 && scope_blk > 0) {
+    unsafe {
+      vlen = pipeline_expr_var_name_len(a, base_var_ref);
+    }
+    if (vlen > 0 && vlen <= 63) {
+      unsafe {
+        pipeline_expr_var_name_into(a, base_var_ref, &vname[0]);
+        base_ty = pipeline_block_resolve_var_type_ref(a, scope_blk, &vname[0], vlen);
+      }
+    }
+  }
+  unsafe {
+    fi = pipeline_asm_emit_func_index_c();
+    nfuncs = pipeline_module_num_funcs(m);
+  }
+  if (base_ty <= 0 && ko == 3 && fi >= 0 && fi < nfuncs) {
+    unsafe {
+      vlen = pipeline_expr_var_name_len(a, base_var_ref);
+    }
+    if (vlen > 0 && vlen <= 63) {
+      unsafe {
+        body_ref = pipeline_module_func_body_ref_at(m, fi);
+        pipeline_expr_var_name_into(a, base_var_ref, &vname[0]);
+        if (body_ref > 0) {
+          base_ty = pipeline_block_resolve_var_type_ref(a, body_ref, &vname[0], vlen);
+        }
+      }
+    }
+  }
+  unsafe {
+    nsl = pipeline_module_num_struct_layouts_at(m);
+  }
+  if (base_ty <= 0 && nsl == 1) {
+    unsafe {
+      off = glue_struct_layout_field_offset_by_name_c(m, a, 0, field_name, flen);
+    }
+    if (off >= 0) {
+      return off;
+    }
+  }
+  if (base_ty <= 0) {
+    return 0 - 1;
+  }
+  // Peel TYPE_PTR (9) → elem; require TYPE_NAMED (8)
+  unsafe {
+    kord = pipeline_type_kind_ord_at(a, base_ty);
+  }
+  if (kord == 9) {
+    unsafe {
+      base_ty = pipeline_type_elem_ref_at(a, base_ty);
+      if (base_ty <= 0) {
+        return 0 - 1;
+      }
+      kord = pipeline_type_kind_ord_at(a, base_ty);
+    }
+  }
+  if (kord != 8) {
+    return 0 - 1;
+  }
+  unsafe {
+    nlen = pipeline_type_named_name_into(a, base_ty, &struct_name[0]);
+  }
+  if (nlen <= 0 || nlen > 127) {
+    return 0 - 1;
+  }
+  unsafe {
+    k = glue_struct_layout_index_by_type_name_c(m, &struct_name[0], nlen);
+  }
+  if (k >= 0) {
+    unsafe {
+      off = glue_struct_layout_field_offset_by_name_c(m, a, k, field_name, flen);
+    }
+    if (off >= 0) {
+      return off;
+    }
+    return 0 - 1;
+  }
+  unsafe {
+    dep = pipeline_asm_emit_dep_pipe_c();
+  }
+  if (dep != (0 as *u8)) {
+    unsafe {
+      dep_off = typeck_get_field_offset_from_layout_deps(m, dep, &struct_name[0], nlen, field_name, flen);
+    }
+    if (dep_off >= 0) {
+      return dep_off;
+    }
+  }
+  return 0 - 1;
+}
+
+/**
+ * FIELD_ACCESS base expr: layout offset by base type + field name.
+ * @param a *u8 - ASTArena*
+ * @param m *u8 - Module*
+ * @param base_ref i32 - base expr ref
+ * @param field_name *u8 - field name
+ * @param flen i32 - length
+ * @return i32 - offset or -1
+ * wave151 pure: G.7 authority (was glue_field_layout_offset_for_base_field).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_field_layout_offset_for_base_field(a: *u8, m: *u8, base_ref: i32, field_name: *u8, flen: i32): i32 {
+  let base_ty: i32 = 0;
+  let struct_name: u8[128] = [];
+  let nlen: i32 = 0;
+  let k: i32 = 0;
+  let off: i32 = 0;
+  let ko: i32 = 0;
+  let nsl: i32 = 0;
+  let kord: i32 = 0;
+  let dep: *u8 = 0 as *u8;
+  let dep_off: i32 = 0;
+  if (a == (0 as *u8) || m == (0 as *u8) || base_ref <= 0 || field_name == (0 as *u8) || flen <= 0 || flen > 127) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(a, base_ref);
+  }
+  if (ko == 3) {
+    return glue_field_layout_offset_for_var_base_field(a, m, base_ref, field_name, flen);
+  }
+  unsafe {
+    base_ty = pipeline_expr_resolved_type_ref(a, base_ref);
+    nsl = pipeline_module_num_struct_layouts_at(m);
+  }
+  if (base_ty <= 0 && nsl == 1) {
+    unsafe {
+      return glue_struct_layout_field_offset_by_name_c(m, a, 0, field_name, flen);
+    }
+  }
+  if (base_ty <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    kord = pipeline_type_kind_ord_at(a, base_ty);
+  }
+  if (kord == 9) {
+    unsafe {
+      base_ty = pipeline_type_elem_ref_at(a, base_ty);
+      if (base_ty <= 0) {
+        return 0 - 1;
+      }
+      kord = pipeline_type_kind_ord_at(a, base_ty);
+    }
+  }
+  if (kord != 8) {
+    return 0 - 1;
+  }
+  unsafe {
+    nlen = pipeline_type_named_name_into(a, base_ty, &struct_name[0]);
+  }
+  if (nlen <= 0 || nlen > 127) {
+    return 0 - 1;
+  }
+  unsafe {
+    k = glue_struct_layout_index_by_type_name_c(m, &struct_name[0], nlen);
+  }
+  if (k >= 0) {
+    unsafe {
+      off = glue_struct_layout_field_offset_by_name_c(m, a, k, field_name, flen);
+    }
+    if (off >= 0) {
+      return off;
+    }
+  }
+  unsafe {
+    dep = pipeline_asm_emit_dep_pipe_c();
+  }
+  if (dep != (0 as *u8)) {
+    unsafe {
+      dep_off = typeck_get_field_offset_from_layout_deps(m, dep, &struct_name[0], nlen, field_name, flen);
+    }
+    if (dep_off >= 0) {
+      return dep_off;
+    }
+  }
+  return 0 - 1;
+}
+
+/**
+ * FIELD_ACCESS effective byte offset (typed layout → stored).
+ * @param arena *u8 - ASTArena*
+ * @param mod *u8 - Module*
+ * @param fa_ref i32 - FIELD_ACCESS expr ref
+ * @return i32 - byte offset
+ * wave151 pure: G.7 authority (was glue_field_access_effective_offset_c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_field_access_effective_offset_c(arena: *u8, mod: *u8, fa_ref: i32): i32 {
+  return pipeline_expr_field_access_layout_offset(arena, mod, fa_ref);
+}
+
+/**
+ * FIELD_ACCESS byte offset: module layout first, else typeck stored offset.
+ * @param a *u8 - ASTArena*
+ * @param m *u8 - Module*
+ * @param expr_ref i32 - FIELD_ACCESS expr ref
+ * @return i32 - byte offset
+ * wave151 pure: G.7 authority (was pipeline_expr_field_access_layout_offset).
+ * PLATFORM: SHARED — TYPE_SLICE fat: data@0 length@8.
+ */
+#[no_mangle]
+export function pipeline_expr_field_access_layout_offset(a: *u8, m: *u8, expr_ref: i32): i32 {
+  let flen: i32 = 0;
+  let field_name: u8[128] = [];
+  let stored: i32 = 0;
+  let typed_off: i32 = 0;
+  let base_ref: i32 = 0;
+  let base_ty: i32 = 0;
+  let nsl: i32 = 0;
+  let dep: *u8 = 0 as *u8;
+  let dep_off: i32 = 0;
+  let kord: i32 = 0;
+  let nm_data: u8[4] = [100, 97, 116, 97];
+  let nm_length: u8[6] = [108, 101, 110, 103, 116, 104];
+  if (a == (0 as *u8) || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    stored = pipeline_expr_field_access_offset(a, expr_ref);
+    flen = pipeline_expr_field_access_name_len(a, expr_ref);
+  }
+  if (flen <= 0 || flen > 127) {
+    return stored;
+  }
+  unsafe {
+    pipeline_expr_field_access_name_into(a, expr_ref, &field_name[0]);
+  }
+  if (m != (0 as *u8)) {
+    unsafe {
+      nsl = pipeline_module_num_struct_layouts_at(m);
+      dep = pipeline_asm_emit_dep_pipe_c();
+    }
+    if (nsl == 0 && dep != (0 as *u8)) {
+      unsafe {
+        dep_off = glue_dep_layout_field_offset_by_name_c(dep, &field_name[0], flen);
+      }
+      if (dep_off >= 0) {
+        return dep_off;
+      }
+    }
+  }
+  unsafe {
+    base_ref = pipeline_expr_field_access_base_ref(a, expr_ref);
+  }
+  if (base_ref > 0) {
+    typed_off = glue_field_layout_offset_for_base_field(a, m, base_ref, &field_name[0], flen);
+    if (typed_off >= 0) {
+      return typed_off;
+    }
+    unsafe {
+      base_ty = glue_var_expr_type_ref_with_decl_fallback_c(a, base_ref);
+      if (base_ty <= 0) {
+        base_ty = pipeline_expr_resolved_type_ref(a, base_ref);
+      }
+      if (base_ty <= 0 && pipeline_expr_kind_ord_at(a, base_ref) == 44) {
+        base_ty = glue_field_access_field_type_ref_c(a, m, base_ref);
+      }
+      if (base_ty > 0) {
+        kord = pipeline_type_kind_ord_at(a, base_ty);
+        if (kord == 11) {
+          if (flen == 4 && wave151_bytes_eq(&field_name[0], &nm_data[0], 4) != 0) {
+            return 0;
+          }
+          if (flen == 6 && wave151_bytes_eq(&field_name[0], &nm_length[0], 6) != 0) {
+            return 8;
+          }
+        }
+      }
+    }
+  }
+  if (stored != 0) {
+    return stored;
+  }
+  return 0;
+}
+
+/**
+ * FIELD_ACCESS load width (layout / resolved / is_some|is_none heuristic).
+ * @param a *u8 - ASTArena*
+ * @param m *u8 - Module*
+ * @param expr_ref i32 - FIELD_ACCESS expr ref
+ * @return i32 - load byte size
+ * wave151 pure: G.7 authority (was pipeline_expr_field_access_load_byte_sz).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref: i32): i32 {
+  let tr: i32 = 0;
+  let base_tr: i32 = 0;
+  let base_ref: i32 = 0;
+  let struct_name: u8[128] = [];
+  let nlen: i32 = 0;
+  let flen: i32 = 0;
+  let field_name: u8[128] = [];
+  let k: i32 = 0;
+  let j: i32 = 0;
+  let ftr: i32 = 0;
+  let kind_ord: i32 = 0;
+  let nsl: i32 = 0;
+  let nf: i32 = 0;
+  let fnlen: i32 = 0;
+  let feq: i32 = 0;
+  let fi: i32 = 0;
+  let fb: u8[128] = [];
+  let ln: i32 = 0;
+  let eq: i32 = 0;
+  let nm_is_some: u8[7] = [105, 115, 95, 115, 111, 109, 101];
+  let nm_is_none: u8[7] = [105, 115, 95, 110, 111, 110, 101];
+  if (a == (0 as *u8) || expr_ref <= 0) {
+    return 8;
+  }
+  unsafe {
+    base_ref = pipeline_expr_field_access_base_ref(a, expr_ref);
+    flen = pipeline_expr_field_access_name_len(a, expr_ref);
+  }
+  if (base_ref <= 0 || flen <= 0 || flen > 127) {
+    return 8;
+  }
+  unsafe {
+    pipeline_expr_field_access_name_into(a, expr_ref, &field_name[0]);
+  }
+  if (m != (0 as *u8)) {
+    unsafe {
+      nsl = pipeline_module_num_struct_layouts_at(m);
+    }
+    k = 0;
+    while (k < nsl) {
+      unsafe {
+        nf = pipeline_module_struct_layout_num_fields(m, k);
+      }
+      j = 0;
+      while (j < nf) {
+        unsafe {
+          fnlen = pipeline_module_struct_layout_field_name_len(m, k, j);
+        }
+        feq = 1;
+        if (fnlen != flen) {
+          feq = 0;
+        } else {
+          unsafe {
+            pipeline_module_struct_layout_field_name_into(m, k, j, &fb[0]);
+          }
+          fi = 0;
+          while (fi < fnlen) {
+            if (fb[fi] != field_name[fi]) {
+              feq = 0;
+              break;
+            }
+            fi = fi + 1;
+          }
+        }
+        if (feq != 0) {
+          unsafe {
+            ftr = pipeline_module_struct_layout_field_type_ref(m, k, j);
+            return glue_field_access_load_bytes_for_type_ref(a, ftr);
+          }
+        }
+        j = j + 1;
+      }
+      k = k + 1;
+    }
+  }
+  unsafe {
+    base_tr = pipeline_expr_resolved_type_ref(a, base_ref);
+  }
+  if (base_tr > 0) {
+    unsafe {
+      kind_ord = pipeline_type_kind_ord_at(a, base_tr);
+    }
+    if (kind_ord == 8) {
+      unsafe {
+        nlen = pipeline_type_named_name_into(a, base_tr, &struct_name[0]);
+      }
+      if (nlen > 0 && nlen <= 63 && m != (0 as *u8)) {
+        unsafe {
+          nsl = pipeline_module_num_struct_layouts_at(m);
+        }
+        k = 0;
+        while (k < nsl) {
+          unsafe {
+            ln = pipeline_module_struct_layout_name_len(m, k);
+          }
+          eq = 1;
+          if (ln != nlen) {
+            eq = 0;
+          } else {
+            j = 0;
+            while (j < nlen) {
+              unsafe {
+                if (pipeline_module_struct_layout_name_byte_at(m, k, j) != (struct_name[j] as i32)) {
+                  eq = 0;
+                  break;
+                }
+              }
+              j = j + 1;
+            }
+          }
+          if (eq != 0) {
+            unsafe {
+              nf = pipeline_module_struct_layout_num_fields(m, k);
+            }
+            j = 0;
+            while (j < nf) {
+              unsafe {
+                fnlen = pipeline_module_struct_layout_field_name_len(m, k, j);
+              }
+              feq = 1;
+              if (fnlen != flen) {
+                feq = 0;
+              } else {
+                unsafe {
+                  pipeline_module_struct_layout_field_name_into(m, k, j, &fb[0]);
+                }
+                fi = 0;
+                while (fi < fnlen) {
+                  if (fb[fi] != field_name[fi]) {
+                    feq = 0;
+                    break;
+                  }
+                  fi = fi + 1;
+                }
+              }
+              if (feq != 0) {
+                unsafe {
+                  ftr = pipeline_module_struct_layout_field_type_ref(m, k, j);
+                  return glue_field_access_load_bytes_for_type_ref(a, ftr);
+                }
+              }
+              j = j + 1;
+            }
+          }
+          k = k + 1;
+        }
+      }
+    }
+  }
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(a, expr_ref);
+  }
+  if (tr > 0) {
+    unsafe {
+      kind_ord = pipeline_type_kind_ord_at(a, tr);
+    }
+    if (kind_ord != 8 && kind_ord != 10 && kind_ord != 11 && kind_ord != 12) {
+      return glue_field_access_load_bytes_for_type_ref(a, tr);
+    }
+  }
+  if (flen == 7 && wave151_bytes_eq(&field_name[0], &nm_is_some[0], 7) != 0) {
+    return 1;
+  }
+  if (flen == 7 && wave151_bytes_eq(&field_name[0], &nm_is_none[0], 7) != 0) {
+    return 1;
+  }
+  return 8;
+}
+
+/**
+ * Write field_access_is_enum_variant=1 and enum_variant_tag.
+ * @param a *u8 - ASTArena*
+ * @param expr_ref i32 - FIELD_ACCESS expr ref
+ * @param tag i32 - variant tag
+ * @return void
+ * wave151 pure: G.7 authority (was pipeline_expr_set_field_access_enum_variant).
+ * PLATFORM: SHARED LP64 Expr peels via glue_arena_expr_at_ref.
+ */
+#[no_mangle]
+export function pipeline_expr_set_field_access_enum_variant(a: *u8, expr_ref: i32, tag: i32): void {
+  let ex: *u8 = 0 as *u8;
+  let nexprs: i32 = 0;
+  if (a == (0 as *u8) || expr_ref <= 0) {
+    return;
+  }
+  unsafe {
+    nexprs = pipe_load_i32_le(a, pipe_arena_off_num_exprs());
+    if (expr_ref > nexprs) {
+      return;
+    }
+    ex = glue_arena_expr_at_ref(a, expr_ref);
+    if (ex == (0 as *u8)) {
+      return;
+    }
+    pipe_store_i32_le(ex, pipe_expr_off_fa_is_enum(), 1);
+    pipe_store_i32_le(ex, pipe_expr_off_enum_variant_tag(), tag);
+  }
+}
+
+/**
+ * Write FIELD_ACCESS SoA stride (paired with field_access_offset column base).
+ * @param a *u8 - ASTArena*
+ * @param expr_ref i32 - FIELD_ACCESS expr ref
+ * @param stride i32 - column stride
+ * @return void
+ * wave151 pure: G.7 authority (was pipeline_expr_set_field_access_soa_stride).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_expr_set_field_access_soa_stride(a: *u8, expr_ref: i32, stride: i32): void {
+  let ex: *u8 = 0 as *u8;
+  unsafe {
+    ex = glue_arena_expr_at_ref(a, expr_ref);
+    if (ex != (0 as *u8)) {
+      pipe_store_i32_le(ex, pipe_expr_off_fa_soa_stride(), stride);
+    }
+  }
+}
+
+/**
+ * Read field_access_is_enum_variant flag.
+ * @param a *u8 - ASTArena*
+ * @param expr_ref i32 - expr ref
+ * @return i32 - 1 if set; 0 otherwise
+ * wave151 pure: G.7 authority (was pipeline_expr_field_access_is_enum_variant).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_expr_field_access_is_enum_variant(a: *u8, expr_ref: i32): i32 {
+  let ex: *u8 = 0 as *u8;
+  unsafe {
+    ex = glue_arena_expr_at_ref(a, expr_ref);
+    if (ex == (0 as *u8)) {
+      return 0;
+    }
+    return pipe_load_i32_le(ex, pipe_expr_off_fa_is_enum());
+  }
+}
+
+/**
+ * Module enum sidecar tag lookup (TokenKind / user enums).
+ * @param enum_name *u8 - enum type name
+ * @param enum_len i32 - length
+ * @param variant_name *u8 - variant name
+ * @param variant_len i32 - length
+ * @return i32 - tag or -1
+ * wave151 pure: G.7 authority (was pipeline_expr_enum_field_tag_via_module).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_expr_enum_field_tag_via_module(enum_name: *u8, enum_len: i32, variant_name: *u8, variant_len: i32): i32 {
+  let mod: *u8 = 0 as *u8;
+  unsafe {
+    mod = pipeline_asm_emit_module_ref_c();
+    if (mod == (0 as *u8)) {
+      return 0 - 1;
+    }
+    return pipeline_module_enum_variant_tag_for_names(mod, enum_name, enum_len, variant_name, variant_len);
+  }
+}
+
+/**
+ * Enum namespace FIELD_ACCESS tag (ExprKind/TypeKind/TokenKind + module sidecar).
+ * @param a *u8 - ASTArena*
+ * @param expr_ref i32 - FIELD_ACCESS expr ref
+ * @return i32 - tag or -1
+ * wave151 pure: G.7 authority (was pipeline_expr_enum_namespace_field_tag).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_expr_enum_namespace_field_tag(a: *u8, expr_ref: i32): i32 {
+  let base_buf: u8[32] = [];
+  let field_buf: u8[128] = [];
+  let blen: i32 = 0;
+  let flen: i32 = 0;
+  let base_ref: i32 = 0;
+  let ko: i32 = 0;
+  let tk: i32 = 0;
+  let mod_tag: i32 = 0;
+  let nm_exprkind: u8[8] = [69, 120, 112, 114, 75, 105, 110, 100];
+  let nm_typekind: u8[8] = [84, 121, 112, 101, 75, 105, 110, 100];
+  let nm_tokenkind: u8[9] = [84, 111, 107, 101, 110, 75, 105, 110, 100];
+  // ExprKind variants
+  let e_lit: u8[8] = [69, 88, 80, 82, 95, 76, 73, 84];
+  let e_fa: u8[17] = [69, 88, 80, 82, 95, 70, 73, 69, 76, 68, 95, 65, 67, 67, 69, 83, 83];
+  let e_call: u8[9] = [69, 88, 80, 82, 95, 67, 65, 76, 76];
+  let e_var: u8[8] = [69, 88, 80, 82, 95, 86, 65, 82];
+  let e_block: u8[10] = [69, 88, 80, 82, 95, 66, 76, 79, 67, 75];
+  // TypeKind variants (byte tables)
+  let t_i32: u8[8] = [84, 89, 80, 69, 95, 73, 51, 50];
+  let t_bool: u8[9] = [84, 89, 80, 69, 95, 66, 79, 79, 76];
+  let t_u8: u8[7] = [84, 89, 80, 69, 95, 85, 56];
+  let t_u32: u8[8] = [84, 89, 80, 69, 95, 85, 51, 50];
+  let t_u64: u8[8] = [84, 89, 80, 69, 95, 85, 54, 52];
+  let t_i64: u8[8] = [84, 89, 80, 69, 95, 73, 54, 52];
+  let t_usize: u8[10] = [84, 89, 80, 69, 95, 85, 83, 73, 90, 69];
+  let t_isize: u8[10] = [84, 89, 80, 69, 95, 73, 83, 73, 90, 69];
+  let t_named: u8[10] = [84, 89, 80, 69, 95, 78, 65, 77, 69, 68];
+  let t_ptr: u8[8] = [84, 89, 80, 69, 95, 80, 84, 82];
+  let t_arr: u8[10] = [84, 89, 80, 69, 95, 65, 82, 82, 65, 89];
+  let t_sli: u8[10] = [84, 89, 80, 69, 95, 83, 76, 73, 67, 69];
+  let t_vec: u8[11] = [84, 89, 80, 69, 95, 86, 69, 67, 84, 79, 82];
+  let t_f32: u8[8] = [84, 89, 80, 69, 95, 70, 51, 50];
+  let t_f64: u8[8] = [84, 89, 80, 69, 95, 70, 54, 52];
+  let t_void: u8[9] = [84, 89, 80, 69, 95, 86, 79, 73, 68];
+  if (a == (0 as *u8) || expr_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(a, expr_ref) != 44) {
+      return 0 - 1;
+    }
+    base_ref = pipeline_expr_field_access_base_ref(a, expr_ref);
+    if (base_ref <= 0) {
+      return 0 - 1;
+    }
+    if (pipeline_expr_kind_ord_at(a, base_ref) != 3) {
+      return 0 - 1;
+    }
+    blen = pipeline_expr_var_name_len(a, base_ref);
+    if (blen <= 0 || blen > 31) {
+      return 0 - 1;
+    }
+    pipeline_expr_var_name_into(a, base_ref, &base_buf[0]);
+    flen = pipeline_expr_field_access_name_len(a, expr_ref);
+    if (flen <= 0 || flen > 127) {
+      return 0 - 1;
+    }
+    pipeline_expr_field_access_name_into(a, expr_ref, &field_buf[0]);
+  }
+  if (blen == 8 && wave151_bytes_eq(&base_buf[0], &nm_exprkind[0], 8) != 0) {
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &e_lit[0], 8) != 0) { return 0; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &e_fa[0], 17) != 0) { return 44; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &e_call[0], 9) != 0) { return 48; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &e_var[0], 8) != 0) { return 3; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &e_block[0], 10) != 0) { return 26; }
+  }
+  if (blen == 8 && wave151_bytes_eq(&base_buf[0], &nm_typekind[0], 8) != 0) {
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_i32[0], 8) != 0) { return 0; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_bool[0], 9) != 0) { return 1; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_u8[0], 7) != 0) { return 2; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_u32[0], 8) != 0) { return 3; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_u64[0], 8) != 0) { return 4; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_i64[0], 8) != 0) { return 5; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_usize[0], 10) != 0) { return 6; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_isize[0], 10) != 0) { return 7; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_named[0], 10) != 0) { return 8; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_ptr[0], 8) != 0) { return 9; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_arr[0], 10) != 0) { return 10; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_sli[0], 10) != 0) { return 11; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_vec[0], 11) != 0) { return 12; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_f32[0], 8) != 0) { return 13; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_f64[0], 8) != 0) { return 14; }
+    if (glue_enum_field_name_equal(&field_buf[0], flen, &t_void[0], 9) != 0) { return 15; }
+  }
+  if (blen == 9 && wave151_bytes_eq(&base_buf[0], &nm_tokenkind[0], 9) != 0) {
+    tk = pipeline_token_kind_variant_tag(&field_buf[0], flen);
+    if (tk >= 0) {
+      return tk;
+    }
+  }
+  mod_tag = pipeline_expr_enum_field_tag_via_module(&base_buf[0], blen, &field_buf[0], flen);
+  if (mod_tag >= 0) {
+    return mod_tag;
+  }
+  return 0 - 1;
+}
+
+/**
+ * VAR-base field access: stack slot + field offset load (lex.pos etc.).
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - FIELD_ACCESS expr ref
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 error; -99 UNHANDLED
+ * wave151 pure: G.7 authority (was static pipeline_asm_emit_var_field_access_elf_c).
+ * PLATFORM: SHARED freestanding · LINUX+MACOS slice dual-GP.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_var_field_access_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let base_ref: i32 = 0;
+  let vlen: i32 = 0;
+  let var_off: i32 = 0;
+  let field_off: i32 = 0;
+  let load_sz: i32 = 0;
+  let vname: u8[128] = [];
+  let base_ty_sl: i32 = 0;
+  let flen_sl: i32 = 0;
+  let fn_sl: u8[128] = [];
+  let nm_length: u8[6] = [108, 101, 110, 103, 116, 104];
+  let nm_data: u8[4] = [100, 97, 116, 97];
+  let agg: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let kord: i32 = 0;
+  unsafe {
+    base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    if (base_ref <= 0 || pipeline_expr_kind_ord_at(arena, base_ref) != 3) {
+      return 0 - 99;
+    }
+    vlen = pipeline_expr_var_name_len(arena, base_ref);
+    if (vlen <= 0 || vlen > 127) {
+      return 0 - 99;
+    }
+    pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
+    var_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
+    if (var_off < 0) {
+      var_off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
+    }
+    if (var_off < 0) {
+      return 0 - 99;
+    }
+    base_ty_sl = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+    flen_sl = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (base_ty_sl > 0 && flen_sl > 0 && flen_sl <= 63) {
+      kord = pipeline_type_kind_ord_at(arena, base_ty_sl);
+      if (kord == 11 && glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, var_off, ctx) == 0) {
+        pipeline_expr_field_access_name_into(arena, expr_ref, &fn_sl[0]);
+        if (flen_sl == 6 && wave151_bytes_eq(&fn_sl[0], &nm_length[0], 6) != 0) {
+          return backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(var_off, ta), ta);
+        }
+        if (flen_sl == 4 && wave151_bytes_eq(&fn_sl[0], &nm_data[0], 4) != 0) {
+          return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta);
+        }
+      }
+    }
+    mod = pipeline_asm_emit_module_ref_c();
+    field_off = glue_field_access_effective_offset_c(arena, mod, expr_ref);
+    if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, var_off, ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0) {
+      return 0;
+    }
+    agg = glue_field_call_arg_try_load_agg_from_rax_elf_c(arena, elf_ctx, expr_ref, ta);
+    if (agg < 0) {
+      return 0 - 1;
+    }
+    if (agg > 0) {
+      return 0;
+    }
+    load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    if (load_sz == 1) {
+      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+    }
+    if (load_sz == 8) {
+      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    }
+    return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * CALL/METHOD/STRUCT_LIT-rooted field chains: materialise root, walk offsets.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - FIELD_ACCESS expr ref
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param leave_addr i32 - 0 load rvalue; 1 leave field address
+ * @return i32 - 0 ok; -1 error; -99 UNHANDLED
+ * wave151 pure: G.7 authority (was static glue_field_access_call_base_rvalue_elf_c).
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 sret.
+ */
+#[no_mangle]
+export function glue_field_access_call_base_rvalue_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, leave_addr: i32): i32 {
+  let base_ref: i32 = 0;
+  let base_ko: i32 = 0;
+  let base_ty: i32 = 0;
+  let ret_sz: i32 = 0;
+  let alloc_sz: i32 = 0;
+  let home: i32 = 0;
+  let base_off: i32 = 0;
+  let load_sz: i32 = 0;
+  let emit_rc: i32 = 0;
+  let agg: i32 = 0;
+  let materialised: i32 = 0;
+  let cur_fa: i32 = 0;
+  let chain_depth: i32 = 0;
+  let chain_fa: i32[16] = [];
+  let chain_n: i32 = 0;
+  let ci: i32 = 0;
+  let ly: *u8 = 0 as *u8;
+  let mod: *u8 = 0 as *u8;
+  let next_base: i32 = 0;
+  let nsz: i32 = 0;
+  let inl: i32 = 0;
+  let fo: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || expr_ref <= 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 44) {
+      return 0 - 99;
+    }
+    if (pipeline_expr_field_access_is_enum_variant(arena, expr_ref) != 0) {
+      return 0 - 99;
+    }
+    mod = pipeline_asm_emit_module_ref_c();
+  }
+  cur_fa = expr_ref;
+  base_ref = 0;
+  base_ko = 0;
+  chain_depth = 0;
+  chain_n = 0;
+  while (chain_depth < 16) {
+    unsafe {
+      if (pipeline_expr_field_access_is_enum_variant(arena, cur_fa) != 0) {
+        return 0 - 99;
+      }
+    }
+    if (chain_n >= 16) {
+      return 0 - 99;
+    }
+    chain_fa[chain_n] = cur_fa;
+    chain_n = chain_n + 1;
+    unsafe {
+      next_base = pipeline_expr_field_access_base_ref(arena, cur_fa);
+    }
+    if (next_base <= 0) {
+      return 0 - 99;
+    }
+    unsafe {
+      base_ko = pipeline_expr_kind_ord_at(arena, next_base);
+    }
+    if (base_ko == 48 || base_ko == 49 || base_ko == 45) {
+      base_ref = next_base;
+      break;
+    }
+    if (base_ko == 44) {
+      cur_fa = next_base;
+      chain_depth = chain_depth + 1;
+      continue;
+    }
+    return 0 - 99;
+  }
+  if (base_ref <= 0 || chain_n <= 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+    ret_sz = 0;
+    if (base_ty > 0) {
+      ret_sz = glue_type_size_simple(mod, arena, base_ty, 0);
+    }
+    if (ret_sz <= 0 && base_ko == 48) {
+      ret_sz = glue_call_return_byte_size_c(arena, base_ref);
+    }
+    if (ret_sz <= 0 && base_ko == 45) {
+      ret_sz = pipeline_expr_struct_lit_value_bytes(arena, mod, base_ref);
+    }
+    if (ret_sz <= 0 && base_ty > 0) {
+      ret_sz = glue_type_named_layout_size_any_module_elf_c(arena, base_ty);
+    }
+    if (ret_sz <= 0) {
+      ret_sz = 8;
+    }
+    if (base_ty > 0 && ret_sz <= 16) {
+      nsz = glue_sysv_dual_gp_byte_size_c(arena, base_ty);
+      if (nsz > ret_sz) {
+        ret_sz = nsz;
+      }
+    }
+  }
+  if (ret_sz > 4096) {
+    return 0 - 99;
+  }
+  if (ret_sz <= 8) {
+    alloc_sz = 8;
+  } else {
+    if (ret_sz <= 16) {
+      alloc_sz = 16;
+    } else {
+      alloc_sz = ret_sz + ((8 - (ret_sz % 8)) % 8);
+    }
+  }
+  unsafe {
+    ly = pipeline_asm_ctx_layout(ctx);
+  }
+  if (ly == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    base_off = pipe_load_i32_le(ly, pipe_asm_ctx_off_next_offset());
+  }
+  if ((base_off % 8) != 0) {
+    base_off = (base_off + 7) / 8 * 8;
+  }
+  if (ta == 1) {
+    home = base_off;
+    unsafe {
+      pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), base_off + alloc_sz);
+    }
+  } else {
+    home = base_off + alloc_sz;
+    unsafe {
+      pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), home);
+    }
+  }
+  unsafe {
+    glue_align_next_offset(ctx);
+  }
+  materialised = 0;
+  if (base_ko == 45) {
+    unsafe {
+      if (pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, base_ref, ctx, ta, home) != 0) {
+        return 0 - 1;
+      }
+    }
+    materialised = 1;
+  }
+  if (materialised == 0 && base_ko == 48) {
+    unsafe {
+      inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, base_ref, ctx, ta, home);
+    }
+    if (inl == 1) {
+      materialised = 1;
+    }
+    if (materialised == 0) {
+      unsafe {
+        inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, base_ref, ctx, ta, home);
+      }
+      if (inl == 1) {
+        materialised = 1;
+      }
+    }
+  }
+  if (materialised == 0 && ret_sz > 16) {
+    if (ta != 0 && ta != 1) {
+      return 0 - 99;
+    }
+    unsafe {
+      if (base_ty > 0) {
+        pipeline_asm_set_call_expected_ret_ty_c(base_ty);
+      } else {
+        pipeline_asm_set_call_expected_ret_ty_c(0);
+      }
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0) {
+        pipeline_asm_set_call_expected_ret_ty_c(0);
+        return 0 - 1;
+      }
+      if (ta == 0) {
+        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) {
+          pipeline_asm_set_call_expected_ret_ty_c(0);
+          return 0 - 1;
+        }
+        pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+      } else {
+        if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0) {
+          pipeline_asm_set_call_expected_ret_ty_c(0);
+          return 0 - 1;
+        }
+      }
+      // Cap residual: public expr face (expr_elf_rec is static same-TU only).
+      emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+      pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+      pipeline_asm_set_call_expected_ret_ty_c(0);
+      if (emit_rc != 0) {
+        return 0 - 1;
+      }
+    }
+    materialised = 1;
+  } else {
+    if (materialised == 0) {
+      unsafe {
+        emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+        if (emit_rc != 0) {
+          return 0 - 1;
+        }
+        if (base_ty > 0) {
+          if (glue_store_retval_pair_to_rbp_elf_c(mod, arena, elf_ctx, base_ty, home, ta, base_ref, ctx) != 0) {
+            return 0 - 1;
+          }
+        } else {
+          if (glue_store_retval_pair_to_rbp_elf_c(mod, arena, elf_ctx, 0, home, ta, base_ref, ctx) != 0) {
+            return 0 - 1;
+          }
+        }
+      }
+      materialised = 1;
+    }
+  }
+  if (materialised == 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0) {
+      return 0 - 1;
+    }
+  }
+  ci = chain_n - 1;
+  while (ci >= 0) {
+    unsafe {
+      fo = glue_field_access_effective_offset_c(arena, mod, chain_fa[ci]);
+    }
+    if (fo < 0) {
+      fo = 0;
+    }
+    if (fo != 0) {
+      unsafe {
+        if (backend_enc_add_imm_to_rax_arch(elf_ctx, fo, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    if (ci > 0) {
+      unsafe {
+        if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, chain_fa[ci], ta) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    ci = ci - 1;
+  }
+  if (leave_addr != 0) {
+    return 0;
+  }
+  unsafe {
+    if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0) {
+      return 0;
+    }
+    agg = glue_field_call_arg_try_load_agg_from_rax_elf_c(arena, elf_ctx, expr_ref, ta);
+    if (agg < 0) {
+      return 0 - 1;
+    }
+    if (agg > 0) {
+      return 0;
+    }
+    load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    if (load_sz == 1) {
+      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+    }
+    if (load_sz == 8) {
+      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    }
+    return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * EXPR_FIELD_ACCESS fast path: enum imm, array.length, SoA, CALL base, VAR, chain.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - FIELD_ACCESS expr ref
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 error; -99 UNHANDLED
+ * wave151 pure: G.7 authority (was pipeline_asm_emit_field_access_elf_fast_c).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let fa_base2: i32 = 0;
+  let blen2: i32 = 0;
+  let flen_arr: i32 = 0;
+  let fn_arr: u8[128] = [];
+  let base_ref_arr: i32 = 0;
+  let base_ty_arr: i32 = 0;
+  let bk_arr: i32 = 0;
+  let asz_arr: i32 = 0;
+  let nm_length: u8[6] = [108, 101, 110, 103, 116, 104];
+  let load_sz: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let call_fa: i32 = 0;
+  let bn: u8[128] = [];
+  let fb: u8[128] = [];
+  let flen2: i32 = 0;
+  let tk: i32 = 0;
+  let sl: i32 = 0;
+  let ev_tag: i32 = 0;
+  let vr: i32 = 0;
+  let ns_tag: i32 = 0;
+  let agg: i32 = 0;
+  let nm_tokenkind: u8[9] = [84, 111, 107, 101, 110, 75, 105, 110, 100];
+  let nm_typekind: u8[8] = [84, 121, 112, 101, 75, 105, 110, 100];
+  let nm_exprkind: u8[8] = [69, 120, 112, 114, 75, 105, 110, 100];
+  unsafe {
+    if (pipeline_expr_field_access_is_enum_variant(arena, expr_ref) != 0) {
+      return backend_enc_mov_imm32_to_w0_arch(elf_ctx, pipeline_expr_enum_variant_tag_at(arena, expr_ref), ta);
+    }
+    flen_arr = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (flen_arr == 6) {
+      pipeline_expr_field_access_name_into(arena, expr_ref, &fn_arr[0]);
+      if (wave151_bytes_eq(&fn_arr[0], &nm_length[0], 6) != 0) {
+        base_ref_arr = pipeline_expr_field_access_base_ref(arena, expr_ref);
+        base_ty_arr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref_arr);
+        if (base_ty_arr <= 0) {
+          base_ty_arr = pipeline_expr_resolved_type_ref(arena, base_ref_arr);
+        }
+        if (base_ty_arr > 0) {
+          bk_arr = pipeline_type_kind_ord_at(arena, base_ty_arr);
+          if (bk_arr == 10 || bk_arr == 13) {
+            asz_arr = pipeline_type_array_size_at(arena, base_ty_arr);
+            if (asz_arr > 0) {
+              return backend_enc_mov_imm64_to_rax_arch(elf_ctx, asz_arr, 0, ta);
+            }
+          }
+        }
+      }
+    }
+    fa_base2 = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    mod = pipeline_asm_emit_module_ref_c();
+    // SoA arr[i].field
+    if (fa_base2 > 0 && pipeline_expr_kind_ord_at(arena, fa_base2) == 47) {
+      if (pipeline_expr_field_access_soa_stride(arena, expr_ref) <= 0 && mod != (0 as *u8)) {
+        let _soa_rc: i32 = typeck_soa_field_soa_index(mod, arena, expr_ref, fa_base2);
+      }
+      if (pipeline_expr_field_access_soa_stride(arena, expr_ref) > 0) {
+        if (glue_emit_soa_index_field_addr_elf_c(arena, elf_ctx, fa_base2, expr_ref, ctx, ta) != 0) {
+          if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
+            return 0 - 99;
+          }
+        }
+      } else {
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
+          return 0 - 99;
+        }
+      }
+      load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+      if (load_sz == 1) {
+        return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+      }
+      if (load_sz == 8) {
+        return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      }
+      return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+    }
+    call_fa = glue_field_access_call_base_rvalue_elf_c(arena, elf_ctx, expr_ref, ctx, ta, 0);
+    if (call_fa != (0 - 99)) {
+      return call_fa;
+    }
+    if (fa_base2 > 0 && pipeline_expr_kind_ord_at(arena, fa_base2) == 3) {
+      blen2 = pipeline_expr_var_name_len(arena, fa_base2);
+      if (blen2 >= 9) {
+        flen2 = pipeline_expr_field_access_name_len(arena, expr_ref);
+        pipeline_expr_var_name_into(arena, fa_base2, &bn[0]);
+        if (wave151_bytes_eq(&bn[0], &nm_tokenkind[0], 9) != 0 && flen2 > 0) {
+          pipeline_expr_field_access_name_into(arena, expr_ref, &fb[0]);
+          tk = pipeline_token_kind_variant_tag(&fb[0], flen2);
+          if (tk < 0) {
+            // strlen fallback for trailing NUL in field_len
+            sl = 0;
+            while (sl < flen2 && sl < 127) {
+              if (fb[sl] == (0 as u8)) {
+                break;
+              }
+              sl = sl + 1;
+            }
+            if (sl > 0 && sl < flen2) {
+              tk = pipeline_token_kind_variant_tag(&fb[0], sl);
+            }
+          }
+          if (tk >= 0) {
+            return backend_enc_mov_imm32_to_w0_arch(elf_ctx, tk, ta);
+          }
+        }
+      }
+      if (blen2 >= 8) {
+        flen2 = pipeline_expr_field_access_name_len(arena, expr_ref);
+        pipeline_expr_var_name_into(arena, fa_base2, &bn[0]);
+        if (wave151_bytes_eq(&bn[0], &nm_typekind[0], 8) != 0 && flen2 > 0) {
+          pipeline_expr_field_access_name_into(arena, expr_ref, &fb[0]);
+          ev_tag = pipeline_asm_typekind_variant_tag(&fb[0], flen2);
+          if (ev_tag >= 0) {
+            return backend_enc_mov_imm32_to_w0_arch(elf_ctx, ev_tag, ta);
+          }
+        }
+        if (wave151_bytes_eq(&bn[0], &nm_exprkind[0], 8) != 0 && flen2 > 0) {
+          ev_tag = pipeline_expr_enum_namespace_field_tag(arena, expr_ref);
+          if (ev_tag >= 0) {
+            return backend_enc_mov_imm32_to_w0_arch(elf_ctx, ev_tag, ta);
+          }
+        }
+      }
+      vr = pipeline_asm_emit_var_field_access_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+      if (vr != (0 - 99)) {
+        return vr;
+      }
+    }
+    ns_tag = pipeline_expr_enum_namespace_field_tag(arena, expr_ref);
+    if (ns_tag >= 0) {
+      return backend_enc_mov_imm32_to_w0_arch(elf_ctx, ns_tag, ta);
+    }
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
+      return 0 - 99;
+    }
+    if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0) {
+      return 0;
+    }
+    agg = glue_field_call_arg_try_load_agg_from_rax_elf_c(arena, elf_ctx, expr_ref, ta);
+    if (agg < 0) {
+      return 0 - 1;
+    }
+    if (agg > 0) {
+      return 0;
+    }
+    load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    if (load_sz == 1) {
+      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+    }
+    if (load_sz == 8) {
+      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    }
+    return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
   }
 }

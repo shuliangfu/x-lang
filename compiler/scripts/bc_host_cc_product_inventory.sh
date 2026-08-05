@@ -115,7 +115,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_context.c|8.3.1|asm ELF emit context set/get + frame/param/local slots (wave141 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_match.c|8.3.1|asm ELF EXPR_MATCH/EXPR_IF emit (arm cmp+jeq + if jz) slice|140|absent"
   "compiler/pipeline_asm_emit_panic.c|8.3.1|asm ELF EXPR_PANIC + int div-zero face (wave127 pure-owned leave)|0|absent"
-  "compiler/pipeline_asm_emit_field_access.c|8.3.1|asm ELF EXPR_FIELD_ACCESS emit domain slice|500|present"
+  "compiler/pipeline_asm_emit_field_access.c|8.3.1|asm ELF EXPR_FIELD_ACCESS emit (wave151 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_binop.c|8.3.1|asm ELF EXPR_BINOP emit (wave149 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_cmp.c|8.3.1|asm ELF relational CMP emit (wave137 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_call_args.c|8.3.1|asm ELF CALL-arg emit (named_struct + resolve + f32 + reent deep-copy + lea + dual-GP + for_call_args) slice|1300|present"

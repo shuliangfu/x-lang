@@ -157,7 +157,7 @@ int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
 /* wave134: EXPR_IF / MATCH ELF faces pure-owned (emit_fwd extern above).
  * Residual expr_rec dispatches via pure symbols; do not re-define host bodies. */
 /* Forward: dual-GP / named layout used by STRUCT_LIT field store (defs later). */
-static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
+int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 /* wave132 pure leave Cap residual: named_layout static→extern (def call_args.c). */
 int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref);
 /* wave1032 G.7: glue_type_is_empty_struct_c folded into

@@ -56,9 +56,11 @@
  * at EOF); forward decl retained for callsites at L152/L158.
  * wave1049: glue_struct_layout_index_by_type_name_c migrated here (definition
  * at EOF below); forward decl retained for callsite at L162. */
-static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t li,
+/* wave151 Cap residual: pure field_access leave (was static). PLATFORM: SHARED. */
+int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t li,
                                                           int32_t fj);
-static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name, int32_t nlen);
+/* wave151 Cap residual: pure field_access leave (was static). PLATFORM: SHARED. */
+int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name, int32_t nlen);
 
 /* wave1054 G.7: forward decl — glue_type_align_simple is defined at EOF
  * below (migrated from glue.c:2917). Consumed by glue_struct_layout_compute
@@ -721,7 +723,8 @@ int32_t pipeline_asm_emit_struct_lit_elf_c(struct ast_ASTArena *arena,
  *
  * PLATFORM: SHARED — pure layout computation, arch-agnostic.
  */
-static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t li,
+/* wave151 Cap residual: pure field_access leave (was static). PLATFORM: SHARED. */
+int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t li,
                                                        int32_t fj) {
   int32_t current;
   int32_t j;
@@ -785,7 +788,8 @@ static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, s
  *
  * PLATFORM: SHARED — pure layout registry query; arch-agnostic.
  */
-static int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name, int32_t nlen) {
+/* wave151 Cap residual: pure field_access leave (was static). PLATFORM: SHARED. */
+int32_t glue_struct_layout_index_by_type_name_c(struct ast_Module *m, uint8_t *struct_name, int32_t nlen) {
   int32_t k;
   int32_t j;
   if (!m || !struct_name || nlen <= 0 || nlen > 127)

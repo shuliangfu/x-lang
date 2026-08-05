@@ -9173,8 +9173,12 @@ fi
 if grep -qE 'pipeline_asm_emit_panic\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_panic.c (wave127 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_field_access\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_field_access.c (8.3.1 asm_emit_field_access slice)"
+# wave151 pure-owned leave: field_access faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_field_access\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_field_access.c (wave151 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_field_access.c" ]; then
+  bad "pipeline_asm_emit_field_access.c must be deleted (wave151 pure-owned leave)"
 fi
 # wave149 pure-owned leave: binop faces live in runtime_pipeline_abi pure
 if grep -qE 'pipeline_asm_emit_binop\.c' "$_XSD_MK"; then

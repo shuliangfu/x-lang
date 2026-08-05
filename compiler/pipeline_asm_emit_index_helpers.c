@@ -56,6 +56,10 @@
 /* wave140 pure-owned leave: esz authority in runtime_pipeline_abi pure (#[no_mangle]).
  * Residual assign/binop/spill/lvalue_eff_addr Cap-call this face. PLATFORM: SHARED. */
 extern int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
+/* wave151 Cap residual: pure field_access leave (was static in field_access leaf). */
+extern int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
+    int32_t ta, int32_t leave_addr);
 /** VAR 基址 FIELD_ACCESS 有效偏移（定义见 pipeline_expr_field_access_layout_offset 附近）。 */
 int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    int32_t fa_ref);
@@ -2934,7 +2938,8 @@ int32_t glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(struct ast_ASTAre
  * DOD-S1：SoA 数组 `arr[i].field` 有效地址 → rax = base + col_base + index*stride。
  * index_expr_ref 为 INDEX 表达式；fa_ref 为外层 FIELD_ACCESS（含 col_base/stride）。
  */
-static int32_t glue_emit_soa_index_field_addr_elf_c(struct ast_ASTArena *arena,
+/* wave151 Cap residual: pure field_access leave (was static). PLATFORM: SHARED. */
+int32_t glue_emit_soa_index_field_addr_elf_c(struct ast_ASTArena *arena,
                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                      int32_t index_expr_ref, int32_t fa_ref,
                                                      struct backend_AsmFuncCtx *ctx, int32_t ta) {
