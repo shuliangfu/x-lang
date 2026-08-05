@@ -62,7 +62,8 @@ int32_t ast_pipeline_expr_array_lit_num_elems_at(struct ast_ASTArena *a, int32_t
 
 /* wave1021 durable fold: helpers defined earlier in pipeline_glue TU (lea/COMMON)
  * or later (align, dual_gp body, expr_rec). Prototypes keep static linkage. */
-static void glue_align_next_offset(struct backend_AsmFuncCtx *ctx);
+/* wave126 pure leave: glue_align_next_offset live = runtime_pipeline_abi pure. */
+void glue_align_next_offset(struct backend_AsmFuncCtx *ctx);
 static int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                     int32_t src_spill, int32_t dst_spill, int32_t esz,
                                                     int32_t ta);
@@ -880,8 +881,12 @@ static int32_t glue_fixed_array_temp_bytes(struct ast_ASTArena *arena, int32_t t
  *
  * PLATFORM: SHARED — pure type/init sizing; arch-agnostic.
  */
-static int32_t glue_array_temp_bytes_for_let_init(struct ast_ASTArena *arena, int32_t let_type_ref,
-                                                  int32_t init_ref) {
+/* wave126: static→extern public for pure Cap residual (next_offset pure leave).
+ * G.7: single array-temp sizing authority remains this function + glue_fixed_array_temp_bytes
+ * in the array_lit domain — pure only Cap-calls; does not reimplement sizing.
+ * PLATFORM: SHARED — product residual host-cc face. */
+int32_t glue_array_temp_bytes_for_let_init(struct ast_ASTArena *arena, int32_t let_type_ref,
+                                           int32_t init_ref) {
   int32_t bytes;
   bytes = glue_fixed_array_temp_bytes(arena, let_type_ref);
   if (bytes > 0)

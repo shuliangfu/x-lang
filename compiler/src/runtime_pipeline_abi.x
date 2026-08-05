@@ -597,6 +597,10 @@ export extern "C" function pipeline_block_let_type_ref(arena: *u8, block_ref: i3
 export extern "C" function asm_local_slot_reg_offset(arena: *u8, type_ref: i32, off: i32, inout_off: *i32): i32;
 export extern "C" function asm_ctx_local_append(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
 export extern "C" function asm_ctx_local_count(ctx: *u8): i32;
+// wave126 Cap residual: next_offset pure leave callees (array temp sizing still host-cc).
+// PLATFORM: SHARED — pure owns align/bump faces; glue_array_temp_bytes_for_let_init
+// remains array_lit residual domain (static→extern for pure Cap).
+export extern "C" function glue_array_temp_bytes_for_let_init(arena: *u8, let_type_ref: i32, init_ref: i32): i32;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 -> _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
@@ -21559,4 +21563,119 @@ export function glue_lazy_append_block_let_local(arena: *u8, ctx: *u8, block_ref
 #[no_mangle]
 export function pipeline_asm_ctx_layout(ctx: *u8): *u8 {
   return ctx;
+}
+
+// ---------------------------------------------------------------------------
+// wave126: pipeline_asm_emit_next_offset pure-owned leave
+// (was pipeline_asm_emit_next_offset.c).
+// G.7 product authority for:
+//   glue_align_next_offset
+//   pipeline_asm_bump_next_offset_for_array_lit
+//   pipeline_asm_bump_next_offset_after_let_init
+// Aligns AsmFuncCtx.next_offset@4 to 8B; advances temp cursor after array-lit
+// / let-init emit so successive lets do not share overlapping temp slots.
+// Cap residual: glue_array_temp_bytes_for_let_init (array_lit host-cc) +
+//   pipeline_expr_resolved_type_ref / pipeline_expr_kind_ord_at /
+//   pipeline_block_let_type_ref (public pool).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * Align AsmFuncCtx.next_offset up to an 8-byte boundary (no-op if already aligned).
+ * Residual C callers (call_args / array_lit / binop / field_access / block_inits /
+ * index_eff_addr) previously used same-TU static; pure owns the public face.
+ * @param ctx *u8 - AsmFuncCtx*; null → no-op
+ * @return void
+ * wave126 pure: G.7 authority (was static in pipeline_asm_emit_next_offset.c).
+ * PLATFORM: SHARED LP64 next_offset@4 — sole provider after next_offset leave.
+ */
+#[no_mangle]
+export function glue_align_next_offset(ctx: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let off: i32 = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+  let m: i32 = off % 8;
+  if (m != 0) {
+    pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), off + (8 - m));
+  }
+}
+
+/**
+ * Bump temp area after EXPR_ARRAY_LIT emit (emit_expr_elf_slow tail / return /
+ * call-arg paths). Avoids shared next_offset between successive array lits.
+ * @param arena *u8 - ASTArena*
+ * @param expr_ref i32 - ARRAY_LIT expr_ref; <=0 → no-op
+ * @param ctx *u8 - AsmFuncCtx*; null → no-op
+ * @return void
+ * wave126 pure: G.7 authority (was pipeline_asm_emit_next_offset.c).
+ * Cap residual: glue_array_temp_bytes_for_let_init + expr resolved_type_ref.
+ * PLATFORM: SHARED - sole provider after next_offset leave.
+ */
+#[no_mangle]
+export function pipeline_asm_bump_next_offset_for_array_lit(arena: *u8, expr_ref: i32, ctx: *u8): void {
+  if (ctx == 0 as *u8 || expr_ref <= 0) {
+    return;
+  }
+  let rt: i32 = 0;
+  unsafe {
+    rt = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  }
+  let bytes: i32 = 0;
+  unsafe {
+    bytes = glue_array_temp_bytes_for_let_init(arena, rt, expr_ref);
+  }
+  if (bytes <= 0) {
+    return;
+  }
+  let off: i32 = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+  pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), off + bytes);
+  glue_align_next_offset(ctx);
+}
+
+/**
+ * Bump temp area after let-init emission. EXPR_ARRAY_LIT already bumped at
+ * emit_expr_elf_slow tail; STRUCT_LIT let writes stack slot directly — both
+ * skip the temp area (kind_ord 46 / 45) and return early.
+ * @param arena *u8 - ASTArena*
+ * @param block_ref i32 - owning block for let type_ref
+ * @param let_idx i32 - let index in block
+ * @param init_ref i32 - init expr_ref (0 allowed; ARRAY/STRUCT skip when >0)
+ * @param ctx *u8 - AsmFuncCtx*; null → no-op
+ * @return void
+ * wave126 pure: G.7 authority (was pipeline_asm_emit_next_offset.c).
+ * Cap residual: block_let_type_ref + glue_array_temp_bytes_for_let_init + kind_ord.
+ * PLATFORM: SHARED - sole provider after next_offset leave.
+ */
+#[no_mangle]
+export function pipeline_asm_bump_next_offset_after_let_init(arena: *u8, block_ref: i32, let_idx: i32, init_ref: i32, ctx: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  // EXPR_ARRAY_LIT (46) already bumped in emit_expr_elf_slow;
+  // STRUCT_LIT (45) writes stack slot directly — skip temp area.
+  if (init_ref > 0) {
+    let iko: i32 = 0;
+    unsafe {
+      iko = pipeline_expr_kind_ord_at(arena, init_ref);
+    }
+    if (iko == 46 || iko == 45) {
+      return;
+    }
+  }
+  let tref: i32 = 0;
+  unsafe {
+    tref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
+  }
+  let bytes: i32 = 0;
+  unsafe {
+    bytes = glue_array_temp_bytes_for_let_init(arena, tref, init_ref);
+  }
+  if (bytes <= 0) {
+    return;
+  }
+  let off: i32 = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+  pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), off + bytes);
+  glue_align_next_offset(ctx);
 }

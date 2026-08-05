@@ -730,22 +730,16 @@ void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_AS
  * / ast_pipeline_* / pipeline_asm_array_lit_elem_type_ref @ L1278) all visible
  * at array_lit.c. No fwd decl retained in glue.c — zero callsites before L2299. */
 
-/* wave1105 G.7: asm_func_ctx next_offset management domain (3 fns)
- * migrated to pipeline_asm_emit_next_offset.c (same-TU #include).
- * Members: glue_align_next_offset (static) +
- * pipeline_asm_bump_next_offset_for_array_lit (public) +
- * pipeline_asm_bump_next_offset_after_let_init (public).
- * #include point chosen AFTER pipeline_asm_emit_array_lit.c (L2260, provides
- * glue_array_temp_bytes_for_let_init) and BEFORE pipeline_asm_emit_block_inits.c
- * (L3791) / pipeline_asm_emit_block_body.c (L3806) consumers. Earlier consumers
- * (return.c L1913 / assign.c L2255 / call_args.c L2356) reach the public bump_*
- * via the forward decl retained at L1840.
- * Deps: pipeline_asm_ctx_layout + pipeline_glue_AsmFuncCtxLayout (extern decls
- * earlier in glue.c) + glue_array_temp_bytes_for_let_init (static from
- * array_lit.c, same-TU visible) + pipeline_expr_* / pipeline_block_let_type_ref
- * (public). No static deps on other glue domains.
+/* wave1105 G.7: asm_func_ctx next_offset management domain (3 fns) lived in
+ * pipeline_asm_emit_next_offset.c (same-TU #include).
+ * wave126 BC pure-owned leave: glue_align_next_offset +
+ * pipeline_asm_bump_next_offset_for_array_lit +
+ * pipeline_asm_bump_next_offset_after_let_init live = runtime_pipeline_abi pure;
+ * seed cold twins under #ifndef FROM_X. Cap residual:
+ * glue_array_temp_bytes_for_let_init (array_lit residual, static→extern) +
+ * pipeline_expr_* / pipeline_block_let_type_ref. Host-cc leaf deleted.
+ * Forward decls remain in pipeline_glue_backend_fwd.c / array_lit (non-static).
  * PLATFORM: SHARED. */
-#include "pipeline_asm_emit_next_offset.c"
 
 /* wave1043 G.7: glue_emit_array_let_empty_init migrated to
  * pipeline_asm_emit_block_body.c (sole consumer block_body_sync_elf +
