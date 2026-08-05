@@ -653,3 +653,21 @@ extern int32_t pipeline_asm_let_init_stack_reserve_bytes(struct ast_ASTArena *ar
 extern void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, struct ast_ASTArena *arena);
 extern void glue_fill_var_types_from_params_for_func(struct ast_Module *m, struct ast_ASTArena *arena, int32_t func_index);
 extern void glue_fill_var_types_from_lets_in_block(struct ast_ASTArena *arena, int32_t block_ref);
+
+/* wave149 pure-owned leave: binop faces in runtime_pipeline_abi; residual expr_rec Cap-calls. */
+int32_t pipeline_asm_emit_binop_add_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+  int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+  int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+  int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+int32_t pipeline_asm_emit_binop_div_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+  int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+int32_t pipeline_asm_emit_binop_mod_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+  int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+int32_t pipeline_asm_emit_binop_and_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+  int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+int32_t pipeline_asm_emit_binop_bitwise_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+  int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t is_xor);
+int32_t pipeline_asm_emit_binop_shift_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+  int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t op);

@@ -1397,14 +1397,33 @@ static int32_t glue_binop_stack_spill_n;
 static int32_t glue_binop_rax_frame_spill_off[GLUE_BINOP_RAX_FRAME_SPILL_CAP];
 static int32_t glue_binop_rax_frame_spill_n;
 
+/* wave149 Cap residual: pure binop preserve_rax nest (was same-TU static access). PLATFORM: SHARED. */
+int32_t glue_binop_rax_frame_spill_push(int32_t home) {
+  if (glue_binop_rax_frame_spill_n >= GLUE_BINOP_RAX_FRAME_SPILL_CAP)
+    return -1;
+  glue_binop_rax_frame_spill_off[glue_binop_rax_frame_spill_n++] = home;
+  return 0;
+}
+int32_t glue_binop_rax_frame_spill_pop(void) {
+  if (glue_binop_rax_frame_spill_n <= 0)
+    return -1;
+  return glue_binop_rax_frame_spill_off[--glue_binop_rax_frame_spill_n];
+}
+int32_t glue_binop_rax_frame_spill_depth(void) {
+  return glue_binop_rax_frame_spill_n;
+}
+
+
 static void glue_binop_stack_spill_clear(void);
 static void glue_binop_stack_spill_drop_off(int32_t off);
 static int32_t glue_binop_stack_spill_find_depth(int32_t off);
-static int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
+/* wave149 Cap residual non-static (def spill.c). */
+int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
                                                   int32_t from_rbx);
 static int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                         int32_t off, int32_t to_rbx);
-static int32_t glue_asm73_var_prefers_stack_spill(int32_t off);
+/* wave149 Cap residual non-static (def spill.c). */
+int32_t glue_asm73_var_prefers_stack_spill(int32_t off);
 
 static int32_t glue_index_minus_pair_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                 int32_t i_ref, int32_t j_ref, int32_t ta);

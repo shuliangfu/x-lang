@@ -56,7 +56,8 @@ static int32_t pipeline_asm_emit_var_field_access_elf_c(struct ast_ASTArena *are
                                                         struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                         struct backend_AsmFuncCtx *ctx, int32_t ta);
 /* Forward: FIELD_ACCESS for binop operand (body in field_access leaf). */
-static int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *arena,
+/* wave149 Cap residual non-static (def field_access.c). */
+int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *arena,
                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
                                                            int32_t ta);

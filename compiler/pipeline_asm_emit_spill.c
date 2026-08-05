@@ -99,7 +99,8 @@ void glue_binop_var_slot_cache_clear(void) {
 }
 
 /** 二元结果在 rax 时失效 rax 槽（rbx 仍可保留右 VAR，如 add 后 a+b 再 a&b）。 */
-static void glue_binop_var_slot_cache_invalidate_rax(void) {
+/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
+void glue_binop_var_slot_cache_invalidate_rax(void) {
   glue_binop_var_slot_cache.valid_rax = 0;
 }
 
@@ -109,8 +110,51 @@ void glue_binop_var_slot_cache_invalidate_rbx(void) {
   glue_binop_var_slot_cache.valid_rbx = 0;
 }
 
+/*
+ * wave149 Cap residual: pure binop leave field accessors for spill-owned cache BSS.
+ * Pure cannot see static GlueBinopVarSlotCache; single authority stays in spill residual.
+ * PLATFORM: SHARED freestanding dual-slot cache.
+ */
+int32_t glue_binop_var_slot_cache_ctx_matches(void *ctx) {
+  return glue_binop_var_slot_cache.ctx_key == (size_t)ctx ? 1 : 0;
+}
+int32_t glue_binop_var_slot_cache_hit_rax(void *ctx, int32_t off) {
+  return (glue_binop_var_slot_cache.valid_rax && glue_binop_var_slot_cache.ctx_key == (size_t)ctx &&
+          glue_binop_var_slot_cache.rax_off == off)
+             ? 1
+             : 0;
+}
+int32_t glue_binop_var_slot_cache_hit_rbx(void *ctx, int32_t off) {
+  return (glue_binop_var_slot_cache.valid_rbx && glue_binop_var_slot_cache.ctx_key == (size_t)ctx &&
+          glue_binop_var_slot_cache.rbx_off == off)
+             ? 1
+             : 0;
+}
+int32_t glue_binop_var_slot_cache_valid_rax_get(void) { return glue_binop_var_slot_cache.valid_rax; }
+int32_t glue_binop_var_slot_cache_valid_rbx_get(void) { return glue_binop_var_slot_cache.valid_rbx; }
+int32_t glue_binop_var_slot_cache_rax_off_get(void) { return glue_binop_var_slot_cache.rax_off; }
+int32_t glue_binop_var_slot_cache_rbx_off_get(void) { return glue_binop_var_slot_cache.rbx_off; }
+void glue_binop_var_slot_cache_set_ctx_key(void *ctx) {
+  glue_binop_var_slot_cache.ctx_key = (size_t)ctx;
+}
+void glue_binop_var_slot_cache_set_rax(void *ctx, int32_t off) {
+  glue_binop_var_slot_cache.ctx_key = (size_t)ctx;
+  glue_binop_var_slot_cache.valid_rax = 1;
+  glue_binop_var_slot_cache.rax_off = off;
+}
+void glue_binop_var_slot_cache_set_rbx(void *ctx, int32_t off) {
+  glue_binop_var_slot_cache.ctx_key = (size_t)ctx;
+  glue_binop_var_slot_cache.valid_rbx = 1;
+  glue_binop_var_slot_cache.rbx_off = off;
+}
+void glue_binop_var_slot_cache_set_valid_rax(int32_t v) { glue_binop_var_slot_cache.valid_rax = v; }
+void glue_binop_var_slot_cache_set_valid_rbx(int32_t v) { glue_binop_var_slot_cache.valid_rbx = v; }
+void glue_binop_var_slot_cache_set_rax_off(int32_t off) { glue_binop_var_slot_cache.rax_off = off; }
+void glue_binop_var_slot_cache_set_rbx_off(int32_t off) { glue_binop_var_slot_cache.rbx_off = off; }
+
 /** arm64：交换 rax/x0 与 rbx/x1（交换律 VAR 槽命中后对齐 add 操作数序）。 */
-static int32_t glue_enc_swap_rax_rbx_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
+int32_t glue_enc_swap_rax_rbx_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   if (ta != 1)
     return 0;
   if (arch_arm64_enc_enc_mov_rax_to_x2(elf_ctx) != 0)
@@ -1617,7 +1661,8 @@ static int32_t glue_asm73_stack_spill_enabled(void) {
 }
 
 /** 7.3：Chaitin 标为栈帧家园（which=6）且块级阈值满足时走实栈 spill。 */
-static int32_t glue_asm73_var_prefers_stack_spill(int32_t off) {
+/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
+int32_t glue_asm73_var_prefers_stack_spill(int32_t off) {
   if (off < 0 || !glue_asm73_stack_spill_enabled())
     return 0;
   return glue_asm73_off_spill_color_which(off) == GLUE_ASM73_SPILL_WHICH_STACK ? 1 : 0;
@@ -1903,7 +1948,8 @@ static int32_t glue_binop_spill_reg_to_spill_elf_c(struct platform_elf_ElfCodege
 /**
  * 7.3：VAR 栈槽 off 若已在 spill（x10–x15）则装入 rax/rbx；1=命中，0=未命中，-1=错。
  */
-static int32_t glue_binop_try_reload_spill_off_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
+int32_t glue_binop_try_reload_spill_off_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                       struct backend_AsmFuncCtx *ctx, int32_t off, int32_t ta,
                                                       int32_t to_rbx) {
   int32_t stk;
@@ -2039,7 +2085,8 @@ static void glue_asm73_evict_rbx_cache_entry(int32_t stmt_i, int32_t ta,
 /**
  * 7.3：左结合交换律链 ((…){op}VAR) — 右 VAR 装入 rbx 前，若 rbx 仍缓存其它活跃槽则 spill 到 x10。
  */
-static void glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(struct ast_ASTArena *arena,
+/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
+void glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(struct ast_ASTArena *arena,
                                                                    struct backend_AsmFuncCtx *ctx,
                                                                    int32_t right_ref, int32_t ta,
                                                                    struct platform_elf_ElfCodegenCtx *elf_ctx) {
@@ -2057,6 +2104,7 @@ static void glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(struct ast_AST
  * 默认 thresh=3（repeat_add）；块 |live|max≥6 时 thresh=4。
  * 驱逐策略：失效 next-use 更远的一路（rax/rbx）；距离相同则双清（保守）。
  */
+/* wave149 Cap residual helper (was static); pure uses wrapper below. PLATFORM: SHARED. */
 static void glue_asm73_linear_scan_evict_cache_if_pressure_live(const GlueBlockLiveFwd *live, int32_t stmt_i,
                                                                 int32_t ta,
                                                                 struct platform_elf_ElfCodegenCtx *elf_ctx) {
@@ -2096,6 +2144,15 @@ static void glue_asm73_linear_scan_evict_cache_if_pressure_live(const GlueBlockL
     glue_asm73_evict_rbx_cache_entry(stmt_i, ta, elf_ctx);
   else
     glue_binop_var_slot_cache_clear();
+}
+
+/* wave149 Cap residual: pure binop leave — no live-fwd pointer across pure/C.
+ * Folds glue_block_live_fwd_active + glue_block_emit_stmt_i + live set.
+ * PLATFORM: SHARED freestanding 7.3 pressure eviction.
+ */
+void glue_asm73_evict_cache_if_live_pressure_elf_c(int32_t ta, struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (glue_block_live_fwd_active)
+    glue_asm73_linear_scan_evict_cache_if_pressure_live(&glue_block_live_fwd, glue_block_emit_stmt_i, ta, elf_ctx);
 }
 
 static void glue_asm73_linear_scan_evict_cache_if_pressure(int32_t stmt_i, int32_t ta,
@@ -2400,7 +2457,8 @@ static int32_t glue_binop_stack_spill_find_depth(int32_t off) {
  * 7.3：将 rax/rbx 中 VAR 压入实栈（sub sp,#16 + str x0/x1,[sp]），记录 off 与深度。
  * 0=OK，-1=错。
  */
-static int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
+/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
+int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
                                                   int32_t from_rbx) {
   if (ta != 1 || off < 0 || !elf_ctx)
     return 0;

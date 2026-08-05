@@ -239,13 +239,14 @@ static int32_t glue_var_is_current_func_param_c(struct ast_ASTArena *arena, stru
   return 0;
 }
 
-/** Forward: glue_type_ref_is_scalar_f32_c (body in pipeline_asm_emit_binop.c wave1015). */
-static int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
+/* wave149: glue_type_ref_is_scalar_f32_c pure-owned leave — Cap residual extern. PLATFORM: SHARED. */
+extern int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
 
 /**
  * f32 VAR 装入 rax：XLANG_ABI_F32_XMM=1 形参走 32-bit homing；否则 caller f64 movabs → cvtsd2ss。
  */
-static int32_t glue_load_f32_var_slot_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
+int32_t glue_load_f32_var_slot_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                     struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                     int32_t var_expr_ref, int32_t off, int32_t ta) {
   if (glue_var_is_current_func_param_c(arena, ctx, var_expr_ref)) {
@@ -262,7 +263,8 @@ static int32_t glue_load_f32_var_slot_to_rax_elf_c(struct platform_elf_ElfCodege
 }
 
 /** f32 VAR 装入 rbx（与 rax 路径对称）。 */
-static int32_t glue_load_f32_var_slot_to_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
+int32_t glue_load_f32_var_slot_to_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                     struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                     int32_t var_expr_ref, int32_t off, int32_t ta) {
   if (glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, var_expr_ref, off, ta) != 0)

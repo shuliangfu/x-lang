@@ -72,7 +72,8 @@ int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena, struc
                                                int32_t expr_ref);
 int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                int32_t expr_ref);
-static int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
+/* wave149 pure-owned leave: Cap residual extern. */
+extern int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
 /* wave145: Cap residual non-static for pure block_inits. */
 int32_t glue_type_ref_is_scalar_f64_c(struct ast_ASTArena *arena, int32_t type_ref);
 /* wave124 pure-owned leave: live in runtime_pipeline_abi pure (was same-TU static). */

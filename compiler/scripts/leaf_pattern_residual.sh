@@ -1349,7 +1349,7 @@ B7B_RELINK_LEGACY_LIST_WAVE=wave822
 # SRCS (4) + MAIN_X_DEPS (4) + PREPROCESS_X_DEPS (1) + PIPELINE_X_DEPS fixed
 # paths (53; excludes $(PIPELINE_ASM_X_DEPS) wildcard token) = COUNT=62.
 # 8.3.1+8.3.2: +43 #include slices (ctfe/.../soa + asm_emit_assign + asm_emit_index +
-#   asm_emit_match + asm_emit_panic + asm_emit_field_access + asm_emit_binop + asm_emit_cmp +
+#   asm_emit_match + asm_emit_panic + asm_emit_field_access + (binop pure wave149) + asm_emit_cmp +
 #   asm_emit_call_args + asm_emit_struct_lit + asm_emit_vector_let + (vector_simd pure wave148) +
 #   asm_emit_struct_let + asm_emit_index_helpers + asm_emit_spill +
 #   asm_emit_expr_rec +
@@ -9176,8 +9176,12 @@ fi
 if ! grep -qE 'pipeline_asm_emit_field_access\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_field_access.c (8.3.1 asm_emit_field_access slice)"
 fi
-if ! grep -qE 'pipeline_asm_emit_binop\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_binop.c (8.3.1 asm_emit_binop slice)"
+# wave149 pure-owned leave: binop faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_binop\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_binop.c (wave149 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_binop.c" ]; then
+  bad "pipeline_asm_emit_binop.c must be deleted (wave149 pure-owned leave)"
 fi
 if grep -qE 'pipeline_asm_emit_cmp\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_cmp.c (wave137 pure-owned leave)"

@@ -437,9 +437,8 @@ enum {
 /* wave1016 G.7: glue_emit_assign_rhs_to_rax folded into assign leaf; wave142 pure leave.
  * (included earlier after spill). Compound-assign uses binop helpers via
  * forwards in that leaf; early unary/as scalar/mul forwards remain ~2584.
- * binop residual scalar/ptr/add already in pipeline_asm_emit_binop.c (wave1015).
- * wave1017: type_named_struct predicate in call_args leaf (above).
- * wave1018: try_binop load/placement residual folded into binop leaf. */
+ * wave149: binop pure-owned leave (was residual wave1015/1018).
+ * wave1017: type_named_struct predicate in call_args leaf (above). */
 
 /* wave127 pure-owned leave: pipeline_asm_emit_panic.c deleted.
  * live = runtime_pipeline_abi pure (xlang_panic_call + panic_elf +
@@ -449,10 +448,64 @@ enum {
  * backend_fwd / above extern; do not re-open a second PANIC / div0 ELF
  * face (G.7). PLATFORM: SHARED freestanding emit. */
 
-/* BC 8.3.1: asm ELF EXPR_BINOP emit domain
- * (add/sub/mul/div/mod/and/bitwise/shift + unsigned/64bit classifiers +
- * nested rax/rbx helpers + wave1015 residual scalar/ptr/add; Cap residual pure; same TU). */
-#include "pipeline_asm_emit_binop.c"
+/* wave149 pure-owned leave: pipeline_asm_emit_binop.c deleted.
+ * live = runtime_pipeline_abi pure (try/load/placement + add/sub/mul/div/mod/and/
+ * bitwise/shift + scalar f32/f64/unsigned/64bit + type_ref scalar + may_clobber +
+ * preserve/restore + mixed f32/f64 + ptr scale); seed cold twin under #ifndef FROM_X.
+ * Residual expr_rec calls pipeline_asm_emit_binop_*_elf_c public faces — extern below.
+ * G.7: do not re-open a second BINOP ELF face. PLATFORM: SHARED freestanding emit. */
+
+/* wave149 Cap residual externs for pure-owned faces (same-TU residual callers). */
+extern int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t glue_try_binop_left_rax_right_rbx_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref, int32_t right_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t glue_try_binop_cmp_rbx_rax_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref, int32_t right_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t glue_type_ref_is_scalar_f64_c(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena,
+    struct backend_AsmFuncCtx *ctx, int32_t expr_ref);
+extern int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena,
+    struct backend_AsmFuncCtx *ctx, int32_t expr_ref);
+extern int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx,
+    int32_t left_ref, int32_t right_ref, int32_t ta);
+extern int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx,
+    int32_t left_ref, int32_t right_ref, int32_t ta);
+extern int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx,
+    int32_t left_ref, int32_t right_ref, int32_t ta);
+extern int32_t glue_binop_operand_is_unsigned_elf_c(struct ast_ASTArena *arena,
+    struct backend_AsmFuncCtx *ctx, int32_t left_ref, int32_t right_ref);
+extern int32_t glue_binop_operand_is_64bit_elf_c(struct ast_ASTArena *arena,
+    struct backend_AsmFuncCtx *ctx, int32_t left_ref, int32_t right_ref);
+extern int32_t pipeline_asm_emit_binop_add_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref, int32_t right_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref, int32_t right_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref, int32_t right_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_div_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref, int32_t right_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_mod_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref, int32_t right_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_and_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref, int32_t right_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_bitwise_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref, int32_t right_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t is_xor);
+extern int32_t pipeline_asm_emit_binop_shift_elf_c(struct ast_ASTArena *arena,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref, int32_t right_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t op);
 
 
 /* BC 8.3.1: asm ELF EXPR_FIELD_ACCESS emit domain

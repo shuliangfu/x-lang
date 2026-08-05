@@ -546,7 +546,8 @@ static int32_t pipeline_asm_emit_var_field_access_elf_c(struct ast_ASTArena *are
 /**
  * EXPR_FIELD_ACCESS 快速路径：枚举 TokenKind/ExprKind/TypeKind、VAR 字段（lex.pos），勿落 backend slow。
  */
-static int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *arena,
+/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
+int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *arena,
                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
                                                            int32_t ta) {
