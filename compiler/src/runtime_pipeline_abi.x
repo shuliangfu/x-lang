@@ -4,6 +4,7 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave120: pipeline_asm_parser_emit_heavy.c pure-owned leave (dbg/bisect/slot/mega/force_stub/safe/thin/m8/resolve/callee).
 // wave119: pipeline_asm_emit_heavy_env.c pure-owned leave (env gates, abort range,
 //   path helpers, skip_typeck whitelist, orchestration_extern_only, name_has_prefix,
 //   top_level_const_lit). Cap residual: top_level_let/expr accessors +
@@ -527,16 +528,10 @@ export extern "C" function pipeline_module_top_level_let_init_ref(module: *u8, i
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
 // wave118 Cap residual: skip_dispatch pure leave callees still host-cc residual
-// (parser_emit_heavy + block_tree slot count + driver large-entry). PLATFORM: SHARED.
+// (block_tree slot count + driver large-entry). wave120: parser_emit_heavy pure.
+// PLATFORM: SHARED.
 export extern "C" function driver_typeck_skip_large_entry(): i32;
 export extern "C" function asm_count_block_stack_slots(arena: *u8, block_ref: i32): i32;
-export extern "C" function asm_skip_heavy_parser_mega_entry(m: *u8, func_index: i32): i32;
-export extern "C" function asm_parser_emit_heavy_bisect_max_index(): i32;
-export extern "C" function asm_parser_emit_heavy_safe_helper(m: *u8, func_index: i32): i32;
-export extern "C" function asm_parser_emit_heavy_force_stub(m: *u8, func_index: i32): i32;
-export extern "C" function asm_parser_func_is_thin_delegate(m: *u8, func_index: i32): i32;
-export extern "C" function asm_parser_emit_heavy_slot_max(): i32;
-export extern "C" function asm_parser_emit_heavy_dbg_real(m: *u8, fi: i32, why: *u8): void;
 export extern "C" function pipeline_module_func_name_byte_at(module: *u8, fi: i32, i: i32): i32;
 export extern "C" function ast_ast_block_num_consts(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
@@ -18226,6 +18221,1796 @@ export function asm_orchestration_extern_only_func(m: *u8, func_index: i32): i32
     }
     if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_impl", 19) != 0) {
       return 1;
+    }
+    return 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// wave120: asm parser_emit_heavy pure-owned leave (was pipeline_asm_parser_emit_heavy.c).
+// G.7 product authority for:
+//   dbg_real / bisect_max_index / slot_max
+//   skip_heavy_parser_mega_entry (+ mega_bisect + bootstrap_mega helpers)
+//   force_stub / safe_helper (216 name equals)
+//   func_is_thin_delegate / m8_tail_thin_delegate_c_name (116-row table unroll)
+//   resolve_call_to_glue / callee_is_same_module_local
+// Cap residual: none for this leaf (dead static x_body_keep / slot_fallback_ok dropped).
+// Omits XLANG_ASM_DEBUG fprintf in dbg_real (wave106 style).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED — dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/** Slot fallback default (≡ former ASM_EMIT_HEAVY_PARSER_SLOT_MAX). PLATFORM: SHARED. */
+let ASM_EMIT_HEAVY_PARSER_SLOT_MAX: i32 = 16;
+
+/**
+ * wave120 pure: XLANG_ASM_DEBUG real-emit note (product path no-op; omits fprintf).
+ * @param m *u8 — Module* (unused in pure)
+ * @param fi i32 — function index (unused)
+ * @param why *u8 — reason tag (unused)
+ * @return void
+ * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
+ */
+#[no_mangle]
+export function asm_parser_emit_heavy_dbg_real(m: *u8, fi: i32, why: *u8): void {
+  unsafe {
+    // PRODUCT: debug-only; cold twin may fprintf under XLANG_ASM_DEBUG.
+    let _m: *u8 = m;
+    let _fi: i32 = fi;
+    let _why: *u8 = why;
+    return;
+  }
+}
+
+/**
+ * wave120 pure: bisect max func index (STUB_ONLY→0; missing env→I32_MAX).
+ * @return i32 — inclusive upper bound for real emit by index
+ * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
+ */
+#[no_mangle]
+export function asm_parser_emit_heavy_bisect_max_index(): i32 {
+  unsafe {
+    if (asm_diag_env_truthy(link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_STUB_ONLY")) != 0) {
+      return 0;
+    }
+    let e: *u8 = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_BISECT_N");
+    if (e == 0 as *u8) {
+      return 2147483647;
+    }
+    if (e[0] == 0) {
+      return 2147483647;
+    }
+    let any: i32 = 0;
+    let v: i32 = asm_diag_parse_u_decimal(e, &any);
+    if (any == 0) {
+      return 2147483647;
+    }
+    return v;
+  }
+}
+
+/**
+ * wave120 pure: slot fallback max (default 16; env clamp 0..512).
+ * @return i32 — max stack slots for X real emit under slot_fallback
+ * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
+ */
+#[no_mangle]
+export function asm_parser_emit_heavy_slot_max(): i32 {
+  unsafe {
+    let e: *u8 = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_SLOT_MAX");
+    if (e == 0 as *u8) {
+      return ASM_EMIT_HEAVY_PARSER_SLOT_MAX;
+    }
+    if (e[0] == 0) {
+      return ASM_EMIT_HEAVY_PARSER_SLOT_MAX;
+    }
+    let any: i32 = 0;
+    let v: i32 = asm_diag_parse_u_decimal(e, &any);
+    if (any == 0) {
+      return ASM_EMIT_HEAVY_PARSER_SLOT_MAX;
+    }
+    if (v > 512) {
+      return 512;
+    }
+    return v;
+  }
+}
+
+/**
+ * wave120 pure helper: XLANG_ASM_PARSER_MEGA_BISECT name match → allow X emit.
+ * @param m *u8 — Module*
+ * @param func_index i32 — function index
+ * @param name *u8 — candidate mega name bytes
+ * @param len i32 — name length
+ * @return i32 — 1 when env name matches module func
+ * PLATFORM: SHARED.
+ */
+function asm_parser_mega_bisect_skip_stub(m: *u8, func_index: i32, name: *u8, len: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0 || name == 0 as *u8 || len <= 0) {
+      return 0;
+    }
+    let b: *u8 = link_abi_getenv("XLANG_ASM_PARSER_MEGA_BISECT");
+    if (b == 0 as *u8) {
+      return 0;
+    }
+    if (b[0] == 0) {
+      return 0;
+    }
+    let blen: i32 = 0;
+    while (b[blen] != 0 && blen < 256) {
+      blen = blen + 1;
+    }
+    if (blen != len) {
+      return 0;
+    }
+    let k: i32 = 0;
+    while (k < len) {
+      if (b[k] != name[k]) {
+        return 0;
+      }
+      k = k + 1;
+    }
+    return pipeline_module_func_name_equal_at(m, func_index, name, len);
+  }
+}
+
+/**
+ * wave120 pure helper: PARSE_BOOTSTRAP_EMIT whitelist for mega X emit.
+ * @param m *u8 — Module*
+ * @param func_index i32 — function index
+ * @param name *u8 — candidate name
+ * @param len i32 — name length
+ * @return i32 — 1 when bootstrap emit allows this mega name
+ * PLATFORM: SHARED.
+ */
+function asm_parser_bootstrap_mega_emit_allowed(m: *u8, func_index: i32, name: *u8, len: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0) {
+      return 0;
+    }
+    // Presence check (null only) — empty string still enables bootstrap path.
+    if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") == 0 as *u8) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, name, len) == 0) {
+      return 0;
+    }
+    if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != 0 as *u8) {
+      if (len == 15) {
+        if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_init", 15) != 0) {
+          return 1;
+        }
+      }
+      if (len == 25) {
+        if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_set_main_index", 25) != 0) {
+          return 1;
+        }
+      }
+      return 0;
+    }
+    if (len == 14) {
+      if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_buf", 14) != 0) {
+        return 1;
+      }
+    }
+    if (len == 10) {
+      if (pipeline_module_func_name_equal_at(m, func_index, "parse_into", 10) != 0) {
+        return 1;
+      }
+    }
+    if (len == 15) {
+      if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_init", 15) != 0) {
+        return 1;
+      }
+    }
+    if (len == 25) {
+      if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_set_main_index", 25) != 0) {
+        return 1;
+      }
+    }
+    if (len == 19) {
+      if (pipeline_module_func_name_equal_at(m, func_index, "collect_imports_buf", 19) != 0) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave120 pure: mega parse entry → ret0 stub (unless bisect/bootstrap allow X).
+ * @param m *u8 — Module*
+ * @param func_index i32 — function index
+ * @return i32 — 1 skip heavy (stub)
+ * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
+ */
+#[no_mangle]
+export function asm_skip_heavy_parser_mega_entry(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0) {
+      return 0;
+    }
+    if (asm_module_is_parser_emit_heavy(m) == 0) {
+      return 0;
+    }
+    // PARSER_MEGA_EQ("parse_into_buf", 14)
+    if (asm_parser_mega_bisect_skip_stub(m, func_index, "parse_into_buf", 14) == 0) {
+      if (asm_parser_bootstrap_mega_emit_allowed(m, func_index, "parse_into_buf", 14) == 0) {
+        if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_buf", 14) != 0) {
+          return 1;
+        }
+      }
+    }
+    // PARSER_MEGA_EQ("parse_into", 10)
+    if (asm_parser_mega_bisect_skip_stub(m, func_index, "parse_into", 10) == 0) {
+      if (asm_parser_bootstrap_mega_emit_allowed(m, func_index, "parse_into", 10) == 0) {
+        if (pipeline_module_func_name_equal_at(m, func_index, "parse_into", 10) != 0) {
+          return 1;
+        }
+      }
+    }
+    // PARSER_MEGA_EQ("parse", 5)
+    if (asm_parser_mega_bisect_skip_stub(m, func_index, "parse", 5) == 0) {
+      if (asm_parser_bootstrap_mega_emit_allowed(m, func_index, "parse", 5) == 0) {
+        if (pipeline_module_func_name_equal_at(m, func_index, "parse", 5) != 0) {
+          return 1;
+        }
+      }
+    }
+    // PARSER_MEGA_EQ("parse_one_function_impl", 23)
+    if (asm_parser_mega_bisect_skip_stub(m, func_index, "parse_one_function_impl", 23) == 0) {
+      if (asm_parser_bootstrap_mega_emit_allowed(m, func_index, "parse_one_function_impl", 23) == 0) {
+        if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_impl", 23) != 0) {
+          return 1;
+        }
+      }
+    }
+    // PARSER_MEGA_EQ("parse_expr_into", 15)
+    if (asm_parser_mega_bisect_skip_stub(m, func_index, "parse_expr_into", 15) == 0) {
+      if (asm_parser_bootstrap_mega_emit_allowed(m, func_index, "parse_expr_into", 15) == 0) {
+        if (pipeline_module_func_name_equal_at(m, func_index, "parse_expr_into", 15) != 0) {
+          return 1;
+        }
+      }
+    }
+    // PARSER_MEGA_EQ("parse_block_into", 16)
+    if (asm_parser_mega_bisect_skip_stub(m, func_index, "parse_block_into", 16) == 0) {
+      if (asm_parser_bootstrap_mega_emit_allowed(m, func_index, "parse_block_into", 16) == 0) {
+        if (pipeline_module_func_name_equal_at(m, func_index, "parse_block_into", 16) != 0) {
+          return 1;
+        }
+      }
+    }
+    // PARSER_MEGA_EQ("parse_body_lets_into", 20)
+    if (asm_parser_mega_bisect_skip_stub(m, func_index, "parse_body_lets_into", 20) == 0) {
+      if (asm_parser_bootstrap_mega_emit_allowed(m, func_index, "parse_body_lets_into", 20) == 0) {
+        if (pipeline_module_func_name_equal_at(m, func_index, "parse_body_lets_into", 20) != 0) {
+          return 1;
+        }
+      }
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave120 pure: force ret0 stub names/prefixes (not safe_helper whitelist).
+ * @param m *u8 — Module*
+ * @param func_index i32 — function index
+ * @return i32 — 1 force stub
+ * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
+ */
+#[no_mangle]
+export function asm_parser_emit_heavy_force_stub(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0) {
+      return 0;
+    }
+    if (asm_module_is_parser_emit_heavy(m) == 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "copy_onefunc_", 13) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "onefunc_", 8) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "set_onefunc_", 12) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "wrap_block_ref_as_expr", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_alloc_true_bool_lit", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_alloc_float_lit", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_expr_wrap_in_return", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct_buf", 33) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave120 pure: safe X real-emit helper whitelist (parser EMIT_HEAVY 2nd pass).
+ * @param m *u8 — Module*
+ * @param func_index i32 — function index
+ * @return i32 — 1 safe helper
+ * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
+ */
+#[no_mangle]
+export function asm_parser_emit_heavy_safe_helper(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0) {
+      return 0;
+    }
+    if (asm_module_is_parser_emit_heavy(m) == 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "get_module_num_imports", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "expr_ref_is_assign_lvalue", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "copy_slice_to_name64", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "copy_slice_to_name64_at_end", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "copy_slice_to_param32", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "copy_slice_to_param32_at_end", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "copy_slice_to_name64_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "copy_slice_to_name64_at_end_buf", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "copy_slice_to_param32_at_end_buf", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "copy_slice_to_param32_buf", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "get_module_import_path", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "copy_module_import_path64", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library_buf", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library_into_buf", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_buf_into", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_init", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library_into", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_module_reset_parse_counters", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "extern_parse_set_fail", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "extern_parse_pool_ptr", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "onefunc_result_pool_ptr", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "set_onefunc_fail", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "copy_lex_from_import_into", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_next_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_result_ptr_into", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_onefunc_next_into", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "write_extern_params_to_pools", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "module_register_arena_func", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "is_pointee_type_token", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "compound_assign_token_to_expr_kind", 34) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "import_path_dot_segment_copy", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_alloc_vector_type_ref", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_peek_function_name_buf", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lexer_pos_before_run", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_match_kw_immediately_before", 34) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "import_path_dot_segment_len", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "is_compound_assign_token", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "struct_field_name_tok_kind", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "struct_field_continues_tok_kind", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "module_try_register_enum_name", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "struct_layout_name_exists_arr", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "struct_layout_first_name_match_idx", 34) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "struct_layout_placeholder_idx", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lexer_token_run_len", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "module_append_enum_variants_and_skip_body_into_buf", 50) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens_into_buf", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces_into_buf", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_into_buf", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct_into_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait_into_buf", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl_into_buf", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern_into_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full_into_buf", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_register_into_buf", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_and_add_into_buf", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const_buf", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if_buf", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full_buf", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core_buf", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement_buf", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_buf", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait_buf", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl_buf", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern_buf", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct_buf", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_buf", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct_buf", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_library_into", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_try_skip_into", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_library", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_try_skip", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "advance_past_stmt_semicolon_into", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "advance_past_cond_rparen_into", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "first_token_kind", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_first_ident_len", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_rewind_lex_for_following_stmt", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_at_token_from_result", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "struct_field_name_from_tok", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const_into", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if_into", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement_into", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core_into", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait_into", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern_into", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_into", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_into_buf", 34) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_set_main_index", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_token_after_collect_imports", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_parse_one_after_collect_imports", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_ok_for_pipeline", 34) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_imports", 12) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct_into", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_skip_into", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum", 13) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait", 14) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl", 13) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "collect_imports", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "consume_qualified_type_ident_name", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "expr_set_common_zeros", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "fill_block_const_let_from_res", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "append_block_lets_from_res", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_after_imports_then_structs", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_fail_at_token_kind", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_lex_after_imports", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens_into", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces_into", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_primary_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_unary_into", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_cast_into", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_term_into", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_addsub_into", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_shift_into", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_relcompare_into", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_compare_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitand_into", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitor_into", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitxor_into", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_logand_into", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_logor_into", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_ternary_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_assign_into", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_as_suffix_into", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library_scan", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_and_add_into", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_top_level_let_into", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_should_wrap_func_tail_in_return", 38) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_register_into", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full_into", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "alloc_pointee_type_ref_from_tok", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_struct_record_layout_into", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_type_ref_for_arena_into", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_cond_expr_into", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "module_append_enum_variants_and_skip_body_into", 46) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_body_let_bracket_compound_init_ref", 40) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_vector_type_ref_from_ident_spelling", 42) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "collect_imports_buf", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_imports_buf", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const_into_buf", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if_into_buf", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core_into_buf", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement_into_buf", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "first_token_kind_buf", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_first_ident_len_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_lex_after_imports_buf", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_after_imports_then_structs_buf", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_fail_at_token_kind_buf", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_skip_into_buf", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "consume_qualified_type_ident_name_buf", 37) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "advance_past_stmt_semicolon_into_buf", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "advance_past_cond_rparen_into_buf", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_primary_into_buf", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_unary_into_buf", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_cast_into_buf", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_term_into_buf", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_addsub_into_buf", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_shift_into_buf", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_relcompare_into_buf", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_compare_into_buf", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitand_into_buf", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitxor_into_buf", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitor_into_buf", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_logand_into_buf", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_logor_into_buf", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_ternary_into_buf", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_assign_into_buf", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_expr_into_buf", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "finish_struct_lit_from_type_ident_into_buf", 42) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_cond_expr_into_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_if_stmt_into_buf", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_if_stmt_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_if_expr_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_match_into", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_match_subject_into", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_at_simd_builtin_into", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "finish_struct_lit_from_type_ident_into", 38) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_expr_with_leading_int_as_into", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_block_into_buf", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_if_expr_into_buf", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_match_subject_into_buf", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_match_into_buf", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_at_simd_builtin_into_buf", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_as_suffix_into_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_type_ref_for_arena_into_buf", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_body_let_bracket_compound_init_ref_buf", 44) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_struct_record_layout_into_buf", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library_scan_buf", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "alloc_pointee_type_ref_from_tok_buf", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_vector_type_ref_from_ident_spelling_buf", 46) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_top_level_let_into_buf", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "import_path_dot_segment_copy_buf", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_match_kw_immediately_before_buf", 38) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "struct_field_name_from_tok_buf", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_expr_with_leading_int_as_into_buf", 39) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_register_buf", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens_slice_into_buf", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces_slice_into_buf", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "module_append_enum_variants_and_skip_body_slice_into_buf", 56) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_skip_buf", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_and_add_buf", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library_from_buf", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_from_buf", 34) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave120 pure: true if func is in k_asm_parser_thin_delegate x_name set.
+ * @param m *u8 — Module*
+ * @param func_index i32 — function index
+ * @return i32 — 1 thin delegate
+ * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
+ */
+#[no_mangle]
+export function asm_parser_func_is_thin_delegate(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0) {
+      return 0;
+    }
+    if (asm_module_is_parser_emit_heavy(m) == 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "collect_imports_buf", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "advance_past_cond_rparen_into", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "advance_past_stmt_semicolon_into", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "alloc_pointee_type_ref_from_tok", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "append_block_lets_from_res", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if_buf", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if_into", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "collect_imports", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "copy_lex_from_import_into", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "consume_qualified_type_ident_name", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_after_imports_then_structs", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_fail_at_token_kind", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_first_ident_len", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_lex_after_imports", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const_buf", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const_into", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "expr_set_common_zeros", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "fill_block_const_let_from_res", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "finish_struct_lit_from_type_ident_into", 38) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "first_token_kind", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_at_token_from_result", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_library", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_library_into", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_onefunc_next_into", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_next_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_result_ptr_into", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_try_skip", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_try_skip_into", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "module_append_enum_variants_and_skip_body_into", 46) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_addsub_into", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_as_suffix_into", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_assign_into", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_at_simd_builtin_into", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitand_into", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitor_into", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitxor_into", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_body_let_bracket_compound_init_ref", 40) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_cast_into", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_compare_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_cond_expr_into", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_if_expr_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_if_stmt_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_buf", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_into_buf", 34) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_into", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_set_main_index", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_logand_into", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_logor_into", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_match_into", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_match_subject_into", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_and_add_into_buf", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_and_add_into", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_skip_into", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_buf_into", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library_into", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library_scan", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_top_level_let_into", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_primary_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_relcompare_into", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_shift_into", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_struct_record_layout_into", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_term_into", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_ternary_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_type_ref_for_arena_into", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_unary_into", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_rewind_lex_for_following_stmt", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_vector_type_ref_from_ident_spelling", 42) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces_into", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens_into", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_imports", 12) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_buf", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum", 13) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_into_buf", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_register_into_buf", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_register_into", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern_buf", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern_into_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern_into", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full_buf", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full_into_buf", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full_into", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core_buf", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core_into", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement_buf", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement_into", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl_buf", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl", 13) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl_into_buf", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl_into", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct_buf", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct_into_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct_into", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait_buf", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait", 14) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait_into_buf", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait_into", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "struct_field_name_from_tok", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_token_is_label_start", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_should_wrap_func_tail_in_return", 38) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_module_reset_parse_counters", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct_buf", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct", 29) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave120 pure: resolve parser thin-wrapper func to C glue symbol name.
+ * @param m *u8 — Module*
+ * @param func_index i32 — function index
+ * @param out *u8 — output buffer
+ * @param out_cap i32 — capacity
+ * @param out_len *i32 — written length excluding NUL
+ * @return i32 — 1 hit
+ * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
+ */
+#[no_mangle]
+export function asm_parser_m8_tail_thin_delegate_c_name(m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
+  if (m == 0 as *u8 || func_index < 0 || out == 0 as *u8 || out_len == 0 as *i32 || out_cap <= 0) {
+    return 0;
+  }
+  unsafe {
+    if (pipeline_module_func_name_equal_at(m, func_index, "collect_imports_buf", 19) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_collect_imports_buf_glue", 31);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "advance_past_cond_rparen_into", 29) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_advance_past_cond_rparen_into_glue", 41);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "advance_past_stmt_semicolon_into", 32) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_advance_past_stmt_semicolon_into_glue", 44);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "alloc_pointee_type_ref_from_tok", 31) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_alloc_pointee_type_ref_from_tok_glue", 43);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "append_block_lets_from_res", 26) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_append_block_lets_from_res_glue", 38);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if_buf", 31) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_body_skip_let_const_then_if_buf_glue", 43);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if", 27) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_body_skip_let_const_then_if_glue", 39);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if_into", 32) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_body_skip_let_const_then_if_into_glue", 44);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "collect_imports", 15) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_collect_imports_glue", 27);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "copy_lex_from_import_into", 25) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_copy_from_import_into_glue", 37);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "consume_qualified_type_ident_name", 33) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_consume_qualified_type_ident_name_glue", 45);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_after_imports_then_structs", 31) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_after_imports_then_structs_glue", 43);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_fail_at_token_kind", 23) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_fail_at_token_kind_glue", 35);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_first_ident_len", 20) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_first_ident_len_glue", 32);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_lex_after_imports", 22) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_lex_after_imports_glue", 34);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const_buf", 23) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_skip_let_const_buf_glue", 35);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const", 19) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_skip_let_const_glue", 31);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const_into", 24) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_skip_let_const_into_glue", 36);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "expr_set_common_zeros", 21) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_expr_set_common_zeros_glue", 33);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "fill_block_const_let_from_res", 29) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_fill_block_const_let_from_res_glue", 41);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "finish_struct_lit_from_type_ident_into", 38) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_finish_struct_lit_from_type_ident_into_glue", 50);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "first_token_kind", 16) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_first_token_kind_glue", 28);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_at_token_from_result", 24) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_at_token_from_result_glue", 36);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_library", 16) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_library_glue", 28);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_library_into", 21) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_library_into_glue", 33);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_onefunc_next_into", 26) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_onefunc_next_into_glue", 38);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_next_into", 18) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_next_into_glue", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_result_ptr_into", 24) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_result_ptr_into_glue", 36);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_try_skip", 17) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_try_skip_glue", 29);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_try_skip_into", 22) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_try_skip_into_glue", 34);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "module_append_enum_variants_and_skip_body_into", 46) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_module_append_enum_variants_and_skip_body_into_glue", 58);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_addsub_into", 17) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_addsub_into_glue", 29);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_as_suffix_into", 20) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_as_suffix_into_glue", 32);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_assign_into", 17) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_assign_into_glue", 29);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_at_simd_builtin_into", 26) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_at_simd_builtin_into_glue", 38);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitand_into", 17) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_bitand_into_glue", 29);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitor_into", 16) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_bitor_into_glue", 28);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitxor_into", 17) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_bitxor_into_glue", 29);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_body_let_bracket_compound_init_ref", 40) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_body_let_bracket_compound_init_ref_glue", 52);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_cast_into", 15) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_cast_into_glue", 27);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_compare_into", 18) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_compare_into_glue", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_cond_expr_into", 20) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_cond_expr_into_glue", 32);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_if_expr_into", 18) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_if_expr_into_glue", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_if_stmt_into", 18) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_if_stmt_into_glue", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_buf", 29) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_into_try_skip_allow_buf_glue", 41);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow", 25) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_into_try_skip_allow_glue", 37);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_into_buf", 34) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_into_try_skip_allow_into_buf_glue", 46);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_into", 30) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_into_try_skip_allow_into_glue", 42);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_set_main_index", 25) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_into_set_main_index_glue", 37);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_logand_into", 17) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_logand_into_glue", 29);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_logor_into", 16) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_logor_into_glue", 28);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_match_into", 16) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_match_into_glue", 28);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_match_subject_into", 24) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_match_subject_into_glue", 36);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_and_add_into_buf", 33) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_extern_and_add_into_buf_glue", 45);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_and_add_into", 29) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_extern_and_add_into_glue", 41);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_skip_into", 26) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_extern_skip_into_glue", 38);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_buf_into", 27) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_function_buf_into_glue", 39);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library", 26) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_function_library_glue", 38);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library_into", 31) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_function_library_into_glue", 43);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library_scan", 31) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_function_library_scan_glue", 43);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_top_level_let_into", 28) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_top_level_let_into_glue", 40);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_primary_into", 18) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_primary_into_glue", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_relcompare_into", 21) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_relcompare_into_glue", 33);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_shift_into", 16) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_shift_into_glue", 28);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_struct_record_layout_into", 31) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_struct_record_layout_into_glue", 43);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_term_into", 15) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_term_into_glue", 27);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_ternary_into", 18) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_ternary_into_glue", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_type_ref_for_arena_into", 29) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_type_ref_for_arena_into_glue", 41);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_unary_into", 16) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_unary_into_glue", 28);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_rewind_lex_for_following_stmt", 36) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parser_rewind_lex_for_following_stmt_glue", 48);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_vector_type_ref_from_ident_spelling", 42) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parser_vector_type_ref_from_ident_spelling_glue", 54);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces_buf", 24) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_balanced_braces_buf_glue", 36);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces", 20) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_balanced_braces_glue", 32);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces_into", 25) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_balanced_braces_into_glue", 37);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens_buf", 24) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_balanced_parens_buf_glue", 36);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens", 20) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_balanced_parens_glue", 32);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens_into", 25) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_balanced_parens_into_glue", 37);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_imports", 12) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_imports_glue", 24);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_buf", 17) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_enum_buf_glue", 29);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum", 13) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_enum_glue", 25);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_into", 18) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_enum_into_glue", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_into_buf", 22) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_enum_into_buf_glue", 34);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_register_into_buf", 31) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_enum_register_into_buf_glue", 43);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_register_into", 27) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_enum_register_into_glue", 39);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern_buf", 19) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_extern_buf_glue", 31);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern", 15) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_extern_glue", 27);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern_into_buf", 24) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_extern_into_buf_glue", 36);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern_into", 20) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_extern_into_glue", 32);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full_buf", 26) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_function_full_buf_glue", 38);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full", 22) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_function_full_glue", 34);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full_into_buf", 31) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_function_full_into_buf_glue", 43);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full_into", 27) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_function_full_into_glue", 39);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core_buf", 20) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_if_core_buf_glue", 32);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core", 16) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_if_core_glue", 28);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core_into", 21) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_if_core_into_glue", 33);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement_buf", 25) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_if_statement_buf_glue", 37);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement", 21) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_if_statement_glue", 33);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement_into", 26) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_if_statement_into_glue", 38);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl_buf", 17) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_impl_buf_glue", 29);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl", 13) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_impl_glue", 25);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl_into_buf", 22) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_impl_into_buf_glue", 34);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl_into", 18) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_impl_into_glue", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct_buf", 19) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_struct_buf_glue", 31);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct", 15) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_struct_glue", 27);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct_into_buf", 24) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_struct_into_buf_glue", 36);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct_into", 20) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_struct_into_glue", 32);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait_buf", 18) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_trait_buf_glue", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait", 14) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_trait_glue", 26);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait_into_buf", 23) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_trait_into_buf_glue", 35);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait_into", 19) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_trait_into_glue", 31);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "struct_field_name_from_tok", 26) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_struct_field_name_from_tok_glue", 38);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_token_is_label_start", 27) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_token_is_label_start_glue", 32);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parser_should_wrap_func_tail_in_return", 38) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_should_wrap_func_tail_in_return_glue", 43);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_module_reset_parse_counters", 36) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_module_reset_parse_counters_c", 38);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct_buf", 33) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_try_skip_allow_padding_struct_buf_glue", 45);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct", 29) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_try_skip_allow_padding_struct_glue", 41);
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave120 pure: redirect same-module call to glue when thin_delegate / reset counters.
+ * @param m *u8 — Module*
+ * @param name *u8 — callee name bytes
+ * @param name_len i32 — name length
+ * @param out *u8 — output C name
+ * @param out_cap i32 — capacity
+ * @param out_len *i32 — written length
+ * @return i32 — 1 resolved
+ * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
+ */
+#[no_mangle]
+export function asm_parser_emit_heavy_resolve_call_to_glue(m: *u8, name: *u8, name_len: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || name == 0 as *u8 || name_len <= 0 || out == 0 as *u8 || out_len == 0 as *i32 || out_cap <= 0) {
+      return 0;
+    }
+    out_len[0] = 0;
+    if (asm_module_is_parser_emit_heavy(m) == 0) {
+      return 0;
+    }
+    let nf: i32 = pipeline_module_num_funcs(m);
+    let fi: i32 = 0;
+    while (fi < nf) {
+      if (pipeline_module_func_name_equal_at(m, fi, name, name_len) != 0) {
+        if (asm_parser_m8_tail_thin_delegate_c_name(m, fi, out, out_cap, out_len) != 0) {
+          return 1;
+        }
+        if (pipeline_module_func_name_equal_at(m, fi, "pipeline_module_reset_parse_counters", 36) != 0) {
+          return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_module_reset_parse_counters_c", 38);
+        }
+        return 0;
+      }
+      fi = fi + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave120 pure: callee is a defined (non-extern) func in this parser_emit_heavy module.
+ * @param m *u8 — Module*
+ * @param name *u8 — callee name
+ * @param name_len i32 — name length
+ * @return i32 — 1 same-module local
+ * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
+ */
+#[no_mangle]
+export function asm_parser_emit_heavy_callee_is_same_module_local(m: *u8, name: *u8, name_len: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || name == 0 as *u8 || name_len <= 0) {
+      return 0;
+    }
+    if (asm_module_is_parser_emit_heavy(m) == 0) {
+      return 0;
+    }
+    let nf: i32 = pipeline_module_num_funcs(m);
+    let fi: i32 = 0;
+    while (fi < nf) {
+      if (pipeline_module_func_name_equal_at(m, fi, name, name_len) != 0) {
+        if (pipeline_asm_module_func_is_extern_at(m, fi) != 0) {
+          return 0;
+        }
+        return 1;
+      }
+      fi = fi + 1;
     }
     return 0;
   }

@@ -271,9 +271,8 @@ extern int32_t asm_skip_heavy_typeck_mega_entry(struct ast_Module *m, int32_t fu
  * Live face: runtime_pipeline_abi.x (backend/pipeline/driver/typeck m8-tail
  * thin delegate C-name lookup). Seed cold twin under
  * #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
- * k_asm_parser_thin_delegate table + its 2 consumers relocated into
- * pipeline_asm_parser_emit_heavy.c (same TU). PLATFORM: SHARED — no host-cc
- * twin in pipeline_x mega-TU. */
+ * k_asm_parser_thin_delegate table pure-owned with parser_emit_heavy leave
+ * (wave120). PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 extern int32_t asm_backend_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
                                                          int32_t out_cap, int32_t *out_len);
 extern int32_t asm_pipeline_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
@@ -284,7 +283,26 @@ extern int32_t asm_typeck_m8_tail_thin_delegate_c_name(struct ast_Module *m, int
                                                         int32_t out_cap, int32_t *out_len);
 
 
-#include "pipeline_asm_parser_emit_heavy.c"
+/* 2026-08-05: pipeline_asm_parser_emit_heavy.c pure-owned leave (wave120).
+ * Live face: runtime_pipeline_abi.x (dbg/bisect/slot_max/mega/force_stub/
+ * safe_helper/thin_delegate/m8_tail/resolve_call/callee_local).
+ * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * Residual same-TU callers (fold_count_up_while / glue_backend_fwd) + pure
+ * skip_dispatch link pure via extern below.
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
+extern void asm_parser_emit_heavy_dbg_real(struct ast_Module *m, int32_t fi, const char *why);
+extern int32_t asm_parser_emit_heavy_bisect_max_index(void);
+extern int32_t asm_parser_emit_heavy_slot_max(void);
+extern int32_t asm_skip_heavy_parser_mega_entry(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_parser_emit_heavy_force_stub(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_parser_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_parser_func_is_thin_delegate(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_parser_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
+                                                         int32_t out_cap, int32_t *out_len);
+extern int32_t asm_parser_emit_heavy_resolve_call_to_glue(struct ast_Module *m, uint8_t *name, int32_t name_len,
+                                                            uint8_t *out, int32_t out_cap, int32_t *out_len);
+extern int32_t asm_parser_emit_heavy_callee_is_same_module_local(struct ast_Module *m, uint8_t *name,
+                                                                  int32_t name_len);
 
 /* 2026-08-05: pipeline_asm_skip_dispatch.c pure-owned leave (wave118).
  * Live face: runtime_pipeline_abi.x (asm_empty_text_stub_label +

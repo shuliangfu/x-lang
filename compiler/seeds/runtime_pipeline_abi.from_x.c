@@ -8431,4 +8431,606 @@ int32_t asm_orchestration_extern_only_func(void *m, int32_t func_index) {
   return 0;
 }
 
+
+/* wave120 cold twins: parser_emit_heavy pure leave (void* Module).
+ * G.7 sole cold provider under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED. */
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+extern int32_t pipeline_module_func_name_len_at(void *m, int32_t fi);
+extern void pipeline_module_func_name_copy64(void *m, int32_t fi, uint8_t *dst);
+extern int32_t pipeline_module_func_name_equal_at(void *m, int32_t fi, const uint8_t *name, int32_t name_len);
+extern int32_t pipeline_module_func_name_has_prefix_at(void *m, int32_t fi, const char *pfx, int32_t plen);
+extern int32_t pipeline_module_num_funcs(void *m);
+extern int32_t pipeline_asm_module_func_is_extern_at(void *m, int32_t fi);
+extern int32_t asm_module_is_parser_emit_heavy(void *m);
+extern const char *link_abi_getenv(const char *name);
+
+#define ASM_EMIT_HEAVY_PARSER_SLOT_MAX 16
+
+void asm_parser_emit_heavy_dbg_real(void *m, int32_t fi, const char *why) {
+  uint8_t fn[128];
+  int32_t fl;
+  if (!link_abi_getenv("XLANG_ASM_DEBUG") || !m || fi < 0 || !why)
+    return;
+  fl = pipeline_module_func_name_len_at(m, fi);
+  pipeline_module_func_name_copy64(m, fi, fn);
+  fprintf(stderr, "xlang: parser REAL_EMIT fi=%d fn=%.*s why=%s\n", fi, (int)(fl > 127 ? 127 : fl), fn, why);
+  fflush(stderr);
+}
+
+int32_t asm_parser_emit_heavy_bisect_max_index(void) {
+  const char *stub = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_STUB_ONLY");
+  char *end = NULL;
+  long v;
+  const char *e;
+  if (stub != NULL && stub[0] != '\0' && stub[0] != '0')
+    return 0;
+  e = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_BISECT_N");
+  if (!e || e[0] == '\0')
+    return 2147483647;
+  v = strtol(e, &end, 10);
+  if (end == e || v < 0)
+    return 2147483647;
+  if (v > 2147483647L)
+    return 2147483647;
+  return (int32_t)v;
+}
+
+int32_t asm_parser_emit_heavy_slot_max(void) {
+  const char *e = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_SLOT_MAX");
+  char *end = NULL;
+  long v;
+  if (!e || e[0] == '\0')
+    return ASM_EMIT_HEAVY_PARSER_SLOT_MAX;
+  v = strtol(e, &end, 10);
+  if (end == e || v < 0)
+    return ASM_EMIT_HEAVY_PARSER_SLOT_MAX;
+  if (v > 512)
+    return 512;
+  return (int32_t)v;
+}
+
+typedef struct {
+  const char *name;
+  int32_t len;
+} wave120_boot_parse_sym_t;
+
+static int32_t wave120_mega_bisect_skip_stub(void *m, int32_t func_index, const char *name, int32_t len) {
+  const char *b;
+  size_t blen;
+  if (!m || func_index < 0 || !name || len <= 0)
+    return 0;
+  b = link_abi_getenv("XLANG_ASM_PARSER_MEGA_BISECT");
+  if (!b || b[0] == '\0')
+    return 0;
+  blen = strlen(b);
+  if ((int32_t)blen != len)
+    return 0;
+  if (memcmp(b, name, (size_t)len) != 0)
+    return 0;
+  return pipeline_module_func_name_equal_at(m, func_index, (const uint8_t *)name, len);
+}
+
+static int32_t wave120_bootstrap_mega_emit_allowed(void *m, int32_t func_index, const char *name, int32_t len) {
+  static const wave120_boot_parse_sym_t k_min[] = {
+      {"parse_into_init", 15},
+      {"parse_into_set_main_index", 25},
+  };
+  static const wave120_boot_parse_sym_t k_full[] = {
+      {"parse_into_buf", 14},
+      {"parse_into", 10},
+      {"parse_into_init", 15},
+      {"parse_into_set_main_index", 25},
+      {"collect_imports_buf", 19},
+  };
+  const wave120_boot_parse_sym_t *k;
+  int32_t kn;
+  int32_t i;
+  if (!m || func_index < 0 || link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") == NULL)
+    return 0;
+  if (!pipeline_module_func_name_equal_at(m, func_index, (const uint8_t *)name, len))
+    return 0;
+  if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
+    k = k_min;
+    kn = (int32_t)(sizeof(k_min) / sizeof(k_min[0]));
+  } else {
+    k = k_full;
+    kn = (int32_t)(sizeof(k_full) / sizeof(k_full[0]));
+  }
+  for (i = 0; i < kn; i++) {
+    if (k[i].len == len && memcmp(k[i].name, name, (size_t)len) == 0)
+      return 1;
+  }
+  return 0;
+}
+
+int32_t asm_skip_heavy_parser_mega_entry(void *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
+    return 0;
+#define PARSER_MEGA_EQ(n, l) \
+  do { \
+    if (wave120_mega_bisect_skip_stub(m, func_index, (n), (l))) \
+      break; \
+    if (wave120_bootstrap_mega_emit_allowed(m, func_index, (n), (l))) \
+      break; \
+    if (pipeline_module_func_name_equal_at(m, func_index, (const uint8_t *)(n), (l))) \
+      return 1; \
+  } while (0)
+  PARSER_MEGA_EQ("parse_into_buf", 14);
+  PARSER_MEGA_EQ("parse_into", 10);
+  PARSER_MEGA_EQ("parse", 5);
+  PARSER_MEGA_EQ("parse_one_function_impl", 23);
+  PARSER_MEGA_EQ("parse_expr_into", 15);
+  PARSER_MEGA_EQ("parse_block_into", 16);
+  PARSER_MEGA_EQ("parse_body_lets_into", 20);
+#undef PARSER_MEGA_EQ
+  return 0;
+}
+
+int32_t asm_parser_emit_heavy_force_stub(void *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
+    return 0;
+#define PARSER_STUB_EQ(n, l) \
+  do { \
+    if (pipeline_module_func_name_equal_at(m, func_index, (const uint8_t *)(n), (l))) \
+      return 1; \
+  } while (0)
+#define PARSER_STUB_PFX(pfx, plen) \
+  do { \
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, (pfx), (int32_t)(plen))) \
+      return 1; \
+  } while (0)
+  PARSER_STUB_PFX("copy_onefunc_", 13);
+  PARSER_STUB_PFX("onefunc_", 8);
+  PARSER_STUB_PFX("set_onefunc_", 12);
+  PARSER_STUB_EQ("wrap_block_ref_as_expr", 22);
+  PARSER_STUB_EQ("parser_alloc_true_bool_lit", 26);
+  PARSER_STUB_EQ("parser_alloc_float_lit", 22);
+  PARSER_STUB_EQ("parser_expr_wrap_in_return", 26);
+  PARSER_STUB_EQ("try_skip_allow_padding_struct", 29);
+  PARSER_STUB_EQ("try_skip_allow_padding_struct_buf", 33);
+#undef PARSER_STUB_EQ
+#undef PARSER_STUB_PFX
+  return 0;
+}
+
+int32_t asm_parser_emit_heavy_safe_helper(void *m, int32_t func_index) {
+  if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
+    return 0;
+#define PARSER_SAFE_EQ(n, l) \
+  do { \
+    if (pipeline_module_func_name_equal_at(m, func_index, (const uint8_t *)(n), (l))) \
+      return 1; \
+  } while (0)
+  PARSER_SAFE_EQ("get_module_num_imports", 22);
+  PARSER_SAFE_EQ("expr_ref_is_assign_lvalue", 25);
+  PARSER_SAFE_EQ("copy_slice_to_name64", 20);
+  PARSER_SAFE_EQ("copy_slice_to_name64_at_end", 27);
+  PARSER_SAFE_EQ("copy_slice_to_param32", 21);
+  PARSER_SAFE_EQ("copy_slice_to_param32_at_end", 28);
+  PARSER_SAFE_EQ("copy_slice_to_name64_buf", 24);
+  PARSER_SAFE_EQ("copy_slice_to_name64_at_end_buf", 31);
+  PARSER_SAFE_EQ("copy_slice_to_param32_at_end_buf", 32);
+  PARSER_SAFE_EQ("copy_slice_to_param32_buf", 25);
+  PARSER_SAFE_EQ("get_module_import_path", 22);
+  PARSER_SAFE_EQ("copy_module_import_path64", 25);
+  PARSER_SAFE_EQ("parse_one_function_library_buf", 30);
+  PARSER_SAFE_EQ("parse_one_function_library_into_buf", 35);
+  PARSER_SAFE_EQ("parse_one_function_buf_into", 27);
+  PARSER_SAFE_EQ("parse_into_init", 15);
+  PARSER_SAFE_EQ("parse_one_function_library_into", 31);
+  PARSER_SAFE_EQ("pipeline_module_reset_parse_counters", 36);
+  PARSER_SAFE_EQ("extern_parse_set_fail", 21);
+  PARSER_SAFE_EQ("extern_parse_pool_ptr", 21);
+  PARSER_SAFE_EQ("onefunc_result_pool_ptr", 23);
+  PARSER_SAFE_EQ("set_onefunc_fail", 16);
+  PARSER_SAFE_EQ("copy_lex_from_import_into", 25);
+  PARSER_SAFE_EQ("lex_from_next_into", 18);
+  PARSER_SAFE_EQ("lex_from_result_ptr_into", 24);
+  PARSER_SAFE_EQ("lex_from_onefunc_next_into", 26);
+  PARSER_SAFE_EQ("write_extern_params_to_pools", 28);
+  PARSER_SAFE_EQ("module_register_arena_func", 26);
+  PARSER_SAFE_EQ("is_pointee_type_token", 21);
+  PARSER_SAFE_EQ("compound_assign_token_to_expr_kind", 34);
+  PARSER_SAFE_EQ("import_path_dot_segment_copy", 28);
+  PARSER_SAFE_EQ("parser_alloc_vector_type_ref", 28);
+  PARSER_SAFE_EQ("parse_peek_function_name_buf", 28);
+  PARSER_SAFE_EQ("lexer_pos_before_run", 20);
+  PARSER_SAFE_EQ("parser_match_kw_immediately_before", 34);
+  PARSER_SAFE_EQ("import_path_dot_segment_len", 27);
+  PARSER_SAFE_EQ("is_compound_assign_token", 24);
+  PARSER_SAFE_EQ("struct_field_name_tok_kind", 26);
+  PARSER_SAFE_EQ("struct_field_continues_tok_kind", 31);
+  PARSER_SAFE_EQ("module_try_register_enum_name", 29);
+  PARSER_SAFE_EQ("struct_layout_name_exists_arr", 29);
+  PARSER_SAFE_EQ("struct_layout_first_name_match_idx", 34);
+  PARSER_SAFE_EQ("struct_layout_placeholder_idx", 29);
+  PARSER_SAFE_EQ("lexer_token_run_len", 19);
+  PARSER_SAFE_EQ("module_append_enum_variants_and_skip_body_into_buf", 50);
+  PARSER_SAFE_EQ("skip_balanced_parens_into_buf", 29);
+  PARSER_SAFE_EQ("skip_balanced_braces_into_buf", 29);
+  PARSER_SAFE_EQ("skip_one_enum_into_buf", 22);
+  PARSER_SAFE_EQ("skip_one_struct_into_buf", 24);
+  PARSER_SAFE_EQ("skip_one_trait_into_buf", 23);
+  PARSER_SAFE_EQ("skip_one_impl_into_buf", 22);
+  PARSER_SAFE_EQ("skip_one_extern_into_buf", 24);
+  PARSER_SAFE_EQ("skip_one_function_full_into_buf", 31);
+  PARSER_SAFE_EQ("skip_one_enum_register_into_buf", 31);
+  PARSER_SAFE_EQ("parse_one_extern_and_add_into_buf", 33);
+  PARSER_SAFE_EQ("diag_skip_let_const_buf", 23);
+  PARSER_SAFE_EQ("body_skip_let_const_then_if_buf", 31);
+  PARSER_SAFE_EQ("skip_balanced_parens_buf", 24);
+  PARSER_SAFE_EQ("skip_balanced_braces_buf", 24);
+  PARSER_SAFE_EQ("skip_one_function_full_buf", 26);
+  PARSER_SAFE_EQ("skip_one_if_core_buf", 20);
+  PARSER_SAFE_EQ("skip_one_if_statement_buf", 25);
+  PARSER_SAFE_EQ("skip_one_enum_buf", 17);
+  PARSER_SAFE_EQ("skip_one_trait_buf", 18);
+  PARSER_SAFE_EQ("skip_one_impl_buf", 17);
+  PARSER_SAFE_EQ("skip_one_extern_buf", 19);
+  PARSER_SAFE_EQ("skip_one_struct_buf", 19);
+  PARSER_SAFE_EQ("parse_into_try_skip_allow_buf", 29);
+  PARSER_SAFE_EQ("try_skip_allow_padding_struct_buf", 33);
+  PARSER_SAFE_EQ("lex_from_library_into", 21);
+  PARSER_SAFE_EQ("lex_from_try_skip_into", 22);
+  PARSER_SAFE_EQ("lex_from_library", 16);
+  PARSER_SAFE_EQ("lex_from_try_skip", 17);
+  PARSER_SAFE_EQ("advance_past_stmt_semicolon_into", 32);
+  PARSER_SAFE_EQ("advance_past_cond_rparen_into", 29);
+  PARSER_SAFE_EQ("first_token_kind", 16);
+  PARSER_SAFE_EQ("diag_first_ident_len", 20);
+  PARSER_SAFE_EQ("parser_rewind_lex_for_following_stmt", 36);
+  PARSER_SAFE_EQ("lex_at_token_from_result", 24);
+  PARSER_SAFE_EQ("struct_field_name_from_tok", 26);
+  PARSER_SAFE_EQ("diag_skip_let_const_into", 24);
+  PARSER_SAFE_EQ("diag_skip_let_const", 19);
+  PARSER_SAFE_EQ("body_skip_let_const_then_if_into", 32);
+  PARSER_SAFE_EQ("body_skip_let_const_then_if", 27);
+  PARSER_SAFE_EQ("skip_one_if_statement_into", 26);
+  PARSER_SAFE_EQ("skip_one_if_core_into", 21);
+  PARSER_SAFE_EQ("skip_one_if_statement", 21);
+  PARSER_SAFE_EQ("skip_one_if_core", 16);
+  PARSER_SAFE_EQ("skip_one_enum_into", 18);
+  PARSER_SAFE_EQ("skip_one_impl_into", 18);
+  PARSER_SAFE_EQ("skip_one_trait_into", 19);
+  PARSER_SAFE_EQ("skip_one_extern_into", 20);
+  PARSER_SAFE_EQ("parse_into_try_skip_allow_into", 30);
+  PARSER_SAFE_EQ("parse_into_try_skip_allow_into_buf", 34);
+  PARSER_SAFE_EQ("parse_into_set_main_index", 25);
+  PARSER_SAFE_EQ("diag_token_after_collect_imports", 32);
+  PARSER_SAFE_EQ("diag_parse_one_after_collect_imports", 36);
+  PARSER_SAFE_EQ("parse_one_function_ok_for_pipeline", 34);
+  PARSER_SAFE_EQ("skip_imports", 12);
+  PARSER_SAFE_EQ("skip_one_struct", 15);
+  PARSER_SAFE_EQ("skip_one_struct_into", 20);
+  PARSER_SAFE_EQ("parse_one_extern_skip_into", 26);
+  PARSER_SAFE_EQ("skip_one_enum", 13);
+  PARSER_SAFE_EQ("skip_one_trait", 14);
+  PARSER_SAFE_EQ("skip_one_impl", 13);
+  PARSER_SAFE_EQ("skip_one_extern", 15);
+  PARSER_SAFE_EQ("skip_one_function_full", 22);
+  PARSER_SAFE_EQ("collect_imports", 15);
+  PARSER_SAFE_EQ("consume_qualified_type_ident_name", 33);
+  PARSER_SAFE_EQ("expr_set_common_zeros", 21);
+  PARSER_SAFE_EQ("fill_block_const_let_from_res", 29);
+  PARSER_SAFE_EQ("append_block_lets_from_res", 26);
+  PARSER_SAFE_EQ("diag_after_imports_then_structs", 31);
+  PARSER_SAFE_EQ("diag_fail_at_token_kind", 23);
+  PARSER_SAFE_EQ("diag_lex_after_imports", 22);
+  PARSER_SAFE_EQ("skip_balanced_parens", 20);
+  PARSER_SAFE_EQ("skip_balanced_parens_into", 25);
+  PARSER_SAFE_EQ("skip_balanced_braces", 20);
+  PARSER_SAFE_EQ("skip_balanced_braces_into", 25);
+  PARSER_SAFE_EQ("parse_primary_into", 18);
+  PARSER_SAFE_EQ("parse_unary_into", 16);
+  PARSER_SAFE_EQ("parse_cast_into", 15);
+  PARSER_SAFE_EQ("parse_term_into", 15);
+  PARSER_SAFE_EQ("parse_addsub_into", 17);
+  PARSER_SAFE_EQ("parse_shift_into", 16);
+  PARSER_SAFE_EQ("parse_relcompare_into", 21);
+  PARSER_SAFE_EQ("parse_compare_into", 18);
+  PARSER_SAFE_EQ("parse_bitand_into", 17);
+  PARSER_SAFE_EQ("parse_bitor_into", 16);
+  PARSER_SAFE_EQ("parse_bitxor_into", 17);
+  PARSER_SAFE_EQ("parse_logand_into", 17);
+  PARSER_SAFE_EQ("parse_logor_into", 16);
+  PARSER_SAFE_EQ("parse_ternary_into", 18);
+  PARSER_SAFE_EQ("parse_assign_into", 17);
+  PARSER_SAFE_EQ("parse_as_suffix_into", 20);
+  PARSER_SAFE_EQ("parse_one_function_library", 26);
+  PARSER_SAFE_EQ("parse_one_function_library_scan", 31);
+  PARSER_SAFE_EQ("parse_into_try_skip_allow", 25);
+  PARSER_SAFE_EQ("parse_one_extern_and_add_into", 29);
+  PARSER_SAFE_EQ("parse_one_top_level_let_into", 28);
+  PARSER_SAFE_EQ("parser_should_wrap_func_tail_in_return", 38);
+  PARSER_SAFE_EQ("skip_one_enum_register_into", 27);
+  PARSER_SAFE_EQ("skip_one_function_full_into", 27);
+  PARSER_SAFE_EQ("alloc_pointee_type_ref_from_tok", 31);
+  PARSER_SAFE_EQ("parse_struct_record_layout_into", 31);
+  PARSER_SAFE_EQ("parse_type_ref_for_arena_into", 29);
+  PARSER_SAFE_EQ("parse_cond_expr_into", 20);
+  PARSER_SAFE_EQ("module_append_enum_variants_and_skip_body_into", 46);
+  PARSER_SAFE_EQ("parse_body_let_bracket_compound_init_ref", 40);
+  PARSER_SAFE_EQ("parser_vector_type_ref_from_ident_spelling", 42);
+  PARSER_SAFE_EQ("collect_imports_buf", 19);
+  PARSER_SAFE_EQ("skip_imports_buf", 16);
+  PARSER_SAFE_EQ("diag_skip_let_const_into_buf", 28);
+  PARSER_SAFE_EQ("body_skip_let_const_then_if_into_buf", 36);
+  PARSER_SAFE_EQ("skip_one_if_core_into_buf", 25);
+  PARSER_SAFE_EQ("skip_one_if_statement_into_buf", 30);
+  PARSER_SAFE_EQ("first_token_kind_buf", 20);
+  PARSER_SAFE_EQ("diag_first_ident_len_buf", 24);
+  PARSER_SAFE_EQ("diag_lex_after_imports_buf", 26);
+  PARSER_SAFE_EQ("diag_after_imports_then_structs_buf", 35);
+  PARSER_SAFE_EQ("diag_fail_at_token_kind_buf", 27);
+  PARSER_SAFE_EQ("parse_one_extern_skip_into_buf", 30);
+  PARSER_SAFE_EQ("consume_qualified_type_ident_name_buf", 37);
+  PARSER_SAFE_EQ("advance_past_stmt_semicolon_into_buf", 36);
+  PARSER_SAFE_EQ("advance_past_cond_rparen_into_buf", 33);
+  PARSER_SAFE_EQ("parse_primary_into_buf", 22);
+  PARSER_SAFE_EQ("parse_unary_into_buf", 20);
+  PARSER_SAFE_EQ("parse_cast_into_buf", 19);
+  PARSER_SAFE_EQ("parse_term_into_buf", 19);
+  PARSER_SAFE_EQ("parse_addsub_into_buf", 21);
+  PARSER_SAFE_EQ("parse_shift_into_buf", 20);
+  PARSER_SAFE_EQ("parse_relcompare_into_buf", 25);
+  PARSER_SAFE_EQ("parse_compare_into_buf", 22);
+  PARSER_SAFE_EQ("parse_bitand_into_buf", 21);
+  PARSER_SAFE_EQ("parse_bitxor_into_buf", 21);
+  PARSER_SAFE_EQ("parse_bitor_into_buf", 20);
+  PARSER_SAFE_EQ("parse_logand_into_buf", 21);
+  PARSER_SAFE_EQ("parse_logor_into_buf", 20);
+  PARSER_SAFE_EQ("parse_ternary_into_buf", 22);
+  PARSER_SAFE_EQ("parse_assign_into_buf", 21);
+  PARSER_SAFE_EQ("parse_expr_into_buf", 19);
+  PARSER_SAFE_EQ("finish_struct_lit_from_type_ident_into_buf", 42);
+  PARSER_SAFE_EQ("parse_cond_expr_into_buf", 24);
+  PARSER_SAFE_EQ("parse_if_stmt_into_buf", 22);
+  PARSER_SAFE_EQ("parse_if_stmt_into", 18);
+  PARSER_SAFE_EQ("parse_if_expr_into", 18);
+  PARSER_SAFE_EQ("parse_match_into", 16);
+  PARSER_SAFE_EQ("parse_match_subject_into", 24);
+  PARSER_SAFE_EQ("parse_at_simd_builtin_into", 26);
+  PARSER_SAFE_EQ("finish_struct_lit_from_type_ident_into", 38);
+  PARSER_SAFE_EQ("parse_expr_with_leading_int_as_into", 35);
+  PARSER_SAFE_EQ("parse_block_into_buf", 20);
+  PARSER_SAFE_EQ("parse_if_expr_into_buf", 22);
+  PARSER_SAFE_EQ("parse_match_subject_into_buf", 28);
+  PARSER_SAFE_EQ("parse_match_into_buf", 20);
+  PARSER_SAFE_EQ("parse_at_simd_builtin_into_buf", 30);
+  PARSER_SAFE_EQ("parse_as_suffix_into_buf", 24);
+  PARSER_SAFE_EQ("parse_type_ref_for_arena_into_buf", 33);
+  PARSER_SAFE_EQ("parse_body_let_bracket_compound_init_ref_buf", 44);
+  PARSER_SAFE_EQ("parse_struct_record_layout_into_buf", 35);
+  PARSER_SAFE_EQ("parse_one_function_library_scan_buf", 35);
+  PARSER_SAFE_EQ("alloc_pointee_type_ref_from_tok_buf", 35);
+  PARSER_SAFE_EQ("parser_vector_type_ref_from_ident_spelling_buf", 46);
+  PARSER_SAFE_EQ("parse_one_top_level_let_into_buf", 32);
+  PARSER_SAFE_EQ("import_path_dot_segment_copy_buf", 32);
+  PARSER_SAFE_EQ("parser_match_kw_immediately_before_buf", 38);
+  PARSER_SAFE_EQ("struct_field_name_from_tok_buf", 30);
+  PARSER_SAFE_EQ("parse_expr_with_leading_int_as_into_buf", 39);
+  PARSER_SAFE_EQ("skip_one_enum_register_buf", 26);
+  PARSER_SAFE_EQ("skip_balanced_parens_slice_into_buf", 35);
+  PARSER_SAFE_EQ("skip_balanced_braces_slice_into_buf", 35);
+  PARSER_SAFE_EQ("module_append_enum_variants_and_skip_body_slice_into_buf", 56);
+  PARSER_SAFE_EQ("parse_one_extern_skip_buf", 25);
+  PARSER_SAFE_EQ("parse_one_extern_and_add_buf", 28);
+  PARSER_SAFE_EQ("parse_one_function_library_from_buf", 35);
+  PARSER_SAFE_EQ("parse_into_try_skip_allow_from_buf", 34);
+#undef PARSER_SAFE_EQ
+  return 0;
+}
+
+typedef struct {
+  const char *x_name;
+  int32_t x_len;
+  const char *c_name;
+  int32_t c_len;
+} wave120_thin_row_t;
+
+static const wave120_thin_row_t k_wave120_parser_thin_delegate[] = {
+    {"collect_imports_buf", 19, "parser_collect_imports_buf_glue", 31},
+    {"advance_past_cond_rparen_into", 29, "parser_advance_past_cond_rparen_into_glue", 41},
+    {"advance_past_stmt_semicolon_into", 32, "parser_advance_past_stmt_semicolon_into_glue", 44},
+    {"alloc_pointee_type_ref_from_tok", 31, "parser_alloc_pointee_type_ref_from_tok_glue", 43},
+    {"append_block_lets_from_res", 26, "parser_append_block_lets_from_res_glue", 38},
+    {"body_skip_let_const_then_if_buf", 31, "parser_body_skip_let_const_then_if_buf_glue", 43},
+    {"body_skip_let_const_then_if", 27, "parser_body_skip_let_const_then_if_glue", 39},
+    {"body_skip_let_const_then_if_into", 32, "parser_body_skip_let_const_then_if_into_glue", 44},
+    {"collect_imports", 15, "parser_collect_imports_glue", 27},
+    {"copy_lex_from_import_into", 25, "parser_lex_copy_from_import_into_glue", 37},
+    {"consume_qualified_type_ident_name", 33, "parser_consume_qualified_type_ident_name_glue", 45},
+    {"diag_after_imports_then_structs", 31, "parser_diag_after_imports_then_structs_glue", 43},
+    {"diag_fail_at_token_kind", 23, "parser_diag_fail_at_token_kind_glue", 35},
+    {"diag_first_ident_len", 20, "parser_diag_first_ident_len_glue", 32},
+    {"diag_lex_after_imports", 22, "parser_diag_lex_after_imports_glue", 34},
+    {"diag_skip_let_const_buf", 23, "parser_diag_skip_let_const_buf_glue", 35},
+    {"diag_skip_let_const", 19, "parser_diag_skip_let_const_glue", 31},
+    {"diag_skip_let_const_into", 24, "parser_diag_skip_let_const_into_glue", 36},
+    {"expr_set_common_zeros", 21, "parser_expr_set_common_zeros_glue", 33},
+    {"fill_block_const_let_from_res", 29, "parser_fill_block_const_let_from_res_glue", 41},
+    {"finish_struct_lit_from_type_ident_into", 38, "parser_finish_struct_lit_from_type_ident_into_glue", 50},
+    {"first_token_kind", 16, "parser_first_token_kind_glue", 28},
+    {"lex_at_token_from_result", 24, "parser_lex_at_token_from_result_glue", 36},
+    {"lex_from_library", 16, "parser_lex_from_library_glue", 28},
+    {"lex_from_library_into", 21, "parser_lex_from_library_into_glue", 33},
+    {"lex_from_onefunc_next_into", 26, "parser_lex_from_onefunc_next_into_glue", 38},
+    {"lex_from_next_into", 18, "parser_lex_from_next_into_glue", 30},
+    {"lex_from_result_ptr_into", 24, "parser_lex_from_result_ptr_into_glue", 36},
+    {"lex_from_try_skip", 17, "parser_lex_from_try_skip_glue", 29},
+    {"lex_from_try_skip_into", 22, "parser_lex_from_try_skip_into_glue", 34},
+    {"module_append_enum_variants_and_skip_body_into", 46, "parser_module_append_enum_variants_and_skip_body_into_glue", 58},
+    {"parse_addsub_into", 17, "parser_parse_addsub_into_glue", 29},
+    {"parse_as_suffix_into", 20, "parser_parse_as_suffix_into_glue", 32},
+    {"parse_assign_into", 17, "parser_parse_assign_into_glue", 29},
+    {"parse_at_simd_builtin_into", 26, "parser_parse_at_simd_builtin_into_glue", 38},
+    {"parse_bitand_into", 17, "parser_parse_bitand_into_glue", 29},
+    {"parse_bitor_into", 16, "parser_parse_bitor_into_glue", 28},
+    {"parse_bitxor_into", 17, "parser_parse_bitxor_into_glue", 29},
+    {"parse_body_let_bracket_compound_init_ref", 40, "parser_parse_body_let_bracket_compound_init_ref_glue", 52},
+    {"parse_cast_into", 15, "parser_parse_cast_into_glue", 27},
+    {"parse_compare_into", 18, "parser_parse_compare_into_glue", 30},
+    {"parse_cond_expr_into", 20, "parser_parse_cond_expr_into_glue", 32},
+    {"parse_if_expr_into", 18, "parser_parse_if_expr_into_glue", 30},
+    {"parse_if_stmt_into", 18, "parser_parse_if_stmt_into_glue", 30},
+    {"parse_into_try_skip_allow_buf", 29, "parser_parse_into_try_skip_allow_buf_glue", 41},
+    {"parse_into_try_skip_allow", 25, "parser_parse_into_try_skip_allow_glue", 37},
+    {"parse_into_try_skip_allow_into_buf", 34, "parser_parse_into_try_skip_allow_into_buf_glue", 46},
+    {"parse_into_try_skip_allow_into", 30, "parser_parse_into_try_skip_allow_into_glue", 42},
+    {"parse_into_set_main_index", 25, "parser_parse_into_set_main_index_glue", 37},
+    {"parse_logand_into", 17, "parser_parse_logand_into_glue", 29},
+    {"parse_logor_into", 16, "parser_parse_logor_into_glue", 28},
+    {"parse_match_into", 16, "parser_parse_match_into_glue", 28},
+    {"parse_match_subject_into", 24, "parser_parse_match_subject_into_glue", 36},
+    {"parse_one_extern_and_add_into_buf", 33, "parser_parse_one_extern_and_add_into_buf_glue", 45},
+    {"parse_one_extern_and_add_into", 29, "parser_parse_one_extern_and_add_into_glue", 41},
+    {"parse_one_extern_skip_into", 26, "parser_parse_one_extern_skip_into_glue", 38},
+    {"parse_one_function_buf_into", 27, "parser_parse_one_function_buf_into_glue", 39},
+    {"parse_one_function_library", 26, "parser_parse_one_function_library_glue", 38},
+    {"parse_one_function_library_into", 31, "parser_parse_one_function_library_into_glue", 43},
+    {"parse_one_function_library_scan", 31, "parser_parse_one_function_library_scan_glue", 43},
+    {"parse_one_top_level_let_into", 28, "parser_parse_one_top_level_let_into_glue", 40},
+    {"parse_primary_into", 18, "parser_parse_primary_into_glue", 30},
+    {"parse_relcompare_into", 21, "parser_parse_relcompare_into_glue", 33},
+    {"parse_shift_into", 16, "parser_parse_shift_into_glue", 28},
+    {"parse_struct_record_layout_into", 31, "parser_parse_struct_record_layout_into_glue", 43},
+    {"parse_term_into", 15, "parser_parse_term_into_glue", 27},
+    {"parse_ternary_into", 18, "parser_parse_ternary_into_glue", 30},
+    {"parse_type_ref_for_arena_into", 29, "parser_parse_type_ref_for_arena_into_glue", 41},
+    {"parse_unary_into", 16, "parser_parse_unary_into_glue", 28},
+    {"parser_rewind_lex_for_following_stmt", 36, "parser_parser_rewind_lex_for_following_stmt_glue", 48},
+    {"parser_vector_type_ref_from_ident_spelling", 42, "parser_parser_vector_type_ref_from_ident_spelling_glue", 54},
+    {"skip_balanced_braces_buf", 24, "parser_skip_balanced_braces_buf_glue", 36},
+    {"skip_balanced_braces", 20, "parser_skip_balanced_braces_glue", 32},
+    {"skip_balanced_braces_into", 25, "parser_skip_balanced_braces_into_glue", 37},
+    {"skip_balanced_parens_buf", 24, "parser_skip_balanced_parens_buf_glue", 36},
+    {"skip_balanced_parens", 20, "parser_skip_balanced_parens_glue", 32},
+    {"skip_balanced_parens_into", 25, "parser_skip_balanced_parens_into_glue", 37},
+    {"skip_imports", 12, "parser_skip_imports_glue", 24},
+    {"skip_one_enum_buf", 17, "parser_skip_one_enum_buf_glue", 29},
+    {"skip_one_enum", 13, "parser_skip_one_enum_glue", 25},
+    {"skip_one_enum_into", 18, "parser_skip_one_enum_into_glue", 30},
+    {"skip_one_enum_into_buf", 22, "parser_skip_one_enum_into_buf_glue", 34},
+    {"skip_one_enum_register_into_buf", 31, "parser_skip_one_enum_register_into_buf_glue", 43},
+    {"skip_one_enum_register_into", 27, "parser_skip_one_enum_register_into_glue", 39},
+    {"skip_one_extern_buf", 19, "parser_skip_one_extern_buf_glue", 31},
+    {"skip_one_extern", 15, "parser_skip_one_extern_glue", 27},
+    {"skip_one_extern_into_buf", 24, "parser_skip_one_extern_into_buf_glue", 36},
+    {"skip_one_extern_into", 20, "parser_skip_one_extern_into_glue", 32},
+    {"skip_one_function_full_buf", 26, "parser_skip_one_function_full_buf_glue", 38},
+    {"skip_one_function_full", 22, "parser_skip_one_function_full_glue", 34},
+    {"skip_one_function_full_into_buf", 31, "parser_skip_one_function_full_into_buf_glue", 43},
+    {"skip_one_function_full_into", 27, "parser_skip_one_function_full_into_glue", 39},
+    {"skip_one_if_core_buf", 20, "parser_skip_one_if_core_buf_glue", 32},
+    {"skip_one_if_core", 16, "parser_skip_one_if_core_glue", 28},
+    {"skip_one_if_core_into", 21, "parser_skip_one_if_core_into_glue", 33},
+    {"skip_one_if_statement_buf", 25, "parser_skip_one_if_statement_buf_glue", 37},
+    {"skip_one_if_statement", 21, "parser_skip_one_if_statement_glue", 33},
+    {"skip_one_if_statement_into", 26, "parser_skip_one_if_statement_into_glue", 38},
+    {"skip_one_impl_buf", 17, "parser_skip_one_impl_buf_glue", 29},
+    {"skip_one_impl", 13, "parser_skip_one_impl_glue", 25},
+    {"skip_one_impl_into_buf", 22, "parser_skip_one_impl_into_buf_glue", 34},
+    {"skip_one_impl_into", 18, "parser_skip_one_impl_into_glue", 30},
+    {"skip_one_struct_buf", 19, "parser_skip_one_struct_buf_glue", 31},
+    {"skip_one_struct", 15, "parser_skip_one_struct_glue", 27},
+    {"skip_one_struct_into_buf", 24, "parser_skip_one_struct_into_buf_glue", 36},
+    {"skip_one_struct_into", 20, "parser_skip_one_struct_into_glue", 32},
+    {"skip_one_trait_buf", 18, "parser_skip_one_trait_buf_glue", 30},
+    {"skip_one_trait", 14, "parser_skip_one_trait_glue", 26},
+    {"skip_one_trait_into_buf", 23, "parser_skip_one_trait_into_buf_glue", 35},
+    {"skip_one_trait_into", 19, "parser_skip_one_trait_into_glue", 31},
+    {"struct_field_name_from_tok", 26, "parser_struct_field_name_from_tok_glue", 38},
+    {"parser_token_is_label_start", 27, "parser_token_is_label_start_glue", 32},
+    {"parser_should_wrap_func_tail_in_return", 38, "parser_should_wrap_func_tail_in_return_glue", 43},
+    {"pipeline_module_reset_parse_counters", 36, "pipeline_module_reset_parse_counters_c", 38},
+    {"try_skip_allow_padding_struct_buf", 33, "parser_try_skip_allow_padding_struct_buf_glue", 45},
+    {"try_skip_allow_padding_struct", 29, "parser_try_skip_allow_padding_struct_glue", 41},
+};
+
+int32_t asm_parser_func_is_thin_delegate(void *m, int32_t func_index) {
+  int32_t i;
+  int32_t nrows;
+  if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
+    return 0;
+  nrows = (int32_t)(sizeof(k_wave120_parser_thin_delegate) / sizeof(k_wave120_parser_thin_delegate[0]));
+  for (i = 0; i < nrows; i++) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (const uint8_t *)k_wave120_parser_thin_delegate[i].x_name,
+                                           k_wave120_parser_thin_delegate[i].x_len))
+      return 1;
+  }
+  return 0;
+}
+
+int32_t asm_parser_m8_tail_thin_delegate_c_name(void *m, int32_t func_index, uint8_t *out,
+                                                 int32_t out_cap, int32_t *out_len) {
+  int32_t i;
+  int32_t nrows;
+  if (!m || func_index < 0 || !out || !out_len || out_cap <= 0)
+    return 0;
+  nrows = (int32_t)(sizeof(k_wave120_parser_thin_delegate) / sizeof(k_wave120_parser_thin_delegate[0]));
+  for (i = 0; i < nrows; i++) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (const uint8_t *)k_wave120_parser_thin_delegate[i].x_name,
+                                           k_wave120_parser_thin_delegate[i].x_len)) {
+      if (k_wave120_parser_thin_delegate[i].c_len >= out_cap)
+        return 0;
+      memcpy(out, k_wave120_parser_thin_delegate[i].c_name, (size_t)k_wave120_parser_thin_delegate[i].c_len);
+      out[k_wave120_parser_thin_delegate[i].c_len] = 0;
+      *out_len = k_wave120_parser_thin_delegate[i].c_len;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+int32_t asm_parser_emit_heavy_resolve_call_to_glue(void *m, uint8_t *name, int32_t name_len,
+                                                    uint8_t *out, int32_t out_cap, int32_t *out_len) {
+  int32_t fi;
+  int32_t nf;
+  if (!m || !name || name_len <= 0 || !out || !out_len || out_cap <= 0)
+    return 0;
+  *out_len = 0;
+  if (!asm_module_is_parser_emit_heavy(m))
+    return 0;
+  nf = pipeline_module_num_funcs(m);
+  for (fi = 0; fi < nf; fi++) {
+    if (pipeline_module_func_name_equal_at(m, fi, name, name_len) == 0)
+      continue;
+    if (asm_parser_m8_tail_thin_delegate_c_name(m, fi, out, out_cap, out_len) != 0)
+      return 1;
+    if (pipeline_module_func_name_equal_at(m, fi, (const uint8_t *)"pipeline_module_reset_parse_counters", 36)) {
+      const char *c = "pipeline_module_reset_parse_counters_c";
+      int32_t n = 38;
+      if (n >= out_cap)
+        return 0;
+      memcpy(out, c, (size_t)n);
+      out[n] = 0;
+      *out_len = n;
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+int32_t asm_parser_emit_heavy_callee_is_same_module_local(void *m, uint8_t *name, int32_t name_len) {
+  int32_t fi;
+  int32_t nf;
+  if (!m || !name || name_len <= 0 || !asm_module_is_parser_emit_heavy(m))
+    return 0;
+  nf = pipeline_module_num_funcs(m);
+  for (fi = 0; fi < nf; fi++) {
+    if (pipeline_module_func_name_equal_at(m, fi, name, name_len) == 0)
+      continue;
+    if (pipeline_asm_module_func_is_extern_at(m, fi) != 0)
+      return 0;
+    return 1;
+  }
+  return 0;
+}
+
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
