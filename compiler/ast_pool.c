@@ -132,7 +132,13 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 
 #include "pipeline_emit_sidecar.c"
 
-#include "pipeline_preprocess_if.c"
+/* 8.3.2 host-cc leave: pipeline_preprocess_if.c retired — pure-owned WEAK cold
+ * delete-only leave (highest-efficiency BC leave class). Live #if nest stack
+ * is G.7 single authority in runtime_pipeline_abi.x / runtime_pipeline_abi.o
+ * (fixed i32[32] BSS; no GrowVec). Callers already extern preprocess_if_stack_*.
+ * Strict re-link companion: preprocess_if_stack_only.o now partial-exports from
+ * runtime_pipeline_abi.o (was pipeline_glue_standalone). Do not re-include.
+ */
 
 /* 8.3.1 host-cc leave: pipeline_typeck_slots.c retired — BSS accessors live in
  * typeck_x.o (typeck_gen seed). Do not re-include into pipeline_x. */

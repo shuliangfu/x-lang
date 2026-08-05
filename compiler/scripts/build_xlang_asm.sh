@@ -3099,19 +3099,34 @@ ensure_asm_pipeline_glue_standalone_obj() {
 
 # preprocess_if_stack_* 6 个符号的独立 provider。
 # 【Why】strict re-link 不链入 pipeline_x.o（by design），ST_GLUE_OBJ=pipeline_glue_strict_minimal.o
-#        不含 ast_pool.c 的 preprocess_if_stack_* 定义；preprocess_x.o 引用这些符号会 undefined。
-#        直接链入 pipeline_glue_standalone.o 会引入 1314 个 T 符号，与 strict_minimal 的 24 个 T 符号
-#        在 --allow-multiple-definition 下冲突，strict_minimal 的不完整实现被选中导致运行时 SIGSEGV。
+#        不含 preprocess_if_stack_*；preprocess_x.o 引用这些符号会 undefined。
+# 【Authority · 2026-08-05 pure-owned WEAK cold leave】G.7 live face is
+#        runtime_pipeline_abi.o (runtime_pipeline_abi.x fixed i32[32] BSS). Host-cc
+#        pipeline_preprocess_if.c GrowVec XLANG_WEAK twin deleted from pipeline_x.
+#        Historical provider src was pipeline_glue_standalone.o (embedded ast_pool);
+#        after leave, partial-export from pure runtime_pipeline_abi.o only.
 # 【Invariant】只导出 preprocess_if_stack_* 6 个 global 符号，避免符号冲突。
 # PLATFORM: SHARED — prefer ld_partial_export (Darwin ld -exported_symbols_list / Linux
 # objcopy path inside ld_partial_export). Never hard-require host objcopy for the provider
 # path: missing .o breaks strict re-link argv (clang: no such file).
 ensure_preprocess_if_stack_provider_obj() {
-  ensure_asm_pipeline_glue_standalone_obj
-  local src_o out_o keep_list
-  src_o="$BUILD_DIR/pipeline_glue_standalone.o"
+  local src_o out_o keep_list pure_o
+  # Prefer product pure authority (cwd=compiler when invoked from build_xlang_asm).
+  pure_o="src/runtime_pipeline_abi.o"
+  if [ ! -f "$pure_o" ] && [ -f "../compiler/src/runtime_pipeline_abi.o" ]; then
+    pure_o="../compiler/src/runtime_pipeline_abi.o"
+  fi
+  if [ ! -f "$pure_o" ] && [ -f "compiler/src/runtime_pipeline_abi.o" ]; then
+    pure_o="compiler/src/runtime_pipeline_abi.o"
+  fi
+  src_o="$pure_o"
   out_o="$BUILD_DIR/preprocess_if_stack_only.o"
   keep_list="$BUILD_DIR/.preprocess_if_stack_only_keep.txt"
+  if [ ! -f "$src_o" ]; then
+    # Fallback: rebuild standalone only if pure .o missing (dev tree half-clean).
+    ensure_asm_pipeline_glue_standalone_obj
+    src_o="$BUILD_DIR/pipeline_glue_standalone.o"
+  fi
   [ -f "$src_o" ] || return 0
   # PLATFORM: DARWIN — exported_symbols_list requires Mach-O leading '_'.
   # PLATFORM: LINUX — ld_partial_export strips '_' for objcopy keep list.

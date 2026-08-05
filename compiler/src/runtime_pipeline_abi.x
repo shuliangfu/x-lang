@@ -169,7 +169,8 @@
 //   glue strict_stubs XLANG_WEAK cold fallback). Closes Cap residual define-table
 //   leaf of preprocess engine (x_buf / if_stack still Cap residual).
 // wave86: pure preprocess_if_stack_reset / len / push / pop / at / set_at
-//   (G.7 single fixed i32[32] BSS; ast_pool GrowVec XLANG_WEAK cold fallback).
+//   (G.7 single fixed i32[32] BSS). 2026-08-05: host-cc GrowVec XLANG_WEAK twin
+//   pipeline_preprocess_if.c deleted (pure-owned WEAK cold leave).
 //   Closes Cap residual preprocess #if stack leaf (x_buf still Cap residual).
 // wave87: pure typeck_module_for_ctx route → typeck_x_ast / typeck_x_ast_library
 //   (G.7 single typeck authority; C typeck_module frontend deleted — was weak -1 only).
@@ -5031,8 +5032,10 @@ export function preprocess_eval_condition_c(cond: *u8, cond_len: i32): i32 {
  * Clear the pure #if nesting stack (depth → 0; slot values left stale until overwrite).
  * @return void
  * wave86 pure Cap residual: G.7 single authority for product preprocess #if stack
- * (historical always-seed body in ast_pool GrowVec g_preprocess_if_stack).
- * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold fallback when pure not linked.
+ * (historical host-cc GrowVec twin pipeline_preprocess_if.c retired 2026-08-05 —
+ * pure-owned WEAK cold delete-only host-cc leave; no second body in pipeline_x).
+ * PLATFORM: SHARED — sole provider on product + strict companion
+ * (preprocess_if_stack_only.o partial-export from this TU's .o).
  */
 #[no_mangle]
 export function preprocess_if_stack_reset(): void {
