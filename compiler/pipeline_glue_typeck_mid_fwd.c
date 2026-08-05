@@ -269,6 +269,10 @@ static int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Modul
                                                                 int32_t call_expr_ref,
                                                                 struct ast_PipelineDepCtx *ctx);
 
+/* wave154: pure export (was static in struct_lit.c). Residual typeck Cap-calls. */
+extern int32_t typeck_type_is_named_struct_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref);
+extern int32_t typeck_layout_index_for_named_type_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref);
+extern int32_t typeck_struct_layouts_same_shape_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t la, int32_t lb);
 /* wave1113 G.7: typeck_type_is_named_struct_c migrated to
  * pipeline_asm_emit_struct_lit.c EOF (struct layout registry name-match
  * helper, co-located with layout registry authority). Static (non-extern):

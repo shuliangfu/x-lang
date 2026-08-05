@@ -24127,3 +24127,548 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/*
+ * wave154 cold twins: pipeline_asm_emit_struct_lit pure-owned leave.
+ * Faithful C for layout/size/accessors under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * Heavy fields_elf: hybrid product links pure (FROM_X set). Cold stub returns -1
+ * for fields_elf only (wave153 body_sync pattern). L2 hybrid uses pure.
+ * PLATFORM: SHARED freestanding cold seed path.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+extern int32_t pipeline_type_kind_ord_at(void *a, int32_t ref);
+extern int32_t pipeline_type_named_name_into(void *a, int32_t ref, uint8_t *out64);
+extern int32_t pipeline_type_elem_ref_at(void *a, int32_t ref);
+extern int32_t pipeline_type_array_size_at(void *a, int32_t ref);
+extern int32_t pipeline_arena_num_types(void *a);
+extern int32_t pipeline_module_num_struct_layouts_at(void *m);
+extern int32_t pipeline_module_struct_layout_name_len(void *m, int32_t idx);
+extern int32_t pipeline_module_struct_layout_name_byte_at(void *m, int32_t idx, int32_t off);
+extern int32_t pipeline_module_struct_layout_num_fields(void *m, int32_t li);
+extern int32_t pipeline_module_struct_layout_field_type_ref(void *m, int32_t li, int32_t j);
+extern int32_t pipeline_module_struct_layout_field_align_at(void *m, int32_t li, int32_t j);
+extern int32_t pipeline_module_struct_layout_field_offset_at(void *m, int32_t li, int32_t j);
+extern int32_t pipeline_module_struct_layout_field_name_len(void *m, int32_t li, int32_t fi);
+extern void pipeline_module_struct_layout_field_name_into(void *m, int32_t li, int32_t fi, uint8_t *out64);
+extern void pipeline_module_struct_layout_name_into(void *m, int32_t idx, uint8_t *out64);
+extern void pipeline_module_struct_layout_set_field_offset(void *m, int32_t li, int32_t j, int32_t foff);
+extern int32_t pipeline_module_struct_layout_packed_at(void *m, int32_t idx);
+extern int32_t pipeline_module_struct_layout_allow_padding_at(void *m, int32_t idx);
+extern int32_t typeck_x_type_size_from_layout_glue(void *m, void *a, int32_t li, int32_t depth);
+extern int32_t typeck_soa_array_storage_size_glue(void *m, void *a, int32_t elem, int32_t alen, int32_t depth);
+extern void *pipeline_asm_emit_dep_pipe_c(void);
+extern int32_t pipeline_dep_ctx_ndep(void *ctx);
+extern void *pipeline_dep_ctx_module_at(void *ctx, int32_t di);
+extern void *pipeline_dep_ctx_arena_at(void *ctx, int32_t di);
+extern void *glue_arena_expr_at_ref(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
+extern int32_t pipeline_driver_asm_build_skip_typeck(void);
+extern void driver_diagnostic_typeck_struct_padding_before(uint8_t *s, int32_t sl, int32_t gap, uint8_t *f, int32_t fl);
+extern void driver_diagnostic_typeck_struct_padding_trailing(uint8_t *s, int32_t sl, int32_t gap);
+extern void driver_diagnostic_typeck_struct_field_bad_size(uint8_t *s, int32_t sl, uint8_t *f, int32_t fl);
+extern void driver_diagnostic_warn_pad_fields_same_cache_line(uint8_t *s, int32_t sl, uint8_t *f0, int32_t f0l, uint8_t *f1, int32_t f1l);
+extern void driver_diagnostic_warn_hot_reorder_field(uint8_t *s, int32_t sl, uint8_t *h, int32_t hl, uint8_t *c, int32_t cl);
+extern char *link_abi_getenv(const char *name);
+extern int32_t pipeline_typeck_type_refs_equal_c(void *a, int32_t x, int32_t y);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern void pipeline_asm_emit_set_module(void *m);
+extern int32_t glue_sysv_dual_gp_byte_size_c(void *a, int32_t ty);
+extern int32_t glue_type_named_layout_size_any_module_elf_c(void *a, int32_t ty);
+extern int32_t pipeline_expr_struct_lit_init_ref(void *a, int32_t er, int32_t j);
+
+/* LP64 Expr peels matching pure */
+#define W154_EXPR_OFF_SL_NAME 536
+#define W154_EXPR_OFF_SL_NAME_LEN 664
+#define W154_EXPR_OFF_SL_NUM_FIELDS 672
+
+static int32_t w154_layout_name_eq(void *m, int32_t k, uint8_t *name, int32_t nlen) {
+  int32_t ln, j;
+  if (!m || !name || nlen <= 0) return 0;
+  ln = pipeline_module_struct_layout_name_len(m, k);
+  if (ln != nlen) return 0;
+  for (j = 0; j < nlen; j++)
+    if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) return 0;
+  return 1;
+}
+
+int32_t glue_type_is_empty_struct_c(void *module, void *arena, int32_t ty_ref, int32_t depth) {
+  uint8_t name[128];
+  int32_t nlen, k, nf, fi, ftr, nlayouts, nt, ko;
+  if (!module || !arena || ty_ref <= 0 || depth > 64) return 0;
+  nt = pipeline_arena_num_types(arena);
+  if (ty_ref > nt) return 0;
+  if (pipeline_type_kind_ord_at(arena, ty_ref) != 8) return 0;
+  nlen = pipeline_type_named_name_into(arena, ty_ref, name);
+  if (nlen <= 0 || nlen > 127) return 0;
+  nlayouts = pipeline_module_num_struct_layouts_at(module);
+  for (k = 0; k < nlayouts; k++) {
+    if (!w154_layout_name_eq(module, k, name, nlen)) continue;
+    nf = pipeline_module_struct_layout_num_fields(module, k);
+    if (nf == 0) return 1;
+    for (fi = 0; fi < nf; fi++) {
+      ftr = pipeline_module_struct_layout_field_type_ref(module, k, fi);
+      if (glue_type_is_empty_struct_c(module, arena, ftr, depth + 1) == 0) return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
+  int32_t kind_ord, nt, elem_ref, asz, es, soa_sz, nlen, k, nlayouts, di, nd, sz;
+  uint8_t name[128];
+  void *dep, *dm, *da;
+  if (!a || ty_ref <= 0 || depth > 64) return 0;
+  nt = pipeline_arena_num_types(a);
+  if (ty_ref > nt) return 0;
+  kind_ord = pipeline_type_kind_ord_at(a, ty_ref);
+  if (kind_ord == 16) return 0;
+  if (kind_ord == 2) return 1;
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 13 || kind_ord == 14) return 4;
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9) return 8;
+  if (kind_ord == 11) return 16;
+  if (kind_ord == 10 || kind_ord == 12) {
+    elem_ref = pipeline_type_elem_ref_at(a, ty_ref);
+    asz = pipeline_type_array_size_at(a, ty_ref);
+    if (elem_ref <= 0 || asz <= 0) return 0;
+    soa_sz = typeck_soa_array_storage_size_glue(m, a, elem_ref, asz, depth + 1);
+    if (soa_sz > 0) return soa_sz;
+    es = glue_type_size_simple(m, a, elem_ref, depth + 1);
+    return es > 0 ? asz * es : 0;
+  }
+  if (kind_ord == 8) {
+    nlen = pipeline_type_named_name_into(a, ty_ref, name);
+    if (nlen <= 0 || nlen > 127) return 4;
+    if (m) {
+      nlayouts = pipeline_module_num_struct_layouts_at(m);
+      for (k = 0; k < nlayouts; k++) {
+        if (w154_layout_name_eq(m, k, name, nlen))
+          return typeck_x_type_size_from_layout_glue(m, a, k, depth + 1);
+      }
+    }
+    dep = pipeline_asm_emit_dep_pipe_c();
+    if (dep) {
+      nd = pipeline_dep_ctx_ndep(dep);
+      for (di = 0; di < nd; di++) {
+        dm = pipeline_dep_ctx_module_at(dep, di);
+        da = pipeline_dep_ctx_arena_at(dep, di);
+        if (!dm || !da) continue;
+        nlayouts = pipeline_module_num_struct_layouts_at(dm);
+        for (k = 0; k < nlayouts; k++) {
+          if (!w154_layout_name_eq(dm, k, name, nlen)) continue;
+          sz = typeck_x_type_size_from_layout_glue(dm, da, k, depth + 1);
+          if (sz > 0) return sz;
+        }
+      }
+    }
+    return 4;
+  }
+  return 0;
+}
+
+/* forward for mutual recursion */
+int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+
+int32_t glue_struct_layout_metrics_c(void *module, void *arena, int32_t li, int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
+  int32_t nf, allow, layout_nlen, current, max_align, j, packed, nlayouts;
+  uint8_t layout_nm[128], field_nm[128];
+  if (!module || !arena || !out_sz || !out_al) return -1;
+  nlayouts = pipeline_module_num_struct_layouts_at(module);
+  if (li < 0 || li >= nlayouts || depth > 64) return -1;
+  nf = pipeline_module_struct_layout_num_fields(module, li);
+  allow = pipeline_module_struct_layout_allow_padding_at(module, li);
+  layout_nlen = pipeline_module_struct_layout_name_len(module, li);
+  pipeline_module_struct_layout_name_into(module, li, layout_nm);
+  packed = pipeline_module_struct_layout_packed_at(module, li);
+  current = 0; max_align = 1;
+  if (packed) {
+    for (j = 0; j < nf; j++) {
+      int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
+      int32_t flen = pipeline_module_struct_layout_field_name_len(module, li, j);
+      int32_t fsize;
+      pipeline_module_struct_layout_field_name_into(module, li, j, field_nm);
+      fsize = glue_type_size_simple(module, arena, ftr, depth);
+      if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr, depth) == 0)) {
+        if (pipeline_driver_asm_build_skip_typeck() == 0 && check_pad != 0)
+          driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
+        return -1;
+      }
+      current += fsize;
+    }
+    *out_sz = current; *out_al = 1; return 0;
+  }
+  for (j = 0; j < nf; j++) {
+    int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
+    int32_t flen, fa, A, rem, gap, fsize;
+    pipeline_module_struct_layout_field_name_into(module, li, j, field_nm);
+    flen = pipeline_module_struct_layout_field_name_len(module, li, j);
+    fa = pipeline_module_struct_layout_field_align_at(module, li, j);
+    A = glue_type_align_simple(module, arena, ftr, depth);
+    if (A <= 0) A = 1;
+    if (fa > A) A = fa;
+    rem = current % A; gap = (A - rem) % A;
+    if (check_pad != 0 && gap > 0 && allow == 0) {
+      driver_diagnostic_typeck_struct_padding_before(layout_nm, layout_nlen, gap, field_nm, flen);
+      return -1;
+    }
+    current += gap;
+    fsize = glue_type_size_simple(module, arena, ftr, depth);
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr, depth) == 0)) {
+      if (check_pad != 0 && pipeline_driver_asm_build_skip_typeck() == 0)
+        driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
+      return -1;
+    }
+    current += fsize;
+    if (A > max_align) max_align = A;
+  }
+  if (max_align > 0 && (current % max_align) != 0) {
+    int32_t end_pad = max_align - (current % max_align);
+    if (check_pad != 0 && end_pad > 0 && allow == 0)
+      driver_diagnostic_typeck_struct_padding_trailing(layout_nm, layout_nlen, end_pad);
+    current += end_pad;
+  }
+  *out_sz = current;
+  *out_al = max_align > 0 ? max_align : 1;
+  return 0;
+}
+
+int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
+  int32_t kind_ord, nt, elem_ref, nlen, k, nlayouts, sz_out, al_out;
+  uint8_t name[128];
+  if (!a || ty_ref <= 0 || depth > 64) return 1;
+  nt = pipeline_arena_num_types(a);
+  if (ty_ref > nt) return 1;
+  kind_ord = pipeline_type_kind_ord_at(a, ty_ref);
+  if (kind_ord == 2) return 1;
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 14) return 4;
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9) return 8;
+  if (kind_ord == 11) return 8;
+  if (kind_ord == 10 || kind_ord == 12 || kind_ord == 13) {
+    elem_ref = pipeline_type_elem_ref_at(a, ty_ref);
+    if (elem_ref <= 0) return 1;
+    return glue_type_align_simple(m, a, elem_ref, depth + 1);
+  }
+  if (kind_ord == 8) {
+    nlen = pipeline_type_named_name_into(a, ty_ref, name);
+    if (nlen <= 0 || nlen > 127) return 4;
+    if (m) {
+      nlayouts = pipeline_module_num_struct_layouts_at(m);
+      for (k = 0; k < nlayouts; k++) {
+        if (!w154_layout_name_eq(m, k, name, nlen)) continue;
+        sz_out = 0; al_out = 1;
+        if (glue_struct_layout_metrics_c(m, a, k, depth + 1, 0, &sz_out, &al_out) != 0) return 1;
+        return al_out > 0 ? al_out : 1;
+      }
+    }
+    return 4;
+  }
+  return 1;
+}
+
+int32_t typeck_typeck_struct_layout_metrics(void *module, void *arena, int32_t li, int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
+  return glue_struct_layout_metrics_c(module, arena, li, depth, check_pad, out_sz, out_al);
+}
+
+int32_t glue_struct_layout_compute_field_offset_c(void *m, void *a, int32_t li, int32_t fj) {
+  int32_t current = 0, j, nf, nlayouts, ftr, A, fa, rem, gap, fsize;
+  if (!m || !a || li < 0 || fj < 0) return fj >= 0 ? fj * 8 : 0;
+  nlayouts = pipeline_module_num_struct_layouts_at(m);
+  if (li >= nlayouts) return fj * 8;
+  nf = pipeline_module_struct_layout_num_fields(m, li);
+  if (fj >= nf) return fj * 8;
+  for (j = 0; j <= fj; j++) {
+    ftr = pipeline_module_struct_layout_field_type_ref(m, li, j);
+    A = glue_type_align_simple(m, a, ftr, 0);
+    if (A <= 0) A = 1;
+    fa = pipeline_module_struct_layout_field_align_at(m, li, j);
+    if (fa > A) A = fa;
+    rem = current % A; gap = (A - rem) % A;
+    if (j == fj) return current + gap;
+    current += gap;
+    fsize = glue_type_size_simple(m, a, ftr, 0);
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr, 0) == 0)) fsize = 4;
+    current += fsize;
+  }
+  return fj * 8;
+}
+
+int32_t glue_struct_layout_index_by_type_name_c(void *m, uint8_t *struct_name, int32_t nlen) {
+  int32_t k, nlayouts;
+  if (!m || !struct_name || nlen <= 0 || nlen > 127) return -1;
+  nlayouts = pipeline_module_num_struct_layouts_at(m);
+  for (k = 0; k < nlayouts; k++)
+    if (w154_layout_name_eq(m, k, struct_name, nlen)) return k;
+  if (nlayouts == 1) return 0;
+  return -1;
+}
+
+void glue_sync_struct_layout_field_offsets_c(void *m, void *a) {
+  int32_t li, nf, j, off, nlayouts;
+  if (!m || !a) return;
+  nlayouts = pipeline_module_num_struct_layouts_at(m);
+  for (li = 0; li < nlayouts; li++) {
+    nf = pipeline_module_struct_layout_num_fields(m, li);
+    for (j = 0; j < nf; j++) {
+      off = glue_struct_layout_compute_field_offset_c(m, a, li, j);
+      pipeline_module_struct_layout_set_field_offset(m, li, j, off);
+    }
+  }
+}
+
+int32_t pipeline_expr_struct_lit_num_fields(void *a, int32_t expr_ref) {
+  uint8_t *ex;
+  if (!a || expr_ref <= 0) return 0;
+  ex = (uint8_t *)glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex) return 0;
+  return *(int32_t *)(ex + W154_EXPR_OFF_SL_NUM_FIELDS);
+}
+
+int32_t pipeline_expr_struct_lit_type_name_len(void *a, int32_t expr_ref) {
+  uint8_t *ex;
+  if (!a || expr_ref <= 0) return 0;
+  ex = (uint8_t *)glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex) return 0;
+  return *(int32_t *)(ex + W154_EXPR_OFF_SL_NAME_LEN);
+}
+
+void pipeline_expr_struct_lit_type_name_into(void *a, int32_t expr_ref, uint8_t *out64) {
+  uint8_t *ex;
+  if (!out64) return;
+  ex = (uint8_t *)glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex) { memset(out64, 0, 128); return; }
+  memcpy(out64, ex + W154_EXPR_OFF_SL_NAME, 128);
+}
+
+void pipeline_expr_struct_lit_type_name_set(void *a, int32_t expr_ref, uint8_t *name, int32_t name_len) {
+  uint8_t *ex;
+  int32_t nexprs;
+  if (!a || !name || expr_ref <= 0 || name_len < 0 || name_len > 127) return;
+  nexprs = *(int32_t *)((uint8_t *)a + 4); /* num_exprs@4 */
+  if (expr_ref > nexprs) return;
+  ex = (uint8_t *)glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex) return;
+  memset(ex + W154_EXPR_OFF_SL_NAME, 0, 128);
+  if (name_len > 0) memcpy(ex + W154_EXPR_OFF_SL_NAME, name, (size_t)name_len);
+  *(int32_t *)(ex + W154_EXPR_OFF_SL_NAME_LEN) = name_len;
+}
+
+int32_t pipeline_expr_struct_lit_field_offset_at(void *a, void *m, int32_t expr_ref, int32_t field_ix) {
+  int32_t nlen, k, nf, nlayouts;
+  uint8_t name[128];
+  if (!a || !m || expr_ref <= 0 || field_ix < 0) return field_ix * 8;
+  if (pipeline_expr_kind_ord_at(a, expr_ref) != 45) return field_ix * 8;
+  nlen = pipeline_expr_struct_lit_type_name_len(a, expr_ref);
+  if (nlen <= 0 || nlen > 127) {
+    nlayouts = pipeline_module_num_struct_layouts_at(m);
+    nf = pipeline_module_struct_layout_num_fields(m, 0);
+    if (nlayouts == 1 && field_ix < nf)
+      return glue_struct_layout_compute_field_offset_c(m, a, 0, field_ix);
+    return field_ix * 8;
+  }
+  pipeline_expr_struct_lit_type_name_into(a, expr_ref, name);
+  k = glue_struct_layout_index_by_type_name_c(m, name, nlen);
+  if (k >= 0) {
+    nf = pipeline_module_struct_layout_num_fields(m, k);
+    if (field_ix < nf) return glue_struct_layout_compute_field_offset_c(m, a, k, field_ix);
+  }
+  return field_ix * 8;
+}
+
+int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *m, int32_t expr_ref, int32_t field_ix) {
+  int32_t nlen, k, nlayouts, nf;
+  uint8_t name[128];
+  if (!a || !m || expr_ref <= 0 || field_ix < 0) return 0;
+  if (pipeline_expr_kind_ord_at(a, expr_ref) != 45) return 0;
+  nlen = pipeline_expr_struct_lit_type_name_len(a, expr_ref);
+  if (nlen <= 0 || nlen > 127) return 0;
+  pipeline_expr_struct_lit_type_name_into(a, expr_ref, name);
+  nlayouts = pipeline_module_num_struct_layouts_at(m);
+  for (k = 0; k < nlayouts; k++) {
+    if (!w154_layout_name_eq(m, k, name, nlen)) continue;
+    nf = pipeline_module_struct_layout_num_fields(m, k);
+    if (field_ix < nf) return pipeline_module_struct_layout_field_type_ref(m, k, field_ix);
+    return 0;
+  }
+  return 0;
+}
+
+int32_t pipeline_expr_struct_lit_value_bytes(void *a, void *m, int32_t expr_ref) {
+  int32_t nlen, k, nlayouts, sz_out, al_out;
+  uint8_t name[128];
+  if (!a || !m || expr_ref <= 0) return 0;
+  if (pipeline_expr_kind_ord_at(a, expr_ref) != 45) return 0;
+  nlen = pipeline_expr_struct_lit_type_name_len(a, expr_ref);
+  if (nlen <= 0 || nlen > 127) return 0;
+  pipeline_expr_struct_lit_type_name_into(a, expr_ref, name);
+  nlayouts = pipeline_module_num_struct_layouts_at(m);
+  for (k = 0; k < nlayouts; k++) {
+    if (!w154_layout_name_eq(m, k, name, nlen)) continue;
+    sz_out = 0; al_out = 1;
+    if (glue_struct_layout_metrics_c(m, a, k, 0, 0, &sz_out, &al_out) != 0) return 0;
+    return sz_out > 0 ? sz_out : 0;
+  }
+  return 0;
+}
+
+int32_t glue_struct_lit_field_store_sz(void *arena, int32_t expr_ref, int32_t fi) {
+  int32_t ty, kind_ord, nsz;
+  void *mod = pipeline_asm_emit_module_ref_c();
+  ty = pipeline_expr_struct_lit_field_type_ref_at(arena, mod, expr_ref, fi);
+  if (ty <= 0) return 8;
+  if (mod && glue_type_is_empty_struct_c(mod, arena, ty, 0) != 0) return 0;
+  kind_ord = pipeline_type_kind_ord_at(arena, ty);
+  if (kind_ord == 2 || kind_ord == 1) return 1;
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) return 4;
+  nsz = glue_sysv_dual_gp_byte_size_c(arena, ty);
+  if (nsz > 8 && nsz <= 16) return nsz;
+  nsz = glue_type_named_layout_size_any_module_elf_c(arena, ty);
+  if (nsz > 8 && nsz <= 16) return nsz;
+  nsz = glue_type_size_simple(mod, arena, ty, 0);
+  if (nsz == 0) return 0;
+  if (nsz > 0 && nsz <= 8) return nsz;
+  return 8;
+}
+
+int32_t pipeline_expr_struct_lit_field_store_sz(void *a, void *m, int32_t expr_ref, int32_t field_ix) {
+  void *prev = pipeline_asm_emit_module_ref_c();
+  int32_t sz;
+  pipeline_asm_emit_set_module(m);
+  sz = glue_struct_lit_field_store_sz(a, expr_ref, field_ix);
+  pipeline_asm_emit_set_module(prev);
+  return sz;
+}
+
+int32_t glue_struct_lit_rehome_dest_rbx_elf_c(void *elf_ctx, int32_t rehome_off, int32_t ta) {
+  (void)elf_ctx; (void)rehome_off; (void)ta;
+  /* Cold without pure: not freestanding product path after wave154. */
+  return -1;
+}
+
+int32_t pipeline_asm_emit_struct_lit_fields_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta, int32_t stack_slot_off) {
+  (void)arena; (void)elf_ctx; (void)expr_ref; (void)ctx; (void)ta; (void)stack_slot_off;
+  /* Cold without pure: freestanding STRUCT_LIT emit requires pure hybrid. */
+  return -1;
+}
+
+int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  return pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, expr_ref, ctx, ta, -1);
+}
+
+int32_t typeck_type_is_named_struct_c(void *m, void *a, int32_t ty_ref) {
+  uint8_t name[128];
+  int32_t nlen, k, nlayouts;
+  if (!m || !a || ty_ref <= 0) return 0;
+  if (pipeline_type_kind_ord_at(a, ty_ref) != 8) return 0;
+  nlen = pipeline_type_named_name_into(a, ty_ref, name);
+  if (nlen <= 0 || nlen > 127) return 0;
+  nlayouts = pipeline_module_num_struct_layouts_at(m);
+  for (k = 0; k < nlayouts; k++)
+    if (w154_layout_name_eq(m, k, name, nlen)) return 1;
+  return 0;
+}
+
+int32_t typeck_layout_index_for_named_type_c(void *m, void *a, int32_t ty_ref) {
+  uint8_t name[128];
+  int32_t nlen, k, nlayouts;
+  if (!m || !a || ty_ref <= 0) return -1;
+  if (pipeline_type_kind_ord_at(a, ty_ref) != 8) return -1;
+  nlen = pipeline_type_named_name_into(a, ty_ref, name);
+  if (nlen <= 0 || nlen > 127) return -1;
+  nlayouts = pipeline_module_num_struct_layouts_at(m);
+  for (k = 0; k < nlayouts; k++)
+    if (w154_layout_name_eq(m, k, name, nlen)) return k;
+  return -1;
+}
+
+int32_t typeck_struct_layouts_same_shape_c(void *m, void *a, int32_t la, int32_t lb) {
+  int32_t nfa, nfb, j;
+  if (!m || !a || la < 0 || lb < 0) return 0;
+  nfa = pipeline_module_struct_layout_num_fields(m, la);
+  nfb = pipeline_module_struct_layout_num_fields(m, lb);
+  if (nfa != nfb || nfa <= 0) return 0;
+  for (j = 0; j < nfa; j++) {
+    if (pipeline_module_struct_layout_field_offset_at(m, la, j) !=
+        pipeline_module_struct_layout_field_offset_at(m, lb, j))
+      return 0;
+    if (!pipeline_typeck_type_refs_equal_c(a,
+          pipeline_module_struct_layout_field_type_ref(m, la, j),
+          pipeline_module_struct_layout_field_type_ref(m, lb, j)))
+      return 0;
+  }
+  return 1;
+}
+
+static int w154_pad_enabled(void) {
+  const char *e = link_abi_getenv("XLANG_PAD_FIELDS");
+  return e && e[0] == '1' && e[1] == '\0';
+}
+static int w154_hot_enabled(void) {
+  const char *e = link_abi_getenv("XLANG_HOT_REORDER");
+  return e && e[0] == '1' && e[1] == '\0';
+}
+static int w154_atomic(void *m, void *a, int32_t ftr) {
+  int32_t sz;
+  if (!m || !a || ftr <= 0) return 0;
+  sz = glue_type_size_simple(m, a, ftr, 0);
+  return sz == 4 || sz == 8;
+}
+
+void pipeline_typeck_pad_fields_warn_layout(void *module, void *arena, int32_t li) {
+  int32_t nf, j, layout_nlen;
+  uint8_t layout_nm[128];
+  if (!w154_pad_enabled() || !module || !arena || li < 0) return;
+  nf = pipeline_module_struct_layout_num_fields(module, li);
+  if (nf < 2) return;
+  layout_nlen = pipeline_module_struct_layout_name_len(module, li);
+  pipeline_module_struct_layout_name_into(module, li, layout_nm);
+  for (j = 0; j + 1 < nf; j++) {
+    int32_t off0 = pipeline_module_struct_layout_field_offset_at(module, li, j);
+    int32_t off1 = pipeline_module_struct_layout_field_offset_at(module, li, j + 1);
+    int32_t ftr0 = pipeline_module_struct_layout_field_type_ref(module, li, j);
+    int32_t ftr1 = pipeline_module_struct_layout_field_type_ref(module, li, j + 1);
+    int32_t al0 = pipeline_module_struct_layout_field_align_at(module, li, j);
+    int32_t al1 = pipeline_module_struct_layout_field_align_at(module, li, j + 1);
+    uint8_t fn0[128], fn1[128];
+    int32_t fl0, fl1;
+    if (al0 >= 64 || al1 >= 64) continue;
+    if (off0 / 64 != off1 / 64) continue;
+    if (!w154_atomic(module, arena, ftr0) && !w154_atomic(module, arena, ftr1)) continue;
+    pipeline_module_struct_layout_field_name_into(module, li, j, fn0);
+    pipeline_module_struct_layout_field_name_into(module, li, j + 1, fn1);
+    fl0 = pipeline_module_struct_layout_field_name_len(module, li, j);
+    fl1 = pipeline_module_struct_layout_field_name_len(module, li, j + 1);
+    driver_diagnostic_warn_pad_fields_same_cache_line(layout_nm, layout_nlen, fn0, fl0, fn1, fl1);
+  }
+}
+
+void pipeline_typeck_hot_reorder_warn_layout(void *module, void *arena, int32_t li) {
+  int32_t nf, j, i, layout_nlen;
+  uint8_t layout_nm[128];
+  if (!w154_hot_enabled() || !module || !arena || li < 0) return;
+  nf = pipeline_module_struct_layout_num_fields(module, li);
+  if (nf < 2) return;
+  layout_nlen = pipeline_module_struct_layout_name_len(module, li);
+  pipeline_module_struct_layout_name_into(module, li, layout_nm);
+  for (j = 1; j < nf; j++) {
+    int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
+    int32_t sz = glue_type_size_simple(module, arena, ftr, 0);
+    if (sz <= 0 || sz > 4) continue;
+    for (i = 0; i < j; i++) {
+      int32_t ftr_c = pipeline_module_struct_layout_field_type_ref(module, li, i);
+      int32_t sz_c = glue_type_size_simple(module, arena, ftr_c, 0);
+      if (sz_c >= 8) {
+        uint8_t hot_nm[128], cold_nm[128];
+        int32_t hot_len, cold_len;
+        pipeline_module_struct_layout_field_name_into(module, li, j, hot_nm);
+        pipeline_module_struct_layout_field_name_into(module, li, i, cold_nm);
+        hot_len = pipeline_module_struct_layout_field_name_len(module, li, j);
+        cold_len = pipeline_module_struct_layout_field_name_len(module, li, i);
+        driver_diagnostic_warn_hot_reorder_field(layout_nm, layout_nlen, hot_nm, hot_len, cold_nm, cold_len);
+        break;
+      }
+    }
+  }
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

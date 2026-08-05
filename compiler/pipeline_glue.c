@@ -230,7 +230,11 @@ extern int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegen
  * (field_store_sz + public wrapper + DEST_IN_RBX/rehome + fields + struct_lit_elf;
  *  Cap residual pure; same TU).
  * store_fixed_array_field / vector_let_init: pipeline_asm_emit_vector_let.c below. */
-#include "pipeline_asm_emit_struct_lit.c"
+/* wave154 pure-owned leave: pipeline_asm_emit_struct_lit.c deleted.
+ * STRUCT_LIT emit + layout registry + expr peels + typeck shape/warn live in
+ * runtime_pipeline_abi pure (#[no_mangle] export). Cap residual none for this
+ * leaf (all public faces pure-owned). Residual same-TU callers of former
+ * statics use extern decls in emit_fwd / typeck_mid_fwd. PLATFORM: SHARED. */
 
 
 /**
@@ -609,7 +613,8 @@ extern void driver_diagnostic_typeck_struct_padding_trailing(uint8_t *sname, int
 extern void driver_diagnostic_typeck_struct_field_bad_size(uint8_t *sname, int32_t sname_len, uint8_t *fname,
                                                            int32_t fname_len);
 
-static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+/* wave154: pure export (was static; residual Cap-calls pure). */
+int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 /* wave1291 G.7: glue_type_size_simple late redecl removed — covered by pipeline_glue_emit_fwd.c. */
 
 /* wave1053 G.7: glue_struct_layout_metrics_c + typeck_typeck_struct_layout_metrics
@@ -620,7 +625,8 @@ static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena 
  * extern-called by ast_pool.c:8151 (same pipeline_x.o symbol, no link change).
  * extern decls for driver_diagnostic_typeck_struct_padding_* / field_bad_size
  * retained below (still consumed by glue.c:2912/2962 warn_layout paths). */
-static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
+/* wave154: pure export. */
+int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
                                             int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al);
 
 /* wave1171 G.7: layout warn cluster (2 extern fns + 2 extern decls) migrated to

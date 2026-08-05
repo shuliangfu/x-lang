@@ -171,13 +171,15 @@ int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
 int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 /* wave132 pure leave Cap residual: named_layout static→extern (def call_args.c). */
 int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref);
-/* wave1032 G.7: glue_type_is_empty_struct_c folded into
- * pipeline_asm_emit_struct_lit.c (same TU #include at L2160; no new DEPS).
- * Chinese docblock converted to English per G.9. struct_lit.c is the sole
- * in-TU leaf consumer; residual glue.c callers (layout metrics / call
- * return size) are after the #include site — no forward decl needed. */
-/* wave132 pure leave Cap residual: type_size_simple static→extern (def struct_lit.c). */
-int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+/* wave154 pure-owned leave: glue_type_is_empty_struct_c / glue_type_size_simple /
+ * glue_type_align_simple live in runtime_pipeline_abi pure. Residual Cap-calls
+ * via extern. PLATFORM: SHARED. */
+extern int32_t glue_type_is_empty_struct_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
+                                          int32_t depth);
+extern int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+extern int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+extern int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
+                                            int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al);
 /* wave146 pure-owned leave: vector_let faces live in runtime_pipeline_abi pure.
  * Residual struct_lit / vector_simd Cap-call these pure symbols. PLATFORM: SHARED. */
 extern int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
