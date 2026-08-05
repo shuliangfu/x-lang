@@ -377,10 +377,8 @@ static int32_t glue_call_arg_var_use_lea_not_load_elf_c(struct ast_ASTArena *are
  * at L396/L410/L1571 before the EOF definition. */
 static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 
-/* wave1048 G.7: fwd decl — definition at EOF. Visible to all callsites after
- * this #include point (glue.c:3269/3383 + field_access.c:328). struct_let.c:93
- * has its own fwd decl (struct_let.c #include at L2266 < call_args.c L2392). */
-static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
+/* wave1048 G.7: fwd decl — definition at EOF. wave132 Cap residual: non-static. */
+int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 
 /* wave1064 G.7: fwd decl — definition at L1969 (colocated after
  * store_retval_pair). Sole caller: glue_store_retval_pair_to_rbp_elf_c at
@@ -477,7 +475,8 @@ static int32_t glue_load_var_as_value_to_rax_rdx_elf_c(struct platform_elf_ElfCo
  * → metrics bool@16 + u8@1 + pad → 24 → false sret. G.7: size dep layouts only
  * with pipeline_dep_ctx_arena_at (same contract as typeck_merge field mapping).
  */
-static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref) {
+/* wave132 pure leave Cap residual: was static. */
+int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref) {
   uint8_t name[128];
   int32_t nlen;
   int32_t base_off;
@@ -1731,7 +1730,8 @@ static int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct a
  *   · LINUX+MACOS x86_64 SysV sret (rdi hidden dest for >16B return)
  *   · MACOS|ARM64 AAPCS64 x8 (wave591)
  */
-static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
+/* wave132 pure leave Cap residual: was static. */
+int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
   struct ast_Module *mod;
   int32_t fi;
   int32_t dep_ix;
@@ -1879,10 +1879,11 @@ static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t
  * retained (struct_let.c:70 via #include at L2269 < call_args.c L2395);
  * struct_let.c:70 retains its own fwd decl for callsite at L208.
  */
-static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct ast_ASTArena *arena,
-                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ty_ref,
-                                                   int32_t slot_off, int32_t ta, int32_t init_ref,
-                                                   struct backend_AsmFuncCtx *ctx) {
+/* wave132 pure leave Cap residual: was static. */
+int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct ast_ASTArena *arena,
+                                            struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ty_ref,
+                                            int32_t slot_off, int32_t ta, int32_t init_ref,
+                                            struct backend_AsmFuncCtx *ctx) {
   int32_t sz;
   if (!elf_ctx)
     return -1;

@@ -34,17 +34,17 @@
 /* Forward decls for helpers defined later in pipeline_glue.c (same TU).
  * Many already appear in the early glue forward block; restate the ones this
  * domain calls that are defined after this include point. */
-static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref,
-                                     int32_t depth);
+/* wave132: type_size_simple + struct_type_let_init are public Cap residual / pure faces. */
+int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 static int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             int32_t array_lit_ref, int32_t elem_ref,
                                                             struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                             int32_t force_esz);
-static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
-                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                     int32_t init_ref, struct backend_AsmFuncCtx *ctx,
-                                                     int32_t ta, int32_t type_ref, int32_t home_off);
+extern int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
+                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                    int32_t init_ref, struct backend_AsmFuncCtx *ctx,
+                                                    int32_t ta, int32_t type_ref, int32_t home_off);
 static int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
 static int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
 /* leaf/flat defined earlier in pipeline_glue.c (~L3346); prototypes keep static linkage. */

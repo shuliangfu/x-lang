@@ -9148,8 +9148,8 @@ fi
 if ! grep -qE 'pipeline_asm_emit_vector_simd\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_vector_simd.c (8.3.1 asm_emit_vector_simd slice)"
 fi
-if ! grep -qE 'pipeline_asm_emit_struct_let\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_struct_let.c (8.3.1 asm_emit_struct_let slice)"
+if grep -qE 'pipeline_asm_emit_struct_let\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_struct_let.c (wave132 pure-owned leave)"
 fi
 if ! grep -qE 'pipeline_asm_emit_index_helpers\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_index_helpers.c (8.3.1 asm_emit_index_helpers slice)"

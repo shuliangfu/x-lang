@@ -46,12 +46,10 @@ static int32_t g_pipeline_asm_sret_home_off = -1;
 static int32_t g_pipeline_asm_func_sret_active = 0;
 /** Current emit function sret return byte width (valid when >16). */
 static int32_t g_pipeline_asm_func_sret_ret_sz = 0;
-/**
- * CALL-side sret: how many GP arg slots shift (0 or 1).
- * PLATFORM: LINUX+MACOS x86_64 SysV only — rdi already holds dest, args start at rsi.
- * PLATFORM: MACOS|ARM64 AAPCS64 — x8 is separate from x0-x7; always 0 (no GP shift).
- */
-static int32_t g_pipeline_asm_call_sret_reg_shift = 0;
+/* wave132 pure-owned leave: g_pipeline_asm_call_sret_reg_shift live =
+ * runtime_pipeline_abi pure BSS (g_call_sret_reg_shift) via
+ * pipeline_asm_emit_{set_,}call_sret_reg_shift_c. Do not re-open a second
+ * sret shift flag (G.7 dual authority). PLATFORM: SHARED. */
 /** Current emit block scope (synced with asm_ctx scope_block_ref); FIELD_ACCESS
  * uses it to look up let types. */
 static int32_t g_pipeline_asm_emit_scope_block = 0;

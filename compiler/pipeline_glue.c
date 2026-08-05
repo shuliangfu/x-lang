@@ -267,11 +267,17 @@ extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
 #include "pipeline_asm_emit_vector_simd.c"
 
 
-/* BC 8.3.1: asm ELF struct let-init domain
- * (struct_let_init + glue_emit_struct_type_let_init + sret reg shift;
- *  Cap residual pure; same TU).
- * store_retval_pair / type_size helpers stay later in glue. */
-#include "pipeline_asm_emit_struct_let.c"
+/* wave132 pure-owned leave: pipeline_asm_emit_struct_let.c deleted.
+ * live = runtime_pipeline_abi pure (struct_let_init + type_let_init +
+ * set/get call_sret_reg_shift + pure-owned sret flag);
+ * seed cold twins under #ifndef FROM_X.
+ * Cap residual: struct_lit_fields + try_inline* + set_call_expected_ret_ty +
+ * call_return_byte_size + type_size_simple + named_layout + store_retval_pair +
+ * emit_module_from_ctx (static→extern) + public emit_expr_elf_c.
+ * Residual block_inits / vector_let / array_lit / assign / field_access /
+ * call_args call pure faces via emit_fwd / backend_fwd extern decls —
+ * do not re-open a second struct let-init ELF face (G.7).
+ * PLATFORM: SHARED freestanding emit. */
 
 
 

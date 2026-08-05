@@ -584,7 +584,8 @@ void pipeline_asm_bump_next_offset_for_array_lit(struct ast_ASTArena *arena, int
 void pipeline_asm_bump_next_offset_after_let_init(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
                                                    int32_t init_ref, struct backend_AsmFuncCtx *ctx);
 static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
-static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+/* wave132 Cap residual: type_size_simple public for pure struct_let leave. */
+int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 /**
  * wave625 Cap residual pure: ARRAY_LIT→TYPE_SLICE force_esz from formal/let elem type.
  * Scalars 1/4/8; TYPE_NAMED → glue_type_size_simple (Pt=8, S24=24).
@@ -599,11 +600,16 @@ static int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *ar
 static int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
 /* wave126 pure leave: glue_align_next_offset live = runtime_pipeline_abi pure (no longer static). */
 void glue_align_next_offset(struct backend_AsmFuncCtx *ctx);
-/* wave632: durable large NAMED bulk fill needs struct let-init + spill bulk copy. */
-static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
+/* wave132 pure-owned leave: struct let-init live in runtime_pipeline_abi pure
+ * (was same-TU static in pipeline_asm_emit_struct_let.c). PLATFORM: SHARED. */
+extern int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
                                                     struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                     int32_t let_ty_ref, int32_t stack_slot_off);
+extern int32_t pipeline_asm_emit_struct_let_init_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
+                                                       struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                       int32_t stack_slot_off);
 static int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                      int32_t src_spill, int32_t dst_spill, int32_t esz,
                                                      int32_t ta);

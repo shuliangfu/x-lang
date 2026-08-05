@@ -946,7 +946,7 @@
 | `pipeline_asm_emit_struct_lit.c` | ~484 | asm ELF STRUCT_LIT emit（field_store_sz + rehome + fields + struct_lit_elf）切片 | 🟡 已抽出（wave1004）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_vector_let.c` | ~686 | asm ELF vector_let／fixed-array field store（leaf + flat + vector_let + frame_mag + store_fixed）切片 | 🟡 已抽出（wave1005）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_vector_simd.c` | ~1436 | asm ELF SIMD vector lane／shuffle／select／fma emit domain 切片 | 🟡 已抽出（wave1006）；仍 host-cc 入 `pipeline_x` |
-| `pipeline_asm_emit_struct_let.c` | ~215 | asm ELF struct let-init（struct_let_init + type_let_init + sret shift）切片 | 🟡 已抽出（wave1007）；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_struct_let.c` | ~215 | asm ELF struct let-init（struct_let_init + type_let_init + sret shift）切片 | ✅ wave132 pure-owned leave；live＝runtime_pipeline_abi pure；host 叶已删 |
 | `pipeline_asm_emit_index_helpers.c` | ~3135 | asm ELF INDEX residual helpers（slot+esz+try_index forest+lvalue_eff_addr elf+text）切片 | 🟡 已抽出；lvalue_text wave1013 有则补全；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_spill.c` | ~2549 | asm ELF 7.3 live／Chaitin spill／bulk_mem + break／continue faces 切片 | 🟡 已抽出；break／continue faces wave1014 有则补全；仍 host-cc 入 `pipeline_x` |
 | `ast_pool.c` | **~179** | AST 池 host 壳（壳再扫：无函数体；纯 #include 编排） | 🟡 域 thin 基本收口；bc-inventory 壳 floor 诚实；仍 host-cc |

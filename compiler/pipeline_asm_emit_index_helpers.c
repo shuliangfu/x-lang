@@ -63,8 +63,9 @@ static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, 
 
 /**
  * 从 emit 全局或 ctx 取当前 module；frame_size 估算会临时改写 g_pipeline_asm_emit_module。
+ * wave132 pure leave Cap residual: was static (pure struct_let links here).
  */
-static struct ast_Module *glue_emit_module_from_ctx(struct backend_AsmFuncCtx *ctx) {
+struct ast_Module *glue_emit_module_from_ctx(struct backend_AsmFuncCtx *ctx) {
   if (g_pipeline_asm_emit_module)
     return g_pipeline_asm_emit_module;
   if (ctx)
@@ -119,7 +120,7 @@ static int32_t glue_emit_func_param_is_indirect_array_slot_c(struct ast_ASTArena
 /** Same-TU forward: body in pipeline_asm_emit_call_args.c (wave1017 G.7 fold). */
 static int32_t glue_type_ref_is_named_struct_layout_elf_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                             int32_t ty_ref);
-static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
 extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
 

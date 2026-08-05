@@ -99,13 +99,15 @@ int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
  */
 /* Forward: dual-GP / named layout used by STRUCT_LIT field store (defs later). */
 static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
-static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref);
+/* wave132 pure leave Cap residual: named_layout static→extern (def call_args.c). */
+int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref);
 /* wave1032 G.7: glue_type_is_empty_struct_c folded into
  * pipeline_asm_emit_struct_lit.c (same TU #include at L2160; no new DEPS).
  * Chinese docblock converted to English per G.9. struct_lit.c is the sole
  * in-TU leaf consumer; residual glue.c callers (layout metrics / call
  * return size) are after the #include site — no forward decl needed. */
-static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+/* wave132 pure leave Cap residual: type_size_simple static→extern (def struct_lit.c). */
+int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 /* wave349/350: STRUCT_LIT fixed TYPE_ARRAY field inline store (def after vector_let_init). */
 static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
@@ -124,17 +126,52 @@ static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, 
  * migrated to pipeline_asm_emit_call_args.c (fwd decl at call_args.c:356,
  * visible after #include at L2392; struct_let.c:93 retains its own fwd decl
  * for struct_let.c:141 callsite before #include at L2266). */
-static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct ast_ASTArena *arena,
-                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ty_ref,
-                                                   int32_t slot_off, int32_t ta, int32_t init_ref,
-                                                   struct backend_AsmFuncCtx *ctx);
-static struct ast_Module *glue_emit_module_from_ctx(struct backend_AsmFuncCtx *ctx);
-/* wave598: ARRAY_LIT of >8B named struct elems reuses struct let-init (dual-GP / sret / lit). */
-static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
+/* wave132 pure leave Cap residual: store_retval / module_from_ctx static→extern
+ * (defs in call_args.c / index_helpers.c). PLATFORM: SHARED. */
+int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct ast_ASTArena *arena,
+                                            struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ty_ref,
+                                            int32_t slot_off, int32_t ta, int32_t init_ref,
+                                            struct backend_AsmFuncCtx *ctx);
+struct ast_Module *glue_emit_module_from_ctx(struct backend_AsmFuncCtx *ctx);
+/* wave132 pure-owned leave: struct let-init + sret shift live in
+ * runtime_pipeline_abi pure (was same-TU pipeline_asm_emit_struct_let.c).
+ * Residual vector_let / array_lit / block_inits / assign / field_access /
+ * call_args call these pure symbols. PLATFORM: SHARED freestanding emit. */
+extern int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
                                                     struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                     int32_t let_ty_ref, int32_t stack_slot_off);
-void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t shift);
+extern int32_t pipeline_asm_emit_struct_let_init_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
+                                                       struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                       int32_t stack_slot_off);
+extern void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t shift);
+extern int32_t pipeline_asm_emit_call_sret_reg_shift_c(void);
+
+/* wave132: include-order fwd decls formerly only in pipeline_asm_emit_struct_let.c.
+ * Keep visibility for call_args / field_access / index_eff_addr / binop without
+ * re-opening a second struct_let face (G.7). PLATFORM: SHARED. */
+extern int32_t try_inline_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena,
+                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                             int32_t call_ref, struct backend_AsmFuncCtx *ctx,
+                                                             int32_t ta, int32_t stack_slot_off);
+extern int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena,
+                                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                                   int32_t call_ref, struct backend_AsmFuncCtx *ctx,
+                                                                   int32_t ta, int32_t stack_slot_off);
+extern int32_t try_inline_var_field_sum_binop_elf(struct ast_ASTArena *arena,
+                                                  struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref,
+                                                  int32_t right_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+/* glue_* names alias public pipeline_asm_* faces (defs call_args.c). */
+#define glue_deref_struct16_rax_ptr_elf_c pipeline_asm_deref_struct16_rax_ptr_elf_c
+#define glue_call_struct16_ret_needs_rax_deref_c pipeline_asm_call_struct16_ret_needs_rax_deref_c
+int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
+int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
+/* static resolve stays call_args.c; fwd here so call_return_byte_size / early call_args see it. */
+static int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
+                                                     struct ast_Module **mod_out, int32_t *func_ix_out,
+                                                     int32_t *dep_ix_out);
 
 /* GLUE_TYPE_NAMED (TYPE_NAMED kind ord) — used by struct_lit leaf + call_args leaf + later glue residual. */
 #define GLUE_TYPE_NAMED 8

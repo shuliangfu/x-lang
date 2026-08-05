@@ -667,6 +667,19 @@ export extern "C" function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i
 export extern "C" function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_cmp_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_jeq_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+// wave132 Cap residual: struct_let pure leave callees (struct lit fields + CALL sizing/store +
+// try_inline + expected-ret + module_from_ctx). lea/mov_arg already Cap residual above;
+// glue_arm64_mov_x0_to_x8_elf_c is pure export (lea_common leave); emit_expr uses public
+// pipeline_asm_emit_expr_elf_c (not static _rec). PLATFORM: SHARED freestanding emit.
+export extern "C" function pipeline_asm_emit_struct_lit_fields_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
+export extern "C" function try_inline_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
+export extern "C" function try_inline_const_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
+export extern "C" function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32): void;
+export extern "C" function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i32;
+export extern "C" function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
+export extern "C" function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
+export extern "C" function glue_store_retval_pair_to_rbp_elf_c(m: *u8, arena: *u8, elf_ctx: *u8, ty_ref: i32, slot_off: i32, ta: i32, init_ref: i32, ctx: *u8): i32;
+export extern "C" function glue_emit_module_from_ctx(ctx: *u8): *u8;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 -> _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
@@ -23084,4 +23097,240 @@ export function pipeline_asm_emit_async_cps_end_func_elf_c(): void {
   unsafe {
     memset(&g_async_cps_emit[0], 0, 9124 as usize);
   }
+}
+
+// ---------------------------------------------------------------------------
+// wave132: pipeline_asm_emit_struct_let pure-owned leave
+// (was pipeline_asm_emit_struct_let.c).
+// G.7 product authority for:
+//   pipeline_asm_emit_struct_let_init_elf_c  (STRUCT_LIT → fields into slot)
+//   glue_emit_struct_type_let_init_elf_c     (STRUCT_LIT / CALL / METHOD_CALL)
+//   pipeline_asm_emit_set_call_sret_reg_shift_c / call_sret_reg_shift_c
+// Pure-owned flag: g_call_sret_reg_shift (was glue_statics static).
+// Cap residual: struct_lit_fields + try_inline* + set_call_expected_ret_ty +
+//   call_return_byte_size + type_size_simple + named_layout_size + store_retval_pair +
+//   emit_module_from_ctx + expr_kind + emit_expr_elf_c + lea/mov_arg + arm64 x0→x8.
+// Operand emit uses public pipeline_asm_emit_expr_elf_c (not static _rec).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
+// ---------------------------------------------------------------------------
+
+// wave132: CALL-side sret GP arg shift flag (0 or 1). SysV only; AAPCS64 always 0.
+let g_call_sret_reg_shift: i32 = 0;
+
+/**
+ * Set CALL hidden sret GP register shift (0 or 1).
+ * @param shift i32 - nonzero → shift=1 (SysV rdi dest; args start at rsi)
+ * @return void
+ * wave132 pure: G.7 authority (was pipeline_asm_emit_struct_let.c).
+ * PLATFORM: SHARED — SysV consumers read via call_sret_reg_shift_c; AAPCS64 ignore.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_set_call_sret_reg_shift_c(shift: i32): void {
+  if (shift > 0) {
+    g_call_sret_reg_shift = 1;
+  } else {
+    g_call_sret_reg_shift = 0;
+  }
+}
+
+/**
+ * Read CALL hidden sret GP register shift.
+ * @return i32 - 0 or 1
+ * wave132 pure: G.7 authority (was pipeline_asm_emit_struct_let.c).
+ * PLATFORM: SHARED — backend_call_dispatch SysV path.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_call_sret_reg_shift_c(): i32 {
+  return g_call_sret_reg_shift;
+}
+
+/**
+ * let p: Struct = Struct { ... }: write fields into pre-allocated stack slot.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param init_ref i32 - STRUCT_LIT expr ref (kind ord 45)
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param stack_slot_off i32 - rbp-relative home
+ * @return i32 - 0 ok; -1 not STRUCT_LIT or field emit fail
+ * wave132 pure: G.7 authority (was static pipeline_asm_emit_struct_let_init_elf_c).
+ * Cap residual: pipeline_expr_kind_ord_at + pipeline_asm_emit_struct_lit_fields_elf_c.
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32 {
+  let ko: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || init_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  }
+  if (ko != 45) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+  }
+  return rc;
+}
+
+/**
+ * let p: Struct init: STRUCT_LIT, or CALL/METHOD_CALL with inline/sret/dual-GP store.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param init_ref i32 - init expr ref
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch 0=x86_64 SysV, 1=AAPCS64, other unused
+ * @param let_ty_ref i32 - let decl type ref (0 if unknown)
+ * @param stack_slot_off i32 - rbp-relative home
+ * @return i32 - 0 handled; -1 error; -2 not a struct let-init kind
+ * wave132 pure: G.7 authority (was static glue_emit_struct_type_let_init_elf_c).
+ * CALL(48)/METHOD_CALL(49) share sret authority (import vec.new is METHOD_CALL).
+ * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, let_ty_ref: i32, stack_slot_off: i32): i32 {
+  let ko: i32 = 0;
+  let inl: i32 = 0;
+  let emit_rc: i32 = 0;
+  let call_ret_sz: i32 = 0;
+  let let_sz: i32 = 0;
+  let named_sz: i32 = 0;
+  let best: i32 = 0;
+  let modp: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || init_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  }
+  // STRUCT_LIT → field write into slot
+  if (ko == 45) {
+    return pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+  }
+  // CALL (48) or METHOD_CALL (49): inline then sret / dual-GP store
+  if (ko == 48 || ko == 49) {
+    if (ko == 48) {
+      unsafe {
+        inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+      }
+      if (inl == 1) {
+        return 0;
+      }
+      unsafe {
+        inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+      }
+      if (inl == 1) {
+        return 0;
+      }
+    }
+    // Install let decl type as expected return for import overload mangle.
+    if (let_ty_ref > 0) {
+      unsafe {
+        pipeline_asm_set_call_expected_ret_ty_c(let_ty_ref);
+      }
+    } else {
+      unsafe {
+        pipeline_asm_set_call_expected_ret_ty_c(0);
+      }
+    }
+    unsafe {
+      call_ret_sz = glue_call_return_byte_size_c(arena, init_ref);
+    }
+    // Prefer call return size; widen from let annotation when call ret is weak.
+    // Once callee return is register class (1..16), never let named_layout push into sret (>16).
+    if (call_ret_sz <= 16 && let_ty_ref > 0) {
+      unsafe {
+        modp = glue_emit_module_from_ctx(ctx);
+        let_sz = glue_type_size_simple(modp, arena, let_ty_ref, 0);
+      }
+      named_sz = 0;
+      if (let_sz <= 16) {
+        unsafe {
+          named_sz = glue_type_named_layout_size_any_module_elf_c(arena, let_ty_ref);
+        }
+      }
+      best = let_sz;
+      if (named_sz > best) {
+        if (call_ret_sz > 0 && call_ret_sz <= 16 && named_sz > 16) {
+          // keep best — do not false-sret over a known register-class call ret
+        } else {
+          if (let_sz <= 4 || call_ret_sz <= 0 || named_sz <= 16) {
+            best = named_sz;
+          }
+        }
+      }
+      if (best > call_ret_sz) {
+        call_ret_sz = best;
+      }
+    }
+    // >16B struct return into let slot (callee writes; no glue_store_retval).
+    // SysV: hidden dest in rdi + GP arg shift. AAPCS64: dest in x8; no GP shift.
+    if (call_ret_sz > 16 && (ta == 0 || ta == 1)) {
+      unsafe {
+        rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta);
+      }
+      if (rc != 0) {
+        unsafe {
+          pipeline_asm_set_call_expected_ret_ty_c(0);
+        }
+        return 0 - 1;
+      }
+      if (ta == 0) {
+        unsafe {
+          rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+        }
+        if (rc != 0) {
+          unsafe {
+            pipeline_asm_set_call_expected_ret_ty_c(0);
+          }
+          return 0 - 1;
+        }
+        pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+      } else {
+        // AAPCS64: Indirect Result Location Register x8 (pure lea_common face).
+        rc = glue_arm64_mov_x0_to_x8_elf_c(elf_ctx);
+        if (rc != 0) {
+          unsafe {
+            pipeline_asm_set_call_expected_ret_ty_c(0);
+          }
+          return 0 - 1;
+        }
+      }
+      unsafe {
+        emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+      }
+      pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+      unsafe {
+        pipeline_asm_set_call_expected_ret_ty_c(0);
+      }
+      if (emit_rc != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
+    // Scalar / ≤16B import CALL/METHOD_CALL: emit then store rax[+rdx].
+    unsafe {
+      emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+    }
+    unsafe {
+      pipeline_asm_set_call_expected_ret_ty_c(0);
+    }
+    if (emit_rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      modp = glue_emit_module_from_ctx(ctx);
+      rc = glue_store_retval_pair_to_rbp_elf_c(modp, arena, elf_ctx, let_ty_ref, stack_slot_off, ta, init_ref, ctx);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
+  return 0 - 2;
 }

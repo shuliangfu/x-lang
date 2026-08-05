@@ -78,7 +78,7 @@ static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct as
 
 /* wave1053 G.7: forward decl — glue_type_size_simple defined later in TU
  * (glue.c:3064); consumed by glue_struct_layout_metrics_c (EOF). */
-static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 
 /* wave1053 G.7: extern decls — driver diagnostics for struct padding checks.
  * Defined in driver glue (extern); visible at glue.c:691 (driver_asm_build_skip_typeck)
@@ -344,10 +344,11 @@ static int32_t glue_struct_lit_rehome_dest_rbx_elf_c(struct platform_elf_ElfCode
     return -1;
   return backend_enc_load_rbp_to_rbx_arch(elf_ctx, rehome_off, ta);
 }
-static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *arena,
-                                                         struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
-                                                         struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                         int32_t stack_slot_off) {
+/* wave132 pure leave Cap residual: was static; pure struct_let_init links here. */
+int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *arena,
+                                                  struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                  struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                  int32_t stack_slot_off) {
   int32_t nf;
   int32_t fi;
   int32_t base_off;
@@ -1270,7 +1271,8 @@ extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, str
  * is SHARED (cross-module layout resolution; dep-arena indices require
  * pipeline_dep_ctx_arena_at for correct field type sizing).
  */
-static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth) {
+/* wave132 pure leave Cap residual: was static; pure type_size Cap residual links here. */
+int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth) {
   int32_t kind_ord;
   if (!a || ty_ref <= 0 || ty_ref > a->num_types || depth > 64)
     return 0;

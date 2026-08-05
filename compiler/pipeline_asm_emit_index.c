@@ -32,7 +32,7 @@
 /* Forward decls for helpers defined later in pipeline_glue.c (same TU).
  * Most index-cluster callees are defined earlier (eff_addr scaled, cache,
  * field_type_ref, fixed_array_total_bytes, from_type_ref). */
-static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref,
+int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref,
                                      int32_t depth);
 
 /**
