@@ -1,145 +1,29 @@
 /**
- * pipeline_typeck_field_access.c — EXPR_FIELD_ACCESS typeck C residual (8.3.3).
+ * pipeline_typeck_field_access.c — EXPR_FIELD_ACCESS typeck C thin surfaces (8.3.3).
  *
  * Included by pipeline_glue.c (same TU; not a separate .o).
- * Most knives migrated to typeck.x; this TU keeps thin C surfaces + residual
- * bare-import-const diag. mono/named_is_module_concrete/unknown_hard_fail are
- * thin forwarders to typeck.x (G.7 authority).
- * Orchestrator authority: typeck_check_expr_field_access (typeck.x);
- * pipeline_typeck_check_expr_field_access_c is a thin forwarder (strict_glue).
+ * All business logic migrated to typeck.x (G.7 single authority). This TU keeps
+ * thin C forwarders for strict_glue / seed / residual C callers only.
+ * bare-import-const: typeck_reject_bare_import_const (shared with check_expr_var).
+ * Orchestrator: typeck_check_expr_field_access; C surface is thin (OMIT_X_DUP).
  * PLATFORM: SHARED.
  */
 
-/* typeck_x_no_layout_partial 符号（X 经 C gen 带 typeck_ 前缀）；find_or_alloc_ptr 见 typeck_x_link_alias.c。 */
-extern int32_t typeck_name_equal(uint8_t *a, int32_t a_len, uint8_t *b, int32_t b_len);
-extern int32_t typeck_find_or_alloc_named_type_ref(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len);
-extern int32_t typeck_ensure_i32_type_ref(struct ast_ASTArena *arena);
-extern int32_t typeck_ensure_u8_type_ref(struct ast_ASTArena *arena);
-extern int32_t typeck_ensure_usize_type_ref(struct ast_ASTArena *arena);
-extern int32_t typeck_ensure_array_type_ref_named_elem(struct ast_ASTArena *arena, uint8_t *elem_nm,
-                                                       int32_t elem_nm_len, int32_t array_size);
-extern int32_t typeck_find_or_alloc_array_type_ref(struct ast_ASTArena *arena, int32_t elem_ref, int32_t array_size);
-extern int32_t find_or_alloc_ptr_type_ref(struct ast_ASTArena *arena, int32_t elem_ref);
-extern int32_t typeck_get_field_offset_from_layout_deps(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
-                                                        uint8_t *type_name, int32_t type_name_len, uint8_t *field_name,
-                                                        int32_t field_name_len);
-extern int32_t typeck_get_field_type_ref_from_layout_deps(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                            struct ast_PipelineDepCtx *ctx, uint8_t *type_name,
-                                                            int32_t type_name_len, uint8_t *field_name,
-                                                            int32_t field_name_len);
-extern int32_t typeck_inline_u8_64_array_field_type_ref(struct ast_ASTArena *arena, uint8_t *field_name,
-                                                        int32_t field_name_len);
-extern int32_t typeck_expr_inline_array_field_type_ref(struct ast_ASTArena *arena, uint8_t *field_name,
-                                                       int32_t field_name_len);
-extern int32_t pipeline_module_top_level_let_is_const(struct ast_Module *m, int32_t idx);
-extern int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *m, int32_t idx);
-extern int32_t pipeline_module_top_level_let_name_len(struct ast_Module *m, int32_t idx);
-extern uint8_t pipeline_module_top_level_let_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
-extern int32_t typeck_top_level_let_name_equal(struct ast_Module *module, int32_t tl_idx, uint8_t *name,
-                                               int32_t name_len);
-extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
-extern int32_t pipeline_expr_line_at(struct ast_ASTArena *a, int32_t expr_ref);
-extern int32_t pipeline_expr_col_at(struct ast_ASTArena *a, int32_t expr_ref);
-extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
-extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
-extern int32_t pipeline_module_import_binding_name_len(struct ast_Module *module, int32_t idx);
-extern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *module, int32_t idx, int32_t off);
-extern int32_t pipeline_typeck_field_soa_index_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                                                int32_t base_ref);
-
 /**
- * Dep top-level const name match.
- * R2 (8.3.3): body migrated to typeck.x as typeck_dep_top_level_const_match.
- * Zero business logic — thin surface for bare-import-const diagnostics.
+ * R2 (8.3.3): bare VAR access to dep top-level const → must be binding.CONST.
+ * Body migrated to typeck.x as typeck_reject_bare_import_const (G.7 with VAR path).
+ * Zero business logic — thin surface for pipeline_typeck_check_expr_c VAR arm.
  * PLATFORM: SHARED.
  */
-int32_t typeck_dep_top_level_const_match(struct ast_Module *dep_mod, uint8_t *name, int32_t name_len,
-                                         int32_t *out_type_ref);
+extern int32_t typeck_reject_bare_import_const(struct ast_Module *module, struct ast_ASTArena *arena,
+                                               int32_t expr_ref, struct ast_PipelineDepCtx *ctx, uint8_t *vbuf,
+                                               int32_t vnlen);
 
-static int32_t pipeline_typeck_dep_top_level_const_match(struct ast_Module *dep_mod, uint8_t *name, int32_t name_len,
-                                                         int32_t *out_type_ref) {
-  return typeck_dep_top_level_const_match(dep_mod, name, name_len, out_type_ref);
-}
-
-/** 写出含 const 的 import binding 名，供裸名 const 报错提示。 */
-static int32_t pipeline_typeck_import_const_binding_hint(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
-                                                         uint8_t *const_name, int32_t const_name_len, uint8_t *bind_out,
-                                                         int32_t bind_cap) {
-  int32_t di;
-  int32_t nd;
-  int32_t tr;
-  if (!module || !ctx || const_name_len <= 0 || !bind_out || bind_cap <= 0)
-    return 0;
-  bind_out[0] = '\0';
-  nd = pipeline_dep_ctx_ndep(ctx);
-  for (di = 0; di < nd && di < module->num_imports; di++) {
-    struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, di);
-    if (!dm || !pipeline_typeck_dep_top_level_const_match(dm, const_name, const_name_len, &tr))
-      continue;
-    {
-      int32_t bl = pipeline_module_import_binding_name_len(module, di);
-      int32_t k;
-      if (bl > 0 && bl < bind_cap) {
-        for (k = 0; k < bl; k++)
-          bind_out[k] = pipeline_module_import_binding_name_byte_at(module, di, k);
-        bind_out[bl] = '\0';
-        return 1;
-      }
-    }
-  }
-  return 0;
-}
-
-/**
- * 裸名访问 dep 模块顶层 const 时报错（须 binding.CONST）；返回 1 表示已报错。
- */
 int32_t pipeline_typeck_reject_bare_import_const_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                    int32_t expr_ref, struct ast_PipelineDepCtx *ctx, uint8_t *vbuf,
                                                    int32_t vnlen) {
-  int32_t di;
-  int32_t nd;
-  int32_t tr;
-  int32_t line;
-  int32_t col;
-  uint8_t hint[128];
-  if (!module || !arena || !ctx || vnlen <= 0 || !vbuf)
-    return 0;
-  nd = pipeline_dep_ctx_ndep(ctx);
-  for (di = 0; di < nd; di++) {
-    struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, di);
-    if (!dm || !pipeline_typeck_dep_top_level_const_match(dm, vbuf, vnlen, &tr))
-      continue;
-    line = pipeline_expr_line_at(arena, expr_ref);
-    col = pipeline_expr_col_at(arena, expr_ref);
-    hint[0] = '\0';
-    if (pipeline_typeck_import_const_binding_hint(module, ctx, vbuf, vnlen, hint, (int32_t)sizeof(hint))) {
-      lsp_diag_report_typeck((int)line, (int)col, "import constant '%.*s' must be qualified; use %s.%.*s",
-                             (int)vnlen, vbuf, hint, (int)vnlen, vbuf);
-    } else {
-      lsp_diag_report_typeck((int)line, (int)col, "import constant '%.*s' must be qualified as binding.%.*s",
-                             (int)vnlen, vbuf, (int)vnlen, vbuf);
-    }
-    return 1;
-  }
-  return 0;
+  return typeck_reject_bare_import_const(module, arena, expr_ref, ctx, vbuf, vnlen);
 }
-
-extern int32_t typeck_expr_field_access_fallback_scalar_type_ref(struct ast_ASTArena *arena, uint8_t *field_name,
-                                                                 int32_t field_name_len);
-extern int32_t typeck_field_access_lexer_wrapper_fallback(struct ast_ASTArena *arena, int32_t base_type_ref,
-                                                          uint8_t *field_name, int32_t field_name_len);
-/* wave465: module concrete-type probe for type-param field ambient fill */
-extern int32_t pipeline_module_struct_layout_name_len(struct ast_Module *module, int32_t idx);
-extern void pipeline_module_struct_layout_name_into(struct ast_Module *module, int32_t idx, uint8_t *out);
-extern int32_t pipeline_module_enum_name_len(struct ast_Module *module, int32_t idx);
-extern uint8_t pipeline_module_enum_name_byte_at(struct ast_Module *module, int32_t idx, int32_t off);
-extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t type_ref, uint8_t *out);
-extern void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen,
-                                               int32_t base_resolved_ref, int32_t num_struct_layouts);
-
-/** 递归检查子表达式；定义于 pipeline_glue.c（本文件在其之前 include）。 */
-extern int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
 /**
  * EXPR_FIELD_ACCESS: prebind untyped VAR base as TYPE_NAMED of same spelling.

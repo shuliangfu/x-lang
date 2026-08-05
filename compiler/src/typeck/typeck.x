@@ -1169,6 +1169,49 @@ export function typeck_import_const_binding_hint_at(module: *Module, dep_ix: i32
 }
 
 /**
+ * Reject bare VAR access to a dependency top-level const (must be binding.CONST).
+ *
+ * G.7 single authority for C VAR path (`pipeline_typeck_reject_bare_import_const_c`)
+ * and `typeck_check_expr_var`. Reuses `typeck_find_import_const_dep_index` +
+ * `typeck_import_const_binding_hint_at` +
+ * `driver_diagnostic_typeck_import_const_must_be_qualified` — no second diag path.
+ *
+ * @param module *Module — entry module (import table for hint)
+ * @param arena *ASTArena — for expr line/col
+ * @param expr_ref i32 — VAR expr being resolved
+ * @param ctx *PipelineDepCtx — loaded dependency modules
+ * @param vbuf *u8 — bare identifier bytes
+ * @param vnlen i32 — identifier length; must be > 0
+ * @return i32 — 1 rejected (diag emitted), 0 not a bare import const
+ * PLATFORM: SHARED
+ */
+export function typeck_reject_bare_import_const(module: *Module, arena: *ASTArena,
+expr_ref: i32, ctx: *PipelineDepCtx, vbuf: *u8, vnlen: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let const_dep_ix: i32 = -1;
+    let hint_buf: u8[128] = [];
+    let hint_len: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx
+    || vbuf == 0 as *u8 || vnlen <= 0 || expr_ref <= 0) {
+      return 0;
+    }
+    const_dep_ix = typeck_find_import_const_dep_index(module, ctx, vbuf, vnlen, 0);
+    if (const_dep_ix < 0) {
+      return 0;
+    }
+    line = pipeline_expr_line_at(arena, expr_ref);
+    col = pipeline_expr_col_at(arena, expr_ref);
+    hint_len = typeck_import_const_binding_hint_at(module, const_dep_ix, &hint_buf[0]);
+    driver_diagnostic_typeck_import_const_must_be_qualified(line, col, vbuf, vnlen,
+    &hint_buf[0], hint_len);
+    return 1;
+  }
+}
+
+/**
 * See implementation.
 */
 export function typeck_find_layout_idx_by_type_name(module: *Module, nm: *u8, nlen: i32): i32 {
@@ -10332,17 +10375,12 @@ ctx: *PipelineDepCtx): i32 {
   unsafe {
     let vnlen: i32 = 0;
     let vbuf: *u8 = typeck_scratch64_slot(0);
-    let hint_buf: *u8 = typeck_scratch64_slot(13);
     let vd_tr: i32 = 0;
     let block_ref: i32 = 0;
     let func_ix: i32 = 0;
     let pr: i32 = 0;
     let tk_tr: i32 = 0;
     let tg_tr: i32 = 0;
-    let const_dep_ix: i32 = -1;
-    let hint_len: i32 = 0;
-    let line: i32 = 0;
-    let col: i32 = 0;
     let nm_tok_kind: u8[9] = [84, 111, 107, 101, 110, 75, 105, 110, 100];
     let nm_typ_kind: u8[8] = [84, 121, 112, 101, 75, 105, 110, 100];
     if (arena == 0 as *ASTArena || module == 0 as *Module || ctx == 0 as *PipelineDepCtx
@@ -10439,12 +10477,8 @@ ctx: *PipelineDepCtx): i32 {
     if (typeck_var_is_import_visible_name(module, vbuf, vnlen)) {
       return 0;
     }
-    const_dep_ix = typeck_find_import_const_dep_index(module, ctx, vbuf, vnlen, 0);
-    if (const_dep_ix >= 0) {
-      line = pipeline_expr_line_at(arena, expr_ref);
-      col = pipeline_expr_col_at(arena, expr_ref);
-      hint_len = typeck_import_const_binding_hint_at(module, const_dep_ix, hint_buf);
-      driver_diagnostic_typeck_import_const_must_be_qualified(line, col, vbuf, vnlen, hint_buf, hint_len);
+    /* G.7: bare import-const reject — shared with C VAR path thin. */
+    if (typeck_reject_bare_import_const(module, arena, expr_ref, ctx, vbuf, vnlen) != 0) {
       return -1;
     }
     if (ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {

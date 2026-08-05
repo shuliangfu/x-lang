@@ -962,7 +962,7 @@
 | `ast_pool_module_func.c` | ~445 | module Func cold accessors + param sidecar 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_arena.c` | ~248 | ASTArena main-pool cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_block.c` | ~1,439 | block append/region/defer + loop/labeled/getters + parent/resolve + stmt_order rebuild residual 切片 | 🟡 已抽出（wave988–990+992 有则补全）；仍 host-cc 入 `pipeline_x` |
-| `pipeline_typeck_field_access.c` | **~334** | field_access C thin + bare-import-const residual（同 TU 入 glue） | 🟡 **已抽出**；**.x 权威收口**（mono／concrete／hard_fail 已迁）；仍 host-cc；残 bare-import-const |
+| `pipeline_typeck_field_access.c` | **~218** | field_access **全 thin**（同 TU 入 glue） | 🟡 **已抽出**；**.x 权威收口**（含 bare-import-const）；仍 host-cc |
 | `pipeline_typeck_soa.c` | **~375** | typeck SOA 辅助 | 🟡 **已抽出**；部分 helper 已进 typeck.x；仍 host-cc |
 | `pipeline_elf_write_o.c` | **~1,581** | ELF64 ET_REL + Mach-O MH_OBJECT `.o` writers | 🟡 **已抽出**（8.3.2）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_elf_ctx.c` | **~1,001** | ELF/Mach-O codegen ctx accessors + PGO-Lite + reloc/label/patch/shndx/common sidecar | 🟡 **已抽出**（8.3.2 wave1247）；仍 host-cc 入 `pipeline_x` |
@@ -1148,7 +1148,8 @@
   - ✅ `typeck_mono_field_type_from_base` → typeck.x（G.7 mono；STRUCT_LIT coerce 共用）；C thin `pipeline_typeck_mono_field_type_from_base_c`
   - ✅ `typeck_named_is_module_concrete` → typeck.x（local+dep struct/enum；wave1220 P4）；C thin `pipeline_typeck_named_is_module_concrete_c`（strict_minimal 仍转调）
   - ✅ `typeck_field_unknown_hard_fail` → typeck.x（wave674/684/702 gate；enum-no-variant）；C thin `pipeline_typeck_field_unknown_hard_fail_c`
-  - 🟡 residual C（field_access TU）：`pipeline_typeck_reject_bare_import_const_c` + import_const_binding_hint 仍 C 体；其余均为 thin。**field_access 权威主路径已收口**；父项 8.3.3 仍 🟡（host-cc + bare-const + soa 宿主）
+  - ✅ `typeck_reject_bare_import_const` → typeck.x（G.7 与 `typeck_check_expr_var` 共用；`find_import_const_dep_index` + `import_const_binding_hint_at` + `driver_diagnostic_typeck_import_const_must_be_qualified`；C thin `pipeline_typeck_reject_bare_import_const_c`；field_access ~334→~218 全 thin）
+  - 🟡 residual：field_access／soa **仍 host-cc** 入 pipeline_x；soa 叶宿主（`pipeline_typeck_soa.c`）仍 thin+host。**field_access C 业务体已耗尽**；父项 8.3.3 仍 🟡（host-cc + soa 宿主）
 
 ⬜ **8.3.4 bootstrap glue / orchestration 折叠进 8.3.1–8.3.2 或删**
 
