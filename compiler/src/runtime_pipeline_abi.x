@@ -1065,6 +1065,7 @@ export extern "C" function glue_live_fwd_copy_from_snap_before_if(dst_live: *u8)
 // wave160 pure-owned: glue_asm_if_merge_live_union_from_ends +
 // glue_asm_loop_merge_live_union body in EOF (was Cap residual spill).
 // wave161 pure-owned: glue_live_fwd_apply_expr_effect body in EOF (was Cap residual).
+// wave162 pure-owned: pipeline_asm_emit_break_elf_c / continue_elf_c body in EOF.
 // wave155 Cap residual (spill un-static): break push/pop (step effect → pure wave161).
 export extern "C" function glue_loop_break_exit_push(): void;
 export extern "C" function glue_loop_break_exit_pop(): void;
@@ -1077,6 +1078,9 @@ export extern "C" function glue_block_live_fwd_union_from_u8(src: *u8): void;
 export extern "C" function glue_loop_break_exit_depth_get(): i32;
 export extern "C" function glue_loop_break_exit_live_union_into_u8(dst: *u8, d: i32): void;
 export extern "C" function glue_loop_continue_head_live_union_into_u8(dst: *u8, d: i32): void;
+// wave162 Cap residual thin: note live at break/continue into stack BSS.
+export extern "C" function glue_loop_break_exit_note_current(): void;
+export extern "C" function glue_loop_continue_head_note_current(): void;
 // wave141: pipeline_asm_fill_local_slots pure export below (emit-context leave).
 // wave153 pure-owned: backend_emit_block_body_sync_elf body in EOF section.
 // wave131 Cap residual: async_cps pure leave callees (encoders + async_asm_pool + local offset).
@@ -40639,8 +40643,7 @@ export extern "C" function glue_load_f32_var_slot_to_rbx_elf_c(elf_ctx: *u8, are
 export extern "C" function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 // wave154 pure-owned: pipeline_asm_emit_struct_lit_elf_c body in EOF section.
-export extern "C" function pipeline_asm_emit_break_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32): i32;
-export extern "C" function pipeline_asm_emit_continue_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32): i32;
+// wave162 pure-owned: pipeline_asm_emit_break_elf_c / continue_elf_c body in EOF.
 export extern "C" function backend_emit_expr_elf_slow(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32;
 export extern "C" function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
@@ -52834,3 +52837,108 @@ export function glue_live_fwd_apply_expr_effect(arena: *u8, ctx: *u8, expr_ref: 
 }
 
 // end wave161 pure-owned leave
+
+// ============================================================================
+// wave162 pure-owned leave: EXPR_BREAK / EXPR_CONTINUE ELF faces
+// (was Cap residual spill next to live_fwd break/continue stacks).
+// Public faces:
+//   · pipeline_asm_emit_break_elf_c
+//   · pipeline_asm_emit_continue_elf_c
+// Cap residual: live_fwd BSS + break/continue stacks + note_current + push/pop.
+// Label bytes via wave155 LP64 layout helpers (w155_ly_off_* + copy_from_ly).
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 break/continue · dual-end L2.
+// ============================================================================
+
+/**
+ * EXPR_BREAK ELF: note current live into break-exit stack, then jmp break_label.
+ * @param arena *u8 - ASTArena* (unused; ABI parity with Cap residual)
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx*; null or break_len<=0 → -1
+ * @param ta i32 - target arch (0 x86_64, 1 arm64, …)
+ * @return i32 - 0 ok; -1 no open break label / enc fail
+ * wave162 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 CFG.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_break_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32): i32 {
+  let ly: *u8 = 0 as *u8;
+  let break_len: i32 = 0;
+  let n: i32 = 0;
+  let lbl: u8[128] = [];
+  let rc: i32 = 0;
+  // Touch arena for ABI parity with residual (void)arena.
+  if (arena == (0 as *u8) && elf_ctx == (0 as *u8)) {
+    // no-op: both null → fall through to null checks
+  }
+  if (ctx == (0 as *u8) || elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (ly == (0 as *u8)) {
+    return 0 - 1;
+  }
+  break_len = pipe_load_i32_le(ly, w155_ly_off_break_len());
+  if (break_len <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    glue_loop_break_exit_note_current();
+  }
+  n = break_len;
+  if (n > 128) {
+    n = 128;
+  }
+  w155_copy_bytes_from_ly(&lbl[0], ly, w155_ly_off_break_label(), n);
+  unsafe {
+    rc = backend_enc_jmp_arch(elf_ctx, &lbl[0], break_len, ta);
+  }
+  return rc;
+}
+
+/**
+ * EXPR_CONTINUE ELF: note current live into continue-head stack, then jmp continue_label.
+ * @param arena *u8 - ASTArena* (unused; ABI parity)
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx*; null or continue_len<=0 → -1
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 no open continue label / enc fail
+ * wave162 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 CFG.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_continue_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32): i32 {
+  let ly: *u8 = 0 as *u8;
+  let cont_len: i32 = 0;
+  let n: i32 = 0;
+  let lbl: u8[128] = [];
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) && elf_ctx == (0 as *u8)) {
+    // no-op: ABI parity with residual (void)arena
+  }
+  if (ctx == (0 as *u8) || elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (ly == (0 as *u8)) {
+    return 0 - 1;
+  }
+  cont_len = pipe_load_i32_le(ly, w155_ly_off_continue_len());
+  if (cont_len <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    glue_loop_continue_head_note_current();
+  }
+  n = cont_len;
+  if (n > 128) {
+    n = 128;
+  }
+  w155_copy_bytes_from_ly(&lbl[0], ly, w155_ly_off_continue_label(), n);
+  unsafe {
+    rc = backend_enc_jmp_arch(elf_ctx, &lbl[0], cont_len, ta);
+  }
+  return rc;
+}
+
+// end wave162 pure-owned leave

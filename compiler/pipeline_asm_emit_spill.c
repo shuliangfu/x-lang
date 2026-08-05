@@ -36,6 +36,12 @@
  * Residual keeps collect_expr_uses + forward_after_def +
  * thin glue_block_live_fwd_union_from_u8.
  *
+ * wave162 pure-owned EXPR_BREAK / EXPR_CONTINUE ELF faces (same pure TU):
+ *   · pipeline_asm_emit_break_elf_c
+ *   · pipeline_asm_emit_continue_elf_c
+ * Residual keeps live_fwd BSS + break/continue stacks + note_current +
+ * push/pop (note is Cap residual thin face for pure emit).
+ *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + accessors
  *   · 7.3 live_fwd BSS / break-continue note + push/pop / Chaitin
@@ -101,6 +107,13 @@ void glue_asm_loop_merge_live_union(struct ast_ASTArena *arena, struct backend_A
  * Residual: collect_expr_uses + forward_after_def + union_from_u8. PLATFORM: SHARED. */
 void glue_live_fwd_apply_expr_effect(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                      int32_t expr_ref);
+
+/* wave162 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * Residual: break/continue note_current + live stacks + push/pop. PLATFORM: SHARED. */
+int32_t pipeline_asm_emit_break_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                      struct backend_AsmFuncCtx *ctx, int32_t ta);
+int32_t pipeline_asm_emit_continue_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                         struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -476,8 +489,10 @@ void glue_loop_break_exit_pop(void) {
 
 /**
  * 7.3 break：把当前（或子块快照）活跃集并入本层 loop 的 break 出口 ∪，供循环汇合使用。
+ * wave162 Cap residual thin face for pure pipeline_asm_emit_break_elf_c.
+ * PLATFORM: SHARED freestanding emit.
  */
-static void glue_loop_break_exit_note_current(void) {
+void glue_loop_break_exit_note_current(void) {
   int32_t d;
   if (glue_loop_break_exit_depth <= 0)
     return;
@@ -488,23 +503,12 @@ static void glue_loop_break_exit_note_current(void) {
     glue_live_fwd_union_into(&glue_loop_break_exit_live_stack[d], &glue_block_live_sub_exit_snap);
 }
 
-/** EXPR_BREAK：记录出口活跃集并跳转当前循环 exit 标签（ctx.break_label）。 */
-static int32_t pipeline_asm_emit_break_elf_impl(struct ast_ASTArena *arena,
-                                                struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  (void)arena;
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (ly->break_len <= 0)
-    return -1;
-  glue_loop_break_exit_note_current();
-  return backend_enc_jmp_arch(elf_ctx, ly->break_label, ly->break_len, ta);
-}
-
 /**
  * 7.3 continue：把当前活跃集并入本层 loop 的 continue 头部 ∪（保守参与出口汇合）。
+ * wave162 Cap residual thin face for pure pipeline_asm_emit_continue_elf_c.
+ * PLATFORM: SHARED freestanding emit.
  */
-static void glue_loop_continue_head_note_current(void) {
+void glue_loop_continue_head_note_current(void) {
   int32_t d;
   if (glue_loop_break_exit_depth <= 0)
     return;
@@ -515,33 +519,8 @@ static void glue_loop_continue_head_note_current(void) {
     glue_live_fwd_union_into(&glue_loop_continue_head_live_stack[d], &glue_block_live_sub_exit_snap);
 }
 
-/** EXPR_CONTINUE：记录头部活跃集并跳转当前循环 head 标签（ctx.continue_label）。 */
-static int32_t pipeline_asm_emit_continue_elf_impl(struct ast_ASTArena *arena,
-                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                   struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  (void)arena;
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (ly->continue_len <= 0)
-    return -1;
-  glue_loop_continue_head_note_current();
-  return backend_enc_jmp_arch(elf_ctx, ly->continue_label, ly->continue_len, ta);
-}
-
-/**
- * EXPR_BREAK / EXPR_CONTINUE ELF faces (X emit_expr_elf single-line delegates).
- * wave1014 G.7: folded from pipeline_glue residual next to static impls.
- * PLATFORM: SHARED — product residual C; same TU as break/continue *_elf_impl.
- */
-int32_t pipeline_asm_emit_break_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                      struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  return pipeline_asm_emit_break_elf_impl(arena, elf_ctx, ctx, ta);
-}
-
-int32_t pipeline_asm_emit_continue_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                         struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  return pipeline_asm_emit_continue_elf_impl(arena, elf_ctx, ctx, ta);
-}
+/* wave162: pure owns pipeline_asm_emit_break_elf_c / continue_elf_c (extern above).
+ * PLATFORM: SHARED. */
 
 static void glue_live_fwd_remove(GlueBlockLiveFwd *live, int32_t off) {
   int32_t i;

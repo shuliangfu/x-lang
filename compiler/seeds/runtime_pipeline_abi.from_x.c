@@ -24890,5 +24890,24 @@ void glue_live_fwd_apply_expr_effect(void *arena, void *ctx, int32_t expr_ref) {
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/*
+ * wave162 cold twins: pipeline_asm_emit_break_elf_c / continue_elf_c.
+ * Freestanding-safe fail stubs (-1). Hybrid product links pure.
+ * PLATFORM: SHARED.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+int32_t pipeline_asm_emit_break_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t ta) {
+  (void)arena; (void)elf_ctx; (void)ctx; (void)ta;
+  return -1;
+}
+
+int32_t pipeline_asm_emit_continue_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t ta) {
+  (void)arena; (void)elf_ctx; (void)ctx; (void)ta;
+  return -1;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
