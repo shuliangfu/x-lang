@@ -8,7 +8,16 @@
  * pipeline_dep_ctx_realign_ndep_for_entry／load_import_resolve_read／load_one_import_slot／
  *   load_and_sync_direct_import_deps_c：import 加载与同步（XLANG_WEAK cold twin）。
  * 共享 extern（driver_diagnostic_*／parse_into_with_init_buf／typeck_x_ast／WPO-S3 escape）本块头部声明。
- * 同 TU #include（import_bind 之后）；公共符号 + XLANG_WEAK + static scalars；无先于此 include 的调用方。 */
+ * 同 TU #include（resolve_path 之后；import_bind host-cc leave 2026-08-05 — driver_dep_*
+ *  externs live here now, not in retired pipeline_import_bind.c）。
+ * 公共符号 + XLANG_WEAK + static scalars；无先于此 include 的调用方。 */
+
+/* driver dep slot faces (were declared in retired pipeline_import_bind.c). */
+extern uint8_t *driver_dep_arena_buf(int32_t i);
+extern uint8_t *driver_dep_module_buf(int32_t i);
+extern int32_t driver_dep_seeded_get(int32_t i);
+extern const char *driver_dep_path_registry_at(int32_t i);
+extern int32_t driver_dep_slot_for_path(uint8_t *path);
 
 extern void driver_diagnostic_entry_already(int32_t v);
 extern void driver_diagnostic_source_len(int32_t len);

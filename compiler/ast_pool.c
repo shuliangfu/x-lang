@@ -117,7 +117,11 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 
 #include "pipeline_resolve_path.c"
 
-#include "pipeline_import_bind.c"
+/* 2026-08-05: pipeline_import_bind.c pure-owned leave retired.
+ * Live face: runtime_pipeline_abi.x (read_file_x / preprocess_loaded /
+ * bind_import / try_bind / sync_one_dep / preprocess_len_get /
+ * read_file_x_impl_c / read_file_x_c / read_fd_into_loaded_buf).
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 #include "pipeline_parse_typeck_dispatch.c"
 

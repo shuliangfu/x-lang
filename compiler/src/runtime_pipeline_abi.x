@@ -37,8 +37,9 @@
 //   pipeline_preprocess_loaded_into_ctx orch under wave94 pure load_import;
 //   Cap residual try_one_lib_root / try_entry_dir / path+loaded buf accessors /
 //   set_loaded_len / preprocess_x_buf + pure preprocess_len store; parse_into_buf
-//   wave96→pure. glue/ast_pool XLANG_WEAK cold twins (resolve/read already
-//   weak; preprocess_loaded now weak). Closes Cap residual resolve/read/pp leaves.
+//   wave96→pure. 2026-08-05: host-cc pipeline_import_bind.c retired (pure-owned
+//   WEAK + remaining strongs pure-complete → whole-file delete-only leave).
+//   Closes Cap residual resolve/read/pp leaves.
 // wave94: pure pipeline_load_import_from_disk_c orch + pure
 //   pipeline_sync_dep_slots_from_driver_c orch + same-TU pure
 //   pipeline_bind_import_dep_buffers + pipeline_sync_one_dep_slot;
@@ -268,7 +269,8 @@ export extern "C" function xlang_read_file_into_path(path: *u8, buf: *u8, cap: i
 // wave96: pipeline_parse_into_buf is pure export function below (not export-extern).
 export extern "C" function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
 export extern "C" function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *u8): *u8;
-export extern "C" function pipeline_dep_ctx_preprocess_len_get(ctx: *u8): i32;
+// wave101: pipeline_dep_ctx_preprocess_len_get is pure export below (not Cap residual
+//   host-cc field load). 2026-08-05: import_bind host-cc leave — pure sole provider.
 // wave97: G.7 typeck.x merge/wpo authority (same symbols as typeck_x.o product).
 // PLATFORM: SHARED — pure load_and_sync step5 routes here (not typeck_typeck_* hop).
 export extern "C" function typeck_merge_dep_struct_layouts_into_entry(mod: *u8, arena: *u8, ctx: *u8): void;
@@ -4545,6 +4547,87 @@ export function pipeline_preprocess_loaded_into_ctx(ctx: *u8): i32 {
   }
   // Match C: ctx->preprocess_len = out_len (i32 LE at pure offset).
   pipe_store_i32_le(ctx, pipe_pctx_off_preprocess_len(), out_len);
+  return 0;
+}
+
+/**
+ * Read ctx.preprocess_len (i32 LE at pure LP64 offsetof).
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — preprocess_len, or -1 if ctx null
+ * wave101 pure Cap residual: G.7 single product authority for
+ * pipeline_dep_ctx_preprocess_len_get (historical host-cc field load in
+ * pipeline_import_bind.c). PLATFORM: SHARED — sole provider after import_bind leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_preprocess_len_get(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_preprocess_len());
+}
+
+/**
+ * Cold/seed target for pipeline.x thin: same body as pipeline_read_file_x.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 ok; -1 fail
+ * wave101 pure: G.7 single authority (historical strong body in import_bind.c).
+ * PLATFORM: SHARED — sole provider after import_bind leave.
+ */
+#[no_mangle]
+export function pipeline_read_file_x_impl_c(ctx: *u8): i32 {
+  return pipeline_read_file_x(ctx);
+}
+
+/**
+ * C dispatch alias: call product pure pipeline_read_file_x.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 ok; -1 fail
+ * wave101 pure: G.7 single authority (historical strong body in import_bind.c).
+ * PLATFORM: SHARED — sole provider after import_bind leave.
+ */
+#[no_mangle]
+export function pipeline_read_file_x_c(ctx: *u8): i32 {
+  return pipeline_read_file_x(ctx);
+}
+
+// Cap residual POSIX read into loaded_buf (runtime_io_abi std_fs_fs_read).
+export extern "C" function std_fs_fs_read(fd: i32, buf: *u8, count: i64): i64;
+
+/**
+ * Read fd into ctx.loaded_buf and set loaded_len (cap 4194304).
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @param fd i32 — open file descriptor; fd < 0 → -1
+ * @return i32 — 0 ok; -1 null/fd/read fail
+ * wave101 pure: G.7 single authority (historical strong body in import_bind.c).
+ * PLATFORM: SHARED — sole provider after import_bind leave.
+ */
+#[no_mangle]
+export function pipeline_read_fd_into_loaded_buf(ctx: *u8, fd: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (fd < 0) {
+    return 0 - 1;
+  }
+  let buf: *u8 = 0 as *u8;
+  unsafe {
+    buf = pipeline_dep_ctx_loaded_buf_ptr(ctx);
+  }
+  if (buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  // PIPELINE_SOURCE_BUF_CAP
+  let cap: i64 = 4194304;
+  let n: i64 = 0;
+  unsafe {
+    n = std_fs_fs_read(fd, buf, cap);
+  }
+  if (n < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_dep_ctx_set_loaded_len(ctx, n);
+  }
   return 0;
 }
 

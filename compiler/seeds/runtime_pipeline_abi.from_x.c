@@ -4081,3 +4081,169 @@ char *xlang_preprocess_quiet(const char *source, size_t source_len, const char *
  *           the duplicate authority so the real impls from parser_x.o etc.
  *           are linked, matching macOS behaviour.
  */
+
+/* wave101 import_bind leave cold twins — former pipeline_import_bind.c
+ * faces when PREFER=0 (full seed, no pure thin). Under FROM_X (PREFER thin+rest)
+ * omitted; pure thin owns. PLATFORM: SHARED — match runtime_pipeline_abi.x.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* Prefer existing seed faces; cast only. */
+extern uint8_t *pipeline_dep_ctx_path_buf_ptr(void *ctx);
+extern uint8_t *pipeline_dep_ctx_loaded_buf_ptr(void *ctx);
+extern void pipeline_dep_ctx_set_loaded_len(void *ctx, int64_t n);
+extern uint8_t *pipeline_dep_ctx_preprocess_buf_ptr(void *ctx);
+extern int32_t preprocess_x_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out, int32_t out_cap);
+extern int32_t driver_dep_seeded_get(int32_t i);
+extern int32_t parser_copy_module_import_path64(void *module, int32_t i, uint8_t out[128]);
+extern void pipeline_dep_ctx_set_import_path(void *ctx, int32_t idx, uint8_t *path, int32_t pl);
+extern uint8_t *driver_dep_arena_buf(int32_t i);
+extern uint8_t *driver_dep_module_buf(int32_t i);
+extern int32_t driver_dep_slot_for_path(const char *path);
+extern ptrdiff_t std_fs_fs_read(int fd, void *buf, size_t count);
+
+/* LP64 offsets — match pure pipe_pctx_off_* */
+static int32_t wave101_off_loaded_len(void) { return 4195344; }
+static int32_t wave101_off_preprocess_len(void) { return 8389656; }
+
+static void wave101_store_i32_le(uint8_t *base, int32_t off, int32_t v) {
+  uint32_t u;
+  if (!base || off < 0)
+    return;
+  u = (uint32_t)v;
+  base[off] = (uint8_t)(u & 255u);
+  base[off + 1] = (uint8_t)((u / 256u) & 255u);
+  base[off + 2] = (uint8_t)((u / 65536u) & 255u);
+  base[off + 3] = (uint8_t)((u / 16777216u) & 255u);
+}
+
+static int32_t wave101_load_i32_le(uint8_t *base, int32_t off) {
+  uint32_t b0, b1, b2, b3, u;
+  if (!base || off < 0)
+    return 0;
+  b0 = base[off];
+  b1 = base[off + 1];
+  b2 = base[off + 2];
+  b3 = base[off + 3];
+  u = b0 + b1 * 256u + b2 * 65536u + b3 * 16777216u;
+  return (int32_t)u;
+}
+
+static int64_t wave101_load_i64_le(uint8_t *base, int32_t off) {
+  uint64_t u = 0;
+  int i;
+  if (!base || off < 0)
+    return 0;
+  for (i = 0; i < 8; i++)
+    u |= ((uint64_t)base[off + i]) << (8 * i);
+  return (int64_t)u;
+}
+
+int32_t pipeline_dep_ctx_preprocess_len_get(void *ctx) {
+  if (!ctx)
+    return -1;
+  return wave101_load_i32_le((uint8_t *)ctx, wave101_off_preprocess_len());
+}
+
+int32_t pipeline_read_file_x(void *ctx) {
+  uint8_t *path;
+  uint8_t *buf;
+  int n;
+  if (!ctx)
+    return -1;
+  path = pipeline_dep_ctx_path_buf_ptr(ctx);
+  buf = pipeline_dep_ctx_loaded_buf_ptr(ctx);
+  if (!path || !buf)
+    return -1;
+  n = xlang_read_file_into_path((const char *)path, buf, (size_t)4194304);
+  if (n < 0)
+    return -1;
+  pipeline_dep_ctx_set_loaded_len(ctx, (int64_t)n);
+  return 0;
+}
+
+int32_t pipeline_read_file_x_impl_c(void *ctx) {
+  return pipeline_read_file_x(ctx);
+}
+
+int32_t pipeline_read_file_x_c(void *ctx) {
+  return pipeline_read_file_x(ctx);
+}
+
+int32_t pipeline_read_fd_into_loaded_buf(void *ctx, int32_t fd) {
+  uint8_t *buf;
+  ptrdiff_t n;
+  if (!ctx || fd < 0)
+    return -1;
+  buf = pipeline_dep_ctx_loaded_buf_ptr(ctx);
+  if (!buf)
+    return -1;
+  n = std_fs_fs_read(fd, buf, (size_t)4194304);
+  if (n < 0)
+    return -1;
+  pipeline_dep_ctx_set_loaded_len(ctx, (int64_t)n);
+  return 0;
+}
+
+int32_t pipeline_preprocess_loaded_into_ctx(void *ctx) {
+  uint8_t *loaded;
+  uint8_t *prep;
+  int64_t loaded_len;
+  int32_t out_len;
+  if (!ctx)
+    return -1;
+  loaded = pipeline_dep_ctx_loaded_buf_ptr(ctx);
+  prep = pipeline_dep_ctx_preprocess_buf_ptr(ctx);
+  if (!loaded || !prep)
+    return -1;
+  loaded_len = wave101_load_i64_le((uint8_t *)ctx, wave101_off_loaded_len());
+  out_len = preprocess_x_buf(loaded, (ptrdiff_t)loaded_len, prep, 4194304);
+  if (out_len < 0)
+    return -9;
+  wave101_store_i32_le((uint8_t *)ctx, wave101_off_preprocess_len(), out_len);
+  return 0;
+}
+
+void pipeline_bind_import_dep_buffers(void *ctx, int32_t import_idx) {
+  if (!ctx || import_idx < 0)
+    return;
+  ast_pipeline_dep_ctx_set_arena((struct ast_PipelineDepCtx *)(struct ast_PipelineDepCtx *)ctx, import_idx, (struct ast_ASTArena *)(struct ast_ASTArena *)driver_dep_arena_buf(import_idx));
+  ast_pipeline_dep_ctx_set_module((struct ast_PipelineDepCtx *)(struct ast_PipelineDepCtx *)ctx, import_idx, (struct ast_Module *)(struct ast_Module *)driver_dep_module_buf(import_idx));
+}
+
+int32_t pipeline_try_bind_seeded_import(void *ctx, int32_t import_idx, int32_t global_slot) {
+  if (!ctx || import_idx < 0)
+    return 0;
+  if (global_slot >= 0 && driver_dep_seeded_get(global_slot) != 0) {
+    ast_pipeline_dep_ctx_set_arena((struct ast_PipelineDepCtx *)ctx, import_idx, (struct ast_ASTArena *)driver_dep_arena_buf(global_slot));
+    ast_pipeline_dep_ctx_set_module((struct ast_PipelineDepCtx *)ctx, import_idx, (struct ast_Module *)driver_dep_module_buf(global_slot));
+    return 1;
+  }
+  if (driver_dep_seeded_get(import_idx) != 0) {
+    ast_pipeline_dep_ctx_set_arena((struct ast_PipelineDepCtx *)ctx, import_idx, (struct ast_ASTArena *)driver_dep_arena_buf(import_idx));
+    ast_pipeline_dep_ctx_set_module((struct ast_PipelineDepCtx *)ctx, import_idx, (struct ast_Module *)driver_dep_module_buf(import_idx));
+    return 1;
+  }
+  return 0;
+}
+
+int32_t pipeline_sync_one_dep_slot(void *module, void *ctx, int32_t dep_i) {
+  uint8_t sync_path[128];
+  int32_t sync_slot;
+  int32_t pl;
+  if (!module || !ctx || dep_i < 0)
+    return -1;
+  (void)parser_copy_module_import_path64(module, dep_i, sync_path);
+  sync_slot = driver_dep_slot_for_path((const char *)sync_path);
+  if (sync_slot < 0)
+    sync_slot = dep_i;
+  pl = 0;
+  while (pl < 64 && sync_path[pl] != 0)
+    pl = pl + 1;
+  if (pl > 0)
+    pipeline_dep_ctx_set_import_path(ctx, dep_i, sync_path, pl);
+  ast_pipeline_dep_ctx_set_module((struct ast_PipelineDepCtx *)ctx, dep_i, (struct ast_Module *)driver_dep_module_buf(sync_slot));
+  ast_pipeline_dep_ctx_set_arena((struct ast_PipelineDepCtx *)ctx, dep_i, (struct ast_ASTArena *)driver_dep_arena_buf(sync_slot));
+  return 0;
+}
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+

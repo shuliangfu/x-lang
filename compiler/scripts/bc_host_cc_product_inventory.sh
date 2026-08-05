@@ -160,7 +160,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_skip_dispatch.c|8.3.2|asm skip/stub dispatch (wave1264)|220|present"
   "compiler/pipeline_asm_emit_heavy_env.c|8.3.2|EMIT_HEAVY env/thresholds/path/whitelist (wave1280)|210|present"
   "compiler/pipeline_resolve_path.c|8.3.2|import path resolve (wave1266)|260|present"
-  "compiler/pipeline_import_bind.c|8.3.2|fs read + import bind/sync (wave1270)|100|present"
+  "compiler/pipeline_import_bind.c|8.3.2|fs read + import bind/sync (wave1270; pure leave 2026-08-05)|100|absent"
   "compiler/pipeline_parse_typeck_dispatch.c|8.3.2|parse entry + typeck dispatch (wave1271)|330|present"
   "compiler/pipeline_run_x_pipeline.c|8.3.2|run_x_pipeline core orchestration (wave1272)|90|present"
   "compiler/pipeline_loop_glue.c|8.3.2|loop glue retired (codegen_x.o; host-cc leave)|0|absent"
@@ -256,7 +256,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave (BC endgame still open); pure-owned WEAK cold delete leave: preprocess_if done; field_access/soa + typeck_slots + scratch_bufs + loop_glue leave done"
+  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
 }
 
 run_check() {
