@@ -72,6 +72,17 @@ extern int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
 extern int32_t pipeline_asm_emit_as_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 
+/* wave140 pure-owned leave: INDEX/ADDR_OF/DEREF + esz (was same-TU
+ * pipeline_asm_emit_index.c). Residual expr_rec/assign/binop/helpers Cap-call
+ * pure symbols. PLATFORM: SHARED freestanding emit. */
+extern int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_index_elem_byte_sz(struct ast_ASTArena *arena, int32_t index_expr_ref);
+extern int32_t pipeline_asm_emit_index_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                             int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_addr_of_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                               int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_deref_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                             int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /* wave134 pure-owned leave: MATCH/EXPR_IF + subject context (was same-TU
  * pipeline_asm_emit_match.c). Residual expr_rec (MATCH/IF ko) + host-C

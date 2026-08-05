@@ -526,10 +526,11 @@ static int32_t glue_try_index_rvalue_slice_once_elf_c(struct ast_ASTArena *arena
 /**
  * INDEX 有效地址完整发射：try 7.3 快速路径，否则 slow push。
  */
-static int32_t glue_emit_index_eff_addr_scaled_elf_c(struct ast_ASTArena *arena,
-                                                      struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ix_ref,
-                                                      int32_t base_ref, int32_t idx_ref, struct backend_AsmFuncCtx *ctx,
-                                                      int32_t ta, int32_t esz) {
+/* wave140 pure leave Cap residual: was static; pure index/addr_of links here. PLATFORM: SHARED. */
+int32_t glue_emit_index_eff_addr_scaled_elf_c(struct ast_ASTArena *arena,
+                                              struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ix_ref,
+                                              int32_t base_ref, int32_t idx_ref, struct backend_AsmFuncCtx *ctx,
+                                              int32_t ta, int32_t esz) {
   int32_t vr;
   int32_t lit_imm;
   int32_t once_rc;

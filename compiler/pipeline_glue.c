@@ -330,9 +330,11 @@ extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
 #include "pipeline_asm_emit_array_lit.c"
 
 
-/* BC 8.3.1: asm ELF EXPR_INDEX / ADDR_OF / DEREF emit domain
- * (index_elem_byte_sz + emit_index + addr_of + deref; Cap residual pure; same TU). */
-#include "pipeline_asm_emit_index.c"
+/* wave140 pure-owned leave: pipeline_asm_emit_index.c deleted.
+ * Live = runtime_pipeline_abi pure (esz + INDEX/ADDR_OF/DEREF ELF faces); seed cold twins
+ * under #ifndef FROM_X. Residual C callsites (expr_rec/assign/binop/helpers) use extern
+ * decls in pipeline_glue_emit_fwd.c. Cap residual helpers remain index_helpers/spill/eff_addr.
+ * PLATFORM: SHARED. */
 
 
 /* BC 8.3.1: asm ELF EXPR_MATCH / EXPR_IF emit domain

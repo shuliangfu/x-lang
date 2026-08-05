@@ -53,7 +53,9 @@
  */
 
 /** INDEX 元素字节宽（前向声明，定义见本文件后部）。 */
-static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
+/* wave140 pure-owned leave: esz authority in runtime_pipeline_abi pure (#[no_mangle]).
+ * Residual assign/binop/spill/lvalue_eff_addr Cap-call this face. PLATFORM: SHARED. */
+extern int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
 /** VAR 基址 FIELD_ACCESS 有效偏移（定义见 pipeline_expr_field_access_layout_offset 附近）。 */
 static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    int32_t fa_ref);
@@ -239,8 +241,9 @@ static int32_t glue_struct_layout_name_matches_type_name_c(struct ast_Module *mo
 /**
  * FIELD_ACCESS 字段类型 ref：优先 expr resolved_type，回落 module struct layout（*Vec3f_soa.col_x 等）。
  */
-static int32_t glue_field_access_field_type_ref_c(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                 int32_t fa_ref) {
+/* wave140 pure leave Cap residual: was static; pure index esz links here. PLATFORM: SHARED. */
+int32_t glue_field_access_field_type_ref_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                           int32_t fa_ref) {
   struct ast_Expr *ex;
   int32_t tr;
   uint8_t field_name[128];
@@ -337,7 +340,8 @@ static int32_t glue_field_access_field_type_ref_c(struct ast_ASTArena *arena, st
  * G.7: align with pipeline_asm_array_lit_elem_byte_sz_c PTR=8 + INDEX element 8.
  * PLATFORM: SHARED freestanding layout · LINUX gold (mac host-C uses C multi-dim).
  */
-static int32_t glue_fixed_array_total_bytes_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t depth) {
+/* wave140 pure leave Cap residual: was static; pure index esz links here. PLATFORM: SHARED. */
+int32_t glue_fixed_array_total_bytes_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t depth) {
   int32_t n;
   int32_t elem;
   int32_t ek;
@@ -382,7 +386,8 @@ static int32_t glue_fixed_array_total_bytes_c(struct ast_ASTArena *arena, int32_
  * → esz=4 ldr w + SEGV freestanding (host-C hid). G.7: single face; no second INDEX.
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
  */
-static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr) {
+/* wave140 pure leave Cap residual: was static; pure index/deref esz links here. PLATFORM: SHARED. */
+int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr) {
   int32_t kind_ord;
   int32_t pointee;
   if (tr <= 0)
@@ -546,7 +551,8 @@ static int32_t glue_index_deref_ptr_field_slot_rbx_elf_c(struct ast_ASTArena *ar
  * load(.data), and .length uses offset 0 (tests/slice/subslice_split_chunks.x).
  * G.7: single authority for VAR type recovery (also used by index_elem_byte_sz).
  */
-static int32_t glue_var_expr_type_ref_with_decl_fallback_c(struct ast_ASTArena *arena, int32_t var_ref) {
+/* wave140 pure leave Cap residual: was static; pure index esz links here. PLATFORM: SHARED. */
+int32_t glue_var_expr_type_ref_with_decl_fallback_c(struct ast_ASTArena *arena, int32_t var_ref) {
   int32_t tr;
   uint8_t vname[128];
   int32_t vlen;

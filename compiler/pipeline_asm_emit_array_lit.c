@@ -55,7 +55,8 @@ static int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena
                                                       int32_t init_ref, struct backend_AsmFuncCtx *ctx,
                                                       int32_t ta, int32_t stack_slot_off, int32_t leaf_esz,
                                                       int32_t *flat_i);
-static int32_t glue_fixed_array_total_bytes_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t depth);
+/* wave140 pure leave Cap residual: face is public in index_helpers (was static). */
+int32_t glue_fixed_array_total_bytes_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t depth);
 /* wave1055: ast_pipeline_expr_array_lit_num_elems_at defined in ast_pool.c
  * (glue.c:16314); forward decl at glue.c:3902 > this #include (L2299), so
  * declare locally for glue_array_temp_bytes_for_let_init body (EOF below). */

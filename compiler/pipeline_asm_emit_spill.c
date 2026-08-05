@@ -227,7 +227,8 @@ static uint64_t glue_index_base_struct_key_elf_c(struct ast_ASTArena *arena, int
 static int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
 
 /** Drop cached INDEX effective address (rbx no longer trusted for reuse). */
-static void glue_index_assign_addr_cache_clear(void) {
+/* wave140 pure leave Cap residual: was static; pure emit_index links here. PLATFORM: SHARED. */
+void glue_index_assign_addr_cache_clear(void) {
   glue_index_assign_addr_cache.valid = 0;
 }
 
@@ -2135,8 +2136,9 @@ static void glue_block_live_fwd_before_stmt(int32_t stmt_i, int32_t ta,
 }
 
 /** Return 1 when rbx still holds the effective addr for the same INDEX lvalue shape. */
-static int32_t glue_index_assign_addr_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                 int32_t base_ref, int32_t idx_ref, int32_t esz) {
+/* wave140 pure leave Cap residual: was static; pure emit_index links here. PLATFORM: SHARED. */
+int32_t glue_index_assign_addr_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                         int32_t base_ref, int32_t idx_ref, int32_t esz) {
   uint64_t base_key;
   uint64_t idx_key;
   if (!glue_index_assign_addr_cache.valid)
@@ -2231,8 +2233,9 @@ static int32_t glue_index_assign_finish_store_elf_c(struct ast_ASTArena *arena,
  * 7.3：上一笔 INDEX assign 已在 rbx 留下有效址时，EXPR_INDEX 读直接 ldr，免重算 eff_addr。
  * 慢路径仍走 glue_emit_index_eff_addr_scaled_elf_c 并在入口清 cache。
  */
-static int32_t glue_index_load_from_cached_assign_addr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                              int32_t esz, int32_t ta) {
+/* wave140 pure leave Cap residual: was static; pure emit_index links here. PLATFORM: SHARED. */
+int32_t glue_index_load_from_cached_assign_addr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                     int32_t esz, int32_t ta) {
   if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
     return -1;
   if (esz == 1)

@@ -9124,8 +9124,11 @@ fi
 if ! grep -qE 'pipeline_asm_emit_array_lit\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_array_lit.c (8.3.1 asm_emit_array_lit slice)"
 fi
-if ! grep -qE 'pipeline_asm_emit_index\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_index.c (8.3.1 asm_emit_index slice)"
+if grep -qE 'pipeline_asm_emit_index\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_index.c (wave140 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_index.c" ]; then
+  bad "pipeline_asm_emit_index.c must be deleted (wave140 pure-owned leave)"
 fi
 if grep -qE 'pipeline_asm_emit_match\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_match.c (wave134 pure-owned leave)"

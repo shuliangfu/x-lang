@@ -526,7 +526,8 @@ static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct
 static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *arena,
                                                         struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                         struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t leave_addr);
-static int32_t glue_emit_index_eff_addr_scaled_elf_c(struct ast_ASTArena *arena,
+/* wave140 pure leave Cap residual: public face (was static same-TU). PLATFORM: SHARED. */
+int32_t glue_emit_index_eff_addr_scaled_elf_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ix_ref,
                                                       int32_t base_ref, int32_t idx_ref, struct backend_AsmFuncCtx *ctx,
                                                       int32_t ta, int32_t esz);
@@ -538,7 +539,8 @@ static int32_t glue_binop_preserve_rax_for_rbx_load_elf_c(struct platform_elf_El
 static int32_t glue_binop_restore_rax_after_rbx_load_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                int32_t ta);
 static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);
-static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr);
+/* wave140 pure leave Cap residual: public face (was static same-TU). PLATFORM: SHARED. */
+int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr);
 static int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
 /* wave137 Cap residual: non-static (cmp pure leave). */
 int32_t glue_var_expr_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
