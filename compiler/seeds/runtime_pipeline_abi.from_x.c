@@ -1,5 +1,7 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave167: cfg interf peak+color pure leave cold twins under #ifndef FROM_X
+ * wave166: pressure-evict pure leave cold twins under #ifndef FROM_X
  * wave155: fold_count_up_while pure leave cold twins under #ifndef FROM_X
  * wave149: binop pure leave cold twins under #ifndef FROM_X
  * wave148: vector_simd pure leave cold twins under #ifndef FROM_X
@@ -24971,6 +24973,32 @@ void glue_asm73_linear_scan_evict_cache_if_pressure(int32_t stmt_i, int32_t ta, 
 void glue_asm73_evict_cache_if_live_pressure_elf_c(int32_t ta, void *elf_ctx) {
   (void)ta;
   (void)elf_ctx;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/*
+ * wave167 cold twins: cfg interf peak + color entry faces.
+ * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+void glue_asm73_note_cfg_live_peak(const void *live, int32_t stmt_i, int32_t nso, int32_t add_interf_edges) {
+  (void)live;
+  (void)stmt_i;
+  (void)nso;
+  (void)add_interf_edges;
+}
+
+void glue_block_compute_cfg_peak_live_and_color(void *arena, void *ctx, int32_t block_ref, int32_t slot_base,
+                                               int32_t nconst, int32_t nlet) {
+  (void)arena;
+  (void)ctx;
+  (void)block_ref;
+  (void)slot_base;
+  (void)nconst;
+  (void)nlet;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

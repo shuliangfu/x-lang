@@ -1016,8 +1016,17 @@ export extern "C" function glue_live_fwd_clear_u8(live: *u8): void;
 export extern "C" function glue_live_fwd_add_u8(live: *u8, off: i32): void;
 // wave154 pure-owned: pipeline_expr_struct_lit_num_fields body in EOF section.
 export extern "C" function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_ref: i32, j: i32): i32;
-export extern "C" function glue_block_compute_cfg_peak_live_and_color(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32): void;
+/* wave167: pure owns glue_block_compute_cfg_peak_live_and_color + note_cfg_live_peak (#[no_mangle] below). */
 export extern "C" function glue_block_compute_linear_live_in(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32): void;
+/* wave167 Cap residual: thin faces for pure cfg interf peak + color entry. */
+export extern "C" function glue_asm73_cfg_interf_prepare(): void;
+export extern "C" function glue_block_simulate_cfg_live_from_empty(arena: *u8, ctx: *u8, block_ref: i32): void;
+export extern "C" function glue_asm73_linear_ctx_bind(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32, nso: i32): void;
+export extern "C" function glue_asm73_cfg_peak_stmt_i_get(): i32;
+export extern "C" function glue_asm73_cfg_peak_live_as_u8(): *u8;
+export extern "C" function glue_asm73_interf_add_live_set_u8(live: *u8): void;
+export extern "C" function glue_asm73_linear_max_live_n_maybe_raise(n: i32): void;
+export extern "C" function glue_asm73_cfg_peak_snapshot_from_u8(live: *u8, stmt_i: i32): void;
 /* wave165: pure owns glue_asm73_compute_spill_color_pins (#[no_mangle] below). */
 export extern "C" function glue_asm73_clear_spill_color_map(): void;
 export extern "C" function glue_block_live_fwd_before_stmt(stmt_i: i32, ta: i32, elf_ctx: *u8): void;
@@ -53472,3 +53481,85 @@ export function glue_asm73_evict_cache_if_live_pressure_elf_c(ta: i32, elf_ctx: 
 }
 
 // end wave166 pure-owned leave
+
+// ============================================================================
+// wave167 pure-owned leave: cfg interf peak + color entry
+// (was Cap residual spill; note_cfg_live_peak + compute_cfg_peak_live_and_color).
+// Cap residual: interf/peak BSS + simulate walk + thin prepare / add_live_set_u8 /
+// max_live raise / peak snapshot / linear_ctx_bind / peak getters / simulate_from_empty.
+// Cold twin under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * CFG live-sim peak recorder: optionally add interf edges for live pairs,
+ * raise global max |live|, and snapshot cfg_peak_live when stmt_i >= nso
+ * (final_expr window) and |live| is not smaller than the prior peak.
+ * @param live *u8 - opaque GlueBlockLiveFwd*; null → no-op
+ * @param stmt_i i32 - program point (stmt index or nso for final_expr)
+ * @param nso i32 - stmt_order count; peak snapshot only when stmt_i >= nso
+ * @param add_interf_edges i32 - non-zero → add edges + consider peak snapshot
+ * @return void
+ * wave167 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_note_cfg_live_peak(live: *u8, stmt_i: i32, nso: i32, add_interf_edges: i32): void {
+  let n: i32 = 0;
+  let peak_n: i32 = 0;
+  if (live == (0 as *u8)) {
+    return;
+  }
+  unsafe {
+    n = glue_live_fwd_n_get(live);
+    if (add_interf_edges != 0) {
+      glue_asm73_interf_add_live_set_u8(live);
+    }
+    glue_asm73_linear_max_live_n_maybe_raise(n);
+    if (add_interf_edges != 0 && stmt_i >= nso) {
+      peak_n = glue_asm73_cfg_peak_live_n_get();
+      if (n >= peak_n) {
+        glue_asm73_cfg_peak_snapshot_from_u8(live, stmt_i);
+      }
+    }
+  }
+}
+
+/**
+ * CFG-parent spill coloring entry: prepare interf/peak BSS, residual-simulate
+ * live through if/while/for (calls pure note at each program point), bind
+ * linear next-use context, then pure Chaitin color+pin (wave164).
+ * @param arena *u8 - ast_ASTArena*
+ * @param ctx *u8 - backend_AsmFuncCtx*
+ * @param block_ref i32 - block arena ref
+ * @param slot_base i32 - local slot base for linear next-use
+ * @param nconst i32 - block const count
+ * @param nlet i32 - block let count
+ * @return void
+ * wave167 pure-owned (was Cap residual spill; twin of wave165 linear pins).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_block_compute_cfg_peak_live_and_color(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32): void {
+  let nso: i32 = 0;
+  let peak_i: i32 = 0;
+  let peak_live: *u8 = 0 as *u8;
+  unsafe {
+    glue_asm73_cfg_interf_prepare();
+    glue_block_simulate_cfg_live_from_empty(arena, ctx, block_ref);
+    nso = ast_ast_block_num_stmt_order(arena, block_ref);
+  }
+  if (nso > 32) {
+    nso = 32;
+  }
+  unsafe {
+    glue_asm73_linear_ctx_bind(arena, ctx, block_ref, slot_base, nconst, nlet, nso);
+    glue_asm73_cfg_coloring_active_set(1);
+    peak_i = glue_asm73_cfg_peak_stmt_i_get();
+    peak_live = glue_asm73_cfg_peak_live_as_u8();
+    glue_asm73_compute_spill_color_chaitin(peak_i, peak_live);
+    glue_asm73_cfg_coloring_active_set(0);
+  }
+}
+
+// end wave167 pure-owned leave

@@ -65,10 +65,17 @@
  * Residual keeps cache/live BSS + thin thresh/find_depth/evict_rax|rbx/
  * live_fwd_as_u8; left_assoc still residual (calls thin evict_rbx).
  *
+ * wave167 pure-owned cfg interf peak + color entry (same pure TU):
+ *   · glue_asm73_note_cfg_live_peak
+ *   · glue_block_compute_cfg_peak_live_and_color
+ * Residual keeps interf/peak BSS + simulate_cfg_live walk + thin prepare /
+ * add_live_set_u8 / max_live raise / peak snapshot / linear_ctx_bind /
+ * peak_stmt_i_get / peak_live_as_u8 / simulate_from_empty.
+ *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
  *   · 7.3 live_fwd BSS / break-continue note + push/pop
- *   · Chaitin interf BSS + cfg interf build + stack-spill preference
+ *   · Chaitin interf BSS + cfg simulate walk + stack-spill preference
  *   · index scratch spill methods + binop_stack_spill bodies
  *     (CAP statics in pipeline_asm_emit_index_helpers.c)
  *
@@ -158,6 +165,14 @@ void glue_asm73_linear_scan_evict_cache_if_pressure_live(const void *live, int32
 void glue_asm73_linear_scan_evict_cache_if_pressure(int32_t stmt_i, int32_t ta,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx);
 void glue_asm73_evict_cache_if_live_pressure_elf_c(int32_t ta, struct platform_elf_ElfCodegenCtx *elf_ctx);
+
+/* wave167 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * Residual: interf/peak BSS + simulate walk + thin prepare/bind/snapshot.
+ * PLATFORM: SHARED freestanding 7.3. */
+void glue_asm73_note_cfg_live_peak(const void *live, int32_t stmt_i, int32_t nso, int32_t add_interf_edges);
+void glue_block_compute_cfg_peak_live_and_color(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                               int32_t block_ref, int32_t slot_base, int32_t nconst,
+                                               int32_t nlet);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -818,22 +833,9 @@ static void glue_asm73_interf_add_live_set(const GlueBlockLiveFwd *live) {
   }
 }
 
-/**
- * 7.3 cfg 模拟：记录 |live| 全局 max；cfg_peak_live 仅 final_expr（stmt_i>=nso）快照，供 Chaitin/栈帧 spill。
- */
-static void glue_asm73_note_cfg_live_peak(const GlueBlockLiveFwd *live, int32_t stmt_i, int32_t nso,
-                                           int32_t add_interf_edges) {
-  if (!live)
-    return;
-  if (add_interf_edges)
-    glue_asm73_interf_add_live_set(live);
-  if (live->n > glue_asm73_linear_max_live_n)
-    glue_asm73_linear_max_live_n = live->n;
-  if (add_interf_edges && stmt_i >= nso && live->n >= glue_asm73_cfg_peak_live.n) {
-    glue_live_fwd_copy(&glue_asm73_cfg_peak_live, live);
-    glue_asm73_cfg_peak_stmt_i = stmt_i;
-  }
-}
+/* wave167: pure owns glue_asm73_note_cfg_live_peak (extern above).
+ * Residual simulate walk calls pure note; Cap residual thin faces at EOF.
+ * PLATFORM: SHARED freestanding 7.3. */
 
 /**
  * 7.3：cfg 父块前向模拟活跃集（递归子块；while/for 保守 ∪ 入口与体尾）。
@@ -977,35 +979,9 @@ static void glue_block_simulate_cfg_live(struct ast_ASTArena *arena, struct back
   glue_live_fwd_copy(live_out, &live);
 }
 
-/** 7.3：cfg 父块入口——前向峰值 live + 设置线性上下文并做 Chaitin 着色。 */
-void glue_block_compute_cfg_peak_live_and_color(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                        int32_t block_ref, int32_t slot_base, int32_t nconst,
-                                                        int32_t nlet) {
-  GlueBlockLiveFwd live_start;
-  GlueBlockLiveFwd live_end;
-  int32_t nso;
-  glue_asm73_interf_clear();
-  glue_asm73_interf_stack_depth = 0;
-  glue_asm73_linear_max_live_n = 0;
-  glue_asm73_cfg_peak_stmt_i = 0;
-  glue_asm73_cfg_final_expr_use_n = 0;
-  glue_live_fwd_clear(&glue_asm73_cfg_peak_live);
-  glue_live_fwd_clear(&live_start);
-  glue_block_simulate_cfg_live(arena, ctx, block_ref, &live_start, &live_end, 0);
-  nso = ast_ast_block_num_stmt_order(arena, block_ref);
-  if (nso > 32)
-    nso = 32;
-  glue_asm73_linear_arena = arena;
-  glue_asm73_linear_ctx = ctx;
-  glue_asm73_linear_block_ref = block_ref;
-  glue_asm73_linear_slot_base = slot_base;
-  glue_asm73_linear_nconst = nconst;
-  glue_asm73_linear_nlet = nlet;
-  glue_asm73_linear_nso = nso;
-  glue_asm73_cfg_coloring_active = 1;
-  glue_asm73_compute_spill_color_chaitin(glue_asm73_cfg_peak_stmt_i, &glue_asm73_cfg_peak_live);
-  glue_asm73_cfg_coloring_active = 0;
-}
+/* wave167: pure owns glue_block_compute_cfg_peak_live_and_color (extern above).
+ * Residual thin: prepare / simulate_from_empty / linear_ctx_bind / peak getters.
+ * PLATFORM: SHARED freestanding 7.3. */
 
 void glue_block_compute_linear_live_in(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                int32_t block_ref, int32_t slot_base, int32_t nconst, int32_t nlet) {
@@ -2467,4 +2443,105 @@ void *glue_asm73_live_at_stmt_as_u8(int32_t stmt_i) {
  */
 void *glue_block_live_fwd_as_u8(void) {
   return (void *)&glue_block_live_fwd;
+}
+
+/* ========================================================================== *
+ * wave167 Cap residual: thin faces for pure cfg interf peak + color entry.
+ * Pure owns note_cfg_live_peak + compute_cfg_peak_live_and_color; residual owns
+ * interf/peak BSS + simulate_cfg_live walk (G.7). PLATFORM: SHARED freestanding 7.3.
+ * ========================================================================== */
+
+/**
+ * Reset interf graph + stack depth + max-live + cfg peak BSS before simulate.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_asm73_cfg_interf_prepare(void) {
+  glue_asm73_interf_clear();
+  glue_asm73_interf_stack_depth = 0;
+  glue_asm73_linear_max_live_n = 0;
+  glue_asm73_cfg_peak_stmt_i = 0;
+  glue_asm73_cfg_final_expr_use_n = 0;
+  glue_live_fwd_clear(&glue_asm73_cfg_peak_live);
+}
+
+/**
+ * Run residual cfg live simulate from empty live_in (writes interf + peak BSS
+ * via pure note_cfg_live_peak called from walk).
+ * @param arena ast_ASTArena*
+ * @param ctx backend_AsmFuncCtx*
+ * @param block_ref int32_t - block arena ref
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_block_simulate_cfg_live_from_empty(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                            int32_t block_ref) {
+  GlueBlockLiveFwd live_start;
+  GlueBlockLiveFwd live_end;
+  glue_live_fwd_clear(&live_start);
+  glue_block_simulate_cfg_live(arena, ctx, block_ref, &live_start, &live_end, 0);
+}
+
+/**
+ * Bind linear-scan / next-use context used by pure Chaitin after cfg peak build.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_asm73_linear_ctx_bind(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t block_ref,
+                               int32_t slot_base, int32_t nconst, int32_t nlet, int32_t nso) {
+  glue_asm73_linear_arena = arena;
+  glue_asm73_linear_ctx = ctx;
+  glue_asm73_linear_block_ref = block_ref;
+  glue_asm73_linear_slot_base = slot_base;
+  glue_asm73_linear_nconst = nconst;
+  glue_asm73_linear_nlet = nlet;
+  glue_asm73_linear_nso = nso;
+}
+
+/**
+ * Stmt index of cfg_peak_live snapshot (final_expr preferred when |live| ties).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_asm73_cfg_peak_stmt_i_get(void) {
+  return glue_asm73_cfg_peak_stmt_i;
+}
+
+/**
+ * Opaque pointer to glue_asm73_cfg_peak_live for pure Chaitin peak_live arg.
+ * @return void* - GlueBlockLiveFwd*
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void *glue_asm73_cfg_peak_live_as_u8(void) {
+  return (void *)&glue_asm73_cfg_peak_live;
+}
+
+/**
+ * Add undirected interf edges for all pairs in opaque live set (pure note).
+ * @param live const void* - GlueBlockLiveFwd*; null → no-op
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_asm73_interf_add_live_set_u8(const void *live) {
+  if (!live)
+    return;
+  glue_asm73_interf_add_live_set((const GlueBlockLiveFwd *)live);
+}
+
+/**
+ * Raise glue_asm73_linear_max_live_n when n is larger (pressure thresh input).
+ * @param n int32_t - candidate |live|
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_asm73_linear_max_live_n_maybe_raise(int32_t n) {
+  if (n > glue_asm73_linear_max_live_n)
+    glue_asm73_linear_max_live_n = n;
+}
+
+/**
+ * Snapshot live into cfg_peak_live and set peak stmt_i (pure note peak path).
+ * @param live const void* - GlueBlockLiveFwd*; null → no-op
+ * @param stmt_i int32_t - peak program point
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_asm73_cfg_peak_snapshot_from_u8(const void *live, int32_t stmt_i) {
+  if (!live)
+    return;
+  glue_live_fwd_copy(&glue_asm73_cfg_peak_live, (const GlueBlockLiveFwd *)live);
+  glue_asm73_cfg_peak_stmt_i = stmt_i;
 }
