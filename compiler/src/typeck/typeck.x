@@ -59,6 +59,20 @@ export extern function pipeline_typeck_check_expr_try_propagate_c(module: *Modul
 /* See implementation. */
 export extern function pipeline_typeck_check_expr_match_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
 /**
+ * Resolve unbound VAR as a field of the active match subject struct type.
+ * Authority for layout lookup lives in pipeline_typeck_check_expr.c (wave703);
+ * product VAR path is typeck_check_expr_var and must call this after local/
+ * param/top-level/import resolution fails.
+ * @param module *Module — current module (must equal subject module)
+ * @param arena *ASTArena — type pool for TYPE_NAMED name + field type_ref
+ * @param name *u8 — VAR identifier bytes (not necessarily NUL-terminated)
+ * @param name_len i32 — byte length; must be > 0
+ * @return i32 — field type_ref (>0) on hit; 0 if no active subject or no field
+ * PLATFORM: SHARED — G.7 with pipeline_typeck_check_expr_var_c subject hop
+ */
+export extern function pipeline_typeck_match_subject_field_type_c(module: *Module, arena: *ASTArena,
+name: *u8, name_len: i32): i32;
+/**
  * Product check_expr boundary (try_propagate / impl_c). Used by field_access
  * orchestrator to typecheck the base expression with reverse-inferred expected.
  * PLATFORM: SHARED
@@ -10480,6 +10494,23 @@ ctx: *PipelineDepCtx): i32 {
     /* G.7: bare import-const reject — shared with C VAR path thin. */
     if (typeck_reject_bare_import_const(module, arena, expr_ref, ctx, vbuf, vnlen) != 0) {
       return -1;
+    }
+    /*
+     * wave703 / match_struct_destructure: struct match field binds
+     * (`Point { x, y } => x + y`) store patterns as wildcards; arm bodies
+     * refer to field names as bare VARs. Product match uses
+     * pipeline_typeck_check_expr_match_c which sets g_typeck_match_subject_*;
+     * product VAR uses this .x authority — must hop subject field types here
+     * (C pipeline_typeck_check_expr_var_c already has the same hop).
+     * PLATFORM: SHARED — G.7 single subject-field authority via field_type_c.
+     */
+    if (ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
+      let ft: i32 = pipeline_typeck_match_subject_field_type_c(module, arena, vbuf, vnlen);
+      if (ft > 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, ft);
+        driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, func_ix, block_ref, 106, ft);
+        return 0;
+      }
     }
     if (ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
       return - 1;

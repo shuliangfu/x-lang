@@ -963,7 +963,7 @@
 | `ast_pool_arena.c` | ~248 | ASTArena main-pool cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_block.c` | ~1,439 | block append/region/defer + loop/labeled/getters + parent/resolve + stmt_order rebuild residual 切片 | 🟡 已抽出（wave988–990+992 有则补全）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_field_access.c` | **~218** | field_access **全 thin**（同 TU 入 glue） | 🟡 **已抽出**；**.x 权威收口**（含 bare-import-const）；仍 host-cc |
-| `pipeline_typeck_soa.c` | **~375** | typeck SOA 辅助 | 🟡 **已抽出**；部分 helper 已进 typeck.x；仍 host-cc |
+| `pipeline_typeck_soa.c` | **~82** | typeck SOA **全 thin**（extern + fill/soa_index 转调） | 🟡 **已抽出**；**.x 权威收口**；仍 host-cc |
 | `pipeline_elf_write_o.c` | **~1,581** | ELF64 ET_REL + Mach-O MH_OBJECT `.o` writers | 🟡 **已抽出**（8.3.2）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_elf_ctx.c` | **~1,001** | ELF/Mach-O codegen ctx accessors + PGO-Lite + reloc/label/patch/shndx/common sidecar | 🟡 **已抽出**（8.3.2 wave1247）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_codegen_type_to_c.c` | **~349** | TypeKind/VECTOR → C type name repr（type_kind_cstr/copy + vector_type_cstr/copy + type_to_c_repr） | 🟡 **已抽出**（8.3.2 wave1248）；仍 host-cc 入 `pipeline_x` |
@@ -1149,7 +1149,8 @@
   - ✅ `typeck_named_is_module_concrete` → typeck.x（local+dep struct/enum；wave1220 P4）；C thin `pipeline_typeck_named_is_module_concrete_c`（strict_minimal 仍转调）
   - ✅ `typeck_field_unknown_hard_fail` → typeck.x（wave674/684/702 gate；enum-no-variant）；C thin `pipeline_typeck_field_unknown_hard_fail_c`
   - ✅ `typeck_reject_bare_import_const` → typeck.x（G.7 与 `typeck_check_expr_var` 共用；`find_import_const_dep_index` + `import_const_binding_hint_at` + `driver_diagnostic_typeck_import_const_must_be_qualified`；C thin `pipeline_typeck_reject_bare_import_const_c`；field_access ~334→~218 全 thin）
-  - 🟡 residual：field_access／soa **仍 host-cc** 入 pipeline_x；soa 叶宿主（`pipeline_typeck_soa.c`）仍 thin+host。**field_access C 业务体已耗尽**；父项 8.3.3 仍 🟡（host-cc + soa 宿主）
+  - ✅ `typeck_check_expr_var` match subject field hop → typeck.x（G.7 对齐 C `pipeline_typeck_check_expr_var_c` wave703：`pipeline_typeck_match_subject_field_type_c`；闭合 `match_struct_destructure`／bind／classify 产品 XT001）
+  - 🟡 residual：field_access／soa **仍 host-cc** 入 pipeline_x；soa 叶宿主（`pipeline_typeck_soa.c` **~82 全 thin**）。**field_access／soa C 业务体已耗尽**；父项 8.3.3 仍 🟡（host-cc）
 
 ⬜ **8.3.4 bootstrap glue / orchestration 折叠进 8.3.1–8.3.2 或删**
 
