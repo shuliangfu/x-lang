@@ -253,6 +253,32 @@ extern int32_t glue_field_assign_pair_base_ref_c(struct ast_ASTArena *arena, int
 extern int32_t glue_body_expr_stmt_at_c(struct ast_ASTArena *arena, int32_t body_ref, int32_t si, int32_t nso,
                                          int32_t *out_er);
 
+/* wave143 pure-owned leave: array_lit faces live in runtime_pipeline_abi pure.
+ * Same-TU residual (expr_rec / return / block_inits / call_args / vector_let) Cap-call these. */
+extern int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t glue_init_is_empty_array_lit(struct ast_ASTArena *arena, int32_t init_ref);
+extern int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                  int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(struct ast_ASTArena *arena,
+                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
+                                                            int32_t ta, int32_t force_esz);
+extern int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *arena, int32_t et);
+extern int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
+                                                              struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                              int32_t expr_ref, int32_t force_esz, int32_t ta,
+                                                              struct backend_AsmFuncCtx *ctx);
+extern int32_t glue_fixed_array_temp_bytes(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t glue_array_temp_bytes_for_let_init(struct ast_ASTArena *arena, int32_t let_type_ref, int32_t init_ref);
+extern int32_t pipeline_asm_array_lit_elem_type_ref(struct ast_ASTArena *arena, int32_t array_lit_expr_ref);
+extern int32_t glue_pipeline_asm_al_nc_seq_take_c(void);
+/* Cap residual vector_let helpers for pure nested ARRAY_LIT. */
+extern int32_t pipeline_asm_array_lit_leaf_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t init_ref);
+extern int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
+                                                       struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                       int32_t stack_slot_off, int32_t leaf_esz, int32_t *flat_i);
+
 
 
 /* wave132: include-order fwd decls formerly only in pipeline_asm_emit_struct_let.c.

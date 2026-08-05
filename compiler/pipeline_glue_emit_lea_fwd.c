@@ -48,8 +48,8 @@ extern int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena 
                                                             struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                             int32_t force_esz);
 
-/* wave335 durable ARRAY_LIT -> rax; wave1021 body -> pipeline_asm_emit_array_lit.c (G.7). */
-static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
+/* wave335 durable ARRAY_LIT -> rax; wave1021 body -> array_lit; wave143 pure leave. */
+extern int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             int32_t expr_ref, int32_t force_esz, int32_t ta,
                                                             struct backend_AsmFuncCtx *ctx);

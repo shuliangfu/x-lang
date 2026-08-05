@@ -139,6 +139,15 @@ extern pipeline_glue_AsmFuncCtxLayout *pipeline_asm_ctx_layout(struct backend_As
 #include "pipeline_glue_backend_fwd.c"
 
 static int32_t g_pipeline_asm_al_nc_seq;
+/* wave143: pure durable Cap residual takes unique Lxlang_al_* seq (shared with
+ * return/call_args residual same-TU direct access). PLATFORM: SHARED. */
+int32_t glue_pipeline_asm_al_nc_seq_take_c(void) {
+  int32_t seq = g_pipeline_asm_al_nc_seq;
+  if (seq < 0 || seq > 999999)
+    seq = 0;
+  g_pipeline_asm_al_nc_seq = seq + 1;
+  return seq;
+}
 
 /* wave123 pure-owned leave: pipeline_asm_emit_lea_common.c deleted.
  * live = runtime_pipeline_abi pure (glue_asm_lea_*_common_* +
@@ -223,7 +232,8 @@ extern int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegen
 /**
  * let v: i32xN = [..]：逐分量写入已分配向量栈槽（按值存放），勿 store 8 字节 temp 指针。
  */
-static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
+/* wave143 pure leave */
+extern int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
 
 /* wave127 pure-owned leave: divisor_zero_check is public pure (was same-TU static).
  * Residual assign/binop call this face — extern only (G.7). */
@@ -326,9 +336,12 @@ extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
  * Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X. */
 
 
-/* BC 8.3.1: asm ELF EXPR_ARRAY_LIT emit domain (elem_byte_sz + empty +
- * emit/force_esz; Cap residual pure; same TU). */
-#include "pipeline_asm_emit_array_lit.c"
+/* wave143 pure-owned leave: pipeline_asm_emit_array_lit.c deleted.
+ * Live authority = runtime_pipeline_abi pure (elem_byte_sz + empty + emit/force_esz +
+ * force_esz_from_elem + durable + fixed/array_temp_bytes + elem_type_ref).
+ * Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * Cap residual: leaf/flat stay vector_let (static→extern); al_nc_seq_take in glue.
+ */
 
 
 /* wave140 pure-owned leave: pipeline_asm_emit_index.c deleted.

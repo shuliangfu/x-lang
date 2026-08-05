@@ -279,8 +279,9 @@ export extern "C" function asm_array_lit_reserve_stack_bytes_impl(arena: *u8, in
  */
 #[no_mangle]
 export function asm_array_lit_elem_byte_sz(arena: *u8, array_lit_ref: i32): i32 {
+  // wave143 G.7: single authority = pure pipeline_asm_array_lit_elem_byte_sz_c
   unsafe {
-    return asm_array_lit_elem_byte_sz_impl(arena, array_lit_ref);
+    return pipeline_asm_array_lit_elem_byte_sz_c(arena, array_lit_ref);
   }
   return 4;
 }
@@ -299,19 +300,11 @@ export function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i3
   return 0;
 }
 
-/** Exported function `pipeline_asm_array_lit_elem_byte_sz_c`.
- * Implements `pipeline_asm_array_lit_elem_byte_sz_c`.
- * @param arena *u8
- * @param array_lit_ref i32
- * @return i32
+/** wave143: Cap residual pure G.7 — pipeline_asm_array_lit_elem_byte_sz_c
+ * lives in runtime_pipeline_abi pure (array_lit leave). thin only re-exports.
+ * PLATFORM: SHARED freestanding.
  */
-#[no_mangle]
-export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, array_lit_ref: i32): i32 {
-  unsafe {
-    return asm_array_lit_elem_byte_sz_impl(arena, array_lit_ref);
-  }
-  return 4;
-}
+export extern "C" function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, array_lit_ref: i32): i32;
 
 /** Exported function `pipeline_asm_array_lit_reserve_stack_bytes_c`.
  * Implements `pipeline_asm_array_lit_reserve_stack_bytes_c`.

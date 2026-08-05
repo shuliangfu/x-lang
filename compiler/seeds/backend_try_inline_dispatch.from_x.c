@@ -397,20 +397,10 @@ int32_t glue_align_up8_c(int32_t n) {
  */
 /* G-02f-184：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-381 try：实现体始终 seed；public PREFER 时 thin forward */
+/* wave143 G.7: delegate to pure array_lit authority (was simplified dual path). */
+extern int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t array_lit_ref);
 int32_t asm_array_lit_elem_byte_sz_impl(struct ast_ASTArena *arena, int32_t array_lit_ref) {
-  int32_t elem_ty;
-  int32_t kind_ord;
-  if (!arena || array_lit_ref <= 0)
-    return 4;
-  elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, array_lit_ref);
-  if (elem_ty <= 0)
-    return 4;
-  kind_ord = pipeline_type_kind_ord_at(arena, elem_ty);
-  if (kind_ord == 2 || kind_ord == 1)
-    return 1;
-  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13)
-    return 4;
-  return 8;
+  return pipeline_asm_array_lit_elem_byte_sz_c(arena, array_lit_ref);
 }
 
 #ifndef XLANG_L2_TRY_INLINE_THIN_FROM_X
@@ -419,10 +409,10 @@ int32_t asm_array_lit_elem_byte_sz(struct ast_ASTArena *arena, int32_t array_lit
 }
 #endif
 
+/* wave143: public pipeline_asm_array_lit_elem_byte_sz_c owned by runtime_pipeline_abi pure.
+ * Cold twin there under #ifndef RUNTIME_PIPELINE_ABI_FROM_X; try_inline Cap residual only. */
 #ifndef XLANG_L2_TRY_INLINE_THIN_FROM_X
-int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t array_lit_ref) {
-  return asm_array_lit_elem_byte_sz(arena, array_lit_ref);
-}
+/* demoted: do not define — pure/seed runtime_pipeline_abi owns the face (G.7). */
 #endif
 
 /**

@@ -2046,32 +2046,26 @@ export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
  * @param array_lit_ref i32
  * @return i32
  */
-#[no_mangle]
-export function asm_array_lit_elem_byte_sz(arena: *u8, array_lit_ref: i32): i32 {
-  if (arena == 0) { return 4; }
-  if (array_lit_ref <= 0) { return 4; }
-  let elem_ty: i32 = 0;
-  unsafe { elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, array_lit_ref); }
-  if (elem_ty <= 0) { return 4; }
-  let kind_ord: i32 = 0;
-  unsafe { kind_ord = pipeline_type_kind_ord_at(arena, elem_ty); }
-  if (kind_ord == 2) { return 1; }
-  if (kind_ord == 1) { return 1; }
-  if (kind_ord == 0) { return 4; }
-  if (kind_ord == 3) { return 4; }
-  if (kind_ord == 13) { return 4; }
-  return 8;
-}
+/** wave143: Cap residual pure G.7 — pipeline_asm_array_lit_elem_byte_sz_c
+ * lives in runtime_pipeline_abi pure (array_lit leave).
+ * PLATFORM: SHARED freestanding.
+ */
+export extern "C" function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, array_lit_ref: i32): i32;
 
-/** Exported function `pipeline_asm_array_lit_elem_byte_sz_c`.
- * Implements `pipeline_asm_array_lit_elem_byte_sz_c`.
- * @param arena *u8
- * @param array_lit_ref i32
- * @return i32
+/**
+ * ARRAY_LIT element byte width — G.7 single authority via pure leave face.
+ * @param arena *u8 - ASTArena*
+ * @param array_lit_ref i32 - ARRAY_LIT expr_ref
+ * @return i32 - element byte size
+ * wave143: delegates to pipeline_asm_array_lit_elem_byte_sz_c (was simplified dual).
+ * PLATFORM: SHARED freestanding.
  */
 #[no_mangle]
-export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, array_lit_ref: i32): i32 {
-  return asm_array_lit_elem_byte_sz(arena, array_lit_ref);
+export function asm_array_lit_elem_byte_sz(arena: *u8, array_lit_ref: i32): i32 {
+  unsafe {
+    return pipeline_asm_array_lit_elem_byte_sz_c(arena, array_lit_ref);
+  }
+  return 4;
 }
 
 /** Exported function `asm_array_lit_reserve_stack_bytes`.

@@ -14158,4 +14158,662 @@ int32_t glue_body_expr_stmt_at_c(void *arena, int32_t body_ref, int32_t si, int3
 }
 
 
+
+/*
+ * wave143: pipeline_asm_emit_array_lit pure-owned leave cold twins.
+ * PREFER pure; cold path when PREFER!=1 / hybrid fail.
+ * Faces: elem_byte_sz + empty + emit/force_esz + force_esz_from_elem +
+ *   durable_ptr + fixed_array_temp_bytes + array_temp_bytes_for_let_init +
+ *   array_lit_elem_type_ref.
+ * Cap residual: leaf/flat (vector_let) + may_clobber + slice dual-gp +
+ *   type_size_simple + fixed_array_total + struct_type_let_init +
+ *   scalar_elem + bulk_mem + lea_common + emit_expr_elf_c + al_nc_seq_take +
+ *   pool/enc faces.
+ * LP64 next_offset@4 via (uint8_t*)ctx+4.
+ * GLUE_ARRAY_LIT_MAX_ELEMS=1024  GLUE_ARRAY_LIT_MAX_PAYLOAD=4096
+ * PLATFORM: SHARED freestanding · continues same #ifndef FROM_X as wave142.
+ */
+
+#ifndef GLUE_ARRAY_LIT_MAX_ELEMS
+#define GLUE_ARRAY_LIT_MAX_ELEMS 1024
+#endif
+#ifndef GLUE_ARRAY_LIT_MAX_PAYLOAD
+#define GLUE_ARRAY_LIT_MAX_PAYLOAD 4096
+#endif
+#ifndef GLUE_TYPE_KIND_SLICE
+#define GLUE_TYPE_KIND_SLICE 11
+#endif
+
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_elem_ref(void *arena, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_int_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_array_size_at(void *arena, int32_t ref);
+extern int32_t pipeline_arena_num_types(void *arena);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
+extern int32_t pipeline_asm_array_lit_leaf_elem_byte_sz_c(void *arena, int32_t init_ref);
+extern int32_t pipeline_asm_emit_array_lit_flat_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
+                                                       int32_t ta, int32_t stack_slot_off, int32_t leaf_esz,
+                                                       int32_t *flat_i);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_expr_emit_may_clobber_rbx_elf_c(void *arena, int32_t expr_ref);
+extern int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
+extern int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
+                                                     int32_t ta, int32_t let_ty_ref, int32_t stack_slot_off);
+extern int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(void *arena, void *elf_ctx, int32_t array_lit_ref,
+                                                             int32_t elem_ref, void *ctx, int32_t ta,
+                                                             int32_t force_esz);
+extern int32_t glue_emit_bulk_mem_copy_spills_elf_c(void *elf_ctx, int32_t src_spill, int32_t dst_spill,
+                                                     int32_t esz, int32_t ta);
+extern int32_t glue_asm_lea_rax_common_rip_x86(void *elf_ctx, uint8_t *name, int32_t name_len);
+extern int32_t glue_asm_lea_rbx_common_rip_x86(void *elf_ctx, uint8_t *name, int32_t name_len);
+extern int32_t glue_asm_lea_rax_common_adrp_arm64(void *elf_ctx, uint8_t *name, int32_t name_len);
+extern int32_t glue_asm_lea_rbx_common_adrp_arm64(void *elf_ctx, uint8_t *name, int32_t name_len);
+extern void glue_align_next_offset(void *ctx);
+extern int32_t glue_pipeline_asm_al_nc_seq_take_c(void);
+extern int32_t pipeline_elf_ctx_append_bytes(void *ctx, uint8_t *ptr, int32_t n);
+extern int32_t pipeline_elf_ctx_add_common_sym(void *ctx, uint8_t *name, int32_t name_len, int32_t sym_size,
+                                               int32_t sym_align);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t load_sz, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
+
+/* forward within cold twin set */
+int32_t pipeline_asm_array_lit_elem_type_ref(void *arena, int32_t array_lit_expr_ref);
+int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref);
+int32_t glue_fixed_array_temp_bytes(void *arena, int32_t type_ref);
+int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                                     int32_t ta, int32_t force_esz);
+
+int32_t pipeline_asm_array_lit_elem_type_ref(void *arena, int32_t array_lit_expr_ref) {
+  int32_t arr_tr;
+  int32_t tk;
+  if (!arena || array_lit_expr_ref <= 0)
+    return 0;
+  arr_tr = pipeline_expr_resolved_type_ref(arena, array_lit_expr_ref);
+  if (arr_tr <= 0)
+    return 0;
+  tk = pipeline_type_kind_ord_at(arena, arr_tr);
+  if (tk != 10 && tk != 11)
+    return 0;
+  return pipeline_type_elem_ref_at(arena, arr_tr);
+}
+
+int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref) {
+  int32_t elem_ty;
+  int32_t kind_ord;
+  int32_t nested;
+  int32_t first_ref;
+  elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+  if (elem_ty > 0) {
+    kind_ord = pipeline_type_kind_ord_at(arena, elem_ty);
+    if (kind_ord == 10) {
+      nested = glue_fixed_array_total_bytes_c(arena, elem_ty, 0);
+      if (nested > 0)
+        return nested;
+    }
+    if (kind_ord == 2 || kind_ord == 1)
+      return 1;
+    if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
+      return 4;
+    if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 ||
+        kind_ord == 9)
+      return 8;
+    if (kind_ord == GLUE_TYPE_KIND_SLICE)
+      return 16;
+    if (kind_ord == 8) {
+      void *mod = pipeline_asm_emit_module_ref_c();
+      if (mod) {
+        int32_t ssz = glue_type_size_simple(mod, arena, elem_ty, 0);
+        if (ssz > 0)
+          return ssz;
+      }
+    }
+  }
+  first_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, 0);
+  if (first_ref > 0 && pipeline_expr_kind_ord_at(arena, first_ref) == 46) {
+    int32_t n_inner = pipeline_expr_array_lit_num_elems_at(arena, first_ref);
+    int32_t iesz = pipeline_asm_array_lit_elem_byte_sz_c(arena, first_ref);
+    if (n_inner > 0 && iesz > 0)
+      return n_inner * iesz;
+  }
+  return 4;
+}
+
+int32_t glue_init_is_empty_array_lit(void *arena, int32_t init_ref) {
+  if (init_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, init_ref) != 46)
+    return 0;
+  return pipeline_expr_array_lit_num_elems_at(arena, init_ref) == 0 ? 1 : 0;
+}
+
+int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
+  int32_t ek;
+  if (!arena || et <= 0)
+    return 0;
+  ek = pipeline_type_kind_ord_at(arena, et);
+  if (ek == 2 || ek == 1)
+    return 1;
+  if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
+    return 4;
+  if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9)
+    return 8;
+  if (ek == 8) {
+    void *mod = pipeline_asm_emit_module_ref_c();
+    if (mod) {
+      int32_t ssz = glue_type_size_simple(mod, arena, et, 0);
+      if (ssz > 0)
+        return ssz;
+    }
+  }
+  if (ek == GLUE_TYPE_KIND_SLICE)
+    return 16;
+  return 0;
+}
+
+int32_t glue_fixed_array_temp_bytes(void *arena, int32_t type_ref) {
+  int32_t elem_ref;
+  int32_t esz;
+  int32_t bytes;
+  int32_t arr_sz;
+  int32_t nt;
+  if (!arena || type_ref <= 0)
+    return 0;
+  nt = pipeline_arena_num_types(arena);
+  if (type_ref > nt)
+    return 0;
+  arr_sz = pipeline_type_array_size_at(arena, type_ref);
+  if (arr_sz <= 0)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, type_ref) == 10) {
+    bytes = glue_type_size_simple(pipeline_asm_emit_module_ref_c(), arena, type_ref, 0);
+    if (bytes > 0)
+      return bytes;
+  }
+  elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+  esz = 4;
+  if (elem_ref > 0 && elem_ref <= nt) {
+    int32_t etk = pipeline_type_kind_ord_at(arena, elem_ref);
+    if (etk == 2)
+      esz = 1;
+    else if (etk == 8 || etk == 4 || etk == 5 || etk == 6 || etk == 14)
+      esz = 8;
+    else
+      esz = 4;
+  }
+  bytes = arr_sz * esz;
+  return bytes > 0 ? bytes : 0;
+}
+
+int32_t glue_array_temp_bytes_for_let_init(void *arena, int32_t let_type_ref, int32_t init_ref) {
+  int32_t bytes;
+  bytes = glue_fixed_array_temp_bytes(arena, let_type_ref);
+  if (bytes > 0)
+    return bytes;
+  if (init_ref > 0) {
+    int32_t rt = pipeline_expr_resolved_type_ref(arena, init_ref);
+    bytes = glue_fixed_array_temp_bytes(arena, rt);
+    if (bytes > 0)
+      return bytes;
+    if (pipeline_expr_kind_ord_at(arena, init_ref) == 46) {
+      int32_t ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+      if (ne > 0) {
+        int32_t esz = 4;
+        int32_t inner = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
+        if (inner > 0 && pipeline_type_kind_ord_at(arena, inner) == 2)
+          esz = 1;
+        else if (inner > 0 && (pipeline_type_kind_ord_at(arena, inner) == 8 ||
+                               pipeline_type_kind_ord_at(arena, inner) == 4))
+          esz = 8;
+        bytes = ne * esz;
+        if (bytes > 0)
+          return bytes;
+      }
+    }
+  }
+  return 0;
+}
+
+int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                                     int32_t ta, int32_t force_esz) {
+  int32_t n_arr;
+  int32_t esz;
+  int32_t ai;
+  int32_t temp_base;
+  int32_t elem_ref;
+  int32_t elem_ty;
+  int32_t nbytes;
+  int32_t has_nested;
+  int32_t *ly_next;
+  if (!ctx)
+    return -1;
+  ly_next = (int32_t *)((uint8_t *)ctx + 4);
+  n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+  if (n_arr == 0) {
+    temp_base = *ly_next;
+    return backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta);
+  }
+  if (n_arr <= 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
+    return -1;
+  has_nested = 0;
+  for (ai = 0; ai < n_arr && ai < GLUE_ARRAY_LIT_MAX_ELEMS; ai++) {
+    elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+    if (elem_ref > 0 && pipeline_expr_kind_ord_at(arena, elem_ref) == 46) {
+      has_nested = 1;
+      break;
+    }
+  }
+  esz = force_esz > 0 ? force_esz : pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
+  if (esz <= 0)
+    esz = 4;
+  elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+  nbytes = n_arr * esz;
+  {
+    int32_t reserve = (nbytes + 7) & ~7;
+    if (reserve < 8)
+      reserve = 8;
+    if (ta == 1) {
+      temp_base = *ly_next;
+      if ((temp_base % 8) != 0)
+        temp_base = (temp_base + 7) / 8 * 8;
+      *ly_next = temp_base + reserve;
+    } else {
+      temp_base = *ly_next;
+      if ((temp_base % 8) != 0)
+        temp_base = (temp_base + 7) / 8 * 8;
+      temp_base = temp_base + reserve;
+      *ly_next = temp_base;
+    }
+  }
+  if (has_nested != 0) {
+    int32_t leaf_esz = pipeline_asm_array_lit_leaf_elem_byte_sz_c(arena, expr_ref);
+    int32_t flat_i = 0;
+    if (leaf_esz <= 0)
+      leaf_esz = 4;
+    if (pipeline_asm_emit_array_lit_flat_elf_c(arena, elf_ctx, expr_ref, ctx, ta, temp_base, leaf_esz,
+                                                &flat_i) != 0)
+      return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    return backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+  }
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  for (ai = 0; ai < n_arr && ai < GLUE_ARRAY_LIT_MAX_ELEMS; ai++) {
+    elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+    if (elem_ref != 0) {
+      if (esz == 16 && elem_ty > 0 &&
+          pipeline_type_kind_ord_at(arena, elem_ty) == GLUE_TYPE_KIND_SLICE) {
+        int32_t elem_home;
+        int32_t len_spill;
+        elem_home = (ta == 1) ? (temp_base + ai * esz) : (temp_base - ai * esz);
+        if (elem_home < 0)
+          return -1;
+        if (*ly_next + 16 < *ly_next)
+          return -1;
+        *ly_next += 16;
+        len_spill = *ly_next;
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+          return -1;
+        if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_spill, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, elem_home, ta) != 0)
+          return -1;
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, len_spill, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(elem_home, ta), ta) != 0)
+          return -1;
+        continue;
+      }
+      if (esz > 8 || pipeline_expr_kind_ord_at(arena, elem_ref) == 45) {
+        int32_t elem_home;
+        int32_t st;
+        elem_home = (ta == 1) ? (temp_base + ai * esz) : (temp_base - ai * esz);
+        if (elem_home < 0)
+          return -1;
+        st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
+                                                   elem_ty > 0 ? elem_ty : 0, elem_home);
+        if (st == 0)
+          continue;
+        if (st == -1)
+          return -1;
+      }
+      {
+        int32_t may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
+        int32_t store_sz = esz;
+        if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
+          store_sz = 4;
+        if (glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena, elf_ctx, expr_ref, elem_ref, ctx, ta,
+                                                          force_esz) != 0)
+          return -1;
+        if (may_clobber != 0) {
+          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+            return -1;
+          if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta) != 0)
+            return -1;
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+            return -1;
+          if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+            return -1;
+        }
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, store_sz, ta) != 0)
+          return -1;
+      }
+    }
+  }
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  return backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+}
+
+int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  return pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, expr_ref, ctx, ta, 0);
+}
+
+int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
+                                                       int32_t force_esz, int32_t ta, void *ctx) {
+  int32_t n_arr;
+  int32_t esz;
+  int32_t ai;
+  int32_t nbytes;
+  int32_t bi;
+  int32_t elem_ref;
+  int32_t eko;
+  int32_t all_const;
+  int64_t v64;
+  uint8_t payload[GLUE_ARRAY_LIT_MAX_PAYLOAD];
+  uint8_t jmp_near[5];
+  uint8_t jmp_short[2];
+  uint8_t lea7[7];
+  int32_t disp32;
+  int32_t rel32;
+  uint8_t label[24];
+  int32_t llen;
+  int32_t seq;
+  int32_t v;
+  int32_t nd;
+  int32_t di;
+  uint8_t digs[8];
+  const char *pfx;
+  int32_t *ly_next;
+  if (!arena || !elf_ctx || expr_ref <= 0 || (ta != 0 && ta != 1))
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) != 46)
+    return -1;
+  n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+  if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
+    return -1;
+  if (n_arr == 0)
+    return backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta);
+  esz = force_esz;
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
+    if (force_esz > 8)
+      esz = force_esz;
+    else if (force_esz > 0)
+      return -1;
+    else
+      esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
+  }
+  if (esz <= 0)
+    return -1;
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8 && esz <= 8)
+    return -1;
+  if (n_arr > GLUE_ARRAY_LIT_MAX_PAYLOAD / esz)
+    return -1;
+  nbytes = n_arr * esz;
+  if (nbytes <= 0 || nbytes > GLUE_ARRAY_LIT_MAX_PAYLOAD)
+    return -1;
+  all_const = 1;
+  for (ai = 0; ai < n_arr; ai++) {
+    elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+    if (elem_ref <= 0)
+      return -1;
+    eko = pipeline_expr_kind_ord_at(arena, elem_ref);
+    if (eko != 0 && eko != 2)
+      all_const = 0;
+  }
+  if (all_const != 0 && ta == 0 && (esz == 1 || esz == 2 || esz == 4 || esz == 8)) {
+    for (ai = 0; ai < n_arr; ai++) {
+      elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+      v64 = (int64_t)pipeline_expr_int_val_at(arena, elem_ref);
+      bi = ai * esz;
+      if (esz == 1) {
+        payload[bi] = (uint8_t)(v64 & 0xff);
+      } else if (esz == 2) {
+        payload[bi] = (uint8_t)(v64 & 0xff);
+        payload[bi + 1] = (uint8_t)((v64 >> 8) & 0xff);
+      } else if (esz == 4) {
+        payload[bi] = (uint8_t)(v64 & 0xff);
+        payload[bi + 1] = (uint8_t)((v64 >> 8) & 0xff);
+        payload[bi + 2] = (uint8_t)((v64 >> 16) & 0xff);
+        payload[bi + 3] = (uint8_t)((v64 >> 24) & 0xff);
+      } else {
+        payload[bi] = (uint8_t)(v64 & 0xff);
+        payload[bi + 1] = (uint8_t)((v64 >> 8) & 0xff);
+        payload[bi + 2] = (uint8_t)((v64 >> 16) & 0xff);
+        payload[bi + 3] = (uint8_t)((v64 >> 24) & 0xff);
+        payload[bi + 4] = (uint8_t)((v64 >> 32) & 0xff);
+        payload[bi + 5] = (uint8_t)((v64 >> 40) & 0xff);
+        payload[bi + 6] = (uint8_t)((v64 >> 48) & 0xff);
+        payload[bi + 7] = (uint8_t)((v64 >> 56) & 0xff);
+      }
+    }
+    if (nbytes <= 127) {
+      jmp_short[0] = 0xeb;
+      jmp_short[1] = (uint8_t)nbytes;
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, jmp_short, 2) != 0)
+        return -1;
+    } else {
+      rel32 = nbytes;
+      jmp_near[0] = 0xe9;
+      jmp_near[1] = (uint8_t)(rel32 & 0xff);
+      jmp_near[2] = (uint8_t)((rel32 >> 8) & 0xff);
+      jmp_near[3] = (uint8_t)((rel32 >> 16) & 0xff);
+      jmp_near[4] = (uint8_t)((rel32 >> 24) & 0xff);
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, jmp_near, 5) != 0)
+        return -1;
+    }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, payload, nbytes) != 0)
+      return -1;
+    disp32 = -nbytes - 7;
+    lea7[0] = 0x48;
+    lea7[1] = 0x8d;
+    lea7[2] = 0x05;
+    lea7[3] = (uint8_t)(disp32 & 0xff);
+    lea7[4] = (uint8_t)((disp32 >> 8) & 0xff);
+    lea7[5] = (uint8_t)((disp32 >> 16) & 0xff);
+    lea7[6] = (uint8_t)((disp32 >> 24) & 0xff);
+    return pipeline_elf_ctx_append_bytes(elf_ctx, lea7, 7);
+  }
+  if ((all_const == 0 || esz > 8) && !ctx)
+    return -1;
+  seq = glue_pipeline_asm_al_nc_seq_take_c();
+  llen = 0;
+  pfx = "Lxlang_al_";
+  while (pfx[llen] != 0 && llen < 12) {
+    label[llen] = (uint8_t)pfx[llen];
+    llen++;
+  }
+  v = seq;
+  nd = 0;
+  if (v == 0) {
+    digs[0] = (uint8_t)'0';
+    nd = 1;
+  } else {
+    while (v > 0 && nd < 8) {
+      digs[nd++] = (uint8_t)('0' + (v % 10));
+      v /= 10;
+    }
+  }
+  for (di = nd - 1; di >= 0 && llen < 23; di--)
+    label[llen++] = digs[di];
+  {
+    int32_t common_align = esz;
+    if (common_align > 16)
+      common_align = 16;
+    if (common_align < 1)
+      common_align = 1;
+    if (pipeline_elf_ctx_add_common_sym(elf_ctx, label, llen, nbytes, common_align) != 0)
+      return -1;
+  }
+  if (esz > 8) {
+    int32_t elem_ty;
+    int32_t src_spill;
+    int32_t dst_spill;
+    int32_t temp_home;
+    int32_t elem_reserve;
+    int32_t st;
+    ly_next = (int32_t *)((uint8_t *)ctx + 4);
+    elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+    if (elem_ty > 0 && pipeline_type_kind_ord_at(arena, elem_ty) == GLUE_TYPE_KIND_SLICE && esz == 16) {
+      int32_t data_spill;
+      int32_t len_spill;
+      if (*ly_next + 48 < *ly_next)
+        return -1;
+      *ly_next += 16;
+      data_spill = *ly_next;
+      *ly_next += 16;
+      len_spill = *ly_next;
+      *ly_next += 16;
+      src_spill = *ly_next;
+      *ly_next += 16;
+      dst_spill = *ly_next;
+      temp_home = *ly_next + 16;
+      *ly_next = temp_home + 16;
+      glue_align_next_offset(ctx);
+      for (ai = 0; ai < n_arr; ai++) {
+        elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+        if (elem_ref <= 0)
+          return -1;
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, data_spill, ta) != 0)
+          return -1;
+        if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_spill, ta) != 0)
+          return -1;
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, data_spill, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, temp_home, ta) != 0)
+          return -1;
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, len_spill, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(temp_home, ta), ta) != 0)
+          return -1;
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_home, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0)
+          return -1;
+        if (ta == 1) {
+          if (glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen) != 0)
+            return -1;
+        } else if (glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen) != 0) {
+          return -1;
+        }
+        if (ai * esz != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, ai * esz, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, dst_spill, ta) != 0)
+          return -1;
+        if (glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_spill, dst_spill, 16, ta) != 0)
+          return -1;
+      }
+      if (ta == 1)
+        return glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen);
+      return glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen);
+    }
+    if (*ly_next + 32 < *ly_next)
+      return -1;
+    *ly_next += 16;
+    src_spill = *ly_next;
+    *ly_next += 16;
+    dst_spill = *ly_next;
+    elem_reserve = (esz + 7) & ~7;
+    if (elem_reserve < 8)
+      elem_reserve = 8;
+    if (*ly_next + elem_reserve < *ly_next)
+      return -1;
+    *ly_next += elem_reserve;
+    temp_home = *ly_next;
+    for (ai = 0; ai < n_arr; ai++) {
+      elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+      if (elem_ref <= 0)
+        return -1;
+      st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
+                                                 elem_ty > 0 ? elem_ty : 0, temp_home);
+      if (st != 0)
+        return -1;
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_home, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0)
+        return -1;
+      if (ta == 1) {
+        if (glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen) != 0)
+          return -1;
+      } else if (glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen) != 0) {
+        return -1;
+      }
+      if (ai * esz != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, ai * esz, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, dst_spill, ta) != 0)
+        return -1;
+      if (glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_spill, dst_spill, esz, ta) != 0)
+        return -1;
+    }
+    if (ta == 1)
+      return glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen);
+    return glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen);
+  }
+  for (ai = 0; ai < n_arr; ai++) {
+    elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+    if (elem_ref <= 0)
+      return -1;
+    if (all_const != 0) {
+      v64 = (int64_t)pipeline_expr_int_val_at(arena, elem_ref);
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, (int32_t)(v64 & 0xffffffff),
+                                             (int32_t)((v64 >> 32) & 0xffffffff), ta) != 0)
+        return -1;
+    } else {
+      if (glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena, elf_ctx, expr_ref, elem_ref, ctx, ta,
+                                                        force_esz) != 0)
+        return -1;
+    }
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (ta == 1) {
+      if (glue_asm_lea_rbx_common_adrp_arm64(elf_ctx, label, llen) != 0)
+        return -1;
+    } else if (glue_asm_lea_rbx_common_rip_x86(elf_ctx, label, llen) != 0) {
+      return -1;
+    }
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
+      return -1;
+  }
+  if (ta == 1)
+    return glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen);
+  return glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen);
+}
+
+
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

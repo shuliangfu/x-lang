@@ -9125,8 +9125,12 @@ fi
 if [ -f "$ROOT/compiler/pipeline_asm_emit_assign.c" ]; then
   bad "pipeline_asm_emit_assign.c must be deleted (wave142 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_array_lit\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_array_lit.c (8.3.1 asm_emit_array_lit slice)"
+# wave143 pure-owned leave: array_lit faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_array_lit\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_array_lit.c (wave143 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_array_lit.c" ]; then
+  bad "pipeline_asm_emit_array_lit.c must be deleted (wave143 pure-owned leave)"
 fi
 if grep -qE 'pipeline_asm_emit_index\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_index.c (wave140 pure-owned leave)"

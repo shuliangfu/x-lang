@@ -90,8 +90,8 @@ int implicit_tail_expr_disallowed_by_glue(struct ast_ASTArena *a, int32_t expr_r
  * 无效、非数组或 elem 缺失时返回 0。在 C 内读池，避免 .x 中 `let e: Expr = ast_arena_expr_get` 后字段访问触发 typeck 失败，
  * 亦避免 backend import codegen 时 pipeline_type_* 调用被编成 codegen_ 前缀导致链接未定义。
  */
-/* wave1195 G.7: pipeline_asm_array_lit_elem_type_ref migrated to
- * pipeline_asm_emit_array_lit.c EOF (same-TU #include at L1574).
+/* wave1195 G.7: pipeline_asm_array_lit_elem_type_ref migrated to array_lit;
+ * wave143 pure leave: live = runtime_pipeline_abi pure.
  * Colocated with array_lit emit domain. Extern fwd decl below
  * ensures visibility for callsites before #include (as.c L1345,
  * vector_let.c L1476). PLATFORM: SHARED. */
@@ -580,9 +580,10 @@ static int32_t glue_emit_sret_return_from_var_elf_c(struct ast_ASTArena *arena,
                                                     struct backend_AsmFuncCtx *ctx, int32_t ta);
 /* wave333: return ARRAY_LIT→TYPE_SLICE dual-GP (defs later).
  * wave631: force_esz>0 overrides lit-inferred elem width (TYPE_SLICE formal / large NAMED). */
-int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* wave143 pure leave: array_lit faces live in runtime_pipeline_abi pure. */
+extern int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
-static int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(struct ast_ASTArena *arena,
+extern int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
                                                           int32_t ta, int32_t force_esz);
@@ -591,7 +592,8 @@ void pipeline_asm_bump_next_offset_for_array_lit(struct ast_ASTArena *arena, int
 /* wave126 pure leave: after_let_init live = runtime_pipeline_abi pure (was same-TU def only). */
 void pipeline_asm_bump_next_offset_after_let_init(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
                                                    int32_t init_ref, struct backend_AsmFuncCtx *ctx);
-static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
+/* wave143 pure leave */
+extern int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
 /* wave132 Cap residual: type_size_simple public for pure struct_let leave. */
 int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 /**
@@ -603,7 +605,8 @@ int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int3
  * G.7: single authority for let-init / call-arg / return force_esz (was 4× scalar-only).
  * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
  */
-static int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *arena, int32_t et);
+/* wave143 pure leave */
+extern int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *arena, int32_t et);
 /* wave692: used by durable TYPE_SLICE fat pack before full defs later in TU. */
 int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
 /* wave126 pure leave: glue_align_next_offset live = runtime_pipeline_abi pure (no longer static). */

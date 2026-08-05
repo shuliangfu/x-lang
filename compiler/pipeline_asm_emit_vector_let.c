@@ -49,7 +49,8 @@
  * G.7: single peel helper for vector_let_init + rvalue emit_array_lit flat paths.
  * PLATFORM: SHARED freestanding multi-dim.
  */
-static int32_t pipeline_asm_array_lit_leaf_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t init_ref) {
+/* wave143 pure Cap residual: static→extern for pure array_lit force_esz nested path. */
+int32_t pipeline_asm_array_lit_leaf_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t init_ref) {
   int32_t cur;
   int32_t guard;
   if (!arena || init_ref <= 0)
@@ -89,7 +90,8 @@ static int32_t pipeline_asm_array_lit_leaf_elem_byte_sz_c(struct ast_ASTArena *a
  *
  * @return 0 ok; -1 error
  */
-static int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena,
+/* wave143 pure Cap residual: static→extern. */
+int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
                                                       struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                       int32_t stack_slot_off, int32_t leaf_esz, int32_t *flat_i) {
