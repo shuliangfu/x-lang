@@ -583,7 +583,10 @@ ensure_one() {
 
   log "cc -c $seed → $out"
   # shellcheck disable=SC2086
-  $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS "${extras[@]+"${extras[@]}"}" -c -o "$out" "$seed"
+  if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS "${extras[@]+"${extras[@]}"}" -c -o "$out" "$seed"; then
+    echo "ensure_host_cc_seed_o: cc failed for $out (seed=$seed)" >&2
+    return 1
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -2873,15 +2876,15 @@ ensure_pipeline_abi_prefer_one() {
   fi
 
   # Cold full seed (ensure_one twin / PREFER=0) with XLANG_USE_X_PIPELINE.
-  # wave176: when product PREFER=1 and hybrid failed, do NOT FORCE-wipe an
-  # existing hybrid .o with a cold full-seed compile (cold seed currently
-  # fails type conflicts and leaves OUT missing → pure-ld phase1 fails).
-  # Keep prior OUT if present; only cold-compile when PREFER≠1 or OUT missing.
-  # PLATFORM: SHARED freestanding product PREFER path.
+  # wave176: cold full seed currently fails type conflicts and would leave OUT
+  # missing (ensure_one does not check cc status → pure-ld phase1 fails).
+  # Prefer path: if hybrid failed but OUT exists, keep it.
+  # Cold path (sat -B PREFER=0): if OUT exists, skip cold recompile that would wipe.
+  # PLATFORM: SHARED freestanding product / sat rebuild safety.
   cold_flags="$(pipeline_abi_prefer_cflags)"
   # shellcheck disable=SC2086
-  if [ "$prefer" = "1" ] && [ -f "$o" ]; then
-    log "pipeline_abi hybrid failed; keep existing $o (skip cold wipe, wave176)"
+  if [ -f "$o" ]; then
+    log "pipeline_abi skip cold wipe; keep existing $o (wave176; cold seed type conflicts)"
     return 0
   fi
   ensure_one "$o" "$seed" $cold_flags
