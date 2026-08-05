@@ -1150,7 +1150,9 @@
   - ✅ `typeck_field_unknown_hard_fail` → typeck.x（wave674/684/702 gate；enum-no-variant）；C thin `pipeline_typeck_field_unknown_hard_fail_c`
   - ✅ `typeck_reject_bare_import_const` → typeck.x（G.7 与 `typeck_check_expr_var` 共用；`find_import_const_dep_index` + `import_const_binding_hint_at` + `driver_diagnostic_typeck_import_const_must_be_qualified`；C thin `pipeline_typeck_reject_bare_import_const_c`；field_access ~334→~218 全 thin）
   - ✅ `typeck_check_expr_var` match subject field hop → typeck.x（G.7 对齐 C `pipeline_typeck_check_expr_var_c` wave703：`pipeline_typeck_match_subject_field_type_c`；闭合 `match_struct_destructure`／bind／classify 产品 XT001）
+  - ✅ pure-asm MATCH field-bind → `pipeline_asm_emit_match_elf_c` set `pipeline_codegen_match_*` subject + VAR fast `glue_try_emit_match_subject_field_var_elf_c`（G.7 对齐 host-C wave707；闭合 Ubuntu pure `match_struct_bind` CG002）
   - 🟡 residual：field_access／soa **仍 host-cc** 入 pipeline_x；soa 叶宿主（`pipeline_typeck_soa.c` **~82 全 thin**）。**field_access／soa C 业务体已耗尽**；父项 8.3.3 仍 🟡（host-cc）
+  - 🟡 soft residual：pure-asm struct **field-lit 多臂**谓词（`Point { x:0, y:0 }` 等；host-C 绿；bstrict 产品 `-backend c` 不挡）
 
 ⬜ **8.3.4 bootstrap glue / orchestration 折叠进 8.3.1–8.3.2 或删**
 
