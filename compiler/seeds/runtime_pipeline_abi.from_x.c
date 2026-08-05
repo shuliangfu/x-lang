@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave170: binop try_reload pure leave cold twin under #ifndef FROM_X
  * wave169: index-scratch pure leave cold twins under #ifndef FROM_X
  * wave168: cfg simulate walk pure leave cold twins under #ifndef FROM_X
  * wave167: cfg interf peak+color pure leave cold twins under #ifndef FROM_X
@@ -25057,6 +25058,24 @@ int32_t glue_binop_stack_spill_push_elf_c(void *elf_ctx, int32_t ta, int32_t off
   (void)ta;
   (void)off;
   (void)from_rbx;
+  return 0;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/*
+ * wave170 cold twin: binop spill try-reload public face.
+ * Freestanding-safe no-op stub. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+int32_t glue_binop_try_reload_spill_off_elf_c(void *elf_ctx, void *ctx, int32_t off, int32_t ta, int32_t to_rbx) {
+  (void)elf_ctx;
+  (void)ctx;
+  (void)off;
+  (void)ta;
+  (void)to_rbx;
   return 0;
 }
 

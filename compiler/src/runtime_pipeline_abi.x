@@ -40698,7 +40698,21 @@ export extern "C" function glue_binop_var_slot_cache_set_rax_off(off: i32): void
 export extern "C" function glue_binop_var_slot_cache_set_rbx_off(off: i32): void;
 // wave156 pure-owned: glue_enc_swap_rax_rbx_arm64_elf_c lives in EOF.
 export extern "C" function glue_asm73_var_prefers_stack_spill(off: i32): i32;
-export extern "C" function glue_binop_try_reload_spill_off_elf_c(elf_ctx: *u8, ctx: *u8, off: i32, ta: i32, to_rbx: i32): i32;
+/* wave170: pure owns glue_binop_try_reload_spill_off_elf_c (#[no_mangle] below). */
+/* wave170 Cap residual: thin stack-spill reload for pure try_reload leave. */
+export extern "C" function glue_binop_stack_spill_try_reload_elf_c(elf_ctx: *u8, ta: i32, off: i32, to_rbx: i32): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x10_to_rax(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x10_to_rbx(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x11_to_rax(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x11_to_rbx(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x12_to_rax(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x12_to_rbx(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x13_to_rax(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x13_to_rbx(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x14_to_rax(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x14_to_rbx(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x15_to_rax(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_mov_x15_to_rbx(elf_ctx: *u8): i32;
 /* wave169: pure owns glue_binop_stack_spill_push_elf_c (#[no_mangle] below). */
 export extern "C" function glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(arena: *u8, ctx: *u8, right_ref: i32, ta: i32, elf_ctx: *u8): void;
 /* wave166: pure owns glue_asm73_evict_cache_if_live_pressure_elf_c (#[no_mangle] below). */
@@ -54095,3 +54109,171 @@ export function glue_binop_stack_spill_push_elf_c(elf_ctx: *u8, ta: i32, off: i3
 }
 
 // end wave169 pure-owned leave
+
+// ============================================================================
+// wave170 pure-owned leave: binop spill try-reload public face
+// (was Cap residual spill; VAR cache BSS + stack-spill tables stay residual).
+// Public face:
+//   · glue_binop_try_reload_spill_off_elf_c
+// Cap residual: stack_try_reload thin + x10–x15 BSS accessors + enc mov
+// + index-scratch enc push/reload + cache spill helpers (minus_pair/subadd3).
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * Reload VAR stack-slot off from arm64 spill into rax/x0 or rbx/x1.
+ * Order: residual stack-frame spill table first; then x15..x10 linear-scan
+ * spill regs. On x-reg hit, clears that xN valid bit and stamps rax/rbx cache.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx* (must match residual cache ctx_key)
+ * @param off i32 - stack-slot offset of the VAR
+ * @param ta i32 - target arch (only arm64 reloads; others return 0)
+ * @param to_rbx i32 - non-zero → load into rbx/x1; else rax/x0
+ * @return i32 - 1 hit; 0 miss/no-op; -1 enc fail
+ * wave170 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64 linear-scan spill.
+ */
+#[no_mangle]
+export function glue_binop_try_reload_spill_off_elf_c(elf_ctx: *u8, ctx: *u8, off: i32, ta: i32, to_rbx: i32): i32 {
+  let stk: i32 = 0;
+  let rc: i32 = 0;
+  if (ta != 1 || off < 0 || elf_ctx == (0 as *u8) || ctx == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    if (glue_binop_var_slot_cache_ctx_matches(ctx) == 0) {
+      return 0;
+    }
+    stk = glue_binop_stack_spill_try_reload_elf_c(elf_ctx, ta, off, to_rbx);
+  }
+  if (stk != 0) {
+    return stk;
+  }
+  // x15 first (highest linear-scan spill), then x14..x10 — matches residual order.
+  unsafe {
+    if (glue_binop_var_slot_cache_valid_x15_get() != 0 && glue_binop_var_slot_cache_x15_off_get() == off) {
+      if (to_rbx != 0) {
+        rc = arch_arm64_enc_enc_mov_x15_to_rbx(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_binop_var_slot_cache_set_valid_x15(0);
+        glue_binop_var_slot_cache_set_valid_rbx(1);
+        glue_binop_var_slot_cache_set_rbx_off(off);
+      } else {
+        rc = arch_arm64_enc_enc_mov_x15_to_rax(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_binop_var_slot_cache_set_valid_x15(0);
+        glue_binop_var_slot_cache_set_valid_rax(1);
+        glue_binop_var_slot_cache_set_rax_off(off);
+      }
+      return 1;
+    }
+    if (glue_binop_var_slot_cache_valid_x14_get() != 0 && glue_binop_var_slot_cache_x14_off_get() == off) {
+      if (to_rbx != 0) {
+        rc = arch_arm64_enc_enc_mov_x14_to_rbx(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_binop_var_slot_cache_set_valid_x14(0);
+        glue_binop_var_slot_cache_set_valid_rbx(1);
+        glue_binop_var_slot_cache_set_rbx_off(off);
+      } else {
+        rc = arch_arm64_enc_enc_mov_x14_to_rax(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_binop_var_slot_cache_set_valid_x14(0);
+        glue_binop_var_slot_cache_set_valid_rax(1);
+        glue_binop_var_slot_cache_set_rax_off(off);
+      }
+      return 1;
+    }
+    if (glue_binop_var_slot_cache_valid_x13_get() != 0 && glue_binop_var_slot_cache_x13_off_get() == off) {
+      if (to_rbx != 0) {
+        rc = arch_arm64_enc_enc_mov_x13_to_rbx(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_binop_var_slot_cache_set_valid_x13(0);
+        glue_binop_var_slot_cache_set_valid_rbx(1);
+        glue_binop_var_slot_cache_set_rbx_off(off);
+      } else {
+        rc = arch_arm64_enc_enc_mov_x13_to_rax(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_binop_var_slot_cache_set_valid_x13(0);
+        glue_binop_var_slot_cache_set_valid_rax(1);
+        glue_binop_var_slot_cache_set_rax_off(off);
+      }
+      return 1;
+    }
+    if (glue_binop_var_slot_cache_valid_x10_get() != 0 && glue_binop_var_slot_cache_x10_off_get() == off) {
+      if (to_rbx != 0) {
+        rc = arch_arm64_enc_enc_mov_x10_to_rbx(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_binop_var_slot_cache_set_valid_x10(0);
+        glue_binop_var_slot_cache_set_valid_rbx(1);
+        glue_binop_var_slot_cache_set_rbx_off(off);
+      } else {
+        rc = arch_arm64_enc_enc_mov_x10_to_rax(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_binop_var_slot_cache_set_valid_x10(0);
+        glue_binop_var_slot_cache_set_valid_rax(1);
+        glue_binop_var_slot_cache_set_rax_off(off);
+      }
+      return 1;
+    }
+    if (glue_binop_var_slot_cache_valid_x11_get() != 0 && glue_binop_var_slot_cache_x11_off_get() == off) {
+      if (to_rbx != 0) {
+        rc = arch_arm64_enc_enc_mov_x11_to_rbx(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_binop_var_slot_cache_set_valid_x11(0);
+        glue_binop_var_slot_cache_set_valid_rbx(1);
+        glue_binop_var_slot_cache_set_rbx_off(off);
+      } else {
+        rc = arch_arm64_enc_enc_mov_x11_to_rax(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_binop_var_slot_cache_set_valid_x11(0);
+        glue_binop_var_slot_cache_set_valid_rax(1);
+        glue_binop_var_slot_cache_set_rax_off(off);
+      }
+      return 1;
+    }
+    if (glue_binop_var_slot_cache_valid_x12_get() != 0 && glue_binop_var_slot_cache_x12_off_get() == off) {
+      if (to_rbx != 0) {
+        rc = arch_arm64_enc_enc_mov_x12_to_rbx(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_binop_var_slot_cache_set_valid_x12(0);
+        glue_binop_var_slot_cache_set_valid_rbx(1);
+        glue_binop_var_slot_cache_set_rbx_off(off);
+      } else {
+        rc = arch_arm64_enc_enc_mov_x12_to_rax(elf_ctx);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        glue_binop_var_slot_cache_set_valid_x12(0);
+        glue_binop_var_slot_cache_set_valid_rax(1);
+        glue_binop_var_slot_cache_set_rax_off(off);
+      }
+      return 1;
+    }
+  }
+  return 0;
+}
+
+// end wave170 pure-owned leave

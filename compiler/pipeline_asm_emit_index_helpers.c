@@ -1446,8 +1446,9 @@ int32_t glue_binop_stack_spill_find_depth(int32_t off);
 /* wave169 pure-owned: glue_binop_stack_spill_push_elf_c (runtime_pipeline_abi pure). */
 int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
                                                   int32_t from_rbx);
-static int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
-                                                        int32_t off, int32_t to_rbx);
+/* wave170 Cap residual thin (def spill.c): pure try_reload leave uses this. */
+int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+                                                int32_t off, int32_t to_rbx);
 /* wave149 Cap residual non-static (def spill.c). */
 int32_t glue_asm73_var_prefers_stack_spill(int32_t off);
 

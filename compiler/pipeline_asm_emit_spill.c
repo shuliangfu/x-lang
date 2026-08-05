@@ -84,7 +84,13 @@
  *   · glue_binop_stack_spill_push_elf_c
  * Residual keeps CAP BSS (depth / minus_pair / subadd3 / stack_spill tables
  * in index_helpers) + thin depth_get / pop_enc / caches_hit_var /
- * stack_spill_append + enc push/reload + try_reload + cache spill helpers.
+ * stack_spill_append + enc push/reload + cache spill helpers.
+ *
+ * wave170 pure-owned binop spill try-reload (same pure TU):
+ *   · glue_binop_try_reload_spill_off_elf_c
+ * Residual keeps VAR cache BSS + stack-spill tables + thin find_depth /
+ * depth_get / set_valid_x* / set_rax|rbx_off + stack_try_reload thin +
+ * enc push/reload + cache spill helpers (minus_pair / subadd3).
  *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
@@ -204,6 +210,13 @@ void glue_index_scratch_spill_invalidate_var(struct ast_ASTArena *arena,
                                              struct backend_AsmFuncCtx *ctx, int32_t var_ref, int32_t ta);
 int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
                                           int32_t from_rbx);
+
+/* wave170 pure-owned face (extern; live in runtime_pipeline_abi pure).
+ * Residual thin: glue_binop_stack_spill_try_reload_elf_c + cache BSS accessors.
+ * PLATFORM: SHARED freestanding 7.3. */
+int32_t glue_binop_try_reload_spill_off_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                             struct backend_AsmFuncCtx *ctx, int32_t off, int32_t ta,
+                                             int32_t to_rbx);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -1484,117 +1497,9 @@ static int32_t glue_binop_spill_reg_to_spill_elf_c(struct platform_elf_ElfCodege
   return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, which);
 }
 
-/**
- * 7.3：VAR 栈槽 off 若已在 spill（x10–x15）则装入 rax/rbx；1=命中，0=未命中，-1=错。
- */
-/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
-int32_t glue_binop_try_reload_spill_off_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                      struct backend_AsmFuncCtx *ctx, int32_t off, int32_t ta,
-                                                      int32_t to_rbx) {
-  int32_t stk;
-  if (ta != 1 || off < 0 || !elf_ctx || !ctx || glue_binop_var_slot_cache.ctx_key != (size_t)ctx)
-    return 0;
-  stk = glue_binop_stack_spill_try_reload_elf_c(elf_ctx, ta, off, to_rbx);
-  if (stk != 0)
-    return stk;
-  if (glue_binop_var_slot_cache.valid_x15 && glue_binop_var_slot_cache.x15_off == off) {
-    if (to_rbx != 0) {
-      if (arch_arm64_enc_enc_mov_x15_to_rbx(elf_ctx) != 0)
-        return -1;
-      glue_binop_var_slot_cache.valid_x15 = 0;
-      glue_binop_var_slot_cache.valid_rbx = 1;
-      glue_binop_var_slot_cache.rbx_off = off;
-    } else {
-      if (arch_arm64_enc_enc_mov_x15_to_rax(elf_ctx) != 0)
-        return -1;
-      glue_binop_var_slot_cache.valid_x15 = 0;
-      glue_binop_var_slot_cache.valid_rax = 1;
-      glue_binop_var_slot_cache.rax_off = off;
-    }
-    return 1;
-  }
-  if (glue_binop_var_slot_cache.valid_x14 && glue_binop_var_slot_cache.x14_off == off) {
-    if (to_rbx != 0) {
-      if (arch_arm64_enc_enc_mov_x14_to_rbx(elf_ctx) != 0)
-        return -1;
-      glue_binop_var_slot_cache.valid_x14 = 0;
-      glue_binop_var_slot_cache.valid_rbx = 1;
-      glue_binop_var_slot_cache.rbx_off = off;
-    } else {
-      if (arch_arm64_enc_enc_mov_x14_to_rax(elf_ctx) != 0)
-        return -1;
-      glue_binop_var_slot_cache.valid_x14 = 0;
-      glue_binop_var_slot_cache.valid_rax = 1;
-      glue_binop_var_slot_cache.rax_off = off;
-    }
-    return 1;
-  }
-  if (glue_binop_var_slot_cache.valid_x13 && glue_binop_var_slot_cache.x13_off == off) {
-    if (to_rbx != 0) {
-      if (arch_arm64_enc_enc_mov_x13_to_rbx(elf_ctx) != 0)
-        return -1;
-      glue_binop_var_slot_cache.valid_x13 = 0;
-      glue_binop_var_slot_cache.valid_rbx = 1;
-      glue_binop_var_slot_cache.rbx_off = off;
-    } else {
-      if (arch_arm64_enc_enc_mov_x13_to_rax(elf_ctx) != 0)
-        return -1;
-      glue_binop_var_slot_cache.valid_x13 = 0;
-      glue_binop_var_slot_cache.valid_rax = 1;
-      glue_binop_var_slot_cache.rax_off = off;
-    }
-    return 1;
-  }
-  if (glue_binop_var_slot_cache.valid_x10 && glue_binop_var_slot_cache.x10_off == off) {
-    if (to_rbx != 0) {
-      if (arch_arm64_enc_enc_mov_x10_to_rbx(elf_ctx) != 0)
-        return -1;
-      glue_binop_var_slot_cache.valid_x10 = 0;
-      glue_binop_var_slot_cache.valid_rbx = 1;
-      glue_binop_var_slot_cache.rbx_off = off;
-    } else {
-      if (arch_arm64_enc_enc_mov_x10_to_rax(elf_ctx) != 0)
-        return -1;
-      glue_binop_var_slot_cache.valid_x10 = 0;
-      glue_binop_var_slot_cache.valid_rax = 1;
-      glue_binop_var_slot_cache.rax_off = off;
-    }
-    return 1;
-  }
-  if (glue_binop_var_slot_cache.valid_x11 && glue_binop_var_slot_cache.x11_off == off) {
-    if (to_rbx != 0) {
-      if (arch_arm64_enc_enc_mov_x11_to_rbx(elf_ctx) != 0)
-        return -1;
-      glue_binop_var_slot_cache.valid_x11 = 0;
-      glue_binop_var_slot_cache.valid_rbx = 1;
-      glue_binop_var_slot_cache.rbx_off = off;
-    } else {
-      if (arch_arm64_enc_enc_mov_x11_to_rax(elf_ctx) != 0)
-        return -1;
-      glue_binop_var_slot_cache.valid_x11 = 0;
-      glue_binop_var_slot_cache.valid_rax = 1;
-      glue_binop_var_slot_cache.rax_off = off;
-    }
-    return 1;
-  }
-  if (glue_binop_var_slot_cache.valid_x12 && glue_binop_var_slot_cache.x12_off == off) {
-    if (to_rbx != 0) {
-      if (arch_arm64_enc_enc_mov_x12_to_rbx(elf_ctx) != 0)
-        return -1;
-      glue_binop_var_slot_cache.valid_x12 = 0;
-      glue_binop_var_slot_cache.valid_rbx = 1;
-      glue_binop_var_slot_cache.rbx_off = off;
-    } else {
-      if (arch_arm64_enc_enc_mov_x12_to_rax(elf_ctx) != 0)
-        return -1;
-      glue_binop_var_slot_cache.valid_x12 = 0;
-      glue_binop_var_slot_cache.valid_rax = 1;
-      glue_binop_var_slot_cache.rax_off = off;
-    }
-    return 1;
-  }
-  return 0;
-}
+/* wave170: pure owns glue_binop_try_reload_spill_off_elf_c (extern above).
+ * Residual thin: glue_binop_stack_spill_try_reload_elf_c + x10–x15 BSS accessors.
+ * PLATFORM: SHARED freestanding 7.3. */
 
 /**
  * 7.3 线性 scan 第三步：arm64 驱逐 rax 前将被踢槽 mov 到 spill；ta!=1 仅 invalidate.
@@ -1858,9 +1763,11 @@ int32_t glue_binop_stack_spill_find_depth(int32_t off) {
 
 /**
  * 7.3：若 off 已在栈帧 spill 表，则从对应 [sp,#slot*16] 装入 rax/rbx；1=命中，0=未命中，-1=错。
+ * wave170 Cap residual: non-static thin face for pure try_reload leave.
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
  */
-static int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
-                                                        int32_t off, int32_t to_rbx) {
+int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+                                                int32_t off, int32_t to_rbx) {
   int32_t at_depth;
   int32_t slot;
   if (ta != 1 || off < 0 || !elf_ctx)
