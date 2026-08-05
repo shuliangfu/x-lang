@@ -4,6 +4,8 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave135: pipeline_asm_emit_x86_enc_helpers.c pure-owned leave (27 glue_enc_x86_*
+//   + glue_emit_lcg_xor_body_x86_c). Cap residual: pipeline_elf_ctx_append_bytes.
 // wave134: pipeline_asm_emit_match.c pure-owned leave (match_elf + expr_if_elf +
 //   match subject context BSS + name_is_subject_field). Cap residual: match/if arm
 //   expr faces + if_arm_elf + enc jmp/jne/label/mov/cmp + next_label + emit_expr_elf_c +
@@ -24368,6 +24370,794 @@ export function pipeline_asm_emit_expr_if_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   }
   unsafe {
     rc = backend_enc_label_arch(elf_ctx, &done_lbl[0], done_len, 0, ta);
+  }
+  return rc;
+}
+
+// ---------------------------------------------------------------------------
+// wave135: pipeline_asm_emit_x86_enc_helpers pure-owned leave
+// (was pipeline_asm_emit_x86_enc_helpers.c).
+// G.7 product authority for 27 glue_enc_x86_* micro-encoders +
+// glue_emit_lcg_xor_body_x86_c (LCG xor / u8 fill / struct-pair n2 fold).
+// Cap residual: pipeline_elf_ctx_append_bytes only.
+// Callers: residual pipeline_asm_emit_fold_count_up_while (host-cc TU).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: LINUX+MACOS x86_64 SysV — raw byte encoders (no arch dispatch).
+// ---------------------------------------------------------------------------
+
+/**
+ * Pack i32 imm as little-endian bytes into out[0..3] (two's complement bit pattern).
+ * @param imm i32 - immediate value
+ * @param out *u8 - destination; must have capacity >= 4
+ * @return void
+ * Local helper for wave135 x86 encoders; not a product face.
+ * PLATFORM: SHARED little-endian.
+ */
+function glue_enc_x86_pack_i32_le(imm: i32, out: *u8): void {
+  let u: u32 = 0;
+  unsafe {
+    u = imm as u32;
+    out[0] = (u & 255) as u8;
+    out[1] = ((u / 256) & 255) as u8;
+    out[2] = ((u / 65536) & 255) as u8;
+    out[3] = ((u / 16777216) & 255) as u8;
+  }
+}
+
+/**
+ * x86_64: cmpl $imm32, %eax.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param imm32 i32 - immediate
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was static in pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_cmpl_eax_imm32(elf_ctx: *u8, imm32: i32): i32 {
+  let b: u8[5] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x3d as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(imm32, &b[1]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 5);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: imull $imm32, %eax.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param imm32 i32 - immediate
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_imull_imm_eax(elf_ctx: *u8, imm32: i32): i32 {
+  let b: u8[6] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x69 as u8;
+  b[1] = 0xc0 as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(imm32, &b[2]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: addl $imm8/imm32, %eax (skip if imm==0).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param imm32 i32 - immediate; 0 → no-op success
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_addl_imm_eax(elf_ctx: *u8, imm32: i32): i32 {
+  let b: u8[6] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (imm32 == 0) {
+    return 0;
+  }
+  if (imm32 >= 0 - 128 && imm32 <= 127) {
+    b[0] = 0x83 as u8;
+    b[1] = 0xc0 as u8;
+    b[2] = imm32 as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 3);
+    }
+    return rc;
+  }
+  b[0] = 0x05 as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(imm32, &b[1]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 5);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: addl $imm, -off(%rbp) (i++ fast path; disp8/disp32).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param off i32 - positive stack offset; encodes as -off(%rbp)
+ * @param imm32 i32 - addend; 0 → no-op success
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_addl_imm_rbp_off(elf_ctx: *u8, off: i32, imm32: i32): i32 {
+  let disp: i32 = 0;
+  let b: u8[10] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (imm32 == 0) {
+    return 0;
+  }
+  disp = 0 - off;
+  if (imm32 >= 0 - 128 && imm32 <= 127 && disp >= 0 - 128 && disp <= 0 - 1) {
+    b[0] = 0x83 as u8;
+    b[1] = 0x45 as u8;
+    b[2] = disp as u8;
+    b[3] = imm32 as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 4);
+    }
+    return rc;
+  }
+  if (disp >= 0 - 128 && disp <= 0 - 1) {
+    b[0] = 0x81 as u8;
+    b[1] = 0x45 as u8;
+    b[2] = disp as u8;
+    unsafe {
+      glue_enc_x86_pack_i32_le(imm32, &b[3]);
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 7);
+    }
+    return rc;
+  }
+  if (imm32 >= 0 - 128 && imm32 <= 127) {
+    b[0] = 0x83 as u8;
+    b[1] = 0x85 as u8;
+    unsafe {
+      glue_enc_x86_pack_i32_le(disp, &b[2]);
+      b[6] = imm32 as u8;
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 7);
+    }
+    return rc;
+  }
+  b[0] = 0x81 as u8;
+  b[1] = 0x85 as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(disp, &b[2]);
+    glue_enc_x86_pack_i32_le(imm32, &b[6]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 10);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: movl -off(%rbp), %ecx.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param off i32 - positive stack offset
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_movl_rbp_off_to_ecx(elf_ctx: *u8, off: i32): i32 {
+  let disp: i32 = 0;
+  let b: u8[6] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  disp = 0 - off;
+  if (disp >= 0 - 128 && disp <= 0 - 1) {
+    b[0] = 0x8b as u8;
+    b[1] = 0x4d as u8;
+    b[2] = disp as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 3);
+    }
+    return rc;
+  }
+  b[0] = 0x8b as u8;
+  b[1] = 0x8d as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(disp, &b[2]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: movl -off(%rbp), %edx.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param off i32 - positive stack offset
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_movl_rbp_off_to_edx(elf_ctx: *u8, off: i32): i32 {
+  let disp: i32 = 0;
+  let b: u8[6] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  disp = 0 - off;
+  if (disp >= 0 - 128 && disp <= 0 - 1) {
+    b[0] = 0x8b as u8;
+    b[1] = 0x55 as u8;
+    b[2] = disp as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 3);
+    }
+    return rc;
+  }
+  b[0] = 0x8b as u8;
+  b[1] = 0x95 as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(disp, &b[2]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: movl %ecx, -off(%rbp).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param off i32 - positive stack offset
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_movl_ecx_to_rbp_off(elf_ctx: *u8, off: i32): i32 {
+  let disp: i32 = 0;
+  let b: u8[6] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  disp = 0 - off;
+  if (disp >= 0 - 128 && disp <= 0 - 1) {
+    b[0] = 0x89 as u8;
+    b[1] = 0x4d as u8;
+    b[2] = disp as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 3);
+    }
+    return rc;
+  }
+  b[0] = 0x89 as u8;
+  b[1] = 0x8d as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(disp, &b[2]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: movl %edx, -off(%rbp).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param off i32 - positive stack offset
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_movl_edx_to_rbp_off(elf_ctx: *u8, off: i32): i32 {
+  let disp: i32 = 0;
+  let b: u8[6] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  disp = 0 - off;
+  if (disp >= 0 - 128 && disp <= 0 - 1) {
+    b[0] = 0x89 as u8;
+    b[1] = 0x55 as u8;
+    b[2] = disp as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 3);
+    }
+    return rc;
+  }
+  b[0] = 0x89 as u8;
+  b[1] = 0x95 as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(disp, &b[2]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: cmpl $imm32, %ecx.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param imm32 i32 - immediate
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_cmpl_ecx_imm32(elf_ctx: *u8, imm32: i32): i32 {
+  let b: u8[6] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x81 as u8;
+  b[1] = 0xf9 as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(imm32, &b[2]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: xorl %eax, %eax.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_xor_eax_eax(elf_ctx: *u8): i32 {
+  let b: u8[2] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x31 as u8;
+  b[1] = 0xc0 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 2);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: imull $imm32, %edx, %ecx (t = i*C1, i in edx).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param imm32 i32 - immediate multiplier
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_imul_ecx_edx_imm32(elf_ctx: *u8, imm32: i32): i32 {
+  let b: u8[6] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x69 as u8;
+  b[1] = 0xca as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(imm32, &b[2]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: addl $imm32, %ecx.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param imm32 i32 - immediate
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_addl_imm_ecx(elf_ctx: *u8, imm32: i32): i32 {
+  let b: u8[6] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x81 as u8;
+  b[1] = 0xc1 as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(imm32, &b[2]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: xorl %ecx, %eax (s ^= t, s in eax).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_xorl_ecx_eax(elf_ctx: *u8): i32 {
+  let b: u8[2] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x31 as u8;
+  b[1] = 0xc8 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 2);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: incl %edx.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_incl_edx(elf_ctx: *u8): i32 {
+  let b: u8[2] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0xff as u8;
+  b[1] = 0xc2 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 2);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: cmpl $imm32, %edx.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param imm32 i32 - immediate
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_cmpl_edx_imm32(elf_ctx: *u8, imm32: i32): i32 {
+  let b: u8[6] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x81 as u8;
+  b[1] = 0xfa as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(imm32, &b[2]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6);
+  }
+  return rc;
+}
+
+/**
+ * Emit one LCG body iteration: t=i*C1+C2; s^=t; i++ (edx=i, eax=s, ecx=scratch).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1 via callees
+ * @param c1 i32 - LCG multiply constant
+ * @param c2 i32 - LCG add constant
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_emit_lcg_xor_body_x86_c(elf_ctx: *u8, c1: i32, c2: i32): i32 {
+  let rc: i32 = 0;
+  unsafe {
+    rc = glue_enc_x86_imul_ecx_edx_imm32(elf_ctx, c1);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = glue_enc_x86_incl_edx(elf_ctx);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = glue_enc_x86_addl_imm_ecx(elf_ctx, c2);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = glue_enc_x86_xorl_ecx_eax(elf_ctx);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * x86_64: imull $imm32, %ecx, %eax (t = i*C1, i stays in ecx).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param imm32 i32 - immediate multiplier
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_imul_eax_ecx_imm32(elf_ctx: *u8, imm32: i32): i32 {
+  let b: u8[6] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x69 as u8;
+  b[1] = 0xc1 as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(imm32, &b[2]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: xorl %ecx, %ecx.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_xor_ecx_ecx(elf_ctx: *u8): i32 {
+  let b: u8[2] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x31 as u8;
+  b[1] = 0xc9 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 2);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: xorl %edx, %edx.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_xor_edx_edx(elf_ctx: *u8): i32 {
+  let b: u8[2] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x31 as u8;
+  b[1] = 0xd2 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 2);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: movl %ecx, %eax.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_movl_ecx_eax(elf_ctx: *u8): i32 {
+  let b: u8[2] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x89 as u8;
+  b[1] = 0xc8 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 2);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: xorl %eax, %edx (s ^= t, s in edx).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_xorl_eax_edx(elf_ctx: *u8): i32 {
+  let b: u8[2] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x31 as u8;
+  b[1] = 0xc2 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 2);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: incl %ecx.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_incl_ecx(elf_ctx: *u8): i32 {
+  let b: u8[2] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0xff as u8;
+  b[1] = 0xc1 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 2);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: xorl %eax, -off(%rbp).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param off i32 - positive stack offset
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_xorl_eax_rbp_off(elf_ctx: *u8, off: i32): i32 {
+  let disp: i32 = 0;
+  let b: u8[6] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  disp = 0 - off;
+  if (disp >= 0 - 128 && disp <= 0 - 1) {
+    b[0] = 0x31 as u8;
+    b[1] = 0x45 as u8;
+    b[2] = disp as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 3);
+    }
+    return rc;
+  }
+  b[0] = 0x31 as u8;
+  b[1] = 0x85 as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(disp, &b[2]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: mov %al, (%rbx,%rax,1).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_mov_al_mem_rbx_rax(elf_ctx: *u8): i32 {
+  let b: u8[3] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x88 as u8;
+  b[1] = 0x04 as u8;
+  b[2] = 0x03 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 3);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: movzbl (%rbx,%rax,1), %ecx.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_movzx_ecx_mem_rbx_rax(elf_ctx: *u8): i32 {
+  let b: u8[4] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x0f as u8;
+  b[1] = 0xb6 as u8;
+  b[2] = 0x0c as u8;
+  b[3] = 0x03 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 4);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: add %ecx, -off(%rbp).
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param off i32 - positive stack offset
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_add_ecx_rbp_off(elf_ctx: *u8, off: i32): i32 {
+  let disp: i32 = 0;
+  let b: u8[7] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  disp = 0 - off;
+  if (disp >= 0 - 128 && disp <= 0 - 1) {
+    b[0] = 0x01 as u8;
+    b[1] = 0x4d as u8;
+    b[2] = disp as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 3);
+    }
+    return rc;
+  }
+  b[0] = 0x01 as u8;
+  b[1] = 0x8d as u8;
+  unsafe {
+    glue_enc_x86_pack_i32_le(disp, &b[2]);
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6);
+  }
+  return rc;
+}
+
+/**
+ * x86_64: imul %eax, %eax.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @return i32 - 0 ok; -1 failure
+ * wave135 pure: G.7 authority (was pipeline_asm_emit_x86_enc_helpers.c).
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+#[no_mangle]
+export function glue_enc_x86_imul_eax_eax(elf_ctx: *u8): i32 {
+  let b: u8[3] = [];
+  let rc: i32 = 0;
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  b[0] = 0x0f as u8;
+  b[1] = 0xaf as u8;
+  b[2] = 0xc0 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 3);
   }
   return rc;
 }

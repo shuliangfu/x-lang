@@ -24,8 +24,9 @@
  *   glue_fold_expr_var_refs_same_c, glue_parse_i_mul_add_lit_c,
  *   glue_expr_var_name_eq_let_idx_c, glue_fold_func_return_operand_ref_c,
  *   glue_module_func_index_by_name_c).
- * - MUST be #included AFTER pipeline_asm_emit_x86_enc_helpers.c (provides the
- *   glue_enc_x86_* micro-encoders and glue_emit_lcg_xor_body_x86_c).
+ * - MUST be #included AFTER wave135 pure-leave extern decls in pipeline_glue.c
+ *   (glue_enc_x86_* micro-encoders + glue_emit_lcg_xor_body_x86_c live in
+ *   runtime_pipeline_abi pure; seed cold twins under #ifndef FROM_X).
  * - MUST be #included BEFORE backend_emit_while_loop_elf_sync (the consumer of
  *   backend_try_fold_count_up_while_elf and the glue_try_fold_*_elf_c hooks).
  *
@@ -38,7 +39,7 @@
  *   glue_fold_expr_var_refs_same_c / glue_parse_i_mul_add_lit_c
  *   glue_expr_var_name_eq_let_idx_c / glue_fold_func_return_operand_ref_c
  *   glue_module_func_index_by_name_c
- * - x86 encoders (from pipeline_asm_emit_x86_enc_helpers.c, same TU):
+ * - x86 encoders (wave135 pure leave; extern faces before this #include):
  *   glue_enc_x86_cmpl_eax_imm32 / glue_enc_x86_mov_al_mem_rbx_rax
  *   glue_enc_x86_addl_imm_rbp_off / glue_enc_x86_movzx_ecx_mem_rbx_rax
  *   glue_enc_x86_add_ecx_rbp_off / glue_enc_x86_xor_edx_edx

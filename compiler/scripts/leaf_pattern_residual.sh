@@ -9124,6 +9124,9 @@ fi
 if grep -qE 'pipeline_asm_emit_match\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_match.c (wave134 pure-owned leave)"
 fi
+if grep -qE 'pipeline_asm_emit_x86_enc_helpers\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_x86_enc_helpers.c (wave135 pure-owned leave)"
+fi
 if grep -qE 'pipeline_asm_emit_panic\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_panic.c (wave127 pure-owned leave)"
 fi

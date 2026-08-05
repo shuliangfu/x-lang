@@ -1108,11 +1108,38 @@ extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br
  * glue_is_assign_sum_plus_u8_index_cast_c removed — now provided by
  * pipeline_asm_emit_fold_primitives.c #include above. */
 
-/* wave1029 G.7: 27 glue_enc_x86_* micro-encoders + glue_emit_lcg_xor_body_x86_c
- * folded into pipeline_asm_emit_x86_enc_helpers.c (same TU #include; no new DEPS).
- * Chinese docblocks converted to English per G.9. Callers in fold paths
- * (struct_pair_n2 / u8_fill / lcg_xor) follow after this #include site. */
-#include "pipeline_asm_emit_x86_enc_helpers.c"
+/* wave135 pure-owned leave: pipeline_asm_emit_x86_enc_helpers.c deleted.
+ * live = runtime_pipeline_abi pure (27 glue_enc_x86_* + glue_emit_lcg_xor_body_x86_c);
+ * seed cold twins under #ifndef FROM_X. Residual fold_count_up_while calls pure
+ * faces via extern decls below — do not re-open a second x86 micro-encoder face (G.7).
+ * PLATFORM: LINUX+MACOS x86_64 SysV raw encoders. */
+extern int32_t glue_enc_x86_cmpl_eax_imm32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
+extern int32_t glue_enc_x86_imull_imm_eax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
+extern int32_t glue_enc_x86_addl_imm_eax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
+extern int32_t glue_enc_x86_addl_imm_rbp_off(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off, int32_t imm32);
+extern int32_t glue_enc_x86_movl_rbp_off_to_ecx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off);
+extern int32_t glue_enc_x86_movl_rbp_off_to_edx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off);
+extern int32_t glue_enc_x86_movl_ecx_to_rbp_off(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off);
+extern int32_t glue_enc_x86_movl_edx_to_rbp_off(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off);
+extern int32_t glue_enc_x86_cmpl_ecx_imm32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
+extern int32_t glue_enc_x86_xor_eax_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t glue_enc_x86_imul_ecx_edx_imm32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
+extern int32_t glue_enc_x86_addl_imm_ecx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
+extern int32_t glue_enc_x86_xorl_ecx_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t glue_enc_x86_incl_edx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t glue_enc_x86_cmpl_edx_imm32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
+extern int32_t glue_emit_lcg_xor_body_x86_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t c1, int32_t c2);
+extern int32_t glue_enc_x86_imul_eax_ecx_imm32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
+extern int32_t glue_enc_x86_xor_ecx_ecx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t glue_enc_x86_xor_edx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t glue_enc_x86_movl_ecx_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t glue_enc_x86_xorl_eax_edx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t glue_enc_x86_incl_ecx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t glue_enc_x86_xorl_eax_rbp_off(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off);
+extern int32_t glue_enc_x86_mov_al_mem_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t glue_enc_x86_movzx_ecx_mem_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t glue_enc_x86_add_ecx_rbp_off(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off);
+extern int32_t glue_enc_x86_imul_eax_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 
 
 /* wave1106: glue_expr_var_name_eq_let_idx_c removed — now provided by
@@ -1136,12 +1163,12 @@ extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br
  *   glue_fold_affine_i_plus_k_expr_c / glue_fold_is_assign_s_plus_affine_i_c /
  *   glue_fold_parse_affine_sum_body_c / backend_try_fold_count_up_while_elf.
  * Deps: fold primitives (pipeline_asm_emit_fold_primitives.c) +
- *   x86 encoders (pipeline_asm_emit_x86_enc_helpers.c) +
+ *   x86 encoders (wave135 pure leave faces) +
  *   glue_asm_local_var_stack_off_scoped (pipeline_asm_emit_vector_simd.c) +
  *   glue_enc_local_slot_ptr_or_addr_rbx_elf_c (pipeline_asm_emit_index_helpers.c) +
  *   pipeline_asm_emit_next_label_c / glue_asm_ctx_set_scope_block (pipeline_glue.c) +
  *   glue_body_expr_stmt_at_c / glue_field_assign_pair_base_ref_c (pipeline_asm_emit_assign.c).
- * Same-TU: fold_primitives #include + x86_enc_helpers #include < this #include
+ * Same-TU: fold_primitives #include + wave135 x86 pure externs < this #include
  *   < backend_emit_while_loop_elf_sync def. Forward decl at ~L1605 remains.
  * PLATFORM: SHARED. */
 #include "pipeline_asm_emit_fold_count_up_while.c"
