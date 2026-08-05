@@ -527,7 +527,9 @@ static int32_t glue_emit_index_eff_addr_scaled_elf_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ix_ref,
                                                       int32_t base_ref, int32_t idx_ref, struct backend_AsmFuncCtx *ctx,
                                                       int32_t ta, int32_t esz);
-static int32_t pipeline_asm_emit_panic_int_div_zero_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/* wave127 pure-owned leave: was same-TU static in pipeline_asm_emit_panic.c.
+ * Public pure face — residual binop / index_eff_addr call via this extern. */
+extern int32_t pipeline_asm_emit_panic_int_div_zero_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 static int32_t glue_binop_preserve_rax_for_rbx_load_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             int32_t ta, struct backend_AsmFuncCtx *ctx);
 static int32_t glue_binop_restore_rax_after_rbx_load_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,

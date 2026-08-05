@@ -23,7 +23,7 @@
  *
  * G.7: single product-mega BINOP ELF face — do not open a second int/float
  * arith path. CALL/METHOD_CALL remain seed backend_call_dispatch (not this
- * slice). EXPR_PANIC / div-zero helpers remain pipeline_asm_emit_panic.c
+ * slice). EXPR_PANIC / div-zero helpers: wave127 pure (runtime_pipeline_abi)
  * (included just before this file in the same TU).
  *
  * Callers: pipeline_asm_emit_expr_elf_fast BINOP arms; compound-assign
@@ -1108,7 +1108,7 @@ static int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
 /* Forward decls / callees defined elsewhere in the same TU:
  * - pipeline_asm_emit_expr_elf_rec (static; declared earlier)
  * - pipeline_asm_emit_panic_int_div_zero_elf_c /
- *   pipeline_asm_emit_divisor_zero_check_rbx_elf_c (panic face; included above)
+ *   pipeline_asm_emit_divisor_zero_check_rbx_elf_c (wave127 pure; extern)
  * - glue_try_binop_left_rax_right_rbx_elf_c / glue_emit_binop_add_rax_rbx_elf_c
  *   (still in glue; defined before this include)
  * - glue_binop_var_slot_cache_* / glue_var_decl_type_ref_elf_c

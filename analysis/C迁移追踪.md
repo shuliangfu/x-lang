@@ -936,7 +936,7 @@
 | `pipeline_asm_emit_array_lit.c` | ~335 | asm ELF EXPR_ARRAY_LIT emit（elem_sz + empty + force_esz）切片 | 🟡 已抽出（wave996）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_index.c` | ~434 | asm ELF INDEX／ADDR_OF／DEREF emit（esz + load + lea）切片 | 🟡 已抽出（wave997）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_match.c` | ~179 | asm ELF MATCH／EXPR_IF emit（arm cmp+jeq + if jz）切片 | 🟡 已抽出（wave998）；仍 host-cc 入 `pipeline_x` |
-| `pipeline_asm_emit_panic.c` | ~121 | asm ELF PANIC／int div-zero face（xlang_panic_call + panic_elf + div0）切片 | 🟡 已抽出（wave999）；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_panic.c` | **0（leave）** | asm ELF PANIC／int div-zero face（xlang_panic_call + panic_elf + div0） | ✅ **pure-owned leave**（wave127 · 2026-08-05）；live＝runtime_pipeline_abi pure；seed cold twin under #ifndef FROM_X |
 | `pipeline_asm_emit_field_access.c` | ~632 | asm ELF FIELD_ACCESS emit（layout_by_name + call_arg + call_base + var + fast）切片 | 🟡 已抽出（wave1000）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_binop.c` | ~1976 | asm ELF EXPR_BINOP emit（arith/bitwise/shift + residual scalar/ptr/add + try_binop load/placement）切片 | 🟡 已抽出 + residual 有则补全（wave1015/1018）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_cmp.c` | ~315 | asm ELF relational CMP emit（eq/ne/lt/le/gt/ge + enum RHS + f32/f64/int finish）切片 | 🟡 已抽出（wave1002）；仍 host-cc 入 `pipeline_x` |

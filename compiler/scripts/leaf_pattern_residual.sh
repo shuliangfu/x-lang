@@ -9118,8 +9118,8 @@ fi
 if ! grep -qE 'pipeline_asm_emit_match\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_match.c (8.3.1 asm_emit_match slice)"
 fi
-if ! grep -qE 'pipeline_asm_emit_panic\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_panic.c (8.3.1 asm_emit_panic slice)"
+if grep -qE 'pipeline_asm_emit_panic\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_panic.c (wave127 pure-owned leave)"
 fi
 if ! grep -qE 'pipeline_asm_emit_field_access\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_field_access.c (8.3.1 asm_emit_field_access slice)"

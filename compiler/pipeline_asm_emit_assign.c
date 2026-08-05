@@ -30,7 +30,7 @@ extern int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct b
                                             int32_t var_expr_ref);
 /* Compound-assign value path: nested load + add/sub/mul/div/shift helpers
  * (bodies in pipeline_asm_emit_binop.c including try_binop left_rax wave1018;
- * after this #include). Div-zero face is pipeline_asm_emit_panic.c (forward earlier). */
+ * after this #include). Div-zero face: wave127 pure (pipeline_asm_emit_divisor_zero_check_rbx_elf_c extern). */
 static int32_t glue_try_binop_left_rax_right_rbx_elf_c(struct ast_ASTArena *arena,
                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                         int32_t left_ref, int32_t right_ref,

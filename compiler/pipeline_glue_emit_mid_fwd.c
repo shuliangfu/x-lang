@@ -40,14 +40,15 @@ int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t ref);
 /** EXPR_VAR kind ordinal (match ast_ExprKind). */
 #define GLUE_EXPR_KIND_VAR 3
 
-/* Public CALL / METHOD_CALL / PANIC emit entry forward decls
- * (definitions at call_args.c / panic.c). */
+/* Public CALL / METHOD_CALL / PANIC emit entry forward decls.
+ * CALL/METHOD: call_args residual. PANIC: wave127 pure-owned leave
+ * (runtime_pipeline_abi); do not re-define in host-cc mega (G.7). */
 int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 int32_t pipeline_asm_emit_method_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                             int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
-int32_t pipeline_asm_emit_panic_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                      int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_panic_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                             int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /* Forward: binop operand loader paths (bodies in field_access / expr_rec leaves). */
 static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);

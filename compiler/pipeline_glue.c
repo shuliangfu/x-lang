@@ -209,8 +209,10 @@ extern int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegen
  */
 static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
 
-static int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                 struct backend_AsmFuncCtx *ctx, int32_t ta);
+/* wave127 pure-owned leave: divisor_zero_check is public pure (was same-TU static).
+ * Residual assign/binop call this face — extern only (G.7). */
+extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                             struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /* BC 8.3.1: asm ELF vector_let / leaf-flat / fixed-array field store domain
  * (leaf_elem_byte_sz + flat + vector_let_init + field_frame_mag +
@@ -381,10 +383,13 @@ enum {
  * wave1017: type_named_struct predicate in call_args leaf (above).
  * wave1018: try_binop load/placement residual folded into binop leaf. */
 
-/* BC 8.3.1: asm ELF EXPR_PANIC + integer div-zero panic face
- * (xlang_panic_call + panic_elf + panic_int_div_zero + divisor_zero_check_rbx;
- * Cap residual pure; same TU). */
-#include "pipeline_asm_emit_panic.c"
+/* wave127 pure-owned leave: pipeline_asm_emit_panic.c deleted.
+ * live = runtime_pipeline_abi pure (xlang_panic_call + panic_elf +
+ * panic_int_div_zero + divisor_zero_check_rbx); seed cold twin under
+ * #ifndef FROM_X. Residual mega leaves (expr_rec / binop / assign /
+ * index_eff_addr) call these public faces — prototypes in mid_fwd /
+ * backend_fwd / above extern; do not re-open a second PANIC / div0 ELF
+ * face (G.7). PLATFORM: SHARED freestanding emit. */
 
 /* BC 8.3.1: asm ELF EXPR_BINOP emit domain
  * (add/sub/mul/div/mod/and/bitwise/shift + unsigned/64bit classifiers +

@@ -4,6 +4,9 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave127: pipeline_asm_emit_panic.c pure-owned leave (xlang_panic_call +
+//   panic_elf + panic_int_div_zero + divisor_zero_check_rbx). Cap residual:
+//   emit_expr_elf_c + enc mov/arg/call/test/jne/label + next_label + unary/kind/type faces.
 // wave125: pipeline_asm_ctx_layout.c pure-owned leave (pipeline_asm_ctx_layout cast;
 //   typedef pipeline_glue_AsmFuncCtxLayout stays in pipeline_glue.c shell for residual C
 //   field access). Identity cast only — pure returns same address as *u8.
@@ -601,6 +604,15 @@ export extern "C" function asm_ctx_local_count(ctx: *u8): i32;
 // PLATFORM: SHARED — pure owns align/bump faces; glue_array_temp_bytes_for_let_init
 // remains array_lit residual domain (static→extern for pure Cap).
 export extern "C" function glue_array_temp_bytes_for_let_init(arena: *u8, let_type_ref: i32, init_ref: i32): i32;
+// wave127 Cap residual: panic pure leave callees (encoder + expr emit still host-cc / asm).
+// PLATFORM: SHARED freestanding emit — pure owns PANIC / div-zero ELF face only.
+// Use public pipeline_asm_emit_expr_elf_c (not static _rec) for msg operand emit.
+export extern "C" function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+export extern "C" function backend_enc_test_rbx_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_jne_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern "C" function backend_enc_label_arch(elf_ctx: *u8, name: *u8, name_len: i32, is_global: i32, ta: i32): i32;
+export extern "C" function pipeline_asm_emit_next_label_c(ctx: *u8, buf: *u8, buf_size: i32): i32;
+export extern "C" function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 -> _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
@@ -21678,4 +21690,210 @@ export function pipeline_asm_bump_next_offset_after_let_init(arena: *u8, block_r
   let off: i32 = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
   pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), off + bytes);
   glue_align_next_offset(ctx);
+}
+
+// ---------------------------------------------------------------------------
+// wave127: pipeline_asm_emit_panic pure-owned leave
+// (was pipeline_asm_emit_panic.c).
+// G.7 product authority for:
+//   pipeline_asm_emit_xlang_panic_call_elf_c
+//   pipeline_asm_emit_panic_elf_c
+//   pipeline_asm_emit_panic_int_div_zero_elf_c
+//   pipeline_asm_emit_divisor_zero_check_rbx_elf_c
+// EXPR_PANIC + integer div-zero preflight face for freestanding ELF emit.
+// Cap residual: pipeline_asm_emit_expr_elf_c + backend_enc_*_arch +
+//   pipeline_asm_emit_next_label_c + unary/kind/type pool faces.
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
+//   — load arg1 then arg0 so arm64 w0 is not clobbered by msg emit.
+// ---------------------------------------------------------------------------
+
+/**
+ * Emit call xlang_panic_(code, msg). When msg_ref<=0, second arg is imm 0.
+ * Load order: arg1 (msg) then arg0 (code) on both arches (arm64 w0 safety).
+ * @param arena *u8 - ASTArena* (may be null when msg_ref<=0)
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param ctx *u8 - AsmFuncCtx* for msg expr emit (null ok when msg_ref<=0)
+ * @param ta i32 - target arch
+ * @param code i32 - has_msg code (0 bare / 1 int / 2 cstr) or div0 code 1
+ * @param msg_ref i32 - msg expr_ref; <=0 → imm 0 in arg1
+ * @return i32 - 0 ok; -1 encoder/expr failure
+ * wave127 pure: G.7 authority (was static in pipeline_asm_emit_panic.c).
+ * Cap residual: emit_expr_elf_c + enc mov/arg/call.
+ * PLATFORM: SHARED - sole provider after panic leave.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_xlang_panic_call_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, code: i32, msg_ref: i32): i32 {
+  // "xlang_panic_" — residual C passes name_len=14 (preserve byte-identical call)
+  let panic_nm: u8[16] = [];
+  panic_nm[0] = 120 as u8;  // x
+  panic_nm[1] = 108 as u8;  // l
+  panic_nm[2] = 97 as u8;   // a
+  panic_nm[3] = 110 as u8;  // n
+  panic_nm[4] = 103 as u8;  // g
+  panic_nm[5] = 95 as u8;   // _
+  panic_nm[6] = 112 as u8;  // p
+  panic_nm[7] = 97 as u8;   // a
+  panic_nm[8] = 110 as u8;  // n
+  panic_nm[9] = 105 as u8;  // i
+  panic_nm[10] = 99 as u8;  // c
+  panic_nm[11] = 95 as u8;  // _
+  panic_nm[12] = 0 as u8;
+  let rc: i32 = 0;
+  if (msg_ref > 0) {
+    unsafe {
+      rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, msg_ref, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  } else {
+    unsafe {
+      rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, code, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_call_arch(elf_ctx, &panic_nm[0], 14, ta);
+  }
+  return rc;
+}
+
+/**
+ * EXPR_PANIC → xlang_panic_(has_msg, msg).
+ * has_msg: 0 bare / 1 integer / 2 cstr (STRING_LIT=59 or TYPE_PTR=9).
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - EXPR_PANIC expr_ref
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 null/bad ref/encoder failure
+ * wave127 pure: G.7 authority (was pipeline_asm_emit_panic.c).
+ * PLATFORM: SHARED freestanding+asm — wave386 host-C has_msg=2 cstr print align.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_panic_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || expr_ref <= 0) {
+    return 0 - 1;
+  }
+  let op_ref: i32 = 0;
+  unsafe {
+    op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  }
+  let code: i32 = 0;
+  if (op_ref <= 0) {
+    code = 0;
+  } else {
+    let is_cstr: i32 = 0;
+    let ko: i32 = 0;
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, op_ref);
+    }
+    // EXPR_STRING_LIT == 59
+    if (ko == 59) {
+      is_cstr = 1;
+    } else {
+      let op_ty: i32 = 0;
+      unsafe {
+        op_ty = pipeline_expr_resolved_type_ref(arena, op_ref);
+      }
+      if (op_ty > 0) {
+        let tk: i32 = 0;
+        unsafe {
+          tk = pipeline_type_kind_ord_at(arena, op_ty);
+        }
+        // TYPE_PTR == 9
+        if (tk == 9) {
+          is_cstr = 1;
+        }
+      }
+    }
+    if (is_cstr != 0) {
+      code = 2;
+    } else {
+      code = 1;
+    }
+  }
+  return pipeline_asm_emit_xlang_panic_call_elf_c(arena, elf_ctx, ctx, ta, code, op_ref);
+}
+
+/**
+ * UB narrow: emit xlang_panic_(1, 0) matching host-C integer div-zero check.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 encoder failure
+ * wave127 pure: G.7 authority (was static in pipeline_asm_emit_panic.c).
+ * Callers: binop div/mod, index_eff_addr bounds panic paths.
+ * PLATFORM: SHARED - sole provider after panic leave.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx: *u8, ta: i32): i32 {
+  return pipeline_asm_emit_xlang_panic_call_elf_c(0 as *u8, elf_ctx, 0 as *u8, ta, 1, 0);
+}
+
+/**
+ * Divisor already in rbx/w1: zero-check; if zero panic else continue idiv/rem.
+ * Uses enc_test_rbx (not mov rbx→rax) so VAR fast-path dividend stays in w0/rax.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx* for next_label
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 label/encoder/panic failure
+ * wave127 pure: G.7 authority (was static in pipeline_asm_emit_panic.c).
+ * Callers: binop div/mod/rem, assign compound div.
+ * PLATFORM: SHARED - sole provider after panic leave.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx: *u8, ctx: *u8, ta: i32): i32 {
+  let ok_lbl: u8[128] = [];
+  let ok_len: i32 = 0;
+  unsafe {
+    ok_len = pipeline_asm_emit_next_label_c(ctx, &ok_lbl[0], 64);
+  }
+  if (ok_len <= 0) {
+    return 0 - 1;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = backend_enc_test_rbx_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_jne_arch(elf_ctx, &ok_lbl[0], ok_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  rc = pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &ok_lbl[0], ok_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
 }
