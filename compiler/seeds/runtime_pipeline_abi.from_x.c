@@ -8248,4 +8248,187 @@ int32_t asm_skip_heavy_module_func_body(void *m, void *arena, int32_t func_index
   return 0;
 }
 
+/* wave119 cold twins: emit_heavy_env pure leave (void* Module/Arena).
+ * Cap residual accessors remain host-cc (top_level_let / expr / driver_get).
+ * PLATFORM: SHARED. */
+extern const char *driver_get_current_dep_path_for_codegen(void);
+extern int32_t pipeline_module_top_level_let_name_len(void *m, int32_t idx);
+extern uint8_t pipeline_module_top_level_let_name_byte_at(void *m, int32_t idx, int32_t off);
+extern int32_t pipeline_module_top_level_let_init_ref(void *m, int32_t idx);
+extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_int_val_at(void *a, int32_t expr_ref);
+extern long strtol(const char *nptr, char **endptr, int base);
+
+static int32_t wave119_env_truthy(const char *e) {
+  return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
+}
+
+int32_t asm_env_entry_emit_heavy(void) {
+  return wave119_env_truthy(link_abi_getenv("XLANG_ASM_ENTRY_EMIT_HEAVY"));
+}
+
+int32_t asm_env_build_skip_typeck(void) {
+  return wave119_env_truthy(link_abi_getenv("XLANG_ASM_BUILD_SKIP_TYPECK"));
+}
+
+static int32_t wave119_asm_env_strict_orchestration(void) {
+  return wave119_env_truthy(link_abi_getenv("XLANG_ASM_STRICT_ORCHESTRATION"));
+}
+
+int32_t asm_emit_heavy_abort_lo(void) {
+  const char *e = link_abi_getenv("XLANG_ASM_EMIT_ABORT_LO");
+  char *end = NULL;
+  long v;
+  if (!e || e[0] == '\0')
+    return 87;
+  v = strtol(e, &end, 10);
+  if (end == e || v < 0)
+    return 87;
+  return (int32_t)v;
+}
+
+int32_t asm_emit_heavy_abort_hi(void) {
+  const char *e = link_abi_getenv("XLANG_ASM_EMIT_ABORT_HI");
+  char *end = NULL;
+  long v;
+  if (!e || e[0] == '\0')
+    return 218;
+  v = strtol(e, &end, 10);
+  if (end == e || v < 0)
+    return 218;
+  return (int32_t)v;
+}
+
+int32_t pipeline_module_func_name_has_prefix_at(void *m, int32_t fi, const char *pfx, int32_t plen) {
+  int32_t nl;
+  int32_t k;
+  if (!m || fi < 0 || !pfx || plen <= 0)
+    return 0;
+  nl = pipeline_module_func_name_len_at(m, fi);
+  if (nl < plen)
+    return 0;
+  for (k = 0; k < plen; k++) {
+    if (pipeline_module_func_name_byte_at(m, fi, k) != (int32_t)(uint8_t)pfx[k])
+      return 0;
+  }
+  return 1;
+}
+
+uint8_t *asm_driver_current_dep_path_for_codegen(void) {
+  const char *p = driver_get_current_dep_path_for_codegen();
+  return (uint8_t *)(p ? p : "");
+}
+
+void asm_import_path_to_c_prefix_into(uint8_t *path, uint8_t *buf, int32_t buf_cap) {
+  int32_t off = 0;
+  int32_t pi = 0;
+  if (!buf || buf_cap <= 0)
+    return;
+  if (!path) {
+    buf[0] = '\0';
+    return;
+  }
+  while (path[pi] != 0 && off + 2 < buf_cap) {
+    buf[off++] = (uint8_t)(path[pi] == '.' ? '_' : path[pi]);
+    pi++;
+  }
+  if (off + 1 < buf_cap)
+    buf[off++] = '_';
+  buf[off] = 0;
+}
+
+int32_t asm_module_top_level_const_lit_i32(void *m, void *a, uint8_t *name, int32_t name_len,
+    int32_t *out_imm) {
+  int32_t tl;
+  int32_t nl;
+  int32_t k;
+  int32_t init_ref;
+  int32_t ntl;
+  if (!m || !a || !name || name_len <= 0 || !out_imm)
+    return 0;
+  /* LP64: Module.num_top_level_lets @ offset 12 (≡ pure pipe_mod_get_num_top_level_lets). */
+  ntl = m ? *(int32_t *)((char *)m + 12) : 0;
+  for (tl = 0; tl < ntl; tl++) {
+    nl = pipeline_module_top_level_let_name_len(m, tl);
+    if (nl != name_len || nl <= 0)
+      continue;
+    for (k = 0; k < name_len; k++) {
+      if (pipeline_module_top_level_let_name_byte_at(m, tl, k) != name[k])
+        break;
+    }
+    if (k != name_len)
+      continue;
+    init_ref = pipeline_module_top_level_let_init_ref(m, tl);
+    if (init_ref <= 0)
+      continue;
+    k = pipeline_expr_kind_ord_at(a, init_ref);
+    if (k == 0 || k == 2) {
+      *out_imm = pipeline_expr_int_val_at(a, init_ref);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+int32_t asm_skip_typeck_entry_whitelist(void *m, int32_t func_index) {
+  int32_t large_entry;
+  if (!m || func_index < 0)
+    return 0;
+  if (asm_module_is_parser_selfhost(m)) {
+    if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") != NULL) {
+      if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
+        if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_into_init", 15) ||
+            pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_into_set_main_index", 25))
+          return 1;
+      } else {
+        if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_into_buf", 14) ||
+            pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_into", 10) ||
+            pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_into_init", 15) ||
+            pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_into_set_main_index", 25) ||
+            pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"collect_imports_buf", 19))
+          return 1;
+      }
+    }
+    return 0;
+  }
+  large_entry = driver_typeck_skip_large_entry();
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_run_all", 21) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_impl", 19) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_should_skip_codegen", 33) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_phase_parse_load", 30) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_phase_parse_only", 30) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_phase_load_deps", 29) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_typecheck", 23) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_codegen_deps", 26) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_codegen_entry", 27) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_codegen_chain", 27) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_into_init", 15) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_into_set_main_index", 25) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"collect_imports_buf", 19) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_into_buf", 14) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"entry", 5))
+    return 1;
+  if (large_entry == 0) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast", 12) ||
+        pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_library", 20) ||
+        pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"asm_codegen_ast", 15))
+      return 1;
+  }
+  return 0;
+}
+
+int32_t asm_orchestration_extern_only_func(void *m, int32_t func_index) {
+  if (!m || func_index < 0)
+    return 0;
+  if (wave119_asm_env_strict_orchestration() == 0)
+    return 0;
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_typecheck", 23) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_into_with_init_buf", 24) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_phase_parse_load", 30) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_run_all", 21) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_impl", 19))
+    return 1;
+  return 0;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

@@ -213,10 +213,25 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
  * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 
-/* BC 8.3.2 wave1280: EMIT_HEAVY env/thresholds + path helpers + whitelist +
- * func-name prefix → pipeline_asm_emit_heavy_env.c (before selfhost faces so
- * extern asm_module_is_parser_selfhost resolves). PLATFORM: SHARED same-TU. */
-#include "pipeline_asm_emit_heavy_env.c"
+/* 2026-08-05: pipeline_asm_emit_heavy_env.c pure-owned leave (wave119).
+ * Live face: runtime_pipeline_abi.x (env gates, abort_lo/hi, path helpers,
+ * skip_typeck whitelist, orchestration_extern_only, name_has_prefix,
+ * top_level_const_lit). Cap residual: top_level_let/expr + driver_get path.
+ * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * Residual same-TU callers (parser_emit_heavy / emit_expr_rec) link pure via
+ * extern below. PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
+extern int32_t asm_env_entry_emit_heavy(void);
+extern int32_t asm_env_build_skip_typeck(void);
+extern int32_t asm_emit_heavy_abort_lo(void);
+extern int32_t asm_emit_heavy_abort_hi(void);
+extern int32_t pipeline_module_func_name_has_prefix_at(struct ast_Module *m, int32_t fi,
+    const char *pfx, int32_t plen);
+extern uint8_t *asm_driver_current_dep_path_for_codegen(void);
+extern void asm_import_path_to_c_prefix_into(uint8_t *path, uint8_t *buf, int32_t buf_cap);
+extern int32_t asm_module_top_level_const_lit_i32(struct ast_Module *m, struct ast_ASTArena *a,
+    uint8_t *name, int32_t name_len, int32_t *out_imm);
+extern int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_orchestration_extern_only_func(struct ast_Module *m, int32_t func_index);
 
 /* 2026-08-05: pipeline_asm_selfhost.c pure-owned leave (wave115).
  * Live face: runtime_pipeline_abi.x (num_defined/ordinal + 9 is_* predicates).
@@ -238,8 +253,8 @@ extern int32_t asm_module_is_compiler_selfhost(struct ast_Module *m);
 /* 2026-08-05: pipeline_asm_emit_heavy_safe_helper.c pure-owned leave (wave117).
  * Live face: runtime_pipeline_abi.x (9 EMIT_HEAVY 2nd-pass name classifiers).
  * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
- * pipeline_module_func_name_has_prefix_at un-static'd in emit_heavy_env.c for
- * pure extern. Residual same-TU caller (skip_dispatch) links pure via extern.
+ * pipeline_module_func_name_has_prefix_at pure-owned leave (wave119 emit_heavy_env).
+ * Residual same-TU caller (parser_emit_heavy) links pure via extern above.
  * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 extern int32_t asm_typeck_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index);
 extern int32_t asm_pipeline_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index);

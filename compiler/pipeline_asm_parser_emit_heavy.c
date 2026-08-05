@@ -25,6 +25,14 @@
 /** parser EMIT_HEAVY 第二遍：槽位 fallback 上限（>16 无增量；2026-06-14 提至 16）。 */
 #define ASM_EMIT_HEAVY_PARSER_SLOT_MAX 16
 
+/** Parser bootstrap whitelist entry: { name, len }.
+ * wave119: typedef moved here from retired pipeline_asm_emit_heavy_env.c
+ * (G.7 single residual home for bootstrap name tables). PLATFORM: SHARED. */
+typedef struct {
+  const char *name;
+  int32_t len;
+} asm_boot_parse_sym_t;
+
 /** XLANG_ASM_DEBUG=1 时打印 parser EMIT_HEAVY 真 emit 决策（定位 seed_mega SIGSEGV）。 */
 /** wave118: non-static for pure skip_dispatch Cap residual extern. */
 void asm_parser_emit_heavy_dbg_real(struct ast_Module *m, int32_t fi, const char *why) {

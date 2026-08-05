@@ -4,6 +4,10 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave119: pipeline_asm_emit_heavy_env.c pure-owned leave (env gates, abort range,
+//   path helpers, skip_typeck whitelist, orchestration_extern_only, name_has_prefix,
+//   top_level_const_lit). Cap residual: top_level_let/expr accessors +
+//   driver_get_current_dep_path_for_codegen. PLATFORM: SHARED dual-end L2.
 // wave115: pipeline_asm_selfhost.c pure-owned leave (asm_module_num_defined_funcs /
 //   defined_func_ordinal + 9 is_* selfhost predicates). Cap residual:
 //   pipeline_module_num_funcs / func_name_equal_at / asm_module_func_is_extern_at.
@@ -511,16 +515,19 @@ export extern "C" function pipeline_module_func_body_ref_at(module: *u8, fi: i32
 // wave115 Cap residual: module func name/extern accessors for selfhost pure leave.
 export extern "C" function pipeline_module_func_name_equal_at(module: *u8, fi: i32, name: *u8, name_len: i32): i32;
 export extern "C" function pipeline_asm_module_func_is_extern_at(module: *u8, fi: i32): i32;
-// wave116 Cap residual: emit_heavy env gate for typeck thin_delegate pure leave.
-export extern "C" function asm_env_entry_emit_heavy(): i32;
-// wave117 Cap residual: module func name prefix probe for safe_helper pure leave.
-export extern "C" function pipeline_module_func_name_has_prefix_at(module: *u8, fi: i32, pfx: *u8, plen: i32): i32;
-// wave118 Cap residual: skip_dispatch pure leave callees still host-cc residual.
-// PLATFORM: SHARED — pure owns dispatch face; env/parser_heavy/block_tree stay residual.
-export extern "C" function asm_env_build_skip_typeck(): i32;
-export extern "C" function asm_skip_typeck_entry_whitelist(m: *u8, func_index: i32): i32;
-export extern "C" function asm_emit_heavy_abort_lo(): i32;
-export extern "C" function asm_emit_heavy_abort_hi(): i32;
+// wave119: emit_heavy_env pure-owned leave — former Cap residual env gates /
+//   name_has_prefix / whitelist / abort_lo_hi are pure export function below.
+// wave119 Cap residual: top-level let + expr faces for const_lit pure leave;
+//   driver_get_current_dep_path for asm_driver_current_dep_path pure wrapper.
+// PLATFORM: SHARED — pure owns emit_heavy_env faces; parser_emit_heavy/block residual.
+export extern "C" function driver_get_current_dep_path_for_codegen(): *u8;
+export extern "C" function pipeline_module_top_level_let_name_len(module: *u8, idx: i32): i32;
+export extern "C" function pipeline_module_top_level_let_name_byte_at(module: *u8, idx: i32, off: i32): i32;
+export extern "C" function pipeline_module_top_level_let_init_ref(module: *u8, idx: i32): i32;
+export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
+// wave118 Cap residual: skip_dispatch pure leave callees still host-cc residual
+// (parser_emit_heavy + block_tree slot count + driver large-entry). PLATFORM: SHARED.
 export extern "C" function driver_typeck_skip_large_entry(): i32;
 export extern "C" function asm_count_block_stack_slots(arena: *u8, block_ref: i32): i32;
 export extern "C" function asm_skip_heavy_parser_mega_entry(m: *u8, func_index: i32): i32;
@@ -17483,11 +17490,14 @@ export function asm_skip_heavy_typeck_mega_entry(m: *u8, func_index: i32): i32 {
 let ASM_HEAVY_BODY_SLOT_THRESHOLD: i32 = 48;
 let ASM_EMIT_HEAVY_SLOT_THRESHOLD: i32 = 256;
 let ASM_EMIT_HEAVY_BACKEND_INDEX_LO: i32 = 87;
+let ASM_EMIT_HEAVY_BACKEND_INDEX_HI: i32 = 218;
 let ASM_EMIT_HEAVY_TYPECK_INDEX_LO: i32 = 90;
 let ASM_EMIT_HEAVY_TYPECK_INDEX_HI: i32 = 159;
 let ASM_EMIT_HEAVY_LARGE_BACKEND_SLOT_THRESHOLD: i32 = 96;
 let ASM_EMIT_HEAVY_BACKEND_HELPER_SLOT_MAX: i32 = 48;
 let ASM_EMIT_HEAVY_TYPECK_LAYOUT_SLOT_MAX: i32 = 128;
+/** Empty path for null driver_get (≡ C `(uint8_t *)""`). PLATFORM: SHARED. */
+let g_asm_empty_dep_path: u8[1] = [];
 
 /**
  * wave118 pure: empty __text stub label from FNV-1a over module func names.
@@ -17857,6 +17867,365 @@ export function asm_skip_heavy_module_func_body(m: *u8, arena: *u8, func_index: 
       if (slots3 > ASM_HEAVY_BODY_SLOT_THRESHOLD) {
         return 1;
       }
+    }
+    return 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// wave119: asm emit_heavy_env pure-owned leave (was pipeline_asm_emit_heavy_env.c).
+// G.7 product authority for env gates, abort range, path helpers, whitelist,
+// orchestration_extern_only, name_has_prefix, top_level_const_lit.
+// Cap residual: top_level_let/expr accessors + driver_get_current_dep_path.
+// Cold twins under seed #ifndef FROM_X. PLATFORM: SHARED — dual-end L2.
+// ---------------------------------------------------------------------------
+
+/**
+ * wave119 pure: XLANG_ASM_ENTRY_EMIT_HEAVY env gate (truthy non-empty non-'0').
+ * @return i32 — 1 when second-pass EMIT_HEAVY is requested
+ * PLATFORM: SHARED — sole provider after emit_heavy_env leave.
+ */
+#[no_mangle]
+export function asm_env_entry_emit_heavy(): i32 {
+  unsafe {
+    return asm_diag_env_truthy(link_abi_getenv("XLANG_ASM_ENTRY_EMIT_HEAVY"));
+  }
+}
+
+/**
+ * wave119 pure: XLANG_ASM_BUILD_SKIP_TYPECK env gate.
+ * @return i32 — 1 when build_xlang_asm uses stub-first path
+ * PLATFORM: SHARED — sole provider after emit_heavy_env leave.
+ */
+#[no_mangle]
+export function asm_env_build_skip_typeck(): i32 {
+  unsafe {
+    return asm_diag_env_truthy(link_abi_getenv("XLANG_ASM_BUILD_SKIP_TYPECK"));
+  }
+}
+
+/**
+ * wave119 pure: XLANG_ASM_STRICT_ORCHESTRATION env gate (was static in C).
+ * @return i32 — 1 when C orch chain marks large pipeline faces extern-only
+ * PLATFORM: SHARED.
+ */
+function asm_env_strict_orchestration(): i32 {
+  unsafe {
+    return asm_diag_env_truthy(link_abi_getenv("XLANG_ASM_STRICT_ORCHESTRATION"));
+  }
+}
+
+/**
+ * wave119 pure: XLANG_ASM_EMIT_ABORT_LO (default backend large-entry LO=87).
+ * @return i32 — inclusive low index for deep-emit abort range
+ * PLATFORM: SHARED — sole provider after emit_heavy_env leave.
+ */
+#[no_mangle]
+export function asm_emit_heavy_abort_lo(): i32 {
+  unsafe {
+    let e: *u8 = link_abi_getenv("XLANG_ASM_EMIT_ABORT_LO");
+    if (e == 0 as *u8) {
+      return ASM_EMIT_HEAVY_BACKEND_INDEX_LO;
+    }
+    let any: i32 = 0;
+    let v: i32 = asm_diag_parse_u_decimal(e, &any);
+    if (any == 0) {
+      return ASM_EMIT_HEAVY_BACKEND_INDEX_LO;
+    }
+    return v;
+  }
+}
+
+/**
+ * wave119 pure: XLANG_ASM_EMIT_ABORT_HI (default backend large-entry HI=218).
+ * @return i32 — inclusive high index for deep-emit abort range
+ * PLATFORM: SHARED — sole provider after emit_heavy_env leave.
+ */
+#[no_mangle]
+export function asm_emit_heavy_abort_hi(): i32 {
+  unsafe {
+    let e: *u8 = link_abi_getenv("XLANG_ASM_EMIT_ABORT_HI");
+    if (e == 0 as *u8) {
+      return ASM_EMIT_HEAVY_BACKEND_INDEX_HI;
+    }
+    let any: i32 = 0;
+    let v: i32 = asm_diag_parse_u_decimal(e, &any);
+    if (any == 0) {
+      return ASM_EMIT_HEAVY_BACKEND_INDEX_HI;
+    }
+    return v;
+  }
+}
+
+/**
+ * wave119 pure: module func name has prefix (byte compare against name pool).
+ * @param m *u8 — Module*
+ * @param fi i32 — function index
+ * @param pfx *u8 — prefix bytes (not necessarily NUL-terminated beyond plen)
+ * @param plen i32 — prefix length
+ * @return i32 — 1 if name starts with pfx
+ * PLATFORM: SHARED — sole provider after emit_heavy_env leave.
+ */
+#[no_mangle]
+export function pipeline_module_func_name_has_prefix_at(m: *u8, fi: i32, pfx: *u8, plen: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || fi < 0 || pfx == 0 as *u8 || plen <= 0) {
+      return 0;
+    }
+    let nl: i32 = pipeline_module_func_name_len_at(m, fi);
+    if (nl < plen) {
+      return 0;
+    }
+    let k: i32 = 0;
+    while (k < plen) {
+      if (pipeline_module_func_name_byte_at(m, fi, k) != (pfx[k] as i32)) {
+        return 0;
+      }
+      k = k + 1;
+    }
+    return 1;
+  }
+}
+
+/**
+ * wave119 pure: face for backend/asm to read current dep path for codegen.
+ * @return *u8 — NUL path; never null (empty string when driver null)
+ * PLATFORM: SHARED — wraps Cap residual driver_get_current_dep_path_for_codegen.
+ */
+#[no_mangle]
+export function asm_driver_current_dep_path_for_codegen(): *u8 {
+  unsafe {
+    let p: *u8 = driver_get_current_dep_path_for_codegen();
+    if (p == 0 as *u8) {
+      return &g_asm_empty_dep_path[0];
+    }
+    return p;
+  }
+}
+
+/**
+ * wave119 pure: convert import path dots to C symbol prefix (path with trailing _).
+ * G.7 note: codegen.x has codegen_import_path_to_c_prefix_into with same semantics;
+ * this face is the asm short name for residual/backend link (no second algorithm fork).
+ * @param path *u8 — NUL-terminated import path; null → empty buf
+ * @param buf *u8 — destination; capacity buf_cap
+ * @param buf_cap i32 — buffer capacity including NUL
+ * @return void
+ * PLATFORM: SHARED — sole provider after emit_heavy_env leave.
+ */
+#[no_mangle]
+export function asm_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void {
+  unsafe {
+    if (buf == 0 as *u8 || buf_cap <= 0) {
+      return;
+    }
+    if (path == 0 as *u8) {
+      buf[0] = 0;
+      return;
+    }
+    let off: i32 = 0;
+    let pi: i32 = 0;
+    while (path[pi] != 0 && off + 2 < buf_cap) {
+      let c: u8 = path[pi];
+      // '.' → '_'
+      if (c == 46) {
+        buf[off] = 95;
+      } else {
+        buf[off] = c;
+      }
+      off = off + 1;
+      pi = pi + 1;
+    }
+    if (off + 1 < buf_cap) {
+      buf[off] = 95;
+      off = off + 1;
+    }
+    buf[off] = 0;
+  }
+}
+
+/**
+ * wave119 pure: if module top-level let/const name is int lit init, write *out_imm.
+ * @param m *u8 — Module*
+ * @param a *u8 — ASTArena*
+ * @param name *u8 — name bytes
+ * @param name_len i32 — name length
+ * @param out_imm *i32 — output immediate
+ * @return i32 — 1 found, 0 miss
+ * PLATFORM: SHARED — sole provider after emit_heavy_env leave.
+ */
+#[no_mangle]
+export function asm_module_top_level_const_lit_i32(m: *u8, a: *u8, name: *u8, name_len: i32, out_imm: *i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || a == 0 as *u8 || name == 0 as *u8 || name_len <= 0 || out_imm == 0 as *i32) {
+      return 0;
+    }
+    let ntl: i32 = pipe_mod_get_num_top_level_lets(m);
+    let tl: i32 = 0;
+    while (tl < ntl) {
+      let nl: i32 = pipeline_module_top_level_let_name_len(m, tl);
+      if (nl == name_len && nl > 0) {
+        let k: i32 = 0;
+        while (k < name_len) {
+          if (pipeline_module_top_level_let_name_byte_at(m, tl, k) != (name[k] as i32)) {
+            break;
+          }
+          k = k + 1;
+        }
+        if (k == name_len) {
+          let init_ref: i32 = pipeline_module_top_level_let_init_ref(m, tl);
+          if (init_ref > 0) {
+            let ek: i32 = pipeline_expr_kind_ord_at(a, init_ref);
+            // kind 0 / 2 = int lit family (≡ historical C)
+            if (ek == 0 || ek == 2) {
+              *out_imm = pipeline_expr_int_val_at(a, init_ref);
+              return 1;
+            }
+          }
+        }
+      }
+      tl = tl + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave119 pure: SKIP_TYPECK entry whitelist (1 = do not stub via skip_heavy).
+ * @param m *u8 — Module*
+ * @param func_index i32 — function index
+ * @return i32 — 1 keep real emit, 0 allow stub
+ * PLATFORM: SHARED — sole provider after emit_heavy_env leave.
+ */
+#[no_mangle]
+export function asm_skip_typeck_entry_whitelist(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0) {
+      return 0;
+    }
+    // parser.x selfhost: default no whitelist; bootstrap env can keep parse_into*.
+    if (asm_module_is_parser_selfhost(m) != 0) {
+      if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") != 0 as *u8) {
+        if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != 0 as *u8) {
+          if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_init", 15) != 0) {
+            return 1;
+          }
+          if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_set_main_index", 25) != 0) {
+            return 1;
+          }
+        } else {
+          if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_buf", 14) != 0) {
+            return 1;
+          }
+          if (pipeline_module_func_name_equal_at(m, func_index, "parse_into", 10) != 0) {
+            return 1;
+          }
+          if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_init", 15) != 0) {
+            return 1;
+          }
+          if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_set_main_index", 25) != 0) {
+            return 1;
+          }
+          if (pipeline_module_func_name_equal_at(m, func_index, "collect_imports_buf", 19) != 0) {
+            return 1;
+          }
+        }
+      }
+      return 0;
+    }
+    let large_entry: i32 = driver_typeck_skip_large_entry();
+    // allow_on_large_entry=1 names
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_impl_run_all", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_impl", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_impl_should_skip_codegen", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_impl_phase_parse_load", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_impl_phase_parse_only", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_impl_phase_load_deps", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_impl_typecheck", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_impl_codegen_deps", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_impl_codegen_entry", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_impl_codegen_chain", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_init", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_set_main_index", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "collect_imports_buf", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_buf", 14) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "entry", 5) != 0) {
+      return 1;
+    }
+    // allow_on_large_entry=0: only when not large entry
+    if (large_entry == 0) {
+      if (pipeline_module_func_name_equal_at(m, func_index, "typeck_x_ast", 12) != 0) {
+        return 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, func_index, "typeck_x_ast_library", 20) != 0) {
+        return 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, func_index, "asm_codegen_ast", 15) != 0) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave119 pure: strict orchestration marks large pipeline faces extern-only.
+ * @param m *u8 — Module*
+ * @param func_index i32 — function index
+ * @return i32 — 1 extern-only (do not emit local body)
+ * PLATFORM: SHARED — sole provider after emit_heavy_env leave.
+ */
+#[no_mangle]
+export function asm_orchestration_extern_only_func(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0) {
+      return 0;
+    }
+    if (asm_env_strict_orchestration() == 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_impl_typecheck", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_with_init_buf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_impl_phase_parse_load", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_impl_run_all", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_impl", 19) != 0) {
+      return 1;
     }
     return 0;
   }
