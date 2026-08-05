@@ -49,6 +49,9 @@ extern void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, s
 extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena);
 extern int32_t pipeline_sync_one_dep_slot(struct ast_Module *module, struct ast_PipelineDepCtx *ctx, int32_t dep_i);
 extern void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct ast_Module *module);
+/* wave112: parse scalars BSS live in runtime_pipeline_abi pure; Cap result_c packs getters. */
+extern int32_t pipeline_parse_scalars_ok_get(void);
+extern int32_t pipeline_parse_scalars_main_idx_get(void);
 extern int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module *module, struct ast_ASTArena *arena,
                                                           struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_resolve_path_x_impl_c(struct ast_PipelineDepCtx *ctx, uint8_t *import_path, int32_t path_len);
@@ -262,6 +265,55 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct as
     return fail;
   }
   return pr;
+}
+
+/**
+ * Cap residual out-param unpack over pipeline_parse_into_with_init_buf_impl_c.
+ *
+ * Why: pure runtime_pipeline_abi cannot consume Cap-struct-return ParseIntoResult
+ * (G.7 pattern ≡ driver_parse_into_buf_rc). Product pure owns
+ * pipeline_parse_into_with_init_buf_scalars (wave112 leave) and calls this face.
+ *
+ * Invariant: null/empty inputs write ok=1 main_idx=-1 (match historical scalars
+ * null gate + impl_c fail defaults). Non-null path returns impl_c fields via out.
+ *
+ * PLATFORM: SHARED — Cap residual only; pure orchestrates product path.
+ */
+int32_t pipeline_parse_into_with_init_buf_impl_rc(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                   uint8_t *data, int32_t len, int32_t *out_ok,
+                                                   int32_t *out_main_idx) {
+  struct parser_ParseIntoResult r;
+
+  if (!arena || !module || !data || len <= 0) {
+    if (out_ok)
+      *out_ok = 1;
+    if (out_main_idx)
+      *out_main_idx = -1;
+    return 0;
+  }
+  r = pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
+  if (out_ok)
+    *out_ok = r.ok;
+  if (out_main_idx)
+    *out_main_idx = r.main_idx;
+  return 0;
+}
+
+/**
+ * Cap residual: pack parse scalars BSS into ParseIntoResult by value.
+ *
+ * Why: EMIT_HEAVY / C consumers need struct return; pure cannot safely emit
+ * Cap-struct-return for this face. Reads pure-owned scalars getters after
+ * wave112 parse_typeck_dispatch leave.
+ *
+ * PLATFORM: SHARED — Cap residual only (struct return).
+ */
+struct parser_ParseIntoResult pipeline_parse_into_with_init_result_c(void) {
+  struct parser_ParseIntoResult r;
+
+  r.ok = pipeline_parse_scalars_ok_get();
+  r.main_idx = pipeline_parse_scalars_main_idx_get();
+  return r;
 }
 
 #ifdef XLANG_PIPELINE_GLUE_STANDALONE_TU

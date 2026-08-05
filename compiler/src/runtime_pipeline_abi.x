@@ -4,6 +4,9 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave112: pipeline_parse_typeck_dispatch.c pure-owned leave (parse scalars +
+//   typeck_parsed/entry + load_import resolve/slot; Cap residual result_c/impl_rc
+//   stay in pipeline_parse_orch.c for Cap-struct-return / unpack).
 // wave111: pipeline_codegen_dep.c pure-owned leave (dep/entry codegen orch).
 // wave110: pure ImportEntry storage (structure debt) - multi-module malloc map + full
 //   pipeline_module_import_* API set (alloc/path/kind/binding/select + storage_release).
@@ -337,10 +340,10 @@ export extern "C" function driver_set_pipeline_entry_source_len(len: i64): void;
 // wave106: pipeline_run_x_pipeline is pure export below (const-buf face over
 //   pipeline_run_x_pipeline_impl). 2026-08-05: host-cc pipeline_run_x_pipeline.c leave.
 export extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void;
-// wave106 run_x_pipeline pure-owned leave Cap residual (typeck entry / skip / diags /
-//   impl face). PRODUCT: pipeline_x typeck_entry_module_c + should_skip + driver_abi
-//   skip getters + diagnostic; pure only calls. PLATFORM: SHARED.
-export extern "C" function pipeline_typeck_entry_module_c(module: *u8, arena: *u8, ctx: *u8): i32;
+// wave112: typeck_entry_module_c / typeck_parsed_module_c pure exports below
+//   (parse_typeck_dispatch leave). should_skip_x_typeck remains Cap residual
+//   (pipeline.x product face); pure owns should_skip_x_typeck_c only.
+// PLATFORM: SHARED.
 export extern "C" function pipeline_should_skip_x_typeck(ctx: *u8): i32;
 export extern "C" function driver_diagnostic_typeck_fail(): void;
 export extern "C" function driver_diagnostic_source_len(len: i32): void;
@@ -350,11 +353,16 @@ export extern "C" function driver_diagnostic_entry_module(module: *u8, arena: *u
 export extern "C" function driver_x_pipeline_skip_typeck_get(): i32;
 export extern "C" function driver_x_pipeline_skip_codegen_get(): i32;
 export extern "C" function pipeline_driver_asm_build_skip_typeck(): i32;
+export extern "C" function pipeline_driver_x_pipeline_skip_typeck(): i32;
+export extern "C" function pipeline_dep_ctx_asm_entry_module_only(ctx: *u8): i32;
 export extern "C" function pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern "C" function pipeline_run_x_pipeline_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
-// wave103: lsp_diag pure-owned leave - typeck after parse/load (host-cc residual body).
-// PLATFORM: SHARED - still host-cc in pipeline_parse_typeck_dispatch.c until later leave.
-export extern "C" function pipeline_typeck_parsed_module_c(module: *u8, arena: *u8, ctx: *u8, fail_mapped: i32): i32;
+// wave112 Cap residual: active ctx / WPO-S3 escape scan / unused-private lint.
+export extern "C" function pipeline_typeck_set_active_ctx_c(module: *u8, ctx: *u8): void;
+export extern "C" function pipeline_typeck_scan_module_struct_stack_escape_c(module: *u8, arena: *u8, ctx: *u8): i32;
+export extern "C" function pipeline_typeck_unused_private_funcs(module: *u8, arena: *u8): i32;
+// wave112 Cap residual: out-param unpack of Cap-struct-return parse-with-init.
+export extern "C" function pipeline_parse_into_with_init_buf_impl_rc(arena: *u8, module: *u8, data: *u8, len: i32, out_ok: *i32, out_main_idx: *i32): i32;
 // wave103: large-stack gate for LSP typeck (driver_abi pure authority).
 export extern "C" function driver_is_large_stack_thread(): i32;
 // wave111: codegen_dep pure-owned leave Cap residual (asm/C emit + dep_ctx path faces).
@@ -536,18 +544,10 @@ export extern "C" function pipeline_lint_set_source_buf(data: *u8, len: i32): vo
 export extern "C" function pipeline_module_set_main_func_index(module: *u8, idx: i32): void;
 export extern "C" function driver_diagnostic_parse_fail(main_idx: i32, num_funcs: i32, arena_num_types: i32): void;
 export extern "C" function pipeline_arena_num_types(arena: *u8): i32;
-/* wave1224: pipeline_parse_into_with_init_buf_scalars is the C authority that
- * performs the FULL arena/module reset via pipeline_strict_parse_into_init
- * (which resets more module fields than parser_parse_into_init - including
- * pending_allow_padding / pending_soa_struct / pending_cfg_skip / repr flags
- * / num_module_enums). Calling parser_parse_into_init directly left these
- * stale across files in directory mode, causing the parser to stop at
- * num_funcs=190 instead of 377 for runtime_driver_abi_thin.x.
- * Delegating to scalars guarantees byte-identical reset semantics with the
- * C authority (ast_pool.c L2301-2323 -> pipeline_parse_into_with_init_buf_impl_c
- * -> pipeline_strict_parse_into_init ast_pool.c L1571-1597).
- * PLATFORM: SHARED - pure delegation to platform-agnostic C authority. */
-export extern "C" function pipeline_parse_into_with_init_buf_scalars(arena: *u8, module: *u8, data: *u8, len: i32, out_ok: *i32, out_main_idx: *i32): i32;
+/* wave112: pipeline_parse_into_with_init_buf_scalars is pure export below
+ * (parse_typeck_dispatch leave). Cap residual unpack is
+ * pipeline_parse_into_with_init_buf_impl_rc (pipeline_parse_orch.c) over
+ * Cap-struct-return impl_c / strict_parse_into_init. */
 
 /**
  * Initialize AST arena and module state before parsing a new file.
@@ -14953,4 +14953,416 @@ export function run_x_pipeline_codegen_entry_c(module: *u8, arena: *u8, out_buf:
     return 0 - 6;
   }
   return 0;
+}
+
+// ---------------------------------------------------------------------------
+// wave112: parse_typeck_dispatch pure-owned leave (was pipeline_parse_typeck_dispatch.c).
+// G.7 product authority for:
+//   parse scalars BSS + ok/main getters + fail_diag + buf/slice sidecar scalars
+//   + apply_main_from_scalars_c + typeck_parsed/entry_module_c
+//   + should_skip_x_typeck_c + load_import_resolve_read_c + load_one_import_slot_c.
+// Already pure same-TU (wave93+): realign_ndep / load_and_sync / parse_set_main_from_buf_c
+//   / try_bind / load_import_from_disk_c / resolve_path_x / read_file_x.
+// Cap residual (host-cc, not this leave):
+//   pipeline_parse_into_with_init_buf_impl_rc / pipeline_parse_into_with_init_result_c
+//   in pipeline_parse_orch.c (Cap-struct-return unpack / pack).
+// Omits XLANG_DEBUG_PIPE fprintf dump (wave106 style).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/** Parse scalars sidecar BSS (EMIT_HEAVY / pure avoid by-value ParseIntoResult). */
+let g_pipeline_parse_scalars_ok: i32 = 0;
+let g_pipeline_parse_scalars_main_idx: i32 = 0 - 1;
+
+/**
+ * Read parse scalars ok flag (0 = parse success).
+ * @return i32 - last pipeline_parse_into_with_init_buf_scalars ok
+ * wave112 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parse_scalars_ok_get(): i32 {
+  return g_pipeline_parse_scalars_ok;
+}
+
+/**
+ * Read parse scalars main_idx.
+ * @return i32 - last main_idx (-1 when library / fail)
+ * wave112 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parse_scalars_main_idx_get(): i32 {
+  return g_pipeline_parse_scalars_main_idx;
+}
+
+/**
+ * Asm -o / precheck: skip .x typeck when driver skip flags + asm entry-only.
+ * @param ctx *u8 - PipelineDepCtx*; null -> 0
+ * @return i32 - 1 skip typeck, 0 run typeck
+ * wave112 pure: G.7 single product authority for _c face (pipeline.x owns non-_c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_should_skip_x_typeck_c(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  let skip_x: i32 = 0;
+  unsafe {
+    skip_x = pipeline_driver_x_pipeline_skip_typeck();
+  }
+  if (skip_x != 0) {
+    return 1;
+  }
+  let asm_only: i32 = 0;
+  unsafe {
+    asm_only = pipeline_dep_ctx_asm_entry_module_only(ctx);
+  }
+  if (asm_only == 0) {
+    return 0;
+  }
+  let asm_skip: i32 = 0;
+  unsafe {
+    asm_skip = pipeline_driver_asm_build_skip_typeck();
+  }
+  if (asm_skip != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Parse-fail diagnostic from scalars sidecar (main_idx + num_funcs + num_types).
+ * @param module *u8 - Module*; null -> no-op
+ * @param arena *u8 - ASTArena*; null -> no-op
+ * @return void
+ * wave112 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parse_fail_diag_scalars_c(module: *u8, arena: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (arena == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    driver_diagnostic_parse_fail(g_pipeline_parse_scalars_main_idx, pipeline_module_num_funcs(module),
+                                 pipeline_arena_num_types(arena));
+  }
+}
+
+/**
+ * Parse with full strict init into scalars BSS; optional out_ok/out_main_idx.
+ * Cap residual pipeline_parse_into_with_init_buf_impl_rc unpacks Cap-struct-return.
+ * @param arena *u8 - ASTArena*
+ * @param module *u8 - Module*
+ * @param data *u8 - source bytes
+ * @param len i32 - byte length
+ * @param out_ok *i32 - optional; written when non-null
+ * @param out_main_idx *i32 - optional; written when non-null
+ * @return i32 - always 0 (status via scalars / outs)
+ * wave112 pure: G.7 single product authority (was host-cc dispatch).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parse_into_with_init_buf_scalars(arena: *u8, module: *u8, data: *u8, len: i32, out_ok: *i32, out_main_idx: *i32): i32 {
+  if (arena == 0 as *u8 || module == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    g_pipeline_parse_scalars_ok = 1;
+    g_pipeline_parse_scalars_main_idx = 0 - 1;
+    if (out_ok != 0 as *i32) {
+      unsafe {
+        out_ok[0] = g_pipeline_parse_scalars_ok;
+      }
+    }
+    if (out_main_idx != 0 as *i32) {
+      unsafe {
+        out_main_idx[0] = g_pipeline_parse_scalars_main_idx;
+      }
+    }
+    return 0;
+  }
+  let ok: i32 = 1;
+  let main_idx: i32 = 0 - 1;
+  unsafe {
+    pipeline_parse_into_with_init_buf_impl_rc(arena, module, data, len, &ok, &main_idx);
+  }
+  g_pipeline_parse_scalars_ok = ok;
+  g_pipeline_parse_scalars_main_idx = main_idx;
+  if (out_ok != 0 as *i32) {
+    unsafe {
+      out_ok[0] = ok;
+    }
+  }
+  if (out_main_idx != 0 as *i32) {
+    unsafe {
+      out_main_idx[0] = main_idx;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Sidecar scalars without out-params (EMIT_HEAVY avoid *i32 outs).
+ * @param arena *u8 - ASTArena*
+ * @param module *u8 - Module*
+ * @param data *u8 - source bytes
+ * @param len i32 - byte length
+ * @return i32 - 0
+ * wave112 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parse_into_with_init_buf_scalars_sidecar(arena: *u8, module: *u8, data: *u8, len: i32): i32 {
+  return pipeline_parse_into_with_init_buf_scalars(arena, module, data, len, 0 as *i32, 0 as *i32);
+}
+
+/**
+ * Slice path sidecar: LP64 xlang_slice_uint8_t { data@0, length@8 }.
+ * @param arena *u8 - ASTArena*
+ * @param module *u8 - Module*
+ * @param source *u8 - *xlang_slice_uint8_t; null/empty -> null-gate scalars
+ * @return i32 - 0
+ * wave112 pure: G.7 single product authority.
+ * PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function pipeline_parse_into_with_init_slice_scalars_sidecar(arena: *u8, module: *u8, source: *u8): i32 {
+  if (source == 0 as *u8) {
+    return pipeline_parse_into_with_init_buf_scalars(arena, module, 0 as *u8, 0, 0 as *i32, 0 as *i32);
+  }
+  let data: *u8 = pipe_load_ptr_slot(source, 0);
+  let length_i64: i64 = xlang_size_slot_get(source, 1);
+  if (data == 0 as *u8 || length_i64 == 0) {
+    return pipeline_parse_into_with_init_buf_scalars(arena, module, 0 as *u8, 0, 0 as *i32, 0 as *i32);
+  }
+  let len: i32 = 0;
+  if (length_i64 > 2147483647) {
+    len = 2147483647;
+  } else {
+    len = length_i64 as i32;
+  }
+  return pipeline_parse_into_with_init_buf_scalars(arena, module, data, len, 0 as *i32, 0 as *i32);
+}
+
+/**
+ * Apply scalars ok/main to module.main; parse fail -> diag + -2.
+ * @param module *u8 - Module*; null -> -2
+ * @param arena *u8 - ASTArena*; null -> -2
+ * @return i32 - 0 ok, -2 fail
+ * wave112 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parse_apply_main_from_scalars_c(module: *u8, arena: *u8): i32 {
+  if (module == 0 as *u8 || arena == 0 as *u8) {
+    return 0 - 2;
+  }
+  let ok: i32 = pipeline_parse_scalars_ok_get();
+  let main_idx: i32 = pipeline_parse_scalars_main_idx_get();
+  if (ok != 0) {
+    pipeline_parse_fail_diag_scalars_c(module, arena);
+    return 0 - 2;
+  }
+  unsafe {
+    pipeline_module_set_main_func_index(module, main_idx);
+  }
+  return 0;
+}
+
+/**
+ * Typeck already-parsed module: set active ctx, library vs entry typeck_x_ast*,
+ * WPO-S3 stack-escape scan, unused-private lint.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param fail_mapped i32 - non-zero maps typeck fail to this code (LSP -3)
+ * @return i32 - 0 ok; fail_mapped or typeck rc on fail; -1 null without fail_mapped
+ * wave112 pure: G.7 single product authority.
+ * PLATFORM: SHARED - Cap residual set_active / scan / unused_private / typeck_x_ast*.
+ */
+#[no_mangle]
+export function pipeline_typeck_parsed_module_c(module: *u8, arena: *u8, ctx: *u8, fail_mapped: i32): i32 {
+  if (module == 0 as *u8 || arena == 0 as *u8 || ctx == 0 as *u8) {
+    if (fail_mapped != 0) {
+      return fail_mapped;
+    }
+    return 0 - 1;
+  }
+  let nf: i32 = 0;
+  unsafe {
+    nf = pipeline_module_num_funcs(module);
+  }
+  // Empty module: force library typeck (main_idx 0 after memset is not a real main).
+  if (nf == 0) {
+    unsafe {
+      pipeline_module_set_main_func_index(module, 0 - 1);
+    }
+  }
+  unsafe {
+    pipeline_typeck_set_active_ctx_c(module, ctx);
+    pipeline_typeck_set_dep_ctx(ctx);
+  }
+  let main_idx: i32 = 0;
+  unsafe {
+    main_idx = pipeline_module_main_func_index(module);
+  }
+  if (main_idx < 0) {
+    let tc_lib: i32 = 0;
+    unsafe {
+      tc_lib = typeck_x_ast_library(module, arena, ctx);
+    }
+    if (tc_lib != 0) {
+      unsafe {
+        driver_diagnostic_typeck_fail();
+      }
+      if (fail_mapped != 0) {
+        return fail_mapped;
+      }
+      return tc_lib;
+    }
+    let esc: i32 = 0;
+    unsafe {
+      esc = pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx);
+    }
+    if (esc != 0) {
+      unsafe {
+        driver_diagnostic_typeck_fail();
+      }
+      if (fail_mapped != 0) {
+        return fail_mapped;
+      }
+      return 0 - 1;
+    }
+    unsafe {
+      let _u: i32 = pipeline_typeck_unused_private_funcs(module, arena);
+    }
+    return 0;
+  }
+  unsafe {
+    pipeline_typeck_set_dep_ctx(ctx);
+  }
+  let tc: i32 = 0;
+  unsafe {
+    tc = typeck_x_ast(module, arena, ctx);
+  }
+  if (tc != 0) {
+    unsafe {
+      driver_diagnostic_typeck_fail();
+    }
+    if (fail_mapped != 0) {
+      return fail_mapped;
+    }
+    return tc;
+  }
+  let esc2: i32 = 0;
+  unsafe {
+    esc2 = pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx);
+  }
+  if (esc2 != 0) {
+    unsafe {
+      driver_diagnostic_typeck_fail();
+    }
+    if (fail_mapped != 0) {
+      return fail_mapped;
+    }
+    return 0 - 1;
+  }
+  unsafe {
+    let _u2: i32 = pipeline_typeck_unused_private_funcs(module, arena);
+  }
+  return 0;
+}
+
+/**
+ * Entry typeck face: typeck_parsed_module_c with fail_mapped=0.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - 0 ok; -1 null; typeck rc
+ * wave112 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_typeck_entry_module_c(module: *u8, arena: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8 || arena == 0 as *u8 || ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  return pipeline_typeck_parsed_module_c(module, arena, ctx, 0);
+}
+
+/**
+ * Resolve one import path + read file into ctx loaded buffers.
+ * @param module *u8 - Module*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param import_idx i32 - import index
+ * @return i32 - 0 ok; -1 null/bad idx; -7 resolve fail; -8 read fail
+ * wave112 pure: G.7 single product authority.
+ * PLATFORM: SHARED - Cap residual path64 + pure resolve/read.
+ */
+#[no_mangle]
+export function pipeline_load_import_resolve_read_c(module: *u8, ctx: *u8, import_idx: i32): i32 {
+  if (module == 0 as *u8 || ctx == 0 as *u8 || import_idx < 0) {
+    return 0 - 1;
+  }
+  let path_buf: u8[128] = [];
+  let path_len: i32 = 0;
+  unsafe {
+    memset(&path_buf[0], 0, 128 as usize);
+    path_len = parser_copy_module_import_path64(module, import_idx, &path_buf[0]);
+  }
+  let rr: i32 = 0;
+  unsafe {
+    rr = pipeline_resolve_path_x(ctx, &path_buf[0], path_len);
+  }
+  if (rr != 0) {
+    return 0 - 7;
+  }
+  let rf: i32 = 0;
+  unsafe {
+    rf = pipeline_read_file_x(ctx);
+  }
+  if (rf != 0) {
+    return 0 - 8;
+  }
+  return 0;
+}
+
+/**
+ * Load one import slot: try seed bind else disk load.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param import_idx i32 - import index
+ * @return i32 - 0 ok/bound; -1 null; else load_import rc
+ * wave112 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_load_one_import_slot_c(module: *u8, arena: *u8, ctx: *u8, import_idx: i32): i32 {
+  if (module == 0 as *u8 || arena == 0 as *u8 || ctx == 0 as *u8 || import_idx < 0) {
+    return 0 - 1;
+  }
+  let path_buf: u8[128] = [];
+  let gs: i32 = 0;
+  unsafe {
+    memset(&path_buf[0], 0, 128 as usize);
+    let _pl: i32 = parser_copy_module_import_path64(module, import_idx, &path_buf[0]);
+    gs = driver_dep_slot_for_path(&path_buf[0]);
+  }
+  let bound: i32 = 0;
+  unsafe {
+    bound = pipeline_try_bind_seeded_import(ctx, import_idx, gs);
+  }
+  if (bound != 0) {
+    return 0;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_load_import_from_disk_c(module, arena, ctx, import_idx);
+  }
+  return rc;
 }

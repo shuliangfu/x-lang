@@ -6302,4 +6302,340 @@ int32_t run_x_pipeline_codegen_entry_c(void *module, void *arena, void *out_buf,
   return 0;
 }
 
+/* wave112 parse_typeck_dispatch leave cold twins — former pipeline_parse_typeck_dispatch.c.
+ * Product hybrid PREFER: pure runtime_pipeline_abi.x owns strong faces.
+ * Continues #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X from wave101 leave twins.
+ * Cap residual result_c / impl_rc live always in pipeline_parse_orch.c.
+ * PLATFORM: SHARED — cold only when pure FROM_X object is not linked.
+ */
+
+extern int32_t pipeline_parse_into_with_init_buf_impl_rc(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                         uint8_t *data, int32_t len, int32_t *out_ok,
+                                                         int32_t *out_main_idx);
+extern int32_t pipeline_driver_x_pipeline_skip_typeck(void);
+extern int32_t pipeline_driver_asm_build_skip_typeck(void);
+extern int32_t pipeline_dep_ctx_asm_entry_module_only(struct ast_PipelineDepCtx *ctx);
+extern void pipeline_typeck_set_active_ctx_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx);
+extern void pipeline_typeck_set_dep_ctx(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                                 struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_unused_private_funcs(struct ast_Module *m, struct ast_ASTArena *a);
+extern int32_t typeck_typeck_x_ast(struct ast_Module *module, struct ast_ASTArena *arena, struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_typeck_x_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
+                                            struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_module_main_func_index(struct ast_Module *m);
+extern void pipeline_module_set_main_func_index(struct ast_Module *m, int32_t idx);
+extern void pipeline_lint_set_source_buf(const uint8_t *data, int32_t len);
+extern void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
+extern void driver_diagnostic_typeck_fail(void);
+extern int32_t pipeline_arena_num_types(struct ast_ASTArena *a);
+extern int32_t pipeline_module_num_funcs(void *m);
+extern int32_t parser_get_module_num_imports(struct ast_Module *module);
+extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
+extern void pipeline_dep_ctx_set_ndep(struct ast_PipelineDepCtx *ctx, int32_t n);
+extern void pipeline_dep_ctx_set_import_path(void *ctx, int32_t idx, uint8_t *path, int32_t len);
+extern void *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
+extern void pipeline_dep_ctx_set_module(struct ast_PipelineDepCtx *ctx, int32_t idx, struct ast_Module *m);
+extern void pipeline_dep_ctx_set_arena(struct ast_PipelineDepCtx *ctx, int32_t idx, struct ast_ASTArena *a);
+extern int32_t pipeline_try_bind_seeded_import(struct ast_PipelineDepCtx *ctx, int32_t import_idx, int32_t global_slot);
+extern int32_t pipeline_load_import_from_disk_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                struct ast_PipelineDepCtx *ctx, int32_t import_idx);
+extern int32_t pipeline_sync_dep_slots_from_driver_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx);
+extern void typeck_typeck_merge_dep_struct_layouts_into_entry(struct ast_Module *mod, struct ast_ASTArena *arena,
+                                                              struct ast_PipelineDepCtx *ctx);
+extern void typeck_typeck_wpo_unify_soa_layouts(struct ast_Module *entry, struct ast_PipelineDepCtx *ctx);
+extern int32_t driver_dep_seeded_get(int32_t i);
+extern const char *driver_dep_path_registry_at(int32_t i);
+extern uint8_t *driver_dep_module_buf(int32_t i);
+extern uint8_t *driver_dep_arena_buf(int32_t i);
+extern int32_t driver_dep_slot_for_path(const char *path);
+extern int32_t parser_copy_module_import_path64(void *module, int32_t i, uint8_t out[128]);
+extern int32_t pipeline_resolve_path_x(void *ctx, uint8_t *import_path, int32_t path_len);
+extern int32_t pipeline_read_file_x(void *ctx);
+
+static int32_t g_pipeline_parse_scalars_ok_w112;
+static int32_t g_pipeline_parse_scalars_main_idx_w112;
+
+int32_t pipeline_parse_scalars_ok_get(void) {
+  return g_pipeline_parse_scalars_ok_w112;
+}
+
+int32_t pipeline_parse_scalars_main_idx_get(void) {
+  return g_pipeline_parse_scalars_main_idx_w112;
+}
+
+int32_t pipeline_should_skip_x_typeck_c(struct ast_PipelineDepCtx *ctx) {
+  if (!ctx)
+    return 0;
+  if (pipeline_driver_x_pipeline_skip_typeck() != 0)
+    return 1;
+  if (pipeline_dep_ctx_asm_entry_module_only(ctx) == 0)
+    return 0;
+  if (pipeline_driver_asm_build_skip_typeck() != 0)
+    return 1;
+  return 0;
+}
+
+void pipeline_parse_fail_diag_scalars_c(struct ast_Module *module, struct ast_ASTArena *arena) {
+  if (!module || !arena)
+    return;
+  driver_diagnostic_parse_fail(g_pipeline_parse_scalars_main_idx_w112, pipeline_module_num_funcs(module),
+                               pipeline_arena_num_types(arena));
+}
+
+int32_t pipeline_parse_into_with_init_buf_scalars(struct ast_ASTArena *arena, struct ast_Module *module, uint8_t *data,
+                                                   int32_t len, int32_t *out_ok, int32_t *out_main_idx) {
+  int32_t ok = 1;
+  int32_t main_idx = -1;
+  if (!arena || !module || !data || len <= 0) {
+    g_pipeline_parse_scalars_ok_w112 = 1;
+    g_pipeline_parse_scalars_main_idx_w112 = -1;
+    if (out_ok)
+      *out_ok = 1;
+    if (out_main_idx)
+      *out_main_idx = -1;
+    return 0;
+  }
+  (void)pipeline_parse_into_with_init_buf_impl_rc(arena, module, data, len, &ok, &main_idx);
+  g_pipeline_parse_scalars_ok_w112 = ok;
+  g_pipeline_parse_scalars_main_idx_w112 = main_idx;
+  if (out_ok)
+    *out_ok = ok;
+  if (out_main_idx)
+    *out_main_idx = main_idx;
+  return 0;
+}
+
+int32_t pipeline_parse_into_with_init_buf_scalars_sidecar(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                          uint8_t *data, int32_t len) {
+  return pipeline_parse_into_with_init_buf_scalars(arena, module, data, len, NULL, NULL);
+}
+
+int32_t pipeline_parse_into_with_init_slice_scalars_sidecar(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                             struct xlang_slice_uint8_t *source) {
+  if (!source || !source->data || source->length == 0)
+    return pipeline_parse_into_with_init_buf_scalars(arena, module, NULL, 0, NULL, NULL);
+  if (source->length > (size_t)2147483647)
+    return pipeline_parse_into_with_init_buf_scalars(arena, module, source->data, 2147483647, NULL, NULL);
+  return pipeline_parse_into_with_init_buf_scalars(arena, module, source->data, (int32_t)source->length, NULL, NULL);
+}
+
+int32_t pipeline_parse_apply_main_from_scalars_c(struct ast_Module *module, struct ast_ASTArena *arena) {
+  int32_t ok;
+  int32_t main_idx;
+  if (!module || !arena)
+    return -2;
+  ok = pipeline_parse_scalars_ok_get();
+  main_idx = pipeline_parse_scalars_main_idx_get();
+  if (ok != 0) {
+    pipeline_parse_fail_diag_scalars_c(module, arena);
+    return -2;
+  }
+  pipeline_module_set_main_func_index(module, main_idx);
+  return 0;
+}
+
+int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *data,
+                                           int32_t len) {
+  int32_t ok;
+  int32_t main_idx;
+  if (!module || !arena || !data || len <= 0)
+    return -2;
+  pipeline_lint_set_source_buf(data, len);
+  pipeline_parse_into_with_init_buf_scalars(arena, module, data, len, &ok, &main_idx);
+  if (ok != 0) {
+    driver_diagnostic_parse_fail(main_idx, pipeline_module_num_funcs(module), pipeline_arena_num_types(arena));
+    return -2;
+  }
+  pipeline_module_set_main_func_index(module, main_idx);
+  return 0;
+}
+
+int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                        struct ast_PipelineDepCtx *ctx, int32_t fail_mapped) {
+  if (!module || !arena || !ctx) {
+    if (fail_mapped != 0)
+      return fail_mapped;
+    return -1;
+  }
+  if (pipeline_module_num_funcs(module) == 0)
+    pipeline_module_set_main_func_index(module, -1);
+  pipeline_typeck_set_active_ctx_c(module, ctx);
+  pipeline_typeck_set_dep_ctx(ctx);
+  if (pipeline_module_main_func_index(module) < 0) {
+    int32_t tc_lib = typeck_typeck_x_ast_library(module, arena, ctx);
+    if (tc_lib != 0) {
+      driver_diagnostic_typeck_fail();
+      if (fail_mapped != 0)
+        return fail_mapped;
+      return tc_lib;
+    }
+    if (pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx) != 0) {
+      driver_diagnostic_typeck_fail();
+      if (fail_mapped != 0)
+        return fail_mapped;
+      return -1;
+    }
+    (void)pipeline_typeck_unused_private_funcs(module, arena);
+    return 0;
+  }
+  {
+    pipeline_typeck_set_dep_ctx(ctx);
+    int32_t tc = typeck_typeck_x_ast(module, arena, ctx);
+    if (tc != 0) {
+      driver_diagnostic_typeck_fail();
+      if (fail_mapped != 0)
+        return fail_mapped;
+      return tc;
+    }
+    if (pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx) != 0) {
+      driver_diagnostic_typeck_fail();
+      if (fail_mapped != 0)
+        return fail_mapped;
+      return -1;
+    }
+  }
+  (void)pipeline_typeck_unused_private_funcs(module, arena);
+  return 0;
+}
+
+int32_t pipeline_typeck_entry_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                       struct ast_PipelineDepCtx *ctx) {
+  if (!module || !arena || !ctx)
+    return -1;
+  return pipeline_typeck_parsed_module_c(module, arena, ctx, 0);
+}
+
+void pipeline_dep_ctx_realign_ndep_for_entry_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
+  int32_t n_imp;
+  int32_t ndep;
+  if (!module || !ctx)
+    return;
+  n_imp = parser_get_module_num_imports(module);
+  ndep = pipeline_dep_ctx_ndep(ctx);
+  if (ndep == n_imp)
+    return;
+  if (ndep > n_imp)
+    return;
+  pipeline_dep_ctx_set_ndep(ctx, 0);
+}
+
+int32_t pipeline_load_import_resolve_read_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
+                                            int32_t import_idx) {
+  uint8_t path_buf[128];
+  int32_t path_len;
+  if (!module || !ctx || import_idx < 0)
+    return -1;
+  memset(path_buf, 0, sizeof(path_buf));
+  path_len = parser_copy_module_import_path64(module, import_idx, path_buf);
+  if (pipeline_resolve_path_x(ctx, path_buf, path_len) != 0)
+    return -7;
+  if (pipeline_read_file_x(ctx) != 0)
+    return -8;
+  return 0;
+}
+
+int32_t pipeline_load_one_import_slot_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                        struct ast_PipelineDepCtx *ctx, int32_t import_idx) {
+  uint8_t path_buf[128];
+  int32_t gs;
+  if (!module || !arena || !ctx || import_idx < 0)
+    return -1;
+  memset(path_buf, 0, sizeof(path_buf));
+  (void)parser_copy_module_import_path64(module, import_idx, path_buf);
+  gs = driver_dep_slot_for_path((const char *)path_buf);
+  if (pipeline_try_bind_seeded_import(ctx, import_idx, gs) != 0)
+    return 0;
+  return pipeline_load_import_from_disk_c(module, arena, ctx, import_idx);
+}
+
+int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                    struct ast_PipelineDepCtx *ctx) {
+  int32_t n_imports;
+  int32_t i;
+  int32_t rc;
+  int32_t sync_rc;
+  uint8_t path_buf[128];
+  if (!module || !arena || !ctx)
+    return -1;
+  n_imports = parser_get_module_num_imports(module);
+  pipeline_dep_ctx_realign_ndep_for_entry_c(module, ctx);
+  if (pipeline_dep_ctx_ndep(ctx) == 0 && n_imports > 0) {
+    for (i = 0; i < n_imports; i++) {
+      int32_t pl = 0;
+      memset(path_buf, 0, sizeof(path_buf));
+      (void)parser_copy_module_import_path64(module, i, path_buf);
+      while (pl < 64 && path_buf[pl] != 0)
+        pl = pl + 1;
+      if (pl > 0)
+        pipeline_dep_ctx_set_import_path(ctx, i, path_buf, pl);
+      if (pipeline_try_bind_seeded_import(ctx, i, driver_dep_slot_for_path((const char *)path_buf)) != 0)
+        continue;
+      rc = pipeline_load_import_from_disk_c(module, arena, ctx, i);
+      if (rc != 0)
+        return rc;
+    }
+    pipeline_dep_ctx_set_ndep(ctx, n_imports);
+  } else if (n_imports > 0) {
+    int32_t cur_ndep = pipeline_dep_ctx_ndep(ctx);
+    if (cur_ndep > n_imports) {
+      for (i = 0; i < cur_ndep; i++) {
+        const char *reg_path = NULL;
+        int32_t pl = 0;
+        if (driver_dep_seeded_get(i) == 0)
+          continue;
+        pipeline_dep_ctx_set_module(ctx, i, (struct ast_Module *)driver_dep_module_buf(i));
+        pipeline_dep_ctx_set_arena(ctx, i, (struct ast_ASTArena *)driver_dep_arena_buf(i));
+        reg_path = driver_dep_path_registry_at(i);
+        if (reg_path && reg_path[0]) {
+          while (pl < 63 && reg_path[pl] != 0)
+            pl = pl + 1;
+          if (pl > 0)
+            pipeline_dep_ctx_set_import_path(ctx, i, (uint8_t *)reg_path, pl);
+        }
+      }
+    } else {
+      for (i = 0; i < n_imports; i++) {
+        int32_t pl = 0;
+        memset(path_buf, 0, sizeof(path_buf));
+        (void)parser_copy_module_import_path64(module, i, path_buf);
+        while (pl < 64 && path_buf[pl] != 0)
+          pl = pl + 1;
+        if (pl > 0)
+          pipeline_dep_ctx_set_import_path(ctx, i, path_buf, pl);
+        if (pipeline_try_bind_seeded_import(ctx, i, driver_dep_slot_for_path((const char *)path_buf)) != 0)
+          continue;
+        if (pipeline_dep_ctx_module_at(ctx, i) == NULL) {
+          rc = pipeline_load_import_from_disk_c(module, arena, ctx, i);
+          if (rc != 0)
+            return rc;
+        }
+      }
+      if (pipeline_dep_ctx_ndep(ctx) < n_imports)
+        pipeline_dep_ctx_set_ndep(ctx, n_imports);
+    }
+  }
+  sync_rc = pipeline_sync_dep_slots_from_driver_c(module, ctx);
+  if (sync_rc != 0)
+    return sync_rc;
+  {
+    int32_t all_seeded = (n_imports > 0) ? 1 : 0;
+    for (i = 0; i < n_imports; i++) {
+      int32_t gs;
+      memset(path_buf, 0, sizeof(path_buf));
+      (void)parser_copy_module_import_path64(module, i, path_buf);
+      gs = driver_dep_slot_for_path((const char *)path_buf);
+      if ((gs < 0 || driver_dep_seeded_get(gs) == 0) && driver_dep_seeded_get(i) == 0) {
+        all_seeded = 0;
+        break;
+      }
+    }
+    if (!all_seeded) {
+      typeck_typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
+      typeck_typeck_wpo_unify_soa_layouts(module, ctx);
+    }
+  }
+  return 0;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

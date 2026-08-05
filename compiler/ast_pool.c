@@ -126,7 +126,13 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
  * read_file_x_impl_c / read_file_x_c / read_fd_into_loaded_buf).
  * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
-#include "pipeline_parse_typeck_dispatch.c"
+/* 2026-08-05: pipeline_parse_typeck_dispatch.c pure-owned leave retired (wave112).
+ * Live face: runtime_pipeline_abi.x (parse scalars BSS/getters + fail_diag +
+ * buf/slice scalars + apply_main + typeck_parsed/entry + should_skip_c +
+ * load_import_resolve_read + load_one_import_slot). Cap residual:
+ * pipeline_parse_into_with_init_buf_impl_rc + result_c in pipeline_parse_orch.c.
+ * Already pure same-TU: realign / load_and_sync / parse_set_main_from_buf_c.
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 /* 2026-08-05: pipeline_run_x_pipeline.c pure-owned leave retired.
  * Live face: runtime_pipeline_abi.x (last_rc get/store + typeck_fail/null_return
