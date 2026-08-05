@@ -290,7 +290,7 @@ void asm_skip_heavy_set_pipeline_ctx(struct ast_PipelineDepCtx *ctx) {
 }
 
 /** XLANG_ASM_ENTRY_EMIT_HEAVY=1: ENTRY_MODULE_ONLY real emit (typeck second pass); skip only pipeline typecheck. */
-static int32_t asm_env_entry_emit_heavy(void) {
+int32_t asm_env_entry_emit_heavy(void) { /* wave116: global for pure typeck thin_delegate extern */
   const char *e = link_abi_getenv("XLANG_ASM_ENTRY_EMIT_HEAVY");
   return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }

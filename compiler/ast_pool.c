@@ -238,7 +238,21 @@ extern int32_t asm_module_is_compiler_selfhost(struct ast_Module *m);
 #include "pipeline_asm_emit_heavy_safe_helper.c"
 
 
-#include "pipeline_asm_thin_delegate.c"
+/* 2026-08-05: pipeline_asm_thin_delegate.c pure-owned leave (wave116).
+ * Live face: runtime_pipeline_abi.x (backend/pipeline/driver/typeck m8-tail
+ * thin delegate C-name lookup). Seed cold twin under
+ * #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * k_asm_parser_thin_delegate table + its 2 consumers relocated into
+ * pipeline_asm_parser_emit_heavy.c (same TU). PLATFORM: SHARED — no host-cc
+ * twin in pipeline_x mega-TU. */
+extern int32_t asm_backend_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
+                                                         int32_t out_cap, int32_t *out_len);
+extern int32_t asm_pipeline_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
+                                                          int32_t out_cap, int32_t *out_len);
+extern int32_t asm_driver_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
+                                                        int32_t out_cap, int32_t *out_len);
+extern int32_t asm_typeck_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
+                                                        int32_t out_cap, int32_t *out_len);
 
 
 #include "pipeline_asm_parser_emit_heavy.c"

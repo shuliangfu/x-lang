@@ -511,6 +511,8 @@ export extern "C" function pipeline_module_func_body_ref_at(module: *u8, fi: i32
 // wave115 Cap residual: module func name/extern accessors for selfhost pure leave.
 export extern "C" function pipeline_module_func_name_equal_at(module: *u8, fi: i32, name: *u8, name_len: i32): i32;
 export extern "C" function pipeline_asm_module_func_is_extern_at(module: *u8, fi: i32): i32;
+// wave116 Cap residual: emit_heavy env gate for typeck thin_delegate pure leave.
+export extern "C" function asm_env_entry_emit_heavy(): i32;
 export extern "C" function ast_ast_block_num_consts(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_loops(arena: *u8, block_ref: i32): i32;
@@ -16307,4 +16309,236 @@ export function asm_module_is_compiler_selfhost(m: *u8): i32 {
     return 1;
   }
   return 0;
+}
+// ---------------------------------------------------------------------------
+// wave116: asm thin_delegate pure-owned leave (was pipeline_asm_thin_delegate.c).
+// G.7 product authority for:
+//   asm_backend_m8_tail_thin_delegate_c_name / asm_pipeline_... /
+//   asm_driver_... / asm_typeck_... (M8-tail thin delegate C-name lookup).
+// k_asm_parser_thin_delegate table + its 2 consumers stayed host-cc in
+//   pipeline_asm_parser_emit_heavy.c (relocated, same TU). Residual host-cc
+//   callee asm_env_entry_emit_heavy via extern. Cold twins under seed
+//   #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/** Copy c_name (c_len bytes) to out, NUL-terminate, set *out_len; 1 on hit.
+ *  Mirrors C: c_len >= out_cap -> 0 (already-validated caller preconditions). */
+function asm_thin_delegate_emit(out: *u8, out_cap: i32, out_len: *i32, c_name: *u8, c_len: i32): i32 {
+  if (c_len >= out_cap) {
+    return 0;
+  }
+  unsafe {
+    let k: i32 = 0;
+    while (k < c_len) {
+      out[k] = c_name[k];
+      k = k + 1;
+    }
+    out[c_len] = 0;
+    out_len[0] = c_len;
+    return 1;
+  }
+}
+
+/**
+ * Backend M8-tail thin delegate: resolve C delegate symbol for a backend.x
+ * thin-wrapper func name. @return 1 on hit (out/out_len set), else 0.
+ * wave116 pure: G.7 single product authority. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_backend_m8_tail_thin_delegate_c_name(m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
+  if (m == 0 as *u8 || func_index < 0 || out == 0 as *u8 || out_len == 0 as *i32 || out_cap <= 0) {
+    return 0;
+  }
+  unsafe {
+    if (pipeline_module_func_name_equal_at(m, func_index, "fill_param_slots", 16) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_fill_param_slots", 29);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "fill_local_slots", 16) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_fill_local_slots", 29);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "compute_frame_size", 18) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_compute_frame_size_c", 33);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_body_elf", 19) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "backend_emit_block_body_sync_elf", 32);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_inits_elf", 20) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_block_inits_elf_c", 35);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_if_then_block_body_elf", 27) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_if_then_block_body_elf_c", 42);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_while_loop_elf", 18) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_while_loop_elf_c", 34);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_for_loop_elf", 16) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_for_loop_elf_c", 32);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_loop_body_content", 22) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_loop_body_content_c", 35);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_loop_body_content_elf", 26) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_loop_body_content_elf_c", 39);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_next_label", 15) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_next_label_c", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "format_label_id", 15) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_format_label_id_c", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_elf_call", 18) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_call_elf_c", 28);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_elf_method_call", 25) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_method_call_elf_c", 35);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_emit_call_args_elf", 22) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_call_args_elf_c", 33);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_inits", 16) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_block_inits_c", 31);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_body", 15) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_block_body_c", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_while_loop", 15) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_while_loop_c", 30);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_for_loop", 13) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_for_loop_c", 28);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_if_then_block_body_text", 28) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_if_then_block_body_text_c", 43);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr", 9) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_expr_c", 24);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_call", 14) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_expr_call_c", 29);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_method_call", 21) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_expr_method_call_c", 36);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_elf", 13) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_expr_elf_c", 28);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_index_eff_addr_text", 24) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_index_eff_addr_text_c", 39);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_index_eff_addr_elf", 23) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_index_eff_addr_elf_c", 38);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_lvalue_eff_addr_text", 25) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_lvalue_eff_addr_text_c", 40);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_lvalue_eff_addr_elf", 24) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_lvalue_eff_addr_elf_c", 39);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_emit_call_args_text", 23) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_call_args_text_c", 33);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "local_offset", 12) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_local_offset_c", 27);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_resolve_whole_import_qualified_symbol", 41) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_resolve_whole_import_qualified_symbol_c", 52);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_skip_heavy_stub_elf", 24) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_skip_heavy_stub_elf_c", 39);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "simd_try_inline_shuffle_call_elf", 32) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_simd_try_inline_shuffle_call_elf_c", 47);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "simd_try_inline_select_call_elf", 31) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_simd_try_inline_select_call_elf_c", 46);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "simd_try_inline_binop2_call_elf", 31) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_simd_try_inline_binop2_call_elf_c", 46);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "simd_try_inline_fma3_call_elf", 29) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_simd_try_inline_fma3_call_elf_c", 46);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_codegen_ast", 15) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_backend_asm_codegen_ast_c", 34);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_codegen_ast_to_elf", 22) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_backend_asm_codegen_ast_to_elf_c", 41);
+    }
+    return 0;
+  }
+}
+
+/**
+ * Pipeline M8-tail thin delegate. Guarded by asm_module_is_pipeline_selfhost.
+ * wave116 pure: G.7 single product authority. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_pipeline_m8_tail_thin_delegate_c_name(m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
+  if (m == 0 as *u8 || func_index < 0 || out == 0 as *u8 || out_len == 0 as *i32 || out_cap <= 0) {
+    return 0;
+  }
+  if (asm_module_is_pipeline_selfhost(m) == 0) {
+    return 0;
+  }
+  unsafe {
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_parse_set_main_from_buf", 32) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_parse_set_main_from_buf_c", 34);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_should_skip_x_typeck", 30) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_should_skip_x_typeck_c", 32);
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_typecheck_entry", 31) != 0) {
+      return asm_thin_delegate_emit(out, out_cap, out_len, "run_x_pipeline_typecheck_entry_emit_c", 36);
+    }
+    return 0;
+  }
+}
+
+/**
+ * Driver/compile M8-tail thin delegate (table empty; guard only).
+ * wave116 pure: G.7 single product authority. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_driver_m8_tail_thin_delegate_c_name(m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
+  if (m == 0 as *u8 || func_index < 0 || out == 0 as *u8 || out_len == 0 as *i32 || out_cap <= 0) {
+    return 0;
+  }
+  if (asm_module_is_driver_compile_selfhost(m) == 0) {
+    return 0;
+  }
+  unsafe {
+    return 0;
+  }
+}
+
+/**
+ * Typeck EMIT_HEAVY M8-tail thin delegate (table empty). Guarded by
+ * is_typeck_selfhost + asm_env_entry_emit_heavy; skips extern funcs; fallback
+ * copies the func's own name. wave116 pure: G.7 single authority. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_typeck_m8_tail_thin_delegate_c_name(m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
+  if (m == 0 as *u8 || func_index < 0 || out == 0 as *u8 || out_len == 0 as *i32 || out_cap <= 0) {
+    return 0;
+  }
+  if (asm_module_is_typeck_selfhost(m) == 0) {
+    return 0;
+  }
+  unsafe {
+    if (asm_env_entry_emit_heavy() == 0) {
+      return 0;
+    }
+    if (pipeline_asm_module_func_is_extern_at(m, func_index) != 0) {
+      return 0;
+    }
+    let nl: i32 = pipeline_module_func_name_len_at(m, func_index);
+    if (nl <= 0 || nl >= out_cap) {
+      return 0;
+    }
+    pipeline_module_func_name_copy64(m, func_index, out);
+    out[nl] = 0;
+    out_len[0] = nl;
+    return 1;
+  }
 }
