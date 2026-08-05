@@ -513,6 +513,8 @@ export extern "C" function pipeline_module_func_name_equal_at(module: *u8, fi: i
 export extern "C" function pipeline_asm_module_func_is_extern_at(module: *u8, fi: i32): i32;
 // wave116 Cap residual: emit_heavy env gate for typeck thin_delegate pure leave.
 export extern "C" function asm_env_entry_emit_heavy(): i32;
+// wave117 Cap residual: module func name prefix probe for safe_helper pure leave.
+export extern "C" function pipeline_module_func_name_has_prefix_at(module: *u8, fi: i32, pfx: *u8, plen: i32): i32;
 export extern "C" function ast_ast_block_num_consts(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_loops(arena: *u8, block_ref: i32): i32;
@@ -16540,5 +16542,900 @@ export function asm_typeck_m8_tail_thin_delegate_c_name(m: *u8, func_index: i32,
     out[nl] = 0;
     out_len[0] = nl;
     return 1;
+  }
+}
+// ---------------------------------------------------------------------------
+// wave117: asm emit_heavy safe-helper pure-owned leave (was pipeline_asm_emit_heavy_safe_helper.c).
+// G.7 product authority for 9 EMIT_HEAVY 2nd-pass per-module classifiers:
+//   asm_typeck/pipeline/driver_compile_emit_heavy_safe_helper +
+//   asm_skip_heavy_backend_m8_helper/helper_keep/m8_tail_thin_keep +
+//   asm_skip_heavy_typeck_helper_keep + asm_skip_heavy_backend/typeck_mega_entry.
+// All name-based (equal_at / has_prefix_at); 0 field access. Residual callee
+// pipeline_module_func_name_has_prefix_at un-static'd in emit_heavy_env.c for
+// pure extern. Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/** wave117 pure: G.7 single product authority (was safe_helper.c). PLATFORM: SHARED. */
+#[no_mangle]
+export function asm_typeck_emit_heavy_safe_helper(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "type_kind_ordinal", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "name_equal", 10) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "ensure_", 7) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "find_or_alloc_", 14) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "get_field_offset_from_layout", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "get_field_type_ref_from_layout", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_name", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_field_name", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_import_path_slice", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_import_binding_name", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_import_select_name", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_top_level_let_name", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_find_layout_idx", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_x_named_builtin_", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_x_type_align", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_x_type_size", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_struct_layout_metrics", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_merge_dep_struct_layouts_into_entry", 42) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_wpo_unify_soa_layouts", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_ensure_primitive_by_kind_ord", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_find_or_alloc_compound_type_ref", 38) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "ensure_struct_layout_from_struct_lit", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "get_dep_return_type_in_caller_arena", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "dep_return_type_to_caller_arena", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "get_field_offset_from_layout_deps", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "get_field_type_ref_from_layout_deps", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_inline_u8_64_array_field_type_ref", 40) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_expr_inline_array_field_type_ref", 39) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "expr_field_access_fallback_scalar_type_ref", 42) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_field_access_lexer_wrapper_fallback", 42) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "entry_module_find_struct_layout_index", 37) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_import_path_segment_count", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_import_segment_at", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_diag_append_", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_diag_fmt_type_at", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_diag_fmt_type_into", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_diag_fmt_type_or_question", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_resolve_scan_dep_with_apply", 34) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_call_callee_return_type", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "func_body_tail_expr_ref_for_implicit_rule", 41) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "func_body_has_implicit_return_tail", 34) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_binop", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_binop_cmp", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_method_call", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_method_call_arg", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_as", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_struct_lit", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_struct_lit_field", 34) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_field_access", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_one_const", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_one_let", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_one_while", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_one_for", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_one_if", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_final", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_binop_arith", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "find_func_return_type_in_module", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "find_func_return_type_in_module_by_name", 39) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_whole_import_qualified_call_return_type", 47) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_call_binding_import_return_type", 39) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_call_select_import_return_type", 38) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_call_callee_local_module", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_call_callee_try_whole_import", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_call_callee_try_binding_import", 38) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_call_callee_scan_dep", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "expr_type_ref", 13) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "type_ref_is_bool", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "type_ref_is_bool_impl", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "type_refs_equal", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "type_refs_equal_impl", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_return_operand_matches", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_integer_widen_ok", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "expr_var_name_equal_func", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_ret_coerce_integral_to_expect_i32", 40) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_ret_coerce_integral_widen", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_coerce_init_expr_to_decl", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "type_refs_equal_named", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "type_refs_equal_same_kind", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_coerce_init_lit_to_decl", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_coerce_init_enum_field_to_decl", 37) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_coerce_init_float_lit_to_decl", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_coerce_init_named_call_to_decl", 37) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_coerce_init_array_vector_lit_to_decl", 43) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_coerce_init_vector_binop_to_decl", 39) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_coerce_init_slice_from_array", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_validate_struct_layouts_zero_padding", 43) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "check_block", 11) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "check_block_as_loop_body", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_loop_depth_push", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_loop_depth_pop", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_patch_all_body_parent_links", 34) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "check_expr", 10) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_expr_is_any_assign_kind", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_assign", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_index", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_unary", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_addr_of", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_deref", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_var", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_return", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_panic", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_break_continue", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_legacy_consts", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_legacy_lets", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_legacy_whiles", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_legacy_fors", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_legacy_ifs", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_legacy_expr_stmts", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_int_lit", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_bool_lit", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_float_lit", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_enum_variant", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_block", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_if_ternary", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_match", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_match_arm", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_call", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_call_arg", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_expr_call_resolve", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_", 14) != 0) {
+      return 0;
+    }
+    return 0;
+  }
+}
+
+/** wave117 pure: G.7 single product authority (was safe_helper.c). PLATFORM: SHARED. */
+#[no_mangle]
+export function asm_pipeline_emit_heavy_safe_helper(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0 || asm_module_is_pipeline_selfhost(m) == 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_ok", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_should_skip_x_typeck", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_loaded_buf_cap", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_parse_entry_if_needed", 37) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_typecheck_entry", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_parse_set_main_from_buf", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_typeck_parsed_module", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_typeck_entry_module", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_fill_dep_import_path", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_path_import_has_dot", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_load_import_resolve_read", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_load_import_from_disk", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_load_one_import_slot", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_prepare_dep_codegen_path", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_finish_dep_codegen_diag", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_parse_entry_do_parse", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_codegen_one_dep", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_codegen_entry", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_sync_dep_slots_from_driver", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_codegen_deps", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_load_and_sync_direct_import_deps", 41) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_path_x", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_path_try_one_lib_root", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_path_try_entry_dir", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "resolve_path_try_flat_import_under_lib", 38) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_impl", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_load_deps_after_parse", 37) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_x_pipeline_typecheck_after_load", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lsp_diag_typeck_after_load", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "lsp_diag_parse_typeck_buf", 25) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/** wave117 pure: G.7 single product authority (was safe_helper.c). PLATFORM: SHARED. */
+#[no_mangle]
+export function asm_driver_compile_emit_heavy_safe_helper(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0 || asm_module_is_driver_compile_selfhost(m) == 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "compile_dispatch_asm_backend", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "compile_dispatch_emit_c_path", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "driver_compile_dispatch_asm_backend", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "driver_compile_dispatch_emit_c_path", 35) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "driver_compile_state_key", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "driver_compile_ensure_default_lib", 29) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "driver_compile_parse_argv_init", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "driver_compile_parse_argv_step", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "driver_compile_parse_argv_loop", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "driver_compile_parse_argv_finalize", 34) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "driver_compile_parse_argv", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "driver_compile_parse_argv_scan_c", 31) != 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_compiler_full_x", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "run_compiler_full_x_post_parse", 30) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "driver_run_compiler_full_x", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "driver_run_compiler_full_x_post_parse", 37) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "path_ends_x", 12) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "target_has_arm", 14) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "eq_", 3) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/** wave117 pure: G.7 single product authority (was safe_helper.c). PLATFORM: SHARED. */
+#[no_mangle]
+export function asm_skip_heavy_backend_m8_helper_keep(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0 || asm_module_is_backend_selfhost(m) == 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_import_", 11) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_build_import_", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_c_prefix_", 13) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "fold_", 5) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_module_named_", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_expr_binop_", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_field_access_", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "ctx_push_loop_labels", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "ctx_pop_loop_labels", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_hoist_top_level_lets_for_codegen", 36) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "ctx_reset", 9) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "compute_frame_size", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_elf", 13) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "local_offset", 12) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "fill_param_slots", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "fill_local_slots", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_body_elf", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_inits_elf", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_if_then_block_body_elf", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_while_loop_elf", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_for_loop_elf", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_loop_body_content", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_loop_body_content_elf", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_next_label", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "format_label_id", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_elf_call", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_elf_method_call", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_emit_call_args_elf", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_inits", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_body", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_while_loop", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_for_loop", 13) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_if_then_block_body_text", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr", 9) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_call", 14) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_method_call", 21) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/** wave117 pure: G.7 single product authority (was safe_helper.c). PLATFORM: SHARED. */
+#[no_mangle]
+export function asm_skip_heavy_backend_helper_keep(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0 || asm_module_is_backend_selfhost(m) == 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "arch_emit_", 10) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "enc_", 4) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/** wave117 pure: G.7 single product authority (was safe_helper.c). PLATFORM: SHARED. */
+#[no_mangle]
+export function asm_skip_heavy_backend_m8_tail_thin_keep(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0 || asm_module_is_backend_selfhost(m) == 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "fill_param_slots", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "fill_local_slots", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "compute_frame_size", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_body_elf", 19) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_inits_elf", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_if_then_block_body_elf", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_while_loop_elf", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_for_loop_elf", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_loop_body_content", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_loop_body_content_elf", 26) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_next_label", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "format_label_id", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_elf_call", 18) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_elf_method_call", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_emit_call_args_elf", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_inits", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_body", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_while_loop", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_for_loop", 13) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_if_then_block_body_text", 28) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr", 9) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_call", 14) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_method_call", 21) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_index_eff_addr_text", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_index_eff_addr_elf", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_lvalue_eff_addr_text", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_lvalue_eff_addr_elf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_emit_call_args_text", 23) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "local_offset", 12) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_resolve_whole_import_qualified_symbol", 41) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "emit_skip_heavy_stub_elf", 24) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "simd_try_inline_shuffle_call_elf", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "simd_try_inline_select_call_elf", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "simd_try_inline_binop2_call_elf", 31) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "simd_try_inline_fma3_call_elf", 29) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/** wave117 pure: G.7 single product authority (was safe_helper.c). PLATFORM: SHARED. */
+#[no_mangle]
+export function asm_skip_heavy_typeck_helper_keep(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0 || asm_module_is_typeck_selfhost(m) == 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_", 14) != 0) {
+      return 0;
+    }
+    return 0;
+    return 0;
+  }
+}
+
+/** wave117 pure: G.7 single product authority (was safe_helper.c). PLATFORM: SHARED. */
+#[no_mangle]
+export function asm_skip_heavy_backend_mega_entry(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0 || asm_module_is_backend_selfhost(m) == 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_codegen_ast", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_codegen_ast_to_elf", 22) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_codegen_ast_seed_mega", 25) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_codegen_ast_to_elf_seed_mega", 32) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "asm_ctx_key", 11) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_ctx_local_", 14) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_ctx_block_", 14) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_ctx_loop_", 13) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_ctx_ensure_", 15) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/** wave117 pure: G.7 single product authority (was safe_helper.c). PLATFORM: SHARED. */
+#[no_mangle]
+export function asm_skip_heavy_typeck_mega_entry(m: *u8, func_index: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || func_index < 0) {
+      return 0;
+    }
+    return 1;
+    if (pipeline_module_func_name_equal_at(m, func_index, "check_expr_impl_mega", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "check_expr_impl", 15) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "check_block_impl", 16) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_check_block_stmt_order_one", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_x_ast_impl", 17) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_x_ast_library", 20) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_x_ast_check_all_funcs_loop", 33) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_x_ast_check_one_func", 27) != 0) {
+      return 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, func_index, "typeck_x_ast", 12) != 0) {
+      return 1;
+    }
+    return 0;
   }
 }

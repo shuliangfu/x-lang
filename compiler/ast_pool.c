@@ -235,7 +235,21 @@ extern int32_t asm_module_is_parser_emit_heavy(struct ast_Module *m);
 extern int32_t asm_module_is_ast_selfhost(struct ast_Module *m);
 extern int32_t asm_module_is_compiler_selfhost(struct ast_Module *m);
 
-#include "pipeline_asm_emit_heavy_safe_helper.c"
+/* 2026-08-05: pipeline_asm_emit_heavy_safe_helper.c pure-owned leave (wave117).
+ * Live face: runtime_pipeline_abi.x (9 EMIT_HEAVY 2nd-pass name classifiers).
+ * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * pipeline_module_func_name_has_prefix_at un-static'd in emit_heavy_env.c for
+ * pure extern. Residual same-TU caller (skip_dispatch) links pure via extern.
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
+extern int32_t asm_typeck_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_pipeline_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_driver_compile_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_skip_heavy_backend_m8_helper_keep(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_skip_heavy_backend_helper_keep(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_skip_heavy_backend_m8_tail_thin_keep(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_skip_heavy_typeck_helper_keep(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_skip_heavy_backend_mega_entry(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_skip_heavy_typeck_mega_entry(struct ast_Module *m, int32_t func_index);
 
 
 /* 2026-08-05: pipeline_asm_thin_delegate.c pure-owned leave (wave116).

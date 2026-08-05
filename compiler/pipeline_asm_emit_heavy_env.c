@@ -295,8 +295,9 @@ int32_t asm_env_entry_emit_heavy(void) { /* wave116: global for pure typeck thin
   return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
-/** Module func name has prefix (byte compare against module func pool). */
-static int32_t pipeline_module_func_name_has_prefix_at(struct ast_Module *m, int32_t fi, const char *pfx,
+/** Module func name has prefix (byte compare against module func pool).
+ * wave117: global (was static) for pure safe_helper extern. */
+int32_t pipeline_module_func_name_has_prefix_at(struct ast_Module *m, int32_t fi, const char *pfx,
     int32_t plen) {
   int32_t nl;
   int32_t k;
