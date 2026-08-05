@@ -61,10 +61,39 @@ struct xlang_slice_uint8_t {
   size_t length;
 };
 
-/* wave1283 G.7: pipeline_glue_AsmFuncCtxLayout typedef + pipeline_asm_ctx_layout
- * cast helper migrated to pipeline_asm_ctx_layout.c (early same-TU domain).
- * Must stay before any asm emit domain #include that touches frame/locals. */
-#include "pipeline_asm_ctx_layout.c"
+/* wave1283 G.7: pipeline_glue_AsmFuncCtxLayout typedef early shell (must precede
+ * any asm emit domain #include that touches frame/locals).
+ * wave125 BC pure-owned leave: cast helper pipeline_asm_ctx_layout live =
+ * runtime_pipeline_abi pure (identity); seed cold twin under #ifndef FROM_X.
+ * Typedef stays host-cc here — residual emit C needs C field syntax on ly->…;
+ * pure cannot host C typedefs for residual TUs. PLATFORM: SHARED. */
+struct backend_AsmFuncCtx;
+/**
+ * Layout overlay of backend AsmFuncCtx for C residual emit paths.
+ * Field order must stay ABI-compatible with the X/asm AsmFuncCtx definition.
+ * G.7: single authority typedef; do not redeclare in emit domains.
+ */
+typedef struct {
+  int32_t frame_size;
+  int32_t next_offset;
+  int32_t num_locals;
+  int32_t label_counter;
+  struct ast_Module *module_ref;
+  uint8_t loop_break_label_stack[512];
+  int32_t loop_break_len_stack[8];
+  uint8_t loop_continue_label_stack[512];
+  int32_t loop_continue_len_stack[8];
+  uint8_t break_label[128];
+  int32_t break_len;
+  uint8_t continue_label[128];
+  int32_t continue_len;
+  int32_t loop_label_depth;
+  void *dep_pipe;
+  uint8_t tail_join_label[128];
+  int32_t tail_join_label_len;
+} pipeline_glue_AsmFuncCtxLayout;
+/** wave125 pure leave: identity cast AsmFuncCtx* → layout view (same address). */
+extern pipeline_glue_AsmFuncCtxLayout *pipeline_asm_ctx_layout(struct backend_AsmFuncCtx *ctx);
 
 /* wave1284 G.7: early forward-decl / extern shell migrated to
  * pipeline_glue_early_fwd.c (same-TU #include). Pure decls only;

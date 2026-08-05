@@ -4,6 +4,9 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave125: pipeline_asm_ctx_layout.c pure-owned leave (pipeline_asm_ctx_layout cast;
+//   typedef pipeline_glue_AsmFuncCtxLayout stays in pipeline_glue.c shell for residual C
+//   field access). Identity cast only — pure returns same address as *u8.
 // wave124: pipeline_asm_emit_var_decl.c pure-owned leave (glue_var_decl_type_ref_elf_c +
 //   glue_lazy_append_block_let_local). Cap residual: expr/block/module type faces +
 //   emit module/func_index getters + asm_ctx local/slot + asm_local_slot_reg_offset.
@@ -21529,4 +21532,31 @@ export function glue_lazy_append_block_let_local(arena: *u8, ctx: *u8, block_ref
   }
   pipe_store_i32_le(ctx, pipe_asm_ctx_off_num_locals(), nloc);
   return 0;
+}
+
+// ---------------------------------------------------------------------------
+// wave125: pipeline_asm_ctx_layout pure-owned leave
+// (was pipeline_asm_ctx_layout.c cast helper).
+// G.7 product authority for:
+//   pipeline_asm_ctx_layout
+// Semantics: opaque AsmFuncCtx* → layout view pointer (same address).
+// Residual C keeps pipeline_glue_AsmFuncCtxLayout typedef in pipeline_glue.c
+// (early shell before emit domains) for ly->frame_size / next_offset / …
+// field access; pure cannot host C typedefs for residual TU field syntax.
+// Cold twin under seed #ifndef FROM_X (void* identity).
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * Cast opaque backend AsmFuncCtx* to the residual C layout view address.
+ * Identity: returned pointer equals ctx; residual C reinterprets as
+ * pipeline_glue_AsmFuncCtxLayout* (typedef lives in pipeline_glue.c shell).
+ * @param ctx *u8 - backend_AsmFuncCtx* (may be null; null passthrough)
+ * @return *u8 - same address as ctx (layout overlay base)
+ * wave125 pure: G.7 authority (was static in pipeline_asm_ctx_layout.c).
+ * PLATFORM: SHARED - sole provider after ctx_layout leave.
+ */
+#[no_mangle]
+export function pipeline_asm_ctx_layout(ctx: *u8): *u8 {
+  return ctx;
 }

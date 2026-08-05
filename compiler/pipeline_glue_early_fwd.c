@@ -24,7 +24,8 @@
  *  - static emit globals (g_pipeline_asm_emit_*, sret homes, scope/dep/elf)
  *  - domain #includes (parser_result, outbuf, emit_*, typeck_*, ast_pool, …)
  *
- * Include site: pipeline_glue.c immediately after pipeline_asm_ctx_layout.c
+ * Include site: pipeline_glue.c immediately after AsmFuncCtxLayout typedef +
+ * pipeline_asm_ctx_layout extern (wave125 pure leave; was ctx_layout.c include)
  * and before static emit globals. Not a separate .o — host-cc via pipeline_x.o.
  *
  * G.7: declarations only; no second implementation of any face.

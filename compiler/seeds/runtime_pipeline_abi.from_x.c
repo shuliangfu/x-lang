@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave125: ctx_layout pure leave cold twin under #ifndef FROM_X (identity cast).
  * wave124: var_decl pure leave cold twins under #ifndef FROM_X.
  * wave123: lea_common pure leave cold twins under #ifndef FROM_X.
  * wave121: lint_meta pure leave cold twins under #ifndef FROM_X.
@@ -9717,5 +9718,14 @@ int32_t glue_lazy_append_block_let_local(void *arena, void *ctx, int32_t block_r
     return -1;
   *ly_num = asm_ctx_local_count((uint8_t *)ctx);
   return 0;
+}
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/* wave125: pipeline_asm_ctx_layout pure leave cold twin under #ifndef FROM_X.
+ * Identity cast: residual C reinterprets return as pipeline_glue_AsmFuncCtxLayout*.
+ * PLATFORM: SHARED freestanding · PREFER pure; cold when PREFER!=1 / hybrid fail. */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void *pipeline_asm_ctx_layout(void *ctx) {
+  return ctx;
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
