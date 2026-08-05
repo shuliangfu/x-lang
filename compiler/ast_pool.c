@@ -132,7 +132,8 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 
 #include "pipeline_preprocess_if.c"
 
-#include "pipeline_typeck_slots.c"
+/* 8.3.1 host-cc leave: pipeline_typeck_slots.c retired — BSS accessors live in
+ * typeck_x.o (typeck_gen seed). Do not re-include into pipeline_x. */
 
 #include "pipeline_elf_ctx.c"
 

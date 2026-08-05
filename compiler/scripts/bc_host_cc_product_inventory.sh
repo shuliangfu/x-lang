@@ -168,7 +168,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_lsp_diag.c|8.3.2|LSP diag C glue (wave1269)|60|present"
   "compiler/pipeline_emit_sidecar.c|8.3.2|emit sidecar state (wave1267)|140|present"
   "compiler/pipeline_preprocess_if.c|8.3.2|preprocess #if stack cold fallback (wave1267)|55|present"
-  "compiler/pipeline_typeck_slots.c|8.3.2|typeck scratch/infer/layout slots (wave1267)|250|present"
+  "compiler/pipeline_typeck_slots.c|8.3.1|typeck slots retired (typeck_x.o BSS; host-cc leave)|0|absent"
   # --- 8.3.3 typeck slices often pulled by glue ---
   "compiler/pipeline_typeck_field_access.c|8.3.3|field_access thin retired (typeck.x authority; host-cc leave)|0|absent"
   "compiler/pipeline_typeck_soa.c|8.3.3|soa thin retired (typeck.x authority; host-cc leave)|0|absent"
@@ -256,7 +256,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave (BC endgame still open); 8.3.3 field_access/soa host-cc leave done"
+  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave (BC endgame still open); 8.3.3 field_access/soa + typeck_slots host-cc leave done"
 }
 
 run_check() {

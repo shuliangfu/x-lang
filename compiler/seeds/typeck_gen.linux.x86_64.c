@@ -11327,3 +11327,88 @@ int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *module, st
                                                    uint8_t *name, int32_t name_len) {
   return typeck_named_is_module_concrete(module, ctx, name, name_len);
 }
+
+/* ============================================================================
+ * 8.3.1/8.3.2 host-cc leave: typeck scratch / call-resolve / overload /
+ * layout-metrics slots — historical body in pipeline_typeck_slots.c (same-TU
+ * #include into pipeline_x). Live BSS accessors only; dead binop_arith_infer /
+ * try_packed C twins dropped (typeck.x owns widen/layout business).
+ * PLATFORM: SHARED — lives in typeck_x.o (not pipeline_x host-cc mega-TU).
+ * ============================================================================ */
+
+/** typeck.x: named-type scratch (avoid local u8[64] under self-typecheck). */
+uint8_t *typeck_named_scratch64(void) {
+  static uint8_t s[128];
+  return s;
+}
+
+/** typeck.x: multi-slot 128B scratch (wave577 Cap: 64→128). */
+static uint8_t g_typeck_scratch64[16][128];
+
+uint8_t *typeck_scratch64_slot(int32_t slot) {
+  if (slot < 0 || slot >= 16)
+    return g_typeck_scratch64[0];
+  return g_typeck_scratch64[slot];
+}
+
+/** typeck.x: CALL resolve func/dep index BSS (no stack &cfi under selfhost). */
+static int32_t g_typeck_call_resolve_func_idx;
+static int32_t g_typeck_call_resolve_dep_idx;
+/**
+ * PLATFORM: SHARED — expected return type for overload pick (let/assign/return).
+ * Zero-arg overloads score by this when args do not disambiguate. 0 = no hint.
+ */
+static int32_t g_typeck_overload_expected_ret;
+
+int32_t *typeck_call_resolve_func_idx_slot(void) {
+  return &g_typeck_call_resolve_func_idx;
+}
+
+int32_t *typeck_call_resolve_dep_idx_slot(void) {
+  return &g_typeck_call_resolve_dep_idx;
+}
+
+int32_t *typeck_overload_expected_ret_slot(void) {
+  return &g_typeck_overload_expected_ret;
+}
+
+int32_t typeck_call_resolve_dep_idx_peek(void) {
+  return g_typeck_call_resolve_dep_idx;
+}
+
+int32_t typeck_call_resolve_func_idx_peek(void) {
+  return g_typeck_call_resolve_func_idx;
+}
+
+int32_t typeck_overload_expected_ret_peek(void) {
+  return g_typeck_overload_expected_ret;
+}
+
+/** typeck.x: struct_layout_metrics out_sz/out_al BSS (no stack &z/&al). */
+static int32_t g_typeck_layout_metrics_sz;
+static int32_t g_typeck_layout_metrics_al;
+
+int32_t *typeck_layout_metrics_sz_slot(void) {
+  return &g_typeck_layout_metrics_sz;
+}
+
+int32_t *typeck_layout_metrics_al_slot(void) {
+  return &g_typeck_layout_metrics_al;
+}
+
+/** Recursive metrics: 8 depth groups avoid align/size single-slot tearing. */
+static int32_t g_typeck_layout_metrics_depth_scratch[8][2];
+
+int32_t *typeck_layout_metrics_sz_slot_depth(int32_t depth) {
+  int32_t s = depth;
+  if (s < 0)
+    s = 0;
+  return &g_typeck_layout_metrics_depth_scratch[s % 8][0];
+}
+
+int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth) {
+  int32_t s = depth;
+  if (s < 0)
+    s = 0;
+  return &g_typeck_layout_metrics_depth_scratch[s % 8][1];
+}
