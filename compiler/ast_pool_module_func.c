@@ -16,9 +16,9 @@
  * Left in core (interleaved / orchestration):
  * - static module_func_at / copy_func_params_between_sidecars /
  *   module_func_param_entry / arena_func_param_entry (early helpers)
- * - pipeline_visibility_* + L7 unused-private lint (uses module_func_*)
- * - pipeline_module_num_funcs / main_func_index / reset_parse_counters /
- *   strict_parse_into_init
+ * - pipeline_visibility_* + L7 unused-private lint + module_num_funcs /
+ *   main_func_index / reset_parse_counters / strict_parse_into_init
+ *   pure-owned leave wave121 (runtime_pipeline_abi; no host-cc twin)
  *
  * wave1163 G.7: pipeline_module_func_name_write / name_len_at / name_copy64
  * / is_extern_at / body_ref_at migrated from pipeline_glue.c to this file's

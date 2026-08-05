@@ -4,6 +4,10 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave121: pipeline_lint_meta.c pure-owned leave (visibility + L7 unused-private
+//   + module_num_funcs/main_func_index/set/reset_parse_counters/strict_parse_into_init
+//   + lint_set_source_buf). Cap residual: module_func flag/name + expr call/method/var
+//   + lsp_diag_get_enabled/add_code + arena init/reset primes.
 // wave120: pipeline_asm_parser_emit_heavy.c pure-owned leave (dbg/bisect/slot/mega/force_stub/safe/thin/m8/resolve/callee).
 // wave119: pipeline_asm_emit_heavy_env.c pure-owned leave (env gates, abort range,
 //   path helpers, skip_typeck whitelist, orchestration_extern_only, name_has_prefix,
@@ -307,7 +311,7 @@ export extern "C" function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *u8): *u8;
 // PLATFORM: SHARED - pure load_and_sync step5 routes here (not typeck_typeck_* hop).
 export extern "C" function typeck_merge_dep_struct_layouts_into_entry(mod: *u8, arena: *u8, ctx: *u8): void;
 export extern "C" function typeck_wpo_unify_soa_layouts(entry: *u8, ctx: *u8): void;
-export extern "C" function pipeline_module_main_func_index(module: *u8): i32;
+// wave121: pipeline_module_main_func_index is pure export function below (lint_meta leave).
 export extern "C" function free(p: *u8): void;
 /** Release process-wide ArenaSidecar GrowVecs before free(arena).
  * PLATFORM: SHARED - required for batch check (collect_deps tmp arenas). */
@@ -367,10 +371,10 @@ export extern "C" function pipeline_driver_x_pipeline_skip_typeck(): i32;
 export extern "C" function pipeline_dep_ctx_asm_entry_module_only(ctx: *u8): i32;
 export extern "C" function pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern "C" function pipeline_run_x_pipeline_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
-// wave112 Cap residual: active ctx / WPO-S3 escape scan / unused-private lint.
+// wave112 Cap residual: active ctx / WPO-S3 escape scan.
+// wave121: pipeline_typeck_unused_private_funcs is pure export function below (lint_meta leave).
 export extern "C" function pipeline_typeck_set_active_ctx_c(module: *u8, ctx: *u8): void;
 export extern "C" function pipeline_typeck_scan_module_struct_stack_escape_c(module: *u8, arena: *u8, ctx: *u8): i32;
-export extern "C" function pipeline_typeck_unused_private_funcs(module: *u8, arena: *u8): i32;
 // wave112 Cap residual: out-param unpack of Cap-struct-return parse-with-init.
 export extern "C" function pipeline_parse_into_with_init_buf_impl_rc(arena: *u8, module: *u8, data: *u8, len: i32, out_ok: *i32, out_main_idx: *i32): i32;
 // wave103: large-stack gate for LSP typeck (driver_abi pure authority).
@@ -509,11 +513,26 @@ export extern "C" function driver_parse_into_buf_rc(arena: *u8, module: *u8, dat
 //   (not export-extern always-seed). Cap residual: module/ast accessors + getenv +
 //   pure pipe_diag_msg_append_* (same TU; product does not link driver_diag_append_*) +
 //   diag_report (no reportf).
-export extern "C" function pipeline_module_num_funcs(module: *u8): i32;
+// wave121: pipeline_module_num_funcs is pure export function below (lint_meta leave).
+// wave121 Cap residual for L7 unused-private + visibility pure leave:
+export extern "C" function pipeline_module_func_is_export_at(module: *u8, fi: i32): i32;
+export extern "C" function pipeline_module_func_is_used_at(module: *u8, fi: i32): i32;
+export extern "C" function pipeline_module_func_is_no_mangle_at(module: *u8, fi: i32): i32;
+export extern "C" function pipeline_module_func_is_entry_at(module: *u8, fi: i32): i32;
+export extern "C" function pipeline_module_func_is_interrupt_at(module: *u8, fi: i32): i32;
+export extern "C" function pipeline_module_func_body_expr_ref_at(module: *u8, fi: i32): i32;
+export extern "C" function pipeline_expr_call_callee_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out64: *u8): void;
+export extern "C" function pipeline_expr_method_call_name_len(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_method_call_name_into(arena: *u8, expr_ref: i32, out64: *u8): void;
+export extern "C" function lsp_diag_get_enabled(): i32;
+export extern "C" function lsp_diag_add_code(line: i32, col: i32, severity: i32, code: *u8, msg: *u8): void;
 export extern "C" function pipeline_module_func_name_len_at(module: *u8, fi: i32): i32;
 export extern "C" function pipeline_module_func_name_copy64(module: *u8, fi: i32, dst: *u8): void;
 export extern "C" function pipeline_module_func_body_ref_at(module: *u8, fi: i32): i32;
 // wave115 Cap residual: module func name/extern accessors for selfhost pure leave.
+// wave121: pipeline_module_num_funcs pure (was Cap residual for selfhost/emit_heavy).
 export extern "C" function pipeline_module_func_name_equal_at(module: *u8, fi: i32, name: *u8, name_len: i32): i32;
 export extern "C" function pipeline_asm_module_func_is_extern_at(module: *u8, fi: i32): i32;
 // wave119: emit_heavy_env pure-owned leave — former Cap residual env gates /
@@ -584,8 +603,8 @@ export extern "C" function xlang_generic_bound_stash_source_buf_c(data: *u8, len
  * pipeline_run_x_pipeline to skip parsing entirely in directory mode
  * (num_funcs=190 instead of 377 for runtime_driver_abi_thin.x).
  * PLATFORM: SHARED - all externs are platform-agnostic parse/diag helpers. */
-export extern "C" function pipeline_lint_set_source_buf(data: *u8, len: i32): void;
-export extern "C" function pipeline_module_set_main_func_index(module: *u8, idx: i32): void;
+// wave121: pipeline_lint_set_source_buf + pipeline_module_set_main_func_index pure below.
+// (lint_meta pure-owned leave)
 export extern "C" function driver_diagnostic_parse_fail(main_idx: i32, num_funcs: i32, arena_num_types: i32): void;
 export extern "C" function pipeline_arena_num_types(arena: *u8): i32;
 /* wave112: pipeline_parse_into_with_init_buf_scalars is pure export below
@@ -20013,5 +20032,776 @@ export function asm_parser_emit_heavy_callee_is_same_module_local(m: *u8, name: 
       fi = fi + 1;
     }
     return 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// wave121: pipeline_lint_meta pure-owned leave (was pipeline_lint_meta.c).
+// G.7 product authority for:
+//   pipeline_visibility_mode / pipeline_visibility_allow_func
+//   pipeline_lint_set_source_buf / pipeline_typeck_unused_private_funcs
+//   pipeline_module_num_funcs / main_func_index / set_main_func_index
+//   pipeline_module_reset_parse_counters_c / pipeline_strict_parse_into_init
+// Module header layout LP64 (sizeof Module=68): num_funcs@0 main@4 imports@8
+//   top_lets@12 layouts@16 pending_*@20..60 num_module_enums@64.
+// Cap residual: module_func flag/name + expr call/method/var + lsp_diag_* +
+//   arena/module reset primes (same as parser_parse_into_init).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+// wave121 pure BSS: XLANG_VISIBILITY mode cache (-1 unset).
+let g_lint_vis_mode_cached: i32 = 0 - 1;
+// wave121 pure BSS: L7 source buffer for unused-private def site anchors.
+let g_l7_source: *u8 = 0 as *u8;
+let g_l7_source_len: i32 = 0;
+
+/**
+ * LP64 offsetof(struct ast_Module, num_funcs).
+ * @return i32 - 0
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_mod_off_num_funcs(): i32 {
+  return 0;
+}
+
+/**
+ * LP64 offsetof(struct ast_Module, main_func_index).
+ * @return i32 - 4
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_mod_off_main_func_index(): i32 {
+  return 4;
+}
+
+/**
+ * LP64 offsetof(struct ast_Module, num_imports).
+ * @return i32 - 8
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_mod_off_num_imports(): i32 {
+  return 8;
+}
+
+/**
+ * LP64 offsetof(struct ast_Module, num_struct_layouts).
+ * @return i32 - 16
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_mod_off_num_struct_layouts(): i32 {
+  return 16;
+}
+
+/**
+ * LP64 offsetof(struct ast_Module, pending_allow_padding).
+ * @return i32 - 20
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_mod_off_pending_allow_padding(): i32 {
+  return 20;
+}
+
+/**
+ * LP64 offsetof(struct ast_Module, pending_soa_struct).
+ * @return i32 - 24
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_mod_off_pending_soa_struct(): i32 {
+  return 24;
+}
+
+/**
+ * LP64 offsetof(struct ast_Module, pending_cfg_skip).
+ * @return i32 - 28
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_mod_off_pending_cfg_skip(): i32 {
+  return 28;
+}
+
+/**
+ * LP64 offsetof(struct ast_Module, pending_repr_c_struct).
+ * @return i32 - 32
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_mod_off_pending_repr_c_struct(): i32 {
+  return 32;
+}
+
+/**
+ * LP64 offsetof(struct ast_Module, pending_repr_compatible_struct).
+ * @return i32 - 36
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_mod_off_pending_repr_compatible_struct(): i32 {
+  return 36;
+}
+
+/**
+ * LP64 offsetof(struct ast_Module, num_module_enums).
+ * @return i32 - 64
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_mod_off_num_module_enums(): i32 {
+  return 64;
+}
+
+/**
+ * LP64 offsetof(struct ast_ASTArena, num_exprs).
+ * Layout: num_types@0 num_exprs@4.
+ * @return i32 - 4
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_arena_off_num_exprs(): i32 {
+  return 4;
+}
+
+/**
+ * Read module.num_funcs (null -> 0).
+ * @param module *u8 - opaque ast_Module*
+ * @return i32 - function count
+ * wave121 pure: G.7 single product authority (was pipeline_lint_meta.c).
+ * PLATFORM: SHARED - sole provider after lint_meta leave.
+ */
+#[no_mangle]
+export function pipeline_module_num_funcs(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(module, pipe_mod_off_num_funcs());
+}
+
+/**
+ * Read module.main_func_index (null -> -1).
+ * @param module *u8 - opaque ast_Module*
+ * @return i32 - main index or -1
+ * wave121 pure: G.7 single product authority (was pipeline_lint_meta.c).
+ * PLATFORM: SHARED - sole provider after lint_meta leave.
+ */
+#[no_mangle]
+export function pipeline_module_main_func_index(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  return pipe_load_i32_le(module, pipe_mod_off_main_func_index());
+}
+
+/**
+ * Write module.main_func_index (null -> no-op).
+ * @param module *u8 - opaque ast_Module*
+ * @param idx i32 - main index (-1 clears)
+ * @return void
+ * wave121 pure: G.7 single product authority (was pipeline_lint_meta.c).
+ * PLATFORM: SHARED - sole provider after lint_meta leave.
+ */
+#[no_mangle]
+export function pipeline_module_set_main_func_index(module: *u8, idx: i32): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  pipe_store_i32_le(module, pipe_mod_off_main_func_index(), idx);
+}
+
+/**
+ * M8-tail: reset module parse counters (num_funcs/main/imports/lets/layouts/enums).
+ * @param module *u8 - opaque ast_Module*; null -> no-op
+ * @return void
+ * wave121 pure: G.7 single product authority (was pipeline_lint_meta.c).
+ * PLATFORM: SHARED - sole provider after lint_meta leave; thin bl target for parser.x.
+ */
+#[no_mangle]
+export function pipeline_module_reset_parse_counters_c(module: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  pipe_store_i32_le(module, pipe_mod_off_num_funcs(), 0);
+  pipe_store_i32_le(module, pipe_mod_off_main_func_index(), 0 - 1);
+  pipe_store_i32_le(module, pipe_mod_off_num_imports(), 0);
+  pipe_store_i32_le(module, pipe_mod_off_num_top_level_lets(), 0);
+  pipe_store_i32_le(module, pipe_mod_off_num_struct_layouts(), 0);
+  pipe_store_i32_le(module, pipe_mod_off_num_module_enums(), 0);
+}
+
+/**
+ * Register source buffer for L7 unused-private def-site line/col anchors.
+ * @param data *u8 - source bytes; may be null
+ * @param len i32 - byte length; <=0 clears
+ * @return void
+ * wave121 pure: G.7 single product authority (was pipeline_lint_meta.c).
+ * PLATFORM: SHARED - sole provider after lint_meta leave.
+ */
+#[no_mangle]
+export function pipeline_lint_set_source_buf(data: *u8, len: i32): void {
+  if (data == 0 as *u8 || len <= 0) {
+    g_l7_source = 0 as *u8;
+    g_l7_source_len = 0;
+    return;
+  }
+  g_l7_source = data;
+  g_l7_source_len = len;
+}
+
+/**
+ * XLANG_VISIBILITY mode: 0=compat, 1=warn, 2=strict (unknown env).
+ * Historical product default is compat until parser sets is_export reliably:
+ * empty / missing / "strict" currently maps to 0 (compat) — match host-C.
+ * @return i32 - mode
+ * wave121 pure: G.7 single product authority (was pipeline_lint_meta.c).
+ * PLATFORM: SHARED - sole provider after lint_meta leave.
+ */
+#[no_mangle]
+export function pipeline_visibility_mode(): i32 {
+  if (g_lint_vis_mode_cached >= 0) {
+    return g_lint_vis_mode_cached;
+  }
+  let e: *u8 = 0 as *u8;
+  unsafe {
+    e = link_abi_getenv("XLANG_VISIBILITY");
+  }
+  // "strict"
+  let lit_strict: u8[7] = [115, 116, 114, 105, 99, 116, 0];
+  // "warn"
+  let lit_warn: u8[5] = [119, 97, 114, 110, 0];
+  // "compat"
+  let lit_compat: u8[7] = [99, 111, 109, 112, 97, 116, 0];
+  if (e == 0 as *u8) {
+    g_lint_vis_mode_cached = 0;
+    return 0;
+  }
+  unsafe {
+    if (e[0] == 0) {
+      g_lint_vis_mode_cached = 0;
+      return 0;
+    }
+  }
+  if (pipe_cstr_eq(e, &lit_strict[0]) != 0) {
+    // Historical: "strict" still caches 0 until export plumbing is complete.
+    g_lint_vis_mode_cached = 0;
+    return 0;
+  }
+  if (pipe_cstr_eq(e, &lit_warn[0]) != 0) {
+    g_lint_vis_mode_cached = 1;
+    return 1;
+  }
+  if (pipe_cstr_eq(e, &lit_compat[0]) != 0) {
+    g_lint_vis_mode_cached = 0;
+    return 0;
+  }
+  g_lint_vis_mode_cached = 2;
+  return 2;
+}
+
+/**
+ * Cross-module visibility gate for unexported funcs.
+ * @param m *u8 - Module*
+ * @param fi i32 - function index
+ * @param cross_module i32 - non-zero when call crosses modules
+ * @return i32 - 1 allow, 0 deny
+ * wave121 pure: G.7 single product authority (was pipeline_lint_meta.c).
+ * PLATFORM: SHARED - sole provider after lint_meta leave.
+ */
+#[no_mangle]
+export function pipeline_visibility_allow_func(m: *u8, fi: i32, cross_module: i32): i32 {
+  if (cross_module == 0) {
+    return 1;
+  }
+  let mode: i32 = pipeline_visibility_mode();
+  if (mode == 0) {
+    return 1;
+  }
+  let is_ex: i32 = 0;
+  unsafe {
+    is_ex = pipeline_module_func_is_export_at(m, fi);
+  }
+  if (is_ex != 0) {
+    return 1;
+  }
+  // main entry does not require export
+  let nlen: i32 = 0;
+  unsafe {
+    nlen = pipeline_module_func_name_len_at(m, fi);
+  }
+  if (nlen == 4) {
+    let name: u8[128];
+    unsafe {
+      pipeline_module_func_name_copy64(m, fi, &name[0]);
+    }
+    if (name[0] == 109 && name[1] == 97 && name[2] == 105 && name[3] == 110) {
+      return 1;
+    }
+  }
+  if (mode == 1) {
+    let namew: u8[128];
+    unsafe {
+      pipeline_module_func_name_copy64(m, fi, &namew[0]);
+      nlen = pipeline_module_func_name_len_at(m, fi);
+    }
+    if (nlen < 0) {
+      nlen = 0;
+    }
+    if (nlen > 127) {
+      nlen = 127;
+    }
+    // warning: 'NAME' is not exported ...
+    let msg: u8[256];
+    let at: i32 = 0;
+    let pfx: u8[12] = [119, 97, 114, 110, 105, 110, 103, 58, 32, 39, 0, 0];
+    at = pipe_diag_msg_append_cstr(&msg[0], 256, at, &pfx[0]);
+    at = pipe_diag_msg_append_name(&msg[0], 256, at, &namew[0], nlen);
+    let mid: u8[86] = [39, 32, 105, 115, 32, 110, 111, 116, 32, 101, 120, 112, 111, 114, 116, 101, 100, 32, 40, 88, 76, 65, 78, 71, 95, 86, 73, 83, 73, 66, 73, 76, 73, 84, 89, 61, 119, 97, 114, 110, 41, 59, 32, 97, 100, 100, 32, 96, 101, 120, 112, 111, 114, 116, 96, 32, 111, 114, 32, 105, 116, 32, 119, 105, 108, 108, 32, 101, 114, 114, 111, 114, 32, 117, 110, 100, 101, 114, 32, 115, 116, 114, 105, 99, 116, 10];
+    at = pipe_diag_msg_append_name(&msg[0], 256, at, &mid[0], 86);
+    asm_diag_stderr_write(&msg[0], at);
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether L7 unused-private lint is enabled (env / check-only / LSP).
+ * @return i32 - 1 enabled
+ * PLATFORM: SHARED.
+ */
+function pipeline_unused_private_enabled(): i32 {
+  let e: *u8 = 0 as *u8;
+  unsafe {
+    e = link_abi_getenv("XLANG_UNUSED_PRIVATE");
+  }
+  if (e != 0 as *u8) {
+    unsafe {
+      if (e[0] != 0) {
+        if (e[0] == 48 && e[1] == 0) {
+          return 0;
+        }
+        return 1;
+      }
+    }
+  }
+  let co: i32 = 0;
+  unsafe {
+    co = driver_check_only_get();
+  }
+  if (co != 0) {
+    return 1;
+  }
+  let le: i32 = 0;
+  unsafe {
+    le = lsp_diag_get_enabled();
+  }
+  if (le != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Scan source for "function name" def site (1-based line/col of name).
+ * @return i32 - 1 found
+ * PLATFORM: SHARED.
+ */
+function pipeline_l7_find_func_def(source: *u8, sl: i32, name: *u8, name_len: i32, out_line: *i32, out_col: *i32): i32 {
+  if (source == 0 as *u8 || name == 0 as *u8 || name_len <= 0 || sl <= 0) {
+    return 0;
+  }
+  if (out_line == 0 as *i32 || out_col == 0 as *i32) {
+    return 0;
+  }
+  // "function "
+  let kw: u8[9] = [102, 117, 110, 99, 116, 105, 111, 110, 32];
+  let i: i32 = 0;
+  let line: i32 = 1;
+  let col: i32 = 1;
+  while (i < sl) {
+    let boundary: i32 = 0;
+    if (i == 0) {
+      boundary = 1;
+    } else {
+      let prev: u8 = 0;
+      unsafe {
+        prev = source[i - 1];
+      }
+      if (prev == 32 || prev == 9 || prev == 10 || prev == 13) {
+        boundary = 1;
+      }
+    }
+    if (boundary != 0 && i + 9 + name_len <= sl) {
+      let ki: i32 = 0;
+      let kw_ok: i32 = 1;
+      while (ki < 9) {
+        let sc: u8 = 0;
+        unsafe {
+          sc = source[i + ki];
+        }
+        if (sc != kw[ki]) {
+          kw_ok = 0;
+          break;
+        }
+        ki = ki + 1;
+      }
+      if (kw_ok != 0) {
+        let ni: i32 = 0;
+        let name_ok: i32 = 1;
+        while (ni < name_len) {
+          let sc2: u8 = 0;
+          let nc: u8 = 0;
+          unsafe {
+            sc2 = source[i + 9 + ni];
+            nc = name[ni];
+          }
+          if (sc2 != nc) {
+            name_ok = 0;
+            break;
+          }
+          ni = ni + 1;
+        }
+        if (name_ok != 0) {
+          let after: i32 = i + 9 + name_len;
+          let ac: u8 = 32;
+          if (after < sl) {
+            unsafe {
+              ac = source[after];
+            }
+          }
+          if (after >= sl || ac == 32 || ac == 40 || ac == 10 || ac == 9 || ac == 60 || ac == 13) {
+            unsafe {
+              *out_line = line;
+              *out_col = col + 9;
+            }
+            return 1;
+          }
+        }
+      }
+    }
+    let ch: u8 = 0;
+    unsafe {
+      ch = source[i];
+    }
+    if (ch == 10) {
+      line = line + 1;
+      col = 1;
+    } else {
+      col = col + 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Emit L7 unused-private warning (severity=2 never Error).
+ * PLATFORM: SHARED.
+ */
+function pipeline_report_unused_private(name: *u8, nlen: i32): void {
+  let nl: i32 = nlen;
+  if (nl < 0) {
+    nl = 0;
+  }
+  if (nl > 127) {
+    nl = 63;
+  }
+  let msg: u8[192];
+  let at: i32 = 0;
+  // "unused private function '"
+  let pfx: u8[26] = [
+    117, 110, 117, 115, 101, 100, 32, 112, 114, 105, 118, 97, 116, 101, 32, 102,
+    117, 110, 99, 116, 105, 111, 110, 32, 39, 0
+  ];
+  at = pipe_diag_msg_append_cstr(&msg[0], 192, at, &pfx[0]);
+  if (name != 0 as *u8 && nl > 0) {
+    at = pipe_diag_msg_append_name(&msg[0], 192, at, name, nl);
+  }
+  // "' (not export, not reachable in module)"
+  let sfx: u8[42] = [
+    39, 32, 40, 110, 111, 116, 32, 101, 120, 112, 111, 114, 116, 44, 32, 110,
+    111, 116, 32, 114, 101, 97, 99, 104, 97, 98, 108, 101, 32, 105, 110, 32, 109,
+    111, 100, 117, 108, 101, 41, 0, 0, 0
+  ];
+  at = pipe_diag_msg_append_cstr(&msg[0], 192, at, &sfx[0]);
+  let line: i32 = 1;
+  let col: i32 = 1;
+  if (g_l7_source != 0 as *u8 && g_l7_source_len > 0 && name != 0 as *u8 && nlen > 0) {
+    let ol: i32 = 1;
+    let oc: i32 = 1;
+    if (pipeline_l7_find_func_def(g_l7_source, g_l7_source_len, name, nlen, &ol, &oc) != 0) {
+      line = ol;
+      col = oc;
+    }
+  }
+  let le: i32 = 0;
+  unsafe {
+    le = lsp_diag_get_enabled();
+  }
+  // "L7"
+  let code: u8[3] = [76, 55, 0];
+  if (le != 0) {
+    unsafe {
+      lsp_diag_add_code(line, col, 2, &code[0], &msg[0]);
+    }
+  } else {
+    // "warning"
+    let kind: u8[8] = [119, 97, 114, 110, 105, 110, 103, 0];
+    unsafe {
+      diag_report(0 as *u8, line, col, &kind[0], &msg[0], &code[0]);
+    }
+  }
+}
+
+/**
+ * Mark module funcs referenced by Call(var)/MethodCall names in arena.
+ * PLATFORM: SHARED.
+ */
+function pipeline_mark_local_call_names(a: *u8, used_flags: *u8, nfuncs: i32, m: *u8): void {
+  if (a == 0 as *u8 || used_flags == 0 as *u8 || m == 0 as *u8 || nfuncs <= 0) {
+    return;
+  }
+  let nexpr: i32 = pipe_load_i32_le(a, pipe_arena_off_num_exprs());
+  let er: i32 = 1;
+  while (er <= nexpr) {
+    let ko: i32 = 0;
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(a, er);
+    }
+    // EXPR_CALL = 48
+    if (ko == 48) {
+      let callee_ref: i32 = 0;
+      unsafe {
+        callee_ref = pipeline_expr_call_callee_ref_at(a, er);
+      }
+      if (callee_ref > 0) {
+        let cko: i32 = 0;
+        unsafe {
+          cko = pipeline_expr_kind_ord_at(a, callee_ref);
+        }
+        // EXPR_VAR = 3
+        if (cko == 3) {
+          let clen: i32 = 0;
+          unsafe {
+            clen = pipeline_expr_var_name_len(a, callee_ref);
+          }
+          if (clen > 0) {
+            let cname: u8[128];
+            unsafe {
+              pipeline_expr_var_name_into(a, callee_ref, &cname[0]);
+            }
+            let fi: i32 = 0;
+            while (fi < nfuncs) {
+              let eq: i32 = 0;
+              unsafe {
+                eq = pipeline_module_func_name_equal_at(m, fi, &cname[0], clen);
+              }
+              if (eq != 0) {
+                unsafe {
+                  used_flags[fi] = 1;
+                }
+              }
+              fi = fi + 1;
+            }
+          }
+        }
+      }
+    } else if (ko == 49) {
+      // EXPR_METHOD_CALL = 49
+      let mlen: i32 = 0;
+      unsafe {
+        mlen = pipeline_expr_method_call_name_len(a, er);
+      }
+      if (mlen > 0) {
+        let mname: u8[128];
+        unsafe {
+          pipeline_expr_method_call_name_into(a, er, &mname[0]);
+        }
+        let fi2: i32 = 0;
+        while (fi2 < nfuncs) {
+          let eq2: i32 = 0;
+          unsafe {
+            eq2 = pipeline_module_func_name_equal_at(m, fi2, &mname[0], mlen);
+          }
+          if (eq2 != 0) {
+            unsafe {
+              used_flags[fi2] = 1;
+            }
+          }
+          fi2 = fi2 + 1;
+        }
+      }
+    }
+    er = er + 1;
+  }
+}
+
+/**
+ * typeck post-pass: warn on unused private (non-export, unreachable) funcs.
+ * @param m *u8 - Module*
+ * @param a *u8 - ASTArena*
+ * @return i32 - warning count (never fails typeck)
+ * wave121 pure: G.7 single product authority (was pipeline_lint_meta.c).
+ * PLATFORM: SHARED - sole provider after lint_meta leave.
+ */
+#[no_mangle]
+export function pipeline_typeck_unused_private_funcs(m: *u8, a: *u8): i32 {
+  if (m == 0 as *u8 || a == 0 as *u8) {
+    return 0;
+  }
+  if (pipeline_unused_private_enabled() == 0) {
+    return 0;
+  }
+  let nfuncs: i32 = pipeline_module_num_funcs(m);
+  if (nfuncs <= 0) {
+    return 0;
+  }
+  let used: *u8 = 0 as *u8;
+  unsafe {
+    used = malloc(nfuncs as usize);
+  }
+  if (used == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    memset(used, 0, nfuncs as usize);
+  }
+  pipeline_mark_local_call_names(a, used, nfuncs, m);
+  let nwarn: i32 = 0;
+  let fi: i32 = 0;
+  while (fi < nfuncs) {
+    let skip: i32 = 0;
+    let v: i32 = 0;
+    unsafe {
+      v = pipeline_module_func_is_export_at(m, fi);
+    }
+    if (v != 0) {
+      skip = 1;
+    }
+    if (skip == 0) {
+      unsafe {
+        v = pipeline_asm_module_func_is_extern_at(m, fi);
+      }
+      if (v != 0) {
+        skip = 1;
+      }
+    }
+    if (skip == 0) {
+      unsafe {
+        v = pipeline_module_func_is_used_at(m, fi);
+      }
+      if (v != 0) {
+        skip = 1;
+      }
+    }
+    if (skip == 0) {
+      unsafe {
+        v = pipeline_module_func_is_no_mangle_at(m, fi);
+      }
+      if (v != 0) {
+        skip = 1;
+      }
+    }
+    if (skip == 0) {
+      unsafe {
+        v = pipeline_module_func_is_entry_at(m, fi);
+      }
+      if (v != 0) {
+        skip = 1;
+      }
+    }
+    if (skip == 0) {
+      unsafe {
+        v = pipeline_module_func_is_interrupt_at(m, fi);
+      }
+      if (v != 0) {
+        skip = 1;
+      }
+    }
+    if (skip == 0) {
+      let nlen: i32 = 0;
+      unsafe {
+        nlen = pipeline_module_func_name_len_at(m, fi);
+      }
+      if (nlen == 4) {
+        let nm: u8[128];
+        unsafe {
+          pipeline_module_func_name_copy64(m, fi, &nm[0]);
+        }
+        if (nm[0] == 109 && nm[1] == 97 && nm[2] == 105 && nm[3] == 110) {
+          skip = 1;
+        }
+      }
+      if (nlen <= 0) {
+        skip = 1;
+      }
+      if (skip == 0) {
+        let br: i32 = 0;
+        let ber: i32 = 0;
+        unsafe {
+          br = pipeline_module_func_body_ref_at(m, fi);
+          ber = pipeline_module_func_body_expr_ref_at(m, fi);
+        }
+        if (br <= 0 && ber <= 0) {
+          skip = 1;
+        }
+      }
+      if (skip == 0) {
+        let u: u8 = 0;
+        unsafe {
+          u = used[fi];
+        }
+        if (u != 0) {
+          skip = 1;
+        }
+      }
+      if (skip == 0) {
+        let name: u8[128];
+        unsafe {
+          pipeline_module_func_name_copy64(m, fi, &name[0]);
+        }
+        pipeline_report_unused_private(&name[0], nlen);
+        nwarn = nwarn + 1;
+      }
+    }
+    fi = fi + 1;
+  }
+  unsafe {
+    free(used);
+  }
+  return nwarn;
+}
+
+/**
+ * strict asm chain: parse_into_init equivalent (arena/module reset + primes).
+ * @param arena *u8 - ASTArena*
+ * @param module *u8 - Module*
+ * @return void
+ * wave121 pure: G.7 single product authority (was pipeline_lint_meta.c).
+ * Uses ast_ast_arena_init (product authority; host-C alias ast_arena_init).
+ * PLATFORM: SHARED - sole provider after lint_meta leave.
+ */
+#[no_mangle]
+export function pipeline_strict_parse_into_init(arena: *u8, module: *u8): void {
+  unsafe {
+    ast_ast_arena_init(arena);
+    ast_pool_module_reset(module);
+    ast_pool_arena_reset(arena);
+    parser_onefunc_result_layout_prime();
+    parser_onefunc_result_layout_prime_b();
+    parser_onefunc_result_layout_prime_c();
+    parser_onefunc_result_layout_prime_d();
+    parser_onefunc_result_layout_prime_d_b();
+    parser_onefunc_result_layout_prime_e();
+    parser_onefunc_result_layout_prime_f();
+  }
+  pipeline_module_reset_parse_counters_c(module);
+  unsafe {
+    pipeline_parser_set_match_module(module);
+  }
+  if (module != 0 as *u8) {
+    pipe_store_i32_le(module, pipe_mod_off_num_funcs(), 0);
+    pipe_store_i32_le(module, pipe_mod_off_main_func_index(), 0 - 1);
+    pipe_store_i32_le(module, pipe_mod_off_num_imports(), 0);
+    pipe_store_i32_le(module, pipe_mod_off_num_top_level_lets(), 0);
+    pipe_store_i32_le(module, pipe_mod_off_num_struct_layouts(), 0);
+    pipe_store_i32_le(module, pipe_mod_off_pending_allow_padding(), 0);
+    pipe_store_i32_le(module, pipe_mod_off_pending_soa_struct(), 0);
+    pipe_store_i32_le(module, pipe_mod_off_pending_cfg_skip(), 0);
+    pipe_store_i32_le(module, pipe_mod_off_pending_repr_c_struct(), 0);
+    pipe_store_i32_le(module, pipe_mod_off_pending_repr_compatible_struct(), 0);
+    pipe_store_i32_le(module, pipe_mod_off_num_module_enums(), 0);
   }
 }

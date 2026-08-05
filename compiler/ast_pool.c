@@ -68,8 +68,20 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 #include "ast_pool_module_func.c"
 
 
-#include "pipeline_lint_meta.c"
-
+/* 2026-08-05: pipeline_lint_meta.c pure-owned leave (wave121).
+ * Live face: runtime_pipeline_abi.x (visibility + L7 unused-private +
+ * module_num_funcs/main_func_index/set/reset_parse_counters/strict_parse_into_init
+ * + lint_set_source_buf). Seed cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
+extern int32_t pipeline_visibility_mode(void);
+extern int32_t pipeline_visibility_allow_func(struct ast_Module *m, int32_t fi, int32_t cross_module);
+extern void pipeline_lint_set_source_buf(const uint8_t *data, int32_t len);
+extern int32_t pipeline_typeck_unused_private_funcs(struct ast_Module *m, struct ast_ASTArena *a);
+extern int32_t pipeline_module_num_funcs(struct ast_Module *m);
+extern int32_t pipeline_module_main_func_index(struct ast_Module *m);
+extern void pipeline_module_set_main_func_index(struct ast_Module *m, int32_t idx);
+extern void pipeline_module_reset_parse_counters_c(struct ast_Module *module);
+extern void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct ast_Module *module);
 
 /** BC 8.3.2 wave988–990 + wave992: block domain thin (append/region/defer +
  * loop/labeled/getters + parent/resolve + stmt_order rebuild/fixup) — same-TU. */

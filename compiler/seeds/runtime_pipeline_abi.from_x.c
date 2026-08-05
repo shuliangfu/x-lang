@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave121: lint_meta pure leave cold twins under #ifndef FROM_X.
  * wave110: pure ImportEntry storage (pipeline_module_import_* + storage_release) in .x
  *   product hybrid; Cap ast_pool XLANG_WEAK cold twins. Structure debt close.
  * wave97: pure load_and_sync step5 typeck merge+wpo → G.7 typeck.x authority
@@ -385,6 +386,7 @@ void driver_asm_fclose_file(FILE *fp);
 /* wave79 pure OS residual — always-seed resolve_*_impl / pure resolve_file call under hybrid. */
 void xlang_path_try_realpath_inplace(char *path, size_t path_size);
 /* pipeline_diag_preprocess_directive_code already declared above */
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
@@ -9031,6 +9033,371 @@ int32_t asm_parser_emit_heavy_callee_is_same_module_local(void *m, uint8_t *name
   }
   return 0;
 }
+
+
+
+/* wave121 cold twins: lint_meta pure leave (void* Module / ASTArena).
+ * G.7 sole cold provider under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED. */
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+struct ast_Module;
+struct ast_ASTArena;
+struct ast_Func;
+struct ast_Expr;
+
+/* Module header field access via C struct when available from including TU.
+ * Cold twin uses same layout as product Module (LP64 i32 header). */
+typedef struct wave121_ModuleHdr {
+  int32_t num_funcs;
+  int32_t main_func_index;
+  int32_t num_imports;
+  int32_t num_top_level_lets;
+  int32_t num_struct_layouts;
+  int32_t pending_allow_padding;
+  int32_t pending_soa_struct;
+  int32_t pending_cfg_skip;
+  int32_t pending_repr_c_struct;
+  int32_t pending_repr_compatible_struct;
+  int32_t pending_used;
+  int32_t pending_naked;
+  int32_t pending_entry;
+  int32_t pending_no_mangle;
+  int32_t pending_interrupt;
+  int32_t pending_export;
+  int32_t num_module_enums;
+} wave121_ModuleHdr;
+
+typedef struct wave121_ArenaHdr {
+  int32_t num_types;
+  int32_t num_exprs;
+} wave121_ArenaHdr;
+
+extern const char *link_abi_getenv(const char *name);
+extern int32_t pipeline_module_func_is_export_at(void *m, int32_t fi);
+extern int32_t pipeline_module_func_name_len_at(void *m, int32_t fi);
+extern void pipeline_module_func_name_copy64(void *m, int32_t fi, uint8_t *dst);
+extern int32_t pipeline_module_func_name_equal_at(void *m, int32_t fi, const uint8_t *name, int32_t name_len);
+extern int32_t pipeline_asm_module_func_is_extern_at(void *m, int32_t fi);
+extern int32_t pipeline_module_func_is_used_at(void *m, int32_t fi);
+extern int32_t pipeline_module_func_is_no_mangle_at(void *m, int32_t fi);
+extern int32_t pipeline_module_func_is_entry_at(void *m, int32_t fi);
+extern int32_t pipeline_module_func_is_interrupt_at(void *m, int32_t fi);
+extern int32_t pipeline_module_func_body_ref_at(void *m, int32_t fi);
+extern int32_t pipeline_module_func_body_expr_ref_at(void *m, int32_t fi);
+extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_call_callee_ref_at(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *a, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *a, int32_t expr_ref, uint8_t *out64);
+extern int32_t pipeline_expr_method_call_name_len(void *a, int32_t expr_ref);
+extern void pipeline_expr_method_call_name_into(void *a, int32_t expr_ref, uint8_t *out64);
+extern int32_t driver_check_only_get(void);
+extern int32_t lsp_diag_get_enabled(void);
+extern void lsp_diag_add_code(int line, int col, int severity, const char *code, const char *msg);
+extern void diag_report(const char *path, int line, int col, const char *kind, const char *msg, const char *code);
+extern void ast_ast_arena_init(void *arena);
+extern void ast_pool_module_reset(void *module);
+extern void ast_pool_arena_reset(void *arena);
+extern void parser_onefunc_result_layout_prime(void);
+extern void parser_onefunc_result_layout_prime_b(void);
+extern void parser_onefunc_result_layout_prime_c(void);
+extern void parser_onefunc_result_layout_prime_d(void);
+extern void parser_onefunc_result_layout_prime_d_b(void);
+extern void parser_onefunc_result_layout_prime_e(void);
+extern void parser_onefunc_result_layout_prime_f(void);
+extern void pipeline_parser_set_match_module(void *module);
+
+static int wave121_vis_cached = -1;
+static const uint8_t *wave121_l7_source = NULL;
+static int32_t wave121_l7_source_len = 0;
+
+int32_t pipeline_module_num_funcs(void *m) {
+  wave121_ModuleHdr *h = (wave121_ModuleHdr *)m;
+  return h ? h->num_funcs : 0;
+}
+
+int32_t pipeline_module_main_func_index(void *m) {
+  wave121_ModuleHdr *h = (wave121_ModuleHdr *)m;
+  return h ? h->main_func_index : -1;
+}
+
+void pipeline_module_set_main_func_index(void *m, int32_t idx) {
+  wave121_ModuleHdr *h = (wave121_ModuleHdr *)m;
+  if (h)
+    h->main_func_index = idx;
+}
+
+void pipeline_module_reset_parse_counters_c(void *module) {
+  wave121_ModuleHdr *h = (wave121_ModuleHdr *)module;
+  if (!h)
+    return;
+  h->num_funcs = 0;
+  h->main_func_index = -1;
+  h->num_imports = 0;
+  h->num_top_level_lets = 0;
+  h->num_struct_layouts = 0;
+  h->num_module_enums = 0;
+}
+
+void pipeline_lint_set_source_buf(const uint8_t *data, int32_t len) {
+  wave121_l7_source = data;
+  wave121_l7_source_len = (data && len > 0) ? len : 0;
+}
+
+int32_t pipeline_visibility_mode(void) {
+  const char *e;
+  if (wave121_vis_cached >= 0)
+    return wave121_vis_cached;
+  e = link_abi_getenv("XLANG_VISIBILITY");
+  if (!e || !e[0] || strcmp(e, "strict") == 0)
+    wave121_vis_cached = 0;
+  else if (strcmp(e, "warn") == 0)
+    wave121_vis_cached = 1;
+  else if (strcmp(e, "compat") == 0)
+    wave121_vis_cached = 0;
+  else
+    wave121_vis_cached = 2;
+  return wave121_vis_cached;
+}
+
+int32_t pipeline_visibility_allow_func(void *m, int32_t fi, int32_t cross_module) {
+  int32_t mode;
+  uint8_t name[128];
+  int32_t nlen;
+  if (!cross_module)
+    return 1;
+  mode = pipeline_visibility_mode();
+  if (mode == 0)
+    return 1;
+  if (pipeline_module_func_is_export_at(m, fi) != 0)
+    return 1;
+  nlen = pipeline_module_func_name_len_at(m, fi);
+  if (nlen == 4) {
+    pipeline_module_func_name_copy64(m, fi, name);
+    if (name[0] == 'm' && name[1] == 'a' && name[2] == 'i' && name[3] == 'n')
+      return 1;
+  }
+  if (mode == 1) {
+    pipeline_module_func_name_copy64(m, fi, name);
+    nlen = pipeline_module_func_name_len_at(m, fi);
+    if (nlen < 0)
+      nlen = 0;
+    if (nlen > 127)
+      nlen = 127;
+    fprintf(stderr, "warning: '%.*s' is not exported (XLANG_VISIBILITY=warn); "
+                    "add `export` or it will error under strict\n",
+            (int)nlen, (const char *)name);
+    return 1;
+  }
+  return 0;
+}
+
+static int wave121_unused_private_enabled(void) {
+  const char *e = link_abi_getenv("XLANG_UNUSED_PRIVATE");
+  if (e && e[0]) {
+    if (e[0] == '0' && e[1] == '\0')
+      return 0;
+    return 1;
+  }
+  if (driver_check_only_get() != 0)
+    return 1;
+  if (lsp_diag_get_enabled() != 0)
+    return 1;
+  return 0;
+}
+
+static int wave121_l7_find_func_def(const uint8_t *source, int32_t sl, const uint8_t *name, int32_t name_len,
+                                   int *out_line, int *out_col) {
+  static const uint8_t kw[] = {'f', 'u', 'n', 'c', 't', 'i', 'o', 'n', ' '};
+  int32_t i;
+  int line = 1;
+  int col = 1;
+  if (!source || !name || name_len <= 0 || sl <= 0 || !out_line || !out_col)
+    return 0;
+  for (i = 0; i < sl; i++) {
+    int boundary = (i == 0);
+    if (!boundary) {
+      uint8_t prev = source[i - 1];
+      if (prev == ' ' || prev == '\t' || prev == '\n' || prev == '\r')
+        boundary = 1;
+    }
+    if (boundary && i + 9 + name_len <= sl) {
+      int ki;
+      int kw_ok = 1;
+      for (ki = 0; ki < 9; ki++) {
+        if (source[i + ki] != kw[ki]) {
+          kw_ok = 0;
+          break;
+        }
+      }
+      if (kw_ok) {
+        int ni;
+        int name_ok = 1;
+        for (ni = 0; ni < name_len; ni++) {
+          if (source[i + 9 + ni] != name[ni]) {
+            name_ok = 0;
+            break;
+          }
+        }
+        if (name_ok) {
+          int32_t after = i + 9 + name_len;
+          uint8_t ac = (after < sl) ? source[after] : (uint8_t)' ';
+          if (after >= sl || ac == ' ' || ac == '(' || ac == '\n' || ac == '\t' || ac == '<' || ac == '\r') {
+            *out_line = line;
+            *out_col = col + 9;
+            return 1;
+          }
+        }
+      }
+    }
+    if (source[i] == '\n') {
+      line++;
+      col = 1;
+    } else {
+      col++;
+    }
+  }
+  return 0;
+}
+
+static void wave121_report_unused_private(const uint8_t *name, int32_t nlen) {
+  char msg[192];
+  int nl = (nlen > 0) ? (int)nlen : 0;
+  int line = 1;
+  int col = 1;
+  if (nl > 127)
+    nl = 63;
+  snprintf(msg, sizeof msg, "unused private function '%.*s' (not export, not reachable in module)",
+           nl, (const char *)(name ? name : (const uint8_t *)""));
+  if (wave121_l7_source && wave121_l7_source_len > 0 && name && nlen > 0)
+    (void)wave121_l7_find_func_def(wave121_l7_source, wave121_l7_source_len, name, nlen, &line, &col);
+  if (lsp_diag_get_enabled()) {
+    lsp_diag_add_code(line, col, 2, "L7", msg);
+  } else {
+    diag_report(NULL, line, col, "warning", msg, "L7");
+  }
+}
+
+static void wave121_mark_local_call_names(void *a, uint8_t *used_flags, int32_t nfuncs, void *m) {
+  int32_t er;
+  int32_t nexpr;
+  int32_t fi;
+  if (!a || !used_flags || !m || nfuncs <= 0)
+    return;
+  nexpr = ((wave121_ArenaHdr *)a)->num_exprs;
+  for (er = 1; er <= nexpr; er++) {
+    int32_t ko = pipeline_expr_kind_ord_at(a, er);
+    if (ko == 48) { /* EXPR_CALL */
+      int32_t callee_ref = pipeline_expr_call_callee_ref_at(a, er);
+      int32_t clen;
+      uint8_t cname[128];
+      if (callee_ref <= 0)
+        continue;
+      if (pipeline_expr_kind_ord_at(a, callee_ref) != 3)
+        continue;
+      clen = pipeline_expr_var_name_len(a, callee_ref);
+      if (clen <= 0)
+        continue;
+      pipeline_expr_var_name_into(a, callee_ref, cname);
+      for (fi = 0; fi < nfuncs; fi++) {
+        if (pipeline_module_func_name_equal_at(m, fi, cname, clen))
+          used_flags[fi] = 1;
+      }
+    } else if (ko == 49) { /* EXPR_METHOD_CALL */
+      int32_t mlen = pipeline_expr_method_call_name_len(a, er);
+      uint8_t mname[128];
+      if (mlen <= 0)
+        continue;
+      pipeline_expr_method_call_name_into(a, er, mname);
+      for (fi = 0; fi < nfuncs; fi++) {
+        if (pipeline_module_func_name_equal_at(m, fi, mname, mlen))
+          used_flags[fi] = 1;
+      }
+    }
+  }
+}
+
+int32_t pipeline_typeck_unused_private_funcs(void *m, void *a) {
+  int32_t nfuncs;
+  int32_t fi;
+  int32_t nwarn = 0;
+  uint8_t *used = NULL;
+  uint8_t name[128];
+  int32_t nlen;
+  if (!m || !a)
+    return 0;
+  if (!wave121_unused_private_enabled())
+    return 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs <= 0)
+    return 0;
+  used = (uint8_t *)calloc((size_t)nfuncs, 1);
+  if (!used)
+    return 0;
+  wave121_mark_local_call_names(a, used, nfuncs, m);
+  for (fi = 0; fi < nfuncs; fi++) {
+    if (pipeline_module_func_is_export_at(m, fi) != 0)
+      continue;
+    if (pipeline_asm_module_func_is_extern_at(m, fi) != 0)
+      continue;
+    if (pipeline_module_func_is_used_at(m, fi) != 0 ||
+        pipeline_module_func_is_no_mangle_at(m, fi) != 0 ||
+        pipeline_module_func_is_entry_at(m, fi) != 0 ||
+        pipeline_module_func_is_interrupt_at(m, fi) != 0)
+      continue;
+    nlen = pipeline_module_func_name_len_at(m, fi);
+    if (nlen == 4) {
+      pipeline_module_func_name_copy64(m, fi, name);
+      if (name[0] == 'm' && name[1] == 'a' && name[2] == 'i' && name[3] == 'n')
+        continue;
+    }
+    if (nlen <= 0)
+      continue;
+    if (pipeline_module_func_body_ref_at(m, fi) <= 0 &&
+        pipeline_module_func_body_expr_ref_at(m, fi) <= 0)
+      continue;
+    if (used[fi] != 0)
+      continue;
+    pipeline_module_func_name_copy64(m, fi, name);
+    wave121_report_unused_private(name, nlen);
+    nwarn++;
+  }
+  free(used);
+  return nwarn;
+}
+
+void pipeline_strict_parse_into_init(void *arena, void *module) {
+  wave121_ModuleHdr *h = (wave121_ModuleHdr *)module;
+  ast_ast_arena_init(arena);
+  ast_pool_module_reset(module);
+  ast_pool_arena_reset(arena);
+  parser_onefunc_result_layout_prime();
+  parser_onefunc_result_layout_prime_b();
+  parser_onefunc_result_layout_prime_c();
+  parser_onefunc_result_layout_prime_d();
+  parser_onefunc_result_layout_prime_d_b();
+  parser_onefunc_result_layout_prime_e();
+  parser_onefunc_result_layout_prime_f();
+  pipeline_module_reset_parse_counters_c(module);
+  pipeline_parser_set_match_module(module);
+  if (h) {
+    h->num_funcs = 0;
+    h->main_func_index = -1;
+    h->num_imports = 0;
+    h->num_top_level_lets = 0;
+    h->num_struct_layouts = 0;
+    h->pending_allow_padding = 0;
+    h->pending_soa_struct = 0;
+    h->pending_cfg_skip = 0;
+    h->pending_repr_c_struct = 0;
+    h->pending_repr_compatible_struct = 0;
+    h->num_module_enums = 0;
+  }
+}
+
 
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
