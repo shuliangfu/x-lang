@@ -98,9 +98,10 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 /** BC 8.3.2: module TypeAliasEntry cold accessors (same-TU thin). */
 #include "ast_pool_type_alias.c"
 
-/* BC 8.3.2 wave1279: M8-tail backend asm thin wrappers → pipeline_backend_asm_wrapper.c
- * (after top_level hoist; before module_enum). PLATFORM: SHARED same-TU. */
-#include "pipeline_backend_asm_wrapper.c"
+/* 2026-08-05: pipeline_backend_asm_wrapper.c pure-owned leave (wave113).
+ * Live face: runtime_pipeline_abi.x (pipeline_backend_asm_codegen_ast_c /
+ * pipeline_backend_asm_codegen_ast_to_elf_c). Cap residual: hoist / seed mega /
+ * emit_set_* / mega_body / wpo thunks / typeck merge. PLATFORM: SHARED. */
 
 #include "ast_pool_module_enum.c"
 

@@ -6638,4 +6638,66 @@ int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, s
   return 0;
 }
 
+/* wave113 backend_asm_wrapper leave cold twins — former pipeline_backend_asm_wrapper.c.
+ * Product hybrid PREFER: pure runtime_pipeline_abi.x owns strong faces.
+ * Continues #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X from wave101 leave twins.
+ * PLATFORM: SHARED — cold only when pure FROM_X object is not linked.
+ */
+
+extern void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct ast_ASTArena *a);
+extern int32_t backend_asm_codegen_ast_seed_mega(struct ast_Module *m, struct ast_ASTArena *a, void *out,
+                                                 struct ast_PipelineDepCtx *pipeline_ctx);
+extern void pipeline_asm_emit_set_elf_ctx(void *elf_ctx);
+extern void pipeline_asm_emit_set_dep_pipe(struct ast_PipelineDepCtx *ctx);
+extern void pipeline_asm_emit_set_module(struct ast_Module *m);
+extern void pipeline_asm_emit_set_arena(struct ast_ASTArena *arena);
+extern void glue_wpo_mono_reset_pending(void);
+extern void pipeline_elf_label_mod_scope_begin_module(void);
+extern int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                                   void *elf_ctx,
+                                                                   struct ast_PipelineDepCtx *pipeline_ctx);
+extern int32_t pipeline_asm_emit_wpo_mono_thunks_elf_c(struct ast_Module *m, struct ast_ASTArena *a, void *elf_ctx,
+                                                      struct ast_PipelineDepCtx *pipeline_ctx);
+extern void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, struct ast_ASTArena *arena);
+extern void typeck_soa_fill_field_access_for_asm_emit(struct ast_Module *m, struct ast_ASTArena *arena);
+extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena);
+
+int32_t pipeline_backend_asm_codegen_ast_c(struct ast_Module *m, struct ast_ASTArena *a, void *out,
+                                            struct ast_PipelineDepCtx *pipeline_ctx) {
+  if (!m || !a || !out || !pipeline_ctx)
+    return -1;
+  if (m->num_top_level_lets > 0)
+    pipeline_module_hoist_top_level_lets_into_main(m, a);
+  return backend_asm_codegen_ast_seed_mega(m, a, out, pipeline_ctx);
+}
+
+int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct ast_ASTArena *a, void *elf_ctx,
+                                                   struct ast_PipelineDepCtx *pipeline_ctx) {
+  int32_t rc;
+  if (!m || !a || !elf_ctx || !pipeline_ctx)
+    return -1;
+  pipeline_debug_trace_named_func_bodies("backend_pre_hoist_top_level_lets", m, a);
+  if (m->num_top_level_lets > 0)
+    pipeline_module_hoist_top_level_lets_into_main(m, a);
+  pipeline_debug_trace_named_func_bodies("backend_post_hoist_top_level_lets", m, a);
+  pipeline_debug_trace_named_func_bodies("backend_pre_merge_dep_layouts", m, a);
+  typeck_typeck_merge_dep_struct_layouts_into_entry(m, a, pipeline_ctx);
+  pipeline_debug_trace_named_func_bodies("backend_post_merge_dep_layouts", m, a);
+  typeck_typeck_wpo_unify_soa_layouts(m, pipeline_ctx);
+  pipeline_debug_trace_named_func_bodies("backend_post_unify_soa_layouts", m, a);
+  pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
+  pipeline_fill_array_lit_types_for_skipped_typeck(m, a);
+  typeck_soa_fill_field_access_for_asm_emit(m, a);
+  glue_wpo_mono_reset_pending();
+  pipeline_elf_label_mod_scope_begin_module();
+  pipeline_asm_emit_set_module(m);
+  pipeline_asm_emit_set_arena(a);
+  pipeline_asm_emit_set_elf_ctx(elf_ctx);
+  rc = pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(m, a, elf_ctx, pipeline_ctx);
+  pipeline_asm_emit_set_elf_ctx(NULL);
+  if (rc != 0)
+    return rc;
+  return pipeline_asm_emit_wpo_mono_thunks_elf_c(m, a, elf_ctx, pipeline_ctx);
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

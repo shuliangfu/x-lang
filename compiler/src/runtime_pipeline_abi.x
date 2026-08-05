@@ -385,6 +385,20 @@ export extern "C" function driver_skip_codegen_dep_0_get(): i32;
 export extern "C" function driver_diagnostic_entry_already(v: i32): void;
 export extern "C" function pipeline_codegen_std_dep_link_only(path: *u8): i32;
 
+// wave113 Cap residual for backend_asm_wrapper pure-owned leave (M8-tail thin orch).
+// PRODUCT: pipeline_x / typeck_x / seed partial mega; pure only orchestrates.
+// PLATFORM: SHARED.
+export extern "C" function pipeline_module_hoist_top_level_lets_into_main(module: *u8, arena: *u8): void;
+export extern "C" function backend_asm_codegen_ast_seed_mega(module: *u8, arena: *u8, out: *u8, ctx: *u8): i32;
+export extern "C" function pipeline_asm_emit_set_elf_ctx(elf_ctx: *u8): void;
+export extern "C" function pipeline_asm_emit_set_dep_pipe(ctx: *u8): void;
+export extern "C" function pipeline_asm_emit_set_module(module: *u8): void;
+export extern "C" function pipeline_asm_emit_set_arena(arena: *u8): void;
+export extern "C" function glue_wpo_mono_reset_pending(): void;
+export extern "C" function pipeline_elf_label_mod_scope_begin_module(): void;
+export extern "C" function pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(module: *u8, arena: *u8, elf_ctx: *u8, ctx: *u8): i32;
+export extern "C" function pipeline_asm_emit_wpo_mono_thunks_elf_c(module: *u8, arena: *u8, elf_ctx: *u8, ctx: *u8): i32;
+
 // wave78: xlang_fputs_stdout / driver_asm_fp_is_stdout / driver_asm_fclose_file are pure below.
 // g05 prologue harness (same as driver_abi wave22/26): FILE* cast residual for pure .x.
 // PLATFORM: SHARED - static inline in g05_try_x_to_o prologue; not a second product authority.
@@ -15363,6 +15377,132 @@ export function pipeline_load_one_import_slot_c(module: *u8, arena: *u8, ctx: *u
   let rc: i32 = 0;
   unsafe {
     rc = pipeline_load_import_from_disk_c(module, arena, ctx, import_idx);
+  }
+  return rc;
+}
+
+// ---------------------------------------------------------------------------
+// wave113: backend_asm_wrapper pure-owned leave (was pipeline_backend_asm_wrapper.c).
+// G.7 product authority for:
+//   pipeline_backend_asm_codegen_ast_c
+//   pipeline_backend_asm_codegen_ast_to_elf_c
+// Thin M8-tail faces: hoist top-level lets, merge/unify SoA when typeck skipped,
+// set emit pipe/module/arena/elf_ctx, then seed partial mega / mega_body + WPO thunks.
+// Omits XLANG_ASM_DEBUG fprintf + parser_emit_heavy debug branch (wave106 style).
+// Cap residual (host-cc, not this leave): hoist, seed mega, emit_set_*, mega_body,
+//   wpo_mono reset/thunks, elf_label_mod_scope, typeck merge/wpo/soa fill.
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * LP64 offsetof(struct ast_Module, num_top_level_lets).
+ * Layout: num_funcs@0 main_func_index@4 num_imports@8 num_top_level_lets@12.
+ * @return i32 - 12
+ * PLATFORM: SHARED LP64 - dual-end with sizeof Module=68.
+ */
+function pipe_mod_off_num_top_level_lets(): i32 {
+  return 12;
+}
+
+/**
+ * Read module.num_top_level_lets (null -> 0).
+ * @param module *u8 - opaque ast_Module
+ * @return i32 - header count
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_mod_get_num_top_level_lets(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(module, pipe_mod_off_num_top_level_lets());
+}
+
+/**
+ * M8-tail thin face for backend.x asm_codegen_ast: hoist then seed mega.
+ * @param m *u8 - Module*; null -> -1
+ * @param a *u8 - ASTArena*; null -> -1
+ * @param out *u8 - CodegenOutBuf*; null -> -1
+ * @param pipeline_ctx *u8 - PipelineDepCtx*; null -> -1
+ * @return i32 - seed mega rc; -1 null gate
+ * wave113 pure: G.7 single product authority.
+ * PLATFORM: SHARED - Cap residual hoist + backend_asm_codegen_ast_seed_mega.
+ */
+#[no_mangle]
+export function pipeline_backend_asm_codegen_ast_c(m: *u8, a: *u8, out: *u8, pipeline_ctx: *u8): i32 {
+  if (m == 0 as *u8 || a == 0 as *u8 || out == 0 as *u8 || pipeline_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let nlets: i32 = pipe_mod_get_num_top_level_lets(m);
+  if (nlets > 0) {
+    unsafe {
+      pipeline_module_hoist_top_level_lets_into_main(m, a);
+    }
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = backend_asm_codegen_ast_seed_mega(m, a, out, pipeline_ctx);
+  }
+  return rc;
+}
+
+/**
+ * M8-tail thin face for backend.x asm_codegen_ast_to_elf:
+ * hoist, merge dep SoA, unify WPO, fill ARRAY_LIT/FIELD_ACCESS, mega_body + WPO thunks.
+ * @param m *u8 - Module*; null -> -1
+ * @param a *u8 - ASTArena*; null -> -1
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null -> -1
+ * @param pipeline_ctx *u8 - PipelineDepCtx*; null -> -1
+ * @return i32 - mega_body/wpo rc; -1 null gate
+ * wave113 pure: G.7 single product authority.
+ * PLATFORM: SHARED - Cap residual emit_set / mega_body / wpo / typeck merge faces.
+ */
+#[no_mangle]
+export function pipeline_backend_asm_codegen_ast_to_elf_c(m: *u8, a: *u8, elf_ctx: *u8, pipeline_ctx: *u8): i32 {
+  if (m == 0 as *u8 || a == 0 as *u8 || elf_ctx == 0 as *u8 || pipeline_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_debug_trace_named_func_bodies("backend_pre_hoist_top_level_lets", m, a);
+  }
+  let nlets: i32 = pipe_mod_get_num_top_level_lets(m);
+  if (nlets > 0) {
+    unsafe {
+      pipeline_module_hoist_top_level_lets_into_main(m, a);
+    }
+  }
+  unsafe {
+    pipeline_debug_trace_named_func_bodies("backend_post_hoist_top_level_lets", m, a);
+    // DOD-S3: even when .x typeck is skipped, merge dep SoA into entry then promote.
+    pipeline_debug_trace_named_func_bodies("backend_pre_merge_dep_layouts", m, a);
+    typeck_merge_dep_struct_layouts_into_entry(m, a, pipeline_ctx);
+    pipeline_debug_trace_named_func_bodies("backend_post_merge_dep_layouts", m, a);
+    typeck_wpo_unify_soa_layouts(m, pipeline_ctx);
+    pipeline_debug_trace_named_func_bodies("backend_post_unify_soa_layouts", m, a);
+    // dep co-emit and entry need SoA stride / param types / FIELD_ACCESS offs.
+    pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
+  }
+  pipeline_fill_array_lit_types_for_skipped_typeck(m, a);
+  unsafe {
+    typeck_soa_fill_field_access_for_asm_emit(m, a);
+    glue_wpo_mono_reset_pending();
+    // dep+entry write same elf_ctx: unique scope for tail_join/loop local labels.
+    pipeline_elf_label_mod_scope_begin_module();
+    // WPO-S3: import struct FIELD_ACCESS must see dep pool (backend.x mega also sets).
+    pipeline_asm_emit_set_module(m);
+    pipeline_asm_emit_set_arena(a);
+    pipeline_asm_emit_set_elf_ctx(elf_ctx);
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(m, a, elf_ctx, pipeline_ctx);
+    pipeline_asm_emit_set_elf_ctx(0 as *u8);
+  }
+  if (rc != 0) {
+    return rc;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_wpo_mono_thunks_elf_c(m, a, elf_ctx, pipeline_ctx);
   }
   return rc;
 }
