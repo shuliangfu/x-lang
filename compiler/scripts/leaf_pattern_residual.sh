@@ -9233,8 +9233,9 @@ if ! grep -qE 'pipeline_asm_emit_index_helpers\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_index_helpers.c (8.3.1 asm_emit_index_helpers slice)"
 fi
 if ! grep -qE 'pipeline_asm_emit_spill\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_spill.c (8.3.1 asm_emit_spill slice)"
+  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_spill.c (8.3.1 asm_emit_spill Cap residual after wave156 pure slices)"
 fi
+
 # wave147 pure-owned leave: index_eff_addr faces live in runtime_pipeline_abi pure
 if grep -qE 'pipeline_asm_emit_index_eff_addr\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_index_eff_addr.c (wave147 pure-owned leave)"

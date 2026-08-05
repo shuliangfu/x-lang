@@ -336,10 +336,12 @@ extern int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(struct ast_ASTAren
 #include "pipeline_asm_emit_index_helpers.c"
 
 
-/* BC 8.3.1: asm ELF 7.3 live / Chaitin spill / bulk_mem / index-assign
- * residual domain (live_fwd + color + bulk_mem_copy_spills +
- * index_assign_finish_store + index scratch spill methods; Cap residual
- * pure; same TU). eff_addr_scaled → runtime_pipeline_abi pure (wave147). */
+/* BC 8.3.1: asm ELF 7.3 live / Chaitin spill Cap residual
+ * (live_fwd + color + break/continue + binop slot cache + index scratch
+ * methods + frame-walk spill sums). wave156 pure-owned cohesive slices:
+ * INDEX assign-addr cache + bulk_mem_copy_spills + finish/load/try +
+ * enc_swap_rax_rbx + assign_like/kill_lhs → runtime_pipeline_abi pure.
+ * PLATFORM: SHARED. */
 #include "pipeline_asm_emit_spill.c"
 
 /* wave139 pure-owned leave: pipeline_asm_emit_modlet.c deleted.

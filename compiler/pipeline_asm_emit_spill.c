@@ -1,36 +1,106 @@
 /**
- * pipeline_asm_emit_spill.c — asm ELF 7.3 live / Chaitin spill / bulk_mem /
- * index-assign residual domain (BC 8.3.1).
+ * pipeline_asm_emit_spill.c — asm ELF 7.3 live / Chaitin spill Cap residual
+ * (BC 8.3.1).
  *
- * Mechanically extracted from pipeline_glue.c (same translation unit via
- * #include). Authority for product-mega freestanding register-pressure and
- * INDEX assign residual support that earlier index faces depend on:
- * - 7.3 block-level liveness (GlueBlockLiveFwd, CFG merge/phi, break/continue)
- * - binop VAR slot cache + INDEX assign effective-addr cache
- * - Chaitin K=6 spill coloring (x10–x15) + stack-spill preference
- * - glue_emit_bulk_mem_copy_spills_elf_c (NAMED bulk fill durable path)
- * - glue_index_assign_finish_store_elf_c + assign-addr cache load/hit
- * - index scratch spill methods + binop_stack_spill method bodies
- *   (CAP statics live in pipeline_asm_emit_index_helpers.c)
+ * wave156 pure-owned cohesive slices live in runtime_pipeline_abi pure
+ * (#[no_mangle]; seed cold twins under #ifndef FROM_X):
+ *   · INDEX assign-addr cache BSS + clear/hit
+ *   · glue_emit_bulk_mem_copy_spills_elf_c
+ *   · glue_index_assign_finish_store / load_from_cached / try_block_let_index_init
+ *   · glue_enc_swap_rax_rbx_arm64_elf_c
+ *   · glue_expr_kind_is_assign_like_ord + glue_binop_kill_assign_lhs_slots_elf_c
  *
- * G.7: single product-mega 7.3 live/spill face — do not open a second Chaitin
- * color map or bulk_mem_copy path. Face emitters (assign/index/binop) stay in
- * their slices; glue_emit_index_eff_addr_scaled_elf_c lives in
- * runtime_pipeline_abi pure (wave147 pure-owned leave).
- * Thin public break/continue faces (pipeline_asm_emit_{break,continue}_elf_c)
- * live next to their static impls in this leaf (wave1014 fold).
+ * Cap residual authority remaining in this host leaf (same TU #include):
+ *   · binop VAR slot cache BSS + accessors
+ *   · 7.3 live_fwd / CFG merge / phi / break/continue
+ *   · Chaitin K=6 coloring + stack-spill preference + evict
+ *   · index scratch spill methods + binop_stack_spill bodies
+ *     (CAP statics in pipeline_asm_emit_index_helpers.c)
+ *   · glue_asm_sum_block_call_spill_bytes / slice reent frame walks
  *
- * Callers: block emit (live_in / color at entry); binop load/spill;
- * INDEX assign store; durable NAMED bulk fill; try_index forest (via
- * index_helpers CAP statics + these method bodies).
- *
- * Not compiled as a separate .o — #included from pipeline_glue.c immediately
- * after pipeline_asm_emit_index_helpers.c (before assign/array_lit/index faces).
- *
+ * G.7: do not re-define pure-owned faces above in this file.
+ * Not a separate .o — #included from pipeline_glue.c after index_helpers.
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
- *   · LINUX+MACOS x86_64 SysV — spill/reload + bulk rep mov
+ *   · LINUX+MACOS x86_64 SysV — spill/reload
  *   · MACOS|ARM64 AAPCS64 — x10–x15 linear scan + index scratch stack
  */
+
+
+/* wave156 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * G.7: definitions must not reappear in this Cap residual leaf. PLATFORM: SHARED. */
+void glue_index_assign_addr_cache_clear(void);
+int32_t glue_index_assign_addr_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                         int32_t base_ref, int32_t idx_ref, int32_t esz);
+int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t src_spill,
+                                            int32_t dst_spill, int32_t esz, int32_t ta);
+int32_t glue_index_assign_finish_store_elf_c(struct ast_ASTArena *arena,
+                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                            struct backend_AsmFuncCtx *ctx, int32_t base_ref,
+                                            int32_t idx_ref, int32_t esz, int32_t ta);
+int32_t glue_index_load_from_cached_assign_addr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                     int32_t esz, int32_t ta);
+int32_t glue_try_block_let_index_init_from_assign_cache_elf_c(struct ast_ASTArena *arena,
+                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                             struct backend_AsmFuncCtx *ctx,
+                                                             int32_t init_ref, int32_t ta);
+int32_t glue_enc_swap_rax_rbx_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t glue_expr_kind_is_assign_like_ord(int32_t ko);
+void glue_binop_kill_assign_lhs_slots_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                            int32_t assign_expr_ref);
+
+/* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
+ * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
+/** Mix one byte/word into a stable 64-bit INDEX addr cache key. */
+static uint64_t glue_index_addr_key_mix64(uint64_t h, uint64_t v) {
+  return h * 1315423911u + v + 0x9e3779b97f4a7c15ULL;
+}
+
+/**
+ * Structural hash of an index sub-expression (VAR/LIT/ADD/SUB/MUL); unrelated shapes fall back to ref id.
+ */
+static uint64_t glue_index_expr_struct_key_elf_c(struct ast_ASTArena *arena, int32_t ref) {
+  int32_t ko;
+  int32_t left_ref;
+  int32_t right_ref;
+  uint8_t name[128];
+  int32_t nlen;
+  int32_t i;
+  uint64_t h;
+  if (!arena || ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, ref);
+  h = glue_index_addr_key_mix64(0, (uint64_t)(uint32_t)ko);
+  if (ko == 0)
+    return glue_index_addr_key_mix64(h, (uint64_t)(uint32_t)pipeline_expr_int_val_at(arena, ref));
+  if (ko == 3) {
+    nlen = pipeline_expr_var_name_len(arena, ref);
+    if (nlen <= 0 || nlen > 127)
+      return h;
+    pipeline_expr_var_name_into(arena, ref, name);
+    for (i = 0; i < nlen; i++)
+      h = glue_index_addr_key_mix64(h, name[i]);
+    return h;
+  }
+  if (ko >= 4 && ko <= 6) {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, ref);
+    h = glue_index_addr_key_mix64(h, glue_index_expr_struct_key_elf_c(arena, left_ref));
+    return glue_index_addr_key_mix64(h, glue_index_expr_struct_key_elf_c(arena, right_ref));
+  }
+  return glue_index_addr_key_mix64(h, (uint64_t)(uint32_t)ref);
+}
+
+/** Cache key for INDEX base (VAR name hash; otherwise pool ref). */
+static uint64_t glue_index_base_struct_key_elf_c(struct ast_ASTArena *arena, int32_t base_ref) {
+  if (!arena || base_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, base_ref) == 3)
+    return glue_index_expr_struct_key_elf_c(arena, base_ref);
+  return glue_index_addr_key_mix64(1, (uint64_t)(uint32_t)base_ref);
+}
+
+
+
 
 /* Forward decls / callees defined elsewhere in the same TU:
  * - glue_var_expr_stack_off_elf_c (def after assign/index includes)
@@ -45,19 +115,6 @@
  * CAP statics stay in index_helpers (shared depth with try_index forest).
  */
 
-/**
- * 7.3 block-level liveness prototype: reuse rbx across consecutive INDEX assigns when
- * base/index structural keys and esz match (skip redundant ldur/lea on the second store).
- */
-typedef struct {
-  int32_t valid;
-  size_t ctx_key;
-  uint64_t base_key;
-  uint64_t idx_key;
-  int32_t esz;
-} GlueIndexAssignAddrCache;
-
-static GlueIndexAssignAddrCache glue_index_assign_addr_cache;
 
 /**
  * 7.3 block-level binop VAR 槽缓存：rbx/rax 已装入的栈槽 off，跨连续 let binop 免重复 ldur。
@@ -153,16 +210,6 @@ void glue_binop_var_slot_cache_set_rax_off(int32_t off) { glue_binop_var_slot_ca
 void glue_binop_var_slot_cache_set_rbx_off(int32_t off) { glue_binop_var_slot_cache.rbx_off = off; }
 
 /** arm64：交换 rax/x0 与 rbx/x1（交换律 VAR 槽命中后对齐 add 操作数序）。 */
-/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
-int32_t glue_enc_swap_rax_rbx_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  if (ta != 1)
-    return 0;
-  if (arch_arm64_enc_enc_mov_rax_to_x2(elf_ctx) != 0)
-    return -1;
-  if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
-    return -1;
-  return arch_arm64_enc_enc_mov_x2_to_rbx(elf_ctx);
-}
 
 /** 栈槽 var 被写入后失效对应 rax/rbx 缓存项。 */
 void glue_binop_var_slot_cache_invalidate_slot(int32_t off) {
@@ -194,87 +241,11 @@ void glue_binop_var_slot_cache_kill_def_at_slot(int32_t off) {
   glue_binop_var_slot_cache_invalidate_rax();
 }
 
-/** EXPR_ASSIGN / EXPR_*_ASSIGN（ko 28..38）是否为赋值类语句表达式。 */
-int32_t glue_expr_kind_is_assign_like_ord(int32_t ko) {
-  return ko == 28 || (ko >= 29 && ko <= 38);
-}
-
-/**
- * 7.3 块内赋值语句：仅 kill 左值 VAR 栈槽在 binop 缓存中的命中（保留 rbx 中其他 VAR，如 a+= 后仍复用 b）。
- */
-void glue_binop_kill_assign_lhs_slots_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                    int32_t assign_expr_ref) {
-  int32_t left_ref;
-  int32_t off;
-  if (!arena || !ctx || assign_expr_ref <= 0)
-    return;
-  if (!glue_expr_kind_is_assign_like_ord(pipeline_expr_kind_ord_at(arena, assign_expr_ref)))
-    return;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, assign_expr_ref);
-  if (left_ref <= 0 || pipeline_expr_kind_ord_at(arena, left_ref) != GLUE_EXPR_KIND_VAR)
-    return;
-  off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
-  if (off >= 0)
-    glue_binop_var_slot_cache_invalidate_slot(off);
-}
-
-/** Mix one byte/word into a stable 64-bit INDEX addr cache key. */
-static uint64_t glue_index_addr_key_mix64(uint64_t h, uint64_t v) {
-  return h * 1315423911u + v + 0x9e3779b97f4a7c15ULL;
-}
-
-/**
- * Structural hash of an index sub-expression (VAR/LIT/ADD/SUB/MUL); unrelated shapes fall back to ref id.
- */
-static uint64_t glue_index_expr_struct_key_elf_c(struct ast_ASTArena *arena, int32_t ref) {
-  int32_t ko;
-  int32_t left_ref;
-  int32_t right_ref;
-  uint8_t name[128];
-  int32_t nlen;
-  int32_t i;
-  uint64_t h;
-  if (!arena || ref <= 0)
-    return 0;
-  ko = pipeline_expr_kind_ord_at(arena, ref);
-  h = glue_index_addr_key_mix64(0, (uint64_t)(uint32_t)ko);
-  if (ko == 0)
-    return glue_index_addr_key_mix64(h, (uint64_t)(uint32_t)pipeline_expr_int_val_at(arena, ref));
-  if (ko == 3) {
-    nlen = pipeline_expr_var_name_len(arena, ref);
-    if (nlen <= 0 || nlen > 127)
-      return h;
-    pipeline_expr_var_name_into(arena, ref, name);
-    for (i = 0; i < nlen; i++)
-      h = glue_index_addr_key_mix64(h, name[i]);
-    return h;
-  }
-  if (ko >= 4 && ko <= 6) {
-    left_ref = pipeline_expr_binop_left_ref_at(arena, ref);
-    right_ref = pipeline_expr_binop_right_ref_at(arena, ref);
-    h = glue_index_addr_key_mix64(h, glue_index_expr_struct_key_elf_c(arena, left_ref));
-    return glue_index_addr_key_mix64(h, glue_index_expr_struct_key_elf_c(arena, right_ref));
-  }
-  return glue_index_addr_key_mix64(h, (uint64_t)(uint32_t)ref);
-}
-
-/** Cache key for INDEX base (VAR name hash; otherwise pool ref). */
-static uint64_t glue_index_base_struct_key_elf_c(struct ast_ASTArena *arena, int32_t base_ref) {
-  if (!arena || base_ref <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, base_ref) == 3)
-    return glue_index_expr_struct_key_elf_c(arena, base_ref);
-  return glue_index_addr_key_mix64(1, (uint64_t)(uint32_t)base_ref);
-}
 
 /** Forward decl: rec emit 是否会 clobber rbx（定义见 binop 活跃性 helpers）。 */
 int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
 
 /** Drop cached INDEX effective address (rbx no longer trusted for reuse). */
-/* wave140 pure leave Cap residual: was static; pure emit_index links here. PLATFORM: SHARED. */
-void glue_index_assign_addr_cache_clear(void) {
-  glue_index_assign_addr_cache.valid = 0;
-}
 
 /** CFG 写槽扫描所需 AST 块 API（定义见本文件后部；须先于 glue_cfg_collect_block_def_offs）。 */
 int32_t ast_ast_block_num_consts(struct ast_ASTArena *a, int32_t br);
@@ -2198,143 +2169,13 @@ void glue_block_live_fwd_before_stmt(int32_t stmt_i, int32_t ta,
 }
 
 /** Return 1 when rbx still holds the effective addr for the same INDEX lvalue shape. */
-/* wave140 pure leave Cap residual: was static; pure emit_index links here. PLATFORM: SHARED. */
-int32_t glue_index_assign_addr_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                         int32_t base_ref, int32_t idx_ref, int32_t esz) {
-  uint64_t base_key;
-  uint64_t idx_key;
-  if (!glue_index_assign_addr_cache.valid)
-    return 0;
-  if (glue_index_assign_addr_cache.ctx_key != (size_t)ctx)
-    return 0;
-  base_key = glue_index_base_struct_key_elf_c(arena, base_ref);
-  idx_key = glue_index_expr_struct_key_elf_c(arena, idx_ref);
-  if (glue_index_assign_addr_cache.base_key != base_key || glue_index_assign_addr_cache.idx_key != idx_key ||
-      glue_index_assign_addr_cache.esz != esz)
-    return 0;
-  return 1;
-}
 
-/**
- * wave630 Cap residual pure: bulk copy [src_spill]→[dst_spill] for esz>8 INDEX assign.
- *
- * Root: generic finish_store only moves 1/4/8 via store_rax_to_rbx_indirect, and rhs
- * VAR of S24 loads first qword only — pure-asm a[i]=t writes one word at wrong scale.
- * G.7: freestanding-safe chunked load/store (no libc memcpy); reload base ptrs each
- * chunk so load clobbers do not burn dest (same geometry as wave399 element-wise).
- * PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64 low-end.
- *
- * @param src_spill frame off holding source pointer
- * @param dst_spill frame off holding dest pointer
- * @param esz       total bytes to copy (must be > 0)
- * @return 0 ok, -1 emit error
- */
-int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                     int32_t src_spill, int32_t dst_spill, int32_t esz,
-                                                     int32_t ta) {
-  int32_t off;
-  int32_t chunk;
-  if (!elf_ctx || src_spill < 0 || dst_spill < 0 || esz <= 0)
-    return -1;
-  off = 0;
-  while (off < esz) {
-    if (off + 8 <= esz)
-      chunk = 8;
-    else if (off + 4 <= esz)
-      chunk = 4;
-    else
-      chunk = 1;
-    /* Load chunk from src+off → rax (value). */
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, src_spill, ta) != 0)
-      return -1;
-    if (off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, off, ta) != 0)
-      return -1;
-    if (chunk == 8) {
-      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-    } else if (chunk == 4) {
-      if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-    } else {
-      if (backend_enc_load_zext8_from_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-    }
-    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
-      return -1;
-    /* Dest base → rbx; pop value; store at [rbx+off]. */
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_spill, ta) != 0)
-      return -1;
-    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-      return -1;
-    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
-      return -1;
-    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, off, chunk, ta) != 0)
-      return -1;
-    off += chunk;
-  }
-  return 0;
-}
-
-/** Store rhs (rax) at [rbx] and remember rbx for an identical next INDEX assign. */
-int32_t glue_index_assign_finish_store_elf_c(struct ast_ASTArena *arena,
-                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                     struct backend_AsmFuncCtx *ctx, int32_t base_ref,
-                                                     int32_t idx_ref, int32_t esz, int32_t ta) {
-  glue_index_assign_addr_cache.valid = 1;
-  glue_index_assign_addr_cache.ctx_key = (size_t)ctx;
-  glue_index_assign_addr_cache.base_key = glue_index_base_struct_key_elf_c(arena, base_ref);
-  glue_index_assign_addr_cache.idx_key = glue_index_expr_struct_key_elf_c(arena, idx_ref);
-  glue_index_assign_addr_cache.esz = esz;
-  /** INDEX assign 先 emit rhs 再算址时 rax 已 push；此处 pop 恢复 rhs 再 store。 */
-  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
-    return -1;
-  return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, esz, ta);
-}
 
 /**
  * 7.3：上一笔 INDEX assign 已在 rbx 留下有效址时，EXPR_INDEX 读直接 ldr，免重算 eff_addr。
  * 慢路径仍走 glue_emit_index_eff_addr_scaled_elf_c 并在入口清 cache。
  */
-/* wave140 pure leave Cap residual: was static; pure emit_index links here. PLATFORM: SHARED. */
-int32_t glue_index_load_from_cached_assign_addr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                     int32_t esz, int32_t ta) {
-  if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (esz == 1)
-    return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
-  if (esz == 4)
-    return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
-  return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
-}
 
-/**
- * 7.3：块内 let 初值为 INDEX，且与上一笔 assign 同形时从 rbx 有效址直接 load。
- * 读后清 assign cache（下一笔 assign 须重算址，见 assign_index_block_read_between）。
- * 返回 1=已发射，0=不适用，-1=错误。
- */
-int32_t glue_try_block_let_index_init_from_assign_cache_elf_c(struct ast_ASTArena *arena,
-                                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                      struct backend_AsmFuncCtx *ctx,
-                                                                      int32_t init_ref, int32_t ta) {
-  int32_t base_ref;
-  int32_t idx_ref;
-  int32_t esz;
-  if (!arena || !elf_ctx || !ctx || init_ref <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, init_ref) != 47)
-    return 0;
-  base_ref = pipeline_expr_index_base_ref(arena, init_ref);
-  idx_ref = pipeline_expr_index_index_ref(arena, init_ref);
-  if (base_ref <= 0 || idx_ref <= 0)
-    return 0;
-  esz = pipeline_asm_index_elem_byte_sz_c(arena, init_ref);
-  if (!glue_index_assign_addr_cache_hit(arena, ctx, base_ref, idx_ref, esz))
-    return 0;
-  if (glue_index_load_from_cached_assign_addr_elf_c(elf_ctx, esz, ta) != 0)
-    return -1;
-  glue_index_assign_addr_cache_clear();
-  return 1;
-}
 
 /**
  * 7.3 block-level (i-j+k) subexpr spill cache: push sum in w2 on real stack for cross-stmt reuse.

@@ -31,6 +31,9 @@
 
 /* wave1125-1129 G.7: forward decl — definition at EOF (callsites at L122/238/279
  * precede the EOF definition). */
+/* wave156 pure-owned: assign-like kind face lives in runtime_pipeline_abi pure. */
+int32_t glue_expr_kind_is_assign_like_ord(int32_t ko);
+
 static int32_t typeck_expr_is_addr_of_block_local_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                    struct ast_PipelineDepCtx *ctx, int32_t expr_ref);
 

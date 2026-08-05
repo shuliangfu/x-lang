@@ -497,9 +497,8 @@ export extern "C" function glue_field_access_field_type_ref_c(arena: *u8, mod: *
 export extern "C" function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
 export extern "C" function glue_index_elem_byte_sz_from_type_ref_c(arena: *u8, tr: i32): i32;
 export extern "C" function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, var_ref: i32): i32;
-export extern "C" function glue_index_assign_addr_cache_clear(): void;
-export extern "C" function glue_index_assign_addr_cache_hit(arena: *u8, ctx: *u8, base_ref: i32, idx_ref: i32, esz: i32): i32;
-export extern "C" function glue_index_load_from_cached_assign_addr_elf_c(elf_ctx: *u8, esz: i32, ta: i32): i32;
+// wave156 pure-owned: glue_index_assign_addr_cache_clear/hit + load_from_cached live in EOF.
+// (was Cap residual export extern; bodies #[no_mangle] export — no dual export.)
 export extern "C" function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 // wave147 Cap residual: index_eff_addr pure leave callees (index_helpers + enc + text arch + flags).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS text co-path.
@@ -673,8 +672,7 @@ export extern "C" function glue_pipeline_asm_al_nc_seq_take_c(): i32;
 export extern "C" function glue_binop_var_slot_cache_clear(): void;
 export extern "C" function glue_binop_var_slot_cache_invalidate_slot(off: i32): void;
 export extern "C" function glue_binop_var_slot_cache_kill_def_at_slot(off: i32): void;
-export extern "C" function glue_index_assign_finish_store_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, base_ref: i32, idx_ref: i32, esz: i32, ta: i32): i32;
-export extern "C" function glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx: *u8, src_spill: i32, dst_spill: i32, nbytes: i32, ta: i32): i32;
+// wave156 pure-owned: glue_index_assign_finish_store_elf_c + glue_emit_bulk_mem_copy_spills_elf_c in EOF.
 export extern "C" function glue_index_scratch_spill_invalidate_var(arena: *u8, elf_ctx: *u8, ctx: *u8, var_ref: i32, ta: i32): void;
 // wave151 pure-owned leave: glue_field_access_effective_offset_c lives in EOF wave151 section.
 // wave144 pure leave: glue_maybe_promote_f32_to_f64_rax_elf_c + glue_float_promote_src_ty_ref_c live in this file.
@@ -1025,9 +1023,7 @@ export extern "C" function glue_block_live_fwd_apply_top_stmt(arena: *u8, ctx: *
 export extern "C" function glue_live_fwd_forward_after_def(arena: *u8, ctx: *u8, def_off: i32, init_ref: i32): void;
 export extern "C" function glue_binop_cache_intersect_live_fwd(): void;
 export extern "C" function glue_block_stmt_order_has_cfg(arena: *u8, block_ref: i32): i32;
-export extern "C" function glue_expr_kind_is_assign_like_ord(ko: i32): i32;
-export extern "C" function glue_try_block_let_index_init_from_assign_cache_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, init_ref: i32, ta: i32): i32;
-export extern "C" function glue_binop_kill_assign_lhs_slots_elf_c(arena: *u8, ctx: *u8, assign_expr_ref: i32): void;
+// wave156 pure-owned: glue_expr_kind_is_assign_like_ord + try_block_let_index_init + kill_assign_lhs in EOF.
 export extern "C" function glue_index_subadd3_sum_cache_clear(): void;
 export extern "C" function glue_index_minus_pair_cache_clear(): void;
 export extern "C" function glue_binop_stack_spill_clear(): void;
@@ -40619,7 +40615,7 @@ export extern "C" function glue_binop_var_slot_cache_set_valid_rax(v: i32): void
 export extern "C" function glue_binop_var_slot_cache_set_valid_rbx(v: i32): void;
 export extern "C" function glue_binop_var_slot_cache_set_rax_off(off: i32): void;
 export extern "C" function glue_binop_var_slot_cache_set_rbx_off(off: i32): void;
-export extern "C" function glue_enc_swap_rax_rbx_arm64_elf_c(elf_ctx: *u8, ta: i32): i32;
+// wave156 pure-owned: glue_enc_swap_rax_rbx_arm64_elf_c lives in EOF.
 export extern "C" function glue_asm73_var_prefers_stack_spill(off: i32): i32;
 export extern "C" function glue_binop_try_reload_spill_off_elf_c(elf_ctx: *u8, ctx: *u8, off: i32, ta: i32, to_rbx: i32): i32;
 export extern "C" function glue_binop_stack_spill_push_elf_c(elf_ctx: *u8, ta: i32, off: i32, from_rbx: i32): i32;
@@ -51298,3 +51294,360 @@ export function backend_ctx_pop_loop_labels(ctx: *u8): void {
 }
 
 // end wave155 pure-owned leave
+
+// ============================================================================
+// wave156 pure-owned leave (cohesive spill slices): INDEX assign-addr cache +
+// bulk_mem_copy_spills + index finish/load/hit/try + enc_swap_rax_rbx +
+// expr_kind_assign_like + kill_assign_lhs.
+// Cap residual remains pipeline_asm_emit_spill.c (binop VAR slot cache BSS,
+// 7.3 live_fwd/Chaitin, break/continue, index-scratch methods, frame-walk
+// spill sums). Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ============================================================================
+
+// Cap residual faces used by wave156 pure bodies (pre-declared above except arm64 x2 hop).
+// PLATFORM: SHARED · MACOS|ARM64 AAPCS64 for mov via x2.
+export extern "C" function arch_arm64_enc_enc_mov_rax_to_x2(elf_ctx: *u8): i32;
+
+// INDEX assign effective-addr cache BSS (was static in spill).
+let g_w156_ia_valid: i32 = 0;
+let g_w156_ia_ctx: *u8 = 0 as *u8;
+let g_w156_ia_base_key: i64 = 0;
+let g_w156_ia_idx_key: i64 = 0;
+let g_w156_ia_esz: i32 = 0;
+
+/**
+ * Mix one word into stable 64-bit INDEX addr cache key.
+ * wave156 pure helper. PLATFORM: SHARED.
+ */
+function w156_index_addr_key_mix64(h: i64, v: i64): i64 {
+  let m: i64 = 1315423911;
+  // 0x9e3779b97f4a7c15 as signed i64
+  let c: i64 = 0 - 7046029254386353131;
+  return h * m + v + c;
+}
+
+/**
+ * Structural hash of index sub-expression (VAR/LIT/ADD/SUB/MUL).
+ * @param arena *u8 - ASTArena*
+ * @param ref i32 - expr pool ref
+ * @return i64 - stable structural key
+ * wave156 pure helper. PLATFORM: SHARED.
+ */
+function w156_index_expr_struct_key(arena: *u8, ref: i32): i64 {
+  let ko: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let name: u8[128] = [];
+  let nlen: i32 = 0;
+  let i: i32 = 0;
+  let h: i64 = 0;
+  let iv: i32 = 0;
+  if (arena == 0 as *u8 || ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, ref);
+  }
+  h = w156_index_addr_key_mix64(0, ko as i64);
+  if (ko == 0) {
+    unsafe {
+      iv = pipeline_expr_int_val_at(arena, ref);
+    }
+    return w156_index_addr_key_mix64(h, iv as i64);
+  }
+  if (ko == 3) {
+    unsafe {
+      nlen = pipeline_expr_var_name_len(arena, ref);
+    }
+    if (nlen <= 0 || nlen > 127) {
+      return h;
+    }
+    unsafe {
+      pipeline_expr_var_name_into(arena, ref, &name[0]);
+    }
+    i = 0;
+    while (i < nlen) {
+      h = w156_index_addr_key_mix64(h, name[i] as i64);
+      i = i + 1;
+    }
+    return h;
+  }
+  if (ko >= 4 && ko <= 6) {
+    unsafe {
+      left_ref = pipeline_expr_binop_left_ref_at(arena, ref);
+      right_ref = pipeline_expr_binop_right_ref_at(arena, ref);
+    }
+    h = w156_index_addr_key_mix64(h, w156_index_expr_struct_key(arena, left_ref));
+    return w156_index_addr_key_mix64(h, w156_index_expr_struct_key(arena, right_ref));
+  }
+  return w156_index_addr_key_mix64(h, ref as i64);
+}
+
+/**
+ * Cache key for INDEX base (VAR name hash or pool ref).
+ * wave156 pure helper. PLATFORM: SHARED.
+ */
+function w156_index_base_struct_key(arena: *u8, base_ref: i32): i64 {
+  let ko: i32 = 0;
+  if (arena == 0 as *u8 || base_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  }
+  if (ko == 3) {
+    return w156_index_expr_struct_key(arena, base_ref);
+  }
+  return w156_index_addr_key_mix64(1, base_ref as i64);
+}
+
+/**
+ * Drop cached INDEX effective address (rbx no longer trusted).
+ * wave156 pure-owned. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_index_assign_addr_cache_clear(): void {
+  g_w156_ia_valid = 0;
+}
+
+/**
+ * Return 1 when rbx still holds effective addr for same INDEX lvalue shape.
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param base_ref i32 - INDEX base
+ * @param idx_ref i32 - INDEX index
+ * @param esz i32 - element size
+ * @return i32 - 1 hit, 0 miss
+ * wave156 pure-owned. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_index_assign_addr_cache_hit(arena: *u8, ctx: *u8, base_ref: i32, idx_ref: i32, esz: i32): i32 {
+  let base_key: i64 = 0;
+  let idx_key: i64 = 0;
+  if (g_w156_ia_valid == 0) {
+    return 0;
+  }
+  if (g_w156_ia_ctx != ctx) {
+    return 0;
+  }
+  base_key = w156_index_base_struct_key(arena, base_ref);
+  idx_key = w156_index_expr_struct_key(arena, idx_ref);
+  if (g_w156_ia_base_key != base_key || g_w156_ia_idx_key != idx_key || g_w156_ia_esz != esz) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Bulk copy [src_spill]→[dst_spill] for esz>8 INDEX assign (chunked freestanding).
+ * @return i32 - 0 ok, -1 emit error
+ * wave156 pure-owned. PLATFORM: SHARED · LINUX|x86 · MACOS|ARM64.
+ */
+#[no_mangle]
+export function glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx: *u8, src_spill: i32, dst_spill: i32, esz: i32, ta: i32): i32 {
+  let off: i32 = 0;
+  let chunk: i32 = 0;
+  if (elf_ctx == 0 as *u8 || src_spill < 0 || dst_spill < 0 || esz <= 0) {
+    return 0 - 1;
+  }
+  while (off < esz) {
+    if (off + 8 <= esz) {
+      chunk = 8;
+    } else if (off + 4 <= esz) {
+      chunk = 4;
+    } else {
+      chunk = 1;
+    }
+    unsafe {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, src_spill, ta) != 0) {
+        return 0 - 1;
+      }
+      if (off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, off, ta) != 0) {
+        return 0 - 1;
+      }
+      if (chunk == 8) {
+        if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      } else if (chunk == 4) {
+        if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      } else {
+        if (backend_enc_load_zext8_from_rax_arch(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_spill, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, off, chunk, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+    off = off + chunk;
+  }
+  return 0;
+}
+
+/**
+ * Store rhs (rax) at [rbx] and remember addr for identical next INDEX assign.
+ * wave156 pure-owned. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_index_assign_finish_store_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, base_ref: i32, idx_ref: i32, esz: i32, ta: i32): i32 {
+  g_w156_ia_valid = 1;
+  g_w156_ia_ctx = ctx;
+  g_w156_ia_base_key = w156_index_base_struct_key(arena, base_ref);
+  g_w156_ia_idx_key = w156_index_expr_struct_key(arena, idx_ref);
+  g_w156_ia_esz = esz;
+  unsafe {
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, esz, ta);
+  }
+}
+
+/**
+ * Load from cached INDEX assign addr held in rbx.
+ * wave156 pure-owned. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_index_load_from_cached_assign_addr_elf_c(elf_ctx: *u8, esz: i32, ta: i32): i32 {
+  unsafe {
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (esz == 1) {
+      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+    }
+    if (esz == 4) {
+      return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+    }
+    return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * Try let-init INDEX from assign-addr cache (1=emitted, 0=n/a, -1=err).
+ * wave156 pure-owned. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_try_block_let_index_init_from_assign_cache_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, init_ref: i32, ta: i32): i32 {
+  let base_ref: i32 = 0;
+  let idx_ref: i32 = 0;
+  let esz: i32 = 0;
+  let ko: i32 = 0;
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || init_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  }
+  if (ko != 47) {
+    return 0;
+  }
+  unsafe {
+    base_ref = pipeline_expr_index_base_ref(arena, init_ref);
+    idx_ref = pipeline_expr_index_index_ref(arena, init_ref);
+  }
+  if (base_ref <= 0 || idx_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    esz = pipeline_asm_index_elem_byte_sz_c(arena, init_ref);
+  }
+  if (glue_index_assign_addr_cache_hit(arena, ctx, base_ref, idx_ref, esz) == 0) {
+    return 0;
+  }
+  if (glue_index_load_from_cached_assign_addr_elf_c(elf_ctx, esz, ta) != 0) {
+    return 0 - 1;
+  }
+  glue_index_assign_addr_cache_clear();
+  return 1;
+}
+
+/**
+ * arm64 swap rax/x0 with rbx/x1 after commutative VAR cache hit.
+ * wave156 pure-owned. PLATFORM: SHARED · MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_enc_swap_rax_rbx_arm64_elf_c(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 1) {
+    return 0;
+  }
+  unsafe {
+    if (arch_arm64_enc_enc_mov_rax_to_x2(elf_ctx) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    return arch_arm64_enc_enc_mov_x2_to_rbx(elf_ctx);
+  }
+}
+
+/**
+ * True when expr kind ord is ASSIGN / *ASSIGN (28..38).
+ * wave156 pure-owned. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_expr_kind_is_assign_like_ord(ko: i32): i32 {
+  if (ko == 28) {
+    return 1;
+  }
+  if (ko >= 29 && ko <= 38) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Kill binop cache for assign LHS VAR slot (Cap residual invalidate_slot).
+ * wave156 pure-owned. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_binop_kill_assign_lhs_slots_elf_c(arena: *u8, ctx: *u8, assign_expr_ref: i32): void {
+  let left_ref: i32 = 0;
+  let off: i32 = 0;
+  let ko: i32 = 0;
+  if (arena == 0 as *u8 || ctx == 0 as *u8 || assign_expr_ref <= 0) {
+    return;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, assign_expr_ref);
+  }
+  if (glue_expr_kind_is_assign_like_ord(ko) == 0) {
+    return;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, assign_expr_ref);
+  }
+  if (left_ref <= 0) {
+    return;
+  }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, left_ref) != 3) {
+      return;
+    }
+    off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
+  }
+  if (off >= 0) {
+    unsafe {
+      glue_binop_var_slot_cache_invalidate_slot(off);
+    }
+  }
+}
+
+// end wave156 pure-owned leave

@@ -24735,4 +24735,57 @@ void backend_ctx_pop_loop_labels(void *ctx) {
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
+
+/*
+ * wave156 cold twins: spill pure-owned cohesive slices (INDEX assign cache +
+ * bulk_mem + finish/load/hit/try + enc_swap + assign_like + kill_lhs).
+ * Freestanding-safe stubs. Hybrid product links pure. PLATFORM: SHARED.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+void glue_index_assign_addr_cache_clear(void) {}
+
+int32_t glue_index_assign_addr_cache_hit(void *arena, void *ctx, int32_t base_ref, int32_t idx_ref, int32_t esz) {
+  (void)arena; (void)ctx; (void)base_ref; (void)idx_ref; (void)esz;
+  return 0;
+}
+
+int32_t glue_emit_bulk_mem_copy_spills_elf_c(void *elf_ctx, int32_t src_spill, int32_t dst_spill, int32_t esz, int32_t ta) {
+  (void)elf_ctx; (void)src_spill; (void)dst_spill; (void)esz; (void)ta;
+  return -1;
+}
+
+int32_t glue_index_assign_finish_store_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t base_ref, int32_t idx_ref,
+                                            int32_t esz, int32_t ta) {
+  (void)arena; (void)elf_ctx; (void)ctx; (void)base_ref; (void)idx_ref; (void)esz; (void)ta;
+  return -1;
+}
+
+int32_t glue_index_load_from_cached_assign_addr_elf_c(void *elf_ctx, int32_t esz, int32_t ta) {
+  (void)elf_ctx; (void)esz; (void)ta;
+  return -1;
+}
+
+int32_t glue_try_block_let_index_init_from_assign_cache_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t init_ref,
+                                                             int32_t ta) {
+  (void)arena; (void)elf_ctx; (void)ctx; (void)init_ref; (void)ta;
+  return 0;
+}
+
+int32_t glue_enc_swap_rax_rbx_arm64_elf_c(void *elf_ctx, int32_t ta) {
+  (void)elf_ctx; (void)ta;
+  return 0;
+}
+
+int32_t glue_expr_kind_is_assign_like_ord(int32_t ko) {
+  return ko == 28 || (ko >= 29 && ko <= 38);
+}
+
+void glue_binop_kill_assign_lhs_slots_elf_c(void *arena, void *ctx, int32_t assign_expr_ref) {
+  (void)arena; (void)ctx; (void)assign_expr_ref;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
