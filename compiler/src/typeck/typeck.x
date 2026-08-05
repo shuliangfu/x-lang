@@ -66,35 +66,21 @@ export extern function pipeline_typeck_check_expr_match_c(module: *Module, arena
 export extern function pipeline_typeck_check_expr_c(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32;
 /**
- * wave682 Cap residual: mono free type-param field type against base Wrap<T>/Pair.
- * G.7 authority still in pipeline_typeck_field_access.c (field access + STRUCT_LIT coerce).
- * @param module *Module — layout type-param registry
- * @param arena *ASTArena — type / type-arg sidecar
- * @param field_ty i32 — layout field type_ref (often free TYPE_NAMED T/U)
- * @param base_ty i32 — monomorphized base (`Wrap<i32>`, `*Wrap<i32>`)
- * @return i32 — mono concrete type_ref, or 0 if no substitution
- * PLATFORM: SHARED
+ * Generic struct layout type-param registry (used by mono field substitution).
+ * PLATFORM: SHARED — defined in ast_pool_struct_layout.c
  */
-export extern function pipeline_typeck_mono_field_type_from_base_c(module: *Module, arena: *ASTArena,
-field_ty: i32, base_ty: i32): i32;
+export extern function pipeline_module_struct_layout_num_type_params_at(module: *Module, li: i32): i32;
+export extern function pipeline_module_struct_layout_type_param_name_len(module: *Module, li: i32,
+j: i32): i32;
+export extern function pipeline_module_struct_layout_type_param_name_into(module: *Module, li: i32,
+j: i32, out: *u8): void;
 /**
- * wave465: 1 when TYPE_NAMED name is a module (or dep) concrete struct/enum.
- * Residual C authority (shared by mono field path + ambient type-param fill).
+ * Typeck diagnostic report (unknown field gate). Same surface as
+ * runtime_driver_diagnostic.x / C field residual.
  * PLATFORM: SHARED
  */
-export extern function pipeline_typeck_named_is_module_concrete_c(module: *Module, ctx: *PipelineDepCtx,
-name: *u8, name_len: i32): i32;
-/**
- * wave674 Cap residual: hard-fail unresolved field on known base.
- * Residual C authority (G.7 single gate; also called from strict_minimal weak twin).
- * PLATFORM: SHARED
- */
-export extern function pipeline_typeck_field_unknown_hard_fail_c(module: *Module, arena: *ASTArena,
-expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32;
-/* R2 (8.3.3): prebind / import_binding / known_ptr / layout_named / field_slice /
- * name_fallback / lexer_fallback / reverse_infer / mono+ambient wrappers /
- * orchestrator in typeck.x; C thin. Residual C: mono_field_type_from_base /
- * named_is_module_concrete / unknown_hard_fail. */
+export extern function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8): void;
+/* R2 (8.3.3): field_access knives + mono/concrete/hard_fail in typeck.x; C thin. */
 export extern function pipeline_typeck_field_prebind_c(module: *Module, arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): void;
 export extern function pipeline_typeck_field_import_binding_resolve_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_field_known_ptr_types_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, num_layouts: i32): i32;
@@ -2966,12 +2952,503 @@ expr_ref: i32, outer_expected: i32): i32 {
 }
 
 /**
+ * R2 (8.3.3): TYPE_NAMED name is a module (or dep) concrete struct/enum.
+ *
+ * Migrated from C `pipeline_typeck_named_is_module_concrete_c`
+ * (pipeline_typeck_field_access.c). Public C surface remains a thin forwarder
+ * for strict_minimal weak twin and any residual callers.
+ *
+ * wave465: free type-param vs concrete; wave1220 P4 walks dep modules so
+ * TokenKind/Lexer etc. are not mistaken for free type params by ambient fill.
+ * G.7 single probe — mono field path + ambient both use this.
+ *
+ * @param module *Module — entry module layouts/enums
+ * @param ctx *PipelineDepCtx — optional deps (NULL/0 = local only; mono uses null)
+ * @param name *u8 — TYPE_NAMED spelling
+ * @param name_len i32 — name length (1..127)
+ * @return i32 — 1 concrete, 0 free/unknown
+ * PLATFORM: SHARED
+ */
+export function typeck_named_is_module_concrete(module: *Module, ctx: *PipelineDepCtx,
+name: *u8, name_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let k: i32 = 0;
+    let nsl: i32 = 0;
+    let ne: i32 = 0;
+    let sl: i32 = 0;
+    let el: i32 = 0;
+    let bi: i32 = 0;
+    let snm: u8[128] = [];
+    let nd: i32 = 0;
+    let di: i32 = 0;
+    let dm: *Module = 0 as *Module;
+    if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0 || name_len > 127) {
+      return 0;
+    }
+    nsl = pipeline_module_num_struct_layouts_at(module);
+    k = 0;
+    while (k < nsl) {
+      sl = pipeline_module_struct_layout_name_len(module, k);
+      if (sl == name_len) {
+        pipeline_module_struct_layout_name_into(module, k, &snm[0]);
+        bi = 0;
+        while (bi < sl) {
+          if (snm[bi] != name[bi]) {
+            break;
+          }
+          bi = bi + 1;
+        }
+        if (bi == sl) {
+          return 1;
+        }
+      }
+      k = k + 1;
+    }
+    ne = module.num_module_enums;
+    k = 0;
+    while (k < ne) {
+      el = pipeline_module_enum_name_len(module, k);
+      if (el == name_len) {
+        bi = 0;
+        while (bi < el) {
+          if (pipeline_module_enum_name_byte_at(module, k, bi) != name[bi]) {
+            break;
+          }
+          bi = bi + 1;
+        }
+        if (bi == el) {
+          return 1;
+        }
+      }
+      k = k + 1;
+    }
+    /* wave1220 P4: dep modules for cross-module TokenKind / Lexer / etc. */
+    if (ctx != 0 as *PipelineDepCtx) {
+      nd = pipeline_dep_ctx_ndep(ctx);
+      di = 0;
+      while (di < nd) {
+        dm = pipeline_dep_ctx_module_at(ctx, di);
+        if (dm != 0 as *Module && dm != module) {
+          nsl = pipeline_module_num_struct_layouts_at(dm);
+          k = 0;
+          while (k < nsl) {
+            sl = pipeline_module_struct_layout_name_len(dm, k);
+            if (sl == name_len) {
+              pipeline_module_struct_layout_name_into(dm, k, &snm[0]);
+              bi = 0;
+              while (bi < sl) {
+                if (snm[bi] != name[bi]) {
+                  break;
+                }
+                bi = bi + 1;
+              }
+              if (bi == sl) {
+                return 1;
+              }
+            }
+            k = k + 1;
+          }
+          ne = dm.num_module_enums;
+          k = 0;
+          while (k < ne) {
+            el = pipeline_module_enum_name_len(dm, k);
+            if (el == name_len) {
+              bi = 0;
+              while (bi < el) {
+                if (pipeline_module_enum_name_byte_at(dm, k, bi) != name[bi]) {
+                  break;
+                }
+                bi = bi + 1;
+              }
+              if (bi == el) {
+                return 1;
+              }
+            }
+            k = k + 1;
+          }
+        }
+        di = di + 1;
+      }
+    }
+    return 0;
+  }
+}
+
+/**
+ * R2 (8.3.3): mono free type-param field type against monomorphized base.
+ *
+ * Migrated from C `pipeline_typeck_mono_field_type_from_base_c`
+ * (pipeline_typeck_field_access.c). G.7 single authority for field-access
+ * apply_mono and STRUCT_LIT field-init coerce (wave466/467/682).
+ *
+ * When base is TYPE_NAMED with type-position args (`Wrap<i32>` / `Pair<A,B>`)
+ * and field type is unconstrained TYPE_NAMED type-param (`v: T` / `b: U`),
+ * map field name → layout type-param slot → type_arg[slot] (or elem_type_ref
+ * for slot0 when no type-param registry).
+ *
+ * @param module *Module — layout type-param registry
+ * @param arena *ASTArena — type / type-arg sidecar
+ * @param field_ty i32 — layout field type_ref (often free TYPE_NAMED T/U)
+ * @param base_ty i32 — monomorphized base (`Wrap<i32>`, `*Wrap<i32>`)
+ * @return i32 — mono concrete type_ref, or 0 if no substitution
+ * PLATFORM: SHARED
+ */
+export function typeck_mono_field_type_from_base(module: *Module, arena: *ASTArena,
+field_ty: i32, base_ty: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let mono_ty: i32 = 0;
+    let bt_kind: i32 = 0;
+    let gnm: u8[128] = [];
+    let gnl: i32 = 0;
+    let bnm: u8[128] = [];
+    let bnl: i32 = 0;
+    let sk: i32 = 0;
+    let tp_slot: i32 = 0;
+    let elem: i32 = 0;
+    let nsl: i32 = 0;
+    let sl: i32 = 0;
+    let snm: u8[128] = [];
+    let bi: i32 = 0;
+    let match_b: i32 = 0;
+    let ntp: i32 = 0;
+    let tj: i32 = 0;
+    let tpl: i32 = 0;
+    let tpn: u8[128] = [];
+    let pi: i32 = 0;
+    let peq: i32 = 0;
+    /* TYPE_PTR=9 TYPE_NAMED=8 */
+    let ord_type_ptr: i32 = 9;
+    let ord_type_named: i32 = 8;
+    if (module == 0 as *Module || arena == 0 as *ASTArena) {
+      return 0;
+    }
+    if (field_ty <= 0 || field_ty > arena.num_types) {
+      return 0;
+    }
+    if (base_ty <= 0 || base_ty > arena.num_types) {
+      return 0;
+    }
+    bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
+    if (bt_kind == ord_type_ptr) {
+      elem = pipeline_type_elem_ref_at(arena, base_ty);
+      if (elem > 0 && elem <= arena.num_types
+      && pipeline_type_kind_ord_at(arena, elem) == ord_type_named) {
+        base_ty = elem;
+      } else {
+        return 0;
+      }
+    } else if (bt_kind != ord_type_named) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, field_ty) != ord_type_named) {
+      return 0;
+    }
+    gnl = pipeline_type_named_name_into(arena, field_ty, &gnm[0]);
+    if (gnl <= 0 || gnl > 127) {
+      return 0;
+    }
+    /* Local-only concrete check (ctx null) — mono does not walk deps. */
+    if (typeck_named_is_module_concrete(module, 0 as *PipelineDepCtx, &gnm[0], gnl) != 0) {
+      return 0;
+    }
+    bnl = pipeline_type_named_name_into(arena, base_ty, &bnm[0]);
+    tp_slot = 0;
+    if (bnl > 0) {
+      nsl = pipeline_module_num_struct_layouts_at(module);
+      sk = 0;
+      while (sk < nsl) {
+        sl = pipeline_module_struct_layout_name_len(module, sk);
+        if (sl == bnl) {
+          pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
+          match_b = 1;
+          bi = 0;
+          while (bi < bnl) {
+            if (snm[bi] != bnm[bi]) {
+              match_b = 0;
+              break;
+            }
+            bi = bi + 1;
+          }
+          if (match_b != 0) {
+            ntp = pipeline_module_struct_layout_num_type_params_at(module, sk);
+            if (ntp > 0) {
+              tp_slot = -1;
+              tj = 0;
+              while (tj < ntp) {
+                tpl = pipeline_module_struct_layout_type_param_name_len(module, sk, tj);
+                if (tpl == gnl) {
+                  pipeline_module_struct_layout_type_param_name_into(module, sk, tj, &tpn[0]);
+                  peq = 1;
+                  pi = 0;
+                  while (pi < gnl) {
+                    if (tpn[pi] != gnm[pi]) {
+                      peq = 0;
+                      break;
+                    }
+                    pi = pi + 1;
+                  }
+                  if (peq != 0) {
+                    tp_slot = tj;
+                    break;
+                  }
+                }
+                tj = tj + 1;
+              }
+              if (tp_slot < 0) {
+                return 0;
+              }
+            }
+            break;
+          }
+        }
+        sk = sk + 1;
+      }
+    }
+    mono_ty = pipeline_type_type_arg_ref_at(arena, base_ty, tp_slot);
+    if (mono_ty <= 0 && tp_slot == 0) {
+      mono_ty = pipeline_type_elem_ref_at(arena, base_ty);
+    }
+    if (mono_ty <= 0 || mono_ty > arena.num_types) {
+      return 0;
+    }
+    return mono_ty;
+  }
+}
+
+/**
+ * R2 (8.3.3): hard-fail unknown field when base type is known field-bearing.
+ *
+ * Migrated from C `pipeline_typeck_field_unknown_hard_fail_c`
+ * (pipeline_typeck_field_access.c). G.7 single gate — heavy field_access and
+ * strict_minimal weak twin both call the C thin surface which forwards here.
+ *
+ * Soft residual: base type unknown (return 0). Resolved field type → already OK.
+ * Hard-fail: slice/array/vector non-builtin fields; concrete/free TYPE_NAMED
+ * miss; enum-only → enum has no variant; scalars → unknown field.
+ * wave702: peel type aliases so `type P = Point` is concrete for the gate.
+ *
+ * @param module *Module — entry module layouts/enums
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_FIELD_ACCESS
+ * @param base_ref i32 — field base expr
+ * @param ctx *PipelineDepCtx — optional dep modules for cross-module layouts
+ * @return i32 — 0 ok (resolved or soft-skip), -1 unknown field (diag emitted)
+ * PLATFORM: SHARED
+ */
+export function typeck_field_unknown_hard_fail(module: *Module, arena: *ASTArena,
+expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let got_ty: i32 = 0;
+    let base_ty: i32 = 0;
+    let bt_kind: i32 = 0;
+    let check_ty: i32 = 0;
+    let elem_ty: i32 = 0;
+    let line_f: i32 = 0;
+    let col_f: i32 = 0;
+    let nlen: i32 = 0;
+    let nbuf: u8[128] = [];
+    let has_struct: i32 = 0;
+    let has_enum: i32 = 0;
+    let di: i32 = 0;
+    let nd: i32 = 0;
+    let dm: *Module = 0 as *Module;
+    let k: i32 = 0;
+    let nsl: i32 = 0;
+    let ne: i32 = 0;
+    let sl: i32 = 0;
+    let el: i32 = 0;
+    let bi: i32 = 0;
+    let snm: u8[128] = [];
+    let peeled: i32 = 0;
+    let peeled_e: i32 = 0;
+    /* TypeKind ord: NAMED=8 PTR=9 ARRAY=10 SLICE=11 VECTOR=13 (ast.x) */
+    let ord_type_ptr: i32 = 9;
+    let ord_type_named: i32 = 8;
+    let ord_type_array: i32 = 10;
+    let ord_type_slice: i32 = 11;
+    let ord_type_vector: i32 = 13;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || expr_ref <= 0 || base_ref <= 0) {
+      return 0;
+    }
+    got_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    /* Resolved field type → already known member / enum variant / slice .length/.data. */
+    if (!ast.ref_is_null(got_ty) && got_ty > 0 && got_ty <= arena.num_types) {
+      return 0;
+    }
+    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+    if (ast.ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena.num_types) {
+      return 0; /* soft: unknown base type */
+    }
+    /* wave702: peel type aliases so `type P = Point` is concrete for gate. */
+    peeled = typeck_resolve_type_alias_ref_local(module, arena, base_ty, 0);
+    if (!ast.ref_is_null(peeled) && peeled > 0 && peeled <= arena.num_types) {
+      base_ty = peeled;
+    }
+    bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
+    check_ty = base_ty;
+    /* Peel *S → S for layout/enum concrete check. */
+    if (bt_kind == ord_type_ptr) {
+      elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
+      if (ast.ref_is_null(elem_ty) || elem_ty <= 0 || elem_ty > arena.num_types) {
+        line_f = pipeline_expr_line_at(arena, expr_ref);
+        col_f = pipeline_expr_col_at(arena, expr_ref);
+        lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+        return -1;
+      }
+      peeled_e = typeck_resolve_type_alias_ref_local(module, arena, elem_ty, 0);
+      if (!ast.ref_is_null(peeled_e) && peeled_e > 0 && peeled_e <= arena.num_types) {
+        elem_ty = peeled_e;
+      }
+      check_ty = elem_ty;
+      bt_kind = pipeline_type_kind_ord_at(arena, check_ty);
+    }
+    /* Slice / fixed array / vector: only .length / .data (slice) resolve above. */
+    if (bt_kind == ord_type_slice || bt_kind == ord_type_array || bt_kind == ord_type_vector) {
+      line_f = pipeline_expr_line_at(arena, expr_ref);
+      col_f = pipeline_expr_col_at(arena, expr_ref);
+      lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+      return -1;
+    }
+    if (bt_kind == ord_type_named) {
+      nlen = pipeline_type_named_name_into(arena, check_ty, &nbuf[0]);
+      if (nlen <= 0 || nlen > 127) {
+        return 0;
+      }
+      has_struct = 0;
+      has_enum = 0;
+      nsl = pipeline_module_num_struct_layouts_at(module);
+      ne = module.num_module_enums;
+      k = 0;
+      while (k < nsl) {
+        sl = pipeline_module_struct_layout_name_len(module, k);
+        if (sl == nlen) {
+          pipeline_module_struct_layout_name_into(module, k, &snm[0]);
+          bi = 0;
+          while (bi < sl) {
+            if (snm[bi] != nbuf[bi]) {
+              break;
+            }
+            bi = bi + 1;
+          }
+          if (bi == sl) {
+            has_struct = 1;
+            break;
+          }
+        }
+        k = k + 1;
+      }
+      k = 0;
+      while (k < ne) {
+        el = pipeline_module_enum_name_len(module, k);
+        if (el == nlen) {
+          bi = 0;
+          while (bi < el) {
+            if (pipeline_module_enum_name_byte_at(module, k, bi) != nbuf[bi]) {
+              break;
+            }
+            bi = bi + 1;
+          }
+          if (bi == el) {
+            has_enum = 1;
+            break;
+          }
+        }
+        k = k + 1;
+      }
+      /* Dep modules (import structs/enums). */
+      if ((has_struct == 0 || has_enum == 0) && ctx != 0 as *PipelineDepCtx) {
+        nd = pipeline_dep_ctx_ndep(ctx);
+        di = 0;
+        while (di < nd) {
+          dm = pipeline_dep_ctx_module_at(ctx, di);
+          if (dm != 0 as *Module) {
+            if (has_struct == 0) {
+              nsl = pipeline_module_num_struct_layouts_at(dm);
+              k = 0;
+              while (k < nsl) {
+                sl = pipeline_module_struct_layout_name_len(dm, k);
+                if (sl == nlen) {
+                  pipeline_module_struct_layout_name_into(dm, k, &snm[0]);
+                  bi = 0;
+                  while (bi < sl) {
+                    if (snm[bi] != nbuf[bi]) {
+                      break;
+                    }
+                    bi = bi + 1;
+                  }
+                  if (bi == sl) {
+                    has_struct = 1;
+                    break;
+                  }
+                }
+                k = k + 1;
+              }
+            }
+            if (has_enum == 0) {
+              ne = dm.num_module_enums;
+              k = 0;
+              while (k < ne) {
+                el = pipeline_module_enum_name_len(dm, k);
+                if (el == nlen) {
+                  bi = 0;
+                  while (bi < el) {
+                    if (pipeline_module_enum_name_byte_at(dm, k, bi) != nbuf[bi]) {
+                      break;
+                    }
+                    bi = bi + 1;
+                  }
+                  if (bi == el) {
+                    has_enum = 1;
+                    break;
+                  }
+                }
+                k = k + 1;
+              }
+            }
+            if (has_struct != 0 && has_enum != 0) {
+              break;
+            }
+          }
+          di = di + 1;
+        }
+      }
+      /*
+       * wave684: free type-param / incomplete TYPE_NAMED with no layout also
+       * hard-fails (no fields). PLATFORM: SHARED.
+       */
+      if (has_struct == 0 && has_enum == 0) {
+        line_f = pipeline_expr_line_at(arena, expr_ref);
+        col_f = pipeline_expr_col_at(arena, expr_ref);
+        lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+        return -1;
+      }
+      line_f = pipeline_expr_line_at(arena, expr_ref);
+      col_f = pipeline_expr_col_at(arena, expr_ref);
+      if (has_enum != 0 && has_struct == 0) {
+        driver_diagnostic_typeck_enum_no_variant(line_f, col_f);
+        return -1;
+      }
+      lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+      return -1;
+    }
+    /* Scalar / other first-class types: no fields. */
+    line_f = pipeline_expr_line_at(arena, expr_ref);
+    col_f = pipeline_expr_col_at(arena, expr_ref);
+    lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+    return -1;
+  }
+}
+
+/**
  * R2 (8.3.3): after layout/fallback, mono free type-param field result against
  * monomorphized base (`Wrap<i32>.v` → i32).
  *
  * Migrated from C `pipeline_typeck_field_apply_mono_type_arg_c`. Mono substitution
- * authority remains `pipeline_typeck_mono_field_type_from_base_c` (shared with
- * STRUCT_LIT coerce — G.7 single mono map).
+ * authority is `typeck_mono_field_type_from_base` (shared with STRUCT_LIT coerce —
+ * G.7 single mono map).
  *
  * @param module *Module
  * @param arena *ASTArena
@@ -2993,7 +3470,7 @@ expr_ref: i32, base_ty: i32): void {
     if (ast.ref_is_null(got_ty) || got_ty <= 0 || got_ty > arena.num_types) {
       return;
     }
-    mono_ty = pipeline_typeck_mono_field_type_from_base_c(module, arena, got_ty, base_ty);
+    mono_ty = typeck_mono_field_type_from_base(module, arena, got_ty, base_ty);
     if (mono_ty <= 0 || mono_ty == got_ty) {
       return;
     }
@@ -3006,7 +3483,7 @@ expr_ref: i32, base_ty: i32): void {
  *
  * Migrated from C `pipeline_typeck_field_apply_ambient_for_type_param_c`.
  * Only stamps when field type is TYPE_NAMED whose name is NOT a module/dep
- * concrete struct/enum (via residual `pipeline_typeck_named_is_module_concrete_c`).
+ * concrete struct/enum (via `typeck_named_is_module_concrete`).
  * Null/unknown field types are left unresolved (wave472: never invent ambient).
  *
  * @param module *Module
@@ -3041,7 +3518,7 @@ expr_ref: i32, ambient_ty: i32, ctx: *PipelineDepCtx): void {
       gnl = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
       /* wave587: TYPE_NAMED content ≤127; prior gnl<=63 skipped long concrete names. */
       if (gnl > 0 && gnl <= 127) {
-        if (pipeline_typeck_named_is_module_concrete_c(module, ctx, &gnm[0], gnl) == 0) {
+        if (typeck_named_is_module_concrete(module, ctx, &gnm[0], gnl) == 0) {
           use_ambient = 1;
         }
       }
@@ -9527,7 +10004,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  *  6) known_ptr (*ASTArena/*Module hard fields) + layout_named + slice
  *  7) name_fallback + lexer_fallback
  *  8) mono type-arg stamp + ambient free type-param fill
- *  9) unknown_hard_fail residual C gate
+ *  9) unknown_hard_fail G.7 gate (typeck.x; C thin for strict_minimal)
  *
  * @param module *Module
  * @param arena *ASTArena
@@ -9606,8 +10083,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     typeck_field_lexer_fallback(module, arena, expr_ref, base_ref, ctx);
     typeck_field_apply_mono_type_arg(module, arena, expr_ref, base_ty);
     typeck_field_apply_ambient_for_type_param(module, arena, expr_ref, return_type_ref, ctx);
-    /* wave674: hard-fail unresolved field on known base (residual C G.7 gate). */
-    if (pipeline_typeck_field_unknown_hard_fail_c(module, arena, expr_ref, base_ref, ctx) != 0) {
+    /* wave674: hard-fail unresolved field on known base (G.7 single gate). */
+    if (typeck_field_unknown_hard_fail(module, arena, expr_ref, base_ref, ctx) != 0) {
       return -1;
     }
     return 0;
@@ -10240,7 +10717,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, field_i: i32, num_fields: i32): i32 
  * integer_widen / float_widen; emit assign_mismatch on known mismatch.
  * wave682 Cap residual: layout field types may be free type-params (`v: T`). When
  * expected/base is monomorphized (`Wrap<i32>`), substitute via
- * pipeline_typeck_mono_field_type_from_base_c before coerce (was expected T, found i32).
+ * typeck_mono_field_type_from_base before coerce (was expected T, found i32).
  * @param module *Module — layout table
  * @param arena *ASTArena
  * @param expr_ref i32 — EXPR_STRUCT_LIT
@@ -10312,7 +10789,7 @@ expr_ref: i32, base_ty: i32): i32 {
            * Layout stores `v: T`; expected Wrap<i32> → ftr becomes i32.
            */
           if (mono_base > 0) {
-            ftr_mono = pipeline_typeck_mono_field_type_from_base_c(module, arena, ftr, mono_base);
+            ftr_mono = typeck_mono_field_type_from_base(module, arena, ftr, mono_base);
             if (ftr_mono > 0) {
               ftr = ftr_mono;
             }

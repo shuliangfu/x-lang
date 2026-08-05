@@ -962,7 +962,7 @@
 | `ast_pool_module_func.c` | ~445 | module Func cold accessors + param sidecar 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_arena.c` | ~248 | ASTArena main-pool cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_block.c` | ~1,439 | block append/region/defer + loop/labeled/getters + parent/resolve + stmt_order rebuild residual 切片 | 🟡 已抽出（wave988–990+992 有则补全）；仍 host-cc 入 `pipeline_x` |
-| `pipeline_typeck_field_access.c` | **~704** | field_access residual（同 TU 入 glue；主编排 thin；mono/concrete/hard_fail 体仍 C） | 🟡 **已抽出**；仍 host-cc；**.x 权威收敛 8.3.3 未完**（mono／named_is_module_concrete／unknown_hard_fail 仍 C） |
+| `pipeline_typeck_field_access.c` | **~334** | field_access C thin + bare-import-const residual（同 TU 入 glue） | 🟡 **已抽出**；**.x 权威收口**（mono／concrete／hard_fail 已迁）；仍 host-cc；残 bare-import-const |
 | `pipeline_typeck_soa.c` | **~375** | typeck SOA 辅助 | 🟡 **已抽出**；部分 helper 已进 typeck.x；仍 host-cc |
 | `pipeline_elf_write_o.c` | **~1,581** | ELF64 ET_REL + Mach-O MH_OBJECT `.o` writers | 🟡 **已抽出**（8.3.2）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_elf_ctx.c` | **~1,001** | ELF/Mach-O codegen ctx accessors + PGO-Lite + reloc/label/patch/shndx/common sidecar | 🟡 **已抽出**（8.3.2 wave1247）；仍 host-cc 入 `pipeline_x` |
@@ -1145,7 +1145,10 @@
   - ✅ `typeck_field_known_ptr` → typeck.x（`*ASTArena`／`*Module` 硬编码 SoA 字段 + 偏移／数组类型；`driver_diagnostic_typeck_ptr_field`）；C thin `pipeline_typeck_field_known_ptr_types_c` 转调
   - ✅ `typeck_field_import_binding` → typeck.x（import binding／const-import sugar：dep 函数返回类型 + 顶层 const + enum 类型名；`typeck_dep_top_level_const_match` + `typeck_field_import_try_dep_enum_type` 同叶；裸 import-const 诊断共用 const_match）；C thin `pipeline_typeck_field_import_binding_resolve_c` 转调
   - ✅ `typeck_check_expr_field_access` 主编排 → typeck.x（prebind → import_binding → reverse_infer → check_expr base → SoA → known_ptr／layout／slice → name/lexer fallback → mono wrapper → ambient wrapper → unknown_hard_fail）；`typeck_field_reverse_infer_base_type` + `typeck_field_apply_mono_type_arg` + `typeck_field_apply_ambient_for_type_param` 同叶；C thin `pipeline_typeck_check_expr_field_access_c` 转调
-  - ⬜ residual C 权威（field_access TU）：`pipeline_typeck_mono_field_type_from_base_c`（STRUCT_LIT 共用）／`pipeline_typeck_named_is_module_concrete_c`／`pipeline_typeck_field_unknown_hard_fail_c` — 禁止 glue 旁路第二套；**整项未 ✅**
+  - ✅ `typeck_mono_field_type_from_base` → typeck.x（G.7 mono；STRUCT_LIT coerce 共用）；C thin `pipeline_typeck_mono_field_type_from_base_c`
+  - ✅ `typeck_named_is_module_concrete` → typeck.x（local+dep struct/enum；wave1220 P4）；C thin `pipeline_typeck_named_is_module_concrete_c`（strict_minimal 仍转调）
+  - ✅ `typeck_field_unknown_hard_fail` → typeck.x（wave674/684/702 gate；enum-no-variant）；C thin `pipeline_typeck_field_unknown_hard_fail_c`
+  - 🟡 residual C（field_access TU）：`pipeline_typeck_reject_bare_import_const_c` + import_const_binding_hint 仍 C 体；其余均为 thin。**field_access 权威主路径已收口**；父项 8.3.3 仍 🟡（host-cc + bare-const + soa 宿主）
 
 ⬜ **8.3.4 bootstrap glue / orchestration 折叠进 8.3.1–8.3.2 或删**
 
