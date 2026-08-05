@@ -214,11 +214,26 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 
 
 /* BC 8.3.2 wave1280: EMIT_HEAVY env/thresholds + path helpers + whitelist +
- * func-name prefix → pipeline_asm_emit_heavy_env.c (before selfhost so static
- * forward of asm_module_is_parser_selfhost resolves). PLATFORM: SHARED same-TU. */
+ * func-name prefix → pipeline_asm_emit_heavy_env.c (before selfhost faces so
+ * extern asm_module_is_parser_selfhost resolves). PLATFORM: SHARED same-TU. */
 #include "pipeline_asm_emit_heavy_env.c"
 
-#include "pipeline_asm_selfhost.c"
+/* 2026-08-05: pipeline_asm_selfhost.c pure-owned leave (wave115).
+ * Live face: runtime_pipeline_abi.x (num_defined/ordinal + 9 is_* predicates).
+ * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * Residual same-TU callers (skip/wpo/heavy/thin) link pure via extern below.
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
+extern int32_t asm_module_num_defined_funcs(struct ast_Module *m);
+extern int32_t asm_module_defined_func_ordinal(struct ast_Module *m, int32_t func_index);
+extern int32_t asm_module_is_backend_selfhost(struct ast_Module *m);
+extern int32_t asm_module_is_typeck_selfhost(struct ast_Module *m);
+extern int32_t asm_module_is_pipeline_selfhost(struct ast_Module *m);
+extern int32_t asm_module_is_main_driver_selfhost(struct ast_Module *m);
+extern int32_t asm_module_is_driver_compile_selfhost(struct ast_Module *m);
+extern int32_t asm_module_is_parser_selfhost(struct ast_Module *m);
+extern int32_t asm_module_is_parser_emit_heavy(struct ast_Module *m);
+extern int32_t asm_module_is_ast_selfhost(struct ast_Module *m);
+extern int32_t asm_module_is_compiler_selfhost(struct ast_Module *m);
 
 #include "pipeline_asm_emit_heavy_safe_helper.c"
 

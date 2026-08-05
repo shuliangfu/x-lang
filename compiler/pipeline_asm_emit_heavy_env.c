@@ -14,7 +14,7 @@
  *
  * Include AFTER: pool module_func / top_level / dep_ctx faces (name_equal_at,
  * top_level_let_*, expr_kind/int). Include BEFORE: pipeline_asm_selfhost.c
- * (whitelist uses static forward of asm_module_is_parser_selfhost), then
+ * (whitelist uses extern forward of asm_module_is_parser_selfhost pure leave), then
  * emit_heavy_safe_helper / thin_delegate / parser_emit_heavy / skip_dispatch.
  *
  * PLATFORM: SHARED — host-cc residual; G.7 single authority for emit-heavy
@@ -168,8 +168,8 @@ typedef struct {
 /** Non-zero: entry source is too large; merge/library typeck should skip (runtime.c). */
 extern int32_t driver_typeck_skip_large_entry(void);
 
-/** Forward: parser self-host predicate (defined in pipeline_asm_selfhost.c, included after this domain). */
-static int32_t asm_module_is_parser_selfhost(struct ast_Module *m);
+/** Forward: parser self-host predicate (wave115 pure-owned leave; product link pure). */
+extern int32_t asm_module_is_parser_selfhost(struct ast_Module *m);
 
 /**
  * Under SKIP_TYPECK full-stub mode, entries that must keep real machine code

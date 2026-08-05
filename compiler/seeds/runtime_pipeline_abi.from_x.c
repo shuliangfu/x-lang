@@ -6865,4 +6865,242 @@ int32_t asm_be_cont_depth(void) {
   return wave114_be_cont_depth;
 }
 
+/* wave115 asm_selfhost leave cold twins — former pipeline_asm_selfhost.c.
+ * Product hybrid PREFER: pure runtime_pipeline_abi.x owns strong faces.
+ * Continues #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X. Semantics ≡ pure:
+ * num_defined / defined_ordinal + 9 is_* predicates via module accessors
+ * (no m->num_funcs field; incomplete Module safe under cold seed).
+ * PLATFORM: SHARED — cold only when pure FROM_X object is not linked.
+ */
+extern int32_t pipeline_module_num_funcs(void *module);
+extern int32_t pipeline_module_func_name_equal_at(void *m, int32_t fi, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_asm_module_func_is_extern_at(void *m, int32_t fi);
+
+int32_t asm_module_num_defined_funcs(void *m) {
+  int32_t i, n = 0, nfuncs;
+  if (!m)
+    return 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  for (i = 0; i < nfuncs; i++) {
+    if (pipeline_asm_module_func_is_extern_at(m, i) == 0)
+      n++;
+  }
+  return n;
+}
+
+int32_t asm_module_defined_func_ordinal(void *m, int32_t func_index) {
+  int32_t i, ord = 0, nfuncs;
+  if (!m || func_index < 0)
+    return -1;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (func_index >= nfuncs)
+    return -1;
+  if (pipeline_asm_module_func_is_extern_at(m, func_index) != 0)
+    return -1;
+  for (i = 0; i < func_index; i++) {
+    if (pipeline_asm_module_func_is_extern_at(m, i) == 0)
+      ord++;
+  }
+  return ord;
+}
+
+int32_t asm_module_is_backend_selfhost(void *m) {
+  int32_t i, nfuncs;
+  if (!m)
+    return 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs < 80)
+    return 0;
+  for (i = 0; i < nfuncs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"asm_codegen_ast", 15))
+      return 1;
+  }
+  for (i = 0; i < nfuncs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"emit_expr_elf", 13))
+      return 1;
+  }
+  return 0;
+}
+
+int32_t asm_module_is_typeck_selfhost(void *m) {
+  int32_t i, nfuncs, ndef;
+  if (!m)
+    return 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs < 40)
+    return 0;
+  for (i = 0; i < nfuncs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"ast_arena_init", 14))
+      return 0;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"ast_placeholder", 15))
+      return 0;
+  }
+  for (i = 0; i < nfuncs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_module_reset_parse_counters", 36))
+      return 0;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"parse_into_init", 15))
+      return 0;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"skip_one_struct_into_buf", 24))
+      return 0;
+  }
+  if (pipeline_module_func_name_equal_at(m, 0, (uint8_t *)"type_kind_ordinal", 17))
+    return 1;
+  for (i = 0; i < nfuncs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"typeck_x_ast", 12))
+      return 1;
+  }
+  ndef = asm_module_num_defined_funcs(m);
+  if (ndef >= 75 && ndef <= 155)
+    return 1;
+  if (ndef >= 160 && ndef <= 180)
+    return 1;
+  return 0;
+}
+
+int32_t asm_module_is_pipeline_selfhost(void *m) {
+  int32_t i, nfuncs, has_resolve, has_marker;
+  if (!m)
+    return 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs < 12)
+    return 0;
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_typeck_selfhost(m))
+    return 0;
+  has_resolve = 0;
+  has_marker = 0;
+  for (i = 0; i < nfuncs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"resolve_path_x", 15))
+      has_resolve = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_should_skip_x_typeck", 30))
+      has_marker = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"path_append_from_buf_256", 24))
+      has_marker = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"read_file_x", 12))
+      has_marker = 1;
+  }
+  return has_resolve != 0 && has_marker != 0;
+}
+
+int32_t asm_module_is_parser_selfhost(void *m) {
+  int32_t i, nfuncs, has_parse_marker, has_reset;
+  if (!m)
+    return 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs < 150 || nfuncs > 1450)
+    return 0;
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_pipeline_selfhost(m))
+    return 0;
+  has_parse_marker = 0;
+  has_reset = 0;
+  for (i = 0; i < nfuncs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_module_reset_parse_counters", 36))
+      has_reset = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"parse_into_init", 15))
+      has_parse_marker = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"parse_into_set_main_index", 25))
+      has_parse_marker = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"skip_one_struct_into_buf", 24))
+      has_parse_marker = 1;
+  }
+  if (has_reset != 0 && has_parse_marker == 0 && nfuncs >= 200)
+    has_parse_marker = 1;
+  if (has_reset == 0)
+    return 0;
+  if (asm_module_is_typeck_selfhost(m) && has_parse_marker == 0)
+    return 0;
+  return has_parse_marker != 0;
+}
+
+int32_t asm_module_is_parser_emit_heavy(void *m) {
+  int32_t i, nfuncs;
+  if (!m)
+    return 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs < 150 || nfuncs > 1450)
+    return 0;
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_pipeline_selfhost(m))
+    return 0;
+  for (i = 0; i < nfuncs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_module_reset_parse_counters", 36))
+      return 1;
+  }
+  return asm_module_is_parser_selfhost(m);
+}
+
+int32_t asm_module_is_main_driver_selfhost(void *m) {
+  int32_t i, nfuncs, has_entry, has_run_path, ndef;
+  if (!m)
+    return 0;
+  ndef = asm_module_num_defined_funcs(m);
+  if (ndef < 12 || ndef > 48)
+    return 0;
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_typeck_selfhost(m) ||
+      asm_module_is_pipeline_selfhost(m) || asm_module_is_parser_selfhost(m))
+    return 0;
+  has_entry = 0;
+  has_run_path = 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  for (i = 0; i < nfuncs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"entry", 5))
+      has_entry = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"main_run_compiler_x_path_impl", 29) ||
+        pipeline_module_func_name_equal_at(m, i, (uint8_t *)"run_compiler_x_path_impl", 24))
+      has_run_path = 1;
+  }
+  return has_entry != 0 && has_run_path != 0;
+}
+
+int32_t asm_module_is_driver_compile_selfhost(void *m) {
+  int32_t i, nfuncs, has_parse_argv, has_entry;
+  if (!m)
+    return 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs < 8 || nfuncs > 120)
+    return 0;
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_typeck_selfhost(m) ||
+      asm_module_is_pipeline_selfhost(m) || asm_module_is_parser_selfhost(m))
+    return 0;
+  has_parse_argv = 0;
+  has_entry = 0;
+  for (i = 0; i < nfuncs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"driver_compile_parse_argv", 25))
+      has_parse_argv = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"run_compiler_full_x", 19))
+      has_entry = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"compile_dispatch_asm_backend", 28))
+      has_parse_argv = 1;
+  }
+  return has_parse_argv != 0 && has_entry != 0;
+}
+
+int32_t asm_module_is_ast_selfhost(void *m) {
+  int32_t i, nfuncs, has_arena_init, has_placeholder;
+  if (!m)
+    return 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs < 15 || nfuncs > 250)
+    return 0;
+  has_arena_init = 0;
+  has_placeholder = 0;
+  for (i = 0; i < nfuncs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"ast_arena_init", 14))
+      has_arena_init = 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"ast_placeholder", 15))
+      has_placeholder = 1;
+  }
+  if (has_arena_init == 0 || has_placeholder == 0)
+    return 0;
+  if (asm_module_is_backend_selfhost(m) || asm_module_is_pipeline_selfhost(m) ||
+      asm_module_is_parser_selfhost(m))
+    return 0;
+  return 1;
+}
+
+int32_t asm_module_is_compiler_selfhost(void *m) {
+  return asm_module_is_ast_selfhost(m) || asm_module_is_backend_selfhost(m) ||
+         asm_module_is_typeck_selfhost(m) || asm_module_is_pipeline_selfhost(m) ||
+         asm_module_is_parser_selfhost(m) || asm_module_is_parser_emit_heavy(m) ||
+         asm_module_is_driver_compile_selfhost(m) || asm_module_is_main_driver_selfhost(m);
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

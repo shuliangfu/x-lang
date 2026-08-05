@@ -4,6 +4,9 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave115: pipeline_asm_selfhost.c pure-owned leave (asm_module_num_defined_funcs /
+//   defined_func_ordinal + 9 is_* selfhost predicates). Cap residual:
+//   pipeline_module_num_funcs / func_name_equal_at / asm_module_func_is_extern_at.
 // wave114: pipeline_asm_ctx_loop.c pure-owned leave (asm_ctx_loop_* + asm_be_cont_*;
 //   fixed-cap BSS sidecars; no GrowVec). Cap residual callers remain host-cc emit.
 // wave112: pipeline_parse_typeck_dispatch.c pure-owned leave (parse scalars +
@@ -505,6 +508,9 @@ export extern "C" function pipeline_module_num_funcs(module: *u8): i32;
 export extern "C" function pipeline_module_func_name_len_at(module: *u8, fi: i32): i32;
 export extern "C" function pipeline_module_func_name_copy64(module: *u8, fi: i32, dst: *u8): void;
 export extern "C" function pipeline_module_func_body_ref_at(module: *u8, fi: i32): i32;
+// wave115 Cap residual: module func name/extern accessors for selfhost pure leave.
+export extern "C" function pipeline_module_func_name_equal_at(module: *u8, fi: i32, name: *u8, name_len: i32): i32;
+export extern "C" function pipeline_asm_module_func_is_extern_at(module: *u8, fi: i32): i32;
 export extern "C" function ast_ast_block_num_consts(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_loops(arena: *u8, block_ref: i32): i32;
@@ -15846,4 +15852,459 @@ export function asm_be_cont_resume(out_block: *i32, out_stmt_i: *i32, out_end: *
 #[no_mangle]
 export function asm_be_cont_depth(): i32 {
   return g_pipe_be_cont_depth;
+}
+
+// ---------------------------------------------------------------------------
+// wave115: asm selfhost pure-owned leave (was pipeline_asm_selfhost.c).
+// G.7 product authority for:
+//   asm_module_num_defined_funcs / asm_module_defined_func_ordinal
+//   asm_module_is_backend_selfhost / is_typeck_selfhost / is_pipeline_selfhost
+//   is_main_driver_selfhost / is_driver_compile_selfhost
+//   is_parser_selfhost / is_parser_emit_heavy / is_ast_selfhost / is_compiler_selfhost
+// Cap residual: pipeline_module_num_funcs + func_name_equal_at + is_extern_at.
+// Cold twins under seed #ifndef FROM_X. Residual host-cc skip/wpo/heavy call faces
+// via extern (no longer same-TU static).
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+#[no_mangle]
+export function asm_module_num_defined_funcs(m: *u8): i32 {
+  if (m == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let nfuncs: i32 = pipeline_module_num_funcs(m);
+    let i: i32 = 0;
+    let n: i32 = 0;
+    while (i < nfuncs) {
+      if (pipeline_asm_module_func_is_extern_at(m, i) == 0) {
+        n = n + 1;
+      }
+      i = i + 1;
+    }
+    return n;
+  }
+}
+
+/**
+ * Ordinal among defined (non-extern) functions; -1 if extern / OOB / null.
+ * @param m *u8 - ast_Module*
+ * @param func_index i32 - raw function index
+ * @return i32 - 0..ndef-1 or -1
+ * wave115 pure: G.7 single product authority (historical asm_module_defined_func_ordinal).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_module_defined_func_ordinal(m: *u8, func_index: i32): i32 {
+  if (m == 0 as *u8 || func_index < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let nfuncs: i32 = pipeline_module_num_funcs(m);
+    if (func_index >= nfuncs) {
+      return 0 - 1;
+    }
+    if (pipeline_asm_module_func_is_extern_at(m, func_index) != 0) {
+      return 0 - 1;
+    }
+    let i: i32 = 0;
+    let ord: i32 = 0;
+    while (i < func_index) {
+      if (pipeline_asm_module_func_is_extern_at(m, i) == 0) {
+        ord = ord + 1;
+      }
+      i = i + 1;
+    }
+    return ord;
+  }
+}
+
+/**
+ * Module is backend.x self-host unit (asm_codegen_ast or emit_expr_elf probe; num_funcs>=80).
+ * @param m *u8 - ast_Module*
+ * @return i32 - 1 yes, 0 no
+ * wave115 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_module_is_backend_selfhost(m: *u8): i32 {
+  if (m == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let nfuncs: i32 = pipeline_module_num_funcs(m);
+    if (nfuncs < 80) {
+      return 0;
+    }
+    let i: i32 = 0;
+    while (i < nfuncs) {
+      if (pipeline_module_func_name_equal_at(m, i, "asm_codegen_ast", 15) != 0) {
+        return 1;
+      }
+      i = i + 1;
+    }
+    i = 0;
+    while (i < nfuncs) {
+      if (pipeline_module_func_name_equal_at(m, i, "emit_expr_elf", 13) != 0) {
+        return 1;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Module is typeck.x self-host unit (name probes + ndef heuristics; exclude ast/parser markers).
+ * @param m *u8 - ast_Module*
+ * @return i32 - 1 yes, 0 no
+ * wave115 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_module_is_typeck_selfhost(m: *u8): i32 {
+  if (m == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let nfuncs: i32 = pipeline_module_num_funcs(m);
+    if (nfuncs < 40) {
+      return 0;
+    }
+    let i: i32 = 0;
+    while (i < nfuncs) {
+      if (pipeline_module_func_name_equal_at(m, i, "ast_arena_init", 14) != 0) {
+        return 0;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "ast_placeholder", 15) != 0) {
+        return 0;
+      }
+      i = i + 1;
+    }
+    i = 0;
+    while (i < nfuncs) {
+      if (pipeline_module_func_name_equal_at(m, i, "pipeline_module_reset_parse_counters", 36) != 0) {
+        return 0;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "parse_into_init", 15) != 0) {
+        return 0;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "skip_one_struct_into_buf", 24) != 0) {
+        return 0;
+      }
+      i = i + 1;
+    }
+    if (pipeline_module_func_name_equal_at(m, 0, "type_kind_ordinal", 17) != 0) {
+      return 1;
+    }
+    i = 0;
+    while (i < nfuncs) {
+      if (pipeline_module_func_name_equal_at(m, i, "typeck_x_ast", 12) != 0) {
+        return 1;
+      }
+      i = i + 1;
+    }
+  }
+  let ndef: i32 = asm_module_num_defined_funcs(m);
+  if (ndef >= 75 && ndef <= 155) {
+    return 1;
+  }
+  if (ndef >= 160 && ndef <= 180) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Module is pipeline.x self-host (resolve_path_x + marker; not backend/typeck).
+ * @param m *u8 - ast_Module*
+ * @return i32 - 1 yes, 0 no
+ * wave115 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_module_is_pipeline_selfhost(m: *u8): i32 {
+  if (m == 0 as *u8) {
+    return 0;
+  }
+  if (asm_module_is_backend_selfhost(m) != 0 || asm_module_is_typeck_selfhost(m) != 0) {
+    return 0;
+  }
+  unsafe {
+    let nfuncs: i32 = pipeline_module_num_funcs(m);
+    if (nfuncs < 12) {
+      return 0;
+    }
+    let has_resolve: i32 = 0;
+    let has_marker: i32 = 0;
+    let i: i32 = 0;
+    while (i < nfuncs) {
+      if (pipeline_module_func_name_equal_at(m, i, "resolve_path_x", 15) != 0) {
+        has_resolve = 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "pipeline_should_skip_x_typeck", 30) != 0) {
+        has_marker = 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "path_append_from_buf_256", 24) != 0) {
+        has_marker = 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "read_file_x", 12) != 0) {
+        has_marker = 1;
+      }
+      i = i + 1;
+    }
+    if (has_resolve != 0 && has_marker != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Module is parser.x self-host (reset counters + parse markers; num_funcs 150..1450).
+ * @param m *u8 - ast_Module*
+ * @return i32 - 1 yes, 0 no
+ * wave115 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_module_is_parser_selfhost(m: *u8): i32 {
+  if (m == 0 as *u8) {
+    return 0;
+  }
+  if (asm_module_is_backend_selfhost(m) != 0 || asm_module_is_pipeline_selfhost(m) != 0) {
+    return 0;
+  }
+  let has_parse_marker: i32 = 0;
+  let has_reset: i32 = 0;
+  let nfuncs: i32 = 0;
+  unsafe {
+    nfuncs = pipeline_module_num_funcs(m);
+    if (nfuncs < 150 || nfuncs > 1450) {
+      return 0;
+    }
+    let i: i32 = 0;
+    while (i < nfuncs) {
+      if (pipeline_module_func_name_equal_at(m, i, "pipeline_module_reset_parse_counters", 36) != 0) {
+        has_reset = 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "parse_into_init", 15) != 0) {
+        has_parse_marker = 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "parse_into_set_main_index", 25) != 0) {
+        has_parse_marker = 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "skip_one_struct_into_buf", 24) != 0) {
+        has_parse_marker = 1;
+      }
+      i = i + 1;
+    }
+  }
+  if (has_reset != 0 && has_parse_marker == 0 && nfuncs >= 200) {
+    has_parse_marker = 1;
+  }
+  if (has_reset == 0) {
+    return 0;
+  }
+  if (asm_module_is_typeck_selfhost(m) != 0 && has_parse_marker == 0) {
+    return 0;
+  }
+  if (has_parse_marker != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * EMIT_HEAVY second pass: parser.x recognition (reset counters enough).
+ * @param m *u8 - ast_Module*
+ * @return i32 - 1 yes, 0 no
+ * wave115 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_module_is_parser_emit_heavy(m: *u8): i32 {
+  if (m == 0 as *u8) {
+    return 0;
+  }
+  if (asm_module_is_backend_selfhost(m) != 0 || asm_module_is_pipeline_selfhost(m) != 0) {
+    return 0;
+  }
+  unsafe {
+    let nfuncs: i32 = pipeline_module_num_funcs(m);
+    if (nfuncs < 150 || nfuncs > 1450) {
+      return 0;
+    }
+    let i: i32 = 0;
+    while (i < nfuncs) {
+      if (pipeline_module_func_name_equal_at(m, i, "pipeline_module_reset_parse_counters", 36) != 0) {
+        return 1;
+      }
+      i = i + 1;
+    }
+  }
+  return asm_module_is_parser_selfhost(m);
+}
+
+/**
+ * Module is main.x driver unit (entry + run_compiler path; ndef 12..48).
+ * @param m *u8 - ast_Module*
+ * @return i32 - 1 yes, 0 no
+ * wave115 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_module_is_main_driver_selfhost(m: *u8): i32 {
+  if (m == 0 as *u8) {
+    return 0;
+  }
+  let ndef: i32 = asm_module_num_defined_funcs(m);
+  if (ndef < 12 || ndef > 48) {
+    return 0;
+  }
+  if (asm_module_is_backend_selfhost(m) != 0 || asm_module_is_typeck_selfhost(m) != 0 ||
+      asm_module_is_pipeline_selfhost(m) != 0 || asm_module_is_parser_selfhost(m) != 0) {
+    return 0;
+  }
+  unsafe {
+    let has_entry: i32 = 0;
+    let has_run_path: i32 = 0;
+    let nfuncs: i32 = pipeline_module_num_funcs(m);
+    let i: i32 = 0;
+    while (i < nfuncs) {
+      if (pipeline_module_func_name_equal_at(m, i, "entry", 5) != 0) {
+        has_entry = 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "main_run_compiler_x_path_impl", 29) != 0) {
+        has_run_path = 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "run_compiler_x_path_impl", 24) != 0) {
+        has_run_path = 1;
+      }
+      i = i + 1;
+    }
+    if (has_entry != 0 && has_run_path != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Module is driver/compile.x self-host (parse_argv + run_compiler_full_x; num_funcs 8..120).
+ * @param m *u8 - ast_Module*
+ * @return i32 - 1 yes, 0 no
+ * wave115 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_module_is_driver_compile_selfhost(m: *u8): i32 {
+  if (m == 0 as *u8) {
+    return 0;
+  }
+  if (asm_module_is_backend_selfhost(m) != 0 || asm_module_is_typeck_selfhost(m) != 0 ||
+      asm_module_is_pipeline_selfhost(m) != 0 || asm_module_is_parser_selfhost(m) != 0) {
+    return 0;
+  }
+  unsafe {
+    let nfuncs: i32 = pipeline_module_num_funcs(m);
+    if (nfuncs < 8 || nfuncs > 120) {
+      return 0;
+    }
+    let has_parse_argv: i32 = 0;
+    let has_entry: i32 = 0;
+    let i: i32 = 0;
+    while (i < nfuncs) {
+      if (pipeline_module_func_name_equal_at(m, i, "driver_compile_parse_argv", 25) != 0) {
+        has_parse_argv = 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "run_compiler_full_x", 19) != 0) {
+        has_entry = 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "compile_dispatch_asm_backend", 28) != 0) {
+        has_parse_argv = 1;
+      }
+      i = i + 1;
+    }
+    if (has_parse_argv != 0 && has_entry != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Module is ast.x self-host (ast_arena_init + ast_placeholder; num_funcs 15..250).
+ * @param m *u8 - ast_Module*
+ * @return i32 - 1 yes, 0 no
+ * wave115 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_module_is_ast_selfhost(m: *u8): i32 {
+  if (m == 0 as *u8) {
+    return 0;
+  }
+  let has_arena_init: i32 = 0;
+  let has_placeholder: i32 = 0;
+  unsafe {
+    let nfuncs: i32 = pipeline_module_num_funcs(m);
+    if (nfuncs < 15 || nfuncs > 250) {
+      return 0;
+    }
+    let i: i32 = 0;
+    while (i < nfuncs) {
+      if (pipeline_module_func_name_equal_at(m, i, "ast_arena_init", 14) != 0) {
+        has_arena_init = 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "ast_placeholder", 15) != 0) {
+        has_placeholder = 1;
+      }
+      i = i + 1;
+    }
+  }
+  if (has_arena_init == 0 || has_placeholder == 0) {
+    return 0;
+  }
+  if (asm_module_is_backend_selfhost(m) != 0 || asm_module_is_pipeline_selfhost(m) != 0 ||
+      asm_module_is_parser_selfhost(m) != 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Module is any compiler .x self-host unit (OR of 8 predicates); user programs excluded.
+ * @param m *u8 - ast_Module*
+ * @return i32 - 1 yes, 0 no
+ * wave115 pure: G.7 single product authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_module_is_compiler_selfhost(m: *u8): i32 {
+  if (asm_module_is_ast_selfhost(m) != 0) {
+    return 1;
+  }
+  if (asm_module_is_backend_selfhost(m) != 0) {
+    return 1;
+  }
+  if (asm_module_is_typeck_selfhost(m) != 0) {
+    return 1;
+  }
+  if (asm_module_is_pipeline_selfhost(m) != 0) {
+    return 1;
+  }
+  if (asm_module_is_parser_selfhost(m) != 0) {
+    return 1;
+  }
+  if (asm_module_is_parser_emit_heavy(m) != 0) {
+    return 1;
+  }
+  if (asm_module_is_driver_compile_selfhost(m) != 0) {
+    return 1;
+  }
+  if (asm_module_is_main_driver_selfhost(m) != 0) {
+    return 1;
+  }
+  return 0;
 }
