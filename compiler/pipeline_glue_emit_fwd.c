@@ -167,16 +167,26 @@ int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena,
  * return size) are after the #include site — no forward decl needed. */
 /* wave132 pure leave Cap residual: type_size_simple static→extern (def struct_lit.c). */
 int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
-/* wave349/350: STRUCT_LIT fixed TYPE_ARRAY field inline store (def after vector_let_init). */
-static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
+/* wave146 pure-owned leave: vector_let faces live in runtime_pipeline_abi pure.
+ * Residual struct_lit / vector_simd Cap-call these pure symbols. PLATFORM: SHARED. */
+extern int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
                                                        struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                        int32_t stack_slot_off);
-static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
+extern int32_t glue_struct_lit_store_fixed_array_field_elf_c(
     struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
     struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t sret_direct, int32_t base_off, int32_t foff, int32_t fty);
-/* wave652: arch-aware struct field frame mag (nest_slot + fixed array field). */
-static int32_t glue_struct_field_frame_mag_c(int32_t base_off, int32_t foff, int32_t ta);
+/* wave652/wave146: arch-aware struct field frame mag (pure). */
+extern int32_t glue_struct_field_frame_mag_c(int32_t base_off, int32_t foff, int32_t ta);
+/* wave146: fixed TYPE_ARRAY predicate (was static in vector_let.c). */
+extern int32_t glue_type_is_fixed_array(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t glue_emit_fixed_array_type_let_init_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         int32_t init_ref, struct backend_AsmFuncCtx *ctx,
+                                                         int32_t ta, int32_t type_ref, int32_t stack_slot_off);
+extern int32_t glue_block_let_is_fixed_array_type(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx);
+extern int32_t glue_fixed_array_let_init_uses_direct_slot(struct ast_ASTArena *arena, int32_t type_ref,
+                                                          int32_t init_ref);
 /* Used by wave350 FIELD init; full def near pipeline_expr_field_access_layout_offset. */
 int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    int32_t fa_ref);
@@ -272,7 +282,7 @@ extern int32_t glue_fixed_array_temp_bytes(struct ast_ASTArena *arena, int32_t t
 extern int32_t glue_array_temp_bytes_for_let_init(struct ast_ASTArena *arena, int32_t let_type_ref, int32_t init_ref);
 extern int32_t pipeline_asm_array_lit_elem_type_ref(struct ast_ASTArena *arena, int32_t array_lit_expr_ref);
 extern int32_t glue_pipeline_asm_al_nc_seq_take_c(void);
-/* Cap residual vector_let helpers for pure nested ARRAY_LIT. */
+/* wave146 pure leave: leaf/flat live in pure; residual Cap-calls pure symbols. */
 extern int32_t pipeline_asm_array_lit_leaf_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t init_ref);
 extern int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena,
                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,

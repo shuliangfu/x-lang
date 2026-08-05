@@ -9126,6 +9126,13 @@ fi
 if [ -f "$ROOT/compiler/pipeline_asm_emit_block_inits.c" ]; then
   bad "pipeline_asm_emit_block_inits.c must be deleted (wave145 pure-owned leave)"
 fi
+# wave146 pure-owned leave: vector_let faces live in runtime_pipeline_abi pure
+if grep -qE 'pipeline_asm_emit_vector_let\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_vector_let.c (wave146 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_vector_let.c" ]; then
+  bad "pipeline_asm_emit_vector_let.c must be deleted (wave146 pure-owned leave)"
+fi
 # wave142 pure-owned leave: assign faces live in runtime_pipeline_abi pure
 if grep -qE 'pipeline_asm_emit_assign\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_assign.c (wave142 pure-owned leave)"
@@ -9181,9 +9188,8 @@ fi
 if ! grep -qE 'pipeline_asm_emit_struct_lit\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_struct_lit.c (8.3.1 asm_emit_struct_lit slice)"
 fi
-if ! grep -qE 'pipeline_asm_emit_vector_let\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_vector_let.c (8.3.1 asm_emit_vector_let slice)"
-fi
+# wave146: vector_let pure leave — must-not check above
+
 if ! grep -qE 'pipeline_asm_emit_vector_simd\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_vector_simd.c (8.3.1 asm_emit_vector_simd slice)"
 fi

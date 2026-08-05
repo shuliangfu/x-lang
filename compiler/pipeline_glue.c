@@ -244,30 +244,18 @@ extern int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena,
 extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                              struct backend_AsmFuncCtx *ctx, int32_t ta);
 
-/* BC 8.3.1: asm ELF vector_let / leaf-flat / fixed-array field store domain
- * (leaf_elem_byte_sz + flat + vector_let_init + field_frame_mag +
- *  store_fixed_array_field; Cap residual pure; same TU).
- * SIMD vector helpers + glue_emit_fixed_array_type_let_init stay below. */
-#include "pipeline_asm_emit_vector_let.c"
-
-
-/* wave354: glue_emit_fixed_array_type_let_init_elf_c defined after glue_type_is_fixed_array. */
+/* wave146 pure-owned leave: pipeline_asm_emit_vector_let.c deleted.
+ * live = runtime_pipeline_abi pure (leaf_elem + flat + vector_let_init +
+ * field_frame_mag + store_fixed_array_field + type_is_fixed_array +
+ * fixed_array let helpers); seed cold twins under #ifndef FROM_X.
+ * Cap residual: vector_simd / struct_lit / call_args / index_helpers /
+ * block_body call pure faces via emit_fwd extern decls — do not re-open a
+ * second vector_let / fixed-array face (G.7).
+ * PLATFORM: SHARED freestanding emit. */
 
 /* wave1204 G.7: glue_vector_let_init_uses_direct_slot static fwd decl
- * removed — sole caller pipeline_asm_let_init_stack_reserve_bytes
- * migrated to pipeline_asm_emit_block_inits.c EOF. Definition in
- * pipeline_asm_emit_vector_simd.c (L2218 #include) visible to block_inits.c
- * (#include at L2404, after L2218). PLATFORM: SHARED. */
-
-/* wave1141-1144 G.7: fixed TYPE_ARRAY local let helpers cluster migrated to
- * pipeline_asm_emit_vector_let.c EOF (glue_type_is_fixed_array +
- * glue_emit_fixed_array_type_let_init_elf_c + glue_block_let_is_fixed_array_type
- * + glue_fixed_array_let_init_uses_direct_slot). Visible here via #include at
- * L2063. Colocated with glue_struct_lit_store_fixed_array_field_elf_c (the
- * element-wise store authority called by glue_emit_fixed_array_type_let_init).
- * GLUE_TYPE_KIND_ARRAY macro stays here (L2076 above) for callers in
- * struct_let/index_helpers/spill/modlet/assign/array_lit/index/vector_simd/
- * block_inits/field_access (all #included AFTER L2076). */
+ * removed — sole caller pipeline_asm_let_init_stack_reserve_bytes pure wave145.
+ * Definition in pipeline_asm_emit_vector_simd.c (same TU #include). PLATFORM: SHARED. */
 
 /* wave1204 G.7: pipeline_asm_let_init_stack_reserve_bytes (1 fn, 9 lines)
  * migrated to pipeline_asm_emit_block_inits.c EOF (colocated with

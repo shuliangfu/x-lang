@@ -31,8 +31,8 @@
 /* Forward decls / callees defined elsewhere in the same TU:
  * - glue_sysv_dual_gp_byte_size_c / glue_type_named_layout_size_any_module_elf_c
  * - glue_type_size_simple
- * - glue_struct_lit_store_fixed_array_field_elf_c (pipeline_asm_emit_vector_let.c)
- * - glue_struct_field_frame_mag_c / glue_field_access_effective_offset_c
+ * - glue_struct_lit_store_fixed_array_field_elf_c (wave146 pure / emit_fwd extern)
+ * - glue_struct_field_frame_mag_c (wave146 pure) / glue_field_access_effective_offset_c
  * - glue_call_return_byte_size_c / glue_store_retval_pair_to_rbp_elf_c
  * - glue_emit_struct_type_let_init_elf_c / glue_emit_sret_memcpy_rbx_to_home
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / g_pipeline_asm_emit_*

@@ -20,7 +20,7 @@
  * glue_vector_type_lanes_esz_c / glue_is_vector_lane_scalar_binop_ko /
  * glue_vector_let_init_uses_direct_slot / fixed-array let wrappers stay in
  * glue (shared by stack_reserve + this face).
- * pipeline_asm_emit_vector_let_init (ARRAY_LIT) lives in vector_let.c.
+ * pipeline_asm_emit_vector_let_init (ARRAY_LIT) pure-owned wave146.
  *
  * Callers: block const/let init (block_inits / block_body); residual CTFE
  * pure-call fold sites later in the same TU.
@@ -34,7 +34,7 @@
  */
 
 /* Forward decls / callees defined elsewhere in the same TU:
- * - pipeline_asm_emit_vector_let_init_elf_c (vector_let.c)
+ * - pipeline_asm_emit_vector_let_init_elf_c (wave146 pure / emit_fwd extern)
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / g_pipeline_asm_*
  * - asm_type_is_simd_vector_spelling / asm_local_slot_bytes / asm_ctx_local_find_*
  * - glue_asm_init_expr_reserve_stack_bytes (not used here; stack_reserve in glue)

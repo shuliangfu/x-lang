@@ -120,7 +120,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_cmp.c|8.3.1|asm ELF relational CMP emit (wave137 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_call_args.c|8.3.1|asm ELF CALL-arg emit (named_struct + resolve + f32 + reent deep-copy + lea + dual-GP + for_call_args) slice|1300|present"
   "compiler/pipeline_asm_emit_struct_lit.c|8.3.1|asm ELF STRUCT_LIT emit (field_store_sz + rehome + fields + struct_lit_elf) slice|400|present"
-  "compiler/pipeline_asm_emit_vector_let.c|8.3.1|asm ELF vector_let / fixed-array field store (leaf + flat + vector_let + frame_mag + store_fixed) slice|550|present"
+  "compiler/pipeline_asm_emit_vector_let.c|8.3.1|asm ELF vector_let / fixed-array field store (wave146 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_vector_simd.c|8.3.1|asm ELF SIMD vector lane / shuffle / select / fma emit domain slice|1200|present"
   "compiler/pipeline_asm_emit_struct_let.c|8.3.1|asm ELF struct let-init domain (wave132 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_index_helpers.c|8.3.1|asm ELF INDEX residual helpers (slot+esz+try_index forest+lvalue_eff_addr elf+text) slice|2500|present"
