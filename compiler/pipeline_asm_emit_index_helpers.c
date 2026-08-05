@@ -57,7 +57,7 @@
  * Residual assign/binop/spill/lvalue_eff_addr Cap-call this face. PLATFORM: SHARED. */
 extern int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
 /** VAR 基址 FIELD_ACCESS 有效偏移（定义见 pipeline_expr_field_access_layout_offset 附近）。 */
-static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    int32_t fa_ref);
 
 /** AsmFuncCtx.module_ref 在 X/C 布局中的字节偏移（与 backend.x fill_param_slots 一致）。 */
@@ -197,7 +197,7 @@ static int32_t glue_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena,
 /**
  * 局部 VAR 槽地址入 rbx/x1（*T / 形参 struct load 指针；let struct lea 栈槽）。
  */
-static int32_t glue_enc_local_slot_ptr_or_addr_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_enc_local_slot_ptr_or_addr_rbx_elf_c(struct ast_ASTArena *arena,
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          int32_t var_expr_ref, int32_t stack_off,
                                                          struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -854,7 +854,7 @@ static int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(struct ast_ASTArena
  * INDEX 赋值：VAR 基址 + 字面量下标 → 有效地址入 rbx，不 clobber rax 中右值。
  * 0=成功，-1=错，-2=不适用（走 x2 暂存 + eff_addr 路径）。
  */
-static int32_t glue_try_index_var_lit_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_lit_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          int32_t base_ref, int32_t idx_ref,
                                                          struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t esz) {
@@ -880,7 +880,7 @@ static int32_t glue_try_index_var_lit_addr_to_rbx_elf_c(struct ast_ASTArena *are
  * INDEX 赋值：VAR 基址 + VAR 下标 → 有效地址入 rbx（scratch 缩放），不 clobber rax 中右值。
  * 0=成功，-1=错，-2=不适用（走 x2 暂存 + eff_addr 路径）。
  */
-static int32_t glue_try_index_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                            int32_t base_ref, int32_t idx_ref,
                                                            struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t esz) {
@@ -910,7 +910,7 @@ static int32_t glue_try_index_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *are
  * INDEX 赋值：VAR 基址 + (VAR±lit) 下标 → scratch 缩放寻址入 rbx，不 clobber rax 右值。
  * 仅支持 ADD 且一侧为局部 VAR、一侧为 i32 字面量（如 arr[i+1]=…）；0=OK，-1=错，-2=不适用。
  */
-static int32_t glue_try_index_var_plus_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_plus_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                   int32_t base_ref, int32_t idx_ref,
                                                                   struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -958,7 +958,7 @@ static int32_t glue_try_index_var_plus_lit_idx_addr_to_rbx_elf_c(struct ast_ASTA
  * INDEX 赋值：VAR 基址 + (VAR+VAR) ADD 下标 → 双 scratch 缩放寻址入 rbx，不 clobber rax 右值。
  * 0=成功，-1=错，-2=不适用。
  */
-static int32_t glue_try_index_var_plus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_plus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                   int32_t base_ref, int32_t idx_ref,
                                                                   struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1002,7 +1002,7 @@ static int32_t glue_try_index_var_plus_var_idx_addr_to_rbx_elf_c(struct ast_ASTA
  * INDEX 赋值：VAR 基址 + (VAR-lit) SUB 下标 → scratch 缩放寻址入 rbx，不 clobber rax 右值。
  * 0=成功，-1=错，-2=不适用（仅 var 左操作数、lit 右操作数）。
  */
-static int32_t glue_try_index_var_minus_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_minus_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                    int32_t base_ref, int32_t idx_ref,
                                                                    struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1044,7 +1044,7 @@ static int32_t glue_try_index_var_minus_lit_idx_addr_to_rbx_elf_c(struct ast_AST
  * INDEX 赋值：VAR 基址 + (VAR-VAR) SUB 下标 → 双 scratch 缩放寻址入 rbx，不 clobber rax 右值。
  * 0=成功，-1=错，-2=不适用。
  */
-static int32_t glue_try_index_var_minus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_minus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                    int32_t base_ref, int32_t idx_ref,
                                                                    struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1088,7 +1088,7 @@ static int32_t glue_try_index_var_minus_var_idx_addr_to_rbx_elf_c(struct ast_AST
  * INDEX 赋值：VAR/FIELD 基址 + (VAR*lit) MUL 下标 → scratch 缩放寻址入 rbx，不 clobber rax 右值。
  * 仅支持一侧局部 VAR、一侧 i32 字面量（如 arr[i*2]=…）；0=OK，-1=错，-2=不适用。
  */
-static int32_t glue_try_index_var_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                   int32_t base_ref, int32_t idx_ref,
                                                                   struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1138,7 +1138,7 @@ static int32_t glue_try_index_var_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTAr
  * INDEX 赋值：VAR/FIELD 基址 + (VAR*VAR) MUL 下标 → scratch 缩放寻址入 rbx，不 clobber rax 右值。
  * 0=OK，-1=错，-2=不适用。
  */
-static int32_t glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                  int32_t base_ref, int32_t idx_ref,
                                                                  struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1235,7 +1235,7 @@ static int32_t glue_index_expr_var_add3_elf_c(struct ast_ASTArena *arena, int32_
  * INDEX assign：VAR/FIELD 基址 + ((VAR+VAR)+VAR) ADD 链 → scratch 缩放寻址入 rbx。
  * 0=OK，-1=错，-2=不适用（如 i+j+k / i+(j+k)）。
  */
-static int32_t glue_try_index_var_plus_var_plus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_plus_var_plus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                             int32_t base_ref, int32_t idx_ref,
                                                                             struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1302,7 +1302,7 @@ static int32_t glue_index_expr_var_minus_var_pair_elf_c(struct ast_ASTArena *are
  * INDEX assign：VAR/FIELD 基址 + ((VAR-VAR)+VAR) 混合 ADD/SUB → scratch 缩放寻址入 rbx。
  * 0=OK，-1=错，-2=不适用（如 i-j+k）。
  */
-static int32_t glue_try_index_var_minus_var_plus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_minus_var_plus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                             int32_t base_ref, int32_t idx_ref,
                                                                             struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1417,7 +1417,7 @@ static int32_t glue_index_subadd3_sum_cache_hit(struct ast_ASTArena *arena, stru
 static int32_t glue_index_reload_scratch_slot_to_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                               int32_t slot_depth);
 
-static int32_t glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                              struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                              int32_t base_ref, int32_t idx_ref,
                                                                              struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1486,7 +1486,7 @@ static int32_t glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c(stru
  * INDEX assign：VAR/FIELD 基址 + (VAR-(VAR+VAR)) 右结合 SUB → scratch 缩放寻址入 rbx。
  * 0=OK，-1=错，-2=不适用（如 i-(j+k)）。
  */
-static int32_t glue_try_index_var_minus_add3_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_minus_add3_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                     int32_t base_ref, int32_t idx_ref,
                                                                     struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1563,7 +1563,7 @@ static int32_t glue_index_expr_var_minus_add3_elf_c(struct ast_ASTArena *arena, 
  * INDEX assign：VAR/FIELD 基址 + ((VAR-(VAR+VAR))*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
  * 0=OK，-1=错，-2=不适用（如 (i-(j+k))*2）。
  */
-static int32_t glue_try_index_var_minus_add3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_minus_add3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                               struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                               int32_t base_ref, int32_t idx_ref,
                                                                               struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1626,7 +1626,7 @@ static int32_t glue_try_index_var_minus_add3_mul_lit_idx_addr_to_rbx_elf_c(struc
  * INDEX assign：VAR/FIELD 基址 + ((VAR-VAR)*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
  * 0=OK，-1=错，-2=不适用（如 (i-j)*2）。
  */
-static int32_t glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                            int32_t base_ref, int32_t idx_ref,
                                                                            struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1743,7 +1743,7 @@ static int32_t glue_index_expr_var_subsub3_elf_c(struct ast_ASTArena *arena, int
  * INDEX assign：VAR/FIELD 基址 + ((VAR-VAR-VAR)*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
  * 0=OK，-1=错，-2=不适用（如 (i-j-k)*2）。
  */
-static int32_t glue_try_index_var_subsub3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_subsub3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                          int32_t base_ref, int32_t idx_ref,
                                                                          struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1824,7 +1824,7 @@ static int32_t glue_index_subadd3_spill_pop_top_elf_c(struct platform_elf_ElfCod
 static int32_t glue_index_reload_scratch_slot_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                      int32_t slot_depth);
 
-static int32_t glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                          int32_t base_ref, int32_t idx_ref,
                                                                          struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1904,7 +1904,7 @@ static int32_t glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c(struct a
  * INDEX assign：VAR/FIELD 基址 + ((VAR+VAR+VAR)*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
  * 0=OK，-1=错，-2=不适用（如 (i+j+k)*2）。
  */
-static int32_t glue_try_index_var_add3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_add3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                         int32_t base_ref, int32_t idx_ref,
                                                                         struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -1967,7 +1967,7 @@ static int32_t glue_try_index_var_add3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_
  * INDEX assign：VAR/FIELD 基址 + ((VAR+VAR)*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
  * 0=OK，-1=错，-2=不适用（如 (i+j)*2）。
  */
-static int32_t glue_try_index_var_plus_var_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_plus_var_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                           int32_t base_ref, int32_t idx_ref,
                                                                           struct backend_AsmFuncCtx *ctx, int32_t ta,

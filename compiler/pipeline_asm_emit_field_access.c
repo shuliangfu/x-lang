@@ -914,7 +914,7 @@ int32_t glue_field_layout_offset_for_base_field(struct ast_ASTArena *a, struct a
 /**
  * FIELD_ACCESS 有效字节偏移：typed layout → typeck stored；勿全局字段名首匹配（len/cap 误中 Vec_i32）。
  */
-static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                      int32_t fa_ref) {
   return pipeline_expr_field_access_layout_offset(arena, mod, fa_ref);
 }

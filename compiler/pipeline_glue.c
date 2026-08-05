@@ -321,8 +321,9 @@ extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
 /* wave1291 G.7: glue_var_decl_type_ref_elf_c late redecl removed — now covered
  * by pipeline_glue_emit_lea_fwd.c (wave1288, same-TU before this site). */
 
-/* BC 8.3.1: asm ELF EXPR_ASSIGN emit domain (lhs f32 + rhs + assign_elf; same TU). */
-#include "pipeline_asm_emit_assign.c"
+/* wave142 pure-owned leave: pipeline_asm_emit_assign.c deleted.
+ * Live authority = runtime_pipeline_abi pure (assign faces + field_assign_pair + body_expr_stmt_at).
+ * Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X. */
 
 
 /* BC 8.3.1: asm ELF EXPR_ARRAY_LIT emit domain (elem_byte_sz + empty +
@@ -405,7 +406,7 @@ enum {
 #include "pipeline_asm_emit_call_args.c"
 
 
-/* wave1016 G.7: glue_emit_assign_rhs_to_rax folded into pipeline_asm_emit_assign.c
+/* wave1016 G.7: glue_emit_assign_rhs_to_rax folded into assign leaf; wave142 pure leave.
  * (included earlier after spill). Compound-assign uses binop helpers via
  * forwards in that leaf; early unary/as scalar/mul forwards remain ~2584.
  * binop residual scalar/ptr/add already in pipeline_asm_emit_binop.c (wave1015).

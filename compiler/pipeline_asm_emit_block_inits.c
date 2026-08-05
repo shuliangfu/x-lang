@@ -63,7 +63,7 @@ extern void pipeline_expr_set_resolved_type_ref(struct ast_ASTArena *a, int32_t 
  * @param ta        0=x86_64, 1=arm64, 2=riscv (riscv treated as x86 polarity)
  * @return product offset of the length half
  */
-static int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta) {
+int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta) {
   if (ta == 1)
     return data_home + 8;
   return data_home - 8;
@@ -73,7 +73,7 @@ static int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta) {
  * Advance next_offset past both dual-GP halves of a TYPE_SLICE home.
  * x86: highest product offset used is data_home; arm64 also uses data_home+8.
  */
-static void glue_slice_dual_gp_bump_past_home_c(struct backend_AsmFuncCtx *ctx, int32_t data_home,
+void glue_slice_dual_gp_bump_past_home_c(struct backend_AsmFuncCtx *ctx, int32_t data_home,
                                                int32_t ta) {
   pipeline_glue_AsmFuncCtxLayout *ly;
   int32_t past;

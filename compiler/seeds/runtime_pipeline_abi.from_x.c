@@ -13491,4 +13491,671 @@ void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref) {
 }
 
 
+
+/*
+ * wave142: pipeline_asm_emit_assign pure-owned leave cold twins.
+ * PREFER pure; cold path when PREFER!=1 / hybrid fail.
+ * Faces: lhs_f32 + assign_rhs + assign_rhs_to_rax + assign_elf +
+ *   field_assign_pair_base + body_expr_stmt_at.
+ * Cap residual: binop/try_index/spill/slice dual-gp/float promote/fixed_array/
+ *   field offset/enc store-div-shift/array_lit/expr faces.
+ * PLATFORM: SHARED freestanding · continues same #ifndef FROM_X as wave141.
+ */
+
+#ifndef GLUE_STRUCT_LIT_DEST_IN_RBX
+#define GLUE_STRUCT_LIT_DEST_IN_RBX (-3)
+#endif
+#ifndef GLUE_ARRAY_LIT_MAX_ELEMS
+#define GLUE_ARRAY_LIT_MAX_ELEMS 1024
+#endif
+
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_ref);
+extern int32_t glue_emit_float_lit_to_rax_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t ta,
+                                                 int32_t force_ty_ref, int32_t call_abi_widen_f64);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_try_binop_left_rax_right_rbx_elf_c(void *arena, void *elf_ctx, int32_t left_ref,
+                                                        int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t glue_emit_binop_add_rax_rbx_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t left_ref,
+                                                   int32_t right_ref, int32_t ta);
+extern int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t left_ref,
+                                                         int32_t right_ref, int32_t ta);
+extern int32_t glue_emit_binop_mul_rax_rbx_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t left_ref,
+                                                   int32_t right_ref, int32_t ta);
+extern int32_t glue_binop_operand_is_scalar_f32_elf_c(void *arena, void *ctx, int32_t expr_ref);
+extern int32_t glue_binop_operand_is_scalar_f64_elf_c(void *arena, void *ctx, int32_t expr_ref);
+extern int32_t glue_binop_operand_is_unsigned_elf_c(void *arena, void *ctx, int32_t left_ref, int32_t right_ref);
+extern int32_t glue_binop_operand_is_64bit_elf_c(void *arena, void *ctx, int32_t left_ref, int32_t right_ref);
+extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(void *elf_ctx, void *ctx, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_divsd_rax_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_divss_rax_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_idiv_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_rem_mod_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_and_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_or_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_xor_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_rbx_to_ecx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_shl_cl_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_shl_cl_eax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_shr_cl_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_shr_cl_eax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_sar_cl_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_sar_cl_eax_arch(void *elf_ctx, int32_t ta);
+extern void glue_binop_var_slot_cache_clear(void);
+extern void glue_binop_var_slot_cache_invalidate_slot(int32_t off);
+extern void glue_binop_var_slot_cache_kill_def_at_slot(int32_t off);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t glue_field_access_effective_offset_c(void *arena, void *mod, int32_t fa_ref);
+extern int32_t pipeline_expr_field_access_load_byte_sz(void *arena, void *mod, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_is_enum_variant(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
+extern int32_t glue_enc_local_slot_ptr_or_addr_rbx_elf_c(void *arena, void *elf_ctx, int32_t var_ref,
+                                                          int32_t var_off, void *ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t load_sz, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_indirect_arch(void *elf_ctx, int32_t elem_sz, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                                        int32_t ta);
+extern int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_index_base_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_index_index_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_emit_struct_lit_fields_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                                          int32_t ta, int32_t stack_slot_off);
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t glue_emit_index_eff_addr_scaled_elf_c(void *arena, void *elf_ctx, int32_t ix_ref, int32_t base_ref,
+                                                      int32_t idx_ref, void *ctx, int32_t ta, int32_t esz);
+extern int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
+                                                     int32_t ta, int32_t let_ty_ref, int32_t stack_slot_off);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
+extern int32_t backend_enc_store_eax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern int32_t glue_emit_bulk_mem_copy_spills_elf_c(void *elf_ctx, int32_t src_spill, int32_t dst_spill,
+                                                     int32_t nbytes, int32_t ta);
+extern int32_t glue_expr_emit_may_clobber_rbx_elf_c(void *arena, int32_t expr_ref);
+extern int32_t glue_index_assign_addr_cache_hit(void *arena, void *ctx, int32_t base_ref, int32_t idx_ref,
+                                                 int32_t esz);
+extern void glue_index_assign_addr_cache_clear(void);
+extern int32_t glue_index_assign_finish_store_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t base_ref,
+                                                     int32_t idx_ref, int32_t esz, int32_t ta);
+extern int32_t glue_try_index_var_lit_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref, int32_t idx_ref,
+                                                         void *ctx, int32_t ta, int32_t esz);
+extern int32_t glue_try_index_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref, int32_t idx_ref,
+                                                         void *ctx, int32_t ta, int32_t esz);
+extern int32_t glue_try_index_var_plus_lit_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                  int32_t idx_ref, void *ctx, int32_t ta, int32_t esz);
+extern int32_t glue_try_index_var_plus_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                  int32_t idx_ref, void *ctx, int32_t ta, int32_t esz);
+extern int32_t glue_try_index_var_minus_lit_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                   int32_t idx_ref, void *ctx, int32_t ta, int32_t esz);
+extern int32_t glue_try_index_var_minus_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                   int32_t idx_ref, void *ctx, int32_t ta, int32_t esz);
+extern int32_t glue_try_index_var_mul_lit_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                 int32_t idx_ref, void *ctx, int32_t ta, int32_t esz);
+extern int32_t glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                 int32_t idx_ref, void *ctx, int32_t ta, int32_t esz);
+extern int32_t glue_try_index_var_plus_var_plus_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                           int32_t idx_ref, void *ctx, int32_t ta,
+                                                                           int32_t esz);
+extern int32_t glue_try_index_var_minus_var_plus_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                            int32_t idx_ref, void *ctx, int32_t ta,
+                                                                            int32_t esz);
+extern int32_t glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                             int32_t idx_ref, void *ctx, int32_t ta,
+                                                                             int32_t esz);
+extern int32_t glue_try_index_var_minus_add3_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                    int32_t idx_ref, void *ctx, int32_t ta, int32_t esz);
+extern int32_t glue_try_index_var_plus_var_mul_lit_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                          int32_t idx_ref, void *ctx, int32_t ta,
+                                                                          int32_t esz);
+extern int32_t glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                           int32_t idx_ref, void *ctx, int32_t ta,
+                                                                           int32_t esz);
+extern int32_t glue_try_index_var_add3_mul_lit_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                      int32_t idx_ref, void *ctx, int32_t ta, int32_t esz);
+extern int32_t glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                         int32_t idx_ref, void *ctx, int32_t ta,
+                                                                         int32_t esz);
+extern int32_t glue_try_index_var_subsub3_mul_lit_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                         int32_t idx_ref, void *ctx, int32_t ta,
+                                                                         int32_t esz);
+extern int32_t glue_try_index_var_minus_add3_mul_lit_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                                            int32_t idx_ref, void *ctx, int32_t ta,
+                                                                            int32_t esz);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t asm_ctx_local_find_offset_scoped(void *ctx, void *arena, uint8_t *name, int32_t name_len);
+extern int32_t asm_ctx_local_find_offset(void *ctx, uint8_t *name, int32_t name_len);
+extern void glue_index_scratch_spill_invalidate_var(void *arena, void *elf_ctx, void *ctx, int32_t var_ref, int32_t ta);
+extern int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len);
+extern int32_t pipeline_asm_modlet_store_from_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern void glue_slice_dual_gp_bump_past_home_c(void *ctx, int32_t data_home, int32_t ta);
+extern int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
+extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern void pipeline_asm_bump_next_offset_for_array_lit(void *arena, int32_t expr_ref, void *ctx);
+extern int32_t glue_emit_fixed_array_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
+                                                          int32_t ta, int32_t arr_ty, int32_t stack_off);
+extern int32_t glue_float_promote_src_ty_ref_c(void *arena, int32_t expr_ref);
+extern int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(void *arena, void *elf_ctx, int32_t dest_ty_ref,
+                                                        int32_t src_ty_ref, int32_t ta);
+extern int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_expr_binop_left_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_right_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_int_val_at(void *arena, int32_t expr_ref);
+extern int32_t ast_ast_block_stmt_order_kind(void *arena, int32_t block_ref, int32_t si);
+extern int32_t ast_ast_block_stmt_order_idx(void *arena, int32_t block_ref, int32_t si);
+extern int32_t ast_pipeline_block_expr_stmt_ref(void *arena, int32_t block_ref, int32_t ei);
+
+static int32_t seed_assign_expr_lit_i32_at(void *arena, int32_t expr_ref, int32_t *out_imm) {
+  int32_t ko;
+  if (!expr_ref)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == 0 || ko == 2) {
+    if (out_imm)
+      *out_imm = pipeline_expr_int_val_at(arena, expr_ref);
+    return 1;
+  }
+  return 0;
+}
+
+int32_t glue_assign_lhs_f32_type_ref_elf_c(void *arena, void *ctx, int32_t left_ref) {
+  int32_t lko;
+  int32_t tr;
+  void *mod;
+  if (!arena || left_ref <= 0)
+    return 0;
+  lko = pipeline_expr_kind_ord_at(arena, left_ref);
+  if (lko == 3) {
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+    if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == 14)
+      return tr;
+  }
+  if (lko == 44) {
+    mod = pipeline_asm_emit_module_ref_c();
+    tr = glue_field_access_field_type_ref_c(arena, mod, left_ref);
+    if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == 14)
+      return tr;
+  }
+  if (lko == 47) {
+    tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+    if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == 14)
+      return tr;
+  }
+  return 0;
+}
+
+int32_t glue_emit_assign_rhs_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx,
+                                    int32_t ta) {
+  int32_t lhs_f32;
+  if (!arena || right_ref <= 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, right_ref) == 1) {
+    lhs_f32 = glue_assign_lhs_f32_type_ref_elf_c(arena, ctx, left_ref);
+    if (lhs_f32 > 0)
+      return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, right_ref, ta, lhs_f32, 0);
+  }
+  return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
+}
+
+int32_t glue_emit_assign_rhs_to_rax_elf_c(void *arena, void *elf_ctx, int32_t assign_expr_ref, int32_t left_ref,
+                                           int32_t right_ref, void *ctx, int32_t ta) {
+  int32_t ako;
+  int32_t vr;
+  int32_t is_64bit;
+  int32_t is_unsigned;
+  if (!arena || !elf_ctx || !ctx || assign_expr_ref <= 0 || left_ref <= 0 || right_ref <= 0)
+    return -1;
+  ako = pipeline_expr_kind_ord_at(arena, assign_expr_ref);
+  if (ako == 28)
+    return glue_emit_assign_rhs_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+  vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+  if (vr == -1)
+    return -1;
+  if (vr == -2) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  switch (ako) {
+  case 29:
+    return glue_emit_binop_add_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+  case 30:
+    return glue_emit_binop_sub_rax_minus_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+  case 31:
+    return glue_emit_binop_mul_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+  case 32:
+    if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
+      return backend_enc_divsd_rax_rbx_arch(elf_ctx, ta);
+    if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+        glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
+      return backend_enc_divss_rax_rbx_arch(elf_ctx, ta);
+    if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
+      return -1;
+    return backend_enc_idiv_rbx_arch(elf_ctx, ta);
+  case 33:
+    if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
+      return -1;
+    return backend_enc_rem_mod_arch(elf_ctx, ta);
+  case 34:
+    return backend_enc_and_rbx_rax_arch(elf_ctx, ta);
+  case 35:
+    return backend_enc_or_rbx_rax_arch(elf_ctx, ta);
+  case 36:
+    return backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
+  case 37:
+    glue_binop_var_slot_cache_clear();
+    if (backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta) != 0)
+      return -1;
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, 0);
+    return is_64bit ? backend_enc_shl_cl_rax_arch(elf_ctx, ta) : backend_enc_shl_cl_eax_arch(elf_ctx, ta);
+  case 38:
+    glue_binop_var_slot_cache_clear();
+    if (backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta) != 0)
+      return -1;
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, 0);
+    is_unsigned = glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, 0);
+    if (is_unsigned)
+      return is_64bit ? backend_enc_shr_cl_rax_arch(elf_ctx, ta) : backend_enc_shr_cl_eax_arch(elf_ctx, ta);
+    return is_64bit ? backend_enc_sar_cl_rax_arch(elf_ctx, ta) : backend_enc_sar_cl_eax_arch(elf_ctx, ta);
+  default:
+    return -1;
+  }
+}
+
+int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t left_ref;
+  int32_t right_ref;
+  int32_t lko;
+  int32_t load_sz;
+  int32_t esz;
+  void *mod;
+  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
+    return -1;
+  left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+  right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+  if (left_ref <= 0 || right_ref <= 0)
+    return -1;
+  lko = pipeline_expr_kind_ord_at(arena, left_ref);
+  if (lko != 47)
+    glue_index_assign_addr_cache_clear();
+  if (lko == 44 && pipeline_expr_field_access_is_enum_variant(arena, left_ref) == 0) {
+    int32_t base_ref = pipeline_expr_field_access_base_ref(arena, left_ref);
+    int32_t field_off;
+    if (base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
+      uint8_t vname[128];
+      int32_t vlen;
+      int32_t var_off;
+      vlen = pipeline_expr_var_name_len(arena, base_ref);
+      if (vlen <= 0 || vlen > 127)
+        return -1;
+      pipeline_expr_var_name_into(arena, base_ref, vname);
+      var_off = asm_ctx_local_find_offset_scoped(ctx, arena, vname, vlen);
+      if (var_off < 0)
+        var_off = asm_ctx_local_find_offset(ctx, vname, vlen);
+      if (var_off < 0)
+        return -1;
+      mod = pipeline_asm_emit_module_ref_c();
+      field_off = glue_field_access_effective_offset_c(arena, mod, left_ref);
+      load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, left_ref);
+      if (load_sz <= 0)
+        load_sz = 4;
+      if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
+        return -1;
+      if (glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, base_ref, var_off, ctx, ta) != 0)
+        return -1;
+      return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, field_off, load_sz, ta);
+    }
+    if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    mod = pipeline_asm_emit_module_ref_c();
+    load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, left_ref);
+    return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, load_sz, ta);
+  }
+  if (lko == 47) {
+    int32_t base_ref;
+    int32_t idx_ref;
+    int32_t rko_idx;
+    esz = pipeline_asm_index_elem_byte_sz_c(arena, left_ref);
+    base_ref = pipeline_expr_index_base_ref(arena, left_ref);
+    idx_ref = pipeline_expr_index_index_ref(arena, left_ref);
+    if (base_ref <= 0 || idx_ref <= 0)
+      return -1;
+    rko_idx = pipeline_expr_kind_ord_at(arena, right_ref);
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) == 28 && rko_idx == 45 && esz > 0 &&
+        pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
+      int32_t lit_imm;
+      int32_t base_off;
+      int32_t elem_home;
+      int32_t base_tr;
+      int32_t base_tk;
+      base_tr = glue_var_decl_type_ref_elf_c(arena, ctx, base_ref);
+      base_tk = (base_tr > 0) ? pipeline_type_kind_ord_at(arena, base_tr) : 0;
+      if (base_tk == 10) {
+        if (seed_assign_expr_lit_i32_at(arena, idx_ref, &lit_imm)) {
+          base_off = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
+          if (base_off >= 0) {
+            elem_home = (ta == 1) ? (base_off + lit_imm * esz) : (base_off - lit_imm * esz);
+            if (elem_home >= 0 &&
+                pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, right_ref, ctx, ta, elem_home) == 0) {
+              glue_index_assign_addr_cache_clear();
+              return 0;
+            }
+          }
+        } else {
+          if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta, esz) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          if (pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, right_ref, ctx, ta,
+                                                         GLUE_STRUCT_LIT_DEST_IN_RBX) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          glue_index_assign_addr_cache_clear();
+          return 0;
+        }
+      } else if (base_tk == 11) {
+        if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta, esz) != 0) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        if (pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, right_ref, ctx, ta,
+                                                       GLUE_STRUCT_LIT_DEST_IN_RBX) != 0) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        glue_index_assign_addr_cache_clear();
+        return 0;
+      }
+    }
+    if (esz > 8) {
+      int32_t rko_bulk;
+      int32_t src_spill;
+      int32_t dst_spill;
+      int32_t temp_home;
+      int32_t nbytes;
+      int32_t next_off;
+      rko_bulk = pipeline_expr_kind_ord_at(arena, right_ref);
+      if (rko_bulk == 3 || rko_bulk == 44 || rko_bulk == 47 || rko_bulk == 48 || rko_bulk == 49) {
+        next_off = *(int32_t *)((uint8_t *)ctx + 4);
+        if (next_off + 32 < next_off) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        next_off += 16;
+        src_spill = next_off;
+        next_off += 16;
+        dst_spill = next_off;
+        *(int32_t *)((uint8_t *)ctx + 4) = next_off;
+        temp_home = -1;
+        if (rko_bulk == 3 || rko_bulk == 44 || rko_bulk == 47) {
+          if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+        } else {
+          nbytes = (esz + 7) & ~7;
+          next_off = *(int32_t *)((uint8_t *)ctx + 4);
+          if (next_off + nbytes < next_off) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          next_off += nbytes;
+          temp_home = next_off;
+          *(int32_t *)((uint8_t *)ctx + 4) = next_off;
+          if (glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, 0, temp_home) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_home, ta) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+        }
+        if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta, esz) != 0) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, dst_spill, ta) != 0) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        if (glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_spill, dst_spill, esz, ta) != 0) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        glue_index_assign_addr_cache_clear();
+        return 0;
+      }
+    }
+    if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0) {
+      glue_index_assign_addr_cache_clear();
+      return -1;
+    }
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+      glue_index_assign_addr_cache_clear();
+      return -1;
+    }
+    if (glue_expr_emit_may_clobber_rbx_elf_c(arena, right_ref))
+      glue_index_assign_addr_cache_clear();
+    if (glue_index_assign_addr_cache_hit(arena, ctx, base_ref, idx_ref, esz))
+      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+    if (esz == 1 || esz == 4 || esz == 8) {
+      if (glue_try_index_var_lit_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_plus_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_plus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_plus_var_plus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_var_plus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_add3_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_plus_var_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_add3_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_subsub3_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_add3_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+    }
+    glue_index_assign_addr_cache_clear();
+    if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta, esz) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+  }
+  if (lko == 3) {
+    uint8_t vname[128];
+    int32_t vlen;
+    int32_t off;
+    int32_t is_modlet;
+    int32_t ltr_pre;
+    int32_t ltk_pre;
+    int32_t rko_pre;
+    vlen = pipeline_expr_var_name_len(arena, left_ref);
+    if (vlen <= 0 || vlen > 127)
+      return -1;
+    pipeline_expr_var_name_into(arena, left_ref, vname);
+    glue_index_scratch_spill_invalidate_var(arena, elf_ctx, ctx, left_ref, ta);
+    is_modlet = pipeline_asm_modlet_name_is_shared(vname, vlen);
+    off = asm_ctx_local_find_offset_scoped(ctx, arena, vname, vlen);
+    if (off < 0)
+      off = asm_ctx_local_find_offset(ctx, vname, vlen);
+    if (off < 0 && is_modlet == 0)
+      return -1;
+    if (off >= 0)
+      glue_binop_var_slot_cache_invalidate_slot(off);
+    ltr_pre = (off >= 0) ? glue_var_decl_type_ref_elf_c(arena, ctx, left_ref) : 0;
+    ltk_pre = (ltr_pre > 0) ? pipeline_type_kind_ord_at(arena, ltr_pre) : 0;
+    rko_pre = pipeline_expr_kind_ord_at(arena, right_ref);
+    if (is_modlet == 0 && off >= 0 && ltk_pre == 11 && rko_pre == 46 &&
+        pipeline_expr_kind_ord_at(arena, expr_ref) == 28) {
+      int32_t n_arr = pipeline_expr_array_lit_num_elems_at(arena, right_ref);
+      if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
+        return -1;
+      glue_slice_dual_gp_bump_past_home_c(ctx, off, ta);
+      if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
+        return -1;
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(off, ta), ta) != 0)
+        return -1;
+      if (n_arr > 0)
+        pipeline_asm_bump_next_offset_for_array_lit(arena, right_ref, ctx);
+      glue_binop_var_slot_cache_kill_def_at_slot(off);
+      return 0;
+    }
+    if (is_modlet == 0 && off >= 0 && ltk_pre == 10 && pipeline_expr_kind_ord_at(arena, expr_ref) == 28) {
+      int32_t arr_st =
+          glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, ltr_pre, off);
+      if (arr_st == 0) {
+        glue_binop_var_slot_cache_kill_def_at_slot(off);
+        return 0;
+      }
+      if (arr_st == -1)
+        return -1;
+    }
+    if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
+      return -1;
+    if (is_modlet != 0) {
+      if (pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx, vname, vlen, ta) != 0)
+        return -1;
+      if (off >= 0)
+        glue_binop_var_slot_cache_kill_def_at_slot(off);
+      return 0;
+    }
+    {
+      int32_t ltr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+      int32_t rty = glue_float_promote_src_ty_ref_c(arena, right_ref);
+      int32_t ltk;
+      if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, ltr, rty, ta) != 0)
+        return -1;
+      ltk = (ltr > 0) ? pipeline_type_kind_ord_at(arena, ltr) : 0;
+      if (ltk == 11) {
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
+          return -1;
+        if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(off, ta), ta) != 0)
+          return -1;
+      } else if (ltr > 0 && ltk == 14) {
+        if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, ta) != 0)
+          return -1;
+      } else if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0) {
+        return -1;
+      }
+    }
+    glue_binop_var_slot_cache_kill_def_at_slot(off);
+    return 0;
+  }
+  if (lko == 52) {
+    int32_t store_sz;
+    int32_t tr;
+    if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+    store_sz = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
+    if (store_sz <= 0)
+      store_sz = 4;
+    return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, store_sz, ta);
+  }
+  return -1;
+}
+
+int32_t glue_field_assign_pair_base_ref_c(void *arena, int32_t er) {
+  int32_t left_ref;
+  if (!arena || er <= 0 || pipeline_expr_kind_ord_at(arena, er) != 28)
+    return 0;
+  left_ref = pipeline_expr_binop_left_ref_at(arena, er);
+  if (pipeline_expr_kind_ord_at(arena, left_ref) != 44)
+    return 0;
+  return pipeline_expr_field_access_base_ref(arena, left_ref);
+}
+
+int32_t glue_body_expr_stmt_at_c(void *arena, int32_t body_ref, int32_t si, int32_t nso, int32_t *out_er) {
+  int32_t er;
+  if (!arena || body_ref <= 0 || !out_er)
+    return 0;
+  if (nso > 0) {
+    if (ast_ast_block_stmt_order_kind(arena, body_ref, si) != 2)
+      return 0;
+    er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, ast_ast_block_stmt_order_idx(arena, body_ref, si));
+  } else {
+    er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, si);
+  }
+  if (er <= 0)
+    return 0;
+  *out_er = er;
+  return 1;
+}
+
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

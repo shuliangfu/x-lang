@@ -46,8 +46,8 @@ extern int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                     int32_t init_ref, struct backend_AsmFuncCtx *ctx,
                                                     int32_t ta, int32_t type_ref, int32_t home_off);
-static int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
-static int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
+int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
+int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
 /* leaf/flat defined earlier in pipeline_glue.c (~L3346); prototypes keep static linkage. */
 static int32_t pipeline_asm_array_lit_leaf_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t init_ref);
 static int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena,
@@ -66,7 +66,7 @@ int32_t ast_pipeline_expr_array_lit_num_elems_at(struct ast_ASTArena *a, int32_t
  * or later (align, dual_gp body, expr_rec). Prototypes keep static linkage. */
 /* wave126 pure leave: glue_align_next_offset live = runtime_pipeline_abi pure. */
 void glue_align_next_offset(struct backend_AsmFuncCtx *ctx);
-static int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                     int32_t src_spill, int32_t dst_spill, int32_t esz,
                                                     int32_t ta);
 /* wave123: lea_common pure leave — public no_mangle faces (not same-TU static). */

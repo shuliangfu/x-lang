@@ -760,7 +760,7 @@ static int32_t glue_type_is_fixed_array(struct ast_ASTArena *arena, int32_t type
  * PLATFORM: SHARED freestanding emit — platform branches live inside
  * glue_struct_lit_store_fixed_array_field_elf_c.
  */
-static int32_t glue_emit_fixed_array_type_let_init_elf_c(struct ast_ASTArena *arena,
+int32_t glue_emit_fixed_array_type_let_init_elf_c(struct ast_ASTArena *arena,
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          int32_t init_ref, struct backend_AsmFuncCtx *ctx,
                                                          int32_t ta, int32_t type_ref,

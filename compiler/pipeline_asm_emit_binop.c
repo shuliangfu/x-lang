@@ -386,7 +386,7 @@ static int32_t glue_binop_operand_load_to_rbx_clobbers_rax_elf_c(struct ast_ASTA
  * rec emit 表达式时是否会 clobber 已在 rbx 的左比较操作数（binop/FIELD/INDEX 等）。
  * VAR/字面量直 mov 到 rax 不动 rbx；7.3 cmp 左 rbx + 右 slow emit 前按需 x2 暂存。
  */
-static int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int32_t ko;
   int32_t op_ref;
   if (!arena || expr_ref <= 0)
@@ -661,7 +661,7 @@ static int32_t glue_finish_binop_commutative_slow_rax_rbx_elf_c(struct ast_ASTAr
 /**
  * 7.3：非交换 binop — 左 value 在 rax、右 count/divisor 在 rbx（SHIFT/DIV/MOD 共用）；0=就绪，-1=错，-2=需 slow。
  */
-static int32_t glue_try_binop_left_rax_right_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_binop_left_rax_right_rbx_elf_c(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           int32_t left_ref, int32_t right_ref,
                                                           struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -933,7 +933,7 @@ static int32_t glue_try_emit_mixed_f32_f64_arith_elf_c(struct ast_ASTArena *aren
                                                         struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                         int32_t right_ref, int32_t ta, int32_t op_kind);
 /** wave298: f32/f64 SUB helper (forward for assign -= path above body). */
-static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *arena,
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                          int32_t right_ref, int32_t ta);
@@ -1091,7 +1091,7 @@ static int32_t glue_try_emit_ptr_arith_scaled_elf_c(struct ast_ASTArena *arena,
 }
 
 /** f32 ADD → addss; f64 ADD → addsd; else integer add。 */
-static int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                    int32_t right_ref, int32_t ta) {
@@ -1238,7 +1238,7 @@ static int32_t glue_emit_binop_sub_rbx_minus_rax_elf_c(struct ast_ASTArena *aren
   return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
 }
 
-static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *arena,
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                          int32_t right_ref, int32_t ta) {
@@ -1266,7 +1266,7 @@ static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *aren
  * This helper still accepts mixed when caller has already promoted both to f64 bits
  * in rax/rbx (then both-f64 branch); or pure same-class sides.
  */
-static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                    int32_t right_ref, int32_t ta) {
@@ -1576,7 +1576,7 @@ static int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena, str
  *        若用 idivl 处理 u32，0xFFFFFFFF 会被当作 -1，导致 /2 得 0 而非 0x7FFFFFFF。
  * 优先取 left_ref 的 resolved_type_ref；若为空（字面量场景），回退到 right_ref。
  */
-static int32_t glue_binop_operand_is_unsigned_elf_c(struct ast_ASTArena *arena,
+int32_t glue_binop_operand_is_unsigned_elf_c(struct ast_ASTArena *arena,
                                                      struct backend_AsmFuncCtx *ctx,
                                                      int32_t left_ref, int32_t right_ref) {
   int32_t tr = 0;
@@ -1607,7 +1607,7 @@ static int32_t glue_binop_operand_is_unsigned_elf_c(struct ast_ASTArena *arena,
  * 【Why】移位/除法须按宽度选择指令：64-bit 用 shlq/divq（REX.W 前缀），32-bit 用 shll/divl。
  *        若用 32-bit 指令处理 i64，移位量被 & 31 截断（1<<40 变成 1<<8）。
  */
-static int32_t glue_binop_operand_is_64bit_elf_c(struct ast_ASTArena *arena,
+int32_t glue_binop_operand_is_64bit_elf_c(struct ast_ASTArena *arena,
                                                   struct backend_AsmFuncCtx *ctx,
                                                   int32_t left_ref, int32_t right_ref) {
   int32_t tr = 0;

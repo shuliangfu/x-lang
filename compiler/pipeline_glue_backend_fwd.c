@@ -542,7 +542,7 @@ static int32_t glue_binop_restore_rax_after_rbx_load_elf_c(struct platform_elf_E
 static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);
 /* wave140 pure leave Cap residual: public face (was static same-TU). PLATFORM: SHARED. */
 int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr);
-static int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
+int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
 /* wave137 Cap residual: non-static (cmp pure leave). */
 int32_t glue_var_expr_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                               int32_t var_expr_ref);
@@ -605,7 +605,7 @@ int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int3
  */
 static int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *arena, int32_t et);
 /* wave692: used by durable TYPE_SLICE fat pack before full defs later in TU. */
-static int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
+int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
 /* wave126 pure leave: glue_align_next_offset live = runtime_pipeline_abi pure (no longer static). */
 void glue_align_next_offset(struct backend_AsmFuncCtx *ctx);
 /* wave132 pure-owned leave: struct let-init live in runtime_pipeline_abi pure
@@ -618,7 +618,7 @@ extern int32_t pipeline_asm_emit_struct_let_init_elf_c(struct ast_ASTArena *aren
                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
                                                        struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                        int32_t stack_slot_off);
-static int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                      int32_t src_spill, int32_t dst_spill, int32_t esz,
                                                      int32_t ta);
 /* wave1021: durable doc/body folded into pipeline_asm_emit_array_lit.c.

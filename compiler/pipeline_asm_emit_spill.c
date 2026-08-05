@@ -87,7 +87,7 @@ typedef struct {
 static GlueBinopVarSlotCache glue_binop_var_slot_cache;
 
 /** 清空 binop VAR 槽缓存（块入口 / slow binop / 按位结果写 rbx 等）。 */
-static void glue_binop_var_slot_cache_clear(void) {
+void glue_binop_var_slot_cache_clear(void) {
   glue_binop_var_slot_cache.valid_rax = 0;
   glue_binop_var_slot_cache.valid_rbx = 0;
   glue_binop_var_slot_cache.valid_x10 = 0;
@@ -121,7 +121,7 @@ static int32_t glue_enc_swap_rax_rbx_arm64_elf_c(struct platform_elf_ElfCodegenC
 }
 
 /** 栈槽 var 被写入后失效对应 rax/rbx 缓存项。 */
-static void glue_binop_var_slot_cache_invalidate_slot(int32_t off) {
+void glue_binop_var_slot_cache_invalidate_slot(int32_t off) {
   if (glue_binop_var_slot_cache.valid_rax && glue_binop_var_slot_cache.rax_off == off)
     glue_binop_var_slot_cache.valid_rax = 0;
   if (glue_binop_var_slot_cache.valid_rbx && glue_binop_var_slot_cache.rbx_off == off)
@@ -144,7 +144,7 @@ static void glue_binop_var_slot_cache_invalidate_slot(int32_t off) {
 /**
  * 7.3 定义点活跃性：let/assign 写栈槽后 kill 该槽缓存并失效 rax（结果已落栈）。
  */
-static void glue_binop_var_slot_cache_kill_def_at_slot(int32_t off) {
+void glue_binop_var_slot_cache_kill_def_at_slot(int32_t off) {
   if (off >= 0)
     glue_binop_var_slot_cache_invalidate_slot(off);
   glue_binop_var_slot_cache_invalidate_rax();
@@ -224,7 +224,7 @@ static uint64_t glue_index_base_struct_key_elf_c(struct ast_ASTArena *arena, int
 }
 
 /** Forward decl: rec emit 是否会 clobber rbx（定义见 binop 活跃性 helpers）。 */
-static int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
+int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
 
 /** Drop cached INDEX effective address (rbx no longer trusted for reuse). */
 /* wave140 pure leave Cap residual: was static; pure emit_index links here. PLATFORM: SHARED. */
@@ -2167,7 +2167,7 @@ int32_t glue_index_assign_addr_cache_hit(struct ast_ASTArena *arena, struct back
  * @param esz       total bytes to copy (must be > 0)
  * @return 0 ok, -1 emit error
  */
-static int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                      int32_t src_spill, int32_t dst_spill, int32_t esz,
                                                      int32_t ta) {
   int32_t off;
@@ -2214,7 +2214,7 @@ static int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodeg
 }
 
 /** Store rhs (rax) at [rbx] and remember rbx for an identical next INDEX assign. */
-static int32_t glue_index_assign_finish_store_elf_c(struct ast_ASTArena *arena,
+int32_t glue_index_assign_finish_store_elf_c(struct ast_ASTArena *arena,
                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                      struct backend_AsmFuncCtx *ctx, int32_t base_ref,
                                                      int32_t idx_ref, int32_t esz, int32_t ta) {
@@ -2469,7 +2469,7 @@ static int32_t glue_index_subadd3_sum_cache_stack_cleanup_elf_c(struct platform_
 }
 
 /** Invalidate scratch spills when i/j/k (or i/j) locals are assigned. */
-static void glue_index_scratch_spill_invalidate_var(struct ast_ASTArena *arena,
+void glue_index_scratch_spill_invalidate_var(struct ast_ASTArena *arena,
                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                      struct backend_AsmFuncCtx *ctx, int32_t var_ref,
                                                      int32_t ta) {

@@ -178,7 +178,7 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
 /* wave652: arch-aware struct field frame mag (nest_slot + fixed array field). */
 static int32_t glue_struct_field_frame_mag_c(int32_t base_off, int32_t foff, int32_t ta);
 /* Used by wave350 FIELD init; full def near pipeline_expr_field_access_layout_offset. */
-static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    int32_t fa_ref);
 /* wave351 CALL field init: reuse let-init CALL store authority (defs later). */
 /* wave1048 G.7: glue_call_return_byte_size_c fwd decl removed — definition
@@ -235,6 +235,25 @@ extern int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegen
                                                   int32_t func_index, int32_t ta);
 extern void pipeline_asm_fill_local_slots(struct backend_AsmFuncCtx *ctx, struct ast_ASTArena *arena,
                                           int32_t block_ref);
+
+/* wave142 pure-owned leave: assign faces live in runtime_pipeline_abi pure.
+ * Same-TU residual (expr_rec / fold_count_up_while / simd) Cap-call these. */
+extern int32_t glue_assign_lhs_f32_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                   int32_t left_ref);
+extern int32_t glue_emit_assign_rhs_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                           int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx,
+                                           int32_t ta);
+extern int32_t glue_emit_assign_rhs_to_rax_elf_c(struct ast_ASTArena *arena,
+                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                  int32_t assign_expr_ref, int32_t left_ref, int32_t right_ref,
+                                                  struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                               int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t glue_field_assign_pair_base_ref_c(struct ast_ASTArena *arena, int32_t er);
+extern int32_t glue_body_expr_stmt_at_c(struct ast_ASTArena *arena, int32_t body_ref, int32_t si, int32_t nso,
+                                         int32_t *out_er);
+
+
 
 /* wave132: include-order fwd decls formerly only in pipeline_asm_emit_struct_let.c.
  * Keep visibility for call_args / field_access / index_eff_addr / binop without

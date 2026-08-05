@@ -55,10 +55,10 @@ int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t br);
  * pipeline_typeck_float_widen_ok_c fwd decl needed because its definition
  * is in coerce_init.c (#include at glue.c L11099, after this file's
  * #include at L1913). */
-static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
+int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
                                                        struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                        int32_t dest_ty_ref, int32_t src_ty_ref, int32_t ta);
-static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
+int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
 static int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind);
 int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br);
 int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br);
@@ -260,8 +260,8 @@ int32_t pipeline_find_fixed_array_slice_escape(struct ast_ASTArena *arena, int32
 }
 
 /* wave394: TYPE_SLICE dual-GP length half (def near glue_emit_slice_from_array_let_init). */
-static int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
-static void glue_slice_dual_gp_bump_past_home_c(struct backend_AsmFuncCtx *ctx, int32_t data_home,
+int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
+void glue_slice_dual_gp_bump_past_home_c(struct backend_AsmFuncCtx *ctx, int32_t data_home,
                                                int32_t ta);
 /* wave124 pure-owned leave: glue_var_decl_type_ref_elf_c live in
  * runtime_pipeline_abi pure (was same-TU static in pipeline_asm_emit_var_decl.c).
@@ -270,7 +270,7 @@ extern int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct b
                                             int32_t var_expr_ref);
 /* wave1025: glue_enc_local_slot_ptr_or_addr_rbx_elf_c body in pipeline_asm_emit_index_helpers.c
  * (#included after this leaf); needed by glue_emit_sret_return_from_var_elf_c. */
-static int32_t glue_enc_local_slot_ptr_or_addr_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_enc_local_slot_ptr_or_addr_rbx_elf_c(struct ast_ASTArena *arena,
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          int32_t var_expr_ref, int32_t stack_off,
                                                          struct backend_AsmFuncCtx *ctx, int32_t ta);
@@ -802,7 +802,7 @@ static int32_t glue_emit_sret_return_from_var_elf_c(struct ast_ASTArena *arena,
  *
  * PLATFORM: SHARED typeck gate / LINUX+MACOS x86_64|arm64 encode via arch helper.
  */
-static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
+int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
                                                        struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                        int32_t dest_ty_ref, int32_t src_ty_ref, int32_t ta) {
   int32_t dk;
@@ -842,7 +842,7 @@ static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *aren
  *
  * PLATFORM: SHARED — pure typeck resolver; no platform ABI dependency.
  */
-static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int32_t tr;
   uint8_t vname[128];
   int32_t vlen;
