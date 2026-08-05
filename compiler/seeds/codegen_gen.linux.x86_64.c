@@ -18907,3 +18907,88 @@ uint8_t *pipeline_scratch_buf256_slot(int32_t slot) {
     return g_pipeline_scratch256[0];
   return g_pipeline_scratch256[slot];
 }
+
+/* ============================================================================
+ * 8.3.2 host-cc leave: pipeline_loop_glue.c retired from pipeline_x mega-TU.
+ * Live bounded-loop predicates + one_dep prepare glue live here in codegen_x.o.
+ * Callers (pipeline.x / pipeline_gen / runtime_pipeline_abi) already extern these
+ * `*_c` faces; they U-resolve from pipeline_x / other TUs into codegen_x.
+ * Callees (dep_ctx_ndep / lib_root_count / prepare_dep_codegen_path_c /
+ * parser_get_module_num_imports) stay in pipeline_x / parser_x and link back.
+ * PLATFORM: SHARED — thin glue only; G.7 single authority for these faces.
+ * ============================================================================ */
+
+extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
+extern void pipeline_dep_ctx_set_ndep(struct ast_PipelineDepCtx *ctx, int32_t n);
+extern int32_t pipeline_ctx_lib_root_count(struct ast_PipelineDepCtx *ctx);
+extern int32_t parser_get_module_num_imports(struct ast_Module *module);
+extern int32_t pipeline_prepare_dep_codegen_path_c(struct ast_PipelineDepCtx *ctx, int32_t dep_j,
+                                                   uint8_t *dst);
+
+/**
+ * Bounded loop continue: return 1 while idx < ndep.
+ * X while bare CALL predicate (do not emit CALL==0 compare).
+ */
+int32_t pipeline_loop_should_continue_ndep_c(struct ast_PipelineDepCtx *ctx, int32_t idx) {
+  if (!ctx)
+    return 0;
+  return idx < pipeline_dep_ctx_ndep(ctx) ? 1 : 0;
+}
+
+/**
+ * Bounded import loop continue: return 1 while idx < num_imports.
+ */
+int32_t pipeline_loop_should_continue_imports_c(struct ast_Module *module, int32_t idx) {
+  if (!module)
+    return 0;
+  return idx < parser_get_module_num_imports(module) ? 1 : 0;
+}
+
+/**
+ * Bounded lib_root loop continue: return 1 while idx < lib_root_count.
+ */
+int32_t pipeline_loop_should_continue_lib_root_c(struct ast_PipelineDepCtx *ctx, int32_t idx) {
+  if (!ctx)
+    return 0;
+  return idx < pipeline_ctx_lib_root_count(ctx) ? 1 : 0;
+}
+
+/**
+ * Bounded loop exit: return 1 when idx >= ndep (X if(CALL!=0)).
+ */
+int32_t pipeline_loop_index_at_or_beyond_ndep_c(struct ast_PipelineDepCtx *ctx, int32_t idx) {
+  if (!ctx)
+    return 1;
+  return idx >= pipeline_dep_ctx_ndep(ctx) ? 1 : 0;
+}
+
+/**
+ * Bounded import loop exit: return 1 when idx >= num_imports.
+ */
+int32_t pipeline_loop_index_at_or_beyond_imports_c(struct ast_Module *module, int32_t idx) {
+  if (!module)
+    return 1;
+  return idx >= parser_get_module_num_imports(module) ? 1 : 0;
+}
+
+/** After import loop: write ndep from module import count (C glue; no dual CALL in X stmt). */
+void pipeline_load_and_sync_set_ndep_from_module_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
+  if (module && ctx)
+    pipeline_dep_ctx_set_ndep(ctx, parser_get_module_num_imports(module));
+}
+
+/**
+ * one_dep codegen prepare path prefix (C glue; X side u8[64] stack array issue).
+ * Zeros a 128-byte scratch then calls pipeline_prepare_dep_codegen_path_c.
+ */
+int32_t run_x_pipeline_codegen_one_dep_prepare_c(struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
+  uint8_t dep_path_buf[128];
+  int32_t i;
+
+  if (!ctx || dep_j < 0)
+    return -1;
+  /* Avoid string.h memset macros in this seed (see codegen string.h clash notes). */
+  for (i = 0; i < 128; i++)
+    dep_path_buf[i] = 0;
+  return pipeline_prepare_dep_codegen_path_c(ctx, dep_j, dep_path_buf);
+}

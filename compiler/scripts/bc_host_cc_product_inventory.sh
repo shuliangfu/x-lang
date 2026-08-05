@@ -163,7 +163,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_import_bind.c|8.3.2|fs read + import bind/sync (wave1270)|100|present"
   "compiler/pipeline_parse_typeck_dispatch.c|8.3.2|parse entry + typeck dispatch (wave1271)|330|present"
   "compiler/pipeline_run_x_pipeline.c|8.3.2|run_x_pipeline core orchestration (wave1272)|90|present"
-  "compiler/pipeline_loop_glue.c|8.3.2|run_x_pipeline loop glue (wave1272)|45|present"
+  "compiler/pipeline_loop_glue.c|8.3.2|loop glue retired (codegen_x.o; host-cc leave)|0|absent"
   "compiler/pipeline_codegen_dep.c|8.3.2|codegen dep orchestration (wave1268)|360|present"
   "compiler/pipeline_lsp_diag.c|8.3.2|LSP diag C glue (wave1269)|60|present"
   "compiler/pipeline_emit_sidecar.c|8.3.2|emit sidecar state (wave1267)|140|present"
@@ -256,7 +256,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave (BC endgame still open); 8.3.3 field_access/soa + typeck_slots + scratch_bufs host-cc leave done"
+  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave (BC endgame still open); 8.3.3 field_access/soa + typeck_slots + scratch_bufs + loop_glue host-cc leave done"
 }
 
 run_check() {

@@ -125,8 +125,10 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 
 #include "pipeline_codegen_dep.c"
 
-#include "pipeline_loop_glue.c"
-
+/* 8.3.2 host-cc leave: pipeline_loop_glue.c retired — bounded-loop predicates
+ * + one_dep prepare glue live in codegen_x.o (codegen_gen seed append).
+ * Callers already extern the `*_c` faces (pipeline.x / pipeline_gen).
+ */
 
 #include "pipeline_emit_sidecar.c"
 
