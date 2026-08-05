@@ -15,9 +15,15 @@
  *   · glue_sum_block_slice_reent_dc_bytes_c
  *   · w157_sum_expr_call_spill_bytes (private walk)
  *
+ * wave158 pure-owned CFG merge/phi + def-offs collect (same pure TU):
+ *   · glue_cfg_def_offs_contains / glue_cfg_def_offs_add
+ *   · glue_cfg_collect_block_def_offs_elf_c
+ *   · glue_asm_cache_invalidate_at_cfg_merge_selective
+ *   · glue_asm_if_phi_invalidate_both_branch_defs
+ *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + accessors
- *   · 7.3 live_fwd / CFG merge / phi / break/continue
+ *   · 7.3 live_fwd / break/continue / loop live-merge
  *   · Chaitin K=6 coloring + stack-spill preference + evict
  *   · index scratch spill methods + binop_stack_spill bodies
  *     (CAP statics in pipeline_asm_emit_index_helpers.c)
@@ -51,6 +57,17 @@ int32_t glue_enc_swap_rax_rbx_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf
 int32_t glue_expr_kind_is_assign_like_ord(int32_t ko);
 void glue_binop_kill_assign_lhs_slots_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                             int32_t assign_expr_ref);
+
+/* wave158 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * Residual live_fwd_add + loop_phi call collect/add. PLATFORM: SHARED. */
+int32_t glue_cfg_def_offs_contains(const int32_t *buf, int32_t n, int32_t off);
+void glue_cfg_def_offs_add(int32_t *buf, int32_t cap, int32_t *n, int32_t off);
+void glue_cfg_collect_block_def_offs_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                           int32_t block_ref, int32_t *buf, int32_t cap, int32_t *n);
+void glue_asm_cache_invalidate_at_cfg_merge_selective(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                      int32_t branch_a_ref, int32_t branch_b_ref);
+void glue_asm_if_phi_invalidate_both_branch_defs(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                 int32_t then_ref, int32_t else_ref);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -276,158 +293,13 @@ int32_t ast_pipeline_block_const_init_ref(struct ast_ASTArena *a, int32_t br, in
 int32_t ast_pipeline_block_let_init_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
 struct ast_Block *pipeline_arena_block_ptr(struct ast_ASTArena *a, int32_t block_ref);
 
-/** CFG 汇合点收集的写槽 off 上限（块内 let/assign 并集）。 */
+/** CFG 汇合点收集的写槽 off 上限（块内 let/assign 并集；pure collect 同 cap=32）。 */
 #define GLUE_CFG_DEF_OFFS_CAP 32
 
-/** 写槽列表是否已含 off。 */
-static int32_t glue_cfg_def_offs_contains(const int32_t *buf, int32_t n, int32_t off) {
-  int32_t i;
-  for (i = 0; i < n; i++) {
-    if (buf[i] == off)
-      return 1;
-  }
-  return 0;
-}
+/* wave158: pure owns glue_cfg_def_offs_* / collect / selective / if_phi (extern above).
+ * Residual live_fwd_add + loop_phi call pure collect/add. PLATFORM: SHARED. */
 
-/** 向写槽并集追加一项（去重）。 */
-static void glue_cfg_def_offs_add(int32_t *buf, int32_t cap, int32_t *n, int32_t off) {
-  if (!buf || !n || off < 0 || *n >= cap)
-    return;
-  if (glue_cfg_def_offs_contains(buf, *n, off))
-    return;
-  buf[(*n)++] = off;
-}
-
-/**
- * 7.3：扫描块 stmt_order，收集本块（含嵌套 if/while/for 体）内被定义的栈槽 off。
- * let/const 初值写槽与 assign-like 左值 VAR 均视为定义点。
- */
-static void glue_cfg_collect_block_def_offs_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                   int32_t block_ref, int32_t *buf, int32_t cap, int32_t *n) {
-  int32_t nso;
-  int32_t i;
-  int32_t slot_base;
-  int32_t nconst;
-  int32_t nlet;
-  if (!arena || !ctx || block_ref <= 0 || !buf || !n || cap <= 0)
-    return;
-  nso = ast_ast_block_num_stmt_order(arena, block_ref);
-  slot_base = backend_block_slot_base_for(ctx, arena, block_ref);
-  nconst = ast_ast_block_num_consts(arena, block_ref);
-  nlet = ast_ast_block_num_lets(arena, block_ref);
-  for (i = 0; i < nso; i++) {
-    uint8_t item_kind = ast_ast_block_stmt_order_kind(arena, block_ref, i);
-    int32_t idx = ast_ast_block_stmt_order_idx(arena, block_ref, i);
-    if (item_kind == 0) {
-      if (idx >= 0 && idx < nconst)
-        glue_cfg_def_offs_add(buf, cap, n, backend_asm_ctx_slot_offset(ctx, slot_base + idx));
-    } else if (item_kind == 1) {
-      if (idx >= 0 && idx < nlet)
-        glue_cfg_def_offs_add(buf, cap, n, backend_asm_ctx_slot_offset(ctx, slot_base + nconst + idx));
-    } else if (item_kind == 2) {
-      if (idx >= 0 && idx < ast_ast_block_num_expr_stmts(arena, block_ref)) {
-        int32_t expr_ref = ast_pipeline_block_expr_stmt_ref(arena, block_ref, idx);
-        int32_t left_ref;
-        int32_t off;
-        if (expr_ref > 0 && glue_expr_kind_is_assign_like_ord(pipeline_expr_kind_ord_at(arena, expr_ref))) {
-          left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
-          if (left_ref > 0 && pipeline_expr_kind_ord_at(arena, left_ref) == GLUE_EXPR_KIND_VAR) {
-            off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
-            glue_cfg_def_offs_add(buf, cap, n, off);
-          }
-        }
-      }
-    } else if (item_kind == 3) {
-      if (idx >= 0 && idx < ast_ast_block_num_loops(arena, block_ref)) {
-        int32_t body_ref = ast_ast_block_while_body_ref(arena, block_ref, idx);
-        if (body_ref > 0)
-          glue_cfg_collect_block_def_offs_elf_c(arena, ctx, body_ref, buf, cap, n);
-      }
-    } else if (item_kind == 4) {
-      if (idx >= 0 && idx < ast_ast_block_num_for_loops(arena, block_ref)) {
-        int32_t body_ref = ast_ast_block_for_body_ref(arena, block_ref, idx);
-        if (body_ref > 0)
-          glue_cfg_collect_block_def_offs_elf_c(arena, ctx, body_ref, buf, cap, n);
-      }
-    } else if (item_kind == 5) {
-      if (idx >= 0 && idx < ast_ast_block_num_if_stmts(arena, block_ref)) {
-        int32_t then_ref = ast_pipeline_block_if_then_body_ref(arena, block_ref, idx);
-        int32_t else_ref = ast_pipeline_block_if_else_body_ref(arena, block_ref, idx);
-        if (then_ref > 0)
-          glue_cfg_collect_block_def_offs_elf_c(arena, ctx, then_ref, buf, cap, n);
-        if (else_ref > 0)
-          glue_cfg_collect_block_def_offs_elf_c(arena, ctx, else_ref, buf, cap, n);
-      }
-    } else if (item_kind == 6) {
-      /** M-3 / MEM-C1：region 与 with_arena 共用 kind=6；运行时等价嵌套块体。 */
-      if (idx >= 0 && idx < ast_ast_block_num_regions(arena, block_ref)) {
-        int32_t reg_body = ast_ast_block_region_body_ref(arena, block_ref, idx);
-        if (reg_body > 0)
-          glue_cfg_collect_block_def_offs_elf_c(arena, ctx, reg_body, buf, cap, n);
-      }
-    }
-  }
-}
-
-/** 按 off 列表失效 binop 槽命中，并清空 rax 缓存位。 */
-static void glue_binop_invalidate_slots_in_list(const int32_t *offs, int32_t n) {
-  int32_t i;
-  glue_binop_var_slot_cache_invalidate_rax();
-  for (i = 0; i < n; i++)
-    glue_binop_var_slot_cache_invalidate_slot(offs[i]);
-}
-
-/**
- * 7.3 CFG 汇合点：按分支写槽并集选择性失效 binop 槽；INDEX 址 cache 仍保守清空。
- * branch_b_ref==0 时仅扫描 branch_a（用于 while/for 单入口体）。
- */
-/* wave129 Cap residual: pure block_if leave + residual fold/while (was static).
- * PLATFORM: SHARED freestanding emit. */
-void glue_asm_cache_invalidate_at_cfg_merge_selective(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                      int32_t branch_a_ref, int32_t branch_b_ref) {
-  int32_t offs[GLUE_CFG_DEF_OFFS_CAP];
-  int32_t n = 0;
-  glue_index_assign_addr_cache_clear();
-  if (branch_a_ref > 0)
-    glue_cfg_collect_block_def_offs_elf_c(arena, ctx, branch_a_ref, offs, GLUE_CFG_DEF_OFFS_CAP, &n);
-  if (branch_b_ref > 0)
-    glue_cfg_collect_block_def_offs_elf_c(arena, ctx, branch_b_ref, offs, GLUE_CFG_DEF_OFFS_CAP, &n);
-  if (n == 0)
-    glue_binop_var_slot_cache_clear();
-  else
-    glue_binop_invalidate_slots_in_list(offs, n);
-}
-
-/**
- * 7.3 if φ（最小）：then/else 均定义同一栈槽时显式失效 binop cache（两路径版本合并）。
- * 与 selective 并集 kill 互补：强调「双支写」槽不可沿用汇合前 rax/rbx 中的旧值。
- */
-/* wave129 Cap residual: pure block_if leave (was static). PLATFORM: SHARED. */
-void glue_asm_if_phi_invalidate_both_branch_defs(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                 int32_t then_ref, int32_t else_ref) {
-  int32_t then_offs[GLUE_CFG_DEF_OFFS_CAP];
-  int32_t else_offs[GLUE_CFG_DEF_OFFS_CAP];
-  int32_t then_n;
-  int32_t else_n;
-  int32_t i;
-  int32_t j;
-  if (!arena || !ctx || then_ref <= 0 || else_ref <= 0)
-    return;
-  then_n = 0;
-  else_n = 0;
-  glue_cfg_collect_block_def_offs_elf_c(arena, ctx, then_ref, then_offs, GLUE_CFG_DEF_OFFS_CAP, &then_n);
-  glue_cfg_collect_block_def_offs_elf_c(arena, ctx, else_ref, else_offs, GLUE_CFG_DEF_OFFS_CAP, &else_n);
-  for (i = 0; i < then_n; i++) {
-    for (j = 0; j < else_n; j++) {
-      if (then_offs[i] == else_offs[j] && then_offs[i] >= 0)
-        glue_binop_var_slot_cache_invalidate_slot(then_offs[i]);
-    }
-  }
-  if (then_n > 0 && else_n > 0)
-    glue_binop_var_slot_cache_invalidate_rax();
-}
-
-/** 无分支体信息时回退为整表清空。 */
+/** 无分支体信息时回退为整表清空（Cap residual; pure selective is preferred). */
 static void glue_asm_cache_invalidate_at_cfg_merge(void) {
   glue_index_assign_addr_cache_clear();
   glue_binop_var_slot_cache_clear();

@@ -24809,4 +24809,37 @@ int32_t glue_asm_sum_block_call_spill_bytes(void *arena, int32_t block_ref) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
+/*
+ * wave158 cold twins: CFG merge/phi + def-offs collect pure-owned faces.
+ * Freestanding-safe stubs (no-op / return 0). Hybrid product links pure.
+ * PLATFORM: SHARED.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+int32_t glue_cfg_def_offs_contains(const int32_t *buf, int32_t n, int32_t off) {
+  (void)buf; (void)n; (void)off;
+  return 0;
+}
+
+void glue_cfg_def_offs_add(int32_t *buf, int32_t cap, int32_t *n, int32_t off) {
+  (void)buf; (void)cap; (void)n; (void)off;
+}
+
+void glue_cfg_collect_block_def_offs_elf_c(void *arena, void *ctx, int32_t block_ref, int32_t *buf, int32_t cap,
+                                           int32_t *n) {
+  (void)arena; (void)ctx; (void)block_ref; (void)buf; (void)cap; (void)n;
+}
+
+void glue_asm_cache_invalidate_at_cfg_merge_selective(void *arena, void *ctx, int32_t branch_a_ref,
+                                                      int32_t branch_b_ref) {
+  (void)arena; (void)ctx; (void)branch_a_ref; (void)branch_b_ref;
+}
+
+void glue_asm_if_phi_invalidate_both_branch_defs(void *arena, void *ctx, int32_t then_ref, int32_t else_ref) {
+  (void)arena; (void)ctx; (void)then_ref; (void)else_ref;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

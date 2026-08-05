@@ -1058,14 +1058,15 @@ export extern "C" function backend_ensure_block_local_slots(ctx: *u8, arena: *u8
 export extern "C" function glue_block_fill_live_end_for_merge(arena: *u8, ctx: *u8, block_ref: i32, out_live: *u8): void;
 // wave153 pure-owned: glue_block_stmt_order_has_return body in EOF section.
 export extern "C" function glue_live_fwd_copy_from_snap_before_if(dst_live: *u8): void;
-export extern "C" function glue_asm_cache_invalidate_at_cfg_merge_selective(arena: *u8, ctx: *u8, branch_a: i32, branch_b: i32): void;
+// wave158 pure-owned: glue_asm_cache_invalidate_at_cfg_merge_selective +
+// glue_asm_if_phi_invalidate_both_branch_defs + glue_cfg_collect/add/contains
+// live in EOF section (was Cap residual spill).
 // wave155 Cap residual (spill un-static): loop live-merge faces for pure while/for leave.
 export extern "C" function glue_loop_break_exit_push(): void;
 export extern "C" function glue_loop_break_exit_pop(): void;
 export extern "C" function glue_asm_loop_phi_invalidate_carried_defs(arena: *u8, ctx: *u8, body_ref: i32): void;
 export extern "C" function glue_asm_loop_merge_live_union(arena: *u8, ctx: *u8, body_ref: i32): void;
 export extern "C" function glue_live_fwd_apply_expr_effect(arena: *u8, ctx: *u8, expr_ref: i32): void;
-export extern "C" function glue_asm_if_phi_invalidate_both_branch_defs(arena: *u8, ctx: *u8, then_ref: i32, else_ref: i32): void;
 export extern "C" function glue_asm_if_merge_live_union_from_ends(arena: *u8, ctx: *u8, then_live: *u8, else_live: *u8): void;
 // wave141: pipeline_asm_fill_local_slots pure export below (emit-context leave).
 // wave153 pure-owned: backend_emit_block_body_sync_elf body in EOF section.
@@ -52184,3 +52185,326 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
 }
 
 // end wave157 pure-owned leave
+
+// ============================================================================
+// wave158 pure-owned leave: CFG merge/phi binop-cache invalidate + def-offs collect
+// (was Cap residual head of pipeline_asm_emit_spill.c).
+// Public faces:
+//   · glue_cfg_def_offs_contains / glue_cfg_def_offs_add
+//   · glue_cfg_collect_block_def_offs_elf_c
+//   · glue_asm_cache_invalidate_at_cfg_merge_selective
+//   · glue_asm_if_phi_invalidate_both_branch_defs
+// Cap residual remaining in spill: binop VAR slot cache BSS, 7.3 live_fwd /
+// Chaitin / break-continue, index-scratch methods (calls pure collect/add).
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 CFG merge · dual-end L2.
+// ============================================================================
+
+/**
+ * True when off is already present in buf[0..n).
+ * @param buf *i32 - off list; null → 0
+ * @param n i32 - valid count
+ * @param off i32 - stack slot off to test
+ * @return i32 - 1 present; 0 absent/null
+ * wave158 pure-owned. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_cfg_def_offs_contains(buf: *i32, n: i32, off: i32): i32 {
+  let i: i32 = 0;
+  if (buf == (0 as *i32) || n <= 0) {
+    return 0;
+  }
+  while (i < n) {
+    if (buf[i] == off) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Append off into buf if not already present and n < cap.
+ * @param buf *i32 - off list storage
+ * @param cap i32 - capacity (caller holds; typically 32)
+ * @param n_ptr *i32 - in/out valid count
+ * @param off i32 - stack slot off; <0 ignored
+ * wave158 pure-owned. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_cfg_def_offs_add(buf: *i32, cap: i32, n_ptr: *i32, off: i32): void {
+  let n: i32 = 0;
+  if (buf == (0 as *i32) || n_ptr == (0 as *i32) || off < 0 || cap <= 0) {
+    return;
+  }
+  n = n_ptr[0];
+  if (n >= cap) {
+    return;
+  }
+  if (glue_cfg_def_offs_contains(buf, n, off) != 0) {
+    return;
+  }
+  buf[n] = off;
+  n_ptr[0] = n + 1;
+}
+
+/**
+ * Scan block stmt_order (nested if/while/for/region bodies) collecting defined
+ * stack-slot offs: const/let homes + assign-like LHS VAR slots.
+ * Soft leave-off: mutates *n_ptr and buf entries; recursive on nested bodies.
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param block_ref i32 - block pool ref; <=0 no-op
+ * @param buf *i32 - off list storage
+ * @param cap i32 - capacity
+ * @param n_ptr *i32 - in/out count
+ * wave158 pure-owned. PLATFORM: SHARED freestanding 7.3 CFG.
+ */
+#[no_mangle]
+export function glue_cfg_collect_block_def_offs_elf_c(arena: *u8, ctx: *u8, block_ref: i32, buf: *i32, cap: i32, n_ptr: *i32): void {
+  let nso: i32 = 0;
+  let i: i32 = 0;
+  let slot_base: i32 = 0;
+  let nconst: i32 = 0;
+  let nlet: i32 = 0;
+  let item_kind: i32 = 0;
+  let idx: i32 = 0;
+  let expr_ref: i32 = 0;
+  let left_ref: i32 = 0;
+  let off: i32 = 0;
+  let body_ref: i32 = 0;
+  let then_ref: i32 = 0;
+  let else_ref: i32 = 0;
+  let reg_body: i32 = 0;
+  let n_es: i32 = 0;
+  let ko: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || block_ref <= 0 || buf == (0 as *i32) || n_ptr == (0 as *i32) || cap <= 0) {
+    return;
+  }
+  unsafe {
+    nso = ast_ast_block_num_stmt_order(arena, block_ref);
+    slot_base = backend_block_slot_base_for(ctx, arena, block_ref);
+    nconst = ast_ast_block_num_consts(arena, block_ref);
+    nlet = ast_ast_block_num_lets(arena, block_ref);
+  }
+  i = 0;
+  while (i < nso) {
+    unsafe {
+      item_kind = ast_ast_block_stmt_order_kind(arena, block_ref, i);
+      idx = ast_ast_block_stmt_order_idx(arena, block_ref, i);
+    }
+    // const
+    if (item_kind == 0) {
+      if (idx >= 0 && idx < nconst) {
+        unsafe {
+          off = backend_asm_ctx_slot_offset(ctx, slot_base + idx);
+        }
+        glue_cfg_def_offs_add(buf, cap, n_ptr, off);
+      }
+    } else if (item_kind == 1) {
+      // let
+      if (idx >= 0 && idx < nlet) {
+        unsafe {
+          off = backend_asm_ctx_slot_offset(ctx, slot_base + nconst + idx);
+        }
+        glue_cfg_def_offs_add(buf, cap, n_ptr, off);
+      }
+    } else if (item_kind == 2) {
+      // expr_stmt: assign-like LHS VAR is a def
+      unsafe {
+        n_es = ast_ast_block_num_expr_stmts(arena, block_ref);
+      }
+      if (idx >= 0 && idx < n_es) {
+        unsafe {
+          expr_ref = ast_pipeline_block_expr_stmt_ref(arena, block_ref, idx);
+        }
+        if (expr_ref > 0) {
+          unsafe {
+            ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+          }
+          if (glue_expr_kind_is_assign_like_ord(ko) != 0) {
+            unsafe {
+              left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+            }
+            if (left_ref > 0) {
+              unsafe {
+                ko = pipeline_expr_kind_ord_at(arena, left_ref);
+              }
+              // EXPR_VAR = 3
+              if (ko == 3) {
+                unsafe {
+                  off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
+                }
+                glue_cfg_def_offs_add(buf, cap, n_ptr, off);
+              }
+            }
+          }
+        }
+      }
+    } else if (item_kind == 3) {
+      // while body
+      unsafe {
+        n_es = ast_ast_block_num_loops(arena, block_ref);
+      }
+      if (idx >= 0 && idx < n_es) {
+        unsafe {
+          body_ref = ast_ast_block_while_body_ref(arena, block_ref, idx);
+        }
+        if (body_ref > 0) {
+          glue_cfg_collect_block_def_offs_elf_c(arena, ctx, body_ref, buf, cap, n_ptr);
+        }
+      }
+    } else if (item_kind == 4) {
+      // for body
+      unsafe {
+        n_es = ast_ast_block_num_for_loops(arena, block_ref);
+      }
+      if (idx >= 0 && idx < n_es) {
+        unsafe {
+          body_ref = ast_ast_block_for_body_ref(arena, block_ref, idx);
+        }
+        if (body_ref > 0) {
+          glue_cfg_collect_block_def_offs_elf_c(arena, ctx, body_ref, buf, cap, n_ptr);
+        }
+      }
+    } else if (item_kind == 5) {
+      // if then/else
+      unsafe {
+        n_es = ast_ast_block_num_if_stmts(arena, block_ref);
+      }
+      if (idx >= 0 && idx < n_es) {
+        unsafe {
+          then_ref = ast_pipeline_block_if_then_body_ref(arena, block_ref, idx);
+          else_ref = ast_pipeline_block_if_else_body_ref(arena, block_ref, idx);
+        }
+        if (then_ref > 0) {
+          glue_cfg_collect_block_def_offs_elf_c(arena, ctx, then_ref, buf, cap, n_ptr);
+        }
+        if (else_ref > 0) {
+          glue_cfg_collect_block_def_offs_elf_c(arena, ctx, else_ref, buf, cap, n_ptr);
+        }
+      }
+    } else if (item_kind == 6) {
+      // region / with_arena nested body
+      unsafe {
+        n_es = ast_ast_block_num_regions(arena, block_ref);
+      }
+      if (idx >= 0 && idx < n_es) {
+        unsafe {
+          reg_body = pipeline_block_region_body_ref(arena, block_ref, idx);
+        }
+        if (reg_body > 0) {
+          glue_cfg_collect_block_def_offs_elf_c(arena, ctx, reg_body, buf, cap, n_ptr);
+        }
+      }
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * Invalidate binop cache slots listed in offs[0..n) and clear rax cache bit.
+ * Private helper for selective merge (not exported).
+ * @param offs *i32 - off list
+ * @param n i32 - count
+ * wave158 pure helper. PLATFORM: SHARED.
+ */
+function w158_invalidate_slots_in_list(offs: *i32, n: i32): void {
+  let i: i32 = 0;
+  unsafe {
+    glue_binop_var_slot_cache_invalidate_rax();
+  }
+  if (offs == (0 as *i32) || n <= 0) {
+    return;
+  }
+  while (i < n) {
+    unsafe {
+      glue_binop_var_slot_cache_invalidate_slot(offs[i]);
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * 7.3 CFG merge: selectively invalidate binop slots for defs in branch_a ∪ branch_b.
+ * INDEX assign-addr cache is always cleared (conservative).
+ * branch_b_ref==0 scans only branch_a (while/for single body entry).
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param branch_a_ref i32 - first branch body ref; <=0 skipped
+ * @param branch_b_ref i32 - second branch; 0 = single-body path
+ * wave158 pure-owned (was Cap residual; block_if/fold call sites).
+ * PLATFORM: SHARED freestanding 7.3 CFG.
+ */
+#[no_mangle]
+export function glue_asm_cache_invalidate_at_cfg_merge_selective(arena: *u8, ctx: *u8, branch_a_ref: i32, branch_b_ref: i32): void {
+  let offs: i32[32] = [];
+  let n_slot: i32[1] = [];
+  let n: i32 = 0;
+  glue_index_assign_addr_cache_clear();
+  n_slot[0] = 0;
+  if (branch_a_ref > 0) {
+    glue_cfg_collect_block_def_offs_elf_c(arena, ctx, branch_a_ref, &offs[0], 32, &n_slot[0]);
+  }
+  if (branch_b_ref > 0) {
+    glue_cfg_collect_block_def_offs_elf_c(arena, ctx, branch_b_ref, &offs[0], 32, &n_slot[0]);
+  }
+  n = n_slot[0];
+  if (n == 0) {
+    unsafe {
+      glue_binop_var_slot_cache_clear();
+    }
+  } else {
+    w158_invalidate_slots_in_list(&offs[0], n);
+  }
+}
+
+/**
+ * 7.3 if φ (minimal): invalidate binop cache for slots defined on both then and else.
+ * Complements selective union kill: dual-write slots must not reuse pre-merge rax/rbx.
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param then_ref i32 - then body; <=0 no-op
+ * @param else_ref i32 - else body; <=0 no-op
+ * wave158 pure-owned. PLATFORM: SHARED freestanding 7.3 CFG.
+ */
+#[no_mangle]
+export function glue_asm_if_phi_invalidate_both_branch_defs(arena: *u8, ctx: *u8, then_ref: i32, else_ref: i32): void {
+  let then_offs: i32[32] = [];
+  let else_offs: i32[32] = [];
+  let then_n_slot: i32[1] = [];
+  let else_n_slot: i32[1] = [];
+  let then_n: i32 = 0;
+  let else_n: i32 = 0;
+  let i: i32 = 0;
+  let j: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || then_ref <= 0 || else_ref <= 0) {
+    return;
+  }
+  then_n_slot[0] = 0;
+  else_n_slot[0] = 0;
+  glue_cfg_collect_block_def_offs_elf_c(arena, ctx, then_ref, &then_offs[0], 32, &then_n_slot[0]);
+  glue_cfg_collect_block_def_offs_elf_c(arena, ctx, else_ref, &else_offs[0], 32, &else_n_slot[0]);
+  then_n = then_n_slot[0];
+  else_n = else_n_slot[0];
+  i = 0;
+  while (i < then_n) {
+    j = 0;
+    while (j < else_n) {
+      if (then_offs[i] == else_offs[j] && then_offs[i] >= 0) {
+        unsafe {
+          glue_binop_var_slot_cache_invalidate_slot(then_offs[i]);
+        }
+      }
+      j = j + 1;
+    }
+    i = i + 1;
+  }
+  if (then_n > 0 && else_n > 0) {
+    unsafe {
+      glue_binop_var_slot_cache_invalidate_rax();
+    }
+  }
+}
+
+// end wave158 pure-owned leave

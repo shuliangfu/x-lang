@@ -338,7 +338,7 @@ extern int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(struct ast_ASTAren
 
 /* BC 8.3.1: asm ELF 7.3 live / Chaitin spill Cap residual
  * (live_fwd + color + break/continue + binop slot cache + index scratch
- * methods). wave156 pure slices + wave157 frame-sum cluster →
+ * methods). wave156 pure slices + wave157 frame-sum + wave158 CFG merge/phi →
  * runtime_pipeline_abi pure (#[no_mangle]; seed cold twins).
  * PLATFORM: SHARED. */
 #include "pipeline_asm_emit_spill.c"
