@@ -1007,6 +1007,15 @@ try_ensure_r1_one() {
     echo "ensure_host_cc_seed_o try-r1: need <out.o>" >&2
     exit 2
   fi
+  # wave176: product PREFER hybrid for pipeline_abi (pure thin + seed rest under
+  # FROM_X). Cold ensure_one of the full seed fails type conflicts and would
+  # wipe a good hybrid .o mid bootstrap-driver-seed sat rebuild. G.7: reuse
+  # ensure_pipeline_abi_prefer_one (wave767) — no second recipe.
+  # PLATFORM: SHARED · PREFER=1 product path only.
+  if [ "$o" = "src/runtime_pipeline_abi.o" ] && [ "${XLANG_G05_PREFER_X_O:-0}" = "1" ]; then
+    ensure_pipeline_abi_prefer_one "$o"
+    return 0
+  fi
   if ! seed_mode="$(r1_seed_mode_for_o "$o")"; then
     # Not pure R1 — honest residual for R2/R3/gen/etc.
     return 3
@@ -2864,15 +2873,18 @@ ensure_pipeline_abi_prefer_one() {
   fi
 
   # Cold full seed (ensure_one twin / PREFER=0) with XLANG_USE_X_PIPELINE.
+  # wave176: when product PREFER=1 and hybrid failed, do NOT FORCE-wipe an
+  # existing hybrid .o with a cold full-seed compile (cold seed currently
+  # fails type conflicts and leaves OUT missing → pure-ld phase1 fails).
+  # Keep prior OUT if present; only cold-compile when PREFER≠1 or OUT missing.
+  # PLATFORM: SHARED freestanding product PREFER path.
   cold_flags="$(pipeline_abi_prefer_cflags)"
   # shellcheck disable=SC2086
-  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
-    FORCE=1
-    ensure_one "$o" "$seed" $cold_flags
-    FORCE=0
-  else
-    ensure_one "$o" "$seed" $cold_flags
+  if [ "$prefer" = "1" ] && [ -f "$o" ]; then
+    log "pipeline_abi hybrid failed; keep existing $o (skip cold wipe, wave176)"
+    return 0
   fi
+  ensure_one "$o" "$seed" $cold_flags
   return 0
 }
 

@@ -1026,7 +1026,7 @@ export extern "C" function glue_block_live_fwd_clear_global(): void;
 export extern "C" function glue_live_snap_before_if_copy_from_block_live_fwd(): void;
 export extern "C" function glue_block_live_sub_exit_snap_clear(): void;
 export extern "C" function glue_block_live_sub_exit_snap_copy_from_block_live_fwd(): void;
-export extern "C" function glue_block_compute_live_end_linear_to_sub_exit_snap(arena: *u8, ctx: *u8, block_ref: i32): void;
+// wave176 pure-owned: glue_block_compute_live_end_linear_to_sub_exit_snap (#[no_mangle] below).
 export extern "C" function glue_block_live_fwd_set_from_expr_uses(arena: *u8, ctx: *u8, expr_ref: i32): void;
 export extern "C" function glue_live_fwd_n_get(live: *u8): i32;
 export extern "C" function glue_live_fwd_off_at(live: *u8, i: i32): i32;
@@ -1035,7 +1035,7 @@ export extern "C" function glue_live_fwd_add_u8(live: *u8, off: i32): void;
 // wave154 pure-owned: pipeline_expr_struct_lit_num_fields body in EOF section.
 export extern "C" function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_ref: i32, j: i32): i32;
 /* wave167: pure owns glue_block_compute_cfg_peak_live_and_color + note_cfg_live_peak (#[no_mangle] below). */
-export extern "C" function glue_block_compute_linear_live_in(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32): void;
+// wave176 pure-owned: glue_block_compute_linear_live_in (#[no_mangle] below).
 /* wave167 Cap residual: thin faces for pure cfg interf peak + color entry. */
 export extern "C" function glue_asm73_cfg_interf_prepare(): void;
 /* wave168: pure owns glue_block_simulate_cfg_live + from_empty (#[no_mangle] below). */
@@ -1047,15 +1047,14 @@ export extern "C" function glue_asm73_linear_max_live_n_maybe_raise(n: i32): voi
 export extern "C" function glue_asm73_cfg_peak_snapshot_from_u8(live: *u8, stmt_i: i32): void;
 /* wave168 Cap residual: thin faces for pure cfg simulate walk. */
 export extern "C" function glue_live_fwd_copy_u8(dst: *u8, src: *u8): void;
-export extern "C" function glue_block_stmt_gen_kill_u8(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32, stmt_i: i32, gen: *u8, kill: *u8): void;
-export extern "C" function glue_live_fwd_apply_stmt_gen_kill_u8(live: *u8, gen: *u8, kill: *u8): void;
+// wave176 pure-owned: glue_block_stmt_gen_kill_u8 + glue_live_fwd_apply_stmt_gen_kill_u8 (#[no_mangle] below).
 export extern "C" function glue_asm73_interf_push(): void;
 export extern "C" function glue_asm73_interf_pop_merge(): void;
 export extern "C" function glue_asm73_cfg_final_expr_use_n_set(n: i32): void;
 /* wave165: pure owns glue_asm73_compute_spill_color_pins (#[no_mangle] below). */
 export extern "C" function glue_asm73_clear_spill_color_map(): void;
 /* wave173: pure owns glue_block_live_fwd_before_stmt + apply_top_stmt (#[no_mangle] below). */
-export extern "C" function glue_live_fwd_forward_after_def(arena: *u8, ctx: *u8, def_off: i32, init_ref: i32): void;
+// wave176 pure-owned: glue_live_fwd_forward_after_def (#[no_mangle] below).
 /* wave163: pure owns glue_binop_cache_intersect_live_fwd (#[no_mangle] below). */
 export extern "C" function glue_block_live_fwd_contains_off(off: i32): i32;
 /* wave164 Cap residual: thin faces for pure Chaitin coloring leave. */
@@ -1063,7 +1062,7 @@ export extern "C" function glue_asm73_interf_n_get(): i32;
 export extern "C" function glue_asm73_interf_off_at(i: i32): i32;
 export extern "C" function glue_asm73_interf_has_edge(i: i32, j: i32): i32;
 export extern "C" function glue_asm73_linear_nso_get(): i32;
-export extern "C" function glue_asm73_linear_next_use_dist(from_stmt: i32, off: i32): i32;
+// wave176 pure-owned: glue_asm73_linear_next_use_dist (#[no_mangle] below).
 export extern "C" function glue_asm73_set_spill_color(off: i32, which: i32): void;
 export extern "C" function glue_asm73_off_spill_color_which(off: i32): i32;
 export extern "C" function glue_asm73_pin_spill_off_set(which: i32, off: i32): void;
@@ -1084,6 +1083,20 @@ export extern "C" function glue_asm73_stack_spill_enabled(): i32;
 export extern "C" function glue_asm73_linear_max_live_n_get(): i32;
 export extern "C" function glue_asm73_off_is_spill_pin(off: i32): i32;
 export extern "C" function glue_binop_var_slot_cache_set_spill_slot(which: i32, off: i32): void;
+/* wave176 Cap residual: thin faces for pure linear live reverse DF leave. */
+export extern "C" function glue_live_fwd_remove_u8(live: *u8, off: i32): void;
+export extern "C" function glue_live_fwd_contains_u8(live: *u8, off: i32): i32;
+export extern "C" function glue_block_live_at_stmt_copy_from_u8(stmt_i: i32, live: *u8): void;
+export extern "C" function glue_block_live_sub_exit_snap_copy_from_u8(src: *u8): void;
+export extern "C" function glue_block_live_fwd_remove_off(off: i32): void;
+export extern "C" function glue_block_live_fwd_add_off(off: i32): void;
+export extern "C" function glue_asm73_linear_arena_get(): *u8;
+export extern "C" function glue_asm73_linear_ctx_get(): *u8;
+export extern "C" function glue_asm73_linear_block_ref_get(): i32;
+export extern "C" function glue_asm73_linear_slot_base_get(): i32;
+export extern "C" function glue_asm73_linear_nconst_get(): i32;
+export extern "C" function glue_asm73_linear_nlet_get(): i32;
+export extern "C" function glue_asm73_linear_max_live_n_set(n: i32): void;
 export extern "C" function glue_binop_var_slot_cache_valid_x10_get(): i32;
 export extern "C" function glue_binop_var_slot_cache_valid_x11_get(): i32;
 export extern "C" function glue_binop_var_slot_cache_valid_x12_get(): i32;
@@ -1152,8 +1165,7 @@ export extern "C" function glue_live_fwd_copy_from_snap_before_if(dst_live: *u8)
 // wave155 Cap residual (spill un-static): break push/pop (step effect → pure wave161).
 export extern "C" function glue_loop_break_exit_push(): void;
 export extern "C" function glue_loop_break_exit_pop(): void;
-// Cap residual collect for apply_expr_effect gen set (VAR/binop/RETURN only).
-export extern "C" function glue_live_fwd_collect_expr_uses(arena: *u8, ctx: *u8, expr_ref: i32, gen: *u8): void;
+// wave176 pure-owned: glue_live_fwd_collect_expr_uses (#[no_mangle] below).
 // wave160 Cap residual thin accessors for pure live-merge leave (BSS still spill).
 export extern "C" function glue_block_live_fwd_copy_from_u8(src: *u8): void;
 // wave161 Cap residual: union opaque gen into global block_live_fwd.
@@ -55272,6 +55284,528 @@ export function glue_asm73_spill_pick_evict_which(stmt_i: i32, new_off: i32, dis
 }
 
 // end wave175 pure-owned leave
+
+// ============================================================================
+// wave176 pure-owned leave: linear live reverse DF + gen/kill + next-use
+// (was Cap residual spill).
+// Public faces:
+//   · glue_live_fwd_collect_expr_uses
+//   · glue_block_stmt_gen_kill_u8
+//   · glue_live_fwd_apply_stmt_gen_kill_u8
+//   · glue_block_compute_linear_live_in
+//   · glue_block_compute_live_end_linear
+//   · glue_block_compute_live_end_linear_to_sub_exit_snap
+//   · glue_live_fwd_forward_after_def
+//   · glue_asm73_linear_next_use_dist
+// Cap residual: live_fwd / live_at_stmt / linear ctx BSS + thin remove/contains/
+// live_at_stmt_copy / linear getters / sub_exit snap stamp / max_live set.
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * Collect VAR stack-slot uses from expr into opaque gen live overlay.
+ * Covers VAR (kind 3), binary ops (kind 4..21), and unary operand (kind 41).
+ * @param arena *u8 - ast_ASTArena*
+ * @param ctx *u8 - backend_AsmFuncCtx*
+ * @param expr_ref i32 - expression ref; <=0 → no-op
+ * @param gen *u8 - GlueBlockLiveFwd* overlay; null → no-op
+ * @return void
+ * wave176 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_live_fwd_collect_expr_uses(arena: *u8, ctx: *u8, expr_ref: i32, gen: *u8): void {
+  let ko: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let op_ref: i32 = 0;
+  let off: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || gen == (0 as *u8) || expr_ref <= 0) {
+    return;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  // GLUE_EXPR_KIND_VAR == 3
+  if (ko == 3) {
+    unsafe {
+      off = glue_var_expr_stack_off_elf_c(arena, ctx, expr_ref);
+      glue_live_fwd_add_u8(gen, off);
+    }
+    return;
+  }
+  if (ko >= 4 && ko <= 21) {
+    unsafe {
+      left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+      right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    }
+    glue_live_fwd_collect_expr_uses(arena, ctx, left_ref, gen);
+    glue_live_fwd_collect_expr_uses(arena, ctx, right_ref, gen);
+    return;
+  }
+  // residual path: kind 41 uses unary operand walk
+  if (ko == 41) {
+    unsafe {
+      op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    }
+    glue_live_fwd_collect_expr_uses(arena, ctx, op_ref, gen);
+  }
+}
+
+/**
+ * Fill gen/kill for stmt_order[stmt_i] into opaque live overlays.
+ * kill = defined stack slots; gen = rvalue/init VAR uses.
+ * item_kind: 0=const, 1=let, 2=expr_stmt (assign-like kills VAR lhs).
+ * @param arena / ctx / block_ref / slot_base / nconst / nlet / stmt_i - linear block bind
+ * @param gen *u8 - GlueBlockLiveFwd* uses; null → no-op
+ * @param kill *u8 - GlueBlockLiveFwd* defs; null → no-op
+ * @return void
+ * wave176 pure-owned (was Cap residual static gen_kill + thin u8).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_block_stmt_gen_kill_u8(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32, stmt_i: i32, gen: *u8, kill: *u8): void {
+  let item_kind: i32 = 0;
+  let idx: i32 = 0;
+  let expr_ref: i32 = 0;
+  let left_ref: i32 = 0;
+  let off: i32 = 0;
+  let ko: i32 = 0;
+  let n_es: i32 = 0;
+  let init_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let is_asgn: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || gen == (0 as *u8) || kill == (0 as *u8)) {
+    return;
+  }
+  unsafe {
+    glue_live_fwd_clear_u8(gen);
+    glue_live_fwd_clear_u8(kill);
+    item_kind = ast_ast_block_stmt_order_kind(arena, block_ref, stmt_i);
+    idx = ast_ast_block_stmt_order_idx(arena, block_ref, stmt_i);
+  }
+  if (item_kind == 0) {
+    if (idx >= 0 && idx < nconst) {
+      unsafe {
+        off = backend_asm_ctx_slot_offset(ctx, slot_base + idx);
+        glue_live_fwd_add_u8(kill, off);
+        init_ref = ast_pipeline_block_const_init_ref(arena, block_ref, idx);
+      }
+      glue_live_fwd_collect_expr_uses(arena, ctx, init_ref, gen);
+    }
+  } else if (item_kind == 1) {
+    if (idx >= 0 && idx < nlet) {
+      unsafe {
+        off = backend_asm_ctx_slot_offset(ctx, slot_base + nconst + idx);
+        glue_live_fwd_add_u8(kill, off);
+        init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, idx);
+      }
+      glue_live_fwd_collect_expr_uses(arena, ctx, init_ref, gen);
+    }
+  } else if (item_kind == 2) {
+    unsafe {
+      n_es = ast_ast_block_num_expr_stmts(arena, block_ref);
+    }
+    if (idx >= 0 && idx < n_es) {
+      unsafe {
+        expr_ref = ast_pipeline_block_expr_stmt_ref(arena, block_ref, idx);
+      }
+      if (expr_ref > 0) {
+        unsafe {
+          ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+        }
+        is_asgn = glue_expr_kind_is_assign_like_ord(ko);
+        if (is_asgn != 0) {
+          unsafe {
+            left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+          }
+          if (left_ref > 0) {
+            unsafe {
+              ko = pipeline_expr_kind_ord_at(arena, left_ref);
+            }
+            if (ko == 3) {
+              unsafe {
+                off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
+                glue_live_fwd_add_u8(kill, off);
+              }
+            }
+          }
+          unsafe {
+            right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+          }
+          glue_live_fwd_collect_expr_uses(arena, ctx, right_ref, gen);
+        } else {
+          glue_live_fwd_collect_expr_uses(arena, ctx, expr_ref, gen);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Apply stmt gen/kill to opaque live: kill remove, gen add, kill re-add as live after def.
+ * @param live / gen / kill *u8 - GlueBlockLiveFwd* overlays; any null → no-op
+ * @return void
+ * wave176 pure-owned (was Cap residual thin).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_live_fwd_apply_stmt_gen_kill_u8(live: *u8, gen: *u8, kill: *u8): void {
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let off: i32 = 0;
+  if (live == (0 as *u8) || gen == (0 as *u8) || kill == (0 as *u8)) {
+    return;
+  }
+  unsafe {
+    n = glue_live_fwd_n_get(kill);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      off = glue_live_fwd_off_at(kill, i);
+      glue_live_fwd_remove_u8(live, off);
+    }
+    i = i + 1;
+  }
+  unsafe {
+    n = glue_live_fwd_n_get(gen);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      off = glue_live_fwd_off_at(gen, i);
+      glue_live_fwd_add_u8(live, off);
+    }
+    i = i + 1;
+  }
+  unsafe {
+    n = glue_live_fwd_n_get(kill);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      off = glue_live_fwd_off_at(kill, i);
+      glue_live_fwd_add_u8(live, off);
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * Linear-block reverse dataflow: precompute live_in per stmt into residual
+ * live_at_stmt[], bind linear ctx for next-use, set max |live|.
+ * @param arena *u8 - ast_ASTArena*
+ * @param ctx *u8 - backend_AsmFuncCtx*
+ * @param block_ref i32 - block arena ref; <=0 → no-op
+ * @param slot_base / nconst / nlet i32 - slot layout for gen/kill
+ * @return void
+ * wave176 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_block_compute_linear_live_in(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32): void {
+  let live_out: u8[136] = [];
+  let gen: u8[136] = [];
+  let kill: u8[136] = [];
+  let nso: i32 = 0;
+  let i: i32 = 0;
+  let j: i32 = 0;
+  let kn: i32 = 0;
+  let gn: i32 = 0;
+  let off: i32 = 0;
+  let fin: i32 = 0;
+  let n: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || block_ref <= 0) {
+    return;
+  }
+  unsafe {
+    nso = ast_ast_block_num_stmt_order(arena, block_ref);
+  }
+  if (nso > 32) {
+    nso = 32;
+  }
+  unsafe {
+    glue_asm73_linear_ctx_bind(arena, ctx, block_ref, slot_base, nconst, nlet, nso);
+    glue_live_fwd_clear_u8(&live_out[0]);
+    fin = ast_ast_block_final_expr_ref(arena, block_ref);
+  }
+  if (fin > 0) {
+    glue_live_fwd_collect_expr_uses(arena, ctx, fin, &live_out[0]);
+  }
+  i = nso - 1;
+  while (i >= 0) {
+    glue_block_stmt_gen_kill_u8(arena, ctx, block_ref, slot_base, nconst, nlet, i, &gen[0], &kill[0]);
+    unsafe {
+      kn = glue_live_fwd_n_get(&kill[0]);
+    }
+    j = 0;
+    while (j < kn) {
+      unsafe {
+        off = glue_live_fwd_off_at(&kill[0], j);
+        glue_live_fwd_remove_u8(&live_out[0], off);
+      }
+      j = j + 1;
+    }
+    unsafe {
+      gn = glue_live_fwd_n_get(&gen[0]);
+    }
+    j = 0;
+    while (j < gn) {
+      unsafe {
+        off = glue_live_fwd_off_at(&gen[0], j);
+        glue_live_fwd_add_u8(&live_out[0], off);
+      }
+      j = j + 1;
+    }
+    // live_out is now live_in for stmt i
+    unsafe {
+      glue_block_live_at_stmt_copy_from_u8(i, &live_out[0]);
+    }
+    i = i - 1;
+  }
+  unsafe {
+    glue_asm73_linear_max_live_n_set(0);
+  }
+  i = 0;
+  while (i < nso) {
+    unsafe {
+      n = glue_asm73_live_at_stmt_n_get(i);
+      glue_asm73_linear_max_live_n_maybe_raise(n);
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * Linear sub-block exit live set (no CFG stmt_order); has_cfg → clear out.
+ * @param arena *u8 - ast_ASTArena*
+ * @param ctx *u8 - backend_AsmFuncCtx*
+ * @param block_ref i32 - block arena ref
+ * @param out *u8 - GlueBlockLiveFwd* overlay; null → no-op
+ * @return void
+ * wave176 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_block_compute_live_end_linear(arena: *u8, ctx: *u8, block_ref: i32, out: *u8): void {
+  let live_out: u8[136] = [];
+  let gen: u8[136] = [];
+  let kill: u8[136] = [];
+  let slot_base: i32 = 0;
+  let nconst: i32 = 0;
+  let nlet: i32 = 0;
+  let nso: i32 = 0;
+  let i: i32 = 0;
+  let j: i32 = 0;
+  let kn: i32 = 0;
+  let gn: i32 = 0;
+  let off: i32 = 0;
+  let fin: i32 = 0;
+  let has_cfg: i32 = 0;
+  if (out == (0 as *u8)) {
+    return;
+  }
+  unsafe {
+    glue_live_fwd_clear_u8(out);
+  }
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || block_ref <= 0) {
+    return;
+  }
+  has_cfg = glue_block_stmt_order_has_cfg(arena, block_ref);
+  if (has_cfg != 0) {
+    return;
+  }
+  unsafe {
+    slot_base = backend_block_slot_base_for(ctx, arena, block_ref);
+    nconst = ast_ast_block_num_consts(arena, block_ref);
+    nlet = ast_ast_block_num_lets(arena, block_ref);
+    nso = ast_ast_block_num_stmt_order(arena, block_ref);
+  }
+  if (nso > 32) {
+    nso = 32;
+  }
+  unsafe {
+    glue_live_fwd_clear_u8(&live_out[0]);
+    fin = ast_ast_block_final_expr_ref(arena, block_ref);
+  }
+  if (fin > 0) {
+    glue_live_fwd_collect_expr_uses(arena, ctx, fin, &live_out[0]);
+  }
+  i = nso - 1;
+  while (i >= 0) {
+    glue_block_stmt_gen_kill_u8(arena, ctx, block_ref, slot_base, nconst, nlet, i, &gen[0], &kill[0]);
+    unsafe {
+      kn = glue_live_fwd_n_get(&kill[0]);
+    }
+    j = 0;
+    while (j < kn) {
+      unsafe {
+        off = glue_live_fwd_off_at(&kill[0], j);
+        glue_live_fwd_remove_u8(&live_out[0], off);
+      }
+      j = j + 1;
+    }
+    unsafe {
+      gn = glue_live_fwd_n_get(&gen[0]);
+    }
+    j = 0;
+    while (j < gn) {
+      unsafe {
+        off = glue_live_fwd_off_at(&gen[0], j);
+        glue_live_fwd_add_u8(&live_out[0], off);
+      }
+      j = j + 1;
+    }
+    i = i - 1;
+  }
+  unsafe {
+    glue_live_fwd_copy_u8(out, &live_out[0]);
+  }
+}
+
+/**
+ * Compute linear live_end into residual global sub_exit snap.
+ * @param arena *u8 - ast_ASTArena*
+ * @param ctx *u8 - backend_AsmFuncCtx*
+ * @param block_ref i32 - block arena ref
+ * @return void
+ * wave176 pure-owned (was Cap residual thin).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_block_compute_live_end_linear_to_sub_exit_snap(arena: *u8, ctx: *u8, block_ref: i32): void {
+  let out: u8[136] = [];
+  glue_block_compute_live_end_linear(arena, ctx, block_ref, &out[0]);
+  unsafe {
+    glue_block_live_sub_exit_snap_copy_from_u8(&out[0]);
+  }
+}
+
+/**
+ * CFG parent: after a single def, forward-update global live_fwd:
+ * live = (live - {def}) ∪ uses(gen_expr) ∪ {def}.
+ * @param arena *u8 - ast_ASTArena*
+ * @param ctx *u8 - backend_AsmFuncCtx*
+ * @param def_off i32 - defined stack slot; <0 → no-op
+ * @param gen_expr i32 - init/rhs expr ref for uses; <=0 → no gen uses
+ * @return void
+ * wave176 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_live_fwd_forward_after_def(arena: *u8, ctx: *u8, def_off: i32, gen_expr: i32): void {
+  let gen: u8[136] = [];
+  let parent: i32 = 0;
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let off: i32 = 0;
+  unsafe {
+    parent = glue_block_live_cfg_parent_get();
+  }
+  if (parent == 0 || def_off < 0) {
+    return;
+  }
+  unsafe {
+    glue_live_fwd_clear_u8(&gen[0]);
+  }
+  if (gen_expr > 0) {
+    glue_live_fwd_collect_expr_uses(arena, ctx, gen_expr, &gen[0]);
+  }
+  unsafe {
+    glue_block_live_fwd_remove_off(def_off);
+    n = glue_live_fwd_n_get(&gen[0]);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      off = glue_live_fwd_off_at(&gen[0], i);
+      glue_block_live_fwd_add_off(off);
+    }
+    i = i + 1;
+  }
+  unsafe {
+    glue_block_live_fwd_add_off(def_off);
+  }
+}
+
+/**
+ * Linear (or cfg-forward when coloring active) next-use distance of stack slot
+ * off from from_stmt (inclusive) to block end/final_expr; no use → 9999.
+ * @param from_stmt i32 - start stmt index; <0 → 9999
+ * @param off i32 - stack slot; <0 → 9999
+ * @return i32 - distance or 9999
+ * wave176 pure-owned (was Cap residual; cfg+linear paths folded).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_linear_next_use_dist(from_stmt: i32, off: i32): i32 {
+  let arena: *u8 = 0 as *u8;
+  let ctx: *u8 = 0 as *u8;
+  let block_ref: i32 = 0;
+  let slot_base: i32 = 0;
+  let nconst: i32 = 0;
+  let nlet: i32 = 0;
+  let nso: i32 = 0;
+  let gen: u8[136] = [];
+  let kill: u8[136] = [];
+  let s: i32 = 0;
+  let fin: i32 = 0;
+  let hit: i32 = 0;
+  if (off < 0 || from_stmt < 0) {
+    return 9999;
+  }
+  unsafe {
+    arena = glue_asm73_linear_arena_get();
+    ctx = glue_asm73_linear_ctx_get();
+  }
+  if (arena == (0 as *u8) || ctx == (0 as *u8)) {
+    return 9999;
+  }
+  unsafe {
+    block_ref = glue_asm73_linear_block_ref_get();
+    nso = glue_asm73_linear_nso_get();
+    slot_base = glue_asm73_linear_slot_base_get();
+    nconst = glue_asm73_linear_nconst_get();
+    nlet = glue_asm73_linear_nlet_get();
+  }
+  if (block_ref <= 0) {
+    return 9999;
+  }
+  // residual cfg_forward and linear paths were identical scans; coloring flag
+  // only selected entry — both walk gen_kill from from_stmt (wave176 fold).
+  s = from_stmt;
+  while (s < nso) {
+    glue_block_stmt_gen_kill_u8(arena, ctx, block_ref, slot_base, nconst, nlet, s, &gen[0], &kill[0]);
+    unsafe {
+      hit = glue_live_fwd_contains_u8(&gen[0], off);
+    }
+    if (hit != 0) {
+      return s - from_stmt;
+    }
+    s = s + 1;
+  }
+  unsafe {
+    fin = ast_ast_block_final_expr_ref(arena, block_ref);
+  }
+  if (fin > 0) {
+    unsafe {
+      glue_live_fwd_clear_u8(&gen[0]);
+    }
+    glue_live_fwd_collect_expr_uses(arena, ctx, fin, &gen[0]);
+    unsafe {
+      hit = glue_live_fwd_contains_u8(&gen[0], off);
+    }
+    if (hit != 0) {
+      return nso - from_stmt;
+    }
+  }
+  return 9999;
+}
+
+// end wave176 pure-owned leave
+
 
 // ============================================================================
 // wave174 pure-owned leave: spill_reg_to_spill + rax/rbx cache evict entries

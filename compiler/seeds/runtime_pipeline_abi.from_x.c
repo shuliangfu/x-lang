@@ -3,7 +3,7 @@
  * wave172: minus_pair/subadd3 cache spill pure leave cold twins under #ifndef FROM_X
  * wave171: index-scratch enc push/reload/pop pure leave cold twins under #ifndef FROM_X
  * wave174: spill_reg_to_spill + evict_rax|rbx pure leave cold twins under #ifndef FROM_X
- * wave175: color thin mov/try/farthest/pick pure leave cold twins under #ifndef FROM_X
+ * wave176: linear live reverse DF · wave175: color thin mov/try/farthest/pick pure leave cold twins under #ifndef FROM_X
  * wave170: binop try_reload pure leave cold twin under #ifndef FROM_X
  * wave169: index-scratch pure leave cold twins under #ifndef FROM_X
  * wave168: cfg simulate walk pure leave cold twins under #ifndef FROM_X
@@ -25285,6 +25285,77 @@ int32_t glue_asm73_spill_pick_evict_which(int32_t stmt_i, int32_t new_off, int32
   (void)new_off;
   (void)dist_new;
   return -1;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/*
+ * wave176 cold twins: linear live reverse DF + gen/kill + next-use.
+ * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+void glue_live_fwd_collect_expr_uses(void *arena, void *ctx, int32_t expr_ref, void *gen) {
+  (void)arena;
+  (void)ctx;
+  (void)expr_ref;
+  (void)gen;
+}
+
+void glue_block_stmt_gen_kill_u8(void *arena, void *ctx, int32_t block_ref, int32_t slot_base, int32_t nconst,
+                                 int32_t nlet, int32_t stmt_i, void *gen, void *kill) {
+  (void)arena;
+  (void)ctx;
+  (void)block_ref;
+  (void)slot_base;
+  (void)nconst;
+  (void)nlet;
+  (void)stmt_i;
+  (void)gen;
+  (void)kill;
+}
+
+void glue_live_fwd_apply_stmt_gen_kill_u8(void *live, const void *gen, const void *kill) {
+  (void)live;
+  (void)gen;
+  (void)kill;
+}
+
+void glue_block_compute_linear_live_in(void *arena, void *ctx, int32_t block_ref, int32_t slot_base, int32_t nconst,
+                                       int32_t nlet) {
+  (void)arena;
+  (void)ctx;
+  (void)block_ref;
+  (void)slot_base;
+  (void)nconst;
+  (void)nlet;
+}
+
+void glue_block_compute_live_end_linear(void *arena, void *ctx, int32_t block_ref, void *out) {
+  (void)arena;
+  (void)ctx;
+  (void)block_ref;
+  (void)out;
+}
+
+void glue_block_compute_live_end_linear_to_sub_exit_snap(void *arena, void *ctx, int32_t block_ref) {
+  (void)arena;
+  (void)ctx;
+  (void)block_ref;
+}
+
+void glue_live_fwd_forward_after_def(void *arena, void *ctx, int32_t def_off, int32_t gen_expr) {
+  (void)arena;
+  (void)ctx;
+  (void)def_off;
+  (void)gen_expr;
+}
+
+int32_t glue_asm73_linear_next_use_dist(int32_t from_stmt, int32_t off) {
+  (void)from_stmt;
+  (void)off;
+  return 9999;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
