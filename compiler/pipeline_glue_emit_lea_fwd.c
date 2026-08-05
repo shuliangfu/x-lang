@@ -70,8 +70,9 @@ static int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena
                                                        int32_t expr_ref);
 static int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
 static int32_t glue_type_ref_is_scalar_f64_c(struct ast_ASTArena *arena, int32_t type_ref);
-static int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                           int32_t var_expr_ref);
+/* wave124 pure-owned leave: live in runtime_pipeline_abi pure (was same-TU static). */
+extern int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                            int32_t var_expr_ref);
 static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t left_ref,

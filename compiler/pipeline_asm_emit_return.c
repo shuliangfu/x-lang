@@ -263,10 +263,11 @@ int32_t pipeline_find_fixed_array_slice_escape(struct ast_ASTArena *arena, int32
 static int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
 static void glue_slice_dual_gp_bump_past_home_c(struct backend_AsmFuncCtx *ctx, int32_t data_home,
                                                int32_t ta);
-/* wave1025: glue_var_decl_type_ref_elf_c body in pipeline_asm_emit_var_decl.c (wave1023);
- * needed by glue_emit_sret_return_from_var_elf_c (body at end of this leaf). */
-static int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                             int32_t var_expr_ref);
+/* wave124 pure-owned leave: glue_var_decl_type_ref_elf_c live in
+ * runtime_pipeline_abi pure (was same-TU static in pipeline_asm_emit_var_decl.c).
+ * Needed by glue_emit_sret_return_from_var_elf_c (body at end of this leaf). */
+extern int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                            int32_t var_expr_ref);
 /* wave1025: glue_enc_local_slot_ptr_or_addr_rbx_elf_c body in pipeline_asm_emit_index_helpers.c
  * (#included after this leaf); needed by glue_emit_sret_return_from_var_elf_c. */
 static int32_t glue_enc_local_slot_ptr_or_addr_rbx_elf_c(struct ast_ASTArena *arena,

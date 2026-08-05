@@ -4,6 +4,9 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave124: pipeline_asm_emit_var_decl.c pure-owned leave (glue_var_decl_type_ref_elf_c +
+//   glue_lazy_append_block_let_local). Cap residual: expr/block/module type faces +
+//   emit module/func_index getters + asm_ctx local/slot + asm_local_slot_reg_offset.
 // wave121: pipeline_lint_meta.c pure-owned leave (visibility + L7 unused-private
 //   + module_num_funcs/main_func_index/set/reset_parse_counters/strict_parse_into_init
 //   + lint_set_source_buf). Cap residual: module_func flag/name + expr call/method/var
@@ -577,6 +580,20 @@ export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: 
 export extern "C" function pipeline_elf_ctx_emit_code_len(ctx: *u8): i32;
 export extern "C" function pipeline_elf_ctx_append_reloc(ctx: *u8, at: i32, name: *u8, name_len: i32): i32;
 export extern "C" function pipeline_elf_ctx_append_reloc_typed(ctx: *u8, at: i32, name: *u8, name_len: i32, r_type: i32, r_pcrel: i32): i32;
+// wave124 Cap residual: var_decl pure leave callees (still host-cc residual / context).
+// PLATFORM: SHARED — pure owns VAR type-ref + lazy block-let append faces only.
+export extern "C" function asm_ctx_scope_block_ref_at(ctx: *u8): i32;
+export extern "C" function pipeline_block_resolve_var_type_ref(arena: *u8, block_ref: i32, vname: *u8, vlen: i32): i32;
+export extern "C" function pipeline_module_func_param_type_ref_for_name(module: *u8, func_index: i32, var_name: *u8, name_len: i32): i32;
+export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_asm_emit_module_ref_c(): *u8;
+export extern "C" function pipeline_asm_emit_func_index_c(): i32;
+export extern "C" function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i32;
+export extern "C" function asm_ctx_block_slot_get(ctx: *u8, block_ref: i32): i32;
+export extern "C" function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, let_idx: i32): i32;
+export extern "C" function asm_local_slot_reg_offset(arena: *u8, type_ref: i32, off: i32, inout_off: *i32): i32;
+export extern "C" function asm_ctx_local_append(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
+export extern "C" function asm_ctx_local_count(ctx: *u8): i32;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 -> _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
@@ -21342,4 +21359,174 @@ export function glue_asm_lea_rax_common_adrp_arm64(elf_ctx: *u8, name: *u8, name
     rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, name, name_len, 4, 0);
   }
   return rc;
+}
+
+// ---------------------------------------------------------------------------
+// wave124: pipeline_asm_emit_var_decl pure-owned leave
+// (was pipeline_asm_emit_var_decl.c).
+// G.7 product authority for:
+//   glue_var_decl_type_ref_elf_c
+//   glue_lazy_append_block_let_local
+// Resolution order (type_ref): block-let shadow → param table → expr-resolved.
+// Lazy append: skip if local already registered or fill_tree set block slot.
+// AsmFuncCtx next_offset@4 / num_locals@8 (LP64) via pipe_load/store_i32_le.
+// Cap residual: expr/block/module faces + emit module/func_index getters +
+//   asm_ctx local/slot + asm_local_slot_reg_offset (still host-cc residual).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * LP64 offsetof(AsmFuncCtx, num_locals).
+ * @return i32 - 8 (frame_size@0, next_offset@4, num_locals@8)
+ * PLATFORM: SHARED LP64 — matches pipeline_glue_AsmFuncCtxLayout.
+ */
+function pipe_asm_ctx_off_num_locals(): i32 {
+  return 8;
+}
+
+/**
+ * Local VAR declaration type-ref (block-let / param / expr-resolved fallback).
+ * Resolution order (G.7 single authority — no second resolver):
+ *  1. Inner block-let shadow param: scope_block_ref → pipeline_block_resolve_var_type_ref
+ *  2. Param table: pipeline_module_func_param_type_ref_for_name (f32 must precede
+ *     expr-resolved to avoid 64-bit load truncating f32-homed params)
+ *  3. Expr-resolved type-ref: pipeline_expr_resolved_type_ref (typeck fallback)
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx* (scope_block_ref)
+ * @param var_expr_ref i32 - EXPR_KIND_VAR expr_ref
+ * @return i32 - type_ref > 0 on success; 0 on failure / invalid VAR expr
+ * wave124 pure: G.7 authority (was pipeline_asm_emit_var_decl.c static).
+ * PLATFORM: SHARED - sole provider after var_decl leave.
+ */
+#[no_mangle]
+export function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32 {
+  // GLUE_EXPR_KIND_VAR == 3 (pipeline_glue_emit_mid_fwd.c)
+  if (arena == 0 as *u8 || ctx == 0 as *u8 || var_expr_ref <= 0) {
+    return 0;
+  }
+  let kind: i32 = 0;
+  unsafe {
+    kind = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+  }
+  if (kind != 3) {
+    return 0;
+  }
+  let vlen: i32 = 0;
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+  }
+  if (vlen <= 0 || vlen > 127) {
+    return 0;
+  }
+  let vname: u8[128] = [];
+  unsafe {
+    pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
+  }
+  // 1) Inner block-let shadowing param takes precedence
+  let scope_br: i32 = 0;
+  unsafe {
+    scope_br = asm_ctx_scope_block_ref_at(ctx);
+  }
+  if (scope_br > 0) {
+    let tr_scope: i32 = 0;
+    unsafe {
+      tr_scope = pipeline_block_resolve_var_type_ref(arena, scope_br, &vname[0], vlen);
+    }
+    if (tr_scope > 0) {
+      return tr_scope;
+    }
+  }
+  // 2) Param table (f32 before expr-resolved)
+  let mod: *u8 = 0 as *u8;
+  let fi: i32 = 0 - 1;
+  unsafe {
+    mod = pipeline_asm_emit_module_ref_c();
+    fi = pipeline_asm_emit_func_index_c();
+  }
+  if (mod != 0 as *u8 && fi >= 0) {
+    let tr_param: i32 = 0;
+    unsafe {
+      tr_param = pipeline_module_func_param_type_ref_for_name(mod, fi, &vname[0], vlen);
+    }
+    if (tr_param > 0) {
+      return tr_param;
+    }
+  }
+  // 3) Expr-resolved typeck fallback
+  let tr: i32 = 0;
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
+  }
+  if (tr > 0) {
+    return tr;
+  }
+  return 0;
+}
+
+/**
+ * stmt_order path: lazy-register a block-let local slot when fill_tree has
+ * not yet entered the let (use asm_local_slot_reg_offset, not backend slot 0
+ * → rbp+0 which would alias the return address).
+ * Guards (G.7 — no double registration / no clobber of fill_tree layout):
+ *  - Already registered (asm_ctx_local_find_offset >= 0) → no-op return 0
+ *  - fill_tree/ensure already set block slot (asm_ctx_block_slot_get >= 0)
+ *    → no-op return 0 (with_arena v overlaps Arena64; do not next_offset)
+ *  - Otherwise: pipeline_block_let_type_ref → asm_local_slot_reg_offset
+ *    → asm_ctx_local_append; bump next_offset + num_locals
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param block_ref i32 - owning block
+ * @param let_idx i32 - let index in block
+ * @param name *u8 - local name bytes
+ * @param name_len i32 - name length; must be > 0
+ * @return i32 - 0 success (incl. no-op); -1 invalid args / append failure
+ * wave124 pure: G.7 authority (was pipeline_asm_emit_var_decl.c static).
+ * PLATFORM: SHARED - sole provider after var_decl leave.
+ */
+#[no_mangle]
+export function glue_lazy_append_block_let_local(arena: *u8, ctx: *u8, block_ref: i32, let_idx: i32, name: *u8, name_len: i32): i32 {
+  if (arena == 0 as *u8 || ctx == 0 as *u8 || name == 0 as *u8 || name_len <= 0 || block_ref <= 0 || let_idx < 0) {
+    return 0 - 1;
+  }
+  let found: i32 = 0;
+  unsafe {
+    found = asm_ctx_local_find_offset(ctx, name, name_len);
+  }
+  if (found >= 0) {
+    return 0;
+  }
+  // fill_tree/ensure already registered this block's stack layout
+  let block_slot: i32 = 0;
+  unsafe {
+    block_slot = asm_ctx_block_slot_get(ctx, block_ref);
+  }
+  if (block_slot >= 0) {
+    return 0;
+  }
+  let tref: i32 = 0;
+  unsafe {
+    tref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
+  }
+  let off: i32 = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+  let off_slot: i32[1] = [];
+  off_slot[0] = off;
+  let slot_off: i32 = 0;
+  unsafe {
+    slot_off = asm_local_slot_reg_offset(arena, tref, off, &off_slot[0]);
+  }
+  pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), off_slot[0]);
+  let ap: i32 = 0;
+  unsafe {
+    ap = asm_ctx_local_append(ctx, name, name_len, slot_off);
+  }
+  if (ap < 0) {
+    return 0 - 1;
+  }
+  let nloc: i32 = 0;
+  unsafe {
+    nloc = asm_ctx_local_count(ctx);
+  }
+  pipe_store_i32_le(ctx, pipe_asm_ctx_off_num_locals(), nloc);
+  return 0;
 }

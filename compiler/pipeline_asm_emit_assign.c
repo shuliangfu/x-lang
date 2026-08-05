@@ -25,8 +25,9 @@
  */
 
 /* Forward decls for helpers defined later in the same TU (glue / binop leaf). */
-static int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                             int32_t var_expr_ref);
+/* wave124 pure-owned leave: live in runtime_pipeline_abi pure. */
+extern int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                            int32_t var_expr_ref);
 /* Compound-assign value path: nested load + add/sub/mul/div/shift helpers
  * (bodies in pipeline_asm_emit_binop.c including try_binop left_rax wave1018;
  * after this #include). Div-zero face is pipeline_asm_emit_panic.c (forward earlier). */

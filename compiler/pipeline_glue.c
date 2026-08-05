@@ -294,20 +294,19 @@ static int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
  * glue_asm_local_var_stack_off_scoped (vector_simd.c L93; #include L1513 < L1530).
  * PLATFORM: SHARED. */
 
-static int32_t glue_lazy_append_block_let_local(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+/* wave124 pure-owned leave: pipeline_asm_emit_var_decl.c deleted.
+ * live = runtime_pipeline_abi pure (glue_var_decl_type_ref_elf_c +
+ * glue_lazy_append_block_let_local); seed cold twin under #ifndef FROM_X.
+ * Residual mega leaves (assign/unary/binop/call_args/expr_rec/return/
+ * block_inits/block_body) call these public faces — extern prototypes only;
+ * do not re-open a second VAR type-ref / lazy block-let append path (G.7).
+ * PLATFORM: SHARED freestanding emit. */
+extern int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                            int32_t var_expr_ref);
+extern int32_t glue_lazy_append_block_let_local(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                  int32_t block_ref, int32_t let_idx, uint8_t *name, int32_t name_len);
 int32_t pipeline_block_let_name_len(struct ast_ASTArena *a, int32_t br, int32_t li);
 void pipeline_block_let_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst);
-
-/* wave1023 G.7: var_decl_type_ref + lazy_append folded into
- * pipeline_asm_emit_var_decl.c (shared VAR/block-let infrastructure for
- * assign/unary/binop/call_args/expr_rec/block_inits/block_body; same TU
- * static via this include; no new DEPS count). wave1019 note superseded:
- * these two statics no longer "stay in glue" — extracted to leaf. */
-
-/* BC 8.3.1: asm ELF VAR-decl type-ref + lazy block-let append (shared
- * infrastructure; same TU). */
-#include "pipeline_asm_emit_var_decl.c"
 
 /* wave1018 G.7: glue_binop_as_needs_full_emit + try_binop residual
  * (load_operand / clobber / preserve-restore / commutative / left_rax /

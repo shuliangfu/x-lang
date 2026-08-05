@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave124: var_decl pure leave cold twins under #ifndef FROM_X.
  * wave123: lea_common pure leave cold twins under #ifndef FROM_X.
  * wave121: lint_meta pure leave cold twins under #ifndef FROM_X.
  * wave110: pure ImportEntry storage (pipeline_module_import_* + storage_release) in .x
@@ -9635,5 +9636,86 @@ int32_t glue_asm_lea_rax_common_adrp_arm64(void *elf_ctx, uint8_t *name, int32_t
     return -1;
   add_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
   return pipeline_elf_ctx_append_reloc_typed(cb, add_at, name, name_len, 4, 0);
+}
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/* wave124: pipeline_asm_emit_var_decl pure leave cold twins under #ifndef FROM_X.
+ * PLATFORM: SHARED freestanding emit · Cap residual emit context + local/slot helpers.
+ * PREFER pure; cold path when PREFER!=1 / hybrid fail. */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t asm_ctx_scope_block_ref_at(uint8_t *ctx);
+extern int32_t pipeline_block_resolve_var_type_ref(void *arena, int32_t block_ref, uint8_t *vname, int32_t vlen);
+extern int32_t pipeline_module_func_param_type_ref_for_name(void *module, int32_t func_index, uint8_t *var_name,
+                                                           int32_t name_len);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t pipeline_asm_emit_func_index_c(void);
+extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len);
+extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
+extern int32_t pipeline_block_let_type_ref(void *arena, int32_t block_ref, int32_t let_idx);
+extern int32_t asm_local_slot_reg_offset(void *arena, int32_t type_ref, int32_t off, int32_t *inout_off);
+extern int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t asm_ctx_local_count(uint8_t *ctx);
+
+/* GLUE_EXPR_KIND_VAR == 3 */
+int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref) {
+  uint8_t vname[128];
+  int32_t vlen;
+  int32_t scope_br;
+  int32_t tr;
+  void *mod;
+  int32_t fi;
+  if (!arena || !ctx || var_expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, var_expr_ref) != 3)
+    return 0;
+  vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+  if (vlen <= 0 || vlen > 127)
+    return 0;
+  pipeline_expr_var_name_into(arena, var_expr_ref, vname);
+  scope_br = asm_ctx_scope_block_ref_at((uint8_t *)ctx);
+  if (scope_br > 0) {
+    tr = pipeline_block_resolve_var_type_ref(arena, scope_br, vname, vlen);
+    if (tr > 0)
+      return tr;
+  }
+  mod = pipeline_asm_emit_module_ref_c();
+  fi = pipeline_asm_emit_func_index_c();
+  if (mod && fi >= 0) {
+    tr = pipeline_module_func_param_type_ref_for_name(mod, fi, vname, vlen);
+    if (tr > 0)
+      return tr;
+  }
+  tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
+  if (tr > 0)
+    return tr;
+  return 0;
+}
+
+int32_t glue_lazy_append_block_let_local(void *arena, void *ctx, int32_t block_ref, int32_t let_idx, uint8_t *name,
+                                         int32_t name_len) {
+  int32_t tref;
+  int32_t off;
+  int32_t slot_off;
+  int32_t *ly_next;
+  int32_t *ly_num;
+  if (!arena || !ctx || !name || name_len <= 0 || block_ref <= 0 || let_idx < 0)
+    return -1;
+  /* LP64: next_offset@4, num_locals@8 on AsmFuncCtx layout overlay */
+  ly_next = (int32_t *)((uint8_t *)ctx + 4);
+  ly_num = (int32_t *)((uint8_t *)ctx + 8);
+  if (asm_ctx_local_find_offset((uint8_t *)ctx, name, name_len) >= 0)
+    return 0;
+  if (asm_ctx_block_slot_get((uint8_t *)ctx, block_ref) >= 0)
+    return 0;
+  tref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
+  off = *ly_next;
+  slot_off = asm_local_slot_reg_offset(arena, tref, off, &off);
+  *ly_next = off;
+  if (asm_ctx_local_append((uint8_t *)ctx, name, name_len, slot_off) < 0)
+    return -1;
+  *ly_num = asm_ctx_local_count((uint8_t *)ctx);
+  return 0;
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
