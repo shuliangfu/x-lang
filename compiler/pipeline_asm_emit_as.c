@@ -107,7 +107,8 @@ static int32_t glue_expr_is_await_at_c(struct ast_ASTArena *arena, int32_t expr_
 }
 
 /** kind 序 54 且为 X pool EXPR_AS（as_operand 有效；非 C await）。 */
-static int32_t glue_expr_is_x_as_cast_at_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+/* wave136 Cap residual for fold_primitives pure leave: non-static face. */
+int32_t glue_expr_is_x_as_cast_at_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int32_t ko;
   if (!arena || expr_ref <= 0)
     return 0;

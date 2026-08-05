@@ -130,6 +130,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_var_decl.c|8.3.1|asm ELF var decl emit (wave124 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_with_arena.c|8.3.1|asm ELF with_arena emit (wave122 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_x86_enc_helpers.c|8.3.1|asm x86 enc helpers|0|absent"
+  "compiler/pipeline_asm_emit_fold_primitives.c|8.3.1|asm fold pattern detectors (wave136 pure-owned leave)|0|absent"
   # --- 8.3.2 pipeline/asm/codegen domain leaves (wave1246–1280; still host-cc) ---
   "compiler/pipeline_elf_write_o.c|8.3.2|ELF/Mach-O .o writers (wave1246)|50|present"
   "compiler/pipeline_elf_ctx.c|8.3.2|ELF/Mach-O ctx accessors (wave1247)|700|present"

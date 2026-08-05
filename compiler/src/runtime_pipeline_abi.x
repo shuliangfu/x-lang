@@ -4,6 +4,7 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave136: pipeline_asm_emit_fold_primitives.c pure-owned leave (13 fold detectors).
 // wave135: pipeline_asm_emit_x86_enc_helpers.c pure-owned leave (27 glue_enc_x86_*
 //   + glue_emit_lcg_xor_body_x86_c). Cap residual: pipeline_elf_ctx_append_bytes.
 // wave134: pipeline_asm_emit_match.c pure-owned leave (match_elf + expr_if_elf +
@@ -638,6 +639,24 @@ export extern "C" function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_r
 // the static _rec symbol (G.7 public face only).
 export extern "C" function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_binop_right_ref_at(arena: *u8, expr_ref: i32): i32;
+
+// wave136 Cap residual: fold_primitives pure leave (AST pattern detectors).
+// Pool faces + residual static→extern helpers (vector_simd / as).
+// PLATFORM: SHARED — pure owns 13 fold detection faces; residual owns pool + as/param helpers.
+export extern "C" function pipeline_block_let_name_len(arena: *u8, block_ref: i32, let_idx: i32): i32;
+export extern "C" function pipeline_block_let_name_copy64(arena: *u8, block_ref: i32, let_idx: i32, dst: *u8): void;
+export extern "C" function pipeline_block_let_init_ref(arena: *u8, block_ref: i32, let_idx: i32): i32;
+export extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_field_access_name_len(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_field_access_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
+export extern "C" function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_as_operand_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_call_num_args_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
+export extern "C" function glue_expr_is_func_param_at_c(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32;
+export extern "C" function glue_fold_func_return_operand_ref_c(arena: *u8, mod: *u8, func_idx: i32): i32;
+export extern "C" function glue_expr_is_x_as_cast_at_c(arena: *u8, expr_ref: i32): i32;
 export extern "C" function backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_jz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
 export extern "C" function backend_enc_jnz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
@@ -25160,4 +25179,932 @@ export function glue_enc_x86_imul_eax_eax(elf_ctx: *u8): i32 {
     rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 3);
   }
   return rc;
+}
+
+// ---------------------------------------------------------------------------
+// wave136: pipeline_asm_emit_fold_primitives pure-owned leave
+// (was pipeline_asm_emit_fold_primitives.c).
+// B' pure-complete: 13 AST fold pattern detectors (read-only; no emit).
+// Cap residual: pool expr/block faces + glue_expr_is_func_param_at_c +
+//   glue_fold_func_return_operand_ref_c (vector_simd) + glue_expr_is_x_as_cast_at_c (as).
+// GLUE_EXPR_KIND_VAR = 3 (emit_mid_fwd). PLATFORM: SHARED.
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether two VAR expr refs share the same variable name.
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param a_ref i32 - first VAR expr ref
+ * @param b_ref i32 - second VAR expr ref
+ * @return i32 - 1 same name; 0 otherwise
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_fold_expr_var_refs_same_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
+  let alen: i32 = 0;
+  let blen: i32 = 0;
+  let abuf: u8[128] = [];
+  let bbuf: u8[128] = [];
+  let k: i32 = 0;
+  let ko_a: i32 = 0;
+  let ko_b: i32 = 0;
+  if (arena == 0 as *u8 || a_ref <= 0 || b_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko_a = pipeline_expr_kind_ord_at(arena, a_ref);
+    ko_b = pipeline_expr_kind_ord_at(arena, b_ref);
+  }
+  if (ko_a != 3 || ko_b != 3) {
+    return 0;
+  }
+  unsafe {
+    alen = pipeline_expr_var_name_len(arena, a_ref);
+    blen = pipeline_expr_var_name_len(arena, b_ref);
+  }
+  if (alen <= 0 || blen <= 0 || alen != blen || alen > 127) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, a_ref, &abuf[0]);
+    pipeline_expr_var_name_into(arena, b_ref, &bbuf[0]);
+  }
+  k = 0;
+  while (k < alen) {
+    if (abuf[k] != bbuf[k]) {
+      return 0;
+    }
+    k = k + 1;
+  }
+  return 1;
+}
+
+/**
+ * Parse while (i < n): left VAR i; right LIT or VAR n.
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param cond_ref i32 - while condition expr ref
+ * @param out_i_ref *i32 - optional; VAR i ref
+ * @param out_n_is_lit *i32 - optional; 1 if n is literal
+ * @param out_n_lit *i32 - optional; literal value when out_n_is_lit
+ * @param out_n_ref *i32 - optional; VAR n ref when not lit
+ * @return i32 - 1 matched; 0 otherwise
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_fold_parse_while_lt_i_n_c(arena: *u8, cond_ref: i32, out_i_ref: *i32, out_n_is_lit: *i32, out_n_lit: *i32, out_n_ref: *i32): i32 {
+  let i_ref: i32 = 0;
+  let n_side: i32 = 0;
+  let ko: i32 = 0;
+  let ko_i: i32 = 0;
+  let ko_n: i32 = 0;
+  let n_val: i32 = 0;
+  if (arena == 0 as *u8 || cond_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, cond_ref);
+  }
+  if (ko != 16) {
+    return 0;
+  }
+  unsafe {
+    i_ref = pipeline_expr_binop_left_ref_at(arena, cond_ref);
+    n_side = pipeline_expr_binop_right_ref_at(arena, cond_ref);
+    ko_i = pipeline_expr_kind_ord_at(arena, i_ref);
+  }
+  if (ko_i != 3) {
+    return 0;
+  }
+  if (out_i_ref != 0 as *i32) {
+    unsafe {
+      out_i_ref[0] = i_ref;
+    }
+  }
+  unsafe {
+    ko_n = pipeline_expr_kind_ord_at(arena, n_side);
+  }
+  if (ko_n == 0) {
+    unsafe {
+      n_val = pipeline_expr_int_val_at(arena, n_side);
+    }
+    if (out_n_is_lit != 0 as *i32) {
+      unsafe {
+        out_n_is_lit[0] = 1;
+      }
+    }
+    if (out_n_lit != 0 as *i32) {
+      unsafe {
+        out_n_lit[0] = n_val;
+      }
+    }
+    if (out_n_ref != 0 as *i32) {
+      unsafe {
+        out_n_ref[0] = 0;
+      }
+    }
+    return 1;
+  }
+  if (ko_n == 3) {
+    if (out_n_is_lit != 0 as *i32) {
+      unsafe {
+        out_n_is_lit[0] = 0;
+      }
+    }
+    if (out_n_lit != 0 as *i32) {
+      unsafe {
+        out_n_lit[0] = 0;
+      }
+    }
+    if (out_n_ref != 0 as *i32) {
+      unsafe {
+        out_n_ref[0] = n_side;
+      }
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Same-block let binding integer literal init (let n: i32 = LIT).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param block_ref i32 - block containing lets
+ * @param var_ref i32 - VAR expr whose name is matched
+ * @param out_lit *i32 - optional; literal init value
+ * @return i32 - 1 found lit init; 0 otherwise
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_fold_block_let_init_lit_c(arena: *u8, block_ref: i32, var_ref: i32, out_lit: *i32): i32 {
+  let vlen: i32 = 0;
+  let nlet: i32 = 0;
+  let li: i32 = 0;
+  let vbuf: u8[128] = [];
+  let ko_v: i32 = 0;
+  let llen: i32 = 0;
+  let is_match: i32 = 0;
+  let lb: u8[128] = [];
+  let kk: i32 = 0;
+  let init_ref: i32 = 0;
+  let ko_init: i32 = 0;
+  let lit: i32 = 0;
+  if (arena == 0 as *u8 || block_ref <= 0 || var_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko_v = pipeline_expr_kind_ord_at(arena, var_ref);
+  }
+  if (ko_v != 3) {
+    return 0;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, var_ref);
+  }
+  if (vlen <= 0 || vlen > 127) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, var_ref, &vbuf[0]);
+    nlet = ast_ast_block_num_lets(arena, block_ref);
+  }
+  li = 0;
+  while (li < nlet) {
+    unsafe {
+      llen = pipeline_block_let_name_len(arena, block_ref, li);
+    }
+    if (llen == vlen) {
+      is_match = 1;
+      unsafe {
+        pipeline_block_let_name_copy64(arena, block_ref, li, &lb[0]);
+      }
+      kk = 0;
+      while (kk < vlen) {
+        if (lb[kk] != vbuf[kk]) {
+          is_match = 0;
+        }
+        kk = kk + 1;
+      }
+      if (is_match != 0) {
+        unsafe {
+          init_ref = pipeline_block_let_init_ref(arena, block_ref, li);
+        }
+        if (init_ref > 0) {
+          unsafe {
+            ko_init = pipeline_expr_kind_ord_at(arena, init_ref);
+          }
+          if (ko_init == 0) {
+            unsafe {
+              lit = pipeline_expr_int_val_at(arena, init_ref);
+            }
+            if (out_lit != 0 as *i32) {
+              unsafe {
+                out_lit[0] = lit;
+              }
+            }
+            return 1;
+          }
+        }
+        return 0;
+      }
+    }
+    li = li + 1;
+  }
+  return 0;
+}
+
+/**
+ * Parse i * c1 + c2 or c1 * i + c2 (LCG mixed term); also bare i * c1 (c2=0).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param expr_ref i32 - candidate mul/add expr
+ * @param i_ref i32 - loop induction VAR
+ * @param out_c1 *i32 - optional; multiplier
+ * @param out_c2 *i32 - optional; addend
+ * @return i32 - 1 matched; 0 otherwise
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_parse_i_mul_add_lit_c(arena: *u8, expr_ref: i32, i_ref: i32, out_c1: *i32, out_c2: *i32): i32 {
+  let ko: i32 = 0;
+  let left: i32 = 0;
+  let right: i32 = 0;
+  let mul_ref: i32 = 0;
+  let lit_ref: i32 = 0;
+  let ml: i32 = 0;
+  let mr: i32 = 0;
+  let ko_l: i32 = 0;
+  let ko_r: i32 = 0;
+  let ko_mr: i32 = 0;
+  let ko_ml: i32 = 0;
+  let same: i32 = 0;
+  let c1: i32 = 0;
+  let c2: i32 = 0;
+  if (arena == 0 as *u8 || expr_ref <= 0 || i_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko == 6) {
+    unsafe {
+      ml = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+      mr = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+      same = glue_fold_expr_var_refs_same_c(arena, ml, i_ref);
+      ko_mr = pipeline_expr_kind_ord_at(arena, mr);
+    }
+    if (same != 0 && ko_mr == 0) {
+      unsafe {
+        c1 = pipeline_expr_int_val_at(arena, mr);
+      }
+      if (out_c1 != 0 as *i32) {
+        unsafe {
+          out_c1[0] = c1;
+        }
+      }
+      if (out_c2 != 0 as *i32) {
+        unsafe {
+          out_c2[0] = 0;
+        }
+      }
+      return 1;
+    }
+    return 0;
+  }
+  if (ko != 4) {
+    return 0;
+  }
+  unsafe {
+    left = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    right = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    ko_l = pipeline_expr_kind_ord_at(arena, left);
+    ko_r = pipeline_expr_kind_ord_at(arena, right);
+  }
+  if (ko_l == 6 && ko_r == 0) {
+    mul_ref = left;
+    lit_ref = right;
+  } else {
+    return 0;
+  }
+  unsafe {
+    ml = pipeline_expr_binop_left_ref_at(arena, mul_ref);
+    mr = pipeline_expr_binop_right_ref_at(arena, mul_ref);
+    same = glue_fold_expr_var_refs_same_c(arena, ml, i_ref);
+    ko_mr = pipeline_expr_kind_ord_at(arena, mr);
+  }
+  if (same != 0 && ko_mr == 0) {
+    unsafe {
+      c1 = pipeline_expr_int_val_at(arena, mr);
+      c2 = pipeline_expr_int_val_at(arena, lit_ref);
+    }
+    if (out_c1 != 0 as *i32) {
+      unsafe {
+        out_c1[0] = c1;
+      }
+    }
+    if (out_c2 != 0 as *i32) {
+      unsafe {
+        out_c2[0] = c2;
+      }
+    }
+    return 1;
+  }
+  unsafe {
+    same = glue_fold_expr_var_refs_same_c(arena, mr, i_ref);
+    ko_ml = pipeline_expr_kind_ord_at(arena, ml);
+  }
+  if (same != 0 && ko_ml == 0) {
+    unsafe {
+      c1 = pipeline_expr_int_val_at(arena, ml);
+      c2 = pipeline_expr_int_val_at(arena, lit_ref);
+    }
+    if (out_c1 != 0 as *i32) {
+      unsafe {
+        out_c1[0] = c1;
+      }
+    }
+    if (out_c2 != 0 as *i32) {
+      unsafe {
+        out_c2[0] = c2;
+      }
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether expr is target = target + 1.
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param expr_ref i32 - assign expr
+ * @param target_ref i32 - VAR target
+ * @return i32 - 1 matched; 0 otherwise
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_is_assign_var_add_one_c(arena: *u8, expr_ref: i32, target_ref: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let add_l: i32 = 0;
+  let add_r: i32 = 0;
+  let ko: i32 = 0;
+  let ko_r: i32 = 0;
+  let ko_ar: i32 = 0;
+  let ar_val: i32 = 0;
+  let same_l: i32 = 0;
+  let same_al: i32 = 0;
+  if (arena == 0 as *u8 || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko != 28) {
+    return 0;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    same_l = glue_fold_expr_var_refs_same_c(arena, left_ref, target_ref);
+    ko_r = pipeline_expr_kind_ord_at(arena, right_ref);
+  }
+  if (same_l == 0) {
+    return 0;
+  }
+  if (ko_r != 4) {
+    return 0;
+  }
+  unsafe {
+    add_l = pipeline_expr_binop_left_ref_at(arena, right_ref);
+    add_r = pipeline_expr_binop_right_ref_at(arena, right_ref);
+    same_al = glue_fold_expr_var_refs_same_c(arena, add_l, target_ref);
+    ko_ar = pipeline_expr_kind_ord_at(arena, add_r);
+  }
+  if (same_al == 0) {
+    return 0;
+  }
+  if (ko_ar != 0) {
+    return 0;
+  }
+  unsafe {
+    ar_val = pipeline_expr_int_val_at(arena, add_r);
+  }
+  if (ar_val != 1) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Whether expr is a field access on func's 0th formal parameter.
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param mod *u8 - Module*; null → 0
+ * @param func_idx i32 - function index
+ * @param expr_ref i32 - field-access expr
+ * @return i32 - 1 matched; 0 otherwise
+ * Cap residual: glue_expr_is_func_param_at_c (vector_simd residual).
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_expr_is_param0_field_access_c(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32): i32 {
+  let ko: i32 = 0;
+  let base: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == 0 as *u8 || mod == 0 as *u8 || func_idx < 0 || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko != 44) {
+    return 0;
+  }
+  unsafe {
+    base = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    rc = glue_expr_is_func_param_at_c(arena, mod, func_idx, base, 0);
+  }
+  return rc;
+}
+
+/**
+ * Whether func body is return p.a + p.b (param0 field sum).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param mod *u8 - Module*; null → 0
+ * @param func_idx i32 - function index
+ * @return i32 - 1 matched; 0 otherwise
+ * Cap residual: glue_fold_func_return_operand_ref_c (vector_simd residual).
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_fold_func_returns_param0_field_sum_c(arena: *u8, mod: *u8, func_idx: i32): i32 {
+  let ret_ref: i32 = 0;
+  let al: i32 = 0;
+  let ar: i32 = 0;
+  let ko: i32 = 0;
+  let left_ok: i32 = 0;
+  let right_ok: i32 = 0;
+  if (arena == 0 as *u8 || mod == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    ret_ref = glue_fold_func_return_operand_ref_c(arena, mod, func_idx);
+  }
+  if (ret_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, ret_ref);
+  }
+  if (ko != 4) {
+    return 0;
+  }
+  unsafe {
+    al = pipeline_expr_binop_left_ref_at(arena, ret_ref);
+    ar = pipeline_expr_binop_right_ref_at(arena, ret_ref);
+    left_ok = glue_expr_is_param0_field_access_c(arena, mod, func_idx, al);
+    right_ok = glue_expr_is_param0_field_access_c(arena, mod, func_idx, ar);
+  }
+  if (left_ok == 0) {
+    return 0;
+  }
+  if (right_ok != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether expr is pair.field = src_ref (single-char field name).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param er i32 - assign expr
+ * @param pair_ref i32 - pair VAR base
+ * @param field_ch u8 - expected single field name byte
+ * @param src_ref i32 - RHS VAR
+ * @return i32 - 1 matched; 0 otherwise
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_is_field_assign_from_var_c(arena: *u8, er: i32, pair_ref: i32, field_ch: u8, src_ref: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let fn: u8[128] = [];
+  let ko: i32 = 0;
+  let ko_l: i32 = 0;
+  let base: i32 = 0;
+  let nlen: i32 = 0;
+  let same_b: i32 = 0;
+  let same_r: i32 = 0;
+  if (arena == 0 as *u8 || er <= 0 || pair_ref <= 0 || src_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, er);
+  }
+  if (ko != 28) {
+    return 0;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, er);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, er);
+    ko_l = pipeline_expr_kind_ord_at(arena, left_ref);
+  }
+  if (ko_l != 44) {
+    return 0;
+  }
+  unsafe {
+    base = pipeline_expr_field_access_base_ref(arena, left_ref);
+    same_b = glue_fold_expr_var_refs_same_c(arena, base, pair_ref);
+    nlen = pipeline_expr_field_access_name_len(arena, left_ref);
+  }
+  if (same_b == 0 || nlen != 1) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_field_access_name_into(arena, left_ref, &fn[0]);
+  }
+  if (fn[0] != field_ch) {
+    return 0;
+  }
+  unsafe {
+    same_r = glue_fold_expr_var_refs_same_c(arena, right_ref, src_ref);
+  }
+  if (same_r != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether expr is pair.b = i + 1.
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param er i32 - assign expr
+ * @param pair_ref i32 - pair VAR base
+ * @param i_ref i32 - induction VAR
+ * @return i32 - 1 matched; 0 otherwise
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_is_field_assign_i_plus_one_c(arena: *u8, er: i32, pair_ref: i32, i_ref: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let add_l: i32 = 0;
+  let add_r: i32 = 0;
+  let fn: u8[128] = [];
+  let ko: i32 = 0;
+  let ko_l: i32 = 0;
+  let ko_r: i32 = 0;
+  let base: i32 = 0;
+  let nlen: i32 = 0;
+  let same_b: i32 = 0;
+  let same_al: i32 = 0;
+  let ko_ar: i32 = 0;
+  let ar_val: i32 = 0;
+  if (arena == 0 as *u8 || er <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, er);
+  }
+  if (ko != 28) {
+    return 0;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, er);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, er);
+    ko_l = pipeline_expr_kind_ord_at(arena, left_ref);
+  }
+  if (ko_l != 44) {
+    return 0;
+  }
+  unsafe {
+    base = pipeline_expr_field_access_base_ref(arena, left_ref);
+    same_b = glue_fold_expr_var_refs_same_c(arena, base, pair_ref);
+    nlen = pipeline_expr_field_access_name_len(arena, left_ref);
+  }
+  if (same_b == 0 || nlen != 1) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_field_access_name_into(arena, left_ref, &fn[0]);
+  }
+  if (fn[0] != 98 as u8) {
+    return 0;
+  }
+  unsafe {
+    ko_r = pipeline_expr_kind_ord_at(arena, right_ref);
+  }
+  if (ko_r != 4) {
+    return 0;
+  }
+  unsafe {
+    add_l = pipeline_expr_binop_left_ref_at(arena, right_ref);
+    add_r = pipeline_expr_binop_right_ref_at(arena, right_ref);
+    same_al = glue_fold_expr_var_refs_same_c(arena, add_l, i_ref);
+    ko_ar = pipeline_expr_kind_ord_at(arena, add_r);
+  }
+  if (same_al == 0 || ko_ar != 0) {
+    return 0;
+  }
+  unsafe {
+    ar_val = pipeline_expr_int_val_at(arena, add_r);
+  }
+  if (ar_val != 1) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Whether expr is s = s + add_pair(pair).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param mod *u8 - Module*; reserved (name match only)
+ * @param er i32 - assign expr
+ * @param out_s_ref *i32 - optional; sum VAR ref
+ * @param pair_ref i32 - pair VAR arg
+ * @return i32 - 1 matched; 0 otherwise
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_is_assign_s_plus_pair_field_sum_call_c(arena: *u8, mod: *u8, er: i32, out_s_ref: *i32, pair_ref: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let add_l: i32 = 0;
+  let inner: i32 = 0;
+  let callee_ref: i32 = 0;
+  let arg0: i32 = 0;
+  let cname: u8[128] = [];
+  let clen: i32 = 0;
+  let ko: i32 = 0;
+  let ko_r: i32 = 0;
+  let same_al: i32 = 0;
+  let ko_inner: i32 = 0;
+  let nargs: i32 = 0;
+  let same_arg: i32 = 0;
+  let ko_cal: i32 = 0;
+  if (arena == 0 as *u8 || mod == 0 as *u8 || er <= 0 || pair_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, er);
+  }
+  if (ko != 28) {
+    return 0;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, er);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, er);
+    ko_r = pipeline_expr_kind_ord_at(arena, right_ref);
+  }
+  if (ko_r != 4) {
+    return 0;
+  }
+  unsafe {
+    add_l = pipeline_expr_binop_left_ref_at(arena, right_ref);
+    inner = pipeline_expr_binop_right_ref_at(arena, right_ref);
+    same_al = glue_fold_expr_var_refs_same_c(arena, add_l, left_ref);
+    ko_inner = pipeline_expr_kind_ord_at(arena, inner);
+  }
+  if (same_al == 0) {
+    return 0;
+  }
+  if (ko_inner != 48) {
+    return 0;
+  }
+  unsafe {
+    nargs = pipeline_expr_call_num_args_at(arena, inner);
+  }
+  if (nargs != 1) {
+    return 0;
+  }
+  unsafe {
+    arg0 = pipeline_expr_call_arg_ref(arena, inner, 0);
+    same_arg = glue_fold_expr_var_refs_same_c(arena, arg0, pair_ref);
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, inner);
+  }
+  if (same_arg == 0 || callee_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko_cal = pipeline_expr_kind_ord_at(arena, callee_ref);
+    clen = pipeline_expr_var_name_len(arena, callee_ref);
+  }
+  if (ko_cal != 3 || clen != 8) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
+  }
+  if (cname[0] != 97 as u8 || cname[1] != 100 as u8 || cname[2] != 100 as u8 || cname[3] != 95 as u8 || cname[4] != 112 as u8 || cname[5] != 97 as u8 || cname[6] != 105 as u8 || cname[7] != 114 as u8) {
+    return 0;
+  }
+  if (out_s_ref != 0 as *i32) {
+    unsafe {
+      out_s_ref[0] = left_ref;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Whether expr is buf[i] = (i as u8).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param er i32 - assign expr
+ * @param out_buf_ref *i32 - optional; buf VAR base
+ * @param i_ref i32 - induction VAR
+ * @return i32 - 1 matched; 0 otherwise
+ * Cap residual: glue_expr_is_x_as_cast_at_c (as residual).
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_is_assign_u8_index_store_cast_i_c(arena: *u8, er: i32, out_buf_ref: *i32, i_ref: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let as_op: i32 = 0;
+  let ko: i32 = 0;
+  let ko_l: i32 = 0;
+  let base: i32 = 0;
+  let ko_base: i32 = 0;
+  let idx: i32 = 0;
+  let same_i: i32 = 0;
+  let is_as: i32 = 0;
+  let same_as: i32 = 0;
+  if (arena == 0 as *u8 || er <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, er);
+  }
+  if (ko != 28) {
+    return 0;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, er);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, er);
+    ko_l = pipeline_expr_kind_ord_at(arena, left_ref);
+  }
+  if (ko_l != 47) {
+    return 0;
+  }
+  unsafe {
+    base = pipeline_expr_index_base_ref(arena, left_ref);
+    ko_base = pipeline_expr_kind_ord_at(arena, base);
+    idx = pipeline_expr_index_index_ref(arena, left_ref);
+    same_i = glue_fold_expr_var_refs_same_c(arena, idx, i_ref);
+    is_as = glue_expr_is_x_as_cast_at_c(arena, right_ref);
+  }
+  if (ko_base != 3 || same_i == 0 || is_as == 0) {
+    return 0;
+  }
+  unsafe {
+    as_op = pipeline_expr_as_operand_ref_at(arena, right_ref);
+    same_as = glue_fold_expr_var_refs_same_c(arena, as_op, i_ref);
+  }
+  if (same_as == 0) {
+    return 0;
+  }
+  if (out_buf_ref != 0 as *i32) {
+    unsafe {
+      out_buf_ref[0] = base;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Whether expr is sum = sum + (buf[j] as i32).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param er i32 - assign expr
+ * @param out_sum_ref *i32 - optional; sum VAR
+ * @param out_buf_ref *i32 - optional; buf VAR base
+ * @param j_ref i32 - induction VAR
+ * @return i32 - 1 matched; 0 otherwise
+ * Cap residual: glue_expr_is_x_as_cast_at_c (as residual).
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_is_assign_sum_plus_u8_index_cast_c(arena: *u8, er: i32, out_sum_ref: *i32, out_buf_ref: *i32, j_ref: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let add_l: i32 = 0;
+  let as_op: i32 = 0;
+  let ix_ref: i32 = 0;
+  let ko: i32 = 0;
+  let ko_r: i32 = 0;
+  let same_al: i32 = 0;
+  let is_as: i32 = 0;
+  let ko_ix: i32 = 0;
+  let base: i32 = 0;
+  let ko_base: i32 = 0;
+  let idx: i32 = 0;
+  let same_j: i32 = 0;
+  if (arena == 0 as *u8 || er <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, er);
+  }
+  if (ko != 28) {
+    return 0;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, er);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, er);
+    ko_r = pipeline_expr_kind_ord_at(arena, right_ref);
+  }
+  if (ko_r != 4) {
+    return 0;
+  }
+  unsafe {
+    add_l = pipeline_expr_binop_left_ref_at(arena, right_ref);
+    as_op = pipeline_expr_binop_right_ref_at(arena, right_ref);
+    same_al = glue_fold_expr_var_refs_same_c(arena, add_l, left_ref);
+    is_as = glue_expr_is_x_as_cast_at_c(arena, as_op);
+  }
+  if (same_al == 0 || is_as == 0) {
+    return 0;
+  }
+  unsafe {
+    ix_ref = pipeline_expr_as_operand_ref_at(arena, as_op);
+    ko_ix = pipeline_expr_kind_ord_at(arena, ix_ref);
+  }
+  if (ko_ix != 47) {
+    return 0;
+  }
+  unsafe {
+    base = pipeline_expr_index_base_ref(arena, ix_ref);
+    ko_base = pipeline_expr_kind_ord_at(arena, base);
+    idx = pipeline_expr_index_index_ref(arena, ix_ref);
+    same_j = glue_fold_expr_var_refs_same_c(arena, idx, j_ref);
+  }
+  if (ko_base != 3 || same_j == 0) {
+    return 0;
+  }
+  if (out_sum_ref != 0 as *i32) {
+    unsafe {
+      out_sum_ref[0] = left_ref;
+    }
+  }
+  if (out_buf_ref != 0 as *i32) {
+    unsafe {
+      out_buf_ref[0] = base;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Whether VAR expr name equals body's let_idx-th let name.
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param var_expr_ref i32 - VAR expr
+ * @param body_ref i32 - block with lets
+ * @param let_idx i32 - let index
+ * @return i32 - 1 equal; 0 otherwise
+ * wave136 pure: G.7 authority (was pipeline_asm_emit_fold_primitives.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_expr_var_name_eq_let_idx_c(arena: *u8, var_expr_ref: i32, body_ref: i32, let_idx: i32): i32 {
+  let vname: u8[128] = [];
+  let lname: u8[128] = [];
+  let vlen: i32 = 0;
+  let llen: i32 = 0;
+  let k: i32 = 0;
+  let ko: i32 = 0;
+  if (arena == 0 as *u8 || var_expr_ref <= 0 || body_ref <= 0 || let_idx < 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+  }
+  if (ko != 3) {
+    return 0;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+    llen = pipeline_block_let_name_len(arena, body_ref, let_idx);
+  }
+  if (vlen <= 0 || llen <= 0 || vlen != llen || vlen > 127) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
+    pipeline_block_let_name_copy64(arena, body_ref, let_idx, &lname[0]);
+  }
+  k = 0;
+  while (k < vlen) {
+    if (vname[k] != lname[k]) {
+      return 0;
+    }
+    k = k + 1;
+  }
+  return 1;
 }

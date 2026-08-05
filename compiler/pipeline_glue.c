@@ -1092,7 +1092,39 @@ extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br
  * (all public pool accessors) + GLUE_EXPR_KIND_VAR (macro, earlier in glue.c).
  * No static deps on other glue domains.
  * PLATFORM: SHARED. */
-#include "pipeline_asm_emit_fold_primitives.c"
+/* wave136 pure-owned leave: pipeline_asm_emit_fold_primitives.c deleted.
+ * live = runtime_pipeline_abi pure (13 fold pattern detectors);
+ * seed cold twins under #ifndef FROM_X. Residual fold_count_up_while calls pure
+ * faces via extern decls below — do not re-open a second fold-primitives face (G.7).
+ * Cap residual pure uses: pool faces + glue_expr_is_func_param_at_c /
+ * glue_fold_func_return_operand_ref_c (vector_simd non-static) +
+ * glue_expr_is_x_as_cast_at_c (as non-static).
+ * PLATFORM: SHARED. */
+extern int32_t glue_fold_expr_var_refs_same_c(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref);
+extern int32_t glue_fold_parse_while_lt_i_n_c(struct ast_ASTArena *arena, int32_t cond_ref, int32_t *out_i_ref,
+                                              int32_t *out_n_is_lit, int32_t *out_n_lit, int32_t *out_n_ref);
+extern int32_t glue_fold_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
+                                              int32_t *out_lit);
+extern int32_t glue_parse_i_mul_add_lit_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t i_ref,
+                                          int32_t *out_c1, int32_t *out_c2);
+extern int32_t glue_is_assign_var_add_one_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t target_ref);
+extern int32_t glue_expr_is_param0_field_access_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                  int32_t func_idx, int32_t expr_ref);
+extern int32_t glue_fold_func_returns_param0_field_sum_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                         int32_t func_idx);
+extern int32_t glue_is_field_assign_from_var_c(struct ast_ASTArena *arena, int32_t er, int32_t pair_ref,
+                                               uint8_t field_ch, int32_t src_ref);
+extern int32_t glue_is_field_assign_i_plus_one_c(struct ast_ASTArena *arena, int32_t er, int32_t pair_ref,
+                                                 int32_t i_ref);
+extern int32_t glue_is_assign_s_plus_pair_field_sum_call_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                           int32_t er, int32_t *out_s_ref, int32_t pair_ref);
+extern int32_t glue_is_assign_u8_index_store_cast_i_c(struct ast_ASTArena *arena, int32_t er, int32_t *out_buf_ref,
+                                                      int32_t i_ref);
+extern int32_t glue_is_assign_sum_plus_u8_index_cast_c(struct ast_ASTArena *arena, int32_t er, int32_t *out_sum_ref,
+                                                       int32_t *out_buf_ref, int32_t j_ref);
+extern int32_t glue_expr_var_name_eq_let_idx_c(struct ast_ASTArena *arena, int32_t var_expr_ref,
+                                               int32_t body_ref, int32_t let_idx);
+
 
 /* wave1106: remaining 11 fold primitives (glue_fold_parse_while_lt_i_n_c through
  * glue_is_assign_s_plus_pair_field_sum_call_c) removed — now provided by
@@ -1162,13 +1194,13 @@ extern int32_t glue_enc_x86_imul_eax_eax(struct platform_elf_ElfCodegenCtx *elf_
  *   glue_fold_expr_is_func_param0_c / glue_fold_func_x_plus_k_chain_c /
  *   glue_fold_affine_i_plus_k_expr_c / glue_fold_is_assign_s_plus_affine_i_c /
  *   glue_fold_parse_affine_sum_body_c / backend_try_fold_count_up_while_elf.
- * Deps: fold primitives (pipeline_asm_emit_fold_primitives.c) +
+ * Deps: fold primitives (wave136 pure leave faces) +
  *   x86 encoders (wave135 pure leave faces) +
  *   glue_asm_local_var_stack_off_scoped (pipeline_asm_emit_vector_simd.c) +
  *   glue_enc_local_slot_ptr_or_addr_rbx_elf_c (pipeline_asm_emit_index_helpers.c) +
  *   pipeline_asm_emit_next_label_c / glue_asm_ctx_set_scope_block (pipeline_glue.c) +
  *   glue_body_expr_stmt_at_c / glue_field_assign_pair_base_ref_c (pipeline_asm_emit_assign.c).
- * Same-TU: fold_primitives #include + wave135 x86 pure externs < this #include
+ * Same-TU: wave136 fold_primitives pure externs + wave135 x86 pure externs < this #include
  *   < backend_emit_while_loop_elf_sync def. Forward decl at ~L1605 remains.
  * PLATFORM: SHARED. */
 #include "pipeline_asm_emit_fold_count_up_while.c"

@@ -878,7 +878,8 @@ static int32_t glue_module_func_index_by_name_c(struct ast_Module *mod, uint8_t 
 /**
  * 读取函数体单一 return 的操作数 ref（显式 return 或 final_expr）；失败 0。
  */
-static int32_t glue_fold_func_return_operand_ref_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* wave136 Cap residual for fold_primitives pure leave: non-static face. */
+int32_t glue_fold_func_return_operand_ref_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    int32_t func_idx) {
   int32_t body_ref;
   int32_t fin;
@@ -921,7 +922,8 @@ static int32_t glue_fold_func_return_operand_ref_c(struct ast_ASTArena *arena, s
 /**
  * expr 是否为 func 第 param_ix 形参同名 VAR（向量 binop 内联 fold）。
  */
-static int32_t glue_expr_is_func_param_at_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,
+/* wave136 Cap residual for fold_primitives pure leave: non-static face. */
+int32_t glue_expr_is_func_param_at_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,
                                             int32_t expr_ref, int32_t param_ix) {
   uint8_t pbuf[128];
   uint8_t vbuf[128];

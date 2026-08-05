@@ -16,14 +16,10 @@
  * backend_emit_while_loop_elf_sync, which follows this #include in pipeline_glue.c).
  *
  * Same-TU #include contract:
- * - MUST be #included AFTER pipeline_asm_emit_fold_primitives.c (provides the 13
- *   fold primitives: glue_fold_parse_while_lt_i_n_c, glue_fold_block_let_init_lit_c,
- *   glue_is_assign_var_add_one_c, glue_is_field_assign_from_var_c,
- *   glue_is_field_assign_i_plus_one_c, glue_is_assign_s_plus_pair_field_sum_call_c,
- *   glue_is_assign_u8_index_store_cast_i_c, glue_is_assign_sum_plus_u8_index_cast_c,
- *   glue_fold_expr_var_refs_same_c, glue_parse_i_mul_add_lit_c,
- *   glue_expr_var_name_eq_let_idx_c, glue_fold_func_return_operand_ref_c,
- *   glue_module_func_index_by_name_c).
+ * - MUST be #included AFTER wave136 fold_primitives pure-leave extern decls in
+ *   pipeline_glue.c (13 fold detectors live in runtime_pipeline_abi pure;
+ *   seed cold twins under #ifndef FROM_X). Cap residual pure faces also need
+ *   vector_simd / as non-static helpers (func_param / return_operand / x_as_cast).
  * - MUST be #included AFTER wave135 pure-leave extern decls in pipeline_glue.c
  *   (glue_enc_x86_* micro-encoders + glue_emit_lcg_xor_body_x86_c live in
  *   runtime_pipeline_abi pure; seed cold twins under #ifndef FROM_X).
@@ -31,14 +27,14 @@
  *   backend_try_fold_count_up_while_elf and the glue_try_fold_*_elf_c hooks).
  *
  * External deps (all visible at the #include point in pipeline_glue.c):
- * - Fold primitives (from pipeline_asm_emit_fold_primitives.c, same TU):
+ * - Fold primitives (wave136 pure leave; extern faces before this #include):
  *   glue_fold_parse_while_lt_i_n_c / glue_fold_block_let_init_lit_c
  *   glue_is_assign_var_add_one_c / glue_is_field_assign_from_var_c
  *   glue_is_field_assign_i_plus_one_c / glue_is_assign_s_plus_pair_field_sum_call_c
  *   glue_is_assign_u8_index_store_cast_i_c / glue_is_assign_sum_plus_u8_index_cast_c
  *   glue_fold_expr_var_refs_same_c / glue_parse_i_mul_add_lit_c
- *   glue_expr_var_name_eq_let_idx_c / glue_fold_func_return_operand_ref_c
- *   glue_module_func_index_by_name_c
+ *   glue_expr_var_name_eq_let_idx_c
+ * - Also residual: glue_fold_func_return_operand_ref_c / glue_module_func_index_by_name_c
  * - x86 encoders (wave135 pure leave; extern faces before this #include):
  *   glue_enc_x86_cmpl_eax_imm32 / glue_enc_x86_mov_al_mem_rbx_rax
  *   glue_enc_x86_addl_imm_rbp_off / glue_enc_x86_movzx_ecx_mem_rbx_rax
