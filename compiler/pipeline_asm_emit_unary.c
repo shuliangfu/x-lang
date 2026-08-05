@@ -143,8 +143,10 @@ static int32_t pipeline_asm_emit_neg_elf_impl(struct ast_ASTArena *arena, struct
  * x86_64 的 je/jz 只读 EFLAGS；mov 到 eax 不会置 ZF，须先发 test %eax,%eax。
  * arm64 cbz / riscv beqz 直接读寄存器，无需 test。
  */
-static int32_t glue_enc_jz_after_bool_in_eax(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label,
-                                             int32_t label_len, int32_t ta) {
+/* wave129 Cap residual: pure block_if leave + residual match/async/fold (was static).
+ * PLATFORM: SHARED freestanding emit — public face for pure Cap residual. */
+int32_t glue_enc_jz_after_bool_in_eax(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label,
+                                      int32_t label_len, int32_t ta) {
   if (ta == 0) {
     if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
       return -1;

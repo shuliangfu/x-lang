@@ -13,10 +13,11 @@
  *  - ast_ast_block_while_* / for_* / if_* body accessors
  *  - ast_pipeline_block_{const,let}_* name/init accessors
  *  - pipeline_block_let_* / pipeline_expr_* / array_lit_num_elems faces
- *  - pipeline_asm_emit_block_if_stmt_elf public face
+ *  - pipeline_asm_emit_block_if_stmt_elf public pure face (wave129 leave)
+ *  - pipeline_asm_emit_if_then_block_body_elf_c public pure face (wave129 leave)
  *
- * Definitions live in ast_pool_block / domain leaves included later in this TU
- * (or other product TUs). No function bodies here.
+ * Definitions: block_if live in runtime_pipeline_abi pure (wave129 leave);
+ * other accessors live in ast_pool_block / residual domain leaves. No function bodies here.
  *
  * Include site: pipeline_glue.c immediately after pipeline_asm_emit_cmp.c
  * and before next_offset migration notes + #include.
@@ -64,7 +65,14 @@ int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t ast_pipeline_expr_array_lit_num_elems_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei);
 
-int32_t pipeline_asm_emit_block_if_stmt_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                            int32_t cur_block, int32_t if_idx, struct backend_AsmFuncCtx *ctx,
-                                            int32_t ta, int32_t stmt_i);
+/* wave129 pure-owned leave: block-level if ELF faces (was same-TU host-cc leaf).
+ * Residual block_body_sync if arm + backend.x thin path call these pure symbols.
+ * PLATFORM: SHARED freestanding emit. */
+extern int32_t pipeline_asm_emit_block_if_stmt_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                   int32_t cur_block, int32_t if_idx, struct backend_AsmFuncCtx *ctx,
+                                                   int32_t ta, int32_t stmt_i);
+extern int32_t pipeline_asm_emit_if_then_block_body_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         int32_t then_block_ref, struct backend_AsmFuncCtx *ctx,
+                                                         int32_t ta);
 

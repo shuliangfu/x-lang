@@ -9100,8 +9100,8 @@ fi
 if ! grep -qE 'pipeline_asm_emit_block_body\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_block_body.c (8.3.1 asm_emit_block_body slice)"
 fi
-if ! grep -qE 'pipeline_asm_emit_block_if_stmt\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_block_if_stmt.c (8.3.1 asm_emit_block_if_stmt slice)"
+if grep -qE 'pipeline_asm_emit_block_if_stmt\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_block_if_stmt.c (wave129 pure-owned leave)"
 fi
 if ! grep -qE 'pipeline_asm_emit_block_inits\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_block_inits.c (8.3.1 asm_emit_block_inits slice)"

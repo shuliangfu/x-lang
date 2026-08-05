@@ -930,7 +930,7 @@
 | `pipeline_asm_emit_return.c` | ~643 | asm ELF return emit（slice escape + impl + public face）切片 | 🟡 已抽出；thin face wave1014 有则补全；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_logand.c` | ~102 | asm ELF LOGAND/LOGOR short-circuit emit 切片 | ✅ wave128 pure-owned leave；live＝runtime_pipeline_abi pure；host 叶已删 |
 | `pipeline_asm_emit_block_body.c` | ~809 | asm ELF block body sync emit（defer + body_sync + accessors）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
-| `pipeline_asm_emit_block_if_stmt.c` | ~106 | asm ELF block-level if-stmt emit（then-first jz）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_block_if_stmt.c` | ~106 | asm ELF block-level if-stmt emit（then-first jz）切片 | ✅ wave129 pure-owned leave；live＝runtime_pipeline_abi pure；host 叶已删 |
 | `pipeline_asm_emit_block_inits.c` | ~171 | asm ELF block const/let init emit 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_assign.c` | ~678 | asm ELF EXPR_ASSIGN emit（lhs f32 + rhs + assign_rhs_to_rax + assign_elf）切片 | 🟡 已抽出（wave995）+ assign_rhs 有则补全（wave1016）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_emit_array_lit.c` | ~335 | asm ELF EXPR_ARRAY_LIT emit（elem_sz + empty + force_esz）切片 | 🟡 已抽出（wave996）；仍 host-cc 入 `pipeline_x` |

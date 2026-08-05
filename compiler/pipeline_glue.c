@@ -796,8 +796,12 @@ extern int32_t glue_emit_with_arena_deinit_elf(struct platform_elf_ElfCodegenCtx
 /* BC 8.3.1: asm ELF block body sync emit domain (defer + body_sync + accessors; same TU). */
 #include "pipeline_asm_emit_block_body.c"
 
-/* BC 8.3.1: asm ELF block-level if-stmt emit domain (same TU). */
-#include "pipeline_asm_emit_block_if_stmt.c"
+/* wave129 pure-owned leave: pipeline_asm_emit_block_if_stmt.c deleted.
+ * live = runtime_pipeline_abi pure (block_if_stmt_elf + if_then_block_body_elf_c);
+ * seed cold twin under #ifndef FROM_X. Residual block_body_sync if arm + backend.x
+ * call public faces — prototype in pipeline_glue_emit_block_fwd.c; do not re-open a
+ * second then-first block-if ELF face (G.7).
+ * PLATFORM: SHARED freestanding emit. */
 
 
 /* wave1034 G.7: pipeline_expr_float_bits_lo/hi_at folded into
@@ -1037,7 +1041,8 @@ extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br
  * by glue.c L3173 mega_body). PLATFORM: SHARED. */
 
 /* wave1206 G.7: pipeline_asm_emit_if_then_block_body_elf_c (1 fn, 21 lines)
- * migrated to pipeline_asm_emit_block_if_stmt.c EOF (colocated with if-stmt
+ * was in pipeline_asm_emit_block_if_stmt.c EOF; wave129 pure-owned leave →
+ * runtime_pipeline_abi pure (colocated with if-stmt
  * emit domain; #include at L2421). Deps: pipeline_asm_ctx_layout (static L86,
  * before L2421) + pipeline_glue_AsmFuncCtxLayout (struct top) +
  * pipeline_asm_fill_local_slots (defined in context.c L2564, AFTER L2421 —

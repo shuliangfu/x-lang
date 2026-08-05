@@ -46,13 +46,13 @@ static int32_t glue_emit_array_let_empty_init(struct ast_ASTArena *arena, struct
                                               struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off);
 
 /* wave1073 G.7: forward decl — definition at EOF (callsites at lines 819/851
- * precede definition). Also consumed by block_if_stmt.c:82 via #include at
- * glue.c L3875 > block_body.c L3872 (visible there via this decl). */
-static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t block_ref);
+ * precede definition). wave129: non-static Cap residual for pure block_if leave. */
+int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t block_ref);
 
 /* wave1152 G.7: forward decl — definition at EOF (callsites at lines 295/700/865
- * precede definition). Migrated from pipeline_glue.c L194. */
-static void glue_asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref);
+ * precede definition). Migrated from pipeline_glue.c L194.
+ * wave129: non-static Cap residual for pure block_if leave. */
+void glue_asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref);
 
 /** Deeper use walk for defer analysis: INDEX / AS / field / array-lit elems / unaries. */
 static void glue_live_fwd_collect_expr_uses_for_defer(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
@@ -1029,7 +1029,8 @@ static void pipeline_asm_ctx_reset_for_func_c(pipeline_glue_AsmFuncCtxLayout *ct
  * pipeline_block_num_labeled_stmts / pipeline_block_labeled_is_goto /
  * pipeline_block_labeled_return_expr_ref (all extern).
  */
-static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t block_ref) {
+/* wave129 Cap residual: pure block_if leave (was static). PLATFORM: SHARED. */
+int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t block_ref) {
   int32_t nso;
   int32_t i;
   if (!arena || block_ref <= 0)
@@ -1078,12 +1079,12 @@ static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t 
  *   - asm_ctx_set_scope_block (extern; declared at glue.c L191;
  *     before #include L3623 — visible)
  *
- * Static fwd decl at block_body.c:53 (callsites at lines 295/700/865
- * precede this EOF definition).
+ * Fwd decl at block_body.c (callsites at lines 295/700/865 precede this EOF
+ * definition). wave129: non-static Cap residual for pure block_if leave.
  *
  * PLATFORM: SHARED — pure scope bookkeeping; no platform ABI dep.
  * ============================================================ */
-static void glue_asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref) {
+void glue_asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref) {
   g_pipeline_asm_emit_scope_block = block_ref;
   asm_ctx_set_scope_block(ctx, block_ref);
 }

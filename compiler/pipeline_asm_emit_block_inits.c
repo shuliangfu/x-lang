@@ -756,8 +756,9 @@ extern void pipeline_asm_emit_set_module(struct ast_Module *m);
  * the public setter pipeline_asm_emit_set_module (G.7 single authority for
  * g_pipeline_asm_emit_module; was a direct static-global write before wave1149).
  */
-static void pipeline_asm_fill_block_locals_tree(struct backend_AsmFuncCtx *ctx, struct ast_ASTArena *arena,
-                                                int32_t block_ref) {
+/* wave129 Cap residual: pure block_if leave (was static same-TU). PLATFORM: SHARED. */
+void pipeline_asm_fill_block_locals_tree(struct backend_AsmFuncCtx *ctx, struct ast_ASTArena *arena,
+                                         int32_t block_ref) {
   struct ast_Module *mod_ref;
   pipeline_glue_AsmFuncCtxLayout *ly;
   int32_t off;

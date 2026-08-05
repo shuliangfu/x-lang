@@ -4,6 +4,9 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave129: pipeline_asm_emit_block_if_stmt.c pure-owned leave (block_if_stmt_elf +
+//   if_then_block_body_elf_c). Cap residual: block if refs + scope/jz/body_sync +
+//   live-end merge faces + ensure/fill locals + enc jmp/label + next_label + emit_expr_elf_c.
 // wave127: pipeline_asm_emit_panic.c pure-owned leave (xlang_panic_call +
 //   panic_elf + panic_int_div_zero + divisor_zero_check_rbx). Cap residual:
 //   emit_expr_elf_c + enc mov/arg/call/test/jne/label + next_label + unary/kind/type faces.
@@ -623,6 +626,26 @@ export extern "C" function backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32):
 export extern "C" function backend_enc_jz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
 export extern "C" function backend_enc_jnz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
 export extern "C" function backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+// wave129 Cap residual: block_if pure leave callees (host-cc residual live/scope/body faces).
+// PLATFORM: SHARED freestanding emit — pure owns block-level if ELF + if_then_block_body face.
+// Cond operand uses public pipeline_asm_emit_expr_elf_c (→ host-cc _rec). Live buffers are
+// opaque u8[136] overlays of GlueBlockLiveFwd (offs[32]+n; Cap residual casts).
+export extern "C" function ast_pipeline_block_if_cond_ref(arena: *u8, block_ref: i32, if_idx: i32): i32;
+export extern "C" function ast_pipeline_block_if_then_body_ref(arena: *u8, block_ref: i32, if_idx: i32): i32;
+export extern "C" function ast_pipeline_block_if_else_body_ref(arena: *u8, block_ref: i32, if_idx: i32): i32;
+export extern "C" function glue_asm_ctx_set_scope_block(ctx: *u8, block_ref: i32): void;
+export extern "C" function glue_enc_jz_after_bool_in_eax(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern "C" function backend_ensure_block_local_slots(ctx: *u8, arena: *u8, block_ref: i32): void;
+export extern "C" function pipeline_asm_fill_block_locals_tree(ctx: *u8, arena: *u8, block_ref: i32): void;
+export extern "C" function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function glue_block_fill_live_end_for_merge(arena: *u8, ctx: *u8, block_ref: i32, out_live: *u8): void;
+export extern "C" function glue_block_stmt_order_has_return(arena: *u8, block_ref: i32): i32;
+export extern "C" function glue_live_fwd_copy_from_snap_before_if(dst_live: *u8): void;
+export extern "C" function glue_asm_cache_invalidate_at_cfg_merge_selective(arena: *u8, ctx: *u8, branch_a: i32, branch_b: i32): void;
+export extern "C" function glue_asm_if_phi_invalidate_both_branch_defs(arena: *u8, ctx: *u8, then_ref: i32, else_ref: i32): void;
+export extern "C" function glue_asm_if_merge_live_union_from_ends(arena: *u8, ctx: *u8, then_live: *u8, else_live: *u8): void;
+export extern "C" function pipeline_asm_fill_local_slots(ctx: *u8, arena: *u8, block_ref: i32): void;
+export extern "C" function backend_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 -> _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
@@ -22127,4 +22150,195 @@ export function pipeline_asm_emit_logor_elf_impl(arena: *u8, elf_ctx: *u8, expr_
     return 0 - 1;
   }
   return 0;
+}
+
+// ---------------------------------------------------------------------------
+// wave129: pipeline_asm_emit_block_if_stmt pure-owned leave
+// (was pipeline_asm_emit_block_if_stmt.c).
+// G.7 product authority for:
+//   pipeline_asm_emit_block_if_stmt_elf  (then-first + jz / else / done + live merge)
+//   pipeline_asm_emit_if_then_block_body_elf_c  (then-block slot save/restore + body)
+// Cap residual: block if refs + scope/jz/body_sync + live-end merge faces +
+//   ensure/fill locals + enc jmp/label + next_label + emit_expr_elf_c + fill_local_slots.
+// Live ends: opaque u8[136] overlays of GlueBlockLiveFwd (offs[32]+n = 132).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
+// ---------------------------------------------------------------------------
+
+/**
+ * Block-level if ELF emit: then-first + jz to else/done, body_sync branches,
+ * live-end merge + CFG/phi cache invalidate, restore parent scope.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param cur_block i32 - parent block_ref holding the if
+ * @param if_idx i32 - if-stmt index in cur_block
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param stmt_i i32 - stmt_order index (unused; reserved)
+ * @return i32 - 0 ok; -1 null/bad refs/encoder/body failure
+ * wave129 pure: G.7 authority (was pipeline_asm_emit_block_if_stmt.c).
+ * Cap residual: host-cc live/scope/body faces; public emit_expr_elf_c for cond.
+ * PLATFORM: SHARED - sole provider after block_if leave; block_body_sync if arm.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_block_if_stmt_elf(arena: *u8, elf_ctx: *u8, cur_block: i32, if_idx: i32, ctx: *u8, ta: i32, stmt_i: i32): i32 {
+  let cond_if: i32 = 0;
+  let then_ref: i32 = 0;
+  let else_ref: i32 = 0;
+  let else_lbl: u8[128] = [];
+  let done_lbl: u8[128] = [];
+  let else_len: i32 = 0;
+  let done_len: i32 = 0;
+  let then_live: u8[136] = [];
+  let else_live: u8[136] = [];
+  let rc: i32 = 0;
+  let has_ret: i32 = 0;
+  // stmt_i reserved for residual debug parity; unused in pure path
+  if (stmt_i != 0) {
+    // no-op keep param live for ABI
+  }
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || cur_block <= 0) {
+    return 0 - 1;
+  }
+  // Consecutive ifs: restore parent scope before each if (prior then may still be active).
+  unsafe {
+    glue_asm_ctx_set_scope_block(ctx, cur_block);
+  }
+  unsafe {
+    cond_if = ast_pipeline_block_if_cond_ref(arena, cur_block, if_idx);
+    then_ref = ast_pipeline_block_if_then_body_ref(arena, cur_block, if_idx);
+    else_ref = ast_pipeline_block_if_else_body_ref(arena, cur_block, if_idx);
+  }
+  if (cond_if == 0 || then_ref == 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cond_if, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    else_len = pipeline_asm_emit_next_label_c(ctx, &else_lbl[0], 64);
+    done_len = pipeline_asm_emit_next_label_c(ctx, &done_lbl[0], 64);
+  }
+  if (else_len <= 0 || done_len <= 0) {
+    return 0 - 1;
+  }
+  if (else_ref != 0) {
+    unsafe {
+      rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &else_lbl[0], else_len, ta);
+    }
+  } else {
+    unsafe {
+      rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &done_lbl[0], done_len, ta);
+    }
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    backend_ensure_block_local_slots(ctx, arena, then_ref);
+    pipeline_asm_fill_block_locals_tree(ctx, arena, then_ref);
+    glue_asm_ctx_set_scope_block(ctx, then_ref);
+  }
+  unsafe {
+    rc = pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, then_ref, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    glue_block_fill_live_end_for_merge(arena, ctx, then_ref, &then_live[0]);
+  }
+  // then already returned: done lands after if; do not jmp done.
+  unsafe {
+    has_ret = glue_block_stmt_order_has_return(arena, then_ref);
+  }
+  if (has_ret == 0) {
+    unsafe {
+      rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  if (else_ref != 0) {
+    unsafe {
+      rc = backend_enc_label_arch(elf_ctx, &else_lbl[0], else_len, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      backend_ensure_block_local_slots(ctx, arena, else_ref);
+      pipeline_asm_fill_block_locals_tree(ctx, arena, else_ref);
+      glue_asm_ctx_set_scope_block(ctx, else_ref);
+    }
+    unsafe {
+      rc = pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, else_ref, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      glue_block_fill_live_end_for_merge(arena, ctx, else_ref, &else_live[0]);
+    }
+  } else {
+    unsafe {
+      glue_live_fwd_copy_from_snap_before_if(&else_live[0]);
+    }
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &done_lbl[0], done_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    glue_asm_cache_invalidate_at_cfg_merge_selective(arena, ctx, then_ref, else_ref);
+    glue_asm_if_phi_invalidate_both_branch_defs(arena, ctx, then_ref, else_ref);
+    glue_asm_if_merge_live_union_from_ends(arena, ctx, &then_live[0], &else_live[0]);
+    // Consecutive ifs (with_arena push chains): restore cur_block after then/else.
+    glue_asm_ctx_set_scope_block(ctx, cur_block);
+  }
+  return 0;
+}
+
+/**
+ * Emit ELF asm for an if-statement then-block with slot cursor save/restore.
+ * fill_local_slots before body; restore num_locals@8 / next_offset@4 after so
+ * branch-local slots do not leak to enclosing scope.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param then_block_ref i32 - then body block_ref
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 null/bad ref; else backend_emit_block_body_sync_elf result
+ * wave129 pure: G.7 authority (was pipeline_asm_emit_block_if_stmt.c).
+ * Cap residual: fill_local_slots + backend_emit_block_body_sync_elf.
+ * PLATFORM: SHARED - sole provider after block_if leave; backend.x thin path.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_if_then_block_body_elf_c(arena: *u8, elf_ctx: *u8, then_block_ref: i32, ctx: *u8, ta: i32): i32 {
+  if (ctx == 0 as *u8 || arena == 0 as *u8 || then_block_ref <= 0) {
+    return 0 - 1;
+  }
+  let ly: *u8 = pipeline_asm_ctx_layout(ctx);
+  if (ly == 0 as *u8) {
+    return 0 - 1;
+  }
+  // LP64: next_offset@4, num_locals@8 (pipe_asm_ctx_off_*).
+  let sv_locs: i32 = pipe_load_i32_le(ly, pipe_asm_ctx_off_num_locals());
+  let sv_next: i32 = pipe_load_i32_le(ly, pipe_asm_ctx_off_next_offset());
+  unsafe {
+    pipeline_asm_fill_local_slots(ctx, arena, then_block_ref);
+  }
+  let r: i32 = 0;
+  unsafe {
+    r = backend_emit_block_body_sync_elf(arena, elf_ctx, then_block_ref, ctx, ta);
+  }
+  pipe_store_i32_le(ly, pipe_asm_ctx_off_num_locals(), sv_locs);
+  pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), sv_next);
+  return r;
 }

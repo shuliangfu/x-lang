@@ -360,8 +360,10 @@ static void glue_binop_invalidate_slots_in_list(const int32_t *offs, int32_t n) 
  * 7.3 CFG 汇合点：按分支写槽并集选择性失效 binop 槽；INDEX 址 cache 仍保守清空。
  * branch_b_ref==0 时仅扫描 branch_a（用于 while/for 单入口体）。
  */
-static void glue_asm_cache_invalidate_at_cfg_merge_selective(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                              int32_t branch_a_ref, int32_t branch_b_ref) {
+/* wave129 Cap residual: pure block_if leave + residual fold/while (was static).
+ * PLATFORM: SHARED freestanding emit. */
+void glue_asm_cache_invalidate_at_cfg_merge_selective(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                      int32_t branch_a_ref, int32_t branch_b_ref) {
   int32_t offs[GLUE_CFG_DEF_OFFS_CAP];
   int32_t n = 0;
   glue_index_assign_addr_cache_clear();
@@ -379,8 +381,9 @@ static void glue_asm_cache_invalidate_at_cfg_merge_selective(struct ast_ASTArena
  * 7.3 if φ（最小）：then/else 均定义同一栈槽时显式失效 binop cache（两路径版本合并）。
  * 与 selective 并集 kill 互补：强调「双支写」槽不可沿用汇合前 rax/rbx 中的旧值。
  */
-static void glue_asm_if_phi_invalidate_both_branch_defs(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                         int32_t then_ref, int32_t else_ref) {
+/* wave129 Cap residual: pure block_if leave (was static). PLATFORM: SHARED. */
+void glue_asm_if_phi_invalidate_both_branch_defs(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                 int32_t then_ref, int32_t else_ref) {
   int32_t then_offs[GLUE_CFG_DEF_OFFS_CAP];
   int32_t else_offs[GLUE_CFG_DEF_OFFS_CAP];
   int32_t then_n;
@@ -496,13 +499,27 @@ static void glue_live_fwd_add(GlueBlockLiveFwd *live, int32_t off) {
   glue_cfg_def_offs_add(live->offs, GLUE_CFG_DEF_OFFS_CAP, &live->n, off);
 }
 
-/** 拷贝活跃集（stmt 边界 live_in 快照）。 */
-static void glue_live_fwd_copy(GlueBlockLiveFwd *dst, const GlueBlockLiveFwd *src) {
+/** 拷贝活跃集（stmt 边界 live_in 快照）。
+ * wave129 Cap residual: pure block_if leave may Cap residual via *u8 alias.
+ * PLATFORM: SHARED. */
+void glue_live_fwd_copy(GlueBlockLiveFwd *dst, const GlueBlockLiveFwd *src) {
   if (!dst || !src)
     return;
   dst->n = src->n;
   if (src->n > 0)
     memcpy(dst->offs, src->offs, (size_t)src->n * sizeof(int32_t));
+}
+
+/**
+ * Copy glue_live_snap_before_if into opaque live buffer (sizeof GlueBlockLiveFwd).
+ * wave129 Cap residual: pure block_if leave no-else path (parent snap → else_end).
+ * @param dst void* - GlueBlockLiveFwd* overlay; null → no-op
+ * PLATFORM: SHARED freestanding emit.
+ */
+void glue_live_fwd_copy_from_snap_before_if(void *dst) {
+  if (!dst)
+    return;
+  glue_live_fwd_copy((GlueBlockLiveFwd *)dst, &glue_live_snap_before_if);
 }
 
 /** 将 addend 中活跃槽并入 dst（并集，用于 if 汇合）。 */
@@ -1169,8 +1186,9 @@ static void glue_block_compute_live_end_linear(struct ast_ASTArena *arena, struc
 /**
  * 7.3 子块出口活跃集：无 cfg 用反向线性；含 cfg 用发射结束时 glue_block_live_sub_exit_snap（非空线性重算）。
  */
-static void glue_block_fill_live_end_for_merge(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                int32_t block_ref, GlueBlockLiveFwd *out) {
+/* wave129 Cap residual: pure block_if leave (was static). PLATFORM: SHARED. */
+void glue_block_fill_live_end_for_merge(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                        int32_t block_ref, GlueBlockLiveFwd *out) {
   glue_live_fwd_clear(out);
   if (!out || !arena || !ctx || block_ref <= 0)
     return;
@@ -1201,9 +1219,10 @@ static void glue_live_fwd_forward_after_def(struct ast_ASTArena *arena, struct b
 /**
  * 7.3 if 汇合：写槽选择性失效后，合并 then/else 出口活跃集（调用方须在 else 发射前保存 then_end）。
  */
-static void glue_asm_if_merge_live_union_from_ends(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                    const GlueBlockLiveFwd *then_end,
-                                                    const GlueBlockLiveFwd *else_end) {
+/* wave129 Cap residual: pure block_if leave (was static). PLATFORM: SHARED. */
+void glue_asm_if_merge_live_union_from_ends(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                            const GlueBlockLiveFwd *then_end,
+                                            const GlueBlockLiveFwd *else_end) {
   GlueBlockLiveFwd merged;
   (void)arena;
   (void)ctx;
