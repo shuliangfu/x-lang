@@ -1321,9 +1321,9 @@ extern int32_t glue_enc_x86_imul_eax_eax(struct platform_elf_ElfCodegenCtx *elf_
  * pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c (6 fns) migrated to
  * pipeline_asm_emit_fold_count_up_while.c EOF (colocated with count_up_while
  * fold domain). Same-TU #include at L3395. All static deps visible:
- * spill.c L1533 (glue_loop_break_exit_push/pop + glue_asm_cache_invalidate_
+ * spill.c (glue_loop_break_exit_push/pop + glue_asm_cache_invalidate_
  * at_cfg_merge_selective + glue_asm_loop_phi (wave159 pure) +
- * glue_asm_loop_merge_live_union + glue_live_fwd_apply_expr_effect);
+ * glue_asm_loop_merge_live_union (wave160 pure) + glue_live_fwd_apply_expr_effect);
  * unary.c L1319 (glue_enc_jz_after_bool_in_eax); array_lit.c L1551 +
  * expr_rec.c L1689 (pipeline_asm_emit_expr_elf_rec static def);
  * glue_try_fold_* / backend_try_fold_count_up_while_elf in THIS file above;

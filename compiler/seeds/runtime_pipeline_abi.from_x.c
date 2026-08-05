@@ -24860,5 +24860,22 @@ void glue_asm_loop_phi_invalidate_carried_defs(void *arena, void *ctx, int32_t b
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/*
+ * wave160 cold twins: if/loop live-merge union.
+ * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * PLATFORM: SHARED.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+void glue_asm_if_merge_live_union_from_ends(void *arena, void *ctx, void *then_live, void *else_live) {
+  (void)arena; (void)ctx; (void)then_live; (void)else_live;
+}
+
+void glue_asm_loop_merge_live_union(void *arena, void *ctx, int32_t body_ref) {
+  (void)arena; (void)ctx; (void)body_ref;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

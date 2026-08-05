@@ -1062,12 +1062,17 @@ export extern "C" function glue_live_fwd_copy_from_snap_before_if(dst_live: *u8)
 // glue_asm_if_phi_invalidate_both_branch_defs + glue_cfg_collect/add/contains
 // live in EOF section (was Cap residual spill).
 // wave159 pure-owned: glue_asm_loop_phi_invalidate_carried_defs body in EOF.
-// wave155 Cap residual (spill un-static): loop live-merge faces for pure while/for leave.
+// wave160 pure-owned: glue_asm_if_merge_live_union_from_ends +
+// glue_asm_loop_merge_live_union body in EOF (was Cap residual spill).
+// wave155 Cap residual (spill un-static): break push/pop + step expr effect.
 export extern "C" function glue_loop_break_exit_push(): void;
 export extern "C" function glue_loop_break_exit_pop(): void;
-export extern "C" function glue_asm_loop_merge_live_union(arena: *u8, ctx: *u8, body_ref: i32): void;
 export extern "C" function glue_live_fwd_apply_expr_effect(arena: *u8, ctx: *u8, expr_ref: i32): void;
-export extern "C" function glue_asm_if_merge_live_union_from_ends(arena: *u8, ctx: *u8, then_live: *u8, else_live: *u8): void;
+// wave160 Cap residual thin accessors for pure live-merge leave (BSS still spill).
+export extern "C" function glue_block_live_fwd_copy_from_u8(src: *u8): void;
+export extern "C" function glue_loop_break_exit_depth_get(): i32;
+export extern "C" function glue_loop_break_exit_live_union_into_u8(dst: *u8, d: i32): void;
+export extern "C" function glue_loop_continue_head_live_union_into_u8(dst: *u8, d: i32): void;
 // wave141: pipeline_asm_fill_local_slots pure export below (emit-context leave).
 // wave153 pure-owned: backend_emit_block_body_sync_elf body in EOF section.
 // wave131 Cap residual: async_cps pure leave callees (encoders + async_asm_pool + local offset).
@@ -52623,3 +52628,143 @@ export function glue_asm_loop_phi_invalidate_carried_defs(arena: *u8, ctx: *u8, 
 }
 
 // end wave159 pure-owned leave
+
+// ============================================================================
+// wave160 pure-owned leave: if/loop live-merge union
+// (was Cap residual spill next to wave159 loop-φ / live_fwd helpers).
+// Public faces:
+//   · glue_asm_if_merge_live_union_from_ends
+//   · glue_asm_loop_merge_live_union
+// Cap residual remaining in spill: binop VAR slot cache BSS, live_fwd BSS +
+// break-continue note/push/pop, fill_live_end, Chaitin, index-scratch methods,
+// thin accessors (copy_from_u8 / depth_get / stack union_into_u8).
+// Opaque live buffers: u8[136] overlays GlueBlockLiveFwd (offs[32]+n).
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 live-merge · dual-end L2.
+// ============================================================================
+
+/**
+ * Union all slots from src live buffer into dst (set-union via add_u8).
+ * Private wave160 helper for if/loop merge faces.
+ * @param dst *u8 - GlueBlockLiveFwd overlay; null → no-op
+ * @param src *u8 - GlueBlockLiveFwd overlay; null → no-op
+ * PLATFORM: SHARED freestanding emit.
+ */
+function w160_live_union_into(dst: *u8, src: *u8): void {
+  let n: i32 = 0;
+  let i: i32 = 0;
+  let off: i32 = 0;
+  if (dst == (0 as *u8) || src == (0 as *u8)) {
+    return;
+  }
+  unsafe {
+    n = glue_live_fwd_n_get(src);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      off = glue_live_fwd_off_at(src, i);
+    }
+    if (off >= 0) {
+      unsafe {
+        glue_live_fwd_add_u8(dst, off);
+      }
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * 7.3 if join: merge then/else exit live sets into global block_live_fwd,
+ * mark active, and intersect binop VAR cache with the new live set.
+ * Caller must save then_end before emitting else (opaque live buffers).
+ * @param arena *u8 - ASTArena* (unused; ABI parity with Cap residual)
+ * @param ctx *u8 - AsmFuncCtx* (unused; ABI parity)
+ * @param then_live *u8 - then exit GlueBlockLiveFwd overlay; null skipped
+ * @param else_live *u8 - else exit overlay; null skipped
+ * wave160 pure-owned (was Cap residual spill; block_if call site).
+ * PLATFORM: SHARED freestanding 7.3 CFG.
+ */
+#[no_mangle]
+export function glue_asm_if_merge_live_union_from_ends(arena: *u8, ctx: *u8, then_live: *u8, else_live: *u8): void {
+  let merged: u8[136] = [];
+  // Touch arena/ctx so hybrid ABI matches Cap residual (merge does not use them).
+  if (arena != (0 as *u8) && ctx != (0 as *u8)) {
+    // no-op branch: residual was (void)arena; (void)ctx
+  }
+  unsafe {
+    glue_live_fwd_clear_u8(&merged[0]);
+  }
+  if (then_live != (0 as *u8)) {
+    w160_live_union_into(&merged[0], then_live);
+  }
+  if (else_live != (0 as *u8)) {
+    w160_live_union_into(&merged[0], else_live);
+  }
+  unsafe {
+    glue_block_live_fwd_copy_from_u8(&merged[0]);
+    glue_block_live_fwd_active_set(1);
+    glue_binop_cache_intersect_live_fwd();
+  }
+}
+
+/**
+ * 7.3 while/for exit live join: snap_before ∪ body_end ∪ break_exit ∪
+ * continue_head, plus one-round back-edge head refine
+ * (snap ∪ body_end ∪ continue_head) unioned into the exit set.
+ * Sets global block_live_fwd active and intersects binop cache.
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param body_ref i32 - loop body block; <=0 → empty body_end
+ * wave160 pure-owned (was Cap residual spill; while/for call sites).
+ * PLATFORM: SHARED freestanding 7.3 CFG.
+ */
+#[no_mangle]
+export function glue_asm_loop_merge_live_union(arena: *u8, ctx: *u8, body_ref: i32): void {
+  let body_end: u8[136] = [];
+  let merged: u8[136] = [];
+  let head_one_round: u8[136] = [];
+  let snap: u8[136] = [];
+  let depth: i32 = 0;
+  let d: i32 = 0;
+  unsafe {
+    glue_live_fwd_clear_u8(&merged[0]);
+    glue_live_fwd_copy_from_snap_before_if(&snap[0]);
+  }
+  w160_live_union_into(&merged[0], &snap[0]);
+  if (body_ref > 0 && arena != (0 as *u8) && ctx != (0 as *u8)) {
+    unsafe {
+      glue_block_fill_live_end_for_merge(arena, ctx, body_ref, &body_end[0]);
+    }
+  } else {
+    unsafe {
+      glue_live_fwd_clear_u8(&body_end[0]);
+    }
+  }
+  w160_live_union_into(&merged[0], &body_end[0]);
+  unsafe {
+    depth = glue_loop_break_exit_depth_get();
+  }
+  if (depth > 0) {
+    d = depth - 1;
+    unsafe {
+      glue_loop_break_exit_live_union_into_u8(&merged[0], d);
+      glue_loop_continue_head_live_union_into_u8(&merged[0], d);
+      glue_live_fwd_clear_u8(&head_one_round[0]);
+    }
+    // One-round back-edge: entry ∪ body_end ∪ continue head.
+    w160_live_union_into(&head_one_round[0], &snap[0]);
+    w160_live_union_into(&head_one_round[0], &body_end[0]);
+    unsafe {
+      glue_loop_continue_head_live_union_into_u8(&head_one_round[0], d);
+    }
+    w160_live_union_into(&merged[0], &head_one_round[0]);
+  }
+  unsafe {
+    glue_block_live_fwd_copy_from_u8(&merged[0]);
+    glue_block_live_fwd_active_set(1);
+    glue_binop_cache_intersect_live_fwd();
+  }
+}
+
+// end wave160 pure-owned leave

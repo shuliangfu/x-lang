@@ -25,9 +25,15 @@
  *   · glue_asm_loop_phi_invalidate_carried_defs
  *   · glue_block_stmt_order_has_cfg
  *
+ * wave160 pure-owned if/loop live-merge union (same pure TU):
+ *   · glue_asm_if_merge_live_union_from_ends
+ *   · glue_asm_loop_merge_live_union
+ * Residual keeps live_fwd BSS + break/continue stacks + fill_live_end +
+ * thin accessors (copy_from_u8 / depth_get / stack union_into_u8).
+ *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + accessors
- *   · 7.3 live_fwd BSS / break/continue / loop live-merge union
+ *   · 7.3 live_fwd BSS / break-continue note + push/pop / Chaitin
  *   · Chaitin K=6 coloring + stack-spill preference + evict
  *   · index scratch spill methods + binop_stack_spill bodies
  *     (CAP statics in pipeline_asm_emit_index_helpers.c)
@@ -78,6 +84,13 @@ void glue_asm_if_phi_invalidate_both_branch_defs(struct ast_ASTArena *arena, str
 int32_t glue_block_stmt_order_has_cfg(struct ast_ASTArena *arena, int32_t block_ref);
 void glue_asm_loop_phi_invalidate_carried_defs(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                int32_t body_ref);
+
+/* wave160 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * Residual fill_live_end / snap / break-continue stacks + new thin accessors. PLATFORM: SHARED. */
+void glue_asm_if_merge_live_union_from_ends(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                           void *then_live, void *else_live);
+void glue_asm_loop_merge_live_union(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                    int32_t body_ref);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -1107,25 +1120,8 @@ void glue_live_fwd_forward_after_def(struct ast_ASTArena *arena, struct backend_
   glue_live_fwd_add(&glue_block_live_fwd, def_off);
 }
 
-/**
- * 7.3 if 汇合：写槽选择性失效后，合并 then/else 出口活跃集（调用方须在 else 发射前保存 then_end）。
- */
-/* wave129 Cap residual: pure block_if leave (was static). PLATFORM: SHARED. */
-void glue_asm_if_merge_live_union_from_ends(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                            const GlueBlockLiveFwd *then_end,
-                                            const GlueBlockLiveFwd *else_end) {
-  GlueBlockLiveFwd merged;
-  (void)arena;
-  (void)ctx;
-  glue_live_fwd_clear(&merged);
-  if (then_end)
-    glue_live_fwd_union_into(&merged, then_end);
-  if (else_end)
-    glue_live_fwd_union_into(&merged, else_end);
-  glue_live_fwd_copy(&glue_block_live_fwd, &merged);
-  glue_block_live_fwd_active = 1;
-  glue_binop_cache_intersect_live_fwd();
-}
+/* wave160: pure owns glue_asm_if_merge_live_union_from_ends (extern above).
+ * Residual: live_fwd BSS + copy_from_u8 / active_set / cache intersect. PLATFORM: SHARED. */
 
 /*
  * 7.3 全图寄存器（TODO，不阻塞原型门禁）：
@@ -1163,43 +1159,9 @@ void glue_asm_if_merge_live_union_from_ends(struct ast_ASTArena *arena, struct b
  * Residual snap BSS still owned here; pure copies via glue_live_fwd_copy_from_snap_before_if.
  * PLATFORM: SHARED. */
 
-/**
- * 7.3 while/for 出口活跃汇合：break/continue/体尾/入口 ∪，并做单轮回边 head 精炼。
- * exit_live = snap_before ∪ body_end ∪ break_exit ∪ continue_head；
- * head_1round = snap_before ∪ body_end ∪ continue_head（近似下一迭代入口）；
- * 最终 merged = exit_live ∪ head_1round（保守，利于含 continue 的 cfg 体）。
- */
-/* wave155: un-static for pure fold_count leave Cap residual. PLATFORM: SHARED. */
-void glue_asm_loop_merge_live_union(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                            int32_t body_ref) {
-  GlueBlockLiveFwd body_end;
-  GlueBlockLiveFwd merged;
-  GlueBlockLiveFwd head_one_round;
-  int32_t d;
-  (void)arena;
-  (void)ctx;
-  glue_live_fwd_clear(&merged);
-  glue_live_fwd_union_into(&merged, &glue_live_snap_before_if);
-  if (body_ref > 0)
-    glue_block_fill_live_end_for_merge(arena, ctx, body_ref, &body_end);
-  else
-    glue_live_fwd_clear(&body_end);
-  glue_live_fwd_union_into(&merged, &body_end);
-  if (glue_loop_break_exit_depth > 0) {
-    d = glue_loop_break_exit_depth - 1;
-    glue_live_fwd_union_into(&merged, &glue_loop_break_exit_live_stack[d]);
-    glue_live_fwd_union_into(&merged, &glue_loop_continue_head_live_stack[d]);
-    /** 单轮回边：入口 ∪ 体尾 ∪ continue 头部，补全 cfg 体在 continue 边定义的活跃槽。 */
-    glue_live_fwd_clear(&head_one_round);
-    glue_live_fwd_union_into(&head_one_round, &glue_live_snap_before_if);
-    glue_live_fwd_union_into(&head_one_round, &body_end);
-    glue_live_fwd_union_into(&head_one_round, &glue_loop_continue_head_live_stack[d]);
-    glue_live_fwd_union_into(&merged, &head_one_round);
-  }
-  glue_live_fwd_copy(&glue_block_live_fwd, &merged);
-  glue_block_live_fwd_active = 1;
-  glue_binop_cache_intersect_live_fwd();
-}
+/* wave160: pure owns glue_asm_loop_merge_live_union (extern above).
+ * Residual: snap / break-continue stacks / fill_live_end + thin union_into_u8 accessors.
+ * PLATFORM: SHARED. */
 
 /**
  * 7.3 for step 表达式对出口活跃集的前向修正（step 在回跳前已执行，仅更新追踪集）。
@@ -2458,4 +2420,52 @@ void glue_live_fwd_clear_u8(void *live) {
 
 void glue_live_fwd_add_u8(void *live, int32_t off) {
   glue_live_fwd_add((GlueBlockLiveFwd *)live, off);
+}
+
+/* ========================================================================== *
+ * wave160 Cap residual: thin BSS accessors for pure if/loop live-merge leave.
+ * Pure owns merge algorithm; residual owns live_fwd / snap / break-continue
+ * stacks (G.7 single authority for spill BSS). PLATFORM: SHARED.
+ * ========================================================================== */
+
+/**
+ * Copy opaque live buffer into global glue_block_live_fwd (sizeof GlueBlockLiveFwd).
+ * @param src void* - GlueBlockLiveFwd* overlay; null → clear global
+ * PLATFORM: SHARED freestanding emit.
+ */
+void glue_block_live_fwd_copy_from_u8(void *src) {
+  if (!src) {
+    glue_live_fwd_clear(&glue_block_live_fwd);
+    return;
+  }
+  glue_live_fwd_copy(&glue_block_live_fwd, (const GlueBlockLiveFwd *)src);
+}
+
+/** Current break/continue live stack depth (0 = no open loop). PLATFORM: SHARED. */
+int32_t glue_loop_break_exit_depth_get(void) {
+  return glue_loop_break_exit_depth;
+}
+
+/**
+ * Union break-exit live stack[d] into opaque dst live buffer.
+ * @param dst void* - GlueBlockLiveFwd* overlay; null → no-op
+ * @param d int32_t - stack index; out of range → no-op
+ * PLATFORM: SHARED freestanding emit.
+ */
+void glue_loop_break_exit_live_union_into_u8(void *dst, int32_t d) {
+  if (!dst || d < 0 || d >= GLUE_LOOP_BREAK_LIVE_DEPTH)
+    return;
+  glue_live_fwd_union_into((GlueBlockLiveFwd *)dst, &glue_loop_break_exit_live_stack[d]);
+}
+
+/**
+ * Union continue-head live stack[d] into opaque dst live buffer.
+ * @param dst void* - GlueBlockLiveFwd* overlay; null → no-op
+ * @param d int32_t - stack index; out of range → no-op
+ * PLATFORM: SHARED freestanding emit.
+ */
+void glue_loop_continue_head_live_union_into_u8(void *dst, int32_t d) {
+  if (!dst || d < 0 || d >= GLUE_LOOP_BREAK_LIVE_DEPTH)
+    return;
+  glue_live_fwd_union_into((GlueBlockLiveFwd *)dst, &glue_loop_continue_head_live_stack[d]);
 }
