@@ -9085,8 +9085,8 @@ fi
 if ! grep -qE 'pipeline_typeck_region_assign\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_typeck_region_assign.c (8.3.1 region_assign slice)"
 fi
-if ! grep -qE 'pipeline_asm_emit_unary\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_unary.c (8.3.1 asm_emit_unary slice)"
+if grep -qE 'pipeline_asm_emit_unary\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_unary.c (wave133 pure-owned leave)"
 fi
 if ! grep -qE 'pipeline_asm_emit_as\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_as.c (8.3.1 asm_emit_as slice)"

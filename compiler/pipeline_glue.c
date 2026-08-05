@@ -167,8 +167,11 @@ extern int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegen
 /* BC 8.3.1: asm ELF return emit domain (slice escape + return_impl; same TU). */
 #include "pipeline_asm_emit_return.c"
 
-/* BC 8.3.1: asm ELF unary emit domain (NEG/LOGNOT/BITNOT + sxt/jz; same TU). */
-#include "pipeline_asm_emit_unary.c"
+/* wave133 pure-owned leave: pipeline_asm_emit_unary.c deleted.
+ * live = runtime_pipeline_abi pure (neg/lognot/bitnot + sxt + jz_after_bool);
+ * seed cold twins under #ifndef FROM_X. Residual expr_rec (ko 22/23/24) +
+ * match/fold call pure faces via emit_fwd extern decls — do not re-open a
+ * second unary ELF face (G.7). PLATFORM: SHARED freestanding emit. */
 
 /* BC 8.3.1: asm ELF as/await/try/float-lit emit domain (same TU). */
 #include "pipeline_asm_emit_as.c"

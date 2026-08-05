@@ -29,7 +29,7 @@
  * - pipeline_asm_emit_expr_elf_rec (static; declared earlier in pipeline_glue.c)
  * - pipeline_asm_emit_expr_if_arm_elf_c (defined earlier)
  * - pipeline_asm_emit_next_label_c (extern / defined earlier)
- * - glue_enc_jz_after_bool_in_eax (static in pipeline_asm_emit_unary.c, #included earlier)
+ * - glue_enc_jz_after_bool_in_eax (wave133 pure leave; emit_fwd extern)
  * - backend_enc_*_arch, pipeline_expr_match_*, pipeline_expr_if_*, link_abi_getenv
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index (statics)
  * - pipeline_expr_resolved_type_ref / pipeline_module_func_param_type_ref_for_name

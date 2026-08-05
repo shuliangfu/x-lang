@@ -10568,4 +10568,182 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
   }
   return -2;
 }
+
+/*
+ * wave133: pipeline_asm_emit_unary pure-owned leave cold twins.
+ * PREFER pure; cold path when PREFER!=1 / hybrid fail.
+ * Faces: sxt i32, jz-after-bool, neg/lognot/bitnot ELF.
+ */
+extern int32_t pipeline_elf_ctx_append_bytes(void *ctx, uint8_t *ptr, int32_t n);
+extern int32_t backend_enc_test_eax_eax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_jz_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_binop_operand_is_scalar_f32_elf_c(void *arena, void *ctx, int32_t expr_ref);
+extern int32_t glue_binop_operand_is_scalar_f64_elf_c(void *arena, void *ctx, int32_t expr_ref);
+extern int32_t arch_arm64_enc_enc_u32_le(void *elf_ctx, int32_t val);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int64_t pipeline_expr_int64_val_at(void *arena, int32_t expr_ref);
+extern int32_t backend_enc_neg_eax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_not_eax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_setz_movzbl_eax_arch(void *elf_ctx, int32_t ta);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64);
+
+int32_t glue_enc_sxt_i32_result_to_rax_elf_c(void *elf_ctx, int32_t ta) {
+  if (!elf_ctx)
+    return -1;
+  if (ta == 0) {
+    static const uint8_t cdqe[2] = {0x48, 0x98};
+    return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)cdqe, 2);
+  }
+  if (ta == 1) {
+    static const uint8_t sxtw[4] = {0x00, 0x7c, 0x40, 0x93};
+    return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)sxtw, 4);
+  }
+  return 0;
+}
+
+int32_t glue_enc_jz_after_bool_in_eax(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta) {
+  if (ta == 0) {
+    if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  return backend_enc_jz_arch(elf_ctx, label, label_len, ta);
+}
+
+int32_t pipeline_asm_emit_neg_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op;
+  int32_t use_i64_neg = 0;
+  int32_t tr;
+  int32_t kind_ord = -1;
+  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
+    return -1;
+  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op == 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0)
+    return -1;
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, op)) {
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x52b00001u) != 0)
+        return -1;
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x4a010000u);
+    }
+    {
+      static const uint8_t btc_eax_31[4] = {0x0f, 0xba, 0xf8, 0x1f};
+      return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)btc_eax_31, 4);
+    }
+  }
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op)) {
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xd2f00001u) != 0)
+        return -1;
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xca010000u);
+    }
+    {
+      static const uint8_t btc_rax_63[5] = {0x48, 0x0f, 0xba, 0xf8, 0x3f};
+      return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)btc_rax_63, 5);
+    }
+  }
+  tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  if (tr <= 0)
+    tr = pipeline_expr_resolved_type_ref(arena, op);
+  if (tr <= 0)
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, op);
+  if (tr > 0)
+    kind_ord = pipeline_type_kind_ord_at(arena, tr);
+  if (kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 || kind_ord == 9)
+    use_i64_neg = 1;
+  if (!use_i64_neg && pipeline_expr_kind_ord_at(arena, op) == 0) {
+    int64_t v64 = pipeline_expr_int64_val_at(arena, op);
+    if (v64 < (int64_t)INT32_MIN || v64 > (int64_t)INT32_MAX)
+      use_i64_neg = 1;
+  }
+  if (use_i64_neg) {
+    if (ta == 0) {
+      static const uint8_t neg_rax[3] = {0x48, 0xf7, 0xd8};
+      return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)neg_rax, 3);
+    }
+    if (ta == 1) {
+      static const uint8_t neg_x0[4] = {0xe0, 0x03, 0x00, 0xcb};
+      return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)neg_x0, 4);
+    }
+  }
+  if (backend_enc_neg_eax_arch(elf_ctx, ta) != 0)
+    return -1;
+  {
+    int32_t tr_n = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    int32_t k_n = (tr_n > 0) ? pipeline_type_kind_ord_at(arena, tr_n) : -1;
+    if (k_n == 0)
+      return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+    if (k_n == 2 && ta == 0) {
+      static const uint8_t and_eax_ff[5] = {0x25, 0xff, 0x00, 0x00, 0x00};
+      return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)and_eax_ff, 5);
+    }
+    if (k_n == 8) {
+      uint8_t nm[128];
+      int32_t nlen = pipeline_type_named_name_into(arena, tr_n, nm);
+      if (nlen == 3 && nm[0] == (uint8_t)'u' && nm[1] == (uint8_t)'1' && nm[2] == (uint8_t)'6' && ta == 0) {
+        static const uint8_t and_eax_ffff[5] = {0x25, 0xff, 0xff, 0x00, 0x00};
+        return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)and_eax_ffff, 5);
+      }
+    }
+  }
+  return 0;
+}
+
+int32_t pipeline_asm_emit_lognot_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op;
+  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
+    return -1;
+  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op == 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
+    return -1;
+  return backend_enc_setz_movzbl_eax_arch(elf_ctx, ta);
+}
+
+int32_t pipeline_asm_emit_bitnot_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op;
+  int32_t use_i64_not = 0;
+  int32_t tr;
+  int32_t kind_ord = -1;
+  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
+    return -1;
+  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op == 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0)
+    return -1;
+  tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  if (tr <= 0)
+    tr = pipeline_expr_resolved_type_ref(arena, op);
+  if (tr <= 0)
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, op);
+  if (tr > 0)
+    kind_ord = pipeline_type_kind_ord_at(arena, tr);
+  if (kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 || kind_ord == 9)
+    use_i64_not = 1;
+  if (use_i64_not) {
+    if (ta == 0) {
+      static const uint8_t not_rax[3] = {0x48, 0xf7, 0xd0};
+      return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)not_rax, 3);
+    }
+    if (ta == 1) {
+      static const uint8_t mvn_x0[4] = {0xe0, 0x03, 0x20, 0xaa};
+      return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)mvn_x0, 4);
+    }
+  }
+  if (backend_enc_not_eax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (kind_ord == 0)
+    return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+  return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

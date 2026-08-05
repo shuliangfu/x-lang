@@ -100,7 +100,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_typeck_method_call.c|8.3.1|typeck method_call + generic UFCS mono slice|800|present"
   "compiler/pipeline_typeck_check_block.c|8.3.1|typeck check_block orchestration slice|250|present"
   "compiler/pipeline_typeck_region_assign.c|8.3.1|typeck region/escape assign-site slice|350|present"
-  "compiler/pipeline_asm_emit_unary.c|8.3.1|asm ELF unary emit (NEG/LOGNOT/BITNOT + public faces) slice|200|present"
+  "compiler/pipeline_asm_emit_unary.c|8.3.1|asm ELF unary emit (wave133 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_as.c|8.3.1|asm ELF as/await/try/float-lit emit (+ public as face) slice|350|present"
   "compiler/pipeline_asm_emit_return.c|8.3.1|asm ELF return emit (slice escape + impl + public face) slice|550|present"
   "compiler/pipeline_asm_emit_logand.c|8.3.1|asm ELF LOGAND/LOGOR short-circuit emit (wave128 pure-owned leave)|0|absent"
@@ -257,7 +257,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: struct_let + async_cps + wpo_mono + block_if + logand + panic + next_offset(same-TU) + ctx_layout + var_decl + lea_common + with_arena + lint_meta + parser_emit_heavy + emit_heavy_env + skip_dispatch + safe_helper + thin_delegate + selfhost + asm_ctx_loop + backend_asm_wrapper + parse_typeck_dispatch + codegen_dep + struct_emit + type_to_c + skip_force + codegen_residual + run_x_pipeline + resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
+  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: unary + struct_let + async_cps + wpo_mono + block_if + logand + panic + next_offset(same-TU) + ctx_layout + var_decl + lea_common + with_arena + lint_meta + parser_emit_heavy + emit_heavy_env + skip_dispatch + safe_helper + thin_delegate + selfhost + asm_ctx_loop + backend_asm_wrapper + parse_typeck_dispatch + codegen_dep + struct_emit + type_to_c + skip_force + codegen_residual + run_x_pipeline + resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
 }
 
 run_check() {

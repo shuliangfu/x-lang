@@ -825,8 +825,9 @@ static int32_t glue_expr_resolved_is_scalar_f64_c(struct ast_ASTArena *arena, in
  * binop/assign：判定操作数是否为标量 f32（resolved / 局部声明 / SoA INDEX *f32）。
  * heap Vec3f sum_x 等路径 INDEX 常无 resolved_type，须回落字段 *f32 与 VAR let/形参类型。
  */
-static int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                       int32_t expr_ref) {
+/* wave133 pure leave Cap residual: was static; pure unary neg links here. */
+int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                int32_t expr_ref) {
   int32_t ko;
   int32_t tr;
   int32_t base_ref;
@@ -892,8 +893,9 @@ static int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena
  * on `math.pi() <= 3.0`). G.7: complete authority via call_return_type_kind_ord
  * (already resolves kind 49 targets).
  */
-static int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                       int32_t expr_ref) {
+/* wave133 pure leave Cap residual: was static; pure unary neg links here. */
+int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                int32_t expr_ref) {
   int32_t ko;
   int32_t tr;
   int32_t rk;

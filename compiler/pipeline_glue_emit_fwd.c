@@ -40,6 +40,19 @@ extern int32_t pipeline_asm_emit_logor_elf_impl(struct ast_ASTArena *arena,
                                                struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                struct backend_AsmFuncCtx *ctx, int32_t ta);
 
+/* wave133 pure-owned leave: unary ELF faces (was same-TU pipeline_asm_emit_unary.c).
+ * Residual expr_rec (ko 22/23/24) + match/fold (jz_after_bool) call pure symbols.
+ * PLATFORM: SHARED freestanding emit. */
+extern int32_t pipeline_asm_emit_neg_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_lognot_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                              int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_bitnot_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                               int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t glue_enc_jz_after_bool_in_eax(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label,
+                                             int32_t label_len, int32_t ta);
+extern int32_t glue_enc_sxt_i32_result_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+
 /* wave131 pure-owned leave: async CPS ELF faces (was same-TU in
  * pipeline_asm_emit_async_cps.c). Residual block_body (after_await) + mega_body
  * (entry/end) call these pure symbols. phase_reset is declared earlier in

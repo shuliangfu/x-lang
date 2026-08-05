@@ -65,11 +65,12 @@ extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t
 
 /* Forward decls (gap B, hoisted before return.c): used by EXPR_NEG / assign
  * before f32/f64 classifiers and mul helper. All consumers are #included
- * after the return domain. */
-static int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                       int32_t expr_ref);
-static int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                       int32_t expr_ref);
+ * after the return domain.
+ * wave133 Cap residual: pure unary leave links f32/f64 classifiers — non-static. */
+int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                               int32_t expr_ref);
+int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                               int32_t expr_ref);
 static int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
 static int32_t glue_type_ref_is_scalar_f64_c(struct ast_ASTArena *arena, int32_t type_ref);
 /* wave124 pure-owned leave: live in runtime_pipeline_abi pure (was same-TU static). */

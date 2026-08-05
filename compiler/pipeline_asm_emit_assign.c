@@ -47,10 +47,11 @@ static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                    int32_t right_ref, int32_t ta);
-static int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                       int32_t expr_ref);
-static int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                       int32_t expr_ref);
+/* wave133 Cap residual: non-static (defs binop.c; pure unary leave links). */
+int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                               int32_t expr_ref);
+int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                               int32_t expr_ref);
 static int32_t glue_binop_operand_is_unsigned_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                      int32_t left_ref, int32_t right_ref);
 static int32_t glue_binop_operand_is_64bit_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,

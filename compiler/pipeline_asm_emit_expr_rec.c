@@ -155,12 +155,13 @@ static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct
     out_rc = pipeline_asm_emit_break_elf_impl(arena, elf_ctx, ctx, ta);
   else if (ko == 40)
     out_rc = pipeline_asm_emit_continue_elf_impl(arena, elf_ctx, ctx, ta);
+  /* wave133 pure leave: public faces (was static *_impl in unary.c). */
   else if (ko == 22)
-    out_rc = pipeline_asm_emit_neg_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+    out_rc = pipeline_asm_emit_neg_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == 23)
-    out_rc = pipeline_asm_emit_bitnot_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+    out_rc = pipeline_asm_emit_bitnot_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == 24)
-    out_rc = pipeline_asm_emit_lognot_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+    out_rc = pipeline_asm_emit_lognot_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (glue_expr_is_await_at_c(arena, expr_ref))
     out_rc = pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
   else if (glue_expr_is_x_as_cast_at_c(arena, expr_ref))
