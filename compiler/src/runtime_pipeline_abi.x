@@ -4,6 +4,10 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave134: pipeline_asm_emit_match.c pure-owned leave (match_elf + expr_if_elf +
+//   match subject context BSS + name_is_subject_field). Cap residual: match/if arm
+//   expr faces + if_arm_elf + enc jmp/jne/label/mov/cmp + next_label + emit_expr_elf_c +
+//   module/func_index getters + struct layout name/field faces.
 // wave130: pipeline_asm_emit_wpo_mono.c pure-owned leave (reset/register_n/register +
 //   emit_wpo_mono_thunks_elf_c + pending bag BSS). Cap residual: codegen_wpo_mono_sym_format
 //   + backend_enc_label/prologue/mov_imm64/epilogue + pipeline_dep_ctx_target_arch +
@@ -691,6 +695,28 @@ export extern "C" function backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_not_eax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_setz_movzbl_eax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i32;
+// wave134 Cap residual: match pure leave callees (MATCH/EXPR_IF arm faces + if_arm +
+// struct layout for subject field-bind). Enc jmp/jne/label/mov/cmp + next_label +
+// emit_expr_elf_c + module/func_index getters already Cap residual above.
+// PLATFORM: SHARED freestanding emit — pure owns match_elf + expr_if_elf + subject BSS.
+export extern "C" function pipeline_expr_match_matched_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_match_num_arms_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_match_arm_is_wildcard(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern "C" function pipeline_expr_match_arm_guard_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern "C" function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern "C" function pipeline_expr_match_arm_is_enum_variant(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern "C" function pipeline_expr_match_arm_variant_index(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern "C" function pipeline_expr_match_arm_lit_val(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern "C" function pipeline_expr_if_cond_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_if_then_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_if_else_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_asm_emit_expr_if_arm_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function pipeline_module_num_struct_layouts_at(module: *u8): i32;
+export extern "C" function pipeline_module_struct_layout_name_len(module: *u8, idx: i32): i32;
+export extern "C" function pipeline_module_struct_layout_name_byte_at(module: *u8, idx: i32, off: i32): i32;
+export extern "C" function pipeline_module_struct_layout_num_fields(module: *u8, layout_idx: i32): i32;
+export extern "C" function pipeline_module_struct_layout_field_name_len(module: *u8, layout_idx: i32, fi: i32): i32;
+export extern "C" function pipeline_module_struct_layout_field_name_into(module: *u8, layout_idx: i32, fi: i32, out64: *u8): void;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 -> _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
@@ -23788,4 +23814,560 @@ export function pipeline_asm_emit_bitnot_elf_c(arena: *u8, elf_ctx: *u8, expr_re
     return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
   }
   return 0;
+}
+
+// ---------------------------------------------------------------------------
+// wave134: pipeline_asm_emit_match pure-owned leave
+// (was pipeline_asm_emit_match.c).
+// G.7 product authority for:
+//   pipeline_asm_emit_match_elf_c            (EXPR_MATCH sequential first-match)
+//   pipeline_asm_emit_expr_if_elf_c          (EXPR_IF cond jz then/else)
+//   pipeline_codegen_match_set_subject_c     (host-C + freestanding subject hop)
+//   pipeline_codegen_match_clear_subject_c
+//   pipeline_codegen_match_matched_ref_c
+//   pipeline_codegen_match_subject_ty_c
+//   pipeline_codegen_match_mod_c
+//   pipeline_codegen_match_name_is_subject_field_c
+// Cap residual: match/if arm expr faces + if_arm_elf + enc jmp/jne/label/mov/cmp +
+//   next_label + emit_expr_elf_c + module/func_index + struct layout name/field.
+// Subject BSS replaces host-cc statics; seed cold twins under #ifndef FROM_X.
+// PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
+// ---------------------------------------------------------------------------
+
+// wave134: host-C / freestanding MATCH subject context (was statics in match.c).
+let g_codegen_match_matched_ref: i32 = 0;
+let g_codegen_match_subject_ty: i32 = 0;
+let g_codegen_match_mod: *u8 = 0 as *u8;
+
+/**
+ * Set the active match subject context (module + matched expr ref + subject type).
+ * @param module *u8 - Module* currently emitting; null allowed to restore prior
+ * @param matched_ref i32 - matched subject expr ref (0 clears logical match)
+ * @param subject_ty i32 - subject type_ref for field-bind lookup
+ * @return void
+ * wave134 pure: G.7 authority (was pipeline_asm_emit_match.c).
+ * Callers: pure match_elf; host-C codegen_emit_match_* via no_mangle surface.
+ * PLATFORM: SHARED — freestanding + host-C match subject hop.
+ */
+#[no_mangle]
+export function pipeline_codegen_match_set_subject_c(module: *u8, matched_ref: i32, subject_ty: i32): void {
+  g_codegen_match_mod = module;
+  g_codegen_match_matched_ref = matched_ref;
+  g_codegen_match_subject_ty = subject_ty;
+}
+
+/**
+ * Clear the match subject context after emitting all MATCH arms.
+ * @return void
+ * wave134 pure: G.7 authority (was pipeline_asm_emit_match.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_match_clear_subject_c(): void {
+  g_codegen_match_mod = 0 as *u8;
+  g_codegen_match_matched_ref = 0;
+  g_codegen_match_subject_ty = 0;
+}
+
+/**
+ * Get the currently matched expression ref (0 if no active match context).
+ * @return i32 - matched_ref or 0
+ * wave134 pure: G.7 authority (was pipeline_asm_emit_match.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_match_matched_ref_c(): i32 {
+  return g_codegen_match_matched_ref;
+}
+
+/**
+ * Get the currently active subject type ref (0 if no active match context).
+ * @return i32 - subject_ty or 0
+ * wave134 pure: G.7 authority (was pipeline_asm_emit_match.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_match_subject_ty_c(): i32 {
+  return g_codegen_match_subject_ty;
+}
+
+/**
+ * Get the currently active match module (null if no active match context).
+ * @return *u8 - Module* or null
+ * wave134 pure: G.7 authority (was pipeline_asm_emit_match.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_codegen_match_mod_c(): *u8 {
+  return g_codegen_match_mod;
+}
+
+/**
+ * Return 1 if name is a field of the active host-C match subject struct type.
+ * Same layout scan shape as typeck match subject field lookup.
+ * @param module *u8 - Module* must match active match module
+ * @param arena *u8 - ASTArena* for type named-name read
+ * @param name *u8 - candidate field name bytes
+ * @param name_len i32 - name length; must be > 0
+ * @return i32 - 1 if subject field; 0 otherwise
+ * wave134 pure: G.7 authority (was pipeline_asm_emit_match.c).
+ * Cap residual: type_kind_ord + named_name_into + struct layout faces.
+ * PLATFORM: SHARED — host-C field-bind + freestanding VAR fast path.
+ */
+#[no_mangle]
+export function pipeline_codegen_match_name_is_subject_field_c(module: *u8, arena: *u8, name: *u8, name_len: i32): i32 {
+  let ty: i32 = 0;
+  let k: i32 = 0;
+  let nsl: i32 = 0;
+  let fi: i32 = 0;
+  let nf: i32 = 0;
+  let fl: i32 = 0;
+  let j: i32 = 0;
+  let tnm: u8[128] = [];
+  let fnm: u8[128] = [];
+  let tnl: i32 = 0;
+  let bi: i32 = 0;
+  let same: i32 = 0;
+  let fnl: i32 = 0;
+  if (module == 0 as *u8 || arena == 0 as *u8 || name == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  ty = g_codegen_match_subject_ty;
+  if (ty <= 0 || g_codegen_match_mod != module || g_codegen_match_matched_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    // TYPE_NAMED = 8
+    if (pipeline_type_kind_ord_at(arena, ty) != 8) {
+      return 0;
+    }
+    tnl = pipeline_type_named_name_into(arena, ty, &tnm[0]);
+  }
+  if (tnl <= 0) {
+    return 0;
+  }
+  unsafe {
+    nsl = pipeline_module_num_struct_layouts_at(module);
+  }
+  k = 0;
+  while (k < nsl) {
+    unsafe {
+      fl = pipeline_module_struct_layout_name_len(module, k);
+    }
+    if (fl == tnl) {
+      same = 1;
+      bi = 0;
+      while (bi < fl && same != 0) {
+        unsafe {
+          if (pipeline_module_struct_layout_name_byte_at(module, k, bi) != (tnm[bi] as i32)) {
+            same = 0;
+          }
+        }
+        bi = bi + 1;
+      }
+      if (same != 0) {
+        unsafe {
+          nf = pipeline_module_struct_layout_num_fields(module, k);
+        }
+        fi = 0;
+        while (fi < nf) {
+          unsafe {
+            fnl = pipeline_module_struct_layout_field_name_len(module, k, fi);
+          }
+          if (fnl == name_len) {
+            j = 0;
+            while (j < 128) {
+              fnm[j] = 0 as u8;
+              j = j + 1;
+            }
+            unsafe {
+              pipeline_module_struct_layout_field_name_into(module, k, fi, &fnm[0]);
+            }
+            same = 1;
+            j = 0;
+            while (j < fnl && same != 0) {
+              if (fnm[j] != name[j]) {
+                same = 0;
+              }
+              j = j + 1;
+            }
+            if (same != 0) {
+              return 1;
+            }
+          }
+          fi = fi + 1;
+        }
+      }
+    }
+    k = k + 1;
+  }
+  return 0;
+}
+
+/**
+ * EXPR_MATCH ELF emit — sequential first-match arm chain (host-C twin).
+ * Pure wildcard (no guard) is terminal default; wild+guard uses guard only;
+ * lit/enum re-emits subject + cmp/jne + optional guard. Arms join at done.
+ * RETURN arm (kind 41) skips join. Activates subject context for field-bind.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - EXPR_MATCH expr ref
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 null/bad arms/encoder failure
+ * wave134 pure: G.7 authority (was pipeline_asm_emit_match.c).
+ * Cap residual: match arm faces + if_arm + emit_expr_elf_c + encoders + module getters.
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_match_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let matched_ref: i32 = 0;
+  let num_arms: i32 = 0;
+  let i: i32 = 0;
+  let cmp_val: i32 = 0;
+  let is_wild: i32 = 0;
+  let guard_ref: i32 = 0;
+  let done_lbl: u8[128] = [];
+  let next_lbl: u8[128] = [];
+  let done_len: i32 = 0;
+  let next_len: i32 = 0;
+  let result_ref: i32 = 0;
+  let prev_mod: *u8 = 0 as *u8;
+  let prev_mref: i32 = 0;
+  let prev_ty: i32 = 0;
+  let rc: i32 = 0 - 1;
+  let saw_terminal_wild: i32 = 0;
+  let emit_mod: *u8 = 0 as *u8;
+  let emit_fi: i32 = 0 - 1;
+  let subj_ty: i32 = 0;
+  let mn: u8[128] = [];
+  let mln: i32 = 0;
+  let arm_ok: i32 = 1;
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || expr_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    matched_ref = pipeline_expr_match_matched_ref_at(arena, expr_ref);
+    num_arms = pipeline_expr_match_num_arms_at(arena, expr_ref);
+  }
+  if (matched_ref <= 0 || num_arms <= 0 || num_arms > 32) {
+    return 0 - 1;
+  }
+  // Nested MATCH: save/restore subject like host-C.
+  prev_mod = pipeline_codegen_match_mod_c();
+  prev_mref = pipeline_codegen_match_matched_ref_c();
+  prev_ty = pipeline_codegen_match_subject_ty_c();
+  unsafe {
+    emit_mod = pipeline_asm_emit_module_ref_c();
+    emit_fi = pipeline_asm_emit_func_index_c();
+  }
+  if (emit_mod != 0 as *u8 && matched_ref > 0) {
+    unsafe {
+      subj_ty = pipeline_expr_resolved_type_ref(arena, matched_ref);
+    }
+    // EXPR_VAR = 3: param type fallback when resolved type missing
+    if (subj_ty <= 0) {
+      let ko_m: i32 = 0;
+      unsafe {
+        ko_m = pipeline_expr_kind_ord_at(arena, matched_ref);
+      }
+      if (ko_m == 3 && emit_fi >= 0) {
+        unsafe {
+          mln = pipeline_expr_var_name_len(arena, matched_ref);
+        }
+        if (mln > 0 && mln <= 127) {
+          unsafe {
+            pipeline_expr_var_name_into(arena, matched_ref, &mn[0]);
+            subj_ty = pipeline_module_func_param_type_ref_for_name(emit_mod, emit_fi, &mn[0], mln);
+          }
+        }
+      }
+    }
+    if (subj_ty > 0) {
+      pipeline_codegen_match_set_subject_c(emit_mod, matched_ref, subj_ty);
+    }
+  }
+  unsafe {
+    done_len = pipeline_asm_emit_next_label_c(ctx, &done_lbl[0], 64);
+  }
+  if (done_len <= 0) {
+    pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+    return 0 - 1;
+  }
+  i = 0;
+  while (i < num_arms && arm_ok != 0) {
+    unsafe {
+      is_wild = pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i);
+      guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, i);
+      result_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+    }
+    if (result_ref <= 0) {
+      arm_ok = 0;
+    } else {
+      // Terminal pure wildcard (no guard): default arm — emit body and end chain.
+      if (is_wild != 0 && guard_ref <= 0) {
+        unsafe {
+          rc = pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
+        }
+        if (rc != 0) {
+          arm_ok = 0;
+        } else {
+          // EXPR_RETURN = 41: already jmps to function tail_join — skip join.
+          let ko_r: i32 = 0;
+          unsafe {
+            ko_r = pipeline_expr_kind_ord_at(arena, result_ref);
+          }
+          if (ko_r != 41) {
+            unsafe {
+              rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
+            }
+            if (rc != 0) {
+              arm_ok = 0;
+            }
+          }
+          if (arm_ok != 0) {
+            saw_terminal_wild = 1;
+            // force end of arm loop
+            i = num_arms;
+          }
+        }
+      } else {
+        unsafe {
+          next_len = pipeline_asm_emit_next_label_c(ctx, &next_lbl[0], 64);
+        }
+        if (next_len <= 0) {
+          arm_ok = 0;
+        } else {
+          if (is_wild != 0) {
+            // Wildcard + guard: condition is the guard only.
+            unsafe {
+              rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, guard_ref, ctx, ta);
+            }
+            if (rc != 0) {
+              arm_ok = 0;
+            } else {
+              unsafe {
+                rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &next_lbl[0], next_len, ta);
+              }
+              if (rc != 0) {
+                arm_ok = 0;
+              }
+            }
+          } else {
+            // Lit / enum: re-emit subject; cmp; jne next; optional guard.
+            unsafe {
+              rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, matched_ref, ctx, ta);
+            }
+            if (rc != 0) {
+              arm_ok = 0;
+            } else {
+              unsafe {
+                rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+              }
+              if (rc != 0) {
+                arm_ok = 0;
+              } else {
+                let is_enum: i32 = 0;
+                unsafe {
+                  is_enum = pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i);
+                }
+                if (is_enum != 0) {
+                  unsafe {
+                    cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
+                  }
+                } else {
+                  unsafe {
+                    cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
+                  }
+                }
+                unsafe {
+                  rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, cmp_val, ta);
+                }
+                if (rc != 0) {
+                  arm_ok = 0;
+                } else {
+                  unsafe {
+                    rc = backend_enc_cmp_rbx_rax_arch(elf_ctx, ta);
+                  }
+                  if (rc != 0) {
+                    arm_ok = 0;
+                  } else {
+                    unsafe {
+                      rc = backend_enc_jne_arch(elf_ctx, &next_lbl[0], next_len, ta);
+                    }
+                    if (rc != 0) {
+                      arm_ok = 0;
+                    } else {
+                      if (guard_ref > 0) {
+                        unsafe {
+                          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, guard_ref, ctx, ta);
+                        }
+                        if (rc != 0) {
+                          arm_ok = 0;
+                        } else {
+                          unsafe {
+                            rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &next_lbl[0], next_len, ta);
+                          }
+                          if (rc != 0) {
+                            arm_ok = 0;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if (arm_ok != 0) {
+            unsafe {
+              rc = pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
+            }
+            if (rc != 0) {
+              arm_ok = 0;
+            } else {
+              let ko_r2: i32 = 0;
+              unsafe {
+                ko_r2 = pipeline_expr_kind_ord_at(arena, result_ref);
+              }
+              if (ko_r2 != 41) {
+                unsafe {
+                  rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
+                }
+                if (rc != 0) {
+                  arm_ok = 0;
+                }
+              }
+              if (arm_ok != 0) {
+                unsafe {
+                  rc = backend_enc_label_arch(elf_ctx, &next_lbl[0], next_len, 0, ta);
+                }
+                if (rc != 0) {
+                  arm_ok = 0;
+                }
+              }
+            }
+          }
+        }
+        if (arm_ok != 0) {
+          i = i + 1;
+        }
+      }
+    }
+  }
+  if (arm_ok != 0) {
+    // Exhausted arms with no pure-wild default: result 0.
+    if (saw_terminal_wild == 0) {
+      unsafe {
+        rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta);
+      }
+      if (rc != 0) {
+        arm_ok = 0;
+      }
+    }
+    if (arm_ok != 0) {
+      unsafe {
+        rc = backend_enc_label_arch(elf_ctx, &done_lbl[0], done_len, 0, ta);
+      }
+      if (rc != 0) {
+        arm_ok = 0;
+      }
+    }
+  }
+  pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+  if (arm_ok == 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * EXPR_IF ELF emit: cond + jz else + then arm + jmp done + else arm (or imm 0).
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - EXPR_IF expr ref
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 null/bad cond/then/encoder failure
+ * wave134 pure: G.7 authority (was pipeline_asm_emit_match.c).
+ * Cap residual: if cond/then/else faces + if_arm + jz_after_bool + encoders.
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_expr_if_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let cond: i32 = 0;
+  let then_ref: i32 = 0;
+  let else_ref: i32 = 0;
+  let else_lbl: u8[128] = [];
+  let done_lbl: u8[128] = [];
+  let else_len: i32 = 0;
+  let done_len: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || expr_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    cond = pipeline_expr_if_cond_ref_at(arena, expr_ref);
+    then_ref = pipeline_expr_if_then_ref_at(arena, expr_ref);
+    else_ref = pipeline_expr_if_else_ref_at(arena, expr_ref);
+  }
+  if (cond == 0 || then_ref == 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cond, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    else_len = pipeline_asm_emit_next_label_c(ctx, &else_lbl[0], 64);
+    done_len = pipeline_asm_emit_next_label_c(ctx, &done_lbl[0], 64);
+  }
+  if (else_len <= 0 || done_len <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &else_lbl[0], else_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, then_ref, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &else_lbl[0], else_len, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (else_ref != 0) {
+    unsafe {
+      rc = pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, else_ref, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  } else {
+    unsafe {
+      rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &done_lbl[0], done_len, 0, ta);
+  }
+  return rc;
 }

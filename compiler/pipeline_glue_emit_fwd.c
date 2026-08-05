@@ -53,6 +53,21 @@ extern int32_t glue_enc_jz_after_bool_in_eax(struct platform_elf_ElfCodegenCtx *
                                              int32_t label_len, int32_t ta);
 extern int32_t glue_enc_sxt_i32_result_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 
+/* wave134 pure-owned leave: MATCH/EXPR_IF + subject context (was same-TU
+ * pipeline_asm_emit_match.c). Residual expr_rec (MATCH/IF ko) + host-C
+ * codegen_gen seed call pure symbols. PLATFORM: SHARED freestanding emit. */
+extern int32_t pipeline_asm_emit_match_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                             int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_expr_if_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern void pipeline_codegen_match_set_subject_c(struct ast_Module *module, int32_t matched_ref, int32_t subject_ty);
+extern void pipeline_codegen_match_clear_subject_c(void);
+extern int32_t pipeline_codegen_match_matched_ref_c(void);
+extern int32_t pipeline_codegen_match_subject_ty_c(void);
+extern struct ast_Module *pipeline_codegen_match_mod_c(void);
+extern int32_t pipeline_codegen_match_name_is_subject_field_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                              uint8_t *name, int32_t name_len);
+
 /* wave131 pure-owned leave: async CPS ELF faces (was same-TU in
  * pipeline_asm_emit_async_cps.c). Residual block_body (after_await) + mega_body
  * (entry/end) call these pure symbols. phase_reset is declared earlier in
@@ -97,8 +112,9 @@ static int32_t glue_if_expr_arm_emit_depth;
  *    backend_ensure_block_local_slots / pipeline_asm_emit_block_body_sync_elf
  *    / pipeline_asm_emit_expr_elf_rec / link_abi_getenv (all extern,
  *    visible at block_body.c EOF via same-TU fwd decls / extern decls)
- * Fwd decl below retained — covers match.c L87/109/156/167 (#include L1567
- * < L2095) + expr_rec.c L124 (#include L1673 < L2095) callsites.
+ * Fwd decl below retained — covers pure match leave Cap residual + expr_rec
+ * if_arm callsite (def at block_body EOF). wave134: match_elf/expr_if_elf live
+ * in runtime_pipeline_abi pure (extern above); if_arm stays host-cc residual.
  * No dual authority — seeds only declare extern, no definition.
  * PLATFORM: SHARED — emits both x86_64 + arm64 ELF (ta param selects arch
  * inside delegated callees; no direct arch branch in this function). */
@@ -106,10 +122,8 @@ int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arm_ref,
                                                    struct backend_AsmFuncCtx *ctx, int32_t ta);
 
-/**
- * 表达式级 if/三元 ELF 发射（C 实现）：避免 seed partial 中 backend.x EXPR_IF 经 -E 后漏打 else 标签（.L_else_N offset=-1）。
- * backend.x::emit_expr_elf 在 ek 25/27 时 extern 调用本函数。
- */
+/* wave134: EXPR_IF / MATCH ELF faces pure-owned (emit_fwd extern above).
+ * Residual expr_rec dispatches via pure symbols; do not re-define host bodies. */
 /* Forward: dual-GP / named layout used by STRUCT_LIT field store (defs later). */
 static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 /* wave132 pure leave Cap residual: named_layout static→extern (def call_args.c). */

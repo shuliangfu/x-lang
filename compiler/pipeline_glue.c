@@ -324,7 +324,12 @@ extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
 
 /* BC 8.3.1: asm ELF EXPR_MATCH / EXPR_IF emit domain
  * (match + expr_if; Cap residual pure; same TU). */
-#include "pipeline_asm_emit_match.c"
+/* wave134 pure-owned leave: pipeline_asm_emit_match.c deleted.
+ * live = runtime_pipeline_abi pure (match_elf + expr_if_elf + subject BSS +
+ * name_is_subject_field); seed cold twins under #ifndef FROM_X. Residual
+ * expr_rec (ko MATCH/IF) + host-C codegen call pure faces via emit_fwd
+ * extern decls — do not re-open a second MATCH/EXPR_IF ELF face (G.7).
+ * PLATFORM: SHARED freestanding emit. */
 
 
 /* wave1212 G.7: glue_var_expr_stack_off_elf_c (18 lines, static) migrated to
