@@ -168,15 +168,18 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 
 #include "pipeline_codegen_struct_emit.c"
 
-#include "pipeline_codegen_skip_force.c"
+/* 2026-08-05: pipeline_codegen_skip_force.c pure-owned leave retired (wave108).
+ * Live face: runtime_pipeline_abi.x (call_num_args_override / path_is_std_io_* /
+ * dep_skip_* / should_skip_emit_* / entry_is_lsp_* / force_param_*).
+ * Reuses private pure cg_residual_name_prefix_eq (wave107) — single prefix helper.
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 /* 2026-08-05: pipeline_codegen_residual.c pure-owned leave retired.
  * Live face: runtime_pipeline_abi.x (use_buf_wrapper / skip_emit_extern_io_batch_buf
  * / should_skip_emit_func_by_name / emit_seed_mega_enabled / is_submit_batch_buf_call
  * / should_skip_emit_func_core_read_ptr / asm_io_core_extern_callee_sym
  * / io_driver_buf_call_sym / std_io_fixed_fd_emit_impl).
- * Private pure prefix_eq replaces same-TU static codegen_name_prefix_eq dependency
- * (skip_force still keeps its static helper for its own predicates).
+ * Private pure prefix_eq is shared with skip_force pure leave (wave108).
  * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 #include "pipeline_asm_locals.c"

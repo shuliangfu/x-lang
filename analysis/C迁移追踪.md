@@ -967,7 +967,7 @@
 | `pipeline_elf_write_o.c` | **~1,581** | ELF64 ET_REL + Mach-O MH_OBJECT `.o` writers | 🟡 **已抽出**（8.3.2）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_elf_ctx.c` | **~1,001** | ELF/Mach-O codegen ctx accessors + PGO-Lite + reloc/label/patch/shndx/common sidecar | 🟡 **已抽出**（8.3.2 wave1247）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_codegen_type_to_c.c` | **~349** | TypeKind/VECTOR → C type name repr（type_kind_cstr/copy + vector_type_cstr/copy + type_to_c_repr） | 🟡 **已抽出**（8.3.2 wave1248）；仍 host-cc 入 `pipeline_x` |
-| `pipeline_codegen_skip_force.c` | **~393** | codegen skip/force/override/path 谓词（call_num_args_override + dep_skip_* + should_skip_emit_* + force_param_*） | 🟡 **已抽出**（8.3.2 wave1249）；仍 host-cc 入 `pipeline_x` |
+| `pipeline_codegen_skip_force.c` | **0（deleted）** | codegen skip/force/override/path 谓词 | ✅ **pure-owned leave**（2026-08-05 wave108）；live＝`runtime_pipeline_abi` pure；seed cold twin under #ifndef FROM_X；host-cc 叶已删 |
 | `pipeline_codegen_struct_emit.c` | **~243** | C co-emit struct tag + outbuf append + struct field emit（struct_tag_try_claim + out_append_* + emit_struct_field_*） | 🟡 **已抽出**（8.3.2 wave1250）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_codegen_residual.c` | **0（deleted）** | codegen residual name/predicate + io.core/driver symbol rewrite | ✅ **pure-owned leave**（2026-08-05 wave107）；live＝`runtime_pipeline_abi` pure；seed cold twin under #ifndef FROM_X；host-cc 叶已删 |
 | `pipeline_asm_wpo.c` | **~1,482** | asm WPO v0 DCE + PGO-Lite reach/emit order（AsmWpoReachState + reach BFS + PGO hot/depth + should_emit_func + emit_order） | 🟡 **已抽出**（8.3.2 wave1256）；仍 host-cc 入 `pipeline_x` |
