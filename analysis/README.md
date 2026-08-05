@@ -14,6 +14,8 @@
 | [C迁移追踪.md](./C迁移追踪.md) | 终局债勾选 / 删 Makefile DAG（状态 only） |
 | [问题分析文档.md](./问题分析文档.md) | 产品/大债地图（默认不改） |
 | [语言语义诊断与LSP跟踪能力分析.md](./语言语义诊断与LSP跟踪能力分析.md) | **语义校验 + LSP 跟踪地图**（A 分号 ASI / B 模块重名 / C unused 无调用点 / D definition·references·hover）；**已决策：默认自举后完善（P2a）· 仅 D-references 可空窗插队 · 不抢 residual**（2026-08-05） |
+| [合约设计与Agent支持.md](./合约设计与Agent支持.md) | **轻量 DbC（pre/post/inv）+ Agent 闭环**（与 MCP/Skills/LSP 分工）；L0–L3 分层；自举后语言优化轨；**不抢 residual**（2026-08-06 重写） |
+| [AI友好特性分析.md](./AI友好特性分析.md) | **面向 AI 写代码：降幻觉、提准确率**——语言原则、H01–H15 幻觉表、诊断/MCP/Skills/示例/评测；与合约文互补；**不抢 residual**（2026-08-06） |
 | [IR核心设计.md](./IR核心设计.md) | IR v4 架构冻结 |
 | [安全路线.md](./安全路线.md) · [FFI隔离.md](./FFI隔离.md) · [lang-unsafe-v1-rfc.md](./lang-unsafe-v1-rfc.md) | 安全 / FFI |
 | [std标准库全量清单与优先级.md](./std标准库全量清单与优先级.md) | std 总表 |
