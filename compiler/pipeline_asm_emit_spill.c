@@ -578,7 +578,8 @@ static void glue_live_fwd_union_into(GlueBlockLiveFwd *dst, const GlueBlockLiveF
 }
 
 /** 进入循环：清空当前层 break/continue 活跃累积。 */
-static void glue_loop_break_exit_push(void) {
+/* wave155: un-static for pure fold_count leave Cap residual. PLATFORM: SHARED. */
+void glue_loop_break_exit_push(void) {
   if (glue_loop_break_exit_depth < GLUE_LOOP_BREAK_LIVE_DEPTH) {
     glue_live_fwd_clear(&glue_loop_break_exit_live_stack[glue_loop_break_exit_depth]);
     glue_live_fwd_clear(&glue_loop_continue_head_live_stack[glue_loop_break_exit_depth]);
@@ -587,7 +588,8 @@ static void glue_loop_break_exit_push(void) {
 }
 
 /** 离开循环：弹出 break 出口栈（须在 loop 汇合之后调用）。 */
-static void glue_loop_break_exit_pop(void) {
+/* wave155: un-static for pure fold_count leave Cap residual. PLATFORM: SHARED. */
+void glue_loop_break_exit_pop(void) {
   if (glue_loop_break_exit_depth > 0)
     glue_loop_break_exit_depth--;
 }
@@ -1317,7 +1319,8 @@ void glue_asm_if_merge_live_union_from_ends(struct ast_ASTArena *arena, struct b
 /**
  * 7.3 loop φ（最小）：循环入口活跃且循环体内 redefine 的栈槽，汇合后失效 binop cache（携带重定义）。
  */
-static void glue_asm_loop_phi_invalidate_carried_defs(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+/* wave155: un-static for pure fold_count leave Cap residual. PLATFORM: SHARED. */
+void glue_asm_loop_phi_invalidate_carried_defs(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                        int32_t body_ref) {
   int32_t body_offs[GLUE_CFG_DEF_OFFS_CAP];
   int32_t n;
@@ -1344,7 +1347,8 @@ static void glue_asm_loop_phi_invalidate_carried_defs(struct ast_ASTArena *arena
  * head_1round = snap_before ∪ body_end ∪ continue_head（近似下一迭代入口）；
  * 最终 merged = exit_live ∪ head_1round（保守，利于含 continue 的 cfg 体）。
  */
-static void glue_asm_loop_merge_live_union(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+/* wave155: un-static for pure fold_count leave Cap residual. PLATFORM: SHARED. */
+void glue_asm_loop_merge_live_union(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                             int32_t body_ref) {
   GlueBlockLiveFwd body_end;
   GlueBlockLiveFwd merged;
@@ -1378,7 +1382,8 @@ static void glue_asm_loop_merge_live_union(struct ast_ASTArena *arena, struct ba
 /**
  * 7.3 for step 表达式对出口活跃集的前向修正（step 在回跳前已执行，仅更新追踪集）。
  */
-static void glue_live_fwd_apply_expr_effect(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+/* wave155: un-static for pure fold_count leave Cap residual. PLATFORM: SHARED. */
+void glue_live_fwd_apply_expr_effect(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                              int32_t expr_ref) {
   int32_t ko;
   int32_t left_ref;

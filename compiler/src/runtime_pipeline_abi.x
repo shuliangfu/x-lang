@@ -627,6 +627,19 @@ export extern "C" function pipeline_asm_emit_ctx_scope_block_get(): i32;
 export extern "C" function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+
+// wave155 Cap residual AST while/for + branch enc + simd peel hooks for pure fold_count leave.
+export extern "C" function ast_ast_block_while_cond_ref(arena: *u8, block_ref: i32, loop_idx: i32): i32;
+export extern "C" function ast_ast_block_while_body_ref(arena: *u8, block_ref: i32, loop_idx: i32): i32;
+export extern "C" function ast_ast_block_for_init_ref(arena: *u8, block_ref: i32, for_idx: i32): i32;
+export extern "C" function ast_ast_block_for_cond_ref(arena: *u8, block_ref: i32, for_idx: i32): i32;
+export extern "C" function ast_ast_block_for_step_ref(arena: *u8, block_ref: i32, for_idx: i32): i32;
+export extern "C" function ast_ast_block_for_body_ref(arena: *u8, block_ref: i32, for_idx: i32): i32;
+export extern "C" function backend_enc_jl_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern "C" function backend_enc_jle_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+// simd peel lives in simd_loop_thin pure / surface seed — declare C face for peer call.
+export extern "C" function glue_try_simd_peel_f32_soa_sum_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function glue_try_simd_peel_index_add_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32;
 // wave145 Cap residual: block_inits pure leave callees still host-cc / pure elsewhere.
 // PLATFORM: SHARED freestanding emit — pure owns block const/let init faces.
 // Operand emit uses public pipeline_asm_emit_expr_elf_c (not static _rec).
@@ -1024,8 +1037,8 @@ export extern "C" function glue_if_expr_arm_emit_depth_get(): i32;
 export extern "C" function glue_if_expr_arm_emit_depth_set(v: i32): void;
 export extern "C" function glue_block_body_bind_module_dep_from_ctx(ctx: *u8): void;
 export extern "C" function backend_block_slot_base_for(ctx: *u8, arena: *u8, block_ref: i32): i32;
-export extern "C" function backend_emit_while_loop_elf_sync(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function backend_emit_for_loop_elf_sync(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32;
+// wave155 pure-owned leave: backend_emit_while_loop_elf_sync(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32; body in EOF section.
+// wave155 pure-owned leave: backend_emit_for_loop_elf_sync body in EOF section.
 export extern "C" function pipeline_block_region_with_arena_cap_ref(arena: *u8, block_ref: i32, ri: i32): i32;
 export extern "C" function pipeline_block_labeled_is_goto(arena: *u8, block_ref: i32, li: i32): i32;
 export extern "C" function pipeline_block_labeled_label_len(arena: *u8, block_ref: i32, li: i32): i32;
@@ -1050,6 +1063,12 @@ export extern "C" function glue_block_fill_live_end_for_merge(arena: *u8, ctx: *
 // wave153 pure-owned: glue_block_stmt_order_has_return body in EOF section.
 export extern "C" function glue_live_fwd_copy_from_snap_before_if(dst_live: *u8): void;
 export extern "C" function glue_asm_cache_invalidate_at_cfg_merge_selective(arena: *u8, ctx: *u8, branch_a: i32, branch_b: i32): void;
+// wave155 Cap residual (spill un-static): loop live-merge faces for pure while/for leave.
+export extern "C" function glue_loop_break_exit_push(): void;
+export extern "C" function glue_loop_break_exit_pop(): void;
+export extern "C" function glue_asm_loop_phi_invalidate_carried_defs(arena: *u8, ctx: *u8, body_ref: i32): void;
+export extern "C" function glue_asm_loop_merge_live_union(arena: *u8, ctx: *u8, body_ref: i32): void;
+export extern "C" function glue_live_fwd_apply_expr_effect(arena: *u8, ctx: *u8, expr_ref: i32): void;
 export extern "C" function glue_asm_if_phi_invalidate_both_branch_defs(arena: *u8, ctx: *u8, then_ref: i32, else_ref: i32): void;
 export extern "C" function glue_asm_if_merge_live_union_from_ends(arena: *u8, ctx: *u8, then_live: *u8, else_live: *u8): void;
 // wave141: pipeline_asm_fill_local_slots pure export below (emit-context leave).
@@ -49368,3 +49387,1914 @@ export function pipeline_typeck_hot_reorder_warn_layout(module: *u8, arena: *u8,
 
 // end wave154 pure-owned leave
 
+
+// ============================================================================
+// wave155 pure-owned leave: pipeline_asm_emit_fold_count_up_while.c
+// G.7 product authority for count_up_while fold + while/for loop emit +
+// skip_heavy_or_thin_stub + backend_ctx push/pop loop labels.
+// Cap residual: spill loop live-merge, simd peel thin, enc arch, AST block,
+// pool expr accessors, next_label / ensure_block_local_slots.
+// Pure peers: fold primitives wave136, x86 enc wave135, local_var_stack_off
+// wave148, block_body wave153, fill_block_locals wave145, expr_rec wave152,
+// jz_after_bool unary, m8_tail delegates, emit_set_module.
+// Layout loop-label stack via LP64 byte offsets on AsmFuncCtx (ctx_layout id).
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ============================================================================
+
+/**
+ * LP64 layout: loop_label_depth field offset on pipeline_glue_AsmFuncCtxLayout.
+ * @return i32 - byte offset 1376
+ * wave155 pure helper. PLATFORM: SHARED LP64.
+ */
+function w155_ly_off_loop_label_depth(): i32 {
+  return 1376;
+}
+
+/**
+ * LP64 layout: break_len field offset.
+ * @return i32 - byte offset 1240
+ * wave155 pure helper. PLATFORM: SHARED LP64.
+ */
+function w155_ly_off_break_len(): i32 {
+  return 1240;
+}
+
+/**
+ * LP64 layout: continue_len field offset.
+ * @return i32 - byte offset 1372
+ * wave155 pure helper. PLATFORM: SHARED LP64.
+ */
+function w155_ly_off_continue_len(): i32 {
+  return 1372;
+}
+
+/**
+ * LP64 layout: break_label[128] base offset.
+ * @return i32 - byte offset 1112
+ * wave155 pure helper. PLATFORM: SHARED LP64.
+ */
+function w155_ly_off_break_label(): i32 {
+  return 1112;
+}
+
+/**
+ * LP64 layout: continue_label[128] base offset.
+ * @return i32 - byte offset 1244
+ * wave155 pure helper. PLATFORM: SHARED LP64.
+ */
+function w155_ly_off_continue_label(): i32 {
+  return 1244;
+}
+
+/**
+ * LP64 layout: loop_break_label_stack[512] base.
+ * @return i32 - byte offset 24
+ * wave155 pure helper. PLATFORM: SHARED LP64.
+ */
+function w155_ly_off_break_stack(): i32 {
+  return 24;
+}
+
+/**
+ * LP64 layout: loop_break_len_stack[8] base.
+ * @return i32 - byte offset 536
+ * wave155 pure helper. PLATFORM: SHARED LP64.
+ */
+function w155_ly_off_break_len_stack(): i32 {
+  return 536;
+}
+
+/**
+ * LP64 layout: loop_continue_label_stack[512] base.
+ * @return i32 - byte offset 568
+ * wave155 pure helper. PLATFORM: SHARED LP64.
+ */
+function w155_ly_off_cont_stack(): i32 {
+  return 568;
+}
+
+/**
+ * LP64 layout: loop_continue_len_stack[8] base.
+ * @return i32 - byte offset 1080
+ * wave155 pure helper. PLATFORM: SHARED LP64.
+ */
+function w155_ly_off_cont_len_stack(): i32 {
+  return 1080;
+}
+
+/**
+ * Read module_ref from AsmFuncCtx prefix (offset 16 / slot 2).
+ * @param ctx *u8 - AsmFuncCtx*
+ * @return *u8 - ast_Module* or null
+ * wave155 pure helper. PLATFORM: SHARED LP64.
+ */
+function w155_ctx_module_ref(ctx: *u8): *u8 {
+  if (ctx == (0 as *u8)) {
+    return 0 as *u8;
+  }
+  return pipe_load_ptr_slot(ctx, 2);
+}
+
+/**
+ * Copy up to n bytes from src into ly[base+k] (layout overlay as *u8).
+ * @param ly *u8 - layout base
+ * @param base i32 - byte offset into ly
+ * @param src *u8 - source bytes
+ * @param n i32 - count (caller clamps)
+ * @return void
+ * wave155 pure helper. PLATFORM: SHARED.
+ */
+function w155_copy_bytes_to_ly(ly: *u8, base: i32, src: *u8, n: i32): void {
+  let k: i32 = 0;
+  if (ly == (0 as *u8) || src == (0 as *u8) || n <= 0) {
+    return;
+  }
+  while (k < n) {
+    unsafe {
+      ly[base + k] = src[k];
+    }
+    k = k + 1;
+  }
+}
+
+/**
+ * Copy n bytes from ly[base+k] into dst.
+ * @param dst *u8 - destination
+ * @param ly *u8 - layout base
+ * @param base i32 - source offset
+ * @param n i32 - count
+ * @return void
+ * wave155 pure helper. PLATFORM: SHARED.
+ */
+function w155_copy_bytes_from_ly(dst: *u8, ly: *u8, base: i32, n: i32): void {
+  let k: i32 = 0;
+  if (dst == (0 as *u8) || ly == (0 as *u8) || n <= 0) {
+    return;
+  }
+  while (k < n) {
+    unsafe {
+      dst[k] = ly[base + k];
+    }
+    k = k + 1;
+  }
+}
+
+
+/**
+ * Match struct_param four-statement body: p.a=i; p.b=i+1; s+=add_pair(p); i++.
+ * No code emitted; fills out_s_ref / out_pair_ref on success.
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param mod *u8 - ast_Module*
+ * @param body_ref i32 - while body block
+ * @param i_ref i32 - induction VAR
+ * @param out_s_ref *i32 - optional; sum VAR ref
+ * @param out_pair_ref *i32 - optional; pair base VAR ref
+ * @return i32 - 1 match; 0 otherwise
+ * wave155 pure: G.7 authority (was static glue_match_struct_pair_n2_body_pattern_c).
+ * PLATFORM: SHARED.
+ */
+function glue_match_struct_pair_n2_body_pattern_c(arena: *u8, mod: *u8, body_ref: i32, i_ref: i32, out_s_ref: *i32, out_pair_ref: *i32): i32 {
+  let nso: i32 = 0;
+  let nexpr: i32 = 0;
+  let si: i32 = 0;
+  let pair_ref: i32 = 0;
+  let s_ref: i32 = 0;
+  let found_a: i32 = 0;
+  let found_b: i32 = 0;
+  let found_call: i32 = 0;
+  let found_i: i32 = 0;
+  let need: i32 = 0;
+  let er: i32 = 0;
+  let er_slot: i32[1] = [];
+  let ko_s: i32 = 0;
+  if (arena == (0 as *u8) || mod == (0 as *u8) || body_ref <= 0 || i_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    nso = ast_ast_block_num_stmt_order(arena, body_ref);
+    nexpr = ast_ast_block_num_expr_stmts(arena, body_ref);
+  }
+  if (nso == 4) {
+    need = 4;
+  } else {
+    if (nso == 0 && nexpr == 4) {
+      need = 4;
+    } else {
+      return 0;
+    }
+  }
+  pair_ref = 0;
+  s_ref = 0;
+  found_a = 0;
+  found_b = 0;
+  found_call = 0;
+  found_i = 0;
+  si = 0;
+  while (si < need) {
+    er_slot[0] = 0;
+    if (glue_body_expr_stmt_at_c(arena, body_ref, si, nso, &er_slot[0]) == 0) {
+      return 0;
+    }
+    er = er_slot[0];
+    if (glue_is_assign_var_add_one_c(arena, er, i_ref) != 0) {
+      found_i = 1;
+      si = si + 1;
+      continue;
+    }
+    if (pair_ref == 0) {
+      pair_ref = glue_field_assign_pair_base_ref_c(arena, er);
+    }
+    if (pair_ref > 0 && glue_is_field_assign_from_var_c(arena, er, pair_ref, 97 as u8, i_ref) != 0) {
+      found_a = 1;
+      si = si + 1;
+      continue;
+    }
+    if (pair_ref > 0 && glue_is_field_assign_i_plus_one_c(arena, er, pair_ref, i_ref) != 0) {
+      found_b = 1;
+      si = si + 1;
+      continue;
+    }
+    if (pair_ref > 0) {
+      let s_slot: i32[1] = [];
+      s_slot[0] = s_ref;
+      if (glue_is_assign_s_plus_pair_field_sum_call_c(arena, mod, er, &s_slot[0], pair_ref) != 0) {
+        s_ref = s_slot[0];
+        found_call = 1;
+        si = si + 1;
+        continue;
+      }
+    }
+    return 0;
+  }
+  if (found_a == 0 || found_b == 0 || found_call == 0 || found_i == 0 || s_ref <= 0 || pair_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko_s = pipeline_expr_kind_ord_at(arena, s_ref);
+  }
+  if (ko_s != 3) {
+    return 0;
+  }
+  if (out_s_ref != (0 as *i32)) {
+    unsafe {
+      out_s_ref[0] = s_ref;
+    }
+  }
+  if (out_pair_ref != (0 as *i32)) {
+    unsafe {
+      out_pair_ref[0] = pair_ref;
+    }
+  }
+  return 1;
+}
+
+
+/**
+ * struct_param closed form s = n*n (sum of 2i+1).
+ * @return i32 - 1 folded; 0 no match; -1 emit error
+ * wave155 pure: G.7 authority (was static glue_try_fold_struct_pair_n2_while_elf_c).
+ * PLATFORM: SHARED.
+ */
+function glue_try_fold_struct_pair_n2_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32 {
+  let cond_ref: i32 = 0;
+  let body_ref: i32 = 0;
+  let i_ref: i32 = 0;
+  let n_is_lit: i32 = 0;
+  let n_lit: i32 = 0;
+  let n_var_ref: i32 = 0;
+  let n_const: i32 = 0;
+  let n_const_ok: i32 = 0;
+  let pair_ref: i32 = 0;
+  let s_ref: i32 = 0;
+  let off_s: i32 = 0;
+  let prod32: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let i_slot: i32[1] = [];
+  let nil: i32[1] = [];
+  let nlit_slot: i32[1] = [];
+  let nvar_slot: i32[1] = [];
+  let s_slot: i32[1] = [];
+  let p_slot: i32[1] = [];
+  let n_slot: i32[1] = [];
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || ta != 0) {
+    return 0;
+  }
+  mod = w155_ctx_module_ref(ctx);
+  if (mod == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
+    body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
+  }
+  if (cond_ref <= 0 || body_ref <= 0) {
+    return 0;
+  }
+  i_slot[0] = 0;
+  nil[0] = 0;
+  nlit_slot[0] = 0;
+  nvar_slot[0] = 0;
+  if (glue_fold_parse_while_lt_i_n_c(arena, cond_ref, &i_slot[0], &nil[0], &nlit_slot[0], &nvar_slot[0]) == 0) {
+    return 0;
+  }
+  i_ref = i_slot[0];
+  n_is_lit = nil[0];
+  n_lit = nlit_slot[0];
+  n_var_ref = nvar_slot[0];
+  n_const = n_lit;
+  n_const_ok = n_is_lit;
+  if (n_const_ok == 0 && n_var_ref > 0) {
+    n_slot[0] = 0;
+    if (glue_fold_block_let_init_lit_c(arena, block_ref, n_var_ref, &n_slot[0]) != 0) {
+      n_const = n_slot[0];
+      n_const_ok = 1;
+    }
+  }
+  if (n_const_ok == 0) {
+    return 0;
+  }
+  s_slot[0] = 0;
+  p_slot[0] = 0;
+  if (glue_match_struct_pair_n2_body_pattern_c(arena, mod, body_ref, i_ref, &s_slot[0], &p_slot[0]) == 0) {
+    return 0;
+  }
+  s_ref = s_slot[0];
+  pair_ref = p_slot[0];
+  unsafe {
+    glue_asm_ctx_set_scope_block(ctx, block_ref);
+  }
+  off_s = glue_asm_local_var_stack_off_scoped(arena, ctx, s_ref);
+  if (off_s < 0) {
+    return 0;
+  }
+  // Compile-time n^2 with i32 wrap via u32 multiply.
+  {
+    let nu: u32 = n_const as u32;
+    let prod64: u64 = (nu as u64) * (nu as u64);
+    prod32 = (prod64 as u32) as i32;
+  }
+  unsafe {
+    rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, prod32, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_store_eax_to_rbp_arch(elf_ctx, off_s, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 1;
+}
+
+
+/**
+ * Emit tight x86 loop for while (i<N) { buf[i]=(i as u8); i++ }.
+ * @return i32 - 1 handled; 0 no match; -1 error
+ * wave155 pure: G.7 authority (was static glue_try_fold_u8_fill_index_while_elf_c).
+ * PLATFORM: SHARED x86_64 fold path (ta==0).
+ */
+function glue_try_fold_u8_fill_index_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32 {
+  let cond_ref: i32 = 0;
+  let body_ref: i32 = 0;
+  let i_ref: i32 = 0;
+  let n_is_lit: i32 = 0;
+  let n_lit: i32 = 0;
+  let n_var_ref: i32 = 0;
+  let n_const: i32 = 0;
+  let n_const_ok: i32 = 0;
+  let off_i: i32 = 0;
+  let off_buf: i32 = 0;
+  let buf_ref: i32 = 0;
+  let si: i32 = 0;
+  let found_store: i32 = 0;
+  let found_inc: i32 = 0;
+  let loop_buf: u8[128] = [];
+  let exit_buf: u8[128] = [];
+  let loop_len: i32 = 0;
+  let exit_len: i32 = 0;
+  let i_slot: i32[1] = [];
+  let nil: i32[1] = [];
+  let nlit: i32[1] = [];
+  let nvar: i32[1] = [];
+  let nslot: i32[1] = [];
+  let bslot: i32[1] = [];
+  let er: i32 = 0;
+  let sk: i32 = 0;
+  let idx: i32 = 0;
+  let rc: i32 = 0;
+  let nso: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || ta != 0) {
+    return 0;
+  }
+  unsafe {
+    cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
+    body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
+  }
+  if (cond_ref <= 0 || body_ref <= 0) {
+    return 0;
+  }
+  i_slot[0] = 0; nil[0] = 0; nlit[0] = 0; nvar[0] = 0;
+  if (glue_fold_parse_while_lt_i_n_c(arena, cond_ref, &i_slot[0], &nil[0], &nlit[0], &nvar[0]) == 0) {
+    return 0;
+  }
+  i_ref = i_slot[0]; n_is_lit = nil[0]; n_lit = nlit[0]; n_var_ref = nvar[0];
+  n_const = n_lit; n_const_ok = n_is_lit;
+  if (n_const_ok == 0 && n_var_ref > 0) {
+    nslot[0] = 0;
+    if (glue_fold_block_let_init_lit_c(arena, block_ref, n_var_ref, &nslot[0]) != 0) {
+      n_const = nslot[0]; n_const_ok = 1;
+    }
+  }
+  if (n_const_ok == 0) { return 0; }
+  off_i = glue_asm_local_var_stack_off_scoped(arena, ctx, i_ref);
+  unsafe { nso = ast_ast_block_num_stmt_order(arena, body_ref); }
+  if (off_i < 0 || nso != 2) { return 0; }
+  buf_ref = 0; found_store = 0; found_inc = 0;
+  si = 0;
+  while (si < 2) {
+    unsafe {
+      sk = ast_ast_block_stmt_order_kind(arena, body_ref, si);
+      idx = ast_ast_block_stmt_order_idx(arena, body_ref, si);
+      er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, idx);
+    }
+    if (er <= 0 || sk != 2) { return 0; }
+    if (glue_is_assign_var_add_one_c(arena, er, i_ref) != 0) {
+      found_inc = 1;
+    } else {
+      bslot[0] = buf_ref;
+      if (glue_is_assign_u8_index_store_cast_i_c(arena, er, &bslot[0], i_ref) != 0) {
+        buf_ref = bslot[0];
+        found_store = 1;
+      } else {
+        return 0;
+      }
+    }
+    si = si + 1;
+  }
+  if (found_store == 0 || found_inc == 0 || buf_ref <= 0) { return 0; }
+  off_buf = glue_asm_local_var_stack_off_scoped(arena, ctx, buf_ref);
+  if (off_buf < 0) { return 0 - 1; }
+  unsafe {
+    loop_len = pipeline_asm_emit_next_label_c(ctx, &loop_buf[0], 64);
+    exit_len = pipeline_asm_emit_next_label_c(ctx, &exit_buf[0], 64);
+  }
+  if (loop_len <= 0 || exit_len <= 0) { return 0 - 1; }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &loop_buf[0], loop_len, 0, ta);
+  }
+  if (rc != 0) { return 0 - 1; }
+  unsafe {
+    rc = backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off_i, 4, ta);
+  }
+  if (rc != 0) { return 0 - 1; }
+  if (glue_enc_x86_cmpl_eax_imm32(elf_ctx, n_const) != 0) { return 0 - 1; }
+  unsafe {
+    rc = backend_enc_jge_arch(elf_ctx, &exit_buf[0], exit_len, ta);
+  }
+  if (rc != 0) { return 0 - 1; }
+  unsafe {
+    rc = glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, buf_ref, off_buf, ctx, ta);
+  }
+  if (rc != 0) { return 0 - 1; }
+  if (glue_enc_x86_mov_al_mem_rbx_rax(elf_ctx) != 0) { return 0 - 1; }
+  if (glue_enc_x86_addl_imm_rbp_off(elf_ctx, off_i, 1) != 0) { return 0 - 1; }
+  unsafe {
+    rc = backend_enc_jmp_arch(elf_ctx, &loop_buf[0], loop_len, ta);
+  }
+  if (rc != 0) { return 0 - 1; }
+  unsafe {
+    rc = backend_enc_label_arch(elf_ctx, &exit_buf[0], exit_len, 0, ta);
+  }
+  if (rc != 0) { return 0 - 1; }
+  return 1;
+}
+
+/**
+ * Emit tight x86 loop for while (j<N) { sum+=(buf[j] as i32); j++ }.
+ * @return i32 - 1 handled; 0 no match; -1 error
+ * wave155 pure: G.7 authority (was static glue_try_fold_u8_sum_index_while_elf_c).
+ * PLATFORM: SHARED x86_64 fold path (ta==0).
+ */
+function glue_try_fold_u8_sum_index_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32 {
+  let cond_ref: i32 = 0;
+  let body_ref: i32 = 0;
+  let j_ref: i32 = 0;
+  let n_is_lit: i32 = 0;
+  let n_lit: i32 = 0;
+  let n_var_ref: i32 = 0;
+  let n_const: i32 = 0;
+  let n_const_ok: i32 = 0;
+  let off_j: i32 = 0;
+  let off_buf: i32 = 0;
+  let off_sum: i32 = 0;
+  let buf_ref: i32 = 0;
+  let sum_ref: i32 = 0;
+  let si: i32 = 0;
+  let found_sum: i32 = 0;
+  let found_inc: i32 = 0;
+  let loop_buf: u8[128] = [];
+  let exit_buf: u8[128] = [];
+  let loop_len: i32 = 0;
+  let exit_len: i32 = 0;
+  let i_slot: i32[1] = [];
+  let nil: i32[1] = [];
+  let nlit: i32[1] = [];
+  let nvar: i32[1] = [];
+  let nslot: i32[1] = [];
+  let sslot: i32[1] = [];
+  let bslot: i32[1] = [];
+  let er: i32 = 0;
+  let sk: i32 = 0;
+  let idx: i32 = 0;
+  let rc: i32 = 0;
+  let nso: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || ta != 0) {
+    return 0;
+  }
+  unsafe {
+    cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
+    body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
+  }
+  if (cond_ref <= 0 || body_ref <= 0) { return 0; }
+  i_slot[0] = 0; nil[0] = 0; nlit[0] = 0; nvar[0] = 0;
+  if (glue_fold_parse_while_lt_i_n_c(arena, cond_ref, &i_slot[0], &nil[0], &nlit[0], &nvar[0]) == 0) {
+    return 0;
+  }
+  j_ref = i_slot[0]; n_is_lit = nil[0]; n_lit = nlit[0]; n_var_ref = nvar[0];
+  n_const = n_lit; n_const_ok = n_is_lit;
+  if (n_const_ok == 0 && n_var_ref > 0) {
+    nslot[0] = 0;
+    if (glue_fold_block_let_init_lit_c(arena, block_ref, n_var_ref, &nslot[0]) != 0) {
+      n_const = nslot[0]; n_const_ok = 1;
+    }
+  }
+  if (n_const_ok == 0) { return 0; }
+  off_j = glue_asm_local_var_stack_off_scoped(arena, ctx, j_ref);
+  unsafe { nso = ast_ast_block_num_stmt_order(arena, body_ref); }
+  if (off_j < 0 || nso != 2) { return 0; }
+  buf_ref = 0; sum_ref = 0; found_sum = 0; found_inc = 0;
+  si = 0;
+  while (si < 2) {
+    unsafe {
+      sk = ast_ast_block_stmt_order_kind(arena, body_ref, si);
+      idx = ast_ast_block_stmt_order_idx(arena, body_ref, si);
+      er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, idx);
+    }
+    if (er <= 0 || sk != 2) { return 0; }
+    if (glue_is_assign_var_add_one_c(arena, er, j_ref) != 0) {
+      found_inc = 1;
+    } else {
+      sslot[0] = sum_ref; bslot[0] = buf_ref;
+      if (glue_is_assign_sum_plus_u8_index_cast_c(arena, er, &sslot[0], &bslot[0], j_ref) != 0) {
+        sum_ref = sslot[0]; buf_ref = bslot[0]; found_sum = 1;
+      } else {
+        return 0;
+      }
+    }
+    si = si + 1;
+  }
+  if (found_sum == 0 || found_inc == 0 || buf_ref <= 0 || sum_ref <= 0) { return 0; }
+  off_buf = glue_asm_local_var_stack_off_scoped(arena, ctx, buf_ref);
+  off_sum = glue_asm_local_var_stack_off_scoped(arena, ctx, sum_ref);
+  if (off_buf < 0 || off_sum < 0) { return 0 - 1; }
+  unsafe {
+    loop_len = pipeline_asm_emit_next_label_c(ctx, &loop_buf[0], 64);
+    exit_len = pipeline_asm_emit_next_label_c(ctx, &exit_buf[0], 64);
+  }
+  if (loop_len <= 0 || exit_len <= 0) { return 0 - 1; }
+  unsafe {
+    if (backend_enc_label_arch(elf_ctx, &loop_buf[0], loop_len, 0, ta) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off_j, 4, ta) != 0) { return 0 - 1; }
+  }
+  if (glue_enc_x86_cmpl_eax_imm32(elf_ctx, n_const) != 0) { return 0 - 1; }
+  unsafe {
+    if (backend_enc_jge_arch(elf_ctx, &exit_buf[0], exit_len, ta) != 0) { return 0 - 1; }
+    if (glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, buf_ref, off_buf, ctx, ta) != 0) { return 0 - 1; }
+  }
+  if (glue_enc_x86_movzx_ecx_mem_rbx_rax(elf_ctx) != 0) { return 0 - 1; }
+  if (glue_enc_x86_add_ecx_rbp_off(elf_ctx, off_sum) != 0) { return 0 - 1; }
+  if (glue_enc_x86_addl_imm_rbp_off(elf_ctx, off_j, 1) != 0) { return 0 - 1; }
+  unsafe {
+    if (backend_enc_jmp_arch(elf_ctx, &loop_buf[0], loop_len, ta) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &exit_buf[0], exit_len, 0, ta) != 0) { return 0 - 1; }
+  }
+  return 1;
+}
+
+/**
+ * Compile-time final i32 sum for mem_copy outer rounds * inner u8 index sum.
+ * @param rounds i32 - outer iteration count
+ * @param size i32 - inner buffer size
+ * @return i32 - wrapped i32 result
+ * wave155 pure: G.7 authority (was static glue_mem_copy_fold_final_sum_i32).
+ * PLATFORM: SHARED.
+ */
+function glue_mem_copy_fold_final_sum_i32(rounds: i32, size: i32): i32 {
+  let per: u64 = 0;
+  let j: i32 = 0;
+  let ju: u32 = 0;
+  if (rounds <= 0 || size <= 0) {
+    return 0;
+  }
+  per = 0;
+  j = 0;
+  while (j < size) {
+    ju = (j as u32) & 255;
+    per = per + (ju as u64);
+    j = j + 1;
+  }
+  return ((per * ((rounds as u32) as u64)) as u32) as i32;
+}
+
+
+/**
+ * Match only AST shape of u8 fill loop (no stack-slot query).
+ * @return i32 - 1 match; 0 otherwise
+ * wave155 pure: G.7 authority (was static glue_match_u8_fill_index_while_pattern_c).
+ * PLATFORM: SHARED.
+ */
+function glue_match_u8_fill_index_while_pattern_c(arena: *u8, block_ref: i32, loop_idx: i32, out_buf_ref: *i32, out_i_ref: *i32, out_n: *i32): i32 {
+  let cond_ref: i32 = 0;
+  let body_ref: i32 = 0;
+  let i_ref: i32 = 0;
+  let n_is_lit: i32 = 0;
+  let n_lit: i32 = 0;
+  let n_var_ref: i32 = 0;
+  let n_const: i32 = 0;
+  let n_const_ok: i32 = 0;
+  let buf_ref: i32 = 0;
+  let si: i32 = 0;
+  let found_store: i32 = 0;
+  let found_inc: i32 = 0;
+  let inner_nso: i32 = 0;
+  let nexpr: i32 = 0;
+  let er: i32 = 0;
+  let sk: i32 = 0;
+  let idx: i32 = 0;
+  let i_slot: i32[1] = [];
+  let nil: i32[1] = [];
+  let nlit: i32[1] = [];
+  let nvar: i32[1] = [];
+  let nslot: i32[1] = [];
+  let bslot: i32[1] = [];
+  if (arena == (0 as *u8)) { return 0; }
+  unsafe {
+    cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
+    body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
+  }
+  if (cond_ref <= 0 || body_ref <= 0) { return 0; }
+  i_slot[0] = 0; nil[0] = 0; nlit[0] = 0; nvar[0] = 0;
+  if (glue_fold_parse_while_lt_i_n_c(arena, cond_ref, &i_slot[0], &nil[0], &nlit[0], &nvar[0]) == 0) {
+    return 0;
+  }
+  i_ref = i_slot[0]; n_is_lit = nil[0]; n_lit = nlit[0]; n_var_ref = nvar[0];
+  n_const = n_lit; n_const_ok = n_is_lit;
+  if (n_const_ok == 0 && n_var_ref > 0) {
+    nslot[0] = 0;
+    if (glue_fold_block_let_init_lit_c(arena, block_ref, n_var_ref, &nslot[0]) != 0) {
+      n_const = nslot[0]; n_const_ok = 1;
+    }
+  }
+  if (n_const_ok == 0) { return 0; }
+  unsafe {
+    inner_nso = ast_ast_block_num_stmt_order(arena, body_ref);
+    nexpr = ast_ast_block_num_expr_stmts(arena, body_ref);
+  }
+  if (inner_nso != 2 && !(inner_nso == 0 && nexpr == 2)) { return 0; }
+  buf_ref = 0; found_store = 0; found_inc = 0;
+  si = 0;
+  while (si < 2) {
+    if (inner_nso == 2) {
+      unsafe {
+        sk = ast_ast_block_stmt_order_kind(arena, body_ref, si);
+        idx = ast_ast_block_stmt_order_idx(arena, body_ref, si);
+      }
+      if (sk != 2) { return 0; }
+      unsafe { er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, idx); }
+    } else {
+      unsafe { er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, si); }
+    }
+    if (er <= 0) { return 0; }
+    if (glue_is_assign_var_add_one_c(arena, er, i_ref) != 0) {
+      found_inc = 1;
+    } else {
+      bslot[0] = buf_ref;
+      if (glue_is_assign_u8_index_store_cast_i_c(arena, er, &bslot[0], i_ref) != 0) {
+        buf_ref = bslot[0]; found_store = 1;
+      } else {
+        return 0;
+      }
+    }
+    si = si + 1;
+  }
+  if (found_store == 0 || found_inc == 0 || buf_ref <= 0) { return 0; }
+  if (out_buf_ref != (0 as *i32)) { unsafe { out_buf_ref[0] = buf_ref; } }
+  if (out_i_ref != (0 as *i32)) { unsafe { out_i_ref[0] = i_ref; } }
+  if (out_n != (0 as *i32)) { unsafe { out_n[0] = n_const; } }
+  return 1;
+}
+
+/**
+ * Match only AST shape of u8 sum loop (no stack-slot query).
+ * @return i32 - 1 match; 0 otherwise
+ * wave155 pure: G.7 authority (was static glue_match_u8_sum_index_while_pattern_c).
+ * PLATFORM: SHARED.
+ */
+function glue_match_u8_sum_index_while_pattern_c(arena: *u8, block_ref: i32, loop_idx: i32, out_sum_ref: *i32, out_buf_ref: *i32, out_j_ref: *i32, out_n: *i32): i32 {
+  let cond_ref: i32 = 0;
+  let body_ref: i32 = 0;
+  let j_ref: i32 = 0;
+  let n_is_lit: i32 = 0;
+  let n_lit: i32 = 0;
+  let n_var_ref: i32 = 0;
+  let n_const: i32 = 0;
+  let n_const_ok: i32 = 0;
+  let buf_ref: i32 = 0;
+  let sum_ref: i32 = 0;
+  let si: i32 = 0;
+  let found_sum: i32 = 0;
+  let found_inc: i32 = 0;
+  let inner_nso: i32 = 0;
+  let nexpr: i32 = 0;
+  let er: i32 = 0;
+  let sk: i32 = 0;
+  let idx: i32 = 0;
+  let i_slot: i32[1] = [];
+  let nil: i32[1] = [];
+  let nlit: i32[1] = [];
+  let nvar: i32[1] = [];
+  let nslot: i32[1] = [];
+  let sslot: i32[1] = [];
+  let bslot: i32[1] = [];
+  if (arena == (0 as *u8)) { return 0; }
+  unsafe {
+    cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
+    body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
+  }
+  if (cond_ref <= 0 || body_ref <= 0) { return 0; }
+  i_slot[0] = 0; nil[0] = 0; nlit[0] = 0; nvar[0] = 0;
+  if (glue_fold_parse_while_lt_i_n_c(arena, cond_ref, &i_slot[0], &nil[0], &nlit[0], &nvar[0]) == 0) {
+    return 0;
+  }
+  j_ref = i_slot[0]; n_is_lit = nil[0]; n_lit = nlit[0]; n_var_ref = nvar[0];
+  n_const = n_lit; n_const_ok = n_is_lit;
+  if (n_const_ok == 0 && n_var_ref > 0) {
+    nslot[0] = 0;
+    if (glue_fold_block_let_init_lit_c(arena, block_ref, n_var_ref, &nslot[0]) != 0) {
+      n_const = nslot[0]; n_const_ok = 1;
+    }
+  }
+  if (n_const_ok == 0) { return 0; }
+  unsafe {
+    inner_nso = ast_ast_block_num_stmt_order(arena, body_ref);
+    nexpr = ast_ast_block_num_expr_stmts(arena, body_ref);
+  }
+  if (inner_nso != 2 && !(inner_nso == 0 && nexpr == 2)) { return 0; }
+  buf_ref = 0; sum_ref = 0; found_sum = 0; found_inc = 0;
+  si = 0;
+  while (si < 2) {
+    if (inner_nso == 2) {
+      unsafe {
+        sk = ast_ast_block_stmt_order_kind(arena, body_ref, si);
+        idx = ast_ast_block_stmt_order_idx(arena, body_ref, si);
+      }
+      if (sk != 2) { return 0; }
+      unsafe { er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, idx); }
+    } else {
+      unsafe { er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, si); }
+    }
+    if (er <= 0) { return 0; }
+    if (glue_is_assign_var_add_one_c(arena, er, j_ref) != 0) {
+      found_inc = 1;
+    } else {
+      sslot[0] = sum_ref; bslot[0] = buf_ref;
+      if (glue_is_assign_sum_plus_u8_index_cast_c(arena, er, &sslot[0], &bslot[0], j_ref) != 0) {
+        sum_ref = sslot[0]; buf_ref = bslot[0]; found_sum = 1;
+      } else {
+        return 0;
+      }
+    }
+    si = si + 1;
+  }
+  if (found_sum == 0 || found_inc == 0 || buf_ref <= 0 || sum_ref <= 0) { return 0; }
+  if (out_sum_ref != (0 as *i32)) { unsafe { out_sum_ref[0] = sum_ref; } }
+  if (out_buf_ref != (0 as *i32)) { unsafe { out_buf_ref[0] = buf_ref; } }
+  if (out_j_ref != (0 as *i32)) { unsafe { out_j_ref[0] = j_ref; } }
+  if (out_n != (0 as *i32)) { unsafe { out_n[0] = n_const; } }
+  return 1;
+}
+
+/**
+ * mem_copy outer: while (r<R) { fill; sum; r++ } → store compile-time sum constant.
+ * @return i32 - 1 folded; 0 no match; -1 error
+ * wave155 pure: G.7 authority (was static glue_try_fold_mem_copy_outer_while_elf_c).
+ * PLATFORM: SHARED.
+ */
+function glue_try_fold_mem_copy_outer_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32 {
+  let cond_ref: i32 = 0;
+  let body_ref: i32 = 0;
+  let r_ref: i32 = 0;
+  let rounds_is_lit: i32 = 0;
+  let rounds_lit: i32 = 0;
+  let rounds_var_ref: i32 = 0;
+  let rounds_const: i32 = 0;
+  let rounds_ok: i32 = 0;
+  let nso: i32 = 0;
+  let si: i32 = 0;
+  let fill_li: i32 = 0 - 1;
+  let sum_li: i32 = 0 - 1;
+  let fill_n: i32 = 0;
+  let sum_n: i32 = 0;
+  let sum_ref: i32 = 0;
+  let off_sum: i32 = 0;
+  let final_sum: i32 = 0;
+  let buf_fill: i32 = 0;
+  let buf_sum: i32 = 0;
+  let i_slot: i32[1] = [];
+  let nil: i32[1] = [];
+  let nlit: i32[1] = [];
+  let nvar: i32[1] = [];
+  let nslot: i32[1] = [];
+  let bf: i32[1] = [];
+  let bs: i32[1] = [];
+  let fn: i32[1] = [];
+  let sn: i32[1] = [];
+  let sr: i32[1] = [];
+  let nloops: i32 = 0;
+  let nexpr: i32 = 0;
+  let last_er: i32 = 0;
+  let loop_count: i32 = 0;
+  let li: i32 = 0;
+  let sk: i32 = 0;
+  let idx: i32 = 0;
+  let ko: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || ta != 0) {
+    return 0;
+  }
+  unsafe {
+    cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
+    body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
+  }
+  if (cond_ref <= 0 || body_ref <= 0) { return 0; }
+  i_slot[0] = 0; nil[0] = 0; nlit[0] = 0; nvar[0] = 0;
+  if (glue_fold_parse_while_lt_i_n_c(arena, cond_ref, &i_slot[0], &nil[0], &nlit[0], &nvar[0]) == 0) {
+    return 0;
+  }
+  r_ref = i_slot[0]; rounds_is_lit = nil[0]; rounds_lit = nlit[0]; rounds_var_ref = nvar[0];
+  rounds_const = rounds_lit; rounds_ok = rounds_is_lit;
+  if (rounds_ok == 0 && rounds_var_ref > 0) {
+    nslot[0] = 0;
+    if (glue_fold_block_let_init_lit_c(arena, block_ref, rounds_var_ref, &nslot[0]) != 0) {
+      rounds_const = nslot[0]; rounds_ok = 1;
+    }
+  }
+  if (rounds_ok == 0) { return 0; }
+  // B-CMP mem_copy fast path: r<8192 + two inner 4096 u8 fill/sum loops.
+  unsafe { nloops = ast_ast_block_num_loops(arena, body_ref); }
+  if (rounds_const == 8192 && nloops == 2) {
+    fill_n = 0; sum_n = 0; sum_ref = 0; buf_fill = 0; buf_sum = 0;
+    bf[0] = 0; fn[0] = 0; sr[0] = 0; bs[0] = 0; sn[0] = 0;
+    if (glue_match_u8_fill_index_while_pattern_c(arena, body_ref, 0, &bf[0], 0 as *i32, &fn[0]) != 0
+        && glue_match_u8_sum_index_while_pattern_c(arena, body_ref, 1, &sr[0], &bs[0], 0 as *i32, &sn[0]) != 0) {
+      buf_fill = bf[0]; fill_n = fn[0]; sum_ref = sr[0]; buf_sum = bs[0]; sum_n = sn[0];
+      unsafe { ko = pipeline_expr_kind_ord_at(arena, sum_ref); }
+      if (fill_n == 4096 && sum_n == 4096
+          && glue_fold_expr_var_refs_same_c(arena, buf_fill, buf_sum) != 0
+          && ko == 3) {
+        unsafe { glue_asm_ctx_set_scope_block(ctx, block_ref); }
+        off_sum = glue_asm_local_var_stack_off_scoped(arena, ctx, sum_ref);
+        if (off_sum >= 0) {
+          final_sum = glue_mem_copy_fold_final_sum_i32(8192, 4096);
+          unsafe {
+            if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, final_sum, ta) != 0) { return 0 - 1; }
+            if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off_sum, ta) != 0) { return 0 - 1; }
+          }
+          return 1;
+        }
+      }
+    }
+  }
+  unsafe { nso = ast_ast_block_num_stmt_order(arena, body_ref); }
+  fill_li = 0 - 1; sum_li = 0 - 1;
+  if (nso == 0) {
+    unsafe {
+      nloops = ast_ast_block_num_loops(arena, body_ref);
+      nexpr = ast_ast_block_num_expr_stmts(arena, body_ref);
+    }
+    if (nloops != 2 || nexpr < 1) { return 0; }
+    unsafe { last_er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, nexpr - 1); }
+    if (last_er <= 0 || glue_is_assign_var_add_one_c(arena, last_er, r_ref) == 0) { return 0; }
+    fill_li = 0; sum_li = 1;
+  } else {
+    if (nso < 3) { return 0; }
+    unsafe {
+      sk = ast_ast_block_stmt_order_kind(arena, body_ref, nso - 1);
+      idx = ast_ast_block_stmt_order_idx(arena, body_ref, nso - 1);
+      last_er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, idx);
+    }
+    if (sk != 2 || last_er <= 0 || glue_is_assign_var_add_one_c(arena, last_er, r_ref) == 0) {
+      return 0;
+    }
+    loop_count = 0;
+    si = 0;
+    while (si < nso) {
+      unsafe {
+        sk = ast_ast_block_stmt_order_kind(arena, body_ref, si);
+        li = ast_ast_block_stmt_order_idx(arena, body_ref, si);
+        nloops = ast_ast_block_num_loops(arena, body_ref);
+      }
+      if (sk == 3) {
+        if (li < 0 || li >= nloops) { return 0; }
+        if (loop_count == 0) { fill_li = li; }
+        else {
+          if (loop_count == 1) { sum_li = li; }
+          else { return 0; }
+        }
+        loop_count = loop_count + 1;
+      }
+      si = si + 1;
+    }
+    if (loop_count != 2 || fill_li < 0 || sum_li < 0) { return 0; }
+  }
+  fill_n = 0; sum_n = 0; sum_ref = 0; buf_fill = 0; buf_sum = 0;
+  bf[0] = 0; fn[0] = 0; sr[0] = 0; bs[0] = 0; sn[0] = 0;
+  if (glue_match_u8_fill_index_while_pattern_c(arena, body_ref, fill_li, &bf[0], 0 as *i32, &fn[0]) == 0) {
+    return 0;
+  }
+  if (glue_match_u8_sum_index_while_pattern_c(arena, body_ref, sum_li, &sr[0], &bs[0], 0 as *i32, &sn[0]) == 0) {
+    return 0;
+  }
+  buf_fill = bf[0]; fill_n = fn[0]; sum_ref = sr[0]; buf_sum = bs[0]; sum_n = sn[0];
+  if (fill_n != sum_n || glue_fold_expr_var_refs_same_c(arena, buf_fill, buf_sum) == 0) {
+    return 0;
+  }
+  unsafe { ko = pipeline_expr_kind_ord_at(arena, sum_ref); }
+  if (ko != 3) { return 0; }
+  unsafe { glue_asm_ctx_set_scope_block(ctx, block_ref); }
+  off_sum = glue_asm_local_var_stack_off_scoped(arena, ctx, sum_ref);
+  if (off_sum < 0) { return 0; }
+  final_sum = glue_mem_copy_fold_final_sum_i32(rounds_const, fill_n);
+  unsafe {
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, final_sum, ta) != 0) { return 0 - 1; }
+    if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off_sum, ta) != 0) { return 0 - 1; }
+  }
+  return 1;
+}
+
+
+/**
+ * Optimize while (i < n) { let t = i*C1+C2; s ^= t; i++ } as tight x86 LCG xor loop.
+ * @return i32 - 1 handled; 0 no match; -1 error
+ * wave155 pure: G.7 authority (was static glue_try_fold_lcg_xor_while_elf_c).
+ * PLATFORM: SHARED x86_64 (ta==0).
+ */
+function glue_try_fold_lcg_xor_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32 {
+  let cond_ref: i32 = 0;
+  let body_ref: i32 = 0;
+  let i_ref: i32 = 0;
+  let n_is_lit: i32 = 0;
+  let n_lit: i32 = 0;
+  let n_var_ref: i32 = 0;
+  let n_const: i32 = 0;
+  let n_const_ok: i32 = 0;
+  let off_i: i32 = 0;
+  let off_s: i32 = 0;
+  let c1: i32 = 0;
+  let c2: i32 = 0;
+  let nso: i32 = 0;
+  let si: i32 = 0;
+  let s_ref: i32 = 0;
+  let let_lcg_idx: i32 = 0 - 1;
+  let found_t: i32 = 0;
+  let found_xor: i32 = 0;
+  let found_i: i32 = 0;
+  let loop_buf: u8[128] = [];
+  let loop_len: i32 = 0;
+  let n_cmp: i32 = 0;
+  let unroll: i32 = 1;
+  let i_slot: i32[1] = [];
+  let nil: i32[1] = [];
+  let nlit: i32[1] = [];
+  let nvar: i32[1] = [];
+  let nslot: i32[1] = [];
+  let c1s: i32[1] = [];
+  let c2s: i32[1] = [];
+  let sk: i32 = 0;
+  let idx: i32 = 0;
+  let init_ref: i32 = 0;
+  let er: i32 = 0;
+  let right_ref: i32 = 0;
+  let xor_r: i32 = 0;
+  let ko: i32 = 0;
+  let nexpr: i32 = 0;
+  let same: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || ta != 0) {
+    return 0;
+  }
+  unsafe {
+    cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
+    body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
+  }
+  if (cond_ref <= 0 || body_ref <= 0) { return 0; }
+  i_slot[0] = 0; nil[0] = 0; nlit[0] = 0; nvar[0] = 0;
+  if (glue_fold_parse_while_lt_i_n_c(arena, cond_ref, &i_slot[0], &nil[0], &nlit[0], &nvar[0]) == 0) {
+    return 0;
+  }
+  i_ref = i_slot[0]; n_is_lit = nil[0]; n_lit = nlit[0]; n_var_ref = nvar[0];
+  n_const = n_lit; n_const_ok = n_is_lit;
+  if (n_const_ok == 0 && n_var_ref > 0) {
+    nslot[0] = 0;
+    if (glue_fold_block_let_init_lit_c(arena, block_ref, n_var_ref, &nslot[0]) != 0) {
+      n_const = nslot[0]; n_const_ok = 1;
+    }
+  }
+  if (n_const_ok == 0) { return 0; }
+  unsafe { nso = ast_ast_block_num_stmt_order(arena, body_ref); }
+  if (nso != 3) { return 0; }
+  let_lcg_idx = 0 - 1; found_t = 0; found_xor = 0; found_i = 0; s_ref = 0; c1 = 0; c2 = 0;
+  si = 0;
+  while (si < nso) {
+    unsafe {
+      sk = ast_ast_block_stmt_order_kind(arena, body_ref, si);
+      idx = ast_ast_block_stmt_order_idx(arena, body_ref, si);
+    }
+    if (sk == 1) {
+      unsafe { init_ref = pipeline_block_let_init_ref(arena, body_ref, idx); }
+      c1s[0] = 0; c2s[0] = 0;
+      if (init_ref <= 0 || glue_parse_i_mul_add_lit_c(arena, init_ref, i_ref, &c1s[0], &c2s[0]) == 0) {
+        return 0;
+      }
+      c1 = c1s[0]; c2 = c2s[0];
+      let_lcg_idx = idx;
+      found_t = 1;
+    } else {
+      if (sk == 2) {
+        unsafe {
+          nexpr = ast_ast_block_num_expr_stmts(arena, body_ref);
+        }
+        if (idx < 0 || idx >= nexpr) { return 0; }
+        unsafe { er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, idx); }
+        if (er <= 0) { return 0; }
+        if (glue_is_assign_var_add_one_c(arena, er, i_ref) != 0) {
+          found_i = 1;
+          si = si + 1;
+          continue;
+        }
+        unsafe { ko = pipeline_expr_kind_ord_at(arena, er); }
+        if (let_lcg_idx < 0 || ko != 28) { return 0; }
+        unsafe {
+          right_ref = pipeline_expr_binop_right_ref_at(arena, er);
+          ko = pipeline_expr_kind_ord_at(arena, right_ref);
+        }
+        if (ko != 13) { return 0; }
+        unsafe {
+          xor_r = pipeline_expr_binop_right_ref_at(arena, right_ref);
+        }
+        if (glue_expr_var_name_eq_let_idx_c(arena, xor_r, body_ref, let_lcg_idx) == 0) {
+          return 0;
+        }
+        let xor_l: i32 = 0;
+        let assign_l: i32 = 0;
+        unsafe {
+          xor_l = pipeline_expr_binop_left_ref_at(arena, right_ref);
+          assign_l = pipeline_expr_binop_left_ref_at(arena, er);
+        }
+        same = glue_fold_expr_var_refs_same_c(arena, xor_l, assign_l);
+        if (same == 0) { return 0; }
+        s_ref = assign_l;
+        found_xor = 1;
+      } else {
+        return 0;
+      }
+    }
+    si = si + 1;
+  }
+  if (found_t == 0 || found_xor == 0 || found_i == 0 || s_ref <= 0 || let_lcg_idx < 0) {
+    return 0;
+  }
+  unsafe { glue_asm_ctx_set_scope_block(ctx, block_ref); }
+  off_i = glue_asm_local_var_stack_off_scoped(arena, ctx, i_ref);
+  off_s = glue_asm_local_var_stack_off_scoped(arena, ctx, s_ref);
+  if (off_i < 0 || off_s < 0) { return 0; }
+  unsafe { loop_len = pipeline_asm_emit_next_label_c(ctx, &loop_buf[0], 64); }
+  if (loop_len <= 0) { return 0 - 1; }
+  n_cmp = n_const - 1;
+  unroll = 1;
+  if ((n_const & 3) == 0) { unroll = 4; }
+  else {
+    if ((n_const & 1) == 0) { unroll = 2; }
+  }
+  if (glue_enc_x86_xor_edx_edx(elf_ctx) != 0) { return 0 - 1; }
+  if (glue_enc_x86_xor_eax_eax(elf_ctx) != 0) { return 0 - 1; }
+  unsafe {
+    if (backend_enc_label_arch(elf_ctx, &loop_buf[0], loop_len, 0, ta) != 0) { return 0 - 1; }
+  }
+  if (unroll >= 4) {
+    if (glue_emit_lcg_xor_body_x86_c(elf_ctx, c1, c2) != 0) { return 0 - 1; }
+    if (glue_emit_lcg_xor_body_x86_c(elf_ctx, c1, c2) != 0) { return 0 - 1; }
+    if (glue_emit_lcg_xor_body_x86_c(elf_ctx, c1, c2) != 0) { return 0 - 1; }
+    if (glue_emit_lcg_xor_body_x86_c(elf_ctx, c1, c2) != 0) { return 0 - 1; }
+    if (glue_enc_x86_cmpl_edx_imm32(elf_ctx, n_const) != 0) { return 0 - 1; }
+    unsafe {
+      if (backend_enc_jl_arch(elf_ctx, &loop_buf[0], loop_len, ta) != 0) { return 0 - 1; }
+    }
+  } else {
+    if (unroll == 2) {
+      if (glue_emit_lcg_xor_body_x86_c(elf_ctx, c1, c2) != 0) { return 0 - 1; }
+      if (glue_emit_lcg_xor_body_x86_c(elf_ctx, c1, c2) != 0) { return 0 - 1; }
+      if (glue_enc_x86_cmpl_edx_imm32(elf_ctx, n_const) != 0) { return 0 - 1; }
+      unsafe {
+        if (backend_enc_jl_arch(elf_ctx, &loop_buf[0], loop_len, ta) != 0) { return 0 - 1; }
+      }
+    } else {
+      if (glue_emit_lcg_xor_body_x86_c(elf_ctx, c1, c2) != 0) { return 0 - 1; }
+      if (glue_enc_x86_cmpl_edx_imm32(elf_ctx, n_cmp) != 0) { return 0 - 1; }
+      unsafe {
+        if (backend_enc_jle_arch(elf_ctx, &loop_buf[0], loop_len, ta) != 0) { return 0 - 1; }
+      }
+    }
+  }
+  unsafe {
+    if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off_s, ta) != 0) { return 0 - 1; }
+  }
+  return 1;
+}
+
+/**
+ * Whether expr is func's 0th formal param (name match).
+ * @return i32 - 1 yes; 0 no
+ * wave155 pure: G.7 authority (was static glue_fold_expr_is_func_param0_c).
+ * PLATFORM: SHARED.
+ */
+function glue_fold_expr_is_func_param0_c(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32): i32 {
+  let plen: i32 = 0;
+  let vlen: i32 = 0;
+  let k: i32 = 0;
+  let pbuf: u8[128] = [];
+  let vbuf: u8[128] = [];
+  let ko: i32 = 0;
+  let np: i32 = 0;
+  if (arena == (0 as *u8) || mod == (0 as *u8) || expr_ref <= 0) { return 0; }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+    np = pipeline_asm_module_func_num_params_at(mod, func_idx);
+  }
+  if (ko != 3) { return 0; }
+  if (np != 1) { return 0; }
+  unsafe {
+    plen = pipeline_asm_module_func_param_name_len_at(mod, func_idx, 0);
+    vlen = pipeline_expr_var_name_len(arena, expr_ref);
+  }
+  if (plen <= 0 || plen != vlen) { return 0; }
+  unsafe {
+    pipeline_asm_module_func_param_name_copy32(mod, func_idx, 0, &pbuf[0]);
+    pipeline_expr_var_name_into(arena, expr_ref, &vbuf[0]);
+  }
+  k = 0;
+  while (k < plen) {
+    if (pbuf[k] != vbuf[k]) { return 0; }
+    k = k + 1;
+  }
+  return 1;
+}
+
+/**
+ * fold_func_x_plus_k_chain: return param0+K or return callee(param0)+K chain.
+ * @return i32 - accumulated K; -1 no match
+ * wave155 pure: G.7 authority (was static glue_fold_func_x_plus_k_chain_c).
+ * PLATFORM: SHARED.
+ */
+function glue_fold_func_x_plus_k_chain_c(arena: *u8, mod: *u8, func_idx: i32, depth: i32): i32 {
+  let ret_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let left_ref: i32 = 0;
+  let addend: i32 = 0;
+  let callee_ref: i32 = 0;
+  let arg0: i32 = 0;
+  let inner_fi: i32 = 0;
+  let inner_k: i32 = 0;
+  let clen: i32 = 0;
+  let rk: i32 = 0;
+  let cname: u8[128] = [];
+  let is_ext: i32 = 0;
+  let np: i32 = 0;
+  let ko: i32 = 0;
+  if (depth > 12 || arena == (0 as *u8) || mod == (0 as *u8) || func_idx < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    is_ext = pipeline_asm_module_func_is_extern_at(mod, func_idx);
+    np = pipeline_asm_module_func_num_params_at(mod, func_idx);
+  }
+  if (is_ext != 0) { return 0 - 1; }
+  if (np != 1) { return 0 - 1; }
+  ret_ref = glue_fold_func_return_operand_ref_c(arena, mod, func_idx);
+  if (ret_ref <= 0) { return 0 - 1; }
+  unsafe { rk = pipeline_expr_kind_ord_at(arena, ret_ref); }
+  if (rk != 4 && rk != 51) { return 0 - 1; }
+  unsafe {
+    right_ref = pipeline_expr_binop_right_ref_at(arena, ret_ref);
+    ko = pipeline_expr_kind_ord_at(arena, right_ref);
+  }
+  if (ko != 0) { return 0 - 1; }
+  unsafe {
+    addend = pipeline_expr_int_val_at(arena, right_ref);
+    left_ref = pipeline_expr_binop_left_ref_at(arena, ret_ref);
+  }
+  if (glue_fold_expr_is_func_param0_c(arena, mod, func_idx, left_ref) != 0) {
+    return addend;
+  }
+  unsafe { ko = pipeline_expr_kind_ord_at(arena, left_ref); }
+  if (ko != 48) { return 0 - 1; }
+  unsafe {
+    if (pipeline_expr_call_num_args_at(arena, left_ref) != 1) { return 0 - 1; }
+    arg0 = pipeline_expr_call_arg_ref(arena, left_ref, 0);
+  }
+  if (glue_fold_expr_is_func_param0_c(arena, mod, func_idx, arg0) == 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, left_ref);
+  }
+  if (callee_ref <= 0) { return 0 - 1; }
+  unsafe { ko = pipeline_expr_kind_ord_at(arena, callee_ref); }
+  if (ko != 3) { return 0 - 1; }
+  unsafe {
+    clen = pipeline_expr_var_name_len(arena, callee_ref);
+  }
+  if (clen <= 0 || clen > 127) { return 0 - 1; }
+  unsafe {
+    pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
+  }
+  inner_fi = glue_module_func_index_by_name_c(mod, &cname[0], clen);
+  if (inner_fi < 0) { return 0 - 1; }
+  inner_k = glue_fold_func_x_plus_k_chain_c(arena, mod, inner_fi, depth + 1);
+  if (inner_k < 0) { return 0 - 1; }
+  return inner_k + addend;
+}
+
+/**
+ * Recognize f(i) CALL (x+K chain) or i+K ADD; write out_k.
+ * @return i32 - 1 match; 0 otherwise
+ * wave155 pure: G.7 authority (was static glue_fold_affine_i_plus_k_expr_c).
+ * PLATFORM: SHARED.
+ */
+function glue_fold_affine_i_plus_k_expr_c(arena: *u8, mod: *u8, expr_ref: i32, i_ref: i32, out_k: *i32): i32 {
+  let rk: i32 = 0;
+  let al: i32 = 0;
+  let ar: i32 = 0;
+  let k_lit: i32 = 0;
+  let clen: i32 = 0;
+  let fi: i32 = 0;
+  let kk: i32 = 0;
+  let callee_ref: i32 = 0;
+  let arg0: i32 = 0;
+  let cname: u8[128] = [];
+  let ko: i32 = 0;
+  if (arena == (0 as *u8) || expr_ref <= 0) { return 0; }
+  unsafe { rk = pipeline_expr_kind_ord_at(arena, expr_ref); }
+  if (rk == 48) {
+    unsafe {
+      if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
+      arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    }
+    if (glue_fold_expr_var_refs_same_c(arena, arg0, i_ref) == 0) { return 0; }
+    unsafe { callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref); }
+    if (callee_ref <= 0) { return 0; }
+    unsafe { ko = pipeline_expr_kind_ord_at(arena, callee_ref); }
+    if (ko != 3) { return 0; }
+    unsafe { clen = pipeline_expr_var_name_len(arena, callee_ref); }
+    if (clen <= 0 || clen > 127) { return 0; }
+    unsafe { pipeline_expr_var_name_into(arena, callee_ref, &cname[0]); }
+    fi = glue_module_func_index_by_name_c(mod, &cname[0], clen);
+    if (fi < 0) { return 0; }
+    kk = glue_fold_func_x_plus_k_chain_c(arena, mod, fi, 0);
+    if (kk < 0) { return 0; }
+    if (out_k != (0 as *i32)) { unsafe { out_k[0] = kk; } }
+    return 1;
+  }
+  if (rk != 4 && rk != 51) { return 0; }
+  unsafe {
+    al = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    ar = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+  }
+  if (glue_fold_expr_var_refs_same_c(arena, al, i_ref) != 0) {
+    unsafe { ko = pipeline_expr_kind_ord_at(arena, ar); }
+    if (ko == 0) {
+      unsafe { k_lit = pipeline_expr_int_val_at(arena, ar); }
+    } else {
+      return 0;
+    }
+  } else {
+    if (glue_fold_expr_var_refs_same_c(arena, ar, i_ref) != 0) {
+      unsafe { ko = pipeline_expr_kind_ord_at(arena, al); }
+      if (ko == 0) {
+        unsafe { k_lit = pipeline_expr_int_val_at(arena, al); }
+      } else {
+        return 0;
+      }
+    } else {
+      return 0;
+    }
+  }
+  if (out_k != (0 as *i32)) { unsafe { out_k[0] = k_lit; } }
+  return 1;
+}
+
+/**
+ * Match s = s + (i+K) or s = s + f(i).
+ * @return i32 - 1 match; 0 otherwise
+ * wave155 pure: G.7 authority (was static glue_fold_is_assign_s_plus_affine_i_c).
+ * PLATFORM: SHARED.
+ */
+function glue_fold_is_assign_s_plus_affine_i_c(arena: *u8, mod: *u8, expr_ref: i32, i_ref: i32, out_s_ref: *i32, out_k: *i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let inner: i32 = 0;
+  let kk: i32 = 0;
+  let rk: i32 = 0;
+  let add_l: i32 = 0;
+  let ko: i32 = 0;
+  let kslot: i32[1] = [];
+  if (arena == (0 as *u8) || expr_ref <= 0) { return 0; }
+  unsafe { ko = pipeline_expr_kind_ord_at(arena, expr_ref); }
+  if (ko != 28) { return 0; }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    ko = pipeline_expr_kind_ord_at(arena, left_ref);
+  }
+  if (ko != 3) { return 0; }
+  inner = right_ref;
+  unsafe { rk = pipeline_expr_kind_ord_at(arena, right_ref); }
+  if (rk == 4 || rk == 51) {
+    unsafe { add_l = pipeline_expr_binop_left_ref_at(arena, right_ref); }
+    if (glue_fold_expr_var_refs_same_c(arena, add_l, left_ref) == 0) { return 0; }
+    unsafe { inner = pipeline_expr_binop_right_ref_at(arena, right_ref); }
+  }
+  kslot[0] = 0;
+  if (glue_fold_affine_i_plus_k_expr_c(arena, mod, inner, i_ref, &kslot[0]) == 0) {
+    return 0;
+  }
+  kk = kslot[0];
+  if (out_s_ref != (0 as *i32)) { unsafe { out_s_ref[0] = left_ref; } }
+  if (out_k != (0 as *i32)) { unsafe { out_k[0] = kk; } }
+  return 1;
+}
+
+/**
+ * Parse s += (i+K); i++ two-statement affine sum body.
+ * @return i32 - 1 match; 0 otherwise
+ * wave155 pure: G.7 authority (was static glue_fold_parse_affine_sum_body_c).
+ * PLATFORM: SHARED.
+ */
+function glue_fold_parse_affine_sum_body_c(arena: *u8, mod: *u8, body_ref: i32, i_ref: i32, out_s_ref: *i32, out_k: *i32): i32 {
+  let nso: i32 = 0;
+  let j: i32 = 0;
+  let found_s: i32 = 0;
+  let found_i: i32 = 0;
+  let s_ref: i32 = 0;
+  let k_v: i32 = 0;
+  let idx: i32 = 0;
+  let er: i32 = 0;
+  let sr: i32 = 0;
+  let kk: i32 = 0;
+  let sk: i32 = 0;
+  let nexpr: i32 = 0;
+  let sslot: i32[1] = [];
+  let kslot: i32[1] = [];
+  if (arena == (0 as *u8) || body_ref <= 0) { return 0; }
+  unsafe { nso = ast_ast_block_num_stmt_order(arena, body_ref); }
+  if (nso != 2) { return 0; }
+  found_s = 0; found_i = 0; s_ref = 0; k_v = 0;
+  j = 0;
+  while (j < nso) {
+    unsafe {
+      sk = ast_ast_block_stmt_order_kind(arena, body_ref, j);
+      idx = ast_ast_block_stmt_order_idx(arena, body_ref, j);
+      nexpr = ast_ast_block_num_expr_stmts(arena, body_ref);
+    }
+    if (sk != 2) { return 0; }
+    if (idx < 0 || idx >= nexpr) { return 0; }
+    unsafe { er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, idx); }
+    if (er <= 0) { return 0; }
+    if (glue_is_assign_var_add_one_c(arena, er, i_ref) != 0) {
+      found_i = 1;
+    } else {
+      sslot[0] = 0; kslot[0] = 0;
+      if (glue_fold_is_assign_s_plus_affine_i_c(arena, mod, er, i_ref, &sslot[0], &kslot[0]) != 0) {
+        if (found_s != 0) { return 0; }
+        found_s = 1;
+        s_ref = sslot[0];
+        k_v = kslot[0];
+      } else {
+        return 0;
+      }
+    }
+    j = j + 1;
+  }
+  if (found_s == 0 || found_i == 0) { return 0; }
+  if (out_s_ref != (0 as *i32)) { unsafe { out_s_ref[0] = s_ref; } }
+  if (out_k != (0 as *i32)) { unsafe { out_k[0] = k_v; } }
+  return 1;
+}
+
+
+/**
+ * Affine loop elimination: while (i<n) { s = s + (i+K); i++ } → s = n(n-1)/2 + K*n.
+ * Public entry used by while emit fold hooks.
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param block_ref i32 - outer block holding while
+ * @param loop_idx i32 - while index in block
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch; only ta==0 folds
+ * @return i32 - 1 folded; 0 no match; -1 emit error
+ * wave155 pure: G.7 authority (was backend_try_fold_count_up_while_elf).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function backend_try_fold_count_up_while_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32 {
+  let cond_ref: i32 = 0;
+  let body_ref: i32 = 0;
+  let i_ref: i32 = 0;
+  let n_is_lit: i32 = 0;
+  let n_lit: i32 = 0;
+  let n_var_ref: i32 = 0;
+  let n_const: i32 = 0;
+  let n_const_ok: i32 = 0;
+  let affine_s: i32 = 0;
+  let affine_k: i32 = 0;
+  let off_sa: i32 = 0;
+  let i_init: i32 = 0;
+  let nm1: i32 = 0;
+  let total: i32 = 0;
+  let un: u64 = 0;
+  let uk: u64 = 0;
+  let sum_i: u64 = 0;
+  let sum_k: u64 = 0;
+  let total64: u64 = 0;
+  let mod: *u8 = 0 as *u8;
+  let i_slot: i32[1] = [];
+  let nil: i32[1] = [];
+  let nlit: i32[1] = [];
+  let nvar: i32[1] = [];
+  let nslot: i32[1] = [];
+  let sslot: i32[1] = [];
+  let kslot: i32[1] = [];
+  let islot: i32[1] = [];
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || ta != 0) {
+    return 0;
+  }
+  mod = w155_ctx_module_ref(ctx);
+  if (mod == (0 as *u8)) { return 0; }
+  unsafe {
+    cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
+    body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
+  }
+  if (cond_ref <= 0 || body_ref <= 0) { return 0; }
+  i_slot[0] = 0; nil[0] = 0; nlit[0] = 0; nvar[0] = 0;
+  if (glue_fold_parse_while_lt_i_n_c(arena, cond_ref, &i_slot[0], &nil[0], &nlit[0], &nvar[0]) == 0) {
+    return 0;
+  }
+  i_ref = i_slot[0]; n_is_lit = nil[0]; n_lit = nlit[0]; n_var_ref = nvar[0];
+  n_const = n_lit; n_const_ok = n_is_lit;
+  if (n_const_ok == 0 && n_var_ref > 0) {
+    nslot[0] = 0;
+    if (glue_fold_block_let_init_lit_c(arena, block_ref, n_var_ref, &nslot[0]) != 0) {
+      n_const = nslot[0]; n_const_ok = 1;
+    }
+  }
+  if (n_const_ok == 0 || n_const <= 0) { return 0; }
+  islot[0] = 0;
+  if (glue_fold_block_let_init_lit_c(arena, block_ref, i_ref, &islot[0]) == 0 || islot[0] != 0) {
+    return 0;
+  }
+  sslot[0] = 0; kslot[0] = 0;
+  if (glue_fold_parse_affine_sum_body_c(arena, mod, body_ref, i_ref, &sslot[0], &kslot[0]) == 0) {
+    return 0;
+  }
+  affine_s = sslot[0]; affine_k = kslot[0];
+  unsafe { glue_asm_ctx_set_scope_block(ctx, block_ref); }
+  off_sa = glue_asm_local_var_stack_off_scoped(arena, ctx, affine_s);
+  if (off_sa < 0) { return 0; }
+  un = (n_const as u32) as u64;
+  uk = (affine_k as u32) as u64;
+  nm1 = n_const - 1;
+  sum_i = un * ((nm1 as u32) as u64) / 2;
+  sum_k = uk * un;
+  total64 = sum_i + sum_k;
+  total = (total64 as u32) as i32;
+  unsafe {
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, total, ta) != 0) { return 0 - 1; }
+    if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off_sa, ta) != 0) { return 0 - 1; }
+  }
+  return 1;
+}
+
+/**
+ * ELF loop body stmt_order emit (while/for body content).
+ * Empty body_ref is legal; does not abort.
+ * @return i32 - 0 ok; -1 error
+ * wave155 pure: G.7 authority (was backend_emit_loop_body_content_elf_sync).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function backend_emit_loop_body_content_elf_sync(arena: *u8, elf_ctx: *u8, body_ref: i32, ctx: *u8, ta: i32): i32 {
+  let mod: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (body_ref <= 0) {
+    return 0;
+  }
+  mod = w155_ctx_module_ref(ctx);
+  if (mod != (0 as *u8)) {
+    pipeline_asm_emit_set_module(mod);
+  }
+  unsafe {
+    backend_ensure_block_local_slots(ctx, arena, body_ref);
+  }
+  pipeline_asm_fill_block_locals_tree(ctx, arena, body_ref);
+  unsafe {
+    glue_asm_ctx_set_scope_block(ctx, body_ref);
+  }
+  if (pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, body_ref, ctx, ta) != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * ELF while loop emit with fold hooks then generic cond/body/jmp.
+ * @return i32 - 0 ok; -1 error
+ * wave155 pure: G.7 authority (was backend_emit_while_loop_elf_sync).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function backend_emit_while_loop_elf_sync(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32 {
+  let fold_rc: i32 = 0;
+  let cond_ref: i32 = 0;
+  let body_ref: i32 = 0;
+  let loop_buf: u8[128] = [];
+  let exit_buf: u8[128] = [];
+  let loop_len: i32 = 0;
+  let exit_len: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let mc_rc: i32 = 0;
+  let struct_rc: i32 = 0;
+  let u8_rc: i32 = 0;
+  let lcg_rc: i32 = 0;
+  let simd_peel_rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  mod = w155_ctx_module_ref(ctx);
+  if (mod != (0 as *u8)) {
+    pipeline_asm_emit_set_module(mod);
+  }
+  mc_rc = glue_try_fold_mem_copy_outer_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
+  if (mc_rc > 0) { return 0; }
+  struct_rc = glue_try_fold_struct_pair_n2_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
+  if (struct_rc > 0) { return 0; }
+  u8_rc = glue_try_fold_u8_fill_index_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
+  if (u8_rc > 0) { return 0; }
+  u8_rc = glue_try_fold_u8_sum_index_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
+  if (u8_rc > 0) { return 0; }
+  lcg_rc = glue_try_fold_lcg_xor_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
+  if (lcg_rc > 0) { return 0; }
+  unsafe {
+    simd_peel_rc = glue_try_simd_peel_f32_soa_sum_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
+  }
+  if (simd_peel_rc > 0) { return 0; }
+  unsafe {
+    simd_peel_rc = glue_try_simd_peel_index_add_while_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
+  }
+  if (simd_peel_rc > 0) { return 0; }
+  fold_rc = backend_try_fold_count_up_while_elf(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
+  if (fold_rc > 0) { return 0; }
+  // fold_rc < 0 falls through to generic while (do not abort).
+  unsafe {
+    cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
+    body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
+  }
+  // XLANG_ASM_DEBUG fprintf omitted in pure (wave106 style).
+  unsafe {
+    loop_len = pipeline_asm_emit_next_label_c(ctx, &loop_buf[0], 64);
+    exit_len = pipeline_asm_emit_next_label_c(ctx, &exit_buf[0], 64);
+  }
+  if (loop_len <= 0 || exit_len <= 0) { return 0 - 1; }
+  unsafe {
+    if (backend_enc_label_arch(elf_ctx, &loop_buf[0], loop_len, 0, ta) != 0) { return 0 - 1; }
+  }
+  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, cond_ref, ctx, ta) != 0) { return 0 - 1; }
+  if (glue_enc_jz_after_bool_in_eax(elf_ctx, &exit_buf[0], exit_len, ta) != 0) { return 0 - 1; }
+  if (backend_ctx_push_loop_labels(ctx, &exit_buf[0], exit_len, &loop_buf[0], loop_len) != 0) {
+    return 0 - 1;
+  }
+  unsafe { glue_loop_break_exit_push(); }
+  if (backend_emit_loop_body_content_elf_sync(arena, elf_ctx, body_ref, ctx, ta) != 0) {
+    unsafe { glue_loop_break_exit_pop(); }
+    backend_ctx_pop_loop_labels(ctx);
+    return 0 - 1;
+  }
+  unsafe {
+    if (backend_enc_jmp_arch(elf_ctx, &loop_buf[0], loop_len, ta) != 0) {
+      glue_loop_break_exit_pop();
+      backend_ctx_pop_loop_labels(ctx);
+      return 0 - 1;
+    }
+    if (backend_enc_label_arch(elf_ctx, &exit_buf[0], exit_len, 0, ta) != 0) {
+      glue_loop_break_exit_pop();
+      backend_ctx_pop_loop_labels(ctx);
+      return 0 - 1;
+    }
+    glue_asm_cache_invalidate_at_cfg_merge_selective(arena, ctx, body_ref, 0);
+    glue_asm_loop_phi_invalidate_carried_defs(arena, ctx, body_ref);
+    glue_asm_loop_merge_live_union(arena, ctx, body_ref);
+    glue_loop_break_exit_pop();
+  }
+  backend_ctx_pop_loop_labels(ctx);
+  return 0;
+}
+
+/**
+ * ELF for loop emit; continue targets step label (not cond head).
+ * @return i32 - 0 ok; -1 error
+ * wave155 pure: G.7 authority (was backend_emit_for_loop_elf_sync).
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function backend_emit_for_loop_elf_sync(arena: *u8, elf_ctx: *u8, block_ref: i32, for_idx: i32, ctx: *u8, ta: i32): i32 {
+  let init_ref: i32 = 0;
+  let cond_ref: i32 = 0;
+  let step_ref: i32 = 0;
+  let body_ref: i32 = 0;
+  let loop_buf: u8[128] = [];
+  let exit_buf: u8[128] = [];
+  let step_buf: u8[128] = [];
+  let loop_len: i32 = 0;
+  let exit_len: i32 = 0;
+  let step_len: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    init_ref = ast_ast_block_for_init_ref(arena, block_ref, for_idx);
+    cond_ref = ast_ast_block_for_cond_ref(arena, block_ref, for_idx);
+    step_ref = ast_ast_block_for_step_ref(arena, block_ref, for_idx);
+    body_ref = ast_ast_block_for_body_ref(arena, block_ref, for_idx);
+  }
+  if (init_ref != 0) {
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    loop_len = pipeline_asm_emit_next_label_c(ctx, &loop_buf[0], 64);
+    exit_len = pipeline_asm_emit_next_label_c(ctx, &exit_buf[0], 64);
+    step_len = pipeline_asm_emit_next_label_c(ctx, &step_buf[0], 64);
+  }
+  if (loop_len <= 0 || exit_len <= 0 || step_len <= 0) { return 0 - 1; }
+  unsafe {
+    if (backend_enc_label_arch(elf_ctx, &loop_buf[0], loop_len, 0, ta) != 0) { return 0 - 1; }
+  }
+  if (cond_ref != 0) {
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, cond_ref, ctx, ta) != 0) { return 0 - 1; }
+    if (glue_enc_jz_after_bool_in_eax(elf_ctx, &exit_buf[0], exit_len, ta) != 0) { return 0 - 1; }
+  }
+  if (backend_ctx_push_loop_labels(ctx, &exit_buf[0], exit_len, &step_buf[0], step_len) != 0) {
+    return 0 - 1;
+  }
+  unsafe { glue_loop_break_exit_push(); }
+  if (backend_emit_loop_body_content_elf_sync(arena, elf_ctx, body_ref, ctx, ta) != 0) {
+    unsafe { glue_loop_break_exit_pop(); }
+    backend_ctx_pop_loop_labels(ctx);
+    return 0 - 1;
+  }
+  unsafe {
+    if (backend_enc_label_arch(elf_ctx, &step_buf[0], step_len, 0, ta) != 0) {
+      glue_loop_break_exit_pop();
+      backend_ctx_pop_loop_labels(ctx);
+      return 0 - 1;
+    }
+  }
+  if (step_ref != 0) {
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, step_ref, ctx, ta) != 0) {
+      unsafe { glue_loop_break_exit_pop(); }
+      backend_ctx_pop_loop_labels(ctx);
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    if (backend_enc_jmp_arch(elf_ctx, &loop_buf[0], loop_len, ta) != 0) {
+      glue_loop_break_exit_pop();
+      backend_ctx_pop_loop_labels(ctx);
+      return 0 - 1;
+    }
+    if (backend_enc_label_arch(elf_ctx, &exit_buf[0], exit_len, 0, ta) != 0) {
+      glue_loop_break_exit_pop();
+      backend_ctx_pop_loop_labels(ctx);
+      return 0 - 1;
+    }
+    glue_asm_cache_invalidate_at_cfg_merge_selective(arena, ctx, body_ref, 0);
+    glue_asm_loop_phi_invalidate_carried_defs(arena, ctx, body_ref);
+    glue_asm_loop_merge_live_union(arena, ctx, body_ref);
+    if (step_ref != 0) {
+      glue_live_fwd_apply_expr_effect(arena, ctx, step_ref);
+    }
+    glue_loop_break_exit_pop();
+  }
+  backend_ctx_pop_loop_labels(ctx);
+  return 0;
+}
+
+/**
+ * Thin M8 wrapper → backend_emit_while_loop_elf_sync.
+ * @return i32 - sync result
+ * wave155 pure: G.7 authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_while_loop_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return backend_emit_while_loop_elf_sync(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
+  }
+}
+
+/**
+ * Thin M8 wrapper → backend_emit_for_loop_elf_sync.
+ * @return i32 - sync result
+ * wave155 pure: G.7 authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_for_loop_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, for_idx: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return backend_emit_for_loop_elf_sync(arena, elf_ctx, block_ref, for_idx, ctx, ta);
+  }
+}
+
+/**
+ * Thin M8 wrapper → backend_emit_loop_body_content_elf_sync.
+ * @return i32 - sync result
+ * wave155 pure: G.7 authority.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_loop_body_content_elf_c(arena: *u8, elf_ctx: *u8, body_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return backend_emit_loop_body_content_elf_sync(arena, elf_ctx, body_ref, ctx, ta);
+  }
+}
+
+/**
+ * SKIP-mode thin stub: bl delegate cname + epilogue, else mov w0,#0 + epilogue.
+ * Debug fprintf path omitted in pure (product path identical when env unset).
+ * @return i32 - 0 ok; -1 error
+ * wave155 pure: G.7 authority (was pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(elf_ctx: *u8, ta: i32, mod: *u8, func_index: i32): i32 {
+  let cname: u8[72] = [];
+  let clen: i32 = 0;
+  let clen_slot: i32[1] = [];
+  let rc: i32 = 0;
+  clen = 0;
+  if (mod != (0 as *u8)) {
+    clen_slot[0] = 0;
+    if (asm_backend_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]) == 0) {
+      if (asm_pipeline_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]) == 0) {
+        if (asm_parser_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]) == 0) {
+          if (asm_driver_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]) == 0) {
+            rc = asm_typeck_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]);
+          }
+        }
+      }
+    }
+    clen = clen_slot[0];
+  }
+  // XLANG_DEBUG_PARSER_DELEGATE fprintf omitted in pure (wave106 style).
+  if (clen > 0) {
+    unsafe {
+      if (backend_enc_call_arch(elf_ctx, &cname[0], clen, ta) != 0) { return 0 - 1; }
+      return backend_enc_epilogue_arch(elf_ctx, ta);
+    }
+  }
+  unsafe {
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+    return backend_enc_epilogue_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * Push nested loop break/continue labels onto AsmFuncCtx layout stack (depth cap 8).
+ * Mirrors backend.x ctx_push_loop_labels via LP64 layout offsets.
+ * @return i32 - 0 ok; -1 null/overflow
+ * wave155 pure: G.7 authority (was backend_ctx_push_loop_labels wave1237).
+ * PLATFORM: SHARED - AsmFuncCtx loop-label stack mgmt, no arch branch.
+ */
+#[no_mangle]
+export function backend_ctx_push_loop_labels(ctx: *u8, exit_buf: *u8, exit_len: i32, loop_buf: *u8, loop_len: i32): i32 {
+  let ly: *u8 = 0 as *u8;
+  let d: i32 = 0;
+  let base_off: i32 = 0;
+  let k: i32 = 0;
+  let n: i32 = 0;
+  if (ctx == (0 as *u8) || exit_buf == (0 as *u8) || loop_buf == (0 as *u8) || exit_len <= 0 || loop_len <= 0) {
+    return 0 - 1;
+  }
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (ly == (0 as *u8)) { return 0 - 1; }
+  d = pipe_load_i32_le(ly, w155_ly_off_loop_label_depth());
+  if (d >= 8) { return 0 - 1; }
+  base_off = d * 64;
+  n = exit_len;
+  if (n > 64) { n = 64; }
+  w155_copy_bytes_to_ly(ly, w155_ly_off_break_stack() + base_off, exit_buf, n);
+  pipe_store_i32_le(ly, w155_ly_off_break_len_stack() + d * 4, exit_len);
+  n = loop_len;
+  if (n > 64) { n = 64; }
+  w155_copy_bytes_to_ly(ly, w155_ly_off_cont_stack() + base_off, loop_buf, n);
+  pipe_store_i32_le(ly, w155_ly_off_cont_len_stack() + d * 4, loop_len);
+  pipe_store_i32_le(ly, w155_ly_off_loop_label_depth(), d + 1);
+  n = exit_len;
+  if (n > 64) { n = 64; }
+  w155_copy_bytes_to_ly(ly, w155_ly_off_break_label(), exit_buf, n);
+  pipe_store_i32_le(ly, w155_ly_off_break_len(), exit_len);
+  n = loop_len;
+  if (n > 64) { n = 64; }
+  w155_copy_bytes_to_ly(ly, w155_ly_off_continue_label(), loop_buf, n);
+  pipe_store_i32_le(ly, w155_ly_off_continue_len(), loop_len);
+  return 0;
+}
+
+/**
+ * Pop loop label stack top; restore break/continue from outer frame if any.
+ * @return void
+ * wave155 pure: G.7 authority (was backend_ctx_pop_loop_labels wave1237).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function backend_ctx_pop_loop_labels(ctx: *u8): void {
+  let ly: *u8 = 0 as *u8;
+  let d: i32 = 0;
+  let prev: i32 = 0;
+  let base_off: i32 = 0;
+  let bl: i32 = 0;
+  let cl: i32 = 0;
+  let n: i32 = 0;
+  if (ctx == (0 as *u8)) { return; }
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (ly == (0 as *u8) || pipe_load_i32_le(ly, w155_ly_off_loop_label_depth()) <= 0) {
+    if (ly != (0 as *u8)) {
+      pipe_store_i32_le(ly, w155_ly_off_break_len(), 0);
+      pipe_store_i32_le(ly, w155_ly_off_continue_len(), 0);
+    }
+    return;
+  }
+  d = pipe_load_i32_le(ly, w155_ly_off_loop_label_depth()) - 1;
+  pipe_store_i32_le(ly, w155_ly_off_loop_label_depth(), d);
+  if (d <= 0) {
+    pipe_store_i32_le(ly, w155_ly_off_break_len(), 0);
+    pipe_store_i32_le(ly, w155_ly_off_continue_len(), 0);
+    return;
+  }
+  prev = d - 1;
+  base_off = prev * 64;
+  bl = pipe_load_i32_le(ly, w155_ly_off_break_len_stack() + prev * 4);
+  cl = pipe_load_i32_le(ly, w155_ly_off_cont_len_stack() + prev * 4);
+  n = bl;
+  if (n > 64) { n = 64; }
+  // copy stack → break_label
+  {
+    let k: i32 = 0;
+    while (k < n) {
+      unsafe {
+        ly[w155_ly_off_break_label() + k] = ly[w155_ly_off_break_stack() + base_off + k];
+      }
+      k = k + 1;
+    }
+  }
+  pipe_store_i32_le(ly, w155_ly_off_break_len(), bl);
+  n = cl;
+  if (n > 64) { n = 64; }
+  {
+    let k2: i32 = 0;
+    while (k2 < n) {
+      unsafe {
+        ly[w155_ly_off_continue_label() + k2] = ly[w155_ly_off_cont_stack() + base_off + k2];
+      }
+      k2 = k2 + 1;
+    }
+  }
+  pipe_store_i32_le(ly, w155_ly_off_continue_len(), cl);
+}
+
+// end wave155 pure-owned leave

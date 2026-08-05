@@ -436,6 +436,16 @@ int32_t backend_emit_for_loop_elf_sync(struct ast_ASTArena *arena, struct platfo
 int32_t backend_emit_loop_body_content_elf_sync(struct ast_ASTArena *arena,
                                                 struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t body_ref,
                                                 struct backend_AsmFuncCtx *ctx, int32_t ta);
+/* wave155 pure-owned faces (live in runtime_pipeline_abi pure). */
+int32_t pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+                                                        struct ast_Module *mod, int32_t func_index);
+int32_t pipeline_asm_emit_while_loop_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                           int32_t block_ref, int32_t loop_idx, struct backend_AsmFuncCtx *ctx, int32_t ta);
+int32_t pipeline_asm_emit_for_loop_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                         int32_t block_ref, int32_t for_idx, struct backend_AsmFuncCtx *ctx, int32_t ta);
+int32_t pipeline_asm_emit_loop_body_content_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                  int32_t body_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+
 
 int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_int_val_at(struct ast_ASTArena *a, int32_t expr_ref);
@@ -592,6 +602,14 @@ extern int32_t glue_emit_index_rax_plus_rbx_scaled_elf_c(struct platform_elf_Elf
 int32_t backend_ctx_push_loop_labels(struct backend_AsmFuncCtx *ctx, uint8_t *exit_buf, int32_t exit_len,
                                      uint8_t *loop_buf, int32_t loop_len);
 void backend_ctx_pop_loop_labels(struct backend_AsmFuncCtx *ctx);
+/* wave155: spill Cap residual un-static faces (pure fold_count leave calls these). */
+void glue_loop_break_exit_push(void);
+void glue_loop_break_exit_pop(void);
+void glue_asm_loop_phi_invalidate_carried_defs(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                              int32_t body_ref);
+void glue_asm_loop_merge_live_union(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t body_ref);
+void glue_live_fwd_apply_expr_effect(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t expr_ref);
+
 
 /** EXPR_RETURN：可选 emit 操作数后 jmp 函数尾汇合标签 tail_join_label。 */
 /* wave138 Cap residual for pure try_propagate. */

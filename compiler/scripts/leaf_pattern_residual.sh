@@ -9209,6 +9209,14 @@ fi
 if [ -f "$ROOT/compiler/pipeline_asm_emit_struct_lit.c" ]; then
   bad "pipeline_asm_emit_struct_lit.c must be deleted (wave154 pure-owned leave)"
 fi
+
+# wave155 pure-owned leave: fold_count_up_while deleted (was not always in PIPELINE_X_DEPS)
+if grep -qE 'pipeline_asm_emit_fold_count_up_while\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_fold_count_up_while.c (wave155 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_fold_count_up_while.c" ]; then
+  bad "pipeline_asm_emit_fold_count_up_while.c must be deleted (wave155 pure-owned leave)"
+fi
 # wave146: vector_let pure leave — must-not check above
 
 # wave148 pure-owned leave: vector_simd faces live in runtime_pipeline_abi pure

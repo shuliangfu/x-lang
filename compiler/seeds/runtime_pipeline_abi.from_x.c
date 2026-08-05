@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave155: fold_count_up_while pure leave cold twins under #ifndef FROM_X
  * wave149: binop pure leave cold twins under #ifndef FROM_X
  * wave148: vector_simd pure leave cold twins under #ifndef FROM_X
  * wave147: index_eff_addr pure leave cold twins under #ifndef FROM_X
@@ -24670,5 +24671,68 @@ void pipeline_typeck_hot_reorder_warn_layout(void *module, void *arena, int32_t 
     }
   }
 }
+
+
+/*
+ * wave155 cold twins: fold_count_up_while pure-owned leave.
+ * Public faces: try_fold + while/for/body sync + thin wrappers + skip_heavy +
+ * ctx push/pop loop labels. Cold stubs freestanding-safe (no fold / emit fail).
+ * Hybrid product links pure .o (FROM_X set). PLATFORM: SHARED.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+int32_t backend_try_fold_count_up_while_elf(void *arena, void *elf_ctx, int32_t block_ref, int32_t loop_idx,
+                                            void *ctx, int32_t ta) {
+  (void)arena; (void)elf_ctx; (void)block_ref; (void)loop_idx; (void)ctx; (void)ta;
+  return 0; /* no fold in pure-less cold */
+}
+
+int32_t backend_emit_loop_body_content_elf_sync(void *arena, void *elf_ctx, int32_t body_ref, void *ctx, int32_t ta) {
+  (void)arena; (void)elf_ctx; (void)body_ref; (void)ctx; (void)ta;
+  return -1;
+}
+
+int32_t backend_emit_while_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t loop_idx, void *ctx,
+                                        int32_t ta) {
+  (void)arena; (void)elf_ctx; (void)block_ref; (void)loop_idx; (void)ctx; (void)ta;
+  return -1;
+}
+
+int32_t backend_emit_for_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t for_idx, void *ctx,
+                                      int32_t ta) {
+  (void)arena; (void)elf_ctx; (void)block_ref; (void)for_idx; (void)ctx; (void)ta;
+  return -1;
+}
+
+int32_t pipeline_asm_emit_while_loop_elf_c(void *arena, void *elf_ctx, int32_t block_ref, int32_t loop_idx, void *ctx,
+                                          int32_t ta) {
+  return backend_emit_while_loop_elf_sync(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
+}
+
+int32_t pipeline_asm_emit_for_loop_elf_c(void *arena, void *elf_ctx, int32_t block_ref, int32_t for_idx, void *ctx,
+                                        int32_t ta) {
+  return backend_emit_for_loop_elf_sync(arena, elf_ctx, block_ref, for_idx, ctx, ta);
+}
+
+int32_t pipeline_asm_emit_loop_body_content_elf_c(void *arena, void *elf_ctx, int32_t body_ref, void *ctx, int32_t ta) {
+  return backend_emit_loop_body_content_elf_sync(arena, elf_ctx, body_ref, ctx, ta);
+}
+
+int32_t pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(void *elf_ctx, int32_t ta, void *mod, int32_t func_index) {
+  (void)elf_ctx; (void)ta; (void)mod; (void)func_index;
+  return -1;
+}
+
+int32_t backend_ctx_push_loop_labels(void *ctx, uint8_t *exit_buf, int32_t exit_len, uint8_t *loop_buf,
+                                    int32_t loop_len) {
+  (void)ctx; (void)exit_buf; (void)exit_len; (void)loop_buf; (void)loop_len;
+  return -1;
+}
+
+void backend_ctx_pop_loop_labels(void *ctx) {
+  (void)ctx;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

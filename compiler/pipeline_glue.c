@@ -1312,7 +1312,10 @@ extern int32_t glue_enc_x86_imul_eax_eax(struct platform_elf_ElfCodegenCtx *elf_
  * Same-TU: wave136 fold_primitives pure externs + wave135 x86 pure externs < this #include
  *   < backend_emit_while_loop_elf_sync def. Forward decl at ~L1605 remains.
  * PLATFORM: SHARED. */
-#include "pipeline_asm_emit_fold_count_up_while.c"
+/* wave155 pure-owned leave: pipeline_asm_emit_fold_count_up_while.c deleted.
+ * Live = runtime_pipeline_abi pure; seed cold twins under #ifndef FROM_X.
+ * PLATFORM: SHARED. */
+/* #include "pipeline_asm_emit_fold_count_up_while.c" — deleted wave155 */
 
 /* wave1199 G.7: backend_emit_while/for_loop_elf_sync +
  * pipeline_asm_emit_while/for/loop_body_content_elf_c (3 thin wrappers) +
