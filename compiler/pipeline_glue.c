@@ -735,15 +735,21 @@ void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_AS
 #include "pipeline_asm_emit_block_inits.c"
 
 
-/* wave1030 G.7: GLUE_WA_SCOPE_STACK_MAX + g_glue_wa_* globals +
- * glue_with_arena_scope_active_c + glue_with_arena_scope_top_off_c +
- * glue_wa_emit_begin_func_c + glue_wa_scope_alloc_off_c +
- * glue_wa_scope_push_c + glue_wa_scope_pop_c +
- * glue_emit_with_arena_init_elf + glue_emit_with_arena_deinit_elf
- * folded into pipeline_asm_emit_with_arena.c (same TU #include; no new DEPS).
- * Chinese docblocks converted to English per G.9. block_body.c #included
- * after this site consumes all wa helpers; no forward decls needed. */
-#include "pipeline_asm_emit_with_arena.c"
+/* wave122 pure-owned leave: pipeline_asm_emit_with_arena.c deleted.
+ * live = runtime_pipeline_abi pure (glue_with_arena_scope_* /
+ * glue_wa_* / glue_emit_with_arena_*); seed cold twin under #ifndef FROM_X.
+ * Residual block_body (same mega TU) still calls the public faces — extern
+ * prototypes only; do not re-open a second WA scope path (G.7).
+ * PLATFORM: SHARED — dual-end L2 after leave. */
+extern int32_t glue_with_arena_scope_active_c(void);
+extern int32_t glue_with_arena_scope_top_off_c(void);
+extern void glue_wa_emit_begin_func_c(struct backend_AsmFuncCtx *ctx, struct ast_ASTArena *arena, int32_t body_ref);
+extern int32_t glue_wa_scope_alloc_off_c(struct backend_AsmFuncCtx *ctx);
+extern void glue_wa_scope_push_c(int32_t wa_off);
+extern void glue_wa_scope_pop_c(void);
+extern int32_t glue_emit_with_arena_init_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                            struct backend_AsmFuncCtx *ctx, int32_t wa_off, int32_t cap_ref, int32_t ta);
+extern int32_t glue_emit_with_arena_deinit_elf(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t wa_off, int32_t ta);
 
 
 /* BC 8.3.1: asm ELF block body sync emit domain (defer + body_sync + accessors; same TU). */

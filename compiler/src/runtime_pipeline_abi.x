@@ -563,6 +563,14 @@ export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i
 // wave102: POSIX write for asm_diag BODY/FUNC_TRACE lines (stderr fd=2).
 // PLATFORM: SHARED - hosted product; freestanding not on this leave path.
 export extern "C" function write(fd: i32, buf: *u8, count: i64): i64;
+// wave122 Cap residual: with_arena pure leave callees still host-cc residual
+// (block_tree array temp sum + public expr_elf + arch encoders).
+// PLATFORM: SHARED — pure owns WA scope BSS/faces; mega emit still residual.
+export extern "C" function asm_sum_block_array_temp_bytes(arena: *u8, block_ref: i32): i32;
+export extern "C" function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern "C" function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
+export extern "C" function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 -> _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
@@ -4980,6 +4988,14 @@ let g_pipe_be_cont_block: i32[24] = [];
 let g_pipe_be_cont_stmt: i32[24] = [];
 let g_pipe_be_cont_end_len: i32[24] = [];
 let g_pipe_be_cont_end: u8[3072] = [];
+// wave122 pure BSS: with_arena scope stack (was pipeline_asm_emit_with_arena.c).
+// G.7 single authority for MEM-C1 stack-Arena64 emit; GLUE_WA_SCOPE_STACK_MAX=16.
+// PLATFORM: SHARED — dual-end L2 after leave.
+let g_pipe_wa_scope_off_stack: i32[16] = [];
+let g_pipe_wa_scope_n: i32 = 0;
+let g_pipe_wa_temp_base: i32 = 0;
+let g_pipe_wa_temp_next: i32 = 0;
+let g_pipe_wa_func_body_ref: i32 = 0;
 
 // wave105 pure resolve_path leave (was pipeline_resolve_path.c host-cc residual).
 // PLATFORM: SHARED - off sidecar for EMIT_HEAVY orch (lib_root/entry prefix + append).
@@ -20804,4 +20820,267 @@ export function pipeline_strict_parse_into_init(arena: *u8, module: *u8): void {
     pipe_store_i32_le(module, pipe_mod_off_pending_repr_compatible_struct(), 0);
     pipe_store_i32_le(module, pipe_mod_off_num_module_enums(), 0);
   }
+}
+
+// ---------------------------------------------------------------------------
+// wave122: pipeline_asm_emit_with_arena pure-owned leave
+// (was pipeline_asm_emit_with_arena.c).
+// G.7 product authority for:
+//   glue_with_arena_scope_active_c / glue_with_arena_scope_top_off_c
+//   glue_wa_emit_begin_func_c / glue_wa_scope_alloc_off_c
+//   glue_wa_scope_push_c / glue_wa_scope_pop_c
+//   glue_emit_with_arena_init_elf / glue_emit_with_arena_deinit_elf
+// AsmFuncCtx.next_offset @4 (LP64; frame_size@0) via pipe_load/store_i32_le.
+// Cap residual: asm_sum_block_array_temp_bytes + pipeline_asm_emit_expr_elf_c
+//   + backend_enc_lea_rbp_to_rax_arch / mov_rax_to_arg_reg / call_arch.
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * LP64 offsetof(AsmFuncCtx, next_offset).
+ * @return i32 - 4
+ * PLATFORM: SHARED LP64 — matches backend.x layout + call_dispatch comment.
+ */
+function pipe_asm_ctx_off_next_offset(): i32 {
+  return 4;
+}
+
+/**
+ * Whether currently inside a with_arena scope (backend_try_inline default_alloc).
+ * @return i32 - 1 if g_pipe_wa_scope_n > 0, else 0
+ * wave122 pure: G.7 single product authority (was pipeline_asm_emit_with_arena.c).
+ * PLATFORM: SHARED - sole provider after with_arena leave.
+ */
+#[no_mangle]
+export function glue_with_arena_scope_active_c(): i32 {
+  if (g_pipe_wa_scope_n > 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Top with_arena temporary Arena64 rbp negative offset; 0 if no scope.
+ * @return i32 - top stack offset or 0
+ * wave122 pure: G.7 single product authority (was pipeline_asm_emit_with_arena.c).
+ * PLATFORM: SHARED - sole provider after with_arena leave.
+ */
+#[no_mangle]
+export function glue_with_arena_scope_top_off_c(): i32 {
+  if (g_pipe_wa_scope_n > 0) {
+    return g_pipe_wa_scope_off_stack[g_pipe_wa_scope_n - 1];
+  }
+  return 0;
+}
+
+/**
+ * Func body emit entry: reset wa temp cursor (must run after fill_block_locals_tree).
+ * Arena64 stack slot sits after all lets: next_offset + array_temps + 24.
+ * @param ctx *u8 - AsmFuncCtx*; null -> only clear scope_n/temp_next, skip base
+ * @param arena *u8 - ASTArena* for asm_sum_block_array_temp_bytes
+ * @param body_ref i32 - function body block_ref (stored in g_pipe_wa_func_body_ref)
+ * @return void
+ * wave122 pure: G.7 single product authority (was pipeline_asm_emit_with_arena.c).
+ * PLATFORM: SHARED - Cap residual array_temp_bytes still host-cc block_tree.
+ */
+#[no_mangle]
+export function glue_wa_emit_begin_func_c(ctx: *u8, arena: *u8, body_ref: i32): void {
+  g_pipe_wa_scope_n = 0;
+  g_pipe_wa_temp_next = 0;
+  g_pipe_wa_func_body_ref = body_ref;
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let next_off: i32 = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+  let arr_temp: i32 = 0;
+  if (arena != 0 as *u8) {
+    unsafe {
+      arr_temp = asm_sum_block_array_temp_bytes(arena, body_ref);
+    }
+  }
+  g_pipe_wa_temp_base = next_off + arr_temp + 24;
+}
+
+/**
+ * Allocate stack Arena64 slot offset for this with_arena block (24B step, 8-align;
+ * must run after all block-local lets). Advances AsmFuncCtx.next_offset past wa region.
+ * @param ctx *u8 - AsmFuncCtx*; may be null (still returns off; no next_offset bump)
+ * @return i32 - allocated wa_off (rbp-negative home base)
+ * wave122 pure: G.7 single product authority (was pipeline_asm_emit_with_arena.c).
+ * PLATFORM: SHARED - 24B Arena64 + 8-align matches C residual compute_frame_size.
+ */
+#[no_mangle]
+export function glue_wa_scope_alloc_off_c(ctx: *u8): i32 {
+  let off: i32 = g_pipe_wa_temp_base + g_pipe_wa_temp_next;
+  g_pipe_wa_temp_next = g_pipe_wa_temp_next + 24;
+  if (g_pipe_wa_temp_next % 8 != 0) {
+    g_pipe_wa_temp_next = g_pipe_wa_temp_next + (8 - (g_pipe_wa_temp_next % 8));
+  }
+  if (ctx != 0 as *u8) {
+    let end: i32 = off + 24;
+    if (end % 8 != 0) {
+      end = end + (8 - (end % 8));
+    }
+    let cur: i32 = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+    if (end > cur) {
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), end);
+    }
+  }
+  return off;
+}
+
+/**
+ * Push one with_arena scope offset (cap 16; overflow is silent no-op).
+ * @param wa_off i32 - Arena64 stack slot offset
+ * @return void
+ * wave122 pure: G.7 single product authority (was pipeline_asm_emit_with_arena.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_wa_scope_push_c(wa_off: i32): void {
+  if (g_pipe_wa_scope_n >= 16) {
+    return;
+  }
+  g_pipe_wa_scope_off_stack[g_pipe_wa_scope_n] = wa_off;
+  g_pipe_wa_scope_n = g_pipe_wa_scope_n + 1;
+}
+
+/**
+ * Pop one with_arena scope (no-op if empty).
+ * @return void
+ * wave122 pure: G.7 single product authority (was pipeline_asm_emit_with_arena.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_wa_scope_pop_c(): void {
+  if (g_pipe_wa_scope_n > 0) {
+    g_pipe_wa_scope_n = g_pipe_wa_scope_n - 1;
+  }
+}
+
+/**
+ * Emit heap_arena_init_c(a, cap): a=rbp+wa_off, cap evaluated from cap_ref expr.
+ * Arg setup order is ABI-critical: emit cap first then home to arg1, then lea
+ * arena to rax/arg0. Historical C residual did lea/arg0 then cap — works on
+ * x86_64 (rdi vs rax) but on arm64 rax==x0 so cap clobbers arena (push fails).
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx* for cap expr emit
+ * @param wa_off i32 - Arena64 stack slot offset
+ * @param cap_ref i32 - expr_ref for capacity argument
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 encoder/expr failure
+ * wave122 pure: G.7 single product authority (was pipeline_asm_emit_with_arena.c).
+ * PLATFORM: SHARED freestanding emit · Cap residual enc_* + emit_expr_elf_c.
+ *   · LINUX+MACOS x86_64 SysV — arg0=rdi arg1=rsi; lea after cap is fine
+ *   · MACOS|ARM64 AAPCS64 — arg0=x0==rax; must set arg1 before final lea
+ */
+#[no_mangle]
+export function glue_emit_with_arena_init_elf(arena: *u8, elf_ctx: *u8, ctx: *u8, wa_off: i32, cap_ref: i32, ta: i32): i32 {
+  // "heap_arena_init_c" (17 chars) + NUL scratch
+  let init_sym: u8[24] = [];
+  init_sym[0] = 104 as u8;  // h
+  init_sym[1] = 101 as u8;  // e
+  init_sym[2] = 97 as u8;   // a
+  init_sym[3] = 112 as u8;  // p
+  init_sym[4] = 95 as u8;   // _
+  init_sym[5] = 97 as u8;   // a
+  init_sym[6] = 114 as u8;  // r
+  init_sym[7] = 101 as u8;  // e
+  init_sym[8] = 110 as u8;  // n
+  init_sym[9] = 97 as u8;   // a
+  init_sym[10] = 95 as u8;  // _
+  init_sym[11] = 105 as u8; // i
+  init_sym[12] = 110 as u8; // n
+  init_sym[13] = 105 as u8; // i
+  init_sym[14] = 116 as u8; // t
+  init_sym[15] = 95 as u8;  // _
+  init_sym[16] = 99 as u8;  // c
+  init_sym[17] = 0 as u8;
+  let rc: i32 = 0;
+  // 1) evaluate cap into rax, home to arg1 (rsi / x1)
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cap_ref, ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  // 2) lea arena into rax (=arg0 on arm64; mov k=0 is no-op there)
+  unsafe {
+    rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, wa_off, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_call_arch(elf_ctx, &init_sym[0], 17, ta);
+  }
+  return rc;
+}
+
+/**
+ * Emit heap_arena64_deinit_c(a): release with_arena stack Arena64 chunks.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param wa_off i32 - Arena64 stack slot offset
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 encoder failure
+ * wave122 pure: G.7 single product authority (was pipeline_asm_emit_with_arena.c).
+ * PLATFORM: SHARED freestanding emit · Cap residual enc_*.
+ */
+#[no_mangle]
+export function glue_emit_with_arena_deinit_elf(elf_ctx: *u8, wa_off: i32, ta: i32): i32 {
+  // "heap_arena64_deinit_c" (21 chars) — must include trailing 'c'
+  let deinit_sym: u8[24] = [];
+  deinit_sym[0] = 104 as u8;  // h
+  deinit_sym[1] = 101 as u8;  // e
+  deinit_sym[2] = 97 as u8;   // a
+  deinit_sym[3] = 112 as u8;  // p
+  deinit_sym[4] = 95 as u8;   // _
+  deinit_sym[5] = 97 as u8;   // a
+  deinit_sym[6] = 114 as u8;  // r
+  deinit_sym[7] = 101 as u8;  // e
+  deinit_sym[8] = 110 as u8;  // n
+  deinit_sym[9] = 97 as u8;   // a
+  deinit_sym[10] = 54 as u8;  // 6
+  deinit_sym[11] = 52 as u8;  // 4
+  deinit_sym[12] = 95 as u8;  // _
+  deinit_sym[13] = 100 as u8; // d
+  deinit_sym[14] = 101 as u8; // e
+  deinit_sym[15] = 105 as u8; // i
+  deinit_sym[16] = 110 as u8; // n
+  deinit_sym[17] = 105 as u8; // i
+  deinit_sym[18] = 116 as u8; // t
+  deinit_sym[19] = 95 as u8;  // _
+  deinit_sym[20] = 99 as u8;  // c
+  deinit_sym[21] = 0 as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, wa_off, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_call_arch(elf_ctx, &deinit_sym[0], 21, ta);
+  }
+  return rc;
 }
