@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave172: minus_pair/subadd3 cache spill pure leave cold twins under #ifndef FROM_X
  * wave171: index-scratch enc push/reload/pop pure leave cold twins under #ifndef FROM_X
  * wave170: binop try_reload pure leave cold twin under #ifndef FROM_X
  * wave169: index-scratch pure leave cold twins under #ifndef FROM_X
@@ -25118,6 +25119,64 @@ int32_t glue_index_reload_scratch_slot_to_rbx_elf_c(void *elf_ctx, int32_t ta, i
   (void)elf_ctx;
   (void)ta;
   (void)slot_depth;
+  return 0;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/*
+ * wave172 cold twins: minus_pair / subadd3 cache spill helper faces.
+ * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+int32_t glue_index_minus_pair_cache_spill_after_sub_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t i_ref,
+                                                         int32_t j_ref, int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)ctx;
+  (void)i_ref;
+  (void)j_ref;
+  (void)ta;
+  return 0;
+}
+
+int32_t glue_index_minus_pair_cache_hit(void *arena, void *ctx, int32_t i_ref, int32_t j_ref, int32_t ta) {
+  (void)arena;
+  (void)ctx;
+  (void)i_ref;
+  (void)j_ref;
+  (void)ta;
+  return 0;
+}
+
+int32_t glue_index_subadd3_sum_cache_spill_store_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t i_ref,
+                                                      int32_t j_ref, int32_t k_ref, int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)ctx;
+  (void)i_ref;
+  (void)j_ref;
+  (void)k_ref;
+  (void)ta;
+  return 0;
+}
+
+int32_t glue_index_subadd3_sum_cache_hit(void *arena, void *ctx, int32_t i_ref, int32_t j_ref, int32_t k_ref,
+                                        int32_t ta) {
+  (void)arena;
+  (void)ctx;
+  (void)i_ref;
+  (void)j_ref;
+  (void)k_ref;
+  (void)ta;
+  return 0;
+}
+
+int32_t glue_index_subadd3_spill_pop_top_elf_c(void *elf_ctx, int32_t ta) {
+  (void)elf_ctx;
+  (void)ta;
   return 0;
 }
 

@@ -972,6 +972,18 @@ export extern "C" function glue_index_scratch_stack_depth_get(): i32;
 export extern "C" function glue_index_scratch_caches_hit_var(arena: *u8, var_ref: i32): i32;
 export extern "C" function glue_binop_stack_spill_append_at_depth(off: i32, depth: i32): i32;
 export extern "C" function glue_binop_stack_spill_cap_get(): i32;
+/* wave172 Cap residual: thin faces for pure minus_pair/subadd3 cache spill leave. */
+export extern "C" function glue_index_minus_pair_cache_valid_get(): i32;
+export extern "C" function glue_index_minus_pair_cache_slot_depth_get(): i32;
+export extern "C" function glue_index_minus_pair_cache_ctx_matches(ctx: *u8): i32;
+export extern "C" function glue_index_minus_pair_cache_keys_eq(arena: *u8, i_ref: i32, j_ref: i32): i32;
+export extern "C" function glue_index_minus_pair_cache_record(arena: *u8, ctx: *u8, i_ref: i32, j_ref: i32): void;
+export extern "C" function glue_index_subadd3_sum_cache_valid_get(): i32;
+export extern "C" function glue_index_subadd3_sum_cache_slot_depth_get(): i32;
+export extern "C" function glue_index_subadd3_sum_cache_ctx_matches(ctx: *u8): i32;
+export extern "C" function glue_index_subadd3_sum_cache_keys_eq(arena: *u8, i_ref: i32, j_ref: i32, k_ref: i32): i32;
+export extern "C" function glue_index_subadd3_sum_cache_record(arena: *u8, ctx: *u8, i_ref: i32, j_ref: i32, k_ref: i32): void;
+/* wave172: pure owns minus_pair/subadd3 cache spill helpers (#[no_mangle] below). */
 export extern "C" function arch_x86_64_enc_enc_test_edx_edx(elf_ctx: *u8): i32;
 export extern "C" function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32;
@@ -54454,3 +54466,202 @@ export function glue_index_reload_scratch_slot_to_rbx_elf_c(elf_ctx: *u8, ta: i3
 }
 
 // end wave171 pure-owned leave
+
+// ============================================================================
+// wave172 pure-owned leave: minus_pair / subadd3 cache spill helpers
+// (was Cap residual spill; CAP cache BSS + key hash stay residual).
+// Public faces:
+//   · glue_index_minus_pair_cache_spill_after_sub_elf_c
+//   · glue_index_minus_pair_cache_hit
+//   · glue_index_subadd3_sum_cache_spill_store_elf_c
+//   · glue_index_subadd3_sum_cache_hit
+//   · glue_index_subadd3_spill_pop_top_elf_c
+// Cap residual: CAP cache BSS + thin valid/slot/ctx/keys/record + clear
+// + pure enc push/pop (wave171) + depth_get/set.
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * After sub yields (i-j) in index scratch (x2), push scratch and record keys.
+ * No-op when ta!=1. On arm64: pure enc_push then residual record.
+ * @param arena *u8 - ASTArena* (for residual key hash)
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx* (cache ctx_key)
+ * @param i_ref i32 - left VAR expr ref of (i-j)
+ * @param j_ref i32 - right VAR expr ref of (i-j)
+ * @param ta i32 - target arch (only arm64 records)
+ * @return i32 - 0 ok/no-op; -1 enc push fail
+ * wave172 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_index_minus_pair_cache_spill_after_sub_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, i_ref: i32, j_ref: i32, ta: i32): i32 {
+  let rc: i32 = 0;
+  if (ta != 1) {
+    return 0;
+  }
+  unsafe {
+    rc = glue_enc_push_index_scratch_arm64_elf_c(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  // Residual CAP: stamp valid + keys + slot_depth (= current depth after push).
+  unsafe {
+    glue_index_minus_pair_cache_record(arena, ctx, i_ref, j_ref);
+  }
+  return 0;
+}
+
+/**
+ * Return 1 when spilled (i-j) matches i/j var refs for the same AsmFuncCtx.
+ * Checks residual valid / ctx / slot_depth range / key hash equality.
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param i_ref i32 - left VAR expr ref
+ * @param j_ref i32 - right VAR expr ref
+ * @param ta i32 - target arch (only arm64 hits; others return 0)
+ * @return i32 - 1 hit; 0 miss
+ * wave172 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_minus_pair_cache_hit(arena: *u8, ctx: *u8, i_ref: i32, j_ref: i32, ta: i32): i32 {
+  let slot: i32 = 0;
+  let depth: i32 = 0;
+  if (ta != 1) {
+    return 0;
+  }
+  unsafe {
+    if (glue_index_minus_pair_cache_valid_get() == 0) {
+      return 0;
+    }
+    if (glue_index_minus_pair_cache_ctx_matches(ctx) == 0) {
+      return 0;
+    }
+    slot = glue_index_minus_pair_cache_slot_depth_get();
+    depth = glue_index_scratch_stack_depth_get();
+  }
+  if (slot <= 0 || slot > depth) {
+    return 0;
+  }
+  unsafe {
+    if (glue_index_minus_pair_cache_keys_eq(arena, i_ref, j_ref) == 0) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+/**
+ * After (i-j+k) sum is in index scratch (x2), push and record keys.
+ * No-op when ta!=1. On arm64: pure enc_push then residual record.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param i_ref i32 - i VAR of (i-j+k)
+ * @param j_ref i32 - j VAR of (i-j+k)
+ * @param k_ref i32 - k VAR of (i-j+k)
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok/no-op; -1 enc push fail
+ * wave172 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_index_subadd3_sum_cache_spill_store_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, i_ref: i32, j_ref: i32, k_ref: i32, ta: i32): i32 {
+  let rc: i32 = 0;
+  if (ta != 1) {
+    return 0;
+  }
+  unsafe {
+    rc = glue_enc_push_index_scratch_arm64_elf_c(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    glue_index_subadd3_sum_cache_record(arena, ctx, i_ref, j_ref, k_ref);
+  }
+  return 0;
+}
+
+/**
+ * Return 1 when spilled (i-j+k) sum matches i/j/k var refs for the same ctx.
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param i_ref i32 - i VAR
+ * @param j_ref i32 - j VAR
+ * @param k_ref i32 - k VAR
+ * @param ta i32 - target arch (only arm64 hits)
+ * @return i32 - 1 hit; 0 miss
+ * wave172 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_subadd3_sum_cache_hit(arena: *u8, ctx: *u8, i_ref: i32, j_ref: i32, k_ref: i32, ta: i32): i32 {
+  let slot: i32 = 0;
+  let depth: i32 = 0;
+  if (ta != 1) {
+    return 0;
+  }
+  unsafe {
+    if (glue_index_subadd3_sum_cache_valid_get() == 0) {
+      return 0;
+    }
+    if (glue_index_subadd3_sum_cache_ctx_matches(ctx) == 0) {
+      return 0;
+    }
+    slot = glue_index_subadd3_sum_cache_slot_depth_get();
+    depth = glue_index_scratch_stack_depth_get();
+  }
+  if (slot <= 0 || slot > depth) {
+    return 0;
+  }
+  unsafe {
+    if (glue_index_subadd3_sum_cache_keys_eq(arena, i_ref, j_ref, k_ref) == 0) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Pop only the top spill when it holds a stale (i-j+k) sum at current depth.
+ * Clears residual sum-cache metadata, pure pop_enc, then depth--.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok/no-op (not top); -1 enc pop fail
+ * wave172 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_index_subadd3_spill_pop_top_elf_c(elf_ctx: *u8, ta: i32): i32 {
+  let slot: i32 = 0;
+  let depth: i32 = 0;
+  let rc: i32 = 0;
+  unsafe {
+    if (glue_index_subadd3_sum_cache_valid_get() == 0) {
+      return 0;
+    }
+    slot = glue_index_subadd3_sum_cache_slot_depth_get();
+    depth = glue_index_scratch_stack_depth_get();
+  }
+  if (slot != depth) {
+    return 0;
+  }
+  unsafe {
+    glue_index_subadd3_sum_cache_clear();
+    rc = glue_enc_pop_index_scratch_stack_arm64_elf_c(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    depth = glue_index_scratch_stack_depth_get();
+    glue_index_scratch_stack_depth_set(depth - 1);
+  }
+  return 0;
+}
+
+// end wave172 pure-owned leave

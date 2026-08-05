@@ -97,14 +97,22 @@
  *   · glue_enc_pop_index_scratch_stack_arm64_elf_c
  *   · glue_index_reload_scratch_slot_elf_c
  *   · glue_index_reload_scratch_slot_to_rbx_elf_c
- * Residual keeps CAP BSS (depth / minus_pair / subadd3) + thin depth_get/set
- * + cache spill helpers (minus_pair / subadd3) that call pure enc faces.
+ * Residual keeps CAP BSS (depth / minus_pair / subadd3) + thin depth_get/set.
+ *
+ * wave172 pure-owned minus_pair / subadd3 cache spill helpers:
+ *   · glue_index_minus_pair_cache_spill_after_sub_elf_c
+ *   · glue_index_minus_pair_cache_hit
+ *   · glue_index_subadd3_sum_cache_spill_store_elf_c
+ *   · glue_index_subadd3_sum_cache_hit
+ *   · glue_index_subadd3_spill_pop_top_elf_c
+ * Residual keeps CAP cache BSS + key hash + thin valid/slot/ctx/keys/record
+ * + clear faces; pure owns spill orchestration + hit meta checks.
  *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
  *   · 7.3 live_fwd BSS / break-continue note + push/pop
  *   · Chaitin interf BSS + gen_kill/collect + stack-spill preference
- *   · index scratch CAP BSS + thin + cache spill helpers (minus_pair/subadd3)
+ *   · index scratch CAP BSS + thin valid/slot/ctx/keys/record + clear
  *     (CAP statics in pipeline_asm_emit_index_helpers.c)
  *
  * G.7: do not re-define pure-owned faces above in this file.
@@ -227,7 +235,7 @@ int32_t glue_binop_try_reload_spill_off_elf_c(struct platform_elf_ElfCodegenCtx 
                                              int32_t to_rbx);
 
 /* wave171 pure-owned faces (extern; live in runtime_pipeline_abi pure).
- * Residual: CAP depth BSS + minus_pair/subadd3 helpers call these.
+ * Residual: CAP depth BSS + wave172 pure spill helpers call these.
  * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64. */
 int32_t glue_enc_push_index_scratch_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t glue_enc_reload_index_scratch_from_stack_arm64_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -237,6 +245,23 @@ int32_t glue_index_reload_scratch_slot_elf_c(struct platform_elf_ElfCodegenCtx *
                                             int32_t slot_depth);
 int32_t glue_index_reload_scratch_slot_to_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                    int32_t slot_depth);
+
+/* wave172 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * Residual: CAP cache BSS + thin record/valid/slot/ctx/keys for pure leave.
+ * PLATFORM: SHARED freestanding 7.3. */
+int32_t glue_index_minus_pair_cache_spill_after_sub_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         struct backend_AsmFuncCtx *ctx, int32_t i_ref,
+                                                         int32_t j_ref, int32_t ta);
+int32_t glue_index_minus_pair_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                       int32_t i_ref, int32_t j_ref, int32_t ta);
+int32_t glue_index_subadd3_sum_cache_spill_store_elf_c(struct ast_ASTArena *arena,
+                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                      struct backend_AsmFuncCtx *ctx, int32_t i_ref,
+                                                      int32_t j_ref, int32_t k_ref, int32_t ta);
+int32_t glue_index_subadd3_sum_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                        int32_t i_ref, int32_t j_ref, int32_t k_ref, int32_t ta);
+int32_t glue_index_subadd3_spill_pop_top_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -1629,8 +1654,12 @@ void glue_index_minus_pair_cache_clear(void) {
  * glue_enc_pop_index_scratch_stack_arm64_elf_c /
  * glue_index_reload_scratch_slot_elf_c /
  * glue_index_reload_scratch_slot_to_rbx_elf_c (extern above).
- * Residual: CAP depth BSS (index_helpers) + thin depth_get/set +
- * minus_pair/subadd3 cache spill helpers. PLATFORM: SHARED freestanding 7.3. */
+ * Residual: CAP depth BSS (index_helpers) + thin depth_get/set.
+ * PLATFORM: SHARED freestanding 7.3. */
+
+/* wave172: pure owns minus_pair/subadd3 cache spill helpers (extern above).
+ * Residual thin: CAP cache BSS + key hash + valid/slot/ctx/keys/record + clear.
+ * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave169: pure owns glue_index_scratch_spills_cleanup_all_elf_c (extern above).
  * Residual thin: pure pop_enc + depth_get/set + cache clears. PLATFORM: SHARED. */
@@ -1656,6 +1685,83 @@ int32_t glue_index_scratch_caches_hit_var(struct ast_ASTArena *arena, int32_t va
       (vkey == glue_index_minus_pair_cache.i_key || vkey == glue_index_minus_pair_cache.j_key))
     return 1;
   return 0;
+}
+
+/**
+ * wave172 Cap residual: thin getters / key match / record for pure cache spill leave.
+ * CAP BSS + expr struct key hash stay residual (G.7; pure cannot own u64 BSS).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_index_minus_pair_cache_valid_get(void) {
+  return glue_index_minus_pair_cache.valid;
+}
+
+int32_t glue_index_minus_pair_cache_slot_depth_get(void) {
+  return glue_index_minus_pair_cache.slot_depth;
+}
+
+int32_t glue_index_minus_pair_cache_ctx_matches(struct backend_AsmFuncCtx *ctx) {
+  if (!ctx)
+    return 0;
+  return glue_index_minus_pair_cache.ctx_key == (size_t)ctx ? 1 : 0;
+}
+
+int32_t glue_index_minus_pair_cache_keys_eq(struct ast_ASTArena *arena, int32_t i_ref, int32_t j_ref) {
+  if (!arena)
+    return 0;
+  if (glue_index_minus_pair_cache.i_key != glue_index_expr_struct_key_elf_c(arena, i_ref))
+    return 0;
+  if (glue_index_minus_pair_cache.j_key != glue_index_expr_struct_key_elf_c(arena, j_ref))
+    return 0;
+  return 1;
+}
+
+/** Record (i-j) keys + ctx after pure enc push (slot_depth = current CAP depth). */
+void glue_index_minus_pair_cache_record(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                       int32_t i_ref, int32_t j_ref) {
+  glue_index_minus_pair_cache.valid = 1;
+  glue_index_minus_pair_cache.ctx_key = (size_t)ctx;
+  glue_index_minus_pair_cache.i_key = glue_index_expr_struct_key_elf_c(arena, i_ref);
+  glue_index_minus_pair_cache.j_key = glue_index_expr_struct_key_elf_c(arena, j_ref);
+  glue_index_minus_pair_cache.slot_depth = glue_index_scratch_stack_depth;
+}
+
+int32_t glue_index_subadd3_sum_cache_valid_get(void) {
+  return glue_index_subadd3_sum_cache.valid;
+}
+
+int32_t glue_index_subadd3_sum_cache_slot_depth_get(void) {
+  return glue_index_subadd3_sum_cache.slot_depth;
+}
+
+int32_t glue_index_subadd3_sum_cache_ctx_matches(struct backend_AsmFuncCtx *ctx) {
+  if (!ctx)
+    return 0;
+  return glue_index_subadd3_sum_cache.ctx_key == (size_t)ctx ? 1 : 0;
+}
+
+int32_t glue_index_subadd3_sum_cache_keys_eq(struct ast_ASTArena *arena, int32_t i_ref, int32_t j_ref,
+                                            int32_t k_ref) {
+  if (!arena)
+    return 0;
+  if (glue_index_subadd3_sum_cache.i_key != glue_index_expr_struct_key_elf_c(arena, i_ref))
+    return 0;
+  if (glue_index_subadd3_sum_cache.j_key != glue_index_expr_struct_key_elf_c(arena, j_ref))
+    return 0;
+  if (glue_index_subadd3_sum_cache.k_key != glue_index_expr_struct_key_elf_c(arena, k_ref))
+    return 0;
+  return 1;
+}
+
+/** Record (i-j+k) keys + ctx after pure enc push (slot_depth = current CAP depth). */
+void glue_index_subadd3_sum_cache_record(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                        int32_t i_ref, int32_t j_ref, int32_t k_ref) {
+  glue_index_subadd3_sum_cache.valid = 1;
+  glue_index_subadd3_sum_cache.ctx_key = (size_t)ctx;
+  glue_index_subadd3_sum_cache.i_key = glue_index_expr_struct_key_elf_c(arena, i_ref);
+  glue_index_subadd3_sum_cache.j_key = glue_index_expr_struct_key_elf_c(arena, j_ref);
+  glue_index_subadd3_sum_cache.k_key = glue_index_expr_struct_key_elf_c(arena, k_ref);
+  glue_index_subadd3_sum_cache.slot_depth = glue_index_scratch_stack_depth;
 }
 
 /**
@@ -1758,107 +1864,17 @@ int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCt
   return 1;
 }
 
-/** Pop only the top spill when it holds a stale (i-j+k) sum. */
-static int32_t glue_index_subadd3_spill_pop_top_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  if (!glue_index_subadd3_sum_cache.valid ||
-      glue_index_subadd3_sum_cache.slot_depth != glue_index_scratch_stack_depth)
-    return 0;
-  glue_index_subadd3_sum_cache_clear();
-  if (glue_enc_pop_index_scratch_stack_arm64_elf_c(elf_ctx, ta) != 0)
-    return -1;
-  glue_index_scratch_stack_depth--;
-  return 0;
-}
-
-/** Backward compat alias: full spill stack cleanup. */
-static int32_t glue_index_subadd3_sum_cache_stack_cleanup_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                 int32_t ta) {
-  return glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta);
-}
+/* wave172: pure owns glue_index_subadd3_spill_pop_top_elf_c /
+ * glue_index_minus_pair_cache_spill_after_sub_elf_c /
+ * glue_index_minus_pair_cache_hit /
+ * glue_index_subadd3_sum_cache_hit /
+ * glue_index_subadd3_sum_cache_spill_store_elf_c (extern above).
+ * Residual thin: valid/slot/ctx/keys/record + clear + pure enc push/pop.
+ * Dead residual aliases (invalidate_var → pure invalidate; stack_cleanup → pure
+ * cleanup_all) removed (no same-TU callers). PLATFORM: SHARED freestanding 7.3. */
 
 /* wave169: pure owns glue_index_scratch_spill_invalidate_var (extern above).
  * Residual thin: glue_index_scratch_caches_hit_var + pure cleanup. PLATFORM: SHARED. */
-
-/** After sub w2=w2-w3 yields (i-j), push w2 and remember keys. */
-static int32_t glue_index_minus_pair_cache_spill_after_sub_elf_c(struct ast_ASTArena *arena,
-                                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                  struct backend_AsmFuncCtx *ctx, int32_t i_ref,
-                                                                  int32_t j_ref, int32_t ta) {
-  if (ta != 1)
-    return 0;
-  if (glue_enc_push_index_scratch_arm64_elf_c(elf_ctx, ta) != 0)
-    return -1;
-  glue_index_minus_pair_cache.valid = 1;
-  glue_index_minus_pair_cache.ctx_key = (size_t)ctx;
-  glue_index_minus_pair_cache.i_key = glue_index_expr_struct_key_elf_c(arena, i_ref);
-  glue_index_minus_pair_cache.j_key = glue_index_expr_struct_key_elf_c(arena, j_ref);
-  glue_index_minus_pair_cache.slot_depth = glue_index_scratch_stack_depth;
-  return 0;
-}
-
-/** Return 1 when spilled (i-j) matches var pair. */
-static int32_t glue_index_minus_pair_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                int32_t i_ref, int32_t j_ref, int32_t ta) {
-  if (ta != 1 || !glue_index_minus_pair_cache.valid)
-    return 0;
-  if (glue_index_minus_pair_cache.ctx_key != (size_t)ctx)
-    return 0;
-  if (glue_index_minus_pair_cache.slot_depth <= 0 ||
-      glue_index_minus_pair_cache.slot_depth > glue_index_scratch_stack_depth)
-    return 0;
-  if (glue_index_minus_pair_cache.i_key != glue_index_expr_struct_key_elf_c(arena, i_ref))
-    return 0;
-  if (glue_index_minus_pair_cache.j_key != glue_index_expr_struct_key_elf_c(arena, j_ref))
-    return 0;
-  return 1;
-}
-
-/** Invalidate when a subadd3 operand local is assigned. */
-static void glue_index_subadd3_sum_cache_invalidate_var(struct ast_ASTArena *arena,
-                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                         struct backend_AsmFuncCtx *ctx, int32_t var_ref,
-                                                         int32_t ta) {
-  glue_index_scratch_spill_invalidate_var(arena, elf_ctx, ctx, var_ref, ta);
-}
-
-/** Return 1 when spilled (i-j+k) sum matches i/j/k var refs. */
-static int32_t glue_index_subadd3_sum_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                 int32_t i_ref, int32_t j_ref, int32_t k_ref, int32_t ta) {
-  if (ta != 1 || !glue_index_subadd3_sum_cache.valid)
-    return 0;
-  if (glue_index_subadd3_sum_cache.ctx_key != (size_t)ctx)
-    return 0;
-  if (glue_index_subadd3_sum_cache.slot_depth <= 0 ||
-      glue_index_subadd3_sum_cache.slot_depth > glue_index_scratch_stack_depth)
-    return 0;
-  if (glue_index_subadd3_sum_cache.i_key != glue_index_expr_struct_key_elf_c(arena, i_ref))
-    return 0;
-  if (glue_index_subadd3_sum_cache.j_key != glue_index_expr_struct_key_elf_c(arena, j_ref))
-    return 0;
-  if (glue_index_subadd3_sum_cache.k_key != glue_index_expr_struct_key_elf_c(arena, k_ref))
-    return 0;
-  return 1;
-}
-
-/** Reserve one i32 temp below rbp via ctx->next_offset (8-byte aligned). */
-static int32_t glue_index_subadd3_sum_cache_spill_store_elf_c(struct ast_ASTArena *arena,
-                                                               struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                               struct backend_AsmFuncCtx *ctx, int32_t i_ref,
-                                                               int32_t j_ref, int32_t k_ref, int32_t ta) {
-  (void)arena;
-  (void)ctx;
-  if (ta != 1)
-    return 0;
-  if (glue_enc_push_index_scratch_arm64_elf_c(elf_ctx, ta) != 0)
-    return -1;
-  glue_index_subadd3_sum_cache.valid = 1;
-  glue_index_subadd3_sum_cache.ctx_key = (size_t)ctx;
-  glue_index_subadd3_sum_cache.i_key = glue_index_expr_struct_key_elf_c(arena, i_ref);
-  glue_index_subadd3_sum_cache.j_key = glue_index_expr_struct_key_elf_c(arena, j_ref);
-  glue_index_subadd3_sum_cache.k_key = glue_index_expr_struct_key_elf_c(arena, k_ref);
-  glue_index_subadd3_sum_cache.slot_depth = glue_index_scratch_stack_depth;
-  return 0;
-}
 
 /* wave157: frame-sum pure-owned leave (runtime_pipeline_abi pure).
  * G.7: do not re-define glue_asm_sum_block_call_spill_bytes /

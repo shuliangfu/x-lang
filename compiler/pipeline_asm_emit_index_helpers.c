@@ -1452,19 +1452,21 @@ int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCt
 /* wave149 Cap residual non-static (def spill.c). */
 int32_t glue_asm73_var_prefers_stack_spill(int32_t off);
 
-static int32_t glue_index_minus_pair_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                int32_t i_ref, int32_t j_ref, int32_t ta);
-static int32_t glue_index_minus_pair_cache_spill_after_sub_elf_c(struct ast_ASTArena *arena,
-                                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                  struct backend_AsmFuncCtx *ctx, int32_t i_ref,
-                                                                  int32_t j_ref, int32_t ta);
+/* wave172 pure-owned: minus_pair/subadd3 cache spill helpers (runtime_pipeline_abi pure). */
+int32_t glue_index_minus_pair_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                       int32_t i_ref, int32_t j_ref, int32_t ta);
+int32_t glue_index_minus_pair_cache_spill_after_sub_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         struct backend_AsmFuncCtx *ctx, int32_t i_ref,
+                                                         int32_t j_ref, int32_t ta);
 /* wave171 pure-owned: index-scratch enc reload faces (runtime_pipeline_abi pure). */
 int32_t glue_index_reload_scratch_slot_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                             int32_t slot_depth);
 /* wave169 pure-owned: glue_index_scratch_spills_cleanup_all_elf_c (runtime_pipeline_abi pure). */
 int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
-static int32_t glue_index_subadd3_sum_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                 int32_t i_ref, int32_t j_ref, int32_t k_ref, int32_t ta);
+/* wave172 pure-owned: subadd3 sum cache hit (runtime_pipeline_abi pure). */
+int32_t glue_index_subadd3_sum_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                        int32_t i_ref, int32_t j_ref, int32_t k_ref, int32_t ta);
 /* wave171 pure-owned: reload slot → rbx (runtime_pipeline_abi pure). */
 int32_t glue_index_reload_scratch_slot_to_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                    int32_t slot_depth);
@@ -1858,21 +1860,23 @@ int32_t glue_try_index_var_subsub3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTA
  * INDEX assign：VAR/FIELD 基址 + ((VAR-VAR+VAR)*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
  * 0=OK，-1=错，-2=不适用（如 (i-j+k)*2）。
  */
-static int32_t glue_index_subadd3_sum_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                 int32_t i_ref, int32_t j_ref, int32_t k_ref, int32_t ta);
-static int32_t glue_index_subadd3_sum_cache_spill_store_elf_c(struct ast_ASTArena *arena,
-                                                               struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                               struct backend_AsmFuncCtx *ctx, int32_t i_ref,
-                                                               int32_t j_ref, int32_t k_ref, int32_t ta);
-static int32_t glue_index_minus_pair_cache_spill_after_sub_elf_c(struct ast_ASTArena *arena,
-                                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                                  struct backend_AsmFuncCtx *ctx, int32_t i_ref,
-                                                                  int32_t j_ref, int32_t ta);
-static int32_t glue_index_minus_pair_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                int32_t i_ref, int32_t j_ref, int32_t ta);
+/* wave172 pure-owned: minus_pair/subadd3 cache spill helpers (runtime_pipeline_abi pure). */
+int32_t glue_index_subadd3_sum_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                        int32_t i_ref, int32_t j_ref, int32_t k_ref, int32_t ta);
+int32_t glue_index_subadd3_sum_cache_spill_store_elf_c(struct ast_ASTArena *arena,
+                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                      struct backend_AsmFuncCtx *ctx, int32_t i_ref,
+                                                      int32_t j_ref, int32_t k_ref, int32_t ta);
+int32_t glue_index_minus_pair_cache_spill_after_sub_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         struct backend_AsmFuncCtx *ctx, int32_t i_ref,
+                                                         int32_t j_ref, int32_t ta);
+int32_t glue_index_minus_pair_cache_hit(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                       int32_t i_ref, int32_t j_ref, int32_t ta);
 /* wave169 pure-owned (runtime_pipeline_abi pure). */
 int32_t glue_index_scratch_spills_cleanup_all_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
-static int32_t glue_index_subadd3_spill_pop_top_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/* wave172 pure-owned: pop top stale (i-j+k) spill (runtime_pipeline_abi pure). */
+int32_t glue_index_subadd3_spill_pop_top_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /* wave171 pure-owned: reload faces (runtime_pipeline_abi pure). */
 int32_t glue_index_reload_scratch_slot_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                             int32_t slot_depth);
