@@ -120,9 +120,8 @@ struct ast_Expr *pipeline_arena_expr_ptr(struct ast_ASTArena *a, int32_t ref);
 struct ast_Block *pipeline_arena_block_ptr(struct ast_ASTArena *a, int32_t ref);
 struct ast_Func *pipeline_arena_func_ptr(struct ast_ASTArena *a, int32_t ref);
 int32_t pipeline_arena_type_alloc(struct ast_ASTArena *a);
-/** DOD-S1 SoA：定义见 pipeline_typeck_soa.c（文件后部 #include）；emit 段前置调用。 */
-int32_t pipeline_typeck_field_soa_index_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                                          int32_t base_ref);
+/* 8.3.3 host-cc leave: pipeline_typeck_field_soa_index_c retired with
+ * pipeline_typeck_soa.c. Emit path calls typeck_soa_field_soa_index (typeck_x.o). */
 int32_t pipeline_arena_expr_alloc(struct ast_ASTArena *a);
 int32_t pipeline_arena_block_alloc(struct ast_ASTArena *a);
 int32_t pipeline_arena_func_alloc(struct ast_ASTArena *a);

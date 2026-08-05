@@ -3768,7 +3768,7 @@ int xlang_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t mod
 /** asm emit 桩判定与 ARRAY_LIT/SoA 补类型（ast_pool.c / pipeline_glue.c）。 */
 extern void asm_skip_heavy_set_pipeline_ctx(void *ctx);
 extern void pipeline_fill_array_lit_types_for_skipped_typeck(void *m, void *arena);
-extern void pipeline_fill_soa_field_access_for_asm_emit(void *m, void *arena);
+extern void typeck_soa_fill_field_access_for_asm_emit(void *m, void *arena);
 extern void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *arena);
 
 /** asm_codegen_elf_o 前：设置 skip_heavy 上下文并为 ARRAY_LIT / SoA field 补类型。 */
@@ -3777,7 +3777,7 @@ void xlang_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pc
   {
     asm_skip_heavy_set_pipeline_ctx(pctx);
     pipeline_fill_array_lit_types_for_skipped_typeck(module, arena);
-    pipeline_fill_soa_field_access_for_asm_emit(module, arena);
+    typeck_soa_fill_field_access_for_asm_emit(module, arena);
     pipeline_debug_trace_named_func_bodies("emit_prepare_pre_fixup", module, arena);
     pipeline_module_fixup_with_arena_stmt_orders(module, arena);
     pipeline_debug_trace_named_func_bodies("emit_prepare_post_fixup", module, arena);
@@ -4070,7 +4070,7 @@ char *xlang_preprocess_quiet(const char *source, size_t source_len, const char *
  *            parser_parse_into, parser_get_module_num_imports,
  *            parser_get_module_import_path, asm_skip_heavy_set_pipeline_ctx,
  *            pipeline_fill_array_lit_types_for_skipped_typeck,
- *            pipeline_fill_soa_field_access_for_asm_emit,
+ *            typeck_soa_fill_field_access_for_asm_emit,
  *            pipeline_module_fixup_with_arena_stmt_orders,
  *            asm_asm_codegen_elf_o, pipeline_parse_set_main_from_buf_c) MUST
  *            be provided as a strong definition by some .o in

@@ -285,7 +285,7 @@ int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct ast_ASTAr
  * - find_or_alloc_ptr_type_ref (extern at glue.c L5076)
  * - pipeline_typeck_ptr_for_addr_of_operand_c (fwd decl at glue.c L5107)
  * - pipeline_dep_ctx_typeck_unsafe_depth_at (fwd decl at glue.c L5141)
- * - pipeline_typeck_reject_bare_import_const_c (in field_access.c #include)
+ * - typeck_reject_bare_import_const (typeck_x.o authority; 8.3.3 host-cc leave)
  * - driver_diagnostic_* / driver_typeck_diag_scratch_* (extern L4722-L4734)
  * - typeck_top_level_let_name_equal / typeck_name_equal (extern L5360-L5362)
  * - typeck_find_or_alloc_named_type_ref (extern at glue.c L5363)
@@ -877,8 +877,15 @@ int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_A
       }
     }
   }
-  if (pipeline_typeck_reject_bare_import_const_c(module, arena, expr_ref, ctx, vbuf, vnlen))
-    return -1;
+  /* 8.3.3 host-cc leave: call typeck.x authority directly (no pipeline_typeck_field_access.c).
+   * PLATFORM: SHARED — G.7 single face typeck_reject_bare_import_const. */
+  {
+    extern int32_t typeck_reject_bare_import_const(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                   int32_t expr_ref, struct ast_PipelineDepCtx *ctx, uint8_t *vbuf,
+                                                   int32_t vnlen);
+    if (typeck_reject_bare_import_const(module, arena, expr_ref, ctx, vbuf, vnlen))
+      return -1;
+  }
   /*
    * wave703: struct match pattern field bind — `Point { x, y } => x + y` arms are
    * stored as wildcards; resolve unbound VAR names as fields of match subject type.

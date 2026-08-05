@@ -609,15 +609,17 @@ export function asm_skip_heavy_set_pipeline_ctx(ctx: *u8): void {
 export function pipeline_fill_array_lit_types_for_skipped_typeck(m: *u8, a: *u8): void {
 }
 
-/** Exported function `pipeline_fill_soa_field_access_for_asm_emit`.
- * Implements `pipeline_fill_soa_field_access_for_asm_emit`.
- * @param m *u8
- * @param a *u8
+/**
+ * SoA FIELD_ACCESS fill before emit (skip-typeck repair path).
+ * 8.3.3 host-cc leave: body is typeck.x `typeck_soa_fill_field_access_for_asm_emit`
+ * (typeck_x.o). Historical `pipeline_fill_soa_*` empty surface removed — product
+ * calls the typeck authority directly (G.7 single authority).
+ * @param m *u8 — Module*
+ * @param a *u8 — ASTArena*
  * @return void
+ * PLATFORM: SHARED
  */
-#[no_mangle]
-export function pipeline_fill_soa_field_access_for_asm_emit(m: *u8, a: *u8): void {
-}
+export extern function typeck_soa_fill_field_access_for_asm_emit(m: *u8, a: *u8): void;
 
 /** Exported function `pipeline_module_fixup_with_arena_stmt_orders`.
  * Implements `pipeline_module_fixup_with_arena_stmt_orders`.
@@ -6487,7 +6489,7 @@ export function xlang_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8,
   unsafe {
     asm_skip_heavy_set_pipeline_ctx(pctx);
     pipeline_fill_array_lit_types_for_skipped_typeck(module, arena);
-    pipeline_fill_soa_field_access_for_asm_emit(module, arena);
+    typeck_soa_fill_field_access_for_asm_emit(module, arena);
     pipeline_debug_trace_named_func_bodies("emit_prepare_pre_fixup", module, arena);
     pipeline_module_fixup_with_arena_stmt_orders(module, arena);
     pipeline_debug_trace_named_func_bodies("emit_prepare_post_fixup", module, arena);

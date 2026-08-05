@@ -4,7 +4,7 @@
  *
  * wave1286 BC 8.3 G.7 same-TU domain fold from pipeline_glue.c:
  * pure forward declarations and externs that must be visible after
- * pipeline_typeck_field_access.c and before pipeline_typeck_region_assign.c.
+ * typeck_assign (field_access host-cc leaf retired 8.3.3) and before region_assign.
  * Definitions live in method_call / check_block / region_assign / check_expr
  * leaves included later in this TU, or typeck.o / seeds.
  *
@@ -18,7 +18,7 @@
  *  - typeck_check_block_one_* / check_expr kind helpers (typeck.o)
  *  - resolve_call_func_index + call_struct_stack_escape static fwds
  *
- * Include site: pipeline_glue.c immediately after pipeline_typeck_field_access.c
+ * Include site: pipeline_glue.c after typeck_assign (field_access #include removed)
  * and before pipeline_typeck_region_assign.c.
  * Not a separate .o — host-cc via pipeline_x.o.
  *

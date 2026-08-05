@@ -9190,11 +9190,13 @@ fi
 if ! grep -qE 'ast_pool_block\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_block.c (8.3.2 block slice)"
 fi
-if ! grep -qE 'pipeline_typeck_field_access\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_typeck_field_access.c (wave965 STALE)"
+# 8.3.3 host-cc leave (2026-08-05): field_access/soa thin retired from PIPELINE_X_DEPS;
+# authority is typeck.x → typeck_x.o. Must NOT reappear as host-cc STALE deps.
+if grep -qE 'pipeline_typeck_field_access\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_field_access.c (8.3.3 host-cc leave)"
 fi
-if ! grep -qE 'pipeline_typeck_soa\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_typeck_soa.c (wave965 STALE)"
+if grep -qE 'pipeline_typeck_soa\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_soa.c (8.3.3 host-cc leave)"
 fi
 if ! grep -qE 'include[[:space:]]+mk/x_source_deps\.mk' "$MF"; then
   mf_bad "Makefile must include mk/x_source_deps.mk (wave823)"

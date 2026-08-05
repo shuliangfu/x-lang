@@ -494,7 +494,10 @@ void asm_skip_heavy_set_pipeline_ctx(uint8_t * ctx) {
 }
 void pipeline_fill_array_lit_types_for_skipped_typeck(uint8_t * m, uint8_t * a) {
 }
+/* 8.3.3 host-cc leave: thin surface → typeck.x authority (typeck_x.o). */
+extern void typeck_soa_fill_field_access_for_asm_emit(uint8_t * m, uint8_t * a);
 void pipeline_fill_soa_field_access_for_asm_emit(uint8_t * m, uint8_t * a) {
+  typeck_soa_fill_field_access_for_asm_emit(m, a);
 }
 void pipeline_module_fixup_with_arena_stmt_orders(uint8_t * m, uint8_t * a) {
 }
@@ -3866,7 +3869,7 @@ void xlang_driver_asm_prepare_entry_elf_emit(uint8_t * module, uint8_t * arena, 
   }
   (void)(asm_skip_heavy_set_pipeline_ctx(pctx));
   (void)(pipeline_fill_array_lit_types_for_skipped_typeck(module, arena));
-  (void)(pipeline_fill_soa_field_access_for_asm_emit(module, arena));
+  (void)(typeck_soa_fill_field_access_for_asm_emit(module, arena));
   (void)(pipeline_debug_trace_named_func_bodies(((uint8_t *)"\x65\x6d\x69\x74\x5f\x70\x72\x65\x70\x61\x72\x65\x5f\x70\x72\x65\x5f\x66\x69\x78\x75\x70"), module, arena));
   (void)(pipeline_module_fixup_with_arena_stmt_orders(module, arena));
   (void)(pipeline_debug_trace_named_func_bodies(((uint8_t *)"\x65\x6d\x69\x74\x5f\x70\x72\x65\x70\x61\x72\x65\x5f\x70\x6f\x73\x74\x5f\x66\x69\x78\x75\x70"), module, arena));

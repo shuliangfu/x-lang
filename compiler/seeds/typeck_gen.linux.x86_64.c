@@ -11297,3 +11297,33 @@ int32_t typeck_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, st
     return typeck_x_ast_impl(module, arena, ctx);
   }
 }
+
+/* ============================================================================
+ * 8.3.3 host-cc leave: historical pipeline_*_c thin surfaces for residual C
+ * callers (pipeline_glue_strict_minimal field_access body). Authority bodies
+ * are typeck_* above; these are zero-business-logic link faces only.
+ * PLATFORM: SHARED — lives in typeck_x.o (not pipeline_x host-cc mega-TU).
+ * ============================================================================ */
+
+int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                       int32_t expr_ref, int32_t base_ref,
+                                                       struct ast_PipelineDepCtx *ctx) {
+  return typeck_field_import_binding(module, arena, expr_ref, base_ref, ctx);
+}
+
+int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                             int32_t expr_ref, int32_t base_ref,
+                                             struct ast_PipelineDepCtx *ctx) {
+  return typeck_field_layout_named(module, arena, expr_ref, base_ref, ctx);
+}
+
+int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                  int32_t expr_ref, int32_t base_ref,
+                                                  struct ast_PipelineDepCtx *ctx) {
+  return typeck_field_unknown_hard_fail(module, arena, expr_ref, base_ref, ctx);
+}
+
+int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
+                                                   uint8_t *name, int32_t name_len) {
+  return typeck_named_is_module_concrete(module, ctx, name, name_len);
+}

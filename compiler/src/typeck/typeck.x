@@ -94,14 +94,12 @@ j: i32, out: *u8): void;
  * PLATFORM: SHARED
  */
 export extern function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8): void;
-/* R2 (8.3.3): field_access knives + mono/concrete/hard_fail in typeck.x; C thin. */
-export extern function pipeline_typeck_field_prebind_c(module: *Module, arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): void;
-export extern function pipeline_typeck_field_import_binding_resolve_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32;
-export extern function pipeline_typeck_field_known_ptr_types_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, num_layouts: i32): i32;
-export extern function pipeline_typeck_field_layout_named_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32;
-export extern function pipeline_typeck_field_slice_c(arena: *ASTArena, expr_ref: i32, base_ref: i32): void;
-export extern function pipeline_typeck_field_name_fallback_c(arena: *ASTArena, expr_ref: i32, base_ref: i32): void;
-export extern function pipeline_typeck_field_lexer_fallback_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): void;
+/* R2 (8.3.3): field_access/soa authority in typeck.x; host-cc thin C leaves retired
+ * (pipeline_typeck_field_access.c / pipeline_typeck_soa.c deleted). Product callers
+ * use typeck_* / typeck_soa_* / typeck_reject_bare_import_const directly.
+ * Residual pipeline_*_c link faces: see EOF thin exports (strict_minimal).
+ * PLATFORM: SHARED — BC host-cc leave for these two residual files.
+ */
 /* Module enum table accessors (dep enum type hop for import_binding). */
 export extern function pipeline_module_enum_name_len(module: *Module, idx: i32): i32;
 export extern function pipeline_module_enum_name_byte_at(module: *Module, idx: i32, off: i32): u8;
@@ -12591,4 +12589,70 @@ export function typeck_x_ast(module: *Module, arena: *ASTArena, ctx: *PipelineDe
     }
     return typeck_x_ast_impl(module, arena, ctx);
   }
+}
+
+
+/* ============================================================================
+ * 8.3.3 host-cc leave: historical pipeline_*_c thin link faces for
+ * pipeline_glue_strict_minimal (zero business logic → typeck_* authority).
+ * PLATFORM: SHARED — typeck_x.o only; not pipeline_x host-cc mega-TU.
+ * ============================================================================ */
+
+/**
+ * Thin link face: historical C name → typeck_field_import_binding.
+ * @param module *Module — entry module
+ * @param arena *ASTArena — expression arena
+ * @param expr_ref i32 — FIELD_ACCESS expr
+ * @param base_ref i32 — base expr
+ * @param ctx *PipelineDepCtx — dep pool (may be null)
+ * @return i32 — 1 handled, 0 continue
+ * PLATFORM: SHARED — strict_minimal residual only
+ */
+#[no_mangle]
+export function pipeline_typeck_field_import_binding_resolve_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
+  return typeck_field_import_binding(module, arena, expr_ref, base_ref, ctx);
+}
+
+/**
+ * Thin link face: historical C name → typeck_field_layout_named.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @param base_ref i32
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 2 enum done, 0 continue
+ * PLATFORM: SHARED — strict_minimal residual only
+ */
+#[no_mangle]
+export function pipeline_typeck_field_layout_named_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
+  return typeck_field_layout_named(module, arena, expr_ref, base_ref, ctx);
+}
+
+/**
+ * Thin link face: historical C name → typeck_field_unknown_hard_fail.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @param base_ref i32
+ * @param ctx *PipelineDepCtx
+ * @return i32 — non-zero hard-fail
+ * PLATFORM: SHARED — strict_minimal residual only
+ */
+#[no_mangle]
+export function pipeline_typeck_field_unknown_hard_fail_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
+  return typeck_field_unknown_hard_fail(module, arena, expr_ref, base_ref, ctx);
+}
+
+/**
+ * Thin link face: historical C name → typeck_named_is_module_concrete.
+ * @param module *Module
+ * @param ctx *PipelineDepCtx
+ * @param name *u8
+ * @param name_len i32
+ * @return i32 — 1 concrete, 0 not
+ * PLATFORM: SHARED — strict_minimal residual only
+ */
+#[no_mangle]
+export function pipeline_typeck_named_is_module_concrete_c(module: *Module, ctx: *PipelineDepCtx, name: *u8, name_len: i32): i32 {
+  return typeck_named_is_module_concrete(module, ctx, name, name_len);
 }

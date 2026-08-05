@@ -591,7 +591,12 @@ static int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *ar
     int32_t load_sz;
     /** emit 时 stride 仍缺：再跑 SoA typeck（skip .x typeck / 形参 T[N] 回填遗漏）。 */
     if (pipeline_expr_field_access_soa_stride(arena, expr_ref) <= 0 && g_pipeline_asm_emit_module != NULL)
-      (void)pipeline_typeck_field_soa_index_c(g_pipeline_asm_emit_module, arena, expr_ref, fa_base2);
+      /* 8.3.3 host-cc leave: typeck.x authority (no pipeline_typeck_soa.c thin). */
+      {
+        extern int32_t typeck_soa_field_soa_index(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                  int32_t expr_ref, int32_t base_ref);
+        (void)typeck_soa_field_soa_index(g_pipeline_asm_emit_module, arena, expr_ref, fa_base2);
+      }
     if (pipeline_expr_field_access_soa_stride(arena, expr_ref) > 0) {
       if (glue_emit_soa_index_field_addr_elf_c(arena, elf_ctx, fa_base2, expr_ref, ctx, ta) != 0 &&
           pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)

@@ -3000,7 +3000,12 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(struct ast_ASTArena *arena,
     /** DOD-S1：arr[i].field 列主序寻址，勿按 AoS INDEX+field_off 叠加。 */
     if (pipeline_expr_kind_ord_at(arena, base_ref) == 47) {
       if (pipeline_expr_field_access_soa_stride(arena, lval_ref) <= 0 && g_pipeline_asm_emit_module != NULL)
-        (void)pipeline_typeck_field_soa_index_c(g_pipeline_asm_emit_module, arena, lval_ref, base_ref);
+        /* 8.3.3 host-cc leave: typeck.x authority (no pipeline_typeck_soa.c thin). */
+        {
+          extern int32_t typeck_soa_field_soa_index(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                    int32_t expr_ref, int32_t base_ref);
+          (void)typeck_soa_field_soa_index(g_pipeline_asm_emit_module, arena, lval_ref, base_ref);
+        }
       if (pipeline_expr_field_access_soa_stride(arena, lval_ref) > 0) {
         return glue_emit_soa_index_field_addr_elf_c(arena, elf_ctx, base_ref, lval_ref, ctx, ta);
       }

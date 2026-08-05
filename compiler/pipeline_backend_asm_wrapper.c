@@ -42,9 +42,10 @@ int32_t pipeline_backend_asm_codegen_ast_c(struct ast_Module *m, struct ast_ASTA
   return backend_asm_codegen_ast_seed_mega(m, a, out, pipeline_ctx);
 }
 
-/** When .x typeck is skipped: fill ARRAY_LIT / SoA field types before emit (defs in glue). */
+/** When .x typeck is skipped: fill ARRAY_LIT / SoA field types before emit. */
 void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, struct ast_ASTArena *arena);
-void pipeline_fill_soa_field_access_for_asm_emit(struct ast_Module *m, struct ast_ASTArena *arena);
+/* 8.3.3 host-cc leave: SoA fill authority lives in typeck_x.o (no pipeline_typeck_soa.c). */
+extern void typeck_soa_fill_field_access_for_asm_emit(struct ast_Module *m, struct ast_ASTArena *arena);
 extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena);
 extern void typeck_typeck_merge_dep_struct_layouts_into_entry(struct ast_Module *mod, struct ast_ASTArena *arena,
                                                               struct ast_PipelineDepCtx *ctx);
@@ -75,7 +76,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
   /** dep co-emit and entry need SoA stride / param types / FIELD_ACCESS offs (else SIGSEGV). */
   pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
   pipeline_fill_array_lit_types_for_skipped_typeck(m, a);
-  pipeline_fill_soa_field_access_for_asm_emit(m, a);
+  typeck_soa_fill_field_access_for_asm_emit(m, a);
   if (link_abi_getenv("XLANG_ASM_DEBUG"))
     fprintf(stderr, "xlang: backend_asm_codegen fill done, calling mega_body_c\n");
   glue_wpo_mono_reset_pending();

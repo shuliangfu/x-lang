@@ -1300,21 +1300,15 @@ extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct 
 
 #include "pipeline_typeck_assign.c"
 
-#include "pipeline_typeck_soa.c"
-
-/* wave1230 G.7: pipeline_fill_soa_field_access_for_asm_emit migrated to
- * pipeline_typeck_soa.c (after pipeline_typeck_field_soa_index_c — primary
- * SoA callee; same DOD-S1 arr[i].field domain). #include above < former def
- * site; definition visible to later same-TU callsites and cross-TU via
- * extern (ast_pool / pipeline_abi). No glue.c body retained.
- * PLATFORM: SHARED. */
-
-/* EXPR_FIELD_ACCESS 子逻辑（prebind/known_ptr/layout/slice/fallback）见 pipeline_typeck_field_access.c */
-#include "pipeline_typeck_field_access.c"
+/* 8.3.3 host-cc leave (2026-08-05): pipeline_typeck_soa.c + pipeline_typeck_field_access.c
+ * removed from this host-cc mega-TU. All SoA / field_access business + former thin
+ * pipeline_*_c surfaces live in typeck.x → typeck_x.o. Product callers use
+ * typeck_soa_* / typeck_* / typeck_reject_bare_import_const directly (G.7).
+ * PLATFORM: SHARED — residual BC host-cc for these two files is gone. */
 
 /* wave1286 G.7: typeck mid forward-decl / extern shell migrated to
  * pipeline_glue_typeck_mid_fwd.c (same-TU #include). Pure decls only;
- * sits after field_access and before region_assign.
+ * sits after typeck_assign (field_access #include retired) and before region_assign.
  * PLATFORM: SHARED. */
 #include "pipeline_glue_typeck_mid_fwd.c"
 
