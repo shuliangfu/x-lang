@@ -570,8 +570,8 @@ export extern "C" function pipeline_asm_host_is_arm64_c(): i32;
 export extern "C" function glue_func_param_home_width_c(arena: *u8, mod: *u8, func_index: i32, param_index: i32): i32;
 export extern "C" function glue_func_param_agg_byte_size_c(arena: *u8, mod: *u8, func_index: i32, param_index: i32): i32;
 export extern "C" function glue_func_return_byte_size_c(mod: *u8, arena: *u8, func_index: i32): i32;
-export extern "C" function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32): i32;
-export extern "C" function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32): i32;
+// wave157 pure-owned: glue_asm_sum_block_call_spill_bytes / glue_sum_block_slice_reent_dc_bytes_c
+// (definitions at EOF; dual-export ban — do not redeclare export extern).
 export extern "C" function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32;
 export extern "C" function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u8, off: i32): i32;
 export extern "C" function asm_ctx_local_reset(ctx: *u8): void;
@@ -51651,3 +51651,536 @@ export function glue_binop_kill_assign_lhs_slots_elf_c(arena: *u8, ctx: *u8, ass
 }
 
 // end wave156 pure-owned leave
+
+// ============================================================================
+// wave157 pure-owned leave: frame-size spill byte summation cluster
+// (was Cap residual EOF of pipeline_asm_emit_spill.c).
+// Public faces:
+//   · glue_asm_sum_block_call_spill_bytes
+//   · glue_sum_block_slice_reent_dc_bytes_c
+// Private walk helper: w157_sum_expr_call_spill_bytes (BSS total/visits).
+// Cap residual remaining in spill: binop VAR slot cache BSS, 7.3 live_fwd /
+// Chaitin / break-continue, index-scratch methods.
+// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding frame-size estimation · dual-end L2.
+// ============================================================================
+
+// Cap residual / pool faces used by wave157 pure (method_call not previously
+// declared in this TU; while/for cond use ast_ast_block_* authority already
+// export-extern above). PLATFORM: SHARED.
+export extern "C" function pipeline_expr_method_call_base_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_method_call_num_args_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_method_call_arg_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
+
+// Soft leave-off BSS: recursive expr walk totals + iterative block stack.
+// Last-wins reentrancy (matches historical Cap residual statics).
+let g_w157_spill_total: i32 = 0;
+let g_w157_spill_visits: i32 = 0;
+let g_w157_walk_stack: i32[256] = [];
+
+/**
+ * Recursive sum of permanent call-arg spill bytes under one expression.
+ * CALL(48)/METHOD_CALL(49): each reg-class arg (and method receiver) reserves
+ * 32B without reclaim; nested calls counted in subtrees. Walks binop/unary/
+ * AS/INDEX/FIELD/ARRAY_LIT/STRUCT_LIT/EXPR_IF children.
+ * Soft leave-off: mutates g_w157_spill_total / g_w157_spill_visits.
+ * @param arena *u8 - ASTArena*
+ * @param expr_ref i32 - expression pool ref; <=0 no-op
+ * wave157 pure helper. PLATFORM: SHARED.
+ */
+function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
+  let ko: i32 = 0;
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let arg_ref: i32 = 0;
+  let op: i32 = 0;
+  let as_op: i32 = 0;
+  if (arena == 0 as *u8 || expr_ref <= 0) {
+    return;
+  }
+  if (g_w157_spill_visits >= 65536) {
+    return;
+  }
+  g_w157_spill_visits = g_w157_spill_visits + 1;
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  // EXPR_CALL = 48
+  if (ko == 48) {
+    unsafe {
+      n = pipeline_expr_call_num_args_at(arena, expr_ref);
+    }
+    if (n < 0) {
+      n = 0;
+    }
+    if (n > 64) {
+      n = 64;
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+      }
+      w157_sum_expr_call_spill_bytes(arena, arg_ref);
+      i = i + 1;
+    }
+    // 32B per reg-class arg (GLUE_ASM_CALL_SPILL_SLOT_BYTES).
+    g_w157_spill_total = g_w157_spill_total + n * 32;
+    return;
+  }
+  // EXPR_METHOD_CALL = 49
+  if (ko == 49) {
+    unsafe {
+      arg_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    }
+    w157_sum_expr_call_spill_bytes(arena, arg_ref);
+    unsafe {
+      n = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    }
+    if (n < 0) {
+      n = 0;
+    }
+    if (n > 64) {
+      n = 64;
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+      }
+      w157_sum_expr_call_spill_bytes(arena, arg_ref);
+      i = i + 1;
+    }
+    // Receiver + args.
+    g_w157_spill_total = g_w157_spill_total + (n + 1) * 32;
+    return;
+  }
+  // binops / assign-like (4..21, 25, 26)
+  if ((ko >= 4 && ko <= 21) || ko == 25 || ko == 26) {
+    unsafe {
+      arg_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+      op = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    }
+    w157_sum_expr_call_spill_bytes(arena, arg_ref);
+    w157_sum_expr_call_spill_bytes(arena, op);
+    return;
+  }
+  // unary / LOGNOT / RETURN-style operand (22..24, 41)
+  if (ko == 22 || ko == 23 || ko == 24 || ko == 41) {
+    unsafe {
+      op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    }
+    w157_sum_expr_call_spill_bytes(arena, op);
+    return;
+  }
+  // EXPR_AS = 54 or as_operand present
+  unsafe {
+    as_op = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+  }
+  if (ko == 54 || as_op > 0) {
+    op = as_op;
+    if (op <= 0) {
+      unsafe {
+        op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+      }
+    }
+    w157_sum_expr_call_spill_bytes(arena, op);
+    return;
+  }
+  // INDEX = 47
+  if (ko == 47) {
+    unsafe {
+      arg_ref = pipeline_expr_index_base_ref(arena, expr_ref);
+      op = pipeline_expr_index_index_ref(arena, expr_ref);
+    }
+    w157_sum_expr_call_spill_bytes(arena, arg_ref);
+    w157_sum_expr_call_spill_bytes(arena, op);
+    return;
+  }
+  // FIELD_ACCESS = 44
+  if (ko == 44) {
+    unsafe {
+      op = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    }
+    w157_sum_expr_call_spill_bytes(arena, op);
+    return;
+  }
+  // ARRAY_LIT = 46; max elems 1024
+  if (ko == 46) {
+    unsafe {
+      n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+    }
+    if (n > 1024) {
+      n = 1024;
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        arg_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i);
+      }
+      w157_sum_expr_call_spill_bytes(arena, arg_ref);
+      i = i + 1;
+    }
+    return;
+  }
+  // STRUCT_LIT = 45
+  if (ko == 45) {
+    unsafe {
+      n = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+    }
+    if (n > 64) {
+      n = 64;
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        arg_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, i);
+      }
+      w157_sum_expr_call_spill_bytes(arena, arg_ref);
+      i = i + 1;
+    }
+    return;
+  }
+  // EXPR_IF / ternary (cond present)
+  unsafe {
+    arg_ref = pipeline_expr_if_cond_ref_at(arena, expr_ref);
+  }
+  if (arg_ref > 0) {
+    w157_sum_expr_call_spill_bytes(arena, arg_ref);
+    unsafe {
+      op = pipeline_expr_if_then_ref_at(arena, expr_ref);
+    }
+    w157_sum_expr_call_spill_bytes(arena, op);
+    unsafe {
+      op = pipeline_expr_if_else_ref_at(arena, expr_ref);
+    }
+    w157_sum_expr_call_spill_bytes(arena, op);
+  }
+}
+
+/**
+ * Pre-sum frame bytes for TYPE_SLICE let reent deep-copy buffers.
+ * Each `let s: T[] = call()` / METHOD reserves max_n*esz payload (max_n=1024,
+ * esz from elem type) plus +32B bulk-copy spill pair when esz>8. Walks if /
+ * while / for / region nested bodies only (lets only; call-arg stays separate).
+ * @param arena *u8 - ASTArena*
+ * @param block_ref i32 - function body block
+ * @return i32 - total payload bytes (>=0)
+ * wave157 pure-owned. PLATFORM: SHARED freestanding frame layout.
+ */
+#[no_mangle]
+export function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32): i32 {
+  let total: i32 = 0;
+  let sp: i32 = 0;
+  let seen: i32 = 0;
+  let cur: i32 = 0;
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let ch: i32 = 0;
+  let tref: i32 = 0;
+  let init_ref: i32 = 0;
+  let ik: i32 = 0;
+  let esz: i32 = 4;
+  let elem_tr: i32 = 0;
+  let nbytes: i32 = 0;
+  let max_n: i32 = 1024;
+  let max_payload: i32 = 0;
+  if (arena == 0 as *u8 || block_ref <= 0) {
+    return 0;
+  }
+  g_w157_walk_stack[0] = block_ref;
+  sp = 1;
+  while (sp > 0 && seen < 65536) {
+    seen = seen + 1;
+    sp = sp - 1;
+    cur = g_w157_walk_stack[sp];
+    if (cur <= 0) {
+      continue;
+    }
+    unsafe {
+      n = ast_ast_block_num_lets(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        tref = pipeline_block_let_type_ref(arena, cur, i);
+        init_ref = pipeline_block_let_init_ref(arena, cur, i);
+      }
+      if (tref > 0 && init_ref > 0) {
+        unsafe {
+          ik = pipeline_type_kind_ord_at(arena, tref);
+        }
+        // TYPE_SLICE = 11
+        if (ik == 11) {
+          unsafe {
+            ik = pipeline_expr_kind_ord_at(arena, init_ref);
+          }
+          // EXPR_CALL=48 METHOD_CALL=49
+          if (ik == 48 || ik == 49) {
+            esz = 4;
+            unsafe {
+              elem_tr = pipeline_type_elem_ref_at(arena, tref);
+            }
+            if (elem_tr > 0) {
+              unsafe {
+                esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
+              }
+            }
+            if (esz <= 0) {
+              esz = 4;
+            }
+            // wave632: keep esz>8; weird mid widths → 4
+            if (esz != 1 && esz != 2 && esz != 4 && esz != 8 && esz <= 8) {
+              esz = 4;
+            }
+            if (esz > 8) {
+              max_payload = 1024 * 64;
+            } else {
+              max_payload = 8192;
+            }
+            max_n = 1024;
+            if (esz > 0 && max_n > max_payload / esz) {
+              max_n = max_payload / esz;
+            }
+            if (max_n <= 0) {
+              max_n = 1;
+            }
+            nbytes = max_n * esz;
+            if (nbytes > 0 && nbytes <= max_payload) {
+              total = total + nbytes;
+              if (esz > 8) {
+                total = total + 32;
+              }
+            }
+          }
+        }
+      }
+      i = i + 1;
+    }
+    unsafe {
+      n = ast_ast_block_num_if_stmts(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
+      }
+      if (ch > 0 && sp < 256) {
+        g_w157_walk_stack[sp] = ch;
+        sp = sp + 1;
+      }
+      unsafe {
+        ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
+      }
+      if (ch > 0 && sp < 256) {
+        g_w157_walk_stack[sp] = ch;
+        sp = sp + 1;
+      }
+      i = i + 1;
+    }
+    unsafe {
+      n = ast_ast_block_num_loops(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        ch = pipeline_block_while_body_ref(arena, cur, i);
+      }
+      if (ch > 0 && sp < 256) {
+        g_w157_walk_stack[sp] = ch;
+        sp = sp + 1;
+      }
+      i = i + 1;
+    }
+    unsafe {
+      n = ast_ast_block_num_for_loops(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        ch = pipeline_block_for_body_ref(arena, cur, i);
+      }
+      if (ch > 0 && sp < 256) {
+        g_w157_walk_stack[sp] = ch;
+        sp = sp + 1;
+      }
+      i = i + 1;
+    }
+    unsafe {
+      n = ast_ast_block_num_regions(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        ch = pipeline_block_region_body_ref(arena, cur, i);
+      }
+      if (ch > 0 && sp < 256) {
+        g_w157_walk_stack[sp] = ch;
+        sp = sp + 1;
+      }
+      i = i + 1;
+    }
+  }
+  return total;
+}
+
+/**
+ * Block-tree sum of permanent call-arg spill temp for compute_frame_size.
+ * Walks const/let inits, expr stmts, final_expr, if/while/for conds + nested
+ * bodies; uses w157_sum_expr_call_spill_bytes for each expr root.
+ * @param arena *u8 - ASTArena*
+ * @param block_ref i32 - function body (or nested) block
+ * @return i32 - estimated spill bytes (>=0)
+ * wave157 pure-owned. PLATFORM: SHARED freestanding frame layout.
+ */
+#[no_mangle]
+export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32): i32 {
+  let sp: i32 = 0;
+  let seen: i32 = 0;
+  let cur: i32 = 0;
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let ch: i32 = 0;
+  let fin: i32 = 0;
+  let er: i32 = 0;
+  if (arena == 0 as *u8 || block_ref <= 0) {
+    return 0;
+  }
+  g_w157_spill_total = 0;
+  g_w157_spill_visits = 0;
+  g_w157_walk_stack[0] = block_ref;
+  sp = 1;
+  while (sp > 0 && seen < 65536) {
+    seen = seen + 1;
+    sp = sp - 1;
+    cur = g_w157_walk_stack[sp];
+    if (cur <= 0) {
+      continue;
+    }
+    unsafe {
+      n = ast_ast_block_num_consts(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        er = ast_pipeline_block_const_init_ref(arena, cur, i);
+      }
+      w157_sum_expr_call_spill_bytes(arena, er);
+      i = i + 1;
+    }
+    unsafe {
+      n = ast_ast_block_num_lets(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        er = ast_pipeline_block_let_init_ref(arena, cur, i);
+      }
+      w157_sum_expr_call_spill_bytes(arena, er);
+      i = i + 1;
+    }
+    unsafe {
+      n = ast_ast_block_num_expr_stmts(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        er = ast_pipeline_block_expr_stmt_ref(arena, cur, i);
+      }
+      w157_sum_expr_call_spill_bytes(arena, er);
+      i = i + 1;
+    }
+    unsafe {
+      fin = ast_ast_block_final_expr_ref(arena, cur);
+    }
+    if (fin > 0) {
+      w157_sum_expr_call_spill_bytes(arena, fin);
+    }
+    unsafe {
+      n = ast_ast_block_num_if_stmts(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        er = ast_pipeline_block_if_cond_ref(arena, cur, i);
+      }
+      w157_sum_expr_call_spill_bytes(arena, er);
+      unsafe {
+        ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
+      }
+      if (ch > 0 && sp < 256) {
+        g_w157_walk_stack[sp] = ch;
+        sp = sp + 1;
+      }
+      unsafe {
+        ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
+      }
+      if (ch > 0 && sp < 256) {
+        g_w157_walk_stack[sp] = ch;
+        sp = sp + 1;
+      }
+      i = i + 1;
+    }
+    unsafe {
+      n = ast_ast_block_num_loops(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        er = ast_ast_block_while_cond_ref(arena, cur, i);
+      }
+      w157_sum_expr_call_spill_bytes(arena, er);
+      unsafe {
+        ch = pipeline_block_while_body_ref(arena, cur, i);
+      }
+      if (ch > 0 && sp < 256) {
+        g_w157_walk_stack[sp] = ch;
+        sp = sp + 1;
+      }
+      i = i + 1;
+    }
+    unsafe {
+      n = ast_ast_block_num_for_loops(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        er = ast_ast_block_for_init_ref(arena, cur, i);
+      }
+      w157_sum_expr_call_spill_bytes(arena, er);
+      unsafe {
+        er = ast_ast_block_for_cond_ref(arena, cur, i);
+      }
+      w157_sum_expr_call_spill_bytes(arena, er);
+      unsafe {
+        er = ast_ast_block_for_step_ref(arena, cur, i);
+      }
+      w157_sum_expr_call_spill_bytes(arena, er);
+      unsafe {
+        ch = pipeline_block_for_body_ref(arena, cur, i);
+      }
+      if (ch > 0 && sp < 256) {
+        g_w157_walk_stack[sp] = ch;
+        sp = sp + 1;
+      }
+      i = i + 1;
+    }
+    unsafe {
+      n = ast_ast_block_num_regions(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        ch = pipeline_block_region_body_ref(arena, cur, i);
+      }
+      if (ch > 0 && sp < 256) {
+        g_w157_walk_stack[sp] = ch;
+        sp = sp + 1;
+      }
+      i = i + 1;
+    }
+  }
+  return g_w157_spill_total;
+}
+
+// end wave157 pure-owned leave

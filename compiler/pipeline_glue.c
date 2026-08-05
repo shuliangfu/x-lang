@@ -338,9 +338,8 @@ extern int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(struct ast_ASTAren
 
 /* BC 8.3.1: asm ELF 7.3 live / Chaitin spill Cap residual
  * (live_fwd + color + break/continue + binop slot cache + index scratch
- * methods + frame-walk spill sums). wave156 pure-owned cohesive slices:
- * INDEX assign-addr cache + bulk_mem_copy_spills + finish/load/try +
- * enc_swap_rax_rbx + assign_like/kill_lhs → runtime_pipeline_abi pure.
+ * methods). wave156 pure slices + wave157 frame-sum cluster →
+ * runtime_pipeline_abi pure (#[no_mangle]; seed cold twins).
  * PLATFORM: SHARED. */
 #include "pipeline_asm_emit_spill.c"
 
@@ -1108,12 +1107,10 @@ extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *
  * Matches glue_sysv_spill_rax_rdx_to_frame_c: off = next+16; next = off+16.
  * PLATFORM: LINUX+MACOS x86_64 SysV (producer); SHARED frame-size consumer.
  */
-/* wave1138-1140 G.7: frame-size spill byte summation cluster migrated to
- * pipeline_asm_emit_spill.c EOF (glue_asm_sum_expr_call_spill_bytes +
- * glue_sum_block_slice_reent_dc_bytes_c + glue_asm_sum_block_call_spill_bytes
- * + 3 macros GLUE_ASM_CALL_SPILL_SLOT_BYTES / _FRAME_WALK_VISIT_MAX /
- * _FRAME_WALK_DEPTH_MAX). Visible here via #include at L2181. Extern fwd
- * decls below kept for other callers (pipeline_block_*_ref at L7592/L10719). */
+/* wave157: frame-size spill byte summation cluster pure-owned leave
+ * (runtime_pipeline_abi pure: glue_asm_sum_block_call_spill_bytes +
+ * glue_sum_block_slice_reent_dc_bytes_c + w157_sum_expr walk).
+ * Extern fwd decls below kept for other residual callers. PLATFORM: SHARED. */
 
 
 extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);

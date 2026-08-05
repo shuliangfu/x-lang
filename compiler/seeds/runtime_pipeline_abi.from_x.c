@@ -24788,4 +24788,25 @@ void glue_binop_kill_assign_lhs_slots_elf_c(void *arena, void *ctx, int32_t assi
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
+/*
+ * wave157 cold twins: frame-sum pure-owned faces
+ * (glue_asm_sum_block_call_spill_bytes + glue_sum_block_slice_reent_dc_bytes_c).
+ * Freestanding-safe stubs (return 0). Hybrid product links pure.
+ * PLATFORM: SHARED.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+int32_t glue_sum_block_slice_reent_dc_bytes_c(void *arena, int32_t block_ref) {
+  (void)arena; (void)block_ref;
+  return 0;
+}
+
+int32_t glue_asm_sum_block_call_spill_bytes(void *arena, int32_t block_ref) {
+  (void)arena; (void)block_ref;
+  return 0;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
