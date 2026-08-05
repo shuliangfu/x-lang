@@ -134,7 +134,10 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
  * Callers already extern the `*_c` faces (pipeline.x / pipeline_gen).
  */
 
-#include "pipeline_emit_sidecar.c"
+/* 2026-08-05: pipeline_emit_sidecar.c pure-owned leave retired.
+ * Live face: runtime_pipeline_abi.x (driver_emit_lib_root_* +
+ * driver_emit_append_lib_root + asm_qual_sym_layer_* fixed-cap BSS).
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 /* 8.3.2 host-cc leave: pipeline_preprocess_if.c retired — pure-owned WEAK cold
  * delete-only leave (highest-efficiency BC leave class). Live #if nest stack

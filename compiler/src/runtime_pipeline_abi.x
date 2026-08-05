@@ -4823,6 +4823,23 @@ let g_pipe_pp_ndefines: i32 = 0;
 let g_pipe_pp_if_stack: i32[32] = [];
 let g_pipe_pp_if_n: i32 = 0;
 
+// wave104 pure emit_sidecar leave (was pipeline_emit_sidecar.c host-cc residual).
+// PLATFORM: SHARED — fixed-cap tables replace GrowVec DriverEmitSidecar + AsmQualSymScratch.
+// Caps: 64 state slots (≡ MAX_DRIVER_EMIT_SIDECARS); 32 -L roots/slot (product -L is tiny;
+//   historical GrowVec init 256 was headroom, not product need); path row 256B;
+//   32 qual field layers × 64B (typeck layer_buf[64]; clamp name ≤ 63, not historical 127).
+// Layout emit: used[i] + state ptr slot i + n[i] + rows[i*32+r][256] + lens[i*32+r].
+// Layout qual: n + rows[layer*64 ..] + lens[layer].
+// release marks slot free so directory-check multi-state does not exhaust the table.
+let g_pipe_emit_used: i32[64] = [];
+let g_pipe_emit_state: u8[512] = [];
+let g_pipe_emit_n: i32[64] = [];
+let g_pipe_emit_rows: u8[524288] = [];
+let g_pipe_emit_lens: i32[2048] = [];
+let g_pipe_qual_n: i32 = 0;
+let g_pipe_qual_rows: u8[2048] = [];
+let g_pipe_qual_lens: i32[32] = [];
+
 // wave90 pure typeck soft-suppress flag (G.7 single authority for XT001 soft diags).
 // PLATFORM: SHARED — same ABI as glue static g_pipeline_typeck_diag_soft_suppress (0/1).
 // Product hybrid: pure strong override of pipeline_glue XLANG_WEAK cold fallback.
@@ -11067,4 +11084,343 @@ export function lsp_diag_parse_typeck_buf_c(module: *u8, arena: *u8, source_data
     return lsp_diag_parse_typeck_buf_impl(module, arena, source_data, source_len, ctx);
   }
   return res;
+}
+
+// ---------------------------------------------------------------------------
+// wave104: emit_sidecar pure-owned leave (was pipeline_emit_sidecar.c).
+// G.7 product authority for driver -L lib_root pool + asm qual field-layer stack.
+// Fixed-cap BSS (no GrowVec / no host-cc mega-TU). Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED — dual-end L2 after leave; directory-check release still required.
+// ---------------------------------------------------------------------------
+
+/**
+ * Find DriverEmit sidecar slot for `state`, optionally allocate free slot.
+ * @param state *u8 — compile/emit state key; null → -1
+ * @param create i32 — non-zero to claim first free slot when missing
+ * @return i32 — slot index 0..63, or -1 if null / full / not found without create
+ * wave104 pure helper. PLATFORM: SHARED — 64-slot table ≡ MAX_DRIVER_EMIT_SIDECARS.
+ */
+function emit_sc_find(state: *u8, create: i32): i32 {
+  if (state == 0 as *u8) {
+    return 0 - 1;
+  }
+  let i: i32 = 0;
+  while (i < 64) {
+    if (g_pipe_emit_used[i] != 0) {
+      let st: *u8 = xlang_ptr_slot_get(&g_pipe_emit_state[0], i);
+      if (st == state) {
+        return i;
+      }
+    }
+    i = i + 1;
+  }
+  if (create == 0) {
+    return 0 - 1;
+  }
+  i = 0;
+  while (i < 64) {
+    if (g_pipe_emit_used[i] == 0) {
+      g_pipe_emit_used[i] = 1;
+      xlang_ptr_slot_set(&g_pipe_emit_state[0], i, state);
+      g_pipe_emit_n[i] = 0;
+      return i;
+    }
+    i = i + 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Clear -L lib_root list for `state` (keep slot occupied).
+ * @param state *u8 — emit state key; null / unknown → no-op
+ * @return void
+ * wave104 pure: G.7 single product authority (historical driver_emit_lib_root_reset).
+ * PLATFORM: SHARED — sole provider after emit_sidecar leave.
+ */
+#[no_mangle]
+export function driver_emit_lib_root_reset(state: *u8): void {
+  let s: i32 = emit_sc_find(state, 0);
+  if (s < 0) {
+    return;
+  }
+  g_pipe_emit_n[s] = 0;
+}
+
+/**
+ * Release DriverEmit sidecar for `state` (mark slot free so table does not exhaust).
+ * Must be called before free(state) for any heap compile/emit state that used append.
+ * @param state *u8 — emit state key; null → no-op
+ * @return void
+ * wave104 pure: G.7 single product authority (historical driver_emit_lib_root_release).
+ * PLATFORM: SHARED — directory check multi-file; dual-host after change.
+ */
+#[no_mangle]
+export function driver_emit_lib_root_release(state: *u8): void {
+  let s: i32 = emit_sc_find(state, 0);
+  if (s < 0) {
+    return;
+  }
+  g_pipe_emit_used[s] = 0;
+  g_pipe_emit_n[s] = 0;
+  xlang_ptr_slot_set(&g_pipe_emit_state[0], s, 0 as *u8);
+}
+
+/**
+ * Append one -L lib root path for `state` (create slot on first use).
+ * @param state *u8 — emit state key; null → -1
+ * @param path *u8 — path bytes (not required NUL-terminated); null → -1
+ * @param len i32 — byte count; must be > 0; stored len clamped to 255
+ * @return i32 — root index on success; -1 on null / full table / full roots (32)
+ * wave104 pure: G.7 single product authority (historical driver_emit_append_lib_root).
+ * PLATFORM: SHARED — path row width 256; cap 32 roots/slot.
+ */
+#[no_mangle]
+export function driver_emit_append_lib_root(state: *u8, path: *u8, len: i32): i32 {
+  if (state == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (path == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (len <= 0) {
+    return 0 - 1;
+  }
+  let s: i32 = emit_sc_find(state, 1);
+  if (s < 0) {
+    return 0 - 1;
+  }
+  let n: i32 = g_pipe_emit_n[s];
+  if (n >= 32) {
+    return 0 - 1;
+  }
+  let clen: i32 = len;
+  if (clen > 255) {
+    clen = 255;
+  }
+  let base: i32 = (s * 32 + n) * 256;
+  let k: i32 = 0;
+  while (k < 256) {
+    unsafe {
+      g_pipe_emit_rows[base + k] = 0;
+    }
+    k = k + 1;
+  }
+  k = 0;
+  while (k < clen) {
+    unsafe {
+      g_pipe_emit_rows[base + k] = path[k];
+    }
+    k = k + 1;
+  }
+  g_pipe_emit_lens[s * 32 + n] = clen;
+  g_pipe_emit_n[s] = n + 1;
+  return n;
+}
+
+/**
+ * Count -L lib roots for `state`.
+ * @param state *u8 — emit state key; null / unknown → 0
+ * @return i32 — root count in 0..32
+ * wave104 pure: G.7 single product authority (historical driver_emit_lib_root_count).
+ * PLATFORM: SHARED — sole provider after emit_sidecar leave.
+ */
+#[no_mangle]
+export function driver_emit_lib_root_count(state: *u8): i32 {
+  let s: i32 = emit_sc_find(state, 0);
+  if (s < 0) {
+    return 0;
+  }
+  return g_pipe_emit_n[s];
+}
+
+/**
+ * Length of root i for `state`.
+ * @param state *u8 — emit state key
+ * @param i i32 — root index; OOB → 0
+ * @return i32 — stored byte length, or 0
+ * wave104 pure: G.7 single product authority (historical driver_emit_lib_root_len).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_emit_lib_root_len(state: *u8, i: i32): i32 {
+  if (i < 0) {
+    return 0;
+  }
+  let s: i32 = emit_sc_find(state, 0);
+  if (s < 0) {
+    return 0;
+  }
+  if (i >= g_pipe_emit_n[s]) {
+    return 0;
+  }
+  return g_pipe_emit_lens[s * 32 + i];
+}
+
+/**
+ * Copy root i path into dst (zero-fill; clamp to cap-1; no forced trailing NUL beyond zero).
+ * @param state *u8 — emit state key
+ * @param i i32 — root index
+ * @param dst *u8 — destination; null / cap<=0 → no-op
+ * @param cap i32 — destination capacity including room for NUL zero-fill
+ * @return void
+ * wave104 pure: G.7 single product authority (historical driver_emit_lib_root_copy).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_emit_lib_root_copy(state: *u8, i: i32, dst: *u8, cap: i32): void {
+  if (dst == 0 as *u8) {
+    return;
+  }
+  if (cap <= 0) {
+    return;
+  }
+  unsafe {
+    memset(dst, 0, cap as usize);
+  }
+  if (i < 0) {
+    return;
+  }
+  let s: i32 = emit_sc_find(state, 0);
+  if (s < 0) {
+    return;
+  }
+  if (i >= g_pipe_emit_n[s]) {
+    return;
+  }
+  let n: i32 = g_pipe_emit_lens[s * 32 + i];
+  if (n >= cap) {
+    n = cap - 1;
+  }
+  let base: i32 = (s * 32 + i) * 256;
+  let k: i32 = 0;
+  while (k < n) {
+    unsafe {
+      dst[k] = g_pipe_emit_rows[base + k];
+    }
+    k = k + 1;
+  }
+}
+
+/**
+ * Clear asm import-qualified field-layer stack.
+ * @return void
+ * wave104 pure: G.7 single product authority (historical asm_qual_sym_layer_reset).
+ * PLATFORM: SHARED — typeck import path layer walk.
+ */
+#[no_mangle]
+export function asm_qual_sym_layer_reset(): void {
+  g_pipe_qual_n = 0;
+}
+
+/**
+ * Push one field-name layer (clamped to 63 bytes into 64B row).
+ * @param bytes *u8 — field name bytes; null → -1
+ * @param len i32 — byte count; must be > 0
+ * @return i32 — layer index on success; -1 on null / empty / full (32)
+ * wave104 pure: G.7 single product authority (historical asm_qual_sym_layer_push).
+ * PLATFORM: SHARED — clamp 63 (typeck layer_buf[64]); historical C allowed 127 into 64B row.
+ */
+#[no_mangle]
+export function asm_qual_sym_layer_push(bytes: *u8, len: i32): i32 {
+  if (bytes == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (len <= 0) {
+    return 0 - 1;
+  }
+  if (g_pipe_qual_n >= 32) {
+    return 0 - 1;
+  }
+  let n: i32 = len;
+  if (n > 63) {
+    n = 63;
+  }
+  let idx: i32 = g_pipe_qual_n;
+  let base: i32 = idx * 64;
+  let k: i32 = 0;
+  while (k < 64) {
+    unsafe {
+      g_pipe_qual_rows[base + k] = 0;
+    }
+    k = k + 1;
+  }
+  k = 0;
+  while (k < n) {
+    unsafe {
+      g_pipe_qual_rows[base + k] = bytes[k];
+    }
+    k = k + 1;
+  }
+  g_pipe_qual_lens[idx] = n;
+  g_pipe_qual_n = idx + 1;
+  return idx;
+}
+
+/**
+ * Current field-layer count.
+ * @return i32 — depth in 0..32
+ * wave104 pure: G.7 single product authority (historical asm_qual_sym_layer_count).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_qual_sym_layer_count(): i32 {
+  return g_pipe_qual_n;
+}
+
+/**
+ * Length of layer i.
+ * @param i i32 — layer index; OOB → 0
+ * @return i32 — stored byte length, or 0
+ * wave104 pure: G.7 single product authority (historical asm_qual_sym_layer_len).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_qual_sym_layer_len(i: i32): i32 {
+  if (i < 0) {
+    return 0;
+  }
+  if (i >= g_pipe_qual_n) {
+    return 0;
+  }
+  return g_pipe_qual_lens[i];
+}
+
+/**
+ * Copy layer i name into dst (zero-fill; clamp to cap-1).
+ * @param i i32 — layer index
+ * @param dst *u8 — destination; null / cap<=0 → no-op
+ * @param cap i32 — capacity including NUL room
+ * @return void
+ * wave104 pure: G.7 single product authority (historical asm_qual_sym_layer_copy).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_qual_sym_layer_copy(i: i32, dst: *u8, cap: i32): void {
+  if (dst == 0 as *u8) {
+    return;
+  }
+  if (cap <= 0) {
+    return;
+  }
+  unsafe {
+    memset(dst, 0, cap as usize);
+  }
+  if (i < 0) {
+    return;
+  }
+  if (i >= g_pipe_qual_n) {
+    return;
+  }
+  let n: i32 = g_pipe_qual_lens[i];
+  if (n >= cap) {
+    n = cap - 1;
+  }
+  let base: i32 = i * 64;
+  let k: i32 = 0;
+  while (k < n) {
+    unsafe {
+      dst[k] = g_pipe_qual_rows[base + k];
+    }
+    k = k + 1;
+  }
 }

@@ -166,7 +166,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_loop_glue.c|8.3.2|loop glue retired (codegen_x.o; host-cc leave)|0|absent"
   "compiler/pipeline_codegen_dep.c|8.3.2|codegen dep orchestration (wave1268)|360|present"
   "compiler/pipeline_lsp_diag.c|8.3.2|LSP diag retired (runtime_pipeline_abi pure; host-cc leave)|0|absent"
-  "compiler/pipeline_emit_sidecar.c|8.3.2|emit sidecar state (wave1267)|140|present"
+  "compiler/pipeline_emit_sidecar.c|8.3.2|emit sidecar retired (runtime_pipeline_abi pure; host-cc leave)|0|absent"
   "compiler/pipeline_preprocess_if.c|8.3.2|preprocess #if stack retired (runtime_pipeline_abi pure; host-cc leave)|0|absent"
   "compiler/pipeline_typeck_slots.c|8.3.1|typeck slots retired (typeck_x.o BSS; host-cc leave)|0|absent"
   # --- 8.3.3 typeck slices often pulled by glue ---
@@ -256,7 +256,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
+  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
 }
 
 run_check() {

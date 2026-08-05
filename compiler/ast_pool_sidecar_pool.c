@@ -1,14 +1,12 @@
 /* ast_pool_sidecar_pool.c — sidecar 池管理域（自 ast_pool.c 抽出）
  *
- * 进程级 pointer-keyed sidecar 池：g_arena_sc／g_module_sc／g_onefunc_sc／g_driver_emit_sc／
+ * 进程级 pointer-keyed sidecar 池：g_arena_sc／g_module_sc／g_onefunc_sc／
  * g_xlang_depctx_sc 全局数组 + MAX_*_SIDECARS 上限 + sidecar_get（查找／分配）+ ensure_slot +
  * sidecar_free（grow_vec_free 归还）+ pipeline_dep_ctx_sidecar_release（批量 check teardown）。
  * g_xlang_depctx_sc／depctx_sidecar_get 故意非 static（pure crt0 embed 双份需求）。
+ * 2026-08-05: g_driver_emit_sc retired with pipeline_emit_sidecar pure leave —
+ * driver_emit_lib_root_* live in runtime_pipeline_abi fixed-cap BSS (no GrowVec).
  * 依赖 sidecar typedef（先于此 include）+ GrowVec + ast 结构头。同 TU #include（typedefs 后）。 */
-
-/* 32 was the hard failure point for `check compiler` (32×tiny + next file IMP001).
- * Keep modest headroom; release on free is the real fix. */
-#define MAX_DRIVER_EMIT_SIDECARS 64
 
 #define MAX_DEP_CTX_SIDECARS 64
 /* PLATFORM: SHARED — sidecar table caps (pointer-keyed global pools).
@@ -49,7 +47,6 @@ static OneFuncSidecar g_onefunc_sc[MAX_ONEFUNC_SIDECARS];
 __attribute__((weak))
 #endif
 DepCtxSidecar g_xlang_depctx_sc[MAX_DEP_CTX_SIDECARS];
-static DriverEmitSidecar g_driver_emit_sc[MAX_DRIVER_EMIT_SIDECARS];
 
 static DepCtxSidecar *depctx_sidecar_get(struct ast_PipelineDepCtx *ctx, int create) {
   int i;

@@ -4409,5 +4409,158 @@ int32_t lsp_diag_parse_typeck_buf_c(void *module, void *arena, uint8_t *source_d
     return wave103_lsp_diag_parse_typeck_buf_impl(module, arena, source_data, source_len, ctx);
   return args.result;
 }
+
+/* wave104 emit_sidecar leave cold twins — former pipeline_emit_sidecar.c.
+ * PLATFORM: SHARED — only when pure FROM_X object is not linked. Product pure
+ * owns strong driver_emit_* / asm_qual_sym_* after host-cc leave. Fixed caps
+ * match pure: 64 state slots, 32 roots/slot × 256B, 32 qual layers × 64B. */
+#define WAVE104_EMIT_SC_MAX 64
+#define WAVE104_EMIT_ROOTS 32
+#define WAVE104_EMIT_PATH 256
+#define WAVE104_QUAL_MAX 32
+#define WAVE104_QUAL_W 64
+
+static int32_t wave104_emit_used[WAVE104_EMIT_SC_MAX];
+static uint8_t *wave104_emit_state[WAVE104_EMIT_SC_MAX];
+static int32_t wave104_emit_n[WAVE104_EMIT_SC_MAX];
+static uint8_t wave104_emit_rows[WAVE104_EMIT_SC_MAX * WAVE104_EMIT_ROOTS * WAVE104_EMIT_PATH];
+static int32_t wave104_emit_lens[WAVE104_EMIT_SC_MAX * WAVE104_EMIT_ROOTS];
+static int32_t wave104_qual_n;
+static uint8_t wave104_qual_rows[WAVE104_QUAL_MAX * WAVE104_QUAL_W];
+static int32_t wave104_qual_lens[WAVE104_QUAL_MAX];
+
+static int32_t wave104_emit_sc_find(uint8_t *state, int create) {
+  int i;
+  if (!state)
+    return -1;
+  for (i = 0; i < WAVE104_EMIT_SC_MAX; i++) {
+    if (wave104_emit_used[i] && wave104_emit_state[i] == state)
+      return i;
+  }
+  if (!create)
+    return -1;
+  for (i = 0; i < WAVE104_EMIT_SC_MAX; i++) {
+    if (!wave104_emit_used[i]) {
+      wave104_emit_used[i] = 1;
+      wave104_emit_state[i] = state;
+      wave104_emit_n[i] = 0;
+      return i;
+    }
+  }
+  return -1;
+}
+
+void driver_emit_lib_root_reset(uint8_t *state) {
+  int32_t s = wave104_emit_sc_find(state, 0);
+  if (s < 0)
+    return;
+  wave104_emit_n[s] = 0;
+}
+
+void driver_emit_lib_root_release(uint8_t *state) {
+  int32_t s = wave104_emit_sc_find(state, 0);
+  if (s < 0)
+    return;
+  wave104_emit_used[s] = 0;
+  wave104_emit_n[s] = 0;
+  wave104_emit_state[s] = NULL;
+}
+
+int32_t driver_emit_append_lib_root(uint8_t *state, uint8_t *path, int32_t len) {
+  int32_t s, n, clen, base, k;
+  if (!state || !path || len <= 0)
+    return -1;
+  s = wave104_emit_sc_find(state, 1);
+  if (s < 0)
+    return -1;
+  n = wave104_emit_n[s];
+  if (n >= WAVE104_EMIT_ROOTS)
+    return -1;
+  clen = len > 255 ? 255 : len;
+  base = (s * WAVE104_EMIT_ROOTS + n) * WAVE104_EMIT_PATH;
+  memset(&wave104_emit_rows[base], 0, WAVE104_EMIT_PATH);
+  memcpy(&wave104_emit_rows[base], path, (size_t)clen);
+  wave104_emit_lens[s * WAVE104_EMIT_ROOTS + n] = clen;
+  wave104_emit_n[s] = n + 1;
+  return n;
+}
+
+int32_t driver_emit_lib_root_count(uint8_t *state) {
+  int32_t s = wave104_emit_sc_find(state, 0);
+  return s < 0 ? 0 : wave104_emit_n[s];
+}
+
+int32_t driver_emit_lib_root_len(uint8_t *state, int32_t i) {
+  int32_t s;
+  if (i < 0)
+    return 0;
+  s = wave104_emit_sc_find(state, 0);
+  if (s < 0 || i >= wave104_emit_n[s])
+    return 0;
+  return wave104_emit_lens[s * WAVE104_EMIT_ROOTS + i];
+}
+
+void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, int32_t cap) {
+  int32_t s, n, base, k;
+  if (!dst || cap <= 0)
+    return;
+  memset(dst, 0, (size_t)cap);
+  if (i < 0)
+    return;
+  s = wave104_emit_sc_find(state, 0);
+  if (s < 0 || i >= wave104_emit_n[s])
+    return;
+  n = wave104_emit_lens[s * WAVE104_EMIT_ROOTS + i];
+  if (n >= cap)
+    n = cap - 1;
+  base = (s * WAVE104_EMIT_ROOTS + i) * WAVE104_EMIT_PATH;
+  for (k = 0; k < n; k++)
+    dst[k] = wave104_emit_rows[base + k];
+}
+
+void asm_qual_sym_layer_reset(void) {
+  wave104_qual_n = 0;
+}
+
+int32_t asm_qual_sym_layer_push(uint8_t *bytes, int32_t len) {
+  int32_t n, idx, base, k;
+  if (!bytes || len <= 0)
+    return -1;
+  if (wave104_qual_n >= WAVE104_QUAL_MAX)
+    return -1;
+  n = len > 63 ? 63 : len;
+  idx = wave104_qual_n;
+  base = idx * WAVE104_QUAL_W;
+  memset(&wave104_qual_rows[base], 0, WAVE104_QUAL_W);
+  memcpy(&wave104_qual_rows[base], bytes, (size_t)n);
+  wave104_qual_lens[idx] = n;
+  wave104_qual_n = idx + 1;
+  return idx;
+}
+
+int32_t asm_qual_sym_layer_count(void) {
+  return wave104_qual_n;
+}
+
+int32_t asm_qual_sym_layer_len(int32_t i) {
+  if (i < 0 || i >= wave104_qual_n)
+    return 0;
+  return wave104_qual_lens[i];
+}
+
+void asm_qual_sym_layer_copy(int32_t i, uint8_t *dst, int32_t cap) {
+  int32_t n, base, k;
+  if (!dst || cap <= 0)
+    return;
+  memset(dst, 0, (size_t)cap);
+  if (i < 0 || i >= wave104_qual_n)
+    return;
+  n = wave104_qual_lens[i];
+  if (n >= cap)
+    n = cap - 1;
+  base = i * WAVE104_QUAL_W;
+  for (k = 0; k < n; k++)
+    dst[k] = wave104_qual_rows[base + k];
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
