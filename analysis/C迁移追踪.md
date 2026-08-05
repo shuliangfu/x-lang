@@ -952,7 +952,7 @@
 | `pipeline_asm_emit_vector_simd.c` | 0 | asm ELF SIMD vector lane／shuffle／select／fma emit domain 切片 | ✅ wave148 pure-owned leave（0 absent）；live＝runtime_pipeline_abi pure；Cap residual enc＋simd_enc＋CTFE typeck 调用 pure faces |
 | `pipeline_asm_emit_struct_let.c` | ~215 | asm ELF struct let-init（struct_let_init + type_let_init + sret shift）切片 | ✅ wave132 pure-owned leave；live＝runtime_pipeline_abi pure；host 叶已删 |
 | `pipeline_asm_emit_index_helpers.c` | ~3135 | asm ELF INDEX residual helpers（slot+esz+try_index forest+lvalue_eff_addr elf+text）切片 | 🟡 已抽出；lvalue_text wave1013 有则补全；仍 host-cc 入 `pipeline_x` |
-| `pipeline_asm_emit_spill.c` | ~2938 | asm ELF 7.3 live／Chaitin Cap residual（wave156 pure slices 已抽） | 🟡 wave156 pure：INDEX cache／bulk_mem／finish／swap／kill_lhs；余 7.3 live／Chaitin／break／frame-sum 仍 host-cc |
+| `pipeline_asm_emit_spill.c` | ~2614 | asm ELF 7.3 live／Chaitin Cap residual（wave156+157 pure 已抽） | 🟡 wave157 pure：frame-sum leave；余 binop VAR cache／7.3 live／Chaitin／break／index-scratch 仍 host-cc |
 | `pipeline_asm_emit_index_eff_addr.c` | 0 | asm ELF INDEX eff-addr（scaled＋bounds＋base／public faces）切片 | ✅ wave147 pure-owned leave（0 absent）；live＝runtime_pipeline_abi pure；Cap residual try_index forest static→extern |
 | `ast_pool.c` | **~179** | AST 池 host 壳（壳再扫：无函数体；纯 #include 编排） | 🟡 域 thin 基本收口；bc-inventory 壳 floor 诚实；仍 host-cc |
 | `pipeline_asm_emit_heavy_env.c` | 0（absent） | EMIT_HEAVY 阈值／env／path／whitelist／prefix | ✅ pure-owned leave（runtime_pipeline_abi pure；Cap residual top_level_let／expr／driver_get；parser_emit_heavy 保留 typedef） |
