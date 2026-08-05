@@ -34,7 +34,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-04 实测**）：`pipeline_glue.c` **~1.71k**（**0 函数体**；domain `#include` + early/mid/backend/typeck/typeck_mid/emit/emit_block/emit_lea/emit_mid_fwd 壳 + statics 壳）；`pipeline_glue_early_fwd.c` **~0.23k** + `pipeline_glue_mid_fwd.c` **~0.13k** + `pipeline_glue_backend_fwd.c` **~0.61k** + `pipeline_glue_typeck_fwd.c` **~0.33k** + `pipeline_glue_typeck_mid_fwd.c` **~0.29k** + `pipeline_glue_emit_fwd.c` **~0.11k** + `pipeline_glue_emit_block_fwd.c` **~0.07k** + `pipeline_glue_emit_lea_fwd.c` **~0.08k** + `pipeline_glue_emit_mid_fwd.c` **~0.06k** + `pipeline_glue_statics.c` **~0.07k**（纯 fwd/extern/statics）；`ast_pool.c` **~0.18k**（纯 `#include` 编排）。**bc-inventory 诚实**：present residual product C rows **61**（2026-08-06 · wave152 expr_rec leave；ROWS=118；present 62→61）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + 多叶 pure-owned leave（含 var_decl／lea_common／with_arena／…）**；**8.3.3 field_access／soa + typeck_slots + scratch／loop_glue leave** · 父项仍 🟡（pipeline_x mega 未离）；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-04 实测**）：`pipeline_glue.c` **~1.71k**（**0 函数体**；domain `#include` + early/mid/backend/typeck/typeck_mid/emit/emit_block/emit_lea/emit_mid_fwd 壳 + statics 壳）；`pipeline_glue_early_fwd.c` **~0.23k** + `pipeline_glue_mid_fwd.c` **~0.13k** + `pipeline_glue_backend_fwd.c` **~0.61k** + `pipeline_glue_typeck_fwd.c` **~0.33k** + `pipeline_glue_typeck_mid_fwd.c` **~0.29k** + `pipeline_glue_emit_fwd.c` **~0.11k** + `pipeline_glue_emit_block_fwd.c` **~0.07k** + `pipeline_glue_emit_lea_fwd.c` **~0.08k** + `pipeline_glue_emit_mid_fwd.c` **~0.06k** + `pipeline_glue_statics.c` **~0.07k**（纯 fwd/extern/statics）；`ast_pool.c` **~0.18k**（纯 `#include` 编排）。**bc-inventory 诚实**：present residual product C rows **60**（2026-08-06 · wave153 block_body leave；ROWS=118；present 61→60）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + 多叶 pure-owned leave（含 var_decl／lea_common／with_arena／…）**；**8.3.3 field_access／soa + typeck_slots + scratch／loop_glue leave** · 父项仍 🟡（pipeline_x mega 未离）；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -930,7 +930,7 @@
 | `pipeline_asm_emit_modlet.c` | **0（leave）** | asm ELF modlet COMMON cell emit（table + load/store/prepare/seed/register） | ✅ wave139 pure-owned leave；live＝runtime_pipeline_abi pure bag BSS；seed cold twin under #ifndef FROM_X；host 叶已删 |
 | `pipeline_asm_emit_return.c` | **0（leave）** | asm ELF EXPR_RETURN emit（slice escape + impl + sret + float promote + return_expr/lit） | ✅ **pure-owned leave**（wave144 · 2026-08-05）；live＝runtime_pipeline_abi pure；Cap residual expr_rec+float_widen+enc slot+dual-gp+type_size+spills；seed cold twin under #ifndef FROM_X |
 | `pipeline_asm_emit_logand.c` | ~102 | asm ELF LOGAND/LOGOR short-circuit emit 切片 | ✅ wave128 pure-owned leave；live＝runtime_pipeline_abi pure；host 叶已删 |
-| `pipeline_asm_emit_block_body.c` | ~809 | asm ELF block body sync emit（defer + body_sync + accessors）切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
+| `pipeline_asm_emit_block_body.c` | **0（leave）** | asm ELF block body sync emit（defer + body_sync + accessors） | ✅ wave153 pure-owned leave（0 absent）；live＝runtime_pipeline_abi pure；Cap residual spill live/Chaitin BSS + set_scope + ctx_reset；seed cold twin under #ifndef FROM_X |
 | `pipeline_asm_emit_block_if_stmt.c` | ~106 | asm ELF block-level if-stmt emit（then-first jz）切片 | ✅ wave129 pure-owned leave；live＝runtime_pipeline_abi pure；host 叶已删 |
 | `pipeline_asm_emit_async_cps.c` | ~240 | asm ELF async/CPS emit（entry/end/await/phase_reset + bag） | ✅ wave131 pure-owned leave；live＝runtime_pipeline_abi pure bag BSS；host 叶已删 |
 | `pipeline_asm_emit_wpo_mono.c` | ~235 | WPO-S2 mono thunk bag + emit（reset/register/thunks） | ✅ wave130 pure-owned leave；live＝runtime_pipeline_abi pure bag BSS；host 叶已删 |
@@ -1019,7 +1019,7 @@
 
 | 消费方 | 如何引用 | 风险 |
 |--------|----------|------|
-| `compiler/mk/x_source_deps.mk` `PIPELINE_X_DEPS` | glue + 8.3.1 切片（含 …／spill／expr_rec；index_eff_addr pure leave）+ `ast_pool` + 11× ast_pool domain slices + bootstrap glue | 改源必重编 pipeline_x |
+| `compiler/mk/x_source_deps.mk` `PIPELINE_X_DEPS` | glue + 8.3.1 切片（含 …／spill／call_args；block_body pure leave）+ `ast_pool` + 11× ast_pool domain slices + bootstrap glue | 改源必重编 pipeline_x |
 | g05 / standalone seed 链 | standalone seed + glue + types.inc | weak 孪生与主链分叉 |
 | `g05_ensure_relink_prereqs.sh` | mtime vs pipeline_x / standalone；切片 STALE | 产品热路径仍 host-cc 重编 |
 | `pipeline_gen.c` / `-E` runtime 路径 | 入口 pipeline.x 时追加 glue 到 stdout | 与 gen 双权威风险 |
