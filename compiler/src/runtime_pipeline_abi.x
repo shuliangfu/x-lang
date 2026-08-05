@@ -4,6 +4,8 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave114: pipeline_asm_ctx_loop.c pure-owned leave (asm_ctx_loop_* + asm_be_cont_*;
+//   fixed-cap BSS sidecars; no GrowVec). Cap residual callers remain host-cc emit.
 // wave112: pipeline_parse_typeck_dispatch.c pure-owned leave (parse scalars +
 //   typeck_parsed/entry + load_import resolve/slot; Cap residual result_c/impl_rc
 //   stay in pipeline_parse_orch.c for Cap-struct-return / unpack).
@@ -4903,6 +4905,26 @@ let g_pipe_emit_lens: i32[2048] = [];
 let g_pipe_qual_n: i32 = 0;
 let g_pipe_qual_rows: u8[2048] = [];
 let g_pipe_qual_lens: i32[32] = [];
+
+// wave114 pure asm_ctx_loop leave (was pipeline_asm_ctx_loop.c host-cc residual).
+// PLATFORM: SHARED - fixed-cap tables replace AsmLoopLabelsSidecar + AsmBlockEmitCont.
+// Caps: 64 ctx slots (≡ MAX_ASM_LOCALS_SIDECARS); depth 8; label row 64B into 512B stack
+//   (8*64); be_cont stack 24 deep; end_label row 128B (store clamp 64).
+// Layout loop: used[i] + ctx ptr slot i + depth[i] + break_stack[i*512+base+k]
+//   + break_lens[i*8+d] + continue_stack[i*512+base+k] + continue_lens[i*8+d].
+// Layout be_cont: depth + block_ref[d] + stmt_i[d] + end_len[d] + end_label[d*128+k].
+let g_pipe_loop_used: i32[64] = [];
+let g_pipe_loop_ctx: u8[512] = [];
+let g_pipe_loop_depth: i32[64] = [];
+let g_pipe_loop_break: u8[32768] = [];
+let g_pipe_loop_break_lens: i32[512] = [];
+let g_pipe_loop_cont: u8[32768] = [];
+let g_pipe_loop_cont_lens: i32[512] = [];
+let g_pipe_be_cont_depth: i32 = 0;
+let g_pipe_be_cont_block: i32[24] = [];
+let g_pipe_be_cont_stmt: i32[24] = [];
+let g_pipe_be_cont_end_len: i32[24] = [];
+let g_pipe_be_cont_end: u8[3072] = [];
 
 // wave105 pure resolve_path leave (was pipeline_resolve_path.c host-cc residual).
 // PLATFORM: SHARED - off sidecar for EMIT_HEAVY orch (lib_root/entry prefix + append).
@@ -15505,4 +15527,323 @@ export function pipeline_backend_asm_codegen_ast_to_elf_c(m: *u8, a: *u8, elf_ct
     rc = pipeline_asm_emit_wpo_mono_thunks_elf_c(m, a, elf_ctx, pipeline_ctx);
   }
   return rc;
+}
+
+// ---------------------------------------------------------------------------
+// wave114: asm_ctx_loop pure-owned leave (was pipeline_asm_ctx_loop.c).
+// G.7 product authority for:
+//   asm_ctx_loop_reset / asm_ctx_loop_push / asm_ctx_loop_pop / asm_ctx_loop_depth
+//   asm_be_cont_reset / asm_be_cont_suspend / asm_be_cont_resume / asm_be_cont_depth
+// Fixed-cap BSS (no GrowVec / no host-cc mega-TU). Cold twins under seed #ifndef FROM_X.
+// Historical leaf had no remaining in-tree call sites after backend.x inlined loop stacks
+// on AsmFuncCtx; faces stay exported for product link surface + future host-cc emit.
+// PLATFORM: SHARED - dual-end L2 after leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * Find loop-label sidecar slot for AsmFuncCtx key, optionally allocate free slot.
+ * @param ctx *u8 - AsmFuncCtx* key; null -> -1
+ * @param create i32 - non-zero to claim first free slot when missing
+ * @return i32 - slot index 0..63, or -1 if null / full / not found without create
+ * wave114 pure helper. PLATFORM: SHARED - 64-slot table ≡ MAX_ASM_LOCALS_SIDECARS.
+ */
+function loop_sc_find(ctx: *u8, create: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let i: i32 = 0;
+  while (i < 64) {
+    if (g_pipe_loop_used[i] != 0) {
+      let st: *u8 = xlang_ptr_slot_get(&g_pipe_loop_ctx[0], i);
+      if (st == ctx) {
+        return i;
+      }
+    }
+    i = i + 1;
+  }
+  if (create == 0) {
+    return 0 - 1;
+  }
+  i = 0;
+  while (i < 64) {
+    if (g_pipe_loop_used[i] == 0) {
+      g_pipe_loop_used[i] = 1;
+      xlang_ptr_slot_set(&g_pipe_loop_ctx[0], i, ctx);
+      g_pipe_loop_depth[i] = 0;
+      return i;
+    }
+    i = i + 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Clear loop break/continue label stack for one AsmFuncCtx key (keep slot occupied).
+ * @param ctx *u8 - AsmFuncCtx*; null / unknown -> no-op
+ * @return void
+ * wave114 pure: G.7 single product authority (historical asm_ctx_loop_reset).
+ * PLATFORM: SHARED - sole provider after asm_ctx_loop leave.
+ */
+#[no_mangle]
+export function asm_ctx_loop_reset(ctx: *u8): void {
+  let s: i32 = loop_sc_find(ctx, 0);
+  if (s < 0) {
+    return;
+  }
+  g_pipe_loop_depth[s] = 0;
+}
+
+/**
+ * Push one break/continue label frame (depth cap 8; each label row 64B store).
+ * @param ctx *u8 - AsmFuncCtx* key; null -> -1
+ * @param exit_buf *u8 - break/exit label bytes; null -> -1
+ * @param exit_len i32 - full break length stored in lens[]; bytes clamped to 64
+ * @param loop_buf *u8 - continue/loop label bytes; null -> -1
+ * @param loop_len i32 - full continue length stored in lens[]; bytes clamped to 64
+ * @return i32 - 0 ok; -1 null / table full / depth>=8 / negative lens
+ * wave114 pure: G.7 single product authority (historical asm_ctx_loop_push).
+ * PLATFORM: SHARED - base = depth*64 inside per-slot 512B stacks.
+ */
+#[no_mangle]
+export function asm_ctx_loop_push(ctx: *u8, exit_buf: *u8, exit_len: i32, loop_buf: *u8, loop_len: i32): i32 {
+  if (ctx == 0 as *u8 || exit_buf == 0 as *u8 || loop_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (exit_len < 0 || loop_len < 0) {
+    return 0 - 1;
+  }
+  let s: i32 = loop_sc_find(ctx, 1);
+  if (s < 0) {
+    return 0 - 1;
+  }
+  let d: i32 = g_pipe_loop_depth[s];
+  if (d >= 8) {
+    return 0 - 1;
+  }
+  let base: i32 = d * 64;
+  let sc_base: i32 = s * 512;
+  let n: i32 = exit_len;
+  if (n > 64) {
+    n = 64;
+  }
+  let k: i32 = 0;
+  while (k < n) {
+    unsafe {
+      g_pipe_loop_break[sc_base + base + k] = exit_buf[k];
+    }
+    k = k + 1;
+  }
+  g_pipe_loop_break_lens[s * 8 + d] = exit_len;
+  let m: i32 = loop_len;
+  if (m > 64) {
+    m = 64;
+  }
+  k = 0;
+  while (k < m) {
+    unsafe {
+      g_pipe_loop_cont[sc_base + base + k] = loop_buf[k];
+    }
+    k = k + 1;
+  }
+  g_pipe_loop_cont_lens[s * 8 + d] = loop_len;
+  g_pipe_loop_depth[s] = d + 1;
+  return 0;
+}
+
+/**
+ * Pop one loop frame; if outer remains, copy its break/continue into out buffers.
+ * @param ctx *u8 - AsmFuncCtx* key; null -> no-op
+ * @param break_out *u8 - optional break label dst
+ * @param break_cap i32 - break_out capacity (stores min(bl, cap-1) bytes)
+ * @param break_len_out *i32 - optional; receives full stored break len (not clamp)
+ * @param cont_out *u8 - optional continue label dst
+ * @param cont_cap i32 - cont_out capacity
+ * @param cont_len_out *i32 - optional; receives full stored continue len
+ * @return void
+ * wave114 pure: G.7 single product authority (historical asm_ctx_loop_pop).
+ * PLATFORM: SHARED - after pop depth==0 does not write outs (matches C).
+ */
+#[no_mangle]
+export function asm_ctx_loop_pop(ctx: *u8, break_out: *u8, break_cap: i32, break_len_out: *i32,
+                                cont_out: *u8, cont_cap: i32, cont_len_out: *i32): void {
+  if (break_len_out != 0 as *i32) {
+    xlang_i32_store(break_len_out, 0);
+  }
+  if (cont_len_out != 0 as *i32) {
+    xlang_i32_store(cont_len_out, 0);
+  }
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let s: i32 = loop_sc_find(ctx, 0);
+  if (s < 0) {
+    return;
+  }
+  if (g_pipe_loop_depth[s] <= 0) {
+    return;
+  }
+  g_pipe_loop_depth[s] = g_pipe_loop_depth[s] - 1;
+  let d: i32 = g_pipe_loop_depth[s];
+  if (d <= 0) {
+    return;
+  }
+  let prev: i32 = d - 1;
+  let base: i32 = prev * 64;
+  let sc_base: i32 = s * 512;
+  let bl: i32 = g_pipe_loop_break_lens[s * 8 + prev];
+  let cl: i32 = g_pipe_loop_cont_lens[s * 8 + prev];
+  if (break_out != 0 as *u8 && break_len_out != 0 as *i32 && break_cap > 0) {
+    let bn: i32 = bl;
+    if (bn > break_cap - 1) {
+      bn = break_cap - 1;
+    }
+    let k: i32 = 0;
+    while (k < bn) {
+      unsafe {
+        break_out[k] = g_pipe_loop_break[sc_base + base + k];
+      }
+      k = k + 1;
+    }
+    xlang_i32_store(break_len_out, bl);
+  }
+  if (cont_out != 0 as *u8 && cont_len_out != 0 as *i32 && cont_cap > 0) {
+    let cn: i32 = cl;
+    if (cn > cont_cap - 1) {
+      cn = cont_cap - 1;
+    }
+    let k2: i32 = 0;
+    while (k2 < cn) {
+      unsafe {
+        cont_out[k2] = g_pipe_loop_cont[sc_base + base + k2];
+      }
+      k2 = k2 + 1;
+    }
+    xlang_i32_store(cont_len_out, cl);
+  }
+}
+
+/**
+ * Current loop-label stack depth for ctx (0 if unknown/null).
+ * @param ctx *u8 - AsmFuncCtx* key
+ * @return i32 - depth 0..8
+ * wave114 pure: G.7 single product authority (historical asm_ctx_loop_depth).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_ctx_loop_depth(ctx: *u8): i32 {
+  let s: i32 = loop_sc_find(ctx, 0);
+  if (s < 0) {
+    return 0;
+  }
+  return g_pipe_loop_depth[s];
+}
+
+/**
+ * Clear if-then block emit continuation stack (call at top-level emit_block_body entry).
+ * @return void
+ * wave114 pure: G.7 single product authority (historical asm_be_cont_reset).
+ * PLATFORM: SHARED - sole provider after asm_ctx_loop leave.
+ */
+#[no_mangle]
+export function asm_be_cont_reset(): void {
+  g_pipe_be_cont_depth = 0;
+}
+
+/**
+ * Suspend current block at stmt_i with optional if end label (stack cap 24).
+ * @param block_ref i32 - block to resume
+ * @param stmt_i i32 - statement index to resume
+ * @param end_lbl *u8 - end label bytes; null -> -1
+ * @param end_len i32 - full end label len (0 = no jmp merge); bytes clamped to 64 into 128B row
+ * @return i32 - 0 ok; -1 full / null end_lbl / negative end_len
+ * wave114 pure: G.7 single product authority (historical asm_be_cont_suspend).
+ * PLATFORM: SHARED - avoids emit_block_body <-> if-then recursion.
+ */
+#[no_mangle]
+export function asm_be_cont_suspend(block_ref: i32, stmt_i: i32, end_lbl: *u8, end_len: i32): i32 {
+  if (g_pipe_be_cont_depth >= 24) {
+    return 0 - 1;
+  }
+  if (end_lbl == 0 as *u8 || end_len < 0) {
+    return 0 - 1;
+  }
+  let d: i32 = g_pipe_be_cont_depth;
+  g_pipe_be_cont_depth = d + 1;
+  g_pipe_be_cont_block[d] = block_ref;
+  g_pipe_be_cont_stmt[d] = stmt_i;
+  if (end_len == 0) {
+    g_pipe_be_cont_end_len[d] = 0;
+    return 0;
+  }
+  let n: i32 = end_len;
+  if (n > 64) {
+    n = 64;
+  }
+  let base: i32 = d * 128;
+  let k: i32 = 0;
+  while (k < n) {
+    unsafe {
+      g_pipe_be_cont_end[base + k] = end_lbl[k];
+    }
+    k = k + 1;
+  }
+  g_pipe_be_cont_end_len[d] = end_len;
+  return 0;
+}
+
+/**
+ * Pop innermost continuation; write resume point and end label.
+ * @param out_block *i32 - optional resume block_ref
+ * @param out_stmt_i *i32 - optional resume stmt index
+ * @param out_end *u8 - optional end label dst
+ * @param end_cap i32 - out_end capacity
+ * @param out_end_len *i32 - optional full end label length
+ * @return i32 - 1 if a frame was popped; 0 if empty
+ * wave114 pure: G.7 single product authority (historical asm_be_cont_resume).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_be_cont_resume(out_block: *i32, out_stmt_i: *i32, out_end: *u8, end_cap: i32,
+                                  out_end_len: *i32): i32 {
+  if (g_pipe_be_cont_depth <= 0) {
+    return 0;
+  }
+  g_pipe_be_cont_depth = g_pipe_be_cont_depth - 1;
+  let d: i32 = g_pipe_be_cont_depth;
+  if (out_block != 0 as *i32) {
+    xlang_i32_store(out_block, g_pipe_be_cont_block[d]);
+  }
+  if (out_stmt_i != 0 as *i32) {
+    xlang_i32_store(out_stmt_i, g_pipe_be_cont_stmt[d]);
+  }
+  let elen: i32 = g_pipe_be_cont_end_len[d];
+  if (out_end_len != 0 as *i32) {
+    xlang_i32_store(out_end_len, elen);
+  }
+  if (out_end != 0 as *u8 && end_cap > 0 && out_end_len != 0 as *i32) {
+    let n: i32 = elen;
+    if (n > end_cap - 1) {
+      n = end_cap - 1;
+    }
+    let base: i32 = d * 128;
+    let k: i32 = 0;
+    while (k < n) {
+      unsafe {
+        out_end[k] = g_pipe_be_cont_end[base + k];
+      }
+      k = k + 1;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Current if continuation stack depth (debug).
+ * @return i32 - depth 0..24
+ * wave114 pure: G.7 single product authority (historical asm_be_cont_depth).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_be_cont_depth(): i32 {
+  return g_pipe_be_cont_depth;
 }

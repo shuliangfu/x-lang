@@ -206,7 +206,12 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 
 #include "pipeline_asm_block_tree.c"
 
-#include "pipeline_asm_ctx_loop.c"
+/* 2026-08-05: pipeline_asm_ctx_loop.c pure-owned leave (wave114).
+ * Live face: runtime_pipeline_abi.x (asm_ctx_loop_* + asm_be_cont_*).
+ * Fixed-cap BSS sidecars (64 ctx × depth8; be_cont 24). Seed cold twin under
+ * #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
+
 
 /* BC 8.3.2 wave1280: EMIT_HEAVY env/thresholds + path helpers + whitelist +
  * func-name prefix → pipeline_asm_emit_heavy_env.c (before selfhost so static

@@ -6700,4 +6700,169 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
   return pipeline_asm_emit_wpo_mono_thunks_elf_c(m, a, elf_ctx, pipeline_ctx);
 }
 
+/* wave114 asm_ctx_loop leave cold twins — former pipeline_asm_ctx_loop.c.
+ * Product hybrid PREFER: pure runtime_pipeline_abi.x owns strong faces.
+ * Continues #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X. Fixed caps match pure:
+ * 64 ctx slots, depth 8, label 64B rows, be_cont 24 × 128B end labels.
+ * PLATFORM: SHARED — cold only when pure FROM_X object is not linked.
+ */
+#define WAVE114_LOOP_SC_MAX 64
+#define WAVE114_LOOP_DEPTH_MAX 8
+#define WAVE114_LOOP_LABEL_W 64
+#define WAVE114_LOOP_STACK (WAVE114_LOOP_DEPTH_MAX * WAVE114_LOOP_LABEL_W)
+#define WAVE114_BE_CONT_MAX 24
+#define WAVE114_BE_END_W 128
+
+static int32_t wave114_loop_used[WAVE114_LOOP_SC_MAX];
+static uint8_t *wave114_loop_ctx[WAVE114_LOOP_SC_MAX];
+static int32_t wave114_loop_depth[WAVE114_LOOP_SC_MAX];
+static uint8_t wave114_loop_break[WAVE114_LOOP_SC_MAX * WAVE114_LOOP_STACK];
+static int32_t wave114_loop_break_lens[WAVE114_LOOP_SC_MAX * WAVE114_LOOP_DEPTH_MAX];
+static uint8_t wave114_loop_cont[WAVE114_LOOP_SC_MAX * WAVE114_LOOP_STACK];
+static int32_t wave114_loop_cont_lens[WAVE114_LOOP_SC_MAX * WAVE114_LOOP_DEPTH_MAX];
+static int32_t wave114_be_cont_depth;
+static int32_t wave114_be_cont_block[WAVE114_BE_CONT_MAX];
+static int32_t wave114_be_cont_stmt[WAVE114_BE_CONT_MAX];
+static int32_t wave114_be_cont_end_len[WAVE114_BE_CONT_MAX];
+static uint8_t wave114_be_cont_end[WAVE114_BE_CONT_MAX * WAVE114_BE_END_W];
+
+static int32_t wave114_loop_sc_find(uint8_t *ctx, int create) {
+  int i;
+  if (!ctx)
+    return -1;
+  for (i = 0; i < WAVE114_LOOP_SC_MAX; i++) {
+    if (wave114_loop_used[i] && wave114_loop_ctx[i] == ctx)
+      return i;
+  }
+  if (!create)
+    return -1;
+  for (i = 0; i < WAVE114_LOOP_SC_MAX; i++) {
+    if (!wave114_loop_used[i]) {
+      wave114_loop_used[i] = 1;
+      wave114_loop_ctx[i] = ctx;
+      wave114_loop_depth[i] = 0;
+      return i;
+    }
+  }
+  return -1;
+}
+
+void asm_ctx_loop_reset(uint8_t *ctx) {
+  int32_t s = wave114_loop_sc_find(ctx, 0);
+  if (s < 0)
+    return;
+  wave114_loop_depth[s] = 0;
+}
+
+int32_t asm_ctx_loop_push(uint8_t *ctx, uint8_t *exit_buf, int32_t exit_len, uint8_t *loop_buf, int32_t loop_len) {
+  int32_t s, d, base, sc_base, k, n, m;
+  if (!ctx || !exit_buf || !loop_buf || exit_len < 0 || loop_len < 0)
+    return -1;
+  s = wave114_loop_sc_find(ctx, 1);
+  if (s < 0)
+    return -1;
+  d = wave114_loop_depth[s];
+  if (d >= WAVE114_LOOP_DEPTH_MAX)
+    return -1;
+  base = d * WAVE114_LOOP_LABEL_W;
+  sc_base = s * WAVE114_LOOP_STACK;
+  n = exit_len > WAVE114_LOOP_LABEL_W ? WAVE114_LOOP_LABEL_W : exit_len;
+  for (k = 0; k < n; k++)
+    wave114_loop_break[sc_base + base + k] = exit_buf[k];
+  wave114_loop_break_lens[s * WAVE114_LOOP_DEPTH_MAX + d] = exit_len;
+  m = loop_len > WAVE114_LOOP_LABEL_W ? WAVE114_LOOP_LABEL_W : loop_len;
+  for (k = 0; k < m; k++)
+    wave114_loop_cont[sc_base + base + k] = loop_buf[k];
+  wave114_loop_cont_lens[s * WAVE114_LOOP_DEPTH_MAX + d] = loop_len;
+  wave114_loop_depth[s] = d + 1;
+  return 0;
+}
+
+void asm_ctx_loop_pop(uint8_t *ctx, uint8_t *break_out, int32_t break_cap, int32_t *break_len_out,
+                      uint8_t *cont_out, int32_t cont_cap, int32_t *cont_len_out) {
+  int32_t s, d, prev, base, sc_base, k, bl, cl, bn, cn;
+  if (break_len_out)
+    *break_len_out = 0;
+  if (cont_len_out)
+    *cont_len_out = 0;
+  if (!ctx || (s = wave114_loop_sc_find(ctx, 0)) < 0 || wave114_loop_depth[s] <= 0)
+    return;
+  wave114_loop_depth[s]--;
+  d = wave114_loop_depth[s];
+  if (d <= 0)
+    return;
+  prev = d - 1;
+  base = prev * WAVE114_LOOP_LABEL_W;
+  sc_base = s * WAVE114_LOOP_STACK;
+  bl = wave114_loop_break_lens[s * WAVE114_LOOP_DEPTH_MAX + prev];
+  cl = wave114_loop_cont_lens[s * WAVE114_LOOP_DEPTH_MAX + prev];
+  if (break_out && break_len_out && break_cap > 0) {
+    bn = bl > break_cap - 1 ? break_cap - 1 : bl;
+    for (k = 0; k < bn; k++)
+      break_out[k] = wave114_loop_break[sc_base + base + k];
+    *break_len_out = bl;
+  }
+  if (cont_out && cont_len_out && cont_cap > 0) {
+    cn = cl > cont_cap - 1 ? cont_cap - 1 : cl;
+    for (k = 0; k < cn; k++)
+      cont_out[k] = wave114_loop_cont[sc_base + base + k];
+    *cont_len_out = cl;
+  }
+}
+
+int32_t asm_ctx_loop_depth(uint8_t *ctx) {
+  int32_t s = wave114_loop_sc_find(ctx, 0);
+  return s < 0 ? 0 : wave114_loop_depth[s];
+}
+
+void asm_be_cont_reset(void) {
+  wave114_be_cont_depth = 0;
+}
+
+int32_t asm_be_cont_suspend(int32_t block_ref, int32_t stmt_i, uint8_t *end_lbl, int32_t end_len) {
+  int32_t d, k, n, base;
+  if (wave114_be_cont_depth >= WAVE114_BE_CONT_MAX || !end_lbl || end_len < 0)
+    return -1;
+  d = wave114_be_cont_depth++;
+  wave114_be_cont_block[d] = block_ref;
+  wave114_be_cont_stmt[d] = stmt_i;
+  if (end_len == 0) {
+    wave114_be_cont_end_len[d] = 0;
+    return 0;
+  }
+  n = end_len > 64 ? 64 : end_len;
+  base = d * WAVE114_BE_END_W;
+  for (k = 0; k < n; k++)
+    wave114_be_cont_end[base + k] = end_lbl[k];
+  wave114_be_cont_end_len[d] = end_len;
+  return 0;
+}
+
+int32_t asm_be_cont_resume(int32_t *out_block, int32_t *out_stmt_i, uint8_t *out_end, int32_t end_cap,
+                           int32_t *out_end_len) {
+  int32_t d, k, n, base;
+  if (wave114_be_cont_depth <= 0)
+    return 0;
+  d = --wave114_be_cont_depth;
+  if (out_block)
+    *out_block = wave114_be_cont_block[d];
+  if (out_stmt_i)
+    *out_stmt_i = wave114_be_cont_stmt[d];
+  if (out_end_len)
+    *out_end_len = wave114_be_cont_end_len[d];
+  if (out_end && end_cap > 0 && out_end_len) {
+    n = wave114_be_cont_end_len[d];
+    if (n > end_cap - 1)
+      n = end_cap - 1;
+    base = d * WAVE114_BE_END_W;
+    for (k = 0; k < n; k++)
+      out_end[k] = wave114_be_cont_end[base + k];
+  }
+  return 1;
+}
+
+int32_t asm_be_cont_depth(void) {
+  return wave114_be_cont_depth;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
