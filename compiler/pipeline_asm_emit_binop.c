@@ -747,7 +747,8 @@ static int32_t glue_try_binop_left_rax_right_rbx_elf_c(struct ast_ASTArena *aren
  * then reload right. G.7: same try path authority (no second cmp loader).
  * PLATFORM: SHARED freestanding dual-slot; LINUX x86_64 exposes (host-C hid).
  */
-static int32_t glue_try_binop_cmp_rbx_rax_elf_c(struct ast_ASTArena *arena,
+/* wave137 Cap residual for cmp pure leave: non-static face. */
+int32_t glue_try_binop_cmp_rbx_rax_elf_c(struct ast_ASTArena *arena,
                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                   int32_t left_ref, int32_t right_ref,
                                                   struct backend_AsmFuncCtx *ctx, int32_t ta) {

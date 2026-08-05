@@ -4,6 +4,7 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave137: pipeline_asm_emit_cmp.c pure-owned leave (cmp_elf + cc + typekind + arm64_cset).
 // wave136: pipeline_asm_emit_fold_primitives.c pure-owned leave (13 fold detectors).
 // wave135: pipeline_asm_emit_x86_enc_helpers.c pure-owned leave (27 glue_enc_x86_*
 //   + glue_emit_lcg_xor_body_x86_c). Cap residual: pipeline_elf_ctx_append_bytes.
@@ -657,6 +658,23 @@ export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, expr_ref: i32,
 export extern "C" function glue_expr_is_func_param_at_c(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32;
 export extern "C" function glue_fold_func_return_operand_ref_c(arena: *u8, mod: *u8, func_idx: i32): i32;
 export extern "C" function glue_expr_is_x_as_cast_at_c(arena: *u8, expr_ref: i32): i32;
+// wave137 Cap residual: cmp pure leave callees (operand placement + encoders + CTFE accessors).
+// PLATFORM: SHARED freestanding emit — pure owns CMP ELF + typekind tag + cc maps.
+export extern "C" function pipeline_expr_const_folded_valid_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_const_folded_val_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_enum_namespace_field_tag(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_asm_call_return_type_kind_ord_c(arena: *u8, call_expr_ref: i32): i32;
+export extern "C" function glue_try_binop_cmp_rbx_rax_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
+export extern "C" function backend_enc_ucomisd_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_ucomiss_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32;
+export extern "C" function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32;
+export extern "C" function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern "C" function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern "C" function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+export extern "C" function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_jz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
 export extern "C" function backend_enc_jnz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
@@ -26107,4 +26125,736 @@ export function glue_expr_var_name_eq_let_idx_c(arena: *u8, var_expr_ref: i32, b
     k = k + 1;
   }
   return 1;
+}
+
+// ---------------------------------------------------------------------------
+// wave137: pipeline_asm_emit_cmp pure-owned leave
+// (was pipeline_asm_emit_cmp.c).
+// G.7 product authority for:
+//   pipeline_asm_cmp_cc_for_expr_kind_ord     (EXPR_EQ..GE → setcc 0..5)
+//   pipeline_asm_arm64_cset_cond_enc_from_cc  (cc → ARM64 CSET cond invert)
+//   pipeline_asm_typekind_variant_tag         (TYPE_* name → tag 0..15)
+//   pipeline_asm_emit_cmp_elf                 (relational CMP ELF face)
+// Cap residual: emit_expr_elf_c + try_binop_cmp placement + var stack_off +
+//   slot cache invalidate + f32/f64 classifiers + enc ucomis*/setcc/cmp +
+//   load_rbp/mov_imm/push/pop + call_return_kind + CTFE folded accessors +
+//   enum_namespace_field_tag + field/var name pool faces.
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether type kind ordinal needs 64-bit cmpq (int/ptr; not f64).
+ * TYPE_U64=4, TYPE_I64=5, TYPE_USIZE=6, TYPE_ISIZE=7, TYPE_PTR=9.
+ * @param kind i32 - pipeline type kind ordinal
+ * @return i32 - 1 if 64-bit integer/pointer cmp; 0 otherwise
+ * wave137 pure: was static glue_type_kind_is_64bit_int in cmp.c.
+ * PLATFORM: SHARED.
+ */
+function glue_type_kind_is_64bit_int(kind: i32): i32 {
+  if (kind == 4 || kind == 5 || kind == 6 || kind == 7 || kind == 9) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Emit REX.W (0x48) before cmp when is_64bit and ta==x86_64.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param is_64bit i32 - non-zero → emit prefix on x86_64
+ * @param ta i32 - 0=x86_64; other no-op
+ * @return i32 - 0 ok; -1 append failure
+ * wave137 pure: was static glue_emit_rex_w_if_64bit in cmp.c.
+ * PLATFORM: SHARED contract; x86_64 SysV only emits the byte.
+ */
+function glue_emit_rex_w_if_64bit(elf_ctx: *u8, is_64bit: i32, ta: i32): i32 {
+  let rex_w: u8[1] = [];
+  let rc: i32 = 0;
+  if (is_64bit != 0 && ta == 0) {
+    rex_w[0] = 0x48 as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &rex_w[0], 1);
+    }
+    return rc;
+  }
+  return 0;
+}
+
+/**
+ * Map relational ExprKind ordinal to enc_cmp_setcc condition code.
+ * @param kind_ord i32 - EXPR_EQ=14 .. EXPR_GE=19
+ * @return i32 - 0..5 for EQ/NE/LT/LE/GT/GE; -1 for other kinds
+ * wave137 pure: G.7 authority (was pipeline_asm_emit_cmp.c).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_cmp_cc_for_expr_kind_ord(kind_ord: i32): i32 {
+  if (kind_ord == 14) {
+    return 0;
+  }
+  if (kind_ord == 15) {
+    return 1;
+  }
+  if (kind_ord == 16) {
+    return 2;
+  }
+  if (kind_ord == 17) {
+    return 3;
+  }
+  if (kind_ord == 18) {
+    return 4;
+  }
+  if (kind_ord == 19) {
+    return 5;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Map x86-style condition code to ARM64 CSET machine cond field (0..15).
+ * CSET encodes as CSINC with inverted cond; table matches GAS cset semantics.
+ * @param cc i32 - 0=eq,1=ne,2=lt,3=le,4=gt,5=ge
+ * @return i32 - ARM64 cond encoding; unknown → 0 (EQ)
+ * wave137 pure: G.7 authority (was pipeline_asm_emit_cmp.c; arm64_enc Cap).
+ * PLATFORM: SHARED — ARM64 AAPCS64 consumer + x86 cmp path share symbol.
+ */
+#[no_mangle]
+export function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32 {
+  if (cc == 0) {
+    return 1;
+  }
+  if (cc == 1) {
+    return 0;
+  }
+  if (cc == 2) {
+    return 10;
+  }
+  if (cc == 3) {
+    return 12;
+  }
+  if (cc == 4) {
+    return 13;
+  }
+  if (cc == 5) {
+    return 11;
+  }
+  return 0;
+}
+
+/**
+ * TypeKind variant name → ordinal tag (TYPE_I32..TYPE_VOID).
+ * @param field_buf *u8 - name bytes (not required NUL-terminated)
+ * @param flen i32 - name length; may carry one trailing byte
+ * @return i32 - 0..15 on match; -1 if null/short/unknown
+ * wave137 pure: G.7 authority (was static at cmp.c EOF; field_access Cap).
+ * PLATFORM: SHARED pure name→tag table.
+ */
+#[no_mangle]
+export function pipeline_asm_typekind_variant_tag(field_buf: *u8, flen: i32): i32 {
+  // Mirror residual C memcmp prefix lengths (not full C-string lengths).
+  // Early reject flen < 7 matches host leaf (TYPE_U8 still works when flen
+  // carries one trailing byte so flen >= 7).
+  if (field_buf == 0 as *u8 || flen < 7) {
+    return 0 - 1;
+  }
+  unsafe {
+    // TYPE_I32 — memcmp 7 of "TYPE_I32"
+    if (flen >= 7 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 73 as u8 && field_buf[6] == 51 as u8) {
+      return 0;
+    }
+    // TYPE_BOOL — memcmp 8
+    if (flen >= 8 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 66 as u8 && field_buf[6] == 79 as u8 && field_buf[7] == 79 as u8) {
+      return 1;
+    }
+    // TYPE_U8 — memcmp 6 of "TYPE_U8" (same order as host leaf).
+    // Longer U* names: check U32/U64/USIZE before this when disambiguating;
+    // host leaf ordered U8 before U32 (prefix overlap); keep host order here.
+    if (flen >= 6 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 85 as u8) {
+      // Prefer longer U* when flen allows (root-correct vs host prefix trap).
+      if (flen >= 9 && field_buf[6] == 83 as u8 && field_buf[7] == 73 as u8 && field_buf[8] == 90 as u8) {
+        return 6; // TYPE_USIZE
+      }
+      if (flen >= 7 && field_buf[6] == 51 as u8) {
+        return 3; // TYPE_U32
+      }
+      if (flen >= 7 && field_buf[6] == 54 as u8) {
+        return 4; // TYPE_U64
+      }
+      return 2; // TYPE_U8
+    }
+    // TYPE_U32 / TYPE_U64 handled above via U* branch; keep explicit falls for clarity
+    if (flen >= 7 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 85 as u8 && field_buf[6] == 51 as u8) {
+      return 3;
+    }
+    if (flen >= 7 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 85 as u8 && field_buf[6] == 54 as u8) {
+      return 4;
+    }
+    // TYPE_I64 — memcmp 7 "TYPE_I6"
+    if (flen >= 7 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 73 as u8 && field_buf[6] == 54 as u8) {
+      return 5;
+    }
+    // TYPE_USIZE — memcmp 9
+    if (flen >= 9 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 85 as u8 && field_buf[6] == 83 as u8 && field_buf[7] == 73 as u8 && field_buf[8] == 90 as u8) {
+      return 6;
+    }
+    // TYPE_ISIZE — memcmp 9
+    if (flen >= 9 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 73 as u8 && field_buf[6] == 83 as u8 && field_buf[7] == 73 as u8 && field_buf[8] == 90 as u8) {
+      return 7;
+    }
+    // TYPE_NAMED — memcmp 9
+    if (flen >= 9 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 78 as u8 && field_buf[6] == 65 as u8 && field_buf[7] == 77 as u8 && field_buf[8] == 69 as u8) {
+      return 8;
+    }
+    // TYPE_PTR — memcmp 7
+    if (flen >= 7 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 80 as u8 && field_buf[6] == 84 as u8) {
+      return 9;
+    }
+    // TYPE_ARRAY — memcmp 9
+    if (flen >= 9 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 65 as u8 && field_buf[6] == 82 as u8 && field_buf[7] == 82 as u8 && field_buf[8] == 65 as u8) {
+      return 10;
+    }
+    // TYPE_SLICE — memcmp 9
+    if (flen >= 9 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 83 as u8 && field_buf[6] == 76 as u8 && field_buf[7] == 73 as u8 && field_buf[8] == 67 as u8) {
+      return 11;
+    }
+    // TYPE_VECTOR — memcmp 11
+    if (flen >= 11 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 86 as u8 && field_buf[6] == 69 as u8 && field_buf[7] == 67 as u8 && field_buf[8] == 84 as u8 && field_buf[9] == 79 as u8 && field_buf[10] == 82 as u8) {
+      return 12;
+    }
+    // TYPE_F32 — memcmp 7
+    if (flen >= 7 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 70 as u8 && field_buf[6] == 51 as u8) {
+      return 13;
+    }
+    // TYPE_F64 — memcmp 7
+    if (flen >= 7 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 70 as u8 && field_buf[6] == 54 as u8) {
+      return 14;
+    }
+    // TYPE_VOID — memcmp 8
+    if (flen >= 8 && field_buf[0] == 84 as u8 && field_buf[1] == 89 as u8 && field_buf[2] == 80 as u8 && field_buf[3] == 69 as u8 && field_buf[4] == 95 as u8 && field_buf[5] == 86 as u8 && field_buf[6] == 79 as u8 && field_buf[7] == 73 as u8) {
+      return 15;
+    }
+  }
+  return 0 - 1;
+}
+
+/**
+ * RHS is TypeKind./ExprKind. FIELD_ACCESS → enum tag; else -1.
+ * Does not consult module fields (avoids module.x false hits).
+ * @param arena *u8 - ASTArena*
+ * @param expr_ref i32 - candidate field-access expr
+ * @return i32 - tag >= 0 or -1
+ * wave137 pure: was static pipeline_asm_cmp_enum_rhs_tag_c.
+ * PLATFORM: SHARED.
+ */
+function pipeline_asm_cmp_enum_rhs_tag_c(arena: *u8, expr_ref: i32): i32 {
+  let base_buf: u8[32] = [];
+  let field_buf: u8[128] = [];
+  let blen: i32 = 0;
+  let flen: i32 = 0;
+  let tag: i32 = 0;
+  let ko: i32 = 0;
+  let base_ref: i32 = 0;
+  let k: i32 = 0;
+  if (arena == 0 as *u8 || expr_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  // EXPR_FIELD_ACCESS = 44
+  if (ko != 44) {
+    return 0 - 1;
+  }
+  unsafe {
+    base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+  }
+  if (base_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  }
+  // EXPR_VAR = 3
+  if (ko != 3) {
+    return 0 - 1;
+  }
+  unsafe {
+    blen = pipeline_expr_var_name_len(arena, base_ref);
+  }
+  if (blen != 8) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, base_ref, &base_buf[0]);
+    flen = pipeline_expr_field_access_name_len(arena, expr_ref);
+  }
+  if (flen <= 0 || flen > 127) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_expr_field_access_name_into(arena, expr_ref, &field_buf[0]);
+  }
+  // base "TypeKind"
+  if (base_buf[0] == 84 as u8 && base_buf[1] == 121 as u8 && base_buf[2] == 112 as u8 && base_buf[3] == 101 as u8 && base_buf[4] == 75 as u8 && base_buf[5] == 105 as u8 && base_buf[6] == 110 as u8 && base_buf[7] == 100 as u8) {
+    unsafe {
+      tag = pipeline_asm_typekind_variant_tag(&field_buf[0], flen);
+    }
+    return tag;
+  }
+  // base "ExprKind"
+  if (base_buf[0] == 69 as u8 && base_buf[1] == 120 as u8 && base_buf[2] == 112 as u8 && base_buf[3] == 114 as u8 && base_buf[4] == 75 as u8 && base_buf[5] == 105 as u8 && base_buf[6] == 110 as u8 && base_buf[7] == 100 as u8) {
+    unsafe {
+      tag = pipeline_expr_enum_namespace_field_tag(arena, expr_ref);
+    }
+    return tag;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Finish cmp with left in rbx, right in rax (f64/f32/int).
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param left_ref i32 - left operand expr
+ * @param right_ref i32 - right operand expr
+ * @param is_cmp_64bit i32 - REX.W for int path
+ * @param cc i32 - setcc condition 0..5
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 failure
+ * wave137 pure: was static glue_emit_cmp_finish_rbx_rax_elf_c.
+ * PLATFORM: SHARED freestanding; x86 ucomis* / arm64 fcmp via enc.
+ */
+function glue_emit_cmp_finish_rbx_rax_elf_c(arena: *u8, ctx: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, is_cmp_64bit: i32, cc: i32, ta: i32): i32 {
+  let rc: i32 = 0;
+  let is_f64_l: i32 = 0;
+  let is_f64_r: i32 = 0;
+  let is_f32_l: i32 = 0;
+  let is_f32_r: i32 = 0;
+  if ((ta == 0 || ta == 1) && left_ref > 0 && right_ref > 0) {
+    unsafe {
+      is_f64_l = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref);
+      is_f64_r = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref);
+    }
+    if (is_f64_l != 0 && is_f64_r != 0) {
+      unsafe {
+        rc = backend_enc_ucomisd_rbx_rax_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+      }
+      return rc;
+    }
+    unsafe {
+      is_f32_l = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref);
+      is_f32_r = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref);
+    }
+    if (is_f32_l != 0 && is_f32_r != 0) {
+      unsafe {
+        rc = backend_enc_ucomiss_rbx_rax_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+      }
+      return rc;
+    }
+  }
+  rc = glue_emit_rex_w_if_64bit(elf_ctx, is_cmp_64bit, ta);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_cmp_rbx_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+  }
+  return rc;
+}
+
+/**
+ * Whether expr is int/bool lit; writes imm to out_imm[0].
+ * @param arena *u8 - ASTArena*
+ * @param expr_ref i32 - expr ref
+ * @param out_imm *i32 - out; null → only test
+ * @return i32 - 1 if lit; 0 otherwise
+ * wave137 pure private: mirrors residual pipeline_asm_expr_lit_i32_at_c.
+ * PLATFORM: SHARED.
+ */
+function pipeline_asm_cmp_expr_lit_i32_at(arena: *u8, expr_ref: i32, out_imm: *i32): i32 {
+  let ko: i32 = 0;
+  let v: i32 = 0;
+  if (expr_ref == 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  // INT_LIT=0 BOOL_LIT=2
+  if (ko == 0 || ko == 2) {
+    unsafe {
+      v = pipeline_expr_int_val_at(arena, expr_ref);
+    }
+    if (out_imm != 0 as *i32) {
+      unsafe {
+        out_imm[0] = v;
+      }
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Product-mega freestanding relational CMP ELF face (EXPR_EQ..GE kinds 14..19
+ * via kind_ord; entry also used for cmp expr kinds 10..15 in rec arms).
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param cmp_expr_ref i32 - compare binop expr
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 failure
+ * wave137 pure: G.7 authority (was pipeline_asm_emit_cmp_elf).
+ * Cap residual placement via glue_try_binop_cmp_rbx_rax_elf_c; operand emit
+ * uses public pipeline_asm_emit_expr_elf_c (not static _rec).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_cmp_elf(arena: *u8, elf_ctx: *u8, cmp_expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let right_ref: i32 = 0;
+  let left_ref: i32 = 0;
+  let lit_imm: i32 = 0;
+  let lit_slot: i32[1] = [];
+  let cc: i32 = 0;
+  let enum_tag: i32 = 0;
+  let cmp_ko: i32 = 0;
+  let is_cmp_64bit: i32 = 0;
+  let lt_ref: i32 = 0;
+  let lt_kind: i32 = 0;
+  let rt_ref: i32 = 0;
+  let rt_kind: i32 = 0;
+  let rk: i32 = 0;
+  let folded_v: i32 = 0;
+  let folded_ok: i32 = 0;
+  let rc: i32 = 0;
+  let var_off: i32 = 0;
+  let left_ref2: i32 = 0;
+  let vr: i32 = 0;
+  let ko: i32 = 0;
+  let is_f64: i32 = 0;
+  let is_f32: i32 = 0;
+  let lit_ok: i32 = 0;
+  if (arena == 0 as *u8 || cmp_expr_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    folded_ok = pipeline_expr_const_folded_valid_at(arena, cmp_expr_ref);
+  }
+  if (folded_ok != 0) {
+    unsafe {
+      folded_v = pipeline_expr_const_folded_val_at(arena, cmp_expr_ref);
+      rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, folded_v, ta);
+    }
+    return rc;
+  }
+  unsafe {
+    cmp_ko = pipeline_expr_kind_ord_at(arena, cmp_expr_ref);
+    left_ref = pipeline_expr_binop_left_ref_at(arena, cmp_expr_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, cmp_expr_ref);
+  }
+  is_cmp_64bit = 0;
+  if (left_ref > 0) {
+    unsafe {
+      lt_ref = pipeline_expr_resolved_type_ref(arena, left_ref);
+    }
+    if (lt_ref > 0) {
+      unsafe {
+        lt_kind = pipeline_type_kind_ord_at(arena, lt_ref);
+      }
+      is_cmp_64bit = glue_type_kind_is_64bit_int(lt_kind);
+    }
+    // CALL return i64/ptr: resolved may still be empty
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, left_ref);
+    }
+    if (is_cmp_64bit == 0 && ko == 48) {
+      unsafe {
+        rk = pipeline_asm_call_return_type_kind_ord_c(arena, left_ref);
+      }
+      if (rk == 5 || rk == 4 || rk == 6 || rk == 7 || rk == 9) {
+        is_cmp_64bit = 1;
+      }
+    }
+  }
+  // lit-left 0==p / null==p: take 64-bit from right
+  if (is_cmp_64bit == 0 && right_ref > 0) {
+    unsafe {
+      rt_ref = pipeline_expr_resolved_type_ref(arena, right_ref);
+    }
+    if (rt_ref > 0) {
+      unsafe {
+        rt_kind = pipeline_type_kind_ord_at(arena, rt_ref);
+      }
+      is_cmp_64bit = glue_type_kind_is_64bit_int(rt_kind);
+    }
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, right_ref);
+    }
+    if (is_cmp_64bit == 0 && ko == 48) {
+      unsafe {
+        rk = pipeline_asm_call_return_type_kind_ord_c(arena, right_ref);
+      }
+      if (rk == 5 || rk == 4 || rk == 6 || rk == 7 || rk == 9) {
+        is_cmp_64bit = 1;
+      }
+    }
+  }
+  // CALL vs lit 0: test eax + setcc (EQ/NE only)
+  if (left_ref > 0 && right_ref > 0) {
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, left_ref);
+    }
+    lit_ok = pipeline_asm_cmp_expr_lit_i32_at(arena, right_ref, &lit_slot[0]);
+    lit_imm = lit_slot[0];
+    if (ko == 48 && lit_ok != 0 && lit_imm == 0 && (cmp_ko == 14 || cmp_ko == 15)) {
+      unsafe {
+        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      cc = pipeline_asm_cmp_cc_for_expr_kind_ord(cmp_ko);
+      if (cc < 0) {
+        return 0 - 1;
+      }
+      rc = glue_emit_rex_w_if_64bit(elf_ctx, is_cmp_64bit, ta);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_test_eax_eax_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
+  }
+  // TypeKind/ExprKind enum RHS tag fast path
+  if (right_ref > 0) {
+    enum_tag = pipeline_asm_cmp_enum_rhs_tag_c(arena, right_ref);
+    if (enum_tag >= 0) {
+      unsafe {
+        left_ref2 = pipeline_expr_binop_left_ref_at(arena, cmp_expr_ref);
+        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref2, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, enum_tag, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        ko = pipeline_expr_kind_ord_at(arena, cmp_expr_ref);
+      }
+      cc = pipeline_asm_cmp_cc_for_expr_kind_ord(ko);
+      if (cc < 0) {
+        return 0 - 1;
+      }
+      return glue_emit_cmp_finish_rbx_rax_elf_c(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+    }
+  }
+  // while-head VAR vs lit: rbp load + cmp (skip scalar float)
+  if (left_ref > 0 && right_ref > 0) {
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, left_ref);
+      is_f64 = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref);
+      is_f32 = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref);
+    }
+    lit_ok = pipeline_asm_cmp_expr_lit_i32_at(arena, right_ref, &lit_slot[0]);
+    lit_imm = lit_slot[0];
+    if (ko == 3 && is_f64 == 0 && is_f32 == 0 && lit_ok != 0) {
+      unsafe {
+        var_off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
+      }
+      if (var_off >= 0) {
+        cc = pipeline_asm_cmp_cc_for_expr_kind_ord(cmp_ko);
+        if (cc < 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_load_rbp_to_rbx_arch(elf_ctx, var_off, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, lit_imm, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        return glue_emit_cmp_finish_rbx_rax_elf_c(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+      }
+    }
+  }
+  // general right-lit path (non-float left)
+  if (right_ref != 0) {
+    unsafe {
+      is_f64 = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref);
+      is_f32 = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref);
+    }
+    lit_ok = pipeline_asm_cmp_expr_lit_i32_at(arena, right_ref, &lit_slot[0]);
+    lit_imm = lit_slot[0];
+    if (is_f64 == 0 && is_f32 == 0 && lit_ok != 0) {
+      unsafe {
+        left_ref2 = pipeline_expr_binop_left_ref_at(arena, cmp_expr_ref);
+        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref2, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, lit_imm, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        ko = pipeline_expr_kind_ord_at(arena, cmp_expr_ref);
+      }
+      cc = pipeline_asm_cmp_cc_for_expr_kind_ord(ko);
+      if (cc < 0) {
+        return 0 - 1;
+      }
+      return glue_emit_cmp_finish_rbx_rax_elf_c(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+    }
+  }
+  // lit-left ptr/int: imm → rbx, right → rax
+  if (left_ref > 0 && right_ref > 0) {
+    unsafe {
+      is_f64 = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref);
+      is_f32 = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref);
+    }
+    if (is_f64 == 0 && is_f32 == 0) {
+      unsafe {
+        is_f64 = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref);
+        is_f32 = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref);
+      }
+      lit_ok = pipeline_asm_cmp_expr_lit_i32_at(arena, left_ref, &lit_slot[0]);
+      lit_imm = lit_slot[0];
+      if (is_f64 == 0 && is_f32 == 0 && lit_ok != 0) {
+        var_off = 0 - 1;
+        unsafe {
+          ko = pipeline_expr_kind_ord_at(arena, right_ref);
+        }
+        if (ko == 3) {
+          unsafe {
+            var_off = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref);
+          }
+        }
+        cc = pipeline_asm_cmp_cc_for_expr_kind_ord(cmp_ko);
+        if (cc < 0) {
+          return 0 - 1;
+        }
+        if (var_off >= 0) {
+          unsafe {
+            rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        } else {
+          unsafe {
+            rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
+        unsafe {
+          rc = backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          glue_binop_var_slot_cache_invalidate_rbx();
+        }
+        return glue_emit_cmp_finish_rbx_rax_elf_c(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+      }
+    }
+  }
+  // general try_binop placement; -2 → push/pop rec path
+  unsafe {
+    left_ref2 = pipeline_expr_binop_left_ref_at(arena, cmp_expr_ref);
+    vr = glue_try_binop_cmp_rbx_rax_elf_c(arena, elf_ctx, left_ref2, right_ref, ctx, ta);
+  }
+  if (vr == 0 - 1) {
+    return 0 - 1;
+  }
+  if (vr == 0 - 2) {
+    unsafe {
+      rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref2, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_push_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_pop_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, cmp_expr_ref);
+  }
+  cc = pipeline_asm_cmp_cc_for_expr_kind_ord(ko);
+  if (cc < 0) {
+    return 0 - 1;
+  }
+  return glue_emit_cmp_finish_rbx_rax_elf_c(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
 }

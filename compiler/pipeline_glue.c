@@ -724,16 +724,20 @@ void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_AS
  * tag_null_keyword_c, binop_left/right_ref_at) migrated to
  * pipeline_asm_emit_expr_rec.c EOF. Fwd decls at L1530-1571. */
 
-/* wave1146 G.7: pipeline_asm_typekind_variant_tag migrated to
- * pipeline_asm_emit_cmp.c EOF (TypeKind variant-name → tag table;
- * colocated with CMP enum RHS consumer pipeline_asm_cmp_enum_rhs_tag_c).
- * Visible here via static fwd decl at L1958 (before field_access.c
- * #include at L2281 and cmp.c #include at L3547). */
+/* wave1146 G.7: pipeline_asm_typekind_variant_tag lived at cmp.c EOF;
+ * wave137 pure-owned leave: table + CMP face live in runtime_pipeline_abi
+ * pure (no_mangle). field_access Cap residual calls pure via extern
+ * (pipeline_glue_emit_fwd.c). */
 
-/* BC 8.3.1: asm ELF relational CMP emit domain
- * (emit_cmp_elf + enum RHS tag + 64-bit/rex + f32/f64/int finish;
- * Cap residual pure; same TU). typekind_variant_tag now at cmp.c EOF. */
-#include "pipeline_asm_emit_cmp.c"
+/* wave137 pure-owned leave: pipeline_asm_emit_cmp.c deleted.
+ * Live = runtime_pipeline_abi pure:
+ *   pipeline_asm_cmp_cc_for_expr_kind_ord
+ *   pipeline_asm_arm64_cset_cond_enc_from_cc
+ *   pipeline_asm_typekind_variant_tag
+ *   pipeline_asm_emit_cmp_elf
+ * Cap residual: try_binop_cmp + var stack_off + slot invalidate_rbx +
+ * enc ucomisd/ucomiss/setcc + CTFE folded + call_return_kind + enum_namespace_tag.
+ * seed cold twins under #ifndef FROM_X. PLATFORM: SHARED. */
 
 
 /* wave1287 G.7: block-accessor + block-if emit pure-fwd shell migrated to

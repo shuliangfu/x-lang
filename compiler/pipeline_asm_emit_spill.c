@@ -104,7 +104,8 @@ static void glue_binop_var_slot_cache_invalidate_rax(void) {
 }
 
 /** rbx 将装入非 VAR 操作数（如字面量）时失效 rbx 槽。 */
-static void glue_binop_var_slot_cache_invalidate_rbx(void) {
+/* wave137 Cap residual for cmp pure leave: non-static face. */
+void glue_binop_var_slot_cache_invalidate_rbx(void) {
   glue_binop_var_slot_cache.valid_rbx = 0;
 }
 

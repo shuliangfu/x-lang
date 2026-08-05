@@ -3156,7 +3156,8 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_text_c(struct ast_ASTArena *arena, str
  * index_helpers.c L617+ (this file), assign.c L313 (#include L1550),
  * index_eff_addr.c L86+ (#include L1637), call_args.c L178+ (#include L1660),
  * binop.c L106+ (#include L1678). PLATFORM: SHARED. */
-static int32_t glue_var_expr_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+/* wave137 Cap residual for cmp pure leave: non-static face. */
+int32_t glue_var_expr_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                              int32_t var_expr_ref) {
   int32_t off;
   if (!arena || !ctx || var_expr_ref <= 0)

@@ -9139,8 +9139,8 @@ fi
 if ! grep -qE 'pipeline_asm_emit_binop\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_binop.c (8.3.1 asm_emit_binop slice)"
 fi
-if ! grep -qE 'pipeline_asm_emit_cmp\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_cmp.c (8.3.1 asm_emit_cmp slice)"
+if grep -qE 'pipeline_asm_emit_cmp\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_cmp.c (wave137 pure-owned leave)"
 fi
 if ! grep -qE 'pipeline_asm_emit_call_args\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_call_args.c (8.3.1 asm_emit_call_args slice)"

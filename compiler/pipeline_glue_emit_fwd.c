@@ -92,7 +92,8 @@ extern void pipeline_asm_emit_async_cps_end_func_elf_c(void);
  * pipeline_asm_emit_cmp.c EOF). Static fwd decl here provides
  * visibility to field_access.c (#include at L2281) and cmp.c
  * (#include at L3547) — both before the definition at cmp.c EOF. */
-static int32_t pipeline_asm_typekind_variant_tag(const uint8_t *field_buf, int32_t flen);
+/* wave137 pure-owned leave: typekind table lives in runtime_pipeline_abi pure. */
+extern int32_t pipeline_asm_typekind_variant_tag(const uint8_t *field_buf, int32_t flen);
 /** if/三元分支块 emit 深度（定义见 glue_block_emit_stmt_i 旁；此处前置供 if_arm 使用）。 */
 static int32_t glue_if_expr_arm_emit_depth;
 

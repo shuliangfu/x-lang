@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave137: cmp pure leave cold twins under #ifndef FROM_X (cmp_elf/cc/typekind/arm64_cset).
  * wave135: x86_enc_helpers pure leave cold twins under #ifndef FROM_X (glue_enc_x86_* + lcg body).
  * wave134: match pure leave cold twins under #ifndef FROM_X (match_elf/expr_if_elf/subject).
  * wave133: unary pure leave cold twins under #ifndef FROM_X (neg/lognot/bitnot/sxt/jz).
@@ -11809,6 +11810,327 @@ int32_t glue_expr_var_name_eq_let_idx_c(struct ast_ASTArena *arena, int32_t var_
   }
   return 1;
 }
+
+
+/*
+ * wave137: pipeline_asm_emit_cmp pure-owned leave cold twins.
+ * PREFER pure; cold path when PREFER!=1 / hybrid fail.
+ * Faces: cmp_cc + arm64_cset + typekind_variant_tag + emit_cmp_elf.
+ * Cap residual symbols remain host-cc (try_binop_cmp, enc_*, pool).
+ */
+extern int32_t pipeline_expr_const_folded_valid_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_const_folded_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_left_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_right_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_expr_int_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out64);
+extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_field_access_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t pipeline_expr_enum_namespace_field_tag(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_call_return_type_kind_ord_c(void *arena, int32_t call_expr_ref);
+extern int32_t glue_try_binop_cmp_rbx_rax_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
+extern int32_t glue_binop_operand_is_scalar_f32_elf_c(void *arena, void *ctx, int32_t expr_ref);
+extern int32_t glue_binop_operand_is_scalar_f64_elf_c(void *arena, void *ctx, int32_t expr_ref);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_elf_ctx_append_bytes(void *ctx, uint8_t *ptr, int32_t n);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rbx_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_test_eax_eax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cmp_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cmp_setcc_movzbl_arch(void *elf_ctx, int32_t cc, int32_t ta);
+extern int32_t backend_enc_ucomisd_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_ucomiss_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_fp_cmp_setcc_movzbl_arch(void *elf_ctx, int32_t cc, int32_t ta);
+
+int32_t pipeline_asm_cmp_cc_for_expr_kind_ord(int32_t kind_ord) {
+  switch (kind_ord) {
+  case 14: return 0;
+  case 15: return 1;
+  case 16: return 2;
+  case 17: return 3;
+  case 18: return 4;
+  case 19: return 5;
+  default: return -1;
+  }
+}
+
+int32_t pipeline_asm_arm64_cset_cond_enc_from_cc(int32_t cc) {
+  switch (cc) {
+  case 0: return 1;
+  case 1: return 0;
+  case 2: return 10;
+  case 3: return 12;
+  case 4: return 13;
+  case 5: return 11;
+  default: return 0;
+  }
+}
+
+int32_t pipeline_asm_typekind_variant_tag(const uint8_t *field_buf, int32_t flen) {
+  if (!field_buf || flen < 7)
+    return -1;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_I32", 7) == 0)
+    return 0;
+  if (flen >= 8 && memcmp(field_buf, "TYPE_BOOL", 8) == 0)
+    return 1;
+  if (flen >= 6 && memcmp(field_buf, "TYPE_U8", 6) == 0) {
+    if (flen >= 9 && memcmp(field_buf, "TYPE_USIZE", 9) == 0)
+      return 6;
+    if (flen >= 7 && memcmp(field_buf, "TYPE_U32", 7) == 0)
+      return 3;
+    if (flen >= 7 && memcmp(field_buf, "TYPE_U64", 7) == 0)
+      return 4;
+    return 2;
+  }
+  if (flen >= 7 && memcmp(field_buf, "TYPE_U32", 7) == 0)
+    return 3;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_U64", 7) == 0)
+    return 4;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_I64", 7) == 0)
+    return 5;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_USIZE", 9) == 0)
+    return 6;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_ISIZE", 9) == 0)
+    return 7;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_NAMED", 9) == 0)
+    return 8;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_PTR", 7) == 0)
+    return 9;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_ARRAY", 9) == 0)
+    return 10;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_SLICE", 9) == 0)
+    return 11;
+  if (flen >= 11 && memcmp(field_buf, "TYPE_VECTOR", 11) == 0)
+    return 12;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_F32", 7) == 0)
+    return 13;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_F64", 7) == 0)
+    return 14;
+  if (flen >= 8 && memcmp(field_buf, "TYPE_VOID", 8) == 0)
+    return 15;
+  return -1;
+}
+
+static int32_t glue_type_kind_is_64bit_int_seed(int32_t kind) {
+  return kind == 4 || kind == 5 || kind == 6 || kind == 7 || kind == 9;
+}
+
+static int32_t glue_emit_rex_w_if_64bit_seed(void *elf_ctx, int32_t is_64bit, int32_t ta) {
+  if (is_64bit && ta == 0) {
+    uint8_t rex_w[1] = { 0x48 };
+    return pipeline_elf_ctx_append_bytes(elf_ctx, rex_w, 1);
+  }
+  return 0;
+}
+
+static int32_t pipeline_asm_cmp_enum_rhs_tag_seed(void *arena, int32_t expr_ref) {
+  uint8_t base_buf[32];
+  uint8_t field_buf[128];
+  int32_t blen, flen, tag, base_ref;
+  if (!arena || expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, expr_ref) != 44)
+    return -1;
+  base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+  if (base_ref <= 0 || pipeline_expr_kind_ord_at(arena, base_ref) != 3)
+    return -1;
+  blen = pipeline_expr_var_name_len(arena, base_ref);
+  if (blen != 8)
+    return -1;
+  pipeline_expr_var_name_into(arena, base_ref, base_buf);
+  flen = pipeline_expr_field_access_name_len(arena, expr_ref);
+  if (flen <= 0 || flen > 127)
+    return -1;
+  pipeline_expr_field_access_name_into(arena, expr_ref, field_buf);
+  if (memcmp(base_buf, "TypeKind", 8) == 0)
+    return pipeline_asm_typekind_variant_tag(field_buf, flen);
+  if (memcmp(base_buf, "ExprKind", 8) != 0)
+    return -1;
+  tag = pipeline_expr_enum_namespace_field_tag(arena, expr_ref);
+  return tag;
+}
+
+static int32_t glue_emit_cmp_finish_seed(void *arena, void *ctx, void *elf_ctx, int32_t left_ref,
+                                         int32_t right_ref, int32_t is_cmp_64bit, int32_t cc, int32_t ta) {
+  if ((ta == 0 || ta == 1) && left_ref > 0 && right_ref > 0 &&
+      glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+      glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref)) {
+    if (backend_enc_ucomisd_rbx_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    return backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+  }
+  if ((ta == 0 || ta == 1) && left_ref > 0 && right_ref > 0 &&
+      glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+      glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref)) {
+    if (backend_enc_ucomiss_rbx_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    return backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+  }
+  if (glue_emit_rex_w_if_64bit_seed(elf_ctx, is_cmp_64bit, ta) != 0)
+    return -1;
+  if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  return backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+}
+
+static int32_t cmp_expr_lit_i32_seed(void *arena, int32_t expr_ref, int32_t *out_imm) {
+  int32_t ko;
+  if (expr_ref == 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == 0 || ko == 2) {
+    if (out_imm)
+      *out_imm = pipeline_expr_int_val_at(arena, expr_ref);
+    return 1;
+  }
+  return 0;
+}
+
+int32_t pipeline_asm_emit_cmp_elf(void *arena, void *elf_ctx, int32_t cmp_expr_ref, void *ctx, int32_t ta) {
+  int32_t right_ref, left_ref, lit_imm, cc, enum_tag, cmp_ko, is_cmp_64bit, lt_ref, lt_kind, rt_ref, rt_kind, rk, var_off, left_ref2, vr;
+  if (!arena || cmp_expr_ref <= 0)
+    return -1;
+  if (pipeline_expr_const_folded_valid_at(arena, cmp_expr_ref) != 0)
+    return backend_enc_mov_imm32_to_w0_arch(elf_ctx, pipeline_expr_const_folded_val_at(arena, cmp_expr_ref), ta);
+  cmp_ko = pipeline_expr_kind_ord_at(arena, cmp_expr_ref);
+  left_ref = pipeline_expr_binop_left_ref_at(arena, cmp_expr_ref);
+  right_ref = pipeline_expr_binop_right_ref_at(arena, cmp_expr_ref);
+  is_cmp_64bit = 0;
+  if (left_ref > 0) {
+    lt_ref = pipeline_expr_resolved_type_ref(arena, left_ref);
+    if (lt_ref > 0) {
+      lt_kind = pipeline_type_kind_ord_at(arena, lt_ref);
+      is_cmp_64bit = glue_type_kind_is_64bit_int_seed(lt_kind);
+    }
+    if (is_cmp_64bit == 0 && pipeline_expr_kind_ord_at(arena, left_ref) == 48) {
+      rk = pipeline_asm_call_return_type_kind_ord_c(arena, left_ref);
+      if (rk == 5 || rk == 4 || rk == 6 || rk == 7 || rk == 9)
+        is_cmp_64bit = 1;
+    }
+  }
+  if (is_cmp_64bit == 0 && right_ref > 0) {
+    rt_ref = pipeline_expr_resolved_type_ref(arena, right_ref);
+    if (rt_ref > 0) {
+      rt_kind = pipeline_type_kind_ord_at(arena, rt_ref);
+      is_cmp_64bit = glue_type_kind_is_64bit_int_seed(rt_kind);
+    }
+    if (is_cmp_64bit == 0 && pipeline_expr_kind_ord_at(arena, right_ref) == 48) {
+      rk = pipeline_asm_call_return_type_kind_ord_c(arena, right_ref);
+      if (rk == 5 || rk == 4 || rk == 6 || rk == 7 || rk == 9)
+        is_cmp_64bit = 1;
+    }
+  }
+  if (left_ref > 0 && right_ref > 0 && pipeline_expr_kind_ord_at(arena, left_ref) == 48 &&
+      cmp_expr_lit_i32_seed(arena, right_ref, &lit_imm) && lit_imm == 0 && (cmp_ko == 14 || cmp_ko == 15)) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    cc = pipeline_asm_cmp_cc_for_expr_kind_ord(cmp_ko);
+    if (cc < 0)
+      return -1;
+    if (glue_emit_rex_w_if_64bit_seed(elf_ctx, is_cmp_64bit, ta) != 0)
+      return -1;
+    if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta) != 0)
+      return -1;
+    return 0;
+  }
+  if (right_ref > 0 && (enum_tag = pipeline_asm_cmp_enum_rhs_tag_seed(arena, right_ref)) >= 0) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, cmp_expr_ref), ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, enum_tag, ta) != 0)
+      return -1;
+    cc = pipeline_asm_cmp_cc_for_expr_kind_ord(pipeline_expr_kind_ord_at(arena, cmp_expr_ref));
+    if (cc < 0)
+      return -1;
+    return glue_emit_cmp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+  }
+  if (left_ref > 0 && right_ref > 0 && pipeline_expr_kind_ord_at(arena, left_ref) == 3 &&
+      !glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+      !glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+      cmp_expr_lit_i32_seed(arena, right_ref, &lit_imm)) {
+    var_off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
+    if (var_off >= 0) {
+      cc = pipeline_asm_cmp_cc_for_expr_kind_ord(cmp_ko);
+      if (cc < 0)
+        return -1;
+      if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, var_off, ta) != 0)
+        return -1;
+      if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, lit_imm, ta) != 0)
+        return -1;
+      return glue_emit_cmp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+    }
+  }
+  if (right_ref != 0 && !glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+      !glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+      cmp_expr_lit_i32_seed(arena, right_ref, &lit_imm)) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, cmp_expr_ref), ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, lit_imm, ta) != 0)
+      return -1;
+    cc = pipeline_asm_cmp_cc_for_expr_kind_ord(pipeline_expr_kind_ord_at(arena, cmp_expr_ref));
+    if (cc < 0)
+      return -1;
+    return glue_emit_cmp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+  }
+  if (left_ref > 0 && right_ref > 0 &&
+      !glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) &&
+      !glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref) &&
+      !glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+      !glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+      cmp_expr_lit_i32_seed(arena, left_ref, &lit_imm)) {
+    var_off = -1;
+    if (pipeline_expr_kind_ord_at(arena, right_ref) == 3)
+      var_off = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref);
+    cc = pipeline_asm_cmp_cc_for_expr_kind_ord(cmp_ko);
+    if (cc < 0)
+      return -1;
+    if (var_off >= 0) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta) != 0)
+        return -1;
+    } else {
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+        return -1;
+    }
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rbx();
+    return glue_emit_cmp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+  }
+  left_ref2 = pipeline_expr_binop_left_ref_at(arena, cmp_expr_ref);
+  vr = glue_try_binop_cmp_rbx_rax_elf_c(arena, elf_ctx, left_ref2, right_ref, ctx, ta);
+  if (vr == -1)
+    return -1;
+  if (vr == -2) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref2, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  cc = pipeline_asm_cmp_cc_for_expr_kind_ord(pipeline_expr_kind_ord_at(arena, cmp_expr_ref));
+  if (cc < 0)
+    return -1;
+  return glue_emit_cmp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+}
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
