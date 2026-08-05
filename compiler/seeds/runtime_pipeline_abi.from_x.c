@@ -24909,5 +24909,17 @@ int32_t pipeline_asm_emit_continue_elf_c(void *arena, void *elf_ctx, void *ctx, 
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/*
+ * wave163 cold twin: glue_binop_cache_intersect_live_fwd.
+ * Freestanding-safe no-op stub. Hybrid product links pure.
+ * PLATFORM: SHARED.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+void glue_binop_cache_intersect_live_fwd(void) {
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

@@ -1021,7 +1021,29 @@ export extern "C" function glue_asm73_clear_spill_color_map(): void;
 export extern "C" function glue_block_live_fwd_before_stmt(stmt_i: i32, ta: i32, elf_ctx: *u8): void;
 export extern "C" function glue_block_live_fwd_apply_top_stmt(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32, stmt_i: i32): void;
 export extern "C" function glue_live_fwd_forward_after_def(arena: *u8, ctx: *u8, def_off: i32, init_ref: i32): void;
-export extern "C" function glue_binop_cache_intersect_live_fwd(): void;
+/* wave163: pure owns glue_binop_cache_intersect_live_fwd (#[no_mangle] below). */
+export extern "C" function glue_block_live_fwd_contains_off(off: i32): i32;
+export extern "C" function glue_binop_var_slot_cache_valid_x10_get(): i32;
+export extern "C" function glue_binop_var_slot_cache_valid_x11_get(): i32;
+export extern "C" function glue_binop_var_slot_cache_valid_x12_get(): i32;
+export extern "C" function glue_binop_var_slot_cache_valid_x13_get(): i32;
+export extern "C" function glue_binop_var_slot_cache_valid_x14_get(): i32;
+export extern "C" function glue_binop_var_slot_cache_valid_x15_get(): i32;
+export extern "C" function glue_binop_var_slot_cache_x10_off_get(): i32;
+export extern "C" function glue_binop_var_slot_cache_x11_off_get(): i32;
+export extern "C" function glue_binop_var_slot_cache_x12_off_get(): i32;
+export extern "C" function glue_binop_var_slot_cache_x13_off_get(): i32;
+export extern "C" function glue_binop_var_slot_cache_x14_off_get(): i32;
+export extern "C" function glue_binop_var_slot_cache_x15_off_get(): i32;
+export extern "C" function glue_binop_var_slot_cache_set_valid_x10(v: i32): void;
+export extern "C" function glue_binop_var_slot_cache_set_valid_x11(v: i32): void;
+export extern "C" function glue_binop_var_slot_cache_set_valid_x12(v: i32): void;
+export extern "C" function glue_binop_var_slot_cache_set_valid_x13(v: i32): void;
+export extern "C" function glue_binop_var_slot_cache_set_valid_x14(v: i32): void;
+export extern "C" function glue_binop_var_slot_cache_set_valid_x15(v: i32): void;
+export extern "C" function glue_binop_stack_spill_n_get(): i32;
+export extern "C" function glue_binop_stack_spill_off_at(i: i32): i32;
+export extern "C" function glue_binop_stack_spill_drop_off(off: i32): void;
 // wave159 pure-owned: glue_block_stmt_order_has_cfg body in EOF section (was Cap residual spill).
 // wave156 pure-owned: glue_expr_kind_is_assign_like_ord + try_block_let_index_init + kill_assign_lhs in EOF.
 export extern "C" function glue_index_subadd3_sum_cache_clear(): void;
@@ -52942,3 +52964,103 @@ export function pipeline_asm_emit_continue_elf_c(arena: *u8, elf_ctx: *u8, ctx: 
 }
 
 // end wave162 pure-owned leave
+
+// ============================================================================
+// wave163 pure-owned leave: glue_binop_cache_intersect_live_fwd
+// (was Cap residual spill; prunes dead binop VAR slots + stack-spill table).
+// Cap residual: binop cache BSS + live_fwd BSS + stack_spill tables +
+// thin x10–x15 / contains_off / n_get / off_at / drop_off.
+// Cold twin under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * Intersect binop VAR slot cache (rax/rbx + arm64 x10–x15) and binop
+ * stack-spill metadata with the current global block_live_fwd set.
+ * Dead slots lose valid bits; dead stack-spill table entries are dropped
+ * (physical stack cleanup still happens at block end).
+ * No-op when live_fwd is inactive.
+ * @return void
+ * wave163 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 CFG / MACOS|ARM64 x10–x15 linear scan.
+ */
+#[no_mangle]
+export function glue_binop_cache_intersect_live_fwd(): void {
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let off: i32 = 0;
+  let active: i32 = 0;
+  unsafe {
+    active = glue_block_live_fwd_active_get();
+  }
+  if (active == 0) {
+    return;
+  }
+  // rax / rbx (already have residual thin accessors from wave149).
+  unsafe {
+    if (glue_binop_var_slot_cache_valid_rax_get() != 0) {
+      if (glue_block_live_fwd_contains_off(glue_binop_var_slot_cache_rax_off_get()) == 0) {
+        glue_binop_var_slot_cache_set_valid_rax(0);
+      }
+    }
+    if (glue_binop_var_slot_cache_valid_rbx_get() != 0) {
+      if (glue_block_live_fwd_contains_off(glue_binop_var_slot_cache_rbx_off_get()) == 0) {
+        glue_binop_var_slot_cache_set_valid_rbx(0);
+      }
+    }
+    // arm64 linear-scan spill slots x10–x15.
+    if (glue_binop_var_slot_cache_valid_x10_get() != 0) {
+      if (glue_block_live_fwd_contains_off(glue_binop_var_slot_cache_x10_off_get()) == 0) {
+        glue_binop_var_slot_cache_set_valid_x10(0);
+      }
+    }
+    if (glue_binop_var_slot_cache_valid_x11_get() != 0) {
+      if (glue_block_live_fwd_contains_off(glue_binop_var_slot_cache_x11_off_get()) == 0) {
+        glue_binop_var_slot_cache_set_valid_x11(0);
+      }
+    }
+    if (glue_binop_var_slot_cache_valid_x12_get() != 0) {
+      if (glue_block_live_fwd_contains_off(glue_binop_var_slot_cache_x12_off_get()) == 0) {
+        glue_binop_var_slot_cache_set_valid_x12(0);
+      }
+    }
+    if (glue_binop_var_slot_cache_valid_x13_get() != 0) {
+      if (glue_block_live_fwd_contains_off(glue_binop_var_slot_cache_x13_off_get()) == 0) {
+        glue_binop_var_slot_cache_set_valid_x13(0);
+      }
+    }
+    if (glue_binop_var_slot_cache_valid_x14_get() != 0) {
+      if (glue_block_live_fwd_contains_off(glue_binop_var_slot_cache_x14_off_get()) == 0) {
+        glue_binop_var_slot_cache_set_valid_x14(0);
+      }
+    }
+    if (glue_binop_var_slot_cache_valid_x15_get() != 0) {
+      if (glue_block_live_fwd_contains_off(glue_binop_var_slot_cache_x15_off_get()) == 0) {
+        glue_binop_var_slot_cache_set_valid_x15(0);
+      }
+    }
+  }
+  // Drop stack-spill table entries whose slot is no longer live (same as residual for-loop).
+  i = 0;
+  while (true) {
+    unsafe {
+      n = glue_binop_stack_spill_n_get();
+    }
+    if (i >= n) {
+      break;
+    }
+    unsafe {
+      off = glue_binop_stack_spill_off_at(i);
+    }
+    unsafe {
+      if (glue_block_live_fwd_contains_off(off) != 0) {
+        i = i + 1;
+      } else {
+        // drop_off shifts later entries down; re-check index i.
+        glue_binop_stack_spill_drop_off(off);
+      }
+    }
+  }
+}
+
+// end wave163 pure-owned leave

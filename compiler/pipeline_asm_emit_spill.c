@@ -42,8 +42,13 @@
  * Residual keeps live_fwd BSS + break/continue stacks + note_current +
  * push/pop (note is Cap residual thin face for pure emit).
  *
+ * wave163 pure-owned binop cache ∩ live_fwd (same pure TU):
+ *   · glue_binop_cache_intersect_live_fwd
+ * Residual keeps binop VAR cache BSS + live_fwd BSS + stack-spill tables +
+ * thin x10–x15 / contains_off / stack_spill n·off·drop accessors.
+ *
  * Cap residual authority remaining in this host leaf (same TU #include):
- *   · binop VAR slot cache BSS + accessors
+ *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
  *   · 7.3 live_fwd BSS / break-continue note + push/pop / Chaitin
  *   · Chaitin K=6 coloring + stack-spill preference + evict
  *   · index scratch spill methods + binop_stack_spill bodies
@@ -114,6 +119,10 @@ int32_t pipeline_asm_emit_break_elf_c(struct ast_ASTArena *arena, struct platfor
                                       struct backend_AsmFuncCtx *ctx, int32_t ta);
 int32_t pipeline_asm_emit_continue_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                          struct backend_AsmFuncCtx *ctx, int32_t ta);
+
+/* wave163 pure-owned face (extern; live in runtime_pipeline_abi pure).
+ * Residual: cache BSS + live_fwd contains + stack_spill drop thin faces. PLATFORM: SHARED. */
+void glue_binop_cache_intersect_live_fwd(void);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -570,43 +579,8 @@ void glue_live_fwd_collect_expr_uses(struct ast_ASTArena *arena, struct backend_
   }
 }
 
-/** 按当前前向活跃集修剪 binop 槽缓存（死槽不再命中 rax/rbx）。 */
-void glue_binop_cache_intersect_live_fwd(void) {
-  int32_t i;
-  if (!glue_block_live_fwd_active)
-    return;
-  if (glue_binop_var_slot_cache.valid_rax &&
-      !glue_live_fwd_contains(&glue_block_live_fwd, glue_binop_var_slot_cache.rax_off))
-    glue_binop_var_slot_cache.valid_rax = 0;
-  if (glue_binop_var_slot_cache.valid_rbx &&
-      !glue_live_fwd_contains(&glue_block_live_fwd, glue_binop_var_slot_cache.rbx_off))
-    glue_binop_var_slot_cache.valid_rbx = 0;
-  if (glue_binop_var_slot_cache.valid_x10 &&
-      !glue_live_fwd_contains(&glue_block_live_fwd, glue_binop_var_slot_cache.x10_off))
-    glue_binop_var_slot_cache.valid_x10 = 0;
-  if (glue_binop_var_slot_cache.valid_x11 &&
-      !glue_live_fwd_contains(&glue_block_live_fwd, glue_binop_var_slot_cache.x11_off))
-    glue_binop_var_slot_cache.valid_x11 = 0;
-  if (glue_binop_var_slot_cache.valid_x12 &&
-      !glue_live_fwd_contains(&glue_block_live_fwd, glue_binop_var_slot_cache.x12_off))
-    glue_binop_var_slot_cache.valid_x12 = 0;
-  if (glue_binop_var_slot_cache.valid_x13 &&
-      !glue_live_fwd_contains(&glue_block_live_fwd, glue_binop_var_slot_cache.x13_off))
-    glue_binop_var_slot_cache.valid_x13 = 0;
-  if (glue_binop_var_slot_cache.valid_x14 &&
-      !glue_live_fwd_contains(&glue_block_live_fwd, glue_binop_var_slot_cache.x14_off))
-    glue_binop_var_slot_cache.valid_x14 = 0;
-  if (glue_binop_var_slot_cache.valid_x15 &&
-      !glue_live_fwd_contains(&glue_block_live_fwd, glue_binop_var_slot_cache.x15_off))
-    glue_binop_var_slot_cache.valid_x15 = 0;
-  for (i = 0; i < glue_binop_stack_spill_n; ) {
-    if (glue_live_fwd_contains(&glue_block_live_fwd, glue_binop_stack_spill_off[i])) {
-      i++;
-      continue;
-    }
-    glue_binop_stack_spill_drop_off(glue_binop_stack_spill_off[i]);
-  }
-}
+/* wave163: pure owns glue_binop_cache_intersect_live_fwd (extern above).
+ * Residual: thin live_fwd contains + x10–x15 + stack_spill accessors. PLATFORM: SHARED. */
 
 /**
  * 为 stmt_order[i] 填 gen/kill（kill 为定义槽，gen 为右值/初值使用的 VAR 槽）。
@@ -2047,8 +2021,9 @@ void glue_binop_stack_spill_clear(void) {
   glue_binop_stack_spill_n = 0;
 }
 
-/** 从栈帧 spill 表移除栈槽 off（不 pop 实栈，块尾统一清理）。 */
-static void glue_binop_stack_spill_drop_off(int32_t off) {
+/** 从栈帧 spill 表移除栈槽 off（不 pop 实栈，块尾统一清理）。
+ * wave163 Cap residual: non-static face for pure intersect leave. PLATFORM: SHARED. */
+void glue_binop_stack_spill_drop_off(int32_t off) {
   int32_t i;
   int32_t j;
   if (off < 0)
@@ -2450,4 +2425,55 @@ void glue_block_live_fwd_union_from_u8(void *src) {
   if (!src)
     return;
   glue_live_fwd_union_into(&glue_block_live_fwd, (const GlueBlockLiveFwd *)src);
+}
+
+/* ========================================================================== *
+ * wave163 Cap residual: thin BSS accessors for pure binop cache ∩ live_fwd.
+ * Pure owns intersect algorithm; residual owns cache BSS + live_fwd + stack_spill
+ * tables (G.7 single authority). PLATFORM: SHARED freestanding 7.3.
+ * ========================================================================== */
+
+/**
+ * Return 1 if global glue_block_live_fwd contains stack slot off.
+ * @param off int32_t - stack frame slot offset; <0 → 0
+ * PLATFORM: SHARED freestanding emit.
+ */
+int32_t glue_block_live_fwd_contains_off(int32_t off) {
+  return glue_live_fwd_contains(&glue_block_live_fwd, off) ? 1 : 0;
+}
+
+/* arm64 linear-scan spill slots x10–x15 (mirror rax/rbx thin accessors). */
+int32_t glue_binop_var_slot_cache_valid_x10_get(void) { return glue_binop_var_slot_cache.valid_x10; }
+int32_t glue_binop_var_slot_cache_valid_x11_get(void) { return glue_binop_var_slot_cache.valid_x11; }
+int32_t glue_binop_var_slot_cache_valid_x12_get(void) { return glue_binop_var_slot_cache.valid_x12; }
+int32_t glue_binop_var_slot_cache_valid_x13_get(void) { return glue_binop_var_slot_cache.valid_x13; }
+int32_t glue_binop_var_slot_cache_valid_x14_get(void) { return glue_binop_var_slot_cache.valid_x14; }
+int32_t glue_binop_var_slot_cache_valid_x15_get(void) { return glue_binop_var_slot_cache.valid_x15; }
+int32_t glue_binop_var_slot_cache_x10_off_get(void) { return glue_binop_var_slot_cache.x10_off; }
+int32_t glue_binop_var_slot_cache_x11_off_get(void) { return glue_binop_var_slot_cache.x11_off; }
+int32_t glue_binop_var_slot_cache_x12_off_get(void) { return glue_binop_var_slot_cache.x12_off; }
+int32_t glue_binop_var_slot_cache_x13_off_get(void) { return glue_binop_var_slot_cache.x13_off; }
+int32_t glue_binop_var_slot_cache_x14_off_get(void) { return glue_binop_var_slot_cache.x14_off; }
+int32_t glue_binop_var_slot_cache_x15_off_get(void) { return glue_binop_var_slot_cache.x15_off; }
+void glue_binop_var_slot_cache_set_valid_x10(int32_t v) { glue_binop_var_slot_cache.valid_x10 = v; }
+void glue_binop_var_slot_cache_set_valid_x11(int32_t v) { glue_binop_var_slot_cache.valid_x11 = v; }
+void glue_binop_var_slot_cache_set_valid_x12(int32_t v) { glue_binop_var_slot_cache.valid_x12 = v; }
+void glue_binop_var_slot_cache_set_valid_x13(int32_t v) { glue_binop_var_slot_cache.valid_x13 = v; }
+void glue_binop_var_slot_cache_set_valid_x14(int32_t v) { glue_binop_var_slot_cache.valid_x14 = v; }
+void glue_binop_var_slot_cache_set_valid_x15(int32_t v) { glue_binop_var_slot_cache.valid_x15 = v; }
+
+/** Current binop stack-spill table length (metadata only). PLATFORM: SHARED. */
+int32_t glue_binop_stack_spill_n_get(void) {
+  return glue_binop_stack_spill_n;
+}
+
+/**
+ * Stack-slot offset at index i in binop stack-spill table.
+ * @param i int32_t - 0..n-1; out of range → -1
+ * PLATFORM: SHARED freestanding emit.
+ */
+int32_t glue_binop_stack_spill_off_at(int32_t i) {
+  if (i < 0 || i >= glue_binop_stack_spill_n)
+    return -1;
+  return glue_binop_stack_spill_off[i];
 }
