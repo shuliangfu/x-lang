@@ -102,6 +102,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_typeck_region_assign.c|8.3.1|typeck region/escape assign-site slice|350|present"
   "compiler/pipeline_asm_emit_unary.c|8.3.1|asm ELF unary emit (wave133 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_as.c|8.3.1|asm ELF as/await/try/float-lit emit (wave138 pure-owned leave)|0|absent"
+  "compiler/pipeline_asm_emit_modlet.c|8.3.1|asm ELF modlet COMMON cell emit (wave139 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_return.c|8.3.1|asm ELF return emit (slice escape + impl + public face) slice|550|present"
   "compiler/pipeline_asm_emit_logand.c|8.3.1|asm ELF LOGAND/LOGOR short-circuit emit (wave128 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_block_body.c|8.3.1|asm ELF block body sync emit (defer + body_sync) slice|700|present"

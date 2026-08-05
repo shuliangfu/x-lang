@@ -9091,6 +9091,12 @@ fi
 if grep -qE 'pipeline_asm_emit_as\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_as.c (wave138 pure-owned leave)"
 fi
+if grep -qE 'pipeline_asm_emit_modlet\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_modlet.c (wave139 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_modlet.c" ]; then
+  bad "pipeline_asm_emit_modlet.c must be deleted (wave139 pure-owned leave)"
+fi
 if ! grep -qE 'pipeline_asm_emit_return\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_asm_emit_return.c (8.3.1 asm_emit_return slice)"
 fi

@@ -312,10 +312,10 @@ extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
  * pure; same TU). eff_addr_scaled → pipeline_asm_emit_index_eff_addr.c. */
 #include "pipeline_asm_emit_spill.c"
 
-/* BC 8.3.1: asm ELF module-level mutable let (modlet) COMMON cell emit domain
- * (table + lea/load/store/prepare/seed/register; same TU). Must precede assign.c
- * (store_from_rax + modlet_name_is_shared callsites) and expr_rec.c (load_to_rax). */
-#include "pipeline_asm_emit_modlet.c"
+/* wave139 pure-owned leave: pipeline_asm_emit_modlet.c deleted.
+ * Live = runtime_pipeline_abi pure (table BSS + 7 public faces); seed cold twins
+ * under #ifndef FROM_X. Residual C callsites (assign/expr_rec/mega_body/top_level)
+ * use extern decls in pipeline_glue_early_fwd.c. PLATFORM: SHARED. */
 
 
 /* wave1291 G.7: glue_var_decl_type_ref_elf_c late redecl removed — now covered
@@ -984,12 +984,7 @@ extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *
  * resolved via fwd decls.
  * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
-/* wave1100 G.7: modlet ELF emit domain (12 functions + typedef + macro + global)
- * migrated to pipeline_asm_emit_modlet.c (same-TU #include at L2291). Members:
- * pipeline_asm_modlet_reset / _name_is_shared / _find / _lea_rbx_rip_x86 /
- * _lea_rbx_adrp_arm64 / _lea_rbx_arch / _load_to_rax_elf_c / _store_from_rax_elf_c /
- * _prepare_and_emit_elf_c / _seed_nonzero_inits_elf_c / _register_module_top_level_lets_c /
- * _emit_module_top_level_mutable_lit_inits_elf_c. PLATFORM: SHARED. */
+/* wave139: modlet domain pure-owned leave (was wave1100 same-TU #include). Live=runtime_pipeline_abi pure; residual callsites via early_fwd extern. PLATFORM: SHARED. */
 
 /**
  * 栈帧大小：模拟 fill_param + 块树 fill_local 后的 next_offset（真实 struct/vector 槽宽）

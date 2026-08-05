@@ -192,9 +192,21 @@ int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_
 int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out);
 /** PLATFORM: MACOS pure-asm MH_OBJECT; strong platform_macho_write overrides Darwin weak stubs. */
 int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf);
-/* wave1100 G.7: pipeline_asm_modlet_name_is_shared + load_to_rax + store_from_rax +
- * prepare_and_emit migrated to pipeline_asm_emit_modlet.c (same-TU #include at L2291,
- * before all callsites: assign.c store + expr_rec.c load + glue.c L8257+ prepare/seed). */
+/* wave139 pure-owned leave: modlet faces live in runtime_pipeline_abi pure
+ * (#[no_mangle]); residual C callsites need these externs (was same-TU #include). */
+int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len);
+int32_t pipeline_asm_modlet_load_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+                                              int32_t name_len, int32_t ta);
+int32_t pipeline_asm_modlet_store_from_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+                                                 int32_t name_len, int32_t ta);
+int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+void pipeline_asm_register_module_top_level_lets_c(struct backend_AsmFuncCtx *ctx, struct ast_Module *m,
+                                                    struct ast_ASTArena *a, int32_t func_index);
+int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(
+    struct ast_ASTArena *a, struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx,
+    struct ast_Module *m, int32_t func_index, int32_t ta);
 /* ast_pool.c — SHN_COMMON object symbols (modlet + wave341 non-const array-lit durable). */
 int32_t pipeline_elf_ctx_add_common_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t size,
                                         int32_t align);

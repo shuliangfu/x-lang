@@ -4,6 +4,10 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave139: pipeline_asm_emit_modlet.c pure-owned leave (modlet table + load/store/
+//   prepare/seed/register/lit_inits). Cap residual: top_level/is_const/type_ref +
+//   elf common_sym/append/reloc + enc load/store/mov + hoist + let_init_reserve +
+//   asm_ctx local faces (LP64 next_offset/num_locals via pipe_load).
 // wave138: pipeline_asm_emit_as.c pure-owned leave (as/await/try/float-lit faces).
 // wave137: pipeline_asm_emit_cmp.c pure-owned leave (cmp_elf + cc + typekind + arm64_cset).
 // wave136: pipeline_asm_emit_fold_primitives.c pure-owned leave (13 fold detectors).
@@ -442,6 +446,17 @@ export extern "C" function codegen_wpo_mono_sym_format(base: *u8, nargs: i32, ar
 export extern "C" function backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta: i32): i32;
 export extern "C" function backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
+// wave139 Cap residual: modlet pure leave callees (still host-cc residual / pool / enc).
+// PLATFORM: SHARED freestanding emit — pure owns modlet table BSS + 7 public faces.
+export extern "C" function pipeline_module_top_level_let_is_const(module: *u8, idx: i32): i32;
+export extern "C" function pipeline_module_top_level_let_type_ref(module: *u8, idx: i32): i32;
+export extern "C" function pipeline_elf_ctx_add_common_sym(ctx: *u8, name: *u8, name_len: i32, sym_size: i32, sym_align: i32): i32;
+export extern "C" function pipeline_asm_hoist_target_func_index(module: *u8): i32;
+export extern "C" function pipeline_asm_let_init_stack_reserve_bytes(arena: *u8, type_ref: i32, init_ref: i32): i32;
+export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz: i32, ta: i32): i32;
+export extern "C" function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+
 export extern "C" function pipeline_dep_ctx_target_arch(ctx: *u8): i32;
 
 // wave78: xlang_fputs_stdout / driver_asm_fp_is_stdout / driver_asm_fclose_file are pure below.
@@ -27564,4 +27579,718 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
 #[no_mangle]
 export function pipeline_asm_emit_as_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   return pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+// ---------------------------------------------------------------------------
+// wave139: pipeline_asm_emit_modlet pure-owned leave
+// (was pipeline_asm_emit_modlet.c).
+// G.7 product authority for:
+//   pipeline_asm_modlet_name_is_shared
+//   pipeline_asm_modlet_load_to_rax_elf_c
+//   pipeline_asm_modlet_store_from_rax_elf_c
+//   pipeline_asm_modlet_prepare_and_emit_elf_c
+//   pipeline_asm_modlet_seed_nonzero_inits_elf_c
+//   pipeline_asm_register_module_top_level_lets_c
+//   pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c
+// Table BSS layout ≡ C pipeline_asm_modlet_table_t (XLANG_ASM_MODLET_MAX=64):
+//   n@0 (i32)
+//   name_len[64]@4 (256B)
+//   name[64][128]@260 (8192B)
+//   label_len[64]@8452 (256B)
+//   label[64][24]@8708 (1536B)
+//   init_imm[64]@10244 (256B)
+//   total 10500B
+// Cap residual: top_level is_const/type_ref + common_sym + enc load/store/mov +
+//   hoist_target + let_init_stack_reserve + asm_ctx local faces + pipe module/arena
+//   num getters (LP64).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED freestanding · LINUX|UBUNTU x86_64 R_X86_64_PC32 ·
+//   MACOS|ARM64 PAGE21/PAGEOFF12 (wave405)
+// ---------------------------------------------------------------------------
+
+// wave139: modlet shared mutable cell table (max 64). Reset each mega emit.
+// PLATFORM: SHARED - layout matches host-cc pipeline_asm_modlet_table_t.
+let g_pipeline_asm_modlet: u8[10500] = [];
+
+function pipe_modlet_off_n(): i32 {
+  return 0;
+}
+
+function pipe_modlet_off_name_len(i: i32): i32 {
+  return 4 + (i * 4);
+}
+
+function pipe_modlet_off_name(i: i32): i32 {
+  return 260 + (i * 128);
+}
+
+function pipe_modlet_off_label_len(i: i32): i32 {
+  return 8452 + (i * 4);
+}
+
+function pipe_modlet_off_label(i: i32): i32 {
+  return 8708 + (i * 24);
+}
+
+function pipe_modlet_off_init_imm(i: i32): i32 {
+  return 10244 + (i * 4);
+}
+
+function pipe_modlet_get_n(): i32 {
+  return pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_n());
+}
+
+function pipe_modlet_set_n(n: i32): void {
+  pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_n(), n);
+}
+
+/**
+ * Reset the modlet table to empty (n=0).
+ * @return void
+ * wave139 pure: was static pipeline_asm_modlet_reset in modlet.c.
+ * PLATFORM: SHARED - O(1); called once per mega emit.
+ */
+function pipeline_asm_modlet_reset(): void {
+  pipe_modlet_set_n(0);
+}
+
+/**
+ * Find the modlet table index for a given name.
+ * @param name *u8 - name bytes; null -> -1
+ * @param name_len i32 - length; <=0 -> -1
+ * @return i32 - >=0 index on match; -1 on miss
+ * wave139 pure: was static pipeline_asm_modlet_find.
+ * PLATFORM: SHARED - linear scan; cold asm emit path.
+ */
+function pipeline_asm_modlet_find(name: *u8, name_len: i32): i32 {
+  if (name == 0 as *u8 || name_len <= 0) {
+    return 0 - 1;
+  }
+  let n: i32 = pipe_modlet_get_n();
+  let i: i32 = 0;
+  while (i < n) {
+    let nl: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_name_len(i));
+    if (nl == name_len) {
+      let k: i32 = 0;
+      let base: i32 = pipe_modlet_off_name(i);
+      while (k < name_len) {
+        let b: i32 = 0;
+        unsafe {
+          b = g_pipeline_asm_modlet[base + k] as i32;
+          if (b != (name[k] as i32)) {
+            break;
+          }
+        }
+        k = k + 1;
+      }
+      if (k == name_len) {
+        return i;
+      }
+    }
+    i = i + 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Check whether a name is a text-embedded module shared mutable let for this mega emit.
+ * @param name *u8 - candidate name; null -> 0
+ * @param name_len i32 - length
+ * @return i32 - 1 if registered modlet; 0 otherwise
+ * wave139 pure: G.7 authority (was pipeline_asm_emit_modlet.c).
+ * PLATFORM: SHARED - sole provider after leave; assign + top_level + register faces.
+ */
+#[no_mangle]
+export function pipeline_asm_modlet_name_is_shared(name: *u8, name_len: i32): i32 {
+  if (name == 0 as *u8 || name_len <= 0 || pipe_modlet_get_n() <= 0) {
+    return 0;
+  }
+  if (pipeline_asm_modlet_find(name, name_len) >= 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Emit lea rbx, [rip+disp32] for a modlet COMMON cell (x86_64).
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param idx i32 - table index
+ * @return i32 - 0 ok; -1 on failure
+ * wave139 pure: was static lea_rbx_rip_x86.
+ * PLATFORM: LINUX|UBUNTU x86_64 — R_X86_64_PC32 to SHN_COMMON BSS.
+ */
+function pipeline_asm_modlet_lea_rbx_rip_x86(elf_ctx: *u8, idx: i32): i32 {
+  let n: i32 = pipe_modlet_get_n();
+  if (elf_ctx == 0 as *u8 || idx < 0 || idx >= n) {
+    return 0 - 1;
+  }
+  let llen: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(idx));
+  let lbase: i32 = pipe_modlet_off_label(idx);
+  let lea7: u8[7] = [];
+  lea7[0] = 0x48 as u8;
+  lea7[1] = 0x8d as u8;
+  lea7[2] = 0x1d as u8;
+  lea7[3] = 0 as u8;
+  lea7[4] = 0 as u8;
+  lea7[5] = 0 as u8;
+  lea7[6] = 0 as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &lea7[0], 7);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let rel32_at: i32 = 0;
+  unsafe {
+    rel32_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, &g_pipeline_asm_modlet[lbase], llen);
+  }
+  return rc;
+}
+
+/**
+ * Emit adrp x1 + add x1,pageoff for a modlet COMMON cell (arm64).
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param idx i32 - table index
+ * @return i32 - 0 ok; -1 on failure
+ * wave139 pure: was static lea_rbx_adrp_arm64.
+ * PLATFORM: MACOS|ARM64 — ARM64_RELOC_PAGE21 + PAGEOFF12.
+ */
+function pipeline_asm_modlet_lea_rbx_adrp_arm64(elf_ctx: *u8, idx: i32): i32 {
+  let n: i32 = pipe_modlet_get_n();
+  if (elf_ctx == 0 as *u8 || idx < 0 || idx >= n) {
+    return 0 - 1;
+  }
+  let llen: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(idx));
+  let lbase: i32 = pipe_modlet_off_label(idx);
+  let adrp4: u8[4] = [];
+  adrp4[0] = 0x01 as u8;
+  adrp4[1] = 0x00 as u8;
+  adrp4[2] = 0x00 as u8;
+  adrp4[3] = 0x90 as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &adrp4[0], 4);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let adrp_at: i32 = 0;
+  unsafe {
+    adrp_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, adrp_at, &g_pipeline_asm_modlet[lbase], llen, 3, 1);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let add4: u8[4] = [];
+  add4[0] = 0x21 as u8;
+  add4[1] = 0x00 as u8;
+  add4[2] = 0x00 as u8;
+  add4[3] = 0x91 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &add4[0], 4);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let add_at: i32 = 0;
+  unsafe {
+    add_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, &g_pipeline_asm_modlet[lbase], llen, 4, 0);
+  }
+  return rc;
+}
+
+/**
+ * Dispatch lea rbx/x1 to modlet COMMON cell by target arch.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param idx i32 - table index
+ * @param ta i32 - 0 x86_64, 1 arm64
+ * @return i32 - 0 ok; -1 unsupported or encoder fail
+ * wave139 pure: was static lea_rbx_arch.
+ * PLATFORM: SHARED.
+ */
+function pipeline_asm_modlet_lea_rbx_arch(elf_ctx: *u8, idx: i32, ta: i32): i32 {
+  if (ta == 1) {
+    return pipeline_asm_modlet_lea_rbx_adrp_arm64(elf_ctx, idx);
+  }
+  if (ta == 0) {
+    return pipeline_asm_modlet_lea_rbx_rip_x86(elf_ctx, idx);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Load a shared modlet cell into rax/x0.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param name *u8 - modlet name
+ * @param name_len i32 - length
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 miss/null/bad arch
+ * wave139 pure: G.7 authority (was static load_to_rax_elf_c).
+ * Cap residual: backend_enc_load_qword_from_rbx_to_rax_arch (x86) + append_bytes (arm64 ldr).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
+  if ((ta != 0 && ta != 1) || elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let idx: i32 = pipeline_asm_modlet_find(name, name_len);
+  if (idx < 0) {
+    return 0 - 1;
+  }
+  if (pipeline_asm_modlet_lea_rbx_arch(elf_ctx, idx, ta) != 0) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    // ldr x0, [x1] = 0xf9400020
+    let ldr4: u8[4] = [];
+    ldr4[0] = 0x20 as u8;
+    ldr4[1] = 0x00 as u8;
+    ldr4[2] = 0x40 as u8;
+    ldr4[3] = 0xf9 as u8;
+    let rc: i32 = 0;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &ldr4[0], 4);
+    }
+    return rc;
+  }
+  let rc2: i32 = 0;
+  unsafe {
+    rc2 = backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta);
+  }
+  return rc2;
+}
+
+/**
+ * Store rax/x0 into a shared modlet cell.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param name *u8 - modlet name
+ * @param name_len i32 - length
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 miss/null/bad arch
+ * wave139 pure: G.7 authority (was static store_from_rax_elf_c).
+ * Cap residual: backend_enc_store_rax_to_rbx_indirect_arch (sz=8).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
+  if ((ta != 0 && ta != 1) || elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let idx: i32 = pipeline_asm_modlet_find(name, name_len);
+  if (idx < 0) {
+    return 0 - 1;
+  }
+  if (pipeline_asm_modlet_lea_rbx_arch(elf_ctx, idx, ta) != 0) {
+    return 0 - 1;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, 8, ta);
+  }
+  return rc;
+}
+
+/**
+ * Build the modlet table and emit SHN_COMMON symbols for module mutable lit lets.
+ * @param m *u8 - Module*
+ * @param a *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok (incl no-op); -1 COMMON emit fail
+ * wave139 pure: G.7 authority (was static prepare_and_emit_elf_c).
+ * Cap residual: top_level readers + expr_kind/int_val + common_sym + pipe nlets/nexprs.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_ctx: *u8, ta: i32): i32 {
+  pipeline_asm_modlet_reset();
+  if (m == 0 as *u8 || a == 0 as *u8 || elf_ctx == 0 as *u8 || (ta != 0 && ta != 1)) {
+    return 0;
+  }
+  let nlets: i32 = pipe_mod_get_num_top_level_lets(m);
+  if (nlets <= 0) {
+    return 0;
+  }
+  let nexprs: i32 = pipe_load_i32_le(a, pipe_arena_off_num_exprs());
+  let tl: i32 = 0;
+  while (tl < nlets) {
+    if (pipe_modlet_get_n() >= 64) {
+      break;
+    }
+    let is_const: i32 = 0;
+    unsafe {
+      is_const = pipeline_module_top_level_let_is_const(m, tl);
+    }
+    if (is_const != 0) {
+      tl = tl + 1;
+      continue;
+    }
+    let name_len: i32 = 0;
+    unsafe {
+      name_len = pipeline_module_top_level_let_name_len(m, tl);
+    }
+    if (name_len <= 0 || name_len > 127) {
+      tl = tl + 1;
+      continue;
+    }
+    let init_ref: i32 = 0;
+    unsafe {
+      init_ref = pipeline_module_top_level_let_init_ref(m, tl);
+    }
+    if (init_ref <= 0 || init_ref > nexprs) {
+      tl = tl + 1;
+      continue;
+    }
+    let init_kind: i32 = 0;
+    unsafe {
+      init_kind = pipeline_expr_kind_ord_at(a, init_ref);
+    }
+    if (init_kind != 0 && init_kind != 2) {
+      tl = tl + 1;
+      continue;
+    }
+    let idx: i32 = pipe_modlet_get_n();
+    pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_name_len(idx), name_len);
+    let k: i32 = 0;
+    let nbase: i32 = pipe_modlet_off_name(idx);
+    while (k < name_len) {
+      let b: i32 = 0;
+      unsafe {
+        b = pipeline_module_top_level_let_name_byte_at(m, tl, k);
+        g_pipeline_asm_modlet[nbase + k] = b as u8;
+      }
+      k = k + 1;
+    }
+    let imm: i32 = 0;
+    unsafe {
+      imm = pipeline_expr_int_val_at(a, init_ref);
+    }
+    pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(idx), imm);
+    // Symbol: Lxlang_ml_<idx>
+    let llen: i32 = 0;
+    let lbase: i32 = pipe_modlet_off_label(idx);
+    let pfx: u8[10] = [];
+    pfx[0] = 76 as u8;
+    pfx[1] = 120 as u8;
+    pfx[2] = 108 as u8;
+    pfx[3] = 97 as u8;
+    pfx[4] = 110 as u8;
+    pfx[5] = 103 as u8;
+    pfx[6] = 95 as u8;
+    pfx[7] = 109 as u8;
+    pfx[8] = 108 as u8;
+    pfx[9] = 95 as u8;
+    let pi: i32 = 0;
+    while (pi < 10 && llen < 16) {
+      unsafe {
+        g_pipeline_asm_modlet[lbase + llen] = pfx[pi];
+      }
+      llen = llen + 1;
+      pi = pi + 1;
+    }
+    let digs: u8[8] = [];
+    let nd: i32 = 0;
+    let v: i32 = idx;
+    if (v == 0) {
+      digs[0] = 48 as u8;
+      nd = 1;
+    } else {
+      while (v > 0 && nd < 8) {
+        let dig: i32 = v % 10;
+        digs[nd] = (48 + dig) as u8;
+        nd = nd + 1;
+        v = v / 10;
+      }
+    }
+    let di: i32 = nd - 1;
+    while (di >= 0 && llen < 23) {
+      unsafe {
+        g_pipeline_asm_modlet[lbase + llen] = digs[di];
+      }
+      llen = llen + 1;
+      di = di - 1;
+    }
+    pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(idx), llen);
+    pipe_modlet_set_n(idx + 1);
+    tl = tl + 1;
+  }
+  let i: i32 = 0;
+  let nn: i32 = pipe_modlet_get_n();
+  while (i < nn) {
+    let llen2: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(i));
+    let lbase2: i32 = pipe_modlet_off_label(i);
+    let rc: i32 = 0;
+    unsafe {
+      rc = pipeline_elf_ctx_add_common_sym(elf_ctx, &g_pipeline_asm_modlet[lbase2], llen2, 8, 8);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+
+}
+
+/**
+ * Seed non-zero COMMON cells once on hoist-target entry.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 mov/store fail
+ * wave139 pure: G.7 authority (was static seed_nonzero_inits_elf_c).
+ * Cap residual: backend_enc_mov_imm64_to_rax_arch + store_from_rax pure face.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i32): i32 {
+  if (elf_ctx == 0 as *u8 || (ta != 0 && ta != 1)) {
+    return 0;
+  }
+  let n: i32 = pipe_modlet_get_n();
+  let i: i32 = 0;
+  while (i < n) {
+    let imm: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i));
+    if (imm != 0) {
+      let rc: i32 = 0;
+      unsafe {
+        rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      let nlen: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_name_len(i));
+      let nbase: i32 = pipe_modlet_off_name(i);
+      if (pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx, &g_pipeline_asm_modlet[nbase], nlen, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Register module top-level lets into a non-hoist function frame.
+ * @param ctx *u8 - AsmFuncCtx* / layout*
+ * @param m *u8 - Module*
+ * @param a *u8 - ASTArena*
+ * @param func_index i32 - current function index
+ * @return void
+ * wave139 pure: G.7 authority (was static register_module_top_level_lets_c).
+ * Cap residual: hoist_target + top_level readers + asm_ctx local + slot_reg + let_init_reserve.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_register_module_top_level_lets_c(ctx: *u8, m: *u8, a: *u8, func_index: i32): void {
+  if (ctx == 0 as *u8 || m == 0 as *u8 || a == 0 as *u8) {
+    return;
+  }
+  let nlets: i32 = pipe_mod_get_num_top_level_lets(m);
+  if (nlets <= 0) {
+    return;
+  }
+  let ly: *u8 = pipeline_asm_ctx_layout(ctx);
+  if (ly == 0 as *u8) {
+    return;
+  }
+  let hoist: i32 = 0;
+  unsafe {
+    hoist = pipeline_asm_hoist_target_func_index(m);
+  }
+  if (func_index == hoist) {
+    return;
+  }
+  let off: i32 = pipe_load_i32_le(ly, pipe_asm_ctx_off_next_offset());
+  let nexprs: i32 = pipe_load_i32_le(a, pipe_arena_off_num_exprs());
+  let tl: i32 = 0;
+  while (tl < nlets) {
+    let name_len: i32 = 0;
+    unsafe {
+      name_len = pipeline_module_top_level_let_name_len(m, tl);
+    }
+    if (name_len <= 0 || name_len > 127) {
+      tl = tl + 1;
+      continue;
+    }
+    let name_buf: u8[128] = [];
+    let k: i32 = 0;
+    while (k < name_len) {
+      let b: i32 = 0;
+      unsafe {
+        b = pipeline_module_top_level_let_name_byte_at(m, tl, k);
+        name_buf[k] = b as u8;
+      }
+      k = k + 1;
+    }
+    let found: i32 = 0;
+    unsafe {
+      found = asm_ctx_local_find_offset(ctx, &name_buf[0], name_len);
+    }
+    if (found >= 0) {
+      tl = tl + 1;
+      continue;
+    }
+    if (pipeline_asm_modlet_name_is_shared(&name_buf[0], name_len) != 0) {
+      tl = tl + 1;
+      continue;
+    }
+    let type_ref: i32 = 0;
+    let init_ref: i32 = 0;
+    let is_const: i32 = 0;
+    unsafe {
+      type_ref = pipeline_module_top_level_let_type_ref(m, tl);
+      init_ref = pipeline_module_top_level_let_init_ref(m, tl);
+      is_const = pipeline_module_top_level_let_is_const(m, tl);
+    }
+    if (is_const != 0 && init_ref > 0 && init_ref <= nexprs) {
+      let init_kind: i32 = 0;
+      unsafe {
+        init_kind = pipeline_expr_kind_ord_at(a, init_ref);
+      }
+      if (init_kind == 0 || init_kind == 2) {
+        tl = tl + 1;
+        continue;
+      }
+    }
+    let off_slot: i32[1] = [];
+    off_slot[0] = off;
+    let slot_off: i32 = 0;
+    unsafe {
+      slot_off = asm_local_slot_reg_offset(a, type_ref, off, &off_slot[0]);
+    }
+    off = off_slot[0];
+    let ap: i32 = 0;
+    unsafe {
+      ap = asm_ctx_local_append(ctx, &name_buf[0], name_len, slot_off);
+    }
+    if (ap < 0) {
+      return;
+    }
+    let reserve: i32 = 0;
+    unsafe {
+      reserve = pipeline_asm_let_init_stack_reserve_bytes(a, type_ref, init_ref);
+    }
+    off = off + reserve;
+    tl = tl + 1;
+  }
+  pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), off);
+  let nloc: i32 = 0;
+  unsafe {
+    nloc = asm_ctx_local_count(ctx);
+  }
+  pipe_store_i32_le(ly, pipe_asm_ctx_off_num_locals(), nloc);
+}
+
+/**
+ * Seed registered mutable top-level lit slots with init imm on non-hoist funcs.
+ * @param a *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param m *u8 - Module*
+ * @param func_index i32 - function index
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 mov/store fail
+ * wave139 pure: G.7 authority (was static emit_module_top_level_mutable_lit_inits_elf_c).
+ * Cap residual: hoist + top_level + asm_ctx_local_find + mov_imm64 + store_rbp.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(a: *u8, elf_ctx: *u8, ctx: *u8, m: *u8, func_index: i32, ta: i32): i32 {
+  if (a == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || m == 0 as *u8) {
+    return 0;
+  }
+  let nlets: i32 = pipe_mod_get_num_top_level_lets(m);
+  if (nlets <= 0) {
+    return 0;
+  }
+  let hoist: i32 = 0;
+  unsafe {
+    hoist = pipeline_asm_hoist_target_func_index(m);
+  }
+  if (func_index == hoist) {
+    return 0;
+  }
+  let nexprs: i32 = pipe_load_i32_le(a, pipe_arena_off_num_exprs());
+  let tl: i32 = 0;
+  while (tl < nlets) {
+    let is_const: i32 = 0;
+    unsafe {
+      is_const = pipeline_module_top_level_let_is_const(m, tl);
+    }
+    if (is_const != 0) {
+      tl = tl + 1;
+      continue;
+    }
+    let name_len: i32 = 0;
+    unsafe {
+      name_len = pipeline_module_top_level_let_name_len(m, tl);
+    }
+    if (name_len <= 0 || name_len > 127) {
+      tl = tl + 1;
+      continue;
+    }
+    let name_buf: u8[128] = [];
+    let k: i32 = 0;
+    while (k < name_len) {
+      let b: i32 = 0;
+      unsafe {
+        b = pipeline_module_top_level_let_name_byte_at(m, tl, k);
+        name_buf[k] = b as u8;
+      }
+      k = k + 1;
+    }
+    name_buf[name_len] = 0 as u8;
+    if (pipeline_asm_modlet_name_is_shared(&name_buf[0], name_len) != 0) {
+      tl = tl + 1;
+      continue;
+    }
+    let off: i32 = 0;
+    unsafe {
+      off = asm_ctx_local_find_offset(ctx, &name_buf[0], name_len);
+    }
+    if (off < 0) {
+      tl = tl + 1;
+      continue;
+    }
+    let init_ref: i32 = 0;
+    unsafe {
+      init_ref = pipeline_module_top_level_let_init_ref(m, tl);
+    }
+    if (init_ref <= 0 || init_ref > nexprs) {
+      tl = tl + 1;
+      continue;
+    }
+    let init_kind: i32 = 0;
+    unsafe {
+      init_kind = pipeline_expr_kind_ord_at(a, init_ref);
+    }
+    if (init_kind != 0 && init_kind != 2) {
+      tl = tl + 1;
+      continue;
+    }
+    let imm: i32 = 0;
+    unsafe {
+      imm = pipeline_expr_int_val_at(a, init_ref);
+    }
+    let rc: i32 = 0;
+    unsafe {
+      rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    tl = tl + 1;
+  }
+  return 0;
 }
