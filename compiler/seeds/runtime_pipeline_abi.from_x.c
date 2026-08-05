@@ -2,6 +2,7 @@
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
  * wave172: minus_pair/subadd3 cache spill pure leave cold twins under #ifndef FROM_X
  * wave171: index-scratch enc push/reload/pop pure leave cold twins under #ifndef FROM_X
+ * wave174: spill_reg_to_spill + evict_rax|rbx pure leave cold twins under #ifndef FROM_X
  * wave170: binop try_reload pure leave cold twin under #ifndef FROM_X
  * wave169: index-scratch pure leave cold twins under #ifndef FROM_X
  * wave168: cfg simulate walk pure leave cold twins under #ifndef FROM_X
@@ -25213,6 +25214,37 @@ void glue_block_live_fwd_apply_top_stmt(void *arena, void *ctx, int32_t block_re
   (void)nconst;
   (void)nlet;
   (void)stmt_i;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/*
+ * wave174 cold twins: spill_reg_to_spill + rax/rbx cache evict faces.
+ * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+int32_t glue_binop_spill_reg_to_spill_elf_c(void *elf_ctx, int32_t ta, int32_t off, int32_t from_rbx,
+                                           int32_t stmt_i) {
+  (void)elf_ctx;
+  (void)ta;
+  (void)off;
+  (void)from_rbx;
+  (void)stmt_i;
+  return 0;
+}
+
+void glue_asm73_evict_rax_cache_entry(int32_t stmt_i, int32_t ta, void *elf_ctx) {
+  (void)stmt_i;
+  (void)ta;
+  (void)elf_ctx;
+}
+
+void glue_asm73_evict_rbx_cache_entry(int32_t stmt_i, int32_t ta, void *elf_ctx) {
+  (void)stmt_i;
+  (void)ta;
+  (void)elf_ctx;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

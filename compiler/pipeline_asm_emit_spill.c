@@ -116,12 +116,20 @@
  * active/cfg_parent/emit_stmt_i / contains_off / as_u8 / copy / gen_kill +
  * thin evict_rbx; pure owns orchestration (calls wave163/166 pure faces).
  *
+ * wave174 pure-owned spill_reg_to_spill + cache evict entries:
+ *   · glue_binop_spill_reg_to_spill_elf_c
+ *   · glue_asm73_evict_rax_cache_entry
+ *   · glue_asm73_evict_rbx_cache_entry
+ * Residual keeps VAR cache BSS + thin mov_reg_to_spill / try_colored /
+ * pick_evict / slot_farthest / stack_spill_enabled / max_live_n_get.
+ *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
  *   · 7.3 live_fwd BSS / break-continue note + push/pop
  *   · Chaitin interf BSS + gen_kill/collect + stack-spill preference
  *   · index scratch CAP BSS + thin valid/slot/ctx/keys/record + clear
  *     (CAP statics in pipeline_asm_emit_index_helpers.c)
+ *   · spill physical-slot thin (mov/colored/pick/farthest/enabled)
  *
  * G.7: do not re-define pure-owned faces above in this file.
  * Not a separate .o — #included from pipeline_glue.c after index_helpers.
@@ -274,7 +282,7 @@ int32_t glue_index_subadd3_spill_pop_top_elf_c(struct platform_elf_ElfCodegenCtx
 /* wave173 pure-owned faces (extern; live in runtime_pipeline_abi pure).
  * Residual: VAR cache / live_fwd BSS + thin active/cfg_parent/emit_stmt_i +
  * contains_off / live_at_stmt_as_u8 / copy_from_u8 / gen_kill_u8 /
- * live_fwd_as_u8 / apply_stmt_gen_kill_u8 + thin evict_rbx.
+ * live_fwd_as_u8 / apply_stmt_gen_kill_u8.
  * PLATFORM: SHARED freestanding 7.3. */
 void glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(struct ast_ASTArena *arena,
                                                            struct backend_AsmFuncCtx *ctx, int32_t right_ref,
@@ -283,6 +291,15 @@ void glue_block_live_fwd_before_stmt(int32_t stmt_i, int32_t ta, struct platform
 void glue_block_live_fwd_apply_top_stmt(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                         int32_t block_ref, int32_t slot_base, int32_t nconst, int32_t nlet,
                                         int32_t stmt_i);
+
+/* wave174 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * Residual thin: mov_reg_to_spill / try_colored / pick_evict / farthest /
+ * stack_spill_enabled / max_live_n_get + VAR cache invalidate.
+ * PLATFORM: SHARED freestanding 7.3. */
+int32_t glue_binop_spill_reg_to_spill_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
+                                           int32_t from_rbx, int32_t stmt_i);
+void glue_asm73_evict_rax_cache_entry(int32_t stmt_i, int32_t ta, struct platform_elf_ElfCodegenCtx *elf_ctx);
+void glue_asm73_evict_rbx_cache_entry(int32_t stmt_i, int32_t ta, struct platform_elf_ElfCodegenCtx *elf_ctx);
 
 /* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
  * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
@@ -807,7 +824,7 @@ static void glue_live_fwd_apply_stmt_gen_kill(GlueBlockLiveFwd *live, const Glue
     glue_live_fwd_add(live, kill->offs[i]);
 }
 
-static int32_t glue_asm73_stack_spill_enabled(void);
+/* wave174: glue_asm73_stack_spill_enabled defined non-static below (thin face). */
 
 /** 7.3 Chaitin 原型：干涉图顶点（栈槽 off）与邻接位图（最多 32 槽）。 */
 #define GLUE_ASM73_INTERF_MAX 32
@@ -1272,7 +1289,12 @@ static int32_t glue_asm73_spill_slot_held_off(int32_t which) {
  * 线性块：|live|max≥15（十～十四元 block-var 走 x10–x15 驱逐）。
  * cfg 父块：final_expr 直接 VAR 使用数≥12（长 return 加链；binop_var_fast 仅 9 个操作数不启）。
  */
-static int32_t glue_asm73_stack_spill_enabled(void) {
+/**
+ * wave174 Cap residual thin: whether stack-frame spill (which=6) is enabled.
+ * Linear: |live|max≥15; cfg parent: final_expr VAR uses ≥12.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_asm73_stack_spill_enabled(void) {
   if (glue_block_live_cfg_parent)
     return glue_asm73_cfg_final_expr_use_n >= 12 ? 1 : 0;
   return glue_asm73_linear_max_live_n >= 15 ? 1 : 0;
@@ -1306,10 +1328,13 @@ static int32_t glue_asm73_spill_overwrite_ok(int32_t which, int32_t stmt_i, int3
 }
 
 /**
- * 7.3：arm64 将 rax/rbx 写入 spill 物理寄存器；spill_which：0=x10 … 5=x15。0=OK，-1=错。
+ * wave174 Cap residual thin: arm64 mov rax/rbx → spill physical reg x10..x15
+ * and stamp VAR cache (valid_xN + xN_off). spill_which: 0=x10 … 5=x15.
+ * @return 0 OK/no-op; -1 enc fail
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
  */
-static int32_t glue_binop_spill_mov_reg_to_spill_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
-                                                         int32_t off, int32_t from_rbx, int32_t spill_which) {
+int32_t glue_binop_spill_mov_reg_to_spill_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+                                               int32_t off, int32_t from_rbx, int32_t spill_which) {
   if (ta != 1 || off < 0 || !elf_ctx)
     return 0;
   if (spill_which == 5) {
@@ -1378,9 +1403,13 @@ static int32_t glue_binop_spill_mov_reg_to_spill_elf_c(struct platform_elf_ElfCo
   return 0;
 }
 
-/** 7.3：偏好物理 spill 槽若空闲则直接占用；0=已写入，-1=须走默认填充/驱逐。 */
-static int32_t glue_asm73_try_spill_to_colored_slot(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
-                                                     int32_t off, int32_t from_rbx) {
+/**
+ * wave174 Cap residual thin: if Chaitin preference home is free, occupy it
+ * (x10–x15 or stack push). 0=written; -1=need fill/evict path.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_asm73_try_spill_to_colored_slot(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+                                            int32_t off, int32_t from_rbx) {
   int32_t pref;
   if (ta != 1 || off < 0 || !elf_ctx)
     return -1;
@@ -1404,8 +1433,12 @@ static int32_t glue_asm73_try_spill_to_colored_slot(struct platform_elf_ElfCodeg
   return -1;
 }
 
-/** 7.3：返回 next-use 最远的已占用 spill 槽（0=x10…5=x15），无则 -1。 */
-static int32_t glue_asm73_spill_slot_farthest(int32_t stmt_i) {
+/**
+ * wave174 Cap residual thin: occupied spill slot (0=x10…5=x15) with farthest
+ * next-use; -1 if none.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_asm73_spill_slot_farthest(int32_t stmt_i) {
   int32_t which;
   int32_t best_dist;
   int32_t d;
@@ -1454,9 +1487,11 @@ static int32_t glue_asm73_spill_slot_farthest(int32_t stmt_i) {
 }
 
 /**
- * 7.3：三槽均满时选可覆盖的驱逐目标；优先踢非 new_off 着色家园的槽，再按最远 next-use。
+ * wave174 Cap residual thin: when spill homes full, pick overwrite victim
+ * (prefer non-home of new_off, then farthest next-use). -1 if none.
+ * PLATFORM: SHARED freestanding 7.3.
  */
-static int32_t glue_asm73_spill_pick_evict_which(int32_t stmt_i, int32_t new_off, int32_t dist_new) {
+int32_t glue_asm73_spill_pick_evict_which(int32_t stmt_i, int32_t new_off, int32_t dist_new) {
   int32_t pref;
   int32_t which;
   int32_t held;
@@ -1525,89 +1560,25 @@ static int32_t glue_asm73_spill_pick_evict_which(int32_t stmt_i, int32_t new_off
   return home_which;
 }
 
-/**
- * 7.3：arm64 将当前 rax/rbx 中的 VAR 溢出到 spill（x10→…→x15；均满则覆盖最远 next-use 槽）。
- * 0=OK，-1=错。
- */
-static int32_t glue_binop_spill_reg_to_spill_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
-                                                     int32_t off, int32_t from_rbx, int32_t stmt_i) {
-  int32_t dist_new;
-  int32_t which;
-  int32_t colored;
-  if (ta != 1 || off < 0 || !elf_ctx)
-    return 0;
-  colored = glue_asm73_try_spill_to_colored_slot(elf_ctx, ta, off, from_rbx);
-  if (colored == 0)
-    return 0;
-  if (!glue_binop_var_slot_cache.valid_x10)
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 0);
-  if (glue_asm73_linear_max_live_n >= 5 && !glue_binop_var_slot_cache.valid_x11)
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 1);
-  if (glue_asm73_linear_max_live_n >= 6 && !glue_binop_var_slot_cache.valid_x12)
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 2);
-  if (glue_asm73_linear_max_live_n >= 7 && !glue_binop_var_slot_cache.valid_x13)
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 3);
-  if (glue_asm73_linear_max_live_n >= 8 && !glue_binop_var_slot_cache.valid_x14)
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 4);
-  if (glue_asm73_linear_max_live_n >= 9 && !glue_binop_var_slot_cache.valid_x15)
-    return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, 5);
-  dist_new = glue_asm73_linear_next_use_dist(stmt_i, off);
-  which = glue_asm73_spill_pick_evict_which(stmt_i, off, dist_new);
-  if (which < 0)
-    which = glue_asm73_spill_slot_farthest(stmt_i);
-  if (which < 0) {
-    if (glue_asm73_stack_spill_enabled())
-      return glue_binop_stack_spill_push_elf_c(elf_ctx, ta, off, from_rbx);
-    return 0;
-  }
-  return glue_binop_spill_mov_reg_to_spill_elf_c(elf_ctx, ta, off, from_rbx, which);
-}
+/* wave174: pure owns glue_binop_spill_reg_to_spill_elf_c,
+ * glue_asm73_evict_rax_cache_entry, glue_asm73_evict_rbx_cache_entry
+ * (extern above). Residual thin: mov_reg_to_spill / try_colored / pick_evict /
+ * farthest / stack_spill_enabled / max_live_n_get + VAR cache accessors.
+ * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave170: pure owns glue_binop_try_reload_spill_off_elf_c (extern above).
  * Residual thin: glue_binop_stack_spill_try_reload_elf_c + x10–x15 BSS accessors.
  * PLATFORM: SHARED freestanding 7.3. */
 
-/**
- * 7.3 线性 scan 第三步：arm64 驱逐 rax 前将被踢槽 mov 到 spill；ta!=1 仅 invalidate.
- * wave166 Cap residual: non-static thin face for pure pressure-evict leave.
- * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 spill homes.
- */
-void glue_asm73_evict_rax_cache_entry(int32_t stmt_i, int32_t ta,
-                                     struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  int32_t off;
-  if (!glue_binop_var_slot_cache.valid_rax)
-    return;
-  off = glue_binop_var_slot_cache.rax_off;
-  if (ta == 1 && elf_ctx && off >= 0)
-    (void)glue_binop_spill_reg_to_spill_elf_c(elf_ctx, ta, off, 0, stmt_i);
-  glue_binop_var_slot_cache_invalidate_rax();
-}
-
-/**
- * wave166 Cap residual: thin face — spill rbx then invalidate (same as rax path).
- * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 spill homes.
- */
-void glue_asm73_evict_rbx_cache_entry(int32_t stmt_i, int32_t ta,
-                                     struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  int32_t off;
-  if (!glue_binop_var_slot_cache.valid_rbx)
-    return;
-  off = glue_binop_var_slot_cache.rbx_off;
-  if (ta == 1 && elf_ctx && off >= 0)
-    (void)glue_binop_spill_reg_to_spill_elf_c(elf_ctx, ta, off, 1, stmt_i);
-  glue_binop_var_slot_cache_invalidate_rbx();
-}
-
 /* wave173: pure owns glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c,
  * glue_block_live_fwd_before_stmt, and glue_block_live_fwd_apply_top_stmt
- * (extern above). Residual: VAR cache / live_fwd BSS + thin accessors +
- * thin evict_rax|rbx (spill_reg_to_spill stays residual).
+ * (extern above). Residual: VAR cache / live_fwd BSS + thin accessors.
  * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave166: pure owns glue_asm73_linear_scan_evict_cache_if_pressure_live,
  * glue_asm73_linear_scan_evict_cache_if_pressure, and
  * glue_asm73_evict_cache_if_live_pressure_elf_c (extern above).
- * Residual: thin thresh / find_depth / evict_rax|rbx / live_fwd_as_u8.
+ * Residual: thin thresh / find_depth / live_fwd_as_u8; wave174 pure owns evict.
  * PLATFORM: SHARED freestanding 7.3. */
 
 /** Return 1 when rbx still holds the effective addr for the same INDEX lvalue shape. */
@@ -2288,6 +2259,14 @@ void glue_asm73_interf_add_live_set_u8(const void *live) {
 void glue_asm73_linear_max_live_n_maybe_raise(int32_t n) {
   if (n > glue_asm73_linear_max_live_n)
     glue_asm73_linear_max_live_n = n;
+}
+
+/**
+ * wave174 Cap residual thin: current linear-block max |live| for spill home gating.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+int32_t glue_asm73_linear_max_live_n_get(void) {
+  return glue_asm73_linear_max_live_n;
 }
 
 /**
