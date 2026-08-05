@@ -31,11 +31,28 @@
  * - pipeline_asm_emit_next_label_c (extern / defined earlier)
  * - glue_enc_jz_after_bool_in_eax (static in pipeline_asm_emit_unary.c, #included earlier)
  * - backend_enc_*_arch, pipeline_expr_match_*, pipeline_expr_if_*, link_abi_getenv
+ * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index (statics)
+ * - pipeline_expr_resolved_type_ref / pipeline_module_func_param_type_ref_for_name
+ * - pipeline_expr_var_name_* (expr_rec / sidecar)
  */
+/* Same-file subject context (defined below match_elf; needed for field-bind arms). */
+void pipeline_codegen_match_set_subject_c(struct ast_Module *module, int32_t matched_ref, int32_t subject_ty);
+int32_t pipeline_codegen_match_matched_ref_c(void);
+int32_t pipeline_codegen_match_subject_ty_c(void);
+struct ast_Module *pipeline_codegen_match_mod_c(void);
 
 /**
- * EXPR_MATCH ELF 发射：待匹配值在 rbx，逐臂 cmp+jeq，通配符/default 兜底，各臂结果汇合于 done。
- * 避免 ko==43 落 backend_emit_expr_elf_slow 与 pipeline_asm_emit_expr_elf_c 互递归 SIGSEGV。
+ * EXPR_MATCH ELF emit: matched value in rbx; per-arm cmp+jeq; wildcard/default;
+ * arm results join at done.
+ *
+ * wave707 freestanding twin: set host-C match subject context for the duration
+ * of arm/guard emit so bare field-bind VARs (`Point { x, y } => x + y`) resolve
+ * as subject.field loads (see glue_try_emit_match_subject_field_var_elf_c in
+ * expr_rec). Without this hop, Ubuntu pure-asm CG002s (VAR has no stack slot).
+ * G.7: same pipeline_codegen_match_* subject authority as host-C codegen.
+ * PLATFORM: SHARED freestanding · LINUX gold (Ubuntu pure-asm) · MACOS co-path.
+ *
+ * Avoids ko==43 → backend_emit_expr_elf_slow ↔ emit_expr_elf_c recursion SIGSEGV.
  */
 int32_t pipeline_asm_emit_match_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                       int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -49,6 +66,10 @@ int32_t pipeline_asm_emit_match_elf_c(struct ast_ASTArena *arena, struct platfor
   uint8_t done_lbl[128];
   int32_t done_len;
   int32_t result_ref;
+  struct ast_Module *prev_mod;
+  int32_t prev_mref;
+  int32_t prev_ty;
+  int32_t rc;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return -1;
   matched_ref = pipeline_expr_match_matched_ref_at(arena, expr_ref);
@@ -59,6 +80,29 @@ int32_t pipeline_asm_emit_match_elf_c(struct ast_ASTArena *arena, struct platfor
     return -1;
   if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
     return -1;
+  /*
+   * Freestanding field-bind: activate subject context before any arm result /
+   * guard emit. Nested MATCH saves/restores prev_* like host-C codegen_emit_match.
+   */
+  prev_mod = pipeline_codegen_match_mod_c();
+  prev_mref = pipeline_codegen_match_matched_ref_c();
+  prev_ty = pipeline_codegen_match_subject_ty_c();
+  if (g_pipeline_asm_emit_module != 0 && matched_ref > 0) {
+    int32_t subj_ty = pipeline_expr_resolved_type_ref(arena, matched_ref);
+    if (subj_ty <= 0 && pipeline_expr_kind_ord_at(arena, matched_ref) == 3 &&
+        g_pipeline_asm_emit_func_index >= 0) {
+      uint8_t mn[128];
+      int32_t mln = pipeline_expr_var_name_len(arena, matched_ref);
+      if (mln > 0 && mln <= 127) {
+        pipeline_expr_var_name_into(arena, matched_ref, mn);
+        subj_ty = pipeline_module_func_param_type_ref_for_name(g_pipeline_asm_emit_module,
+                                                              g_pipeline_asm_emit_func_index, mn, mln);
+      }
+    }
+    if (subj_ty > 0)
+      pipeline_codegen_match_set_subject_c(g_pipeline_asm_emit_module, matched_ref, subj_ty);
+  }
+  rc = -1;
   wild_idx = -1;
   for (i = 0; i < num_arms; i++) {
     if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0) {
@@ -67,25 +111,25 @@ int32_t pipeline_asm_emit_match_elf_c(struct ast_ASTArena *arena, struct platfor
     }
     arm_lbl_len[i] = pipeline_asm_emit_next_label_c(ctx, arm_lbl[i], 64);
     if (arm_lbl_len[i] <= 0)
-      return -1;
+      goto match_elf_done;
     if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0)
       cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
     else
       cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
     if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, cmp_val, ta) != 0)
-      return -1;
+      goto match_elf_done;
     if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
-      return -1;
+      goto match_elf_done;
     if (backend_enc_jeq_arch(elf_ctx, arm_lbl[i], arm_lbl_len[i], ta) != 0)
-      return -1;
+      goto match_elf_done;
   }
   done_len = pipeline_asm_emit_next_label_c(ctx, done_lbl, 64);
   if (done_len <= 0)
-    return -1;
+    goto match_elf_done;
   if (wild_idx >= 0) {
     result_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, wild_idx);
     if (result_ref <= 0 || pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
-      return -1;
+      goto match_elf_done;
     /*
      * wave372: EXPR_RETURN arm already jmps to function tail_join — do not fall
      * through / jmp done (same discipline as if-then with return in stmt_order).
@@ -93,30 +137,33 @@ int32_t pipeline_asm_emit_match_elf_c(struct ast_ASTArena *arena, struct platfor
      */
     if (pipeline_expr_kind_ord_at(arena, result_ref) != 41) {
       if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
-        return -1;
+        goto match_elf_done;
     }
   } else if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) {
-    return -1;
+    goto match_elf_done;
   } else if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0) {
-    return -1;
+    goto match_elf_done;
   }
   for (i = 0; i < num_arms; i++) {
     if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0)
       continue;
     if (backend_enc_label_arch(elf_ctx, arm_lbl[i], arm_lbl_len[i], 0, ta) != 0)
-      return -1;
+      goto match_elf_done;
     result_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
     if (result_ref <= 0 || pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
-      return -1;
+      goto match_elf_done;
     /* wave372: RETURN arm → real early return; skip join to done. */
     if (pipeline_expr_kind_ord_at(arena, result_ref) != 41) {
       if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
-        return -1;
+        goto match_elf_done;
     }
   }
   if (backend_enc_label_arch(elf_ctx, done_lbl, done_len, 0, ta) != 0)
-    return -1;
-  return 0;
+    goto match_elf_done;
+  rc = 0;
+match_elf_done:
+  pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+  return rc;
 }
 
 int32_t pipeline_asm_emit_expr_if_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,

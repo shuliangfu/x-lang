@@ -200,6 +200,96 @@ debug_done:
  * pipeline_glue residual (after field_access include site). */
 
 /**
+ * Freestanding match field-bind: bare VAR name under active match subject →
+ * load matched_subject.field into rax (stack home + layout offset).
+ *
+ * Why: host-C rewrites `x` to `(matched).x` (codegen wave707). Pure-asm MATCH
+ * arms keep bare VARs with no local slot; without this hop Ubuntu pure-asm
+ * CG002s on `Point { x, y } => x + y`.
+ *
+ * G.7: consumes pipeline_codegen_match_* subject set by
+ * pipeline_asm_emit_match_elf_c; reuses glue_field_layout_offset_for_var_base_field
+ * + glue_enc_local_slot_ptr_or_addr (same authority as VAR-base FIELD_ACCESS).
+ *
+ * @return 0 success, -1 not applicable or emit fail
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path
+ */
+static int32_t glue_try_emit_match_subject_field_var_elf_c(struct ast_ASTArena *arena,
+                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                          struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                          uint8_t *vname, int32_t vlen) {
+  int32_t mref;
+  int32_t foff;
+  int32_t base_off;
+  int32_t load_sz;
+  if (!arena || !elf_ctx || !ctx || !vname || vlen <= 0 || !g_pipeline_asm_emit_module)
+    return -1;
+  if (pipeline_codegen_match_name_is_subject_field_c(g_pipeline_asm_emit_module, arena, vname, vlen) == 0)
+    return -1;
+  mref = pipeline_codegen_match_matched_ref_c();
+  if (mref <= 0 || pipeline_expr_kind_ord_at(arena, mref) != 3)
+    return -1;
+  foff = glue_field_layout_offset_for_var_base_field(arena, g_pipeline_asm_emit_module, mref, vname, vlen);
+  if (foff < 0)
+    return -1;
+  base_off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, mref);
+  if (base_off < 0)
+    base_off = glue_var_expr_stack_off_elf_c(arena, ctx, mref);
+  if (base_off < 0)
+    return -1;
+  if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, mref, base_off, ctx, ta) != 0)
+    return -1;
+  if (foff != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, foff, ta) != 0)
+    return -1;
+  /* Scalar field load size: prefer layout field type width; default i32. */
+  load_sz = 4;
+  {
+    int32_t subj_ty = pipeline_codegen_match_subject_ty_c();
+    if (subj_ty > 0 && pipeline_type_kind_ord_at(arena, subj_ty) == (int32_t)ast_TypeKind_TYPE_NAMED) {
+      uint8_t tnm[128];
+      int32_t tnl = pipeline_type_named_name_into(arena, subj_ty, tnm);
+      int32_t k;
+      if (tnl > 0) {
+        k = glue_struct_layout_index_by_type_name_c(g_pipeline_asm_emit_module, tnm, tnl);
+        if (k >= 0) {
+          int32_t nf = pipeline_module_struct_layout_num_fields(g_pipeline_asm_emit_module, k);
+          int32_t fi;
+          for (fi = 0; fi < nf; fi++) {
+            int32_t fnl = pipeline_module_struct_layout_field_name_len(g_pipeline_asm_emit_module, k, fi);
+            if (fnl != vlen)
+              continue;
+            {
+              uint8_t fnm[128];
+              int32_t j;
+              int32_t match = 1;
+              pipeline_module_struct_layout_field_name_into(g_pipeline_asm_emit_module, k, fi, fnm);
+              for (j = 0; j < fnl && match; j++) {
+                if (fnm[j] != vname[j])
+                  match = 0;
+              }
+              if (match) {
+                int32_t ftr = pipeline_module_struct_layout_field_type_ref(g_pipeline_asm_emit_module, k, fi);
+                if (ftr > 0) {
+                  int32_t sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, ftr, 0);
+                  if (sz == 1 || sz == 4 || sz == 8)
+                    load_sz = sz;
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  if (load_sz == 1)
+    return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+  if (load_sz == 8)
+    return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+  return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+}
+
+/**
  * emit_expr_elf 统一 C 入口（fast + rec）；供日后 X 薄包装，勿在 rec 内再回调本符号。
  */
 int32_t pipeline_asm_emit_expr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -367,6 +457,13 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
       if (g_pipeline_asm_emit_module &&
           asm_module_top_level_const_lit_i32(g_pipeline_asm_emit_module, arena, vname, vlen, &mod_imm) != 0)
         return backend_enc_mov_imm32_to_w0_arch(elf_ctx, mod_imm, ta);
+      /*
+       * Freestanding match field-bind: bare `x`/`y` under MATCH subject →
+       * load subject.field (G.7 twin of host-C wave707). Local slots win
+       * above; only unbound names hop here.
+       */
+      if (glue_try_emit_match_subject_field_var_elf_c(arena, elf_ctx, ctx, ta, vname, vlen) == 0)
+        return 0;
       return -1;
     }
     {
