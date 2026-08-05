@@ -24947,5 +24947,33 @@ void glue_asm73_compute_spill_color_pins(void) {
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/*
+ * wave166 cold twins: linear-scan pressure eviction faces.
+ * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+void glue_asm73_linear_scan_evict_cache_if_pressure_live(const void *live, int32_t stmt_i, int32_t ta,
+                                                        void *elf_ctx) {
+  (void)live;
+  (void)stmt_i;
+  (void)ta;
+  (void)elf_ctx;
+}
+
+void glue_asm73_linear_scan_evict_cache_if_pressure(int32_t stmt_i, int32_t ta, void *elf_ctx) {
+  (void)stmt_i;
+  (void)ta;
+  (void)elf_ctx;
+}
+
+void glue_asm73_evict_cache_if_live_pressure_elf_c(int32_t ta, void *elf_ctx) {
+  (void)ta;
+  (void)elf_ctx;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

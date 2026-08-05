@@ -1435,7 +1435,8 @@ void glue_index_scratch_stack_depth_set(int32_t v) {
 void glue_binop_stack_spill_clear(void);
 /* wave163 Cap residual: non-static (pure intersect leave + invalidate_slot). */
 void glue_binop_stack_spill_drop_off(int32_t off);
-static int32_t glue_binop_stack_spill_find_depth(int32_t off);
+/* wave166 Cap residual: non-static face for pure pressure-evict leave (def spill.c). */
+int32_t glue_binop_stack_spill_find_depth(int32_t off);
 /* wave149 Cap residual non-static (def spill.c). */
 int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
                                                   int32_t from_rbx);

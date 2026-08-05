@@ -1000,6 +1000,8 @@ export extern "C" function glue_block_live_cfg_parent_set(v: i32): void;
 export extern "C" function glue_block_live_fwd_active_get(): i32;
 export extern "C" function glue_block_live_fwd_active_set(v: i32): void;
 export extern "C" function glue_block_emit_stmt_i_set(v: i32): void;
+export extern "C" function glue_block_emit_stmt_i_get(): i32;
+export extern "C" function glue_block_live_fwd_as_u8(): *u8;
 export extern "C" function glue_asm73_pin_spill_off_clear_all(): void;
 export extern "C" function glue_asm73_cfg_peak_live_n_get(): i32;
 export extern "C" function glue_block_live_fwd_clear_global(): void;
@@ -1038,6 +1040,12 @@ export extern "C" function glue_asm73_interf_clear(): void;
 export extern "C" function glue_asm73_interf_add_live_at_stmt(stmt_i: i32): void;
 export extern "C" function glue_asm73_live_at_stmt_n_get(stmt_i: i32): i32;
 export extern "C" function glue_asm73_live_at_stmt_as_u8(stmt_i: i32): *u8;
+/* wave166 Cap residual: thin faces for pure pressure-evict leave. */
+export extern "C" function glue_asm73_pressure_live_thresh_get(): i32;
+export extern "C" function glue_binop_stack_spill_find_depth(off: i32): i32;
+export extern "C" function glue_asm73_evict_rax_cache_entry(stmt_i: i32, ta: i32, elf_ctx: *u8): void;
+export extern "C" function glue_asm73_evict_rbx_cache_entry(stmt_i: i32, ta: i32, elf_ctx: *u8): void;
+/* wave166: pure owns pressure eviction faces (#[no_mangle] below). */
 export extern "C" function glue_binop_var_slot_cache_valid_x10_get(): i32;
 export extern "C" function glue_binop_var_slot_cache_valid_x11_get(): i32;
 export extern "C" function glue_binop_var_slot_cache_valid_x12_get(): i32;
@@ -40671,7 +40679,7 @@ export extern "C" function glue_asm73_var_prefers_stack_spill(off: i32): i32;
 export extern "C" function glue_binop_try_reload_spill_off_elf_c(elf_ctx: *u8, ctx: *u8, off: i32, ta: i32, to_rbx: i32): i32;
 export extern "C" function glue_binop_stack_spill_push_elf_c(elf_ctx: *u8, ta: i32, off: i32, from_rbx: i32): i32;
 export extern "C" function glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(arena: *u8, ctx: *u8, right_ref: i32, ta: i32, elf_ctx: *u8): void;
-export extern "C" function glue_asm73_evict_cache_if_live_pressure_elf_c(ta: i32, elf_ctx: *u8): void;
+/* wave166: pure owns glue_asm73_evict_cache_if_live_pressure_elf_c (#[no_mangle] below). */
 export extern "C" function glue_load_f32_var_slot_to_rax_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32;
 export extern "C" function glue_load_f32_var_slot_to_rbx_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32;
 // wave151 pure-owned leave: pipeline_asm_emit_field_access_elf_fast_c lives in EOF wave151 section.
@@ -53303,3 +53311,164 @@ export function glue_asm73_compute_spill_color_pins(): void {
 }
 
 // end wave165 pure-owned leave
+
+// ============================================================================
+// wave166 pure-owned leave: linear-scan pressure eviction
+// (was Cap residual spill; |live|>thresh + next-use pick + thin evict).
+// Cap residual: cache/live BSS + thresh_get / find_depth / evict_rax|rbx /
+// live_fwd_as_u8 / live_at_stmt_as_u8.
+// Cold twin under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 7.3 · dual-end L2.
+// ============================================================================
+
+/**
+ * Linear-scan pressure eviction given an opaque live set pointer.
+ * When |live| > pressure thresh and both rax/rbx hold slots, if another live
+ * off is not cached in rax/rbx/x10–x15 and not already stack-spilled, spill
+ * the rax/rbx with farther next-use (or clear both on tie).
+ * @param live *u8 - opaque GlueBlockLiveFwd*; null → no-op
+ * @param stmt_i i32 - current stmt index for next-use distance
+ * @param ta i32 - target arch (1 = arm64 spill emit path in residual thin)
+ * @param elf_ctx *u8 - ElfCodegenCtx* for residual spill emit; may be null
+ * @return void
+ * wave166 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 x10–x15 homes.
+ */
+#[no_mangle]
+export function glue_asm73_linear_scan_evict_cache_if_pressure_live(live: *u8, stmt_i: i32, ta: i32, elf_ctx: *u8): void {
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let off: i32 = 0;
+  let thresh: i32 = 0;
+  let has_uncached: i32 = 0;
+  let dist_rax: i32 = 0;
+  let dist_rbx: i32 = 0;
+  let rax_off: i32 = 0;
+  let rbx_off: i32 = 0;
+  if (live == (0 as *u8)) {
+    return;
+  }
+  unsafe {
+    thresh = glue_asm73_pressure_live_thresh_get();
+    n = glue_live_fwd_n_get(live);
+  }
+  if (n <= thresh) {
+    return;
+  }
+  unsafe {
+    if (glue_binop_var_slot_cache_valid_rax_get() == 0) {
+      return;
+    }
+    if (glue_binop_var_slot_cache_valid_rbx_get() == 0) {
+      return;
+    }
+    rax_off = glue_binop_var_slot_cache_rax_off_get();
+    rbx_off = glue_binop_var_slot_cache_rbx_off_get();
+  }
+  has_uncached = 0;
+  i = 0;
+  while (i < n) {
+    unsafe {
+      off = glue_live_fwd_off_at(live, i);
+    }
+    if (off >= 0 && off != rax_off && off != rbx_off) {
+      unsafe {
+        if ((glue_binop_var_slot_cache_valid_x10_get() == 0 || off != glue_binop_var_slot_cache_x10_off_get()) &&
+            (glue_binop_var_slot_cache_valid_x11_get() == 0 || off != glue_binop_var_slot_cache_x11_off_get()) &&
+            (glue_binop_var_slot_cache_valid_x12_get() == 0 || off != glue_binop_var_slot_cache_x12_off_get()) &&
+            (glue_binop_var_slot_cache_valid_x13_get() == 0 || off != glue_binop_var_slot_cache_x13_off_get()) &&
+            (glue_binop_var_slot_cache_valid_x14_get() == 0 || off != glue_binop_var_slot_cache_x14_off_get()) &&
+            (glue_binop_var_slot_cache_valid_x15_get() == 0 || off != glue_binop_var_slot_cache_x15_off_get()) &&
+            glue_binop_stack_spill_find_depth(off) < 0) {
+          has_uncached = 1;
+        }
+      }
+      if (has_uncached != 0) {
+        break;
+      }
+    }
+    i = i + 1;
+  }
+  if (has_uncached == 0) {
+    return;
+  }
+  unsafe {
+    dist_rax = glue_asm73_linear_next_use_dist(stmt_i, rax_off);
+    dist_rbx = glue_asm73_linear_next_use_dist(stmt_i, rbx_off);
+    if (dist_rax > dist_rbx) {
+      glue_asm73_evict_rax_cache_entry(stmt_i, ta, elf_ctx);
+    } else if (dist_rbx > dist_rax) {
+      glue_asm73_evict_rbx_cache_entry(stmt_i, ta, elf_ctx);
+    } else {
+      glue_binop_var_slot_cache_clear();
+    }
+  }
+}
+
+/**
+ * Select live set for pressure eviction at stmt_i (cfg parent uses global
+ * live_fwd; linear uses precomputed live_at_stmt[stmt_i]).
+ * @param stmt_i i32 - stmt index; <0 → no-op
+ * @param ta i32 - target arch
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @return void
+ * wave166 pure-owned (was Cap residual spill).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_linear_scan_evict_cache_if_pressure(stmt_i: i32, ta: i32, elf_ctx: *u8): void {
+  let live: *u8 = 0 as *u8;
+  let cfg_parent: i32 = 0;
+  let active: i32 = 0;
+  if (stmt_i < 0) {
+    return;
+  }
+  unsafe {
+    cfg_parent = glue_block_live_cfg_parent_get();
+    active = glue_block_live_fwd_active_get();
+  }
+  if (cfg_parent != 0) {
+    if (active != 0) {
+      unsafe {
+        live = glue_block_live_fwd_as_u8();
+        glue_asm73_linear_scan_evict_cache_if_pressure_live(live, stmt_i, ta, elf_ctx);
+      }
+    }
+    return;
+  }
+  if (stmt_i < 32) {
+    unsafe {
+      live = glue_asm73_live_at_stmt_as_u8(stmt_i);
+      glue_asm73_linear_scan_evict_cache_if_pressure_live(live, stmt_i, ta, elf_ctx);
+    }
+  }
+}
+
+/**
+ * Public pressure-eviction face used by pure binop operand load paths.
+ * Folds active live_fwd + current emit_stmt_i into pressure_live.
+ * @param ta i32 - target arch
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @return void
+ * wave166 pure-owned (was Cap residual spill; wave149 pure called residual).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_evict_cache_if_live_pressure_elf_c(ta: i32, elf_ctx: *u8): void {
+  let live: *u8 = 0 as *u8;
+  let stmt_i: i32 = 0;
+  let active: i32 = 0;
+  unsafe {
+    active = glue_block_live_fwd_active_get();
+  }
+  if (active == 0) {
+    return;
+  }
+  unsafe {
+    live = glue_block_live_fwd_as_u8();
+    stmt_i = glue_block_emit_stmt_i_get();
+    glue_asm73_linear_scan_evict_cache_if_pressure_live(live, stmt_i, ta, elf_ctx);
+  }
+}
+
+// end wave166 pure-owned leave
