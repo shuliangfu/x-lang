@@ -361,9 +361,9 @@ uint64_t glue_index_base_struct_key_elf_c(struct ast_ASTArena *arena, int32_t ba
  * - glue_var_expr_stack_off_elf_c (def after assign/index includes)
  * - glue_emit_index_eff_addr_scaled_elf_c (runtime_pipeline_abi pure wave147)
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / asm_ctx_local_*
- * - CAP statics: glue_binop_stack_spill_* arrays; glue_index_scratch_stack_depth
- *   pure leave wave207 (residual uses get());
- *   glue_index_minus_pair_cache, glue_index_subadd3_sum_cache
+ * - CAP statics: glue_index_minus_pair_cache, glue_index_subadd3_sum_cache;
+ *   glue_index_scratch_stack_depth pure leave wave207 (residual uses get());
+ *   stack_spill table pure leave wave208 (residual uses thin pure faces)
  *   (pipeline_asm_emit_index_helpers.c, earlier in TU)
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index
  *
@@ -1262,74 +1262,15 @@ void glue_index_subadd3_sum_cache_record(struct ast_ASTArena *arena, struct back
   glue_index_subadd3_sum_cache.slot_depth = glue_index_scratch_stack_depth_get();
 }
 
-/**
- * wave169 Cap residual: append one binop stack-spill table row at depth.
- * Pure push leave records metadata after physical enc push.
- * @param off stack slot offset
- * @param depth glue_index_scratch_stack_depth after push
- * @return 0 ok; -1 table full (GLUE_BINOP_STACK_SPILL_CAP)
- * PLATFORM: SHARED freestanding 7.3.
- */
-int32_t glue_binop_stack_spill_append_at_depth(int32_t off, int32_t depth) {
-  if (glue_binop_stack_spill_n >= GLUE_BINOP_STACK_SPILL_CAP)
-    return -1;
-  glue_binop_stack_spill_off[glue_binop_stack_spill_n] = off;
-  glue_binop_stack_spill_at_depth[glue_binop_stack_spill_n] = depth;
-  glue_binop_stack_spill_n++;
-  return 0;
-}
-
-/**
- * wave169 Cap residual: stack-spill table capacity (GLUE_BINOP_STACK_SPILL_CAP).
- * PLATFORM: SHARED freestanding 7.3.
- */
-int32_t glue_binop_stack_spill_cap_get(void) {
-  return GLUE_BINOP_STACK_SPILL_CAP;
-}
-
-/** 清空 7.3 binop 栈帧 spill 元数据（块入口；物理 pop 由 glue_index_scratch_spills_cleanup_all_elf_c）。 */
-void glue_binop_stack_spill_clear(void) {
-  glue_binop_stack_spill_n = 0;
-}
-
-/** 从栈帧 spill 表移除栈槽 off（不 pop 实栈，块尾统一清理）。
- * wave163 Cap residual: non-static face for pure intersect leave. PLATFORM: SHARED. */
-void glue_binop_stack_spill_drop_off(int32_t off) {
-  int32_t i;
-  int32_t j;
-  if (off < 0)
-    return;
-  for (i = 0; i < glue_binop_stack_spill_n; i++) {
-    if (glue_binop_stack_spill_off[i] != off)
-      continue;
-    for (j = i + 1; j < glue_binop_stack_spill_n; j++) {
-      glue_binop_stack_spill_off[j - 1] = glue_binop_stack_spill_off[j];
-      glue_binop_stack_spill_at_depth[j - 1] = glue_binop_stack_spill_at_depth[j];
-    }
-    glue_binop_stack_spill_n--;
-    return;
-  }
-}
-
-/**
- * Return push depth for stack-frame spill of off (1 = most recent push); -1 if absent.
- * wave166 Cap residual: non-static face for pure pressure-evict leave.
- * PLATFORM: SHARED freestanding 7.3.
- */
-int32_t glue_binop_stack_spill_find_depth(int32_t off) {
-  int32_t i;
-  if (off < 0)
-    return -1;
-  for (i = 0; i < glue_binop_stack_spill_n; i++) {
-    if (glue_binop_stack_spill_off[i] == off)
-      return glue_binop_stack_spill_at_depth[i];
-  }
-  return -1;
-}
+/* wave208 pure-owned: stack_spill table BSS + thin accessors
+ * (append_at_depth / cap_get / clear / drop_off / find_depth / n_get / off_at)
+ * in runtime_pipeline_abi.x (#[no_mangle]). Cap residual: prototypes only
+ * (declared in index_helpers.h face above). try_reload remains residual.
+ * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave169: pure owns glue_binop_stack_spill_push_elf_c (extern above).
- * Residual thin: find_depth / n_get / cap_get / append_at_depth / depth_get/set
- * + backend_enc_push_{rax,rbx}_arch. PLATFORM: SHARED. */
+ * Residual thin: try_reload_elf (enc + VAR cache); table meta pure wave208.
+ * PLATFORM: SHARED. */
 
 /**
  * 7.3：若 off 已在栈帧 spill 表，则从对应 [sp,#slot*16] 装入 rax/rbx；1=命中，0=未命中，-1=错。
@@ -1604,21 +1545,8 @@ void glue_binop_var_slot_cache_set_valid_x13(int32_t v) { glue_binop_var_slot_ca
 void glue_binop_var_slot_cache_set_valid_x14(int32_t v) { glue_binop_var_slot_cache.valid_x14 = v; }
 void glue_binop_var_slot_cache_set_valid_x15(int32_t v) { glue_binop_var_slot_cache.valid_x15 = v; }
 
-/** Current binop stack-spill table length (metadata only). PLATFORM: SHARED. */
-int32_t glue_binop_stack_spill_n_get(void) {
-  return glue_binop_stack_spill_n;
-}
-
-/**
- * Stack-slot offset at index i in binop stack-spill table.
- * @param i int32_t - 0..n-1; out of range → -1
- * PLATFORM: SHARED freestanding emit.
- */
-int32_t glue_binop_stack_spill_off_at(int32_t i) {
-  if (i < 0 || i >= glue_binop_stack_spill_n)
-    return -1;
-  return glue_binop_stack_spill_off[i];
-}
+/* wave208 pure-owned: glue_binop_stack_spill_n_get / off_at (see wave208
+ * block near try_reload). Cap residual: no host bodies. PLATFORM: SHARED. */
 
 /* ========================================================================== *
  * wave164 Cap residual: thin BSS accessors for pure Chaitin coloring leave.

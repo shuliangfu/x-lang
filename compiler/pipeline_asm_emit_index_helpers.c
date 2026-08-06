@@ -54,12 +54,11 @@
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / asm_ctx_local_*
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index
  *
- * Note: binop_stack_spill CAP statics live here (shared index-scratch depth
- * with 7.3 spill); their method bodies live in pipeline_asm_emit_spill.c.
- * Residual after wave207: CAP cache structs (minus_pair / subadd3) +
- * stack_spill tables remain host; rax_frame spill + scratch depth pure leave
- * closed (wave207). module_from_ctx / needs_ptr / array_slot /
- * named_struct_layout_elf pure leave closed earlier.
+ * Note: binop_stack_spill table BSS pure leave wave208 (runtime_pipeline_abi);
+ * Cap residual try_reload still host (enc + VAR cache). Residual after
+ * wave208: CAP cache structs (minus_pair / subadd3) remain host; rax_frame
+ * spill + scratch depth pure leave closed (wave207). module_from_ctx /
+ * needs_ptr / array_slot / named_struct_layout_elf pure leave closed earlier.
  */
 
 /** INDEX 元素字节宽（前向声明，定义见本文件后部）。 */
@@ -296,9 +295,6 @@ static GlueIndexSubadd3SumCache glue_index_subadd3_sum_cache;
 #define GLUE_BINOP_STACK_SPILL_CAP 12
 /** 7.3：栈帧 spill 着色号（物理槽 0–5 对应 x10–x15）。 */
 #define GLUE_ASM73_SPILL_WHICH_STACK 6
-static int32_t glue_binop_stack_spill_off[GLUE_BINOP_STACK_SPILL_CAP];
-static int32_t glue_binop_stack_spill_at_depth[GLUE_BINOP_STACK_SPILL_CAP];
-static int32_t glue_binop_stack_spill_n;
 
 /* wave207 pure-owned: rax_frame spill nest + index_scratch depth BSS in
  * runtime_pipeline_abi.x (#[no_mangle] export). Cap residual: prototype only.
@@ -311,12 +307,18 @@ void glue_binop_rax_frame_spill_n_set(int32_t v);
 void glue_index_scratch_stack_depth_set(int32_t v);
 int32_t glue_index_scratch_stack_depth_get(void);
 
-/* wave153 Cap residual: def in spill.c */
+/* wave208 pure-owned: binop stack-spill table BSS + thin accessors in
+ * runtime_pipeline_abi.x (#[no_mangle] export). Cap residual: prototype only.
+ * try_reload_elf remains Cap residual (enc + VAR cache). Seed cold twins under
+ * #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path. */
+int32_t glue_binop_stack_spill_append_at_depth(int32_t off, int32_t depth);
+int32_t glue_binop_stack_spill_cap_get(void);
 void glue_binop_stack_spill_clear(void);
-/* wave163 Cap residual: non-static (pure intersect leave + invalidate_slot). */
 void glue_binop_stack_spill_drop_off(int32_t off);
-/* wave166 Cap residual: non-static face for pure pressure-evict leave (def spill.c). */
 int32_t glue_binop_stack_spill_find_depth(int32_t off);
+int32_t glue_binop_stack_spill_n_get(void);
+int32_t glue_binop_stack_spill_off_at(int32_t i);
 /* wave169 pure-owned: glue_binop_stack_spill_push_elf_c (runtime_pipeline_abi pure). */
 int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
                                                   int32_t from_rbx);

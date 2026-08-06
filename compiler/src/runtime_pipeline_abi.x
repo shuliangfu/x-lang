@@ -973,8 +973,8 @@ export extern "C" function pipeline_expr_as_target_type_ref_at(arena: *u8, expr_
  * G.7 ban dual export extern + pure export for the same symbol. */
 /* wave171: pure owns glue_enc_pop_index_scratch_stack_arm64_elf_c (#[no_mangle] below). */
 export extern "C" function glue_index_scratch_caches_hit_var(arena: *u8, var_ref: i32): i32;
-export extern "C" function glue_binop_stack_spill_append_at_depth(off: i32, depth: i32): i32;
-export extern "C" function glue_binop_stack_spill_cap_get(): i32;
+/* wave208 pure-owned: glue_binop_stack_spill_append_at_depth / cap_get at EOF (#[no_mangle]).
+ * G.7 ban dual export extern + pure export for the same symbol. */
 /* wave172 Cap residual: thin faces for pure minus_pair/subadd3 cache spill leave. */
 export extern "C" function glue_index_minus_pair_cache_valid_get(): i32;
 export extern "C" function glue_index_minus_pair_cache_slot_depth_get(): i32;
@@ -1077,7 +1077,8 @@ export extern "C" function glue_asm73_live_at_stmt_n_get(stmt_i: i32): i32;
 export extern "C" function glue_asm73_live_at_stmt_as_u8(stmt_i: i32): *u8;
 /* wave166 Cap residual: thin faces for pure pressure-evict leave. */
 export extern "C" function glue_asm73_pressure_live_thresh_get(): i32;
-export extern "C" function glue_binop_stack_spill_find_depth(off: i32): i32;
+/* wave208 pure-owned: glue_binop_stack_spill_find_depth at EOF (#[no_mangle]).
+ * G.7 ban dual export extern + pure export for the same symbol. */
 /* wave174: pure owns glue_asm73_evict_rax|rbx_cache_entry (#[no_mangle] below). */
 /* wave166: pure owns pressure eviction faces (#[no_mangle] below). */
 /* wave175: pure owns mov_reg_to_spill / try_colored / farthest / pick_evict (#[no_mangle] below). */
@@ -1118,16 +1119,15 @@ export extern "C" function glue_binop_var_slot_cache_set_valid_x12(v: i32): void
 export extern "C" function glue_binop_var_slot_cache_set_valid_x13(v: i32): void;
 export extern "C" function glue_binop_var_slot_cache_set_valid_x14(v: i32): void;
 export extern "C" function glue_binop_var_slot_cache_set_valid_x15(v: i32): void;
-export extern "C" function glue_binop_stack_spill_n_get(): i32;
-export extern "C" function glue_binop_stack_spill_off_at(i: i32): i32;
-export extern "C" function glue_binop_stack_spill_drop_off(off: i32): void;
+/* wave208 pure-owned: glue_binop_stack_spill_n_get / off_at / drop_off / clear at EOF
+ * (#[no_mangle]). G.7 ban dual export extern + pure export for the same symbol. */
 // wave159 pure-owned: glue_block_stmt_order_has_cfg body in EOF section (was Cap residual spill).
 // wave156 pure-owned: glue_expr_kind_is_assign_like_ord + try_block_let_index_init + kill_assign_lhs in EOF.
 export extern "C" function glue_index_subadd3_sum_cache_clear(): void;
 export extern "C" function glue_index_minus_pair_cache_clear(): void;
-export extern "C" function glue_binop_stack_spill_clear(): void;
 // wave207 pure-owned: glue_binop_rax_frame_spill_n_set + glue_index_scratch_stack_depth_set at EOF.
 // G.7 ban dual export extern + pure export for the same symbol.
+// wave208 pure-owned: glue_binop_stack_spill_clear at EOF (#[no_mangle]).
 export extern "C" function glue_if_expr_arm_emit_depth_get(): i32;
 export extern "C" function glue_if_expr_arm_emit_depth_set(v: i32): void;
 export extern "C" function glue_block_body_bind_module_dep_from_ctx(ctx: *u8): void;
@@ -65295,8 +65295,8 @@ export function pipeline_asm_call_expected_ret_ty_c(): i32 {
 // Pure-owned BSS: g_rax_frame_spill_off[16] + n; g_index_scratch_stack_depth.
 // Consumers: pure binop preserve_rax nest; pure index-scratch push/pop/cleanup;
 // Cap residual spill record/try_reload use get(); seed cold twins under FROM_X.
-// Deferred: for_call_args mega / CALL thin wrappers / spill VAR+color BSS /
-//   CAP cache structs (minus_pair/subadd3) / stack_spill table / pipeline_x mega.
+// Deferred (pre-wave208): for_call_args mega / CALL thin wrappers / spill
+//   VAR+color BSS / CAP cache structs / stack_spill table / pipeline_x mega.
 // PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path for scratch.
 // ===========================================================================
 
@@ -65422,3 +65422,177 @@ export function glue_index_scratch_stack_depth_get(): i32 {
 }
 
 // end wave207 pure-owned leave
+
+// ===========================================================================
+// wave208: binop stack-spill table BSS + thin accessors pure leave
+// (was Cap residual pipeline_asm_emit_spill.c / index_helpers.c wave149–170)
+// G.7 product authority for freestanding 7.3 stack-frame spill metadata table:
+//   glue_binop_stack_spill_append_at_depth / cap_get / clear / drop_off /
+//   find_depth / n_get / off_at
+// Pure-owned BSS: g_binop_stack_spill_off[12] + at_depth[12] + n.
+// Consumers: pure push_elf / cleanup / intersect / pressure-evict; Cap residual
+// try_reload uses find_depth only (no raw static). Seed cold twins under FROM_X.
+// Deferred: try_reload enc (VAR cache + arm64 ldr) / CAP cache structs /
+//   spill VAR+color BSS / for_call_args mega / pipeline_x mega.
+// PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path for table.
+// ===========================================================================
+
+// wave208: binop stack-frame spill table (which=6 homes; cap 12).
+// Rows: (off, at_depth) where at_depth is CAP push depth when spill was pushed.
+// Cleared at block entry via clear(); physical SP pops owned by pure cleanup_all.
+let g_binop_stack_spill_off: i32[12] = [];
+let g_binop_stack_spill_at_depth: i32[12] = [];
+let g_binop_stack_spill_n: i32 = 0;
+
+/**
+ * Append one binop stack-spill table row at CAP depth.
+ *
+ * Contract: off is a frame slot offset; depth is CAP push depth after the
+ * physical stack push (from glue_index_scratch_stack_depth_get). Cap is 12
+ * (GLUE_BINOP_STACK_SPILL_CAP). Full table returns -1 without mutation.
+ *
+ * @param off i32 — frame slot offset of the spilled local
+ * @param depth i32 — CAP depth after push (slot index = depth_now - depth)
+ * @return i32 — 0 on success; -1 if table full
+ *
+ * wave208 pure: G.7 authority (was Cap residual spill wave169).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_binop_stack_spill_append_at_depth(off: i32, depth: i32): i32 {
+  if (g_binop_stack_spill_n >= 12) {
+    return 0 - 1;
+  }
+  g_binop_stack_spill_off[g_binop_stack_spill_n] = off;
+  g_binop_stack_spill_at_depth[g_binop_stack_spill_n] = depth;
+  g_binop_stack_spill_n = g_binop_stack_spill_n + 1;
+  return 0;
+}
+
+/**
+ * Stack-spill table capacity (GLUE_BINOP_STACK_SPILL_CAP = 12).
+ *
+ * @return i32 — fixed capacity 12
+ *
+ * wave208 pure: G.7 authority (was Cap residual spill wave169).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_binop_stack_spill_cap_get(): i32 {
+  return 12;
+}
+
+/**
+ * Clear binop stack-spill table metadata (block entry).
+ *
+ * Contract: only zeros n; does not scrub off/at_depth arrays. Physical SP
+ * cleanup is glue_index_scratch_spills_cleanup_all_elf_c.
+ *
+ * @return void
+ *
+ * wave208 pure: G.7 authority (was Cap residual spill wave149/153).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_binop_stack_spill_clear(): void {
+  g_binop_stack_spill_n = 0;
+}
+
+/**
+ * Drop one stack-spill table row by frame slot off (no physical SP pop).
+ *
+ * Contract: first matching row is removed by compacting later rows left.
+ * off < 0 is a no-op. Absent off is a no-op.
+ *
+ * @param off i32 — frame slot offset to remove from the table
+ * @return void
+ *
+ * wave208 pure: G.7 authority (was Cap residual spill wave163).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_binop_stack_spill_drop_off(off: i32): void {
+  let i: i32 = 0;
+  let j: i32 = 0;
+  if (off < 0) {
+    return;
+  }
+  while (i < g_binop_stack_spill_n) {
+    if (g_binop_stack_spill_off[i] == off) {
+      j = i + 1;
+      while (j < g_binop_stack_spill_n) {
+        g_binop_stack_spill_off[j - 1] = g_binop_stack_spill_off[j];
+        g_binop_stack_spill_at_depth[j - 1] = g_binop_stack_spill_at_depth[j];
+        j = j + 1;
+      }
+      g_binop_stack_spill_n = g_binop_stack_spill_n - 1;
+      return;
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * Look up CAP push depth for a stack-frame spill of off.
+ *
+ * Contract: returns at_depth for the first matching row, or -1 if absent /
+ * off < 0. Pure try_reload / pressure-evict / cleanup use this for slot math
+ * (slot = cap_depth - at_depth).
+ *
+ * @param off i32 — frame slot offset
+ * @return i32 — CAP depth at push time, or -1 if not in table
+ *
+ * wave208 pure: G.7 authority (was Cap residual spill wave166).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_binop_stack_spill_find_depth(off: i32): i32 {
+  let i: i32 = 0;
+  if (off < 0) {
+    return 0 - 1;
+  }
+  while (i < g_binop_stack_spill_n) {
+    if (g_binop_stack_spill_off[i] == off) {
+      return g_binop_stack_spill_at_depth[i];
+    }
+    i = i + 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Current binop stack-spill table length (metadata only).
+ *
+ * @return i32 — number of live rows (0..12)
+ *
+ * wave208 pure: G.7 authority (was Cap residual spill wave169).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_binop_stack_spill_n_get(): i32 {
+  return g_binop_stack_spill_n;
+}
+
+/**
+ * Frame-slot offset at index i in the stack-spill table.
+ *
+ * Contract: i must be in 0..n-1; out of range returns -1.
+ *
+ * @param i i32 — row index
+ * @return i32 — off at i, or -1 if OOB
+ *
+ * wave208 pure: G.7 authority (was Cap residual spill wave169).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_binop_stack_spill_off_at(i: i32): i32 {
+  if (i < 0) {
+    return 0 - 1;
+  }
+  if (i >= g_binop_stack_spill_n) {
+    return 0 - 1;
+  }
+  return g_binop_stack_spill_off[i];
+}
+
+// end wave208 pure-owned leave

@@ -10482,6 +10482,8 @@ void pipeline_asm_emit_async_cps_end_func_elf_c(void) {
  * of this #ifndef chain (not Cap residual).
  * wave207: CAP BSS thin (rax_frame spill + index_scratch depth) pure leave —
  * cold twins defined at EOF under same #ifndef FROM_X.
+ * wave208: binop stack-spill table BSS + thin accessors pure leave —
+ * cold twins defined at EOF under same #ifndef FROM_X.
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 static int32_t g_wave132_call_sret_reg_shift = 0;
@@ -26160,6 +26162,72 @@ void glue_index_scratch_stack_depth_set(int32_t v) {
 
 int32_t glue_index_scratch_stack_depth_get(void) {
   return g_wave207_index_scratch_stack_depth;
+}
+
+/*
+ * wave208 cold twins: binop stack-spill table BSS + thin accessors (G.7 pure leave).
+ * Working freestanding BSS twins of pure stack_spill_off/at_depth/n table.
+ * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
+ * PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path.
+ */
+#define WAVE208_STACK_SPILL_CAP 12
+static int32_t g_wave208_stack_spill_off[WAVE208_STACK_SPILL_CAP];
+static int32_t g_wave208_stack_spill_at_depth[WAVE208_STACK_SPILL_CAP];
+static int32_t g_wave208_stack_spill_n = 0;
+
+int32_t glue_binop_stack_spill_append_at_depth(int32_t off, int32_t depth) {
+  if (g_wave208_stack_spill_n >= WAVE208_STACK_SPILL_CAP)
+    return -1;
+  g_wave208_stack_spill_off[g_wave208_stack_spill_n] = off;
+  g_wave208_stack_spill_at_depth[g_wave208_stack_spill_n] = depth;
+  g_wave208_stack_spill_n++;
+  return 0;
+}
+
+int32_t glue_binop_stack_spill_cap_get(void) {
+  return WAVE208_STACK_SPILL_CAP;
+}
+
+void glue_binop_stack_spill_clear(void) {
+  g_wave208_stack_spill_n = 0;
+}
+
+void glue_binop_stack_spill_drop_off(int32_t off) {
+  int32_t i;
+  int32_t j;
+  if (off < 0)
+    return;
+  for (i = 0; i < g_wave208_stack_spill_n; i++) {
+    if (g_wave208_stack_spill_off[i] != off)
+      continue;
+    for (j = i + 1; j < g_wave208_stack_spill_n; j++) {
+      g_wave208_stack_spill_off[j - 1] = g_wave208_stack_spill_off[j];
+      g_wave208_stack_spill_at_depth[j - 1] = g_wave208_stack_spill_at_depth[j];
+    }
+    g_wave208_stack_spill_n--;
+    return;
+  }
+}
+
+int32_t glue_binop_stack_spill_find_depth(int32_t off) {
+  int32_t i;
+  if (off < 0)
+    return -1;
+  for (i = 0; i < g_wave208_stack_spill_n; i++) {
+    if (g_wave208_stack_spill_off[i] == off)
+      return g_wave208_stack_spill_at_depth[i];
+  }
+  return -1;
+}
+
+int32_t glue_binop_stack_spill_n_get(void) {
+  return g_wave208_stack_spill_n;
+}
+
+int32_t glue_binop_stack_spill_off_at(int32_t i) {
+  if (i < 0 || i >= g_wave208_stack_spill_n)
+    return -1;
+  return g_wave208_stack_spill_off[i];
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
