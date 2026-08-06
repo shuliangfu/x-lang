@@ -428,6 +428,13 @@ int32_t glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *ar
                                                                  struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                                  int32_t esz);
 
+/**
+ * wave183 pure-owned: nested try_index assign-addr→rbx forest (10 faces).
+ * Cap residual CAP BSS + eff_addr remain host; nested addr bodies → pure.
+ * G.7 single authority — no host body. PLATFORM: SHARED freestanding INDEX assign.
+ */
+
+
 /* wave178 pure-owned INDEX expr shape peel forest (runtime_pipeline_abi pure).
  * Cap residual try_index faces call these; G.7 single authority — no static twin.
  * PLATFORM: SHARED freestanding INDEX peel. */
@@ -444,102 +451,25 @@ int32_t glue_index_expr_var_subadd3_elf_c(struct ast_ASTArena *arena, int32_t ad
 int32_t glue_index_expr_var_subsub3_elf_c(struct ast_ASTArena *arena, int32_t sub_ref, int32_t *out_i,
                                          int32_t *out_j, int32_t *out_k);
 
-/**
- * INDEX assign：VAR/FIELD 基址 + ((VAR+VAR)+VAR) ADD 链 → scratch 缩放寻址入 rbx。
- * 0=OK，-1=错，-2=不适用（如 i+j+k / i+(j+k)）。
- */
+/* wave183 pure-owned: glue_try_index_var_plus_var_plus_var_idx_addr_to_rbx_elf_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding INDEX assign nested path. */
 int32_t glue_try_index_var_plus_var_plus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                             int32_t base_ref, int32_t idx_ref,
                                                                             struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                            int32_t esz) {
-  int32_t i_ref;
-  int32_t j_ref;
-  int32_t k_ref;
-  int32_t i_off;
-  int32_t j_off;
-  int32_t k_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (!glue_index_expr_var_add3_elf_c(arena, idx_ref, &i_ref, &j_ref, &k_ref))
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
-  j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
-  k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
-  if (i_off < 0 || j_off < 0 || k_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
+                                                                            int32_t esz);
 
-/**
- * INDEX assign：VAR/FIELD 基址 + ((VAR-VAR)+VAR) 混合 ADD/SUB → scratch 缩放寻址入 rbx。
- * 0=OK，-1=错，-2=不适用（如 i-j+k）。
- */
+
+/* wave183 pure-owned: glue_try_index_var_minus_var_plus_var_idx_addr_to_rbx_elf_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding INDEX assign nested path. */
 int32_t glue_try_index_var_minus_var_plus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                             int32_t base_ref, int32_t idx_ref,
                                                                             struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                            int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t i_ref;
-  int32_t j_ref;
-  int32_t k_ref;
-  int32_t i_off;
-  int32_t j_off;
-  int32_t k_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 4)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (!glue_index_expr_var_minus_var_pair_elf_c(arena, left_ref, &i_ref, &j_ref))
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, right_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  k_ref = right_ref;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
-  j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
-  k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
-  if (i_off < 0 || j_off < 0 || k_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
+                                                                            int32_t esz);
+
 
 /**
  * INDEX assign：VAR/FIELD 基址 + ((VAR-VAR)-VAR) 混合 SUB → scratch 缩放寻址入 rbx。
@@ -652,321 +582,55 @@ int32_t glue_index_subadd3_sum_cache_hit(struct ast_ASTArena *arena, struct back
 int32_t glue_index_reload_scratch_slot_to_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                    int32_t slot_depth);
 
+/* wave183 pure-owned: glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding INDEX assign nested path. */
 int32_t glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                              struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                              int32_t base_ref, int32_t idx_ref,
                                                                              struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                             int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t i_ref;
-  int32_t j_ref;
-  int32_t k_ref;
-  int32_t i_off;
-  int32_t j_off;
-  int32_t k_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 5)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (!glue_index_expr_var_minus_var_pair_elf_c(arena, left_ref, &i_ref, &j_ref))
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, right_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  k_ref = right_ref;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  /** Reuse stack-spilled (i-j) from a prior INDEX assign (e.g. before (i-j+k)*lit). */
-  if (glue_index_minus_pair_cache_hit(arena, ctx, i_ref, j_ref, ta)) {
-    k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
-    if (k_off < 0)
-      return -2;
-    if (glue_index_reload_scratch_slot_elf_c(elf_ctx, ta, glue_index_minus_pair_cache.slot_depth) != 0)
-      return -1;
-    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0)
-      return -1;
-    if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0)
-      return -1;
-    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-  }
-  i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
-  j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
-  k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
-  if (i_off < 0 || j_off < 0 || k_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (glue_index_minus_pair_cache_spill_after_sub_elf_c(arena, elf_ctx, ctx, i_ref, j_ref, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
+                                                                             int32_t esz);
 
-/**
- * INDEX assign：VAR/FIELD 基址 + (VAR-(VAR+VAR)) 右结合 SUB → scratch 缩放寻址入 rbx。
- * 0=OK，-1=错，-2=不适用（如 i-(j+k)）。
- */
+
+/* wave183 pure-owned: glue_try_index_var_minus_add3_idx_addr_to_rbx_elf_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding INDEX assign nested path. */
 int32_t glue_try_index_var_minus_add3_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                     int32_t base_ref, int32_t idx_ref,
                                                                     struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                    int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t i_ref;
-  int32_t j_ref;
-  int32_t k_ref;
-  int32_t i_off;
-  int32_t j_off;
-  int32_t k_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 5)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, left_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  if (!glue_index_expr_var_plus_var_pair_elf_c(arena, right_ref, &j_ref, &k_ref))
-    return -2;
-  i_ref = left_ref;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
-  j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
-  k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
-  if (i_off < 0 || j_off < 0 || k_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, j_off, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, i_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_rsub_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
+                                                                    int32_t esz);
 
-/**
- * INDEX assign：VAR/FIELD 基址 + ((VAR-(VAR+VAR))*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
- * 0=OK，-1=错，-2=不适用（如 (i-(j+k))*2）。
- */
+
+/* wave183 pure-owned: glue_try_index_var_minus_add3_mul_lit_idx_addr_to_rbx_elf_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding INDEX assign nested path. */
 int32_t glue_try_index_var_minus_add3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                               struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                               int32_t base_ref, int32_t idx_ref,
                                                                               struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                              int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t lit_imm;
-  int32_t i_ref;
-  int32_t j_ref;
-  int32_t k_ref;
-  int32_t i_off;
-  int32_t j_off;
-  int32_t k_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 6)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (glue_index_expr_var_minus_add3_elf_c(arena, left_ref, &i_ref, &j_ref, &k_ref)) {
-    if (!pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm))
-      return -2;
-  } else if (glue_index_expr_var_minus_add3_elf_c(arena, right_ref, &i_ref, &j_ref, &k_ref)) {
-    if (!pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm))
-      return -2;
-  } else {
-    return -2;
-  }
-  if (lit_imm <= 1 || lit_imm > 65535)
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
-  j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
-  k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
-  if (i_off < 0 || j_off < 0 || k_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, j_off, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, i_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_rsub_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
+                                                                              int32_t esz);
 
-/**
- * INDEX assign：VAR/FIELD 基址 + ((VAR-VAR)*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
- * 0=OK，-1=错，-2=不适用（如 (i-j)*2）。
- */
+
+/* wave183 pure-owned: glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding INDEX assign nested path. */
 int32_t glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                            int32_t base_ref, int32_t idx_ref,
                                                                            struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                           int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t lit_imm;
-  int32_t i_ref;
-  int32_t j_ref;
-  int32_t i_off;
-  int32_t j_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 6)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (glue_index_expr_var_minus_var_pair_elf_c(arena, left_ref, &i_ref, &j_ref)) {
-    if (!pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm))
-      return -2;
-  } else if (glue_index_expr_var_minus_var_pair_elf_c(arena, right_ref, &i_ref, &j_ref)) {
-    if (!pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm))
-      return -2;
-  } else {
-    return -2;
-  }
-  if (lit_imm <= 1 || lit_imm > 65535)
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  /** Reuse stack-spilled (i-j) from a prior INDEX assign (e.g. after (i-j+k)*lit). */
-  if (glue_index_minus_pair_cache_hit(arena, ctx, i_ref, j_ref, ta)) {
-    if (glue_index_reload_scratch_slot_elf_c(elf_ctx, ta, glue_index_minus_pair_cache.slot_depth) != 0)
-      return -1;
-    if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0)
-      return -1;
-    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-  }
-  /** Stale scratch spills — drop before recomputing (i-j). */
-  if (glue_index_minus_pair_cache.valid || glue_index_subadd3_sum_cache.valid) {
-    if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0)
-      return -1;
-  }
-  i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
-  j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
-  if (i_off < 0 || j_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (glue_index_minus_pair_cache_spill_after_sub_elf_c(arena, elf_ctx, ctx, i_ref, j_ref, ta) != 0)
-    return -1;
-  if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
+                                                                           int32_t esz);
 
-/**
- * INDEX assign：VAR/FIELD 基址 + ((VAR-VAR-VAR)*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
- * 0=OK，-1=错，-2=不适用（如 (i-j-k)*2）。
- */
+
+/* wave183 pure-owned: glue_try_index_var_subsub3_mul_lit_idx_addr_to_rbx_elf_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding INDEX assign nested path. */
 int32_t glue_try_index_var_subsub3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                          int32_t base_ref, int32_t idx_ref,
                                                                          struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                         int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t lit_imm;
-  int32_t i_ref;
-  int32_t j_ref;
-  int32_t k_ref;
-  int32_t i_off;
-  int32_t j_off;
-  int32_t k_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 6)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (glue_index_expr_var_subsub3_elf_c(arena, left_ref, &i_ref, &j_ref, &k_ref)) {
-    if (!pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm))
-      return -2;
-  } else if (glue_index_expr_var_subsub3_elf_c(arena, right_ref, &i_ref, &j_ref, &k_ref)) {
-    if (!pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm))
-      return -2;
-  } else {
-    return -2;
-  }
-  if (lit_imm <= 1 || lit_imm > 65535)
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
-  j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
-  k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
-  if (i_off < 0 || j_off < 0 || k_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
+                                                                         int32_t esz);
+
 
 /**
  * INDEX assign：VAR/FIELD 基址 + ((VAR-VAR+VAR)*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
@@ -993,200 +657,35 @@ int32_t glue_index_subadd3_spill_pop_top_elf_c(struct platform_elf_ElfCodegenCtx
 int32_t glue_index_reload_scratch_slot_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                             int32_t slot_depth);
 
+/* wave183 pure-owned: glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding INDEX assign nested path. */
 int32_t glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                          int32_t base_ref, int32_t idx_ref,
                                                                          struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                         int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t lit_imm;
-  int32_t i_ref;
-  int32_t j_ref;
-  int32_t k_ref;
-  int32_t i_off;
-  int32_t j_off;
-  int32_t k_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 6)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (glue_index_expr_var_subadd3_elf_c(arena, left_ref, &i_ref, &j_ref, &k_ref)) {
-    if (!pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm))
-      return -2;
-  } else if (glue_index_expr_var_subadd3_elf_c(arena, right_ref, &i_ref, &j_ref, &k_ref)) {
-    if (!pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm))
-      return -2;
-  } else {
-    return -2;
-  }
-  if (lit_imm <= 1 || lit_imm > 65535)
-    return -2;
-  if (glue_index_subadd3_sum_cache.valid &&
-      !glue_index_subadd3_sum_cache_hit(arena, ctx, i_ref, j_ref, k_ref, ta)) {
-    if (glue_index_subadd3_spill_pop_top_elf_c(elf_ctx, ta) != 0)
-      return -1;
-  }
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  /** Reuse stack-spilled (i-j+k) sum from a prior INDEX assign in this block. */
-  if (glue_index_subadd3_sum_cache_hit(arena, ctx, i_ref, j_ref, k_ref, ta)) {
-    if (glue_index_reload_scratch_slot_elf_c(elf_ctx, ta, glue_index_subadd3_sum_cache.slot_depth) != 0)
-      return -1;
-    if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0)
-      return -1;
-    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-  }
-  i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
-  j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
-  k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
-  if (i_off < 0 || j_off < 0 || k_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (glue_index_minus_pair_cache_spill_after_sub_elf_c(arena, elf_ctx, ctx, i_ref, j_ref, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (glue_index_subadd3_sum_cache_spill_store_elf_c(arena, elf_ctx, ctx, i_ref, j_ref, k_ref, ta) != 0)
-    return -1;
-  if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
+                                                                         int32_t esz);
 
-/**
- * INDEX assign：VAR/FIELD 基址 + ((VAR+VAR+VAR)*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
- * 0=OK，-1=错，-2=不适用（如 (i+j+k)*2）。
- */
+
+/* wave183 pure-owned: glue_try_index_var_add3_mul_lit_idx_addr_to_rbx_elf_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding INDEX assign nested path. */
 int32_t glue_try_index_var_add3_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                         int32_t base_ref, int32_t idx_ref,
                                                                         struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                        int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t lit_imm;
-  int32_t i_ref;
-  int32_t j_ref;
-  int32_t k_ref;
-  int32_t i_off;
-  int32_t j_off;
-  int32_t k_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 6)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (glue_index_expr_var_add3_elf_c(arena, left_ref, &i_ref, &j_ref, &k_ref)) {
-    if (!pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm))
-      return -2;
-  } else if (glue_index_expr_var_add3_elf_c(arena, right_ref, &i_ref, &j_ref, &k_ref)) {
-    if (!pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm))
-      return -2;
-  } else {
-    return -2;
-  }
-  if (lit_imm <= 1 || lit_imm > 65535)
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
-  j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
-  k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
-  if (i_off < 0 || j_off < 0 || k_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
+                                                                        int32_t esz);
 
-/**
- * INDEX assign：VAR/FIELD 基址 + ((VAR+VAR)*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
- * 0=OK，-1=错，-2=不适用（如 (i+j)*2）。
- */
+
+/* wave183 pure-owned: glue_try_index_var_plus_var_mul_lit_idx_addr_to_rbx_elf_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding INDEX assign nested path. */
 int32_t glue_try_index_var_plus_var_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                           int32_t base_ref, int32_t idx_ref,
                                                                           struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                          int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t lit_imm;
-  int32_t i_ref;
-  int32_t j_ref;
-  int32_t i_off;
-  int32_t j_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 6)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (glue_index_expr_var_plus_var_pair_elf_c(arena, left_ref, &i_ref, &j_ref)) {
-    if (!pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm))
-      return -2;
-  } else if (glue_index_expr_var_plus_var_pair_elf_c(arena, right_ref, &i_ref, &j_ref)) {
-    if (!pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm))
-      return -2;
-  } else {
-    return -2;
-  }
-  if (lit_imm <= 1 || lit_imm > 65535)
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
-  j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
-  if (i_off < 0 || j_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
+                                                                          int32_t esz);
+
 
 /**
  * INDEX 读/址：VAR/FIELD 基址 + (VAR*lit) MUL 下标 → 有效地址入 rax（base + rbx*esz）。

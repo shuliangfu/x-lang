@@ -25646,6 +25646,33 @@ int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(void *arena, void *elf_ctx
   return -2;
 }
 
+/*
+ * wave183 cold twins: nested try_index assign-addr→rbx forest (G.7 pure leave).
+ * Freestanding-safe stubs: return -2 (not applicable; force residual/fallback).
+ * Hybrid product links pure. PLATFORM: SHARED freestanding INDEX assign.
+ */
+#define XLANG_W183_TRY_INDEX_ADDR_TWIN(name) \
+  int32_t name(void *arena, void *elf_ctx, int32_t base_ref, int32_t idx_ref, \
+               void *ctx, int32_t ta, int32_t esz) { \
+    (void)arena; (void)elf_ctx; (void)base_ref; (void)idx_ref; \
+    (void)ctx; (void)ta; (void)esz; \
+    return -2; \
+  }
+
+XLANG_W183_TRY_INDEX_ADDR_TWIN(glue_try_index_var_plus_var_plus_var_idx_addr_to_rbx_elf_c)
+XLANG_W183_TRY_INDEX_ADDR_TWIN(glue_try_index_var_minus_var_plus_var_idx_addr_to_rbx_elf_c)
+XLANG_W183_TRY_INDEX_ADDR_TWIN(glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c)
+XLANG_W183_TRY_INDEX_ADDR_TWIN(glue_try_index_var_minus_add3_idx_addr_to_rbx_elf_c)
+XLANG_W183_TRY_INDEX_ADDR_TWIN(glue_try_index_var_minus_add3_mul_lit_idx_addr_to_rbx_elf_c)
+XLANG_W183_TRY_INDEX_ADDR_TWIN(glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c)
+XLANG_W183_TRY_INDEX_ADDR_TWIN(glue_try_index_var_subsub3_mul_lit_idx_addr_to_rbx_elf_c)
+XLANG_W183_TRY_INDEX_ADDR_TWIN(glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c)
+XLANG_W183_TRY_INDEX_ADDR_TWIN(glue_try_index_var_add3_mul_lit_idx_addr_to_rbx_elf_c)
+XLANG_W183_TRY_INDEX_ADDR_TWIN(glue_try_index_var_plus_var_mul_lit_idx_addr_to_rbx_elf_c)
+
+#undef XLANG_W183_TRY_INDEX_ADDR_TWIN
+
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 

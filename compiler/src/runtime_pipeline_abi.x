@@ -696,16 +696,9 @@ export extern "C" function backend_enc_index_scratch_add_secondary_arch(elf_ctx:
 export extern "C" function backend_enc_index_scratch_sub_secondary_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_mul_imm_to_index_scratch_arch(elf_ctx: *u8, lit: i32, ta: i32): i32;
 export extern "C" function backend_enc_index_scratch_mul_secondary_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function glue_try_index_var_plus_var_plus_var_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
-export extern "C" function glue_try_index_var_minus_var_plus_var_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
-export extern "C" function glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
-export extern "C" function glue_try_index_var_minus_add3_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
-export extern "C" function glue_try_index_var_plus_var_mul_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
-export extern "C" function glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
-export extern "C" function glue_try_index_var_add3_mul_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
-export extern "C" function glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
-export extern "C" function glue_try_index_var_subsub3_mul_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
-export extern "C" function glue_try_index_var_minus_add3_mul_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
+// wave183 pure-owned: nested try_index assign-addr→rbx forest (10 faces) live at EOF.
+// G.7 ban dual export extern + pure export for the same symbol.
+export extern "C" function backend_enc_index_scratch_rsub_secondary_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_divsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_divss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_idiv_rbx_arch(elf_ctx: *u8, ta: i32): i32;
@@ -57766,3 +57759,1095 @@ export function glue_try_index_var_or_field_base_to_rbx_elf_c(arena: *u8, elf_ct
 }
 
 // end wave182 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave183 pure-owned leave: nested try_index assign-addr→rbx forest (10 faces).
+// G.7 authority (was Cap residual pipeline_asm_emit_index_helpers.c).
+// Covers add3 / minus_var±var / minus_add3 / *mul_lit nested INDEX assign lhs.
+// Uses wave178 peel + wave172 cache spill + wave182 base_to_rbx pure.
+// CAP BSS remains residual (getters/setters); pure never touches static structs.
+// ExprKind: VAR=3 ADD=4 SUB=5 MUL=6. PLATFORM: SHARED freestanding INDEX assign.
+// ---------------------------------------------------------------------------
+
+/**
+ * INDEX assign: VAR/FIELD base + ((VAR+VAR)+VAR) ADD chain → scratch scaled into rbx.
+ * @param arena *u8 - ASTArena*; null → -2
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -2
+ * @param base_ref i32 - INDEX base expr ref
+ * @param idx_ref i32 - ADD3 index expr ref
+ * @param ctx *u8 - AsmFuncCtx*; null → -2
+ * @param ta i32 - target arch (0=x86_64, 1=arm64)
+ * @param esz i32 - element stride bytes
+ * @return i32 - 0 ok, -1 enc error, -2 not applicable
+ * wave183 pure-owned G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding INDEX assign add3 path.
+ */
+#[no_mangle]
+export function glue_try_index_var_plus_var_plus_var_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32 {
+  let i_ref: i32 = 0;
+  let j_ref: i32 = 0;
+  let k_ref: i32 = 0;
+  let i_off: i32 = 0;
+  let j_off: i32 = 0;
+  let k_off: i32 = 0;
+  let br: i32 = 0;
+  let peel: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0 || idx_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    peel = glue_index_expr_var_add3_elf_c(arena, idx_ref, &i_ref, &j_ref, &k_ref);
+  }
+  if (peel == 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  }
+  if (br != 0) {
+    return br;
+  }
+  unsafe {
+    i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
+    j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
+    k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
+  }
+  if (i_off < 0 || j_off < 0 || k_off < 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+  }
+}
+
+/**
+ * INDEX assign: VAR/FIELD base + ((VAR-VAR)+VAR) mixed SUB/ADD → scratch scaled into rbx.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param base_ref i32 - INDEX base
+ * @param idx_ref i32 - ADD root with SUB left (i-j)+k
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param esz i32 - element stride
+ * @return i32 - 0 ok, -1 enc error, -2 not applicable
+ * wave183 pure-owned G.7 authority.
+ * PLATFORM: SHARED freestanding INDEX assign minus_var_plus_var path.
+ */
+#[no_mangle]
+export function glue_try_index_var_minus_var_plus_var_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let i_ref: i32 = 0;
+  let j_ref: i32 = 0;
+  let k_ref: i32 = 0;
+  let i_off: i32 = 0;
+  let j_off: i32 = 0;
+  let k_off: i32 = 0;
+  let br: i32 = 0;
+  let ko: i32 = 0;
+  let peel: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0 || idx_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+  }
+  // EXPR_ADD == 4
+  if (ko != 4) {
+    return 0 - 2;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    peel = glue_index_expr_var_minus_var_pair_elf_c(arena, left_ref, &i_ref, &j_ref);
+  }
+  if (peel == 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, right_ref);
+  }
+  // GLUE_EXPR_KIND_VAR == 3
+  if (ko != 3) {
+    return 0 - 2;
+  }
+  k_ref = right_ref;
+  unsafe {
+    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  }
+  if (br != 0) {
+    return br;
+  }
+  unsafe {
+    i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
+    j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
+    k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
+  }
+  if (i_off < 0 || j_off < 0 || k_off < 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+  }
+}
+
+/**
+ * INDEX assign: VAR/FIELD base + ((VAR-VAR)-VAR) mixed SUB → scratch scaled into rbx.
+ * Reuses CAP (i-j) spill cache via thin getters when hit.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param base_ref i32 - INDEX base
+ * @param idx_ref i32 - SUB root (i-j)-k
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param esz i32 - element stride
+ * @return i32 - 0 ok, -1 enc error, -2 not applicable
+ * wave183 pure-owned G.7 authority.
+ * PLATFORM: SHARED freestanding INDEX assign subsub3 path.
+ */
+#[no_mangle]
+export function glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let i_ref: i32 = 0;
+  let j_ref: i32 = 0;
+  let k_ref: i32 = 0;
+  let i_off: i32 = 0;
+  let j_off: i32 = 0;
+  let k_off: i32 = 0;
+  let br: i32 = 0;
+  let ko: i32 = 0;
+  let peel: i32 = 0;
+  let hit: i32 = 0;
+  let slot: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0 || idx_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+  }
+  // EXPR_SUB == 5
+  if (ko != 5) {
+    return 0 - 2;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    peel = glue_index_expr_var_minus_var_pair_elf_c(arena, left_ref, &i_ref, &j_ref);
+  }
+  if (peel == 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, right_ref);
+  }
+  if (ko != 3) {
+    return 0 - 2;
+  }
+  k_ref = right_ref;
+  unsafe {
+    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  }
+  if (br != 0) {
+    return br;
+  }
+  // Reuse stack-spilled (i-j) from a prior INDEX assign.
+  unsafe {
+    hit = glue_index_minus_pair_cache_hit(arena, ctx, i_ref, j_ref, ta);
+  }
+  if (hit != 0) {
+    unsafe {
+      k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
+    }
+    if (k_off < 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      slot = glue_index_minus_pair_cache_slot_depth_get();
+      if (glue_index_reload_scratch_slot_elf_c(elf_ctx, ta, slot) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+    }
+  }
+  unsafe {
+    i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
+    j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
+    k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
+  }
+  if (i_off < 0 || j_off < 0 || k_off < 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (glue_index_minus_pair_cache_spill_after_sub_elf_c(arena, elf_ctx, ctx, i_ref, j_ref, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+  }
+}
+
+/**
+ * INDEX assign: VAR/FIELD base + (VAR-(VAR+VAR)) right-assoc SUB → scratch scaled into rbx.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param base_ref i32 - INDEX base
+ * @param idx_ref i32 - SUB root i-(j+k)
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param esz i32 - element stride
+ * @return i32 - 0 ok, -1 enc error, -2 not applicable
+ * wave183 pure-owned G.7 authority.
+ * PLATFORM: SHARED freestanding INDEX assign minus_add3 path.
+ */
+#[no_mangle]
+export function glue_try_index_var_minus_add3_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let i_ref: i32 = 0;
+  let j_ref: i32 = 0;
+  let k_ref: i32 = 0;
+  let i_off: i32 = 0;
+  let j_off: i32 = 0;
+  let k_off: i32 = 0;
+  let br: i32 = 0;
+  let ko: i32 = 0;
+  let peel: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0 || idx_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+  }
+  if (ko != 5) {
+    return 0 - 2;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, left_ref);
+  }
+  if (ko != 3) {
+    return 0 - 2;
+  }
+  unsafe {
+    peel = glue_index_expr_var_plus_var_pair_elf_c(arena, right_ref, &j_ref, &k_ref);
+  }
+  if (peel == 0) {
+    return 0 - 2;
+  }
+  i_ref = left_ref;
+  unsafe {
+    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  }
+  if (br != 0) {
+    return br;
+  }
+  unsafe {
+    i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
+    j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
+    k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
+  }
+  if (i_off < 0 || j_off < 0 || k_off < 0) {
+    return 0 - 2;
+  }
+  // Compute j+k then rsub i (secondary holds i; scratch becomes i-(j+k)).
+  unsafe {
+    if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, j_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, i_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_rsub_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+  }
+}
+
+/**
+ * INDEX assign: base + ((VAR-(VAR+VAR))*lit) MUL nested → scratch scaled into rbx.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param base_ref i32 - INDEX base
+ * @param idx_ref i32 - MUL root over minus_add3
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param esz i32 - element stride
+ * @return i32 - 0 ok, -1 enc error, -2 not applicable
+ * wave183 pure-owned G.7 authority.
+ * PLATFORM: SHARED freestanding INDEX assign minus_add3_mul_lit path.
+ */
+#[no_mangle]
+export function glue_try_index_var_minus_add3_mul_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let lit_imm: i32 = 0;
+  let i_ref: i32 = 0;
+  let j_ref: i32 = 0;
+  let k_ref: i32 = 0;
+  let i_off: i32 = 0;
+  let j_off: i32 = 0;
+  let k_off: i32 = 0;
+  let br: i32 = 0;
+  let ko: i32 = 0;
+  let peel: i32 = 0;
+  let is_lit: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0 || idx_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+  }
+  // EXPR_MUL == 6
+  if (ko != 6) {
+    return 0 - 2;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    peel = glue_index_expr_var_minus_add3_elf_c(arena, left_ref, &i_ref, &j_ref, &k_ref);
+  }
+  if (peel != 0) {
+    unsafe {
+      is_lit = pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm);
+    }
+    if (is_lit == 0) {
+      return 0 - 2;
+    }
+  } else {
+    unsafe {
+      peel = glue_index_expr_var_minus_add3_elf_c(arena, right_ref, &i_ref, &j_ref, &k_ref);
+    }
+    if (peel != 0) {
+      unsafe {
+        is_lit = pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm);
+      }
+      if (is_lit == 0) {
+        return 0 - 2;
+      }
+    } else {
+      return 0 - 2;
+    }
+  }
+  if (lit_imm <= 1 || lit_imm > 65535) {
+    return 0 - 2;
+  }
+  unsafe {
+    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  }
+  if (br != 0) {
+    return br;
+  }
+  unsafe {
+    i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
+    j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
+    k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
+  }
+  if (i_off < 0 || j_off < 0 || k_off < 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, j_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, i_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_rsub_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+  }
+}
+
+/**
+ * INDEX assign: base + ((VAR-VAR)*lit) MUL nested → scratch scaled into rbx.
+ * Uses CAP (i-j) spill cache; cleans stale scratch spills before recompute.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param base_ref i32 - INDEX base
+ * @param idx_ref i32 - MUL root over minus_var pair
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param esz i32 - element stride
+ * @return i32 - 0 ok, -1 enc error, -2 not applicable
+ * wave183 pure-owned G.7 authority.
+ * PLATFORM: SHARED freestanding INDEX assign minus_var_mul_lit path.
+ */
+#[no_mangle]
+export function glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let lit_imm: i32 = 0;
+  let i_ref: i32 = 0;
+  let j_ref: i32 = 0;
+  let i_off: i32 = 0;
+  let j_off: i32 = 0;
+  let br: i32 = 0;
+  let ko: i32 = 0;
+  let peel: i32 = 0;
+  let is_lit: i32 = 0;
+  let hit: i32 = 0;
+  let slot: i32 = 0;
+  let mp_valid: i32 = 0;
+  let sa_valid: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0 || idx_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+  }
+  if (ko != 6) {
+    return 0 - 2;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    peel = glue_index_expr_var_minus_var_pair_elf_c(arena, left_ref, &i_ref, &j_ref);
+  }
+  if (peel != 0) {
+    unsafe {
+      is_lit = pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm);
+    }
+    if (is_lit == 0) {
+      return 0 - 2;
+    }
+  } else {
+    unsafe {
+      peel = glue_index_expr_var_minus_var_pair_elf_c(arena, right_ref, &i_ref, &j_ref);
+    }
+    if (peel != 0) {
+      unsafe {
+        is_lit = pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm);
+      }
+      if (is_lit == 0) {
+        return 0 - 2;
+      }
+    } else {
+      return 0 - 2;
+    }
+  }
+  if (lit_imm <= 1 || lit_imm > 65535) {
+    return 0 - 2;
+  }
+  unsafe {
+    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  }
+  if (br != 0) {
+    return br;
+  }
+  unsafe {
+    hit = glue_index_minus_pair_cache_hit(arena, ctx, i_ref, j_ref, ta);
+  }
+  if (hit != 0) {
+    unsafe {
+      slot = glue_index_minus_pair_cache_slot_depth_get();
+      if (glue_index_reload_scratch_slot_elf_c(elf_ctx, ta, slot) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0) {
+        return 0 - 1;
+      }
+      return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+    }
+  }
+  // Stale scratch spills — drop before recomputing (i-j).
+  unsafe {
+    mp_valid = glue_index_minus_pair_cache_valid_get();
+    sa_valid = glue_index_subadd3_sum_cache_valid_get();
+  }
+  if (mp_valid != 0 || sa_valid != 0) {
+    unsafe {
+      if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+  }
+  unsafe {
+    i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
+    j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
+  }
+  if (i_off < 0 || j_off < 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (glue_index_minus_pair_cache_spill_after_sub_elf_c(arena, elf_ctx, ctx, i_ref, j_ref, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+  }
+}
+
+/**
+ * INDEX assign: base + ((VAR-VAR-VAR)*lit) MUL nested → scratch scaled into rbx.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param base_ref i32 - INDEX base
+ * @param idx_ref i32 - MUL root over subsub3
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param esz i32 - element stride
+ * @return i32 - 0 ok, -1 enc error, -2 not applicable
+ * wave183 pure-owned G.7 authority.
+ * PLATFORM: SHARED freestanding INDEX assign subsub3_mul_lit path.
+ */
+#[no_mangle]
+export function glue_try_index_var_subsub3_mul_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let lit_imm: i32 = 0;
+  let i_ref: i32 = 0;
+  let j_ref: i32 = 0;
+  let k_ref: i32 = 0;
+  let i_off: i32 = 0;
+  let j_off: i32 = 0;
+  let k_off: i32 = 0;
+  let br: i32 = 0;
+  let ko: i32 = 0;
+  let peel: i32 = 0;
+  let is_lit: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0 || idx_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+  }
+  if (ko != 6) {
+    return 0 - 2;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    peel = glue_index_expr_var_subsub3_elf_c(arena, left_ref, &i_ref, &j_ref, &k_ref);
+  }
+  if (peel != 0) {
+    unsafe {
+      is_lit = pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm);
+    }
+    if (is_lit == 0) {
+      return 0 - 2;
+    }
+  } else {
+    unsafe {
+      peel = glue_index_expr_var_subsub3_elf_c(arena, right_ref, &i_ref, &j_ref, &k_ref);
+    }
+    if (peel != 0) {
+      unsafe {
+        is_lit = pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm);
+      }
+      if (is_lit == 0) {
+        return 0 - 2;
+      }
+    } else {
+      return 0 - 2;
+    }
+  }
+  if (lit_imm <= 1 || lit_imm > 65535) {
+    return 0 - 2;
+  }
+  unsafe {
+    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  }
+  if (br != 0) {
+    return br;
+  }
+  unsafe {
+    i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
+    j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
+    k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
+  }
+  if (i_off < 0 || j_off < 0 || k_off < 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+  }
+}
+
+/**
+ * INDEX assign: base + ((VAR-VAR+VAR)*lit) MUL nested → scratch scaled into rbx.
+ * Uses CAP (i-j+k) sum spill cache via thin getters.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param base_ref i32 - INDEX base
+ * @param idx_ref i32 - MUL root over subadd3
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param esz i32 - element stride
+ * @return i32 - 0 ok, -1 enc error, -2 not applicable
+ * wave183 pure-owned G.7 authority.
+ * PLATFORM: SHARED freestanding INDEX assign subadd3_mul_lit path.
+ */
+#[no_mangle]
+export function glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let lit_imm: i32 = 0;
+  let i_ref: i32 = 0;
+  let j_ref: i32 = 0;
+  let k_ref: i32 = 0;
+  let i_off: i32 = 0;
+  let j_off: i32 = 0;
+  let k_off: i32 = 0;
+  let br: i32 = 0;
+  let ko: i32 = 0;
+  let peel: i32 = 0;
+  let is_lit: i32 = 0;
+  let hit: i32 = 0;
+  let slot: i32 = 0;
+  let sa_valid: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0 || idx_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+  }
+  if (ko != 6) {
+    return 0 - 2;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    peel = glue_index_expr_var_subadd3_elf_c(arena, left_ref, &i_ref, &j_ref, &k_ref);
+  }
+  if (peel != 0) {
+    unsafe {
+      is_lit = pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm);
+    }
+    if (is_lit == 0) {
+      return 0 - 2;
+    }
+  } else {
+    unsafe {
+      peel = glue_index_expr_var_subadd3_elf_c(arena, right_ref, &i_ref, &j_ref, &k_ref);
+    }
+    if (peel != 0) {
+      unsafe {
+        is_lit = pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm);
+      }
+      if (is_lit == 0) {
+        return 0 - 2;
+      }
+    } else {
+      return 0 - 2;
+    }
+  }
+  if (lit_imm <= 1 || lit_imm > 65535) {
+    return 0 - 2;
+  }
+  // Drop stale top (i-j+k) spill if keys differ from this site.
+  unsafe {
+    sa_valid = glue_index_subadd3_sum_cache_valid_get();
+  }
+  if (sa_valid != 0) {
+    unsafe {
+      hit = glue_index_subadd3_sum_cache_hit(arena, ctx, i_ref, j_ref, k_ref, ta);
+    }
+    if (hit == 0) {
+      unsafe {
+        if (glue_index_subadd3_spill_pop_top_elf_c(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+  }
+  unsafe {
+    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  }
+  if (br != 0) {
+    return br;
+  }
+  unsafe {
+    hit = glue_index_subadd3_sum_cache_hit(arena, ctx, i_ref, j_ref, k_ref, ta);
+  }
+  if (hit != 0) {
+    unsafe {
+      slot = glue_index_subadd3_sum_cache_slot_depth_get();
+      if (glue_index_reload_scratch_slot_elf_c(elf_ctx, ta, slot) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0) {
+        return 0 - 1;
+      }
+      return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+    }
+  }
+  unsafe {
+    i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
+    j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
+    k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
+  }
+  if (i_off < 0 || j_off < 0 || k_off < 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (glue_index_minus_pair_cache_spill_after_sub_elf_c(arena, elf_ctx, ctx, i_ref, j_ref, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (glue_index_subadd3_sum_cache_spill_store_elf_c(arena, elf_ctx, ctx, i_ref, j_ref, k_ref, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+  }
+}
+
+/**
+ * INDEX assign: base + ((VAR+VAR+VAR)*lit) MUL nested → scratch scaled into rbx.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param base_ref i32 - INDEX base
+ * @param idx_ref i32 - MUL root over add3
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param esz i32 - element stride
+ * @return i32 - 0 ok, -1 enc error, -2 not applicable
+ * wave183 pure-owned G.7 authority.
+ * PLATFORM: SHARED freestanding INDEX assign add3_mul_lit path.
+ */
+#[no_mangle]
+export function glue_try_index_var_add3_mul_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let lit_imm: i32 = 0;
+  let i_ref: i32 = 0;
+  let j_ref: i32 = 0;
+  let k_ref: i32 = 0;
+  let i_off: i32 = 0;
+  let j_off: i32 = 0;
+  let k_off: i32 = 0;
+  let br: i32 = 0;
+  let ko: i32 = 0;
+  let peel: i32 = 0;
+  let is_lit: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0 || idx_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+  }
+  if (ko != 6) {
+    return 0 - 2;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    peel = glue_index_expr_var_add3_elf_c(arena, left_ref, &i_ref, &j_ref, &k_ref);
+  }
+  if (peel != 0) {
+    unsafe {
+      is_lit = pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm);
+    }
+    if (is_lit == 0) {
+      return 0 - 2;
+    }
+  } else {
+    unsafe {
+      peel = glue_index_expr_var_add3_elf_c(arena, right_ref, &i_ref, &j_ref, &k_ref);
+    }
+    if (peel != 0) {
+      unsafe {
+        is_lit = pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm);
+      }
+      if (is_lit == 0) {
+        return 0 - 2;
+      }
+    } else {
+      return 0 - 2;
+    }
+  }
+  if (lit_imm <= 1 || lit_imm > 65535) {
+    return 0 - 2;
+  }
+  unsafe {
+    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  }
+  if (br != 0) {
+    return br;
+  }
+  unsafe {
+    i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
+    j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
+    k_off = glue_var_expr_stack_off_elf_c(arena, ctx, k_ref);
+  }
+  if (i_off < 0 || j_off < 0 || k_off < 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+  }
+}
+
+/**
+ * INDEX assign: base + ((VAR+VAR)*lit) MUL nested → scratch scaled into rbx.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param base_ref i32 - INDEX base
+ * @param idx_ref i32 - MUL root over plus_var pair
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param esz i32 - element stride
+ * @return i32 - 0 ok, -1 enc error, -2 not applicable
+ * wave183 pure-owned G.7 authority.
+ * PLATFORM: SHARED freestanding INDEX assign plus_var_mul_lit path.
+ */
+#[no_mangle]
+export function glue_try_index_var_plus_var_mul_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let lit_imm: i32 = 0;
+  let i_ref: i32 = 0;
+  let j_ref: i32 = 0;
+  let i_off: i32 = 0;
+  let j_off: i32 = 0;
+  let br: i32 = 0;
+  let ko: i32 = 0;
+  let peel: i32 = 0;
+  let is_lit: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0 || idx_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+  }
+  if (ko != 6) {
+    return 0 - 2;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    peel = glue_index_expr_var_plus_var_pair_elf_c(arena, left_ref, &i_ref, &j_ref);
+  }
+  if (peel != 0) {
+    unsafe {
+      is_lit = pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm);
+    }
+    if (is_lit == 0) {
+      return 0 - 2;
+    }
+  } else {
+    unsafe {
+      peel = glue_index_expr_var_plus_var_pair_elf_c(arena, right_ref, &i_ref, &j_ref);
+    }
+    if (peel != 0) {
+      unsafe {
+        is_lit = pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm);
+      }
+      if (is_lit == 0) {
+        return 0 - 2;
+      }
+    } else {
+      return 0 - 2;
+    }
+  }
+  if (lit_imm <= 1 || lit_imm > 65535) {
+    return 0 - 2;
+  }
+  unsafe {
+    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  }
+  if (br != 0) {
+    return br;
+  }
+  unsafe {
+    i_off = glue_var_expr_stack_off_elf_c(arena, ctx, i_ref);
+    j_off = glue_var_expr_stack_off_elf_c(arena, ctx, j_ref);
+  }
+  if (i_off < 0 || j_off < 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, i_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, j_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
+  }
+}
+
+// end wave183 pure-owned leave
