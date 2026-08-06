@@ -10473,11 +10473,13 @@ void pipeline_asm_emit_async_cps_end_func_elf_c(void) {
 
 /* wave132: struct_let pure leave cold twins under #ifndef FROM_X.
  * PLATFORM: SHARED freestanding emit · Cap residual struct_lit_fields + try_inline*
- * + set_call_expected_ret_ty + call_return_byte_size + type_size_simple +
+ * + call_return_byte_size + type_size_simple +
  * named_layout_size + store_retval_pair + emit_module_from_ctx + expr_kind +
  * emit_expr_elf_c + lea/mov_arg + arm64 x0→x8.
  * PREFER pure; cold path when PREFER!=1 / hybrid fail.
  * Pure-owned g_call_sret_reg_shift (was glue_statics static).
+ * wave206: set_call_expected_ret_ty pure BSS leave — cold twin defined at EOF
+ * of this #ifndef chain (not Cap residual).
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 static int32_t g_wave132_call_sret_reg_shift = 0;
@@ -10489,6 +10491,7 @@ extern int32_t try_inline_struct_lit_return_call_to_slot_elf(void *arena, void *
                                                             int32_t ta, int32_t stack_slot_off);
 extern int32_t try_inline_const_struct_lit_return_call_to_slot_elf(void *arena, void *elf_ctx, int32_t call_ref,
                                                                   void *ctx, int32_t ta, int32_t stack_slot_off);
+/* wave206 pure leave: cold twin body at seed EOF under same #ifndef FROM_X. */
 extern void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref);
 extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
 extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
@@ -26099,6 +26102,22 @@ int32_t glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(void *arena, void *el
   (void)ty_ref;
   (void)use_frame;
   return -1;
+}
+
+/*
+ * wave206 cold twin: CALL expected return type BSS set/get (G.7 pure leave).
+ * Working freestanding BSS twin of pure g_call_expected_ret_ty (same clamp).
+ * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
+ * PLATFORM: SHARED freestanding CALL expected-ret tracking.
+ */
+static int32_t g_wave206_call_expected_ret_ty = 0;
+
+void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref) {
+  g_wave206_call_expected_ret_ty = type_ref > 0 ? type_ref : 0;
+}
+
+int32_t pipeline_asm_call_expected_ret_ty_c(void) {
+  return g_wave206_call_expected_ret_ty;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */

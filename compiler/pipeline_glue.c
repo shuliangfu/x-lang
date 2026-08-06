@@ -317,9 +317,10 @@ extern int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(struct ast_ASTAren
  * live = runtime_pipeline_abi pure (struct_let_init + type_let_init +
  * set/get call_sret_reg_shift + pure-owned sret flag);
  * seed cold twins under #ifndef FROM_X.
- * Cap residual: struct_lit_fields + try_inline* + set_call_expected_ret_ty +
+ * Cap residual: struct_lit_fields + try_inline* +
  * call_return_byte_size + type_size_simple + named_layout + store_retval_pair +
  * emit_module_from_ctx (static→extern) + public emit_expr_elf_c.
+ * wave206: set/call_expected_ret_ty pure BSS leave (was Cap residual).
  * Residual block_inits / vector_let / array_lit / assign / field_access /
  * call_args call pure faces via emit_fwd / backend_fwd extern decls —
  * do not re-open a second struct let-init ELF face (G.7).

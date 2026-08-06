@@ -80,11 +80,11 @@ int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t
  * overloads (vec.new) would otherwise pick first (Vec_i32). Let-init install sets this from
  * the declaration type (let v: Vec_u8 = vec.new()).
  */
-/* wave1195 G.7: pipeline_asm_set/call_expected_ret_ty_c + static var
- * g_pipeline_asm_call_expected_ret_ty migrated to
- * pipeline_asm_emit_call_args.c EOF (same-TU #include at L1679).
- * Colocated with call_args domain. Extern fwd decls below ensure
- * visibility for callsites before #include (struct_let.c at L1539).
+/* wave1195 G.7 → wave206 pure leave: pipeline_asm_set/call_expected_ret_ty_c
+ * + pure BSS live in runtime_pipeline_abi.x (#[no_mangle] export).
+ * Cap residual / early fwd: prototype only. Seed cold twin under #ifndef FROM_X.
+ * Extern fwd decls below ensure visibility for residual callsites before
+ * call_args #include (struct_let residual / field_access residual).
  * PLATFORM: SHARED. */
 void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref);
 int32_t pipeline_asm_call_expected_ret_ty_c(void);

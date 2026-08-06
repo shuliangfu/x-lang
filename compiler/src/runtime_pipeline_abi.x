@@ -1201,7 +1201,8 @@ export extern "C" function backend_enc_jeq_arch(elf_ctx: *u8, label: *u8, label_
 // wave154 pure-owned: pipeline_asm_emit_struct_lit_fields_elf_c body in EOF section.
 export extern "C" function try_inline_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
 export extern "C" function try_inline_const_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
-export extern "C" function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32): void;
+// wave206 pure-owned: pipeline_asm_set/call_expected_ret_ty_c + pure BSS at EOF.
+// G.7 ban dual export extern + pure export for the same symbol.
 // wave194 pure-owned: glue_call_return_byte_size_c body at EOF (#[no_mangle]).
 // wave195 pure-owned: pipeline_asm_call_arg_value_byte_size_c body at EOF (#[no_mangle]).
 // wave196 pure-owned: pipeline_asm_call_return_type_kind_ord_c body at EOF (#[no_mangle]).
@@ -23703,9 +23704,10 @@ export function pipeline_asm_emit_async_cps_end_func_elf_c(): void {
 //   glue_emit_struct_type_let_init_elf_c     (STRUCT_LIT / CALL / METHOD_CALL)
 //   pipeline_asm_emit_set_call_sret_reg_shift_c / call_sret_reg_shift_c
 // Pure-owned flag: g_call_sret_reg_shift (was glue_statics static).
-// Cap residual: struct_lit_fields + try_inline* + set_call_expected_ret_ty +
+// Cap residual: struct_lit_fields + try_inline* +
 //   call_return_byte_size + type_size_simple + named_layout_size + store_retval_pair +
 //   emit_module_from_ctx + expr_kind + emit_expr_elf_c + lea/mov_arg + arm64 x0→x8.
+// wave206: set_call_expected_ret_ty pure-owned (pure BSS at EOF).
 // Operand emit uses public pipeline_asm_emit_expr_elf_c (not static _rec).
 // Cold twins under seed #ifndef FROM_X.
 // PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
@@ -65226,3 +65228,61 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
 }
 
 // end wave205 pure-owned leave
+
+// ===========================================================================
+// wave206: CALL expected return type BSS pure leave
+// (was Cap residual pipeline_asm_emit_call_args.c wave1195 public set/get)
+// G.7 product authority for freestanding CALL expected-ret tracking:
+//   pipeline_asm_set_call_expected_ret_ty_c  (setter; clamp <=0 → 0)
+//   pipeline_asm_call_expected_ret_ty_c      (getter; 0 = none)
+// Pure-owned flag: g_call_expected_ret_ty (was file-scoped static in call_args).
+// Consumers: pure struct_let / field_access install around CALL/METHOD; seed
+// backend_call_dispatch reads via getter (prefer typeck resolved, else this).
+// Deferred: for_call_args mega / CALL thin wrappers / spill BSS / CAP BSS /
+//   pipeline_x mega.
+// PLATFORM: SHARED — asm emit call ret ty tracking is platform-agnostic.
+// ===========================================================================
+
+// wave206: current CALL expected return type_ref (0 = none). Set during CALL
+// emit (struct_let / field_access install); cleared after CALL returns.
+let g_call_expected_ret_ty: i32 = 0;
+
+/**
+ * Set the current CALL's expected return type ref.
+ *
+ * Contract: type_ref <= 0 clamped to 0 (no expected type). Nonzero installs
+ * the let-init / field-base type so backend_call_dispatch can size/store
+ * when typeck has not yet resolved the CALL expr type.
+ *
+ * @param type_ref i32 — expected return type_ref; <=0 clears to 0
+ * @return void
+ *
+ * wave206 pure: G.7 authority (was Cap residual call_args wave1195 public).
+ * PLATFORM: SHARED — platform-agnostic emit-side tracking.
+ */
+#[no_mangle]
+export function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32): void {
+  if (type_ref > 0) {
+    g_call_expected_ret_ty = type_ref;
+  } else {
+    g_call_expected_ret_ty = 0;
+  }
+}
+
+/**
+ * Get the current CALL's expected return type ref.
+ *
+ * Contract: returns 0 if none set (caller falls back to typeck resolved type
+ * or treats as unknown).
+ *
+ * @return i32 — expected return type_ref, or 0 if none
+ *
+ * wave206 pure: G.7 authority (was Cap residual call_args wave1195 public).
+ * PLATFORM: SHARED — seed backend_call_dispatch + pure consumers.
+ */
+#[no_mangle]
+export function pipeline_asm_call_expected_ret_ty_c(): i32 {
+  return g_call_expected_ret_ty;
+}
+
+// end wave206 pure-owned leave
