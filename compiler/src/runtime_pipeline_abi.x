@@ -1202,10 +1202,14 @@ export extern "C" function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32
 // wave196 pure-owned: pipeline_asm_call_return_type_kind_ord_c body at EOF (#[no_mangle]).
 // wave197 pure-owned: pipeline_asm_call_struct16_ret_needs_rax_deref_c +
 //   pipeline_asm_deref_struct16_rax_ptr_elf_c bodies at EOF (#[no_mangle]).
+// wave198 pure-owned: pipeline_asm_call_param_type_ref_at_c body at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
 // Cap residual resolve stays host-cc (public after wave194; was static).
 export extern "C" function glue_asm_resolve_call_target_module_c(arena: *u8, call_expr_ref: i32, mod_out: *u8, func_ix_out: *i32, dep_ix_out: *i32): i32;
 export extern "C" function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32, dep_return_type_ref: i32, caller_arena: *u8, ctx: *u8): i32;
+// wave198: slow-path dep type_ref → caller-arena map (Cap residual method_call).
+// PLATFORM: SHARED — param formal type_ref must never cross arenas raw.
+export extern "C" function pipeline_typeck_dep_return_type_to_caller_arena_c(dep_arena: *u8, dep_return_type_ref: i32, caller_arena: *u8): i32;
 // wave154 pure-owned: glue_type_size_simple body in EOF section.
 // wave191 pure-owned: glue_type_named_layout_size_any_module_elf_c lives at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
@@ -62475,8 +62479,9 @@ export function pipeline_asm_call_arg_value_byte_size_c(arena: *u8, ctx: *u8, ar
 // Fast path: caller-arena resolved_type_ref. Slow path: Cap residual
 //   glue_asm_resolve_call_target_module_c + return type + dep map; if map
 //   fails, kind_ord from dep arena (arena-local read).
-// Deferred (pre-wave197): param_type_ref_at / for_call_args mega / resolve pure.
 // wave197: struct16 needs_rax_deref + deref pure leave (EOF below).
+// wave198: param_type_ref_at pure leave (EOF below).
+// Deferred: for_call_args mega / resolve pure / spill BSS / CAP BSS / pipeline_x mega.
 // PLATFORM: SHARED freestanding · LINUX+MACOS SysV SSE/GP · MACOS|ARM64 AAPCS64.
 // ===========================================================================
 
@@ -62588,7 +62593,8 @@ export function pipeline_asm_call_return_type_kind_ord_c(arena: *u8, call_expr_r
 //   pipeline_asm_deref_struct16_rax_ptr_elf_c
 //   pipeline_asm_call_struct16_ret_needs_rax_deref_c
 // Needs: resolve Cap residual + skip_heavy pure + name_equal Cap + size_simple pure.
-// Deferred: param_type_ref_at / for_call_args mega / resolve pure / spill BSS / CAP BSS.
+// wave198: param_type_ref_at pure leave (EOF below).
+// Deferred: for_call_args mega / resolve pure / spill BSS / CAP BSS / pipeline_x mega.
 // PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 dual-GP · MACOS|ARM64 AAPCS64.
 // ===========================================================================
 
@@ -62733,3 +62739,152 @@ export function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *u8, cal
 }
 
 // end wave197 pure-owned leave
+
+// ===========================================================================
+// wave198: CALL formal param type_ref pure leave
+// (was Cap residual in pipeline_asm_emit_call_args.c wave1063)
+// G.7 product authority for CALL-site formal param type_ref (caller arena):
+//   pipeline_asm_call_param_type_ref_at_c
+// Resolve Cap residual + module param_type_ref_at + dep map
+//   (get_dep_return_type fast / dep_return_type_to_caller slow / ndep scan).
+// Never return a raw dep-arena type_ref to caller-arena consumers.
+// Deferred: for_call_args mega / resolve pure / spill BSS / CAP BSS / pipeline_x mega.
+// PLATFORM: SHARED freestanding · LINUX+MACOS SysV SSE/GP class · MACOS|ARM64 AAPCS64.
+// ===========================================================================
+
+/**
+ * Resolve a CALL expression's formal param type_ref at param_index, always in
+ * the *caller* arena (never a raw dep-arena type_ref).
+ * Used by backend_call_dispatch for SysV register class (SSE vs GP) and load
+ * width when packing call args.
+ * @param arena *u8 — ASTArena* (caller/entry); null → 0
+ * @param call_expr_ref i32 — EXPR_CALL / METHOD_CALL ref; ≤0 → 0
+ * @param param_index i32 — formal index; <0 → 0
+ * @return i32 — caller-arena type_ref (>0) on success; 0 on resolve/map failure
+ *
+ * Contract (wave1063 / wave198 pure leave):
+ *  1. null/bad ref/index → 0
+ *  2. resolve fail / null mod / fi<0 → 0
+ *  3. missing param type_ref → 0
+ *  4. entry-module callee (mod == emit_mod && dep_ix < 0) → raw pty
+ *  5. dep_ix≥0: get_dep_return_type map; fail → dep_arena slow map
+ *  6. dep_ix missing but mod≠emit_mod: scan ndep by module pointer
+ *  7. still unmapped dep type → 0 (ban raw dep type_ref)
+ *
+ * wave198 pure: G.7 authority (was Cap residual call_args).
+ * PLATFORM: SHARED freestanding CALL formal type_ref · LINUX+MACOS SysV · MACOS|ARM64.
+ */
+#[no_mangle]
+export function pipeline_asm_call_param_type_ref_at_c(arena: *u8, call_expr_ref: i32, param_index: i32): i32 {
+  // LP64 out cells: Module** via u8[8] + pipe_*_ptr_slot (G.7).
+  let mod_slot: u8[8] = [];
+  let fi_slot: i32[1] = [];
+  let dep_slot: i32[1] = [];
+  let mod: *u8 = 0 as *u8;
+  let func_ix: i32 = 0 - 1;
+  let dep_ix: i32 = 0 - 1;
+  let pty: i32 = 0;
+  let mapped: i32 = 0;
+  let dep_pipe: *u8 = 0 as *u8;
+  let dep_arena: *u8 = 0 as *u8;
+  let emit_mod: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let i: i32 = 0;
+  let ndep: i32 = 0;
+  let dm: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || call_expr_ref <= 0 || param_index < 0) {
+    return 0;
+  }
+  pipe_store_ptr_slot(&mod_slot[0], 0, 0 as *u8);
+  fi_slot[0] = 0 - 1;
+  dep_slot[0] = 0 - 1;
+  unsafe {
+    rc = glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod_slot[0], &fi_slot[0], &dep_slot[0]);
+  }
+  if (rc != 0) {
+    return 0;
+  }
+  mod = pipe_load_ptr_slot(&mod_slot[0], 0);
+  func_ix = fi_slot[0];
+  dep_ix = dep_slot[0];
+  if (mod == (0 as *u8) || func_ix < 0) {
+    return 0;
+  }
+  unsafe {
+    pty = pipeline_module_func_param_type_ref_at(mod, func_ix, param_index);
+  }
+  if (pty <= 0) {
+    return 0;
+  }
+  // Entry-module callee: type_ref already lives in caller/entry arena.
+  emit_mod = pipeline_asm_emit_module_ref_c();
+  if (mod == emit_mod && dep_ix < 0) {
+    return pty;
+  }
+  // Dep callee: map into caller arena (primitives + named/ptr/slice).
+  dep_pipe = pipeline_asm_emit_dep_pipe_c();
+  if (dep_pipe != (0 as *u8)) {
+    if (dep_ix >= 0) {
+      unsafe {
+        mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, pty, arena, dep_pipe);
+      }
+      if (mapped > 0) {
+        return mapped;
+      }
+      unsafe {
+        dep_arena = pipeline_dep_ctx_arena_at(dep_pipe, dep_ix);
+      }
+      if (dep_arena == (0 as *u8)) {
+        dep_arena = pipeline_get_dep_arena_slot(dep_ix);
+      }
+      if (dep_arena != (0 as *u8)) {
+        unsafe {
+          mapped = pipeline_typeck_dep_return_type_to_caller_arena_c(dep_arena, pty, arena);
+        }
+        if (mapped > 0) {
+          return mapped;
+        }
+      }
+    } else if (mod != emit_mod) {
+      // Resolve found dep module but dep_ix missing: locate arena by module pointer.
+      unsafe {
+        ndep = pipeline_dep_ctx_ndep(dep_pipe);
+      }
+      i = 0;
+      while (i < ndep) {
+        unsafe {
+          dm = pipeline_dep_ctx_module_at(dep_pipe, i);
+        }
+        if (dm == mod) {
+          unsafe {
+            mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(i, pty, arena, dep_pipe);
+          }
+          if (mapped > 0) {
+            return mapped;
+          }
+          unsafe {
+            dep_arena = pipeline_dep_ctx_arena_at(dep_pipe, i);
+          }
+          if (dep_arena != (0 as *u8)) {
+            unsafe {
+              mapped = pipeline_typeck_dep_return_type_to_caller_arena_c(dep_arena, pty, arena);
+            }
+            if (mapped > 0) {
+              return mapped;
+            }
+          }
+          // First matching dep index only (host for-loop breaks).
+          break;
+        }
+        i = i + 1;
+      }
+    }
+    // Never hand a dep type_ref to caller-arena consumers.
+    if (mod != emit_mod) {
+      return 0;
+    }
+  }
+  return pty;
+}
+
+// end wave198 pure-owned leave

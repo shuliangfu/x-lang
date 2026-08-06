@@ -25949,6 +25949,19 @@ int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(void *arena, int32_t ca
   return 0;
 }
 
+/*
+ * wave198 cold twin: CALL formal param type_ref in caller arena (G.7 pure leave).
+ * Freestanding-safe stub (0 = unresolved). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding CALL formal type_ref.
+ */
+int32_t pipeline_asm_call_param_type_ref_at_c(void *arena, int32_t call_expr_ref,
+                                               int32_t param_index) {
+  (void)arena;
+  (void)call_expr_ref;
+  (void)param_index;
+  return 0;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */
