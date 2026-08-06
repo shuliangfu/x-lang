@@ -25842,6 +25842,32 @@ int32_t glue_call_param_named_struct_pass_addr_elf_c(void *arena, int32_t pty) {
   return 0;
 }
 
+/*
+ * wave192 cold twins: dual-GP width + param home width + func return size
+ * (G.7 pure leave). Freestanding-safe stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding CALL dual-GP / home / return sizing.
+ */
+int32_t glue_sysv_dual_gp_byte_size_c(void *arena, int32_t ty_ref) {
+  (void)arena;
+  (void)ty_ref;
+  return 0;
+}
+
+int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index, int32_t param_index) {
+  (void)arena;
+  (void)mod;
+  (void)func_index;
+  (void)param_index;
+  return 8;
+}
+
+int32_t glue_func_return_byte_size_c(void *mod, void *arena, int32_t func_index) {
+  (void)mod;
+  (void)arena;
+  (void)func_index;
+  return 0;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 

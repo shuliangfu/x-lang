@@ -558,9 +558,9 @@ export extern "C" function pipeline_asm_emit_ctx_elf_ctx_set(elf_ctx: *u8): void
 export extern "C" function pipeline_asm_emit_ctx_sret_active_get(): i32;
 export extern "C" function pipeline_asm_emit_ctx_sret_home_off_get(): i32;
 export extern "C" function pipeline_asm_host_is_arm64_c(): i32;
-export extern "C" function glue_func_param_home_width_c(arena: *u8, mod: *u8, func_index: i32, param_index: i32): i32;
+// wave192 pure-owned: glue_func_param_home_width_c / glue_func_return_byte_size_c at EOF.
+// G.7 ban dual export extern + pure export for the same symbol.
 export extern "C" function glue_func_param_agg_byte_size_c(arena: *u8, mod: *u8, func_index: i32, param_index: i32): i32;
-export extern "C" function glue_func_return_byte_size_c(mod: *u8, arena: *u8, func_index: i32): i32;
 // wave157 pure-owned: glue_asm_sum_block_call_spill_bytes / glue_sum_block_slice_reent_dc_bytes_c
 // (definitions at EOF; dual-export ban — do not redeclare export extern).
 export extern "C" function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32;
@@ -43374,8 +43374,8 @@ export function pipeline_asm_emit_binop_mod_elf_c(arena: *u8, elf_ctx: *u8, left
 // wave151 Cap residual: field_access pure leave callees (still host-cc residual / pool / enc).
 // PLATFORM: SHARED freestanding emit — pure owns FIELD_ACCESS ELF + layout/offset + enum/soa.
 // wave191 pure-owned: glue_call_param_named_struct_pass_addr_elf_c lives at EOF (#[no_mangle]).
+// wave192 pure-owned: glue_sysv_dual_gp_byte_size_c lives at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
-export extern "C" function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32;
 export extern "C" function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx: *u8, ta: i32): i32;
 // wave154 pure-owned: pipeline_expr_struct_lit_value_bytes body in EOF section.
 // wave154 pure-owned: glue_struct_layout_index_by_type_name_c / compute_field_offset_c in EOF.
@@ -61780,3 +61780,170 @@ export function glue_call_param_named_struct_pass_addr_elf_c(arena: *u8, pty: i3
 }
 
 // end wave191 pure-owned leave
+
+// ===========================================================================
+// wave192: CALL-arg dual-GP width + param home width + func return size pure leave
+// (was Cap residual in pipeline_asm_emit_call_args.c)
+// G.7 product authority for SysV INTEGER dual-GP classify + home/return sizing:
+//   glue_sysv_dual_gp_byte_size_c   (import POD 9–16B recovery by layout/name)
+//   glue_func_param_home_width_c    (8B floor; >8 aligned to 8 via residual agg)
+//   glue_func_return_byte_size_c    (void=0; TYPE_ARRAY return=8; else size_simple)
+// Reuses glue_type_named_layout_size_any_module_elf_c (wave191) +
+//   glue_type_size_simple (wave154) + pipeline_module_num_funcs (wave121) +
+//   residual glue_func_param_agg_byte_size_c (still Cap; pure thin home only).
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
+// ===========================================================================
+
+/**
+ * SysV INTEGER class dual-GP byte width (9–16B) for import POD types.
+ * When glue_type_size_simple misses dep layout, recover 16B by name suffix
+ * so call-arg packing / retval store / field store emit rax+rdx / x0+x1.
+ * @param arena *u8 — ASTArena*; null → 0
+ * @param ty_ref i32 — type ref
+ * @return i32 — 9..16 when dual-GP; 0 unknown / non-NAMED
+ *
+ * Contract:
+ *  1. named_layout_size in (8,16] → that size
+ *  2. non-TYPE_NAMED → 0
+ *  3. bare/suffix Allocator|StrView|Result_i32 → 16
+ *  4. else 0
+ *
+ * wave192 pure: G.7 authority (was Cap residual call_args).
+ * PLATFORM: SHARED freestanding dual-GP sizing · LINUX+MACOS SysV · MACOS|ARM64.
+ */
+#[no_mangle]
+export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
+  let name: u8[128] = [];
+  let nlen: i32 = 0;
+  let sz: i32 = 0;
+  let base_off: i32 = 0;
+  let i: i32 = 0;
+  let bl: i32 = 0;
+  let tk: i32 = 0;
+  if (arena == (0 as *u8) || ty_ref <= 0) {
+    return 0;
+  }
+  sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+  if (sz > 8 && sz <= 16) {
+    return sz;
+  }
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, ty_ref);
+  }
+  // TYPE_NAMED == 8
+  if (tk != 8) {
+    return 0;
+  }
+  unsafe {
+    nlen = pipeline_type_named_name_into(arena, ty_ref, &name[0]);
+  }
+  if (nlen <= 0 || nlen > 127) {
+    return 0;
+  }
+  base_off = 0;
+  i = 0;
+  while (i < nlen) {
+    // '.' separator → bare suffix (heap.Allocator)
+    if (name[i] == 46) {
+      base_off = i + 1;
+    }
+    i = i + 1;
+  }
+  bl = nlen - base_off;
+  // Bare or suffix: Allocator / StrView / Result_i32 (16B INTEGER class).
+  if (bl == 9) {
+    if (name[base_off] == 65 && name[base_off + 1] == 108 && name[base_off + 2] == 108 &&
+        name[base_off + 3] == 111 && name[base_off + 4] == 99 && name[base_off + 5] == 97 &&
+        name[base_off + 6] == 116 && name[base_off + 7] == 111 && name[base_off + 8] == 114) {
+      return 16;
+    }
+  }
+  if (bl == 7) {
+    if (name[base_off] == 83 && name[base_off + 1] == 116 && name[base_off + 2] == 114 &&
+        name[base_off + 3] == 86 && name[base_off + 4] == 105 && name[base_off + 5] == 101 &&
+        name[base_off + 6] == 119) {
+      return 16;
+    }
+  }
+  if (bl == 10) {
+    if (name[base_off] == 82 && name[base_off + 1] == 101 && name[base_off + 2] == 115 &&
+        name[base_off + 3] == 117 && name[base_off + 4] == 108 && name[base_off + 5] == 116 &&
+        name[base_off + 6] == 95 && name[base_off + 7] == 105 && name[base_off + 8] == 51 &&
+        name[base_off + 9] == 50) {
+      return 16;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Home slot width for formal param (8B floor; >8B aligned up to 8).
+ * Thin consumer of residual glue_func_param_agg_byte_size_c.
+ * @param arena *u8 — ASTArena*
+ * @param mod *u8 — Module*
+ * @param func_index i32 — emit function index
+ * @param param_index i32 — formal index
+ * @return i32 — 8 or (sz+7)&~7
+ *
+ * wave192 pure: G.7 authority (was Cap residual call_args).
+ * PLATFORM: SHARED freestanding param home · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function glue_func_param_home_width_c(arena: *u8, mod: *u8, func_index: i32, param_index: i32): i32 {
+  let sz: i32 = 0;
+  // residual Cap agg sizing (export extern "C") — T001 needs unsafe
+  unsafe {
+    sz = glue_func_param_agg_byte_size_c(arena, mod, func_index, param_index);
+  }
+  if (sz > 8) {
+    return (sz + 7) & (~7);
+  }
+  return 8;
+}
+
+/**
+ * Byte size of func_index return type (0 for void / unknown).
+ * TYPE_ARRAY return lowers as E* (8B pointer), not payload MEMORY.
+ * @param mod *u8 — Module*
+ * @param arena *u8 — ASTArena*
+ * @param func_index i32 — function index
+ * @return i32 — 0 void/invalid; 8 for TYPE_ARRAY; else glue_type_size_simple
+ *
+ * wave192 pure: G.7 authority (was Cap residual call_args).
+ * PLATFORM: SHARED freestanding return sizing · LINUX sret gate · MACOS|ARM64 x8.
+ */
+#[no_mangle]
+export function glue_func_return_byte_size_c(mod: *u8, arena: *u8, func_index: i32): i32 {
+  let rty: i32 = 0;
+  let k: i32 = 0;
+  let nf: i32 = 0;
+  if (mod == (0 as *u8) || arena == (0 as *u8) || func_index < 0) {
+    return 0;
+  }
+  unsafe {
+    nf = pipeline_module_num_funcs(mod);
+  }
+  if (func_index >= nf) {
+    return 0;
+  }
+  unsafe {
+    rty = pipeline_module_func_return_type_at(mod, func_index);
+  }
+  if (rty <= 0) {
+    return 0;
+  }
+  unsafe {
+    k = pipeline_type_kind_ord_at(arena, rty);
+  }
+  // void == 15
+  if (k == 15) {
+    return 0;
+  }
+  // TYPE_ARRAY == 10 → E* return (8B), not payload sret
+  if (k == 10) {
+    return 8;
+  }
+  return glue_type_size_simple(mod, arena, rty, 0);
+}
+
+// end wave192 pure-owned leave
