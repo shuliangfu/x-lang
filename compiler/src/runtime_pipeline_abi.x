@@ -1196,6 +1196,7 @@ export extern "C" function try_inline_struct_lit_return_call_to_slot_elf(arena: 
 export extern "C" function try_inline_const_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
 export extern "C" function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32): void;
 // wave194 pure-owned: glue_call_return_byte_size_c body at EOF (#[no_mangle]).
+// wave195 pure-owned: pipeline_asm_call_arg_value_byte_size_c body at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
 // Cap residual resolve stays host-cc (public after wave194; was static).
 export extern "C" function glue_asm_resolve_call_target_module_c(arena: *u8, call_expr_ref: i32, mod_out: *u8, func_ix_out: *i32, dep_ix_out: *i32): i32;
@@ -62274,4 +62275,189 @@ export function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i3
   return 0 - 1;
 }
 
-// end wave193 pure-owned leave
+// ===========================================================================
+// wave195: CALL-arg value byte size pure leave
+// (was Cap residual in pipeline_asm_emit_call_args.c wave1209 fold)
+// G.7 product authority for CALL-arg SysV GP packing size:
+//   pipeline_asm_call_arg_value_byte_size_c
+//     (formal pty → resolved → VAR decl → FIELD_ACCESS → dual-GP widen)
+// Callees already pure: glue_type_is_fixed_array / glue_var_decl_type_ref /
+//   glue_sysv_dual_gp_byte_size / glue_field_access_* / named_layout_size /
+//   glue_type_size_simple. Seed backend_call_dispatch is sole product consumer.
+// Deferred: for_call_args mega; resolve pure; spill/CAP BSS; MEMORY by-value.
+// PLATFORM: SHARED freestanding · LINUX gold SysV GP · MACOS|ARM64 dual-GP.
+// ===========================================================================
+
+/**
+ * Byte size of a call/method-arg value for SysV GP packing (≤16B dual-GP / >16B MEMORY).
+ * Resolves effective size via formal param type, expr resolved type, VAR decl
+ * type, and FIELD_ACCESS field type (max). TYPE_SLICE / TYPE_ARRAY / fixed
+ * array lower as E* (8B, one GP — fat must NOT dual-GP-pack).
+ * @param arena *u8 — ASTArena*; null → fall through to 8 floor
+ * @param ctx *u8 — AsmFuncCtx* for VAR decl type recovery; may be null
+ * @param arg_ref i32 — argument expr ref; ≤0 skips expr stages
+ * @param pty i32 — formal param type_ref; ≤0 skips formal stages
+ * @return i32 — byte size ≥1; 8 when unresolved / pointer / SLICE / ARRAY
+ *
+ * Contract (wave1209 / wave635 / wave195 pure leave):
+ *  1. TYPE_SLICE formal or resolved → 8
+ *  2. TYPE_ARRAY / fixed-array formal or (resolved + formal miss/ARRAY) → 8
+ *  3. size_simple(emit_mod, pty) then resolved type_ref
+ *  4. EXPR_VAR (3): max(var_decl size, dual_gp)
+ *  5. FIELD_ACCESS (44): max(field type size, named layout, dual_gp)
+ *  6. dual_gp widen when sz≤8 for pty / resolved
+ *  7. sz≤0 → 8 floor
+ *
+ * wave195 pure: G.7 authority (was Cap residual call_args).
+ * PLATFORM: SHARED freestanding CALL-arg value sizing · LINUX+MACOS SysV · MACOS|ARM64.
+ */
+#[no_mangle]
+export function pipeline_asm_call_arg_value_byte_size_c(arena: *u8, ctx: *u8, arg_ref: i32, pty: i32): i32 {
+  let sz: i32 = 0;
+  let tr: i32 = 0;
+  let k: i32 = 0;
+  let sz2: i32 = 0;
+  let emit_mod: *u8 = 0 as *u8;
+  let ek: i32 = 0;
+
+  // TYPE_SLICE formal → 8 (pointer, 1 GP; ban fat dual-GP pack).
+  if (arena != (0 as *u8) && pty > 0) {
+    unsafe {
+      k = pipeline_type_kind_ord_at(arena, pty);
+    }
+    // TYPE_SLICE == 11
+    if (k == 11) {
+      return 8;
+    }
+  }
+  if (arena != (0 as *u8) && arg_ref > 0) {
+    unsafe {
+      tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    }
+    if (tr > 0) {
+      unsafe {
+        k = pipeline_type_kind_ord_at(arena, tr);
+      }
+      if (k == 11) {
+        return 8;
+      }
+    }
+  }
+
+  // TYPE_ARRAY / fixed-array → E* (8B). Twin of glue_func_param_agg_byte_size.
+  if (arena != (0 as *u8) && pty > 0) {
+    unsafe {
+      k = pipeline_type_kind_ord_at(arena, pty);
+    }
+    // TYPE_ARRAY == 10
+    if (k == 10 || glue_type_is_fixed_array(arena, pty) != 0) {
+      return 8;
+    }
+  }
+  if (arena != (0 as *u8) && arg_ref > 0) {
+    unsafe {
+      tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    }
+    if (tr > 0) {
+      unsafe {
+        k = pipeline_type_kind_ord_at(arena, tr);
+      }
+      if (k == 10 || glue_type_is_fixed_array(arena, tr) != 0) {
+        // When formal missing, still pass E* for fixed-array values (C decay twin).
+        if (pty <= 0) {
+          return 8;
+        }
+        unsafe {
+          k = pipeline_type_kind_ord_at(arena, pty);
+        }
+        if (k == 10 || glue_type_is_fixed_array(arena, pty) != 0) {
+          return 8;
+        }
+      }
+    }
+  }
+
+  emit_mod = pipeline_asm_emit_module_ref_c();
+  if (pty > 0) {
+    sz = glue_type_size_simple(emit_mod, arena, pty, 0);
+  }
+  if (sz <= 0 && arg_ref > 0 && arena != (0 as *u8)) {
+    unsafe {
+      tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    }
+    if (tr > 0) {
+      sz = glue_type_size_simple(emit_mod, arena, tr, 0);
+    }
+  }
+
+  // EXPR_VAR == 3: decl type recovery + dual-GP widen
+  if (arg_ref > 0 && arena != (0 as *u8) && ctx != (0 as *u8)) {
+    unsafe {
+      ek = pipeline_expr_kind_ord_at(arena, arg_ref);
+    }
+    if (ek == 3) {
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, arg_ref);
+      if (tr > 0) {
+        sz2 = glue_type_size_simple(emit_mod, arena, tr, 0);
+        if (sz2 > sz) {
+          sz = sz2;
+        }
+        sz2 = glue_sysv_dual_gp_byte_size_c(arena, tr);
+        if (sz2 > sz) {
+          sz = sz2;
+        }
+      }
+    }
+  }
+
+  // FIELD_ACCESS == 44: field type / layout when formal or resolved miss
+  if (arg_ref > 0 && arena != (0 as *u8)) {
+    unsafe {
+      ek = pipeline_expr_kind_ord_at(arena, arg_ref);
+    }
+    if (ek == 44) {
+      tr = glue_field_access_field_type_ref_c(arena, emit_mod, arg_ref);
+      if (tr <= 0 && emit_mod != (0 as *u8)) {
+        tr = glue_field_access_layout_field_type_ref_by_name_c(arena, emit_mod, arg_ref);
+      }
+      if (tr > 0) {
+        sz2 = glue_type_size_simple(emit_mod, arena, tr, 0);
+        if (sz2 > sz) {
+          sz = sz2;
+        }
+        sz2 = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+        if (sz2 > sz) {
+          sz = sz2;
+        }
+        sz2 = glue_sysv_dual_gp_byte_size_c(arena, tr);
+        if (sz2 > sz) {
+          sz = sz2;
+        }
+      }
+    }
+  }
+
+  if (sz <= 8 && pty > 0) {
+    sz2 = glue_sysv_dual_gp_byte_size_c(arena, pty);
+    if (sz2 > sz) {
+      sz = sz2;
+    }
+  }
+  if (sz <= 8 && arg_ref > 0 && arena != (0 as *u8)) {
+    unsafe {
+      tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    }
+    if (tr > 0) {
+      sz2 = glue_sysv_dual_gp_byte_size_c(arena, tr);
+      if (sz2 > sz) {
+        sz = sz2;
+      }
+    }
+  }
+  if (sz <= 0) {
+    return 8;
+  }
+  return sz;
+}
+
+// end wave195 pure-owned leave

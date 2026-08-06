@@ -25903,6 +25903,19 @@ int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref) {
   return -1;
 }
 
+/*
+ * wave195 cold twin: CALL-arg value byte size (G.7 pure leave).
+ * Freestanding-safe stub. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding CALL-arg value sizing.
+ */
+int32_t pipeline_asm_call_arg_value_byte_size_c(void *arena, void *ctx, int32_t arg_ref, int32_t pty) {
+  (void)arena;
+  (void)ctx;
+  (void)arg_ref;
+  (void)pty;
+  return 8;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */

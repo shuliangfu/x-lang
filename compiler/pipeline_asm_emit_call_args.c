@@ -24,6 +24,8 @@
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - glue_call_return_byte_size_c — wave194 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
+ * - pipeline_asm_call_arg_value_byte_size_c — wave195 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - glue_asm_resolve_call_target_module_c — Cap residual public (wave194
  *   static→extern for pure call_return; pure leave of resolve deferred)
  * - pipeline_asm_emit_expr_elf_for_call_args (public entry; f32 lit, VAR
@@ -1312,6 +1314,11 @@ int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct ast_Modu
 /* wave194 pure-owned: glue_call_return_byte_size_c body in runtime_pipeline_abi
  * (G.7 single authority). Cap residual resolve remains public host below;
  * pure call_return calls resolve via Cap residual. Prototype retained above. */
+
+/* wave195 pure-owned: pipeline_asm_call_arg_value_byte_size_c body in
+ * runtime_pipeline_abi (G.7 single authority). Cap residual host body removed;
+ * seed backend_call_dispatch links pure via extern. Prototype at EOF for
+ * same-TU documentation only. */
 
 /* wave192 pure-owned: glue_sysv_dual_gp_byte_size_c body in runtime_pipeline_abi
  * (G.7 single authority). Cap residual load_var / store_retval / param sizing
@@ -2729,120 +2736,9 @@ int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(struct ast_ASTArena *aren
   return nbytes;
 }
 
-/**
- * Query the byte size of a call/method-arg value for SysV GP packing.
- *
- * Why: SysV ABI packs aggregates ≤16B into 1-2 GP registers (rax+rdx on x86,
- *      x0+x1 on arm64). This function resolves the effective value size by
- *      checking formal param type, expr resolved type, VAR decl type, and
- *      FIELD_ACCESS field type in sequence, taking the max. Consumers
- *      (glue_sysv_arg_gp_units_from_size) map size→GP count.
- * Contract: returns 8 for TYPE_SLICE (pointer, 1 GP — fat value must NOT
- *           dual-GP-pack). returns 8 for TYPE_ARRAY/fixed-array (E* decay).
- *           returns 8 fallback when no type info resolves.
- * Invariant: result is monotonically non-decreasing across resolution stages
- *            (formal → resolved → VAR decl → FIELD_ACCESS → dual-GP max).
- * Asm/Perf: O(1) — pure type/size query, no emit side effects.
- * PLATFORM: SHARED — size query; consumers apply LINUX+MACOS SysV 2-GP for 9–16B.
- *
- * FIELD_ACCESS (v.al → alloc): formal pty often 0 during co-emit; must resolve field type
- * so units=2 (rax+rdx place). units=1 left size in rsi and arena half unused → malloc(0).
- */
+/* wave195 pure-owned: pipeline_asm_call_arg_value_byte_size_c body in
+ * runtime_pipeline_abi (G.7 single authority). Seed backend_call_dispatch
+ * links pure via extern; Cap residual host body removed.
+ * PLATFORM: SHARED freestanding CALL-arg value sizing. */
 int32_t pipeline_asm_call_arg_value_byte_size_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                 int32_t arg_ref, int32_t pty) {
-  int32_t sz = 0;
-  int32_t tr;
-  /*
-   * PLATFORM: SHARED — TYPE_SLICE call/formal param is pointer (codegen.x), 1 GP (8B).
-   * Fat value size 16 must not dual-GP-pack (steals next arg's rsi). G.7 with call lea.
-   */
-  if (arena && pty > 0 &&
-      pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 8;
-  if (arena && arg_ref > 0) {
-    tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
-    if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == (int32_t)ast_TypeKind_TYPE_SLICE)
-      return 8;
-  }
-  /*
-   * wave635 Cap residual pure: fixed TYPE_ARRAY formal is E* (one GP), not MEMORY
-   * by-value of the payload. Twin of glue_func_param_agg_byte_size_c (wave417) and
-   * TYPE_SLICE call-arg size above.
-   * Root: prior glue_type_size_simple(T[N]) returned full payload (S24[2]=48, S12[2]=24)
-   * → glue_sysv_arg_gp_units_from_size → MEMORY (units=0) → arm64 store_memory_by_value
-   * / x86 push_sysv_memory multi-word stack copy, while callee param_home + INDEX treat
-   * the formal as a pointer in x0/rdi (wave417). Freestanding take(mk())/take(s) SEGV;
-   * pure-asm without -freestanding often CTFE-folds away the call (false green);
-   * host-C decays T[N]→E*. S8[2]=16 dual-GP + single S24 MEMORY named both green.
-   * G.7: complete call-arg size authority only — emit already lea local T[N] /
-   * load param E* / pass CALL return E* (wave417/610). Do not invent a second path.
-   * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
-   */
-  if (arena && pty > 0 &&
-      (pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_ARRAY ||
-       glue_type_is_fixed_array(arena, pty)))
-    return 8;
-  if (arena && arg_ref > 0) {
-    tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
-    if (tr > 0 &&
-        (pipeline_type_kind_ord_at(arena, tr) == (int32_t)ast_TypeKind_TYPE_ARRAY ||
-         glue_type_is_fixed_array(arena, tr))) {
-      /* When formal missing, still pass E* for fixed-array values (C decay twin). */
-      if (pty <= 0 ||
-          pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_ARRAY ||
-          glue_type_is_fixed_array(arena, pty))
-        return 8;
-    }
-  }
-  if (pty > 0)
-    sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, pty, 0);
-  if (sz <= 0 && arg_ref > 0 && arena) {
-    tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
-    if (tr > 0)
-      sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
-  }
-  if (arg_ref > 0 && arena && ctx && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
-    tr = glue_var_decl_type_ref_elf_c(arena, ctx, arg_ref);
-    if (tr > 0) {
-      int32_t sz2 = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
-      if (sz2 > sz)
-        sz = sz2;
-      sz2 = glue_sysv_dual_gp_byte_size_c(arena, tr);
-      if (sz2 > sz)
-        sz = sz2;
-    }
-  }
-  /* FIELD_ACCESS: field type / layout (v.al) when formal pty or resolved miss. */
-  if (arg_ref > 0 && arena && pipeline_expr_kind_ord_at(arena, arg_ref) == 44) {
-    tr = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, arg_ref);
-    if (tr <= 0 && g_pipeline_asm_emit_module)
-      tr = glue_field_access_layout_field_type_ref_by_name_c(arena, g_pipeline_asm_emit_module, arg_ref);
-    if (tr > 0) {
-      int32_t sz2 = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
-      if (sz2 > sz)
-        sz = sz2;
-      sz2 = glue_type_named_layout_size_any_module_elf_c(arena, tr);
-      if (sz2 > sz)
-        sz = sz2;
-      sz2 = glue_sysv_dual_gp_byte_size_c(arena, tr);
-      if (sz2 > sz)
-        sz = sz2;
-    }
-  }
-  if (sz <= 8 && pty > 0) {
-    int32_t sz2 = glue_sysv_dual_gp_byte_size_c(arena, pty);
-    if (sz2 > sz)
-      sz = sz2;
-  }
-  if (sz <= 8 && arg_ref > 0 && arena) {
-    tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
-    if (tr > 0) {
-      int32_t sz2 = glue_sysv_dual_gp_byte_size_c(arena, tr);
-      if (sz2 > sz)
-        sz = sz2;
-    }
-  }
-  if (sz <= 0)
-    return 8;
-  return sz;
-}
+                                                 int32_t arg_ref, int32_t pty);
