@@ -25704,6 +25704,29 @@ XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_plus_var_mul_lit_eff_addr_
 
 #undef XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN
 
+/*
+ * wave185 cold twins: lvalue_eff_addr ELF + text (G.7 pure leave).
+ * Freestanding-safe stubs: return -1 (unhandled). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding assign/field/INDEX lvalue path.
+ */
+int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t lval_ref, void *ctx,
+                                               int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)lval_ref;
+  (void)ctx;
+  (void)ta;
+  return -1;
+}
+
+int32_t pipeline_asm_emit_lvalue_eff_addr_text_c(void *arena, void *out, int32_t lval_ref, void *ctx, int32_t ta) {
+  (void)arena;
+  (void)out;
+  (void)lval_ref;
+  (void)ctx;
+  (void)ta;
+  return -1;
+}
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 

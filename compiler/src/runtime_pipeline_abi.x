@@ -499,7 +499,8 @@ export extern "C" function glue_field_access_field_type_ref_c(arena: *u8, mod: *
 // (was Cap residual export extern; dual-export ban.)
 // wave156 pure-owned: glue_index_assign_addr_cache_clear/hit + load_from_cached live in EOF.
 // (was Cap residual export extern; bodies #[no_mangle] export — no dual export.)
-export extern "C" function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+// wave185 pure-owned: pipeline_asm_emit_lvalue_eff_addr_{elf,text}_c live at EOF (#[no_mangle]).
+// G.7 ban dual export extern + pure export for the same symbol.
 // wave147 Cap residual: index_eff_addr pure leave callees (index_helpers + enc + text arch + flags).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS text co-path.
 export extern "C" function backend_enc_rax_plus_rbx_scale1_arch(elf_ctx: *u8, ta: i32): i32;
@@ -60406,3 +60407,357 @@ export function glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(arena: *u
 }
 
 // end wave184 pure-owned leave
+
+// ===========================================================================
+// wave185: lvalue_eff_addr pure-owned leave (ELF + text)
+// (was Cap residual bodies in pipeline_asm_emit_index_helpers.c)
+// G.7 product authority for assign / field / unary ADDR_OF / DEREF lvalues:
+//   pipeline_asm_emit_lvalue_eff_addr_elf_c
+//   pipeline_asm_emit_lvalue_eff_addr_text_c
+// Callees: enc_local_slot pure (w179) · field offset pure (w151) ·
+//   soa residual · index_eff_addr_scaled pure (w147) · ptr-field deref pure (w179) ·
+//   expr_elf_rec pure (w152) · text local_slot pure (w147) · module_ref pure.
+// CAP BSS / glue_emit_soa_index_field_addr residual remain Cap host-cc.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
+// ===========================================================================
+
+/**
+ * Assign lvalue effective address → rax/x0 (VAR / chained FIELD_ACCESS / INDEX / DEREF).
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param lval_ref i32 — lvalue expression ref (VAR=3 / FIELD=44 / INDEX=47 / DEREF=52)
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch (0=x86_64, 1=arm64)
+ * @return i32 — 0 ok; -1 error / unhandled kind
+ *
+ * Contracts:
+ * - VAR: lea or load local slot via glue_enc_local_slot_ptr_or_addr_elf_c (*T/T[N] load).
+ * - FIELD on VAR base: slot + field offset; enum variants rejected.
+ * - FIELD on INDEX base with SoA stride: glue_emit_soa_index_field_addr_elf_c (Cap residual).
+ * - FIELD chain: recurse then auto-deref *T intermediate (wave596) then add offset.
+ * - INDEX: glue_emit_index_eff_addr_scaled_elf_c with esz from pipeline_asm_index_elem_byte_sz_c.
+ * - DEREF (ko==52): emit operand only (pointer bits in rax) — not load of *p.
+ *
+ * wave185 pure: G.7 authority (was pipeline_asm_emit_lvalue_eff_addr_elf_c Cap residual).
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, lval_ref: i32, ctx: *u8, ta: i32): i32 {
+  let ko: i32 = 0;
+  let vname: u8[128] = [];
+  let vlen: i32 = 0;
+  let off: i32 = 0;
+  let base_ref: i32 = 0;
+  let field_off: i32 = 0;
+  let var_off: i32 = 0;
+  let idx_ref: i32 = 0;
+  let esz: i32 = 0;
+  let op: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let soa_stride: i32 = 0;
+  let base_ko: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || lval_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, lval_ref);
+  }
+  // VAR (ko==3): local slot lea/load.
+  if (ko == 3) {
+    unsafe {
+      vlen = pipeline_expr_var_name_len(arena, lval_ref);
+    }
+    if (vlen <= 0 || vlen > 127) {
+      return 0 - 1;
+    }
+    unsafe {
+      pipeline_expr_var_name_into(arena, lval_ref, &vname[0]);
+      off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
+    }
+    if (off < 0) {
+      return 0 - 1;
+    }
+    // Lvalue VAR defaults to lea; *T/T[N] load via holds_indirect + decl type.
+    return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, lval_ref, off, ctx, ta);
+  }
+  // FIELD_ACCESS (ko==44).
+  if (ko == 44) {
+    unsafe {
+      if (pipeline_expr_field_access_is_enum_variant(arena, lval_ref) != 0) {
+        return 0 - 1;
+      }
+      base_ref = pipeline_expr_field_access_base_ref(arena, lval_ref);
+    }
+    if (base_ref <= 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+    }
+    // VAR base field lvalue: let struct lea / param struct load pointer.
+    if (base_ko == 3) {
+      unsafe {
+        vlen = pipeline_expr_var_name_len(arena, base_ref);
+      }
+      if (vlen <= 0 || vlen > 127) {
+        return 0 - 1;
+      }
+      unsafe {
+        pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
+        var_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
+      }
+      if (var_off < 0) {
+        unsafe {
+          var_off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
+        }
+      }
+      if (var_off < 0) {
+        return 0 - 1;
+      }
+      rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, var_off, ctx, ta);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      mod = pipeline_asm_emit_module_ref_c();
+      unsafe {
+        field_off = glue_field_access_effective_offset_c(arena, mod, lval_ref);
+      }
+      if (field_off != 0) {
+        unsafe {
+          if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+      }
+      return 0;
+    }
+    // DoD-S1: arr[i].field column-major — do not stack AoS INDEX+field_off.
+    if (base_ko == 47) {
+      mod = pipeline_asm_emit_module_ref_c();
+      unsafe {
+        soa_stride = pipeline_expr_field_access_soa_stride(arena, lval_ref);
+      }
+      if (soa_stride <= 0 && mod != (0 as *u8)) {
+        // 8.3.3 host-cc leave: typeck.x authority (no pipeline_typeck_soa.c thin).
+        unsafe {
+          let _soa_rc: i32 = typeck_soa_field_soa_index(mod, arena, lval_ref, base_ref);
+        }
+        unsafe {
+          soa_stride = pipeline_expr_field_access_soa_stride(arena, lval_ref);
+        }
+      }
+      if (soa_stride > 0) {
+        // Cap residual SoA face is export extern — must call inside unsafe (T001).
+        unsafe {
+          rc = glue_emit_soa_index_field_addr_elf_c(arena, elf_ctx, base_ref, lval_ref, ctx, ta);
+        }
+        return rc;
+      }
+    }
+    // Recurse on base chain.
+    rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    // wave596: pointer intermediate field (w.p.f) — auto-deref *T mid-field.
+    // G.7 same authority as glue_index_deref_ptr_field_slot_rax_elf_c on INDEX path.
+    if (base_ko == 44) {
+      unsafe {
+        if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    mod = pipeline_asm_emit_module_ref_c();
+    unsafe {
+      field_off = glue_field_access_effective_offset_c(arena, mod, lval_ref);
+    }
+    if (field_off != 0) {
+      unsafe {
+        if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    return 0;
+  }
+  // INDEX (ko==47).
+  if (ko == 47) {
+    unsafe {
+      base_ref = pipeline_expr_index_base_ref(arena, lval_ref);
+      idx_ref = pipeline_expr_index_index_ref(arena, lval_ref);
+    }
+    if (base_ref <= 0 || idx_ref <= 0) {
+      return 0 - 1;
+    }
+    esz = pipeline_asm_index_elem_byte_sz_c(arena, lval_ref);
+    return glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, lval_ref, base_ref, idx_ref, ctx, ta, esz);
+  }
+  // DEREF (ko==52): *p = rhs needs pointer bits in rax (operand only).
+  // PLATFORM: SHARED emit / LINUX freestanding gold (mac host-gcc hid via *(p)=).
+  if (ko == 52) {
+    unsafe {
+      op = pipeline_expr_unary_operand_ref_at(arena, lval_ref);
+    }
+    if (op <= 0) {
+      return 0 - 1;
+    }
+    return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Assign lvalue effective address text path (VAR / chained FIELD_ACCESS / INDEX).
+ * Twin of pipeline_asm_emit_lvalue_eff_addr_elf_c for M8-tail / backend text wrappers.
+ * @param arena *u8 — ASTArena*
+ * @param out *u8 — CodegenOutBuf*
+ * @param lval_ref i32 — lvalue expression ref
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch
+ * @return i32 — 0 ok; -1 error / unhandled
+ *
+ * Contracts:
+ * - INDEX arm → pipeline_asm_emit_index_eff_addr_text_c (pure wave147).
+ * - Local slot → glue_arch_emit_local_slot_ptr_or_addr_text_c (pure wave147).
+ * - wave596 text twin: auto-deref *T intermediate field (PTR=9 / SLICE=11) via
+ *   glue_field_access_field_type_ref_c (Cap residual) + backend_arch_emit_load_64_from_rax.
+ * - DEREF (ko==52) is ELF-only on this face (text residual never had it).
+ *
+ * wave185 pure: G.7 authority (was pipeline_asm_emit_lvalue_eff_addr_text_c Cap residual).
+ * PLATFORM: SHARED freestanding text path · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_lvalue_eff_addr_text_c(arena: *u8, out: *u8, lval_ref: i32, ctx: *u8, ta: i32): i32 {
+  let ko: i32 = 0;
+  let vname: u8[128] = [];
+  let vlen: i32 = 0;
+  let off: i32 = 0;
+  let base_ref: i32 = 0;
+  let field_off: i32 = 0;
+  let var_off: i32 = 0;
+  let esz: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let base_ko: i32 = 0;
+  let ftr: i32 = 0;
+  let fk: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || out == (0 as *u8) || ctx == (0 as *u8) || lval_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, lval_ref);
+  }
+  if (ko == 3) {
+    unsafe {
+      vlen = pipeline_expr_var_name_len(arena, lval_ref);
+    }
+    if (vlen <= 0 || vlen > 127) {
+      return 0 - 1;
+    }
+    unsafe {
+      pipeline_expr_var_name_into(arena, lval_ref, &vname[0]);
+      off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
+    }
+    if (off < 0) {
+      return 0 - 1;
+    }
+    return glue_arch_emit_local_slot_ptr_or_addr_text_c(arena, out, lval_ref, off, ctx, ta);
+  }
+  if (ko == 44) {
+    unsafe {
+      if (pipeline_expr_field_access_is_enum_variant(arena, lval_ref) != 0) {
+        return 0 - 1;
+      }
+      base_ref = pipeline_expr_field_access_base_ref(arena, lval_ref);
+    }
+    if (base_ref <= 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+    }
+    if (base_ko == 3) {
+      unsafe {
+        vlen = pipeline_expr_var_name_len(arena, base_ref);
+      }
+      if (vlen <= 0 || vlen > 127) {
+        return 0 - 1;
+      }
+      unsafe {
+        pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
+        var_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
+      }
+      if (var_off < 0) {
+        unsafe {
+          var_off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
+        }
+      }
+      if (var_off < 0) {
+        return 0 - 1;
+      }
+      rc = glue_arch_emit_local_slot_ptr_or_addr_text_c(arena, out, base_ref, var_off, ctx, ta);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      mod = pipeline_asm_emit_module_ref_c();
+      unsafe {
+        field_off = glue_field_access_effective_offset_c(arena, mod, lval_ref);
+      }
+      if (field_off != 0) {
+        unsafe {
+          if (backend_arch_emit_add_imm_to_rax(out, field_off, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+      }
+      return 0;
+    }
+    rc = pipeline_asm_emit_lvalue_eff_addr_text_c(arena, out, base_ref, ctx, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    // wave596 text twin: auto-deref *T intermediate field before next field offset.
+    // GLUE_TYPE_KIND_PTR == 9; GLUE_TYPE_KIND_SLICE == 11.
+    if (base_ko == 44) {
+      mod = pipeline_asm_emit_module_ref_c();
+      unsafe {
+        ftr = glue_field_access_field_type_ref_c(arena, mod, base_ref);
+      }
+      if (ftr > 0) {
+        unsafe {
+          fk = pipeline_type_kind_ord_at(arena, ftr);
+        }
+      } else {
+        fk = 0;
+      }
+      if (fk == 9 || fk == 11) {
+        unsafe {
+          if (backend_arch_emit_load_64_from_rax(out, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+      }
+    }
+    mod = pipeline_asm_emit_module_ref_c();
+    unsafe {
+      field_off = glue_field_access_effective_offset_c(arena, mod, lval_ref);
+    }
+    if (field_off != 0) {
+      unsafe {
+        if (backend_arch_emit_add_imm_to_rax(out, field_off, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    return 0;
+  }
+  if (ko == 47) {
+    esz = pipeline_asm_index_elem_byte_sz_c(arena, lval_ref);
+    return pipeline_asm_emit_index_eff_addr_text_c(arena, out, lval_ref, ctx, ta, esz);
+  }
+  return 0 - 1;
+}
+
+// end wave185 pure-owned leave
