@@ -25981,6 +25981,33 @@ int32_t glue_asm_resolve_call_target_module_c(void *arena, int32_t call_expr_ref
   return -1;
 }
 
+/*
+ * wave200 cold twins: f32 VAR slot load to rax/rbx (G.7 pure leave).
+ * Freestanding-safe stubs (-1 = enc fail). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding f32 slot · LINUX+MACOS SysV xmm home.
+ */
+int32_t glue_load_f32_var_slot_to_rax_elf_c(void *elf_ctx, void *arena, void *ctx,
+                                             int32_t var_expr_ref, int32_t off, int32_t ta) {
+  (void)elf_ctx;
+  (void)arena;
+  (void)ctx;
+  (void)var_expr_ref;
+  (void)off;
+  (void)ta;
+  return -1;
+}
+
+int32_t glue_load_f32_var_slot_to_rbx_elf_c(void *elf_ctx, void *arena, void *ctx,
+                                             int32_t var_expr_ref, int32_t off, int32_t ta) {
+  (void)elf_ctx;
+  (void)arena;
+  (void)ctx;
+  (void)var_expr_ref;
+  (void)off;
+  (void)ta;
+  return -1;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */

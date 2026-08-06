@@ -36,6 +36,8 @@
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - glue_asm_resolve_call_target_module_c — wave199 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
+ * - glue_load_f32_var_slot_to_rax_elf_c / _to_rbx_elf_c — wave200 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twins
  * - pipeline_asm_emit_expr_elf_for_call_args (public entry; f32 lit, VAR
  *   array→slice fat, dual-GP, fixed array, STRUCT_LIT, INDEX, FIELD, rec)
  *
@@ -251,54 +253,20 @@ int32_t glue_call_arg_resolve_var_stack_off_elf_c(struct ast_ASTArena *arena, st
   return -1;
 }
 
-/** VAR 是否为当前 emit 函数的形参（任意 param 槽）。 */
-static int32_t glue_var_is_current_func_param_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                 int32_t var_expr_ref) {
-  int32_t np;
-  int32_t pi;
-  if (!arena || !ctx || !g_pipeline_asm_emit_module || g_pipeline_asm_emit_func_index < 0)
-    return 0;
-  np = pipeline_module_func_num_params_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
-  for (pi = 0; pi < np; pi++) {
-    if (glue_expr_is_func_param_at_c(arena, g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index, var_expr_ref,
-                                     pi))
-      return 1;
-  }
-  return 0;
-}
-
 /* wave149: glue_type_ref_is_scalar_f32_c pure-owned leave — Cap residual extern. PLATFORM: SHARED. */
 extern int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
 
-/**
- * f32 VAR 装入 rax：XLANG_ABI_F32_XMM=1 形参走 32-bit homing；否则 caller f64 movabs → cvtsd2ss。
- */
-/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
+/* wave200 pure-owned: glue_load_f32_var_slot_to_rax_elf_c + _to_rbx_elf_c body in
+ * runtime_pipeline_abi.x (#[no_mangle] export). Cap residual: prototype only.
+ * Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * Private is_param helper pure-owned with the pair (was static residual).
+ * PLATFORM: SHARED freestanding f32 VAR slot load · LINUX+MACOS SysV xmm home. */
 int32_t glue_load_f32_var_slot_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                     struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                    int32_t var_expr_ref, int32_t off, int32_t ta) {
-  if (glue_var_is_current_func_param_c(arena, ctx, var_expr_ref)) {
-    if (ta == 0 && pipeline_asm_abi_f32_xmm_enabled_c() != 0) {
-      int32_t tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
-      if (glue_type_ref_is_scalar_f32_c(arena, tr))
-        return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, 4, ta);
-    }
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
-      return -1;
-    return backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx, ta);
-  }
-  return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, 4, ta);
-}
-
-/** f32 VAR 装入 rbx（与 rax 路径对称）。 */
-/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
+                                                    int32_t var_expr_ref, int32_t off, int32_t ta);
 int32_t glue_load_f32_var_slot_to_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                     struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                    int32_t var_expr_ref, int32_t off, int32_t ta) {
-  if (glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, var_expr_ref, off, ta) != 0)
-    return -1;
-  return backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
-}
+                                                    int32_t var_expr_ref, int32_t off, int32_t ta);
 
 /* wave190 pure-owned: glue_type_ref_is_named_struct_layout_elf_c +
  * glue_call_arg_var_use_lea_not_load_elf_c (runtime_pipeline_abi pure).

@@ -40783,8 +40783,8 @@ export extern "C" function arch_arm64_enc_enc_mov_rbx_to_x15(elf_ctx: *u8): i32;
 /* wave169: pure owns glue_binop_stack_spill_push_elf_c (#[no_mangle] below). */
 /* wave173: pure owns glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c (#[no_mangle] below). */
 /* wave166: pure owns glue_asm73_evict_cache_if_live_pressure_elf_c (#[no_mangle] below). */
-export extern "C" function glue_load_f32_var_slot_to_rax_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32;
-export extern "C" function glue_load_f32_var_slot_to_rbx_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32;
+// wave200 pure-owned: glue_load_f32_var_slot_to_rax_elf_c / _to_rbx_elf_c at EOF (#[no_mangle]).
+// G.7 ban dual export extern + pure export for the same symbol.
 // wave151 pure-owned leave: pipeline_asm_emit_field_access_elf_fast_c lives in EOF wave151 section.
 // wave152 pure-owned faces: pipeline_asm_emit_expr_elf_fast / rec / lit_i32 / c live in EOF section.
 // Cap residual callees for wave152 expr_rec leave (host residual or other pure modules):
@@ -63228,3 +63228,134 @@ export function glue_asm_resolve_call_target_module_c(
 }
 
 // end wave199 pure-owned leave
+
+// ===========================================================================
+// wave200: f32 VAR slot load pure leave
+// (was Cap residual in pipeline_asm_emit_call_args.c wave149/wave1019 fold)
+// G.7 product authority for f32 local/param load into GP (rax/rbx):
+//   glue_load_f32_var_slot_to_rax_elf_c  (param home vs local 4B lane)
+//   glue_load_f32_var_slot_to_rbx_elf_c  (rax path + mov rax→rbx)
+// Private helper glue_var_is_current_func_param_c (emit-module param scan).
+// Reuses pure glue_expr_is_func_param_at_c (w148) + glue_var_decl_type_ref (w124)
+//   + glue_type_ref_is_scalar_f32_c (w149) + pipeline_asm_abi_f32_xmm_enabled_c
+//   + emit_module_ref / emit_func_index (w141) + backend_enc_* faces.
+// Deferred: for_call_args mega / MEMORY by-value / param_home f32 xmm / spill BSS.
+// PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV xmm home · ARM64 co-path.
+// ===========================================================================
+
+/**
+ * True if VAR expr names any formal of the current emit function.
+ * @param arena *u8 — ASTArena*; null → 0
+ * @param ctx *u8 — AsmFuncCtx* (unused; emit module/func from pure CAP accessors)
+ * @param var_expr_ref i32 — EXPR_VAR ref
+ * @return i32 — 1 if formal param slot match; else 0
+ *
+ * wave200 pure: private G.7 helper for f32 load (was Cap residual static).
+ * PLATFORM: SHARED freestanding param-name match.
+ */
+function glue_var_is_current_func_param_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32 {
+  let mod: *u8 = 0 as *u8;
+  let fi: i32 = 0;
+  let np: i32 = 0;
+  let pi: i32 = 0;
+  let rc: i32 = 0;
+  // ctx required for API parity with Cap residual; emit module comes from CAP accessors.
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || var_expr_ref <= 0) {
+    return 0;
+  }
+  mod = pipeline_asm_emit_module_ref_c();
+  fi = pipeline_asm_emit_func_index_c();
+  if (mod == (0 as *u8) || fi < 0) {
+    return 0;
+  }
+  unsafe {
+    np = pipeline_module_func_num_params_at(mod, fi);
+  }
+  pi = 0;
+  while (pi < np) {
+    rc = glue_expr_is_func_param_at_c(arena, mod, fi, var_expr_ref, pi);
+    if (rc != 0) {
+      return 1;
+    }
+    pi = pi + 1;
+  }
+  return 0;
+}
+
+/**
+ * Load f32 VAR stack home into rax (SSE bits in low 32 of GP).
+ * Param path: XLANG_ABI_F32_XMM=1 + scalar f32 → 4B lane load; else load 8B
+ * (caller-widened f64 home) then cvtsd2ss. Local non-param → 4B lane load.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → enc fail path via enc
+ * @param arena *u8 — ASTArena* (param/type lookup)
+ * @param ctx *u8 — AsmFuncCtx* (var decl type)
+ * @param var_expr_ref i32 — EXPR_VAR ref
+ * @param off i32 — rbp-relative stack home offset
+ * @param ta i32 — target arch (0=x86_64, 1=arm64)
+ * @return i32 — 0 success; -1 enc failure
+ *
+ * wave200 pure: G.7 authority (was Cap residual call_args / binop leave face).
+ * PLATFORM: SHARED freestanding f32 slot · LINUX+MACOS SysV xmm · ARM64 co-path.
+ */
+#[no_mangle]
+export function glue_load_f32_var_slot_to_rax_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32 {
+  let tr: i32 = 0;
+  let rc: i32 = 0;
+  let f32en: i32 = 0;
+  if (glue_var_is_current_func_param_c(arena, ctx, var_expr_ref) != 0) {
+    // SysV xmm home (x86): 4B f32 slot when ABI flag + scalar f32 formal.
+    // pipeline_asm_abi_f32_xmm_enabled_c is Cap residual extern → unsafe.
+    unsafe {
+      f32en = pipeline_asm_abi_f32_xmm_enabled_c();
+    }
+    if (ta == 0 && f32en != 0) {
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
+      if (glue_type_ref_is_scalar_f32_c(arena, tr) != 0) {
+        unsafe {
+          return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, 4, ta);
+        }
+      }
+    }
+    // Caller-widened f64 param home → narrow to f32 in eax.
+    unsafe {
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      return backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx, ta);
+    }
+  }
+  // Local f32 let: 4B lane at home.
+  unsafe {
+    return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, 4, ta);
+  }
+}
+
+/**
+ * Load f32 VAR stack home into rbx (symmetric with rax path).
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param arena *u8 — ASTArena*
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param var_expr_ref i32 — EXPR_VAR ref
+ * @param off i32 — stack home offset
+ * @param ta i32 — target arch
+ * @return i32 — 0 success; -1 enc failure
+ *
+ * wave200 pure: G.7 authority (was Cap residual call_args).
+ * PLATFORM: SHARED freestanding f32 slot · LINUX+MACOS SysV · ARM64 co-path.
+ */
+#[no_mangle]
+export function glue_load_f32_var_slot_to_rbx_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32 {
+  let rc: i32 = 0;
+  rc = glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, var_expr_ref, off, ta);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    return backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+  }
+}
+
+// end wave200 pure-owned leave
