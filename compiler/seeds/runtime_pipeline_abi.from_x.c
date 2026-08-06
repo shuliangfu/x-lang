@@ -26008,6 +26008,21 @@ int32_t glue_load_f32_var_slot_to_rbx_elf_c(void *elf_ctx, void *arena, void *ct
   return -1;
 }
 
+/*
+ * wave201 cold twin: SysV f32 xmm param home (G.7 pure leave).
+ * Freestanding-safe stub (-1 = enc/home fail). Hybrid product links pure.
+ * PLATFORM: LINUX+MACOS x86_64 SysV — f32 xmm split-track param home.
+ */
+int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(void *elf_ctx, void *ctx, void *mod,
+                                                        int32_t func_index, int32_t np) {
+  (void)elf_ctx;
+  (void)ctx;
+  (void)mod;
+  (void)func_index;
+  (void)np;
+  return -1;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */

@@ -38,6 +38,9 @@
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - glue_load_f32_var_slot_to_rax_elf_c / _to_rbx_elf_c — wave200 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twins
+ * - pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c — wave201 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin;
+ *   private is_f32/is_f64 pure helpers co-leave
  * - pipeline_asm_emit_expr_elf_for_call_args (public entry; f32 lit, VAR
  *   array→slice fat, dual-GP, fixed array, STRUCT_LIT, INDEX, FIELD, rec)
  *
@@ -1479,77 +1482,10 @@ static int32_t glue_copy_large_struct_from_rax_ptr_elf_c(struct platform_elf_Elf
   return backend_enc_call_arch(elf_ctx, (uint8_t *)memcpy_sym, (int32_t)(sizeof(memcpy_sym) - 1), ta);
 }
 
-/**
- * Classify a function parameter as SysV SSE class (f32 or f64).
- *
- * Why: SysV ABI param classification — f32/f64 parameters are homed in
- * xmm0–7 (SSE class) rather than GP registers (INTEGER class). This
- * predicate gates the xmm-vs-gp homing path in
- * pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c, which uses it alongside
- * glue_func_param_agg_byte_size_c (wave1045) and glue_func_param_home_width_c
- * (wave1047) — all three called in the same per-param loop iteration,
- * proving same-leaf colocated SysV param-classification domain.
- *
- * Invariant: returns 0 for invalid arena/mod/func_index/param_index or
- * non-f32/f64 param type. Returns 1 if param type kind is F32(14) or F64(15).
- *
- * Asm/Perf: O(1) — one type_ref lookup + one kind ord compare. Cold path —
- * called per param during func prologue emit.
- *
- * PLATFORM: SHARED kind predicate — LINUX+MACOS x86_64 SysV xmm slotting.
- *
- * wave1059 G.7: migrated from glue.c:5548 (body ~12 LOC). Placed at EOF
- * after glue_store_retval_pair_to_rbp_elf_c (wave1058). Dependencies:
- * pipeline_module_func_param_type_ref_at + pipeline_type_kind_ord_at (extern,
- * visible); GLUE_TYPE_KIND_F32_ORD/F64_ORD macros at glue.c:2185/2187 <
- * call_args.c #include L2395. Sole live caller
- * pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c at glue.c:5648 > L2395
- * visible. Dead caller glue_sysv_x86_func_param_slot_c deleted same wave.
- */
-static int32_t glue_func_param_is_f32_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
-                                        int32_t param_index) {
-  int32_t pty;
-  int32_t k;
-  if (!arena || !mod || func_index < 0 || param_index < 0)
-    return 0;
-  pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
-  if (pty <= 0)
-    return 0;
-  k = pipeline_type_kind_ord_at(arena, pty);
-  return (k == GLUE_TYPE_KIND_F32_ORD || k == GLUE_TYPE_KIND_F64_ORD) ? 1 : 0;
-}
-
-/**
- * Classify a function parameter as f64 (8B xmm home width).
- *
- * Why: SysV ABI param classification — f64 params need 8B xmm home width
- * (distinct from f32's 4B). This predicate separates f64 from f32 in the
- * xmm homing path so that pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c
- * reserves the correct home slot width. Called alongside is_f32 in the
- * same per-param loop — same SysV param classification domain.
- *
- * Invariant: returns 0 for invalid arena/mod/func_index/param_index or
- * non-f64 param type. Returns 1 if param type kind is F64(15).
- *
- * Asm/Perf: O(1) — one type_ref lookup + one kind ord compare. Cold path —
- * called per param during func prologue emit.
- *
- * PLATFORM: SHARED kind predicate — LINUX+MACOS x86_64 SysV xmm slotting.
- *
- * wave1059 G.7: migrated from glue.c:5562 (body ~10 LOC). Placed at EOF
- * after glue_func_param_is_f32_c. Dependencies: same as is_f32. Sole caller
- * pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c at glue.c:5671 > L2395.
- */
-static int32_t glue_func_param_is_f64_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
-                                        int32_t param_index) {
-  int32_t pty;
-  if (!arena || !mod || func_index < 0 || param_index < 0)
-    return 0;
-  pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
-  if (pty <= 0)
-    return 0;
-  return pipeline_type_kind_ord_at(arena, pty) == GLUE_TYPE_KIND_F64_ORD ? 1 : 0;
-}
+/* wave201 pure-owned: glue_func_param_is_f32_c / glue_func_param_is_f64_c
+ * bodies in runtime_pipeline_abi (private pure helpers of param_home f32 xmm).
+ * Cap residual host bodies removed (sole consumer pure-left same wave).
+ * PLATFORM: SHARED freestanding SysV xmm param kind predicates. */
 
 /* wave197 pure-owned: pipeline_asm_deref_struct16_rax_ptr_elf_c body in
  * runtime_pipeline_abi (G.7 single authority). Cap residual host body removed.
@@ -1743,122 +1679,14 @@ int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena, int32_
  * PLATFORM: LINUX+MACOS x86_64 SysV — f32 xmm split-track is x86-only.
  * ============================================================ */
 
-/**
- * SysV x86 + XLANG_ABI_F32_XMM=1：gp/xmm 分轨形参 homing + INTEGER dual-GP + MEMORY by-value copy.
- * PLATFORM: LINUX+MACOS x86_64 SysV.
- * - f32/f64: xmm0–7 (or stack if >8)
- * - 9–16B INTEGER: 2 consecutive GPs (or 16B stack) into dual-half home — formal C / Allocator
- * - >16B named struct: MEMORY class — copy from [rbp+stack_pos] into full-size home
- * - else: one GP
- * Hidden sret uses rdi → gp starts at 1 when sret_active.
- */
-/* wave141 pure leave Cap residual: was static; pure param_home_elf_c Cap residual this path. */
+/* wave201 pure-owned: pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c body in
+ * runtime_pipeline_abi.x (#[no_mangle] export). Cap residual: prototype only.
+ * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: LINUX+MACOS x86_64 SysV — f32 xmm split-track param home. */
 int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                         struct backend_AsmFuncCtx *ctx,
                                                         struct ast_Module *mod, int32_t func_index,
-                                                        int32_t np) {
-  struct ast_ASTArena *arena;
-  int32_t i;
-  int32_t off;
-  int32_t gp;
-  int32_t xmm;
-  int32_t stack_pos;
-  int32_t k;
-  (void)ctx;
-  arena = g_pipeline_asm_emit_arena;
-  if (!arena)
-    return -1;
-  gp = g_pipeline_asm_func_sret_active ? 1 : 0;
-  xmm = 0;
-  stack_pos = 16; /* first incoming stack arg after saved rbp @ [rbp+0] ret @ [rbp+8] */
-  off = 16; /* cursor before next home; [rbp-8]=saved rbx */
-  for (i = 0; i < np; i++) {
-    int32_t psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
-    int32_t home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
-    int32_t home = (home_w > 8) ? (off + home_w) : off; /* match fill_param_slots */
-    int32_t is_f64 = glue_func_param_is_f64_c(arena, mod, func_index, i);
-    int32_t is_f32 = glue_func_param_is_f32_c(arena, mod, func_index, i);
-    if (is_f32) {
-      if (xmm < 8) {
-        if (is_f64) {
-          if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, xmm, 0) != 0)
-            return -1;
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
-            return -1;
-        } else {
-          if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, xmm, 0) != 0)
-            return -1;
-          if (backend_enc_store_eax_to_rbp_arch(elf_ctx, home, 0) != 0)
-            return -1;
-        }
-        xmm++;
-      } else {
-        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0) != 0)
-          return -1;
-        if (is_f64) {
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
-            return -1;
-        } else if (backend_enc_store_eax_to_rbp_arch(elf_ctx, home, 0) != 0) {
-          return -1;
-        }
-        stack_pos += 8;
-      }
-    } else if (psz > 16) {
-      /**
-       * MEMORY by-value: copy nbytes from [rbp+stack_pos] into home.
-       * home is byte0 at off+width; byte8 at home-8 (downward; never below width from off).
-       */
-      int32_t nbytes = (psz + 7) & ~7;
-      for (k = 0; k < nbytes; k += 8) {
-        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos + k, 0) != 0)
-          return -1;
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - k, 0) != 0)
-          return -1;
-      }
-      stack_pos += nbytes;
-    } else if (psz > 8) {
-      /**
-       * 9–16B INTEGER dual-GP (or 16B stack): low half @ home, high @ home-8.
-       * Matches CALL dual-load place + formal C Allocator/StrView.
-       */
-      if (gp + 2 <= 6) {
-        if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0) != 0)
-          return -1;
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
-          return -1;
-        if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp + 1, 0) != 0)
-          return -1;
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, 0) != 0)
-          return -1;
-        gp += 2;
-      } else {
-        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0) != 0)
-          return -1;
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
-          return -1;
-        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos + 8, 0) != 0)
-          return -1;
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, 0) != 0)
-          return -1;
-        stack_pos += 16;
-      }
-    } else if (gp < 6) {
-      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0) != 0)
-        return -1;
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
-        return -1;
-      gp++;
-    } else {
-      if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0) != 0)
-        return -1;
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
-        return -1;
-      stack_pos += 8;
-    }
-    off = (home_w > 8) ? (home + 8) : (off + 8);
-  }
-  return 0;
-}
+                                                        int32_t np);
 
 /* wave1195 G.7: pipeline_asm_set/call_expected_ret_ty_c + static var
  * migrated from pipeline_glue.c L170-178.

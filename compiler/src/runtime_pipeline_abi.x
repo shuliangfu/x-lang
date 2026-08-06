@@ -580,9 +580,12 @@ export extern "C" function ast_pipeline_block_const_init_ref(arena: *u8, block_r
 export extern "C" function ast_pipeline_block_let_name_copy64(arena: *u8, block_ref: i32, i: i32, dst: *u8): void;
 export extern "C" function ast_pipeline_block_let_name_len(arena: *u8, block_ref: i32, i: i32): i32;
 export extern "C" function ast_pipeline_block_let_init_ref(arena: *u8, block_ref: i32, i: i32): i32;
-export extern "C" function pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx: *u8, ctx: *u8, mod: *u8, func_index: i32, np: i32): i32;
+// wave201 pure-owned: pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c at EOF (#[no_mangle]).
+// Cap residual call_args: prototype only; seed cold twin under #ifndef FROM_X.
 export extern "C" function pipeline_asm_abi_f32_xmm_enabled_c(): i32;
 export extern "C" function backend_enc_mov_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
+export extern "C" function backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
+export extern "C" function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern "C" function backend_enc_load_rbp_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32;
 export extern "C" function backend_enc_store_x_reg_to_rbp_arch(elf_ctx: *u8, reg: i32, offset: i32, ta: i32): i32;
 export extern "C" function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32;
@@ -29986,9 +29989,8 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
       f32en = pipeline_asm_abi_f32_xmm_enabled_c();
     }
     if (f32en != 0) {
-      unsafe {
-        rc = pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx, ctx, mod, func_index, np);
-      }
+      // wave201: pure-owned SysV f32 xmm param home (same module; no Cap residual).
+      rc = pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx, ctx, mod, func_index, np);
       return rc;
     }
   }
@@ -63239,7 +63241,7 @@ export function glue_asm_resolve_call_target_module_c(
 // Reuses pure glue_expr_is_func_param_at_c (w148) + glue_var_decl_type_ref (w124)
 //   + glue_type_ref_is_scalar_f32_c (w149) + pipeline_asm_abi_f32_xmm_enabled_c
 //   + emit_module_ref / emit_func_index (w141) + backend_enc_* faces.
-// Deferred: for_call_args mega / MEMORY by-value / param_home f32 xmm / spill BSS.
+// Deferred: for_call_args mega / MEMORY by-value / spill BSS / CAP BSS / pipeline_x mega.
 // PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV xmm home · ARM64 co-path.
 // ===========================================================================
 
@@ -63359,3 +63361,327 @@ export function glue_load_f32_var_slot_to_rbx_elf_c(elf_ctx: *u8, arena: *u8, ct
 }
 
 // end wave200 pure-owned leave
+
+// ===========================================================================
+// wave201: SysV f32 xmm param home pure leave
+// (was Cap residual in pipeline_asm_emit_call_args.c wave1151/wave141 fold)
+// G.7 product authority for XLANG_ABI_F32_XMM=1 callee-side param homing:
+//   pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c
+// Private helpers glue_func_param_is_f32_c / glue_func_param_is_f64_c
+//   (kind predicates; is_f32 true for f32|f64 class; is_f64 narrows width).
+// Reuses pure glue_func_param_agg_byte_size_c (w193) + glue_func_param_home_width_c
+//   (w192) + emit_ctx arena/sret getters + backend_enc mov/store/load faces.
+// Deferred: for_call_args mega / MEMORY by-value push/store / spill BSS /
+//   CAP BSS / pipeline_x mega.
+// PLATFORM: LINUX+MACOS x86_64 SysV — f32 xmm split-track is x86-only (ta=0).
+// ===========================================================================
+
+/**
+ * Classify a function parameter as f32-or-f64 (SSE class for xmm home).
+ * @param arena *u8 — ASTArena*; null → 0
+ * @param mod *u8 — Module*; null → 0
+ * @param func_index i32 — function index
+ * @param param_index i32 — formal param index
+ * @return i32 — 1 if param TypeKind is F32(14) or F64(15); else 0
+ *
+ * wave201 pure: private G.7 helper for SysV xmm param home (was Cap residual static).
+ * PLATFORM: SHARED freestanding kind predicate · LINUX+MACOS SysV xmm slotting.
+ */
+function glue_func_param_is_f32_c(arena: *u8, mod: *u8, func_index: i32, param_index: i32): i32 {
+  let pty: i32 = 0;
+  let k: i32 = 0;
+  if (arena == (0 as *u8) || mod == (0 as *u8) || func_index < 0 || param_index < 0) {
+    return 0;
+  }
+  unsafe {
+    pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
+  }
+  if (pty <= 0) {
+    return 0;
+  }
+  unsafe {
+    k = pipeline_type_kind_ord_at(arena, pty);
+  }
+  // GLUE_TYPE_KIND_F32_ORD=14 · F64_ORD=15
+  if (k == 14 || k == 15) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Classify a function parameter as f64 (8B xmm home width).
+ * @param arena *u8 — ASTArena*; null → 0
+ * @param mod *u8 — Module*; null → 0
+ * @param func_index i32 — function index
+ * @param param_index i32 — formal param index
+ * @return i32 — 1 if param TypeKind is F64(15); else 0
+ *
+ * wave201 pure: private G.7 helper for SysV xmm param home (was Cap residual static).
+ * PLATFORM: SHARED freestanding kind predicate · LINUX+MACOS SysV xmm slotting.
+ */
+function glue_func_param_is_f64_c(arena: *u8, mod: *u8, func_index: i32, param_index: i32): i32 {
+  let pty: i32 = 0;
+  let k: i32 = 0;
+  if (arena == (0 as *u8) || mod == (0 as *u8) || func_index < 0 || param_index < 0) {
+    return 0;
+  }
+  unsafe {
+    pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
+  }
+  if (pty <= 0) {
+    return 0;
+  }
+  unsafe {
+    k = pipeline_type_kind_ord_at(arena, pty);
+  }
+  if (k == 15) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * SysV x86 + XLANG_ABI_F32_XMM=1: gp/xmm split-track param homing.
+ * Homes np formals into fill_param_slots stack slots:
+ * - f32/f64 → xmm0–7 (or stack if >8); f64 stores 8B, f32 stores 4B eax
+ * - psz >16 MEMORY: copy nbytes from [rbp+stack_pos] into full-size home
+ * - psz 9–16 INTEGER dual-GP (or 16B stack) into dual-half home
+ * - else one GP (or 8B stack)
+ * Hidden sret uses rdi → gp starts at 1 when sret_active.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → enc fail
+ * @param ctx *u8 — AsmFuncCtx* (API parity; unused, arena from emit_ctx getter)
+ * @param mod *u8 — Module* owning the function
+ * @param func_index i32 — function index
+ * @param np i32 — number of formals
+ * @return i32 — 0 success; -1 arena/enc failure
+ *
+ * wave201 pure: G.7 authority (was Cap residual call_args wave1151).
+ * PLATFORM: LINUX+MACOS x86_64 SysV — f32 xmm split-track is x86-only (enc ta=0).
+ */
+#[no_mangle]
+export function pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx: *u8, ctx: *u8, mod: *u8, func_index: i32, np: i32): i32 {
+  let arena: *u8 = 0 as *u8;
+  let i: i32 = 0;
+  let off: i32 = 0;
+  let gp: i32 = 0;
+  let xmm: i32 = 0;
+  let stack_pos: i32 = 0;
+  let k: i32 = 0;
+  let psz: i32 = 0;
+  let home_w: i32 = 0;
+  let home: i32 = 0;
+  let is_f64: i32 = 0;
+  let is_f32: i32 = 0;
+  let nbytes: i32 = 0;
+  let sret_act: i32 = 0;
+  let rc: i32 = 0;
+  // ctx: Cap residual ABI parity (AsmFuncCtx*); unused — arena/sret from
+  // emit_ctx getters (matching residual g_pipeline_asm_emit_arena / sret_active).
+  if (elf_ctx == (0 as *u8) || mod == (0 as *u8) || func_index < 0 || np < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    arena = pipeline_asm_emit_ctx_arena_get();
+    sret_act = pipeline_asm_emit_ctx_sret_active_get();
+  }
+  if (arena == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (sret_act != 0) {
+    gp = 1;
+  } else {
+    gp = 0;
+  }
+  xmm = 0;
+  // first incoming stack arg after saved rbp @ [rbp+0] ret @ [rbp+8]
+  stack_pos = 16;
+  // cursor before next home; [rbp-8]=saved rbx
+  off = 16;
+  i = 0;
+  while (i < np) {
+    psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
+    home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
+    if (home_w > 8) {
+      home = off + home_w;
+    } else {
+      home = off;
+    }
+    is_f64 = glue_func_param_is_f64_c(arena, mod, func_index, i);
+    is_f32 = glue_func_param_is_f32_c(arena, mod, func_index, i);
+    if (is_f32 != 0) {
+      if (xmm < 8) {
+        if (is_f64 != 0) {
+          unsafe {
+            rc = backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, xmm, 0);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        } else {
+          unsafe {
+            rc = backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, xmm, 0);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_store_eax_to_rbp_arch(elf_ctx, home, 0);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
+        xmm = xmm + 1;
+      } else {
+        unsafe {
+          rc = backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        if (is_f64 != 0) {
+          unsafe {
+            rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        } else {
+          unsafe {
+            rc = backend_enc_store_eax_to_rbp_arch(elf_ctx, home, 0);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
+        stack_pos = stack_pos + 8;
+      }
+    } else {
+      if (psz > 16) {
+        // MEMORY by-value: copy nbytes from [rbp+stack_pos] into home.
+        // home is byte0 at off+width; byte8 at home-8 (downward).
+        nbytes = (psz + 7) & (0 - 8);
+        k = 0;
+        while (k < nbytes) {
+          unsafe {
+            rc = backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos + k, 0);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home - k, 0);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          k = k + 8;
+        }
+        stack_pos = stack_pos + nbytes;
+      } else {
+        if (psz > 8) {
+          // 9–16B INTEGER dual-GP (or 16B stack): low @ home, high @ home-8.
+          if (gp + 2 <= 6) {
+            unsafe {
+              rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp + 1, 0);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, 0);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            gp = gp + 2;
+          } else {
+            unsafe {
+              rc = backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos + 8, 0);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, 0);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            stack_pos = stack_pos + 16;
+          }
+        } else {
+          if (gp < 6) {
+            unsafe {
+              rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            gp = gp + 1;
+          } else {
+            unsafe {
+              rc = backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            stack_pos = stack_pos + 8;
+          }
+        }
+      }
+    }
+    if (home_w > 8) {
+      off = home + 8;
+    } else {
+      off = off + 8;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// end wave201 pure-owned leave
