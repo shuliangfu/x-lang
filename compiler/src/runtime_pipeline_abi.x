@@ -68558,4 +68558,161 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
 }
 
 // end wave216 pure-owned leave
+// ===========================================================================
+// wave217: CALL/METHOD text thin wrappers pure leave
+// (was Cap residual pipeline_asm_emit_call_args.c pipeline_asm_emit_expr_call_c
+//  + pipeline_asm_emit_expr_method_call_c)
+// G.7 product authority for M8-tail text EXPR_CALL / EXPR_METHOD_CALL:
+//   pool-snapshot ast_Expr then delegate seed partial backend_emit_expr{,_method}_call.
+// Why leave: Cap residual call_args body closed except intentional host-cc shell;
+//   text wrappers are the last real bodies in that leaf.
+// Why stack copy (not live arena ptr): match historical get_copy snapshot so a
+//   partial that mutates e cannot corrupt the arena row (same as Cap residual).
+// ABI: LP64 large-struct-by-value ≡ pointer-to-temp; pure passes *u8 snapshot.
+// sizeof(struct ast_Expr) = 712 (mac arm64 + Ubuntu x86_64 dual-end; seed layout).
+// Deferred: pipeline_x mega host-cc.
+// PLATFORM: SHARED — pure delegation, no arch branch.
+// ===========================================================================
+
+/** LP64 byte size of struct ast_Expr (seed/parser layout). PLATFORM: SHARED. */
+function pipeline_ast_expr_sizeof_c(): i32 {
+  return 712;
+}
+
+/**
+ * Arena main-pool expr row pointer (C layout). Null on bad ref.
+ * @param arena *u8 — ASTArena*
+ * @param ref i32 — 1-based expr ref
+ * @return *u8 — struct ast_Expr* or null
+ * PLATFORM: SHARED.
+ */
+export extern "C" function pipeline_arena_expr_ptr(arena: *u8, ref: i32): *u8;
+
+/**
+ * Seed partial text EXPR_CALL emit (asm_backend_partial / weak mega fallback).
+ * Large Expr is ABI pointer-to-temp; pure passes stack snapshot *u8.
+ * @param arena *u8 — ASTArena*
+ * @param out *u8 — CodegenOutBuf*
+ * @param expr_ref i32 — CALL expr ref
+ * @param e *u8 — pointer to struct ast_Expr snapshot (C layout)
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param target_arch i32 — 0 x86_64 / 1 arm64
+ * @return i32 — 0 ok; non-zero fail (partial may stub 0)
+ * PLATFORM: SHARED text path.
+ */
+export extern "C" function backend_emit_expr_call(arena: *u8, out: *u8, expr_ref: i32, e: *u8, ctx: *u8, target_arch: i32): i32;
+
+/**
+ * Seed partial text EXPR_METHOD_CALL emit (same ABI as backend_emit_expr_call).
+ * @param arena *u8 — ASTArena*
+ * @param out *u8 — CodegenOutBuf*
+ * @param expr_ref i32 — METHOD_CALL expr ref
+ * @param e *u8 — pointer to struct ast_Expr snapshot (C layout)
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param target_arch i32 — 0 x86_64 / 1 arm64
+ * @return i32 — 0 ok; non-zero fail
+ * PLATFORM: SHARED text path.
+ */
+export extern "C" function backend_emit_expr_method_call(arena: *u8, out: *u8, expr_ref: i32, e: *u8, ctx: *u8, target_arch: i32): i32;
+
+/**
+ * Emit text asm for EXPR_CALL — M8-tail thin wrapper (pool snapshot + partial).
+ *
+ * Re-fetches Expr from the arena (C layout) so backend.x callers never pass a
+ * misaligned X-side Expr by value into the seed partial.
+ *
+ * @param arena *u8 — ASTArena*; null → -1
+ * @param out *u8 — CodegenOutBuf*
+ * @param expr_ref i32 — CALL expression ref; <=0 → -1
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param target_arch i32 — 0 x86_64 / 1 arm64
+ * @return i32 — partial return, or -1 on gate fail
+ *
+ * wave217 pure: G.7 authority (was Cap residual call_args thin wrapper).
+ * PLATFORM: SHARED — pure delegation, no arch branch.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_expr_call_c(
+    arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32): i32 {
+  // Stack snapshot of C-layout Expr (sizeof 712); matches Cap get_copy temp.
+  let ebuf: u8[712] = [];
+  let ep: *u8 = 0 as *u8;
+  let esz: i32 = 0;
+  let i: i32 = 0;
+  if (expr_ref <= 0) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  // Load live arena row then copy to stack (snapshot; no arena mutate by partial).
+  unsafe {
+    ep = pipeline_arena_expr_ptr(arena, expr_ref);
+  }
+  if (ep == 0 as *u8) {
+    return 0 - 1;
+  }
+  esz = pipeline_ast_expr_sizeof_c();
+  // Byte-copy C row into ebuf (equivalent to pipeline_arena_expr_get_copy).
+  i = 0;
+  while (i < esz) {
+    unsafe {
+      ebuf[i] = ep[i];
+    }
+    i = i + 1;
+  }
+  unsafe {
+    return backend_emit_expr_call(arena, out, expr_ref, &ebuf[0], ctx, target_arch);
+  }
+}
+
+/**
+ * Emit text asm for EXPR_METHOD_CALL — M8-tail thin wrapper (pool snapshot + partial).
+ *
+ * Same pool-snapshot contract as pipeline_asm_emit_expr_call_c; delegates to
+ * backend_emit_expr_method_call.
+ *
+ * @param arena *u8 — ASTArena*; null → -1
+ * @param out *u8 — CodegenOutBuf*
+ * @param expr_ref i32 — METHOD_CALL expression ref; <=0 → -1
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param target_arch i32 — 0 x86_64 / 1 arm64
+ * @return i32 — partial return, or -1 on gate fail
+ *
+ * wave217 pure: G.7 authority (was Cap residual call_args thin wrapper).
+ * PLATFORM: SHARED — pure delegation, no arch branch.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_expr_method_call_c(
+    arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32): i32 {
+  let ebuf: u8[712] = [];
+  let ep: *u8 = 0 as *u8;
+  let esz: i32 = 0;
+  let i: i32 = 0;
+  if (expr_ref <= 0) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    ep = pipeline_arena_expr_ptr(arena, expr_ref);
+  }
+  if (ep == 0 as *u8) {
+    return 0 - 1;
+  }
+  esz = pipeline_ast_expr_sizeof_c();
+  i = 0;
+  while (i < esz) {
+    unsafe {
+      ebuf[i] = ep[i];
+    }
+    i = i + 1;
+  }
+  unsafe {
+    return backend_emit_expr_method_call(arena, out, expr_ref, &ebuf[0], ctx, target_arch);
+  }
+}
+
+// end wave217 pure-owned leave
 

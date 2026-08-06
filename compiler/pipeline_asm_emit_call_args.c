@@ -57,6 +57,9 @@
  *   (runtime_pipeline_abi pure BSS); Cap residual prototype only + seed cold twin
  * - pipeline_asm_emit_expr_elf_for_call_args — wave216 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
+ * - pipeline_asm_emit_expr_call_c / pipeline_asm_emit_expr_method_call_c —
+ *   wave217 pure leave (runtime_pipeline_abi); Cap residual prototype only
+ *   + seed cold twins under #ifndef FROM_X
  *
  * G.7: single product-mega CALL-arg ELF packing face — do not open a second
  * SysV ≤16B dual-GP path or second ARRAY→SLICE fat materializer. CALL/
@@ -523,13 +526,17 @@ int32_t pipeline_asm_call_expected_ret_ty_c(void);
  * (call_args.c #include at glue.c L1660). Both are thin M8-tail wrappers that
  * pool-copy ast_Expr then delegate to seed partial backend_emit_expr{,_method}_call.
  *
- * Members (2 fns):
+ * wave217 pure leave: bodies live in runtime_pipeline_abi.x (#[no_mangle] export).
+ * Cap residual: prototype only (dual-export ban). Seed cold twins under
+ * #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X keep get_copy + partial path.
+ *
+ * Members (2 fns; pure-owned after wave217):
  *  - pipeline_asm_emit_expr_call_c        (EXPR_CALL thin wrapper)
  *  - pipeline_asm_emit_expr_method_call_c (EXPR_METHOD_CALL thin wrapper)
  *
  * Deps (all extern, fwd decls retained in glue.c L3223-3227):
  *  - backend_emit_expr_call / backend_emit_expr_method_call (seed partial)
- *  - pipeline_arena_expr_get_copy (extern, ast_pool_arena.c)
+ *  - pipeline_arena_expr_get_copy / pipeline_arena_expr_ptr (ast_pool_arena.c)
  *
  * Callers: no TU-internal callsites. Sole callers are seeds
  * (backend.x L1610/L1626) via extern + ast_pool.c symbol table L9812/L9813
@@ -538,42 +545,19 @@ int32_t pipeline_asm_call_expected_ret_ty_c(void);
  * PLATFORM: SHARED — pure delegation, no arch branch.
  * ========================================================================== */
 
-/**
- * Emit text asm for EXPR_CALL — thin M8-tail wrapper.
- *
- * Why: backend.x extern call requires a C-side pool-copy of ast_Expr
- *      (X->C struct copy can misalign kind field); this wrapper performs
- *      the copy then delegates to seed partial backend_emit_expr_call.
- * Contract: expr_ref<=0 -> -1; otherwise delegates return value.
- * Asm/Perf: O(1) — one pool copy + one tail call.
- * PLATFORM: SHARED.
- */
+/* wave217 pure-owned: pipeline_asm_emit_expr_call_c body in
+ * runtime_pipeline_abi.x (#[no_mangle] export). Cap residual: prototype only.
+ * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED freestanding text CALL thin wrapper. */
 int32_t pipeline_asm_emit_expr_call_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t expr_ref,
-                                      struct backend_AsmFuncCtx *ctx, int32_t target_arch) {
-  struct ast_Expr e;
-  if (expr_ref <= 0)
-    return -1;
-  e = pipeline_arena_expr_get_copy(arena, expr_ref);
-  return backend_emit_expr_call(arena, out, expr_ref, e, ctx, target_arch);
-}
+                                      struct backend_AsmFuncCtx *ctx, int32_t target_arch);
 
-/**
- * Emit text asm for EXPR_METHOD_CALL — thin M8-tail wrapper.
- *
- * Why: same pool-copy requirement as EXPR_CALL (see above); delegates to
- *      seed partial backend_emit_expr_method_call.
- * Contract: expr_ref<=0 -> -1; otherwise delegates return value.
- * Asm/Perf: O(1) — one pool copy + one tail call.
- * PLATFORM: SHARED.
- */
+/* wave217 pure-owned: pipeline_asm_emit_expr_method_call_c body in
+ * runtime_pipeline_abi.x (#[no_mangle] export). Cap residual: prototype only.
+ * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED freestanding text METHOD_CALL thin wrapper. */
 int32_t pipeline_asm_emit_expr_method_call_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
-                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t target_arch) {
-  struct ast_Expr e;
-  if (expr_ref <= 0)
-    return -1;
-  e = pipeline_arena_expr_get_copy(arena, expr_ref);
-  return backend_emit_expr_method_call(arena, out, expr_ref, e, ctx, target_arch);
-}
+                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t target_arch);
 
 /* ========================================================================== *
  * wave1207-1209 G.7: MEMORY-by-value call-arg emit + size query cluster

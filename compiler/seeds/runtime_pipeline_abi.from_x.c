@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave217: CALL/METHOD text thin wrappers pure leave cold twins under #ifndef FROM_X
  * wave216: for_call_args mega pure leave cold twin under #ifndef FROM_X
  * wave189: module_from_ctx + needs_ptr pure leave cold twins under #ifndef FROM_X
  * wave188: VAR stack_off pure leave cold twin under #ifndef FROM_X
@@ -27070,6 +27071,31 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
   (void)expr_ref;
   (void)ctx;
   (void)ta;
+  return -1;
+}
+
+/*
+ * wave217 cold twins: CALL/METHOD text thin wrappers (G.7 pure leave).
+ * Freestanding-safe stub (-1). Hybrid product links pure (stack snapshot +
+ * backend_emit_* via *u8 large-struct ABI). void* signatures avoid incomplete
+ * struct ast_Expr in this TU (same pattern as wave216 for_call_args twin).
+ * PLATFORM: SHARED freestanding text CALL/METHOD M8-tail.
+ */
+int32_t pipeline_asm_emit_expr_call_c(void *arena, void *out, int32_t expr_ref, void *ctx, int32_t target_arch) {
+  (void)arena;
+  (void)out;
+  (void)expr_ref;
+  (void)ctx;
+  (void)target_arch;
+  return -1;
+}
+
+int32_t pipeline_asm_emit_expr_method_call_c(void *arena, void *out, int32_t expr_ref, void *ctx, int32_t target_arch) {
+  (void)arena;
+  (void)out;
+  (void)expr_ref;
+  (void)ctx;
+  (void)target_arch;
   return -1;
 }
 
