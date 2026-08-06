@@ -9,22 +9,13 @@
  * - glue_emit_module_from_ctx / param+local slot ptr load faces
  *   (stack_off_is_emit_param_ptr_slot, local_var_slot_needs_ptr_load,
  *   func_param_is_indirect_struct_slot)
- * - glue_field_access_field_type_ref_c / fixed_array_total_bytes /
- *   glue_index_elem_byte_sz_from_type_ref_c (INDEX stride inference)
+ * - glue_field_access_field_type_ref_c — wave187 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
+ * - fixed_array_total_bytes / glue_index_elem_byte_sz_from_type_ref_c
+ *   — wave180 pure (INDEX stride inference)
  * - try_index_* forest (base→rax/rbx, assign-addr→rbx, eff_addr→rax;
  *   lit/var/add/sub/mul nested shapes + index scratch cache)
- *   · wave178: INDEX expr shape peel forest pure
- *     (var_plus_var_pair / var_add3 / var_minus_var_pair / var_minus_add3 /
- *      var_subadd3 / var_subsub3) — residual try_index faces call pure peel
- *   · wave179: local-slot ptr/addr + field-slot deref pure
- *     (enc_local_slot_ptr_or_addr{,_rbx}, index_deref_ptr_field_slot_{rax,rbx})
- *   · wave180: type/stride helpers pure
- *     (fixed_array_total_bytes, index_elem_byte_sz_from_type_ref,
- *      var_expr_type_ref_with_decl_fallback)
- *   · wave181: simple try_index assign-addr→rbx forest pure
- *     (var_lit / var_idx / plus_lit / plus_var / minus_lit / minus_var /
- *      mul_lit / mul_var) — residual base_to_rbx stays host; nested
- *      add3/subadd3/eff_addr still residual
+ *   · wave178–184: peel / local-slot / type / assign / base / nested / rax pure
  * - glue_emit_soa_index_field_addr_elf_c — wave186 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - pipeline_asm_emit_lvalue_eff_addr_{elf,text}_c — wave185 pure leave
@@ -216,127 +207,12 @@ int32_t glue_enc_local_slot_ptr_or_addr_rbx_elf_c(struct ast_ASTArena *arena,
 /** TYPE_PTR 在 TypeKind 序数表中的值（与 pipeline_asm_index_elem_byte_sz_c 一致）。 */
 #define GLUE_TYPE_KIND_PTR 9
 
-/**
- * struct layout 名与 TYPE_NAMED 对齐：精确相等或 type 为 vec.Vec_u8、layout 为 Vec_u8 等末段匹配。
- */
-static int32_t glue_struct_layout_name_matches_type_name_c(struct ast_Module *mod, int32_t li, uint8_t *type_name,
-                                                           int32_t type_len) {
-  int32_t ln;
-  int32_t j;
-  if (!mod || li < 0 || !type_name || type_len <= 0)
-    return 0;
-  ln = pipeline_module_struct_layout_name_len(mod, li);
-  if (ln <= 0)
-    return 0;
-  if (ln == type_len) {
-    for (j = 0; j < ln; j++) {
-      if (pipeline_module_struct_layout_name_byte_at(mod, li, j) != type_name[j])
-        return 0;
-    }
-    return 1;
-  }
-  if (type_len > ln + 1 && type_name[type_len - ln - 1] == (uint8_t)'.') {
-    for (j = 0; j < ln; j++) {
-      if (pipeline_module_struct_layout_name_byte_at(mod, li, j) != type_name[type_len - ln + j])
-        return 0;
-    }
-    return 1;
-  }
-  return 0;
-}
-
-/**
- * FIELD_ACCESS 字段类型 ref：优先 expr resolved_type，回落 module struct layout（*Vec3f_soa.col_x 等）。
- */
-/* wave140 pure leave Cap residual: was static; pure index esz links here. PLATFORM: SHARED. */
+/* wave187 pure-owned: glue_field_access_field_type_ref_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * (layout-name match helper folded into pure private.)
+ * PLATFORM: SHARED freestanding FIELD type recovery. */
 int32_t glue_field_access_field_type_ref_c(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                           int32_t fa_ref) {
-  struct ast_Expr *ex;
-  int32_t tr;
-  uint8_t field_name[128];
-  int32_t flen;
-  int32_t base_ref;
-  if (!arena || fa_ref <= 0)
-    return 0;
-  if (fa_ref <= 0 || fa_ref > arena->num_exprs)
-    return 0;
-  ex = pipeline_arena_expr_ptr(arena, fa_ref);
-  if (!ex)
-    return 0;
-  flen = ex->field_access_field_len;
-  if (flen <= 0 || flen > 127)
-    return 0;
-  memcpy(field_name, ex->field_access_field_name, (size_t)flen);
-  base_ref = ex->field_access_base_ref;
-  /** 形参/局部 struct 字段优先 layout（勿信 FA resolved_type 误绑 *f64）。 */
-  if (base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == GLUE_EXPR_KIND_VAR && mod) {
-    int32_t base_ty;
-    int32_t fi;
-    uint8_t vname[128];
-    int32_t vlen;
-    struct ast_Type *tp;
-    uint8_t struct_name[128];
-    int32_t nlen;
-    int32_t k;
-    int32_t j;
-    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
-    if (base_ty <= 0) {
-      fi = g_pipeline_asm_emit_func_index;
-      vlen = pipeline_expr_var_name_len(arena, base_ref);
-      if (fi >= 0 && fi < mod->num_funcs && vlen > 0 && vlen <= 63) {
-        pipeline_expr_var_name_into(arena, base_ref, vname);
-        base_ty = pipeline_module_func_param_type_ref_for_name(mod, fi, vname, vlen);
-      }
-    }
-    if (base_ty <= 0 && g_pipeline_asm_emit_scope_block > 0) {
-      vlen = pipeline_expr_var_name_len(arena, base_ref);
-      if (vlen > 0 && vlen <= 63) {
-        pipeline_expr_var_name_into(arena, base_ref, vname);
-        base_ty = pipeline_block_resolve_var_type_ref(arena, g_pipeline_asm_emit_scope_block, vname, vlen);
-      }
-    }
-    if (base_ty > 0) {
-      tp = pipeline_arena_type_ptr(arena, base_ty);
-      if (tp && tp->kind == ast_TypeKind_TYPE_PTR && tp->elem_type_ref > 0) {
-        base_ty = tp->elem_type_ref;
-        tp = pipeline_arena_type_ptr(arena, base_ty);
-      }
-      if (tp && tp->kind == ast_TypeKind_TYPE_NAMED) {
-        nlen = tp->name_len;
-        if (nlen > 0 && nlen <= 63) {
-          memcpy(struct_name, tp->name, (size_t)nlen);
-          for (k = 0; k < (int32_t)mod->num_struct_layouts; k++) {
-            if (!glue_struct_layout_name_matches_type_name_c(mod, k, struct_name, nlen))
-              continue;
-            for (j = 0; j < pipeline_module_struct_layout_num_fields(mod, k); j++) {
-              int32_t fnlen = pipeline_module_struct_layout_field_name_len(mod, k, j);
-              int32_t feq = 1;
-              int32_t fi2;
-              if (fnlen != flen)
-                continue;
-              for (fi2 = 0; fi2 < fnlen; fi2++) {
-                uint8_t fb[128];
-                pipeline_module_struct_layout_field_name_into(mod, k, j, fb);
-                if (fb[fi2] != field_name[fi2]) {
-                  feq = 0;
-                  break;
-                }
-              }
-              if (!feq)
-                continue;
-              return pipeline_module_struct_layout_field_type_ref(mod, k, j);
-            }
-          }
-        }
-      }
-    }
-  }
-  tr = pipeline_expr_resolved_type_ref(arena, fa_ref);
-  if (tr > 0)
-    return tr;
-  /** 勿按字段名全局扫描：多个 struct 均有 ptr 时会误命中 *f64 等（v.ptr[v.len] INDEX esz→8 SIGSEGV）。 */
-  return 0;
-}
+                                           int32_t fa_ref);
 
 /**
  * wave180 pure-owned: fixed TYPE_ARRAY total payload bytes (recursive multi-dim).

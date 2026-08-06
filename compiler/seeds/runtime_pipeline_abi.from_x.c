@@ -25744,6 +25744,18 @@ int32_t glue_emit_soa_index_field_addr_elf_c(void *arena, void *elf_ctx, int32_t
   return -1;
 }
 
+/*
+ * wave187 cold twin: FIELD_ACCESS field type_ref (G.7 pure leave).
+ * Freestanding-safe stub: return 0 (unknown type). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding FIELD type recovery.
+ */
+int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_ref) {
+  (void)arena;
+  (void)mod;
+  (void)fa_ref;
+  return 0;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 

@@ -493,7 +493,8 @@ export extern "C" function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offse
 // PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED = -99 (backend_fwd).
 // wave147 pure leave: glue_emit_index_eff_addr_scaled_elf_c + scale/add/bounds/base/public
 //   index_eff_addr faces live in this file (#[no_mangle] export).
-export extern "C" function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
+// wave187 pure-owned: glue_field_access_field_type_ref_c live at EOF (#[no_mangle]).
+// (was Cap residual export extern; dual-export ban.)
 // wave180 pure-owned: glue_fixed_array_total_bytes_c + glue_index_elem_byte_sz_from_type_ref_c
 // + glue_var_expr_type_ref_with_decl_fallback_c live in EOF (#[no_mangle]).
 // (was Cap residual export extern; dual-export ban.)
@@ -60621,7 +60622,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
  * - INDEX arm → pipeline_asm_emit_index_eff_addr_text_c (pure wave147).
  * - Local slot → glue_arch_emit_local_slot_ptr_or_addr_text_c (pure wave147).
  * - wave596 text twin: auto-deref *T intermediate field (PTR=9 / SLICE=11) via
- *   glue_field_access_field_type_ref_c (Cap residual) + backend_arch_emit_load_64_from_rax.
+ *   glue_field_access_field_type_ref_c (pure w187) + backend_arch_emit_load_64_from_rax.
  * - DEREF (ko==52) is ELF-only on this face (text residual never had it).
  *
  * wave185 pure: G.7 authority (was pipeline_asm_emit_lvalue_eff_addr_text_c Cap residual).
@@ -60879,3 +60880,239 @@ export function glue_emit_soa_index_field_addr_elf_c(arena: *u8, elf_ctx: *u8, i
 }
 
 // end wave186 pure-owned leave
+
+// ===========================================================================
+// wave187: FIELD_ACCESS field type_ref pure-owned leave
+// (was Cap residual body in pipeline_asm_emit_index_helpers.c)
+// G.7 product authority for FIELD type recovery used by INDEX esz / call_args /
+// field load / lvalue mid-field:
+//   glue_field_access_field_type_ref_c
+//   (+ private layout-name match helper colocated)
+// Prefer layout field type for VAR base (*Vec3f_soa.col_x etc.); never global
+// field-name scan (multi-struct `ptr` false-hit → esz 8 SIGSEGV).
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
+// ===========================================================================
+
+/**
+ * Match module struct-layout name to TYPE_NAMED spelling.
+ * Exact equality via glue_struct_layout_name_eq_c (wave154), or type_name ends
+ * with ".LayoutShort" when layout is LayoutShort (e.g. vec.Vec_u8 vs Vec_u8).
+ * @param mod *u8 — Module*
+ * @param li i32 — layout index
+ * @param type_name *u8 — TYPE_NAMED bytes (not required NUL-terminated)
+ * @param type_len i32 — byte count; must be > 0
+ * @return i32 — 1 match, 0 no match / bad args
+ * wave187 pure private helper (was Cap residual static). G.7: reuses name_eq.
+ * PLATFORM: SHARED freestanding layout name match.
+ */
+function glue_struct_layout_name_matches_type_name_c(mod: *u8, li: i32, type_name: *u8, type_len: i32): i32 {
+  let ln: i32 = 0;
+  let j: i32 = 0;
+  let b: i32 = 0;
+  let ch: i32 = 0;
+  if (mod == (0 as *u8) || li < 0 || type_name == (0 as *u8) || type_len <= 0) {
+    return 0;
+  }
+  // Exact path — G.7 reuse wave154 name_eq (no second exact loop).
+  if (glue_struct_layout_name_eq_c(mod, li, type_name, type_len) != 0) {
+    return 1;
+  }
+  unsafe {
+    ln = pipeline_module_struct_layout_name_len(mod, li);
+  }
+  if (ln <= 0) {
+    return 0;
+  }
+  // Suffix form: type_name[type_len - ln - 1] == '.' && trailing bytes == layout name.
+  // Compare via i32 (name_byte_at returns i32; *u8 index is u8 — match name_eq style).
+  if (type_len > ln + 1) {
+    ch = type_name[type_len - ln - 1] as i32;
+    if (ch == 46) {
+      j = 0;
+      while (j < ln) {
+        unsafe {
+          b = pipeline_module_struct_layout_name_byte_at(mod, li, j);
+        }
+        if (b != (type_name[type_len - ln + j] as i32)) {
+          return 0;
+        }
+        j = j + 1;
+      }
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * FIELD_ACCESS field type_ref: prefer module struct layout for VAR base
+ * (param/local); fall back to FA resolved_type_ref only. Never scan all
+ * layouts by field name alone (ambiguous `ptr` fields).
+ * @param arena *u8 — ASTArena*
+ * @param mod *u8 — Module* (emit module; may be null → skip layout arm)
+ * @param fa_ref i32 — FIELD_ACCESS expression ref
+ * @return i32 — field type_ref > 0, or 0 if unknown / unhandled
+ *
+ * Contracts:
+ * - field name from pipeline_expr_field_access_name_{len,into}
+ * - base from pipeline_expr_field_access_base_ref; VAR arm only for layout
+ * - base type: resolved → param (func_index) → scope_block (no body-let fallthrough)
+ * - peel TYPE_PTR (9) once; require TYPE_NAMED (8) for layout walk
+ * - layout name match via glue_struct_layout_name_matches_type_name_c
+ *
+ * wave187 pure: G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding FIELD type recovery · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32 {
+  let flen: i32 = 0;
+  let field_name: u8[128] = [];
+  let base_ref: i32 = 0;
+  let base_ko: i32 = 0;
+  let base_ty: i32 = 0;
+  let fi: i32 = 0;
+  let vname: u8[128] = [];
+  let vlen: i32 = 0;
+  let nfuncs: i32 = 0;
+  let scope_br: i32 = 0;
+  let kord: i32 = 0;
+  let struct_name: u8[128] = [];
+  let nlen: i32 = 0;
+  let nsl: i32 = 0;
+  let k: i32 = 0;
+  let j: i32 = 0;
+  let nf: i32 = 0;
+  let fnlen: i32 = 0;
+  let feq: i32 = 0;
+  let fi2: i32 = 0;
+  let fb: u8[128] = [];
+  let tr: i32 = 0;
+  if (arena == (0 as *u8) || fa_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    flen = pipeline_expr_field_access_name_len(arena, fa_ref);
+  }
+  if (flen <= 0 || flen > 127) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_field_access_name_into(arena, fa_ref, &field_name[0]);
+    base_ref = pipeline_expr_field_access_base_ref(arena, fa_ref);
+  }
+  // Prefer layout for VAR base (do not trust FA resolved_type misbound *f64).
+  // EXPR_VAR kind ord = 3.
+  if (base_ref > 0 && mod != (0 as *u8)) {
+    unsafe {
+      base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+    }
+    if (base_ko == 3) {
+      unsafe {
+        base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+      }
+      if (base_ty <= 0) {
+        unsafe {
+          fi = pipeline_asm_emit_func_index_c();
+          vlen = pipeline_expr_var_name_len(arena, base_ref);
+          nfuncs = pipeline_module_num_funcs(mod);
+        }
+        if (fi >= 0 && fi < nfuncs && vlen > 0 && vlen <= 63) {
+          unsafe {
+            pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
+            base_ty = pipeline_module_func_param_type_ref_for_name(mod, fi, &vname[0], vlen);
+          }
+        }
+      }
+      if (base_ty <= 0) {
+        unsafe {
+          scope_br = pipeline_asm_emit_ctx_scope_block_get();
+        }
+        if (scope_br > 0) {
+          unsafe {
+            vlen = pipeline_expr_var_name_len(arena, base_ref);
+          }
+          if (vlen > 0 && vlen <= 63) {
+            unsafe {
+              pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
+              base_ty = pipeline_block_resolve_var_type_ref(arena, scope_br, &vname[0], vlen);
+            }
+          }
+        }
+      }
+      if (base_ty > 0) {
+        unsafe {
+          kord = pipeline_type_kind_ord_at(arena, base_ty);
+        }
+        // TYPE_PTR = 9 → peel once
+        if (kord == 9) {
+          unsafe {
+            base_ty = pipeline_type_elem_ref_at(arena, base_ty);
+          }
+          if (base_ty > 0) {
+            unsafe {
+              kord = pipeline_type_kind_ord_at(arena, base_ty);
+            }
+          } else {
+            kord = 0;
+          }
+        }
+        // TYPE_NAMED = 8
+        if (kord == 8) {
+          unsafe {
+            nlen = pipeline_type_named_name_into(arena, base_ty, &struct_name[0]);
+            nsl = pipeline_module_num_struct_layouts_at(mod);
+          }
+          if (nlen > 0 && nlen <= 63) {
+            k = 0;
+            while (k < nsl) {
+              if (glue_struct_layout_name_matches_type_name_c(mod, k, &struct_name[0], nlen) != 0) {
+                unsafe {
+                  nf = pipeline_module_struct_layout_num_fields(mod, k);
+                }
+                j = 0;
+                while (j < nf) {
+                  unsafe {
+                    fnlen = pipeline_module_struct_layout_field_name_len(mod, k, j);
+                  }
+                  feq = 1;
+                  if (fnlen != flen) {
+                    feq = 0;
+                  } else {
+                    unsafe {
+                      pipeline_module_struct_layout_field_name_into(mod, k, j, &fb[0]);
+                    }
+                    fi2 = 0;
+                    while (fi2 < fnlen) {
+                      if (fb[fi2] != field_name[fi2]) {
+                        feq = 0;
+                        break;
+                      }
+                      fi2 = fi2 + 1;
+                    }
+                  }
+                  if (feq != 0) {
+                    unsafe {
+                      return pipeline_module_struct_layout_field_type_ref(mod, k, j);
+                    }
+                  }
+                  j = j + 1;
+                }
+              }
+              k = k + 1;
+            }
+          }
+        }
+      }
+    }
+  }
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(arena, fa_ref);
+  }
+  if (tr > 0) {
+    return tr;
+  }
+  // Do not global-scan by field name (ambiguous multi-struct fields).
+  return 0;
+}
+
+// end wave187 pure-owned leave
