@@ -61409,3 +61409,203 @@ export function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_re
 }
 
 // end wave189 pure-owned leave
+
+// ===========================================================================
+// wave190: CALL-arg lea-vs-load gate pure-owned leave
+// (was Cap residual static in pipeline_asm_emit_call_args.c)
+// G.7 product authority for named-struct layout predicate + CALL VAR lea gate:
+//   glue_type_ref_is_named_struct_layout_elf_c  (promoted static→public)
+//   glue_call_arg_var_use_lea_not_load_elf_c    (promoted static→public)
+// Reuses glue_type_size_simple (wave154) + glue_type_is_fixed_array (wave146) +
+//   glue_emit_func_param_is_indirect_array_slot_c (wave189) +
+//   pipeline_asm_emit_module_ref_c / func_index_c (wave141) +
+//   asm_local_var_slot_holds_indirect_ptr Cap residual.
+// Note: try_inline glue_type_ref_is_named_struct_layout_impl is a different
+//   seed symbol (thin PREFER path); product mega CALL/index use this *_elf_c face.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
+// ===========================================================================
+
+/**
+ * Whether type_ref is TYPE_NAMED with a matching module struct layout entry.
+ * @param arena *u8 — ASTArena*; null → 0
+ * @param mod *u8 — Module* holding struct layouts; null → 0
+ * @param ty_ref i32 — type ref (must be TYPE_NAMED=8)
+ * @return i32 — 1 if layout name matches; else 0
+ *
+ * wave190 pure: G.7 authority (was Cap residual call_args static; index_helpers
+ * same-TU forward now links pure).
+ * PLATFORM: SHARED freestanding layout predicate · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function glue_type_ref_is_named_struct_layout_elf_c(arena: *u8, mod: *u8, ty_ref: i32): i32 {
+  let nm: u8[128] = [];
+  let nlen: i32 = 0;
+  let k: i32 = 0;
+  let ln: i32 = 0;
+  let j: i32 = 0;
+  let tk: i32 = 0;
+  let nsl: i32 = 0;
+  let b: i32 = 0;
+  if (arena == (0 as *u8) || mod == (0 as *u8) || ty_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, ty_ref);
+  }
+  // TYPE_NAMED == 8
+  if (tk != 8) {
+    return 0;
+  }
+  unsafe {
+    nlen = pipeline_type_named_name_into(arena, ty_ref, &nm[0]);
+  }
+  if (nlen <= 0) {
+    return 0;
+  }
+  unsafe {
+    nsl = pipeline_module_num_struct_layouts_at(mod);
+  }
+  k = 0;
+  while (k < nsl) {
+    unsafe {
+      ln = pipeline_module_struct_layout_name_len(mod, k);
+    }
+    if (ln == nlen && ln > 0) {
+      j = 0;
+      while (j < nlen) {
+        unsafe {
+          b = pipeline_module_struct_layout_name_byte_at(mod, k, j);
+        }
+        if (b != (nm[j] as i32)) {
+          break;
+        }
+        j = j + 1;
+      }
+      if (j == nlen) {
+        return 1;
+      }
+    }
+    k = k + 1;
+  }
+  return 0;
+}
+
+/**
+ * CALL-arg VAR: whether to lea the stack payload (local let struct >16B / T[N])
+ * rather than load the slot (scalar / *T formal / ≤16B INTEGER named struct).
+ * @param arena *u8 — ASTArena*; null → 0
+ * @param expr_ref i32 — EXPR_VAR ref
+ * @param ctx *u8 — AsmFuncCtx*
+ * @return i32 — 1 use lea; 0 use load / unknown
+ *
+ * Decision order (G.7 complete SysV CALL packing):
+ *  1. indirect-ptr local slot → load (0)
+ *  2. not EXPR_VAR → 0
+ *  3. *T formal param → load (0)
+ *  4. named struct layout: size ≤16 load (dual-GP); size >16 lea
+ *  5. fixed T[N]: formal array slot load; local let lea
+ *
+ * wave190 pure: G.7 authority (was Cap residual call_args static).
+ * PLATFORM: SHARED freestanding CALL-arg · LINUX+MACOS SysV · MACOS|ARM64 co-path.
+ */
+#[no_mangle]
+export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i32, ctx: *u8): i32 {
+  let mod: *u8 = 0 as *u8;
+  let holds: i32 = 0;
+  let ko: i32 = 0;
+  let vname: u8[128] = [];
+  let vlen: i32 = 0;
+  let fi: i32 = 0;
+  let nf: i32 = 0;
+  let pty: i32 = 0;
+  let tk: i32 = 0;
+  let scope_br: i32 = 0;
+  let decl_ty: i32 = 0;
+  let sz: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || expr_ref <= 0) {
+    return 0;
+  }
+  mod = pipeline_asm_emit_module_ref_c();
+  unsafe {
+    holds = asm_local_var_slot_holds_indirect_ptr(arena, expr_ref, mod, ctx);
+  }
+  if (holds != 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  // EXPR_VAR == 3
+  if (ko != 3) {
+    return 0;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, expr_ref);
+  }
+  if (vlen <= 0 || vlen > 127) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, expr_ref, &vname[0]);
+  }
+  // *T formal: CALL must load pointer home, not lea stack address.
+  fi = pipeline_asm_emit_func_index_c();
+  if (mod != (0 as *u8) && fi >= 0) {
+    unsafe {
+      nf = pipeline_module_num_funcs(mod);
+    }
+    if (fi < nf) {
+      unsafe {
+        pty = pipeline_module_func_param_type_ref_for_name(mod, fi, &vname[0], vlen);
+      }
+      if (pty > 0) {
+        unsafe {
+          tk = pipeline_type_kind_ord_at(arena, pty);
+        }
+        // TYPE_PTR == 9
+        if (tk == 9) {
+          return 0;
+        }
+      }
+    }
+  }
+  unsafe {
+    scope_br = asm_ctx_scope_block_ref_at(ctx);
+  }
+  decl_ty = 0;
+  if (scope_br > 0) {
+    unsafe {
+      decl_ty = pipeline_block_resolve_var_type_ref(arena, scope_br, &vname[0], vlen);
+    }
+  }
+  // skip-typeck recovery: VAR resolved_type_ref (e.g. hello msg: u8[12]).
+  if (decl_ty <= 0) {
+    unsafe {
+      decl_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    }
+  }
+  if (decl_ty <= 0) {
+    return 0;
+  }
+  if (glue_type_ref_is_named_struct_layout_elf_c(arena, mod, decl_ty) != 0) {
+    // PLATFORM: LINUX+MACOS x86_64 SysV — ≤16B INTEGER by-value (load);
+    // >16B MEMORY class lea of stack slot.
+    sz = glue_type_size_simple(mod, arena, decl_ty, 0);
+    if (sz > 0 && sz <= 16) {
+      return 0;
+    }
+    return 1;
+  }
+  if (glue_type_is_fixed_array(arena, decl_ty) != 0) {
+    // Formal T[N] home is E* (8B): load slot. Local T[N] lea payload.
+    if (mod != (0 as *u8) && fi >= 0) {
+      if (glue_emit_func_param_is_indirect_array_slot_c(arena, mod, expr_ref) != 0) {
+        return 0;
+      }
+    }
+    return 1;
+  }
+  return 0;
+}
+
+// end wave190 pure-owned leave

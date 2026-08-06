@@ -56,9 +56,9 @@
  *
  * Note: binop_stack_spill CAP statics live here (shared index-scratch depth
  * with 7.3 spill); their method bodies live in pipeline_asm_emit_spill.c.
- * Residual after wave189: CAP BSS thin accessors (minus_pair / subadd3 /
+ * Residual after wave190: CAP BSS thin accessors (minus_pair / subadd3 /
  * scratch depth / stack_spill tables + rax_frame spill). module_from_ctx /
- * needs_ptr / array_slot / struct_slot pure leave closed.
+ * needs_ptr / array_slot / named_struct_layout_elf pure leave closed.
  */
 
 /** INDEX 元素字节宽（前向声明，定义见本文件后部）。 */
@@ -87,9 +87,11 @@ struct ast_Module *glue_emit_module_from_ctx(struct backend_AsmFuncCtx *ctx);
 int32_t glue_emit_func_param_is_indirect_array_slot_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                        int32_t var_expr_ref);
 
-/** Same-TU forward: body in pipeline_asm_emit_call_args.c (wave1017 G.7 fold). */
-static int32_t glue_type_ref_is_named_struct_layout_elf_c(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                            int32_t ty_ref);
+/* wave190 pure-owned: glue_type_ref_is_named_struct_layout_elf_c (pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding layout predicate. */
+int32_t glue_type_ref_is_named_struct_layout_elf_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                   int32_t ty_ref);
 int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
 extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t idx);

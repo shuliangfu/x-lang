@@ -25805,6 +25805,26 @@ int32_t glue_local_var_slot_needs_ptr_load_elf_c(void *arena, int32_t var_expr_r
   return 0;
 }
 
+
+/*
+ * wave190 cold twins: CALL-arg lea-vs-load gate (G.7 pure leave).
+ * Freestanding-safe stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding CALL-arg packing.
+ */
+int32_t glue_type_ref_is_named_struct_layout_elf_c(void *arena, void *mod, int32_t ty_ref) {
+  (void)arena;
+  (void)mod;
+  (void)ty_ref;
+  return 0;
+}
+
+int32_t glue_call_arg_var_use_lea_not_load_elf_c(void *arena, int32_t expr_ref, void *ctx) {
+  (void)arena;
+  (void)expr_ref;
+  (void)ctx;
+  return 0;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
