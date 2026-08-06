@@ -136,12 +136,18 @@
  * Residual keeps VAR cache BSS + thin set_spill_slot / off_is_spill_pin /
  * stack_spill_enabled / max_live_n_get / color which / next_use.
  *
+ * wave177 pure-owned INDEX structural key hash (G.7 converge w156 twin):
+ *   · glue_index_addr_key_mix64
+ *   · glue_index_expr_struct_key_elf_c
+ *   · glue_index_base_struct_key_elf_c
+ * Residual keeps CAP BSS + thin valid/slot/ctx/keys/record that *call* pure keys.
+ *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
  *   · 7.3 live_fwd BSS / break-continue note + push/pop
  *   · Chaitin interf BSS + gen_kill/collect + stack-spill preference
  *   · index scratch CAP BSS + thin valid/slot/ctx/keys/record + clear
- *     (CAP statics in pipeline_asm_emit_index_helpers.c)
+ *     (CAP statics in pipeline_asm_emit_index_helpers.c; key hash pure wave177)
  *
  * G.7: do not re-define pure-owned faces above in this file.
  * Not a separate .o — #included from pipeline_glue.c after index_helpers.
@@ -343,59 +349,13 @@ void glue_live_fwd_forward_after_def(struct ast_ASTArena *arena, struct backend_
                                              int32_t def_off, int32_t gen_expr);
 int32_t glue_asm73_linear_next_use_dist(int32_t from_stmt, int32_t off);
 
-/* wave156: restore Cap residual structural INDEX keys (used by index-scratch methods;
- * pure owns assign-addr cache which has its own pure key helpers). PLATFORM: SHARED. */
-/** Mix one byte/word into a stable 64-bit INDEX addr cache key. */
-static uint64_t glue_index_addr_key_mix64(uint64_t h, uint64_t v) {
-  return h * 1315423911u + v + 0x9e3779b97f4a7c15ULL;
-}
-
-/**
- * Structural hash of an index sub-expression (VAR/LIT/ADD/SUB/MUL); unrelated shapes fall back to ref id.
- */
-static uint64_t glue_index_expr_struct_key_elf_c(struct ast_ASTArena *arena, int32_t ref) {
-  int32_t ko;
-  int32_t left_ref;
-  int32_t right_ref;
-  uint8_t name[128];
-  int32_t nlen;
-  int32_t i;
-  uint64_t h;
-  if (!arena || ref <= 0)
-    return 0;
-  ko = pipeline_expr_kind_ord_at(arena, ref);
-  h = glue_index_addr_key_mix64(0, (uint64_t)(uint32_t)ko);
-  if (ko == 0)
-    return glue_index_addr_key_mix64(h, (uint64_t)(uint32_t)pipeline_expr_int_val_at(arena, ref));
-  if (ko == 3) {
-    nlen = pipeline_expr_var_name_len(arena, ref);
-    if (nlen <= 0 || nlen > 127)
-      return h;
-    pipeline_expr_var_name_into(arena, ref, name);
-    for (i = 0; i < nlen; i++)
-      h = glue_index_addr_key_mix64(h, name[i]);
-    return h;
-  }
-  if (ko >= 4 && ko <= 6) {
-    left_ref = pipeline_expr_binop_left_ref_at(arena, ref);
-    right_ref = pipeline_expr_binop_right_ref_at(arena, ref);
-    h = glue_index_addr_key_mix64(h, glue_index_expr_struct_key_elf_c(arena, left_ref));
-    return glue_index_addr_key_mix64(h, glue_index_expr_struct_key_elf_c(arena, right_ref));
-  }
-  return glue_index_addr_key_mix64(h, (uint64_t)(uint32_t)ref);
-}
-
-/** Cache key for INDEX base (VAR name hash; otherwise pool ref). */
-static uint64_t glue_index_base_struct_key_elf_c(struct ast_ASTArena *arena, int32_t base_ref) {
-  if (!arena || base_ref <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, base_ref) == 3)
-    return glue_index_expr_struct_key_elf_c(arena, base_ref);
-  return glue_index_addr_key_mix64(1, (uint64_t)(uint32_t)base_ref);
-}
-
-
-
+/* wave177 pure-owned INDEX structural key hash (extern; live in runtime_pipeline_abi pure).
+ * G.7: was static residual twin of w156 pure helpers — dual authority closed.
+ * Cap residual thin (minus_pair/subadd3 keys_eq/record/hit_var) calls these.
+ * PLATFORM: SHARED freestanding 7.3. */
+uint64_t glue_index_addr_key_mix64(uint64_t h, uint64_t v);
+uint64_t glue_index_expr_struct_key_elf_c(struct ast_ASTArena *arena, int32_t ref);
+uint64_t glue_index_base_struct_key_elf_c(struct ast_ASTArena *arena, int32_t base_ref);
 
 /* Forward decls / callees defined elsewhere in the same TU:
  * - glue_var_expr_stack_off_elf_c (def after assign/index includes)
@@ -1192,7 +1152,8 @@ void glue_index_minus_pair_cache_clear(void) {
  * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave172: pure owns minus_pair/subadd3 cache spill helpers (extern above).
- * Residual thin: CAP cache BSS + key hash + valid/slot/ctx/keys/record + clear.
+ * Residual thin: CAP cache BSS + valid/slot/ctx/keys/record + clear.
+ * wave177: key hash pure (glue_index_expr_struct_key_elf_c family).
  * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave169: pure owns glue_index_scratch_spills_cleanup_all_elf_c (extern above).
@@ -1200,7 +1161,7 @@ void glue_index_minus_pair_cache_clear(void) {
 
 /**
  * wave169 Cap residual: 1 when subadd3 or minus_pair cache tracks var_ref key.
- * Pure invalidate leave uses this hit face (key hash stays residual).
+ * Pure invalidate leave uses this hit face (wave177: key hash pure).
  * @param arena ASTArena*
  * @param var_ref expr ref of assigned local
  * @return 1 hit (caller should cleanup spills); 0 miss / null / bad ref
@@ -1223,7 +1184,7 @@ int32_t glue_index_scratch_caches_hit_var(struct ast_ASTArena *arena, int32_t va
 
 /**
  * wave172 Cap residual: thin getters / key match / record for pure cache spill leave.
- * CAP BSS + expr struct key hash stay residual (G.7; pure cannot own u64 BSS).
+ * CAP BSS stays residual; wave177 pure owns expr struct key hash (G.7).
  * PLATFORM: SHARED freestanding 7.3.
  */
 int32_t glue_index_minus_pair_cache_valid_get(void) {

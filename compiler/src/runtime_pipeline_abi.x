@@ -51453,9 +51453,14 @@ let g_w156_ia_esz: i32 = 0;
 
 /**
  * Mix one word into stable 64-bit INDEX addr cache key.
- * wave156 pure helper. PLATFORM: SHARED.
+ * wave177 pure-owned G.7 authority (was Cap residual static twin of w156 private).
+ * @param h i64 - running hash (uint64 bit pattern)
+ * @param v i64 - mixed word (uint64 bit pattern)
+ * @return i64 - updated hash (uint64 bit pattern)
+ * PLATFORM: SHARED freestanding 7.3.
  */
-function w156_index_addr_key_mix64(h: i64, v: i64): i64 {
+#[no_mangle]
+export function glue_index_addr_key_mix64(h: i64, v: i64): i64 {
   let m: i64 = 1315423911;
   // 0x9e3779b97f4a7c15 as signed i64
   let c: i64 = 0 - 7046029254386353131;
@@ -51464,12 +51469,16 @@ function w156_index_addr_key_mix64(h: i64, v: i64): i64 {
 
 /**
  * Structural hash of index sub-expression (VAR/LIT/ADD/SUB/MUL).
+ * Unrelated shapes fall back to pool ref id.
+ * wave177 pure-owned G.7 authority (was Cap residual static + w156 private twin).
+ * Cap residual minus_pair/subadd3 thin faces call this; assign-addr cache uses same.
  * @param arena *u8 - ASTArena*
  * @param ref i32 - expr pool ref
- * @return i64 - stable structural key
- * wave156 pure helper. PLATFORM: SHARED.
+ * @return i64 - stable structural key (uint64 bit pattern)
+ * PLATFORM: SHARED freestanding 7.3.
  */
-function w156_index_expr_struct_key(arena: *u8, ref: i32): i64 {
+#[no_mangle]
+export function glue_index_expr_struct_key_elf_c(arena: *u8, ref: i32): i64 {
   let ko: i32 = 0;
   let left_ref: i32 = 0;
   let right_ref: i32 = 0;
@@ -51484,12 +51493,12 @@ function w156_index_expr_struct_key(arena: *u8, ref: i32): i64 {
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, ref);
   }
-  h = w156_index_addr_key_mix64(0, ko as i64);
+  h = glue_index_addr_key_mix64(0, ko as i64);
   if (ko == 0) {
     unsafe {
       iv = pipeline_expr_int_val_at(arena, ref);
     }
-    return w156_index_addr_key_mix64(h, iv as i64);
+    return glue_index_addr_key_mix64(h, iv as i64);
   }
   if (ko == 3) {
     unsafe {
@@ -51503,7 +51512,7 @@ function w156_index_expr_struct_key(arena: *u8, ref: i32): i64 {
     }
     i = 0;
     while (i < nlen) {
-      h = w156_index_addr_key_mix64(h, name[i] as i64);
+      h = glue_index_addr_key_mix64(h, name[i] as i64);
       i = i + 1;
     }
     return h;
@@ -51513,17 +51522,22 @@ function w156_index_expr_struct_key(arena: *u8, ref: i32): i64 {
       left_ref = pipeline_expr_binop_left_ref_at(arena, ref);
       right_ref = pipeline_expr_binop_right_ref_at(arena, ref);
     }
-    h = w156_index_addr_key_mix64(h, w156_index_expr_struct_key(arena, left_ref));
-    return w156_index_addr_key_mix64(h, w156_index_expr_struct_key(arena, right_ref));
+    h = glue_index_addr_key_mix64(h, glue_index_expr_struct_key_elf_c(arena, left_ref));
+    return glue_index_addr_key_mix64(h, glue_index_expr_struct_key_elf_c(arena, right_ref));
   }
-  return w156_index_addr_key_mix64(h, ref as i64);
+  return glue_index_addr_key_mix64(h, ref as i64);
 }
 
 /**
  * Cache key for INDEX base (VAR name hash or pool ref).
- * wave156 pure helper. PLATFORM: SHARED.
+ * wave177 pure-owned G.7 authority (was Cap residual static + w156 private twin).
+ * @param arena *u8 - ASTArena*
+ * @param base_ref i32 - INDEX base expr ref
+ * @return i64 - stable base key (uint64 bit pattern)
+ * PLATFORM: SHARED freestanding 7.3.
  */
-function w156_index_base_struct_key(arena: *u8, base_ref: i32): i64 {
+#[no_mangle]
+export function glue_index_base_struct_key_elf_c(arena: *u8, base_ref: i32): i64 {
   let ko: i32 = 0;
   if (arena == 0 as *u8 || base_ref <= 0) {
     return 0;
@@ -51532,9 +51546,9 @@ function w156_index_base_struct_key(arena: *u8, base_ref: i32): i64 {
     ko = pipeline_expr_kind_ord_at(arena, base_ref);
   }
   if (ko == 3) {
-    return w156_index_expr_struct_key(arena, base_ref);
+    return glue_index_expr_struct_key_elf_c(arena, base_ref);
   }
-  return w156_index_addr_key_mix64(1, base_ref as i64);
+  return glue_index_addr_key_mix64(1, base_ref as i64);
 }
 
 /**
@@ -51566,8 +51580,8 @@ export function glue_index_assign_addr_cache_hit(arena: *u8, ctx: *u8, base_ref:
   if (g_w156_ia_ctx != ctx) {
     return 0;
   }
-  base_key = w156_index_base_struct_key(arena, base_ref);
-  idx_key = w156_index_expr_struct_key(arena, idx_ref);
+  base_key = glue_index_base_struct_key_elf_c(arena, base_ref);
+  idx_key = glue_index_expr_struct_key_elf_c(arena, idx_ref);
   if (g_w156_ia_base_key != base_key || g_w156_ia_idx_key != idx_key || g_w156_ia_esz != esz) {
     return 0;
   }
@@ -51643,8 +51657,8 @@ export function glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx: *u8, src_spill: i3
 export function glue_index_assign_finish_store_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, base_ref: i32, idx_ref: i32, esz: i32, ta: i32): i32 {
   g_w156_ia_valid = 1;
   g_w156_ia_ctx = ctx;
-  g_w156_ia_base_key = w156_index_base_struct_key(arena, base_ref);
-  g_w156_ia_idx_key = w156_index_expr_struct_key(arena, idx_ref);
+  g_w156_ia_base_key = glue_index_base_struct_key_elf_c(arena, base_ref);
+  g_w156_ia_idx_key = glue_index_expr_struct_key_elf_c(arena, idx_ref);
   g_w156_ia_esz = esz;
   unsafe {
     if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {

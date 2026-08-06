@@ -3,7 +3,7 @@
  * wave172: minus_pair/subadd3 cache spill pure leave cold twins under #ifndef FROM_X
  * wave171: index-scratch enc push/reload/pop pure leave cold twins under #ifndef FROM_X
  * wave174: spill_reg_to_spill + evict_rax|rbx pure leave cold twins under #ifndef FROM_X
- * wave176: linear live reverse DF · wave175: color thin mov/try/farthest/pick pure leave cold twins under #ifndef FROM_X
+ * wave177: INDEX structural key hash · wave176: linear live reverse DF · wave175: color thin pure leave cold twins under #ifndef FROM_X
  * wave170: binop try_reload pure leave cold twin under #ifndef FROM_X
  * wave169: index-scratch pure leave cold twins under #ifndef FROM_X
  * wave168: cfg simulate walk pure leave cold twins under #ifndef FROM_X
@@ -25356,6 +25356,33 @@ int32_t glue_asm73_linear_next_use_dist(int32_t from_stmt, int32_t off) {
   (void)from_stmt;
   (void)off;
   return 9999;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/*
+ * wave177 cold twins: INDEX structural key hash (G.7 pure leave).
+ * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+uint64_t glue_index_addr_key_mix64(uint64_t h, uint64_t v) {
+  (void)h;
+  (void)v;
+  return 0;
+}
+
+uint64_t glue_index_expr_struct_key_elf_c(void *arena, int32_t ref) {
+  (void)arena;
+  (void)ref;
+  return 0;
+}
+
+uint64_t glue_index_base_struct_key_elf_c(void *arena, int32_t base_ref) {
+  (void)arena;
+  (void)base_ref;
+  return 0;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
