@@ -1203,9 +1203,18 @@ export extern "C" function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32
 // wave197 pure-owned: pipeline_asm_call_struct16_ret_needs_rax_deref_c +
 //   pipeline_asm_deref_struct16_rax_ptr_elf_c bodies at EOF (#[no_mangle]).
 // wave198 pure-owned: pipeline_asm_call_param_type_ref_at_c body at EOF (#[no_mangle]).
+// wave199 pure-owned: glue_asm_resolve_call_target_module_c body at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
-// Cap residual resolve stays host-cc (public after wave194; was static).
-export extern "C" function glue_asm_resolve_call_target_module_c(arena: *u8, call_expr_ref: i32, mod_out: *u8, func_ix_out: *i32, dep_ix_out: *i32): i32;
+// Resolve callees (Cap residual / pool): typeck resolve + find_func + call resolved_* .
+export extern "C" function pipeline_expr_call_resolved_func_index_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_call_resolved_dep_index_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8, call_expr_ref: i32): i32;
+export extern "C" function pipeline_typeck_find_func_return_type_in_module_by_name_c(
+    mod: *u8, caller_arena: *u8, name: *u8, name_len: i32, from_dep_index: i32, ctx: *u8,
+    func_index_out: *i32): i32;
+export extern "C" function pipeline_typeck_find_func_return_type_in_module_c(
+    mod: *u8, mod_arena: *u8, caller_arena: *u8, callee_arena: *u8, callee_expr_ref: i32,
+    from_dep_index: i32, ctx: *u8, func_index_out: *i32): i32;
 export extern "C" function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32, dep_return_type_ref: i32, caller_arena: *u8, ctx: *u8): i32;
 // wave198: slow-path dep type_ref → caller-arena map (Cap residual method_call).
 // PLATFORM: SHARED — param formal type_ref must never cross arenas raw.
@@ -62178,16 +62187,15 @@ export function glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx: *u8, arena: *u8
 // (was Cap residual in pipeline_asm_emit_call_args.c wave1048 fold)
 // G.7 product authority for CALL-site return sizing:
 //   glue_call_return_byte_size_c  (resolve callee → size return type)
-// Cap residual: glue_asm_resolve_call_target_module_c (public host; static→extern
-//   wave194 so pure can call without same-TU host body). TYPE_ARRAY return = E*
-//   (8B) matches pure glue_func_return_byte_size_c (wave192).
-// Deferred: resolve pure leave; for_call_args mega; store_retval / MEMORY paths.
+// Resolve: wave199 pure glue_asm_resolve_call_target_module_c (was Cap residual).
+// TYPE_ARRAY return = E* (8B) matches pure glue_func_return_byte_size_c (wave192).
+// Deferred: for_call_args mega; store_retval / MEMORY paths.
 // PLATFORM: SHARED freestanding · LINUX gold sret gate · MACOS|ARM64 x8.
 // ===========================================================================
 
 /**
  * Byte size of a CALL expression's return type (-1 resolve failure, 0 void).
- * Resolves callee via Cap residual glue_asm_resolve_call_target_module_c,
+ * Resolves callee via pure glue_asm_resolve_call_target_module_c (wave199),
  * maps dep return type_ref into caller arena when needed, then sizes.
  * TYPE_ARRAY callee return is E* (8B pointer) — same as func_return_byte_size.
  * @param arena *u8 — ASTArena*; null → -1
@@ -62748,7 +62756,7 @@ export function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *u8, cal
 // Resolve Cap residual + module param_type_ref_at + dep map
 //   (get_dep_return_type fast / dep_return_type_to_caller slow / ndep scan).
 // Never return a raw dep-arena type_ref to caller-arena consumers.
-// Deferred: for_call_args mega / resolve pure / spill BSS / CAP BSS / pipeline_x mega.
+// Deferred: for_call_args mega / spill BSS / CAP BSS / pipeline_x mega.
 // PLATFORM: SHARED freestanding · LINUX+MACOS SysV SSE/GP class · MACOS|ARM64 AAPCS64.
 // ===========================================================================
 
@@ -62888,3 +62896,335 @@ export function pipeline_asm_call_param_type_ref_at_c(arena: *u8, call_expr_ref:
 }
 
 // end wave198 pure-owned leave
+
+// ===========================================================================
+// wave199: CALL-target module/func_index resolver pure leave
+// (was Cap residual in pipeline_asm_emit_call_args.c wave1150 / wave194 public)
+// G.7 product authority for CALL/METHOD_CALL target resolve:
+//   glue_asm_resolve_call_target_module_c
+// Fast path: resolved_func_index + optional dep module.
+// Slow paths: typeck resolve_for_emit; import BINDING METHOD_CALL / FIELD_ACCESS;
+//   linear dep scan (find_func by callee / SELECT by name).
+// Module** out cell: pipe_store_ptr_slot (LP64; G.7 ban raw Module** in .x).
+// Deferred: for_call_args mega / spill BSS / CAP BSS / pipeline_x mega.
+// PLATFORM: SHARED freestanding CALL resolve · no platform ABI dep.
+// ===========================================================================
+
+/**
+ * Resolve a CALL / METHOD_CALL expression to (module, func_index, dep_ix).
+ * Used by call_return / return_kind_ord / param_type_ref / for_call_args packing
+ * and seed backend_call_dispatch import paths (math.floor / abs).
+ * @param arena *u8 — ASTArena*; null → -1
+ * @param call_expr_ref i32 — EXPR_CALL or EXPR_METHOD_CALL ref; ≤0 → -1
+ * @param mod_out *u8 — LP64 Module** cell (u8[8] from pure callers); null → -1
+ * @param func_ix_out *i32 — filled with func index on success; null → -1
+ * @param dep_ix_out *i32 — optional; filled with dep index or -1; may be null
+ * @return i32 — 0 success; -1 failure (nulls / no module / no match)
+ *
+ * Contract (wave1150 / wave199 pure leave):
+ *  1. null arena / bad ref / null mod_out / null func_ix_out → -1
+ *  2. clear outs: mod=null, func_ix=-1, dep_ix=-1 (if dep_ix_out)
+ *  3. emit_module missing → -1
+ *  4. resolved_func_index ≥0: use entry or dep module; return 0
+ *  5. pipeline_typeck_resolve_call_func_index_for_emit_c ≥0: entry module
+ *  6. no dep_pipe → -1
+ *  7. METHOD_CALL (kind 49): import BINDING base.var + method name → dep func
+ *  8. CALL + FIELD_ACCESS (kind 44): same BINDING path via callee field
+ *  9. linear dep scan: find_func by callee_ref; SELECT + VAR name by_name
+ *
+ * wave199 pure: G.7 authority (was Cap residual call_args).
+ * PLATFORM: SHARED freestanding CALL-target resolve · import BINDING/SELECT.
+ */
+#[no_mangle]
+export function glue_asm_resolve_call_target_module_c(
+    arena: *u8, call_expr_ref: i32, mod_out: *u8, func_ix_out: *i32, dep_ix_out: *i32): i32 {
+  // PLATFORM: SHARED — pure CALL resolve; no arch/ABI branch.
+  let mod: *u8 = 0 as *u8;
+  let func_ix: i32 = 0 - 1;
+  let dep_ix: i32 = 0 - 1;
+  let callee_ref: i32 = 0;
+  let i: i32 = 0;
+  let imax: i32 = 0;
+  let call_ord: i32 = 0;
+  let callee_ord: i32 = 0;
+  let base_ref: i32 = 0;
+  let base_name: u8[128] = [];
+  let base_len: i32 = 0;
+  let field_name: u8[128] = [];
+  let field_len: i32 = 0;
+  let j: i32 = 0;
+  let dm: *u8 = 0 as *u8;
+  let fx_slot: i32[1] = [];
+  let bl: i32 = 0;
+  let eq: i32 = 0;
+  let bi: i32 = 0;
+  let n_imp: i32 = 0;
+  let ndep: i32 = 0;
+  let dep_pipe: *u8 = 0 as *u8;
+  let rty: i32 = 0;
+  let cv_nm: u8[128] = [];
+  let cv_len: i32 = 0;
+  // Import kind constants (glue residual GLUE_TYPECK_IMPORT_* single authority).
+  let import_binding: i32 = 1;
+  let import_select: i32 = 2;
+  // Expr kind ords: VAR=3, FIELD_ACCESS=44, METHOD_CALL=49 (ast_ExprKind).
+  let kind_var: i32 = 3;
+  let kind_field: i32 = 44;
+  let kind_method: i32 = 49;
+
+  if (arena == (0 as *u8) || call_expr_ref <= 0 || mod_out == (0 as *u8) || func_ix_out == (0 as *i32)) {
+    return 0 - 1;
+  }
+  pipe_store_ptr_slot(mod_out, 0, 0 as *u8);
+  func_ix_out[0] = 0 - 1;
+  if (dep_ix_out != (0 as *i32)) {
+    dep_ix_out[0] = 0 - 1;
+  }
+  mod = pipeline_asm_emit_module_ref_c();
+  if (mod == (0 as *u8)) {
+    return 0 - 1;
+  }
+  dep_pipe = pipeline_asm_emit_dep_pipe_c();
+
+  // Fast path: typeck pre-resolved func (+ optional dep module).
+  unsafe {
+    func_ix = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
+    dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
+  }
+  if (func_ix >= 0) {
+    if (dep_ix >= 0 && dep_pipe != (0 as *u8)) {
+      unsafe {
+        dm = pipeline_dep_ctx_module_at(dep_pipe, dep_ix);
+      }
+      if (dm != (0 as *u8)) {
+        mod = dm;
+      }
+    }
+    pipe_store_ptr_slot(mod_out, 0, mod);
+    func_ix_out[0] = func_ix;
+    if (dep_ix_out != (0 as *i32)) {
+      dep_ix_out[0] = dep_ix;
+    }
+    return 0;
+  }
+
+  // Same-module resolve / overload pick (public emit wrapper; static authority).
+  unsafe {
+    func_ix = pipeline_typeck_resolve_call_func_index_for_emit_c(mod, arena, call_expr_ref);
+  }
+  if (func_ix >= 0) {
+    pipe_store_ptr_slot(mod_out, 0, mod);
+    func_ix_out[0] = func_ix;
+    if (dep_ix_out != (0 as *i32)) {
+      dep_ix_out[0] = 0 - 1;
+    }
+    return 0;
+  }
+
+  if (dep_pipe == (0 as *u8)) {
+    return 0 - 1;
+  }
+
+  unsafe {
+    call_ord = pipeline_expr_kind_ord_at(arena, call_expr_ref);
+  }
+
+  // import binding METHOD_CALL: `const math = import("std.math"); math.floor(x)`.
+  // Without this branch param_type_ref=0 → f64 args in rdi while libm reads xmm0.
+  if (call_ord == kind_method) {
+    unsafe {
+      base_ref = pipeline_expr_method_call_base_ref_at(arena, call_expr_ref);
+      field_len = pipeline_expr_method_call_name_len(arena, call_expr_ref);
+    }
+    if (base_ref > 0 && field_len > 0 && field_len <= 63) {
+      let base_ko: i32 = 0;
+      unsafe {
+        base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+      }
+      if (base_ko == kind_var) {
+        unsafe {
+          base_len = pipeline_expr_var_name_len(arena, base_ref);
+        }
+        if (base_len > 0 && base_len <= 63) {
+          unsafe {
+            pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
+            pipeline_expr_method_call_name_into(arena, call_expr_ref, &field_name[0]);
+            n_imp = parser_get_module_num_imports(mod);
+          }
+          j = 0;
+          while (j < n_imp) {
+            if (pipeline_module_import_kind_at(mod, j) == import_binding) {
+              bl = pipeline_module_import_binding_name_len(mod, j);
+              if (bl == base_len) {
+                eq = 1;
+                bi = 0;
+                while (bi < bl) {
+                  if (pipeline_module_import_binding_name_byte_at(mod, j, bi) != base_name[bi]) {
+                    eq = 0;
+                    break;
+                  }
+                  bi = bi + 1;
+                }
+                if (eq != 0) {
+                  unsafe {
+                    dm = pipeline_dep_ctx_module_at(dep_pipe, j);
+                  }
+                  if (dm != (0 as *u8)) {
+                    fx_slot[0] = 0;
+                    unsafe {
+                      rty = pipeline_typeck_find_func_return_type_in_module_by_name_c(
+                          dm, arena, &field_name[0], field_len, j, dep_pipe, &fx_slot[0]);
+                    }
+                    if (rty != 0) {
+                      pipe_store_ptr_slot(mod_out, 0, dm);
+                      func_ix_out[0] = fx_slot[0];
+                      if (dep_ix_out != (0 as *i32)) {
+                        dep_ix_out[0] = j;
+                      }
+                      return 0;
+                    }
+                  }
+                }
+              }
+            }
+            j = j + 1;
+          }
+        }
+      }
+    }
+    // METHOD_CALL has no CALL callee_ref; do not fall through to FIELD_ACCESS/VAR.
+    return 0 - 1;
+  }
+
+  unsafe {
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, call_expr_ref);
+  }
+  if (callee_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    callee_ord = pipeline_expr_kind_ord_at(arena, callee_ref);
+  }
+
+  // import binding FIELD_ACCESS: CALL form `math.floor(x)` as CALL+FIELD_ACCESS.
+  if (callee_ord == kind_field) {
+    unsafe {
+      base_ref = pipeline_expr_field_access_base_ref(arena, callee_ref);
+      field_len = pipeline_expr_field_access_name_len(arena, callee_ref);
+    }
+    if (base_ref > 0 && field_len > 0 && field_len <= 63) {
+      let base_ko2: i32 = 0;
+      unsafe {
+        base_ko2 = pipeline_expr_kind_ord_at(arena, base_ref);
+      }
+      if (base_ko2 == kind_var) {
+        unsafe {
+          base_len = pipeline_expr_var_name_len(arena, base_ref);
+        }
+        if (base_len > 0 && base_len <= 63) {
+          unsafe {
+            pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
+            pipeline_expr_field_access_name_into(arena, callee_ref, &field_name[0]);
+            n_imp = parser_get_module_num_imports(mod);
+          }
+          j = 0;
+          while (j < n_imp) {
+            if (pipeline_module_import_kind_at(mod, j) == import_binding) {
+              bl = pipeline_module_import_binding_name_len(mod, j);
+              if (bl == base_len) {
+                eq = 1;
+                bi = 0;
+                while (bi < bl) {
+                  if (pipeline_module_import_binding_name_byte_at(mod, j, bi) != base_name[bi]) {
+                    eq = 0;
+                    break;
+                  }
+                  bi = bi + 1;
+                }
+                if (eq != 0) {
+                  unsafe {
+                    dm = pipeline_dep_ctx_module_at(dep_pipe, j);
+                  }
+                  if (dm != (0 as *u8)) {
+                    fx_slot[0] = 0;
+                    unsafe {
+                      rty = pipeline_typeck_find_func_return_type_in_module_by_name_c(
+                          dm, arena, &field_name[0], field_len, j, dep_pipe, &fx_slot[0]);
+                    }
+                    if (rty != 0) {
+                      pipe_store_ptr_slot(mod_out, 0, dm);
+                      func_ix_out[0] = fx_slot[0];
+                      if (dep_ix_out != (0 as *i32)) {
+                        dep_ix_out[0] = j;
+                      }
+                      return 0;
+                    }
+                  }
+                }
+              }
+            }
+            j = j + 1;
+          }
+        }
+      }
+    }
+  }
+
+  // Linear dep scan: match callee VAR name in each dep module; SELECT by name.
+  unsafe {
+    n_imp = parser_get_module_num_imports(mod);
+    ndep = pipeline_dep_ctx_ndep(dep_pipe);
+  }
+  imax = n_imp;
+  if (ndep > imax) {
+    imax = ndep;
+  }
+  i = 0;
+  while (i < imax) {
+    unsafe {
+      dm = pipeline_dep_ctx_module_at(dep_pipe, i);
+    }
+    if (dm != (0 as *u8)) {
+      fx_slot[0] = 0;
+      unsafe {
+        rty = pipeline_typeck_find_func_return_type_in_module_c(
+            dm, arena, arena, arena, callee_ref, i, dep_pipe, &fx_slot[0]);
+      }
+      if (rty != 0) {
+        pipe_store_ptr_slot(mod_out, 0, dm);
+        func_ix_out[0] = fx_slot[0];
+        if (dep_ix_out != (0 as *i32)) {
+          dep_ix_out[0] = i;
+        }
+        return 0;
+      }
+      if (i < n_imp && pipeline_module_import_kind_at(mod, i) == import_select && callee_ord == kind_var) {
+        unsafe {
+          cv_len = pipeline_expr_var_name_len(arena, callee_ref);
+        }
+        if (cv_len > 0 && cv_len <= 63) {
+          unsafe {
+            pipeline_expr_var_name_into(arena, callee_ref, &cv_nm[0]);
+          }
+          fx_slot[0] = 0;
+          unsafe {
+            rty = pipeline_typeck_find_func_return_type_in_module_by_name_c(
+                dm, arena, &cv_nm[0], cv_len, i, dep_pipe, &fx_slot[0]);
+          }
+          if (rty != 0) {
+            pipe_store_ptr_slot(mod_out, 0, dm);
+            func_ix_out[0] = fx_slot[0];
+            if (dep_ix_out != (0 as *i32)) {
+              dep_ix_out[0] = i;
+            }
+            return 0;
+          }
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0 - 1;
+}
+
+// end wave199 pure-owned leave

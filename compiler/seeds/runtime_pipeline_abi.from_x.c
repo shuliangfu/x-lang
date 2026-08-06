@@ -25962,6 +25962,25 @@ int32_t pipeline_asm_call_param_type_ref_at_c(void *arena, int32_t call_expr_ref
   return 0;
 }
 
+/*
+ * wave199 cold twin: CALL-target module/func_index resolve (G.7 pure leave).
+ * Freestanding-safe stub (-1 = resolve fail). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding CALL resolve · import BINDING/SELECT.
+ */
+int32_t glue_asm_resolve_call_target_module_c(void *arena, int32_t call_expr_ref,
+                                               void **mod_out, int32_t *func_ix_out,
+                                               int32_t *dep_ix_out) {
+  (void)arena;
+  (void)call_expr_ref;
+  if (mod_out)
+    *mod_out = 0;
+  if (func_ix_out)
+    *func_ix_out = -1;
+  if (dep_ix_out)
+    *dep_ix_out = -1;
+  return -1;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */

@@ -34,8 +34,8 @@
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - pipeline_asm_call_param_type_ref_at_c — wave198 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
- * - glue_asm_resolve_call_target_module_c — Cap residual public (wave194
- *   static→extern for pure call_return; pure leave of resolve deferred)
+ * - glue_asm_resolve_call_target_module_c — wave199 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - pipeline_asm_emit_expr_elf_for_call_args (public entry; f32 lit, VAR
  *   array→slice fat, dual-GP, fixed array, STRUCT_LIT, INDEX, FIELD, rec)
  *
@@ -1733,211 +1733,13 @@ extern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *m,
 static int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                          int32_t call_expr_ref);
 
-/* wave194 Cap residual public (was static): pure glue_call_return_byte_size_c
- * and same-leaf callers need a single export face. G.7 authority for CALL
- * target resolve remains this host body until a later pure leave.
- * PLATFORM: SHARED freestanding CALL resolve · import binding METHOD/FIELD. */
+/* wave199 pure-owned: glue_asm_resolve_call_target_module_c body in
+ * runtime_pipeline_abi.x (#[no_mangle] export). Cap residual: prototype only.
+ * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED freestanding CALL-target resolve · import BINDING/SELECT. */
 int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
                                               struct ast_Module **mod_out, int32_t *func_ix_out,
-                                              int32_t *dep_ix_out) {
-  struct ast_Module *mod;
-  int32_t func_ix;
-  int32_t dep_ix;
-  int32_t callee_ref;
-  int32_t i;
-  int32_t imax;
-  int32_t call_ord;
-  int32_t callee_ord;
-  int32_t base_ref;
-  uint8_t base_name[128];
-  int32_t base_len;
-  uint8_t field_name[128];
-  int32_t field_len;
-  int32_t j;
-
-  if (!arena || call_expr_ref <= 0 || !mod_out || !func_ix_out)
-    return -1;
-  *mod_out = 0;
-  *func_ix_out = -1;
-  if (dep_ix_out)
-    dep_ix_out[0] = -1;
-  mod = g_pipeline_asm_emit_module;
-  if (!mod)
-    return -1;
-
-  func_ix = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
-  dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
-  if (func_ix >= 0) {
-    if (dep_ix >= 0 && g_pipeline_asm_emit_dep_pipe) {
-      struct ast_Module *dm = pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, dep_ix);
-      if (dm)
-        mod = dm;
-    }
-    *mod_out = mod;
-    *func_ix_out = func_ix;
-    if (dep_ix_out)
-      dep_ix_out[0] = dep_ix;
-    return 0;
-  }
-
-  func_ix = pipeline_typeck_resolve_call_func_index_c(mod, arena, call_expr_ref);
-  if (func_ix >= 0) {
-    *mod_out = mod;
-    *func_ix_out = func_ix;
-    if (dep_ix_out)
-      dep_ix_out[0] = -1;
-    return 0;
-  }
-
-  if (!g_pipeline_asm_emit_dep_pipe)
-    return -1;
-
-  call_ord = pipeline_expr_kind_ord_at(arena, call_expr_ref);
-
-  /**
-   * import binding METHOD_CALL: `const math = import("std.math"); math.floor(x)` / abs(var).
-   * Root: product parser emits kind 49; historical resolve only handled CALL callee FIELD_ACCESS
-   * (44). Without this branch param_type_ref=0 → non-lit f64 args stay in rdi while formal libm
-   * reads xmm0 (abs/signum greened only by binop xmm0 residual). G.7 complete same authority.
-   */
-  if (call_ord == (int32_t)ast_ExprKind_EXPR_METHOD_CALL) {
-    base_ref = pipeline_expr_method_call_base_ref_at(arena, call_expr_ref);
-    field_len = pipeline_expr_method_call_name_len(arena, call_expr_ref);
-    if (base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 3 && field_len > 0 &&
-        field_len <= 63) {
-      base_len = pipeline_expr_var_name_len(arena, base_ref);
-      if (base_len > 0 && base_len <= 63) {
-        pipeline_expr_var_name_into(arena, base_ref, base_name);
-        pipeline_expr_method_call_name_into(arena, call_expr_ref, field_name);
-        for (j = 0; j < parser_get_module_num_imports(mod); j++) {
-          struct ast_Module *dm;
-          int32_t fx = 0;
-          int32_t bl;
-          int32_t eq;
-          int32_t bi;
-          if (pipeline_module_import_kind_at(mod, j) != GLUE_TYPECK_IMPORT_BINDING)
-            continue;
-          bl = pipeline_module_import_binding_name_len(mod, j);
-          if (bl != base_len)
-            continue;
-          eq = 1;
-          for (bi = 0; bi < bl; bi++) {
-            if (pipeline_module_import_binding_name_byte_at(mod, j, bi) != base_name[bi]) {
-              eq = 0;
-              break;
-            }
-          }
-          if (!eq)
-            continue;
-          dm = pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, j);
-          if (!dm)
-            continue;
-          if (pipeline_typeck_find_func_return_type_in_module_by_name_c(
-                  dm, arena, field_name, field_len, j, g_pipeline_asm_emit_dep_pipe, &fx) != 0) {
-            *mod_out = dm;
-            *func_ix_out = fx;
-            if (dep_ix_out)
-              dep_ix_out[0] = j;
-            return 0;
-          }
-        }
-      }
-    }
-    /* METHOD_CALL has no CALL callee_ref; do not fall through to FIELD_ACCESS/VAR paths. */
-    return -1;
-  }
-
-  callee_ref = pipeline_expr_call_callee_ref_at(arena, call_expr_ref);
-  if (callee_ref <= 0)
-    return -1;
-  callee_ord = pipeline_expr_kind_ord_at(arena, callee_ref);
-
-  /**
-   * import binding FIELD_ACCESS: CALL form `math.floor(x)` when parsed as CALL+FIELD_ACCESS.
-   * Callee is FIELD_ACCESS (kind 44), not VAR (3). Match binding name → dep, field → func.
-   */
-  if (callee_ord == 44) {
-    base_ref = pipeline_expr_field_access_base_ref(arena, callee_ref);
-    field_len = pipeline_expr_field_access_name_len(arena, callee_ref);
-    if (base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 3 && field_len > 0 &&
-        field_len <= 63) {
-      base_len = pipeline_expr_var_name_len(arena, base_ref);
-      if (base_len > 0 && base_len <= 63) {
-        pipeline_expr_var_name_into(arena, base_ref, base_name);
-        pipeline_expr_field_access_name_into(arena, callee_ref, field_name);
-        for (j = 0; j < parser_get_module_num_imports(mod); j++) {
-          struct ast_Module *dm;
-          int32_t fx = 0;
-          int32_t bl;
-          int32_t eq;
-          int32_t bi;
-          if (pipeline_module_import_kind_at(mod, j) != GLUE_TYPECK_IMPORT_BINDING)
-            continue;
-          bl = pipeline_module_import_binding_name_len(mod, j);
-          if (bl != base_len)
-            continue;
-          eq = 1;
-          for (bi = 0; bi < bl; bi++) {
-            if (pipeline_module_import_binding_name_byte_at(mod, j, bi) != base_name[bi]) {
-              eq = 0;
-              break;
-            }
-          }
-          if (!eq)
-            continue;
-          dm = pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, j);
-          if (!dm)
-            continue;
-          if (pipeline_typeck_find_func_return_type_in_module_by_name_c(
-                  dm, arena, field_name, field_len, j, g_pipeline_asm_emit_dep_pipe, &fx) != 0) {
-            *mod_out = dm;
-            *func_ix_out = fx;
-            if (dep_ix_out)
-              dep_ix_out[0] = j;
-            return 0;
-          }
-        }
-      }
-    }
-  }
-
-  imax = mod->num_imports;
-  if (pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe) > imax)
-    imax = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
-  for (i = 0; i < imax; i++) {
-    struct ast_Module *dm;
-    int32_t fx = 0;
-
-    dm = pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, i);
-    if (!dm)
-      continue;
-    if (pipeline_typeck_find_func_return_type_in_module_c(dm, arena, arena, arena, callee_ref, i,
-                                                            g_pipeline_asm_emit_dep_pipe, &fx) != 0) {
-      *mod_out = dm;
-      *func_ix_out = fx;
-      if (dep_ix_out)
-        dep_ix_out[0] = i;
-      return 0;
-    }
-    if (i < mod->num_imports && pipeline_module_import_kind_at(mod, i) == GLUE_TYPECK_IMPORT_SELECT &&
-        callee_ord == 3) {
-      uint8_t cv_nm[128];
-      int32_t cv_len = pipeline_expr_var_name_len(arena, callee_ref);
-      if (cv_len > 0 && cv_len <= 63) {
-        pipeline_expr_var_name_into(arena, callee_ref, cv_nm);
-        if (pipeline_typeck_find_func_return_type_in_module_by_name_c(dm, arena, cv_nm, cv_len, i,
-                                                                      g_pipeline_asm_emit_dep_pipe, &fx) != 0) {
-          *mod_out = dm;
-          *func_ix_out = fx;
-          if (dep_ix_out)
-            dep_ix_out[0] = i;
-          return 0;
-        }
-      }
-    }
-  }
-  return -1;
-}
+                                              int32_t *dep_ix_out);
 
 /* ============================================================
  * wave1151 G.7: SysV x86 f32 xmm param homing
