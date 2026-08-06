@@ -1197,7 +1197,8 @@ export extern "C" function try_inline_const_struct_lit_return_call_to_slot_elf(a
 export extern "C" function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32): void;
 export extern "C" function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i32;
 // wave154 pure-owned: glue_type_size_simple body in EOF section.
-export extern "C" function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
+// wave191 pure-owned: glue_type_named_layout_size_any_module_elf_c lives at EOF (#[no_mangle]).
+// G.7 ban dual export extern + pure export for the same symbol.
 export extern "C" function glue_store_retval_pair_to_rbp_elf_c(m: *u8, arena: *u8, elf_ctx: *u8, ty_ref: i32, slot_off: i32, ta: i32, init_ref: i32, ctx: *u8): i32;
 // wave189 pure-owned: glue_emit_module_from_ctx live at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
@@ -43372,7 +43373,8 @@ export function pipeline_asm_emit_binop_mod_elf_c(arena: *u8, elf_ctx: *u8, left
 
 // wave151 Cap residual: field_access pure leave callees (still host-cc residual / pool / enc).
 // PLATFORM: SHARED freestanding emit — pure owns FIELD_ACCESS ELF + layout/offset + enum/soa.
-export extern "C" function glue_call_param_named_struct_pass_addr_elf_c(arena: *u8, pty: i32): i32;
+// wave191 pure-owned: glue_call_param_named_struct_pass_addr_elf_c lives at EOF (#[no_mangle]).
+// G.7 ban dual export extern + pure export for the same symbol.
 export extern "C" function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32;
 export extern "C" function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx: *u8, ta: i32): i32;
 // wave154 pure-owned: pipeline_expr_struct_lit_value_bytes body in EOF section.
@@ -61609,3 +61611,172 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
 }
 
 // end wave190 pure-owned leave
+
+// ===========================================================================
+// wave191: CALL-arg named layout size + MEMORY pass-by-addr pure-owned leave
+// (was Cap residual in pipeline_asm_emit_call_args.c)
+// G.7 product authority for dep-arena TYPE_NAMED size recovery + MEMORY gate:
+//   glue_type_named_layout_size_any_module_elf_c  (promoted residual→public pure)
+//   glue_call_param_named_struct_pass_addr_elf_c  (thin MEMORY >16B gate)
+// Reuses glue_type_size_simple (wave154) + pipeline_asm_emit_module_ref_c /
+//   pipeline_asm_emit_dep_pipe_c (wave141) + pool layout/dep accessors.
+// Root: Option_u8 / import POD sized with caller arena reinterprets dep field
+//   type_refs → false sret / half dual-GP; size dep layouts with dep arena only.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
+// ===========================================================================
+
+/**
+ * TYPE_NAMED layout byte size with dep-module arena recovery when local
+ * size_simple is ≤8 (missed import layout / wrong field type_ref arena).
+ * @param arena *u8 — caller ASTArena*; null → 0
+ * @param ty_ref i32 — type ref (must be TYPE_NAMED=8)
+ * @return i32 — size when >8 (MEMORY / dual-GP widen); else 0
+ *
+ * Contract:
+ *  1. non-TYPE_NAMED / invalid → 0
+ *  2. glue_type_size_simple(mod,arena,ty,0) > 8 → trust that size
+ *  3. else scan dep_pipe modules: full name or bare suffix after last '.'
+ *     match layout; size with typeck_x_type_size_from_layout_glue(dep_mod,
+ *     dep_arena, k, 1); first match with sz>8 wins
+ *  4. no match → 0 (callers treat as unknown; dual-gp helper may name-match)
+ *
+ * wave191 pure: G.7 authority (was Cap residual call_args).
+ * PLATFORM: SHARED freestanding layout size · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32 {
+  let name: u8[128] = [];
+  let nlen: i32 = 0;
+  let base_off: i32 = 0;
+  let base_len: i32 = 0;
+  let sz: i32 = 0;
+  let di: i32 = 0;
+  let nd: i32 = 0;
+  let k: i32 = 0;
+  let j: i32 = 0;
+  let dm: *u8 = 0 as *u8;
+  let darena: *u8 = 0 as *u8;
+  let mod: *u8 = 0 as *u8;
+  let dep: *u8 = 0 as *u8;
+  let tk: i32 = 0;
+  let ln: i32 = 0;
+  let eq: i32 = 0;
+  let b: i32 = 0;
+  let nsl: i32 = 0;
+  if (arena == (0 as *u8) || ty_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, ty_ref);
+  }
+  // TYPE_NAMED == 8
+  if (tk != 8) {
+    return 0;
+  }
+  mod = pipeline_asm_emit_module_ref_c();
+  sz = glue_type_size_simple(mod, arena, ty_ref, 0);
+  // After size_simple has layout match, trust it when >8 (MEMORY / dual-GP).
+  if (sz > 8) {
+    return sz;
+  }
+  unsafe {
+    nlen = pipeline_type_named_name_into(arena, ty_ref, &name[0]);
+  }
+  if (nlen <= 0 || nlen > 127) {
+    return sz;
+  }
+  base_off = 0;
+  k = 0;
+  while (k < nlen) {
+    // '.' separator → bare suffix for heap.Allocator etc.
+    if (name[k] == 46) {
+      base_off = k + 1;
+    }
+    k = k + 1;
+  }
+  base_len = nlen - base_off;
+  dep = pipeline_asm_emit_dep_pipe_c();
+  if (dep != (0 as *u8)) {
+    unsafe {
+      nd = pipeline_dep_ctx_ndep(dep);
+    }
+    di = 0;
+    while (di < nd) {
+      unsafe {
+        dm = pipeline_dep_ctx_module_at(dep, di);
+        darena = pipeline_dep_ctx_arena_at(dep, di);
+      }
+      if (dm != (0 as *u8) && darena != (0 as *u8)) {
+        // Do not size field type_refs against the caller pool: use dep arena.
+        unsafe {
+          nsl = pipeline_module_num_struct_layouts_at(dm);
+        }
+        k = 0;
+        while (k < nsl) {
+          unsafe {
+            ln = pipeline_module_struct_layout_name_len(dm, k);
+          }
+          eq = 1;
+          if (ln == nlen) {
+            j = 0;
+            while (j < nlen) {
+              unsafe {
+                b = pipeline_module_struct_layout_name_byte_at(dm, k, j);
+              }
+              if (b != (name[j] as i32)) {
+                eq = 0;
+                break;
+              }
+              j = j + 1;
+            }
+          } else if (ln == base_len && base_len > 0) {
+            j = 0;
+            while (j < base_len) {
+              unsafe {
+                b = pipeline_module_struct_layout_name_byte_at(dm, k, j);
+              }
+              if (b != (name[base_off + j] as i32)) {
+                eq = 0;
+                break;
+              }
+              j = j + 1;
+            }
+          } else {
+            eq = 0;
+          }
+          if (eq != 0) {
+            unsafe {
+              sz = typeck_x_type_size_from_layout_glue(dm, darena, k, 1);
+            }
+            if (sz > 8) {
+              return sz;
+            }
+          }
+          k = k + 1;
+        }
+      }
+      di = di + 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * SysV MEMORY class gate for CALL formal TYPE_NAMED: pass by address only when >16B.
+ * 9–16B INTEGER class stays by-value dual-GP (matches formal C ABI).
+ * @param arena *u8 — ASTArena*
+ * @param pty i32 — formal / actual type ref
+ * @return i32 — 1 pass by address; 0 by-value / unknown
+ *
+ * wave191 pure: G.7 authority (was Cap residual call_args thin wrapper).
+ * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 co-path.
+ */
+#[no_mangle]
+export function glue_call_param_named_struct_pass_addr_elf_c(arena: *u8, pty: i32): i32 {
+  if (glue_type_named_layout_size_any_module_elf_c(arena, pty) > 16) {
+    return 1;
+  }
+  return 0;
+}
+
+// end wave191 pure-owned leave

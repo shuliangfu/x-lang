@@ -9,8 +9,10 @@
  * - glue_call_arg_var_use_lea_not_load_elf_c — wave190 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - glue_load_var_as_value_to_rax_rdx_elf_c (≤16B INTEGER dual-GP by-value)
- * - glue_type_named_layout_size_any_module_elf_c (dep-arena layout size >8)
- * - glue_call_param_named_struct_pass_addr_elf_c (MEMORY class >16B → by addr)
+ * - glue_type_named_layout_size_any_module_elf_c — wave191 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
+ * - glue_call_param_named_struct_pass_addr_elf_c — wave191 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - pipeline_asm_emit_expr_elf_for_call_args (public entry; f32 lit, VAR
  *   array→slice fat, dual-GP, fixed array, STRUCT_LIT, INDEX, FIELD, rec)
  *
@@ -380,93 +382,13 @@ int32_t glue_load_var_as_value_to_rax_rdx_elf_c(struct platform_elf_ElfCodegenCt
   return 0;
 }
 
-/**
- * CALL 形参 named struct 是否 >8B（含 dep 模块 layout 回落；import Allocator 等）。
- * PLATFORM: SHARED (layout size) / LINUX+MACOS x86_64 SysV (call class consumers).
- *
- * Root (Option_u8 named=24): dep layout field type_refs live in **dep arena**.
- * Sizing them with the caller arena reinterprets indices (e.g. bool → TYPE_SLICE 16)
- * → metrics bool@16 + u8@1 + pad → 24 → false sret. G.7: size dep layouts only
- * with pipeline_dep_ctx_arena_at (same contract as typeck_merge field mapping).
- */
-/* wave132 pure leave Cap residual: was static. */
-int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref) {
-  uint8_t name[128];
-  int32_t nlen;
-  int32_t base_off;
-  int32_t base_len;
-  int32_t sz;
-  int32_t di;
-  int32_t nd;
-  int32_t k;
-  int32_t j;
-  struct ast_Module *dm;
-  struct ast_ASTArena *darena;
-  if (!arena || ty_ref <= 0 || pipeline_type_kind_ord_at(arena, ty_ref) != GLUE_TYPE_NAMED)
-    return 0;
-  /** After size_simple has layout match, trust it when >8 (MEMORY / dual-GP widen). */
-  sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, ty_ref, 0);
-  if (sz > 8)
-    return sz;
-  nlen = pipeline_type_named_name_into(arena, ty_ref, name);
-  if (nlen <= 0 || nlen > 127)
-    return sz;
-  base_off = 0;
-  for (k = 0; k < nlen; k++) {
-    if (name[k] == (uint8_t)'.')
-      base_off = k + 1;
-  }
-  base_len = nlen - base_off;
-  if (g_pipeline_asm_emit_dep_pipe) {
-    nd = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
-    for (di = 0; di < nd; di++) {
-      dm = pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, di);
-      darena = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, di);
-      if (!dm || !darena)
-        continue;
-      /**
-       * Do not glue_type_size_simple(dm, caller_arena, ty_ref): that still sizes field
-       * type_refs against the caller pool. Use dep arena for metrics only.
-       */
-      for (k = 0; k < (int32_t)dm->num_struct_layouts; k++) {
-        int32_t ln = pipeline_module_struct_layout_name_len(dm, k);
-        int32_t eq = 1;
-        if (ln == nlen) {
-          for (j = 0; j < nlen; j++) {
-            if (pipeline_module_struct_layout_name_byte_at(dm, k, j) != name[j]) {
-              eq = 0;
-              break;
-            }
-          }
-        } else if (ln == base_len && base_len > 0) {
-          for (j = 0; j < base_len; j++) {
-            if (pipeline_module_struct_layout_name_byte_at(dm, k, j) != name[base_off + j]) {
-              eq = 0;
-              break;
-            }
-          }
-        } else {
-          eq = 0;
-        }
-        if (!eq)
-          continue;
-        sz = typeck_x_type_size_from_layout_glue(dm, darena, k, 1);
-        if (sz > 8)
-          return sz;
-      }
-    }
-  }
-  return 0;
-}
-
-/**
- * PLATFORM: LINUX+MACOS x86_64 SysV — pass named struct by address only when MEMORY class
- * (>16B). 9–16B INTEGER class is by value in two GPRs (matches formal C ABI).
- */
-/* wave151 Cap residual: pure field_access leave (was static). PLATFORM: SHARED. */
-int32_t glue_call_param_named_struct_pass_addr_elf_c(struct ast_ASTArena *arena, int32_t pty) {
-  return glue_type_named_layout_size_any_module_elf_c(arena, pty) > 16 ? 1 : 0;
-}
+/* wave191 pure-owned: glue_type_named_layout_size_any_module_elf_c +
+ * glue_call_param_named_struct_pass_addr_elf_c (runtime_pipeline_abi pure).
+ * Cap residual dual-gp / for_call_args / param sizing uses pure; G.7 single
+ * authority — no host body.
+ * PLATFORM: SHARED freestanding CALL named layout size + MEMORY pass-by-addr. */
+int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref);
+int32_t glue_call_param_named_struct_pass_addr_elf_c(struct ast_ASTArena *arena, int32_t pty);
 
 /* ========================================================================
  * wave1022 G.7 fold: TYPE_SLICE reent deep-copy after dual-GP

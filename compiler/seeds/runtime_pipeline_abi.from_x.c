@@ -25825,6 +25825,23 @@ int32_t glue_call_arg_var_use_lea_not_load_elf_c(void *arena, int32_t expr_ref, 
   return 0;
 }
 
+/*
+ * wave191 cold twins: named layout size + MEMORY pass-by-addr (G.7 pure leave).
+ * Freestanding-safe stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding CALL named layout size.
+ */
+int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref) {
+  (void)arena;
+  (void)ty_ref;
+  return 0;
+}
+
+int32_t glue_call_param_named_struct_pass_addr_elf_c(void *arena, int32_t pty) {
+  (void)arena;
+  (void)pty;
+  return 0;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
