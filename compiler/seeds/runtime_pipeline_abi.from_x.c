@@ -25452,6 +25452,50 @@ int32_t glue_index_expr_var_subsub3_elf_c(void *arena, int32_t sub_ref, int32_t 
   return 0;
 }
 
+/*
+ * wave179 cold twins: INDEX local-slot ptr/addr + field-slot deref thin (G.7 pure leave).
+ * Freestanding-safe stubs: enc faces return -1 (force residual/fallback paths);
+ * field-slot deref returns 0 (no-op). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding INDEX local slot.
+ */
+int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_t var_ref, int32_t var_off,
+                                             void *ctx, int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)var_ref;
+  (void)var_off;
+  (void)ctx;
+  (void)ta;
+  return -1;
+}
+
+int32_t glue_enc_local_slot_ptr_or_addr_rbx_elf_c(void *arena, void *elf_ctx, int32_t var_ref, int32_t var_off,
+                                                 void *ctx, int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)var_ref;
+  (void)var_off;
+  (void)ctx;
+  (void)ta;
+  return -1;
+}
+
+int32_t glue_index_deref_ptr_field_slot_rax_elf_c(void *arena, void *elf_ctx, int32_t fa_ref, int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)fa_ref;
+  (void)ta;
+  return 0;
+}
+
+int32_t glue_index_deref_ptr_field_slot_rbx_elf_c(void *arena, void *elf_ctx, int32_t fa_ref, int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)fa_ref;
+  (void)ta;
+  return 0;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 

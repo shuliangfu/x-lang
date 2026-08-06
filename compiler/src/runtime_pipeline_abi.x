@@ -509,7 +509,8 @@ export extern "C" function backend_enc_mul_imm_to_rbx_arch(elf_ctx: *u8, lit: i3
 export extern "C" function backend_enc_add_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern "C" function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_ref: i32, stack_off: i32, ctx: *u8): i32;
-export extern "C" function glue_index_deref_ptr_field_slot_rax_elf_c(arena: *u8, elf_ctx: *u8, fa_ref: i32, ta: i32): i32;
+// wave179 pure-owned: glue_index_deref_ptr_field_slot_{rax,rbx}_elf_c live in EOF (#[no_mangle]).
+// (was Cap residual export extern; dual-export ban.)
 export extern "C" function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *u8, call_expr_ref: i32): i32;
 export extern "C" function pipeline_expr_index_base_is_slice_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_index_proven_in_bounds_at(arena: *u8, expr_ref: i32): i32;
@@ -648,7 +649,8 @@ export extern "C" function glue_try_simd_peel_index_add_while_elf_c(arena: *u8, 
 //   glue_vector_let_init_uses_direct_slot live in this file (EOF wave148 section).
 // wave146 pure leave: glue_block_let_is_fixed_array_type + glue_fixed_array_let_init_uses_direct_slot live in this file.
 // wave149 pure-owned faces: bodies in EOF section (#[no_mangle] export; no dual export extern).
-export extern "C" function glue_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf_ctx: *u8, var_ref: i32, var_off: i32, ctx: *u8, ta: i32): i32;
+// wave179 pure-owned: glue_enc_local_slot_ptr_or_addr_{elf,rbx}_elf_c live in EOF (#[no_mangle]).
+// (was Cap residual export extern; dual-export ban.)
 export extern "C" function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32;
 export extern "C" function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32;
@@ -680,7 +682,7 @@ export extern "C" function glue_binop_var_slot_cache_kill_def_at_slot(off: i32):
 // wave146 pure leave: glue_emit_fixed_array_type_let_init_elf_c + glue_type_is_fixed_array +
 //   glue_struct_lit_store_fixed_array_field_elf_c + glue_struct_field_frame_mag_c +
 //   pipeline_asm_emit_vector_let_init_elf_c live in this file.
-export extern "C" function glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena: *u8, elf_ctx: *u8, var_ref: i32, var_off: i32, ctx: *u8, ta: i32): i32;
+// wave179 pure-owned: glue_enc_local_slot_ptr_or_addr_rbx_elf_c in EOF (see above).
 export extern "C" function glue_try_index_var_lit_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
 export extern "C" function glue_try_index_var_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
 export extern "C" function glue_try_index_var_plus_lit_idx_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
@@ -56291,3 +56293,164 @@ export function glue_asm73_evict_rbx_cache_entry(stmt_i: i32, ta: i32, elf_ctx: 
 }
 
 // end wave174 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave179 pure-owned leave: INDEX local-slot ptr/addr + field-slot deref thin.
+// G.7 authority (was Cap residual in pipeline_asm_emit_index_helpers.c).
+// try_index forest + pure field/index bases call these; residual bodies → extern.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+// ---------------------------------------------------------------------------
+
+/**
+ * Materialize local VAR slot into rax: load pointer when slot holds *T / slice*
+ * param / indirect array, else lea the by-value home.
+ * @param arena *u8 - ASTArena*; null → need_ptr residual may still run
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param var_ref i32 - VAR expr pool ref
+ * @param var_off i32 - frame stack offset (rbp-relative positive home)
+ * @param ctx *u8 - AsmFuncCtx* for slot classification
+ * @param ta i32 - target arch (0=x86_64, 1=arm64)
+ * @return i32 - 0 ok, non-zero enc error
+ * wave179 pure-owned G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding INDEX / field base.
+ */
+#[no_mangle]
+export function glue_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf_ctx: *u8, var_ref: i32, var_off: i32, ctx: *u8, ta: i32): i32 {
+  let needs: i32 = 0;
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    needs = glue_local_var_slot_needs_ptr_load_elf_c(arena, var_ref, var_off, ctx);
+  }
+  if (needs != 0) {
+    unsafe {
+      return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta);
+    }
+  }
+  unsafe {
+    return backend_enc_lea_rbp_to_rax_arch(elf_ctx, var_off, ta);
+  }
+}
+
+/**
+ * Materialize local VAR slot into rbx/x1 (mirror of rax twin; assign rhs stays in rax).
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param var_ref i32 - VAR expr pool ref
+ * @param var_off i32 - frame stack offset
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok, non-zero enc error
+ * wave179 pure-owned G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding INDEX assign base.
+ */
+#[no_mangle]
+export function glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena: *u8, elf_ctx: *u8, var_ref: i32, var_off: i32, ctx: *u8, ta: i32): i32 {
+  let needs: i32 = 0;
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    needs = glue_local_var_slot_needs_ptr_load_elf_c(arena, var_ref, var_off, ctx);
+  }
+  if (needs != 0) {
+    unsafe {
+      return backend_enc_load_rbp_to_rbx_arch(elf_ctx, var_off, ta);
+    }
+  }
+  unsafe {
+    return backend_enc_lea_rbp_to_rbx_arch(elf_ctx, var_off, ta);
+  }
+}
+
+/**
+ * After FIELD_ACCESS base leaves field slot address in rax: if field is *T or
+ * TYPE_SLICE fat, load the pointer (.data @ +0 for slice). No-op when field is
+ * by-value array/struct (return 0 without touching enc).
+ * @param arena *u8 - ASTArena*; null/missing type → 0
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param fa_ref i32 - FIELD_ACCESS expr pool ref
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok or not-ptr field; non-zero enc error
+ * wave179 pure-owned G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding INDEX base field auto-deref.
+ */
+#[no_mangle]
+export function glue_index_deref_ptr_field_slot_rax_elf_c(arena: *u8, elf_ctx: *u8, fa_ref: i32, ta: i32): i32 {
+  let ftr: i32 = 0;
+  let fk: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || fa_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    mod = pipeline_asm_emit_ctx_module_get();
+    ftr = glue_field_access_field_type_ref_c(arena, mod, fa_ref);
+  }
+  if (ftr <= 0) {
+    return 0;
+  }
+  unsafe {
+    fk = pipeline_type_kind_ord_at(arena, ftr);
+  }
+  // TypeKind: PTR=9 SLICE=11
+  if (fk == 9 || fk == 11) {
+    unsafe {
+      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    }
+  }
+  return 0;
+}
+
+/**
+ * Same as rax twin when effective address is in rbx (INDEX assign: rhs in rax).
+ * Mov rbx→rax, load64, mov rax→rbx so address ends in rbx.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param fa_ref i32 - FIELD_ACCESS expr pool ref
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok or not-ptr; -1 enc error
+ * wave179 pure-owned G.7 authority (was Cap residual static index_helpers).
+ * PLATFORM: SHARED freestanding INDEX assign base field auto-deref.
+ */
+#[no_mangle]
+export function glue_index_deref_ptr_field_slot_rbx_elf_c(arena: *u8, elf_ctx: *u8, fa_ref: i32, ta: i32): i32 {
+  let ftr: i32 = 0;
+  let fk: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || fa_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    mod = pipeline_asm_emit_ctx_module_get();
+    ftr = glue_field_access_field_type_ref_c(arena, mod, fa_ref);
+  }
+  if (ftr <= 0) {
+    return 0;
+  }
+  unsafe {
+    fk = pipeline_type_kind_ord_at(arena, ftr);
+  }
+  if (fk != 9 && fk != 11) {
+    return 0;
+  }
+  unsafe {
+    rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    return backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+  }
+}
+
+// end wave179 pure-owned leave

@@ -8,15 +8,16 @@
  * depends on:
  * - glue_emit_module_from_ctx / param+local slot ptr load faces
  *   (stack_off_is_emit_param_ptr_slot, local_var_slot_needs_ptr_load,
- *   enc_local_slot_ptr_or_addr{,_rbx}, func_param_is_indirect_struct_slot)
+ *   func_param_is_indirect_struct_slot)
  * - glue_field_access_field_type_ref_c / fixed_array_total_bytes /
  *   glue_index_elem_byte_sz_from_type_ref_c (INDEX stride inference)
- * - glue_index_deref_ptr_field_slot_{rax,rbx}_elf_c
  * - try_index_* forest (base→rax/rbx, assign-addr→rbx, eff_addr→rax;
  *   lit/var/add/sub/mul nested shapes + index scratch cache)
  *   · wave178: INDEX expr shape peel forest pure
  *     (var_plus_var_pair / var_add3 / var_minus_var_pair / var_minus_add3 /
  *      var_subadd3 / var_subsub3) — residual try_index faces call pure peel
+ *   · wave179: local-slot ptr/addr + field-slot deref pure
+ *     (enc_local_slot_ptr_or_addr{,_rbx}, index_deref_ptr_field_slot_{rax,rbx})
  * - glue_emit_soa_index_field_addr_elf_c (DoD column-major arr[i].field)
  * - pipeline_asm_emit_lvalue_eff_addr_{elf,text}_c (VAR / FIELD / INDEX;
  *   ELF also DEREF; text twin folded wave1013 G.7 有则补全)
@@ -192,28 +193,17 @@ int32_t glue_local_var_slot_needs_ptr_load_elf_c(struct ast_ASTArena *arena, int
 }
 
 /**
- * 局部 VAR 槽地址：*T 为 load 指针；定长 T[N] / struct / 向量等为 lea 栈槽（按值存放）。
+ * wave179 pure-owned: local VAR slot → rax/rbx (load *T/slice* / lea by-value).
+ * Cap residual try_index / lvalue call pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding INDEX local slot.
  */
-/* wave145 pure Cap residual: static→extern. */
 int32_t glue_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena,
                                                      struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t var_expr_ref,
-                                                     int32_t stack_off, struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  if (glue_local_var_slot_needs_ptr_load_elf_c(arena, var_expr_ref, stack_off, ctx) != 0)
-    return backend_enc_load_rbp_to_rax_arch(elf_ctx, stack_off, ta);
-  return backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_off, ta);
-}
-
-/**
- * 局部 VAR 槽地址入 rbx/x1（*T / 形参 struct load 指针；let struct lea 栈槽）。
- */
+                                                     int32_t stack_off, struct backend_AsmFuncCtx *ctx, int32_t ta);
 int32_t glue_enc_local_slot_ptr_or_addr_rbx_elf_c(struct ast_ASTArena *arena,
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          int32_t var_expr_ref, int32_t stack_off,
-                                                         struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  if (glue_local_var_slot_needs_ptr_load_elf_c(arena, var_expr_ref, stack_off, ctx) != 0)
-    return backend_enc_load_rbp_to_rbx_arch(elf_ctx, stack_off, ta);
-  return backend_enc_lea_rbp_to_rbx_arch(elf_ctx, stack_off, ta);
-}
+                                                         struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /** TYPE_PTR 在 TypeKind 序数表中的值（与 pipeline_asm_index_elem_byte_sz_c 一致）。 */
 #define GLUE_TYPE_KIND_PTR 9
@@ -511,46 +501,16 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int3
 }
 
 /**
- * INDEX 基址为 struct 内指针字段（如 v.col_x）：rax 已指向字段槽，须 load [rax] 得堆列指针。
+ * wave179 pure-owned: FIELD slot auto-deref *T / TYPE_SLICE into rax or rbx.
+ * Cap residual try_index base paths call pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding INDEX field base.
  */
-/**
- * After INDEX base FIELD_ACCESS yields the field slot address in rax: if field is
- * *T or TYPE_SLICE fat, load the pointer (`.data` @ +0 for slice). G.7 with VAR slice path.
- * PLATFORM: SHARED — sp.left[i] / Split_*.left INDEX (subslice_split_chunks).
- */
-/* wave147 pure Cap residual: static→extern (index_eff_addr pure leave). PLATFORM: SHARED. */
 int32_t glue_index_deref_ptr_field_slot_rax_elf_c(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                          int32_t fa_ref, int32_t ta) {
-  int32_t ftr;
-  int32_t fk;
-  ftr = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, fa_ref);
-  if (ftr <= 0)
-    return 0;
-  fk = pipeline_type_kind_ord_at(arena, ftr);
-  if (fk == GLUE_TYPE_KIND_PTR || fk == GLUE_TYPE_KIND_SLICE)
-    return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
-  return 0;
-}
-
-/** 同上，有效址在 rbx（INDEX assign 右值已在 rax）。 */
-static int32_t glue_index_deref_ptr_field_slot_rbx_elf_c(struct ast_ASTArena *arena,
+                                                          int32_t fa_ref, int32_t ta);
+int32_t glue_index_deref_ptr_field_slot_rbx_elf_c(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                          int32_t fa_ref, int32_t ta) {
-  int32_t ftr;
-  int32_t fk;
-  ftr = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, fa_ref);
-  if (ftr <= 0)
-    return 0;
-  fk = pipeline_type_kind_ord_at(arena, ftr);
-  if (fk != GLUE_TYPE_KIND_PTR && fk != GLUE_TYPE_KIND_SLICE)
-    return 0;
-  if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
-    return -1;
-  return backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
-}
+                                                          int32_t fa_ref, int32_t ta);
 
 /**
  * VAR type for emit: resolved_type_ref, else param / scope / func-body let decl type.
