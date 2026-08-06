@@ -7,6 +7,7 @@
  * wave185: lvalue_eff_addr ELF+text pure leave cold twins under #ifndef FROM_X
  * wave209: CAP cache BSS (minus_pair/subadd3) + thin + hit_var pure leave cold twins under #ifndef FROM_X
  * wave210: binop VAR slot cache BSS + thin accessors pure leave cold twins under #ifndef FROM_X
+ * wave211: binop stack_spill try_reload enc pure leave cold twin under #ifndef FROM_X
  * wave172: minus_pair/subadd3 cache spill pure leave cold twins under #ifndef FROM_X
  * wave171: index-scratch enc push/reload/pop pure leave cold twins under #ifndef FROM_X
  * wave174: spill_reg_to_spill + evict_rax|rbx pure leave cold twins under #ifndef FROM_X
@@ -26502,6 +26503,19 @@ void glue_binop_var_slot_cache_set_valid_x12(int32_t v) { g_wave210_var_valid_x1
 void glue_binop_var_slot_cache_set_valid_x13(int32_t v) { g_wave210_var_valid_x13 = v; }
 void glue_binop_var_slot_cache_set_valid_x14(int32_t v) { g_wave210_var_valid_x14 = v; }
 void glue_binop_var_slot_cache_set_valid_x15(int32_t v) { g_wave210_var_valid_x15 = v; }
+
+/*
+ * wave211 cold twin: binop stack-spill try_reload enc public face.
+ * Freestanding-safe no-op stub (miss). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
+ */
+int32_t glue_binop_stack_spill_try_reload_elf_c(void *elf_ctx, int32_t ta, int32_t off, int32_t to_rbx) {
+  (void)elf_ctx;
+  (void)ta;
+  (void)off;
+  (void)to_rbx;
+  return 0;
+}
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 

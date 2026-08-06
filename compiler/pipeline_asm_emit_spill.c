@@ -82,13 +82,13 @@
  *   · glue_index_scratch_spills_cleanup_all_elf_c
  *   · glue_index_scratch_spill_invalidate_var
  *   · glue_binop_stack_spill_push_elf_c
- * wave207–210: CAP depth / stack_spill table / CAP cache / VAR cache BSS pure;
- * residual keeps try_reload enc + live_fwd / color / interf BSS.
+ * wave207–211: CAP depth / stack_spill table / CAP cache / VAR cache BSS +
+ * stack try_reload enc pure; residual keeps live_fwd / color / interf BSS.
  *
  * wave170 pure-owned binop spill try-reload (same pure TU):
  *   · glue_binop_try_reload_spill_off_elf_c
- * Residual keeps VAR cache BSS + stack-spill tables + thin find_depth /
- * depth_get / set_valid_x* / set_rax|rbx_off + stack_try_reload thin.
+ * wave211 pure-owned stack try_reload thin (same pure TU):
+ *   · glue_binop_stack_spill_try_reload_elf_c
  *
  * wave171 pure-owned index-scratch enc push/reload/pop + slot reload:
  *   · glue_enc_push_index_scratch_arm64_elf_c
@@ -144,7 +144,8 @@
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · 7.3 live_fwd BSS / break-continue note + push/pop
  *   · Chaitin interf BSS + pin/color maps + gen_kill/collect
- *   · try_reload enc (stack_spill pure wave208; VAR cache pure wave210)
+ * wave211 pure-owned: glue_binop_stack_spill_try_reload_elf_c (stack table
+ * wave208 + CAP depth wave207 + VAR cache wave210 + arm64 ldr enc).
  *
  * G.7: do not re-define pure-owned faces above in this file.
  * Not a separate .o — #included from pipeline_glue.c after index_helpers.
@@ -259,11 +260,15 @@ int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf
                                           int32_t from_rbx);
 
 /* wave170 pure-owned face (extern; live in runtime_pipeline_abi pure).
- * Residual thin: glue_binop_stack_spill_try_reload_elf_c + cache BSS accessors.
  * PLATFORM: SHARED freestanding 7.3. */
 int32_t glue_binop_try_reload_spill_off_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                              struct backend_AsmFuncCtx *ctx, int32_t off, int32_t ta,
                                              int32_t to_rbx);
+/* wave211 pure-owned: stack-spill try_reload enc (extern; live pure).
+ * G.7 dual-export ban — body must not reappear in this Cap residual leaf.
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64. */
+int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+                                                int32_t off, int32_t to_rbx);
 
 /* wave171 pure-owned faces (extern; live in runtime_pipeline_abi pure).
  * Residual: CAP depth BSS + wave172 pure spill helpers call these.
@@ -359,11 +364,11 @@ uint64_t glue_index_base_struct_key_elf_c(struct ast_ASTArena *arena, int32_t ba
  * - glue_emit_index_eff_addr_scaled_elf_c (runtime_pipeline_abi pure wave147)
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / asm_ctx_local_*
  * - CAP depth pure wave207; stack_spill table pure wave208; CAP cache pure
- *   wave209; VAR slot cache pure wave210 (residual try_reload stamps via pure)
+ *   wave209; VAR slot cache pure wave210; try_reload enc pure wave211
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index
  *
- * Note: residual method body for try_reload enc lives here;
- * VAR/CAP/stack_spill meta pure leave closed wave207–210.
+ * Note: try_reload enc pure leave closed wave211; residual keeps live_fwd /
+ * color / interf BSS only for remaining spill authority.
  */
 
 /* wave210 pure-owned: binop VAR slot cache BSS + thin faces (extern).
@@ -977,7 +982,7 @@ int32_t glue_asm73_var_prefers_stack_spill(int32_t off) {
  * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave170: pure owns glue_binop_try_reload_spill_off_elf_c (extern above).
- * Residual thin: glue_binop_stack_spill_try_reload_elf_c + x10–x15 BSS accessors.
+ * wave211: pure owns glue_binop_stack_spill_try_reload_elf_c (extern above).
  * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave173: pure owns glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c,
@@ -1028,48 +1033,16 @@ int32_t glue_asm73_var_prefers_stack_spill(int32_t off) {
 /* wave208 pure-owned: stack_spill table BSS + thin accessors
  * (append_at_depth / cap_get / clear / drop_off / find_depth / n_get / off_at)
  * in runtime_pipeline_abi.x (#[no_mangle]). Cap residual: prototypes only
- * (declared in index_helpers.h face above). try_reload remains residual.
+ * (declared in index_helpers face above).
  * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave169: pure owns glue_binop_stack_spill_push_elf_c (extern above).
- * Residual thin: try_reload_elf (enc + VAR cache); table meta pure wave208.
- * PLATFORM: SHARED. */
+ * wave211: pure owns glue_binop_stack_spill_try_reload_elf_c (extern above).
+ * PLATFORM: SHARED freestanding 7.3. */
 
-/**
- * 7.3：若 off 已在栈帧 spill 表，则从对应 [sp,#slot*16] 装入 rax/rbx；1=命中，0=未命中，-1=错。
- * wave170 Cap residual: non-static thin face for pure try_reload leave.
- * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
- */
-int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
-                                                int32_t off, int32_t to_rbx) {
-  int32_t at_depth;
-  int32_t slot;
-  if (ta != 1 || off < 0 || !elf_ctx)
-    return 0;
-  at_depth = glue_binop_stack_spill_find_depth(off);
-  if (at_depth < 0)
-    return 0;
-  /* wave207: CAP depth pure BSS — residual reads via public getter only. */
-  {
-    int32_t cap_depth = glue_index_scratch_stack_depth_get();
-    if (cap_depth < at_depth)
-      return 0;
-    slot = cap_depth - at_depth;
-  }
-  if (to_rbx != 0) {
-    if (arch_arm64_enc_enc_ldr_sp_slot_to_xreg(elf_ctx, slot, 1) != 0)
-      return -1;
-    /* wave210: VAR cache pure BSS — residual stamps via public setters only. */
-    glue_binop_var_slot_cache_set_valid_rbx(1);
-    glue_binop_var_slot_cache_set_rbx_off(off);
-  } else {
-    if (arch_arm64_enc_enc_ldr_sp_slot_to_xreg(elf_ctx, slot, 0) != 0)
-      return -1;
-    glue_binop_var_slot_cache_set_valid_rax(1);
-    glue_binop_var_slot_cache_set_rax_off(off);
-  }
-  return 1;
-}
+/* wave211: glue_binop_stack_spill_try_reload_elf_c pure-owned — Cap residual
+ * body removed (G.7 dual-export ban). Prototype is in the pure-owned faces
+ * block near wave170. PLATFORM: SHARED freestanding 7.3. */
 
 /* wave172: pure owns glue_index_subadd3_spill_pop_top_elf_c /
  * glue_index_minus_pair_cache_spill_after_sub_elf_c /

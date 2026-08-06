@@ -40727,8 +40727,9 @@ export function glue_try_array_lit_lane_const_i32_c(arena: *u8, arr_ref: i32, la
 // wave156 pure-owned: glue_enc_swap_rax_rbx_arm64_elf_c lives in EOF.
 export extern "C" function glue_asm73_var_prefers_stack_spill(off: i32): i32;
 /* wave170: pure owns glue_binop_try_reload_spill_off_elf_c (#[no_mangle] below). */
-/* wave170 Cap residual: thin stack-spill reload for pure try_reload leave. */
-export extern "C" function glue_binop_stack_spill_try_reload_elf_c(elf_ctx: *u8, ta: i32, off: i32, to_rbx: i32): i32;
+/* wave211: pure owns glue_binop_stack_spill_try_reload_elf_c (#[no_mangle] EOF). */
+/* G.7 ban dual export extern + pure export for the same symbol. */
+export extern "C" function arch_arm64_enc_enc_ldr_sp_slot_to_xreg(elf_ctx: *u8, slot: i32, reg: i32): i32;
 export extern "C" function arch_arm64_enc_enc_mov_x10_to_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_x10_to_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_x11_to_rax(elf_ctx: *u8): i32;
@@ -54490,26 +54491,26 @@ export function glue_binop_stack_spill_push_elf_c(elf_ctx: *u8, ta: i32, off: i3
 
 // ============================================================================
 // wave170 pure-owned leave: binop spill try-reload public face
-// (was Cap residual spill; VAR cache BSS + stack-spill tables stay residual).
-// Public face:
+// (was Cap residual spill). Public face:
 //   · glue_binop_try_reload_spill_off_elf_c
-// Cap residual: stack_try_reload thin + x10–x15 BSS accessors + enc mov
-// + cache spill helpers (minus_pair/subadd3). wave171 owns enc push/reload/pop.
-// Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// wave211 pure-owned stack try_reload thin (stack table + CAP depth + VAR
+// stamp + arm64 ldr). wave210 pure VAR cache; wave208 stack table; wave171
+// owns enc push/reload/pop. Cold twins under seed #ifndef FROM_X.
 // PLATFORM: SHARED freestanding 7.3 · dual-end L2.
 // ============================================================================
 
 /**
  * Reload VAR stack-slot off from arm64 spill into rax/x0 or rbx/x1.
- * Order: residual stack-frame spill table first; then x15..x10 linear-scan
- * spill regs. On x-reg hit, clears that xN valid bit and stamps rax/rbx cache.
+ * Order: pure stack-frame spill table first (wave211 try_reload_elf_c);
+ * then x15..x10 linear-scan spill regs. On x-reg hit, clears that xN valid
+ * bit and stamps rax/rbx cache (wave210 pure BSS).
  * @param elf_ctx *u8 - ElfCodegenCtx*
- * @param ctx *u8 - AsmFuncCtx* (must match residual cache ctx_key)
+ * @param ctx *u8 - AsmFuncCtx* (must match pure VAR cache ctx_key)
  * @param off i32 - stack-slot offset of the VAR
  * @param ta i32 - target arch (only arm64 reloads; others return 0)
  * @param to_rbx i32 - non-zero → load into rbx/x1; else rax/x0
  * @return i32 - 1 hit; 0 miss/no-op; -1 enc fail
- * wave170 pure-owned (was Cap residual spill).
+ * wave170 pure-owned (was Cap residual spill); wave211 owns stack try_reload thin.
  * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64 linear-scan spill.
  */
 #[no_mangle]
@@ -65395,10 +65396,9 @@ export function glue_index_scratch_stack_depth_get(): i32 {
 //   glue_binop_stack_spill_append_at_depth / cap_get / clear / drop_off /
 //   find_depth / n_get / off_at
 // Pure-owned BSS: g_binop_stack_spill_off[12] + at_depth[12] + n.
-// Consumers: pure push_elf / cleanup / intersect / pressure-evict; Cap residual
-// try_reload uses find_depth only (no raw static). Seed cold twins under FROM_X.
-// Deferred: try_reload enc (VAR cache + arm64 ldr) / CAP cache structs /
-//   spill VAR+color BSS / for_call_args mega / pipeline_x mega.
+// Consumers: pure push_elf / cleanup / intersect / pressure-evict; pure
+// try_reload (wave211) uses find_depth only (no raw static). Seed cold twins under FROM_X.
+// Deferred: live_fwd / color / interf BSS / for_call_args mega / pipeline_x mega.
 // PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path for table.
 // ===========================================================================
 
@@ -65575,7 +65575,7 @@ export function glue_binop_stack_spill_off_at(i: i32): i32 {
 // Pure-owned BSS: flattened minus_pair + subadd3 fields (valid/ctx/i|j|k_key/
 // slot_depth). Consumers: pure hit/spill/cleanup/invalidate (wave169/172);
 // Cap residual no longer holds static structs. Key hash pure wave177.
-// Seed cold twins under FROM_X. Deferred: spill VAR+color BSS / try_reload enc /
+// Seed cold twins under FROM_X. Deferred: live_fwd / color / interf BSS /
 //   for_call_args mega / pipeline_x mega.
 // PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path for CAP stack.
 // ===========================================================================
@@ -65868,10 +65868,10 @@ export function glue_index_scratch_caches_hit_var(arena: *u8, var_ref: i32): i32
 //     set_valid_rax|rbx,set_rax|rbx_off,set_spill_slot,
 //     valid_x10..x15_get,x10..x15_off_get,set_valid_x10..x15}
 // Pure-owned BSS: flattened valid/ctx/off fields for rax/rbx + x10–x15.
-// Consumers: pure binop leave (wave149+) + Cap residual try_reload enc /
+// Consumers: pure binop leave (wave149+) + pure try_reload (wave211) /
 //   cfg_merge clear / color stamp. stack_spill_drop_off pure wave208.
 // Seed cold twins under FROM_X. Deferred: color/interf BSS / live_fwd BSS /
-//   try_reload enc / for_call_args mega / pipeline_x mega.
+//   for_call_args mega / pipeline_x mega.
 // PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path for x10–x15.
 // ===========================================================================
 
@@ -66395,3 +66395,86 @@ export function glue_binop_var_slot_cache_set_valid_x15(v: i32): void {
 }
 
 // end wave210 pure-owned leave
+
+// ===========================================================================
+// wave211: binop stack-spill try_reload enc pure leave
+// (was Cap residual pipeline_asm_emit_spill.c glue_binop_stack_spill_try_reload_elf_c)
+// G.7 product authority for freestanding 7.3 arm64 stack-frame spill reload:
+//   glue_binop_stack_spill_try_reload_elf_c
+// Dependencies pure-owned already: stack_spill_find_depth (wave208), CAP
+// depth_get (wave207), VAR cache setters (wave210). Enc: arch_arm64_enc
+// enc_ldr_sp_slot_to_xreg (export extern). Seed cold twin under FROM_X.
+// Deferred: live_fwd / color / interf BSS / for_call_args mega / pipeline_x mega.
+// PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64.
+// ===========================================================================
+
+/**
+ * If off is in the binop stack-spill table, load [sp,#slot*16] into rax/x0
+ * or rbx/x1 and stamp the pure VAR slot cache.
+ *
+ * Contract:
+ *   - ta must be 1 (arm64); other arches return 0 (miss)
+ *   - off < 0 / null elf_ctx → 0
+ *   - find_depth(off) < 0 → 0 (not spilled to stack frame)
+ *   - CAP depth < at_depth → 0 (stack frame no longer holds that slot)
+ *   - slot = CAP_depth - at_depth; enc_ldr_sp_slot_to_xreg(elf, slot, reg)
+ *   - on success stamps pure VAR cache valid+off for rax (reg=0) or rbx (reg=1)
+ *
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param ta i32 — target arch (1 = arm64)
+ * @param off i32 — frame slot offset of the spilled local
+ * @param to_rbx i32 — non-zero → load into rbx/x1; else rax/x0
+ * @return i32 — 1 hit; 0 miss/no-op; -1 enc fail
+ *
+ * wave211 pure: G.7 authority (was Cap residual spill wave170 thin).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_binop_stack_spill_try_reload_elf_c(elf_ctx: *u8, ta: i32, off: i32, to_rbx: i32): i32 {
+  let at_depth: i32 = 0;
+  let cap_depth: i32 = 0;
+  let slot: i32 = 0;
+  let rc: i32 = 0;
+  if (ta != 1 || off < 0 || elf_ctx == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    at_depth = glue_binop_stack_spill_find_depth(off);
+  }
+  if (at_depth < 0) {
+    return 0;
+  }
+  unsafe {
+    cap_depth = glue_index_scratch_stack_depth_get();
+  }
+  if (cap_depth < at_depth) {
+    return 0;
+  }
+  slot = cap_depth - at_depth;
+  if (to_rbx != 0) {
+    unsafe {
+      rc = arch_arm64_enc_enc_ldr_sp_slot_to_xreg(elf_ctx, slot, 1);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      glue_binop_var_slot_cache_set_valid_rbx(1);
+      glue_binop_var_slot_cache_set_rbx_off(off);
+    }
+  } else {
+    unsafe {
+      rc = arch_arm64_enc_enc_ldr_sp_slot_to_xreg(elf_ctx, slot, 0);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      glue_binop_var_slot_cache_set_valid_rax(1);
+      glue_binop_var_slot_cache_set_rax_off(off);
+    }
+  }
+  return 1;
+}
+
+// end wave211 pure-owned leave
