@@ -705,6 +705,10 @@ extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, str
  * wave144 pure leave: sret helpers live in runtime_pipeline_abi pure.
  * glue 1989-1991 forward decls kept (struct_lit/struct_let call them). */
 
+/* wave1019/152 → wave203 pure-owned leave: glue_call_arg_resolve_var_stack_off
+ * live in runtime_pipeline_abi pure (#[no_mangle]); private unusable /
+ * append_at_offset / anon body-let helpers pure-owned same wave. Cap residual
+ * call_args keeps prototype only + seed cold twin under #ifndef FROM_X. */
 /* wave1207/1208 → wave202 pure-owned leave: MEMORY by-value push/store live in
  * runtime_pipeline_abi pure (#[no_mangle]). Cap residual call_args keeps
  * prototypes only; seed cold twins under #ifndef FROM_X.

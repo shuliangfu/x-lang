@@ -40798,7 +40798,8 @@ export extern "C" function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_c
 // wave162 pure-owned: pipeline_asm_emit_break_elf_c / continue_elf_c body in EOF.
 export extern "C" function backend_emit_expr_elf_slow(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32;
-export extern "C" function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+// wave203 pure-owned: glue_call_arg_resolve_var_stack_off_elf_c at EOF (#[no_mangle]).
+// G.7 ban dual export extern + pure export for the same symbol.
 // wave193 pure-owned: glue_load_var_as_value_to_rax_rdx_elf_c at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
 export extern "C" function backend_enc_load_rbp_to_rdx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
@@ -63697,7 +63698,7 @@ export function pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx: *u8, ct
 // Sources: VAR local / nested CALL sret / STRUCT_LIT / FIELD_ACCESS.
 // Reuses pure glue_call_return_byte_size_c (w194) + struct_let_init (w132) +
 //   emit_expr_elf_rec (w152) + lvalue_eff_addr (w185) + set_call_sret_reg_shift +
-//   glue_arm64_mov_x0_to_x8 + Cap residual glue_call_arg_resolve_var_stack_off +
+//   glue_arm64_mov_x0_to_x8 + pure glue_call_arg_resolve_var_stack_off (w203) +
 //   AsmFuncCtx.next_offset@4 via pipe_load/store (LP64).
 // Deferred: for_call_args mega / spill BSS / CAP BSS / pipeline_x mega.
 // PLATFORM: LINUX+MACOS x86_64 SysV (push) · MACOS|ARM64 AAPCS64 (store).
@@ -64019,3 +64020,233 @@ export function pipeline_asm_store_memory_by_value_to_sp_elf_c(
 }
 
 // end wave202 pure-owned leave
+
+// ===========================================================================
+// wave203: CALL-arg VAR stack_off resolve pure leave
+// (was Cap residual in pipeline_asm_emit_call_args.c wave1019/wave152)
+// G.7 product authority for CALL-arg / expr VAR rbp home recovery:
+//   glue_call_arg_resolve_var_stack_off_elf_c  (public; scoped + lazy body-let)
+// Private helpers (sole consumers of this face):
+//   glue_block_let_name_is_unusable_c
+//   glue_append_block_let_local_at_offset
+//   glue_call_arg_resolve_anon_body_let_elf_c
+// Reuses pure glue_var_expr_stack_off (w188) + glue_lazy_append_block_let_local
+//   (w124) + emit_module_ref / emit_func_index (w141) + pipe num_locals@8.
+// Cap residual for_call_args / MEMORY pure (w202) call this face.
+// Deferred: for_call_args mega / store_retval / spill BSS / CAP BSS / pipeline_x mega.
+// PLATFORM: SHARED freestanding · SKIP_TYPECK anon/zero-name let sidecar.
+// ===========================================================================
+
+/**
+ * True when LetDecl.name_len>0 but name bytes are all zero (SKIP_TYPECK fill).
+ * Such names must not be used for sidecar matching; fall back to anon let path.
+ * @param name_buf *u8 — name bytes; null → unusable (1)
+ * @param name_len i32 — declared length; <=0 → unusable (1)
+ * @return i32 — 1 if unusable; 0 if any non-zero byte in [0,min(name_len,127))
+ *
+ * wave203 pure: private G.7 helper for resolve_var_stack_off (was Cap residual static).
+ * PLATFORM: SHARED freestanding SKIP_TYPECK name gate.
+ */
+function glue_block_let_name_is_unusable_c(name_buf: *u8, name_len: i32): i32 {
+  let k: i32 = 0;
+  if (name_buf == (0 as *u8) || name_len <= 0) {
+    return 1;
+  }
+  k = 0;
+  while (k < name_len && k < 127) {
+    if (name_buf[k] != 0) {
+      return 0;
+    }
+    k = k + 1;
+  }
+  return 1;
+}
+
+/**
+ * Register a block-let sidecar at a known rbp-negative offset without bumping
+ * next_offset (SKIP_TYPECK anon path reuses precomputed body slot).
+ * @param ctx *u8 — AsmFuncCtx*; null → -1
+ * @param name *u8 — VAR name bytes; null → -1
+ * @param name_len i32 — length; must be >0
+ * @param slot_off i32 — known stack home (already computed from body slot)
+ * @return i32 — 0 success (incl. already registered); -1 invalid / append fail
+ *
+ * wave203 pure: private G.7 helper for anon body-let resolve (was Cap residual static).
+ * PLATFORM: SHARED freestanding local table append · LP64 num_locals@8.
+ */
+function glue_append_block_let_local_at_offset(ctx: *u8, name: *u8, name_len: i32, slot_off: i32): i32 {
+  let found: i32 = 0;
+  let ap: i32 = 0;
+  let nloc: i32 = 0;
+  if (ctx == (0 as *u8) || name == (0 as *u8) || name_len <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    found = asm_ctx_local_find_offset(ctx, name, name_len);
+  }
+  if (found >= 0) {
+    return 0;
+  }
+  unsafe {
+    ap = asm_ctx_local_append(ctx, name, name_len, slot_off);
+  }
+  if (ap < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    nloc = asm_ctx_local_count(ctx);
+  }
+  // G.7: same num_locals@8 write as pure glue_lazy_append_block_let_local (w124).
+  pipe_store_i32_le(ctx, pipe_asm_ctx_off_num_locals(), nloc);
+  return 0;
+}
+
+/**
+ * SKIP_TYPECK unnamed/zero-name body let: map VAR arg name onto body let slot.
+ * slot = slot_base + nconst + let_idx; register sidecar at that offset.
+ * @param arena *u8 — ASTArena*; null → -1
+ * @param ctx *u8 — AsmFuncCtx*; null → -1
+ * @param body_ref i32 — current emit function body block; must be >0
+ * @param let_idx i32 — let index in body; must be >=0
+ * @param vname *u8 — VAR name bytes to register
+ * @param vlen i32 — name length; must be >0
+ * @return i32 — slot_off on success; -1 on gate/append fail
+ *
+ * wave203 pure: private G.7 helper for resolve_var_stack_off (was Cap residual static).
+ * PLATFORM: SHARED freestanding body-let slot base · backend_block_slot_base_for Cap residual.
+ */
+function glue_call_arg_resolve_anon_body_let_elf_c(
+    arena: *u8, ctx: *u8, body_ref: i32, let_idx: i32, vname: *u8, vlen: i32): i32 {
+  let slot_base: i32 = 0;
+  let nconst: i32 = 0;
+  let slot: i32 = 0;
+  let slot_off: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || vname == (0 as *u8) || vlen <= 0 || body_ref <= 0 || let_idx < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    slot_base = backend_block_slot_base_for(ctx, arena, body_ref);
+    nconst = ast_ast_block_num_consts(arena, body_ref);
+    slot = slot_base + nconst + let_idx;
+    slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+  }
+  rc = glue_append_block_let_local_at_offset(ctx, vname, vlen, slot_off);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return slot_off;
+}
+
+/**
+ * Resolve a CALL-arg (or expr) VAR to its rbp-relative stack home.
+ * Fast path: pure glue_var_expr_stack_off (scoped/unscoped). Slow path: walk
+ * current emit function body lets; match name; lazy-append via pure
+ * glue_lazy_append_block_let_local; or anon/zero-name SKIP_TYPECK via
+ * glue_call_arg_resolve_anon_body_let_elf_c.
+ * @param arena *u8 — ASTArena*; null → -1
+ * @param ctx *u8 — AsmFuncCtx*; null → -1
+ * @param var_expr_ref i32 — must be EXPR_VAR (kind 3)
+ * @return i32 — stack offset >=0 on success; -1 unresolved / invalid
+ *
+ * wave203 pure: G.7 authority (was Cap residual call_args wave1019 / wave152 public).
+ * PLATFORM: SHARED freestanding CALL-arg VAR home · SKIP_TYPECK anon let sidecar.
+ */
+#[no_mangle]
+export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32 {
+  let off: i32 = 0 - 1;
+  let body_ref: i32 = 0;
+  let li: i32 = 0;
+  let nlet: i32 = 0;
+  let vname: u8[128] = [];
+  let vlen: i32 = 0;
+  let ko: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let fi: i32 = 0 - 1;
+  let lb: u8[128] = [];
+  let llen: i32 = 0;
+  let k: i32 = 0;
+  let eq: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || var_expr_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+  }
+  // GLUE_EXPR_KIND_VAR == 3
+  if (ko != 3) {
+    return 0 - 1;
+  }
+  // 1) Fast path: scoped/unscoped pure stack_off (wave188).
+  off = glue_var_expr_stack_off_elf_c(arena, ctx, var_expr_ref);
+  if (off >= 0) {
+    return off;
+  }
+  mod = pipeline_asm_emit_module_ref_c();
+  fi = pipeline_asm_emit_func_index_c();
+  if (mod == (0 as *u8) || fi < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+  }
+  if (vlen <= 0 || vlen > 127) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
+    body_ref = pipeline_module_func_body_ref_at(mod, fi);
+  }
+  if (body_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    nlet = ast_ast_block_num_lets(arena, body_ref);
+  }
+  li = 0;
+  while (li < nlet) {
+    unsafe {
+      llen = pipeline_block_let_name_len(arena, body_ref, li);
+      pipeline_block_let_name_copy64(arena, body_ref, li, &lb[0]);
+    }
+    // name_len matches VAR but bytes unwritten (SKIP_TYPECK) → anon let fallback.
+    if (llen == vlen && vlen > 0 && glue_block_let_name_is_unusable_c(&lb[0], llen) != 0) {
+      if (nlet == 1 && li == 0) {
+        return glue_call_arg_resolve_anon_body_let_elf_c(arena, ctx, body_ref, li, &vname[0], vlen);
+      }
+      li = li + 1;
+      continue;
+    }
+    if (llen != vlen) {
+      // Single name_len==0 body let (e.g. dep_sync_i) → anon register under VAR name.
+      if (llen == 0 && vlen > 0 && nlet == 1 && li == 0) {
+        return glue_call_arg_resolve_anon_body_let_elf_c(arena, ctx, body_ref, li, &vname[0], vlen);
+      }
+      li = li + 1;
+      continue;
+    }
+    eq = 1;
+    k = 0;
+    while (k < vlen) {
+      if (lb[k] != vname[k]) {
+        eq = 0;
+        break;
+      }
+      k = k + 1;
+    }
+    if (eq == 0) {
+      li = li + 1;
+      continue;
+    }
+    // Named body let: lazy-append then re-resolve stack_off.
+    rc = glue_lazy_append_block_let_local(arena, ctx, body_ref, li, &vname[0], vlen);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return glue_var_expr_stack_off_elf_c(arena, ctx, var_expr_ref);
+  }
+  return 0 - 1;
+}
+
+// end wave203 pure-owned leave

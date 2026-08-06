@@ -45,6 +45,9 @@
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - pipeline_asm_store_memory_by_value_to_sp_elf_c — wave202 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
+ * - glue_call_arg_resolve_var_stack_off_elf_c — wave203 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin;
+ *   private helpers unusable/append_at_offset/anon body-let pure-owned same wave
  * - pipeline_asm_emit_expr_elf_for_call_args (public entry; f32 lit, VAR
  *   array→slice fat, dual-GP, fixed array, STRUCT_LIT, INDEX, FIELD, rec)
  *
@@ -116,7 +119,7 @@ extern int32_t glue_field_access_layout_field_type_ref_by_name_c(struct ast_ASTA
                                                                   struct ast_Module *mod, int32_t fa_ref);
 
 /* Forward decls / callees defined elsewhere in the same TU:
- * - glue_call_arg_resolve_var_stack_off_elf_c (static; body in this leaf wave1019)
+ * - glue_call_arg_resolve_var_stack_off_elf_c (wave203 pure leave; Cap residual prototype)
  * - glue_type_size_simple / glue_sysv_dual_gp_byte_size_c (later)
  * - glue_slice_let_reent_deep_copy_after_dual_gp_elf_c (body in this leaf wave1022)
  * - pipeline_asm_emit_expr_elf_rec / glue_emit_float_lit_to_rax_elf_c
@@ -146,119 +149,15 @@ extern int32_t glue_field_access_layout_field_type_ref_by_name_c(struct ast_ASTA
  * PLATFORM: SHARED product residual C / LINUX+MACOS SysV f32 param homing.
  * ======================================================================== */
 
-/** SKIP_TYPECK：LetDecl.name_len>0 但 name[] 全零，不可用于 sidecar 匹配。 */
-static int32_t glue_block_let_name_is_unusable_c(uint8_t *name_buf, int32_t name_len) {
-  int32_t k;
-  if (name_len <= 0)
-    return 1;
-  for (k = 0; k < name_len && k < 127; k++) {
-    if (name_buf[k] != 0)
-      return 0;
-  }
-  return 1;
-}
-
-/**
- * 以已知 rbp 负偏移登记块 let（SKIP_TYPECK 无名 let 回落；勿 bump next_offset 重算槽位）。
- */
-static int32_t glue_append_block_let_local_at_offset(struct backend_AsmFuncCtx *ctx, uint8_t *name,
-                                                     int32_t name_len, int32_t slot_off) {
-  pipeline_glue_AsmFuncCtxLayout *ly;
-  if (!ctx || !name || name_len <= 0)
-    return -1;
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (!ly)
-    return -1;
-  if (asm_ctx_local_find_offset((uint8_t *)ctx, name, name_len) >= 0)
-    return 0;
-  if (asm_ctx_local_append((uint8_t *)ctx, name, name_len, slot_off) < 0)
-    return -1;
-  ly->num_locals = asm_ctx_local_count((uint8_t *)ctx);
-  return 0;
-}
-
-/**
- * SKIP_TYPECK 无名/空名 let：按函数体 let 槽位 + VAR 实参名登记 sidecar。
- */
-static int32_t glue_call_arg_resolve_anon_body_let_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                           int32_t body_ref, int32_t let_idx, uint8_t *vname,
-                                                           int32_t vlen) {
-  int32_t slot_base;
-  int32_t nconst;
-  int32_t slot;
-  int32_t slot_off;
-  if (!arena || !ctx || !vname || vlen <= 0 || body_ref <= 0 || let_idx < 0)
-    return -1;
-  slot_base = backend_block_slot_base_for(ctx, arena, body_ref);
-  nconst = ast_ast_block_num_consts(arena, body_ref);
-  slot = slot_base + nconst + let_idx;
-  slot_off = backend_asm_ctx_slot_offset(ctx, slot);
-  if (glue_append_block_let_local_at_offset(ctx, vname, vlen, slot_off) != 0)
-    return -1;
-  return slot_off;
-}
-
-/**
- * CALL 实参：解析局部 VAR 栈偏移；while/if 子块 scoped lookup 失败时懒登记函数体 let。
- */
-/* wave152: was static; pure expr_rec leave Cap residual (link-visible). */
+/* wave203 pure-owned: glue_call_arg_resolve_var_stack_off_elf_c body in
+ * runtime_pipeline_abi.x (#[no_mangle] export). Private helpers
+ * glue_block_let_name_is_unusable_c / glue_append_block_let_local_at_offset /
+ * glue_call_arg_resolve_anon_body_let_elf_c pure-owned same wave (sole
+ * consumers; Cap residual host bodies removed). Cap residual: prototype only.
+ * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED freestanding CALL-arg VAR stack home · SKIP_TYPECK anon let. */
 int32_t glue_call_arg_resolve_var_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                            int32_t var_expr_ref) {
-  int32_t off;
-  int32_t body_ref;
-  int32_t li;
-  int32_t nlet;
-  uint8_t vname[128];
-  int32_t vlen;
-  if (!arena || !ctx || var_expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, var_expr_ref) != GLUE_EXPR_KIND_VAR)
-    return -1;
-  off = glue_var_expr_stack_off_elf_c(arena, ctx, var_expr_ref);
-  if (off >= 0)
-    return off;
-  if (!g_pipeline_asm_emit_module || g_pipeline_asm_emit_func_index < 0)
-    return -1;
-  vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-  if (vlen <= 0 || vlen > 127)
-    return -1;
-  pipeline_expr_var_name_into(arena, var_expr_ref, vname);
-  body_ref = pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
-  if (body_ref <= 0)
-    return -1;
-  nlet = ast_ast_block_num_lets(arena, body_ref);
-  for (li = 0; li < nlet; li++) {
-    uint8_t lb[128];
-    int32_t llen;
-    int32_t k;
-    int32_t eq;
-    llen = pipeline_block_let_name_len(arena, body_ref, li);
-    pipeline_block_let_name_copy64(arena, body_ref, li, lb);
-    /** name_len 与 VAR 名等长但字节未写入（SKIP_TYPECK fill）时按 anon let 回落。 */
-    if (llen == vlen && vlen > 0 && glue_block_let_name_is_unusable_c(lb, llen)) {
-      if (nlet == 1 && li == 0)
-        return glue_call_arg_resolve_anon_body_let_elf_c(arena, ctx, body_ref, li, vname, vlen);
-      continue;
-    }
-    if (llen != vlen) {
-      /** name_len==0 的单 let 函体（dep_sync_i 等）。 */
-      if (llen == 0 && vlen > 0 && nlet == 1 && li == 0)
-        return glue_call_arg_resolve_anon_body_let_elf_c(arena, ctx, body_ref, li, vname, vlen);
-      continue;
-    }
-    eq = 1;
-    for (k = 0; k < vlen; k++) {
-      if (lb[k] != vname[k]) {
-        eq = 0;
-        break;
-      }
-    }
-    if (eq == 0)
-      continue;
-    if (glue_lazy_append_block_let_local(arena, ctx, body_ref, li, vname, vlen) != 0)
-      return -1;
-    return glue_var_expr_stack_off_elf_c(arena, ctx, var_expr_ref);
-  }
-  return -1;
-}
+                                                            int32_t var_expr_ref);
 
 /* wave149: glue_type_ref_is_scalar_f32_c pure-owned leave — Cap residual extern. PLATFORM: SHARED. */
 extern int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t type_ref);

@@ -26052,6 +26052,18 @@ int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(void *arena, void *elf_ct
   return -1;
 }
 
+/*
+ * wave203 cold twin: CALL-arg VAR stack_off resolve (G.7 pure leave).
+ * Freestanding-safe stub (-1 = unresolved). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding CALL-arg VAR home · SKIP_TYPECK anon let.
+ */
+int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref) {
+  (void)arena;
+  (void)ctx;
+  (void)var_expr_ref;
+  return -1;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */
