@@ -705,20 +705,11 @@ extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, str
  * wave144 pure leave: sret helpers live in runtime_pipeline_abi pure.
  * glue 1989-1991 forward decls kept (struct_lit/struct_let call them). */
 
-/* wave1207 G.7: pipeline_asm_push_sysv_memory_by_value_elf_c (99 lines,
- * x86_64 SysV MEMORY push) migrated to pipeline_asm_emit_call_args.c EOF
- * (colocated with call-arg emit domain; #include at L1660). See call_args.c
- * EOF for full docblock + dep list. No TU-internal callsites — sole callers
- * are seeds (backend_call_dispatch.from_x.c L972/2540/3783/4008) via extern.
- * PLATFORM: LINUX+MACOS x86_64 SysV (ta==0). */
-
-/* wave1208 G.7: pipeline_asm_store_memory_by_value_to_sp_elf_c (102 lines,
- * arm64 AAPCS64 MEMORY store) migrated to pipeline_asm_emit_call_args.c EOF
- * (colocated with call-arg emit domain; #include at L1660). G.7 twin of
- * push_sysv (x86 high-end push-reverse vs arm64 low-end copy-forward).
- * No TU-internal callsites — sole callers are seeds
- * (backend_call_dispatch.from_x.c L2644/4123) via extern.
- * PLATFORM: MACOS|ARM64 AAPCS64 (ta==1). */
+/* wave1207/1208 → wave202 pure-owned leave: MEMORY by-value push/store live in
+ * runtime_pipeline_abi pure (#[no_mangle]). Cap residual call_args keeps
+ * prototypes only; seed cold twins under #ifndef FROM_X.
+ * Callers: seeds backend_call_dispatch.from_x.c via extern.
+ * PLATFORM: LINUX+MACOS x86_64 SysV (push) · MACOS|ARM64 AAPCS64 (store). */
 
 /* wave1057 G.7: glue_sysv_dual_gp_byte_size_c migrated to
  * pipeline_asm_emit_call_args.c EOF (SysV ABI type classification domain).

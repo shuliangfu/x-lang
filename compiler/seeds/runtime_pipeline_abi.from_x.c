@@ -26023,6 +26023,35 @@ int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(void *elf_ctx, void *ctx
   return -1;
 }
 
+/*
+ * wave202 cold twins: MEMORY-by-value CALL-arg push/store (G.7 pure leave).
+ * Freestanding-safe stubs (-1 = gate/enc fail). Hybrid product links pure.
+ * PLATFORM: LINUX+MACOS x86_64 SysV (push) · MACOS|ARM64 AAPCS64 (store).
+ */
+int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(void *arena, void *elf_ctx, void *ctx,
+                                                      int32_t arg_ref, int32_t sz, int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)ctx;
+  (void)arg_ref;
+  (void)sz;
+  (void)ta;
+  return -1;
+}
+
+int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(void *arena, void *elf_ctx, void *ctx,
+                                                        int32_t arg_ref, int32_t sz, int32_t ta,
+                                                        int32_t sp_off) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)ctx;
+  (void)arg_ref;
+  (void)sz;
+  (void)ta;
+  (void)sp_off;
+  return -1;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */

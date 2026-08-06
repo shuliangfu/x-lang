@@ -1187,6 +1187,8 @@ export extern "C" function glue_loop_continue_head_note_current(): void;
 // push/pop/load32/mov_rbx/cmp/jeq are backend_enc_dispatch pure; Cap residual for this TU.
 export extern "C" function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i32, out: *u8): i32;
 export extern "C" function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
+// wave202 Cap residual: arm64 MEMORY-by-value SP store (backend_enc_dispatch pure).
+export extern "C" function backend_enc_store_x0_sp_offset_arch(elf_ctx: *u8, off_bytes: i32, ta: i32): i32;
 export extern "C" function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
@@ -63371,8 +63373,8 @@ export function glue_load_f32_var_slot_to_rbx_elf_c(elf_ctx: *u8, arena: *u8, ct
 //   (kind predicates; is_f32 true for f32|f64 class; is_f64 narrows width).
 // Reuses pure glue_func_param_agg_byte_size_c (w193) + glue_func_param_home_width_c
 //   (w192) + emit_ctx arena/sret getters + backend_enc mov/store/load faces.
-// Deferred: for_call_args mega / MEMORY by-value push/store / spill BSS /
-//   CAP BSS / pipeline_x mega.
+// Deferred (done wave202): MEMORY by-value push/store.
+// Deferred: for_call_args mega / spill BSS / CAP BSS / pipeline_x mega.
 // PLATFORM: LINUX+MACOS x86_64 SysV — f32 xmm split-track is x86-only (ta=0).
 // ===========================================================================
 
@@ -63685,3 +63687,335 @@ export function pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx: *u8, ct
 }
 
 // end wave201 pure-owned leave
+
+// ===========================================================================
+// wave202: MEMORY-by-value CALL-arg pure leave
+// (was Cap residual in pipeline_asm_emit_call_args.c wave1207/1208)
+// G.7 product authority for >16B aggregate CALL packing:
+//   pipeline_asm_push_sysv_memory_by_value_elf_c   (x86_64 SysV push reverse)
+//   pipeline_asm_store_memory_by_value_to_sp_elf_c (arm64 AAPCS64 store to SP)
+// Sources: VAR local / nested CALL sret / STRUCT_LIT / FIELD_ACCESS.
+// Reuses pure glue_call_return_byte_size_c (w194) + struct_let_init (w132) +
+//   emit_expr_elf_rec (w152) + lvalue_eff_addr (w185) + set_call_sret_reg_shift +
+//   glue_arm64_mov_x0_to_x8 + Cap residual glue_call_arg_resolve_var_stack_off +
+//   AsmFuncCtx.next_offset@4 via pipe_load/store (LP64).
+// Deferred: for_call_args mega / spill BSS / CAP BSS / pipeline_x mega.
+// PLATFORM: LINUX+MACOS x86_64 SysV (push) · MACOS|ARM64 AAPCS64 (store).
+// ===========================================================================
+
+/**
+ * Push a MEMORY-class (>16B) by-value aggregate onto the x86_64 SysV call stack.
+ * Materializes arg from VAR / nested CALL sret / STRUCT_LIT / FIELD_ACCESS into
+ * a high-end frame temp, then pushes qwords high-first so [rsp+0] is byte0.
+ * @param arena *u8 — ASTArena*; null → -1
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
+ * @param ctx *u8 — AsmFuncCtx*; null → -1; next_offset@4 bumped during materialize
+ * @param arg_ref i32 — call-arg expr_ref; must be >0
+ * @param sz i32 — aggregate byte size; must be >16
+ * @param ta i32 — target arch; must be 0 (x86_64 SysV only)
+ * @return i32 — 8-aligned bytes pushed on success; -1 on gate/enc/materialize fail
+ *
+ * wave202 pure: G.7 authority (was Cap residual call_args wave1207).
+ * PLATFORM: LINUX+MACOS x86_64 SysV — ta!=0 returns -1.
+ */
+#[no_mangle]
+export function pipeline_asm_push_sysv_memory_by_value_elf_c(
+    arena: *u8, elf_ctx: *u8, ctx: *u8, arg_ref: i32, sz: i32, ta: i32): i32 {
+  let off: i32 = 0 - 1;
+  let nbytes: i32 = 0;
+  let k: i32 = 0;
+  let ko: i32 = 0;
+  let ret_sz: i32 = 0;
+  let cur: i32 = 0;
+  let sum: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || arg_ref <= 0 || sz <= 16 || ta != 0) {
+    return 0 - 1;
+  }
+  nbytes = (sz + 7) & (0 - 8);
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  }
+  // 1) Local VAR: known stack home.
+  if (ko == 3) {
+    unsafe {
+      off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, arg_ref);
+    }
+    if (off < 0) {
+      return 0 - 1;
+    }
+  } else {
+    if (ko == 48 || ko == 49) {
+      // 2) Nested CALL/METHOD large return: sret into high-end frame temp.
+      ret_sz = glue_call_return_byte_size_c(arena, arg_ref);
+      if (ret_sz <= 16) {
+        ret_sz = sz;
+      }
+      if (ret_sz <= 16) {
+        return 0 - 1;
+      }
+      cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+      sum = cur + nbytes;
+      if (sum < cur) {
+        return 0 - 1;
+      }
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), sum);
+      off = sum;
+      unsafe {
+        rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+      rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta);
+      if (rc != 0) {
+        pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+        return 0 - 1;
+      }
+      pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+    } else {
+      if (ko == 45) {
+        // 3) STRUCT_LIT: materialize fields into high-end frame temp.
+        cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+        sum = cur + nbytes;
+        if (sum < cur) {
+          return 0 - 1;
+        }
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), sum);
+        off = sum;
+        rc = pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, arg_ref, ctx, ta, off);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      } else {
+        if (ko == 44) {
+          // 4) FIELD_ACCESS: copy aggregate from lvalue address into temp.
+          cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+          sum = cur + nbytes;
+          if (sum < cur) {
+            return 0 - 1;
+          }
+          pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), sum);
+          off = sum;
+          k = 0;
+          while (k < nbytes) {
+            rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta);
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            if (k != 0) {
+              unsafe {
+                rc = backend_enc_add_imm_to_rax_arch(elf_ctx, k, ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+            }
+            unsafe {
+              rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, off - k, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            k = k + 8;
+          }
+        } else {
+          return 0 - 1;
+        }
+      }
+    }
+  }
+  // Push high qwords first so [rsp+0] holds struct byte 0.
+  k = nbytes - 8;
+  while (k >= 0) {
+    unsafe {
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off - k, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_push_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    k = k - 8;
+  }
+  return nbytes;
+}
+
+/**
+ * Store a MEMORY-class (>16B) by-value aggregate to SP+offset for AAPCS64.
+ * Materializes arg from VAR / nested CALL sret (x8) / STRUCT_LIT / FIELD_ACCESS
+ * into a low-end frame temp, then copies qwords to SP+sp_off.
+ * @param arena *u8 — ASTArena*; null → -1
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
+ * @param ctx *u8 — AsmFuncCtx*; null → -1; next_offset@4 bumped during materialize
+ * @param arg_ref i32 — call-arg expr_ref; must be >0
+ * @param sz i32 — aggregate byte size; must be >16
+ * @param ta i32 — target arch; must be 1 (arm64 AAPCS64 only)
+ * @param sp_off i32 — SP offset for first qword; must be >=0
+ * @return i32 — 8-aligned bytes stored on success; -1 on gate/enc/materialize fail
+ *
+ * wave202 pure: G.7 authority (was Cap residual call_args wave1208).
+ * PLATFORM: MACOS|ARM64 AAPCS64 — ta!=1 returns -1.
+ */
+#[no_mangle]
+export function pipeline_asm_store_memory_by_value_to_sp_elf_c(
+    arena: *u8, elf_ctx: *u8, ctx: *u8, arg_ref: i32, sz: i32, ta: i32, sp_off: i32): i32 {
+  let off: i32 = 0 - 1;
+  let nbytes: i32 = 0;
+  let k: i32 = 0;
+  let ko: i32 = 0;
+  let ret_sz: i32 = 0;
+  let cur: i32 = 0;
+  let sum: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || arg_ref <= 0 || sz <= 16 || ta != 1 || sp_off < 0) {
+    return 0 - 1;
+  }
+  nbytes = (sz + 7) & (0 - 8);
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  }
+  // 1) Local VAR: known stack home.
+  if (ko == 3) {
+    unsafe {
+      off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, arg_ref);
+    }
+    if (off < 0) {
+      return 0 - 1;
+    }
+  } else {
+    if (ko == 48 || ko == 49) {
+      // 2) Nested CALL/METHOD large return: AAPCS64 sret via x8 into low-end temp.
+      ret_sz = glue_call_return_byte_size_c(arena, arg_ref);
+      if (ret_sz <= 16) {
+        ret_sz = sz;
+      }
+      if (ret_sz <= 16) {
+        return 0 - 1;
+      }
+      cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+      off = cur;
+      if (off < 16) {
+        off = 16;
+      }
+      sum = off + nbytes;
+      if (sum < off) {
+        return 0 - 1;
+      }
+      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), sum);
+      unsafe {
+        rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      // AAPCS64 Indirect Result Location = x8 (not an arg GP).
+      rc = glue_arm64_mov_x0_to_x8_elf_c(elf_ctx);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta);
+      if (rc != 0) {
+        return 0 - 1;
+      }
+    } else {
+      if (ko == 45) {
+        // 3) STRUCT_LIT: materialize fields into low-end frame temp.
+        cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+        off = cur;
+        if (off < 16) {
+          off = 16;
+        }
+        sum = off + nbytes;
+        if (sum < off) {
+          return 0 - 1;
+        }
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), sum);
+        rc = pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, arg_ref, ctx, ta, off);
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      } else {
+        if (ko == 44) {
+          // 4) FIELD_ACCESS: copy aggregate from lvalue address into temp.
+          cur = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+          off = cur;
+          if (off < 16) {
+            off = 16;
+          }
+          sum = off + nbytes;
+          if (sum < off) {
+            return 0 - 1;
+          }
+          pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), sum);
+          k = 0;
+          while (k < nbytes) {
+            rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta);
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            if (k != 0) {
+              unsafe {
+                rc = backend_enc_add_imm_to_rax_arch(elf_ctx, k, ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+            }
+            unsafe {
+              rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, off + k, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            k = k + 8;
+          }
+        } else {
+          return 0 - 1;
+        }
+      }
+    }
+  }
+  k = 0;
+  while (k < nbytes) {
+    unsafe {
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off + k, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_store_x0_sp_offset_arch(elf_ctx, sp_off + k, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    k = k + 8;
+  }
+  return nbytes;
+}
+
+// end wave202 pure-owned leave
