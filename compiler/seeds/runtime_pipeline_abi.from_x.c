@@ -25520,6 +25520,107 @@ int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t var_ref
   return 0;
 }
 
+/*
+ * wave181 cold twins: simple try_index assign-addr→rbx forest (G.7 pure leave).
+ * Freestanding-safe stubs: return -2 (not applicable; force residual/fallback).
+ * Hybrid product links pure. PLATFORM: SHARED freestanding INDEX assign.
+ */
+int32_t glue_try_index_var_lit_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref, int32_t idx_ref,
+                                                void *ctx, int32_t ta, int32_t esz) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)base_ref;
+  (void)idx_ref;
+  (void)ctx;
+  (void)ta;
+  (void)esz;
+  return -2;
+}
+
+int32_t glue_try_index_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref, int32_t idx_ref,
+                                                void *ctx, int32_t ta, int32_t esz) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)base_ref;
+  (void)idx_ref;
+  (void)ctx;
+  (void)ta;
+  (void)esz;
+  return -2;
+}
+
+int32_t glue_try_index_var_plus_lit_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref, int32_t idx_ref,
+                                                         void *ctx, int32_t ta, int32_t esz) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)base_ref;
+  (void)idx_ref;
+  (void)ctx;
+  (void)ta;
+  (void)esz;
+  return -2;
+}
+
+int32_t glue_try_index_var_plus_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref, int32_t idx_ref,
+                                                         void *ctx, int32_t ta, int32_t esz) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)base_ref;
+  (void)idx_ref;
+  (void)ctx;
+  (void)ta;
+  (void)esz;
+  return -2;
+}
+
+int32_t glue_try_index_var_minus_lit_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref, int32_t idx_ref,
+                                                          void *ctx, int32_t ta, int32_t esz) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)base_ref;
+  (void)idx_ref;
+  (void)ctx;
+  (void)ta;
+  (void)esz;
+  return -2;
+}
+
+int32_t glue_try_index_var_minus_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref, int32_t idx_ref,
+                                                          void *ctx, int32_t ta, int32_t esz) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)base_ref;
+  (void)idx_ref;
+  (void)ctx;
+  (void)ta;
+  (void)esz;
+  return -2;
+}
+
+int32_t glue_try_index_var_mul_lit_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref, int32_t idx_ref,
+                                                        void *ctx, int32_t ta, int32_t esz) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)base_ref;
+  (void)idx_ref;
+  (void)ctx;
+  (void)ta;
+  (void)esz;
+  return -2;
+}
+
+int32_t glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref, int32_t idx_ref,
+                                                        void *ctx, int32_t ta, int32_t esz) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)base_ref;
+  (void)idx_ref;
+  (void)ctx;
+  (void)ta;
+  (void)esz;
+  return -2;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 

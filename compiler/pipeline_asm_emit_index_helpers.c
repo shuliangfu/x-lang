@@ -21,6 +21,10 @@
  *   · wave180: type/stride helpers pure
  *     (fixed_array_total_bytes, index_elem_byte_sz_from_type_ref,
  *      var_expr_type_ref_with_decl_fallback)
+ *   · wave181: simple try_index assign-addr→rbx forest pure
+ *     (var_lit / var_idx / plus_lit / plus_var / minus_lit / minus_var /
+ *      mul_lit / mul_var) — residual base_to_rbx stays host; nested
+ *      add3/subadd3/eff_addr still residual
  * - glue_emit_soa_index_field_addr_elf_c (DoD column-major arr[i].field)
  * - pipeline_asm_emit_lvalue_eff_addr_{elf,text}_c (VAR / FIELD / INDEX;
  *   ELF also DEREF; text twin folded wave1013 G.7 有则补全)
@@ -515,8 +519,10 @@ int32_t glue_try_index_var_or_field_base_to_rax_elf_c(struct ast_ASTArena *arena
  * INDEX 基址入 rbx/x1：局部 VAR 或 VAR-base FIELD_ACCESS（assign 右值已在 rax，勿 clobber）。
  * TYPE_SLICE：与 rax 路径对称，从 fat 槽 load `.data` 到 rbx。
  * 0=OK，-1=错，-2=不适用。
+ * wave181: non-static so pure try_index assign-addr forest can call residual base.
+ * PLATFORM: SHARED freestanding · Cap residual authority (not pure yet).
  */
-static int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(struct ast_ASTArena *arena,
+int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                               struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                               int32_t base_ref, struct backend_AsmFuncCtx *ctx,
                                                               int32_t ta) {
@@ -637,332 +643,48 @@ static int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(struct ast_ASTArena
 }
 
 /**
- * INDEX 赋值：VAR 基址 + 字面量下标 → 有效地址入 rbx，不 clobber rax 中右值。
- * 0=成功，-1=错，-2=不适用（走 x2 暂存 + eff_addr 路径）。
+ * wave181 pure-owned: simple try_index assign-addr→rbx forest (8 faces).
+ * Cap residual nested add3/subadd3/eff_addr call pure; residual base_to_rbx stays host.
+ * G.7 single authority — no host body. PLATFORM: SHARED freestanding INDEX assign.
  */
 int32_t glue_try_index_var_lit_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          int32_t base_ref, int32_t idx_ref,
-                                                         struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t esz) {
-  int32_t lit_imm;
-  int32_t byte_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (!pipeline_asm_expr_lit_i32_at_c(arena, idx_ref, &lit_imm))
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  byte_off = lit_imm * esz;
-  if (byte_off != 0 && backend_enc_add_imm_to_rbx_arch(elf_ctx, byte_off, ta) != 0)
-    return -1;
-  return 0;
-}
-
-/**
- * INDEX 赋值：VAR 基址 + VAR 下标 → 有效地址入 rbx（scratch 缩放），不 clobber rax 中右值。
- * 0=成功，-1=错，-2=不适用（走 x2 暂存 + eff_addr 路径）。
- */
+                                                         struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t esz);
 int32_t glue_try_index_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                            int32_t base_ref, int32_t idx_ref,
-                                                           struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t esz) {
-  int32_t lit_dummy;
-  int32_t ioff;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_asm_expr_lit_i32_at_c(arena, idx_ref, &lit_dummy))
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  ioff = glue_var_expr_stack_off_elf_c(arena, ctx, idx_ref);
-  if (ioff < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, ioff, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
-
-/**
- * INDEX 赋值：VAR 基址 + (VAR±lit) 下标 → scratch 缩放寻址入 rbx，不 clobber rax 右值。
- * 仅支持 ADD 且一侧为局部 VAR、一侧为 i32 字面量（如 arr[i+1]=…）；0=OK，-1=错，-2=不适用。
- */
+                                                           struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t esz);
 int32_t glue_try_index_var_plus_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                   int32_t base_ref, int32_t idx_ref,
                                                                   struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                  int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t lit_imm;
-  int32_t var_ref;
-  int32_t var_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  /** kind 4 = EXPR_ADD（与 pipeline_asm_emit_expr_elf_fast 一致）。 */
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 4)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
-    var_ref = left_ref;
-  } else if (pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm)) {
-    var_ref = right_ref;
-  } else {
-    return -2;
-  }
-  if (pipeline_expr_kind_ord_at(arena, var_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  var_off = glue_var_expr_stack_off_elf_c(arena, ctx, var_ref);
-  if (var_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, var_off, ta) != 0)
-    return -1;
-  if (lit_imm != 0 && backend_enc_add_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
-
-/**
- * INDEX 赋值：VAR 基址 + (VAR+VAR) ADD 下标 → 双 scratch 缩放寻址入 rbx，不 clobber rax 右值。
- * 0=成功，-1=错，-2=不适用。
- */
+                                                                  int32_t esz);
 int32_t glue_try_index_var_plus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                   int32_t base_ref, int32_t idx_ref,
                                                                   struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                  int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t loff;
-  int32_t roff;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 4)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, left_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, right_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  loff = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
-  roff = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref);
-  if (loff < 0 || roff < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, loff, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, roff, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
-
-/**
- * INDEX 赋值：VAR 基址 + (VAR-lit) SUB 下标 → scratch 缩放寻址入 rbx，不 clobber rax 右值。
- * 0=成功，-1=错，-2=不适用（仅 var 左操作数、lit 右操作数）。
- */
+                                                                  int32_t esz);
 int32_t glue_try_index_var_minus_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                    int32_t base_ref, int32_t idx_ref,
                                                                    struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                   int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t lit_imm;
-  int32_t var_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  /** kind 5 = EXPR_SUB。 */
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 5)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (!pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm))
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, left_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  var_off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
-  if (var_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, var_off, ta) != 0)
-    return -1;
-  if (lit_imm != 0 && backend_enc_sub_imm_from_index_scratch_arch(elf_ctx, lit_imm, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
-
-/**
- * INDEX 赋值：VAR 基址 + (VAR-VAR) SUB 下标 → 双 scratch 缩放寻址入 rbx，不 clobber rax 右值。
- * 0=成功，-1=错，-2=不适用。
- */
+                                                                   int32_t esz);
 int32_t glue_try_index_var_minus_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                    int32_t base_ref, int32_t idx_ref,
                                                                    struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                   int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t loff;
-  int32_t roff;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 5)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, left_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, right_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  loff = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
-  roff = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref);
-  if (loff < 0 || roff < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, loff, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, roff, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
-
-/**
- * INDEX 赋值：VAR/FIELD 基址 + (VAR*lit) MUL 下标 → scratch 缩放寻址入 rbx，不 clobber rax 右值。
- * 仅支持一侧局部 VAR、一侧 i32 字面量（如 arr[i*2]=…）；0=OK，-1=错，-2=不适用。
- */
+                                                                   int32_t esz);
 int32_t glue_try_index_var_mul_lit_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                   int32_t base_ref, int32_t idx_ref,
                                                                   struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                  int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t lit_imm;
-  int32_t var_ref;
-  int32_t var_off;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  /** kind 6 = EXPR_MUL。 */
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 6)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
-    var_ref = left_ref;
-  } else if (pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm)) {
-    var_ref = right_ref;
-  } else {
-    return -2;
-  }
-  if (lit_imm <= 1 || lit_imm > 65535)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, var_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  var_off = glue_var_expr_stack_off_elf_c(arena, ctx, var_ref);
-  if (var_off < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, var_off, ta) != 0)
-    return -1;
-  if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
-
-/**
- * INDEX 赋值：VAR/FIELD 基址 + (VAR*VAR) MUL 下标 → scratch 缩放寻址入 rbx，不 clobber rax 右值。
- * 0=OK，-1=错，-2=不适用。
- */
+                                                                  int32_t esz);
 int32_t glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                  int32_t base_ref, int32_t idx_ref,
                                                                  struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                                                 int32_t esz) {
-  int32_t left_ref;
-  int32_t right_ref;
-  int32_t loff;
-  int32_t roff;
-  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, idx_ref) != 6)
-    return -2;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, idx_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, idx_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, left_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  if (pipeline_expr_kind_ord_at(arena, right_ref) != GLUE_EXPR_KIND_VAR)
-    return -2;
-  {
-    int32_t br;
-    br = glue_try_index_var_or_field_base_to_rbx_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (br != 0)
-      return br;
-  }
-  loff = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
-  roff = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref);
-  if (loff < 0 || roff < 0)
-    return -2;
-  if (backend_enc_load_rbp_index_scratch_arch(elf_ctx, loff, ta) != 0)
-    return -1;
-  if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, roff, ta) != 0)
-    return -1;
-  if (backend_enc_index_scratch_mul_secondary_arch(elf_ctx, ta) != 0)
-    return -1;
-  return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
+                                                                 int32_t esz);
 
 /* wave178 pure-owned INDEX expr shape peel forest (runtime_pipeline_abi pure).
  * Cap residual try_index faces call these; G.7 single authority — no static twin.
