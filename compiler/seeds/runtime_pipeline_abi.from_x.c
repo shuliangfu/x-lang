@@ -25672,6 +25672,38 @@ XLANG_W183_TRY_INDEX_ADDR_TWIN(glue_try_index_var_plus_var_mul_lit_idx_addr_to_r
 
 #undef XLANG_W183_TRY_INDEX_ADDR_TWIN
 
+/*
+ * wave184 cold twins: try_index eff_addr→rax forest (16 faces, G.7 pure leave).
+ * Freestanding-safe stubs: return -2 (not applicable; force residual/fallback).
+ * Hybrid product links pure. PLATFORM: SHARED freestanding INDEX rvalue/lea.
+ */
+#define XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(name) \
+  int32_t name(void *arena, void *elf_ctx, int32_t base_ref, int32_t idx_ref, \
+               void *ctx, int32_t ta, int32_t esz) { \
+    (void)arena; (void)elf_ctx; (void)base_ref; (void)idx_ref; \
+    (void)ctx; (void)ta; (void)esz; \
+    return -2; \
+  }
+
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_mul_lit_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_mul_var_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_plus_lit_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_minus_lit_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_plus_var_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_minus_var_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_plus_var_plus_var_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_minus_var_plus_var_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_minus_var_minus_var_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_minus_add3_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_minus_add3_mul_lit_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_minus_var_mul_lit_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_subadd3_mul_lit_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_subsub3_mul_lit_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_add3_mul_lit_eff_addr_rax_elf_c)
+XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN(glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c)
+
+#undef XLANG_W184_TRY_INDEX_EFF_ADDR_TWIN
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
