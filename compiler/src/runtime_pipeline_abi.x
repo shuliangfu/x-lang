@@ -51555,6 +51555,325 @@ export function glue_index_base_struct_key_elf_c(arena: *u8, base_ref: i32): i64
 }
 
 /**
+ * Detect flat (VAR+VAR) ADD subexpr for nested INDEX binop shapes.
+ * wave178 pure-owned G.7 authority (was Cap residual static in index_helpers).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param add_ref i32 - candidate ADD expr pool ref
+ * @param out_left_var *i32 - optional; left VAR ref on success
+ * @param out_right_var *i32 - optional; right VAR ref on success
+ * @return i32 - 1 matched, 0 no
+ * PLATFORM: SHARED freestanding INDEX peel forest.
+ */
+#[no_mangle]
+export function glue_index_expr_var_plus_var_pair_elf_c(arena: *u8, add_ref: i32, out_left_var: *i32, out_right_var: *i32): i32 {
+  let lr: i32 = 0;
+  let rr: i32 = 0;
+  let ko: i32 = 0;
+  let ko_l: i32 = 0;
+  let ko_r: i32 = 0;
+  if (arena == 0 as *u8 || add_ref <= 0) {
+    return 0;
+  }
+  if (out_left_var == 0 as *i32 || out_right_var == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, add_ref);
+  }
+  // kind 4 = EXPR_ADD
+  if (ko != 4) {
+    return 0;
+  }
+  unsafe {
+    lr = pipeline_expr_binop_left_ref_at(arena, add_ref);
+    rr = pipeline_expr_binop_right_ref_at(arena, add_ref);
+  }
+  if (lr <= 0 || rr <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko_l = pipeline_expr_kind_ord_at(arena, lr);
+    ko_r = pipeline_expr_kind_ord_at(arena, rr);
+  }
+  // kind 3 = EXPR_VAR
+  if (ko_l != 3 || ko_r != 3) {
+    return 0;
+  }
+  unsafe {
+    out_left_var[0] = lr;
+    out_right_var[0] = rr;
+  }
+  return 1;
+}
+
+/**
+ * Detect 3-VAR ADD chain: (VAR+VAR)+VAR or VAR+(VAR+VAR).
+ * wave178 pure-owned G.7 authority (was Cap residual static in index_helpers).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param add_ref i32 - candidate ADD expr pool ref
+ * @param out_i *i32 - optional first VAR ref
+ * @param out_j *i32 - optional second VAR ref
+ * @param out_k *i32 - optional third VAR ref
+ * @return i32 - 1 matched, 0 no
+ * PLATFORM: SHARED freestanding INDEX peel forest.
+ */
+#[no_mangle]
+export function glue_index_expr_var_add3_elf_c(arena: *u8, add_ref: i32, out_i: *i32, out_j: *i32, out_k: *i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let ko: i32 = 0;
+  let ko_side: i32 = 0;
+  if (arena == 0 as *u8 || add_ref <= 0) {
+    return 0;
+  }
+  if (out_i == 0 as *i32 || out_j == 0 as *i32 || out_k == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, add_ref);
+  }
+  if (ko != 4) {
+    return 0;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, add_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, add_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0;
+  }
+  if (glue_index_expr_var_plus_var_pair_elf_c(arena, left_ref, out_i, out_j) != 0) {
+    unsafe {
+      ko_side = pipeline_expr_kind_ord_at(arena, right_ref);
+    }
+    if (ko_side != 3) {
+      return 0;
+    }
+    unsafe {
+      out_k[0] = right_ref;
+    }
+    return 1;
+  }
+  unsafe {
+    ko_side = pipeline_expr_kind_ord_at(arena, left_ref);
+  }
+  if (ko_side != 3) {
+    return 0;
+  }
+  if (glue_index_expr_var_plus_var_pair_elf_c(arena, right_ref, out_j, out_k) == 0) {
+    return 0;
+  }
+  unsafe {
+    out_i[0] = left_ref;
+  }
+  return 1;
+}
+
+/**
+ * Detect flat (VAR-VAR) SUB subexpr for nested INDEX binop shapes.
+ * wave178 pure-owned G.7 authority (was Cap residual static in index_helpers).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param sub_ref i32 - candidate SUB expr pool ref
+ * @param out_left_var *i32 - optional; left VAR ref on success
+ * @param out_right_var *i32 - optional; right VAR ref on success
+ * @return i32 - 1 matched, 0 no
+ * PLATFORM: SHARED freestanding INDEX peel forest.
+ */
+#[no_mangle]
+export function glue_index_expr_var_minus_var_pair_elf_c(arena: *u8, sub_ref: i32, out_left_var: *i32, out_right_var: *i32): i32 {
+  let lr: i32 = 0;
+  let rr: i32 = 0;
+  let ko: i32 = 0;
+  let ko_l: i32 = 0;
+  let ko_r: i32 = 0;
+  if (arena == 0 as *u8 || sub_ref <= 0) {
+    return 0;
+  }
+  if (out_left_var == 0 as *i32 || out_right_var == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, sub_ref);
+  }
+  // kind 5 = EXPR_SUB
+  if (ko != 5) {
+    return 0;
+  }
+  unsafe {
+    lr = pipeline_expr_binop_left_ref_at(arena, sub_ref);
+    rr = pipeline_expr_binop_right_ref_at(arena, sub_ref);
+  }
+  if (lr <= 0 || rr <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko_l = pipeline_expr_kind_ord_at(arena, lr);
+    ko_r = pipeline_expr_kind_ord_at(arena, rr);
+  }
+  if (ko_l != 3 || ko_r != 3) {
+    return 0;
+  }
+  unsafe {
+    out_left_var[0] = lr;
+    out_right_var[0] = rr;
+  }
+  return 1;
+}
+
+/**
+ * Detect VAR-(VAR+VAR) right-assoc SUB: i-(j+k).
+ * wave178 pure-owned G.7 authority (was Cap residual static in index_helpers).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param sub_ref i32 - candidate SUB expr pool ref
+ * @param out_i *i32 - optional left VAR (minuend)
+ * @param out_j *i32 - optional first addend VAR
+ * @param out_k *i32 - optional second addend VAR
+ * @return i32 - 1 matched, 0 no
+ * PLATFORM: SHARED freestanding INDEX peel forest.
+ */
+#[no_mangle]
+export function glue_index_expr_var_minus_add3_elf_c(arena: *u8, sub_ref: i32, out_i: *i32, out_j: *i32, out_k: *i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let ko: i32 = 0;
+  let ko_l: i32 = 0;
+  if (arena == 0 as *u8 || sub_ref <= 0) {
+    return 0;
+  }
+  if (out_i == 0 as *i32 || out_j == 0 as *i32 || out_k == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, sub_ref);
+  }
+  if (ko != 5) {
+    return 0;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, sub_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, sub_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko_l = pipeline_expr_kind_ord_at(arena, left_ref);
+  }
+  if (ko_l != 3) {
+    return 0;
+  }
+  if (glue_index_expr_var_plus_var_pair_elf_c(arena, right_ref, out_j, out_k) == 0) {
+    return 0;
+  }
+  unsafe {
+    out_i[0] = left_ref;
+  }
+  return 1;
+}
+
+/**
+ * Detect (VAR-VAR)+VAR mixed ADD/SUB chain: (i-j)+k.
+ * wave178 pure-owned G.7 authority (was Cap residual static in index_helpers).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param add_ref i32 - candidate ADD expr pool ref
+ * @param out_i *i32 - optional left of SUB
+ * @param out_j *i32 - optional right of SUB
+ * @param out_k *i32 - optional right of ADD
+ * @return i32 - 1 matched, 0 no
+ * PLATFORM: SHARED freestanding INDEX peel forest.
+ */
+#[no_mangle]
+export function glue_index_expr_var_subadd3_elf_c(arena: *u8, add_ref: i32, out_i: *i32, out_j: *i32, out_k: *i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let ko: i32 = 0;
+  let ko_r: i32 = 0;
+  if (arena == 0 as *u8 || add_ref <= 0) {
+    return 0;
+  }
+  if (out_i == 0 as *i32 || out_j == 0 as *i32 || out_k == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, add_ref);
+  }
+  if (ko != 4) {
+    return 0;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, add_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, add_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0;
+  }
+  if (glue_index_expr_var_minus_var_pair_elf_c(arena, left_ref, out_i, out_j) == 0) {
+    return 0;
+  }
+  unsafe {
+    ko_r = pipeline_expr_kind_ord_at(arena, right_ref);
+  }
+  if (ko_r != 3) {
+    return 0;
+  }
+  unsafe {
+    out_k[0] = right_ref;
+  }
+  return 1;
+}
+
+/**
+ * Detect (VAR-VAR)-VAR mixed SUB chain: (i-j)-k.
+ * wave178 pure-owned G.7 authority (was Cap residual static in index_helpers).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param sub_ref i32 - candidate SUB expr pool ref
+ * @param out_i *i32 - optional left of nested SUB
+ * @param out_j *i32 - optional right of nested SUB
+ * @param out_k *i32 - optional outer right VAR
+ * @return i32 - 1 matched, 0 no
+ * PLATFORM: SHARED freestanding INDEX peel forest.
+ */
+#[no_mangle]
+export function glue_index_expr_var_subsub3_elf_c(arena: *u8, sub_ref: i32, out_i: *i32, out_j: *i32, out_k: *i32): i32 {
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let ko: i32 = 0;
+  let ko_r: i32 = 0;
+  if (arena == 0 as *u8 || sub_ref <= 0) {
+    return 0;
+  }
+  if (out_i == 0 as *i32 || out_j == 0 as *i32 || out_k == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, sub_ref);
+  }
+  if (ko != 5) {
+    return 0;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, sub_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, sub_ref);
+  }
+  if (left_ref <= 0 || right_ref <= 0) {
+    return 0;
+  }
+  if (glue_index_expr_var_minus_var_pair_elf_c(arena, left_ref, out_i, out_j) == 0) {
+    return 0;
+  }
+  unsafe {
+    ko_r = pipeline_expr_kind_ord_at(arena, right_ref);
+  }
+  if (ko_r != 3) {
+    return 0;
+  }
+  unsafe {
+    out_k[0] = right_ref;
+  }
+  return 1;
+}
+
+/**
  * Drop cached INDEX effective address (rbx no longer trusted).
  * wave156 pure-owned. PLATFORM: SHARED.
  */

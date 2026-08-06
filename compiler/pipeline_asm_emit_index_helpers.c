@@ -14,6 +14,9 @@
  * - glue_index_deref_ptr_field_slot_{rax,rbx}_elf_c
  * - try_index_* forest (base→rax/rbx, assign-addr→rbx, eff_addr→rax;
  *   lit/var/add/sub/mul nested shapes + index scratch cache)
+ *   · wave178: INDEX expr shape peel forest pure
+ *     (var_plus_var_pair / var_add3 / var_minus_var_pair / var_minus_add3 /
+ *      var_subadd3 / var_subsub3) — residual try_index faces call pure peel
  * - glue_emit_soa_index_field_addr_elf_c (DoD column-major arr[i].field)
  * - pipeline_asm_emit_lvalue_eff_addr_{elf,text}_c (VAR / FIELD / INDEX;
  *   ELF also DEREF; text twin folded wave1013 G.7 有则补全)
@@ -1186,58 +1189,21 @@ int32_t glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(struct ast_ASTArena *ar
   return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
 }
 
-/**
- * Detect flat (VAR+VAR) ADD subexpr inside a nested INDEX binop; 0=no, 1=yes.
- */
-static int32_t glue_index_expr_var_plus_var_pair_elf_c(struct ast_ASTArena *arena, int32_t add_ref,
-                                                        int32_t *out_left_var, int32_t *out_right_var) {
-  int32_t lr;
-  int32_t rr;
-  if (!arena || add_ref <= 0 || !out_left_var || !out_right_var)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, add_ref) != 4)
-    return 0;
-  lr = pipeline_expr_binop_left_ref_at(arena, add_ref);
-  rr = pipeline_expr_binop_right_ref_at(arena, add_ref);
-  if (lr <= 0 || rr <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, lr) != GLUE_EXPR_KIND_VAR)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, rr) != GLUE_EXPR_KIND_VAR)
-    return 0;
-  *out_left_var = lr;
-  *out_right_var = rr;
-  return 1;
-}
-
-/**
- * Detect 3-VAR ADD chain: (VAR+VAR)+VAR or VAR+(VAR+VAR); 0=no, 1=yes.
- */
-static int32_t glue_index_expr_var_add3_elf_c(struct ast_ASTArena *arena, int32_t add_ref, int32_t *out_i,
-                                               int32_t *out_j, int32_t *out_k) {
-  int32_t left_ref;
-  int32_t right_ref;
-  if (!arena || add_ref <= 0 || !out_i || !out_j || !out_k)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, add_ref) != 4)
-    return 0;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, add_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, add_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return 0;
-  if (glue_index_expr_var_plus_var_pair_elf_c(arena, left_ref, out_i, out_j)) {
-    if (pipeline_expr_kind_ord_at(arena, right_ref) != GLUE_EXPR_KIND_VAR)
-      return 0;
-    *out_k = right_ref;
-    return 1;
-  }
-  if (pipeline_expr_kind_ord_at(arena, left_ref) != GLUE_EXPR_KIND_VAR)
-    return 0;
-  if (!glue_index_expr_var_plus_var_pair_elf_c(arena, right_ref, out_j, out_k))
-    return 0;
-  *out_i = left_ref;
-  return 1;
-}
+/* wave178 pure-owned INDEX expr shape peel forest (runtime_pipeline_abi pure).
+ * Cap residual try_index faces call these; G.7 single authority — no static twin.
+ * PLATFORM: SHARED freestanding INDEX peel. */
+int32_t glue_index_expr_var_plus_var_pair_elf_c(struct ast_ASTArena *arena, int32_t add_ref,
+                                               int32_t *out_left_var, int32_t *out_right_var);
+int32_t glue_index_expr_var_add3_elf_c(struct ast_ASTArena *arena, int32_t add_ref, int32_t *out_i,
+                                      int32_t *out_j, int32_t *out_k);
+int32_t glue_index_expr_var_minus_var_pair_elf_c(struct ast_ASTArena *arena, int32_t sub_ref,
+                                                int32_t *out_left_var, int32_t *out_right_var);
+int32_t glue_index_expr_var_minus_add3_elf_c(struct ast_ASTArena *arena, int32_t sub_ref, int32_t *out_i,
+                                            int32_t *out_j, int32_t *out_k);
+int32_t glue_index_expr_var_subadd3_elf_c(struct ast_ASTArena *arena, int32_t add_ref, int32_t *out_i,
+                                         int32_t *out_j, int32_t *out_k);
+int32_t glue_index_expr_var_subsub3_elf_c(struct ast_ASTArena *arena, int32_t sub_ref, int32_t *out_i,
+                                         int32_t *out_j, int32_t *out_k);
 
 /**
  * INDEX assign：VAR/FIELD 基址 + ((VAR+VAR)+VAR) ADD 链 → scratch 缩放寻址入 rbx。
@@ -1280,30 +1246,6 @@ int32_t glue_try_index_var_plus_var_plus_var_idx_addr_to_rbx_elf_c(struct ast_AS
   if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0)
     return -1;
   return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
-
-/**
- * Detect flat (VAR-VAR) SUB subexpr; 0=no, 1=yes.
- */
-static int32_t glue_index_expr_var_minus_var_pair_elf_c(struct ast_ASTArena *arena, int32_t sub_ref,
-                                                         int32_t *out_left_var, int32_t *out_right_var) {
-  int32_t lr;
-  int32_t rr;
-  if (!arena || sub_ref <= 0 || !out_left_var || !out_right_var)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, sub_ref) != 5)
-    return 0;
-  lr = pipeline_expr_binop_left_ref_at(arena, sub_ref);
-  rr = pipeline_expr_binop_right_ref_at(arena, sub_ref);
-  if (lr <= 0 || rr <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, lr) != GLUE_EXPR_KIND_VAR)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, rr) != GLUE_EXPR_KIND_VAR)
-    return 0;
-  *out_left_var = lr;
-  *out_right_var = rr;
-  return 1;
 }
 
 /**
@@ -1591,29 +1533,6 @@ int32_t glue_try_index_var_minus_add3_idx_addr_to_rbx_elf_c(struct ast_ASTArena 
 }
 
 /**
- * Detect VAR-(VAR+VAR) right-assoc SUB: i-(j+k); 0=no, 1=yes.
- */
-static int32_t glue_index_expr_var_minus_add3_elf_c(struct ast_ASTArena *arena, int32_t sub_ref, int32_t *out_i,
-                                                     int32_t *out_j, int32_t *out_k) {
-  int32_t left_ref;
-  int32_t right_ref;
-  if (!arena || sub_ref <= 0 || !out_i || !out_j || !out_k)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, sub_ref) != 5)
-    return 0;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, sub_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, sub_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, left_ref) != GLUE_EXPR_KIND_VAR)
-    return 0;
-  if (!glue_index_expr_var_plus_var_pair_elf_c(arena, right_ref, out_j, out_k))
-    return 0;
-  *out_i = left_ref;
-  return 1;
-}
-
-/**
  * INDEX assign：VAR/FIELD 基址 + ((VAR-(VAR+VAR))*lit) MUL 嵌套 → scratch 缩放寻址入 rbx。
  * 0=OK，-1=错，-2=不适用（如 (i-(j+k))*2）。
  */
@@ -1745,52 +1664,6 @@ int32_t glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c(struct ast_AS
   if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0)
     return -1;
   return backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx, esz, ta);
-}
-
-/**
- * Detect (VAR-VAR)+VAR mixed ADD/SUB chain: (i-j)+k; 0=no, 1=yes.
- */
-static int32_t glue_index_expr_var_subadd3_elf_c(struct ast_ASTArena *arena, int32_t add_ref, int32_t *out_i,
-                                                int32_t *out_j, int32_t *out_k) {
-  int32_t left_ref;
-  int32_t right_ref;
-  if (!arena || add_ref <= 0 || !out_i || !out_j || !out_k)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, add_ref) != 4)
-    return 0;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, add_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, add_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return 0;
-  if (!glue_index_expr_var_minus_var_pair_elf_c(arena, left_ref, out_i, out_j))
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, right_ref) != GLUE_EXPR_KIND_VAR)
-    return 0;
-  *out_k = right_ref;
-  return 1;
-}
-
-/**
- * Detect (VAR-VAR)-VAR mixed SUB chain: (i-j)-k; 0=no, 1=yes.
- */
-static int32_t glue_index_expr_var_subsub3_elf_c(struct ast_ASTArena *arena, int32_t sub_ref, int32_t *out_i,
-                                                  int32_t *out_j, int32_t *out_k) {
-  int32_t left_ref;
-  int32_t right_ref;
-  if (!arena || sub_ref <= 0 || !out_i || !out_j || !out_k)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, sub_ref) != 5)
-    return 0;
-  left_ref = pipeline_expr_binop_left_ref_at(arena, sub_ref);
-  right_ref = pipeline_expr_binop_right_ref_at(arena, sub_ref);
-  if (left_ref <= 0 || right_ref <= 0)
-    return 0;
-  if (!glue_index_expr_var_minus_var_pair_elf_c(arena, left_ref, out_i, out_j))
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, right_ref) != GLUE_EXPR_KIND_VAR)
-    return 0;
-  *out_k = right_ref;
-  return 1;
 }
 
 /**

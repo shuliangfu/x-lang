@@ -25387,5 +25387,72 @@ uint64_t glue_index_base_struct_key_elf_c(void *arena, int32_t base_ref) {
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/*
+ * wave178 cold twins: INDEX expr shape peel forest (G.7 pure leave).
+ * Freestanding-safe no-op stubs (return 0 = no match). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding INDEX peel.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+int32_t glue_index_expr_var_plus_var_pair_elf_c(void *arena, int32_t add_ref, int32_t *out_left_var,
+                                               int32_t *out_right_var) {
+  (void)arena;
+  (void)add_ref;
+  (void)out_left_var;
+  (void)out_right_var;
+  return 0;
+}
+
+int32_t glue_index_expr_var_add3_elf_c(void *arena, int32_t add_ref, int32_t *out_i, int32_t *out_j,
+                                      int32_t *out_k) {
+  (void)arena;
+  (void)add_ref;
+  (void)out_i;
+  (void)out_j;
+  (void)out_k;
+  return 0;
+}
+
+int32_t glue_index_expr_var_minus_var_pair_elf_c(void *arena, int32_t sub_ref, int32_t *out_left_var,
+                                                int32_t *out_right_var) {
+  (void)arena;
+  (void)sub_ref;
+  (void)out_left_var;
+  (void)out_right_var;
+  return 0;
+}
+
+int32_t glue_index_expr_var_minus_add3_elf_c(void *arena, int32_t sub_ref, int32_t *out_i, int32_t *out_j,
+                                            int32_t *out_k) {
+  (void)arena;
+  (void)sub_ref;
+  (void)out_i;
+  (void)out_j;
+  (void)out_k;
+  return 0;
+}
+
+int32_t glue_index_expr_var_subadd3_elf_c(void *arena, int32_t add_ref, int32_t *out_i, int32_t *out_j,
+                                         int32_t *out_k) {
+  (void)arena;
+  (void)add_ref;
+  (void)out_i;
+  (void)out_j;
+  (void)out_k;
+  return 0;
+}
+
+int32_t glue_index_expr_var_subsub3_elf_c(void *arena, int32_t sub_ref, int32_t *out_i, int32_t *out_j,
+                                         int32_t *out_k) {
+  (void)arena;
+  (void)sub_ref;
+  (void)out_i;
+  (void)out_j;
+  (void)out_k;
+  return 0;
+}
+
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
