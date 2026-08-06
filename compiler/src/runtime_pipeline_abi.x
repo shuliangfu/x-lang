@@ -651,7 +651,7 @@ export extern "C" function glue_try_simd_peel_index_add_while_elf_c(arena: *u8, 
 // wave149 pure-owned faces: bodies in EOF section (#[no_mangle] export; no dual export extern).
 // wave179 pure-owned: glue_enc_local_slot_ptr_or_addr_{elf,rbx}_elf_c live in EOF (#[no_mangle]).
 // (was Cap residual export extern; dual-export ban.)
-export extern "C" function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32): i32;
+// wave182 pure-owned: glue_try_index_var_or_field_base_to_rax_elf_c lives in EOF (#[no_mangle]).
 export extern "C" function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32;
 export extern "C" function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32;
 export extern "C" function asm_struct_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32;
@@ -685,8 +685,8 @@ export extern "C" function glue_binop_var_slot_cache_kill_def_at_slot(off: i32):
 // wave179 pure-owned: glue_enc_local_slot_ptr_or_addr_rbx_elf_c in EOF (see above).
 // wave181 pure-owned: glue_try_index_var_{lit,idx,plus_lit,plus_var,minus_lit,minus_var,mul_lit,mul_var}_addr_to_rbx live in EOF (#[no_mangle]).
 // (was Cap residual export extern; dual-export ban.)
-// Residual base_to_rbx + nested add3/subadd3/eff_addr faces still Cap residual.
-export extern "C" function glue_try_index_var_or_field_base_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32): i32;
+// wave182 pure-owned: glue_try_index_var_or_field_base_to_{rax,rbx}_elf_c live in EOF (#[no_mangle]).
+// Residual nested add3/subadd3/eff_addr faces still Cap residual.
 export extern "C" function backend_enc_load_rbp_index_scratch_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern "C" function backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx: *u8, esz: i32, ta: i32): i32;
 export extern "C" function backend_enc_add_imm_to_index_scratch_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
@@ -57347,3 +57347,422 @@ export function glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(arena: *u8, elf
 }
 
 // end wave181 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave182 pure-owned leave: INDEX base materialize → rax / rbx
+// G.7 authority (was Cap residual index_helpers base_to_{rax,rbx}).
+// Callers: try_index assign-addr forest (wave181 pure), nested residual, eff_addr,
+// call_args FIELD/INDEX bases, block_inits slice-from-array LEA.
+// Kind ords: VAR=3 FIELD=44 INDEX=47 DEREF=52; TYPE_SLICE=11;
+// PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED = -99.
+// PLATFORM: SHARED freestanding INDEX base.
+// ---------------------------------------------------------------------------
+
+/**
+ * Materialize INDEX base address into rax/x0 for rvalue / eff_addr paths.
+ * Handles local VAR (incl. TYPE_SLICE fat.data load), VAR-base FIELD_ACCESS,
+ * FIELD over DEREF (`(*p).xs`), FIELD over INDEX (`m[i].xs`), and
+ * STRUCT_LIT/CALL/METHOD-rooted FIELD via call_base leave_addr=1.
+ * @param arena *u8 — ASTArena*; null → -2
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → -2
+ * @param base_ref i32 — INDEX base expr pool ref; <=0 → -2
+ * @param ctx *u8 — AsmFuncCtx*; null → -2
+ * @param ta i32 — target arch (0=x86_64, 1=arm64)
+ * @return i32 — 0 ok, -1 enc error, -2 not applicable
+ * wave182 pure-owned G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding INDEX base (lit-index + scaled both use this).
+ */
+#[no_mangle]
+export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32): i32 {
+  let ko: i32 = 0;
+  let boff: i32 = 0;
+  let field_off: i32 = 0;
+  let var_base: i32 = 0;
+  let tr: i32 = 0;
+  let call_fa: i32 = 0;
+  let base_ko: i32 = 0;
+  let d_op: i32 = 0;
+  let ix_base: i32 = 0;
+  let ix_idx: i32 = 0;
+  let ix_esz: i32 = 0;
+  let needs: i32 = 0;
+  let is_enum: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  }
+  // GLUE_EXPR_KIND_VAR == 3
+  if (ko == 3) {
+    unsafe {
+      boff = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
+    }
+    if (boff < 0) {
+      return 0 - 2;
+    }
+    // TYPE_SLICE base → array data pointer in rax.
+    // Local let: dual-GP home holds data@boff → load slot.
+    // Formal param: slot is slice* → load ptr then load fat.data@0.
+    unsafe {
+      tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+    }
+    if (tr > 0) {
+      unsafe {
+        ko = pipeline_type_kind_ord_at(arena, tr);
+      }
+      // GLUE_TYPE_KIND_SLICE == 11
+      if (ko == 11) {
+        unsafe {
+          needs = glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, boff, ctx);
+        }
+        if (needs != 0) {
+          unsafe {
+            if (backend_enc_load_rbp_to_rax_arch(elf_ctx, boff, ta) != 0) {
+              return 0 - 1;
+            }
+            if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          return 0;
+        }
+        unsafe {
+          return backend_enc_load_rbp_to_rax_arch(elf_ctx, boff, ta);
+        }
+      }
+    }
+    unsafe {
+      return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
+    }
+  }
+  // EXPR_FIELD_ACCESS == 44
+  if (ko == 44) {
+    unsafe {
+      is_enum = pipeline_expr_field_access_is_enum_variant(arena, base_ref);
+    }
+    if (is_enum != 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      var_base = pipeline_expr_field_access_base_ref(arena, base_ref);
+    }
+    if (var_base > 0) {
+      unsafe {
+        base_ko = pipeline_expr_kind_ord_at(arena, var_base);
+      }
+      // VAR-base FIELD → slot ± field_off (± ptr-field deref)
+      if (base_ko == 3) {
+        unsafe {
+          boff = glue_var_expr_stack_off_elf_c(arena, ctx, var_base);
+        }
+        if (boff < 0) {
+          return 0 - 2;
+        }
+        unsafe {
+          if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, var_base, boff, ctx, ta) != 0) {
+            return 0 - 1;
+          }
+          mod = pipeline_asm_emit_module_ref_c();
+          field_off = glue_field_access_effective_offset_c(arena, mod, base_ref);
+          if (field_off != 0) {
+            if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        return 0;
+      }
+      // FIELD over EXPR_DEREF (`(*p).xs`) — emit pointer operand, +field_off.
+      // EXPR_DEREF == 52
+      if (base_ko == 52) {
+        unsafe {
+          d_op = pipeline_expr_unary_operand_ref_at(arena, var_base);
+        }
+        if (d_op <= 0) {
+          return 0 - 2;
+        }
+        unsafe {
+          if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, d_op, ctx, ta) != 0) {
+            return 0 - 1;
+          }
+          mod = pipeline_asm_emit_module_ref_c();
+          field_off = glue_field_access_effective_offset_c(arena, mod, base_ref);
+          if (field_off != 0) {
+            if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        return 0;
+      }
+      // FIELD over EXPR_INDEX (`m[i].xs`) — INDEX eff_addr then +field_off.
+      // EXPR_INDEX == 47
+      if (base_ko == 47) {
+        unsafe {
+          ix_base = pipeline_expr_index_base_ref(arena, var_base);
+          ix_idx = pipeline_expr_index_index_ref(arena, var_base);
+        }
+        if (ix_base <= 0 || ix_idx <= 0) {
+          return 0 - 2;
+        }
+        unsafe {
+          ix_esz = pipeline_asm_index_elem_byte_sz_c(arena, var_base);
+        }
+        if (ix_esz <= 0) {
+          return 0 - 2;
+        }
+        unsafe {
+          if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, var_base, ix_base, ix_idx, ctx, ta, ix_esz) != 0) {
+            return 0 - 1;
+          }
+          mod = pipeline_asm_emit_module_ref_c();
+          field_off = glue_field_access_effective_offset_c(arena, mod, base_ref);
+          if (field_off != 0) {
+            if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        return 0;
+      }
+    }
+    // STRUCT_LIT/CALL/METHOD-rooted FIELD as INDEX base — leave_addr materialize.
+    unsafe {
+      call_fa = glue_field_access_call_base_rvalue_elf_c(arena, elf_ctx, base_ref, ctx, ta, 1);
+    }
+    // PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED == -99
+    if (call_fa == (0 - 99)) {
+      return 0 - 2;
+    }
+    if (call_fa != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+    return 0;
+  }
+  return 0 - 2;
+}
+
+/**
+ * Materialize INDEX base address into rbx/x1 for assign paths (rhs stays in rax).
+ * Twin of rax path: local VAR / TYPE_SLICE, VAR-base FIELD, FIELD over DEREF,
+ * FIELD over INDEX (eff_addr into rax then mov→rbx), STRUCT_LIT/CALL leave_addr.
+ * @param arena *u8 — ASTArena*; null → -2
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → -2
+ * @param base_ref i32 — INDEX base expr pool ref; <=0 → -2
+ * @param ctx *u8 — AsmFuncCtx*; null → -2
+ * @param ta i32 — target arch (0=x86_64, 1=arm64)
+ * @return i32 — 0 ok, -1 enc error, -2 not applicable
+ * wave182 pure-owned G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding INDEX assign base.
+ */
+#[no_mangle]
+export function glue_try_index_var_or_field_base_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32): i32 {
+  let ko: i32 = 0;
+  let boff: i32 = 0;
+  let field_off: i32 = 0;
+  let var_base: i32 = 0;
+  let tr: i32 = 0;
+  let call_fa: i32 = 0;
+  let d_op: i32 = 0;
+  let ix_base: i32 = 0;
+  let ix_idx: i32 = 0;
+  let ix_esz: i32 = 0;
+  let needs: i32 = 0;
+  let is_enum: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0) {
+    return 0 - 2;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  }
+  // GLUE_EXPR_KIND_VAR == 3
+  if (ko == 3) {
+    unsafe {
+      boff = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
+    }
+    if (boff < 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+    }
+    if (tr > 0) {
+      unsafe {
+        ko = pipeline_type_kind_ord_at(arena, tr);
+      }
+      // GLUE_TYPE_KIND_SLICE == 11
+      if (ko == 11) {
+        // slice* param → load fat* then .data to rbx (mirror rax path).
+        unsafe {
+          needs = glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, boff, ctx);
+        }
+        if (needs != 0) {
+          unsafe {
+            if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, boff, ta) != 0) {
+              return 0 - 1;
+            }
+            if (backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta) != 0) {
+              return 0 - 1;
+            }
+            if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          return 0;
+        }
+        unsafe {
+          return backend_enc_load_rbp_to_rbx_arch(elf_ctx, boff, ta);
+        }
+      }
+    }
+    unsafe {
+      return glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
+    }
+  }
+  // EXPR_FIELD_ACCESS == 44
+  if (ko == 44) {
+    unsafe {
+      is_enum = pipeline_expr_field_access_is_enum_variant(arena, base_ref);
+    }
+    if (is_enum != 0) {
+      return 0 - 2;
+    }
+    unsafe {
+      var_base = pipeline_expr_field_access_base_ref(arena, base_ref);
+    }
+    if (var_base > 0) {
+      unsafe {
+        ko = pipeline_expr_kind_ord_at(arena, var_base);
+      }
+      // VAR-base FIELD
+      if (ko == 3) {
+        unsafe {
+          boff = glue_var_expr_stack_off_elf_c(arena, ctx, var_base);
+        }
+        if (boff < 0) {
+          return 0 - 2;
+        }
+        unsafe {
+          if (glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, var_base, boff, ctx, ta) != 0) {
+            return 0 - 1;
+          }
+          mod = pipeline_asm_emit_module_ref_c();
+          field_off = glue_field_access_effective_offset_c(arena, mod, base_ref);
+          if (field_off != 0) {
+            if (backend_enc_add_imm_to_rbx_arch(elf_ctx, field_off, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          if (glue_index_deref_ptr_field_slot_rbx_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        return 0;
+      }
+      // FIELD over EXPR_DEREF — pointer bits in rax then mov→rbx (rhs stays in rax until after).
+      // EXPR_DEREF == 52
+      if (ko == 52) {
+        unsafe {
+          d_op = pipeline_expr_unary_operand_ref_at(arena, var_base);
+        }
+        if (d_op <= 0) {
+          return 0 - 2;
+        }
+        unsafe {
+          if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, d_op, ctx, ta) != 0) {
+            return 0 - 1;
+          }
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+            return 0 - 1;
+          }
+          mod = pipeline_asm_emit_module_ref_c();
+          field_off = glue_field_access_effective_offset_c(arena, mod, base_ref);
+          if (field_off != 0) {
+            if (backend_enc_add_imm_to_rbx_arch(elf_ctx, field_off, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          if (glue_index_deref_ptr_field_slot_rbx_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        return 0;
+      }
+      // FIELD over EXPR_INDEX — emit &m[i].xs into rax then mov→rbx.
+      // EXPR_INDEX == 47
+      if (ko == 47) {
+        unsafe {
+          ix_base = pipeline_expr_index_base_ref(arena, var_base);
+          ix_idx = pipeline_expr_index_index_ref(arena, var_base);
+        }
+        if (ix_base <= 0 || ix_idx <= 0) {
+          return 0 - 2;
+        }
+        unsafe {
+          ix_esz = pipeline_asm_index_elem_byte_sz_c(arena, var_base);
+        }
+        if (ix_esz <= 0) {
+          return 0 - 2;
+        }
+        unsafe {
+          if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, var_base, ix_base, ix_idx, ctx, ta, ix_esz) != 0) {
+            return 0 - 1;
+          }
+          mod = pipeline_asm_emit_module_ref_c();
+          field_off = glue_field_access_effective_offset_c(arena, mod, base_ref);
+          if (field_off != 0) {
+            if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
+            return 0 - 1;
+          }
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        return 0;
+      }
+    }
+    // STRUCT_LIT/CALL/METHOD-rooted FIELD → addr in rax then mov→rbx.
+    unsafe {
+      call_fa = glue_field_access_call_base_rvalue_elf_c(arena, elf_ctx, base_ref, ctx, ta, 1);
+    }
+    if (call_fa == (0 - 99)) {
+      return 0 - 2;
+    }
+    if (call_fa != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      if (glue_index_deref_ptr_field_slot_rbx_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+    return 0;
+  }
+  return 0 - 2;
+}
+
+// end wave182 pure-owned leave

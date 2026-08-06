@@ -25621,6 +25621,31 @@ int32_t glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_
   return -2;
 }
 
+/*
+ * wave182 cold twins: INDEX base materialize → rax / rbx (G.7 pure leave).
+ * Freestanding-safe stubs: return -2 (not applicable; force residual/fallback).
+ * Hybrid product links pure. PLATFORM: SHARED freestanding INDEX base.
+ */
+int32_t glue_try_index_var_or_field_base_to_rax_elf_c(void *arena, void *elf_ctx, int32_t base_ref, void *ctx,
+                                                     int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)base_ref;
+  (void)ctx;
+  (void)ta;
+  return -2;
+}
+
+int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref, void *ctx,
+                                                     int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)base_ref;
+  (void)ctx;
+  (void)ta;
+  return -2;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
