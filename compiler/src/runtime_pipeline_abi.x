@@ -942,7 +942,8 @@ export extern "C" function pipeline_expr_const_folded_val_at(arena: *u8, expr_re
 // wave151 pure-owned leave: pipeline_expr_enum_namespace_field_tag lives in EOF wave151 section.
 export extern "C" function pipeline_asm_call_return_type_kind_ord_c(arena: *u8, call_expr_ref: i32): i32;
 // wave149 pure-owned faces: bodies in EOF section (#[no_mangle] export; no dual export extern).
-export extern "C" function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+// wave188 pure-owned leave: glue_var_expr_stack_off_elf_c lives in EOF wave188 section
+// (#[no_mangle] export; dual-export ban — do not re-declare export extern "C").
 export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function backend_enc_ucomisd_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_ucomiss_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -61116,3 +61117,49 @@ export function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref:
 }
 
 // end wave187 pure-owned leave
+
+// ===========================================================================
+// wave188: VAR expr stack_off pure-owned leave
+// (was Cap residual body in pipeline_asm_emit_index_helpers.c EOF)
+// G.7 product authority for EXPR_VAR frame offset resolution used by try_index
+// forest / lvalue / assign / call_args / binop / return:
+//   glue_var_expr_stack_off_elf_c
+// Reuses glue_asm_local_var_stack_off_scoped (wave148) — scoped then unscoped
+// name table; residual second asm_ctx_local_find_offset pass was redundant.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
+// ===========================================================================
+
+/**
+ * EXPR_VAR local stack frame offset (scoped then unscoped name table).
+ * @param arena *u8 — ASTArena*; null → -1
+ * @param ctx *u8 — AsmFuncCtx*; null → -1
+ * @param var_expr_ref i32 — expression pool ref; must be EXPR_VAR (kind ord 3)
+ * @return i32 — frame offset magnitude (>=0), or -1 if not VAR / not found / bad args
+ *
+ * Contracts:
+ * - Non-VAR expr → -1 (callers must not pass FIELD/INDEX here)
+ * - Resolution authority is glue_asm_local_var_stack_off_scoped (wave148 pure):
+ *   asm_ctx_local_find_offset_scoped then asm_ctx_local_find_offset
+ * - G.7 single face — Cap residual / call_args resolve / try_index all call this
+ *
+ * wave188 pure: G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding VAR stack_off · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32 {
+  let ko: i32 = 0;
+  if (arena == (0 as *u8) || ctx == (0 as *u8) || var_expr_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+  }
+  // GLUE_EXPR_KIND_VAR / ast_ExprKind_EXPR_VAR == 3
+  if (ko != 3) {
+    return 0 - 1;
+  }
+  // G.7: reuse wave148 scoped authority (includes unscoped name fallback).
+  return glue_asm_local_var_stack_off_scoped(arena, ctx, var_expr_ref);
+}
+
+// end wave188 pure-owned leave

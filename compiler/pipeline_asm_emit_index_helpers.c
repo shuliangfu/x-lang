@@ -20,6 +20,8 @@
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - pipeline_asm_emit_lvalue_eff_addr_{elf,text}_c — wave185 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twins
+ * - glue_var_expr_stack_off_elf_c — wave188 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  *
  * G.7: single product-mega INDEX residual-helper face — do not open a second
  * try_index forest or lvalue_eff_addr path. Face emitters stay in
@@ -45,7 +47,8 @@
  * - glue_field_access_effective_offset_c (def later near layout_offset)
  * - glue_type_size_simple / glue_type_ref_is_named_struct_layout_elf_c
  *   (named_struct body in call_args leaf wave1017; same-TU forward here)
- * - glue_var_expr_stack_off_elf_c (def after assign/index includes)
+ * - glue_var_expr_stack_off_elf_c — wave188 pure (runtime_pipeline_abi);
+ *   Cap residual callers use pure; G.7 single authority — no host body
  * - glue_emit_index_eff_addr_scaled_elf_c (runtime_pipeline_abi pure wave147)
  * - glue_binop_stack_spill_* / glue_asm73_var_prefers_stack_spill (defs later)
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / asm_ctx_local_*
@@ -53,6 +56,8 @@
  *
  * Note: binop_stack_spill CAP statics live here (shared index-scratch depth
  * with 7.3 spill); their method bodies live in pipeline_asm_emit_spill.c.
+ * Residual after wave188: module_from_ctx / local_var_slot_needs_ptr_load /
+ * CAP BSS thin accessors; stack_off pure leave closed.
  */
 
 /** INDEX 元素字节宽（前向声明，定义见本文件后部）。 */
@@ -761,22 +766,9 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_text_c(struct ast_ASTArena *arena, str
  * index_helpers.c L617+ (this file), assign.c L313 (#include L1550),
  * index_eff_addr.c L86+ (#include L1637), call_args.c L178+ (#include L1660),
  * binop.c L106+ (#include L1678). PLATFORM: SHARED. */
-/* wave137 Cap residual for cmp pure leave: non-static face. */
+/* wave188 pure-owned: glue_var_expr_stack_off_elf_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * (scoped + unscoped name fallback folded into pure via wave148 scoped).
+ * PLATFORM: SHARED freestanding VAR stack_off. */
 int32_t glue_var_expr_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                             int32_t var_expr_ref) {
-  int32_t off;
-  if (!arena || !ctx || var_expr_ref <= 0)
-    return -1;
-  if (pipeline_expr_kind_ord_at(arena, var_expr_ref) != GLUE_EXPR_KIND_VAR)
-    return -1;
-  off = glue_asm_local_var_stack_off_scoped(arena, ctx, var_expr_ref);
-  if (off < 0) {
-    uint8_t vname[128];
-    int32_t vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-    if (vlen <= 0 || vlen > 127)
-      return -1;
-    pipeline_expr_var_name_into(arena, var_expr_ref, vname);
-    off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
-  }
-  return off;
-}
+                                             int32_t var_expr_ref);

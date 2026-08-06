@@ -1,5 +1,9 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave188: VAR stack_off pure leave cold twin under #ifndef FROM_X
+ * wave187: field_type_ref pure leave cold twin under #ifndef FROM_X
+ * wave186: SoA index.field addr pure leave cold twin under #ifndef FROM_X
+ * wave185: lvalue_eff_addr ELF+text pure leave cold twins under #ifndef FROM_X
  * wave172: minus_pair/subadd3 cache spill pure leave cold twins under #ifndef FROM_X
  * wave171: index-scratch enc push/reload/pop pure leave cold twins under #ifndef FROM_X
  * wave174: spill_reg_to_spill + evict_rax|rbx pure leave cold twins under #ifndef FROM_X
@@ -25754,6 +25758,18 @@ int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_re
   (void)mod;
   (void)fa_ref;
   return 0;
+}
+
+/*
+ * wave188 cold twin: VAR expr stack_off (G.7 pure leave).
+ * Freestanding-safe stub: return -1 (not found). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding VAR frame offset path.
+ */
+int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref) {
+  (void)arena;
+  (void)ctx;
+  (void)var_expr_ref;
+  return -1;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
