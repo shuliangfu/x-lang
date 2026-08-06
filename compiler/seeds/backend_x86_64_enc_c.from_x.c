@@ -730,9 +730,11 @@ int32_t arch_x86_64_enc_enc_sub_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_c
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_ecx_edx */
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_ecx_edx.
+ * Wave184 root-fix: 0F AF /r IMUL ecx,edx (ModRM 0xCA). Was 0xD1 (IMUL edx,ecx).
+ * PLATFORM: SHARED x86_64 SysV — index_scratch primary *= secondary. */
 int32_t arch_x86_64_enc_enc_imul_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {15, 175, 209};
+  static const uint8_t ins[] = {15, 175, 202};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -740,9 +742,11 @@ int32_t arch_x86_64_enc_enc_imul_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_ebx_edx */
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_ebx_edx.
+ * Wave184 root-fix: 0F AF /r IMUL ebx,edx (ModRM 0xDA). Was 0xD3 (IMUL edx,ebx).
+ * PLATFORM: SHARED x86_64 SysV — INDEX read path rbx *= secondary; scale uses rbx. */
 int32_t arch_x86_64_enc_enc_imul_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {15, 175, 211};
+  static const uint8_t ins[] = {15, 175, 218};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }

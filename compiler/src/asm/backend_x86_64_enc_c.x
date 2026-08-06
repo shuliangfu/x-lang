@@ -917,7 +917,10 @@ export function arch_x86_64_enc_enc_sub_ebx_edx(elf_ctx: *u8): i32 {
   return x86_enc_bytes(elf_ctx, ins, 2);
 }
 
-/** Emit fixed x86_64 insn `imul_ecx_edx` (3 bytes).
+/**
+ * Emit `imul %edx, %ecx` — index_scratch primary *= secondary (ecx = ecx * edx).
+ * Opcode: 0F AF /r IMUL r32,r/m32; reg=ecx(001), rm=edx(010) → ModRM 0xCA.
+ * Wave184 root-fix: was 0xD1 (IMUL edx,ecx) leaving product in edx; primary is ecx.
  * Cap residual pure R2 wave1: product C ABI bridge for backend_enc_dispatch.
  * PLATFORM: SHARED — x86_64 SysV encode path (Linux/macOS product asm).
  * @param elf_ctx opaque ElfCodegenCtx*
@@ -926,11 +929,14 @@ export function arch_x86_64_enc_enc_sub_ebx_edx(elf_ctx: *u8): i32 {
 #[no_mangle]
 export function arch_x86_64_enc_enc_imul_ecx_edx(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[3] = [15, 175, 209];
+  let ins: u8[3] = [15, 175, 202];
   return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
-/** Emit fixed x86_64 insn `imul_ebx_edx` (3 bytes).
+/**
+ * Emit `imul %edx, %ebx` — INDEX read path primary rbx *= secondary (ebx = ebx * edx).
+ * Opcode: 0F AF /r IMUL r32,r/m32; reg=ebx(011), rm=edx(010) → ModRM 0xDA.
+ * Wave184 root-fix: was 0xD3 (IMUL edx,ebx) leaving product in edx; scale uses rbx.
  * Cap residual pure R2 wave1: product C ABI bridge for backend_enc_dispatch.
  * PLATFORM: SHARED — x86_64 SysV encode path (Linux/macOS product asm).
  * @param elf_ctx opaque ElfCodegenCtx*
@@ -939,7 +945,7 @@ export function arch_x86_64_enc_enc_imul_ecx_edx(elf_ctx: *u8): i32 {
 #[no_mangle]
 export function arch_x86_64_enc_enc_imul_ebx_edx(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[3] = [15, 175, 211];
+  let ins: u8[3] = [15, 175, 218];
   return x86_enc_bytes(elf_ctx, ins, 3);
 }
 

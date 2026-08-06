@@ -725,18 +725,20 @@ int32_t arch_x86_64_enc_enc_sub_ebx_edx(uint8_t * elf_ctx) {
   uint8_t ins[2] = {41, 211};
   return x86_enc_bytes(elf_ctx, ins, 2);
 }
+/* Wave184: IMUL ecx,edx (0xCA) — primary *= secondary; was 0xD1 product-in-edx. */
 int32_t arch_x86_64_enc_enc_imul_ecx_edx(uint8_t * elf_ctx) {
   if ((elf_ctx ==0)) {
     return -1;
   }
-  uint8_t ins[3] = {15, 175, 209};
+  uint8_t ins[3] = {15, 175, 202};
   return x86_enc_bytes(elf_ctx, ins, 3);
 }
+/* Wave184: IMUL ebx,edx (0xDA) — rbx *= secondary; was 0xD3 product-in-edx. */
 int32_t arch_x86_64_enc_enc_imul_ebx_edx(uint8_t * elf_ctx) {
   if ((elf_ctx ==0)) {
     return -1;
   }
-  uint8_t ins[3] = {15, 175, 211};
+  uint8_t ins[3] = {15, 175, 218};
   return x86_enc_bytes(elf_ctx, ins, 3);
 }
 int32_t arch_x86_64_enc_enc_sub_rax_rbx(uint8_t * elf_ctx) {

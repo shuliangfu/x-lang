@@ -977,23 +977,27 @@ export function enc_sub_ebx_edx(ctx: *ElfCodegenCtx): i32 {
   return elf.append_elf_bytes(ctx, buf, 2);
 }
 
-/** Exported function `enc_imul_ecx_edx`.
- * Implements `enc_imul_ecx_edx`.
+/**
+ * Emit IMUL ecx, edx (ecx = ecx * edx). Index-scratch primary *= secondary.
+ * Wave184: ModRM 0xCA (was 0xD1 product-in-edx bug).
  * @param ctx *ElfCodegenCtx
  * @return i32
+ * PLATFORM: SHARED x86_64 SysV.
  */
 export function enc_imul_ecx_edx(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[3] = [15, 175, 209];
+  let buf: u8[3] = [15, 175, 202];
   return elf.append_elf_bytes(ctx, buf, 3);
 }
 
-/** Exported function `enc_imul_ebx_edx`.
- * Implements `enc_imul_ebx_edx`.
+/**
+ * Emit IMUL ebx, edx (ebx = ebx * edx). INDEX rvalue primary rbx *= secondary.
+ * Wave184: ModRM 0xDA (was 0xD3 product-in-edx bug; scale uses rbx).
  * @param ctx *ElfCodegenCtx
  * @return i32
+ * PLATFORM: SHARED x86_64 SysV.
  */
 export function enc_imul_ebx_edx(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[3] = [15, 175, 211];
+  let buf: u8[3] = [15, 175, 218];
   return elf.append_elf_bytes(ctx, buf, 3);
 }
 
