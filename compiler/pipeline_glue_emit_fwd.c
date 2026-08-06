@@ -324,10 +324,12 @@ extern int32_t try_inline_var_field_sum_binop_elf(struct ast_ASTArena *arena,
 int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
-/* static resolve stays call_args.c; fwd here so call_return_byte_size / early call_args see it. */
-static int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
-                                                     struct ast_Module **mod_out, int32_t *func_ix_out,
-                                                     int32_t *dep_ix_out);
+/* wave194: resolve is Cap residual public (pure call_return + same-TU callers).
+ * Was static; non-static so runtime_pipeline_abi pure can link the symbol.
+ * Definition: pipeline_asm_emit_call_args.c. PLATFORM: SHARED freestanding. */
+int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
+                                              struct ast_Module **mod_out, int32_t *func_ix_out,
+                                              int32_t *dep_ix_out);
 
 /* GLUE_TYPE_NAMED (TYPE_NAMED kind ord) — used by struct_lit leaf + call_args leaf + later glue residual. */
 #define GLUE_TYPE_NAMED 8

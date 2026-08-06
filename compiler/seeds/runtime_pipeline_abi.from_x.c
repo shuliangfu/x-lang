@@ -25892,7 +25892,17 @@ int32_t glue_load_var_as_value_to_rax_rdx_elf_c(void *elf_ctx, void *arena, void
   return -1;
 }
 
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+/*
+ * wave194 cold twin: CALL expr return byte size (G.7 pure leave).
+ * Freestanding-safe stub. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding CALL return sizing.
+ */
+int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref) {
+  (void)arena;
+  (void)call_expr_ref;
+  return -1;
+}
 
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */

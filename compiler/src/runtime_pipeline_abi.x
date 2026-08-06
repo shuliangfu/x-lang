@@ -1195,7 +1195,11 @@ export extern "C" function backend_enc_jeq_arch(elf_ctx: *u8, label: *u8, label_
 export extern "C" function try_inline_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
 export extern "C" function try_inline_const_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
 export extern "C" function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32): void;
-export extern "C" function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i32;
+// wave194 pure-owned: glue_call_return_byte_size_c body at EOF (#[no_mangle]).
+// G.7 ban dual export extern + pure export for the same symbol.
+// Cap residual resolve stays host-cc (public after wave194; was static).
+export extern "C" function glue_asm_resolve_call_target_module_c(arena: *u8, call_expr_ref: i32, mod_out: *u8, func_ix_out: *i32, dep_ix_out: *i32): i32;
+export extern "C" function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32, dep_return_type_ref: i32, caller_arena: *u8, ctx: *u8): i32;
 // wave154 pure-owned: glue_type_size_simple body in EOF section.
 // wave191 pure-owned: glue_type_named_layout_size_any_module_elf_c lives at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
@@ -62032,8 +62036,8 @@ export function glue_func_return_byte_size_c(mod: *u8, arena: *u8, func_index: i
 // Reuses glue_type_named_layout_size_any_module_elf_c (wave191) +
 //   glue_sysv_dual_gp_byte_size_c (wave192) + glue_type_size_simple (wave154) +
 //   glue_local_var_slot_needs_ptr_load_elf_c (wave189) + glue_var_decl_type_ref (w124).
-// Deferred: glue_call_return_byte_size_c (static glue_asm_resolve_call_target_module_c)
-//   and pipeline_asm_emit_expr_elf_for_call_args mega entry.
+// wave194: glue_call_return_byte_size_c pure (uses Cap residual resolve public).
+// Deferred: pipeline_asm_emit_expr_elf_for_call_args mega entry; resolve pure leave.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
 // ===========================================================================
 
@@ -62157,6 +62161,117 @@ export function glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx: *u8, arena: *u8
     return -1;
   }
   return 0;
+}
+
+// ===========================================================================
+// wave194: CALL expr return byte size pure leave
+// (was Cap residual in pipeline_asm_emit_call_args.c wave1048 fold)
+// G.7 product authority for CALL-site return sizing:
+//   glue_call_return_byte_size_c  (resolve callee → size return type)
+// Cap residual: glue_asm_resolve_call_target_module_c (public host; static→extern
+//   wave194 so pure can call without same-TU host body). TYPE_ARRAY return = E*
+//   (8B) matches pure glue_func_return_byte_size_c (wave192).
+// Deferred: resolve pure leave; for_call_args mega; store_retval / MEMORY paths.
+// PLATFORM: SHARED freestanding · LINUX gold sret gate · MACOS|ARM64 x8.
+// ===========================================================================
+
+/**
+ * Byte size of a CALL expression's return type (-1 resolve failure, 0 void).
+ * Resolves callee via Cap residual glue_asm_resolve_call_target_module_c,
+ * maps dep return type_ref into caller arena when needed, then sizes.
+ * TYPE_ARRAY callee return is E* (8B pointer) — same as func_return_byte_size.
+ * @param arena *u8 — ASTArena*; null → -1
+ * @param call_expr_ref i32 — EXPR_CALL / METHOD_CALL ref; ≤0 → -1
+ * @return i32 — -1 fail; 0 void; 8 TYPE_ARRAY; else glue_type_size_simple
+ *
+ * Contract (wave1048 / wave417 / wave194 pure leave):
+ *  1. null/bad ref → -1
+ *  2. resolve fail / null mod / fi<0 → -1
+ *  3. void (kind 15) or missing rty → 0
+ *  4. dep map via pipeline_typeck_get_dep_return_type when dep_ix≥0
+ *  5. TYPE_ARRAY (10) → 8; else size_simple(emit_mod|callee_mod)
+ *
+ * wave194 pure: G.7 authority (was Cap residual call_args).
+ * PLATFORM: SHARED freestanding CALL return sizing · LINUX+MACOS SysV sret · MACOS|ARM64.
+ */
+#[no_mangle]
+export function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i32 {
+  // LP64 out cells: Module** via u8[8] + pipe_*_ptr_slot (G.7; ban *u8[1] / **u8 lit).
+  // Cap residual C writes *mod_out; pure reads back with pipe_load_ptr_slot.
+  let mod_slot: u8[8] = [];
+  let fi_slot: i32[1] = [];
+  let dep_slot: i32[1] = [];
+  let mod: *u8 = 0 as *u8;
+  let fi: i32 = 0 - 1;
+  let dep_ix: i32 = 0 - 1;
+  let rty: i32 = 0;
+  let sz: i32 = 0;
+  let sz_mod: *u8 = 0 as *u8;
+  let mapped: i32 = 0;
+  let k: i32 = 0;
+  let dep_pipe: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || call_expr_ref <= 0) {
+    return 0 - 1;
+  }
+  pipe_store_ptr_slot(&mod_slot[0], 0, 0 as *u8);
+  fi_slot[0] = 0 - 1;
+  dep_slot[0] = 0 - 1;
+  // Cap residual resolve: mod_out=*u8 opaque Module** cell; fi/dep via i32[1].
+  unsafe {
+    rc = glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod_slot[0], &fi_slot[0], &dep_slot[0]);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  mod = pipe_load_ptr_slot(&mod_slot[0], 0);
+  fi = fi_slot[0];
+  dep_ix = dep_slot[0];
+  if (mod == (0 as *u8) || fi < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rty = pipeline_module_func_return_type_at(mod, fi);
+  }
+  if (rty <= 0) {
+    return 0;
+  }
+  unsafe {
+    k = pipeline_type_kind_ord_at(arena, rty);
+  }
+  // void == 15
+  if (k == 15) {
+    return 0;
+  }
+  // Map dep callee type_ref into caller arena (unknown NAMED else size→4).
+  dep_pipe = pipeline_asm_emit_dep_pipe_c();
+  if (dep_ix >= 0 && dep_pipe != (0 as *u8)) {
+    unsafe {
+      mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena, dep_pipe);
+    }
+    if (mapped > 0) {
+      rty = mapped;
+    }
+  }
+  sz_mod = pipeline_asm_emit_module_ref_c();
+  if (sz_mod == (0 as *u8)) {
+    sz_mod = mod;
+  }
+  unsafe {
+    k = pipeline_type_kind_ord_at(arena, rty);
+  }
+  // TYPE_ARRAY == 10 → E* return (8B); match glue_func_return_byte_size_c
+  if (k == 10) {
+    return 8;
+  }
+  sz = glue_type_size_simple(sz_mod, arena, rty, 0);
+  if (sz <= 0) {
+    sz = glue_type_size_simple(mod, arena, rty, 0);
+  }
+  if (sz > 0) {
+    return sz;
+  }
+  return 0 - 1;
 }
 
 // end wave193 pure-owned leave

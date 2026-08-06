@@ -22,6 +22,10 @@
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - glue_func_param_agg_byte_size_c — wave193 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
+ * - glue_call_return_byte_size_c — wave194 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
+ * - glue_asm_resolve_call_target_module_c — Cap residual public (wave194
+ *   static→extern for pure call_return; pure leave of resolve deferred)
  * - pipeline_asm_emit_expr_elf_for_call_args (public entry; f32 lit, VAR
  *   array→slice fat, dual-GP, fixed array, STRUCT_LIT, INDEX, FIELD, rec)
  *
@@ -300,7 +304,9 @@ int32_t glue_call_arg_var_use_lea_not_load_elf_c(struct ast_ASTArena *arena, int
  * PLATFORM: SHARED freestanding SysV dual-GP width. */
 int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 
-/* wave1048 G.7: fwd decl — definition at EOF. wave132 Cap residual: non-static. */
+/* wave194 pure-owned: glue_call_return_byte_size_c (runtime_pipeline_abi).
+ * Cap residual field_access / struct_let / MEMORY packing uses pure; G.7 single
+ * authority — no host body. PLATFORM: SHARED freestanding CALL return sizing. */
 int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 
 /* wave1064 G.7: fwd decl — definition at L1969 (colocated after
@@ -1303,73 +1309,9 @@ int32_t glue_func_return_byte_size_c(struct ast_Module *mod, struct ast_ASTArena
 int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
                                     int32_t param_index);
 
-/* wave1048 G.7 fold: glue_call_return_byte_size_c migrated here from
- * pipeline_glue.c (definition was at glue.c:3184; forward decl at 2072 —
- * glue.c fwd decl removed; call_args.c fwd decl at L356 serves all
- * callsites after #include at L2392; struct_let.c:93 fwd decl retained
- * for struct_let.c:141 callsite — struct_let.c #include at L2266 < L2392).
- * Consumed by: field_access.c:328 (CALL METHOD_FIELD return sizing) +
- * struct_let.c:141 (CALL init return sizing) + glue.c:3269/3383
- * (call-arg packing sret detection). Same CALL-expr return sizing domain
- * as wave1046 glue_func_return_byte_size_c (func_index variant). */
-
-/**
- * Byte size of a CALL expression's return type (-1 on resolve failure, 0 void).
- *
- * Why: §SysV ABI call-site return sizing — resolves the callee func_index
- * via glue_asm_resolve_call_target_module_c, maps dep callee type_ref into
- * caller arena, then sizes the return type. TYPE_ARRAY callee return is E*
- * (8B pointer, wave417) — matches glue_func_return_byte_size_c so CALL side
- * does not invent sret for make():T[N]. Used by field_access (METHOD_FIELD
- * return ≥9B triggers dual-GP / sret path) + struct_let (CALL init return
- * sizing) + glue call-arg packing (sret detection for >16B return).
- *
- * Invariant: returns -1 for invalid arena/ref or resolve failure; returns 0
- * for void return (kind 15); returns 8 for TYPE_ARRAY return; otherwise
- * returns glue_type_size_simple of the (possibly mapped) return type ref.
- *
- * Asm/Perf: O(1) — one resolve + one kind dispatch + at most two size
- * queries (caller module then callee module fallback). No recursion.
- *
- * PLATFORM: SHARED — pure size query; SysV consumers use >16B to gate sret.
- *   · LINUX+MACOS x86_64 SysV sret (rdi hidden dest for >16B return)
- *   · MACOS|ARM64 AAPCS64 x8 (wave591)
- */
-/* wave132 pure leave Cap residual: was static. */
-int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
-  struct ast_Module *mod;
-  int32_t fi;
-  int32_t dep_ix;
-  int32_t rty;
-  int32_t sz;
-  struct ast_Module *sz_mod;
-  if (!arena || call_expr_ref <= 0)
-    return -1;
-  if (glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &fi, &dep_ix) != 0)
-    return -1;
-  if (!mod || fi < 0)
-    return -1;
-  rty = pipeline_module_func_return_type_at(mod, fi);
-  if (rty <= 0 || pipeline_type_kind_ord_at(arena, rty) == 15)
-    return 0;
-  /* dep callee type_ref must map to caller arena, else glue_type_size_simple
-   * falls back to 4 (unknown TYPE_NAMED in caller arena). */
-  if (dep_ix >= 0 && g_pipeline_asm_emit_dep_pipe) {
-    int32_t mapped =
-        pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena, g_pipeline_asm_emit_dep_pipe);
-    if (mapped > 0)
-      rty = mapped;
-  }
-  sz_mod = g_pipeline_asm_emit_module ? g_pipeline_asm_emit_module : mod;
-  /* wave417: TYPE_ARRAY callee return is E* (8B), not payload size — match
-   * glue_func_return_byte_size_c so CALL side does not invent sret for make():T[N]. */
-  if (pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_ARRAY)
-    return 8;
-  sz = glue_type_size_simple(sz_mod, arena, rty, 0);
-  if (sz <= 0)
-    sz = glue_type_size_simple(mod, arena, rty, 0);
-  return sz > 0 ? sz : -1;
-}
+/* wave194 pure-owned: glue_call_return_byte_size_c body in runtime_pipeline_abi
+ * (G.7 single authority). Cap residual resolve remains public host below;
+ * pure call_return calls resolve via Cap residual. Prototype retained above. */
 
 /* wave192 pure-owned: glue_sysv_dual_gp_byte_size_c body in runtime_pipeline_abi
  * (G.7 single authority). Cap residual load_var / store_retval / param sizing
@@ -2056,9 +1998,13 @@ extern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *m,
 static int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                          int32_t call_expr_ref);
 
-static int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
-                                                      struct ast_Module **mod_out, int32_t *func_ix_out,
-                                                      int32_t *dep_ix_out) {
+/* wave194 Cap residual public (was static): pure glue_call_return_byte_size_c
+ * and same-leaf callers need a single export face. G.7 authority for CALL
+ * target resolve remains this host body until a later pure leave.
+ * PLATFORM: SHARED freestanding CALL resolve · import binding METHOD/FIELD. */
+int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
+                                              struct ast_Module **mod_out, int32_t *func_ix_out,
+                                              int32_t *dep_ix_out) {
   struct ast_Module *mod;
   int32_t func_ix;
   int32_t dep_ix;
