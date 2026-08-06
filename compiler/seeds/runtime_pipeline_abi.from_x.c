@@ -25927,6 +25927,28 @@ int32_t pipeline_asm_call_return_type_kind_ord_c(void *arena, int32_t call_expr_
   return -1;
 }
 
+/*
+ * wave197 cold twin: struct16 *rax → dual-GP load (G.7 pure leave).
+ * Freestanding-safe stub (-1 = enc fail). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding struct16 sret materialize.
+ */
+int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(void *elf_ctx, int32_t ta) {
+  (void)elf_ctx;
+  (void)ta;
+  return -1;
+}
+
+/*
+ * wave197 cold twin: struct16 CALL retval sret-vs-dual-GP classifier (G.7 pure leave).
+ * Freestanding-safe stub (0 = dual-GP default). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding struct16 classifier.
+ */
+int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(void *arena, int32_t call_expr_ref) {
+  (void)arena;
+  (void)call_expr_ref;
+  return 0;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */

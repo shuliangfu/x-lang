@@ -515,7 +515,8 @@ export extern "C" function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i3
 // G.7 ban dual export extern + pure export for the same symbol.
 // wave179 pure-owned: glue_index_deref_ptr_field_slot_{rax,rbx}_elf_c live in EOF (#[no_mangle]).
 // (was Cap residual export extern; dual-export ban.)
-export extern "C" function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *u8, call_expr_ref: i32): i32;
+// wave197 pure-owned: pipeline_asm_call_struct16_ret_needs_rax_deref_c body at EOF (#[no_mangle]).
+// G.7 ban dual export extern + pure export for the same symbol.
 export extern "C" function pipeline_expr_index_base_is_slice_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_index_proven_in_bounds_at(arena: *u8, expr_ref: i32): i32;
 // wave184 pure-owned: try_index eff_addr→rax forest (16 faces) live at EOF (#[no_mangle]).
@@ -1199,6 +1200,8 @@ export extern "C" function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32
 // wave194 pure-owned: glue_call_return_byte_size_c body at EOF (#[no_mangle]).
 // wave195 pure-owned: pipeline_asm_call_arg_value_byte_size_c body at EOF (#[no_mangle]).
 // wave196 pure-owned: pipeline_asm_call_return_type_kind_ord_c body at EOF (#[no_mangle]).
+// wave197 pure-owned: pipeline_asm_call_struct16_ret_needs_rax_deref_c +
+//   pipeline_asm_deref_struct16_rax_ptr_elf_c bodies at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
 // Cap residual resolve stays host-cc (public after wave194; was static).
 export extern "C" function glue_asm_resolve_call_target_module_c(arena: *u8, call_expr_ref: i32, mod_out: *u8, func_ix_out: *i32, dep_ix_out: *i32): i32;
@@ -43384,8 +43387,8 @@ export function pipeline_asm_emit_binop_mod_elf_c(arena: *u8, elf_ctx: *u8, left
 // PLATFORM: SHARED freestanding emit — pure owns FIELD_ACCESS ELF + layout/offset + enum/soa.
 // wave191 pure-owned: glue_call_param_named_struct_pass_addr_elf_c lives at EOF (#[no_mangle]).
 // wave192 pure-owned: glue_sysv_dual_gp_byte_size_c lives at EOF (#[no_mangle]).
+// wave197 pure-owned: pipeline_asm_deref_struct16_rax_ptr_elf_c body at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
-export extern "C" function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx: *u8, ta: i32): i32;
 // wave154 pure-owned: pipeline_expr_struct_lit_value_bytes body in EOF section.
 // wave154 pure-owned: glue_struct_layout_index_by_type_name_c / compute_field_offset_c in EOF.
 export extern "C" function typeck_get_field_offset_from_layout_deps(module: *u8, ctx: *u8, type_name: *u8, type_name_len: i32, field_name: *u8, field_name_len: i32): i32;
@@ -62094,7 +62097,7 @@ export function glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx: *u8, arena: *u8
       }
     }
     if (sz > 8 && sz <= 16 && ta == 0) {
-      // residual Cap: struct16 via *rax (still host in call_args leaf)
+      // wave197 pure: struct16 via *rax (same G.7 face; no Cap residual body)
       unsafe {
         return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
       }
@@ -62472,7 +62475,8 @@ export function pipeline_asm_call_arg_value_byte_size_c(arena: *u8, ctx: *u8, ar
 // Fast path: caller-arena resolved_type_ref. Slow path: Cap residual
 //   glue_asm_resolve_call_target_module_c + return type + dep map; if map
 //   fails, kind_ord from dep arena (arena-local read).
-// Deferred: param_type_ref_at / struct16 deref / for_call_args mega / resolve pure.
+// Deferred (pre-wave197): param_type_ref_at / for_call_args mega / resolve pure.
+// wave197: struct16 needs_rax_deref + deref pure leave (EOF below).
 // PLATFORM: SHARED freestanding · LINUX+MACOS SysV SSE/GP · MACOS|ARM64 AAPCS64.
 // ===========================================================================
 
@@ -62577,3 +62581,155 @@ export function pipeline_asm_call_return_type_kind_ord_c(arena: *u8, call_expr_r
 }
 
 // end wave196 pure-owned leave
+
+// ===========================================================================
+// wave197: struct16 CALL retval pure leave (was Cap residual call_args wave1060/1061)
+// G.7 product authority:
+//   pipeline_asm_deref_struct16_rax_ptr_elf_c
+//   pipeline_asm_call_struct16_ret_needs_rax_deref_c
+// Needs: resolve Cap residual + skip_heavy pure + name_equal Cap + size_simple pure.
+// Deferred: param_type_ref_at / for_call_args mega / resolve pure / spill BSS / CAP BSS.
+// PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 dual-GP · MACOS|ARM64 AAPCS64.
+// ===========================================================================
+
+/**
+ * Dereference rax as a struct16 pointer and load dual-GP (rax low + rdx high).
+ * C/skip-heavy callees return 16B structs via a hidden pointer in rax (sret);
+ * before storing into a let slot, load *[rax] into rax+rdx.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null rejected by encoders
+ * @param ta i32 — target arch (0=x86_64, 1=arm64)
+ * @return i32 — 0 success; -1 on backend_enc failure
+ *
+ * Contract (wave1060 / wave197 pure leave):
+ *  1. mov rax→rbx (hold pointer)
+ *  2. load [rbx]→rax (low half)
+ *  3. load [rbx+8]→rdx (high half)
+ *
+ * wave197 pure: G.7 authority (was Cap residual call_args).
+ * PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 rax+rdx · MACOS|ARM64 x0+x1.
+ */
+#[no_mangle]
+export function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx: *u8, ta: i32): i32 {
+  let rc: i32 = 0;
+  unsafe {
+    rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx, ta);
+  }
+  return rc;
+}
+
+/**
+ * Classify whether a 16B struct CALL retval arrives via rax pointer (C sret)
+ * vs rax+rdx by-value (pure-asm dual-GP).
+ * Rule (G.7 single classifier — do not reimplement elsewhere):
+ *   non-CALL / resolve fail / null mod → 0 (safe dual-GP default)
+ *   TYPE_SLICE / TYPE_ARRAY / fixed-array return → 0
+ *   ok_i32 / err_i32 / ok_u8 / err_u8 whitelist → 0 (asm dual-GP)
+ *   skip_heavy C body → 1 (pointer in rax)
+ *   pure-asm body → 0
+ * heavy alone is the deref authority (wave594: ban blanket size>8 → 1).
+ * @param arena *u8 — ASTArena*; null → 0
+ * @param call_expr_ref i32 — EXPR_CALL ref; ≤0 or non-CALL (kind≠48) → 0
+ * @return i32 — 1 needs *rax deref; 0 dual-GP by value (never negative)
+ *
+ * wave197 pure: G.7 authority (was Cap residual call_args wave1061).
+ * PLATFORM: SHARED classifier · LINUX gold + MACOS|ARM64 co-path.
+ */
+#[no_mangle]
+export function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *u8, call_expr_ref: i32): i32 {
+  // LP64 out cells: Module** via u8[8] + pipe_*_ptr_slot (G.7).
+  let mod_slot: u8[8] = [];
+  let fi_slot: i32[1] = [];
+  let dep_slot: i32[1] = [];
+  let mod: *u8 = 0 as *u8;
+  let fi: i32 = 0 - 1;
+  let dep_ix: i32 = 0 - 1;
+  let rty: i32 = 0;
+  let mapped: i32 = 0;
+  let dep_pipe: *u8 = 0 as *u8;
+  let rk: i32 = 0;
+  let heavy: i32 = 0;
+  let rc: i32 = 0;
+  let ko: i32 = 0;
+  if (arena == (0 as *u8) || call_expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, call_expr_ref);
+  }
+  // EXPR_CALL == 48
+  if (ko != 48) {
+    return 0;
+  }
+  pipe_store_ptr_slot(&mod_slot[0], 0, 0 as *u8);
+  fi_slot[0] = 0 - 1;
+  dep_slot[0] = 0 - 1;
+  unsafe {
+    rc = glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod_slot[0], &fi_slot[0], &dep_slot[0]);
+  }
+  if (rc != 0) {
+    return 0;
+  }
+  mod = pipe_load_ptr_slot(&mod_slot[0], 0);
+  fi = fi_slot[0];
+  dep_ix = dep_slot[0];
+  if (mod == (0 as *u8) || fi < 0) {
+    return 0;
+  }
+  unsafe {
+    rty = pipeline_module_func_return_type_at(mod, fi);
+  }
+  // Dep callee: map return type_ref into caller arena before kind_ord.
+  dep_pipe = pipeline_asm_emit_dep_pipe_c();
+  if (rty > 0 && dep_ix >= 0 && dep_pipe != (0 as *u8)) {
+    unsafe {
+      mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena, dep_pipe);
+    }
+    if (mapped > 0) {
+      rty = mapped;
+    }
+  }
+  // TYPE_SLICE=11 / TYPE_ARRAY=10 / fixed T[N] → freestanding dual-GP (wave335/404).
+  if (rty > 0) {
+    unsafe {
+      rk = pipeline_type_kind_ord_at(arena, rty);
+    }
+    if (rk == 11 || rk == 10 || glue_type_is_fixed_array(arena, rty) != 0) {
+      return 0;
+    }
+  }
+  // core.result ok/err combinators are asm dual-register returns (not sret).
+  unsafe {
+    if (pipeline_module_func_name_equal_at(mod, fi, "ok_i32", 6) != 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(mod, fi, "err_i32", 7) != 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(mod, fi, "ok_u8", 5) != 0) {
+      return 0;
+    }
+    if (pipeline_module_func_name_equal_at(mod, fi, "err_u8", 6) != 0) {
+      return 0;
+    }
+  }
+  // wave594: heavy (skip_heavy C body) alone decides deref; ban size>8 blanket.
+  heavy = asm_skip_heavy_module_func_body(mod, arena, fi);
+  if (heavy != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+// end wave197 pure-owned leave
