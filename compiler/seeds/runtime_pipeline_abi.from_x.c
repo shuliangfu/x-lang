@@ -25916,6 +25916,17 @@ int32_t pipeline_asm_call_arg_value_byte_size_c(void *arena, void *ctx, int32_t 
   return 8;
 }
 
+/*
+ * wave196 cold twin: CALL return TypeKind ordinal (G.7 pure leave).
+ * Freestanding-safe stub (-1 = resolve fail / unknown). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding CALL return kind (SSE vs GP harvest).
+ */
+int32_t pipeline_asm_call_return_type_kind_ord_c(void *arena, int32_t call_expr_ref) {
+  (void)arena;
+  (void)call_expr_ref;
+  return -1;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */

@@ -26,6 +26,8 @@
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - pipeline_asm_call_arg_value_byte_size_c — wave195 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
+ * - pipeline_asm_call_return_type_kind_ord_c — wave196 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - glue_asm_resolve_call_target_module_c — Cap residual public (wave194
  *   static→extern for pure call_return; pure leave of resolve deferred)
  * - pipeline_asm_emit_expr_elf_for_call_args (public entry; f32 lit, VAR
@@ -1783,41 +1785,11 @@ extern struct ast_ASTArena *pipeline_dep_ctx_arena_at(struct ast_PipelineDepCtx 
  * < 2395); pipeline_dep_ctx_arena_at (extern glue.c:11662 > 2395 —
  * forward declared just above); g_pipeline_asm_emit_dep_pipe (global).
  */
-int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
-  struct ast_Module *mod;
-  int32_t func_ix;
-  int32_t dep_ix;
-  int32_t rty;
-  int32_t mapped;
-  struct ast_ASTArena *dep_arena;
-
-  if (!arena || call_expr_ref <= 0)
-    return -1;
-  /* Fast path: caller-arena resolved type_ref (set by typeck). */
-  rty = pipeline_expr_resolved_type_ref(arena, call_expr_ref);
-  if (rty > 0)
-    return pipeline_type_kind_ord_at(arena, rty);
-  /* Slow path: resolve callee module + func_ix, fetch return type_ref. */
-  if (glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &func_ix, &dep_ix) != 0)
-    return -1;
-  if (!mod || func_ix < 0)
-    return -1;
-  rty = pipeline_module_func_return_type_at(mod, func_ix);
-  if (rty <= 0)
-    return -1;
-  /* Dep callee: map type_ref into caller arena first; if mapping fails,
-   * read kind_ord from dep arena (arena-local read is safe). */
-  if (dep_ix >= 0 && g_pipeline_asm_emit_dep_pipe) {
-    mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena,
-                                                                   g_pipeline_asm_emit_dep_pipe);
-    if (mapped > 0)
-      return pipeline_type_kind_ord_at(arena, mapped);
-    dep_arena = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, dep_ix);
-    if (dep_arena)
-      return pipeline_type_kind_ord_at(dep_arena, rty);
-  }
-  return pipeline_type_kind_ord_at(arena, rty);
-}
+/* wave196 pure-owned: pipeline_asm_call_return_type_kind_ord_c body in
+ * runtime_pipeline_abi (G.7 single authority). Seed backend_call_dispatch /
+ * pure binop/cmp harvest link pure via extern; Cap residual host body removed.
+ * PLATFORM: SHARED freestanding CALL return TypeKind ordinal. */
+int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 
 /* wave1063: extern decls — defined in glue.c after this leaf's #include (L2395).
  * Needed for dep-arena param type_ref mapping in

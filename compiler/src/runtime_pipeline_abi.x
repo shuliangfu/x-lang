@@ -941,7 +941,8 @@ export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, expr_ref: i32,
 export extern "C" function pipeline_expr_const_folded_valid_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_const_folded_val_at(arena: *u8, expr_ref: i32): i32;
 // wave151 pure-owned leave: pipeline_expr_enum_namespace_field_tag lives in EOF wave151 section.
-export extern "C" function pipeline_asm_call_return_type_kind_ord_c(arena: *u8, call_expr_ref: i32): i32;
+// wave196 pure-owned: pipeline_asm_call_return_type_kind_ord_c body at EOF (#[no_mangle]).
+// G.7 ban dual export extern + pure export for the same symbol.
 // wave149 pure-owned faces: bodies in EOF section (#[no_mangle] export; no dual export extern).
 // wave188 pure-owned leave: glue_var_expr_stack_off_elf_c lives in EOF wave188 section
 // (#[no_mangle] export; dual-export ban — do not re-declare export extern "C").
@@ -1197,6 +1198,7 @@ export extern "C" function try_inline_const_struct_lit_return_call_to_slot_elf(a
 export extern "C" function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32): void;
 // wave194 pure-owned: glue_call_return_byte_size_c body at EOF (#[no_mangle]).
 // wave195 pure-owned: pipeline_asm_call_arg_value_byte_size_c body at EOF (#[no_mangle]).
+// wave196 pure-owned: pipeline_asm_call_return_type_kind_ord_c body at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
 // Cap residual resolve stays host-cc (public after wave194; was static).
 export extern "C" function glue_asm_resolve_call_target_module_c(arena: *u8, call_expr_ref: i32, mod_out: *u8, func_ix_out: *i32, dep_ix_out: *i32): i32;
@@ -62461,3 +62463,117 @@ export function pipeline_asm_call_arg_value_byte_size_c(arena: *u8, ctx: *u8, ar
 }
 
 // end wave195 pure-owned leave
+
+// ===========================================================================
+// wave196: CALL return TypeKind ordinal pure leave
+// (was Cap residual in pipeline_asm_emit_call_args.c wave1062)
+// G.7 product authority for CALL-site return kind (SSE vs GP harvest):
+//   pipeline_asm_call_return_type_kind_ord_c
+// Fast path: caller-arena resolved_type_ref. Slow path: Cap residual
+//   glue_asm_resolve_call_target_module_c + return type + dep map; if map
+//   fails, kind_ord from dep arena (arena-local read).
+// Deferred: param_type_ref_at / struct16 deref / for_call_args mega / resolve pure.
+// PLATFORM: SHARED freestanding · LINUX+MACOS SysV SSE/GP · MACOS|ARM64 AAPCS64.
+// ===========================================================================
+
+/**
+ * Resolve a CALL expression's return TypeKind ordinal for asm emit.
+ * Fast path uses caller-arena resolved_type_ref (typeck). Slow path resolves
+ * the callee via Cap residual glue_asm_resolve_call_target_module_c, fetches
+ * return type_ref, maps dep type into caller arena when needed, then kind_ord.
+ * If dep mapping fails, kind_ord is read from the dep arena (safe for kind_ord
+ * only — type_ref is not cross-arena portable).
+ * @param arena *u8 — ASTArena*; null → -1
+ * @param call_expr_ref i32 — EXPR_CALL / METHOD_CALL ref; ≤0 → -1
+ * @return i32 — TypeKind ordinal (≥0) on success; -1 on resolve failure
+ *
+ * Contract (wave1062 / wave196 pure leave):
+ *  1. null/bad ref → -1
+ *  2. resolved_type_ref > 0 → kind_ord(caller arena) [fast]
+ *  3. resolve fail / null mod / fi<0 → -1
+ *  4. missing return type_ref → -1
+ *  5. dep_ix≥0: map then kind_ord; map fail → dep_arena kind_ord; else caller
+ *
+ * wave196 pure: G.7 authority (was Cap residual call_args).
+ * PLATFORM: SHARED freestanding CALL return kind · LINUX+MACOS SysV SSE harvest · MACOS|ARM64.
+ */
+#[no_mangle]
+export function pipeline_asm_call_return_type_kind_ord_c(arena: *u8, call_expr_ref: i32): i32 {
+  // LP64 out cells: Module** via u8[8] + pipe_*_ptr_slot (G.7; ban *u8[1] / **u8 lit).
+  let mod_slot: u8[8] = [];
+  let fi_slot: i32[1] = [];
+  let dep_slot: i32[1] = [];
+  let mod: *u8 = 0 as *u8;
+  let func_ix: i32 = 0 - 1;
+  let dep_ix: i32 = 0 - 1;
+  let rty: i32 = 0;
+  let mapped: i32 = 0;
+  let dep_pipe: *u8 = 0 as *u8;
+  let dep_arena: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let k: i32 = 0;
+  if (arena == (0 as *u8) || call_expr_ref <= 0) {
+    return 0 - 1;
+  }
+  // Fast path: caller-arena resolved type_ref (set by typeck).
+  unsafe {
+    rty = pipeline_expr_resolved_type_ref(arena, call_expr_ref);
+  }
+  if (rty > 0) {
+    unsafe {
+      k = pipeline_type_kind_ord_at(arena, rty);
+    }
+    return k;
+  }
+  // Slow path: resolve callee module + func_ix, fetch return type_ref.
+  pipe_store_ptr_slot(&mod_slot[0], 0, 0 as *u8);
+  fi_slot[0] = 0 - 1;
+  dep_slot[0] = 0 - 1;
+  unsafe {
+    rc = glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod_slot[0], &fi_slot[0], &dep_slot[0]);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  mod = pipe_load_ptr_slot(&mod_slot[0], 0);
+  func_ix = fi_slot[0];
+  dep_ix = dep_slot[0];
+  if (mod == (0 as *u8) || func_ix < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rty = pipeline_module_func_return_type_at(mod, func_ix);
+  }
+  if (rty <= 0) {
+    return 0 - 1;
+  }
+  // Dep callee: map type_ref into caller arena first; if mapping fails,
+  // read kind_ord from dep arena (arena-local read is safe).
+  dep_pipe = pipeline_asm_emit_dep_pipe_c();
+  if (dep_ix >= 0 && dep_pipe != (0 as *u8)) {
+    unsafe {
+      mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena, dep_pipe);
+    }
+    if (mapped > 0) {
+      unsafe {
+        k = pipeline_type_kind_ord_at(arena, mapped);
+      }
+      return k;
+    }
+    unsafe {
+      dep_arena = pipeline_dep_ctx_arena_at(dep_pipe, dep_ix);
+    }
+    if (dep_arena != (0 as *u8)) {
+      unsafe {
+        k = pipeline_type_kind_ord_at(dep_arena, rty);
+      }
+      return k;
+    }
+  }
+  unsafe {
+    k = pipeline_type_kind_ord_at(arena, rty);
+  }
+  return k;
+}
+
+// end wave196 pure-owned leave
