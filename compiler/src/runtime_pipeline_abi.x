@@ -500,6 +500,7 @@ export extern "C" function glue_field_access_field_type_ref_c(arena: *u8, mod: *
 // wave156 pure-owned: glue_index_assign_addr_cache_clear/hit + load_from_cached live in EOF.
 // (was Cap residual export extern; bodies #[no_mangle] export — no dual export.)
 // wave185 pure-owned: pipeline_asm_emit_lvalue_eff_addr_{elf,text}_c live at EOF (#[no_mangle]).
+// wave186 pure-owned: glue_emit_soa_index_field_addr_elf_c live at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
 // wave147 Cap residual: index_eff_addr pure leave callees (index_helpers + enc + text arch + flags).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS text co-path.
@@ -43381,7 +43382,8 @@ export extern "C" function pipeline_expr_field_access_offset(arena: *u8, expr_re
 export extern "C" function pipeline_expr_field_access_soa_stride(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_enum_variant_tag_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function typeck_soa_field_soa_index(module: *u8, arena: *u8, expr_ref: i32, base_ref: i32): i32;
-export extern "C" function glue_emit_soa_index_field_addr_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, expr_ref: i32, ctx: *u8, ta: i32): i32;
+// wave186 pure-owned: glue_emit_soa_index_field_addr_elf_c lives at EOF (#[no_mangle]).
+// (was Cap residual export extern; dual-export ban.)
 // pipeline_asm_emit_expr_elf_c already Cap residual earlier (wave149 operand emit).
 
 // ============================================================================
@@ -60415,9 +60417,9 @@ export function glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(arena: *u
 //   pipeline_asm_emit_lvalue_eff_addr_elf_c
 //   pipeline_asm_emit_lvalue_eff_addr_text_c
 // Callees: enc_local_slot pure (w179) · field offset pure (w151) ·
-//   soa residual · index_eff_addr_scaled pure (w147) · ptr-field deref pure (w179) ·
+//   soa pure (w186) · index_eff_addr_scaled pure (w147) · ptr-field deref pure (w179) ·
 //   expr_elf_rec pure (w152) · text local_slot pure (w147) · module_ref pure.
-// CAP BSS / glue_emit_soa_index_field_addr residual remain Cap host-cc.
+// CAP BSS remain Cap host-cc.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
 // ===========================================================================
 
@@ -60433,7 +60435,7 @@ export function glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(arena: *u
  * Contracts:
  * - VAR: lea or load local slot via glue_enc_local_slot_ptr_or_addr_elf_c (*T/T[N] load).
  * - FIELD on VAR base: slot + field offset; enum variants rejected.
- * - FIELD on INDEX base with SoA stride: glue_emit_soa_index_field_addr_elf_c (Cap residual).
+ * - FIELD on INDEX base with SoA stride: glue_emit_soa_index_field_addr_elf_c (pure w186).
  * - FIELD chain: recurse then auto-deref *T intermediate (wave596) then add offset.
  * - INDEX: glue_emit_index_eff_addr_scaled_elf_c with esz from pipeline_asm_index_elem_byte_sz_c.
  * - DEREF (ko==52): emit operand only (pointer bits in rax) — not load of *p.
@@ -60548,11 +60550,8 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
         }
       }
       if (soa_stride > 0) {
-        // Cap residual SoA face is export extern — must call inside unsafe (T001).
-        unsafe {
-          rc = glue_emit_soa_index_field_addr_elf_c(arena, elf_ctx, base_ref, lval_ref, ctx, ta);
-        }
-        return rc;
+        // wave186 pure SoA face (same TU) — no unsafe needed.
+        return glue_emit_soa_index_field_addr_elf_c(arena, elf_ctx, base_ref, lval_ref, ctx, ta);
       }
     }
     // Recurse on base chain.
@@ -60761,3 +60760,122 @@ export function pipeline_asm_emit_lvalue_eff_addr_text_c(arena: *u8, out: *u8, l
 }
 
 // end wave185 pure-owned leave
+
+// ===========================================================================
+// wave186: SoA index.field addr pure-owned leave
+// (was Cap residual body in pipeline_asm_emit_index_helpers.c)
+// G.7 product authority for DoD-S1 column-major arr[i].field eff-addr → rax:
+//   glue_emit_soa_index_field_addr_elf_c
+// Callees: base_to_rax pure (w182) · expr lit pure (w152) · emit_expr_elf_rec
+//   pure (w152) · enc add_imm/push/pop/mov/mul_imm/add_rax_rbx residual.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
+// ===========================================================================
+
+/**
+ * DoD-S1 SoA array field address: rax = base + col_base + index * stride.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param index_expr_ref i32 — INDEX expression (arr[i]) under FIELD_ACCESS
+ * @param fa_ref i32 — outer FIELD_ACCESS ref (carries col_base / soa_stride)
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch (0=x86_64, 1=arm64)
+ * @return i32 — 0 ok; -1 error / unhandled
+ *
+ * Contracts:
+ * - Reads INDEX base/index refs; field_access offset (= column base) and soa_stride.
+ * - base → rax via glue_try_index_var_or_field_base_to_rax_elf_c (pure w182).
+ * - col_base != 0 → backend_enc_add_imm_to_rax_arch.
+ * - lit index: fold lit * stride into add_imm (i32 product; matches Cap cast).
+ * - dynamic index: push base, emit idx → rax, mov→rbx, mul stride, pop base, add.
+ *
+ * wave186 pure: G.7 authority (was glue_emit_soa_index_field_addr_elf_c Cap residual).
+ * PLATFORM: SHARED freestanding SoA path · LINUX gold · MACOS|ARM64 co-path.
+ */
+#[no_mangle]
+export function glue_emit_soa_index_field_addr_elf_c(arena: *u8, elf_ctx: *u8, index_expr_ref: i32, fa_ref: i32, ctx: *u8, ta: i32): i32 {
+  let base_ref: i32 = 0;
+  let idx_ref: i32 = 0;
+  let col_base: i32 = 0;
+  let stride: i32 = 0;
+  let lit_i: i32 = 0;
+  let lit_slot: i32[1] = [];
+  let br: i32 = 0;
+  let dyn: i32 = 0;
+  let is_lit: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || index_expr_ref <= 0 || fa_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    base_ref = pipeline_expr_index_base_ref(arena, index_expr_ref);
+    idx_ref = pipeline_expr_index_index_ref(arena, index_expr_ref);
+    col_base = pipeline_expr_field_access_offset(arena, fa_ref);
+    stride = pipeline_expr_field_access_soa_stride(arena, fa_ref);
+  }
+  if (base_ref <= 0 || idx_ref <= 0 || stride <= 0) {
+    return 0 - 1;
+  }
+  br = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  if (br != 0) {
+    return br;
+  }
+  if (col_base != 0) {
+    unsafe {
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, col_base, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+  }
+  is_lit = pipeline_asm_expr_lit_i32_at_c(arena, idx_ref, &lit_slot[0]);
+  if (is_lit != 0) {
+    lit_i = lit_slot[0];
+    if (lit_i != 0) {
+      // Cap residual used int64 intermediate then cast to int32 for enc.
+      // Pure path keeps i32 product (soa lit indices stay in i32 range).
+      dyn = lit_i * stride;
+      if (dyn != 0) {
+        unsafe {
+          if (backend_enc_add_imm_to_rax_arch(elf_ctx, dyn, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+      }
+    }
+    return 0;
+  }
+  unsafe {
+    rc = backend_enc_push_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, idx_ref, ctx, ta);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  if (stride != 1) {
+    unsafe {
+      rc = backend_enc_mul_imm_to_rbx_arch(elf_ctx, stride, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
+  }
+}
+
+// end wave186 pure-owned leave

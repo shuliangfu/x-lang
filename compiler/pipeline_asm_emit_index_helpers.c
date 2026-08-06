@@ -25,7 +25,8 @@
  *     (var_lit / var_idx / plus_lit / plus_var / minus_lit / minus_var /
  *      mul_lit / mul_var) — residual base_to_rbx stays host; nested
  *      add3/subadd3/eff_addr still residual
- * - glue_emit_soa_index_field_addr_elf_c (DoD column-major arr[i].field)
+ * - glue_emit_soa_index_field_addr_elf_c — wave186 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - pipeline_asm_emit_lvalue_eff_addr_{elf,text}_c — wave185 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twins
  *
@@ -834,54 +835,13 @@ int32_t glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(struct ast_ASTAre
                                                             struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                             int32_t esz);
 
-/**
- * DOD-S1：SoA 数组 `arr[i].field` 有效地址 → rax = base + col_base + index*stride。
- * index_expr_ref 为 INDEX 表达式；fa_ref 为外层 FIELD_ACCESS（含 col_base/stride）。
- */
-/* wave151 Cap residual: pure field_access leave (was static). PLATFORM: SHARED. */
+/* wave186 pure-owned: glue_emit_soa_index_field_addr_elf_c (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding SoA arr[i].field path. */
 int32_t glue_emit_soa_index_field_addr_elf_c(struct ast_ASTArena *arena,
                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                      int32_t index_expr_ref, int32_t fa_ref,
-                                                     struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  int32_t base_ref;
-  int32_t idx_ref;
-  int32_t col_base;
-  int32_t stride;
-  int32_t lit_i;
-  int32_t br;
-  if (!arena || !elf_ctx || !ctx || index_expr_ref <= 0 || fa_ref <= 0)
-    return -1;
-  base_ref = pipeline_expr_index_base_ref(arena, index_expr_ref);
-  idx_ref = pipeline_expr_index_index_ref(arena, index_expr_ref);
-  col_base = pipeline_expr_field_access_offset(arena, fa_ref);
-  stride = pipeline_expr_field_access_soa_stride(arena, fa_ref);
-  if (base_ref <= 0 || idx_ref <= 0 || stride <= 0)
-    return -1;
-  br = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-  if (br != 0)
-    return br;
-  if (col_base != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, col_base, ta) != 0)
-    return -1;
-  if (pipeline_asm_expr_lit_i32_at_c(arena, idx_ref, &lit_i)) {
-    if (lit_i != 0) {
-      int64_t dyn = (int64_t)lit_i * (int64_t)stride;
-      if (dyn != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, (int32_t)dyn, ta) != 0)
-        return -1;
-    }
-    return 0;
-  }
-  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, idx_ref, ctx, ta) != 0)
-    return -1;
-  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (stride != 1 && backend_enc_mul_imm_to_rbx_arch(elf_ctx, stride, ta) != 0)
-    return -1;
-  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
-    return -1;
-  return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
-}
+                                                     struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /**
  * Forward decls for lvalue text twin (wave147 pure-owned leave):

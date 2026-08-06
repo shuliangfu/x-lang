@@ -25728,6 +25728,22 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_text_c(void *arena, void *out, int32_t
   return -1;
 }
 
+/*
+ * wave186 cold twin: SoA index.field addr (G.7 pure leave).
+ * Freestanding-safe stub: return -1 (unhandled). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding SoA arr[i].field path.
+ */
+int32_t glue_emit_soa_index_field_addr_elf_c(void *arena, void *elf_ctx, int32_t index_expr_ref,
+                                             int32_t fa_ref, void *ctx, int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)index_expr_ref;
+  (void)fa_ref;
+  (void)ctx;
+  (void)ta;
+  return -1;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
