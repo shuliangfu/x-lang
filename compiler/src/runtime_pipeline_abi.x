@@ -559,8 +559,8 @@ export extern "C" function pipeline_asm_emit_ctx_sret_active_get(): i32;
 export extern "C" function pipeline_asm_emit_ctx_sret_home_off_get(): i32;
 export extern "C" function pipeline_asm_host_is_arm64_c(): i32;
 // wave192 pure-owned: glue_func_param_home_width_c / glue_func_return_byte_size_c at EOF.
+// wave193 pure-owned: glue_func_param_agg_byte_size_c / glue_load_var_as_value_to_rax_rdx_elf_c at EOF.
 // G.7 ban dual export extern + pure export for the same symbol.
-export extern "C" function glue_func_param_agg_byte_size_c(arena: *u8, mod: *u8, func_index: i32, param_index: i32): i32;
 // wave157 pure-owned: glue_asm_sum_block_call_spill_bytes / glue_sum_block_slice_reent_dc_bytes_c
 // (definitions at EOF; dual-export ban — do not redeclare export extern).
 export extern "C" function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32;
@@ -40772,7 +40772,9 @@ export extern "C" function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_c
 export extern "C" function backend_emit_expr_elf_slow(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32;
 export extern "C" function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
-export extern "C" function glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32;
+// wave193 pure-owned: glue_load_var_as_value_to_rax_rdx_elf_c at EOF (#[no_mangle]).
+// G.7 ban dual export extern + pure export for the same symbol.
+export extern "C" function backend_enc_load_rbp_to_rdx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern "C" function glue_binop_rax_frame_spill_push(home: i32): i32;
 export extern "C" function glue_binop_rax_frame_spill_pop(): i32;
 export extern "C" function glue_binop_rax_frame_spill_depth(): i32;
@@ -61786,11 +61788,11 @@ export function glue_call_param_named_struct_pass_addr_elf_c(arena: *u8, pty: i3
 // (was Cap residual in pipeline_asm_emit_call_args.c)
 // G.7 product authority for SysV INTEGER dual-GP classify + home/return sizing:
 //   glue_sysv_dual_gp_byte_size_c   (import POD 9–16B recovery by layout/name)
-//   glue_func_param_home_width_c    (8B floor; >8 aligned to 8 via residual agg)
+//   glue_func_param_home_width_c    (8B floor; >8 aligned via pure agg wave193)
 //   glue_func_return_byte_size_c    (void=0; TYPE_ARRAY return=8; else size_simple)
 // Reuses glue_type_named_layout_size_any_module_elf_c (wave191) +
 //   glue_type_size_simple (wave154) + pipeline_module_num_funcs (wave121) +
-//   residual glue_func_param_agg_byte_size_c (still Cap; pure thin home only).
+//   glue_func_param_agg_byte_size_c pure-owned wave193 (before home_width).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
 // ===========================================================================
 
@@ -61877,8 +61879,83 @@ export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
 }
 
 /**
+ * Byte size of formal param i (named struct uses dep layout when entry lacks it).
+ * TYPE_SLICE / TYPE_ARRAY / TYPE_PTR formals lower as one GP (8B). TYPE_NAMED
+ * uses dep-arena layout size when entry module lacks layout; dual-GP may widen
+ * ≤8B simple size to 9–16B INTEGER class.
+ * @param arena *u8 — ASTArena*; null → 8
+ * @param mod *u8 — Module*; null → 8
+ * @param func_index i32 — emit function index; <0 → 8
+ * @param param_index i32 — formal index; <0 → 8
+ * @return i32 — >=8 for valid params; 8 invalid/pointer/SLICE/ARRAY floor
+ *
+ * Contract (wave417 / wave1045 / wave193 pure leave):
+ *  1. null/bad indices → 8
+ *  2. TYPE_PTR (9) / TYPE_SLICE (11) / TYPE_ARRAY (10) → 8 (pointer home)
+ *  3. TYPE_NAMED (8): named_layout_size else size_simple; dual-GP widen if > simple
+ *  4. else size_simple; floor 8 if ≤0
+ *
+ * wave193 pure: G.7 authority (was Cap residual call_args). Placed before
+ * home_width so same-TU pure can call without residual extern.
+ * PLATFORM: SHARED freestanding formal agg sizing · LINUX+MACOS SysV · MACOS|ARM64.
+ */
+#[no_mangle]
+export function glue_func_param_agg_byte_size_c(arena: *u8, mod: *u8, func_index: i32, param_index: i32): i32 {
+  let pty: i32 = 0;
+  let k: i32 = 0;
+  let sz: i32 = 0;
+  let dsz: i32 = 0;
+  if (arena == (0 as *u8) || mod == (0 as *u8) || func_index < 0 || param_index < 0) {
+    return 8;
+  }
+  unsafe {
+    pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
+  }
+  if (pty <= 0) {
+    return 8;
+  }
+  unsafe {
+    k = pipeline_type_kind_ord_at(arena, pty);
+  }
+  // TYPE_PTR == 9 → one GP
+  if (k == 9) {
+    return 8;
+  }
+  // TYPE_SLICE == 11 → pointer home (not 16B dual-GP fat)
+  if (k == 11) {
+    return 8;
+  }
+  // TYPE_ARRAY == 10 → E* formal (wave417), not MEMORY payload
+  if (k == 10) {
+    return 8;
+  }
+  // TYPE_NAMED == 8: dep layout + dual-GP recover for import POD
+  if (k == 8) {
+    sz = glue_type_named_layout_size_any_module_elf_c(arena, pty);
+    if (sz <= 0) {
+      sz = glue_type_size_simple(mod, arena, pty, 0);
+    }
+    if (sz <= 8) {
+      dsz = glue_sysv_dual_gp_byte_size_c(arena, pty);
+      if (dsz > sz) {
+        sz = dsz;
+      }
+    }
+    if (sz <= 0) {
+      return 8;
+    }
+    return sz;
+  }
+  sz = glue_type_size_simple(mod, arena, pty, 0);
+  if (sz <= 0) {
+    return 8;
+  }
+  return sz;
+}
+
+/**
  * Home slot width for formal param (8B floor; >8B aligned up to 8).
- * Thin consumer of residual glue_func_param_agg_byte_size_c.
+ * Thin consumer of pure glue_func_param_agg_byte_size_c (wave193).
  * @param arena *u8 — ASTArena*
  * @param mod *u8 — Module*
  * @param func_index i32 — emit function index
@@ -61891,10 +61968,8 @@ export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
 #[no_mangle]
 export function glue_func_param_home_width_c(arena: *u8, mod: *u8, func_index: i32, param_index: i32): i32 {
   let sz: i32 = 0;
-  // residual Cap agg sizing (export extern "C") — T001 needs unsafe
-  unsafe {
-    sz = glue_func_param_agg_byte_size_c(arena, mod, func_index, param_index);
-  }
+  // wave193: agg_byte_size is pure (defined above) — no residual extern / unsafe.
+  sz = glue_func_param_agg_byte_size_c(arena, mod, func_index, param_index);
   if (sz > 8) {
     return (sz + 7) & (~7);
   }
@@ -61947,3 +62022,141 @@ export function glue_func_return_byte_size_c(mod: *u8, arena: *u8, func_index: i
 }
 
 // end wave192 pure-owned leave
+
+// ===========================================================================
+// wave193: CALL-arg param agg size + VAR dual-GP load pure leave
+// (was Cap residual in pipeline_asm_emit_call_args.c)
+// G.7 product authority for SysV formal agg sizing + dual-GP by-value load:
+//   glue_func_param_agg_byte_size_c          (colocated before home_width above)
+//   glue_load_var_as_value_to_rax_rdx_elf_c  (local dual-GP / *T deref path)
+// Reuses glue_type_named_layout_size_any_module_elf_c (wave191) +
+//   glue_sysv_dual_gp_byte_size_c (wave192) + glue_type_size_simple (wave154) +
+//   glue_local_var_slot_needs_ptr_load_elf_c (wave189) + glue_var_decl_type_ref (w124).
+// Deferred: glue_call_return_byte_size_c (static glue_asm_resolve_call_target_module_c)
+//   and pipeline_asm_emit_expr_elf_for_call_args mega entry.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
+// ===========================================================================
+
+/**
+ * Load local VAR by-value into return/arg GP pair for call-arg packing.
+ * 9–16B INTEGER dual-GP: x86 high-end (low@off, high@off-8 → rax+rdx);
+ * arm64 low-end (low@off, high@off+8 → x0+x1). Pointer-home formals (*T /
+ * T[N] / T[]) load the pointer then optionally deref 9–16B via residual.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
+ * @param arena *u8 — ASTArena* (sizing; may be null for plain load)
+ * @param ctx *u8 — AsmFuncCtx* (type/param lookup)
+ * @param var_expr_ref i32 — EXPR_VAR ref
+ * @param off i32 — stack home offset; <0 → -1
+ * @param ta i32 — target arch (0=x86_64, 1=arm64)
+ * @return i32 — 0 success; -1 enc/null failure
+ *
+ * wave193 pure: G.7 authority (was Cap residual call_args / wave603 arm64 dual).
+ * PLATFORM: SHARED freestanding dual-GP load · LINUX+MACOS x86 · MACOS|ARM64.
+ */
+#[no_mangle]
+export function glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, var_expr_ref: i32, off: i32, ta: i32): i32 {
+  let tr: i32 = 0;
+  let sz: i32 = 0;
+  let nsz: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  if (elf_ctx == (0 as *u8) || off < 0) {
+    return -1;
+  }
+  // *T / T[N] / T[] formal: load pointer home, then optional 9–16B deref.
+  if (glue_local_var_slot_needs_ptr_load_elf_c(arena, var_expr_ref, off, ctx) != 0) {
+    // T001: backend_enc_* / residual deref are export extern "C"
+    unsafe {
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+    }
+    if (rc != 0) {
+      return -1;
+    }
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
+    if (tr <= 0) {
+      unsafe {
+        tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
+      }
+    }
+    mod = pipeline_asm_emit_module_ref_c();
+    sz = glue_type_size_simple(mod, arena, tr, 0);
+    if (sz <= 16 && tr > 0) {
+      nsz = glue_sysv_dual_gp_byte_size_c(arena, tr);
+      if (nsz > sz) {
+        sz = nsz;
+      }
+    }
+    if (sz > 8 && sz <= 16 && ta == 0) {
+      // residual Cap: struct16 via *rax (still host in call_args leaf)
+      unsafe {
+        return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+      }
+    }
+    // arm64 *T dual soft: pointer-in-x0 only (rare freestanding path).
+    return 0;
+  }
+  tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
+  if (tr <= 0) {
+    unsafe {
+      tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
+    }
+  }
+  mod = pipeline_asm_emit_module_ref_c();
+  sz = glue_type_size_simple(mod, arena, tr, 0);
+  if (sz <= 16 && tr > 0) {
+    nsz = glue_sysv_dual_gp_byte_size_c(arena, tr);
+    if (nsz > sz) {
+      sz = nsz;
+    }
+  }
+  // 9–16B dual-GP by-value into spill-expected GP pair.
+  if (sz > 8 && sz <= 16 && arena != (0 as *u8) && ctx != (0 as *u8)) {
+    if (ta == 1) {
+      // MACOS|ARM64: high first into x1 (via x0 temp), then low into x0.
+      unsafe {
+        rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off + 8, ta);
+      }
+      if (rc != 0) {
+        return -1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
+      }
+      if (rc != 0) {
+        return -1;
+      }
+      unsafe {
+        rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+      }
+      if (rc != 0) {
+        return -1;
+      }
+      return 0;
+    }
+    if (ta == 0) {
+      // LINUX+MACOS x86_64: low→rax, high→rdx (high-end polarity).
+      unsafe {
+        rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+      }
+      if (rc != 0) {
+        return -1;
+      }
+      unsafe {
+        rc = backend_enc_load_rbp_to_rdx_arch(elf_ctx, off - 8, ta);
+      }
+      if (rc != 0) {
+        return -1;
+      }
+      return 0;
+    }
+  }
+  unsafe {
+    rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+  }
+  if (rc != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+// end wave193 pure-owned leave

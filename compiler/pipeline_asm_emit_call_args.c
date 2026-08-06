@@ -8,7 +8,8 @@
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - glue_call_arg_var_use_lea_not_load_elf_c — wave190 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
- * - glue_load_var_as_value_to_rax_rdx_elf_c (≤16B INTEGER dual-GP by-value)
+ * - glue_load_var_as_value_to_rax_rdx_elf_c — wave193 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - glue_type_named_layout_size_any_module_elf_c — wave191 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - glue_call_param_named_struct_pass_addr_elf_c — wave191 pure leave
@@ -18,6 +19,8 @@
  * - glue_func_param_home_width_c — wave192 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - glue_func_return_byte_size_c — wave192 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
+ * - glue_func_param_agg_byte_size_c — wave193 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - pipeline_asm_emit_expr_elf_for_call_args (public entry; f32 lit, VAR
  *   array→slice fat, dual-GP, fixed array, STRUCT_LIT, INDEX, FIELD, rec)
@@ -306,86 +309,12 @@ int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_ex
 static int32_t glue_copy_large_struct_from_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          int32_t slot_off, int32_t sz, int32_t ta);
 
-/**
- * VAR 按值装入 rax（及 9–16B struct 的 rdx）：局部 let 双 half 栈 load；形参 hidden pointer 则 deref。
- * or_i32/and_i32 三元 `r : other` 与 `return r` 须完整 SysV 双寄存器，单 load 会丢 err 半或误用指针。
- */
-/**
- * Load local VAR by-value into return/arg GP pair for call-arg packing.
- * PLATFORM: SHARED freestanding · LINUX|x86 high-end (low@off, high@off-8 → rax+rdx)
- *   · MACOS|ARM64 low-end (low@off, high@off+8 → x0+x1).
- *
- * wave603 Cap residual: arm64 previously returned after the low half only
- * (`if (ta != 0) return 0`), so dual-GP call-arg spill stored dirty x1
- * (e.g. last STRUCT_LIT base pointer) → mac fs take(p) for 12B/16B Pair wrong
- * (var12=78/var16=70; call_dual via mk() dual return was green).
- * G.7: complete dual load for ta==1 with low-end polarity ≡ param_home /
- * store_retval_pair / glue_sysv_spill (wave599/600); no second authority.
- */
-/* wave152: was static; pure expr_rec leave Cap residual (link-visible). */
+/* wave193 pure-owned: glue_load_var_as_value_to_rax_rdx_elf_c (runtime_pipeline_abi).
+ * Cap residual for_call_args / expr dual-GP VAR uses pure; G.7 single authority.
+ * PLATFORM: SHARED freestanding dual-GP by-value load · LINUX x86 · MACOS|ARM64. */
 int32_t glue_load_var_as_value_to_rax_rdx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                         struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                        int32_t var_expr_ref, int32_t off, int32_t ta) {
-  int32_t tr;
-  int32_t sz;
-  if (!elf_ctx || off < 0)
-    return -1;
-  if (glue_local_var_slot_needs_ptr_load_elf_c(arena, var_expr_ref, off, ctx) != 0) {
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
-      return -1;
-    tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
-    if (tr <= 0)
-      tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
-    sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
-    if (sz <= 16 && tr > 0) {
-      int32_t nsz = glue_sysv_dual_gp_byte_size_c(arena, tr);
-      if (nsz > sz)
-        sz = nsz;
-    }
-    if (sz > 8 && sz <= 16 && ta == 0)
-      return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
-    /* arm64 *T dual soft: still pointer-in-x0 only (rare freestanding path). */
-    return 0;
-  }
-  tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
-  if (tr <= 0)
-    tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
-  sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
-  if (sz <= 16 && tr > 0) {
-    int32_t nsz = glue_sysv_dual_gp_byte_size_c(arena, tr);
-    if (nsz > sz)
-      sz = nsz;
-  }
-  /*
-   * 9–16B INTEGER dual-GP by-value into the return/arg GP pair that spill expects:
-   *   - x86 SysV: rax + rdx (high@off-8 high-end)
-   *   - arm64 AAPCS64: x0 + x1 (high@off+8 low-end)
-   * wave603: arm64 must load x1; prior early-return left x1 dirty.
-   */
-  if (sz > 8 && sz <= 16 && arena && ctx) {
-    if (ta == 1) {
-      /* MACOS|ARM64: high first into x1 (via x0 temp), then low into x0. */
-      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off + 8, ta) != 0)
-        return -1;
-      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
-        return -1;
-      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
-        return -1;
-      return 0;
-    }
-    if (ta == 0) {
-      /* LINUX+MACOS x86_64: low→rax, high→rdx (unchanged polarity). */
-      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
-        return -1;
-      if (backend_enc_load_rbp_to_rdx_arch(elf_ctx, off - 8, ta) != 0)
-        return -1;
-      return 0;
-    }
-  }
-  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
-    return -1;
-  return 0;
-}
+                                                        int32_t var_expr_ref, int32_t off, int32_t ta);
 
 /* wave191 pure-owned: glue_type_named_layout_size_any_module_elf_c +
  * glue_call_param_named_struct_pass_addr_elf_c (runtime_pipeline_abi pure).
@@ -1360,95 +1289,11 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
   return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
 }
 
-/* wave1045 G.7 fold: glue_func_param_agg_byte_size_c migrated here from
- * pipeline_glue.c (definition was at glue.c:5987; forward decl at 5588 —
- * both removed). Same-TU #include at glue.c:2392 makes the definition
- * visible to all glue.c callsites (glue_func_param_home_width_c at 6048 +
- * fill_param_slots / emit_func_param_home paths at 6172/6249/6393/6473).
- * Dependencies already visible from this include point:
- * - glue_type_named_layout_size_any_module_elf_c (defined in this file at L429)
- * - glue_type_size_simple (forward decl at glue.c:1887 < include 2392)
- * - glue_sysv_dual_gp_byte_size_c (defined at EOF of this file; wave1057) */
-
-/**
- * Byte size of formal param i (named struct uses dep layout when entry module lacks it).
- *
- * Why: §SysV ABI formal-param sizing — the authoritative aggregate byte size
- * consumed by glue_func_param_home_width_c (home slot width) and all
- * fill_param_slots / emit_func_param_home paths. TYPE_SLICE / TYPE_ARRAY
- * formals lower as pointers (one GP, 8B) matching codegen.x; TYPE_NAMED
- * uses dep-arena layout size when entry module lacks its own layout.
- * wave417: fixed TYPE_ARRAY formals must NOT return full payload (e.g.
- * i32[8]=32) — that mis-classed as MEMORY by-value (>16B) and arm64
- * emit_param_home stores GP args at 16+i*8 → INDEX loads junk → SIGSEGV.
- *
- * Invariant: returns >= 8 for any valid param (8 is the GP slot floor);
- * returns 8 for invalid arena/module/func/param, pointer types (kind 9),
- * TYPE_SLICE, TYPE_ARRAY. For TYPE_NAMED (kind 8) returns the dep-arena
- * layout size if >0, else glue_type_size_simple; upgraded to dual-GP size
- * if that exceeds the simple size (≤8B INTEGER dual-half home).
- *
- * Asm/Perf: O(1) per param — one type_ref lookup + one kind dispatch +
- * at most two size queries (named layout + dual-GP). No recursion.
- *
- * PLATFORM: SHARED — pure size query; SysV consumers align to 8.
- *   · LINUX+MACOS x86_64 SysV ≤16B dual-GP / >16B MEMORY classification
- *   · MACOS|ARM64 AAPCS64 same pointer lowering for SLICE/ARRAY formals
- */
-/* wave141 pure leave Cap residual: was static; pure compute_frame/fill_param/param_home links here. */
+/* wave193 pure-owned: glue_func_param_agg_byte_size_c (runtime_pipeline_abi).
+ * Cap residual fill_param / home_width / param sizing uses pure; G.7 single authority.
+ * PLATFORM: SHARED freestanding formal param aggregate sizing. */
 int32_t glue_func_param_agg_byte_size_c(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                       int32_t func_index, int32_t param_index) {
-  int32_t pty;
-  int32_t k;
-  int32_t sz;
-  if (!arena || !mod || func_index < 0 || param_index < 0)
-    return 8;
-  pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
-  if (pty <= 0)
-    return 8;
-  k = pipeline_type_kind_ord_at(arena, pty);
-  if (k == 9)
-    return 8; /* pointer */
-  /*
-   * PLATFORM: SHARED + LINUX/MACOS x86_64 SysV —
-   * TYPE_SLICE params are lowered as `struct xlang_slice_* *` (codegen.x), one GP.
-   * Fat value is 16B but call/home must not dual-GP classify (that steals rsi for
-   * the next arg → get_i32(s,i) puts i in rdx; C expects i in rsi). G.7 complete
-   * with call-arg lea for TYPE_SLICE.
-   */
-  if (k == (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 8;
-  /*
-   * wave417 Cap residual pure: fixed TYPE_ARRAY formals lower as E* (one GP),
-   * matching host-C `int32_t *a` / call-site lea(payload) / glue_emit_func_param
-   * is_indirect_array_slot_c (8B pointer in home).
-   * Root: prior glue_type_size_simple(T[N]) returned full payload (e.g. i32[8]=32).
-   * fill_param_slots then used high-end home (off+width)=0x30 while arm64
-   * emit_param_home always stores GP args at 16+i*8 (=0x10) → INDEX loads junk
-   * base → SIGSEGV. x86 SysV also mis-classed as MEMORY by-value (>16B).
-   * G.7: complete the *T / T[] / T[N] param pointer set in this authority only.
-   * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
-   */
-  if (k == (int32_t)ast_TypeKind_TYPE_ARRAY)
-    return 8;
-  if (k == 8) {
-    sz = glue_type_named_layout_size_any_module_elf_c(arena, pty);
-    if (sz <= 0)
-      sz = glue_type_size_simple(mod, arena, pty, 0);
-    if (sz <= 8) {
-      int32_t dsz = glue_sysv_dual_gp_byte_size_c(arena, pty);
-      if (dsz > sz)
-        sz = dsz;
-    }
-    if (sz <= 0)
-      return 8;
-    return sz;
-  }
-  sz = glue_type_size_simple(mod, arena, pty, 0);
-  if (sz <= 0)
-    return 8;
-  return sz;
-}
+                                       int32_t func_index, int32_t param_index);
 
 /* wave192 pure-owned: glue_func_return_byte_size_c + glue_func_param_home_width_c
  * (runtime_pipeline_abi pure). Cap residual frame/sret/fill_param uses pure;
