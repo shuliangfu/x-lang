@@ -8,6 +8,7 @@
  * wave209: CAP cache BSS (minus_pair/subadd3) + thin + hit_var pure leave cold twins under #ifndef FROM_X
  * wave210: binop VAR slot cache BSS + thin accessors pure leave cold twins under #ifndef FROM_X
  * wave211: binop stack_spill try_reload enc pure leave cold twin under #ifndef FROM_X
+ * wave212: Chaitin color/pin BSS + thin accessors pure leave cold twins under #ifndef FROM_X
  * wave172: minus_pair/subadd3 cache spill pure leave cold twins under #ifndef FROM_X
  * wave171: index-scratch enc push/reload/pop pure leave cold twins under #ifndef FROM_X
  * wave174: spill_reg_to_spill + evict_rax|rbx pure leave cold twins under #ifndef FROM_X
@@ -26515,6 +26516,95 @@ int32_t glue_binop_stack_spill_try_reload_elf_c(void *elf_ctx, int32_t ta, int32
   (void)off;
   (void)to_rbx;
   return 0;
+}
+
+/*
+ * wave212 cold twins: Chaitin color/pin BSS + thin accessors
+ * (G.7 pure leave). Working freestanding BSS twins of pure pin[6] +
+ * color map (cap 16) + cfg_coloring_active + cfg_final_expr_use_n.
+ * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
+ * stack_spill_enabled cold twin: final_expr_use_n / always-off linear max
+ * (no residual linear_max in cold seed — freestanding-safe conservative 0).
+ * PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path.
+ */
+static int32_t g_wave212_pin_spill_off[6] = {-1, -1, -1, -1, -1, -1};
+static int32_t g_wave212_spill_color_off[16];
+static int32_t g_wave212_spill_color_which[16];
+static int32_t g_wave212_spill_color_n = 0;
+static int32_t g_wave212_cfg_coloring_active = 0;
+static int32_t g_wave212_cfg_final_expr_use_n = 0;
+
+void glue_asm73_pin_spill_off_clear_all(void) {
+  g_wave212_pin_spill_off[0] = -1;
+  g_wave212_pin_spill_off[1] = -1;
+  g_wave212_pin_spill_off[2] = -1;
+  g_wave212_pin_spill_off[3] = -1;
+  g_wave212_pin_spill_off[4] = -1;
+  g_wave212_pin_spill_off[5] = -1;
+}
+
+void glue_asm73_pin_spill_off_set(int32_t which, int32_t off) {
+  if (which < 0 || which > 5)
+    return;
+  g_wave212_pin_spill_off[which] = off;
+}
+
+int32_t glue_asm73_off_is_spill_pin(int32_t off) {
+  if (off < 0)
+    return 0;
+  return off == g_wave212_pin_spill_off[0] || off == g_wave212_pin_spill_off[1] ||
+         off == g_wave212_pin_spill_off[2] || off == g_wave212_pin_spill_off[3] ||
+         off == g_wave212_pin_spill_off[4] || off == g_wave212_pin_spill_off[5];
+}
+
+void glue_asm73_clear_spill_color_map(void) { g_wave212_spill_color_n = 0; }
+
+void glue_asm73_set_spill_color(int32_t off, int32_t which) {
+  int32_t i;
+  if (off < 0 || which < 0 || which > 6)
+    return;
+  for (i = 0; i < g_wave212_spill_color_n; i++) {
+    if (g_wave212_spill_color_off[i] == off) {
+      g_wave212_spill_color_which[i] = which;
+      return;
+    }
+  }
+  if (g_wave212_spill_color_n >= 16)
+    return;
+  g_wave212_spill_color_off[g_wave212_spill_color_n] = off;
+  g_wave212_spill_color_which[g_wave212_spill_color_n] = which;
+  g_wave212_spill_color_n++;
+}
+
+int32_t glue_asm73_off_spill_color_which(int32_t off) {
+  int32_t i;
+  if (off < 0)
+    return -1;
+  for (i = 0; i < g_wave212_spill_color_n; i++) {
+    if (g_wave212_spill_color_off[i] == off)
+      return g_wave212_spill_color_which[i];
+  }
+  return -1;
+}
+
+int32_t glue_asm73_cfg_coloring_active_get(void) { return g_wave212_cfg_coloring_active; }
+
+void glue_asm73_cfg_coloring_active_set(int32_t v) {
+  g_wave212_cfg_coloring_active = v ? 1 : 0;
+}
+
+void glue_asm73_cfg_final_expr_use_n_set(int32_t n) { g_wave212_cfg_final_expr_use_n = n; }
+
+/* Cold twin: no residual linear_max / cfg_parent — use final_expr gate only
+ * when final_expr_use_n was stamped; otherwise never enable stack spill. */
+int32_t glue_asm73_stack_spill_enabled(void) {
+  return g_wave212_cfg_final_expr_use_n >= 12 ? 1 : 0;
+}
+
+int32_t glue_asm73_var_prefers_stack_spill(int32_t off) {
+  if (off < 0 || !glue_asm73_stack_spill_enabled())
+    return 0;
+  return glue_asm73_off_spill_color_which(off) == 6 ? 1 : 0;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */

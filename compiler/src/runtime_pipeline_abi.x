@@ -1006,9 +1006,9 @@ export extern "C" function backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_
 
 // wave153 Cap residual: block_body pure leave callees (host-cc residual live/spill/CAP).
 // PLATFORM: SHARED freestanding emit — pure owns body_sync + defer + final_expr + if_arm.
-// Live BSS stays Cap residual (G.7 Chaitin/live authority in spill.c).
-export extern "C" function glue_asm73_cfg_coloring_active_get(): i32;
-export extern "C" function glue_asm73_cfg_coloring_active_set(v: i32): void;
+// Live_fwd BSS stays Cap residual; wave212 pure owns color/pin BSS.
+/* wave212 pure-owned: glue_asm73_cfg_coloring_active_get/set at EOF (#[no_mangle]).
+ * G.7 ban dual export extern + pure export for the same symbol. */
 export extern "C" function glue_block_live_cfg_parent_get(): i32;
 export extern "C" function glue_block_live_cfg_parent_set(v: i32): void;
 export extern "C" function glue_block_live_fwd_active_get(): i32;
@@ -1016,7 +1016,8 @@ export extern "C" function glue_block_live_fwd_active_set(v: i32): void;
 export extern "C" function glue_block_emit_stmt_i_set(v: i32): void;
 export extern "C" function glue_block_emit_stmt_i_get(): i32;
 export extern "C" function glue_block_live_fwd_as_u8(): *u8;
-export extern "C" function glue_asm73_pin_spill_off_clear_all(): void;
+/* wave212 pure-owned: glue_asm73_pin_spill_off_clear_all at EOF (#[no_mangle]).
+ * G.7 ban dual export extern + pure export for the same symbol. */
 export extern "C" function glue_asm73_cfg_peak_live_n_get(): i32;
 export extern "C" function glue_block_live_fwd_clear_global(): void;
 export extern "C" function glue_live_snap_before_if_copy_from_block_live_fwd(): void;
@@ -1046,9 +1047,11 @@ export extern "C" function glue_live_fwd_copy_u8(dst: *u8, src: *u8): void;
 // wave176 pure-owned: glue_block_stmt_gen_kill_u8 + glue_live_fwd_apply_stmt_gen_kill_u8 (#[no_mangle] below).
 export extern "C" function glue_asm73_interf_push(): void;
 export extern "C" function glue_asm73_interf_pop_merge(): void;
-export extern "C" function glue_asm73_cfg_final_expr_use_n_set(n: i32): void;
+/* wave212 pure-owned: glue_asm73_cfg_final_expr_use_n_set at EOF (#[no_mangle]).
+ * G.7 ban dual export extern + pure export for the same symbol. */
 /* wave165: pure owns glue_asm73_compute_spill_color_pins (#[no_mangle] below). */
-export extern "C" function glue_asm73_clear_spill_color_map(): void;
+/* wave212 pure-owned: glue_asm73_clear_spill_color_map at EOF (#[no_mangle]).
+ * G.7 ban dual export extern + pure export for the same symbol. */
 /* wave173: pure owns glue_block_live_fwd_before_stmt + apply_top_stmt (#[no_mangle] below). */
 // wave176 pure-owned: glue_live_fwd_forward_after_def (#[no_mangle] below).
 /* wave163: pure owns glue_binop_cache_intersect_live_fwd (#[no_mangle] below). */
@@ -1059,9 +1062,9 @@ export extern "C" function glue_asm73_interf_off_at(i: i32): i32;
 export extern "C" function glue_asm73_interf_has_edge(i: i32, j: i32): i32;
 export extern "C" function glue_asm73_linear_nso_get(): i32;
 // wave176 pure-owned: glue_asm73_linear_next_use_dist (#[no_mangle] below).
-export extern "C" function glue_asm73_set_spill_color(off: i32, which: i32): void;
-export extern "C" function glue_asm73_off_spill_color_which(off: i32): i32;
-export extern "C" function glue_asm73_pin_spill_off_set(which: i32, off: i32): void;
+/* wave212 pure-owned: glue_asm73_set_spill_color / off_spill_color_which /
+ * pin_spill_off_set at EOF (#[no_mangle]).
+ * G.7 ban dual export extern + pure export for the same symbol. */
 /* wave164: pure owns glue_asm73_compute_spill_color_chaitin (#[no_mangle] below). */
 /* wave165 Cap residual: thin faces for pure linear interf-build color pins. */
 export extern "C" function glue_asm73_interf_clear(): void;
@@ -1075,10 +1078,10 @@ export extern "C" function glue_asm73_pressure_live_thresh_get(): i32;
 /* wave174: pure owns glue_asm73_evict_rax|rbx_cache_entry (#[no_mangle] below). */
 /* wave166: pure owns pressure eviction faces (#[no_mangle] below). */
 /* wave175: pure owns mov_reg_to_spill / try_colored / farthest / pick_evict (#[no_mangle] below). */
-/* wave175 Cap residual: thin stamp/pin + stack_enabled / max_live for pure color-slot leave. */
-export extern "C" function glue_asm73_stack_spill_enabled(): i32;
+/* wave212 pure-owned: glue_asm73_stack_spill_enabled / off_is_spill_pin at EOF
+ * (#[no_mangle]). G.7 ban dual export extern + pure export for the same symbol.
+ * Residual still owns linear_max_live_n (pressure thresh / live_fwd domain). */
 export extern "C" function glue_asm73_linear_max_live_n_get(): i32;
-export extern "C" function glue_asm73_off_is_spill_pin(off: i32): i32;
 /* wave210 pure-owned: glue_binop_var_slot_cache_set_spill_slot at EOF (#[no_mangle]).
  * G.7 ban dual export extern + pure export for the same symbol. */
 /* wave176 Cap residual: thin faces for pure linear live reverse DF leave. */
@@ -40725,7 +40728,8 @@ export function glue_try_array_lit_lane_const_i32_c(arena: *u8, arr_ref: i32, la
 // live in EOF wave210 section (#[no_mangle] export; dual-export ban).
 // PLATFORM: SHARED freestanding emit.
 // wave156 pure-owned: glue_enc_swap_rax_rbx_arm64_elf_c lives in EOF.
-export extern "C" function glue_asm73_var_prefers_stack_spill(off: i32): i32;
+/* wave212 pure-owned: glue_asm73_var_prefers_stack_spill at EOF (#[no_mangle]).
+ * G.7 ban dual export extern + pure export for the same symbol. */
 /* wave170: pure owns glue_binop_try_reload_spill_off_elf_c (#[no_mangle] below). */
 /* wave211: pure owns glue_binop_stack_spill_try_reload_elf_c (#[no_mangle] EOF). */
 /* G.7 ban dual export extern + pure export for the same symbol. */
@@ -66478,3 +66482,273 @@ export function glue_binop_stack_spill_try_reload_elf_c(elf_ctx: *u8, ta: i32, o
 }
 
 // end wave211 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave212: Chaitin color/pin BSS + thin accessors pure leave
+// ---------------------------------------------------------------------------
+// G.7 single authority for spill preference maps (was Cap residual spill.c).
+// Pure-owned BSS: pin[6] + color_off/which[16] + color_n + cfg_coloring_active
+// + cfg_final_expr_use_n. stack_spill_enabled reads residual cfg_parent +
+// linear_max_live_n via export-extern thins (live_fwd/pressure still residual).
+// PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path (x10–x15).
+// ---------------------------------------------------------------------------
+
+// wave212: pin spill homes (which 0..5 → x10–x15); -1 = empty.
+let g_asm73_pin_spill_off: i32[6] = [];
+// wave212: Chaitin color map (stack off → which 0..5 or 6=stack frame); cap 16.
+let g_asm73_spill_color_off: i32[16] = [];
+let g_asm73_spill_color_which: i32[16] = [];
+let g_asm73_spill_color_n: i32 = 0;
+// wave212: 1 while cfg parent is coloring (next-use uses forward scan).
+let g_asm73_cfg_coloring_active: i32 = 0;
+// wave212: final_expr direct VAR-slot use count (cfg stack-spill gate ≥12).
+let g_asm73_cfg_final_expr_use_n: i32 = 0;
+
+/**
+ * Clear all six pin spill homes to -1 (block entry / before Chaitin pin pick).
+ *
+ * @return void
+ *
+ * wave212 pure: G.7 authority (was Cap residual spill wave153).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_pin_spill_off_clear_all(): void {
+  g_asm73_pin_spill_off[0] = 0 - 1;
+  g_asm73_pin_spill_off[1] = 0 - 1;
+  g_asm73_pin_spill_off[2] = 0 - 1;
+  g_asm73_pin_spill_off[3] = 0 - 1;
+  g_asm73_pin_spill_off[4] = 0 - 1;
+  g_asm73_pin_spill_off[5] = 0 - 1;
+}
+
+/**
+ * Set pin spill home which (0=x10 … 5=x15) to stack off (-1 clears).
+ *
+ * @param which i32 — physical spill color 0..5; OOB → no-op
+ * @param off i32 — stack slot off or -1
+ * @return void
+ *
+ * wave212 pure: G.7 authority (was Cap residual spill wave164).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_pin_spill_off_set(which: i32, off: i32): void {
+  if (which < 0 || which > 5) {
+    return;
+  }
+  g_asm73_pin_spill_off[which] = off;
+}
+
+/**
+ * Return 1 when stack slot off is a current-block spill pin
+ * (closer next-use; prefer not to overwrite with a farther slot).
+ *
+ * @param off i32 — stack slot; <0 → 0
+ * @return i32 — 1 pin; 0 not pin
+ *
+ * wave212 pure: G.7 authority (was Cap residual spill wave175).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_off_is_spill_pin(off: i32): i32 {
+  if (off < 0) {
+    return 0;
+  }
+  if (off == g_asm73_pin_spill_off[0]) {
+    return 1;
+  }
+  if (off == g_asm73_pin_spill_off[1]) {
+    return 1;
+  }
+  if (off == g_asm73_pin_spill_off[2]) {
+    return 1;
+  }
+  if (off == g_asm73_pin_spill_off[3]) {
+    return 1;
+  }
+  if (off == g_asm73_pin_spill_off[4]) {
+    return 1;
+  }
+  if (off == g_asm73_pin_spill_off[5]) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Clear this block's spill color map (n = 0; offs/which left stale).
+ *
+ * @return void
+ *
+ * wave212 pure: G.7 authority (was Cap residual spill wave164).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_clear_spill_color_map(): void {
+  g_asm73_spill_color_n = 0;
+}
+
+/**
+ * Record spill preference for stack slot off (0=x10 … 5=x15, 6=stack frame).
+ * Updates existing entry or appends when n < 16.
+ *
+ * @param off i32 — stack slot; <0 → no-op
+ * @param which i32 — color 0..6; OOB → no-op
+ * @return void
+ *
+ * wave212 pure: G.7 authority (was Cap residual spill wave164).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_set_spill_color(off: i32, which: i32): void {
+  let i: i32 = 0;
+  // SPILL_WHICH_STACK = 6 (index_helpers / residual define)
+  if (off < 0 || which < 0 || which > 6) {
+    return;
+  }
+  while (i < g_asm73_spill_color_n) {
+    if (g_asm73_spill_color_off[i] == off) {
+      g_asm73_spill_color_which[i] = which;
+      return;
+    }
+    i = i + 1;
+  }
+  if (g_asm73_spill_color_n >= 16) {
+    return;
+  }
+  g_asm73_spill_color_off[g_asm73_spill_color_n] = off;
+  g_asm73_spill_color_which[g_asm73_spill_color_n] = which;
+  g_asm73_spill_color_n = g_asm73_spill_color_n + 1;
+}
+
+/**
+ * Return preferred spill color for stack slot off; -1 if uncolored.
+ *
+ * @param off i32 — stack slot; <0 → -1
+ * @return i32 — which 0..6 or -1
+ *
+ * wave212 pure: G.7 authority (was Cap residual spill wave164).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_off_spill_color_which(off: i32): i32 {
+  let i: i32 = 0;
+  if (off < 0) {
+    return 0 - 1;
+  }
+  while (i < g_asm73_spill_color_n) {
+    if (g_asm73_spill_color_off[i] == off) {
+      return g_asm73_spill_color_which[i];
+    }
+    i = i + 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Return 1 when cfg parent coloring is active (forward next-use path).
+ *
+ * @return i32 — 0 or 1
+ *
+ * wave212 pure: G.7 authority (was Cap residual spill wave153).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_cfg_coloring_active_get(): i32 {
+  return g_asm73_cfg_coloring_active;
+}
+
+/**
+ * Set cfg coloring active flag (0/1).
+ *
+ * @param v i32 — non-zero → 1; zero → 0
+ * @return void
+ *
+ * wave212 pure: G.7 authority (was Cap residual spill wave153).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_cfg_coloring_active_set(v: i32): void {
+  if (v != 0) {
+    g_asm73_cfg_coloring_active = 1;
+  } else {
+    g_asm73_cfg_coloring_active = 0;
+  }
+}
+
+/**
+ * Set final_expr direct VAR-slot use count (cfg stack-spill gate input).
+ *
+ * @param n i32 — use count from collect_expr_uses
+ * @return void
+ *
+ * wave212 pure: G.7 authority (was Cap residual spill wave168).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_cfg_final_expr_use_n_set(n: i32): void {
+  g_asm73_cfg_final_expr_use_n = n;
+}
+
+/**
+ * Whether stack-frame spill (which=6) is enabled for this block.
+ * Linear: |live|max ≥ 15; cfg parent: final_expr VAR uses ≥ 12.
+ * Reads residual live_fwd cfg_parent + linear max_live thins.
+ *
+ * @return i32 — 1 enabled; 0 disabled
+ *
+ * wave212 pure: G.7 authority (was Cap residual spill wave174).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_stack_spill_enabled(): i32 {
+  let parent: i32 = 0;
+  let max_n: i32 = 0;
+  unsafe {
+    parent = glue_block_live_cfg_parent_get();
+  }
+  if (parent != 0) {
+    if (g_asm73_cfg_final_expr_use_n >= 12) {
+      return 1;
+    }
+    return 0;
+  }
+  unsafe {
+    max_n = glue_asm73_linear_max_live_n_get();
+  }
+  if (max_n >= 15) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Return 1 when off is colored which=6 and stack-frame spill is enabled.
+ *
+ * @param off i32 — stack slot; <0 → 0
+ * @return i32 — 1 prefers real stack spill home; 0 otherwise
+ *
+ * wave212 pure: G.7 authority (was Cap residual spill wave149).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_asm73_var_prefers_stack_spill(off: i32): i32 {
+  let en: i32 = 0;
+  let which: i32 = 0;
+  if (off < 0) {
+    return 0;
+  }
+  en = glue_asm73_stack_spill_enabled();
+  if (en == 0) {
+    return 0;
+  }
+  which = glue_asm73_off_spill_color_which(off);
+  // SPILL_WHICH_STACK = 6
+  if (which == 6) {
+    return 1;
+  }
+  return 0;
+}
+
+// end wave212 pure-owned leave

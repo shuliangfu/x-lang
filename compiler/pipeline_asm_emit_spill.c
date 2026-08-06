@@ -82,8 +82,8 @@
  *   · glue_index_scratch_spills_cleanup_all_elf_c
  *   · glue_index_scratch_spill_invalidate_var
  *   · glue_binop_stack_spill_push_elf_c
- * wave207–211: CAP depth / stack_spill table / CAP cache / VAR cache BSS +
- * stack try_reload enc pure; residual keeps live_fwd / color / interf BSS.
+ * wave207–212: CAP depth / stack_spill table / CAP cache / VAR cache BSS +
+ * stack try_reload enc + color/pin BSS pure; residual keeps live_fwd / interf BSS.
  *
  * wave170 pure-owned binop spill try-reload (same pure TU):
  *   · glue_binop_try_reload_spill_off_elf_c
@@ -143,9 +143,12 @@
  *
  * Cap residual authority remaining in this host leaf (same TU #include):
  *   · 7.3 live_fwd BSS / break-continue note + push/pop
- *   · Chaitin interf BSS + pin/color maps + gen_kill/collect
+ *   · Chaitin interf BSS + linear_max / peak / live_at_stmt
  * wave211 pure-owned: glue_binop_stack_spill_try_reload_elf_c (stack table
  * wave208 + CAP depth wave207 + VAR cache wave210 + arm64 ldr enc).
+ * wave212 pure-owned: Chaitin color/pin BSS + thin (pin clear/set/is_pin,
+ * color map clear/set/which, cfg_coloring get/set, final_expr_use_n_set,
+ * stack_spill_enabled, var_prefers_stack_spill).
  *
  * G.7: do not re-define pure-owned faces above in this file.
  * Not a separate .o — #included from pipeline_glue.c after index_helpers.
@@ -367,9 +370,24 @@ uint64_t glue_index_base_struct_key_elf_c(struct ast_ASTArena *arena, int32_t ba
  *   wave209; VAR slot cache pure wave210; try_reload enc pure wave211
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index
  *
- * Note: try_reload enc pure leave closed wave211; residual keeps live_fwd /
- * color / interf BSS only for remaining spill authority.
+ * Note: try_reload enc pure leave closed wave211; color/pin BSS pure wave212;
+ * residual keeps live_fwd / interf BSS only for remaining spill authority.
  */
+
+/* wave212 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * G.7: definitions must not reappear in this Cap residual leaf.
+ * PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path. */
+void glue_asm73_pin_spill_off_clear_all(void);
+void glue_asm73_pin_spill_off_set(int32_t which, int32_t off);
+int32_t glue_asm73_off_is_spill_pin(int32_t off);
+void glue_asm73_clear_spill_color_map(void);
+void glue_asm73_set_spill_color(int32_t off, int32_t which);
+int32_t glue_asm73_off_spill_color_which(int32_t off);
+int32_t glue_asm73_cfg_coloring_active_get(void);
+void glue_asm73_cfg_coloring_active_set(int32_t v);
+void glue_asm73_cfg_final_expr_use_n_set(int32_t n);
+int32_t glue_asm73_stack_spill_enabled(void);
+int32_t glue_asm73_var_prefers_stack_spill(int32_t off);
 
 /* wave210 pure-owned: binop VAR slot cache BSS + thin faces (extern).
  * G.7: definitions must not reappear in this Cap residual leaf.
@@ -480,20 +498,11 @@ static int32_t glue_block_live_cfg_parent;
 static int32_t glue_asm73_linear_max_live_n;
 /** 正在发射的 stmt_order 下标（final_expr 前设为 nso，供表达式内压力驱逐）。 */
 static int32_t glue_block_emit_stmt_i;
-/** 7.3 着色原型：峰值活跃 stmt 上 next-use 最近的几枚栈槽，spill 覆盖时优先保护。 */
-static int32_t glue_asm73_pin_spill_off[6];
-/** 7.3 K=6 干涉着色：峰值同时活跃栈槽 → 固定 x10–x15 偏好（着色表最多 16 项/块）。 */
-/** 着色表容量：覆盖十四元 return + cfg 子块 let（原 12 不足则 which=6 无法入表）。 */
-#define GLUE_ASM73_SPILL_COLOR_MAP_CAP 16
-static int32_t glue_asm73_spill_color_off[GLUE_ASM73_SPILL_COLOR_MAP_CAP];
-static int8_t glue_asm73_spill_color_which[GLUE_ASM73_SPILL_COLOR_MAP_CAP];
-static int32_t glue_asm73_spill_color_n;
-/** 1=cfg 父块发射中：next-use 用前向 stmt 扫描（非反向 live_in）。 */
-static int32_t glue_asm73_cfg_coloring_active;
+/* wave212 pure-owned: pin[6] + color map + cfg_coloring_active +
+ * cfg_final_expr_use_n BSS (runtime_pipeline_abi pure). Cap residual: no
+ * host BSS for color/pin. PLATFORM: SHARED freestanding 7.3. */
 static GlueBlockLiveFwd glue_asm73_cfg_peak_live;
 static int32_t glue_asm73_cfg_peak_stmt_i;
-/** cfg 父块 final_expr 直接引用的 VAR 槽数（长 return 链阈值；非整块 |live|）。 */
-static int32_t glue_asm73_cfg_final_expr_use_n;
 
 /**
  * 7.3：binop 压力驱逐的 |live| 阈值（默认 3 保留 repeat_add；块 max≥6 提到 4）。
@@ -887,86 +896,15 @@ void glue_block_fill_live_end_for_merge(struct ast_ASTArena *arena, struct backe
 /* wave176: pure owns glue_asm73_linear_next_use_dist (extern above).
  * Residual: linear ctx BSS + nso/coloring getters. PLATFORM: SHARED freestanding 7.3. */
 
-/**
- * wave175 Cap residual thin: 1 when stack slot off is a current-block spill pin
- * (closer next-use; prefer not to overwrite with a farther slot).
- * @param off int32_t - stack slot; <0 → 0
- * @return int32_t - 1 pin; 0 not pin / OOB
- * PLATFORM: SHARED freestanding 7.3.
- */
-int32_t glue_asm73_off_is_spill_pin(int32_t off) {
-  if (off < 0)
-    return 0;
-  return off == glue_asm73_pin_spill_off[0] || off == glue_asm73_pin_spill_off[1] ||
-         off == glue_asm73_pin_spill_off[2] || off == glue_asm73_pin_spill_off[3] ||
-         off == glue_asm73_pin_spill_off[4] || off == glue_asm73_pin_spill_off[5];
-}
-
-/** 清空本块 spill 着色表。 */
-void glue_asm73_clear_spill_color_map(void) {
-  glue_asm73_spill_color_n = 0;
-}
-
-/**
- * wave164 Cap residual: non-static face for pure Chaitin leave.
- * Record spill preference for stack slot off (0=x10 … 5=x15, 6=stack frame).
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_asm73_set_spill_color(int32_t off, int32_t which) {
-  int32_t i;
-  if (off < 0 || which < 0 || which > GLUE_ASM73_SPILL_WHICH_STACK)
-    return;
-  for (i = 0; i < glue_asm73_spill_color_n; i++) {
-    if (glue_asm73_spill_color_off[i] == off) {
-      glue_asm73_spill_color_which[i] = (int8_t)which;
-      return;
-    }
-  }
-  if (glue_asm73_spill_color_n >= GLUE_ASM73_SPILL_COLOR_MAP_CAP)
-    return;
-  glue_asm73_spill_color_off[glue_asm73_spill_color_n] = off;
-  glue_asm73_spill_color_which[glue_asm73_spill_color_n] = (int8_t)which;
-  glue_asm73_spill_color_n++;
-}
-
-/**
- * wave164 Cap residual: non-static face for pure Chaitin leave.
- * Return preferred spill slot for off; -1 if uncolored.
- * PLATFORM: SHARED freestanding 7.3.
- */
-int32_t glue_asm73_off_spill_color_which(int32_t off) {
-  int32_t i;
-  if (off < 0)
-    return -1;
-  for (i = 0; i < glue_asm73_spill_color_n; i++) {
-    if (glue_asm73_spill_color_off[i] == off)
-      return (int32_t)glue_asm73_spill_color_which[i];
-  }
-  return -1;
-}
+/* wave212 pure-owned: off_is_spill_pin / clear_spill_color_map /
+ * set_spill_color / off_spill_color_which / stack_spill_enabled /
+ * var_prefers_stack_spill (runtime_pipeline_abi pure). Cap residual: prototypes
+ * only near file head. PLATFORM: SHARED freestanding 7.3. */
 
 /* wave164: pure owns glue_asm73_compute_spill_color_chaitin (extern above).
  * wave165: pure owns glue_asm73_compute_spill_color_pins (linear interf build
- * + peak pick + pure chaitin). Residual: BSS + thin faces. PLATFORM: SHARED. */
-
-/**
- * wave174 Cap residual thin: whether stack-frame spill (which=6) is enabled.
- * Linear: |live|max≥15; cfg parent: final_expr VAR uses ≥12.
- * PLATFORM: SHARED freestanding 7.3.
- */
-int32_t glue_asm73_stack_spill_enabled(void) {
-  if (glue_block_live_cfg_parent)
-    return glue_asm73_cfg_final_expr_use_n >= 12 ? 1 : 0;
-  return glue_asm73_linear_max_live_n >= 15 ? 1 : 0;
-}
-
-/** 7.3：Chaitin 标为栈帧家园（which=6）且块级阈值满足时走实栈 spill。 */
-/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
-int32_t glue_asm73_var_prefers_stack_spill(int32_t off) {
-  if (off < 0 || !glue_asm73_stack_spill_enabled())
-    return 0;
-  return glue_asm73_off_spill_color_which(off) == GLUE_ASM73_SPILL_WHICH_STACK ? 1 : 0;
-}
+ * + peak pick + pure chaitin). wave212: pure owns color/pin BSS + thin.
+ * Residual: interf BSS + live_at_stmt. PLATFORM: SHARED. */
 
 /* wave175: pure owns glue_binop_spill_mov_reg_to_spill_elf_c,
  * glue_asm73_try_spill_to_colored_slot, glue_asm73_spill_slot_farthest,
@@ -1079,13 +1017,7 @@ extern int32_t ast_pipeline_block_if_cond_ref(struct ast_ASTArena *a, int32_t br
  * PLATFORM: SHARED freestanding emit · host-cc residual shell.
  * ========================================================================== */
 
-int32_t glue_asm73_cfg_coloring_active_get(void) {
-  return glue_asm73_cfg_coloring_active;
-}
-
-void glue_asm73_cfg_coloring_active_set(int32_t v) {
-  glue_asm73_cfg_coloring_active = v ? 1 : 0;
-}
+/* wave212 pure-owned: cfg_coloring_active_get/set (prototypes near file head). */
 
 int32_t glue_block_live_cfg_parent_get(void) {
   return glue_block_live_cfg_parent;
@@ -1111,14 +1043,7 @@ int32_t glue_block_emit_stmt_i_get(void) {
   return glue_block_emit_stmt_i;
 }
 
-void glue_asm73_pin_spill_off_clear_all(void) {
-  glue_asm73_pin_spill_off[0] = -1;
-  glue_asm73_pin_spill_off[1] = -1;
-  glue_asm73_pin_spill_off[2] = -1;
-  glue_asm73_pin_spill_off[3] = -1;
-  glue_asm73_pin_spill_off[4] = -1;
-  glue_asm73_pin_spill_off[5] = -1;
-}
+/* wave212 pure-owned: pin_spill_off_clear_all (prototype near file head). */
 
 int32_t glue_asm73_cfg_peak_live_n_get(void) {
   return glue_asm73_cfg_peak_live.n;
@@ -1307,17 +1232,7 @@ int32_t glue_asm73_linear_nso_get(void) {
   return glue_asm73_linear_nso;
 }
 
-/**
- * Set pin spill home which (0=x10 … 5=x15) to stack off (-1 clears).
- * @param which int32_t - physical spill color 0..5
- * @param off int32_t - stack slot off or -1
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_asm73_pin_spill_off_set(int32_t which, int32_t off) {
-  if (which < 0 || which > 5)
-    return;
-  glue_asm73_pin_spill_off[which] = off;
-}
+/* wave212 pure-owned: pin_spill_off_set (prototype near file head). */
 
 /* ========================================================================== *
  * wave165 Cap residual: thin faces for pure linear interf-build color pins.
@@ -1389,7 +1304,8 @@ void glue_asm73_cfg_interf_prepare(void) {
   glue_asm73_interf_stack_depth = 0;
   glue_asm73_linear_max_live_n = 0;
   glue_asm73_cfg_peak_stmt_i = 0;
-  glue_asm73_cfg_final_expr_use_n = 0;
+  /* wave212: final_expr_use_n pure BSS — stamp via pure setter. */
+  glue_asm73_cfg_final_expr_use_n_set(0);
   glue_live_fwd_clear(&glue_asm73_cfg_peak_live);
 }
 
@@ -1492,14 +1408,7 @@ void glue_live_fwd_copy_u8(void *dst, const void *src) {
 /* wave176: pure owns glue_live_fwd_apply_stmt_gen_kill_u8.
  * PLATFORM: SHARED freestanding 7.3. */
 
-/**
- * Set glue_asm73_cfg_final_expr_use_n (final_expr direct VAR-slot use count).
- * @param n int32_t - use count from collect_expr_uses
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_asm73_cfg_final_expr_use_n_set(int32_t n) {
-  glue_asm73_cfg_final_expr_use_n = n;
-}
+/* wave212 pure-owned: cfg_final_expr_use_n_set (prototype near file head). */
 
 /* ========================================================================== *
  * wave176 Cap residual: thin faces for pure linear live reverse DF leave.

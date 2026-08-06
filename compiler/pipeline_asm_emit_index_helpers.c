@@ -328,7 +328,7 @@ int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf
  * (runtime_pipeline_abi pure; seed cold twin under #ifndef FROM_X). */
 int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                 int32_t off, int32_t to_rbx);
-/* wave149 Cap residual non-static (def spill.c). */
+/* wave212 pure-owned: glue_asm73_var_prefers_stack_spill (runtime_pipeline_abi pure). */
 int32_t glue_asm73_var_prefers_stack_spill(int32_t off);
 
 /* wave172 pure-owned: minus_pair/subadd3 cache spill helpers (runtime_pipeline_abi pure). */
