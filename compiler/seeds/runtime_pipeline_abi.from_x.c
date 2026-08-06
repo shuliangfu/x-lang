@@ -6,6 +6,7 @@
  * wave186: SoA index.field addr pure leave cold twin under #ifndef FROM_X
  * wave185: lvalue_eff_addr ELF+text pure leave cold twins under #ifndef FROM_X
  * wave209: CAP cache BSS (minus_pair/subadd3) + thin + hit_var pure leave cold twins under #ifndef FROM_X
+ * wave210: binop VAR slot cache BSS + thin accessors pure leave cold twins under #ifndef FROM_X
  * wave172: minus_pair/subadd3 cache spill pure leave cold twins under #ifndef FROM_X
  * wave171: index-scratch enc push/reload/pop pure leave cold twins under #ifndef FROM_X
  * wave174: spill_reg_to_spill + evict_rax|rbx pure leave cold twins under #ifndef FROM_X
@@ -26343,6 +26344,164 @@ int32_t glue_index_scratch_caches_hit_var(void *arena, int32_t var_ref) {
     return 1;
   return 0;
 }
+
+/*
+ * wave210 cold twins: binop VAR slot cache BSS + thin accessors
+ * (G.7 pure leave). Working freestanding BSS twins of pure flattened
+ * valid/ctx/off fields (rax/rbx + x10–x15). Hybrid product links pure;
+ * cold seed keeps local static under #ifndef FROM_X.
+ * stack_spill_drop_off cold twin wave208.
+ * PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path.
+ */
+static int32_t g_wave210_var_valid_rax = 0;
+static int32_t g_wave210_var_valid_rbx = 0;
+static void *g_wave210_var_ctx = 0;
+static int32_t g_wave210_var_rax_off = 0;
+static int32_t g_wave210_var_rbx_off = 0;
+static int32_t g_wave210_var_valid_x10 = 0;
+static int32_t g_wave210_var_valid_x11 = 0;
+static int32_t g_wave210_var_valid_x12 = 0;
+static int32_t g_wave210_var_valid_x13 = 0;
+static int32_t g_wave210_var_valid_x14 = 0;
+static int32_t g_wave210_var_valid_x15 = 0;
+static int32_t g_wave210_var_x10_off = 0;
+static int32_t g_wave210_var_x11_off = 0;
+static int32_t g_wave210_var_x12_off = 0;
+static int32_t g_wave210_var_x13_off = 0;
+static int32_t g_wave210_var_x14_off = 0;
+static int32_t g_wave210_var_x15_off = 0;
+
+void glue_binop_var_slot_cache_clear(void) {
+  g_wave210_var_valid_rax = 0;
+  g_wave210_var_valid_rbx = 0;
+  g_wave210_var_valid_x10 = 0;
+  g_wave210_var_valid_x11 = 0;
+  g_wave210_var_valid_x12 = 0;
+  g_wave210_var_valid_x13 = 0;
+  g_wave210_var_valid_x14 = 0;
+  g_wave210_var_valid_x15 = 0;
+}
+
+void glue_binop_var_slot_cache_invalidate_rax(void) { g_wave210_var_valid_rax = 0; }
+
+void glue_binop_var_slot_cache_invalidate_rbx(void) { g_wave210_var_valid_rbx = 0; }
+
+int32_t glue_binop_var_slot_cache_ctx_matches(void *ctx) {
+  if (!ctx)
+    return 0;
+  return g_wave210_var_ctx == ctx ? 1 : 0;
+}
+
+int32_t glue_binop_var_slot_cache_hit_rax(void *ctx, int32_t off) {
+  return (g_wave210_var_valid_rax && g_wave210_var_ctx == ctx && g_wave210_var_rax_off == off) ? 1
+                                                                                              : 0;
+}
+
+int32_t glue_binop_var_slot_cache_hit_rbx(void *ctx, int32_t off) {
+  return (g_wave210_var_valid_rbx && g_wave210_var_ctx == ctx && g_wave210_var_rbx_off == off) ? 1
+                                                                                              : 0;
+}
+
+int32_t glue_binop_var_slot_cache_valid_rax_get(void) { return g_wave210_var_valid_rax; }
+int32_t glue_binop_var_slot_cache_valid_rbx_get(void) { return g_wave210_var_valid_rbx; }
+int32_t glue_binop_var_slot_cache_rax_off_get(void) { return g_wave210_var_rax_off; }
+int32_t glue_binop_var_slot_cache_rbx_off_get(void) { return g_wave210_var_rbx_off; }
+
+void glue_binop_var_slot_cache_set_ctx_key(void *ctx) { g_wave210_var_ctx = ctx; }
+
+void glue_binop_var_slot_cache_set_rax(void *ctx, int32_t off) {
+  g_wave210_var_ctx = ctx;
+  g_wave210_var_valid_rax = 1;
+  g_wave210_var_rax_off = off;
+}
+
+void glue_binop_var_slot_cache_set_rbx(void *ctx, int32_t off) {
+  g_wave210_var_ctx = ctx;
+  g_wave210_var_valid_rbx = 1;
+  g_wave210_var_rbx_off = off;
+}
+
+void glue_binop_var_slot_cache_set_valid_rax(int32_t v) { g_wave210_var_valid_rax = v; }
+void glue_binop_var_slot_cache_set_valid_rbx(int32_t v) { g_wave210_var_valid_rbx = v; }
+void glue_binop_var_slot_cache_set_rax_off(int32_t off) { g_wave210_var_rax_off = off; }
+void glue_binop_var_slot_cache_set_rbx_off(int32_t off) { g_wave210_var_rbx_off = off; }
+
+void glue_binop_var_slot_cache_invalidate_slot(int32_t off) {
+  if (g_wave210_var_valid_rax && g_wave210_var_rax_off == off)
+    g_wave210_var_valid_rax = 0;
+  if (g_wave210_var_valid_rbx && g_wave210_var_rbx_off == off)
+    g_wave210_var_valid_rbx = 0;
+  if (g_wave210_var_valid_x10 && g_wave210_var_x10_off == off)
+    g_wave210_var_valid_x10 = 0;
+  if (g_wave210_var_valid_x11 && g_wave210_var_x11_off == off)
+    g_wave210_var_valid_x11 = 0;
+  if (g_wave210_var_valid_x12 && g_wave210_var_x12_off == off)
+    g_wave210_var_valid_x12 = 0;
+  if (g_wave210_var_valid_x13 && g_wave210_var_x13_off == off)
+    g_wave210_var_valid_x13 = 0;
+  if (g_wave210_var_valid_x14 && g_wave210_var_x14_off == off)
+    g_wave210_var_valid_x14 = 0;
+  if (g_wave210_var_valid_x15 && g_wave210_var_x15_off == off)
+    g_wave210_var_valid_x15 = 0;
+  glue_binop_stack_spill_drop_off(off);
+}
+
+void glue_binop_var_slot_cache_kill_def_at_slot(int32_t off) {
+  if (off >= 0)
+    glue_binop_var_slot_cache_invalidate_slot(off);
+  glue_binop_var_slot_cache_invalidate_rax();
+}
+
+void glue_binop_var_slot_cache_set_spill_slot(int32_t which, int32_t off) {
+  if (which == 0) {
+    g_wave210_var_valid_x10 = 1;
+    g_wave210_var_x10_off = off;
+    return;
+  }
+  if (which == 1) {
+    g_wave210_var_valid_x11 = 1;
+    g_wave210_var_x11_off = off;
+    return;
+  }
+  if (which == 2) {
+    g_wave210_var_valid_x12 = 1;
+    g_wave210_var_x12_off = off;
+    return;
+  }
+  if (which == 3) {
+    g_wave210_var_valid_x13 = 1;
+    g_wave210_var_x13_off = off;
+    return;
+  }
+  if (which == 4) {
+    g_wave210_var_valid_x14 = 1;
+    g_wave210_var_x14_off = off;
+    return;
+  }
+  if (which == 5) {
+    g_wave210_var_valid_x15 = 1;
+    g_wave210_var_x15_off = off;
+  }
+}
+
+int32_t glue_binop_var_slot_cache_valid_x10_get(void) { return g_wave210_var_valid_x10; }
+int32_t glue_binop_var_slot_cache_valid_x11_get(void) { return g_wave210_var_valid_x11; }
+int32_t glue_binop_var_slot_cache_valid_x12_get(void) { return g_wave210_var_valid_x12; }
+int32_t glue_binop_var_slot_cache_valid_x13_get(void) { return g_wave210_var_valid_x13; }
+int32_t glue_binop_var_slot_cache_valid_x14_get(void) { return g_wave210_var_valid_x14; }
+int32_t glue_binop_var_slot_cache_valid_x15_get(void) { return g_wave210_var_valid_x15; }
+int32_t glue_binop_var_slot_cache_x10_off_get(void) { return g_wave210_var_x10_off; }
+int32_t glue_binop_var_slot_cache_x11_off_get(void) { return g_wave210_var_x11_off; }
+int32_t glue_binop_var_slot_cache_x12_off_get(void) { return g_wave210_var_x12_off; }
+int32_t glue_binop_var_slot_cache_x13_off_get(void) { return g_wave210_var_x13_off; }
+int32_t glue_binop_var_slot_cache_x14_off_get(void) { return g_wave210_var_x14_off; }
+int32_t glue_binop_var_slot_cache_x15_off_get(void) { return g_wave210_var_x15_off; }
+void glue_binop_var_slot_cache_set_valid_x10(int32_t v) { g_wave210_var_valid_x10 = v; }
+void glue_binop_var_slot_cache_set_valid_x11(int32_t v) { g_wave210_var_valid_x11 = v; }
+void glue_binop_var_slot_cache_set_valid_x12(int32_t v) { g_wave210_var_valid_x12 = v; }
+void glue_binop_var_slot_cache_set_valid_x13(int32_t v) { g_wave210_var_valid_x13 = v; }
+void glue_binop_var_slot_cache_set_valid_x14(int32_t v) { g_wave210_var_valid_x14 = v; }
+void glue_binop_var_slot_cache_set_valid_x15(int32_t v) { g_wave210_var_valid_x15 = v; }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 

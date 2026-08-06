@@ -82,8 +82,8 @@
  *   · glue_index_scratch_spills_cleanup_all_elf_c
  *   · glue_index_scratch_spill_invalidate_var
  *   · glue_binop_stack_spill_push_elf_c
- * wave207–209: CAP depth / stack_spill table / CAP cache BSS pure; residual
- * keeps VAR cache + try_reload enc + pure pop_enc / stack_spill_append faces.
+ * wave207–210: CAP depth / stack_spill table / CAP cache / VAR cache BSS pure;
+ * residual keeps try_reload enc + live_fwd / color / interf BSS.
  *
  * wave170 pure-owned binop spill try-reload (same pure TU):
  *   · glue_binop_try_reload_spill_off_elf_c
@@ -142,10 +142,9 @@
  * wave209 pure-owned CAP cache BSS thin faces that call pure keys (wave177).
  *
  * Cap residual authority remaining in this host leaf (same TU #include):
- *   · binop VAR slot cache BSS + thin accessors (rax/rbx + x10–x15)
  *   · 7.3 live_fwd BSS / break-continue note + push/pop
- *   · Chaitin interf BSS + gen_kill/collect + stack-spill preference
- *   · try_reload enc (stack_spill table pure wave208; VAR cache residual)
+ *   · Chaitin interf BSS + pin/color maps + gen_kill/collect
+ *   · try_reload enc (stack_spill pure wave208; VAR cache pure wave210)
  *
  * G.7: do not re-define pure-owned faces above in this file.
  * Not a separate .o — #included from pipeline_glue.c after index_helpers.
@@ -360,139 +359,54 @@ uint64_t glue_index_base_struct_key_elf_c(struct ast_ASTArena *arena, int32_t ba
  * - glue_emit_index_eff_addr_scaled_elf_c (runtime_pipeline_abi pure wave147)
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / asm_ctx_local_*
  * - CAP depth pure wave207; stack_spill table pure wave208; CAP cache pure
- *   wave209 (prototypes in index_helpers; residual try_reload uses pure faces)
+ *   wave209; VAR slot cache pure wave210 (residual try_reload stamps via pure)
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index
  *
- * Note: residual method bodies for try_reload + VAR cache live here;
- * CAP meta pure leave closed wave207–209.
+ * Note: residual method body for try_reload enc lives here;
+ * VAR/CAP/stack_spill meta pure leave closed wave207–210.
  */
 
-
-/**
- * 7.3 block-level binop VAR 槽缓存：rbx/rax 已装入的栈槽 off，跨连续 let binop 免重复 ldur。
- * 仅用于 glue_try_binop_load_operand_elf_c 的 EXPR_VAR 快路径。
- */
-typedef struct {
-  int32_t valid_rax;
-  int32_t valid_rbx;
-  /** arm64：线性 scan spill VAR 槽（x10；|live|max≥5→x11 … ≥9→x15）。 */
-  int32_t valid_x10;
-  int32_t valid_x11;
-  int32_t valid_x12;
-  int32_t valid_x13;
-  int32_t valid_x14;
-  int32_t valid_x15;
-  size_t ctx_key;
-  int32_t rax_off;
-  int32_t rbx_off;
-  int32_t x10_off;
-  int32_t x11_off;
-  int32_t x12_off;
-  int32_t x13_off;
-  int32_t x14_off;
-  int32_t x15_off;
-} GlueBinopVarSlotCache;
-
-static GlueBinopVarSlotCache glue_binop_var_slot_cache;
-
-/** 清空 binop VAR 槽缓存（块入口 / slow binop / 按位结果写 rbx 等）。 */
-void glue_binop_var_slot_cache_clear(void) {
-  glue_binop_var_slot_cache.valid_rax = 0;
-  glue_binop_var_slot_cache.valid_rbx = 0;
-  glue_binop_var_slot_cache.valid_x10 = 0;
-  glue_binop_var_slot_cache.valid_x11 = 0;
-  glue_binop_var_slot_cache.valid_x12 = 0;
-  glue_binop_var_slot_cache.valid_x13 = 0;
-  glue_binop_var_slot_cache.valid_x14 = 0;
-  glue_binop_var_slot_cache.valid_x15 = 0;
-}
-
-/** 二元结果在 rax 时失效 rax 槽（rbx 仍可保留右 VAR，如 add 后 a+b 再 a&b）。 */
-/* wave149 Cap residual: pure binop leave (was static). PLATFORM: SHARED. */
-void glue_binop_var_slot_cache_invalidate_rax(void) {
-  glue_binop_var_slot_cache.valid_rax = 0;
-}
-
-/** rbx 将装入非 VAR 操作数（如字面量）时失效 rbx 槽。 */
-/* wave137 Cap residual for cmp pure leave: non-static face. */
-void glue_binop_var_slot_cache_invalidate_rbx(void) {
-  glue_binop_var_slot_cache.valid_rbx = 0;
-}
-
-/*
- * wave149 Cap residual: pure binop leave field accessors for spill-owned cache BSS.
- * Pure cannot see static GlueBinopVarSlotCache; single authority stays in spill residual.
- * PLATFORM: SHARED freestanding dual-slot cache.
- */
-int32_t glue_binop_var_slot_cache_ctx_matches(void *ctx) {
-  return glue_binop_var_slot_cache.ctx_key == (size_t)ctx ? 1 : 0;
-}
-int32_t glue_binop_var_slot_cache_hit_rax(void *ctx, int32_t off) {
-  return (glue_binop_var_slot_cache.valid_rax && glue_binop_var_slot_cache.ctx_key == (size_t)ctx &&
-          glue_binop_var_slot_cache.rax_off == off)
-             ? 1
-             : 0;
-}
-int32_t glue_binop_var_slot_cache_hit_rbx(void *ctx, int32_t off) {
-  return (glue_binop_var_slot_cache.valid_rbx && glue_binop_var_slot_cache.ctx_key == (size_t)ctx &&
-          glue_binop_var_slot_cache.rbx_off == off)
-             ? 1
-             : 0;
-}
-int32_t glue_binop_var_slot_cache_valid_rax_get(void) { return glue_binop_var_slot_cache.valid_rax; }
-int32_t glue_binop_var_slot_cache_valid_rbx_get(void) { return glue_binop_var_slot_cache.valid_rbx; }
-int32_t glue_binop_var_slot_cache_rax_off_get(void) { return glue_binop_var_slot_cache.rax_off; }
-int32_t glue_binop_var_slot_cache_rbx_off_get(void) { return glue_binop_var_slot_cache.rbx_off; }
-void glue_binop_var_slot_cache_set_ctx_key(void *ctx) {
-  glue_binop_var_slot_cache.ctx_key = (size_t)ctx;
-}
-void glue_binop_var_slot_cache_set_rax(void *ctx, int32_t off) {
-  glue_binop_var_slot_cache.ctx_key = (size_t)ctx;
-  glue_binop_var_slot_cache.valid_rax = 1;
-  glue_binop_var_slot_cache.rax_off = off;
-}
-void glue_binop_var_slot_cache_set_rbx(void *ctx, int32_t off) {
-  glue_binop_var_slot_cache.ctx_key = (size_t)ctx;
-  glue_binop_var_slot_cache.valid_rbx = 1;
-  glue_binop_var_slot_cache.rbx_off = off;
-}
-void glue_binop_var_slot_cache_set_valid_rax(int32_t v) { glue_binop_var_slot_cache.valid_rax = v; }
-void glue_binop_var_slot_cache_set_valid_rbx(int32_t v) { glue_binop_var_slot_cache.valid_rbx = v; }
-void glue_binop_var_slot_cache_set_rax_off(int32_t off) { glue_binop_var_slot_cache.rax_off = off; }
-void glue_binop_var_slot_cache_set_rbx_off(int32_t off) { glue_binop_var_slot_cache.rbx_off = off; }
-
-/** arm64：交换 rax/x0 与 rbx/x1（交换律 VAR 槽命中后对齐 add 操作数序）。 */
-
-/** 栈槽 var 被写入后失效对应 rax/rbx 缓存项。 */
-void glue_binop_var_slot_cache_invalidate_slot(int32_t off) {
-  if (glue_binop_var_slot_cache.valid_rax && glue_binop_var_slot_cache.rax_off == off)
-    glue_binop_var_slot_cache.valid_rax = 0;
-  if (glue_binop_var_slot_cache.valid_rbx && glue_binop_var_slot_cache.rbx_off == off)
-    glue_binop_var_slot_cache.valid_rbx = 0;
-  if (glue_binop_var_slot_cache.valid_x10 && glue_binop_var_slot_cache.x10_off == off)
-    glue_binop_var_slot_cache.valid_x10 = 0;
-  if (glue_binop_var_slot_cache.valid_x11 && glue_binop_var_slot_cache.x11_off == off)
-    glue_binop_var_slot_cache.valid_x11 = 0;
-  if (glue_binop_var_slot_cache.valid_x12 && glue_binop_var_slot_cache.x12_off == off)
-    glue_binop_var_slot_cache.valid_x12 = 0;
-  if (glue_binop_var_slot_cache.valid_x13 && glue_binop_var_slot_cache.x13_off == off)
-    glue_binop_var_slot_cache.valid_x13 = 0;
-  if (glue_binop_var_slot_cache.valid_x14 && glue_binop_var_slot_cache.x14_off == off)
-    glue_binop_var_slot_cache.valid_x14 = 0;
-  if (glue_binop_var_slot_cache.valid_x15 && glue_binop_var_slot_cache.x15_off == off)
-    glue_binop_var_slot_cache.valid_x15 = 0;
-  glue_binop_stack_spill_drop_off(off);
-}
-
-/**
- * 7.3 定义点活跃性：let/assign 写栈槽后 kill 该槽缓存并失效 rax（结果已落栈）。
- */
-void glue_binop_var_slot_cache_kill_def_at_slot(int32_t off) {
-  if (off >= 0)
-    glue_binop_var_slot_cache_invalidate_slot(off);
-  glue_binop_var_slot_cache_invalidate_rax();
-}
-
+/* wave210 pure-owned: binop VAR slot cache BSS + thin faces (extern).
+ * G.7: definitions must not reappear in this Cap residual leaf.
+ * PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path for x10–x15. */
+void glue_binop_var_slot_cache_clear(void);
+void glue_binop_var_slot_cache_invalidate_rax(void);
+void glue_binop_var_slot_cache_invalidate_rbx(void);
+void glue_binop_var_slot_cache_invalidate_slot(int32_t off);
+void glue_binop_var_slot_cache_kill_def_at_slot(int32_t off);
+int32_t glue_binop_var_slot_cache_ctx_matches(void *ctx);
+int32_t glue_binop_var_slot_cache_hit_rax(void *ctx, int32_t off);
+int32_t glue_binop_var_slot_cache_hit_rbx(void *ctx, int32_t off);
+int32_t glue_binop_var_slot_cache_valid_rax_get(void);
+int32_t glue_binop_var_slot_cache_valid_rbx_get(void);
+int32_t glue_binop_var_slot_cache_rax_off_get(void);
+int32_t glue_binop_var_slot_cache_rbx_off_get(void);
+void glue_binop_var_slot_cache_set_ctx_key(void *ctx);
+void glue_binop_var_slot_cache_set_rax(void *ctx, int32_t off);
+void glue_binop_var_slot_cache_set_rbx(void *ctx, int32_t off);
+void glue_binop_var_slot_cache_set_valid_rax(int32_t v);
+void glue_binop_var_slot_cache_set_valid_rbx(int32_t v);
+void glue_binop_var_slot_cache_set_rax_off(int32_t off);
+void glue_binop_var_slot_cache_set_rbx_off(int32_t off);
+void glue_binop_var_slot_cache_set_spill_slot(int32_t which, int32_t off);
+int32_t glue_binop_var_slot_cache_valid_x10_get(void);
+int32_t glue_binop_var_slot_cache_valid_x11_get(void);
+int32_t glue_binop_var_slot_cache_valid_x12_get(void);
+int32_t glue_binop_var_slot_cache_valid_x13_get(void);
+int32_t glue_binop_var_slot_cache_valid_x14_get(void);
+int32_t glue_binop_var_slot_cache_valid_x15_get(void);
+int32_t glue_binop_var_slot_cache_x10_off_get(void);
+int32_t glue_binop_var_slot_cache_x11_off_get(void);
+int32_t glue_binop_var_slot_cache_x12_off_get(void);
+int32_t glue_binop_var_slot_cache_x13_off_get(void);
+int32_t glue_binop_var_slot_cache_x14_off_get(void);
+int32_t glue_binop_var_slot_cache_x15_off_get(void);
+void glue_binop_var_slot_cache_set_valid_x10(int32_t v);
+void glue_binop_var_slot_cache_set_valid_x11(int32_t v);
+void glue_binop_var_slot_cache_set_valid_x12(int32_t v);
+void glue_binop_var_slot_cache_set_valid_x13(int32_t v);
+void glue_binop_var_slot_cache_set_valid_x14(int32_t v);
+void glue_binop_var_slot_cache_set_valid_x15(int32_t v);
 
 /** Forward decl: rec emit 是否会 clobber rbx（定义见 binop 活跃性 helpers）。 */
 int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -1049,50 +963,12 @@ int32_t glue_asm73_var_prefers_stack_spill(int32_t off) {
   return glue_asm73_off_spill_color_which(off) == GLUE_ASM73_SPILL_WHICH_STACK ? 1 : 0;
 }
 
-/**
- * wave175 Cap residual thin: stamp VAR cache for physical spill which
- * (0=x10 … 5=x15) after pure enc mov rax/rbx → xN.
- * @param which int32_t - 0..5; OOB → no-op
- * @param off int32_t - stack-slot off held in that spill home
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_binop_var_slot_cache_set_spill_slot(int32_t which, int32_t off) {
-  if (which == 0) {
-    glue_binop_var_slot_cache.valid_x10 = 1;
-    glue_binop_var_slot_cache.x10_off = off;
-    return;
-  }
-  if (which == 1) {
-    glue_binop_var_slot_cache.valid_x11 = 1;
-    glue_binop_var_slot_cache.x11_off = off;
-    return;
-  }
-  if (which == 2) {
-    glue_binop_var_slot_cache.valid_x12 = 1;
-    glue_binop_var_slot_cache.x12_off = off;
-    return;
-  }
-  if (which == 3) {
-    glue_binop_var_slot_cache.valid_x13 = 1;
-    glue_binop_var_slot_cache.x13_off = off;
-    return;
-  }
-  if (which == 4) {
-    glue_binop_var_slot_cache.valid_x14 = 1;
-    glue_binop_var_slot_cache.x14_off = off;
-    return;
-  }
-  if (which == 5) {
-    glue_binop_var_slot_cache.valid_x15 = 1;
-    glue_binop_var_slot_cache.x15_off = off;
-  }
-}
-
 /* wave175: pure owns glue_binop_spill_mov_reg_to_spill_elf_c,
  * glue_asm73_try_spill_to_colored_slot, glue_asm73_spill_slot_farthest,
- * glue_asm73_spill_pick_evict_which (extern above). Residual thin:
- * set_spill_slot / off_is_spill_pin / stack_spill_enabled / max_live_n_get +
- * color which / next_use / VAR cache valid|off getters.
+ * glue_asm73_spill_pick_evict_which (extern above).
+ * wave210: pure owns set_spill_slot + VAR cache BSS/thin.
+ * Residual thin: off_is_spill_pin / stack_spill_enabled / max_live_n_get +
+ * color which / next_use.
  * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave174: pure owns glue_binop_spill_reg_to_spill_elf_c,
@@ -1183,13 +1059,14 @@ int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCt
   if (to_rbx != 0) {
     if (arch_arm64_enc_enc_ldr_sp_slot_to_xreg(elf_ctx, slot, 1) != 0)
       return -1;
-    glue_binop_var_slot_cache.valid_rbx = 1;
-    glue_binop_var_slot_cache.rbx_off = off;
+    /* wave210: VAR cache pure BSS — residual stamps via public setters only. */
+    glue_binop_var_slot_cache_set_valid_rbx(1);
+    glue_binop_var_slot_cache_set_rbx_off(off);
   } else {
     if (arch_arm64_enc_enc_ldr_sp_slot_to_xreg(elf_ctx, slot, 0) != 0)
       return -1;
-    glue_binop_var_slot_cache.valid_rax = 1;
-    glue_binop_var_slot_cache.rax_off = off;
+    glue_binop_var_slot_cache_set_valid_rax(1);
+    glue_binop_var_slot_cache_set_rax_off(off);
   }
   return 1;
 }
@@ -1411,25 +1288,8 @@ int32_t glue_block_live_fwd_contains_off(int32_t off) {
   return glue_live_fwd_contains(&glue_block_live_fwd, off) ? 1 : 0;
 }
 
-/* arm64 linear-scan spill slots x10–x15 (mirror rax/rbx thin accessors). */
-int32_t glue_binop_var_slot_cache_valid_x10_get(void) { return glue_binop_var_slot_cache.valid_x10; }
-int32_t glue_binop_var_slot_cache_valid_x11_get(void) { return glue_binop_var_slot_cache.valid_x11; }
-int32_t glue_binop_var_slot_cache_valid_x12_get(void) { return glue_binop_var_slot_cache.valid_x12; }
-int32_t glue_binop_var_slot_cache_valid_x13_get(void) { return glue_binop_var_slot_cache.valid_x13; }
-int32_t glue_binop_var_slot_cache_valid_x14_get(void) { return glue_binop_var_slot_cache.valid_x14; }
-int32_t glue_binop_var_slot_cache_valid_x15_get(void) { return glue_binop_var_slot_cache.valid_x15; }
-int32_t glue_binop_var_slot_cache_x10_off_get(void) { return glue_binop_var_slot_cache.x10_off; }
-int32_t glue_binop_var_slot_cache_x11_off_get(void) { return glue_binop_var_slot_cache.x11_off; }
-int32_t glue_binop_var_slot_cache_x12_off_get(void) { return glue_binop_var_slot_cache.x12_off; }
-int32_t glue_binop_var_slot_cache_x13_off_get(void) { return glue_binop_var_slot_cache.x13_off; }
-int32_t glue_binop_var_slot_cache_x14_off_get(void) { return glue_binop_var_slot_cache.x14_off; }
-int32_t glue_binop_var_slot_cache_x15_off_get(void) { return glue_binop_var_slot_cache.x15_off; }
-void glue_binop_var_slot_cache_set_valid_x10(int32_t v) { glue_binop_var_slot_cache.valid_x10 = v; }
-void glue_binop_var_slot_cache_set_valid_x11(int32_t v) { glue_binop_var_slot_cache.valid_x11 = v; }
-void glue_binop_var_slot_cache_set_valid_x12(int32_t v) { glue_binop_var_slot_cache.valid_x12 = v; }
-void glue_binop_var_slot_cache_set_valid_x13(int32_t v) { glue_binop_var_slot_cache.valid_x13 = v; }
-void glue_binop_var_slot_cache_set_valid_x14(int32_t v) { glue_binop_var_slot_cache.valid_x14 = v; }
-void glue_binop_var_slot_cache_set_valid_x15(int32_t v) { glue_binop_var_slot_cache.valid_x15 = v; }
+/* wave210 pure-owned: x10–x15 valid/off getters + set_valid_x* (see prototypes
+ * near file head). Cap residual: no host bodies. PLATFORM: SHARED. */
 
 /* wave208 pure-owned: glue_binop_stack_spill_n_get / off_at (see wave208
  * block near try_reload). Cap residual: no host bodies. PLATFORM: SHARED. */
