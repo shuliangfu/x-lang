@@ -55,10 +55,11 @@
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index
  *
  * Note: binop_stack_spill table BSS pure leave wave208 (runtime_pipeline_abi);
- * Cap residual try_reload still host (enc + VAR cache). Residual after
- * wave208: CAP cache structs (minus_pair / subadd3) remain host; rax_frame
- * spill + scratch depth pure leave closed (wave207). module_from_ctx /
- * needs_ptr / array_slot / named_struct_layout_elf pure leave closed earlier.
+ * Cap residual try_reload still host (enc + VAR cache). CAP cache structs
+ * (minus_pair / subadd3) + thin valid/slot/ctx/keys/record/clear + hit_var
+ * pure leave closed (wave209). rax_frame spill + scratch depth pure leave
+ * closed (wave207). module_from_ctx / needs_ptr / array_slot /
+ * named_struct_layout_elf pure leave closed earlier.
  */
 
 /** INDEX 元素字节宽（前向声明，定义见本文件后部）。 */
@@ -270,26 +271,6 @@ int32_t glue_try_index_var_minus_var_plus_var_idx_addr_to_rbx_elf_c(struct ast_A
  * INDEX assign：VAR/FIELD 基址 + ((VAR-VAR)-VAR) 混合 SUB → scratch 缩放寻址入 rbx。
  * 0=OK，-1=错，-2=不适用（如 (i-j)-k）。
  */
-typedef struct {
-  int32_t valid;
-  size_t ctx_key;
-  uint64_t i_key;
-  uint64_t j_key;
-  int32_t slot_depth;
-} GlueIndexMinusPairCache;
-
-static GlueIndexMinusPairCache glue_index_minus_pair_cache;
-
-typedef struct {
-  int32_t valid;
-  size_t ctx_key;
-  uint64_t i_key;
-  uint64_t j_key;
-  uint64_t k_key;
-  int32_t slot_depth;
-} GlueIndexSubadd3SumCache;
-
-static GlueIndexSubadd3SumCache glue_index_subadd3_sum_cache;
 
 /** 7.3：Chaitin 溢出或物理 spill 槽用尽时的栈帧 spill（which=5；与 index scratch 共用 push 深度）。 */
 #define GLUE_BINOP_STACK_SPILL_CAP 12
@@ -319,6 +300,27 @@ void glue_binop_stack_spill_drop_off(int32_t off);
 int32_t glue_binop_stack_spill_find_depth(int32_t off);
 int32_t glue_binop_stack_spill_n_get(void);
 int32_t glue_binop_stack_spill_off_at(int32_t i);
+
+/* wave209 pure-owned: CAP cache BSS (minus_pair / subadd3) + thin accessors +
+ * caches_hit_var in runtime_pipeline_abi.x (#[no_mangle] export). Cap residual:
+ * prototype only. Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path. */
+void glue_index_minus_pair_cache_clear(void);
+void glue_index_subadd3_sum_cache_clear(void);
+int32_t glue_index_minus_pair_cache_valid_get(void);
+int32_t glue_index_minus_pair_cache_slot_depth_get(void);
+int32_t glue_index_minus_pair_cache_ctx_matches(struct backend_AsmFuncCtx *ctx);
+int32_t glue_index_minus_pair_cache_keys_eq(struct ast_ASTArena *arena, int32_t i_ref, int32_t j_ref);
+void glue_index_minus_pair_cache_record(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                       int32_t i_ref, int32_t j_ref);
+int32_t glue_index_subadd3_sum_cache_valid_get(void);
+int32_t glue_index_subadd3_sum_cache_slot_depth_get(void);
+int32_t glue_index_subadd3_sum_cache_ctx_matches(struct backend_AsmFuncCtx *ctx);
+int32_t glue_index_subadd3_sum_cache_keys_eq(struct ast_ASTArena *arena, int32_t i_ref, int32_t j_ref,
+                                            int32_t k_ref);
+void glue_index_subadd3_sum_cache_record(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                        int32_t i_ref, int32_t j_ref, int32_t k_ref);
+int32_t glue_index_scratch_caches_hit_var(struct ast_ASTArena *arena, int32_t var_ref);
 /* wave169 pure-owned: glue_binop_stack_spill_push_elf_c (runtime_pipeline_abi pure). */
 int32_t glue_binop_stack_spill_push_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta, int32_t off,
                                                   int32_t from_rbx);

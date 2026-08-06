@@ -972,20 +972,12 @@ export extern "C" function pipeline_expr_as_target_type_ref_at(arena: *u8, expr_
 /* wave207 pure-owned: glue_index_scratch_stack_depth_get/set at EOF (#[no_mangle]).
  * G.7 ban dual export extern + pure export for the same symbol. */
 /* wave171: pure owns glue_enc_pop_index_scratch_stack_arm64_elf_c (#[no_mangle] below). */
-export extern "C" function glue_index_scratch_caches_hit_var(arena: *u8, var_ref: i32): i32;
+/* wave209 pure-owned: glue_index_scratch_caches_hit_var at EOF (#[no_mangle]).
+ * G.7 ban dual export extern + pure export for the same symbol. */
 /* wave208 pure-owned: glue_binop_stack_spill_append_at_depth / cap_get at EOF (#[no_mangle]).
  * G.7 ban dual export extern + pure export for the same symbol. */
-/* wave172 Cap residual: thin faces for pure minus_pair/subadd3 cache spill leave. */
-export extern "C" function glue_index_minus_pair_cache_valid_get(): i32;
-export extern "C" function glue_index_minus_pair_cache_slot_depth_get(): i32;
-export extern "C" function glue_index_minus_pair_cache_ctx_matches(ctx: *u8): i32;
-export extern "C" function glue_index_minus_pair_cache_keys_eq(arena: *u8, i_ref: i32, j_ref: i32): i32;
-export extern "C" function glue_index_minus_pair_cache_record(arena: *u8, ctx: *u8, i_ref: i32, j_ref: i32): void;
-export extern "C" function glue_index_subadd3_sum_cache_valid_get(): i32;
-export extern "C" function glue_index_subadd3_sum_cache_slot_depth_get(): i32;
-export extern "C" function glue_index_subadd3_sum_cache_ctx_matches(ctx: *u8): i32;
-export extern "C" function glue_index_subadd3_sum_cache_keys_eq(arena: *u8, i_ref: i32, j_ref: i32, k_ref: i32): i32;
-export extern "C" function glue_index_subadd3_sum_cache_record(arena: *u8, ctx: *u8, i_ref: i32, j_ref: i32, k_ref: i32): void;
+/* wave209 pure-owned: minus_pair/subadd3 CAP cache BSS thin faces at EOF (#[no_mangle]).
+ * G.7 ban dual export extern + pure export for the same symbol. */
 /* wave172: pure owns minus_pair/subadd3 cache spill helpers (#[no_mangle] below). */
 export extern "C" function arch_x86_64_enc_enc_test_edx_edx(elf_ctx: *u8): i32;
 export extern "C" function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32;
@@ -1123,8 +1115,8 @@ export extern "C" function glue_binop_var_slot_cache_set_valid_x15(v: i32): void
  * (#[no_mangle]). G.7 ban dual export extern + pure export for the same symbol. */
 // wave159 pure-owned: glue_block_stmt_order_has_cfg body in EOF section (was Cap residual spill).
 // wave156 pure-owned: glue_expr_kind_is_assign_like_ord + try_block_let_index_init + kill_assign_lhs in EOF.
-export extern "C" function glue_index_subadd3_sum_cache_clear(): void;
-export extern "C" function glue_index_minus_pair_cache_clear(): void;
+/* wave209 pure-owned: glue_index_subadd3_sum_cache_clear / minus_pair_cache_clear at EOF.
+ * G.7 ban dual export extern + pure export for the same symbol. */
 // wave207 pure-owned: glue_binop_rax_frame_spill_n_set + glue_index_scratch_stack_depth_set at EOF.
 // G.7 ban dual export extern + pure export for the same symbol.
 // wave208 pure-owned: glue_binop_stack_spill_clear at EOF (#[no_mangle]).
@@ -54877,8 +54869,8 @@ export function glue_index_reload_scratch_slot_to_rbx_elf_c(elf_ctx: *u8, ta: i3
 //   · glue_index_subadd3_sum_cache_spill_store_elf_c
 //   · glue_index_subadd3_sum_cache_hit
 //   · glue_index_subadd3_spill_pop_top_elf_c
-// Cap residual: CAP cache BSS + thin valid/slot/ctx/keys/record + clear
-// + pure enc push/pop (wave171) + depth_get/set.
+// wave209: CAP cache BSS + thin valid/slot/ctx/keys/record + clear pure leave
+// (was Cap residual spill/index_helpers). wave172 orchestration stays pure.
 // Cold twins under seed #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
 // PLATFORM: SHARED freestanding 7.3 · dual-end L2.
 // ============================================================================
@@ -65596,3 +65588,298 @@ export function glue_binop_stack_spill_off_at(i: i32): i32 {
 }
 
 // end wave208 pure-owned leave
+
+// ===========================================================================
+// wave209: CAP cache structs BSS + thin accessors pure leave
+// (was Cap residual pipeline_asm_emit_spill.c / index_helpers.c wave172)
+// G.7 product authority for freestanding 7.3 INDEX (i-j) and (i-j+k) spill
+// cache metadata:
+//   glue_index_minus_pair_cache_{clear,valid_get,slot_depth_get,ctx_matches,
+//     keys_eq,record}
+//   glue_index_subadd3_sum_cache_{clear,valid_get,slot_depth_get,ctx_matches,
+//     keys_eq,record}
+//   glue_index_scratch_caches_hit_var
+// Pure-owned BSS: flattened minus_pair + subadd3 fields (valid/ctx/i|j|k_key/
+// slot_depth). Consumers: pure hit/spill/cleanup/invalidate (wave169/172);
+// Cap residual no longer holds static structs. Key hash pure wave177.
+// Seed cold twins under FROM_X. Deferred: spill VAR+color BSS / try_reload enc /
+//   for_call_args mega / pipeline_x mega.
+// PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path for CAP stack.
+// ===========================================================================
+
+// wave209: (i-j) minus_pair CAP spill cache metadata.
+// slot_depth = CAP depth after pure enc push (wave171); cleared at cleanup_all.
+let g_minus_pair_valid: i32 = 0;
+let g_minus_pair_ctx: *u8 = 0 as *u8;
+let g_minus_pair_i_key: i64 = 0;
+let g_minus_pair_j_key: i64 = 0;
+let g_minus_pair_slot_depth: i32 = 0;
+
+// wave209: (i-j+k) subadd3 CAP spill cache metadata.
+let g_subadd3_valid: i32 = 0;
+let g_subadd3_ctx: *u8 = 0 as *u8;
+let g_subadd3_i_key: i64 = 0;
+let g_subadd3_j_key: i64 = 0;
+let g_subadd3_k_key: i64 = 0;
+let g_subadd3_slot_depth: i32 = 0;
+
+/**
+ * Clear (i-j) minus_pair CAP spill cache metadata (no physical SP pop).
+ *
+ * Contract: zeros valid + slot_depth only; keys/ctx left stale until record.
+ *
+ * @return void
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave172).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_minus_pair_cache_clear(): void {
+  g_minus_pair_valid = 0;
+  g_minus_pair_slot_depth = 0;
+}
+
+/**
+ * Clear (i-j+k) subadd3 CAP spill cache metadata (no physical SP pop).
+ *
+ * @return void
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave172).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_subadd3_sum_cache_clear(): void {
+  g_subadd3_valid = 0;
+  g_subadd3_slot_depth = 0;
+}
+
+/**
+ * minus_pair cache valid flag.
+ *
+ * @return i32 — 1 when a spill row is recorded; 0 otherwise
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave172).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_minus_pair_cache_valid_get(): i32 {
+  return g_minus_pair_valid;
+}
+
+/**
+ * CAP depth stamped when minus_pair spill was pushed.
+ *
+ * @return i32 — slot_depth (0 when cleared)
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave172).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_minus_pair_cache_slot_depth_get(): i32 {
+  return g_minus_pair_slot_depth;
+}
+
+/**
+ * Return 1 when minus_pair cache ctx_key matches AsmFuncCtx pointer.
+ *
+ * @param ctx *u8 — AsmFuncCtx*; null → 0
+ * @return i32 — 1 match; 0 miss/null
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave172).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_minus_pair_cache_ctx_matches(ctx: *u8): i32 {
+  if (ctx == (0 as *u8)) {
+    return 0;
+  }
+  if (g_minus_pair_ctx != ctx) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Compare stored minus_pair structural keys to i_ref/j_ref.
+ *
+ * Uses pure glue_index_expr_struct_key_elf_c (wave177). Null arena → 0.
+ *
+ * @param arena *u8 — ASTArena*
+ * @param i_ref i32 — left VAR expr ref of (i-j)
+ * @param j_ref i32 — right VAR expr ref of (i-j)
+ * @return i32 — 1 both keys match; 0 otherwise
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave172).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_minus_pair_cache_keys_eq(arena: *u8, i_ref: i32, j_ref: i32): i32 {
+  if (arena == (0 as *u8)) {
+    return 0;
+  }
+  if (g_minus_pair_i_key != glue_index_expr_struct_key_elf_c(arena, i_ref)) {
+    return 0;
+  }
+  if (g_minus_pair_j_key != glue_index_expr_struct_key_elf_c(arena, j_ref)) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Record (i-j) keys + ctx after pure enc push; stamp slot_depth = CAP depth.
+ *
+ * Contract: arena/ctx should be non-null for useful keys; null ctx still stamps
+ * valid with null ctx_key (hit will miss via ctx_matches).
+ *
+ * @param arena *u8 — ASTArena* for structural key hash
+ * @param ctx *u8 — AsmFuncCtx* used as ctx_key
+ * @param i_ref i32 — left VAR expr ref
+ * @param j_ref i32 — right VAR expr ref
+ * @return void
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave172).
+ * PLATFORM: SHARED freestanding 7.3 · CAP depth pure wave207.
+ */
+#[no_mangle]
+export function glue_index_minus_pair_cache_record(arena: *u8, ctx: *u8, i_ref: i32, j_ref: i32): void {
+  g_minus_pair_valid = 1;
+  g_minus_pair_ctx = ctx;
+  g_minus_pair_i_key = glue_index_expr_struct_key_elf_c(arena, i_ref);
+  g_minus_pair_j_key = glue_index_expr_struct_key_elf_c(arena, j_ref);
+  // CAP depth pure BSS — stamp after enc push (depth already includes this push).
+  g_minus_pair_slot_depth = glue_index_scratch_stack_depth_get();
+}
+
+/**
+ * subadd3 cache valid flag.
+ *
+ * @return i32 — 1 when a spill row is recorded; 0 otherwise
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave172).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_subadd3_sum_cache_valid_get(): i32 {
+  return g_subadd3_valid;
+}
+
+/**
+ * CAP depth stamped when subadd3 spill was pushed.
+ *
+ * @return i32 — slot_depth (0 when cleared)
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave172).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_subadd3_sum_cache_slot_depth_get(): i32 {
+  return g_subadd3_slot_depth;
+}
+
+/**
+ * Return 1 when subadd3 cache ctx_key matches AsmFuncCtx pointer.
+ *
+ * @param ctx *u8 — AsmFuncCtx*; null → 0
+ * @return i32 — 1 match; 0 miss/null
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave172).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_subadd3_sum_cache_ctx_matches(ctx: *u8): i32 {
+  if (ctx == (0 as *u8)) {
+    return 0;
+  }
+  if (g_subadd3_ctx != ctx) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Compare stored subadd3 structural keys to i_ref/j_ref/k_ref.
+ *
+ * @param arena *u8 — ASTArena*
+ * @param i_ref i32 — i VAR of (i-j+k)
+ * @param j_ref i32 — j VAR of (i-j+k)
+ * @param k_ref i32 — k VAR of (i-j+k)
+ * @return i32 — 1 all three keys match; 0 otherwise
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave172).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_subadd3_sum_cache_keys_eq(arena: *u8, i_ref: i32, j_ref: i32, k_ref: i32): i32 {
+  if (arena == (0 as *u8)) {
+    return 0;
+  }
+  if (g_subadd3_i_key != glue_index_expr_struct_key_elf_c(arena, i_ref)) {
+    return 0;
+  }
+  if (g_subadd3_j_key != glue_index_expr_struct_key_elf_c(arena, j_ref)) {
+    return 0;
+  }
+  if (g_subadd3_k_key != glue_index_expr_struct_key_elf_c(arena, k_ref)) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Record (i-j+k) keys + ctx after pure enc push; stamp slot_depth = CAP depth.
+ *
+ * @param arena *u8 — ASTArena*
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param i_ref i32 — i VAR
+ * @param j_ref i32 — j VAR
+ * @param k_ref i32 — k VAR
+ * @return void
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave172).
+ * PLATFORM: SHARED freestanding 7.3 · CAP depth pure wave207.
+ */
+#[no_mangle]
+export function glue_index_subadd3_sum_cache_record(arena: *u8, ctx: *u8, i_ref: i32, j_ref: i32, k_ref: i32): void {
+  g_subadd3_valid = 1;
+  g_subadd3_ctx = ctx;
+  g_subadd3_i_key = glue_index_expr_struct_key_elf_c(arena, i_ref);
+  g_subadd3_j_key = glue_index_expr_struct_key_elf_c(arena, j_ref);
+  g_subadd3_k_key = glue_index_expr_struct_key_elf_c(arena, k_ref);
+  g_subadd3_slot_depth = glue_index_scratch_stack_depth_get();
+}
+
+/**
+ * Return 1 when assigned var_ref structural key hits subadd3 or minus_pair cache.
+ *
+ * Used by pure invalidate_var (wave169) to decide full CAP cleanup. Null arena
+ * or non-positive var_ref → 0. Key hash pure wave177.
+ *
+ * @param arena *u8 — ASTArena*
+ * @param var_ref i32 — assigned VAR expr ref
+ * @return i32 — 1 hit (caller should cleanup spills); 0 miss
+ *
+ * wave209 pure: G.7 authority (was Cap residual spill wave169/172).
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+#[no_mangle]
+export function glue_index_scratch_caches_hit_var(arena: *u8, var_ref: i32): i32 {
+  let vkey: i64 = 0;
+  if (arena == (0 as *u8) || var_ref <= 0) {
+    return 0;
+  }
+  vkey = glue_index_expr_struct_key_elf_c(arena, var_ref);
+  if (g_subadd3_valid != 0) {
+    if (vkey == g_subadd3_i_key || vkey == g_subadd3_j_key || vkey == g_subadd3_k_key) {
+      return 1;
+    }
+  }
+  if (g_minus_pair_valid != 0) {
+    if (vkey == g_minus_pair_i_key || vkey == g_minus_pair_j_key) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+// end wave209 pure-owned leave

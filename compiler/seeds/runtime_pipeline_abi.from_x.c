@@ -5,6 +5,7 @@
  * wave187: field_type_ref pure leave cold twin under #ifndef FROM_X
  * wave186: SoA index.field addr pure leave cold twin under #ifndef FROM_X
  * wave185: lvalue_eff_addr ELF+text pure leave cold twins under #ifndef FROM_X
+ * wave209: CAP cache BSS (minus_pair/subadd3) + thin + hit_var pure leave cold twins under #ifndef FROM_X
  * wave172: minus_pair/subadd3 cache spill pure leave cold twins under #ifndef FROM_X
  * wave171: index-scratch enc push/reload/pop pure leave cold twins under #ifndef FROM_X
  * wave174: spill_reg_to_spill + evict_rax|rbx pure leave cold twins under #ifndef FROM_X
@@ -26228,6 +26229,119 @@ int32_t glue_binop_stack_spill_off_at(int32_t i) {
   if (i < 0 || i >= g_wave208_stack_spill_n)
     return -1;
   return g_wave208_stack_spill_off[i];
+}
+
+/*
+ * wave209 cold twins: CAP cache structs BSS + thin accessors + caches_hit_var
+ * (G.7 pure leave). Working freestanding BSS twins of pure minus_pair/subadd3
+ * flattened fields. Hybrid product links pure; cold seed keeps local static
+ * under #ifndef FROM_X. Key hash cold twin wave177; CAP depth twin wave207.
+ * PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path.
+ */
+static int32_t g_wave209_minus_pair_valid = 0;
+static void *g_wave209_minus_pair_ctx = 0;
+static uint64_t g_wave209_minus_pair_i_key = 0;
+static uint64_t g_wave209_minus_pair_j_key = 0;
+static int32_t g_wave209_minus_pair_slot_depth = 0;
+
+static int32_t g_wave209_subadd3_valid = 0;
+static void *g_wave209_subadd3_ctx = 0;
+static uint64_t g_wave209_subadd3_i_key = 0;
+static uint64_t g_wave209_subadd3_j_key = 0;
+static uint64_t g_wave209_subadd3_k_key = 0;
+static int32_t g_wave209_subadd3_slot_depth = 0;
+
+void glue_index_minus_pair_cache_clear(void) {
+  g_wave209_minus_pair_valid = 0;
+  g_wave209_minus_pair_slot_depth = 0;
+}
+
+void glue_index_subadd3_sum_cache_clear(void) {
+  g_wave209_subadd3_valid = 0;
+  g_wave209_subadd3_slot_depth = 0;
+}
+
+int32_t glue_index_minus_pair_cache_valid_get(void) {
+  return g_wave209_minus_pair_valid;
+}
+
+int32_t glue_index_minus_pair_cache_slot_depth_get(void) {
+  return g_wave209_minus_pair_slot_depth;
+}
+
+int32_t glue_index_minus_pair_cache_ctx_matches(void *ctx) {
+  if (!ctx)
+    return 0;
+  return g_wave209_minus_pair_ctx == ctx ? 1 : 0;
+}
+
+int32_t glue_index_minus_pair_cache_keys_eq(void *arena, int32_t i_ref, int32_t j_ref) {
+  if (!arena)
+    return 0;
+  if (g_wave209_minus_pair_i_key != glue_index_expr_struct_key_elf_c(arena, i_ref))
+    return 0;
+  if (g_wave209_minus_pair_j_key != glue_index_expr_struct_key_elf_c(arena, j_ref))
+    return 0;
+  return 1;
+}
+
+void glue_index_minus_pair_cache_record(void *arena, void *ctx, int32_t i_ref, int32_t j_ref) {
+  g_wave209_minus_pair_valid = 1;
+  g_wave209_minus_pair_ctx = ctx;
+  g_wave209_minus_pair_i_key = glue_index_expr_struct_key_elf_c(arena, i_ref);
+  g_wave209_minus_pair_j_key = glue_index_expr_struct_key_elf_c(arena, j_ref);
+  g_wave209_minus_pair_slot_depth = glue_index_scratch_stack_depth_get();
+}
+
+int32_t glue_index_subadd3_sum_cache_valid_get(void) {
+  return g_wave209_subadd3_valid;
+}
+
+int32_t glue_index_subadd3_sum_cache_slot_depth_get(void) {
+  return g_wave209_subadd3_slot_depth;
+}
+
+int32_t glue_index_subadd3_sum_cache_ctx_matches(void *ctx) {
+  if (!ctx)
+    return 0;
+  return g_wave209_subadd3_ctx == ctx ? 1 : 0;
+}
+
+int32_t glue_index_subadd3_sum_cache_keys_eq(void *arena, int32_t i_ref, int32_t j_ref, int32_t k_ref) {
+  if (!arena)
+    return 0;
+  if (g_wave209_subadd3_i_key != glue_index_expr_struct_key_elf_c(arena, i_ref))
+    return 0;
+  if (g_wave209_subadd3_j_key != glue_index_expr_struct_key_elf_c(arena, j_ref))
+    return 0;
+  if (g_wave209_subadd3_k_key != glue_index_expr_struct_key_elf_c(arena, k_ref))
+    return 0;
+  return 1;
+}
+
+void glue_index_subadd3_sum_cache_record(void *arena, void *ctx, int32_t i_ref, int32_t j_ref,
+                                        int32_t k_ref) {
+  g_wave209_subadd3_valid = 1;
+  g_wave209_subadd3_ctx = ctx;
+  g_wave209_subadd3_i_key = glue_index_expr_struct_key_elf_c(arena, i_ref);
+  g_wave209_subadd3_j_key = glue_index_expr_struct_key_elf_c(arena, j_ref);
+  g_wave209_subadd3_k_key = glue_index_expr_struct_key_elf_c(arena, k_ref);
+  g_wave209_subadd3_slot_depth = glue_index_scratch_stack_depth_get();
+}
+
+int32_t glue_index_scratch_caches_hit_var(void *arena, int32_t var_ref) {
+  uint64_t vkey;
+  if (!arena || var_ref <= 0)
+    return 0;
+  vkey = glue_index_expr_struct_key_elf_c(arena, var_ref);
+  if (g_wave209_subadd3_valid &&
+      (vkey == g_wave209_subadd3_i_key || vkey == g_wave209_subadd3_j_key ||
+       vkey == g_wave209_subadd3_k_key))
+    return 1;
+  if (g_wave209_minus_pair_valid &&
+      (vkey == g_wave209_minus_pair_i_key || vkey == g_wave209_minus_pair_j_key))
+    return 1;
+  return 0;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
