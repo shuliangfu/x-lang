@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave189: module_from_ctx + needs_ptr pure leave cold twins under #ifndef FROM_X
  * wave188: VAR stack_off pure leave cold twin under #ifndef FROM_X
  * wave187: field_type_ref pure leave cold twin under #ifndef FROM_X
  * wave186: SoA index.field addr pure leave cold twin under #ifndef FROM_X
@@ -25770,6 +25771,38 @@ int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_r
   (void)ctx;
   (void)var_expr_ref;
   return -1;
+}
+
+/*
+ * wave189 cold twins: module_from_ctx + needs_ptr cluster (G.7 pure leave).
+ * Freestanding-safe stubs. Hybrid product links pure.
+ * PLATFORM: SHARED freestanding emit-module / load-vs-lea path.
+ */
+void *glue_emit_module_from_ctx(void *ctx) {
+  (void)ctx;
+  return 0;
+}
+
+int32_t glue_emit_func_param_is_indirect_array_slot_c(void *arena, void *mod, int32_t var_expr_ref) {
+  (void)arena;
+  (void)mod;
+  (void)var_expr_ref;
+  return 0;
+}
+
+int32_t pipeline_asm_emit_func_param_is_indirect_struct_slot_c(void *arena, void *mod, int32_t var_expr_ref) {
+  (void)arena;
+  (void)mod;
+  (void)var_expr_ref;
+  return 0;
+}
+
+int32_t glue_local_var_slot_needs_ptr_load_elf_c(void *arena, int32_t var_expr_ref, int32_t stack_off, void *ctx) {
+  (void)arena;
+  (void)var_expr_ref;
+  (void)stack_off;
+  (void)ctx;
+  return 0;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

@@ -6,9 +6,9 @@
  * #include). Authority for product-mega freestanding INDEX support helpers
  * that pipeline_asm_emit_index.c (esz + emit_index + addr_of + deref face)
  * depends on:
- * - glue_emit_module_from_ctx / param+local slot ptr load faces
- *   (stack_off_is_emit_param_ptr_slot, local_var_slot_needs_ptr_load,
- *   func_param_is_indirect_struct_slot)
+ * - glue_emit_module_from_ctx / local_var_slot_needs_ptr_load /
+ *   func_param_is_indirect_{array,struct}_slot — wave189 pure leave
+ *   (runtime_pipeline_abi); Cap residual extern only + seed cold twins
  * - glue_field_access_field_type_ref_c — wave187 pure leave
  *   (runtime_pipeline_abi); Cap residual extern only + seed cold twin
  * - fixed_array_total_bytes / glue_index_elem_byte_sz_from_type_ref_c
@@ -56,8 +56,9 @@
  *
  * Note: binop_stack_spill CAP statics live here (shared index-scratch depth
  * with 7.3 spill); their method bodies live in pipeline_asm_emit_spill.c.
- * Residual after wave188: module_from_ctx / local_var_slot_needs_ptr_load /
- * CAP BSS thin accessors; stack_off pure leave closed.
+ * Residual after wave189: CAP BSS thin accessors (minus_pair / subadd3 /
+ * scratch depth / stack_spill tables + rax_frame spill). module_from_ctx /
+ * needs_ptr / array_slot / struct_slot pure leave closed.
  */
 
 /** INDEX 元素字节宽（前向声明，定义见本文件后部）。 */
@@ -75,61 +76,16 @@ int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct 
 /** AsmFuncCtx.module_ref 在 X/C 布局中的字节偏移（与 backend.x fill_param_slots 一致）。 */
 #define GLUE_ASM_CTX_MODULE_REF_OFF 16
 
-/**
- * 从 emit 全局或 ctx 取当前 module；frame_size 估算会临时改写 g_pipeline_asm_emit_module。
- * wave132 pure leave Cap residual: was static (pure struct_let links here).
- */
-struct ast_Module *glue_emit_module_from_ctx(struct backend_AsmFuncCtx *ctx) {
-  if (g_pipeline_asm_emit_module)
-    return g_pipeline_asm_emit_module;
-  if (ctx)
-    return *(struct ast_Module **)((uint8_t *)ctx + GLUE_ASM_CTX_MODULE_REF_OFF);
-  return NULL;
-}
+/* wave189 pure-owned: glue_emit_module_from_ctx (runtime_pipeline_abi pure).
+ * Cap residual callers use pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding emit-module resolve. */
+struct ast_Module *glue_emit_module_from_ctx(struct backend_AsmFuncCtx *ctx);
 
-/**
- * fp 负偏移 stack_off 是否对应当前 emit 函数的 *T 形参槽（8,16,…）；driver eq_* 的 buf[i] 须 load 勿 lea。
- */
-static int32_t glue_stack_off_is_emit_param_ptr_slot_c(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                        int32_t func_index, int32_t stack_off) {
-  int32_t pi;
-  int32_t np;
-  int32_t pty;
-  if (!arena || !mod || func_index < 0 || func_index >= mod->num_funcs || stack_off < 8)
-    return 0;
-  if ((stack_off & 7) != 0)
-    return 0;
-  pi = (stack_off - 8) / 8;
-  np = pipeline_module_func_num_params_at(mod, func_index);
-  if (pi < 0 || pi >= np)
-    return 0;
-  pty = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
-  if (pty <= 0)
-    return 0;
-  return pipeline_type_kind_ord_at(arena, pty) == 9 ? 1 : 0;
-}
-
-/**
- * 形参为定长 T[N] 且 CALL 侧 lea 传址时，槽内为 8B 指针（非内联数组 blob）。
- */
-static int32_t glue_emit_func_param_is_indirect_array_slot_c(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                              int32_t var_expr_ref) {
-  uint8_t vname[128];
-  int32_t vlen;
-  int32_t fi;
-  int32_t pty;
-  if (!arena || !mod || var_expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, var_expr_ref) != GLUE_EXPR_KIND_VAR)
-    return 0;
-  fi = g_pipeline_asm_emit_func_index;
-  if (fi < 0 || fi >= (int32_t)mod->num_funcs)
-    return 0;
-  vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-  if (vlen <= 0 || vlen > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, var_expr_ref, vname);
-  pty = pipeline_module_func_param_type_ref_for_name(mod, fi, vname, vlen);
-  return glue_type_is_fixed_array(arena, pty);
-}
+/* wave189 pure-owned: glue_emit_func_param_is_indirect_array_slot_c (pure).
+ * Was static; call_args co-uses public pure face. G.7 single authority.
+ * PLATFORM: SHARED freestanding T[N] formal pointer home. */
+int32_t glue_emit_func_param_is_indirect_array_slot_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                       int32_t var_expr_ref);
 
 /** Same-TU forward: body in pipeline_asm_emit_call_args.c (wave1017 G.7 fold). */
 static int32_t glue_type_ref_is_named_struct_layout_elf_c(struct ast_ASTArena *arena, struct ast_Module *mod,
@@ -138,63 +94,18 @@ int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int3
 extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
 extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
 
-/**
- * Named-struct formal param home is never a hidden pointer under SysV product paths.
- * PLATFORM: LINUX+MACOS x86_64 SysV —
- * - ≤8B / 9–16B INTEGER dual-GP / >16B MEMORY: home holds by-value (or full MEMORY copy)
- * - field/index use lea home+off, not load-pointer-then-index
- * G.7: matches CALL dual-GP (9–16B) + MEMORY push (>16B); Allocator dual-home closed here.
- * 供 pipeline_glue 与 backend_try_inline_dispatch 共用（API 保留；恒 0）。
- */
+/* wave189 pure-owned: pipeline_asm_emit_func_param_is_indirect_struct_slot_c
+ * (always 0 SysV product). Cap residual / backend_try_inline use pure.
+ * PLATFORM: SHARED freestanding. */
 int32_t pipeline_asm_emit_func_param_is_indirect_struct_slot_c(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                                int32_t var_expr_ref) {
-  (void)arena;
-  (void)mod;
-  (void)var_expr_ref;
-  return 0;
-}
+                                                                int32_t var_expr_ref);
 
-/**
- * 局部 VAR 槽是否须 load 槽内指针（*T 形参 / T[N] 形参传址 / 块内 let *T）；resolved 缺失时按 stack_off 回落形参表。
- * wave332c: TYPE_SLICE formal is `struct xlang_slice_* *` (codegen.x); local let is by-value fat.
- * Without this, a.length / a[i] on slice params lea the pointer slot and read stack junk
- * (Ubuntu freestanding sum([1,2,3]) / len(b) residual after call-arg stamp).
- */
-/* wave147 pure Cap residual: static→extern (index_eff_addr pure leave). PLATFORM: SHARED. */
+/* wave189 pure-owned: glue_local_var_slot_needs_ptr_load_elf_c (pure).
+ * Cap residual try_index / lvalue / enc_local_slot call pure; G.7 single
+ * authority — no host body. stack_off_is_emit_param_ptr folded into pure private.
+ * PLATFORM: SHARED freestanding load-vs-lea for *T / T[N] / T[] formals. */
 int32_t glue_local_var_slot_needs_ptr_load_elf_c(struct ast_ASTArena *arena, int32_t var_expr_ref,
-                                                         int32_t stack_off, struct backend_AsmFuncCtx *ctx) {
-  struct ast_Module *mod;
-  if (asm_local_var_slot_holds_indirect_ptr(arena, var_expr_ref, glue_emit_module_from_ctx(ctx), (uint8_t *)ctx) != 0)
-    return 1;
-  mod = glue_emit_module_from_ctx(ctx);
-  if (mod && g_pipeline_asm_emit_func_index >= 0 &&
-      pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena, mod, var_expr_ref) != 0)
-    return 1;
-  if (mod && g_pipeline_asm_emit_func_index >= 0 &&
-      glue_emit_func_param_is_indirect_array_slot_c(arena, mod, var_expr_ref) != 0)
-    return 1;
-  if (mod && g_pipeline_asm_emit_func_index >= 0 &&
-      glue_stack_off_is_emit_param_ptr_slot_c(arena, mod, g_pipeline_asm_emit_func_index, stack_off) != 0)
-    return 1;
-  /*
-   * PLATFORM: SHARED — TYPE_SLICE params lower as pointers (1 GP home).
-   * Local TYPE_SLICE lets stay by-value dual-GP (needs_ptr_load=0).
-   * G.7: complete the *T / T[N] / T[] param pointer set.
-   */
-  if (mod && g_pipeline_asm_emit_func_index >= 0 && arena && var_expr_ref > 0 &&
-      pipeline_expr_kind_ord_at(arena, var_expr_ref) == (int32_t)ast_ExprKind_EXPR_VAR) {
-    uint8_t vname[128];
-    int32_t vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-    int32_t pty;
-    if (vlen > 0 && vlen <= 63) {
-      pipeline_expr_var_name_into(arena, var_expr_ref, vname);
-      pty = pipeline_module_func_param_type_ref_for_name(mod, g_pipeline_asm_emit_func_index, vname, vlen);
-      if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_SLICE)
-        return 1;
-    }
-  }
-  return 0;
-}
+                                                         int32_t stack_off, struct backend_AsmFuncCtx *ctx);
 
 /**
  * wave179 pure-owned: local VAR slot → rax/rbx (load *T/slice* / lea by-value).

@@ -511,7 +511,8 @@ export extern "C" function backend_enc_rax_plus_rbx_scale8_arch(elf_ctx: *u8, ta
 export extern "C" function backend_enc_mul_imm_to_rbx_arch(elf_ctx: *u8, lit: i32, ta: i32): i32;
 export extern "C" function backend_enc_add_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
-export extern "C" function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_ref: i32, stack_off: i32, ctx: *u8): i32;
+// wave189 pure-owned: glue_local_var_slot_needs_ptr_load_elf_c live at EOF (#[no_mangle]).
+// G.7 ban dual export extern + pure export for the same symbol.
 // wave179 pure-owned: glue_index_deref_ptr_field_slot_{rax,rbx}_elf_c live in EOF (#[no_mangle]).
 // (was Cap residual export extern; dual-export ban.)
 export extern "C" function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *u8, call_expr_ref: i32): i32;
@@ -1198,7 +1199,8 @@ export extern "C" function glue_call_return_byte_size_c(arena: *u8, call_expr_re
 // wave154 pure-owned: glue_type_size_simple body in EOF section.
 export extern "C" function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
 export extern "C" function glue_store_retval_pair_to_rbp_elf_c(m: *u8, arena: *u8, elf_ctx: *u8, ty_ref: i32, slot_off: i32, ta: i32, init_ref: i32, ctx: *u8): i32;
-export extern "C" function glue_emit_module_from_ctx(ctx: *u8): *u8;
+// wave189 pure-owned: glue_emit_module_from_ctx live at EOF (#[no_mangle]).
+// G.7 ban dual export extern + pure export for the same symbol.
 // wave133 Cap residual: unary pure leave callees (operand emit + float classifiers +
 // int64 lit + arch encoders). glue_var_decl_type_ref_elf_c is pure (var_decl leave).
 // PLATFORM: SHARED freestanding emit — pure owns NEG/LOGNOT/BITNOT + sxt + jz faces.
@@ -61163,3 +61165,247 @@ export function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref
 }
 
 // end wave188 pure-owned leave
+
+// ===========================================================================
+// wave189: module_from_ctx + local_var_slot_needs_ptr pure-owned leave
+// (was Cap residual body in pipeline_asm_emit_index_helpers.c head)
+// G.7 product authority for emit-module resolve + VAR slot load-vs-lea:
+//   glue_emit_module_from_ctx
+//   glue_local_var_slot_needs_ptr_load_elf_c
+//   glue_emit_func_param_is_indirect_array_slot_c  (promoted static→public)
+//   pipeline_asm_emit_func_param_is_indirect_struct_slot_c  (always 0 SysV)
+// Private: w189_stack_off_is_emit_param_ptr_slot
+// Reuses pipeline_asm_emit_module_ref_c / func_index_c (wave141) +
+//   pipe_load_ptr_slot(ctx,2) module@16 + glue_type_is_fixed_array (wave146) +
+//   asm_local_var_slot_holds_indirect_ptr Cap residual.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
+// ===========================================================================
+
+/**
+ * Resolve current emit module: process-local emit module, else AsmFuncCtx.module_ref@16.
+ * @param ctx *u8 — AsmFuncCtx*; may be null
+ * @return *u8 — ast_Module* or null
+ *
+ * Contracts:
+ * - Prefer pipeline_asm_emit_module_ref_c (wave141 pure / Cap residual storage)
+ * - Fallback: LP64 AsmFuncCtx.module_ref at byte offset 16 (slot index 2)
+ * - Null when both missing
+ *
+ * wave189 pure: G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function glue_emit_module_from_ctx(ctx: *u8): *u8 {
+  let m: *u8 = 0 as *u8;
+  m = pipeline_asm_emit_module_ref_c();
+  if (m != (0 as *u8)) {
+    return m;
+  }
+  if (ctx == (0 as *u8)) {
+    return 0 as *u8;
+  }
+  // AsmFuncCtx.module_ref @16 / slot 2 (LP64) — G.7 reuse pipe_load_ptr_slot.
+  return pipe_load_ptr_slot(ctx, 2);
+}
+
+/**
+ * Whether stack_off maps to a *T formal param home (fp-relative 8,16,...).
+ * @param arena *u8 — ASTArena*
+ * @param mod *u8 — Module*
+ * @param func_index i32 — emit function index
+ * @param stack_off i32 — frame magnitude (>=8, 8-aligned)
+ * @return i32 — 1 if param slot is TYPE_PTR (kind 9); else 0
+ * wave189 pure private helper (was Cap residual static).
+ * PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS co-path.
+ */
+function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index: i32, stack_off: i32): i32 {
+  let pi: i32 = 0;
+  let np: i32 = 0;
+  let pty: i32 = 0;
+  let nf: i32 = 0;
+  let tk: i32 = 0;
+  if (arena == (0 as *u8) || mod == (0 as *u8) || func_index < 0 || stack_off < 8) {
+    return 0;
+  }
+  unsafe {
+    nf = pipeline_module_num_funcs(mod);
+  }
+  if (func_index >= nf) {
+    return 0;
+  }
+  if ((stack_off & 7) != 0) {
+    return 0;
+  }
+  pi = (stack_off - 8) / 8;
+  unsafe {
+    np = pipeline_module_func_num_params_at(mod, func_index);
+  }
+  if (pi < 0 || pi >= np) {
+    return 0;
+  }
+  unsafe {
+    pty = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
+  }
+  if (pty <= 0) {
+    return 0;
+  }
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, pty);
+  }
+  // TYPE_PTR == 9
+  if (tk == 9) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Formal T[N] param home holds an 8B pointer (CALL lea'd address), not inline blob.
+ * @param arena *u8 — ASTArena*
+ * @param mod *u8 — Module*
+ * @param var_expr_ref i32 — EXPR_VAR ref for the formal name
+ * @return i32 — 1 if formal is fixed TYPE_ARRAY; else 0
+ *
+ * wave189 pure: G.7 authority (was Cap residual static; call_args co-uses this face).
+ * PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function glue_emit_func_param_is_indirect_array_slot_c(arena: *u8, mod: *u8, var_expr_ref: i32): i32 {
+  let vname: u8[128] = [];
+  let vlen: i32 = 0;
+  let fi: i32 = 0;
+  let pty: i32 = 0;
+  let nf: i32 = 0;
+  let ko: i32 = 0;
+  if (arena == (0 as *u8) || mod == (0 as *u8) || var_expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+  }
+  // EXPR_VAR == 3
+  if (ko != 3) {
+    return 0;
+  }
+  fi = pipeline_asm_emit_func_index_c();
+  unsafe {
+    nf = pipeline_module_num_funcs(mod);
+  }
+  if (fi < 0 || fi >= nf) {
+    return 0;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+  }
+  if (vlen <= 0 || vlen > 127) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
+    pty = pipeline_module_func_param_type_ref_for_name(mod, fi, &vname[0], vlen);
+  }
+  return glue_type_is_fixed_array(arena, pty);
+}
+
+/**
+ * Named-struct formal param home is never a hidden pointer under SysV product paths.
+ * API retained for backend_try_inline_dispatch; always 0 (by-value / MEMORY copy home).
+ * @param arena *u8 — unused
+ * @param mod *u8 — unused
+ * @param var_expr_ref i32 — unused
+ * @return i32 — always 0
+ * wave189 pure: G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding SysV · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena: *u8, mod: *u8, var_expr_ref: i32): i32 {
+  if (arena == (0 as *u8)) {
+    // silence unused without changing contract
+  }
+  if (mod == (0 as *u8)) {
+  }
+  if (var_expr_ref < 0) {
+  }
+  return 0;
+}
+
+/**
+ * Whether a local VAR slot must load the pointer home (*T / T[N] / T[] formal)
+ * rather than lea the by-value slot (local let *T vs param).
+ * @param arena *u8 — ASTArena*; null → 0
+ * @param var_expr_ref i32 — EXPR_VAR ref
+ * @param stack_off i32 — frame offset magnitude (fallback param table)
+ * @param ctx *u8 — AsmFuncCtx*
+ * @return i32 — 1 load pointer; 0 lea by-value / unknown
+ *
+ * Decision order (G.7 complete *T / T[N] / T[] set):
+ *  1. asm_local_var_slot_holds_indirect_ptr Cap residual (resolved let *T etc.)
+ *  2. indirect named-struct formal (always 0 SysV product)
+ *  3. fixed T[N] formal (lea at CALL → 8B pointer home)
+ *  4. stack_off maps to *T formal param slot
+ *  5. TYPE_SLICE formal (codegen lowers as pointer; local let stays dual-GP)
+ *
+ * wave189 pure: G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding INDEX/field/lvalue · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_ref: i32, stack_off: i32, ctx: *u8): i32 {
+  let mod: *u8 = 0 as *u8;
+  let holds: i32 = 0;
+  let fi: i32 = 0;
+  let ko: i32 = 0;
+  let vname: u8[128] = [];
+  let vlen: i32 = 0;
+  let pty: i32 = 0;
+  let tk: i32 = 0;
+  mod = glue_emit_module_from_ctx(ctx);
+  unsafe {
+    holds = asm_local_var_slot_holds_indirect_ptr(arena, var_expr_ref, mod, ctx);
+  }
+  if (holds != 0) {
+    return 1;
+  }
+  fi = pipeline_asm_emit_func_index_c();
+  if (mod != (0 as *u8) && fi >= 0) {
+    if (pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena, mod, var_expr_ref) != 0) {
+      return 1;
+    }
+    if (glue_emit_func_param_is_indirect_array_slot_c(arena, mod, var_expr_ref) != 0) {
+      return 1;
+    }
+    if (w189_stack_off_is_emit_param_ptr_slot(arena, mod, fi, stack_off) != 0) {
+      return 1;
+    }
+    // PLATFORM: SHARED — TYPE_SLICE params lower as pointers (1 GP home).
+    // Local TYPE_SLICE lets stay by-value dual-GP (needs_ptr_load=0).
+    if (arena != (0 as *u8) && var_expr_ref > 0) {
+      unsafe {
+        ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+      }
+      // EXPR_VAR == 3
+      if (ko == 3) {
+        unsafe {
+          vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+        }
+        if (vlen > 0 && vlen <= 63) {
+          unsafe {
+            pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
+            pty = pipeline_module_func_param_type_ref_for_name(mod, fi, &vname[0], vlen);
+          }
+          if (pty > 0) {
+            unsafe {
+              tk = pipeline_type_kind_ord_at(arena, pty);
+            }
+            // TYPE_SLICE == 11
+            if (tk == 11) {
+              return 1;
+            }
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+// end wave189 pure-owned leave
