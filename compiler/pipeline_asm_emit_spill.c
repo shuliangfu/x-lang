@@ -361,7 +361,8 @@ uint64_t glue_index_base_struct_key_elf_c(struct ast_ASTArena *arena, int32_t ba
  * - glue_var_expr_stack_off_elf_c (def after assign/index includes)
  * - glue_emit_index_eff_addr_scaled_elf_c (runtime_pipeline_abi pure wave147)
  * - pipeline_asm_emit_expr_elf_rec / backend_enc_* / asm_ctx_local_*
- * - CAP statics: glue_binop_stack_spill_* arrays, glue_index_scratch_stack_depth,
+ * - CAP statics: glue_binop_stack_spill_* arrays; glue_index_scratch_stack_depth
+ *   pure leave wave207 (residual uses get());
  *   glue_index_minus_pair_cache, glue_index_subadd3_sum_cache
  *   (pipeline_asm_emit_index_helpers.c, earlier in TU)
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index
@@ -1218,7 +1219,8 @@ void glue_index_minus_pair_cache_record(struct ast_ASTArena *arena, struct backe
   glue_index_minus_pair_cache.ctx_key = (size_t)ctx;
   glue_index_minus_pair_cache.i_key = glue_index_expr_struct_key_elf_c(arena, i_ref);
   glue_index_minus_pair_cache.j_key = glue_index_expr_struct_key_elf_c(arena, j_ref);
-  glue_index_minus_pair_cache.slot_depth = glue_index_scratch_stack_depth;
+  /* wave207: CAP depth pure BSS — residual reads via public getter only. */
+  glue_index_minus_pair_cache.slot_depth = glue_index_scratch_stack_depth_get();
 }
 
 int32_t glue_index_subadd3_sum_cache_valid_get(void) {
@@ -1256,7 +1258,8 @@ void glue_index_subadd3_sum_cache_record(struct ast_ASTArena *arena, struct back
   glue_index_subadd3_sum_cache.i_key = glue_index_expr_struct_key_elf_c(arena, i_ref);
   glue_index_subadd3_sum_cache.j_key = glue_index_expr_struct_key_elf_c(arena, j_ref);
   glue_index_subadd3_sum_cache.k_key = glue_index_expr_struct_key_elf_c(arena, k_ref);
-  glue_index_subadd3_sum_cache.slot_depth = glue_index_scratch_stack_depth;
+  /* wave207: CAP depth pure BSS — residual reads via public getter only. */
+  glue_index_subadd3_sum_cache.slot_depth = glue_index_scratch_stack_depth_get();
 }
 
 /**
@@ -1342,9 +1345,13 @@ int32_t glue_binop_stack_spill_try_reload_elf_c(struct platform_elf_ElfCodegenCt
   at_depth = glue_binop_stack_spill_find_depth(off);
   if (at_depth < 0)
     return 0;
-  if (glue_index_scratch_stack_depth < at_depth)
-    return 0;
-  slot = glue_index_scratch_stack_depth - at_depth;
+  /* wave207: CAP depth pure BSS — residual reads via public getter only. */
+  {
+    int32_t cap_depth = glue_index_scratch_stack_depth_get();
+    if (cap_depth < at_depth)
+      return 0;
+    slot = cap_depth - at_depth;
+  }
   if (to_rbx != 0) {
     if (arch_arm64_enc_enc_ldr_sp_slot_to_xreg(elf_ctx, slot, 1) != 0)
       return -1;

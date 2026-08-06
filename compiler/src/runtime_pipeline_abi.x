@@ -969,8 +969,8 @@ export extern "C" function glue_i64_to_f64_bits(v: i64, lo: *i32, hi: *i32): voi
 export extern "C" function pipeline_expr_as_target_type_ref_at(arena: *u8, expr_ref: i32): i32;
 // wave143 pure leave: pipeline_asm_array_lit_elem_type_ref live in this file.
 /* wave169: pure owns glue_index_scratch_spills_cleanup_all_elf_c (#[no_mangle] below). */
-/* wave169 Cap residual: thin faces for pure index-scratch leave. */
-export extern "C" function glue_index_scratch_stack_depth_get(): i32;
+/* wave207 pure-owned: glue_index_scratch_stack_depth_get/set at EOF (#[no_mangle]).
+ * G.7 ban dual export extern + pure export for the same symbol. */
 /* wave171: pure owns glue_enc_pop_index_scratch_stack_arm64_elf_c (#[no_mangle] below). */
 export extern "C" function glue_index_scratch_caches_hit_var(arena: *u8, var_ref: i32): i32;
 export extern "C" function glue_binop_stack_spill_append_at_depth(off: i32, depth: i32): i32;
@@ -1126,8 +1126,8 @@ export extern "C" function glue_binop_stack_spill_drop_off(off: i32): void;
 export extern "C" function glue_index_subadd3_sum_cache_clear(): void;
 export extern "C" function glue_index_minus_pair_cache_clear(): void;
 export extern "C" function glue_binop_stack_spill_clear(): void;
-export extern "C" function glue_binop_rax_frame_spill_n_set(v: i32): void;
-export extern "C" function glue_index_scratch_stack_depth_set(v: i32): void;
+// wave207 pure-owned: glue_binop_rax_frame_spill_n_set + glue_index_scratch_stack_depth_set at EOF.
+// G.7 ban dual export extern + pure export for the same symbol.
 export extern "C" function glue_if_expr_arm_emit_depth_get(): i32;
 export extern "C" function glue_if_expr_arm_emit_depth_set(v: i32): void;
 export extern "C" function glue_block_body_bind_module_dep_from_ctx(ctx: *u8): void;
@@ -40808,9 +40808,8 @@ export extern "C" function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, el
 // wave193 pure-owned: glue_load_var_as_value_to_rax_rdx_elf_c at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
 export extern "C" function backend_enc_load_rbp_to_rdx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
-export extern "C" function glue_binop_rax_frame_spill_push(home: i32): i32;
-export extern "C" function glue_binop_rax_frame_spill_pop(): i32;
-export extern "C" function glue_binop_rax_frame_spill_depth(): i32;
+// wave207 pure-owned: glue_binop_rax_frame_spill_push/pop/depth at EOF (#[no_mangle]).
+// G.7 ban dual export extern + pure export for the same symbol.
 export extern "C" function arch_arm64_enc_enc_mov_rbx_to_x2(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_x2_to_rbx(elf_ctx: *u8): i32;
 export extern "C" function try_inline_var_field_sum_binop_elf(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
@@ -65238,8 +65237,8 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
 // Pure-owned flag: g_call_expected_ret_ty (was file-scoped static in call_args).
 // Consumers: pure struct_let / field_access install around CALL/METHOD; seed
 // backend_call_dispatch reads via getter (prefer typeck resolved, else this).
-// Deferred: for_call_args mega / CALL thin wrappers / spill BSS / CAP BSS /
-//   pipeline_x mega.
+// Deferred: for_call_args mega / CALL thin wrappers / spill BSS remaining /
+//   CAP cache structs / pipeline_x mega.
 // PLATFORM: SHARED — asm emit call ret ty tracking is platform-agnostic.
 // ===========================================================================
 
@@ -65286,3 +65285,140 @@ export function pipeline_asm_call_expected_ret_ty_c(): i32 {
 }
 
 // end wave206 pure-owned leave
+
+// ===========================================================================
+// wave207: CAP BSS thin accessors pure leave (rax frame spill + index scratch)
+// (was Cap residual pipeline_asm_emit_index_helpers.c wave149/153/169 public)
+// G.7 product authority for freestanding CAP depth + arm64 binop rax nest:
+//   glue_binop_rax_frame_spill_push / pop / depth / n_set
+//   glue_index_scratch_stack_depth_get / set
+// Pure-owned BSS: g_rax_frame_spill_off[16] + n; g_index_scratch_stack_depth.
+// Consumers: pure binop preserve_rax nest; pure index-scratch push/pop/cleanup;
+// Cap residual spill record/try_reload use get(); seed cold twins under FROM_X.
+// Deferred: for_call_args mega / CALL thin wrappers / spill VAR+color BSS /
+//   CAP cache structs (minus_pair/subadd3) / stack_spill table / pipeline_x mega.
+// PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path for scratch.
+// ===========================================================================
+
+// wave207: arm64 binop left-in-rax frame spill nest (home offs; cap 16).
+// Cleared at block emit entry via n_set(0). Not SP push / not x9.
+let g_rax_frame_spill_off: i32[16] = [];
+let g_rax_frame_spill_n: i32 = 0;
+
+// wave207: index-scratch / stack-spill shared push depth (CAP depth counter).
+// Pure index-scratch enc + cleanup adjust via get/set; residual record/try_reload
+// reads via get() only (no cross-TU raw static).
+let g_index_scratch_stack_depth: i32 = 0;
+
+/**
+ * Push a frame home offset onto the rax-frame spill nest.
+ *
+ * Contract: home is a frame slot off used to preserve left-in-rax across a
+ * nested binop/CALL. Cap is 16 (GLUE_BINOP_RAX_FRAME_SPILL_CAP). Full stack
+ * returns -1 without mutating depth.
+ *
+ * @param home i32 — frame slot off to restore after nest
+ * @return i32 — 0 on success; -1 if nest full
+ *
+ * wave207 pure: G.7 authority (was Cap residual index_helpers wave149).
+ * PLATFORM: SHARED freestanding · primary consumer MACOS|ARM64 binop nest.
+ */
+#[no_mangle]
+export function glue_binop_rax_frame_spill_push(home: i32): i32 {
+  if (g_rax_frame_spill_n >= 16) {
+    return 0 - 1;
+  }
+  g_rax_frame_spill_off[g_rax_frame_spill_n] = home;
+  g_rax_frame_spill_n = g_rax_frame_spill_n + 1;
+  return 0;
+}
+
+/**
+ * Pop the top rax-frame spill home off.
+ *
+ * Contract: empty nest returns -1. Success returns the stored home off and
+ * decrements depth by 1.
+ *
+ * @return i32 — home off on success; -1 if nest empty
+ *
+ * wave207 pure: G.7 authority (was Cap residual index_helpers wave149).
+ * PLATFORM: SHARED freestanding.
+ */
+#[no_mangle]
+export function glue_binop_rax_frame_spill_pop(): i32 {
+  if (g_rax_frame_spill_n <= 0) {
+    return 0 - 1;
+  }
+  g_rax_frame_spill_n = g_rax_frame_spill_n - 1;
+  return g_rax_frame_spill_off[g_rax_frame_spill_n];
+}
+
+/**
+ * Current rax-frame spill nest depth.
+ *
+ * @return i32 — number of homes on the nest (0..16)
+ *
+ * wave207 pure: G.7 authority (was Cap residual index_helpers wave149).
+ * PLATFORM: SHARED freestanding.
+ */
+#[no_mangle]
+export function glue_binop_rax_frame_spill_depth(): i32 {
+  return g_rax_frame_spill_n;
+}
+
+/**
+ * Set rax-frame spill nest depth (block entry clear uses 0).
+ *
+ * Contract: v < 0 clamped to 0. Does not scrub the off array; only n is
+ * authoritative for push/pop.
+ *
+ * @param v i32 — new depth; negative → 0
+ * @return void
+ *
+ * wave207 pure: G.7 authority (was Cap residual index_helpers wave153).
+ * PLATFORM: SHARED freestanding.
+ */
+#[no_mangle]
+export function glue_binop_rax_frame_spill_n_set(v: i32): void {
+  if (v < 0) {
+    g_rax_frame_spill_n = 0;
+  } else {
+    g_rax_frame_spill_n = v;
+  }
+}
+
+/**
+ * Set index-scratch CAP stack depth.
+ *
+ * Contract: v < 0 clamped to 0. Pure push/pop enc and block-entry cleanup
+ * own the counter; residual CAP cache record/try_reload read via get().
+ *
+ * @param v i32 — new depth; negative → 0
+ * @return void
+ *
+ * wave207 pure: G.7 authority (was Cap residual index_helpers wave153).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 index scratch stack.
+ */
+#[no_mangle]
+export function glue_index_scratch_stack_depth_set(v: i32): void {
+  if (v < 0) {
+    g_index_scratch_stack_depth = 0;
+  } else {
+    g_index_scratch_stack_depth = v;
+  }
+}
+
+/**
+ * Get index-scratch CAP stack depth.
+ *
+ * @return i32 — current CAP push depth (0 if cleared)
+ *
+ * wave207 pure: G.7 authority (was Cap residual index_helpers wave169).
+ * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 index scratch stack.
+ */
+#[no_mangle]
+export function glue_index_scratch_stack_depth_get(): i32 {
+  return g_index_scratch_stack_depth;
+}
+
+// end wave207 pure-owned leave

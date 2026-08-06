@@ -10480,6 +10480,8 @@ void pipeline_asm_emit_async_cps_end_func_elf_c(void) {
  * Pure-owned g_call_sret_reg_shift (was glue_statics static).
  * wave206: set_call_expected_ret_ty pure BSS leave — cold twin defined at EOF
  * of this #ifndef chain (not Cap residual).
+ * wave207: CAP BSS thin (rax_frame spill + index_scratch depth) pure leave —
+ * cold twins defined at EOF under same #ifndef FROM_X.
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 static int32_t g_wave132_call_sret_reg_shift = 0;
@@ -26118,6 +26120,46 @@ void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref) {
 
 int32_t pipeline_asm_call_expected_ret_ty_c(void) {
   return g_wave206_call_expected_ret_ty;
+}
+
+/*
+ * wave207 cold twins: CAP BSS thin accessors (G.7 pure leave).
+ * Working freestanding BSS twins of pure rax_frame nest + index_scratch depth.
+ * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
+ * PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path.
+ */
+#define WAVE207_RAX_FRAME_SPILL_CAP 16
+static int32_t g_wave207_rax_frame_spill_off[WAVE207_RAX_FRAME_SPILL_CAP];
+static int32_t g_wave207_rax_frame_spill_n = 0;
+static int32_t g_wave207_index_scratch_stack_depth = 0;
+
+int32_t glue_binop_rax_frame_spill_push(int32_t home) {
+  if (g_wave207_rax_frame_spill_n >= WAVE207_RAX_FRAME_SPILL_CAP)
+    return -1;
+  g_wave207_rax_frame_spill_off[g_wave207_rax_frame_spill_n++] = home;
+  return 0;
+}
+
+int32_t glue_binop_rax_frame_spill_pop(void) {
+  if (g_wave207_rax_frame_spill_n <= 0)
+    return -1;
+  return g_wave207_rax_frame_spill_off[--g_wave207_rax_frame_spill_n];
+}
+
+int32_t glue_binop_rax_frame_spill_depth(void) {
+  return g_wave207_rax_frame_spill_n;
+}
+
+void glue_binop_rax_frame_spill_n_set(int32_t v) {
+  g_wave207_rax_frame_spill_n = v < 0 ? 0 : v;
+}
+
+void glue_index_scratch_stack_depth_set(int32_t v) {
+  g_wave207_index_scratch_stack_depth = v < 0 ? 0 : v;
+}
+
+int32_t glue_index_scratch_stack_depth_get(void) {
+  return g_wave207_index_scratch_stack_depth;
 }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */

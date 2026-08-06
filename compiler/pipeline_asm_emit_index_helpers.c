@@ -56,9 +56,10 @@
  *
  * Note: binop_stack_spill CAP statics live here (shared index-scratch depth
  * with 7.3 spill); their method bodies live in pipeline_asm_emit_spill.c.
- * Residual after wave190: CAP BSS thin accessors (minus_pair / subadd3 /
- * scratch depth / stack_spill tables + rax_frame spill). module_from_ctx /
- * needs_ptr / array_slot / named_struct_layout_elf pure leave closed.
+ * Residual after wave207: CAP cache structs (minus_pair / subadd3) +
+ * stack_spill tables remain host; rax_frame spill + scratch depth pure leave
+ * closed (wave207). module_from_ctx / needs_ptr / array_slot /
+ * named_struct_layout_elf pure leave closed earlier.
  */
 
 /** INDEX 元素字节宽（前向声明，定义见本文件后部）。 */
@@ -290,7 +291,6 @@ typedef struct {
 } GlueIndexSubadd3SumCache;
 
 static GlueIndexSubadd3SumCache glue_index_subadd3_sum_cache;
-static int32_t glue_index_scratch_stack_depth;
 
 /** 7.3：Chaitin 溢出或物理 spill 槽用尽时的栈帧 spill（which=5；与 index scratch 共用 push 深度）。 */
 #define GLUE_BINOP_STACK_SPILL_CAP 12
@@ -299,49 +299,17 @@ static int32_t glue_index_scratch_stack_depth;
 static int32_t glue_binop_stack_spill_off[GLUE_BINOP_STACK_SPILL_CAP];
 static int32_t glue_binop_stack_spill_at_depth[GLUE_BINOP_STACK_SPILL_CAP];
 static int32_t glue_binop_stack_spill_n;
-/**
- * wave403: arm64 binop left-in-rax frame spill nest (not SP push / not x9).
- * Cap for nested (a op b) op (c op d) across CALL; cleared at block emit entry.
- */
-#define GLUE_BINOP_RAX_FRAME_SPILL_CAP 16
-static int32_t glue_binop_rax_frame_spill_off[GLUE_BINOP_RAX_FRAME_SPILL_CAP];
-static int32_t glue_binop_rax_frame_spill_n;
 
-/* wave149 Cap residual: pure binop preserve_rax nest (was same-TU static access). PLATFORM: SHARED. */
-int32_t glue_binop_rax_frame_spill_push(int32_t home) {
-  if (glue_binop_rax_frame_spill_n >= GLUE_BINOP_RAX_FRAME_SPILL_CAP)
-    return -1;
-  glue_binop_rax_frame_spill_off[glue_binop_rax_frame_spill_n++] = home;
-  return 0;
-}
-int32_t glue_binop_rax_frame_spill_pop(void) {
-  if (glue_binop_rax_frame_spill_n <= 0)
-    return -1;
-  return glue_binop_rax_frame_spill_off[--glue_binop_rax_frame_spill_n];
-}
-int32_t glue_binop_rax_frame_spill_depth(void) {
-  return glue_binop_rax_frame_spill_n;
-}
-
-/* wave153 Cap residual: pure block_body leave CAP depth setters.
- * CAP arrays stay residual (G.7); pure only clears depths at body entry.
- * PLATFORM: SHARED freestanding emit.
- */
-void glue_binop_rax_frame_spill_n_set(int32_t v) {
-  glue_binop_rax_frame_spill_n = v < 0 ? 0 : v;
-}
-
-void glue_index_scratch_stack_depth_set(int32_t v) {
-  glue_index_scratch_stack_depth = v < 0 ? 0 : v;
-}
-
-/**
- * wave169 Cap residual: thin get for pure index-scratch leave.
- * PLATFORM: SHARED freestanding 7.3 / MACOS|ARM64 index scratch stack.
- */
-int32_t glue_index_scratch_stack_depth_get(void) {
-  return glue_index_scratch_stack_depth;
-}
+/* wave207 pure-owned: rax_frame spill nest + index_scratch depth BSS in
+ * runtime_pipeline_abi.x (#[no_mangle] export). Cap residual: prototype only.
+ * Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED freestanding 7.3 · MACOS|ARM64 AAPCS64 co-path. */
+int32_t glue_binop_rax_frame_spill_push(int32_t home);
+int32_t glue_binop_rax_frame_spill_pop(void);
+int32_t glue_binop_rax_frame_spill_depth(void);
+void glue_binop_rax_frame_spill_n_set(int32_t v);
+void glue_index_scratch_stack_depth_set(int32_t v);
+int32_t glue_index_scratch_stack_depth_get(void);
 
 /* wave153 Cap residual: def in spill.c */
 void glue_binop_stack_spill_clear(void);
