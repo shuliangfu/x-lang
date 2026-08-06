@@ -26595,10 +26595,37 @@ void glue_asm73_cfg_coloring_active_set(int32_t v) {
 
 void glue_asm73_cfg_final_expr_use_n_set(int32_t n) { g_wave212_cfg_final_expr_use_n = n; }
 
-/* Cold twin: no residual linear_max / cfg_parent — use final_expr gate only
- * when final_expr_use_n was stamped; otherwise never enable stack spill. */
+/*
+ * wave213 cold twins: live control scalars + Chaitin interf BSS + linear_ctx
+ * (G.7 pure leave). Working freestanding BSS twins of pure control/interf.
+ * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
+ * glue_asm73_cfg_peak_clear stays Cap residual (peak_live host BSS) — no cold twin.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+static int32_t g_wave213_cfg_parent = 0;
+static int32_t g_wave213_live_fwd_active = 0;
+static int32_t g_wave213_emit_stmt_i = 0;
+static int32_t g_wave213_linear_max_live_n = 0;
+static int32_t g_wave213_interf_n = 0;
+static int32_t g_wave213_interf_off[32];
+static int32_t g_wave213_interf_adj[32];
+static int32_t g_wave213_interf_stack_depth = 0;
+static int32_t g_wave213_interf_stack_n[8];
+static int32_t g_wave213_interf_stack_off[256];
+static int32_t g_wave213_interf_stack_adj[256];
+static void *g_wave213_linear_arena = 0;
+static void *g_wave213_linear_ctx = 0;
+static int32_t g_wave213_linear_block_ref = 0;
+static int32_t g_wave213_linear_slot_base = 0;
+static int32_t g_wave213_linear_nconst = 0;
+static int32_t g_wave213_linear_nlet = 0;
+static int32_t g_wave213_linear_nso = 0;
+
+/* Cold twin: stack_spill uses pure-style cfg_parent + linear_max (wave213 BSS). */
 int32_t glue_asm73_stack_spill_enabled(void) {
-  return g_wave212_cfg_final_expr_use_n >= 12 ? 1 : 0;
+  if (g_wave213_cfg_parent != 0)
+    return g_wave212_cfg_final_expr_use_n >= 12 ? 1 : 0;
+  return g_wave213_linear_max_live_n >= 15 ? 1 : 0;
 }
 
 int32_t glue_asm73_var_prefers_stack_spill(int32_t off) {
@@ -26606,6 +26633,200 @@ int32_t glue_asm73_var_prefers_stack_spill(int32_t off) {
     return 0;
   return glue_asm73_off_spill_color_which(off) == 6 ? 1 : 0;
 }
+
+int32_t glue_block_live_cfg_parent_get(void) { return g_wave213_cfg_parent; }
+void glue_block_live_cfg_parent_set(int32_t v) { g_wave213_cfg_parent = v ? 1 : 0; }
+int32_t glue_block_live_fwd_active_get(void) { return g_wave213_live_fwd_active; }
+void glue_block_live_fwd_active_set(int32_t v) { g_wave213_live_fwd_active = v ? 1 : 0; }
+void glue_block_emit_stmt_i_set(int32_t v) { g_wave213_emit_stmt_i = v; }
+int32_t glue_block_emit_stmt_i_get(void) { return g_wave213_emit_stmt_i; }
+int32_t glue_asm73_linear_max_live_n_get(void) { return g_wave213_linear_max_live_n; }
+void glue_asm73_linear_max_live_n_set(int32_t n) { g_wave213_linear_max_live_n = n; }
+void glue_asm73_linear_max_live_n_maybe_raise(int32_t n) {
+  if (n > g_wave213_linear_max_live_n)
+    g_wave213_linear_max_live_n = n;
+}
+int32_t glue_asm73_pressure_live_thresh_get(void) {
+  if (g_wave213_linear_max_live_n >= 12)
+    return 8;
+  if (g_wave213_linear_max_live_n >= 9)
+    return 7;
+  if (g_wave213_linear_max_live_n >= 8)
+    return 6;
+  if (g_wave213_linear_max_live_n >= 7)
+    return 5;
+  if (g_wave213_linear_max_live_n >= 6)
+    return 4;
+  return 3;
+}
+void glue_asm73_interf_clear(void) { g_wave213_interf_n = 0; }
+int32_t glue_asm73_interf_n_get(void) { return g_wave213_interf_n; }
+int32_t glue_asm73_interf_off_at(int32_t i) {
+  if (i < 0 || i >= g_wave213_interf_n)
+    return -1;
+  return g_wave213_interf_off[i];
+}
+int32_t glue_asm73_interf_has_edge(int32_t i, int32_t j) {
+  if (i < 0 || j < 0 || i >= g_wave213_interf_n || j >= g_wave213_interf_n)
+    return 0;
+  return (g_wave213_interf_adj[i] & (1 << j)) ? 1 : 0;
+}
+static int32_t w213_cold_interf_index(int32_t off) {
+  int32_t i;
+  if (off < 0)
+    return -1;
+  for (i = 0; i < g_wave213_interf_n; i++) {
+    if (g_wave213_interf_off[i] == off)
+      return i;
+  }
+  if (g_wave213_interf_n >= 32)
+    return -1;
+  i = g_wave213_interf_n;
+  g_wave213_interf_off[i] = off;
+  g_wave213_interf_adj[i] = 0;
+  g_wave213_interf_n++;
+  return i;
+}
+void glue_asm73_interf_add_live_set_u8(const void *live) {
+  int32_t n;
+  int32_t i;
+  int32_t j;
+  int32_t ii;
+  int32_t jj;
+  int32_t off_i;
+  int32_t off_j;
+  if (!live)
+    return;
+  n = glue_live_fwd_n_get(live);
+  for (i = 0; i < n; i++) {
+    off_i = glue_live_fwd_off_at(live, i);
+    ii = w213_cold_interf_index(off_i);
+    if (ii < 0)
+      return;
+    for (j = i + 1; j < n; j++) {
+      off_j = glue_live_fwd_off_at(live, j);
+      jj = w213_cold_interf_index(off_j);
+      if (jj < 0)
+        return;
+      g_wave213_interf_adj[ii] |= (1 << jj);
+      g_wave213_interf_adj[jj] |= (1 << ii);
+    }
+  }
+}
+extern void *glue_asm73_live_at_stmt_as_u8(int32_t stmt_i);
+void glue_asm73_interf_add_live_at_stmt(int32_t stmt_i) {
+  void *live;
+  if (stmt_i < 0 || stmt_i >= 32)
+    return;
+  live = glue_asm73_live_at_stmt_as_u8(stmt_i);
+  glue_asm73_interf_add_live_set_u8(live);
+}
+void glue_asm73_interf_push(void) {
+  int32_t d;
+  int32_t i;
+  int32_t base;
+  if (g_wave213_interf_stack_depth >= 8)
+    return;
+  d = g_wave213_interf_stack_depth;
+  g_wave213_interf_stack_n[d] = g_wave213_interf_n;
+  base = d * 32;
+  for (i = 0; i < 32; i++) {
+    g_wave213_interf_stack_off[base + i] = g_wave213_interf_off[i];
+    g_wave213_interf_stack_adj[base + i] = g_wave213_interf_adj[i];
+  }
+  g_wave213_interf_stack_depth++;
+  glue_asm73_interf_clear();
+}
+void glue_asm73_interf_pop_merge(void) {
+  int32_t d;
+  int32_t base;
+  int32_t child_n;
+  int32_t dn;
+  int32_t i;
+  int32_t j;
+  int32_t di;
+  int32_t dj;
+  int32_t map[32];
+  int32_t dst_off[32];
+  int32_t dst_adj[32];
+  int32_t found;
+  int32_t map_ok;
+  if (g_wave213_interf_stack_depth <= 0)
+    return;
+  g_wave213_interf_stack_depth--;
+  d = g_wave213_interf_stack_depth;
+  base = d * 32;
+  child_n = g_wave213_interf_n;
+  dn = g_wave213_interf_stack_n[d];
+  for (i = 0; i < 32; i++) {
+    dst_off[i] = g_wave213_interf_stack_off[base + i];
+    dst_adj[i] = g_wave213_interf_stack_adj[base + i];
+  }
+  map_ok = 1;
+  for (i = 0; i < child_n && map_ok; i++) {
+    found = 0;
+    for (j = 0; j < dn; j++) {
+      if (dst_off[j] == g_wave213_interf_off[i]) {
+        map[i] = j;
+        found = 1;
+        break;
+      }
+    }
+    if (!found) {
+      if (dn >= 32) {
+        map_ok = 0;
+        break;
+      }
+      dst_off[dn] = g_wave213_interf_off[i];
+      dst_adj[dn] = 0;
+      map[i] = dn;
+      dn++;
+    }
+  }
+  if (map_ok) {
+    for (i = 0; i < child_n; i++) {
+      di = map[i];
+      for (j = 0; j < child_n; j++) {
+        if (!(g_wave213_interf_adj[i] & (1 << j)))
+          continue;
+        dj = map[j];
+        dst_adj[di] |= (1 << dj);
+        dst_adj[dj] |= (1 << di);
+      }
+    }
+  }
+  g_wave213_interf_n = dn;
+  for (i = 0; i < 32; i++) {
+    g_wave213_interf_off[i] = dst_off[i];
+    g_wave213_interf_adj[i] = dst_adj[i];
+  }
+}
+/* peak_clear: Cap residual authority (no cold twin — dual-export ban). */
+extern void glue_asm73_cfg_peak_clear(void);
+void glue_asm73_cfg_interf_prepare(void) {
+  glue_asm73_interf_clear();
+  g_wave213_interf_stack_depth = 0;
+  g_wave213_linear_max_live_n = 0;
+  glue_asm73_cfg_final_expr_use_n_set(0);
+  glue_asm73_cfg_peak_clear();
+}
+void glue_asm73_linear_ctx_bind(void *arena, void *ctx, int32_t block_ref, int32_t slot_base, int32_t nconst,
+                               int32_t nlet, int32_t nso) {
+  g_wave213_linear_arena = arena;
+  g_wave213_linear_ctx = ctx;
+  g_wave213_linear_block_ref = block_ref;
+  g_wave213_linear_slot_base = slot_base;
+  g_wave213_linear_nconst = nconst;
+  g_wave213_linear_nlet = nlet;
+  g_wave213_linear_nso = nso;
+}
+void *glue_asm73_linear_arena_get(void) { return g_wave213_linear_arena; }
+void *glue_asm73_linear_ctx_get(void) { return g_wave213_linear_ctx; }
+int32_t glue_asm73_linear_block_ref_get(void) { return g_wave213_linear_block_ref; }
+int32_t glue_asm73_linear_slot_base_get(void) { return g_wave213_linear_slot_base; }
+int32_t glue_asm73_linear_nconst_get(void) { return g_wave213_linear_nconst; }
+int32_t glue_asm73_linear_nlet_get(void) { return g_wave213_linear_nlet; }
+int32_t glue_asm73_linear_nso_get(void) { return g_wave213_linear_nso; }
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 

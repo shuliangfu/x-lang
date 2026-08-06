@@ -371,7 +371,9 @@ uint64_t glue_index_base_struct_key_elf_c(struct ast_ASTArena *arena, int32_t ba
  * - g_pipeline_asm_emit_module / g_pipeline_asm_emit_func_index
  *
  * Note: try_reload enc pure leave closed wave211; color/pin BSS pure wave212;
- * residual keeps live_fwd / interf BSS only for remaining spill authority.
+ * wave213 pure owns live control scalars + interf BSS + linear_ctx + pressure
+ * thresh; residual keeps live set arrays (block_live_fwd / live_at_stmt / snap /
+ * break-continue / peak_live) + opaque u8 overlay thins.
  */
 
 /* wave212 pure-owned faces (extern; live in runtime_pipeline_abi pure).
@@ -388,6 +390,38 @@ void glue_asm73_cfg_coloring_active_set(int32_t v);
 void glue_asm73_cfg_final_expr_use_n_set(int32_t n);
 int32_t glue_asm73_stack_spill_enabled(void);
 int32_t glue_asm73_var_prefers_stack_spill(int32_t off);
+
+/* wave213 pure-owned faces (extern; live in runtime_pipeline_abi pure).
+ * G.7: definitions must not reappear in this Cap residual leaf.
+ * PLATFORM: SHARED freestanding 7.3. */
+int32_t glue_block_live_cfg_parent_get(void);
+void glue_block_live_cfg_parent_set(int32_t v);
+int32_t glue_block_live_fwd_active_get(void);
+void glue_block_live_fwd_active_set(int32_t v);
+void glue_block_emit_stmt_i_set(int32_t v);
+int32_t glue_block_emit_stmt_i_get(void);
+int32_t glue_asm73_linear_max_live_n_get(void);
+void glue_asm73_linear_max_live_n_set(int32_t n);
+void glue_asm73_linear_max_live_n_maybe_raise(int32_t n);
+int32_t glue_asm73_pressure_live_thresh_get(void);
+void glue_asm73_interf_clear(void);
+int32_t glue_asm73_interf_n_get(void);
+int32_t glue_asm73_interf_off_at(int32_t i);
+int32_t glue_asm73_interf_has_edge(int32_t i, int32_t j);
+void glue_asm73_interf_add_live_set_u8(const void *live);
+void glue_asm73_interf_add_live_at_stmt(int32_t stmt_i);
+void glue_asm73_interf_push(void);
+void glue_asm73_interf_pop_merge(void);
+void glue_asm73_cfg_interf_prepare(void);
+void glue_asm73_linear_ctx_bind(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t block_ref,
+                               int32_t slot_base, int32_t nconst, int32_t nlet, int32_t nso);
+void *glue_asm73_linear_arena_get(void);
+void *glue_asm73_linear_ctx_get(void);
+int32_t glue_asm73_linear_block_ref_get(void);
+int32_t glue_asm73_linear_slot_base_get(void);
+int32_t glue_asm73_linear_nconst_get(void);
+int32_t glue_asm73_linear_nlet_get(void);
+int32_t glue_asm73_linear_nso_get(void);
 
 /* wave210 pure-owned: binop VAR slot cache BSS + thin faces (extern).
  * G.7: definitions must not reappear in this Cap residual leaf.
@@ -491,45 +525,15 @@ static GlueBlockLiveFwd glue_loop_break_exit_live_stack[GLUE_LOOP_BREAK_LIVE_DEP
 /** continue 跳回头部时的活跃集（保守并入 loop 出口 ∪，利于槽 cache 正确性）。 */
 static GlueBlockLiveFwd glue_loop_continue_head_live_stack[GLUE_LOOP_BREAK_LIVE_DEPTH];
 static int32_t glue_loop_break_exit_depth;
-static int32_t glue_block_live_fwd_active;
-/** 父块含 if/while/for：用前向维护 glue_block_live_fwd + if 汇合 union。 */
-static int32_t glue_block_live_cfg_parent;
-/** 当前线性块 stmt 边界最大 |live_in|（7.3 线性 scan 第一步诊断）。 */
-static int32_t glue_asm73_linear_max_live_n;
-/** 正在发射的 stmt_order 下标（final_expr 前设为 nso，供表达式内压力驱逐）。 */
-static int32_t glue_block_emit_stmt_i;
+/* wave213 pure-owned: live_fwd_active / cfg_parent / emit_stmt_i /
+ * linear_max_live_n + pressure_live_thresh + linear_ctx bind BSS
+ * (runtime_pipeline_abi pure). Cap residual: no host BSS for control scalars.
+ * PLATFORM: SHARED freestanding 7.3. */
 /* wave212 pure-owned: pin[6] + color map + cfg_coloring_active +
  * cfg_final_expr_use_n BSS (runtime_pipeline_abi pure). Cap residual: no
  * host BSS for color/pin. PLATFORM: SHARED freestanding 7.3. */
 static GlueBlockLiveFwd glue_asm73_cfg_peak_live;
 static int32_t glue_asm73_cfg_peak_stmt_i;
-
-/**
- * 7.3：binop 压力驱逐的 |live| 阈值（默认 3 保留 repeat_add；块 max≥6 提到 4）。
- * wave166 Cap residual: non-static face for pure pressure-evict leave.
- * PLATFORM: SHARED freestanding 7.3.
- */
-int32_t glue_asm73_pressure_live_thresh_get(void) {
-  if (glue_asm73_linear_max_live_n >= 12)
-    return 8;
-  if (glue_asm73_linear_max_live_n >= 9)
-    return 7;
-  if (glue_asm73_linear_max_live_n >= 8)
-    return 6;
-  if (glue_asm73_linear_max_live_n >= 7)
-    return 5;
-  if (glue_asm73_linear_max_live_n >= 6)
-    return 4;
-  return 3;
-}
-/** 线性 scan 第二步：预计算 live_in 时缓存块上下文，供 next-use 距离查询。 */
-static struct ast_ASTArena *glue_asm73_linear_arena;
-static struct backend_AsmFuncCtx *glue_asm73_linear_ctx;
-static int32_t glue_asm73_linear_block_ref;
-static int32_t glue_asm73_linear_slot_base;
-static int32_t glue_asm73_linear_nconst;
-static int32_t glue_asm73_linear_nlet;
-static int32_t glue_asm73_linear_nso;
 
 void glue_live_fwd_clear(GlueBlockLiveFwd *live) {
   if (live)
@@ -612,7 +616,8 @@ void glue_loop_break_exit_note_current(void) {
   if (glue_loop_break_exit_depth <= 0)
     return;
   d = glue_loop_break_exit_depth - 1;
-  if (glue_block_live_fwd_active)
+  /* wave213: active flag pure BSS — read via pure getter. */
+  if (glue_block_live_fwd_active_get())
     glue_live_fwd_union_into(&glue_loop_break_exit_live_stack[d], &glue_block_live_fwd);
   else
     glue_live_fwd_union_into(&glue_loop_break_exit_live_stack[d], &glue_block_live_sub_exit_snap);
@@ -628,7 +633,8 @@ void glue_loop_continue_head_note_current(void) {
   if (glue_loop_break_exit_depth <= 0)
     return;
   d = glue_loop_break_exit_depth - 1;
-  if (glue_block_live_fwd_active)
+  /* wave213: active flag pure BSS — read via pure getter. */
+  if (glue_block_live_fwd_active_get())
     glue_live_fwd_union_into(&glue_loop_continue_head_live_stack[d], &glue_block_live_fwd);
   else
     glue_live_fwd_union_into(&glue_loop_continue_head_live_stack[d], &glue_block_live_sub_exit_snap);
@@ -666,153 +672,14 @@ static void glue_live_fwd_remove(GlueBlockLiveFwd *live, int32_t off) {
 /* wave176: pure owns glue_live_fwd_apply_stmt_gen_kill_u8.
  * Residual: live_fwd_remove thin for pure. PLATFORM: SHARED freestanding 7.3. */
 
-/* wave174: glue_asm73_stack_spill_enabled defined non-static below (thin face). */
+/* wave174/wave212: glue_asm73_stack_spill_enabled pure-owned. */
 
-/** 7.3 Chaitin 原型：干涉图顶点（栈槽 off）与邻接位图（最多 32 槽）。 */
-#define GLUE_ASM73_INTERF_MAX 32
-static int32_t glue_asm73_interf_n;
-static int32_t glue_asm73_interf_off[GLUE_ASM73_INTERF_MAX];
-static uint32_t glue_asm73_interf_adj[GLUE_ASM73_INTERF_MAX];
-/** 子块模拟时保存父块干涉图（then/else/loop 体递归前后 push/pop 合并）。 */
-#define GLUE_ASM73_INTERF_STACK_DEPTH 8
-static int32_t glue_asm73_interf_stack_depth;
-static int32_t glue_asm73_interf_stack_n[GLUE_ASM73_INTERF_STACK_DEPTH];
-static int32_t glue_asm73_interf_stack_off[GLUE_ASM73_INTERF_STACK_DEPTH][GLUE_ASM73_INTERF_MAX];
-static uint32_t glue_asm73_interf_stack_adj[GLUE_ASM73_INTERF_STACK_DEPTH][GLUE_ASM73_INTERF_MAX];
-
-/**
- * Clear interference graph (block entry / pure linear color pins).
- * wave165 Cap residual: non-static face for pure compute_spill_color_pins.
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_asm73_interf_clear(void) {
-  glue_asm73_interf_n = 0;
-}
-
-/** 将 src 干涉图并入 dst（按栈 off 对齐顶点，合并邻接边）；返回合并后顶点数。 */
-static int32_t glue_asm73_interf_merge_into(int32_t dst_n, int32_t *dst_off, uint32_t *dst_adj, int32_t src_n,
-                                             const int32_t *src_off, const uint32_t *src_adj) {
-  int32_t map[GLUE_ASM73_INTERF_MAX];
-  int32_t i;
-  int32_t j;
-  int32_t di;
-  int32_t dj;
-  int32_t dn;
-  if (!dst_off || !dst_adj)
-    return dst_n;
-  dn = dst_n;
-  if (src_n <= 0 || !src_off || !src_adj)
-    return dn;
-  for (i = 0; i < src_n; i++) {
-    for (j = 0; j < dn; j++) {
-      if (dst_off[j] == src_off[i]) {
-        map[i] = j;
-        goto found;
-      }
-    }
-    if (dn >= GLUE_ASM73_INTERF_MAX)
-      return dn;
-    dst_off[dn] = src_off[i];
-    dst_adj[dn] = 0;
-    map[i] = dn;
-    dn++;
-  found:;
-  }
-  for (i = 0; i < src_n; i++) {
-    di = map[i];
-    for (j = 0; j < src_n; j++) {
-      if (!(src_adj[i] & (uint32_t)(1u << j)))
-        continue;
-      dj = map[j];
-      dst_adj[di] |= (uint32_t)(1u << dj);
-      dst_adj[dj] |= (uint32_t)(1u << di);
-    }
-  }
-  return dn;
-}
-
-/**
- * Enter child-block cfg simulate: push parent interf graph and clear current.
- * wave168 Cap residual: non-static face for pure simulate walk.
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_asm73_interf_push(void) {
-  int32_t d;
-  if (glue_asm73_interf_stack_depth >= GLUE_ASM73_INTERF_STACK_DEPTH)
-    return;
-  d = glue_asm73_interf_stack_depth;
-  glue_asm73_interf_stack_n[d] = glue_asm73_interf_n;
-  memcpy(glue_asm73_interf_stack_off[d], glue_asm73_interf_off, sizeof(glue_asm73_interf_off));
-  memcpy(glue_asm73_interf_stack_adj[d], glue_asm73_interf_adj, sizeof(glue_asm73_interf_adj));
-  glue_asm73_interf_stack_depth++;
-  glue_asm73_interf_clear();
-}
-
-/**
- * Exit child-block cfg simulate: merge child interf into saved parent graph.
- * wave168 Cap residual: non-static face for pure simulate walk.
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_asm73_interf_pop_merge(void) {
-  int32_t d;
-  int32_t merged_n;
-  int32_t child_n;
-  if (glue_asm73_interf_stack_depth <= 0)
-    return;
-  glue_asm73_interf_stack_depth--;
-  d = glue_asm73_interf_stack_depth;
-  child_n = glue_asm73_interf_n;
-  merged_n = glue_asm73_interf_merge_into(glue_asm73_interf_stack_n[d], glue_asm73_interf_stack_off[d],
-                                           glue_asm73_interf_stack_adj[d], child_n, glue_asm73_interf_off,
-                                           glue_asm73_interf_adj);
-  glue_asm73_interf_n = merged_n;
-  memcpy(glue_asm73_interf_off, glue_asm73_interf_stack_off[d], sizeof(glue_asm73_interf_off));
-  memcpy(glue_asm73_interf_adj, glue_asm73_interf_stack_adj[d], sizeof(glue_asm73_interf_adj));
-}
-
-/** 返回 off 在干涉图中的下标；-1 表示表满。 */
-static int32_t glue_asm73_interf_index(int32_t off) {
-  int32_t i;
-  if (off < 0)
-    return -1;
-  for (i = 0; i < glue_asm73_interf_n; i++) {
-    if (glue_asm73_interf_off[i] == off)
-      return i;
-  }
-  if (glue_asm73_interf_n >= GLUE_ASM73_INTERF_MAX)
-    return -1;
-  i = glue_asm73_interf_n;
-  glue_asm73_interf_off[i] = off;
-  glue_asm73_interf_adj[i] = 0;
-  glue_asm73_interf_n++;
-  return i;
-}
-
-/** 记录 live 集中任意两槽在同一程序点同时活跃（无向边）。 */
-static void glue_asm73_interf_add_live_set(const GlueBlockLiveFwd *live) {
-  int32_t i;
-  int32_t j;
-  int32_t ii;
-  int32_t jj;
-  if (!live)
-    return;
-  for (i = 0; i < live->n; i++) {
-    ii = glue_asm73_interf_index(live->offs[i]);
-    if (ii < 0)
-      return;
-    for (j = i + 1; j < live->n; j++) {
-      jj = glue_asm73_interf_index(live->offs[j]);
-      if (jj < 0)
-        return;
-      glue_asm73_interf_adj[ii] |= (uint32_t)(1u << jj);
-      glue_asm73_interf_adj[jj] |= (uint32_t)(1u << ii);
-    }
-  }
-}
+/* wave213 pure-owned: Chaitin interf BSS + clear/n_get/off_at/has_edge/
+ * push/pop_merge/add_live_set_u8/add_live_at_stmt (runtime_pipeline_abi pure).
+ * Cap residual: no host interf BSS or merge bodies. PLATFORM: SHARED. */
 
 /* wave168: pure owns glue_block_simulate_cfg_live + from_empty (extern above).
- * Cap residual thin: copy_u8 / gen_kill_u8 / apply_stmt_gen_kill_u8 /
- * interf_push / interf_pop_merge / final_expr_use_n_set (EOF).
+ * Cap residual thin: copy_u8 / gen_kill; wave213 pure owns interf push/pop.
  * PLATFORM: SHARED freestanding 7.3. */
 
 /* wave167: pure owns glue_block_compute_cfg_peak_live_and_color (extern above).
@@ -1018,35 +885,20 @@ extern int32_t ast_pipeline_block_if_cond_ref(struct ast_ASTArena *a, int32_t br
  * ========================================================================== */
 
 /* wave212 pure-owned: cfg_coloring_active_get/set (prototypes near file head). */
-
-int32_t glue_block_live_cfg_parent_get(void) {
-  return glue_block_live_cfg_parent;
-}
-
-void glue_block_live_cfg_parent_set(int32_t v) {
-  glue_block_live_cfg_parent = v ? 1 : 0;
-}
-
-int32_t glue_block_live_fwd_active_get(void) {
-  return glue_block_live_fwd_active;
-}
-
-void glue_block_live_fwd_active_set(int32_t v) {
-  glue_block_live_fwd_active = v ? 1 : 0;
-}
-
-void glue_block_emit_stmt_i_set(int32_t v) {
-  glue_block_emit_stmt_i = v;
-}
-
-int32_t glue_block_emit_stmt_i_get(void) {
-  return glue_block_emit_stmt_i;
-}
-
-/* wave212 pure-owned: pin_spill_off_clear_all (prototype near file head). */
+/* wave213 pure-owned: cfg_parent / active / emit_stmt_i (prototypes near head). */
 
 int32_t glue_asm73_cfg_peak_live_n_get(void) {
   return glue_asm73_cfg_peak_live.n;
+}
+
+/**
+ * Clear cfg peak_live set + peak stmt index (pure cfg_interf_prepare callee).
+ * wave213 Cap residual: peak BSS still host; pure prepare stamps pure interf/max.
+ * PLATFORM: SHARED freestanding 7.3.
+ */
+void glue_asm73_cfg_peak_clear(void) {
+  glue_asm73_cfg_peak_stmt_i = 0;
+  glue_live_fwd_clear(&glue_asm73_cfg_peak_live);
 }
 
 void glue_block_live_fwd_clear_global(void) {
@@ -1192,64 +1044,13 @@ int32_t glue_block_live_fwd_contains_off(int32_t off) {
 /* wave208 pure-owned: glue_binop_stack_spill_n_get / off_at (see wave208
  * block near try_reload). Cap residual: no host bodies. PLATFORM: SHARED. */
 
-/* ========================================================================== *
- * wave164 Cap residual: thin BSS accessors for pure Chaitin coloring leave.
- * Pure owns greedy K=6 color + pin pick; residual owns interf graph BSS,
- * color/pin maps, next-use walk (G.7 single authority). PLATFORM: SHARED.
- * ========================================================================== */
-
-/** Current interference graph vertex count (0..GLUE_ASM73_INTERF_MAX). PLATFORM: SHARED. */
-int32_t glue_asm73_interf_n_get(void) {
-  return glue_asm73_interf_n;
-}
-
-/**
- * Stack-slot off for interf vertex i.
- * @param i int32_t - 0..n-1; out of range → -1
- * PLATFORM: SHARED freestanding 7.3.
- */
-int32_t glue_asm73_interf_off_at(int32_t i) {
-  if (i < 0 || i >= glue_asm73_interf_n)
-    return -1;
-  return glue_asm73_interf_off[i];
-}
-
-/**
- * True when undirected edge (i,j) exists in interf adjacency bitmaps.
- * @param i int32_t - vertex index
- * @param j int32_t - vertex index
- * @return int32_t - 1 edge present; 0 absent / OOB
- * PLATFORM: SHARED freestanding 7.3 (avoids pure u32 1<<j for j up to 31).
- */
-int32_t glue_asm73_interf_has_edge(int32_t i, int32_t j) {
-  if (i < 0 || j < 0 || i >= glue_asm73_interf_n || j >= glue_asm73_interf_n)
-    return 0;
-  return (glue_asm73_interf_adj[i] & (uint32_t)(1u << j)) ? 1 : 0;
-}
-
-/** Linear-block stmt_order count cached for next-use / Chaitin. PLATFORM: SHARED. */
-int32_t glue_asm73_linear_nso_get(void) {
-  return glue_asm73_linear_nso;
-}
-
+/* wave213 pure-owned: interf n/off/has_edge + linear_nso (prototypes near head). */
 /* wave212 pure-owned: pin_spill_off_set (prototype near file head). */
 
 /* ========================================================================== *
- * wave165 Cap residual: thin faces for pure linear interf-build color pins.
- * Pure owns glue_asm73_compute_spill_color_pins; residual owns live_at_stmt[]
- * BSS + interf_add_live_set (G.7). PLATFORM: SHARED freestanding 7.3.
- * ========================================================================== */
-
-/**
- * Add undirected interf edges for all pairs in precomputed live_at_stmt[stmt_i].
- * @param stmt_i int32_t - linear stmt index 0..nso-1; OOB → no-op
+ * wave165 Cap residual: live_at_stmt[] BSS only (interf faces pure wave213).
  * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_asm73_interf_add_live_at_stmt(int32_t stmt_i) {
-  if (stmt_i < 0 || stmt_i >= 32)
-    return;
-  glue_asm73_interf_add_live_set(&glue_block_live_at_stmt[stmt_i]);
-}
+ * ========================================================================== */
 
 /**
  * |live| at precomputed live_at_stmt[stmt_i].
@@ -1290,39 +1091,9 @@ void *glue_block_live_fwd_as_u8(void) {
 }
 
 /* ========================================================================== *
- * wave167 Cap residual: thin faces for pure cfg interf peak + color entry.
- * Pure owns note_cfg_live_peak + compute_cfg_peak_live_and_color; residual owns
- * interf/peak BSS (G.7). PLATFORM: SHARED freestanding 7.3.
+ * wave167 Cap residual: peak_live BSS only (interf/prepare/linear_ctx pure w213).
+ * PLATFORM: SHARED freestanding 7.3.
  * ========================================================================== */
-
-/**
- * Reset interf graph + stack depth + max-live + cfg peak BSS before simulate.
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_asm73_cfg_interf_prepare(void) {
-  glue_asm73_interf_clear();
-  glue_asm73_interf_stack_depth = 0;
-  glue_asm73_linear_max_live_n = 0;
-  glue_asm73_cfg_peak_stmt_i = 0;
-  /* wave212: final_expr_use_n pure BSS — stamp via pure setter. */
-  glue_asm73_cfg_final_expr_use_n_set(0);
-  glue_live_fwd_clear(&glue_asm73_cfg_peak_live);
-}
-
-/**
- * Bind linear-scan / next-use context used by pure Chaitin after cfg peak build.
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_asm73_linear_ctx_bind(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t block_ref,
-                               int32_t slot_base, int32_t nconst, int32_t nlet, int32_t nso) {
-  glue_asm73_linear_arena = arena;
-  glue_asm73_linear_ctx = ctx;
-  glue_asm73_linear_block_ref = block_ref;
-  glue_asm73_linear_slot_base = slot_base;
-  glue_asm73_linear_nconst = nconst;
-  glue_asm73_linear_nlet = nlet;
-  glue_asm73_linear_nso = nso;
-}
 
 /**
  * Stmt index of cfg_peak_live snapshot (final_expr preferred when |live| ties).
@@ -1341,34 +1112,8 @@ void *glue_asm73_cfg_peak_live_as_u8(void) {
   return (void *)&glue_asm73_cfg_peak_live;
 }
 
-/**
- * Add undirected interf edges for all pairs in opaque live set (pure note).
- * @param live const void* - GlueBlockLiveFwd*; null → no-op
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_asm73_interf_add_live_set_u8(const void *live) {
-  if (!live)
-    return;
-  glue_asm73_interf_add_live_set((const GlueBlockLiveFwd *)live);
-}
-
-/**
- * Raise glue_asm73_linear_max_live_n when n is larger (pressure thresh input).
- * @param n int32_t - candidate |live|
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_asm73_linear_max_live_n_maybe_raise(int32_t n) {
-  if (n > glue_asm73_linear_max_live_n)
-    glue_asm73_linear_max_live_n = n;
-}
-
-/**
- * wave174 Cap residual thin: current linear-block max |live| for spill home gating.
- * PLATFORM: SHARED freestanding 7.3.
- */
-int32_t glue_asm73_linear_max_live_n_get(void) {
-  return glue_asm73_linear_max_live_n;
-}
+/* wave213 pure-owned: interf_add_live_set_u8 / linear_max_* / cfg_interf_prepare /
+ * linear_ctx_bind (prototypes near file head). */
 
 /**
  * Snapshot live into cfg_peak_live and set peak stmt_i (pure note peak path).
@@ -1489,37 +1234,5 @@ void glue_block_live_fwd_add_off(int32_t off) {
   glue_live_fwd_add(&glue_block_live_fwd, off);
 }
 
-/** Linear-scan bind: arena pointer (opaque). PLATFORM: SHARED freestanding 7.3. */
-void *glue_asm73_linear_arena_get(void) {
-  return (void *)glue_asm73_linear_arena;
-}
-
-/** Linear-scan bind: AsmFuncCtx pointer (opaque). PLATFORM: SHARED freestanding 7.3. */
-void *glue_asm73_linear_ctx_get(void) {
-  return (void *)glue_asm73_linear_ctx;
-}
-
-int32_t glue_asm73_linear_block_ref_get(void) {
-  return glue_asm73_linear_block_ref;
-}
-
-int32_t glue_asm73_linear_slot_base_get(void) {
-  return glue_asm73_linear_slot_base;
-}
-
-int32_t glue_asm73_linear_nconst_get(void) {
-  return glue_asm73_linear_nconst;
-}
-
-int32_t glue_asm73_linear_nlet_get(void) {
-  return glue_asm73_linear_nlet;
-}
-
-/**
- * Set glue_asm73_linear_max_live_n (compute_linear_live_in resets to 0 then raises).
- * @param n int32_t - new max |live|
- * PLATFORM: SHARED freestanding 7.3.
- */
-void glue_asm73_linear_max_live_n_set(int32_t n) {
-  glue_asm73_linear_max_live_n = n;
-}
+/* wave213 pure-owned: linear_arena/ctx/block_ref/slot_base/nconst/nlet getters
+ * + linear_max_live_n_set (prototypes near file head). */
