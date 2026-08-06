@@ -18,6 +18,9 @@
  *      var_subadd3 / var_subsub3) — residual try_index faces call pure peel
  *   · wave179: local-slot ptr/addr + field-slot deref pure
  *     (enc_local_slot_ptr_or_addr{,_rbx}, index_deref_ptr_field_slot_{rax,rbx})
+ *   · wave180: type/stride helpers pure
+ *     (fixed_array_total_bytes, index_elem_byte_sz_from_type_ref,
+ *      var_expr_type_ref_with_decl_fallback)
  * - glue_emit_soa_index_field_addr_elf_c (DoD column-major arr[i].field)
  * - pipeline_asm_emit_lvalue_eff_addr_{elf,text}_c (VAR / FIELD / INDEX;
  *   ELF also DEREF; text twin folded wave1013 G.7 有则补全)
@@ -331,174 +334,18 @@ int32_t glue_field_access_field_type_ref_c(struct ast_ASTArena *arena, struct as
 }
 
 /**
- * wave357 Cap residual pure: total payload bytes of a fixed TYPE_ARRAY, recursive for
- * multi-dim (`[2][3]i32` → 24). Scalars/slices fall back via peel helpers.
- * wave637: element TYPE_PTR=9 is pointer width 8 (`*i32[2]` → 16), not default 4.
- * Root: prior PTR fell to esz=4 → frame slot 8B while ARRAY_LIT/INDEX used 8B stride
- * → Ubuntu x86 high-end a[1] overwrote prior local y (mac low-end free space hid).
- * G.7: align with pipeline_asm_array_lit_elem_byte_sz_c PTR=8 + INDEX element 8.
- * PLATFORM: SHARED freestanding layout · LINUX gold (mac host-C uses C multi-dim).
+ * wave180 pure-owned: fixed TYPE_ARRAY total payload bytes (recursive multi-dim).
+ * Cap residual try_index / esz / array_lit call pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding layout · LINUX gold.
  */
-/* wave140 pure leave Cap residual: was static; pure index esz links here. PLATFORM: SHARED. */
-int32_t glue_fixed_array_total_bytes_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t depth) {
-  int32_t n;
-  int32_t elem;
-  int32_t ek;
-  int32_t esz;
-  if (!arena || ty_ref <= 0 || depth > 8)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, ty_ref) != 10)
-    return 0;
-  n = pipeline_type_array_size_at(arena, ty_ref);
-  elem = pipeline_type_elem_ref_at(arena, ty_ref);
-  if (n <= 0 || elem <= 0)
-    return 0;
-  ek = pipeline_type_kind_ord_at(arena, elem);
-  if (ek == 10) {
-    esz = glue_fixed_array_total_bytes_c(arena, elem, depth + 1);
-    if (esz <= 0)
-      return 0;
-    return n * esz;
-  }
-  if (ek == 2 || ek == 1)
-    esz = 1;
-  else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
-    esz = 4;
-  else if (ek == 15 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == GLUE_TYPE_KIND_PTR)
-    esz = 8;
-  else if (ek == 8 && g_pipeline_asm_emit_module) {
-    esz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, elem, 0);
-    if (esz <= 0)
-      esz = 8;
-  } else
-    esz = 4;
-  return n * esz;
-}
+int32_t glue_fixed_array_total_bytes_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t depth);
 
 /**
- * Infer INDEX element / pointer-base stride byte width from a type ref.
- * - TYPE_PTR as *base for p[i]: peel to pointee width (*i32→4, *u8→1).
- * - TYPE_ARRAY/SLICE: stride = sizeof(element); element TYPE_PTR → 8 (not pointee).
- * - TYPE_F32=14 must match ast.x TypeKind.
- * wave637 Cap residual pure: *T[N] / T[] of pointers — element is the pointer (8B).
- * Prior ARRAY/SLICE of PTR fell through or INDEX result PTR was peeled like base *T
- * → esz=4 ldr w + SEGV freestanding (host-C hid). G.7: single face; no second INDEX.
+ * wave180 pure-owned: INDEX element / pointer-base stride from type ref.
+ * Cap residual try_index / emit_index / array_lit call pure; G.7 single authority.
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
  */
-/* wave140 pure leave Cap residual: was static; pure index/deref esz links here. PLATFORM: SHARED. */
-int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr) {
-  int32_t kind_ord;
-  int32_t pointee;
-  if (tr <= 0)
-    return 4;
-  kind_ord = pipeline_type_kind_ord_at(arena, tr);
-  if (kind_ord == GLUE_TYPE_KIND_PTR) {
-    pointee = pipeline_type_elem_ref_at(arena, tr);
-    if (pointee > 0) {
-      kind_ord = pipeline_type_kind_ord_at(arena, pointee);
-      if (kind_ord == 2 || kind_ord == 1)
-        return 1;
-      if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
-        return 4;
-      /*
-       * wave644 Cap residual pure: freestanding ptr±int / p±= scale for 8B integers.
-       * Prior PTR peel only returned 8 for F64 (ord 15); U64/I64/USIZE/ISIZE (4..7)
-       * fell through to default 4 → *i64 p+1 advanced 4 bytes (half element; host-C
-       * scales sizeof; pure-asm CTFE often false-green). Align with bare-element face
-       * below (kind 15||4||5||6||7 → 8). G.7 single esz authority — no second scale.
-       * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
-       */
-      if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7)
-        return 8;
-      /* wave637: **T / *(*T) base stride = sizeof(pointer), not sizeof(**T). */
-      if (kind_ord == GLUE_TYPE_KIND_PTR)
-        return 8;
-      /* wave357: *T[N] / *[M]T — stride is full fixed-array payload. */
-      if (kind_ord == 10) {
-        int32_t asz = glue_fixed_array_total_bytes_c(arena, pointee, 0);
-        if (asz > 0)
-          return asz;
-      }
-      /*
-       * wave644: *NamedStruct stride via layout (S {a,b} = 8). Prior default 4 →
-       * p+1 mid-struct; host-C green. Same glue_type_size_simple as ARRAY-of-NAMED.
-       */
-      if (kind_ord == 8 && g_pipeline_asm_emit_module) {
-        int32_t ssz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, pointee, 0);
-        if (ssz > 0)
-          return ssz;
-      }
-    }
-    return 4;
-  }
-  if (kind_ord == 10 || kind_ord == 11) {
-    pointee = pipeline_type_elem_ref_at(arena, tr);
-    if (pointee > 0) {
-      kind_ord = pipeline_type_kind_ord_at(arena, pointee);
-      if (kind_ord == 2 || kind_ord == 1)
-        return 1;
-      if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
-        return 4;
-      if (kind_ord == 15)
-        return 8;
-      /*
-       * wave637: T[N] / T[] element is TYPE_PTR (*i32[2], *u8[]) — element width 8.
-       * Do not peel to pointee (that is pointer-base indexing, not array-of-ptr).
-       */
-      if (kind_ord == GLUE_TYPE_KIND_PTR)
-        return 8;
-      /*
-       * wave357 Cap residual pure: multi-dim T[N][M] INDEX outer stride = sizeof(inner).
-       * Prior: nested TYPE_ARRAY fell through → esz=8 (pointer) → wrong address + SIGSEGV.
-       */
-      if (kind_ord == 10) {
-        int32_t asz = glue_fixed_array_total_bytes_c(arena, pointee, 0);
-        if (asz > 0)
-          return asz;
-      }
-      /*
-       * wave692 Cap residual pure: T[] / T[N] element is TYPE_SLICE (nested `[][]T`) —
-       * stride = fat 16, not peel to scalar. G.7 twin of force_esz / size_simple(SLICE).
-       * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
-       */
-      if (kind_ord == GLUE_TYPE_KIND_SLICE)
-        return 16;
-      if (kind_ord == 8 && g_pipeline_asm_emit_module) {
-        int32_t ssz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, pointee, 0);
-        if (ssz > 0)
-          return ssz;
-      }
-    }
-  }
-  if (kind_ord == 2 || kind_ord == 1)
-    return 1;
-  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
-    return 4;
-  if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7)
-    return 8;
-  /*
-   * wave692: bare TYPE_SLICE tr (INDEX result of nested outer) — fat width 16.
-   * Prior peel path above only fires when tr is ARRAY/SLICE-of-X; bare SLICE fell
-   * to default 8 → half fat load. PLATFORM: SHARED freestanding.
-   */
-  if (kind_ord == GLUE_TYPE_KIND_SLICE)
-    return 16;
-  /*
-   * wave598 Cap residual pure: TYPE_NAMED element stride for INDEX.
-   * Root: INDEX `xs[i]` of `S[N]` resolves to named S; prior fell through to default 8
-   * → stride 8 for 12/16/24B structs → xs[1].b read wrong slot (mac freestanding
-   * arr_sz12 write OK via wave598 let-init but run=40≠42). Array-of-named peel
-   * (kind 10→pointee 8) already used glue_type_size_simple; bare NAMED tr did not.
-   * G.7: same layout authority as pipeline_asm_array_lit_elem_byte_sz_c (wave597).
-   * PLATFORM: SHARED freestanding · LINUX gold.
-   */
-  if (kind_ord == 8 && g_pipeline_asm_emit_module) {
-    int32_t ssz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
-    if (ssz > 0)
-      return ssz;
-  }
-  return 8;
-}
+int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr);
 
 /**
  * wave179 pure-owned: FIELD slot auto-deref *T / TYPE_SLICE into rax or rbx.
@@ -513,43 +360,11 @@ int32_t glue_index_deref_ptr_field_slot_rbx_elf_c(struct ast_ASTArena *arena,
                                                           int32_t fa_ref, int32_t ta);
 
 /**
- * VAR type for emit: resolved_type_ref, else param / scope / func-body let decl type.
- *
- * PLATFORM: SHARED — import asm often skips .x typeck (driver skip_typeck), so VAR uses
- * of `let sub: i32[] = slice.subslice_*(...)` have resolved_type_ref=0 while the let
- * annotation is TYPE_SLICE. Without this fallback INDEX does lea(fat) instead of
- * load(.data), and .length uses offset 0 (tests/slice/subslice_split_chunks.x).
- * G.7: single authority for VAR type recovery (also used by index_elem_byte_sz).
+ * wave180 pure-owned: VAR type for emit (resolved + param/scope/body decl fallback).
+ * Cap residual INDEX/slice faces call pure; G.7 single authority — no host body.
+ * PLATFORM: SHARED freestanding · skip_typeck import asm recovery.
  */
-/* wave140 pure leave Cap residual: was static; pure index esz links here. PLATFORM: SHARED. */
-int32_t glue_var_expr_type_ref_with_decl_fallback_c(struct ast_ASTArena *arena, int32_t var_ref) {
-  int32_t tr;
-  uint8_t vname[128];
-  int32_t vlen;
-  if (!arena || var_ref <= 0)
-    return 0;
-  tr = pipeline_expr_resolved_type_ref(arena, var_ref);
-  if (tr > 0)
-    return tr;
-  if (pipeline_expr_kind_ord_at(arena, var_ref) != GLUE_EXPR_KIND_VAR || !g_pipeline_asm_emit_module)
-    return 0;
-  vlen = pipeline_expr_var_name_len(arena, var_ref);
-  if (vlen <= 0 || vlen > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, var_ref, vname);
-  if (g_pipeline_asm_emit_func_index >= 0)
-    tr = pipeline_module_func_param_type_ref_for_name(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index,
-                                                     vname, vlen);
-  if (tr <= 0 && g_pipeline_asm_emit_scope_block > 0)
-    tr = pipeline_block_resolve_var_type_ref(arena, g_pipeline_asm_emit_scope_block, vname, vlen);
-  if (tr <= 0 && g_pipeline_asm_emit_func_index >= 0) {
-    int32_t body_ref =
-        pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
-    if (body_ref > 0)
-      tr = pipeline_block_resolve_var_type_ref(arena, body_ref, vname, vlen);
-  }
-  return tr > 0 ? tr : 0;
-}
+int32_t glue_var_expr_type_ref_with_decl_fallback_c(struct ast_ASTArena *arena, int32_t var_ref);
 
 /**
  * INDEX 基址入 rax/x0：局部 VAR 或 VAR-base FIELD_ACCESS（如 let/形参 p.arr）。

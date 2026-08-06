@@ -25496,6 +25496,30 @@ int32_t glue_index_deref_ptr_field_slot_rbx_elf_c(void *arena, void *elf_ctx, in
   return 0;
 }
 
+/*
+ * wave180 cold twins: INDEX type / stride helpers (G.7 pure leave).
+ * Freestanding-safe stubs: fixed_array→0, esz→4, var_type→0.
+ * Hybrid product links pure. PLATFORM: SHARED freestanding INDEX type helpers.
+ */
+int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth) {
+  (void)arena;
+  (void)ty_ref;
+  (void)depth;
+  return 0;
+}
+
+int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
+  (void)arena;
+  (void)tr;
+  return 4;
+}
+
+int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t var_ref) {
+  (void)arena;
+  (void)var_ref;
+  return 0;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 

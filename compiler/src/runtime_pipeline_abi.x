@@ -494,9 +494,9 @@ export extern "C" function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offse
 // wave147 pure leave: glue_emit_index_eff_addr_scaled_elf_c + scale/add/bounds/base/public
 //   index_eff_addr faces live in this file (#[no_mangle] export).
 export extern "C" function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
-export extern "C" function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
-export extern "C" function glue_index_elem_byte_sz_from_type_ref_c(arena: *u8, tr: i32): i32;
-export extern "C" function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, var_ref: i32): i32;
+// wave180 pure-owned: glue_fixed_array_total_bytes_c + glue_index_elem_byte_sz_from_type_ref_c
+// + glue_var_expr_type_ref_with_decl_fallback_c live in EOF (#[no_mangle]).
+// (was Cap residual export extern; dual-export ban.)
 // wave156 pure-owned: glue_index_assign_addr_cache_clear/hit + load_from_cached live in EOF.
 // (was Cap residual export extern; bodies #[no_mangle] export — no dual export.)
 export extern "C" function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
@@ -56454,3 +56454,301 @@ export function glue_index_deref_ptr_field_slot_rbx_elf_c(arena: *u8, elf_ctx: *
 }
 
 // end wave179 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave180 pure-owned leave: INDEX type / stride helpers.
+// G.7 authority (was Cap residual in pipeline_asm_emit_index_helpers.c).
+// pure esz / INDEX / array_lit / try_index call these; residual bodies → extern.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+// TypeKind ord: U8=0 I8=1 BOOL=2 I32=3 U64=4 I64=5 USIZE=6 ISIZE=7 NAMED=8
+//   PTR=9 ARRAY=10 SLICE=11 F32=14 F64=15 (ast.x).
+// ---------------------------------------------------------------------------
+
+/**
+ * Total payload bytes of a fixed TYPE_ARRAY, recursive for multi-dim
+ * (`[2][3]i32` → 24). Element TYPE_PTR=9 is pointer width 8 (`*i32[2]` → 16).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param ty_ref i32 - type pool ref; must be TYPE_ARRAY (ord 10)
+ * @param depth i32 - recursion depth; depth > 8 → 0 (cycle/depth guard)
+ * @return i32 - n * elem_bytes; 0 on non-array / bad depth / bad size
+ * wave180 pure-owned G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding layout · LINUX gold.
+ */
+#[no_mangle]
+export function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32 {
+  let n: i32 = 0;
+  let elem: i32 = 0;
+  let ek: i32 = 0;
+  let esz: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || ty_ref <= 0 || depth > 8) {
+    return 0;
+  }
+  unsafe {
+    ek = pipeline_type_kind_ord_at(arena, ty_ref);
+  }
+  if (ek != 10) {
+    return 0;
+  }
+  unsafe {
+    n = pipeline_type_array_size_at(arena, ty_ref);
+    elem = pipeline_type_elem_ref_at(arena, ty_ref);
+  }
+  if (n <= 0 || elem <= 0) {
+    return 0;
+  }
+  unsafe {
+    ek = pipeline_type_kind_ord_at(arena, elem);
+  }
+  if (ek == 10) {
+    esz = glue_fixed_array_total_bytes_c(arena, elem, depth + 1);
+    if (esz <= 0) {
+      return 0;
+    }
+    return n * esz;
+  }
+  if (ek == 2 || ek == 1) {
+    esz = 1;
+  } else if (ek == 0 || ek == 3 || ek == 13 || ek == 14) {
+    esz = 4;
+  } else if (ek == 15 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 9) {
+    esz = 8;
+  } else if (ek == 8) {
+    unsafe {
+      mod = pipeline_asm_emit_module_ref_c();
+    }
+    if (mod != (0 as *u8)) {
+      esz = glue_type_size_simple(mod, arena, elem, 0);
+      if (esz <= 0) {
+        esz = 8;
+      }
+    } else {
+      esz = 4;
+    }
+  } else {
+    esz = 4;
+  }
+  return n * esz;
+}
+
+/**
+ * Infer INDEX element / pointer-base stride byte width from a type ref.
+ * - TYPE_PTR as *base for p[i]: peel to pointee width (*i32→4, *u8→1).
+ * - TYPE_ARRAY/SLICE: stride = sizeof(element); element TYPE_PTR → 8 (not pointee).
+ * - Bare TYPE_SLICE → fat 16; TYPE_NAMED → glue_type_size_simple.
+ * @param arena *u8 - ASTArena*; null treated via tr<=0 → default 4
+ * @param tr i32 - type pool ref
+ * @return i32 - element stride in bytes (default 4 or 8 by path)
+ * wave180 pure-owned G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+ */
+#[no_mangle]
+export function glue_index_elem_byte_sz_from_type_ref_c(arena: *u8, tr: i32): i32 {
+  let kind_ord: i32 = 0;
+  let pointee: i32 = 0;
+  let asz: i32 = 0;
+  let ssz: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  if (tr <= 0) {
+    return 4;
+  }
+  if (arena == (0 as *u8)) {
+    return 4;
+  }
+  unsafe {
+    kind_ord = pipeline_type_kind_ord_at(arena, tr);
+  }
+  // TYPE_PTR=9: peel pointee for p[i] base stride
+  if (kind_ord == 9) {
+    unsafe {
+      pointee = pipeline_type_elem_ref_at(arena, tr);
+    }
+    if (pointee > 0) {
+      unsafe {
+        kind_ord = pipeline_type_kind_ord_at(arena, pointee);
+      }
+      if (kind_ord == 2 || kind_ord == 1) {
+        return 1;
+      }
+      if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
+        return 4;
+      }
+      // F64 / U64 / I64 / USIZE / ISIZE → 8
+      if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7) {
+        return 8;
+      }
+      // **T / *(*T): pointer width
+      if (kind_ord == 9) {
+        return 8;
+      }
+      // *T[N]: full fixed-array payload
+      if (kind_ord == 10) {
+        asz = glue_fixed_array_total_bytes_c(arena, pointee, 0);
+        if (asz > 0) {
+          return asz;
+        }
+      }
+      // *NamedStruct via layout
+      if (kind_ord == 8) {
+        unsafe {
+          mod = pipeline_asm_emit_module_ref_c();
+        }
+        if (mod != (0 as *u8)) {
+          ssz = glue_type_size_simple(mod, arena, pointee, 0);
+          if (ssz > 0) {
+            return ssz;
+          }
+        }
+      }
+    }
+    return 4;
+  }
+  // TYPE_ARRAY=10 or TYPE_SLICE=11: element stride
+  if (kind_ord == 10 || kind_ord == 11) {
+    unsafe {
+      pointee = pipeline_type_elem_ref_at(arena, tr);
+    }
+    if (pointee > 0) {
+      unsafe {
+        kind_ord = pipeline_type_kind_ord_at(arena, pointee);
+      }
+      if (kind_ord == 2 || kind_ord == 1) {
+        return 1;
+      }
+      if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
+        return 4;
+      }
+      if (kind_ord == 15) {
+        return 8;
+      }
+      // array/slice of pointer: element is pointer (8), not pointee
+      if (kind_ord == 9) {
+        return 8;
+      }
+      // multi-dim: outer stride = sizeof(inner array)
+      if (kind_ord == 10) {
+        asz = glue_fixed_array_total_bytes_c(arena, pointee, 0);
+        if (asz > 0) {
+          return asz;
+        }
+      }
+      // nested T[] of SLICE: fat 16
+      if (kind_ord == 11) {
+        return 16;
+      }
+      if (kind_ord == 8) {
+        unsafe {
+          mod = pipeline_asm_emit_module_ref_c();
+        }
+        if (mod != (0 as *u8)) {
+          ssz = glue_type_size_simple(mod, arena, pointee, 0);
+          if (ssz > 0) {
+            return ssz;
+          }
+        }
+      }
+    }
+  }
+  if (kind_ord == 2 || kind_ord == 1) {
+    return 1;
+  }
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
+    return 4;
+  }
+  if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7) {
+    return 8;
+  }
+  // bare TYPE_SLICE
+  if (kind_ord == 11) {
+    return 16;
+  }
+  // bare TYPE_NAMED
+  if (kind_ord == 8) {
+    unsafe {
+      mod = pipeline_asm_emit_module_ref_c();
+    }
+    if (mod != (0 as *u8)) {
+      ssz = glue_type_size_simple(mod, arena, tr, 0);
+      if (ssz > 0) {
+        return ssz;
+      }
+    }
+  }
+  return 8;
+}
+
+/**
+ * VAR type for emit: resolved_type_ref, else param / scope / func-body let decl.
+ * Import-asm skip_typeck often leaves resolved_type_ref=0 while let annotation is
+ * TYPE_SLICE — without fallback INDEX does lea(fat) instead of load(.data).
+ * @param arena *u8 - ASTArena*; null → 0
+ * @param var_ref i32 - VAR expr pool ref
+ * @return i32 - type_ref > 0 or 0
+ * wave180 pure-owned G.7 authority (was Cap residual index_helpers).
+ * PLATFORM: SHARED freestanding · skip_typeck recovery.
+ */
+#[no_mangle]
+export function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, var_ref: i32): i32 {
+  let tr: i32 = 0;
+  let vlen: i32 = 0;
+  let ko: i32 = 0;
+  let fi: i32 = 0;
+  let scope_br: i32 = 0;
+  let body_ref: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let vname: u8[128] = [];
+  if (arena == (0 as *u8) || var_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(arena, var_ref);
+  }
+  if (tr > 0) {
+    return tr;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, var_ref);
+    mod = pipeline_asm_emit_module_ref_c();
+  }
+  // GLUE_EXPR_KIND_VAR == 3
+  if (ko != 3 || mod == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, var_ref);
+  }
+  if (vlen <= 0 || vlen > 127) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, var_ref, &vname[0]);
+    fi = pipeline_asm_emit_func_index_c();
+    scope_br = pipeline_asm_emit_ctx_scope_block_get();
+  }
+  if (fi >= 0) {
+    unsafe {
+      tr = pipeline_module_func_param_type_ref_for_name(mod, fi, &vname[0], vlen);
+    }
+  }
+  if (tr <= 0 && scope_br > 0) {
+    unsafe {
+      tr = pipeline_block_resolve_var_type_ref(arena, scope_br, &vname[0], vlen);
+    }
+  }
+  if (tr <= 0 && fi >= 0) {
+    unsafe {
+      body_ref = pipeline_module_func_body_ref_at(mod, fi);
+    }
+    if (body_ref > 0) {
+      unsafe {
+        tr = pipeline_block_resolve_var_type_ref(arena, body_ref, &vname[0], vlen);
+      }
+    }
+  }
+  if (tr > 0) {
+    return tr;
+  }
+  return 0;
+}
+
+// end wave180 pure-owned leave
