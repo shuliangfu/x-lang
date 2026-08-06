@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave216: for_call_args mega pure leave cold twin under #ifndef FROM_X
  * wave189: module_from_ctx + needs_ptr pure leave cold twins under #ifndef FROM_X
  * wave188: VAR stack_off pure leave cold twin under #ifndef FROM_X
  * wave187: field_type_ref pure leave cold twin under #ifndef FROM_X
@@ -27056,6 +27057,22 @@ void glue_asm73_cfg_interf_prepare(void) {
   glue_asm73_cfg_final_expr_use_n_set(0);
   glue_asm73_cfg_peak_clear();
 }
+
+/*
+ * wave216 cold twin: for_call_args mega entry (G.7 pure leave).
+ * Freestanding-safe stub (-1 = gate/enc fail). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding CALL-arg packing · LINUX+MACOS SysV · MACOS|ARM64.
+ */
+int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int32_t expr_ref,
+                                                  void *ctx, int32_t ta) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)expr_ref;
+  (void)ctx;
+  (void)ta;
+  return -1;
+}
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
