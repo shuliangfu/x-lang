@@ -26064,6 +26064,25 @@ int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_
   return -1;
 }
 
+/*
+ * wave204 cold twin: store_retval_pair (G.7 pure leave).
+ * Freestanding-safe stub (-1 = gate/enc fail). Hybrid product links pure.
+ * Private copy_large pure helper has no cold surface (sole pure consumer).
+ * PLATFORM: SHARED freestanding CALL/METHOD/STRUCT let-home retval store.
+ */
+int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx, int32_t ty_ref,
+                                            int32_t slot_off, int32_t ta, int32_t init_ref, void *ctx) {
+  (void)m;
+  (void)arena;
+  (void)elf_ctx;
+  (void)ty_ref;
+  (void)slot_off;
+  (void)ta;
+  (void)init_ref;
+  (void)ctx;
+  return -1;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */

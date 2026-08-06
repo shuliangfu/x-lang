@@ -709,6 +709,11 @@ extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, str
  * live in runtime_pipeline_abi pure (#[no_mangle]); private unusable /
  * append_at_offset / anon body-let helpers pure-owned same wave. Cap residual
  * call_args keeps prototype only + seed cold twin under #ifndef FROM_X. */
+/* wave1058/1064 → wave204 pure-owned leave: glue_store_retval_pair_to_rbp +
+ * private glue_copy_large_struct_from_rax_ptr live in runtime_pipeline_abi pure
+ * (#[no_mangle]). Cap residual call_args keeps prototype only + seed cold twin
+ * under #ifndef FROM_X. deep_copy remains Cap residual (static→public same wave
+ * so pure can call use_frame=1). PLATFORM: SHARED freestanding retval store. */
 /* wave1207/1208 → wave202 pure-owned leave: MEMORY by-value push/store live in
  * runtime_pipeline_abi pure (#[no_mangle]). Cap residual call_args keeps
  * prototypes only; seed cold twins under #ifndef FROM_X.

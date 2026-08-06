@@ -1227,7 +1227,11 @@ export extern "C" function pipeline_typeck_dep_return_type_to_caller_arena_c(dep
 // wave154 pure-owned: glue_type_size_simple body in EOF section.
 // wave191 pure-owned: glue_type_named_layout_size_any_module_elf_c lives at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
-export extern "C" function glue_store_retval_pair_to_rbp_elf_c(m: *u8, arena: *u8, elf_ctx: *u8, ty_ref: i32, slot_off: i32, ta: i32, init_ref: i32, ctx: *u8): i32;
+// wave204 pure-owned: glue_store_retval_pair_to_rbp_elf_c + private
+//   glue_copy_large_struct_from_rax_ptr_elf_c bodies at EOF (#[no_mangle] public).
+// Cap residual TYPE_SLICE deep-copy (use_frame=0/1) still host-owned until later peel:
+export extern "C" function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
+    arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, home: i32, ty_ref: i32, use_frame: i32): i32;
 // wave189 pure-owned: glue_emit_module_from_ctx live at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
 // wave133 Cap residual: unary pure leave callees (operand emit + float classifiers +
@@ -64033,7 +64037,7 @@ export function pipeline_asm_store_memory_by_value_to_sp_elf_c(
 // Reuses pure glue_var_expr_stack_off (w188) + glue_lazy_append_block_let_local
 //   (w124) + emit_module_ref / emit_func_index (w141) + pipe num_locals@8.
 // Cap residual for_call_args / MEMORY pure (w202) call this face.
-// Deferred: for_call_args mega / store_retval / spill BSS / CAP BSS / pipeline_x mega.
+// Deferred: for_call_args mega / deep_copy / spill BSS / CAP BSS / pipeline_x mega.
 // PLATFORM: SHARED freestanding · SKIP_TYPECK anon/zero-name let sidecar.
 // ===========================================================================
 
@@ -64250,3 +64254,206 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
 }
 
 // end wave203 pure-owned leave
+
+// ===========================================================================
+// wave204: store_retval_pair + copy_large_struct pure leave
+// (was Cap residual in pipeline_asm_emit_call_args.c wave1058/wave1064)
+// G.7 product authority for CALL/METHOD/STRUCT let-home retval store:
+//   glue_store_retval_pair_to_rbp_elf_c  (public; dual-GP + SLICE + large)
+// Private helper (sole consumer of this face):
+//   glue_copy_large_struct_from_rax_ptr_elf_c  (>16B x86 memcpy path)
+// Reuses pure type_size_simple (w154) + dual_gp_byte_size (w192) +
+//   struct16 deref/needs (w197) + slice_dual_gp_length_off (w145).
+// Cap residual deep_copy (wave1022) remains host-owned; pure calls via
+//   export extern (use_frame=1 let path). for_call_args still residual.
+// Deferred: for_call_args mega / deep_copy / spill BSS / CAP BSS / pipeline_x mega.
+// PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
+// ===========================================================================
+
+/**
+ * Copy a large (>16B) struct CALL retval from *rax into the let slot via memcpy.
+ * Sequence: push rax (src) → lea rbp+slot → arg0 dest → pop → arg1 src →
+ * imm sz → arg2 → call memcpy.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
+ * @param slot_off i32 — rbp-relative let home (byte0)
+ * @param sz i32 — payload bytes; must be >16 (≤16 is dual-GP path)
+ * @param ta i32 — target arch; only ta==0 (x86_64 SysV) accepted; arm64 → -1
+ * @return i32 — 0 success; -1 gate / enc fail
+ *
+ * wave204 pure: private G.7 helper for store_retval_pair (was Cap residual static).
+ * PLATFORM: LINUX+MACOS x86_64 SysV MEMORY class only (ta!=0 rejected).
+ */
+function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32): i32 {
+  let memcpy_sym: u8[8] = [];
+  let rc: i32 = 0;
+  // "memcpy"
+  memcpy_sym[0] = 109 as u8;
+  memcpy_sym[1] = 101 as u8;
+  memcpy_sym[2] = 109 as u8;
+  memcpy_sym[3] = 99 as u8;
+  memcpy_sym[4] = 112 as u8;
+  memcpy_sym[5] = 121 as u8;
+  memcpy_sym[6] = 0 as u8;
+  if (elf_ctx == (0 as *u8) || ta != 0 || sz <= 16) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_push_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    return backend_enc_call_arch(elf_ctx, &memcpy_sym[0], 6, ta);
+  }
+}
+
+/**
+ * Store CALL/expr result into a let stack slot (rax half first; 9–16B dual-GP
+ * adds rdx half; >16B via *rax memcpy; TYPE_SLICE length half + deep-copy).
+ * @param m *u8 — Module* (may be null for early gates; dual-GP non-SLICE needs m)
+ * @param arena *u8 — ASTArena*; null skips dual-GP widen / SLICE / kind tests
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
+ * @param ty_ref i32 — let type_ref (0 = rax-only store)
+ * @param slot_off i32 — rbp-relative home for low/data half
+ * @param ta i32 — 0=x86_64 SysV high-end; 1=arm64 AAPCS64 low-end
+ * @param init_ref i32 — init expr (STRUCT/CALL routing); 0 skips large/struct16/deep
+ * @param ctx *u8 — AsmFuncCtx*; required for SLICE deep-copy (use_frame=1)
+ * @return i32 — 0 success / non-storeable; -1 enc fail
+ *
+ * wave204 pure: G.7 authority (was Cap residual call_args wave1058 public).
+ * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
+ */
+#[no_mangle]
+export function glue_store_retval_pair_to_rbp_elf_c(
+    m: *u8, arena: *u8, elf_ctx: *u8, ty_ref: i32, slot_off: i32, ta: i32, init_ref: i32, ctx: *u8): i32 {
+  let sz: i32 = 0;
+  let nsz: i32 = 0;
+  let ko: i32 = 0;
+  let tk: i32 = 0;
+  let half2: i32 = 0;
+  let rc: i32 = 0;
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  sz = glue_type_size_simple(m, arena, ty_ref, 0);
+  // Import named structs may size_simple=4 without entry layout; widen dual-GP.
+  if (sz <= 16 && arena != (0 as *u8) && ty_ref > 0) {
+    nsz = glue_sysv_dual_gp_byte_size_c(arena, ty_ref);
+    if (nsz > sz) {
+      sz = nsz;
+    }
+  }
+  // >16B + EXPR_CALL (48): memcpy from *rax (x86 MEMORY class only).
+  if (sz > 16 && init_ref > 0 && arena != (0 as *u8)) {
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, init_ref);
+    }
+    if (ko == 48) {
+      return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
+    }
+  }
+  // 9–16B CALL returning struct16 via rax-pointer may need *rax → dual-GP first.
+  if (sz > 8 && sz <= 16 && init_ref > 0 && arena != (0 as *u8)) {
+    if (pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, init_ref) != 0) {
+      if (pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+  }
+  unsafe {
+    rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  // TYPE_SLICE (11): dual-GP length half + CALL/METHOD frame deep-copy.
+  if (arena != (0 as *u8) && ty_ref > 0) {
+    unsafe {
+      tk = pipeline_type_kind_ord_at(arena, ty_ref);
+    }
+    if (tk == 11) {
+      unsafe {
+        rc = backend_enc_store_rdx_to_rbp_arch(
+            elf_ctx, glue_slice_dual_gp_length_off_c(slot_off, ta), ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      if (ctx != (0 as *u8) && init_ref > 0) {
+        unsafe {
+          ko = pipeline_expr_kind_ord_at(arena, init_ref);
+        }
+        // EXPR_CALL=48 / EXPR_METHOD_CALL=49
+        if (ko == 48 || ko == 49) {
+          // use_frame=1: per-frame buffer (true recursion; twin host stack).
+          unsafe {
+            rc = glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
+                arena, elf_ctx, ctx, ta, slot_off, ty_ref, 1);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
+      }
+      return 0;
+    }
+  }
+  if (m == (0 as *u8) || arena == (0 as *u8) || ty_ref <= 0) {
+    return 0;
+  }
+  if (sz > 8 && sz <= 16) {
+    // SysV INTEGER dual-GP second half (rdx / x1).
+    // PLATFORM: x86 high-end home@slot_off-8; arm64 low-end home@slot_off+8.
+    if (ta == 1) {
+      half2 = slot_off + 8;
+    } else {
+      half2 = slot_off - 8;
+    }
+    unsafe {
+      rc = backend_enc_store_rdx_to_rbp_arch(elf_ctx, half2, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+// end wave204 pure-owned leave
