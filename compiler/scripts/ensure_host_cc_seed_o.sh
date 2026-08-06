@@ -23,10 +23,11 @@
 #            rebuild_leaves residual uses this before make.
 #   wave763: R3 PREFER thin+rest product path — `try-r3-prefer OUT` (same catalog
 #            R3_COLD_SEED_OBJS; G.7 有则补全, no new list). When
-#            XLANG_G05_PREFER_X_O=1 and xlang-c works: thin.x|-E → thin.o +
-#            seed rest (-D FROM_X) → ld -r. Else / fail → ensure_one cold seed
-#            (same body as try-r3-cold). Makefile nine leaves thin-call this
-#            helper (no inline thin+rest recipe). simd_enc/loop keep nm symbol
+#            XLANG_G05_PREFER_X_O=1 and xlang-c works: thin.x via
+#            rt_prefer_try_x_to_o (wave190: single -E prologue; no bare -E|cc)
+#            + seed rest (-D FROM_X) → ld -r. Else / fail → ensure_one cold seed
+#            (same body as try-r3-cold). Product leaves thin-call this helper
+#            via try-heat / g05 r3-prefer-family. simd_enc/loop keep nm symbol
 #            gates.
 #   wave764: G.7 g05 dual-hybrid swallow — same try-r3-prefer body owns product
 #            daily path for R3_COLD nine (g05_ensure thin-calls r3-prefer-family).
@@ -1170,30 +1171,29 @@ r3_prefer_nm_has_sym() {
   '
 }
 
-# Try one prefer step: xlang -E x_src → cc thin → cc seed rest -D → ld -r OUT.
+# Try one prefer step: thin.x → .o (rt_prefer prologue) + seed rest -D → ld -r OUT.
 # $1=out.o $2=x_src $3=rest_csv $4=nm_sym $5=seed $6=xlang_bin
 # Returns 0 on success (OUT written + nm ok).
+#
+# G.7 / wave190: thin compile MUST reuse rt_prefer_try_x_to_o (single -E prologue
+# authority). Bare `xlang -E | cc` left U xlang_driver_* on pure
+# runtime_driver_abi_thin (stdout_ptr / fputs_opaque / … are static inline only
+# inside that harness). PLATFORM: SHARED.
 r3_prefer_try_step() {
   local o="$1" x_src="$2" rest_csv="$3" nm_sym="$4" seed="$5" xlang_bin="$6"
-  local tmp_c thin_o rest_o ld_flags d_args=() d
+  local thin_o rest_o ld_flags d_args=() d
   local label="${x_src##*/}"
 
   [ -n "$x_src" ] && [ "$x_src" != "-" ] && [ -f "$x_src" ] || return 1
   [ -f "$seed" ] || return 1
   [ -x "$xlang_bin" ] || return 1
 
-  tmp_c="$(mktemp "${TMPDIR:-/tmp}/r3pref.XXXXXX")"
   thin_o="${o%.o}_prefer_step.o"
   rest_o="${o%.o}_prefer_rest.o"
   mkdir -p "$(dirname "$o")"
-  # shellcheck disable=SC2086
-  if ! "$xlang_bin" \
-    -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck \
-    -L src/preprocess -L src/codegen -L src/pipeline \
-    -E "$x_src" >"$tmp_c" 2>/dev/null \
-    || [ ! -s "$tmp_c" ] \
-    || ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -x c -c "$tmp_c" -o "$thin_o" 2>/dev/null; then
-    rm -f "$tmp_c" "$thin_o" "$rest_o"
+  # Thin surface: same prologue as try-pipeline-abi / g05 (xlang_driver_* inlines).
+  if ! rt_prefer_try_x_to_o "$x_src" "$thin_o"; then
+    rm -f "$thin_o" "$rest_o"
     return 1
   fi
   d_args=()
@@ -1206,7 +1206,7 @@ r3_prefer_try_step() {
   # shellcheck disable=SC2086
   if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
     "${d_args[@]}" -c "$seed" -o "$rest_o" 2>/dev/null; then
-    rm -f "$tmp_c" "$thin_o" "$rest_o"
+    rm -f "$thin_o" "$rest_o"
     return 1
   fi
   ld_flags="$(r3_prefer_ld_r_flags)"
@@ -1214,10 +1214,10 @@ r3_prefer_try_step() {
   if ld $ld_flags -o "$o" "$thin_o" "$rest_o" 2>/dev/null \
     && r3_prefer_nm_has_sym "$o" "$nm_sym"; then
     log "prefer thin+rest $o <- $x_src + $seed ($label; try-r3-prefer)"
-    rm -f "$tmp_c" "$thin_o" "$rest_o"
+    rm -f "$thin_o" "$rest_o"
     return 0
   fi
-  rm -f "$tmp_c" "$thin_o" "$rest_o"
+  rm -f "$thin_o" "$rest_o"
   return 1
 }
 
