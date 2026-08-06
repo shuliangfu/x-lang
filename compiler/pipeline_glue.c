@@ -730,9 +730,11 @@ extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, str
  * glue_type_named_layout_size_any_module_elf_c already in call_args.c:454. */
 
 /* wave1022: glue_slice_let_reent_deep_copy_after_dual_gp_elf_c body folded into
- * pipeline_asm_emit_call_args.c (G.7 有则补全; same TU). Callers: this residual
- * store_retval_pair (use_frame=1) + call_args for_call_args (use_frame=0).
- * g_pipeline_asm_al_nc_seq remains early in glue (shared with durable/return).
+ * pipeline_asm_emit_call_args.c (G.7 有则补全; same TU).
+ * wave205 pure leave: body in runtime_pipeline_abi.x (#[no_mangle]); Cap residual
+ * prototype only. Callers: pure store_retval_pair (use_frame=1) + residual
+ * for_call_args (use_frame=0). g_pipeline_asm_al_nc_seq remains early in glue
+ * (shared with durable/return; pure uses glue_pipeline_asm_al_nc_seq_take_c).
  */
 
 /* wave1058 G.7: glue_store_retval_pair_to_rbp_elf_c migrated to

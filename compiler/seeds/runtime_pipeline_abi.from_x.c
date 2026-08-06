@@ -26083,6 +26083,24 @@ int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx,
   return -1;
 }
 
+/*
+ * wave205 cold twin: TYPE_SLICE reent deep-copy after dual-GP (G.7 pure leave).
+ * Freestanding-safe stub (-1 = gate/enc fail). Hybrid product links pure.
+ * PLATFORM: SHARED freestanding TYPE_SLICE fat reentrancy (use_frame 0/1).
+ */
+int32_t glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(void *arena, void *elf_ctx, void *ctx,
+                                                            int32_t ta, int32_t home, int32_t ty_ref,
+                                                            int32_t use_frame) {
+  (void)arena;
+  (void)elf_ctx;
+  (void)ctx;
+  (void)ta;
+  (void)home;
+  (void)ty_ref;
+  (void)use_frame;
+  return -1;
+}
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */
