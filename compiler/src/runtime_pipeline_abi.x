@@ -18083,6 +18083,9 @@ export function asm_skip_heavy_backend_m8_tail_thin_keep(m: *u8, func_index: i32
 /** wave117 pure: G.7 single product authority (was safe_helper.c). PLATFORM: SHARED. */
 #[no_mangle]
 export function asm_skip_heavy_typeck_helper_keep(m: *u8, func_index: i32): i32 {
+  // wave177: keep explicit return after unsafe — Ubuntu product typeck (x86_64)
+  // reports XT001 "implicit tail return" when all returns live only inside unsafe.
+  // PLATFORM: SHARED freestanding dogfood (mac typeck already OK).
   unsafe {
     if (m == 0 as *u8 || func_index < 0 || asm_module_is_typeck_selfhost(m) == 0) {
       return 0;
@@ -18091,8 +18094,8 @@ export function asm_skip_heavy_typeck_helper_keep(m: *u8, func_index: i32): i32 
       return 0;
     }
     return 0;
-    return 0;
   }
+  return 0;
 }
 
 /** wave117 pure: G.7 single product authority (was safe_helper.c). PLATFORM: SHARED. */
