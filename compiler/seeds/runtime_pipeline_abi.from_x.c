@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave221: emit_ctx accessor-only BSS+get/set + host_is_arm64 pure leave cold twins under #ifndef FROM_X
  * wave220: if_expr_arm_emit_depth BSS+get/set pure leave cold twin under #ifndef FROM_X
  * wave219: al_nc_seq BSS+take pure leave cold twin under #ifndef FROM_X
  * wave217: CALL/METHOD text thin wrappers pure leave cold twins under #ifndef FROM_X
@@ -27108,6 +27109,65 @@ int32_t glue_if_expr_arm_emit_depth_get(void) {
 
 void glue_if_expr_arm_emit_depth_set(int32_t v) {
   g_wave220_if_expr_arm_emit_depth = v;
+}
+
+/*
+ * wave221 cold twins: emit_ctx accessor-only BSS + host_is_arm64 (G.7 pure leave).
+ * Working freestanding BSS twins of pure g_pipeline_asm_emit_* cells.
+ * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
+ * Mid-file context leave cold bodies call these faces via extern.
+ * host_is_arm64 matches residual #if __aarch64__/__arm64__ (compile-time host).
+ * PLATFORM: SHARED freestanding emit context · MACOS|ARM64 / LINUX aarch64 → 1.
+ */
+static int32_t g_wave221_emit_func_index = -1;
+static void *g_wave221_emit_arena = 0;
+static int32_t g_wave221_emit_call_param_ty = 0;
+static int32_t g_wave221_emit_call_arg_depth = 0;
+static void *g_wave221_emit_elf_ctx = 0;
+static int32_t g_wave221_emit_scope_block = 0;
+
+int32_t pipeline_asm_emit_ctx_func_index_get(void) {
+  return g_wave221_emit_func_index;
+}
+void pipeline_asm_emit_ctx_func_index_set(int32_t fi) {
+  g_wave221_emit_func_index = fi;
+}
+void *pipeline_asm_emit_ctx_arena_get(void) {
+  return g_wave221_emit_arena;
+}
+void pipeline_asm_emit_ctx_arena_set(void *arena) {
+  g_wave221_emit_arena = arena;
+}
+int32_t pipeline_asm_emit_ctx_call_param_ty_get(void) {
+  return g_wave221_emit_call_param_ty;
+}
+void pipeline_asm_emit_ctx_call_param_ty_set(int32_t type_ref) {
+  g_wave221_emit_call_param_ty = type_ref;
+}
+int32_t pipeline_asm_emit_ctx_call_arg_depth_get(void) {
+  return g_wave221_emit_call_arg_depth;
+}
+void pipeline_asm_emit_ctx_call_arg_depth_set(int32_t d) {
+  g_wave221_emit_call_arg_depth = d;
+}
+void *pipeline_asm_emit_ctx_elf_ctx_get(void) {
+  return g_wave221_emit_elf_ctx;
+}
+void pipeline_asm_emit_ctx_elf_ctx_set(void *elf_ctx) {
+  g_wave221_emit_elf_ctx = elf_ctx;
+}
+int32_t pipeline_asm_emit_ctx_scope_block_get(void) {
+  return g_wave221_emit_scope_block;
+}
+void pipeline_asm_emit_ctx_scope_block_set(int32_t block_ref) {
+  g_wave221_emit_scope_block = block_ref;
+}
+int32_t pipeline_asm_host_is_arm64_c(void) {
+#if defined(__aarch64__) || defined(__arm64__)
+  return 1;
+#else
+  return 0;
+#endif
 }
 
 /*

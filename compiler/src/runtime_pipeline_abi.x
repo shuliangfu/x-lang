@@ -541,24 +541,21 @@ export extern "C" function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i3
 
 // wave141 Cap residual: context pure leave callees (storage + frame/param helpers).
 // PLATFORM: SHARED freestanding emit — pure owns public context faces; Cap residual
-// owns glue_statics cells (residual C still direct-accesses same statics).
+// owns glue_statics cells residual C still direct-accesses (module/dep_pipe/sret/typeck).
+// wave221 pure-owned (G.7 dual-export ban — defs at EOF): func_index / arena /
+// call_param_ty / call_arg_depth / elf_ctx / scope_block get+set + host_is_arm64.
 export extern "C" function pipeline_asm_emit_ctx_module_get(): *u8;
 export extern "C" function pipeline_asm_emit_ctx_module_set(m: *u8): void;
-export extern "C" function pipeline_asm_emit_ctx_func_index_get(): i32;
-export extern "C" function pipeline_asm_emit_ctx_func_index_set(fi: i32): void;
-export extern "C" function pipeline_asm_emit_ctx_arena_get(): *u8;
-export extern "C" function pipeline_asm_emit_ctx_arena_set(arena: *u8): void;
-export extern "C" function pipeline_asm_emit_ctx_call_param_ty_get(): i32;
-export extern "C" function pipeline_asm_emit_ctx_call_param_ty_set(type_ref: i32): void;
-export extern "C" function pipeline_asm_emit_ctx_call_arg_depth_get(): i32;
-export extern "C" function pipeline_asm_emit_ctx_call_arg_depth_set(d: i32): void;
+// wave221 pure-owned: pipeline_asm_emit_ctx_func_index_{get,set} at EOF.
+// wave221 pure-owned: pipeline_asm_emit_ctx_arena_{get,set} at EOF.
+// wave221 pure-owned: pipeline_asm_emit_ctx_call_param_ty_{get,set} at EOF.
+// wave221 pure-owned: pipeline_asm_emit_ctx_call_arg_depth_{get,set} at EOF.
 export extern "C" function pipeline_asm_emit_ctx_dep_pipe_get(): *u8;
 export extern "C" function pipeline_asm_emit_ctx_dep_pipe_set(ctx: *u8): void;
-export extern "C" function pipeline_asm_emit_ctx_elf_ctx_get(): *u8;
-export extern "C" function pipeline_asm_emit_ctx_elf_ctx_set(elf_ctx: *u8): void;
+// wave221 pure-owned: pipeline_asm_emit_ctx_elf_ctx_{get,set} at EOF.
 export extern "C" function pipeline_asm_emit_ctx_sret_active_get(): i32;
 export extern "C" function pipeline_asm_emit_ctx_sret_home_off_get(): i32;
-export extern "C" function pipeline_asm_host_is_arm64_c(): i32;
+// wave221 pure-owned: pipeline_asm_host_is_arm64_c at EOF.
 // wave192 pure-owned: glue_func_param_home_width_c / glue_func_return_byte_size_c at EOF.
 // wave193 pure-owned: glue_func_param_agg_byte_size_c / glue_load_var_as_value_to_rax_rdx_elf_c at EOF.
 // G.7 ban dual export extern + pure export for the same symbol.
@@ -617,7 +614,7 @@ export extern "C" function pipeline_block_num_labeled_stmts(arena: *u8, block_re
 export extern "C" function pipeline_block_labeled_return_expr_ref(arena: *u8, block_ref: i32, li: i32): i32;
 export extern "C" function pipeline_module_func_ptr(mod: *u8, fi: i32): *u8;
 export extern "C" function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
-export extern "C" function pipeline_asm_emit_ctx_scope_block_get(): i32;
+// wave221 pure-owned: pipeline_asm_emit_ctx_scope_block_{get,set} at EOF.
 export extern "C" function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
@@ -68810,4 +68807,204 @@ export function glue_if_expr_arm_emit_depth_set(v: i32): void {
 }
 
 // end wave220 pure-owned leave
+
+// ===========================================================================
+// wave221: emit_ctx accessor-only BSS + host_is_arm64 pure leave
+// (was Cap residual pipeline_glue_statics.c static + get/set wave141 public)
+// G.7 product authority for freestanding emit-context cells that residual C
+// never writes directly (only via get/set faces):
+//   pipeline_asm_emit_ctx_func_index_{get,set}
+//   pipeline_asm_emit_ctx_arena_{get,set}
+//   pipeline_asm_emit_ctx_call_param_ty_{get,set}
+//   pipeline_asm_emit_ctx_call_arg_depth_{get,set}
+//   pipeline_asm_emit_ctx_elf_ctx_{get,set}
+//   pipeline_asm_emit_ctx_scope_block_{get,set}
+//   pipeline_asm_host_is_arm64_c  (cfg target_arch; was host-cc #if)
+// Pure-owned BSS: g_pipeline_asm_emit_* cells below.
+// Cap residual still owns: module / dep_pipe / sret_* / typeck_active
+// (mega_body / typeck / slot_bytes / struct_layout still direct-write those).
+// Residual glue_asm_ctx_set_scope_block → pure scope_block_set + asm_ctx face.
+// Consumers: pure context leave / CALL / field / return paths; seed cold twin
+// under #ifndef FROM_X. Residual statics keep extern-only for pure faces.
+// Deferred: residual-owned module/dep_pipe/sret pure leave / typeck / elf /
+// ast_pool residual / pipeline_x mega off host-cc.
+// PLATFORM: SHARED freestanding — cells are platform-agnostic emit state;
+// host_is_arm64 is compile-time target_arch of this pure .o (product ISA==host).
+// ===========================================================================
+
+// wave221: current emit function index (-1 = none). Param *T load/lea gates.
+let g_pipeline_asm_emit_func_index: i32 = -1;
+// wave221: current emit AST arena pointer (param homing / type queries).
+let g_pipeline_asm_emit_arena: *u8 = 0 as *u8;
+// wave221: callee param type_ref during CALL arg emit (0 = unset).
+let g_pipeline_asm_emit_call_param_ty_ref: i32 = 0;
+// wave221: CALL arg emit nesting depth (>0 = inside CALL-arg packing).
+let g_glue_emit_call_arg_depth: i32 = 0;
+// wave221: current ELF codegen ctx pointer (PGO-Lite / enc target).
+let g_pipeline_asm_emit_elf_ctx: *u8 = 0 as *u8;
+// wave221: current emit block scope ref (synced with asm_ctx scope_block_ref).
+let g_pipeline_asm_emit_scope_block: i32 = 0;
+
+// wave221: host ISA polarity lit — 1 on aarch64 product .o, else 0.
+// Matches residual #if defined(__aarch64__) || defined(__arm64__).
+#[cfg(target_arch = "aarch64")]
+let g_pipeline_asm_host_is_arm64_lit: i32 = 1;
+#[cfg(not(target_arch = "aarch64"))]
+let g_pipeline_asm_host_is_arm64_lit: i32 = 0;
+
+/**
+ * Get current asm emit function index.
+ * @return i32 — function index in emit module, or -1 if none
+ * wave221 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_func_index_get(): i32 {
+  return g_pipeline_asm_emit_func_index;
+}
+
+/**
+ * Set current asm emit function index.
+ * @param fi i32 — function index, or -1 to clear
+ * @return void
+ * wave221 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_func_index_set(fi: i32): void {
+  g_pipeline_asm_emit_func_index = fi;
+}
+
+/**
+ * Get current emit AST arena pointer.
+ * @return *u8 — ast_ASTArena* as *u8, or null
+ * wave221 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_arena_get(): *u8 {
+  return g_pipeline_asm_emit_arena;
+}
+
+/**
+ * Set current emit AST arena pointer.
+ * @param arena *u8 — ast_ASTArena* as *u8; may be null
+ * @return void
+ * wave221 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_arena_set(arena: *u8): void {
+  g_pipeline_asm_emit_arena = arena;
+}
+
+/**
+ * Get callee param type_ref during CALL arg emit.
+ * @return i32 — type_ref, or 0 if unset
+ * wave221 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_call_param_ty_get(): i32 {
+  return g_pipeline_asm_emit_call_param_ty_ref;
+}
+
+/**
+ * Set callee param type_ref during CALL arg emit.
+ * @param type_ref i32 — param type_ref (0 clears)
+ * @return void
+ * wave221 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_call_param_ty_set(type_ref: i32): void {
+  g_pipeline_asm_emit_call_param_ty_ref = type_ref;
+}
+
+/**
+ * Get CALL arg emit nesting depth.
+ * @return i32 — depth (>=0); >0 means inside CALL-arg packing
+ * wave221 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_call_arg_depth_get(): i32 {
+  return g_glue_emit_call_arg_depth;
+}
+
+/**
+ * Set CALL arg emit nesting depth.
+ * @param d i32 — new depth (callers push/pop by 1)
+ * @return void
+ * wave221 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_call_arg_depth_set(d: i32): void {
+  g_glue_emit_call_arg_depth = d;
+}
+
+/**
+ * Get current ELF codegen ctx pointer.
+ * @return *u8 — platform_elf_ElfCodegenCtx* as *u8, or null
+ * wave221 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_elf_ctx_get(): *u8 {
+  return g_pipeline_asm_emit_elf_ctx;
+}
+
+/**
+ * Set current ELF codegen ctx pointer.
+ * @param elf_ctx *u8 — ElfCodegenCtx* as *u8; may be null
+ * @return void
+ * wave221 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_elf_ctx_set(elf_ctx: *u8): void {
+  g_pipeline_asm_emit_elf_ctx = elf_ctx;
+}
+
+/**
+ * Get current emit block scope ref.
+ * @return i32 — block_ref (0 = unset / module scope)
+ * wave221 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_scope_block_get(): i32 {
+  return g_pipeline_asm_emit_scope_block;
+}
+
+/**
+ * Set current emit block scope ref (process-local cell only).
+ * Contract: glue_asm_ctx_set_scope_block Cap residual calls this then
+ * asm_ctx_set_scope_block(ctx, block_ref) so per-ctx layout stays in sync.
+ * @param block_ref i32 — block scope ref
+ * @return void
+ * wave221 pure: G.7 authority (was Cap residual static write in set_scope_block).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_scope_block_set(block_ref: i32): void {
+  g_pipeline_asm_emit_scope_block = block_ref;
+}
+
+/**
+ * Host compile-time ISA polarity for frame/param home layout.
+ * Contract: 1 when this pure .o was built for aarch64; 0 otherwise.
+ * Matches residual #if defined(__aarch64__) || defined(__arm64__).
+ * Product freestanding path builds pure .o for host ISA (no cross-ISA hybrid).
+ * @return i32 — 1 arm64 / 0 x86_64 (or other)
+ * wave221 pure: G.7 authority (was Cap residual glue_statics host-cc #if).
+ * PLATFORM: SHARED — cfg(target_arch); MACOS|ARM64 + LINUX aarch64 → 1.
+ */
+#[no_mangle]
+export function pipeline_asm_host_is_arm64_c(): i32 {
+  return g_pipeline_asm_host_is_arm64_lit;
+}
+
+// end wave221 pure-owned leave
 
