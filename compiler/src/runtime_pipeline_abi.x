@@ -4,6 +4,13 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave265: ast_pool_top_level.c pure-owned leave (TopLevelLetEntry multi-module map +
+//   pipeline_module_top_level_let_* full set + name_is_const / hoist / hoist_target /
+//   sum_stack + storage_reset|release). Cap residual GrowVec top_level_lets still
+//   init/free in sidecar_pool (unused for product lets after leave). Soft-reset
+//   hooked from ast_pool_module_reset; header num_top_level_lets@12. Hoist uses Cap
+//   residual pipeline_block_append_let + pipeline_block_stmt_order_prepend_lets
+//   (prepend promoted non-static). Seed cold twins under #ifndef FROM_X. Entry 148B LE.
 // wave264: ast_pool_module_enum.c pure-owned leave (ModuleEnumEntry multi-module map +
 //   pipeline_module_enum_* full set + try_mark_enum field-access + storage_reset|release).
 //   Cap residual GrowVec module_enums still init/free in sidecar_pool (unused for product
@@ -478,7 +485,7 @@ export extern "C" function pipeline_codegen_std_dep_link_only(path: *u8): i32;
 // wave113 Cap residual for backend_asm_wrapper pure-owned leave (M8-tail thin orch).
 // PRODUCT: pipeline_x / typeck_x / seed partial mega; pure only orchestrates.
 // PLATFORM: SHARED.
-export extern "C" function pipeline_module_hoist_top_level_lets_into_main(module: *u8, arena: *u8): void;
+// wave265: pipeline_module_hoist_top_level_lets_into_main is pure export (top_level leave).
 export extern "C" function backend_asm_codegen_ast_seed_mega(module: *u8, arena: *u8, out: *u8, ctx: *u8): i32;
 // wave141: set_elf_ctx / set_dep_pipe / set_module / set_arena are pure export
 // functions below (emit-context leave). Do not re-open export-extern (G.7 dual-auth).
@@ -493,10 +500,9 @@ export extern "C" function backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32
 export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
 // wave139 Cap residual: modlet pure leave callees (still host-cc residual / pool / enc).
 // PLATFORM: SHARED freestanding emit — pure owns modlet table BSS + 7 public faces.
-export extern "C" function pipeline_module_top_level_let_is_const(module: *u8, idx: i32): i32;
-export extern "C" function pipeline_module_top_level_let_type_ref(module: *u8, idx: i32): i32;
+// wave265: pipeline_module_top_level_let_is_const / type_ref pure (top_level leave).
 export extern "C" function pipeline_elf_ctx_add_common_sym(ctx: *u8, name: *u8, name_len: i32, sym_size: i32, sym_align: i32): i32;
-export extern "C" function pipeline_asm_hoist_target_func_index(module: *u8): i32;
+// wave265: pipeline_asm_hoist_target_func_index pure (top_level leave).
 // wave145 pure leave: pipeline_asm_let_init_stack_reserve_bytes live in this file.
 export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz: i32, ta: i32): i32;
@@ -581,7 +587,7 @@ export extern "C" function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i3
 // wave157 pure-owned: glue_asm_sum_block_call_spill_bytes / glue_sum_block_slice_reent_dc_bytes_c
 // (definitions at EOF; dual-export ban — do not redeclare export extern).
 export extern "C" function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32;
-export extern "C" function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u8, off: i32): i32;
+// wave265: pipeline_asm_sum_module_top_level_lets_stack pure (top_level leave).
 export extern "C" function asm_ctx_local_reset(ctx: *u8): void;
 export extern "C" function asm_ctx_fill_locals_block_tree(ctx: *u8, arena: *u8, block_ref: i32, next_off: *i32, num_loc: *i32): void;
 export extern "C" function pipeline_asm_module_func_num_params_at(mod: *u8, func_index: i32): i32;
@@ -862,6 +868,9 @@ export extern "C" function lsp_diag_add_code(line: i32, col: i32, severity: i32,
 export extern "C" function pipeline_module_func_name_len_at(module: *u8, fi: i32): i32;
 export extern "C" function pipeline_module_func_name_copy64(module: *u8, fi: i32, dst: *u8): void;
 export extern "C" function pipeline_module_func_body_ref_at(module: *u8, fi: i32): i32;
+// Cap residual block faces used by wave265 pure hoist (prepend promoted non-static).
+export extern "C" function pipeline_block_append_let(arena: *u8, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32;
+export extern "C" function pipeline_block_stmt_order_prepend_lets(arena: *u8, br: i32, let_start_idx: i32, let_count: i32): void;
 // wave115 Cap residual: module func name/extern accessors for selfhost pure leave.
 // wave121: pipeline_module_num_funcs pure (was Cap residual for selfhost/emit_heavy).
 export extern "C" function pipeline_module_func_name_equal_at(module: *u8, fi: i32, name: *u8, name_len: i32): i32;
@@ -872,9 +881,7 @@ export extern "C" function pipeline_asm_module_func_is_extern_at(module: *u8, fi
 //   driver_get_current_dep_path for asm_driver_current_dep_path pure wrapper.
 // PLATFORM: SHARED — pure owns emit_heavy_env faces; parser_emit_heavy/block residual.
 export extern "C" function driver_get_current_dep_path_for_codegen(): *u8;
-export extern "C" function pipeline_module_top_level_let_name_len(module: *u8, idx: i32): i32;
-export extern "C" function pipeline_module_top_level_let_name_byte_at(module: *u8, idx: i32, off: i32): i32;
-export extern "C" function pipeline_module_top_level_let_init_ref(module: *u8, idx: i32): i32;
+// wave265: pipeline_module_top_level_let_name_len / name_byte_at / init_ref pure (top_level leave).
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
 // wave118 Cap residual: skip_dispatch pure leave callees still host-cc residual
@@ -70829,4 +70836,872 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
 // end wave264 pure-owned leave
 
 
+
+
+// =============================================================================
+// wave265: ast_pool_top_level.c pure-owned leave (TopLevelLetEntry storage + faces)
+// =============================================================================
+// G.7 product authority for:
+//   pipeline_module_top_level_let_alloc / set / set_type_ref / set_is_export
+//   pipeline_module_top_level_let_name_len / name_byte_at
+//   pipeline_module_top_level_let_type_ref / init_ref / is_const / is_export_at
+//   pipeline_module_top_level_name_is_const
+//   pipeline_module_hoist_top_level_lets_into_main
+//   pipeline_asm_hoist_target_func_index
+//   pipeline_asm_sum_module_top_level_lets_stack
+//   pipeline_module_top_level_let_storage_reset / storage_release
+// Historical Cap residual grew ModuleSidecar.top_level_lets GrowVec (static
+// module_sidecar_get + grow_vec_*). Product pure owns multi-module malloc map
+// keyed by Module* (same pattern as wave110 Import / wave262 TypeAlias / wave264 Enum).
+// Layout of one TopLevelLetEntry (148 bytes LE, ≡ C typedef TopLevelLetEntry):
+//   name[128] @0 | name_len i32 @128 | type_ref i32 @132 | init_ref i32 @136
+//   | is_const i32 @140 | is_export i32 @144
+// Soft-reset: ast_pool_module_reset calls storage_reset (zero live n, keep cap).
+// Hard free: ast_pool_module_release calls storage_release (free tables + clear slot).
+// Soft-sync: when header num_top_level_lets@12 == 0, pure n forced 0.
+// Caps: 128 module slots; entry grow from 4, double until need.
+// Hoist: Cap residual pipeline_block_append_let + pipeline_block_stmt_order_prepend_lets
+//   (prepend non-static) + pipeline_module_func_body_ref_at +
+//   pipeline_asm_module_func_is_extern_at + pure main_func_index / num_funcs /
+//   ast_ast_block_num_lets. Sum stack: pure modlet_name_is_shared + Cap
+//   asm_local_slot_reg_offset + pure let_init_stack_reserve_bytes.
+// PLATFORM: SHARED LP64 product hybrid leave.
+// =============================================================================
+
+let g_pipe_tl_mod: u8[1024] = [];
+let g_pipe_tl_n: i32[128] = [];
+let g_pipe_tl_cap: i32[128] = [];
+let g_pipe_tl_entries: u8[1024] = [];
+
+/**
+ * Byte size of one TopLevelLetEntry (name + 5 i32 fields).
+ * @return i32 - 148
+ * PLATFORM: SHARED LP64 - must match C sizeof(TopLevelLetEntry).
+ */
+function pipe_tl_entry_size(): i32 {
+  return 148;
+}
+
+/**
+ * Byte offset of name_len within TopLevelLetEntry.
+ * @return i32 - 128
+ */
+function pipe_tl_off_name_len(): i32 {
+  return 128;
+}
+
+/**
+ * Byte offset of type_ref within TopLevelLetEntry.
+ * @return i32 - 132
+ */
+function pipe_tl_off_type_ref(): i32 {
+  return 132;
+}
+
+/**
+ * Byte offset of init_ref within TopLevelLetEntry.
+ * @return i32 - 136
+ */
+function pipe_tl_off_init_ref(): i32 {
+  return 136;
+}
+
+/**
+ * Byte offset of is_const within TopLevelLetEntry.
+ * @return i32 - 140
+ */
+function pipe_tl_off_is_const(): i32 {
+  return 140;
+}
+
+/**
+ * Byte offset of is_export within TopLevelLetEntry.
+ * @return i32 - 144
+ */
+function pipe_tl_off_is_export(): i32 {
+  return 144;
+}
+
+/**
+ * Byte offset of entry idx within the flat entry table.
+ * @param idx i32 - entry index
+ * @return i32 - byte offset
+ */
+function pipe_tl_entry_off(idx: i32): i32 {
+  return idx * pipe_tl_entry_size();
+}
+
+/**
+ * LP64 offsetof(struct ast_Module, num_top_level_lets).
+ * @return i32 - 12
+ * PLATFORM: SHARED LP64 - dual-end; see pipe_mod_off_num_top_level_lets.
+ */
+function pipe_tl_off_header_n(): i32 {
+  return 12;
+}
+
+/**
+ * Read module.num_top_level_lets header field (null -> 0).
+ * @param module *u8 - opaque ast_Module
+ * @return i32 - header count
+ */
+function pipe_tl_get_header_n(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(module, pipe_tl_off_header_n());
+}
+
+/**
+ * Write module.num_top_level_lets header field (null-safe).
+ * @param module *u8 - opaque ast_Module
+ * @param n i32 - live top-level let count
+ * @return void
+ */
+function pipe_tl_set_header_n(module: *u8, n: i32): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  pipe_store_i32_le(module, pipe_tl_off_header_n(), n);
+}
+
+/**
+ * Find map slot for module pointer (exact key match).
+ * @param module *u8 - module key; null -> -1
+ * @return i32 - slot 0..127 or -1
+ */
+function pipe_tl_find_slot(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  let i: i32 = 0;
+  while (i < 128) {
+    let k: *u8 = xlang_ptr_slot_get(&g_pipe_tl_mod[0], i);
+    if (k == module) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Soft-reset pure counts when header num_top_level_lets is 0 (parse/module reset).
+ * Keeps malloc capacity; zeros live n.
+ * @param module *u8 - module key
+ * @return void
+ */
+function pipe_tl_soft_sync(module: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (pipe_tl_get_header_n(module) != 0) {
+    return;
+  }
+  let s: i32 = pipe_tl_find_slot(module);
+  if (s < 0) {
+    return;
+  }
+  g_pipe_tl_n[s] = 0;
+}
+
+/**
+ * Find or allocate a map slot for module.
+ * @param module *u8 - module key; null -> -1
+ * @return i32 - slot or -1 if map full
+ */
+function pipe_tl_find_or_create(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  pipe_tl_soft_sync(module);
+  let found: i32 = pipe_tl_find_slot(module);
+  if (found >= 0) {
+    return found;
+  }
+  let i: i32 = 0;
+  while (i < 128) {
+    let k: *u8 = xlang_ptr_slot_get(&g_pipe_tl_mod[0], i);
+    if (k == 0 as *u8) {
+      xlang_ptr_slot_set(&g_pipe_tl_mod[0], i, module);
+      g_pipe_tl_n[i] = 0;
+      g_pipe_tl_cap[i] = 0;
+      xlang_ptr_slot_set(&g_pipe_tl_entries[0], i, 0 as *u8);
+      return i;
+    }
+    i = i + 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Ensure entry table capacity >= need for slot (malloc grow, double).
+ * @param slot i32 - map slot
+ * @param need i32 - required live+push capacity
+ * @return i32 - 1 ok, 0 fail
+ */
+function pipe_tl_ensure_entries(slot: i32, need: i32): i32 {
+  if (slot < 0) {
+    return 0;
+  }
+  if (slot >= 128) {
+    return 0;
+  }
+  if (need <= 0) {
+    return 1;
+  }
+  let cap: i32 = g_pipe_tl_cap[slot];
+  if (cap >= need) {
+    return 1;
+  }
+  let new_cap: i32 = cap;
+  if (new_cap < 4) {
+    new_cap = 4;
+  }
+  while (new_cap < need) {
+    new_cap = new_cap * 2;
+  }
+  let esz: i32 = pipe_tl_entry_size();
+  let nbytes: usize = (new_cap * esz) as usize;
+  let np: *u8 = 0 as *u8;
+  unsafe {
+    np = malloc(nbytes);
+  }
+  if (np == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    memset(np, 0, nbytes);
+  }
+  let old: *u8 = xlang_ptr_slot_get(&g_pipe_tl_entries[0], slot);
+  let old_n: i32 = g_pipe_tl_n[slot];
+  if (old != 0 as *u8) {
+    if (old_n > 0) {
+      let copy_n: usize = (old_n * esz) as usize;
+      unsafe {
+        memcpy(np, old, copy_n);
+      }
+    }
+    unsafe {
+      free(old);
+    }
+  }
+  xlang_ptr_slot_set(&g_pipe_tl_entries[0], slot, np);
+  g_pipe_tl_cap[slot] = new_cap;
+  return 1;
+}
+
+/**
+ * Pointer to TopLevelLetEntry at (slot, idx); null if OOB.
+ * @param slot i32 - map slot
+ * @param idx i32 - entry index
+ * @return *u8 - entry base or null
+ */
+function pipe_tl_entry_at(slot: i32, idx: i32): *u8 {
+  if (slot < 0) {
+    return 0 as *u8;
+  }
+  if (slot >= 128) {
+    return 0 as *u8;
+  }
+  if (idx < 0) {
+    return 0 as *u8;
+  }
+  if (idx >= g_pipe_tl_n[slot]) {
+    return 0 as *u8;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_tl_entries[0], slot);
+  if (base == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return base + pipe_tl_entry_off(idx);
+}
+
+/**
+ * Soft-reset pure top-level-let count for module (keep malloc capacity).
+ * Called from ast_pool_module_reset so re-parse does not see stale lets.
+ * @param module *u8 - module key; null -> no-op
+ * @return void
+ * PLATFORM: SHARED - product hybrid owns live count.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_let_storage_reset(module: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  let s: i32 = pipe_tl_find_slot(module);
+  if (s < 0) {
+    pipe_tl_set_header_n(module, 0);
+    return;
+  }
+  g_pipe_tl_n[s] = 0;
+  pipe_tl_set_header_n(module, 0);
+}
+
+/**
+ * Free pure top-level-let storage for one module and clear map slot.
+ * @param module *u8 - module key; null -> no-op
+ * @return void
+ * wave265: called from Cap ast_pool_module_release (strong pure).
+ * PLATFORM: SHARED - product hybrid owns free of malloc tables.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_let_storage_release(module: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  let s: i32 = pipe_tl_find_slot(module);
+  if (s < 0) {
+    return;
+  }
+  let e: *u8 = xlang_ptr_slot_get(&g_pipe_tl_entries[0], s);
+  if (e != 0 as *u8) {
+    unsafe {
+      free(e);
+    }
+  }
+  xlang_ptr_slot_set(&g_pipe_tl_mod[0], s, 0 as *u8);
+  xlang_ptr_slot_set(&g_pipe_tl_entries[0], s, 0 as *u8);
+  g_pipe_tl_n[s] = 0;
+  g_pipe_tl_cap[s] = 0;
+  pipe_tl_set_header_n(module, 0);
+}
+
+/**
+ * Allocate one TopLevelLetEntry for module; return index or -1.
+ * @param module *u8 - opaque ast_Module; null -> -1
+ * @return i32 - new let index (>=0) or -1
+ * wave265 pure Cap residual leave: G.7 product authority (historical GrowVec).
+ * Updates module.num_top_level_lets header ≡ Cap m->num_top_level_lets = sc->len.
+ * PLATFORM: SHARED - seed cold twin under #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_let_alloc(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  let s: i32 = pipe_tl_find_or_create(module);
+  if (s < 0) {
+    return 0 - 1;
+  }
+  let n: i32 = g_pipe_tl_n[s];
+  if (pipe_tl_ensure_entries(s, n + 1) == 0) {
+    return 0 - 1;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_tl_entries[0], s);
+  if (base == 0 as *u8) {
+    return 0 - 1;
+  }
+  let off: i32 = pipe_tl_entry_off(n);
+  let esz: i32 = pipe_tl_entry_size();
+  unsafe {
+    memset(base + off, 0, esz as usize);
+  }
+  g_pipe_tl_n[s] = n + 1;
+  pipe_tl_set_header_n(module, n + 1);
+  return n;
+}
+
+/**
+ * Set top-level let slot fields (name, type_ref, init_ref, is_const).
+ * @param module *u8 - module
+ * @param idx i32 - let index
+ * @param name *u8 - name bytes
+ * @param name_len i32 - content length 1..127
+ * @param type_ref i32 - type ref
+ * @param init_ref i32 - init expr ref
+ * @param is_const i32 - 0/1 const
+ * @return void
+ * wave581 Cap residual: name content max 127. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_let_set(module: *u8, idx: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32, is_const: i32): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (name == 0 as *u8) {
+    return;
+  }
+  if (name_len <= 0) {
+    return;
+  }
+  if (name_len > 127) {
+    return;
+  }
+  pipe_tl_soft_sync(module);
+  let s: i32 = pipe_tl_find_slot(module);
+  if (s < 0) {
+    return;
+  }
+  let e: *u8 = pipe_tl_entry_at(s, idx);
+  if (e == 0 as *u8) {
+    return;
+  }
+  let n: i32 = name_len;
+  let i: i32 = 0;
+  while (i < n) {
+    unsafe {
+      e[i] = name[i];
+    }
+    i = i + 1;
+  }
+  while (i < 128) {
+    unsafe {
+      e[i] = 0;
+    }
+    i = i + 1;
+  }
+  pipe_store_i32_le(e, pipe_tl_off_name_len(), n);
+  pipe_store_i32_le(e, pipe_tl_off_type_ref(), type_ref);
+  pipe_store_i32_le(e, pipe_tl_off_init_ref(), init_ref);
+  pipe_store_i32_le(e, pipe_tl_off_is_const(), is_const);
+}
+
+/**
+ * Stamp top-level const type_ref after inference from init.
+ * @param module *u8 - module
+ * @param idx i32 - let index
+ * @param type_ref i32 - inferred type
+ * @return void
+ * PLATFORM: SHARED typeck/AST.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_let_set_type_ref(module: *u8, idx: i32, type_ref: i32): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  pipe_tl_soft_sync(module);
+  let s: i32 = pipe_tl_find_slot(module);
+  if (s < 0) {
+    return;
+  }
+  let e: *u8 = pipe_tl_entry_at(s, idx);
+  if (e == 0 as *u8) {
+    return;
+  }
+  pipe_store_i32_le(e, pipe_tl_off_type_ref(), type_ref);
+}
+
+/**
+ * Read name length of top-level let idx.
+ * @param module *u8 - module
+ * @param idx i32 - let index
+ * @return i32 - name_len or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_let_name_len(module: *u8, idx: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  pipe_tl_soft_sync(module);
+  let s: i32 = pipe_tl_find_slot(module);
+  if (s < 0) {
+    return 0;
+  }
+  let e: *u8 = pipe_tl_entry_at(s, idx);
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(e, pipe_tl_off_name_len());
+}
+
+/**
+ * Read one name byte of top-level let idx.
+ * @param module *u8 - module
+ * @param idx i32 - let index
+ * @param off i32 - byte offset 0..126
+ * @return i32 - name byte (0..255) or 0; i32 matches prior Cap export extern contract
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_let_name_byte_at(module: *u8, idx: i32, off: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  if (off < 0) {
+    return 0;
+  }
+  if (off >= 127) {
+    return 0;
+  }
+  pipe_tl_soft_sync(module);
+  let s: i32 = pipe_tl_find_slot(module);
+  if (s < 0) {
+    return 0;
+  }
+  let e: *u8 = pipe_tl_entry_at(s, idx);
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  let nlen: i32 = pipe_load_i32_le(e, pipe_tl_off_name_len());
+  if (off >= nlen) {
+    return 0;
+  }
+  unsafe {
+    return e[off] as i32;
+  }
+}
+
+/**
+ * Read type_ref of top-level let idx.
+ * @param module *u8 - module
+ * @param idx i32 - let index
+ * @return i32 - type_ref or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_let_type_ref(module: *u8, idx: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  pipe_tl_soft_sync(module);
+  let s: i32 = pipe_tl_find_slot(module);
+  if (s < 0) {
+    return 0;
+  }
+  let e: *u8 = pipe_tl_entry_at(s, idx);
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(e, pipe_tl_off_type_ref());
+}
+
+/**
+ * Read init_ref of top-level let idx.
+ * @param module *u8 - module
+ * @param idx i32 - let index
+ * @return i32 - init_ref or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_let_init_ref(module: *u8, idx: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  pipe_tl_soft_sync(module);
+  let s: i32 = pipe_tl_find_slot(module);
+  if (s < 0) {
+    return 0;
+  }
+  let e: *u8 = pipe_tl_entry_at(s, idx);
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(e, pipe_tl_off_init_ref());
+}
+
+/**
+ * Read is_const flag of top-level let idx.
+ * @param module *u8 - module
+ * @param idx i32 - let index
+ * @return i32 - is_const or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_let_is_const(module: *u8, idx: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  pipe_tl_soft_sync(module);
+  let s: i32 = pipe_tl_find_slot(module);
+  if (s < 0) {
+    return 0;
+  }
+  let e: *u8 = pipe_tl_entry_at(s, idx);
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(e, pipe_tl_off_is_const());
+}
+
+/**
+ * Set is_export flag for top-level let idx.
+ * @param module *u8 - module
+ * @param idx i32 - let index
+ * @param is_export i32 - 0/1 export
+ * @return void
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_let_set_is_export(module: *u8, idx: i32, is_export: i32): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  pipe_tl_soft_sync(module);
+  let s: i32 = pipe_tl_find_slot(module);
+  if (s < 0) {
+    return;
+  }
+  let e: *u8 = pipe_tl_entry_at(s, idx);
+  if (e == 0 as *u8) {
+    return;
+  }
+  pipe_store_i32_le(e, pipe_tl_off_is_export(), is_export);
+}
+
+/**
+ * Read is_export flag for top-level let idx.
+ * @param module *u8 - module
+ * @param idx i32 - let index
+ * @return i32 - is_export or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_let_is_export_at(module: *u8, idx: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  pipe_tl_soft_sync(module);
+  let s: i32 = pipe_tl_find_slot(module);
+  if (s < 0) {
+    return 0;
+  }
+  let e: *u8 = pipe_tl_entry_at(s, idx);
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(e, pipe_tl_off_is_export());
+}
+
+/**
+ * Compare top-level let name at idx with probe name[0..name_len).
+ * @param module *u8 - module
+ * @param idx i32 - let index
+ * @param name *u8 - probe
+ * @param name_len i32 - probe length
+ * @return i32 - 1 match, 0 miss
+ */
+function pipe_tl_name_eq(module: *u8, idx: i32, name: *u8, name_len: i32): i32 {
+  let nl: i32 = pipeline_module_top_level_let_name_len(module, idx);
+  if (nl != name_len) {
+    return 0;
+  }
+  let k: i32 = 0;
+  while (k < name_len) {
+    let b: i32 = pipeline_module_top_level_let_name_byte_at(module, idx, k);
+    let pb: i32 = 0;
+    unsafe {
+      pb = name[k] as i32;
+    }
+    if (b != pb) {
+      return 0;
+    }
+    k = k + 1;
+  }
+  return 1;
+}
+
+/**
+ * 1 if a module top-level let/const slot has this name and is_const.
+ * @param module *u8 - module
+ * @param vname *u8 - probe name bytes
+ * @param vlen i32 - probe length
+ * @return i32 - 1 const top-level, 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_top_level_name_is_const(module: *u8, vname: *u8, vlen: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  if (vname == 0 as *u8) {
+    return 0;
+  }
+  if (vlen <= 0) {
+    return 0;
+  }
+  pipe_tl_soft_sync(module);
+  let n: i32 = pipe_tl_get_header_n(module);
+  let i: i32 = 0;
+  while (i < n) {
+    if (pipe_tl_name_eq(module, i, vname, vlen) != 0) {
+      if (pipeline_module_top_level_let_is_const(module, i) != 0) {
+        return 1;
+      }
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Return the hoist target function index: main when set, else first non-extern body.
+ * @param module *u8 - module
+ * @return i32 - func index, or -1 if none
+ * PLATFORM: SHARED - asm frame layout / backend pre-mega path.
+ */
+#[no_mangle]
+export function pipeline_asm_hoist_target_func_index(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  let mi: i32 = pipeline_module_main_func_index(module);
+  if (mi >= 0) {
+    return mi;
+  }
+  let nf: i32 = pipeline_module_num_funcs(module);
+  let fi: i32 = 0;
+  while (fi < nf) {
+    let is_ext: i32 = 0;
+    let br: i32 = 0;
+    unsafe {
+      is_ext = pipeline_asm_module_func_is_extern_at(module, fi);
+      br = pipeline_module_func_body_ref_at(module, fi);
+    }
+    if (is_ext == 0) {
+      if (br > 0) {
+        return fi;
+      }
+    }
+    fi = fi + 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Hoist module top-level let/const into main (or first non-extern body) for asm
+ * stack-slot init. Keeps num_top_level_lets so emit can still fall back to
+ * module const literals for other functions.
+ * @param module *u8 - module
+ * @param arena *u8 - ASTArena
+ * @return void
+ * Cap residual: pipeline_block_append_let + pipeline_block_stmt_order_prepend_lets.
+ * PLATFORM: SHARED - asm emit / backend pre-mega path.
+ */
+#[no_mangle]
+export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, arena: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (arena == 0 as *u8) {
+    return;
+  }
+  pipe_tl_soft_sync(module);
+  let n: i32 = pipe_tl_get_header_n(module);
+  if (n <= 0) {
+    return;
+  }
+  let mi: i32 = pipeline_module_main_func_index(module);
+  if (mi < 0) {
+    mi = 0 - 1;
+    let nf: i32 = pipeline_module_num_funcs(module);
+    let fi: i32 = 0;
+    while (fi < nf) {
+      let is_ext: i32 = 0;
+      let br0: i32 = 0;
+      unsafe {
+        is_ext = pipeline_asm_module_func_is_extern_at(module, fi);
+        br0 = pipeline_module_func_body_ref_at(module, fi);
+      }
+      if (is_ext == 0) {
+        if (br0 > 0) {
+          mi = fi;
+          fi = nf;
+        } else {
+          fi = fi + 1;
+        }
+      } else {
+        fi = fi + 1;
+      }
+    }
+    if (mi < 0) {
+      return;
+    }
+  }
+  let br: i32 = 0;
+  unsafe {
+    br = pipeline_module_func_body_ref_at(module, mi);
+  }
+  if (br <= 0) {
+    return;
+  }
+  let let_start_idx: i32 = 0;
+  unsafe {
+    let_start_idx = ast_ast_block_num_lets(arena, br);
+  }
+  let tl: i32 = 0;
+  while (tl < n) {
+    let name_len: i32 = pipeline_module_top_level_let_name_len(module, tl);
+    if (name_len > 0) {
+      if (name_len <= 127) {
+        let name_buf: u8[128] = [];
+        let k: i32 = 0;
+        while (k < name_len) {
+          name_buf[k] = pipeline_module_top_level_let_name_byte_at(module, tl, k) as u8;
+          k = k + 1;
+        }
+        let type_ref: i32 = pipeline_module_top_level_let_type_ref(module, tl);
+        let init_ref: i32 = pipeline_module_top_level_let_init_ref(module, tl);
+        unsafe {
+          let _al: i32 = pipeline_block_append_let(arena, br, &name_buf[0], name_len, type_ref, init_ref);
+        }
+      }
+    }
+    tl = tl + 1;
+  }
+  unsafe {
+    pipeline_block_stmt_order_prepend_lets(arena, br, let_start_idx, n);
+  }
+}
+
+/**
+ * Accumulate stack occupancy of module top-level let/const slots for non-hoist
+ * target functions (frame_size estimate). Shared modlet cells live in .text and
+ * are skipped.
+ * @param arena *u8 - ASTArena
+ * @param mod *u8 - module
+ * @param off i32 - incoming frame offset
+ * @return i32 - updated frame offset
+ * PLATFORM: SHARED - asm emit frame layout.
+ */
+#[no_mangle]
+export function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u8, off: i32): i32 {
+  if (arena == 0 as *u8) {
+    return off;
+  }
+  if (mod == 0 as *u8) {
+    return off;
+  }
+  pipe_tl_soft_sync(mod);
+  let n: i32 = pipe_tl_get_header_n(mod);
+  if (n <= 0) {
+    return off;
+  }
+  let cur: i32 = off;
+  let tl: i32 = 0;
+  while (tl < n) {
+    let type_ref: i32 = pipeline_module_top_level_let_type_ref(mod, tl);
+    if (type_ref > 0) {
+      let name_len: i32 = pipeline_module_top_level_let_name_len(mod, tl);
+      let skip: i32 = 0;
+      if (name_len > 0) {
+        let name_buf: u8[128] = [];
+        let k: i32 = 0;
+        while (k < name_len) {
+          name_buf[k] = pipeline_module_top_level_let_name_byte_at(mod, tl, k) as u8;
+          k = k + 1;
+        }
+        if (pipeline_asm_modlet_name_is_shared(&name_buf[0], name_len) != 0) {
+          skip = 1;
+        }
+      }
+      if (skip == 0) {
+        let init_ref: i32 = pipeline_module_top_level_let_init_ref(mod, tl);
+        let off_slot: i32[1] = [];
+        off_slot[0] = cur;
+        unsafe {
+          let _so: i32 = asm_local_slot_reg_offset(arena, type_ref, cur, &off_slot[0]);
+        }
+        cur = off_slot[0];
+        cur = cur + pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+      }
+    }
+    tl = tl + 1;
+  }
+  return cur;
+}
+
+// end wave265 pure-owned leave
 

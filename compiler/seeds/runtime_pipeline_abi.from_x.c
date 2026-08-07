@@ -28460,6 +28460,378 @@ void pipeline_codegen_try_mark_enum_field_access(void *m, void *a, int32_t expr_
   (void)dep_ctx;
 }
 
+/* =============================================================================
+ * wave265 cold twins: TopLevelLetEntry multi-module map + top_level Cap leave faces.
+ * Hybrid product links pure; cold seed keeps bodies under #ifndef FROM_X.
+ * Layout ≡ C TopLevelLetEntry LE:
+ *   name[128]@0 | name_len@128 | type_ref@132 | init_ref@136 | is_const@140 | is_export@144
+ * Soft-reset: storage_reset zeros n + header num_top_level_lets@12.
+ * Soft-sync when header num_top_level_lets@12 == 0.
+ * Hoist/sum/hoist_target: freestanding no-ops or minimal (need Cap block/asm faces);
+ * product pure owns full hoist/sum path.
+ * PLATFORM: SHARED freestanding top_level Cap leave.
+ */
+#define WAVE265_TL_SLOTS 128
+#define WAVE265_TL_ENTRY_SZ 148
+static void *g_wave265_tl_mod[WAVE265_TL_SLOTS];
+static int32_t g_wave265_tl_n[WAVE265_TL_SLOTS];
+static int32_t g_wave265_tl_cap[WAVE265_TL_SLOTS];
+static uint8_t *g_wave265_tl_entries[WAVE265_TL_SLOTS];
+
+static int32_t wave265_tl_header_n(void *module) {
+  int32_t n;
+  if (!module)
+    return 0;
+  memcpy(&n, (uint8_t *)module + 12, 4);
+  return n;
+}
+
+static void wave265_tl_set_header_n(void *module, int32_t n) {
+  if (!module)
+    return;
+  memcpy((uint8_t *)module + 12, &n, 4);
+}
+
+static int wave265_tl_find_slot(void *module) {
+  int i;
+  if (!module)
+    return -1;
+  for (i = 0; i < WAVE265_TL_SLOTS; i++) {
+    if (g_wave265_tl_mod[i] == module)
+      return i;
+  }
+  return -1;
+}
+
+static void wave265_tl_soft_sync(void *module) {
+  int s;
+  if (!module || wave265_tl_header_n(module) != 0)
+    return;
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return;
+  g_wave265_tl_n[s] = 0;
+}
+
+static int wave265_tl_find_or_create(void *module) {
+  int i;
+  int found;
+  if (!module)
+    return -1;
+  wave265_tl_soft_sync(module);
+  found = wave265_tl_find_slot(module);
+  if (found >= 0)
+    return found;
+  for (i = 0; i < WAVE265_TL_SLOTS; i++) {
+    if (g_wave265_tl_mod[i] == NULL) {
+      g_wave265_tl_mod[i] = module;
+      g_wave265_tl_n[i] = 0;
+      g_wave265_tl_cap[i] = 0;
+      g_wave265_tl_entries[i] = NULL;
+      return i;
+    }
+  }
+  return -1;
+}
+
+static int wave265_tl_ensure(int slot, int32_t need) {
+  uint8_t *np;
+  uint8_t *old;
+  int32_t new_cap;
+  if (slot < 0 || slot >= WAVE265_TL_SLOTS)
+    return 0;
+  if (need <= 0)
+    return 1;
+  if (g_wave265_tl_cap[slot] >= need)
+    return 1;
+  new_cap = g_wave265_tl_cap[slot];
+  if (new_cap < 4)
+    new_cap = 4;
+  while (new_cap < need)
+    new_cap *= 2;
+  np = (uint8_t *)malloc((size_t)new_cap * (size_t)WAVE265_TL_ENTRY_SZ);
+  if (!np)
+    return 0;
+  memset(np, 0, (size_t)new_cap * (size_t)WAVE265_TL_ENTRY_SZ);
+  old = g_wave265_tl_entries[slot];
+  if (old && g_wave265_tl_n[slot] > 0)
+    memcpy(np, old, (size_t)g_wave265_tl_n[slot] * (size_t)WAVE265_TL_ENTRY_SZ);
+  if (old)
+    free(old);
+  g_wave265_tl_entries[slot] = np;
+  g_wave265_tl_cap[slot] = new_cap;
+  return 1;
+}
+
+static uint8_t *wave265_tl_at(int slot, int32_t idx) {
+  if (slot < 0 || slot >= WAVE265_TL_SLOTS)
+    return NULL;
+  if (idx < 0 || idx >= g_wave265_tl_n[slot])
+    return NULL;
+  if (!g_wave265_tl_entries[slot])
+    return NULL;
+  return g_wave265_tl_entries[slot] + (size_t)idx * (size_t)WAVE265_TL_ENTRY_SZ;
+}
+
+void pipeline_module_top_level_let_storage_reset(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave265_tl_find_slot(module);
+  if (s < 0) {
+    wave265_tl_set_header_n(module, 0);
+    return;
+  }
+  g_wave265_tl_n[s] = 0;
+  wave265_tl_set_header_n(module, 0);
+}
+
+void pipeline_module_top_level_let_storage_release(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return;
+  if (g_wave265_tl_entries[s])
+    free(g_wave265_tl_entries[s]);
+  g_wave265_tl_mod[s] = NULL;
+  g_wave265_tl_entries[s] = NULL;
+  g_wave265_tl_n[s] = 0;
+  g_wave265_tl_cap[s] = 0;
+  wave265_tl_set_header_n(module, 0);
+}
+
+int32_t pipeline_module_top_level_let_alloc(void *module) {
+  int s;
+  int32_t n;
+  uint8_t *base;
+  if (!module)
+    return -1;
+  s = wave265_tl_find_or_create(module);
+  if (s < 0)
+    return -1;
+  n = g_wave265_tl_n[s];
+  if (!wave265_tl_ensure(s, n + 1))
+    return -1;
+  base = g_wave265_tl_entries[s];
+  if (!base)
+    return -1;
+  memset(base + (size_t)n * (size_t)WAVE265_TL_ENTRY_SZ, 0, (size_t)WAVE265_TL_ENTRY_SZ);
+  g_wave265_tl_n[s] = n + 1;
+  wave265_tl_set_header_n(module, n + 1);
+  return n;
+}
+
+void pipeline_module_top_level_let_set(void *module, int32_t idx, uint8_t *name, int32_t name_len,
+                                       int32_t type_ref, int32_t init_ref, int32_t is_const) {
+  int s;
+  uint8_t *e;
+  int32_t i;
+  int32_t n;
+  if (!module || !name || name_len <= 0 || name_len > 127)
+    return;
+  wave265_tl_soft_sync(module);
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return;
+  e = wave265_tl_at(s, idx);
+  if (!e)
+    return;
+  n = name_len;
+  memset(e, 0, 128);
+  for (i = 0; i < n; i++)
+    e[i] = name[i];
+  memcpy(e + 128, &n, 4);
+  memcpy(e + 132, &type_ref, 4);
+  memcpy(e + 136, &init_ref, 4);
+  memcpy(e + 140, &is_const, 4);
+}
+
+void pipeline_module_top_level_let_set_type_ref(void *module, int32_t idx, int32_t type_ref) {
+  int s;
+  uint8_t *e;
+  if (!module)
+    return;
+  wave265_tl_soft_sync(module);
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return;
+  e = wave265_tl_at(s, idx);
+  if (!e)
+    return;
+  memcpy(e + 132, &type_ref, 4);
+}
+
+int32_t pipeline_module_top_level_let_name_len(void *module, int32_t idx) {
+  int s;
+  uint8_t *e;
+  int32_t nlen;
+  if (!module)
+    return 0;
+  wave265_tl_soft_sync(module);
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave265_tl_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&nlen, e + 128, 4);
+  return nlen;
+}
+
+uint8_t pipeline_module_top_level_let_name_byte_at(void *module, int32_t idx, int32_t off) {
+  int s;
+  uint8_t *e;
+  int32_t nlen;
+  if (!module || off < 0 || off >= 127)
+    return 0;
+  wave265_tl_soft_sync(module);
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave265_tl_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&nlen, e + 128, 4);
+  if (off >= nlen)
+    return 0;
+  return e[off];
+}
+
+int32_t pipeline_module_top_level_let_type_ref(void *module, int32_t idx) {
+  int s;
+  uint8_t *e;
+  int32_t v;
+  if (!module)
+    return 0;
+  wave265_tl_soft_sync(module);
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave265_tl_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&v, e + 132, 4);
+  return v;
+}
+
+int32_t pipeline_module_top_level_let_init_ref(void *module, int32_t idx) {
+  int s;
+  uint8_t *e;
+  int32_t v;
+  if (!module)
+    return 0;
+  wave265_tl_soft_sync(module);
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave265_tl_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&v, e + 136, 4);
+  return v;
+}
+
+int32_t pipeline_module_top_level_let_is_const(void *module, int32_t idx) {
+  int s;
+  uint8_t *e;
+  int32_t v;
+  if (!module)
+    return 0;
+  wave265_tl_soft_sync(module);
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave265_tl_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&v, e + 140, 4);
+  return v;
+}
+
+void pipeline_module_top_level_let_set_is_export(void *module, int32_t idx, int32_t is_export) {
+  int s;
+  uint8_t *e;
+  if (!module)
+    return;
+  wave265_tl_soft_sync(module);
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return;
+  e = wave265_tl_at(s, idx);
+  if (!e)
+    return;
+  memcpy(e + 144, &is_export, 4);
+}
+
+int32_t pipeline_module_top_level_let_is_export_at(void *module, int32_t idx) {
+  int s;
+  uint8_t *e;
+  int32_t v;
+  if (!module)
+    return 0;
+  wave265_tl_soft_sync(module);
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave265_tl_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&v, e + 144, 4);
+  return v;
+}
+
+int32_t pipeline_module_top_level_name_is_const(void *module, uint8_t *vname, int32_t vlen) {
+  int s;
+  int32_t i, n, nl, k;
+  uint8_t *e;
+  if (!module || !vname || vlen <= 0)
+    return 0;
+  wave265_tl_soft_sync(module);
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return 0;
+  n = g_wave265_tl_n[s];
+  for (i = 0; i < n; i++) {
+    e = wave265_tl_at(s, i);
+    if (!e)
+      continue;
+    memcpy(&nl, e + 128, 4);
+    if (nl != vlen)
+      continue;
+    for (k = 0; k < vlen; k++) {
+      if (e[k] != vname[k])
+        break;
+    }
+    if (k == vlen) {
+      int32_t is_c;
+      memcpy(&is_c, e + 140, 4);
+      return is_c != 0 ? 1 : 0;
+    }
+  }
+  return 0;
+}
+
+/* Cold freestanding: hoist/sum need Cap block/asm faces; product pure owns full path. */
+void pipeline_module_hoist_top_level_lets_into_main(void *module, void *arena) {
+  (void)module;
+  (void)arena;
+}
+
+int32_t pipeline_asm_hoist_target_func_index(void *module) {
+  (void)module;
+  return -1;
+}
+
+int32_t pipeline_asm_sum_module_top_level_lets_stack(void *arena, void *mod, int32_t off) {
+  (void)arena;
+  (void)mod;
+  return off;
+}
+
+
+
 /*
  * wave217 cold twins: CALL/METHOD text thin wrappers (G.7 pure leave).
  * Freestanding-safe stub (-1). Hybrid product links pure (stack snapshot +

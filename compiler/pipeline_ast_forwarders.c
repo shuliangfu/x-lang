@@ -499,6 +499,17 @@ int32_t ast_pipeline_module_enum_alloc(struct ast_Module *m) {
 void ast_pipeline_module_enum_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
   pipeline_module_enum_set_name(m, idx, bytes, len);
 }
+/* wave265 pure faces (ast_pool_top_level Cap residual leave). */
+int32_t pipeline_module_top_level_let_alloc(struct ast_Module *m);
+void pipeline_module_top_level_let_set(struct ast_Module *m, int32_t idx, uint8_t *name, int32_t name_len,
+                                       int32_t type_ref, int32_t init_ref, int32_t is_const);
+void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct ast_ASTArena *a);
+int32_t pipeline_module_top_level_let_name_len(struct ast_Module *m, int32_t idx);
+uint8_t pipeline_module_top_level_let_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *m, int32_t idx);
+int32_t pipeline_module_top_level_let_init_ref(struct ast_Module *m, int32_t idx);
+int32_t pipeline_module_top_level_let_is_const(struct ast_Module *m, int32_t idx);
+
 int32_t ast_pipeline_module_top_level_let_alloc(struct ast_Module *m) {
   return pipeline_module_top_level_let_alloc(m);
 }

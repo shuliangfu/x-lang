@@ -962,7 +962,7 @@
 | `pipeline_scratch_bufs.c` | **absent** | codegen path/prefix scratch 缓冲池 | ✅ **host-cc leave**（2026-08-05）：live 面在 codegen_x.o（seed）；文件 absent |
 | `ast_pool_module_import.c` | **0（leave）** | module ImportEntry Cap residual pure-owned leave (wave263) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map（wave110）+ faces；seed cold twins under #ifndef FROM_X；same-TU pure face decls |
 | `ast_pool_struct_layout.c` | ~385 | module StructLayout cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
-| `ast_pool_top_level.c` | ~326 | module TopLevelLetEntry + name_is_const／hoist + hoist_target／sum residual 切片 | 🟡 已抽出（wave980+993–994 有则补全）；仍 host-cc 入 `pipeline_x` |
+| `ast_pool_top_level.c` | **0（leave）** | module TopLevelLetEntry Cap residual pure-owned leave (wave265) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map + faces + hoist／sum；seed cold twins under #ifndef FROM_X；same-TU pure face decls；prepend_lets Cap non-static |
 | `ast_pool_type_alias.c` | **0（leave）** | module TypeAliasEntry Cap residual pure-owned leave (wave262) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map + faces；lifecycle reset／release 钩 pure；seed cold twins under #ifndef FROM_X |
 | `ast_pool_expr_sidecar.c` | ~647 | expr (+ type-pos) var-len sidecar 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_module_enum.c` | **0（leave）** | module ModuleEnumEntry Cap residual pure-owned leave (wave264) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map + faces + try_mark；seed cold twins under #ifndef FROM_X；same-TU pure face decls |
@@ -1079,7 +1079,7 @@
   - ✅ expr_sidecar 域 thin：`ast_pool_expr_sidecar.c`（call/method/match/struct_lit/array_lit + type_type_arg ~620 LOC body）同 TU 抽出；COUNT 38→39 / g05 STALE / inventory 已收
   - ✅ module_enum 域 thin：`ast_pool_module_enum.c`（`pipeline_module_enum_*` + expr/codegen enum field-access mark ~336 LOC body）同 TU 抽出；COUNT 39→40 / g05 STALE / inventory 已收
   - ✅ module_enum host-cc leave（wave264）：live＝runtime_pipeline_abi pure multi-module ModuleEnumEntry map（33932B LE）+ try_mark faces；seed cold twin under #ifndef FROM_X；file absent；same-TU pure face decls；present 47→46
-  - ✅ module_enum host-cc leave（wave264）：live＝runtime_pipeline_abi pure multi-module ModuleEnumEntry map（33932B LE）+ try_mark faces；seed cold twin under #ifndef FROM_X；file absent；same-TU pure face decls；present 47→46
+  - ✅ top_level host-cc leave（wave265）：live＝runtime_pipeline_abi pure multi-module TopLevelLetEntry map（148B LE）+ name_is_const／hoist／hoist_target／sum_stack；seed cold twin under #ifndef FROM_X；file absent；same-TU pure face decls；prepend_lets Cap residual non-static；present 46→45
   - ✅ onefunc 域 thin：`ast_pool_onefunc.c`（const/let/param/call/while/for + copy_sidecar ~522 LOC body；`grow_vec_copy_append` 上提 core）同 TU 抽出；COUNT 40→41 / g05 STALE / inventory 已收
   - ✅ dep_ctx 域 thin：`ast_pool_dep_ctx.c`（PipelineDepCtx cold accessors + lib_root + empty_param ~480 LOC body；path_append/resolve/load 仍 core）同 TU 抽出；COUNT 41→42 / g05 STALE / inventory 已收
   - ✅ module_func 域 thin：`ast_pool_module_func.c`（module Func alloc/flags/params/name_equal/byte + arena_func param_write/copy_slot · ~409 LOC body；static helpers + visibility/L7 + glue name/body 仍 core）同 TU 抽出；COUNT 42→43 / g05 STALE / inventory 已收

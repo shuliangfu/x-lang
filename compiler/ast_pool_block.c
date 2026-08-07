@@ -1206,11 +1206,13 @@ static void pipeline_block_stmt_order_insert_at(struct ast_ASTArena *a, int32_t 
 }
 
 /**
- * 在 block 的 stmt_order 最前插入 count 条 let 初始化（kind=1，idx 为块内 let 下标）。
- * Used by pipeline_module_hoist_top_level_lets_into_main (top_level domain, same TU).
+ * Prepend count let-init stmt_order items (kind=1, idx = let_start_idx + i).
+ * wave265: non-static Cap residual face — pure hoist
+ * (pipeline_module_hoist_top_level_lets_into_main on runtime_pipeline_abi) calls this.
+ * PLATFORM: SHARED — block stmt_order GrowVec authority stays Cap residual.
  */
-static void pipeline_block_stmt_order_prepend_lets(struct ast_ASTArena *a, int32_t br, int32_t let_start_idx,
-                                                   int32_t let_count) {
+void pipeline_block_stmt_order_prepend_lets(struct ast_ASTArena *a, int32_t br, int32_t let_start_idx,
+                                           int32_t let_count) {
   struct ast_StmtOrderItem ins[64];
   int32_t li;
   if (!a || br <= 0 || let_count <= 0 || let_count > 64)

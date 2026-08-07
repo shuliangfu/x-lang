@@ -128,8 +128,32 @@ uint8_t pipeline_module_import_select_name_byte_at(struct ast_Module *m, int32_t
 /** BC 8.3.2: module StructLayout cold accessors (same-TU thin). */
 #include "ast_pool_struct_layout.c"
 
-/** BC 8.3.2 wave980+993+994: TopLevelLetEntry + name_is_const/hoist + hoist_target/sum. */
-#include "ast_pool_top_level.c"
+/* 2026-08-08 wave265: ast_pool_top_level.c pure-owned leave.
+ * Live faces: runtime_pipeline_abi.x (pipeline_module_top_level_let_* full set +
+ * name_is_const / hoist / hoist_target / sum_stack + storage_reset/release;
+ * 148B TopLevelLetEntry LE map). Cap residual: ModuleSidecar.top_level_lets
+ * GrowVec still init/free in sidecar_pool (unused for product lets after leave).
+ * Hoist Cap faces: pipeline_block_append_let + pipeline_block_stmt_order_prepend_lets
+ * (prepend non-static). PLATFORM: SHARED.
+ * Same-TU pure face decls (residual defs retired; later domain slices +
+ * pipeline_ast_forwarders call these as extern). */
+void pipeline_module_top_level_let_storage_reset(struct ast_Module *m);
+void pipeline_module_top_level_let_storage_release(struct ast_Module *m);
+int32_t pipeline_module_top_level_let_alloc(struct ast_Module *m);
+void pipeline_module_top_level_let_set(struct ast_Module *m, int32_t idx, uint8_t *name, int32_t name_len,
+                                       int32_t type_ref, int32_t init_ref, int32_t is_const);
+void pipeline_module_top_level_let_set_type_ref(struct ast_Module *m, int32_t idx, int32_t type_ref);
+int32_t pipeline_module_top_level_let_name_len(struct ast_Module *m, int32_t idx);
+uint8_t pipeline_module_top_level_let_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *m, int32_t idx);
+int32_t pipeline_module_top_level_let_init_ref(struct ast_Module *m, int32_t idx);
+int32_t pipeline_module_top_level_let_is_const(struct ast_Module *m, int32_t idx);
+void pipeline_module_top_level_let_set_is_export(struct ast_Module *m, int32_t idx, int32_t is_export);
+int32_t pipeline_module_top_level_let_is_export_at(struct ast_Module *m, int32_t idx);
+int32_t pipeline_module_top_level_name_is_const(struct ast_Module *m, uint8_t *vname, int32_t vlen);
+void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct ast_ASTArena *a);
+int32_t pipeline_asm_hoist_target_func_index(struct ast_Module *m);
+int32_t pipeline_asm_sum_module_top_level_lets_stack(struct ast_ASTArena *a, struct ast_Module *m, int32_t off);
 
 /* 2026-08-08 wave262: ast_pool_type_alias.c pure-owned leave.
  * Live faces: runtime_pipeline_abi.x (pipeline_module_type_alias_* +
