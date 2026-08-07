@@ -16,8 +16,8 @@
  * - pipeline_glue_AsmFuncCtxLayout typedef (glue.c L84, static same-TU)
  * - pipeline_asm_ctx_layout (static, glue.c L86)
  * - pipeline_asm_compute_frame_size_c (glue.c L811, same-TU)
- * - g_pipeline_asm_func_sret_active / g_pipeline_asm_sret_home_off /
- *   g_pipeline_asm_func_sret_ret_sz (globals, defined before #include)
+ * - pipeline_asm_emit_ctx_sret_*_{get,set} (wave223 pure BSS faces; residual
+ *   mega_body writes only via pure setters — no residual sret statics)
  * - GLUE_TYPE_KIND_F32_ORD / _F64_ORD (macros, defined before #include)
  * - extern fns: pipeline_asm_wpo_pgo_* / pipeline_asm_modlet_* / backend_enc_* /
  *   backend_emit_block_body_sync_elf / pipeline_asm_emit_* / driver_diagnostic_* /
@@ -109,22 +109,24 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
     pipeline_debug_trace_named_func_bodies("mega_pre_reset", m, a);
     pipeline_asm_ctx_reset_for_func_c(&ctx, m);
     ctx.dep_pipe = pipeline_ctx;
-    g_pipeline_asm_func_sret_active = 0;
-    g_pipeline_asm_sret_home_off = -1;
-    g_pipeline_asm_func_sret_ret_sz = 0;
+    /* wave223: sret cells pure BSS — residual writes only via pure setters. */
+    pipeline_asm_emit_ctx_sret_active_set(0);
+    pipeline_asm_emit_ctx_sret_home_off_set(-1);
+    pipeline_asm_emit_ctx_sret_ret_sz_set(0);
     pipeline_asm_fill_param_slots(bctx, m, i);
     pipeline_debug_trace_named_func_bodies("mega_post_param_slots", m, a);
     /**
      * >16B return: reserve 8B to save incoming hidden dest (before top-level lets).
      * PLATFORM: LINUX+MACOS x86_64 SysV (rdi) · MACOS|ARM64 AAPCS64 x8 (wave591).
      * fill_param_slots already set next_offset ≥ 16 (saved fp/lr / rbx reserve).
+     * wave223: pure setters (G.7 single cell authority — no residual sret static).
      */
     if (ta == 0 || ta == 1) {
       int32_t fn_ret_sz = glue_func_return_byte_size_c(m, a, i);
       if (fn_ret_sz > 16) {
-        g_pipeline_asm_func_sret_ret_sz = fn_ret_sz;
-        g_pipeline_asm_func_sret_active = 1;
-        g_pipeline_asm_sret_home_off = ctx.next_offset;
+        pipeline_asm_emit_ctx_sret_ret_sz_set(fn_ret_sz);
+        pipeline_asm_emit_ctx_sret_active_set(1);
+        pipeline_asm_emit_ctx_sret_home_off_set(ctx.next_offset);
         ctx.next_offset += 8;
       }
     }

@@ -541,10 +541,12 @@ export extern "C" function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i3
 
 // wave141 Cap residual: context pure leave callees (storage + frame/param helpers).
 // PLATFORM: SHARED freestanding emit — pure owns public context faces; Cap residual
-// owns glue_statics cells residual C still direct-accesses (module/dep_pipe/sret/typeck).
+// owns glue_statics cells residual C still direct-accesses (typeck_active only after wave223).
 // wave221 pure-owned (G.7 dual-export ban — defs at EOF): func_index / arena /
 // call_param_ty / call_arg_depth / elf_ctx / scope_block get+set + host_is_arm64.
 // wave222 pure-owned (G.7 dual-export ban — defs at EOF): module / dep_pipe get+set.
+// wave223 pure-owned (G.7 dual-export ban — defs at EOF): sret_active / sret_home_off /
+// sret_ret_sz get+set (mega_body residual writes via pure setters only).
 // wave221 pure-owned: pipeline_asm_emit_ctx_func_index_{get,set} at EOF.
 // wave221 pure-owned: pipeline_asm_emit_ctx_arena_{get,set} at EOF.
 // wave221 pure-owned: pipeline_asm_emit_ctx_call_param_ty_{get,set} at EOF.
@@ -552,8 +554,9 @@ export extern "C" function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i3
 // wave222 pure-owned: pipeline_asm_emit_ctx_module_{get,set} at EOF.
 // wave222 pure-owned: pipeline_asm_emit_ctx_dep_pipe_{get,set} at EOF.
 // wave221 pure-owned: pipeline_asm_emit_ctx_elf_ctx_{get,set} at EOF.
-export extern "C" function pipeline_asm_emit_ctx_sret_active_get(): i32;
-export extern "C" function pipeline_asm_emit_ctx_sret_home_off_get(): i32;
+// wave223 pure-owned: pipeline_asm_emit_ctx_sret_active_{get,set} at EOF.
+// wave223 pure-owned: pipeline_asm_emit_ctx_sret_home_off_{get,set} at EOF.
+// wave223 pure-owned: pipeline_asm_emit_ctx_sret_ret_sz_{get,set} at EOF.
 // wave221 pure-owned: pipeline_asm_host_is_arm64_c at EOF.
 // wave192 pure-owned: glue_func_param_home_width_c / glue_func_return_byte_size_c at EOF.
 // wave193 pure-owned: glue_func_param_agg_byte_size_c / glue_load_var_as_value_to_rax_rdx_elf_c at EOF.
@@ -612,7 +615,7 @@ export extern "C" function pipeline_block_region_body_ref(arena: *u8, block_ref:
 export extern "C" function pipeline_block_num_labeled_stmts(arena: *u8, block_ref: i32): i32;
 export extern "C" function pipeline_block_labeled_return_expr_ref(arena: *u8, block_ref: i32, li: i32): i32;
 export extern "C" function pipeline_module_func_ptr(mod: *u8, fi: i32): *u8;
-export extern "C" function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
+// wave223 pure-owned: pipeline_asm_emit_ctx_sret_ret_sz_{get,set} at EOF.
 // wave221 pure-owned: pipeline_asm_emit_ctx_scope_block_{get,set} at EOF.
 export extern "C" function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
@@ -68820,13 +68823,14 @@ export function glue_if_expr_arm_emit_depth_set(v: i32): void {
 //   pipeline_asm_emit_ctx_scope_block_{get,set}
 //   pipeline_asm_host_is_arm64_c  (cfg target_arch; was host-cc #if)
 // Pure-owned BSS: g_pipeline_asm_emit_* cells below.
-// Cap residual still owns: sret_* / typeck_active
-// (mega_body direct-writes sret; typeck check_block/assign/ctfe/coerce direct-write typeck_active).
+// Cap residual still owns: typeck_active
+// (typeck check_block/assign/ctfe/coerce direct-write typeck_active).
 // wave222 pure owns module / dep_pipe (bind_module_dep + set_module/set_dep_pipe via get/set).
+// wave223 pure owns sret_* (mega_body residual writes via pure setters only).
 // Residual glue_asm_ctx_set_scope_block → pure scope_block_set + asm_ctx face.
 // Consumers: pure context leave / CALL / field / return paths; seed cold twin
 // under #ifndef FROM_X. Residual statics keep extern-only for pure faces.
-// Deferred: residual-owned module/dep_pipe/sret pure leave / typeck / elf /
+// Deferred: typeck_active pure leave / elf /
 // ast_pool residual / pipeline_x mega off host-cc.
 // PLATFORM: SHARED freestanding — cells are platform-agnostic emit state;
 // host_is_arm64 is compile-time target_arch of this pure .o (product ISA==host).
@@ -69016,11 +69020,11 @@ export function pipeline_asm_host_is_arm64_c(): i32 {
 //   pipeline_asm_emit_ctx_dep_pipe_{get,set}
 // Residual bind_module_dep_from_ctx / set_module / set_dep_pipe call pure setters
 // (no direct residual static write). struct_layout type_ref_byte_size uses getter.
-// Cap residual still owns: sret_active / sret_home_off / sret_ret_sz / typeck_active.
+// Cap residual still owns: typeck_active.
 // Consumers: pure context leave / CALL / field / return / SOA; seed cold twin
 // under #ifndef FROM_X. Residual statics keep extern-only for pure faces.
-// Deferred: sret pure leave (mega_body direct write) / typeck_active pure leave /
-// elf / ast_pool residual / pipeline_x mega off host-cc.
+// Deferred: typeck_active pure leave / elf / ast_pool residual / pipeline_x mega
+// off host-cc.
 // PLATFORM: SHARED freestanding — module/dep pointers are platform-agnostic.
 // ===========================================================================
 
@@ -69076,4 +69080,96 @@ export function pipeline_asm_emit_ctx_dep_pipe_set(ctx: *u8): void {
 }
 
 // end wave222 pure-owned leave
+
+// ===========================================================================
+// wave223: emit_ctx sret_active / sret_home_off / sret_ret_sz BSS pure leave
+// (was Cap residual pipeline_glue_statics.c static + get wave141 public)
+// G.7 product authority for freestanding large-struct return home cells:
+//   pipeline_asm_emit_ctx_sret_active_{get,set}
+//   pipeline_asm_emit_ctx_sret_home_off_{get,set}
+//   pipeline_asm_emit_ctx_sret_ret_sz_{get,set}
+// Residual mega_body no longer direct-writes residual statics — only pure setters.
+// Pure return / CALL / struct_lit paths already consume getters.
+// Cap residual still owns: typeck_active (check_block/assign/ctfe/coerce).
+// Seed cold twin under #ifndef FROM_X. Residual glue_statics deletes sret cells.
+// PLATFORM: SHARED freestanding — SysV (x86_64 rdi) / AAPCS64 (x8) notes on values.
+// ===========================================================================
+
+// wave223: 1 = current emit function uses hidden sret dest; 0 otherwise.
+let g_pipeline_asm_func_sret_active: i32 = 0;
+// wave223: stack slot holding caller's sret dest pointer (-1 = not sret).
+let g_pipeline_asm_sret_home_off: i32 = -1;
+// wave223: current function sret return byte width (valid when >16).
+let g_pipeline_asm_func_sret_ret_sz: i32 = 0;
+
+/**
+ * Get whether current emit function is an sret return target.
+ * @return i32 — 1 active / 0 inactive
+ * wave223 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit (SysV / AAPCS64 sret polarity).
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_sret_active_get(): i32 {
+  return g_pipeline_asm_func_sret_active;
+}
+
+/**
+ * Set whether current emit function is an sret return target.
+ * @param v i32 — 1 active / 0 inactive (mega_body resets to 0 each func)
+ * @return void
+ * wave223 pure: G.7 authority (was Cap residual mega_body static write).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_sret_active_set(v: i32): void {
+  g_pipeline_asm_func_sret_active = v;
+}
+
+/**
+ * Get stack slot offset holding the caller's sret dest pointer.
+ * @return i32 — rbp-relative home off, or -1 when not sret
+ * wave223 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit (SysV rdi / AAPCS64 x8 saved home).
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_sret_home_off_get(): i32 {
+  return g_pipeline_asm_sret_home_off;
+}
+
+/**
+ * Set stack slot offset holding the caller's sret dest pointer.
+ * @param off i32 — rbp-relative home; -1 clears sret home
+ * @return void
+ * wave223 pure: G.7 authority (was Cap residual mega_body static write).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_sret_home_off_set(off: i32): void {
+  g_pipeline_asm_sret_home_off = off;
+}
+
+/**
+ * Get current emit function sret return byte width.
+ * @return i32 — return size in bytes (valid when >16 and sret active)
+ * wave223 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32 {
+  return g_pipeline_asm_func_sret_ret_sz;
+}
+
+/**
+ * Set current emit function sret return byte width.
+ * @param sz i32 — return size in bytes; 0 when not sret
+ * @return void
+ * wave223 pure: G.7 authority (was Cap residual mega_body static write).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_sret_ret_sz_set(sz: i32): void {
+  g_pipeline_asm_func_sret_ret_sz = sz;
+}
+
+// end wave223 pure-owned leave
 

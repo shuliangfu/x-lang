@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave223: emit_ctx sret_active/home_off/ret_sz BSS+get/set pure leave cold twins under #ifndef FROM_X
  * wave222: emit_ctx module/dep_pipe BSS+get/set pure leave cold twins under #ifndef FROM_X
  * wave221: emit_ctx accessor-only BSS+get/set + host_is_arm64 pure leave cold twins under #ifndef FROM_X
  * wave220: if_expr_arm_emit_depth BSS+get/set pure leave cold twin under #ifndef FROM_X
@@ -27192,6 +27193,37 @@ void *pipeline_asm_emit_ctx_dep_pipe_get(void) {
 }
 void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx) {
   g_wave222_emit_dep_pipe = ctx;
+}
+
+/*
+ * wave223 cold twins: emit_ctx sret_active / sret_home_off / sret_ret_sz BSS
+ * (G.7 pure leave). Working freestanding BSS twins of pure
+ * g_pipeline_asm_func_sret_active / g_pipeline_asm_sret_home_off /
+ * g_pipeline_asm_func_sret_ret_sz. Hybrid product links pure; cold seed keeps
+ * local static under #ifndef FROM_X. Mid-file return/CALL cold bodies call
+ * these faces via extern. PLATFORM: SHARED freestanding sret cells.
+ */
+static int32_t g_wave223_sret_active = 0;
+static int32_t g_wave223_sret_home_off = -1;
+static int32_t g_wave223_sret_ret_sz = 0;
+
+int32_t pipeline_asm_emit_ctx_sret_active_get(void) {
+  return g_wave223_sret_active;
+}
+void pipeline_asm_emit_ctx_sret_active_set(int32_t v) {
+  g_wave223_sret_active = v;
+}
+int32_t pipeline_asm_emit_ctx_sret_home_off_get(void) {
+  return g_wave223_sret_home_off;
+}
+void pipeline_asm_emit_ctx_sret_home_off_set(int32_t off) {
+  g_wave223_sret_home_off = off;
+}
+int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void) {
+  return g_wave223_sret_ret_sz;
+}
+void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz) {
+  g_wave223_sret_ret_sz = sz;
 }
 
 /*
