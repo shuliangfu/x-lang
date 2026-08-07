@@ -58,7 +58,10 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
  * (kind_ord_at / array_size_at) for callsites before this #include at
  * glue.c L5160.
  * PLATFORM: SHARED — host-cc Cap residual; parser/typeck/codegen call these. */
-#include "ast_pool_type.c"
+/* 2026-08-08: ast_pool_type.c pure-owned leave (wave270).
+ * Live faces: runtime_pipeline_abi pure pipeline_type_* (#[no_mangle]).
+ * Cap residual: pipeline_arena_type_ptr/alloc still host-cc (this TU).
+ * PLATFORM: SHARED — dual-export ban; pipeline_x U for type pool faces. */
 
 
 #include "ast_pool_lifecycle.c"

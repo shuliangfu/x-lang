@@ -30508,6 +30508,366 @@ void asm_ctx_fill_locals_block_tree(uint8_t *ctx, void *arena, int32_t block_ref
 /* end wave269 block_tree cold twins */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave269 cold twins */
 
+/*
+ * WAVE270: ast_pool_type pure-owned leave cold twins
+ * (pipeline_type_* pool accessors + find_or_alloc + init/ensure + region label).
+ * Only compiled when product pure is NOT linked (-U FROM_X cold path).
+ * Type LE matches pure: kind@0 name[128]@4 name_len@132 elem@136 array_size@140
+ * region_label[128]@144 region_label_len@272 size 276.
+ * Cap residual: pipeline_arena_type_ptr / pipeline_arena_type_alloc.
+ * PLATFORM: SHARED freestanding type pool Cap leave.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+extern void *pipeline_arena_type_ptr(void *arena, int32_t ref);
+extern int32_t pipeline_arena_type_alloc(void *arena);
+extern int32_t pipeline_arena_num_types(void *arena);
+
+enum {
+  W270_TY_NAMED = 8,
+  W270_TY_PTR = 9,
+  W270_TY_SLICE = 11,
+  W270_TY_SIZE = 276
+};
+
+static int32_t wave270_kind_from_ord(int32_t ord) {
+  if (ord < 0 || ord > 16)
+    return 0;
+  return ord;
+}
+
+static void wave270_zero_slot(uint8_t *t) {
+  int32_t i;
+  if (!t)
+    return;
+  for (i = 0; i < W270_TY_SIZE; i++)
+    t[i] = 0;
+}
+
+static void wave270_store_i32(uint8_t *b, int32_t off, int32_t v) {
+  b[off] = (uint8_t)(v & 255);
+  b[off + 1] = (uint8_t)((v >> 8) & 255);
+  b[off + 2] = (uint8_t)((v >> 16) & 255);
+  b[off + 3] = (uint8_t)((v >> 24) & 255);
+}
+
+static int32_t wave270_load_i32(uint8_t *b, int32_t off) {
+  return (int32_t)((uint32_t)b[off] | ((uint32_t)b[off + 1] << 8) | ((uint32_t)b[off + 2] << 16) |
+                   ((uint32_t)b[off + 3] << 24));
+}
+
+static int32_t wave270_bytes_eq(uint8_t *a, uint8_t *b, int32_t n) {
+  int32_t i;
+  if (n <= 0)
+    return 1;
+  if (!a || !b)
+    return 0;
+  for (i = 0; i < n; i++)
+    if (a[i] != b[i])
+      return 0;
+  return 1;
+}
+
+static uint8_t *wave270_slot_at(void *arena, int32_t ref) {
+  int32_t nt;
+  if (!arena || ref <= 0)
+    return NULL;
+  nt = pipeline_arena_num_types(arena);
+  if (ref > nt)
+    return NULL;
+  return (uint8_t *)pipeline_arena_type_ptr(arena, ref);
+}
+
+int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64) {
+  uint8_t *t;
+  int32_t n, cn, i;
+  if (!out64)
+    return 0;
+  t = wave270_slot_at(arena, ref);
+  if (!t)
+    return 0;
+  n = wave270_load_i32(t, 132);
+  cn = n > 64 ? 64 : n;
+  for (i = 0; i < cn; i++)
+    out64[i] = t[4 + i];
+  return n;
+}
+
+int32_t pipeline_type_region_label_into(void *arena, int32_t ref, uint8_t *out64) {
+  uint8_t *t;
+  int32_t n, cn, i;
+  if (!out64)
+    return 0;
+  t = wave270_slot_at(arena, ref);
+  if (!t)
+    return 0;
+  n = wave270_load_i32(t, 272);
+  if (n <= 0)
+    return 0;
+  cn = n > 64 ? 64 : n;
+  for (i = 0; i < cn; i++)
+    out64[i] = t[144 + i];
+  return n;
+}
+
+int32_t pipeline_type_region_label_len_at(void *arena, int32_t ref) {
+  uint8_t *t = wave270_slot_at(arena, ref);
+  int32_t n;
+  if (!t)
+    return 0;
+  n = wave270_load_i32(t, 272);
+  return n > 0 ? n : 0;
+}
+
+int32_t pipeline_type_set_region_label_at(void *arena, int32_t ref, uint8_t *label, int32_t label_len) {
+  uint8_t *t;
+  int32_t kind, i;
+  if (!label || label_len <= 0 || label_len > 127)
+    return 0;
+  t = wave270_slot_at(arena, ref);
+  if (!t)
+    return 0;
+  kind = wave270_load_i32(t, 0);
+  if (kind != W270_TY_SLICE && kind != W270_TY_PTR)
+    return 0;
+  for (i = 0; i < 128; i++)
+    t[144 + i] = 0;
+  for (i = 0; i < label_len; i++)
+    t[144 + i] = label[i];
+  wave270_store_i32(t, 272, label_len);
+  return 1;
+}
+
+int32_t pipeline_type_find_or_alloc_slice(void *a, int32_t elem_ref, uint8_t *region, int32_t region_len) {
+  int32_t nt, k;
+  uint8_t *t;
+  if (!a || region_len < 0 || region_len > 127)
+    return 0;
+  if (region_len > 0 && !region)
+    return 0;
+  nt = pipeline_arena_num_types(a);
+  for (k = 1; k <= nt; k++) {
+    t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+    if (!t)
+      continue;
+    if (wave270_load_i32(t, 0) == W270_TY_SLICE && wave270_load_i32(t, 136) == elem_ref &&
+        wave270_load_i32(t, 140) == 0 && wave270_load_i32(t, 132) == 0 &&
+        wave270_load_i32(t, 272) == region_len &&
+        (region_len == 0 || wave270_bytes_eq(t + 144, region, region_len)))
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, W270_TY_SLICE);
+  wave270_store_i32(t, 136, elem_ref);
+  if (region_len > 0 && region) {
+    int32_t i;
+    for (i = 0; i < region_len; i++)
+      t[144 + i] = region[i];
+    wave270_store_i32(t, 272, region_len);
+  }
+  return k;
+}
+
+int32_t pipeline_type_find_or_alloc_ptr(void *a, int32_t elem_ref, uint8_t *region, int32_t region_len) {
+  int32_t nt, k;
+  uint8_t *t;
+  if (!a || elem_ref <= 0 || region_len < 0 || region_len > 127)
+    return 0;
+  if (region_len > 0 && !region)
+    return 0;
+  nt = pipeline_arena_num_types(a);
+  for (k = 1; k <= nt; k++) {
+    t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+    if (!t)
+      continue;
+    if (wave270_load_i32(t, 0) == W270_TY_PTR && wave270_load_i32(t, 136) == elem_ref &&
+        wave270_load_i32(t, 140) == 0 && wave270_load_i32(t, 132) == 0 &&
+        wave270_load_i32(t, 272) == region_len &&
+        (region_len == 0 || wave270_bytes_eq(t + 144, region, region_len)))
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, W270_TY_PTR);
+  wave270_store_i32(t, 136, elem_ref);
+  if (region_len > 0 && region) {
+    int32_t i;
+    for (i = 0; i < region_len; i++)
+      t[144 + i] = region[i];
+    wave270_store_i32(t, 272, region_len);
+  }
+  return k;
+}
+
+int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref) {
+  uint8_t *t = wave270_slot_at(arena, ref);
+  if (!t)
+    return -1;
+  return wave270_load_i32(t, 0);
+}
+
+int32_t pipeline_type_elem_ref_at(void *arena, int32_t ref) {
+  uint8_t *t = wave270_slot_at(arena, ref);
+  if (!t)
+    return 0;
+  return wave270_load_i32(t, 136);
+}
+
+int32_t pipeline_type_set_elem_array_size_at(void *arena, int32_t ref, int32_t elem_ref, int32_t array_size) {
+  uint8_t *t = wave270_slot_at(arena, ref);
+  if (!t)
+    return 0;
+  wave270_store_i32(t, 136, elem_ref);
+  wave270_store_i32(t, 140, array_size);
+  return 1;
+}
+
+int32_t pipeline_type_array_size_at(void *arena, int32_t ref) {
+  uint8_t *t = wave270_slot_at(arena, ref);
+  if (!t)
+    return 0;
+  return wave270_load_i32(t, 140);
+}
+
+int32_t pipeline_type_ensure_by_kind_ord(void *a, int32_t kind_ord) {
+  int32_t nt, k, kind;
+  uint8_t *t;
+  if (!a || kind_ord < 0 || kind_ord > 16)
+    return 0;
+  kind = wave270_kind_from_ord(kind_ord);
+  nt = pipeline_arena_num_types(a);
+  for (k = 1; k <= nt; k++) {
+    t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+    if (t && wave270_load_i32(t, 0) == kind && wave270_load_i32(t, 132) == 0 &&
+        wave270_load_i32(t, 136) == 0 && wave270_load_i32(t, 140) == 0)
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, kind);
+  return k;
+}
+
+int32_t pipeline_type_init_primitive_kind_at(void *a, int32_t ref, int32_t kind_ord) {
+  uint8_t *t;
+  if (!a || ref <= 0 || kind_ord < 0 || kind_ord > 16)
+    return 0;
+  if (ref > pipeline_arena_num_types(a))
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, ref);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, wave270_kind_from_ord(kind_ord));
+  return 1;
+}
+
+int32_t pipeline_type_init_named_at(void *a, int32_t ref, uint8_t *name, int32_t name_len) {
+  uint8_t *t;
+  int32_t i;
+  if (!a || ref <= 0 || !name || name_len <= 0 || name_len > 127)
+    return 0;
+  if (ref > pipeline_arena_num_types(a))
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, ref);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, W270_TY_NAMED);
+  wave270_store_i32(t, 132, name_len);
+  for (i = 0; i < name_len; i++)
+    t[4 + i] = name[i];
+  return 1;
+}
+
+int32_t pipeline_type_init_compound_kind_at(void *a, int32_t ref, int32_t kind_ord, int32_t elem_ref,
+                                            int32_t array_size) {
+  uint8_t *t;
+  if (!a || ref <= 0 || kind_ord < 0 || kind_ord > 15)
+    return 0;
+  if (ref > pipeline_arena_num_types(a))
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, ref);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, wave270_kind_from_ord(kind_ord));
+  wave270_store_i32(t, 136, elem_ref);
+  wave270_store_i32(t, 140, array_size);
+  return 1;
+}
+
+int32_t pipeline_type_find_or_alloc_named(void *a, uint8_t *name, int32_t name_len) {
+  int32_t nt, k, i;
+  uint8_t *t;
+  if (!a || !name || name_len <= 0 || name_len > 127)
+    return 0;
+  nt = pipeline_arena_num_types(a);
+  for (k = 1; k <= nt; k++) {
+    t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+    if (t && wave270_load_i32(t, 0) == W270_TY_NAMED && wave270_load_i32(t, 132) == name_len &&
+        wave270_bytes_eq(t + 4, name, name_len))
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, W270_TY_NAMED);
+  wave270_store_i32(t, 132, name_len);
+  for (i = 0; i < name_len; i++)
+    t[4 + i] = name[i];
+  return k;
+}
+
+int32_t pipeline_type_find_or_alloc_compound(void *a, int32_t kind_ord, int32_t elem_ref, int32_t array_size) {
+  int32_t nt, k, kind;
+  uint8_t *t;
+  if (!a || kind_ord < 0 || kind_ord > 15)
+    return 0;
+  kind = wave270_kind_from_ord(kind_ord);
+  nt = pipeline_arena_num_types(a);
+  for (k = 1; k <= nt; k++) {
+    t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+    if (t && wave270_load_i32(t, 0) == kind && wave270_load_i32(t, 136) == elem_ref &&
+        wave270_load_i32(t, 140) == array_size && wave270_load_i32(t, 132) == 0 &&
+        wave270_load_i32(t, 272) == 0)
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, kind);
+  wave270_store_i32(t, 136, elem_ref);
+  wave270_store_i32(t, 140, array_size);
+  return k;
+}
+/* end wave270 type pool cold twins */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave270 cold twins */
+
+
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 

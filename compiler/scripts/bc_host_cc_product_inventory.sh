@@ -88,7 +88,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_ptr_at.c|8.3.2|ast_pool core ptr_at accessors (wave1278)|25|present"
   "compiler/ast_pool_sidecar_pool.c|8.3.2|ast_pool sidecar pool management (wave1276)|340|present"
   "compiler/ast_pool_typedefs.c|8.3.2|ast_pool early typedef domain (wave1278)|220|present"
-  "compiler/ast_pool_type.c|8.3.2|ast_pool type pool cold accessors (wave1166)|230|present"
+  "compiler/ast_pool_type.c|8.3.2|ast_pool type pool Cap residual pure-owned leave (wave270)|0|absent"
   "compiler/pipeline_grow_vec.c|8.3.2|GrowVec leaf (wave1275)|150|present"
   "compiler/pipeline_lint_meta.c|8.3.2|pipeline lint+meta pure-owned leave wave121|0|absent"
   "compiler/pipeline_backend_asm_wrapper.c|8.3.2|backend asm thin wrappers (wave113 pure-owned leave)|65|absent"
@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 elf residual / ast_pool leaf / pipeline_x mega host-cc leave (block_tree leave wave269); pure-owned leave candidates: elf_ctx + elf_write_o + grow_vec/ptr_at + glue_fwd shells + asm wpo"
+  echo "NEXT=8.3.1 elf residual / pipeline_x mega host-cc leave (type pool leave wave270); pure-owned leave candidates: elf_ctx + elf_write_o + grow_vec/ptr_at + glue_fwd shells + asm wpo"
 }
 
 run_check() {
