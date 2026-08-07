@@ -95,7 +95,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_scratch_bufs.c|8.3.2|scratch bufs retired (codegen_x.o BSS; host-cc leave)|0|absent"
   # --- 8.3.1 domain thin slices (#include into pipeline_glue TU; not separate .o) ---
   "compiler/pipeline_typeck_ctfe.c|8.3.1|typeck CTFE producer slice|1000|present"
-  "compiler/pipeline_typeck_assign.c|8.3.1|typeck assign domain slice|250|present"
+  "compiler/pipeline_typeck_assign.c|8.3.1|typeck assign domain Cap residual thin (wave225 pure leave → typeck.x)|40|present"
   "compiler/pipeline_typeck_coerce_init.c|8.3.1|typeck coerce-init domain slice|300|present"
   "compiler/pipeline_typeck_method_call.c|8.3.1|typeck method_call + generic UFCS mono slice|800|present"
   "compiler/pipeline_typeck_check_block.c|8.3.1|typeck check_block orchestration slice|250|present"
