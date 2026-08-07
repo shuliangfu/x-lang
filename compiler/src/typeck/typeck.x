@@ -10934,10 +10934,11 @@ op_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * PLATFORM: SHARED freestanding typeck
  */
 function typeck_type_is_allocator_struct(arena: *ASTArena, ty_ref: i32): i32 {
-  // PLATFORM: SHARED — TYPE_NAMED name compare for Allocator.
+  // PLATFORM: SHARED — TYPE_NAMED bare "Allocator" or qualified "heap.Allocator".
   unsafe {
     let nm: u8[128] = [];
     let nlen: i32 = 0;
+    let off: i32 = 0;
     if (arena == 0 as *ASTArena || ty_ref <= 0) {
       return 0;
     }
@@ -10946,9 +10947,24 @@ function typeck_type_is_allocator_struct(arena: *ASTArena, ty_ref: i32): i32 {
       return 0;
     }
     nlen = pipeline_type_named_name_into(arena, ty_ref, &nm[0]);
-    /* "Allocator" len 9 — G.7 reuse name_equal authority. */
+    /* Bare "Allocator" (len 9) — historical residual exact match. */
     if (name_equal(&nm[0], nlen, "Allocator" as *u8, 9)) {
       return 1;
+    }
+    /*
+     * Import-qualified TYPE_NAMED (e.g. heap.Allocator): accept when the
+     * suffix after the last '.' is exactly "Allocator". Residual only matched
+     * bare name; product return-escape probes use heap.Allocator — complete
+     * the authority (G.7 有则补全), do not open a second gate.
+     */
+    if (nlen > 10) {
+      off = nlen - 9;
+      /* preceding byte must be '.' */
+      if (nm[off - 1] == 46) {
+        if (name_equal(&nm[off], 9, "Allocator" as *u8, 9)) {
+          return 1;
+        }
+      }
     }
     return 0;
   }
