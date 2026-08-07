@@ -151,7 +151,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_glue_emit_block_fwd.c|8.3|glue block-accessor pure-fwd shell after cmp (wave1287)|50|present"
   "compiler/pipeline_glue_emit_lea_fwd.c|8.3|glue lea/return inter-include forward-decl/define shell after lea_common (wave1288)|70|present"
   "compiler/pipeline_glue_emit_mid_fwd.c|8.3|glue mid-emit inter-include forward-decl/ordinal shell after emit_fwd (wave1289)|60|present"
-  "compiler/pipeline_glue_statics.c|8.3|glue emit/typeck active-context static globals single-def site after early_fwd (wave1290)|60|present"
+  "compiler/pipeline_glue_statics.c|8.3|glue emit/typeck Cap residual pure-owned leave (wave261; BSS era closed wave224)|0|absent"
   "compiler/pipeline_asm_locals.c|8.3.2|asm locals + block slot sidecar (wave1252)|200|present"
   "compiler/pipeline_asm_slot_bytes.c|8.3.2|asm slot bytes + ensure_block_locals (wave1253)|320|present"
   "compiler/pipeline_asm_block_tree.c|8.3.2|asm block tree traversal + frame sizing (wave1254)|210|present"
@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 typeck/elf residual / pipeline_x remaining host-cc mega-TU leave (method_call leave wave260); pure-owned leave: unary + struct_let + async_cps + wpo_mono + block_if + logand + panic + next_offset(same-TU) + ctx_layout + var_decl + lea_common + with_arena + lint_meta + parser_emit_heavy + emit_heavy_env + skip_dispatch + safe_helper + thin_delegate + selfhost + asm_ctx_loop + backend_asm_wrapper + parse_typeck_dispatch + codegen_dep + struct_emit + type_to_c + skip_force + codegen_residual + run_x_pipeline + resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa + method_call done"
+  echo "NEXT=8.3.1 elf residual / ast_pool leaf / pipeline_x mega host-cc leave (glue_statics leave wave261); pure-owned leave candidates: elf_ctx + elf_write_o + typeck orch/check_expr residual #include + glue_fwd shells + grow_vec/ptr_at same-TU + asm locals/slot/block_tree/wpo"
 }
 
 run_check() {

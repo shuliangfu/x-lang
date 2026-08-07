@@ -9072,6 +9072,7 @@ fi
 # wave257 host-cc leave: region_assign Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
 # wave258 host-cc leave: coerce_init Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
 # wave259 host-cc leave: check_block Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
+# wave261 host-cc leave: glue_statics Cap residual retired; authority runtime_pipeline_abi pure.
 # wave260 host-cc leave: method_call Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
 if grep -qE 'pipeline_typeck_ctfe\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_ctfe.c (wave255 host-cc leave)"
@@ -9108,6 +9109,15 @@ if grep -qE 'pipeline_typeck_check_block\.c' "$_XSD_MK"; then
 fi
 if [ -f "$ROOT/compiler/pipeline_typeck_check_block.c" ]; then
   bad "pipeline_typeck_check_block.c must be deleted (wave259 pure-owned leave)"
+fi
+if grep -qE 'pipeline_glue_statics\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_glue_statics.c (wave261 host-cc leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_glue_statics.c" ]; then
+  bad "pipeline_glue_statics.c must be deleted (wave261 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_ctx_layout\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_asm_ctx_layout.c (wave125 pure leave; stale DEPS cleaned wave261)"
 fi
 if grep -qE 'pipeline_asm_emit_unary\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_unary.c (wave133 pure-owned leave)"

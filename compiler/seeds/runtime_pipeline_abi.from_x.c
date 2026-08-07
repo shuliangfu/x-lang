@@ -1,5 +1,7 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave261: glue_statics Cap residual pure leave cold twins under #ifndef FROM_X
+ *   (glue_asm_ctx_set_scope_block + glue_block_body_bind_module_dep_from_ctx)
  * wave224: typeck_active module BSS+get/set pure leave cold twins under #ifndef FROM_X
  * wave223: emit_ctx sret_active/home_off/ret_sz BSS+get/set pure leave cold twins under #ifndef FROM_X
  * wave222: emit_ctx module/dep_pipe BSS+get/set pure leave cold twins under #ifndef FROM_X
@@ -27240,6 +27242,46 @@ void *pipeline_typeck_active_module_c(void) {
 }
 void pipeline_typeck_active_module_set_c(void *m) {
   g_wave224_typeck_active_module = m;
+}
+
+/*
+ * wave261 cold twins: glue_statics Cap residual pure leave.
+ * Working freestanding twins of pure glue_asm_ctx_set_scope_block +
+ * glue_block_body_bind_module_dep_from_ctx. Hybrid product links pure;
+ * cold seed keeps bodies under #ifndef FROM_X (scope process-local cell via
+ * wave221 cold twin; module/dep via wave222 cold twins; per-ctx sidecar via
+ * extern asm_ctx_set_scope_block residual).
+ * PLATFORM: SHARED freestanding emit Cap bridges.
+ */
+extern void asm_ctx_set_scope_block(void *ctx, int32_t block_ref);
+extern void *pipeline_asm_ctx_layout(void *ctx);
+/* wave221/222 cold twins provide these process-local cells when pure absent. */
+extern void pipeline_asm_emit_ctx_scope_block_set(int32_t block_ref);
+extern void pipeline_asm_emit_ctx_module_set(void *m);
+extern void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx);
+
+void glue_asm_ctx_set_scope_block(void *ctx, int32_t block_ref) {
+  pipeline_asm_emit_ctx_scope_block_set(block_ref);
+  asm_ctx_set_scope_block(ctx, block_ref);
+}
+
+void glue_block_body_bind_module_dep_from_ctx(void *ctx) {
+  uint8_t *ly;
+  void *mod;
+  void *dep;
+  if (!ctx)
+    return;
+  ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
+  if (!ly)
+    return;
+  /* LP64: module_ref@16 */
+  memcpy(&mod, ly + 16, sizeof(void *));
+  if (mod)
+    pipeline_asm_emit_ctx_module_set(mod);
+  /* LP64: dep_pipe@1384 (tail_join_label@1392 - 8) */
+  memcpy(&dep, ly + 1384, sizeof(void *));
+  if (dep)
+    pipeline_asm_emit_ctx_dep_pipe_set(dep);
 }
 
 /*

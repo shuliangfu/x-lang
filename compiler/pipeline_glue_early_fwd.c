@@ -93,12 +93,43 @@ int32_t pipeline_asm_emit_call_arg_active_c(void);
 /** backend_try_inline / SIMD emit：读取当前 dep 池（定义见本文件后部）。 */
 struct ast_PipelineDepCtx *pipeline_asm_emit_dep_pipe_c(void);
 
-/** asm_ctx scope 设置（定义见本文件后部；前置声明供 glue_asm_ctx_set_scope_block 调用）。 */
+/** asm_ctx scope 设置（定义见 ast_pool_bootstrap_glue；per-ctx sidecar）。 */
 void asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref);
 
-/* wave1152/wave153 G.7: glue_asm_ctx_set_scope_block Cap residual in
- * pipeline_glue_statics.c (pure block_body leave Cap residual face).
- * PLATFORM: SHARED. */
+/* wave261 pure-owned leave: pipeline_glue_statics.c deleted. Host residual keeps
+ * extern-only decls for pure faces (live = runtime_pipeline_abi). Do not
+ * re-open Cap residual bodies (G.7 dual-export ban). PLATFORM: SHARED. */
+extern void glue_asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref);
+extern void glue_block_body_bind_module_dep_from_ctx(uint8_t *ctx);
+/* wave221 pure: process-local emit ctx cells. */
+extern void pipeline_asm_emit_ctx_scope_block_set(int32_t block_ref);
+extern int32_t pipeline_asm_emit_ctx_scope_block_get(void);
+extern int32_t pipeline_asm_emit_ctx_func_index_get(void);
+extern void pipeline_asm_emit_ctx_func_index_set(int32_t fi);
+extern void *pipeline_asm_emit_ctx_arena_get(void);
+extern void pipeline_asm_emit_ctx_arena_set(void *arena);
+extern int32_t pipeline_asm_emit_ctx_call_param_ty_get(void);
+extern void pipeline_asm_emit_ctx_call_param_ty_set(int32_t type_ref);
+extern int32_t pipeline_asm_emit_ctx_call_arg_depth_get(void);
+extern void pipeline_asm_emit_ctx_call_arg_depth_set(int32_t d);
+extern void *pipeline_asm_emit_ctx_elf_ctx_get(void);
+extern void pipeline_asm_emit_ctx_elf_ctx_set(void *elf_ctx);
+extern int32_t pipeline_asm_host_is_arm64_c(void);
+/* wave222 pure: module / dep_pipe cells. */
+extern void *pipeline_asm_emit_ctx_module_get(void);
+extern void pipeline_asm_emit_ctx_module_set(void *m);
+extern void *pipeline_asm_emit_ctx_dep_pipe_get(void);
+extern void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx);
+/* wave223 pure: sret_* cells (mega_body residual write path). */
+extern int32_t pipeline_asm_emit_ctx_sret_active_get(void);
+extern void pipeline_asm_emit_ctx_sret_active_set(int32_t v);
+extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
+extern void pipeline_asm_emit_ctx_sret_home_off_set(int32_t off);
+extern int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void);
+extern void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz);
+/* wave224 pure: typeck active-module cell. */
+extern struct ast_Module *pipeline_typeck_active_module_c(void);
+extern void pipeline_typeck_active_module_set_c(struct ast_Module *m);
 int32_t pipeline_block_labeled_return_expr_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
 /* wave379/wave387: labeled pool accessors (stmt_order kind=7 goto/label/labeled-return). */
 int32_t pipeline_block_num_labeled_stmts(struct ast_ASTArena *a, int32_t br);

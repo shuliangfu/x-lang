@@ -100,13 +100,11 @@ extern pipeline_glue_AsmFuncCtxLayout *pipeline_asm_ctx_layout(struct backend_As
  * static emit globals remain below. PLATFORM: SHARED. */
 #include "pipeline_glue_early_fwd.c"
 
-/* wave1290 G.7: emit/typeck active-context static globals (13: module / arena
- * / elf_ctx / func_index / scope_block / dep_pipe / active_module / call state
- * / sret home+active+ret_sz+reg_shift) migrated to pipeline_glue_statics.c
- * (same-TU single-definition site; all domain #includes below share it).
- * wave1284 had left these in glue; early_fwd holds only declarations.
- * PLATFORM: SHARED. */
-#include "pipeline_glue_statics.c"
+/* wave1290 G.7: emit/typeck active-context statics shell was pipeline_glue_statics.c.
+ * wave221–224: all process-local BSS cells → runtime_pipeline_abi pure.
+ * wave261 pure-owned leave: last Cap bridges (glue_asm_ctx_set_scope_block +
+ * glue_block_body_bind_module_dep_from_ctx) → pure; host residual file deleted.
+ * PLATFORM: SHARED freestanding emit Cap leave. */
 
 /* wave1185 G.7: parser result copy/lex/slice helper cluster (20 fns + 4 typedefs)
  * migrated to pipeline_parser_result.c (same-TU #include). Members: parser_slice_from_buf /

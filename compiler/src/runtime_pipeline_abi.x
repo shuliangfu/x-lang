@@ -1081,7 +1081,8 @@ export extern "C" function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_re
 // wave208 pure-owned: glue_binop_stack_spill_clear at EOF (#[no_mangle]).
 // wave220 pure-owned: glue_if_expr_arm_emit_depth_get/set + pure BSS at EOF
 // (#[no_mangle]). G.7 ban dual export extern + pure export for the same symbol.
-export extern "C" function glue_block_body_bind_module_dep_from_ctx(ctx: *u8): void;
+/* wave261 pure-owned: glue_block_body_bind_module_dep_from_ctx body at EOF
+ * (#[no_mangle]). G.7 ban dual export extern + pure export for the same symbol. */
 export extern "C" function backend_block_slot_base_for(ctx: *u8, arena: *u8, block_ref: i32): i32;
 // wave155 pure-owned leave: backend_emit_while_loop_elf_sync(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32; body in EOF section.
 // wave155 pure-owned leave: backend_emit_for_loop_elf_sync body in EOF section.
@@ -1099,7 +1100,10 @@ export extern "C" function pipeline_block_labeled_goto_target_copy32(arena: *u8,
 export extern "C" function ast_pipeline_block_if_cond_ref(arena: *u8, block_ref: i32, if_idx: i32): i32;
 export extern "C" function ast_pipeline_block_if_then_body_ref(arena: *u8, block_ref: i32, if_idx: i32): i32;
 export extern "C" function ast_pipeline_block_if_else_body_ref(arena: *u8, block_ref: i32, if_idx: i32): i32;
-export extern "C" function glue_asm_ctx_set_scope_block(ctx: *u8, block_ref: i32): void;
+/* wave261 pure-owned: glue_asm_ctx_set_scope_block body at EOF (#[no_mangle]).
+ * G.7 ban dual export extern + pure export for the same symbol. */
+/* Cap residual sidecar: per-ctx scope_block_ref (ast_pool_bootstrap_glue). */
+export extern "C" function asm_ctx_set_scope_block(ctx: *u8, block_ref: i32): void;
 // wave133: glue_enc_jz_after_bool_in_eax is pure export below (unary leave).
 // Was Cap residual when host leaf owned the face; block_if / async_cps call pure.
 export extern "C" function backend_ensure_block_local_slots(ctx: *u8, arena: *u8, block_ref: i32): void;
@@ -69223,5 +69227,79 @@ export function pipeline_typeck_active_module_set_c(m: *u8): void {
 }
 
 // end wave224 pure-owned leave
+
+// ===========================================================================
+// wave261: glue_statics Cap residual pure-owned leave
+// (was pipeline_glue_statics.c — last two Cap bridge bodies after wave221–224
+// moved all process-local BSS cells to pure).
+// G.7 product authority for:
+//   glue_asm_ctx_set_scope_block
+//   glue_block_body_bind_module_dep_from_ctx
+// glue_asm_ctx_set_scope_block: pure process-local scope_block cell + residual
+//   asm_ctx_set_scope_block sidecar (per-ctx scope_block_ref).
+// glue_block_body_bind_module_dep_from_ctx: read AsmFuncCtx.module_ref@16 and
+//   dep_pipe@1384 (LP64; tail_join@1392−8) then pure module/dep_pipe setters.
+// Host residual file deleted; inventory present−1 (statics shell).
+// Cold twins under seed #ifndef FROM_X.
+// PLATFORM: SHARED freestanding emit — dual-end L2 after leave.
+// ===========================================================================
+
+/**
+ * Set process-local emit scope block + per-ctx sidecar scope_block_ref.
+ * Bridges pure BSS (pipeline_asm_emit_ctx_scope_block_set) with residual
+ * asm_ctx_set_scope_block so block enter/exit keeps both cells in sync.
+ * @param ctx *u8 — backend AsmFuncCtx*; may be null (sidecar no-op)
+ * @param block_ref i32 — block scope ref (0 = module / unset)
+ * @return void
+ * wave261 pure: G.7 authority (was Cap residual pipeline_glue_statics.c).
+ * PLATFORM: SHARED freestanding emit scope bookkeeping.
+ */
+#[no_mangle]
+export function glue_asm_ctx_set_scope_block(ctx: *u8, block_ref: i32): void {
+  pipeline_asm_emit_ctx_scope_block_set(block_ref);
+  // Per-ctx sidecar lives in host residual (ast_pool_bootstrap_glue); pure
+  // only owns the process-local cell + this dual-write face.
+  // PLATFORM: SHARED — extern C FFI requires unsafe (G.9 / typeck T001).
+  unsafe {
+    asm_ctx_set_scope_block(ctx, block_ref);
+  }
+}
+
+/**
+ * Bind process-local emit module + dep_pipe from AsmFuncCtx layout fields.
+ * Used by pure block_body / fill paths that cannot field-access C layout
+ * typedefs; loads module_ref@16 and dep_pipe@1384 then pure setters.
+ * @param ctx *u8 — backend AsmFuncCtx*; null → no-op
+ * @return void
+ * wave261 pure: G.7 authority (was Cap residual pipeline_glue_statics.c).
+ * PLATFORM: SHARED LP64 layout (module_ref@16 / dep_pipe@1384).
+ */
+#[no_mangle]
+export function glue_block_body_bind_module_dep_from_ctx(ctx: *u8): void {
+  let ly: *u8 = 0 as *u8;
+  let mod: *u8 = 0 as *u8;
+  let dep: *u8 = 0 as *u8;
+  if (ctx == (0 as *u8)) {
+    return;
+  }
+  // Identity cast: same address as residual pipeline_glue_AsmFuncCtxLayout*.
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (ly == (0 as *u8)) {
+    return;
+  }
+  // LP64: module_ref at byte offset 16 → slot index 2.
+  mod = pipe_load_ptr_slot(ly, 2);
+  if (mod != (0 as *u8)) {
+    pipeline_asm_emit_ctx_module_set(mod);
+  }
+  // LP64: dep_pipe at byte offset 1384 → slot index 173
+  // (tail_join_label@1392 − 8; matches residual pipeline_glue_AsmFuncCtxLayout).
+  dep = pipe_load_ptr_slot(ly, 173);
+  if (dep != (0 as *u8)) {
+    pipeline_asm_emit_ctx_dep_pipe_set(dep);
+  }
+}
+
+// end wave261 pure-owned leave
 
 
