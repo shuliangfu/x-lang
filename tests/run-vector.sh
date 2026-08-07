@@ -8,17 +8,7 @@ cd "$(dirname "$0")/.."
 if [ -f compiler/Makefile ]; then
   xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c || true
 fi
-# vec_add_verify 引用 xlang_string_memcmp_c；purge 后须显式编 std/string/string.o。
-# PLATFORM: SHARED — shell catalog ensure (0× make) after MG physical delete.
-if [ ! -f std/string/string.o ]; then
-  (
-    cd compiler
-    XLANG="${XLANG:-./xlang_asm}"
-    [ -x "$XLANG" ] || XLANG=./xlang
-    export XLANG
-    bash scripts/xlang_compile_std_module.sh ensure ../std/string/string.o
-  )
-fi
+# vec_add_verify compares lanes directly (no xlang_string_memcmp_c / string.o).
 
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
