@@ -168,14 +168,14 @@ export extern function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i3
  */
 export extern function pipeline_typeck_call_arg_repr_compatible_ok_c(module: *Module, arena: *ASTArena,
 param_ref: i32, arg_ref: i32): i32;
-/* See implementation. */
-export extern function pipeline_typeck_resolve_type_alias_ref_c(arena: *ASTArena, type_ref: i32): i32;
+/* wave233 pure leave: resolve_type_alias_ref is typeck authority (active_module
+ * peel + local walk). Residual C face thins to typeck_resolve_type_alias_ref.
+ * Do NOT reintroduce pipeline_typeck_resolve_type_alias_ref_c wrap here (cycle). */
+export extern function pipeline_typeck_active_module_c(): *Module;
 export extern function pipeline_module_num_type_aliases_at(module: *Module): i32;
 export extern function pipeline_module_type_alias_name_len(module: *Module, idx: i32): i32;
 export extern function pipeline_module_type_alias_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 export extern function pipeline_module_type_alias_target_ref(module: *Module, idx: i32): i32;
-export extern function pipeline_typeck_coerce_init_int_binop_to_decl_c(arena: *ASTArena, init_ref: i32,
-decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32;
 export extern function pipeline_typeck_func_body_has_implicit_return_tail_c(arena: *ASTArena, body_ref: i32): i32;
 /* See implementation. */
 export extern function pipeline_expr_binop_left_ref_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -785,6 +785,24 @@ export function typeck_resolve_type_alias_ref_local(module: *Module, arena: *AST
       alias_i = alias_i + 1;
     }
     return type_ref;
+  }
+}
+
+/**
+ * Resolve type aliases using the process-wide active typeck module (wave233).
+ * Thin product face for residual C and type_refs_equal peel: load
+ * pipeline_typeck_active_module_c BSS, then walk aliases via
+ * typeck_resolve_type_alias_ref_local (depth 0).
+ * @param arena *ASTArena — type pool for NAMED names
+ * @param type_ref i32 — type_ref to peel (null/non-NAMED returned unchanged)
+ * @return i32 — resolved target type_ref, or type_ref if no alias match
+ * PLATFORM: SHARED — freestanding typeck_x.o; residual C face thins here.
+ */
+export function typeck_resolve_type_alias_ref(arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let mod: *Module = pipeline_typeck_active_module_c();
+    return typeck_resolve_type_alias_ref_local(mod, arena, type_ref, 0);
   }
 }
 
@@ -6484,9 +6502,10 @@ export function type_refs_equal_impl(arena: *ASTArena, a: i32, b: i32): bool {
 /**
  * Structural type_ref equality with type-alias peel (G.7 single authority).
  * wave230 pure leave: do NOT wrap residual pipeline_typeck_type_refs_equal_c
- * (that face thins back to this export — C wrap would recurse). Resolve aliases
- * via residual active-module peel, then type_refs_equal_impl (named / PTR /
- * ARRAY / VECTOR compound walk).
+ * (that face thins back to this export — C wrap would recurse).
+ * wave233: alias peel is typeck_resolve_type_alias_ref (active_module + local);
+ * residual resolve_alias_c thins to that export — must not wrap residual C.
+ * Then type_refs_equal_impl (named / PTR / ARRAY / VECTOR compound walk).
  * @param arena *ASTArena — type pool
  * @param a i32 — left type_ref (0/null vs null → a==b)
  * @param b i32 — right type_ref
@@ -6499,9 +6518,9 @@ export function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
     if (ast.ref_is_null(a) || ast.ref_is_null(b)) {
       return a == b;
     }
-    /* Alias peel still residual (active_module BSS); compound walk is typeck. */
-    a = pipeline_typeck_resolve_type_alias_ref_c(arena, a);
-    b = pipeline_typeck_resolve_type_alias_ref_c(arena, b);
+    /* wave233 pure leave: alias peel via typeck authority (not residual C). */
+    a = typeck_resolve_type_alias_ref(arena, a);
+    b = typeck_resolve_type_alias_ref(arena, b);
     if (a == b) {
       return true;
     }
@@ -7350,15 +7369,81 @@ decl_kind: i32, init_kind: i32): i32 {
 }
 
 /**
- * See implementation.
- * See implementation.
+ * Coerce arithmetic / EXPR_NEG init into a scalar int or f32/f64 declaration.
+ *
+ * Purpose: let/assign/return of `a + b`, `a - b`, unary `-N` (and NAMED i8/i16/u16)
+ * must stamp resolved_type_ref to the declared type so freestanding emit loads
+ * the right width / IEEE bits (not default i32). wave319: f32/f64 + EXPR_NEG of
+ * bare int lit also stamps the unary operand.
+ *
+ * @param arena *ASTArena — expr/type pool
+ * @param init_ref i32 — init expression ref (ADD/SUB/MUL/DIV/NEG)
+ * @param decl_ty_ref i32 — declared type_ref to stamp
+ * @param decl_kind i32 — TypeKind ordinal of decl (I32/I64/U*/F*/NAMED i8/i16/u16)
+ * @param init_kind i32 — ExprKind ordinal of init
+ * @return i32 — 1 if stamped, 0 if not applicable
+ * wave233 pure leave: body was residual int_binop_c; residual face thins here.
+ * PLATFORM: SHARED — freestanding typeck_x.o.
  */
 export function typeck_coerce_init_int_binop_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32, init_kind: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    return pipeline_typeck_coerce_init_int_binop_to_decl_c(arena, init_ref, decl_ty_ref,
-    decl_kind, init_kind);
+    let ord_i32: i32 = 0;
+    let ord_u8: i32 = 2;
+    let ord_u32: i32 = 3;
+    let ord_u64: i32 = 4;
+    let ord_i64: i32 = 5;
+    let ord_usize: i32 = 6;
+    let ord_isize: i32 = 7;
+    let ord_named: i32 = 8;
+    let ord_f32: i32 = 14;
+    let ord_f64: i32 = 15;
+    let ord_add: i32 = 4;
+    let ord_sub: i32 = 5;
+    let ord_mul: i32 = 6;
+    let ord_div: i32 = 7;
+    let ord_neg: i32 = 22;
+    let ord_lit: i32 = 0;
+    let nm: u8[128] = [];
+    let nlen: i32 = 0;
+    let op_ref: i32 = 0;
+    if (arena == 0 as *ASTArena || init_ref <= 0 || init_ref > arena.num_exprs) {
+      return 0;
+    }
+    /* i8/i16 live as TYPE_NAMED; u16 same. Bare int lit still via lit coerce. */
+    if (decl_kind != ord_i32 && decl_kind != ord_i64 && decl_kind != ord_u8 &&
+        decl_kind != ord_u32 && decl_kind != ord_u64 && decl_kind != ord_usize &&
+        decl_kind != ord_isize && decl_kind != ord_f32 && decl_kind != ord_f64 &&
+        decl_kind != ord_named) {
+      return 0;
+    }
+    if (decl_kind == ord_named) {
+      nlen = pipeline_type_named_name_into(arena, decl_ty_ref, &nm[0]);
+      /* "i8" / "i16" / "u16" only */
+      if (!((nlen == 2 && nm[0] == 105 && nm[1] == 56) ||
+            (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54) ||
+            (nlen == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54))) {
+        return 0;
+      }
+    }
+    if (init_kind != ord_add && init_kind != ord_sub && init_kind != ord_mul &&
+        init_kind != ord_div && init_kind != ord_neg) {
+      return 0;
+    }
+    /*
+     * wave319: f32/f64 + EXPR_NEG of bare int lit — stamp operand too so
+     * freestanding emit_neg loads IEEE bits (not two's-complement int).
+     */
+    if ((decl_kind == ord_f32 || decl_kind == ord_f64) && init_kind == ord_neg) {
+      op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+      if (!ast.ref_is_null(op_ref) && op_ref > 0 && op_ref <= arena.num_exprs &&
+          pipeline_expr_kind_ord_at(arena, op_ref) == ord_lit) {
+        pipeline_expr_set_resolved_type_ref(arena, op_ref, decl_ty_ref);
+      }
+    }
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
   }
 }
 
@@ -8035,20 +8120,57 @@ export function typeck_check_expr_float_lit(arena: *ASTArena, expr_ref: i32): i3
   }
 }
 
-/* See implementation. */
-export extern function pipeline_typeck_check_expr_int_lit_c(arena: *ASTArena, expr_ref: i32): i32;
-/** Exported function `typeck_check_expr_int_lit`.
- * Implements `typeck_check_expr_int_lit`.
- * @param arena *ASTArena
- * @param expr_ref i32
- * @param return_type_ref i32
- * @return i32
+/**
+ * Default-type EXPR_LIT: i32 when |v| fits int32, else i64.
+ * wave670: keyword `null` (int_val=0 + var_name="null") is not stamped —
+ * only TYPE_PTR coerce may retype it.
+ * @param arena *ASTArena — expr pool
+ * @param expr_ref i32 — EXPR_LIT ref
+ * @param return_type_ref i32 — optional expect for null→ptr coerce (0 = skip)
+ * @return i32 — always 0 (side-effect stamp only)
+ * wave233 pure leave: body was residual int_lit_c; residual face thins here
+ * with return_type_ref=0. PLATFORM: SHARED freestanding typeck_x.o.
  */
 export function typeck_check_expr_int_lit(arena: *ASTArena, expr_ref: i32, return_type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+    let v: i64 = 0;
+    let ty: i32 = 0;
+    let vlen: i32 = 0;
+    let vname: u8[8] = [];
+    let i32_max: i64 = 2147483647;
+    let i32_min: i64 = -2147483648;
+    let ord_i32: i32 = 0;
+    let ord_i64: i32 = 5;
     typeck_ret_coerce_null_lit_to_expect(arena, expr_ref, return_type_ref);
-    return pipeline_typeck_check_expr_int_lit_c(arena, expr_ref);
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    /* Already resolved — no-op (matches residual int_lit_c). */
+    if (!ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
+      return 0;
+    }
+    /*
+     * wave670 Cap residual: keyword `null` is EXPR_LIT 0 tagged var_name="null".
+     * Do not default-stamp as i32 — only TYPE_PTR coerce may retype it.
+     */
+    v = pipeline_expr_int64_val_at(arena, expr_ref);
+    vlen = pipeline_expr_var_name_len(arena, expr_ref);
+    if (v == 0 && vlen == 4) {
+      pipeline_expr_var_name_into(arena, expr_ref, &vname[0]);
+      if (vname[0] == 110 && vname[1] == 117 && vname[2] == 108 && vname[3] == 108) {
+        return 0;
+      }
+    }
+    if (v > i32_max || v < i32_min) {
+      ty = pipeline_type_ensure_by_kind_ord(arena, ord_i64);
+    } else {
+      ty = pipeline_type_ensure_by_kind_ord(arena, ord_i32);
+    }
+    if (ty != 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ty);
+    }
+    return 0;
   }
 }
 

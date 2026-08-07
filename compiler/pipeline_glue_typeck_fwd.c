@@ -90,24 +90,13 @@ extern int32_t pipeline_module_type_alias_name_len(struct ast_Module *m, int32_t
 extern uint8_t pipeline_module_type_alias_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
 extern int32_t pipeline_module_type_alias_target_ref(struct ast_Module *m, int32_t idx);
 
-/* wave1083 G.7: pipeline_typeck_resolve_type_alias_ref_impl_c body migrated to
- * pipeline_typeck_coerce_init.c EOF (type alias chain resolver: NAMED → target
- * ref, depth-limited recursion). Static fwd decl below (before callsite in
- * resolve_type_alias_ref_c, now in coerce_init.c). Body 36 LOC. Deps:
- * ast_ref_is_null (global) / pipeline_module_num_type_aliases_at (extern) /
- * pipeline_type_kind_ord_at (extern) / pipeline_type_named_name_into (extern) /
- * pipeline_module_type_alias_name_len (extern) /
- * pipeline_module_type_alias_name_byte_at (extern) /
- * pipeline_module_type_alias_target_ref (extern). */
-static int32_t pipeline_typeck_resolve_type_alias_ref_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                             int32_t type_ref, int32_t depth);
+/* wave233 G.7 pure leave: resolve_type_alias_ref_impl residual body retired →
+ * typeck_resolve_type_alias_ref (typeck_x.o). Public C face
+ * pipeline_typeck_resolve_type_alias_ref_c thins in coerce_init.c. Do not
+ * re-open static impl here (G.7 dual-authority ban). */
 
-/* wave1158 G.7: 9 extern public wrappers (type_refs_equal_named_c /
- * type_refs_equal_same_kind_c / resolve_type_alias_ref_c /
- * type_refs_equal_c / type_refs_equal_impl_c / type_ref_is_bool_impl_c /
- * type_ref_is_bool_c / expr_type_ref_impl_c / expr_type_ref_c) migrated to
- * pipeline_typeck_coerce_init.c EOF — colocated with wave1080-1083 static
- * implementations. Bodies removed; extern fwd decls above. */
+/* wave1158/wave233 G.7: public wrappers (type_refs_equal_* / resolve_alias /
+ * type_ref_is_bool / expr_type_ref) thin in coerce_init.c → typeck_x.o. */
 
 /* wave1156 G.7: typeck diag fmt cluster (5 fns) migrated to
  * pipeline_typeck_assign.c EOF (colocated with assign mismatch diag domain —
