@@ -27,18 +27,22 @@
  *
  * wave242 G.7 pure leave: WPO-S3 post-scan tree (scan_expr / scan_block /
  * pipeline_typeck_scan_module_struct_stack_escape_c) → typeck.x.
- * Cap residual deletes static scan bodies (dual-export ban); pure calls residual
- * pipeline_typeck_check_call_struct_stack_escape_c (public, stack_local helpers).
+ * Cap residual deletes static scan bodies (dual-export ban); pure calls pure
+ * pipeline_typeck_check_call_struct_stack_escape_c (wave244; dual-export ban).
  *
  * wave243 G.7 pure leave: M-5 read_ptr slice + M-3 stamp_let → typeck.x
  * (pipeline_typeck_is_read_ptr_slice_callee_c /
  *  pipeline_typeck_read_ptr_slice_return_ref_c /
  *  pipeline_type_stamp_block_let_region_c). Cap residual deletes second bodies.
  *
+ * wave244 G.7 pure leave: M-3 check_block_one_region + WPO-S3
+ * call_struct_stack_escape → typeck.x (pipeline_typeck_check_block_one_region_c /
+ * pipeline_typeck_check_call_struct_stack_escape_c). Cap residual deletes second
+ * bodies; pure var_is_block_local gains residual-fidelity block-tree walk.
+ *
  * Still residual (not pure-leaved this wave):
- * - stack_local ptr stamp helpers
- * - call_struct_stack_escape + block tree store-scan helpers (param field)
- * - check_block_one_region + ptr_for_addr_of
+ * - stack_local ptr stamp helpers + ptr_for_addr_of
+ * - block tree store-scan helpers (param field; DCE candidate)
  *
  * G.7 dual-export ban: do NOT re-open second bodies for pure-leaved faces;
  * typeck.x is single authority for those checks.
@@ -671,12 +675,12 @@ static int32_t typeck_func_stores_param_into_param_field_c(struct ast_Module *m,
 
 /*
  * wave242 G.7 pure leave: scan_expr / scan_block / scan_module → typeck_x.o.
- * Dual-export ban: no second scan bodies here. Pure faces call residual
- * pipeline_typeck_check_call_struct_stack_escape_c (public below) + pure
+ * Dual-export ban: no second scan bodies here. Pure faces call pure
+ * pipeline_typeck_check_call_struct_stack_escape_c (wave244) + pure
  * check_* assign/return faces.
  * wave243 G.7 pure leave: read_ptr + stamp_let → typeck_x.o (no second bodies).
- * Residual keeps stack_local helpers + call_struct_stack_escape + one_region +
- * ptr_for_addr.
+ * wave244 G.7 pure leave: one_region + call_struct → typeck_x.o (no second bodies).
+ * Residual keeps stack_local helpers + ptr_for_addr.
  * PLATFORM: SHARED — host-cc via pipeline_x.o TU (U faces from typeck_x).
  */
 
@@ -686,122 +690,16 @@ extern int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *
 extern int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref,
                                                      int32_t let_idx, struct ast_PipelineDepCtx *ctx);
 
-/* ========================================================================== *
- * wave1214 G.7: pipeline_typeck_check_call_struct_stack_escape_c migrated
- * from pipeline_glue.c L3685-3752. Colocated with region/escape assign-site
- * domain (this file; #include at glue.c L3678).
- *
- * Members (1 fn):
- *  - pipeline_typeck_check_call_struct_stack_escape_c (WPO-S3 CALL stack escape)
- *
- * Deps (all visible at #include point L3678):
- *  - pipeline_typeck_resolve_call_func_index_c (static fwd decl, glue.c L3628)
- *  - typeck_expr_is_addr_of_block_local_c (static, this file — defined earlier)
- *  - typeck_type_is_named_struct_c (static, struct_lit.c; #include L1435 < L3678)
- *  - pipeline_dep_ctx_typeck_unsafe_depth_at / pipeline_expr_call_num_args_at /
- *    pipeline_module_func_num_params_at / pipeline_expr_call_arg_ref /
- *    pipeline_expr_resolved_type_ref / pipeline_type_kind_ord_at /
- *    pipeline_type_elem_ref_at / pipeline_module_func_param_type_ref_at /
- *    pipeline_expr_line_at / pipeline_expr_col_at / link_abi_getenv /
- *    lsp_diag_report_typeck (all extern)
- *
- * Callers: no TU-internal callsites in glue.c. Sole callers are
- * pipeline_typeck_region_assign.c L1009 (this file) + pipeline_typeck_check_expr.c
- * L129 (#include at glue.c L4265, after L3678 — visible).
- *
- * PLATFORM: SHARED — Cap-T001: inside unsafe { } skip (depth>0); safe code
- * still hard-fails T001.
- * ========================================================================== */
-
-/**
- * WPO-S3: CALL path — reject when a local struct pointer is passed alongside
- * another *Struct formal parameter (callee may write into the outer slot).
- *
- * Why: if a function f(&local_struct, outer_struct_ptr) is called and the
- *      callee assigns through outer_struct_ptr, it may overwrite local_struct
- *      whose lifetime is bounded to the caller's frame — a stack escape.
- *      This check prevents that by scanning all arg pairs: if one arg is
- *      &local_named_struct and another arg's formal is *NamedStruct (from a
- *      longer-lived source), reject with a diagnostic.
- * Contract: NULL module/arena/ctx or call_expr_ref<=0 -> 0 (no error).
- *           unsafe_depth>0 -> 0 (Cap-T001: unsafe block opt-out).
- *           XLANG_SKIP_STACK_ESCAPE env set -> 0 (diagnostic bypass).
- *           Returns -1 on escape detected, 0 otherwise.
- * Invariant: both args being &block_local is safe (same frame lifetime);
- *            only outer-origin *Struct triggers rejection.
- * Asm/Perf: O(num_args^2) — pairwise scan; cold path (typeck, not emit).
- * PLATFORM: SHARED.
- */
-/* wave242: public (non-static) — pure scan_expr + check_expr residual call this face.
- * stack_local helpers remain Cap residual statics in this file. */
-int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                         int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx) {
-  int32_t func_ix;
-  int32_t num_args;
-  int32_t np;
-  int32_t src_i;
-  int32_t dst_j;
-  int32_t line;
-  int32_t col;
-  if (!module || !arena || !ctx || call_expr_ref <= 0)
-    return 0;
-  /* Cap-T001: mega parser/typeck/codegen whole-body unsafe may pass &local with *Struct outer. */
-  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) > 0)
-    return 0;
-  func_ix = pipeline_typeck_resolve_call_func_index_c(module, arena, call_expr_ref);
-  if (func_ix < 0)
-    return 0;
-  num_args = pipeline_expr_call_num_args_at(arena, call_expr_ref);
-  np = pipeline_module_func_num_params_at(module, func_ix);
-  if (num_args != np || num_args < 2)
-    return 0;
-  if (link_abi_getenv("XLANG_SKIP_STACK_ESCAPE") != NULL)
-    return 0;
-  for (src_i = 0; src_i < num_args; src_i++) {
-    int32_t arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, src_i);
-    int32_t arg_ty;
-    int32_t arg_elem;
-    if (!typeck_expr_is_addr_of_block_local_c(module, arena, ctx, arg_ref))
-      continue;
-    /** 仅当 &local 的类型是 *Struct 时才触发（&local_i32 不逃逸）。 */
-    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
-    if (arg_ty <= 0)
-      continue;
-    if (pipeline_type_kind_ord_at(arena, arg_ty) != (int32_t)ast_TypeKind_TYPE_PTR)
-      continue;
-    arg_elem = pipeline_type_elem_ref_at(arena, arg_ty);
-    if (arg_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, arg_elem))
-      continue;
-    for (dst_j = 0; dst_j < num_args; dst_j++) {
-      int32_t param_ref;
-      int32_t elem_ref;
-      int32_t other_arg;
-      if (dst_j == src_i)
-        continue;
-      param_ref = pipeline_module_func_param_type_ref_at(module, func_ix, dst_j);
-      if (param_ref <= 0 ||
-          pipeline_type_kind_ord_at(arena, param_ref) != (int32_t)ast_TypeKind_TYPE_PTR)
-        continue;
-      elem_ref = pipeline_type_elem_ref_at(arena, param_ref);
-      if (elem_ref <= 0 || !typeck_type_is_named_struct_c(module, arena, elem_ref))
-        continue;
-      /**
-       * 另一实参若也是「本函数块局部」的取址，则两指针同帧栈寿命，不是 outer。
-       * 误报例：emit/main 中 pipeline(..., &out, &ctx) 两个本地 struct。
-       * 仅当另一 *Struct 来自更长寿命（参数/堆/外层）时才拒。
-       */
-      other_arg = pipeline_expr_call_arg_ref(arena, call_expr_ref, dst_j);
-      if (typeck_expr_is_addr_of_block_local_c(module, arena, ctx, other_arg))
-        continue;
-      line = pipeline_expr_line_at(arena, call_expr_ref);
-      col = pipeline_expr_col_at(arena, call_expr_ref);
-      lsp_diag_report_typeck((int)line, (int)col,
-                             "struct stack escape: cannot pass address of local struct with outer struct pointer");
-      return -1;
-    }
-  }
-  return 0;
-}
+/* wave244 pure leave: one_region + call_struct live in typeck_x.o (dual-export ban).
+ * check_expr residual may still call call_struct by name — U from typeck_x. */
+extern int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *module,
+                                                                struct ast_ASTArena *arena,
+                                                                int32_t call_expr_ref,
+                                                                struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module,
+                                                        struct ast_ASTArena *arena, int32_t block_ref,
+                                                        int32_t region_idx, int32_t return_type_ref,
+                                                        struct ast_PipelineDepCtx *ctx);
 
 /**
  * M-3 CALL slice region Cap residual thin face.
@@ -812,65 +710,6 @@ int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *modu
 int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                   int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx) {
   return typeck_check_call_slice_region(module, arena, call_expr_ref, ctx);
-}
-
-/* wave1234 G.7: pipeline_typeck_check_block_one_region_c migrated from
- * pipeline_glue.c to this file's EOF (colocated with with_arena scope +
- * region scope push/pop — M-3 / MEM-C1 region dispatch domain).
- * Dependencies visible via earlier fwd decls in glue.c (before #include at
- * L3576):
- *   - pipeline_block_region_body_ref / _is_unsafe / _with_arena_cap_ref /
- *     _label_len / _label_copy64 (ast_pool_block.c via ast_pool.c #include L2839)
- *   - pipeline_typeck_unsafe_depth_push_c / _pop_c (fwd at glue.c L3238-3239;
- *     definitions in pipeline_typeck_check_block.c #include L3959)
- *   - pipeline_typeck_with_arena_scope_push_c / _pop_c (wave240 pure faces)
- *   - pipeline_dep_ctx_scope_region_push_c / _pop_c (wave241 pure typeck_x)
- *   - typeck_check_block (extern decl inside function body)
- * Sole extern caller: typeck_gen.c L9100 + typeck.x seed. PLATFORM: SHARED. */
-
-/**
- * M-3 / MEM-C1：typeck 单条 region 或 with_arena 块。
- * with_arena 无域标签，旧实现 label_len<=0 直接 return 0 会跳过体块 typeck，导致 AL-04 assign 逃逸漏报。
- */
-int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                 int32_t block_ref, int32_t region_idx, int32_t return_type_ref,
-                                                 struct ast_PipelineDepCtx *ctx) {
-  uint8_t label[128];
-  int32_t label_len;
-  int32_t body_ref;
-  int32_t wa_cap;
-  int32_t rc;
-  extern int32_t typeck_check_block(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
-                                    int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
-  if (!module || !arena || !ctx || block_ref <= 0 || region_idx < 0)
-    return 0;
-  body_ref = pipeline_block_region_body_ref(arena, block_ref, region_idx);
-  if (body_ref <= 0)
-    return 0;
-  if (pipeline_block_region_is_unsafe(arena, block_ref, region_idx)) {
-    int32_t saved_ud;
-    saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
-    rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
-    pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
-    return rc;
-  }
-  wa_cap = pipeline_block_region_with_arena_cap_ref(arena, block_ref, region_idx);
-  if (wa_cap > 0) {
-    /** MEM-C1：push with_arena 栈，使 check_expr_impl_mega / post-scan 能报 allocator region escape。 */
-    pipeline_typeck_with_arena_scope_push_c(body_ref);
-    rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
-    pipeline_typeck_with_arena_scope_pop_c();
-    return rc;
-  }
-  label_len = pipeline_block_region_label_len(arena, block_ref, region_idx);
-  if (label_len <= 0)
-    return 0;
-  pipeline_block_region_label_copy64(arena, block_ref, region_idx, label);
-  if (pipeline_dep_ctx_scope_region_push_c(ctx, label, label_len) != 0)
-    return -1;
-  rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
-  pipeline_dep_ctx_scope_region_pop_c(ctx);
-  return rc;
 }
 
 /* wave1282 G.7: pipeline_typeck_ptr_for_addr_of_operand_c migrated from
