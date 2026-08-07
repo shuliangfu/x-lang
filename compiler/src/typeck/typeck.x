@@ -552,8 +552,25 @@ export extern function pipeline_typeck_check_extern_call_unsafe_boundary_c(modul
 expr_ref: i32, ctx: *PipelineDepCtx): i32;
 /* See implementation. */
 export extern function driver_diagnostic_typeck_deref_outside_unsafe(line: i32, col: i32): void;
+/**
+ * Cap residual thin face (wave239 pure leave): product CALL path uses
+ * typeck_check_call_slice_region. Historical *_c name remains residual ABI only.
+ * PLATFORM: SHARED
+ */
 export extern function pipeline_typeck_check_call_slice_region_c(module: *Module, arena: *ASTArena,
 call_expr_ref: i32, ctx: *PipelineDepCtx): i32;
+/**
+ * Resolve CALL to entry-module func_ix when resolved_func_index is still unset
+ * (belt path for legacy typeck_gen; product resolve stamps first).
+ * PLATFORM: SHARED — residual method_call public emit face
+ */
+export extern function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8,
+call_expr_ref: i32): i32;
+/**
+ * Env lookup via pure link_abi (not raw getenv). Used by call_slice stack-escape skip.
+ * PLATFORM: SHARED freestanding
+ */
+export extern function link_abi_getenv(name: *u8): *u8;
 /* wave232: generic type-args gate + mono fixup (Cap residual method_call faces; typeck call orchestrator). */
 export extern function pipeline_typeck_check_call_generic_type_args_c(module: *Module, arena: *ASTArena,
 expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32;
@@ -11114,6 +11131,230 @@ return_type_ref: i32): i32 {
 }
 
 /**
+ * MOD-02 sub-check: *Struct formal vs call arg (incl. &local) compatibility.
+ * wave239 G.7 pure leave: was Cap residual static typeck_check_call_ptr_struct_compat_c
+ * (method_call.c). Used only from typeck_check_call_slice_region.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param call_expr_ref i32 — CALL site for line/col
+ * @param param_ref i32 — formal type_ref
+ * @param arg_ref i32 — argument expr_ref
+ * @return i32 — 0 ok / not applicable; -1 diagnostic emitted
+ * PLATFORM: SHARED freestanding typeck — G.7 single *Struct call-arg gate.
+ */
+function typeck_check_call_ptr_struct_compat(module: *Module, arena: *ASTArena, call_expr_ref: i32,
+param_ref: i32, arg_ref: i32): i32 {
+  // PLATFORM: SHARED — *Struct formal vs arg shape + repr gate.
+  unsafe {
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let param_elem: i32 = 0;
+    let arg_ty: i32 = 0;
+    let arg_kind: i32 = 0;
+    let arg_elem: i32 = 0;
+    let op: i32 = 0;
+    let m_u8: *u8 = 0 as *u8;
+    let a_u8: *u8 = 0 as *u8;
+    let msg: u8[64] = [];
+    let p: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || param_ref <= 0 || arg_ref <= 0) {
+      return 0;
+    }
+    /* TYPE_PTR ord == 9 */
+    if (pipeline_type_kind_ord_at(arena, param_ref) != 9) {
+      return 0;
+    }
+    param_elem = pipeline_type_elem_ref_at(arena, param_ref);
+    m_u8 = module as *u8;
+    a_u8 = arena as *u8;
+    if (param_elem <= 0 || typeck_type_is_named_struct_c(m_u8, a_u8, param_elem) == 0) {
+      return 0;
+    }
+    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
+    /* EXPR_ADDR_OF ord == 51 — peel operand when arg still untyped */
+    if (arg_ty <= 0 && arg_kind == 51) {
+      op = pipeline_expr_unary_operand_ref_at(arena, arg_ref);
+      if (op > 0) {
+        arg_ty = pipeline_expr_resolved_type_ref(arena, op);
+      }
+    }
+    if (arg_ty <= 0) {
+      return 0;
+    }
+    /* TYPE_NAMED=8, TYPE_PTR=9 */
+    if (pipeline_type_kind_ord_at(arena, arg_ty) == 8) {
+      arg_elem = arg_ty;
+    } else if (pipeline_type_kind_ord_at(arena, arg_ty) == 9) {
+      arg_elem = pipeline_type_elem_ref_at(arena, arg_ty);
+    } else {
+      return 0;
+    }
+    if (arg_elem <= 0 || typeck_type_is_named_struct_c(m_u8, a_u8, arg_elem) == 0) {
+      return 0;
+    }
+    /* Positive path shared with call_arg_types / score (wave234 pure leave). */
+    if (typeck_call_arg_repr_compatible_ok(module, arena, param_ref, arg_ref) != 0) {
+      return 0;
+    }
+    line = pipeline_expr_line_at(arena, call_expr_ref);
+    col = pipeline_expr_col_at(arena, call_expr_ref);
+    /* "no matching overload (incompatible struct pointer argument)" len 56 */
+    p = typeck_diag_append_lit(&msg[0], 0, 63,
+    "no matching overload (incompatible struct pointer argument)", 56);
+    msg[p] = 0;
+    lsp_diag_report_typeck(line, col, &msg[0]);
+    return 0 - 1;
+  }
+}
+
+/**
+ * M-3 CALL post-resolve: per-arg slice region + array_lit stamp + *Struct compat
+ * + WPO-S3 &local struct with outer *Struct sibling reject.
+ * wave239 G.7 pure leave: was Cap residual pipeline_typeck_check_call_slice_region_c.
+ * @param module *Module — entry / caller module
+ * @param arena *ASTArena — call expr arena
+ * @param call_expr_ref i32 — EXPR_CALL
+ * @param ctx *PipelineDepCtx — dep modules + unsafe depth (nullable belt)
+ * @return i32 — 0 ok; -1 diagnostic emitted
+ * PLATFORM: SHARED freestanding typeck — G.7 single call_slice_region authority.
+ */
+export function typeck_check_call_slice_region(module: *Module, arena: *ASTArena, call_expr_ref: i32,
+ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — post-resolve CALL arg region / stack-escape gate.
+  unsafe {
+    let func_ix: i32 = 0;
+    let dep_ix: i32 = 0;
+    let num_args: i32 = 0;
+    let np: i32 = 0;
+    let i: i32 = 0;
+    let arg_ref: i32 = 0;
+    let param_ref: i32 = 0;
+    let arg_ty: i32 = 0;
+    let arg_kind: i32 = 0;
+    let param_kind: i32 = 0;
+    let callee_mod: *Module = 0 as *Module;
+    let dm: *Module = 0 as *Module;
+    let m_u8: *u8 = 0 as *u8;
+    let a_u8: *u8 = 0 as *u8;
+    let skip_env: *u8 = 0 as *u8;
+    let src_i: i32 = 0;
+    let dst_j: i32 = 0;
+    let stack_arg: i32 = 0;
+    let stack_arg_ty: i32 = 0;
+    let stack_arg_elem: i32 = 0;
+    let param_ref2: i32 = 0;
+    let elem_ref: i32 = 0;
+    let other_arg: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let msg: u8[96] = [];
+    let p: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || call_expr_ref <= 0) {
+      return 0;
+    }
+    /* LANG-007 belt: legacy typeck_gen call path may skip pure call body S0. */
+    if (typeck_check_extern_call_unsafe_boundary(module, arena, call_expr_ref, ctx) != 0) {
+      return 0 - 1;
+    }
+    func_ix = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
+    dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
+    if (func_ix < 0) {
+      m_u8 = module as *u8;
+      a_u8 = arena as *u8;
+      func_ix = pipeline_typeck_resolve_call_func_index_for_emit_c(m_u8, a_u8, call_expr_ref);
+    }
+    if (func_ix < 0) {
+      return 0;
+    }
+    callee_mod = module;
+    if (dep_ix >= 0 && ctx != 0 as *PipelineDepCtx) {
+      dm = pipeline_dep_ctx_module_at(ctx, dep_ix);
+      if (dm != 0 as *Module) {
+        callee_mod = dm;
+      }
+    }
+    num_args = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+    np = pipeline_module_func_num_params_at(callee_mod, func_ix);
+    if (num_args != np) {
+      return 0;
+    }
+    i = 0;
+    while (i < num_args) {
+      arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, i);
+      param_ref = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i);
+      /*
+       * wave332: bare ARRAY_LIT args check_expr'd before resolve → no param type
+       * then; stamp here so host emit_call_arg_slice_abi sees slice shape.
+       * G.7: reuse typeck_coerce_init_array_vector_lit_to_decl (let/assign authority).
+       */
+      if (arg_ref > 0 && param_ref > 0) {
+        arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
+        param_kind = pipeline_type_kind_ord_at(arena, param_ref);
+        typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, param_ref, param_kind, arg_kind);
+      }
+      arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+      if (typeck_check_slice_region_assign(arena, arg_ref, param_ref, arg_ty) != 0) {
+        return 0 - 1;
+      }
+      if (typeck_check_call_ptr_struct_compat(module, arena, call_expr_ref, param_ref, arg_ref) != 0) {
+        return 0 - 1;
+      }
+      i = i + 1;
+    }
+    /*
+     * WPO-S3: &local struct + outer *Struct formal sibling → reject.
+     * Cap-T001: skip inside unsafe { } (same gate as call_struct_stack_escape).
+     */
+    if (ctx != 0 as *PipelineDepCtx && num_args >= 2) {
+      skip_env = link_abi_getenv("XLANG_SKIP_STACK_ESCAPE" as *u8);
+      if (skip_env == 0 as *u8 && pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) <= 0) {
+        src_i = 0;
+        while (src_i < num_args) {
+          stack_arg = pipeline_expr_call_arg_ref(arena, call_expr_ref, src_i);
+          if (typeck_expr_is_addr_of_block_local(module, arena, ctx, stack_arg) != 0) {
+            stack_arg_ty = pipeline_expr_resolved_type_ref(arena, stack_arg);
+            if (stack_arg_ty > 0 && pipeline_type_kind_ord_at(arena, stack_arg_ty) == 9) {
+              stack_arg_elem = pipeline_type_elem_ref_at(arena, stack_arg_ty);
+              m_u8 = module as *u8;
+              a_u8 = arena as *u8;
+              if (stack_arg_elem > 0 && typeck_type_is_named_struct_c(m_u8, a_u8, stack_arg_elem) != 0) {
+                dst_j = 0;
+                while (dst_j < num_args) {
+                  if (dst_j != src_i) {
+                    param_ref2 = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, dst_j);
+                    if (param_ref2 > 0 && pipeline_type_kind_ord_at(arena, param_ref2) == 9) {
+                      elem_ref = pipeline_type_elem_ref_at(arena, param_ref2);
+                      if (elem_ref > 0 && typeck_type_is_named_struct_c(m_u8, a_u8, elem_ref) != 0) {
+                        other_arg = pipeline_expr_call_arg_ref(arena, call_expr_ref, dst_j);
+                        /* same-frame &local sibling is not outer */
+                        if (typeck_expr_is_addr_of_block_local(module, arena, ctx, other_arg) == 0) {
+                          line = pipeline_expr_line_at(arena, call_expr_ref);
+                          col = pipeline_expr_col_at(arena, call_expr_ref);
+                          /* "struct stack escape: cannot pass address of local struct with outer struct pointer" len 78 */
+                          p = typeck_diag_append_lit(&msg[0], 0, 95,
+                          "struct stack escape: cannot pass address of local struct with outer struct pointer", 78);
+                          msg[p] = 0;
+                          lsp_diag_report_typeck(line, col, &msg[0]);
+                          return 0 - 1;
+                        }
+                      }
+                    }
+                  }
+                  dst_j = dst_j + 1;
+                }
+              }
+            }
+          }
+          src_i = src_i + 1;
+        }
+      }
+    }
+    return 0;
+  }
+}
+
+/**
  * Type-check EXPR_CALL: unsafe boundary, args, resolve, arity (wave660),
  * arg types (wave661), generic type-args gate, slice region, return resolve
  * + generic mono fixup (wave232 pure leave parity with former call_c).
@@ -11171,7 +11412,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
       return -1;
     }
-    if (pipeline_typeck_check_call_slice_region_c(module, arena, expr_ref, ctx) != 0) {
+    /* wave239: call_slice pure leave — direct authority (not residual *_c hop). */
+    if (typeck_check_call_slice_region(module, arena, expr_ref, ctx) != 0) {
       typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
       return -1;
     }
