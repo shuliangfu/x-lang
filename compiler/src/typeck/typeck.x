@@ -583,6 +583,18 @@ ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_check_block_one_region_c(module: *Module, arena: *ASTArena,
 block_ref: i32, region_idx: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_block_region_is_unsafe(arena: *ASTArena, br: i32, ri: i32): i32;
+/**
+ * wave242 G.7 pure leave scan tree deps (Cap residual / block pool faces).
+ * PLATFORM: SHARED — post-typeck stack-escape walker.
+ */
+export extern function pipeline_block_region_with_arena_cap_ref(arena: *ASTArena, br: i32, ri: i32): i32;
+export extern function pipeline_block_region_label_len(arena: *ASTArena, br: i32, ri: i32): i32;
+export extern function pipeline_block_region_label_copy64(arena: *ASTArena, br: i32, ri: i32, dst: *u8): void;
+export extern function pipeline_typeck_unsafe_depth_push_c(ctx: *PipelineDepCtx): i32;
+export extern function pipeline_typeck_unsafe_depth_pop_c(ctx: *PipelineDepCtx, saved: i32): void;
+export extern function pipeline_typeck_check_call_struct_stack_escape_c(module: *Module, arena: *ASTArena,
+call_expr_ref: i32, ctx: *PipelineDepCtx): i32;
+export extern function pipeline_module_func_num_generic_params_at(module: *Module, fi: i32): i32;
 /* See implementation. */
 export extern function pipeline_typeck_linear_reset_c(): void;
 export extern function pipeline_typeck_linear_use_var_c(arena: *ASTArena, type_ref: i32, expr_ref: i32,
@@ -597,8 +609,9 @@ elem_ty: i32, module: *Module, ctx: *PipelineDepCtx): i32;
 /**
  * Cap residual thin faces (wave236–237 pure leave): product paths use
  * typeck_check_struct_stack_escape_assign / typeck_check_scope_borrow_* /
- * typeck_check_allocator_region_*. Residual scan / call_slice / mega still
- * call the *_c names. with_arena BSS faces stay residual (scope stack).
+ * typeck_check_allocator_region_*. wave242: post-scan tree pure leave
+ * (typeck_scan_* / pipeline_typeck_scan_module_struct_stack_escape_c) calls
+ * pure check faces + residual call_struct_stack_escape / return_slice_in_scope.
  * PLATFORM: SHARED
  */
 export extern function pipeline_typeck_check_struct_stack_escape_assign_c(module: *Module, arena: *ASTArena,
@@ -14796,4 +14809,302 @@ export function pipeline_typeck_region_scope_reset_c(): void {
 }
 
 // end wave241 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave242: typeck post-scan stack-escape tree pure leave
+// Authority: typeck_x.o (this file + typeck_gen hand-sync).
+// Symbols:
+//   typeck_scan_expr_stack_escape_c
+//   typeck_scan_block_stack_escape_c
+//   pipeline_typeck_scan_module_struct_stack_escape_c  (product ABI)
+// Cap residual region_assign deletes static scan bodies (dual-export ban).
+// Residual fidelity: nested while/for/if fail paths may leave current_block_ref
+// unrestored (same as former host-cc residual).
+// PLATFORM: SHARED freestanding typeck WPO-S3 / M-3 post-scan.
+// ---------------------------------------------------------------------------
+
+/**
+ * WPO-S3: single-expr assign/call/return stack-escape scan (post-typeck).
+ * Dispatches assign-like / RETURN / CALL through pure check faces; CALL also
+ * uses residual pipeline_typeck_check_call_struct_stack_escape_c (stack_local
+ * helpers still Cap residual).
+ * @param m *Module — entry module under scan
+ * @param a *ASTArena — arena for expr/type refs
+ * @param ctx *PipelineDepCtx — mutates current_func_index / current_block_ref
+ * @param func_ix i32 — enclosing function index (>=0)
+ * @param expr_ref i32 — expression to scan (>0)
+ * @return i32 — 0 OK; -1 escape (diag already printed)
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function typeck_scan_expr_stack_escape_c(m: *Module, a: *ASTArena, ctx: *PipelineDepCtx,
+func_ix: i32, expr_ref: i32): i32 {
+  let k: i32 = 0;
+  let saved_ix: i32 = 0;
+  let saved_br: i32 = 0;
+  let l: i32 = 0;
+  let r: i32 = 0;
+  let op: i32 = 0;
+  let func_ret: i32 = 0;
+  if (m == 0 as *Module || a == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || expr_ref <= 0
+  || func_ix < 0) {
+    return 0;
+  }
+  saved_ix = ctx.current_func_index;
+  saved_br = ctx.current_block_ref;
+  ctx.current_func_index = func_ix;
+  k = pipeline_expr_kind_ord_at(a, expr_ref);
+  if (glue_expr_kind_is_assign_like_ord(k) != 0) {
+    l = pipeline_expr_binop_left_ref_at(a, expr_ref);
+    r = pipeline_expr_binop_right_ref_at(a, expr_ref);
+    if (typeck_check_struct_stack_escape_assign(m, a, expr_ref, l, r, ctx) != 0) {
+      ctx.current_func_index = saved_ix;
+      ctx.current_block_ref = saved_br;
+      return -1;
+    }
+    if (typeck_check_scope_borrow_assign(m, a, expr_ref, l, r, ctx) != 0) {
+      ctx.current_func_index = saved_ix;
+      ctx.current_block_ref = saved_br;
+      return -1;
+    }
+    if (typeck_check_allocator_region_assign(m, a, expr_ref, l, ctx) != 0) {
+      ctx.current_func_index = saved_ix;
+      ctx.current_block_ref = saved_br;
+      return -1;
+    }
+  } else if (k == 41) {
+    // EXPR_RETURN = 41
+    op = pipeline_expr_unary_operand_ref_at(a, expr_ref);
+    func_ret = pipeline_module_func_return_type_at(m, func_ix);
+    if (typeck_check_scope_borrow_return(m, a, expr_ref, op, func_ret, ctx) != 0) {
+      ctx.current_func_index = saved_ix;
+      ctx.current_block_ref = saved_br;
+      return -1;
+    }
+    if (typeck_check_allocator_region_return(a, expr_ref, func_ret) != 0) {
+      ctx.current_func_index = saved_ix;
+      ctx.current_block_ref = saved_br;
+      return -1;
+    }
+    if (pipeline_typeck_check_return_slice_region_in_scope_c(a, expr_ref, func_ret, ctx) != 0) {
+      ctx.current_func_index = saved_ix;
+      ctx.current_block_ref = saved_br;
+      return -1;
+    }
+    if (typeck_check_return_slice_region(a, expr_ref, op, func_ret) != 0) {
+      ctx.current_func_index = saved_ix;
+      ctx.current_block_ref = saved_br;
+      return -1;
+    }
+  } else if (k == 48) {
+    // EXPR_CALL = 48
+    if (pipeline_typeck_check_call_struct_stack_escape_c(m, a, expr_ref, ctx) != 0) {
+      ctx.current_func_index = saved_ix;
+      ctx.current_block_ref = saved_br;
+      return -1;
+    }
+  }
+  ctx.current_func_index = saved_ix;
+  ctx.current_block_ref = saved_br;
+  return 0;
+}
+
+/**
+ * WPO-S3: recursive block scan — expr_stmts + final_expr + stmt_order
+ * (expr / while / for / if / region). Region path mirrors check_block_one_region
+ * (with_arena / labeled region / unsafe depth).
+ * @param m *Module — entry module
+ * @param a *ASTArena — arena
+ * @param ctx *PipelineDepCtx — mutates current_block_ref + region/with_arena nests
+ * @param func_ix i32 — enclosing function index
+ * @param block_ref i32 — block to walk
+ * @return i32 — 0 OK; -1 escape detected
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function typeck_scan_block_stack_escape_c(m: *Module, a: *ASTArena, ctx: *PipelineDepCtx,
+func_ix: i32, block_ref: i32): i32 {
+  let nes: i32 = 0;
+  let ei: i32 = 0;
+  let fin: i32 = 0;
+  let nso: i32 = 0;
+  let i: i32 = 0;
+  let saved_br: i32 = 0;
+  let k: i32 = 0;
+  let idx: i32 = 0;
+  let er: i32 = 0;
+  let br: i32 = 0;
+  let tr: i32 = 0;
+  let wa_cap: i32 = 0;
+  let is_unsafe: i32 = 0;
+  let saved_ud: i32 = 0;
+  let llen: i32 = 0;
+  let lbl: [u8; 128] = [0; 128];
+  if (m == 0 as *Module || a == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || block_ref <= 0
+  || func_ix < 0) {
+    return 0;
+  }
+  saved_br = ctx.current_block_ref;
+  ctx.current_block_ref = block_ref;
+  nes = ast.ast_block_num_expr_stmts(a, block_ref);
+  ei = 0;
+  while (ei < nes) {
+    er = ast.ast_block_expr_stmt_ref(a, block_ref, ei);
+    if (er > 0 && typeck_scan_expr_stack_escape_c(m, a, ctx, func_ix, er) != 0) {
+      ctx.current_block_ref = saved_br;
+      return -1;
+    }
+    ei = ei + 1;
+  }
+  fin = ast.ast_block_final_expr_ref(a, block_ref);
+  if (fin > 0 && typeck_scan_expr_stack_escape_c(m, a, ctx, func_ix, fin) != 0) {
+    ctx.current_block_ref = saved_br;
+    return -1;
+  }
+  nso = ast.ast_block_num_stmt_order(a, block_ref);
+  i = 0;
+  while (i < nso) {
+    k = ast.ast_block_stmt_order_kind(a, block_ref, i) as i32;
+    idx = ast.ast_block_stmt_order_idx(a, block_ref, i);
+    if (k == 2 && idx >= 0 && idx < ast.ast_block_num_expr_stmts(a, block_ref)) {
+      er = ast.ast_block_expr_stmt_ref(a, block_ref, idx);
+      if (er > 0 && typeck_scan_expr_stack_escape_c(m, a, ctx, func_ix, er) != 0) {
+        ctx.current_block_ref = saved_br;
+        return -1;
+      }
+    } else if (k == 3 && idx >= 0 && idx < ast.ast_block_num_loops(a, block_ref)) {
+      br = ast.ast_block_while_body_ref(a, block_ref, idx);
+      // Residual fidelity: fail path does not restore saved_br.
+      if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
+        return -1;
+      }
+    } else if (k == 4 && idx >= 0 && idx < ast.ast_block_num_for_loops(a, block_ref)) {
+      br = ast.ast_block_for_body_ref(a, block_ref, idx);
+      if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
+        return -1;
+      }
+    } else if (k == 5 && idx >= 0 && idx < ast.ast_block_num_if_stmts(a, block_ref)) {
+      tr = ast.ast_block_if_then_body_ref(a, block_ref, idx);
+      er = ast.ast_block_if_else_body_ref(a, block_ref, idx);
+      if (tr > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, tr) != 0) {
+        return -1;
+      }
+      if (er > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, er) != 0) {
+        return -1;
+      }
+    } else if (k == 6 && idx >= 0 && idx < ast.ast_block_num_regions(a, block_ref)) {
+      wa_cap = pipeline_block_region_with_arena_cap_ref(a, block_ref, idx);
+      br = ast.ast_block_region_body_ref(a, block_ref, idx);
+      is_unsafe = pipeline_block_region_is_unsafe(a, block_ref, idx);
+      saved_ud = 0;
+      if (is_unsafe != 0) {
+        saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
+      }
+      if (wa_cap > 0) {
+        pipeline_typeck_with_arena_scope_push_c(br);
+        if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
+          pipeline_typeck_with_arena_scope_pop_c();
+          if (is_unsafe != 0) {
+            pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
+          }
+          ctx.current_block_ref = saved_br;
+          return -1;
+        }
+        pipeline_typeck_with_arena_scope_pop_c();
+      } else {
+        llen = pipeline_block_region_label_len(a, block_ref, idx);
+        if (llen > 0) {
+          pipeline_block_region_label_copy64(a, block_ref, idx, &lbl[0]);
+          if (pipeline_dep_ctx_scope_region_push_c(ctx, &lbl[0], llen) != 0) {
+            if (is_unsafe != 0) {
+              pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
+            }
+            ctx.current_block_ref = saved_br;
+            return -1;
+          }
+        }
+        if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
+          if (llen > 0) {
+            pipeline_dep_ctx_scope_region_pop_c(ctx);
+          }
+          if (is_unsafe != 0) {
+            pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
+          }
+          ctx.current_block_ref = saved_br;
+          return -1;
+        }
+        if (llen > 0) {
+          pipeline_dep_ctx_scope_region_pop_c(ctx);
+        }
+      }
+      if (is_unsafe != 0) {
+        pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
+      }
+    }
+    i = i + 1;
+  }
+  ctx.current_block_ref = saved_br;
+  return 0;
+}
+
+/**
+ * Module-level post-typeck scan for struct stack-pointer escape.
+ * Iterates non-extern non-generic funcs; resets with_arena + region nests first.
+ * Product ABI face (runtime_pipeline_abi / parse_orch / after_parse_ok).
+ * @param module *Module — module under scan
+ * @param arena *ASTArena — arena
+ * @param ctx *PipelineDepCtx — dep context (scope region fields zeroed)
+ * @return i32 — 0 OK / skip; -1 escape
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_scan_module_struct_stack_escape_c(module: *Module, arena: *ASTArena,
+ctx: *PipelineDepCtx): i32 {
+  let i: i32 = 0;
+  let nf: i32 = 0;
+  let body: i32 = 0;
+  let num_generic_params: i32 = 0;
+  let j: i32 = 0;
+  let skip_env: *u8 = 0 as *u8;
+  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+    return 0;
+  }
+  skip_env = link_abi_getenv("XLANG_SKIP_STACK_ESCAPE" as *u8);
+  if (skip_env != 0 as *u8) {
+    return 0;
+  }
+  pipeline_typeck_with_arena_scope_reset_c();
+  pipeline_typeck_region_scope_reset_c();
+  ctx.typeck_scope_region_len = 0;
+  j = 0;
+  while (j < 128) {
+    ctx.typeck_scope_region_label[j] = 0;
+    j = j + 1;
+  }
+  nf = pipeline_module_num_funcs(module);
+  i = 0;
+  while (i < nf) {
+    if (pipeline_module_func_is_extern_at(module, i) != 0) {
+      i = i + 1;
+      continue;
+    }
+    num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
+    if (num_generic_params > 0) {
+      i = i + 1;
+      continue;
+    }
+    body = pipeline_module_func_body_ref_at(module, i);
+    if (body <= 0) {
+      i = i + 1;
+      continue;
+    }
+    if (typeck_scan_block_stack_escape_c(module, arena, ctx, i, body) != 0) {
+      return -1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// end wave242 pure-owned leave
 

@@ -264,10 +264,11 @@ extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
 
 static int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                          int32_t call_expr_ref);
-static int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *module,
-                                                                struct ast_ASTArena *arena,
-                                                                int32_t call_expr_ref,
-                                                                struct ast_PipelineDepCtx *ctx);
+/* wave242: public residual face (pure scan tree + check_expr call it). */
+int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *module,
+                                                         struct ast_ASTArena *arena,
+                                                         int32_t call_expr_ref,
+                                                         struct ast_PipelineDepCtx *ctx);
 
 /* wave154: pure export (was static in struct_lit.c). Residual typeck Cap-calls. */
 extern int32_t typeck_type_is_named_struct_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref);
