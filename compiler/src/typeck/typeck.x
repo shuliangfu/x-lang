@@ -65,11 +65,12 @@ export extern function pipeline_typeck_check_expr_match_c(module: *Module, arena
 /**
  * Match subject BSS faces (Cap residual check_expr; wave703 field-bind).
  * typeck_check_expr_match sets subject before arm typeck so bare VAR field
- * binds resolve via pipeline_typeck_match_subject_field_type_c.
+ * binds resolve via typeck_match_subject_field_type (wave234 pure leave).
+ * set/clear/get remain residual BSS (pure pipeline_abi mega deferred).
  * @param module *Module — subject module (must match later field_type module)
  * @param ty i32 — matched expr resolved_type_ref (0 clears useful subject)
  * @return i32 — always 0 (C ABI face)
- * PLATFORM: SHARED
+ * PLATFORM: SHARED freestanding typeck
  */
 export extern function pipeline_typeck_match_set_subject_c(module: *Module, ty: i32): i32;
 /**
@@ -90,19 +91,17 @@ export extern function pipeline_typeck_match_subject_ty_get_c(): i32;
  */
 export extern function pipeline_typeck_match_subject_mod_get_c(): *Module;
 /**
- * Resolve unbound VAR as a field of the active match subject struct type.
- * Authority for layout lookup lives in pipeline_typeck_check_expr.c (wave703);
- * product VAR path is typeck_check_expr_var and must call this after local/
- * param/top-level/import resolution fails.
- * @param module *Module — current module (must equal subject module)
- * @param arena *ASTArena — type pool for TYPE_NAMED name + field type_ref
- * @param name *u8 — VAR identifier bytes (not necessarily NUL-terminated)
- * @param name_len i32 — byte length; must be > 0
- * @return i32 — field type_ref (>0) on hit; 0 if no active subject or no field
- * PLATFORM: SHARED — G.7 with pipeline_typeck_check_expr_var_c subject hop
+ * wave234 G.7: layout helpers for repr(compatible) / match field-bind pure leave.
+ * Live in runtime_pipeline_abi.x (*u8 module/arena ABI).
+ * PLATFORM: SHARED
  */
-export extern function pipeline_typeck_match_subject_field_type_c(module: *Module, arena: *ASTArena,
-name: *u8, name_len: i32): i32;
+export extern function typeck_type_is_named_struct_c(m: *u8, a: *u8, ty_ref: i32): i32;
+export extern function typeck_layout_index_for_named_type_c(m: *u8, a: *u8, ty_ref: i32): i32;
+export extern function typeck_struct_layouts_same_shape_c(m: *u8, a: *u8, la: i32, lb: i32): i32;
+export extern function pipeline_module_struct_layout_repr_compatible_at(module: *Module, idx: i32): i32;
+export extern function glue_module_func_index_by_name_c(mod: *u8, name: *u8, name_len: i32): i32;
+export extern function typeck_get_allow_legacy_extern_calls(): i32;
+export extern function driver_diagnostic_typeck_extern_call_outside_unsafe(line: i32, col: i32): void;
 /**
  * ERR-01 try-propagate diagnostic when operand is not Result_* or enclosing
  * function return type does not match Result.
@@ -157,17 +156,27 @@ export extern function pipeline_type_type_arg_ref_at(arena: *ASTArena, type_ref:
 /* See implementation. */
 export extern function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i32, b: i32): i32;
 /**
- * wave703: 1 if *StructA arg may coerce to *StructB formal under #[repr(compatible)]
- * + same field shape. G.7 authority in pipeline_glue.c.
- * @param module *Module
- * @param arena *ASTArena
- * @param param_ref i32 — formal type_ref (must be TYPE_PTR to named struct)
- * @param arg_ref i32 — call argument expr
- * @return i32 — 1 ok coerce, 0 not applicable / reject
+ * wave234: call_arg_repr_compatible residual face retired → typeck authority.
+ * Keep historical pipeline_*_c name only as Cap residual thin (check_expr).
+ * Product callers use typeck_call_arg_repr_compatible_ok (no wrap cycle).
  * PLATFORM: SHARED
  */
 export extern function pipeline_typeck_call_arg_repr_compatible_ok_c(module: *Module, arena: *ASTArena,
 param_ref: i32, arg_ref: i32): i32;
+/**
+ * wave234: extern-call unsafe boundary residual face retired → typeck authority.
+ * Cap residual thins; product CALL path uses typeck_check_extern_call_unsafe_boundary.
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_typeck_check_extern_call_unsafe_boundary_c(module: *Module,
+arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): i32;
+/**
+ * wave234: match subject field_type residual face retired → typeck authority.
+ * Cap residual thins; product VAR path uses typeck_match_subject_field_type.
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_typeck_match_subject_field_type_c(module: *Module, arena: *ASTArena,
+name: *u8, name_len: i32): i32;
 /* wave233 pure leave: resolve_type_alias_ref is typeck authority (active_module
  * peel + local walk). Residual C face thins to typeck_resolve_type_alias_ref.
  * Do NOT reintroduce pipeline_typeck_resolve_type_alias_ref_c wrap here (cycle). */
@@ -9864,12 +9873,12 @@ ctx: *PipelineDepCtx): i32 {
         sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx);
         if (sc < 0) {
           /*
-           * wave703 Cap residual: #[repr(compatible)] *PairA → *PairB when same
+           * wave703 / wave234: #[repr(compatible)] *PairA → *PairB when same
            * field shape. Score treats distinct TYPE_NAMED pointees as mismatch.
-           * G.7: pipeline_typeck_call_arg_repr_compatible_ok_c (single layout gate).
+           * G.7: typeck_call_arg_repr_compatible_ok (single layout gate).
            * PLATFORM: SHARED.
            */
-          if (arg_ref > 0 && pipeline_typeck_call_arg_repr_compatible_ok_c(mod, arena, param_raw, arg_ref) != 0) {
+          if (arg_ref > 0 && typeck_call_arg_repr_compatible_ok(mod, arena, param_raw, arg_ref) != 0) {
             ai = ai + 1;
             continue;
           }
@@ -9882,6 +9891,238 @@ ctx: *PipelineDepCtx): i32 {
       ai = ai + 1;
     }
     return 0;
+  }
+}
+
+/**
+ * Resolve unbound VAR as a field of the active match subject struct type.
+ * wave234 G.7 pure leave: was Cap residual pipeline_typeck_match_subject_field_type_c.
+ * Subject cells live in runtime_pipeline_abi pure BSS (set/get).
+ * @param module *Module — current module (must equal subject module pointer)
+ * @param arena *ASTArena — type pool for TYPE_NAMED name + field type_ref
+ * @param name *u8 — VAR identifier bytes (not necessarily NUL-terminated)
+ * @param name_len i32 — byte length; must be > 0
+ * @return i32 — field type_ref (>0) on hit; 0 if no active subject or no field
+ * PLATFORM: SHARED freestanding typeck — G.7 single subject-field authority.
+ */
+export function typeck_match_subject_field_type(module: *Module, arena: *ASTArena, name: *u8,
+name_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ty: i32 = 0;
+    let subj_mod: *Module = 0 as *Module;
+    let tnm: u8[128] = [];
+    let tnl: i32 = 0;
+    let nsl: i32 = 0;
+    let k: i32 = 0;
+    let fl: i32 = 0;
+    let nf: i32 = 0;
+    let fi: i32 = 0;
+    let fnl: i32 = 0;
+    let j: i32 = 0;
+    let bi: i32 = 0;
+    let match: i32 = 0;
+    let fnm: u8[128] = [];
+    if (module == 0 as *Module || arena == 0 as *ASTArena || name == 0 as *u8 || name_len <= 0) {
+      return 0;
+    }
+    ty = pipeline_typeck_match_subject_ty_get_c();
+    subj_mod = pipeline_typeck_match_subject_mod_get_c();
+    if (ty <= 0 || subj_mod != module) {
+      return 0;
+    }
+    /* TYPE_NAMED ord == 8 */
+    if (pipeline_type_kind_ord_at(arena, ty) != 8) {
+      return 0;
+    }
+    tnl = pipeline_type_named_name_into(arena, ty, &tnm[0]);
+    if (tnl <= 0) {
+      return 0;
+    }
+    nsl = pipeline_module_num_struct_layouts_at(module);
+    k = 0;
+    while (k < nsl) {
+      fl = pipeline_module_struct_layout_name_len(module, k);
+      if (fl == tnl) {
+        match = 1;
+        bi = 0;
+        while (bi < fl && match != 0) {
+          if (pipeline_module_struct_layout_name_byte_at(module, k, bi) != tnm[bi]) {
+            match = 0;
+          }
+          bi = bi + 1;
+        }
+        if (match != 0) {
+          nf = pipeline_module_struct_layout_num_fields(module, k);
+          fi = 0;
+          while (fi < nf) {
+            fnl = pipeline_module_struct_layout_field_name_len(module, k, fi);
+            if (fnl == name_len) {
+              j = 0;
+              while (j < 128) {
+                fnm[j] = 0;
+                j = j + 1;
+              }
+              pipeline_module_struct_layout_field_name_into(module, k, fi, &fnm[0]);
+              match = 1;
+              j = 0;
+              while (j < fnl && match != 0) {
+                if (fnm[j] != name[j]) {
+                  match = 0;
+                }
+                j = j + 1;
+              }
+              if (match != 0) {
+                return pipeline_module_struct_layout_field_type_ref(module, k, fi);
+              }
+            }
+            fi = fi + 1;
+          }
+        }
+      }
+      k = k + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * MOD-02: 1 if *StructA vs *StructB (or &StructB) may coerce under
+ * #[repr(compatible)] + same field shape. 0 if not applicable or not ok.
+ * wave234 G.7 pure leave: was Cap residual pipeline_typeck_call_arg_repr_compatible_ok_c.
+ * @param module *Module — layout table owner
+ * @param arena *ASTArena — type + expr arena
+ * @param param_ref i32 — formal type_ref (must be TYPE_PTR to named struct)
+ * @param arg_ref i32 — call argument expr_ref
+ * @return i32 — 1 ok coerce, 0 not applicable / reject
+ * PLATFORM: SHARED freestanding typeck — G.7 single layout gate.
+ */
+export function typeck_call_arg_repr_compatible_ok(module: *Module, arena: *ASTArena, param_ref: i32,
+arg_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let param_elem: i32 = 0;
+    let arg_elem: i32 = 0;
+    let arg_ty: i32 = 0;
+    let arg_kind: i32 = 0;
+    let op: i32 = 0;
+    let la: i32 = 0;
+    let lb: i32 = 0;
+    let m_u8: *u8 = 0 as *u8;
+    let a_u8: *u8 = 0 as *u8;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || param_ref <= 0 || arg_ref <= 0) {
+      return 0;
+    }
+    /* TYPE_PTR ord == 9 */
+    if (pipeline_type_kind_ord_at(arena, param_ref) != 9) {
+      return 0;
+    }
+    param_elem = pipeline_type_elem_ref_at(arena, param_ref);
+    m_u8 = module as *u8;
+    a_u8 = arena as *u8;
+    if (param_elem <= 0 || typeck_type_is_named_struct_c(m_u8, a_u8, param_elem) == 0) {
+      return 0;
+    }
+    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
+    /* EXPR_ADDR_OF ord == 51 — peel unary operand when arg still untyped */
+    if (arg_ty <= 0 && arg_kind == 51) {
+      op = pipeline_expr_unary_operand_ref_at(arena, arg_ref);
+      if (op > 0) {
+        arg_ty = pipeline_expr_resolved_type_ref(arena, op);
+      }
+    }
+    if (arg_ty <= 0) {
+      return 0;
+    }
+    /* TYPE_NAMED=8, TYPE_PTR=9 */
+    if (pipeline_type_kind_ord_at(arena, arg_ty) == 8) {
+      arg_elem = arg_ty;
+    } else if (pipeline_type_kind_ord_at(arena, arg_ty) == 9) {
+      arg_elem = pipeline_type_elem_ref_at(arena, arg_ty);
+    } else {
+      return 0;
+    }
+    if (arg_elem <= 0 || typeck_type_is_named_struct_c(m_u8, a_u8, arg_elem) == 0) {
+      return 0;
+    }
+    param_elem = typeck_resolve_type_alias_ref(arena, param_elem);
+    arg_elem = typeck_resolve_type_alias_ref(arena, arg_elem);
+    if (param_elem == arg_elem) {
+      return 1;
+    }
+    la = typeck_layout_index_for_named_type_c(m_u8, a_u8, param_elem);
+    lb = typeck_layout_index_for_named_type_c(m_u8, a_u8, arg_elem);
+    if (la < 0 || lb < 0) {
+      return 0;
+    }
+    if (la == lb) {
+      return 1;
+    }
+    if (typeck_struct_layouts_same_shape_c(m_u8, a_u8, la, lb) != 0
+    && pipeline_module_struct_layout_repr_compatible_at(module, la) != 0
+    && pipeline_module_struct_layout_repr_compatible_at(module, lb) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * LANG-007 v2 S0: extern calls must be inside unsafe { }.
+ * wave234 G.7 pure leave: was Cap residual pipeline_typeck_check_extern_call_unsafe_boundary_c.
+ * @param module *Module — function table for is_extern
+ * @param arena *ASTArena — call expr arena
+ * @param expr_ref i32 — EXPR_CALL site
+ * @param ctx *PipelineDepCtx — unsafe depth cell
+ * @return i32 — 0 ok / skipped; -1 diagnostic emitted (outside unsafe)
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_check_extern_call_unsafe_boundary(module: *Module, arena: *ASTArena,
+expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let callee_ref: i32 = 0;
+    let callee_kind: i32 = 0;
+    let name_len: i32 = 0;
+    let name: u8[128] = [];
+    let fi: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let m_u8: *u8 = 0 as *u8;
+    /* -E seed regen / allow_legacy: typeck_gen preamble getter; default 0 keeps S0. */
+    if (typeck_get_allow_legacy_extern_calls() != 0) {
+      return 0;
+    }
+    if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) > 0) {
+      return 0;
+    }
+    if (module == 0 as *Module || arena == 0 as *ASTArena || expr_ref <= 0) {
+      return 0;
+    }
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    if (callee_ref <= 0) {
+      return 0;
+    }
+    callee_kind = pipeline_expr_kind_ord_at(arena, callee_ref);
+    /* EXPR_VAR ord == 3 */
+    if (callee_kind != 3) {
+      return 0;
+    }
+    name_len = pipeline_expr_var_name_len(arena, callee_ref);
+    if (name_len <= 0 || name_len > 127) {
+      return 0;
+    }
+    pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
+    m_u8 = module as *u8;
+    fi = glue_module_func_index_by_name_c(m_u8, &name[0], name_len);
+    if (fi < 0 || pipeline_module_func_is_extern_at(module, fi) == 0) {
+      return 0;
+    }
+    line = pipeline_expr_line_at(arena, expr_ref);
+    col = pipeline_expr_col_at(arena, expr_ref);
+    driver_diagnostic_typeck_extern_call_outside_unsafe(line, col);
+    return 0 - 1;
   }
 }
 
@@ -9909,8 +10150,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let expect_store: i32 = 0;
     let callee_ref: i32 = 0;
     let ret_ty: i32 = 0;
-    /* LANG-007 S0: extern calls require unsafe { }. */
-    if (pipeline_typeck_check_extern_call_unsafe_boundary_c(module, arena, expr_ref, ctx) != 0) {
+    /* LANG-007 S0: extern calls require unsafe { }. wave234 pure leave. */
+    if (typeck_check_extern_call_unsafe_boundary(module, arena, expr_ref, ctx) != 0) {
       return -1;
     }
     num_args = pipeline_expr_call_num_args_at(arena, expr_ref);
@@ -10933,13 +11174,13 @@ ctx: *PipelineDepCtx): i32 {
     /*
      * wave703 / match_struct_destructure: struct match field binds
      * (`Point { x, y } => x + y`) store patterns as wildcards; arm bodies
-     * refer to field names as bare VARs. wave231: typeck_check_expr_match
+     * refer to field names as bare VARs. wave231/wave234: typeck_check_expr_match
      * sets match subject BSS before arms; product VAR hops subject field
-     * types here via pipeline_typeck_match_subject_field_type_c.
-     * PLATFORM: SHARED — G.7 single subject-field authority via field_type_c.
+     * types here via typeck_match_subject_field_type (pure leave).
+     * PLATFORM: SHARED — G.7 single subject-field authority.
      */
     if (ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
-      let ft: i32 = pipeline_typeck_match_subject_field_type_c(module, arena, vbuf, vnlen);
+      let ft: i32 = typeck_match_subject_field_type(module, arena, vbuf, vnlen);
       if (ft > 0) {
         pipeline_expr_set_resolved_type_ref(arena, expr_ref, ft);
         driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, func_ix, block_ref, 106, ft);

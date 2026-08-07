@@ -174,22 +174,9 @@ int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct ast_ASTAr
 
 extern void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col);
 
-/* wave1189 G.7: typeck check_expr sub-class cluster (8 fns + 3 match helpers
- * + 2 match statics) migrated to pipeline_typeck_check_expr.c EOF (colocated
- * with wave1188 entry/dispatch domain). Members removed from here:
- * pipeline_typeck_check_expr_panic_c
- * + match subject helpers: g_typeck_match_subject_{ty,mod} statics +
- *   pipeline_typeck_match_set_subject_c / clear_subject_c /
- *   subject_field_type_c (sole users of those statics)
- * + pipeline_typeck_check_expr_match_c
- * + pipeline_typeck_check_expr_return_c
- * + pipeline_typeck_check_expr_unary_c
- * + pipeline_typeck_check_expr_addr_of_c
- * + pipeline_typeck_check_expr_deref_c
- * + pipeline_typeck_check_expr_index_c
- * + pipeline_typeck_check_expr_var_c
- * All extern (non-static): cross-TU calls (typeck_x.o / typeck.o / seeds).
- * g_typeck_unsafe_depth remains here (shared with check_block.c via #include).
+/* wave1189+wave234 G.7: check_expr sub-class cluster in
+ * pipeline_typeck_check_expr.c (thin faces). wave234: match subject BSS live
+ * in runtime_pipeline_abi pure; field_type/repr/extern thin → typeck.
  * Forward decls below remain for other glue.c callsites. PLATFORM: SHARED. */
 
 /* wave1189+1190: fwd decls for migrated check_expr helpers (defined in

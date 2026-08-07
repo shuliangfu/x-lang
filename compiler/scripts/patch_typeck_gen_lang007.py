@@ -42,13 +42,13 @@ int typeck_get_allow_legacy_extern_calls(void) {
 # PLATFORM: SHARED — use XLANG_WEAK (include/xlang_weak.h), NEVER bare __attribute__((weak)):
 #   ELF/Darwin: weak so filtered pipeline strong wins; PE/MinGW: empty → strong def that
 #   actually satisfies U refs (PE weak does not; Windows phase1 UNDEF typeck_check_expr_call).
-# wave232 pure leave: full CALL orchestrator (parity typeck.x). Not XLANG_WEAK —
+# wave232/wave234 pure leave: full CALL orchestrator (parity typeck.x). Not XLANG_WEAK —
 # product OMIT_X_DUP_EXPORTS makes typeck_x.o the sole typeck_check_expr_call.
-# S0 extern-in-unsafe via pipeline_typeck_check_extern_call_unsafe_boundary_c first.
+# wave234: S0 extern-in-unsafe via typeck_check_extern_call_unsafe_boundary (not residual _c).
 CALL_BODY = """\
 int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
-  /* wave232 pure leave — PLATFORM: SHARED freestanding typeck (parity typeck.x). */
-  extern int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
+  /* wave234 pure leave — PLATFORM: SHARED freestanding typeck (parity typeck.x). */
+  extern int32_t typeck_check_extern_call_unsafe_boundary(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
   extern int32_t pipeline_typeck_check_call_generic_type_args_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, struct ast_PipelineDepCtx *ctx, int32_t expected_ret);
   extern int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx);
   extern int32_t pipeline_typeck_resolve_call_callee_return_type_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t callee_expr_ref, int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx);
@@ -62,7 +62,7 @@ int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena *
   int32_t expect_store;
   int32_t callee_ref;
   int32_t ret_ty;
-  if (pipeline_typeck_check_extern_call_unsafe_boundary_c(module, arena, expr_ref, ctx) != 0)
+  if (typeck_check_extern_call_unsafe_boundary(module, arena, expr_ref, ctx) != 0)
     return -1;
   num_args = pipeline_expr_call_num_args_at(arena, expr_ref);
   expect_store = 0;
@@ -199,11 +199,12 @@ def _glue_delegate_ok(name: str, old: str) -> bool:
     if not _sig_is_xlang_weak_only(sig):
         return False
     if name == "typeck_check_expr_call":
-        # wave232 pure leave: generic gate + mono fixup in typeck body (not call_c wrap).
+        # wave232/wave234 pure leave: generic gate + mono fixup in typeck body
+        # (not call_c wrap); S0 via typeck_check_extern_call_unsafe_boundary.
         return (
             "pipeline_typeck_check_call_generic_type_args_c" in old
             and "glue_generic_call_fixup_resolved_type_c" in old
-            and "pipeline_typeck_check_extern_call_unsafe_boundary_c" in old
+            and "typeck_check_extern_call_unsafe_boundary" in old
             and "pipeline_typeck_check_expr_call_c" not in old
         )
     if name == "typeck_check_expr_deref":
