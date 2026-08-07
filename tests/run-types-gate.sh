@@ -31,10 +31,23 @@ if [ ! -x "$XLANG" ]; then
 fi
 
 echo "=== types gate: typeck ==="
+# PLATFORM: SHARED — product check ignores paths containing /tests/ (bare-scan
+# hygiene). Stage copies outside tests/ so explicit harness check still runs.
+_types_chk_tmp="${TMPDIR:-/tmp}/xlang_types_check_$$"
+mkdir -p "$_types_chk_tmp"
+trap 'rm -rf "$_types_chk_tmp"' EXIT
 for f in "${CHECK_CASES[@]}"; do
-  if ! "$XLANG" check -L . "$f" >/dev/null 2>&1; then
+  _base=$(basename "$f")
+  cp "$f" "$_types_chk_tmp/$_base"
+  if ! "$XLANG" check -L . "$_types_chk_tmp/$_base" >/dev/null 2>&1; then
     echo "types gate FAIL: typeck $f" >&2
-    "$XLANG" check -L . "$f" 2>&1 | tail -6 >&2 || true
+    "$XLANG" check -L . "$_types_chk_tmp/$_base" 2>&1 | tail -6 >&2 || true
+    exit 1
+  fi
+  # Also require silent success (CHK002 historically exited 0 with a message).
+  _chk_out=$("$XLANG" check -L . "$_types_chk_tmp/$_base" 2>&1) || true
+  if [ -n "$_chk_out" ]; then
+    echo "types gate FAIL: typeck not silent $f: $_chk_out" >&2
     exit 1
   fi
   echo "types gate OK: check $f"
