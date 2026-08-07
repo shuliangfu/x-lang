@@ -9042,7 +9042,7 @@ if ! grep -qE '^PIPELINE_X_DEPS\s*=' "$_XSD_MK"; then
   bad "$_XSD_MK must define PIPELINE_X_DEPS (wave823)"
 fi
 # Fixed multi-token authority COUNT=61 (wave152: -1 asm_emit_expr_rec pure leave):
-#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths (wave255 ctfe leave)
+#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths (wave256 assign leave)
 #   (exclude $(PIPELINE_ASM_X_DEPS) expansion token).
 _xsd_n=$(awk '
   function count_fixed(line,   n, a, i, c) {
@@ -9063,19 +9063,23 @@ _xsd_n=$(awk '
   /^PIPELINE_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
   END { print t+0 }
 ' "$_XSD_MK")
-if [ "${_xsd_n:-0}" -ne 54 ]; then
-  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 54 in mk, got ${_xsd_n:-0}"
+if [ "${_xsd_n:-0}" -ne 53 ]; then
+  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 53 in mk, got ${_xsd_n:-0}"
 fi
 # wave965: PIPELINE_X_DEPS must list #include slices so STALE rebuilds pipeline_x.
 # wave255 host-cc leave: CTFE thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
+# wave256 host-cc leave: assign Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
 if grep -qE 'pipeline_typeck_ctfe\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_ctfe.c (wave255 host-cc leave)"
 fi
 if [ -f "$ROOT/compiler/pipeline_typeck_ctfe.c" ]; then
   bad "pipeline_typeck_ctfe.c must be deleted (wave255 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_typeck_assign\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_typeck_assign.c (8.3.1 assign slice)"
+if grep -qE 'pipeline_typeck_assign\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_assign.c (wave256 host-cc leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_typeck_assign.c" ]; then
+  bad "pipeline_typeck_assign.c must be deleted (wave256 pure-owned leave)"
 fi
 if ! grep -qE 'pipeline_typeck_coerce_init\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list pipeline_typeck_coerce_init.c (8.3.1 coerce_init slice)"

@@ -920,7 +920,7 @@
 | `pipeline_glue_emit_mid_fwd.c` | **~63** | glue mid-emit inter-include pure fwd/ordinal（emit_fwd 后、struct_lit 前；TypeKind／ExprKind 序数 + call／method／panic + field_access 快道 fwd 合并） | 🟡 **已抽出**（wave1289）；仍 host-cc |
 | `pipeline_glue_statics.c` | **~65** | glue emit/typeck active-context 静态全局单一定义点（early_fwd 后；module／arena／elf_ctx／func_index／scope_block／dep_pipe／active_module／call state／sret×4 · 13 statics） | 🟡 **已抽出**（wave1290）；仍 host-cc |
 | `pipeline_typeck_ctfe.c` | 0 | typeck CTFE Cap residual retired (wave255) | ✅ host-cc leave；权威 typeck_x.o thin→typeck_* |
-| `pipeline_typeck_assign.c` | **~108（thin）** | typeck assign 域 Cap residual thin | 🟡 **G.7 live＝typeck.x**（`typeck_check_expr_assign` + `typeck_diag_*`）；Cap residual 仅 C ABI face + `module_num_imports`；仍 host-cc 入 `pipeline_x` |
+| `pipeline_typeck_assign.c` | 0 | typeck assign Cap residual retired (wave256) | ✅ host-cc leave；权威 typeck_x.o thin→typeck_check_expr_assign／typeck_diag_* |
 | `pipeline_typeck_orch.c` | **~242（thin）** | typeck orch 域 Cap residual thin | 🟡 **G.7 live orch＝typeck.x**（`typeck_x_ast*`）；residual 仅 thin faces + weak soft-suppress／dep_ctx／dep_prerun + layout glue；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_check_expr.c` | **~547（thin）** | typeck check_expr 域 Cap residual thin | 🟡 **G.7** panic／unary／addr／index／deref／var／return／match／try／call／field_type／repr／extern_unsafe＝typeck.x thin；match subject BSS＋method_call 残；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_coerce_init.c` | **~428（thin）** | typeck coerce-init 域 Cap residual thin | 🟡 **G.7 live coerce＝typeck.x**（`typeck_coerce_init_*`＋ret_coerce／float_widen＋type_refs／integer_widen／bool／expr_type_ref／struct_lit／int_binop／resolve_alias／int_lit）；residual 仅 float_bits + thin faces；仍 host-cc 入 `pipeline_x` |

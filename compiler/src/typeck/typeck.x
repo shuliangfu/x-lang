@@ -18268,3 +18268,119 @@ export function pipeline_expr_is_c_static_const_init(arena: *ASTArena, expr_ref:
 
 // end wave255 pure-owned leave
 
+// ---------------------------------------------------------------------------
+// wave256: typeck assign Cap residual pure-owned leave (host-cc present 55→54)
+// Delete pipeline_typeck_assign.c from pipeline_x mega-TU.
+// Historical pipeline_typeck_*_c assign + diag-fmt faces → typeck_* pure authority
+//   (typeck_check_expr_assign + typeck_diag_*). Active-module stamp stays on
+//   runtime_pipeline_abi (pipeline_typeck_active_module_set_c) before assign body.
+// Cap residual: dual-export ban — no second thin body on pipeline_x.
+// Same-TU static pipeline_typeck_module_num_imports_c retired (dead; callers use
+//   typeck_module_num_imports / parser face).
+// PLATFORM: SHARED freestanding typeck assign Cap leave.
+// ---------------------------------------------------------------------------
+
+/** Cap residual face: set pure BSS active module (wave224 runtime_pipeline_abi). */
+export extern function pipeline_typeck_active_module_set_c(m: *Module): void;
+
+/**
+ * Cap residual face: EXPR_ASSIGN / compound assign check (thin → pure).
+ * Stamps active-module cell then delegates to typeck_check_expr_assign.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @param return_type_ref i32
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_expr_assign_c(module: *Module, arena: *ASTArena,
+expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — Cap thin: bounds + active-module stamp + pure assign.
+  unsafe {
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    pipeline_typeck_active_module_set_c(module);
+    return typeck_check_expr_assign(module, arena, expr_ref, return_type_ref, ctx);
+  }
+}
+
+/**
+ * Cap residual face: append literal bytes into diag buffer (thin → pure).
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param lit *u8
+ * @param lit_len i32
+ * @return i32 — new write pos
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_diag_append_lit_c(out: *u8, pos: i32, cap: i32, lit: *u8,
+lit_len: i32): i32 {
+  return typeck_diag_append_lit(out, pos, cap, lit, lit_len);
+}
+
+/**
+ * Cap residual face: append u32 decimal into diag buffer (thin → pure).
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param v i32
+ * @return i32 — new write pos
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_diag_append_u32_dec_c(out: *u8, pos: i32, cap: i32, v: i32): i32 {
+  return typeck_diag_append_u32_dec(out, pos, cap, v);
+}
+
+/**
+ * Cap residual face: format type ref into diag buffer at cursor (thin → pure).
+ * @param arena *ASTArena
+ * @param ref i32
+ * @param out *u8
+ * @param cur i32
+ * @param cap i32
+ * @return i32 — new write pos
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_diag_fmt_type_at_c(arena: *ASTArena, ref: i32, out: *u8, cur: i32,
+cap: i32): i32 {
+  return typeck_diag_fmt_type_at(arena, ref, out, cur, cap);
+}
+
+/**
+ * Cap residual face: format type ref into fresh diag buffer (thin → pure).
+ * @param arena *ASTArena
+ * @param ref i32
+ * @param out *u8
+ * @param cap i32
+ * @return i32 — written length
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_diag_fmt_type_into_c(arena: *ASTArena, ref: i32, out: *u8,
+cap: i32): i32 {
+  return typeck_diag_fmt_type_into(arena, ref, out, cap);
+}
+
+/**
+ * Cap residual face: format type or "?" when unresolved (thin → pure).
+ * @param arena *ASTArena
+ * @param ref i32
+ * @param out *u8
+ * @return i32 — written length
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_diag_fmt_type_or_question_c(arena: *ASTArena, ref: i32,
+out: *u8): i32 {
+  return typeck_diag_fmt_type_or_question(arena, ref, out);
+}
+
+// end wave256 pure-owned leave
+

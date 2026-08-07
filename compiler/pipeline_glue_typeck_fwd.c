@@ -98,13 +98,11 @@ extern int32_t pipeline_module_type_alias_target_ref(struct ast_Module *m, int32
 /* wave1158/wave233 G.7: public wrappers (type_refs_equal_* / resolve_alias /
  * type_ref_is_bool / expr_type_ref) thin in coerce_init.c → typeck_x.o. */
 
-/* wave1156 G.7: typeck diag fmt cluster (5 fns) migrated to
- * pipeline_typeck_assign.c EOF (colocated with assign mismatch diag domain —
- * 8 callsites in assign.c lines 265-336; sole glue.c callsite at L8147 in
- * check_expr_return return-type mismatch diag). Extern (non-static):
- * assign.c #include at L8265; extern fwd decl at L8013 (before L8147 callsite).
- * Cluster: diag_append_lit_c / diag_append_u32_dec_c / diag_fmt_type_at_c /
- * diag_fmt_type_into_c / diag_fmt_type_or_question_c. PLATFORM: SHARED. */
+/* wave1156→wave256: typeck assign + diag fmt Cap faces pure-owned leave.
+ * Bodies retired from pipeline_typeck_assign.c; live on typeck_x.o
+ * (#[no_mangle] thin → typeck_check_expr_assign / typeck_diag_*).
+ * Extern decls below for residual same-TU callers (check_expr mega assign arm).
+ * PLATFORM: SHARED freestanding typeck assign Cap leave. */
 
 /* wave1076 G.7: pipeline_typeck_float_widen_ok_c migrated to
  * pipeline_typeck_coerce_init.c EOF (f32→f64 IEEE float widen gate).
@@ -219,10 +217,21 @@ int32_t pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(struct ast_ASTAre
 static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                    int32_t expr_ref);
 
-/* wave1156 G.7: extern fwd decl for diag fmt cluster migrated to
- * pipeline_typeck_assign.c EOF. Callsite at L8142 precedes assign.c
- * #include at L8265. */
-int32_t pipeline_typeck_diag_fmt_type_or_question_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out);
+/* wave256: Cap faces on typeck_x.o (not same-TU defs). Residual check_expr
+ * mega assign arm calls check_expr_assign_c; diag cluster may still be linked
+ * from other residual paths — keep full extern set. PLATFORM: SHARED. */
+extern int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                   int32_t expr_ref, int32_t return_type_ref,
+                                                   struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_diag_append_lit_c(uint8_t *out, int32_t pos, int32_t cap, uint8_t *lit,
+                                                int32_t lit_len);
+extern int32_t pipeline_typeck_diag_append_u32_dec_c(uint8_t *out, int32_t pos, int32_t cap, int32_t v);
+extern int32_t pipeline_typeck_diag_fmt_type_at_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out,
+                                                 int32_t cur, int32_t cap);
+extern int32_t pipeline_typeck_diag_fmt_type_into_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out,
+                                                   int32_t cap);
+extern int32_t pipeline_typeck_diag_fmt_type_or_question_c(struct ast_ASTArena *arena, int32_t ref,
+                                                          uint8_t *out);
 
 /* wave1189 G.7: pipeline_typeck_check_expr_return_c migrated to
  * pipeline_typeck_check_expr.c EOF (colocated with check_expr sub-class
