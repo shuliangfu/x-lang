@@ -145,9 +145,9 @@ int32_t pipeline_typeck_check_scope_borrow_return_c(struct ast_Module *module, s
 
 /*
  * wave240 G.7 pure leave: with_arena nest BSS + push/pop/reset live in
- * runtime_pipeline_abi (pipeline_typeck_with_arena_scope_*). Cap residual
- * only calls pure faces — dual-export ban (no second BSS cell here).
- * PLATFORM: SHARED — freestanding pure provides the symbols.
+ * typeck.x / typeck_gen (pipeline_typeck_with_arena_scope_* → typeck_x.o).
+ * Cap residual only calls pure faces — dual-export ban (no second BSS cell).
+ * PLATFORM: SHARED — freestanding typeck_x provides the symbols.
  */
 extern int32_t pipeline_typeck_with_arena_scope_n_at(void);
 extern int32_t pipeline_typeck_with_arena_current_body_ref_c(void);

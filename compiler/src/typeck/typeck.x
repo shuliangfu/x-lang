@@ -612,13 +612,13 @@ site_expr_ref: i32, left_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_check_allocator_region_return_c(arena: *ASTArena, site_expr_ref: i32,
 return_type_ref: i32): i32;
 /**
- * MEM-C1 with_arena nest BSS faces (wave240 pure leave → runtime_pipeline_abi):
+ * MEM-C1 with_arena nest BSS faces (wave240 pure leave → typeck.x EOF):
  * pure leave allocator gates read nest depth + current body block; residual
  * scan / one_region call pure push/pop/reset (G.7 dual-export ban).
+ * Bodies: pipeline_typeck_with_arena_scope_* at file EOF (#[no_mangle]).
  * PLATFORM: SHARED freestanding typeck nest cells.
  */
-export extern function pipeline_typeck_with_arena_scope_n_at(): i32;
-export extern function pipeline_typeck_with_arena_current_body_ref_c(): i32;
+/* export bodies at EOF — dual-export ban (no residual BSS second cell). */
 /**
  * Pure block-pool faces used by wave236 scope-borrow ancestor / decl lookup.
  * PLATFORM: SHARED
@@ -14565,3 +14565,94 @@ export function pipeline_typeck_field_unknown_hard_fail_c(module: *Module, arena
 export function pipeline_typeck_named_is_module_concrete_c(module: *Module, ctx: *PipelineDepCtx, name: *u8, name_len: i32): i32 {
   return typeck_named_is_module_concrete(module, ctx, name, name_len);
 }
+
+// ===========================================================================
+// wave240: typeck with_arena nest BSS pure leave
+// (was Cap residual pipeline_typeck_region_assign.c static body stack +
+//  scope_n + push/pop + wave237 residual n_at/current_body_ref faces)
+// G.7 product authority (typeck_x.o; typeck_gen hand-sync when -E SEGV):
+//   pipeline_typeck_with_arena_scope_n_at
+//   pipeline_typeck_with_arena_current_body_ref_c
+//   pipeline_typeck_with_arena_scope_push_c
+//   pipeline_typeck_with_arena_scope_pop_c
+//   pipeline_typeck_with_arena_scope_reset_c
+// Residual scan tree / check_block_one_region write pure push/pop/reset only.
+// Region-label scope stack stays residual (ctx memcpy).
+// PLATFORM: SHARED freestanding — nest body refs are platform-agnostic.
+// ===========================================================================
+
+let g_typeck_with_arena_body_stack: i32[8] = [];
+let g_typeck_with_arena_scope_n: i32 = 0;
+
+/**
+ * MEM-C1: current with_arena nest depth (0 = outside any with_arena).
+ * @return i32 — nest count; 0 when empty
+ * wave240 pure: G.7 authority (was Cap residual region_assign BSS face).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_with_arena_scope_n_at(): i32 {
+  return g_typeck_with_arena_scope_n;
+}
+
+/**
+ * MEM-C1: current with_arena body block_ref (stack top); 0 if none.
+ * @return i32 — body block_ref or 0
+ * wave240 pure: G.7 authority (was Cap residual region_assign BSS face).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_with_arena_current_body_ref_c(): i32 {
+  if (g_typeck_with_arena_scope_n > 0) {
+    return g_typeck_with_arena_body_stack[g_typeck_with_arena_scope_n - 1];
+  }
+  return 0;
+}
+
+/**
+ * MEM-C1: push with_arena body block_ref before scanning/typeck of the body.
+ * Contract: body_ref <= 0 or nest full (>= 8) → no-op.
+ * @param body_ref i32 — with_arena body block_ref (>0)
+ * @return void
+ * wave240 pure: G.7 authority (was Cap residual static push).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_with_arena_scope_push_c(body_ref: i32): void {
+  if (body_ref <= 0) {
+    return;
+  }
+  if (g_typeck_with_arena_scope_n >= 8) {
+    return;
+  }
+  g_typeck_with_arena_body_stack[g_typeck_with_arena_scope_n] = body_ref;
+  g_typeck_with_arena_scope_n = g_typeck_with_arena_scope_n + 1;
+}
+
+/**
+ * MEM-C1: pop with_arena nest after body scan/typeck.
+ * Contract: empty stack → no-op.
+ * @return void
+ * wave240 pure: G.7 authority (was Cap residual static pop).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_with_arena_scope_pop_c(): void {
+  if (g_typeck_with_arena_scope_n > 0) {
+    g_typeck_with_arena_scope_n = g_typeck_with_arena_scope_n - 1;
+  }
+}
+
+/**
+ * MEM-C1: clear with_arena nest before module-level post-typeck scan.
+ * @return void
+ * wave240 pure: G.7 authority (was Cap residual direct scope_n = 0 write).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_with_arena_scope_reset_c(): void {
+  g_typeck_with_arena_scope_n = 0;
+}
+
+// end wave240 pure-owned leave
+
