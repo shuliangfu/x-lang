@@ -48,22 +48,16 @@
  * const_init/type_ref + let_init/type_ref + expr_stmt_ref + final_expr_ref.
  * All pure forwarders to pipeline_block_ / pipeline_patch_block_parent_links. */
 
-/* wave1191 G.7: typeck func_body implicit return tail cluster (3 fns)
- * migrated to pipeline_typeck_check_block.c EOF. Colocated with check_block
- * walker domain — func_body tail analysis is a sub-domain of block typeck.
- *
+/* wave1191→wave259 G.7: typeck func_body implicit return tail Cap faces pure-owned
+ * leave wave259 → typeck_x.o (#[no_mangle]). Residual check_block.c deleted.
  * Members: pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c +
- *          pipeline_typeck_func_body_has_implicit_return_tail_c +
- *          pipeline_typeck_patch_all_body_parent_links_c (XLANG_WEAK).
- *
- * Forward decls visible at #include point (check_block.c) via earlier decls:
- * - ast_ast_block_* / pipeline_block_* / pipeline_expr_* (extern)
- * - implicit_tail_expr_disallowed_by_glue (defined earlier in glue.c before
- *   check_block.c #include — visible in same TU)
- * - ast_ast_arena_patch_block_parent_links / pipeline_module_func_body_ref_at
- *   (extern)
- * - link_abi_getenv (extern)
- * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+ *          pipeline_typeck_func_body_has_implicit_return_tail_c.
+ * patch_all_body_parent_links remains pure on runtime_pipeline_abi (wave92).
+ * PLATFORM: SHARED freestanding typeck. */
+extern int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_ASTArena *arena,
+                                                                          int32_t body_ref);
+extern int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena *arena,
+                                                                   int32_t body_ref);
 
 /* wave1158 G.7: typeck type_refs_equal / type_ref_is_bool / expr_type_ref
  * public Cap faces pure-owned leave wave258 → typeck_x.o (#[no_mangle] thin).
@@ -257,13 +251,37 @@ extern int32_t find_or_alloc_ptr_type_ref(struct ast_ASTArena *arena, int32_t el
  * cluster). PLATFORM: SHARED. */
 
 int32_t pipeline_block_region_is_unsafe(struct ast_ASTArena *a, int32_t br, int32_t ri);
-int32_t pipeline_dep_ctx_typeck_unsafe_depth_at(struct ast_PipelineDepCtx *ctx);
+/* wave259: check_block Cap residual pure-owned leave — all faces + BSS on typeck_x.o.
+ * Extern fwd for residual mega-TU (check_expr / orch / method_call / glue body).
+ * PLATFORM: SHARED freestanding typeck. */
+extern int32_t pipeline_dep_ctx_typeck_unsafe_depth_at(struct ast_PipelineDepCtx *ctx);
 /* Cap-T001 / WPO-S3 post-scan: push/pop must be visible before typeck_scan_block_stack_escape_c. */
-int32_t pipeline_typeck_unsafe_depth_push_c(struct ast_PipelineDepCtx *ctx);
-void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved_unsafe_depth);
-
-/* wave1282 G.7: g_typeck_unsafe_depth migrated to pipeline_typeck_check_block.c
- * top (sole consumers: unsafe_depth push/pop/at in that domain). PLATFORM: SHARED. */
+extern int32_t pipeline_typeck_unsafe_depth_push_c(struct ast_PipelineDepCtx *ctx);
+extern void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved_unsafe_depth);
+extern int32_t pipeline_typeck_block_impl_bind_ctx_c(struct ast_PipelineDepCtx *ctx, int32_t block_ref);
+extern void pipeline_typeck_block_impl_restore_ctx_c(struct ast_PipelineDepCtx *ctx, int32_t saved_block_ref);
+extern void pipeline_typeck_block_impl_touch_ctx_block_c(struct ast_PipelineDepCtx *ctx, int32_t block_ref);
+extern int32_t pipeline_typeck_loop_depth_push_c(struct ast_PipelineDepCtx *ctx);
+extern void pipeline_typeck_loop_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved_loop_depth);
+extern void pipeline_typeck_loop_depth_set_c(struct ast_PipelineDepCtx *ctx, int32_t depth);
+extern int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                 int32_t block_ref, int32_t return_type_ref,
+                                                 struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                             int32_t block_ref, int32_t return_type_ref,
+                                             struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_check_block_as_loop_body_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                          int32_t body_ref, int32_t return_type_ref,
+                                                          struct ast_PipelineDepCtx *ctx);
+extern void pipeline_typeck_set_active_ctx_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx);
+extern void pipeline_typeck_linear_reset_c(void);
+extern int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTArena *arena, int32_t type_ref, int32_t expr_ref,
+                                               uint8_t *name, int32_t name_len);
+extern int32_t pipeline_typeck_linear_accepts_init_c(struct ast_ASTArena *arena, int32_t decl_ref,
+                                                    int32_t init_ref);
+extern int32_t pipeline_typeck_reject_addr_of_linear_c(struct ast_ASTArena *arena, int32_t op_ref,
+                                                      int32_t addr_expr_ref, struct ast_Module *module,
+                                                      struct ast_PipelineDepCtx *ctx);
 
 extern void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col);
 

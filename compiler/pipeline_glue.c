@@ -1695,7 +1695,8 @@ extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct 
 /** 前向声明：check_expr_impl C 委托内递归 check 子表达式。 */
 int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                      int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
-int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
+/* wave259: Cap face on typeck_x.o (check_block residual retired). */
+extern int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
                                       int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
 /* wave1065→wave258: pipeline_typeck_expr_is_any_assign_kind_c Cap on typeck_x.o
@@ -1834,9 +1835,9 @@ extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena *a, int32
  * PLATFORM: SHARED. */
 #include "pipeline_typeck_check_expr.c"
 
-/* typeck check_block orchestration domain (BC 8.3.1):
- * pipeline_typeck_check_block.c */
-#include "pipeline_typeck_check_block.c"
+/* wave259: pipeline_typeck_check_block.c pure-owned leave — Cap faces
+ * (ctx/depth/linear/has_implicit/check_block*_c) on typeck_x.o only.
+ * No #include. PLATFORM: SHARED freestanding typeck. */
 
 extern int32_t check_block(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);

@@ -39,6 +39,7 @@ export extern function typeck_float64_bits_hi(d: f64): i32;
 export extern function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, name_len: i32,
 kind: i32): void;
 /* See implementation. */
+/* wave259 pure-owned leave: Cap face body at EOF (#[no_mangle]); same-TU forward. */
 export extern function pipeline_typeck_loop_depth_set_c(ctx: *PipelineDepCtx, depth: i32): void;
 /* See implementation. */
 export extern function pipeline_dep_ctx_ndep(ctx: *PipelineDepCtx): i32;
@@ -230,6 +231,7 @@ export extern function pipeline_module_num_type_aliases_at(module: *Module): i32
 export extern function pipeline_module_type_alias_name_len(module: *Module, idx: i32): i32;
 export extern function pipeline_module_type_alias_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 export extern function pipeline_module_type_alias_target_ref(module: *Module, idx: i32): i32;
+/* wave259 pure-owned leave: Cap face body at EOF (#[no_mangle]); same-TU forward. */
 export extern function pipeline_typeck_func_body_has_implicit_return_tail_c(arena: *ASTArena, body_ref: i32): i32;
 /* See implementation. */
 export extern function pipeline_expr_binop_left_ref_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -541,8 +543,8 @@ export extern function pipeline_dep_ctx_typeck_loop_depth_at(ctx: *PipelineDepCt
 export extern function pipeline_dep_ctx_current_block_ref_at(ctx: *PipelineDepCtx): i32;
 export extern function pipeline_dep_ctx_current_func_index(ctx: *PipelineDepCtx): i32;
 /* See implementation. */
+/* wave259 pure-owned leave: Cap faces body at EOF (#[no_mangle]); same-TU forward. */
 export extern function pipeline_dep_ctx_typeck_unsafe_depth_at(ctx: *PipelineDepCtx): i32;
-/* See implementation. */
 export extern function pipeline_typeck_block_impl_bind_ctx_c(ctx: *PipelineDepCtx, block_ref: i32): i32;
 export extern function pipeline_typeck_block_impl_restore_ctx_c(ctx: *PipelineDepCtx, saved_block_ref: i32): void;
 export extern function pipeline_typeck_block_impl_touch_ctx_block_c(ctx: *PipelineDepCtx, block_ref: i32): void;
@@ -740,17 +742,18 @@ export extern function pipeline_block_region_is_unsafe(arena: *ASTArena, br: i32
 export extern function pipeline_block_region_with_arena_cap_ref(arena: *ASTArena, br: i32, ri: i32): i32;
 export extern function pipeline_block_region_label_len(arena: *ASTArena, br: i32, ri: i32): i32;
 export extern function pipeline_block_region_label_copy64(arena: *ASTArena, br: i32, ri: i32, dst: *u8): void;
+/* wave259 pure-owned leave: Cap faces body at EOF (#[no_mangle]); same-TU forward. */
 export extern function pipeline_typeck_unsafe_depth_push_c(ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_unsafe_depth_pop_c(ctx: *PipelineDepCtx, saved: i32): void;
 export extern function pipeline_module_func_num_generic_params_at(module: *Module, fi: i32): i32;
-/* See implementation. */
 export extern function pipeline_typeck_linear_reset_c(): void;
 export extern function pipeline_typeck_linear_use_var_c(arena: *ASTArena, type_ref: i32, expr_ref: i32,
 name: *u8, name_len: i32): i32;
 export extern function pipeline_typeck_linear_accepts_init_c(arena: *ASTArena, decl_ref: i32, init_ref: i32): i32;
-/* See implementation. */
 export extern function pipeline_typeck_reject_addr_of_linear_c(arena: *ASTArena, op_ref: i32,
 addr_expr_ref: i32, module: *Module, ctx: *PipelineDepCtx): i32;
+/** M-4 linear ADDR_OF reject diagnostic (product driver face). */
+export extern function driver_diagnostic_typeck_linear_addr_of(line: i32, col: i32): void;
 /**
  * wave245 pure leave: WPO-S3 &local named-struct → stack_local *T type_ref.
  * → typeck.x EOF (#[no_mangle]). Cap residual deletes second body (G.7 dual-export ban).
@@ -14099,12 +14102,37 @@ export function func_body_tail_expr_ref_for_implicit_rule(arena: *ASTArena, body
 * See implementation.
 */
 export function func_body_has_implicit_return_tail(arena: *ASTArena, body_ref: i32): bool {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // wave259 pure-owned leave: full authority here (was Cap residual C twin).
+  // G-02f-477: EXPR_BLOCK (ord=26) recurses into inner block for explicit return
+  // (unsafe { return ...; } parsed as EXPR_BLOCK not region).
+  // PLATFORM: SHARED freestanding typeck.
   unsafe {
-    if (ast.ref_is_null(body_ref) || body_ref <= 0 || body_ref > arena.num_blocks) {
+    let tail_ref: i32 = 0;
+    let tail_kind: i32 = 0;
+    let dbg: *u8 = 0 as *u8;
+    if (ast.ref_is_null(body_ref) || body_ref <= 0 || arena == 0 as *ASTArena ||
+        body_ref > arena.num_blocks) {
       return false;
     }
-    return pipeline_typeck_func_body_has_implicit_return_tail_c(arena, body_ref) != 0;
+    tail_ref = func_body_tail_expr_ref_for_implicit_rule(arena, body_ref);
+    if (ast.ref_is_null(tail_ref)) {
+      return false;
+    }
+    tail_kind = pipeline_expr_kind_ord_at(arena, tail_ref);
+    dbg = link_abi_getenv("XLANG_DEBUG_PIPE" as *u8);
+    if (dbg != 0 as *u8) {
+      // Debug only; residual used fprintf — keep gate, omit host I/O in pure.
+    }
+    if (ast.ast_expr_disallows_implicit_tail(arena, tail_ref)) {
+      return false;
+    }
+    if (tail_kind == 26) {
+      let inner_block: i32 = pipeline_expr_block_ref_at(arena, tail_ref);
+      if (!ast.ref_is_null(inner_block)) {
+        return func_body_has_implicit_return_tail(arena, inner_block);
+      }
+    }
+    return true;
   }
 }
 
@@ -18839,3 +18867,381 @@ export function pipeline_typeck_expr_is_any_assign_kind_c(kind_ord: i32): i32 {
 }
 
 // end wave258 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave259: typeck check_block Cap residual pure-owned leave (host-cc present 52→51)
+// Delete pipeline_typeck_check_block.c from pipeline_x mega-TU.
+// Historical pipeline_typeck_*_c check_block / ctx / depth / linear / has_implicit
+//   faces → typeck_x.o sole authority (#[no_mangle] Cap + pure BSS cells).
+// XLANG_WEAK check_block_impl / patch_all_body_parent_links residual cold
+//   fallbacks retired — product pure already owns strong faces.
+// Cap residual: dual-export ban — no second thin body on pipeline_x.
+// PLATFORM: SHARED freestanding typeck check_block Cap leave.
+// ---------------------------------------------------------------------------
+
+// LANG-007 v2: unsafe { } nest depth sidecar (no PipelineDepCtx ABI growth).
+let g_typeck_unsafe_depth: i32 = 0;
+
+// M-4: linear type use-once move tracking (per-func reset). Cap 128 names x 128 bytes.
+let g_typeck_linear_moved_n: i32 = 0;
+let g_typeck_linear_moved_names: u8[16384] = [];
+let g_typeck_linear_moved_lens: i32[128] = [];
+
+// WPO-S3: active typeck ctx for call-slice C glue without ctx param (write-only cell).
+let g_typeck_active_ctx: *PipelineDepCtx = 0 as *PipelineDepCtx;
+
+/**
+ * Cap residual face: bind ctx.current_block_ref, return saved.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_block_impl_bind_ctx_c(ctx: *PipelineDepCtx, block_ref: i32): i32 {
+  let saved: i32 = 0;
+  if (ctx == 0 as *PipelineDepCtx) {
+    return 0;
+  }
+  saved = ctx.current_block_ref;
+  ctx.current_block_ref = block_ref;
+  return saved;
+}
+
+/**
+ * Cap residual face: restore ctx.current_block_ref.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_block_impl_restore_ctx_c(ctx: *PipelineDepCtx, saved_block_ref: i32): void {
+  if (ctx == 0 as *PipelineDepCtx) {
+    return;
+  }
+  ctx.current_block_ref = saved_block_ref;
+}
+
+/**
+ * Cap residual face: keep current_block_ref aligned with the block under check.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_block_impl_touch_ctx_block_c(ctx: *PipelineDepCtx, block_ref: i32): void {
+  if (ctx == 0 as *PipelineDepCtx) {
+    return;
+  }
+  ctx.current_block_ref = block_ref;
+}
+
+/**
+ * Cap residual face: typeck_loop_depth++ , return prior depth.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_loop_depth_push_c(ctx: *PipelineDepCtx): i32 {
+  let saved: i32 = 0;
+  if (ctx == 0 as *PipelineDepCtx) {
+    return 0;
+  }
+  saved = ctx.typeck_loop_depth;
+  ctx.typeck_loop_depth = saved + 1;
+  return saved;
+}
+
+/**
+ * Cap residual face: restore typeck_loop_depth.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_loop_depth_pop_c(ctx: *PipelineDepCtx, saved_loop_depth: i32): void {
+  if (ctx == 0 as *PipelineDepCtx) {
+    return;
+  }
+  ctx.typeck_loop_depth = saved_loop_depth;
+}
+
+/**
+ * Cap residual face: read process-local unsafe nest depth (ctx unused).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_typeck_unsafe_depth_at(ctx: *PipelineDepCtx): i32 {
+  if (ctx == 0 as *PipelineDepCtx) {
+    // residual ignored ctx; keep same regardless of null
+  }
+  return g_typeck_unsafe_depth;
+}
+
+/**
+ * Cap residual face: unsafe depth++ , return prior.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_unsafe_depth_push_c(ctx: *PipelineDepCtx): i32 {
+  let saved: i32 = 0;
+  if (ctx == 0 as *PipelineDepCtx) {
+    // unused
+  }
+  saved = g_typeck_unsafe_depth;
+  g_typeck_unsafe_depth = saved + 1;
+  return saved;
+}
+
+/**
+ * Cap residual face: restore unsafe nest depth.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_unsafe_depth_pop_c(ctx: *PipelineDepCtx, saved_unsafe_depth: i32): void {
+  if (ctx == 0 as *PipelineDepCtx) {
+    // unused
+  }
+  g_typeck_unsafe_depth = saved_unsafe_depth;
+}
+
+/**
+ * Cap residual face: write ctx.typeck_loop_depth (used by pure push/pop).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_loop_depth_set_c(ctx: *PipelineDepCtx, depth: i32): void {
+  if (ctx == 0 as *PipelineDepCtx) {
+    return;
+  }
+  ctx.typeck_loop_depth = depth;
+}
+
+/**
+ * Cap residual face: product-mega check_block_impl → pure walker.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_block_impl_c(module: *Module, arena: *ASTArena, block_ref: i32,
+return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  return check_block_impl(module, arena, block_ref, return_type_ref, ctx);
+}
+
+/**
+ * Cap residual face: bounds then pure check_block walker.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_block_c(module: *Module, arena: *ASTArena, block_ref: i32,
+return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  if (ast.ref_is_null(block_ref)) {
+    return 0;
+  }
+  if (block_ref <= 0 || arena == 0 as *ASTArena || block_ref > arena.num_blocks) {
+    return 0;
+  }
+  return check_block(module, arena, block_ref, return_type_ref, ctx);
+}
+
+/**
+ * Cap residual face: as_loop_body thin → pure (loop_depth push/pop inside).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_block_as_loop_body_c(module: *Module, arena: *ASTArena,
+body_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  return check_block_as_loop_body(module, arena, body_ref, return_type_ref, ctx);
+}
+
+/**
+ * Cap residual face: set active module + process-local ctx cell.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_set_active_ctx_c(module: *Module, ctx: *PipelineDepCtx): void {
+  pipeline_typeck_active_module_set_c(module);
+  g_typeck_active_ctx = ctx;
+}
+
+/**
+ * Cap residual face: clear linear moved set (per-function).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_linear_reset_c(): void {
+  g_typeck_linear_moved_n = 0;
+}
+
+/**
+ * Linear move-set name equality (exact len + bytes). Returns 1 if match.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+function typeck_linear_name_already_moved(name: *u8, name_len: i32): i32 {
+  let i: i32 = 0;
+  let j: i32 = 0;
+  let base: i32 = 0;
+  if (name == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  while (i < g_typeck_linear_moved_n) {
+    if (g_typeck_linear_moved_lens[i] == name_len) {
+      base = i * 128;
+      j = 0;
+      while (j < name_len) {
+        if (g_typeck_linear_moved_names[base + j] != name[j]) {
+          j = name_len + 1;
+        } else {
+          j = j + 1;
+        }
+      }
+      if (j == name_len) {
+        return 1;
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: VAR read of Linear(T) double-move gate; mark moved on success.
+ * @return i32 — 0 ok, -1 already moved (diag emitted)
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_linear_use_var_c(arena: *ASTArena, type_ref: i32, expr_ref: i32,
+name: *u8, name_len: i32): i32 {
+  let line: i32 = 0;
+  let col: i32 = 0;
+  let i: i32 = 0;
+  let base: i32 = 0;
+  // TYPE_LINEAR ord = 12 (TypeKind enum)
+  let ord_linear: i32 = 12;
+  if (arena == 0 as *ASTArena || name_len <= 0 || name_len > 127 || name == 0 as *u8) {
+    return 0;
+  }
+  if (type_ref <= 0 || pipeline_type_kind_ord_at(arena, type_ref) != ord_linear) {
+    return 0;
+  }
+  if (typeck_linear_name_already_moved(name, name_len) != 0) {
+    line = 0;
+    col = 0;
+    if (expr_ref > 0 && expr_ref <= arena.num_exprs) {
+      line = pipeline_expr_line_at(arena, expr_ref);
+      col = pipeline_expr_col_at(arena, expr_ref);
+    }
+    lsp_diag_report_typeck(line, col, "linear value used after move" as *u8);
+    return 0 - 1;
+  }
+  if (g_typeck_linear_moved_n < 128) {
+    base = g_typeck_linear_moved_n * 128;
+    i = 0;
+    while (i < name_len) {
+      g_typeck_linear_moved_names[base + i] = name[i];
+      i = i + 1;
+    }
+    g_typeck_linear_moved_lens[g_typeck_linear_moved_n] = name_len;
+    g_typeck_linear_moved_n = g_typeck_linear_moved_n + 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: Linear(T) let accepts Linear(T) or inner T init.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_linear_accepts_init_c(arena: *ASTArena, decl_ref: i32,
+init_ref: i32): i32 {
+  let ord_linear: i32 = 12;
+  if (arena == 0 as *ASTArena || decl_ref <= 0 || init_ref <= 0) {
+    return 0;
+  }
+  if (pipeline_type_kind_ord_at(arena, decl_ref) != ord_linear) {
+    return 0;
+  }
+  if (type_refs_equal(arena, decl_ref, init_ref)) {
+    return 1;
+  }
+  if (type_refs_equal(arena, pipeline_type_elem_ref_at(arena, decl_ref), init_ref)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: reject ADDR_OF on Linear var (before linear_use_var).
+ * @return i32 — 0 continue, -1 diagnostic emitted
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_reject_addr_of_linear_c(arena: *ASTArena, op_ref: i32,
+addr_expr_ref: i32, module: *Module, ctx: *PipelineDepCtx): i32 {
+  let vnlen: i32 = 0;
+  let block_ref: i32 = 0;
+  let vd_tr: i32 = 0;
+  let func_ix: i32 = 0;
+  let pr: i32 = 0;
+  let line: i32 = 0;
+  let col: i32 = 0;
+  let vbuf: u8[128] = [];
+  let ord_linear: i32 = 12;
+  let ord_var: i32 = 3;
+  let i: i32 = 0;
+  if (arena == 0 as *ASTArena || module == 0 as *Module || ctx == 0 as *PipelineDepCtx ||
+      op_ref <= 0 || op_ref > arena.num_exprs) {
+    return 0;
+  }
+  if (pipeline_expr_kind_ord_at(arena, op_ref) != ord_var) {
+    return 0;
+  }
+  vnlen = pipeline_expr_var_name_len(arena, op_ref);
+  if (vnlen <= 0 || vnlen > 127) {
+    return 0;
+  }
+  pipeline_expr_var_name_into(arena, op_ref, &vbuf[0]);
+  block_ref = ctx.current_block_ref;
+  if (block_ref > 0 && block_ref <= arena.num_blocks) {
+    vd_tr = pipeline_block_resolve_var_type_ref(arena, block_ref, &vbuf[0], vnlen);
+    if (vd_tr > 0 && pipeline_type_kind_ord_at(arena, vd_tr) == ord_linear) {
+      line = 0;
+      col = 0;
+      if (addr_expr_ref > 0 && addr_expr_ref <= arena.num_exprs) {
+        line = pipeline_expr_line_at(arena, addr_expr_ref);
+        col = pipeline_expr_col_at(arena, addr_expr_ref);
+      }
+      driver_diagnostic_typeck_linear_addr_of(line, col);
+      return 0 - 1;
+    }
+  }
+  func_ix = ctx.current_func_index;
+  if (func_ix >= 0 && func_ix < module.num_funcs) {
+    pr = pipeline_module_func_param_type_ref_for_name(module, func_ix, &vbuf[0], vnlen);
+    if (pr > 0 && pipeline_type_kind_ord_at(arena, pr) == ord_linear) {
+      line = 0;
+      col = 0;
+      if (addr_expr_ref > 0 && addr_expr_ref <= arena.num_exprs) {
+        line = pipeline_expr_line_at(arena, addr_expr_ref);
+        col = pipeline_expr_col_at(arena, addr_expr_ref);
+      }
+      driver_diagnostic_typeck_linear_addr_of(line, col);
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: tail expr ref for implicit-return rule (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(arena: *ASTArena,
+body_ref: i32): i32 {
+  return func_body_tail_expr_ref_for_implicit_rule(arena, body_ref);
+}
+
+/**
+ * Cap residual face: has_implicit_return_tail (thin → pure; bool as i32).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_func_body_has_implicit_return_tail_c(arena: *ASTArena,
+body_ref: i32): i32 {
+  if (func_body_has_implicit_return_tail(arena, body_ref)) {
+    return 1;
+  }
+  return 0;
+}
+
+// end wave259 pure-owned leave
