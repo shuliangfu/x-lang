@@ -541,9 +541,11 @@ expect_ref: i32, src_ref: i32): i32;
 export extern function pipeline_typeck_check_return_slice_region_c(arena: *ASTArena, ret_site_ref: i32,
 op_ref: i32, func_return_ref: i32): i32;
 /**
- * M-3 AL-06: return unbound T[] inside active region scope still Cap residual
- * (scope label BSS / push-pop cluster). Not pure-leaved this wave.
- * PLATFORM: SHARED
+ * wave246 pure leave: M-3 return unbound T[] inside active region scope.
+ * → typeck.x EOF (#[no_mangle]). Cap residual deletes second body (G.7 dual-export ban).
+ * export extern below = same-TU forward for early call sites (check_expr_return /
+ * scan_expr); body at EOF is the single authority.
+ * PLATFORM: SHARED freestanding typeck region escape on return.
  */
 export extern function pipeline_typeck_check_return_slice_region_in_scope_c(arena: *ASTArena,
 site_expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
@@ -15534,4 +15536,78 @@ module: *Module, ctx: *PipelineDepCtx): i32 {
 }
 
 // end wave245 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave246: typeck return_slice_region_in_scope pure leave
+// Authority: typeck_x.o (this file + typeck_gen hand-sync).
+// Symbols:
+//   pipeline_typeck_check_return_slice_region_in_scope_c
+// Cap residual region_assign deletes second body + expr_diag_line_col static
+// (dual-export ban); pure uses typeck_expr_diag_line_col + built msg (no printf).
+// PLATFORM: SHARED freestanding typeck M-3 region escape on return.
+// ---------------------------------------------------------------------------
+
+/**
+ * M-3 AL-06: return of unbound T[] while inside an active region scope is escape.
+ * Does not require operand stamp — only func return type is TYPE_SLICE with empty
+ * region label, and ctx scope region label is non-empty.
+ * @param arena *ASTArena — type + expr arena
+ * @param site_expr_ref i32 — return expr for line/col
+ * @param return_type_ref i32 — function return type_ref
+ * @param ctx *PipelineDepCtx — active region scope label/len
+ * @return i32 — 0 ok; -1 diagnostic emitted
+ * wave246 G.7 pure leave: was Cap residual pipeline_typeck_check_return_slice_region_in_scope_c.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_return_slice_region_in_scope_c(arena: *ASTArena,
+site_expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — region-scope unbound T[] return escape gate.
+  unsafe {
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let rlen: i32 = 0;
+    let msg: u8[256] = [];
+    let p: i32 = 0;
+    let z: i32 = 0;
+    if (arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || site_expr_ref <= 0
+    || return_type_ref <= 0) {
+      return 0;
+    }
+    if (pipeline_dep_ctx_scope_region_len_at(ctx) <= 0) {
+      return 0;
+    }
+    /* TYPE_SLICE ord == 11 */
+    if (pipeline_type_kind_ord_at(arena, return_type_ref) != 11) {
+      return 0;
+    }
+    if (pipeline_type_region_label_len_at(arena, return_type_ref) > 0) {
+      return 0;
+    }
+    line = 0;
+    col = 0;
+    typeck_expr_diag_line_col(arena, site_expr_ref, &line, &col);
+    rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
+    if (rlen < 0) {
+      rlen = 0;
+    }
+    if (rlen > 64) {
+      rlen = 64;
+    }
+    z = 0;
+    while (z < 256) {
+      msg[z] = 0;
+      z = z + 1;
+    }
+    /* "slice region escape: cannot return <" + label + "> slice as unbound T[]" */
+    p = typeck_diag_append_lit(&msg[0], 0, 255, "slice region escape: cannot return <", 36);
+    p = typeck_diag_append_lit(&msg[0], p, 255, &ctx.typeck_scope_region_label[0], rlen);
+    p = typeck_diag_append_lit(&msg[0], p, 255, "> slice as unbound T[]", 22);
+    msg[p] = 0;
+    lsp_diag_report_typeck(line, col, &msg[0]);
+    return 0 - 1;
+  }
+}
+
+// end wave246 pure-owned leave
 

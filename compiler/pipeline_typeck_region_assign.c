@@ -45,8 +45,11 @@
  * pipeline_type_find_or_alloc_ptr is the single authority for labelled *T.
  * Cap residual deletes stack_local helpers + dead store-scan cluster + body.
  *
+ * wave246 G.7 pure leave: M-3 return_slice_region_in_scope → typeck.x
+ * (pipeline_typeck_check_return_slice_region_in_scope_c). Cap residual deletes
+ * second body + static expr_diag_line_col (only residual caller of that helper).
+ *
  * Still residual (not pure-leaved this wave):
- * - return_slice_region_in_scope + expr_diag_line_col
  * - thin *_c faces for scan/mega / pure leave callees
  *
  * G.7 dual-export ban: do NOT re-open second bodies for pure-leaved faces;
@@ -87,9 +90,6 @@ int32_t glue_expr_kind_is_assign_like_ord(int32_t ko);
  * site_expr_ref 用于 line/col；返回 0 可接受，-1 已打印 typeck error。
  * PLATFORM: SHARED — Cap residual face only.
  */
-static void pipeline_typeck_expr_diag_line_col_c(struct ast_ASTArena *a, int32_t expr_ref, int32_t *line,
-                                                 int32_t *col);
-
 int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena *arena, int32_t site_expr_ref,
                                                     int32_t expect_ref, int32_t src_ref) {
   return typeck_check_slice_region_assign(arena, site_expr_ref, expect_ref, src_ref);
@@ -104,34 +104,6 @@ int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *mo
                                                            int32_t site_expr_ref, int32_t left_ref, int32_t right_ref,
                                                            struct ast_PipelineDepCtx *ctx) {
   return typeck_check_struct_stack_escape_assign(module, arena, site_expr_ref, left_ref, right_ref, ctx);
-}
-
-/** MEM-A3：typeck 诊断 line/col（assign 等 site expr line=0 时回退子树）。 */
-static void pipeline_typeck_expr_diag_line_col_c(struct ast_ASTArena *a, int32_t expr_ref, int32_t *line,
-                                                 int32_t *col) {
-  int32_t k;
-  if (!a || expr_ref <= 0 || !line || !col) {
-    if (line)
-      *line = 0;
-    if (col)
-      *col = 0;
-    return;
-  }
-  *line = pipeline_expr_line_at(a, expr_ref);
-  *col = pipeline_expr_col_at(a, expr_ref);
-  if (*line > 0)
-    return;
-  k = pipeline_expr_kind_ord_at(a, expr_ref);
-  if (glue_expr_kind_is_assign_like_ord(k)) {
-    pipeline_typeck_expr_diag_line_col_c(a, pipeline_expr_binop_left_ref_at(a, expr_ref), line, col);
-    if (*line > 0)
-      return;
-    pipeline_typeck_expr_diag_line_col_c(a, pipeline_expr_binop_right_ref_at(a, expr_ref), line, col);
-    return;
-  }
-  if (k == (int32_t)ast_ExprKind_EXPR_ADDR_OF || k == (int32_t)ast_ExprKind_EXPR_RETURN ||
-      k == (int32_t)ast_ExprKind_EXPR_NEG || k == (int32_t)ast_ExprKind_EXPR_LOGNOT)
-    pipeline_typeck_expr_diag_line_col_c(a, pipeline_expr_unary_operand_ref_at(a, expr_ref), line, col);
 }
 
 /**
@@ -205,32 +177,6 @@ int32_t pipeline_typeck_check_allocator_region_return_c(struct ast_ASTArena *are
 }
 
 /**
- * M-3 AL-06：region 内 return 未标注域 slice — 禁止 slice 域逃出 region
- *（scan + typeck.x 共用；不依赖 operand 已 stamp，只要在 scope 内 return 未标注 T[]）。
- */
-int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena *arena, int32_t site_expr_ref,
-                                                            int32_t return_type_ref,
-                                                            struct ast_PipelineDepCtx *ctx) {
-  int32_t line;
-  int32_t col;
-  int32_t rlen;
-  if (!arena || !ctx || site_expr_ref <= 0 || return_type_ref <= 0)
-    return 0;
-  if (pipeline_dep_ctx_scope_region_len_at(ctx) <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, return_type_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  if (pipeline_type_region_label_len_at(arena, return_type_ref) > 0)
-    return 0;
-  pipeline_typeck_expr_diag_line_col_c(arena, site_expr_ref, &line, &col);
-  rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
-  lsp_diag_report_typeck((int)line, (int)col,
-                         "slice region escape: cannot return <%.*s> slice as unbound T[]", (int)rlen,
-                         (const char *)ctx->typeck_scope_region_label);
-  return -1;
-}
-
-/**
  * M-3：.x typeck return 路径 slice 域逃逸 / 不一致；ret_site_ref 用于 line/col。
  * wave235 pure leave: thin → typeck_check_return_slice_region.
  * PLATFORM: SHARED — Cap residual face only.
@@ -241,14 +187,22 @@ int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena, 
 }
 
 /*
- * wave242–245 G.7 pure leave trail (dual-export ban — no second bodies):
+ * wave242–246 G.7 pure leave trail (dual-export ban — no second bodies):
  *   wave242 scan_expr/scan_block/scan_module → typeck_x.o
  *   wave243 read_ptr + stamp_let → typeck_x.o
  *   wave244 one_region + call_struct → typeck_x.o
  *   wave245 ptr_for_addr_of (+ stack_local *T) → typeck_x.o
- * Residual keeps return_slice_region_in_scope + thin *_c faces only.
+ *   wave246 return_slice_region_in_scope → typeck_x.o
+ * Residual keeps thin *_c faces only (no second pure-leaved bodies).
  * PLATFORM: SHARED — host-cc via pipeline_x.o TU (U faces from typeck_x).
  */
+
+/* wave246 pure leave: return_slice_region_in_scope lives in typeck_x.o (dual-export ban).
+ * check_expr residual + scan tree may still call by name — U from typeck_x. */
+extern int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena *arena,
+                                                                    int32_t site_expr_ref,
+                                                                    int32_t return_type_ref,
+                                                                    struct ast_PipelineDepCtx *ctx);
 
 /* wave243 pure leave: read_ptr + stamp_let live in typeck_x.o (dual-export ban). */
 extern int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int32_t name_len);
