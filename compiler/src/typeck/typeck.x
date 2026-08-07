@@ -14577,7 +14577,7 @@ export function pipeline_typeck_named_is_module_concrete_c(module: *Module, ctx:
 //   pipeline_typeck_with_arena_scope_pop_c
 //   pipeline_typeck_with_arena_scope_reset_c
 // Residual scan tree / check_block_one_region write pure push/pop/reset only.
-// Region-label scope stack stays residual (ctx memcpy).
+// wave241: region-label scope stack also pure (below).
 // PLATFORM: SHARED freestanding — nest body refs are platform-agnostic.
 // ===========================================================================
 
@@ -14655,4 +14655,145 @@ export function pipeline_typeck_with_arena_scope_reset_c(): void {
 }
 
 // end wave240 pure-owned leave
+
+// ===========================================================================
+// wave241: typeck region-label scope BSS pure leave
+// (was Cap residual pipeline_typeck_region_assign.c:
+//  g_typeck_region_saved_len / saved_label / scope_n +
+//  pipeline_dep_ctx_scope_region_{push,pop,len_at}_c)
+// G.7 product authority (typeck_x.o; typeck_gen hand-sync when -E SEGV):
+//   pipeline_dep_ctx_scope_region_push_c
+//   pipeline_dep_ctx_scope_region_pop_c
+//   pipeline_dep_ctx_scope_region_len_at
+//   pipeline_typeck_region_scope_reset_c
+// Residual scan tree / check_block_one_region / stamp_let only call pure faces.
+// Saved labels are flattened u8[8*128] (slot * 128 + i) — no nested array BSS.
+// Preserve residual C quirks: push saves prior label only when prev_len <= 63;
+// pop restores when saved_len <= 127 (exact leave fidelity).
+// PLATFORM: SHARED freestanding — region labels are platform-agnostic bytes.
+// ===========================================================================
+
+let g_typeck_region_saved_len: i32[8] = [];
+let g_typeck_region_saved_label: u8[1024] = [];
+let g_typeck_region_scope_n: i32 = 0;
+
+/**
+ * M-3: save current ctx region label and set new domain label for nesting.
+ * Used by region block scan/typeck so inner lets inherit tagged T[] labels.
+ * Contract: null ctx/label or label_len outside [1,127] → -1.
+ *           Nest full (>= 8) → -1.
+ * @param ctx *PipelineDepCtx — typeck dep context (mutates scope region fields)
+ * @param label *u8 — new region label bytes (not required to be NUL-terminated)
+ * @param label_len i32 — byte count in [1,127]
+ * @return i32 — 0 success, -1 failure
+ * wave241 pure: G.7 authority (was Cap residual region_assign BSS body).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_scope_region_push_c(ctx: *PipelineDepCtx, label: *u8,
+                                                     label_len: i32): i32 {
+  if (ctx == 0 as *PipelineDepCtx || label == 0 as *u8) {
+    return -1;
+  }
+  if (label_len <= 0 || label_len > 127) {
+    return -1;
+  }
+  if (g_typeck_region_scope_n >= 8) {
+    return -1;
+  }
+  let slot: i32 = g_typeck_region_scope_n;
+  let prev_len: i32 = ctx.typeck_scope_region_len;
+  g_typeck_region_saved_len[slot] = prev_len;
+  // Residual fidelity: only snapshot prior label when prev_len in (0, 63].
+  if (prev_len > 0 && prev_len <= 63) {
+    let base: i32 = slot * 128;
+    let i: i32 = 0;
+    while (i < 128) {
+      g_typeck_region_saved_label[base + i] = ctx.typeck_scope_region_label[i];
+      i = i + 1;
+    }
+  }
+  // Clear then write new label into ctx (128-byte fixed field).
+  let j: i32 = 0;
+  while (j < 128) {
+    ctx.typeck_scope_region_label[j] = 0;
+    j = j + 1;
+  }
+  let k: i32 = 0;
+  while (k < label_len) {
+    ctx.typeck_scope_region_label[k] = label[k];
+    k = k + 1;
+  }
+  ctx.typeck_scope_region_len = label_len;
+  g_typeck_region_scope_n = g_typeck_region_scope_n + 1;
+  return 0;
+}
+
+/**
+ * M-3: restore region domain label saved by matching push.
+ * Contract: null ctx or empty stack → no-op.
+ * @param ctx *PipelineDepCtx — typeck dep context (mutates scope region fields)
+ * @return void
+ * wave241 pure: G.7 authority (was Cap residual region_assign BSS body).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_scope_region_pop_c(ctx: *PipelineDepCtx): void {
+  if (ctx == 0 as *PipelineDepCtx) {
+    return;
+  }
+  if (g_typeck_region_scope_n <= 0) {
+    return;
+  }
+  g_typeck_region_scope_n = g_typeck_region_scope_n - 1;
+  let slot: i32 = g_typeck_region_scope_n;
+  let saved_len: i32 = g_typeck_region_saved_len[slot];
+  ctx.typeck_scope_region_len = saved_len;
+  let j: i32 = 0;
+  while (j < 128) {
+    ctx.typeck_scope_region_label[j] = 0;
+    j = j + 1;
+  }
+  // Residual fidelity: restore bytes only when saved_len in (0, 127].
+  if (saved_len > 0 && saved_len <= 127) {
+    let base: i32 = slot * 128;
+    let i: i32 = 0;
+    while (i < 128) {
+      ctx.typeck_scope_region_label[i] = g_typeck_region_saved_label[base + i];
+      i = i + 1;
+    }
+  }
+}
+
+/**
+ * M-3: current ctx region domain label length; 0 means outside a region block.
+ * @param ctx *PipelineDepCtx — typeck dep context
+ * @return i32 — scope region label length, or 0 if null/empty
+ * wave241 pure: G.7 authority (was Cap residual region_assign face).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_scope_region_len_at(ctx: *PipelineDepCtx): i32 {
+  if (ctx == 0 as *PipelineDepCtx) {
+    return 0;
+  }
+  if (ctx.typeck_scope_region_len > 0) {
+    return ctx.typeck_scope_region_len;
+  }
+  return 0;
+}
+
+/**
+ * M-3: clear region-label nest depth before module-level post-typeck scan.
+ * Does not clear ctx fields — caller still zeros typeck_scope_region_*.
+ * @return void
+ * wave241 pure: G.7 authority (was Cap residual direct scope_n = 0 write).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_region_scope_reset_c(): void {
+  g_typeck_region_scope_n = 0;
+}
+
+// end wave241 pure-owned leave
 

@@ -18,12 +18,16 @@
  * Cap residual keeps thin pipeline_typeck_check_call_slice_region_c only.
  *
  * wave240 G.7 pure leave: MEM-C1 with_arena nest BSS + push/pop/reset →
- * runtime_pipeline_abi (pipeline_typeck_with_arena_scope_*). Cap residual only
+ * typeck.x (pipeline_typeck_with_arena_scope_*). Cap residual only
  * calls pure faces from scan tree + check_block_one_region.
  *
+ * wave241 G.7 pure leave: M-3 region-label scope BSS + push/pop/len/reset →
+ * typeck.x (pipeline_dep_ctx_scope_region_* + pipeline_typeck_region_scope_reset_c).
+ * Cap residual only calls pure faces; no second BSS cell.
+ *
  * Still residual (not pure-leaved this wave):
- * - M-3 region-label scope stack BSS (saved_len / saved_label / scope_n + push/pop)
- * - post-scan stack-escape walk helpers (block tree stmt_order)
+ * - post-scan stack-escape walk helpers (block tree stmt_order / scan tree)
+ * - stack_local ptr stamp + read_ptr slice + stamp_let cluster
  *
  * G.7 dual-export ban: do NOT re-open second bodies for pure-leaved faces;
  * typeck.x is single authority for those checks.
@@ -155,10 +159,16 @@ extern void pipeline_typeck_with_arena_scope_push_c(int32_t body_ref);
 extern void pipeline_typeck_with_arena_scope_pop_c(void);
 extern void pipeline_typeck_with_arena_scope_reset_c(void);
 
-/** M-3：region 域栈读/写（定义见下；前置声明供 AL-06 scan/typeck 使用）。 */
-int32_t pipeline_dep_ctx_scope_region_push_c(struct ast_PipelineDepCtx *ctx, uint8_t *label, int32_t label_len);
-void pipeline_dep_ctx_scope_region_pop_c(struct ast_PipelineDepCtx *ctx);
-int32_t pipeline_dep_ctx_scope_region_len_at(struct ast_PipelineDepCtx *ctx);
+/*
+ * wave241 G.7 pure leave: region-label scope BSS + push/pop/len/reset live in
+ * typeck.x / typeck_gen (pipeline_dep_ctx_scope_region_* → typeck_x.o).
+ * Cap residual only calls pure faces — dual-export ban (no second BSS cell).
+ */
+extern int32_t pipeline_dep_ctx_scope_region_push_c(struct ast_PipelineDepCtx *ctx, uint8_t *label,
+                                                    int32_t label_len);
+extern void pipeline_dep_ctx_scope_region_pop_c(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_dep_ctx_scope_region_len_at(struct ast_PipelineDepCtx *ctx);
+extern void pipeline_typeck_region_scope_reset_c(void);
 
 /** M-3 AL-06：return slice 域检查（定义见下）。 */
 int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena, int32_t ret_site_ref,
@@ -667,18 +677,14 @@ static int32_t typeck_func_stores_param_into_param_field_c(struct ast_Module *m,
  * Invariant: definitions placed at EOF AFTER all called check_* helpers
  * above. scan_expr is defined first (no self-recursion); scan_block is
  * recursive and gets a static fwd decl immediately below so it can call
- * itself. pipeline_typeck_scan_module_struct_stack_escape_c (the public
- * entry, glue.c L10215) stays in glue.c because it touches globals
- * g_typeck_with_arena_scope_n / g_typeck_region_scope_n directly; it
- * sees scan_block via the #include of this leaf at glue.c L9934.
+ * itself. Module scan entry lives in this file and resets pure with_arena
+ * + region-label scope faces (wave240/wave241) before walking funcs.
  *
- * Dependencies visible via earlier fwd decls in glue.c (all before
- * #include at L9934):
- *   - pipeline_typeck_check_call_struct_stack_escape_c (static fwd at L9886)
- *   - pipeline_dep_ctx_scope_region_push_c / _pop_c (extern fwd at L328-329
- *     of this file; definitions at glue.c L10083/10101)
- *   - pipeline_typeck_unsafe_depth_push_c / _pop_c (fwd at glue.c L8703-8704)
- *   - pipeline_typeck_with_arena_scope_push_c / _pop_c (wave240 pure faces)
+ * Dependencies (pure faces in typeck_x.o):
+ *   - pipeline_typeck_check_call_struct_stack_escape_c (extern)
+ *   - pipeline_dep_ctx_scope_region_push_c / _pop_c (wave241 pure)
+ *   - pipeline_typeck_with_arena_scope_push_c / _pop_c (wave240 pure)
+ *   - pipeline_typeck_unsafe_depth_push_c / _pop_c (extern)
  *
  * PLATFORM: SHARED — pure typeck analysis; no platform ABI dependency.
  * ============================================================ */
@@ -891,87 +897,23 @@ static int32_t typeck_scan_block_stack_escape_c(struct ast_Module *m, struct ast
 }
 
 /*
- * wave1167 G.7: region scope + scan_module + read_ptr + stamp_let cluster
- * (7 fns + 3 statics + 1 macro) migrated from pipeline_glue.c (was L8497-8645).
- * Colocated with region_assign domain — all region scope push/pop/len/stamp
- * and module-level stack-escape scan belong here with typeck_scan_block_stack_escape_c.
+ * wave241: region scope BSS + push/pop/len/reset pure-leaved to typeck_x.o.
+ * Residual keeps scan_module + read_ptr + stamp_let (still host-cc).
  *
- * Statics (g_typeck_region_saved_len / saved_label / scope_n) now live here
- * alongside g_typeck_with_arena_scope_n (L307). Both are reset by
- * pipeline_typeck_scan_module_struct_stack_escape_c before per-func scan.
- *
- * Forward decls at L327-329 retained for early callsites in this file
- * (check_return_slice_region_c at L409/416, scan_block at L1112/1121/1128)
- * which precede these EOF definitions.
- *
- * Extern fwd decl for pipeline_block_set_let_type_ref (defined in
- * ast_pool_block.c, visible via ast_pool.c #include at glue.c L5281 < this
- * file's #include at L8417).
- *
- * Deps (all extern, visible at region_assign.c #include L8417):
+ * Deps (all extern, visible at region_assign.c #include):
+ * - pipeline_typeck_with_arena_scope_reset_c / pipeline_typeck_region_scope_reset_c
+ * - pipeline_dep_ctx_scope_region_* (typeck pure)
  * - link_abi_getenv (global)
  * - pipeline_module_num_funcs / pipeline_module_func_is_extern_at /
  *   pipeline_module_func_num_generic_params_at /
  *   pipeline_module_func_body_ref_at (module_func domain)
- * - typeck_scan_block_stack_escape_c (same file, L920+)
- * - pipeline_type_ensure_by_kind_ord (glue.c L3334)
- * - pipeline_type_find_or_alloc_slice (ast_pool_type.c)
+ * - typeck_scan_block_stack_escape_c (same file)
+ * - pipeline_type_ensure_by_kind_ord / pipeline_type_find_or_alloc_slice
  * - pipeline_type_kind_ord_at / pipeline_type_elem_ref_at /
- *   pipeline_type_region_label_len_at (type accessor domain)
+ *   pipeline_type_region_label_len_at
  * - pipeline_block_let_type_ref / pipeline_block_set_let_type_ref
- *   (ast_pool_block.c)
  * PLATFORM: SHARED — host-cc via pipeline_x.o TU.
  */
-
-/** M-3: typeck region domain nesting stack (max 8 levels; push/pop in C glue). */
-#define TYPECK_REGION_SCOPE_MAX 8
-static int32_t g_typeck_region_saved_len[TYPECK_REGION_SCOPE_MAX];
-static uint8_t g_typeck_region_saved_label[TYPECK_REGION_SCOPE_MAX][128];
-static int32_t g_typeck_region_scope_n;
-
-/**
- * Save current ctx region label and set new domain label; -1 on failure.
- * Why: region blocks (unsafe/io_read_ptr/etc.) push a domain label so that
- *      inner let T[] declarations inherit the region tag for escape checks.
- * Contract: null ctx / null label / label_len outside [1,127] → -1.
- *           Stack overflow (>= TYPECK_REGION_SCOPE_MAX) → -1.
- * PLATFORM: SHARED — region scope management for post-typeck escape scan.
- */
-int32_t pipeline_dep_ctx_scope_region_push_c(struct ast_PipelineDepCtx *ctx, uint8_t *label, int32_t label_len) {
-  int32_t slot;
-  if (!ctx || !label || label_len <= 0 || label_len > 127)
-    return -1;
-  if (g_typeck_region_scope_n >= TYPECK_REGION_SCOPE_MAX)
-    return -1;
-  slot = g_typeck_region_scope_n;
-  g_typeck_region_saved_len[slot] = ctx->typeck_scope_region_len;
-  if (ctx->typeck_scope_region_len > 0 && ctx->typeck_scope_region_len <= 63)
-    memcpy(g_typeck_region_saved_label[slot], ctx->typeck_scope_region_label, 128);
-  memset(ctx->typeck_scope_region_label, 0, sizeof(ctx->typeck_scope_region_label));
-  memcpy(ctx->typeck_scope_region_label, label, (size_t)label_len);
-  ctx->typeck_scope_region_len = label_len;
-  g_typeck_region_scope_n++;
-  return 0;
-}
-
-/**
- * Restore the region domain label saved by the matching push.
- * Why: pop region scope after scanning a region block body so outer
- *      lets are not tagged with the inner region label.
- * Contract: null ctx / empty stack → no-op.
- * PLATFORM: SHARED — region scope management for post-typeck escape scan.
- */
-void pipeline_dep_ctx_scope_region_pop_c(struct ast_PipelineDepCtx *ctx) {
-  int32_t slot;
-  if (!ctx || g_typeck_region_scope_n <= 0)
-    return;
-  g_typeck_region_scope_n--;
-  slot = g_typeck_region_scope_n;
-  ctx->typeck_scope_region_len = g_typeck_region_saved_len[slot];
-  memset(ctx->typeck_scope_region_label, 0, sizeof(ctx->typeck_scope_region_label));
-  if (g_typeck_region_saved_len[slot] > 0 && g_typeck_region_saved_len[slot] <= 127)
-    memcpy(ctx->typeck_scope_region_label, g_typeck_region_saved_label[slot], 128);
-}
 
 /**
  * Module-level post-typeck scan for struct stack-pointer escape.
@@ -994,7 +936,7 @@ int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *mod
   if (link_abi_getenv("XLANG_SKIP_STACK_ESCAPE") != NULL)
     return 0;
   pipeline_typeck_with_arena_scope_reset_c();
-  g_typeck_region_scope_n = 0;
+  pipeline_typeck_region_scope_reset_c();
   ctx->typeck_scope_region_len = 0;
   memset(ctx->typeck_scope_region_label, 0, sizeof(ctx->typeck_scope_region_label));
   nf = pipeline_module_num_funcs(module);
@@ -1057,16 +999,7 @@ int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *arena) 
   return pipeline_type_find_or_alloc_slice(arena, u8_ref, (uint8_t *)lbl, 11);
 }
 
-/**
- * Read current ctx region domain label length; 0 means not inside a region block.
- * Contract: null ctx → 0.
- * PLATFORM: SHARED — M-3 region scope reader for let region stamping.
- */
-int32_t pipeline_dep_ctx_scope_region_len_at(struct ast_PipelineDepCtx *ctx) {
-  if (!ctx)
-    return 0;
-  return ctx->typeck_scope_region_len > 0 ? ctx->typeck_scope_region_len : 0;
-}
+/* wave241 pure leave: pipeline_dep_ctx_scope_region_len_at → typeck_x.o */
 
 /* extern: defined in ast_pool_block.c (visible via ast_pool.c #include at glue.c L5281). */
 int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
@@ -1247,7 +1180,7 @@ int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, str
  *   - pipeline_typeck_unsafe_depth_push_c / _pop_c (fwd at glue.c L3238-3239;
  *     definitions in pipeline_typeck_check_block.c #include L3959)
  *   - pipeline_typeck_with_arena_scope_push_c / _pop_c (wave240 pure faces)
- *   - pipeline_dep_ctx_scope_region_push_c / _pop_c (defined in this file)
+ *   - pipeline_dep_ctx_scope_region_push_c / _pop_c (wave241 pure typeck_x)
  *   - typeck_check_block (extern decl inside function body)
  * Sole extern caller: typeck_gen.c L9100 + typeck.x seed. PLATFORM: SHARED. */
 
