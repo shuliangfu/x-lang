@@ -4,10 +4,21 @@ set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
-xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
+# MG: Makefile gone — do not hang on make. Prefer product XLANG from env.
+if [ -f compiler/Makefile ]; then
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c || true
+fi
 # vec_add_verify 引用 xlang_string_memcmp_c；purge 后须显式编 std/string/string.o。
-xlang_compiler_make -q ../std/string/string.o 2>/dev/null \
-  || xlang_compiler_make ../std/string/string.o
+# PLATFORM: SHARED — shell catalog ensure (0× make) after MG physical delete.
+if [ ! -f std/string/string.o ]; then
+  (
+    cd compiler
+    XLANG="${XLANG:-./xlang_asm}"
+    [ -x "$XLANG" ] || XLANG=./xlang
+    export XLANG
+    bash scripts/xlang_compile_std_module.sh ensure ../std/string/string.o
+  )
+fi
 
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
