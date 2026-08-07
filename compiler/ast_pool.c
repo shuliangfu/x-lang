@@ -342,11 +342,15 @@ void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct as
 /* 2026-08-08: pipeline_asm_slot_bytes.c pure-owned leave (wave268).
  * Live face: runtime_pipeline_abi.x (asm_local_slot_bytes +
  * asm_ctx_ensure_block_locals). Cap residual: slot_reg_offset / simd spelling
- * / SOA+layout typeck glues; block_tree still host-cc consumer of ensure.
+ * / SOA+layout typeck glues.
  * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
  * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
-#include "pipeline_asm_block_tree.c"
+/* 2026-08-08: pipeline_asm_block_tree.c pure-owned leave (wave269).
+ * Live face: runtime_pipeline_abi.x (asm_sum_block_* + asm_count_block_stack_slots
+ * + asm_ctx_fill_locals_block_tree). Cap residual: GrowVec host DFS retired;
+ * pure fixed i32[256] BSS walk stack. Seed cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 /* 2026-08-05: pipeline_asm_ctx_loop.c pure-owned leave (wave114).
  * Live face: runtime_pipeline_abi.x (asm_ctx_loop_* + asm_be_cont_*).
