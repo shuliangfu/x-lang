@@ -6,7 +6,7 @@
  *
  * Domain (type field read/write + find-or-alloc):
  * - pipeline_type_named_name_into / region_label_into / region_label_len_at
- * - pipeline_type_set_region_label_at / find_or_alloc_slice
+ * - pipeline_type_set_region_label_at / find_or_alloc_slice / find_or_alloc_ptr
  * - pipeline_type_kind_ord_at / elem_ref_at / array_size_at
  *
  * wave1166 G.7: migrated from pipeline_glue.c (was L1041-1153, L2216).
@@ -39,7 +39,8 @@ int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t ref, u
 
 /**
  * Copy Type.region_label[64] into out64; return region_label_len.
- * Only TYPE_SLICE has a valid region label; returns 0 for invalid/no label.
+ * Used for TYPE_SLICE region labels and TYPE_PTR stack_local (WPO-S3).
+ * Returns 0 for invalid/no label.
  */
 int32_t pipeline_type_region_label_into(struct ast_ASTArena *arena, int32_t ref, uint8_t *out64) {
   struct ast_Type *t;
@@ -53,7 +54,7 @@ int32_t pipeline_type_region_label_into(struct ast_ASTArena *arena, int32_t ref,
 }
 
 /**
- * Read Type.region_label_len (slice region label length).
+ * Read Type.region_label_len (slice / PTR region label length).
  * Returns 0 for invalid ref or no label.
  */
 int32_t pipeline_type_region_label_len_at(struct ast_ASTArena *arena, int32_t ref) {
@@ -65,8 +66,11 @@ int32_t pipeline_type_region_label_len_at(struct ast_ASTArena *arena, int32_t re
 }
 
 /**
- * Write region label for a TYPE_SLICE slot (label_len must be 1..127).
- * Returns 1 on success, 0 on failure (invalid ref, not TYPE_SLICE, etc.).
+ * Write region label for a TYPE_SLICE or TYPE_PTR slot (label_len must be 1..127).
+ * wave245 G.7 有则补全: TYPE_PTR also carries region_label (stack_local *T).
+ * Prefer find_or_alloc_* when allocating a new labelled type so shared
+ * unlabelled nodes are never mutated in place.
+ * Returns 1 on success, 0 on failure (invalid ref, wrong kind, etc.).
  */
 int32_t pipeline_type_set_region_label_at(struct ast_ASTArena *arena, int32_t ref, uint8_t *label,
                                           int32_t label_len) {
@@ -74,7 +78,7 @@ int32_t pipeline_type_set_region_label_at(struct ast_ASTArena *arena, int32_t re
   if (!arena || ref <= 0 || ref > arena->num_types || !label || label_len <= 0 || label_len > 127)
     return 0;
   t = pipeline_arena_type_ptr(arena, ref);
-  if (!t || t->kind != ast_TypeKind_TYPE_SLICE)
+  if (!t || (t->kind != ast_TypeKind_TYPE_SLICE && t->kind != ast_TypeKind_TYPE_PTR))
     return 0;
   memset(t->region_label, 0, sizeof(t->region_label));
   memcpy(t->region_label, label, (size_t)label_len);
@@ -113,6 +117,48 @@ int32_t pipeline_type_find_or_alloc_slice(struct ast_ASTArena *a, int32_t elem_r
     return 0;
   memset(t, 0, sizeof(*t));
   t->kind = ast_TypeKind_TYPE_SLICE;
+  t->elem_type_ref = elem_ref;
+  if (region_len > 0 && region) {
+    memcpy(t->region_label, region, (size_t)region_len);
+    t->region_label_len = region_len;
+  }
+  return k;
+}
+
+/**
+ * Find or allocate a TYPE_PTR for *elem_ref with optional region label.
+ * region_len==0 means unlabelled *T (same key as plain find_or_alloc_ptr).
+ * wave245 G.7: single type-pool authority for stack_local *Struct (WPO-S3);
+ * Cap residual typeck_find_or_alloc_ptr_stack_local_c deleted after pure leave.
+ * Returns existing or new type ref; 0 on failure.
+ * PLATFORM: SHARED — host-cc Cap residual type pool face.
+ */
+int32_t pipeline_type_find_or_alloc_ptr(struct ast_ASTArena *a, int32_t elem_ref, uint8_t *region,
+                                        int32_t region_len) {
+  int32_t k;
+  struct ast_Type *t;
+  if (!a || elem_ref <= 0)
+    return 0;
+  if (region_len < 0 || region_len > 127)
+    return 0;
+  if (region_len > 0 && !region)
+    return 0;
+  for (k = 1; k <= a->num_types; k++) {
+    t = pipeline_arena_type_ptr(a, k);
+    if (t && t->kind == ast_TypeKind_TYPE_PTR && t->elem_type_ref == elem_ref && t->array_size == 0 &&
+        t->name_len == 0 && t->region_label_len == region_len &&
+        (region_len == 0 ||
+         (region && memcmp(t->region_label, region, (size_t)region_len) == 0)))
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  memset(t, 0, sizeof(*t));
+  t->kind = ast_TypeKind_TYPE_PTR;
   t->elem_type_ref = elem_ref;
   if (region_len > 0 && region) {
     memcpy(t->region_label, region, (size_t)region_len);

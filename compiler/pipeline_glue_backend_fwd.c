@@ -76,7 +76,7 @@ int implicit_tail_expr_disallowed_by_glue(struct ast_ASTArena *a, int32_t expr_r
  *
  * Migrated: pipeline_type_named_name_into / region_label_into /
  * region_label_len_at / set_region_label_at / find_or_alloc_slice /
- * kind_ord_at / elem_ref_at / array_size_at (L2216 below, also removed).
+ * find_or_alloc_ptr (wave245) / kind_ord_at / elem_ref_at / array_size_at.
  *
  * Forward decls retained:
  * - pipeline_type_kind_ord_at: L761 (before callsites throughout glue.c)

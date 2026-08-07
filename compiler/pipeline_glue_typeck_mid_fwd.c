@@ -280,12 +280,10 @@ extern int32_t typeck_struct_layouts_same_shape_c(struct ast_Module *m, struct a
  * same-TU — struct_lit.c #include at L2051 < all callsites (L10422+ /
  * L11189+ / L11240+ / L11363+). PLATFORM: SHARED. */
 
-/* wave1125-1129 G.7: WPO-S3 stack-escape analysis helpers (5 fns + const)
- * migrated to pipeline_typeck_region_assign.c EOF.
- * wave1282 G.7: pipeline_typeck_ptr_for_addr_of_operand_c also folded into
- * region_assign.c EOF — glue body + static fwd decls for
- * typeck_var_is_block_local_c / typeck_find_or_alloc_ptr_stack_local_c
- * removed (no remaining glue.c callsites before #include).
- * wave1133-1135 G.7: lval param ptr field cluster also in region_assign EOF.
- * PLATFORM: SHARED. */
+/* wave1125-1129 / wave1282 / wave1133-1135 G.7: WPO-S3 stack-escape helpers
+ * + ptr_for_addr once lived in region_assign.c EOF.
+ * wave245 pure leave: pipeline_typeck_ptr_for_addr_of_operand_c → typeck_x.o
+ * (dual-export ban); residual deleted stack_local helpers + dead store-scan.
+ * Type-pool face pipeline_type_find_or_alloc_ptr (ast_pool_type.c) stamps
+ * stack_local *T. PLATFORM: SHARED. */
 

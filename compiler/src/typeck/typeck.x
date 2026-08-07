@@ -524,6 +524,13 @@ label_len: i32): i32;
 export extern function pipeline_type_find_or_alloc_slice(arena: *ASTArena, elem_ref: i32, reg_label: *u8,
 reg_label_len: i32): i32;
 /**
+ * Type-pool face (wave245): find/alloc *elem with optional region label.
+ * region_len==0 → unlabelled *T; "stack_local"/11 → WPO-S3 stack-local *Struct.
+ * PLATFORM: SHARED — Cap residual ast_pool_type authority.
+ */
+export extern function pipeline_type_find_or_alloc_ptr(arena: *ASTArena, elem_ref: i32, reg_label: *u8,
+reg_label_len: i32): i32;
+/**
  * Cap residual thin faces (wave235 pure leave): product paths use
  * typeck_check_slice_region_assign / typeck_check_return_slice_region.
  * Residual call_slice_region and mega still call the *_c names.
@@ -621,7 +628,13 @@ export extern function pipeline_typeck_linear_accepts_init_c(arena: *ASTArena, d
 /* See implementation. */
 export extern function pipeline_typeck_reject_addr_of_linear_c(arena: *ASTArena, op_ref: i32,
 addr_expr_ref: i32, module: *Module, ctx: *PipelineDepCtx): i32;
-/* See implementation. */
+/**
+ * wave245 pure leave: WPO-S3 &local named-struct → stack_local *T type_ref.
+ * → typeck.x EOF (#[no_mangle]). Cap residual deletes second body (G.7 dual-export ban).
+ * export extern below = same-TU forward for early call sites (check_expr_addr_of);
+ * body at EOF is the single authority.
+ * PLATFORM: SHARED freestanding typeck stack-local pointer stamp.
+ */
 export extern function pipeline_typeck_ptr_for_addr_of_operand_c(arena: *ASTArena, op_ref: i32,
 elem_ty: i32, module: *Module, ctx: *PipelineDepCtx): i32;
 /**
@@ -15471,4 +15484,54 @@ call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 // end wave244 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave245: typeck ptr_for_addr_of (+ stack_local *T) pure leave
+// Authority: typeck_x.o (this file + typeck_gen hand-sync).
+// Symbols:
+//   pipeline_typeck_ptr_for_addr_of_operand_c
+// Type-pool authority for labelled *T: pipeline_type_find_or_alloc_ptr
+//   (ast_pool_type.c — G.7 有则补全, mirrors find_or_alloc_slice).
+// Cap residual region_assign deletes stack_local helpers + second body
+// (dual-export ban) + dead store-scan cluster.
+// PLATFORM: SHARED freestanding typeck WPO-S3 stack-local stamp.
+// ---------------------------------------------------------------------------
+
+/**
+ * WPO-S3: when operand is a block-local VAR of named struct type, return a
+ * stack_local *T type_ref; otherwise 0 (caller falls back to ordinary *T via
+ * find_or_alloc_ptr_type_ref).
+ * @param arena *ASTArena — type pool
+ * @param op_ref i32 — & operand expr (must be block-local VAR)
+ * @param elem_ty i32 — named struct type of the operand
+ * @param module *Module — param exclusion / named-struct check
+ * @param ctx *PipelineDepCtx — current_func / current_block for local lookup
+ * @return i32 — stack_local *T type_ref (>0) or 0
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_ptr_for_addr_of_operand_c(arena: *ASTArena, op_ref: i32, elem_ty: i32,
+module: *Module, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — &local named-struct → *T with region label "stack_local".
+  unsafe {
+    let m_u8: *u8 = 0 as *u8;
+    let a_u8: *u8 = 0 as *u8;
+    if (arena == 0 as *ASTArena || module == 0 as *Module || ctx == 0 as *PipelineDepCtx
+    || op_ref <= 0 || elem_ty <= 0) {
+      return 0;
+    }
+    if (typeck_var_is_block_local(module, arena, ctx, op_ref) == 0) {
+      return 0;
+    }
+    m_u8 = module as *u8;
+    a_u8 = arena as *u8;
+    if (typeck_type_is_named_struct_c(m_u8, a_u8, elem_ty) == 0) {
+      return 0;
+    }
+    // Residual fidelity: label "stack_local" (len 11); type-pool face is authority.
+    return pipeline_type_find_or_alloc_ptr(arena, elem_ty, "stack_local" as *u8, 11);
+  }
+}
+
+// end wave245 pure-owned leave
 
