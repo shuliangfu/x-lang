@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave240: typeck with_arena nest BSS+push/pop/reset pure leave cold twins under #ifndef FROM_X
  * wave224: typeck_active module BSS+get/set pure leave cold twins under #ifndef FROM_X
  * wave223: emit_ctx sret_active/home_off/ret_sz BSS+get/set pure leave cold twins under #ifndef FROM_X
  * wave222: emit_ctx module/dep_pipe BSS+get/set pure leave cold twins under #ifndef FROM_X
@@ -27240,6 +27241,38 @@ void *pipeline_typeck_active_module_c(void) {
 }
 void pipeline_typeck_active_module_set_c(void *m) {
   g_wave224_typeck_active_module = m;
+}
+
+/*
+ * wave240 cold twins: typeck with_arena nest BSS (G.7 pure leave).
+ * Working freestanding BSS twins of pure g_typeck_with_arena_body_stack /
+ * g_typeck_with_arena_scope_n + push/pop/reset/n_at/current_body_ref faces.
+ * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
+ * PLATFORM: SHARED freestanding typeck with_arena nest cells.
+ */
+#define WAVE240_TYPECK_WITH_ARENA_SCOPE_MAX 8
+static int32_t g_wave240_typeck_with_arena_body_stack[WAVE240_TYPECK_WITH_ARENA_SCOPE_MAX];
+static int32_t g_wave240_typeck_with_arena_scope_n = 0;
+
+int32_t pipeline_typeck_with_arena_scope_n_at(void) {
+  return g_wave240_typeck_with_arena_scope_n;
+}
+int32_t pipeline_typeck_with_arena_current_body_ref_c(void) {
+  return g_wave240_typeck_with_arena_scope_n > 0
+             ? g_wave240_typeck_with_arena_body_stack[g_wave240_typeck_with_arena_scope_n - 1]
+             : 0;
+}
+void pipeline_typeck_with_arena_scope_push_c(int32_t body_ref) {
+  if (body_ref <= 0 || g_wave240_typeck_with_arena_scope_n >= WAVE240_TYPECK_WITH_ARENA_SCOPE_MAX)
+    return;
+  g_wave240_typeck_with_arena_body_stack[g_wave240_typeck_with_arena_scope_n++] = body_ref;
+}
+void pipeline_typeck_with_arena_scope_pop_c(void) {
+  if (g_wave240_typeck_with_arena_scope_n > 0)
+    g_wave240_typeck_with_arena_scope_n--;
+}
+void pipeline_typeck_with_arena_scope_reset_c(void) {
+  g_wave240_typeck_with_arena_scope_n = 0;
 }
 
 /*

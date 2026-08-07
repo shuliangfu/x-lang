@@ -12,16 +12,17 @@
  *
  * wave237 G.7 pure leave: MEM-C1 allocator region assign/return → typeck.x
  * (typeck_check_allocator_region_assign / typeck_check_allocator_region_return).
- * with_arena scope stack BSS stays residual; pure leave reads via exported
- * faces (scope_n_at / current_body_ref). Cap residual keeps thin *_c faces.
  *
  * wave239 G.7 pure leave: M-3 call_slice_region + MOD-02 *Struct compat →
  * typeck.x (typeck_check_call_slice_region + private typeck_check_call_ptr_struct_compat).
  * Cap residual keeps thin pipeline_typeck_check_call_slice_region_c only.
  *
+ * wave240 G.7 pure leave: MEM-C1 with_arena nest BSS + push/pop/reset →
+ * runtime_pipeline_abi (pipeline_typeck_with_arena_scope_*). Cap residual only
+ * calls pure faces from scan tree + check_block_one_region.
+ *
  * Still residual (not pure-leaved this wave):
- * - M-3 AL-06 return slice in region-scope (scope label BSS)
- * - MEM-C1 with_arena scope stack BSS + push/pop (scan + one_region)
+ * - M-3 region-label scope stack BSS (saved_len / saved_label / scope_n + push/pop)
  * - post-scan stack-escape walk helpers (block tree stmt_order)
  *
  * G.7 dual-export ban: do NOT re-open second bodies for pure-leaved faces;
@@ -142,41 +143,17 @@ int32_t pipeline_typeck_check_scope_borrow_return_c(struct ast_Module *module, s
   return typeck_check_scope_borrow_return(module, arena, site_expr_ref, op_ref, return_type_ref, ctx);
 }
 
-/** MEM-C1：with_arena 嵌套栈深度（post-typeck scan 用；每模块 scan 前清零）。 */
-#define TYPECK_WITH_ARENA_SCOPE_MAX 8
-static int32_t g_typeck_with_arena_body_stack[TYPECK_WITH_ARENA_SCOPE_MAX];
-static int32_t g_typeck_with_arena_scope_n;
-
-/**
- * MEM-C1：with_arena nest depth for pure leave + residual scan.
- * wave237: exported face so typeck.x allocator gates can read residual BSS.
- * PLATFORM: SHARED — Cap residual BSS face only.
+/*
+ * wave240 G.7 pure leave: with_arena nest BSS + push/pop/reset live in
+ * runtime_pipeline_abi (pipeline_typeck_with_arena_scope_*). Cap residual
+ * only calls pure faces — dual-export ban (no second BSS cell here).
+ * PLATFORM: SHARED — freestanding pure provides the symbols.
  */
-int32_t pipeline_typeck_with_arena_scope_n_at(void) {
-  return g_typeck_with_arena_scope_n;
-}
-
-/**
- * MEM-C1：current with_arena body block ref (stack top); 0 if none.
- * wave237: exported face for pure leave allocator assign/return.
- * PLATFORM: SHARED — Cap residual BSS face only.
- */
-int32_t pipeline_typeck_with_arena_current_body_ref_c(void) {
-  return g_typeck_with_arena_scope_n > 0 ? g_typeck_with_arena_body_stack[g_typeck_with_arena_scope_n - 1] : 0;
-}
-
-/** MEM-C1：进入 with_arena 块体 scan 前 push body ref。 */
-static void typeck_with_arena_scope_push_c(int32_t body_ref) {
-  if (body_ref <= 0 || g_typeck_with_arena_scope_n >= TYPECK_WITH_ARENA_SCOPE_MAX)
-    return;
-  g_typeck_with_arena_body_stack[g_typeck_with_arena_scope_n++] = body_ref;
-}
-
-/** MEM-C1：离开 with_arena 块体 scan 后 pop。 */
-static void typeck_with_arena_scope_pop_c(void) {
-  if (g_typeck_with_arena_scope_n > 0)
-    g_typeck_with_arena_scope_n--;
-}
+extern int32_t pipeline_typeck_with_arena_scope_n_at(void);
+extern int32_t pipeline_typeck_with_arena_current_body_ref_c(void);
+extern void pipeline_typeck_with_arena_scope_push_c(int32_t body_ref);
+extern void pipeline_typeck_with_arena_scope_pop_c(void);
+extern void pipeline_typeck_with_arena_scope_reset_c(void);
 
 /** M-3：region 域栈读/写（定义见下；前置声明供 AL-06 scan/typeck 使用）。 */
 int32_t pipeline_dep_ctx_scope_region_push_c(struct ast_PipelineDepCtx *ctx, uint8_t *label, int32_t label_len);
@@ -701,7 +678,7 @@ static int32_t typeck_func_stores_param_into_param_field_c(struct ast_Module *m,
  *   - pipeline_dep_ctx_scope_region_push_c / _pop_c (extern fwd at L328-329
  *     of this file; definitions at glue.c L10083/10101)
  *   - pipeline_typeck_unsafe_depth_push_c / _pop_c (fwd at glue.c L8703-8704)
- *   - typeck_with_arena_scope_push_c / _pop_c (defined at L315/322 this file)
+ *   - pipeline_typeck_with_arena_scope_push_c / _pop_c (wave240 pure faces)
  *
  * PLATFORM: SHARED — pure typeck analysis; no platform ABI dependency.
  * ============================================================ */
@@ -873,15 +850,15 @@ static int32_t typeck_scan_block_stack_escape_c(struct ast_Module *m, struct ast
       if (is_unsafe != 0)
         saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
       if (wa_cap > 0) {
-        typeck_with_arena_scope_push_c(br);
+        pipeline_typeck_with_arena_scope_push_c(br);
         if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
-          typeck_with_arena_scope_pop_c();
+          pipeline_typeck_with_arena_scope_pop_c();
           if (is_unsafe != 0)
             pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
           ctx->current_block_ref = saved_br;
           return -1;
         }
-        typeck_with_arena_scope_pop_c();
+        pipeline_typeck_with_arena_scope_pop_c();
       } else {
         uint8_t lbl[128];
         int32_t llen = pipeline_block_region_label_len(a, block_ref, idx);
@@ -1016,7 +993,7 @@ int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *mod
     return 0;
   if (link_abi_getenv("XLANG_SKIP_STACK_ESCAPE") != NULL)
     return 0;
-  g_typeck_with_arena_scope_n = 0;
+  pipeline_typeck_with_arena_scope_reset_c();
   g_typeck_region_scope_n = 0;
   ctx->typeck_scope_region_len = 0;
   memset(ctx->typeck_scope_region_label, 0, sizeof(ctx->typeck_scope_region_label));
@@ -1269,7 +1246,7 @@ int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, str
  *     _label_len / _label_copy64 (ast_pool_block.c via ast_pool.c #include L2839)
  *   - pipeline_typeck_unsafe_depth_push_c / _pop_c (fwd at glue.c L3238-3239;
  *     definitions in pipeline_typeck_check_block.c #include L3959)
- *   - typeck_with_arena_scope_push_c / _pop_c (defined at L315/322 this file)
+ *   - pipeline_typeck_with_arena_scope_push_c / _pop_c (wave240 pure faces)
  *   - pipeline_dep_ctx_scope_region_push_c / _pop_c (defined in this file)
  *   - typeck_check_block (extern decl inside function body)
  * Sole extern caller: typeck_gen.c L9100 + typeck.x seed. PLATFORM: SHARED. */
@@ -1303,9 +1280,9 @@ int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module, stru
   wa_cap = pipeline_block_region_with_arena_cap_ref(arena, block_ref, region_idx);
   if (wa_cap > 0) {
     /** MEM-C1：push with_arena 栈，使 check_expr_impl_mega / post-scan 能报 allocator region escape。 */
-    typeck_with_arena_scope_push_c(body_ref);
+    pipeline_typeck_with_arena_scope_push_c(body_ref);
     rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
-    typeck_with_arena_scope_pop_c();
+    pipeline_typeck_with_arena_scope_pop_c();
     return rc;
   }
   label_len = pipeline_block_region_label_len(arena, block_ref, region_idx);

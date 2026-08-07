@@ -612,9 +612,10 @@ site_expr_ref: i32, left_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_check_allocator_region_return_c(arena: *ASTArena, site_expr_ref: i32,
 return_type_ref: i32): i32;
 /**
- * MEM-C1 with_arena residual BSS faces (wave237): pure leave allocator gates
- * read nest depth + current body block; push/pop stay residual with scan.
- * PLATFORM: SHARED
+ * MEM-C1 with_arena nest BSS faces (wave240 pure leave → runtime_pipeline_abi):
+ * pure leave allocator gates read nest depth + current body block; residual
+ * scan / one_region call pure push/pop/reset (G.7 dual-export ban).
+ * PLATFORM: SHARED freestanding typeck nest cells.
  */
 export extern function pipeline_typeck_with_arena_scope_n_at(): i32;
 export extern function pipeline_typeck_with_arena_current_body_ref_c(): i32;
