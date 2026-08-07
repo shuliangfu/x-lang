@@ -14,7 +14,7 @@
  * Sub-clusters (order preserved):
  *  - pipeline_asm_emit_logand/logor_elf_impl public pure faces (wave128 leave)
  *  - pipeline_asm_typekind_variant_tag static fwd (def at cmp.c EOF)
- *  - glue_if_expr_arm_emit_depth static + get/set (wave153 pure block_body leave)
+ *  - glue_if_expr_arm_emit_depth get/set (wave220 pure leave; extern only here)
  *  - pipeline_asm_emit_expr_if_arm_elf_c public fwd (def at block_body EOF)
  *  - dual-GP / named layout / type_size_simple / vector_let_init / struct field
  *    store / frame mag / field offset / store_retval / emit_module / struct
@@ -125,18 +125,14 @@ extern void pipeline_asm_emit_async_cps_end_func_elf_c(void);
  * (#include at L3547) — both before the definition at cmp.c EOF. */
 /* wave137 pure-owned leave: typekind table lives in runtime_pipeline_abi pure. */
 extern int32_t pipeline_asm_typekind_variant_tag(const uint8_t *field_buf, int32_t flen);
-/** if/三元分支块 emit 深度（定义见 glue_block_emit_stmt_i 旁；此处前置供 if_arm 使用）。 */
-static int32_t glue_if_expr_arm_emit_depth;
-
-/* wave153 Cap residual: pure block_body / if_arm leave reads/writes depth via
- * Cap residual get/set (cannot touch host static BSS). PLATFORM: SHARED. */
-int32_t glue_if_expr_arm_emit_depth_get(void) {
-  return glue_if_expr_arm_emit_depth;
-}
-
-void glue_if_expr_arm_emit_depth_set(int32_t v) {
-  glue_if_expr_arm_emit_depth = v;
-}
+/* wave220 pure-owned leave: glue_if_expr_arm_emit_depth static + get/set deleted.
+ * live = runtime_pipeline_abi pure (g_if_expr_arm_emit_depth BSS + get/set);
+ * seed cold twin under #ifndef FROM_X.
+ * Residual same-TU no longer owns the process-local cell — pure is G.7
+ * authority. Do not re-open a second if-arm depth counter (dual-export ban).
+ * PLATFORM: SHARED freestanding emit. */
+extern int32_t glue_if_expr_arm_emit_depth_get(void);
+extern void glue_if_expr_arm_emit_depth_set(int32_t v);
 
 
 /* wave1217 G.7: pipeline_asm_emit_expr_if_arm_elf_c (34 lines) migrated to

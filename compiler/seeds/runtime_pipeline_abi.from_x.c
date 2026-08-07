@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave220: if_expr_arm_emit_depth BSS+get/set pure leave cold twin under #ifndef FROM_X
  * wave219: al_nc_seq BSS+take pure leave cold twin under #ifndef FROM_X
  * wave217: CALL/METHOD text thin wrappers pure leave cold twins under #ifndef FROM_X
  * wave216: for_call_args mega pure leave cold twin under #ifndef FROM_X
@@ -27090,6 +27091,23 @@ int32_t glue_pipeline_asm_al_nc_seq_take_c(void) {
     seq = 0;
   g_wave219_pipeline_asm_al_nc_seq = seq + 1;
   return seq;
+}
+
+/*
+ * wave220 cold twin: if/ternary arm emit depth get/set (G.7 pure leave).
+ * Working freestanding BSS twin of pure g_if_expr_arm_emit_depth.
+ * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
+ * Mid-file if_arm cold bodies call these faces via extern.
+ * PLATFORM: SHARED freestanding emit arm nest depth.
+ */
+static int32_t g_wave220_if_expr_arm_emit_depth = 0;
+
+int32_t glue_if_expr_arm_emit_depth_get(void) {
+  return g_wave220_if_expr_arm_emit_depth;
+}
+
+void glue_if_expr_arm_emit_depth_set(int32_t v) {
+  g_wave220_if_expr_arm_emit_depth = v;
 }
 
 /*

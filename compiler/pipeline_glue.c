@@ -212,8 +212,9 @@ extern int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegen
  * second LOGAND/LOGOR short-circuit ELF face (G.7).
  * PLATFORM: SHARED freestanding emit. */
 /* wave1287 G.7: early emit inter-include forward-decl / static shell migrated to
- * pipeline_glue_emit_fwd.c (same-TU #include). Pure decls + glue_if_expr_arm_emit_depth
- * static + GLUE_TYPE_NAMED; no function bodies. PLATFORM: SHARED. */
+ * pipeline_glue_emit_fwd.c (same-TU #include). Pure decls + GLUE_TYPE_NAMED;
+ * wave220: if_arm emit depth get/set pure leave (extern only in emit_fwd).
+ * PLATFORM: SHARED. */
 #include "pipeline_glue_emit_fwd.c"
 /* wave1289 G.7: mid-emit inter-include forward-decl / ordinal shell
  * (TypeKind/ExprKind ordinals + call/method/panic entry fwd + binop/field

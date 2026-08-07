@@ -1077,8 +1077,8 @@ export extern "C" function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_re
 // wave207 pure-owned: glue_binop_rax_frame_spill_n_set + glue_index_scratch_stack_depth_set at EOF.
 // G.7 ban dual export extern + pure export for the same symbol.
 // wave208 pure-owned: glue_binop_stack_spill_clear at EOF (#[no_mangle]).
-export extern "C" function glue_if_expr_arm_emit_depth_get(): i32;
-export extern "C" function glue_if_expr_arm_emit_depth_set(v: i32): void;
+// wave220 pure-owned: glue_if_expr_arm_emit_depth_get/set + pure BSS at EOF
+// (#[no_mangle]). G.7 ban dual export extern + pure export for the same symbol.
 export extern "C" function glue_block_body_bind_module_dep_from_ctx(ctx: *u8): void;
 export extern "C" function backend_block_slot_base_for(ctx: *u8, arena: *u8, block_ref: i32): i32;
 // wave155 pure-owned leave: backend_emit_while_loop_elf_sync(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32; body in EOF section.
@@ -68757,4 +68757,57 @@ export function glue_pipeline_asm_al_nc_seq_take_c(): i32 {
 }
 
 // end wave219 pure-owned leave
+
+// ===========================================================================
+// wave220: if/ternary arm emit depth BSS pure leave
+// (was Cap residual pipeline_glue_emit_fwd.c static + get/set wave153 public)
+// G.7 product authority for freestanding if/ternary arm nest depth:
+//   glue_if_expr_arm_emit_depth_get  (read process-local depth)
+//   glue_if_expr_arm_emit_depth_set  (write process-local depth)
+// Pure-owned BSS: g_if_expr_arm_emit_depth (was file-scoped static in emit_fwd).
+// Consumers: pure if_arm / block_body install around if/ternary arms; seed cold
+// twin under #ifndef FROM_X. Residual emit_fwd keeps extern only (no body).
+// Deferred: typeck/elf/ast_pool residual pure leave / pipeline_x mega off host-cc.
+// PLATFORM: SHARED freestanding — depth is platform-agnostic emit counter.
+// ===========================================================================
+
+// wave220: nest depth while emitting if/ternary branch arms (0 = not in arm).
+// Pure if_arm increments on enter / decrements on leave; block_body may read.
+let g_if_expr_arm_emit_depth: i32 = 0;
+
+/**
+ * Get current if/ternary arm emit depth.
+ *
+ * Contract: returns the process-local nest count (0 when not emitting an arm).
+ * Pure if_arm / block_body use this to gate arm-local emit behavior.
+ *
+ * @return i32 — current arm emit depth (>=0 in well-formed emit)
+ *
+ * wave220 pure: G.7 authority (was Cap residual emit_fwd static + get).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_if_expr_arm_emit_depth_get(): i32 {
+  return g_if_expr_arm_emit_depth;
+}
+
+/**
+ * Set current if/ternary arm emit depth.
+ *
+ * Contract: stores v as-is (callers pass depth+1 / depth-1 around arm emit).
+ * No clamp — malformed negative depth is a caller bug; product paths only
+ * push/pop by 1 from get().
+ *
+ * @param v i32 — new arm emit depth
+ * @return void
+ *
+ * wave220 pure: G.7 authority (was Cap residual emit_fwd static + set).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_if_expr_arm_emit_depth_set(v: i32): void {
+  g_if_expr_arm_emit_depth = v;
+}
+
+// end wave220 pure-owned leave
 
