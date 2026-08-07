@@ -473,6 +473,26 @@ void ast_pipeline_module_import_set_select_count(struct ast_Module *m, int32_t i
 void ast_pipeline_module_import_path_copy(struct ast_Module *m, int32_t idx, uint8_t *dst, int32_t dst_cap) {
   pipeline_module_import_path_copy(m, idx, dst, dst_cap);
 }
+/* wave264 pure face decls (residual module_enum.c retired; same-TU no longer defines). */
+void pipeline_module_enum_storage_reset(struct ast_Module *m);
+void pipeline_module_enum_storage_release(struct ast_Module *m);
+int32_t pipeline_module_enum_alloc(struct ast_Module *m);
+void pipeline_module_enum_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+void pipeline_module_enum_set_is_export(struct ast_Module *m, int32_t idx, int32_t v);
+int32_t pipeline_module_enum_is_export_at(struct ast_Module *m, int32_t idx);
+int32_t pipeline_module_enum_append_variant(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t *enum_name, int32_t enum_len,
+                                                   uint8_t *variant_name, int32_t variant_len);
+int32_t pipeline_module_enum_name_len(struct ast_Module *m, int32_t idx);
+uint8_t pipeline_module_enum_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+int32_t pipeline_module_enum_num_variants(struct ast_Module *m, int32_t idx);
+int32_t pipeline_module_enum_variant_name_len(struct ast_Module *m, int32_t idx, int32_t variant_idx);
+uint8_t pipeline_module_enum_variant_name_byte_at(struct ast_Module *m, int32_t idx, int32_t variant_idx,
+                                                  int32_t off);
+void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref);
+void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a,
+                                                  int32_t expr_ref, struct ast_PipelineDepCtx *dep_ctx);
+
 int32_t ast_pipeline_module_enum_alloc(struct ast_Module *m) {
   return pipeline_module_enum_alloc(m);
 }

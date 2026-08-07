@@ -172,6 +172,8 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref) {
 
 /* wave262 pure strong / seed cold twin — soft-reset pure TypeAliasEntry live count. */
 void pipeline_module_type_alias_storage_reset(struct ast_Module *m);
+/* wave264 pure strong / seed cold twin — soft-reset pure ModuleEnumEntry live count. */
+void pipeline_module_enum_storage_reset(struct ast_Module *m);
 
 /**
  * 复用同一 Module* 再次 parse 前清空 sidecar 动态池。
@@ -193,6 +195,8 @@ void ast_pool_module_reset(struct ast_Module *m) {
   /* wave262: pure TypeAliasEntry map soft-reset (G.7 product authority). */
   pipeline_module_type_alias_storage_reset(m);
   sc->module_enums.len = 0;
+  /* wave264: pure ModuleEnumEntry map soft-reset (G.7 product authority). */
+  pipeline_module_enum_storage_reset(m);
   sc->import_select_name_rows.len = 0;
   sc->import_select_name_lens.len = 0;
   sc->func_params.len = 0;
@@ -281,6 +285,8 @@ void ast_pool_arena_release(struct ast_ASTArena *a) {
 void pipeline_module_import_storage_release(struct ast_Module *m);
 /* wave262 pure strong / seed cold twin — free pure TypeAliasEntry map. */
 void pipeline_module_type_alias_storage_release(struct ast_Module *m);
+/* wave264 pure strong / seed cold twin — free pure ModuleEnumEntry map. */
+void pipeline_module_enum_storage_release(struct ast_Module *m);
 
 void ast_pool_module_release(struct ast_Module *m) {
   int i;
@@ -290,6 +296,8 @@ void ast_pool_module_release(struct ast_Module *m) {
   pipeline_module_import_storage_release(m);
   /* wave262: pure TypeAliasEntry map free (strong pure / seed cold twin). */
   pipeline_module_type_alias_storage_release(m);
+  /* wave264: pure ModuleEnumEntry map free (strong pure / seed cold twin). */
+  pipeline_module_enum_storage_release(m);
   for (i = 0; i < MAX_MODULE_SIDECARS; i++) {
     if (g_module_sc[i].used && g_module_sc[i].module == m) {
       module_sidecar_free(&g_module_sc[i]);

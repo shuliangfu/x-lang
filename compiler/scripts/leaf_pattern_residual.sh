@@ -1354,7 +1354,7 @@ B7B_RELINK_LEGACY_LIST_WAVE=wave822
 #   asm_emit_struct_let + asm_emit_index_helpers + asm_emit_spill +
 #   asm_emit_block_body (wave153 pure leave) +
 #   ast_pool_module_import + ast_pool_struct_layout + ast_pool_top_level +
-#   ast_pool_type_alias + ast_pool_expr_sidecar + ast_pool_module_enum +
+#   ast_pool_type_alias + ast_pool_expr_sidecar + ast_pool_module_enum(leave264) +
 #   ast_pool_onefunc + ast_pool_dep_ctx + ast_pool_module_func + ast_pool_arena +
 #   ast_pool_block) into PIPELINE_X_DEPS STALE.
 # NOT physical delete — thin edges + std_core product make graph remain.
@@ -9063,8 +9063,8 @@ _xsd_n=$(awk '
   /^PIPELINE_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
   END { print t+0 }
 ' "$_XSD_MK")
-if [ "${_xsd_n:-0}" -ne 46 ]; then
-  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 46 in mk (wave263 module_import leave), got ${_xsd_n:-0}"
+if [ "${_xsd_n:-0}" -ne 45 ]; then
+  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 45 in mk (wave264 module_enum leave), got ${_xsd_n:-0}"
 fi
 # wave965: PIPELINE_X_DEPS must list #include slices so STALE rebuilds pipeline_x.
 # wave255 host-cc leave: CTFE thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
@@ -9132,6 +9132,12 @@ if grep -qE 'ast_pool_module_import\.c' "$_XSD_MK"; then
 fi
 if [ -f "$ROOT/compiler/ast_pool_module_import.c" ]; then
   bad "ast_pool_module_import.c must be deleted (wave263 pure-owned leave)"
+fi
+if grep -qE 'ast_pool_module_enum\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_module_enum.c (wave264 host-cc leave)"
+fi
+if [ -f "$ROOT/compiler/ast_pool_module_enum.c" ]; then
+  bad "ast_pool_module_enum.c must be deleted (wave264 pure-owned leave)"
 fi
 if grep -qE 'pipeline_asm_emit_unary\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_unary.c (wave133 pure-owned leave)"
@@ -9313,9 +9319,7 @@ fi
 if ! grep -qE 'ast_pool_expr_sidecar\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_expr_sidecar.c (8.3.2 expr_sidecar slice)"
 fi
-if ! grep -qE 'ast_pool_module_enum\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_module_enum.c (8.3.2 module_enum slice)"
-fi
+# wave264: ast_pool_module_enum.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
 if ! grep -qE 'ast_pool_onefunc\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_onefunc.c (8.3.2 onefunc slice)"
 fi

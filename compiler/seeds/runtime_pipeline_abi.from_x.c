@@ -1,5 +1,7 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave264: module_enum Cap residual pure leave cold twins under #ifndef FROM_X
+ *   (pipeline_module_enum_* + try_mark + storage_reset/release; 33932B ModuleEnumEntry LE map)
  * wave263: module_import Cap residual pure leave cold twins under #ifndef FROM_X
  *   (pipeline_module_import_* full set + storage_release; 340B ImportEntry LE map)
  * wave262: type_alias Cap residual pure leave cold twins under #ifndef FROM_X
@@ -28038,6 +28040,424 @@ uint8_t pipeline_module_import_select_name_byte_at(void *module, int32_t idx, in
   if (!rows)
     return 0;
   return rows[abs * WAVE263_IMP_SEL_ROW + off];
+}
+
+
+/*
+ * wave264 cold twins: ast_pool_module_enum Cap residual pure leave.
+ * Freestanding multi-module ModuleEnumEntry map (33932-byte entries).
+ * Hybrid product links pure; cold seed keeps bodies under #ifndef FROM_X.
+ * Layout ≡ C ModuleEnumEntry LE:
+ *   name[128]@0 | name_len@128 | num_variants@132 | variant_name[256][128]@136
+ *   | variant_name_len[256]@32904 | is_export@33928
+ * Soft-reset: storage_reset zeros n + header num_module_enums@64.
+ * Soft-sync when header num_module_enums@64 == 0.
+ * Mark helpers: freestanding no-ops (need Cap expr faces); product pure owns mark.
+ * PLATFORM: SHARED freestanding module_enum Cap leave.
+ */
+#define WAVE264_EN_SLOTS 128
+#define WAVE264_EN_ENTRY_SZ 33932
+#define WAVE264_EN_MAX_VAR 256
+static void *g_wave264_en_mod[WAVE264_EN_SLOTS];
+static int32_t g_wave264_en_n[WAVE264_EN_SLOTS];
+static int32_t g_wave264_en_cap[WAVE264_EN_SLOTS];
+static uint8_t *g_wave264_en_entries[WAVE264_EN_SLOTS];
+
+static int32_t wave264_en_header_n(void *module) {
+  int32_t n;
+  if (!module)
+    return 0;
+  memcpy(&n, (uint8_t *)module + 64, 4);
+  return n;
+}
+
+static void wave264_en_set_header_n(void *module, int32_t n) {
+  if (!module)
+    return;
+  memcpy((uint8_t *)module + 64, &n, 4);
+}
+
+static int wave264_en_find_slot(void *module) {
+  int i;
+  if (!module)
+    return -1;
+  for (i = 0; i < WAVE264_EN_SLOTS; i++) {
+    if (g_wave264_en_mod[i] == module)
+      return i;
+  }
+  return -1;
+}
+
+static void wave264_en_soft_sync(void *module) {
+  int s;
+  if (!module || wave264_en_header_n(module) != 0)
+    return;
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return;
+  g_wave264_en_n[s] = 0;
+}
+
+static int wave264_en_find_or_create(void *module) {
+  int i;
+  int found;
+  if (!module)
+    return -1;
+  wave264_en_soft_sync(module);
+  found = wave264_en_find_slot(module);
+  if (found >= 0)
+    return found;
+  for (i = 0; i < WAVE264_EN_SLOTS; i++) {
+    if (g_wave264_en_mod[i] == NULL) {
+      g_wave264_en_mod[i] = module;
+      g_wave264_en_n[i] = 0;
+      g_wave264_en_cap[i] = 0;
+      g_wave264_en_entries[i] = NULL;
+      return i;
+    }
+  }
+  return -1;
+}
+
+static int wave264_en_ensure(int slot, int32_t need) {
+  uint8_t *np;
+  uint8_t *old;
+  int32_t new_cap;
+  if (slot < 0 || slot >= WAVE264_EN_SLOTS)
+    return 0;
+  if (need <= 0)
+    return 1;
+  if (g_wave264_en_cap[slot] >= need)
+    return 1;
+  new_cap = g_wave264_en_cap[slot];
+  if (new_cap < 4)
+    new_cap = 4;
+  while (new_cap < need)
+    new_cap *= 2;
+  np = (uint8_t *)malloc((size_t)new_cap * (size_t)WAVE264_EN_ENTRY_SZ);
+  if (!np)
+    return 0;
+  memset(np, 0, (size_t)new_cap * (size_t)WAVE264_EN_ENTRY_SZ);
+  old = g_wave264_en_entries[slot];
+  if (old && g_wave264_en_n[slot] > 0)
+    memcpy(np, old, (size_t)g_wave264_en_n[slot] * (size_t)WAVE264_EN_ENTRY_SZ);
+  if (old)
+    free(old);
+  g_wave264_en_entries[slot] = np;
+  g_wave264_en_cap[slot] = new_cap;
+  return 1;
+}
+
+static uint8_t *wave264_en_at(int slot, int32_t idx) {
+  if (slot < 0 || slot >= WAVE264_EN_SLOTS)
+    return NULL;
+  if (idx < 0 || idx >= g_wave264_en_n[slot])
+    return NULL;
+  if (!g_wave264_en_entries[slot])
+    return NULL;
+  return g_wave264_en_entries[slot] + (size_t)idx * (size_t)WAVE264_EN_ENTRY_SZ;
+}
+
+void pipeline_module_enum_storage_reset(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave264_en_find_slot(module);
+  if (s < 0) {
+    wave264_en_set_header_n(module, 0);
+    return;
+  }
+  g_wave264_en_n[s] = 0;
+  wave264_en_set_header_n(module, 0);
+}
+
+void pipeline_module_enum_storage_release(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return;
+  if (g_wave264_en_entries[s])
+    free(g_wave264_en_entries[s]);
+  g_wave264_en_mod[s] = NULL;
+  g_wave264_en_entries[s] = NULL;
+  g_wave264_en_n[s] = 0;
+  g_wave264_en_cap[s] = 0;
+  wave264_en_set_header_n(module, 0);
+}
+
+int32_t pipeline_module_enum_alloc(void *module) {
+  int s;
+  int32_t n;
+  uint8_t *base;
+  if (!module)
+    return -1;
+  s = wave264_en_find_or_create(module);
+  if (s < 0)
+    return -1;
+  n = g_wave264_en_n[s];
+  if (!wave264_en_ensure(s, n + 1))
+    return -1;
+  base = g_wave264_en_entries[s];
+  if (!base)
+    return -1;
+  memset(base + (size_t)n * (size_t)WAVE264_EN_ENTRY_SZ, 0, (size_t)WAVE264_EN_ENTRY_SZ);
+  g_wave264_en_n[s] = n + 1;
+  wave264_en_set_header_n(module, n + 1);
+  return n;
+}
+
+void pipeline_module_enum_set_name(void *module, int32_t idx, uint8_t *bytes, int32_t len) {
+  int s;
+  uint8_t *e;
+  int32_t i;
+  if (!module || !bytes || len <= 0 || len > 127)
+    return;
+  wave264_en_soft_sync(module);
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return;
+  e = wave264_en_at(s, idx);
+  if (!e)
+    return;
+  memset(e, 0, 128);
+  for (i = 0; i < len; i++)
+    e[i] = bytes[i];
+  memcpy(e + 128, &len, 4);
+  {
+    int32_t z = 0;
+    memcpy(e + 132, &z, 4);
+    memcpy(e + 33928, &z, 4);
+  }
+}
+
+void pipeline_module_enum_set_is_export(void *module, int32_t idx, int32_t v) {
+  int s;
+  uint8_t *e;
+  if (!module)
+    return;
+  wave264_en_soft_sync(module);
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return;
+  e = wave264_en_at(s, idx);
+  if (!e)
+    return;
+  memcpy(e + 33928, &v, 4);
+}
+
+int32_t pipeline_module_enum_is_export_at(void *module, int32_t idx) {
+  int s;
+  uint8_t *e;
+  int32_t v;
+  if (!module)
+    return 0;
+  wave264_en_soft_sync(module);
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave264_en_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&v, e + 33928, 4);
+  return v;
+}
+
+int32_t pipeline_module_enum_append_variant(void *module, int32_t idx, uint8_t *bytes, int32_t len) {
+  int s;
+  uint8_t *e;
+  int32_t nv;
+  int32_t i;
+  if (!module || !bytes || len <= 0 || len > 127)
+    return -1;
+  wave264_en_soft_sync(module);
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return -1;
+  e = wave264_en_at(s, idx);
+  if (!e)
+    return -1;
+  memcpy(&nv, e + 132, 4);
+  if (nv >= WAVE264_EN_MAX_VAR)
+    return -1;
+  memset(e + 136 + nv * 128, 0, 128);
+  for (i = 0; i < len; i++)
+    e[136 + nv * 128 + i] = bytes[i];
+  memcpy(e + 32904 + nv * 4, &len, 4);
+  {
+    int32_t nn = nv + 1;
+    memcpy(e + 132, &nn, 4);
+  }
+  return nv;
+}
+
+static int32_t wave264_en_tag_in_module(void *module, uint8_t *enum_name, int32_t enum_len,
+                                        uint8_t *variant_name, int32_t variant_len) {
+  int s;
+  int32_t ei, n, nlen, nv, vi, vlen, j;
+  uint8_t *e;
+  if (!module || !enum_name || enum_len <= 0 || !variant_name || variant_len <= 0)
+    return -1;
+  wave264_en_soft_sync(module);
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return -1;
+  n = g_wave264_en_n[s];
+  for (ei = 0; ei < n; ei++) {
+    e = wave264_en_at(s, ei);
+    if (!e)
+      continue;
+    memcpy(&nlen, e + 128, 4);
+    if (nlen != enum_len)
+      continue;
+    {
+      int match = 1;
+      for (j = 0; j < enum_len; j++) {
+        if (e[j] != enum_name[j]) {
+          match = 0;
+          break;
+        }
+      }
+      if (!match)
+        continue;
+    }
+    memcpy(&nv, e + 132, 4);
+    for (vi = 0; vi < nv; vi++) {
+      memcpy(&vlen, e + 32904 + vi * 4, 4);
+      if (vlen != variant_len)
+        continue;
+      {
+        int match = 1;
+        for (j = 0; j < variant_len; j++) {
+          if (e[136 + vi * 128 + j] != variant_name[j]) {
+            match = 0;
+            break;
+          }
+        }
+        if (match)
+          return vi;
+      }
+    }
+    return -1;
+  }
+  return -1;
+}
+
+int32_t pipeline_module_enum_variant_tag_for_names(void *m, uint8_t *enum_name, int32_t enum_len,
+                                                   uint8_t *variant_name, int32_t variant_len) {
+  /* Cold seed: current module only (no dep_ctx without Cap faces). */
+  return wave264_en_tag_in_module(m, enum_name, enum_len, variant_name, variant_len);
+}
+
+int32_t pipeline_module_enum_name_len(void *module, int32_t idx) {
+  int s;
+  uint8_t *e;
+  int32_t nlen;
+  if (!module)
+    return 0;
+  wave264_en_soft_sync(module);
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave264_en_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&nlen, e + 128, 4);
+  return nlen;
+}
+
+uint8_t pipeline_module_enum_name_byte_at(void *module, int32_t idx, int32_t off) {
+  int s;
+  uint8_t *e;
+  int32_t nlen;
+  if (!module || off < 0 || off >= 128)
+    return 0;
+  wave264_en_soft_sync(module);
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave264_en_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&nlen, e + 128, 4);
+  if (off >= nlen)
+    return 0;
+  return e[off];
+}
+
+int32_t pipeline_module_enum_num_variants(void *module, int32_t idx) {
+  int s;
+  uint8_t *e;
+  int32_t nv;
+  if (!module)
+    return 0;
+  wave264_en_soft_sync(module);
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave264_en_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&nv, e + 132, 4);
+  return nv;
+}
+
+int32_t pipeline_module_enum_variant_name_len(void *module, int32_t idx, int32_t variant_idx) {
+  int s;
+  uint8_t *e;
+  int32_t nv, vlen;
+  if (!module || variant_idx < 0)
+    return 0;
+  wave264_en_soft_sync(module);
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave264_en_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&nv, e + 132, 4);
+  if (variant_idx >= nv)
+    return 0;
+  memcpy(&vlen, e + 32904 + variant_idx * 4, 4);
+  return vlen;
+}
+
+uint8_t pipeline_module_enum_variant_name_byte_at(void *module, int32_t idx, int32_t variant_idx,
+                                                  int32_t off) {
+  int s;
+  uint8_t *e;
+  int32_t nv, vlen;
+  if (!module || variant_idx < 0 || off < 0 || off >= 128)
+    return 0;
+  wave264_en_soft_sync(module);
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave264_en_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&nv, e + 132, 4);
+  if (variant_idx >= nv)
+    return 0;
+  memcpy(&vlen, e + 32904 + variant_idx * 4, 4);
+  if (off >= vlen)
+    return 0;
+  return e[136 + variant_idx * 128 + off];
+}
+
+/* Cold freestanding: mark helpers no-op (product pure owns full mark path). */
+void pipeline_expr_try_mark_enum_field_access(void *m, void *a, int32_t expr_ref) {
+  (void)m;
+  (void)a;
+  (void)expr_ref;
+}
+
+void pipeline_codegen_try_mark_enum_field_access(void *m, void *a, int32_t expr_ref, void *dep_ctx) {
+  (void)m;
+  (void)a;
+  (void)expr_ref;
+  (void)dep_ctx;
 }
 
 /*

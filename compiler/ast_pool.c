@@ -142,9 +142,31 @@ uint8_t pipeline_module_import_select_name_byte_at(struct ast_Module *m, int32_t
  * pipeline_backend_asm_codegen_ast_to_elf_c). Cap residual: hoist / seed mega /
  * emit_set_* / mega_body / wpo thunks / typeck merge. PLATFORM: SHARED. */
 
-#include "ast_pool_module_enum.c"
-
-
+/* 2026-08-08 wave264: ast_pool_module_enum.c pure-owned leave.
+ * Live faces: runtime_pipeline_abi.x (pipeline_module_enum_* full set +
+ * try_mark_enum field-access + storage_reset/release; 33932B ModuleEnumEntry LE map).
+ * Cap residual: ModuleSidecar.module_enums GrowVec still init/free in sidecar_pool
+ * (unused for product enums after leave). PLATFORM: SHARED.
+ * Same-TU pure face decls (residual defs retired; later domain slices +
+ * pipeline_ast_forwarders call these as extern). */
+void pipeline_module_enum_storage_reset(struct ast_Module *m);
+void pipeline_module_enum_storage_release(struct ast_Module *m);
+int32_t pipeline_module_enum_alloc(struct ast_Module *m);
+void pipeline_module_enum_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+void pipeline_module_enum_set_is_export(struct ast_Module *m, int32_t idx, int32_t v);
+int32_t pipeline_module_enum_is_export_at(struct ast_Module *m, int32_t idx);
+int32_t pipeline_module_enum_append_variant(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t *enum_name, int32_t enum_len,
+                                                   uint8_t *variant_name, int32_t variant_len);
+int32_t pipeline_module_enum_name_len(struct ast_Module *m, int32_t idx);
+uint8_t pipeline_module_enum_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+int32_t pipeline_module_enum_num_variants(struct ast_Module *m, int32_t idx);
+int32_t pipeline_module_enum_variant_name_len(struct ast_Module *m, int32_t idx, int32_t variant_idx);
+uint8_t pipeline_module_enum_variant_name_byte_at(struct ast_Module *m, int32_t idx, int32_t variant_idx,
+                                                  int32_t off);
+void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref);
+void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a,
+                                                  int32_t expr_ref, struct ast_PipelineDepCtx *dep_ctx);
 
 /** BC 8.3.2: OneFunc sidecar + fill_from_onefunc domain (wave984+991 same-TU thin). */
 #include "ast_pool_onefunc.c"
