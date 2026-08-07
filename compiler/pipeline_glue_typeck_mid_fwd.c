@@ -16,7 +16,7 @@
  *  - find_func_return_type + import path/binding/select equal statics
  *  - module main/func body/return/extern name faces
  *  - typeck_check_block_one_* / check_expr kind helpers (typeck.o)
- *  - resolve_call_func_index + call_struct_stack_escape static fwds
+ *  - wave248: overload resolve Cap faces pure (for_emit/pick); call_struct_stack_escape face
  *
  * Include site: pipeline_glue.c after typeck_assign (field_access #include removed)
  * and before pipeline_typeck_region_assign.c.
@@ -237,9 +237,11 @@ extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
  * pipeline_typeck_region_assign.c (with the 5 stack-escape helpers that
  * are its sole consumers). Visible via #include at L10231. */
 
-static int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                         int32_t call_expr_ref);
-/* wave242: public residual face (pure scan tree + check_expr call it). */
+/* wave248 pure leave: overload resolve Cap faces → typeck_x.o (for_emit / pick).
+ * Residual second score path deleted; no static resolve_call_func_index_c.
+ * Callers use pipeline_typeck_resolve_call_func_index_for_emit_c (pure). */
+/* wave242: public residual face (pure scan tree + check_expr call it).
+ * wave244 pure leave: body in typeck_x.o; residual may keep prototype only. */
 int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *module,
                                                          struct ast_ASTArena *arena,
                                                          int32_t call_expr_ref,

@@ -569,11 +569,21 @@ export extern function driver_diagnostic_typeck_deref_outside_unsafe(line: i32, 
 export extern function pipeline_typeck_check_call_slice_region_c(module: *Module, arena: *ASTArena,
 call_expr_ref: i32, ctx: *PipelineDepCtx): i32;
 /**
- * Resolve CALL to entry-module func_ix when resolved_func_index is still unset
- * (belt path for legacy typeck_gen; product resolve stamps first).
- * PLATFORM: SHARED — residual method_call public emit face
+ * wave248 pure leave: CALL→func_ix for emit/WPO (overload-aware).
+ * Cap residual face → typeck.x EOF (#[no_mangle]); residual deletes second
+ * scoring body (G.7 dual-export ban + single score authority:
+ * typeck_overload_arg_param_score via find_func_return_type_in_module_by_name_overload).
+ * export extern = same-TU forward for early call sites; body at EOF.
+ * PLATFORM: SHARED freestanding typeck overload resolve.
  */
 export extern function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8,
+call_expr_ref: i32): i32;
+/**
+ * wave248 pure leave: WPO/typeck overload pick Cap residual face.
+ * → typeck.x EOF (#[no_mangle]); residual thin/extern only.
+ * PLATFORM: SHARED freestanding typeck overload pick.
+ */
+export extern function pipeline_typeck_pick_overload_func_index_for_call_c(m: *Module, a: *ASTArena,
 call_expr_ref: i32): i32;
 /**
  * Env lookup via pure link_abi (not raw getenv). Used by call_slice stack-escape skip.
@@ -15650,4 +15660,203 @@ callee_expr_ref: i32, call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 // end wave247 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave248: typeck overload pick/resolve pure leave (method_call residual subdomain)
+// Authority: typeck_x.o (this file + typeck_gen hand-sync).
+// Symbols:
+//   pipeline_typeck_pick_overload_func_index_for_call_c  (#[no_mangle])
+//   pipeline_typeck_resolve_call_func_index_for_emit_c   (#[no_mangle])
+// Live bodies: typeck_module_func_overload_count + typeck_pick_overload_func_index_for_call
+//   + typeck_resolve_call_func_index_for_emit
+// Score authority: typeck_overload_arg_param_score via
+//   find_func_return_type_in_module_by_name_overload (G.7 有则补全 — no second score).
+// Cap residual method_call: delete static overload cluster (count / assignable /
+//   match_score / expect_match / pick / resolve); Cap faces extern-only (dual-export ban).
+// PLATFORM: SHARED freestanding typeck CALL overload resolve for emit/WPO.
+// ---------------------------------------------------------------------------
+
+/**
+ * Count non-extern module funcs whose name equals (name, name_len).
+ * Used as overload-worthiness gate before scoring (count > 1 → pick path).
+ * @param m *Module — function table owner (null → 0)
+ * @param name *u8 — callee name bytes
+ * @param name_len i32 — byte count; <=0 → 0
+ * @return i32 — non-extern same-name count
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_module_func_overload_count(m: *Module, name: *u8, name_len: i32): i32 {
+  // PLATFORM: SHARED — overload gate; skips extern decls (import binding path).
+  unsafe {
+    let i: i32 = 0;
+    let c: i32 = 0;
+    if (m == 0 as *Module || name == 0 as *u8 || name_len <= 0) {
+      return 0;
+    }
+    while (i < m.num_funcs) {
+      if (pipeline_module_func_is_extern_at(m, i) == 0) {
+        if (pipeline_module_func_name_equal_at(m, i, name, name_len) != 0) {
+          c = c + 1;
+        }
+      }
+      i = i + 1;
+    }
+    return c;
+  }
+}
+
+/**
+ * Pick unique best overload func index for a CALL by arg score + expected-ret tiebreak.
+ * Reuses find_func_return_type_in_module_by_name_overload (single score authority).
+ * Returns -1 when name is not overloaded (count <= 1), callee is not VAR, or no match.
+ * @param m *Module — entry module funcs[]
+ * @param a *ASTArena — CALL expr arena
+ * @param call_expr_ref i32 — CALL expr ref
+ * @return i32 — funcs[] index or -1
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_pick_overload_func_index_for_call(m: *Module, a: *ASTArena,
+call_expr_ref: i32): i32 {
+  // PLATFORM: SHARED — WPO/typeck overload pick; score = typeck_overload_arg_param_score.
+  unsafe {
+    let callee_ref: i32 = 0;
+    let ord_var: i32 = 3;
+    let nlen: i32 = 0;
+    let nm: u8[128] = [];
+    let count: i32 = 0;
+    let fx_out: i32 = 0 - 1;
+    let ret: i32 = 0;
+    let minus_one: i32 = 0 - 1;
+    if (m == 0 as *Module || a == 0 as *ASTArena || call_expr_ref <= 0) {
+      return minus_one;
+    }
+    callee_ref = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
+    if (callee_ref <= 0) {
+      return minus_one;
+    }
+    if (pipeline_expr_kind_ord_at(a, callee_ref) != ord_var) {
+      return minus_one;
+    }
+    nlen = pipeline_expr_var_name_len(a, callee_ref);
+    if (nlen <= 0 || nlen > 127) {
+      return minus_one;
+    }
+    pipeline_expr_var_name_into(a, callee_ref, &nm[0]);
+    count = typeck_module_func_overload_count(m, &nm[0], nlen);
+    if (count <= 1) {
+      return minus_one;
+    }
+    fx_out = minus_one;
+    ret = find_func_return_type_in_module_by_name_overload(m, a, &nm[0], nlen, call_expr_ref,
+    minus_one, 0 as *PipelineDepCtx, &fx_out);
+    if (fx_out >= 0) {
+      return fx_out;
+    }
+    // Soft residual: overload scorer returned type but no func_ix — treat as miss.
+    if (ret > 0 && fx_out >= 0) {
+      return fx_out;
+    }
+    return minus_one;
+  }
+}
+
+/**
+ * Resolve CALL target func index (overload-aware) for asm emit + stack-escape scan.
+ * When callee name is overloaded (count > 1), pick via pure score authority and stamp
+ * apply_call_resolve(-1, picked). Else use cached resolved_func_index, then name-only scan.
+ * @param m *Module — entry module
+ * @param a *ASTArena — CALL arena
+ * @param call_expr_ref i32 — CALL expr
+ * @return i32 — funcs[] index or -1
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_resolve_call_func_index_for_emit(m: *Module, a: *ASTArena,
+call_expr_ref: i32): i32 {
+  // PLATFORM: SHARED — emit/WPO CALL→func_ix; single overload authority with pick above.
+  unsafe {
+    let callee_ref: i32 = 0;
+    let ord_var: i32 = 3;
+    let nlen: i32 = 0;
+    let nm: u8[128] = [];
+    let picked: i32 = 0;
+    let fx: i32 = 0;
+    let i: i32 = 0;
+    let minus_one: i32 = 0 - 1;
+    if (m == 0 as *Module || a == 0 as *ASTArena || call_expr_ref <= 0) {
+      return minus_one;
+    }
+    callee_ref = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
+    if (callee_ref > 0 && pipeline_expr_kind_ord_at(a, callee_ref) == ord_var) {
+      nlen = pipeline_expr_var_name_len(a, callee_ref);
+      if (nlen > 0 && nlen <= 127) {
+        pipeline_expr_var_name_into(a, callee_ref, &nm[0]);
+        if (typeck_module_func_overload_count(m, &nm[0], nlen) > 1) {
+          picked = typeck_pick_overload_func_index_for_call(m, a, call_expr_ref);
+          if (picked >= 0) {
+            ast.ast_expr_apply_call_resolve(a, call_expr_ref, minus_one, picked);
+            return picked;
+          }
+        }
+      }
+    }
+    fx = pipeline_expr_call_resolved_func_index_at(a, call_expr_ref);
+    if (fx >= 0) {
+      return fx;
+    }
+    if (callee_ref <= 0) {
+      return minus_one;
+    }
+    if (pipeline_expr_kind_ord_at(a, callee_ref) != ord_var) {
+      return minus_one;
+    }
+    nlen = pipeline_expr_var_name_len(a, callee_ref);
+    if (nlen <= 0 || nlen > 127) {
+      return minus_one;
+    }
+    pipeline_expr_var_name_into(a, callee_ref, &nm[0]);
+    i = 0;
+    while (i < m.num_funcs) {
+      if (pipeline_module_func_name_equal_at(m, i, &nm[0], nlen) != 0) {
+        return i;
+      }
+      i = i + 1;
+    }
+    return minus_one;
+  }
+}
+
+/**
+ * Cap residual face: pick overload func index for CALL (wave248 pure leave).
+ * Thin → typeck_pick_overload_func_index_for_call (G.7 dual-export ban).
+ * @param m *Module — entry module
+ * @param a *ASTArena — CALL arena
+ * @param call_expr_ref i32 — CALL expr
+ * @return i32 — funcs[] index or -1
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_pick_overload_func_index_for_call_c(m: *Module, a: *ASTArena,
+call_expr_ref: i32): i32 {
+  // PLATFORM: SHARED — Cap residual face name; body = pure pick authority.
+  return typeck_pick_overload_func_index_for_call(m, a, call_expr_ref);
+}
+
+/**
+ * Cap residual face: resolve CALL func index for emit (wave248 pure leave).
+ * Thin → typeck_resolve_call_func_index_for_emit (G.7 dual-export ban).
+ * ABI keeps *u8 slots for early typeck_gen / cast call sites.
+ * @param m *u8 — Module* bitcast
+ * @param a *u8 — ASTArena* bitcast
+ * @param call_expr_ref i32 — CALL expr
+ * @return i32 — funcs[] index or -1
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8,
+call_expr_ref: i32): i32 {
+  // PLATFORM: SHARED — Cap residual face name; body = pure resolve authority.
+  return typeck_resolve_call_func_index_for_emit(m as *Module, a as *ASTArena, call_expr_ref);
+}
+
+// end wave248 pure-owned leave
 

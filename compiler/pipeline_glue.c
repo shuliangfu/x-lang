@@ -1578,49 +1578,12 @@ extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct 
  *   no fwd decl needed in glue.c.
  * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
-/* wave1089 G.7: pipeline_module_func_overload_count_c migrated to
- * pipeline_typeck_method_call.c EOF (overload gating sub-domain of method call
- * resolution). Static (non-extern): same-TU — static fwd decl at glue.c:12315
- * (before all callsites L13176+) < method_call.c #include at L14053 < def EOF.
- * Deps: pipeline_asm_module_func_is_extern_at / pipeline_module_func_name_equal_at
- * (both extern). PLATFORM: SHARED. */
-static int32_t pipeline_module_func_overload_count_c(struct ast_Module *m, uint8_t *name, int32_t name_len);
-
-/* wave1090-1094 G.7: overload resolution domain (call_arg_assignable + match_score
- * + expect_match + pick_overload + resolve_call_func_index) migrated to
- * pipeline_typeck_method_call.c EOF (overload dispatch sub-domain of method call).
- * Static (non-extern): same-TU — fwd decls below (before all callsites L12695+,
- * L13233+ wrappers, L13360+, L13743+) < method_call.c #include at L14053 < def EOF.
- * resolve_call_func_index_c also has static fwd decl at glue.c:12315 (before
- * callsite L12695). Deps: pipeline_expr_kind_ord_at / pipeline_typeck_expr_type_ref_c
- * / pipeline_expr_as_target_type_ref_at / pipeline_type_kind_ord_at /
- * pipeline_typeck_type_refs_equal_c / pipeline_typeck_integer_widen_ok_refs_c
- * (static, fwd decl at glue.c:10381) / pipeline_typeck_float_widen_ok_c (static,
- * fwd decl at glue.c:10354) / pipeline_type_elem_ref_at / pipeline_expr_int_val_at
- * / pipeline_expr_call_num_args_at / pipeline_module_func_num_params_at /
- * pipeline_expr_call_arg_ref / pipeline_module_func_param_type_ref_at /
- * pipeline_module_func_return_type_at / typeck_overload_expected_ret_peek
- * (extern, declared in-function-body) / pipeline_expr_call_callee_ref_at /
- * pipeline_arena_expr_ptr / pipeline_asm_module_func_is_extern_at /
- * pipeline_module_func_name_equal_at / pipeline_expr_apply_call_resolve /
- * pipeline_expr_call_resolved_func_index_at (all extern unless noted).
- * PLATFORM: SHARED. */
-static int32_t pipeline_typeck_call_arg_assignable_c(struct ast_ASTArena *arena, int32_t arg_ref, int32_t param_ref);
-static int32_t pipeline_typeck_overload_match_score_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
-                                                      int32_t call_expr_ref);
-static int32_t pipeline_typeck_overload_expect_match_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                       int32_t func_ix);
-static int32_t pipeline_typeck_pick_overload_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
-                                                          int32_t call_expr_ref);
-
-/* wave1170 G.7: overload wrapper cluster (2 extern fns:
- * pipeline_typeck_resolve_call_func_index_for_emit_c /
- * pipeline_typeck_pick_overload_func_index_for_call_c) migrated to
- * pipeline_typeck_method_call.c EOF. Colocated with static overload resolvers
- * (pipeline_typeck_resolve_call_func_index_c / _pick_overload_func_index_c,
- * wave1090-1094, same file).
- * Extern fwd decls at L5081/5083 cover ast_pool.c:11607 callsite.
- * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+/* wave248 pure leave: overload pick/resolve Cap faces → typeck_x.o
+ * (pipeline_typeck_resolve_call_func_index_for_emit_c /
+ *  pipeline_typeck_pick_overload_func_index_for_call_c). Residual static
+ * score cluster deleted (G.7 dual-export ban). Extern decls at L1392/1394.
+ * PLATFORM: SHARED freestanding typeck CALL overload resolve.
+ */
 
 /* wave1150 G.7: glue_asm_resolve_call_target_module_c migrated to
  * pipeline_asm_emit_call_args.c EOF (CALL-target module/func_index resolver;
