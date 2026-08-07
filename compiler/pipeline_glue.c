@@ -1572,7 +1572,8 @@ extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct 
  * - pipeline_dep_ctx_scope_region_push_c / _pop_c / _len_at: fwd decls in
  *   region_assign.c L327-329 (before callsites L409/416/1112/1121/1128)
  * - pipeline_typeck_is_read_ptr_slice_callee_c /
- *   pipeline_typeck_read_ptr_slice_return_ref_c / pipeline_type_stamp_block_let_region_c:
+ *   pipeline_typeck_read_ptr_slice_return_ref_c / pipeline_type_stamp_block_let_region_c
+ *   (wave243 pure leave → typeck_x.o; dual-export ban in residual):
  *   extern, called from seed (typeck_gen.linux.x86_64.c) not from glue.c TU;
  *   no fwd decl needed in glue.c.
  * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */

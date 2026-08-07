@@ -30,8 +30,13 @@
  * Cap residual deletes static scan bodies (dual-export ban); pure calls residual
  * pipeline_typeck_check_call_struct_stack_escape_c (public, stack_local helpers).
  *
+ * wave243 G.7 pure leave: M-5 read_ptr slice + M-3 stamp_let → typeck.x
+ * (pipeline_typeck_is_read_ptr_slice_callee_c /
+ *  pipeline_typeck_read_ptr_slice_return_ref_c /
+ *  pipeline_type_stamp_block_let_region_c). Cap residual deletes second bodies.
+ *
  * Still residual (not pure-leaved this wave):
- * - stack_local ptr stamp + read_ptr slice + stamp_let cluster
+ * - stack_local ptr stamp helpers
  * - call_struct_stack_escape + block tree store-scan helpers (param field)
  * - check_block_one_region + ptr_for_addr_of
  *
@@ -668,99 +673,18 @@ static int32_t typeck_func_stores_param_into_param_field_c(struct ast_Module *m,
  * wave242 G.7 pure leave: scan_expr / scan_block / scan_module → typeck_x.o.
  * Dual-export ban: no second scan bodies here. Pure faces call residual
  * pipeline_typeck_check_call_struct_stack_escape_c (public below) + pure
- * check_* assign/return faces. Residual keeps read_ptr + stamp_let +
- * stack_local helpers + call_struct_stack_escape + one_region + ptr_for_addr.
- * PLATFORM: SHARED — host-cc via pipeline_x.o TU (U scan_module from typeck_x).
+ * check_* assign/return faces.
+ * wave243 G.7 pure leave: read_ptr + stamp_let → typeck_x.o (no second bodies).
+ * Residual keeps stack_local helpers + call_struct_stack_escape + one_region +
+ * ptr_for_addr.
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU (U faces from typeck_x).
  */
 
-/**
- * Check if callee name is a read_ptr slice producer (auto-binds io_read_ptr region).
- * Why: read_ptr_slice / xlang_io_read_ptr_slice / driver_read_ptr_slice /
- *      io_read_ptr_slice all return u8[]<io_read_ptr> tagged slices; the typeck
- *      auto-binds the io_read_ptr region label for escape-safe return paths.
- * Contract: null name / name_len <= 0 → 0.
- * PLATFORM: SHARED — M-5 read_ptr slice region binding.
- */
-int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int32_t name_len) {
-  static const uint8_t n0[] = "read_ptr_slice";
-  static const uint8_t n1[] = "xlang_io_read_ptr_slice";
-  static const uint8_t n2[] = "driver_read_ptr_slice";
-  static const uint8_t n3[] = "io_read_ptr_slice";
-  if (!name || name_len <= 0)
-    return 0;
-  if (name_len == 14 && memcmp(name, n0, 14) == 0)
-    return 1;
-  if (name_len == 19 && memcmp(name, n1, 19) == 0)
-    return 1;
-  if (name_len == 18 && memcmp(name, n2, 18) == 0)
-    return 1;
-  if (name_len == 16 && memcmp(name, n3, 16) == 0)
-    return 1;
-  return 0;
-}
-
-/**
- * Allocate or find the u8[]<io_read_ptr> type pool ref (read_ptr TLS buf domain).
- * Why: read_ptr slice return type must carry the io_read_ptr region label so
- *      the escape checker permits the return path within the region block.
- * Contract: null arena → 0.
- * PLATFORM: SHARED — M-5 read_ptr slice region binding.
- */
-int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *arena) {
-  static const uint8_t lbl[] = "io_read_ptr";
-  int32_t u8_ref;
-  if (!arena)
-    return 0;
-  u8_ref = pipeline_type_ensure_by_kind_ord(arena, 2);
-  if (u8_ref <= 0)
-    return 0;
-  return pipeline_type_find_or_alloc_slice(arena, u8_ref, (uint8_t *)lbl, 11);
-}
-
-/* wave241 pure leave: pipeline_dep_ctx_scope_region_len_at → typeck_x.o */
-
-/* extern: defined in ast_pool_block.c (visible via ast_pool.c #include at glue.c L5281). */
-int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
-                                        int32_t type_ref);
-
-/**
- * Stamp a block-let's T[] type with the current ctx region label.
- * Why: region-block inner `let v = arr` where arr: T[] must inherit the
- *      region tag (T[]<label>) so the escape checker can verify the let
- *      does not outlive the region. In-place mutation of the shared type
- *      node is forbidden (would corrupt function return types sharing the
- *      same T[] ref); must find_or_alloc a new T[]<label> and write it back.
- * Contract: null arena/ctx / invalid block_ref/let_idx → 0.
- *           Non-TYPE_SLICE type / already-tagged → 0 (no-op).
- *           find_or_alloc failure → -1.
- * PLATFORM: SHARED — M-3 region tag propagation to let declarations.
- */
-int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
-                                             struct ast_PipelineDepCtx *ctx) {
-  int32_t ty_ref;
-  int32_t rlen;
-  int32_t elem;
-  int32_t stamped;
-  if (!arena || !ctx || block_ref <= 0 || let_idx < 0)
-    return 0;
-  rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
-  if (rlen <= 0)
-    return 0;
-  ty_ref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
-  if (ty_ref <= 0 || pipeline_type_kind_ord_at(arena, ty_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  if (pipeline_type_region_label_len_at(arena, ty_ref) > 0)
-    return 0;
-  elem = pipeline_type_elem_ref_at(arena, ty_ref);
-  if (elem <= 0)
-    return 0;
-  stamped = pipeline_type_find_or_alloc_slice(arena, elem, ctx->typeck_scope_region_label, rlen);
-  if (stamped <= 0)
-    return -1;
-  if (stamped == ty_ref)
-    return 0;
-  return pipeline_block_set_let_type_ref(arena, block_ref, let_idx, stamped);
-}
+/* wave243 pure leave: read_ptr + stamp_let live in typeck_x.o (dual-export ban). */
+extern int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int32_t name_len);
+extern int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *arena);
+extern int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref,
+                                                     int32_t let_idx, struct ast_PipelineDepCtx *ctx);
 
 /* ========================================================================== *
  * wave1214 G.7: pipeline_typeck_check_call_struct_stack_escape_c migrated

@@ -578,8 +578,19 @@ export extern function glue_generic_call_fixup_resolved_type_c(module: *Module, 
 call_expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32;
 export extern function pipeline_typeck_resolve_call_callee_return_type_c(module: *Module, arena: *ASTArena,
 callee_expr_ref: i32, call_expr_ref: i32, ctx: *PipelineDepCtx): i32;
+/**
+ * wave243 pure leave: M-3 stamp_let + M-5 read_ptr faces → typeck.x EOF
+ * (#[no_mangle]). Cap residual deletes second bodies (G.7 dual-export ban).
+ * export extern below = same-TU forward for early call sites (check_expr /
+ * check_block); bodies at EOF are the single authority.
+ * PLATFORM: SHARED freestanding typeck region stamp / read_ptr bind.
+ */
 export extern function pipeline_type_stamp_block_let_region_c(arena: *ASTArena, block_ref: i32, let_idx: i32,
 ctx: *PipelineDepCtx): i32;
+export extern function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: i32): i32;
+export extern function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *ASTArena): i32;
+export extern function pipeline_block_let_type_ref(arena: *ASTArena, br: i32, li: i32): i32;
+export extern function pipeline_block_set_let_type_ref(arena: *ASTArena, br: i32, li: i32, type_ref: i32): i32;
 export extern function pipeline_typeck_check_block_one_region_c(module: *Module, arena: *ASTArena,
 block_ref: i32, region_idx: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_block_region_is_unsafe(arena: *ASTArena, br: i32, ri: i32): i32;
@@ -645,9 +656,6 @@ vlen: i32): i32;
  */
 export extern function glue_expr_is_func_param_at_c(arena: *ASTArena, mod: *Module, func_idx: i32,
 expr_ref: i32, param_ix: i32): i32;
-/* See implementation. */
-export extern function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: i32): i32;
-export extern function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *ASTArena): i32;
 export extern function pipeline_module_func_param_type_ref_at(module: *Module, fi: i32, pi: i32): i32;
 export extern function pipeline_module_func_num_params_at(module: *Module, fi: i32): i32;
 export extern function pipeline_expr_call_resolved_func_index_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -15107,4 +15115,116 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 // end wave242 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave243: typeck stamp_let + read_ptr cluster pure leave
+// Authority: typeck_x.o (this file + typeck_gen hand-sync).
+// Symbols:
+//   pipeline_typeck_is_read_ptr_slice_callee_c
+//   pipeline_typeck_read_ptr_slice_return_ref_c
+//   pipeline_type_stamp_block_let_region_c
+// Cap residual region_assign deletes second bodies (dual-export ban).
+// PLATFORM: SHARED freestanding typeck M-3 stamp / M-5 read_ptr.
+// ---------------------------------------------------------------------------
+
+/**
+ * M-5: return 1 if callee name is a read_ptr slice producer (auto-binds
+ * io_read_ptr region on the return type).
+ * Names: read_ptr_slice / xlang_io_read_ptr_slice / driver_read_ptr_slice /
+ * io_read_ptr_slice.
+ * @param name *u8 — callee name bytes (not required NUL-terminated)
+ * @param name_len i32 — byte count; <=0 or null → 0
+ * @return i32 — 1 match; 0 no match / invalid
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: i32): i32 {
+  if (name == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  // Residual fidelity: host-cc used name_len gates 14/19/18/16 with memcmp of
+  // that many bytes (not full C-string strlen for xlang_/driver_ prefixes).
+  if (name_len == 14 && name_equal(name, name_len, "read_ptr_slice" as *u8, 14)) {
+    return 1;
+  }
+  if (name_len == 19 && name_equal(name, name_len, "xlang_io_read_ptr_slice" as *u8, 19)) {
+    return 1;
+  }
+  if (name_len == 18 && name_equal(name, name_len, "driver_read_ptr_slice" as *u8, 18)) {
+    return 1;
+  }
+  if (name_len == 16 && name_equal(name, name_len, "io_read_ptr_slice" as *u8, 16)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * M-5: allocate or find u8[]<io_read_ptr> type pool ref for read_ptr return.
+ * @param arena *ASTArena — type arena; null → 0
+ * @return i32 — type_ref (>0) or 0 on failure
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *ASTArena): i32 {
+  let u8_ref: i32 = 0;
+  if (arena == 0 as *ASTArena) {
+    return 0;
+  }
+  // kind_ord 2 = TYPE_U8 (same as Cap residual host-cc face).
+  u8_ref = pipeline_type_ensure_by_kind_ord(arena, 2);
+  if (u8_ref <= 0) {
+    return 0;
+  }
+  return pipeline_type_find_or_alloc_slice(arena, u8_ref, "io_read_ptr" as *u8, 11);
+}
+
+/**
+ * M-3: stamp a block-let's T[] type with the current ctx region label.
+ * In-place mutation of shared type nodes is forbidden; find_or_alloc a new
+ * T[]<label> and write it back via pipeline_block_set_let_type_ref.
+ * @param arena *ASTArena — type/block arena
+ * @param block_ref i32 — block holding the let (>0)
+ * @param let_idx i32 — let index within block (>=0)
+ * @param ctx *PipelineDepCtx — active region scope (label + len)
+ * @return i32 — 0 no-op/success; -1 find_or_alloc failure
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_type_stamp_block_let_region_c(arena: *ASTArena, block_ref: i32, let_idx: i32,
+ctx: *PipelineDepCtx): i32 {
+  let ty_ref: i32 = 0;
+  let rlen: i32 = 0;
+  let elem: i32 = 0;
+  let stamped: i32 = 0;
+  if (arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || block_ref <= 0 || let_idx < 0) {
+    return 0;
+  }
+  rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
+  if (rlen <= 0) {
+    return 0;
+  }
+  ty_ref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
+  // TYPE_SLICE ord == 11
+  if (ty_ref <= 0 || pipeline_type_kind_ord_at(arena, ty_ref) != 11) {
+    return 0;
+  }
+  if (pipeline_type_region_label_len_at(arena, ty_ref) > 0) {
+    return 0;
+  }
+  elem = pipeline_type_elem_ref_at(arena, ty_ref);
+  if (elem <= 0) {
+    return 0;
+  }
+  stamped = pipeline_type_find_or_alloc_slice(arena, elem, &ctx.typeck_scope_region_label[0], rlen);
+  if (stamped <= 0) {
+    return -1;
+  }
+  if (stamped == ty_ref) {
+    return 0;
+  }
+  return pipeline_block_set_let_type_ref(arena, block_ref, let_idx, stamped);
+}
+
+// end wave243 pure-owned leave
 
