@@ -803,15 +803,11 @@ export extern function pipeline_expr_call_resolved_dep_index_at(arena: *ASTArena
 /* See implementation. */
 export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
 /**
- * wave238 G.7: Cap residual CTFE faces thin → typeck_* pure leave (typeck_x.o).
- * Historical pipeline_typeck_*_c names remain as residual C ABI only.
+ * wave255 host-cc leave: historical pipeline_typeck_*_c CTFE Cap faces live as
+ * #[no_mangle] thin exports at EOF (wave255 block) → typeck_* authority.
+ * pipeline_typeck_ctfe.c deleted (present 56→55). Dual-export ban on residual C.
  * PLATFORM: SHARED freestanding typeck
  */
-export extern function pipeline_typeck_block_const_init_is_const_c(arena: *ASTArena, block_ref: i32, const_idx: i32): i32;
-export extern function pipeline_typeck_const_init_not_constant_c(line: i32, col: i32): void;
-export extern function pipeline_typeck_fold_expr_c(arena: *ASTArena, expr_ref: i32): void;
-export extern function pipeline_typeck_fold_block_const_init_c(arena: *ASTArena, block_ref: i32,
-const_idx: i32): void;
 /**
  * wave423: stamp block const type_ref after inference from init.
  * @param arena *ASTArena
@@ -826,15 +822,13 @@ type_ref: i32): i32;
 export extern function pipeline_module_top_level_let_set_type_ref(module: *Module, idx: i32,
 type_ref: i32): void;
 export extern function pipeline_module_top_level_let_init_ref(module: *Module, idx: i32): i32;
-export extern function pipeline_typeck_fold_expr_in_block_c(arena: *ASTArena, block_ref: i32,
-expr_ref: i32): void;
 
 /**
  * wave238 G.7 pure leave: CTFE producer (LANG-006). Live body is hand-synced in
  * typeck_gen.c (typeck_fold_* / typeck_block_const_init_is_const /
- * typeck_const_init_not_constant / typeck_expr_is_c_static_const_init). Cap residual
- * pipeline_typeck_ctfe.c thins to these symbols. Full .x body lands when typeck -E
- * recovers; until then typeck_gen is the product twin of this authority surface.
+ * typeck_const_init_not_constant / typeck_expr_is_c_static_const_init).
+ * wave255: Cap residual pipeline_typeck_ctfe.c retired; historical pipeline_* faces
+ * are thin on typeck_x.o only (EOF). Full .x body lands when typeck -E recovers.
  * @param arena *ASTArena
  * @param expr_ref i32
  * PLATFORM: SHARED freestanding typeck — single CTFE producer path.
@@ -18181,4 +18175,96 @@ ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
 }
 
 // end wave254 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave255: typeck CTFE Cap residual pure-owned leave (host-cc present 56→55)
+// Delete pipeline_typeck_ctfe.c from pipeline_x mega-TU.
+// Historical pipeline_* / pipeline_typeck_*_c CTFE faces → typeck_* pure authority
+//   (typeck_fold_* / typeck_block_const_init_is_const / typeck_const_init_not_constant /
+//    typeck_expr_is_c_static_const_init; bodies in typeck_gen product twin).
+// Cap residual: dual-export ban — no second thin body on pipeline_x.
+// strict_minimal: XLANG_WEAK const_init faces remain bootstrap fallback only.
+// PLATFORM: SHARED freestanding typeck CTFE Cap leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * Cap residual face: block const init is constant expression (thin → pure).
+ * @param arena *ASTArena — block arena
+ * @param block_ref i32 — block ref
+ * @param const_idx i32 — const index in block
+ * @return i32 — 1 yes, 0 no
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_block_const_init_is_const_c(arena: *ASTArena, block_ref: i32,
+const_idx: i32): i32 {
+  return typeck_block_const_init_is_const(arena, block_ref, const_idx);
+}
+
+/**
+ * Cap residual face: diag const init must be constant (thin → pure).
+ * @param line i32 — source line
+ * @param col i32 — source column
+ * @return void
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_const_init_not_constant_c(line: i32, col: i32): void {
+  typeck_const_init_not_constant(line, col);
+}
+
+/**
+ * Cap residual face: fold expr CTFE (thin → pure typeck_fold_expr).
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @return void
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_fold_expr_c(arena: *ASTArena, expr_ref: i32): void {
+  typeck_fold_expr(arena, expr_ref);
+}
+
+/**
+ * Cap residual face: fold block const init (thin → pure).
+ * @param arena *ASTArena
+ * @param block_ref i32
+ * @param const_idx i32
+ * @return void
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_fold_block_const_init_c(arena: *ASTArena, block_ref: i32,
+const_idx: i32): void {
+  typeck_fold_block_const_init(arena, block_ref, const_idx);
+}
+
+/**
+ * Cap residual face: fold expr with block const env (thin → pure).
+ * @param arena *ASTArena
+ * @param block_ref i32
+ * @param expr_ref i32
+ * @return void
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_fold_expr_in_block_c(arena: *ASTArena, block_ref: i32,
+expr_ref: i32): void {
+  typeck_fold_expr_in_block(arena, block_ref, expr_ref);
+}
+
+/**
+ * Cap residual face: pure-lit tree legal as C static init (codegen gate).
+ * Historical name pipeline_expr_is_c_static_const_init (no _c suffix).
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @return i32 — 1 yes, 0 no
+ * PLATFORM: SHARED freestanding typeck / codegen static-init gate.
+ */
+#[no_mangle]
+export function pipeline_expr_is_c_static_const_init(arena: *ASTArena, expr_ref: i32): i32 {
+  return typeck_expr_is_c_static_const_init(arena, expr_ref);
+}
+
+// end wave255 pure-owned leave
 

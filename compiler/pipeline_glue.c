@@ -587,10 +587,10 @@ extern int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
  * (L1736), typeck_method_call (L4182). Existing static fwd decls in as.c L41
  * and field_access.c L712 now resolve to migrated def. PLATFORM: SHARED. */
 
-/* wave965 BC 8.3.1: typeck CTFE producer (const whitelist + fold) — same TU slice.
- * Body: pipeline_typeck_ctfe.c. Requires glue_arena_expr_at_ref above.
- * PLATFORM: SHARED — host-cc via pipeline_x.o; STALE via PIPELINE_X_DEPS. */
-#include "pipeline_typeck_ctfe.c"
+/* wave255 BC 8.3.1 host-cc leave: pipeline_typeck_ctfe.c deleted.
+ * CTFE Cap faces live on typeck_x.o (typeck.x / typeck_gen thin → typeck_*).
+ * PLATFORM: SHARED — no host-cc CTFE slice in pipeline_x mega-TU.
+ */
 
 
 /* wave1164 G.7: struct_lit accessor cluster (4 fns:
