@@ -837,8 +837,8 @@ void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_AS
 /* wave1162 G.7: int_val_at + int64_val_at migrated to
  * pipeline_asm_emit_expr_rec.c EOF. Fwd decls at L1530-1531. */
 
-/* wave1172 G.7: pipeline_typeck_check_expr_int_lit_c migrated to
- * pipeline_typeck_coerce_init.c EOF. Colocated with coerce_init domain —
+/* wave1172→wave258: pipeline_typeck_check_expr_int_lit_c Cap on typeck_x.o.
+ * Former note: Colocated with coerce_init domain —
  * int literal type resolution (i32 vs i64) is the entry point for literal
  * coerce. No glue.c callsites (sole caller is typeck_gen.c seed).
  * Dependencies: glue_arena_expr_at_ref (static, glue.c L2437 < coerce_init.c
@@ -1007,12 +1007,10 @@ extern int32_t glue_emit_with_arena_deinit_elf(struct platform_elf_ElfCodegenCtx
  * pipeline_expr_set_field_access_soa_stride remain in glue.c (different
  * domain / dependency). */
 
-/* wave1178 G.7: pipeline_expr_typeck_set_float_bits_from_val migrated to
- * pipeline_typeck_coerce_init.c EOF (colocated with int_lit coerce domain).
- * pipeline_dep_ctx_typeck_loop_depth_at migrated to ast_pool_dep_ctx.c EOF
- * (colocated with PipelineDepCtx cold accessor domain).
- * Both have no glue.c callsites (sole callers are typeck_gen.c seed via
- * extern). PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
+/* wave1178→wave258: pipeline_expr_typeck_set_float_bits_from_val in
+ * ast_pool_arena.c (float bits domain with glue_arena_expr_at_ref).
+ * pipeline_dep_ctx_typeck_loop_depth_at in ast_pool_dep_ctx.c.
+ * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
 /* wave1179 G.7: field_access enum/soa setter cluster (5 fns) migrated to
  * pipeline_asm_emit_field_access.c EOF (colocated with FIELD_ACCESS emit
@@ -1691,9 +1689,8 @@ extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct 
  * dropped — L3238-3239 already covers all callsites.
  * Sole extern caller: typeck_gen.c L9100 + typeck.x seed. PLATFORM: SHARED. */
 
-/* typeck coerce-init domain (lit/float/enum/call/array/vector/struct/slice):
- * pipeline_typeck_coerce_init.c */
-#include "pipeline_typeck_coerce_init.c"
+/* wave258: pipeline_typeck_coerce_init.c pure-owned leave — Cap faces on
+ * typeck_x.o; float_bits residual in ast_pool_arena.c. No #include. */
 
 /** 前向声明：check_expr_impl C 委托内递归 check 子表达式。 */
 int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
@@ -1701,10 +1698,8 @@ int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct ast_ASTAr
 int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
                                       int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
-/* wave1065 G.7: pipeline_typeck_expr_is_any_assign_kind_c migrated to
- * pipeline_typeck_coerce_init.c EOF (assign-kind classifier, consumed by
- * check_block_one_region). Static same-TU: coerce_init.c #include L14126 <
- * def L14135 < sole callsite L15308. Deps: ast_ExprKind_* enum (global). */
+/* wave1065→wave258: pipeline_typeck_expr_is_any_assign_kind_c Cap on typeck_x.o
+ * (check_expr mega assign arm). PLATFORM: SHARED freestanding typeck. */
 
 /** typeck.o / typeck_x_no_layout 子 helper；kind 分派经 pipeline_typeck_check_expr_impl_mega_c 调用。 */
 extern int32_t typeck_check_expr_try_propagate(struct ast_Module *module, struct ast_ASTArena *arena,

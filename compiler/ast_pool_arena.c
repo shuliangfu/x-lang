@@ -949,6 +949,28 @@ int32_t pipeline_expr_float_bits_hi_at(struct ast_ASTArena *a, int32_t expr_ref)
 }
 
 /**
+ * Recompute and write float_bits_lo/hi from float_val.
+ * wave258: moved from pipeline_typeck_coerce_init.c (coerce Cap pure-owned leave).
+ * Why: typeck.x EXPR_FLOAT_LIT X-emit must write IEEE bits via C helper to
+ *      avoid X Expr struct field assignment typeck failures during self-host
+ *      bootstrap. Sole callers: typeck_gen / typeck.x float_lit path (extern).
+ * Contract: no-op when arena null, expr_ref out of range, or expr ptr null.
+ * Colocated with glue_arena_expr_at_ref + float_bits_lo/hi_at (same domain).
+ * PLATFORM: SHARED — host-cc residual via ast_pool_arena in pipeline_x mega-TU.
+ */
+void pipeline_expr_typeck_set_float_bits_from_val(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex;
+
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return;
+  ex->float_bits_lo = typeck_float64_bits_lo(ex->float_val);
+  ex->float_bits_hi = typeck_float64_bits_hi(ex->float_val);
+}
+
+/**
  * Convert f64 IEEE bits (lo/hi) to f32 IEEE bits (truncating convert).
  * wave138 Cap residual for pure float-lit / array scalar pack (host float ops).
  * PLATFORM: SHARED.

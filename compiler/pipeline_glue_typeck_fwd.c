@@ -66,19 +66,19 @@
  * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
 
 /* wave1158 G.7: typeck type_refs_equal / type_ref_is_bool / expr_type_ref
- * public wrappers (9 extern fns) migrated to pipeline_typeck_coerce_init.c
- * EOF (colocated with wave1080-1083 static implementations). Extern fwd
- * decls below for callsites before #include L9626. */
-int32_t pipeline_typeck_type_refs_equal_named_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
-int32_t pipeline_typeck_type_refs_equal_same_kind_c(struct ast_ASTArena *arena, int32_t a, int32_t b,
+ * public Cap faces pure-owned leave wave258 → typeck_x.o (#[no_mangle] thin).
+ * pipeline_typeck_coerce_init.c deleted. Extern fwd decls below for residual
+ * same-TU callers (check_block / method_call / check_expr / codegen). */
+extern int32_t pipeline_typeck_type_refs_equal_named_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+extern int32_t pipeline_typeck_type_refs_equal_same_kind_c(struct ast_ASTArena *arena, int32_t a, int32_t b,
                                                      int32_t kind_ord);
-int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *arena, int32_t type_ref);
-int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
-int32_t pipeline_typeck_type_refs_equal_impl_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
-int32_t pipeline_typeck_type_ref_is_bool_impl_c(struct ast_ASTArena *arena, int32_t type_ref);
-int32_t pipeline_typeck_type_ref_is_bool_c(struct ast_ASTArena *arena, int32_t type_ref);
-int32_t pipeline_typeck_expr_type_ref_impl_c(struct ast_ASTArena *arena, int32_t expr_ref);
-int32_t pipeline_typeck_expr_type_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+extern int32_t pipeline_typeck_type_refs_equal_impl_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+extern int32_t pipeline_typeck_type_ref_is_bool_impl_c(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t pipeline_typeck_type_ref_is_bool_c(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t pipeline_typeck_expr_type_ref_impl_c(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_typeck_expr_type_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
 
 /* wave230 G.7: typeck_named_unqual_offset / typeck_glue_type_refs_equal_named /
  * typeck_glue_type_refs_equal_impl residual statics retired — typeck_x.o owns
@@ -92,11 +92,10 @@ extern int32_t pipeline_module_type_alias_target_ref(struct ast_Module *m, int32
 
 /* wave233 G.7 pure leave: resolve_type_alias_ref_impl residual body retired →
  * typeck_resolve_type_alias_ref (typeck_x.o). Public C face
- * pipeline_typeck_resolve_type_alias_ref_c thins in coerce_init.c. Do not
+ * pipeline_typeck_resolve_type_alias_ref_c Cap on typeck_x.o (wave258). Do not
  * re-open static impl here (G.7 dual-authority ban). */
 
-/* wave1158/wave233 G.7: public wrappers (type_refs_equal_* / resolve_alias /
- * type_ref_is_bool / expr_type_ref) thin in coerce_init.c → typeck_x.o. */
+/* wave1158/wave233/wave258: public Cap wrappers on typeck_x.o only. */
 
 /* wave1156→wave256: typeck assign + diag fmt Cap faces pure-owned leave.
  * Bodies retired from pipeline_typeck_assign.c; live on typeck_x.o
@@ -104,24 +103,17 @@ extern int32_t pipeline_module_type_alias_target_ref(struct ast_Module *m, int32
  * Extern decls below for residual same-TU callers (check_expr mega assign arm).
  * PLATFORM: SHARED freestanding typeck assign Cap leave. */
 
-/* wave1076 G.7: pipeline_typeck_float_widen_ok_c migrated to
- * pipeline_typeck_coerce_init.c EOF (f32→f64 IEEE float widen gate).
- * Static same-TU: fwd decl below (before all callsites L10570/10650/11132/
- * 13272) < coerce_init.c #include L14126 < def EOF. Deps: ast_TypeKind_* (global). */
-/* wave144: pure return leave Cap residual — static→extern (def coerce_init). */
-int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind);
+/* wave1076→wave258: float_widen Cap face on typeck_x.o (coerce residual retired). */
+/* wave258: float/integer widen Cap faces on typeck_x.o only. */
+extern int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind);
 
-/* wave230 G.7 pure leave: integer_widen faces public (thin → typeck_x.o).
- * Was static residual dual body; method_call residual calls refs face. */
-int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src_kind);
-int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *arena, int32_t dest_ref,
+/* wave230/wave258: integer_widen Cap faces on typeck_x.o. */
+extern int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src_kind);
+extern int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *arena, int32_t dest_ref,
                                                 int32_t src_ref);
 
 extern uint8_t *typeck_scratch64_slot(int32_t slot);
 
-/* wave1076 G.7: pipeline_typeck_float_widen_ok_c body migrated to
- * pipeline_typeck_coerce_init.c EOF (f32→f64 IEEE float widen gate).
- * Static fwd decl at L10435 (before all callsites). Body 10 LOC. */
 
 /* wave1130-1131: float promote pair migrated to return.c;
  * wave144 pure leave: live = runtime_pipeline_abi pure (extern below). */
@@ -143,14 +135,12 @@ extern int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32
  * pipeline_typeck_return_operand_matches_c /
  * pipeline_typeck_ret_coerce_integral_to_expect_i32_c /
  * pipeline_typeck_ret_coerce_integral_widen_c) migrated to
- * pipeline_typeck_coerce_init.c EOF (colocated with coerce-init domain —
- * return coercion is the return-path twin of let/const/arg init coercion).
- * Forward decls below for callsites at L7367-7370 (before coerce_init.c
- * #include at L9010). Deps all visible at coerce_init.c #include L9010. */
-int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref);
-void pipeline_typeck_ret_coerce_integral_to_expect_i32_c(struct ast_ASTArena *arena, int32_t op_ref,
+ * typeck_x.o Cap faces (wave258 pure-owned leave). */
+/* wave258: ret_coerce Cap faces on typeck_x.o only. */
+extern int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref);
+extern void pipeline_typeck_ret_coerce_integral_to_expect_i32_c(struct ast_ASTArena *arena, int32_t op_ref,
                                                          int32_t expect_ref);
-void pipeline_typeck_ret_coerce_integral_widen_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref);
+extern void pipeline_typeck_ret_coerce_integral_widen_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref);
 
 /** EXPR_RETURN 诊断与 scratch 缓冲（runtime.c）。 */
 extern void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref,
@@ -197,21 +187,33 @@ int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *module, st
 int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                           int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
-int32_t pipeline_typeck_coerce_init_struct_lit_to_decl_c(struct ast_Module *module, struct ast_ASTArena *arena,
+/* wave258 BC 8.3.1 host-cc leave: pipeline_typeck_coerce_init.c deleted.
+ * Cap faces live on typeck_x.o only. Full extern set for residual/seed callers.
+ * PLATFORM: SHARED freestanding typeck coerce Cap leave. */
+extern int32_t pipeline_typeck_coerce_init_struct_lit_to_decl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                          int32_t init_ref, int32_t decl_ty_ref);
-/* wave318: return path reuses lit coerce before body (defined with coerce family). */
-int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref, int32_t decl_ty_ref,
+extern int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref, int32_t decl_ty_ref,
                                                   int32_t decl_kind, int32_t init_kind);
-/* wave316: return path reuses float_lit coerce before body (defined with coerce family). */
-int32_t pipeline_typeck_coerce_init_float_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
+extern int32_t pipeline_typeck_coerce_init_float_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                         int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
-/* wave319: return path reuses int_binop coerce for EXPR_NEG/int binop → f32/f64. */
-int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
+extern int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                         int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
-/* wave333: return ARRAY_LIT → TYPE_SLICE/ARRAY/VECTOR (def with coerce family). */
-int32_t pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
+extern int32_t pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                                int32_t decl_ty_ref, int32_t decl_kind,
                                                                int32_t init_kind);
+extern int32_t pipeline_typeck_coerce_init_enum_field_to_decl_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                                int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind,
+                                                                int32_t init_kind);
+extern int32_t pipeline_typeck_coerce_init_named_call_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
+                                                                int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
+extern int32_t pipeline_typeck_coerce_init_vector_binop_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
+                                                                  int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
+extern int32_t pipeline_typeck_coerce_init_slice_from_array_c(struct ast_ASTArena *arena, int32_t init_ref,
+                                                              int32_t decl_ty_ref, int32_t decl_kind);
+extern int32_t pipeline_typeck_coerce_init_expr_to_decl_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                          int32_t init_ref, int32_t decl_ty_ref);
+extern int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_typeck_expr_is_any_assign_kind_c(int32_t kind_ord);
 
 /** bootstrap typeck 后处理（METHOD_CALL / 泛型 CALL）；定义见 pipeline_typeck_bootstrap_expr_fixup_c。 */
 static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, struct ast_ASTArena *arena,

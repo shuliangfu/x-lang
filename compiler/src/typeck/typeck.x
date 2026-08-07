@@ -193,7 +193,12 @@ export extern function pipeline_type_append_type_arg(arena: *ASTArena, type_ref:
  */
 export extern function pipeline_type_set_elem_array_size_at(arena: *ASTArena, type_ref: i32,
 elem_ref: i32, array_size: i32): i32;
-/* See implementation. */
+/**
+ * wave258 pure-owned leave: type_refs_equal Cap face → typeck.x EOF (#[no_mangle]).
+ * typeck.x call sites use historical pipeline_*_c ABI (i32); body thins to
+ * type_refs_equal (bool). export extern = same-TU forward; body at EOF.
+ * PLATFORM: SHARED freestanding typeck coerce Cap leave.
+ */
 export extern function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i32, b: i32): i32;
 /**
  * wave234: call_arg_repr_compatible residual face retired → typeck authority.
@@ -18524,3 +18529,313 @@ call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
 
 // end wave257 pure-owned leave
 
+// ---------------------------------------------------------------------------
+// wave258: typeck coerce_init Cap residual pure-owned leave (host-cc present 53→52)
+// Delete pipeline_typeck_coerce_init.c from pipeline_x mega-TU.
+// Historical pipeline_typeck_*_c coerce/type_refs/widen/ret_coerce/int_lit/
+//   expr_is_any_assign faces → typeck_* pure authority (wave227–233).
+// float_bits residual moved to ast_pool_arena.c (glue_arena_expr_at_ref home).
+// Cap residual: dual-export ban — no second thin body on pipeline_x.
+// PLATFORM: SHARED freestanding typeck coerce_init Cap leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * Cap residual face: integer-literal init coerce (thin → pure).
+ * @param arena *ASTArena
+ * @param init_ref i32
+ * @param decl_ty_ref i32
+ * @param decl_kind i32
+ * @param init_kind i32
+ * @return i32 — non-zero when coerce applied
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_coerce_init_lit_to_decl_c(arena: *ASTArena, init_ref: i32,
+decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
+  return typeck_coerce_init_lit_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind);
+}
+
+/**
+ * Cap residual face: float-lit / -float init coerce (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_coerce_init_float_lit_to_decl_c(arena: *ASTArena, init_ref: i32,
+decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
+  return typeck_coerce_init_float_lit_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind);
+}
+
+/**
+ * Cap residual face: enum field-access init coerce (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_coerce_init_enum_field_to_decl_c(module: *Module, arena: *ASTArena,
+init_ref: i32, decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
+  return typeck_coerce_init_enum_field_to_decl(module, arena, init_ref, decl_ty_ref, decl_kind, init_kind);
+}
+
+/**
+ * Cap residual face: named-call init coerce (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_coerce_init_named_call_to_decl_c(arena: *ASTArena, init_ref: i32,
+decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
+  return typeck_coerce_init_named_call_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind);
+}
+
+/**
+ * Cap residual face: array/vector lit init coerce (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(arena: *ASTArena, init_ref: i32,
+decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
+  return typeck_coerce_init_array_vector_lit_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind);
+}
+
+/**
+ * Cap residual face: vector binop init coerce (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_coerce_init_vector_binop_to_decl_c(arena: *ASTArena, init_ref: i32,
+decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
+  return typeck_coerce_init_vector_binop_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind);
+}
+
+/**
+ * Cap residual face: int binop / EXPR_NEG init coerce (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_coerce_init_int_binop_to_decl_c(arena: *ASTArena, init_ref: i32,
+decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
+  return typeck_coerce_init_int_binop_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind);
+}
+
+/**
+ * Cap residual face: struct_lit init coerce (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_coerce_init_struct_lit_to_decl_c(module: *Module, arena: *ASTArena,
+init_ref: i32, decl_ty_ref: i32): i32 {
+  return typeck_coerce_init_struct_lit_to_decl(module, arena, init_ref, decl_ty_ref);
+}
+
+/**
+ * Cap residual face: array→slice init coerce (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_coerce_init_slice_from_array_c(arena: *ASTArena, init_ref: i32,
+decl_ty_ref: i32, decl_kind: i32): i32 {
+  return typeck_coerce_init_slice_from_array(arena, init_ref, decl_ty_ref, decl_kind);
+}
+
+/**
+ * Cap residual face: let/const init coerce dispatcher (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_coerce_init_expr_to_decl_c(module: *Module, arena: *ASTArena,
+init_ref: i32, decl_ty_ref: i32): i32 {
+  return typeck_coerce_init_expr_to_decl(module, arena, init_ref, decl_ty_ref);
+}
+
+/**
+ * Cap residual face: f32→f64 float widen gate (thin → pure; bool as i32).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_float_widen_ok_c(dest_kind: i32, src_kind: i32): i32 {
+  if (typeck_float_widen_ok(dest_kind, src_kind)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: first-class integer widen matrix (thin → pure; bool as i32).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_integer_widen_ok_c(dest_kind: i32, src_kind: i32): i32 {
+  if (typeck_integer_widen_ok(dest_kind, src_kind)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: refs-based integer widen (thin → pure; bool as i32).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_integer_widen_ok_refs_c(arena: *ASTArena, dest_ref: i32, src_ref: i32): i32 {
+  if (typeck_integer_widen_ok_refs(arena, dest_ref, src_ref)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: NAMED type_refs_equal (thin → pure; bool as i32).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_type_refs_equal_named_c(arena: *ASTArena, a: i32, b: i32): i32 {
+  if (type_refs_equal_named(arena, a, b)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: resolve_type_alias_ref public C name (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_resolve_type_alias_ref_c(arena: *ASTArena, type_ref: i32): i32 {
+  return typeck_resolve_type_alias_ref(arena, type_ref);
+}
+
+/**
+ * Cap residual face: type_refs_equal_impl (thin → pure; bool as i32).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_type_refs_equal_impl_c(arena: *ASTArena, a: i32, b: i32): i32 {
+  if (type_refs_equal_impl(arena, a, b)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: type_refs_equal public C ABI (thin → pure; bool as i32).
+ * typeck.x call sites use this historical name; pure body is type_refs_equal.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i32, b: i32): i32 {
+  if (type_refs_equal(arena, a, b)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: type_refs_equal_same_kind (thin → pure; bool as i32).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_type_refs_equal_same_kind_c(arena: *ASTArena, a: i32, b: i32,
+kind_ord: i32): i32 {
+  if (type_refs_equal_same_kind(arena, a, b, kind_ord)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: type_ref_is_bool_impl (thin → pure; bool as i32).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_type_ref_is_bool_impl_c(arena: *ASTArena, type_ref: i32): i32 {
+  if (type_ref_is_bool_impl(arena, type_ref)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: type_ref_is_bool (thin → pure; bool as i32).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_type_ref_is_bool_c(arena: *ASTArena, type_ref: i32): i32 {
+  if (type_ref_is_bool(arena, type_ref)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: expr_type_ref_impl (thin → pure; same as expr_type_ref).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_expr_type_ref_impl_c(arena: *ASTArena, expr_ref: i32): i32 {
+  return expr_type_ref(arena, expr_ref);
+}
+
+/**
+ * Cap residual face: expr_type_ref public C name (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_expr_type_ref_c(arena: *ASTArena, expr_ref: i32): i32 {
+  return expr_type_ref(arena, expr_ref);
+}
+
+/**
+ * Cap residual face: return operand matches (thin → pure; bool as i32).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_return_operand_matches_c(arena: *ASTArena, op_ref: i32,
+expect_ref: i32): i32 {
+  if (typeck_return_operand_matches(arena, op_ref, expect_ref)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: u8/usize → i32 return stamp (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_ret_coerce_integral_to_expect_i32_c(arena: *ASTArena, op_ref: i32,
+expect_ref: i32): void {
+  typeck_ret_coerce_integral_to_expect_i32(arena, op_ref, expect_ref);
+}
+
+/**
+ * Cap residual face: integer widen stamp on return operand (thin → pure).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_ret_coerce_integral_widen_c(arena: *ASTArena, op_ref: i32,
+expect_ref: i32): void {
+  typeck_ret_coerce_integral_widen(arena, op_ref, expect_ref);
+}
+
+/**
+ * Cap residual face: EXPR_LIT default i32/i64 stamp (thin → pure; return_type_ref=0).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_expr_int_lit_c(arena: *ASTArena, expr_ref: i32): i32 {
+  return typeck_check_expr_int_lit(arena, expr_ref, 0);
+}
+
+/**
+ * Cap residual face: assign-kind classifier for residual mega dispatch (thin → pure).
+ * @param kind_ord i32 — ExprKind ordinal
+ * @return i32 — 1 if plain/compound assign, 0 otherwise
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_expr_is_any_assign_kind_c(kind_ord: i32): i32 {
+  if (typeck_expr_is_any_assign_kind(kind_ord)) {
+    return 1;
+  }
+  return 0;
+}
+
+// end wave258 pure-owned leave
