@@ -6435,12 +6435,17 @@ export function type_refs_equal_impl(arena: *ASTArena, a: i32, b: i32): bool {
   }
 }
 
-/** Exported function `type_refs_equal`.
- * Implements `type_refs_equal`.
- * @param arena *ASTArena
- * @param a i32
- * @param b i32
- * @return bool
+/**
+ * Structural type_ref equality with type-alias peel (G.7 single authority).
+ * wave230 pure leave: do NOT wrap residual pipeline_typeck_type_refs_equal_c
+ * (that face thins back to this export — C wrap would recurse). Resolve aliases
+ * via residual active-module peel, then type_refs_equal_impl (named / PTR /
+ * ARRAY / VECTOR compound walk).
+ * @param arena *ASTArena — type pool
+ * @param a i32 — left type_ref (0/null vs null → a==b)
+ * @param b i32 — right type_ref
+ * @return bool — true when equal after alias resolve
+ * PLATFORM: SHARED — freestanding typeck_x.o; product residual C face thins here.
  */
 export function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6448,7 +6453,13 @@ export function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
     if (ast.ref_is_null(a) || ast.ref_is_null(b)) {
       return a == b;
     }
-    return pipeline_typeck_type_refs_equal_c(arena, a, b) != 0;
+    /* Alias peel still residual (active_module BSS); compound walk is typeck. */
+    a = pipeline_typeck_resolve_type_alias_ref_c(arena, a);
+    b = pipeline_typeck_resolve_type_alias_ref_c(arena, b);
+    if (a == b) {
+      return true;
+    }
+    return type_refs_equal_impl(arena, a, b);
   }
 }
 

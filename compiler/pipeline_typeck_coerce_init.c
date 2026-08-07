@@ -1,24 +1,28 @@
 /**
  * pipeline_typeck_coerce_init.c — typeck coerce-init domain Cap residual thin
- * (BC 8.3.1 wave229 pure leave + wave227).
+ * (BC 8.3.1 wave230 pure leave + wave229 + wave227).
  *
- * wave229 G.7 pure leave: float_widen + ret_coerce cluster dual bodies retired
- * → typeck_float_widen_ok / typeck_return_operand_matches /
- * typeck_ret_coerce_integral_{to_expect_i32,widen}.
+ * wave230 G.7 pure leave: type_refs_equal cluster + integer_widen +
+ * type_ref_is_bool + expr_type_ref dual bodies retired → typeck_type_refs_* /
+ * typeck_integer_widen_ok{,_refs} / typeck_type_ref_is_bool /
+ * typeck_expr_type_ref. typeck.x type_refs_equal no longer wraps residual C
+ * (resolve_alias residual peel + type_refs_equal_impl authority).
+ * wave229: float_widen + ret_coerce → typeck twins.
  * wave227: lit/float/enum/named_call/array_vector/vector_binop/slice/expr_to_decl
  * thin → typeck_coerce_init_*.
  * Cap residual keeps only:
- *   1. Thin product faces → typeck_x.o for coerce-init + ret_coerce + float_widen
+ *   1. Thin product faces → typeck_x.o (coerce-init + ret_coerce + float_widen
+ *      + type_refs + integer_widen + bool + expr_type_ref)
  *   2. int_binop_c body — typeck.x still thin-wraps this C authority
  *      (cannot thin without cycle)
- *   3. struct_lit_to_decl_c body — no typeck.x twin yet (let/return ambient
- *      path may still need residual face when name empty)
- *   4. type_refs_equal + integer_widen statics + int_lit + float_bits
- *      (typeck.x still U on pipeline_typeck_type_refs_equal_c; method_call
- *      residual still uses integer_widen_ok_refs static)
+ *   3. struct_lit_to_decl_c body — no typeck.x twin yet
+ *   4. resolve_type_alias_ref_c body — active_module peel (typeck uses it)
+ *   5. int_lit + float_bits residual (typeck wraps int_lit C; float bits helper)
+ *   6. expr_is_any_assign_kind static (mega dispatch helper)
  *
  * Dual-export ban: do NOT re-open second lit/float/enum/array/vector/slice/
- * ret_coerce/float_widen bodies here; typeck.x is single authority.
+ * ret_coerce/float_widen/type_refs/integer_widen bodies here; typeck.x is
+ * single authority.
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c after
  * check_block_one_region and before check_expr_impl forward decls.
@@ -58,16 +62,30 @@ extern void typeck_ret_coerce_integral_to_expect_i32(struct ast_ASTArena *arena,
 extern void typeck_ret_coerce_integral_widen(struct ast_ASTArena *arena, int32_t op_ref,
                                              int32_t expect_ref);
 
+/* wave230: live type_refs / integer_widen / bool / expr_type_ref in typeck_x.o. */
+extern int typeck_type_refs_equal(struct ast_ASTArena *arena, int32_t a, int32_t b);
+extern int typeck_type_refs_equal_named(struct ast_ASTArena *arena, int32_t a, int32_t b);
+extern int typeck_type_refs_equal_same_kind(struct ast_ASTArena *arena, int32_t a, int32_t b,
+                                            int32_t kind_ord);
+extern int typeck_type_refs_equal_impl(struct ast_ASTArena *arena, int32_t a, int32_t b);
+extern int typeck_integer_widen_ok(int32_t dest_kind, int32_t src_kind);
+extern int typeck_integer_widen_ok_refs(struct ast_ASTArena *arena, int32_t dest_ref, int32_t src_ref);
+extern int typeck_type_ref_is_bool(struct ast_ASTArena *arena, int32_t type_ref);
+extern int typeck_type_ref_is_bool_impl(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t typeck_expr_type_ref(struct ast_ASTArena *arena, int32_t expr_ref);
+
 /* typeck.x ensure path for residual struct_lit body. */
 extern int32_t typeck_ensure_struct_layout_from_struct_lit(struct ast_Module *module, struct ast_ASTArena *arena,
                                                            int32_t expr_ref);
 
-/* wave1158 G.7: extern fwd decls for type_refs_equal public wrappers defined
- * later in this file (EOF cluster). Residual vector_binop historically called
- * type_refs_equal before EOF; keep decls for same-TU callers. */
+/* wave1158/wave230: public C ABI faces defined below (thin → typeck). Same-TU
+ * callers (method_call residual, check_expr try_propagate) need decls before
+ * EOF definitions when include order places them earlier. */
 int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
 int32_t pipeline_typeck_type_refs_equal_same_kind_c(struct ast_ASTArena *arena, int32_t a, int32_t b,
                                                      int32_t kind_ord);
+int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *arena, int32_t dest_ref,
+                                                int32_t src_ref);
 
 /**
  * Product-mega C face for integer-literal init coerce.
@@ -296,300 +314,30 @@ int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind) {
   return typeck_float_widen_ok(dest_kind, src_kind);
 }
 
-/**
- * First-class integer implicit widen gate (smaller → wider).
- *
- * Why: implicit integer widen (e.g. u8 → u32, i32 → i64) is allowed in
- * assign/arg/return coercion; narrowing requires explicit `as`. This
- * predicate centralizes the first-class TypeKind widen matrix so
- * integer_widen_ok_refs and coerce_init share one authority. Matches
- * typeck.x::typeck_integer_widen_ok (wave309–312). NAMED i8/i16/u16 go
- * through pipeline_typeck_integer_widen_ok_refs_c (family-id path).
- *
- * Invariant: returns 1 iff dest_kind can implicitly hold src_kind without
- * value loss (same-kind for int family, or wider dest). LP64 pointer-width
- * ↔ fixed 64-bit is same-bits (allowed). Returns 0 for narrowing or
- * non-integer kinds.
- *
- * Asm/Perf: O(1) — comparisons. Cold path — called in
- * pipeline_typeck_integer_widen_ok_refs_c (glue.c:10523, via fwd decl).
- *
- * PLATFORM: SHARED — integer widen classification is platform-independent.
- *
- * wave1077 G.7: migrated from glue.c:10441 (body 36 LOC). Static (non-extern):
- * same-TU — static fwd decl at glue.c:10441 (before sole callsite in refs_c) <
- * coerce_init.c #include at L14126 < def EOF. Dependencies: ast_TypeKind_*
- * (global enum).
+/*
+ * wave230 G.7 pure leave: integer_widen dual bodies retired → typeck_x.o.
+ * Product/residual C faces keep historical names; live authority is typeck.
+ * PLATFORM: SHARED.
  */
-static int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src_kind) {
-  /* G.7 mirror typeck.x::typeck_integer_widen_ok (wave309–312).
-   * PLATFORM: SHARED — first-class integer family; wave313 NAMED via refs path. */
-  if (dest_kind == src_kind) {
-    if (dest_kind == (int32_t)ast_TypeKind_TYPE_I32 || dest_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
-        dest_kind == (int32_t)ast_TypeKind_TYPE_U8 || dest_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
-        dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
-        dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE)
-      return 1;
-    return 0;
-  }
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_U8)
-    /* wave312: +i64 +isize (prior: u32/u64/usize/i32). */
-    return dest_kind == (int32_t)ast_TypeKind_TYPE_U32 || dest_kind == (int32_t)ast_TypeKind_TYPE_U64 ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_I32 ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_I64 || dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE;
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_I32)
-    /* wave311: i32→u64 (true widen; was hole vs usize) + i32→u8 (low-byte narrow).
-     * i32→isize：与 typeck.x / i32→usize 对称（指针宽度有符号整型）。 */
-    return dest_kind == (int32_t)ast_TypeKind_TYPE_I64 || dest_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_U8;
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_U32)
-    /* wave312: u32→u64 (prior) + u32→i64/usize/isize. */
-    return dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE;
-  /* wave312: LP64 pointer-width ↔ fixed 64-bit (same bits; ILP32 true widen). */
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_USIZE && dest_kind == (int32_t)ast_TypeKind_TYPE_U64)
-    return 1;
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_U64 && dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE)
-    return 1;
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_ISIZE && dest_kind == (int32_t)ast_TypeKind_TYPE_I64)
-    return 1;
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_I64 && dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE)
-    return 1;
-  return 0;
+
+/**
+ * Product-mega C face: first-class integer widen matrix.
+ * Thin → typeck_integer_widen_ok.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src_kind) {
+  return typeck_integer_widen_ok(dest_kind, src_kind) ? 1 : 0;
 }
 
 /**
- * Family id for first-class ints + NAMED i8/i16/u16.
- *
- * Why: integer_widen_ok_refs needs a uniform family id to route NAMED types
- * (i8/i16/u16) through the same widen matrix as first-class TypeKinds.
- * First-class ints return their TypeKind ordinal (0/2–7); NAMED i8/i16/u16
- * return 10/11/12 respectively. Matches typeck.x::typeck_int_family_id.
- *
- * Invariant: returns TypeKind ordinal (0/2–7) for first-class ints; 10 for
- * NAMED "i8", 11 for "i16", 12 for "u16"; -1 for NULL/invalid/non-int.
- *
- * Asm/Perf: O(1) — one kind read + one name comparison. Cold path — called
- * in pipeline_typeck_integer_widen_ok_refs_c (glue.c:10485/10486, via fwd decl).
- *
- * PLATFORM: SHARED — int family classification is platform-independent.
- *
- * wave1078 G.7: migrated from glue.c:10453 (body 19 LOC). Static (non-extern):
- * same-TU — static fwd decl at glue.c:10454 (before callsites in refs_c) <
- * coerce_init.c #include at L14126 < def EOF. Dependencies:
- * typeck_scratch64_slot (extern, glue.c:10447) /
- * pipeline_type_named_name_into (extern) / ast_ref_is_null (global).
+ * Product-mega C face: refs-based integer widen (first-class + NAMED i8/i16/u16).
+ * Thin → typeck_integer_widen_ok_refs.
+ * Callers: residual method_call arg assignable (same-TU).
+ * PLATFORM: SHARED.
  */
-static int32_t pipeline_typeck_int_family_id_c(struct ast_ASTArena *arena, int32_t type_ref) {
-  int32_t k;
-  int32_t nlen;
-  uint8_t *buf;
-  if (ast_ref_is_null(type_ref) || type_ref <= 0 || !arena)
-    return -1;
-  k = pipeline_type_kind_ord_at(arena, type_ref);
-  if (k == 0 || k == 2 || k == 3 || k == 4 || k == 5 || k == 6 || k == 7)
-    return k;
-  if (k != 8)
-    return -1;
-  buf = typeck_scratch64_slot(15);
-  nlen = pipeline_type_named_name_into(arena, type_ref, buf);
-  if (nlen == 2 && buf[0] == 105 && buf[1] == 56) /* i8 */
-    return 10;
-  if (nlen == 3 && buf[0] == 105 && buf[1] == 49 && buf[2] == 54) /* i16 */
-    return 11;
-  if (nlen == 3 && buf[0] == 117 && buf[1] == 49 && buf[2] == 54) /* u16 */
-    return 12;
-  return -1;
-}
-
-/**
- * Refs-based integer widen (first-class + NAMED i8/i16/u16).
- *
- * Why: typeck assign/arg/return coercion compares two type_refs for implicit
- * integer widen. First-class TypeKinds route through integer_widen_ok_c;
- * NAMED i8/i16/u16 use family-id-based widen matrix. This helper unifies
- * both paths so callers see one predicate. Matches
- * typeck.x::typeck_integer_widen_ok_refs.
- *
- * Invariant: returns 0 for NULL arena or null refs; 1 iff dest can implicitly
- * hold src (same family id, or first-class widen, or NAMED→first-class /
- * NAMED→NAMED per matrix). Returns 0 for narrowing or non-int types.
- *
- * Asm/Perf: O(1) — two family-id lookups + comparisons. Cold path — called
- * in typeck_check_expr (glue.c:10590/10646), return-type unify (glue.c:11074),
- * and call_arg_types (glue.c:13212).
- *
- * PLATFORM: SHARED — int widen classification is platform-independent.
- *
- * wave1079 G.7: migrated from glue.c:10460 (body 33 LOC). Static (non-extern):
- * same-TU — static fwd decl at glue.c:10462 (before all callsites) <
- * coerce_init.c #include at L14126 < def EOF. Dependencies:
- * pipeline_typeck_int_family_id_c (same file, def above) /
- * pipeline_typeck_integer_widen_ok_c (same file, def above) /
- * ast_ref_is_null (global).
- */
-static int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *arena, int32_t dest_ref,
-                                                       int32_t src_ref) {
-  int32_t dest_f;
-  int32_t src_f;
-  if (ast_ref_is_null(dest_ref) || ast_ref_is_null(src_ref) || !arena)
-    return 0;
-  dest_f = pipeline_typeck_int_family_id_c(arena, dest_ref);
-  src_f = pipeline_typeck_int_family_id_c(arena, src_ref);
-  if (dest_f < 0 || src_f < 0)
-    return 0;
-  if (dest_f == src_f)
-    return 1;
-  if (dest_f <= 7 && src_f <= 7) {
-    if (pipeline_typeck_integer_widen_ok_c(dest_f, src_f))
-      return 1;
-  }
-  if (src_f == 10) /* i8 */
-    return dest_f == 11 || dest_f == 12 || dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 ||
-           dest_f == 5 || dest_f == 6 || dest_f == 7;
-  if (src_f == 11) /* i16 */
-    return dest_f == 12 || dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 || dest_f == 5 ||
-           dest_f == 6 || dest_f == 7;
-  if (src_f == 12) /* u16 */
-    return dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 || dest_f == 5 || dest_f == 6 ||
-           dest_f == 7;
-  if (dest_f == 10) /* → i8 */
-    return src_f == 2 || src_f == 0 || src_f == 11 || src_f == 12;
-  if (dest_f == 11) /* → i16 */
-    return src_f == 2 || src_f == 0 || src_f == 12 || src_f == 3;
-  if (dest_f == 12) /* → u16 */
-    return src_f == 2 || src_f == 0 || src_f == 11 || src_f == 3;
-  return 0;
-}
-
-/**
- * NAMED type unqualified-name offset: find the last '.' and return offset+1.
- *
- * Why: type_refs_equal_named compares two NAMED type names. When full-name
- * match fails, it falls back to unqualified suffix match (last segment after
- * '.'). This helper centralizes the offset calculation so the caller does not
- * repeat the reverse scan. Matches typeck.x::type_refs_equal_named helper.
- *
- * Invariant: returns 0 if no '.' found (whole name is unqualified); otherwise
- * the byte offset of the first char after the last '.'.
- *
- * Asm/Perf: O(len) — one reverse scan. Cold path — called twice in
- * typeck_glue_type_refs_equal_named (glue.c:10117/10118, via fwd decl).
- *
- * PLATFORM: SHARED — string scan is platform-independent.
- *
- * wave1080 G.7: migrated from glue.c:10083 (body 7 LOC). Static (non-extern):
- * same-TU — static fwd decl at glue.c:10087 (before callsites in
- * typeck_glue_type_refs_equal_named) < coerce_init.c #include at L14126 < def EOF.
- * Dependencies: none (pure buf scan).
- */
-static int32_t typeck_named_unqual_offset_c(const uint8_t *buf, int32_t len) {
-  int32_t i;
-  for (i = len - 1; i > 0; i--) {
-    if (buf[i] == '.')
-      return i + 1;
-  }
-  return 0;
-}
-
-/**
- * NAMED type_refs_equal: full-name match then unqualified suffix match.
- *
- * Why: typeck assign/arg/return coercion compares two NAMED type_refs. A
- * qualified name `mod.Foo` and unqualified `Foo` should compare equal when
- * they are the same type. This helper first tries full-name equality, then
- * falls back to comparing only the unqualified suffix (last segment after
- * '.'). Matches typeck.x::type_refs_equal_named.
- *
- * Invariant: returns 0 for NULL arena or invalid refs; 1 iff full names
- * match exactly OR unqualified suffixes match (same length + byte-equal).
- *
- * Asm/Perf: O(na+nb) — two name reads + two scans + one compare. Cold path —
- * called in pipeline_typeck_type_refs_equal_named_c (glue.c:10101, thin
- * delegate) and pipeline_typeck_type_refs_equal_same_kind_c (glue.c:10112).
- *
- * PLATFORM: SHARED — NAMED type comparison is platform-independent.
- *
- * wave1081 G.7: migrated from glue.c:10092 (body 37 LOC). Static (non-extern):
- * same-TU — static fwd decl at glue.c:10095 (before callsites L10101/10112) <
- * coerce_init.c #include at L14126 < def EOF. Dependencies:
- * typeck_named_unqual_offset_c (same file, def above) /
- * typeck_scratch64_slot (extern, glue.c:10447) /
- * pipeline_type_named_name_into (extern).
- */
-static int32_t typeck_glue_type_refs_equal_named(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  int32_t na;
-  int32_t nb;
-  int32_t i;
-  int32_t oa;
-  int32_t ob;
-  int32_t ua;
-  int32_t ub;
-  uint8_t *buf_a;
-  uint8_t *buf_b;
-
-  buf_a = typeck_scratch64_slot(0);
-  buf_b = typeck_scratch64_slot(1);
-  na = pipeline_type_named_name_into(arena, a, buf_a);
-  nb = pipeline_type_named_name_into(arena, b, buf_b);
-  if (na <= 0 || nb <= 0)
-    return 0;
-  if (na == nb) {
-    for (i = 0; i < na; i++) {
-      if (buf_a[i] != buf_b[i])
-        break;
-    }
-    if (i == na)
-      return 1;
-  }
-  oa = typeck_named_unqual_offset_c(buf_a, na);
-  ob = typeck_named_unqual_offset_c(buf_b, nb);
-  ua = na - oa;
-  ub = nb - ob;
-  if (ua != ub || ua <= 0)
-    return 0;
-  for (i = 0; i < ua; i++) {
-    if (buf_a[oa + i] != buf_b[ob + i])
-      return 0;
-  }
-  return 1;
-}
-
-/**
- * type_refs_equal internal impl: read kind then delegate to same_kind.
- *
- * Why: pipeline_typeck_type_refs_equal_c (the public entry) calls this impl
- * for the non-null, a!=b case. Reads both type kinds; if they differ, types
- * are not equal; if same, delegates to same_kind_c for compound comparison.
- * Matches typeck.x::type_refs_equal_impl.
- *
- * Invariant: returns 0 for NULL arena or invalid refs; 0 if kinds differ;
- * otherwise delegates to pipeline_typeck_type_refs_equal_same_kind_c.
- *
- * Asm/Perf: O(1) — two kind reads + one delegate. Cold path — called in
- * pipeline_typeck_type_refs_equal_c (glue.c:10199) and resolve_alias path
- * (glue.c:10204).
- *
- * PLATFORM: SHARED — type comparison is platform-independent.
- *
- * wave1082 G.7: migrated from glue.c:10127 (body 12 LOC). Static (non-extern):
- * same-TU — static fwd decl at glue.c:10132 (before callsites L10199/10204) <
- * coerce_init.c #include at L14126 < def EOF. Dependencies:
- * pipeline_typeck_type_refs_equal_same_kind_c (extern, glue.c:10108) /
- * pipeline_type_kind_ord_at (extern).
- */
-static int32_t typeck_glue_type_refs_equal_impl(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  int32_t ka;
-  int32_t kb;
-
-  if (!arena || a <= 0 || b <= 0)
-    return 0;
-  ka = pipeline_type_kind_ord_at(arena, a);
-  kb = pipeline_type_kind_ord_at(arena, b);
-  if (ka != kb)
-    return 0;
-  return pipeline_typeck_type_refs_equal_same_kind_c(arena, a, b, ka);
+int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *arena, int32_t dest_ref,
+                                                int32_t src_ref) {
+  return typeck_integer_widen_ok_refs(arena, dest_ref, src_ref) ? 1 : 0;
 }
 
 /**
@@ -661,144 +409,92 @@ static int32_t pipeline_typeck_resolve_type_alias_ref_impl_c(struct ast_Module *
 }
 
 /* ============================================================
- * wave1158 G.7: typeck type_refs_equal / type_ref_is_bool /
- * expr_type_ref public wrappers (9 extern fns) migrated from
- * glue.c L7319-7423.
- *
- * Why here: these extern wrappers delegate to the static
- * implementations migrated by wave1080-1083 (named, impl,
- * resolve_alias_ref_impl) which already live in this file's
- * body above. Colocating public wrappers with their static
- * implementations is G.7 single-authority — the typeck type
- * comparison / bool check / expr-type-ref query path has one
- * home (coerce_init.c), not split between glue.c and
- * coerce_init.c.
- *
- * Extern (non-static): cross-TU link visibility; same-TU
- * visibility via #include L9626 + fwd decls at glue.c L7299
- * (for callsites before #include) and coerce_init.c L23
- * (for callsites L277/L816 before EOF definitions).
- *
- * Dependencies: typeck_glue_type_refs_equal_named (static,
- * same file L745) / typeck_glue_type_refs_equal_impl (static,
- * same file L806) / pipeline_typeck_resolve_type_alias_ref_impl_c
- * (static, same file L849) / g_typeck_active_module (static
- * global, glue.c L135, visible via #include) /
- * pipeline_type_elem_ref_at (extern, glue.c) /
- * pipeline_type_array_size_at (extern, glue.c) /
- * pipeline_type_kind_ord_at (extern, glue.c) /
- * pipeline_expr_resolved_type_ref (extern, glue.c) /
- * ast_ref_is_null (global).
- *
- * PLATFORM: SHARED — type comparison / bool check / expr-type
- * query is platform-independent.
+ * wave230 G.7 pure leave: type_refs_equal / type_ref_is_bool /
+ * expr_type_ref public C faces thin → typeck_x.o. Alias peel
+ * (resolve_type_alias_ref_c) stays residual (active_module).
+ * PLATFORM: SHARED.
  */
 
 /**
- * NAMED type_refs_equal public wrapper: null/invalid gate then
- * delegate to typeck_glue_type_refs_equal_named (static, same file).
- * Matches typeck.x::type_refs_equal_named.
+ * NAMED type_refs_equal public face.
+ * Thin → typeck_type_refs_equal_named.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_type_refs_equal_named_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  if (!arena || a <= 0 || b <= 0)
-    return 0;
-  return typeck_glue_type_refs_equal_named(arena, a, b);
+  return typeck_type_refs_equal_named(arena, a, b) ? 1 : 0;
 }
 
 /**
- * resolve_type_alias_ref public wrapper: delegate to the static
- * impl with the active module (g_typeck_active_module) and depth 0.
- * Matches typeck.x::resolve_type_alias_ref.
+ * resolve_type_alias_ref public wrapper: residual active_module peel.
+ * typeck type_refs_equal and residual faces still call this C authority.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *arena, int32_t type_ref) {
   return pipeline_typeck_resolve_type_alias_ref_impl_c(pipeline_typeck_active_module_c(), arena, type_ref, 0);
 }
 
 /**
- * type_refs_equal_impl thin delegate: caller guarantees non-null
- * refs and a!=b. Delegates to typeck_glue_type_refs_equal_impl
- * (static, same file).
+ * type_refs_equal_impl public face.
+ * Thin → typeck_type_refs_equal_impl.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_type_refs_equal_impl_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  return typeck_glue_type_refs_equal_impl(arena, a, b);
+  return typeck_type_refs_equal_impl(arena, a, b) ? 1 : 0;
 }
 
 /**
- * type_refs_equal public entry: resolve aliases on both sides,
- * then if still different delegate to typeck_glue_type_refs_equal_impl
- * (static, same file). Matches typeck.x::type_refs_equal.
+ * type_refs_equal public C face (historical name for codegen/typeck U).
+ * Thin → typeck_type_refs_equal (alias peel + compound walk in typeck_x.o).
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  if (ast_ref_is_null(a) || ast_ref_is_null(b))
-    return a == b;
-  a = pipeline_typeck_resolve_type_alias_ref_c(arena, a);
-  b = pipeline_typeck_resolve_type_alias_ref_c(arena, b);
-  if (a == b)
-    return 1;
-  return typeck_glue_type_refs_equal_impl(arena, a, b);
+  return typeck_type_refs_equal(arena, a, b) ? 1 : 0;
 }
 
 /**
  * Compound type comparison when kind is already known equal.
- * NAMED → name compare; PTR/SLICE/LINEAR → elem recursive;
- * ARRAY/VECTOR → size check + elem recursive; else equal.
- * Matches typeck.x::type_refs_equal_same_kind.
+ * Thin → typeck_type_refs_equal_same_kind.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_type_refs_equal_same_kind_c(struct ast_ASTArena *arena, int32_t a, int32_t b,
                                                     int32_t kind_ord) {
-  if (!arena || a <= 0 || b <= 0)
-    return 0;
-  if (kind_ord == (int32_t)ast_TypeKind_TYPE_NAMED)
-    return typeck_glue_type_refs_equal_named(arena, a, b);
-  if (kind_ord == (int32_t)ast_TypeKind_TYPE_PTR || kind_ord == (int32_t)ast_TypeKind_TYPE_SLICE ||
-      kind_ord == (int32_t)ast_TypeKind_TYPE_LINEAR)
-    return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a),
-                                             pipeline_type_elem_ref_at(arena, b));
-  if (kind_ord == (int32_t)ast_TypeKind_TYPE_ARRAY || kind_ord == (int32_t)ast_TypeKind_TYPE_VECTOR) {
-    if (pipeline_type_array_size_at(arena, a) != pipeline_type_array_size_at(arena, b))
-      return 0;
-    return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a),
-                                             pipeline_type_elem_ref_at(arena, b));
-  }
-  return 1;
+  return typeck_type_refs_equal_same_kind(arena, a, b, kind_ord) ? 1 : 0;
 }
 
 /**
- * type_ref_is_bool internal: check TypeKind == TYPE_BOOL.
- * Matches typeck.x::type_ref_is_bool_impl.
+ * type_ref_is_bool internal face.
+ * Thin → typeck_type_ref_is_bool_impl.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_type_ref_is_bool_impl_c(struct ast_ASTArena *arena, int32_t type_ref) {
-  return pipeline_type_kind_ord_at(arena, type_ref) == (int32_t)ast_TypeKind_TYPE_BOOL;
+  return typeck_type_ref_is_bool_impl(arena, type_ref) ? 1 : 0;
 }
 
 /**
- * type_ref_is_bool public entry: null/bounds gate then delegate
- * to type_ref_is_bool_impl_c (same file). Matches typeck.x::type_ref_is_bool.
+ * type_ref_is_bool public face.
+ * Thin → typeck_type_ref_is_bool.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_type_ref_is_bool_c(struct ast_ASTArena *arena, int32_t type_ref) {
-  if (ast_ref_is_null(type_ref) || type_ref <= 0 || !arena || type_ref > arena->num_types)
-    return 0;
-  return pipeline_typeck_type_ref_is_bool_impl_c(arena, type_ref);
+  return typeck_type_ref_is_bool(arena, type_ref) ? 1 : 0;
 }
 
 /**
- * expr_type_ref internal: read expr.resolved_type_ref via glue pointer
- * read (avoids Expr by-value tearing). Matches typeck.x::expr_type_ref_impl.
+ * expr_type_ref public face (impl was pure resolved_type_ref read).
+ * Thin → typeck_expr_type_ref (bounds + resolved_type_ref).
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_expr_type_ref_impl_c(struct ast_ASTArena *arena, int32_t expr_ref) {
-  return pipeline_expr_resolved_type_ref(arena, expr_ref);
+  return typeck_expr_type_ref(arena, expr_ref);
 }
 
 /**
- * expr_type_ref public entry: null/bounds gate then delegate to
- * expr_type_ref_impl_c (same file). Matches typeck.x::expr_type_ref.
+ * expr_type_ref public face.
+ * Thin → typeck_expr_type_ref.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_expr_type_ref_c(struct ast_ASTArena *arena, int32_t expr_ref) {
-  if (ast_ref_is_null(expr_ref))
-    return 0;
-  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
-    return 0;
-  return pipeline_typeck_expr_type_ref_impl_c(arena, expr_ref);
+  return typeck_expr_type_ref(arena, expr_ref);
 }
 
 /*

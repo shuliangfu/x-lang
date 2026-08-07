@@ -80,28 +80,9 @@ int32_t pipeline_typeck_type_ref_is_bool_c(struct ast_ASTArena *arena, int32_t t
 int32_t pipeline_typeck_expr_type_ref_impl_c(struct ast_ASTArena *arena, int32_t expr_ref);
 int32_t pipeline_typeck_expr_type_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
 
-/* wave1080 G.7: typeck_named_unqual_offset_c migrated to
- * pipeline_typeck_coerce_init.c EOF (NAMED type unqualified-name offset:
- * find last '.' +1). Static same-TU: fwd decl below (before callsites in
- * typeck_glue_type_refs_equal_named L10117/10118) < coerce_init.c #include
- * L14126 < def EOF. Deps: none (pure buf scan). */
-static int32_t typeck_named_unqual_offset_c(const uint8_t *buf, int32_t len);
-
-/* wave1081 G.7: typeck_glue_type_refs_equal_named migrated to
- * pipeline_typeck_coerce_init.c EOF (NAMED type_refs_equal: full-name then
- * unqualified suffix match). Static same-TU: fwd decl below (before callsites
- * L10134/10145) < coerce_init.c #include L14126 < def EOF. Deps:
- * typeck_named_unqual_offset_c (same file, def above) /
- * typeck_scratch64_slot (extern L10447) / pipeline_type_named_name_into (extern). */
-static int32_t typeck_glue_type_refs_equal_named(struct ast_ASTArena *arena, int32_t a, int32_t b);
-
-/* wave1082 G.7: typeck_glue_type_refs_equal_impl migrated to
- * pipeline_typeck_coerce_init.c EOF (type_refs_equal internal impl: read kind
- * then delegate to same_kind). Static same-TU: fwd decl below (before callsites
- * L10199/10204) < coerce_init.c #include L14126 < def EOF. Deps:
- * pipeline_typeck_type_refs_equal_same_kind_c (extern, glue.c L10108) /
- * pipeline_type_kind_ord_at (extern). */
-static int32_t typeck_glue_type_refs_equal_impl(struct ast_ASTArena *arena, int32_t a, int32_t b);
+/* wave230 G.7: typeck_named_unqual_offset / typeck_glue_type_refs_equal_named /
+ * typeck_glue_type_refs_equal_impl residual statics retired — typeck_x.o owns
+ * type_refs_equal_named / same_kind / impl. Public C faces thin in coerce_init. */
 
 /** WPO-S3：typeck 活跃 module（type 别名展开等 glue 回落；定义见文件前部 g_typeck_active_module）。 */
 extern int32_t pipeline_module_num_type_aliases_at(struct ast_Module *m);
@@ -143,33 +124,13 @@ static int32_t pipeline_typeck_resolve_type_alias_ref_impl_c(struct ast_Module *
 /* wave144: pure return leave Cap residual — static→extern (def coerce_init). */
 int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind);
 
-/* wave1077 G.7: pipeline_typeck_integer_widen_ok_c migrated to
- * pipeline_typeck_coerce_init.c EOF (first-class integer widen gate).
- * Static same-TU: fwd decl below (before sole callsite in refs_c L10523) <
- * coerce_init.c #include L14126 < def EOF. Deps: ast_TypeKind_* (global). */
-static int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src_kind);
-
-/* wave1077 G.7: pipeline_typeck_integer_widen_ok_c body migrated to
- * pipeline_typeck_coerce_init.c EOF (first-class integer widen gate).
- * Static fwd decl at L10441 (before sole callsite in refs_c). Body 36 LOC. */
+/* wave230 G.7 pure leave: integer_widen faces public (thin → typeck_x.o).
+ * Was static residual dual body; method_call residual calls refs face. */
+int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src_kind);
+int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *arena, int32_t dest_ref,
+                                                int32_t src_ref);
 
 extern uint8_t *typeck_scratch64_slot(int32_t slot);
-
-/* wave1078 G.7: pipeline_typeck_int_family_id_c migrated to
- * pipeline_typeck_coerce_init.c EOF (family id for first-class ints + NAMED
- * i8/i16/u16). Static same-TU: fwd decl below (before callsites in refs_c
- * L10485/10486) < coerce_init.c #include L14126 < def EOF. Deps:
- * typeck_scratch64_slot (extern L10447) / pipeline_type_named_name_into (extern). */
-static int32_t pipeline_typeck_int_family_id_c(struct ast_ASTArena *arena, int32_t type_ref);
-
-/* wave1079 G.7: pipeline_typeck_integer_widen_ok_refs_c migrated to
- * pipeline_typeck_coerce_init.c EOF (refs-based integer widen: first-class +
- * NAMED i8/i16/u16). Static same-TU: fwd decl below (before all callsites
- * L10590/10646/11074/13212) < coerce_init.c #include L14126 < def EOF.
- * Deps: pipeline_typeck_int_family_id_c + pipeline_typeck_integer_widen_ok_c
- * (both in coerce_init.c EOF, same file — direct call, no fwd needed). */
-static int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *arena, int32_t dest_ref,
-                                                       int32_t src_ref);
 
 /* wave1076 G.7: pipeline_typeck_float_widen_ok_c body migrated to
  * pipeline_typeck_coerce_init.c EOF (f32→f64 IEEE float widen gate).
