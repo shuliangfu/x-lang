@@ -715,3 +715,57 @@ int32_t pipeline_asm_emit_binop_bitwise_elf_c(struct ast_ASTArena *arena, struct
   int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t is_xor);
 int32_t pipeline_asm_emit_binop_shift_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
   int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t op);
+
+/* wave218 pure-owned leave: Cap residual emit shells deleted (call_args /
+ * spill / index_helpers were prototype-only after wave190–217). Host early
+ * residual (typeck_ctfe / wpo / expr_sidecar) still needs these fwd decls that
+ * the shells used to provide before defs in ast_pool_block / typeck_method_call.
+ * Live pure faces = runtime_pipeline_abi; seed cold twins under #ifndef FROM_X.
+ * PLATFORM: SHARED freestanding. */
+int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_for_body_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+int32_t ast_ast_block_for_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+int32_t ast_ast_block_for_step_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+int32_t ast_ast_block_num_expr_stmts(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_for_loops(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_loops(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
+int32_t ast_ast_block_stmt_order_idx(struct ast_ASTArena *a, int32_t br, int32_t si);
+uint8_t ast_ast_block_stmt_order_kind(struct ast_ASTArena *a, int32_t br, int32_t si);
+int32_t ast_ast_block_while_body_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
+int32_t ast_ast_block_while_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
+int32_t ast_pipeline_block_const_init_ref(struct ast_ASTArena *a, int32_t br, int32_t ci);
+int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei);
+extern int32_t ast_pipeline_block_if_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+int32_t ast_pipeline_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+int32_t ast_pipeline_block_if_then_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+int32_t ast_pipeline_block_let_init_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
+int32_t glue_func_return_byte_size_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t func_index);
+extern int32_t parser_get_module_num_imports(struct ast_Module *module);
+extern int32_t pipeline_block_for_body_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+extern int32_t pipeline_block_for_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+extern int32_t pipeline_block_for_init_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+extern int32_t pipeline_block_for_step_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
+extern int32_t pipeline_block_while_body_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
+extern int32_t pipeline_block_while_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
+extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern void pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref,
+                                                 uint8_t *out64);
+extern int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *m, int32_t idx,
+                                                            int32_t off);
+extern int32_t pipeline_module_import_binding_name_len(struct ast_Module *m, int32_t idx);
+extern int32_t pipeline_module_import_kind_at(struct ast_Module *m, int32_t idx);
+
+extern int32_t pipeline_typeck_find_func_return_type_in_module_c(
+    struct ast_Module *mod, struct ast_ASTArena *mod_arena, struct ast_ASTArena *caller_arena,
+    struct ast_ASTArena *callee_arena, int32_t callee_expr_ref, int32_t from_dep_index,
+    struct ast_PipelineDepCtx *ctx, int32_t *func_index_out);
+extern int32_t pipeline_typeck_dep_return_type_to_caller_arena_c(struct ast_ASTArena *dep_arena,
+                                                                int32_t dep_return_type_ref,
+                                                                struct ast_ASTArena *caller_arena);

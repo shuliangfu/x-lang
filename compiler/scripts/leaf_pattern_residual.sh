@@ -9200,8 +9200,12 @@ fi
 if grep -qE 'pipeline_asm_emit_cmp\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_cmp.c (wave137 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_call_args\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_call_args.c (8.3.1 asm_emit_call_args slice)"
+# wave218 pure-owned leave: call_args / spill / index_helpers empty shells deleted
+if grep -qE 'pipeline_asm_emit_call_args\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_call_args.c (wave218 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_call_args.c" ]; then
+  bad "pipeline_asm_emit_call_args.c must be deleted (wave218 pure-owned leave)"
 fi
 if grep -qE 'pipeline_asm_emit_struct_lit\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_struct_lit.c (wave154 pure-owned leave)"
@@ -9229,11 +9233,17 @@ fi
 if grep -qE 'pipeline_asm_emit_struct_let\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_struct_let.c (wave132 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_index_helpers\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_index_helpers.c (8.3.1 asm_emit_index_helpers slice)"
+if grep -qE 'pipeline_asm_emit_index_helpers\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_index_helpers.c (wave218 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_asm_emit_spill\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_asm_emit_spill.c (8.3.1 asm_emit_spill Cap residual after wave156 pure slices)"
+if [ -f "$ROOT/compiler/pipeline_asm_emit_index_helpers.c" ]; then
+  bad "pipeline_asm_emit_index_helpers.c must be deleted (wave218 pure-owned leave)"
+fi
+if grep -qE 'pipeline_asm_emit_spill\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_spill.c (wave218 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_asm_emit_spill.c" ]; then
+  bad "pipeline_asm_emit_spill.c must be deleted (wave218 pure-owned leave)"
 fi
 
 # wave147 pure-owned leave: index_eff_addr faces live in runtime_pipeline_abi pure

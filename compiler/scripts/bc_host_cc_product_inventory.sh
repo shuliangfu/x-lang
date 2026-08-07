@@ -118,14 +118,14 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_field_access.c|8.3.1|asm ELF EXPR_FIELD_ACCESS emit (wave151 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_binop.c|8.3.1|asm ELF EXPR_BINOP emit (wave149 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_cmp.c|8.3.1|asm ELF relational CMP emit (wave137 pure-owned leave)|0|absent"
-  "compiler/pipeline_asm_emit_call_args.c|8.3.1|asm ELF CALL-arg emit (named_struct + resolve + f32 + reent deep-copy + lea + dual-GP + for_call_args) slice|1300|present"
+  "compiler/pipeline_asm_emit_call_args.c|8.3.1|asm ELF CALL-arg emit (wave218 pure-owned leave; call_args+spill+index shells)|0|absent"
   "compiler/pipeline_asm_emit_struct_lit.c|8.3.1|asm ELF STRUCT_LIT emit (wave154 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_fold_count_up_while.c|8.3.1|asm ELF count_up_while fold + while/for emit (wave155 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_vector_let.c|8.3.1|asm ELF vector_let / fixed-array field store (wave146 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_vector_simd.c|8.3.1|asm ELF SIMD vector lane / shuffle / select / fma (wave148 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_struct_let.c|8.3.1|asm ELF struct let-init domain (wave132 pure-owned leave)|0|absent"
-  "compiler/pipeline_asm_emit_index_helpers.c|8.3.1|asm ELF INDEX residual helpers (slot+esz+try_index forest+lvalue_eff_addr elf+text) slice|2500|present"
-  "compiler/pipeline_asm_emit_spill.c|8.3.1|asm ELF 7.3 live/Chaitin Cap residual (wave169 pure: index-scratch cleanup/invalidate/push; residual CAP BSS+thin+enc/reload)|1900|present"
+  "compiler/pipeline_asm_emit_index_helpers.c|8.3.1|asm ELF INDEX residual helpers (wave218 pure-owned leave)|0|absent"
+  "compiler/pipeline_asm_emit_spill.c|8.3.1|asm ELF 7.3 live/Chaitin Cap residual (wave218 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_index_eff_addr.c|8.3.1|asm ELF INDEX eff-addr (wave147 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_expr_rec.c|8.3.1|asm ELF expr recursion + fast (lit_i32 + rec + emit_expr_elf_c + fast) slice|0|absent"
   "compiler/pipeline_asm_emit_async_cps.c|8.3.1|asm ELF async/CPS emit domain (wave131 pure-owned leave)|0|absent"
@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 leaf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: unary + struct_let + async_cps + wpo_mono + block_if + logand + panic + next_offset(same-TU) + ctx_layout + var_decl + lea_common + with_arena + lint_meta + parser_emit_heavy + emit_heavy_env + skip_dispatch + safe_helper + thin_delegate + selfhost + asm_ctx_loop + backend_asm_wrapper + parse_typeck_dispatch + codegen_dep + struct_emit + type_to_c + skip_force + codegen_residual + run_x_pipeline + resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
+  echo "NEXT=8.3.1 typeck/elf residual / pipeline_x remaining host-cc mega-TU leave; pure-owned leave: unary + struct_let + async_cps + wpo_mono + block_if + logand + panic + next_offset(same-TU) + ctx_layout + var_decl + lea_common + with_arena + lint_meta + parser_emit_heavy + emit_heavy_env + skip_dispatch + safe_helper + thin_delegate + selfhost + asm_ctx_loop + backend_asm_wrapper + parse_typeck_dispatch + codegen_dep + struct_emit + type_to_c + skip_force + codegen_residual + run_x_pipeline + resolve_path + emit_sidecar + lsp_diag + asm_diag + import_bind + preprocess_if + loop_glue + scratch + slots + field/soa done"
 }
 
 run_check() {

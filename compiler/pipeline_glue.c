@@ -328,21 +328,16 @@ extern int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(struct ast_ASTAren
 
 
 
-/* BC 8.3.1: asm ELF INDEX residual helpers domain
- * (module_from_ctx + param/local slot ptr + field_type_ref + fixed_array
- *  total_bytes + index_elem_byte_sz_from_type_ref + try_index forest +
- *  soa_index_field_addr + lvalue_eff_addr; Cap residual pure; same TU).
- * index face (esz+emit+addr_of+deref): pipeline_asm_emit_index.c later.
- * 7.3 live/spill + bulk_mem_copy_spills: pipeline_asm_emit_spill.c next. */
-#include "pipeline_asm_emit_index_helpers.c"
+/* wave218 pure-owned leave: pipeline_asm_emit_index_helpers.c deleted.
+ * Live = runtime_pipeline_abi pure (INDEX helpers + CAP/stack_spill faces);
+ * seed cold twins under #ifndef FROM_X. Residual callsites use emit/backend
+ * fwd protos. PLATFORM: SHARED freestanding. */
+/* #include "pipeline_asm_emit_index_helpers.c" — deleted wave218 */
 
-
-/* BC 8.3.1: asm ELF 7.3 live / Chaitin spill Cap residual
- * (live_fwd + color + break/continue + binop slot cache + index scratch
- * methods). wave156 pure slices + wave157 frame-sum + wave158 CFG merge/phi →
- * runtime_pipeline_abi pure (#[no_mangle]; seed cold twins).
- * PLATFORM: SHARED. */
-#include "pipeline_asm_emit_spill.c"
+/* wave218 pure-owned leave: pipeline_asm_emit_spill.c deleted.
+ * Live = runtime_pipeline_abi pure (7.3 live/Chaitin + CFG merge/phi);
+ * seed cold twins under #ifndef FROM_X. PLATFORM: SHARED freestanding. */
+/* #include "pipeline_asm_emit_spill.c" — deleted wave218 */
 
 /* wave139 pure-owned leave: pipeline_asm_emit_modlet.c deleted.
  * Live = runtime_pipeline_abi pure (table BSS + 7 public faces); seed cold twins
@@ -432,12 +427,11 @@ enum {
   GLUE_TYPECK_IMPORT_SELECT = 2,
 };
 
-/* BC 8.3.1: asm ELF CALL-arg emit domain
- * (named_struct_layout predicate + lea_not_load + dual-GP load_var +
- *  named layout size + pass_addr + emit_expr_elf_for_call_args +
- *  call_arg resolve + f32 VAR slot load; Cap residual pure; same TU).
- * G.7 fold type_named_struct (wave1017) + resolve/f32 residual (wave1019). */
-#include "pipeline_asm_emit_call_args.c"
+/* wave218 pure-owned leave: pipeline_asm_emit_call_args.c deleted.
+ * Live = runtime_pipeline_abi pure (CALL-arg packing + thin CALL/METHOD);
+ * seed cold twins under #ifndef FROM_X. Residual mega_body uses
+ * glue_func_return_byte_size_c via backend_fwd. PLATFORM: SHARED. */
+/* #include "pipeline_asm_emit_call_args.c" — deleted wave218 */
 
 
 /* wave1016 G.7: glue_emit_assign_rhs_to_rax folded into assign leaf; wave142 pure leave.
