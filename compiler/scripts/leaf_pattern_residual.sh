@@ -1353,7 +1353,7 @@ B7B_RELINK_LEGACY_LIST_WAVE=wave822
 #   asm_emit_call_args + asm_emit_struct_lit (wave154 pure leave) + asm_emit_vector_let + (vector_simd pure wave148) +
 #   asm_emit_struct_let + asm_emit_index_helpers + asm_emit_spill +
 #   asm_emit_block_body (wave153 pure leave) +
-#   ast_pool_module_import(leave263) + ast_pool_struct_layout +
+#   ast_pool_module_import(leave263) + ast_pool_struct_layout(leave266) +
 #   ast_pool_top_level(leave265) + ast_pool_type_alias(leave262) +
 #   ast_pool_expr_sidecar + ast_pool_module_enum(leave264) +
 #   ast_pool_onefunc + ast_pool_dep_ctx + ast_pool_module_func + ast_pool_arena +
@@ -9064,8 +9064,8 @@ _xsd_n=$(awk '
   /^PIPELINE_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
   END { print t+0 }
 ' "$_XSD_MK")
-if [ "${_xsd_n:-0}" -ne 44 ]; then
-  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 44 in mk (wave265 top_level leave), got ${_xsd_n:-0}"
+if [ "${_xsd_n:-0}" -ne 43 ]; then
+  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 43 in mk (wave266 struct_layout leave), got ${_xsd_n:-0}"
 fi
 # wave965: PIPELINE_X_DEPS must list #include slices so STALE rebuilds pipeline_x.
 # wave255 host-cc leave: CTFE thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
@@ -9317,8 +9317,12 @@ if [ -f "$ROOT/compiler/pipeline_asm_emit_index_eff_addr.c" ]; then
 fi
 # wave152: expr_rec pure-owned leave — must-not list above (was must-list)
 # wave263: ast_pool_module_import.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
-if ! grep -qE 'ast_pool_struct_layout\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_struct_layout.c (8.3.2 struct_layout slice)"
+# wave266 host-cc leave: ast_pool_struct_layout Cap residual retired; authority runtime_pipeline_abi pure.
+if grep -qE 'ast_pool_struct_layout\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_struct_layout.c (wave266 host-cc leave)"
+fi
+if [ -f "$ROOT/compiler/ast_pool_struct_layout.c" ]; then
+  bad "ast_pool_struct_layout.c must be deleted (wave266 pure-owned leave)"
 fi
 # wave265: ast_pool_top_level.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
 # wave262: ast_pool_type_alias.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).

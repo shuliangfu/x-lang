@@ -125,8 +125,57 @@ void pipeline_module_import_set_select_name(struct ast_Module *m, int32_t idx, i
 int32_t pipeline_module_import_select_name_len(struct ast_Module *m, int32_t idx, int32_t sel);
 uint8_t pipeline_module_import_select_name_byte_at(struct ast_Module *m, int32_t idx, int32_t sel, int32_t off);
 
-/** BC 8.3.2: module StructLayout cold accessors (same-TU thin). */
-#include "ast_pool_struct_layout.c"
+/* 2026-08-08 wave266: ast_pool_struct_layout.c pure-owned leave.
+ * Live faces: runtime_pipeline_abi.x (pipeline_module_struct_layout_* full set +
+ * type_param / next_field_offset / type_ref_byte_size + storage_reset/release;
+ * 168B pure layout entry LE + 144B field + 132B type-param maps). Cap residual:
+ * ModuleSidecar.struct_layouts / struct_layout_fields / type_params|meta GrowVec
+ * still init/free in sidecar_pool (unused for product layouts after leave).
+ * Sizing uses pure glue_type_* (wave154) + pure emit module cell (wave222).
+ * PLATFORM: SHARED.
+ * Same-TU pure face decls (residual defs retired; later domain slices +
+ * pipeline_ast_forwarders call these as extern). */
+void pipeline_module_struct_layout_storage_reset(struct ast_Module *m);
+void pipeline_module_struct_layout_storage_release(struct ast_Module *m);
+int32_t pipeline_module_struct_layout_alloc(struct ast_Module *m);
+void pipeline_module_struct_layout_reset_slot(struct ast_Module *m, int32_t idx);
+void pipeline_module_struct_layout_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+void pipeline_module_struct_layout_set_field(struct ast_Module *m, int32_t li, int32_t j, uint8_t *fname_bytes,
+                                            int32_t fname_len, int32_t ftype_ref, int32_t foff);
+int32_t pipeline_module_struct_layout_name_len(struct ast_Module *m, int32_t idx);
+void pipeline_module_struct_layout_name_into(struct ast_Module *m, int32_t idx, uint8_t *out64);
+uint8_t pipeline_module_struct_layout_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+int32_t pipeline_module_struct_layout_num_fields(struct ast_Module *m, int32_t idx);
+void pipeline_module_struct_layout_set_num_fields(struct ast_Module *m, int32_t idx, int32_t nf);
+int32_t pipeline_module_struct_layout_field_type_ref(struct ast_Module *m, int32_t li, int32_t j);
+int32_t pipeline_module_struct_layout_field_name_len(struct ast_Module *m, int32_t li, int32_t j);
+void pipeline_module_struct_layout_field_name_into(struct ast_Module *m, int32_t li, int32_t j, uint8_t *out64);
+int32_t pipeline_module_struct_layout_append_type_param(struct ast_Module *m, int32_t li, uint8_t *name,
+                                                       int32_t name_len);
+int32_t pipeline_module_struct_layout_num_type_params_at(struct ast_Module *m, int32_t li);
+int32_t pipeline_module_struct_layout_type_param_name_len(struct ast_Module *m, int32_t li, int32_t j);
+void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, int32_t li, int32_t j,
+                                                       uint8_t *out64);
+void pipeline_module_struct_layout_set_field_offset(struct ast_Module *m, int32_t li, int32_t j, int32_t foff);
+int32_t pipeline_module_struct_layout_field_offset_at(struct ast_Module *m, int32_t li, int32_t j);
+int32_t pipeline_module_struct_layout_field_align_at(struct ast_Module *m, int32_t li, int32_t j);
+void pipeline_module_struct_layout_set_field_align(struct ast_Module *m, int32_t li, int32_t j, int32_t al);
+void pipeline_module_struct_layout_set_allow_padding(struct ast_Module *m, int32_t idx, int32_t v);
+int32_t pipeline_module_struct_layout_allow_padding_at(struct ast_Module *m, int32_t idx);
+void pipeline_module_struct_layout_set_soa(struct ast_Module *m, int32_t idx, int32_t v);
+int32_t pipeline_module_struct_layout_soa_at(struct ast_Module *m, int32_t idx);
+void pipeline_module_struct_layout_set_packed(struct ast_Module *m, int32_t idx, int32_t v);
+int32_t pipeline_module_struct_layout_packed_at(struct ast_Module *m, int32_t idx);
+void pipeline_module_struct_layout_set_repr_compatible(struct ast_Module *m, int32_t idx, int32_t v);
+int32_t pipeline_module_struct_layout_repr_compatible_at(struct ast_Module *m, int32_t idx);
+void pipeline_module_struct_layout_set_is_export(struct ast_Module *m, int32_t idx, int32_t v);
+int32_t pipeline_module_struct_layout_is_export_at(struct ast_Module *m, int32_t idx);
+int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m);
+int32_t pipeline_asm_type_ref_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
+int32_t pipeline_struct_layout_next_field_offset_ex(struct ast_Module *m, struct ast_ASTArena *a, int32_t layout_idx,
+                                                    int32_t new_field_type_ref, int32_t field_align_req);
+int32_t pipeline_struct_layout_next_field_offset(struct ast_Module *m, struct ast_ASTArena *a, int32_t layout_idx,
+                                               int32_t new_field_type_ref);
 
 /* 2026-08-08 wave265: ast_pool_top_level.c pure-owned leave.
  * Live faces: runtime_pipeline_abi.x (pipeline_module_top_level_let_* full set +

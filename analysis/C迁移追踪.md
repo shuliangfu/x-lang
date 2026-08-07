@@ -961,7 +961,7 @@
 | `pipeline_backend_asm_wrapper.c` | ~96 | M8-tail `asm_codegen_ast`／`to_elf` 薄包装 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_scratch_bufs.c` | **absent** | codegen path/prefix scratch 缓冲池 | ✅ **host-cc leave**（2026-08-05）：live 面在 codegen_x.o（seed）；文件 absent |
 | `ast_pool_module_import.c` | **0（leave）** | module ImportEntry Cap residual pure-owned leave (wave263) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map（wave110）+ faces；seed cold twins under #ifndef FROM_X；same-TU pure face decls |
-| `ast_pool_struct_layout.c` | ~385 | module StructLayout cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
+| `ast_pool_struct_layout.c` | **0（leave）** | module StructLayout Cap residual pure-owned leave (wave266) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map + fields/tp + sizing faces；seed cold twins under #ifndef FROM_X；same-TU pure face decls |
 | `ast_pool_top_level.c` | **0（leave）** | module TopLevelLetEntry Cap residual pure-owned leave (wave265) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map + faces + hoist／sum；seed cold twins under #ifndef FROM_X；same-TU pure face decls；prepend_lets Cap non-static |
 | `ast_pool_type_alias.c` | **0（leave）** | module TypeAliasEntry Cap residual pure-owned leave (wave262) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map + faces；lifecycle reset／release 钩 pure；seed cold twins under #ifndef FROM_X |
 | `ast_pool_expr_sidecar.c` | ~647 | expr (+ type-pos) var-len sidecar 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |

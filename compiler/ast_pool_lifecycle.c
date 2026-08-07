@@ -176,6 +176,8 @@ void pipeline_module_type_alias_storage_reset(struct ast_Module *m);
 void pipeline_module_enum_storage_reset(struct ast_Module *m);
 /* wave265 pure strong / seed cold twin — soft-reset pure TopLevelLetEntry live count. */
 void pipeline_module_top_level_let_storage_reset(struct ast_Module *m);
+/* wave266 pure strong / seed cold twin — soft-reset pure StructLayout live counts. */
+void pipeline_module_struct_layout_storage_reset(struct ast_Module *m);
 
 /**
  * 复用同一 Module* 再次 parse 前清空 sidecar 动态池。
@@ -192,6 +194,8 @@ void ast_pool_module_reset(struct ast_Module *m) {
   sc->func_refs.len = 0;
   sc->imports.len = 0;
   sc->struct_layouts.len = 0;
+  /* wave266: pure StructLayout map soft-reset (G.7 product authority). */
+  pipeline_module_struct_layout_storage_reset(m);
   sc->top_level_lets.len = 0;
   /* wave265: pure TopLevelLetEntry map soft-reset (G.7 product authority). */
   pipeline_module_top_level_let_storage_reset(m);
@@ -293,6 +297,8 @@ void pipeline_module_type_alias_storage_release(struct ast_Module *m);
 void pipeline_module_enum_storage_release(struct ast_Module *m);
 /* wave265 pure strong / seed cold twin — free pure TopLevelLetEntry map. */
 void pipeline_module_top_level_let_storage_release(struct ast_Module *m);
+/* wave266 pure strong / seed cold twin — free pure StructLayout maps. */
+void pipeline_module_struct_layout_storage_release(struct ast_Module *m);
 
 void ast_pool_module_release(struct ast_Module *m) {
   int i;
@@ -306,6 +312,8 @@ void ast_pool_module_release(struct ast_Module *m) {
   pipeline_module_enum_storage_release(m);
   /* wave265: pure TopLevelLetEntry map free (strong pure / seed cold twin). */
   pipeline_module_top_level_let_storage_release(m);
+  /* wave266: pure StructLayout maps free (strong pure / seed cold twin). */
+  pipeline_module_struct_layout_storage_release(m);
   for (i = 0; i < MAX_MODULE_SIDECARS; i++) {
     if (g_module_sc[i].used && g_module_sc[i].module == m) {
       module_sidecar_free(&g_module_sc[i]);
