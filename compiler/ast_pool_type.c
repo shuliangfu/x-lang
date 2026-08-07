@@ -192,6 +192,25 @@ int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *arena, int32_t ref) {
 }
 
 /**
+ * wave251 G.7 有则补全: stamp elem_type_ref + array_size without memset
+ * (preserves TYPE_NAMED name). Pure mono alloc_named_with_type_args after
+ * pipeline_type_append_type_arg needs residual-fidelity array_size / elem.
+ * @return 1 success, 0 failure. PLATFORM: SHARED type pool.
+ */
+int32_t pipeline_type_set_elem_array_size_at(struct ast_ASTArena *arena, int32_t ref, int32_t elem_ref,
+                                            int32_t array_size) {
+  struct ast_Type *t;
+  if (!arena || ref <= 0 || ref > arena->num_types)
+    return 0;
+  t = pipeline_arena_type_ptr(arena, ref);
+  if (!t)
+    return 0;
+  t->elem_type_ref = elem_ref;
+  t->array_size = array_size;
+  return 1;
+}
+
+/**
  * Read Type.array_size (array length, vector lane count, etc.).
  * Returns 0 for invalid ref.
  */

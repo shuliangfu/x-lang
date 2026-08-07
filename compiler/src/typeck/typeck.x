@@ -153,6 +153,27 @@ export extern function pipeline_type_array_size_at(arena: *ASTArena, type_ref: i
 export extern function pipeline_type_elem_ref_at(arena: *ASTArena, type_ref: i32): i32;
 /* wave686: NAMED type-pos args (Wrap<T>) for free-param tree walk / pattern match. */
 export extern function pipeline_type_type_arg_ref_at(arena: *ASTArena, type_ref: i32, idx: i32): i32;
+/**
+ * wave251: append one type-pos arg to TYPE_NAMED (sidecar; never collides bare name).
+ * @param arena *ASTArena
+ * @param type_ref i32 — TYPE_NAMED slot
+ * @param arg_ref i32 — type_ref of type-position arg
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED type pool face (ast_pool_expr_sidecar).
+ */
+export extern function pipeline_type_append_type_arg(arena: *ASTArena, type_ref: i32, arg_ref: i32): i32;
+/**
+ * wave251: stamp TYPE_NAMED mono meta after append_type_arg (elem_type_ref + array_size).
+ * Avoids pure .x writing Type struct fields (G.7 type-pool authority).
+ * @param arena *ASTArena
+ * @param type_ref i32 — TYPE_NAMED slot
+ * @param elem_ref i32 — first type-arg (slot0 mirror)
+ * @param array_size i32 — n type-args
+ * @return i32 — 1 success, 0 failure
+ * PLATFORM: SHARED type pool face.
+ */
+export extern function pipeline_type_set_elem_array_size_at(arena: *ASTArena, type_ref: i32,
+elem_ref: i32, array_size: i32): i32;
 /* See implementation. */
 export extern function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i32, b: i32): i32;
 /**
@@ -16476,4 +16497,597 @@ expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32 {
 }
 
 // end wave250 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave251: typeck mono-map / pattern-unify / subst pure leave
+// (method_call residual subdomain)
+// Authority: typeck_x.o (this file + typeck_gen hand-sync).
+// Cap faces (#[no_mangle], flat mono-map ABI stride-128):
+//   glue_typeck_pattern_unify_bind_c
+//   glue_typeck_subst_type_ref_c
+//   glue_typeck_build_value_formal_mono_map_c
+// Live helpers: mono_map lookup/bind + named_num_type_args + alloc_named_with
+//   type_args + pattern_unify + build_value_formal_mono_map + subst_type_ref
+// Flat ABI: names_flat *u8 (n_map rows × 128), lens *i32, conc *i32, n_map *i32
+//   Residual C multi-dim [8][128] is byte-identical; pass (uint8_t *)names.
+// G.7: sole mono map / pattern-unify / subst path for generic UFCS + CALL fixup.
+// Cap residual method_call: delete residual mono engine bodies (dual-export ban).
+// PLATFORM: SHARED freestanding typeck generic mono map engine.
+// ---------------------------------------------------------------------------
+
+/**
+ * Lookup free type-param name in flat mono map.
+ * @param names_flat *u8 — row-major name bytes (stride 128)
+ * @param lens *i32 — per-slot name lengths
+ * @param conc *i32 — concrete type_ref per slot (caller arena)
+ * @param n_map i32 — live slot count
+ * @param nm *u8 — free-param name bytes
+ * @param nlen i32 — name length
+ * @return i32 — concrete type_ref or 0 miss
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_mono_map_lookup(names_flat: *u8, lens: *i32, conc: *i32, n_map: i32,
+nm: *u8, nlen: i32): i32 {
+  // PLATFORM: SHARED — free-param → concrete map lookup (stride-128 rows).
+  unsafe {
+    let i: i32 = 0;
+    let k: i32 = 0;
+    let base: i32 = 0;
+    let stride: i32 = 128;
+    if (names_flat == 0 as *u8 || lens == 0 as *i32 || conc == 0 as *i32 || nm == 0 as *u8
+    || nlen <= 0 || n_map <= 0) {
+      return 0;
+    }
+    i = 0;
+    while (i < n_map) {
+      if (lens[i] == nlen) {
+        base = i * stride;
+        k = 0;
+        while (k < nlen) {
+          if (names_flat[base + k] != nm[k]) {
+            break;
+          }
+          k = k + 1;
+        }
+        if (k == nlen) {
+          return conc[i];
+        }
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Bind free type-param name → concrete type_ref. Fail-closed on conflict rebind.
+ * @param names_flat *u8 — flat map rows
+ * @param lens *i32
+ * @param conc *i32
+ * @param n_map *i32 — in/out live count
+ * @param max_map i32 — capacity (8)
+ * @param nm *u8
+ * @param nlen i32
+ * @param concrete_ty i32 — caller-arena type_ref
+ * @param caller_arena *ASTArena — for equal check on rebind
+ * @return i32 — 0 ok, -1 conflict/full/invalid
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_mono_map_bind(names_flat: *u8, lens: *i32, conc: *i32, n_map: *i32,
+max_map: i32, nm: *u8, nlen: i32, concrete_ty: i32, caller_arena: *ASTArena): i32 {
+  // PLATFORM: SHARED — identity / pattern-unify free-param bind.
+  unsafe {
+    let prev: i32 = 0;
+    let n: i32 = 0;
+    let base: i32 = 0;
+    let k: i32 = 0;
+    let stride: i32 = 128;
+    if (names_flat == 0 as *u8 || lens == 0 as *i32 || conc == 0 as *i32 || n_map == 0 as *i32
+    || nm == 0 as *u8 || nlen <= 0 || nlen > 127 || concrete_ty <= 0 || max_map <= 0) {
+      return -1;
+    }
+    n = typeck_i32_ptr_read(n_map);
+    prev = typeck_mono_map_lookup(names_flat, lens, conc, n, nm, nlen);
+    if (prev > 0) {
+      if (caller_arena != 0 as *ASTArena
+      && pipeline_typeck_type_refs_equal_c(caller_arena, prev, concrete_ty) == 0) {
+        return -1;
+      }
+      return 0;
+    }
+    if (n >= max_map) {
+      return -1;
+    }
+    base = n * stride;
+    // Clear first 64 name bytes (residual memset 64).
+    k = 0;
+    while (k < 64) {
+      names_flat[base + k] = 0;
+      k = k + 1;
+    }
+    k = 0;
+    while (k < nlen) {
+      names_flat[base + k] = nm[k];
+      k = k + 1;
+    }
+    lens[n] = nlen;
+    conc[n] = concrete_ty;
+    typeck_i32_ptr_store(n_map, n + 1);
+    return 0;
+  }
+}
+
+/**
+ * Count type-position args on TYPE_NAMED (array_size preferred; sidecar walk fallback).
+ * @param arena *ASTArena
+ * @param ty i32 — TYPE_NAMED type_ref
+ * @return i32 — n type-args in 0..8
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_named_num_type_args(arena: *ASTArena, ty: i32): i32 {
+  // PLATFORM: SHARED — NAMED type-arg arity for mono unify/subst.
+  unsafe {
+    let n: i32 = 0;
+    let asz: i32 = 0;
+    let i: i32 = 0;
+    let max_targs: i32 = 8;
+    if (arena == 0 as *ASTArena || ty <= 0) {
+      return 0;
+    }
+    asz = pipeline_type_array_size_at(arena, ty);
+    if (asz > 0 && asz <= max_targs) {
+      return asz;
+    }
+    n = 0;
+    i = 0;
+    while (i < max_targs) {
+      if (pipeline_type_type_arg_ref_at(arena, ty, i) <= 0) {
+        break;
+      }
+      n = i + 1;
+      i = i + 1;
+    }
+    return n;
+  }
+}
+
+/**
+ * Allocate fresh TYPE_NAMED with type-pos args (never find_or_alloc_named).
+ * @param arena *ASTArena
+ * @param name *u8
+ * @param name_len i32
+ * @param arg0..arg7 i32 — type_ref slots; only first n_args used
+ * @param n_args i32
+ * @return i32 — new type_ref or 0
+ * PLATFORM: SHARED freestanding typeck.
+ *
+ * Note: X has no *i32 arg_refs array param multi-value; Cap residual and pure
+ * subst pass args via local stack then call this with fixed slots, or pure
+ * subst inlines alloc. Here we take up to 8 explicit args for Cap thin path.
+ * Live pure subst uses typeck_alloc_named_with_type_args_flat (*i32 arg_refs).
+ */
+export function typeck_alloc_named_with_type_args_flat(arena: *ASTArena, name: *u8, name_len: i32,
+arg_refs: *i32, n_args: i32): i32 {
+  // PLATFORM: SHARED — fresh mono NAMED node (sidecar type-args + meta stamp).
+  unsafe {
+    let tr: i32 = 0;
+    let i: i32 = 0;
+    let ar: i32 = 0;
+    let max_targs: i32 = 8;
+    if (arena == 0 as *ASTArena || name == 0 as *u8 || name_len <= 0 || name_len > 127) {
+      return 0;
+    }
+    if (n_args < 0 || n_args > max_targs || arg_refs == 0 as *i32) {
+      return 0;
+    }
+    tr = pipeline_arena_type_alloc(arena);
+    if (tr <= 0) {
+      return 0;
+    }
+    if (pipeline_type_init_named_at(arena, tr, name, name_len) == 0) {
+      return 0;
+    }
+    i = 0;
+    while (i < n_args) {
+      ar = arg_refs[i];
+      if (ar <= 0) {
+        return 0;
+      }
+      if (pipeline_type_append_type_arg(arena, tr, ar) != 0) {
+        return 0;
+      }
+      i = i + 1;
+    }
+    if (n_args > 0) {
+      if (pipeline_type_set_elem_array_size_at(arena, tr, arg_refs[0], n_args) == 0) {
+        return 0;
+      }
+    }
+    return tr;
+  }
+}
+
+/**
+ * Recursively pattern-unify formal type with concrete arg; bind free params.
+ * Free TYPE_NAMED formals bind; module TYPE_NAMED with type-args unify pairwise;
+ * PTR/SLICE/ARRAY/VECTOR strip and unify elems.
+ * @return i32 — 0 ok, -1 hard conflict
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_pattern_unify_bind(mod: *Module, formal_arena: *ASTArena, formal_ty: i32,
+arg_arena: *ASTArena, arg_ty: i32, names_flat: *u8, lens: *i32, conc: *i32, n_map: *i32,
+max_map: i32, depth: i32): i32 {
+  // PLATFORM: SHARED — formal↔arg pattern unify (generic UFCS / mono map).
+  unsafe {
+    let fk: i32 = 0;
+    let ak: i32 = 0;
+    let fnlen: i32 = 0;
+    let fnm: u8[128] = [];
+    let anlen: i32 = 0;
+    let anm: u8[128] = [];
+    let n_fta: i32 = 0;
+    let n_ata: i32 = 0;
+    let i: i32 = 0;
+    let fta: i32 = 0;
+    let ata: i32 = 0;
+    let felem: i32 = 0;
+    let aelem: i32 = 0;
+    let ord_named: i32 = 8;
+    let ord_ptr: i32 = 9;
+    let ord_array: i32 = 10;
+    let ord_slice: i32 = 11;
+    let ord_vector: i32 = 13;
+    let max_depth: i32 = 12;
+    if (mod == 0 as *Module || formal_arena == 0 as *ASTArena || arg_arena == 0 as *ASTArena
+    || names_flat == 0 as *u8 || lens == 0 as *i32 || conc == 0 as *i32 || n_map == 0 as *i32
+    || formal_ty <= 0 || arg_ty <= 0) {
+      return -1;
+    }
+    if (depth > max_depth) {
+      return -1;
+    }
+    fk = pipeline_type_kind_ord_at(formal_arena, formal_ty);
+    ak = pipeline_type_kind_ord_at(arg_arena, arg_ty);
+    if (fk < 0 || ak < 0) {
+      return -1;
+    }
+    // Free type-param formal (TYPE_NAMED not a module struct/alias).
+    if (fk == ord_named) {
+      fnlen = pipeline_type_named_name_into(formal_arena, formal_ty, &fnm[0]);
+      if (fnlen <= 0) {
+        return -1;
+      }
+      if (typeck_named_is_module_type(mod, formal_arena, &fnm[0], fnlen) == 0) {
+        return typeck_mono_map_bind(names_flat, lens, conc, n_map, max_map, &fnm[0], fnlen, arg_ty,
+          arg_arena);
+      }
+      // Module named formal: require arg same name + unify type-pos args.
+      if (ak != ord_named) {
+        return -1;
+      }
+      anlen = pipeline_type_named_name_into(arg_arena, arg_ty, &anm[0]);
+      if (anlen <= 0 || !name_equal(&fnm[0], fnlen, &anm[0], anlen)) {
+        return -1;
+      }
+      n_fta = typeck_named_num_type_args(formal_arena, formal_ty);
+      if (n_fta <= 0) {
+        return 0;
+      }
+      n_ata = typeck_named_num_type_args(arg_arena, arg_ty);
+      if (n_ata <= 0) {
+        aelem = pipeline_type_elem_ref_at(arg_arena, arg_ty);
+        if (aelem > 0) {
+          n_ata = 1;
+        }
+      }
+      if (n_ata < n_fta) {
+        return -1;
+      }
+      i = 0;
+      while (i < n_fta) {
+        fta = pipeline_type_type_arg_ref_at(formal_arena, formal_ty, i);
+        if (fta <= 0 && i == 0) {
+          fta = pipeline_type_elem_ref_at(formal_arena, formal_ty);
+        }
+        ata = pipeline_type_type_arg_ref_at(arg_arena, arg_ty, i);
+        if (ata <= 0 && i == 0) {
+          ata = pipeline_type_elem_ref_at(arg_arena, arg_ty);
+        }
+        if (fta <= 0 || ata <= 0) {
+          return -1;
+        }
+        if (typeck_pattern_unify_bind(mod, formal_arena, fta, arg_arena, ata, names_flat, lens, conc,
+        n_map, max_map, depth + 1) != 0) {
+          return -1;
+        }
+        i = i + 1;
+      }
+      return 0;
+    }
+    // Compound: ptr/slice/array/vector — strip and unify elems when both match.
+    if (fk == ord_ptr || fk == ord_slice || fk == ord_array || fk == ord_vector) {
+      if (ak != fk) {
+        return -1;
+      }
+      felem = pipeline_type_elem_ref_at(formal_arena, formal_ty);
+      aelem = pipeline_type_elem_ref_at(arg_arena, arg_ty);
+      if (felem <= 0 || aelem <= 0) {
+        return -1;
+      }
+      if (fk == ord_array || fk == ord_vector) {
+        if (pipeline_type_array_size_at(formal_arena, formal_ty)
+        != pipeline_type_array_size_at(arg_arena, arg_ty)) {
+          return -1;
+        }
+      }
+      return typeck_pattern_unify_bind(mod, formal_arena, felem, arg_arena, aelem, names_flat, lens,
+        conc, n_map, max_map, depth + 1);
+    }
+    // Builtin formal: kinds must agree.
+    if (fk == ak) {
+      return 0;
+    }
+    return -1;
+  }
+}
+
+/**
+ * Build free-type-param mono map from value formals + call args.
+ * @return i32 — n_map (>=0); 0 if nothing bound or conflict fail-closed
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_build_value_formal_mono_map(search_mod: *Module, search_arena: *ASTArena,
+caller_arena: *ASTArena, call_expr_ref: i32, func_idx: i32, names_flat: *u8, lens: *i32,
+conc: *i32, max_map: i32): i32 {
+  // PLATFORM: SHARED — formal/arg mono map for CALL fixup / subst ret.
+  unsafe {
+    let n_map_local: i32 = 0;
+    let n_map_ptr: *i32 = 0 as *i32;
+    let num_params: i32 = 0;
+    let pi: i32 = 0;
+    let param_ty: i32 = 0;
+    let arg_i: i32 = 0;
+    let arg_ty: i32 = 0;
+    let ord_named: i32 = 8;
+    let param_nm: u8[128] = [];
+    let param_nlen: i32 = 0;
+    let gi: i32 = 0;
+    let dup: i32 = 0;
+    let base: i32 = 0;
+    let k: i32 = 0;
+    let stride: i32 = 128;
+    if (search_mod == 0 as *Module || search_arena == 0 as *ASTArena || caller_arena == 0 as *ASTArena
+    || call_expr_ref <= 0 || func_idx < 0 || names_flat == 0 as *u8 || lens == 0 as *i32
+    || conc == 0 as *i32 || max_map <= 0) {
+      return 0;
+    }
+    n_map_local = 0;
+    n_map_ptr = &n_map_local;
+    num_params = pipeline_module_func_num_params_at(search_mod, func_idx);
+    pi = 0;
+    while (pi < num_params && n_map_local < max_map) {
+      param_ty = pipeline_module_func_param_type_ref_at(search_mod, func_idx, pi);
+      if (param_ty <= 0) {
+        pi = pi + 1;
+        continue;
+      }
+      arg_i = pipeline_expr_call_arg_ref(caller_arena, call_expr_ref, pi);
+      if (arg_i <= 0) {
+        pi = pi + 1;
+        continue;
+      }
+      arg_ty = pipeline_expr_resolved_type_ref(caller_arena, arg_i);
+      if (arg_ty <= 0) {
+        pi = pi + 1;
+        continue;
+      }
+      // Fast path: bare free TYPE_NAMED formal.
+      if (pipeline_type_kind_ord_at(search_arena, param_ty) == ord_named) {
+        param_nlen = pipeline_type_named_name_into(search_arena, param_ty, &param_nm[0]);
+        if (param_nlen > 0
+        && typeck_named_is_module_type(search_mod, search_arena, &param_nm[0], param_nlen) == 0) {
+          dup = 0;
+          gi = 0;
+          while (gi < n_map_local) {
+            if (lens[gi] == param_nlen) {
+              base = gi * stride;
+              k = 0;
+              while (k < param_nlen) {
+                if (names_flat[base + k] != param_nm[k]) {
+                  break;
+                }
+                k = k + 1;
+              }
+              if (k == param_nlen) {
+                dup = 1;
+                break;
+              }
+            }
+            gi = gi + 1;
+          }
+          if (dup == 0) {
+            if (typeck_mono_map_bind(names_flat, lens, conc, n_map_ptr, max_map, &param_nm[0],
+            param_nlen, arg_ty, caller_arena) != 0) {
+              return 0;
+            }
+            n_map_local = typeck_i32_ptr_read(n_map_ptr);
+          }
+          pi = pi + 1;
+          continue;
+        }
+      }
+      // Pattern-unify module formals with free type-arg trees.
+      if (typeck_type_tree_has_free_type_param(search_mod, search_arena, param_ty, 0) != 0) {
+        if (typeck_pattern_unify_bind(search_mod, search_arena, param_ty, caller_arena, arg_ty,
+        names_flat, lens, conc, n_map_ptr, max_map, 0) != 0) {
+          // Soft: skip this formal; other formals may still bind.
+          pi = pi + 1;
+          continue;
+        }
+        n_map_local = typeck_i32_ptr_read(n_map_ptr);
+      }
+      pi = pi + 1;
+    }
+    return n_map_local;
+  }
+}
+
+/**
+ * Recursively substitute free type-params in ty into dst_arena using mono map.
+ * @return i32 — concrete type_ref in dst_arena, or 0 on failure
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_subst_type_ref(mod: *Module, src_arena: *ASTArena, dst_arena: *ASTArena,
+ty: i32, names_flat: *u8, lens: *i32, conc: *i32, n_map: i32, depth: i32): i32 {
+  // PLATFORM: SHARED — mono subst free params / module NAMED trees.
+  unsafe {
+    let kind: i32 = 0;
+    let nlen: i32 = 0;
+    let nm: u8[128] = [];
+    let n_ta: i32 = 0;
+    let i: i32 = 0;
+    let ta: i32 = 0;
+    let sa: i32 = 0;
+    let args: i32[8] = [];
+    let elem: i32 = 0;
+    let mapped_elem: i32 = 0;
+    let asz: i32 = 0;
+    let looked: i32 = 0;
+    let max_depth: i32 = 12;
+    let ord_named: i32 = 8;
+    let ord_ptr: i32 = 9;
+    let ord_array: i32 = 10;
+    let ord_slice: i32 = 11;
+    let ord_vector: i32 = 13;
+    // Primitive ords (LINEAR-inclusive TypeKind).
+    let ord_i32: i32 = 0;
+    let ord_bool: i32 = 1;
+    let ord_u8: i32 = 2;
+    let ord_u32: i32 = 3;
+    let ord_u64: i32 = 4;
+    let ord_i64: i32 = 5;
+    let ord_usize: i32 = 6;
+    let ord_isize: i32 = 7;
+    let ord_f32: i32 = 14;
+    let ord_f64: i32 = 15;
+    let ord_void: i32 = 16;
+    if (mod == 0 as *Module || src_arena == 0 as *ASTArena || dst_arena == 0 as *ASTArena
+    || ty <= 0 || depth > max_depth) {
+      return 0;
+    }
+    kind = pipeline_type_kind_ord_at(src_arena, ty);
+    if (kind < 0) {
+      return 0;
+    }
+    if (kind == ord_i32 || kind == ord_i64 || kind == ord_bool || kind == ord_f64 || kind == ord_u8
+    || kind == ord_u32 || kind == ord_u64 || kind == ord_isize || kind == ord_f32 || kind == ord_usize
+    || kind == ord_void) {
+      return pipeline_type_ensure_by_kind_ord(dst_arena, kind);
+    }
+    if (kind == ord_named) {
+      nlen = pipeline_type_named_name_into(src_arena, ty, &nm[0]);
+      if (nlen <= 0) {
+        return 0;
+      }
+      if (typeck_named_is_module_type(mod, src_arena, &nm[0], nlen) == 0) {
+        looked = typeck_mono_map_lookup(names_flat, lens, conc, n_map, &nm[0], nlen);
+        if (looked > 0) {
+          return looked;
+        }
+        return 0;
+      }
+      n_ta = typeck_named_num_type_args(src_arena, ty);
+      if (n_ta <= 0) {
+        return pipeline_type_find_or_alloc_named(dst_arena, &nm[0], nlen);
+      }
+      i = 0;
+      while (i < n_ta) {
+        ta = pipeline_type_type_arg_ref_at(src_arena, ty, i);
+        if (ta <= 0) {
+          return 0;
+        }
+        sa = typeck_subst_type_ref(mod, src_arena, dst_arena, ta, names_flat, lens, conc, n_map,
+          depth + 1);
+        if (sa <= 0) {
+          return 0;
+        }
+        args[i] = sa;
+        i = i + 1;
+      }
+      return typeck_alloc_named_with_type_args_flat(dst_arena, &nm[0], nlen, &args[0], n_ta);
+    }
+    elem = pipeline_type_elem_ref_at(src_arena, ty);
+    mapped_elem = 0;
+    if (elem > 0) {
+      mapped_elem = typeck_subst_type_ref(mod, src_arena, dst_arena, elem, names_flat, lens, conc,
+        n_map, depth + 1);
+      if (mapped_elem <= 0) {
+        return 0;
+      }
+    }
+    asz = pipeline_type_array_size_at(src_arena, ty);
+    if (kind == ord_ptr) {
+      return pipeline_type_find_or_alloc_compound(dst_arena, ord_ptr, mapped_elem, 0);
+    }
+    if (kind == ord_vector) {
+      return pipeline_type_find_or_alloc_compound(dst_arena, ord_vector, mapped_elem, asz);
+    }
+    if (kind == ord_array) {
+      if (mapped_elem <= 0 || asz <= 0) {
+        return 0;
+      }
+      return pipeline_type_find_or_alloc_compound(dst_arena, ord_array, mapped_elem, asz);
+    }
+    if (kind == ord_slice) {
+      return pipeline_type_find_or_alloc_slice(dst_arena, mapped_elem, 0 as *u8, 0);
+    }
+    return 0;
+  }
+}
+
+/**
+ * Cap residual face: pattern-unify formal with arg; bind free params (flat map).
+ * Thin → typeck_pattern_unify_bind (G.7 dual-export ban).
+ * @return i32 — 0 ok, -1 conflict
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function glue_typeck_pattern_unify_bind_c(mod: *Module, formal_arena: *ASTArena,
+formal_ty: i32, arg_arena: *ASTArena, arg_ty: i32, names_flat: *u8, lens: *i32, conc: *i32,
+n_map: *i32, max_map: i32, depth: i32): i32 {
+  // PLATFORM: SHARED — Cap residual face; body = pure pattern_unify.
+  return typeck_pattern_unify_bind(mod, formal_arena, formal_ty, arg_arena, arg_ty, names_flat, lens,
+    conc, n_map, max_map, depth);
+}
+
+/**
+ * Cap residual face: substitute free type-params (flat map).
+ * Thin → typeck_subst_type_ref (G.7 dual-export ban).
+ * @return i32 — mono type_ref in dst_arena or 0
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function glue_typeck_subst_type_ref_c(mod: *Module, src_arena: *ASTArena,
+dst_arena: *ASTArena, ty: i32, names_flat: *u8, lens: *i32, conc: *i32, n_map: i32,
+depth: i32): i32 {
+  // PLATFORM: SHARED — Cap residual face; body = pure subst.
+  return typeck_subst_type_ref(mod, src_arena, dst_arena, ty, names_flat, lens, conc, n_map, depth);
+}
+
+/**
+ * Cap residual face: build formal free-param mono map from call value args.
+ * Thin → typeck_build_value_formal_mono_map (G.7 dual-export ban).
+ * @return i32 — n_map
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function glue_typeck_build_value_formal_mono_map_c(search_mod: *Module,
+search_arena: *ASTArena, caller_arena: *ASTArena, call_expr_ref: i32, func_idx: i32,
+names_flat: *u8, lens: *i32, conc: *i32, max_map: i32): i32 {
+  // PLATFORM: SHARED — Cap residual face; body = pure build_value_formal_mono_map.
+  return typeck_build_value_formal_mono_map(search_mod, search_arena, caller_arena, call_expr_ref,
+    func_idx, names_flat, lens, conc, max_map);
+}
+
+// end wave251 pure-owned leave
 

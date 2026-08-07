@@ -80,6 +80,9 @@ extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *b
 
 int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t ref);
 int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t ref);
+/* wave251: TYPE_NAMED mono meta stamp (elem + array_size) for pure alloc. */
+int32_t pipeline_type_set_elem_array_size_at(struct ast_ASTArena *arena, int32_t ref, int32_t elem_ref,
+                                            int32_t array_size);
 /* wave1166: type pool accessors migrated to ast_pool_type.c (via ast_pool.c
  * #include at L5058). Fwd decls for callsites before that #include. */
 int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *arena, int32_t ref);
