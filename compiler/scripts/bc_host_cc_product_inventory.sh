@@ -99,7 +99,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_typeck_coerce_init.c|8.3.1|typeck coerce-init domain pure leave (wave233 int_binop+resolve_alias+int_lit)|80|present"
   "compiler/pipeline_typeck_method_call.c|8.3.1|typeck method_call + generic UFCS mono slice|800|present"
   "compiler/pipeline_typeck_check_block.c|8.3.1|typeck check_block Cap residual thin (wave226 pure leave → typeck.x walker)|180|present"
-  "compiler/pipeline_typeck_region_assign.c|8.3.1|typeck region/escape assign-site slice|350|present"
+  "compiler/pipeline_typeck_region_assign.c|8.3.1|typeck region/escape assign-site (wave239 call_slice pure leave)|280|present"
   "compiler/pipeline_asm_emit_unary.c|8.3.1|asm ELF unary emit (wave133 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_as.c|8.3.1|asm ELF as/await/try/float-lit emit (wave138 pure-owned leave)|0|absent"
   "compiler/pipeline_asm_emit_modlet.c|8.3.1|asm ELF modlet COMMON cell emit (wave139 pure-owned leave)|0|absent"
