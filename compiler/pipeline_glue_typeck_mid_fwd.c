@@ -17,6 +17,8 @@
  *  - module main/func body/return/extern name faces
  *  - typeck_check_block_one_* / check_expr kind helpers (typeck.o)
  *  - wave248: overload resolve Cap faces pure (for_emit/pick); call_struct_stack_escape face
+ *  - wave249: mono foundation Cap faces pure (named_is_module_type / call_arg_effective /
+ *    type_tree_has_free_param) — bodies in typeck_x.o
  *
  * Include site: pipeline_glue.c after typeck_assign (field_access #include removed)
  * and before pipeline_typeck_region_assign.c.

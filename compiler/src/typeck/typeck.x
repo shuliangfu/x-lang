@@ -9635,10 +9635,79 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
+ * wave249 pure leave: TYPE_NAMED name is a module struct layout or type alias
+ * (concrete type), as opposed to a free type-param. Cap residual mono/UFCS/
+ * fixup authority face: pipeline_typeck_named_is_module_type_c.
+ * G.7 有则补全 — sole name→concrete probe for free-param vs module type
+ * (distinct from typeck_named_is_module_concrete which also walks enums/deps).
+ * @param module *Module — layouts / type aliases owner (null → 0)
+ * @param arena *ASTArena — unused (ABI parity with Cap residual; may be null)
+ * @param name *u8 — TYPE_NAMED spelling
+ * @param name_len i32 — byte count; <=0 → 0
+ * @return i32 — 1 concrete module type, 0 free/unknown
+ * PLATFORM: SHARED freestanding typeck mono foundation.
+ */
+export function typeck_named_is_module_type(module: *Module, arena: *ASTArena, name: *u8,
+name_len: i32): i32 {
+  // PLATFORM: SHARED — free-param vs module type probe (structs + aliases only).
+  unsafe {
+    let si: i32 = 0;
+    let nsl: i32 = 0;
+    let snlen: i32 = 0;
+    let snm: u8[128] = [];
+    let n_alias: i32 = 0;
+    let ai: i32 = 0;
+    let alen: i32 = 0;
+    let bi: i32 = 0;
+    let same: i32 = 0;
+    if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0) {
+      return 0;
+    }
+    // arena unused: Cap residual (void)arena; name compare only.
+    if (arena == 0 as *ASTArena) {
+      // keep null-tolerant ABI; no load from arena.
+    }
+    nsl = pipeline_module_num_struct_layouts_at(module);
+    si = 0;
+    while (si < nsl) {
+      snlen = pipeline_module_struct_layout_name_len(module, si);
+      if (snlen == name_len && snlen > 0) {
+        pipeline_module_struct_layout_name_into(module, si, &snm[0]);
+        if (name_equal(&snm[0], snlen, name, name_len)) {
+          return 1;
+        }
+      }
+      si = si + 1;
+    }
+    n_alias = pipeline_module_num_type_aliases_at(module);
+    ai = 0;
+    while (ai < n_alias) {
+      alen = pipeline_module_type_alias_name_len(module, ai);
+      if (alen == name_len && alen > 0) {
+        same = 1;
+        bi = 0;
+        while (bi < alen) {
+          if (pipeline_module_type_alias_name_byte_at(module, ai, bi) != name[bi]) {
+            same = 0;
+            break;
+          }
+          bi = bi + 1;
+        }
+        if (same != 0) {
+          return 1;
+        }
+      }
+      ai = ai + 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * Return 1 when TYPE_NAMED ty is a free type-param (name is not a module
- * struct layout or type alias). Mirrors glue
- * `pipeline_typeck_named_is_module_type_c` inverted — G.7 twin for typeck.x.
- * Used by call arg gate so formals `x: T` on `id&lt;T&gt;` accept concrete args.
+ * struct layout or type alias). wave249 G.7: inverted typeck_named_is_module_type
+ * (no second name scan). Used by call arg gate so formals `x: T` on generics
+ * accept concrete args.
  * @param module *Module — callee module (layouts / aliases)
  * @param arena *ASTArena
  * @param ty_ref i32 — candidate formal type_ref
@@ -9650,15 +9719,6 @@ export function typeck_type_is_free_type_param(module: *Module, arena: *ASTArena
   unsafe {
     let nm: u8[128] = [];
     let nlen: i32 = 0;
-    let nsl: i32 = 0;
-    let si: i32 = 0;
-    let snlen: i32 = 0;
-    let snm: *u8 = 0 as *u8;
-    let n_alias: i32 = 0;
-    let ai: i32 = 0;
-    let alen: i32 = 0;
-    let off: i32 = 0;
-    let same: i32 = 0;
     if (module == 0 as *Module || arena == 0 as *ASTArena || ty_ref <= 0) {
       return 0;
     }
@@ -9670,38 +9730,9 @@ export function typeck_type_is_free_type_param(module: *Module, arena: *ASTArena
     if (nlen <= 0 || nlen > 127) {
       return 0;
     }
-    nsl = pipeline_module_num_struct_layouts_at(module);
-    si = 0;
-    while (si < nsl) {
-      snlen = pipeline_module_struct_layout_name_len(module, si);
-      if (snlen == nlen && snlen > 0) {
-        snm = typeck_scratch64_slot(2);
-        pipeline_module_struct_layout_name_into(module, si, snm);
-        if (name_equal(snm, snlen, &nm[0], nlen)) {
-          return 0;
-        }
-      }
-      si = si + 1;
-    }
-    n_alias = pipeline_module_num_type_aliases_at(module);
-    ai = 0;
-    while (ai < n_alias) {
-      alen = pipeline_module_type_alias_name_len(module, ai);
-      if (alen == nlen && alen > 0 && alen <= 127) {
-        same = 1;
-        off = 0;
-        while (off < alen) {
-          if (pipeline_module_type_alias_name_byte_at(module, ai, off) != nm[off]) {
-            same = 0;
-            break;
-          }
-          off = off + 1;
-        }
-        if (same != 0) {
-          return 0;
-        }
-      }
-      ai = ai + 1;
+    // G.7: sole name→concrete probe is typeck_named_is_module_type.
+    if (typeck_named_is_module_type(module, arena, &nm[0], nlen) != 0) {
+      return 0;
     }
     return 1;
   }
@@ -15859,4 +15890,120 @@ call_expr_ref: i32): i32 {
 }
 
 // end wave248 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave249: typeck mono foundation pure leave (method_call residual subdomain)
+// Authority: typeck_x.o (this file + typeck_gen hand-sync).
+// Symbols:
+//   pipeline_typeck_named_is_module_type_c       (#[no_mangle])
+//   pipeline_typeck_call_arg_effective_type_c    (#[no_mangle])
+//   glue_typeck_type_tree_has_free_param_c       (#[no_mangle])
+// Live bodies: typeck_named_is_module_type + typeck_call_arg_effective_type
+//   + typeck_type_tree_has_free_type_param (pre-existing; Cap face only)
+// G.7: free-param probe = inverted named_is_module_type (no second name scan).
+// Cap residual method_call: delete static named_is_module_type body +
+//   type_tree_has_free_param body + call_arg_effective_type body (dual-export ban).
+// PLATFORM: SHARED freestanding typeck generic mono foundation for UFCS/fixup.
+// ---------------------------------------------------------------------------
+
+/**
+ * Effective mono type_ref for a call arg, falling back to lit-kind defaults.
+ * Bare INT/BOOL/FLOAT/STRING lits often lack resolved_type_ref until stamp;
+ * try_infer needs each arg to pin a mono type for free-T unification.
+ * @param arena *ASTArena — arg expr arena (null → 0)
+ * @param arg_ref i32 — call arg expr ref
+ * @return i32 — type_ref >0 if pinable; 0 if null arena / invalid / bare null keyword
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_call_arg_effective_type(arena: *ASTArena, arg_ref: i32): i32 {
+  // PLATFORM: SHARED — mono pin for generic inference (lit fallback).
+  unsafe {
+    let arg_ty: i32 = 0;
+    let ek: i32 = 0;
+    let u8t: i32 = 0;
+    if (arena == 0 as *ASTArena || arg_ref <= 0) {
+      return 0;
+    }
+    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (arg_ty > 0) {
+      return arg_ty;
+    }
+    ek = pipeline_expr_kind_ord_at(arena, arg_ref);
+    // EXPR_LIT=0: bare int lit (not keyword null) → i32 for mono pin.
+    if (ek == 0) {
+      if (typeck_expr_is_null_keyword(arena, arg_ref) != 0) {
+        return 0;
+      }
+      return pipeline_type_ensure_by_kind_ord(arena, TypeKind.TYPE_I32 as i32);
+    }
+    // EXPR_FLOAT_LIT=1 → f64.
+    if (ek == 1) {
+      return pipeline_type_ensure_by_kind_ord(arena, TypeKind.TYPE_F64 as i32);
+    }
+    // EXPR_BOOL_LIT=2 → bool.
+    if (ek == 2) {
+      return pipeline_type_ensure_by_kind_ord(arena, TypeKind.TYPE_BOOL as i32);
+    }
+    // EXPR_STRING_LIT=59 → *u8 (C interop default).
+    if (ek == 59) {
+      u8t = pipeline_type_ensure_by_kind_ord(arena, TypeKind.TYPE_U8 as i32);
+      if (u8t <= 0) {
+        return 0;
+      }
+      return pipeline_type_find_or_alloc_compound(arena, TypeKind.TYPE_PTR as i32, u8t, 0);
+    }
+    return 0;
+  }
+}
+
+/**
+ * Cap residual face: named is module type (wave249 pure leave).
+ * Thin → typeck_named_is_module_type (G.7 dual-export ban).
+ * @param m *Module — layouts / aliases owner
+ * @param a *ASTArena — unused ABI slot
+ * @param nm *u8 — TYPE_NAMED spelling
+ * @param nlen i32 — name length
+ * @return i32 — 1 concrete, 0 free/unknown
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_named_is_module_type_c(m: *Module, a: *ASTArena, nm: *u8,
+nlen: i32): i32 {
+  // PLATFORM: SHARED — Cap residual face name; body = pure named_is_module_type.
+  return typeck_named_is_module_type(m, a, nm, nlen);
+}
+
+/**
+ * Cap residual face: call-arg effective mono type (wave249 pure leave).
+ * Thin → typeck_call_arg_effective_type (G.7 dual-export ban).
+ * @param a *ASTArena — arg arena
+ * @param arg_ref i32 — call arg expr
+ * @return i32 — type_ref or 0
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_call_arg_effective_type_c(a: *ASTArena, arg_ref: i32): i32 {
+  // PLATFORM: SHARED — Cap residual face name; body = pure call_arg_effective_type.
+  return typeck_call_arg_effective_type(a, arg_ref);
+}
+
+/**
+ * Cap residual face: type tree has free type-param (wave249 pure leave).
+ * Thin → typeck_type_tree_has_free_type_param (G.7 dual-export ban;
+ * residual glue body deleted; historical C name preserved for UFCS/fixup).
+ * @param mod *Module — layouts / aliases owner
+ * @param arena *ASTArena — type tree arena
+ * @param ty i32 — type_ref root
+ * @param depth i32 — recursion depth (cap 12)
+ * @return i32 — 1 if free type-param found, else 0
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function glue_typeck_type_tree_has_free_param_c(mod: *Module, arena: *ASTArena, ty: i32,
+depth: i32): i32 {
+  // PLATFORM: SHARED — Cap residual historical glue name; body = pure free-param walk.
+  return typeck_type_tree_has_free_type_param(mod, arena, ty, depth);
+}
+
+// end wave249 pure-owned leave
 

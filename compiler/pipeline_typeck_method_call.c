@@ -26,6 +26,10 @@
  *
  * wave248 pure leave: overload pick/resolve Cap faces → typeck_x.o;
  * deleted residual second score cluster (count/assignable/match/expect/pick/resolve).
+ *
+ * wave249 pure leave: mono foundation → typeck_x.o;
+ * deleted residual named_is_module_type + type_tree_has_free_param +
+ * call_arg_effective_type bodies (Cap faces extern-only; dual-export ban).
  */
 
 
@@ -36,6 +40,13 @@ extern int32_t typeck_resolve_dep_index_for_import(struct ast_Module *module, st
 extern int32_t typeck_resolve_whole_import_qualified_call_return_type(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                        int32_t callee_expr_ref, struct ast_PipelineDepCtx *ctx,
                                                                        int32_t *dep_index_out, int32_t *func_index_out);
+
+/* wave249: mono foundation pure leave — Cap faces live in typeck_x.o only. */
+extern int32_t pipeline_typeck_named_is_module_type_c(struct ast_Module *mod, struct ast_ASTArena *arena,
+                                                     const uint8_t *nm, int32_t nlen);
+extern int32_t pipeline_typeck_call_arg_effective_type_c(struct ast_ASTArena *arena, int32_t arg_ref);
+extern int32_t glue_typeck_type_tree_has_free_param_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t ty,
+                                                     int32_t depth);
 
 /** 两 slice 等长字节比较；len<=0 返回 0。 */
 static int32_t glue_slice_equal_c(const uint8_t *a, int32_t alen, const uint8_t *b, int32_t blen) {
@@ -404,9 +415,6 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *m
  *
  * @param expected_ret ambient expected type from let/return (0 if none)
  */
-static int32_t pipeline_typeck_named_is_module_type_c(struct ast_Module *mod, struct ast_ASTArena *arena,
-                                                     const uint8_t *nm, int32_t nlen);
-
 /*
  * wave486 Cap residual pure: monomorphize a generic *module* return type tree.
  * wave487: also pattern-unify value formals that are generic structs
@@ -436,13 +444,11 @@ enum { W486_MONO_MAX_MAP = 8, W486_MONO_MAX_TARGS = 8, W486_MONO_MAX_DEPTH = 12 
 /* Forward: used by wave487 pattern-unify before their definitions below. */
 static int32_t glue_typeck_named_num_type_args_c(struct ast_ASTArena *arena, int32_t ty);
 /*
- * wave494: exported (non-static) so pipeline_glue_strict_minimal seed can call
- * these helpers for generic method_call UFCS. G.7 single authority — no
- * duplicate implementation in the strict_minimal TU.
+ * wave249 pure leave: glue_typeck_type_tree_has_free_param_c → typeck_x.o
+ * (#[no_mangle] Cap face → typeck_type_tree_has_free_type_param). Dual-export ban.
+ * wave494: was non-static for strict_minimal UFCS; still same Cap face name.
  * PLATFORM: SHARED typeck.
  */
-int32_t glue_typeck_type_tree_has_free_param_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t ty,
-                                                     int32_t depth);
 extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
 /* wave1198: pipeline_typeck_call_arg_repr_compatible_ok_c migrated to
  * pipeline_typeck_check_expr.c EOF (#include at L5444 > this file's #include
@@ -694,43 +700,12 @@ static int32_t glue_typeck_named_num_type_args_c(struct ast_ASTArena *arena, int
   return n;
 }
 
-/** 1 if TYPE_NAMED tree contains a free type-param name (not a module concrete). */
-int32_t glue_typeck_type_tree_has_free_param_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t ty,
-                                                     int32_t depth) {
-  int32_t kind;
-  int32_t nlen;
-  uint8_t nm[128];
-  int32_t n_ta;
-  int32_t i;
-  int32_t ta;
-  int32_t elem;
-  extern int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx);
-  if (!mod || !arena || ty <= 0 || depth > W486_MONO_MAX_DEPTH)
-    return 0;
-  kind = pipeline_type_kind_ord_at(arena, ty);
-  if (kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
-    memset(nm, 0, sizeof(nm));
-    nlen = pipeline_type_named_name_into(arena, ty, nm);
-    if (nlen <= 0)
-      return 0;
-    if (pipeline_typeck_named_is_module_type_c(mod, arena, nm, nlen) == 0)
-      return 1; /* free type param */
-    n_ta = glue_typeck_named_num_type_args_c(arena, ty);
-    for (i = 0; i < n_ta; i++) {
-      ta = pipeline_type_type_arg_ref_at(arena, ty, i);
-      if (ta > 0 && glue_typeck_type_tree_has_free_param_c(mod, arena, ta, depth + 1))
-        return 1;
-    }
-    return 0;
-  }
-  if (kind == (int32_t)ast_TypeKind_TYPE_PTR || kind == (int32_t)ast_TypeKind_TYPE_SLICE ||
-      kind == (int32_t)ast_TypeKind_TYPE_ARRAY || kind == (int32_t)ast_TypeKind_TYPE_VECTOR) {
-    elem = pipeline_type_elem_ref_at(arena, ty);
-    if (elem > 0)
-      return glue_typeck_type_tree_has_free_param_c(mod, arena, elem, depth + 1);
-  }
-  return 0;
-}
+/*
+ * wave249 pure leave: glue_typeck_type_tree_has_free_param_c body → typeck_x.o
+ * (#[no_mangle] Cap face → typeck_type_tree_has_free_type_param). Dual-export ban.
+ * Call sites in this TU use the Cap face via top-of-file extern.
+ * PLATFORM: SHARED freestanding typeck mono foundation.
+ */
 
 /**
  * Allocate TYPE_NAMED with type-pos args (never reuse find_or_alloc_named — that
@@ -1062,165 +1037,38 @@ int32_t pipeline_typeck_method_call_generic_ufcs_c(struct ast_Module *module, st
   return 0;
 }
 
-/**
- * Effective mono type_ref for a call arg, falling back to lit-kind defaults.
- *
- * Why: try_infer_generic_call_from_args needs each arg to pin a mono type for
- * free-T unification. Bare INT/BOOL/FLOAT/STRING lits often lack
- * resolved_type_ref until stamp; prior try_infer required arg_ty>0 → id(42)
- * fell through to requires_type_args even after free-T formals were accepted
- * by call_arg_types. This helper centralizes the effective-type fallback so
- * value_ok and same-name unify share one path.
- *
- * Invariant: returns type_ref >0 if arg can pin a mono type; 0 if NULL arena,
- * invalid arg_ref, or arg is bare `null` keyword (cannot pin free T).
- *   - EXPR_LIT(0) non-null → TYPE_I32
- *   - EXPR_FLOAT_LIT(1) → TYPE_F64
- *   - EXPR_BOOL_LIT(2) → TYPE_BOOL
- *   - EXPR_STRING_LIT(59) → *u8 (C interop default)
- *
- * Asm/Perf: O(1) — one resolved_type_ref read + kind dispatch. Cold path —
- * called per call arg in try_infer_generic_call_from_args (glue.c:14810/14834/
- * 14860).
- *
- * PLATFORM: SHARED — typeck mono pin is platform-independent.
- *
- * wave1075 G.7: migrated from glue.c:14747 (body 31 LOC). Static (non-extern):
- * same-TU — method_call.c #include at L14220 < def EOF < all callsites
- * (L14810/14834/14860). Dependencies: pipeline_expr_resolved_type_ref /
- * pipeline_expr_kind_ord_at / pipeline_type_ensure_by_kind_ord /
- * pipeline_type_find_or_alloc_compound (all extern);
- * typeck_expr_is_null_keyword (extern, declared in-function-body).
+/*
+ * wave249 pure leave: pipeline_typeck_call_arg_effective_type_c body → typeck_x.o
+ * (#[no_mangle] Cap face → typeck_call_arg_effective_type). Dual-export ban.
+ * try_infer callsites use Cap face via top-of-file extern.
+ * PLATFORM: SHARED freestanding typeck mono foundation.
  */
-static int32_t pipeline_typeck_call_arg_effective_type_c(struct ast_ASTArena *arena, int32_t arg_ref) {
-  int32_t arg_ty;
-  int32_t ek;
-  extern int32_t typeck_expr_is_null_keyword(struct ast_ASTArena *a, int32_t expr_ref);
-  if (!arena || arg_ref <= 0)
-    return 0;
-  arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
-  if (arg_ty > 0)
-    return arg_ty;
-  ek = pipeline_expr_kind_ord_at(arena, arg_ref);
-  /* EXPR_LIT=0: bare int lit (not keyword null) → i32 for mono pin. */
-  if (ek == 0) {
-    if (typeck_expr_is_null_keyword(arena, arg_ref) != 0)
-      return 0; /* null alone cannot pin free T */
-    return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I32);
-  }
-  /* EXPR_FLOAT_LIT=1 → f64 (product default float lit width). */
-  if (ek == 1)
-    return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_F64);
-  /* EXPR_BOOL_LIT=2 → bool. */
-  if (ek == 2)
-    return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_BOOL);
-  /* EXPR_STRING_LIT=59 → *u8 (C interop default for string lit). */
-  if (ek == 59) {
-    int32_t u8t = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_U8);
-    if (u8t <= 0)
-      return 0;
-    return pipeline_type_find_or_alloc_compound(arena, (int32_t)ast_TypeKind_TYPE_PTR, u8t, 0);
-  }
-  return 0;
-}
-
-
-
 
 
 /* ============================================================
  * wave248 pure leave: overload pick/resolve → typeck_x.o
- * Deleted residual second score path (G.7 dual-export ban):
- *   pipeline_module_func_overload_count_c
- *   pipeline_typeck_call_arg_assignable_c
- *   pipeline_typeck_overload_match_score_c
- *   pipeline_typeck_overload_expect_match_c
- *   pipeline_typeck_pick_overload_func_index_c
- *   pipeline_typeck_resolve_call_func_index_c
- * Live authority: typeck_pick_overload_func_index_for_call /
- *   typeck_resolve_call_func_index_for_emit + Cap faces #[no_mangle] in typeck.x
- *   (score = typeck_overload_arg_param_score via by_name_overload).
- * Cap residual faces below are extern-only (bodies in typeck_x.o).
+ * Deleted residual second score path (G.7 dual-export ban).
  * PLATFORM: SHARED freestanding typeck CALL overload resolve.
  * ============================================================ */
 
+/* ============================================================
+ * wave249 pure leave: mono foundation → typeck_x.o
+ * Deleted residual second bodies (G.7 dual-export ban):
+ *   pipeline_typeck_named_is_module_type_c
+ *   pipeline_typeck_call_arg_effective_type_c
+ *   glue_typeck_type_tree_has_free_param_c
+ * Live authority: typeck_named_is_module_type + typeck_call_arg_effective_type
+ *   + typeck_type_tree_has_free_type_param + Cap faces #[no_mangle] in typeck.x
+ * Cap residual faces: top-of-file extern-only (bodies in typeck_x.o).
+ * PLATFORM: SHARED freestanding typeck generic mono foundation.
+ * ============================================================ */
+
 /* ===========================================================================
- * wave1095-1099 G.7: generic call inference domain (5 leaves) migrated from
- * pipeline_glue.c. These functions form the generic call type inference and
- * validation sub-domain of method call: type-param inference from value args,
- * trait bound checking, type-arg count validation, and return-type mono fixup.
- * Static (non-extern): same-TU — method_call.c #include at glue.c:L13803 <
- * def EOF < all remaining callsites in glue.c (L14181 bootstrap_fixup,
- * L14743 check_call_generic_type_args, L14757 glue_generic_call_fixup).
- * pipeline_typeck_named_is_module_type_c has static fwd decl at L348 above
- * (needed by calls at L476-L872 in this file before the EOF definition).
+ * wave1095-1099 G.7: generic call inference domain residual (try_infer /
+ * bounds / check_call_generic_type_args / fixup) still host-cc here.
+ * named_is_module_type + free_param + call_arg_effective → typeck_x (wave249).
  * PLATFORM: SHARED.
  * ========================================================================== */
-
-/**
- * Check whether a TYPE_NAMED name refers to a module-defined struct or type
- * alias (concrete type), as opposed to a free type parameter.
- *
- * Why: Used by expected-return inference + generic call fixup to fail-closed
- * when a return type is unconstrained (a concrete module type needs no mono
- * fixup; a bare type param T does). Scans module struct_layouts and type
- * aliases for a name match via glue_slice_equal_c byte comparison.
- *
- * Invariant: Returns 1 if the name matches a module struct or alias; 0
- * otherwise (including null/empty inputs).
- *
- * Asm/Perf: O(N_structs + N_aliases) linear scan. Cold path — called during
- * typeck of generic calls, not in hot codegen.
- *
- * PLATFORM: SHARED — typeck helper, platform-independent.
- *
- * wave1095 G.7: migrated from glue.c:14246 (body 40 LOC). Static fwd decl at
- * method_call.c:348 (before callsites L476-L872). Deps: pipeline_module_num_
- * struct_layouts_at / pipeline_module_struct_layout_name_len / pipeline_module_
- * struct_layout_name_into / glue_slice_equal_c (same file, def above) /
- * pipeline_module_num_type_aliases_at / pipeline_module_type_alias_name_len /
- * pipeline_module_type_alias_name_byte_at (all extern).
- */
-static int32_t pipeline_typeck_named_is_module_type_c(struct ast_Module *mod, struct ast_ASTArena *arena,
-                                                     const uint8_t *nm, int32_t nlen) {
-  int32_t si;
-  int32_t nsl;
-  int32_t snlen;
-  uint8_t snm[128];
-  int32_t n_alias;
-  int32_t ai;
-  (void)arena;
-  if (!mod || !nm || nlen <= 0)
-    return 0;
-  nsl = pipeline_module_num_struct_layouts_at(mod);
-  for (si = 0; si < nsl; si = si + 1) {
-    snlen = pipeline_module_struct_layout_name_len(mod, si);
-    if (snlen != nlen || snlen <= 0)
-      continue;
-    pipeline_module_struct_layout_name_into(mod, si, snm);
-    if (glue_slice_equal_c(nm, nlen, snm, snlen))
-      return 1;
-  }
-  n_alias = pipeline_module_num_type_aliases_at(mod);
-  for (ai = 0; ai < n_alias; ai = ai + 1) {
-    snlen = pipeline_module_type_alias_name_len(mod, ai);
-    if (snlen != nlen || snlen <= 0)
-      continue;
-    {
-      int32_t bi;
-      int32_t same = 1;
-      for (bi = 0; bi < snlen; bi = bi + 1) {
-        if (pipeline_module_type_alias_name_byte_at(mod, ai, bi) != nm[bi]) {
-          same = 0;
-          break;
-        }
-      }
-      if (same)
-        return 1;
-    }
-  }
-  return 0;
-}
 
 /**
  * Stamp monomorphized resolved_type_ref on a generic CALL when the signature
