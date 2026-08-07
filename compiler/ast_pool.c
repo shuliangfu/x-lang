@@ -107,8 +107,11 @@ extern void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct a
 /** BC 8.3.2 wave980+993+994: TopLevelLetEntry + name_is_const/hoist + hoist_target/sum. */
 #include "ast_pool_top_level.c"
 
-/** BC 8.3.2: module TypeAliasEntry cold accessors (same-TU thin). */
-#include "ast_pool_type_alias.c"
+/* 2026-08-08 wave262: ast_pool_type_alias.c pure-owned leave.
+ * Live faces: runtime_pipeline_abi.x (pipeline_module_type_alias_* +
+ * num_type_aliases_at + storage_reset/release). Cap residual: ModuleSidecar
+ * type_aliases GrowVec still init/free in sidecar_pool (unused for product
+ * aliases after leave). PLATFORM: SHARED. */
 
 /* 2026-08-05: pipeline_backend_asm_wrapper.c pure-owned leave (wave113).
  * Live face: runtime_pipeline_abi.x (pipeline_backend_asm_codegen_ast_c /

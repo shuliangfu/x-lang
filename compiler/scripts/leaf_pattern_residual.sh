@@ -9063,8 +9063,8 @@ _xsd_n=$(awk '
   /^PIPELINE_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
   END { print t+0 }
 ' "$_XSD_MK")
-if [ "${_xsd_n:-0}" -ne 49 ]; then
-  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 49 in mk, got ${_xsd_n:-0}"
+if [ "${_xsd_n:-0}" -ne 47 ]; then
+  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 47 in mk (wave262 type_alias leave), got ${_xsd_n:-0}"
 fi
 # wave965: PIPELINE_X_DEPS must list #include slices so STALE rebuilds pipeline_x.
 # wave255 host-cc leave: CTFE thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
@@ -9074,6 +9074,7 @@ fi
 # wave259 host-cc leave: check_block Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
 # wave261 host-cc leave: glue_statics Cap residual retired; authority runtime_pipeline_abi pure.
 # wave260 host-cc leave: method_call Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
+# wave262 host-cc leave: ast_pool_type_alias Cap residual retired; authority runtime_pipeline_abi pure.
 if grep -qE 'pipeline_typeck_ctfe\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_ctfe.c (wave255 host-cc leave)"
 fi
@@ -9118,6 +9119,12 @@ if [ -f "$ROOT/compiler/pipeline_glue_statics.c" ]; then
 fi
 if grep -qE 'pipeline_asm_ctx_layout\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list pipeline_asm_ctx_layout.c (wave125 pure leave; stale DEPS cleaned wave261)"
+fi
+if grep -qE 'ast_pool_type_alias\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_type_alias.c (wave262 host-cc leave)"
+fi
+if [ -f "$ROOT/compiler/ast_pool_type_alias.c" ]; then
+  bad "ast_pool_type_alias.c must be deleted (wave262 pure-owned leave)"
 fi
 if grep -qE 'pipeline_asm_emit_unary\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must not list pipeline_asm_emit_unary.c (wave133 pure-owned leave)"
@@ -9297,9 +9304,7 @@ fi
 if ! grep -qE 'ast_pool_top_level\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_top_level.c (8.3.2 top_level slice)"
 fi
-if ! grep -qE 'ast_pool_type_alias\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_type_alias.c (8.3.2 type_alias slice)"
-fi
+# wave262: ast_pool_type_alias.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
 if ! grep -qE 'ast_pool_expr_sidecar\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_expr_sidecar.c (8.3.2 expr_sidecar slice)"
 fi

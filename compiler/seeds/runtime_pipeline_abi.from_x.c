@@ -1,5 +1,7 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave262: type_alias Cap residual pure leave cold twins under #ifndef FROM_X
+ *   (pipeline_module_type_alias_* + num_type_aliases_at + storage_reset/release)
  * wave261: glue_statics Cap residual pure leave cold twins under #ifndef FROM_X
  *   (glue_asm_ctx_set_scope_block + glue_block_body_bind_module_dep_from_ctx)
  * wave224: typeck_active module BSS+get/set pure leave cold twins under #ifndef FROM_X
@@ -27282,6 +27284,198 @@ void glue_block_body_bind_module_dep_from_ctx(void *ctx) {
   memcpy(&dep, ly + 1384, sizeof(void *));
   if (dep)
     pipeline_asm_emit_ctx_dep_pipe_set(dep);
+}
+
+/*
+ * wave262 cold twins: ast_pool_type_alias Cap residual pure leave.
+ * Freestanding multi-module TypeAliasEntry map (136-byte entries).
+ * Hybrid product links pure; cold seed keeps bodies under #ifndef FROM_X.
+ * Layout ≡ C TypeAliasEntry: name[128]@0 | name_len@128 | target@132.
+ * PLATFORM: SHARED freestanding type_alias Cap leave.
+ */
+#define WAVE262_TA_SLOTS 128
+#define WAVE262_TA_ENTRY_SZ 136
+static void *g_wave262_ta_mod[WAVE262_TA_SLOTS];
+static int32_t g_wave262_ta_n[WAVE262_TA_SLOTS];
+static int32_t g_wave262_ta_cap[WAVE262_TA_SLOTS];
+static uint8_t *g_wave262_ta_entries[WAVE262_TA_SLOTS];
+
+static int wave262_ta_find_slot(void *module) {
+  int i;
+  if (!module)
+    return -1;
+  for (i = 0; i < WAVE262_TA_SLOTS; i++) {
+    if (g_wave262_ta_mod[i] == module)
+      return i;
+  }
+  return -1;
+}
+
+static int wave262_ta_find_or_create(void *module) {
+  int i;
+  int found;
+  if (!module)
+    return -1;
+  found = wave262_ta_find_slot(module);
+  if (found >= 0)
+    return found;
+  for (i = 0; i < WAVE262_TA_SLOTS; i++) {
+    if (g_wave262_ta_mod[i] == NULL) {
+      g_wave262_ta_mod[i] = module;
+      g_wave262_ta_n[i] = 0;
+      g_wave262_ta_cap[i] = 0;
+      g_wave262_ta_entries[i] = NULL;
+      return i;
+    }
+  }
+  return -1;
+}
+
+static int wave262_ta_ensure(int slot, int32_t need) {
+  int32_t cap;
+  int32_t new_cap;
+  uint8_t *np;
+  uint8_t *old;
+  if (slot < 0 || slot >= WAVE262_TA_SLOTS)
+    return 0;
+  if (need <= 0)
+    return 1;
+  cap = g_wave262_ta_cap[slot];
+  if (cap >= need)
+    return 1;
+  new_cap = cap < 8 ? 8 : cap;
+  while (new_cap < need)
+    new_cap *= 2;
+  np = (uint8_t *)malloc((size_t)new_cap * (size_t)WAVE262_TA_ENTRY_SZ);
+  if (!np)
+    return 0;
+  old = g_wave262_ta_entries[slot];
+  if (old && g_wave262_ta_n[slot] > 0)
+    memcpy(np, old, (size_t)g_wave262_ta_n[slot] * (size_t)WAVE262_TA_ENTRY_SZ);
+  if (old)
+    free(old);
+  g_wave262_ta_entries[slot] = np;
+  g_wave262_ta_cap[slot] = new_cap;
+  return 1;
+}
+
+static uint8_t *wave262_ta_entry_at(int slot, int32_t idx) {
+  if (slot < 0 || slot >= WAVE262_TA_SLOTS)
+    return NULL;
+  if (idx < 0 || idx >= g_wave262_ta_n[slot])
+    return NULL;
+  if (!g_wave262_ta_entries[slot])
+    return NULL;
+  return g_wave262_ta_entries[slot] + (size_t)idx * (size_t)WAVE262_TA_ENTRY_SZ;
+}
+
+void pipeline_module_type_alias_storage_reset(void *module) {
+  int s = wave262_ta_find_slot(module);
+  if (s < 0)
+    return;
+  g_wave262_ta_n[s] = 0;
+}
+
+void pipeline_module_type_alias_storage_release(void *module) {
+  int s = wave262_ta_find_slot(module);
+  if (s < 0)
+    return;
+  if (g_wave262_ta_entries[s])
+    free(g_wave262_ta_entries[s]);
+  g_wave262_ta_mod[s] = NULL;
+  g_wave262_ta_entries[s] = NULL;
+  g_wave262_ta_n[s] = 0;
+  g_wave262_ta_cap[s] = 0;
+}
+
+int32_t pipeline_module_type_alias_alloc(void *module) {
+  int s;
+  int32_t n;
+  uint8_t *base;
+  if (!module)
+    return -1;
+  s = wave262_ta_find_or_create(module);
+  if (s < 0)
+    return -1;
+  n = g_wave262_ta_n[s];
+  if (!wave262_ta_ensure(s, n + 1))
+    return -1;
+  base = g_wave262_ta_entries[s];
+  if (!base)
+    return -1;
+  memset(base + (size_t)n * (size_t)WAVE262_TA_ENTRY_SZ, 0, (size_t)WAVE262_TA_ENTRY_SZ);
+  g_wave262_ta_n[s] = n + 1;
+  return n;
+}
+
+void pipeline_module_type_alias_set(void *module, int32_t idx, uint8_t *name, int32_t name_len,
+                                    int32_t target_type_ref) {
+  int s;
+  uint8_t *e;
+  int32_t i;
+  if (!module || !name || name_len <= 0 || name_len > 127)
+    return;
+  s = wave262_ta_find_slot(module);
+  if (s < 0)
+    return;
+  e = wave262_ta_entry_at(s, idx);
+  if (!e)
+    return;
+  for (i = 0; i < name_len; i++)
+    e[i] = name[i];
+  for (i = name_len; i < 128; i++)
+    e[i] = 0;
+  memcpy(e + 128, &name_len, 4);
+  memcpy(e + 132, &target_type_ref, 4);
+}
+
+int32_t pipeline_module_type_alias_name_len(void *module, int32_t idx) {
+  int s;
+  uint8_t *e;
+  int32_t n;
+  s = wave262_ta_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave262_ta_entry_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&n, e + 128, 4);
+  return n;
+}
+
+uint8_t pipeline_module_type_alias_name_byte_at(void *module, int32_t idx, int32_t off) {
+  int s;
+  uint8_t *e;
+  if (off < 0 || off >= 128)
+    return 0;
+  s = wave262_ta_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave262_ta_entry_at(s, idx);
+  if (!e)
+    return 0;
+  return e[off];
+}
+
+int32_t pipeline_module_type_alias_target_ref(void *module, int32_t idx) {
+  int s;
+  uint8_t *e;
+  int32_t t;
+  s = wave262_ta_find_slot(module);
+  if (s < 0)
+    return 0;
+  e = wave262_ta_entry_at(s, idx);
+  if (!e)
+    return 0;
+  memcpy(&t, e + 132, 4);
+  return t;
+}
+
+int32_t pipeline_module_num_type_aliases_at(void *module) {
+  int s = wave262_ta_find_slot(module);
+  if (s < 0)
+    return 0;
+  return g_wave262_ta_n[s];
 }
 
 /*

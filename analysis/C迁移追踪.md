@@ -963,7 +963,7 @@
 | `ast_pool_module_import.c` | ~226 | module ImportEntry cold-twin accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_struct_layout.c` | ~385 | module StructLayout cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_top_level.c` | ~326 | module TopLevelLetEntry + name_is_const／hoist + hoist_target／sum residual 切片 | 🟡 已抽出（wave980+993–994 有则补全）；仍 host-cc 入 `pipeline_x` |
-| `ast_pool_type_alias.c` | ~100 | module TypeAliasEntry cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
+| `ast_pool_type_alias.c` | **0（leave）** | module TypeAliasEntry Cap residual pure-owned leave (wave262) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map + faces；lifecycle reset／release 钩 pure；seed cold twins under #ifndef FROM_X |
 | `ast_pool_expr_sidecar.c` | ~647 | expr (+ type-pos) var-len sidecar 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_module_enum.c` | ~359 | module ModuleEnumEntry + enum field-access mark 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_onefunc.c` | ~986 | OneFunc sidecar + fill_from_onefunc residual 切片 | 🟡 已抽出（wave984+991 有则补全）；仍 host-cc 入 `pipeline_x` |
@@ -1074,6 +1074,7 @@
   - ✅ struct_layout 域 thin：`ast_pool_struct_layout.c`（`pipeline_module_struct_layout_*` + num + type_param meta ~365 LOC）同 TU 抽出；COUNT 35→36 / g05 STALE / inventory 已收
   - ✅ top_level 域 thin：`ast_pool_top_level.c`（`pipeline_module_top_level_let_*` ~113 LOC）同 TU 抽出；COUNT 36→37 / g05 STALE / inventory 已收
   - ✅ type_alias 域 thin：`ast_pool_type_alias.c`（`pipeline_module_type_alias_*` + `num_type_aliases_at` ~80 LOC body）同 TU 抽出；COUNT 37→38 / g05 STALE / inventory 已收
+  - ✅ type_alias host-cc leave（wave262）：live＝runtime_pipeline_abi pure multi-module TypeAliasEntry map；seed cold twin under #ifndef FROM_X；file absent
   - ✅ expr_sidecar 域 thin：`ast_pool_expr_sidecar.c`（call/method/match/struct_lit/array_lit + type_type_arg ~620 LOC body）同 TU 抽出；COUNT 38→39 / g05 STALE / inventory 已收
   - ✅ module_enum 域 thin：`ast_pool_module_enum.c`（`pipeline_module_enum_*` + expr/codegen enum field-access mark ~336 LOC body）同 TU 抽出；COUNT 39→40 / g05 STALE / inventory 已收
   - ✅ onefunc 域 thin：`ast_pool_onefunc.c`（const/let/param/call/while/for + copy_sidecar ~522 LOC body；`grow_vec_copy_append` 上提 core）同 TU 抽出；COUNT 40→41 / g05 STALE / inventory 已收
