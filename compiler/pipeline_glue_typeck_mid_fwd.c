@@ -4,9 +4,10 @@
  *
  * wave1286 BC 8.3 G.7 same-TU domain fold from pipeline_glue.c:
  * pure forward declarations and externs that must be visible after
- * typeck_assign (field_access host-cc leaf retired 8.3.3) and before region_assign.
- * Definitions live in method_call / check_block / region_assign / check_expr
- * leaves included later in this TU, or typeck.o / seeds.
+ * typeck_assign (field_access host-cc leaf retired 8.3.3).
+ * wave257: region_assign Cap residual pure-owned leave — region faces on typeck_x.o.
+ * Definitions live in method_call / check_block / check_expr leaves included later
+ * in this TU, or typeck_x.o / seeds.
  *
  * Sub-clusters (order preserved):
  *  - top-level let name / find_or_alloc_named faces
@@ -22,9 +23,8 @@
  *  - wave250: generic type-args / try_infer / bounds Cap face pure
  *    (check_call_generic_type_args) — body in typeck_x.o
  *
- * Include site: pipeline_glue.c after typeck_assign (field_access #include removed)
- * and before pipeline_typeck_region_assign.c.
- * Not a separate .o — host-cc via pipeline_x.o.
+ * Include site: pipeline_glue.c after typeck_fwd (assign/region_assign #include
+ * retired wave256/wave257). Not a separate .o — host-cc via pipeline_x.o.
  *
  * G.7: declarations only; no second implementation of any face.
  * PLATFORM: SHARED — host-cc residual shell.
@@ -198,7 +198,47 @@ extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_
 
 extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
 
-/** M-3 slice region assign / helpers: body in pipeline_typeck_region_assign.c (included below). */
+/* wave257 BC 8.3.1 host-cc leave: pipeline_typeck_region_assign.c deleted.
+ * Cap faces (slice/return/stack_escape/scope_borrow/allocator/call_slice *_c)
+ * live on typeck_x.o only. Extern decls below for residual same-TU callers
+ * (check_expr mega assign/return/call arms). PLATFORM: SHARED. */
+extern int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena *arena,
+                                                            int32_t site_expr_ref, int32_t expect_ref,
+                                                            int32_t src_ref);
+extern int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *module,
+                                                                  struct ast_ASTArena *arena,
+                                                                  int32_t site_expr_ref, int32_t left_ref,
+                                                                  int32_t right_ref,
+                                                                  struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_check_scope_borrow_assign_c(struct ast_Module *module,
+                                                            struct ast_ASTArena *arena,
+                                                            int32_t site_expr_ref, int32_t left_ref,
+                                                            int32_t right_ref,
+                                                            struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_check_scope_borrow_return_c(struct ast_Module *module,
+                                                            struct ast_ASTArena *arena,
+                                                            int32_t site_expr_ref, int32_t op_ref,
+                                                            int32_t return_type_ref,
+                                                            struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_check_allocator_region_assign_c(struct ast_Module *module,
+                                                               struct ast_ASTArena *arena,
+                                                               int32_t site_expr_ref, int32_t left_ref,
+                                                               struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_check_allocator_region_return_c(struct ast_ASTArena *arena,
+                                                               int32_t site_expr_ref,
+                                                               int32_t return_type_ref);
+extern int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena,
+                                                           int32_t ret_site_ref, int32_t op_ref,
+                                                           int32_t func_return_ref);
+/* wave246 pure leave: body on typeck_x.o (was residual region_assign extern). */
+extern int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena *arena,
+                                                                    int32_t site_expr_ref,
+                                                                    int32_t return_type_ref,
+                                                                    struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module,
+                                                         struct ast_ASTArena *arena,
+                                                         int32_t call_expr_ref,
+                                                         struct ast_PipelineDepCtx *ctx);
 
 
 /* wave1157 G.7: linear type use-once move tracking cluster (6 fns) migrated
@@ -207,19 +247,18 @@ extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
  * g_typeck_active_ctx also moved to check_block.c top (sole consumers of
  * those statics). PLATFORM: SHARED. */
 
-/* wave1125-1129 G.7: TYPECK_STACK_LOCAL_PTR_LBL const migrated to
- * pipeline_typeck_region_assign.c (with the 5 stack-escape helpers that
- * are its sole consumers). Visible via #include at L10231. */
+/* wave1125-1129 / wave257: TYPECK_STACK_LOCAL_PTR_LBL + stack-escape helpers
+ * retired with region_assign residual (wave245 ptr_for_addr pure leave). */
 
 /* wave248 pure leave: overload resolve Cap faces → typeck_x.o (for_emit / pick).
  * Residual second score path deleted; no static resolve_call_func_index_c.
  * Callers use pipeline_typeck_resolve_call_func_index_for_emit_c (pure). */
 /* wave242: public residual face (pure scan tree + check_expr call it).
  * wave244 pure leave: body in typeck_x.o; residual may keep prototype only. */
-int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *module,
-                                                         struct ast_ASTArena *arena,
-                                                         int32_t call_expr_ref,
-                                                         struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *module,
+                                                                struct ast_ASTArena *arena,
+                                                                int32_t call_expr_ref,
+                                                                struct ast_PipelineDepCtx *ctx);
 
 /* wave154: pure export (was static in struct_lit.c). Residual typeck Cap-calls. */
 extern int32_t typeck_type_is_named_struct_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref);

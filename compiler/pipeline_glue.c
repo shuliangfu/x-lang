@@ -1539,11 +1539,15 @@ extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct 
 
 /* wave1286 G.7: typeck mid forward-decl / extern shell migrated to
  * pipeline_glue_typeck_mid_fwd.c (same-TU #include). Pure decls only;
- * sits after typeck_fwd (assign #include retired wave256) and before region_assign.
+ * sits after typeck_fwd (assign #include retired wave256); region_assign
+ * #include retired wave257.
  * PLATFORM: SHARED. */
 #include "pipeline_glue_typeck_mid_fwd.c"
 
-#include "pipeline_typeck_region_assign.c"
+/* wave257 BC 8.3.1 host-cc leave: pipeline_typeck_region_assign.c deleted.
+ * Cap faces (slice/return/stack_escape/scope_borrow/allocator/call_slice *_c)
+ * live on typeck_x.o only (#[no_mangle] thin → typeck_check_*).
+ * PLATFORM: SHARED freestanding typeck region_assign Cap leave. */
 
 
 /* wave1214 G.7: pipeline_typeck_check_call_struct_stack_escape_c (67 lines)

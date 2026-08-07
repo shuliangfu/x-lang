@@ -594,10 +594,11 @@ reg_label_len: i32): i32;
 export extern function pipeline_type_find_or_alloc_ptr(arena: *ASTArena, elem_ref: i32, reg_label: *u8,
 reg_label_len: i32): i32;
 /**
- * Cap residual thin faces (wave235 pure leave): product paths use
- * typeck_check_slice_region_assign / typeck_check_return_slice_region.
- * Residual call_slice_region and mega still call the *_c names.
- * PLATFORM: SHARED
+ * wave257 pure-owned leave: Cap residual region_assign thin faces → typeck.x EOF
+ * (#[no_mangle]). Product paths use typeck_check_slice_region_assign /
+ * typeck_check_return_slice_region. export extern = same-TU forward for early
+ * call sites; bodies at EOF are the single pipeline_*_c authority.
+ * PLATFORM: SHARED freestanding typeck region Cap leave.
  */
 export extern function pipeline_typeck_check_slice_region_assign_c(arena: *ASTArena, site_expr_ref: i32,
 expect_ref: i32, src_ref: i32): i32;
@@ -625,9 +626,10 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32;
 /* See implementation. */
 export extern function driver_diagnostic_typeck_deref_outside_unsafe(line: i32, col: i32): void;
 /**
- * Cap residual thin face (wave239 pure leave): product CALL path uses
- * typeck_check_call_slice_region. Historical *_c name remains residual ABI only.
- * PLATFORM: SHARED
+ * wave257 pure-owned leave: CALL slice region Cap face → typeck.x EOF (#[no_mangle]).
+ * Product CALL path uses typeck_check_call_slice_region. export extern = same-TU
+ * forward; body at EOF is single pipeline_*_c authority.
+ * PLATFORM: SHARED freestanding typeck region Cap leave.
  */
 export extern function pipeline_typeck_check_call_slice_region_c(module: *Module, arena: *ASTArena,
 call_expr_ref: i32, ctx: *PipelineDepCtx): i32;
@@ -754,12 +756,11 @@ addr_expr_ref: i32, module: *Module, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_ptr_for_addr_of_operand_c(arena: *ASTArena, op_ref: i32,
 elem_ty: i32, module: *Module, ctx: *PipelineDepCtx): i32;
 /**
- * Cap residual thin faces (wave236–237 pure leave): product paths use
- * typeck_check_struct_stack_escape_assign / typeck_check_scope_borrow_* /
- * typeck_check_allocator_region_*. wave242: post-scan tree pure leave
- * (typeck_scan_* / pipeline_typeck_scan_module_struct_stack_escape_c) calls
- * pure check faces + residual call_struct_stack_escape / return_slice_in_scope.
- * PLATFORM: SHARED
+ * wave257 pure-owned leave: stack-escape / scope-borrow / allocator Cap faces →
+ * typeck.x EOF (#[no_mangle]). Product paths use typeck_check_struct_stack_escape_assign /
+ * typeck_check_scope_borrow_* / typeck_check_allocator_region_*. export extern =
+ * same-TU forward for residual check_expr / scan; bodies at EOF are single authority.
+ * PLATFORM: SHARED freestanding typeck region Cap leave.
  */
 export extern function pipeline_typeck_check_struct_stack_escape_assign_c(module: *Module, arena: *ASTArena,
 site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32;
@@ -18383,4 +18384,143 @@ out: *u8): i32 {
 }
 
 // end wave256 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave257: typeck region_assign Cap residual pure-owned leave (host-cc present 54→53)
+// Delete pipeline_typeck_region_assign.c from pipeline_x mega-TU.
+// Historical pipeline_typeck_*_c region/escape faces → typeck_* pure authority
+//   (slice_region / return_slice / struct_stack_escape / scope_borrow /
+//    allocator_region / call_slice_region). All pure bodies already live in
+//   typeck.x (wave235–239); this wave only lifts residual thin Cap faces.
+// Cap residual: dual-export ban — no second thin body on pipeline_x.
+// PLATFORM: SHARED freestanding typeck region_assign Cap leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * Cap residual face: M-3 slice region assign/let/arg (thin → pure).
+ * @param arena *ASTArena
+ * @param site_expr_ref i32 — site for line/col
+ * @param expect_ref i32 — expected type ref
+ * @param src_ref i32 — source type ref
+ * @return i32 — 0 ok, -1 fail (diag already reported)
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_slice_region_assign_c(arena: *ASTArena, site_expr_ref: i32,
+expect_ref: i32, src_ref: i32): i32 {
+  return typeck_check_slice_region_assign(arena, site_expr_ref, expect_ref, src_ref);
+}
+
+/**
+ * Cap residual face: WPO-S3 stack-escape assign (thin → pure).
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param site_expr_ref i32
+ * @param left_ref i32
+ * @param right_ref i32
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_struct_stack_escape_assign_c(module: *Module, arena: *ASTArena,
+site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32 {
+  return typeck_check_struct_stack_escape_assign(module, arena, site_expr_ref, left_ref, right_ref, ctx);
+}
+
+/**
+ * Cap residual face: MEM-A3 scope-borrow assign (thin → pure).
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param site_expr_ref i32
+ * @param left_ref i32
+ * @param right_ref i32
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_scope_borrow_assign_c(module: *Module, arena: *ASTArena,
+site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32 {
+  return typeck_check_scope_borrow_assign(module, arena, site_expr_ref, left_ref, right_ref, ctx);
+}
+
+/**
+ * Cap residual face: MEM-A3 scope-borrow return (thin → pure).
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param site_expr_ref i32
+ * @param op_ref i32
+ * @param return_type_ref i32
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_scope_borrow_return_c(module: *Module, arena: *ASTArena,
+site_expr_ref: i32, op_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  return typeck_check_scope_borrow_return(module, arena, site_expr_ref, op_ref, return_type_ref, ctx);
+}
+
+/**
+ * Cap residual face: MEM-C1 allocator region assign (thin → pure).
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param site_expr_ref i32
+ * @param left_ref i32
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_allocator_region_assign_c(module: *Module, arena: *ASTArena,
+site_expr_ref: i32, left_ref: i32, ctx: *PipelineDepCtx): i32 {
+  return typeck_check_allocator_region_assign(module, arena, site_expr_ref, left_ref, ctx);
+}
+
+/**
+ * Cap residual face: MEM-C1 allocator region return (thin → pure).
+ * @param arena *ASTArena
+ * @param site_expr_ref i32
+ * @param return_type_ref i32
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_allocator_region_return_c(arena: *ASTArena, site_expr_ref: i32,
+return_type_ref: i32): i32 {
+  return typeck_check_allocator_region_return(arena, site_expr_ref, return_type_ref);
+}
+
+/**
+ * Cap residual face: M-3 return slice region (thin → pure).
+ * @param arena *ASTArena
+ * @param ret_site_ref i32
+ * @param op_ref i32
+ * @param func_return_ref i32
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_return_slice_region_c(arena: *ASTArena, ret_site_ref: i32,
+op_ref: i32, func_return_ref: i32): i32 {
+  return typeck_check_return_slice_region(arena, ret_site_ref, op_ref, func_return_ref);
+}
+
+/**
+ * Cap residual face: M-3 CALL slice region (thin → pure).
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param call_expr_ref i32
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_call_slice_region_c(module: *Module, arena: *ASTArena,
+call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  return typeck_check_call_slice_region(module, arena, call_expr_ref, ctx);
+}
+
+// end wave257 pure-owned leave
 
