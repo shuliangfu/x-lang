@@ -523,14 +523,29 @@ export extern function pipeline_type_set_region_label_at(arena: *ASTArena, ref: 
 label_len: i32): i32;
 export extern function pipeline_type_find_or_alloc_slice(arena: *ASTArena, elem_ref: i32, reg_label: *u8,
 reg_label_len: i32): i32;
-/* See implementation. */
+/**
+ * Cap residual thin faces (wave235 pure leave): product paths use
+ * typeck_check_slice_region_assign / typeck_check_return_slice_region.
+ * Residual call_slice_region and mega still call the *_c names.
+ * PLATFORM: SHARED
+ */
 export extern function pipeline_typeck_check_slice_region_assign_c(arena: *ASTArena, site_expr_ref: i32,
 expect_ref: i32, src_ref: i32): i32;
 export extern function pipeline_typeck_check_return_slice_region_c(arena: *ASTArena, ret_site_ref: i32,
 op_ref: i32, func_return_ref: i32): i32;
-/* See implementation. */
+/**
+ * M-3 AL-06: return unbound T[] inside active region scope still Cap residual
+ * (scope label BSS / push-pop cluster). Not pure-leaved this wave.
+ * PLATFORM: SHARED
+ */
 export extern function pipeline_typeck_check_return_slice_region_in_scope_c(arena: *ASTArena,
 site_expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
+/**
+ * wave156 pure: assign-like expr kind (ASSIGN + compound assigns).
+ * Used by typeck_expr_diag_line_col for line=0 fallback on assign sites.
+ * PLATFORM: SHARED freestanding
+ */
+export extern function glue_expr_kind_is_assign_like_ord(ko: i32): i32;
 /* See implementation. */
 /* See implementation. */
 export extern function pipeline_typeck_check_extern_call_unsafe_boundary_c(module: *Module, arena: *ASTArena,
@@ -8786,7 +8801,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       }
       /* See implementation. */
       if (ptr_compound_offset_ok == 0
-      && pipeline_typeck_check_slice_region_assign_c(arena, expr_ref, lt, rt) != 0) {
+      && typeck_check_slice_region_assign(arena, expr_ref, lt, rt) != 0) {
         return - 1;
       }
     }
@@ -8979,7 +8994,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           if (typeck_integer_widen_ok_refs(arena, return_type_ref, got) ||
               typeck_float_widen_ok(expect_kind, got_kind)) {
             pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
-            if (pipeline_typeck_check_return_slice_region_c(arena, expr_ref, op_ref, return_type_ref) != 0) {
+            if (typeck_check_return_slice_region(arena, expr_ref, op_ref, return_type_ref) != 0) {
               return - 1;
             }
             return 0;
@@ -8994,8 +9009,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         driver_diagnostic_typeck_ret_fail(2, op_ref, return_type_ref, got);
         return - 1;
       }
-      /* See implementation. */
-      if (pipeline_typeck_check_return_slice_region_c(arena, expr_ref, op_ref, return_type_ref) != 0) {
+      /* wave235 pure leave: return slice region authority in typeck.x. */
+      if (typeck_check_return_slice_region(arena, expr_ref, op_ref, return_type_ref) != 0) {
         return - 1;
       }
     }
@@ -10123,6 +10138,317 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     col = pipeline_expr_col_at(arena, expr_ref);
     driver_diagnostic_typeck_extern_call_outside_unsafe(line, col);
     return 0 - 1;
+  }
+}
+
+/**
+ * Resolve line/col for typeck diagnostics when site expr line is 0.
+ * Assign-like: walk left then right. Unary (ADDR_OF/RETURN/NEG/LOGNOT):
+ * walk operand. Mirrors Cap residual pipeline_typeck_expr_diag_line_col_c.
+ * @param arena *ASTArena — expression arena
+ * @param expr_ref i32 — site expression
+ * @param line_out *i32 — written line (0 if unresolved)
+ * @param col_out *i32 — written column
+ * PLATFORM: SHARED freestanding typeck
+ */
+function typeck_expr_diag_line_col(arena: *ASTArena, expr_ref: i32, line_out: *i32, col_out: *i32): void {
+  // PLATFORM: SHARED — recursive line/col walk for region diags.
+  unsafe {
+    let k: i32 = 0;
+    let l: i32 = 0;
+    let c: i32 = 0;
+    let child: i32 = 0;
+    if (line_out == 0 as *i32 || col_out == 0 as *i32) {
+      return;
+    }
+    if (arena == 0 as *ASTArena || expr_ref <= 0) {
+      *line_out = 0;
+      *col_out = 0;
+      return;
+    }
+    l = pipeline_expr_line_at(arena, expr_ref);
+    c = pipeline_expr_col_at(arena, expr_ref);
+    *line_out = l;
+    *col_out = c;
+    if (l > 0) {
+      return;
+    }
+    k = pipeline_expr_kind_ord_at(arena, expr_ref);
+    if (glue_expr_kind_is_assign_like_ord(k) != 0) {
+      child = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+      typeck_expr_diag_line_col(arena, child, line_out, col_out);
+      if (*line_out > 0) {
+        return;
+      }
+      child = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+      typeck_expr_diag_line_col(arena, child, line_out, col_out);
+      return;
+    }
+    /* EXPR_ADDR_OF=51, EXPR_RETURN=41, EXPR_NEG=22, EXPR_LOGNOT=24 */
+    if (k == 51 || k == 41 || k == 22 || k == 24) {
+      child = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+      typeck_expr_diag_line_col(arena, child, line_out, col_out);
+    }
+  }
+}
+
+/**
+ * M-3 helper: 1 if src is region-bound slice and expect is unbound T[].
+ * wave235 G.7 pure leave from residual pipeline_typeck_slice_region_escape_c.
+ * @param arena *ASTArena — type pool
+ * @param expect_ref i32 — destination type_ref
+ * @param src_ref i32 — source type_ref
+ * @return i32 — 1 escape, 0 ok / not applicable
+ * PLATFORM: SHARED freestanding typeck
+ */
+function typeck_slice_region_escape(arena: *ASTArena, expect_ref: i32, src_ref: i32): i32 {
+  // PLATFORM: SHARED — TYPE_SLICE region escape predicate.
+  unsafe {
+    if (arena == 0 as *ASTArena || expect_ref <= 0 || src_ref <= 0) {
+      return 0;
+    }
+    /* TYPE_SLICE ord == 11 */
+    if (pipeline_type_kind_ord_at(arena, expect_ref) != 11) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, src_ref) != 11) {
+      return 0;
+    }
+    if (pipeline_type_region_label_len_at(arena, src_ref) > 0
+    && pipeline_type_region_label_len_at(arena, expect_ref) <= 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * M-3 helper: 1 if both slices carry labels and labels differ.
+ * wave235 G.7 pure leave from residual pipeline_typeck_slice_region_conflict_c.
+ * @param arena *ASTArena — type pool
+ * @param expect_ref i32 — destination type_ref
+ * @param src_ref i32 — source type_ref
+ * @return i32 — 1 mismatch, 0 ok / not applicable
+ * PLATFORM: SHARED freestanding typeck
+ */
+function typeck_slice_region_conflict(arena: *ASTArena, expect_ref: i32, src_ref: i32): i32 {
+  // PLATFORM: SHARED — TYPE_SLICE region label conflict predicate.
+  unsafe {
+    let ek: i32 = 0;
+    let sk: i32 = 0;
+    let eb: u8[128] = [];
+    let sb: u8[128] = [];
+    if (arena == 0 as *ASTArena || expect_ref <= 0 || src_ref <= 0) {
+      return 0;
+    }
+    /* TYPE_SLICE ord == 11 */
+    if (pipeline_type_kind_ord_at(arena, expect_ref) != 11) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, src_ref) != 11) {
+      return 0;
+    }
+    ek = pipeline_type_region_label_len_at(arena, expect_ref);
+    sk = pipeline_type_region_label_len_at(arena, src_ref);
+    if (ek <= 0 || sk <= 0) {
+      return 0;
+    }
+    if (pipeline_type_region_label_into(arena, expect_ref, &eb[0]) != ek) {
+      return 0;
+    }
+    if (pipeline_type_region_label_into(arena, src_ref, &sb[0]) != sk) {
+      return 0;
+    }
+    if (name_equal(&eb[0], ek, &sb[0], sk)) {
+      return 0;
+    }
+    return 1;
+  }
+}
+
+/**
+ * M-3 slice region assign/let/arg gate: escape or label mismatch → typeck error.
+ * wave235 G.7 pure leave: was Cap residual pipeline_typeck_check_slice_region_assign_c.
+ * Builds diagnostic text with typeck_diag_append_lit (lsp face is msg-only).
+ * @param arena *ASTArena — type + expr arena
+ * @param site_expr_ref i32 — site for line/col (assign/let/arg)
+ * @param expect_ref i32 — formal / LHS type_ref
+ * @param src_ref i32 — RHS / arg resolved type_ref
+ * @return i32 — 0 ok; -1 diagnostic emitted
+ * PLATFORM: SHARED freestanding typeck — G.7 single slice-region assign authority.
+ */
+export function typeck_check_slice_region_assign(arena: *ASTArena, site_expr_ref: i32,
+expect_ref: i32, src_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let sb: u8[128] = [];
+    let eb: u8[128] = [];
+    let slen: i32 = 0;
+    let elen: i32 = 0;
+    let msg: u8[256] = [];
+    let p: i32 = 0;
+    let z: i32 = 0;
+    if (arena == 0 as *ASTArena || expect_ref <= 0 || src_ref <= 0) {
+      return 0;
+    }
+    /* TYPE_SLICE ord == 11 */
+    if (pipeline_type_kind_ord_at(arena, expect_ref) != 11) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, src_ref) != 11) {
+      return 0;
+    }
+    typeck_expr_diag_line_col(arena, site_expr_ref, &line, &col);
+    if (typeck_slice_region_escape(arena, expect_ref, src_ref) != 0) {
+      slen = pipeline_type_region_label_into(arena, src_ref, &sb[0]);
+      if (slen < 0) {
+        slen = 0;
+      }
+      if (slen > 64) {
+        slen = 64;
+      }
+      z = 0;
+      while (z < 256) {
+        msg[z] = 0;
+        z = z + 1;
+      }
+      /* "slice region escape: cannot assign <" + label + "> slice to unbound T[]" */
+      p = typeck_diag_append_lit(&msg[0], 0, 255, "slice region escape: cannot assign <", 36);
+      p = typeck_diag_append_lit(&msg[0], p, 255, &sb[0], slen);
+      p = typeck_diag_append_lit(&msg[0], p, 255, "> slice to unbound T[]", 22);
+      msg[p] = 0;
+      lsp_diag_report_typeck(line, col, &msg[0]);
+      return 0 - 1;
+    }
+    if (typeck_slice_region_conflict(arena, expect_ref, src_ref) != 0) {
+      elen = pipeline_type_region_label_into(arena, expect_ref, &eb[0]);
+      slen = pipeline_type_region_label_into(arena, src_ref, &sb[0]);
+      if (elen < 0) {
+        elen = 0;
+      }
+      if (slen < 0) {
+        slen = 0;
+      }
+      if (elen > 64) {
+        elen = 64;
+      }
+      if (slen > 64) {
+        slen = 64;
+      }
+      z = 0;
+      while (z < 256) {
+        msg[z] = 0;
+        z = z + 1;
+      }
+      /* "slice region mismatch: expected <" + e + ">, found <" + s + ">" */
+      p = typeck_diag_append_lit(&msg[0], 0, 255, "slice region mismatch: expected <", 33);
+      p = typeck_diag_append_lit(&msg[0], p, 255, &eb[0], elen);
+      p = typeck_diag_append_lit(&msg[0], p, 255, ">, found <", 10);
+      p = typeck_diag_append_lit(&msg[0], p, 255, &sb[0], slen);
+      p = typeck_diag_append_lit(&msg[0], p, 255, ">", 1);
+      msg[p] = 0;
+      lsp_diag_report_typeck(line, col, &msg[0]);
+      return 0 - 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * M-3 return-path slice region escape / mismatch gate.
+ * wave235 G.7 pure leave: was Cap residual pipeline_typeck_check_return_slice_region_c.
+ * @param arena *ASTArena — type + expr arena
+ * @param ret_site_ref i32 — return expr for line/col
+ * @param op_ref i32 — return operand expr
+ * @param func_return_ref i32 — function return type_ref
+ * @return i32 — 0 ok; -1 diagnostic emitted
+ * PLATFORM: SHARED freestanding typeck — G.7 single return-slice-region authority.
+ */
+export function typeck_check_return_slice_region(arena: *ASTArena, ret_site_ref: i32,
+op_ref: i32, func_return_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let got_ref: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let sb: u8[128] = [];
+    let eb: u8[128] = [];
+    let slen: i32 = 0;
+    let elen: i32 = 0;
+    let msg: u8[256] = [];
+    let p: i32 = 0;
+    let z: i32 = 0;
+    if (arena == 0 as *ASTArena || op_ref <= 0 || func_return_ref <= 0) {
+      return 0;
+    }
+    /* TYPE_SLICE ord == 11 */
+    if (pipeline_type_kind_ord_at(arena, func_return_ref) != 11) {
+      return 0;
+    }
+    got_ref = pipeline_expr_resolved_type_ref(arena, op_ref);
+    if (got_ref <= 0 || pipeline_type_kind_ord_at(arena, got_ref) != 11) {
+      return 0;
+    }
+    line = 0;
+    col = 0;
+    if (ret_site_ref > 0) {
+      line = pipeline_expr_line_at(arena, ret_site_ref);
+      col = pipeline_expr_col_at(arena, ret_site_ref);
+    }
+    if (typeck_slice_region_escape(arena, func_return_ref, got_ref) != 0) {
+      slen = pipeline_type_region_label_into(arena, got_ref, &sb[0]);
+      if (slen < 0) {
+        slen = 0;
+      }
+      if (slen > 64) {
+        slen = 64;
+      }
+      z = 0;
+      while (z < 256) {
+        msg[z] = 0;
+        z = z + 1;
+      }
+      /* "slice region escape: cannot return <" + label + "> slice as unbound T[]" */
+      p = typeck_diag_append_lit(&msg[0], 0, 255, "slice region escape: cannot return <", 36);
+      p = typeck_diag_append_lit(&msg[0], p, 255, &sb[0], slen);
+      p = typeck_diag_append_lit(&msg[0], p, 255, "> slice as unbound T[]", 22);
+      msg[p] = 0;
+      lsp_diag_report_typeck(line, col, &msg[0]);
+      return 0 - 1;
+    }
+    if (typeck_slice_region_conflict(arena, func_return_ref, got_ref) != 0) {
+      elen = pipeline_type_region_label_into(arena, func_return_ref, &eb[0]);
+      slen = pipeline_type_region_label_into(arena, got_ref, &sb[0]);
+      if (elen < 0) {
+        elen = 0;
+      }
+      if (slen < 0) {
+        slen = 0;
+      }
+      if (elen > 64) {
+        elen = 64;
+      }
+      if (slen > 64) {
+        slen = 64;
+      }
+      z = 0;
+      while (z < 256) {
+        msg[z] = 0;
+        z = z + 1;
+      }
+      /* "slice region mismatch in return: expected <" + e + ">, found <" + s + ">" */
+      p = typeck_diag_append_lit(&msg[0], 0, 255, "slice region mismatch in return: expected <", 43);
+      p = typeck_diag_append_lit(&msg[0], p, 255, &eb[0], elen);
+      p = typeck_diag_append_lit(&msg[0], p, 255, ">, found <", 10);
+      p = typeck_diag_append_lit(&msg[0], p, 255, &sb[0], slen);
+      p = typeck_diag_append_lit(&msg[0], p, 255, ">", 1);
+      msg[p] = 0;
+      lsp_diag_report_typeck(line, col, &msg[0]);
+      return 0 - 1;
+    }
+    return 0;
   }
 }
 
@@ -12489,7 +12815,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
         /* match via f32→f64; leave init_ty as f32 for freestanding cvtss2sd. */
       }
       /* See implementation. */
-      if (!ast.ref_is_null(init_ty) && pipeline_typeck_check_slice_region_assign_c(arena, ld_ir, ld_tr, init_ty) != 0) {
+      if (!ast.ref_is_null(init_ty) && typeck_check_slice_region_assign(arena, ld_ir, ld_tr, init_ty) != 0) {
         return - 1;
       }
     }

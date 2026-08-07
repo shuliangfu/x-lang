@@ -1,33 +1,30 @@
 /**
  * pipeline_typeck_region_assign.c — typeck region/escape assign-site domain (BC 8.3.1).
  *
- * Mechanically extracted from pipeline_glue.c (same translation unit via
- * #include). Authority for product-mega region / lifetime escape gates used
- * before assign/return type matching:
- * - M-3 slice region: conflict / escape helpers + check_slice_region_assign
- * - M-3 return slice region (operand stamp path)
- * - WPO-S3 struct stack-escape assign
+ * wave235 G.7 pure leave: M-3 slice region assign + return operand path dual
+ * bodies retired → typeck.x (typeck_check_slice_region_assign /
+ * typeck_check_return_slice_region + private escape/conflict helpers).
+ * Cap residual keeps thin *_c faces for call_slice_region / mega / seed paths.
+ *
+ * Still residual (not pure-leaved this wave):
+ * - M-3 AL-06 return slice in region-scope (scope label BSS)
+ * - WPO-S3 struct stack-escape assign + helpers
  * - MEM-A3 scope-borrow assign/return + diag line/col + lval/ancestor helpers
  * - MEM-C1 with_arena scope stack + allocator region assign/return
- * - M-3 AL-06 return slice region in region-scope
+ * - call_slice_region mega (resolve + array_lit coerce + stack-escape)
  *
- * G.7: single product-mega region-assign gate path — typeck.x twins must stay
- * aligned; do not open a second escape checker in emit or a parallel glue copy.
- * Call-path stack escape (check_call_struct_stack_escape) and post-typeck
- * module scan remain in pipeline_glue.c (same TU; static with_arena state shared).
+ * G.7 dual-export ban: do NOT re-open second slice_region_assign /
+ * return_slice_region body here; typeck.x is single authority.
  *
- * Not compiled as a separate .o — #included from pipeline_glue.c after
- * stack_local / addr_of_block_local helpers and before call_struct_stack_escape.
- *
- * wave1125-1129 G.7: the stack-escape helpers (typeck_find_or_alloc_ptr_stack_local_c /
- * typeck_ptr_has_stack_local_label_c / typeck_block_tree_has_var_c /
- * typeck_var_is_block_local_c / typeck_expr_is_addr_of_block_local_c +
- * TYPECK_STACK_LOCAL_PTR_LBL const) were migrated to this file's EOF.
- * Forward decl below keeps the L122/238/279 callsites visible before the
- * EOF definitions.
- *
+ * Not compiled as a separate .o — #included from pipeline_glue.c.
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
  */
+
+/* Live M-3 slice region authority in typeck_x.o (typeck.x exports). */
+extern int32_t typeck_check_slice_region_assign(struct ast_ASTArena *arena, int32_t site_expr_ref,
+                                                int32_t expect_ref, int32_t src_ref);
+extern int32_t typeck_check_return_slice_region(struct ast_ASTArena *arena, int32_t ret_site_ref,
+                                                int32_t op_ref, int32_t func_return_ref);
 
 /* wave1125-1129 G.7: forward decl — definition at EOF (callsites at L122/238/279
  * precede the EOF definition). */
@@ -43,84 +40,18 @@ static int32_t typeck_expr_is_addr_of_block_local_c(struct ast_Module *m, struct
 static int32_t typeck_lval_is_param_ptr_field_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
                                                 int32_t left_ref, int32_t dst_pi);
 
-/** M-3：slice 域冲突（expect/src 均带 label 且不同）返回 1。 */
-static int32_t pipeline_typeck_slice_region_conflict_c(struct ast_ASTArena *arena, int32_t expect_ref,
-                                                       int32_t src_ref) {
-  int32_t ek;
-  int32_t sk;
-  uint8_t eb[128];
-  uint8_t sb[128];
-  if (!arena || expect_ref <= 0 || src_ref <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, expect_ref) != (int32_t)ast_TypeKind_TYPE_SLICE ||
-      pipeline_type_kind_ord_at(arena, src_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  ek = pipeline_type_region_label_len_at(arena, expect_ref);
-  sk = pipeline_type_region_label_len_at(arena, src_ref);
-  if (ek <= 0 || sk <= 0)
-    return 0;
-  if (pipeline_type_region_label_into(arena, expect_ref, eb) != ek ||
-      pipeline_type_region_label_into(arena, src_ref, sb) != sk)
-    return 0;
-  return (ek != sk || memcmp(eb, sb, (size_t)ek) != 0) ? 1 : 0;
-}
-
-/** M-3：域绑定 slice 逃逸到未标注域（src 有 label、expect 无）返回 1。 */
-static int32_t pipeline_typeck_slice_region_escape_c(struct ast_ASTArena *arena, int32_t expect_ref,
-                                                     int32_t src_ref) {
-  if (!arena || expect_ref <= 0 || src_ref <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, expect_ref) != (int32_t)ast_TypeKind_TYPE_SLICE ||
-      pipeline_type_kind_ord_at(arena, src_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  return (pipeline_type_region_label_len_at(arena, src_ref) > 0 &&
-          pipeline_type_region_label_len_at(arena, expect_ref) <= 0)
-             ? 1
-             : 0;
-}
-
 /**
- * M-3：.x typeck 统一 slice 域 assign/let/实参检查；与 typeck.c typeck_check_slice_region_assign 措辞一致。
+ * M-3：.x typeck 统一 slice 域 assign/let/实参检查.
+ * wave235 pure leave: thin → typeck_check_slice_region_assign.
  * site_expr_ref 用于 line/col；返回 0 可接受，-1 已打印 typeck error。
+ * PLATFORM: SHARED — Cap residual face only.
  */
 static void pipeline_typeck_expr_diag_line_col_c(struct ast_ASTArena *a, int32_t expr_ref, int32_t *line,
                                                  int32_t *col);
 
 int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena *arena, int32_t site_expr_ref,
                                                     int32_t expect_ref, int32_t src_ref) {
-  int32_t line;
-  int32_t col;
-  uint8_t sb[128];
-  int32_t slen;
-  uint8_t eb[128];
-  int32_t elen;
-  if (!arena || expect_ref <= 0 || src_ref <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, expect_ref) != (int32_t)ast_TypeKind_TYPE_SLICE ||
-      pipeline_type_kind_ord_at(arena, src_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  line = 0;
-  col = 0;
-  pipeline_typeck_expr_diag_line_col_c(arena, site_expr_ref, &line, &col);
-  if (pipeline_typeck_slice_region_escape_c(arena, expect_ref, src_ref)) {
-    slen = pipeline_type_region_label_into(arena, src_ref, sb);
-    sb[slen > 0 && slen < 64 ? slen : 0] = '\0';
-    lsp_diag_report_typeck((int)line, (int)col,
-                           "slice region escape: cannot assign <%.*s> slice to unbound T[]", (int)(slen > 0 ? slen : 0),
-                           (const char *)sb);
-    return -1;
-  }
-  if (pipeline_typeck_slice_region_conflict_c(arena, expect_ref, src_ref)) {
-    elen = pipeline_type_region_label_into(arena, expect_ref, eb);
-    slen = pipeline_type_region_label_into(arena, src_ref, sb);
-    eb[elen > 0 && elen < 64 ? elen : 0] = '\0';
-    sb[slen > 0 && slen < 64 ? slen : 0] = '\0';
-    lsp_diag_report_typeck((int)line, (int)col, "slice region mismatch: expected <%.*s>, found <%.*s>",
-                           (int)(elen > 0 ? elen : 0), (const char *)eb, (int)(slen > 0 ? slen : 0),
-                           (const char *)sb);
-    return -1;
-  }
-  return 0;
+  return typeck_check_slice_region_assign(arena, site_expr_ref, expect_ref, src_ref);
 }
 
 /**
@@ -425,48 +356,12 @@ int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena
 
 /**
  * M-3：.x typeck return 路径 slice 域逃逸 / 不一致；ret_site_ref 用于 line/col。
+ * wave235 pure leave: thin → typeck_check_return_slice_region.
+ * PLATFORM: SHARED — Cap residual face only.
  */
 int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena, int32_t ret_site_ref,
                                                     int32_t op_ref, int32_t func_return_ref) {
-  int32_t got_ref;
-  int32_t line;
-  int32_t col;
-  uint8_t sb[128];
-  int32_t slen;
-  uint8_t eb[128];
-  int32_t elen;
-  if (!arena || op_ref <= 0 || func_return_ref <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, func_return_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  got_ref = pipeline_expr_resolved_type_ref(arena, op_ref);
-  if (got_ref <= 0 || pipeline_type_kind_ord_at(arena, got_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  line = 0;
-  col = 0;
-  if (ret_site_ref > 0 && ret_site_ref <= arena->num_exprs) {
-    line = pipeline_expr_line_at(arena, ret_site_ref);
-    col = pipeline_expr_col_at(arena, ret_site_ref);
-  }
-  if (pipeline_typeck_slice_region_escape_c(arena, func_return_ref, got_ref)) {
-    slen = pipeline_type_region_label_into(arena, got_ref, sb);
-    sb[slen > 0 && slen < 64 ? slen : 0] = '\0';
-    lsp_diag_report_typeck((int)line, (int)col,
-                           "slice region escape: cannot return <%.*s> slice as unbound T[]",
-                           (int)(slen > 0 ? slen : 0), (const char *)sb);
-    return -1;
-  }
-  if (pipeline_typeck_slice_region_conflict_c(arena, func_return_ref, got_ref)) {
-    elen = pipeline_type_region_label_into(arena, func_return_ref, eb);
-    slen = pipeline_type_region_label_into(arena, got_ref, sb);
-    eb[elen > 0 && elen < 64 ? elen : 0] = '\0';
-    sb[slen > 0 && slen < 64 ? slen : 0] = '\0';
-    lsp_diag_report_typeck((int)line, (int)col, "slice region mismatch in return: expected <%.*s>, found <%.*s>",
-                           (int)(elen > 0 ? elen : 0), (const char *)eb, (int)(slen > 0 ? slen : 0),
-                           (const char *)sb);
-    return -1;
-  }
-  return 0;
+  return typeck_check_return_slice_region(arena, ret_site_ref, op_ref, func_return_ref);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
