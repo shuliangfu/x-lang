@@ -945,6 +945,23 @@ int32_t pipeline_block_set_parent_if_zero(struct ast_ASTArena *a, int32_t block_
   return 0;
 }
 
+/**
+ * Read block parent_block_ref (0 if unset / invalid).
+ * Why: typeck.x freestanding cannot touch ast_Block layout; scope-borrow
+ * strict-ancestor walk and residual twin need a single G.7 face.
+ * Contract: returns 0 for null arena, out-of-range block_ref, or missing block.
+ * PLATFORM: SHARED — pure block-pool getter; typeck + residual consumers.
+ */
+int32_t pipeline_block_parent_block_ref_at(struct ast_ASTArena *a, int32_t block_ref) {
+  struct ast_Block *b;
+  if (!a || block_ref <= 0 || block_ref > a->num_blocks)
+    return 0;
+  b = block_at(a, block_ref);
+  if (!b)
+    return 0;
+  return b->parent_block_ref;
+}
+
 /** 按名查块内 const/let 类型 ref。 */
 int32_t pipeline_block_resolve_var_type_ref(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname,
                                              int32_t vlen) {

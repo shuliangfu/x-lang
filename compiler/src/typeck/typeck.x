@@ -577,14 +577,34 @@ addr_expr_ref: i32, module: *Module, ctx: *PipelineDepCtx): i32;
 /* See implementation. */
 export extern function pipeline_typeck_ptr_for_addr_of_operand_c(arena: *ASTArena, op_ref: i32,
 elem_ty: i32, module: *Module, ctx: *PipelineDepCtx): i32;
+/**
+ * Cap residual thin faces (wave236 pure leave): product paths use
+ * typeck_check_struct_stack_escape_assign / typeck_check_scope_borrow_*.
+ * Residual scan / call_slice / mega still call the *_c names.
+ * PLATFORM: SHARED
+ */
 export extern function pipeline_typeck_check_struct_stack_escape_assign_c(module: *Module, arena: *ASTArena,
 site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32;
-/* See implementation. */
 export extern function pipeline_typeck_check_scope_borrow_assign_c(module: *Module, arena: *ASTArena,
 site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32;
+export extern function pipeline_typeck_check_scope_borrow_return_c(module: *Module, arena: *ASTArena,
+site_expr_ref: i32, op_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
 /* See implementation. */
 export extern function pipeline_typeck_check_allocator_region_assign_c(module: *Module, arena: *ASTArena,
 site_expr_ref: i32, left_ref: i32, ctx: *PipelineDepCtx): i32;
+/**
+ * Pure block-pool faces used by wave236 scope-borrow ancestor / decl lookup.
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_block_parent_block_ref_at(arena: *ASTArena, block_ref: i32): i32;
+export extern function pipeline_block_find_var_decl_block_ref(arena: *ASTArena, block_ref: i32, vname: *u8,
+vlen: i32): i32;
+/**
+ * wave148 pure: is expr_ref the func_idx formal at param_ix?
+ * PLATFORM: SHARED freestanding (runtime_pipeline_abi)
+ */
+export extern function glue_expr_is_func_param_at_c(arena: *ASTArena, mod: *Module, func_idx: i32,
+expr_ref: i32, param_ix: i32): i32;
 /* See implementation. */
 export extern function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: i32): i32;
 export extern function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *ASTArena): i32;
@@ -8539,11 +8559,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let right_ref: i32 = pipeline_expr_binop_right_ref_at(arena, expr_ref);
     let line: i32 = pipeline_expr_line_at(arena, expr_ref);
     let col: i32 = pipeline_expr_col_at(arena, expr_ref);
-    /* See implementation. */
-    if (pipeline_typeck_check_struct_stack_escape_assign_c(module, arena, expr_ref, left_ref, right_ref, ctx) != 0) {
+    /* wave236 pure leave: stack-escape + scope-borrow authority in typeck.x. */
+    if (typeck_check_struct_stack_escape_assign(module, arena, expr_ref, left_ref, right_ref, ctx) != 0) {
       return - 1;
     }
-    if (pipeline_typeck_check_scope_borrow_assign_c(module, arena, expr_ref, left_ref, right_ref, ctx) != 0) {
+    if (typeck_check_scope_borrow_assign(module, arena, expr_ref, left_ref, right_ref, ctx) != 0) {
       return - 1;
     }
     if (pipeline_typeck_check_allocator_region_assign_c(module, arena, expr_ref, left_ref, ctx) != 0) {
@@ -8979,6 +8999,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (!ast.ref_is_null(return_type_ref) && !ast.ref_is_null(op_ref)) {
       let expect_kind: i32 = 0;
       let got_kind: i32 = 0;
+      /* wave236 pure leave: return-path scope borrow before slice/region gates. */
+      if (typeck_check_scope_borrow_return(module, arena, expr_ref, op_ref, return_type_ref, ctx) != 0) {
+        return - 1;
+      }
       /* See implementation. */
       if (pipeline_typeck_check_return_slice_region_in_scope_c(arena, expr_ref, return_type_ref, ctx) != 0) {
         return - 1;
@@ -10449,6 +10473,443 @@ op_ref: i32, func_return_ref: i32): i32 {
       return 0 - 1;
     }
     return 0;
+  }
+}
+
+/**
+ * WPO-S3 helper: 1 if ty_ref is TYPE_PTR stamped with "stack_local" region label.
+ * wave236 G.7 pure leave from residual typeck_ptr_has_stack_local_label_c.
+ * @param arena *ASTArena — type pool
+ * @param ty_ref i32 — candidate pointer type_ref
+ * @return i32 — 1 stack-local PTR, 0 otherwise
+ * PLATFORM: SHARED freestanding typeck
+ */
+function typeck_ptr_has_stack_local_label(arena: *ASTArena, ty_ref: i32): i32 {
+  // PLATFORM: SHARED — TYPE_PTR region label "stack_local" (len 11).
+  unsafe {
+    let lbl: u8[16] = [];
+    let n: i32 = 0;
+    if (arena == 0 as *ASTArena || ty_ref <= 0) {
+      return 0;
+    }
+    /* TYPE_PTR ord == 9 */
+    if (pipeline_type_kind_ord_at(arena, ty_ref) != 9) {
+      return 0;
+    }
+    n = pipeline_type_region_label_len_at(arena, ty_ref);
+    if (n != 11) {
+      return 0;
+    }
+    if (pipeline_type_region_label_into(arena, ty_ref, &lbl[0]) != 11) {
+      return 0;
+    }
+    /* "stack_local" */
+    if (lbl[0] != 115 || lbl[1] != 116 || lbl[2] != 97 || lbl[3] != 99 || lbl[4] != 107) {
+      return 0;
+    }
+    if (lbl[5] != 95 || lbl[6] != 108 || lbl[7] != 111 || lbl[8] != 99 || lbl[9] != 97 || lbl[10] != 108) {
+      return 0;
+    }
+    return 1;
+  }
+}
+
+/**
+ * WPO-S3 helper: 1 if expr_ref is a VAR that is a block-local let/const (not a formal).
+ * Product typeck path: current_block_ref resolve first; fallback function body root.
+ * Residual post-scan tree walk stays Cap residual (stmt_order mega).
+ * @param module *Module — param name exclusion
+ * @param arena *ASTArena — expr + block pool
+ * @param ctx *PipelineDepCtx — current_func_index / current_block_ref
+ * @param expr_ref i32 — candidate VAR expr
+ * @return i32 — 1 block-local, 0 otherwise
+ * PLATFORM: SHARED freestanding typeck
+ */
+function typeck_var_is_block_local(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx,
+expr_ref: i32): i32 {
+  // PLATFORM: SHARED — local let vs formal discrimination for escape analysis.
+  unsafe {
+    let vlen: i32 = 0;
+    let vbuf: u8[128] = [];
+    let func_ix: i32 = 0;
+    let body_ref: i32 = 0;
+    let br: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || expr_ref <= 0) {
+      return 0;
+    }
+    /* EXPR_VAR ord == 3 */
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 3) {
+      return 0;
+    }
+    vlen = pipeline_expr_var_name_len(arena, expr_ref);
+    if (vlen <= 0 || vlen > 127) {
+      return 0;
+    }
+    pipeline_expr_var_name_into(arena, expr_ref, &vbuf[0]);
+    func_ix = pipeline_dep_ctx_current_func_index(ctx);
+    if (func_ix >= 0 && pipeline_module_func_param_type_ref_for_name(module, func_ix, &vbuf[0], vlen) > 0) {
+      return 0;
+    }
+    br = pipeline_dep_ctx_current_block_ref_at(ctx);
+    if (br > 0 && pipeline_block_resolve_var_type_ref(arena, br, &vbuf[0], vlen) > 0) {
+      return 1;
+    }
+    if (func_ix >= 0) {
+      body_ref = pipeline_module_func_body_ref_at(module, func_ix);
+      if (body_ref > 0 && pipeline_block_resolve_var_type_ref(arena, body_ref, &vbuf[0], vlen) > 0) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+}
+
+/**
+ * WPO-S3 helper: 1 if expr is &block_local or already carries stack_local PTR label.
+ * wave236 G.7 pure leave from residual typeck_expr_is_addr_of_block_local_c.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ctx *PipelineDepCtx
+ * @param expr_ref i32 — candidate address expr
+ * @return i32 — 1 stack-local address, 0 otherwise
+ * PLATFORM: SHARED freestanding typeck
+ */
+function typeck_expr_is_addr_of_block_local(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx,
+expr_ref: i32): i32 {
+  // PLATFORM: SHARED — &local / stack_local PTR predicate.
+  unsafe {
+    let op_ref: i32 = 0;
+    let ty: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || expr_ref <= 0) {
+      return 0;
+    }
+    ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    if (typeck_ptr_has_stack_local_label(arena, ty) != 0) {
+      return 1;
+    }
+    /* EXPR_ADDR_OF ord == 51 */
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 51) {
+      return 0;
+    }
+    op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    if (op_ref > 0 && typeck_var_is_block_local(module, arena, ctx, op_ref) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * WPO-S3 helper: left is FIELD_ACCESS into *T formal dst_pi (or chain root).
+ * wave236 G.7 pure leave from residual typeck_lval_is_param_ptr_field_c.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param func_ix i32 — enclosing function index
+ * @param left_ref i32 — lvalue expr
+ * @param dst_pi i32 — formal param index
+ * @return i32 — 1 match, 0 otherwise
+ * PLATFORM: SHARED freestanding typeck
+ */
+function typeck_lval_is_param_ptr_field(module: *Module, arena: *ASTArena, func_ix: i32, left_ref: i32,
+dst_pi: i32): i32 {
+  // PLATFORM: SHARED — param *T field lvalue recognition.
+  unsafe {
+    let base_ref: i32 = 0;
+    let param_ty: i32 = 0;
+    let np: i32 = 0;
+    let pi: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || left_ref <= 0 || func_ix < 0 || dst_pi < 0) {
+      return 0;
+    }
+    /* EXPR_FIELD_ACCESS ord == 44 */
+    if (pipeline_expr_kind_ord_at(arena, left_ref) != 44) {
+      return 0;
+    }
+    base_ref = pipeline_expr_field_access_base_ref(arena, left_ref);
+    if (glue_expr_is_func_param_at_c(arena, module, func_ix, base_ref, dst_pi) != 0) {
+      param_ty = pipeline_module_func_param_type_ref_at(module, func_ix, dst_pi);
+      if (param_ty > 0 && pipeline_type_kind_ord_at(arena, param_ty) == 9) {
+        return 1;
+      }
+      return 0;
+    }
+    np = pipeline_module_func_num_params_at(module, func_ix);
+    pi = 0;
+    while (pi < np) {
+      if (glue_expr_is_func_param_at_c(arena, module, func_ix, base_ref, pi) != 0) {
+        param_ty = pipeline_module_func_param_type_ref_at(module, func_ix, pi);
+        if (param_ty > 0 && pipeline_type_kind_ord_at(arena, param_ty) == 9) {
+          if (pi == dst_pi) {
+            return 1;
+          }
+          return 0;
+        }
+      }
+      pi = pi + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * MEM-A3 helper: 1 if ancestor is a strict outer parent of descendant (parent chain).
+ * wave236 G.7 pure leave from residual typeck_block_is_strict_ancestor_c.
+ * @param arena *ASTArena
+ * @param ancestor i32 — outer block ref
+ * @param descendant i32 — inner block ref
+ * @return i32 — 1 yes, 0 no
+ * PLATFORM: SHARED freestanding typeck
+ */
+function typeck_block_is_strict_ancestor(arena: *ASTArena, ancestor: i32, descendant: i32): i32 {
+  // PLATFORM: SHARED — parent_block_ref walk (via block-pool face).
+  unsafe {
+    let cur: i32 = 0;
+    let depth: i32 = 0;
+    let p: i32 = 0;
+    if (arena == 0 as *ASTArena || ancestor <= 0 || descendant <= 0 || ancestor == descendant) {
+      return 0;
+    }
+    cur = descendant;
+    depth = 0;
+    while (cur > 0 && cur <= arena.num_blocks && depth < 128) {
+      p = pipeline_block_parent_block_ref_at(arena, cur);
+      if (p == ancestor) {
+        return 1;
+      }
+      cur = p;
+      depth = depth + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * MEM-A3 helper: peel FIELD/INDEX chain to root VAR name bytes.
+ * wave236 G.7 pure leave from residual typeck_expr_lval_root_var_c.
+ * @param arena *ASTArena
+ * @param expr_ref i32 — lvalue root
+ * @param out *u8 — name buffer (>=128)
+ * @param out_len *i32 — written name length
+ * @return i32 — 1 ok, 0 fail
+ * PLATFORM: SHARED freestanding typeck
+ */
+function typeck_expr_lval_root_var(arena: *ASTArena, expr_ref: i32, out: *u8, out_len: *i32): i32 {
+  // PLATFORM: SHARED — lvalue root VAR peel.
+  unsafe {
+    let cur: i32 = 0;
+    let k: i32 = 0;
+    let n: i32 = 0;
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || out == 0 as *u8 || out_len == 0 as *i32) {
+      return 0;
+    }
+    cur = expr_ref;
+    while (1 == 1) {
+      k = pipeline_expr_kind_ord_at(arena, cur);
+      /* EXPR_VAR == 3 */
+      if (k == 3) {
+        n = pipeline_expr_var_name_len(arena, cur);
+        if (n <= 0 || n > 127) {
+          return 0;
+        }
+        pipeline_expr_var_name_into(arena, cur, out);
+        *out_len = n;
+        return 1;
+      }
+      /* EXPR_FIELD_ACCESS == 44 */
+      if (k == 44) {
+        cur = pipeline_expr_field_access_base_ref(arena, cur);
+      } else {
+        /* EXPR_INDEX == 47 */
+        if (k == 47) {
+          cur = pipeline_expr_index_base_ref(arena, cur);
+        } else {
+          return 0;
+        }
+      }
+      if (cur <= 0) {
+        return 0;
+      }
+    }
+    return 0;
+  }
+}
+
+/**
+ * WPO-S3 assign gate: forbid storing &local_struct into *T param field (outer escape).
+ * Cap-T001: whole-body unsafe (typeck_unsafe_depth>0) skips. Not LANG-007 off.
+ * wave236 G.7 pure leave: was Cap residual pipeline_typeck_check_struct_stack_escape_assign_c.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param site_expr_ref i32 — site for line/col
+ * @param left_ref i32 — assign LHS
+ * @param right_ref i32 — assign RHS
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok; -1 diagnostic emitted
+ * PLATFORM: SHARED freestanding typeck — G.7 single stack-escape assign authority.
+ */
+export function typeck_check_struct_stack_escape_assign(module: *Module, arena: *ASTArena,
+site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let func_ix: i32 = 0;
+    let np: i32 = 0;
+    let pi: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let msg: u8[80] = [];
+    let p: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx
+    || left_ref <= 0 || right_ref <= 0) {
+      return 0;
+    }
+    if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) > 0) {
+      return 0;
+    }
+    if (typeck_expr_is_addr_of_block_local(module, arena, ctx, right_ref) == 0) {
+      return 0;
+    }
+    func_ix = pipeline_dep_ctx_current_func_index(ctx);
+    if (func_ix < 0) {
+      return 0;
+    }
+    np = pipeline_module_func_num_params_at(module, func_ix);
+    pi = 0;
+    while (pi < np) {
+      if (typeck_lval_is_param_ptr_field(module, arena, func_ix, left_ref, pi) != 0) {
+        line = 0;
+        col = 0;
+        if (site_expr_ref > 0 && site_expr_ref <= arena.num_exprs) {
+          line = pipeline_expr_line_at(arena, site_expr_ref);
+          col = pipeline_expr_col_at(arena, site_expr_ref);
+        }
+        /* "struct stack escape: cannot store address of local struct in outer lifetime" len 73 */
+        p = typeck_diag_append_lit(&msg[0], 0, 79,
+        "struct stack escape: cannot store address of local struct in outer lifetime", 73);
+        msg[p] = 0;
+        lsp_diag_report_typeck(line, col, &msg[0]);
+        return 0 - 1;
+      }
+      pi = pi + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * MEM-A3 assign gate: forbid writing inner-block local address into outer-block var.
+ * wave236 G.7 pure leave: was Cap residual pipeline_typeck_check_scope_borrow_assign_c.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param site_expr_ref i32 — site for line/col
+ * @param left_ref i32 — assign LHS
+ * @param right_ref i32 — assign RHS (&inner)
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok; -1 diagnostic emitted
+ * PLATFORM: SHARED freestanding typeck — G.7 single scope-borrow assign authority.
+ */
+export function typeck_check_scope_borrow_assign(module: *Module, arena: *ASTArena, site_expr_ref: i32,
+left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let lname: u8[128] = [];
+    let rname: u8[128] = [];
+    let llen: i32 = 0;
+    let rlen: i32 = 0;
+    let op_ref: i32 = 0;
+    let site_block: i32 = 0;
+    let lblock: i32 = 0;
+    let rblock: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let msg: u8[24] = [];
+    let p: i32 = 0;
+    let cfi: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx
+    || left_ref <= 0 || right_ref <= 0) {
+      return 0;
+    }
+    if (typeck_expr_is_addr_of_block_local(module, arena, ctx, right_ref) == 0) {
+      return 0;
+    }
+    if (typeck_expr_lval_root_var(arena, left_ref, &lname[0], &llen) == 0) {
+      return 0;
+    }
+    /* EXPR_ADDR_OF == 51 */
+    if (pipeline_expr_kind_ord_at(arena, right_ref) != 51) {
+      return 0;
+    }
+    op_ref = pipeline_expr_unary_operand_ref_at(arena, right_ref);
+    /* EXPR_VAR == 3 */
+    if (op_ref <= 0 || pipeline_expr_kind_ord_at(arena, op_ref) != 3) {
+      return 0;
+    }
+    rlen = pipeline_expr_var_name_len(arena, op_ref);
+    if (rlen <= 0 || rlen > 127) {
+      return 0;
+    }
+    pipeline_expr_var_name_into(arena, op_ref, &rname[0]);
+    site_block = pipeline_dep_ctx_current_block_ref_at(ctx);
+    if (site_block <= 0) {
+      cfi = pipeline_dep_ctx_current_func_index(ctx);
+      if (cfi >= 0) {
+        site_block = pipeline_module_func_body_ref_at(module, cfi);
+      }
+    }
+    if (site_block <= 0) {
+      return 0;
+    }
+    lblock = pipeline_block_find_var_decl_block_ref(arena, site_block, &lname[0], llen);
+    rblock = pipeline_block_find_var_decl_block_ref(arena, site_block, &rname[0], rlen);
+    if (lblock <= 0 || rblock <= 0 || lblock == rblock) {
+      return 0;
+    }
+    if (typeck_block_is_strict_ancestor(arena, lblock, rblock) == 0) {
+      return 0;
+    }
+    typeck_expr_diag_line_col(arena, site_expr_ref, &line, &col);
+    /* "scope borrow escape" len 19 */
+    p = typeck_diag_append_lit(&msg[0], 0, 23, "scope borrow escape", 19);
+    msg[p] = 0;
+    lsp_diag_report_typeck(line, col, &msg[0]);
+    return 0 - 1;
+  }
+}
+
+/**
+ * MEM-A3 return gate: forbid returning address of block-local via *T return type.
+ * wave236 G.7 pure leave: was Cap residual pipeline_typeck_check_scope_borrow_return_c.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param site_expr_ref i32 — return expr site
+ * @param op_ref i32 — return operand
+ * @param return_type_ref i32 — function return type
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok; -1 diagnostic emitted
+ * PLATFORM: SHARED freestanding typeck — G.7 single scope-borrow return authority.
+ */
+export function typeck_check_scope_borrow_return(module: *Module, arena: *ASTArena, site_expr_ref: i32,
+op_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let msg: u8[24] = [];
+    let p: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx
+    || site_expr_ref <= 0 || op_ref <= 0) {
+      return 0;
+    }
+    if (return_type_ref <= 0 || pipeline_type_kind_ord_at(arena, return_type_ref) != 9) {
+      return 0;
+    }
+    if (typeck_expr_is_addr_of_block_local(module, arena, ctx, op_ref) == 0) {
+      return 0;
+    }
+    typeck_expr_diag_line_col(arena, site_expr_ref, &line, &col);
+    p = typeck_diag_append_lit(&msg[0], 0, 23, "scope borrow escape", 19);
+    msg[p] = 0;
+    lsp_diag_report_typeck(line, col, &msg[0]);
+    return 0 - 1;
   }
 }
 

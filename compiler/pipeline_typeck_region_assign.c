@@ -4,27 +4,39 @@
  * wave235 G.7 pure leave: M-3 slice region assign + return operand path dual
  * bodies retired → typeck.x (typeck_check_slice_region_assign /
  * typeck_check_return_slice_region + private escape/conflict helpers).
- * Cap residual keeps thin *_c faces for call_slice_region / mega / seed paths.
+ *
+ * wave236 G.7 pure leave: WPO-S3 stack-escape assign + MEM-A3 scope-borrow
+ * assign/return → typeck.x (typeck_check_struct_stack_escape_assign /
+ * typeck_check_scope_borrow_assign / typeck_check_scope_borrow_return +
+ * private helpers). Cap residual keeps thin *_c faces for scan/mega.
  *
  * Still residual (not pure-leaved this wave):
  * - M-3 AL-06 return slice in region-scope (scope label BSS)
- * - WPO-S3 struct stack-escape assign + helpers
- * - MEM-A3 scope-borrow assign/return + diag line/col + lval/ancestor helpers
  * - MEM-C1 with_arena scope stack + allocator region assign/return
+ * - post-scan stack-escape walk helpers (block tree stmt_order)
  * - call_slice_region mega (resolve + array_lit coerce + stack-escape)
  *
- * G.7 dual-export ban: do NOT re-open second slice_region_assign /
- * return_slice_region body here; typeck.x is single authority.
+ * G.7 dual-export ban: do NOT re-open second bodies for pure-leaved faces;
+ * typeck.x is single authority for those checks.
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c.
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
  */
 
-/* Live M-3 slice region authority in typeck_x.o (typeck.x exports). */
+/* Live M-3 / WPO-S3 / MEM-A3 authority in typeck_x.o (typeck.x exports). */
 extern int32_t typeck_check_slice_region_assign(struct ast_ASTArena *arena, int32_t site_expr_ref,
                                                 int32_t expect_ref, int32_t src_ref);
 extern int32_t typeck_check_return_slice_region(struct ast_ASTArena *arena, int32_t ret_site_ref,
                                                 int32_t op_ref, int32_t func_return_ref);
+extern int32_t typeck_check_struct_stack_escape_assign(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                       int32_t site_expr_ref, int32_t left_ref, int32_t right_ref,
+                                                       struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_check_scope_borrow_assign(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                int32_t site_expr_ref, int32_t left_ref, int32_t right_ref,
+                                                struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_check_scope_borrow_return(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                int32_t site_expr_ref, int32_t op_ref, int32_t return_type_ref,
+                                                struct ast_PipelineDepCtx *ctx);
 
 /* wave1125-1129 G.7: forward decl — definition at EOF (callsites at L122/238/279
  * precede the EOF definition). */
@@ -56,41 +68,13 @@ int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena *arena, 
 
 /**
  * WPO-S3：assign 路径 — 禁止将局部 struct 指针写入形参 *T 的字段（外层槽逃逸）。
- * PLATFORM: SHARED — Cap-T001: inside unsafe { } (typeck_unsafe_depth>0) skip; not LANG-007 off.
+ * wave236 pure leave: thin → typeck_check_struct_stack_escape_assign.
+ * PLATFORM: SHARED — Cap residual face only.
  */
 int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                            int32_t site_expr_ref, int32_t left_ref, int32_t right_ref,
                                                            struct ast_PipelineDepCtx *ctx) {
-  int32_t func_ix;
-  int32_t np;
-  int32_t pi;
-  int32_t line;
-  int32_t col;
-  if (!module || !arena || !ctx || left_ref <= 0 || right_ref <= 0)
-    return 0;
-  /* Cap-T001 / mega selfhost: whole-body unsafe opts into stack-ptr patterns. */
-  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) > 0)
-    return 0;
-  if (!typeck_expr_is_addr_of_block_local_c(module, arena, ctx, right_ref))
-    return 0;
-  func_ix = ctx->current_func_index;
-  if (func_ix < 0)
-    return 0;
-  np = pipeline_module_func_num_params_at(module, func_ix);
-  for (pi = 0; pi < np; pi++) {
-    if (typeck_lval_is_param_ptr_field_c(module, arena, func_ix, left_ref, pi)) {
-      line = 0;
-      col = 0;
-      if (site_expr_ref > 0 && site_expr_ref <= arena->num_exprs) {
-        line = pipeline_expr_line_at(arena, site_expr_ref);
-        col = pipeline_expr_col_at(arena, site_expr_ref);
-      }
-      lsp_diag_report_typeck((int)line, (int)col,
-                             "struct stack escape: cannot store address of local struct in outer lifetime");
-      return -1;
-    }
-  }
-  return 0;
+  return typeck_check_struct_stack_escape_assign(module, arena, site_expr_ref, left_ref, right_ref, ctx);
 }
 
 /** MEM-A3：block ancestor 是否为 block descendant 的严格外层父链祖先。 */
@@ -171,68 +155,24 @@ static void pipeline_typeck_expr_diag_line_col_c(struct ast_ASTArena *a, int32_t
 
 /**
  * MEM-A3：assign — 禁止内层块局部地址写入外层块变量（scope borrow 逃逸）。
+ * wave236 pure leave: thin → typeck_check_scope_borrow_assign.
+ * PLATFORM: SHARED — Cap residual face only.
  */
 int32_t pipeline_typeck_check_scope_borrow_assign_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                   int32_t site_expr_ref, int32_t left_ref, int32_t right_ref,
                                                   struct ast_PipelineDepCtx *ctx) {
-  uint8_t lname[128];
-  uint8_t rname[128];
-  int32_t llen;
-  int32_t rlen;
-  int32_t op_ref;
-  int32_t site_block;
-  int32_t lblock;
-  int32_t rblock;
-  int32_t line;
-  int32_t col;
-  if (!module || !arena || !ctx || left_ref <= 0 || right_ref <= 0)
-    return 0;
-  if (!typeck_expr_is_addr_of_block_local_c(module, arena, ctx, right_ref))
-    return 0;
-  if (!typeck_expr_lval_root_var_c(arena, left_ref, lname, &llen))
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, right_ref) != (int32_t)ast_ExprKind_EXPR_ADDR_OF)
-    return 0;
-  op_ref = pipeline_expr_unary_operand_ref_at(arena, right_ref);
-  if (op_ref <= 0 || pipeline_expr_kind_ord_at(arena, op_ref) != GLUE_EXPR_KIND_VAR)
-    return 0;
-  rlen = pipeline_expr_var_name_len(arena, op_ref);
-  if (rlen <= 0 || rlen > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, op_ref, rname);
-  site_block = ctx->current_block_ref;
-  if (site_block <= 0 && ctx->current_func_index >= 0)
-    site_block = pipeline_module_func_body_ref_at(module, ctx->current_func_index);
-  if (site_block <= 0)
-    return 0;
-  lblock = pipeline_block_find_var_decl_block_ref(arena, site_block, lname, llen);
-  rblock = pipeline_block_find_var_decl_block_ref(arena, site_block, rname, rlen);
-  if (lblock <= 0 || rblock <= 0 || lblock == rblock)
-    return 0;
-  if (!typeck_block_is_strict_ancestor_c(arena, lblock, rblock))
-    return 0;
-  pipeline_typeck_expr_diag_line_col_c(arena, site_expr_ref, &line, &col);
-  lsp_diag_report_typeck((int)line, (int)col, "scope borrow escape");
-  return -1;
+  return typeck_check_scope_borrow_assign(module, arena, site_expr_ref, left_ref, right_ref, ctx);
 }
 
 /**
  * MEM-A3：return — 禁止返回块内局部变量地址（指针逃出函数/块生命周期）。
+ * wave236 pure leave: thin → typeck_check_scope_borrow_return.
+ * PLATFORM: SHARED — Cap residual face only.
  */
 int32_t pipeline_typeck_check_scope_borrow_return_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     int32_t site_expr_ref, int32_t op_ref, int32_t return_type_ref,
                                                     struct ast_PipelineDepCtx *ctx) {
-  int32_t line;
-  int32_t col;
-  if (!module || !arena || !ctx || site_expr_ref <= 0 || op_ref <= 0)
-    return 0;
-  if (return_type_ref <= 0 || pipeline_type_kind_ord_at(arena, return_type_ref) != (int32_t)ast_TypeKind_TYPE_PTR)
-    return 0;
-  if (!typeck_expr_is_addr_of_block_local_c(module, arena, ctx, op_ref))
-    return 0;
-  pipeline_typeck_expr_diag_line_col_c(arena, site_expr_ref, &line, &col);
-  lsp_diag_report_typeck((int)line, (int)col, "scope borrow escape");
-  return -1;
+  return typeck_check_scope_borrow_return(module, arena, site_expr_ref, op_ref, return_type_ref, ctx);
 }
 
 /** MEM-C1：with_arena 嵌套栈深度（post-typeck scan 用；每模块 scan 前清零）。 */
