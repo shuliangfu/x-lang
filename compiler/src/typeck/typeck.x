@@ -585,6 +585,14 @@ export extern function pipeline_typeck_check_call_generic_type_args_c(module: *M
 expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32;
 export extern function glue_generic_call_fixup_resolved_type_c(module: *Module, arena: *ASTArena,
 call_expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32;
+/**
+ * wave247 pure leave: CALL callee return-type resolve Cap residual face.
+ * → typeck.x EOF (#[no_mangle] thin → resolve_call_callee_return_type).
+ * Cap residual method_call deletes second body (G.7 dual-export ban).
+ * export extern below = same-TU forward for early call sites (check_expr_call);
+ * body at EOF is the single pipeline_*_c authority.
+ * PLATFORM: SHARED freestanding typeck call-target resolve.
+ */
 export extern function pipeline_typeck_resolve_call_callee_return_type_c(module: *Module, arena: *ASTArena,
 callee_expr_ref: i32, call_expr_ref: i32, ctx: *PipelineDepCtx): i32;
 /**
@@ -11523,10 +11531,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
       return -1;
     }
-    /* Stamp callee return when resolve left resolved_type_ref empty. */
+    /* Stamp callee return when resolve left resolved_type_ref empty.
+     * wave247: pure resolve_call_callee_return_type (not residual *_c hop). */
     if (ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
       callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-      ret_ty = pipeline_typeck_resolve_call_callee_return_type_c(module, arena, callee_ref, expr_ref, ctx);
+      ret_ty = resolve_call_callee_return_type(module, arena, callee_ref, expr_ref, ctx);
       if (ret_ty != 0) {
         pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
       }
@@ -15610,4 +15619,35 @@ site_expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 // end wave246 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave247: typeck call-resolve domain pure leave (method_call residual subdomain)
+// Authority: typeck_x.o (this file + typeck_gen hand-sync).
+// Symbols:
+//   pipeline_typeck_resolve_call_callee_return_type_c  (#[no_mangle] thin)
+// Live body: resolve_call_callee_return_type + import/binding/select pure faces
+// Cap residual method_call: delete second resolve_callee body; thin import faces
+//   (import_segment_at / resolve_dep_index / whole_import_call_ret) → typeck_*.
+// PLATFORM: SHARED freestanding typeck CALL target resolve.
+// ---------------------------------------------------------------------------
+
+/**
+ * Cap residual face for CALL callee return-type resolve (wave247 pure leave).
+ * Thin → resolve_call_callee_return_type (G.7 single authority; dual-export ban).
+ * @param module *Module — entry module (local funcs + imports)
+ * @param arena *ASTArena — caller expr/type arena
+ * @param callee_expr_ref i32 — CALL callee expr ref (VAR / FIELD_ACCESS chain)
+ * @param call_expr_ref i32 — full CALL expr; >0 applies call_resolve dep/func idx
+ * @param ctx *PipelineDepCtx — dep modules for import binding / select scan
+ * @return i32 — >0 return type_ref; 0 unresolved
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_resolve_call_callee_return_type_c(module: *Module, arena: *ASTArena,
+callee_expr_ref: i32, call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — Cap residual face name; body = pure resolve authority.
+  return resolve_call_callee_return_type(module, arena, callee_expr_ref, call_expr_ref, ctx);
+}
+
+// end wave247 pure-owned leave
 

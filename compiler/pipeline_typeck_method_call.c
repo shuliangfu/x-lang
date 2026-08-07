@@ -19,7 +19,20 @@
  * definition at EOF (wave1095 G.7 migration from pipeline_glue.c).
  *
  * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
+ *
+ * wave247 pure leave: resolve_call_callee_return_type_c → typeck_x.o;
+ * import_segment / resolve_dep / whole_import residual faces thin → typeck_*;
+ * deleted static import path/binding/select equal helpers (pure twins).
  */
+
+
+/* wave247: pure import / call-resolve helpers from typeck_x.o. */
+extern int typeck_import_binding_name_equal(struct ast_Module *module, int32_t imp_ix, uint8_t *nm, int32_t nm_len);
+extern int typeck_import_segment_at(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr, int32_t *olen);
+extern int32_t typeck_resolve_dep_index_for_import(struct ast_Module *module, struct ast_PipelineDepCtx *ctx, int32_t imp_ix);
+extern int32_t typeck_resolve_whole_import_qualified_call_return_type(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                                       int32_t callee_expr_ref, struct ast_PipelineDepCtx *ctx,
+                                                                       int32_t *dep_index_out, int32_t *func_index_out);
 
 /** 两 slice 等长字节比较；len<=0 返回 0。 */
 static int32_t glue_slice_equal_c(const uint8_t *a, int32_t alen, const uint8_t *b, int32_t blen) {
@@ -190,7 +203,7 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *m
                   (path_len > 0 ? path_nm : (uint8_t *)""));
         }
         if (pipeline_module_import_kind_at(module, j) == GLUE_TYPECK_IMPORT_BINDING &&
-            pipeline_typeck_import_binding_name_equal_impl(module, j, base_nm, base_nlen)) {
+            typeck_import_binding_name_equal(module, j, base_nm, base_nlen)) {
           int32_t dep_slot = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, j);
           struct ast_Module *dm = dep_slot >= 0 ? pipeline_dep_ctx_module_at(ctx, dep_slot) : 0;
           if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
@@ -1108,160 +1121,9 @@ static int32_t pipeline_typeck_call_arg_effective_type_c(struct ast_ASTArena *ar
   return 0;
 }
 
-/**
- * Count `.`-separated segments in an import path string.
- *
- * Why: typeck.x::typeck_import_path_segment_count needs to know how many dotted
- * segments an import path carries (e.g. `a.b.c` → 3) so the binding resolver
- * can iterate matching dep imports segment-by-segment. Bare copy of the loop
- * lived inline in glue.c; centralizing here keeps the import path domain with
- * the call/import binding authority.
- *
- * Invariant: returns 0 for NULL path or path_len <= 0; otherwise returns the
- * segment count (a path with no dots yields 1).
- *
- * Asm/Perf: O(n) — single byte scan. Cold path — called per import path
- * resolution in pipeline_typeck_map_import_binding_named_to_caller_c
- * (glue.c:11893).
- *
- * PLATFORM: SHARED — import path lexing is platform-independent.
- *
- * wave1085 G.7: migrated from glue.c:11763 (body 15 LOC). Static (non-extern):
- * same-TU — static fwd decl at glue.c:11762 (before all callsites L11893+) <
- * method_call.c #include at L14053 < def EOF. Dependencies: none (pure byte
- * scan over caller-provided buffer).
- */
-static int32_t pipeline_typeck_import_path_segment_count_impl(const uint8_t *path, int32_t path_len) {
-  int32_t n;
-  int32_t ii;
 
-  if (!path || path_len <= 0)
-    return 0;
-  n = 1;
-  ii = 0;
-  while (ii < path_len) {
-    if (path[ii] == 46)
-      n = n + 1;
-    ii = ii + 1;
-  }
-  return n;
-}
 
-/**
- * Compare one import path slice (offset + seg_len) against a name buffer.
- *
- * Why: typeck.x::typeck_import_path_slice_equal verifies that a contiguous
- * sub-slice of an import path (e.g. one segment between dots) equals a candidate
- * name. Used by the binding resolver to walk dep imports segment-by-segment
- * and by the layer-buffer path matching for nested re-exports.
- *
- * Invariant: returns 0 for unequal lengths or seg_len <= 0; returns 1 iff all
- * seg_len bytes match. Module/imp_ix must be valid (caller-checked).
- *
- * Asm/Perf: O(n) — single byte loop. Cold path — called in
- * pipeline_typeck_map_import_binding_named_to_caller_c (glue.c:11899/11918).
- *
- * PLATFORM: SHARED — import path slice compare is platform-independent.
- *
- * wave1086 G.7: migrated from glue.c:11780 (body 14 LOC). Static (non-extern):
- * same-TU — static fwd decl at glue.c:11762 (before all callsites L11899+) <
- * method_call.c #include at L14053 < def EOF. Dependencies:
- * pipeline_module_import_path_byte_at (extern).
- */
-static int32_t pipeline_typeck_import_path_slice_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t off,
-                                                            int32_t seg_len, uint8_t *nm, int32_t nm_len) {
-  int32_t i;
 
-  if (seg_len != nm_len || seg_len <= 0)
-    return 0;
-  i = 0;
-  while (i < seg_len) {
-    if (pipeline_module_import_path_byte_at(module, imp_ix, off + i) != nm[i])
-      return 0;
-    i = i + 1;
-  }
-  return 1;
-}
-
-/**
- * Compare one import binding name (the `as` alias or declared name) against nm.
- *
- * Why: typeck.x::typeck_import_binding_name_equal is used by the binding
- * resolver to find the dep import whose binding name matches a candidate
- * (e.g. when resolving `math.floor`, the resolver walks dep imports looking
- * for the one bound to `math`). Centralizing here keeps the import binding
- * name comparison with the import path authority.
- *
- * Invariant: returns 0 for unequal lengths or nm_len <= 0; returns 1 iff all
- * nm_len bytes match. Module/imp_ix must be valid (caller-checked).
- *
- * Asm/Perf: O(n) — single byte loop. Cold path — called in
- * pipeline_typeck_map_import_binding_named_to_caller_c (glue.c:12025).
- *
- * PLATFORM: SHARED — import binding name compare is platform-independent.
- *
- * wave1087 G.7: migrated from glue.c:11796 (body 16 LOC). Static (non-extern):
- * same-TU — static fwd decl at glue.c:11762 (before all callsites L12025+) <
- * method_call.c #include at L14053 < def EOF. Dependencies:
- * pipeline_module_import_binding_name_len /
- * pipeline_module_import_binding_name_byte_at (both extern).
- */
-static int32_t pipeline_typeck_import_binding_name_equal_impl(struct ast_Module *module, int32_t imp_ix, uint8_t *nm,
-                                                              int32_t nm_len) {
-  int32_t bl;
-  int32_t i;
-
-  bl = pipeline_module_import_binding_name_len(module, imp_ix);
-  if (bl != nm_len || nm_len <= 0)
-    return 0;
-  i = 0;
-  while (i < nm_len) {
-    if (pipeline_module_import_binding_name_byte_at(module, imp_ix, i) != nm[i])
-      return 0;
-    i = i + 1;
-  }
-  return 1;
-}
-
-/**
- * Compare one import select name (a sub-binding inside a multi-name import)
- * against nm at the given select index.
- *
- * Why: typeck.x::typeck_import_select_name_equal is used when an import
- * exposes multiple names (e.g. `from foo import {a, b}`); the resolver walks
- * each select slot comparing against the candidate name. Centralizing here
- * keeps the select-name compare with the import binding authority.
- *
- * Invariant: returns 0 for unequal lengths or nm_len <= 0; returns 1 iff all
- * nm_len bytes match. Module/imp_ix/sel must be valid (caller-checked).
- *
- * Asm/Perf: O(n) — single byte loop. Cold path — called in
- * pipeline_typeck_map_import_binding_named_to_caller_c (glue.c:12106).
- *
- * PLATFORM: SHARED — import select name compare is platform-independent.
- *
- * wave1088 G.7: migrated from glue.c:11814 (body 16 LOC). Static (non-extern):
- * same-TU — static fwd decl at glue.c:11762 (before all callsites L12106+) <
- * method_call.c #include at L14053 < def EOF. Dependencies:
- * pipeline_module_import_select_name_len /
- * pipeline_module_import_select_name_byte_at (both extern).
- */
-static int32_t pipeline_typeck_import_select_name_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t sel,
-                                                             uint8_t *nm, int32_t nm_len) {
-  int32_t sl;
-  int32_t i;
-
-  sl = pipeline_module_import_select_name_len(module, imp_ix, sel);
-  if (sl != nm_len || nm_len <= 0)
-    return 0;
-  i = 0;
-  while (i < nm_len) {
-    if (pipeline_module_import_select_name_byte_at(module, imp_ix, sel, i) != nm[i])
-      return 0;
-    i = i + 1;
-  }
-  return 1;
-}
 
 /**
  * Count non-extern funcs in module m whose name equals (name, name_len).
@@ -2810,221 +2672,17 @@ static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, st
 }
 
 /* ============================================================
- * wave1155 G.7: CALL callee return-type resolver
- * (migrated from pipeline_glue.c L8994-9160).
- *
- * Why here: pipeline_typeck_resolve_call_callee_return_type_c resolves
- * the return type for a CALL/METHOD_CALL callee expr. It is the
- * return-type twin of pipeline_typeck_resolve_call_func_index_c
- * (already in this file, wave1085-1094) — both resolve call targets
- * from callee expressions. Colocating them keeps the call-resolution
- * domain in a single file.
- *
- * Contract: returns >0 type_ref on success (caller applies via
- * pipeline_typeck_expr_apply_call_resolve_c if want_resolve), 0 if
- * unresolved. Resolution order:
- *   (1) FIELD_ACCESS whole-import call (math.floor form)
- *   (2) FIELD_ACCESS binding-based call (import_binding + field name)
- *   (3) Local module function (find_func_return_type_in_module_c)
- *   (4) Dep scan: each dep module + import_select name match
- *
- * Dependencies (all visible via same-TU globals or extern headers):
- *   - pipeline_expr_kind_ord_at / pipeline_expr_field_access_base_ref /
- *     _name_len / _name_into / pipeline_expr_var_name_len / _into
- *     (extern, header-declared)
- *   - pipeline_typeck_resolve_whole_import_call_ret_c (extern)
- *   - pipeline_typeck_expr_apply_call_resolve_c (extern)
- *   - pipeline_typeck_module_num_imports_c (static in assign.c wave1066;
- *     visible same-TU via #include at L8265 < this file #include at L10186)
- *   - pipeline_typeck_import_binding_name_equal_impl (extern)
- *   - pipeline_typeck_resolve_dep_index_for_import_c (extern)
- *   - pipeline_dep_ctx_module_at / pipeline_dep_ctx_ndep (extern)
- *   - pipeline_typeck_find_func_return_type_in_module_c (extern, defined
- *     at glue.c L8926; visible via extern fwd decl at glue.c L8926 which
- *     is BEFORE this file's #include at L10186)
- *   - pipeline_typeck_find_func_return_type_in_module_by_name_c (extern)
- *   - pipeline_module_import_kind_at / pipeline_module_import_select_count_at
- *     / pipeline_typeck_import_select_name_equal_impl (extern)
- *   - GLUE_TYPECK_IMPORT_BINDING / GLUE_TYPECK_IMPORT_SELECT (anonymous
- *     enum at glue.c L2241, BEFORE this file's #include at L10186 — visible)
- *
- * Caller (in glue.c, AFTER this file's #include at L10186):
- *   - pipeline_typeck_check_expr_call_c (glue.c L10353; sole callsite)
- *   No fwd decl needed: caller is after the #include point.
- *
- * PLATFORM: SHARED — pure typeck call-target resolution; no platform ABI dep.
+ * wave247 G.7 pure leave: pipeline_typeck_resolve_call_callee_return_type_c
+ * body retired → typeck_x.o (#[no_mangle] thin → resolve_call_callee_return_type).
+ * Dual-export ban: residual keeps extern only (U from typeck_x).
+ * PLATFORM: SHARED freestanding typeck CALL target resolve.
  * ============================================================ */
+extern int32_t pipeline_typeck_resolve_call_callee_return_type_c(struct ast_Module *module,
+                                                                  struct ast_ASTArena *arena,
+                                                                  int32_t callee_expr_ref,
+                                                                  int32_t call_expr_ref,
+                                                                  struct ast_PipelineDepCtx *ctx);
 
-/**
- * typeck.x::resolve_call_callee_return_type C delegate: resolve CALL callee
- * return type (local module / dep / whole-package / binding / deconstruct import).
- */
-int32_t pipeline_typeck_resolve_call_callee_return_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                          int32_t callee_expr_ref, int32_t call_expr_ref,
-                                                          struct ast_PipelineDepCtx *ctx) {
-  int32_t want_resolve;
-  int32_t whole_dep;
-  int32_t whole_fn;
-  int32_t *p_whole_dep;
-  int32_t *p_whole_fn;
-  int32_t callee_ord;
-  int32_t minus_one;
-  int32_t loc_fn;
-  int32_t *p_loc_fn;
-  int32_t ret;
-  int32_t i;
-  int32_t imax;
-  int32_t nd_scan;
-
-  if (callee_expr_ref <= 0 || !arena || callee_expr_ref > arena->num_exprs)
-    return 0;
-  want_resolve = (call_expr_ref > 0 && call_expr_ref <= arena->num_exprs);
-  whole_dep = 0;
-  whole_fn = 0;
-  p_whole_dep = 0;
-  p_whole_fn = 0;
-  if (want_resolve) {
-    p_whole_dep = &whole_dep;
-    p_whole_fn = &whole_fn;
-  }
-  callee_ord = pipeline_expr_kind_ord_at(arena, callee_expr_ref);
-  if (callee_ord == 44) {
-    int32_t r_whole;
-
-    r_whole = pipeline_typeck_resolve_whole_import_call_ret_c(
-        module, arena, callee_expr_ref, ctx, p_whole_dep, p_whole_fn);
-    if (r_whole != 0) {
-      if (want_resolve)
-        pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, whole_dep, whole_fn);
-      return r_whole;
-    }
-  }
-  if (callee_ord == 44) {
-    int32_t base_bind_ref;
-
-    base_bind_ref = pipeline_expr_field_access_base_ref(arena, callee_expr_ref);
-    if (base_bind_ref > 0 && base_bind_ref <= arena->num_exprs &&
-        pipeline_expr_kind_ord_at(arena, base_bind_ref) == 3) {
-      int32_t base_bind_len;
-
-      base_bind_len = pipeline_expr_var_name_len(arena, base_bind_ref);
-      if (base_bind_len > 0 && base_bind_len <= 63) {
-        uint8_t base_bind_nm[128];
-        int32_t field_len;
-        uint8_t field_nm[128];
-        int32_t ii;
-        int32_t n_imp;
-
-        pipeline_expr_var_name_into(arena, base_bind_ref, base_bind_nm);
-        field_len = pipeline_expr_field_access_name_len(arena, callee_expr_ref);
-        pipeline_expr_field_access_name_into(arena, callee_expr_ref, field_nm);
-        n_imp = pipeline_typeck_module_num_imports_c(module);
-        ii = 0;
-        while (ii < n_imp) {
-          if (pipeline_module_import_kind_at(module, ii) == GLUE_TYPECK_IMPORT_BINDING &&
-              pipeline_typeck_import_binding_name_equal_impl(module, ii, base_bind_nm, base_bind_len)) {
-            struct ast_Module *dm;
-            int32_t dep_slot;
-
-            dep_slot = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, ii);
-            if (dep_slot < 0)
-              break;
-            dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
-            if (dm) {
-              int32_t bind_fn = 0;
-              int32_t *p_bind_fn = 0;
-              int32_t ret_b;
-
-              if (want_resolve)
-                p_bind_fn = &bind_fn;
-              ret_b = pipeline_typeck_find_func_return_type_in_module_by_name_c(dm, arena, field_nm, field_len,
-                                                                                dep_slot, ctx, p_bind_fn);
-              if (ret_b != 0) {
-                if (want_resolve)
-                  pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, dep_slot, bind_fn);
-                return ret_b;
-              }
-            }
-            break;
-          }
-          ii = ii + 1;
-        }
-      }
-    }
-  }
-  minus_one = -1;
-  loc_fn = 0;
-  p_loc_fn = 0;
-  if (want_resolve)
-    p_loc_fn = &loc_fn;
-  ret = pipeline_typeck_find_func_return_type_in_module_c(module, arena, arena, arena, callee_expr_ref, minus_one, ctx,
-                                                          p_loc_fn);
-  if (ret != 0) {
-    if (want_resolve)
-      pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, minus_one, loc_fn);
-    return ret;
-  }
-  i = 0;
-  imax = pipeline_typeck_module_num_imports_c(module);
-  nd_scan = pipeline_dep_ctx_ndep(ctx);
-  if (nd_scan > imax)
-    imax = nd_scan;
-  while (i < imax) {
-    struct ast_Module *dm;
-    int32_t dep_fn;
-    int32_t *p_dep_fn;
-
-    dm = pipeline_dep_ctx_module_at(ctx, i);
-    if (!dm) {
-      i = i + 1;
-      continue;
-    }
-    dep_fn = 0;
-    p_dep_fn = 0;
-    if (want_resolve)
-      p_dep_fn = &dep_fn;
-    ret = pipeline_typeck_find_func_return_type_in_module_c(dm, arena, arena, arena, callee_expr_ref, i, ctx, p_dep_fn);
-    if (ret != 0) {
-      if (want_resolve)
-        pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, i, dep_fn);
-      return ret;
-    }
-    if (i < module->num_imports && pipeline_module_import_kind_at(module, i) == GLUE_TYPECK_IMPORT_SELECT &&
-        callee_ord == 3) {
-      int32_t cv_len;
-
-      cv_len = pipeline_expr_var_name_len(arena, callee_expr_ref);
-      if (cv_len > 0) {
-        uint8_t cv_nm[128];
-        int32_t k;
-        int32_t sel_cnt;
-
-        pipeline_expr_var_name_into(arena, callee_expr_ref, cv_nm);
-        k = 0;
-        sel_cnt = pipeline_module_import_select_count_at(module, i);
-        while (k < sel_cnt) {
-          if (pipeline_typeck_import_select_name_equal_impl(module, i, k, cv_nm, cv_len)) {
-            int32_t sel_fn = 0;
-            int32_t *p_sel_fn = 0;
-
-            if (want_resolve)
-              p_sel_fn = &sel_fn;
-            ret = pipeline_typeck_find_func_return_type_in_module_by_name_c(dm, arena, cv_nm, cv_len, i, ctx, p_sel_fn);
-            if (ret != 0) {
-              if (want_resolve)
-                pipeline_typeck_expr_apply_call_resolve_c(arena, call_expr_ref, i, sel_fn);
-              return ret;
-            }
-            break;
-          }
-          k = k + 1;
-        }
-      }
-    }
-    i = i + 1;
-  }
-  return 0;
-}
 
 /* ============================================================
  * wave1159 G.7: call_resolve + method_call accessor public wrappers
@@ -3507,272 +3165,45 @@ int32_t pipeline_typeck_pick_overload_func_index_for_call_c(struct ast_Module *m
 }
 
 /* ============================================================
- * wave1192 G.7: import resolution cluster (3 extern fns)
- * migrated from pipeline_glue.c L4831/L4900/L5014. Colocated with
- * method_call domain — qualified import call resolution is a
- * sub-domain of method-call target resolution:
- * - import_segment_at_c: split import path into '.'-separated segments
- * - resolve_dep_index_for_import_c: map entry import slot → dep ctx slot
- * - resolve_whole_import_call_ret_c: resolve `platform.elf.fn(args)` callee
- *   return type by walking field_access chain + import path match.
- *
- * Forward decls at L82-88 (before callsites L178/2946/2981).
- *
- * Dependencies visible at #include point (method_call.c #include in glue.c):
- * - pipeline_typeck_module_num_imports_c (static in assign.c, same TU)
- * - pipeline_module_import_path_len/byte_at (extern)
- * - pipeline_dep_ctx_ndep/import_path_len/import_path_copy64/module_at (extern)
- * - asm_qual_sym_layer_reset/push/count/len/copy (extern)
- * - pipeline_expr_kind_ord_at/var_name_len/var_name_into (extern)
- * - pipeline_expr_field_access_name_len/name_into/base_ref (extern)
- * - pipeline_typeck_import_path_segment_count_impl (static in this file,
- *   wave1085-1088 migration; visible via static fwd decl in glue.c L5002)
- * - pipeline_typeck_import_path_slice_equal_impl (static in this file,
- *   wave1085-1088 migration; visible via static fwd decl in glue.c L5003)
- * - pipeline_typeck_find_func_return_type_in_module_by_name_c (extern fwd
- *   decl in glue.c L4985, defined in this file wave1169)
- * - link_abi_getenv (extern)
- * PLATFORM: SHARED — product path (seed typeck → this glue).
+ * wave247 G.7: import resolution Cap residual faces (thin → typeck_x.o)
+ * - import_segment_at_c → typeck_import_segment_at
+ * - resolve_dep_index_for_import_c → typeck_resolve_dep_index_for_import
+ * - whole_import_call_ret_c → typeck_resolve_whole_import_qualified_call_return_type
+ * Static path/binding/select equal helpers deleted (pure twins only).
+ * PLATFORM: SHARED freestanding typeck import resolve.
  * ============================================================ */
 
 /**
- * typeck.x::import_segment_at C twin.
- *
- * Why: split an import path into '.'-separated segments; return the byte
- *      range [ostr, olen) of the want_seg-th segment. Used by
- *      resolve_whole_import_call_ret_c to match qualified call chains
- *      against import path segments.
- * Invariant: module non-null; imp_ix in [0, num_imports); want_seg >= 0.
- * Contract: returns 1 on hit (ostr/olen set); 0 on miss / bad input.
- * PLATFORM: SHARED — typeck pass; no codegen.
+ * Cap residual face: import path segment at want_seg.
+ * wave247 pure leave: thin → typeck_import_segment_at (typeck_x.o).
+ * PLATFORM: SHARED freestanding typeck import resolve.
  */
 int32_t pipeline_typeck_import_segment_at_c(struct ast_Module *module, int32_t imp_ix, int32_t want_seg,
-                                              int32_t *ostr, int32_t *olen) {
-  int32_t pl;
-  int32_t ci;
-  int32_t ss;
-  int32_t k;
-  int32_t n_imp;
-
-  n_imp = pipeline_typeck_module_num_imports_c(module);
-  if (!module || imp_ix < 0 || imp_ix >= n_imp || !ostr || !olen)
-    return 0;
-  pl = pipeline_module_import_path_len(module, imp_ix);
-  if (pl <= 0 || pl > 127)
-    return 0;
-  ci = 0;
-  ss = 0;
-  k = 0;
-  while (k <= pl) {
-    int32_t at_end_p = (k == pl);
-    int32_t dot_p = 0;
-    if (!at_end_p && k < pl)
-      dot_p = (pipeline_module_import_path_byte_at(module, imp_ix, k) == 46);
-    if (at_end_p || dot_p) {
-      int32_t seg_len_here = k - ss;
-      if (seg_len_here <= 0)
-        return 0;
-      if (ci == want_seg) {
-        ostr[0] = ss;
-        olen[0] = seg_len_here;
-        return 1;
-      }
-      if (dot_p)
-        ss = k + 1;
-      ci = ci + 1;
-    }
-    k = k + 1;
-  }
-  return 0;
+                                             int32_t *ostr, int32_t *olen) {
+  return typeck_import_segment_at(module, imp_ix, want_seg, ostr, olen);
 }
 
+
 /**
- * typeck.x::resolve_dep_index_for_import C twin.
- *
- * Why: map entry-module import slot → dep ctx slot by import path.
- *      Closure seed may order deps differently from entry import index
- *      (ndep > n_imports). Callers must use this; never use imp_ix as
- *      dep index directly.
- * Invariant: module/ctx non-null; imp_ix in [0, num_imports).
- * Contract: returns dep slot index >= 0 on hit; -1 on miss / bad input.
- * PLATFORM: SHARED — typeck pass; no codegen.
+ * Cap residual face: entry import slot → dep ctx slot.
+ * wave247 pure leave: thin → typeck_resolve_dep_index_for_import (typeck_x.o).
+ * PLATFORM: SHARED freestanding typeck import resolve.
  */
 int32_t pipeline_typeck_resolve_dep_index_for_import_c(struct ast_Module *module,
-                                                       struct ast_PipelineDepCtx *ctx, int32_t imp_ix) {
-  uint8_t imp_path[128];
-  int32_t plen;
-  int32_t n_imp;
-  int32_t di;
-  int32_t nd;
-
-  n_imp = pipeline_typeck_module_num_imports_c(module);
-  if (!module || !ctx || imp_ix < 0 || imp_ix >= n_imp)
-    return -1;
-  plen = pipeline_module_import_path_len(module, imp_ix);
-  if (plen <= 0 || plen > 127)
-    return -1;
-  di = 0;
-  while (di < plen) {
-    imp_path[di] = pipeline_module_import_path_byte_at(module, imp_ix, di);
-    di = di + 1;
-  }
-  nd = pipeline_dep_ctx_ndep(ctx);
-  di = 0;
-  while (di < nd) {
-    int32_t dep_plen = pipeline_dep_ctx_import_path_len(ctx, di);
-    if (dep_plen == plen) {
-      uint8_t dep_path[128];
-      int32_t k = 0;
-      int32_t eq = 1;
-      pipeline_dep_ctx_import_path_copy64(ctx, di, dep_path);
-      while (k < plen) {
-        if (dep_path[k] != imp_path[k]) {
-          eq = 0;
-          break;
-        }
-        k = k + 1;
-      }
-      if (eq)
-        return di;
-    }
-    di = di + 1;
-  }
-  return -1;
+                                                        struct ast_PipelineDepCtx *ctx, int32_t imp_ix) {
+  return typeck_resolve_dep_index_for_import(module, ctx, imp_ix);
 }
+
 
 /**
- * typeck.x::resolve_whole_import_qualified_call_return_type C twin.
- *
- * Why: resolve `platform.elf.fn(args)` whole-import callee return type.
- *      Walks the field_access chain (pushing each segment onto the asm qual
- *      sym layer stack), matches against entry-module import paths segment
- *      by segment, then resolves the dep slot + func return type via
- *      find_func_return_type_in_module_by_name_c.
- * Invariant: module/arena/ctx non-null; callee_expr_ref > 0;
- *            callee kind must be EXPR_FIELD_ACCESS (ord 44).
- * Contract: returns nonzero type_ref on hit (dep_index_out/func_index_out
- *           set if non-null); 0 on miss / bad input.
- * PLATFORM: SHARED — typeck pass; no codegen.
+ * Cap residual face: qualified whole-import CALL return type.
+ * wave247 pure leave: thin → typeck_resolve_whole_import_qualified_call_return_type.
+ * PLATFORM: SHARED freestanding typeck import resolve.
  */
 int32_t pipeline_typeck_resolve_whole_import_call_ret_c(
-    struct ast_Module *module, struct ast_ASTArena *arena, int32_t callee_expr_ref, struct ast_PipelineDepCtx *ctx,
-    int32_t *dep_index_out, int32_t *func_index_out) {
-  uint8_t layer_buf[128];
-  int32_t nstack;
-  int32_t cur_ref;
-  int32_t dep_j;
-
-  if (!ctx || !module || !arena || callee_expr_ref <= 0 || callee_expr_ref > arena->num_exprs)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, callee_expr_ref) != 44)
-    return 0;
-  asm_qual_sym_layer_reset();
-  cur_ref = callee_expr_ref;
-  while (1) {
-    int32_t falen;
-    if (cur_ref <= 0 || cur_ref > arena->num_exprs)
-      return 0;
-    falen = pipeline_expr_field_access_name_len(arena, cur_ref);
-    if (pipeline_expr_kind_ord_at(arena, cur_ref) != 44 || falen <= 0 || falen > 127)
-      break;
-    pipeline_expr_field_access_name_into(arena, cur_ref, layer_buf);
-    if (asm_qual_sym_layer_push(layer_buf, falen) < 0)
-      return 0;
-    cur_ref = pipeline_expr_field_access_base_ref(arena, cur_ref);
-  }
-  nstack = asm_qual_sym_layer_count();
-  if (cur_ref <= 0 || cur_ref > arena->num_exprs)
-    return 0;
-  {
-    int32_t vnlen;
-    uint8_t vname_buf[128];
-    int32_t n_imp;
-
-    vnlen = pipeline_expr_var_name_len(arena, cur_ref);
-    if (pipeline_expr_kind_ord_at(arena, cur_ref) != 3 || vnlen <= 0 || vnlen > 127)
-      return 0;
-    pipeline_expr_var_name_into(arena, cur_ref, vname_buf);
-    n_imp = pipeline_typeck_module_num_imports_c(module);
-    dep_j = 0;
-    while (dep_j < n_imp) {
-      int32_t plen;
-      uint8_t path_cnt_buf[128];
-      int32_t pci;
-      int32_t pseg;
-      int32_t s0_rel;
-      int32_t s0_ln;
-
-      plen = pipeline_module_import_path_len(module, dep_j);
-      if (plen <= 0 || plen > 127) {
-        dep_j = dep_j + 1;
-        continue;
-      }
-      pci = 0;
-      while (pci < plen && pci < 64) {
-        path_cnt_buf[pci] = pipeline_module_import_path_byte_at(module, dep_j, pci);
-        pci = pci + 1;
-      }
-      pseg = pipeline_typeck_import_path_segment_count_impl(path_cnt_buf, plen);
-      if (pseg <= 0 || nstack != pseg) {
-        dep_j = dep_j + 1;
-        continue;
-      }
-      if (!pipeline_typeck_import_segment_at_c(module, dep_j, 0, &s0_rel, &s0_ln) ||
-          !pipeline_typeck_import_path_slice_equal_impl(module, dep_j, s0_rel, s0_ln, vname_buf, vnlen)) {
-        dep_j = dep_j + 1;
-        continue;
-      }
-      {
-        int32_t bad_mid = 0;
-        int32_t sm;
-
-        sm = 1;
-        while (sm <= pseg - 1) {
-          int32_t srv;
-          int32_t slv;
-          int32_t lay_ix;
-
-          if (!pipeline_typeck_import_segment_at_c(module, dep_j, sm, &srv, &slv)) {
-            bad_mid = 1;
-          } else {
-            lay_ix = pseg - sm;
-            asm_qual_sym_layer_copy(lay_ix, layer_buf, 64);
-            if (!pipeline_typeck_import_path_slice_equal_impl(module, dep_j, srv, slv, layer_buf,
-                                                             asm_qual_sym_layer_len(lay_ix)))
-              bad_mid = 1;
-          }
-          if (bad_mid)
-            break;
-          sm = sm + 1;
-        }
-        if (bad_mid) {
-          dep_j = dep_j + 1;
-          continue;
-        }
-      }
-      {
-        struct ast_Module *dm;
-        int32_t dep_slot;
-        int32_t ret_fn;
-
-        dep_slot = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, dep_j);
-        if (dep_slot < 0) {
-          dep_j = dep_j + 1;
-          continue;
-        }
-        dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
-        if (!dm) {
-          dep_j = dep_j + 1;
-          continue;
-        }
-        asm_qual_sym_layer_copy(0, layer_buf, 64);
-        ret_fn = pipeline_typeck_find_func_return_type_in_module_by_name_c(
-            dm, arena, layer_buf, asm_qual_sym_layer_len(0), dep_slot, ctx, func_index_out);
-        if (ret_fn != 0 && dep_index_out)
-          dep_index_out[0] = dep_slot;
-        return ret_fn;
-      }
-    }
-  }
-  return 0;
+    struct ast_Module *module, struct ast_ASTArena *arena, int32_t callee_expr_ref,
+    struct ast_PipelineDepCtx *ctx, int32_t *dep_index_out, int32_t *func_index_out) {
+  return typeck_resolve_whole_import_qualified_call_return_type(module, arena, callee_expr_ref, ctx,
+                                                                dep_index_out, func_index_out);
 }
+

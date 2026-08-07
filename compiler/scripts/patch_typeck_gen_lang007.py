@@ -47,11 +47,9 @@ int typeck_get_allow_legacy_extern_calls(void) {
 # wave234: S0 extern-in-unsafe via typeck_check_extern_call_unsafe_boundary (not residual _c).
 CALL_BODY = """\
 int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
-  /* wave234 pure leave — PLATFORM: SHARED freestanding typeck (parity typeck.x). */
+  /* wave234/wave239/wave247 pure leave — PLATFORM: SHARED freestanding typeck (parity typeck.x). */
   extern int32_t typeck_check_extern_call_unsafe_boundary(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
   extern int32_t pipeline_typeck_check_call_generic_type_args_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, struct ast_PipelineDepCtx *ctx, int32_t expected_ret);
-  extern int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx);
-  extern int32_t pipeline_typeck_resolve_call_callee_return_type_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t callee_expr_ref, int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx);
   extern int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx, int32_t expected_ret);
   extern int32_t pipeline_expr_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
   extern int32_t pipeline_expr_call_callee_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
@@ -89,13 +87,15 @@ int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena *
     *typeck_overload_expected_ret_slot() = 0;
     return -1;
   }
-  if (pipeline_typeck_check_call_slice_region_c(module, arena, expr_ref, ctx) != 0) {
+  /* wave239: call_slice pure leave — direct authority. */
+  if (typeck_check_call_slice_region(module, arena, expr_ref, ctx) != 0) {
     *typeck_overload_expected_ret_slot() = 0;
     return -1;
   }
+  /* wave247: pure resolve_call_callee_return_type (not residual *_c hop). */
   if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
     callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-    ret_ty = pipeline_typeck_resolve_call_callee_return_type_c(module, arena, callee_ref, expr_ref, ctx);
+    ret_ty = typeck_resolve_call_callee_return_type(module, arena, callee_ref, expr_ref, ctx);
     if (ret_ty != 0)
       (void)pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
   }

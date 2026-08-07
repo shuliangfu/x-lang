@@ -132,35 +132,10 @@ int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
  * module_c migrated to call_args.c EOF. Single authority: mirrors ast.x
  * ImportKind. */
 
-/* wave1085-1088 G.7: import path/binding/select name comparison helpers migrated
- * to pipeline_typeck_method_call.c EOF (import binding resolution sub-domain of
- * method_call + generic UFCS). Static (non-extern): same-TU — fwd decls below
- * (before all callsites L11893+) < method_call.c #include at L14053 < def EOF.
- * Deps: pipeline_module_import_path_byte_at /
- * pipeline_module_import_binding_name_len / pipeline_module_import_binding_name_byte_at /
- * pipeline_module_import_select_name_len / pipeline_module_import_select_name_byte_at
- * (all extern). PLATFORM: SHARED. */
-static int32_t pipeline_typeck_import_path_segment_count_impl(const uint8_t *path, int32_t path_len);
-static int32_t pipeline_typeck_import_path_slice_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t off,
-                                                            int32_t seg_len, uint8_t *nm, int32_t nm_len);
-static int32_t pipeline_typeck_import_binding_name_equal_impl(struct ast_Module *module, int32_t imp_ix, uint8_t *nm,
-                                                              int32_t nm_len);
-static int32_t pipeline_typeck_import_select_name_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t sel,
-                                                             uint8_t *nm, int32_t nm_len);
-
-/* wave1192 G.7: pipeline_typeck_resolve_whole_import_call_ret_c migrated to
- * pipeline_typeck_method_call.c EOF (import resolution cluster). Colocated
- * with method_call domain — qualified import call resolution is a sub-domain
- * of method-call target resolution.
- * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
-
-/* wave1155 G.7: pipeline_typeck_resolve_call_callee_return_type_c migrated to
- * pipeline_typeck_method_call.c EOF (colocated with resolve_call_func_index_c
- * wave1085-1094 — both resolve CALL callee targets; return-type twin of
- * func_index resolver). Extern (non-static): sole callsite at L10353 is AFTER
- * method_call.c #include at L10186 — visible via extern decl. Deps:
- * GLUE_TYPECK_IMPORT_BINDING/SELECT enum (L2241 < #include L10186), all other
- * deps extern/header-declared. PLATFORM: SHARED. */
+/* wave247 G.7 pure leave: import path/binding/select equal helpers +
+ * resolve_call_callee_return_type_c live in typeck_x.o (pure twins / no_mangle).
+ * Cap residual method_call: thin import_segment / resolve_dep / whole_import
+ * faces only; dual-export ban on resolve_callee body. PLATFORM: SHARED. */
 
 extern int32_t pipeline_module_main_func_index(struct ast_Module *m);
 extern int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t fi);
