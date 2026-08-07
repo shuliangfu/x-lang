@@ -43,7 +43,10 @@
  * Cap faces pipeline_typeck_method_call_generic_ufcs_c +
  * glue_generic_call_fixup_resolved_type_c; residual dual-export ban
  * (UFCS / fixup / subst_ret_from_formal_map / dead subst_module_ret deleted).
- * Residual still hosts weak method_call_c + call-resolve accessors / dep map.
+ *
+ * wave253 pure leave: weak method_call_c body → typeck_check_expr_method_call
+ * (typeck_x.o); Cap face thin only. Residual still hosts call-resolve accessors /
+ * dep map / find_func faces (next leave).
  */
 
 
@@ -135,280 +138,20 @@ int32_t pipeline_typeck_resolve_whole_import_call_ret_c(
     struct ast_PipelineDepCtx *ctx, int32_t *dep_index_out, int32_t *func_index_out);
 
 /**
- * EXPR_METHOD_CALL: typecheck base/args, resolve import.method via path-matched dep
- * slot + W-heap-overload (call_strict_minimal). Never use entry import index as dep index.
- * PLATFORM: SHARED — weak so pipeline_glue_strict_minimal strong definition wins when linked;
- * this body remains correct if it is the sole definition (Ubuntu first-T link order).
+ * Cap residual face for EXPR_METHOD_CALL.
+ * wave253 pure leave: thin → typeck_check_expr_method_call (typeck_x.o).
+ * G.7 dual-export ban: residual second body deleted; product authority = typeck.x.
+ * PLATFORM: SHARED freestanding typeck method_call pure leave.
  */
 XLANG_WEAK int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
                                                                        struct ast_ASTArena *arena,
                                                                        int32_t expr_ref,
                                                                        int32_t return_type_ref,
                                                                        struct ast_PipelineDepCtx *ctx) {
-  int32_t base_ref;
-  int32_t base_rc;
-  int32_t base_ty;
-  int32_t base_ord;
-  int32_t method_nlen;
-  uint8_t method_nm[128];
-  int32_t ret_ty;
-  int32_t num_args;
-  int32_t arg_i;
-  int32_t ord_i32 = (int32_t)ast_TypeKind_TYPE_I32;
-  int32_t ord_var = (int32_t)ast_ExprKind_EXPR_VAR;
-  extern int32_t typeck_check_expr(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                                   int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
-  /* Authority for overload pick (seed): same as strict_minimal product path. */
-  extern int32_t pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-      struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len,
-      int32_t from_dep_index, int32_t want_arity, int32_t call_expr_ref, int32_t is_method,
-      struct ast_PipelineDepCtx *ctx, int32_t *func_index_out);
-
-  if (!module || !arena || expr_ref <= 0)
-    return 0;
-  pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
-  base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-  base_rc = typeck_check_expr(module, arena, base_ref, 0, ctx);
-  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
-  base_ord = pipeline_expr_kind_ord_at(arena, base_ref);
-  method_nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
-  if (method_nlen <= 0 || method_nlen > 127)
-    return -1;
-  pipeline_expr_method_call_name_into(arena, expr_ref, method_nm);
-  /* Args must be typed before overload scoring (PTR elem match needs resolved *T). */
-  num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
-  arg_i = 0;
-  while (arg_i < num_args) {
-    int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, arg_i);
-    if (typeck_check_expr(module, arena, arg_ref, return_type_ref, ctx) != 0)
-      return -1;
-    arg_i = arg_i + 1;
-  }
-  if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-    fprintf(stderr,
-            "xlang: [XLANG_DEBUG_PIPE] method_call expr=%d base=%d base_kind=%d base_rc=%d base_ty=%d method=%.*s\n",
-            (int)expr_ref, (int)base_ref, (int)base_ord, (int)base_rc, (int)base_ty, (int)method_nlen, method_nm);
-    if (base_ord == ord_var) {
-      int32_t dbg_base_nlen = pipeline_expr_var_name_len(arena, base_ref);
-      if (dbg_base_nlen > 0 && dbg_base_nlen <= 127) {
-        uint8_t dbg_base_nm[128];
-        pipeline_expr_var_name_into(arena, base_ref, dbg_base_nm);
-        fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] method_call base_var=%.*s imports=%d\n", (int)dbg_base_nlen,
-                dbg_base_nm, (int)pipeline_typeck_module_num_imports_c(module));
-      }
-    }
-  }
-  ret_ty = 0;
-  if (base_ty <= 0 && ctx && base_ord == ord_var) {
-    int32_t base_nlen = pipeline_expr_var_name_len(arena, base_ref);
-    if (base_nlen > 0 && base_nlen <= 127) {
-      uint8_t base_nm[128];
-      int32_t j = 0;
-      int32_t n_imp = pipeline_typeck_module_num_imports_c(module);
-      pipeline_expr_var_name_into(arena, base_ref, base_nm);
-      while (j < n_imp) {
-        if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-          int32_t bind_len = pipeline_module_import_binding_name_len(module, j);
-          int32_t path_len = pipeline_module_import_path_len(module, j);
-          uint8_t bind_nm[128];
-          uint8_t path_nm[128];
-          int32_t dbg_i = 0;
-          while (dbg_i < 64) {
-            bind_nm[dbg_i] = 0;
-            path_nm[dbg_i] = 0;
-            dbg_i = dbg_i + 1;
-          }
-          dbg_i = 0;
-          if (bind_len > 0 && bind_len <= 63)
-            while (dbg_i < bind_len) {
-              bind_nm[dbg_i] = pipeline_module_import_binding_name_byte_at(module, j, dbg_i);
-              dbg_i = dbg_i + 1;
-            }
-          dbg_i = 0;
-          if (path_len > 0 && path_len <= 63)
-            while (dbg_i < path_len) {
-              path_nm[dbg_i] = pipeline_module_import_path_byte_at(module, j, dbg_i);
-              dbg_i = dbg_i + 1;
-            }
-          fprintf(stderr,
-                  "xlang: [XLANG_DEBUG_PIPE] method_call scan_import idx=%d kind=%d bind=%.*s path=%.*s\n", (int)j,
-                  (int)pipeline_module_import_kind_at(module, j), (int)(bind_len > 0 ? bind_len : 0),
-                  (bind_len > 0 ? bind_nm : (uint8_t *)""), (int)(path_len > 0 ? path_len : 0),
-                  (path_len > 0 ? path_nm : (uint8_t *)""));
-        }
-        if (pipeline_module_import_kind_at(module, j) == GLUE_TYPECK_IMPORT_BINDING &&
-            typeck_import_binding_name_equal(module, j, base_nm, base_nlen)) {
-          int32_t dep_slot = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, j);
-          struct ast_Module *dm = dep_slot >= 0 ? pipeline_dep_ctx_module_at(ctx, dep_slot) : 0;
-          if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-            fprintf(stderr,
-                    "xlang: [XLANG_DEBUG_PIPE] method_call binding_match idx=%d dep_slot=%d dep=%p dep_funcs=%d\n",
-                    (int)j, (int)dep_slot, (void *)dm, dm ? (int)dm->num_funcs : -1);
-            if (dm) {
-              int32_t dbg_fi = 0;
-              while (dbg_fi < dm->num_funcs && dbg_fi < 32) {
-                int32_t dbg_fn_len = pipeline_module_func_name_len_at(dm, dbg_fi);
-                uint8_t dbg_fn[128];
-                if (dbg_fn_len > 0 && dbg_fn_len <= 63) {
-                  pipeline_module_func_name_copy64(dm, dbg_fi, dbg_fn);
-                  fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] method_call dep_func idx=%d name=%.*s\n", (int)dbg_fi,
-                          (int)dbg_fn_len, dbg_fn);
-                }
-                dbg_fi = dbg_fi + 1;
-              }
-            }
-          }
-          if (dm) {
-            int32_t bind_fn = 0;
-            /* Overload by arg types (not first same-name). Authority: call_strict_minimal. */
-            ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-                dm, arena, method_nm, method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &bind_fn);
-            if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-              fprintf(stderr,
-                      "xlang: [XLANG_DEBUG_PIPE] method_call binding_ret idx=%d dep_slot=%d ret_ty=%d bind_fn=%d\n",
-                      (int)j, (int)dep_slot, (int)ret_ty, (int)bind_fn);
-            if (ret_ty != 0) {
-              pipeline_typeck_expr_apply_call_resolve_c(arena, expr_ref, dep_slot, bind_fn);
-              break;
-            }
-            /* Fallback: path/module misalignment; search other dep slots with same overload pick. */
-            {
-              int32_t try_di;
-              int32_t nd = pipeline_dep_ctx_ndep(ctx);
-              for (try_di = 0; try_di < nd && ret_ty == 0; try_di++) {
-                if (try_di == dep_slot)
-                  continue;
-                struct ast_Module *try_dm = pipeline_dep_ctx_module_at(ctx, try_di);
-                if (!try_dm)
-                  continue;
-                bind_fn = 0;
-                ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-                    try_dm, arena, method_nm, method_nlen, try_di, num_args, expr_ref, 1, ctx, &bind_fn);
-                if (ret_ty != 0) {
-                  dep_slot = try_di;
-                  pipeline_typeck_expr_apply_call_resolve_c(arena, expr_ref, dep_slot, bind_fn);
-                }
-              }
-            }
-          }
-          break;
-        }
-        j = j + 1;
-      }
-    }
-  }
-  /*
-   * wave494: generic method_call UFCS — method on generic struct.
-   * Must run BEFORE non-generic UFCS below: the non-generic UFCS uses
-   * pipeline_typeck_type_refs_equal_c (pointer equality) which fails for
-   * generic instantiations (Wrap<i32> != Wrap<T>). But the weak integer
-   * match (score 100) would still match them by TYPE_NAMED kind and stamp
-   * the raw return type T, returning 0 before the generic fixup can run.
-   * Delegating to pipeline_typeck_method_call_generic_ufcs_c (exported from
-   * this TU, G.7 single authority) first ensures pattern-unify of the formal
-   * self param with the concrete receiver type and substitutes the return
-   * type. Non-generic methods (self has no free type-param) are skipped by
-   * the generic path and fall through to non-generic UFCS.
-   * PLATFORM: SHARED typeck — mac + Ubuntu.
-   */
-  if (ret_ty == 0 && base_ty > 0 && method_nlen > 0) {
-    if (pipeline_typeck_method_call_generic_ufcs_c(module, arena, expr_ref, base_ty, method_nm, method_nlen,
-                                                     num_args) != 0)
-      return 0;
-  }
-  /*
-   * wave358 Cap residual pure — UFCS same-module free method (weak twin of
-   * pipeline_glue_strict_minimal strong definition).
-   * receiver.method(args) → free fn method(receiver, args...) when
-   * nparams == num_args+1 and param0 matches receiver type.
-   * wave360: auto-ref value → *T self (score 900).
-   * PLATFORM: SHARED — G.7 seed strong wins when linked.
-   */
-  if (ret_ty == 0 && base_ty > 0 && module && method_nlen > 0) {
-    int32_t uj;
-    int32_t uf_best = -1;
-    int32_t uf_best_score = -1;
-    int32_t nf = pipeline_module_num_funcs(module);
-    for (uj = 0; uj < nf; uj++) {
-      int32_t nparams;
-      int32_t score;
-      int32_t matched;
-      int32_t p0;
-      int32_t sc0;
-      int32_t ai;
-      if (!pipeline_module_func_name_equal_at(module, uj, method_nm, method_nlen))
-        continue;
-      nparams = pipeline_module_func_num_params_at(module, uj);
-      if (nparams != num_args + 1)
-        continue;
-      p0 = pipeline_module_func_param_type_ref_at(module, uj, 0);
-      sc0 = -1;
-      if (p0 > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, p0) != 0)
-        sc0 = 1000;
-      /* wave360: T.method when free fn is method(self: *T, ...) — auto-ref. */
-      if (sc0 < 0 && p0 > 0 &&
-          pipeline_type_kind_ord_at(arena, p0) == (int32_t)ast_TypeKind_TYPE_PTR) {
-        int32_t pe = pipeline_type_elem_ref_at(arena, p0);
-        if (pe > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, pe) != 0)
-          sc0 = 900;
-      }
-      if (sc0 < 0)
-        continue;
-      score = sc0;
-      matched = 1;
-      for (ai = 0; ai < num_args; ai++) {
-        int32_t param_raw = pipeline_module_func_param_type_ref_at(module, uj, ai + 1);
-        int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
-        int32_t arg_ty = arg_ref > 0 ? pipeline_expr_resolved_type_ref(arena, arg_ref) : 0;
-        if (param_raw <= 0 || arg_ty <= 0 ||
-            pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_raw) == 0) {
-          matched = 0;
-          break;
-        }
-        score += 1000;
-      }
-      if (matched && score > uf_best_score) {
-        uf_best_score = score;
-        uf_best = uj;
-      }
-    }
-    if (uf_best >= 0) {
-      int32_t uf_ret = pipeline_module_func_return_type_at(module, uf_best);
-      if (uf_ret > 0) {
-        pipeline_typeck_expr_apply_call_resolve_c(arena, expr_ref, -1, uf_best);
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, uf_ret);
-        return 0;
-      }
-    }
-  }
-  if (base_ty > 0) {
-    /** bootstrap：impl 块被 skip 时 trait 测试 i32.double() 仍须 typeck 通过。 */
-    if (pipeline_type_kind_ord_at(arena, base_ty) == ord_i32 && method_nlen == 6 &&
-        method_nm[0] == (uint8_t)'d' && method_nm[1] == (uint8_t)'o' && method_nm[2] == (uint8_t)'u' &&
-        method_nm[3] == (uint8_t)'b' && method_nm[4] == (uint8_t)'l' && method_nm[5] == (uint8_t)'e')
-      ret_ty = pipeline_type_ensure_by_kind_ord(arena, ord_i32);
-  }
-  if (ret_ty != 0)
-    pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
-  if (base_rc != 0 && ret_ty == 0)
-    return -1;
-  if (ret_ty != 0)
-    return 0;
-  /*
-   * wave421 Cap residual pure — no-impl diagnostic (LANG-004 T5).
-   * Weak twin of strict_minimal strong body; product may link either.
-   * PLATFORM: SHARED typeck.
-   */
-  {
-    extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
-    extern int32_t pipeline_expr_line_at(struct ast_ASTArena *a, int32_t expr_ref);
-    extern int32_t pipeline_expr_col_at(struct ast_ASTArena *a, int32_t expr_ref);
-    int32_t line = pipeline_expr_line_at(arena, expr_ref);
-    int32_t col = pipeline_expr_col_at(arena, expr_ref);
-    lsp_diag_report_typeck((int)line, (int)col, "no impl for type with method %.*s", (int)method_nlen,
-                           (const char *)method_nm);
-  }
-  return -1;
+  extern int32_t typeck_check_expr_method_call(struct ast_Module *module, struct ast_ASTArena *arena,
+                                               int32_t expr_ref, int32_t return_type_ref,
+                                               struct ast_PipelineDepCtx *ctx);
+  return typeck_check_expr_method_call(module, arena, expr_ref, return_type_ref, ctx);
 }
 
 /**

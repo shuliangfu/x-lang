@@ -141,18 +141,237 @@ int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena 
 """
 
 METHOD_CALL_BODY = """\
-XLANG_WEAK int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
-  /*
-   * PLATFORM: SHARED — authority matches typeck.x: only pipeline_typeck_check_expr_method_call_c.
-   * Do NOT re-dispatch by import index as dep index: multi-import closure (ndep > n_imports)
-   * maps entry import ii for "heap" to a wrong dep (Linux inserts page_mmap so ii=2 → libc).
-   * That overwrote free(*u8) with libc free → bare std_heap_free / http.o fail.
-   * method_call_c already path-resolves dep + scores overloads + expected_ret.
-   * wave680: XLANG_WEAK vs bootstrap_seed_pipeline_filtered strong export (Darwin dual-def;
-   * PE strong + --allow-multiple-definition).
-   */
-  extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
-  return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
+/*
+ * wave253 pure leave: typeck_check_expr_method_call is product authority (typeck.x).
+ * Cap residual / strict_minimal method_call_c thin → here (no residual wrap cycle).
+ * PLATFORM: SHARED freestanding typeck method_call pure leave.
+ */
+int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+  int32_t ord_var = 3;
+  int32_t ord_i32 = 0;
+  int32_t ord_ptr = 9;
+  int32_t ord_import_binding = 1;
+  int32_t base_ref = 0;
+  int32_t base_rc = 0;
+  int32_t base_ty = 0;
+  int32_t base_kind = 0;
+  int32_t method_nlen = 0;
+  int32_t num_args = 0;
+  int32_t arg_i = 0;
+  int32_t ret_ty = 0;
+  int32_t dep_ix = -1;
+  int32_t dep_slot = -1;
+  int32_t func_ix = -1;
+  int32_t import_ret_ty = 0;
+  int32_t ii = 0;
+  int32_t n_imp = 0;
+  int32_t base_nlen = 0;
+  int32_t expect_store = 0;
+  uint8_t method_nm[128];
+  uint8_t base_nm[128];
+  uint8_t msg[256];
+  int32_t p = 0;
+  int32_t z = 0;
+  int32_t line = 0;
+  int32_t col = 0;
+  struct ast_Module *dm = 0;
+  extern void pipeline_expr_init_call_resolve_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
+  extern int32_t pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+      struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len,
+      int32_t from_dep_index, int32_t want_arity, int32_t call_expr_ref, int32_t is_method,
+      struct ast_PipelineDepCtx *ctx, int32_t *func_index_out);
+  extern int32_t typeck_method_call_generic_ufcs(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                 int32_t expr_ref, int32_t base_ty, uint8_t *method_nm,
+                                                 int32_t method_nlen, int32_t num_args);
+  extern int32_t typeck_module_num_imports(struct ast_Module *module);
+  extern int typeck_import_binding_name_equal(struct ast_Module *module, int32_t imp_ix, uint8_t *nm, int32_t nm_len);
+  extern int32_t typeck_resolve_dep_index_for_import(struct ast_Module *module, struct ast_PipelineDepCtx *ctx, int32_t imp_ix);
+  extern int32_t *typeck_overload_expected_ret_slot(void);
+  extern void typeck_i32_ptr_store(int32_t *p, int32_t v);
+  extern int32_t typeck_diag_append_lit(uint8_t *out, int32_t pos, int32_t cap, uint8_t *lit, int32_t lit_len);
+  extern void lsp_diag_report_typeck(int32_t line, int32_t col, uint8_t *msg);
+  extern void pipeline_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t expr_ref, int32_t dep_ix, int32_t func_ix);
+  extern int32_t pipeline_expr_line_at(struct ast_ASTArena *a, int32_t expr_ref);
+  extern int32_t pipeline_expr_col_at(struct ast_ASTArena *a, int32_t expr_ref);
+  extern int32_t typeck_check_expr(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
+                                   int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
+
+  if (!module || !arena || expr_ref <= 0)
+    return 0;
+  for (z = 0; z < 128; z++) {
+    method_nm[z] = 0;
+    base_nm[z] = 0;
+  }
+  pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
+  base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+  base_rc = typeck_check_expr(module, arena, base_ref, 0, ctx);
+  base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
+  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  method_nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
+  if (method_nlen <= 0 || method_nlen > 127)
+    return -1;
+  pipeline_expr_method_call_name_into(arena, expr_ref, method_nm);
+
+  ret_ty = 0;
+  if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == ord_i32 && method_nlen == 6 &&
+      method_nm[0] == 100 && method_nm[1] == 111 && method_nm[2] == 117 && method_nm[3] == 98 &&
+      method_nm[4] == 108 && method_nm[5] == 101)
+    ret_ty = pipeline_type_ensure_by_kind_ord(arena, ord_i32);
+
+  num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+  for (arg_i = 0; arg_i < num_args; arg_i++) {
+    int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, arg_i);
+    if (typeck_check_expr(module, arena, arg_ref, return_type_ref, ctx) != 0)
+      return -1;
+  }
+
+  expect_store = 0;
+  if (return_type_ref > 0)
+    expect_store = return_type_ref;
+  typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), expect_store);
+
+  dep_ix = -1;
+  func_ix = -1;
+  import_ret_ty = 0;
+  if (ctx && base_kind == ord_var) {
+    base_nlen = pipeline_expr_var_name_len(arena, base_ref);
+    if (base_nlen > 0 && base_nlen <= 127) {
+      pipeline_expr_var_name_into(arena, base_ref, base_nm);
+      n_imp = typeck_module_num_imports(module);
+      for (ii = 0; ii < n_imp; ii++) {
+        if (pipeline_module_import_kind_at(module, ii) == ord_import_binding &&
+            typeck_import_binding_name_equal(module, ii, base_nm, base_nlen)) {
+          dep_slot = typeck_resolve_dep_index_for_import(module, ctx, ii);
+          func_ix = -1;
+          if (dep_slot >= 0) {
+            dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
+            if (dm && pipeline_module_num_funcs(dm) > 0) {
+              import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                  dm, arena, method_nm, method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &func_ix);
+              if (import_ret_ty > 0)
+                dep_ix = dep_slot;
+            }
+          }
+          if (import_ret_ty <= 0) {
+            int32_t try_di;
+            int32_t nd = pipeline_dep_ctx_ndep(ctx);
+            for (try_di = 0; try_di < nd && import_ret_ty <= 0; try_di++) {
+              struct ast_Module *try_dm;
+              int32_t try_fn = -1;
+              int32_t try_ret;
+              if (try_di == dep_slot)
+                continue;
+              try_dm = pipeline_dep_ctx_module_at(ctx, try_di);
+              if (!try_dm || pipeline_module_num_funcs(try_dm) <= 0)
+                continue;
+              try_ret = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                  try_dm, arena, method_nm, method_nlen, try_di, num_args, expr_ref, 1, ctx, &try_fn);
+              if (try_ret > 0) {
+                import_ret_ty = try_ret;
+                dep_ix = try_di;
+                func_ix = try_fn;
+              }
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+  typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
+
+  if (import_ret_ty > 0) {
+    pipeline_expr_apply_call_resolve(arena, expr_ref, dep_ix, func_ix);
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
+    return 0;
+  }
+
+  if (base_ty > 0 && method_nlen > 0) {
+    if (typeck_method_call_generic_ufcs(module, arena, expr_ref, base_ty, method_nm, method_nlen, num_args) != 0)
+      return 0;
+  }
+
+  if (base_ty > 0 && method_nlen > 0) {
+    int32_t uj;
+    int32_t uf_best = -1;
+    int32_t uf_best_score = -1;
+    int32_t nf = pipeline_module_num_funcs(module);
+    for (uj = 0; uj < nf; uj++) {
+      int32_t nparams;
+      int32_t score;
+      int32_t matched;
+      int32_t p0;
+      int32_t sc0;
+      int32_t ai;
+      if (!pipeline_module_func_name_equal_at(module, uj, method_nm, method_nlen))
+        continue;
+      nparams = pipeline_module_func_num_params_at(module, uj);
+      if (nparams != num_args + 1)
+        continue;
+      p0 = pipeline_module_func_param_type_ref_at(module, uj, 0);
+      sc0 = -1;
+      if (p0 > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, p0) != 0)
+        sc0 = 1000;
+      if (sc0 < 0 && p0 > 0 && pipeline_type_kind_ord_at(arena, p0) == ord_ptr) {
+        int32_t pe = pipeline_type_elem_ref_at(arena, p0);
+        if (pe > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, pe) != 0)
+          sc0 = 900;
+      }
+      if (sc0 < 0 && p0 > 0) {
+        int32_t ak = pipeline_type_kind_ord_at(arena, base_ty);
+        int32_t pk = pipeline_type_kind_ord_at(arena, p0);
+        if ((pk == 0 || pk == 2 || pk == 3 || pk == 4 || pk == 5 || pk == 6 || pk == 7) &&
+            (ak == 0 || ak == 2 || ak == 3 || ak == 4 || ak == 5 || ak == 6 || ak == 7) &&
+            (pk == ak || (ak == 0 && (pk == 5 || pk == 6 || pk == 7)) ||
+             (ak == 2 && (pk == 0 || pk == 3 || pk == 4 || pk == 6))))
+          sc0 = 100;
+      }
+      if (sc0 < 0)
+        continue;
+      score = sc0;
+      matched = 1;
+      for (ai = 0; ai < num_args; ai++) {
+        int32_t param_raw = pipeline_module_func_param_type_ref_at(module, uj, ai + 1);
+        int32_t arg_ref2 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
+        int32_t arg_ty = arg_ref2 > 0 ? pipeline_expr_resolved_type_ref(arena, arg_ref2) : 0;
+        if (param_raw <= 0 || arg_ty <= 0 ||
+            pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_raw) == 0) {
+          matched = 0;
+          break;
+        }
+        score += 1000;
+      }
+      if (matched && score > uf_best_score) {
+        uf_best_score = score;
+        uf_best = uj;
+      }
+    }
+    if (uf_best >= 0) {
+      int32_t uf_ret = pipeline_module_func_return_type_at(module, uf_best);
+      if (uf_ret > 0) {
+        pipeline_expr_apply_call_resolve(arena, expr_ref, -1, uf_best);
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, uf_ret);
+        return 0;
+      }
+    }
+  }
+
+  if (ret_ty > 0) {
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
+    return 0;
+  }
+  if (base_rc != 0)
+    return -1;
+
+  line = pipeline_expr_line_at(arena, expr_ref);
+  col = pipeline_expr_col_at(arena, expr_ref);
+  for (z = 0; z < 256; z++)
+    msg[z] = 0;
+  p = typeck_diag_append_lit(msg, 0, 255, (uint8_t *)"no impl for type with method ", 29);
+  p = typeck_diag_append_lit(msg, p, 255, method_nm, method_nlen);
+  msg[p] = 0;
+  lsp_diag_report_typeck(line, col, msg);
+  return -1;
 }
 """
 
@@ -242,10 +461,12 @@ def _glue_delegate_ok(name: str, old: str) -> bool:
             and "XLANG_WEAK" not in sig
         )
     if name == "typeck_check_expr_method_call":
+        # wave253 pure leave: strong body, no residual method_call_c wrap cycle.
         return (
-            "pipeline_typeck_check_expr_method_call_c" in old
-            and "Do NOT re-dispatch by import index" in old
-            and "XLANG_WEAK" in sig
+            "typeck_method_call_generic_ufcs" in old
+            and "pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal" in old
+            and "pipeline_typeck_check_expr_method_call_c" not in old
+            and "XLANG_WEAK" not in sig
         )
     if name == "typeck_check_block_one_region":
         return "pipeline_typeck_check_block_one_region_c" in old

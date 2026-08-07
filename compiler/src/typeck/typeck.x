@@ -53,7 +53,26 @@ export extern function pipeline_dep_ctx_set_current_func_index(ctx: *PipelineDep
 export extern function pipeline_typeck_check_expr_impl_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
 /* See implementation. */
 export extern function pipeline_typeck_check_expr_impl_mega_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
+/**
+ * Cap residual face for EXPR_METHOD_CALL (wave253 pure leave: thin → typeck_check_expr_method_call).
+ * Product authority is typeck_check_expr_method_call; residual/strict_minimal only hop.
+ * PLATFORM: SHARED freestanding typeck method_call.
+ */
 export extern function pipeline_typeck_check_expr_method_call_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
+/**
+ * Stamp CALL/METHOD_CALL resolve slots to empty before method resolve.
+ * PLATFORM: SHARED — product residual accessor face (ast expr).
+ */
+export extern function pipeline_expr_init_call_resolve_at_ref(arena: *ASTArena, expr_ref: i32): void;
+/**
+ * W-heap-overload pick for CALL/METHOD_CALL by name (seed strong product path).
+ * is_method=1 uses method_call_arg_ref for scoring; want_arity = method num_args.
+ * PLATFORM: SHARED — G.7 sole import.method overload pick for pure method_call.
+ */
+export extern function pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+  mod: *Module, caller_arena: *ASTArena, name: *u8, name_len: i32, from_dep_index: i32,
+  want_arity: i32, call_expr_ref: i32, is_method: i32, ctx: *PipelineDepCtx,
+  func_index_out: *i32): i32;
 /**
  * wave231: try_propagate / match live authority is typeck.x; residual C faces
  * thin-wrap these. Keep historical extern names only for cold seed paths that
@@ -12679,13 +12698,271 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arg_i: i32, num_args: i32): i32 {
 }
 
 /**
- * See implementation.
+ * EXPR_METHOD_CALL typeck authority (wave253 pure leave).
+ *
+ * Order (must match product strict_minimal seed — G.7 single path):
+ * 1) typecheck base + all method args
+ * 2) import.binding.method via path-matched dep slot + W-heap overload (call_strict_minimal)
+ *    with multi-dep fallback when path slot is empty
+ * 3) generic method UFCS (pattern-unify self) BEFORE non-generic UFCS
+ * 4) same-module free-fn UFCS (exact / auto-ref *T / weak integer self)
+ * 5) bootstrap i32.double() when impl blocks skipped
+ * 6) no-impl LANG-004 diagnostic
+ *
+ * Cap residual / strict_minimal faces thin → this function (dual-export ban).
+ *
+ * @param module *Module — entry module (imports + same-module free fns)
+ * @param arena *ASTArena — caller expr/type arena
+ * @param expr_ref i32 — METHOD_CALL expr
+ * @param return_type_ref i32 — ambient expected return (overload tie-break; 0 if none)
+ * @param ctx *PipelineDepCtx — dep modules for import.method
+ * @return i32 — 0 ok, -1 typeck fail
+ * PLATFORM: SHARED freestanding typeck method_call pure leave.
  */
 export function typeck_check_expr_method_call(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
+    let ord_var: i32 = 3;
+    let ord_i32: i32 = 0;
+    let ord_ptr: i32 = 9;
+    let ord_import_binding: i32 = 1;
+    let base_ref: i32 = 0;
+    let base_rc: i32 = 0;
+    let base_ty: i32 = 0;
+    let base_kind: i32 = 0;
+    let method_nlen: i32 = 0;
+    let num_args: i32 = 0;
+    let arg_i: i32 = 0;
+    let ret_ty: i32 = 0;
+    let dep_ix: i32 = 0 - 1;
+    let dep_slot: i32 = 0 - 1;
+    let func_ix: i32 = 0 - 1;
+    let import_ret_ty: i32 = 0;
+    let ii: i32 = 0;
+    let n_imp: i32 = 0;
+    let base_nlen: i32 = 0;
+    let expect_store: i32 = 0;
+    let method_nm: u8[128] = [];
+    let base_nm: u8[128] = [];
+    let dm: *Module = 0 as *Module;
+    let msg: u8[256] = [];
+    let p: i32 = 0;
+    let z: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+
+    if (module == 0 as *Module || arena == 0 as *ASTArena || expr_ref <= 0) {
+      return 0;
+    }
+    pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
+    base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+    base_rc = check_expr(module, arena, base_ref, 0, ctx);
+    base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
+    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+    method_nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
+    if (method_nlen <= 0 || method_nlen > 127) {
+      return 0 - 1;
+    }
+    pipeline_expr_method_call_name_into(arena, expr_ref, &method_nm[0]);
+
+    /* Bootstrap: i32.double() when impl blocks are skipped. */
+    ret_ty = 0;
+    if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == ord_i32 && method_nlen == 6
+        && method_nm[0] == 100 && method_nm[1] == 111 && method_nm[2] == 117
+        && method_nm[3] == 98 && method_nm[4] == 108 && method_nm[5] == 101) {
+      ret_ty = pipeline_type_ensure_by_kind_ord(arena, ord_i32);
+    }
+
+    num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    arg_i = 0;
+    while (arg_i < num_args) {
+      let arg_ref: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, arg_i);
+      if (check_expr(module, arena, arg_ref, return_type_ref, ctx) != 0) {
+        return 0 - 1;
+      }
+      arg_i = arg_i + 1;
+    }
+
+    /* Hold expected_ret for zero-arg / tie-break overload pick. */
+    expect_store = 0;
+    if (return_type_ref > 0) {
+      expect_store = return_type_ref;
+    }
+    typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), expect_store);
+
+    dep_ix = 0 - 1;
+    func_ix = 0 - 1;
+    import_ret_ty = 0;
+    if (ctx != 0 as *PipelineDepCtx && base_kind == ord_var) {
+      base_nlen = pipeline_expr_var_name_len(arena, base_ref);
+      if (base_nlen > 0 && base_nlen <= 127) {
+        pipeline_expr_var_name_into(arena, base_ref, &base_nm[0]);
+        n_imp = typeck_module_num_imports(module);
+        ii = 0;
+        while (ii < n_imp) {
+          if (pipeline_module_import_kind_at(module, ii) == ord_import_binding
+              && typeck_import_binding_name_equal(module, ii, &base_nm[0], base_nlen) != 0) {
+            dep_slot = typeck_resolve_dep_index_for_import(module, ctx, ii);
+            func_ix = 0 - 1;
+            if (dep_slot >= 0) {
+              dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
+              if (dm != 0 as *Module && pipeline_module_num_funcs(dm) > 0) {
+                import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                  dm, arena, &method_nm[0], method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &func_ix);
+                if (import_ret_ty > 0) {
+                  dep_ix = dep_slot;
+                }
+              }
+            }
+            /* Path slot empty or miss: scan all dep modules (same as strict seed). */
+            if (import_ret_ty <= 0) {
+              let try_di: i32 = 0;
+              let nd: i32 = pipeline_dep_ctx_ndep(ctx);
+              while (try_di < nd && import_ret_ty <= 0) {
+                let try_dm: *Module = 0 as *Module;
+                let try_fn: i32 = 0 - 1;
+                let try_ret: i32 = 0;
+                if (try_di != dep_slot) {
+                  try_dm = pipeline_dep_ctx_module_at(ctx, try_di);
+                  if (try_dm != 0 as *Module && pipeline_module_num_funcs(try_dm) > 0) {
+                    try_ret = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                      try_dm, arena, &method_nm[0], method_nlen, try_di, num_args, expr_ref, 1, ctx,
+                      &try_fn);
+                    if (try_ret > 0) {
+                      import_ret_ty = try_ret;
+                      dep_ix = try_di;
+                      func_ix = try_fn;
+                    }
+                  }
+                }
+                try_di = try_di + 1;
+              }
+            }
+            break;
+          }
+          ii = ii + 1;
+        }
+      }
+    }
+    typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
+
+    if (import_ret_ty > 0) {
+      pipeline_expr_apply_call_resolve(arena, expr_ref, dep_ix, func_ix);
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
+      return 0;
+    }
+
+    /*
+     * Generic method UFCS first (wave494/wave252): non-generic type_refs_equal
+     * fails on Wrap<i32> vs Wrap<T>; weak integer match would stamp free T.
+     */
+    if (base_ty > 0 && method_nlen > 0) {
+      if (typeck_method_call_generic_ufcs(module, arena, expr_ref, base_ty, &method_nm[0], method_nlen,
+          num_args) != 0) {
+        return 0;
+      }
+    }
+
+    /* Same-module free-fn UFCS: method(self, args...) / auto-ref *T self. */
+    if (base_ty > 0 && method_nlen > 0) {
+      let uj: i32 = 0;
+      let uf_best: i32 = 0 - 1;
+      let uf_best_score: i32 = 0 - 1;
+      let nf: i32 = pipeline_module_num_funcs(module);
+      while (uj < nf) {
+        let nparams: i32 = 0;
+        let score: i32 = 0;
+        let matched: i32 = 1;
+        let p0: i32 = 0;
+        let sc0: i32 = 0 - 1;
+        let ai: i32 = 0;
+        if (pipeline_module_func_name_equal_at(module, uj, &method_nm[0], method_nlen) != 0) {
+          nparams = pipeline_module_func_num_params_at(module, uj);
+          if (nparams == num_args + 1) {
+            p0 = pipeline_module_func_param_type_ref_at(module, uj, 0);
+            sc0 = 0 - 1;
+            if (p0 > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, p0) != 0) {
+              sc0 = 1000;
+            }
+            /* auto-ref: value T.method when formal is *T */
+            if (sc0 < 0 && p0 > 0 && pipeline_type_kind_ord_at(arena, p0) == ord_ptr) {
+              let pe: i32 = pipeline_type_elem_ref_at(arena, p0);
+              if (pe > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, pe) != 0) {
+                sc0 = 900;
+              }
+            }
+            /* Weak integer family match on self (strict seed parity). */
+            if (sc0 < 0 && p0 > 0) {
+              let ak: i32 = pipeline_type_kind_ord_at(arena, base_ty);
+              let pk: i32 = pipeline_type_kind_ord_at(arena, p0);
+              if ((pk == 0 || pk == 2 || pk == 3 || pk == 4 || pk == 5 || pk == 6 || pk == 7)
+                  && (ak == 0 || ak == 2 || ak == 3 || ak == 4 || ak == 5 || ak == 6 || ak == 7)) {
+                if (pk == ak || (ak == 0 && (pk == 5 || pk == 6 || pk == 7))
+                    || (ak == 2 && (pk == 0 || pk == 3 || pk == 4 || pk == 6))) {
+                  sc0 = 100;
+                }
+              }
+            }
+            if (sc0 >= 0) {
+              score = sc0;
+              matched = 1;
+              ai = 0;
+              while (ai < num_args) {
+                let param_raw: i32 = pipeline_module_func_param_type_ref_at(module, uj, ai + 1);
+                let arg_ref2: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
+                let arg_ty: i32 = 0;
+                if (arg_ref2 > 0) {
+                  arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref2);
+                }
+                if (param_raw <= 0 || arg_ty <= 0
+                    || pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_raw) == 0) {
+                  matched = 0;
+                  break;
+                }
+                score = score + 1000;
+                ai = ai + 1;
+              }
+              if (matched != 0 && score > uf_best_score) {
+                uf_best_score = score;
+                uf_best = uj;
+              }
+            }
+          }
+        }
+        uj = uj + 1;
+      }
+      if (uf_best >= 0) {
+        let uf_ret: i32 = pipeline_module_func_return_type_at(module, uf_best);
+        if (uf_ret > 0) {
+          pipeline_expr_apply_call_resolve(arena, expr_ref, 0 - 1, uf_best);
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, uf_ret);
+          return 0;
+        }
+      }
+    }
+
+    if (ret_ty > 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
+      return 0;
+    }
+    if (base_rc != 0) {
+      return 0 - 1;
+    }
+
+    /* LANG-004: no impl for type with method */
+    line = pipeline_expr_line_at(arena, expr_ref);
+    col = pipeline_expr_col_at(arena, expr_ref);
+    z = 0;
+    while (z < 256) {
+      msg[z] = 0;
+      z = z + 1;
+    }
+    p = typeck_diag_append_lit(&msg[0], 0, 255, "no impl for type with method ", 29);
+    p = typeck_diag_append_lit(&msg[0], p, 255, &method_nm[0], method_nlen);
+    msg[p] = 0;
+    lsp_diag_report_typeck(line, col, &msg[0]);
+    return 0 - 1;
   }
 }
 
