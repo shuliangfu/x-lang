@@ -54,10 +54,41 @@ export extern function pipeline_typeck_check_expr_impl_c(module: *Module, arena:
 /* See implementation. */
 export extern function pipeline_typeck_check_expr_impl_mega_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_check_expr_method_call_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
-/* See implementation. */
+/**
+ * wave231: try_propagate / match live authority is typeck.x; residual C faces
+ * thin-wrap these. Keep historical extern names only for cold seed paths that
+ * still call the pipeline_*_c symbols (thin → typeck).
+ * PLATFORM: SHARED
+ */
 export extern function pipeline_typeck_check_expr_try_propagate_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
-/* See implementation. */
 export extern function pipeline_typeck_check_expr_match_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
+/**
+ * Match subject BSS faces (Cap residual check_expr; wave703 field-bind).
+ * typeck_check_expr_match sets subject before arm typeck so bare VAR field
+ * binds resolve via pipeline_typeck_match_subject_field_type_c.
+ * @param module *Module — subject module (must match later field_type module)
+ * @param ty i32 — matched expr resolved_type_ref (0 clears useful subject)
+ * @return i32 — always 0 (C ABI face)
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_typeck_match_set_subject_c(module: *Module, ty: i32): i32;
+/**
+ * Clear match subject field-bind context (nested match restore uses set+get).
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_typeck_match_clear_subject_c(): void;
+/**
+ * Read current match subject type_ref (for nested match save/restore).
+ * @return i32 — subject type_ref or 0
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_typeck_match_subject_ty_get_c(): i32;
+/**
+ * Read current match subject module pointer (nested match save/restore).
+ * @return *Module — subject module or null
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_typeck_match_subject_mod_get_c(): *Module;
 /**
  * Resolve unbound VAR as a field of the active match subject struct type.
  * Authority for layout lookup lives in pipeline_typeck_check_expr.c (wave703);
@@ -72,6 +103,14 @@ export extern function pipeline_typeck_check_expr_match_c(module: *Module, arena
  */
 export extern function pipeline_typeck_match_subject_field_type_c(module: *Module, arena: *ASTArena,
 name: *u8, name_len: i32): i32;
+/**
+ * ERR-01 try-propagate diagnostic when operand is not Result_* or enclosing
+ * function return type does not match Result.
+ * @param line i32 — source line
+ * @param col i32 — source column
+ * PLATFORM: SHARED
+ */
+export extern function driver_diagnostic_typeck_try_propagate_bad_enclosing(line: i32, col: i32): void;
 /**
  * Product check_expr boundary (try_propagate / impl_c). Used by field_access
  * orchestrator to typecheck the base expression with reverse-inferred expected.
@@ -7460,7 +7499,63 @@ decl_ty_ref: i32): i32 {
     if (typeck_coerce_init_slice_from_array(arena, init_ref, decl_ty_ref, decl_kind) != 0) {
       return 1;
     }
+    /* wave231: anonymous struct lit `{ fd, ... }` backfill from named decl. */
+    if (typeck_coerce_init_struct_lit_to_decl(module, arena, init_ref, decl_ty_ref) != 0) {
+      return 1;
+    }
     return 0;
+  }
+}
+
+/**
+ * Coerce anonymous struct literal `{ fields… }` to a named decl type (e.g.
+ * PollFd): backfill struct_lit name from TYPE_NAMED decl, ensure layout, stamp
+ * resolved_type_ref. wave231 pure leave — residual face is thin.
+ *
+ * @param module *Module — for ensure_struct_layout_from_struct_lit (may be null → skip layout)
+ * @param arena *ASTArena
+ * @param init_ref i32 — EXPR_STRUCT_LIT init
+ * @param decl_ty_ref i32 — TYPE_NAMED expected type
+ * @return i32 — 1 if coerced, 0 if not applicable / fail
+ * PLATFORM: SHARED freestanding typeck
+ */
+export function typeck_coerce_init_struct_lit_to_decl(module: *Module, arena: *ASTArena, init_ref: i32,
+decl_ty_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let decl_kind: i32 = 0;
+    let init_kind: i32 = 0;
+    let name_len: i32 = 0;
+    let decl_nm: u8[128] = [];
+    let decl_nlen: i32 = 0;
+    let ord_named: i32 = 8;
+    let ord_struct_lit: i32 = 45;
+    if (arena == 0 as *ASTArena || init_ref <= 0 || init_ref > arena.num_exprs ||
+    decl_ty_ref <= 0 || decl_ty_ref > arena.num_types) {
+      return 0;
+    }
+    decl_kind = pipeline_type_kind_ord_at(arena, decl_ty_ref);
+    init_kind = pipeline_expr_kind_ord_at(arena, init_ref);
+    if (decl_kind != ord_named || init_kind != ord_struct_lit) {
+      return 0;
+    }
+    /* Already named: not anonymous — leave to other paths. */
+    name_len = pipeline_expr_struct_lit_type_name_len(arena, init_ref);
+    if (name_len > 0) {
+      return 0;
+    }
+    decl_nlen = pipeline_type_named_name_into(arena, decl_ty_ref, &decl_nm[0]);
+    if (decl_nlen <= 0 || decl_nlen > 127) {
+      return 0;
+    }
+    pipeline_expr_struct_lit_type_name_set(arena, init_ref, &decl_nm[0], decl_nlen);
+    if (module != 0 as *Module) {
+      if (ensure_struct_layout_from_struct_lit(module, arena, init_ref) != 0) {
+        return 0;
+      }
+    }
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
   }
 }
 
@@ -8793,8 +8888,21 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
-* See implementation.
-*/
+ * Type-check one match arm (enum variant index + optional guard + result).
+ * Recursive over arm_i for cold/seed paths; product match uses iterative
+ * typeck_check_expr_match (wave231) to set subject BSS and avoid deep X stack.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_MATCH
+ * @param return_type_ref i32 — ambient return / result type for arm bodies
+ * @param ctx *PipelineDepCtx
+ * @param arm_i i32 — current arm index
+ * @param num_arms i32 — arm count
+ * @param line i32 — match expr line (diagnostics)
+ * @param col i32 — match expr col
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED
+ */
 export function typeck_check_expr_match_arm(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, arm_i: i32, num_arms: i32, line: i32, col: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8833,25 +8941,184 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arm_i: i32, num_arms: i32, line: i32
 }
 
 /**
-* See implementation.
-*/
+ * Type-check EXPR_MATCH: matched expr, then each arm under subject field-bind
+ * context (wave703). Product authority (wave231 pure leave) — residual
+ * pipeline_typeck_check_expr_match_c is a thin face.
+ *
+ * Nested match: save/restore subject ty+mod so outer arm field binds stay
+ * valid after inner match returns. Iterative arm loop avoids X recursion SEGV.
+ *
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_MATCH
+ * @param return_type_ref i32 — ambient type for arm results / match result stamp
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED freestanding typeck
+ */
 export function typeck_check_expr_match(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    let matched_ref: i32 = pipeline_expr_match_matched_ref_at(arena, expr_ref);
-    let num_arms: i32 = pipeline_expr_match_num_arms_at(arena, expr_ref);
-    let line: i32 = pipeline_expr_line_at(arena, expr_ref);
-    let col: i32 = pipeline_expr_col_at(arena, expr_ref);
+    let matched_ref: i32 = 0;
+    let num_arms: i32 = 0;
+    let arm_i: i32 = 0;
+    let is_enum: i32 = 0;
+    let var_ix: i32 = 0;
+    let arm_res: i32 = 0;
+    let guard_ref: i32 = 0;
+    let bool_ty: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let matched_ty: i32 = 0;
+    let saved_subj_ty: i32 = 0;
+    let saved_subj_mod: *Module = 0 as *Module;
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    matched_ref = pipeline_expr_match_matched_ref_at(arena, expr_ref);
+    num_arms = pipeline_expr_match_num_arms_at(arena, expr_ref);
+    line = pipeline_expr_line_at(arena, expr_ref);
+    col = pipeline_expr_col_at(arena, expr_ref);
     if (check_expr(module, arena, matched_ref, return_type_ref, ctx) != 0) {
-      return - 1;
+      return -1;
     }
-    if (typeck_check_expr_match_arm(module, arena, expr_ref, return_type_ref, ctx, 0, num_arms, line,
-    col) != 0) {
-      return - 1;
+    matched_ty = pipeline_expr_resolved_type_ref(arena, matched_ref);
+    /* Nested match: save outer subject, install this match's subject for VAR hop. */
+    saved_subj_ty = pipeline_typeck_match_subject_ty_get_c();
+    saved_subj_mod = pipeline_typeck_match_subject_mod_get_c();
+    pipeline_typeck_match_set_subject_c(module, matched_ty);
+    arm_i = 0;
+    while (arm_i < num_arms) {
+      is_enum = pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, arm_i);
+      if (is_enum != 0) {
+        var_ix = pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i);
+        if (var_ix < 0) {
+          pipeline_typeck_match_set_subject_c(saved_subj_mod, saved_subj_ty);
+          driver_diagnostic_typeck_enum_no_variant(line, col);
+          return -1;
+        }
+      }
+      /* wave700: optional guard under subject field binds. */
+      guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, arm_i);
+      if (!ast.ref_is_null(guard_ref) && guard_ref > 0) {
+        bool_ty = ensure_bool_type_ref(arena);
+        if (check_expr(module, arena, guard_ref, bool_ty, ctx) != 0) {
+          pipeline_typeck_match_set_subject_c(saved_subj_mod, saved_subj_ty);
+          return -1;
+        }
+      }
+      arm_res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+      if (check_expr(module, arena, arm_res, return_type_ref, ctx) != 0) {
+        pipeline_typeck_match_set_subject_c(saved_subj_mod, saved_subj_ty);
+        return -1;
+      }
+      arm_i = arm_i + 1;
     }
+    pipeline_typeck_match_set_subject_c(saved_subj_mod, saved_subj_ty);
     if (!ast.ref_is_null(return_type_ref)) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
+    }
+    return 0;
+  }
+}
+
+/**
+ * ERR-01: Result `?` propagation — operand must be Result_* NAMED type;
+ * enclosing function return type must match; expression type is Ok payload
+ * (Result_i32→i32, Result_u8→u8). wave231 pure leave: live authority in
+ * typeck.x; residual pipeline_typeck_check_expr_try_propagate_c is thin.
+ *
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_TRY_PROPAGATE
+ * @param return_type_ref i32 — ambient return (overridden by current_func)
+ * @param ctx *PipelineDepCtx — current_func_index for enclosing return type
+ * @return i32 — 0 ok (expr stamped to payload), -1 fail
+ * PLATFORM: SHARED freestanding typeck
+ */
+export function typeck_check_expr_try_propagate(module: *Module, arena: *ASTArena, expr_ref: i32,
+return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let op_ref: i32 = 0;
+    let op_ty: i32 = 0;
+    let enclosing_return_type_ref: i32 = 0;
+    let func_ix: i32 = 0;
+    let func_ret: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let payload_ty: i32 = 0;
+    let rname: u8[128] = [];
+    let rlen: i32 = 0;
+    let si: i32 = 0;
+    /* TypeKind: TYPE_I32=0, TYPE_U8=2, TYPE_NAMED=8 (ast.x enum order). */
+    let ord_named: i32 = 8;
+    let ord_i32: i32 = 0;
+    let ord_u8: i32 = 2;
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    line = pipeline_expr_line_at(arena, expr_ref);
+    col = pipeline_expr_col_at(arena, expr_ref);
+    if (check_expr(module, arena, op_ref, return_type_ref, ctx) != 0) {
+      return -1;
+    }
+    op_ty = typeck_expr_type_ref(arena, op_ref);
+    enclosing_return_type_ref = return_type_ref;
+    func_ret = 0;
+    func_ix = -1;
+    if (ctx != 0 as *PipelineDepCtx) {
+      func_ix = pipeline_dep_ctx_current_func_index(ctx);
+    }
+    if (module != 0 as *Module && ctx != 0 as *PipelineDepCtx && func_ix >= 0 &&
+    func_ix < pipeline_module_num_funcs(module)) {
+      func_ret = pipeline_module_func_return_type_at(module, func_ix);
+      if (!ast.ref_is_null(func_ret)) {
+        enclosing_return_type_ref = func_ret;
+      }
+    }
+    if (ast.ref_is_null(op_ty) || pipeline_type_kind_ord_at(arena, op_ty) != ord_named) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return -1;
+    }
+    rlen = pipeline_type_named_name_into(arena, op_ty, &rname[0]);
+    /* Require prefix "Result_" (7 bytes). */
+    if (rlen < 7 || rname[0] != 82 || rname[1] != 101 || rname[2] != 115 || rname[3] != 117 ||
+    rname[4] != 108 || rname[5] != 116 || rname[6] != 95) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return -1;
+    }
+    if (ast.ref_is_null(enclosing_return_type_ref) ||
+    typeck_type_refs_equal(arena, enclosing_return_type_ref, op_ty) == false) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return -1;
+    }
+    payload_ty = 0;
+    /* Result_i32 / Result_u8 exact suffixes; also scan suffix for embedded i32/u8. */
+    if (rlen == 10 && rname[7] == 105 && rname[8] == 51 && rname[9] == 50) {
+      payload_ty = pipeline_type_ensure_by_kind_ord(arena, ord_i32);
+    } else if (rlen == 9 && rname[7] == 117 && rname[8] == 56) {
+      payload_ty = pipeline_type_ensure_by_kind_ord(arena, ord_u8);
+    } else {
+      si = 7;
+      while (si + 1 < rlen && si + 1 < 64) {
+        if (rname[si] == 105 && rname[si + 1] == 51 && si + 2 < rlen && rname[si + 2] == 50) {
+          payload_ty = pipeline_type_ensure_by_kind_ord(arena, ord_i32);
+          break;
+        }
+        if (rname[si] == 117 && rname[si + 1] == 56) {
+          payload_ty = pipeline_type_ensure_by_kind_ord(arena, ord_u8);
+          break;
+        }
+        si = si + 1;
+      }
+    }
+    if (payload_ty != 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, payload_ty);
+    } else if (!ast.ref_is_null(op_ty)) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, op_ty);
     }
     return 0;
   }
@@ -10507,10 +10774,9 @@ ctx: *PipelineDepCtx): i32 {
     /*
      * wave703 / match_struct_destructure: struct match field binds
      * (`Point { x, y } => x + y`) store patterns as wildcards; arm bodies
-     * refer to field names as bare VARs. Product match uses
-     * pipeline_typeck_check_expr_match_c which sets g_typeck_match_subject_*;
-     * product VAR uses this .x authority — must hop subject field types here
-     * (C pipeline_typeck_check_expr_var_c already has the same hop).
+     * refer to field names as bare VARs. wave231: typeck_check_expr_match
+     * sets match subject BSS before arms; product VAR hops subject field
+     * types here via pipeline_typeck_match_subject_field_type_c.
      * PLATFORM: SHARED — G.7 single subject-field authority via field_type_c.
      */
     if (ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
@@ -11381,7 +11647,8 @@ ctx: *PipelineDepCtx): i32 {
       return typeck_check_expr_panic(module, arena, expr_ref, return_type_ref, ctx);
     }
     if (kind == ord_match) {
-      return pipeline_typeck_check_expr_match_c(module, arena, expr_ref, return_type_ref, ctx);
+      /* wave231: match authority in typeck.x (subject BSS + iterative arms). */
+      return typeck_check_expr_match(module, arena, expr_ref, return_type_ref, ctx);
     }
     if (kind == ord_field) {
       return typeck_check_expr_field_access(module, arena, expr_ref, return_type_ref, ctx);
@@ -11420,7 +11687,8 @@ ctx: *PipelineDepCtx): i32 {
       return typeck_check_expr_struct_lit(module, arena, expr_ref, return_type_ref, ctx);
     }
     if (kind == ord_try_propagate) {
-      return pipeline_typeck_check_expr_try_propagate_c(module, arena, expr_ref, return_type_ref, ctx);
+      /* wave231: try_propagate authority in typeck.x (Result_? payload). */
+      return typeck_check_expr_try_propagate(module, arena, expr_ref, return_type_ref, ctx);
     }
     return 0;
   }

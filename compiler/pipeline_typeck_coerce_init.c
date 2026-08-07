@@ -12,17 +12,17 @@
  * thin → typeck_coerce_init_*.
  * Cap residual keeps only:
  *   1. Thin product faces → typeck_x.o (coerce-init + ret_coerce + float_widen
- *      + type_refs + integer_widen + bool + expr_type_ref)
+ *      + type_refs + integer_widen + bool + expr_type_ref + struct_lit)
  *   2. int_binop_c body — typeck.x still thin-wraps this C authority
  *      (cannot thin without cycle)
- *   3. struct_lit_to_decl_c body — no typeck.x twin yet
- *   4. resolve_type_alias_ref_c body — active_module peel (typeck uses it)
- *   5. int_lit + float_bits residual (typeck wraps int_lit C; float bits helper)
- *   6. expr_is_any_assign_kind static (mega dispatch helper)
+ *   3. resolve_type_alias_ref_c body — active_module peel (typeck uses it)
+ *   4. int_lit + float_bits residual (typeck wraps int_lit C; float bits helper)
+ *   5. expr_is_any_assign_kind static (mega dispatch helper)
  *
  * Dual-export ban: do NOT re-open second lit/float/enum/array/vector/slice/
- * ret_coerce/float_widen/type_refs/integer_widen bodies here; typeck.x is
- * single authority.
+ * ret_coerce/float_widen/type_refs/integer_widen/struct_lit bodies here;
+ * typeck.x is single authority.
+ * wave231: struct_lit_to_decl_c dual body retired → typeck twin.
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c after
  * check_block_one_region and before check_expr_impl forward decls.
@@ -74,9 +74,9 @@ extern int typeck_type_ref_is_bool(struct ast_ASTArena *arena, int32_t type_ref)
 extern int typeck_type_ref_is_bool_impl(struct ast_ASTArena *arena, int32_t type_ref);
 extern int32_t typeck_expr_type_ref(struct ast_ASTArena *arena, int32_t expr_ref);
 
-/* typeck.x ensure path for residual struct_lit body. */
-extern int32_t typeck_ensure_struct_layout_from_struct_lit(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                           int32_t expr_ref);
+/* wave231: live struct_lit coerce authority in typeck_x.o. */
+extern int32_t typeck_coerce_init_struct_lit_to_decl(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                     int32_t init_ref, int32_t decl_ty_ref);
 
 /* wave1158/wave230: public C ABI faces defined below (thin → typeck). Same-TU
  * callers (method_call residual, check_expr try_propagate) need decls before
@@ -211,46 +211,13 @@ int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *are
 }
 
 /**
- * Residual-only: anonymous struct lit `{ fd, ... }` backfill name from named
- * decl (PollFd). No typeck.x twin yet — keep host-cc body. Must run before
- * typeck_ensure_struct_layout_from_struct_lit. Callers: residual check_expr
- * return path. PLATFORM: SHARED.
+ * Product-mega C face for anonymous struct lit → named decl coerce.
+ * Thin → typeck_coerce_init_struct_lit_to_decl (wave231 pure leave).
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_coerce_init_struct_lit_to_decl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                          int32_t init_ref, int32_t decl_ty_ref) {
-  struct ast_Expr *init_ex;
-  int32_t decl_kind;
-  int32_t init_kind;
-  int32_t name_len;
-  uint8_t decl_nm[128];
-  int32_t decl_nlen;
-  int32_t ti;
-
-  if (!arena || init_ref <= 0 || init_ref > arena->num_exprs || decl_ty_ref <= 0 || decl_ty_ref > arena->num_types)
-    return 0;
-  decl_kind = pipeline_type_kind_ord_at(arena, decl_ty_ref);
-  init_kind = pipeline_expr_kind_ord_at(arena, init_ref);
-  if (decl_kind != (int32_t)ast_TypeKind_TYPE_NAMED || init_kind != (int32_t)ast_ExprKind_EXPR_STRUCT_LIT)
-    return 0;
-  init_ex = pipeline_arena_expr_ptr(arena, init_ref);
-  if (!init_ex)
-    return 0;
-  name_len = init_ex->struct_lit_struct_name_len;
-  if (name_len > 0)
-    return 0;
-  decl_nlen = pipeline_type_named_name_into(arena, decl_ty_ref, decl_nm);
-  if (decl_nlen <= 0 || decl_nlen > 127)
-    return 0;
-  init_ex->struct_lit_struct_name_len = decl_nlen;
-  ti = 0;
-  while (ti < 64) {
-    init_ex->struct_lit_struct_name[ti] = (ti < decl_nlen) ? decl_nm[ti] : (uint8_t)0;
-    ti = ti + 1;
-  }
-  if (module && typeck_ensure_struct_layout_from_struct_lit(module, arena, init_ref) != 0)
-    return 0;
-  init_ex->resolved_type_ref = decl_ty_ref;
-  return 1;
+  return typeck_coerce_init_struct_lit_to_decl(module, arena, init_ref, decl_ty_ref);
 }
 
 /**
@@ -266,9 +233,8 @@ int32_t pipeline_typeck_coerce_init_slice_from_array_c(struct ast_ASTArena *aren
 /**
  * Product-mega C face for let/const init coerce dispatcher.
  * Thin → typeck_coerce_init_expr_to_decl (includes resolved_alias + bool→int
- * + arr_c -1 hard fail). Residual had drifted (no alias/bool; had struct_lit
- * only on C path). G.7: typeck authority; struct_lit remains separate residual
- * face for check_expr return. PLATFORM: SHARED.
+ * + arr_c -1 hard fail + wave231 struct_lit). G.7: typeck authority.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_coerce_init_expr_to_decl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                    int32_t init_ref, int32_t decl_ty_ref) {
