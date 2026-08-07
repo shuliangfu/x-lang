@@ -152,7 +152,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_glue_emit_lea_fwd.c|8.3|glue lea/return inter-include forward-decl/define shell after lea_common (wave1288)|70|present"
   "compiler/pipeline_glue_emit_mid_fwd.c|8.3|glue mid-emit inter-include forward-decl/ordinal shell after emit_fwd (wave1289)|60|present"
   "compiler/pipeline_glue_statics.c|8.3|glue emit/typeck Cap residual pure-owned leave (wave261; BSS era closed wave224)|0|absent"
-  "compiler/pipeline_asm_locals.c|8.3.2|asm locals + block slot sidecar (wave1252)|200|present"
+  "compiler/pipeline_asm_locals.c|8.3.2|asm locals + block slot sidecar (wave1252; pure leave wave267)|200|absent"
   "compiler/pipeline_asm_slot_bytes.c|8.3.2|asm slot bytes + ensure_block_locals (wave1253)|320|present"
   "compiler/pipeline_asm_block_tree.c|8.3.2|asm block tree traversal + frame sizing (wave1254)|210|present"
   "compiler/pipeline_asm_ctx_loop.c|8.3.2|asm ctx loop + block emit cont (wave114 pure-owned leave)|130|absent"
@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 elf residual / ast_pool leaf / pipeline_x mega host-cc leave (struct_layout leave wave266); pure-owned leave candidates: elf_ctx + elf_write_o + grow_vec/ptr_at + glue_fwd shells + asm locals/slot/block_tree/wpo"
+  echo "NEXT=8.3.1 elf residual / ast_pool leaf / pipeline_x mega host-cc leave (asm_locals leave wave267); pure-owned leave candidates: elf_ctx + elf_write_o + grow_vec/ptr_at + glue_fwd shells + asm slot/block_tree/wpo"
 }
 
 run_check() {

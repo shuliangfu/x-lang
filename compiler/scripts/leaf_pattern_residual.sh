@@ -1353,7 +1353,7 @@ B7B_RELINK_LEGACY_LIST_WAVE=wave822
 #   asm_emit_call_args + asm_emit_struct_lit (wave154 pure leave) + asm_emit_vector_let + (vector_simd pure wave148) +
 #   asm_emit_struct_let + asm_emit_index_helpers + asm_emit_spill +
 #   asm_emit_block_body (wave153 pure leave) +
-#   ast_pool_module_import(leave263) + ast_pool_struct_layout(leave266) +
+#   ast_pool_module_import(leave263) + ast_pool_struct_layout(leave266) + pipeline_asm_locals(leave267) +
 #   ast_pool_top_level(leave265) + ast_pool_type_alias(leave262) +
 #   ast_pool_expr_sidecar + ast_pool_module_enum(leave264) +
 #   ast_pool_onefunc + ast_pool_dep_ctx + ast_pool_module_func + ast_pool_arena +

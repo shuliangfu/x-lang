@@ -334,7 +334,12 @@ void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct as
  * Private pure prefix_eq is shared with skip_force pure leave (wave108).
  * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
-#include "pipeline_asm_locals.c"
+/* 2026-08-08: pipeline_asm_locals.c pure-owned leave (wave267).
+ * Live face: runtime_pipeline_abi.x (asm_ctx_local_* / block_slot_* /
+ * pipeline_asm_local_offset_c). Cap residual: find_offset_scoped in
+ * bootstrap_glue; slot_bytes/block_tree still host-cc consumers.
+ * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
 
 #include "pipeline_asm_slot_bytes.c"
 
