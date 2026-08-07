@@ -10,9 +10,14 @@
  * typeck_check_scope_borrow_assign / typeck_check_scope_borrow_return +
  * private helpers). Cap residual keeps thin *_c faces for scan/mega.
  *
+ * wave237 G.7 pure leave: MEM-C1 allocator region assign/return → typeck.x
+ * (typeck_check_allocator_region_assign / typeck_check_allocator_region_return).
+ * with_arena scope stack BSS stays residual; pure leave reads via exported
+ * faces (scope_n_at / current_body_ref). Cap residual keeps thin *_c faces.
+ *
  * Still residual (not pure-leaved this wave):
  * - M-3 AL-06 return slice in region-scope (scope label BSS)
- * - MEM-C1 with_arena scope stack + allocator region assign/return
+ * - MEM-C1 with_arena scope stack BSS + push/pop (scan + one_region)
  * - post-scan stack-escape walk helpers (block tree stmt_order)
  * - call_slice_region mega (resolve + array_lit coerce + stack-escape)
  *
@@ -37,6 +42,11 @@ extern int32_t typeck_check_scope_borrow_assign(struct ast_Module *module, struc
 extern int32_t typeck_check_scope_borrow_return(struct ast_Module *module, struct ast_ASTArena *arena,
                                                 int32_t site_expr_ref, int32_t op_ref, int32_t return_type_ref,
                                                 struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_check_allocator_region_assign(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                    int32_t site_expr_ref, int32_t left_ref,
+                                                    struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_check_allocator_region_return(struct ast_ASTArena *arena, int32_t site_expr_ref,
+                                                    int32_t return_type_ref);
 
 /* wave1125-1129 G.7: forward decl — definition at EOF (callsites at L122/238/279
  * precede the EOF definition). */
@@ -75,54 +85,6 @@ int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *mo
                                                            int32_t site_expr_ref, int32_t left_ref, int32_t right_ref,
                                                            struct ast_PipelineDepCtx *ctx) {
   return typeck_check_struct_stack_escape_assign(module, arena, site_expr_ref, left_ref, right_ref, ctx);
-}
-
-/** MEM-A3：block ancestor 是否为 block descendant 的严格外层父链祖先。 */
-static int32_t typeck_block_is_strict_ancestor_c(struct ast_ASTArena *a, int32_t ancestor, int32_t descendant) {
-  struct ast_Block *b;
-  int32_t cur;
-  int32_t depth;
-  if (!a || ancestor <= 0 || descendant <= 0 || ancestor == descendant)
-    return 0;
-  cur = descendant;
-  depth = 0;
-  while (cur > 0 && cur <= a->num_blocks && depth < 128) {
-    b = pipeline_arena_block_ptr(a, cur);
-    if (!b)
-      break;
-    if (b->parent_block_ref == ancestor)
-      return 1;
-    cur = b->parent_block_ref;
-    depth++;
-  }
-  return 0;
-}
-
-/** MEM-A3：自 lvalue expr 沿 field/index 链取根 VAR 名。 */
-static int32_t typeck_expr_lval_root_var_c(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out, int32_t *out_len) {
-  int32_t cur;
-  int32_t k;
-  if (!a || expr_ref <= 0 || !out || !out_len)
-    return 0;
-  cur = expr_ref;
-  for (;;) {
-    k = pipeline_expr_kind_ord_at(a, cur);
-    if (k == GLUE_EXPR_KIND_VAR) {
-      *out_len = pipeline_expr_var_name_len(a, cur);
-      if (*out_len <= 0 || *out_len > 127)
-        return 0;
-      pipeline_expr_var_name_into(a, cur, out);
-      return 1;
-    }
-    if (k == (int32_t)ast_ExprKind_EXPR_FIELD_ACCESS)
-      cur = pipeline_expr_field_access_base_ref(a, cur);
-    else if (k == (int32_t)ast_ExprKind_EXPR_INDEX)
-      cur = pipeline_expr_index_base_ref(a, cur);
-    else
-      return 0;
-    if (cur <= 0)
-      return 0;
-  }
 }
 
 /** MEM-A3：typeck 诊断 line/col（assign 等 site expr line=0 时回退子树）。 */
@@ -180,8 +142,21 @@ int32_t pipeline_typeck_check_scope_borrow_return_c(struct ast_Module *module, s
 static int32_t g_typeck_with_arena_body_stack[TYPECK_WITH_ARENA_SCOPE_MAX];
 static int32_t g_typeck_with_arena_scope_n;
 
-/** MEM-C1：当前 with_arena 栈顶 body 块 ref；无则 0。 */
-static int32_t typeck_with_arena_current_body_ref_c(void) {
+/**
+ * MEM-C1：with_arena nest depth for pure leave + residual scan.
+ * wave237: exported face so typeck.x allocator gates can read residual BSS.
+ * PLATFORM: SHARED — Cap residual BSS face only.
+ */
+int32_t pipeline_typeck_with_arena_scope_n_at(void) {
+  return g_typeck_with_arena_scope_n;
+}
+
+/**
+ * MEM-C1：current with_arena body block ref (stack top); 0 if none.
+ * wave237: exported face for pure leave allocator assign/return.
+ * PLATFORM: SHARED — Cap residual BSS face only.
+ */
+int32_t pipeline_typeck_with_arena_current_body_ref_c(void) {
   return g_typeck_with_arena_scope_n > 0 ? g_typeck_with_arena_body_stack[g_typeck_with_arena_scope_n - 1] : 0;
 }
 
@@ -207,65 +182,25 @@ int32_t pipeline_dep_ctx_scope_region_len_at(struct ast_PipelineDepCtx *ctx);
 int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena, int32_t ret_site_ref,
                                                     int32_t op_ref, int32_t func_return_ref);
 
-/** MEM-C1：return 类型是否为命名 struct Allocator。 */
-static int32_t typeck_type_is_allocator_struct_c(struct ast_ASTArena *arena, int32_t ty_ref) {
-  uint8_t nm[128];
-  int32_t nlen;
-  if (!arena || ty_ref <= 0 || pipeline_type_kind_ord_at(arena, ty_ref) != (int32_t)ast_TypeKind_TYPE_NAMED)
-    return 0;
-  nlen = pipeline_type_named_name_into(arena, ty_ref, nm);
-  return (nlen == 9 && memcmp(nm, "Allocator", 9) == 0) ? 1 : 0;
-}
-
 /**
  * MEM-C1 AL-04：with_arena 内 assign — 禁止 arena 域值写入块外变量（allocator region 逃逸）。
+ * wave237 pure leave: thin → typeck_check_allocator_region_assign.
+ * PLATFORM: SHARED — Cap residual face only.
  */
 int32_t pipeline_typeck_check_allocator_region_assign_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                       int32_t site_expr_ref, int32_t left_ref,
                                                       struct ast_PipelineDepCtx *ctx) {
-  uint8_t lname[128];
-  int32_t llen;
-  int32_t wa_body;
-  int32_t site_block;
-  int32_t lblock;
-  int32_t line;
-  int32_t col;
-  if (!module || !arena || !ctx || left_ref <= 0 || g_typeck_with_arena_scope_n <= 0)
-    return 0;
-  if (!typeck_expr_lval_root_var_c(arena, left_ref, lname, &llen))
-    return 0;
-  wa_body = typeck_with_arena_current_body_ref_c();
-  if (wa_body <= 0)
-    return 0;
-  site_block = ctx->current_block_ref;
-  if (site_block <= 0)
-    site_block = wa_body;
-  lblock = pipeline_block_find_var_decl_block_ref(arena, site_block, lname, llen);
-  if (lblock <= 0)
-    return 0;
-  if (lblock == wa_body || typeck_block_is_strict_ancestor_c(arena, wa_body, lblock))
-    return 0;
-  if (!typeck_block_is_strict_ancestor_c(arena, lblock, wa_body))
-    return 0;
-  pipeline_typeck_expr_diag_line_col_c(arena, site_expr_ref, &line, &col);
-  lsp_diag_report_typeck((int)line, (int)col, "allocator region escape");
-  return -1;
+  return typeck_check_allocator_region_assign(module, arena, site_expr_ref, left_ref, ctx);
 }
 
 /**
  * MEM-C1 AL-04：with_arena 内 return Allocator — 禁止 allocator 域逃出 with_arena 块。
+ * wave237 pure leave: thin → typeck_check_allocator_region_return.
+ * PLATFORM: SHARED — Cap residual face only.
  */
 int32_t pipeline_typeck_check_allocator_region_return_c(struct ast_ASTArena *arena, int32_t site_expr_ref,
                                                         int32_t return_type_ref) {
-  int32_t line;
-  int32_t col;
-  if (!arena || site_expr_ref <= 0 || g_typeck_with_arena_scope_n <= 0)
-    return 0;
-  if (!typeck_type_is_allocator_struct_c(arena, return_type_ref))
-    return 0;
-  pipeline_typeck_expr_diag_line_col_c(arena, site_expr_ref, &line, &col);
-  lsp_diag_report_typeck((int)line, (int)col, "allocator region escape");
-  return -1;
+  return typeck_check_allocator_region_return(arena, site_expr_ref, return_type_ref);
 }
 
 /**

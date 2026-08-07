@@ -578,9 +578,10 @@ addr_expr_ref: i32, module: *Module, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_ptr_for_addr_of_operand_c(arena: *ASTArena, op_ref: i32,
 elem_ty: i32, module: *Module, ctx: *PipelineDepCtx): i32;
 /**
- * Cap residual thin faces (wave236 pure leave): product paths use
- * typeck_check_struct_stack_escape_assign / typeck_check_scope_borrow_*.
- * Residual scan / call_slice / mega still call the *_c names.
+ * Cap residual thin faces (wave236–237 pure leave): product paths use
+ * typeck_check_struct_stack_escape_assign / typeck_check_scope_borrow_* /
+ * typeck_check_allocator_region_*. Residual scan / call_slice / mega still
+ * call the *_c names. with_arena BSS faces stay residual (scope stack).
  * PLATFORM: SHARED
  */
 export extern function pipeline_typeck_check_struct_stack_escape_assign_c(module: *Module, arena: *ASTArena,
@@ -589,9 +590,17 @@ export extern function pipeline_typeck_check_scope_borrow_assign_c(module: *Modu
 site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_check_scope_borrow_return_c(module: *Module, arena: *ASTArena,
 site_expr_ref: i32, op_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
-/* See implementation. */
 export extern function pipeline_typeck_check_allocator_region_assign_c(module: *Module, arena: *ASTArena,
 site_expr_ref: i32, left_ref: i32, ctx: *PipelineDepCtx): i32;
+export extern function pipeline_typeck_check_allocator_region_return_c(arena: *ASTArena, site_expr_ref: i32,
+return_type_ref: i32): i32;
+/**
+ * MEM-C1 with_arena residual BSS faces (wave237): pure leave allocator gates
+ * read nest depth + current body block; push/pop stay residual with scan.
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_typeck_with_arena_scope_n_at(): i32;
+export extern function pipeline_typeck_with_arena_current_body_ref_c(): i32;
 /**
  * Pure block-pool faces used by wave236 scope-borrow ancestor / decl lookup.
  * PLATFORM: SHARED
@@ -8559,14 +8568,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let right_ref: i32 = pipeline_expr_binop_right_ref_at(arena, expr_ref);
     let line: i32 = pipeline_expr_line_at(arena, expr_ref);
     let col: i32 = pipeline_expr_col_at(arena, expr_ref);
-    /* wave236 pure leave: stack-escape + scope-borrow authority in typeck.x. */
+    /* wave236–237 pure leave: stack-escape + scope-borrow + allocator region. */
     if (typeck_check_struct_stack_escape_assign(module, arena, expr_ref, left_ref, right_ref, ctx) != 0) {
       return - 1;
     }
     if (typeck_check_scope_borrow_assign(module, arena, expr_ref, left_ref, right_ref, ctx) != 0) {
       return - 1;
     }
-    if (pipeline_typeck_check_allocator_region_assign_c(module, arena, expr_ref, left_ref, ctx) != 0) {
+    if (typeck_check_allocator_region_assign(module, arena, expr_ref, left_ref, ctx) != 0) {
       return - 1;
     }
     let lt: i32 = 0;
@@ -8999,8 +9008,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (!ast.ref_is_null(return_type_ref) && !ast.ref_is_null(op_ref)) {
       let expect_kind: i32 = 0;
       let got_kind: i32 = 0;
-      /* wave236 pure leave: return-path scope borrow before slice/region gates. */
+      /* wave236–237 pure leave: scope borrow + allocator region before slice gates. */
       if (typeck_check_scope_borrow_return(module, arena, expr_ref, op_ref, return_type_ref, ctx) != 0) {
+        return - 1;
+      }
+      if (typeck_check_allocator_region_return(arena, expr_ref, return_type_ref) != 0) {
         return - 1;
       }
       /* See implementation. */
@@ -10907,6 +10919,133 @@ op_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     }
     typeck_expr_diag_line_col(arena, site_expr_ref, &line, &col);
     p = typeck_diag_append_lit(&msg[0], 0, 23, "scope borrow escape", 19);
+    msg[p] = 0;
+    lsp_diag_report_typeck(line, col, &msg[0]);
+    return 0 - 1;
+  }
+}
+
+/**
+ * MEM-C1 helper: 1 if ty_ref is TYPE_NAMED "Allocator".
+ * wave237 pure leave from residual typeck_type_is_allocator_struct_c.
+ * @param arena *ASTArena
+ * @param ty_ref i32 — type ref to test
+ * @return i32 — 1 yes, 0 no
+ * PLATFORM: SHARED freestanding typeck
+ */
+function typeck_type_is_allocator_struct(arena: *ASTArena, ty_ref: i32): i32 {
+  // PLATFORM: SHARED — TYPE_NAMED name compare for Allocator.
+  unsafe {
+    let nm: u8[128] = [];
+    let nlen: i32 = 0;
+    if (arena == 0 as *ASTArena || ty_ref <= 0) {
+      return 0;
+    }
+    /* TYPE_NAMED == 8 */
+    if (pipeline_type_kind_ord_at(arena, ty_ref) != 8) {
+      return 0;
+    }
+    nlen = pipeline_type_named_name_into(arena, ty_ref, &nm[0]);
+    /* "Allocator" len 9 — G.7 reuse name_equal authority. */
+    if (name_equal(&nm[0], nlen, "Allocator" as *u8, 9)) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * MEM-C1 AL-04 assign gate: forbid writing arena-region values into outer vars
+ * while inside with_arena (allocator region escape).
+ * wave237 G.7 pure leave: was Cap residual pipeline_typeck_check_allocator_region_assign_c.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param site_expr_ref i32 — site for line/col
+ * @param left_ref i32 — assign LHS
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok; -1 diagnostic emitted
+ * PLATFORM: SHARED freestanding typeck — G.7 single allocator-region assign authority.
+ */
+export function typeck_check_allocator_region_assign(module: *Module, arena: *ASTArena, site_expr_ref: i32,
+left_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let lname: u8[128] = [];
+    let llen: i32 = 0;
+    let wa_body: i32 = 0;
+    let site_block: i32 = 0;
+    let lblock: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let msg: u8[28] = [];
+    let p: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || left_ref <= 0) {
+      return 0;
+    }
+    /* Outside any with_arena nest → no allocator region gate. */
+    if (pipeline_typeck_with_arena_scope_n_at() <= 0) {
+      return 0;
+    }
+    if (typeck_expr_lval_root_var(arena, left_ref, &lname[0], &llen) == 0) {
+      return 0;
+    }
+    wa_body = pipeline_typeck_with_arena_current_body_ref_c();
+    if (wa_body <= 0) {
+      return 0;
+    }
+    site_block = pipeline_dep_ctx_current_block_ref_at(ctx);
+    if (site_block <= 0) {
+      site_block = wa_body;
+    }
+    lblock = pipeline_block_find_var_decl_block_ref(arena, site_block, &lname[0], llen);
+    if (lblock <= 0) {
+      return 0;
+    }
+    /* LHS declared inside with_arena body (or nested under it) → ok. */
+    if (lblock == wa_body || typeck_block_is_strict_ancestor(arena, wa_body, lblock) != 0) {
+      return 0;
+    }
+    /* LHS must be an outer ancestor of the with_arena body to count as escape. */
+    if (typeck_block_is_strict_ancestor(arena, lblock, wa_body) == 0) {
+      return 0;
+    }
+    typeck_expr_diag_line_col(arena, site_expr_ref, &line, &col);
+    /* "allocator region escape" len 24 */
+    p = typeck_diag_append_lit(&msg[0], 0, 27, "allocator region escape", 24);
+    msg[p] = 0;
+    lsp_diag_report_typeck(line, col, &msg[0]);
+    return 0 - 1;
+  }
+}
+
+/**
+ * MEM-C1 AL-04 return gate: forbid returning named Allocator while inside with_arena.
+ * wave237 G.7 pure leave: was Cap residual pipeline_typeck_check_allocator_region_return_c.
+ * @param arena *ASTArena
+ * @param site_expr_ref i32 — return expr site
+ * @param return_type_ref i32 — function return type
+ * @return i32 — 0 ok; -1 diagnostic emitted
+ * PLATFORM: SHARED freestanding typeck — G.7 single allocator-region return authority.
+ */
+export function typeck_check_allocator_region_return(arena: *ASTArena, site_expr_ref: i32,
+return_type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let msg: u8[28] = [];
+    let p: i32 = 0;
+    if (arena == 0 as *ASTArena || site_expr_ref <= 0) {
+      return 0;
+    }
+    if (pipeline_typeck_with_arena_scope_n_at() <= 0) {
+      return 0;
+    }
+    if (typeck_type_is_allocator_struct(arena, return_type_ref) == 0) {
+      return 0;
+    }
+    typeck_expr_diag_line_col(arena, site_expr_ref, &line, &col);
+    p = typeck_diag_append_lit(&msg[0], 0, 27, "allocator region escape", 24);
     msg[p] = 0;
     lsp_diag_report_typeck(line, col, &msg[0]);
     return 0 - 1;
