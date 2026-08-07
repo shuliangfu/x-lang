@@ -37,6 +37,13 @@ _xlang_cm_ensure_one_o() {
   local out="$1"
   local rc=0
   local _log
+  # Fast path: leaf present. Product bstrict calls ensure on every script;
+  # each miss re-enters try-heat as a *new* bash → catalog re-parse without
+  # XLANG_CATALOG_CACHE_FILE (~8s×N) looks like a hang. FORCE rebuilds when
+  # XLANG_CM_FORCE=1 or leaf missing. PLATFORM: SHARED
+  if [ -z "${XLANG_CM_FORCE:-}" ] && [ -s "$out" ]; then
+    return 0
+  fi
   _log="${TMPDIR:-/tmp}/xlang_cm_ensure.$$.$RANDOM"
   # formal_mod catalog (exit 3 = not a formal leaf). Capture rc explicitly
   # (do not use `if cmd; then` which can obscure status with set -e callers).

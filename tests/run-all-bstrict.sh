@@ -110,6 +110,43 @@ if [ -z "${XLANG_CI_NO_SKIP:-}" ]; then
   export XLANG_SKIP_PARSE_SMOKE=1
 fi
 
+# ---------------------------------------------------------------------------
+# Hang guards (product L4 / bstrict — mandatory ceilings; no unbounded waits)
+# PLATFORM: SHARED — Linux `timeout` / macOS `gtimeout`; else WARN + still run.
+# ---------------------------------------------------------------------------
+# Per-script wall: product default 300s (net/io/http ok); W3 best-effort 120s.
+# Override: XLANG_BSTRICT_SCRIPT_TIMEOUT=N  (or legacy XLANG_W3_BSTRICT_SCRIPT_TIMEOUT).
+if [ -z "${XLANG_BSTRICT_SCRIPT_TIMEOUT:-}" ]; then
+  if [ -n "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+    export XLANG_BSTRICT_SCRIPT_TIMEOUT="${XLANG_W3_BSTRICT_SCRIPT_TIMEOUT:-120}"
+  else
+    export XLANG_BSTRICT_SCRIPT_TIMEOUT=300
+  fi
+fi
+# Shared catalog blob for every try-heat child bash (else each leaf re-parses
+# driver_seed_obj_catalog ~8s → multi-minute "dead" looks on Ubuntu L4).
+# ensure_host_cc_seed_o.sh catalog_blob honors XLANG_CATALOG_CACHE_FILE.
+if [ -z "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+  export XLANG_CATALOG_CACHE_FILE="/tmp/xlang_bstrict_catalog_$$.txt"
+fi
+if [ ! -s "${XLANG_CATALOG_CACHE_FILE}" ] && [ -f compiler/scripts/driver_seed_obj_catalog.sh ]; then
+  echo "run-all-bstrict: warm catalog cache → ${XLANG_CATALOG_CACHE_FILE}"
+  (cd compiler && bash scripts/driver_seed_obj_catalog.sh --shell >"${XLANG_CATALOG_CACHE_FILE}") \
+    || echo "run-all-bstrict: WARN catalog warm failed (try-heat may re-parse)" >&2
+fi
+# Resolve timeout binary once (product + W3).
+_BSTRICT_TIMEOUT_BIN=""
+if command -v timeout >/dev/null 2>&1; then
+  _BSTRICT_TIMEOUT_BIN=timeout
+elif command -v gtimeout >/dev/null 2>&1; then
+  _BSTRICT_TIMEOUT_BIN=gtimeout
+fi
+if [ -z "${_BSTRICT_TIMEOUT_BIN}" ]; then
+  echo "run-all-bstrict: WARN no timeout/gtimeout — scripts run unbounded (install coreutils)" >&2
+else
+  echo "run-all-bstrict: per-script timeout=${XLANG_BSTRICT_SCRIPT_TIMEOUT}s via ${_BSTRICT_TIMEOUT_BIN}"
+fi
+
 # bootstrap-driver-seed 仅预链 io/fs/heap；runtime -o 按磁盘存在的 std/*.o 追加链接。
 # Docker 门禁 purge 宿主 Mach-O 后须重建，否则 run-crypto/run-log 等 -o 缺 C 符号。
 # 产品冷链：XLANG_SKIP_STD_ENSURE=1 跳过 ensure（避免残缺 std/*.o 被 labi 硬链毒化 asm 测）。
@@ -452,25 +489,47 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       cp -f compiler/xlang_asm compiler/xlang 2>/dev/null || true
     fi
     _script_ok=0
-    if [ -n "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ] && command -v timeout >/dev/null 2>&1; then
-      # nohup >> log 时 stdout 非 TTY，子脚本内 xlang -o 会挂起；须 tee|cat Drain。
-      _w3_script_log="/tmp/w3_bstrict_${script%.sh}.log"
-      _w3_script_timeout="${XLANG_W3_BSTRICT_SCRIPT_TIMEOUT:-120}"
-      if timeout -k 10 "$_w3_script_timeout" \
-        env XLANG="$script_shu" XLANG_LINK_XLANG="$script_link" \
-        bash -c "./tests/$script 2>&1 | tee \"$_w3_script_log\" | cat >/dev/null"; then
-        _script_ok=1
+    _script_rc=0
+    # Product + W3: always ceiling each whitelist script (no unbounded wait).
+    # nohup/tee path drains stdout so xlang -o never blocks on full pipe.
+    _script_log="/tmp/bstrict_${script%.sh}.$$.log"
+    if [ -n "${_BSTRICT_TIMEOUT_BIN}" ]; then
+      set +e
+      if [ -n "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+        "${_BSTRICT_TIMEOUT_BIN}" -k 15 "${XLANG_BSTRICT_SCRIPT_TIMEOUT}" \
+          env XLANG="$script_shu" XLANG_LINK_XLANG="$script_link" \
+              XLANG_CATALOG_CACHE_FILE="${XLANG_CATALOG_CACHE_FILE:-}" \
+          bash -c "./tests/$script 2>&1 | tee \"$_script_log\" | cat >/dev/null"
+        _script_rc=$?
       else
-        _rc=$?
-        w3_bstrict_cleanup_orphans
-        if [ "$_rc" -eq 124 ]; then
-          echo "run-all-bstrict: WARN timeout $script (${_w3_script_timeout}s; W3 best-effort)" >&2
+        # Product: live output to suite log + hard fail on timeout.
+        "${_BSTRICT_TIMEOUT_BIN}" -k 15 "${XLANG_BSTRICT_SCRIPT_TIMEOUT}" \
+          env XLANG="$script_shu" XLANG_LINK_XLANG="$script_link" \
+              XLANG_CATALOG_CACHE_FILE="${XLANG_CATALOG_CACHE_FILE:-}" \
+          ./tests/"$script"
+        _script_rc=$?
+      fi
+      set -e
+      if [ "$_script_rc" -eq 0 ]; then
+        _script_ok=1
+      elif [ "$_script_rc" -eq 124 ] || [ "$_script_rc" -eq 137 ]; then
+        echo "run-all-bstrict: TIMEOUT $script after ${XLANG_BSTRICT_SCRIPT_TIMEOUT}s (rc=$_script_rc)" >&2
+        if [ -n "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]; then
+          w3_bstrict_cleanup_orphans 2>/dev/null || true
           _w3_stat_timeout=$((_w3_stat_timeout + 1))
+        else
+          # Product path: hang = red (do not soft-skip).
+          exit 124
         fi
       fi
-    elif XLANG="$script_shu" XLANG_LINK_XLANG="$script_link" ./tests/"$script"; then
-      _script_ok=1
+    else
+      if XLANG="$script_shu" XLANG_LINK_XLANG="$script_link" \
+           XLANG_CATALOG_CACHE_FILE="${XLANG_CATALOG_CACHE_FILE:-}" \
+           ./tests/"$script"; then
+        _script_ok=1
+      fi
     fi
+    rm -f "$_script_log" 2>/dev/null || true
     if [ "$_script_ok" -eq 1 ]; then
       _w3_stat_ok=$((_w3_stat_ok + 1))
       break
