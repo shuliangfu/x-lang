@@ -45,8 +45,12 @@
  * (UFCS / fixup / subst_ret_from_formal_map / dead subst_module_ret deleted).
  *
  * wave253 pure leave: weak method_call_c body → typeck_check_expr_method_call
- * (typeck_x.o); Cap face thin only. Residual still hosts call-resolve accessors /
- * dep map / find_func faces (next leave).
+ * (typeck_x.o); Cap face thin only.
+ *
+ * wave254 pure leave: dep map + find_func → typeck_x.o (#[no_mangle] Cap faces);
+ * deleted residual map_import / dep_return_impl / get_dep / set_entry / find_func
+ * second bodies (dual-export ban). Residual still hosts call-resolve accessors
+ * (next leave).
  */
 
 
@@ -221,133 +225,12 @@ extern int32_t pipeline_typeck_call_arg_repr_compatible_ok_c(struct ast_Module *
  * PLATFORM: SHARED freestanding typeck generic UFCS + CALL fixup.
  */
 
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* wave1111-1112 G.7: dep return type mapping domain (2 fns) migrated from
- * pipeline_glue.c L9400-9494. These map a dep-side (imported module) return
- * type_ref into the caller arena, qualified with import binding prefix when
- * the import is a binding import (e.g. vec.Vec_u8). Co-located with method
- * call domain because cross-module call return-type resolution is the sole
- * consumer. Static (non-extern): same-TU visibility via #include order +
- * fwd decl at glue.c. PLATFORM: SHARED. */
-
-/**
- * Map a dep-side TYPE_NAMED to the caller-side binding-qualified struct
- * (e.g. vec.Vec_u8). Falls back to bare-name find_or_alloc when the import
- * is not a binding import or dep_ix is out of range.
- *
- * Why: top-level dep return types arrive as bare TYPE_NAMED; the caller
- * arena must store them with the import binding prefix so that let
- * declarations like `let v: vec.Vec_u8` resolve to the same type_ref.
- *
- * Contract: entry_mod may be NULL (bare-name fallback); nm/nlen must be
- * valid (nlen > 0). Returns 0 on failure, a caller-arena type_ref on
- * success.
- *
- * PLATFORM: SHARED — pure name resolution, no arch dependency.
- */
-static int32_t pipeline_typeck_map_import_binding_named_to_caller_c(struct ast_Module *entry_mod,
-                                                                    int32_t dep_ix,
-                                                                    struct ast_ASTArena *caller_arena,
-                                                                    uint8_t *nm, int32_t nlen) {
-  int32_t bl;
-  int32_t qlen;
-  uint8_t qnm[128];
-  int32_t i;
-
-  if (!caller_arena || !nm || nlen <= 0)
-    return 0;
-  if (!entry_mod || dep_ix < 0 || dep_ix >= entry_mod->num_imports)
-    return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
-  if (pipeline_module_import_kind_at(entry_mod, dep_ix) != 1) /* IMPORT_BINDING */
-    return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
-  bl = pipeline_module_import_binding_name_len(entry_mod, dep_ix);
-  if (bl <= 0 || bl + 1 + nlen > 127)
-    return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
-  for (i = 0; i < bl; i++)
-    qnm[i] = pipeline_module_import_binding_name_byte_at(entry_mod, dep_ix, i);
-  qnm[bl] = '.';
-  memcpy(qnm + bl + 1, nm, (size_t)nlen);
-  qlen = bl + 1 + nlen;
-  return pipeline_type_find_or_alloc_named(caller_arena, qnm, qlen);
-}
-
-/**
- * Recursively map a dep-side return_type_ref into the caller arena.
- * Mirrors typeck.x::dep_return_type_to_caller_arena.
- *
- * Why: cross-module calls return a type_ref that is only valid in the dep
- * arena; the caller needs an equivalent type_ref in its own arena to stamp
- * resolved_type_ref on the call expr. Primitives map directly; compound
- * types (slice/ptr/vector/array) recurse on elem_ref; TYPE_NAMED maps via
- * find_or_alloc_named (or binding-qualified map when entry module is set).
- *
- * Invariant: the returned type_ref is in caller_arena, not dep_arena.
- * Returns 0 on failure (kind unknown, name empty, elem recursion fails).
- *
- * PLATFORM: SHARED — pure type_ref translation, no arch dependency.
- */
-static int32_t pipeline_typeck_dep_return_type_to_caller_arena_impl(struct ast_ASTArena *dep_arena,
-                                                                    int32_t dep_return_type_ref,
-                                                                    struct ast_ASTArena *caller_arena) {
-  int32_t kind;
-  int32_t inner_mapped;
-  int32_t elem_ref;
-  int32_t array_size;
-  uint8_t nm[128];
-  int32_t nlen;
-
-  if (dep_return_type_ref <= 0 || !dep_arena || !caller_arena)
-    return 0;
-  kind = pipeline_type_kind_ord_at(dep_arena, dep_return_type_ref);
-  if (kind < 0)
-    return 0;
-  if (kind == (int32_t)ast_TypeKind_TYPE_I32 || kind == (int32_t)ast_TypeKind_TYPE_I64 ||
-      kind == (int32_t)ast_TypeKind_TYPE_BOOL || kind == (int32_t)ast_TypeKind_TYPE_F64 ||
-      kind == (int32_t)ast_TypeKind_TYPE_U8 || kind == (int32_t)ast_TypeKind_TYPE_U32 ||
-      kind == (int32_t)ast_TypeKind_TYPE_U64 || kind == (int32_t)ast_TypeKind_TYPE_ISIZE ||
-      kind == (int32_t)ast_TypeKind_TYPE_F32 || kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
-      kind == (int32_t)ast_TypeKind_TYPE_VOID)
-    return pipeline_type_ensure_by_kind_ord(caller_arena, kind);
-  if (kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
-    nlen = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, nm);
-    if (nlen <= 0)
-      return 0;
-    return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
-  }
-  elem_ref = pipeline_type_elem_ref_at(dep_arena, dep_return_type_ref);
-  inner_mapped = 0;
-  if (!ast_ref_is_null(elem_ref)) {
-    inner_mapped =
-        pipeline_typeck_dep_return_type_to_caller_arena_impl(dep_arena, elem_ref, caller_arena);
-    if (inner_mapped == 0)
-      return 0;
-  }
-  array_size = pipeline_type_array_size_at(dep_arena, dep_return_type_ref);
-  if (kind == (int32_t)ast_TypeKind_TYPE_SLICE) {
-    int32_t rlen = pipeline_type_region_label_len_at(dep_arena, dep_return_type_ref);
-    uint8_t rbuf[128];
-    if (rlen > 0)
-      (void)pipeline_type_region_label_into(dep_arena, dep_return_type_ref, rbuf);
-    return pipeline_type_find_or_alloc_slice(caller_arena, inner_mapped, rlen > 0 ? rbuf : NULL, rlen);
-  }
-  if (kind == (int32_t)ast_TypeKind_TYPE_PTR)
-    return pipeline_type_find_or_alloc_compound(caller_arena, (int32_t)ast_TypeKind_TYPE_PTR, inner_mapped, 0);
-  if (kind == (int32_t)ast_TypeKind_TYPE_VECTOR)
-    return pipeline_type_find_or_alloc_compound(caller_arena, (int32_t)ast_TypeKind_TYPE_VECTOR, inner_mapped,
-                                                array_size);
-  if (kind == (int32_t)ast_TypeKind_TYPE_ARRAY) {
-    if (ast_ref_is_null(elem_ref) || array_size <= 0)
-      return 0;
-    return pipeline_type_find_or_alloc_compound(caller_arena, (int32_t)ast_TypeKind_TYPE_ARRAY, inner_mapped,
-                                                array_size);
-  }
-  if (!ast_ref_is_null(elem_ref) || array_size != 0)
-    return 0;
-  nlen = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, nm);
-  if (nlen != 0)
-    return 0;
-  return pipeline_type_ensure_by_kind_ord(caller_arena, kind);
-}
+/* ============================================================
+ * wave254 G.7 pure leave: dep return map statics retired → typeck_x.o
+ * (typeck_map_import_binding_named_to_caller + dep_return_type_to_caller_arena
+ *  + get_dep_return_type_in_caller_arena). Dual-export ban.
+ * PLATFORM: SHARED freestanding typeck dep map.
+ * ============================================================ */
 
 /* ============================================================
  * wave239 G.7: typeck_check_call_ptr_struct_compat_c body retired.
@@ -669,277 +552,31 @@ void pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_re
 }
 
 /*
- * wave1168 G.7: dep return type + entry module cluster (3 extern fns + 1 static)
- * migrated from pipeline_glue.c (was L7918-7977). Colocated with method_call
- * domain — cross-module call return-type resolution is a sub-domain of method
- * call resolution, and these wrappers delegate to statics already in this file
- * (pipeline_typeck_map_import_binding_named_to_caller_c at L2522,
- *  pipeline_typeck_dep_return_type_to_caller_arena_impl at L2563).
- *
- * Static g_typeck_entry_module_for_dep_map moves here: set by
- * pipeline_typeck_set_entry_module_for_dep_map_c, read by
- * pipeline_typeck_get_dep_return_type_in_caller_arena_c (both in this cluster).
- *
- * Forward decls in glue.c:
- * - pipeline_typeck_get_dep_return_type_in_caller_arena_c: fwd decl at glue.c
- *   L770 (before callsites L8033/8075 < method_call.c #include L9153)
- * - pipeline_typeck_set_entry_module_for_dep_map_c: callsites at L9469/9536
- *   > method_call.c #include L9153; no fwd decl needed.
- * - pipeline_typeck_dep_return_type_to_caller_arena_c: no glue.c callsites;
- *   extern, called from seed only.
- *
- * Deps (all extern, visible at method_call.c #include L9153):
- * - pipeline_dep_ctx_arena_at / pipeline_get_dep_arena_slot /
- *   pipeline_dep_ctx_ndep / pipeline_dep_ctx_module_at (extern)
- * - pipeline_type_kind_ord_at / pipeline_type_named_name_into (extern)
- * - pipeline_typeck_map_import_binding_named_to_caller_c (static, same file L2522)
- * - pipeline_typeck_dep_return_type_to_caller_arena_impl (static, same file L2563)
- * PLATFORM: SHARED — host-cc via pipeline_x.o TU.
+ * wave254 pure leave: dep map + find_func Cap faces live in typeck_x.o only
+ * (#[no_mangle]). Dual-export ban — residual extern-only (no second body / BSS).
+ * PLATFORM: SHARED freestanding typeck dep map / find_func.
  */
-
-/** typeck: current entry module (IMPORT_BINDING return-type mapping adds binding prefix). */
-static struct ast_Module *g_typeck_entry_module_for_dep_map;
-
-/**
- * Set entry module at typeck entry for dep return-type resolution.
- * Why: when resolving `let v: vec.Vec_u8 = dep.foo()`, the dep return TYPE_NAMED
- *      must be prefixed with the import binding name (vec) to match the caller's
- *      type pool entry. The entry module provides the import binding table.
- * Contract: module may be NULL (clears entry-module context).
- * PLATFORM: SHARED — called from pipeline_typeck_after_parse_ok_c and lsp_diag.
- */
-void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module) {
-  g_typeck_entry_module_for_dep_map = module;
-}
-
-/**
- * typeck.x::dep_return_type_to_caller_arena C delegate (EMIT_HEAVY thin wrapper).
- * Why: delegates to pipeline_typeck_dep_return_type_to_caller_arena_impl (static,
- *      same file L2563) which recursively maps dep_arena type refs into
- *      caller_arena via name-based lookup. This wrapper is the extern entry
- *      point called from the seed typeck path.
- * Contract: null dep_arena / null caller_arena → impl returns 0.
- * PLATFORM: SHARED — cross-module return-type mapping.
- */
-int32_t pipeline_typeck_dep_return_type_to_caller_arena_c(struct ast_ASTArena *dep_arena, int32_t dep_return_type_ref,
-                                                          struct ast_ASTArena *caller_arena) {
-  return pipeline_typeck_dep_return_type_to_caller_arena_impl(dep_arena, dep_return_type_ref, caller_arena);
-}
-
-/**
- * typeck.x::get_dep_return_type_in_caller_arena C delegate.
- * Why: resolves a dep module's return type ref into the caller's arena ref.
- *      For TYPE_NAMED returns, adds the import binding prefix (e.g. vec.Vec_u8)
- *      via pipeline_typeck_map_import_binding_named_to_caller_c so the caller's
- *      type pool matches qualified-name declarations. For other types, delegates
- *      to pipeline_typeck_dep_return_type_to_caller_arena_impl for recursive mapping.
- *      Handles bootstrap edge case where dep_index >= ndep but slot is bound.
- * Contract: from_dep_index < 0 / null ctx → 0.
- *           dep_arena not found → 0.
- * PLATFORM: SHARED — cross-module return-type resolution for qualified names.
- */
-int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index, int32_t dep_return_type_ref,
-                                                              struct ast_ASTArena *caller_arena,
-                                                              struct ast_PipelineDepCtx *ctx) {
-  struct ast_ASTArena *dep_arena;
-  int32_t kind;
-  uint8_t nm[128];
-  int32_t nlen;
-
-  if (from_dep_index < 0 || !ctx)
-    return 0;
-  dep_arena = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
-  if (!dep_arena) {
-    dep_arena = pipeline_get_dep_arena_slot(from_dep_index);
-    if (!dep_arena)
-      return 0;
-  }
-  /* entry import index may be < ndep (closure seed 9 slots vs entry 1 import);
-     if slot is bound, continue. */
-  if (from_dep_index >= pipeline_dep_ctx_ndep(ctx) && !pipeline_dep_ctx_module_at(ctx, from_dep_index))
-    return 0;
-  /* top-level dep returning TYPE_NAMED: must add import binding prefix to match
-     caller's `let v: vec.Vec_u8` declaration. */
-  if (g_typeck_entry_module_for_dep_map && dep_return_type_ref > 0 &&
-      dep_return_type_ref <= dep_arena->num_types) {
-    kind = pipeline_type_kind_ord_at(dep_arena, dep_return_type_ref);
-    if (kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
-      nlen = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, nm);
-      if (nlen > 0)
-        return pipeline_typeck_map_import_binding_named_to_caller_c(
-            g_typeck_entry_module_for_dep_map, from_dep_index, caller_arena, nm, nlen);
-    }
-  }
-  return pipeline_typeck_dep_return_type_to_caller_arena_impl(dep_arena, dep_return_type_ref, caller_arena);
-}
-
-/*
- * wave1169 G.7: func resolution cluster (4 extern fns) migrated from
- * pipeline_glue.c (was L7949-8056). Colocated with method_call domain —
- * callee-name matching, func return-type lookup, and call-resolve write-back
- * are all sub-domains of method-call resolution.
- *
- * Forward decls:
- * - pipeline_typeck_find_func_return_type_in_module_by_name_c: fwd decl in
- *   glue.c (before callsite at L8196 < method_call.c #include L9153);
- *   also extern fwd decl in call_args.c L2483 (before callsites L2594/2650/2687).
- * - pipeline_typeck_find_func_return_type_in_module_c: extern fwd decl in
- *   call_args.c L2479 (before callsite L2673); no glue.c callsites.
- * - pipeline_typeck_expr_var_name_equal_func_c: no external callsites outside
- *   method_call.c (sole caller is find_func_return_type_in_module_c, same cluster).
- * - pipeline_typeck_expr_apply_call_resolve_c: no external callsites outside
- *   method_call.c (all callers already in method_call.c L200/218/307/2942/etc).
- *
- * Deps (all extern, visible at method_call.c #include L9153):
- * - pipeline_expr_kind_ord_at / pipeline_expr_var_name_len /
- *   pipeline_expr_var_name_into (expr accessor domain)
- * - pipeline_module_func_name_len_at / pipeline_module_func_name_byte_at /
- *   pipeline_module_func_name_equal_at / pipeline_module_func_return_type_at
- *   (module_func domain)
- * - pipeline_visibility_allow_func (ast_pool.c L1249)
- * - pipeline_typeck_get_dep_return_type_in_caller_arena_c (same file, wave1168)
- * - pipeline_typeck_dep_return_type_to_caller_arena_impl (static, same file L2563)
- * - pipeline_dep_ctx_arena_at (extern)
- * - pipeline_expr_apply_call_resolve (extern)
- * - link_abi_getenv (global)
- * PLATFORM: SHARED — host-cc via pipeline_x.o TU.
- */
-
-/**
- * Check if a VAR callee expr name matches module.funcs[func_index] name byte-by-byte.
- * Why: method-call resolution must match the callee VAR name against each function
- *      in the target module to find the called function index. Byte comparison
- *      avoids string allocation on the hot path.
- * Contract: invalid callee_expr_ref / non-VAR kind / OOB func_index → 0.
- * PLATFORM: SHARED — callee-name match for method-call resolution.
- */
-int32_t pipeline_typeck_expr_var_name_equal_func_c(struct ast_ASTArena *arena, int32_t callee_expr_ref,
-                                                   struct ast_Module *mod, int32_t func_index) {
-  uint8_t vbuf[128];
-  int32_t b_len;
-  int32_t a_len;
-  int32_t i;
-
-  if (callee_expr_ref <= 0 || !arena || callee_expr_ref > arena->num_exprs)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, callee_expr_ref) != 3)
-    return 0;
-  b_len = pipeline_expr_var_name_len(arena, callee_expr_ref);
-  if (func_index < 0 || !mod || func_index >= mod->num_funcs)
-    return 0;
-  a_len = pipeline_module_func_name_len_at(mod, func_index);
-  if (a_len != b_len || a_len <= 0 || a_len > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, callee_expr_ref, vbuf);
-  i = 0;
-  while (i < a_len) {
-    if (pipeline_module_func_name_byte_at(mod, func_index, i) != vbuf[i])
-      return 0;
-    i = i + 1;
-  }
-  return 1;
-}
-
-/**
- * Find a function's return type in a module by name, mapping to caller's arena.
- * Why: cross-module call resolution needs to look up a function by its name
- *      (e.g. from import binding or qualified symbol) and map the dep's return
- *      type ref into the caller's arena. Handles export visibility checks and
- *      bootstrap fallback (direct dep arena primitive mapping).
- * Contract: name_len outside [1,127] → 0.
- *           Function not found / visibility denied → 0.
- * PLATFORM: SHARED — cross-module call return-type resolution by name.
- */
-int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
+extern void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module);
+extern int32_t pipeline_typeck_dep_return_type_to_caller_arena_c(struct ast_ASTArena *dep_arena,
+                                                                int32_t dep_return_type_ref,
+                                                                struct ast_ASTArena *caller_arena);
+extern int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
+                                                                    int32_t dep_return_type_ref,
+                                                                    struct ast_ASTArena *caller_arena,
+                                                                    struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_expr_var_name_equal_func_c(struct ast_ASTArena *arena, int32_t callee_expr_ref,
+                                                         struct ast_Module *mod, int32_t func_index);
+extern int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
     struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len,
-    int32_t from_dep_index, struct ast_PipelineDepCtx *ctx, int32_t *func_index_out) {
-  int32_t j;
-  int32_t rtr;
-
-  if (name_len <= 0 || name_len > 127)
-    return 0;
-  j = 0;
-  while (j < mod->num_funcs) {
-    if (pipeline_module_func_name_equal_at(mod, j, name, name_len) != 0) {
-      /* Module export: strict mode requires is_export for cross-module calls
-         (compat/warn allows). */
-      if (from_dep_index >= 0 && pipeline_visibility_allow_func(mod, j, 1) == 0) {
-        j = j + 1;
-        continue;
-      }
-      if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-        fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep_func_match name=%.*s func_idx=%d dep_ix=%d raw_ret=%d\n",
-                (int)name_len, name, (int)j, (int)from_dep_index, (int)pipeline_module_func_return_type_at(mod, j));
-      if (func_index_out)
-        func_index_out[0] = j;
-      rtr = pipeline_module_func_return_type_at(mod, j);
-      if (from_dep_index < 0)
-        return rtr;
-      {
-        int32_t mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, rtr, caller_arena, ctx);
-        if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-          fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep_func_map name=%.*s func_idx=%d dep_ix=%d mapped=%d\n",
-                  (int)name_len, name, (int)j, (int)from_dep_index, (int)mapped);
-        if (mapped != 0)
-          return mapped;
-        /* Bootstrap fallback: ctx dep arena direct-map primitive (import_idx
-           vs global dep slot mismatch). */
-        {
-          struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
-          if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-            fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep_func_fallback name=%.*s func_idx=%d dep_ix=%d dep_arena=%p raw_ret=%d\n",
-                    (int)name_len, name, (int)j, (int)from_dep_index, (void *)da, (int)rtr);
-          if (da && rtr != 0)
-            return pipeline_typeck_dep_return_type_to_caller_arena_impl(da, rtr, caller_arena);
-        }
-      }
-      return 0;
-    }
-    j = j + 1;
-  }
-  return 0;
-}
-
-/**
- * Find a function's return type in a module by matching callee VAR expr name.
- * Why: UFCS method-call resolution matches the callee expr's VAR name against
- *      each function in the target module. On match, maps the return type to
- *      the caller's arena via pipeline_typeck_get_dep_return_type_in_caller_arena_c.
- * Contract: null mod / null callee_arena → 0.
- *           No match → 0.
- * PLATFORM: SHARED — callee-expr-based method-call return-type resolution.
- */
-int32_t pipeline_typeck_find_func_return_type_in_module_c(
+    int32_t from_dep_index, struct ast_PipelineDepCtx *ctx, int32_t *func_index_out);
+extern int32_t pipeline_typeck_find_func_return_type_in_module_c(
     struct ast_Module *mod, struct ast_ASTArena *mod_arena, struct ast_ASTArena *caller_arena,
     struct ast_ASTArena *callee_arena, int32_t callee_expr_ref, int32_t from_dep_index,
-    struct ast_PipelineDepCtx *ctx, int32_t *func_index_out) {
-  int32_t j;
-  int32_t ret_dep;
-
-  (void)mod_arena;
-  if (!mod || !callee_arena)
-    return 0;
-  j = 0;
-  while (j < mod->num_funcs) {
-    if (pipeline_typeck_expr_var_name_equal_func_c(callee_arena, callee_expr_ref, mod, j) != 0) {
-      if (func_index_out)
-        func_index_out[0] = j;
-      ret_dep = pipeline_module_func_return_type_at(mod, j);
-      if (from_dep_index < 0)
-        return ret_dep;
-      return pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, ret_dep, caller_arena, ctx);
-    }
-    j = j + 1;
-  }
-  return 0;
-}
+    struct ast_PipelineDepCtx *ctx, int32_t *func_index_out);
 
 /**
  * Write resolved dep/func indices into a CALL expr node.
- * Why: after method-call resolution determines which dep module and function
- *      index the call targets, this writes the resolution into the expr node
- *      so codegen can emit the correct call without re-resolving.
- * Contract: delegates to pipeline_expr_apply_call_resolve (extern accessor).
+ * Thin → pipeline_expr_apply_call_resolve (call-resolve accessor; still residual).
  * PLATFORM: SHARED — call-resolve write-back for method-call resolution.
  */
 void pipeline_typeck_expr_apply_call_resolve_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t dep_ix,

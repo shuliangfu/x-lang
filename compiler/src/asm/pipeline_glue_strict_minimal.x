@@ -2774,62 +2774,16 @@ export extern function pipeline_get_dep_arena_slot(ix: i32): *u8;
 export extern function pipeline_module_func_num_generic_params_at(mod: *u8, fi: i32): i32;
 export extern function getenv(name: *u8): *u8;
 
-// See implementation.
-let g_typeck_entry_module_for_dep_map_x: *u8 = 0;
-
-// G-02f-220：set entry module for dep named map
-/** Exported function `pipeline_typeck_set_entry_module_for_dep_map_c`.
- * Implements `pipeline_typeck_set_entry_module_for_dep_map_c`.
- * @param module *u8
- * @return void
+/*
+ * wave254 pure leave: set_entry / get_dep Cap faces live in typeck_x.o only.
+ * Dual-export ban — strict_minimal must not define a second BSS / body.
+ * Product L2 still links strict helpers (map_import_strict / dep_return_strict)
+ * for other call sites; Cap names resolve from typeck_x.
+ * PLATFORM: SHARED freestanding typeck dep map.
  */
-#[no_mangle]
-export function pipeline_typeck_set_entry_module_for_dep_map_c(module: *u8): void {
-  g_typeck_entry_module_for_dep_map_x = module;
-}
-
-// pipeline_typeck_get_dep_return_type_in_caller_arena_c: see function docblock below.
-/** Exported function `pipeline_typeck_get_dep_return_type_in_caller_arena_c`.
- * Implements `pipeline_typeck_get_dep_return_type_in_caller_arena_c`.
- * @param from_dep_index i32
- * @param dep_return_type_ref i32
- * @param caller_arena *u8
- * @param ctx *u8
- * @return i32
- */
-#[no_mangle]
-export function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32, dep_return_type_ref: i32, caller_arena: *u8, ctx: *u8): i32 {
-  if (from_dep_index < 0) { return 0; }
-  if (ctx == 0 as *u8) { return 0; }
-  unsafe {
-    let dep_arena: *u8 = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
-    if (dep_arena == 0) {
-      dep_arena = pipeline_get_dep_arena_slot(from_dep_index);
-      if (dep_arena == 0) { return 0; }
-    }
-    let ndep: i32 = pipeline_dep_ctx_ndep(ctx);
-    if (from_dep_index >= ndep) {
-      if (pipeline_dep_ctx_module_at(ctx, from_dep_index) == 0) { return 0; }
-    }
-    if (g_typeck_entry_module_for_dep_map_x != 0) {
-      if (dep_return_type_ref > 0) {
-        let kind: i32 = pipeline_type_kind_ord_at(dep_arena, dep_return_type_ref);
-        // TYPE_NAMED=8
-        if (kind == 8) {
-          let nm: u8[128] = [];
-          let nlen: i32 = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, &nm[0]);
-          if (nlen > 0) {
-            return pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(
-              g_typeck_entry_module_for_dep_map_x, from_dep_index, caller_arena, &nm[0], nlen
-            );
-          }
-        }
-      }
-    }
-    return pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_arena, dep_return_type_ref, caller_arena);
-  }
-  return 0;
-}
+export extern function pipeline_typeck_set_entry_module_for_dep_map_c(module: *u8): void;
+export extern function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32,
+dep_return_type_ref: i32, caller_arena: *u8, ctx: *u8): i32;
 
 // ast_pipeline_module_func_num_generic_params_at: see function docblock below.
 /** Exported function `ast_pipeline_module_func_num_generic_params_at`.

@@ -815,20 +815,13 @@ XLANG_WEAK int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module,
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-static struct ast_Module *g_typeck_entry_module_for_dep_map_strict_minimal;
-
-XLANG_WEAK int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
-                                                                                     int32_t dep_return_type_ref,
-                                                                                     struct ast_ASTArena *caller_arena,
-                                                                                     struct ast_PipelineDepCtx *ctx);
-
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-220：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module) {
-  g_typeck_entry_module_for_dep_map_strict_minimal = module;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+/* wave254 pure leave: set_entry / get_dep Cap faces → typeck_x.o only.
+ * Dual-export ban — no residual BSS / second body in strict_minimal seed. */
+extern void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module);
+extern int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
+                                                                    int32_t dep_return_type_ref,
+                                                                    struct ast_ASTArena *caller_arena,
+                                                                    struct ast_PipelineDepCtx *ctx);
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -1381,7 +1374,6 @@ extern int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *are
 
 XLANG_WEAK int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
   int32_t kind;
-  (void)g_typeck_entry_module_for_dep_map_strict_minimal;
   if (a == 0 || b == 0)
     return a == b;
   if (a == b)
@@ -2341,40 +2333,7 @@ XLANG_WEAK int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-220：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
-                                                                                      int32_t dep_return_type_ref,
-                                                                                      struct ast_ASTArena *caller_arena,
-                                                                                      struct ast_PipelineDepCtx *ctx) {
-  struct ast_ASTArena *dep_arena;
-  int32_t kind;
-  uint8_t nm[128];
-  int32_t nlen;
-  if (from_dep_index < 0 || !ctx)
-    return 0;
-  dep_arena = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
-  if (!dep_arena) {
-    dep_arena = pipeline_get_dep_arena_slot(from_dep_index);
-    if (!dep_arena)
-      return 0;
-  }
-  if (from_dep_index >= pipeline_dep_ctx_ndep(ctx) && !pipeline_dep_ctx_module_at(ctx, from_dep_index))
-    return 0;
-  if (g_typeck_entry_module_for_dep_map_strict_minimal && dep_return_type_ref > 0) {
-    kind = pipeline_type_kind_ord_at(dep_arena, dep_return_type_ref);
-    if (kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
-      nlen = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, nm);
-      if (nlen > 0) {
-        return pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(
-            g_typeck_entry_module_for_dep_map_strict_minimal, from_dep_index, caller_arena, nm, nlen);
-      }
-    }
-  }
-  return pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_arena, dep_return_type_ref, caller_arena);
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+/* wave254: get_dep body deleted (dual-export ban → typeck_x Cap face). */
 
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */

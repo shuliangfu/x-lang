@@ -4703,17 +4703,114 @@ export function ensure_void_type_ref(a: *ASTArena): i32 {
   return typeck_ensure_primitive_by_kind_ord(a, 16);
 }
 
-export extern function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32,
-dep_return_type_ref: i32, caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32;
-export extern function pipeline_typeck_set_entry_module_for_dep_map_c(module: *Module): void;
+/*
+ * wave254 pure leave: entry-module BSS for dep return TYPE_NAMED binding prefix.
+ * Cap residual / strict_minimal second BSS cells retired (G.7 dual-export ban).
+ * Setter/getter Cap faces at EOF: pipeline_typeck_set_entry_module_for_dep_map_c /
+ * pipeline_typeck_get_dep_return_type_in_caller_arena_c.
+ * PLATFORM: SHARED freestanding typeck dep map.
+ */
+let g_typeck_entry_module_for_dep_map: *Module = 0 as *Module;
 
-/* See implementation. */
+/**
+ * Map a dep-side TYPE_NAMED bare name into the caller arena, qualified with the
+ * entry import binding prefix when the import slot is IMPORT_BINDING
+ * (e.g. vec.Vec_u8). Falls back to bare find_or_alloc_named.
+ * @param entry_mod *Module — entry module import table; null → bare named
+ * @param dep_ix i32 — import / dep slot index into entry_mod.imports
+ * @param caller_arena *ASTArena — destination type pool
+ * @param nm *u8 — bare type name bytes from dep arena
+ * @param nlen i32 — name length; must be > 0
+ * @return i32 — caller-arena type_ref, or 0 on failure
+ * PLATFORM: SHARED freestanding typeck dep map (wave254 pure leave).
+ */
+export function typeck_map_import_binding_named_to_caller(entry_mod: *Module, dep_ix: i32,
+caller_arena: *ASTArena, nm: *u8, nlen: i32): i32 {
+  // PLATFORM: SHARED — binding-qualified TYPE_NAMED map for cross-module ret.
+  unsafe {
+    let bl: i32 = 0;
+    let qlen: i32 = 0;
+    let i: i32 = 0;
+    let qnm: *u8 = typeck_scratch64_slot(15);
+    if (caller_arena == 0 as *ASTArena || nm == 0 as *u8 || nlen <= 0) {
+      return 0;
+    }
+    if (entry_mod == 0 as *Module || dep_ix < 0 || dep_ix >= entry_mod.num_imports) {
+      return find_or_alloc_named_type_ref(caller_arena, nm, nlen);
+    }
+    if (pipeline_module_import_kind_at(entry_mod, dep_ix) != 1) {
+      return find_or_alloc_named_type_ref(caller_arena, nm, nlen);
+    }
+    bl = pipeline_module_import_binding_name_len(entry_mod, dep_ix);
+    if (bl <= 0 || bl + 1 + nlen > 127) {
+      return find_or_alloc_named_type_ref(caller_arena, nm, nlen);
+    }
+    while (i < bl) {
+      qnm[i] = pipeline_module_import_binding_name_byte_at(entry_mod, dep_ix, i);
+      i = i + 1;
+    }
+    qnm[bl] = 46;
+    i = 0;
+    while (i < nlen) {
+      qnm[bl + 1 + i] = nm[i];
+      i = i + 1;
+    }
+    qlen = bl + 1 + nlen;
+    return find_or_alloc_named_type_ref(caller_arena, qnm, qlen);
+  }
+}
+
+/**
+ * Resolve a dep module return type_ref into the caller's arena.
+ * For TYPE_NAMED with entry module set, applies import-binding prefix so
+ * `let v: vec.Vec_u8` matches dep `Vec_u8`. Otherwise delegates to
+ * dep_return_type_to_caller_arena (recursive compound map).
+ * @param from_dep_index i32 — dep slot; <0 → 0
+ * @param dep_return_type_ref i32 — type_ref valid in dep arena
+ * @param caller_arena *ASTArena — destination type pool
+ * @param ctx *PipelineDepCtx — dep arenas / modules
+ * @return i32 — caller-arena type_ref, or 0
+ * wave254 pure leave: was residual pipeline_typeck_get_dep_return_type_in_caller_arena_c.
+ * PLATFORM: SHARED freestanding typeck dep map.
+ */
 export function get_dep_return_type_in_caller_arena(from_dep_index: i32, dep_return_type_ref: i32,
 caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    return pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, dep_return_type_ref,
-    caller_arena, ctx);
+    let dep_arena: *ASTArena = 0 as *ASTArena;
+    let kind: i32 = 0;
+    let nlen: i32 = 0;
+    let nm_buf: *u8 = typeck_scratch64_slot(0);
+    let ord_named: i32 = 8;
+    if (from_dep_index < 0 || ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    dep_arena = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
+    if (dep_arena == 0 as *ASTArena) {
+      dep_arena = pipeline_get_dep_arena_slot(from_dep_index);
+      if (dep_arena == 0 as *ASTArena) {
+        return 0;
+      }
+    }
+    // Bootstrap: dep_index may be >= ndep when slot is still bound.
+    if (from_dep_index >= pipeline_dep_ctx_ndep(ctx)) {
+      if (pipeline_dep_ctx_module_at(ctx, from_dep_index) == 0 as *Module) {
+        return 0;
+      }
+    }
+    if (g_typeck_entry_module_for_dep_map != 0 as *Module && dep_return_type_ref > 0) {
+      if (dep_return_type_ref <= dep_arena.num_types) {
+        kind = pipeline_type_kind_ord_at(dep_arena, dep_return_type_ref);
+        if (kind == ord_named) {
+          nlen = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, nm_buf);
+          if (nlen > 0) {
+            return typeck_map_import_binding_named_to_caller(g_typeck_entry_module_for_dep_map,
+              from_dep_index, caller_arena, nm_buf, nlen);
+          }
+        }
+      }
+    }
+    return dep_return_type_to_caller_arena(dep_arena, dep_return_type_ref, caller_arena);
   }
 }
 
@@ -5642,7 +5739,20 @@ ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
 /* See implementation. */
 export extern function pipeline_visibility_allow_func(mod: *Module, fi: i32, cross_module: i32): i32;
 
-/** See implementation for details. */
+/**
+ * Find a function return type in a module by name; map dep ret into caller arena.
+ * wave254: bootstrap fallback when get_dep returns 0 but dep arena is bound
+ * (parity with retired Cap residual find_func_return_type_in_module_by_name_c).
+ * @param mod *Module — function table owner
+ * @param caller_arena *ASTArena — destination type pool
+ * @param name *u8 — function name bytes
+ * @param name_len i32 — length in [1,127]
+ * @param from_dep_index i32 — <0 same-module raw ret; >=0 map via get_dep
+ * @param ctx *PipelineDepCtx — dep arenas (required when from_dep_index >= 0)
+ * @param func_index_out *i32 — optional out func index
+ * @return i32 — caller-arena (or same-mod) type_ref; 0 not found / denied
+ * PLATFORM: SHARED freestanding typeck.
+ */
 export function find_func_return_type_in_module_by_name(mod: *Module, caller_arena: *ASTArena, name: *u8,
 name_len: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5664,7 +5774,16 @@ name_len: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *i32):
         if (from_dep_index < 0) {
           return rtr;
         }
-        return get_dep_return_type_in_caller_arena(from_dep_index, rtr, caller_arena, ctx);
+        let mapped: i32 = get_dep_return_type_in_caller_arena(from_dep_index, rtr, caller_arena, ctx);
+        if (mapped != 0) {
+          return mapped;
+        }
+        // Bootstrap fallback: direct dep-arena primitive/compound map.
+        let da: *ASTArena = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
+        if (da != 0 as *ASTArena && rtr != 0) {
+          return dep_return_type_to_caller_arena(da, rtr, caller_arena);
+        }
+        return 0;
       }
       j = j + 1;
     }
@@ -17956,4 +18075,110 @@ call_expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32 {
 }
 
 // end wave252 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave254: typeck dep map + find_func pure leave (method_call residual subdomain)
+// Authority: typeck_x.o (this file + typeck_gen hand-sync / migrate).
+// Symbols (#[no_mangle] Cap faces):
+//   pipeline_typeck_set_entry_module_for_dep_map_c
+//   pipeline_typeck_get_dep_return_type_in_caller_arena_c
+//   pipeline_typeck_dep_return_type_to_caller_arena_c
+//   pipeline_typeck_expr_var_name_equal_func_c
+//   pipeline_typeck_find_func_return_type_in_module_by_name_c
+//   pipeline_typeck_find_func_return_type_in_module_c
+// Live bodies: g_typeck_entry_module_for_dep_map + typeck_map_import_binding_named_to_caller
+//   + get_dep_return_type_in_caller_arena + dep_return_type_to_caller_arena
+//   + expr_var_name_equal_func + find_func_return_type_in_module(_by_name)
+// Cap residual method_call: delete second bodies (static map/impl + public faces);
+//   dual-export ban — residual extern-only / thin import faces kept.
+// strict_minimal: set_entry / get_dep thin → typeck Cap faces (no second BSS).
+// PLATFORM: SHARED freestanding typeck dep map / find_func.
+// ---------------------------------------------------------------------------
+
+/**
+ * Set entry module for dep return TYPE_NAMED binding-prefix mapping.
+ * @param module *Module — entry module; null clears
+ * @return void
+ * wave254 pure leave — G.7 authority (was Cap residual + strict_minimal BSS).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_set_entry_module_for_dep_map_c(module: *Module): void {
+  g_typeck_entry_module_for_dep_map = module;
+}
+
+/**
+ * Cap residual face: get dep return type in caller arena (thin → pure get_dep).
+ * @param from_dep_index i32 — dep slot
+ * @param dep_return_type_ref i32 — type_ref in dep arena
+ * @param caller_arena *ASTArena — destination
+ * @param ctx *PipelineDepCtx — dep pool
+ * @return i32 — caller type_ref or 0
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32,
+dep_return_type_ref: i32, caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
+  return get_dep_return_type_in_caller_arena(from_dep_index, dep_return_type_ref, caller_arena, ctx);
+}
+
+/**
+ * Cap residual face: recursive dep→caller type_ref map (thin → pure).
+ * @param dep_arena *ASTArena — source type pool
+ * @param dep_return_type_ref i32 — source type_ref
+ * @param caller_arena *ASTArena — destination
+ * @return i32 — caller type_ref or 0
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_dep_return_type_to_caller_arena_c(dep_arena: *ASTArena,
+dep_return_type_ref: i32, caller_arena: *ASTArena): i32 {
+  return dep_return_type_to_caller_arena(dep_arena, dep_return_type_ref, caller_arena);
+}
+
+/**
+ * Cap residual face: VAR callee name equals module.funcs[func_index] (i32 0/1).
+ * @param arena *ASTArena — callee expr arena
+ * @param callee_expr_ref i32 — VAR expr
+ * @param mod *Module — function table
+ * @param func_index i32 — candidate func index
+ * @return i32 — 1 match, 0 no
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_expr_var_name_equal_func_c(arena: *ASTArena, callee_expr_ref: i32,
+mod: *Module, func_index: i32): i32 {
+  if (expr_var_name_equal_func(arena, callee_expr_ref, mod, func_index)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: find func return type by name (thin → pure).
+ * @return i32 — type_ref or 0
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_find_func_return_type_in_module_by_name_c(mod: *Module,
+caller_arena: *ASTArena, name: *u8, name_len: i32, from_dep_index: i32, ctx: *PipelineDepCtx,
+func_index_out: *i32): i32 {
+  return find_func_return_type_in_module_by_name(mod, caller_arena, name, name_len, from_dep_index,
+    ctx, func_index_out);
+}
+
+/**
+ * Cap residual face: find func return type by callee VAR expr (thin → pure).
+ * @return i32 — type_ref or 0
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_find_func_return_type_in_module_c(mod: *Module, mod_arena: *ASTArena,
+caller_arena: *ASTArena, callee_arena: *ASTArena, callee_expr_ref: i32, from_dep_index: i32,
+ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
+  return find_func_return_type_in_module(mod, mod_arena, caller_arena, callee_arena, callee_expr_ref,
+    from_dep_index, ctx, func_index_out);
+}
+
+// end wave254 pure-owned leave
 

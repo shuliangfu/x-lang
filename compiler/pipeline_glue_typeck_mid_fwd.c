@@ -85,49 +85,19 @@ extern void asm_qual_sym_layer_copy(int32_t i, uint8_t *dst, int32_t cap);
  * pipeline_typeck_method_call.c EOF (import resolution cluster).
  * PLATFORM: SHARED. */
 
-/* wave1168 G.7: dep return type + entry module cluster (3 extern fns + 1 static)
- * migrated to pipeline_typeck_method_call.c EOF. Colocated with statics
- * pipeline_typeck_map_import_binding_named_to_caller_c (L2522) and
- * pipeline_typeck_dep_return_type_to_caller_arena_impl (L2563) already in
- * method_call.c.
- *
- * Static g_typeck_entry_module_for_dep_map moves to method_call.c (sole access
- * was from the 3 migrated functions).
- *
- * Forward decls:
- * - pipeline_typeck_get_dep_return_type_in_caller_arena_c: fwd decl at L770
- *   (before callsites L8033/8075 < method_call.c #include L9153)
- * - pipeline_typeck_set_entry_module_for_dep_map_c: callsites at L9469/9536
- *   > method_call.c #include L9153; no fwd decl needed.
- * - pipeline_typeck_dep_return_type_to_caller_arena_c: no glue.c callsites;
- *   extern, called from seed only.
- *
- * Static fwd decls below retained for callsites before method_call.c #include:
- * - pipeline_typeck_map_import_binding_named_to_caller_c (fwd decl below;
- *   callsite was in get_dep_return_type_in_caller_arena_c, now migrated)
- * - pipeline_typeck_dep_return_type_to_caller_arena_impl (fwd decl below;
- *   callsite was in dep_return_type_to_caller_arena_c + get_dep_return_type,
- *   both migrated)
- * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
-static int32_t pipeline_typeck_map_import_binding_named_to_caller_c(struct ast_Module *entry_mod,
-                                                                    int32_t dep_ix,
-                                                                    struct ast_ASTArena *caller_arena,
-                                                                    uint8_t *nm, int32_t nlen);
-static int32_t pipeline_typeck_dep_return_type_to_caller_arena_impl(struct ast_ASTArena *dep_arena,
+/* wave254 pure leave: dep map + find_func Cap faces live in typeck_x.o
+ * (#[no_mangle]). Residual static map_import / dep_return_impl + public bodies
+ * deleted (dual-export ban). Same-TU callers use extern Cap faces below.
+ * PLATFORM: SHARED freestanding typeck dep map / find_func. */
+extern void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module);
+extern int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
                                                                     int32_t dep_return_type_ref,
-                                                                    struct ast_ASTArena *caller_arena);
-
-/* wave1169 G.7: func resolution cluster (4 extern fns) migrated to
- * pipeline_typeck_method_call.c EOF. Colocated with method_call domain —
- * callee-name matching, func return-type lookup, and call-resolve write-back
- * are all sub-domains of method-call resolution.
- *
- * Forward decl for pipeline_typeck_find_func_return_type_in_module_by_name_c
- * below (before callsite at L8196 < method_call.c #include L9153).
- * Other 3 fns have no glue.c callsites; extern fwd decls in call_args.c
- * (L2479/L2483) cover asm-emit callsites before method_call.c #include.
- * PLATFORM: SHARED — host-cc via pipeline_x.o TU. */
-int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
+                                                                    struct ast_ASTArena *caller_arena,
+                                                                    struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_dep_return_type_to_caller_arena_c(struct ast_ASTArena *dep_arena,
+                                                                int32_t dep_return_type_ref,
+                                                                struct ast_ASTArena *caller_arena);
+extern int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
     struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len,
     int32_t from_dep_index, struct ast_PipelineDepCtx *ctx, int32_t *func_index_out);
 

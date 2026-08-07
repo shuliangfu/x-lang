@@ -97,7 +97,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_typeck_ctfe.c|8.3.1|typeck CTFE thin faces (wave238 pure leave)|40|present"
   "compiler/pipeline_typeck_assign.c|8.3.1|typeck assign domain Cap residual thin (wave225 pure leave → typeck.x)|40|present"
   "compiler/pipeline_typeck_coerce_init.c|8.3.1|typeck coerce-init domain pure leave (wave233 int_binop+resolve_alias+int_lit)|80|present"
-  "compiler/pipeline_typeck_method_call.c|8.3.1|typeck method_call + generic UFCS mono slice|800|present"
+  "compiler/pipeline_typeck_method_call.c|8.3.1|typeck method_call Cap residual thin (wave254 dep map/find_func pure leave)|400|present"
   "compiler/pipeline_typeck_check_block.c|8.3.1|typeck check_block Cap residual thin (wave226 pure leave → typeck.x walker)|180|present"
   "compiler/pipeline_typeck_region_assign.c|8.3.1|typeck region/escape assign-site (wave242 scan tree pure leave; stamp_let/read_ptr/call_struct residual)|200|present"
   "compiler/pipeline_asm_emit_unary.c|8.3.1|asm ELF unary emit (wave133 pure-owned leave)|0|absent"
