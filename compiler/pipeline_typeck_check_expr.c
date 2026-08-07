@@ -1,60 +1,45 @@
 /**
- * pipeline_typeck_check_expr.c — typeck check_expr entry/dispatch domain
- * (BC 8.3.1 wave1188).
+ * pipeline_typeck_check_expr.c — typeck check_expr Cap residual thin
+ * (BC 8.3.1 wave228 pure leave + wave1188 domain extract).
  *
- * Mechanically extracted from pipeline_glue.c (same translation unit via
- * #include). Authority for product-mega expr typeck dispatch entry:
- * - pipeline_typeck_check_expr_impl_mega_c (full ExprKind → typeck_check_expr_*)
- * - XLANG_WEAK check_expr_impl_mega (glue-only fallback; typeck_x.o overrides)
- * - pipeline_typeck_check_expr_impl_c (simple kind C path + mega fallback)
- * - XLANG_WEAK check_expr_impl (glue-only fallback; typeck.o EMIT_HEAVY overrides)
- * - pipeline_typeck_check_expr_c (boundary check → try_propagate / impl_c)
+ * wave228 G.7 pure leave: dual bodies for panic/unary/addr_of/index/deref/var
+ * retired from host-cc residual where typeck.x already owns live authority.
+ * Cap residual keeps:
+ *   1. Thin product faces → typeck_x.o for panic/unary/addr_of/index/deref/var
+ *   2. Live residual bodies: match_c (g_typeck_match_subject_* BSS + enum/guard),
+ *      return_c (ret coerce cluster), try_propagate_c, call_c
+ *   3. Dispatch: impl_mega_c (region escape gates for assign/return),
+ *      impl_c (simple kinds + mega), check_expr_c entry
+ *   4. XLANG_WEAK check_expr_impl{,_mega} cold faces
  *
- * G.7: single product-mega check_expr dispatch face — do not open a second
- * kind-dispatch table or parallel entry. Sub-class helpers (panic/match/
- * return/unary/addr_of/deref/index/var) migrated from pipeline_glue.c
- * (wave1189); call_c remains in pipeline_glue.c (before method_call.c
- * #include); try_propagate_c remains in pipeline_glue.c (before method_call.c
- * #include for debug_try_propagate_report_glue_c).
+ * Dual-export ban: do NOT re-open second panic/unary/addr_of/index/deref/var
+ * bodies here; typeck.x is single authority. match/return/call/try remain
+ * residual until their typeck twins absorb BSS/coerce parity.
  *
- * Not compiled as a separate .o — #included from pipeline_glue.c at the
- * original impl_mega_c definition site (after call_c + #if wrapper, before
- * check_block.c #include).
+ * Not compiled as a separate .o — #included from pipeline_glue.c after
+ * call helpers + method_call.c, before check_block.c.
  *
- * Forward decls (visible at #include point via earlier pipeline_glue.c decls):
- * - pipeline_typeck_check_expr_c (fwd decl at glue.c L4737 / L6438)
- * - pipeline_typeck_check_expr_match_c (defined at glue.c L4845)
- * - pipeline_typeck_check_expr_call_c (defined at glue.c L6669)
- * - pipeline_typeck_check_expr_return_c (defined at glue.c L4936)
- * - pipeline_typeck_check_expr_deref_c (defined at glue.c L5155)
- * - pipeline_typeck_check_expr_var_c (defined at glue.c L5369)
- * - pipeline_typeck_check_expr_assign_c (defined in pipeline_typeck_assign.c)
- * - pipeline_typeck_check_expr_method_call_c (defined in pipeline_typeck_method_call.c)
- * - pipeline_typeck_check_expr_try_propagate_c (defined at glue.c L6468)
- * - pipeline_typeck_check_struct_stack_escape_assign_c (extern)
- * - pipeline_typeck_check_scope_borrow_assign_c (extern)
- * - pipeline_typeck_check_allocator_region_assign_c (extern)
- * - pipeline_typeck_check_scope_borrow_return_c (extern)
- * - pipeline_typeck_check_allocator_region_return_c (extern)
- * - pipeline_typeck_check_return_slice_region_in_scope_c (extern)
- * - pipeline_typeck_check_return_slice_region_c (extern)
- * - pipeline_typeck_check_call_struct_stack_escape_c (static, region_assign.c via #include)
- * - pipeline_typeck_check_call_slice_region_c (extern)
- * - pipeline_typeck_expr_is_any_assign_kind_c (defined in coerce_init.c)
- * - pipeline_expr_kind_ord_at / pipeline_expr_binop_left/right_ref_at (extern)
- * - pipeline_expr_unary_operand_ref_at / pipeline_expr_set_resolved_type_ref (extern)
- * - pipeline_type_kind_ord_at / pipeline_type_ensure_by_kind_ord (extern)
- * - typeck_check_expr_panic / field_access / index / binop / unary /
- *   addr_of / as / try_propagate / struct_lit / float_lit / int_lit /
- *   bool_lit / break_continue / enum_variant / if_ternary / block (extern)
- * - typeck_check_expr_impl_mega (extern, typeck_x.o strong override)
- * - link_abi_getenv (extern)
- * - ast_ExprKind_* / ast_TypeKind_* / GLUE_EXPR_KIND_* / GLUE_EXPR_STRING_LIT_ORD
- *
- * PLATFORM: SHARED — product residual C; host-cc via pipeline_x.o TU.
- *   · LINUX+MACOS x86_64 SysV — kind dispatch only (encoding in callees)
- *   · MACOS|ARM64 AAPCS64 — same dispatch twin
+ * PLATFORM: SHARED — freestanding typeck faces via typeck_x.o link.
  */
+
+/* Live typeck.x twins for wave228 thin faces. */
+extern int32_t typeck_check_expr_panic(struct ast_Module *module, struct ast_ASTArena *arena,
+                                       int32_t expr_ref, int32_t return_type_ref,
+                                       struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_check_expr_unary(struct ast_Module *module, struct ast_ASTArena *arena,
+                                       int32_t expr_ref, int32_t return_type_ref,
+                                       struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_check_expr_addr_of(struct ast_Module *module, struct ast_ASTArena *arena,
+                                         int32_t expr_ref, int32_t return_type_ref,
+                                         struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_check_expr_index(struct ast_Module *module, struct ast_ASTArena *arena,
+                                       int32_t expr_ref, int32_t return_type_ref,
+                                       struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_check_expr_deref(struct ast_Module *module, struct ast_ASTArena *arena,
+                                       int32_t expr_ref, int32_t return_type_ref,
+                                       struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_check_expr_var(struct ast_Module *module, struct ast_ASTArena *arena,
+                                     int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
 
 /**
  * typeck.x::check_expr_impl_mega 的 C 委托：按 ExprKind 分派至 typeck_check_expr_* 子 helper；
@@ -138,9 +123,9 @@ int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *module, struct
   if (kind == (int32_t)ast_ExprKind_EXPR_ADDR_OF)
     return typeck_check_expr_addr_of(module, arena, expr_ref, return_type_ref, ctx);
   if (kind == (int32_t)ast_ExprKind_EXPR_DEREF)
-    return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
+    return typeck_check_expr_deref(module, arena, expr_ref, return_type_ref, ctx);
   if (kind == (int32_t)ast_ExprKind_EXPR_VAR)
-    return pipeline_typeck_check_expr_var_c(module, arena, expr_ref, ctx);
+    return typeck_check_expr_var(module, arena, expr_ref, ctx);
   if (kind == (int32_t)ast_ExprKind_EXPR_AS)
     return typeck_check_expr_as(module, arena, expr_ref, ctx);
   if (kind == GLUE_EXPR_KIND_TRY_PROPAGATE || kind == GLUE_EXPR_KIND_C_TRY_PROPAGATE)
@@ -370,24 +355,16 @@ int32_t pipeline_typeck_match_subject_field_type_c(struct ast_Module *module, st
   return 0;
 }
 
-/* --- check_expr_panic --- */
+/* --- check_expr_panic (wave228 thin → typeck.x) --- */
 
 /**
- * typeck.x::typeck_check_expr_panic 的 C 委托：检查 operand；发散表达式写 resolved 为期望返回类型。
+ * Product-mega C face for EXPR_PANIC.
+ * Thin → typeck_check_expr_panic.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_check_expr_panic_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  int32_t op_ref;
-
-  (void)module;
-  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
-    return 0;
-  op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-  if (pipeline_typeck_check_expr_c(module, arena, op_ref, return_type_ref, ctx) != 0)
-    return -1;
-  if (!ast_ref_is_null(return_type_ref))
-    pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
-  return 0;
+  return typeck_check_expr_panic(module, arena, expr_ref, return_type_ref, ctx);
 }
 
 /* --- check_expr_match --- */
@@ -602,308 +579,58 @@ int32_t pipeline_typeck_check_expr_return_c(struct ast_Module *module, struct as
   return 0;
 }
 
-/* --- check_expr_unary --- */
+/* --- check_expr_unary / addr_of / deref / index (wave228 thin → typeck.x) --- */
 
 /**
- * typeck.x::typeck_check_expr_unary 的 C 委托：NEG/BITNOT/LOGNOT 检查操作数并写 resolved_type。
+ * Product-mega C face for NEG/BITNOT/LOGNOT.
+ * Thin → typeck_check_expr_unary.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_check_expr_unary_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  int32_t op_ref;
-  int32_t expr_kind;
-  int32_t op_tr;
-  int32_t bt;
-
-  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
-    return 0;
-  op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-  expr_kind = pipeline_expr_kind_ord_at(arena, expr_ref);
-  if (pipeline_typeck_check_expr_c(module, arena, op_ref, return_type_ref, ctx) != 0)
-    return -1;
-  if (expr_kind == (int32_t)ast_ExprKind_EXPR_LOGNOT) {
-    bt = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_BOOL);
-    if (bt != 0)
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, bt);
-    return 0;
-  }
-  op_tr = pipeline_typeck_expr_type_ref_c(arena, op_ref);
-  if (!ast_ref_is_null(op_tr) && op_tr > 0 && op_tr <= arena->num_types)
-    pipeline_expr_set_resolved_type_ref(arena, expr_ref, op_tr);
-  return 0;
+  return typeck_check_expr_unary(module, arena, expr_ref, return_type_ref, ctx);
 }
 
-/* --- check_expr_addr_of --- */
-
 /**
- * typeck.x::typeck_check_expr_addr_of 的 C 委托：操作数类型 T，表达式类型 *T。
+ * Product-mega C face for EXPR_ADDR_OF.
+ * Thin → typeck_check_expr_addr_of (includes stack_local ptr label).
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_check_expr_addr_of_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                              int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  int32_t op_ref;
-  int32_t op_addr;
-  int32_t pt_addr;
-
-  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
-    return 0;
-  op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-  if (!ast_ref_is_null(op_ref) &&
-      pipeline_typeck_check_expr_c(module, arena, op_ref, return_type_ref, ctx) != 0)
-    return -1;
-  op_addr = pipeline_typeck_expr_type_ref_c(arena, op_ref);
-  if (ast_ref_is_null(op_addr) || op_addr <= 0 || op_addr > arena->num_types)
-    return -1;
-  pt_addr = find_or_alloc_ptr_type_ref(arena, op_addr);
-  if (pt_addr == 0)
-    return -1;
-  {
-    int32_t stack_pt = pipeline_typeck_ptr_for_addr_of_operand_c(arena, op_ref, op_addr, module, ctx);
-    if (stack_pt > 0)
-      pt_addr = stack_pt;
-  }
-  pipeline_expr_set_resolved_type_ref(arena, expr_ref, pt_addr);
-  return 0;
+  return typeck_check_expr_addr_of(module, arena, expr_ref, return_type_ref, ctx);
 }
 
-/* --- check_expr_deref --- */
-
 /**
- * typeck.x::typeck_check_expr_deref 的 C 委托：操作数须为 *T，表达式类型 T。
- * LANG-007 v2：S0 内须在 unsafe { } 块内解引用。
+ * Product-mega C face for EXPR_DEREF (LANG-007 unsafe gate).
+ * Thin → typeck_check_expr_deref.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_check_expr_deref_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  int32_t op_ref;
-  int32_t op_ptr;
-  int32_t elem_ty;
-  int32_t line;
-  int32_t col;
-
-  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
-    return 0;
-  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) <= 0) {
-    line = pipeline_expr_line_at(arena, expr_ref);
-    col = pipeline_expr_col_at(arena, expr_ref);
-    driver_diagnostic_typeck_deref_outside_unsafe(line, col);
-    return -1;
-  }
-  op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-  if (!ast_ref_is_null(op_ref) &&
-      pipeline_typeck_check_expr_c(module, arena, op_ref, return_type_ref, ctx) != 0)
-    return -1;
-  op_ptr = pipeline_typeck_expr_type_ref_c(arena, op_ref);
-  if (ast_ref_is_null(op_ptr) || op_ptr <= 0 || op_ptr > arena->num_types)
-    return -1;
-  if (pipeline_type_kind_ord_at(arena, op_ptr) != (int32_t)ast_TypeKind_TYPE_PTR)
-    return -1;
-  elem_ty = pipeline_type_elem_ref_at(arena, op_ptr);
-  if (ast_ref_is_null(elem_ty))
-    return -1;
-  pipeline_expr_set_resolved_type_ref(arena, expr_ref, elem_ty);
-  return 0;
+  return typeck_check_expr_deref(module, arena, expr_ref, return_type_ref, ctx);
 }
 
-/* --- check_expr_index --- */
-
 /**
- * typeck.x::typeck_check_expr_index 的 C 委托：检查 base/index 下标，写元素类型与 slice/bounds 标记。
+ * Product-mega C face for EXPR_INDEX.
+ * Thin → typeck_check_expr_index.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_check_expr_index_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  int32_t base_ref;
-  int32_t index_ref;
-  int32_t line;
-  int32_t col;
-  int32_t base_ty;
-  int32_t bt_kind;
-  int32_t elem_ty;
-  int32_t array_sz;
-
-  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
-    return 0;
-  base_ref = pipeline_expr_index_base_ref(arena, expr_ref);
-  index_ref = pipeline_expr_index_index_ref(arena, expr_ref);
-  line = pipeline_expr_line_at(arena, expr_ref);
-  col = pipeline_expr_col_at(arena, expr_ref);
-  if (pipeline_typeck_check_expr_c(module, arena, base_ref, return_type_ref, ctx) != 0)
-    return -1;
-  /*
-   * wave699: index ambient = i32, not outer return_type_ref (G.7 ≡ typeck.x).
-   * PLATFORM: SHARED — &buf[0] under expected *T must not type lit 0 as pointer.
-   */
-  {
-    extern int32_t typeck_ensure_i32_type_ref(struct ast_ASTArena *a);
-    int32_t idx_ambient = typeck_ensure_i32_type_ref(arena);
-    if (pipeline_typeck_check_expr_c(module, arena, index_ref, idx_ambient, ctx) != 0)
-      return -1;
-  }
-  if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
-    return 0;
-  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
-  if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena->num_types) {
-    driver_diagnostic_typeck_subscript_base(line, col);
-    return -1;
-  }
-  bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
-  if (bt_kind != (int32_t)ast_TypeKind_TYPE_ARRAY && bt_kind != (int32_t)ast_TypeKind_TYPE_SLICE &&
-      bt_kind != (int32_t)ast_TypeKind_TYPE_PTR) {
-    driver_diagnostic_typeck_subscript_base(line, col);
-    return -1;
-  }
-  /*
-   * wave664 Cap residual: hard-fail non-integer INDEX index.
-   * G.7: call typeck_type_is_valid_subscript_index (single authority in typeck.x/seed).
-   * Soft-skip unknown inside helper. PLATFORM: SHARED.
-   */
-  if (!ast_ref_is_null(index_ref) && index_ref > 0 && index_ref <= arena->num_exprs) {
-    int32_t index_ty = pipeline_expr_resolved_type_ref(arena, index_ref);
-    extern int32_t typeck_type_is_valid_subscript_index(struct ast_Module *module,
-                                                       struct ast_ASTArena *arena, int32_t ty_ref);
-    if (typeck_type_is_valid_subscript_index(module, arena, index_ty) == 0) {
-      driver_diagnostic_typeck_subscript_index(line, col);
-      return -1;
-    }
-  }
-  elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
-  if (ast_ref_is_null(elem_ty)) {
-    driver_diagnostic_typeck_subscript_base(line, col);
-    return -1;
-  }
-  pipeline_expr_set_resolved_type_ref(arena, expr_ref, elem_ty);
-  if (bt_kind == (int32_t)ast_TypeKind_TYPE_SLICE)
-    pipeline_expr_set_index_base_is_slice(arena, expr_ref, 1);
-  else
-    pipeline_expr_set_index_base_is_slice(arena, expr_ref, 0);
-  if (!ast_ref_is_null(index_ref) && index_ref > 0 && index_ref <= arena->num_exprs) {
-    if (pipeline_expr_kind_ord_at(arena, index_ref) == (int32_t)ast_ExprKind_EXPR_LIT &&
-        pipeline_expr_int_val_at(arena, index_ref) == 0 && bt_kind == (int32_t)ast_TypeKind_TYPE_ARRAY) {
-      array_sz = pipeline_type_array_size_at(arena, base_ty);
-      if (array_sz >= 1)
-        pipeline_expr_set_index_proven_in_bounds(arena, expr_ref, 1);
-    }
-  }
-  return 0;
+  return typeck_check_expr_index(module, arena, expr_ref, return_type_ref, ctx);
 }
 
-/* --- check_expr_var --- */
+/* --- check_expr_var (wave228 thin → typeck.x) --- */
 
 /**
- * typeck.x::typeck_check_expr_var 的 C 委托：块 symtab / 顶层 let / 形参 / TokenKind·TypeKind 限定名。
+ * Product-mega C face for EXPR_VAR (symtab / param / import / match subject hop).
+ * Thin → typeck_check_expr_var.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                        struct ast_PipelineDepCtx *ctx) {
-  int32_t vnlen;
-  uint8_t vbuf[128];
-  int32_t vd_tr;
-  int32_t tl;
-  int32_t tl_tr;
-  int32_t pr;
-  int32_t tk_tr;
-  int32_t tg_tr;
-  static const uint8_t nm_tok_kind_sym[9] = {84, 111, 107, 101, 110, 75, 105, 110, 100};
-  static const uint8_t nm_typ_kind_sym[8] = {84, 121, 112, 101, 75, 105, 110, 100};
-
-  if (!arena || !module || !ctx || expr_ref <= 0 || expr_ref > arena->num_exprs)
-    return 0;
-  vnlen = pipeline_expr_var_name_len(arena, expr_ref);
-  if (vnlen <= 0 || vnlen > 127)
-    return -1;
-  pipeline_expr_var_name_into(arena, expr_ref, vbuf);
-  /** 当前块 let/const symtab（含 if/while 外层续延）。 */
-  if (ctx->current_block_ref != 0 && ctx->current_block_ref <= arena->num_blocks) {
-    vd_tr = pipeline_block_resolve_var_type_ref(arena, ctx->current_block_ref, vbuf, vnlen);
-    if (!ast_ref_is_null(vd_tr)) {
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, vd_tr);
-      return 0;
-    }
-  }
-  /** 模块顶层 let/const：与 C typeck top_level_lets 并入 symtab 一致。 */
-  if (module->num_top_level_lets > 0) {
-    tl = 0;
-    while (tl < module->num_top_level_lets) {
-      if (typeck_top_level_let_name_equal(module, tl, vbuf, vnlen)) {
-        tl_tr = pipeline_module_top_level_let_type_ref(module, tl);
-        if (!ast_ref_is_null(tl_tr)) {
-          pipeline_expr_set_resolved_type_ref(arena, expr_ref, tl_tr);
-          return 0;
-        }
-      }
-      tl = tl + 1;
-    }
-  }
-  /** 当前函数形参（如 token_is_eof(t: Token)）。 */
-  if (ctx->current_func_index >= 0 && ctx->current_func_index < module->num_funcs) {
-    pr = pipeline_module_func_param_type_ref_for_name(module, ctx->current_func_index, vbuf, vnlen);
-    if (!ast_ref_is_null(pr)) {
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, pr);
-      return 0;
-    }
-  }
-  /** TokenKind / TypeKind 限定名（parser 落成 VAR，供 FIELD_ACCESS 字段访问）。 */
-  if (vnlen == 9 && typeck_name_equal(vbuf, vnlen, (uint8_t *)&nm_tok_kind_sym[0], 9)) {
-    tk_tr = typeck_find_or_alloc_named_type_ref(arena, (uint8_t *)&nm_tok_kind_sym[0], 9);
-    if (tk_tr != 0) {
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, tk_tr);
-      return 0;
-    }
-  }
-  if (vnlen == 8 && typeck_name_equal(vbuf, vnlen, (uint8_t *)&nm_typ_kind_sym[0], 8)) {
-    tg_tr = typeck_find_or_alloc_named_type_ref(arena, (uint8_t *)&nm_typ_kind_sym[0], 8);
-    if (tg_tr != 0) {
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, tg_tr);
-      return 0;
-    }
-  }
-  /** Import binding 特判：变量名匹配某个 import binding（如 `backend = import("backend")`），
-   * 设置 resolved type 为 named type，使后续 METHOD_CALL / FIELD_ACCESS 能解析跨模块函数。 */
-  if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
-    int32_t imp_i;
-    int32_t n_imp = module->num_imports;
-    for (imp_i = 0; imp_i < n_imp; imp_i++) {
-      int32_t bind_len = pipeline_module_import_binding_name_len(module, imp_i);
-      if (bind_len == vnlen && bind_len > 0) {
-        int32_t k;
-        int32_t match = 1;
-        for (k = 0; k < bind_len && match; k++) {
-          if (pipeline_module_import_binding_name_byte_at(module, imp_i, k) != vbuf[k])
-            match = 0;
-        }
-        if (match) {
-          int32_t nt = typeck_find_or_alloc_named_type_ref(arena, vbuf, vnlen);
-          if (nt != 0) {
-            pipeline_expr_set_resolved_type_ref(arena, expr_ref, nt);
-            return 0;
-          }
-        }
-      }
-    }
-  }
-  /* 8.3.3 host-cc leave: call typeck.x authority directly (no pipeline_typeck_field_access.c).
-   * PLATFORM: SHARED — G.7 single face typeck_reject_bare_import_const. */
-  {
-    extern int32_t typeck_reject_bare_import_const(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                   int32_t expr_ref, struct ast_PipelineDepCtx *ctx, uint8_t *vbuf,
-                                                   int32_t vnlen);
-    if (typeck_reject_bare_import_const(module, arena, expr_ref, ctx, vbuf, vnlen))
-      return -1;
-  }
-  /*
-   * wave703: struct match pattern field bind — `Point { x, y } => x + y` arms are
-   * stored as wildcards; resolve unbound VAR names as fields of match subject type.
-   * PLATFORM: SHARED — G.7 with pipeline_typeck_match_subject_field_type_c.
-   */
-  if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
-    extern int32_t pipeline_typeck_match_subject_field_type_c(struct ast_Module *module,
-                                                             struct ast_ASTArena *arena, uint8_t *name,
-                                                             int32_t name_len);
-    int32_t ft = pipeline_typeck_match_subject_field_type_c(module, arena, vbuf, vnlen);
-    if (ft > 0) {
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ft);
-      return 0;
-    }
-  }
-  if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref)))
-    return -1;
-  return 0;
+  return typeck_check_expr_var(module, arena, expr_ref, ctx);
 }
 
 /* ===========================================================================
@@ -1281,21 +1008,16 @@ int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *m
   return -1;
 }
 
-/* wave1282 G.7: non-standalone typeck_check_expr_{call,deref,method_call}
- * thin wrappers migrated from pipeline_glue.c. Delegates to pipeline_typeck_*_c
- * authorities defined earlier in this domain. Omitted when
- * XLANG_PIPELINE_GLUE_STANDALONE_TU or XLANG_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS
- * (strict_glue: typeck_x.o is sole export). PLATFORM: SHARED.
+/* wave1282 / wave228 G.7: non-standalone cold wrappers for call/method_call
+ * only (residual still owns live bodies). wave228: deref dual export removed —
+ * typeck.x owns typeck_check_expr_deref; residual face thins to typeck (thinning
+ * + dual export would recurse). Omitted when STANDALONE_TU or OMIT_X_DUP_EXPORTS
+ * (product/strict: typeck_x.o sole typeck_* export). PLATFORM: SHARED.
  */
 #if !defined(XLANG_PIPELINE_GLUE_STANDALONE_TU) && !defined(XLANG_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS)
 int32_t typeck_check_expr_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
-}
-
-int32_t typeck_check_expr_deref(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                                int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
 }
 
 int32_t typeck_check_expr_method_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,

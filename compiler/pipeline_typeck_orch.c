@@ -1,267 +1,79 @@
 /**
- * pipeline_typeck_orch.c — typeck orchestration entry cluster (wave1187).
+ * pipeline_typeck_orch.c — typeck orchestration Cap residual thin
+ * (BC 8.3.1 wave228 pure leave).
  *
- * Purpose: Colocate the top-level typeck orchestration functions that drive
- * whole-module type checking. These functions form the entry path:
- *   pipeline_typeck_x_ast_c → _impl_c → _check_one_func_c → check_block_c
- * plus the library variant (_library_c), dep prerun (_dep_prerun_module_c),
- * and the layout-validation glue helpers used by impl/library paths.
+ * wave228 G.7 pure leave: product-mega typeck_x_ast_* dual bodies retired
+ * from host-cc residual. Live orchestration authority is typeck.x
+ * (typeck_x_ast / typeck_x_ast_impl / typeck_x_ast_library /
+ * typeck_x_ast_check_one_func + check_all_funcs_loop). Cap residual keeps:
+ *   1. Thin product faces pipeline_typeck_x_ast{,_impl,_library,_check_one_func}_c
+ *      → typeck_x.o (ABI face names; product path already uses typeck_typeck_x_ast*)
+ *   2. XLANG_WEAK cold fallbacks: diag soft-suppress, set/get_dep_ctx,
+ *      dep_prerun_module (pure runtime_pipeline_abi owns strong when linked)
+ *   3. Layout glue helpers (typeck_validate_struct_layouts_zero_padding_glue,
+ *      typeck_x_type_{size,align}_from_layout_glue) + XLANG_WEAK zero-padding face
  *
- * The XLANG_WEAK standalone entries (pipeline_typeck_diag_soft_suppress_set/get,
- * pipeline_typeck_set_dep_ctx/get_dep_ctx, pipeline_typeck_dep_prerun_module_c)
- * allow product pure code (runtime_pipeline_abi.x) to provide strong-symbol
- * overrides; the cold fallbacks here serve non-PREFER / pipeline.x thin links.
+ * Dual-export ban: do NOT re-open a second whole-module walker here or in
+ * runtime_pipeline_abi; typeck.x is single authority (trait impl completeness,
+ * main generic gate, pipe markers — residual C walker had drifted).
  *
- * Migration source: pipeline_glue.c L6953-L7299 (same-TU #include).
- * PLATFORM: SHARED — no platform-specific code; all deps are extern.
+ * Not compiled as a separate .o — #included from pipeline_glue.c.
  *
- * wave1187 G.7: typeck orchestration cluster (10 fns + 2 statics + 3 XLANG_WEAK).
+ * PLATFORM: SHARED — freestanding typeck faces via typeck_x.o link.
  */
 
-/* extern forward declarations — definitions visible via same-TU #include chain
- * (pipeline_typeck_check_block.c, ast_pool_module_func.c, ast_pool_dep_ctx.c,
- *  pipeline_typeck_method_call.c, pipeline_asm_emit_struct_lit.c, ast_pool.c,
- *  ast_pool_struct_layout.c) or earlier in pipeline_glue.c itself. */
-extern void pipeline_typeck_linear_reset_c(void);
-extern int32_t pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t fi);
-extern int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t fi);
-extern int32_t pipeline_module_func_is_extern_at(struct ast_Module *m, int32_t fi);
-extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
-extern int32_t pipeline_module_func_name_len_at(struct ast_Module *m, int32_t fi);
-extern void pipeline_asm_module_func_name_copy64(struct ast_Module *m, int32_t fi, uint8_t *out);
-extern int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                              int32_t block_ref, int32_t return_type_ref,
-                                              struct ast_PipelineDepCtx *ctx);
-extern int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena *arena,
-                                                                     int32_t body_ref);
-extern int32_t pipeline_typeck_validate_struct_layouts_zero_padding_c(struct ast_Module *module,
-                                                                       struct ast_ASTArena *arena);
-extern void pipeline_typeck_patch_all_body_parent_links_c(struct ast_Module *module,
-                                                           struct ast_ASTArena *arena);
-extern void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module);
-extern void pipeline_dep_ctx_set_current_func_index(struct ast_PipelineDepCtx *ctx, int32_t idx);
-extern int32_t pipeline_module_main_func_index(struct ast_Module *m);
-extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t ref);
-extern int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m);
-extern int32_t pipeline_module_num_funcs(struct ast_Module *m);
-extern int32_t pipeline_module_func_body_expr_ref_at(struct ast_Module *m, int32_t fi);
+/* Live orchestration authority in typeck_x.o (typeck.x exports). */
+extern int32_t typeck_x_ast_check_one_func(struct ast_Module *module, struct ast_ASTArena *arena,
+                                           struct ast_PipelineDepCtx *ctx, int32_t func_idx);
+extern int32_t typeck_x_ast_impl(struct ast_Module *module, struct ast_ASTArena *arena,
+                                 struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_x_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
+                                    struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_x_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+                            struct ast_PipelineDepCtx *ctx);
+
+/* Link-alias / seed surfaces still call typeck_typeck_x_ast_library. */
+extern int32_t typeck_typeck_x_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
+                                           struct ast_PipelineDepCtx *ctx);
+
 extern int32_t typeck_typeck_struct_layout_metrics(struct ast_Module *module,
                                                     struct ast_ASTArena *arena, int32_t li,
                                                     int32_t depth, int32_t want_align,
                                                     int32_t *out_size, int32_t *out_align);
-extern void driver_diagnostic_typeck_func_fail(int32_t fi, uint8_t *name, int32_t name_len,
-                                                int32_t code);
-extern char *link_abi_getenv(const char *name);
-extern int32_t typeck_typeck_x_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
-                                            struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m);
+extern int32_t pipeline_typeck_validate_struct_layouts_zero_padding_c(struct ast_Module *module,
+                                                                       struct ast_ASTArena *arena);
+extern void pipeline_typeck_patch_all_body_parent_links_c(struct ast_Module *module,
+                                                           struct ast_ASTArena *arena);
 
 /**
- * typeck.x::typeck_x_ast_check_one_func C delegate.
- *
- * Why: typeck.x typeck_x_ast_check_one_func delegates to C for the
- * per-function body type-check loop. When typeck.o is linked, X strong
- * symbol overrides; otherwise glue calls pipeline_typeck_check_block_c.
- *
- * Contract: module/arena/ctx must be non-null; func_idx must be valid.
- * Returns 0 on success, -5 on check_block fail, -6 on implicit return tail fail.
+ * Product-mega C face for per-function body typeck.
+ * Thin → typeck_x_ast_check_one_func (wave684+ generic body check).
  * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_x_ast_check_one_func_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                 struct ast_PipelineDepCtx *ctx, int32_t func_idx) {
-  int32_t body_ref;
-  int32_t ret_ty_ref;
-  uint8_t fn_name_buf[128];
-  int32_t fn_name_len;
-
-  if (!module || !arena || !ctx)
-    return 0;
-  pipeline_typeck_linear_reset_c();
-  if (pipeline_module_func_num_generic_params_at(module, func_idx) > 0)
-    return 0;
-  body_ref = pipeline_module_func_body_ref_at(module, func_idx);
-  if (ast_ref_is_null(body_ref) || pipeline_module_func_is_extern_at(module, func_idx) != 0)
-    return 0;
-  ret_ty_ref = pipeline_module_func_return_type_at(module, func_idx);
-  if (pipeline_typeck_check_block_c(module, arena, body_ref, ret_ty_ref, ctx) != 0) {
-    fn_name_len = pipeline_module_func_name_len_at(module, func_idx);
-    pipeline_asm_module_func_name_copy64(module, func_idx, fn_name_buf);
-    driver_diagnostic_typeck_func_fail(func_idx, fn_name_buf, fn_name_len, -5);
-    return -5;
-  }
-  if (!ast_ref_is_null(ret_ty_ref)) {
-    int32_t rt_kind = pipeline_type_kind_ord_at(arena, ret_ty_ref);
-    if (rt_kind != (int32_t)ast_TypeKind_TYPE_VOID &&
-        pipeline_typeck_func_body_has_implicit_return_tail_c(arena, body_ref) != 0) {
-      fn_name_len = pipeline_module_func_name_len_at(module, func_idx);
-      pipeline_asm_module_func_name_copy64(module, func_idx, fn_name_buf);
-      driver_diagnostic_typeck_func_fail(func_idx, fn_name_buf, fn_name_len, -6);
-      return -6;
-    }
-  }
-  return 0;
+  return typeck_x_ast_check_one_func(module, arena, ctx, func_idx);
 }
 
 /**
- * typeck.x::typeck_x_ast_impl C delegate.
- *
- * Why: Iterates all functions with bodies in the module and type-checks each.
- * Self-contained glue while-loop (no typeck.o needed). Validates struct layouts,
- * patches parent links, sets entry module for dep map, then loops functions.
- *
- * Contract: module/arena/ctx non-null; main func must have body and return type.
- * Returns 0 on success; -1/-2/-3/-4 on main-func precondition fail; -5/-6/-7 on
- * check/implicit-return/layout-validation fail.
- * PLATFORM: SHARED — main may return i32/i64 or void (implicit exit 0).
+ * Product-mega C face for whole-module typeck (main preconditions + loop).
+ * Thin → typeck_x_ast_impl (trait impl completeness + void main + pipe markers).
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_x_ast_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                       struct ast_PipelineDepCtx *ctx) {
-  int32_t mi;
-  int32_t ret_kind;
-  int32_t i;
-
-  if (!module || !arena || !ctx)
-    return -2;
-  mi = pipeline_module_main_func_index(module);
-  if (pipeline_module_func_is_extern_at(module, mi) != 0 &&
-      ast_ref_is_null(pipeline_module_func_body_ref_at(module, mi)))
-    return -1;
-  if (ast_ref_is_null(pipeline_module_func_body_ref_at(module, mi)) &&
-      ast_ref_is_null(pipeline_module_func_body_expr_ref_at(module, mi)))
-    return -2;
-  if (ast_ref_is_null(pipeline_module_func_return_type_at(module, mi)))
-    return -3;
-  /* PLATFORM: SHARED — main may return i32/i64 or void (implicit exit 0; see typeck.x). */
-  ret_kind = pipeline_type_kind_ord_at(arena, pipeline_module_func_return_type_at(module, mi));
-  if (ret_kind != (int32_t)ast_TypeKind_TYPE_I32 && ret_kind != (int32_t)ast_TypeKind_TYPE_I64
-      && ret_kind != (int32_t)ast_TypeKind_TYPE_VOID)
-    return -4;
-  if (pipeline_typeck_validate_struct_layouts_zero_padding_c(module, arena) != 0)
-    return -7;
-  pipeline_typeck_patch_all_body_parent_links_c(module, arena);
-  pipeline_typeck_set_entry_module_for_dep_map_c(module);
-  i = 0;
-  while (i < module->num_funcs) {
-    int32_t body_ref;
-    int32_t ret_ty_ref;
-    uint8_t fn_name_buf[128];
-    int32_t fn_name_len;
-    int32_t num_generic_params;
-
-    pipeline_dep_ctx_set_current_func_index(ctx, i);
-    pipeline_typeck_linear_reset_c();
-    /* wave684 Cap residual: typecheck generic bodies (was skip num_generic_params). */
-    num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
-    (void)num_generic_params;
-    body_ref = pipeline_module_func_body_ref_at(module, i);
-    if (!ast_ref_is_null(body_ref) && pipeline_module_func_is_extern_at(module, i) == 0) {
-      ret_ty_ref = pipeline_module_func_return_type_at(module, i);
-      if (pipeline_typeck_check_block_c(module, arena, body_ref, ret_ty_ref, ctx) != 0) {
-        fn_name_len = pipeline_module_func_name_len_at(module, i);
-        pipeline_asm_module_func_name_copy64(module, i, fn_name_buf);
-        if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-          fn_name_buf[fn_name_len > 0 && fn_name_len < 64 ? fn_name_len : 0] = '\0';
-          fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] library typeck fail i=%d name=%s\n", (int)i,
-                  fn_name_len > 0 ? (char *)fn_name_buf : "?");
-          fflush(stderr);
-        }
-        driver_diagnostic_typeck_func_fail(i, fn_name_buf, fn_name_len, -5);
-        pipeline_dep_ctx_set_current_func_index(ctx, -1);
-        return -5;
-      }
-      if (!ast_ref_is_null(ret_ty_ref)) {
-        int32_t rt_kind;
-
-        rt_kind = pipeline_type_kind_ord_at(arena, ret_ty_ref);
-        if (rt_kind != (int32_t)ast_TypeKind_TYPE_VOID &&
-            pipeline_typeck_func_body_has_implicit_return_tail_c(arena, body_ref) != 0) {
-          fn_name_len = pipeline_module_func_name_len_at(module, i);
-          pipeline_asm_module_func_name_copy64(module, i, fn_name_buf);
-          driver_diagnostic_typeck_func_fail(i, fn_name_buf, fn_name_len, -6);
-          pipeline_dep_ctx_set_current_func_index(ctx, -1);
-          return -6;
-        }
-      }
-    }
-    pipeline_dep_ctx_set_current_func_index(ctx, -1);
-    i = i + 1;
-  }
-  return 0;
+  return typeck_x_ast_impl(module, arena, ctx);
 }
 
 /**
- * typeck.x::typeck_x_ast_library C delegate.
- *
- * Why: Library modules have no main function; this variant skips main-func
- * preconditions and directly iterates all functions for type checking.
- * Used by dep prerun and library-only compilation paths.
- *
- * Contract: module/arena/ctx non-null. Returns 0 on success; -5/-6/-7 on fail.
- * PLATFORM: SHARED — freestanding co-emit may have incomplete dep slots.
+ * Product-mega C face for library-module typeck (no main).
+ * Thin → typeck_x_ast_library.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_x_ast_library_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                          struct ast_PipelineDepCtx *ctx) {
-  int32_t i;
-
-  if (!module || !arena || !ctx) {
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] typeck_x_ast_library_c null arg m=%p a=%p ctx=%p\n", (void *)module,
-              (void *)arena, (void *)ctx);
-    return -5;
-  }
-  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] enter library_c module->num_funcs=%d pipeline_num=%d\n",
-            (int)module->num_funcs, (int)pipeline_module_num_funcs(module));
-  if (pipeline_typeck_validate_struct_layouts_zero_padding_c(module, arena) != 0)
-    return -7;
-  pipeline_typeck_patch_all_body_parent_links_c(module, arena);
-  pipeline_typeck_set_entry_module_for_dep_map_c(module);
-  i = 0;
-  while (i < module->num_funcs) {
-    int32_t body_ref;
-    int32_t ret_ty_ref;
-    uint8_t fn_name_buf[128];
-    int32_t fn_name_len;
-    int32_t num_generic_params;
-
-    pipeline_dep_ctx_set_current_func_index(ctx, i);
-    pipeline_typeck_linear_reset_c();
-    /* wave684 Cap residual: typecheck generic bodies (was skip num_generic_params). */
-    num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
-    (void)num_generic_params;
-    body_ref = pipeline_module_func_body_ref_at(module, i);
-    if (!ast_ref_is_null(body_ref) && pipeline_module_func_is_extern_at(module, i) == 0) {
-      ret_ty_ref = pipeline_module_func_return_type_at(module, i);
-      if (pipeline_typeck_check_block_c(module, arena, body_ref, ret_ty_ref, ctx) != 0) {
-        fn_name_len = pipeline_module_func_name_len_at(module, i);
-        pipeline_asm_module_func_name_copy64(module, i, fn_name_buf);
-        if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-          fn_name_buf[fn_name_len > 0 && fn_name_len < 64 ? fn_name_len : 0] = '\0';
-          fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] library typeck fail i=%d name=%s\n", (int)i,
-                  fn_name_len > 0 ? (char *)fn_name_buf : "?");
-          fflush(stderr);
-        }
-        driver_diagnostic_typeck_func_fail(i, fn_name_buf, fn_name_len, -5);
-        pipeline_dep_ctx_set_current_func_index(ctx, -1);
-        return -5;
-      }
-      if (!ast_ref_is_null(ret_ty_ref)) {
-        int32_t rt_kind;
-
-        rt_kind = pipeline_type_kind_ord_at(arena, ret_ty_ref);
-        if (rt_kind != (int32_t)ast_TypeKind_TYPE_VOID &&
-            pipeline_typeck_func_body_has_implicit_return_tail_c(arena, body_ref) != 0) {
-          fn_name_len = pipeline_module_func_name_len_at(module, i);
-          pipeline_asm_module_func_name_copy64(module, i, fn_name_buf);
-          driver_diagnostic_typeck_func_fail(i, fn_name_buf, fn_name_len, -6);
-          pipeline_dep_ctx_set_current_func_index(ctx, -1);
-          return -6;
-        }
-      }
-    }
-    pipeline_dep_ctx_set_current_func_index(ctx, -1);
-    i = i + 1;
-  }
-  return 0;
+  return typeck_x_ast_library(module, arena, ctx);
 }
 
 /**
@@ -344,27 +156,13 @@ XLANG_WEAK int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module
 }
 
 /**
- * typeck.x::typeck_x_ast C delegate.
- *
- * Why: Entry point for whole-module type checking. Validates main function
- * index then delegates to pipeline_typeck_x_ast_impl_c.
- *
- * Contract: module non-null; main func index must be valid.
- * Returns impl_c result on success; -10/-11 on main-index precondition fail.
+ * Product-mega C face for whole-module typeck entry.
+ * Thin → typeck_x_ast.
  * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_x_ast_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                  struct ast_PipelineDepCtx *ctx) {
-  int32_t mi;
-
-  if (!module)
-    return -10;
-  mi = pipeline_module_main_func_index(module);
-  if (mi < 0)
-    return -10;
-  if (mi >= module->num_funcs)
-    return -11;
-  return pipeline_typeck_x_ast_impl_c(module, arena, ctx);
+  return typeck_x_ast(module, arena, ctx);
 }
 
 /**
