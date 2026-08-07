@@ -422,35 +422,18 @@ static int typeck_linear_name_already_moved(const uint8_t *name, int32_t name_le
 
 /**
  * WPO-S3: set active typeck module/ctx before check (called per-function
- * by typeck_x_ast). Updates g_typeck_active_module (defined at glue.c L135)
- * and g_typeck_active_ctx (defined at glue.c L8955).
+ * by typeck_x_ast). wave224: process-local module cell is pure BSS via
+ * pipeline_typeck_active_module_set_c (G.7 single cell authority); residual
+ * only updates g_typeck_active_ctx (check_block-local).
+ * PLATFORM: SHARED freestanding typeck bookkeeping.
  */
 void pipeline_typeck_set_active_ctx_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
-  g_typeck_active_module = module;
+  pipeline_typeck_active_module_set_c(module);
   g_typeck_active_ctx = ctx;
 }
 
-/**
- * C5-enum-variant: read-only accessor for the active typeck module.
- *
- * Why: The const-init whitelist (pipeline_typeck_block_const_init_is_const_c)
- *      runs BEFORE the typeck-time marker pipeline_typeck_try_mark_enum_field_access
- *      fires inside typeck_check_expr (seed typeck_gen L6839 vs L6850). To pre-mark
- *      FIELD_ACCESS nodes at whitelist time we need the active module — but the
- *      whitelist signature takes only (arena, block_ref, idx), no module param.
- *      Rather than widening the signature (which would force seed modifications
- *      across many call sites), we expose a getter for the active module that
- *      the strict_minimal seed whitelist mirrors via extern.
- *
- * Invariant: Returns NULL outside the typeck phase; non-NULL throughout
- *            typeck_parsed_module_c (ast_pool.c L6428 sets it; L22027 sets
- *            it for the parse-coupled entry). Callers must NULL-check.
- *
- * PLATFORM: SHARED — populated identically on macOS arm64 and Ubuntu x86_64.
- */
-struct ast_Module *pipeline_typeck_active_module_c(void) {
-  return g_typeck_active_module;
-}
+/* wave224 pure-owned leave: pipeline_typeck_active_module_c live =
+ * runtime_pipeline_abi pure (G.7 dual-export ban — do not redefine here). */
 
 /**
  * M-4: clear moved set before entering a new function's typeck pass.

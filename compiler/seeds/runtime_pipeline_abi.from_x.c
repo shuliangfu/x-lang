@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave224: typeck_active module BSS+get/set pure leave cold twins under #ifndef FROM_X
  * wave223: emit_ctx sret_active/home_off/ret_sz BSS+get/set pure leave cold twins under #ifndef FROM_X
  * wave222: emit_ctx module/dep_pipe BSS+get/set pure leave cold twins under #ifndef FROM_X
  * wave221: emit_ctx accessor-only BSS+get/set + host_is_arm64 pure leave cold twins under #ifndef FROM_X
@@ -27224,6 +27225,21 @@ int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void) {
 }
 void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz) {
   g_wave223_sret_ret_sz = sz;
+}
+
+/*
+ * wave224 cold twins: typeck_active module BSS (G.7 pure leave).
+ * Working freestanding BSS twin of pure g_typeck_active_module.
+ * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
+ * PLATFORM: SHARED freestanding typeck active-module cell.
+ */
+static void *g_wave224_typeck_active_module = 0;
+
+void *pipeline_typeck_active_module_c(void) {
+  return g_wave224_typeck_active_module;
+}
+void pipeline_typeck_active_module_set_c(void *m) {
+  g_wave224_typeck_active_module = m;
 }
 
 /*

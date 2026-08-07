@@ -945,7 +945,7 @@ int32_t pipeline_typeck_type_refs_equal_named_c(struct ast_ASTArena *arena, int3
  * Matches typeck.x::resolve_type_alias_ref.
  */
 int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *arena, int32_t type_ref) {
-  return pipeline_typeck_resolve_type_alias_ref_impl_c(g_typeck_active_module, arena, type_ref, 0);
+  return pipeline_typeck_resolve_type_alias_ref_impl_c(pipeline_typeck_active_module_c(), arena, type_ref, 0);
 }
 
 /**

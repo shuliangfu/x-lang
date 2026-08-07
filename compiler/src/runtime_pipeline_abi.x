@@ -541,12 +541,14 @@ export extern "C" function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i3
 
 // wave141 Cap residual: context pure leave callees (storage + frame/param helpers).
 // PLATFORM: SHARED freestanding emit — pure owns public context faces; Cap residual
-// owns glue_statics cells residual C still direct-accesses (typeck_active only after wave223).
+// glue_statics no longer owns process-local BSS cells after wave224 (typeck_active pure).
 // wave221 pure-owned (G.7 dual-export ban — defs at EOF): func_index / arena /
 // call_param_ty / call_arg_depth / elf_ctx / scope_block get+set + host_is_arm64.
 // wave222 pure-owned (G.7 dual-export ban — defs at EOF): module / dep_pipe get+set.
 // wave223 pure-owned (G.7 dual-export ban — defs at EOF): sret_active / sret_home_off /
 // sret_ret_sz get+set (mega_body residual writes via pure setters only).
+// wave224 pure-owned (G.7 dual-export ban — defs at EOF): typeck_active module get+set
+// (check_block/assign residual write via pure setter; ctfe/coerce read via pure getter).
 // wave221 pure-owned: pipeline_asm_emit_ctx_func_index_{get,set} at EOF.
 // wave221 pure-owned: pipeline_asm_emit_ctx_arena_{get,set} at EOF.
 // wave221 pure-owned: pipeline_asm_emit_ctx_call_param_ty_{get,set} at EOF.
@@ -557,6 +559,7 @@ export extern "C" function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i3
 // wave223 pure-owned: pipeline_asm_emit_ctx_sret_active_{get,set} at EOF.
 // wave223 pure-owned: pipeline_asm_emit_ctx_sret_home_off_{get,set} at EOF.
 // wave223 pure-owned: pipeline_asm_emit_ctx_sret_ret_sz_{get,set} at EOF.
+// wave224 pure-owned: pipeline_typeck_active_module_c + pipeline_typeck_active_module_set_c at EOF.
 // wave221 pure-owned: pipeline_asm_host_is_arm64_c at EOF.
 // wave192 pure-owned: glue_func_param_home_width_c / glue_func_return_byte_size_c at EOF.
 // wave193 pure-owned: glue_func_param_agg_byte_size_c / glue_load_var_as_value_to_rax_rdx_elf_c at EOF.
@@ -69020,11 +69023,10 @@ export function pipeline_asm_host_is_arm64_c(): i32 {
 //   pipeline_asm_emit_ctx_dep_pipe_{get,set}
 // Residual bind_module_dep_from_ctx / set_module / set_dep_pipe call pure setters
 // (no direct residual static write). struct_layout type_ref_byte_size uses getter.
-// Cap residual still owns: typeck_active.
+// wave224 pure-owned typeck_active (BSS residual era closed on glue_statics).
 // Consumers: pure context leave / CALL / field / return / SOA; seed cold twin
 // under #ifndef FROM_X. Residual statics keep extern-only for pure faces.
-// Deferred: typeck_active pure leave / elf / ast_pool residual / pipeline_x mega
-// off host-cc.
+// Deferred: typeck/elf/ast_pool domain pure leave / pipeline_x mega off host-cc.
 // PLATFORM: SHARED freestanding — module/dep pointers are platform-agnostic.
 // ===========================================================================
 
@@ -69090,7 +69092,7 @@ export function pipeline_asm_emit_ctx_dep_pipe_set(ctx: *u8): void {
 //   pipeline_asm_emit_ctx_sret_ret_sz_{get,set}
 // Residual mega_body no longer direct-writes residual statics — only pure setters.
 // Pure return / CALL / struct_lit paths already consume getters.
-// Cap residual still owns: typeck_active (check_block/assign/ctfe/coerce).
+// wave224 pure-owned typeck_active (was Cap residual last glue_statics BSS cell).
 // Seed cold twin under #ifndef FROM_X. Residual glue_statics deletes sret cells.
 // PLATFORM: SHARED freestanding — SysV (x86_64 rdi) / AAPCS64 (x8) notes on values.
 // ===========================================================================
@@ -69172,4 +69174,53 @@ export function pipeline_asm_emit_ctx_sret_ret_sz_set(sz: i32): void {
 }
 
 // end wave223 pure-owned leave
+
+// ===========================================================================
+// wave224: typeck_active module BSS pure leave
+// (was Cap residual pipeline_glue_statics.c static g_typeck_active_module +
+//  check_block pipeline_typeck_active_module_c / set_active_ctx static write)
+// G.7 product authority for freestanding typeck active-module cell:
+//   pipeline_typeck_active_module_c        (get)
+//   pipeline_typeck_active_module_set_c    (set)
+// Residual check_block set_active_ctx_c + assign write pure setter only;
+// ctfe/coerce read pure getter only. g_typeck_active_ctx stays residual
+// (check_block-local; not process-wide glue_statics).
+// Closes residual BSS era on glue_statics (no static cells left).
+// Efficiency pivot after this: domain pure leave (typeck/elf/ast_pool) not
+// more micro BSS cells — present residual still ~56 host-cc TUs.
+// Seed cold twin under #ifndef FROM_X.
+// PLATFORM: SHARED freestanding — module pointer is platform-agnostic.
+// ===========================================================================
+
+// wave224: Module* currently under typeck (WPO-S3 / LANG-006 CTFE marker).
+let g_typeck_active_module: *u8 = 0 as *u8;
+
+/**
+ * Get the module currently under typeck (active typeck phase).
+ * Contract: null outside typeck; non-null throughout typeck_parsed_module /
+ * parse-coupled entry. Callers must null-check before use (CTFE enum mark).
+ * @return *u8 — ast_Module* as *u8, or null
+ * wave224 pure: G.7 authority (was Cap residual glue_statics + check_block getter).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_active_module_c(): *u8 {
+  return g_typeck_active_module;
+}
+
+/**
+ * Set the module currently under typeck (process-local cell only).
+ * Contract: pipeline_typeck_set_active_ctx_c residual also updates
+ * g_typeck_active_ctx (check_block-local); assign path may set module alone.
+ * @param m *u8 — ast_Module* as *u8; may be null (clears active)
+ * @return void
+ * wave224 pure: G.7 authority (was Cap residual direct static write).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_active_module_set_c(m: *u8): void {
+  g_typeck_active_module = m;
+}
+
+// end wave224 pure-owned leave
 

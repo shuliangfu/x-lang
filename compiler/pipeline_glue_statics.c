@@ -21,13 +21,14 @@
  * pure (bind_module_dep_from_ctx uses pure setters; no residual static cells).
  * wave223 pure-owned leave: sret_active / sret_home_off / sret_ret_sz BSS+get/set
  * → pure (mega_body residual writes via pure setters; no residual sret statics).
- * This shell keeps residual-owned cells residual C still direct-writes:
- *   typeck_active_module
- * plus Cap residual glue_asm_ctx_set_scope_block / bind_module_dep_from_ctx
- * (scope → pure set; module/dep → pure set).
+ * wave224 pure-owned leave: typeck_active_module BSS + get/set → pure
+ * (check_block/assign write pure setter; ctfe/coerce read pure getter).
+ * This shell keeps Cap residual glue only (no process-local BSS cells left):
+ *   glue_asm_ctx_set_scope_block / bind_module_dep_from_ctx
+ * (scope → pure set; module/dep → pure set). g_typeck_active_ctx remains
+ * check_block-local residual (not glue_statics).
  *
- * G.7: single authority per cell — pure owns pure-leaved faces; residual owns
- * direct-write cells. No dual BSS for pure-leaved faces.
+ * G.7: single authority per cell — pure owns pure-leaved faces. No dual BSS.
  * PLATFORM: SHARED — host-cc residual shell.
  */
 
@@ -43,8 +44,9 @@ extern void pipeline_asm_emit_ctx_module_set(void *m);
 extern void *pipeline_asm_emit_ctx_dep_pipe_get(void);
 extern void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx);
 
-/** WPO-S3 / LANG-006 call-site CTFE: set by pipeline_typeck_set_active_ctx_c before check. */
-static struct ast_Module *g_typeck_active_module;
+/* wave224 pure-owned leave: g_typeck_active_module static deleted; live =
+ * runtime_pipeline_abi pure BSS via pipeline_typeck_active_module_c /
+ * pipeline_typeck_active_module_set_c. Do not re-open second cell (G.7). */
 /* wave132 pure-owned leave: g_pipeline_asm_call_sret_reg_shift live =
  * runtime_pipeline_abi pure BSS (g_call_sret_reg_shift) via
  * pipeline_asm_emit_{set_,}call_sret_reg_shift_c. Do not re-open a second
@@ -57,6 +59,8 @@ static struct ast_Module *g_typeck_active_module;
 /* wave223 pure-owned leave: sret_active / sret_home_off / sret_ret_sz statics +
  * get deleted; live = runtime_pipeline_abi pure BSS. mega_body writes via pure
  * setters. Do not re-open second cells (G.7 dual authority). PLATFORM: SHARED. */
+/* wave224 pure-owned leave: typeck_active_module static deleted; live = pure
+ * BSS. Do not re-open second cell. PLATFORM: SHARED. */
 
 /* ========================================================================== *
  * wave141 Cap residual storage faces still residual-owned (direct-write cells).
@@ -90,6 +94,9 @@ extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
 extern void pipeline_asm_emit_ctx_sret_home_off_set(int32_t off);
 extern int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void);
 extern void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz);
+/* wave224 pure typeck active-module faces (check_block/assign/ctfe/coerce). */
+extern struct ast_Module *pipeline_typeck_active_module_c(void);
+extern void pipeline_typeck_active_module_set_c(struct ast_Module *m);
 
 /**
  * wave153 Cap residual: set TU-wide emit scope block + per-ctx scope_block_ref.

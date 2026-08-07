@@ -113,7 +113,7 @@ static int glue_is_const_expr_ref(struct ast_ASTArena *a, int32_t expr_ref, cons
    *           macOS arm64 and Ubuntu x86_64 at module typeck entry.
    */
   if (kd == ast_ExprKind_EXPR_FIELD_ACCESS) {
-    pipeline_expr_try_mark_enum_field_access(g_typeck_active_module, a, expr_ref);
+    pipeline_expr_try_mark_enum_field_access(pipeline_typeck_active_module_c(), a, expr_ref);
     if (pipeline_expr_field_access_is_enum_variant(a, expr_ref) != 0)
       return 1;
     return 0;
@@ -592,7 +592,7 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
     /* Pre-mark in case the whitelist path was bypassed (e.g. fold invoked
      * from pipeline_typeck_fold_expr_c on a standalone FIELD_ACCESS expr
      * without prior whitelist pre-mark). No-op if already marked. */
-    pipeline_expr_try_mark_enum_field_access(g_typeck_active_module, a, expr_ref);
+    pipeline_expr_try_mark_enum_field_access(pipeline_typeck_active_module_c(), a, expr_ref);
     if (pipeline_expr_field_access_is_enum_variant(a, expr_ref) == 0)
       return; /* Non-enum FIELD_ACCESS: runtime struct access, not const. */
     tag = pipeline_expr_enum_variant_tag_at(a, expr_ref);
@@ -647,7 +647,7 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
       if ((wpo_mono && wpo_mono[0]) || (wpo_nofold && wpo_nofold[0]))
         return;
     }
-    mod = g_typeck_active_module;
+    mod = pipeline_typeck_active_module_c();
     if (!mod)
       return;
     callee_ref = pipeline_expr_call_callee_ref_at(a, expr_ref);

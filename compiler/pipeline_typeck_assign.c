@@ -87,7 +87,8 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
 
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
     return 0;
-  g_typeck_active_module = module;
+  /* wave224: active module cell is pure BSS (G.7; no residual static write). */
+  pipeline_typeck_active_module_set_c(module);
   expr_kind = pipeline_expr_kind_ord_at(arena, expr_ref);
   left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
   right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
