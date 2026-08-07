@@ -530,6 +530,13 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function driver_diagnostic_typeck_deref_outside_unsafe(line: i32, col: i32): void;
 export extern function pipeline_typeck_check_call_slice_region_c(module: *Module, arena: *ASTArena,
 call_expr_ref: i32, ctx: *PipelineDepCtx): i32;
+/* wave232: generic type-args gate + mono fixup (Cap residual method_call faces; typeck call orchestrator). */
+export extern function pipeline_typeck_check_call_generic_type_args_c(module: *Module, arena: *ASTArena,
+expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32;
+export extern function glue_generic_call_fixup_resolved_type_c(module: *Module, arena: *ASTArena,
+call_expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32;
+export extern function pipeline_typeck_resolve_call_callee_return_type_c(module: *Module, arena: *ASTArena,
+callee_expr_ref: i32, call_expr_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_type_stamp_block_let_region_c(arena: *ASTArena, block_ref: i32, let_idx: i32,
 ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_check_block_one_region_c(module: *Module, arena: *ASTArena,
@@ -9757,24 +9764,39 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * Type-check EXPR_CALL: args, resolve, arity (wave660), arg types (wave661), slice region.
- * Installs expected return (return_type_ref from let/assign/return) for zero-arg overload pick.
- * Note: product seed typeck_check_expr_call may delegate to pipeline_typeck_check_expr_call_c
- * which must call typeck_check_call_arity + typeck_check_call_arg_types after resolve (same commit).
+ * Type-check EXPR_CALL: unsafe boundary, args, resolve, arity (wave660),
+ * arg types (wave661), generic type-args gate, slice region, return resolve
+ * + generic mono fixup (wave232 pure leave parity with former call_c).
+ * Installs expected return (return_type_ref from let/assign/return) for
+ * zero-arg overload pick and holds it through generic infer/fixup (wave453).
+ * Cap residual pipeline_typeck_check_expr_call_c thins here — do NOT re-open
+ * a second CALL body in residual C (dual-export ban).
+ * @param module *Module — entry module
+ * @param arena *ASTArena — expression arena
+ * @param expr_ref i32 — EXPR_CALL
+ * @param return_type_ref i32 — ambient expected return (let/assign/return); 0 if none
+ * @param ctx *PipelineDepCtx — dep modules + unsafe depth
+ * @return i32 — 0 success, -1 typeck fail
+ * PLATFORM: SHARED freestanding typeck.
  */
 export function typeck_check_expr_call(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    /* See implementation. */
+    let num_args: i32 = 0;
+    let expect_store: i32 = 0;
+    let callee_ref: i32 = 0;
+    let ret_ty: i32 = 0;
+    /* LANG-007 S0: extern calls require unsafe { }. */
     if (pipeline_typeck_check_extern_call_unsafe_boundary_c(module, arena, expr_ref, ctx) != 0) {
       return -1;
     }
-    let num_args: i32 = pipeline_expr_call_num_args_at(arena, expr_ref);
-    let expect_store: i32 = 0;
+    num_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+    expect_store = 0;
     if (!ast.ref_is_null(return_type_ref) && return_type_ref > 0) {
       expect_store = return_type_ref;
     }
+    /* Hold expected_ret through generic gate + fixup (wave453 / wave232). */
     typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), expect_store);
     if (typeck_check_expr_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0, num_args) != 0) {
       typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
@@ -9784,7 +9806,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
       return -1;
     }
-    /* wave660: hard-fail arity before slice region / codegen. */
+    /* wave660: hard-fail arity before generic / slice region / codegen. */
     if (typeck_check_call_arity(module, arena, expr_ref, ctx) != 0) {
       typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
       return -1;
@@ -9794,11 +9816,26 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
       return -1;
     }
-    typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
-    /* See implementation. */
-    if (pipeline_typeck_check_call_slice_region_c(module, arena, expr_ref, ctx) != 0) {
+    /* wave232: generic type-args / infer gate (was only in call_c residual). */
+    if (pipeline_typeck_check_call_generic_type_args_c(module, arena, expr_ref, ctx, expect_store) != 0) {
+      typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
       return -1;
     }
+    if (pipeline_typeck_check_call_slice_region_c(module, arena, expr_ref, ctx) != 0) {
+      typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
+      return -1;
+    }
+    /* Stamp callee return when resolve left resolved_type_ref empty. */
+    if (ast.ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
+      callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+      ret_ty = pipeline_typeck_resolve_call_callee_return_type_c(module, arena, callee_ref, expr_ref, ctx);
+      if (ret_ty != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
+      }
+    }
+    /* Mono fixup: free type-param return trees → concrete from args / expected_ret. */
+    glue_generic_call_fixup_resolved_type_c(module, arena, expr_ref, ctx, expect_store);
+    typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
     return 0;
   }
 }

@@ -1,25 +1,26 @@
 /**
  * pipeline_typeck_check_expr.c — typeck check_expr Cap residual thin
- * (BC 8.3.1 wave231 pure leave + wave229 + wave228 + wave1188 domain extract).
+ * (BC 8.3.1 wave232 pure leave + wave231 + wave229 + wave228 + wave1188).
  *
- * wave231 G.7 pure leave: match_c + try_propagate_c dual bodies retired →
- * typeck_check_expr_match (subject BSS set + iterative arms) /
- * typeck_check_expr_try_propagate (Result_? payload). Cap residual keeps
- * match subject BSS + field_type layout walk + set/get faces (typeck VAR hop).
+ * wave232 G.7 pure leave: call_c dual body retired → typeck_check_expr_call
+ * (unsafe boundary + arg/resolve/arity/arg_types + generic type-args gate +
+ * slice region + ret resolve + mono fixup). Generic helpers exported from
+ * method_call.c (non-static) for typeck_x.o link.
+ * wave231: match_c + try_propagate_c → typeck twins.
  * wave229: return_c → typeck_check_expr_return.
  * wave228: panic/unary/addr_of/index/deref/var thin → typeck twins.
  * Cap residual keeps:
  *   1. Thin product faces → typeck_x.o for panic/unary/addr/index/deref/var/
- *      return/match/try
- *   2. Live residual bodies: call_c (generic fixup richer than typeck twin),
- *      match subject BSS + field_type
+ *      return/match/try/call
+ *   2. Live residual: match subject BSS + field_type; method_call_c body;
+ *      repr_compatible + extern unsafe boundary helpers
  *   3. Dispatch: impl_mega_c (region escape gates for assign/return before
- *      type match), impl_c, check_expr_c entry
+ *      type match; CALL still stack-escape after thin call face), impl_c
  *   4. XLANG_WEAK check_expr_impl{,_mega} cold faces
  *
  * Dual-export ban: do NOT re-open second panic/unary/addr/index/deref/var/
- * return/match/try bodies here; typeck.x is single authority. call remains
- * residual until generic fixup parity lands fully in typeck.x.
+ * return/match/try/call bodies here; typeck.x is single authority for those.
+ * method_call remains residual (typeck twin still wraps method_call_c).
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c after
  * call helpers + method_call.c, before check_block.c.
@@ -55,6 +56,9 @@ extern int32_t typeck_check_expr_match(struct ast_Module *module, struct ast_AST
 extern int32_t typeck_check_expr_try_propagate(struct ast_Module *module, struct ast_ASTArena *arena,
                                                int32_t expr_ref, int32_t return_type_ref,
                                                struct ast_PipelineDepCtx *ctx);
+/* wave232: live CALL authority in typeck_x.o (generic fixup parity). */
+extern int32_t typeck_check_expr_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
+                                      int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
 /**
  * typeck.x::check_expr_impl_mega 的 C 委托：按 ExprKind 分派至 typeck_check_expr_* 子 helper；
@@ -509,8 +513,8 @@ int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_A
  * - pipeline_expr_call_num_args_at / pipeline_expr_call_callee_ref_at (extern)
  * - driver_diagnostic_typeck_try_propagate_bad_enclosing (extern)
  * - pipeline_typeck_check_extern_call_unsafe_boundary_c (fwd decl at glue.c L6075)
- * - pipeline_typeck_check_call_generic_type_args_c (static in method_call.c EOF)
- * - glue_generic_call_fixup_resolved_type_c (static in method_call.c EOF)
+ * - pipeline_typeck_check_call_generic_type_args_c (exported method_call.c; typeck call)
+ * - glue_generic_call_fixup_resolved_type_c (exported method_call.c; typeck call)
  * - pipeline_typeck_resolve_call_callee_return_type_c (extern in method_call.c EOF)
  * - pipeline_typeck_check_call_slice_region_c (extern)
  * - typeck_check_expr_call_arg / call_resolve (extern)
@@ -533,99 +537,14 @@ int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *module, st
 }
 
 /**
- * EXPR_CALL: delegate to typeck_x.o seed sub-steps + glue resolve, then
- * generic return-type monomorphization fixup (bootstrap parser may not store
- * call type_args). LANG-007 v2: S0 extern calls must be inside unsafe { }.
- *
- * Why: full call typeck pipeline — unsafe boundary check → arg typeck →
- *      resolve → arity check → arg type check → generic type-args gate →
- *      slice region check → return-type resolve + generic fixup.
- *      Expected return stored for zero-arg overload pick (let v: Vec_u8 = vec.new()).
- * Invariant: arena non-null; expr_ref in [1, arena->num_exprs]; expected_ret
- *            slot cleared on all exit paths (no leak across calls).
- * Asm/Perf: N/A (typeck pass; no codegen).
- * Contract: returns 0 on success; -1 on typeck fail (unsafe/arity/type/generic).
- * PLATFORM: SHARED — product path (seed typeck_check_expr_call → this glue).
+ * Product-mega C face for EXPR_CALL.
+ * Thin → typeck_check_expr_call (wave232 pure leave: generic type-args +
+ * mono fixup parity). Do NOT dual-export typeck_check_expr_call here (cycle).
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                           int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  int32_t rc;
-  int32_t callee_ref;
-  int32_t ret_ty;
-  int32_t expect_store;
-  extern int32_t *typeck_overload_expected_ret_slot(void);
-  if (pipeline_typeck_check_extern_call_unsafe_boundary_c(module, arena, expr_ref, ctx) != 0)
-    return -1;
-  /*
-   * PLATFORM: SHARED — install expected return for zero-arg overload pick
-   * (let v: Vec_u8 = vec.new()). Also held through generic infer + fixup
-   * (wave453 bare ret-only type-param inference). Cleared on all exit paths.
-   * Authority consumers: typeck_find_func_return_type_in_module_by_name_overload
-   * / module_overload / try_infer / glue_generic_call_fixup.
-   */
-  expect_store = 0;
-  if (!ast_ref_is_null(return_type_ref) && return_type_ref > 0)
-    expect_store = return_type_ref;
-  *typeck_overload_expected_ret_slot() = expect_store;
-  /** Do not recurse via glue typeck_check_expr_call; call seed sub-steps + glue resolve directly. */
-  rc = typeck_check_expr_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0,
-                                  pipeline_expr_call_num_args_at(arena, expr_ref));
-  if (rc != 0) {
-    *typeck_overload_expected_ret_slot() = 0;
-    return rc;
-  }
-  rc = typeck_check_expr_call_resolve(module, arena, expr_ref, ctx);
-  if (rc != 0) {
-    *typeck_overload_expected_ret_slot() = 0;
-    return rc;
-  }
-  /*
-   * wave660 Cap residual: hard-fail free-function call arity at typeck.
-   * Root: overload first_idx fallback ignored nparams vs num_args → typeck OK,
-   * host-cc BLD001 (too few/many arguments). G.7: typeck_check_call_arity.
-   * PLATFORM: SHARED — product path (seed typeck_check_expr_call → this glue).
-   */
-  {
-    extern int32_t typeck_check_call_arity(struct ast_Module *module, struct ast_ASTArena *arena,
-                                           int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
-    if (typeck_check_call_arity(module, arena, expr_ref, ctx) != 0) {
-      *typeck_overload_expected_ret_slot() = 0;
-      return -1;
-    }
-  }
-  /*
-   * wave661 Cap residual: hard-fail free-function call arg types at typeck.
-   * Root: resolve+arity OK but arg vs param never scored → host-cc BLD001 or
-   * silent C conversion false-green. G.7: typeck_check_call_arg_types (reuses
-   * typeck_overload_arg_param_score; soft-skip unknown arg/param types).
-   * PLATFORM: SHARED — product path (seed typeck_check_expr_call → this glue).
-   */
-  {
-    extern int32_t typeck_check_call_arg_types(struct ast_Module *module, struct ast_ASTArena *arena,
-                                              int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
-    if (typeck_check_call_arg_types(module, arena, expr_ref, ctx) != 0) {
-      *typeck_overload_expected_ret_slot() = 0;
-      return -1;
-    }
-  }
-  /* Keep expected_ret through generic gate + fixup (wave453); clear after. */
-  if (pipeline_typeck_check_call_generic_type_args_c(module, arena, expr_ref, ctx, expect_store) != 0) {
-    *typeck_overload_expected_ret_slot() = 0;
-    return -1;
-  }
-  if (pipeline_typeck_check_call_slice_region_c(module, arena, expr_ref, ctx) != 0) {
-    *typeck_overload_expected_ret_slot() = 0;
-    return -1;
-  }
-  if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
-    callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-    ret_ty = pipeline_typeck_resolve_call_callee_return_type_c(module, arena, callee_ref, expr_ref, ctx);
-    if (ret_ty != 0)
-      (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty));
-  }
-  (void)glue_generic_call_fixup_resolved_type_c(module, arena, expr_ref, ctx, expect_store);
-  *typeck_overload_expected_ret_slot() = 0;
-  return 0;
+  return typeck_check_expr_call(module, arena, expr_ref, return_type_ref, ctx);
 }
 
 /* wave1198 G.7: pipeline_typeck_call_arg_repr_compatible_ok_c +
@@ -773,18 +692,12 @@ int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *m
   return -1;
 }
 
-/* wave1282 / wave228 G.7: non-standalone cold wrappers for call/method_call
- * only (residual still owns live bodies). wave228: deref dual export removed —
- * typeck.x owns typeck_check_expr_deref; residual face thins to typeck (thinning
- * + dual export would recurse). Omitted when STANDALONE_TU or OMIT_X_DUP_EXPORTS
- * (product/strict: typeck_x.o sole typeck_* export). PLATFORM: SHARED.
+/* wave232 / wave1282 G.7: call dual export removed — typeck.x owns
+ * typeck_check_expr_call; residual face thins to typeck (thinning + dual
+ * export would recurse). method_call residual still owns live body; cold
+ * wrapper only when not OMIT_X_DUP_EXPORTS. PLATFORM: SHARED.
  */
 #if !defined(XLANG_PIPELINE_GLUE_STANDALONE_TU) && !defined(XLANG_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS)
-int32_t typeck_check_expr_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
-                               int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
-}
-
 int32_t typeck_check_expr_method_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                       int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);

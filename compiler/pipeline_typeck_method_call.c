@@ -1773,9 +1773,15 @@ static int32_t pipeline_typeck_named_is_module_type_c(struct ast_Module *mod, st
  * pipeline_typeck_named_is_module_type_c (same file, def above via fwd decl
  * L348) (all extern unless noted).
  */
-static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                       int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx,
-                                                       int32_t expected_ret) {
+/*
+ * wave232: non-static product face so typeck.x::typeck_check_expr_call can
+ * call after pure leave (was static same-TU only for call_c). G.7 sole fixup
+ * path — do not open a second mono stamp in typeck.x body.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                 int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx,
+                                                 int32_t expected_ret) {
   int32_t ord_var = 3;
   int32_t ord_field = 44;
   int32_t ord_named = (int32_t)ast_TypeKind_TYPE_NAMED;
@@ -2448,10 +2454,15 @@ static int32_t pipeline_typeck_check_inferred_generic_bounds_c(struct ast_Module
  * pipeline_typeck_check_inferred_generic_bounds_c (same file, def above)
  * (all extern unless noted).
  */
-static int32_t pipeline_typeck_check_call_generic_type_args_c(struct ast_Module *module,
-                                                              struct ast_ASTArena *arena, int32_t expr_ref,
-                                                              struct ast_PipelineDepCtx *ctx,
-                                                              int32_t expected_ret) {
+/*
+ * wave232: non-static product face for typeck.x call pure leave (was static
+ * same-TU only for call_c). G.7 sole generic type-args / infer gate.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+int32_t pipeline_typeck_check_call_generic_type_args_c(struct ast_Module *module,
+                                                       struct ast_ASTArena *arena, int32_t expr_ref,
+                                                       struct ast_PipelineDepCtx *ctx,
+                                                       int32_t expected_ret) {
   extern void driver_diagnostic_typeck_call_not_generic(int32_t line, int32_t col, const uint8_t *name,
                                                          int32_t name_len);
   extern void driver_diagnostic_typeck_call_wrong_num_type_args(int32_t line, int32_t col,
@@ -2836,7 +2847,7 @@ static void debug_try_propagate_report_glue_c(int32_t expr_ref, int32_t func_ix,
  *   - pipeline_type_kind_ord_at / pipeline_type_ensure_by_kind_ord (extern)
  *   - ast_TypeKind_TYPE_I32 / ast_ExprKind_EXPR_METHOD_CALL /
  *     ast_ExprKind_EXPR_CALL (global enum)
- *   - glue_generic_call_fixup_resolved_type_c (static, wave1096,
+ *   - glue_generic_call_fixup_resolved_type_c (exported wave232 / wave1096,
  *     same file — direct call, no fwd decl needed)
  *
  * Caller (in glue.c, BEFORE this file's #include at L10499):
