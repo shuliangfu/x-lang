@@ -263,6 +263,29 @@ export extern function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: 
 export extern function driver_diagnostic_typeck_call_arity_mismatch(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_call_arg_type_mismatch(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_call_unresolved(line: i32, col: i32): void;
+/* wave250 pure leave: generic type-args gate diags (Cap residual faces). */
+export extern function driver_diagnostic_typeck_call_not_generic(line: i32, col: i32, name: *u8,
+name_len: i32): void;
+export extern function driver_diagnostic_typeck_call_requires_type_args(line: i32, col: i32,
+name: *u8, name_len: i32): void;
+export extern function driver_diagnostic_typeck_call_wrong_num_type_args(line: i32, col: i32,
+name: *u8, name_len: i32, expect_n: i32, got_n: i32): void;
+/**
+ * skip_tl trait-bound check on inferred turbofish slots (wave449/wave250).
+ * type_args is contiguous row-major u8[n][128] (first-row pointer).
+ * @param fn_name *u8 — callee spelling
+ * @param fn_name_len i32
+ * @param type_args *u8 — concrete type-name rows (stride 128)
+ * @param type_arg_lens *i32 — per-slot name lengths
+ * @param nargs i32 — slot count
+ * @param line i32
+ * @param col i32
+ * @return i32 — 0 ok, non-zero bound fail
+ * PLATFORM: SHARED freestanding typeck / skip_tl.
+ */
+export extern function xlang_generic_bound_check_type_args_c(fn_name: *u8, fn_name_len: i32,
+type_args: *u8, type_arg_lens: *i32, nargs: i32, line: i32, col: i32): i32;
+export extern function pipeline_expr_call_num_type_args_at(arena: *ASTArena, expr_ref: i32): i32;
 /**
  * Report non-integer array/slice/pointer subscript index (wave664 Cap residual).
  * @param line i32 — 1-based source line of the INDEX expr
@@ -590,9 +613,16 @@ call_expr_ref: i32): i32;
  * PLATFORM: SHARED freestanding
  */
 export extern function link_abi_getenv(name: *u8): *u8;
-/* wave232: generic type-args gate + mono fixup (Cap residual method_call faces; typeck call orchestrator). */
+/**
+ * wave250 pure leave: generic type-args / infer / bounds Cap residual face.
+ * → typeck.x EOF (#[no_mangle]); residual dual-export ban (body deleted).
+ * export extern below = same-TU forward for early call sites (check_expr_call);
+ * body at EOF is the single pipeline_*_c authority.
+ * PLATFORM: SHARED freestanding typeck generic call type-args gate.
+ */
 export extern function pipeline_typeck_check_call_generic_type_args_c(module: *Module, arena: *ASTArena,
 expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32;
+/* wave232: mono fixup still Cap residual method_call (host-cc until later leave). */
 export extern function glue_generic_call_fixup_resolved_type_c(module: *Module, arena: *ASTArena,
 call_expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32;
 /**
@@ -16006,4 +16036,444 @@ depth: i32): i32 {
 }
 
 // end wave249 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave250: typeck generic type-args / try_infer / bounds pure leave
+// (method_call residual subdomain)
+// Authority: typeck_x.o (this file + typeck_gen hand-sync).
+// Symbols:
+//   pipeline_typeck_check_call_generic_type_args_c  (#[no_mangle] Cap face)
+// Live bodies: typeck_try_infer_generic_call_from_args +
+//   typeck_check_inferred_generic_bounds + typeck_check_call_generic_type_args
+// G.7: sole generic type-args / infer / post-infer bounds gate for EXPR_CALL.
+// Cap residual method_call: delete residual try_infer + bounds + check_call
+//   generic_type_args bodies (dual-export ban).
+// PLATFORM: SHARED freestanding typeck generic call type-args gate.
+// ---------------------------------------------------------------------------
+
+/**
+ * Infer bare generic CALL (no turbofish) from value args or ambient expected ret.
+ * Value path: every formal has effective mono arg type (wave249 Cap face) and
+ * same-named free type-params unify (same(1,true) red). Ret-only path: ret is
+ * free type-param and expected_ret is a concrete module TYPE_NAMED.
+ * @param callee_mod *Module — resolved callee module (entry or dep)
+ * @param arena *ASTArena — call expr arena
+ * @param expr_ref i32 — EXPR_CALL
+ * @param func_ix i32 — resolved func index in callee_mod
+ * @param expected_ret i32 — ambient expected return type_ref (0 if none)
+ * @return i32 — 0 infer ok, -1 fail-closed (requires turbofish)
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_try_infer_generic_call_from_args(callee_mod: *Module, arena: *ASTArena,
+expr_ref: i32, func_ix: i32, expected_ret: i32): i32 {
+  // PLATFORM: SHARED — bare generic CALL mono pin (value args / ret-only).
+  unsafe {
+    let np: i32 = 0;
+    let nargs: i32 = 0;
+    let i: i32 = 0;
+    let j: i32 = 0;
+    let k: i32 = 0;
+    let ord_named: i32 = 8;
+    let n_gp: i32 = 0;
+    let ret_ty: i32 = 0;
+    let ret_nm: u8[128] = [];
+    let ret_nlen: i32 = 0;
+    let value_ok: i32 = 1;
+    let arg_ref: i32 = 0;
+    let arg_ty: i32 = 0;
+    let pi_ty: i32 = 0;
+    let pi_nm: u8[128] = [];
+    let pi_nlen: i32 = 0;
+    let ai_ty: i32 = 0;
+    let pj_ty: i32 = 0;
+    let pj_nm: u8[128] = [];
+    let pj_nlen: i32 = 0;
+    let aj_ty: i32 = 0;
+    let same_name: i32 = 0;
+    let exp_nm: u8[128] = [];
+    let exp_nlen: i32 = 0;
+    if (callee_mod == 0 as *Module || arena == 0 as *ASTArena || expr_ref <= 0 || func_ix < 0) {
+      return -1;
+    }
+    np = pipeline_module_func_num_params_at(callee_mod, func_ix);
+    nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
+    // Value-arg path: formals present + each arg pinable + same-name unify.
+    if (np > 0 && nargs >= np) {
+      value_ok = 1;
+      i = 0;
+      while (i < np) {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+        if (arg_ref <= 0) {
+          value_ok = 0;
+          break;
+        }
+        arg_ty = typeck_call_arg_effective_type(arena, arg_ref);
+        if (arg_ty <= 0) {
+          value_ok = 0;
+          break;
+        }
+        i = i + 1;
+      }
+      if (value_ok != 0) {
+        i = 0;
+        while (i < np) {
+          pi_ty = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i);
+          if (pi_ty <= 0 || pipeline_type_kind_ord_at(arena, pi_ty) != ord_named) {
+            i = i + 1;
+            continue;
+          }
+          // Only free type-params participate (not module Wrap).
+          pi_nlen = pipeline_type_named_name_into(arena, pi_ty, &pi_nm[0]);
+          if (pi_nlen <= 0) {
+            i = i + 1;
+            continue;
+          }
+          if (typeck_named_is_module_type(callee_mod, arena, &pi_nm[0], pi_nlen) != 0) {
+            i = i + 1;
+            continue;
+          }
+          ai_ty = typeck_call_arg_effective_type(arena,
+            pipeline_expr_call_arg_ref(arena, expr_ref, i));
+          if (ai_ty <= 0) {
+            return -1;
+          }
+          j = i + 1;
+          while (j < np) {
+            pj_ty = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, j);
+            if (pj_ty <= 0 || pipeline_type_kind_ord_at(arena, pj_ty) != ord_named) {
+              j = j + 1;
+              continue;
+            }
+            pj_nlen = pipeline_type_named_name_into(arena, pj_ty, &pj_nm[0]);
+            if (pj_nlen != pi_nlen) {
+              j = j + 1;
+              continue;
+            }
+            same_name = 1;
+            k = 0;
+            while (k < pi_nlen) {
+              if (pi_nm[k] != pj_nm[k]) {
+                same_name = 0;
+                break;
+              }
+              k = k + 1;
+            }
+            if (same_name == 0) {
+              j = j + 1;
+              continue;
+            }
+            aj_ty = typeck_call_arg_effective_type(arena,
+              pipeline_expr_call_arg_ref(arena, expr_ref, j));
+            if (aj_ty <= 0 || pipeline_typeck_type_refs_equal_c(arena, ai_ty, aj_ty) == 0) {
+              return -1;
+            }
+            j = j + 1;
+          }
+          i = i + 1;
+        }
+        return 0;
+      }
+    }
+    // Ret-only path: free type-param ret + concrete module expected_ret.
+    n_gp = pipeline_module_func_num_generic_params_at(callee_mod, func_ix);
+    if (n_gp < 1 || expected_ret <= 0) {
+      return -1;
+    }
+    if (pipeline_type_kind_ord_at(arena, expected_ret) != ord_named) {
+      return -1;
+    }
+    exp_nlen = pipeline_type_named_name_into(arena, expected_ret, &exp_nm[0]);
+    if (exp_nlen <= 0) {
+      return -1;
+    }
+    if (typeck_named_is_module_type(callee_mod, arena, &exp_nm[0], exp_nlen) == 0) {
+      return -1;
+    }
+    ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix);
+    if (ret_ty <= 0 || pipeline_type_kind_ord_at(arena, ret_ty) != ord_named) {
+      return -1;
+    }
+    ret_nlen = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
+    if (ret_nlen <= 0) {
+      return -1;
+    }
+    if (typeck_named_is_module_type(callee_mod, arena, &ret_nm[0], ret_nlen) != 0) {
+      return -1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * After bare-call inference, check trait bounds via skip_tl authority.
+ * Slots = first-appearance free TYPE_NAMED formals among value params; ret-only
+ * free param appends a slot from expected_ret when not already present.
+ * type_args rows are contiguous stride-128 (ABI match xlang_generic_bound).
+ * @param callee_mod *Module
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_CALL
+ * @param func_ix i32
+ * @param fn_name *u8 — callee name bytes
+ * @param fn_name_len i32
+ * @param line i32
+ * @param col i32
+ * @param expected_ret i32 — ambient ret (ret-only slot)
+ * @return i32 — 0 ok / no slots; non-zero bound fail
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_check_inferred_generic_bounds(callee_mod: *Module, arena: *ASTArena,
+expr_ref: i32, func_ix: i32, fn_name: *u8, fn_name_len: i32, line: i32, col: i32,
+expected_ret: i32): i32 {
+  // PLATFORM: SHARED — post-infer trait bounds (G.7 skip_tl authority).
+  unsafe {
+    let max_targs: i32 = 4;
+    let stride: i32 = 128;
+    let type_args_flat: u8[512] = [];
+    let type_arg_lens: i32[4] = [];
+    let formal_names_flat: u8[512] = [];
+    let formal_name_lens: i32[4] = [];
+    let n_tp: i32 = 0;
+    let np: i32 = 0;
+    let i: i32 = 0;
+    let k: i32 = 0;
+    let ord_named: i32 = 8;
+    let ret_ty: i32 = 0;
+    let ret_nm: u8[128] = [];
+    let ret_nlen: i32 = 0;
+    let pi_ty: i32 = 0;
+    let pi_nm: u8[128] = [];
+    let pi_nlen: i32 = 0;
+    let arg_ref: i32 = 0;
+    let arg_ty: i32 = 0;
+    let found: i32 = 0;
+    let slot: i32 = 0;
+    let conc_len: i32 = 0;
+    let base: i32 = 0;
+    let bi: i32 = 0;
+    let found_r: i32 = 0;
+    if (callee_mod == 0 as *Module || arena == 0 as *ASTArena || expr_ref <= 0 || func_ix < 0
+    || fn_name == 0 as *u8 || fn_name_len <= 0) {
+      return 0;
+    }
+    np = pipeline_module_func_num_params_at(callee_mod, func_ix);
+    n_tp = 0;
+    i = 0;
+    while (i < np && n_tp < max_targs) {
+      pi_ty = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i);
+      if (pi_ty <= 0 || pipeline_type_kind_ord_at(arena, pi_ty) != ord_named) {
+        i = i + 1;
+        continue;
+      }
+      pi_nlen = pipeline_type_named_name_into(arena, pi_ty, &pi_nm[0]);
+      if (pi_nlen <= 0) {
+        i = i + 1;
+        continue;
+      }
+      if (typeck_named_is_module_type(callee_mod, arena, &pi_nm[0], pi_nlen) != 0) {
+        i = i + 1;
+        continue;
+      }
+      found = -1;
+      k = 0;
+      while (k < n_tp) {
+        if (formal_name_lens[k] == pi_nlen) {
+          base = k * stride;
+          bi = 0;
+          while (bi < pi_nlen) {
+            if (formal_names_flat[base + bi] != pi_nm[bi]) {
+              break;
+            }
+            bi = bi + 1;
+          }
+          if (bi == pi_nlen) {
+            found = k;
+            break;
+          }
+        }
+        k = k + 1;
+      }
+      if (found >= 0) {
+        i = i + 1;
+        continue;
+      }
+      slot = n_tp;
+      base = slot * stride;
+      bi = 0;
+      while (bi < pi_nlen) {
+        formal_names_flat[base + bi] = pi_nm[bi];
+        bi = bi + 1;
+      }
+      formal_name_lens[slot] = pi_nlen;
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+      arg_ty = 0;
+      if (arg_ref > 0) {
+        arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+      }
+      conc_len = 0;
+      if (arg_ty > 0 && pipeline_type_kind_ord_at(arena, arg_ty) == ord_named) {
+        conc_len = pipeline_type_named_name_into(arena, arg_ty, &type_args_flat[base]);
+        if (conc_len < 0) {
+          conc_len = 0;
+        }
+        if (conc_len > 127) {
+          conc_len = 63;
+        }
+      }
+      type_arg_lens[slot] = conc_len;
+      n_tp = n_tp + 1;
+      i = i + 1;
+    }
+    // Ret-only free type-param not already in formal slots.
+    ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix);
+    if (ret_ty > 0 && pipeline_type_kind_ord_at(arena, ret_ty) == ord_named && n_tp < max_targs) {
+      ret_nlen = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
+      if (ret_nlen > 0
+      && typeck_named_is_module_type(callee_mod, arena, &ret_nm[0], ret_nlen) == 0) {
+        found_r = -1;
+        k = 0;
+        while (k < n_tp) {
+          if (formal_name_lens[k] == ret_nlen) {
+            base = k * stride;
+            bi = 0;
+            while (bi < ret_nlen) {
+              if (formal_names_flat[base + bi] != ret_nm[bi]) {
+                break;
+              }
+              bi = bi + 1;
+            }
+            if (bi == ret_nlen) {
+              found_r = k;
+              break;
+            }
+          }
+          k = k + 1;
+        }
+        if (found_r < 0 && expected_ret > 0
+        && pipeline_type_kind_ord_at(arena, expected_ret) == ord_named) {
+          slot = n_tp;
+          base = slot * stride;
+          bi = 0;
+          while (bi < ret_nlen) {
+            formal_names_flat[base + bi] = ret_nm[bi];
+            bi = bi + 1;
+          }
+          formal_name_lens[slot] = ret_nlen;
+          conc_len = pipeline_type_named_name_into(arena, expected_ret, &type_args_flat[base]);
+          if (conc_len < 0) {
+            conc_len = 0;
+          }
+          if (conc_len > 127) {
+            conc_len = 63;
+          }
+          type_arg_lens[slot] = conc_len;
+          n_tp = n_tp + 1;
+        }
+      }
+    }
+    if (n_tp <= 0) {
+      return 0;
+    }
+    return xlang_generic_bound_check_type_args_c(fn_name, fn_name_len, &type_args_flat[0],
+      &type_arg_lens[0], n_tp, line, col);
+  }
+}
+
+/**
+ * Validate generic CALL type-args count; infer bare calls; check bounds.
+ * G.7 sole gate for turbofish arity + bare infer + post-infer trait bounds.
+ * @param module *Module — entry module
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_CALL (resolved func index already stamped)
+ * @param ctx *PipelineDepCtx — dep modules when resolved_dep_index ≥ 0
+ * @param expected_ret i32 — ambient expected return (ret-only infer)
+ * @return i32 — 0 ok; -1 diagnostic emitted
+ * PLATFORM: SHARED freestanding typeck.
+ */
+export function typeck_check_call_generic_type_args(module: *Module, arena: *ASTArena,
+expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32 {
+  // PLATFORM: SHARED — generic type-args / infer / bounds gate.
+  unsafe {
+    let callee_mod: *Module = 0 as *Module;
+    let func_ix: i32 = 0;
+    let dep_ix: i32 = 0;
+    let num_generic_params: i32 = 0;
+    let num_type_args: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let name: u8[128] = [];
+    let name_len: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || expr_ref <= 0) {
+      return 0;
+    }
+    func_ix = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+    if (func_ix < 0) {
+      return 0;
+    }
+    dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+    callee_mod = module;
+    if (dep_ix >= 0) {
+      callee_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+      if (callee_mod == 0 as *Module) {
+        return 0;
+      }
+    }
+    num_generic_params = pipeline_module_func_num_generic_params_at(callee_mod, func_ix);
+    num_type_args = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+    if (num_generic_params == 0 && num_type_args == 0) {
+      return 0;
+    }
+    line = pipeline_expr_line_at(arena, expr_ref);
+    col = pipeline_expr_col_at(arena, expr_ref);
+    name_len = pipeline_module_func_name_len_at(callee_mod, func_ix);
+    if (name_len > 127) {
+      name_len = 63;
+    }
+    if (name_len > 0) {
+      pipeline_module_func_name_copy64(callee_mod, func_ix, &name[0]);
+    }
+    if (num_type_args > 0 && num_generic_params == 0) {
+      driver_diagnostic_typeck_call_not_generic(line, col, &name[0], name_len);
+      return -1;
+    }
+    if (num_generic_params > 0 && num_type_args == 0) {
+      // Bare call: infer from value args or expected ret; then bounds.
+      if (typeck_try_infer_generic_call_from_args(callee_mod, arena, expr_ref, func_ix,
+      expected_ret) == 0) {
+        if (typeck_check_inferred_generic_bounds(callee_mod, arena, expr_ref, func_ix, &name[0],
+        name_len, line, col, expected_ret) != 0) {
+          return -1;
+        }
+        return 0;
+      }
+      driver_diagnostic_typeck_call_requires_type_args(line, col, &name[0], name_len);
+      return -1;
+    }
+    if (num_generic_params != num_type_args) {
+      driver_diagnostic_typeck_call_wrong_num_type_args(line, col, &name[0], name_len,
+        num_generic_params, num_type_args);
+      return -1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Cap residual face: generic CALL type-args gate (wave250 pure leave).
+ * Thin → typeck_check_call_generic_type_args (G.7 dual-export ban).
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_CALL
+ * @param ctx *PipelineDepCtx
+ * @param expected_ret i32
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_call_generic_type_args_c(module: *Module, arena: *ASTArena,
+expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32 {
+  // PLATFORM: SHARED — Cap residual face name; body = pure check_call_generic.
+  return typeck_check_call_generic_type_args(module, arena, expr_ref, ctx, expected_ret);
+}
+
+// end wave250 pure-owned leave
 
