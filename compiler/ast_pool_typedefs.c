@@ -1,11 +1,12 @@
 /* ast_pool_typedefs.c — AST pool entry + sidecar typedef domain (from ast_pool.c)
  *
- * Pool macros (AST_POOL_GROW / INIT_CAP / NO_LIMIT) + entry slots (ImportEntry /
+ * Pool macros (AST_POOL_GROW / INIT_CAP / NO_LIMIT) + GrowVec typedef (wave271:
+ * function bodies pure-owned in runtime_pipeline_abi) + entry slots (ImportEntry /
  * MatchArm / FuncParam / StructLayoutField / TopLevelLet / TypeAlias / ModuleEnum /
  * RegionBlock / OneFunc* / DepCtx / DriverEmit) + Arena/Module/OneFunc/DepCtx/
  * DriverEmit sidecar structs that embed GrowVec.
  *
- * Same-TU #include AFTER pipeline_grow_vec.c (sidecar typedefs need GrowVec) and
+ * Same-TU #include early (macros + GrowVec typedef + extern prototypes) and
  * BEFORE ast_pool_sidecar_pool.c (pool globals need these types).
  * PLATFORM: SHARED — host-cc residual; foundation for endgame .x authority.
  */
@@ -13,6 +14,34 @@
 #ifndef AST_POOL_GROW
 #define AST_POOL_GROW 4096
 #endif
+
+/**
+ * Growable vector of fixed-size elements (typedef only).
+ * wave271: bodies live in runtime_pipeline_abi pure (#[no_mangle] grow_vec_*).
+ * Layout LE sizeof 32 on LP64: data*@0 | cap i32@8 | len i32@12 | elem_sz@16 |
+ * mmap_backed i32@24. PLATFORM: SHARED — must match pure LE offsets.
+ */
+typedef struct {
+  uint8_t *data;
+  int32_t cap;
+  int32_t len;
+  size_t elem_sz;
+  /** 1 = data from mmap(MAP_ANON); free via munmap. 0 = malloc/calloc/realloc. */
+  int32_t mmap_backed;
+} GrowVec;
+
+/** Byte size at which GrowVec switches to mmap (1 MiB). */
+#ifndef GROW_VEC_MMAP_THRESH
+#define GROW_VEC_MMAP_THRESH ((size_t)(1024 * 1024))
+#endif
+
+/* wave271 pure-owned GrowVec faces (runtime_pipeline_abi T; residual U). */
+int grow_vec_init(GrowVec *v, size_t elem_sz, int32_t initial_cap);
+void grow_vec_free(GrowVec *v);
+int grow_vec_ensure(GrowVec *v);
+void *grow_vec_at(GrowVec *v, int32_t idx);
+int32_t grow_vec_push(GrowVec *v);
+void grow_vec_copy_append(GrowVec *dst, GrowVec *src);
 
 /**
  * Initial capacity (in elements) for newly-created GrowVec pools.

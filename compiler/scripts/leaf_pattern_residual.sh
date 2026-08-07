@@ -1353,7 +1353,7 @@ B7B_RELINK_LEGACY_LIST_WAVE=wave822
 #   asm_emit_call_args + asm_emit_struct_lit (wave154 pure leave) + asm_emit_vector_let + (vector_simd pure wave148) +
 #   asm_emit_struct_let + asm_emit_index_helpers + asm_emit_spill +
 #   asm_emit_block_body (wave153 pure leave) +
-#   ast_pool_module_import(leave263) + ast_pool_struct_layout(leave266) + pipeline_asm_locals(leave267) + pipeline_asm_slot_bytes(leave268) + pipeline_asm_block_tree(leave269) + ast_pool_type(leave270) +
+#   ast_pool_module_import(leave263) + ast_pool_struct_layout(leave266) + pipeline_asm_locals(leave267) + pipeline_asm_slot_bytes(leave268) + pipeline_asm_block_tree(leave269) + ast_pool_type(leave270) + pipeline_grow_vec(leave271) +
 #   ast_pool_top_level(leave265) + ast_pool_type_alias(leave262) +
 #   ast_pool_expr_sidecar + ast_pool_module_enum(leave264) +
 #   ast_pool_onefunc + ast_pool_dep_ctx + ast_pool_module_func + ast_pool_arena +
@@ -9135,6 +9135,13 @@ if grep -qE 'ast_pool_type\.c' "$_XSD_MK"; then
 fi
 if [ -f "$ROOT/compiler/ast_pool_type.c" ]; then
   bad "ast_pool_type.c must be deleted (wave270 pure-owned leave)"
+fi
+# wave271 host-cc leave: pipeline_grow_vec Cap residual retired; authority runtime_pipeline_abi pure.
+if grep -qE 'pipeline_grow_vec\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_grow_vec.c (wave271 host-cc leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_grow_vec.c" ]; then
+  bad "pipeline_grow_vec.c must be deleted (wave271 pure-owned leave)"
 fi
 if grep -qE 'ast_pool_module_import\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list ast_pool_module_import.c (wave263 host-cc leave)"

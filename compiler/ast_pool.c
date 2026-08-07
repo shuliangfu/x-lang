@@ -40,7 +40,10 @@ extern char *link_abi_getenv(const char *name);
  * Order is load-bearing: macros → GrowVec type → entry/sidecar typedefs → pool
  * globals → ptr_at. PLATFORM: SHARED — same-TU #include into pipeline_glue / pipeline_x.
  */
-#include "pipeline_grow_vec.c"
+/* 2026-08-08: pipeline_grow_vec.c pure-owned leave (wave271).
+ * Live faces: runtime_pipeline_abi pure grow_vec_init/free/ensure/at/push/copy_append.
+ * Typedef + extern prototypes: ast_pool_typedefs.c. dual-export ban (pipeline_x U).
+ * PLATFORM: SHARED freestanding GrowVec Cap leave. */
 #include "ast_pool_typedefs.c"
 #include "ast_pool_sidecar_pool.c"
 #include "ast_pool_ptr_at.c"

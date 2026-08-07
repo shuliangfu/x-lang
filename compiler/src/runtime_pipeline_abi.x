@@ -4,6 +4,10 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave271: pipeline_grow_vec.c pure-owned leave (GrowVec init/free/ensure/at/push/
+//   copy_append + mmap large-path RSS). Layout LE sizeof 32: data*@0 cap@8 len@12
+//   elem_sz@16 mmap_backed@24. Residual keeps typedef + extern prototypes only.
+//   Seed cold twins under #ifndef FROM_X. PLATFORM: POSIX mmap (mac+linux).
 // wave270: ast_pool_type.c pure-owned leave (pipeline_type_* pool accessors +
 //   find_or_alloc slice/ptr/named/compound + init/ensure + region label).
 //   Cap residual: pipeline_arena_type_ptr/alloc stay host-cc (ast_pool_arena).
@@ -422,6 +426,7 @@ export extern "C" function typeck_merge_dep_struct_layouts_into_entry(mod: *u8, 
 export extern "C" function typeck_wpo_unify_soa_layouts(entry: *u8, ctx: *u8): void;
 // wave121: pipeline_module_main_func_index is pure export function below (lint_meta leave).
 export extern "C" function free(p: *u8): void;
+export extern "C" function munmap(addr: *u8, len: usize): i32;
 /** Release process-wide ArenaSidecar GrowVecs before free(arena).
  * PLATFORM: SHARED - required for batch check (collect_deps tmp arenas). */
 export extern "C" function ast_pool_arena_release(a: *u8): void;
@@ -75806,3 +75811,502 @@ export function pipeline_type_find_or_alloc_compound(a: *u8, kind_ord: i32, elem
 
 // end wave270 pure-owned leave
 
+
+// wave271: pipeline_grow_vec.c pure-owned leave
+// =============================================================================
+// G.7 product authority for:
+//   grow_vec_init / grow_vec_free / grow_vec_ensure / grow_vec_at /
+//   grow_vec_push / grow_vec_copy_append
+// Internal pure helpers:
+//   pipe_gv_off_* / pipe_gv_load_* / pipe_gv_store_* / pipe_gv_mmap_flags /
+//   pipe_gv_alloc_bytes / pipe_gv_dealloc_bytes / pipe_gv_ptr_is_map_failed
+// Layout LE sizeof GrowVec = 32 (LP64):
+//   data *u8 @0 | cap i32 @8 | len i32 @12 | elem_sz size_t @16 | mmap_backed i32 @24
+// Growth policy matches C residual (wave1242b geometric mmap; linear heap step):
+//   AST_POOL_INIT_CAP=256, AST_POOL_GROW=4096, GROW_VEC_MMAP_THRESH=1048576
+// dual-export ban: pure T; pipeline_x residual U for grow_vec_*.
+// PLATFORM: SHARED freestanding GrowVec · POSIX mmap (LINUX MAP_ANON=0x20 /
+// MACOS MAP_ANON=0x1000) · WINDOWS falls back to calloc/realloc (no mmap).
+// =============================================================================
+
+// Cap residual libc / POSIX for GrowVec large-path RSS (mmap munmap).
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+export extern "C" function realloc(ptr: *u8, size: usize): *u8;
+export extern "C" function mmap(addr: *u8, length: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+// munmap / free / memcpy / memset / malloc already declared earlier in this TU.
+
+/**
+ * GrowVec field offsets (LP64 little-endian).
+ * PLATFORM: SHARED — must match C sizeof(GrowVec)==32.
+ */
+function pipe_gv_off_data(): i32 { return 0; }
+function pipe_gv_off_cap(): i32 { return 8; }
+function pipe_gv_off_len(): i32 { return 12; }
+function pipe_gv_off_elem_sz(): i32 { return 16; }
+function pipe_gv_off_mmap(): i32 { return 24; }
+function pipe_gv_init_cap(): i32 { return 256; }
+function pipe_gv_grow_step(): i32 { return 4096; }
+function pipe_gv_mmap_thresh(): i64 { return 1048576; }
+
+/**
+ * Load GrowVec.data pointer.
+ * @param v *u8 - GrowVec*
+ * @return *u8 - data or null
+ */
+function pipe_gv_load_data(v: *u8): *u8 {
+  if (v == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return xlang_ptr_slot_get(v, 0);
+}
+
+/**
+ * Store GrowVec.data pointer.
+ * @param v *u8 - GrowVec*
+ * @param p *u8 - data pointer
+ */
+function pipe_gv_store_data(v: *u8, p: *u8): void {
+  if (v == 0 as *u8) {
+    return;
+  }
+  xlang_ptr_slot_set(v, 0, p);
+}
+
+/**
+ * Load GrowVec.cap.
+ * @param v *u8 - GrowVec*
+ * @return i32
+ */
+function pipe_gv_load_cap(v: *u8): i32 {
+  return pipe_load_i32_le(v, pipe_gv_off_cap());
+}
+
+/**
+ * Store GrowVec.cap.
+ * @param v *u8 - GrowVec*
+ * @param c i32
+ */
+function pipe_gv_store_cap(v: *u8, c: i32): void {
+  pipe_store_i32_le(v, pipe_gv_off_cap(), c);
+}
+
+/**
+ * Load GrowVec.len.
+ * @param v *u8 - GrowVec*
+ * @return i32
+ */
+function pipe_gv_load_len(v: *u8): i32 {
+  return pipe_load_i32_le(v, pipe_gv_off_len());
+}
+
+/**
+ * Store GrowVec.len.
+ * @param v *u8 - GrowVec*
+ * @param n i32
+ */
+function pipe_gv_store_len(v: *u8, n: i32): void {
+  pipe_store_i32_le(v, pipe_gv_off_len(), n);
+}
+
+/**
+ * Load GrowVec.elem_sz (size_t as i64).
+ * @param v *u8 - GrowVec*
+ * @return i64
+ */
+function pipe_gv_load_elem_sz(v: *u8): i64 {
+  if (v == 0 as *u8) {
+    return 0;
+  }
+  // elem_sz at byte offset 16 = size_t slot index 2
+  return xlang_size_slot_get(v, 2);
+}
+
+/**
+ * Store GrowVec.elem_sz.
+ * @param v *u8 - GrowVec*
+ * @param es i64 - element size in bytes
+ */
+function pipe_gv_store_elem_sz(v: *u8, es: i64): void {
+  if (v == 0 as *u8) {
+    return;
+  }
+  xlang_size_slot_set(v, 2, es);
+}
+
+/**
+ * Load GrowVec.mmap_backed flag.
+ * @param v *u8 - GrowVec*
+ * @return i32 - 0 or 1
+ */
+function pipe_gv_load_mmap(v: *u8): i32 {
+  return pipe_load_i32_le(v, pipe_gv_off_mmap());
+}
+
+/**
+ * Store GrowVec.mmap_backed flag.
+ * @param v *u8 - GrowVec*
+ * @param mm i32
+ */
+function pipe_gv_store_mmap(v: *u8, mm: i32): void {
+  pipe_store_i32_le(v, pipe_gv_off_mmap(), mm);
+}
+
+/**
+ * True when p is MAP_FAILED ((void*)-1).
+ * @param p *u8 - mmap result
+ * @return i32 - 1 if failed mapping, else 0
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_gv_ptr_is_map_failed(p: *u8): i32 {
+  if (p == 0 as *u8) {
+    return 0;
+  }
+  let cell: u8[8] = [];
+  xlang_ptr_slot_set(&cell[0], 0, p);
+  let bits: i64 = xlang_size_slot_get(&cell[0], 0);
+  // MAP_FAILED == (void*)-1 on LP64; keep i64 on both sides (T001).
+  let failed: i64 = 0 as i64;
+  failed = failed - 1;
+  if (bits == failed) {
+    return 1;
+  }
+  return 0;
+}
+
+/** MAP_PRIVATE (0x02) | MAP_ANON — platform-specific MAP_ANON. */
+#[cfg(target_os = "linux")]
+let g_pipe_gv_mmap_flags: i32 = 34; // 0x02|0x20
+#[cfg(target_os = "macos")]
+let g_pipe_gv_mmap_flags: i32 = 4098; // 0x02|0x1000
+#[cfg(target_os = "windows")]
+let g_pipe_gv_mmap_flags: i32 = 0;
+#[cfg(not(target_os = "linux"))]
+#[cfg(not(target_os = "macos"))]
+#[cfg(not(target_os = "windows"))]
+let g_pipe_gv_mmap_flags: i32 = 0;
+
+/**
+ * MAP_PRIVATE|MAP_ANON flags for anonymous mmap.
+ * @return i32 - flags (0 => disable mmap path)
+ * PLATFORM: LINUX MAP_ANON=0x20; MACOS MAP_ANON=0x1000; else 0.
+ */
+function pipe_gv_mmap_flags(): i32 {
+  return g_pipe_gv_mmap_flags;
+}
+
+/**
+ * Allocate nbytes for GrowVec data (mmap large; calloc small).
+ * @param nbytes i64 - byte count; <=0 -> null
+ * @param out_mm *i32 - set to 1 if mmap-backed, else 0; may be null
+ * @return *u8 - buffer or null
+ * PLATFORM: POSIX mmap when thresh met; WINDOWS calloc only.
+ */
+function pipe_gv_alloc_bytes(nbytes: i64, out_mm: *i32): *u8 {
+  if (out_mm != 0 as *i32) {
+    unsafe {
+      out_mm[0] = 0;
+    }
+  }
+  if (nbytes <= 0) {
+    return 0 as *u8;
+  }
+  // Prefer mmap for large blocks when POSIX flags available (RSS munmap path).
+  let flags: i32 = pipe_gv_mmap_flags();
+  if (flags != 0 && nbytes >= pipe_gv_mmap_thresh()) {
+    let p: *u8 = 0 as *u8;
+    let fd: i32 = 0;
+    fd = fd - 1;
+    let off: i64 = 0 as i64;
+    unsafe {
+      p = mmap(0 as *u8, nbytes as usize, 3, flags, fd, off);
+    }
+    if (p != 0 as *u8 && pipe_gv_ptr_is_map_failed(p) == 0) {
+      if (out_mm != 0 as *i32) {
+        unsafe {
+          out_mm[0] = 1;
+        }
+      }
+      return p;
+    }
+  }
+  let one: usize = 1 as usize;
+  let nb: usize = nbytes as usize;
+  let p2: *u8 = 0 as *u8;
+  unsafe {
+    p2 = calloc(one, nb);
+  }
+  return p2;
+}
+
+function pipe_gv_dealloc_bytes(p: *u8, nbytes: i64, mmap_backed: i32): void {
+  if (p == 0 as *u8) {
+    return;
+  }
+  if (mmap_backed != 0) {
+    if (nbytes > 0) {
+      unsafe {
+        munmap(p, nbytes as usize);
+      }
+    }
+    return;
+  }
+  unsafe {
+    free(p);
+  }
+}
+
+/**
+ * Initialize a GrowVec with capacity initial_cap elements of size elem_sz.
+ * @param v *u8 - GrowVec*; null -> 0
+ * @param elem_sz i64 - element byte size; <=0 -> 0
+ * @param initial_cap i32 - initial capacity; <=0 uses AST_POOL_INIT_CAP (256)
+ * @return i32 - 1 success, 0 failure
+ * wave271 pure-owned leave (was static grow_vec_init).
+ * PLATFORM: SHARED freestanding GrowVec Cap leave.
+ */
+#[no_mangle]
+export function grow_vec_init(v: *u8, elem_sz: i64, initial_cap: i32): i32 {
+  if (v == 0 as *u8) {
+    return 0;
+  }
+  if (elem_sz <= 0) {
+    return 0;
+  }
+  pipe_gv_store_data(v, 0 as *u8);
+  pipe_gv_store_cap(v, 0);
+  pipe_gv_store_len(v, 0);
+  pipe_gv_store_elem_sz(v, elem_sz);
+  pipe_gv_store_mmap(v, 0);
+  let ic: i32 = initial_cap;
+  if (ic <= 0) {
+    ic = pipe_gv_init_cap();
+  }
+  let nbytes: i64 = (ic as i64) * elem_sz;
+  let mm: i32 = 0;
+  let p: *u8 = pipe_gv_alloc_bytes(nbytes, &mm);
+  if (p == 0 as *u8) {
+    return 0;
+  }
+  pipe_gv_store_data(v, p);
+  pipe_gv_store_mmap(v, mm);
+  pipe_gv_store_cap(v, ic);
+  return 1;
+}
+
+/**
+ * Free GrowVec data and reset fields (does not free the GrowVec struct itself).
+ * @param v *u8 - GrowVec*; null -> no-op
+ * @return void
+ * wave271 pure-owned leave (was static grow_vec_free).
+ * PLATFORM: SHARED freestanding GrowVec Cap leave.
+ */
+#[no_mangle]
+export function grow_vec_free(v: *u8): void {
+  if (v == 0 as *u8) {
+    return;
+  }
+  let data: *u8 = pipe_gv_load_data(v);
+  if (data != 0 as *u8) {
+    let cap: i32 = pipe_gv_load_cap(v);
+    let es: i64 = pipe_gv_load_elem_sz(v);
+    let nbytes: i64 = (cap as i64) * es;
+    let mm: i32 = pipe_gv_load_mmap(v);
+    pipe_gv_dealloc_bytes(data, nbytes, mm);
+    pipe_gv_store_data(v, 0 as *u8);
+  }
+  pipe_gv_store_cap(v, 0);
+  pipe_gv_store_len(v, 0);
+  pipe_gv_store_mmap(v, 0);
+}
+
+/**
+ * Ensure capacity for one more element.
+ * @param v *u8 - GrowVec*; null -> 0
+ * @return i32 - 1 success, 0 failure
+ * Growth: geometric double when mmap/large; linear AST_POOL_GROW when small heap.
+ * wave271 pure-owned leave (was static grow_vec_ensure).
+ * PLATFORM: SHARED freestanding GrowVec Cap leave.
+ */
+#[no_mangle]
+export function grow_vec_ensure(v: *u8): i32 {
+  if (v == 0 as *u8) {
+    return 0;
+  }
+  let len: i32 = pipe_gv_load_len(v);
+  let cap: i32 = pipe_gv_load_cap(v);
+  let need: i32 = len + 1;
+  if (need <= cap) {
+    return 1;
+  }
+  let es: i64 = pipe_gv_load_elem_sz(v);
+  if (es <= 0) {
+    return 0;
+  }
+  let old_cap: i32 = cap;
+  let nc: i32 = cap;
+  if (nc <= 0) {
+    nc = pipe_gv_grow_step();
+  }
+  let mm_flag: i32 = pipe_gv_load_mmap(v);
+  let thresh: i64 = pipe_gv_mmap_thresh();
+  let use_geo: i32 = 0;
+  if (mm_flag != 0) {
+    use_geo = 1;
+  }
+  if ((need as i64) * es >= thresh) {
+    use_geo = 1;
+  }
+  if ((nc as i64) * es >= thresh) {
+    use_geo = 1;
+  }
+  if (use_geo != 0) {
+    while (nc < need) {
+      if (nc > 1073741823) {
+        nc = need;
+        break;
+      }
+      nc = nc * 2;
+    }
+    if (nc < need) {
+      nc = need;
+    }
+  } else {
+    while (nc < need) {
+      nc = nc + pipe_gv_grow_step();
+    }
+  }
+  let old_bytes: i64 = (old_cap as i64) * es;
+  let new_bytes: i64 = (nc as i64) * es;
+  let data: *u8 = pipe_gv_load_data(v);
+  if (mm_flag != 0 || new_bytes >= thresh) {
+    let mm: i32 = 0;
+    let p: *u8 = pipe_gv_alloc_bytes(new_bytes, &mm);
+    if (p == 0 as *u8) {
+      return 0;
+    }
+    if (data != 0 as *u8 && old_bytes > 0) {
+      unsafe {
+        memcpy(p, data, old_bytes as usize);
+      }
+    }
+    pipe_gv_dealloc_bytes(data, old_bytes, mm_flag);
+    pipe_gv_store_data(v, p);
+    pipe_gv_store_mmap(v, mm);
+    pipe_gv_store_cap(v, nc);
+    return 1;
+  }
+  let p2: *u8 = 0 as *u8;
+  unsafe {
+    p2 = realloc(data, new_bytes as usize);
+  }
+  if (p2 == 0 as *u8) {
+    return 0;
+  }
+  if (new_bytes > old_bytes) {
+    unsafe {
+      memset(p2 + (old_bytes as usize), 0, (new_bytes - old_bytes) as usize);
+    }
+  }
+  pipe_gv_store_data(v, p2);
+  pipe_gv_store_mmap(v, 0);
+  pipe_gv_store_cap(v, nc);
+  return 1;
+}
+
+/**
+ * Return pointer to element idx, or null if out of range.
+ * @param v *u8 - GrowVec*
+ * @param idx i32 - element index
+ * @return *u8 - element address or null
+ * wave271 pure-owned leave (was static grow_vec_at).
+ * PLATFORM: SHARED freestanding GrowVec Cap leave.
+ */
+#[no_mangle]
+export function grow_vec_at(v: *u8, idx: i32): *u8 {
+  if (v == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let data: *u8 = pipe_gv_load_data(v);
+  if (data == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (idx < 0) {
+    return 0 as *u8;
+  }
+  let len: i32 = pipe_gv_load_len(v);
+  if (idx >= len) {
+    return 0 as *u8;
+  }
+  let es: i64 = pipe_gv_load_elem_sz(v);
+  if (es <= 0) {
+    return 0 as *u8;
+  }
+  let off: i64 = (idx as i64) * es;
+  return data + (off as usize);
+}
+
+/**
+ * Append one zeroed element; return new index or -1.
+ * @param v *u8 - GrowVec*
+ * @return i32 - new index or -1
+ * wave271 pure-owned leave (was static grow_vec_push).
+ * PLATFORM: SHARED freestanding GrowVec Cap leave.
+ */
+#[no_mangle]
+export function grow_vec_push(v: *u8): i32 {
+  if (v == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (grow_vec_ensure(v) == 0) {
+    return 0 - 1;
+  }
+  let idx: i32 = pipe_gv_load_len(v);
+  let data: *u8 = pipe_gv_load_data(v);
+  let es: i64 = pipe_gv_load_elem_sz(v);
+  if (data == 0 as *u8 || es <= 0) {
+    return 0 - 1;
+  }
+  let off: i64 = (idx as i64) * es;
+  unsafe {
+    memset(data + (off as usize), 0, es as usize);
+  }
+  pipe_gv_store_len(v, idx + 1);
+  return idx;
+}
+
+/**
+ * Append all elements of src onto dst (element-wise memcpy).
+ * @param dst *u8 - destination GrowVec*
+ * @param src *u8 - source GrowVec*
+ * @return void
+ * wave271 pure-owned leave (was static grow_vec_copy_append).
+ * PLATFORM: SHARED freestanding GrowVec Cap leave.
+ */
+#[no_mangle]
+export function grow_vec_copy_append(dst: *u8, src: *u8): void {
+  if (dst == 0 as *u8 || src == 0 as *u8) {
+    return;
+  }
+  let sn: i32 = pipe_gv_load_len(src);
+  let ses: i64 = pipe_gv_load_elem_sz(src);
+  if (ses <= 0) {
+    return;
+  }
+  let i: i32 = 0;
+  while (i < sn) {
+    let ps: *u8 = grow_vec_at(src, i);
+    if (grow_vec_push(dst) < 0) {
+      return;
+    }
+    let dn: i32 = pipe_gv_load_len(dst);
+    let pd: *u8 = grow_vec_at(dst, dn - 1);
+    if (ps != 0 as *u8 && pd != 0 as *u8) {
+      unsafe {
+        memcpy(pd, ps, ses as usize);
+      }
+    }
+    i = i + 1;
+  }
+}
+
+// end wave271 pure-owned leave
