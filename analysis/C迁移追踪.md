@@ -960,7 +960,7 @@
 | `pipeline_asm_emit_heavy_env.c` | 0（absent） | EMIT_HEAVY 阈值／env／path／whitelist／prefix | ✅ pure-owned leave（runtime_pipeline_abi pure；Cap residual top_level_let／expr／driver_get；parser_emit_heavy 保留 typedef） |
 | `pipeline_backend_asm_wrapper.c` | ~96 | M8-tail `asm_codegen_ast`／`to_elf` 薄包装 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `pipeline_scratch_bufs.c` | **absent** | codegen path/prefix scratch 缓冲池 | ✅ **host-cc leave**（2026-08-05）：live 面在 codegen_x.o（seed）；文件 absent |
-| `ast_pool_module_import.c` | ~226 | module ImportEntry cold-twin accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
+| `ast_pool_module_import.c` | **0（leave）** | module ImportEntry Cap residual pure-owned leave (wave263) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map（wave110）+ faces；seed cold twins under #ifndef FROM_X；same-TU pure face decls |
 | `ast_pool_struct_layout.c` | ~385 | module StructLayout cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_top_level.c` | ~326 | module TopLevelLetEntry + name_is_const／hoist + hoist_target／sum residual 切片 | 🟡 已抽出（wave980+993–994 有则补全）；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_type_alias.c` | **0（leave）** | module TypeAliasEntry Cap residual pure-owned leave (wave262) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map + faces；lifecycle reset／release 钩 pure；seed cold twins under #ifndef FROM_X |
@@ -1071,6 +1071,7 @@
   - 验收（父项 ✅ 条件）：ast_pool 业务体不再 host-cc；与 ast.x 单权威
   - **进度（2026-08-04）**：core **~5.4k**；多域 thin 已切 + **ELF/Mach-O write 已切出** + **ELF ctx 已切出** + **type-to-c 已切出** + **skip/force 已切出** + **struct emit 已切出** + **codegen residual 已切出** + **asm locals/slot_bytes/block_tree/ctx_loop 已切出** + **WPO v0 DCE 已切出** + **self-host classification 已切出** + **M8-tail thin delegate 已切出** + **EMIT_HEAVY safe-helper 已切出** + **parser EMIT_HEAVY 已切出**；残余 core
   - ✅ module_import 域 thin：`ast_pool_module_import.c`（XLANG_WEAK ImportEntry cold twins ~208 LOC）自 `ast_pool.c` 同 TU `#include` 抽出；COUNT 34→35
+  - ✅ module_import host-cc leave（wave263）：live＝runtime_pipeline_abi pure multi-module ImportEntry map（wave110）；seed cold twin under #ifndef FROM_X；file absent；same-TU pure face decls
   - ✅ struct_layout 域 thin：`ast_pool_struct_layout.c`（`pipeline_module_struct_layout_*` + num + type_param meta ~365 LOC）同 TU 抽出；COUNT 35→36 / g05 STALE / inventory 已收
   - ✅ top_level 域 thin：`ast_pool_top_level.c`（`pipeline_module_top_level_let_*` ~113 LOC）同 TU 抽出；COUNT 36→37 / g05 STALE / inventory 已收
   - ✅ type_alias 域 thin：`ast_pool_type_alias.c`（`pipeline_module_type_alias_*` + `num_type_aliases_at` ~80 LOC body）同 TU 抽出；COUNT 37→38 / g05 STALE / inventory 已收

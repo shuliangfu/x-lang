@@ -73,7 +73,7 @@ PRODUCT_RESIDUAL_ROWS=(
   # ast_pool ~0.18k pure #include orchestration; domain bodies live in leaves.
   "compiler/ast_pool.c|8.3.2|AST pool host shell (#include orchestration only)|100|present"
   # --- 8.3.2 ast_pool domain leaves (same-TU into pipeline_x) ---
-  "compiler/ast_pool_module_import.c|8.3.2|module ImportEntry cold-twin accessors slice|180|present"
+  "compiler/ast_pool_module_import.c|8.3.2|module ImportEntry Cap residual pure-owned leave (wave263)|0|absent"
   "compiler/ast_pool_struct_layout.c|8.3.2|module StructLayout cold accessors slice|360|present"
   "compiler/ast_pool_top_level.c|8.3.2|module TopLevelLetEntry cold accessors + name_is_const/hoist + hoist_target/sum residual slice|290|present"
   "compiler/ast_pool_type_alias.c|8.3.2|module TypeAliasEntry Cap residual pure-owned leave (wave262)|0|absent"
@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 elf residual / ast_pool leaf / pipeline_x mega host-cc leave (type_alias leave wave262); pure-owned leave candidates: elf_ctx + elf_write_o + module_import/enum/top_level + grow_vec/ptr_at + glue_fwd shells + asm locals/slot/block_tree/wpo"
+  echo "NEXT=8.3.1 elf residual / ast_pool leaf / pipeline_x mega host-cc leave (module_import leave wave263); pure-owned leave candidates: elf_ctx + elf_write_o + enum/top_level/struct_layout + grow_vec/ptr_at + glue_fwd shells + asm locals/slot/block_tree/wpo"
 }
 
 run_check() {

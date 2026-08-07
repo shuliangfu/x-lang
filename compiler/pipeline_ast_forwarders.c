@@ -431,6 +431,30 @@ int32_t ast_pipeline_block_append_for(struct ast_ASTArena *a, int32_t br, int32_
                                       int32_t step_ref, int32_t body_ref) {
   return pipeline_block_append_for(a, br, init_ref, cond_ref, step_ref, body_ref);
 }
+/* wave263: ImportEntry Cap residual pure-owned leave.
+ * Authority: runtime_pipeline_abi.x (#[no_mangle] pipeline_module_import_*).
+ * Same-TU residual XLANG_WEAK defs retired — declare pure faces so
+ * ast_pipeline_module_import_* thin wrappers compile after residual delete.
+ * PLATFORM: SHARED freestanding module_import Cap leave. */
+void pipeline_module_import_storage_release(struct ast_Module *m);
+int32_t pipeline_module_import_alloc(struct ast_Module *m);
+void pipeline_module_import_set_path(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+int32_t pipeline_module_import_path_len(struct ast_Module *m, int32_t idx);
+void pipeline_module_import_path_copy(struct ast_Module *m, int32_t idx, uint8_t *dst, int32_t dst_cap);
+uint8_t pipeline_module_import_path_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+void pipeline_module_import_set_kind(struct ast_Module *m, int32_t idx, int32_t kind);
+int32_t pipeline_module_import_kind_at(struct ast_Module *m, int32_t idx);
+void pipeline_module_import_set_binding_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+int32_t pipeline_module_import_binding_name_len(struct ast_Module *m, int32_t idx);
+uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+void pipeline_module_import_set_select_count(struct ast_Module *m, int32_t idx, int32_t n);
+int32_t pipeline_module_import_append_select_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+int32_t pipeline_module_import_select_count_at(struct ast_Module *m, int32_t idx);
+void pipeline_module_import_set_select_name(struct ast_Module *m, int32_t idx, int32_t sel, uint8_t *bytes,
+                                           int32_t len);
+int32_t pipeline_module_import_select_name_len(struct ast_Module *m, int32_t idx, int32_t sel);
+uint8_t pipeline_module_import_select_name_byte_at(struct ast_Module *m, int32_t idx, int32_t sel, int32_t off);
+
 int32_t ast_pipeline_module_import_alloc(struct ast_Module *m) {
   return pipeline_module_import_alloc(m);
 }

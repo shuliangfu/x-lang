@@ -99,7 +99,31 @@ extern void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct a
 /** ---------- Module import / struct_layout / top_level / enum 动态池 ---------- */
 
 /** BC 8.3.2: module ImportEntry cold-twin accessors (same-TU thin). */
-#include "ast_pool_module_import.c"
+/* 2026-08-08 wave263: ast_pool_module_import.c pure-owned leave.
+ * Live faces: runtime_pipeline_abi.x (pipeline_module_import_* full set +
+ * storage_release; wave110 pure multi-module map). Cap residual: ModuleSidecar
+ * imports / import_select_* GrowVec still init/free in sidecar_pool (unused for
+ * product imports after leave). PLATFORM: SHARED.
+ * Same-TU pure face decls (residual XLANG_WEAK defs retired; later domain
+ * slices + pipeline_ast_forwarders call these as extern). */
+void pipeline_module_import_storage_release(struct ast_Module *m);
+int32_t pipeline_module_import_alloc(struct ast_Module *m);
+void pipeline_module_import_set_path(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+int32_t pipeline_module_import_path_len(struct ast_Module *m, int32_t idx);
+void pipeline_module_import_path_copy(struct ast_Module *m, int32_t idx, uint8_t *dst, int32_t dst_cap);
+uint8_t pipeline_module_import_path_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+void pipeline_module_import_set_kind(struct ast_Module *m, int32_t idx, int32_t kind);
+int32_t pipeline_module_import_kind_at(struct ast_Module *m, int32_t idx);
+void pipeline_module_import_set_binding_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+int32_t pipeline_module_import_binding_name_len(struct ast_Module *m, int32_t idx);
+uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+void pipeline_module_import_set_select_count(struct ast_Module *m, int32_t idx, int32_t n);
+int32_t pipeline_module_import_append_select_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+int32_t pipeline_module_import_select_count_at(struct ast_Module *m, int32_t idx);
+void pipeline_module_import_set_select_name(struct ast_Module *m, int32_t idx, int32_t sel, uint8_t *bytes,
+                                           int32_t len);
+int32_t pipeline_module_import_select_name_len(struct ast_Module *m, int32_t idx, int32_t sel);
+uint8_t pipeline_module_import_select_name_byte_at(struct ast_Module *m, int32_t idx, int32_t sel, int32_t off);
 
 /** BC 8.3.2: module StructLayout cold accessors (same-TU thin). */
 #include "ast_pool_struct_layout.c"

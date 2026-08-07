@@ -4,6 +4,11 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave263: ast_pool_module_import.c pure-owned leave (ImportEntry multi-module map +
+//   pipeline_module_import_* full set + storage_release; wave110 pure authority).
+//   Cap residual XLANG_WEAK GrowVec twins deleted; ModuleSidecar.imports /
+//   import_select_* GrowVec still init/free in sidecar_pool (unused for product
+//   imports after leave). Seed cold twins under #ifndef FROM_X.
 // wave262: ast_pool_type_alias.c pure-owned leave (TypeAliasEntry multi-module map +
 //   pipeline_module_type_alias_* / num_type_aliases_at / storage_reset|release).
 //   Cap residual: ModuleSidecar GrowVec init/free still in sidecar_pool (unused for
