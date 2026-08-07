@@ -1,19 +1,24 @@
 /**
- * pipeline_typeck_check_block.c — typeck check_block orchestration domain (BC 8.3.1).
+ * pipeline_typeck_check_block.c — typeck check_block domain Cap residual thin
+ * (BC 8.3.1 wave226 pure leave).
  *
- * Mechanically extracted from pipeline_glue.c (same translation unit via
- * #include). Authority for product-mega block typeck orchestration:
- * - block_impl bind/restore/touch current_block_ref
- * - loop_depth / unsafe_depth push/pop/set (+ dep_ctx unsafe_depth_at)
- * - pipeline_typeck_check_block_impl_c (stmt_order / legacy one_* + final)
- * - XLANG_WEAK check_block_impl fallback
- * - pipeline_typeck_check_block_c → typeck_check_block
- * - pipeline_typeck_check_block_as_loop_body_c (loop_depth + check_block)
+ * wave226 G.7 pure leave: product-mega check_block orchestration bodies
+ * retired from host-cc residual. Live walker authority is typeck.x
+ * (typeck_check_block / typeck_check_block_impl / typeck_check_block_as_loop_body
+ * + one_* / final / stmt_order). Cap residual keeps only:
+ *   1. Ctx/depth sidecars typeck.x still calls via C ABI
+ *      (bind/restore/touch, loop_depth, unsafe_depth)
+ *   2. Thin product faces: check_block_c / impl_c / as_loop_body_c /
+ *      XLANG_WEAK check_block_impl → typeck_x.o
+ *   3. Linear move-tracking cluster (g_typeck_linear_moved_*; typeck.x
+ *      still externs the _c faces — not dual walker)
+ *   4. Implicit-return-tail cluster (has_implicit residual still live;
+ *      tail face thin→typeck when typeck twin is complete)
+ *   5. XLANG_WEAK patch_all_body_parent_links cold fallback
  *
- * G.7: single product-mega check_block orchestration path — typeck.x twins
- * (check_block / check_block_impl / check_block_as_loop_body) must stay
- * aligned; do not open a second block walker in emit or a parallel glue copy.
- * typeck.o one_* / final helpers remain external (typeck_x.o EMIT_HEAVY).
+ * Dual-export ban: do NOT re-open a second block walker here or in
+ * runtime_pipeline_abi; typeck.x is single authority (includes region
+ * stmt_order + parent_block_ref — residual C walker had drifted).
  *
  * Not compiled as a separate .o — #included from pipeline_glue.c after
  * pipeline_typeck_check_expr_c and before x_ast_check_one_func.
@@ -23,7 +28,7 @@
  *   g_typeck_active_ctx
  * Sole same-TU consumers of these statics are this file (unsafe/linear APIs).
  * g_typeck_active_module stays early in pipeline_glue.c (ctfe/assign/coerce
- * read it before this #include). PLATFORM: SHARED.
+ * read it before this #include). PLATFORM: SHARED freestanding typeck.
  */
 
 /** LANG-007 v2: unsafe { } nest depth sidecar (no PipelineDepCtx ABI growth). */
@@ -107,204 +112,54 @@ void pipeline_typeck_loop_depth_set_c(struct ast_PipelineDepCtx *ctx, int32_t de
   ctx->typeck_loop_depth = depth;
 }
 
-/** typeck_check_block_one_if 包装：XLANG_DEBUG_PIPE 时打印失败 if 的条件类型，便于 dep prerun 定位。 */
-static int32_t pipeline_typeck_check_block_one_if_dbg_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                        int32_t block_ref, int32_t return_type_ref,
-                                                        struct ast_PipelineDepCtx *ctx, int32_t idx) {
-  int32_t rc;
-  int32_t ic_cr;
-  int32_t got_ty;
+/* Live walker authority in typeck_x.o (typeck.x exports, typeck_ prefix). */
+extern int32_t typeck_check_block(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
+                                  int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_check_block_impl(struct ast_Module *module, struct ast_ASTArena *arena,
+                                       int32_t block_ref, int32_t return_type_ref,
+                                       struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_check_block_as_loop_body(struct ast_Module *module, struct ast_ASTArena *arena,
+                                               int32_t body_ref, int32_t return_type_ref,
+                                               struct ast_PipelineDepCtx *ctx);
+extern int32_t typeck_func_body_tail_expr_ref_for_implicit_rule(struct ast_ASTArena *arena,
+                                                               int32_t body_ref);
 
-  rc = typeck_check_block_one_if(module, arena, block_ref, return_type_ref, ctx, idx);
-  if (rc != 0 && link_abi_getenv("XLANG_DEBUG_PIPE")) {
-    ic_cr = ast_ast_block_if_cond_ref(arena, block_ref, idx);
-    got_ty = ast_ref_is_null(ic_cr) ? 0 : pipeline_expr_resolved_type_ref(arena, ic_cr);
-    fprintf(stderr,
-            "xlang: [XLANG_DEBUG_PIPE] check_block_one_if fail func=%d block=%d idx=%d cond=%d got_ty=%d is_bool=%d\n",
-            ctx ? (int)ctx->current_func_index : -1, (int)block_ref, (int)idx, (int)ic_cr, (int)got_ty,
-            (int)pipeline_typeck_type_ref_is_bool_c(arena, got_ty));
-    fflush(stderr);
-  }
-  return rc;
+/**
+ * Product-mega C face for block typeck orchestration.
+ *
+ * Why thin (wave226): residual C walker was dual of typeck.x check_block_impl
+ * and had drifted (no region stmt_order, no parent_block_ref stamp). Product
+ * always links typeck_x.o (PREFER_X_O / pure-ld); G.7 single authority.
+ *
+ * Callers: x_frontend_link_alias check_block_impl, XLANG_WEAK check_block_impl.
+ * Contract: same as typeck_check_block_impl — 0 ok, -1 fail.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                           int32_t block_ref, int32_t return_type_ref,
+                                           struct ast_PipelineDepCtx *ctx) {
+  return typeck_check_block_impl(module, arena, block_ref, return_type_ref, ctx);
 }
 
 /**
- * typeck.x::check_block_impl 的 C 委托：stmt_order/legacy 编排（C while）+ typeck.o one_* / final。
- * strict+pipeline 链不链整颗 typeck.o 时须自包含，不可 extern X 递归 walker。
+ * Cold fallback when no strong check_block_impl is linked (frontend_link_alias
+ * / typeck_x own the product face). Still routes to typeck_x.o via thin impl_c.
+ * PLATFORM: SHARED.
  */
-int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
-                                           int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
-  int32_t saved_block_ref;
-  int32_t nc;
-  int32_t nl;
-  int32_t nlp;
-  int32_t nfp;
-  int32_t nif;
-  int32_t nes;
-  int32_t nso;
-  int32_t fin0;
-  int32_t si;
-  int32_t i;
-  uint8_t sk;
-  int32_t idx;
-  int32_t es_ref;
-
-  if (!arena || !ctx || block_ref <= 0)
-    return -1;
-  saved_block_ref = pipeline_typeck_block_impl_bind_ctx_c(ctx, block_ref);
-  nc = ast_ast_block_num_consts(arena, block_ref);
-  nl = ast_ast_block_num_lets(arena, block_ref);
-  nlp = ast_ast_block_num_loops(arena, block_ref);
-  nfp = ast_ast_block_num_for_loops(arena, block_ref);
-  nif = ast_ast_block_num_if_stmts(arena, block_ref);
-  nes = ast_ast_block_num_expr_stmts(arena, block_ref);
-  nso = ast_ast_block_num_stmt_order(arena, block_ref);
-  fin0 = ast_ast_block_final_expr_ref(arena, block_ref);
-  driver_diagnostic_typeck_block_enter(ctx->current_func_index, block_ref, nc, nl, nlp, nfp, nes, fin0);
-  if (nso > 0) {
-    si = 0;
-    while (si < nso && si < 96) {
-      pipeline_typeck_block_impl_touch_ctx_block_c(ctx, block_ref);
-      sk = ast_ast_block_stmt_order_kind(arena, block_ref, si);
-      idx = ast_ast_block_stmt_order_idx(arena, block_ref, si);
-      if (sk == 0) {
-        if (idx >= 0 && idx < nc && idx < 128) {
-          if (typeck_check_block_one_const(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-            if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-              fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d sk=const idx=%d\n",
-                      (int)ctx->current_func_index, (int)idx);
-            pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-            return -1;
-          }
-        }
-      } else if (sk == 1) {
-        if (idx >= 0 && idx < nl && idx < 128) {
-          if (typeck_check_block_one_let(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-            if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-              fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d sk=let idx=%d\n",
-                      (int)ctx->current_func_index, (int)idx);
-            pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-            return -1;
-          }
-        }
-      } else if (sk == 2) {
-        if (idx >= 0 && idx < nes) {
-          es_ref = ast_ast_block_expr_stmt_ref(arena, block_ref, idx);
-          if (pipeline_typeck_check_expr_c(module, arena, es_ref, return_type_ref, ctx) != 0) {
-            if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-              fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d sk=expr idx=%d es_ref=%d\n",
-                      (int)ctx->current_func_index, (int)idx, (int)es_ref);
-            pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-            return -1;
-          }
-        }
-      } else if (sk == 3) {
-        if (idx >= 0 && idx < nlp) {
-          if (typeck_check_block_one_while(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-            if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-              fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d sk=while idx=%d\n",
-                      (int)ctx->current_func_index, (int)idx);
-            pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-            return -1;
-          }
-        }
-      } else if (sk == 4) {
-        if (idx >= 0 && idx < nfp) {
-          if (typeck_check_block_one_for(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-            if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-              fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d sk=for idx=%d\n",
-                      (int)ctx->current_func_index, (int)idx);
-            pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-            return -1;
-          }
-        }
-      } else if (sk == 5) {
-        if (idx >= 0 && idx < nif) {
-          if (pipeline_typeck_check_block_one_if_dbg_c(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-            if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-              fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d block=%d sk=if idx=%d\n",
-                      (int)ctx->current_func_index, (int)block_ref, (int)idx);
-            pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-            return -1;
-          }
-        }
-      }
-      si = si + 1;
-    }
-  } else {
-    i = 0;
-    while (i < nc) {
-      if (typeck_check_block_one_const(module, arena, block_ref, return_type_ref, ctx, i) != 0) {
-        pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-        return -1;
-      }
-      i = i + 1;
-    }
-    i = 0;
-    while (i < nl) {
-      if (typeck_check_block_one_let(module, arena, block_ref, return_type_ref, ctx, i) != 0) {
-        pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-        return -1;
-      }
-      i = i + 1;
-    }
-    i = 0;
-    while (i < nlp) {
-      if (typeck_check_block_one_while(module, arena, block_ref, return_type_ref, ctx, i) != 0) {
-        pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-        return -1;
-      }
-      i = i + 1;
-    }
-    i = 0;
-    while (i < nfp) {
-      if (typeck_check_block_one_for(module, arena, block_ref, return_type_ref, ctx, i) != 0) {
-        pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-        return -1;
-      }
-      i = i + 1;
-    }
-    i = 0;
-    while (i < nif) {
-      if (pipeline_typeck_check_block_one_if_dbg_c(module, arena, block_ref, return_type_ref, ctx, i) != 0) {
-        pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-        return -1;
-      }
-      i = i + 1;
-    }
-    i = 0;
-    while (i < nes && i < 32) {
-      es_ref = ast_ast_block_expr_stmt_ref(arena, block_ref, i);
-      if (pipeline_typeck_check_expr_c(module, arena, es_ref, return_type_ref, ctx) != 0) {
-        pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-        return -1;
-      }
-      i = i + 1;
-    }
-  }
-  if (typeck_check_block_final(module, arena, block_ref, return_type_ref, ctx, fin0) != 0) {
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d block=%d sk=final fin0=%d\n",
-              (int)ctx->current_func_index, (int)block_ref, (int)fin0);
-    pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-    return -1;
-  }
-  pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
-  return 0;
-}
-
-/** glue-only 链无 typeck.o 时回退 impl_c。 */
-XLANG_WEAK int32_t check_block_impl(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
-                                              int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
+XLANG_WEAK int32_t check_block_impl(struct ast_Module *module, struct ast_ASTArena *arena,
+                                    int32_t block_ref, int32_t return_type_ref,
+                                    struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_check_block_impl_c(module, arena, block_ref, return_type_ref, ctx);
 }
 
-extern int32_t typeck_check_block(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
-                                  int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
-
-/** typeck.x::check_block 的 C 委托：边界检查后委托 typeck_x.o::typeck_check_block（与嵌套 if/while 同一路径，勿混用 glue monolithic impl）。 */
-int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
-                                      int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
+/**
+ * typeck.x::check_block Cap residual face: bounds then typeck_x.o walker.
+ * orch residual + nested paths call this name; never re-open monolithic body.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                      int32_t block_ref, int32_t return_type_ref,
+                                      struct ast_PipelineDepCtx *ctx) {
   if (ast_ref_is_null(block_ref))
     return 0;
   if (block_ref <= 0 || !arena || block_ref > arena->num_blocks)
@@ -312,19 +167,15 @@ int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTA
   return typeck_check_block(module, arena, block_ref, return_type_ref, ctx);
 }
 
-/** typeck.x::check_block_as_loop_body 的 C 委托：loop_depth push/pop + check_block（无 typeck.o 时自包含）。 */
+/**
+ * typeck.x::check_block_as_loop_body Cap residual face — thin to typeck_x.o
+ * (loop_depth push/pop lives inside typeck authority).
+ * PLATFORM: SHARED freestanding typeck.
+ */
 int32_t pipeline_typeck_check_block_as_loop_body_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                    int32_t body_ref, int32_t return_type_ref,
                                                    struct ast_PipelineDepCtx *ctx) {
-  int32_t saved_ld;
-  int32_t rc;
-
-  if (!ctx)
-    return -1;
-  saved_ld = pipeline_typeck_loop_depth_push_c(ctx);
-  rc = pipeline_typeck_check_block_c(module, arena, body_ref, return_type_ref, ctx);
-  pipeline_typeck_loop_depth_pop_c(ctx, saved_ld);
-  return rc;
+  return typeck_check_block_as_loop_body(module, arena, body_ref, return_type_ref, ctx);
 }
 
 /* ============================================================
@@ -556,97 +407,18 @@ reject:
  * ========================================================================== */
 
 /**
- * typeck.x::func_body_tail_expr_ref_for_implicit_rule C twin.
+ * typeck.x::func_body_tail_expr_ref_for_implicit_rule Cap residual face.
  *
- * Why: W-tail analysis — find the effective tail expression of a function
- *      body for implicit return rule. RETURN/PANIC/BREAK/CONTINUE final
- *      wins; else peel trailing unsafe region; else fall through to final
- *      expr / last expr_stmt.
- * Invariant: arena non-null; body_ref valid or null (returns 0).
- * Asm/Perf: N/A (typeck pass; no codegen).
- * Contract: returns expr_ref > 0 if tail found; 0 if none.
- * PLATFORM: SHARED — product path (seed typeck → this glue).
+ * wave226 pure leave: dual W-tail body retired; live authority is typeck.x
+ * (typeck_func_body_tail_expr_ref_for_implicit_rule). has_implicit residual
+ * below still calls this face name (thin → typeck).
+ *
+ * Contract: expr_ref > 0 if tail found; 0 if none.
+ * PLATFORM: SHARED freestanding typeck.
  */
-int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_ASTArena *arena, int32_t body_ref) {
-  int32_t fin_ref;
-  int32_t nso;
-  int32_t nes2;
-  const uint8_t stmt_order_kind_expr_stmt = 2;
-  const uint8_t stmt_order_kind_region_c_parser = 5;
-  const uint8_t stmt_order_kind_region_x_parser = 6;
-
-  nso = ast_ast_block_num_stmt_order(arena, body_ref);
-  fin_ref = ast_ast_block_final_expr_ref(arena, body_ref);
-  /* W-tail:
-   * 1) final RETURN/PANIC/BREAK/CONTINUE wins (return after unsafe assign).
-   * 2) else peel trailing unsafe region (sole `unsafe { return ... }` may leave stale EXPR_LIT final).
-   * 3) else fall through to final / expr_stmt. */
-  if (!ast_ref_is_null(fin_ref)) {
-    int32_t fin_kind = pipeline_expr_kind_ord_at(arena, fin_ref);
-    if (fin_kind == 41 || fin_kind == 42 || fin_kind == 39 || fin_kind == 40)
-      return fin_ref;
-  }
-  if (nso > 0) {
-    uint8_t last_k = (uint8_t)pipeline_block_stmt_order_kind(arena, body_ref, nso - 1);
-    if (last_k == stmt_order_kind_region_c_parser || last_k == stmt_order_kind_region_x_parser) {
-      int32_t idx = pipeline_block_stmt_order_idx(arena, body_ref, nso - 1);
-      int32_t nreg = ast_ast_block_num_regions(arena, body_ref);
-      int32_t is_unsafe =
-          (idx >= 0 && idx < nreg) ? pipeline_block_region_is_unsafe(arena, body_ref, idx) : 0;
-      if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-        fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_region_peel body=%d idx=%d nreg=%d unsafe=%d\n",
-                (int)body_ref, (int)idx, (int)nreg, (int)is_unsafe);
-      if (idx >= 0 && idx < nreg && is_unsafe != 0) {
-        int32_t inner_ref = ast_ast_block_region_body_ref(arena, body_ref, idx);
-        if (!ast_ref_is_null(inner_ref))
-          return pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(arena, inner_ref);
-      }
-    }
-  }
-  if (!ast_ref_is_null(fin_ref))
-    return fin_ref;
-  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_scan body=%d fin=%d nso=%d\n", (int)body_ref,
-            (int)fin_ref, (int)nso);
-  if (nso > 0) {
-    uint8_t last_k;
-    int32_t idx;
-    int32_t nes;
-    if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-      int32_t si;
-      int32_t nes_dbg = ast_ast_block_num_expr_stmts(arena, body_ref);
-      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_dump body=%d exprs=%d\n", (int)body_ref, (int)nes_dbg);
-      for (si = 0; si < nso; si++) {
-        int32_t so_idx = pipeline_block_stmt_order_idx(arena, body_ref, si);
-        uint8_t so_kind = (uint8_t)pipeline_block_stmt_order_kind(arena, body_ref, si);
-        int32_t expr_ref = 0;
-        int32_t expr_kind = -1;
-        if (so_kind == stmt_order_kind_expr_stmt && so_idx >= 0 && so_idx < nes_dbg) {
-          expr_ref = pipeline_block_expr_stmt_ref(arena, body_ref, so_idx);
-          expr_kind = pipeline_expr_kind_ord_at(arena, expr_ref);
-        }
-        fprintf(stderr,
-                "xlang: [XLANG_DEBUG_PIPE] implicit_tail_item body=%d si=%d so_kind=%u so_idx=%d expr=%d expr_kind=%d\n",
-                (int)body_ref, (int)si, (unsigned)so_kind, (int)so_idx, (int)expr_ref, (int)expr_kind);
-      }
-    }
-
-    last_k = (uint8_t)pipeline_block_stmt_order_kind(arena, body_ref, nso - 1);
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_last body=%d kind=%u\n", (int)body_ref,
-              (unsigned)last_k);
-    if (last_k == stmt_order_kind_expr_stmt) {
-      idx = pipeline_block_stmt_order_idx(arena, body_ref, nso - 1);
-      nes = ast_ast_block_num_expr_stmts(arena, body_ref);
-      if (idx >= 0 && idx < nes)
-        return pipeline_block_expr_stmt_ref(arena, body_ref, idx);
-    }
-    return 0;
-  }
-  nes2 = ast_ast_block_num_expr_stmts(arena, body_ref);
-  if (nes2 > 0)
-    return pipeline_block_expr_stmt_ref(arena, body_ref, nes2 - 1);
-  return 0;
+int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_ASTArena *arena,
+                                                                    int32_t body_ref) {
+  return typeck_func_body_tail_expr_ref_for_implicit_rule(arena, body_ref);
 }
 
 /**
