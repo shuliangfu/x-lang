@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave219: al_nc_seq BSS+take pure leave cold twin under #ifndef FROM_X
  * wave217: CALL/METHOD text thin wrappers pure leave cold twins under #ifndef FROM_X
  * wave216: for_call_args mega pure leave cold twin under #ifndef FROM_X
  * wave189: module_from_ctx + needs_ptr pure leave cold twins under #ifndef FROM_X
@@ -27072,6 +27073,23 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
   (void)ctx;
   (void)ta;
   return -1;
+}
+
+/*
+ * wave219 cold twin: ARRAY_LIT / escape / deep-copy COMMON seq take (G.7 pure leave).
+ * Working freestanding BSS twin of pure g_pipeline_asm_al_nc_seq (same clamp).
+ * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
+ * Mid-file array_lit/escape cold bodies call this face via extern.
+ * PLATFORM: SHARED freestanding emit label uniqueness.
+ */
+static int32_t g_wave219_pipeline_asm_al_nc_seq = 0;
+
+int32_t glue_pipeline_asm_al_nc_seq_take_c(void) {
+  int32_t seq = g_wave219_pipeline_asm_al_nc_seq;
+  if (seq < 0 || seq > 999999)
+    seq = 0;
+  g_wave219_pipeline_asm_al_nc_seq = seq + 1;
+  return seq;
 }
 
 /*

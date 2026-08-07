@@ -20,11 +20,12 @@
  *  - PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED macro
  *
  * Not included here:
- *  - static g_pipeline_asm_al_nc_seq (emit global; stays in glue before lea include)
+ *  - al_nc_seq BSS+take (wave219 pure leave → runtime_pipeline_abi; residual
+ *    uses emit_fwd extern prototype)
  *  - domain #includes (lea_common and all later emit leaves)
  *
  * Include site: pipeline_glue.c immediately after pipeline_codegen_outbuf.c and
- * before g_pipeline_asm_al_nc_seq + lea_common include.
+ * before al_nc_seq leave note + lea_common include.
  * Not a separate .o — host-cc via pipeline_x.o.
  *
  * G.7: declarations only; no second implementation of any face.

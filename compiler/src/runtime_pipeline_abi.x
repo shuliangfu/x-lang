@@ -663,7 +663,8 @@ export extern "C" function pipeline_module_func_param_type_ref_at(mod: *u8, func
 export extern "C" function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
 // wave146 pure leave: pipeline_asm_array_lit_leaf_elem_byte_sz_c + emit_array_lit_flat live in this file.
 export extern "C" function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function glue_pipeline_asm_al_nc_seq_take_c(): i32;
+// wave219 pure-owned: glue_pipeline_asm_al_nc_seq_take_c + pure BSS at EOF
+// (#[no_mangle]; dual-export ban — was Cap residual glue.c static counter).
 // wave149 pure-owned faces: bodies in EOF section (#[no_mangle] export; no dual export extern).
 /* wave210 pure-owned: glue_binop_var_slot_cache_clear / invalidate_slot /
  * kill_def_at_slot at EOF (#[no_mangle]).
@@ -68715,4 +68716,45 @@ export function pipeline_asm_emit_expr_method_call_c(
 }
 
 // end wave217 pure-owned leave
+
+// ===========================================================================
+// wave219: ARRAY_LIT / durable / escape COMMON label seq pure leave
+// (was Cap residual pipeline_glue.c static g_pipeline_asm_al_nc_seq + take)
+// G.7 product authority for freestanding unique Lxlang_al_* / Lxlang_esc_* /
+//   Lxlang_sd_* COMMON symbol sequence numbers:
+//   glue_pipeline_asm_al_nc_seq_take_c  (take + increment; clamp wrap)
+// Pure-owned BSS: g_pipeline_asm_al_nc_seq (was file-scoped static in glue).
+// Consumers: pure array_lit durable COMMON path, slice escape COMMON, deep-copy
+//   sd COMMON (for_call_args / reent); seed cold twin under #ifndef FROM_X.
+// Deferred: typeck/elf/ast_pool residual pure leave / pipeline_x mega off host-cc.
+// PLATFORM: SHARED freestanding — seq is platform-agnostic emit counter.
+// ===========================================================================
+
+// wave219: monotonic seq for unique COMMON labels (Lxlang_al_N / esc_N / sd_N).
+// Clamp on take if out of [0,999999] so cold/hybrid never emit insane names.
+let g_pipeline_asm_al_nc_seq: i32 = 0;
+
+/**
+ * Take the next unique ARRAY_LIT / escape / deep-copy COMMON sequence number.
+ *
+ * Contract: returns current seq then increments. If stored value is <0 or
+ * >999999, clamps to 0 before take (matches Cap residual glue body). Never
+ * returns a value outside 0..999999 after clamp.
+ *
+ * @return i32 — sequence number to embed in Lxlang_al_ / Lxlang_esc_ / Lxlang_sd_
+ *
+ * wave219 pure: G.7 authority (was Cap residual glue.c static counter + take).
+ * PLATFORM: SHARED freestanding emit label uniqueness.
+ */
+#[no_mangle]
+export function glue_pipeline_asm_al_nc_seq_take_c(): i32 {
+  let seq: i32 = g_pipeline_asm_al_nc_seq;
+  if (seq < 0 || seq > 999999) {
+    seq = 0;
+  }
+  g_pipeline_asm_al_nc_seq = seq + 1;
+  return seq;
+}
+
+// end wave219 pure-owned leave
 

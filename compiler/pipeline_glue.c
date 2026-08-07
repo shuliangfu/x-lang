@@ -138,16 +138,12 @@ extern pipeline_glue_AsmFuncCtxLayout *pipeline_asm_ctx_layout(struct backend_As
  * PLATFORM: SHARED. */
 #include "pipeline_glue_backend_fwd.c"
 
-static int32_t g_pipeline_asm_al_nc_seq;
-/* wave143: pure durable Cap residual takes unique Lxlang_al_* seq (shared with
- * return/call_args residual same-TU direct access). PLATFORM: SHARED. */
-int32_t glue_pipeline_asm_al_nc_seq_take_c(void) {
-  int32_t seq = g_pipeline_asm_al_nc_seq;
-  if (seq < 0 || seq > 999999)
-    seq = 0;
-  g_pipeline_asm_al_nc_seq = seq + 1;
-  return seq;
-}
+/* wave219 pure-owned leave: glue_pipeline_asm_al_nc_seq_take_c + BSS deleted.
+ * live = runtime_pipeline_abi pure (g_pipeline_asm_al_nc_seq + take);
+ * seed cold twin under #ifndef FROM_X. Residual same-TU callers use
+ * emit_fwd extern prototype — do not re-open a second COMMON seq counter (G.7).
+ * PLATFORM: SHARED freestanding emit. */
+extern int32_t glue_pipeline_asm_al_nc_seq_take_c(void);
 
 /* wave123 pure-owned leave: pipeline_asm_emit_lea_common.c deleted.
  * live = runtime_pipeline_abi pure (glue_asm_lea_*_common_* +
@@ -357,7 +353,7 @@ extern int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(struct ast_ASTAren
  * Live authority = runtime_pipeline_abi pure (elem_byte_sz + empty + emit/force_esz +
  * force_esz_from_elem + durable + fixed/array_temp_bytes + elem_type_ref).
  * Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
- * Cap residual: leaf/flat stay vector_let (static→extern); al_nc_seq_take in glue.
+ * Cap residual: leaf/flat stay vector_let (static→extern); al_nc_seq_take pure wave219.
  */
 
 
@@ -728,8 +724,7 @@ extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, str
  * pipeline_asm_emit_call_args.c (G.7 有则补全; same TU).
  * wave205 pure leave: body in runtime_pipeline_abi.x (#[no_mangle]); Cap residual
  * prototype only. Callers: pure store_retval_pair (use_frame=1) + residual
- * for_call_args (use_frame=0). g_pipeline_asm_al_nc_seq remains early in glue
- * (shared with durable/return; pure uses glue_pipeline_asm_al_nc_seq_take_c).
+ * for_call_args (use_frame=0). al_nc_seq_take pure wave219 (was glue static).
  */
 
 /* wave1058 G.7: glue_store_retval_pair_to_rbp_elf_c migrated to
