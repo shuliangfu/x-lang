@@ -9063,8 +9063,8 @@ _xsd_n=$(awk '
   /^PIPELINE_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
   END { print t+0 }
 ' "$_XSD_MK")
-if [ "${_xsd_n:-0}" -ne 50 ]; then
-  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 50 in mk, got ${_xsd_n:-0}"
+if [ "${_xsd_n:-0}" -ne 49 ]; then
+  bad "8.3.1 expected SOURCE_DEPS fixed multi-token count 49 in mk, got ${_xsd_n:-0}"
 fi
 # wave965: PIPELINE_X_DEPS must list #include slices so STALE rebuilds pipeline_x.
 # wave255 host-cc leave: CTFE thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
@@ -9072,6 +9072,7 @@ fi
 # wave257 host-cc leave: region_assign Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
 # wave258 host-cc leave: coerce_init Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
 # wave259 host-cc leave: check_block Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
+# wave260 host-cc leave: method_call Cap thin retired from PIPELINE_X_DEPS; authority typeck_x.o.
 if grep -qE 'pipeline_typeck_ctfe\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_ctfe.c (wave255 host-cc leave)"
 fi
@@ -9096,8 +9097,11 @@ fi
 if [ -f "$ROOT/compiler/pipeline_typeck_coerce_init.c" ]; then
   bad "pipeline_typeck_coerce_init.c must be deleted (wave258 pure-owned leave)"
 fi
-if ! grep -qE 'pipeline_typeck_method_call\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list pipeline_typeck_method_call.c (8.3.1 method_call slice)"
+if grep -qE 'pipeline_typeck_method_call\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_method_call.c (wave260 host-cc leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_typeck_method_call.c" ]; then
+  bad "pipeline_typeck_method_call.c must be deleted (wave260 pure-owned leave)"
 fi
 if grep -qE 'pipeline_typeck_check_block\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list pipeline_typeck_check_block.c (wave259 host-cc leave)"

@@ -2430,10 +2430,11 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module,
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /*
  * wave253 pure leave: strong METHOD_CALL body retired → typeck_check_expr_method_call
- * (typeck_x.o). Cap residual weak face also thin (G.7 dual-export ban).
+ * (typeck_x.o). wave260 pure-owned leave: Cap face sole strong on typeck_x.o;
+ * seed keeps XLANG_WEAK thin hop only (G.7 dual-export ban).
  * PLATFORM: SHARED freestanding typeck method_call pure leave.
  */
-int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
                                                                        struct ast_ASTArena *arena, int32_t expr_ref,
                                                                        int32_t return_type_ref,
                                                                        struct ast_PipelineDepCtx *ctx) {

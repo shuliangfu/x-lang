@@ -52,10 +52,8 @@ extern int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *module,
  * same-TU: assign.c #include L11324 < def L11682 < all callsites
  * (L11627/11706/12111). Old fwd decl at L11618 deleted — def visible
  * from #include point. Deps: parser_get_module_num_imports (extern). */
-/* wave1192 G.7: pipeline_typeck_import_segment_at_c migrated to
- * pipeline_typeck_method_call.c EOF (import resolution cluster).
- * extern above (pipeline_module_import_path_len/byte_at) remain for
- * other glue.c callsites. PLATFORM: SHARED. */
+/* wave260: pipeline_typeck_import_segment_at_c Cap face on typeck_x.o
+ * (pure-owned leave of method_call residual). PLATFORM: SHARED. */
 
 extern int32_t pipeline_module_func_name_equal_at(struct ast_Module *m, int32_t fi, uint8_t *name, int32_t name_len);
 extern uint8_t pipeline_module_func_name_byte_at(struct ast_Module *m, int32_t fi, int32_t i);
@@ -81,9 +79,8 @@ extern void asm_qual_sym_layer_copy(int32_t i, uint8_t *dst, int32_t cap);
 
 /* wave1066: def migrated to pipeline_typeck_assign.c EOF. */
 
-/* wave1192 G.7: pipeline_typeck_resolve_dep_index_for_import_c migrated to
- * pipeline_typeck_method_call.c EOF (import resolution cluster).
- * PLATFORM: SHARED. */
+/* wave260: pipeline_typeck_resolve_dep_index_for_import_c Cap face on
+ * typeck_x.o (method_call residual pure-owned leave). PLATFORM: SHARED. */
 
 /* wave254 pure leave: dep map + find_func Cap faces live in typeck_x.o
  * (#[no_mangle]). Residual static map_import / dep_return_impl + public bodies

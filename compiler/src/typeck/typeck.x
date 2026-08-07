@@ -55,11 +55,36 @@ export extern function pipeline_typeck_check_expr_impl_c(module: *Module, arena:
 /* See implementation. */
 export extern function pipeline_typeck_check_expr_impl_mega_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
 /**
- * Cap residual face for EXPR_METHOD_CALL (wave253 pure leave: thin → typeck_check_expr_method_call).
- * Product authority is typeck_check_expr_method_call; residual/strict_minimal only hop.
- * PLATFORM: SHARED freestanding typeck method_call.
+ * Cap residual face for EXPR_METHOD_CALL (wave253 pure leave; wave260 pure-owned leave).
+ * Body at EOF (#[no_mangle]); product authority hops to typeck_check_expr_method_call.
+ * export extern = same-TU forward for early call sites. Dual-export ban vs pipeline_x.
+ * PLATFORM: SHARED freestanding typeck method_call Cap leave.
  */
 export extern function pipeline_typeck_check_expr_method_call_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
+/**
+ * wave260 pure-owned leave: write CALL resolve slots Cap face (thin → apply_call_resolve).
+ * Body at EOF (#[no_mangle]). PLATFORM: SHARED freestanding typeck.
+ */
+export extern function pipeline_typeck_expr_apply_call_resolve_c(arena: *ASTArena, call_expr_ref: i32,
+dep_ix: i32, func_ix: i32): void;
+/**
+ * wave260 pure-owned leave: import path segment Cap face (thin → typeck_import_segment_at).
+ * Body at EOF (#[no_mangle]); bool pure → i32 Cap. PLATFORM: SHARED freestanding typeck.
+ */
+export extern function pipeline_typeck_import_segment_at_c(module: *Module, imp_ix: i32, want_seg: i32,
+ostr: *i32, olen: *i32): i32;
+/**
+ * wave260 pure-owned leave: entry import → dep ctx slot Cap face.
+ * Body at EOF (#[no_mangle]). PLATFORM: SHARED freestanding typeck.
+ */
+export extern function pipeline_typeck_resolve_dep_index_for_import_c(module: *Module, ctx: *PipelineDepCtx,
+imp_ix: i32): i32;
+/**
+ * wave260 pure-owned leave: qualified whole-import CALL return type Cap face.
+ * Body at EOF (#[no_mangle]). PLATFORM: SHARED freestanding typeck.
+ */
+export extern function pipeline_typeck_resolve_whole_import_call_ret_c(module: *Module, arena: *ASTArena,
+callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out: *i32): i32;
 /**
  * Stamp CALL/METHOD_CALL resolve slots to empty before method resolve.
  * PLATFORM: SHARED — product residual accessor face (ast expr).
@@ -19245,3 +19270,72 @@ body_ref: i32): i32 {
 }
 
 // end wave259 pure-owned leave
+
+// ---------------------------------------------------------------------------
+// wave260: typeck method_call Cap residual pure-owned leave (host-cc present 51→50)
+// Delete pipeline_typeck_method_call.c from pipeline_x mega-TU.
+// Cap faces sole on typeck_x.o (#[no_mangle]):
+//   method_call_c / expr_apply_call_resolve_c / import_segment_at_c /
+//   resolve_dep_index_for_import_c / resolve_whole_import_call_ret_c
+// Call-resolve + METHOD_CALL field accessors completed in ast_pool_expr_sidecar
+//   (G.7 有则补全; same-TU via ast_pool). Dead statics retired with residual:
+//   debug_try_propagate_report_glue_c / bootstrap_expr_fixup_c (no live callers).
+// Dual-export ban: no second Cap body on pipeline_x.
+// PLATFORM: SHARED freestanding typeck method_call Cap leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * Cap residual face: EXPR_METHOD_CALL typeck (thin → pure authority).
+ * PLATFORM: SHARED freestanding typeck method_call Cap leave.
+ */
+#[no_mangle]
+export function pipeline_typeck_check_expr_method_call_c(module: *Module, arena: *ASTArena,
+expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  return typeck_check_expr_method_call(module, arena, expr_ref, return_type_ref, ctx);
+}
+
+/**
+ * Cap residual face: write CALL resolve slots (thin → pipeline_expr_apply_call_resolve).
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_expr_apply_call_resolve_c(arena: *ASTArena, call_expr_ref: i32,
+dep_ix: i32, func_ix: i32): void {
+  pipeline_expr_apply_call_resolve(arena, call_expr_ref, dep_ix, func_ix);
+}
+
+/**
+ * Cap residual face: import path segment at want_seg (thin → pure; bool as i32).
+ * PLATFORM: SHARED freestanding typeck import resolve.
+ */
+#[no_mangle]
+export function pipeline_typeck_import_segment_at_c(module: *Module, imp_ix: i32, want_seg: i32,
+ostr: *i32, olen: *i32): i32 {
+  if (typeck_import_segment_at(module, imp_ix, want_seg, ostr, olen)) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual face: entry import slot → dep ctx slot (thin → pure).
+ * PLATFORM: SHARED freestanding typeck import resolve.
+ */
+#[no_mangle]
+export function pipeline_typeck_resolve_dep_index_for_import_c(module: *Module, ctx: *PipelineDepCtx,
+imp_ix: i32): i32 {
+  return typeck_resolve_dep_index_for_import(module, ctx, imp_ix);
+}
+
+/**
+ * Cap residual face: qualified whole-import CALL return type (thin → pure).
+ * PLATFORM: SHARED freestanding typeck import resolve.
+ */
+#[no_mangle]
+export function pipeline_typeck_resolve_whole_import_call_ret_c(module: *Module, arena: *ASTArena,
+callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out: *i32): i32 {
+  return resolve_whole_import_qualified_call_return_type(module, arena, callee_expr_ref, ctx,
+  dep_index_out, func_index_out);
+}
+
+// end wave260 pure-owned leave

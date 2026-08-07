@@ -209,9 +209,25 @@ extern int32_t pipeline_typeck_coerce_init_expr_to_decl_c(struct ast_Module *mod
 extern int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_typeck_expr_is_any_assign_kind_c(int32_t kind_ord);
 
-/** bootstrap typeck 后处理（METHOD_CALL / 泛型 CALL）；定义见 pipeline_typeck_bootstrap_expr_fixup_c。 */
-static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                   int32_t expr_ref);
+/* wave260: bootstrap_expr_fixup residual static retired with method_call leave
+ * (no live callers). Cap method_call / import faces → typeck_x.o extern below. */
+extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
+                                                        struct ast_ASTArena *arena, int32_t expr_ref,
+                                                        int32_t return_type_ref,
+                                                        struct ast_PipelineDepCtx *ctx);
+extern void pipeline_typeck_expr_apply_call_resolve_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
+                                                      int32_t dep_ix, int32_t func_ix);
+extern int32_t pipeline_typeck_import_segment_at_c(struct ast_Module *module, int32_t imp_ix,
+                                                   int32_t want_seg, int32_t *ostr, int32_t *olen);
+extern int32_t pipeline_typeck_resolve_dep_index_for_import_c(struct ast_Module *module,
+                                                              struct ast_PipelineDepCtx *ctx,
+                                                              int32_t imp_ix);
+extern int32_t pipeline_typeck_resolve_whole_import_call_ret_c(struct ast_Module *module,
+                                                                struct ast_ASTArena *arena,
+                                                                int32_t callee_expr_ref,
+                                                                struct ast_PipelineDepCtx *ctx,
+                                                                int32_t *dep_index_out,
+                                                                int32_t *func_index_out);
 
 /* wave256: Cap faces on typeck_x.o (not same-TU defs). Residual check_expr
  * mega assign arm calls check_expr_assign_c; diag cluster may still be linked

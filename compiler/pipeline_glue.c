@@ -1743,25 +1743,12 @@ extern int32_t typeck_check_expr_try_propagate(struct ast_Module *module, struct
  * (codegen.x / runtime_pipeline_abi.x) via extern.
  * PLATFORM: SHARED — C codegen path, no arch branch. */
 
-/* typeck method_call + generic UFCS mono domain (BC 8.3.1):
- * pipeline_typeck_method_call.c */
-#include "pipeline_typeck_method_call.c"
-
-/* wave1096 G.7: glue_generic_call_fixup_resolved_type_c migrated to
- * pipeline_typeck_method_call.c EOF. Static (non-extern): same-TU —
- * method_call.c #include at L13803 < def EOF < callsites L14181 + L14757.
- * PLATFORM: SHARED. */
-
-/* wave1148 G.7: pipeline_typeck_bootstrap_expr_fixup_c migrated to
- * pipeline_typeck_method_call.c EOF (bootstrap typeck post-processing
- * expr fixup; colocated with glue_generic_call_fixup_resolved_type_c
- * wave1096 + call dispatch / overload resolution domain). Static fwd
- * decl at L8131 (before sole caller pipeline_typeck_check_expr_return_c
- * at L8191, before method_call.c #include at L10499). Deps:
- * pipeline_expr_kind_ord_at / pipeline_expr_resolved_type_ref /
- * pipeline_expr_method_call_* / pipeline_expr_set_resolved_type_ref /
- * pipeline_type_kind_ord_at / pipeline_type_ensure_by_kind_ord (all extern)
- * + glue_generic_call_fixup_resolved_type_c (static, same file). PLATFORM: SHARED. */
+/* wave260 pure-owned leave: pipeline_typeck_method_call.c retired.
+ * Cap faces sole on typeck_x.o (method_call_c / import thin / apply_call_resolve_c).
+ * Call-resolve + METHOD_CALL field accessors completed in ast_pool_expr_sidecar
+ * (same-TU via ast_pool.c #include). Dead statics (bootstrap_expr_fixup /
+ * debug_try_propagate_report) retired with residual (no live callers).
+ * PLATFORM: SHARED freestanding typeck method_call Cap leave. */
 
 /**
  * EXPR_CALL：委托 typeck_x.o 后做泛型返回类型单态化 fixup（bootstrap parser 未存 call type_args）。

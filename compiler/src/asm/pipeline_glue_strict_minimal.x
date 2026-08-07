@@ -2649,8 +2649,9 @@ export extern function pipeline_typeck_resolve_dep_index_for_import_c(module: *u
 /** wave253: product authority for METHOD_CALL lives in typeck_x.o. */
 export extern function typeck_check_expr_method_call(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32;
 /** Cap residual face `pipeline_typeck_check_expr_method_call_c`.
- * wave253 pure leave: thin → typeck_check_expr_method_call (typeck_x.o).
- * G.7 dual-export ban — product authority is typeck.x.
+ * wave253 pure leave; wave260 pure-owned leave: strong Cap sole on typeck_x.o.
+ * Product seed C twin is XLANG_WEAK thin hop (G.7 dual-export ban).
+ * This .x face remains thin for seed-only paths; product links typeck_x strong.
  * @param module *u8 — Module*
  * @param arena *u8 — ASTArena*
  * @param expr_ref i32 — METHOD_CALL expr
@@ -2661,7 +2662,7 @@ export extern function typeck_check_expr_method_call(module: *u8, arena: *u8, ex
  */
 #[no_mangle]
 export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
-  // PLATFORM: SHARED — Cap face thin hop only.
+  // PLATFORM: SHARED — Cap face thin hop only (product: weak in from_x.c).
   unsafe {
     return typeck_check_expr_method_call(module, arena, expr_ref, return_type_ref, ctx);
   }

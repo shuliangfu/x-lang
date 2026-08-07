@@ -462,6 +462,154 @@ int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_r
   return slot ? *slot : 0;
 }
 
+/* ============================================================
+ * wave260 G.7 pure-owned leave: call-resolve + METHOD_CALL field
+ * accessors moved from pipeline_typeck_method_call.c residual into
+ * this sidecar (same-TU via ast_pool.c → pipeline_glue.c). Completes
+ * the expr accessor cluster authority already owning method_call_arg_ref
+ * / call_num_args (有则补全). Uses pipeline_arena_expr_ptr (not
+ * glue_arena_expr_at_ref) for G.7 single arena-ptr path.
+ * Cap typeck faces (method_call_c / import thin / apply_call_resolve_c)
+ * live on typeck_x.o only. PLATFORM: SHARED freestanding expr accessors.
+ * ============================================================ */
+
+/**
+ * Initialize call_resolved_func_index and call_resolved_dep_index to -1
+ * (sentinel "unresolved") on the arena-pooled Expr at expr_ref.
+ * Null arena or out-of-range expr_ref is a no-op.
+ */
+void pipeline_expr_init_call_resolve_at_ref(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex;
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return;
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!ex)
+    return;
+  ex->call_resolved_func_index = -1;
+  ex->call_resolved_dep_index = -1;
+}
+
+/**
+ * Write resolved dep slot index and func index into the arena-pooled Expr
+ * after typeck successfully resolves a call. dep_ix = -1 means same-module.
+ * Null arena or out-of-range expr_ref is a no-op.
+ */
+void pipeline_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t expr_ref, int32_t dep_ix,
+                                      int32_t func_ix) {
+  struct ast_Expr *ex;
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return;
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!ex)
+    return;
+  ex->call_resolved_dep_index = dep_ix;
+  ex->call_resolved_func_index = func_ix;
+}
+
+/**
+ * Initialize call_resolved_* to -1 on a raw heap/stack Expr pointer
+ * (parser expr_set_common_zeros path). Null pointer is a no-op.
+ */
+void pipeline_expr_ptr_init_call_resolve(struct ast_Expr *e) {
+  if (!e)
+    return;
+  e->call_resolved_func_index = -1;
+  e->call_resolved_dep_index = -1;
+}
+
+/** ast_-prefixed alias: pipeline_expr_ptr_init_call_resolve. */
+void ast_pipeline_expr_ptr_init_call_resolve(struct ast_Expr *e) {
+  pipeline_expr_ptr_init_call_resolve(e);
+}
+
+/** ast_-prefixed alias: pipeline_expr_init_call_resolve_at_ref. */
+void ast_pipeline_expr_init_call_resolve_at_ref(struct ast_ASTArena *a, int32_t expr_ref) {
+  pipeline_expr_init_call_resolve_at_ref(a, expr_ref);
+}
+
+/** ast_-prefixed alias: pipeline_expr_apply_call_resolve. */
+void ast_pipeline_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t expr_ref, int32_t dep_ix,
+                                          int32_t func_ix) {
+  pipeline_expr_apply_call_resolve(a, expr_ref, dep_ix, func_ix);
+}
+
+/**
+ * Read dep slot index written by typeck after resolving a call.
+ * Returns -1 for same-module, -2 for invalid expr_ref or null arena.
+ */
+int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex;
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return -2;
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!ex)
+    return -2;
+  return ex->call_resolved_dep_index;
+}
+
+/**
+ * Read func index written by typeck after resolving a call.
+ * Returns -1 if unresolved or invalid expr_ref.
+ */
+int32_t pipeline_expr_call_resolved_func_index_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex;
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return -1;
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!ex)
+    return -1;
+  return ex->call_resolved_func_index;
+}
+
+/**
+ * Read EXPR_CALL callee expr ref. Returns 0 for invalid ref.
+ */
+int32_t pipeline_expr_call_callee_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = pipeline_arena_expr_ptr(a, expr_ref);
+  return ex ? ex->call_callee_ref : 0;
+}
+
+/**
+ * Read EXPR_METHOD_CALL receiver (base) expr ref. Returns 0 for invalid ref.
+ */
+int32_t pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = pipeline_arena_expr_ptr(a, expr_ref);
+  return ex ? ex->method_call_base_ref : 0;
+}
+
+/**
+ * Read EXPR_METHOD_CALL arg count (excluding receiver). Returns 0 for invalid ref.
+ */
+int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = pipeline_arena_expr_ptr(a, expr_ref);
+  return ex ? ex->method_call_num_args : 0;
+}
+
+/**
+ * Read EXPR_METHOD_CALL method name length. Returns 0 for invalid ref.
+ */
+int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = pipeline_arena_expr_ptr(a, expr_ref);
+  return ex ? ex->method_call_name_len : 0;
+}
+
+/**
+ * Copy EXPR_METHOD_CALL method name (u8[128]) into out64 via memcpy.
+ * If out64 is null or expr is invalid, zeros the buffer and returns.
+ * wave577 Cap: method_call_name is u8[128] (not u8[64]).
+ */
+void pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64) {
+  struct ast_Expr *ex;
+  if (!out64)
+    return;
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!ex) {
+    memset(out64, 0, 128);
+    return;
+  }
+  memcpy(out64, ex->method_call_name, 128);
+}
+
 int32_t pipeline_expr_append_match_arm(struct ast_ASTArena *a, int32_t expr_ref, int32_t result_ref,
                                        int32_t is_wildcard, int32_t lit_val, int32_t is_enum_variant,
                                        int32_t variant_index) {
@@ -1351,8 +1499,8 @@ int32_t ast_pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t 
 int32_t ast_pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref);
 /* wave1160 G.7: 9 ast_pipeline_expr_* wrappers above (as/if/block/match/
  * const_folded/enum_variant) migrated to pipeline_asm_emit_expr_rec.c EOF
- * as fwd decls. wave1159: 4 method_call wrappers remain as function bodies
- * (their pipeline_expr_* twins are in method_call.c via #include L9703). */
+ * as fwd decls. wave260: pipeline_expr_* method_call / call-resolve bodies
+ * live in this sidecar (above); 4 method_call ast_ wrappers hop to them. */
 /* wave1161 G.7: index/field_access_offset wrappers migrated to
  * pipeline_asm_emit_expr_rec.c EOF as fwd decls below. */
 int32_t ast_pipeline_expr_index_base_ref(struct ast_ASTArena *a, int32_t expr_ref);

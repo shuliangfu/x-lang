@@ -924,7 +924,7 @@
 | `pipeline_typeck_orch.c` | **~242（thin）** | typeck orch 域 Cap residual thin | 🟡 **G.7 live orch＝typeck.x**（`typeck_x_ast*`）；residual 仅 thin faces + weak soft-suppress／dep_ctx／dep_prerun + layout glue；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_check_expr.c` | **~547（thin）** | typeck check_expr 域 Cap residual thin | 🟡 **G.7** panic／unary／addr／index／deref／var／return／match／try／call／field_type／repr／extern_unsafe＝typeck.x thin；match subject BSS＋method_call 残；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_coerce_init.c` | 0 | typeck coerce-init Cap residual retired (wave258) | ✅ host-cc leave；权威 typeck_x.o thin→coerce／type_refs／widen／ret_coerce／int_lit／assign-kind；float_bits → ast_pool_arena |
-| `pipeline_typeck_method_call.c` | **~642** | typeck method_call Cap residual thin | 🟡 **G.7** method_call_c／UFCS／dep map／find_func＝typeck.x；残 call-resolve accessors／import thin；仍 host-cc 入 `pipeline_x` |
+| `pipeline_typeck_method_call.c` | 0 | typeck method_call Cap residual retired (wave260) | ✅ host-cc leave；Cap faces typeck_x.o：method_call_c／apply_call_resolve／import thin；call-resolve + METHOD_CALL accessors＝ast_pool_expr_sidecar |
 | `pipeline_typeck_check_block.c` | 0 | typeck check_block Cap residual retired (wave259) | ✅ host-cc leave；权威 typeck_x.o：ctx／depth／linear／has_implicit／check_block*_c Cap + pure BSS；walker＝`typeck_check_block*` |
 | `pipeline_typeck_region_assign.c` | 0 | typeck region/escape Cap residual retired (wave257) | ✅ host-cc leave；权威 typeck_x.o thin→typeck_check_slice／return／stack_escape／scope_borrow／allocator／call_slice |
 | `pipeline_asm_emit_unary.c` | ~279 | asm ELF unary emit（NEG/LOGNOT/BITNOT + sxt/jz） | ✅ wave133 pure-owned leave；live＝runtime_pipeline_abi pure |
