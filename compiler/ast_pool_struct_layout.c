@@ -401,7 +401,7 @@ int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m) {
  *
  * Members (3 fns):
  *  - pipeline_asm_type_ref_byte_size_c (type_ref byte size; delegates to
- *    glue_type_size_simple with g_pipeline_asm_emit_module)
+ *    glue_type_size_simple with pipeline_asm_emit_ctx_module_get())
  *  - pipeline_struct_layout_next_field_offset_ex (§11.1 aligned offset;
  *    packed path + align(N) path)
  *  - pipeline_struct_layout_next_field_offset (wrapper; align_req=0)
@@ -415,12 +415,15 @@ int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m) {
  * Why: backend_call_dispatch needs typeck-consistent byte sizes for SysV
  *      GP/memory classification; delegates to glue_type_size_simple (the
  *      single type sizing authority in struct_lit.c) using the current
- *      emit module (g_pipeline_asm_emit_module).
+ *      emit module (pipeline_asm_emit_ctx_module_get pure cell).
  * Contract: ty_ref<=0 → glue_type_size_simple returns 0; caller falls back.
  * PLATFORM: SHARED.
  */
+/* wave222: emit module cell is pure BSS; residual must not name deleted static. */
+extern void *pipeline_asm_emit_ctx_module_get(void);
+
 int32_t pipeline_asm_type_ref_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref) {
-  return glue_type_size_simple(g_pipeline_asm_emit_module, arena, ty_ref, 0);
+  return glue_type_size_simple((struct ast_Module *)pipeline_asm_emit_ctx_module_get(), arena, ty_ref, 0);
 }
 
 /**

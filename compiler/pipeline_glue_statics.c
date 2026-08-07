@@ -16,26 +16,31 @@
  *
  * wave221 pure-owned leave: accessor-only cells + host_is_arm64 moved to
  * runtime_pipeline_abi pure BSS/get/set (func_index / arena / call_param_ty /
- * call_arg_depth / elf_ctx / scope_block + host_is_arm64). This shell keeps
- * residual-owned cells residual C still direct-writes:
- *   module / dep_pipe / sret_active / sret_home_off / sret_ret_sz /
- *   typeck_active_module
+ * call_arg_depth / elf_ctx / scope_block + host_is_arm64).
+ * wave222 pure-owned leave: module / dep_pipe BSS+get/set → runtime_pipeline_abi
+ * pure (bind_module_dep_from_ctx uses pure setters; no residual static cells).
+ * This shell keeps residual-owned cells residual C still direct-writes:
+ *   sret_active / sret_home_off / sret_ret_sz / typeck_active_module
  * plus Cap residual glue_asm_ctx_set_scope_block / bind_module_dep_from_ctx
- * (they call pure scope set or residual module/dep cells).
+ * (scope → pure set; module/dep → pure set).
  *
- * G.7: single authority per cell — pure owns accessor-only; residual owns
+ * G.7: single authority per cell — pure owns pure-leaved faces; residual owns
  * direct-write cells. No dual BSS for pure-leaved faces.
  * PLATFORM: SHARED — host-cc residual shell (sret fields carry per-arch notes).
  */
 
 /** Module currently being emitted by asm_codegen_ast_to_elf
- * (set by pipeline_asm_emit_set_module, defined later in the TU). */
+ * (set by pipeline_asm_emit_set_module → pure ctx_module_set). */
 /* wave153: Cap residual set_scope needs asm_ctx face (same mega TU). */
 extern void asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref);
 /* wave221 pure-owned: process-local scope_block cell (live = runtime_pipeline_abi). */
 extern void pipeline_asm_emit_ctx_scope_block_set(int32_t block_ref);
+/* wave222 pure-owned: process-local module / dep_pipe cells. */
+extern void *pipeline_asm_emit_ctx_module_get(void);
+extern void pipeline_asm_emit_ctx_module_set(void *m);
+extern void *pipeline_asm_emit_ctx_dep_pipe_get(void);
+extern void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx);
 
-static struct ast_Module *g_pipeline_asm_emit_module;
 /** WPO-S3 / LANG-006 call-site CTFE: set by pipeline_typeck_set_active_ctx_c before check. */
 static struct ast_Module *g_typeck_active_module;
 /**
@@ -43,7 +48,7 @@ static struct ast_Module *g_typeck_active_module;
  * PLATFORM: LINUX+MACOS x86_64 SysV — hidden dest arrives in rdi, saved here.
  * PLATFORM: MACOS|ARM64 AAPCS64 — Indirect Result Location arrives in x8, saved here.
  * (-1 = current function is not an sret return target.)
- * wave221: still residual — mega_body writes these statics directly.
+ * wave222: still residual — mega_body writes these statics directly.
  */
 static int32_t g_pipeline_asm_sret_home_off = -1;
 /**
@@ -60,28 +65,15 @@ static int32_t g_pipeline_asm_func_sret_ret_sz = 0;
 /* wave221 pure-owned leave: func_index / arena / call_param_ty / call_arg_depth /
  * elf_ctx / scope_block statics + get/set deleted; live = runtime_pipeline_abi
  * pure BSS. Do not re-open second cells (G.7 dual authority). PLATFORM: SHARED. */
-/** Current asm emit dep pool; used for import struct layout field offsets
- * (WPO-S3 cross_ret etc.). residual C + bind_module_dep still direct-write. */
-static struct ast_PipelineDepCtx *g_pipeline_asm_emit_dep_pipe;
+/* wave222 pure-owned leave: module / dep_pipe statics + get/set deleted; live =
+ * runtime_pipeline_abi pure BSS. Do not re-open second cells. PLATFORM: SHARED. */
 
 /* ========================================================================== *
  * wave141 Cap residual storage faces still residual-owned (direct-write cells).
- * wave221: pure-leaved accessor-only faces are extern-only below.
+ * wave221/222: pure-leaved faces are extern-only below.
  * PLATFORM: SHARED — host-cc residual shell.
  * ========================================================================== */
 
-void *pipeline_asm_emit_ctx_module_get(void) {
-  return (void *)g_pipeline_asm_emit_module;
-}
-void pipeline_asm_emit_ctx_module_set(void *m) {
-  g_pipeline_asm_emit_module = (struct ast_Module *)m;
-}
-void *pipeline_asm_emit_ctx_dep_pipe_get(void) {
-  return (void *)g_pipeline_asm_emit_dep_pipe;
-}
-void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx) {
-  g_pipeline_asm_emit_dep_pipe = (struct ast_PipelineDepCtx *)ctx;
-}
 int32_t pipeline_asm_emit_ctx_sret_active_get(void) {
   return g_pipeline_asm_func_sret_active;
 }
@@ -98,6 +90,7 @@ int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void) {
 
 /* wave221 pure-owned leave: func_index/arena/call_param_ty/call_arg_depth/
  * elf_ctx/scope_block get/set + host_is_arm64 live = runtime_pipeline_abi pure.
+ * wave222 pure-owned leave: module/dep_pipe get/set live = pure (extern above).
  * Residual keeps extern-only declarations for same-TU residual callers that
  * still name the symbols (hybrid links pure .o for the bodies).
  * PLATFORM: SHARED freestanding emit. */
@@ -127,6 +120,8 @@ void glue_asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref) {
 
 /**
  * wave153 Cap residual: bind emit module + dep_pipe from AsmFuncCtx layout.
+ * wave222: process-local cells are pure BSS via module/dep_pipe_set (G.7 single
+ * cell authority; no residual static write).
  * Used by pure backend_emit_block_body_sync_elf / glue_emit_block_final_expr_elf
  * (pure cannot load layout pointers without Cap residual helpers).
  * PLATFORM: SHARED freestanding emit.
@@ -139,7 +134,7 @@ void glue_block_body_bind_module_dep_from_ctx(uint8_t *ctx) {
   if (!ly)
     return;
   if (ly->module_ref)
-    g_pipeline_asm_emit_module = ly->module_ref;
+    pipeline_asm_emit_ctx_module_set((void *)ly->module_ref);
   if (ly->dep_pipe)
-    g_pipeline_asm_emit_dep_pipe = (struct ast_PipelineDepCtx *)ly->dep_pipe;
+    pipeline_asm_emit_ctx_dep_pipe_set((void *)ly->dep_pipe);
 }

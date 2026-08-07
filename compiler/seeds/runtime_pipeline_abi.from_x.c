@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave222: emit_ctx module/dep_pipe BSS+get/set pure leave cold twins under #ifndef FROM_X
  * wave221: emit_ctx accessor-only BSS+get/set + host_is_arm64 pure leave cold twins under #ifndef FROM_X
  * wave220: if_expr_arm_emit_depth BSS+get/set pure leave cold twin under #ifndef FROM_X
  * wave219: al_nc_seq BSS+take pure leave cold twin under #ifndef FROM_X
@@ -27168,6 +27169,29 @@ int32_t pipeline_asm_host_is_arm64_c(void) {
 #else
   return 0;
 #endif
+}
+
+/*
+ * wave222 cold twins: emit_ctx module + dep_pipe BSS (G.7 pure leave).
+ * Working freestanding BSS twins of pure g_pipeline_asm_emit_module / dep_pipe.
+ * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
+ * Mid-file context leave cold bodies call these faces via extern.
+ * PLATFORM: SHARED freestanding emit module / dep pool cells.
+ */
+static void *g_wave222_emit_module = 0;
+static void *g_wave222_emit_dep_pipe = 0;
+
+void *pipeline_asm_emit_ctx_module_get(void) {
+  return g_wave222_emit_module;
+}
+void pipeline_asm_emit_ctx_module_set(void *m) {
+  g_wave222_emit_module = m;
+}
+void *pipeline_asm_emit_ctx_dep_pipe_get(void) {
+  return g_wave222_emit_dep_pipe;
+}
+void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx) {
+  g_wave222_emit_dep_pipe = ctx;
 }
 
 /*

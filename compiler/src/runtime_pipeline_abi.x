@@ -544,14 +544,13 @@ export extern "C" function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i3
 // owns glue_statics cells residual C still direct-accesses (module/dep_pipe/sret/typeck).
 // wave221 pure-owned (G.7 dual-export ban — defs at EOF): func_index / arena /
 // call_param_ty / call_arg_depth / elf_ctx / scope_block get+set + host_is_arm64.
-export extern "C" function pipeline_asm_emit_ctx_module_get(): *u8;
-export extern "C" function pipeline_asm_emit_ctx_module_set(m: *u8): void;
+// wave222 pure-owned (G.7 dual-export ban — defs at EOF): module / dep_pipe get+set.
 // wave221 pure-owned: pipeline_asm_emit_ctx_func_index_{get,set} at EOF.
 // wave221 pure-owned: pipeline_asm_emit_ctx_arena_{get,set} at EOF.
 // wave221 pure-owned: pipeline_asm_emit_ctx_call_param_ty_{get,set} at EOF.
 // wave221 pure-owned: pipeline_asm_emit_ctx_call_arg_depth_{get,set} at EOF.
-export extern "C" function pipeline_asm_emit_ctx_dep_pipe_get(): *u8;
-export extern "C" function pipeline_asm_emit_ctx_dep_pipe_set(ctx: *u8): void;
+// wave222 pure-owned: pipeline_asm_emit_ctx_module_{get,set} at EOF.
+// wave222 pure-owned: pipeline_asm_emit_ctx_dep_pipe_{get,set} at EOF.
 // wave221 pure-owned: pipeline_asm_emit_ctx_elf_ctx_{get,set} at EOF.
 export extern "C" function pipeline_asm_emit_ctx_sret_active_get(): i32;
 export extern "C" function pipeline_asm_emit_ctx_sret_home_off_get(): i32;
@@ -68821,8 +68820,9 @@ export function glue_if_expr_arm_emit_depth_set(v: i32): void {
 //   pipeline_asm_emit_ctx_scope_block_{get,set}
 //   pipeline_asm_host_is_arm64_c  (cfg target_arch; was host-cc #if)
 // Pure-owned BSS: g_pipeline_asm_emit_* cells below.
-// Cap residual still owns: module / dep_pipe / sret_* / typeck_active
-// (mega_body / typeck / slot_bytes / struct_layout still direct-write those).
+// Cap residual still owns: sret_* / typeck_active
+// (mega_body direct-writes sret; typeck check_block/assign/ctfe/coerce direct-write typeck_active).
+// wave222 pure owns module / dep_pipe (bind_module_dep + set_module/set_dep_pipe via get/set).
 // Residual glue_asm_ctx_set_scope_block → pure scope_block_set + asm_ctx face.
 // Consumers: pure context leave / CALL / field / return paths; seed cold twin
 // under #ifndef FROM_X. Residual statics keep extern-only for pure faces.
@@ -69007,4 +69007,73 @@ export function pipeline_asm_host_is_arm64_c(): i32 {
 }
 
 // end wave221 pure-owned leave
+
+// ===========================================================================
+// wave222: emit_ctx module + dep_pipe BSS pure leave
+// (was Cap residual pipeline_glue_statics.c static + get/set wave141 public)
+// G.7 product authority for freestanding emit module/dep cells:
+//   pipeline_asm_emit_ctx_module_{get,set}
+//   pipeline_asm_emit_ctx_dep_pipe_{get,set}
+// Residual bind_module_dep_from_ctx / set_module / set_dep_pipe call pure setters
+// (no direct residual static write). struct_layout type_ref_byte_size uses getter.
+// Cap residual still owns: sret_active / sret_home_off / sret_ret_sz / typeck_active.
+// Consumers: pure context leave / CALL / field / return / SOA; seed cold twin
+// under #ifndef FROM_X. Residual statics keep extern-only for pure faces.
+// Deferred: sret pure leave (mega_body direct write) / typeck_active pure leave /
+// elf / ast_pool residual / pipeline_x mega off host-cc.
+// PLATFORM: SHARED freestanding — module/dep pointers are platform-agnostic.
+// ===========================================================================
+
+// wave222: current emit Module* (asm codegen active module).
+let g_pipeline_asm_emit_module: *u8 = 0 as *u8;
+// wave222: current emit PipelineDepCtx* (import layout / WPO dep pool).
+let g_pipeline_asm_emit_dep_pipe: *u8 = 0 as *u8;
+
+/**
+ * Get current asm emit module pointer.
+ * @return *u8 — ast_Module* as *u8, or null
+ * wave222 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_module_get(): *u8 {
+  return g_pipeline_asm_emit_module;
+}
+
+/**
+ * Set current asm emit module pointer.
+ * @param m *u8 — ast_Module* as *u8; may be null
+ * @return void
+ * wave222 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_module_set(m: *u8): void {
+  g_pipeline_asm_emit_module = m;
+}
+
+/**
+ * Get current asm emit dep pipe pointer.
+ * @return *u8 — ast_PipelineDepCtx* as *u8, or null
+ * wave222 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_dep_pipe_get(): *u8 {
+  return g_pipeline_asm_emit_dep_pipe;
+}
+
+/**
+ * Set current asm emit dep pipe pointer.
+ * @param ctx *u8 — ast_PipelineDepCtx* as *u8; may be null
+ * @return void
+ * wave222 pure: G.7 authority (was Cap residual glue_statics).
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_ctx_dep_pipe_set(ctx: *u8): void {
+  g_pipeline_asm_emit_dep_pipe = ctx;
+}
+
+// end wave222 pure-owned leave
 
