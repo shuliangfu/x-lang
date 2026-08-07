@@ -105,11 +105,38 @@ int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena *
 }
 """
 
+# wave252: strong pure deref (parity typeck.x). Residual pipeline_typeck_check_expr_deref_c
+# thins → this body. Do NOT XLANG_WEAK-wrap residual_c (cycle: pure weak → residual → pure).
+# PLATFORM: SHARED freestanding typeck LANG-007 S0 deref.
 DEREF_BODY = """\
-XLANG_WEAK int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
-  /* LANG-007: always use glue path (S0 deref requires unsafe). */
-  extern int32_t pipeline_typeck_check_expr_deref_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
-  return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
+int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+  /* wave252 pure leave — LANG-007 S0: deref only inside unsafe { }. PLATFORM: SHARED. */
+  int32_t line, col, ord_ptr, op_ref, op_ptr, elem_ty;
+  (void)return_type_ref;
+  if (!module || !arena || expr_ref <= 0 || !ctx)
+    return -1;
+  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) <= 0) {
+    line = pipeline_expr_line_at(arena, expr_ref);
+    col = pipeline_expr_col_at(arena, expr_ref);
+    driver_diagnostic_typeck_deref_outside_unsafe(line, col);
+    return -1;
+  }
+  ord_ptr = 9;
+  op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op_ref > 0) {
+    if (typeck_check_expr(module, arena, op_ref, return_type_ref, ctx) != 0)
+      return -1;
+  }
+  op_ptr = typeck_expr_type_ref(arena, op_ref);
+  if (op_ptr <= 0)
+    return -1;
+  if (pipeline_type_kind_ord_at(arena, op_ptr) != ord_ptr)
+    return -1;
+  elem_ty = pipeline_type_elem_ref_at(arena, op_ptr);
+  if (elem_ty <= 0)
+    return -1;
+  pipeline_expr_set_resolved_type_ref(arena, expr_ref, elem_ty);
+  return 0;
 }
 """
 
@@ -208,7 +235,12 @@ def _glue_delegate_ok(name: str, old: str) -> bool:
             and "pipeline_typeck_check_expr_call_c" not in old
         )
     if name == "typeck_check_expr_deref":
-        return "pipeline_typeck_check_expr_deref_c" in old and "XLANG_WEAK" in sig
+        # wave252 pure leave: strong body with S0 unsafe gate (no residual_c wrap cycle).
+        return (
+            "driver_diagnostic_typeck_deref_outside_unsafe" in old
+            and "pipeline_typeck_check_expr_deref_c" not in old
+            and "XLANG_WEAK" not in sig
+        )
     if name == "typeck_check_expr_method_call":
         return (
             "pipeline_typeck_check_expr_method_call_c" in old
