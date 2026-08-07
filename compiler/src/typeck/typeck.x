@@ -627,15 +627,13 @@ export extern function pipeline_expr_call_resolved_func_index_at(arena: *ASTAren
 export extern function pipeline_expr_call_resolved_dep_index_at(arena: *ASTArena, expr_ref: i32): i32;
 /* See implementation. */
 export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
-/* See implementation. */
+/**
+ * wave238 G.7: Cap residual CTFE faces thin → typeck_* pure leave (typeck_x.o).
+ * Historical pipeline_typeck_*_c names remain as residual C ABI only.
+ * PLATFORM: SHARED freestanding typeck
+ */
 export extern function pipeline_typeck_block_const_init_is_const_c(arena: *ASTArena, block_ref: i32, const_idx: i32): i32;
 export extern function pipeline_typeck_const_init_not_constant_c(line: i32, col: i32): void;
-/**
- * PLATFORM: SHARED — typeck CTFE producer (write const_folded_*).
- * Authority for optim-level const fold is typeck/IR, not emit expansion.
- * fold_expr: pure lit trees; fold_block_const_init: const chain env;
- * fold_expr_in_block: let/return trees seeing block consts.
- */
 export extern function pipeline_typeck_fold_expr_c(arena: *ASTArena, expr_ref: i32): void;
 export extern function pipeline_typeck_fold_block_const_init_c(arena: *ASTArena, block_ref: i32,
 const_idx: i32): void;
@@ -655,6 +653,53 @@ type_ref: i32): void;
 export extern function pipeline_module_top_level_let_init_ref(module: *Module, idx: i32): i32;
 export extern function pipeline_typeck_fold_expr_in_block_c(arena: *ASTArena, block_ref: i32,
 expr_ref: i32): void;
+
+/**
+ * wave238 G.7 pure leave: CTFE producer (LANG-006). Live body is hand-synced in
+ * typeck_gen.c (typeck_fold_* / typeck_block_const_init_is_const /
+ * typeck_const_init_not_constant / typeck_expr_is_c_static_const_init). Cap residual
+ * pipeline_typeck_ctfe.c thins to these symbols. Full .x body lands when typeck -E
+ * recovers; until then typeck_gen is the product twin of this authority surface.
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * PLATFORM: SHARED freestanding typeck — single CTFE producer path.
+ */
+export extern function typeck_fold_expr(arena: *ASTArena, expr_ref: i32): void;
+/**
+ * Fold block const init at const_idx with prior consts in scope (wave238 pure leave).
+ * @param arena *ASTArena
+ * @param block_ref i32
+ * @param const_idx i32
+ * PLATFORM: SHARED freestanding typeck
+ */
+export extern function typeck_fold_block_const_init(arena: *ASTArena, block_ref: i32, const_idx: i32): void;
+/**
+ * Fold expr with all block consts as env (wave238 pure leave).
+ * @param arena *ASTArena
+ * @param block_ref i32
+ * @param expr_ref i32
+ * PLATFORM: SHARED freestanding typeck
+ */
+export extern function typeck_fold_expr_in_block(arena: *ASTArena, block_ref: i32, expr_ref: i32): void;
+/**
+ * Whitelist: block const init is a const expression (wave238 pure leave).
+ * @return i32 — 1 yes, 0 no
+ * PLATFORM: SHARED freestanding typeck
+ */
+export extern function typeck_block_const_init_is_const(arena: *ASTArena, block_ref: i32, const_idx: i32): i32;
+/**
+ * Diag: const init must be constant expression (wave238 pure leave).
+ * PLATFORM: SHARED freestanding typeck
+ */
+export extern function typeck_const_init_not_constant(line: i32, col: i32): void;
+/**
+ * Pure-lit tree legal as C static initializer (wave238 pure leave; codegen gate).
+ * @return i32 — 1 yes, 0 no
+ * PLATFORM: SHARED freestanding typeck
+ */
+export extern function typeck_expr_is_c_static_const_init(arena: *ASTArena, expr_ref: i32): i32;
+
+
 /* See implementation. */
 export extern function pipeline_expr_if_cond_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_if_then_ref_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -13102,7 +13147,7 @@ ctx: *PipelineDepCtx): i32 {
   rc = check_expr_impl(module, arena, expr_ref, return_type_ref, ctx);
   if (rc == 0) {
     unsafe {
-      pipeline_typeck_fold_expr_c(arena, expr_ref);
+      typeck_fold_expr(arena, expr_ref);
     }
   }
   return rc;
@@ -13265,10 +13310,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
     }
     /* See implementation. */
     if (!ast.ref_is_null(cd_ir)) {
-      if (pipeline_typeck_block_const_init_is_const_c(arena, block_ref, idx) == 0) {
+      if (typeck_block_const_init_is_const(arena, block_ref, idx) == 0) {
         let err_line: i32 = pipeline_expr_line_at(arena, cd_ir);
         let err_col: i32 = pipeline_expr_col_at(arena, cd_ir);
-        pipeline_typeck_const_init_not_constant_c(err_line, err_col);
+        typeck_const_init_not_constant(err_line, err_col);
         return - 1;
       }
     }
@@ -13308,7 +13353,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
     }
     /** CTFE: fold const init with prior block consts (A=3; B=A+2). */
     if (!ast.ref_is_null(cd_ir)) {
-      pipeline_typeck_fold_block_const_init_c(arena, block_ref, idx);
+      typeck_fold_block_const_init(arena, block_ref, idx);
     }
     return 0;
   }
@@ -13437,7 +13482,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
     }
     /** CTFE: re-fold let init with block const env (e.g. let x = B * 2). */
     if (!ast.ref_is_null(ld_ir)) {
-      pipeline_typeck_fold_expr_in_block_c(arena, block_ref, ld_ir);
+      typeck_fold_expr_in_block(arena, block_ref, ld_ir);
     }
     return 0;
   }

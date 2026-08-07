@@ -453,6 +453,7 @@ int32_t pipeline_expr_int_val_at(struct ast_ASTArena *a, int32_t expr_ref);
 int64_t pipeline_expr_int64_val_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref);
+void pipeline_expr_set_const_folded(struct ast_ASTArena *a, int32_t expr_ref, int32_t valid, int32_t val);
 int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_binop_right_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
 /* wave138 Cap residual: pipeline_expr_float_bits_lo/hi_at live in

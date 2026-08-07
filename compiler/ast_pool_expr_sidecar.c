@@ -754,6 +754,31 @@ int32_t pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_r
   return ex ? ex->const_folded_val : 0;
 }
 
+/**
+ * wave238 G.7: complete const_folded producer faces (was residual-only direct
+ * field writes). Pure typeck CTFE leave stamps fold results via this setter.
+ * @param a arena
+ * @param expr_ref expr ref
+ * @param valid 0 clear / non-zero stamp valid
+ * @param val const_folded_val when valid != 0
+ * PLATFORM: SHARED — single CTFE write authority with residual thin leave.
+ */
+void pipeline_expr_set_const_folded(struct ast_ASTArena *a, int32_t expr_ref, int32_t valid, int32_t val) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return;
+  if (valid != 0) {
+    ex->const_folded_val = val;
+    ex->const_folded_valid = 1;
+  } else {
+    ex->const_folded_valid = 0;
+  }
+}
+
+void ast_pipeline_expr_set_const_folded(struct ast_ASTArena *a, int32_t expr_ref, int32_t valid, int32_t val) {
+  pipeline_expr_set_const_folded(a, expr_ref, valid, val);
+}
+
 /*
  * ast_pipeline_* forwarding wrappers: codegen may prepend ast_ prefix
  * when importing the ast module; each delegates to the pipeline_expr_*
