@@ -29921,6 +29921,363 @@ int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref) {
 }
 /* end wave267 asm_locals cold twins */
 
+/*
+ * WAVE268: pipeline_asm_slot_bytes pure-owned leave cold twins
+ * (asm_local_slot_bytes + asm_ctx_ensure_block_locals + named/array/mod helpers).
+ * Only compiled when product pure is NOT linked (-U FROM_X cold path).
+ * PLATFORM: SHARED freestanding stack layout Cap leave.
+ */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* Cap residual faces still host-cc elsewhere when pure not present. */
+extern int32_t typeck_typeck_struct_layout_metrics(void *module, void *arena, int32_t li, int32_t depth,
+                                                   int32_t check_pad, int32_t *out_sz, int32_t *out_al);
+extern int32_t typeck_soa_array_storage_size_glue(void *module, void *arena, int32_t elem_type_ref,
+                                                  int32_t array_len, int32_t depth);
+extern int32_t typeck_x_type_size_from_layout_glue(void *module, void *arena, int32_t li, int32_t depth);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64);
+extern int32_t pipeline_module_num_struct_layouts_at(void *mod);
+extern int32_t pipeline_module_struct_layout_name_len(void *mod, int32_t idx);
+extern int32_t pipeline_module_struct_layout_name_byte_at(void *mod, int32_t idx, int32_t off);
+extern int32_t pipeline_module_struct_layout_num_fields(void *mod, int32_t idx);
+extern int32_t pipeline_module_struct_layout_field_offset_at(void *mod, int32_t li, int32_t j);
+extern int32_t pipeline_module_struct_layout_field_type_ref(void *mod, int32_t li, int32_t j);
+extern int32_t pipeline_arena_num_types(void *arena);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_array_size_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t ref);
+extern void *pipeline_asm_glue_emit_module_ref(void);
+extern void *pipeline_asm_emit_dep_pipe_c(void);
+extern int32_t pipeline_dep_ctx_ndep(void *ctx);
+extern void *pipeline_dep_ctx_module_at(void *ctx, int32_t idx);
+extern int32_t asm_type_is_simd_vector_spelling(void *arena, int32_t type_ref);
+extern int32_t asm_local_slot_reg_offset(void *arena, int32_t type_ref, int32_t off, int32_t *inout_off);
+extern int32_t pipeline_asm_let_init_stack_reserve_bytes(void *arena, int32_t type_ref, int32_t init_ref);
+extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
+extern void asm_ctx_block_slot_set(uint8_t *ctx, int32_t block_ref, int32_t slot_base);
+extern int32_t asm_ctx_local_count(uint8_t *ctx);
+extern int32_t asm_ctx_local_append(uint8_t *ctx, const uint8_t *name, int32_t nlen, int32_t offset);
+extern int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
+extern int32_t ast_pipeline_block_const_name_len(void *arena, int32_t block_ref, int32_t i);
+extern void ast_pipeline_block_const_name_copy64(void *arena, int32_t block_ref, int32_t i, uint8_t *dst);
+extern int32_t pipeline_block_const_type_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_pipeline_block_const_init_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_pipeline_block_let_name_len(void *arena, int32_t block_ref, int32_t i);
+extern void ast_pipeline_block_let_name_copy64(void *arena, int32_t block_ref, int32_t i, uint8_t *dst);
+extern int32_t pipeline_block_let_type_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_pipeline_block_let_init_ref(void *arena, int32_t block_ref, int32_t i);
+
+static int32_t wave268_local_slot_bytes_mod(void *arena, int32_t type_ref, void *mod);
+
+static int32_t wave268_slot_bytes_named_in_mod(void *arena, int32_t type_ref, void *mod) {
+  uint8_t name[128];
+  int32_t nlen, k, nlayouts, ln, j, eq, b, sz, al, mrc, nf, last, foff, fty, fsz, dot, base_off, base_len;
+  if (!arena || type_ref <= 0 || !mod)
+    return 0;
+  nlen = pipeline_type_named_name_into(arena, type_ref, name);
+  if (nlen <= 0 || nlen > 127)
+    return 0;
+  dot = -1;
+  for (j = 0; j < nlen; j++) {
+    if (name[j] == '.')
+      dot = j;
+  }
+  if (dot >= 0) {
+    base_off = dot + 1;
+    base_len = nlen - base_off;
+    if (base_len <= 0)
+      return 0;
+    for (j = 0; j < base_len; j++)
+      name[j] = name[base_off + j];
+    nlen = base_len;
+  }
+  nlayouts = pipeline_module_num_struct_layouts_at(mod);
+  for (k = 0; k < nlayouts; k++) {
+    ln = pipeline_module_struct_layout_name_len(mod, k);
+    if (ln != nlen)
+      continue;
+    eq = 1;
+    for (j = 0; j < nlen; j++) {
+      b = pipeline_module_struct_layout_name_byte_at(mod, k, j);
+      if (b != (int32_t)name[j]) {
+        eq = 0;
+        break;
+      }
+    }
+    if (!eq)
+      continue;
+    sz = 0;
+    al = 1;
+    mrc = typeck_typeck_struct_layout_metrics(mod, arena, k, 0, 0, &sz, &al);
+    if (mrc == 0) {
+      if (sz <= 0)
+        return 0;
+      if (sz % 8 != 0)
+        sz += 8 - (sz % 8);
+      return sz;
+    }
+    nf = pipeline_module_struct_layout_num_fields(mod, k);
+    if (nf > 0) {
+      last = nf - 1;
+      foff = pipeline_module_struct_layout_field_offset_at(mod, k, last);
+      fty = pipeline_module_struct_layout_field_type_ref(mod, k, last);
+      fsz = wave268_local_slot_bytes_mod(arena, fty, mod);
+      if (fsz <= 0)
+        fsz = 4;
+      sz = foff + fsz;
+    } else {
+      return 0;
+    }
+    if (sz > 0) {
+      if (sz % 8 != 0)
+        sz += 8 - (sz % 8);
+      return sz;
+    }
+  }
+  return 0;
+}
+
+int32_t asm_fixed_array_total_bytes_mod(void *arena, int32_t type_ref, void *mod) {
+  int32_t nt, asz, elem_ref, ek, soa_sz, elen, nlayouts, lk, ln, j, eq, b, es;
+  uint8_t ename[128];
+  if (!arena || type_ref <= 0)
+    return 0;
+  nt = pipeline_arena_num_types(arena);
+  if (type_ref > nt)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, type_ref) != 10)
+    return 0;
+  asz = pipeline_type_array_size_at(arena, type_ref);
+  elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+  if (asz <= 0 || elem_ref <= 0)
+    return 0;
+  if (!mod)
+    mod = pipeline_asm_glue_emit_module_ref();
+  if (!mod)
+    return 0;
+  ek = pipeline_type_kind_ord_at(arena, elem_ref);
+  if (ek != 8)
+    return 0;
+  soa_sz = typeck_soa_array_storage_size_glue(mod, arena, elem_ref, asz, 0);
+  if (soa_sz > 0)
+    return soa_sz;
+  elen = pipeline_type_named_name_into(arena, elem_ref, ename);
+  if (elen <= 0 || elen > 63)
+    return 0;
+  nlayouts = pipeline_module_num_struct_layouts_at(mod);
+  for (lk = 0; lk < nlayouts; lk++) {
+    ln = pipeline_module_struct_layout_name_len(mod, lk);
+    if (ln != elen)
+      continue;
+    eq = 1;
+    for (j = 0; j < elen; j++) {
+      b = pipeline_module_struct_layout_name_byte_at(mod, lk, j);
+      if (b != (int32_t)ename[j]) {
+        eq = 0;
+        break;
+      }
+    }
+    if (!eq)
+      continue;
+    es = typeck_x_type_size_from_layout_glue(mod, arena, lk, 0);
+    if (es > 0)
+      return asz * es;
+  }
+  return 0;
+}
+
+static int32_t wave268_local_slot_bytes_mod(void *arena, int32_t type_ref, void *mod) {
+  int32_t nt, ko, sz, nd, di, elem_ref, arr_sz, asz, esz, ek, bytes, lanes, nlen;
+  int32_t cur, prod, d, leaf_esz, cn, ce, lek, ssz, simd;
+  void *dep, *dm;
+  uint8_t name[128];
+  if (!arena || type_ref <= 0)
+    return 8;
+  nt = pipeline_arena_num_types(arena);
+  if (type_ref > nt)
+    return 8;
+  ko = pipeline_type_kind_ord_at(arena, type_ref);
+  if (ko == 8) {
+    if (!mod)
+      mod = pipeline_asm_glue_emit_module_ref();
+    sz = wave268_slot_bytes_named_in_mod(arena, type_ref, mod);
+    if (sz > 0)
+      return sz;
+    dep = pipeline_asm_emit_dep_pipe_c();
+    if (dep) {
+      nd = pipeline_dep_ctx_ndep(dep);
+      for (di = 0; di < nd; di++) {
+        dm = pipeline_dep_ctx_module_at(dep, di);
+        if (!dm || dm == mod)
+          continue;
+        sz = wave268_slot_bytes_named_in_mod(arena, type_ref, dm);
+        if (sz > 0)
+          return sz;
+      }
+    }
+  }
+  if (ko == 10) {
+    asz = pipeline_type_array_size_at(arena, type_ref);
+    elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+    if (asz > 0) {
+      arr_sz = asm_fixed_array_total_bytes_mod(arena, type_ref, mod);
+      if (arr_sz > 0) {
+        if (arr_sz % 8 != 0)
+          arr_sz += 8 - (arr_sz % 8);
+        return arr_sz;
+      }
+      if (elem_ref > 0 && elem_ref <= nt && pipeline_type_kind_ord_at(arena, elem_ref) == 10) {
+        cur = type_ref;
+        prod = 1;
+        leaf_esz = 4;
+        for (d = 0; d < 8; d++) {
+          if (pipeline_type_kind_ord_at(arena, cur) != 10)
+            break;
+          cn = pipeline_type_array_size_at(arena, cur);
+          ce = pipeline_type_elem_ref_at(arena, cur);
+          if (cn <= 0 || ce <= 0)
+            break;
+          prod *= cn;
+          lek = pipeline_type_kind_ord_at(arena, ce);
+          if (lek != 10) {
+            if (lek == 2 || lek == 1)
+              leaf_esz = 1;
+            else if (lek == 15 || lek == 4 || lek == 5 || lek == 6 || lek == 7 || lek == 9)
+              leaf_esz = 8;
+            else if (lek == 8) {
+              ssz = wave268_slot_bytes_named_in_mod(arena, ce, mod);
+              leaf_esz = ssz > 0 ? ssz : 8;
+            } else
+              leaf_esz = 4;
+            bytes = prod * leaf_esz;
+            if (bytes < 8)
+              bytes = 8;
+            if (bytes % 8 != 0)
+              bytes += 8 - (bytes % 8);
+            return bytes;
+          }
+          cur = ce;
+        }
+      }
+      esz = 4;
+      if (elem_ref > 0 && elem_ref <= nt) {
+        ek = pipeline_type_kind_ord_at(arena, elem_ref);
+        if (ek == 2 || ek == 1)
+          esz = 1;
+        else if (ek == 14 || ek == 0 || ek == 3 || ek == 13)
+          esz = 4;
+        else if (ek == 8 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9)
+          esz = 8;
+      }
+      bytes = asz * esz;
+      if (bytes < 8)
+        bytes = 8;
+      if (bytes % 8 != 0)
+        bytes += 8 - (bytes % 8);
+      return bytes;
+    }
+  }
+  if (ko == 11)
+    return 16;
+  simd = asm_type_is_simd_vector_spelling(arena, type_ref);
+  if (!simd && ko != 13)
+    return 8;
+  if (ko != 13) {
+    lanes = 4;
+    nlen = pipeline_type_named_name_into(arena, type_ref, name);
+    if (nlen == 5 && name[4] == 56)
+      lanes = 8;
+    if (nlen == 6 && name[4] == 49 && name[5] == 54)
+      lanes = 16;
+    if (nlen == 5 && name[0] == 'V' && name[1] == 'e' && name[2] == 'c' && name[3] == '8' && name[4] == 'i')
+      lanes = 8;
+    esz = 4;
+    bytes = lanes * esz;
+    if (bytes < 8)
+      bytes = 8;
+    if (bytes % 8 != 0)
+      bytes += 8 - (bytes % 8);
+    return bytes;
+  }
+  asz = pipeline_type_array_size_at(arena, type_ref);
+  elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+  lanes = asz > 0 ? asz : 4;
+  esz = 4;
+  if (elem_ref > 0 && elem_ref <= nt) {
+    ek = pipeline_type_kind_ord_at(arena, elem_ref);
+    if (ek == 2)
+      esz = 1;
+    else if (ek == 14)
+      esz = 4;
+    else if (ek == 8 || ek == 4 || ek == 5 || ek == 6)
+      esz = 8;
+  }
+  bytes = lanes * esz;
+  if (bytes < 8)
+    bytes = 8;
+  if (bytes % 8 != 0)
+    bytes += 8 - (bytes % 8);
+  return bytes;
+}
+
+int32_t asm_local_slot_bytes(void *arena, int32_t type_ref) {
+  return wave268_local_slot_bytes_mod(arena, type_ref, NULL);
+}
+
+void asm_ctx_ensure_block_locals(uint8_t *ctx, void *arena, int32_t block_ref, int32_t *inout_next_offset,
+                                 int32_t *inout_num_locals) {
+  int32_t i, off, base, nlen, type_ref, init_ref, nconst, nlet, prev, slot_off, ap;
+  uint8_t name_buf[128];
+  if (!ctx || !arena || !inout_next_offset || !inout_num_locals || block_ref <= 0)
+    return;
+  prev = asm_ctx_block_slot_get(ctx, block_ref);
+  if (prev >= 0)
+    return;
+  base = asm_ctx_local_count(ctx);
+  asm_ctx_block_slot_set(ctx, block_ref, base);
+  off = *inout_next_offset;
+  nconst = ast_ast_block_num_consts(arena, block_ref);
+  for (i = 0; i < nconst; i++) {
+    nlen = ast_pipeline_block_const_name_len(arena, block_ref, i);
+    if (nlen <= 0)
+      continue;
+    ast_pipeline_block_const_name_copy64(arena, block_ref, i, name_buf);
+    type_ref = pipeline_block_const_type_ref(arena, block_ref, i);
+    {
+      int32_t off_slot = off;
+      slot_off = asm_local_slot_reg_offset(arena, type_ref, off, &off_slot);
+      off = off_slot;
+      ap = asm_ctx_local_append(ctx, name_buf, nlen, slot_off);
+      if (ap < 0)
+        return;
+    }
+    init_ref = ast_pipeline_block_const_init_ref(arena, block_ref, i);
+    off += pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+  }
+  nlet = ast_ast_block_num_lets(arena, block_ref);
+  for (i = 0; i < nlet; i++) {
+    nlen = ast_pipeline_block_let_name_len(arena, block_ref, i);
+    if (nlen <= 0)
+      continue;
+    ast_pipeline_block_let_name_copy64(arena, block_ref, i, name_buf);
+    type_ref = pipeline_block_let_type_ref(arena, block_ref, i);
+    {
+      int32_t off_slot = off;
+      slot_off = asm_local_slot_reg_offset(arena, type_ref, off, &off_slot);
+      off = off_slot;
+      ap = asm_ctx_local_append(ctx, name_buf, nlen, slot_off);
+      if (ap < 0)
+        return;
+    }
+    init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, i);
+    off += pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+  }
+  *inout_next_offset = off;
+  *inout_num_locals = asm_ctx_local_count(ctx);
+}
+/* end wave268 slot_bytes cold twins */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave268 cold twins */
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */

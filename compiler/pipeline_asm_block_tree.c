@@ -14,10 +14,18 @@
  * avoid host stack overflow on large modules.
  * Included from ast_pool.c (replaces former inline body). Not a separate .o.
  * Depends on GrowVec + block_at (static, ast_pool.c host TU) +
- * asm_local_slot_bytes/asm_fixed_array_total_bytes_mod (pipeline_asm_slot_bytes.c).
+ * pure faces asm_local_slot_bytes / asm_fixed_array_total_bytes_mod /
+ * asm_ctx_ensure_block_locals (runtime_pipeline_abi pure leave wave268).
  *
  * PLATFORM: SHARED.
  * ============================================================================ */
+/* wave268: slot_bytes pure-owned leave — faces live on runtime_pipeline_abi. */
+extern int32_t asm_local_slot_bytes(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t asm_fixed_array_total_bytes_mod(struct ast_ASTArena *arena, int32_t type_ref,
+                                               struct ast_Module *mod);
+extern void asm_ctx_ensure_block_locals(uint8_t *ctx, struct ast_ASTArena *arena, int32_t block_ref,
+                                        int32_t *inout_next_offset, int32_t *inout_num_locals);
+
 /** 块树遍历栈：压入待访问 block_ref（GrowVec，避免 .x 大栈数组在大模块 asm 单编时 SIGSEGV）。 */
 static void asm_block_tree_push_ref(GrowVec *stack, int32_t block_ref) {
   int32_t *slot;
@@ -272,7 +280,7 @@ int32_t asm_sum_block_wa_temp_bytes(struct ast_ASTArena *arena, int32_t block_re
 }
 
 /* asm_ctx_fill_locals_block_tree（自 ast_pool 抽出；block tree 遍历填 locals，归 block_tree 域）。
-   依赖 asm_ctx_ensure_block_locals（slot_bytes.c，先于此 include）+ asm_block_tree_push_*（本文件）。 */
+   依赖 asm_ctx_ensure_block_locals（wave268 pure）+ asm_block_tree_push_*（本文件）。 */
 
 void asm_ctx_fill_locals_block_tree(uint8_t *ctx, struct ast_ASTArena *arena, int32_t block_ref,
                                    int32_t *inout_next_offset, int32_t *inout_num_locals) {

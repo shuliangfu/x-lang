@@ -337,11 +337,14 @@ void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct as
 /* 2026-08-08: pipeline_asm_locals.c pure-owned leave (wave267).
  * Live face: runtime_pipeline_abi.x (asm_ctx_local_* / block_slot_* /
  * pipeline_asm_local_offset_c). Cap residual: find_offset_scoped in
- * bootstrap_glue; slot_bytes/block_tree still host-cc consumers.
+ * bootstrap_glue. PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
+
+/* 2026-08-08: pipeline_asm_slot_bytes.c pure-owned leave (wave268).
+ * Live face: runtime_pipeline_abi.x (asm_local_slot_bytes +
+ * asm_ctx_ensure_block_locals). Cap residual: slot_reg_offset / simd spelling
+ * / SOA+layout typeck glues; block_tree still host-cc consumer of ensure.
  * Seed cold twin under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
  * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
-
-#include "pipeline_asm_slot_bytes.c"
 
 #include "pipeline_asm_block_tree.c"
 

@@ -4,10 +4,15 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave268: pipeline_asm_slot_bytes.c pure-owned leave (asm_local_slot_bytes +
+//   asm_ctx_ensure_block_locals + named/array/mod helpers). Cap residual:
+//   asm_local_slot_reg_offset / asm_type_is_simd_vector_spelling / SOA+layout
+//   typeck glues; block_tree still host-cc consumer of ensure face.
+//   Seed cold twins under #ifndef FROM_X.
 // wave267: pipeline_asm_locals.c pure-owned leave (AsmLocalSlot + AsmBlockSlot
 //   sidecars keyed by AsmFuncCtx* + asm_ctx_local_* / block_slot_* /
 //   pipeline_asm_local_offset_c). Cap residual: find_offset_scoped stays in
-//   bootstrap_glue; slot_bytes/block_tree still host-cc consumers of pure faces.
+//   bootstrap_glue; slot_bytes pure (wave268) / block_tree still consumers.
 //   Seed cold twins under #ifndef FROM_X.
 // wave266: ast_pool_struct_layout.c pure-owned leave (StructLayout multi-module map +
 //   pipeline_module_struct_layout_* full set + type_param + next_field_offset +
@@ -38031,7 +38036,7 @@ export extern "C" function backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx: *u8, t
 export extern "C" function backend_enc_imul_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
 export extern "C" function asm_type_is_simd_vector(arena: *u8, type_ref: i32): i32;
-export extern "C" function asm_local_slot_bytes(arena: *u8, type_ref: i32): i32;
+// wave268: asm_local_slot_bytes pure-owned (slot_bytes leave; dual-export ban).
 // wave153 pure-owned: pipeline_asm_block_final_expr_ref_at body in EOF section.
 export extern "C" function ast_ast_block_expr_stmt_ref(arena: *u8, block_ref: i32, ei: i32): i32;
 export extern "C" function backend_fold_func_return_operand_ref(arena: *u8, mod: *u8, func_idx: i32): i32;
@@ -73883,3 +73888,655 @@ export function asm_ctx_block_slot_get(ctx: *u8, block_ref: i32): i32 {
 }
 
 // end wave267 pure-owned leave
+
+// wave268: pipeline_asm_slot_bytes.c pure-owned leave
+// =============================================================================
+// G.7 product authority for:
+//   asm_local_slot_bytes (public entry; mod=null uses emit module)
+//   asm_ctx_ensure_block_locals (lazy block const/let → asm local sidecar)
+// Internal pure helpers (file-local):
+//   pipe_slot_bytes_named_in_mod / pipe_fixed_array_total_bytes_mod
+//   / pipe_local_slot_bytes_mod / pipe_asm_ctx_module_ref
+// Historical Cap residual host-cc: pipeline_asm_slot_bytes.c (~462 LOC) included
+// from ast_pool.c. Product pure owns freestanding stack slot width:
+//   TYPE_NAMED struct metrics (ZST rc==0 sz==0 vs invent on metrics fail)
+//   + dep walk when entry miss + T[N] SoA/AoS + multi-dim peel + PTR esz=8
+//   + SLICE=16 + VECTOR/spelling lanes.
+// TRACE fprintf soft-dropped (host residual only).
+// Cap residual still host-cc:
+//   asm_local_slot_reg_offset / asm_type_is_simd_vector_spelling
+//   typeck_soa_array_storage_size_glue / typeck_x_type_size_from_layout_glue
+//   block_tree fill tree (calls ensure) + bootstrap_glue size uses.
+// dual-export ban: pure T; pipeline_x U for left faces.
+// PLATFORM: SHARED freestanding stack layout · LINUX gold · MACOS co-path.
+// =============================================================================
+
+/**
+ * AsmFuncCtx.module_ref at byte offset 16 (LP64 slot index 2).
+ * @param ctx *u8 - AsmFuncCtx*; null -> null
+ * @return *u8 - Module* or null
+ * wave268 pure helper (was static asm_ctx_module_ref).
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_asm_ctx_module_ref(ctx: *u8): *u8 {
+  if (ctx == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return pipe_load_ptr_slot(ctx, 2);
+}
+
+/**
+ * TYPE_NAMED struct layout stack slot bytes in one module.
+ * Metrics OK + sz==0 => true ZST (return 0); metrics fail => invent last_off+fsz.
+ * Strips trailing module prefix after last '.' before layout name match.
+ * @param arena *u8 - ASTArena*
+ * @param type_ref i32 - TYPE_NAMED type ref
+ * @param mod *u8 - Module*; null -> 0
+ * @return i32 - padded slot bytes >0; 0 miss or ZST
+ * wave268 pure: G.7 authority (was static asm_slot_bytes_named_in_mod).
+ * PLATFORM: SHARED freestanding nest ZST · LINUX gold.
+ */
+function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
+  let name: u8[128] = [];
+  let nlen: i32 = 0;
+  let k: i32 = 0;
+  let nlayouts: i32 = 0;
+  let ln: i32 = 0;
+  let j: i32 = 0;
+  let eq: i32 = 0;
+  let b: i32 = 0;
+  let sz: i32 = 0;
+  let al: i32 = 0;
+  let mrc: i32 = 0;
+  let sz_slot: i32[1] = [];
+  let al_slot: i32[1] = [];
+  let nf: i32 = 0;
+  let last: i32 = 0;
+  let foff: i32 = 0;
+  let fty: i32 = 0;
+  let fsz: i32 = 0;
+  let dot: i32 = 0;
+  let base_off: i32 = 0;
+  let base_len: i32 = 0;
+  if (arena == 0 as *u8 || type_ref <= 0 || mod == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    nlen = pipeline_type_named_name_into(arena, type_ref, &name[0]);
+  }
+  if (nlen <= 0 || nlen > 127) {
+    return 0;
+  }
+  // Strip module prefix: "heap.PageMmapHeap" -> "PageMmapHeap".
+  dot = 0 - 1;
+  j = 0;
+  while (j < nlen) {
+    if (name[j] == 46) {
+      dot = j;
+    }
+    j = j + 1;
+  }
+  if (dot >= 0) {
+    base_off = dot + 1;
+    base_len = nlen - base_off;
+    if (base_len <= 0) {
+      return 0;
+    }
+    j = 0;
+    while (j < base_len) {
+      name[j] = name[base_off + j];
+      j = j + 1;
+    }
+    nlen = base_len;
+  }
+  unsafe {
+    nlayouts = pipeline_module_num_struct_layouts_at(mod);
+  }
+  k = 0;
+  while (k < nlayouts) {
+    unsafe {
+      ln = pipeline_module_struct_layout_name_len(mod, k);
+    }
+    if (ln == nlen) {
+      eq = 1;
+      j = 0;
+      while (j < nlen) {
+        unsafe {
+          b = pipeline_module_struct_layout_name_byte_at(mod, k, j);
+        }
+        if (b != (name[j] as i32)) {
+          eq = 0;
+          j = nlen;
+        } else {
+          j = j + 1;
+        }
+      }
+      if (eq != 0) {
+        sz_slot[0] = 0;
+        al_slot[0] = 1;
+        unsafe {
+          mrc = typeck_typeck_struct_layout_metrics(mod, arena, k, 0, 0, &sz_slot[0], &al_slot[0]);
+        }
+        sz = sz_slot[0];
+        // TRACE soft-dropped.
+        if (mrc == 0) {
+          if (sz <= 0) {
+            return 0;
+          }
+          if (sz % 8 != 0) {
+            sz = sz + (8 - (sz % 8));
+          }
+          return sz;
+        }
+        // Metrics failed: invent last_off + field slot bytes.
+        unsafe {
+          nf = pipeline_module_struct_layout_num_fields(mod, k);
+        }
+        if (nf > 0) {
+          last = nf - 1;
+          unsafe {
+            foff = pipeline_module_struct_layout_field_offset_at(mod, k, last);
+            fty = pipeline_module_struct_layout_field_type_ref(mod, k, last);
+          }
+          fsz = pipe_local_slot_bytes_mod(arena, fty, mod);
+          if (fsz <= 0) {
+            fsz = 4;
+          }
+          sz = foff + fsz;
+        } else {
+          return 0;
+        }
+        if (sz > 0) {
+          if (sz % 8 != 0) {
+            sz = sz + (8 - (sz % 8));
+          }
+          return sz;
+        }
+      }
+    }
+    k = k + 1;
+  }
+  return 0;
+}
+
+/**
+ * T[N] fixed array total bytes: SoA storage or AoS N*layout (struct elem only).
+ * @param arena *u8 - ASTArena*
+ * @param type_ref i32 - TYPE_ARRAY type ref
+ * @param mod *u8 - Module*; null falls back to emit module
+ * @return i32 - total bytes; 0 miss (caller uses esz heuristic)
+ * wave268 pure: G.7 single product authority (was static asm_fixed_array_total_bytes_mod).
+ * Cap residual host-cc: pipeline_asm_block_tree.c asm_fixed_array_temp_bytes consumer.
+ * PLATFORM: SHARED freestanding array layout.
+ */
+#[no_mangle]
+export function asm_fixed_array_total_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
+  let nt: i32 = 0;
+  let asz: i32 = 0;
+  let elem_ref: i32 = 0;
+  let ek: i32 = 0;
+  let soa_sz: i32 = 0;
+  let ename: u8[128] = [];
+  let elen: i32 = 0;
+  let nlayouts: i32 = 0;
+  let lk: i32 = 0;
+  let ln: i32 = 0;
+  let j: i32 = 0;
+  let eq: i32 = 0;
+  let b: i32 = 0;
+  let es: i32 = 0;
+  if (arena == 0 as *u8 || type_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    nt = pipeline_arena_num_types(arena);
+  }
+  if (type_ref > nt) {
+    return 0;
+  }
+  unsafe {
+    if (pipeline_type_kind_ord_at(arena, type_ref) != 10) {
+      return 0;
+    }
+    asz = pipeline_type_array_size_at(arena, type_ref);
+    elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+  }
+  if (asz <= 0 || elem_ref <= 0) {
+    return 0;
+  }
+  if (mod == 0 as *u8) {
+    mod = pipeline_asm_glue_emit_module_ref();
+  }
+  if (mod == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    ek = pipeline_type_kind_ord_at(arena, elem_ref);
+  }
+  // elem must be TYPE_NAMED (8) for SoA/layout path.
+  if (ek != 8) {
+    return 0;
+  }
+  unsafe {
+    soa_sz = typeck_soa_array_storage_size_glue(mod, arena, elem_ref, asz, 0);
+  }
+  if (soa_sz > 0) {
+    return soa_sz;
+  }
+  unsafe {
+    elen = pipeline_type_named_name_into(arena, elem_ref, &ename[0]);
+  }
+  if (elen <= 0 || elen > 63) {
+    return 0;
+  }
+  unsafe {
+    nlayouts = pipeline_module_num_struct_layouts_at(mod);
+  }
+  lk = 0;
+  while (lk < nlayouts) {
+    unsafe {
+      ln = pipeline_module_struct_layout_name_len(mod, lk);
+    }
+    if (ln == elen) {
+      eq = 1;
+      j = 0;
+      while (j < elen) {
+        unsafe {
+          b = pipeline_module_struct_layout_name_byte_at(mod, lk, j);
+        }
+        if (b != (ename[j] as i32)) {
+          eq = 0;
+          j = elen;
+        } else {
+          j = j + 1;
+        }
+      }
+      if (eq != 0) {
+        unsafe {
+          es = typeck_x_type_size_from_layout_glue(mod, arena, lk, 0);
+        }
+        if (es > 0) {
+          return asz * es;
+        }
+      }
+    }
+    lk = lk + 1;
+  }
+  return 0;
+}
+
+/**
+ * Single const/let stack slot bytes; mod preferred else emit module + dep walk.
+ * @param arena *u8 - ASTArena*
+ * @param type_ref i32 - type ref; invalid -> 8
+ * @param mod *u8 - Module* or null
+ * @return i32 - slot bytes (>=8 for non-ZST scalars)
+ * wave268 pure: G.7 authority (was static asm_local_slot_bytes_mod).
+ * PLATFORM: SHARED freestanding stack · LINUX gold · MACOS co-path.
+ */
+function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
+  let nt: i32 = 0;
+  let ko: i32 = 0;
+  let sz: i32 = 0;
+  let dep: *u8 = 0 as *u8;
+  let nd: i32 = 0;
+  let di: i32 = 0;
+  let dm: *u8 = 0 as *u8;
+  let elem_ref: i32 = 0;
+  let arr_sz: i32 = 0;
+  let asz: i32 = 0;
+  let esz: i32 = 0;
+  let ek: i32 = 0;
+  let bytes: i32 = 0;
+  let lanes: i32 = 0;
+  let name: u8[128] = [];
+  let nlen: i32 = 0;
+  let cur: i32 = 0;
+  let prod: i32 = 0;
+  let d: i32 = 0;
+  let leaf_esz: i32 = 0;
+  let cn: i32 = 0;
+  let ce: i32 = 0;
+  let lek: i32 = 0;
+  let ssz: i32 = 0;
+  let simd: i32 = 0;
+  if (arena == 0 as *u8 || type_ref <= 0) {
+    return 8;
+  }
+  unsafe {
+    nt = pipeline_arena_num_types(arena);
+  }
+  if (type_ref > nt) {
+    return 8;
+  }
+  unsafe {
+    ko = pipeline_type_kind_ord_at(arena, type_ref);
+  }
+  // TYPE_NAMED = 8: layout metrics + dep walk.
+  if (ko == 8) {
+    if (mod == 0 as *u8) {
+      mod = pipeline_asm_glue_emit_module_ref();
+    }
+    sz = pipe_slot_bytes_named_in_mod(arena, type_ref, mod);
+    if (sz > 0) {
+      return sz;
+    }
+    dep = pipeline_asm_emit_dep_pipe_c();
+    if (dep != 0 as *u8) {
+      unsafe {
+        nd = pipeline_dep_ctx_ndep(dep);
+      }
+      di = 0;
+      while (di < nd) {
+        unsafe {
+          dm = pipeline_dep_ctx_module_at(dep, di);
+        }
+        if (dm != 0 as *u8 && dm != mod) {
+          sz = pipe_slot_bytes_named_in_mod(arena, type_ref, dm);
+          if (sz > 0) {
+            return sz;
+          }
+        }
+        di = di + 1;
+      }
+    }
+  }
+  // TYPE_ARRAY = 10 fixed T[N].
+  if (ko == 10) {
+    unsafe {
+      asz = pipeline_type_array_size_at(arena, type_ref);
+      elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+    }
+    if (asz > 0) {
+      arr_sz = asm_fixed_array_total_bytes_mod(arena, type_ref, mod);
+      if (arr_sz > 0) {
+        if (arr_sz % 8 != 0) {
+          arr_sz = arr_sz + (8 - (arr_sz % 8));
+        }
+        return arr_sz;
+      }
+      // Multi-dim T[N][M]: product of dims * leaf esz; pad outer only.
+      if (elem_ref > 0 && elem_ref <= nt) {
+        unsafe {
+          ek = pipeline_type_kind_ord_at(arena, elem_ref);
+        }
+        if (ek == 10) {
+          cur = type_ref;
+          prod = 1;
+          leaf_esz = 4;
+          d = 0;
+          while (d < 8) {
+            unsafe {
+              if (pipeline_type_kind_ord_at(arena, cur) != 10) {
+                d = 8;
+              } else {
+                cn = pipeline_type_array_size_at(arena, cur);
+                ce = pipeline_type_elem_ref_at(arena, cur);
+              }
+            }
+            if (d >= 8) {
+              // broken by inner break set
+            } else {
+              if (cn <= 0 || ce <= 0) {
+                d = 8;
+              } else {
+                prod = prod * cn;
+                unsafe {
+                  lek = pipeline_type_kind_ord_at(arena, ce);
+                }
+                if (lek != 10) {
+                  if (lek == 2 || lek == 1) {
+                    leaf_esz = 1;
+                  } else {
+                    if (lek == 15 || lek == 4 || lek == 5 || lek == 6 || lek == 7 || lek == 9) {
+                      leaf_esz = 8;
+                    } else {
+                      if (lek == 8) {
+                        ssz = pipe_slot_bytes_named_in_mod(arena, ce, mod);
+                        if (ssz > 0) {
+                          leaf_esz = ssz;
+                        } else {
+                          leaf_esz = 8;
+                        }
+                      } else {
+                        leaf_esz = 4;
+                      }
+                    }
+                  }
+                  bytes = prod * leaf_esz;
+                  if (bytes < 8) {
+                    bytes = 8;
+                  }
+                  if (bytes % 8 != 0) {
+                    bytes = bytes + (8 - (bytes % 8));
+                  }
+                  return bytes;
+                }
+                cur = ce;
+                d = d + 1;
+              }
+            }
+          }
+        }
+      }
+      // Scalar/elem esz heuristic (PTR=8 wave637).
+      esz = 4;
+      if (elem_ref > 0 && elem_ref <= nt) {
+        unsafe {
+          ek = pipeline_type_kind_ord_at(arena, elem_ref);
+        }
+        if (ek == 2 || ek == 1) {
+          esz = 1;
+        } else {
+          if (ek == 14 || ek == 0 || ek == 3 || ek == 13) {
+            esz = 4;
+          } else {
+            if (ek == 8 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9) {
+              esz = 8;
+            }
+          }
+        }
+      }
+      bytes = asz * esz;
+      if (bytes < 8) {
+        bytes = 8;
+      }
+      if (bytes % 8 != 0) {
+        bytes = bytes + (8 - (bytes % 8));
+      }
+      return bytes;
+    }
+  }
+  // TYPE_SLICE = 11 → {data,len} 16B.
+  if (ko == 11) {
+    return 16;
+  }
+  // VECTOR ord==13 or NAMED i32x4 spelling.
+  unsafe {
+    simd = asm_type_is_simd_vector_spelling(arena, type_ref);
+  }
+  if (simd == 0 && ko != 13) {
+    return 8;
+  }
+  if (ko != 13) {
+    // NAMED spelling: lanes from name x4/x8/x16 or Vec8i.
+    lanes = 4;
+    unsafe {
+      nlen = pipeline_type_named_name_into(arena, type_ref, &name[0]);
+    }
+    if (nlen == 5 && name[4] == 56) {
+      lanes = 8;
+    }
+    if (nlen == 6 && name[4] == 49 && name[5] == 54) {
+      lanes = 16;
+    }
+    // "Vec8i"
+    if (nlen == 5 && name[0] == 86 && name[1] == 101 && name[2] == 99 && name[3] == 56 && name[4] == 105) {
+      lanes = 8;
+    }
+    esz = 4;
+    bytes = lanes * esz;
+    if (bytes < 8) {
+      bytes = 8;
+    }
+    if (bytes % 8 != 0) {
+      bytes = bytes + (8 - (bytes % 8));
+    }
+    return bytes;
+  }
+  // TYPE_VECTOR = 13.
+  unsafe {
+    asz = pipeline_type_array_size_at(arena, type_ref);
+    elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+  }
+  if (asz > 0) {
+    lanes = asz;
+  } else {
+    lanes = 4;
+  }
+  esz = 4;
+  if (elem_ref > 0 && elem_ref <= nt) {
+    unsafe {
+      ek = pipeline_type_kind_ord_at(arena, elem_ref);
+    }
+    if (ek == 2) {
+      esz = 1;
+    } else {
+      if (ek == 14) {
+        esz = 4;
+      } else {
+        if (ek == 8 || ek == 4 || ek == 5 || ek == 6) {
+          esz = 8;
+        }
+      }
+    }
+  }
+  bytes = lanes * esz;
+  if (bytes < 8) {
+    bytes = 8;
+  }
+  if (bytes % 8 != 0) {
+    bytes = bytes + (8 - (bytes % 8));
+  }
+  return bytes;
+}
+
+/**
+ * Public stack slot bytes for const/let (no ctx; emit module + dep walk).
+ * @param arena *u8 - ASTArena*
+ * @param type_ref i32 - type ref
+ * @return i32 - slot bytes
+ * wave268 pure: G.7 single product authority (was pipeline_asm_slot_bytes.c).
+ * PLATFORM: SHARED freestanding stack layout · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function asm_local_slot_bytes(arena: *u8, type_ref: i32): i32 {
+  return pipe_local_slot_bytes_mod(arena, type_ref, 0 as *u8);
+}
+
+/**
+ * Lazy register block const/let into asm local sidecar (C twin of ensure).
+ * inout_next_offset / inout_num_locals mirror AsmFuncCtx next_offset / num_locals.
+ * Uses pure local append + Cap residual asm_local_slot_reg_offset + reserve.
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param arena *u8 - ASTArena*
+ * @param block_ref i32 - block ref
+ * @param inout_next_offset *i32 - next stack offset; updated on success
+ * @param inout_num_locals *i32 - total locals after fill
+ * wave268 pure: G.7 single product authority (was asm_ctx_ensure_block_locals).
+ * PLATFORM: SHARED freestanding block locals.
+ */
+#[no_mangle]
+export function asm_ctx_ensure_block_locals(ctx: *u8, arena: *u8, block_ref: i32, inout_next_offset: *i32, inout_num_locals: *i32): void {
+  let i: i32 = 0;
+  let off: i32 = 0;
+  let base: i32 = 0;
+  let nlen: i32 = 0;
+  let type_ref: i32 = 0;
+  let init_ref: i32 = 0;
+  let name_buf: u8[128] = [];
+  let nconst: i32 = 0;
+  let nlet: i32 = 0;
+  let prev: i32 = 0;
+  let slot_off: i32 = 0;
+  let ap: i32 = 0;
+  let off_slot: i32[1] = [];
+  if (ctx == 0 as *u8 || arena == 0 as *u8 || inout_next_offset == 0 as *i32 || inout_num_locals == 0 as *i32 || block_ref <= 0) {
+    return;
+  }
+  unsafe {
+    prev = asm_ctx_block_slot_get(ctx, block_ref);
+  }
+  if (prev >= 0) {
+    return;
+  }
+  unsafe {
+    base = asm_ctx_local_count(ctx);
+    asm_ctx_block_slot_set(ctx, block_ref, base);
+  }
+  off = inout_next_offset[0];
+  unsafe {
+    nconst = ast_ast_block_num_consts(arena, block_ref);
+  }
+  i = 0;
+  while (i < nconst) {
+    unsafe {
+      nlen = ast_pipeline_block_const_name_len(arena, block_ref, i);
+    }
+    if (nlen > 0) {
+      unsafe {
+        ast_pipeline_block_const_name_copy64(arena, block_ref, i, &name_buf[0]);
+        type_ref = pipeline_block_const_type_ref(arena, block_ref, i);
+      }
+      off_slot[0] = off;
+      unsafe {
+        slot_off = asm_local_slot_reg_offset(arena, type_ref, off, &off_slot[0]);
+        off = off_slot[0];
+        ap = asm_ctx_local_append(ctx, &name_buf[0], nlen, slot_off);
+      }
+      if (ap < 0) {
+        return;
+      }
+      unsafe {
+        init_ref = ast_pipeline_block_const_init_ref(arena, block_ref, i);
+        off = off + pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+      }
+    }
+    i = i + 1;
+  }
+  unsafe {
+    nlet = ast_ast_block_num_lets(arena, block_ref);
+  }
+  i = 0;
+  while (i < nlet) {
+    unsafe {
+      nlen = ast_pipeline_block_let_name_len(arena, block_ref, i);
+    }
+    if (nlen > 0) {
+      unsafe {
+        ast_pipeline_block_let_name_copy64(arena, block_ref, i, &name_buf[0]);
+        type_ref = pipeline_block_let_type_ref(arena, block_ref, i);
+      }
+      off_slot[0] = off;
+      unsafe {
+        slot_off = asm_local_slot_reg_offset(arena, type_ref, off, &off_slot[0]);
+        off = off_slot[0];
+        ap = asm_ctx_local_append(ctx, &name_buf[0], nlen, slot_off);
+      }
+      if (ap < 0) {
+        return;
+      }
+      unsafe {
+        init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, i);
+        off = off + pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+      }
+    }
+    i = i + 1;
+  }
+  inout_next_offset[0] = off;
+  unsafe {
+    inout_num_locals[0] = asm_ctx_local_count(ctx);
+  }
+}
+
+// end wave268 pure-owned leave
