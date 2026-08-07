@@ -5594,12 +5594,12 @@ let g_pipe_pp_defines: u8[8192] = [];
 let g_pipe_pp_ndefines: i32 = 0;
 
 // wave86 pure preprocess #if nesting stack (G.7 single authority for product if_stack).
-// PLATFORM: SHARED - fixed cap 32 i32 slots (historical fixed stack before ast_pool GrowVec).
-// Layout: g_pipe_pp_if_stack[0 .. n) live; g_pipe_pp_if_n = depth (0..32).
+// PLATFORM: SHARED - fixed cap 64 i32 slots (was 32; pool-limits deep_if_nest DEPTH=40).
+// Layout: g_pipe_pp_if_stack[0 .. n) live; g_pipe_pp_if_n = depth (0..64).
 // Product hybrid: pure override of ast_pool XLANG_WEAK GrowVec cold fallback
 // (pipeline_x.o / pipeline_glue_standalone.o embed the weak cold body).
 // preprocess.x thin wrappers + preprocess_x_buf call these by C link name.
-let g_pipe_pp_if_stack: i32[32] = [];
+let g_pipe_pp_if_stack: i32[64] = [];
 let g_pipe_pp_if_n: i32 = 0;
 
 // wave104 pure emit_sidecar leave (was pipeline_emit_sidecar.c host-cc residual).
@@ -5970,7 +5970,7 @@ export function preprocess_if_stack_reset(): void {
 
 /**
  * Return current #if nesting depth (0 when empty).
- * @return i32 - depth in 0..32
+ * @return i32 - depth in 0..64
  * wave86 pure Cap residual: matches historical preprocess_if_stack_len (GrowVec len).
  * PLATFORM: SHARED - same non-negative depth contract as cold path.
  */
@@ -5982,13 +5982,13 @@ export function preprocess_if_stack_len(): i32 {
 /**
  * Push one stack state value (active / skipped / else-taken codes from preprocess.x).
  * @param v i32 - state code for this nesting level
- * @return i32 - 0 on success; -1 if depth already at cap 32
+ * @return i32 - 0 on success; -1 if depth already at cap 64
  * wave86 pure Cap residual: fixed-cap push (historical GrowVec grow-or-fail).
- * PLATFORM: SHARED - cap 32 matches pre-GrowVec fixed stack; product #if nest rare > 8.
+ * PLATFORM: SHARED - cap 64 covers pool-limits DEPTH=40 and typical product nests.
  */
 #[no_mangle]
 export function preprocess_if_stack_push(v: i32): i32 {
-  if (g_pipe_pp_if_n >= 32) {
+  if (g_pipe_pp_if_n >= 64) {
     return -1;
   }
   unsafe {

@@ -25,15 +25,25 @@
 /**
  * Copy Type.name[64] into out64; return name_len (0 if invalid).
  * Used by typeck/codegen to avoid .x nested array GEP typeck failures.
+ *
+ * PLATFORM: SHARED — copy only name_len (cap 64). Historical full-slot
+ * sizeof memcpy forced every caller to own a 64-byte buffer; same class as
+ * region_label_into stack smash (typeck_ptr_has_stack_local / Abort on
+ * std.string). Callers that need a padded 64-byte slot must zero first.
  */
 int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t ref, uint8_t *out64) {
   struct ast_Type *t;
+  int32_t n;
   if (!arena || !out64 || ref <= 0 || ref > arena->num_types)
     return 0;
   t = pipeline_arena_type_ptr(arena, ref);
   if (!t)
     return 0;
-  memcpy(out64, t->name, sizeof(t->name));
+  n = t->name_len;
+  if (n > 64)
+    n = 64;
+  if (n > 0)
+    memcpy(out64, t->name, (size_t)n);
   return t->name_len;
 }
 
@@ -44,12 +54,21 @@ int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t ref, u
  */
 int32_t pipeline_type_region_label_into(struct ast_ASTArena *arena, int32_t ref, uint8_t *out64) {
   struct ast_Type *t;
+  int32_t n;
   if (!arena || !out64 || ref <= 0 || ref > arena->num_types)
     return 0;
   t = pipeline_arena_type_ptr(arena, ref);
   if (!t || t->region_label_len <= 0)
     return 0;
-  memcpy(out64, t->region_label, sizeof(t->region_label));
+  /* PLATFORM: SHARED — copy only region_label_len (cap 64). Full sizeof was
+   * always 64 bytes and smashed callers with out[16] (typeck_ptr_has_stack_local
+   * → stack_chk_fail / Abort when typecking std.string). Callers that need a
+   * padded 64-byte slot must zero their buffer; readers use returned len. */
+  n = t->region_label_len;
+  if (n > 64)
+    n = 64;
+  if (n > 0)
+    memcpy(out64, t->region_label, (size_t)n);
   return t->region_label_len;
 }
 

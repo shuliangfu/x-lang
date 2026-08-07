@@ -1011,13 +1011,13 @@ try_ensure_r1_one() {
     echo "ensure_host_cc_seed_o try-r1: need <out.o>" >&2
     exit 2
   fi
-  # wave176: product PREFER hybrid for pipeline_abi (pure thin + seed rest under
-  # FROM_X). Cold ensure_one of the full seed fails type conflicts and would
-  # wipe a good hybrid .o mid bootstrap-driver-seed sat rebuild. G.7: reuse
-  # ensure_pipeline_abi_prefer_one (wave767) — no second recipe.
-  # PLATFORM: SHARED · PREFER=1 product path only.
-  if [ "$o" = "src/runtime_pipeline_abi.o" ] && [ "${XLANG_G05_PREFER_X_O:-0}" = "1" ]; then
-    ensure_pipeline_abi_prefer_one "$o"
+  # wave176 / L4: pipeline_abi always routes through ensure_pipeline_abi_prefer_one
+  # (hybrid when egg exists; cold seed last resort). Do **not** gate on PREFER=1 —
+  # sat rebuild sets PREFER=0 and would otherwise cold-cc the broken full seed and
+  # wipe a good hybrid .o. G.7: single body wave767.
+  # PLATFORM: SHARED · pin egg required for true-cold hybrid.
+  if [ "$o" = "src/runtime_pipeline_abi.o" ]; then
+    ensure_pipeline_abi_prefer_one "$o" || return 1
     return 0
   fi
   if ! seed_mode="$(r1_seed_mode_for_o "$o")"; then
@@ -1127,7 +1127,11 @@ r3_prefer_leaf_spec() {
       printf '%s\n' "src/asm/simd_loop_thin.x|XLANG_L2_SIMD_LOOP_THIN_FROM_X|glue_simd_loop_pick_lanes_c|src/asm/simd_loop.x|XLANG_SIMD_LOOP_FROM_X"
       ;;
     src/asm/backend_enc_dispatch.o)
-      printf '%s\n' "src/asm/backend_enc_dispatch_thin.x|XLANG_L2_ENC_DISPATCH_THIN_FROM_X|-|src/asm/backend_enc_dispatch.x|XLANG_BACKEND_ENC_DISPATCH_FROM_X"
+      # nm gate: full.x / thin.x still miss Cap residual f64 enc (addsd/divsd/…);
+      # hybrid under FROM_X empties rest bodies → L4 pure-ld UNDEF from
+      # runtime_pipeline_abi. Gate fails prefer → cold full seed (has symbols).
+      # PLATFORM: SHARED · remove gate when .x exports backend_enc_addsd_rax_rbx_arch.
+      printf '%s\n' "src/asm/backend_enc_dispatch_thin.x|XLANG_L2_ENC_DISPATCH_THIN_FROM_X|backend_enc_addsd_rax_rbx_arch|src/asm/backend_enc_dispatch.x|XLANG_BACKEND_ENC_DISPATCH_FROM_X"
       ;;
     src/asm/backend_arch_emit_dispatch.o)
       printf '%s\n' "src/asm/backend_arch_emit_dispatch_thin.x|XLANG_L2_ARCH_EMIT_THIN_FROM_X|-|src/asm/backend_arch_emit_dispatch.x|XLANG_BACKEND_ARCH_EMIT_DISPATCH_FROM_X"
@@ -2851,8 +2855,14 @@ ensure_pipeline_abi_prefer_one() {
 
   mkdir -p "$(dirname "$o")"
 
-  # PREFER thin+rest only when PREFER=1 (Darwin cold-chain safety twin of R3/labi/rt).
-  if [ "$prefer" = "1" ] && [ -f "$x_src" ] \
+  # Hybrid thin+rest whenever a pin/product egg exists.
+  # PLATFORM: SHARED — L4 root fix: sat rebuild forces XLANG_G05_PREFER_X_O=0
+  # (-B). Historical gate only hybrid-ed when PREFER=1, so sat re-entered cold
+  # full seed (void*/struct* dual decls) and **wiped** a good hybrid .o from
+  # ensure_prereqs → pure-ld phase1 missing src/runtime_pipeline_abi.o.
+  # Cold full seed is not a viable identity path until seed dual-decls are
+  # cleaned; egg hybrid is the single working product cold path for this leaf.
+  if [ -f "$x_src" ] \
     && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
     thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/pabi_rest.XXXXXX")"
@@ -2863,10 +2873,10 @@ ensure_pipeline_abi_prefer_one() {
            -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
            -c -o "$rest_o" "$seed" \
       && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer)"
+      log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer; prefer=${prefer})"
       done=1
     else
-      log "pipeline_abi hybrid failed; fallback full seed"
+      log "pipeline_abi hybrid failed; fallback full seed (prefer=${prefer})"
     fi
     rm -f "$thin_o" "$rest_o"
   fi
@@ -2875,19 +2885,26 @@ ensure_pipeline_abi_prefer_one() {
     return 0
   fi
 
-  # Cold full seed (ensure_one twin / PREFER=0) with XLANG_USE_X_PIPELINE.
-  # wave176: cold full seed currently fails type conflicts and would leave OUT
-  # missing (ensure_one does not check cc status → pure-ld phase1 fails).
-  # Prefer path: if hybrid failed but OUT exists, keep it.
-  # Cold path (sat -B PREFER=0): if OUT exists, skip cold recompile that would wipe.
+  # Cold full seed (ensure_one twin) with XLANG_USE_X_PIPELINE — last resort only.
+  # wave176: cold full seed currently fails type conflicts (void* vs struct*
+  # dual decls in from_x). If hybrid failed but OUT still exists, keep it.
   # PLATFORM: SHARED freestanding product / sat rebuild safety.
+  # Hard-fail when OUT is still missing — never return 0 with no leaf (L4 pure-ld).
   cold_flags="$(pipeline_abi_prefer_cflags)"
   # shellcheck disable=SC2086
-  if [ -f "$o" ]; then
+  if [ -s "$o" ]; then
     log "pipeline_abi skip cold wipe; keep existing $o (wave176; cold seed type conflicts)"
     return 0
   fi
-  ensure_one "$o" "$seed" $cold_flags
+  if ! ensure_one "$o" "$seed" $cold_flags; then
+    echo "ensure_host_cc_seed_o: pipeline_abi cold seed failed and no hybrid $o" >&2
+    echo "  need: pin egg (./xbuild bootstrap-driver-seed installs select_bootstrap)" >&2
+    return 1
+  fi
+  if [ ! -s "$o" ]; then
+    echo "ensure_host_cc_seed_o: pipeline_abi ensure finished without $o" >&2
+    return 1
+  fi
   return 0
 }
 
@@ -2900,7 +2917,7 @@ try_ensure_pipeline_abi_prefer_one() {
   if [ "$o" != "src/runtime_pipeline_abi.o" ]; then
     return 3
   fi
-  ensure_pipeline_abi_prefer_one "$o"
+  ensure_pipeline_abi_prefer_one "$o" || return 1
   return 0
 }
 

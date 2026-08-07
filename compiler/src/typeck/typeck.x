@@ -10730,8 +10730,10 @@ op_ref: i32, func_return_ref: i32): i32 {
  */
 function typeck_ptr_has_stack_local_label(arena: *ASTArena, ty_ref: i32): i32 {
   // PLATFORM: SHARED — TYPE_PTR region label "stack_local" (len 11).
+  // out buffer must be >= 64: pipeline_type_region_label_into may write label
+  // slot (historical full-64 memcpy fixed at produce site; keep 64 for safety).
   unsafe {
-    let lbl: u8[16] = [];
+    let lbl: u8[64] = [];
     let n: i32 = 0;
     if (arena == 0 as *ASTArena || ty_ref <= 0) {
       return 0;
