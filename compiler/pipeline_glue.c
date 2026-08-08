@@ -1434,7 +1434,9 @@ extern uint8_t *driver_dep_module_buf(int32_t i);
  * pipeline_typeck_x_stack_escape_gate_from_src_c
  * pipeline_lsp_diag_parse_typeck_buf / pipeline_typeck_after_parse_ok (XLANG_WEAK standalone)
  * No static state; all extern deps. PLATFORM: SHARED. */
-#include "pipeline_parse_orch.c"
+/* wave284: pipeline_parse_orch Cap residual seed ALWAYS leave (host leaf deleted).
+ * Live = runtime_pipeline_abi seed WAVE284 ALWAYS (+ pure duals under prefer).
+ * Do not re-#include pipeline_parse_orch.c. PLATFORM: SHARED. */
 
 
 extern int32_t backend_emit_expr_call(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t expr_ref,

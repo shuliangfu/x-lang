@@ -180,6 +180,7 @@ PRODUCT_RESIDUAL_ROWS=(
   # --- 8.3.4 bootstrap glue / orchestration ---
   "compiler/ast_pool_bootstrap_glue.c|8.3.4|bootstrap glue retired (seed ALWAYS leave wave282)|0|absent"
   "compiler/pipeline_ast_forwarders.c|8.3.2|ast_pipeline_* forwarders retired (seed ALWAYS leave wave283)|0|absent"
+  "compiler/pipeline_parse_orch.c|8.3.2|parse/load/typeck orch Cap residual (wave284 seed ALWAYS leave)|0|absent"
   "compiler/pipeline_bootstrap_orchestration.c|8.3.4|orchestration wrapper → seed|1|present"
   # --- 8.3 product weak twin / standalone seed ---
   "compiler/seeds/pipeline_glue_standalone.from_x.c|8.3.1|standalone glue seed twin|50|present"
@@ -262,7 +263,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave283 ast_forwarders seed ALWAYS · present 27 LOC−mega); candidate: parse_orch / typeck thin / glue shells / typedefs"
+  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave284 parse_orch seed ALWAYS · present 27 LOC−mega); candidate: typeck thin / glue shells / typedefs / parser_result"
 }
 
 run_check() {
