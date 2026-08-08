@@ -186,6 +186,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_parser_result.c|8.3.2|parser result copy/lex/slice Cap residual (wave287 seed ALWAYS leave)|0|absent"
   "compiler/pipeline_asm_label_format.c|8.3.2|asm label format Cap residual (wave288 seed ALWAYS leave)|0|absent"
   "compiler/pipeline_codegen_outbuf.c|8.3.2|codegen outbuf Cap residual (wave289 seed ALWAYS leave)|0|absent"
+  "compiler/pipeline_asm_codegen_mega_body.c|8.3.2|asm codegen mega_body Cap residual (wave290 seed ALWAYS leave)|0|absent"
   "compiler/pipeline_bootstrap_orchestration.c|8.3.4|orchestration wrapper → seed|1|present"
   # --- 8.3 product weak twin / standalone seed ---
   "compiler/seeds/pipeline_glue_standalone.from_x.c|8.3.1|standalone glue seed twin|50|present"
@@ -268,7 +269,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave289 codegen_outbuf seed ALWAYS · present 27 LOC−mega); candidate: glue shells / typedefs / mega residual"
+  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave290 mega_body seed ALWAYS · present 27 LOC−mega); candidate: glue shells / typedefs / elf forwarders / mega residual"
 }
 
 run_check() {

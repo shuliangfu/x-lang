@@ -16186,7 +16186,8 @@ export function pipeline_load_one_import_slot_c(module: *u8, arena: *u8, ctx: *u
 // Thin M8-tail faces: hoist top-level lets, merge/unify SoA when typeck skipped,
 // set emit pipe/module/arena/elf_ctx, then seed partial mega / mega_body + WPO thunks.
 // Omits XLANG_ASM_DEBUG fprintf + parser_emit_heavy debug branch (wave106 style).
-// Cap residual (host-cc, not this leave): hoist, seed mega, emit_set_*, mega_body,
+// Cap residual: hoist / seed mega / emit_set_* still product chain; mega_body =
+// seed ALWAYS wave290 (not host-cc).
 //   wpo_mono reset/thunks, elf_label_mod_scope, typeck merge/wpo/soa fill.
 // Cold twins under seed #ifndef FROM_X.
 // PLATFORM: SHARED - dual-end L2 after leave.
@@ -16252,7 +16253,7 @@ export function pipeline_backend_asm_codegen_ast_c(m: *u8, a: *u8, out: *u8, pip
  * @param pipeline_ctx *u8 - PipelineDepCtx*; null -> -1
  * @return i32 - mega_body/wpo rc; -1 null gate
  * wave113 pure: G.7 single product authority.
- * PLATFORM: SHARED - Cap residual emit_set / mega_body / wpo / typeck merge faces.
+ * PLATFORM: SHARED - emit_set / WPO / typeck merge faces; mega_body = seed ALWAYS wave290.
  */
 #[no_mangle]
 export function pipeline_backend_asm_codegen_ast_to_elf_c(m: *u8, a: *u8, elf_ctx: *u8, pipeline_ctx: *u8): i32 {

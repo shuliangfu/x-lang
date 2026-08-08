@@ -1378,14 +1378,12 @@ extern int32_t pipeline_typeck_pick_overload_func_index_for_call_c(struct ast_Mo
 extern int32_t pipeline_typeck_resolve_call_func_index_for_emit_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                                   int32_t call_expr_ref);
 
-/* wave1238 G.7: pipeline_backend_asm_codegen_ast_to_elf_mega_body_c migrated
- * to pipeline_asm_codegen_mega_body.c (same-TU #include at this site). Sole
- * caller: ast_pool.c L1733. All deps visible at this #include point (identical
- * to pre-migration visibility): pipeline_glue_AsmFuncCtxLayout typedef (L84) +
- * pipeline_asm_ctx_layout static (L86) + pipeline_asm_compute_frame_size_c
- * (L811) + g_pipeline_asm_*sret* globals + GLUE_TYPE_KIND_F32/F64_ORD macros +
- * extern decls above (L2403-2409). PLATFORM: SHARED — asm codegen orchestrator. */
-#include "pipeline_asm_codegen_mega_body.c"
+/* wave290 G.7: pipeline_asm_codegen_mega_body Cap residual host-cc leave.
+ * Live = runtime_pipeline_abi seed ALWAYS (WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS):
+ *   pipeline_asm_ctx_reset_for_func_c + pipeline_backend_asm_codegen_ast_to_elf_mega_body_c.
+ * Host leaf deleted; dual-export ban (pipeline_abi T · pipeline_x U).
+ * PLATFORM: SHARED freestanding Cap leave (seed residual class). */
+/* #include "pipeline_asm_codegen_mega_body.c" — deleted wave290 seed ALWAYS leave */
 
 #include "ast_pool.c"
 /* R2 unbundle (2026-07-21): async_asm_pool is a separate product TU
