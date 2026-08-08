@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 elf residual / pipeline_x mega host-cc leave (dep_ctx leave wave272); pure-owned leave candidates: elf_ctx + elf_write_o + ptr_at + glue_fwd shells + asm wpo"
+  echo "NEXT=8.3.2 elf residual / pipeline_x mega host-cc leave (wave272 DepCtx done · present 38); candidates: elf_ctx + elf_write_o + asm wpo (ptr_at=same-TU static only · not Cap shortcut)"
 }
 
 run_check() {

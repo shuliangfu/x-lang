@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-07（对照 tip residual：glue／ast_pool host 壳 + 域叶 thin／leave；bc-inventory present residual **53**／ROWS=119；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-08（对照 tip residual：glue／ast_pool host 壳 + 域叶 thin／leave；bc-inventory present residual **38**／ROWS=119；**只改勾选与事实 LOC**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -19,7 +19,7 @@
 > 2. **禁止** 在本文写波次号、波次 changelog、「waveN 做了 X」流水账。  
 > 3. 波次叙事、tip SHA 演进、commit 序列 **只写 [自举进度.md](自举进度.md)**。  
 > 4. 做到某一项 → 标 🟡；该项完成 → 改 ✅；不要追加「完成波次」段落。  
-> **权威钉盘**（与本文附录 C 同步）：**`db809e00f`**（产品 L4 放行；MG 物理删 Makefile 仍有效）。
+> **权威钉盘**（与 [自举进度.md](自举进度.md) 同步）：**`36363b90f`**（产品 L4 放行；MG 物理删 Makefile 仍有效）。
 
 ---
 
@@ -34,9 +34,9 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-04 实测**）：`pipeline_glue.c` **~1.71k**（**0 函数体**；domain `#include` + early/mid/backend/typeck/typeck_mid/emit/emit_block/emit_lea/emit_mid_fwd 壳 + statics 壳）；`pipeline_glue_early_fwd.c` **~0.23k** + `pipeline_glue_mid_fwd.c` **~0.13k** + `pipeline_glue_backend_fwd.c` **~0.61k** + `pipeline_glue_typeck_fwd.c` **~0.33k** + `pipeline_glue_typeck_mid_fwd.c` **~0.29k** + `pipeline_glue_emit_fwd.c` **~0.11k** + `pipeline_glue_emit_block_fwd.c` **~0.07k** + `pipeline_glue_emit_lea_fwd.c` **~0.08k** + `pipeline_glue_emit_mid_fwd.c` **~0.06k** + `pipeline_glue_statics.c` **~0.07k**（纯 fwd/extern/statics）；`ast_pool.c` **~0.18k**（纯 `#include` 编排）。**bc-inventory 诚实**：present residual product C rows **53**（2026-08-07；ROWS=119）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + 多叶 pure-owned leave（含 var_decl／lea_common／with_arena／…）**；**8.3.3 field_access／soa + typeck_slots + scratch／loop_glue leave** · 父项仍 🟡（pipeline_x mega 未离）；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-08 实测**）：`pipeline_glue.c` 仍 host 编排壳 + domain `#include`；`ast_pool.c` 纯 `#include` 编排。**bc-inventory 诚实**：present residual product C rows **38**（ROWS=119；DepCtx／GrowVec／type pool 等多叶 pure leave 后）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + 多叶 pure-owned leave（含 type_alias→DepCtx 等）**；**8.3.3 field_access／soa + typeck_slots + scratch／loop_glue leave** · 父项仍 🟡（pipeline_x mega 未离；下刀 elf_ctx／write_o／wpo）；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
-| **产品 L4 放行** | ✅ | 钉盘 `77b334842` · Makefile 物理删除 + 双端 L4 真冷 |
+| **产品 L4 放行** | ✅ | 钉盘 **`36363b90f`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
@@ -967,7 +967,7 @@
 | `ast_pool_expr_sidecar.c` | ~647 | expr (+ type-pos) var-len sidecar 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_module_enum.c` | **0（leave）** | module ModuleEnumEntry Cap residual pure-owned leave (wave264) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map + faces + try_mark；seed cold twins under #ifndef FROM_X；same-TU pure face decls |
 | `ast_pool_onefunc.c` | ~986 | OneFunc sidecar + fill_from_onefunc residual 切片 | 🟡 已抽出（wave984+991 有则补全）；仍 host-cc 入 `pipeline_x` |
-| `ast_pool_dep_ctx.c` | ~514 | PipelineDepCtx cold accessors + lib_root + empty_param 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
+| `ast_pool_dep_ctx.c` | **~0** | PipelineDepCtx Cap pure leave wave272（bodies runtime_pipeline_abi；DepCtxSidecar pure BSS） | ✅ **absent** pure leave · inventory present **38** |
 | `ast_pool_module_func.c` | ~445 | module Func cold accessors + param sidecar 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_arena.c` | ~248 | ASTArena main-pool cold accessors 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_block.c` | ~1,439 | block append/region/defer + loop/labeled/getters + parent/resolve + stmt_order rebuild residual 切片 | 🟡 已抽出（wave988–990+992 有则补全）；仍 host-cc 入 `pipeline_x` |
@@ -1003,10 +1003,10 @@
 | `pipeline_asm_emit_next_offset.c` | **0（leave）** | asm_func_ctx next_offset align + bump after array-lit / let-init（same-TU 域） | ✅ **pure-owned leave**（wave126 · 2026-08-05）；live＝runtime_pipeline_abi pure；Cap residual `glue_array_temp_bytes_for_let_init`（array_lit static→extern）；seed cold twin under #ifndef FROM_X；inventory 未单列（同 TU #include） |
 | `pipeline_asm_emit_lea_common.c` | **0（leave）** | asm ELF COMMON label lea + arm64 sret mov（lea rax/rbx rip_x86 + adrp_arm64 + mov x0↔x8） | ✅ **pure-owned leave**（wave123 · 2026-08-05）；live＝runtime_pipeline_abi pure；array_lit static→extern；seed cold twin under #ifndef FROM_X |
 | `pipeline_lint_meta.c` | **0（leave）** | pipeline lint + module metadata glue 域（XLANG_VISIBILITY + L7 unused-private + module_num_funcs／main／reset／strict_parse） | ✅ **pure-owned leave**（wave121 · 2026-08-05）；live＝runtime_pipeline_abi pure；seed cold twin under #ifndef FROM_X |
-| `pipeline_grow_vec.c` | **~0** | GrowVec pure-owned leave wave271（bodies runtime_pipeline_abi；typedef in ast_pool_typedefs） | ✅ **absent** pure leave · inventory present 39 |
+| `pipeline_grow_vec.c` | **~0** | GrowVec pure-owned leave wave271（bodies runtime_pipeline_abi；typedef in ast_pool_typedefs） | ✅ **absent** pure leave · inventory present **38**（wave272 后） |
 | `ast_pool_typedefs.c` | **~315** | AST pool entry + sidecar typedef 域（ImportEntry／MatchArm／FuncParam／sidecar structs 等 + pool macros） | 🟡 **已抽出**（8.3.2 wave1278）；同 TU #include 于 grow_vec 后、sidecar_pool 前；仍 host-cc 入 `pipeline_x` |
-| `ast_pool_ptr_at.c` | **~37** | core pointer accessors（static block_at／module_layout_at／module_import_at） | 🟡 **已抽出**（8.3.2 wave1278）；同 TU #include 于 sidecar_pool 后；仍 host-cc 入 `pipeline_x` |
-| `ast_pool_sidecar_pool.c` | **~478** | sidecar 池管理域（MAX_*_SIDECARS + g_arena/module/onefunc/driver/depctx_sc 全局数组 + sidecar_get/ensure/free + dep_ctx_sidecar_release） | 🟡 **已抽出**（8.3.2）；pointer-keyed 进程级池；g_xlang_depctx_sc 非静态（crt0 embed）；依赖 typedef + GrowVec（先于 include）；仍 host-cc 入 `pipeline_x` |
+| `ast_pool_ptr_at.c` | **~37** | core pointer accessors（static block_at／module_layout_at／module_import_at） | 🟡 **已抽出**；同 TU static + 依赖 `*_sidecar_get`；**不宜**当独立 Cap pure leave 捷径；仍 host-cc 入 `pipeline_x` |
+| `ast_pool_sidecar_pool.c` | **~347** | sidecar 池管理域（MAX_*_SIDECARS + g_arena/module/onefunc 全局 + sidecar_get/ensure/free） | 🟡 **已抽出**（8.3.2）；wave272 起 **DepCtx 表已出池**（pure `g_pipe_dep_sc_blob` 权威 · 禁止再引 g_xlang_depctx_sc）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_asm_codegen_mega_body.c` | ~223 | asm codegen mega_body 主循环 | 🟡 **已抽出**；仍 host-cc |
 | `pipeline_parse_orch.c` | ~1,038 | parse/load/typeck 编排 | 🟡 **已抽出**；仍 host-cc |
 | `pipeline_ast_forwarders.c` | ~667 | ast_pipeline_* forwarder 簇 | 🟡 **已抽出**；仍 host-cc |
@@ -1081,7 +1081,7 @@
   - ✅ module_enum host-cc leave（wave264）：live＝runtime_pipeline_abi pure multi-module ModuleEnumEntry map（33932B LE）+ try_mark faces；seed cold twin under #ifndef FROM_X；file absent；same-TU pure face decls；present 47→46
   - ✅ top_level host-cc leave（wave265）：live＝runtime_pipeline_abi pure multi-module TopLevelLetEntry map（148B LE）+ name_is_const／hoist／hoist_target／sum_stack；seed cold twin under #ifndef FROM_X；file absent；same-TU pure face decls；prepend_lets Cap residual non-static；present 46→45
   - ✅ onefunc 域 thin：`ast_pool_onefunc.c`（const/let/param/call/while/for + copy_sidecar ~522 LOC body；`grow_vec_copy_append` 上提 core）同 TU 抽出；COUNT 40→41 / g05 STALE / inventory 已收
-  - ✅ dep_ctx 域 thin：`ast_pool_dep_ctx.c`（PipelineDepCtx cold accessors + lib_root + empty_param ~480 LOC body；path_append/resolve/load 仍 core）同 TU 抽出；COUNT 41→42 / g05 STALE / inventory 已收
+  - ✅ dep_ctx 域 thin→**pure leave wave272**：`ast_pool_dep_ctx.c` absent（`pipeline_dep_ctx_*`／`pipeline_ctx_lib_root_*`／`pipeline_dep_ctx_sidecar_release` · DepCtxSidecar pure BSS）；g05 STALE／inventory absent；live→runtime_pipeline_abi pure；sidecar_pool 不再挂 DepCtx 表；present **39→38**
   - ✅ module_func 域 thin：`ast_pool_module_func.c`（module Func alloc/flags/params/name_equal/byte + arena_func param_write/copy_slot · ~409 LOC body；static helpers + visibility/L7 + glue name/body 仍 core）同 TU 抽出；COUNT 42→43 / g05 STALE / inventory 已收
   - ✅ arena 域 thin：`ast_pool_arena.c`（type/expr/block/func ptr/alloc/get/set + write_var/binop + num_types + caps · ~220 LOC body；block_at/sidecar helpers 仍 core）同 TU 抽出；COUNT 43→44 / g05 STALE / inventory 已收
   - ✅ block 域 thin：`ast_pool_block.c`（block_pool_append_pos + append const/let/if/region/with_arena/unsafe/defer + region/defer accessors · ~297 LOC body）同 TU 抽出；COUNT 44→45 / g05 STALE / inventory 已收
@@ -1120,7 +1120,7 @@
   - ✅ run_x_pipeline 核心 + loop glue 域 thin（**编排骨全分解**）：① `pipeline_run_x_pipeline.c`（typecheck_entry_c + last_rc get/store + typeck_fail/null_return + load_deps_after_parse + typecheck_after_load + parse_entry_do_parse + typecheck_entry_emit · ~118 LOC；#include 于 parse_typeck_dispatch 后、codegen_dep 前；无 codegen_dep 前向引用）；② `pipeline_loop_glue.c`（loop_should_continue_ndep/imports/lib_root + index_at_or_beyond_* + load_and_sync_set_ndep + codegen_one_dep_prepare · ~60 LOC；#include 于 codegen_dep 后）；同 TU 抽出，位置不变；g05 STALE／`PIPELINE_X_DEPS` 已收
   - ✅ ast_pool lifecycle/reset/release 域 thin：`ast_pool_lifecycle.c`（sidecar entry 访问器 module_func_at + copy_func_params + module_func_param_entry／arena_func_param_entry + module_layout_field_entry + 池生命周期 block_on_alloc + module/arena reset/release + drop_bodies_for_check + onefunc reset/release · ~463 LOC）；藏于 ast_pool.c type.c／module_func.c include 间隙（L1067-1529）同 TU 抽出；依赖 sidecar 全局 + GrowVec（先于 include）；ast_pool_block_on_alloc 经 L1052 前向声明；无 module_func.c 前向引用；g05 STALE／`PIPELINE_X_DEPS` 已收
   - ✅ pipeline lint + module metadata 域 thin → **pure-owned leave**：`pipeline_lint_meta.c` **absent**；live＝`runtime_pipeline_abi` pure（visibility + L7 + module header glue）；seed cold twin under #ifndef FROM_X
-  - ✅ GrowVec 叶域 thin：`pipeline_grow_vec.c`（typedef GrowVec + GROW_VEC_MMAP_THRESH + alloc_bytes/dealloc/init/free/ensure/at/push/copy_append · ~209 LOC）；纯叶工具仅依赖 mmap/malloc/memcpy；自 ast_pool L160-368 同 TU 抽出（早期声明区），GrowVec typedef 先于所有 sidecar typedef；g05 STALE／`PIPELINE_X_DEPS` 已收
+  - ✅ GrowVec 叶域 thin→**pure leave wave271**：`pipeline_grow_vec.c` absent（grow_vec_init／free／ensure／at／push／copy_append · GrowVec LE 32B · POSIX mmap large）；typedef+extern 留 ast_pool_typedefs；live→runtime_pipeline_abi pure；g05 STALE／inventory absent；present **40→39**
   - ✅ early typedef 域 thin：`ast_pool_typedefs.c`（pool macros + entry/sidecar typedefs · ~315 LOC）；同 TU #include 于 grow_vec 后、sidecar_pool 前；host 保留 AST_POOL_GROW／INIT_CAP 于 grow_vec 之前（grow_vec 依赖）；g05 STALE／`PIPELINE_X_DEPS` 已收（wave1278）
   - ✅ core ptr_at 访问器 thin：`ast_pool_ptr_at.c`（block_at／module_layout_at／module_import_at · ~37 LOC）；同 TU #include 于 sidecar_pool 后、domain accessors 前；g05 STALE／`PIPELINE_X_DEPS` 已收（wave1278）
   - ✅ sidecar 池管理域 thin：`ast_pool_sidecar_pool.c`（MAX_*_SIDECARS + g_arena_sc／g_module_sc／g_onefunc_sc／g_driver_emit_sc／g_xlang_depctx_sc + sidecar_get/ensure/free + pipeline_dep_ctx_sidecar_release · ~478 LOC）；自 ast_pool L334-811 同 TU 抽出（typedefs 后）；g_xlang_depctx_sc／depctx_sidecar_get 非静态（pure crt0 embed）；static 全局对 lifecycle.c 可见；g05 STALE／`PIPELINE_X_DEPS` 已收
