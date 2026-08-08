@@ -1226,6 +1226,56 @@ void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
 }
 #endif
 
+/* wave302 G.7: parse_commit_pre/post cold twin (thin.x pure authority when PREFER_X_O;
+ * dual-export ban vs pipeline_glue_strict_minimal — body deleted there). PLATFORM: SHARED. */
+#ifndef XLANG_L2_RDD_THIN_FROM_X
+struct ast_ASTArena;
+void parser_diagnostic_parse_commit_pre(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
+                                        int32_t block_ref, uint8_t *pool, int32_t final_expr_ref)
+{
+  extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_if_stmts(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_regions(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *out);
+  (void)arena;
+  driver_diagnostic_parse_commit_shape(0, 0, name, name_len, 0, block_ref,
+                                       pool ? pipeline_onefunc_num_consts(pool) : 0,
+                                       pool ? pipeline_onefunc_num_lets(pool) : 0,
+                                       pool ? pipeline_onefunc_num_if_stmts(pool) : 0,
+                                       pool ? pipeline_onefunc_num_regions(pool) : 0,
+                                       pool ? pipeline_onefunc_num_src_stmt_order(pool) : 0,
+                                       0, 0, 0, 0, 0, final_expr_ref);
+}
+void parser_diagnostic_parse_commit_post(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
+                                         int32_t block_ref, uint8_t *pool)
+{
+  extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_if_stmts(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_regions(uint8_t *out);
+  extern int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *out);
+  extern int32_t ast_ast_block_num_consts(struct ast_ASTArena *a, int32_t block_ref);
+  extern int32_t ast_ast_block_num_lets(struct ast_ASTArena *a, int32_t block_ref);
+  extern int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t block_ref);
+  extern int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t block_ref);
+  extern int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena *a, int32_t block_ref);
+  extern int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t block_ref);
+  driver_diagnostic_parse_commit_shape(0, 0, name, name_len, 1, block_ref,
+                                       pool ? pipeline_onefunc_num_consts(pool) : 0,
+                                       pool ? pipeline_onefunc_num_lets(pool) : 0,
+                                       pool ? pipeline_onefunc_num_if_stmts(pool) : 0,
+                                       pool ? pipeline_onefunc_num_regions(pool) : 0,
+                                       pool ? pipeline_onefunc_num_src_stmt_order(pool) : 0,
+                                       arena ? ast_ast_block_num_consts(arena, block_ref) : 0,
+                                       arena ? ast_ast_block_num_lets(arena, block_ref) : 0,
+                                       arena ? ast_ast_block_num_if_stmts(arena, block_ref) : 0,
+                                       arena ? ast_ast_block_num_regions(arena, block_ref) : 0,
+                                       arena ? ast_ast_block_num_stmt_order(arena, block_ref) : 0,
+                                       arena ? ast_ast_block_final_expr_ref(arena, block_ref) : 0);
+}
+#endif
+
 
 
 

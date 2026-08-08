@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.6 residual overload／parse_commit faces or pipeline.x thin residual (wave301 dual-export WEAK via runtime_pipeline_abi／driver_x deleted · present 14 floor); floor: glue shells／typedefs／9×fwd／strict_minimal seed twin; L2 auth=./xbuild l2-matrix"
+  echo "NEXT=8.3.6 residual overload find_func_return chain or pipeline.x thin residual (wave302 parse_commit_pre/post → runtime_driver_diagnostic thin · present 14 floor); floor: glue shells／typedefs／9×fwd／strict_minimal seed twin; L2 auth=./xbuild l2-matrix"
 }
 
 run_check() {

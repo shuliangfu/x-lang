@@ -18,8 +18,10 @@
  * dual-export ban — no second body for these faces in seed. PLATFORM: SHARED.
  * wave301 G.7 8.3.6 slice: deleted dual-export WEAK already STRONG on
  * runtime_pipeline_abi.o / driver_x.o / pipeline_x.o (product link: abi+driver before
- * strict_minimal suffix) plus dead helpers only used by those twins. Residual seed
- * faces: parse_commit_pre/post + find_func_return_type_*_call overload chain.
+ * strict_minimal suffix) plus dead helpers only used by those twins.
+ * wave302 G.7 8.3.6 slice: parse_commit_pre/post moved to runtime_driver_diagnostic
+ * thin (product PREFER_X_O; linked before strict_minimal suffix) — dual-export ban;
+ * residual seed faces: find_func_return_type_*_call overload chain only.
  * PLATFORM: SHARED freestanding 8.3.6.
  */
 #include <xlang_weak.h>
@@ -133,69 +135,10 @@ struct parser_ParseIntoResult {
   int32_t main_idx;
 };
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK void parser_diagnostic_parse_commit_pre(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
-                                                              int32_t block_ref, uint8_t *pool, int32_t final_expr_ref) {
-  extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
-  extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
-  extern int32_t pipeline_onefunc_num_if_stmts(uint8_t *out);
-  extern int32_t pipeline_onefunc_num_regions(uint8_t *out);
-  extern int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *out);
-  extern void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name,
-                                                   int32_t name_len, int32_t phase, int32_t block_ref,
-                                                   int32_t pool_num_consts, int32_t pool_num_lets, int32_t pool_num_ifs,
-                                                   int32_t pool_num_regions, int32_t pool_num_stmt_order,
-                                                   int32_t block_num_consts, int32_t block_num_lets, int32_t block_num_ifs,
-                                                   int32_t block_num_regions, int32_t block_num_stmt_order,
-                                                   int32_t final_expr_ref);
-  (void)arena;
-  driver_diagnostic_parse_commit_shape(0, 0, name, name_len, 0, block_ref, pool ? pipeline_onefunc_num_consts(pool) : 0,
-                                       pool ? pipeline_onefunc_num_lets(pool) : 0,
-                                       pool ? pipeline_onefunc_num_if_stmts(pool) : 0,
-                                       pool ? pipeline_onefunc_num_regions(pool) : 0,
-                                       pool ? pipeline_onefunc_num_src_stmt_order(pool) : 0,
-                                       0, 0, 0, 0, 0, final_expr_ref);
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
-
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK void parser_diagnostic_parse_commit_post(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
-                                                               int32_t block_ref, uint8_t *pool) {
-  extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
-  extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
-  extern int32_t pipeline_onefunc_num_if_stmts(uint8_t *out);
-  extern int32_t pipeline_onefunc_num_regions(uint8_t *out);
-  extern int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *out);
-  extern int32_t ast_ast_block_num_consts(struct ast_ASTArena *arena, int32_t block_ref);
-  extern int32_t ast_ast_block_num_lets(struct ast_ASTArena *arena, int32_t block_ref);
-  extern int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *arena, int32_t block_ref);
-  extern int32_t ast_ast_block_num_regions(struct ast_ASTArena *arena, int32_t block_ref);
-  extern int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena *arena, int32_t block_ref);
-  extern int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *arena, int32_t block_ref);
-  extern void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name,
-                                                   int32_t name_len, int32_t phase, int32_t block_ref,
-                                                   int32_t pool_num_consts, int32_t pool_num_lets, int32_t pool_num_ifs,
-                                                   int32_t pool_num_regions, int32_t pool_num_stmt_order,
-                                                   int32_t block_num_consts, int32_t block_num_lets, int32_t block_num_ifs,
-                                                   int32_t block_num_regions, int32_t block_num_stmt_order,
-                                                   int32_t final_expr_ref);
-  driver_diagnostic_parse_commit_shape(0, 0, name, name_len, 1, block_ref, pool ? pipeline_onefunc_num_consts(pool) : 0,
-                                       pool ? pipeline_onefunc_num_lets(pool) : 0,
-                                       pool ? pipeline_onefunc_num_if_stmts(pool) : 0,
-                                       pool ? pipeline_onefunc_num_regions(pool) : 0,
-                                       pool ? pipeline_onefunc_num_src_stmt_order(pool) : 0,
-                                       arena ? ast_ast_block_num_consts(arena, block_ref) : 0,
-                                       arena ? ast_ast_block_num_lets(arena, block_ref) : 0,
-                                       arena ? ast_ast_block_num_if_stmts(arena, block_ref) : 0,
-                                       arena ? ast_ast_block_num_regions(arena, block_ref) : 0,
-                                       arena ? ast_ast_block_num_stmt_order(arena, block_ref) : 0,
-                                       arena ? ast_ast_block_final_expr_ref(arena, block_ref) : 0);
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+/* wave302: parser_diagnostic_parse_commit_pre/post deleted — STRONG on
+ * runtime_driver_diagnostic.o (thin.x pure / cold rest under #ifndef FROM_X).
+ * Product link: diagnostic before strict_minimal suffix. dual-export ban.
+ * PLATFORM: SHARED freestanding 8.3.6 leave. */
 // #endregion
 
 enum ast_TypeKind {
