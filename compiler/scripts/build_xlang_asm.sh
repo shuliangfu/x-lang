@@ -129,9 +129,10 @@ CC="${CC:-cc}"
 CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 
 # backend.x 等大模块 asm 编译 abort 时，用最小 .s/.c 占位保证 __text 非空（质检 24/24）。
+# wave297: host scripts/asm_text_stub.c left; seed authority seeds/asm_text_stub.from_x.c
 emit_asm_text_stub_o() {
   local out="$1"
-  local stub_c="scripts/asm_text_stub.c"
+  local stub_c="seeds/asm_text_stub.from_x.c"
   local stub_s="scripts/asm_text_stub.s"
   if [ -f "$stub_c" ]; then
   "$CC" $CFLAGS -c -o "$out" "$stub_c" 2>/dev/null && return 0
@@ -4581,8 +4582,9 @@ ensure_lsp_diag_pipeline_sizes_obj() {
 }
 
 # B-hybrid 链 lsp_x.o 需要 lsp_build_diagnostics_response 等；typeck_lsp_io 见 seeds/typeck_lsp_io_stub.from_x.c。
+# wave297: host scripts/asm_xlang_lsp_diag_stub.c left; seed authority seed-only .o.
 ensure_asm_xlang_lsp_diag_stub_obj() {
-  STUB_C="scripts/asm_xlang_lsp_diag_stub.c"
+  STUB_C="seeds/asm_xlang_lsp_diag_stub.from_x.c"
   STUB_O="$BUILD_DIR/asm_xlang_lsp_diag_stub.o"
   LSP_IO_STUB="seeds/typeck_lsp_io_stub.from_x.c"
   LSP_IO_O="$BUILD_DIR/typeck_lsp_io_stub.o"

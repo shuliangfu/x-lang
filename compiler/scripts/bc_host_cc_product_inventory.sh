@@ -203,8 +203,8 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/xlang_x_stubs.c|8.3.5|xlang-x stubs host retired (wave294 seed x_stubs.from_x authority)|0|absent"
   "compiler/typeck_c_module_stubs.c|8.3.5|typeck c-module stubs host wrapper retired (wave293 seed-only .o)|0|absent"
   # --- 8.3.7 scripts asm stubs ---
-  "compiler/scripts/asm_text_stub.c|8.3.7|asm text stub|1|present"
-  "compiler/scripts/asm_xlang_lsp_diag_stub.c|8.3.7|lsp diag asm stub|1|present"
+  "compiler/scripts/asm_text_stub.c|8.3.7|asm text stub host retired (wave297 seed authority)|0|absent"
+  "compiler/scripts/asm_xlang_lsp_diag_stub.c|8.3.7|lsp diag asm stub host retired (wave297 seed authority)|0|absent"
   # --- 8.3.9 orphan debug gen (wave963: must stay gone) ---
   "analysis/_debug_io_ctx_gen.c|8.3.9|orphan debug gen (gitignored scratch)|0|absent"
 )
@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave296 8.3.5 typeck bare seed leave · present 17); candidate: glue shells／typedefs／9×fwd／scripts stubs"
+  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave297 8.3.7 scripts stubs seed leave · present 15); candidate: glue shells／typedefs／9×fwd"
 }
 
 run_check() {

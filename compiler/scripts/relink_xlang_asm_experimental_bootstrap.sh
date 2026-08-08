@@ -392,8 +392,9 @@ ST_LSP_X=""
 if [ -f "$BUILD_DIR/gen_driver/lsp_x.o" ]; then
   ST_LSP_X="$BUILD_DIR/gen_driver/lsp_x.o $BUILD_DIR/gen_driver/lsp_io_x.o $BUILD_DIR/gen_driver/lsp_io_std_heap_x.o $BUILD_DIR/gen_driver/lsp_diag_x.o"
 fi
-if [ ! -f "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ] || [ "scripts/asm_xlang_lsp_diag_stub.c" -nt "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ]; then
-  "$CC" $CFLAGS -c -o "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" scripts/asm_xlang_lsp_diag_stub.c
+# wave297: host scripts/asm_xlang_lsp_diag_stub.c left; seed authority seed-only .o.
+if [ ! -f "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ] || [ "seeds/asm_xlang_lsp_diag_stub.from_x.c" -nt "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ]; then
+  "$CC" $CFLAGS -c -o "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" seeds/asm_xlang_lsp_diag_stub.from_x.c
 fi
 ST_LSP_DIAG_STUB="$BUILD_DIR/asm_xlang_lsp_diag_stub.o"
 GLUE_O="$BUILD_DIR/pipeline_glue_standalone.o"

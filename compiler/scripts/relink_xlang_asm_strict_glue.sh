@@ -277,8 +277,9 @@ ensure_ast_asm_bare_link_alias_obj() {
   fi
 }
 
+# wave297: host scripts/asm_xlang_lsp_diag_stub.c left; seed authority seed-only .o.
 ensure_asm_xlang_lsp_diag_stub_obj() {
-  local STUB_C="scripts/asm_xlang_lsp_diag_stub.c"
+  local STUB_C="seeds/asm_xlang_lsp_diag_stub.from_x.c"
   local STUB_O="$BUILD_DIR/asm_xlang_lsp_diag_stub.o"
   local LSP_IO_STUB="seeds/typeck_lsp_io_stub.from_x.c"
   local LSP_IO_O="$BUILD_DIR/typeck_lsp_io_stub.o"

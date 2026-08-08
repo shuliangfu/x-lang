@@ -1,9 +1,12 @@
 /**
- * asm_shu_lsp_diag_stub.c — build_xlang_asm B-hybrid / asm-only 链接桩
- *
- * lsp_x.o 引用若干 LSP 响应构建符号；整份 lsp_diag_x.o 与 pipeline_x.o 重复 ast 符号，不能并列链入。
- * 本文件提供最小桩，使 xlang_asm 可链接；完整 LSP 仍用 bootstrap-driver-seed 的 xlang / xlang-x。
+ * seeds/asm_xlang_lsp_diag_stub.from_x.c — 8.3.7 B-hybrid / asm-only LSP diag link stubs
+ * Authority (G.7): minimal stubs for lsp_x.o (diagnostics/semanticTokens + invalidate
+ * forward). Full LSP lives on bootstrap-driver-seed xlang / xlang-x; cannot link full
+ * lsp_diag_x.o next to pipeline_x.o (duplicate ast symbols).
+ * Host leaf scripts/asm_xlang_lsp_diag_stub.c deleted (wave297); ensure seed-only .o.
+ * PLATFORM: SHARED — build_xlang_asm / strict_glue / experimental_bootstrap.
  */
+
 #include <stdint.h>
 
 /** 空 Diagnostic[] JSON 片段，供 lsp.x 走通链接。 */
