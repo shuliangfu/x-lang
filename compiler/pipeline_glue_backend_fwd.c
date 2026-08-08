@@ -34,15 +34,13 @@
 
 
 /* wave1235 G.7: pipeline_codegen_emit_float_lit_c migrated to
- * pipeline_codegen_outbuf.c EOF (colocated with sole callee
- * glue_codegen_out_append_cstr at L76 — codegen outbuf append domain).
+ * seed ALWAYS WAVE289 (float_lit Cap leave; dual-export ban).
  * Deps: codegen_CodegenOutBuf (global) + snprintf (libc via TU chain).
  * Sole extern caller: codegen_gen.c L10593 + codegen.x seed.
  * PLATFORM: SHARED. */
 
 /* wave1236 G.7: codegen_try_emit_slice_init_from_array_var migrated to
- * pipeline_codegen_outbuf.c EOF (colocated with glue_codegen_out_append_*
- * callees — codegen outbuf append domain). #if guard preserved (extern fn
+ * codegen_x.o under OMIT_X_DUP (slice_init authority; not seed ALWAYS). #if guard preserved (extern fn
  * dup of .x seed). All deps visible via earlier fwd decls (L213/396-406,
  * all before outbuf.c #include at L445).
  * Sole extern caller: codegen_gen.c L13530 + codegen.x seed.

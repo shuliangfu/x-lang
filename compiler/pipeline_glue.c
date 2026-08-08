@@ -116,18 +116,20 @@ extern pipeline_glue_AsmFuncCtxLayout *pipeline_asm_ctx_layout(struct backend_As
  */
 /* wave1285 G.7: mid forward-decl / extern shell migrated to
  * pipeline_glue_mid_fwd.c (same-TU #include). Pure decls only;
- * sits after parser_result and before codegen_outbuf.
+ * sits after parser_result and before former codegen_outbuf leave site.
  * PLATFORM: SHARED. */
 #include "pipeline_glue_mid_fwd.c"
 
-/* wave1101 G.7: codegen outbuf append domain (4 functions + macro) migrated to
- * pipeline_codegen_outbuf.c (same-TU #include). Members:
- * glue_codegen_out_append_bytes / _cstr / _int / _byte.
- * PLATFORM: SHARED. */
-#include "pipeline_codegen_outbuf.c"
+/* wave289 G.7: pipeline_codegen_outbuf Cap residual host-cc leave.
+ * Live = runtime_pipeline_abi seed ALWAYS (WAVE289): append_bytes/cstr helpers +
+ * pipeline_codegen_emit_float_lit_c + pipeline_codegen_emit_expr_try_propagate_c.
+ * slice_init authority stays codegen_x.o (OMIT_X_DUP; dual-export ban).
+ * strict_minimal float_lit twin removed same commit. Host leaf deleted (no #include).
+ * PLATFORM: SHARED freestanding Cap leave.
+ */
 /* wave1285 G.7: backend/emit-path forward-decl + extern shell migrated to
  * pipeline_glue_backend_fwd.c (same-TU #include). Pure decls only;
- * sits after codegen_outbuf and before al_nc_seq + lea_common.
+ * sits after former codegen_outbuf leave site and before al_nc_seq + lea_common.
  * PLATFORM: SHARED. */
 #include "pipeline_glue_backend_fwd.c"
 
@@ -1719,19 +1721,11 @@ extern int32_t typeck_check_expr_try_propagate(struct ast_Module *module, struct
  * (static, wave1147 in method_call.c EOF) visible at check_expr.c #include
  * point (after method_call.c #include). PLATFORM: SHARED. */
 
-/* wave1215 G.7: pipeline_codegen_emit_expr_try_propagate_c (21 lines)
- * migrated to pipeline_codegen_outbuf.c EOF (colocated with C-backend codegen
- * outbuf append domain; #include at L445). ERR-01 GNU stmt expr desugar for
- * `expr?` operator.
- * Deps:
- *  - pipeline_expr_unary_operand_ref_at (extern fwd decl at codegen_outbuf.c
- *    L122; original glue.c fwd decl at L1050 is after L445 — redeclared in
- *    target file to keep visibility)
- *  - codegen_emit_expr / codegen_emit_bytes_from_ptr (extern, in-function-body
- *    declarations preserved verbatim from original)
- * No TU-internal callsites in glue.c — sole callers are seeds
- * (codegen.x / runtime_pipeline_abi.x) via extern.
- * PLATFORM: SHARED — C codegen path, no arch branch. */
+/* wave289 G.7: pipeline_codegen_emit_expr_try_propagate_c Cap residual leave.
+ * Live = runtime_pipeline_abi seed ALWAYS (WAVE289) with float_lit domain.
+ * ERR-01 GNU stmt expr desugar for `expr?`. dual-export ban (seed ALWAYS only).
+ * PLATFORM: SHARED freestanding Cap leave.
+ */
 
 /* wave260 pure-owned leave: pipeline_typeck_method_call.c retired.
  * Cap faces sole on typeck_x.o (method_call_c / import thin / apply_call_resolve_c).

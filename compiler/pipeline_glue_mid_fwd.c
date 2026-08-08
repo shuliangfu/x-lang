@@ -4,7 +4,7 @@
  *
  * wave1285 BC 8.3 G.7 same-TU mid domain fold from pipeline_glue.c:
  * pure function forward declarations and externs that must be visible after
- * pipeline_parser_result.c and before pipeline_codegen_outbuf.c (and later
+ * pipeline_parser_result (left) and before former codegen_outbuf site (wave289 leave; and later
  * emit domains). Authoritative *definitions* live in domain .c files included
  * later in the same TU (parse_orch / ast_pool_* / typeck / emit leaves) or
  * other product TUs (driver_*, io.o).
@@ -23,7 +23,8 @@
  *  - domain #includes
  *
  * Include site: pipeline_glue.c immediately after pipeline_parser_result.c and
- * before pipeline_codegen_outbuf.c. Not a separate .o — host-cc via pipeline_x.o.
+ * before former pipeline_codegen_outbuf site (wave289 seed ALWAYS leave).
+ * Not a separate .o — host-cc via pipeline_x.o.
  *
  * G.7: declarations only; no second implementation of any face.
  * PLATFORM: SHARED — host-cc residual shell.

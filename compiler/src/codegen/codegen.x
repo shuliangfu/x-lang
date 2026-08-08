@@ -75,8 +75,8 @@ export extern function pipeline_codegen_emit_struct_field_decl(arena: *ASTArena,
 /* See implementation. */
 export extern function pipeline_codegen_emit_seed_mega_enabled(): i32;
 /** C-backend float literal emit (host snprintf; float_val + float_bits fallback).
- * Authority: pipeline_glue.c pipeline_codegen_emit_float_lit_c; product Darwin also exports
- * the same symbol from seeds/pipeline_glue_strict_minimal.from_x.c (same semantics, same commit).
+ * Authority: runtime_pipeline_abi seed ALWAYS (WAVE289_CODEGEN_OUTBUF_ALWAYS) —
+ * pipeline_codegen_emit_float_lit_c; dual-export ban (not pipeline_x / not strict_minimal).
  * PLATFORM: SHARED — required by force-regen codegen M2 (EXPR_FLOAT_LIT). */
 export extern function pipeline_codegen_emit_float_lit_c(out: *CodegenOutBuf, float_val: f64, bits_lo: i32, bits_hi: i32): i32;
 /* See implementation. */
@@ -11267,7 +11267,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       return 0;
     }
     /* FLOAT_LIT: emit real value via C helper (old seed stub always wrote 0.0).
-     * Authority: pipeline_codegen_emit_float_lit_c in pipeline_glue.c / strict_minimal seed. */
+     * Authority: pipeline_codegen_emit_float_lit_c seed ALWAYS WAVE289 (runtime_pipeline_abi). */
     if ((e.kind as i32) == (ExprKind.EXPR_FLOAT_LIT as i32)) {
       return pipeline_codegen_emit_float_lit_c(out, e.float_val, e.float_bits_lo, e.float_bits_hi);
     }
