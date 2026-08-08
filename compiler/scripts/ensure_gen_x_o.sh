@@ -355,6 +355,17 @@ build_lexer_x() {
 }
 
 build_ast_gen2() {
+  # wave329: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
+  # ast_gen2 has no archaeology cold seed pin (yet); PREFER_X_O will timeout
+  # (src/ast/ast.x large -E) and fail → fallback ast_gen2.c HALF below.
+  # Adding catalog enables automated tracking + future cold-seed pin.
+  if [ -f scripts/driver_leaf_x_to_o.sh ]; then
+    if bash scripts/driver_leaf_x_to_o.sh ensure ast_gen2.o 2>/dev/null; then
+      log "ast_gen2.o ← Track L (.x → -E → .o; wave329)"
+      return 0
+    fi
+    log "Track L failed for ast_gen2.o; falling back to ast_gen2.c (archaeology)"
+  fi
   if [ ! -f ast_gen2.c ]; then
     log "missing ast_gen2.c"
     return 1

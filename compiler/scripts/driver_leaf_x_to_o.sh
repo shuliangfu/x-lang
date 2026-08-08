@@ -58,6 +58,9 @@ driver_leaf_key_for_out() {
     driver_x.o|*driver_x.o) printf '%s' "driver_x.o" ;;
     preprocess_x.o|*preprocess_x.o) printf '%s' "preprocess_x.o" ;;
     lexer_x.o|*lexer_x.o) printf '%s' "lexer_x.o" ;;
+    parser_x.o|*parser_x.o) printf '%s' "parser_x.o" ;;
+    typeck_x.o|*typeck_x.o) printf '%s' "typeck_x.o" ;;
+    codegen_x.o|*codegen_x.o) printf '%s' "codegen_x.o" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -169,6 +172,15 @@ driver_leaf_spec_for_key() {
     lexer_x.o)
       printf '%s' 'src/lexer/lexer.x||seeds/lexer_gen.linux.x86_64.c|extended'
       ;;
+    parser_x.o)
+      printf '%s' 'src/parser/parser.x||seeds/parser_gen.linux.x86_64.c|extended'
+      ;;
+    typeck_x.o)
+      printf '%s' 'src/typeck/typeck.x||seeds/typeck_gen.linux.x86_64.c|extended'
+      ;;
+    codegen_x.o)
+      printf '%s' 'src/codegen/codegen.x||seeds/codegen_gen.linux.x86_64.c|extended'
+      ;;
     *)
       printf '%s' ''
       ;;
@@ -247,7 +259,10 @@ driver_leaf_list_keys() {
     pipeline_x.o \
     driver_x.o \
     preprocess_x.o \
-    lexer_x.o
+    lexer_x.o \
+    parser_x.o \
+    typeck_x.o \
+    codegen_x.o
 }
 
 driver_leaf_check() {
@@ -324,8 +339,8 @@ driver_leaf_check() {
   done <<EOF
 $(driver_leaf_list_keys)
 EOF
-  if [ "$_n" -ne 15 ]; then
-    echo "driver_leaf_x_to_o --check: expected 15 catalog keys, got $_n" >&2
+  if [ "$_n" -ne 18 ]; then
+    echo "driver_leaf_x_to_o --check: expected 18 catalog keys, got $_n" >&2
     exit 1
   fi
   if [ "$_miss" -ne 0 ]; then
@@ -389,7 +404,7 @@ EOF
       exit 1
     fi
   fi
-  echo "driver_leaf_x_to_o --check: OK (15 catalog leaves: 9 Makefile-driven (wave896) + 2 ensure_gen_x_o lsp (wave327) + 3 B4 ensure_host_cc (pipeline/driver/preprocess wave328) + 1 lexer_x (wave328; avoids gen.c implicit-decl bug); BASE_CFLAGS export leaf wave860; not physical delete)"
+  echo "driver_leaf_x_to_o --check: OK (18 catalog leaves: 9 Makefile-driven (wave896) + 2 ensure_gen_x_o lsp (wave327) + 3 B4 ensure_host_cc (pipeline/driver/preprocess wave328) + 1 lexer_x cold-seed (wave328) + 3 M4 front-end cold-seed (parser/typeck/codegen wave329); BASE_CFLAGS export leaf wave860; not physical delete)"
   exit 0
 }
 
