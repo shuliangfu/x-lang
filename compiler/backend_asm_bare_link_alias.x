@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-25： .x — backend_wpo  → glue/seed backend_*（strict WPO）。
-//  *u8（ C struct* ABI ）。
+// Regen: ./xlang-c -E → seeds/backend_asm_bare_link_alias.from_x.c → backend_asm_bare_link_alias.o
+// wave293: host wrapper backend_asm_bare_link_alias.c deleted; product cc seed only.
+// *u8（ C struct* ABI ）。
 // ：./xlang-c -E → seeds/backend_asm_bare_link_alias.from_x.c
 
 extern "C" function asm_codegen_ast(module: *u8, arena: *u8, out: *u8, ctx: *u8): i32;

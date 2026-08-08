@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-26： .x — pipeline_x  lexer/typeck/codegen_x （i32/void ）。
+// Regen: ./xlang-c -E → seeds/x_frontend_link_alias.from_x.c → x_frontend_link_alias.o
+// wave293: host wrapper x_frontend_link_alias.c deleted; product cc seed only.
 // lexer  struct  seeds  C （/ABI ）。
 // weak  seed  __attribute__((weak))。
 // ：./xlang-c -E → seeds/x_frontend_link_alias.from_x.c（+ C ）

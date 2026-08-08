@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-24： .x — non-WPO strict  backend_*  → pipeline_backend_*_c。
-//  *u8（ C  struct* ABI ）。
+// Regen: ./xlang-c -E → seeds/backend_asm_strict_fallback_alias.from_x.c → backend_asm_strict_fallback_alias.o
+// wave293: host wrapper backend_asm_strict_fallback_alias.c deleted; product cc seed only.
+// *u8（ C  struct* ABI ）。
 
 extern "C" function pipeline_backend_asm_codegen_ast_c(module: *u8, arena: *u8, out: *u8, ctx: *u8): i32;
 extern "C" function pipeline_backend_asm_codegen_ast_to_elf_c(module: *u8, arena: *u8, elf_ctx: *u8,
