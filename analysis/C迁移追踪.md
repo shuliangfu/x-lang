@@ -32,7 +32,7 @@
 | **Prove 注册（N）** | ✅ 111/111 IDENTICAL | MODULES 数组实际 128 条（17 条后期新增未计入 KPI） |
 | **R2 真迁退役** | 🟡 ~85% | 128 prove 模块中 ~120 已 R2；Cap residual 待消灭 ~8 模块 |
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
-| **Mega 去 pin（M4）** | 🟡 4/5 | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；link_abi pin 仍 ⬜ |
+| **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
 | **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
@@ -745,10 +745,13 @@
 
 ### 7.3 link_abi mega 去 pin
 
-⬜ **7.3.1 关闭 link_abi pinned seed**
+✅ **7.3.1 关闭 link_abi pinned seed**
 
-  - 当前：seeds/runtime_link_abi.from_x.c（~6,920 LOC）仍是冷启动 seed
-  - 目标：冷启动可从 labi_*.x 重建
+  - 当前（wave326）：**默认 FROM_X=1**（labi_*.x 切片权威）；`seeds/runtime_link_abi.from_x.c` + 12 `seeds/labi_*.from_x.c` **仅考古 egg**
+  - 基建：`ensure_host_cc_seed_o.sh try-labi-prefer`（wave765 已就位）＝12 labi_*.x 切片 prefer → 单切片 .o → `$CC -r -nostdlib` 合并；失败切片 fallback seed；mega seed rest 用 `-D XLANG_LABI_*_FROM_X` 条件编译
+  - 门控：`XLANG_LINK_ABI_FROM_X=1` 默认（wave326 加）；`XLANG_LINK_ABI_ALLOW_PIN=1`（真冷 egg 回退）；兼容 `XLANG_G05_PREFER_X_O` legacy
+  - 验收：双端 L2 绿（macOS arm64 + Ubuntu x86_64 gold @ ubuntu-remote-server）；FORCE rebuild runtime_link_abi.o：L2/L3/L8/L9 prefer .x，其余 cold seed fallback，纯合并通过；pure-ld + `./xbuild l2-matrix` 5/5
+  - 达标：默认 FROM_X=1 且双端 L2 绿；pin 仅考古 egg — **已达标**
 
 ⬜ **7.3.2 runtime_link_abi_gen.c 去 pin**（如存在独立 pin）
 
