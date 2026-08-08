@@ -4,6 +4,7 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave291 elf_codegen_forwarders seed ALWAYS leave (platform.elf/codegen rename shims + sizeof_elf_ctx).
 // wave289 codegen_outbuf seed ALWAYS leave (float_lit + try_propagate; slice_init stays codegen_x).
 // wave287 parser_result seed ALWAYS leave; wave286 typeck_check_expr seed ALWAYS leave;
 // wave285 typeck_orch seed ALWAYS leave; wave284 parse_orch seed ALWAYS leave;

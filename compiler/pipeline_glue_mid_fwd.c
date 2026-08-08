@@ -36,9 +36,10 @@
  * runtime.c is the sole external consumer (buf+len face → _impl). */
 
 /* wave1193 G.7: sizeof cluster (5 fns) migrated to pipeline_parse_orch.c EOF.
- * wave1213 G.7: pipeline_sizeof_elf_ctx (6 lines, #ifdef guarded) migrated to
- * pipeline_elf_codegen_forwarders.c EOF (ELF codegen domain; #include at L2971).
- * #ifdef XLANG_PARSER_EXE_PIPELINE_GLUE guard is TU-level — works at any TU pos.
+ * wave1213 G.7: pipeline_sizeof_elf_ctx was in pipeline_elf_codegen_forwarders.c;
+ * wave291 G.7: host-cc leave — live = runtime_pipeline_abi seed ALWAYS (WAVE291)
+ * with LP64 fixed size constant (no host sizeof(struct); parser-exe 0 path
+ * remains only on XLANG_PARSER_EXE_PIPELINE_GLUE historical host TU, not product).
  * No TU-internal callsites — sole consumers are seeds via extern.
  * PLATFORM: SHARED LP64. */
 

@@ -1457,24 +1457,14 @@ extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct 
  * same-TU callsites and to cross-TU via extern (ast_pool / pipeline_abi).
  * No glue.c body retained. PLATFORM: SHARED. */
 
-/* wave1181 G.7: elf/codegen prefix forwarder cluster (18 fns) migrated to
- * pipeline_elf_codegen_forwarders.c (new domain file, same-TU #include below).
- * Members:
- *  - platform_elf_pipeline_elf_ctx_reloc_* (7 fns: sym_name_ptr/copy64/name_len,
- *    sidecar_reset, offset_at/set, shndx_at) — ElfCodegenCtx reloc accessors
- *  - platform_elf_pipeline_elf_ctx_sym_shndx_at (1 fn) — symtab shndx accessor
- *  - platform_elf_pipeline_elf_pgo_hot_enabled / elf_ctx_set_emit_hot (2 fns) — PGO hot/cold tag
- *  - platform_elf_pipeline_elf_ctx_append_bytes (1 fn) — raw byte stream into ctx
- *  - platform_elf_pipeline_elf_write_o_pgo_to_buf (1 fn) — flush ctx to CodegenOutBuf
- *  - codegen_codegen_out_buf_len / set_len (2 fns) — codegen_ prefix out_buf accessors
- *  - pipeline_codegen_out_buf_len / set_len (2 fns) — pipeline_ prefix aliases
- *  - codegen_pipeline_scratch_buf64 / _slot (2 fns) — codegen_ prefix scratch accessors
- *
- * All 18 are pure pass-through forwarders to unprefixed pipeline_elf_* /
- * codegen_out_buf_* / pipeline_scratch_buf64* implementations in ast_pool.c /
- * pipeline_elf.c / codegen.c. No static state; safe to colocate.
+/* wave291 G.7: pipeline_elf_codegen_forwarders Cap residual host-cc leave.
+ * Live = runtime_pipeline_abi seed ALWAYS (WAVE291): 18 platform.elf/codegen/
+ * pipeline_ rename shims + pipeline_sizeof_elf_ctx (LP64 fixed size);
+ * pure ELF wave273 + codegen_x.o own unprefixed callees (dual-export ban:
+ * pipeline_abi T · pipeline_x no T). Host leaf deleted (no #include).
+ * PLATFORM: SHARED freestanding Cap leave (seed residual class).
  */
-#include "pipeline_elf_codegen_forwarders.c"
+
 /* wave1182 G.7: ast_pipeline forwarder cluster (246 fns) migrated to
  * pipeline_ast_forwarders.c (new domain file, same-TU #include below).
  *
