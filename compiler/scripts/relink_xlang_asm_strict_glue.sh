@@ -1651,13 +1651,12 @@ ensure_runtime_pipeline_abi_obj() {
 
 ensure_runtime_driver_obj() {
   local o="src/runtime_driver.o"
-  local cf="$CFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS -DXLANG_ASM_USE_COMPILER_IMPL_C"
-  if [ "${XLANG_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
-  cf="$cf -DXLANG_LEGACY_PREPROCESS_C"
-  fi
-  if [ ! -f "$o" ] || [ "seeds/runtime.from_x.c" -nt "$o" ] || [ Makefile -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- seeds/runtime.from_x.c (X driver/pipeline)"
-  $CC $CFLAGS -I. -Iinclude -Isrc $cf -c seeds/runtime.from_x.c -o "$o"
+  # wave321 7.1.1: monofile seeds/runtime.from_x.c retired — multi-slice no_c alias.
+  # PLATFORM: SHARED freestanding; archaeology strict-glue uses product authority.
+  if [ ! -f "$o" ] \
+    || { [ -f seeds/rt_content.from_x.c ] && [ seeds/rt_content.from_x.c -nt "$o" ]; }; then
+    strict_glue_info "ensure $o via multi-slice no_c alias (wave321 monofile retired)"
+    bash scripts/ensure_host_cc_seed_o.sh try-r1 "$o" || return 1
   fi
 }
 

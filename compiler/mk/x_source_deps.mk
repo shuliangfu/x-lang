@@ -39,7 +39,8 @@
 # Archaeology incomplete from_x .c inventory (historical host-cc core set).
 # Makefile product path is g05 (wave786); this list remains for inventory /
 # archaeology consumers (bootstrap.sh still has its own SRCS for cold stage).
-SRCS = seeds/main.from_x.c seeds/runtime.from_x.c seeds/async_liveness.from_x.c seeds/async_cps_codegen.from_x.c
+# wave321 7.1.1: monofile seeds/runtime.from_x.c retired; product runtime = multi-slice.
+SRCS = seeds/main.from_x.c seeds/rt_content.from_x.c seeds/async_liveness.from_x.c seeds/async_cps_codegen.from_x.c
 
 # main.x -E-extern direct imports; change → regen driver_gen.c / driver_x.o.
 MAIN_X_DEPS = src/main.x src/codegen/codegen.x src/ast/ast.x src/preprocess/preprocess.x

@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=BC 8.3 floor closed + wave320 product no_c refuse monofile (present 0); monofile seed still in tree for R1 other leaves; M4 7.1.1／7.4.1 关 pin ⬜; BC 终局 still ⬜"
+  echo "NEXT=BC wave321 R1 monofile physical retire 7.1.1 (present 0); runtime.from_x.c gone; multi-slice only; typeck 7.4.1 关 pin ⬜; BC 终局 still ⬜ (mega gen pin)"
 }
 
 run_check() {

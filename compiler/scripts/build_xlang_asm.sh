@@ -4631,12 +4631,13 @@ ensure_runtime_cc_stubs() {
   if [ -f src/runtime_driver.o ] && [ -s src/runtime_driver.o ]; then
     echo " ensure: src/runtime_driver.o exists (make/g05 authority); skip fallback rebuild"
   else
-    echo " cc -c src/runtime_driver.o <- seeds/runtime.from_x.c (-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS)"
-    local rt_flags="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS"
-    if [ "${XLANG_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
-      rt_flags="$rt_flags -DXLANG_LEGACY_PREPROCESS_C"
+    # wave321 7.1.1: monofile seeds/runtime.from_x.c retired — multi-slice no_c + alias.
+    # PLATFORM: SHARED freestanding; archaeology fallback uses product authority.
+    echo " ensure: src/runtime_driver.o via try-rt-prefer multi-slice (wave321 monofile retired)"
+    if ! bash scripts/ensure_host_cc_seed_o.sh try-r1 src/runtime_driver.o; then
+      build_xlang_asm_error "runtime_driver.o multi-slice fallback failed (wave321)"
+      return 1
     fi
-    $CC $CFLAGS -I. -Iinclude -Isrc $rt_flags -c seeds/runtime.from_x.c -o src/runtime_driver.o
   fi
 }
 
@@ -4730,15 +4731,18 @@ ensure_runtime_driver_asm_strict_obj() {
   ensure_runtime_driver_diagnostic_obj
   ensure_rt_seed_slice_objs
   local o="src/runtime_driver_asm_bstrict.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime.from_x.c" -nt "$o" ] || [ "scripts/build_xlang_asm.sh" -nt "$o" ]; then
-  echo " cc -c $o <- seeds/runtime.from_x.c (-DXLANG_ASM_USE_COMPILER_IMPL_C -DXLANG_NO_C_FRONTEND + RT_*_FROM_X)"
-  local rt_flags="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS -DXLANG_ASM_USE_COMPILER_IMPL_C -DXLANG_NO_C_FRONTEND"
-  # 与 Makefile RUNTIME_DRIVER_RT_SLICE_CFLAGS 一致：数据在 rt_* 切片，runtime 仅声明。
-  rt_flags="$rt_flags -DXLANG_RT_ARENA_BUF_FROM_X -DXLANG_RT_EMIT_STATE_FROM_X -DXLANG_RT_PREAMBLE_FROM_X -DXLANG_RT_STACK_FROM_X -DXLANG_RT_PARSE_DIAG_FROM_X"
-  if [ "${XLANG_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
-  rt_flags="$rt_flags -DXLANG_LEGACY_PREPROCESS_C"
-  fi
-  $CC $CFLAGS -I. -Iinclude -Isrc $rt_flags -c seeds/runtime.from_x.c -o "$o"
+  # wave321 7.1.1: monofile retired — product multi-slice no_c is authority;
+  # bstrict archaeology .o is an alias of runtime_driver_no_c (same surface).
+  # PLATFORM: SHARED freestanding; mtime gate = content layer seed + script.
+  if [ ! -f "$o" ] \
+    || { [ -f seeds/rt_content.from_x.c ] && [ seeds/rt_content.from_x.c -nt "$o" ]; } \
+    || [ "scripts/build_xlang_asm.sh" -nt "$o" ]; then
+    echo " ensure: $o ← multi-slice no_c alias (wave321 monofile retired)"
+    if ! bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o; then
+      build_xlang_asm_error "runtime_driver_no_c multi-slice failed for bstrict alias (wave321)"
+      return 1
+    fi
+    cp -f src/runtime_driver_no_c.o "$o" || return 1
   fi
   # 兼容旧链脚本/规则仍引用 runtime_driver_asm_strict.o
   cp -f "$o" src/runtime_driver_asm_strict.o 2>/dev/null || true

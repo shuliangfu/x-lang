@@ -121,10 +121,13 @@ ensure_runtime_driver_asm_strict_obj() {
   ensure_runtime_io_abi_obj
   ensure_runtime_link_abi_obj
   local o="src/runtime_driver_asm_strict.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime.from_x.c" -nt "$o" ]; then
-  experimental_bootstrap_info "cc $o <- seeds/runtime.from_x.c (-DXLANG_ASM_USE_COMPILER_IMPL_C)"
-  "$CC" $CFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS \
-  -DXLANG_ASM_USE_COMPILER_IMPL_C -c -o "$o" seeds/runtime.from_x.c
+  # wave321 7.1.1: monofile retired — alias multi-slice product no_c.
+  # PLATFORM: SHARED freestanding experimental bootstrap archaeology path.
+  if [ ! -f "$o" ] \
+    || { [ -f seeds/rt_content.from_x.c ] && [ seeds/rt_content.from_x.c -nt "$o" ]; }; then
+    experimental_bootstrap_info "ensure $o ← multi-slice no_c alias (wave321 monofile retired)"
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o || return 1
+    cp -f src/runtime_driver_no_c.o "$o" || return 1
   fi
 }
 ensure_runtime_driver_asm_strict_obj

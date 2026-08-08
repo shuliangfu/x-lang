@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual leave 收口 · **typeck M4 re-pin 三层** · **runtime prefer+cold omit + product no_c 拒 monofile last-resort（wave320／7.1.2）** · 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**产品仍 pin typeck_gen twin／runtime monofile 仍在树（R1 其它叶）**（M4 7.1.1／7.4.1 ⬜）；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual leave 收口 · **typeck M4 re-pin 三层** · **runtime monofile 物理退役（wave321／7.1.1）+ prefer/cold omit + product 拒 monofile（7.1.2）** · 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**产品仍 pin typeck_gen twin**（M4 7.4.1 ⬜）；**只改勾选与事实 LOC**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -711,16 +711,16 @@
 
 ### 7.1 runtime mega 去 pin
 
-🟡 **7.1.1 关闭 runtime pinned seed**
+✅ **7.1.1 关闭 runtime pinned seed**
 
-  - 当前：seeds/runtime.from_x.c（~8,187 LOC）仍在树；产品 no_c **不**依赖其存在（wave320 门闸 content seed）；R1 `runtime.o`／`runtime_x.o`／`runtime_driver.o` 冷 map 仍指向 monofile
-  - 目标：冷启动可从 .x 重建，不再依赖 pinned monofile seed（物理退役）
-  - prefer omit ✅（wave318）· cold multi-slice omit ✅（wave319）· product 拒 monofile ✅（wave320／7.1.2）· **7.1.1 未闭**（seed 仍在树；物理 rm 未做）
+  - 当前：`seeds/runtime.from_x.c` **已物理删除**（wave321 · ~8,187 LOC）
+  - 产品／R1 冷 map：`runtime_driver_no_c.o`＝multi-slice only；`runtime.o`／`runtime_x.o`／`runtime_driver.o`＝no_c multi-slice **alias**
+  - prefer omit ✅（wave318）· cold multi-slice omit ✅（wave319）· product 拒 monofile ✅（wave320／7.1.2）· **物理 rm ✅（wave321）**
 
-🟡 **7.1.2 runtime_driver_no_c.o 产品链去 pin**
+✅ **7.1.2 runtime_driver_no_c.o 产品链去 pin**
 
-  - 当前：产品 PREFER=0/1 → 切片 `cc -r` only（omit empty rest）；**默认硬拒** monofile partial rest／full-seed last-resort（wave320）；escape `XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1`
-  - 目标：产品 .o 全部来自切片／.x（含冷路径；无 monofile last-resort）— **产品 no_c 路径已达标**；R1 其它叶仍 monofile 冷 map
+  - 当前：产品 PREFER=0/1 → 切片 `cc -r` only（omit empty rest）；**默认硬拒** monofile；monofile 文件已不在树（wave321）
+  - 目标：产品 .o 全部来自切片／.x — **已达标**
 
 ⬜ **7.1.3 M3 Stage2 / D-03 验证**
 

@@ -53,8 +53,13 @@
 #            multi-slice gated on content layer seed (not monofile presence);
 #            partial rest + last-resort monofile host-cc **refused** by default
 #            (fail hard). Escape: XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1
-#            (archaeology / R1 legacy only). Monofile seed may still live in tree
-#            for runtime.o / runtime_driver.o cold maps — **not** full M4 7.1.1 rm.
+#            (archaeology only; requires monofile file if still present).
+#   wave321: G.7 R1 monofile physical retire (7.1.1) —
+#            seeds/runtime.from_x.c **removed**. R1 main-runtime runtime*.o
+#            cold maps → multi-slice product object (content layer seeds only).
+#            runtime.o / runtime_x.o / runtime_driver.o become aliases of
+#            multi-slice no_c (monofile flag variants retired; LEGACY monofile
+#            host-cc gone). Escape monofile last-resort fails without seed.
 #   wave767: G.7 g05 pipeline_abi + ldpc PREFER swallow —
 #            `try-pipeline-abi-prefer OUT` (full .x WEAK + rest FROM_X → cc -r)
 #            · `try-ldpc-prefer OUT` (thin .x WEAK + rest L2_LSP_CTX → cc -r).
@@ -683,6 +688,8 @@ seed_for_frontend_glue() {
 
 # seed convention (main-runtime multi-out from shared seeds).
 # PLATFORM: SHARED — map is path convention only; list authority = catalog KEY.
+# wave321: runtime* monofile retired — map reports content layer gate seed
+# (check / inventory); body builds via ensure_runtime_multi_slice_leaf.
 seed_for_main_runtime() {
   local o="$1"
   case "$o" in
@@ -690,13 +697,55 @@ seed_for_main_runtime() {
       printf 'seeds/main.from_x.c\n'
       ;;
     src/runtime.o|src/runtime_x.o|src/runtime_driver.o|src/runtime_driver_no_c.o)
-      printf 'seeds/runtime.from_x.c\n'
+      # wave321 7.1.1: monofile seeds/runtime.from_x.c physically retired.
+      # Content layer seed is the product multi-slice gate (wave320).
+      printf 'seeds/rt_content.from_x.c\n'
       ;;
     *)
       echo "ensure_host_cc_seed_o: no main-runtime seed map for $o" >&2
       exit 1
       ;;
   esac
+}
+
+# wave321: R1 runtime*.o leaves — multi-slice only (no monofile host-cc).
+# PLATFORM: SHARED freestanding product no_c multi-slice is the sole authority.
+is_runtime_multi_slice_leaf() {
+  case "$1" in
+    src/runtime.o|src/runtime_x.o|src/runtime_driver.o|src/runtime_driver_no_c.o)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# Build product multi-slice into runtime_driver_no_c.o; optional alias copy for
+# archaeology catalog members that historically used monofile + different -D.
+# G.7: single body = ensure_rt_prefer_one; no second monofile compile path.
+ensure_runtime_multi_slice_leaf() {
+  local o="$1"
+  local no_c="src/runtime_driver_no_c.o"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o: ensure_runtime_multi_slice_leaf needs <out.o>" >&2
+    return 2
+  fi
+  if ! is_runtime_multi_slice_leaf "$o"; then
+    echo "ensure_host_cc_seed_o: $o is not a runtime multi-slice leaf" >&2
+    return 1
+  fi
+  # Product authority always lands on no_c first.
+  ensure_rt_prefer_one "$no_c" || return 1
+  if [ "$o" != "$no_c" ]; then
+    # wave321: monofile flag variants (plain / USE_X_PIPELINE / DRIVER_CFLAGS)
+    # retired with physical monofile rm. Catalog still lists these .o for R1
+    # inventory; content = multi-slice no_c product object (alias copy).
+    mkdir -p "$(dirname "$o")"
+    cp -f "$no_c" "$o" || return 1
+    log "main-runtime: $o ← multi-slice no_c alias (wave321 monofile retired)"
+  fi
+  return 0
 }
 
 # Extra -D flags for main-runtime family (stdout, space-separated; may be empty).
@@ -865,6 +914,12 @@ ensure_catalog_family() {
   # shellcheck disable=SC2086
   for o in $list; do
     [ -z "$o" ] && continue
+    # wave321: runtime* R1 leaves never host-cc monofile (multi-slice only).
+    if [ "$seed_mode" = "main-runtime" ] && is_runtime_multi_slice_leaf "$o"; then
+      ensure_runtime_multi_slice_leaf "$o" || exit 1
+      n=$((n + 1))
+      continue
+    fi
     case "$seed_mode" in
       basename) seed="$(seed_for_o "$o")" ;;
       frontend-glue) seed="$(seed_for_frontend_glue "$o")" ;;
@@ -1035,6 +1090,11 @@ try_ensure_r1_one() {
   # PLATFORM: SHARED · pin egg required for true-cold hybrid.
   if [ "$o" = "src/runtime_pipeline_abi.o" ]; then
     ensure_pipeline_abi_prefer_one "$o" || return 1
+    return 0
+  fi
+  # wave321 7.1.1: runtime monofile retired — multi-slice product body only.
+  if is_runtime_multi_slice_leaf "$o"; then
+    ensure_runtime_multi_slice_leaf "$o" || return 1
     return 0
   fi
   if ! seed_mode="$(r1_seed_mode_for_o "$o")"; then
@@ -1647,7 +1707,7 @@ try_ensure_labi_prefer_one() {
 #   1 — multi-slice incomplete / monofile refused / compile failed
 # PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0 multi-slice.
 # G.7: no second .o list; layer table is seed-path convention (not product inventory).
-# Residual after: physical monofile rm (7.1.1) for R1 other leaves · typeck 7.4.1.
+# Residual after wave321 monofile rm: typeck 7.4.1 · LEGACY monofile flag variants.
 # ---------------------------------------------------------------------------
 
 rt_prefer_no_c_cflags() {
@@ -2825,6 +2885,8 @@ ensure_rt_prefer_one() {
           # multi-error recovery 权威在 seeds/rt_parse_diag.from_x.c → 单独链 rt_parse_diag.o
           # （g05_relink_env RT_SEED_SLICE）；NO_C 已带 XLANG_RT_PARSE_DIAG_FROM_X，禁止再 merge。
           if [ "$allow_monofile" = "1" ] && [ -f "$_rt" ]; then
+            # wave321: monofile seed physically retired; this branch only if a
+            # local archaeology copy is reintroduced outside the tree.
             echo "rt-prefer: runtime_driver_no_c.o ← monofile seed + NO_C (ALLOW_MONOFILE_LAST_RESORT=1)"
             # shellcheck disable=SC2086
             if ! $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_o" "$_rt"; then
@@ -2833,13 +2895,13 @@ ensure_rt_prefer_one() {
             fi
             _rt_done=1
           else
-            echo "rt-prefer: refuse monofile last-resort for $_rt_o (wave320; need full multi-slice or XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1)" >&2
+            echo "rt-prefer: refuse monofile last-resort for $_rt_o (wave321 monofile retired; need full multi-slice)" >&2
             return 1
           fi
         fi
       fi
     else
-      echo "rt-prefer: missing content layer seed ($_rt_content_seed) and monofile ($_rt)" >&2
+      echo "rt-prefer: missing content layer seed ($_rt_content_seed) (wave321 monofile retired)" >&2
       return 1
     fi
   return 0

@@ -69,8 +69,9 @@ glued = [
     "ast_pool.c",
 ]
 entries = [
-    ("seeds/runtime.from_x.c", driver_flags),
-    ("seeds/runtime.from_x.c", base),
+    # wave321 7.1.1: monofile seeds/runtime.from_x.c retired; content layer is gate.
+    ("seeds/rt_content.from_x.c", driver_flags),
+    ("seeds/rt_content.from_x.c", base),
     ("seeds/main.from_x.c", base),
     ("seeds/runtime_lexer_glue.from_x.c", base),
     ("seeds/runtime_ast_glue.from_x.c", base),

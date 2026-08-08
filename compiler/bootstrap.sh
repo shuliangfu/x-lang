@@ -30,19 +30,12 @@ if [ -n "$SEED" ]; then
   cp -f "$SEED" ./xlang
   cp -f "$SEED" ./xlang-c
 else
-  echo "[1/4] LEGACY: compiling minimal C runtime (no C frontend)..."
-  SRCS="seeds/main.from_x.c seeds/runtime.from_x.c seeds/async_liveness.from_x.c seeds/async_cps_codegen.from_x.c"
-  OBJS=""
-  for src in $SRCS; do
-    obj="${src%.c}.o"
-    OBJS="$OBJS $obj"
-    echo "  cc -c $src"
-    cc -Wall -Wextra -I. -Iinclude -Isrc -c -o "$obj" "$src"
-  done
-  echo "[2/4] linking xlang..."
-  cc -Wall -Wextra -I. -Iinclude -Isrc -o xlang $OBJS
-  cp -f xlang xlang-c
-  ./scripts/bootstrap_xlangc_create.sh ./xlang 2>/dev/null || cp -f xlang bootstrap_xlangc
+  # wave321 7.1.1: monofile seeds/runtime.from_x.c retired. LEGACY host-cc of
+  # monofile is gone; cold egg path must supply SEED (pin bootstrap_xlangc).
+  # PLATFORM: SHARED — product cold start uses pin egg, not monofile compile.
+  echo "bootstrap.sh: LEGACY monofile compile path retired (wave321 7.1.1)." >&2
+  echo "  Provide a seed binary (seeds/bootstrap_xlangc.*) or pin egg; do not host-cc monofile." >&2
+  exit 1
 fi
 
 echo "[build_tool] generating from build.x (build_runner + build_runtime_x)..."
