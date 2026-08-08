@@ -1,36 +1,65 @@
 /* seeds/x_stubs.from_x.c — G-02f-79 product cold-start TU
  * Promoted from compiler/src/x_stubs.inc (alias/stub; retired .inc).
  * Compile: cc -c seeds/x_stubs.from_x.c  (or cc_inc_tu wrap).
+ *
+ * wave294 B′ G.7: single authority for cold X-pipeline stubs.
+ * Host duals retired: compiler/_stubs.c + compiler/xlang_x_stubs.c (present−2).
+ * Experimental build_and_test_x.sh links this seed only (not host leaves).
+ * PLATFORM: SHARED — seed-only .o; product g05 does not need this TU today.
  */
 /**
- * x_stubs.c — X 管线链接桩
- *
- * 职责：为 X 自举编译器提供缺失符号（ASM 后端 / IO 批处理 / LSP 等尚未在 X 路径实现的模块），
- * 以及处理 X 生成代码中模块前缀命名不一致的桥接。
+ * X pipeline link stubs (ASM backend / IO batch / LSP not on X path yet)
+ * and name-bridge faces (preprocess_x_buf → typeck_preprocess_x_buf).
  */
 #include <xlang_weak.h>
 #include <stdint.h>
 #include <stddef.h>
 
-/* ASM 后端 — 仅在 -backend asm 时使用，X 路径走 C codegen 不需要 */
-int asm_asm_codegen_ast(void *a, void *b, void *c, void *d) { return -1; }
-int asm_asm_codegen_elf_o(void *a, void *b, void *c, void *d, void *e) { return -1; }
+/* wave249/wave294 G.7: shell via public pure thin link_abi_system
+ * (wave224 → _impl host system); not raw libc system.
+ * Cap residual host system stays only link_abi_system_impl.
+ * PLATFORM: SHARED — early/bootstrap stub face; host residual via single face. */
+extern int link_abi_system(const char *cmd);
 
-/* IO 批处理 — 未在 X 路径实现 */
+/* ASM backend — only for -backend asm; X path uses C codegen */
+int asm_asm_codegen_ast(void *a, void *b, void *c, void *d) {
+  (void)a;
+  (void)b;
+  (void)c;
+  (void)d;
+  return -1;
+}
+int asm_asm_codegen_elf_o(void *a, void *b, void *c, void *d, void *e) {
+  (void)a;
+  (void)b;
+  (void)c;
+  (void)d;
+  (void)e;
+  return -1;
+}
+
+/* IO batch — not implemented on X path */
 int io_read_batch_buf(void) { return -1; }
 int io_write_batch_buf(void) { return -1; }
 
-/* LSP — 未在 X 路径实现 */
+/* LSP — not implemented on X path */
 int typeck_lsp_main(void) { return -1; }
 
-/* preprocess.preprocess_x_buf 桥接：
- * X 生成的 preprocess_x.o 导出 _typeck_preprocess_x_buf，
- * 但 pipeline.x 和 driver.x 引用它为 preprocess.preprocess_x_buf → _preprocess_x_buf。
- * 此桥接将调用转给实际实现。 */
-extern int32_t typeck_preprocess_x_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap);
-int32_t preprocess_x_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap) {
-    return typeck_preprocess_x_buf(src, src_len, out_buf, out_cap);
+/* driver_exec_cmd — wave249 face (was xlang_x_stubs host only); experimental
+ * build_and_test_x may need it. G.7: public pure thin link_abi_system. */
+int32_t driver_exec_cmd(uint8_t *cmd) {
+  return (int32_t)link_abi_system((const char *)cmd);
 }
 
-/* ast_module_free — runtime_driver 的某些路径会调用 */
-XLANG_WEAK void ast_module_free(void *m) {}
+/* preprocess.preprocess_x_buf bridge:
+ * X-generated preprocess_x.o exports typeck_preprocess_x_buf, but pipeline.x /
+ * driver.x reference preprocess.preprocess_x_buf → preprocess_x_buf. */
+extern int32_t typeck_preprocess_x_buf(const uint8_t *src, ptrdiff_t src_len,
+                                       uint8_t *out_buf, int32_t out_cap);
+int32_t preprocess_x_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf,
+                         int32_t out_cap) {
+  return typeck_preprocess_x_buf(src, src_len, out_buf, out_cap);
+}
+
+/* ast_module_free — some runtime_driver paths may call */
+XLANG_WEAK void ast_module_free(void *m) { (void)m; }

@@ -70,7 +70,8 @@ rm -f 0 2>/dev/null || true
 
 for f in _*; do
   case "$f" in
-    _stubs.c|_x_stubs.inc|_x_stubs2.c) ;;
+    # wave294: _stubs.c host left (seed x_stubs.from_x authority); keep _x_stubs2.c
+    _x_stubs.inc|_x_stubs2.c) ;;
     *) rm -rf "$f" ;;
   esac
 done 2>/dev/null || true
