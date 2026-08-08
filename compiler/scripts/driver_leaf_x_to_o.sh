@@ -52,6 +52,8 @@ driver_leaf_key_for_out() {
     driver_emit_x.o|*driver_emit_x.o) printf '%s' "driver_emit_x.o" ;;
     lsp_io_x.o|*lsp_io_x.o) printf '%s' "lsp_io_x.o" ;;
     lsp_io_std_heap_x.o|*lsp_io_std_heap_x.o) printf '%s' "lsp_io_std_heap_x.o" ;;
+    lsp_diag_x.o|*lsp_diag_x.o) printf '%s' "lsp_diag_x.o" ;;
+    lsp_x.o|*lsp_x.o) printf '%s' "lsp_x.o" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -145,6 +147,12 @@ driver_leaf_spec_for_key() {
     lsp_io_std_heap_x.o)
       printf '%s' 'src/lsp/lsp_io_std_heap.x|@lsp_io_std_heap|seeds/lsp_io_std_heap_gen.linux.x86_64.c|lsp'
       ;;
+    lsp_diag_x.o)
+      printf '%s' 'src/lsp/lsp_diag.x||seeds/lsp_diag_gen.linux.x86_64.c|lsp'
+      ;;
+    lsp_x.o)
+      printf '%s' 'src/lsp/lsp.x||seeds/lsp_gen.linux.x86_64.c|lsp'
+      ;;
     *)
       printf '%s' ''
       ;;
@@ -217,7 +225,9 @@ driver_leaf_list_keys() {
     driver_compile_x.o \
     driver_emit_x.o \
     lsp_io_x.o \
-    lsp_io_std_heap_x.o
+    lsp_io_std_heap_x.o \
+    lsp_diag_x.o \
+    lsp_x.o
 }
 
 driver_leaf_check() {
@@ -294,8 +304,8 @@ driver_leaf_check() {
   done <<EOF
 $(driver_leaf_list_keys)
 EOF
-  if [ "$_n" -ne 9 ]; then
-    echo "driver_leaf_x_to_o --check: expected 9 catalog keys, got $_n" >&2
+  if [ "$_n" -ne 11 ]; then
+    echo "driver_leaf_x_to_o --check: expected 11 catalog keys, got $_n" >&2
     exit 1
   fi
   if [ "$_miss" -ne 0 ]; then
@@ -359,7 +369,7 @@ EOF
       exit 1
     fi
   fi
-  echo "driver_leaf_x_to_o --check: OK (9 catalog leaves; mk list + multi-target FORCE+ensure wave896; BASE_CFLAGS export leaf wave860; not physical delete)"
+  echo "driver_leaf_x_to_o --check: OK (11 catalog leaves: 9 Makefile-driven (wave896) + 2 ensure_gen_x_o-driven (lsp_diag/lsp wave327); BASE_CFLAGS export leaf wave860; not physical delete)"
   exit 0
 }
 

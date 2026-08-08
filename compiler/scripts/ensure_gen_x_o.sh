@@ -181,6 +181,15 @@ build_lsp_io_x() {
 }
 
 build_lsp_x() {
+  # wave327: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
+  # Fall back to lsp_gen.c (archaeology) only if Track L fails.
+  if [ -f scripts/driver_leaf_x_to_o.sh ]; then
+    if bash scripts/driver_leaf_x_to_o.sh ensure lsp_x.o 2>/dev/null; then
+      log "lsp_x.o ← Track L (.x → -E → .o; wave327)"
+      return 0
+    fi
+    log "Track L failed for lsp_x.o; falling back to lsp_gen.c (archaeology)"
+  fi
   ensure_gen_file lsp_gen
   if ! need_rebuild_gen_o lsp_x.o lsp_gen.c; then
     log "skip lsp_x.o (up-to-date vs lsp_gen.c)"
@@ -192,6 +201,15 @@ build_lsp_x() {
 }
 
 build_lsp_diag_x() {
+  # wave327: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
+  # Fall back to lsp_diag_gen.c (archaeology) only if Track L fails.
+  if [ -f scripts/driver_leaf_x_to_o.sh ]; then
+    if bash scripts/driver_leaf_x_to_o.sh ensure lsp_diag_x.o 2>/dev/null; then
+      log "lsp_diag_x.o ← Track L (.x → -E → .o; wave327)"
+      return 0
+    fi
+    log "Track L failed for lsp_diag_x.o; falling back to lsp_diag_gen.c (archaeology)"
+  fi
   ensure_gen_file lsp_diag
   if ! need_rebuild_gen_o lsp_diag_x.o lsp_diag_gen.c; then
     log "skip lsp_diag_x.o (up-to-date vs lsp_diag_gen.c)"
