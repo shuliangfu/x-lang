@@ -1239,6 +1239,28 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o typeck_x.o typeck_gen.c
     fi
   fi
+  # codegen_x.o cold path (wave323 M4 7.4.2).
+  # PLATFORM: SHARED — prefer ensure_migrate_gen codegen (codegen.x -E + Cap residual)
+  # when a product -E binary exists; archaeology seed only if assemble cannot run.
+  # G.7: do not blind-cp pin over a fresher .x assemble.
+  if [ ! -f codegen_x.o ]; then
+    if [ -f scripts/ensure_migrate_gen.sh ]; then
+      echo "g05_ensure: ensure_migrate_gen codegen (cold: missing codegen_x.o; prefer .x assemble)"
+      bash scripts/ensure_migrate_gen.sh codegen \
+        || echo "g05_ensure: ensure_migrate_gen codegen failed (will try pin/local)" >&2
+    fi
+    if [ ! -s codegen_gen.c ] && [ -f seeds/codegen_gen.linux.x86_64.c ]; then
+      cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c
+      echo "g05_ensure: codegen_gen.c ← archaeology seed (cold egg; no assemble)"
+    fi
+  fi
+  if [ -f codegen_gen.c ]; then
+    if [ ! -f codegen_x.o ] || [ codegen_gen.c -nt codegen_x.o ]; then
+      echo "g05_ensure: cc -c codegen_gen.c → codegen_x.o (assemble / cold)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o codegen_x.o codegen_gen.c
+    fi
+  fi
   # G-02e：产品链 C 源缺失或比 .o 新时强制重编（并入/删 TU 后跨机 git pull 必走此路径）
   # shellcheck disable=SC2086
   for o in $G05_OBJS; do

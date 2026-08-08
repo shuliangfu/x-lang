@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual leave 收口 · **typeck 7.4.1 冷链关 pin**（`.x` assemble + companions；pin 仅考古）· **runtime monofile 物理退役（7.1.1）** · 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**M4 2/5**（runtime＋typeck）；codegen／parser pin 仍 ⬜；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual leave 收口 · **typeck 7.4.1 + codegen 7.4.2 冷链关 pin**（`.x` assemble + companions；pin 仅考古）· **runtime monofile 物理退役（7.1.1）** · 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**M4 3/5**（runtime＋typeck＋codegen）；parser／link_abi pin 仍 ⬜；**只改勾选与事实 LOC**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -32,7 +32,7 @@
 | **Prove 注册（N）** | ✅ 111/111 IDENTICAL | MODULES 数组实际 128 条（17 条后期新增未计入 KPI） |
 | **R2 真迁退役** | 🟡 ~85% | 128 prove 模块中 ~120 已 R2；Cap residual 待消灭 ~8 模块 |
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
-| **Mega 去 pin（M4）** | 🟡 2/5 | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1 · `.x` assemble）；parser／link_abi／codegen pin 仍 ⬜ |
+| **Mega 去 pin（M4）** | 🟡 3/5 | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；parser／link_abi pin 仍 ⬜ |
 | **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
@@ -706,7 +706,7 @@
 ## 阶段 7：Mega 去 pin Track M4（进行中 · 2/5 · runtime + typeck）
 
 > **定义**：M4 关 pin / 空 patch；冷启动可从「上一代 xlang -E」或 **纯 .x 产品路径**重建。  
-> **当前**：runtime monofile 物理退役 ✅；typeck 冷链 prefer `typeck.x` assemble ✅；codegen／parser／link_abi pin 仍 ⬜。  
+> **当前**：runtime monofile 物理退役 ✅；typeck／codegen 冷链 prefer `.x` assemble ✅；parser／link_abi pin 仍 ⬜。  
 > **补遗**：前端 **typeck / codegen** 亦是 pin 权威（产品链 `typeck_x.o` / `codegen_x.o` 常来自 pin seed），原 0/3 仪表盘漏计，现计 **5** 项。
 
 ### 7.1 runtime mega 去 pin
@@ -764,10 +764,14 @@
   - 证据：hide pin seed 后 ensure 仍 assemble OK；pure-ld + `./xbuild l2-matrix` 5/5
   - 残：companion 逐步 fold 进 `.x`（非 pin twin 权威）
 
-⬜ **7.4.2 codegen 去 pin**
+✅ **7.4.2 codegen 去 pin**
 
-  - 当前：`compiler/codegen_gen.c` + `seeds/codegen_gen.linux.x86_64.c` 产品 pin
-  - 目标：同 7.4.1；与 seed 同 commit 纪律收敛为「仅 .x 权威」
+  - 产品权威：`src/codegen/codegen.x` + Cap residual assemble（`scripts/assemble_codegen_gen_from_x.py`）
+  - 冷链：`ensure_migrate_gen.sh codegen` / g05 cold **prefer tip `-E` assemble**；`seeds/codegen_gen.linux.x86_64.c` **仅考古／true-cold egg**
+  - 组装层：① `CodegenOutBuf`→`codegen_CodegenOutBuf` ② bare→`codegen_*` ③ X-mangle demangle（含 call sites）④ Cap residual（host BSS／slice_let／pipeline scratch+loop）
+  - 根修（`.x`）：emit_expr 未闭合注释 + orphan TRY_PROPAGATE 注释 + T001（bool!=0／enum.kind==lit）+ buf wrapper 发射长度 off-by-one（`_bu` 截断）
+  - 证据：hide pin seed 后 ensure assemble OK；pure-ld + `./xbuild l2-matrix` 5/5
+  - 残：companion 逐步 fold 进 `.x`；parser／link_abi pin 仍 ⬜
 
 ⬜ **7.4.3 lexer / preprocess / pipeline 去 pin 对齐**
 
@@ -837,11 +841,10 @@
   - **全量 `-E` typeck OK**；冷链 prefer assemble（`assemble_typeck_gen_from_x.py`）；pin seed **仅考古**（见 7.4.1 ✅）
   - monofile dual WEAK polyfill → extern-only 已做（live STRONG＝`runtime_pipeline_abi`）。**未** Track L 退役（产品仍 host-cc typeck_x.o）
 
-⬜ **8.2.5 codegen_gen.c** pinned（Makefile L2199）
+🟡 **8.2.5 codegen_gen.c**（M4 7.4.2 冷链关 pin；Track L 退役仍 ⬜）
 
-  - 前端核心：src/codegen/codegen.x
-  - 阻塞：codegen mega 去 pin
-  - **wave312（2026-08-08）**：`seeds/codegen_gen.linux.x86_64.c` monofile dual **29× WEAK** freestanding polyfill → **extern-only**（host-cc T **194→165**）。**未** Track L 退役
+  - 前端核心：src/codegen/codegen.x；冷链 prefer assemble（`assemble_codegen_gen_from_x.py`）；pin **仅考古**
+  - **wave312（历史）**：monofile dual WEAK → extern-only；现 pin 为 assemble 快照
 
 🟡 **8.2.6 lsp_diag_gen.c** pin/seed/-E → `ensure_lsp_pipeline_gen.sh`
 

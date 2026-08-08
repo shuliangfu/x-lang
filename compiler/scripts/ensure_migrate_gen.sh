@@ -6,7 +6,7 @@
 #   Single implementation of product frontend *_gen.c production for:
 #     parser_gen.c   (seed pin / force -E / C-04 post-normalize)     — wave736
 #     typeck_gen.c   (wave322 M4 7.4.1: prefer typeck.x assemble; pin archaeology)
-#     codegen_gen.c  (tip seed pin sync / force -E / fix_slim_arena) — wave736
+#     codegen_gen.c  (wave323 M4 7.4.2: prefer codegen.x assemble; pin archaeology)
 #     lexer_gen.c    (seed pin + contract refresh / force -E / slim) — wave737
 #   migrate_x_objs.sh and ./xbuild migrate-gen call this script (0× make for
 #   the gen body). Missing xlang-c for force -E → scripts/ensure_xlang_c.sh
@@ -26,17 +26,21 @@
 #   XLANG_FORCE_REGEN_GEN=1 — force -E regen (ignore local pin)
 #   XLANG_TYPECK_FROM_X=1   — force typeck.x assemble path (default prefer when -E works)
 #   XLANG_TYPECK_ALLOW_PIN=1 — allow seed pin restore / refresh (default 1 for true-cold egg)
+#   XLANG_CODEGEN_FROM_X=1  — force codegen.x assemble path (default prefer when -E works)
+#   XLANG_CODEGEN_ALLOW_PIN=1 — allow seed pin restore (default 1 for true-cold egg)
 #   XLANG_PARSER_GEN_TIMEOUT — seconds for parser -E (default 120)
 #   XLANG_C / XLANG_X — binary names (default xlang-c / xlang-x)
-#   XLANG_TYPECK_E — preferred binary name for typeck -E (optional)
+#   XLANG_TYPECK_E / XLANG_CODEGEN_E — preferred binary for tip -E (optional)
 #
 # PLATFORM: SHARED shell orchestration; product seed pins are host-portable C.
 # Stale gitignored pins (dual-boot Windows) fail product symbol contract →
-# refresh from seeds/*_gen.linux.x86_64.c (same class as codegen tip-seed sync).
+# refresh from seeds/*_gen.linux.x86_64.c when assemble cannot run.
 # wave829 (G.7 有则补全): FORCE dep-thin — Makefile prereqs FORCE+script only;
 #   shell owns pin/seed/FORCE_REGEN policy. NOT physical delete.
 # wave322 (G.7 M4 7.4.1): typeck cold path prefer assemble_typeck_gen_from_x
 #   (tip -E + companions); pin seed is archaeology / no-binary egg only.
+# wave323 (G.7 M4 7.4.2): codegen cold path prefer assemble_codegen_gen_from_x
+#   (tip -E + Cap residual); pin seed archaeology only.
 # Wave: 736/737 Track MG · pairs with migrate_x_objs.sh + Makefile thin leaves.
 
 set -euo pipefail
@@ -49,6 +53,9 @@ XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}"
 XLANG_TYPECK_FROM_X="${XLANG_TYPECK_FROM_X:-1}"
 # Archaeology seed restore allowed when no -E binary (true cold egg).
 XLANG_TYPECK_ALLOW_PIN="${XLANG_TYPECK_ALLOW_PIN:-1}"
+# Prefer codegen.x assemble whenever a product -E binary works (wave323 / 7.4.2).
+XLANG_CODEGEN_FROM_X="${XLANG_CODEGEN_FROM_X:-1}"
+XLANG_CODEGEN_ALLOW_PIN="${XLANG_CODEGEN_ALLOW_PIN:-1}"
 XLANG_PARSER_GEN_TIMEOUT="${XLANG_PARSER_GEN_TIMEOUT:-120}"
 MODE="${1:-all}"
 
@@ -76,6 +83,14 @@ typeck_gen_contract_ok() {
     && gen_has_sym "$1" 'typeck_check_call_arg_types' \
     && gen_has_sym "$1" 'typeck_expr_is_null_keyword' \
     && gen_has_sym "$1" 'typeck_type_is_valid_subscript_index'
+}
+
+codegen_gen_contract_ok() {
+  # product pure-ld needs emit_expr + x_ast + Cap residual faces
+  (gen_has_sym "$1" 'codegen_emit_expr' || gen_has_sym "$1" 'codegen_emit_expr_ASTArena') \
+    && gen_has_sym "$1" 'codegen_x_ast' \
+    && gen_has_sym "$1" 'codegen_set_host_call_arg_param_ty' \
+    && gen_has_sym "$1" 'pipeline_loop_should_continue_ndep_c'
 }
 
 lexer_gen_contract_ok() {
@@ -397,39 +412,136 @@ ensure_typeck_gen() {
 }
 
 # ---------------------------------------------------------------------------
-# codegen_gen.c
+# codegen_gen.c — wave323 M4 7.4.2: prefer codegen.x assemble over pin
 # ---------------------------------------------------------------------------
-ensure_codegen_gen() {
-  local tmp seed="seeds/codegen_gen.linux.x86_64.c"
-  tmp="codegen_gen.c.tmp.$$"
-  rm -f "$tmp"
-
-  if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
-    ensure_xlang_c
-    "./$XLANG_C" -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck \
-      src/codegen/codegen.x -E-extern >"$tmp" && mv "$tmp" codegen_gen.c
-  elif [ -f "$seed" ]; then
-    # PLATFORM SHARED: tip seed pin guards gitignored pin drift
-    if [ ! -s codegen_gen.c ] || ! cmp -s "$seed" codegen_gen.c; then
-      cp -f "$seed" codegen_gen.c
-      log "codegen_gen.c: synced from tip seed pin (PLATFORM SHARED: guard gitignored pin drift)"
-    else
-      log "codegen_gen.c: pinned matches tip seed ($(bytes_of codegen_gen.c) bytes)"
+# Run tip -E for codegen.x into $1. Product pure NO_C rejects -E-extern; plain -E works.
+# PLATFORM: SHARED — same -E face on Darwin/Linux; binary may be xlang / xlang_asm / xlang-c.
+codegen_run_tip_e() {
+  local out="$1"
+  local b err
+  err="${out}.err"
+  rm -f "$out" "$err"
+  for b in ${XLANG_CODEGEN_E:-} xlang xlang_asm xlang-c bootstrap_xlangc; do
+    [ -n "$b" ] || continue
+    if [ ! -x "./$b" ] && [ ! -f "./$b" ]; then
+      continue
     fi
-  else
-    ensure_xlang_c
-    if "./$XLANG_C" -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck \
-      src/codegen/codegen.x -E-extern >"$tmp" && mv "$tmp" codegen_gen.c; then
-      :
+    # Product freestanding: plain -E (not -E-extern) emits library C for codegen.x.
+    if "./$b" -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen \
+      -E src/codegen/codegen.x >"$out" 2>"$err"; then
+      if [ -s "$out" ]; then
+        log "codegen tip -E via ./$b ($(bytes_of "$out") bytes)"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+
+# Assemble codegen_gen.c from tip -E + Cap residual (G.7 body = assemble_codegen_gen_from_x.py).
+codegen_assemble_from_x() {
+  local tip tmp py
+  tip="codegen_gen.tip_e.tmp.$$"
+  tmp="codegen_gen.c.tmp.$$"
+  py="${PYTHON:-python3}"
+  if [ ! -f scripts/assemble_codegen_gen_from_x.py ]; then
+    log "missing scripts/assemble_codegen_gen_from_x.py (wave323)"
+    return 1
+  fi
+  if ! codegen_run_tip_e "$tip"; then
+    rm -f "$tip" "$tip.err" 2>/dev/null || true
+    log "codegen tip -E failed (no working product -E binary?)"
+    return 1
+  fi
+  if ! "$py" scripts/assemble_codegen_gen_from_x.py --tip "$tip" --out "$tmp"; then
+    rm -f "$tip" "$tip.err" "$tmp" 2>/dev/null || true
+    return 1
+  fi
+  mv -f "$tmp" codegen_gen.c
+  rm -f "$tip" "$tip.err" 2>/dev/null || true
+  log "codegen_gen.c: assembled from codegen.x + Cap residual (wave323 / 7.4.2)"
+  return 0
+}
+
+# True when codegen.x (or companions) is newer than local codegen_gen.c → must re-assemble.
+codegen_x_sources_newer_than_gen() {
+  local gen="codegen_gen.c"
+  local src
+  [ -s "$gen" ] || return 0
+  for src in \
+    src/codegen/codegen.x \
+    seeds/codegen_cap_residual.from_x.c \
+    scripts/assemble_codegen_gen_from_x.py
+  do
+    if [ -f "$src" ] && [ "$src" -nt "$gen" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+ensure_codegen_gen() {
+  local seed="seeds/codegen_gen.linux.x86_64.c"
+  local need_assemble=0
+  local did_assemble=0
+
+  # wave323 / 7.4.2 policy (G.7):
+  #   product authority = codegen.x + Cap residual assemble
+  #   pin seed = archaeology / true-cold egg only (no -E binary)
+  if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
+    need_assemble=1
+  elif [ ! -s codegen_gen.c ]; then
+    need_assemble=1
+  elif [ "$XLANG_CODEGEN_FROM_X" = "1" ] && codegen_x_sources_newer_than_gen; then
+    need_assemble=1
+  elif [ "$XLANG_CODEGEN_FROM_X" = "1" ] && ! codegen_gen_contract_ok codegen_gen.c; then
+    need_assemble=1
+  fi
+
+  if [ "$need_assemble" = "1" ]; then
+    if codegen_assemble_from_x; then
+      did_assemble=1
     else
-      rm -f "$tmp"
+      if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
+        if [ "$XLANG_CODEGEN_ALLOW_PIN" = "1" ] && seed_ok "$seed"; then
+          cp -f "$seed" codegen_gen.c
+          log "codegen_gen.c: FORCE fallback archaeology seed (tip -E failed)"
+        else
+          log "codegen_gen.c: FAIL FORCE regen (no -E and no pin escape)"
+          exit 1
+        fi
+      else
+        log "codegen_gen.c: tip assemble unavailable; try local/pin (archaeology)"
+      fi
+    fi
+  fi
+
+  if [ ! -s codegen_gen.c ]; then
+    if [ "$XLANG_CODEGEN_ALLOW_PIN" = "1" ] && seed_ok "$seed"; then
+      cp -f "$seed" codegen_gen.c
+      log "codegen_gen.c: restored archaeology seed $seed (no -E binary; true-cold egg)"
+    else
+      log "codegen_gen.c: FAIL no assemble and no archaeology seed"
       exit 1
     fi
   fi
-  rm -f "$tmp" 2>/dev/null || true
+
+  # Stale local without assemble this run: allow archaeology pin restore if contract fails.
+  if [ "$did_assemble" != "1" ] && [ "$XLANG_CODEGEN_ALLOW_PIN" = "1" ]; then
+    if ! codegen_gen_contract_ok codegen_gen.c; then
+      if seed_ok "$seed" && codegen_gen_contract_ok "$seed"; then
+        cp -f "$seed" codegen_gen.c
+        log "codegen_gen.c: local failed contract → archaeology seed"
+      fi
+    fi
+  fi
 
   if [ -f scripts/fix_slim_arena_gen_c.pl ]; then
     perl scripts/fix_slim_arena_gen_c.pl codegen_gen.c
+  fi
+  if ! codegen_gen_contract_ok codegen_gen.c; then
+    log "codegen_gen.c: FAIL product contract (missing emit_expr / x_ast / host_call / loop residual)"
+    exit 1
   fi
   log "codegen_gen.c OK ($(bytes_of codegen_gen.c) bytes)"
 }

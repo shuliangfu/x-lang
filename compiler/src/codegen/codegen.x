@@ -1962,19 +1962,22 @@ export function codegen_emit_io_driver_buf_call_name(out: *CodegenOutBuf, name: 
       return 0;
     }
     if (num_args == 1 && name_len == 8 && codegen_name_bytes_prefix_eq(name, name_len, &reg8[0], 8) != 0) {
-      if (emit_bytes_from_ptr(out, &sym_reg[0], 20) != 0) {
+      /* PLATFORM: SHARED — sym_reg is 21 bytes ("xlang_io_register_buf"). wave323 */
+      if (emit_bytes_from_ptr(out, &sym_reg[0], 21) != 0) {
         return -1;
       }
       return 1;
     }
     if (num_args == 2 && name_len == 11 && codegen_name_bytes_prefix_eq(name, name_len, &rd11[0], 11) != 0) {
-      if (emit_bytes_from_ptr(out, &sym_rd[0], 23) != 0) {
+      /* PLATFORM: SHARED — sym_rd is 24 bytes ("xlang_io_submit_read_buf"); 23 truncates to _bu. wave323 */
+      if (emit_bytes_from_ptr(out, &sym_rd[0], 24) != 0) {
         return -1;
       }
       return 1;
     }
     if (num_args == 2 && name_len == 12 && codegen_name_bytes_prefix_eq(name, name_len, &wr12[0], 12) != 0) {
-      if (emit_bytes_from_ptr(out, &sym_wr[0], 24) != 0) {
+      /* PLATFORM: SHARED — sym_wr is 25 bytes ("xlang_io_submit_write_buf"). wave323 */
+      if (emit_bytes_from_ptr(out, &sym_wr[0], 25) != 0) {
         return -1;
       }
       return 1;
@@ -2028,7 +2031,8 @@ export function codegen_try_emit_std_io_driver_buf_body(out: *CodegenOutBuf, mod
     if (fn_len == 8 && codegen_name_bytes_prefix_eq(&fn_local[0], fn_len, &reg8[0], 8) != 0 && nparams == 1) {
       if (emit_indent(out, 2) != 0) { return -1; }
       if (emit_bytes_from_ptr(out, &ret_kw[0], 8) != 0) { return -1; }
-      if (emit_bytes_from_ptr(out, &sym_reg[0], 20) != 0) { return -1; }
+      /* PLATFORM: SHARED — sym_reg 21 bytes (wave323). */
+      if (emit_bytes_from_ptr(out, &sym_reg[0], 21) != 0) { return -1; }
       if (append_byte(out, 40) != 0) { return -1; }
       if (emit_bytes_from_ptr(out, &p0[0], p0_len) != 0) { return -1; }
       if (append_byte(out, 41) != 0) { return -1; }
@@ -2039,7 +2043,8 @@ export function codegen_try_emit_std_io_driver_buf_body(out: *CodegenOutBuf, mod
     if (fn_len == 11 && codegen_name_bytes_prefix_eq(&fn_local[0], fn_len, &rd11[0], 11) != 0 && nparams == 2) {
       if (emit_indent(out, 2) != 0) { return -1; }
       if (emit_bytes_from_ptr(out, &ret_kw[0], 8) != 0) { return -1; }
-      if (emit_bytes_from_ptr(out, &sym_rd[0], 23) != 0) { return -1; }
+      /* PLATFORM: SHARED — sym_rd length 24 (wave323 root: was 23 → _bu). */
+      if (emit_bytes_from_ptr(out, &sym_rd[0], 24) != 0) { return -1; }
       if (append_byte(out, 40) != 0) { return -1; }
       if (emit_bytes_from_ptr(out, &p0[0], p0_len) != 0) { return -1; }
       let comma: u8[3] = [44, 32, 0];
@@ -2053,7 +2058,8 @@ export function codegen_try_emit_std_io_driver_buf_body(out: *CodegenOutBuf, mod
     if (fn_len == 12 && codegen_name_bytes_prefix_eq(&fn_local[0], fn_len, &wr12[0], 12) != 0 && nparams == 2) {
       if (emit_indent(out, 2) != 0) { return -1; }
       if (emit_bytes_from_ptr(out, &ret_kw[0], 8) != 0) { return -1; }
-      if (emit_bytes_from_ptr(out, &sym_wr[0], 24) != 0) { return -1; }
+      /* PLATFORM: SHARED — sym_wr 25 bytes (wave323). */
+      if (emit_bytes_from_ptr(out, &sym_wr[0], 25) != 0) { return -1; }
       if (append_byte(out, 40) != 0) { return -1; }
       if (emit_bytes_from_ptr(out, &p0[0], p0_len) != 0) { return -1; }
       let comma2: u8[3] = [44, 32, 0];
@@ -9608,14 +9614,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return 0;
     }
-    /* STRING_LIT(kind 59)。
-     * See implementation.
-     * See implementation.
-     * See implementation.
-     * See implementation.
-     * See implementation.
-     * See implementation.
-     * See implementation.
+    /* STRING_LIT (kind 59): emit C string or slice literal from e.var_name.
+     * PLATFORM: SHARED — close this block comment before the if (wave323).
+     * Root: unclosed block comment soft-skipped whole emit_expr on tip -E.
+     */
     if (pipeline_expr_kind_ord_at(arena, expr_ref) == 59) {
       let slen: i32 = e.var_name_len;
       let emit_slice: bool = false;
@@ -10169,8 +10171,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* See implementation. */
-     * ({ Result_T tmp = op; if (tmp.err != 0) { return tmp; } tmp.value; })
+    /* TRY_PROPAGATE: emit ({ Result_T tmp = op; if (tmp.err != 0) { return tmp; } tmp.value; }).
+     * PLATFORM: SHARED host-C statement-expression shape (wave323).
+     * Root: orphan comment lines after a closed block soft-skipped emit_expr on tip -E.
      */
     if ((e.kind as i32) == (ExprKind.EXPR_TRY_PROPAGATE as i32)) {
       let op_ref: i32 = e.unary_operand_ref;
@@ -11217,7 +11220,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         let callee_expr: Expr = ast.ast_arena_expr_get(arena, e.call_callee_ref);
         if ((callee_expr.kind as i32) == (ExprKind.EXPR_VAR as i32)) {
           n_fb = codegen_call_num_args_override(&fallback_pre[0], fallback_pl, callee_expr.var_name, callee_expr.var_name_len, e.call_num_args);
-          if (e.call_num_args == 2 && n_fb == 1 && ast.ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, 0)) != 0) {
+          /* PLATFORM: SHARED — ref_is_null is bool; do not compare != 0 (T001). wave323 */
+          if (e.call_num_args == 2 && n_fb == 1 && ast.ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, 0))) {
             use_second_arg = 1;
           }
         }
@@ -11886,7 +11890,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
          * let-scan fallback (deferred to wave446).
          * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c C6 branch.
          */
-        if (recv_ty <= 0 && mono_mod != 0 as *Module && base_mono.kind == 3) {
+        /* PLATFORM: SHARED — Expr.kind is enum; cast before == lit (T001). wave323 */
+        if (recv_ty <= 0 && mono_mod != 0 as *Module && (base_mono.kind as i32) == 3) {
           let parm_i: i32 = 0;
           let nparm: i32 = pipeline_module_func_num_params_at(mono_mod, mono_fi);
           while (parm_i < nparm) {
@@ -11921,7 +11926,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
          * type is a generic param (T), so pipeline_expr_resolved_type_ref returns 0.
          * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c C6 local-let.
          */
-        if (recv_ty <= 0 && base_mono.kind == 3 && ctx.current_block_ref > 0) {
+        /* PLATFORM: SHARED — Expr.kind enum cast before == lit (T001). wave323 */
+        if (recv_ty <= 0 && (base_mono.kind as i32) == 3 && ctx.current_block_ref > 0) {
           let blk: i32 = ctx.current_block_ref;
           let nlets: i32 = ast.ast_block_num_lets(arena, blk);
           let li: i32 = 0;
