@@ -1356,8 +1356,8 @@ B7B_RELINK_LEGACY_LIST_WAVE=wave822
 #   ast_pool_module_import(leave263) + ast_pool_struct_layout(leave266) + pipeline_asm_locals(leave267) + pipeline_asm_slot_bytes(leave268) + pipeline_asm_block_tree(leave269) + ast_pool_type(leave270) + pipeline_grow_vec(leave271) +
 #   ast_pool_top_level(leave265) + ast_pool_type_alias(leave262) +
 #   ast_pool_expr_sidecar(leave278) + ast_pool_module_enum(leave264) +
-#   ast_pool_onefunc + ast_pool_dep_ctx(leave272) + ast_pool_module_func + ast_pool_arena +
-#   ast_pool_block) into PIPELINE_X_DEPS STALE.
+#   ast_pool_onefunc + ast_pool_dep_ctx(leave272) + ast_pool_module_func(leave280) +
+#   ast_pool_arena + ast_pool_block) into PIPELINE_X_DEPS STALE.
 # NOT physical delete — thin edges + std_core product make graph remain.
 PHYS_DEL_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823/8.3.1
@@ -9393,15 +9393,23 @@ fi
 if grep -qE 'ast_pool_lifecycle\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list ast_pool_lifecycle.c (wave279 host-cc leave)"
 fi
+# wave280: ast_pool_module_func.c host-cc leave — must NOT list in PIPELINE_X_DEPS.
+if [ -f "$ROOT/compiler/ast_pool_module_func.c" ]; then
+  bad "ast_pool_module_func.c must be deleted (wave280 host-cc leave)"
+fi
+if grep -qE 'ast_pool_module_func\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_module_func.c (wave280 host-cc leave)"
+fi
 # wave264: ast_pool_module_enum.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
 if ! grep -qE 'ast_pool_onefunc\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_onefunc.c (8.3.2 onefunc slice)"
 fi
-if ! grep -qE 'ast_pool_dep_ctx\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list (8.3.2 dep_ctx slice)"
+# wave272: ast_pool_dep_ctx.c pure-owned leave — must NOT list in PIPELINE_X_DEPS.
+if [ -f "$ROOT/compiler/ast_pool_dep_ctx.c" ]; then
+  bad "ast_pool_dep_ctx.c must be deleted (wave272 host-cc leave)"
 fi
-if ! grep -qE 'ast_pool_module_func\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_module_func.c (8.3.2 module_func slice)"
+if grep -qE 'ast_pool_dep_ctx\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_dep_ctx.c (wave272 host-cc leave)"
 fi
 # wave277: ast_pool_block.c host-cc leave (must-delete checks above with arena)
 # 8.3.3 host-cc leave (2026-08-05): field_access/soa thin retired from PIPELINE_X_DEPS;

@@ -81,7 +81,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_module_enum.c|8.3.2|module ModuleEnumEntry Cap residual pure-owned leave (wave264)|0|absent"
   "compiler/ast_pool_onefunc.c|8.3.2|OneFunc sidecar + fill_from_onefunc residual (defer/labeled/if/region/stmt_order/whiles/fors) slice|900|present"
   "compiler/ast_pool_dep_ctx.c|8.3.2|PipelineDepCtx Cap residual pure-owned leave (wave272)|0|absent"
-  "compiler/ast_pool_module_func.c|8.3.2|module Func cold accessors + param sidecar slice|400|present"
+  "compiler/ast_pool_module_func.c|8.3.2|module Func cold accessors Cap residual (wave280 leave)|0|absent"
   "compiler/ast_pool_arena.c|8.3.2|ASTArena main-pool Cap residual pure-owned leave (wave276)|0|absent"
   "compiler/ast_pool_block.c|8.3.2|block domain Cap residual pure-owned leave via seed ALWAYS (wave277)|0|absent"
   "compiler/ast_pool_lifecycle.c|8.3.2|ast_pool lifecycle/reset/release domain (wave279 leave)|0|absent"
@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave279 lifecycle done · present 30); candidates: onefunc/module_func or pipeline_x mega"
+  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave280 module_func done · present 29); candidates: onefunc or pipeline_x mega"
 }
 
 run_check() {
@@ -351,7 +351,7 @@ run_check() {
     echo "bc_host_cc_product_inventory: --check FAILED" >&2
     exit 1
   fi
-  echo "bc_host_cc_product_inventory: CHECK OK (BC open · wave1281 honesty · glue/ast_pool shell floors honest · 8.3.1 typeck+asm leaves + 8.3.2 domain leaves (lifecycle…emit-heavy_env…WPO) present · 8.3.9 absent · host-cc residual still required)" >&2
+  echo "bc_host_cc_product_inventory: CHECK OK (BC open · wave1281 honesty · glue/ast_pool shell floors honest · 8.3.1 typeck+asm leaves + 8.3.2 domain leaves (module_func leave…lifecycle…WPO) present · 8.3.9 absent · host-cc residual still required)" >&2
 }
 
 case "$MODE" in

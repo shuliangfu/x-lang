@@ -79,11 +79,14 @@ void ast_pool_onefunc_release(uint8_t *out);
 
 /* wave279: ast_pool_lifecycle.c host leaf deleted — Cap residual in
  * runtime_pipeline_abi seed ALWAYS (block_on_alloc / module|arena reset|release /
- * drop_bodies / onefunc reset|release). Static module_func helpers live in
- * ast_pool_module_func.c. dual-export ban (pipeline_x U). PLATFORM: SHARED. */
+ * drop_bodies / onefunc reset|release). dual-export ban (pipeline_x U).
+ * PLATFORM: SHARED. */
 
-/** BC 8.3.2: Module Func cold accessors domain (same-TU thin). */
-#include "ast_pool_module_func.c"
+/* wave280: ast_pool_module_func.c host leaf deleted — Cap residual in
+ * runtime_pipeline_abi seed ALWAYS (module Func cold accessors + param sidecar +
+ * name cluster + asm/arch_arm64 thin forwarders). Cap face decls:
+ * pipeline_glue_early_fwd / mid_fwd + ast_pool_typedefs. dual-export ban
+ * (pipeline_x U). PLATFORM: SHARED freestanding module_func leave (seed residual). */
 
 
 /* 2026-08-05: pipeline_lint_meta.c pure-owned leave (wave121).

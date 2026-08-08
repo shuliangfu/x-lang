@@ -331,6 +331,29 @@ void onefunc_sidecar_free(OneFuncSidecar *sc);
 struct ast_Type *pipeline_arena_type_ptr(struct ast_ASTArena *a, int32_t ref);
 struct ast_Expr *pipeline_arena_expr_ptr(struct ast_ASTArena *a, int32_t ref);
 
+
+/* wave280: module_func Cap faces live in runtime_pipeline_abi seed ALWAYS;
+ * host leaf deleted. Decls for residual same-TU callers (pipeline_x U only).
+ * PLATFORM: SHARED — dual-export ban. */
+int32_t pipeline_module_func_ref_at(struct ast_Module *m, int32_t func_index);
+int32_t pipeline_module_func_register_from_arena(struct ast_Module *m, struct ast_ASTArena *arena, int32_t func_ref);
+void pipeline_module_func_set_num_generic_params(struct ast_Module *m, int32_t fi, int32_t n);
+int32_t pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t func_index);
+void pipeline_module_func_param_write(struct ast_Module *m, int32_t func_index, int32_t param_index,
+                                      uint8_t *name_bytes, int32_t name_len, int32_t type_ref);
+void pipeline_arena_func_param_write(struct ast_ASTArena *arena, int32_t func_ref, int32_t param_index,
+                                     uint8_t *name_bytes, int32_t name_len, int32_t type_ref);
+void pipeline_arena_func_copy_slot_from_module(struct ast_ASTArena *arena, int32_t func_ref, struct ast_Module *m,
+                                               int32_t fi);
+int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
+uint8_t pipeline_module_func_name_byte_at(struct ast_Module *m, int32_t fi, int32_t i);
+int32_t pipeline_module_func_body_expr_ref_at(struct ast_Module *m, int32_t fi);
+int32_t pipeline_module_func_is_async_at(struct ast_Module *m, int32_t func_index);
+int32_t arch_arm64_pipeline_asm_module_func_is_extern_at(struct ast_Module *m, int32_t func_index);
+int32_t arch_arm64_pipeline_asm_module_func_body_ref_at(struct ast_Module *m, int32_t func_index);
+int32_t arch_arm64_pipeline_asm_module_func_name_len_at(struct ast_Module *m, int32_t func_index);
+void arch_arm64_pipeline_asm_module_func_name_copy64(struct ast_Module *m, int32_t func_index, uint8_t *dst);
+
 /* wave278: expr_sidecar Cap faces live in runtime_pipeline_abi seed ALWAYS;
  * residual same-TU (pipeline_typeck_check_expr / emit / glue) needs prototypes. */
 void pipeline_expr_set_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t type_ref);
