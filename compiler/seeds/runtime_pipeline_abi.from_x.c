@@ -1,5 +1,8 @@
 
 /* Generated from src/runtime_pipeline_abi.x
+ * wave287: pipeline_parser_result Cap residual seed ALWAYS leave (host leaf deleted)
+ * wave286: pipeline_typeck_check_expr Cap residual seed ALWAYS leave (host leaf deleted)
+ * wave285: pipeline_typeck_orch Cap residual seed ALWAYS leave (host leaf deleted)
  * wave284: pipeline_parse_orch Cap residual seed ALWAYS leave (host leaf deleted)
  * wave283: pipeline_ast_forwarders Cap residual seed ALWAYS leave (host leaf deleted)
  * wave280: module_func Cap residual seed ALWAYS leave (host leaf deleted)
@@ -45844,3 +45847,260 @@ int32_t typeck_check_expr_method_call(void *module, void *arena, int32_t expr_re
 #endif /* !XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #endif /* WAVE286_TYPECK_CHECK_EXPR_ALWAYS */
+
+/* =============================================================================
+ * WAVE287 ALWAYS: pipeline_parser_result Cap residual (host leaf deleted).
+ * Not gated by FROM_X. Product authority for parser result C sidecars that pure
+ * does not own (typeck FIELD_ACCESS / INDEX ASSIGN / usize-i32 gaps):
+ *   - parser_slice_from_buf / lexer_parser_slice_from_buf / pipeline_source_slice
+ *   - parser_lexer_pos_before
+ *   - parser_lex_from_lexer_result_{ptr,val}_into / parser_lex_copy_from_collect_imports
+ *   - parser_lex_from_onefunc_result_ptr_into / parser_lex_from_extern_parse_result_ptr_into
+ *   - pipeline_parser_extern_parse_set_fail_c
+ *   - pipeline_parser_library_result_copy_into_c / try_skip_result_copy_into_c
+ *   - parser_lex_from_try_skip_result_val_into / parser_lex_from_library_result_val_into
+ *   - pipeline_parser_set_onefunc_fail_c / pipeline_parser_onefunc_buf_into_set_success_c
+ * Layout LE SHARED (match parser_gen / lexer_gen / product -E):
+ *   Lexer 16B (pos@0 size_t, line@8 i32, col@12 i32)
+ *   LexerResult 72B (next_lex@0, tok@16 Token 48B, token_start@64)
+ *   CollectImportsResult 16B (lex@0)
+ *   OneFuncResult product: ok@0, next_lex@8, name[128]@24, name_len@152, …
+ *     return_val after has_unary_neg; includes num_generic_params + has_final_expr
+ *   ExternParseResult: next_lex@0, name[128]@16, …, is_variadic after abi_kind
+ *   LibraryParseResult / TrySkipAllowResult match product allow(padding)
+ * dual-export ban: only seed ALWAYS defines these bodies (no pure twin).
+ * PLATFORM: SHARED freestanding Cap leave (seed residual class).
+ * ============================================================================= */
+#ifndef WAVE287_PARSER_RESULT_ALWAYS
+#define WAVE287_PARSER_RESULT_ALWAYS 1
+
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+
+/* Product LE layouts (local to this ALWAYS block; incomplete types elsewhere OK). */
+#ifndef W287_LEXER_LAYOUT
+#define W287_LEXER_LAYOUT 1
+struct lexer_Lexer {
+  size_t pos;
+  int32_t line;
+  int32_t col;
+};
+struct token_Token {
+  int kind;
+  int32_t line;
+  int32_t col;
+  int64_t int_val;
+  double float_val;
+  uint8_t *ident;
+  int32_t ident_len;
+};
+struct lexer_LexerResult {
+  struct lexer_Lexer next_lex;
+  struct token_Token tok;
+  size_t token_start;
+};
+struct parser_CollectImportsResult {
+  struct lexer_Lexer lex;
+};
+/* Product OneFuncResult (parser_gen / parser.x allow(padding) name[128]). */
+struct parser_OneFuncResult {
+  int ok;
+  struct lexer_Lexer next_lex;
+  uint8_t name[128];
+  int32_t name_len;
+  int32_t num_params;
+  int32_t num_generic_params;
+  int32_t num_consts;
+  int32_t num_lets;
+  int has_if_expr;
+  int if_cond_true;
+  int32_t if_then_val;
+  int32_t if_else_val;
+  int32_t if_cond_expr_ref;
+  int has_mul;
+  int32_t mul_right_val;
+  int has_binop;
+  int32_t binop_right_val;
+  int32_t binop_left_param_idx;
+  int32_t binop_right_param_idx;
+  int has_unary_neg;
+  int32_t return_val;
+  int has_call_expr;
+  uint8_t call_callee_name[128];
+  int32_t call_callee_len;
+  uint8_t return_var_name[128];
+  int32_t return_var_name_len;
+  int32_t return_expr_ref;
+  int has_final_expr;
+  int has_explicit_return_kw;
+  int32_t call_num_args;
+  int32_t num_loops;
+  int32_t num_for_loops;
+  int32_t num_if_stmts;
+  int32_t num_src_stmt_order;
+  int32_t num_src_body_expr_stmts;
+  int32_t func_return_type_ref;
+};
+struct parser_ExternParseResult {
+  struct lexer_Lexer next_lex;
+  uint8_t name[128];
+  int32_t name_len;
+  int32_t return_ty_ref;
+  int32_t num_params;
+  int32_t abi_kind;
+  int32_t is_variadic;
+};
+struct parser_TrySkipAllowResult {
+  struct lexer_Lexer lex;
+  int32_t skipped;
+  uint8_t _pad[4];
+};
+struct parser_LibraryParseResult {
+  int ok;
+  uint8_t _pad[4];
+  struct lexer_Lexer next_lex;
+  uint8_t name[128];
+  int32_t name_len;
+  uint8_t _pad_tail[4];
+};
+#endif /* W287_LEXER_LAYOUT */
+
+/* xlang_slice_uint8_t complete in runtime_pipeline_abi.h (included at seed head). */
+extern void pipeline_module_fill_u8_64_from_src_c(uint8_t *dst, const uint8_t *src, int32_t n, int32_t src_cap);
+
+struct xlang_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len) {
+  struct xlang_slice_uint8_t s;
+  s.data = data;
+  s.length = (size_t)(len >= 0 ? len : 0);
+  return s;
+}
+
+size_t parser_lexer_pos_before(size_t end_pos, int32_t run_len) {
+  if (run_len <= 0)
+    return end_pos;
+  return end_pos - (size_t)run_len;
+}
+
+struct xlang_slice_uint8_t lexer_parser_slice_from_buf(uint8_t *data, int32_t len) {
+  return parser_slice_from_buf(data, len);
+}
+
+void parser_lex_from_lexer_result_ptr_into(struct lexer_Lexer *out, struct lexer_LexerResult *r) {
+  if (out == NULL || r == NULL)
+    return;
+  out->pos = r->next_lex.pos;
+  out->line = r->next_lex.line;
+  out->col = r->next_lex.col;
+}
+
+void parser_lex_copy_from_collect_imports(struct lexer_Lexer *out, struct parser_CollectImportsResult res) {
+  if (out == NULL)
+    return;
+  out->pos = res.lex.pos;
+  out->line = res.lex.line;
+  out->col = res.lex.col;
+}
+
+void parser_lex_from_lexer_result_val_into(struct lexer_Lexer *out, struct lexer_LexerResult r) {
+  if (out == NULL)
+    return;
+  out->pos = r.next_lex.pos;
+  out->line = r.next_lex.line;
+  out->col = r.next_lex.col;
+}
+
+void parser_lex_from_onefunc_result_ptr_into(struct lexer_Lexer *out, struct parser_OneFuncResult *res) {
+  if (out == NULL || res == NULL)
+    return;
+  out->pos = res->next_lex.pos;
+  out->line = res->next_lex.line;
+  out->col = res->next_lex.col;
+}
+
+void parser_lex_from_extern_parse_result_ptr_into(struct lexer_Lexer *out, void *res_raw) {
+  struct parser_ExternParseResult *res = (struct parser_ExternParseResult *)res_raw;
+  if (out == NULL || res == NULL)
+    return;
+  out->pos = res->next_lex.pos;
+  out->line = res->next_lex.line;
+  out->col = res->next_lex.col;
+}
+
+void pipeline_parser_extern_parse_set_fail_c(void *res_raw, struct lexer_Lexer lex) {
+  struct parser_ExternParseResult *res = (struct parser_ExternParseResult *)res_raw;
+  if (res == NULL)
+    return;
+  res->next_lex = lex;
+  res->name_len = -1;
+  res->return_ty_ref = 0;
+  res->num_params = 0;
+  res->abi_kind = 0;
+  res->is_variadic = 0;
+  memset(res->name, 0, sizeof(res->name));
+}
+
+void pipeline_parser_library_result_copy_into_c(void *out_raw, void *res_raw) {
+  struct parser_LibraryParseResult *out = (struct parser_LibraryParseResult *)out_raw;
+  struct parser_LibraryParseResult *res = (struct parser_LibraryParseResult *)res_raw;
+  if (out == NULL || res == NULL)
+    return;
+  out->ok = res->ok;
+  memcpy(out->_pad, res->_pad, sizeof(out->_pad));
+  out->next_lex = res->next_lex;
+  memcpy(out->name, res->name, sizeof(out->name));
+  out->name_len = res->name_len;
+  memcpy(out->_pad_tail, res->_pad_tail, sizeof(out->_pad_tail));
+}
+
+void pipeline_parser_try_skip_result_copy_into_c(void *out_raw, void *res_raw) {
+  struct parser_TrySkipAllowResult *out = (struct parser_TrySkipAllowResult *)out_raw;
+  struct parser_TrySkipAllowResult *res = (struct parser_TrySkipAllowResult *)res_raw;
+  if (out == NULL || res == NULL)
+    return;
+  out->lex = res->lex;
+  out->skipped = res->skipped;
+  memcpy(out->_pad, res->_pad, sizeof(out->_pad));
+}
+
+void parser_lex_from_try_skip_result_val_into(struct lexer_Lexer *out, struct parser_TrySkipAllowResult t) {
+  if (out == NULL)
+    return;
+  out->pos = t.lex.pos;
+  out->line = t.lex.line;
+  out->col = t.lex.col;
+}
+
+void parser_lex_from_library_result_val_into(struct lexer_Lexer *out, struct parser_LibraryParseResult lib) {
+  if (out == NULL)
+    return;
+  out->pos = lib.next_lex.pos;
+  out->line = lib.next_lex.line;
+  out->col = lib.next_lex.col;
+}
+
+void pipeline_parser_set_onefunc_fail_c(void *out_raw, struct lexer_Lexer lex) {
+  struct parser_OneFuncResult *out = (struct parser_OneFuncResult *)out_raw;
+  if (out == NULL)
+    return;
+  out->ok = 0;
+  out->next_lex = lex;
+}
+
+void pipeline_parser_onefunc_buf_into_set_success_c(void *out_raw, struct lexer_Lexer lex, const uint8_t *name,
+                                                    int32_t name_len, int32_t ret_val) {
+  struct parser_OneFuncResult *out = (struct parser_OneFuncResult *)out_raw;
+  if (out == NULL)
+    return;
+  out->ok = 1;
+  out->next_lex = lex;
+  out->name_len = name_len;
+  pipeline_module_fill_u8_64_from_src_c(out->name, name, name_len, 64);
+  out->return_val = ret_val;
+}
+
+struct xlang_slice_uint8_t pipeline_source_slice(uint8_t *data, int32_t len) {
+  return parser_slice_from_buf(data, len);
+}
+
+#endif /* WAVE287_PARSER_RESULT_ALWAYS */

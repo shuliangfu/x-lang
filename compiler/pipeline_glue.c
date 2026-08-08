@@ -106,19 +106,14 @@ extern pipeline_glue_AsmFuncCtxLayout *pipeline_asm_ctx_layout(struct backend_As
  * glue_block_body_bind_module_dep_from_ctx) → pure; host residual file deleted.
  * PLATFORM: SHARED freestanding emit Cap leave. */
 
-/* wave1185 G.7: parser result copy/lex/slice helper cluster (20 fns + 4 typedefs)
- * migrated to pipeline_parser_result.c (same-TU #include). Members: parser_slice_from_buf /
- * lexer_parser_slice_from_buf / pipeline_source_slice / parser_lexer_pos_before /
- * parser_lex_from_lexer_result_{ptr,val}_into / parser_lex_copy_from_collect_imports /
- * parser_lex_from_onefunc_result_ptr_into / parser_lex_from_extern_parse_result_ptr_into /
- * pipeline_parser_extern_parse_set_fail_c / pipeline_parser_library_result_copy_into_c /
- * pipeline_parser_try_skip_result_copy_into_c / parser_lex_from_try_skip_result_val_into /
- * parser_lex_from_library_result_val_into / pipeline_parser_set_onefunc_fail_c /
- * pipeline_parser_onefunc_buf_into_set_success_c + 4 glue-local typedefs
- * (ExternParseResult / LibraryParseResult / TrySkipAllowResult / OneFuncResult).
- * Depends on pipeline_module_fill_u8_64_from_src_c (extern fwd decl at parser_result.c L50;
- * definition migrated to ast_pool_arena.c EOF by wave1203). All extern. */
-#include "pipeline_parser_result.c"
+/* wave287 G.7: pipeline_parser_result Cap residual host-cc leave.
+ * Live = runtime_pipeline_abi seed ALWAYS (WAVE287): slice/lex/result copy faces
+ * (parser_slice_from_buf / lexer_parser_slice_from_buf / pipeline_source_slice /
+ *  parser_lexer_pos_before / parser_lex_from_* / pipeline_parser_*_set_* /
+ *  library/try_skip copy); product LE layouts for Lexer/LexerResult/OneFunc/
+ *  Extern/Library/TrySkip. dual-export ban (only seed ALWAYS bodies).
+ * Host leaf deleted (no #include). PLATFORM: SHARED freestanding Cap leave.
+ */
 /* wave1285 G.7: mid forward-decl / extern shell migrated to
  * pipeline_glue_mid_fwd.c (same-TU #include). Pure decls only;
  * sits after parser_result and before codegen_outbuf.
