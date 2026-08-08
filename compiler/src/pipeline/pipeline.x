@@ -179,77 +179,55 @@ export extern function pipeline_path_append_from_buf_256_c(ctx: *PipelineDepCtx,
 export extern function pipeline_path_append_from_buf_512_c(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32;
 export extern function pipeline_path_append_import_path_c(ctx: *PipelineDepCtx, off: i32, import_path: *u8, path_len: i32): i32;
 
-/** Exported function `path_append_from_buf_256`.
- * Implements `path_append_from_buf_256`.
+/**
+ * Append buf into path_buf — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure `pipeline_path_append_from_buf_256`
+ * (thin→path_append_from_buf_256_c). Historical pipeline.x body was XLANG_LIB_WEAK
+ * thin residual. G.7 dual-export ban.
  * @param ctx *PipelineDepCtx
  * @param off i32
  * @param buf *u8
  * @param len i32
- * @return i32
+ * @return i32 — new off
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
  */
-export function path_append_from_buf_256(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
+export extern function path_append_from_buf_256(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32;
 
-    return pipeline_path_append_from_buf_256_c(ctx, off, buf, len);
-  }
-}
-
-/** Exported function `path_append_from_buf_512`.
- * Implements `path_append_from_buf_512`.
+/**
+ * Append buf (512 path) into path_buf — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure `pipeline_path_append_from_buf_512`.
  * @param ctx *PipelineDepCtx
  * @param off i32
  * @param buf *u8
  * @param len i32
- * @return i32
+ * @return i32 — new off
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
  */
-export function path_append_from_buf_512(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
+export extern function path_append_from_buf_512(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32;
 
-    return pipeline_path_append_from_buf_512_c(ctx, off, buf, len);
-  }
-}
-
-/** Exported function `path_append_import_path`.
- * Implements `path_append_import_path`.
+/**
+ * Append import_path (dot→slash) into path_buf — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure `pipeline_path_append_import_path`.
  * @param ctx *PipelineDepCtx
  * @param off i32
  * @param import_path *u8
  * @param path_len i32
- * @return i32
+ * @return i32 — new off
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
  */
-export function path_append_import_path(ctx: *PipelineDepCtx, off: i32, import_path: *u8, path_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
+export extern function path_append_import_path(ctx: *PipelineDepCtx, off: i32, import_path: *u8, path_len: i32): i32;
 
-    return pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
-  }
-}
-
-/** Exported function `resolve_path_import_has_dot`.
- * Implements `resolve_path_import_has_dot`.
+/**
+ * Detect '.' in import path — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure `pipeline_resolve_path_import_has_dot`
+ * (thin→import_has_dot_c). Historical pipeline.x body was XLANG_LIB_WEAK residual.
+ * G.7 dual-export ban.
  * @param import_path *u8
  * @param path_len i32
- * @return i32
+ * @return i32 — 1 has dot; 0 otherwise
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
  */
-export function resolve_path_import_has_dot(import_path: *u8, path_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (import_path == 0 as *u8 || path_len <= 0) {
-      return 0;
-    }
-    let k: i32 = 0;
-    while (k < path_len && k < 64) {
-      if (import_path[k] == 46 as u8) {
-        return 1;
-      }
-      k = k + 1;
-    }
-    return 0;
-  }
-}
+export extern function resolve_path_import_has_dot(import_path: *u8, path_len: i32): i32;
 
 /**
  * See implementation.
@@ -269,91 +247,51 @@ export extern function pipeline_resolve_path_probe_export_c(ctx: *PipelineDepCtx
 export extern function resolve_path_probe_dot_x_and_mod(ctx: *PipelineDepCtx, off: i32): i32;
 
 /**
- * See implementation.
- */
-export function resolve_path_try_flat_import_under_lib(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (ctx == 0 as *PipelineDepCtx || lib_idx < 0) {
-      return -1;
-    }
-    if (pipeline_flat_import_build_path_c(ctx, lib_idx, import_path, path_len) != 0) {
-      return -1;
-    }
-    if (pipeline_flat_import_probe_open_c(ctx) == 0) {
-      return 0;
-    }
-    return -1;
-  }
-}
-
-/** Exported function `resolve_path_try_one_lib_root`.
- * Implements `resolve_path_try_one_lib_root`.
+ * Try flat lib_root/name/name.x import — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure
+ * `pipeline_resolve_path_try_flat_import_under_lib` (build_path_c + probe_open_c).
+ * Historical pipeline.x body was XLANG_LIB_WEAK residual. G.7 dual-export ban.
  * @param ctx *PipelineDepCtx
  * @param lib_idx i32
  * @param import_path *u8
  * @param path_len i32
- * @return i32
+ * @return i32 — 0 hit; -1 miss
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
  */
-export function resolve_path_try_one_lib_root(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
+export extern function resolve_path_try_flat_import_under_lib(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32;
 
-    if (ctx == 0 as *PipelineDepCtx || lib_idx < 0) {
-      return -1;
-    }
-    if (pipeline_resolve_path_lib_root_prefix_off_c(ctx, lib_idx) < 0) {
-      return -1;
-    }
-    if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
-      return -1;
-    }
-    if (resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c()) == 0) {
-      return 0;
-    }
-    if (path_len > 0 && path_len < 64 && resolve_path_import_has_dot(import_path, path_len) == 0) {
-      if (resolve_path_try_flat_import_under_lib(ctx, lib_idx, import_path, path_len) == 0) {
-        return 0;
-      }
-    }
-    return -1;
-  }
-}
+/**
+ * Try one lib_root prefix + probe — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure `pipeline_resolve_path_try_one_lib_root`
+ * (Cap prefix/sidecar/probe + flat fallback). Historical pipeline.x WEAK residual.
+ * G.7 dual-export ban.
+ * @param ctx *PipelineDepCtx
+ * @param lib_idx i32
+ * @param import_path *u8
+ * @param path_len i32
+ * @return i32 — 0 hit; -1 miss
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
+ */
+export extern function resolve_path_try_one_lib_root(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32;
 
-/** Exported function `resolve_path_try_entry_dir`.
- * Implements `resolve_path_try_entry_dir`.
+/**
+ * Try entry_dir prefix + probe — pure leave wave306.
+ * Live authority: runtime_pipeline_abi pure `pipeline_resolve_path_try_entry_dir`.
+ * Historical pipeline.x WEAK residual. G.7 dual-export ban.
  * @param ctx *PipelineDepCtx
  * @param import_path *u8
  * @param path_len i32
- * @return i32
+ * @return i32 — 0 hit; -1 miss
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
  */
-export function resolve_path_try_entry_dir(ctx: *PipelineDepCtx, import_path: *u8, path_len: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    if (ctx == 0 as *PipelineDepCtx) {
-      return -1;
-    }
-    if (pipeline_dep_ctx_entry_dir_len(ctx) <= 0 || resolve_path_import_has_dot(import_path, path_len) != 0) {
-      return -1;
-    }
-    if (pipeline_resolve_path_entry_dir_prefix_off_c(ctx) < 0) {
-      return -1;
-    }
-    if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
-      return -1;
-    }
-    return resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c());
-  }
-}
+export extern function resolve_path_try_entry_dir(ctx: *PipelineDepCtx, import_path: *u8, path_len: i32): i32;
 
 /**
  * Resolve import path under lib roots then entry_dir — dual-export leave wave305.
  * Live authority: runtime_pipeline_abi pure `pipeline_resolve_path_x` (lib loop +
- * try_one_lib_root U + try_entry_dir U). Historical pipeline.x body was a parallel
- * XLANG_LIB_WEAK orchestrator (dual authority). try_* helpers stay on pipeline_x.o
- * (pure U); G.7 dual-export ban on the orchestrator face only.
+ * try_one_lib_root + try_entry_dir; wave306 pure-owned try_* same-TU).
+ * Historical pipeline.x body was a parallel XLANG_LIB_WEAK orchestrator.
+ * G.7 dual-export ban.
  * @param ctx *PipelineDepCtx — dep ctx
  * @param import_path *u8 — import path bytes
  * @param path_len i32 — length; <=0 → -1 on pure

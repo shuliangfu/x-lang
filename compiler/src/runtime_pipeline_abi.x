@@ -406,12 +406,13 @@ export extern "C" function typeck_patch_all_body_parent_links(module: *u8, arena
 //   Do not export-extern Cap path_copy - dual authority with pure map.
 export extern "C" function ast_pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern "C" function ast_pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
-// wave95 Cap residual under pure resolve/read/pp orch (G.7 try_* from pipeline.x
-// product surface; path/loaded accessors + set_loaded_len from ast_pool).
-// preprocess_x_buf already declared above (preprocess.x engine).
+// wave95 Cap residual under pure resolve/read/pp orch (path/loaded accessors
+// + set_loaded_len from ast_pool). preprocess_x_buf already declared above.
+// wave306: product surfaces try_one_lib_root / try_entry_dir / try_flat /
+//   import_has_dot / path_append_* are pure export below (G.7 leave from
+//   pipeline.x thin residual; no export-extern dual).
+// PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
 export extern "C" function pipeline_loop_should_continue_lib_root_c(ctx: *u8, idx: i32): i32;
-export extern "C" function pipeline_resolve_path_try_one_lib_root(ctx: *u8, lib_idx: i32, import_path: *u8, path_len: i32): i32;
-export extern "C" function pipeline_resolve_path_try_entry_dir(ctx: *u8, import_path: *u8, path_len: i32): i32;
 export extern "C" function xlang_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 // wave105 resolve_path pure-owned leave Cap residual (dep_ctx path byte + entry_dir +
 //   lib_root copy + fs open/close). PRODUCT: pipeline_x / std.fs strong; pure only calls.
@@ -5265,9 +5266,9 @@ export function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void {
  *     on pipeline_resolve_path_try_one_lib_root == 0 return 0
  *   - else pipeline_resolve_path_try_entry_dir; 0 -> success else -1
  * wave95 pure Cap residual: G.7 product authority for pipeline_resolve_path_x
- * (historical glue weak -> impl_c). Reuses G.7 try_one / try_entry product surface
- * (pipeline.x pure helpers already linked; no second path-build body).
- * PLATFORM: SHARED - glue keeps XLANG_WEAK cold twin for non-PREFER links.
+ * (historical glue weak -> impl_c). wave306: try_one / try_entry product surfaces
+ * are pure same-TU (leave pipeline.x thin residual); same-file later defs.
+ * PLATFORM: SHARED - seed cold twins under #ifndef FROM_X for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_resolve_path_x(ctx: *u8, import_path: *u8, path_len: i32): i32 {
@@ -12298,7 +12299,8 @@ export function asm_qual_sym_layer_copy(i: i32, dst: *u8, cap: i32): void {
 // wave105: resolve_path pure-owned leave (was pipeline_resolve_path.c).
 // G.7 product authority for path_append_*_c / resolve probe / flat_import /
 //   off-sidecar / codegen_out_buf_len|set_len / resolve_path_x_impl_c|_c.
-// Product surfaces try_one_lib_root / try_entry_dir remain pipeline.x strong
+// wave306: product surfaces try_one_lib_root / try_entry_dir / try_flat /
+//   import_has_dot / path_append_* pure-owned leave from pipeline.x thin residual
 //   (thin -> these pure _c helpers). Cold twins under seed #ifndef FROM_X.
 // PLATFORM: SHARED - dual-end L2 after leave; preserves historical probe bytes
 //   ('.' 46 + 115 + 117 + NUL and /mod + same) matching host-cc contract.
@@ -12734,6 +12736,172 @@ export function pipeline_flat_import_probe_open_c(ctx: *u8): i32 {
     return 0;
   }
   return 0 - 1;
+}
+
+// ---------------------------------------------------------------------------
+// wave306: resolve_path product surfaces pure-owned leave (was pipeline.x thin).
+// G.7 single product authority: try_one / try_entry / try_flat / has_dot /
+//   path_append_* non-_c faces. Bodies thin-compose Cap _c helpers above.
+// pipeline.x converts to export-extern (dual-export ban). Seed cold twins
+// under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * Product path_append face — thin alias of path_append_from_buf_256_c.
+ * @param ctx *u8 - PipelineDepCtx
+ * @param off i32 - write cursor
+ * @param buf *u8 - source bytes
+ * @param len i32 - byte count
+ * @return i32 - new off
+ * wave306 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_path_append_from_buf_256(ctx: *u8, off: i32, buf: *u8, len: i32): i32 {
+  return pipeline_path_append_from_buf_256_c(ctx, off, buf, len);
+}
+
+/**
+ * Product path_append_512 face — thin alias of path_append_from_buf_512_c.
+ * @param ctx *u8 - PipelineDepCtx
+ * @param off i32 - write cursor
+ * @param buf *u8 - source bytes
+ * @param len i32 - byte count
+ * @return i32 - new off
+ * wave306 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_path_append_from_buf_512(ctx: *u8, off: i32, buf: *u8, len: i32): i32 {
+  return pipeline_path_append_from_buf_512_c(ctx, off, buf, len);
+}
+
+/**
+ * Product path_append_import_path face — thin alias of path_append_import_path_c.
+ * @param ctx *u8 - PipelineDepCtx
+ * @param off i32 - write cursor
+ * @param import_path *u8 - import path bytes
+ * @param path_len i32 - length
+ * @return i32 - new off
+ * wave306 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_path_append_import_path(ctx: *u8, off: i32, import_path: *u8, path_len: i32): i32 {
+  return pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
+}
+
+/**
+ * Product import_has_dot face — thin alias of resolve_path_import_has_dot_c.
+ * @param import_path *u8 - import path; null -> 0
+ * @param path_len i32 - length; <=0 -> 0
+ * @return i32 - 1 has dot, 0 otherwise
+ * wave306 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_import_has_dot(import_path: *u8, path_len: i32): i32 {
+  return pipeline_resolve_path_import_has_dot_c(import_path, path_len);
+}
+
+/**
+ * Try flat lib_root/name/name.su import under one lib root.
+ * @param ctx *u8 - PipelineDepCtx; null -> -1
+ * @param lib_idx i32 - lib root index; <0 -> -1
+ * @param import_path *u8 - single-segment name
+ * @param path_len i32 - name length
+ * @return i32 - 0 hit; -1 miss/fail
+ * wave306 pure: G.7 leave from pipeline.x resolve_path_try_flat_import_under_lib.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_try_flat_import_under_lib(ctx: *u8, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (lib_idx < 0) {
+    return 0 - 1;
+  }
+  if (pipeline_flat_import_build_path_c(ctx, lib_idx, import_path, path_len) != 0) {
+    return 0 - 1;
+  }
+  if (pipeline_flat_import_probe_open_c(ctx) == 0) {
+    return 0;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Try one lib_root: prefix + import path + probe .x/mod; optional flat fallback.
+ * @param ctx *u8 - PipelineDepCtx; null -> -1
+ * @param lib_idx i32 - lib root index; <0 -> -1
+ * @param import_path *u8 - import path bytes
+ * @param path_len i32 - length
+ * @return i32 - 0 hit; -1 miss/fail
+ * wave306 pure: G.7 leave from pipeline.x resolve_path_try_one_lib_root.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_try_one_lib_root(ctx: *u8, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (lib_idx < 0) {
+    return 0 - 1;
+  }
+  if (pipeline_resolve_path_lib_root_prefix_off_c(ctx, lib_idx) < 0) {
+    return 0 - 1;
+  }
+  if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
+    return 0 - 1;
+  }
+  if (pipeline_resolve_path_probe_export_c(ctx, pipeline_resolve_path_last_off_get_c()) == 0) {
+    return 0;
+  }
+  if (path_len > 0) {
+    if (path_len < 64) {
+      if (pipeline_resolve_path_import_has_dot_c(import_path, path_len) == 0) {
+        if (pipeline_resolve_path_try_flat_import_under_lib(ctx, lib_idx, import_path, path_len) == 0) {
+          return 0;
+        }
+      }
+    }
+  }
+  return 0 - 1;
+}
+
+/**
+ * Try entry_dir prefix + import path + probe (skip dotted import paths).
+ * @param ctx *u8 - PipelineDepCtx; null -> -1
+ * @param import_path *u8 - import path bytes
+ * @param path_len i32 - length
+ * @return i32 - 0 hit; -1 miss/fail
+ * wave306 pure: G.7 leave from pipeline.x resolve_path_try_entry_dir.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_try_entry_dir(ctx: *u8, import_path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let ed_len: i32 = 0;
+  unsafe {
+    ed_len = pipeline_dep_ctx_entry_dir_len(ctx);
+  }
+  if (ed_len <= 0) {
+    return 0 - 1;
+  }
+  if (pipeline_resolve_path_import_has_dot_c(import_path, path_len) != 0) {
+    return 0 - 1;
+  }
+  if (pipeline_resolve_path_entry_dir_prefix_off_c(ctx) < 0) {
+    return 0 - 1;
+  }
+  if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
+    return 0 - 1;
+  }
+  return pipeline_resolve_path_probe_export_c(ctx, pipeline_resolve_path_last_off_get_c());
 }
 
 /**

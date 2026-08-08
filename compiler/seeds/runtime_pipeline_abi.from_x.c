@@ -11,6 +11,7 @@
  * wave280: module_func Cap residual seed ALWAYS leave (host leaf deleted)
  * wave279: lifecycle Cap residual seed ALWAYS leave (host leaf deleted)
  * wave278: expr_sidecar Cap residual seed ALWAYS leave (host leaf deleted) (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave306: resolve_path product surfaces (try_* / path_append / has_dot) pure leave cold twins under #ifndef FROM_X
  * wave275: arena/module/onefunc sidecar pool Cap residual pure leave cold twins under #ifndef FROM_X
  * wave266: struct_layout Cap residual pure leave cold twins under #ifndef FROM_X
  * wave264: module_enum Cap residual pure leave cold twins under #ifndef FROM_X
@@ -4913,6 +4914,33 @@ static int32_t wave105_try_entry_dir(void *ctx, uint8_t *import_path, int32_t pa
   }
   off = pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
   return wave105_probe_dot_x_and_mod(ctx, off);
+}
+
+/* wave306: product surfaces pure-owned leave cold twins (pipeline.x thin residual).
+ * PLATFORM: SHARED — only under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X (enclosing).
+ * Prefer pure owns STRONG pipeline_path_append_* / resolve_path_try_* / import_has_dot. */
+int32_t pipeline_path_append_from_buf_256(void *ctx, int32_t off, uint8_t *buf, int32_t len) {
+  return pipeline_path_append_from_buf_256_c(ctx, off, buf, len);
+}
+int32_t pipeline_path_append_from_buf_512(void *ctx, int32_t off, uint8_t *buf, int32_t len) {
+  return pipeline_path_append_from_buf_512_c(ctx, off, buf, len);
+}
+int32_t pipeline_path_append_import_path(void *ctx, int32_t off, uint8_t *import_path, int32_t path_len) {
+  return pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
+}
+int32_t pipeline_resolve_path_import_has_dot(uint8_t *import_path, int32_t path_len) {
+  return pipeline_resolve_path_import_has_dot_c(import_path, path_len);
+}
+int32_t pipeline_resolve_path_try_flat_import_under_lib(void *ctx, int32_t lib_idx, uint8_t *import_path,
+                                                       int32_t path_len) {
+  return wave105_try_flat_import_under_lib(ctx, lib_idx, import_path, path_len);
+}
+int32_t pipeline_resolve_path_try_one_lib_root(void *ctx, int32_t lib_idx, uint8_t *import_path,
+                                              int32_t path_len) {
+  return wave105_try_one_lib_root(ctx, lib_idx, import_path, path_len);
+}
+int32_t pipeline_resolve_path_try_entry_dir(void *ctx, uint8_t *import_path, int32_t path_len) {
+  return wave105_try_entry_dir(ctx, import_path, path_len);
 }
 
 int32_t pipeline_resolve_path_x_impl_c(void *ctx, uint8_t *import_path, int32_t path_len) {
