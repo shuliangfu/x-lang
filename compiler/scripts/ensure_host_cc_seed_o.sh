@@ -49,6 +49,12 @@
 #            omit empty mega rest as wave318 (no monofile host-cc). Monofile
 #            seeds/runtime.from_x.c remains last-resort only (partial/fail).
 #            Not M4 pin-off (7.1 still ⬜ — monofile seed still in tree).
+#   wave320: G.7 product no_c refuse monofile (7.1.2 step) —
+#            multi-slice gated on content layer seed (not monofile presence);
+#            partial rest + last-resort monofile host-cc **refused** by default
+#            (fail hard). Escape: XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1
+#            (archaeology / R1 legacy only). Monofile seed may still live in tree
+#            for runtime.o / runtime_driver.o cold maps — **not** full M4 7.1.1 rm.
 #   wave767: G.7 g05 pipeline_abi + ldpc PREFER swallow —
 #            `try-pipeline-abi-prefer OUT` (full .x WEAK + rest FROM_X → cc -r)
 #            · `try-ldpc-prefer OUT` (thin .x WEAK + rest L2_LSP_CTX → cc -r).
@@ -1630,16 +1636,18 @@ try_ensure_labi_prefer_one() {
 # PLATFORM: SHARED — do NOT merge RT_SEED_SLICE permanent .o into no_c
 #   (arena/emit_state/preamble/stack/parse_diag stay external; FROM_X on rest
 #   leaves them U in no_c — historic Darwin 22× multidef fix).
-# Prefer fail / partial slices → monofile cold full seed + NO_C (last resort).
+# Prefer fail / partial slices → **refuse** monofile by default (wave320);
+#   set XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1 to restore monofile + NO_C last resort.
 # wave319: PREFER=0 still multi-slices from cold layer seeds; omit empty mega when full.
-# Callers: g05_ensure (wave766) · Makefile src/runtime_driver_no_c.o (unified).
+# wave320: gate on content layer seed; product path never host-cc monofile unless escape.
+# Callers: g05_ensure (wave766) · heat / try-rt-prefer product leaf.
 # Exit codes:
-#   0 — OUT is runtime_driver_no_c.o; prefer or cold body produced OUT
+#   0 — OUT is runtime_driver_no_c.o; multi-slice (or allow-escape monofile) produced OUT
 #   3 — OUT is not src/runtime_driver_no_c.o
-#   1 — cold seed missing / compile failed
+#   1 — multi-slice incomplete / monofile refused / compile failed
 # PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0 multi-slice.
 # G.7: no second .o list; layer table is seed-path convention (not product inventory).
-# Residual after: monofile last-resort + M4 pin-off (7.1) · typeck 7.4.1.
+# Residual after: physical monofile rm (7.1.1) for R1 other leaves · typeck 7.4.1.
 # ---------------------------------------------------------------------------
 
 rt_prefer_no_c_cflags() {
@@ -1930,17 +1938,18 @@ rt_prefer_try_x_to_o() {
 }
 
 ensure_rt_prefer_one() {
-  # Prefer multi-slice (or cold multi-slice) or monofile last-resort for no_c.o.
-  # PLATFORM: SHARED freestanding — wave318/319 omit empty mega when full slices.
+  # Prefer multi-slice (or cold multi-slice); monofile last-resort only with escape.
+  # PLATFORM: SHARED freestanding — wave318/319 omit empty mega; wave320 refuse monofile.
   local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local allow_monofile="${XLANG_RT_ALLOW_MONOFILE_LAST_RESORT:-0}"
   local RUNTIME_DRIVER_NO_C_CFLAGS
   RUNTIME_DRIVER_NO_C_CFLAGS="$(rt_prefer_no_c_cflags)"
   export RUNTIME_DRIVER_NO_C_CFLAGS
-  # Historic g05 block (paths + hybrid/cold multi-slice + monofile last resort).
+  # Historic g05 block (paths + hybrid/cold multi-slice; monofile opt-in only).
     # G-02f-14 / G-02f-261～265 / G-02f-291～297：runtime_driver_no_c.o
     # PREFER_X_O=1：R2..parsed 切片 hybrid（.x+seed）→ omit empty mega rest (wave318)
     # PREFER_X_O=0：同层 cold seed 切片 only → omit empty mega rest (wave319)
-    # monofile seeds/runtime.from_x.c + NO_C：仅 partial/fail last resort
+    # wave320：默认 **拒** monofile last-resort（7.1.2）；escape=XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1
     # 注：RFC R4 DCE 在 !XLANG_USE_X_DRIVER 下，不进产品 .o；R7 spawn 仍 rest
     _rt=seeds/runtime.from_x.c
     _rt_content_x=src/runtime/rt_content.x
@@ -1990,8 +1999,12 @@ ensure_rt_prefer_one() {
     _rt_stack_seed=seeds/rt_stack.from_x.c
     _rt_stack_x=src/runtime/rt_stack.x
     _rt_o="$1"
-    if [ -f "$_rt" ]; then
-      if [ ! -f "$_rt_o" ] || [ "$_rt" -nt "$_rt_o" ] \
+    # wave320: product multi-slice gated on content layer seed (not monofile presence).
+    # Monofile may be absent after future 7.1.1 physical retire; escape still uses _rt.
+    # PLATFORM: SHARED freestanding runtime product no_c.
+    if [ -f "$_rt_content_seed" ] || [ -f "$_rt" ]; then
+      if [ ! -f "$_rt_o" ] \
+        || { [ -f "$_rt" ] && [ "$_rt" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_content_seed" ] && [ "$_rt_content_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_util_seed" ] && [ "$_rt_util_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_util_x" ] && [ "$_rt_util_x" -nt "$_rt_o" ]; } \
@@ -2791,28 +2804,43 @@ ensure_rt_prefer_one() {
                 fi
                 _rt_done=1
               fi
-            elif [ -n "$_rt_rest_o" ] \
+            elif [ "$allow_monofile" = "1" ] && [ -f "$_rt" ] && [ -n "$_rt_rest_o" ] \
               && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc \
                    $_rt_rest_defs -c -o "$_rt_rest_o" "$_rt" \
               && $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
-              echo "rt-prefer: $_rt_o ← R2..R10/diag/…/parsed + rest (G-02f-317 hybrid; slices external)"
+              # wave320: partial monofile rest only with explicit archaeology escape.
+              echo "rt-prefer: $_rt_o ← R2..R10/diag/…/parsed + monofile rest (ALLOW_MONOFILE_LAST_RESORT=1)"
               _rt_done=1
+            elif [ "$_rt_full_slices_ok" != "1" ]; then
+              echo "rt-prefer: partial multi-slice; refuse monofile rest (wave320; set XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1)" >&2
             fi
           fi
           if [ "$_rt_done" = "0" ]; then
-            echo "rt-prefer: L2 multi-slice runtime failed; fallback monofile full seed" >&2
+            echo "rt-prefer: L2 multi-slice runtime incomplete (wave320)" >&2
           fi
           rm -f "$_rt_c_o" "$_rt_u_o" "$_rt_a_o" "$_rt_e_o" "$_rt_p_o" "$_rt_cmp_o" "$_rt_run_o" "$_rt_asm_o" "$_rt_ent_o" "$_rt_diag_o" "$_rt_est_o" "$_rt_elfd_o" "$_rt_lr_o" "$_rt_pd_o" "$_rt_fs_o" "$_rt_ab_o" "$_rt_fo_o" "$_rt_dt_o" "$_rt_di_o" "$_rt_xe_o" "$_rt_abk_o" "$_rt_rcp_o" "$_rt_st_o" "$_rt_rest_o"
         fi
         if [ "$_rt_done" = "0" ]; then
-          # Last resort only: monofile runtime.from_x.c + NO_C (partial slices / no seed).
+          # wave320: product default refuses monofile full-seed last-resort (7.1.2).
           # multi-error recovery 权威在 seeds/rt_parse_diag.from_x.c → 单独链 rt_parse_diag.o
           # （g05_relink_env RT_SEED_SLICE）；NO_C 已带 XLANG_RT_PARSE_DIAG_FROM_X，禁止再 merge。
-          echo "rt-prefer: runtime_driver_no_c.o ← monofile seed + NO_C (last resort G-02f-14)"
-          # shellcheck disable=SC2086
-          $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_o" "$_rt"
+          if [ "$allow_monofile" = "1" ] && [ -f "$_rt" ]; then
+            echo "rt-prefer: runtime_driver_no_c.o ← monofile seed + NO_C (ALLOW_MONOFILE_LAST_RESORT=1)"
+            # shellcheck disable=SC2086
+            if ! $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_o" "$_rt"; then
+              echo "rt-prefer: monofile host-cc failed" >&2
+              return 1
+            fi
+            _rt_done=1
+          else
+            echo "rt-prefer: refuse monofile last-resort for $_rt_o (wave320; need full multi-slice or XLANG_RT_ALLOW_MONOFILE_LAST_RESORT=1)" >&2
+            return 1
+          fi
         fi
       fi
+    else
+      echo "rt-prefer: missing content layer seed ($_rt_content_seed) and monofile ($_rt)" >&2
+      return 1
     fi
   return 0
 }
@@ -2826,8 +2854,8 @@ try_ensure_rt_prefer_one() {
   if [ "$o" != "src/runtime_driver_no_c.o" ]; then
     return 3
   fi
+  # wave320: propagate multi-slice fail / monofile refuse (exit 1).
   ensure_rt_prefer_one "$o"
-  return 0
 }
 
 # ---------------------------------------------------------------------------
