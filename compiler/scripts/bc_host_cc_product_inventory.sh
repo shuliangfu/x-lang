@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave298 ptr_at dead leave · present 14); floor: glue shells／typedefs／9×fwd／strict_minimal seed twin; candidate: 8.3.6 strict_minimal or pipeline.x thin residual"
+  echo "NEXT=8.3.6 strict_minimal or pipeline.x thin residual (wave299 L2 matrix harness · present 14 floor); floor: glue shells／typedefs／9×fwd／strict_minimal seed twin; L2 auth=./xbuild l2-matrix (rv42 success)"
 }
 
 run_check() {

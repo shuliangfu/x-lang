@@ -345,6 +345,19 @@ case "$TARGET" in
     bash compiler/scripts/bc_host_cc_product_inventory.sh "$_bc_mode"
     ;;
 
+  # === wave299 · G.7 daily L2 product matrix (root fix: set -e + rv exit 42) ===
+  l2-matrix|product-matrix|product-l2-matrix|matrix-l2)
+    # G.7 single body: compiler/scripts/product_l2_matrix.sh
+    # Captures expected non-zero run codes (rv=42, opt=102) without aborting mid-matrix.
+    # Usage:
+    #   ./xbuild l2-matrix
+    #   XLANG=./compiler/xlang_asm ./xbuild product-matrix
+    #   ./xbuild l2-matrix --xlang ./compiler/xlang_asm
+    # PLATFORM: SHARED — dual-end for SHARED product work.
+    shift
+    bash compiler/scripts/product_l2_matrix.sh "$@"
+    ;;
+
   # === wave799 · 11.3.1 · physical-delete execute gate (NOT delete; NOT Windows green) ===
   phys-del-gate|phys-del|physical-delete-gate|makefile-delete-gate)
     # G.7 single body: compiler/scripts/phys_del_makefile_gate.sh
@@ -714,6 +727,10 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   bc-inventory --check                 冻结 glue/ast_pool/桩面；8.3.9 孤儿须 absent
                                        体 = bc_host_cc_product_inventory.sh
                                        图 = analysis/C迁移追踪.md §8.3
+  l2-matrix / product-matrix           日常 L2 产品矩阵（wave299 · G.7 单权威）
+                                       rv42／opt102／hello0／si0／f32；**捕获**预期非 0
+                                       （return-value=42 是绿，禁 set -e 中途打断）
+                                       体 = product_l2_matrix.sh
   phys-del-gate / phys-del             物理删 Makefile 执行闸门（wave799–810；非物理删）
   phys-del-gate --check                硬拒删 + preflight 诚实 + proof + flip + endgame + delete-body-preview + commit-honesty
   phys-del-gate --dry-run-delete       仅列将删面
