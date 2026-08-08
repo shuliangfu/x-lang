@@ -85,14 +85,51 @@ audit_one() {
   # Check references in scripts/ (excluding self-audit)
   local ref_count=$(grep -rl "$base" scripts/ mk/ verify-selfhost*.sh build_and_test*.sh 2>/dev/null | grep -v "audit_gen_retirement" | wc -l | tr -d ' ')
 
-  # Categorize
+  # Categorize — wave330: explicit BESPOKE_RETIRED whitelist for known build_tool.sh
+  # + ladder-retired items; explicit STAGE whitelist for token_gen (stage1 verify);
+  # explicit DEAD_ORPHAN whitelist for ast_gen.c (stage1 obsolete, fully replaced by ast_gen2).
+  # These override generic ensure_owner/ref_count heuristics because those heuristics
+  # cannot distinguish "has ensure script but already retired via bespoke ladder"
+  # vs "has ensure script and still HALF" (G.7: must not create double authority doubt).
   local category=""
   local detail=""
+  local key_retired_bespoke=""
+  local key_stage=""
+  local key_dead=""
+  case "$gen" in
+    build_gen.c)        key_retired_bespoke=1 ; detail="retired via build_tool.sh (wave1038: ensure_archaeology_gen + build_gen.x)" ;;
+    build_runner_gen.c) key_retired_bespoke=1 ; detail="retired via build_tool.sh (wave1039: ensure_archaeology_gen + build_runner_gen.x)" ;;
+    build_runtime_x_gen.c) key_retired_bespoke=1 ; detail="retired via build_tool.sh (wave1040: ensure_archaeology_gen + build_runtime_x_gen.x)" ;;
+  esac
+  case "$gen" in
+    token_gen.c)        key_stage=1 ; detail="stage1 verify-only (19 LOC TokenKind enum thin copy; verify-selfhost-stage1" ;;
+  esac
+  case "$gen" in
+    ast_gen.c)          key_dead=1  ; detail="orphaned stage1: fully replaced by ast_gen2.c (wave830); ensure_ast_gen2.sh owns ast_gen2 ONLY; zero compile/link refs" ;;
+  esac
 
   if echo "$gen" | grep -qE '_gen_test\.c$'; then
     category="TEST"
     TEST_CNT=$((TEST_CNT + 1))
     detail="test-only pinned"
+  elif [ -n "$key_retired_bespoke" ]; then
+    # Bespoke-ladder / build_tool.sh retired before driver_leaf catalog existed.
+    # Must sit ABOVE ensure_owner check because ensure_archaeology_gen.sh still
+    # mentions these bases (cold start archaeology) but product path does NOT
+    # consume gen.c → *_x.o anymore (G.7: retired).
+    category="RETIRED"
+    RETIRED=$((RETIRED + 1))
+  elif [ -n "$key_stage" ]; then
+    # Stage-only token_gen.c (19 LOC): ensure_owner may still match thin copies
+    # so must sit ABOVE ensure_owner. Stage never enters product Track L denominator.
+    category="STAGE"
+    STAGE_CNT=$((STAGE_CNT + 1))
+  elif [ -n "$key_dead" ]; then
+    # Stage1 orphan ast_gen.c: ensure_ast_gen2.sh mentions "ast_gen" substring
+    # (grep heuristic false positive), so must sit ABOVE ensure_owner. G.7:
+    # product has zero refs; delete to avoid HALF audit noise.
+    category="DEAD"
+    DEAD_CNT=$((DEAD_CNT + 1))
   elif [ "$in_catalog" = "yes" ]; then
     category="RETIRED"
     RETIRED=$((RETIRED + 1))
