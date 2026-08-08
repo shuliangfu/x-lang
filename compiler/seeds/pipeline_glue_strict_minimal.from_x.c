@@ -13,6 +13,10 @@
  *
  * strict_core partial 已含 pipeline_x 几乎全部符号；本 TU 仅补 runtime 入口与裸名 parse_into_init。
  */
+/* wave300 G.7 8.3.6 slice: deleted 28 dual-export XLANG_WEAK typeck Cap twins
+ * already STRONG on typeck_x.o (product link order: typeck_x before strict_minimal).
+ * dual-export ban — no second body for these faces in seed. PLATFORM: SHARED.
+ */
 #include <xlang_weak.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -617,10 +621,9 @@ extern int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struc
                                                                             int32_t body_ref);
 extern int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena *arena, int32_t body_ref);
 
-#define TYPECK_LINEAR_MOVED_MAX 128
-static int g_typeck_linear_moved_n;
-static char g_typeck_linear_moved_names[TYPECK_LINEAR_MOVED_MAX][64];
-static int32_t g_typeck_linear_moved_lens[TYPECK_LINEAR_MOVED_MAX];
+/* wave300: TYPECK_LINEAR_MOVED_* BSS + name_already_moved helper deleted with
+ * dual-export WEAK linear_reset/use_var/accepts_init (STRONG on typeck_x.o).
+ * PLATFORM: SHARED dual-export ban. */
 
 /** runtime 期望的程序入口名。 */
 extern int32_t driver_run_compiler_full(int32_t argc, char **argv);
@@ -762,58 +765,6 @@ XLANG_WEAK int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *modul
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module,
-                                                                 struct ast_ASTArena *arena, int32_t elem_type_ref,
-                                                                 int32_t array_len, int32_t depth) {
-  uint8_t name[128];
-  int32_t nlen;
-  int32_t li;
-  int32_t nf;
-  int32_t col = 0;
-  int32_t max_al = 1;
-  int32_t j;
-  if (!module || !arena || elem_type_ref <= 0 || array_len <= 0 || depth > 64)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, elem_type_ref) != (int32_t)ast_TypeKind_TYPE_NAMED)
-    return 0;
-  nlen = pipeline_type_named_name_into(arena, elem_type_ref, name);
-  if (nlen <= 0)
-    return 0;
-  li = typeck_entry_module_find_struct_layout_index(module, name, nlen);
-  if (li < 0 || pipeline_module_struct_layout_soa_at(module, li) == 0)
-    return 0;
-  nf = pipeline_module_struct_layout_num_fields(module, li);
-  for (j = 0; j < nf; j++) {
-    int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
-    int32_t al;
-    int32_t fsize;
-    int32_t rem;
-    if (ftr <= 0)
-      continue;
-    al = typeck_x_type_align(module, arena, ftr, depth + 1);
-    fsize = typeck_x_type_size(module, arena, ftr, depth + 1);
-    if (al <= 0)
-      al = 1;
-    if (fsize <= 0)
-      fsize = 4;
-    rem = col % al;
-    if (rem != 0)
-      col += al - rem;
-    col += array_len * fsize;
-    if (al > max_al)
-      max_al = al;
-  }
-  if (max_al > 1) {
-    int32_t rem = col % max_al;
-    if (rem != 0)
-      col += max_al - rem;
-  }
-  return col > 0 ? col : 0;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 /* wave254 pure leave: set_entry / get_dep Cap faces → typeck_x.o only.
  * Dual-export ban — no residual BSS / second body in strict_minimal seed. */
@@ -924,6 +875,11 @@ int32_t pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(struct 
 
 extern int32_t pipeline_expr_as_target_type_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+/* wave300: dual WEAK twins deleted — remaining strict dispatch calls STRONG typeck_x faces. */
+extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                        int32_t expr_ref, int32_t return_type_ref,
+                                                        struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t type_ref);
 extern int32_t pipeline_module_func_param_type_ref_at(struct ast_Module *m, int32_t fi, int32_t pi);
 extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -1359,106 +1315,8 @@ int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTA
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/*
- * wave376 Cap residual: resolve type aliases before compare.
- * Why: product link localizes pipeline_glue.c's full equal (with resolve) so this
- * XLANG_WEAK wins; without peel, `type Coord = i32` + `return c` reports
- * expected i32 found Coord (tests/typeck/type_alias.x). Authority mirrors
- * pipeline_glue.c::pipeline_typeck_type_refs_equal_c (G.7 有则补全).
- * PLATFORM: SHARED — g_typeck_active_module set in typeck_parsed_module_c.
- */
-extern int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *arena, int32_t type_ref);
-
-XLANG_WEAK int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  int32_t kind;
-  if (a == 0 || b == 0)
-    return a == b;
-  if (a == b)
-    return 1;
-  /* Peel `type Alias = Target` so NAMED alias equals underlying kind/ref. */
-  if (arena) {
-    a = pipeline_typeck_resolve_type_alias_ref_c(arena, a);
-    b = pipeline_typeck_resolve_type_alias_ref_c(arena, b);
-    if (a == b)
-      return 1;
-  }
-  kind = pipeline_type_kind_ord_at(arena, a);
-  if (kind != pipeline_type_kind_ord_at(arena, b))
-    return 0;
-  switch (kind) {
-  case ast_TypeKind_TYPE_NAMED:
-    return pipeline_typeck_named_equal_strict_minimal(arena, a, b);
-  case ast_TypeKind_TYPE_PTR:
-  case ast_TypeKind_TYPE_LINEAR:
-    return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a),
-                                             pipeline_type_elem_ref_at(arena, b));
-  case ast_TypeKind_TYPE_SLICE:
-    /* 【Why 根源】typeck.x：类型相等只比 elem；域标签由
-     * pipeline_typeck_check_slice_region_assign_c 单独报 slice region mismatch/escape。
-     * 若在 equal 里比 region，会误报 assignment type mismatch 并跳过 region 文案。 */
-    return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a),
-                                             pipeline_type_elem_ref_at(arena, b));
-  case ast_TypeKind_TYPE_ARRAY:
-  case ast_TypeKind_TYPE_VECTOR:
-    if (pipeline_type_array_size_at(arena, a) != pipeline_type_array_size_at(arena, b))
-      return 0;
-    return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a),
-                                             pipeline_type_elem_ref_at(arena, b));
-  default:
-    return 1;
-  }
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
-
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_reject_addr_of_linear_c(struct ast_ASTArena *arena, int32_t op_ref,
-                                                                      int32_t addr_expr_ref, struct ast_Module *module,
-                                                                      struct ast_PipelineDepCtx *ctx) {
-  int32_t vnlen;
-  int32_t block_ref;
-  int32_t vd_tr;
-  int32_t func_ix;
-  int32_t pr;
-  int32_t line;
-  int32_t col;
-  uint8_t vbuf[128];
-  if (!arena || !module || !ctx || op_ref <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, op_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
-    return 0;
-  vnlen = pipeline_expr_var_name_len(arena, op_ref);
-  if (vnlen <= 0 || vnlen > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, op_ref, vbuf);
-  block_ref = pipeline_dep_ctx_current_block_ref_at(ctx);
-  if (block_ref > 0) {
-    vd_tr = pipeline_block_resolve_var_type_ref(arena, block_ref, vbuf, vnlen);
-    if (vd_tr > 0 && pipeline_type_kind_ord_at(arena, vd_tr) == (int32_t)ast_TypeKind_TYPE_LINEAR)
-      goto reject;
-  }
-  func_ix = pipeline_dep_ctx_current_func_index(ctx);
-  if (func_ix >= 0 && func_ix < pipeline_module_num_funcs(module)) {
-    pr = pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen);
-    if (pr > 0 && pipeline_type_kind_ord_at(arena, pr) == (int32_t)ast_TypeKind_TYPE_LINEAR)
-      goto reject;
-  }
-  return 0;
-reject:
-  line = 0;
-  col = 0;
-  if (addr_expr_ref > 0) {
-    line = pipeline_expr_line_at(arena, addr_expr_ref);
-    col = pipeline_expr_col_at(arena, addr_expr_ref);
-  }
-  driver_diagnostic_typeck_linear_addr_of(line, col);
-  return -1;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+/* wave300: type_refs_equal_c XLANG_WEAK twin deleted (STRONG on typeck_x.o);
+ * remaining strict bodies call U pipeline_typeck_type_refs_equal_c. */
 
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
@@ -1526,22 +1384,7 @@ XLANG_WEAK int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_resolve_call_func_index_for_emit_c(struct ast_Module *m,
-                                                                                 struct ast_ASTArena *a,
-                                                                                 int32_t call_expr_ref) {
-  return pipeline_typeck_resolve_call_func_index_c(m, a, call_expr_ref);
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-/* G-02f-220：🔒 PipelineDepCtx.typeck_loop_depth 字段写 helper */
-XLANG_WEAK void pipeline_typeck_loop_depth_set_c(struct ast_PipelineDepCtx *ctx, int32_t depth) {
-  if (!ctx)
-    return;
-  ctx->typeck_loop_depth = depth;
-}
 
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
@@ -1554,87 +1397,10 @@ XLANG_WEAK void pipeline_typeck_pad_fields_warn_layout(struct ast_Module *module
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *arena) {
-  static const uint8_t lbl[] = "io_read_ptr";
-  int32_t u8_ref;
-  if (!arena)
-    return 0;
-  u8_ref = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_U8);
-  if (u8_ref <= 0)
-    return 0;
-  return pipeline_type_find_or_alloc_slice(arena, u8_ref, (uint8_t *)lbl, 11);
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-221：逻辑源 .x（真迁）；seed 保留全局表实现供产品 cc */
-int pipeline_typeck_linear_name_already_moved_strict_minimal(const uint8_t *name, int32_t name_len) {
-  int i;
-  for (i = 0; i < g_typeck_linear_moved_n; i++) {
-    if (g_typeck_linear_moved_lens[i] == name_len && name_len > 0 &&
-        memcmp(g_typeck_linear_moved_names[i], name, (size_t)name_len) == 0)
-      return 1;
-  }
-  return 0;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+/* wave300: linear_name_already_moved_strict_minimal deleted with linear WEAK twins. */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK void pipeline_typeck_linear_reset_c(void) {
-  g_typeck_linear_moved_n = 0;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTArena *arena, int32_t type_ref,
-                                                               int32_t expr_ref, uint8_t *name, int32_t name_len) {
-  int32_t line;
-  int32_t col;
-  if (!arena || !name || name_len <= 0 || name_len > 127)
-    return 0;
-  if (type_ref <= 0 || pipeline_type_kind_ord_at(arena, type_ref) != (int32_t)ast_TypeKind_TYPE_LINEAR)
-    return 0;
-  if (pipeline_typeck_linear_name_already_moved_strict_minimal(name, name_len)) {
-    line = 0;
-    col = 0;
-    if (expr_ref > 0) {
-      line = pipeline_expr_line_at(arena, expr_ref);
-      col = pipeline_expr_col_at(arena, expr_ref);
-    }
-    lsp_diag_report_typeck((int)line, (int)col, "linear value used after move");
-    return -1;
-  }
-  if (g_typeck_linear_moved_n < TYPECK_LINEAR_MOVED_MAX) {
-    memcpy(g_typeck_linear_moved_names[g_typeck_linear_moved_n], name, (size_t)name_len);
-    g_typeck_linear_moved_lens[g_typeck_linear_moved_n] = name_len;
-    g_typeck_linear_moved_n++;
-  }
-  return 0;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
-
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_linear_accepts_init_c(struct ast_ASTArena *arena, int32_t decl_ref,
-                                                                    int32_t init_ref) {
-  if (!arena || decl_ref <= 0 || init_ref <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, decl_ref) != (int32_t)ast_TypeKind_TYPE_LINEAR)
-    return 0;
-  if (pipeline_typeck_type_refs_equal_c(arena, decl_ref, init_ref))
-    return 1;
-  return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, decl_ref), init_ref);
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
@@ -1830,164 +1596,9 @@ int32_t typeck_expr_is_addr_of_block_local_strict_minimal(struct ast_Module *mod
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena *arena,
-                                                                          int32_t site_expr_ref, int32_t expect_ref,
-                                                                          int32_t src_ref) {
-  int32_t line;
-  int32_t col;
-  uint8_t sb[128];
-  int32_t slen;
-  uint8_t eb[128];
-  int32_t elen;
-  if (!arena || expect_ref <= 0 || src_ref <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, expect_ref) != (int32_t)ast_TypeKind_TYPE_SLICE ||
-      pipeline_type_kind_ord_at(arena, src_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  line = 0;
-  col = 0;
-  if (site_expr_ref > 0) {
-    line = pipeline_expr_line_at(arena, site_expr_ref);
-    col = pipeline_expr_col_at(arena, site_expr_ref);
-  }
-  if (pipeline_typeck_slice_region_escape_strict_minimal(arena, expect_ref, src_ref)) {
-    slen = pipeline_type_region_label_into(arena, src_ref, sb);
-    sb[slen > 0 && slen < 64 ? slen : 0] = '\0';
-    lsp_diag_report_typeck((int)line, (int)col, "slice region escape: cannot assign <%.*s> slice to unbound T[]",
-                           (int)(slen > 0 ? slen : 0), (const char *)sb);
-    return -1;
-  }
-  if (pipeline_typeck_slice_region_conflict_strict_minimal(arena, expect_ref, src_ref)) {
-    elen = pipeline_type_region_label_into(arena, expect_ref, eb);
-    slen = pipeline_type_region_label_into(arena, src_ref, sb);
-    eb[elen > 0 && elen < 64 ? elen : 0] = '\0';
-    sb[slen > 0 && slen < 64 ? slen : 0] = '\0';
-    lsp_diag_report_typeck((int)line, (int)col, "slice region mismatch: expected <%.*s>, found <%.*s>",
-                           (int)(elen > 0 ? elen : 0), (const char *)eb, (int)(slen > 0 ? slen : 0),
-                           (const char *)sb);
-    return -1;
-  }
-  return 0;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *module,
-                                                                                  struct ast_ASTArena *arena,
-                                                                                  int32_t site_expr_ref,
-                                                                                  int32_t left_ref, int32_t right_ref,
-                                                                                  struct ast_PipelineDepCtx *ctx) {
-  int32_t func_ix;
-  int32_t np;
-  int32_t pi;
-  int32_t line;
-  int32_t col;
-  int32_t base_ref;
-  int32_t op_ref;
-  uint8_t name_buf[128];
-  int32_t name_len;
-  if (!module || !arena || !ctx || left_ref <= 0 || right_ref <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, right_ref) != (int32_t)ast_ExprKind_EXPR_ADDR_OF)
-    return 0;
-  op_ref = pipeline_expr_unary_operand_ref_at(arena, right_ref);
-  if (pipeline_expr_kind_ord_at(arena, op_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
-    return 0;
-  name_len = pipeline_expr_var_name_len(arena, op_ref);
-  if (name_len <= 0 || name_len > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, op_ref, name_buf);
-  if (pipeline_dep_ctx_current_block_ref_at(ctx) <= 0 ||
-      pipeline_block_resolve_var_type_ref(arena, pipeline_dep_ctx_current_block_ref_at(ctx), name_buf, name_len) <= 0)
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, left_ref) != (int32_t)ast_ExprKind_EXPR_FIELD_ACCESS)
-    return 0;
-  base_ref = pipeline_expr_field_access_base_ref(arena, left_ref);
-  func_ix = pipeline_dep_ctx_current_func_index(ctx);
-  if (func_ix < 0)
-    return 0;
-  np = pipeline_module_func_num_params_at(module, func_ix);
-  for (pi = 0; pi < np; pi++) {
-    if (!pipeline_expr_is_func_param_at_strict_minimal(arena, module, func_ix, base_ref, pi))
-      continue;
-    if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, func_ix, pi)) !=
-        (int32_t)ast_TypeKind_TYPE_PTR)
-      continue;
-    line = 0;
-    col = 0;
-    if (site_expr_ref > 0) {
-      line = pipeline_expr_line_at(arena, site_expr_ref);
-      col = pipeline_expr_col_at(arena, site_expr_ref);
-    }
-    lsp_diag_report_typeck((int)line, (int)col,
-                           "struct stack escape: cannot store address of local struct in outer lifetime");
-    return -1;
-  }
-  return 0;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena,
-                                                                               int32_t init_ref, int32_t decl_ty_ref,
-                                                                               int32_t decl_kind, int32_t init_kind) {
-  if (!arena || init_ref <= 0)
-    return 0;
-  /* 【Why 根源】i8/i16 无独立 TypeKind（存为 TYPE_NAMED name="i8"/"i16"），binop/NEG 初值（如 -1 解析为
-   * EXPR_NEG(lit(1))）需按 name 放行 signed 窄整型，否则 let y:i16=-1 报 type mismatch。
-   * wave309: TYPE_ISIZE; wave310: TYPE_U8/U32 + NAMED u16 bit-pattern wrap (G.7 align pipeline_glue.c).
-   * wave319: TYPE_F32/TYPE_F64 + EXPR_NEG/int binop (`let a:f32=-6`; G.7 ≡ pipeline_glue.c).
-   * PLATFORM: SHARED — assign/return reuse same call; product links this weak when filtered localizes glue. */
-  if (decl_kind != (int32_t)ast_TypeKind_TYPE_I32 && decl_kind != (int32_t)ast_TypeKind_TYPE_I64 &&
-      decl_kind != (int32_t)ast_TypeKind_TYPE_U8 && decl_kind != (int32_t)ast_TypeKind_TYPE_U32 &&
-      decl_kind != (int32_t)ast_TypeKind_TYPE_U64 && decl_kind != (int32_t)ast_TypeKind_TYPE_USIZE &&
-      decl_kind != (int32_t)ast_TypeKind_TYPE_ISIZE &&
-      decl_kind != (int32_t)ast_TypeKind_TYPE_F32 && decl_kind != (int32_t)ast_TypeKind_TYPE_F64 &&
-      decl_kind != (int32_t)ast_TypeKind_TYPE_NAMED)
-    return 0;
-  if (init_kind != (int32_t)ast_ExprKind_EXPR_ADD && init_kind != (int32_t)ast_ExprKind_EXPR_SUB &&
-      init_kind != (int32_t)ast_ExprKind_EXPR_MUL && init_kind != (int32_t)ast_ExprKind_EXPR_DIV &&
-      init_kind != (int32_t)ast_ExprKind_EXPR_NEG)
-    return 0;
-  /* TYPE_NAMED: i8/i16 + u16 (TYPE_U8 is builtin). */
-  if (decl_kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
-    uint8_t nm[128] = { 0 };
-    int32_t nlen = pipeline_type_named_name_into(arena, decl_ty_ref, nm);
-    if (!((nlen == 2 && nm[0] == 105 && nm[1] == 56) ||                 /* "i8" */
-          (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54) ||   /* "i16" */
-          (nlen == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54)))    /* "u16" */
-      return 0;
-  }
-  /*
-   * wave319: f32/f64 + EXPR_NEG of bare INT lit — stamp operand too (G.7 ≡ pipeline_glue.c).
-   * Freestanding emit_neg needs IEEE load + btc when return/assign skip CTFE fold.
-   */
-  if ((decl_kind == (int32_t)ast_TypeKind_TYPE_F32 || decl_kind == (int32_t)ast_TypeKind_TYPE_F64) &&
-      init_kind == (int32_t)ast_ExprKind_EXPR_NEG) {
-    int32_t op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
-    if (!ast_ref_is_null(op_ref) && op_ref > 0 &&
-        pipeline_expr_kind_ord_at(arena, op_ref) == (int32_t)ast_ExprKind_EXPR_LIT)
-      pipeline_expr_set_resolved_type_ref(arena, op_ref, decl_ty_ref);
-  }
-  pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
-  return 1;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK void pipeline_typeck_const_init_not_constant_c(int32_t line, int32_t col) {
-  lsp_diag_report_typeck((int)line, (int)col, "const init must be constant expression");
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -2231,66 +1842,7 @@ XLANG_WEAK int32_t pipeline_asm_build_import_binding_call_sym_c(const uint8_t *p
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_block_const_init_is_const_c(struct ast_ASTArena *arena, int32_t block_ref,
-                                                                          int32_t const_idx) {
-  const char *names[64];
-  char name_bufs[64][64];
-  int32_t n;
-  int32_t i;
-  int32_t init_ref;
-  if (!arena || const_idx < 0)
-    return 0;
-  n = 0;
-  for (i = 0; i < const_idx && n < 64; i++) {
-    int32_t name_len = pipeline_block_const_name_len(arena, block_ref, i);
-    if (name_len <= 0 || name_len >= 64)
-      continue;
-    pipeline_block_const_name_copy64(arena, block_ref, i, (uint8_t *)name_bufs[n]);
-    name_bufs[n][name_len] = '\0';
-    names[n] = name_bufs[n];
-    n++;
-  }
-  init_ref = pipeline_block_const_init_ref(arena, block_ref, const_idx);
-  if (init_ref <= 0)
-    return 1;
-  return pipeline_typeck_const_expr_ref_strict_minimal(arena, init_ref, names, n);
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* M-3：region 内未标注 T[] 继承当前域；换新 type_ref，禁止 in-place 改共享池节点。 */
-XLANG_WEAK int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref,
-                                                                     int32_t let_idx,
-                                                                     struct ast_PipelineDepCtx *ctx) {
-  int32_t ty_ref;
-  int32_t rlen;
-  int32_t elem;
-  int32_t stamped;
-  if (!arena || !ctx || block_ref <= 0 || let_idx < 0)
-    return 0;
-  rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
-  if (rlen <= 0)
-    return 0;
-  ty_ref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
-  if (ty_ref <= 0 || pipeline_type_kind_ord_at(arena, ty_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  if (pipeline_type_region_label_len_at(arena, ty_ref) > 0)
-    return 0;
-  elem = pipeline_type_elem_ref_at(arena, ty_ref);
-  if (elem <= 0)
-    return 0;
-  stamped = pipeline_type_find_or_alloc_slice(arena, elem, ctx->typeck_scope_region_label, rlen);
-  if (stamped <= 0)
-    return -1;
-  if (stamped == ty_ref)
-    return 0;
-  return pipeline_block_set_let_type_ref(arena, block_ref, let_idx, stamped);
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
@@ -2303,68 +1855,7 @@ XLANG_WEAK void pipeline_typeck_hot_reorder_warn_layout(struct ast_Module *modul
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc
- * 字面量完整长度 14/22/21/17；并兼容历史短 len 19/18/16 前缀匹配。 */
-XLANG_WEAK int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int32_t name_len) {
-  static const uint8_t n0[] = "read_ptr_slice";
-  static const uint8_t n1[] = "xlang_io_read_ptr_slice";
-  static const uint8_t n2[] = "driver_read_ptr_slice";
-  static const uint8_t n3[] = "io_read_ptr_slice";
-  if (!name || name_len <= 0)
-    return 0;
-  if (name_len == 14 && memcmp(name, n0, 14) == 0)
-    return 1;
-  if (name_len == 22 && memcmp(name, n1, 22) == 0)
-    return 1;
-  if (name_len == 21 && memcmp(name, n2, 21) == 0)
-    return 1;
-  if (name_len == 17 && memcmp(name, n3, 17) == 0)
-    return 1;
-  /* 兼容历史 seed 短 len */
-  if (name_len == 19 && memcmp(name, n1, 19) == 0)
-    return 1;
-  if (name_len == 18 && memcmp(name, n2, 18) == 0)
-    return 1;
-  if (name_len == 16 && memcmp(name, n3, 16) == 0)
-    return 1;
-  return 0;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-/* wave254: get_dep body deleted (dual-export ban → typeck_x Cap face). */
-
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref) {
-  int64_t value;
-  int32_t ty;
-  int32_t nlen;
-  uint8_t nbuf[8];
-  if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
-    return 0;
-  if (pipeline_expr_resolved_type_ref(arena, expr_ref) != 0)
-    return 0;
-  /* wave670: keyword null — do not default-stamp i32. G.7 ≡ pipeline_glue. */
-  value = pipeline_expr_int64_val_at(arena, expr_ref);
-  nlen = pipeline_expr_var_name_len(arena, expr_ref);
-  if (value == 0 && nlen == 4) {
-    pipeline_expr_var_name_into(arena, expr_ref, nbuf);
-    if (nbuf[0] == (uint8_t)'n' && nbuf[1] == (uint8_t)'u' &&
-        nbuf[2] == (uint8_t)'l' && nbuf[3] == (uint8_t)'l')
-      return 0;
-  }
-  if (value > (int64_t)INT32_MAX || value < (int64_t)INT32_MIN)
-    ty = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I64);
-  else
-    ty = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I32);
-  if (ty > 0)
-    pipeline_expr_set_resolved_type_ref(arena, expr_ref, ty);
-  return 0;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
@@ -2425,162 +1916,10 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module,
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/*
- * wave253 pure leave: strong METHOD_CALL body retired → typeck_check_expr_method_call
- * (typeck_x.o). wave260 pure-owned leave: Cap face sole strong on typeck_x.o;
- * seed keeps XLANG_WEAK thin hop only (G.7 dual-export ban).
- * PLATFORM: SHARED freestanding typeck method_call pure leave.
- */
-XLANG_WEAK int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
-                                                                       struct ast_ASTArena *arena, int32_t expr_ref,
-                                                                       int32_t return_type_ref,
-                                                                       struct ast_PipelineDepCtx *ctx) {
-  extern int32_t typeck_check_expr_method_call(struct ast_Module *module, struct ast_ASTArena *arena,
-                                               int32_t expr_ref, int32_t return_type_ref,
-                                               struct ast_PipelineDepCtx *ctx);
-  return typeck_check_expr_method_call(module, arena, expr_ref, return_type_ref, ctx);
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_check_scope_borrow_assign_c(struct ast_Module *module,
-                                                                          struct ast_ASTArena *arena,
-                                                                          int32_t site_expr_ref, int32_t left_ref,
-                                                                          int32_t right_ref,
-                                                                          struct ast_PipelineDepCtx *ctx) {
-  uint8_t lname[128];
-  uint8_t rname[128];
-  int32_t llen;
-  int32_t rlen;
-  int32_t op_ref;
-  int32_t site_block;
-  int32_t lblock;
-  int32_t rblock;
-  int32_t line;
-  int32_t col;
-  if (!module || !arena || !ctx || left_ref <= 0 || right_ref <= 0)
-    return 0;
-  if (!typeck_expr_is_addr_of_block_local_strict_minimal(module, arena, ctx, right_ref))
-    return 0;
-  if (!typeck_expr_lval_root_var_strict_minimal(arena, left_ref, lname, &llen))
-    return 0;
-  if (pipeline_expr_kind_ord_at(arena, right_ref) != (int32_t)ast_ExprKind_EXPR_ADDR_OF)
-    return 0;
-  op_ref = pipeline_expr_unary_operand_ref_at(arena, right_ref);
-  if (op_ref <= 0 || pipeline_expr_kind_ord_at(arena, op_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
-    return 0;
-  rlen = pipeline_expr_var_name_len(arena, op_ref);
-  /* wave587 Cap residual: borrow RHS var name ≤127 (rname[128]). */
-  if (rlen <= 0 || rlen > 127)
-    return 0;
-  pipeline_expr_var_name_into(arena, op_ref, rname);
-  site_block = ctx->current_block_ref;
-  if (site_block <= 0 && ctx->current_func_index >= 0)
-    site_block = pipeline_module_func_body_ref_at(module, ctx->current_func_index);
-  if (site_block <= 0)
-    return 0;
-  lblock = pipeline_block_find_var_decl_block_ref(arena, site_block, lname, llen);
-  rblock = pipeline_block_find_var_decl_block_ref(arena, site_block, rname, rlen);
-  if (lblock <= 0 || rblock <= 0 || lblock == rblock)
-    return 0;
-  if (!typeck_block_is_strict_ancestor_strict_minimal(arena, lblock, rblock))
-    return 0;
-  pipeline_typeck_expr_diag_line_col_strict_minimal(arena, site_expr_ref, &line, &col);
-  lsp_diag_report_typeck((int)line, (int)col, "scope borrow escape");
-  return -1;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_check_allocator_region_assign_c(struct ast_Module *module,
-                                                                              struct ast_ASTArena *arena,
-                                                                              int32_t site_expr_ref,
-                                                                              int32_t left_ref,
-                                                                              struct ast_PipelineDepCtx *ctx) {
-  (void)module;
-  (void)arena;
-  (void)site_expr_ref;
-  (void)left_ref;
-  (void)ctx;
-  return 0;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena,
-                                                                          int32_t ret_site_ref, int32_t op_ref,
-                                                                          int32_t func_return_ref) {
-  int32_t got_ref;
-  int32_t line;
-  int32_t col;
-  uint8_t sb[128];
-  int32_t slen;
-  uint8_t eb[128];
-  int32_t elen;
-  if (!arena || op_ref <= 0 || func_return_ref <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, func_return_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  got_ref = pipeline_expr_resolved_type_ref(arena, op_ref);
-  if (got_ref <= 0 || pipeline_type_kind_ord_at(arena, got_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  pipeline_typeck_expr_diag_line_col_strict_minimal(arena, ret_site_ref, &line, &col);
-  if (pipeline_typeck_slice_region_escape_strict_minimal(arena, func_return_ref, got_ref)) {
-    slen = pipeline_type_region_label_into(arena, got_ref, sb);
-    sb[slen > 0 && slen < 64 ? slen : 0] = '\0';
-    lsp_diag_report_typeck((int)line, (int)col, "slice region escape: cannot return <%.*s> slice as unbound T[]",
-                           (int)(slen > 0 ? slen : 0), (const char *)sb);
-    return -1;
-  }
-  if (pipeline_typeck_slice_region_conflict_strict_minimal(arena, func_return_ref, got_ref)) {
-    elen = pipeline_type_region_label_into(arena, func_return_ref, eb);
-    slen = pipeline_type_region_label_into(arena, got_ref, sb);
-    eb[elen > 0 && elen < 64 ? elen : 0] = '\0';
-    sb[slen > 0 && slen < 64 ? slen : 0] = '\0';
-    lsp_diag_report_typeck((int)line, (int)col, "slice region mismatch in return: expected <%.*s>, found <%.*s>",
-                           (int)(elen > 0 ? elen : 0), (const char *)eb, (int)(slen > 0 ? slen : 0),
-                           (const char *)sb);
-    return -1;
-  }
-  return 0;
-}
 
-/**
- * M-3 AL-06：region 作用域内 return 未标注 T[] — 与 operand stamp 无关。
- * typeck.x 在类型匹配失败前调用；产品链须导出此符号（非 full pipeline_glue standalone）。
- */
-XLANG_WEAK int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena *arena,
-                                                                                  int32_t site_expr_ref,
-                                                                                  int32_t return_type_ref,
-                                                                                  struct ast_PipelineDepCtx *ctx) {
-  int32_t line;
-  int32_t col;
-  int32_t rlen;
-  if (!arena || !ctx || site_expr_ref <= 0 || return_type_ref <= 0)
-    return 0;
-  if (pipeline_dep_ctx_scope_region_len_at(ctx) <= 0)
-    return 0;
-  if (pipeline_type_kind_ord_at(arena, return_type_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
-    return 0;
-  if (pipeline_type_region_label_len_at(arena, return_type_ref) > 0)
-    return 0;
-  pipeline_typeck_expr_diag_line_col_strict_minimal(arena, site_expr_ref, &line, &col);
-  rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
-  lsp_diag_report_typeck((int)line, (int)col,
-                         "slice region escape: cannot return <%.*s> slice as unbound T[]", (int)rlen,
-                         (const char *)ctx->typeck_scope_region_label);
-  return -1;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
@@ -2681,89 +2020,7 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module 
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module,
-                                                                        struct ast_ASTArena *arena,
-                                                                        int32_t call_expr_ref,
-                                                                        struct ast_PipelineDepCtx *ctx) {
-  int32_t func_ix;
-  int32_t dep_ix;
-  int32_t num_args;
-  int32_t np;
-  int32_t i;
-  struct ast_Module *callee_mod;
-  if (!module || !arena || call_expr_ref <= 0)
-    return 0;
-  func_ix = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
-  dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
-  if (func_ix < 0)
-    func_ix = pipeline_typeck_resolve_call_func_index_c(module, arena, call_expr_ref);
-  if (func_ix < 0)
-    return 0;
-  callee_mod = module;
-  if (dep_ix >= 0 && ctx) {
-    struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, dep_ix);
-    if (dm)
-      callee_mod = dm;
-  }
-  num_args = pipeline_expr_call_num_args_at(arena, call_expr_ref);
-  np = pipeline_module_func_num_params_at(callee_mod, func_ix);
-  if (num_args != np)
-    return 0;
-  for (i = 0; i < num_args; i++) {
-    int32_t arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, i);
-    int32_t param_ref = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i);
-    int32_t arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
-    if (pipeline_typeck_check_slice_region_assign_c(arena, arg_ref, param_ref, arg_ty) != 0)
-      return -1;
-  }
-  return 0;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* M-3 / MEM-C1：region 推 scope；with_arena 与 unsafe 分支对齐 full pipeline_glue。 */
-XLANG_WEAK int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module,
-                                                                       struct ast_ASTArena *arena, int32_t block_ref,
-                                                                       int32_t region_idx, int32_t return_type_ref,
-                                                                       struct ast_PipelineDepCtx *ctx) {
-  uint8_t label[128];
-  int32_t label_len;
-  int32_t body_ref;
-  int32_t wa_cap;
-  int32_t rc;
-  extern int32_t pipeline_typeck_unsafe_depth_push_c(struct ast_PipelineDepCtx *ctx);
-  extern void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved);
-  if (!module || !arena || !ctx || block_ref <= 0 || region_idx < 0)
-    return 0;
-  body_ref = pipeline_block_region_body_ref(arena, block_ref, region_idx);
-  if (body_ref <= 0)
-    return 0;
-  if (pipeline_block_region_is_unsafe(arena, block_ref, region_idx)) {
-    int32_t saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
-    rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
-    pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
-    return rc;
-  }
-  wa_cap = pipeline_block_region_with_arena_cap_ref(arena, block_ref, region_idx);
-  if (wa_cap > 0) {
-    /* with_arena 体：不推 region 标签；内层 region 再推。 */
-    return typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
-  }
-  label_len = pipeline_block_region_label_len(arena, block_ref, region_idx);
-  if (label_len <= 0)
-    return typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
-  pipeline_block_region_label_copy64(arena, block_ref, region_idx, label);
-  if (pipeline_dep_ctx_scope_region_push_c(ctx, label, label_len) != 0)
-    return -1;
-  rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
-  pipeline_dep_ctx_scope_region_pop_c(ctx);
-  return rc;
-}
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -3278,128 +2535,12 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module,
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-/* G-02f-220：🔒 PipelineDepCtx.current_block_ref 字段写 helper（typeck.x 勿直写字段） */
-XLANG_WEAK int32_t pipeline_typeck_block_impl_bind_ctx_c(struct ast_PipelineDepCtx *ctx, int32_t block_ref) {
-  int32_t saved;
-  if (!ctx)
-    return 0;
-  saved = ctx->current_block_ref;
-  ctx->current_block_ref = block_ref;
-  return saved;
-}
 
-/* G-02f-220：🔒 current_block_ref 恢复 */
-XLANG_WEAK void pipeline_typeck_block_impl_restore_ctx_c(struct ast_PipelineDepCtx *ctx,
-                                                                    int32_t saved_block_ref) {
-  if (!ctx)
-    return;
-  ctx->current_block_ref = saved_block_ref;
-}
 
-/* G-02f-220：🔒 current_block_ref 触摸 */
-XLANG_WEAK void pipeline_typeck_block_impl_touch_ctx_block_c(struct ast_PipelineDepCtx *ctx,
-                                                                        int32_t block_ref) {
-  if (!ctx)
-    return;
-  ctx->current_block_ref = block_ref;
-}
 
-#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-220：逻辑源 .x（真迁，经 bind/restore）；seed 保留同语义 C 供产品 cc */
-XLANG_WEAK int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module,
-                                                                 struct ast_ASTArena *arena, int32_t block_ref,
-                                                                 int32_t return_type_ref,
-                                                                 struct ast_PipelineDepCtx *ctx) {
-  int32_t saved_block_ref;
-  int32_t nc;
-  int32_t nl;
-  int32_t nlp;
-  int32_t nfp;
-  int32_t nif;
-  int32_t nreg;
-  int32_t nes;
-  int32_t nso;
-  int32_t fin0;
-  int32_t i;
-  if (!arena || !ctx || block_ref <= 0)
-    return -1;
-  saved_block_ref = ctx->current_block_ref;
-  ctx->current_block_ref = block_ref;
-  nc = ast_ast_block_num_consts(arena, block_ref);
-  nl = ast_ast_block_num_lets(arena, block_ref);
-  nlp = ast_ast_block_num_loops(arena, block_ref);
-  nfp = ast_ast_block_num_for_loops(arena, block_ref);
-  nif = ast_ast_block_num_if_stmts(arena, block_ref);
-  nreg = ast_ast_block_num_regions(arena, block_ref);
-  nes = ast_ast_block_num_expr_stmts(arena, block_ref);
-  nso = ast_ast_block_num_stmt_order(arena, block_ref);
-  fin0 = ast_ast_block_final_expr_ref(arena, block_ref);
-  if (nso > 0) {
-    for (i = 0; i < nso && i < 96; i++) {
-      if (typeck_check_block_stmt_order_one(module, arena, block_ref, return_type_ref, ctx, i, nso, nc, nl, nes, nlp,
-                                            nfp, nif, nreg) != 0) {
-        ctx->current_block_ref = saved_block_ref;
-        return -1;
-      }
-    }
-  } else {
-    for (i = 0; i < nc; i++) {
-      if (typeck_check_block_one_const(module, arena, block_ref, return_type_ref, ctx, i) != 0) {
-        ctx->current_block_ref = saved_block_ref;
-        return -1;
-      }
-    }
-    for (i = 0; i < nl; i++) {
-      if (typeck_check_block_one_let(module, arena, block_ref, return_type_ref, ctx, i) != 0) {
-        ctx->current_block_ref = saved_block_ref;
-        return -1;
-      }
-    }
-    for (i = 0; i < nlp; i++) {
-      if (typeck_check_block_one_while(module, arena, block_ref, return_type_ref, ctx, i) != 0) {
-        ctx->current_block_ref = saved_block_ref;
-        return -1;
-      }
-    }
-    for (i = 0; i < nfp; i++) {
-      if (typeck_check_block_one_for(module, arena, block_ref, return_type_ref, ctx, i) != 0) {
-        ctx->current_block_ref = saved_block_ref;
-        return -1;
-      }
-    }
-    for (i = 0; i < nif; i++) {
-      if (typeck_check_block_one_if(module, arena, block_ref, return_type_ref, ctx, i) != 0) {
-        ctx->current_block_ref = saved_block_ref;
-        return -1;
-      }
-    }
-    for (i = 0; i < nreg; i++) {
-      if (pipeline_typeck_check_block_one_region_c(module, arena, block_ref, i, return_type_ref, ctx) != 0) {
-        ctx->current_block_ref = saved_block_ref;
-        return -1;
-      }
-    }
-    for (i = 0; i < nes && i < 32; i++) {
-      if (typeck_check_expr(module, arena, ast_ast_block_expr_stmt_ref(arena, block_ref, i), return_type_ref, ctx) !=
-          0) {
-        ctx->current_block_ref = saved_block_ref;
-        return -1;
-      }
-    }
-  }
-  if (typeck_check_block_final(module, arena, block_ref, return_type_ref, ctx, fin0) != 0) {
-    ctx->current_block_ref = saved_block_ref;
-    return -1;
-  }
-  ctx->current_block_ref = saved_block_ref;
-  return 0;
-}
 
 /* wave289 G.7: pipeline_codegen_emit_float_lit_c Cap residual host-cc leave.
  * Live = runtime_pipeline_abi seed ALWAYS (WAVE289_CODEGEN_OUTBUF_ALWAYS).
  * Dual-export ban: do not re-define here (Darwin/strict paths resolve via pipeline_abi).
  * PLATFORM: SHARED freestanding Cap leave.
  */
-
-#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
