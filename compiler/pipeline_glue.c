@@ -1807,24 +1807,13 @@ extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena *a, int32
  * at L6010) visible via fwd decl. typeck_check_expr_call wrapper below stays
  * (calls call_c via fwd decl at L4777). PLATFORM: SHARED. */
 
-/* wave1282 G.7: typeck_check_expr_{call,deref,method_call} wrappers migrated
- * to pipeline_typeck_check_expr.c EOF. PLATFORM: SHARED. */
-
-/* wave1188 G.7: typeck check_expr entry/dispatch cluster (5 fns + 2 XLANG_WEAK)
- * migrated to pipeline_typeck_check_expr.c (same-TU #include). Members:
- * pipeline_typeck_check_expr_impl_mega_c (full ExprKind dispatch)
- * + XLANG_WEAK check_expr_impl_mega (glue-only fallback; typeck_x.o overrides)
- * + pipeline_typeck_check_expr_impl_c (simple kind C path + mega fallback)
- * + XLANG_WEAK check_expr_impl (glue-only fallback; typeck.o EMIT_HEAVY overrides)
- * + pipeline_typeck_check_expr_c (boundary check → try_propagate / impl_c)
- * All extern (non-static): cross-TU calls (typeck_x.o / typeck.o / seeds).
- * XLANG_WEAK definitions retained for product pure strong-symbol override.
- * Sub-class helpers (panic/match/return/unary/addr_of/deref/index/var) remain
- * in pipeline_glue.c (interleaved with assign/soa/field_access domain slices).
- * call_c + try_propagate_c remain in pipeline_glue.c (before method_call.c
- * #include for debug_try_propagate_report_glue_c + glue_module_func_index_by_name_c).
- * PLATFORM: SHARED. */
-#include "pipeline_typeck_check_expr.c"
+/* wave286 G.7: pipeline_typeck_check_expr Cap residual host-cc leave.
+ * Live = runtime_pipeline_abi seed ALWAYS (WAVE286): dispatch impl_mega_c/impl_c/c,
+ * match subject BSS, thin panic/match/return/unary/addr/deref/index/var/
+ * try_propagate/call + repr/extern_unsafe faces; XLANG_WEAK check_expr_impl{,_mega};
+ * typeck.x owns live typeck_check_expr_* sub-helpers (dual-export ban).
+ * Host leaf deleted (no #include). PLATFORM: SHARED freestanding Cap leave.
+ */
 
 /* wave259: pipeline_typeck_check_block.c pure-owned leave — Cap faces
  * (ctx/depth/linear/has_implicit/check_block*_c) on typeck_x.o only.
