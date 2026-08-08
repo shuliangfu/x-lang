@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=BC 8.3 floor closed + wave318 runtime prefer omit empty mega rest (present 0); residual host-cc = runtime cold full-seed fallback + mega gen pin; BC 终局 still ⬜"
+  echo "NEXT=BC 8.3 floor closed + wave319 runtime cold multi-slice omit empty mega (present 0); residual host-cc = monofile last-resort only + mega gen pin; M4／7.4.1 关 pin ⬜; BC 终局 still ⬜"
 }
 
 run_check() {

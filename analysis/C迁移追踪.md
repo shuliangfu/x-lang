@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual leave 收口 · **typeck M4 re-pin 三层**（tip `-E`＋Cap residual＋mangle alias＋short-face inject）· **runtime product prefer omit empty mega rest**（全 hybrid 切片齐 → 不 host-cc `runtime.from_x.c`；冷 fallback 仍 full seed）· 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**产品仍 pin typeck_gen twin／runtime 冷 full seed**（M4 关 pin ⬜；见 7.1／7.4.1）；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual leave 收口 · **typeck M4 re-pin 三层** · **runtime prefer+cold multi-slice omit empty mega**（PREFER=0/1 均不 host-cc monofile；monofile 仅 last-resort）· 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**产品仍 pin typeck_gen twin／runtime monofile 仍在树**（M4 关 pin ⬜；见 7.1／7.4.1）；**只改勾选与事实 LOC**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -713,14 +713,14 @@
 
 🟡 **7.1.1 关闭 runtime pinned seed**
 
-  - 当前：seeds/runtime.from_x.c（~8,187 LOC）仍是**冷 fallback** seed；产品 prefer 路径在全 hybrid 切片齐时 **omit empty mega rest**（不 host-cc monofile；rest T=0 under 23× `XLANG_RT_*_FROM_X`）
-  - 目标：冷启动可从 .x 重建，不再依赖 pinned seed
-  - 产品 prefer omit empty rest ✅（7.1.1 未闭：冷 fallback 仍 full seed；非 M4 关 pin）
+  - 当前：seeds/runtime.from_x.c（~8,187 LOC）仍在树；产品 **prefer+cold multi-slice** 全切片齐时 **omit empty mega**（不 host-cc monofile）；monofile 仅 partial/fail **last-resort**
+  - 目标：冷启动可从 .x 重建，不再依赖 pinned monofile seed（物理退役）
+  - prefer omit ✅（wave318）· cold multi-slice omit ✅（wave319）· **7.1.1 未闭**（seed 仍在树；非 M4 关 pin）
 
 🟡 **7.1.2 runtime_driver_no_c.o 产品链去 pin**
 
-  - 当前：产品 prefer → hybrid 切片 `cc -r` only（omit empty rest）；冷 fallback 仍 `RUNTIME_DRIVER_NO_C_CFLAGS` 编译 pinned seed
-  - 目标：产品 .o 全部来自 .x→.o（含冷路径）
+  - 当前：产品 PREFER=0/1 → 切片 `cc -r` only（omit empty rest）；monofile last-resort only
+  - 目标：产品 .o 全部来自 .x→.o（含冷路径；无 monofile last-resort）
 
 ⬜ **7.1.3 M3 Stage2 / D-03 验证**
 
