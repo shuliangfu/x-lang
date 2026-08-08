@@ -9677,7 +9677,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (check_expr(module, arena, op_ref, return_type_ref, ctx) != 0) {
       return -1;
     }
-    op_ty = typeck_expr_type_ref(arena, op_ref);
+    /* wave314 G.7: use typeck.x authority names (not C seed typeck_ mangle). */
+    op_ty = expr_type_ref(arena, op_ref);
     enclosing_return_type_ref = return_type_ref;
     func_ret = 0;
     func_ix = -1;
@@ -9702,8 +9703,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
       return -1;
     }
+    /* wave314: type_refs_equal is the live authority (bool); not typeck_type_refs_equal. */
     if (ast.ref_is_null(enclosing_return_type_ref) ||
-    typeck_type_refs_equal(arena, enclosing_return_type_ref, op_ty) == false) {
+    type_refs_equal(arena, enclosing_return_type_ref, op_ty) == false) {
       driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
       return -1;
     }
@@ -13005,8 +13007,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         n_imp = typeck_module_num_imports(module);
         ii = 0;
         while (ii < n_imp) {
+          /* wave314: typeck_import_binding_name_equal returns bool (not i32). */
           if (pipeline_module_import_kind_at(module, ii) == ord_import_binding
-              && typeck_import_binding_name_equal(module, ii, &base_nm[0], base_nlen) != 0) {
+              && typeck_import_binding_name_equal(module, ii, &base_nm[0], base_nlen)) {
             dep_slot = typeck_resolve_dep_index_for_import(module, ctx, ii);
             func_ix = 0 - 1;
             if (dep_slot >= 0) {
@@ -15566,74 +15569,77 @@ export function pipeline_typeck_region_scope_reset_c(): void {
 #[no_mangle]
 export function typeck_scan_expr_stack_escape_c(m: *Module, a: *ASTArena, ctx: *PipelineDepCtx,
 func_ix: i32, expr_ref: i32): i32 {
-  let k: i32 = 0;
-  let saved_ix: i32 = 0;
-  let saved_br: i32 = 0;
-  let l: i32 = 0;
-  let r: i32 = 0;
-  let op: i32 = 0;
-  let func_ret: i32 = 0;
-  if (m == 0 as *Module || a == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || expr_ref <= 0
-  || func_ix < 0) {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    let k: i32 = 0;
+    let saved_ix: i32 = 0;
+    let saved_br: i32 = 0;
+    let l: i32 = 0;
+    let r: i32 = 0;
+    let op: i32 = 0;
+    let func_ret: i32 = 0;
+    if (m == 0 as *Module || a == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || expr_ref <= 0
+    || func_ix < 0) {
+      return 0;
+    }
+    saved_ix = ctx.current_func_index;
+    saved_br = ctx.current_block_ref;
+    ctx.current_func_index = func_ix;
+    k = pipeline_expr_kind_ord_at(a, expr_ref);
+    if (glue_expr_kind_is_assign_like_ord(k) != 0) {
+      l = pipeline_expr_binop_left_ref_at(a, expr_ref);
+      r = pipeline_expr_binop_right_ref_at(a, expr_ref);
+      if (typeck_check_struct_stack_escape_assign(m, a, expr_ref, l, r, ctx) != 0) {
+        ctx.current_func_index = saved_ix;
+        ctx.current_block_ref = saved_br;
+        return -1;
+      }
+      if (typeck_check_scope_borrow_assign(m, a, expr_ref, l, r, ctx) != 0) {
+        ctx.current_func_index = saved_ix;
+        ctx.current_block_ref = saved_br;
+        return -1;
+      }
+      if (typeck_check_allocator_region_assign(m, a, expr_ref, l, ctx) != 0) {
+        ctx.current_func_index = saved_ix;
+        ctx.current_block_ref = saved_br;
+        return -1;
+      }
+    } else if (k == 41) {
+      // EXPR_RETURN = 41
+      op = pipeline_expr_unary_operand_ref_at(a, expr_ref);
+      func_ret = pipeline_module_func_return_type_at(m, func_ix);
+      if (typeck_check_scope_borrow_return(m, a, expr_ref, op, func_ret, ctx) != 0) {
+        ctx.current_func_index = saved_ix;
+        ctx.current_block_ref = saved_br;
+        return -1;
+      }
+      if (typeck_check_allocator_region_return(a, expr_ref, func_ret) != 0) {
+        ctx.current_func_index = saved_ix;
+        ctx.current_block_ref = saved_br;
+        return -1;
+      }
+      if (pipeline_typeck_check_return_slice_region_in_scope_c(a, expr_ref, func_ret, ctx) != 0) {
+        ctx.current_func_index = saved_ix;
+        ctx.current_block_ref = saved_br;
+        return -1;
+      }
+      if (typeck_check_return_slice_region(a, expr_ref, op, func_ret) != 0) {
+        ctx.current_func_index = saved_ix;
+        ctx.current_block_ref = saved_br;
+        return -1;
+      }
+    } else if (k == 48) {
+      // EXPR_CALL = 48
+      if (pipeline_typeck_check_call_struct_stack_escape_c(m, a, expr_ref, ctx) != 0) {
+        ctx.current_func_index = saved_ix;
+        ctx.current_block_ref = saved_br;
+        return -1;
+      }
+    }
+    ctx.current_func_index = saved_ix;
+    ctx.current_block_ref = saved_br;
     return 0;
   }
-  saved_ix = ctx.current_func_index;
-  saved_br = ctx.current_block_ref;
-  ctx.current_func_index = func_ix;
-  k = pipeline_expr_kind_ord_at(a, expr_ref);
-  if (glue_expr_kind_is_assign_like_ord(k) != 0) {
-    l = pipeline_expr_binop_left_ref_at(a, expr_ref);
-    r = pipeline_expr_binop_right_ref_at(a, expr_ref);
-    if (typeck_check_struct_stack_escape_assign(m, a, expr_ref, l, r, ctx) != 0) {
-      ctx.current_func_index = saved_ix;
-      ctx.current_block_ref = saved_br;
-      return -1;
-    }
-    if (typeck_check_scope_borrow_assign(m, a, expr_ref, l, r, ctx) != 0) {
-      ctx.current_func_index = saved_ix;
-      ctx.current_block_ref = saved_br;
-      return -1;
-    }
-    if (typeck_check_allocator_region_assign(m, a, expr_ref, l, ctx) != 0) {
-      ctx.current_func_index = saved_ix;
-      ctx.current_block_ref = saved_br;
-      return -1;
-    }
-  } else if (k == 41) {
-    // EXPR_RETURN = 41
-    op = pipeline_expr_unary_operand_ref_at(a, expr_ref);
-    func_ret = pipeline_module_func_return_type_at(m, func_ix);
-    if (typeck_check_scope_borrow_return(m, a, expr_ref, op, func_ret, ctx) != 0) {
-      ctx.current_func_index = saved_ix;
-      ctx.current_block_ref = saved_br;
-      return -1;
-    }
-    if (typeck_check_allocator_region_return(a, expr_ref, func_ret) != 0) {
-      ctx.current_func_index = saved_ix;
-      ctx.current_block_ref = saved_br;
-      return -1;
-    }
-    if (pipeline_typeck_check_return_slice_region_in_scope_c(a, expr_ref, func_ret, ctx) != 0) {
-      ctx.current_func_index = saved_ix;
-      ctx.current_block_ref = saved_br;
-      return -1;
-    }
-    if (typeck_check_return_slice_region(a, expr_ref, op, func_ret) != 0) {
-      ctx.current_func_index = saved_ix;
-      ctx.current_block_ref = saved_br;
-      return -1;
-    }
-  } else if (k == 48) {
-    // EXPR_CALL = 48
-    if (pipeline_typeck_check_call_struct_stack_escape_c(m, a, expr_ref, ctx) != 0) {
-      ctx.current_func_index = saved_ix;
-      ctx.current_block_ref = saved_br;
-      return -1;
-    }
-  }
-  ctx.current_func_index = saved_ix;
-  ctx.current_block_ref = saved_br;
-  return 0;
 }
 
 /**
@@ -15651,127 +15657,130 @@ func_ix: i32, expr_ref: i32): i32 {
 #[no_mangle]
 export function typeck_scan_block_stack_escape_c(m: *Module, a: *ASTArena, ctx: *PipelineDepCtx,
 func_ix: i32, block_ref: i32): i32 {
-  let nes: i32 = 0;
-  let ei: i32 = 0;
-  let fin: i32 = 0;
-  let nso: i32 = 0;
-  let i: i32 = 0;
-  let saved_br: i32 = 0;
-  let k: i32 = 0;
-  let idx: i32 = 0;
-  let er: i32 = 0;
-  let br: i32 = 0;
-  let tr: i32 = 0;
-  let wa_cap: i32 = 0;
-  let is_unsafe: i32 = 0;
-  let saved_ud: i32 = 0;
-  let llen: i32 = 0;
-  let lbl: [u8; 128] = [0; 128];
-  if (m == 0 as *Module || a == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || block_ref <= 0
-  || func_ix < 0) {
-    return 0;
-  }
-  saved_br = ctx.current_block_ref;
-  ctx.current_block_ref = block_ref;
-  nes = ast.ast_block_num_expr_stmts(a, block_ref);
-  ei = 0;
-  while (ei < nes) {
-    er = ast.ast_block_expr_stmt_ref(a, block_ref, ei);
-    if (er > 0 && typeck_scan_expr_stack_escape_c(m, a, ctx, func_ix, er) != 0) {
-      ctx.current_block_ref = saved_br;
-      return -1;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    let nes: i32 = 0;
+    let ei: i32 = 0;
+    let fin: i32 = 0;
+    let nso: i32 = 0;
+    let i: i32 = 0;
+    let saved_br: i32 = 0;
+    let k: i32 = 0;
+    let idx: i32 = 0;
+    let er: i32 = 0;
+    let br: i32 = 0;
+    let tr: i32 = 0;
+    let wa_cap: i32 = 0;
+    let is_unsafe: i32 = 0;
+    let saved_ud: i32 = 0;
+    let llen: i32 = 0;
+    let lbl: u8[128] = [];
+    if (m == 0 as *Module || a == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || block_ref <= 0
+    || func_ix < 0) {
+      return 0;
     }
-    ei = ei + 1;
-  }
-  fin = ast.ast_block_final_expr_ref(a, block_ref);
-  if (fin > 0 && typeck_scan_expr_stack_escape_c(m, a, ctx, func_ix, fin) != 0) {
-    ctx.current_block_ref = saved_br;
-    return -1;
-  }
-  nso = ast.ast_block_num_stmt_order(a, block_ref);
-  i = 0;
-  while (i < nso) {
-    k = ast.ast_block_stmt_order_kind(a, block_ref, i) as i32;
-    idx = ast.ast_block_stmt_order_idx(a, block_ref, i);
-    if (k == 2 && idx >= 0 && idx < ast.ast_block_num_expr_stmts(a, block_ref)) {
-      er = ast.ast_block_expr_stmt_ref(a, block_ref, idx);
+    saved_br = ctx.current_block_ref;
+    ctx.current_block_ref = block_ref;
+    nes = ast.ast_block_num_expr_stmts(a, block_ref);
+    ei = 0;
+    while (ei < nes) {
+      er = ast.ast_block_expr_stmt_ref(a, block_ref, ei);
       if (er > 0 && typeck_scan_expr_stack_escape_c(m, a, ctx, func_ix, er) != 0) {
         ctx.current_block_ref = saved_br;
         return -1;
       }
-    } else if (k == 3 && idx >= 0 && idx < ast.ast_block_num_loops(a, block_ref)) {
-      br = ast.ast_block_while_body_ref(a, block_ref, idx);
-      // Residual fidelity: fail path does not restore saved_br.
-      if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
-        return -1;
-      }
-    } else if (k == 4 && idx >= 0 && idx < ast.ast_block_num_for_loops(a, block_ref)) {
-      br = ast.ast_block_for_body_ref(a, block_ref, idx);
-      if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
-        return -1;
-      }
-    } else if (k == 5 && idx >= 0 && idx < ast.ast_block_num_if_stmts(a, block_ref)) {
-      tr = ast.ast_block_if_then_body_ref(a, block_ref, idx);
-      er = ast.ast_block_if_else_body_ref(a, block_ref, idx);
-      if (tr > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, tr) != 0) {
-        return -1;
-      }
-      if (er > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, er) != 0) {
-        return -1;
-      }
-    } else if (k == 6 && idx >= 0 && idx < ast.ast_block_num_regions(a, block_ref)) {
-      wa_cap = pipeline_block_region_with_arena_cap_ref(a, block_ref, idx);
-      br = ast.ast_block_region_body_ref(a, block_ref, idx);
-      is_unsafe = pipeline_block_region_is_unsafe(a, block_ref, idx);
-      saved_ud = 0;
-      if (is_unsafe != 0) {
-        saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
-      }
-      if (wa_cap > 0) {
-        pipeline_typeck_with_arena_scope_push_c(br);
-        if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
-          pipeline_typeck_with_arena_scope_pop_c();
-          if (is_unsafe != 0) {
-            pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
-          }
+      ei = ei + 1;
+    }
+    fin = ast.ast_block_final_expr_ref(a, block_ref);
+    if (fin > 0 && typeck_scan_expr_stack_escape_c(m, a, ctx, func_ix, fin) != 0) {
+      ctx.current_block_ref = saved_br;
+      return -1;
+    }
+    nso = ast.ast_block_num_stmt_order(a, block_ref);
+    i = 0;
+    while (i < nso) {
+      k = ast.ast_block_stmt_order_kind(a, block_ref, i) as i32;
+      idx = ast.ast_block_stmt_order_idx(a, block_ref, i);
+      if (k == 2 && idx >= 0 && idx < ast.ast_block_num_expr_stmts(a, block_ref)) {
+        er = ast.ast_block_expr_stmt_ref(a, block_ref, idx);
+        if (er > 0 && typeck_scan_expr_stack_escape_c(m, a, ctx, func_ix, er) != 0) {
           ctx.current_block_ref = saved_br;
           return -1;
         }
-        pipeline_typeck_with_arena_scope_pop_c();
-      } else {
-        llen = pipeline_block_region_label_len(a, block_ref, idx);
-        if (llen > 0) {
-          pipeline_block_region_label_copy64(a, block_ref, idx, &lbl[0]);
-          if (pipeline_dep_ctx_scope_region_push_c(ctx, &lbl[0], llen) != 0) {
+      } else if (k == 3 && idx >= 0 && idx < ast.ast_block_num_loops(a, block_ref)) {
+        br = ast.ast_block_while_body_ref(a, block_ref, idx);
+        // Residual fidelity: fail path does not restore saved_br.
+        if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
+          return -1;
+        }
+      } else if (k == 4 && idx >= 0 && idx < ast.ast_block_num_for_loops(a, block_ref)) {
+        br = ast.ast_block_for_body_ref(a, block_ref, idx);
+        if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
+          return -1;
+        }
+      } else if (k == 5 && idx >= 0 && idx < ast.ast_block_num_if_stmts(a, block_ref)) {
+        tr = ast.ast_block_if_then_body_ref(a, block_ref, idx);
+        er = ast.ast_block_if_else_body_ref(a, block_ref, idx);
+        if (tr > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, tr) != 0) {
+          return -1;
+        }
+        if (er > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, er) != 0) {
+          return -1;
+        }
+      } else if (k == 6 && idx >= 0 && idx < ast.ast_block_num_regions(a, block_ref)) {
+        wa_cap = pipeline_block_region_with_arena_cap_ref(a, block_ref, idx);
+        br = ast.ast_block_region_body_ref(a, block_ref, idx);
+        is_unsafe = pipeline_block_region_is_unsafe(a, block_ref, idx);
+        saved_ud = 0;
+        if (is_unsafe != 0) {
+          saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
+        }
+        if (wa_cap > 0) {
+          pipeline_typeck_with_arena_scope_push_c(br);
+          if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
+            pipeline_typeck_with_arena_scope_pop_c();
             if (is_unsafe != 0) {
               pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
             }
             ctx.current_block_ref = saved_br;
             return -1;
           }
-        }
-        if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
+          pipeline_typeck_with_arena_scope_pop_c();
+        } else {
+          llen = pipeline_block_region_label_len(a, block_ref, idx);
+          if (llen > 0) {
+            pipeline_block_region_label_copy64(a, block_ref, idx, &lbl[0]);
+            if (pipeline_dep_ctx_scope_region_push_c(ctx, &lbl[0], llen) != 0) {
+              if (is_unsafe != 0) {
+                pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
+              }
+              ctx.current_block_ref = saved_br;
+              return -1;
+            }
+          }
+          if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
+            if (llen > 0) {
+              pipeline_dep_ctx_scope_region_pop_c(ctx);
+            }
+            if (is_unsafe != 0) {
+              pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
+            }
+            ctx.current_block_ref = saved_br;
+            return -1;
+          }
           if (llen > 0) {
             pipeline_dep_ctx_scope_region_pop_c(ctx);
           }
-          if (is_unsafe != 0) {
-            pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
-          }
-          ctx.current_block_ref = saved_br;
-          return -1;
         }
-        if (llen > 0) {
-          pipeline_dep_ctx_scope_region_pop_c(ctx);
+        if (is_unsafe != 0) {
+          pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
         }
       }
-      if (is_unsafe != 0) {
-        pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
-      }
+      i = i + 1;
     }
-    i = i + 1;
+    ctx.current_block_ref = saved_br;
+    return 0;
   }
-  ctx.current_block_ref = saved_br;
-  return 0;
 }
 
 /**
@@ -15787,50 +15796,53 @@ func_ix: i32, block_ref: i32): i32 {
 #[no_mangle]
 export function pipeline_typeck_scan_module_struct_stack_escape_c(module: *Module, arena: *ASTArena,
 ctx: *PipelineDepCtx): i32 {
-  let i: i32 = 0;
-  let nf: i32 = 0;
-  let body: i32 = 0;
-  let num_generic_params: i32 = 0;
-  let j: i32 = 0;
-  let skip_env: *u8 = 0 as *u8;
-  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    let i: i32 = 0;
+    let nf: i32 = 0;
+    let body: i32 = 0;
+    let num_generic_params: i32 = 0;
+    let j: i32 = 0;
+    let skip_env: *u8 = 0 as *u8;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    skip_env = link_abi_getenv("XLANG_SKIP_STACK_ESCAPE" as *u8);
+    if (skip_env != 0 as *u8) {
+      return 0;
+    }
+    pipeline_typeck_with_arena_scope_reset_c();
+    pipeline_typeck_region_scope_reset_c();
+    ctx.typeck_scope_region_len = 0;
+    j = 0;
+    while (j < 128) {
+      ctx.typeck_scope_region_label[j] = 0;
+      j = j + 1;
+    }
+    nf = pipeline_module_num_funcs(module);
+    i = 0;
+    while (i < nf) {
+      if (pipeline_module_func_is_extern_at(module, i) != 0) {
+        i = i + 1;
+        continue;
+      }
+      num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
+      if (num_generic_params > 0) {
+        i = i + 1;
+        continue;
+      }
+      body = pipeline_module_func_body_ref_at(module, i);
+      if (body <= 0) {
+        i = i + 1;
+        continue;
+      }
+      if (typeck_scan_block_stack_escape_c(module, arena, ctx, i, body) != 0) {
+        return -1;
+      }
+      i = i + 1;
+    }
     return 0;
   }
-  skip_env = link_abi_getenv("XLANG_SKIP_STACK_ESCAPE" as *u8);
-  if (skip_env != 0 as *u8) {
-    return 0;
-  }
-  pipeline_typeck_with_arena_scope_reset_c();
-  pipeline_typeck_region_scope_reset_c();
-  ctx.typeck_scope_region_len = 0;
-  j = 0;
-  while (j < 128) {
-    ctx.typeck_scope_region_label[j] = 0;
-    j = j + 1;
-  }
-  nf = pipeline_module_num_funcs(module);
-  i = 0;
-  while (i < nf) {
-    if (pipeline_module_func_is_extern_at(module, i) != 0) {
-      i = i + 1;
-      continue;
-    }
-    num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
-    if (num_generic_params > 0) {
-      i = i + 1;
-      continue;
-    }
-    body = pipeline_module_func_body_ref_at(module, i);
-    if (body <= 0) {
-      i = i + 1;
-      continue;
-    }
-    if (typeck_scan_block_stack_escape_c(module, arena, ctx, i, body) != 0) {
-      return -1;
-    }
-    i = i + 1;
-  }
-  return 0;
 }
 
 // end wave242 pure-owned leave
@@ -15886,16 +15898,19 @@ export function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: 
  */
 #[no_mangle]
 export function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *ASTArena): i32 {
-  let u8_ref: i32 = 0;
-  if (arena == 0 as *ASTArena) {
-    return 0;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    let u8_ref: i32 = 0;
+    if (arena == 0 as *ASTArena) {
+      return 0;
+    }
+    // kind_ord 2 = TYPE_U8 (same as Cap residual host-cc face).
+    u8_ref = pipeline_type_ensure_by_kind_ord(arena, 2);
+    if (u8_ref <= 0) {
+      return 0;
+    }
+    return pipeline_type_find_or_alloc_slice(arena, u8_ref, "io_read_ptr" as *u8, 11);
   }
-  // kind_ord 2 = TYPE_U8 (same as Cap residual host-cc face).
-  u8_ref = pipeline_type_ensure_by_kind_ord(arena, 2);
-  if (u8_ref <= 0) {
-    return 0;
-  }
-  return pipeline_type_find_or_alloc_slice(arena, u8_ref, "io_read_ptr" as *u8, 11);
 }
 
 /**
@@ -15912,37 +15927,40 @@ export function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *ASTArena): i
 #[no_mangle]
 export function pipeline_type_stamp_block_let_region_c(arena: *ASTArena, block_ref: i32, let_idx: i32,
 ctx: *PipelineDepCtx): i32 {
-  let ty_ref: i32 = 0;
-  let rlen: i32 = 0;
-  let elem: i32 = 0;
-  let stamped: i32 = 0;
-  if (arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || block_ref <= 0 || let_idx < 0) {
-    return 0;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    let ty_ref: i32 = 0;
+    let rlen: i32 = 0;
+    let elem: i32 = 0;
+    let stamped: i32 = 0;
+    if (arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || block_ref <= 0 || let_idx < 0) {
+      return 0;
+    }
+    rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
+    if (rlen <= 0) {
+      return 0;
+    }
+    ty_ref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
+    // TYPE_SLICE ord == 11
+    if (ty_ref <= 0 || pipeline_type_kind_ord_at(arena, ty_ref) != 11) {
+      return 0;
+    }
+    if (pipeline_type_region_label_len_at(arena, ty_ref) > 0) {
+      return 0;
+    }
+    elem = pipeline_type_elem_ref_at(arena, ty_ref);
+    if (elem <= 0) {
+      return 0;
+    }
+    stamped = pipeline_type_find_or_alloc_slice(arena, elem, &ctx.typeck_scope_region_label[0], rlen);
+    if (stamped <= 0) {
+      return -1;
+    }
+    if (stamped == ty_ref) {
+      return 0;
+    }
+    return pipeline_block_set_let_type_ref(arena, block_ref, let_idx, stamped);
   }
-  rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
-  if (rlen <= 0) {
-    return 0;
-  }
-  ty_ref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
-  // TYPE_SLICE ord == 11
-  if (ty_ref <= 0 || pipeline_type_kind_ord_at(arena, ty_ref) != 11) {
-    return 0;
-  }
-  if (pipeline_type_region_label_len_at(arena, ty_ref) > 0) {
-    return 0;
-  }
-  elem = pipeline_type_elem_ref_at(arena, ty_ref);
-  if (elem <= 0) {
-    return 0;
-  }
-  stamped = pipeline_type_find_or_alloc_slice(arena, elem, &ctx.typeck_scope_region_label[0], rlen);
-  if (stamped <= 0) {
-    return -1;
-  }
-  if (stamped == ty_ref) {
-    return 0;
-  }
-  return pipeline_block_set_let_type_ref(arena, block_ref, let_idx, stamped);
 }
 
 // end wave243 pure-owned leave
@@ -18406,7 +18424,11 @@ ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
 #[no_mangle]
 export function pipeline_typeck_block_const_init_is_const_c(arena: *ASTArena, block_ref: i32,
 const_idx: i32): i32 {
-  return typeck_block_const_init_is_const(arena, block_ref, const_idx);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  // Callee is export-extern (seed / pure twin); monofile -E requires unsafe.
+  unsafe {
+    return typeck_block_const_init_is_const(arena, block_ref, const_idx);
+  }
 }
 
 /**
@@ -18418,7 +18440,10 @@ const_idx: i32): i32 {
  */
 #[no_mangle]
 export function pipeline_typeck_const_init_not_constant_c(line: i32, col: i32): void {
-  typeck_const_init_not_constant(line, col);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    typeck_const_init_not_constant(line, col);
+  }
 }
 
 /**
@@ -18430,7 +18455,10 @@ export function pipeline_typeck_const_init_not_constant_c(line: i32, col: i32): 
  */
 #[no_mangle]
 export function pipeline_typeck_fold_expr_c(arena: *ASTArena, expr_ref: i32): void {
-  typeck_fold_expr(arena, expr_ref);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    typeck_fold_expr(arena, expr_ref);
+  }
 }
 
 /**
@@ -18444,7 +18472,10 @@ export function pipeline_typeck_fold_expr_c(arena: *ASTArena, expr_ref: i32): vo
 #[no_mangle]
 export function pipeline_typeck_fold_block_const_init_c(arena: *ASTArena, block_ref: i32,
 const_idx: i32): void {
-  typeck_fold_block_const_init(arena, block_ref, const_idx);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    typeck_fold_block_const_init(arena, block_ref, const_idx);
+  }
 }
 
 /**
@@ -18458,7 +18489,10 @@ const_idx: i32): void {
 #[no_mangle]
 export function pipeline_typeck_fold_expr_in_block_c(arena: *ASTArena, block_ref: i32,
 expr_ref: i32): void {
-  typeck_fold_expr_in_block(arena, block_ref, expr_ref);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    typeck_fold_expr_in_block(arena, block_ref, expr_ref);
+  }
 }
 
 /**
@@ -18471,7 +18505,10 @@ expr_ref: i32): void {
  */
 #[no_mangle]
 export function pipeline_expr_is_c_static_const_init(arena: *ASTArena, expr_ref: i32): i32 {
-  return typeck_expr_is_c_static_const_init(arena, expr_ref);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    return typeck_expr_is_c_static_const_init(arena, expr_ref);
+  }
 }
 
 // end wave255 pure-owned leave
@@ -19223,8 +19260,11 @@ body_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  */
 #[no_mangle]
 export function pipeline_typeck_set_active_ctx_c(module: *Module, ctx: *PipelineDepCtx): void {
-  pipeline_typeck_active_module_set_c(module);
-  g_typeck_active_ctx = ctx;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    pipeline_typeck_active_module_set_c(module);
+    g_typeck_active_ctx = ctx;
+  }
 }
 
 /**
@@ -19275,39 +19315,42 @@ function typeck_linear_name_already_moved(name: *u8, name_len: i32): i32 {
 #[no_mangle]
 export function pipeline_typeck_linear_use_var_c(arena: *ASTArena, type_ref: i32, expr_ref: i32,
 name: *u8, name_len: i32): i32 {
-  let line: i32 = 0;
-  let col: i32 = 0;
-  let i: i32 = 0;
-  let base: i32 = 0;
-  // TYPE_LINEAR ord = 12 (TypeKind enum)
-  let ord_linear: i32 = 12;
-  if (arena == 0 as *ASTArena || name_len <= 0 || name_len > 127 || name == 0 as *u8) {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let i: i32 = 0;
+    let base: i32 = 0;
+    // TYPE_LINEAR ord = 12 (TypeKind enum)
+    let ord_linear: i32 = 12;
+    if (arena == 0 as *ASTArena || name_len <= 0 || name_len > 127 || name == 0 as *u8) {
+      return 0;
+    }
+    if (type_ref <= 0 || pipeline_type_kind_ord_at(arena, type_ref) != ord_linear) {
+      return 0;
+    }
+    if (typeck_linear_name_already_moved(name, name_len) != 0) {
+      line = 0;
+      col = 0;
+      if (expr_ref > 0 && expr_ref <= arena.num_exprs) {
+        line = pipeline_expr_line_at(arena, expr_ref);
+        col = pipeline_expr_col_at(arena, expr_ref);
+      }
+      lsp_diag_report_typeck(line, col, "linear value used after move" as *u8);
+      return 0 - 1;
+    }
+    if (g_typeck_linear_moved_n < 128) {
+      base = g_typeck_linear_moved_n * 128;
+      i = 0;
+      while (i < name_len) {
+        g_typeck_linear_moved_names[base + i] = name[i];
+        i = i + 1;
+      }
+      g_typeck_linear_moved_lens[g_typeck_linear_moved_n] = name_len;
+      g_typeck_linear_moved_n = g_typeck_linear_moved_n + 1;
+    }
     return 0;
   }
-  if (type_ref <= 0 || pipeline_type_kind_ord_at(arena, type_ref) != ord_linear) {
-    return 0;
-  }
-  if (typeck_linear_name_already_moved(name, name_len) != 0) {
-    line = 0;
-    col = 0;
-    if (expr_ref > 0 && expr_ref <= arena.num_exprs) {
-      line = pipeline_expr_line_at(arena, expr_ref);
-      col = pipeline_expr_col_at(arena, expr_ref);
-    }
-    lsp_diag_report_typeck(line, col, "linear value used after move" as *u8);
-    return 0 - 1;
-  }
-  if (g_typeck_linear_moved_n < 128) {
-    base = g_typeck_linear_moved_n * 128;
-    i = 0;
-    while (i < name_len) {
-      g_typeck_linear_moved_names[base + i] = name[i];
-      i = i + 1;
-    }
-    g_typeck_linear_moved_lens[g_typeck_linear_moved_n] = name_len;
-    g_typeck_linear_moved_n = g_typeck_linear_moved_n + 1;
-  }
-  return 0;
 }
 
 /**
@@ -19317,20 +19360,23 @@ name: *u8, name_len: i32): i32 {
 #[no_mangle]
 export function pipeline_typeck_linear_accepts_init_c(arena: *ASTArena, decl_ref: i32,
 init_ref: i32): i32 {
-  let ord_linear: i32 = 12;
-  if (arena == 0 as *ASTArena || decl_ref <= 0 || init_ref <= 0) {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    let ord_linear: i32 = 12;
+    if (arena == 0 as *ASTArena || decl_ref <= 0 || init_ref <= 0) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, decl_ref) != ord_linear) {
+      return 0;
+    }
+    if (type_refs_equal(arena, decl_ref, init_ref)) {
+      return 1;
+    }
+    if (type_refs_equal(arena, pipeline_type_elem_ref_at(arena, decl_ref), init_ref)) {
+      return 1;
+    }
     return 0;
   }
-  if (pipeline_type_kind_ord_at(arena, decl_ref) != ord_linear) {
-    return 0;
-  }
-  if (type_refs_equal(arena, decl_ref, init_ref)) {
-    return 1;
-  }
-  if (type_refs_equal(arena, pipeline_type_elem_ref_at(arena, decl_ref), init_ref)) {
-    return 1;
-  }
-  return 0;
 }
 
 /**
@@ -19341,58 +19387,61 @@ init_ref: i32): i32 {
 #[no_mangle]
 export function pipeline_typeck_reject_addr_of_linear_c(arena: *ASTArena, op_ref: i32,
 addr_expr_ref: i32, module: *Module, ctx: *PipelineDepCtx): i32 {
-  let vnlen: i32 = 0;
-  let block_ref: i32 = 0;
-  let vd_tr: i32 = 0;
-  let func_ix: i32 = 0;
-  let pr: i32 = 0;
-  let line: i32 = 0;
-  let col: i32 = 0;
-  let vbuf: u8[128] = [];
-  let ord_linear: i32 = 12;
-  let ord_var: i32 = 3;
-  let i: i32 = 0;
-  if (arena == 0 as *ASTArena || module == 0 as *Module || ctx == 0 as *PipelineDepCtx ||
-      op_ref <= 0 || op_ref > arena.num_exprs) {
-    return 0;
-  }
-  if (pipeline_expr_kind_ord_at(arena, op_ref) != ord_var) {
-    return 0;
-  }
-  vnlen = pipeline_expr_var_name_len(arena, op_ref);
-  if (vnlen <= 0 || vnlen > 127) {
-    return 0;
-  }
-  pipeline_expr_var_name_into(arena, op_ref, &vbuf[0]);
-  block_ref = ctx.current_block_ref;
-  if (block_ref > 0 && block_ref <= arena.num_blocks) {
-    vd_tr = pipeline_block_resolve_var_type_ref(arena, block_ref, &vbuf[0], vnlen);
-    if (vd_tr > 0 && pipeline_type_kind_ord_at(arena, vd_tr) == ord_linear) {
-      line = 0;
-      col = 0;
-      if (addr_expr_ref > 0 && addr_expr_ref <= arena.num_exprs) {
-        line = pipeline_expr_line_at(arena, addr_expr_ref);
-        col = pipeline_expr_col_at(arena, addr_expr_ref);
-      }
-      driver_diagnostic_typeck_linear_addr_of(line, col);
-      return 0 - 1;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    let vnlen: i32 = 0;
+    let block_ref: i32 = 0;
+    let vd_tr: i32 = 0;
+    let func_ix: i32 = 0;
+    let pr: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    let vbuf: u8[128] = [];
+    let ord_linear: i32 = 12;
+    let ord_var: i32 = 3;
+    let i: i32 = 0;
+    if (arena == 0 as *ASTArena || module == 0 as *Module || ctx == 0 as *PipelineDepCtx ||
+        op_ref <= 0 || op_ref > arena.num_exprs) {
+      return 0;
     }
-  }
-  func_ix = ctx.current_func_index;
-  if (func_ix >= 0 && func_ix < module.num_funcs) {
-    pr = pipeline_module_func_param_type_ref_for_name(module, func_ix, &vbuf[0], vnlen);
-    if (pr > 0 && pipeline_type_kind_ord_at(arena, pr) == ord_linear) {
-      line = 0;
-      col = 0;
-      if (addr_expr_ref > 0 && addr_expr_ref <= arena.num_exprs) {
-        line = pipeline_expr_line_at(arena, addr_expr_ref);
-        col = pipeline_expr_col_at(arena, addr_expr_ref);
-      }
-      driver_diagnostic_typeck_linear_addr_of(line, col);
-      return 0 - 1;
+    if (pipeline_expr_kind_ord_at(arena, op_ref) != ord_var) {
+      return 0;
     }
+    vnlen = pipeline_expr_var_name_len(arena, op_ref);
+    if (vnlen <= 0 || vnlen > 127) {
+      return 0;
+    }
+    pipeline_expr_var_name_into(arena, op_ref, &vbuf[0]);
+    block_ref = ctx.current_block_ref;
+    if (block_ref > 0 && block_ref <= arena.num_blocks) {
+      vd_tr = pipeline_block_resolve_var_type_ref(arena, block_ref, &vbuf[0], vnlen);
+      if (vd_tr > 0 && pipeline_type_kind_ord_at(arena, vd_tr) == ord_linear) {
+        line = 0;
+        col = 0;
+        if (addr_expr_ref > 0 && addr_expr_ref <= arena.num_exprs) {
+          line = pipeline_expr_line_at(arena, addr_expr_ref);
+          col = pipeline_expr_col_at(arena, addr_expr_ref);
+        }
+        driver_diagnostic_typeck_linear_addr_of(line, col);
+        return 0 - 1;
+      }
+    }
+    func_ix = ctx.current_func_index;
+    if (func_ix >= 0 && func_ix < module.num_funcs) {
+      pr = pipeline_module_func_param_type_ref_for_name(module, func_ix, &vbuf[0], vnlen);
+      if (pr > 0 && pipeline_type_kind_ord_at(arena, pr) == ord_linear) {
+        line = 0;
+        col = 0;
+        if (addr_expr_ref > 0 && addr_expr_ref <= arena.num_exprs) {
+          line = pipeline_expr_line_at(arena, addr_expr_ref);
+          col = pipeline_expr_col_at(arena, addr_expr_ref);
+        }
+        driver_diagnostic_typeck_linear_addr_of(line, col);
+        return 0 - 1;
+      }
+    }
+    return 0;
   }
-  return 0;
 }
 
 /**
@@ -19450,7 +19499,10 @@ expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 #[no_mangle]
 export function pipeline_typeck_expr_apply_call_resolve_c(arena: *ASTArena, call_expr_ref: i32,
 dep_ix: i32, func_ix: i32): void {
-  pipeline_expr_apply_call_resolve(arena, call_expr_ref, dep_ix, func_ix);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate (wave314).
+  unsafe {
+    pipeline_expr_apply_call_resolve(arena, call_expr_ref, dep_ix, func_ix);
+  }
 }
 
 /**
