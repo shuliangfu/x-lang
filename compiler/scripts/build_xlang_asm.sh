@@ -2170,11 +2170,19 @@ ensure_pipeline_run_bootstrap_trampoline_obj() {
 }
 
 # B-strict：最小 glue（无 ast_pool）；编排真机在 ast_pool.c glue_standalone。
+# wave304 G.7 8.3.6: seed shell retired (0 residual T after wave303). Product
+# g05 no longer host-cc or links this .o. Soft no-op when seed absent so
+# experimental strict paths do not hard-fail; they must resolve via typeck_x /
+# pipeline_x / pipeline_abi. PLATFORM: SHARED freestanding shell retire.
 ensure_asm_pipeline_glue_strict_minimal_obj() {
   local GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
-  if [ ! -f "$GLUE_OBJ" ] || [ "seeds/pipeline_glue_strict_minimal.from_x.c" -nt "$GLUE_OBJ" ]; then
-  echo " cc -c seeds/pipeline_glue_strict_minimal.from_x.c -> $GLUE_OBJ (G-02f-11)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/pipeline_glue_strict_minimal.from_x.c -o "$GLUE_OBJ"
+  local SEED="seeds/pipeline_glue_strict_minimal.from_x.c"
+  if [ ! -f "$SEED" ]; then
+    return 0
+  fi
+  if [ ! -f "$GLUE_OBJ" ] || [ "$SEED" -nt "$GLUE_OBJ" ]; then
+    echo " cc -c $SEED -> $GLUE_OBJ (G-02f-11)"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c "$SEED" -o "$GLUE_OBJ"
   fi
 }
 
@@ -6122,7 +6130,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
   ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
   # Glue suffix at END only (once): mirrors DRIVER_SEED_GLUE_SUFFIX / g05 _GLUE_SUFFIX.
-  GEN_DRIVER_GLUE_SUFFIX="$BUILD_DIR/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o"
+  # wave304: strict_minimal shell retired — stubs only at link END.
+  GEN_DRIVER_GLUE_SUFFIX="src/runtime_driver_strict_glue_stubs.o"
   # shellcheck disable=SC2086
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
   $BOOT_ENTRY_OBJ \
@@ -6199,7 +6208,8 @@ else
   BSTRICT_SEED_SUPPORT=$(echo "$BSTRICT_SEED_SUPPORT" | sed 's|[[:space:]]*src/runtime_driver_strict_glue_stubs\.o||g')
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
   ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
-  GEN_DRIVER_GLUE_SUFFIX="$BUILD_DIR/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o"
+  # wave304: strict_minimal shell retired — stubs only at link END.
+  GEN_DRIVER_GLUE_SUFFIX="src/runtime_driver_strict_glue_stubs.o"
   # shellcheck disable=SC2086
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
   $BOOT_ENTRY_OBJ \

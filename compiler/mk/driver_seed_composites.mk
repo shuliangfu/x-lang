@@ -36,8 +36,8 @@
 # product seed phase1/final full host-cc link bags (export SEED_LINK_OBJS).
 # G.7 有则补全; Makefile expand the two vars only (no dual re-list of
 # LINK_BASE + user-asm + glue). Glue suffix is RELINK_XLANG_GLUE_SUFFIX
-# (strict_minimal + stubs) — same as historic target-specific override on
-# phase1/final export leaves. NOT physical delete.
+# (stubs only after wave304 shell retire; was strict_minimal + stubs) —
+# same as historic target-specific override on phase1/final export leaves.
 #
 # PLATFORM: SHARED — composite paths under compiler/; host-filtered pieces
 # come from already-resolved vars (Darwin filtered pipeline, etc.).
@@ -66,7 +66,8 @@ DRIVER_SEED_PREREQS = $(XLANG_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o co
 # inventory (14 non-$(...) tokens; 13 path .o/.c + build-seed-asm-host phony).
 LEGACY_XLANG_C_LINK_BASE := $(BOOTSTRAP_DRIVER_SEED_LINK_BASE)
 LEGACY_XLANG_C_USER_ASM_LINK := $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
-LEGACY_XLANG_C_PREREQS := $(LEGACY_XLANG_C_LINK_BASE) $(LEGACY_XLANG_C_USER_ASM_LINK) build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o ast_gen2.o
+# wave304: dropped pipeline_glue_strict_minimal.o (seed shell retired).
+LEGACY_XLANG_C_PREREQS := $(LEGACY_XLANG_C_LINK_BASE) $(LEGACY_XLANG_C_USER_ASM_LINK) src/runtime_driver_strict_glue_stubs.o ast_gen2.o
 
 # Relink / archaeology bootstrap-typeck|codegen prereq closure — same object set
 # as bootstrap-driver-seed link (plus gen sources + asm-host). Product daily

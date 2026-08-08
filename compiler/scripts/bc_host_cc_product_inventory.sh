@@ -191,7 +191,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_bootstrap_orchestration.c|8.3.4|orchestration host wrapper retired (wave292 seed-only .o)|0|absent"
   # --- 8.3 product weak twin / standalone seed ---
   "compiler/seeds/pipeline_glue_standalone.from_x.c|8.3.1|standalone glue seed twin|50|present"
-  "compiler/seeds/pipeline_glue_strict_minimal.from_x.c|8.3.6|strict_minimal seed twin (wave303 overload leave → typeck_x; shell residual)|50|present"
+  "compiler/seeds/pipeline_glue_strict_minimal.from_x.c|8.3.6|strict_minimal seed shell retired wave304 (0 T after wave303; product g05 unlinked)|0|absent"
   # --- 8.3.5 link alias / stubs (wave293: 5 seed host wrappers leave; wave294: _stubs+xlang_x_stubs leave) ---
   "compiler/ast_asm_bare_link_alias.c|8.3.5|bare link alias host wrapper retired (wave293 seed-only .o)|0|absent"
   "compiler/backend_asm_bare_link_alias.c|8.3.5|bare link alias host wrapper retired (wave293 seed-only .o)|0|absent"
@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=pipeline.x thin residual→pure or 8.3.6 strict_minimal seed shell retire (wave303 overload → typeck_x · present 14 floor); floor: glue shells／typedefs／9×fwd／strict_minimal seed twin; L2 auth=./xbuild l2-matrix"
+  echo "NEXT=pipeline.x thin residual→pure or glue shell／typedefs／9×fwd floor (wave304 strict_minimal shell retire · present 13); L2 auth=./xbuild l2-matrix"
 }
 
 run_check() {

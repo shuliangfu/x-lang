@@ -530,16 +530,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; other-l2 prefer residual" >&2
   fi
-  # G-02f-11：pipeline_glue_strict_minimal 产品 seed
-  _pglue=seeds/pipeline_glue_strict_minimal.from_x.c
-  if [ -f "$_pglue" ]; then
-    if [ ! -f build_asm/pipeline_glue_strict_minimal.o ] || [ "$_pglue" -nt build_asm/pipeline_glue_strict_minimal.o ]; then
-      echo "g05_ensure: pipeline_glue_strict_minimal.o ← seed (G-02f-11)"
-      mkdir -p build_asm
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o build_asm/pipeline_glue_strict_minimal.o "$_pglue"
-    fi
-  fi
+  # wave304 G.7 8.3.6: pipeline_glue_strict_minimal seed shell retired
+  # (0 residual T after wave303; product g05 no longer host-cc or links it).
+  # PLATFORM: SHARED freestanding 8.3.6 shell retire.
+
   # G-02e / wave762 G.7: typeck_f64_bits pure .s via try-r2 (single R2 body).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     echo "g05_ensure: try-r2 src/typeck/typeck_f64_bits.o (wave762)"

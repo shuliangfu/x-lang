@@ -141,19 +141,20 @@ else
 fi
 _X_FRONTEND="parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o"
 _DRIVER_SUBCMD="driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o"
-# _GLUE_SUFFIX mirrors the Makefile target-specific DRIVER_SEED_GLUE_SUFFIX
-# (makefile L2499/L2504, applies to bootstrap-driver-seed & xlang-c LEGACY):
-#   build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
+# _GLUE_SUFFIX: stubs only at link END.
+# wave304 G.7 8.3.6: pipeline_glue_strict_minimal seed shell retired (0 residual T
+# after wave303 overload leave → typeck_x). Product no longer host-cc or links
+# that empty shell. Historical: strict_minimal + stubs was DRIVER_SEED_GLUE_SUFFIX.
 # Why runtime_driver_strict_glue_stubs.o at link END (not in _DRIVER_SEED_SUPPORT
 # middle): stubs .o has symbols WITH real impls in pipeline_x.o (e.g.
 # driver_get_module_num_funcs, parser_parse_into_init, pipeline_run_x_pipeline).
 # On Windows PE --allow-multiple-definition FIRST-wins; linking stubs BEFORE
 # pipeline_x.o makes the stub shadow the real impl → xlang -c silently reports
 # num_funcs=0 / pipeline returned -1 (XP001/XP003). On ELF/Darwin XLANG_WEAK=weak
-# so real impl wins regardless of order. Moving stubs to link END (after
-# pipeline_glue_strict_minimal.o, after all real impls) guarantees real impls
-# win on PE. Mirrors Makefile L1863-1875 fix (2026-07-19 stubs move). G.7.
-_GLUE_SUFFIX="build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o"
+# so real impl wins regardless of order. Stubs at link END (after all real impls)
+# guarantees real impls win on PE. Mirrors Makefile L1863-1875 fix (2026-07-19).
+# PLATFORM: SHARED freestanding 8.3.6 shell retire.
+_GLUE_SUFFIX="src/runtime_driver_strict_glue_stubs.o"
 
 # Cap residual：与 Makefile RT_SEED_SLICE_OBJS / build_xlang_asm asm_bootstrap_support_extra_link 同源。
 # runtime_driver_abi 始终 extern 这些符号；no_c runtime 在 XLANG_RT_*_FROM_X 下不内嵌 BSS 定义。
@@ -209,10 +210,11 @@ fi
 # 供 ensure 使用的热路径（force 重编的 .c → .o）
 # Hot-path C rebuild targets. In no_c mode runtime_driver_no_c.o is hot;
 # in LEGACY mode runtime_driver.o is hot (matches Makefile DRIVER_SEED_RUNTIME_REBUILD).
+# wave304: strict_minimal shell retired — no longer a hot C rebuild target.
 if [ "${XLANG_NO_C_SEED_LINK:-0}" != "1" ] && [ "${XLANG_LEGACY_C_FRONTEND:-0}" = "1" ]; then
-  G05_HOT_C_OBJS="src/runtime_link_abi.o src/runtime_driver.o build_asm/pipeline_glue_strict_minimal.o"
+  G05_HOT_C_OBJS="src/runtime_link_abi.o src/runtime_driver.o"
 else
-  G05_HOT_C_OBJS="src/runtime_link_abi.o src/runtime_driver_no_c.o build_asm/pipeline_glue_strict_minimal.o"
+  G05_HOT_C_OBJS="src/runtime_link_abi.o src/runtime_driver_no_c.o"
 fi
 
 # shell 安全单引号转义

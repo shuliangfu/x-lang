@@ -44,7 +44,9 @@ AST_POOL_L5_BRIDGE_O = src/runtime_driver_strict_glue_stubs.o
 
 # Glue suffix at link END (real impls first; stubs fill missing C frontend).
 # ASM_GLUE_STANDALONE_O comes from mk/driver_seed_r_lists.mk (include earlier).
-RELINK_XLANG_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
+# wave304 G.7 8.3.6: strict_minimal seed shell retired (0 T; product unlinked).
+# PLATFORM: SHARED freestanding 8.3.6 shell retire.
+RELINK_XLANG_GLUE_SUFFIX = src/runtime_driver_strict_glue_stubs.o
 DRIVER_SEED_GLUE_PREFIX =
 DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O) src/runtime_driver_strict_glue_stubs.o
 
