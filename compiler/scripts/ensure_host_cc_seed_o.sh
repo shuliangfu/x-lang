@@ -85,7 +85,8 @@
 #            thin-call only (NOT physical delete). Residual: B4–B5 · physical delete.
 #   wave782: G.7 B4 gen.c → .o bootstrap → `try-gen-c-to-o OUT`
 #            (有则补全; body = ensure_gen_x_o.sh maps for lexer_x / ast_gen2 /
-#            driver_x / preprocess_x / _x_stubs2 — outside try-gen-x catalog).
+#            driver_x / preprocess_x — outside try-gen-x catalog).
+#            wave295 B′: _x_stubs2 host left (dead dual; not g05/stage2 link).
 #            Makefile thin-call only (NOT physical delete). Residual: B5 · physical delete.
 #   wave783: G.7 B5 cfg_eval multi-ladder → `try-cfg-eval-ladder OUT`
 #            (有则补全; single leaf src/lexer/cfg_eval.o; rungs: -E-extern±L →
@@ -4419,15 +4420,16 @@ try_ensure_lsp_sat_prefer_one() {
 }
 
 # ---------------------------------------------------------------------------
-# wave782: try-gen-c-to-o OUT — B4 gen.c → .o bootstrap / stage stubs.
+# wave782: try-gen-c-to-o OUT — B4 gen.c → .o bootstrap.
 #
-# Table-driven membership (G.7 有则补全). Five Makefile pure host-cc leaves
-# outside try-gen-x catalog (lsp trio + pipeline_x). Body = ensure_gen_x_o.sh
-# one OUT (same authority as wave761 gen maps; extended for B4).
+# Table-driven membership (G.7 有则补全). Four Makefile pure host-cc leaves
+# outside try-gen-x catalog (lsp trio + pipeline_x are try-gen-x). Body =
+# ensure_gen_x_o.sh one OUT (same authority as wave761 gen maps; extended for B4).
 #
-# Leaves: lexer_x.o · ast_gen2.o · driver_x.o · preprocess_x.o · _x_stubs2.o
-# Prefer fail N/A — cold gen.c / _x_stubs2.c only (historic Makefile).
-# Callers: Makefile 5 leaves (wave782). NOT physical delete.
+# Leaves: lexer_x.o · ast_gen2.o · driver_x.o · preprocess_x.o
+# wave295 B′: _x_stubs2.o host left (dead dual; product g05 / stage2 never linked).
+# Prefer fail N/A — cold gen.c only (historic Makefile).
+# Callers: Makefile 4 leaves (wave782/295). NOT physical delete.
 # Exit codes:
 #   0 — OUT is a B4 table member; body produced OUT (or skip up-to-date)
 #   3 — OUT is not in the gen-c-to-o table
@@ -4443,7 +4445,6 @@ gen_c_to_o_spec_for_out() {
     ast_gen2.o) printf '%s' "ast_gen2.c" ;;
     driver_x.o) printf '%s' "driver_gen.c" ;;
     preprocess_x.o) printf '%s' "preprocess_gen.c" ;;
-    _x_stubs2.o) printf '%s' "_x_stubs2.c" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -5511,17 +5512,17 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
       note "gen-c-to-o table present (wave964 post_ship)"
     fi
     _b4_n=0
-    for _b4_leaf in lexer_x.o ast_gen2.o driver_x.o preprocess_x.o _x_stubs2.o; do
+    for _b4_leaf in lexer_x.o ast_gen2.o driver_x.o preprocess_x.o; do
       if [ -n "$(gen_c_to_o_spec_for_out "$_b4_leaf" 2>/dev/null || true)" ]; then
         _b4_n=$((_b4_n + 1))
       else
-        bad "gen_c_to_o_spec_for_out missing $_b4_leaf (wave782/964)"
+        bad "gen_c_to_o_spec_for_out missing $_b4_leaf (wave782/964/295)"
       fi
     done
-    if [ "$_b4_n" -ne 5 ]; then
-      bad "gen-c-to-o table size $_b4_n != 5 (wave782/964 B4 heat)"
+    if [ "$_b4_n" -ne 4 ]; then
+      bad "gen-c-to-o table size $_b4_n != 4 (wave782/964/295 B4 heat)"
     else
-      note "gen-c-to-o table has 5 members (wave964 post_ship)"
+      note "gen-c-to-o table has 4 members (wave295 post_ship; stubs2 left)"
     fi
     # B5 cfg-eval ladder table.
     if ! grep -q 'cfg_eval_ladder_spec_for_out\|ensure_cfg_eval_ladder_one\|try-cfg-eval-ladder' "$0"; then
@@ -6616,8 +6617,8 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
     note "ensure_gen_x_o B4 maps present (wave782)"
   fi
   _b4_n=0
-  # wave910: multi-target $(GEN_C_TO_O_SEED_OBJS): FORCE try-heat covers all five
-  # (no per-leaf dual). Accept multi-target OR historical per-leaf.
+  # wave910/295: multi-target $(GEN_C_TO_O_SEED_OBJS): FORCE try-heat covers all four
+  # (no per-leaf dual; stubs2 left). Accept multi-target OR historical per-leaf.
   if grep -qE '\$\(GEN_C_TO_O_SEED_OBJS\):[[:space:]]*FORCE' Makefile \
     && awk '
       /\$\(GEN_C_TO_O_SEED_OBJS\):/ { hit=1; next }
@@ -6625,18 +6626,18 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
       hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
       END { exit found ? 0 : 1 }
     ' Makefile; then
-    note "Makefile GEN_C_TO_O multi-target FORCE thin try-heat (wave910; covers five)"
+    note "Makefile GEN_C_TO_O multi-target FORCE thin try-heat (wave910/295; covers four)"
   fi
-  for _b4_leaf in lexer_x.o ast_gen2.o driver_x.o preprocess_x.o _x_stubs2.o; do
+  for _b4_leaf in lexer_x.o ast_gen2.o driver_x.o preprocess_x.o; do
     if [ -n "$(gen_c_to_o_spec_for_out "$_b4_leaf")" ]; then
       _b4_n=$((_b4_n + 1))
     else
-      bad "gen_c_to_o_spec_for_out missing $_b4_leaf (wave782)"
+      bad "gen_c_to_o_spec_for_out missing $_b4_leaf (wave782/295)"
     fi
     if makefile_leaf_try_heat_ok "$_b4_leaf" 'try-heat|try-gen-c-to-o'; then
-      note "Makefile $_b4_leaf thin-calls try-heat|try-gen-c-to-o (wave782/796/910)"
+      note "Makefile $_b4_leaf thin-calls try-heat|try-gen-c-to-o (wave782/796/910/295)"
     else
-      bad "Makefile $_b4_leaf must thin-call ensure try-heat|try-gen-c-to-o (wave782/910)"
+      bad "Makefile $_b4_leaf must thin-call ensure try-heat|try-gen-c-to-o (wave782/910/295)"
     fi
     # Ban re-opened inline $(CC) -c body on recipe lines (comments OK).
     # wave910: multi-target has no per-leaf recipe — only check if per-leaf line exists.
@@ -6656,10 +6657,10 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
       fi
     fi
   done
-  if [ "$_b4_n" -ne 5 ]; then
-    bad "gen-c-to-o table size $_b4_n != 5 (wave782 B4 heat)"
+  if [ "$_b4_n" -ne 4 ]; then
+    bad "gen-c-to-o table size $_b4_n != 4 (wave782/295 B4 heat)"
   else
-    note "gen-c-to-o table has 5 members (wave782 B4)"
+    note "gen-c-to-o table has 4 members (wave295 B4; stubs2 left)"
   fi
   # wave783: try-cfg-eval-ladder B5 multi-ladder (1 leaf)
   if ! grep -q 'try_ensure_cfg_eval_ladder_one\|try-cfg-eval-ladder' "$0"; then

@@ -199,7 +199,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/typeck_asm_bare_link_alias.c|8.3.5|typeck bare link alias|50|present"
   "compiler/x_frontend_link_alias.c|8.3.5|x frontend link alias host wrapper retired (wave293 seed-only .o)|0|absent"
   "compiler/_stubs.c|8.3.5|cold weak stubs host retired (wave294 seed x_stubs.from_x authority)|0|absent"
-  "compiler/_x_stubs2.c|8.3.5|x frontend stubs2 (stage2 B4)|1|present"
+  "compiler/_x_stubs2.c|8.3.5|x frontend stubs2 host retired (wave295 dead dual; not g05/stage2 link)|0|absent"
   "compiler/xlang_x_stubs.c|8.3.5|xlang-x stubs host retired (wave294 seed x_stubs.from_x authority)|0|absent"
   "compiler/typeck_c_module_stubs.c|8.3.5|typeck c-module stubs host wrapper retired (wave293 seed-only .o)|0|absent"
   # --- 8.3.7 scripts asm stubs ---
@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave294 8.3.5 cold stubs leave · present 19); candidate: glue shells／typedefs／9×fwd／typeck bare alias／_x_stubs2／scripts stubs"
+  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave295 8.3.5 _x_stubs2 leave · present 18); candidate: glue shells／typedefs／9×fwd／typeck bare alias／scripts stubs"
 }
 
 run_check() {

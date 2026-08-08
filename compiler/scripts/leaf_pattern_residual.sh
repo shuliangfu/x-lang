@@ -908,9 +908,9 @@ GEN_X_LIST_MK_WAVE=wave909
 # Body = ensure try-heat → try-gen-c-to-o. NOT physical delete.
 PHYS_DEL_GEN_C_TO_O_LIST_MK=1
 PHYS_DEL_GEN_C_TO_O_LIST_MK_WAVE=wave910
-PHYS_DEL_GEN_C_TO_O_LIST_MK_COUNT=5
+PHYS_DEL_GEN_C_TO_O_LIST_MK_COUNT=4
 PHYS_DEL_GEN_C_TO_O_LIST_MK_VIA=mk_gen_c_to_o_seed_objs_multi_target_thin
-PHYS_DEL_GEN_C_TO_O_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
+PHYS_DEL_GEN_C_TO_O_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain_wave295_stubs2_left
 SWALLOWED_GEN_C_TO_O_LIST_MK=1
 GEN_C_TO_O_LIST_MK_SWALLOWED=1
 GEN_C_TO_O_LIST_MK_WAVE=wave910
@@ -1994,8 +1994,8 @@ B3_LSP_SAT_PREFER_WAVE=wave781
 # B4: ~~gen.c → .o bootstrap body~~ wave782 → try-gen-c-to-o
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B4=gen_c_to_o_bootstrap
-PHYS_DEL_BUCKET_B4_SCOPE=lexer_x+ast_gen2+driver_x+preprocess_x+_x_stubs2_thin_call
-PHYS_DEL_BUCKET_B4_HEAT_TARGETS=5
+PHYS_DEL_BUCKET_B4_SCOPE=lexer_x+ast_gen2+driver_x+preprocess_x_thin_call
+PHYS_DEL_BUCKET_B4_HEAT_TARGETS=4
 PHYS_DEL_BUCKET_B4_BODY_SWALLOWED=1
 SWALLOWED_B4_GEN_C_TO_O=1
 B4_GEN_C_TO_O_SWALLOWED=1
@@ -3949,8 +3949,8 @@ fi
 if ! grep -q 'PHYS_DEL_GEN_C_TO_O_LIST_MK_WAVE=wave910' <<<"$_out"; then
   bad "dump must set PHYS_DEL_GEN_C_TO_O_LIST_MK_WAVE=wave910"
 fi
-if ! grep -q 'PHYS_DEL_GEN_C_TO_O_LIST_MK_COUNT=5' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_GEN_C_TO_O_LIST_MK_COUNT=5 (wave910)"
+if ! grep -q 'PHYS_DEL_GEN_C_TO_O_LIST_MK_COUNT=4' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_GEN_C_TO_O_LIST_MK_COUNT=4 (wave910/295)"
 fi
 if ! grep -q 'SWALLOWED_GEN_C_TO_O_LIST_MK=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_GEN_C_TO_O_LIST_MK=1 (wave910)"
@@ -7197,8 +7197,8 @@ _gcto_list_n=$(
     END { print c+0 }
   ' "$_GCTO_MK"
 )
-if [ "${_gcto_list_n:-0}" -ne 5 ]; then
-  bad "wave910 expected 5 GEN_C_TO_O_SEED_OBJS members, got ${_gcto_list_n:-0}"
+if [ "${_gcto_list_n:-0}" -ne 4 ]; then
+  bad "wave910/295 expected 4 GEN_C_TO_O_SEED_OBJS members, got ${_gcto_list_n:-0}"
 fi
 if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
   mf_bad "Makefile must include mk/driver_seed_r_lists.mk (wave788/910)"
@@ -7268,11 +7268,11 @@ done < <(
     }
   ' "$_GCTO_MK"
 )
-if [ "$_gcto_thin" -ne 5 ]; then
-  mf_bad "wave910 expected 5 GEN_C_TO_O ensure leaves, got $_gcto_thin"
+if [ "$_gcto_thin" -ne 4 ]; then
+  mf_bad "wave910/295 expected 4 GEN_C_TO_O ensure leaves, got $_gcto_thin"
 fi
-if [ "$_gcto_force" -ne 5 ]; then
-  mf_bad "wave910 expected 5 GEN_C_TO_O FORCE thin leaves, got $_gcto_force"
+if [ "$_gcto_force" -ne 4 ]; then
+  mf_bad "wave910/295 expected 4 GEN_C_TO_O FORCE thin leaves, got $_gcto_force"
 fi
 _gcto_indiv=0
 while IFS= read -r _gcto; do

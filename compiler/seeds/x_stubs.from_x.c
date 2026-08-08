@@ -4,6 +4,10 @@
  *
  * wave294 B′ G.7: single authority for cold X-pipeline stubs.
  * Host duals retired: compiler/_stubs.c + compiler/xlang_x_stubs.c (present−2).
+ * wave295 B′: compiler/_x_stubs2.c also retired (present−1). That leaf was a
+ * historic stage2 hybrid dual; product G05_OBJS never linked it, and
+ * verify-selfhost-stage2.sh links real driver_*_x / x_seed_bridge / asm stubs
+ * instead. Do not reintroduce host _x_stubs2.c.
  * Experimental build_and_test_x.sh links this seed only (not host leaves).
  * PLATFORM: SHARED — seed-only .o; product g05 does not need this TU today.
  */

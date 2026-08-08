@@ -13,7 +13,7 @@
 #       ast_gen2.o     ← ast_gen2.c
 #       driver_x.o     ← driver_gen.c (+ x_stubs + fs -D renames)
 #       preprocess_x.o ← preprocess_gen.c
-#       _x_stubs2.o    ← _x_stubs2.c (stage2 hybrid stubs)
+#     wave295 B′: _x_stubs2.o host left (dead dual; not product g05 / stage2 link)
 #   Membership for rebuild_leaves try-gen-x is catalog-owned:
 #     DRIVER_SEED_LSP_X_OBJS · DRIVER_SEED_PIPELINE_X_OBJS
 #   B4 membership = try-gen-c-to-o table (ensure_host_cc_seed_o.sh); body here.
@@ -28,7 +28,7 @@
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_gen_x_o.sh one <out.o>
 #   bash scripts/ensure_gen_x_o.sh lsp-io|lsp|lsp-diag|pipeline
-#   bash scripts/ensure_gen_x_o.sh lexer-x|ast-gen2|driver-x|preprocess-x|x-stubs2
+#   bash scripts/ensure_gen_x_o.sh lexer-x|ast-gen2|driver-x|preprocess-x
 #   bash scripts/ensure_gen_x_o.sh lsp-all     # three LSP gen objs
 #   bash scripts/ensure_gen_x_o.sh residual-all  # lsp trio + pipeline_x (not B4)
 #
@@ -350,21 +350,6 @@ build_preprocess_x() {
   $CC $CFLAGS -c preprocess_gen.c -o preprocess_x.o
 }
 
-build_x_stubs2() {
-  # Stage2 hybrid link stubs (verify-selfhost-stage2); plain host-cc.
-  if [ ! -f _x_stubs2.c ]; then
-    log "missing _x_stubs2.c"
-    return 1
-  fi
-  if ! need_rebuild_gen_o _x_stubs2.o _x_stubs2.c; then
-    log "skip _x_stubs2.o (up-to-date vs _x_stubs2.c)"
-    return 0
-  fi
-  log "cc -c _x_stubs2.c → _x_stubs2.o"
-  # shellcheck disable=SC2086
-  $CC $CFLAGS -c _x_stubs2.c -o _x_stubs2.o
-}
-
 ensure_one_out() {
   local o="$1"
   case "$o" in
@@ -376,9 +361,8 @@ ensure_one_out() {
     ast_gen2.o) build_ast_gen2 ;;
     driver_x.o) build_driver_x ;;
     preprocess_x.o) build_preprocess_x ;;
-    _x_stubs2.o) build_x_stubs2 ;;
     *)
-      log "no gen map for $o (lsp_io_x|lsp_x|lsp_diag_x|pipeline_x|lexer_x|ast_gen2|driver_x|preprocess_x|_x_stubs2)"
+      log "no gen map for $o (lsp_io_x|lsp_x|lsp_diag_x|pipeline_x|lexer_x|ast_gen2|driver_x|preprocess_x)"
       return 3
       ;;
   esac
@@ -417,9 +401,6 @@ case "$MODE" in
   preprocess-x|preprocess_x|preprocess_x.o)
     build_preprocess_x
     ;;
-  x-stubs2|_x_stubs2|_x_stubs2.o|stubs2)
-    build_x_stubs2
-    ;;
   lsp-all|lsp_all)
     build_lsp_io_x
     build_lsp_x
@@ -438,7 +419,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_gen_x_o: unknown mode '$MODE' (one|lsp-io|lsp|lsp-diag|pipeline|lexer-x|ast-gen2|driver-x|preprocess-x|x-stubs2|lsp-all|residual-all)" >&2
+    echo "ensure_gen_x_o: unknown mode '$MODE' (one|lsp-io|lsp|lsp-diag|pipeline|lexer-x|ast-gen2|driver-x|preprocess-x|lsp-all|residual-all)" >&2
     exit 2
     ;;
 esac
