@@ -91,9 +91,11 @@ callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out:
  */
 export extern function pipeline_expr_init_call_resolve_at_ref(arena: *ASTArena, expr_ref: i32): void;
 /**
- * W-heap-overload pick for CALL/METHOD_CALL by name (seed strong product path).
- * is_method=1 uses method_call_arg_ref for scoring; want_arity = method num_args.
- * PLATFORM: SHARED — G.7 sole import.method overload pick for pure method_call.
+ * W-heap-overload pick for CALL/METHOD_CALL by name.
+ * wave303 G.7 8.3.6 leave: STRONG on typeck_x.o (was seed strict_minimal residual).
+ * Early surface: monofile single-pass; body #[no_mangle] near other Cap faces.
+ * is_method reserved (scoring uses EXPR_METHOD_CALL=49 via arg accessor authority).
+ * PLATFORM: SHARED — sole import.method overload pick; dual-export ban vs seed.
  */
 export extern function pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
   mod: *Module, caller_arena: *ASTArena, name: *u8, name_len: i32, from_dep_index: i32,
@@ -5832,11 +5834,20 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
     let arg_ty: i32 = 0;
     let param_ty: i32 = 0;
     let ord_as: i32 = 54;
+    let ord_method_call: i32 = 49;
     let as_tgt: i32 = 0;
+    let call_kind: i32 = 0;
     if (caller_arena == 0 as *ASTArena || call_expr_ref <= 0 || arg_i < 0) {
       return -1;
     }
-    arg_ref = pipeline_expr_call_arg_ref(caller_arena, call_expr_ref, arg_i);
+    /* wave303 G.7: METHOD_CALL args live on method_call_arg_ref (import.method leave).
+     * CALL (48) keeps call_arg_ref. Single score authority — no seed dual scorer. */
+    call_kind = pipeline_expr_kind_ord_at(caller_arena, call_expr_ref);
+    if (call_kind == ord_method_call) {
+      arg_ref = pipeline_expr_method_call_arg_ref(caller_arena, call_expr_ref, arg_i);
+    } else {
+      arg_ref = pipeline_expr_call_arg_ref(caller_arena, call_expr_ref, arg_i);
+    }
     if (arg_ref <= 0) {
       return -1;
     }
@@ -6012,7 +6023,12 @@ func_index_out: *i32): i32 {
       return find_func_return_type_in_module_by_name(mod, caller_arena, name, name_len, from_dep_index,
       ctx, func_index_out);
     }
-    num_args = pipeline_expr_call_num_args_at(caller_arena, call_expr_ref);
+    /* wave303 G.7: METHOD_CALL=49 num_args via method accessor (seed is_method path). */
+    if (pipeline_expr_kind_ord_at(caller_arena, call_expr_ref) == 49) {
+      num_args = pipeline_expr_method_call_num_args_at(caller_arena, call_expr_ref);
+    } else {
+      num_args = pipeline_expr_call_num_args_at(caller_arena, call_expr_ref);
+    }
     expect_ty = typeck_overload_expected_ret_peek();
     while (j < mod.num_funcs) {
       if (pipeline_module_func_name_equal_at(mod, j, name, name_len) != 0) {
@@ -6043,16 +6059,56 @@ func_index_out: *i32): i32 {
            * (e.g. let v: Vec_u8 = vec.new()). Do NOT add a huge bonus into score —
            * outer main i32 threaded through if/binop polluted get→Vec_i32 (BLD001).
            * Maps dep return via get_dep_return so vec.Vec_u8 equals bare Vec_u8.
-           * PLATFORM: SHARED — keep strict_minimal pick lexicographic aligned.
+           * wave303: last-segment NAMED tie-break (G.7 from seed strict_minimal leave).
+           * PLATFORM: SHARED — single pick authority on typeck_x.
            */
           if (matched != 0 && expect_ty > 0 && rtr > 0) {
             let mapped_ret: i32 = rtr;
             if (from_dep_index >= 0) {
               mapped_ret = get_dep_return_type_in_caller_arena(from_dep_index, rtr, caller_arena, ctx);
             }
-            if (mapped_ret > 0
-                && pipeline_typeck_type_refs_equal_c(caller_arena, mapped_ret, expect_ty) != 0) {
-              expect_match = 1;
+            if (mapped_ret > 0) {
+              if (pipeline_typeck_type_refs_equal_c(caller_arena, mapped_ret, expect_ty) != 0) {
+                expect_match = 1;
+              } else {
+                /* Last-segment NAMED: bare Vec_u8 vs vec.Vec_u8 (exact equal may miss). */
+                let na: u8[128] = [];
+                let nb: u8[128] = [];
+                let la: i32 = pipeline_type_named_name_into(caller_arena, mapped_ret, &na[0]);
+                let lb: i32 = pipeline_type_named_name_into(caller_arena, expect_ty, &nb[0]);
+                if (la > 0 && lb > 0) {
+                  let sa: i32 = 0;
+                  let sb: i32 = 0;
+                  let ii: i32 = 0;
+                  while (ii < la) {
+                    if (na[ii] == 46 as u8) {
+                      sa = ii + 1;
+                    }
+                    ii = ii + 1;
+                  }
+                  ii = 0;
+                  while (ii < lb) {
+                    if (nb[ii] == 46 as u8) {
+                      sb = ii + 1;
+                    }
+                    ii = ii + 1;
+                  }
+                  if ((la - sa) == (lb - sb) && (la - sa) > 0) {
+                    let eq: i32 = 1;
+                    ii = 0;
+                    while (ii < (la - sa)) {
+                      if (na[sa + ii] != nb[sb + ii]) {
+                        eq = 0;
+                        break;
+                      }
+                      ii = ii + 1;
+                    }
+                    if (eq != 0) {
+                      expect_match = 1;
+                    }
+                  }
+                }
+              }
             }
           }
           if (matched != 0 && (score > best_score
@@ -18219,6 +18275,98 @@ caller_arena: *ASTArena, name: *u8, name_len: i32, from_dep_index: i32, ctx: *Pi
 func_index_out: *i32): i32 {
   return find_func_return_type_in_module_by_name(mod, caller_arena, name, name_len, from_dep_index,
     ctx, func_index_out);
+}
+
+/**
+ * wave303 G.7 8.3.6 leave: W-heap-overload pick for CALL/METHOD_CALL by name.
+ * Product STRONG on typeck_x.o (link before strict_minimal WEAK suffix).
+ * Score authority: typeck_overload_arg_param_score + by_name_overload (METHOD_CALL args).
+ * call_expr_ref<=0: arity-only (want_arity) via index pick + visibility + dep map.
+ * is_method: historical seed flag; scoring uses expr kind METHOD_CALL=49.
+ * dual-export ban: seed body deleted same commit.
+ * @return i32 — caller-mapped return type_ref; 0 not found / visibility denied
+ * PLATFORM: SHARED freestanding typeck 8.3.6 leave.
+ */
+#[no_mangle]
+export function pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+  mod: *Module, caller_arena: *ASTArena, name: *u8, name_len: i32, from_dep_index: i32,
+  want_arity: i32, call_expr_ref: i32, is_method: i32, ctx: *PipelineDepCtx,
+  func_index_out: *i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ret: i32 = 0;
+    let fi: i32 = 0 - 1;
+    let _im: i32 = is_method;
+    if (_im < 0) {
+      _im = 0;
+    }
+    if (mod == 0 as *Module || name == 0 as *u8 || name_len <= 0) {
+      return 0;
+    }
+    if (call_expr_ref > 0 && caller_arena != 0 as *ASTArena) {
+      ret = find_func_return_type_in_module_by_name_overload(
+        mod, caller_arena, name, name_len, call_expr_ref, from_dep_index, ctx, func_index_out);
+      if (ret > 0 && from_dep_index >= 0 && func_index_out != 0 as *i32) {
+        fi = func_index_out[0];
+        if (fi >= 0 && pipeline_visibility_allow_func(mod, fi, 1) == 0) {
+          return 0;
+        }
+      }
+      return ret;
+    }
+    /* Arity-only: first same-name with want_arity (seed pick when no call_expr). */
+    fi = 0 - 1;
+    {
+      let j: i32 = 0;
+      let first_match: i32 = 0 - 1;
+      let n: i32 = pipeline_module_num_funcs(mod);
+      while (j < n) {
+        if (pipeline_module_func_name_equal_at(mod, j, name, name_len) != 0) {
+          if (first_match < 0) {
+            first_match = j;
+          }
+          if (want_arity >= 0) {
+            if (pipeline_module_func_num_params_at(mod, j) == want_arity) {
+              fi = j;
+              break;
+            }
+          }
+        }
+        j = j + 1;
+      }
+      if (fi < 0) {
+        fi = first_match;
+      }
+    }
+    if (fi < 0) {
+      return 0;
+    }
+    if (from_dep_index >= 0 && pipeline_visibility_allow_func(mod, fi, 1) == 0) {
+      return 0;
+    }
+    if (func_index_out != 0 as *i32) {
+      func_index_out[0] = fi;
+    }
+    ret = pipeline_module_func_return_type_at(mod, fi);
+    if (from_dep_index < 0) {
+      return ret;
+    }
+    return get_dep_return_type_in_caller_arena(from_dep_index, ret, caller_arena, ctx);
+  }
+  return 0;
+}
+
+/**
+ * wave303 G.7 8.3.6 leave: arity-only wrapper (no call-site scoring).
+ * dual-export ban vs seed strict_minimal residual.
+ * PLATFORM: SHARED freestanding typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
+  mod: *Module, caller_arena: *ASTArena, name: *u8, name_len: i32, from_dep_index: i32,
+  want_arity: i32, ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
+  return pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+    mod, caller_arena, name, name_len, from_dep_index, want_arity, 0, 0, ctx, func_index_out);
 }
 
 /**

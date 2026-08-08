@@ -221,57 +221,17 @@ export function pipeline_typeck_find_func_index_in_module_by_name_strict_minimal
 }
 
 /**
- * Resolve free/export func return type by name + arity (+ optional call-site overload later).
- * Monofile typeck needs a real .x body (export extern alone was not registered for this long name).
- * Product seed C may provide arg-score overload under FROM_X=0; this body is arity-first twin.
- * call_expr_ref / is_method reserved for overload scoring (seed pick_func path).
- * PLATFORM: SHARED — G.7 keep seed twin when product is not FROM_X.
+ * wave303 G.7 8.3.6 leave: STRONG body on typeck_x.o (score + by_name_overload Cap face).
+ * dual-export ban — export-extern only here (no arity-first twin).
+ * Early surface at file top; product seed C body deleted same commit.
+ * PLATFORM: SHARED freestanding 8.3.6 leave.
  */
-#[no_mangle]
-export function pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-  mod: *u8, arena: *u8, name: *u8, name_len: i32, from_dep_index: i32, want_arity: i32,
-  call_expr_ref: i32, is_method: i32, ctx: *u8, func_index_out: *i32
-): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    // silence reserved overload args until pick_func is ported to .x
-    let _cs: i32 = call_expr_ref;
-    let _im: i32 = is_method;
-    if (_cs < 0) { _cs = 0; }
-    if (_im < 0) { _im = 0; }
-    let func_ix: i32 = pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(mod, name, name_len, want_arity);
-    if (func_ix < 0) { return 0; }
-    if (from_dep_index >= 0) {
-      if (pipeline_visibility_allow_func(mod, func_ix, 1) == 0) {
-        return 0;
-      }
-    }
-    if (func_index_out != 0 as *i32) {
-      func_index_out[0] = func_ix;
-    }
-    let ret_ty: i32 = pipeline_module_func_return_type_at(mod, func_ix);
-    if (from_dep_index < 0) { return ret_ty; }
-    return pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, ret_ty, arena, ctx);
-  }
-  return 0;
-}
+/* defined on typeck_x: pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal */
+/* defined on typeck_x: pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal */
 
-// See implementation.
-/** Function `pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal`.
- * Purpose: implements `pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
- */
-#[no_mangle]
-export function pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
+export extern function pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
   mod: *u8, caller_arena: *u8, name: *u8, name_len: i32, from_dep_index: i32, want_arity: i32, ctx: *u8, func_index_out: *i32
-): i32 {
-  unsafe {
-    return pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-      mod, caller_arena, name, name_len, from_dep_index, want_arity, 0, 0, ctx, func_index_out
-    );
-  }
-  return 0;
-}
+): i32;
 
 // See implementation.
 /** Function `pipeline_typeck_map_import_binding_named_to_caller_strict_minimal`.
