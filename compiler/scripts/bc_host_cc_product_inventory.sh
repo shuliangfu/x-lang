@@ -188,7 +188,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_codegen_outbuf.c|8.3.2|codegen outbuf Cap residual (wave289 seed ALWAYS leave)|0|absent"
   "compiler/pipeline_asm_codegen_mega_body.c|8.3.2|asm codegen mega_body Cap residual (wave290 seed ALWAYS leave)|0|absent"
   "compiler/pipeline_elf_codegen_forwarders.c|8.3.2|elf/codegen prefix forwarders Cap residual (wave291 seed ALWAYS leave)|0|absent"
-  "compiler/pipeline_bootstrap_orchestration.c|8.3.4|orchestration wrapper → seed|1|present"
+  "compiler/pipeline_bootstrap_orchestration.c|8.3.4|orchestration host wrapper retired (wave292 seed-only .o)|0|absent"
   # --- 8.3 product weak twin / standalone seed ---
   "compiler/seeds/pipeline_glue_standalone.from_x.c|8.3.1|standalone glue seed twin|50|present"
   "compiler/seeds/pipeline_glue_strict_minimal.from_x.c|8.3|strict_minimal seed twin|1000|present"
@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave291 elf_codegen_forwarders seed ALWAYS · present 27 LOC−mega); candidate: glue shells / typedefs / mega residual"
+  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave292 bootstrap_orch host wrapper leave · present 26); candidate: glue shells / typedefs / 9×fwd / alias·stub residual"
 }
 
 run_check() {

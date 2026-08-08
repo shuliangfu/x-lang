@@ -80,7 +80,8 @@ entries = [
     ("seeds/fmt_check_cmd.from_x.c", base),
     ("seeds/async_liveness.from_x.c", base),
     ("seeds/async_cps_codegen.from_x.c", base),
-    ("pipeline_bootstrap_orchestration.c", base + [
+    # wave292: host wrapper deleted; product/clangd compile seed directly (ensure_one twin).
+    ("seeds/pipeline_bootstrap_orchestration.from_x.c", base + [
         "-Ibuild_asm", "-DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER",
         "-include", "ide/clangd_glued_preamble.h",
     ]),
