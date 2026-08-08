@@ -667,7 +667,7 @@ let g_lparen_ctrl_hits: i32[1] = [0];
 
 export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  //
+  // wave324: typeck field access tok.kind is i32 (enum storage); compare via as i32 (T001 root).
   // When the block stmt loop sees `(` it may have already consumed the control
   // keyword; re-sync only when `if`/`while`/`for` is the **immediate** predecessor
   // of `(` (whitespace only between keyword and `(`).
@@ -683,14 +683,15 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
   // refuse further re-sync (breaks residual infinite re-entry without SEGV).
   // Absolute line/col for the keyword start still scans source[0..pos).
   unsafe {
-  if (r_in.tok.kind == token.TokenKind.TOKEN_LPAREN) {
+  if ((r_in.tok.kind as i32) == (token.TokenKind.TOKEN_LPAREN as i32)) {
     let lp_base: Lexer = lex_at_token_from_result(r_in);
     let lp_pos: usize = lp_base.pos;
     // Skip whitespace immediately before `(` (exclusive end of potential keyword).
     let end: usize = lp_pos;
     while (end > (0 as usize)) {
       let c: u8 = source[end - (1 as usize)];
-      if (c == 32 || c == 9 || c == 10 || c == 13) {
+      // PLATFORM: SHARED — T001: u8 vs bare int lit is incompatible; cast lits to u8.
+      if (c == (32 as u8) || c == (9 as u8) || c == (10 as u8) || c == (13 as u8)) {
         end = end - (1 as usize);
         continue;
       }
@@ -702,16 +703,16 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
     // Longest-first keyword match ending at `end`, with non-ident boundary before.
     let kw_len: i32 = 0;
     if (end >= (5 as usize)
-        && source[end - (5 as usize)] == 119 && source[end - (4 as usize)] == 104
-        && source[end - (3 as usize)] == 105 && source[end - (2 as usize)] == 108
-        && source[end - (1 as usize)] == 101) {
+        && source[end - (5 as usize)] == (119 as u8) && source[end - (4 as usize)] == (104 as u8)
+        && source[end - (3 as usize)] == (105 as u8) && source[end - (2 as usize)] == (108 as u8)
+        && source[end - (1 as usize)] == (101 as u8)) {
       kw_len = 5; // while
     } else if (end >= (3 as usize)
-        && source[end - (3 as usize)] == 102 && source[end - (2 as usize)] == 111
-        && source[end - (1 as usize)] == 114) {
+        && source[end - (3 as usize)] == (102 as u8) && source[end - (2 as usize)] == (111 as u8)
+        && source[end - (1 as usize)] == (114 as u8)) {
       kw_len = 3; // for
     } else if (end >= (2 as usize)
-        && source[end - (2 as usize)] == 105 && source[end - (1 as usize)] == 102) {
+        && source[end - (2 as usize)] == (105 as u8) && source[end - (1 as usize)] == (102 as u8)) {
       kw_len = 2; // if
     }
     if (kw_len == 0) {
@@ -721,7 +722,9 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
     // Keyword must not be a suffix of a larger ident (e.g. `notif (`).
     if (new_pos > (0 as usize)) {
       let b: u8 = source[new_pos - (1 as usize)];
-      if ((b >= 97 && b <= 122) || (b >= 65 && b <= 90) || (b >= 48 && b <= 57) || b == 95) {
+      // PLATFORM: SHARED — T001: u8 range checks need u8 literals.
+      if ((b >= (97 as u8) && b <= (122 as u8)) || (b >= (65 as u8) && b <= (90 as u8))
+          || (b >= (48 as u8) && b <= (57 as u8)) || b == (95 as u8)) {
         return lex_in;
       }
     }
@@ -740,7 +743,7 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
     let rew_col: i32 = 1;
     let scan_i: usize = 0 as usize;
     while (scan_i < new_pos && scan_i < source.length) {
-      if (source[scan_i] == 10) {
+      if (source[scan_i] == (10 as u8)) {
         rew_line = rew_line + 1;
         rew_col = 1;
       } else {
@@ -758,20 +761,15 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
     // Probe must not leave sticky L009 from mid-ident landing (defensive).
     // PLATFORM: SHARED — wave1218 Cap residual root.
     lexer.lexer_invalid_type_suffix_reset();
-    if (r_lp.tok.kind == token.TokenKind.TOKEN_IF || r_lp.tok.kind == token.TokenKind.TOKEN_WHILE
-    || r_lp.tok.kind == token.TokenKind.TOKEN_FOR) {
+    if ((r_lp.tok.kind as i32) == (token.TokenKind.TOKEN_IF as i32)
+        || (r_lp.tok.kind as i32) == (token.TokenKind.TOKEN_WHILE as i32)
+        || (r_lp.tok.kind as i32) == (token.TokenKind.TOKEN_FOR as i32)) {
       return parser_rewind_lex_for_following_stmt(lex_in, r_lp);
     }
   }
   return lex_in;
   }
 }
-
-
-/**
- * See implementation.
- * See implementation.
- */
 export function parser_match_kw_immediately_before(source: u8[], ident_start: usize): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5608,14 +5606,48 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         set_onefunc_fail(out_ref, lex); return;
       }
       out.num_params = param_idx + 1;
+      // Receiver formal (wave324): bare `self` may be TOKEN_SELF or IDENT "self".
+      // PLATFORM: SHARED — `function m(self): T` has no `: Type` on self.
+      // T001: tok.kind field is i32 storage; compare via as i32 (same as rewind fix).
+      let is_self_param: bool = false;
+      if ((r.tok.kind as i32) == (token.TokenKind.TOKEN_SELF as i32)) {
+        is_self_param = true;
+      } else if (plen_param == 4
+          && pname_row[0] == (115 as u8) && pname_row[1] == (101 as u8)
+          && pname_row[2] == (108 as u8) && pname_row[3] == (102 as u8)) {
+        // IDENT spelling "self" (some paths do not keyword self).
+        is_self_param = true;
+      }
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
       /*
        * wave676 Cap residual: param must be `name: Type`. Missing COLON was
        * silent set_onefunc_fail → function dropped (soft residual). P011 hard.
+       * wave324: bare TOKEN_SELF receiver exempt when next is `)` or `,`.
        * PLATFORM: SHARED parse.
        */
-      if (r.tok.kind != token.TokenKind.TOKEN_COLON) {
+      if ((r.tok.kind as i32) != (token.TokenKind.TOKEN_COLON as i32)) {
+        if (is_self_param
+            && ((r.tok.kind as i32) == (token.TokenKind.TOKEN_RPAREN as i32)
+                || (r.tok.kind as i32) == (token.TokenKind.TOKEN_COMMA as i32))) {
+          // Leave type_ref 0; typeck / trait layout supply Self.
+          type_ref_param = 0;
+          pipeline_onefunc_set_param_type_ref(param_pool, param_idx, type_ref_param);
+          driver_diagnostic_parser_onefunc_param_ref(&dummy_name[0], func_name_len_storage[0], &pname_row[0], plen_param,
+          0, param_idx, type_ref_param);
+          // r already at ) or , — do not re-lex (would skip the closer).
+          if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
+            lex_from_next_into(&lex, r);
+            break;
+          }
+          lex_from_next_into(&lex, r);
+          lexer.lexer_next_into(&r, lex, source);
+          if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
+            lex_from_next_into(&lex, r);
+            break;
+          }
+          continue;
+        }
         parser_report_untyped_formal_p011_c(r.tok.line, r.tok.col, 0);
         set_onefunc_fail(out_ref, lex); return;
       }

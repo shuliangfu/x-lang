@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual leave 收口 · **typeck 7.4.1 + codegen 7.4.2 冷链关 pin**（`.x` assemble + companions；pin 仅考古）· **runtime monofile 物理退役（7.1.1）** · 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**M4 3/5**（runtime＋typeck＋codegen）；parser／link_abi pin 仍 ⬜；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual leave 收口 · **typeck 7.4.1 + codegen 7.4.2 冷链关 pin** · **parser 7.2.2 assemble 基建 🟡**（tip `-E` OK · pure-ld OK · 产品矩阵 tip 仍 P011 trait bare `self` → 默认 pin）· **runtime monofile 物理退役（7.1.1）** · 8.3 结构地板闭 · present **0**／ROWS=128 · **M4 3/5**；parser／link_abi pin 仍 ⬜；**只改勾选与事实 LOC**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -732,10 +732,13 @@
   - 当前：seeds/parser_asm_thin_c.from_x.c（~21,935 LOC）仍是冷启动 seed
   - 目标：冷启动可从 pthin_*.x 重建
 
-⬜ **7.2.2 parser_gen.c 去 pin**
+🟡 **7.2.2 parser_gen.c 去 pin**
 
-  - 当前：Makefile 规则 pinned；`XLANG_FORCE_REGGEN=1` 才 regen
-  - 目标：regen parser_x.o 替换 pinned；冷启动不读 pin 体
+  - 基建：`scripts/assemble_parser_gen_from_x.py`（tip `-E` + bare→`parser_*` + product struct rename + demangle + init_globals scrub + strip main）
+  - `ensure_migrate_gen parser`：`XLANG_PARSER_FROM_X=1` 时 prefer assemble；**默认 0**（pin 仍产品权威）
+  - 根修 `.x`：rewind T001（u8／kind as i32）；bare `self` P011 豁免（控制流）
+  - 残：tip assemble 产品矩阵 hello／std.io **P011**（trait `function read(self)`）；关 pin 待矩阵绿
+  - 目标：默认 FROM_X=1 且双端 L2 绿；pin 仅考古 egg
 
 ⬜ **7.2.3 M3 Stage2 / D-03 验证**
 

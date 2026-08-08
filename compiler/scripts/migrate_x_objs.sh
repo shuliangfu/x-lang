@@ -183,9 +183,15 @@ build_parser() {
     log "parser_x.o up-to-date"
     return 0
   fi
-  # Makefile parity: token enum sync before cc (no-op-ish if already aligned)
-  if [ -f scripts/sync_lexer_gen_token_enum.pl ]; then
+  # Makefile parity: token enum sync before cc (no-op-ish if already aligned).
+  # wave324: tip -E assemble already matches live freestanding TokenKind ordinals;
+  # sync_lexer_gen_token_enum rewrites enum bodies and breaks comment/lex (L003).
+  # PLATFORM: SHARED — only skip for wave324 assemble banner; pin still syncs.
+  if [ -f scripts/sync_lexer_gen_token_enum.pl ] \
+    && ! grep -q 'wave324 parser M4 cold assemble' parser_gen.c 2>/dev/null; then
     perl scripts/sync_lexer_gen_token_enum.pl parser_gen.c
+  elif grep -q 'wave324 parser M4 cold assemble' parser_gen.c 2>/dev/null; then
+    log "parser_gen.c: skip token enum sync (wave324 .x assemble)"
   fi
   # shellcheck disable=SC2086
   $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \

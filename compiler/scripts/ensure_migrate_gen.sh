@@ -4,7 +4,7 @@
 #
 # Authority (G.7):
 #   Single implementation of product frontend *_gen.c production for:
-#     parser_gen.c   (seed pin / force -E / C-04 post-normalize)     — wave736
+#     parser_gen.c   (wave324 M4 7.2.2: prefer parser.x assemble; pin archaeology)
 #     typeck_gen.c   (wave322 M4 7.4.1: prefer typeck.x assemble; pin archaeology)
 #     codegen_gen.c  (wave323 M4 7.4.2: prefer codegen.x assemble; pin archaeology)
 #     lexer_gen.c    (seed pin + contract refresh / force -E / slim) — wave737
@@ -28,9 +28,12 @@
 #   XLANG_TYPECK_ALLOW_PIN=1 — allow seed pin restore / refresh (default 1 for true-cold egg)
 #   XLANG_CODEGEN_FROM_X=1  — force codegen.x assemble path (default prefer when -E works)
 #   XLANG_CODEGEN_ALLOW_PIN=1 — allow seed pin restore (default 1 for true-cold egg)
-#   XLANG_PARSER_GEN_TIMEOUT — seconds for parser -E (default 120)
+#   XLANG_PARSER_FROM_X=1   — tip -E assemble path (default 0: pin still product authority
+#                             until tip matrix green — residual P011 trait bare self)
+#   XLANG_PARSER_ALLOW_PIN=1 — allow seed pin restore (default 1 for true-cold egg)
+#   XLANG_PARSER_GEN_TIMEOUT — seconds for parser -E (default 180)
 #   XLANG_C / XLANG_X — binary names (default xlang-c / xlang-x)
-#   XLANG_TYPECK_E / XLANG_CODEGEN_E — preferred binary for tip -E (optional)
+#   XLANG_TYPECK_E / XLANG_CODEGEN_E / XLANG_PARSER_E — preferred binary for tip -E (optional)
 #
 # PLATFORM: SHARED shell orchestration; product seed pins are host-portable C.
 # Stale gitignored pins (dual-boot Windows) fail product symbol contract →
@@ -41,6 +44,8 @@
 #   (tip -E + companions); pin seed is archaeology / no-binary egg only.
 # wave323 (G.7 M4 7.4.2): codegen cold path prefer assemble_codegen_gen_from_x
 #   (tip -E + Cap residual); pin seed archaeology only.
+# wave324 (G.7 M4 7.2.2): parser cold path prefer assemble_parser_gen_from_x
+#   (tip -E + product renames + init_globals scrub); pin seed archaeology only.
 # Wave: 736/737 Track MG · pairs with migrate_x_objs.sh + Makefile thin leaves.
 
 set -euo pipefail
@@ -56,7 +61,11 @@ XLANG_TYPECK_ALLOW_PIN="${XLANG_TYPECK_ALLOW_PIN:-1}"
 # Prefer codegen.x assemble whenever a product -E binary works (wave323 / 7.4.2).
 XLANG_CODEGEN_FROM_X="${XLANG_CODEGEN_FROM_X:-1}"
 XLANG_CODEGEN_ALLOW_PIN="${XLANG_CODEGEN_ALLOW_PIN:-1}"
-XLANG_PARSER_GEN_TIMEOUT="${XLANG_PARSER_GEN_TIMEOUT:-120}"
+# wave324: tip -E assemble ready (scripts/assemble_parser_gen_from_x.py) but product
+# matrix still P011 on trait bare `self` when FROM_X=1 — keep pin default until green.
+XLANG_PARSER_FROM_X="${XLANG_PARSER_FROM_X:-0}"
+XLANG_PARSER_ALLOW_PIN="${XLANG_PARSER_ALLOW_PIN:-1}"
+XLANG_PARSER_GEN_TIMEOUT="${XLANG_PARSER_GEN_TIMEOUT:-180}"
 MODE="${1:-all}"
 
 log() { echo "ensure-migrate-gen: $*" >&2; }
@@ -91,6 +100,14 @@ codegen_gen_contract_ok() {
     && gen_has_sym "$1" 'codegen_x_ast' \
     && gen_has_sym "$1" 'codegen_set_host_call_arg_param_ty' \
     && gen_has_sym "$1" 'pipeline_loop_should_continue_ndep_c'
+}
+
+parser_gen_contract_ok() {
+  # product pure-ld / pipeline_x surface from parser_x
+  gen_has_sym "$1" 'parser_copy_module_import_path64' \
+    && gen_has_sym "$1" 'parser_parse_expr_into' \
+    && gen_has_sym "$1" 'parser_collect_imports' \
+    && gen_has_sym "$1" 'parser_parse_one_function_impl'
 }
 
 lexer_gen_contract_ok() {
@@ -167,105 +184,136 @@ bytes_of() {
 }
 
 # ---------------------------------------------------------------------------
-# parser_gen.c
+# parser_gen.c — wave324 M4 7.2.2: prefer parser.x assemble over pin
 # ---------------------------------------------------------------------------
-ensure_parser_gen() {
-  local tmp seed="seeds/parser_gen.linux.x86_64.c"
-  tmp="parser_gen.c.tmp.$$"
-  rm -f "$tmp"
-
-  if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
-    if [ -f "./$XLANG_X" ]; then
-      log "parser_gen.c: ./$XLANG_X -x -E -E-extern ... [forced regen]"
-      run_with_timeout "./$XLANG_X" -x -E -L .. -L src/lexer -L src/ast \
-        -E-extern src/parser/parser.x >"$tmp" 2>/dev/null
-      if [ -s "$tmp" ] && grep -q 'parser_copy_module_import_path64' "$tmp"; then
-        mv -f "$tmp" parser_gen.c
-      else
-        rm -f "$tmp"
-        ensure_xlang_c
-        run_with_timeout "./$XLANG_C" -L .. -L src/lexer -L src/ast \
-          -E -E-extern src/parser/parser.x >"$tmp"
-        if [ -s "$tmp" ]; then
-          mv -f "$tmp" parser_gen.c
-        else
-          rm -f "$tmp"
-        fi
+# Run tip -E for parser.x into $1. Product pure NO_C rejects -E-extern; plain -E works.
+# PLATFORM: SHARED — same -E face on Darwin/Linux; binary may be xlang / xlang_asm / xlang-c.
+parser_run_tip_e() {
+  local out="$1"
+  local b err
+  err="${out}.err"
+  rm -f "$out" "$err"
+  for b in ${XLANG_PARSER_E:-} xlang_asm xlang xlang-c xlang-x; do
+    [ -z "$b" ] && continue
+    [ -x "./$b" ] || continue
+    # Product freestanding: plain -E (not -E-extern) emits library C for parser.x.
+    if run_with_timeout "./$b" -L .. -L src -L src/lexer -L src/ast -L src/parser \
+      -E src/parser/parser.x >"$out" 2>"$err"; then
+      if [ -s "$out" ] && [ "$(bytes_of "$out")" -gt 10000 ]; then
+        log "parser tip -E via ./$b ($(bytes_of "$out") bytes)"
+        rm -f "$err"
+        return 0
       fi
-    else
-      ensure_xlang_c
-      "./$XLANG_C" -L .. -L src/lexer -L src/ast \
-        -E -E-extern src/parser/parser.x >"$tmp" && mv -f "$tmp" parser_gen.c
     fi
-  elif [ -s parser_gen.c ]; then
-    log "parser_gen.c: pinned ($(bytes_of parser_gen.c) bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"
-  elif seed_ok "$seed" && [ ! -s parser_gen.c ]; then
-    cp -f "$seed" parser_gen.c
-    log "parser_gen.c: restored from $seed"
-  else
-    # cold missing pin: try -E then seed fallback
-    if [ -f "./$XLANG_X" ]; then
-      log "parser_gen.c: ./$XLANG_X -x -E -E-extern ..."
-      run_with_timeout "./$XLANG_X" -x -E -L .. -L src/lexer -L src/ast \
-        -E-extern src/parser/parser.x >"$tmp" 2>/dev/null
-      if [ -s "$tmp" ] && grep -q 'parser_copy_module_import_path64' "$tmp"; then
-        mv -f "$tmp" parser_gen.c
-      else
-        log "parser_gen.c: xlang-x failed or thin output; fallback xlang-c"
-        rm -f "$tmp" 2>/dev/null || true
-        if ensure_xlang_c >/dev/null 2>&1 \
-          && { run_with_timeout "./$XLANG_C" -L .. -L src/lexer -L src/ast \
-            -E -E-extern src/parser/parser.x >"$tmp" 2>/dev/null; true; } \
-          && [ -s "$tmp" ] && grep -q 'parser_copy_module_import_path64' "$tmp"; then
-          mv -f "$tmp" parser_gen.c
-        elif seed_ok "$seed"; then
+    rm -f "$out"
+  done
+  return 1
+}
+
+# Assemble parser_gen.c from tip -E (G.7 body = assemble_parser_gen_from_x.py).
+parser_assemble_from_x() {
+  local tip tmp py
+  tip="parser_gen.tip_e.tmp.$$"
+  tmp="parser_gen.c.tmp.$$"
+  py="${PYTHON:-python3}"
+  if [ ! -f scripts/assemble_parser_gen_from_x.py ]; then
+    log "missing scripts/assemble_parser_gen_from_x.py (wave324)"
+    return 1
+  fi
+  if ! parser_run_tip_e "$tip"; then
+    rm -f "$tip"
+    log "parser tip -E failed (no working product -E binary?)"
+    return 1
+  fi
+  if ! "$py" scripts/assemble_parser_gen_from_x.py --tip "$tip" --out "$tmp"; then
+    rm -f "$tip" "$tmp"
+    return 1
+  fi
+  mv -f "$tmp" parser_gen.c
+  rm -f "$tip"
+  log "parser_gen.c: assembled from parser.x (wave324 / 7.2.2)"
+  return 0
+}
+
+# True when parser.x (or assemble script) is newer than local parser_gen.c → must re-assemble.
+parser_x_sources_newer_than_gen() {
+  local gen="parser_gen.c"
+  [ -s "$gen" ] || return 0
+  local f
+  for f in \
+    src/parser/parser.x \
+    scripts/assemble_parser_gen_from_x.py; do
+    if [ -f "$f" ] && [ "$f" -nt "$gen" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+ensure_parser_gen() {
+  local seed="seeds/parser_gen.linux.x86_64.c"
+  local need_assemble=0
+
+  # Prefer .x assemble when:
+  #   FORCE, missing gen, sources newer, contract fail, or FROM_X default
+  #   product authority = parser.x assemble
+  #   pin seed = archaeology / true-cold egg only
+  if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
+    need_assemble=1
+  elif [ ! -s parser_gen.c ]; then
+    need_assemble=1
+  elif [ "$XLANG_PARSER_FROM_X" = "1" ] && parser_x_sources_newer_than_gen; then
+    need_assemble=1
+  elif [ "$XLANG_PARSER_FROM_X" = "1" ] && ! parser_gen_contract_ok parser_gen.c; then
+    need_assemble=1
+  fi
+
+  if [ "$need_assemble" = "1" ] && [ "$XLANG_PARSER_FROM_X" = "1" ]; then
+    if parser_assemble_from_x; then
+      :
+    else
+      if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
+        if [ "$XLANG_PARSER_ALLOW_PIN" = "1" ] && seed_ok "$seed"; then
           cp -f "$seed" parser_gen.c
-          log "parser_gen.c: fallback $seed (xlang-c -E failed)"
+          log "parser_gen.c: FORCE fallback archaeology seed (tip -E failed)"
         else
-          rm -f "$tmp" 2>/dev/null || true
-          log "parser_gen.c: FAIL (no xlang-x/xlang-c -E and no seed)"
+          log "parser_gen.c: FAIL FORCE regen (no -E and no pin escape)"
           exit 1
         fi
-      fi
-    else
-      if ensure_xlang_c >/dev/null 2>&1 \
-        && "./$XLANG_C" -L .. -L src/lexer -L src/ast \
-          -E -E-extern src/parser/parser.x >"$tmp" 2>/dev/null \
-        && [ -s "$tmp" ] && grep -q 'parser_copy_module_import_path64' "$tmp"; then
-        mv -f "$tmp" parser_gen.c
-      elif seed_ok "$seed"; then
-        cp -f "$seed" parser_gen.c
-        log "parser_gen.c: fallback $seed"
       else
-        rm -f "$tmp" 2>/dev/null || true
-        log "parser_gen.c: FAIL (xlang-c -E failed and no seed)"
-        exit 1
+        log "parser_gen.c: tip assemble unavailable; try local/pin (archaeology)"
       fi
     fi
   fi
-  rm -f "$tmp" 2>/dev/null || true
 
-  # Post-normalize (Makefile parity — runs on pin and regen)
+  if [ ! -s parser_gen.c ]; then
+    if [ "$XLANG_PARSER_ALLOW_PIN" = "1" ] && seed_ok "$seed"; then
+      cp -f "$seed" parser_gen.c
+      log "parser_gen.c: restored archaeology seed $seed (no -E binary; true-cold egg)"
+    else
+      log "parser_gen.c: FAIL no assemble and no archaeology seed"
+      exit 1
+    fi
+  fi
+
+  # Stale local gen: refresh from seed only when assemble path not authority.
+  if [ "$XLANG_PARSER_FROM_X" != "1" ] || ! grep -q 'wave324 parser M4 cold assemble' parser_gen.c 2>/dev/null; then
+    if ! parser_gen_contract_ok parser_gen.c; then
+      if seed_ok "$seed" && parser_gen_contract_ok "$seed"; then
+        cp -f "$seed" parser_gen.c
+        log "parser_gen.c: local failed contract → archaeology seed"
+      fi
+    fi
+  fi
+
+  # Dedup slice layouts if any (legacy pin + assemble both may emit them).
   perl -i -ne 'print unless /^struct xlang_slice_uint8_t/ && $seen++' parser_gen.c 2>/dev/null || true
 
-  if ! grep -q 'C-04 -E-extern TU aliases' parser_gen.c 2>/dev/null; then
-    log "parser_gen.c: FAIL missing C-04 -E-extern TU aliases (need xlang-c -E-extern codegen; no perl fallback)"
+  if ! parser_gen_contract_ok parser_gen.c; then
+    log "parser_gen.c: FAIL product contract (missing parse_expr / collect_imports / copy_module / one_function_impl)"
     exit 1
   fi
-  if ! grep -q 'C-04 parser: ast_expr_init_match_enum after struct ast_Expr' parser_gen.c 2>/dev/null; then
-    log "parser_gen.c: FAIL missing C-04 parser pool marker (need xlang-c -E-extern codegen; no perl fallback)"
-    exit 1
-  fi
-  if ! grep -q 'parser_copy_module_import_path64' parser_gen.c; then
-    log "parser_gen.c: inject extern parser_copy_module_import_path64 (parser_asm_parse_expr_link/thin_c)"
-    printf '%s\n' \
-      '/* pipeline extern parser_copy_module_import_path64 (thin parser_gen TU) */' \
-      'extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);' \
-      >>parser_gen.c
-  fi
-  log "parser_gen.c: normalize ast_pipeline onefunc const extern aliases"
-  perl -0pi -e 's@^extern int32_t ast_pipeline_onefunc_append_const\(.*\);\n@@mg; s@^extern int32_t ast_pipeline_onefunc_const_init_ref\(.*\);\n@@mg; s@^extern int32_t ast_pipeline_onefunc_const_type_ref\(.*\);\n@@mg; s@/\* C-04 -E-extern TU aliases \*/\n@extern int32_t ast_pipeline_onefunc_append_const(uint8_t * restrict out, uint8_t * restrict name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);\nextern int32_t ast_pipeline_onefunc_const_init_ref(uint8_t * restrict out, int32_t i);\nextern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32_t i);\n/* C-04 -E-extern TU aliases */\n@s' parser_gen.c
-  log "parser_gen.c: from parser.x (-E-extern, full TU via xlang-x -x) OK"
+  log "parser_gen.c OK ($(bytes_of parser_gen.c) bytes)"
 }
 
 # ---------------------------------------------------------------------------

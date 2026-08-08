@@ -1213,6 +1213,28 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   done
+  # parser_x.o cold path (wave324 M4 7.2.2).
+  # PLATFORM: SHARED — prefer ensure_migrate_gen parser (parser.x -E + assemble)
+  # when a product -E binary exists; archaeology seed only if assemble cannot run.
+  # G.7: do not blind-cp pin over a fresher .x assemble.
+  if [ ! -f parser_x.o ]; then
+    if [ -f scripts/ensure_migrate_gen.sh ]; then
+      echo "g05_ensure: ensure_migrate_gen parser (cold: missing parser_x.o; prefer .x assemble)"
+      bash scripts/ensure_migrate_gen.sh parser \
+        || echo "g05_ensure: ensure_migrate_gen parser failed (will try pin/local)" >&2
+    fi
+    if [ ! -s parser_gen.c ] && [ -f seeds/parser_gen.linux.x86_64.c ]; then
+      cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c
+      echo "g05_ensure: parser_gen.c ← archaeology seed (cold egg; no assemble)"
+    fi
+  fi
+  if [ -f parser_gen.c ]; then
+    if [ ! -f parser_x.o ] || [ parser_gen.c -nt parser_x.o ]; then
+      echo "g05_ensure: cc -c parser_gen.c → parser_x.o (assemble / cold)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o parser_x.o parser_gen.c
+    fi
+  fi
   # LANG-007 + typeck_x.o cold path (wave322 M4 7.4.1).
   # PLATFORM: SHARED — true cold deletes typeck_x.o; host-local typeck_gen.c is gitignored
   # and may be stale. Prefer ensure_migrate_gen typeck (typeck.x -E + companions assemble)
