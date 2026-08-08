@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-08（对照 tip residual：glue／ast_pool host 壳 + 域叶 thin／leave；bc-inventory present residual **14**／ROWS=128 · wave303 overload leave 后；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-08（对照 tip residual：glue／ast_pool host 壳 + 域叶 thin／leave；bc-inventory present residual **13**／ROWS=128 · strict_minimal seed shell retire 后；**只改勾选与事实 LOC**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -34,7 +34,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-08 实测**）：`pipeline_glue.c` 仍 host 编排壳 + domain `#include`；`ast_pool.c` 纯 `#include` 编排。**bc-inventory 诚实**：present residual product C rows **14**（ROWS=128；wave298 ptr_at dead leave 后；orch／bootstrap_glue／mega_body／elf forwarders／`_stubs`／scripts stubs／`ast_pool_ptr_at` 等 absent）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + 多叶 leave + ptr_at dead leave ✅**；**8.3.3 field_access／soa + typeck_slots + scratch／loop_glue leave** · 父项仍 🟡（pipeline_x mega 未离；**结构地板**＝glue 壳／typedefs／9×fwd／strict_minimal seed twin shell）；**8.3.4 bootstrap_glue + orchestration host wrapper ✅ leave**；**8.3.5 ✅ leave**；**8.3.7 ✅ host leave**；**8.3.6 🟡**（wave300–303：dual-export WEAK + parse_commit→diagnostic thin + overload→typeck_x；strict_minimal ~3405→~571 shell · 0 residual T export；**seed shell 仍链 · 退役未终**）；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。**wave299**：日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（离 host-cc）仍 ⬜** |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-08 实测**）：`pipeline_glue.c` 仍 host 编排壳 + domain `#include`；`ast_pool.c` 纯 `#include` 编排。**bc-inventory 诚实**：present residual product C rows **13**（ROWS=128；strict_minimal seed shell retire 后；orch／bootstrap_glue／mega_body／elf forwarders／`_stubs`／scripts stubs／`ast_pool_ptr_at`／strict_minimal seed 等 absent）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + 多叶 leave + ptr_at dead leave ✅**；**8.3.3 field_access／soa + typeck_slots + scratch／loop_glue leave** · 父项仍 🟡（pipeline_x mega 未离；**结构地板**＝glue 壳／typedefs／9×fwd／standalone seed twin）；**8.3.4 bootstrap_glue + orchestration host wrapper ✅ leave**；**8.3.5 ✅ leave**；**8.3.7 ✅ host leave**；**8.3.6 🟡**（产品 strict_minimal shell **retire ✅** · 0 T 后删 seed + g05 摘链；全表 from_x 退役策略仍 ⬜）；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（离 host-cc）仍 ⬜** |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 **`36363b90f`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -1020,7 +1020,7 @@
 | `pipeline_asm_emit_context.c` | **0（leave）** | asm emit context set/get + frame/param/local slots | ✅ wave141 pure-owned leave；live＝runtime_pipeline_abi pure；seed cold twin under #ifndef FROM_X；host 叶已删 |
 | `ast_pool_bootstrap_glue.c` | **0（deleted）** | 冷启动 ast 桥 residual | ✅ **seed ALWAYS leave**（wave282 · 2026-08-08）；live＝runtime_pipeline_abi seed ALWAYS；host 叶已删；present **28→27**；**双端 L2 绿**；**pipeline_x mega 首刀／8.3.4** |
 | `pipeline_bootstrap_orchestration.c` | **0（deleted）** | 编排 host 占位（5 行 seed include） | ✅ **host wrapper leave**（产品 ensure 直编 seed → `.o`；host 叶已删；present **27→26**；**双端 L2 绿**；**8.3.4 残收口**） |
-| `pipeline_glue_strict_minimal`（seed → 产品链） | ~571 shell（wave303） | 产品 seed 壳 | 🟡 仍在链；**wave300–302** dual WEAK + parse_commit leave；**wave303**：find_func_return overload → typeck_x STRONG（0 residual T export；~900→~571 shell）；**8.3.6 seed shell 退役未终** |
+| `pipeline_glue_strict_minimal`（seed → 产品链） | **0（deleted）** | 产品 seed 壳 | ✅ **shell retire**（0 T 后物理删 seed；产品 g05 摘链／停 ensure；inventory absent；present **14→13**；**双端 L2 绿**） |
 | bare link alias / stubs 族 | 小 | 5× seed host wrappers **deleted**；cold `_stubs.c`／`xlang_x_stubs.c`／`_x_stubs2.c` **deleted**（权威 `seeds/x_stubs.from_x.c`；B4 GEN_C_TO_O 4 叶）；`typeck_asm_bare_link_alias` host **deleted**（权威 `seeds/typeck_asm_bare_link_alias.from_x.c`）；scripts stubs host **deleted**（权威 `seeds/asm_text_stub.from_x.c` + `asm_xlang_lsp_diag_stub.from_x.c`） | ✅ **8.3.5 + 8.3.7 host leave**（产品／ensure seed-only；G05 不链 scripts host） |
 
 #### 8.3 消费方地图（谁还拉 glue · 迁时必同改）
@@ -1198,17 +1198,14 @@
   - ✅ `_x_stubs2.c` dead dual leave（G05／stage2 均不链；B4 GEN_C_TO_O **5→4**；present **19→18**；双端 L2 绿）
   - ✅ `typeck_asm_bare_link_alias` host leave（权威 `seeds/typeck_asm_bare_link_alias.from_x.c`；gen／ensure seed-only；G05 本不链；present **18→17**；双端 L2 绿）
   - ✅ 残 scripts stubs 经 **8.3.7** host leave 闭（present **17→15**）
-  - 目标：符号面由 .x `#[no_mangle]` / 单一 mangle 权威提供，无「为让 ld 安静」的永久 C 桩（seed residual 仍在 8.3.6）
+  - 目标：符号面由 .x `#[no_mangle]` / 单一 mangle 权威提供，无「为让 ld 安静」的永久 C 桩
 
 🟡 **8.3.6 `seeds/*.from_x.c` 全表退役策略**
 
-  - 今日 **~329** 个 seeds `.c`：分 **产品 pin** / **prove surface** / **EMPTY surface** / **strict_minimal**
+  - 今日 **~328** 个 seeds `.c`：分 **产品 pin** / **prove surface** / **EMPTY surface**
   - 终局：冷启动不读 from_x 业务体；surface 仅考古或生成物不入库（策略二选一写清）
-  - ✅ **wave300 切片**：`pipeline_glue_strict_minimal.from_x.c` 删 28× dual-export `XLANG_WEAK` typeck Cap 孪生（product 链 typeck_x STRONG 在前；defined 74→45；LOC −~860）；死 linear BSS／helper；**双端 L2 绿**
-  - ✅ **wave301 切片**：同 seed 删 dual-export WEAK 已在 **runtime_pipeline_abi.o／driver_x.o／pipeline_x.o STRONG**（check_expr／after_parse_ok／layout glue／main_entry／pad·hot_reorder 等）+ 仅 dual 用 helpers；残 export parse_commit_pre／post + find_func_return_type_*_call overload 链；seed ~2546→~957；**双端 L2 绿**
-  - ✅ **wave302 切片**：`parser_diagnostic_parse_commit_pre／post` → **runtime_driver_diagnostic thin**（gather→shape；product PREFER_X_O；cold twins thin／surface／rest）；strict_minimal 删 dual body（~957→~900）；残 find_func_return overload 链；**双端 L2 绿**
-  - ✅ **wave303 切片**：find_func_return overload 链 → **typeck_x** STRONG（score METHOD_CALL + by_name_overload + Cap face）；strict_minimal 删 body（~900→~571 shell · 0 T export）；tip seed pin `typeck_gen` 同步；**双端 L2 绿**
-  - ⬜ 残：strict_minimal seed shell 仍链；全表退役策略未终
+  - ✅ **strict_minimal 产品 shell**：dual-export WEAK／parse_commit／overload leave 后 0 T → **seed 物理删除 + 产品 g05 摘链**（inventory absent · present **13**；**双端 L2 绿**）
+  - ⬜ 残：全表 from_x 退役策略未终（pin／prove／EMPTY／standalone 等仍在）
 
 ✅ **8.3.7 scripts 下 asm stub C host leave**
 
