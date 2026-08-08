@@ -53,4 +53,4 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 PIPELINE_ASM_X_DEPS = $(wildcard src/asm/*.x src/asm/platform/*.x src/asm/arch/*.x)
 
 # pipeline_x.o / pipeline_gen STALE set: frontend .x chain + glue/pool C + asm tree.
-PIPELINE_X_DEPS = src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x $(PIPELINE_ASM_X_DEPS) pipeline_glue.c pipeline_glue_early_fwd.c pipeline_glue_mid_fwd.c pipeline_glue_backend_fwd.c pipeline_glue_typeck_fwd.c pipeline_glue_typeck_mid_fwd.c pipeline_glue_emit_fwd.c pipeline_glue_emit_block_fwd.c ast_pool_typedefs.c ast_pool_ptr_at.c ast_pool.c ast_pool_bootstrap_glue.c
+PIPELINE_X_DEPS = src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x $(PIPELINE_ASM_X_DEPS) pipeline_glue.c pipeline_glue_early_fwd.c pipeline_glue_mid_fwd.c pipeline_glue_backend_fwd.c pipeline_glue_typeck_fwd.c pipeline_glue_typeck_mid_fwd.c pipeline_glue_emit_fwd.c pipeline_glue_emit_block_fwd.c ast_pool_typedefs.c ast_pool_ptr_at.c ast_pool.c

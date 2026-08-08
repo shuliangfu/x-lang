@@ -592,5 +592,14 @@ extern int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_
  * Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X (WAVE274).
  * PLATFORM: SHARED freestanding WPO leave. */
 
-/** bootstrap 链接 glue：pipeline 编排 / asm scope / typeck 指针写槽（误 revert 后补全）。 */
-#include "ast_pool_bootstrap_glue.c"
+/* wave282: ast_pool_bootstrap_glue.c seed ALWAYS leave (host leaf deleted).
+ * Live = runtime_pipeline_abi seed ALWAYS (WAVE282_BOOTSTRAP_GLUE_ALWAYS):
+ *   typeck_i32_ptr_* / typeck_layout_metrics_* /
+ *   asm_ctx_set_scope_block / scope_block_ref_at / asm_local_slot_reg_offset +
+ *   align/bump/simd/spelling / find_offset_scoped /
+ *   pipeline_asm_patch_module_parent_links /
+ *   pipeline_codegen_dep_skip_asm_user_* / pipeline_asm_user_* /
+ *   pipeline_asm_seed_std_net_struct_layouts /
+ *   pipeline_asm_redirect_std_c_wrapper_sym.
+ * Pure keeps export-extern only (dual-export ban). PLATFORM: SHARED —
+ * freestanding Cap residual leave; first domain knife of pipeline_x mega. */

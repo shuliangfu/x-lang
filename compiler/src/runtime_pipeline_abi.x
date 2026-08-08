@@ -4,6 +4,11 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave282: ast_pool_bootstrap_glue.c seed ALWAYS leave (host leaf deleted).
+//   Live faces: typeck_i32_ptr_* / layout_metrics init+read / asm scope BSS /
+//   asm_local_slot_reg_offset + align/bump/simd/scoped + patch_parent_links +
+//   dep_skip cluster + redirect_std_c_wrapper. Seed ALWAYS under WAVE282.
+//   Pure export-extern only for faces pure imports (dual-export ban).
 // wave272: ast_pool_dep_ctx.c pure-owned leave (PipelineDepCtx + DepCtxSidecar table).
 // wave271: pipeline_grow_vec.c pure-owned leave (GrowVec init/free/ensure/at/push/
 //   copy_append + mmap large-path RSS). Layout LE sizeof 32: data*@0 cap@8 len@12
@@ -22,8 +27,8 @@
 //   i32[256] BSS walk stack (w157 pattern). Seed cold twins under #ifndef FROM_X.
 // wave268: pipeline_asm_slot_bytes.c pure-owned leave (asm_local_slot_bytes +
 //   asm_ctx_ensure_block_locals + named/array/mod helpers). Cap residual:
-//   asm_local_slot_reg_offset / asm_type_is_simd_vector_spelling / SOA+layout
-//   typeck glues. Seed cold twins under #ifndef FROM_X.
+//   wave282: asm_local_slot_reg_offset / simd spelling seed ALWAYS (bootstrap leave).
+//   SOA+layout typeck glues residual elsewhere. Seed cold twins under #ifndef FROM_X.
 // wave267: pipeline_asm_locals.c pure-owned leave (AsmLocalSlot + AsmBlockSlot
 //   sidecars keyed by AsmFuncCtx* + asm_ctx_local_* / block_slot_* /
 //   pipeline_asm_local_offset_c). Cap residual: find_offset_scoped stays in
@@ -1152,7 +1157,7 @@ export extern "C" function ast_pipeline_block_if_then_body_ref(arena: *u8, block
 export extern "C" function ast_pipeline_block_if_else_body_ref(arena: *u8, block_ref: i32, if_idx: i32): i32;
 /* wave261 pure-owned: glue_asm_ctx_set_scope_block body at EOF (#[no_mangle]).
  * G.7 ban dual export extern + pure export for the same symbol. */
-/* Cap residual sidecar: per-ctx scope_block_ref (ast_pool_bootstrap_glue). */
+/* wave282: per-ctx scope_block_ref seed ALWAYS (bootstrap leave). */
 export extern "C" function asm_ctx_set_scope_block(ctx: *u8, block_ref: i32): void;
 // wave133: glue_enc_jz_after_bool_in_eax is pure export below (unary leave).
 // Was Cap residual when host leaf owned the face; block_if / async_cps call pure.

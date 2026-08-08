@@ -178,7 +178,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_typeck_field_access.c|8.3.3|field_access thin retired (typeck.x authority; host-cc leave)|0|absent"
   "compiler/pipeline_typeck_soa.c|8.3.3|soa thin retired (typeck.x authority; host-cc leave)|0|absent"
   # --- 8.3.4 bootstrap glue / orchestration ---
-  "compiler/ast_pool_bootstrap_glue.c|8.3.4|cold-start ast bridge|100|present"
+  "compiler/ast_pool_bootstrap_glue.c|8.3.4|bootstrap glue retired (seed ALWAYS leave wave282)|0|absent"
   "compiler/pipeline_bootstrap_orchestration.c|8.3.4|orchestration wrapper → seed|1|present"
   # --- 8.3 product weak twin / standalone seed ---
   "compiler/seeds/pipeline_glue_standalone.from_x.c|8.3.1|standalone glue seed twin|50|present"
@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave281 onefunc done · present 28); candidate: pipeline_x mega"
+  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave282 bootstrap_glue done · present 27); candidate: pipeline_x mega residual shells / parse_orch / forwarders"
 }
 
 run_check() {
@@ -351,7 +351,7 @@ run_check() {
     echo "bc_host_cc_product_inventory: --check FAILED" >&2
     exit 1
   fi
-  echo "bc_host_cc_product_inventory: CHECK OK (BC open · wave1281 honesty · glue/ast_pool shell floors honest · 8.3.1 typeck+asm leaves + 8.3.2 domain leaves (onefunc leave…module_func…lifecycle…WPO) present · 8.3.9 absent · host-cc residual still required)" >&2
+  echo "bc_host_cc_product_inventory: CHECK OK (BC open · wave1281 honesty · glue/ast_pool shell floors honest · 8.3.1 typeck+asm leaves + 8.3.2 domain leaves (bootstrap_glue leave…onefunc…module_func…lifecycle…WPO) present · 8.3.9 absent · host-cc residual still required)" >&2
 }
 
 case "$MODE" in

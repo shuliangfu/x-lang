@@ -67,7 +67,6 @@ pipeline_flags = base + [
 glued = [
     "pipeline_glue.c",
     "ast_pool.c",
-    "ast_pool_bootstrap_glue.c",
 ]
 entries = [
     ("seeds/runtime.from_x.c", driver_flags),
