@@ -4824,19 +4824,26 @@ ensure_typeck_f64_bits_obj() {
   fi
 }
 
-# typeck 整链 build_asm/typeck.o：裸符号 → typeck_ 前缀 glue 名（见 typeck_asm_bare_link_alias.c）。
+# typeck 整链 build_asm/typeck.o：裸符号 → typeck_ 前缀 glue 名。
+# wave296: authority = seeds/typeck_asm_bare_link_alias.from_x.c (host leaf left).
+# PLATFORM: SHARED — B-hybrid/strict_glue only; G05 does not link this .o.
 ensure_typeck_asm_bare_link_alias_obj() {
   local OBJ="$BUILD_DIR/typeck_asm_bare_link_alias.o"
+  local SEED="seeds/typeck_asm_bare_link_alias.from_x.c"
   local GEN="scripts/gen_typeck_asm_bare_link_alias.py"
   if [ -f "$GEN" ] && [ -f "$BUILD_DIR/typeck.o" ] && [ -f typeck_x.o ]; then
-  if [ ! -f typeck_asm_bare_link_alias.c ] || [ src/typeck/typeck.x -nt typeck_asm_bare_link_alias.c ] \
-  || [ "$BUILD_DIR/typeck.o" -nt typeck_asm_bare_link_alias.c ]; then
+  if [ ! -f "$SEED" ] || [ src/typeck/typeck.x -nt "$SEED" ] \
+  || [ "$BUILD_DIR/typeck.o" -nt "$SEED" ]; then
   python3 "$GEN" 2>/dev/null || true
   fi
   fi
-  if [ ! -f "$OBJ" ] || [ "typeck_asm_bare_link_alias.c" -nt "$OBJ" ]; then
-  echo " cc -c typeck_asm_bare_link_alias.c -> $OBJ"
-  "$CC" $CFLAGS -c -o "$OBJ" typeck_asm_bare_link_alias.c
+  if [ ! -f "$SEED" ]; then
+  echo "ensure_typeck_asm_bare_link_alias_obj: missing $SEED" >&2
+  return 1
+  fi
+  if [ ! -f "$OBJ" ] || [ "$SEED" -nt "$OBJ" ]; then
+  echo " cc -c $SEED -> $OBJ"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$OBJ" "$SEED"
   fi
 }
 

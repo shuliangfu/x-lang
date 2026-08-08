@@ -1,7 +1,9 @@
-/**
- * typeck_asm_bare_link_alias.c — build_asm/typeck.o 裸符号 → pipeline_glue 的 typeck_ 前缀名
- *
- * 由 compiler/scripts/gen_typeck_asm_bare_link_alias.py 从 typeck.x 签名生成。
+/* seeds/typeck_asm_bare_link_alias.from_x.c — 8.3.5 typeck bare→typeck_ rename table
+ * Authority (G.7): gen by scripts/gen_typeck_asm_bare_link_alias.py from typeck.x +
+ *   nm(build_asm/typeck.o, typeck_x.o). wave296 host leaf leave; seed-only .o.
+ * build_asm/typeck.o exports bare names; glue/pipeline expect typeck_ prefix.
+ * PLATFORM: SHARED — B-hybrid / strict_glue asm path only; G05 product uses
+ *   typeck_x.o (prefixed) and does not link this .o.
  */
 #include <stdint.h>
 

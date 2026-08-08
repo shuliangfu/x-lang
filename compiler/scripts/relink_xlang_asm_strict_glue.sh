@@ -1372,9 +1372,15 @@ if asm_strict_typeck_selfhosted; then
   ST_SEED_PARSER_TCK="$SEED_O/parser.o $ST_ASYNC_CPS_SEED $SEED_O/lexer.o $SEED_O/ast_seed.o codegen_x.o x_frontend_link_alias.o"
   strict_glue_info "seed typeck + typeck_x tail (X glue; no build_asm typeck partial/bare_link)"
   else
-  if [ ! -f "$BUILD_DIR/typeck_asm_bare_link_alias.o" ] || [ typeck_asm_bare_link_alias.c -nt "$BUILD_DIR/typeck_asm_bare_link_alias.o" ]; then
-  strict_glue_info "cc -c typeck_asm_bare_link_alias.c -> $BUILD_DIR/typeck_asm_bare_link_alias.o"
-  "$CC" $CFLAGS -c -o "$BUILD_DIR/typeck_asm_bare_link_alias.o" typeck_asm_bare_link_alias.c
+  # wave296: seed-only authority (host typeck_asm_bare_link_alias.c left).
+  _tba_seed=seeds/typeck_asm_bare_link_alias.from_x.c
+  if [ ! -f "$_tba_seed" ]; then
+  strict_glue_info "missing $_tba_seed (wave296 seed authority)"
+  return 1
+  fi
+  if [ ! -f "$BUILD_DIR/typeck_asm_bare_link_alias.o" ] || [ "$_tba_seed" -nt "$BUILD_DIR/typeck_asm_bare_link_alias.o" ]; then
+  strict_glue_info "cc -c $_tba_seed -> $BUILD_DIR/typeck_asm_bare_link_alias.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/typeck_asm_bare_link_alias.o" "$_tba_seed"
   fi
   ST_TYPECK_BARE_ALIAS="$BUILD_DIR/typeck_asm_bare_link_alias.o"
   ST_SEED_PARSER_TCK="$ST_TYPECK_C_STUBS $ST_TYPECK_BARE_ALIAS $SEED_O/parser.o $ST_ASYNC_CPS_SEED $SEED_O/lexer.o $SEED_O/ast_seed.o codegen_x.o x_frontend_link_alias.o"
