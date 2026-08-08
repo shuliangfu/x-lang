@@ -411,7 +411,10 @@ export extern "C" function ast_pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *
 // wave306: product surfaces try_one_lib_root / try_entry_dir / try_flat /
 //   import_has_dot / path_append_* are pure export below (G.7 leave from
 //   pipeline.x thin residual; no export-extern dual).
-// PLATFORM: SHARED freestanding 8.3 pipeline.x resolve residual pure leave.
+// wave307: product surfaces should_skip / load_* / typeck_* / run_x orch /
+//   lsp_diag residual thin / prepare+finish dep are pure export below
+//   (thin→Cap _c + run_x_pipeline_impl orch); pipeline.x export-extern.
+// PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
 export extern "C" function pipeline_loop_should_continue_lib_root_c(ctx: *u8, idx: i32): i32;
 export extern "C" function xlang_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 // wave105 resolve_path pure-owned leave Cap residual (dep_ctx path byte + entry_dir +
@@ -487,20 +490,23 @@ export extern "C" function driver_set_pipeline_entry_source_len(len: i64): void;
 //   pipeline_run_x_pipeline_impl). 2026-08-05: host-cc pipeline_run_x_pipeline.c leave.
 export extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void;
 // wave112: typeck_entry_module_c / typeck_parsed_module_c pure exports below
-//   (parse_typeck_dispatch leave). should_skip_x_typeck remains Cap residual
-//   (pipeline.x product face); pure owns should_skip_x_typeck_c only.
-// PLATFORM: SHARED.
-export extern "C" function pipeline_should_skip_x_typeck(ctx: *u8): i32;
+//   (parse_typeck_dispatch leave). wave307: product should_skip_x_typeck +
+//   pipeline_run_x_pipeline_impl pure-owned leave (were export-extern U to
+//   pipeline_x residual).
+// PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
 export extern "C" function driver_diagnostic_typeck_fail(): void;
 export extern "C" function driver_diagnostic_source_len(len: i32): void;
 export extern "C" function driver_diagnostic_after_entry_parse(num_funcs: i32): void;
 export extern "C" function driver_diagnostic_after_entry_parse_module(module: *u8): void;
 export extern "C" function driver_diagnostic_entry_module(module: *u8, arena: *u8): void;
+export extern "C" function driver_diagnostic_before_codegen(num_funcs: i32, out_len: i32): void;
+export extern "C" function driver_compile_phase_timing_begin(phase: i32): void;
+export extern "C" function driver_compile_phase_timing_end(phase: i32): void;
+export extern "C" function driver_compile_phase_timing_flush(): void;
 export extern "C" function driver_x_pipeline_skip_typeck_get(): i32;
 export extern "C" function driver_x_pipeline_skip_codegen_get(): i32;
 export extern "C" function pipeline_driver_asm_build_skip_typeck(): i32;
 export extern "C" function pipeline_driver_x_pipeline_skip_typeck(): i32;
-export extern "C" function pipeline_run_x_pipeline_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
 // wave112 Cap residual: active ctx / WPO-S3 escape scan.
 // wave121: pipeline_typeck_unused_private_funcs is pure export function below (lint_meta leave).
 export extern "C" function pipeline_typeck_set_active_ctx_c(module: *u8, ctx: *u8): void;
@@ -12902,6 +12908,468 @@ export function pipeline_resolve_path_try_entry_dir(ctx: *u8, import_path: *u8, 
     return 0 - 1;
   }
   return pipeline_resolve_path_probe_export_c(ctx, pipeline_resolve_path_last_off_get_c());
+}
+
+// ---------------------------------------------------------------------------
+// wave307: pipeline.x residual thin / run_x orch product surfaces pure leave.
+// G.7: product non-_c faces thin-compose Cap _c (wave105–112) already pure.
+// pipeline_run_x_pipeline_impl orch composes Cap parse/load/typeck/codegen.
+// pipeline.x converts residual bodies to export-extern (dual-export ban).
+// parse_into_with_init_buf Cap-struct-return stays pipeline.x residual this wave.
+// Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+// ---------------------------------------------------------------------------
+
+/**
+ * Product should_skip face — thin alias of pipeline_should_skip_x_typeck_c.
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - 1 skip typeck; 0 run
+ * wave307 pure: G.7 leave from pipeline.x residual (pure previously U-called this).
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_should_skip_x_typeck(ctx: *u8): i32 {
+  return pipeline_should_skip_x_typeck_c(ctx);
+}
+
+/**
+ * Loaded import buffer capacity (4 MiB product contract).
+ * @return i64 - 4194304 (size_t ABI on LP64)
+ * wave307 pure: G.7 leave from pipeline.x residual constant face.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_loaded_buf_cap(): i64 {
+  return 4194304;
+}
+
+/**
+ * Product parse_apply_main_from_scalars — thin→_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @return i32 - 0 ok; -2 fail
+ * wave307 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_parse_apply_main_from_scalars(module: *u8, arena: *u8): i32 {
+  return pipeline_parse_apply_main_from_scalars_c(module, arena);
+}
+
+/**
+ * Product parse_set_main_from_buf — thin→_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param data *u8 - source bytes
+ * @param len i32 - length
+ * @return i32 - 0 ok; non-zero fail
+ * wave307 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_parse_set_main_from_buf(module: *u8, arena: *u8, data: *u8, len: i32): i32 {
+  return pipeline_parse_set_main_from_buf_c(module, arena, data, len);
+}
+
+/**
+ * Product typeck_parsed_module — thin→_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param fail_mapped i32 - mapped fail code
+ * @return i32 - 0 ok; fail code
+ * wave307 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_typeck_parsed_module(module: *u8, arena: *u8, ctx: *u8, fail_mapped: i32): i32 {
+  return pipeline_typeck_parsed_module_c(module, arena, ctx, fail_mapped);
+}
+
+/**
+ * Product typeck_entry_module — thin→_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - 0 ok; -1 null; typeck rc
+ * wave307 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_typeck_entry_module(module: *u8, arena: *u8, ctx: *u8): i32 {
+  return pipeline_typeck_entry_module_c(module, arena, ctx);
+}
+
+/**
+ * Product load_import_resolve_read — thin→_c.
+ * @param module *u8 - Module*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param import_idx i32 - import index
+ * @return i32 - 0 ok; fail codes from Cap
+ * wave307 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_load_import_resolve_read(module: *u8, ctx: *u8, import_idx: i32): i32 {
+  return pipeline_load_import_resolve_read_c(module, ctx, import_idx);
+}
+
+/**
+ * Product load_import_from_disk — thin→_c orch (historical thin→impl_c).
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param import_idx i32 - import index
+ * @return i32 - 0 ok; Cap fail codes
+ * wave307 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_load_import_from_disk(module: *u8, arena: *u8, ctx: *u8, import_idx: i32): i32 {
+  return pipeline_load_import_from_disk_c(module, arena, ctx, import_idx);
+}
+
+/**
+ * Product load_one_import_slot — thin→_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param import_idx i32 - import index
+ * @return i32 - 0 ok; Cap fail codes
+ * wave307 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_load_one_import_slot(module: *u8, arena: *u8, ctx: *u8, import_idx: i32): i32 {
+  return pipeline_load_one_import_slot_c(module, arena, ctx, import_idx);
+}
+
+/**
+ * Product sync_dep_slots_from_driver — thin→_c.
+ * @param module *u8 - Module*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - 0 ok; Cap fail codes
+ * wave307 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_sync_dep_slots_from_driver(module: *u8, ctx: *u8): i32 {
+  return pipeline_sync_dep_slots_from_driver_c(module, ctx);
+}
+
+/**
+ * Product load_and_sync_direct_import_deps — thin→_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - 0 ok; Cap fail codes
+ * wave307 pure: G.7 leave from pipeline.x thin residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_load_and_sync_direct_import_deps(module: *u8, arena: *u8, ctx: *u8): i32 {
+  return pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
+}
+
+/**
+ * Product lsp_diag_parse_entry_buf — thin→lsp_diag_parse_entry_buf_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param source_data *u8 - source bytes
+ * @param source_len i32 - length
+ * @return i32 - parse rc
+ * wave307 pure: G.7 leave from pipeline.x residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_lsp_diag_parse_entry_buf(module: *u8, arena: *u8, source_data: *u8, source_len: i32): i32 {
+  return lsp_diag_parse_entry_buf_c(module, arena, source_data, source_len);
+}
+
+/**
+ * Product lsp_diag_typeck_after_load — thin→lsp_diag_typeck_after_load_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - 0 ok; load rc; typeck -3
+ * wave307 pure: G.7 leave from pipeline.x residual (Cap is sole LSP typeck path).
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_lsp_diag_typeck_after_load(module: *u8, arena: *u8, ctx: *u8): i32 {
+  return lsp_diag_typeck_after_load_c(module, arena, ctx);
+}
+
+/**
+ * Product parse_entry_do_parse — thin→run_x_pipeline_parse_entry_do_parse_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param source_data *u8 - source bytes
+ * @param source_len i64 - length (size_t ABI)
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - 0 ok; fail codes
+ * wave307 pure: G.7 leave from pipeline.x residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_run_x_pipeline_parse_entry_do_parse(module: *u8, arena: *u8, source_data: *u8, source_len: i64, ctx: *u8): i32 {
+  return run_x_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
+}
+
+/**
+ * Product parse_entry_if_needed — thin→run_x_pipeline_parse_entry_if_needed_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param source_data *u8 - source bytes
+ * @param source_len i64 - length
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - 0 ok/already; fail codes
+ * wave307 pure: G.7 leave from pipeline.x residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_run_x_pipeline_parse_entry_if_needed(module: *u8, arena: *u8, source_data: *u8, source_len: i64, ctx: *u8): i32 {
+  return run_x_pipeline_parse_entry_if_needed_c(module, arena, source_data, source_len, ctx);
+}
+
+/**
+ * Product load_deps_after_parse — thin→run_x_pipeline_load_deps_after_parse_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - load rc (also last_rc)
+ * wave307 pure: G.7 leave from pipeline.x residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_run_x_pipeline_load_deps_after_parse(module: *u8, arena: *u8, ctx: *u8): i32 {
+  return run_x_pipeline_load_deps_after_parse_c(module, arena, ctx);
+}
+
+/**
+ * Product typecheck_after_load — thin→run_x_pipeline_typecheck_after_load_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - typeck rc (also last_rc)
+ * wave307 pure: G.7 leave from pipeline.x residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_run_x_pipeline_typecheck_after_load(module: *u8, arena: *u8, ctx: *u8): i32 {
+  return run_x_pipeline_typecheck_after_load_c(module, arena, ctx);
+}
+
+/**
+ * Product typecheck_entry — thin→run_x_pipeline_typecheck_entry_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - 0 skip/ok; typeck rc
+ * wave307 pure: G.7 leave from pipeline.x residual (Cap skip+entry authority).
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_run_x_pipeline_typecheck_entry(module: *u8, arena: *u8, ctx: *u8): i32 {
+  return run_x_pipeline_typecheck_entry_c(module, arena, ctx);
+}
+
+/**
+ * Product fill_dep_import_path — thin→run_x_pipeline_fill_dep_import_path_c.
+ * @param module *u8 - Module*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param dep_j i32 - dep index
+ * @return i32 - 0 ok; -1 fail
+ * wave307 pure: G.7 leave from pipeline.x residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_run_x_pipeline_fill_dep_import_path(module: *u8, ctx: *u8, dep_j: i32): i32 {
+  return run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j);
+}
+
+/**
+ * Product codegen_one_dep — thin→run_x_pipeline_codegen_one_dep_c (full Cap orch).
+ * @param module *u8 - entry Module*
+ * @param out_buf *u8 - CodegenOutBuf*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param dep_j i32 - dep index
+ * @param skip_asm_dep_codegen i32 - skip co-emit
+ * @return i32 - 0 ok/skip; -1 null; -6 emit fail
+ * wave307 pure: G.7 leave from pipeline.x residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_run_x_pipeline_codegen_one_dep(module: *u8, out_buf: *u8, ctx: *u8, dep_j: i32, skip_asm_dep_codegen: i32): i32 {
+  return run_x_pipeline_codegen_one_dep_c(module, out_buf, ctx, dep_j, skip_asm_dep_codegen);
+}
+
+/**
+ * Product codegen_deps — thin→run_x_pipeline_codegen_deps_c.
+ * @param module *u8 - entry Module*
+ * @param arena *u8 - ASTArena*
+ * @param out_buf *u8 - CodegenOutBuf*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param skip_asm_dep_codegen i32 - skip co-emit
+ * @return i32 - 0 ok; -1 null; -6 fail
+ * wave307 pure: G.7 leave from pipeline.x residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_run_x_pipeline_codegen_deps(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8, skip_asm_dep_codegen: i32): i32 {
+  return run_x_pipeline_codegen_deps_c(module, arena, out_buf, ctx, skip_asm_dep_codegen);
+}
+
+/**
+ * Product prepare_dep_codegen_path — thin→pipeline_prepare_dep_codegen_path_c.
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param dep_j i32 - dep index
+ * @param dst *u8 - path out buf
+ * @return i32 - 0 ok; -1 fail
+ * wave307 pure: G.7 leave from pipeline.x residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_prepare_dep_codegen_path(ctx: *u8, dep_j: i32, dst: *u8): i32 {
+  return pipeline_prepare_dep_codegen_path_c(ctx, dep_j, dst);
+}
+
+/**
+ * Product finish_dep_codegen_diag — thin→pipeline_finish_dep_codegen_diag_c.
+ * @param dep_j i32 - dep index
+ * @param out_buf *u8 - CodegenOutBuf*
+ * @return i32 - 0 ok; -1 null
+ * wave307 pure: G.7 leave from pipeline.x residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_finish_dep_codegen_diag(dep_j: i32, out_buf: *u8): i32 {
+  return pipeline_finish_dep_codegen_diag_c(dep_j, out_buf);
+}
+
+/**
+ * Product codegen_entry — thin→run_x_pipeline_codegen_entry_c.
+ * @param module *u8 - Module*
+ * @param arena *u8 - ASTArena*
+ * @param out_buf *u8 - CodegenOutBuf*
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return i32 - 0 ok; -1 null; -6 emit fail
+ * wave307 pure: G.7 leave from pipeline.x residual.
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_run_x_pipeline_codegen_entry(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8): i32 {
+  return run_x_pipeline_codegen_entry_c(module, arena, out_buf, ctx);
+}
+
+/**
+ * Product run_x_pipeline_impl orch — parse / load / typeck / codegen stages.
+ * Pure previously U-called this from pipeline_run_x_pipeline const-buf face.
+ * @param module *u8 - Module*; null -> -1
+ * @param arena *u8 - ASTArena*; null -> -1
+ * @param source_data *u8 - source bytes
+ * @param source_len i64 - length (size_t ABI)
+ * @param out_buf *u8 - CodegenOutBuf*; null -> -1
+ * @param ctx *u8 - PipelineDepCtx*; null -> -1
+ * @return i32 - 0 ok; -2 parse; last_rc load/typeck; -6 codegen
+ * wave307 pure: G.7 leave from pipeline.x residual orch (compose Cap faces).
+ * PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
+ */
+#[no_mangle]
+export function pipeline_run_x_pipeline_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    driver_compile_phase_timing_begin(0);
+  }
+  if (pipeline_run_x_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0) {
+    unsafe {
+      driver_compile_phase_timing_end(0);
+      driver_compile_phase_timing_flush();
+    }
+    return 0 - 2;
+  }
+  if (pipeline_run_x_pipeline_load_deps_after_parse(module, arena, ctx) != 0) {
+    let lrc: i32 = 0;
+    unsafe {
+      driver_compile_phase_timing_end(0);
+      driver_compile_phase_timing_flush();
+      lrc = run_x_pipeline_last_rc_get();
+    }
+    return lrc;
+  }
+  unsafe {
+    driver_compile_phase_timing_end(0);
+    driver_compile_phase_timing_begin(1);
+  }
+  if (pipeline_run_x_pipeline_typecheck_after_load(module, arena, ctx) != 0) {
+    let trc: i32 = 0;
+    unsafe {
+      driver_compile_phase_timing_end(1);
+      driver_compile_phase_timing_flush();
+      trc = run_x_pipeline_last_rc_get();
+    }
+    return trc;
+  }
+  unsafe {
+    driver_compile_phase_timing_end(1);
+  }
+  let check_only: i32 = 0;
+  let skip_cg: i32 = 0;
+  unsafe {
+    check_only = driver_check_only_get();
+    skip_cg = driver_x_pipeline_skip_codegen_get();
+  }
+  if (check_only != 0) {
+    unsafe {
+      driver_compile_phase_timing_flush();
+    }
+    return 0;
+  }
+  if (skip_cg != 0) {
+    unsafe {
+      driver_compile_phase_timing_flush();
+    }
+    return 0;
+  }
+  let nf: i32 = 0;
+  let asm_only: i32 = 0;
+  unsafe {
+    codegen_out_buf_set_len(out_buf, 0);
+    nf = pipeline_module_num_funcs(module);
+    driver_diagnostic_before_codegen(nf, 0);
+    driver_compile_phase_timing_begin(2);
+    asm_only = pipeline_dep_ctx_asm_entry_module_only(ctx);
+  }
+  if (pipeline_run_x_pipeline_codegen_deps(module, arena, out_buf, ctx, asm_only) != 0) {
+    unsafe {
+      driver_compile_phase_timing_end(2);
+      driver_compile_phase_timing_flush();
+    }
+    return 0 - 6;
+  }
+  if (pipeline_run_x_pipeline_codegen_entry(module, arena, out_buf, ctx) != 0) {
+    unsafe {
+      driver_compile_phase_timing_end(2);
+      driver_compile_phase_timing_flush();
+    }
+    return 0 - 6;
+  }
+  unsafe {
+    driver_compile_phase_timing_end(2);
+    driver_compile_phase_timing_flush();
+  }
+  return 0;
 }
 
 /**

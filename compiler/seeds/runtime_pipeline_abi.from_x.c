@@ -4943,6 +4943,213 @@ int32_t pipeline_resolve_path_try_entry_dir(void *ctx, uint8_t *import_path, int
   return wave105_try_entry_dir(ctx, import_path, path_len);
 }
 
+/* wave307: pipeline.x residual thin / run_x orch product faces pure leave cold twins.
+ * PLATFORM: SHARED — only under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X (enclosing).
+ * Prefer pure owns STRONG product non-_c faces; cold thin→Cap _c. */
+extern void driver_compile_phase_timing_begin(int32_t phase);
+extern void driver_compile_phase_timing_end(int32_t phase);
+extern void driver_compile_phase_timing_flush(void);
+extern void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len);
+extern int32_t driver_check_only_get(void);
+extern int32_t driver_x_pipeline_skip_codegen_get(void);
+extern int32_t pipeline_dep_ctx_asm_entry_module_only(struct ast_PipelineDepCtx *ctx);
+extern int32_t run_x_pipeline_last_rc_get(void);
+extern int32_t pipeline_should_skip_x_typeck_c(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_parse_apply_main_from_scalars_c(struct ast_Module *module, struct ast_ASTArena *arena);
+extern int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                   uint8_t *data, int32_t len);
+extern int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                 struct ast_PipelineDepCtx *ctx, int32_t fail_mapped);
+extern int32_t pipeline_typeck_entry_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                              struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_load_import_resolve_read_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
+                                                   int32_t import_idx);
+extern int32_t pipeline_load_one_import_slot_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                               struct ast_PipelineDepCtx *ctx, int32_t import_idx);
+extern int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                           struct ast_PipelineDepCtx *ctx);
+extern int32_t lsp_diag_parse_entry_buf_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                          uint8_t *source_data, int32_t source_len);
+extern int32_t lsp_diag_typeck_after_load_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                            struct ast_PipelineDepCtx *ctx);
+extern int32_t run_x_pipeline_parse_entry_do_parse_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                     uint8_t *source_data, size_t source_len,
+                                                     struct ast_PipelineDepCtx *ctx);
+extern int32_t run_x_pipeline_parse_entry_if_needed_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                      uint8_t *source_data, size_t source_len,
+                                                      struct ast_PipelineDepCtx *ctx);
+extern int32_t run_x_pipeline_load_deps_after_parse_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                      struct ast_PipelineDepCtx *ctx);
+extern int32_t run_x_pipeline_typecheck_after_load_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                     struct ast_PipelineDepCtx *ctx);
+extern int32_t run_x_pipeline_typecheck_entry_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                struct ast_PipelineDepCtx *ctx);
+extern int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
+                                                     int32_t dep_j);
+extern int32_t run_x_pipeline_codegen_one_dep_c(struct ast_Module *module, void *out_buf,
+                                                struct ast_PipelineDepCtx *ctx, int32_t dep_j,
+                                                int32_t skip_asm_dep_codegen);
+extern int32_t run_x_pipeline_codegen_deps_c(struct ast_Module *module, struct ast_ASTArena *arena, void *out_buf,
+                                             struct ast_PipelineDepCtx *ctx, int32_t skip_asm_dep_codegen);
+extern int32_t pipeline_prepare_dep_codegen_path_c(struct ast_PipelineDepCtx *ctx, int32_t dep_j, uint8_t *dst);
+extern int32_t pipeline_finish_dep_codegen_diag_c(int32_t dep_j, void *out_buf);
+extern int32_t run_x_pipeline_codegen_entry_c(struct ast_Module *module, struct ast_ASTArena *arena, void *out_buf,
+                                              struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_should_skip_x_typeck(void *ctx) {
+  return pipeline_should_skip_x_typeck_c((struct ast_PipelineDepCtx *)ctx);
+}
+size_t pipeline_loaded_buf_cap(void) {
+  return (size_t)4194304;
+}
+int32_t pipeline_parse_apply_main_from_scalars(void *module, void *arena) {
+  return pipeline_parse_apply_main_from_scalars_c((struct ast_Module *)module,
+                                                  (struct ast_ASTArena *)arena);
+}
+int32_t pipeline_parse_set_main_from_buf(void *module, void *arena, uint8_t *data, int32_t len) {
+  return pipeline_parse_set_main_from_buf_c((struct ast_Module *)module, (struct ast_ASTArena *)arena,
+                                            data, len);
+}
+int32_t pipeline_typeck_parsed_module(void *module, void *arena, void *ctx, int32_t fail_mapped) {
+  return pipeline_typeck_parsed_module_c((struct ast_Module *)module, (struct ast_ASTArena *)arena,
+                                         (struct ast_PipelineDepCtx *)ctx, fail_mapped);
+}
+int32_t pipeline_typeck_entry_module(void *module, void *arena, void *ctx) {
+  return pipeline_typeck_entry_module_c((struct ast_Module *)module, (struct ast_ASTArena *)arena,
+                                        (struct ast_PipelineDepCtx *)ctx);
+}
+int32_t pipeline_load_import_resolve_read(void *module, void *ctx, int32_t import_idx) {
+  return pipeline_load_import_resolve_read_c((struct ast_Module *)module,
+                                             (struct ast_PipelineDepCtx *)ctx, import_idx);
+}
+/* load_import_from_disk / sync_dep_slots WEAK twins also exist at EOF #ifndef FROM_X. */
+int32_t pipeline_load_one_import_slot(void *module, void *arena, void *ctx, int32_t import_idx) {
+  return pipeline_load_one_import_slot_c((struct ast_Module *)module, (struct ast_ASTArena *)arena,
+                                         (struct ast_PipelineDepCtx *)ctx, import_idx);
+}
+int32_t pipeline_load_and_sync_direct_import_deps(void *module, void *arena, void *ctx) {
+  return pipeline_load_and_sync_direct_import_deps_c((struct ast_Module *)module,
+                                                     (struct ast_ASTArena *)arena,
+                                                     (struct ast_PipelineDepCtx *)ctx);
+}
+int32_t pipeline_lsp_diag_parse_entry_buf(void *module, void *arena, uint8_t *source_data,
+                                          int32_t source_len) {
+  return lsp_diag_parse_entry_buf_c((struct ast_Module *)module, (struct ast_ASTArena *)arena,
+                                    source_data, source_len);
+}
+int32_t pipeline_lsp_diag_typeck_after_load(void *module, void *arena, void *ctx) {
+  return lsp_diag_typeck_after_load_c((struct ast_Module *)module, (struct ast_ASTArena *)arena,
+                                      (struct ast_PipelineDepCtx *)ctx);
+}
+int32_t pipeline_run_x_pipeline_parse_entry_do_parse(void *module, void *arena, uint8_t *source_data,
+                                                     size_t source_len, void *ctx) {
+  return run_x_pipeline_parse_entry_do_parse_c((struct ast_Module *)module,
+                                               (struct ast_ASTArena *)arena, source_data, source_len,
+                                               (struct ast_PipelineDepCtx *)ctx);
+}
+int32_t pipeline_run_x_pipeline_parse_entry_if_needed(void *module, void *arena, uint8_t *source_data,
+                                                      size_t source_len, void *ctx) {
+  return run_x_pipeline_parse_entry_if_needed_c((struct ast_Module *)module,
+                                                (struct ast_ASTArena *)arena, source_data, source_len,
+                                                (struct ast_PipelineDepCtx *)ctx);
+}
+int32_t pipeline_run_x_pipeline_load_deps_after_parse(void *module, void *arena, void *ctx) {
+  return run_x_pipeline_load_deps_after_parse_c((struct ast_Module *)module,
+                                                (struct ast_ASTArena *)arena,
+                                                (struct ast_PipelineDepCtx *)ctx);
+}
+int32_t pipeline_run_x_pipeline_typecheck_after_load(void *module, void *arena, void *ctx) {
+  return run_x_pipeline_typecheck_after_load_c((struct ast_Module *)module,
+                                               (struct ast_ASTArena *)arena,
+                                               (struct ast_PipelineDepCtx *)ctx);
+}
+int32_t pipeline_run_x_pipeline_typecheck_entry(void *module, void *arena, void *ctx) {
+  return run_x_pipeline_typecheck_entry_c((struct ast_Module *)module, (struct ast_ASTArena *)arena,
+                                          (struct ast_PipelineDepCtx *)ctx);
+}
+int32_t pipeline_run_x_pipeline_fill_dep_import_path(void *module, void *ctx, int32_t dep_j) {
+  return run_x_pipeline_fill_dep_import_path_c((struct ast_Module *)module,
+                                               (struct ast_PipelineDepCtx *)ctx, dep_j);
+}
+int32_t pipeline_run_x_pipeline_codegen_one_dep(void *module, void *out_buf, void *ctx, int32_t dep_j,
+                                                int32_t skip_asm_dep_codegen) {
+  return run_x_pipeline_codegen_one_dep_c((struct ast_Module *)module, out_buf,
+                                          (struct ast_PipelineDepCtx *)ctx, dep_j,
+                                          skip_asm_dep_codegen);
+}
+int32_t pipeline_run_x_pipeline_codegen_deps(void *module, void *arena, void *out_buf, void *ctx,
+                                             int32_t skip_asm_dep_codegen) {
+  return run_x_pipeline_codegen_deps_c((struct ast_Module *)module, (struct ast_ASTArena *)arena,
+                                       out_buf, (struct ast_PipelineDepCtx *)ctx,
+                                       skip_asm_dep_codegen);
+}
+int32_t pipeline_prepare_dep_codegen_path(void *ctx, int32_t dep_j, uint8_t *dst) {
+  return pipeline_prepare_dep_codegen_path_c((struct ast_PipelineDepCtx *)ctx, dep_j, dst);
+}
+int32_t pipeline_finish_dep_codegen_diag(int32_t dep_j, void *out_buf) {
+  return pipeline_finish_dep_codegen_diag_c(dep_j, out_buf);
+}
+int32_t pipeline_run_x_pipeline_codegen_entry(void *module, void *arena, void *out_buf, void *ctx) {
+  return run_x_pipeline_codegen_entry_c((struct ast_Module *)module, (struct ast_ASTArena *)arena,
+                                        out_buf, (struct ast_PipelineDepCtx *)ctx);
+}
+/* pipeline_run_x_pipeline_impl cold: compose Cap product faces (prefer pure owns STRONG). */
+int32_t pipeline_run_x_pipeline_impl(void *module, void *arena, uint8_t *source_data, size_t source_len,
+                                     void *out_buf, void *ctx) {
+  int32_t rc;
+  int32_t check_only;
+  int32_t skip_cg;
+  int32_t asm_only;
+  if (!module || !arena || !out_buf || !ctx)
+    return -1;
+  driver_compile_phase_timing_begin(0);
+  if (pipeline_run_x_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0) {
+    driver_compile_phase_timing_end(0);
+    driver_compile_phase_timing_flush();
+    return -2;
+  }
+  if (pipeline_run_x_pipeline_load_deps_after_parse(module, arena, ctx) != 0) {
+    driver_compile_phase_timing_end(0);
+    driver_compile_phase_timing_flush();
+    return run_x_pipeline_last_rc_get();
+  }
+  driver_compile_phase_timing_end(0);
+  driver_compile_phase_timing_begin(1);
+  if (pipeline_run_x_pipeline_typecheck_after_load(module, arena, ctx) != 0) {
+    driver_compile_phase_timing_end(1);
+    driver_compile_phase_timing_flush();
+    return run_x_pipeline_last_rc_get();
+  }
+  driver_compile_phase_timing_end(1);
+  check_only = driver_check_only_get();
+  skip_cg = driver_x_pipeline_skip_codegen_get();
+  if (check_only != 0) {
+    driver_compile_phase_timing_flush();
+    return 0;
+  }
+  if (skip_cg != 0) {
+    driver_compile_phase_timing_flush();
+    return 0;
+  }
+  codegen_out_buf_set_len(out_buf, 0);
+  driver_diagnostic_before_codegen(pipeline_module_num_funcs((struct ast_Module *)module), 0);
+  driver_compile_phase_timing_begin(2);
+  asm_only = pipeline_dep_ctx_asm_entry_module_only((struct ast_PipelineDepCtx *)ctx);
+  if (pipeline_run_x_pipeline_codegen_deps(module, arena, out_buf, ctx, asm_only) != 0) {
+    driver_compile_phase_timing_end(2);
+    driver_compile_phase_timing_flush();
+    return -6;
+  }
+  if (pipeline_run_x_pipeline_codegen_entry(module, arena, out_buf, ctx) != 0) {
+    driver_compile_phase_timing_end(2);
+    driver_compile_phase_timing_flush();
+    return -6;
+  }
+  driver_compile_phase_timing_end(2);
+  driver_compile_phase_timing_flush();
+  (void)rc;
+  return 0;
+}
+
 int32_t pipeline_resolve_path_x_impl_c(void *ctx, uint8_t *import_path, int32_t path_len) {
   int32_t r;
   int32_t n_lib;
