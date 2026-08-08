@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual polyfill **gen／labi wave311–313 + runtime／fmt thin wave315** · 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**产品仍 pin typeck_gen／runtime mega full seed**（M4 ⬜）；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual **gen／labi wave311–313 + runtime／fmt thin wave315 + pipeline_gen sole dual wave316** · 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**产品仍 pin typeck_gen／runtime mega full seed**（M4 ⬜；typeck re-pin **三层地图** 见 7.4.1）；**只改勾选与事实 LOC**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -758,9 +758,10 @@
 
 ⬜ **7.4.1 typeck 去 pin**
 
-  - 当前：`compiler/typeck_gen.c` + `seeds/typeck_gen.linux.x86_64.c`（~490kB 级）为产品/冷启动权威孪生
+  - 当前：`compiler/typeck_gen.c` + `seeds/typeck_gen.linux.x86_64.c`（~821kB pin）为产品/冷启动权威孪生
   - **全量 `-E` 已绿**（typeck OK · ~725kB）；仍须 re-pin 产品 twin + 冷链不读 pin 才关本项
-  - 目标：`typeck_x.o` 仅由 `src/typeck/typeck.x`（+ empty_surface 策略若仍需） regen；pin 仅考古
+  - **wave316 地图（禁盲 tip `-E` 覆盖 pin）**：tip pure-ld 红因三层残差——① Cap residual BSS／CTFE faces（typeck.x 仍 `export extern`；pin L13107–14390 级）；② tip X-mangle 调用（`*_c_ASTArena_ptr_…`）vs 产品 short C 名（需 ~22 alias）；③ pin-only short `pipeline_typeck_*`／glue 面（~106 T，**不在** `runtime_pipeline_abi`）。实施路径：Cap residual TU + mangle alias + short-face residual 入链后再 re-pin／ld -r
+  - 目标：`typeck_x.o` 仅由 `src/typeck/typeck.x`（+ residual／alias 策略若仍需） regen；pin 仅考古
 
 ⬜ **7.4.2 codegen 去 pin**
 
@@ -860,6 +861,7 @@
 
   - pipeline：src/pipeline/pipeline.x · post = `check_pipeline_gen_expr_i64_abi.sh`
   - **wave310（2026-08-08）**：`seeds/pipeline_gen.linux.x86_64.c` **re-pin** 对齐 tip residual shell（wave305–309 leave 后：无 dual WEAK orch 体；sole T＝weak `io_register_buffers_buf_c`；live STRONG＝`runtime_pipeline_abi`）。产品 pure-ld **不** host-cc pipeline_gen（wave309 已摘链）。**未** Track L 退役（仍 pin／seed／-E 考古 + gen_driver）
+  - **wave316（2026-08-09）**：sole dual `io_register_buffers_buf_c` WEAK→**extern-only**（monofile T **1→0**）。**未** Track L 退役
 
 ⬜ **8.2.12 token_gen.c** pinned（19 行 · seeds/token_gen.linux.x86_64.c）
 
