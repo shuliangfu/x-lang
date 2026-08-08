@@ -7855,7 +7855,7 @@ decl_kind: i32, init_kind: i32): i32 {
  * @param arena *ASTArena — expr/type pool
  * @param init_ref i32 — init expression ref (ADD/SUB/MUL/DIV/NEG)
  * @param decl_ty_ref i32 — declared type_ref to stamp
- * @param decl_kind i32 — TypeKind ordinal of decl (I32/I64/U*/F*/NAMED i8/i16/u16)
+ * @param decl_kind i32 — TypeKind ordinal of decl (I32/I64/U-star/F-star/NAMED i8/i16/u16)
  * @param init_kind i32 — ExprKind ordinal of init
  * @return i32 — 1 if stamped, 0 if not applicable
  * wave233 pure leave: body was residual int_binop_c; residual face thins here.
