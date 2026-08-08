@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=pipeline.x Cap-struct residual (parse_into_with_init_buf) or glue shell／typedefs／9×fwd／standalone floor (wave307 run_x／thin leave · present 13 · pipeline_x T≈2); L2 auth=./xbuild l2-matrix"
+  echo "NEXT=glue shell／typedefs／9×fwd／standalone floor (wave308 Cap-struct seed ALWAYS leave · present 13 · pipeline_x T≈1 io_register stub); L2 auth=./xbuild l2-matrix"
 }
 
 run_check() {
