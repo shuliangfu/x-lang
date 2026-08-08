@@ -85,7 +85,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_arena.c|8.3.2|ASTArena main-pool Cap residual pure-owned leave (wave276)|0|absent"
   "compiler/ast_pool_block.c|8.3.2|block domain Cap residual pure-owned leave via seed ALWAYS (wave277)|0|absent"
   "compiler/ast_pool_lifecycle.c|8.3.2|ast_pool lifecycle/reset/release domain (wave279 leave)|0|absent"
-  "compiler/ast_pool_ptr_at.c|8.3.2|ast_pool core ptr_at accessors (wave1278)|25|present"
+  "compiler/ast_pool_ptr_at.c|8.3.2|ast_pool core ptr_at dead leave (wave298; zero residual callers)|0|absent"
   "compiler/ast_pool_sidecar_pool.c|8.3.2|ast_pool sidecar pool Cap residual pure-owned leave (wave275)|0|absent"
   "compiler/ast_pool_typedefs.c|8.3.2|ast_pool early typedef domain (wave1278)|220|present"
   "compiler/ast_pool_type.c|8.3.2|ast_pool type pool Cap residual pure-owned leave (wave270)|0|absent"
@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave297 8.3.7 scripts stubs seed leave · present 15); candidate: glue shells／typedefs／9×fwd"
+  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave298 ptr_at dead leave · present 14); floor: glue shells／typedefs／9×fwd／strict_minimal seed twin; candidate: 8.3.6 strict_minimal or pipeline.x thin residual"
 }
 
 run_check() {
