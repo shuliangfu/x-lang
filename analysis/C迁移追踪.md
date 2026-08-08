@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-08（对照 tip residual：glue／ast_pool host 壳 + 域叶 thin／leave；bc-inventory present residual **27**／ROWS=124 · wave287 parser_result leave 后；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-08（对照 tip residual：glue／ast_pool host 壳 + 域叶 thin／leave；bc-inventory present residual **27**／ROWS=125 · label_format seed ALWAYS leave 后；**只改勾选与事实 LOC**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -34,7 +34,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-08 实测**）：`pipeline_glue.c` 仍 host 编排壳 + domain `#include`；`ast_pool.c` 纯 `#include` 编排。**bc-inventory 诚实**：present residual product C rows **27**（ROWS=124；wave287 parser_result seed ALWAYS leave 后；wave286 typeck_check_expr／wave285 typeck_orch／wave284 parse_orch／wave283 forwarders／wave282 bootstrap_glue 亦 absent；onefunc／module_func／lifecycle／expr_sidecar／block／arena／sidecar_pool／WPO 等更早 absent）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + 多叶 leave（含 …→typeck_check_expr／parser_result）**；**8.3.3 field_access／soa + typeck_slots + scratch／loop_glue leave** · 父项仍 🟡（pipeline_x mega 未离；**下刀 glue 壳／typedefs**）；**8.3.4 bootstrap_glue ✅ leave** · orchestration 仍 ⬜；**8.3.5–8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。**BC 终局（离 host-cc）仍 ⬜** |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-08 实测**）：`pipeline_glue.c` 仍 host 编排壳 + domain `#include`；`ast_pool.c` 纯 `#include` 编排。**bc-inventory 诚实**：present residual product C rows **27**（ROWS=125；label_format seed ALWAYS leave 后；parser_result／typeck_check_expr／typeck_orch／parse_orch／forwarders／bootstrap_glue 等亦 absent）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + 多叶 leave（含 …→parser_result／label_format）**；**8.3.3 field_access／soa + typeck_slots + scratch／loop_glue leave** · 父项仍 🟡（pipeline_x mega 未离；**下刀 codegen_outbuf／glue 壳／typedefs**）；**8.3.4 bootstrap_glue ✅ leave** · orchestration 仍 ⬜；**8.3.5–8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。**BC 终局（离 host-cc）仍 ⬜** |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 **`36363b90f`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -924,6 +924,8 @@
 | `pipeline_typeck_orch.c` | **0（deleted）** | typeck orch 域 Cap residual thin | ✅ **seed ALWAYS leave**（wave285 · 2026-08-08）；live＝runtime_pipeline_abi seed ALWAYS（thin typeck_x_ast*_c + layout glue）；pure 拥有 soft_suppress／dep_ctx／dep_prerun 强符号；host 叶已删；present **27**（LOC−mega）；**双端 L2 绿** |
 | `pipeline_typeck_check_expr.c` | **0（deleted）** | typeck check_expr 域 Cap residual thin | ✅ **seed ALWAYS leave**（wave286 · 2026-08-08）；live＝runtime_pipeline_abi seed ALWAYS（dispatch + match BSS + thin faces）；typeck.x 拥有 live typeck_check_expr_*；host 叶已删；present **27**（LOC−mega）；**双端 L2 绿** |
 | `pipeline_parser_result.c` | **0（deleted）** | parser result copy/lex/slice Cap residual | ✅ **seed ALWAYS leave**（wave287 · 2026-08-08）；live＝runtime_pipeline_abi seed ALWAYS（slice／lex／result-copy faces + product LE layouts）；host 叶已删；present **27**（LOC−mega；ROWS 123→124）；**双端 L2 绿** |
+| `pipeline_asm_label_format.c` | **0（deleted）** | asm label format Cap residual（format_u32／i32 + emit_next_label + format_label_id） | ✅ **seed ALWAYS leave**（wave288 · 2026-08-08）；live＝runtime_pipeline_abi seed ALWAYS；deps ctx_layout + label_mod_scope_active；dual-export ban（pipeline_abi T · pipeline_x U）；host 叶已删；present **27**（LOC−mega；ROWS 124→125）；**双端 L2 绿** |
+| `pipeline_codegen_outbuf.c` | **~368** | C-backend CodegenOutBuf append + float_lit + try_propagate + slice_init_from_array | 🟡 **仍 host-cc** 同 TU `#include` 入 pipeline_glue；下刀候选 |
 | `pipeline_typeck_coerce_init.c` | 0 | typeck coerce-init Cap residual retired (wave258) | ✅ host-cc leave；权威 typeck_x.o thin→coerce／type_refs／widen／ret_coerce／int_lit／assign-kind；float_bits → ast_pool_arena |
 | `pipeline_typeck_method_call.c` | 0 | typeck method_call Cap residual retired (wave260) | ✅ host-cc leave；Cap faces typeck_x.o：method_call_c／apply_call_resolve／import thin；call-resolve + METHOD_CALL accessors＝ast_pool_expr_sidecar |
 | `pipeline_typeck_check_block.c` | 0 | typeck check_block Cap residual retired (wave259) | ✅ host-cc leave；权威 typeck_x.o：ctx／depth／linear／has_implicit／check_block*_c Cap + pure BSS；walker＝`typeck_check_block*` |
