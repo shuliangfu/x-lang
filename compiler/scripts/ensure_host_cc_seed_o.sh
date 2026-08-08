@@ -387,6 +387,18 @@ _DEFAULT_PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS"
 # PLATFORM: SHARED — aligned with Makefile PARSER_ASM_THIN_GLUE_CFLAGS + -I paths.
 _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm"
 
+# wave326: M4 7.3.1 link_abi mega pin close — prefer 12× labi_*.x slices by default.
+# Product authority: L0..L9 + L8b + L8c labi_*.x prefer → per-slice .o →
+#   $CC -r -nostdlib merge → src/runtime_link_abi.o; -D XLANG_LABI_*_FROM_X only
+#   on slices that preferred .x (rest compiled from mega seed with those gates).
+# Pin seed (seeds/runtime_link_abi.from_x.c + seeds/labi_*.from_x.c) is
+#   archaeology egg only (true cold / no product xlang binary).
+# PLATFORM: SHARED — cold start (R1_CORE_SEED direct call) + g05 daily path
+#   now aligned (no more "g05 PREFER=1 vs direct call PREFER=0" dual policy).
+# Aligned with wave322 typeck / wave323 codegen / wave325 parser FROM_X defaults.
+XLANG_LINK_ABI_FROM_X="${XLANG_LINK_ABI_FROM_X:-1}"
+XLANG_LINK_ABI_ALLOW_PIN="${XLANG_LINK_ABI_ALLOW_PIN:-1}"
+
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
   echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-cfg-eval-ladder|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
@@ -1487,7 +1499,9 @@ labi_prefer_try_x_to_o() {
 # $1=label $2=x $3=seed $4=out_tmp  → 0 if layer .o ready.
 labi_prefer_layer() {
   local label="$1" x_src="$2" seed="$3" out_tmp="$4"
-  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  # wave326: XLANG_LINK_ABI_FROM_X is the new pin-close default;
+  # XLANG_G05_PREFER_X_O remains as legacy g05-wide escape hatch.
+  local prefer="${XLANG_LINK_ABI_FROM_X:-${XLANG_G05_PREFER_X_O:-0}}"
   if [ "$prefer" = "1" ] && [ -f "$x_src" ]; then
     if labi_prefer_try_x_to_o "$x_src" "$out_tmp"; then
       log "labi $label ← $x_src (prefer .x)"
@@ -1508,7 +1522,10 @@ ensure_labi_prefer_one() {
   # Prefer multi-slice or cold full seed for src/runtime_link_abi.o (no membership check).
   local o="$1"
   local seed="seeds/runtime_link_abi.from_x.c"
-  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  # wave326: XLANG_LINK_ABI_FROM_X is the pin-close default (1 = labi_*.x authoritative);
+  # XLANG_G05_PREFER_X_O remains as legacy g05-wide escape. ALLOW_PIN=1 keeps
+  # true-cold egg path: if no xlang binary → compile full seed as archaeology fallback.
+  local prefer="${XLANG_LINK_ABI_FROM_X:-${XLANG_G05_PREFER_X_O:-0}}"
   local stale=0 done=0
   local l0_o l1_o l2_o l3_o l4_o l5_o l6_o l7_o l8_o l8b_o l8c_o l9_o rest_o
   local l0_ok=0 l1_ok=0 l2_ok=0 l3_ok=0 l4_ok=0 l5_ok=0 l6_ok=0 l7_ok=0
