@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=BC 8.3 floor closed + wave312 codegen/parser mega monofile dual WEAK leave (present 0); residual host-cc = runtime seeds + typeck full -E T001; BC 终局 still ⬜"
+  echo "NEXT=BC 8.3 floor closed + wave313 cfg_eval/labi surface monofile dual WEAK leave (present 0); residual host-cc = runtime mega seeds + typeck full -E T001; BC 终局 still ⬜"
 }
 
 run_check() {
