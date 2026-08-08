@@ -763,8 +763,9 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
      * parent binops do not erase the site (scale(c0,c1)-K would become 0).
      */
     {
-      const char *wpo_mono = link_abi_getenv("XLANG_WPO_MONO");
-      const char *wpo_nofold = link_abi_getenv("XLANG_WPO_NO_FOLD");
+      /* PLATFORM: SHARED — tip/product face is uint8_t *; cast for gcc -Werror=incompatible-pointer-types (Ubuntu). */
+      const char *wpo_mono = (const char *)link_abi_getenv((uint8_t *)"XLANG_WPO_MONO");
+      const char *wpo_nofold = (const char *)link_abi_getenv((uint8_t *)"XLANG_WPO_NO_FOLD");
       if ((wpo_mono && wpo_mono[0]) || (wpo_nofold && wpo_nofold[0]))
         return;
     }
@@ -783,7 +784,7 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
      * pick(i64)) and wrongly CTFE-folds the i64 call site -> types/overload exit 2. */
     fi = pipeline_expr_call_resolved_func_index_at(a, expr_ref);
     if (fi < 0)
-      fi = glue_module_func_index_by_name_c(mod, cname, clen);
+      fi = glue_module_func_index_by_name_c((uint8_t *)mod, cname, clen);
     if (fi < 0)
       return;
 
@@ -892,7 +893,7 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
       /* PLATFORM: SHARED — same overload rule as outer CALL fold above. */
       inner_fi = pipeline_expr_call_resolved_func_index_at(a, inner_call_ref);
       if (inner_fi < 0)
-        inner_fi = glue_module_func_index_by_name_c(mod, iname, ilen);
+        inner_fi = glue_module_func_index_by_name_c((uint8_t *)mod, iname, ilen);
       if (inner_fi < 0)
         return;
       if (glue_fold_func_returns_param01_vector_binop_ctfe_c(a, mod, inner_fi, &binop_ko) == 0)
