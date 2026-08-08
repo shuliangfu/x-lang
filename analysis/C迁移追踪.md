@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual **gen／labi wave311–313 + runtime／fmt thin wave315 + pipeline_gen sole dual wave316** · 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**产品仍 pin typeck_gen／runtime mega full seed**（M4 ⬜；typeck re-pin **三层地图** 见 7.4.1）；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual **gen／labi wave311–313 + runtime／fmt thin wave315 + pipeline_gen sole dual wave316** · **typeck M4 re-pin 三层**（tip `-E`＋Cap residual＋mangle alias＋short-face inject；产品 twin 已换 tip 基）· 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**产品仍 pin typeck_gen twin／runtime mega full seed**（M4 关 pin ⬜；见 7.4.1）；**只改勾选与事实 LOC**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -756,11 +756,12 @@
 
 > **为何独立成 7.4**：M1–M3 历史只拆 runtime/parser/link_abi 三 mega；但产品 L4 链上 **`typeck_gen.c` / `codegen_gen.c` pin** 与 `.x` 双权威问题同等严重（改 `.x` 不改 seed = 假绿）。删 Makefile 前必须可「上一代 xlang 直接编 typeck.x/codegen.x」而不读 pin。
 
-⬜ **7.4.1 typeck 去 pin**
+🟡 **7.4.1 typeck 去 pin**
 
-  - 当前：`compiler/typeck_gen.c` + `seeds/typeck_gen.linux.x86_64.c`（~821kB pin）为产品/冷启动权威孪生
-  - **全量 `-E` 已绿**（typeck OK · ~725kB）；仍须 re-pin 产品 twin + 冷链不读 pin 才关本项
-  - **wave316 地图（禁盲 tip `-E` 覆盖 pin）**：tip pure-ld 红因三层残差——① Cap residual BSS／CTFE faces（typeck.x 仍 `export extern`；pin L13107–14390 级）；② tip X-mangle 调用（`*_c_ASTArena_ptr_…`）vs 产品 short C 名（需 ~22 alias）；③ pin-only short `pipeline_typeck_*`／glue 面（~106 T，**不在** `runtime_pipeline_abi`）。实施路径：Cap residual TU + mangle alias + short-face residual 入链后再 re-pin／ld -r
+  - 当前：`compiler/typeck_gen.c` + `seeds/typeck_gen.linux.x86_64.c`（~794kB twin）为产品/冷启动权威孪生
+  - **全量 `-E` 已绿**（typeck OK · ~725kB）
+  - **产品 twin 已 re-pin 到 tip 基**（三层 companion 同 commit）：① Cap residual `seeds/typeck_cap_residual.from_x.c`（BSS＋CTFE）② mangle alias `seeds/typeck_mangle_link_alias.from_x.c`（21 面）③ short-face `#define` inject `seeds/typeck_short_face_alias.from_x.c`（bare `ast_block_*`→`ast_ast_*`）。**禁**盲 tip `-E` 覆盖 twin
+  - 仍 ⬜：冷链不读 pin／仅 `typeck.x` regen 关 M4；残 companion 逐步 fold 进 `.x`
   - 目标：`typeck_x.o` 仅由 `src/typeck/typeck.x`（+ residual／alias 策略若仍需） regen；pin 仅考古
 
 ⬜ **7.4.2 codegen 去 pin**
@@ -833,7 +834,7 @@
 ⬜ **8.2.4 typeck_gen.c** pinned（Makefile L2172）
 
   - 前端核心：src/typeck/typeck.x
-  - **全量 `-E` typeck OK**（L003＋T001 已清；产品链仍 pin `seeds/typeck_gen.linux.x86_64.c` → **M4 去 pin ⬜**）
+  - **全量 `-E` typeck OK**（L003＋T001 已清）；产品 twin **已 re-pin tip 基**（三层 companion；见 7.4.1 🟡）→ **M4 关 pin 仍 ⬜**
   - monofile dual WEAK polyfill → extern-only 已做（live STRONG＝`runtime_pipeline_abi`）。**未** Track L 退役
 
 ⬜ **8.2.5 codegen_gen.c** pinned（Makefile L2199）
