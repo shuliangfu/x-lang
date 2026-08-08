@@ -10370,7 +10370,8 @@ name_len: i32): i32 {
     let fnl: i32 = 0;
     let j: i32 = 0;
     let bi: i32 = 0;
-    let match: i32 = 0;
+    /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
+    let name_eq: i32 = 0;
     let fnm: u8[128] = [];
     if (module == 0 as *Module || arena == 0 as *ASTArena || name == 0 as *u8 || name_len <= 0) {
       return 0;
@@ -10393,15 +10394,15 @@ name_len: i32): i32 {
     while (k < nsl) {
       fl = pipeline_module_struct_layout_name_len(module, k);
       if (fl == tnl) {
-        match = 1;
+        name_eq = 1;
         bi = 0;
-        while (bi < fl && match != 0) {
+        while (bi < fl && name_eq != 0) {
           if (pipeline_module_struct_layout_name_byte_at(module, k, bi) != tnm[bi]) {
-            match = 0;
+            name_eq = 0;
           }
           bi = bi + 1;
         }
-        if (match != 0) {
+        if (name_eq != 0) {
           nf = pipeline_module_struct_layout_num_fields(module, k);
           fi = 0;
           while (fi < nf) {
@@ -10413,15 +10414,15 @@ name_len: i32): i32 {
                 j = j + 1;
               }
               pipeline_module_struct_layout_field_name_into(module, k, fi, &fnm[0]);
-              match = 1;
+              name_eq = 1;
               j = 0;
-              while (j < fnl && match != 0) {
+              while (j < fnl && name_eq != 0) {
                 if (fnm[j] != name[j]) {
-                  match = 0;
+                  name_eq = 0;
                 }
                 j = j + 1;
               }
-              if (match != 0) {
+              if (name_eq != 0) {
                 return pipeline_module_struct_layout_field_type_ref(module, k, fi);
               }
             }
