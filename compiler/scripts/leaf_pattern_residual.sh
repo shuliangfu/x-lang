@@ -1355,7 +1355,7 @@ B7B_RELINK_LEGACY_LIST_WAVE=wave822
 #   asm_emit_block_body (wave153 pure leave) +
 #   ast_pool_module_import(leave263) + ast_pool_struct_layout(leave266) + pipeline_asm_locals(leave267) + pipeline_asm_slot_bytes(leave268) + pipeline_asm_block_tree(leave269) + ast_pool_type(leave270) + pipeline_grow_vec(leave271) +
 #   ast_pool_top_level(leave265) + ast_pool_type_alias(leave262) +
-#   ast_pool_expr_sidecar + ast_pool_module_enum(leave264) +
+#   ast_pool_expr_sidecar(leave278) + ast_pool_module_enum(leave264) +
 #   ast_pool_onefunc + ast_pool_dep_ctx(leave272) + ast_pool_module_func + ast_pool_arena +
 #   ast_pool_block) into PIPELINE_X_DEPS STALE.
 # NOT physical delete — thin edges + std_core product make graph remain.
@@ -9378,8 +9378,12 @@ if [ -f "$ROOT/compiler/ast_pool_struct_layout.c" ]; then
 fi
 # wave265: ast_pool_top_level.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
 # wave262: ast_pool_type_alias.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
-if ! grep -qE 'ast_pool_expr_sidecar\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_expr_sidecar.c (8.3.2 expr_sidecar slice)"
+# wave278: ast_pool_expr_sidecar.c host-cc leave — must NOT list in PIPELINE_X_DEPS.
+if [ -f "$ROOT/compiler/ast_pool_expr_sidecar.c" ]; then
+  bad "ast_pool_expr_sidecar.c must be deleted (wave278 host-cc leave)"
+fi
+if grep -qE 'ast_pool_expr_sidecar\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_expr_sidecar.c (wave278 host-cc leave)"
 fi
 # wave264: ast_pool_module_enum.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
 if ! grep -qE 'ast_pool_onefunc\.c' "$_XSD_MK"; then

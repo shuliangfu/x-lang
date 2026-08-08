@@ -578,7 +578,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     _glue_slice_stale=0
     # wave263: drop ast_pool_module_import.c (pure leave). wave261: drop glue_statics + ctx_layout.
     for _gs in pipeline_glue_early_fwd.c pipeline_glue_mid_fwd.c pipeline_glue_backend_fwd.c pipeline_glue_typeck_fwd.c pipeline_glue_typeck_mid_fwd.c pipeline_glue_emit_fwd.c pipeline_glue_emit_block_fwd.c pipeline_glue_emit_lea_fwd.c pipeline_glue_emit_mid_fwd.c \
-      ast_pool_typedefs.c ast_pool_ptr_at.c ast_pool.c ast_pool_expr_sidecar.c ast_pool_onefunc.c ast_pool_module_func.c ast_pool_lifecycle.c ast_pool_bootstrap_glue.c; do
+      ast_pool_typedefs.c ast_pool_ptr_at.c ast_pool.c ast_pool_onefunc.c ast_pool_module_func.c ast_pool_lifecycle.c ast_pool_bootstrap_glue.c; do
       if [ -f "$_gs" ] && [ "$_gs" -nt pipeline_x.o ]; then
         _glue_slice_stale=1
         break

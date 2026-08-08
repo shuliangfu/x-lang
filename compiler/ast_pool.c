@@ -253,7 +253,7 @@ void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct as
 /** BC 8.3.2: OneFunc sidecar + fill_from_onefunc domain (wave984+991 same-TU thin). */
 #include "ast_pool_onefunc.c"
 /** BC 8.3.2: expr (+ type-pos) var-len sidecar domain (same-TU thin). */
-#include "ast_pool_expr_sidecar.c"
+/* wave278: ast_pool_expr_sidecar.c host leaf deleted — Cap residual in runtime_pipeline_abi seed ALWAYS. */
 
 /** BC 8.3.2: PipelineDepCtx cold accessors domain (same-TU thin). */
 /* wave272: ast_pool_dep_ctx.c pure-owned leave — authority runtime_pipeline_abi pure.

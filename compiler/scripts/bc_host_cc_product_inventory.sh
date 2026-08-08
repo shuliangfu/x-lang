@@ -77,7 +77,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_struct_layout.c|8.3.2|module StructLayout Cap residual pure-owned leave (wave266)|0|absent"
   "compiler/ast_pool_top_level.c|8.3.2|module TopLevelLetEntry Cap residual pure-owned leave (wave265)|0|absent"
   "compiler/ast_pool_type_alias.c|8.3.2|module TypeAliasEntry Cap residual pure-owned leave (wave262)|0|absent"
-  "compiler/ast_pool_expr_sidecar.c|8.3.2|expr (+ type-pos) var-len sidecar domain slice|620|present"
+  "compiler/ast_pool_expr_sidecar.c|8.3.2|expr (+ type-pos) var-len sidecar domain slice|0|absent"
   "compiler/ast_pool_module_enum.c|8.3.2|module ModuleEnumEntry Cap residual pure-owned leave (wave264)|0|absent"
   "compiler/ast_pool_onefunc.c|8.3.2|OneFunc sidecar + fill_from_onefunc residual (defer/labeled/if/region/stmt_order/whiles/fors) slice|900|present"
   "compiler/ast_pool_dep_ctx.c|8.3.2|PipelineDepCtx Cap residual pure-owned leave (wave272)|0|absent"
@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave277 block done · present 32); candidates: ast_pool_expr_sidecar or pipeline_x mega"
+  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave278 expr_sidecar done · present 31); candidates: ast_pool_lifecycle/onefunc/module_func or pipeline_x mega"
 }
 
 run_check() {
