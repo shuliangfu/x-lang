@@ -32,7 +32,7 @@
 #   wave265 top_level leave; wave264 module_enum leave; wave263 module_import leave;
 #   wave262 type_alias leave).
 #   8.3.1+8.3.2: residual #include slices still in PIPELINE_X_DEPS (
-#     expr_sidecar/onefunc/dep_ctx/module_func leave wave280 · arena/block +
+#     expr_sidecar/onefunc/dep_ctx/module_func leave wave280 · onefunc leave wave281 · arena/block +
 #     elf_ctx/write_o + glue shells + asm wpo + grow_vec/
 #     typedefs/sidecar/ptr_at/bootstrap (lifecycle leave wave279)).
 
@@ -53,4 +53,4 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 PIPELINE_ASM_X_DEPS = $(wildcard src/asm/*.x src/asm/platform/*.x src/asm/arch/*.x)
 
 # pipeline_x.o / pipeline_gen STALE set: frontend .x chain + glue/pool C + asm tree.
-PIPELINE_X_DEPS = src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x $(PIPELINE_ASM_X_DEPS) pipeline_glue.c pipeline_glue_early_fwd.c pipeline_glue_mid_fwd.c pipeline_glue_backend_fwd.c pipeline_glue_typeck_fwd.c pipeline_glue_typeck_mid_fwd.c pipeline_glue_emit_fwd.c pipeline_glue_emit_block_fwd.c ast_pool_typedefs.c ast_pool_ptr_at.c ast_pool.c ast_pool_onefunc.c ast_pool_bootstrap_glue.c
+PIPELINE_X_DEPS = src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x $(PIPELINE_ASM_X_DEPS) pipeline_glue.c pipeline_glue_early_fwd.c pipeline_glue_mid_fwd.c pipeline_glue_backend_fwd.c pipeline_glue_typeck_fwd.c pipeline_glue_typeck_mid_fwd.c pipeline_glue_emit_fwd.c pipeline_glue_emit_block_fwd.c ast_pool_typedefs.c ast_pool_ptr_at.c ast_pool.c ast_pool_bootstrap_glue.c

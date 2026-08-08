@@ -562,6 +562,76 @@ typedef struct {
   GrowVec lib_root_lens;
 } DriverEmitSidecar;
 
+/* wave281: onefunc Cap faces live in runtime_pipeline_abi seed ALWAYS;
+ * host leaf deleted. Decls for residual same-TU callers (pipeline_x U only).
+ * PLATFORM: SHARED — dual-export ban. */
+int32_t pipeline_onefunc_append_const(uint8_t *out, uint8_t *name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);
+int32_t pipeline_onefunc_append_const_name(uint8_t *out, uint8_t *name, int32_t name_len, int32_t init_val);
+int32_t pipeline_onefunc_const_init_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_const_type_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_const_name_len(uint8_t *out, int32_t i);
+uint8_t pipeline_onefunc_const_name_byte_at(uint8_t *out, int32_t i, int32_t off);
+int32_t pipeline_onefunc_const_init_val(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_num_consts(uint8_t *out);
+int32_t pipeline_onefunc_append_let(uint8_t *out, uint8_t *name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);
+int32_t pipeline_onefunc_let_name_len(uint8_t *out, int32_t i);
+uint8_t pipeline_onefunc_let_name_byte_at(uint8_t *out, int32_t i, int32_t off);
+int32_t pipeline_onefunc_let_init_val(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_let_init_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_let_type_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_num_lets(uint8_t *out);
+int32_t pipeline_onefunc_append_param(uint8_t *out, uint8_t *name, int32_t name_len, int32_t type_ref);
+void pipeline_onefunc_set_param_type_ref(uint8_t *out, int32_t i, int32_t type_ref);
+int32_t pipeline_onefunc_param_name_len(uint8_t *out, int32_t i);
+uint8_t pipeline_onefunc_param_name_byte_at(uint8_t *out, int32_t i, int32_t off);
+void pipeline_onefunc_param_name_copy32(uint8_t *out, int32_t i, uint8_t *dst);
+int32_t pipeline_onefunc_param_type_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_num_params_from_pool(uint8_t *out);
+int32_t pipeline_onefunc_append_call_arg_val(uint8_t *out, int32_t val);
+int32_t pipeline_onefunc_call_arg_val_at(uint8_t *out, int32_t i);
+void pipeline_onefunc_reset_call_args(uint8_t *out);
+void pipeline_onefunc_copy_sidecar(uint8_t *dst, uint8_t *src);
+void pipeline_onefunc_const_name_copy64(uint8_t *out, int32_t i, uint8_t *dst);
+void pipeline_onefunc_let_name_copy64(uint8_t *out, int32_t i, uint8_t *dst);
+int32_t pipeline_onefunc_append_while(uint8_t *out, int32_t cond_ref, int32_t body_ref);
+int32_t pipeline_onefunc_while_cond_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_while_body_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_num_whiles(uint8_t *out);
+int32_t pipeline_onefunc_append_for(uint8_t *out, int32_t init_ref, int32_t cond_ref, int32_t step_ref, int32_t body_ref);
+int32_t pipeline_onefunc_for_init_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_for_cond_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_for_step_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_for_body_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_num_fors(uint8_t *out);
+int32_t pipeline_onefunc_append_defer(uint8_t *out, int32_t body_ref);
+int32_t pipeline_onefunc_num_defers(uint8_t *out);
+void pipeline_block_fill_defers_from_onefunc(void *a, int32_t br, uint8_t *out, int32_t count);
+int32_t pipeline_onefunc_append_labeled(uint8_t *out, uint8_t *label, int32_t label_len, int32_t is_goto, uint8_t *goto_target, int32_t goto_target_len, int32_t return_expr_ref);
+int32_t pipeline_onefunc_num_labeleds(uint8_t *out);
+void pipeline_block_fill_labeled_from_onefunc(void *a, int32_t br, uint8_t *out, int32_t count);
+int32_t pipeline_onefunc_append_if(uint8_t *out, int32_t cond, int32_t then_ref, int32_t else_ref);
+int32_t pipeline_onefunc_if_cond_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_if_then_body_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_if_else_body_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_num_if_stmts(uint8_t *out);
+int32_t pipeline_onefunc_append_region(uint8_t *out, uint8_t *label, int32_t label_len, int32_t body_ref);
+int32_t pipeline_onefunc_append_with_arena(uint8_t *out, int32_t cap_ref, int32_t body_ref);
+int32_t pipeline_onefunc_append_unsafe(uint8_t *out, int32_t body_ref);
+int32_t pipeline_onefunc_num_regions(uint8_t *out);
+void pipeline_block_fill_regions_from_onefunc(void *a, int32_t br, uint8_t *out, int32_t count);
+int32_t pipeline_onefunc_push_stmt_order(uint8_t *out, uint8_t kind, int32_t idx);
+int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *out);
+uint8_t pipeline_onefunc_src_stmt_kind(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_src_stmt_idx(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_push_body_expr_stmt(uint8_t *out, int32_t expr_ref);
+int32_t pipeline_onefunc_body_expr_stmt_ref(uint8_t *out, int32_t i);
+int32_t pipeline_onefunc_num_body_expr_stmts(uint8_t *out);
+void pipeline_block_fill_ifs_from_onefunc(void *a, int32_t br, uint8_t *out, int32_t count);
+void pipeline_block_fill_stmt_order_from_onefunc(void *a, int32_t br, uint8_t *out, int32_t count);
+void pipeline_block_fill_expr_stmts_from_onefunc(void *a, int32_t br, uint8_t *out, int32_t count);
+void pipeline_block_fill_whiles_from_onefunc(void *a, int32_t br, uint8_t *out, int32_t count);
+void pipeline_block_fill_fors_from_onefunc(void *a, int32_t br, uint8_t *out, int32_t count);
+
 /* wave277: ast_pool_block host leaf deleted — Cap residual faces live in
  * runtime_pipeline_abi seed ALWAYS. Residual same-TU callers (onefunc fill_*,
  * glue) need these prototypes. dual-export ban: pipeline_abi T · pipeline_x U.

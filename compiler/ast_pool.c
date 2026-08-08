@@ -108,9 +108,9 @@ extern void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct a
  * loop/labeled/getters + parent/resolve + stmt_order rebuild/fixup) — same-TU. */
 /* wave277: ast_pool_block.c host leaf deleted — Cap residual in runtime_pipeline_abi seed ALWAYS. */
 
-/* BC 8.3.2 wave991: onefunc fill residual lives in ast_pool_onefunc.c (include later).
- * BC 8.3.2 wave993+994: name_is_const + hoist + asm hoist_target / sum stack live in
- * ast_pool_top_level.c (include below; after block so static prepend_lets is visible).
+/* BC 8.3.2 wave991/wave281: onefunc fill residual left host-cc (seed ALWAYS).
+ * BC 8.3.2 wave993+994: name_is_const + hoist + asm hoist_target / sum stack —
+ * pure-owned leave (top_level Cap; residual faces via runtime_pipeline_abi).
  * BC 8.3.2 wave1280: emit-heavy env/thresholds + path helpers / whitelist →
  * pipeline_asm_emit_heavy_env.c (before selfhost).
  * wave1281 shell scan: no function bodies remain here — host shell is #include
@@ -262,8 +262,9 @@ void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_A
 void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a,
                                                   int32_t expr_ref, struct ast_PipelineDepCtx *dep_ctx);
 
-/** BC 8.3.2: OneFunc sidecar + fill_from_onefunc domain (wave984+991 same-TU thin). */
-#include "ast_pool_onefunc.c"
+/* wave281: ast_pool_onefunc.c host leaf deleted — Cap residual in runtime_pipeline_abi seed ALWAYS
+ * (pipeline_onefunc_* + pipeline_block_fill_*_from_onefunc). dual-export ban: pipeline_abi T · pipeline_x U.
+ * PLATFORM: SHARED freestanding onefunc leave. */
 /** BC 8.3.2: expr (+ type-pos) var-len sidecar domain (same-TU thin). */
 /* wave278: ast_pool_expr_sidecar.c host leaf deleted — Cap residual in runtime_pipeline_abi seed ALWAYS. */
 
