@@ -442,3 +442,107 @@ typedef struct {
   GrowVec lib_root_rows;
   GrowVec lib_root_lens;
 } DriverEmitSidecar;
+
+/* wave277: ast_pool_block host leaf deleted — Cap residual faces live in
+ * runtime_pipeline_abi seed ALWAYS. Residual same-TU callers (onefunc fill_*,
+ * glue) need these prototypes. dual-export ban: pipeline_abi T · pipeline_x U.
+ * PLATFORM: SHARED freestanding. */
+int32_t pipeline_block_append_const(struct ast_ASTArena *a, int32_t br, uint8_t *name, int32_t name_len,
+                                    int32_t type_ref, int32_t init_ref);
+int32_t pipeline_block_append_let(struct ast_ASTArena *a, int32_t br, uint8_t *name, int32_t name_len,
+                                  int32_t type_ref, int32_t init_ref);
+int32_t pipeline_block_append_if(struct ast_ASTArena *a, int32_t br, int32_t cond_ref, int32_t then_ref,
+                                 int32_t else_ref);
+int32_t pipeline_block_append_region(struct ast_ASTArena *a, int32_t br, uint8_t *label, int32_t label_len,
+                                     int32_t body_ref);
+int32_t pipeline_block_append_with_arena(struct ast_ASTArena *a, int32_t br, int32_t cap_ref, int32_t body_ref);
+int32_t pipeline_block_append_unsafe(struct ast_ASTArena *a, int32_t br, int32_t body_ref);
+int32_t pipeline_block_append_defer(struct ast_ASTArena *a, int32_t br, int32_t body_ref);
+int32_t pipeline_block_append_expr_stmt(struct ast_ASTArena *a, int32_t br, int32_t expr_ref);
+int32_t pipeline_block_append_stmt_order(struct ast_ASTArena *a, int32_t br, uint8_t kind, int32_t idx_val);
+int32_t pipeline_block_append_while(struct ast_ASTArena *a, int32_t br, int32_t cond_ref, int32_t body_ref);
+int32_t pipeline_block_append_for(struct ast_ASTArena *a, int32_t br, int32_t init_ref, int32_t cond_ref,
+                                  int32_t step_ref, int32_t body_ref);
+int32_t pipeline_block_append_labeled(struct ast_ASTArena *a, int32_t br, int32_t label_len, int32_t is_goto,
+                                      int32_t goto_target_len, int32_t return_expr_ref);
+int32_t ast_pipeline_block_append_labeled(struct ast_ASTArena *a, int32_t br, int32_t label_len, int32_t is_goto,
+                                          int32_t goto_target_len, int32_t return_expr_ref);
+struct ast_LabeledStmt *pipeline_block_labeled_ptr(struct ast_ASTArena *a, int32_t br, int32_t li);
+int32_t pipeline_block_region_with_arena_cap_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
+int32_t pipeline_block_region_is_unsafe(struct ast_ASTArena *a, int32_t br, int32_t ri);
+int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
+int32_t pipeline_block_region_label_len(struct ast_ASTArena *a, int32_t br, int32_t ri);
+void pipeline_block_region_label_copy64(struct ast_ASTArena *a, int32_t br, int32_t ri, uint8_t *dst);
+int32_t pipeline_block_defer_body_ref(struct ast_ASTArena *a, int32_t br, int32_t di);
+int32_t pipeline_block_while_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
+int32_t pipeline_block_while_body_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
+int32_t pipeline_block_for_init_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+int32_t pipeline_block_for_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+int32_t pipeline_block_for_step_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+int32_t pipeline_block_for_body_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+int32_t pipeline_block_const_init_ref(struct ast_ASTArena *a, int32_t br, int32_t ci);
+int32_t pipeline_block_const_type_ref(struct ast_ASTArena *a, int32_t br, int32_t ci);
+int32_t pipeline_block_const_name_len(struct ast_ASTArena *a, int32_t br, int32_t ci);
+void pipeline_block_const_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t ci, uint8_t *dst);
+int32_t pipeline_block_let_init_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
+int32_t pipeline_block_let_type_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
+int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *a, int32_t br, int32_t li, int32_t type_ref);
+int32_t pipeline_block_set_const_type_ref(struct ast_ASTArena *a, int32_t br, int32_t ci, int32_t type_ref);
+int32_t pipeline_block_let_name_len(struct ast_ASTArena *a, int32_t br, int32_t li);
+void pipeline_block_let_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst);
+int32_t pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei);
+uint8_t pipeline_block_stmt_order_kind(struct ast_ASTArena *a, int32_t br, int32_t si);
+int32_t pipeline_block_stmt_order_idx(struct ast_ASTArena *a, int32_t br, int32_t si);
+int32_t pipeline_block_if_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+int32_t pipeline_block_if_then_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+int32_t pipeline_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+int32_t pipeline_block_num_labeled_stmts(struct ast_ASTArena *a, int32_t br);
+int32_t pipeline_block_labeled_return_expr_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
+int32_t pipeline_block_labeled_is_goto(struct ast_ASTArena *a, int32_t br, int32_t li);
+int32_t pipeline_block_labeled_label_len(struct ast_ASTArena *a, int32_t br, int32_t li);
+void pipeline_block_labeled_label_copy32(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst);
+int32_t pipeline_block_labeled_goto_target_len(struct ast_ASTArena *a, int32_t br, int32_t li);
+void pipeline_block_labeled_goto_target_copy32(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst);
+void pipeline_patch_block_parent_links(struct ast_ASTArena *a, int32_t block_ref, int32_t parent_ref);
+int32_t pipeline_block_set_parent_if_zero(struct ast_ASTArena *a, int32_t block_ref, int32_t parent_ref);
+int32_t pipeline_block_parent_block_ref_at(struct ast_ASTArena *a, int32_t block_ref);
+int32_t pipeline_block_resolve_var_type_ref(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname, int32_t vlen);
+int32_t pipeline_block_name_binding_kind(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname, int32_t vlen);
+int32_t pipeline_block_local_name_redecl_c(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname, int32_t vlen,
+                                           int32_t kind, int32_t idx, struct ast_Module *m, int32_t func_index);
+int32_t pipeline_block_find_var_decl_block_ref(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname, int32_t vlen);
+void pipeline_block_stmt_order_prepend_lets(struct ast_ASTArena *a, int32_t br, int32_t let_start_idx, int32_t let_count);
+void pipeline_block_stmt_order_fix_prefix_lets(struct ast_ASTArena *a, int32_t br, int32_t prefix_n);
+void pipeline_block_with_arena_fixup_stmt_order(struct ast_ASTArena *a, int32_t br);
+void pipeline_block_stmt_order_rebuild_sparse_ifs(struct ast_ASTArena *a, int32_t br);
+void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, struct ast_ASTArena *a);
+void ast_ast_arena_patch_block_parent_links(struct ast_ASTArena *arena, int32_t block_ref, int32_t parent_ref);
+int32_t ast_ast_block_num_consts(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_lets(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_loops(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_for_loops(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
+int32_t ast_ast_block_num_expr_stmts(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena *a, int32_t br);
+uint8_t ast_ast_block_stmt_order_kind(struct ast_ASTArena *a, int32_t br, int32_t si);
+int32_t ast_ast_block_stmt_order_idx(struct ast_ASTArena *a, int32_t br, int32_t si);
+int32_t ast_ast_block_const_init_ref(struct ast_ASTArena *a, int32_t br, int32_t ci);
+int32_t ast_ast_block_const_type_ref(struct ast_ASTArena *a, int32_t br, int32_t ci);
+int32_t ast_ast_block_let_init_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
+int32_t ast_ast_block_let_type_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
+int32_t ast_ast_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei);
+int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_while_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
+int32_t ast_ast_block_while_body_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
+int32_t ast_ast_block_for_init_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+int32_t ast_ast_block_for_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+int32_t ast_ast_block_for_step_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+int32_t ast_ast_block_for_body_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+int32_t ast_ast_block_if_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+int32_t ast_ast_block_if_then_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+int32_t ast_ast_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+int32_t ast_ast_block_resolve_var_to_type_ref(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname, int32_t vlen);
+int ast_ast_expr_disallows_implicit_tail(struct ast_ASTArena *a, int32_t expr_ref);
+void ast_ast_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t call_expr_ref, int32_t dep_ix, int32_t func_ix);

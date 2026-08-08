@@ -94,7 +94,7 @@ extern void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct a
 
 /** BC 8.3.2 wave988–990 + wave992: block domain thin (append/region/defer +
  * loop/labeled/getters + parent/resolve + stmt_order rebuild/fixup) — same-TU. */
-#include "ast_pool_block.c"
+/* wave277: ast_pool_block.c host leaf deleted — Cap residual in runtime_pipeline_abi seed ALWAYS. */
 
 /* BC 8.3.2 wave991: onefunc fill residual lives in ast_pool_onefunc.c (include later).
  * BC 8.3.2 wave993+994: name_is_const + hoist + asm hoist_target / sum stack live in

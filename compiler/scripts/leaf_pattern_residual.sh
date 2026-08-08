@@ -9175,6 +9175,12 @@ fi
 if grep -qE 'ast_pool_arena\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list ast_pool_arena.c (wave276 host-cc leave)"
 fi
+if [ -f "$ROOT/compiler/ast_pool_block.c" ]; then
+  bad "ast_pool_block.c must be deleted (wave277 host-cc leave)"
+fi
+if grep -qE 'ast_pool_block\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_block.c (wave277 host-cc leave)"
+fi
 if grep -qE 'ast_pool_module_import\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list ast_pool_module_import.c (wave263 host-cc leave)"
 fi
@@ -9385,10 +9391,7 @@ fi
 if ! grep -qE 'ast_pool_module_func\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_module_func.c (8.3.2 module_func slice)"
 fi
-# wave276: ast_pool_arena.c host-cc leave (must-delete checks above)
-if ! grep -qE 'ast_pool_block\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_block.c (8.3.2 block slice)"
-fi
+# wave277: ast_pool_block.c host-cc leave (must-delete checks above with arena)
 # 8.3.3 host-cc leave (2026-08-05): field_access/soa thin retired from PIPELINE_X_DEPS;
 # authority is typeck.x → typeck_x.o. Must NOT reappear as host-cc STALE deps.
 if grep -qE 'pipeline_typeck_field_access\.c' "$_XSD_MK"; then
