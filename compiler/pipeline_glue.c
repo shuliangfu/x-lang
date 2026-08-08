@@ -1124,23 +1124,14 @@ extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br
  * Fwd decls retained: pipeline_asm_compute_frame_size_c at L965 (harmless).
  * PLATFORM: SHARED. */
 
-/* wave1102 G.7: asm label integer format domain (2 functions) migrated to
- * pipeline_asm_label_format.c (same-TU #include). Members:
- * glue_format_u32_to_buf / glue_format_i32_to_buf.
- * PLATFORM: SHARED. */
-#include "pipeline_asm_label_format.c"
-
-/* wave1201 G.7: asm label format public wrappers (2 fns) migrated to
- * pipeline_asm_label_format.c EOF (colocated with wave1102 integer format
- * primitives — sole consumers of glue_format_u32_to_buf / glue_format_i32_to_buf).
- * Members: pipeline_asm_emit_next_label_c (".Lf<scope>_<n>") +
- * pipeline_asm_format_label_id_c (".L_<id>").
- * Same-TU #include at L2653 makes definitions visible to all callers below
- * (mega_body callsite at L3173). Static deps visible at #include point:
- * pipeline_asm_ctx_layout (L86) + pipeline_glue_AsmFuncCtxLayout (struct top)
- * + pipeline_elf_label_mod_scope_active (extern L836).
- * Extern fwd decl retained at L835 (pipeline_asm_emit_next_label_c — called
- * by glue.c L3173 mega_body). PLATFORM: SHARED. */
+/* wave288 G.7: pipeline_asm_label_format Cap residual host-cc leave.
+ * Live = runtime_pipeline_abi seed ALWAYS (WAVE288): format_u32/i32 helpers +
+ * pipeline_asm_emit_next_label_c (".Lf<scope>_<n>"; advances label_counter@12) +
+ * pipeline_asm_format_label_id_c (".L_<id>"); deps pipeline_asm_ctx_layout +
+ * pipeline_elf_label_mod_scope_active. dual-export ban (seed ALWAYS only;
+ * pure keeps export-extern). Host leaf deleted (no #include).
+ * PLATFORM: SHARED freestanding Cap leave.
+ */
 
 /* wave1206 G.7: pipeline_asm_emit_if_then_block_body_elf_c (1 fn, 21 lines)
  * was in pipeline_asm_emit_block_if_stmt.c EOF; wave129 pure-owned leave →

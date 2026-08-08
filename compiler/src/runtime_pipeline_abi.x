@@ -981,6 +981,8 @@ export extern "C" function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i
 export extern "C" function backend_enc_test_rbx_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_jne_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
 export extern "C" function backend_enc_label_arch(elf_ctx: *u8, name: *u8, name_len: i32, is_global: i32, ta: i32): i32;
+// wave288: body live in seed ALWAYS (WAVE288_ASM_LABEL_FORMAT_ALWAYS); dual-export ban.
+// PLATFORM: SHARED freestanding Cap leave — pure does not re-define.
 export extern "C" function pipeline_asm_emit_next_label_c(ctx: *u8, buf: *u8, buf_size: i32): i32;
 export extern "C" function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 // wave128 Cap residual: logand/logor pure leave callees (binop faces + short-circuit encoders).
