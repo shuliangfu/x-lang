@@ -156,7 +156,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_slot_bytes.c|8.3.2|asm slot bytes + ensure_block_locals (wave1253; pure leave wave268)|320|absent"
   "compiler/pipeline_asm_block_tree.c|8.3.2|asm block tree traversal + frame sizing (wave1254; pure leave wave269)|210|absent"
   "compiler/pipeline_asm_ctx_loop.c|8.3.2|asm ctx loop + block emit cont (wave114 pure-owned leave)|130|absent"
-  "compiler/pipeline_asm_wpo.c|8.3.2|asm WPO v0 DCE + PGO-Lite (wave1256)|1050|present"
+  "compiler/pipeline_asm_wpo.c|8.3.2|asm WPO v0 DCE + PGO-Lite pure-owned leave (wave274)|0|absent"
   "compiler/pipeline_asm_selfhost.c|8.3.2|asm module self-host classification (wave115 pure-owned leave)|190|absent"
   "compiler/pipeline_asm_thin_delegate.c|8.3.2|asm M8-tail thin delegate tables (wave116 pure-owned leave)|220|absent"
   "compiler/pipeline_asm_emit_heavy_safe_helper.c|8.3.2|EMIT_HEAVY safe-helper classifiers (wave117 pure-owned leave)|470|absent"
@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 asm_wpo / pipeline_x mega host-cc leave (wave273 ELF done · present 36); candidates: pipeline_asm_wpo + pipeline_x mega (ptr_at=same-TU static only · not Cap shortcut)"
+  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave274 asm_wpo done · present 35); candidates: pipeline_x mega (ptr_at=same-TU static only · not Cap shortcut)"
 }
 
 run_check() {

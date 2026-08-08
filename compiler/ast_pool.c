@@ -571,7 +571,10 @@ extern int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_
  * Callers: backend.x / pipeline_asm_codegen_mega_body (start_func_skip);
  * early_fwd still declares extern. PLATFORM: SHARED. */
 
-#include "pipeline_asm_wpo.c"
+/* wave274: pipeline_asm_wpo.c pure-owned leave —
+ * Live = runtime_pipeline_abi pure pipeline_asm_wpo_* (#[no_mangle]).
+ * Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X (WAVE274).
+ * PLATFORM: SHARED freestanding WPO leave. */
 
 /** bootstrap 链接 glue：pipeline 编排 / asm scope / typeck 指针写槽（误 revert 后补全）。 */
 #include "ast_pool_bootstrap_glue.c"
