@@ -9385,6 +9385,14 @@ fi
 if grep -qE 'ast_pool_expr_sidecar\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list ast_pool_expr_sidecar.c (wave278 host-cc leave)"
 fi
+
+# wave279: ast_pool_lifecycle.c host-cc leave — must NOT list in PIPELINE_X_DEPS.
+if [ -f "$ROOT/compiler/ast_pool_lifecycle.c" ]; then
+  bad "ast_pool_lifecycle.c must be deleted (wave279 host-cc leave)"
+fi
+if grep -qE 'ast_pool_lifecycle\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_lifecycle.c (wave279 host-cc leave)"
+fi
 # wave264: ast_pool_module_enum.c pure-owned leave — must NOT list in PIPELINE_X_DEPS (checked above).
 if ! grep -qE 'ast_pool_onefunc\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_onefunc.c (8.3.2 onefunc slice)"

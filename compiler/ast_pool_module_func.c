@@ -13,9 +13,8 @@
  * - return_type_at / name_equal_at / name_byte_at / body_expr_ref_at
  * - pipeline_arena_func_param_write / pipeline_arena_func_copy_slot_from_module
  *
- * Left in core (interleaved / orchestration):
- * - static module_func_at / copy_func_params_between_sidecars /
- *   module_func_param_entry / arena_func_param_entry (early helpers)
+ * wave279: static helpers (module_func_at / param_entry / copy_params) live at
+ * top of this file (lifecycle leaf deleted).
  * - pipeline_visibility_* + L7 unused-private lint + module_num_funcs /
  *   main_func_index / reset_parse_counters / strict_parse_into_init
  *   pure-owned leave wave121 (runtime_pipeline_abi; no host-cc twin)
@@ -33,6 +32,106 @@
  * PLATFORM: SHARED — host-cc Cap residual; parser/typeck/codegen call these.
  * Wave: 986 · no semantic change · pin stays 77b334842.
  */
+
+/* wave279: lifecycle host leaf deleted — early same-TU static helpers that
+ * residual module_func Cap faces still need (were in ast_pool_lifecycle.c).
+ * PLATFORM: SHARED — host residual until module_func leave. */
+static struct ast_Func *module_func_at(struct ast_Module *m, int32_t idx) {
+  ModuleSidecar *sc;
+  if (!m || idx < 0 || idx >= m->num_funcs)
+    return NULL;
+  sc = module_sidecar_get(m, 0);
+  if (!sc || idx >= sc->funcs.len)
+    return NULL;
+  return (struct ast_Func *)grow_vec_at(&sc->funcs, idx);
+}
+
+/** Copy n FuncParamEntry slots from src sidecar pool into dst; set *dst_base. */
+static void copy_func_params_between_sidecars(GrowVec *dst, int32_t *dst_base, int32_t n, GrowVec *src,
+                                              int32_t src_base) {
+  int32_t i, abs_src, abs_dst;
+  FuncParamEntry *se, *de;
+  if (!dst || !src || n <= 0)
+    return;
+  *dst_base = dst->len;
+  for (i = 0; i < n; i++) {
+    abs_src = src_base + i;
+    se = (FuncParamEntry *)grow_vec_at(src, abs_src);
+    if (grow_vec_push(dst) < 0)
+      break;
+    abs_dst = dst->len - 1;
+    de = (FuncParamEntry *)grow_vec_at(dst, abs_dst);
+    if (se && de)
+      *de = *se;
+  }
+}
+
+/** Read/write module func param sidecar slot; create=1 grows as needed. */
+static FuncParamEntry *module_func_param_entry(struct ast_Module *m, int32_t fi, int32_t pi, int create) {
+  ModuleSidecar *sc;
+  struct ast_Func *f;
+  int32_t abs;
+  if (!m || fi < 0 || pi < 0)
+    return NULL;
+  f = module_func_at(m, fi);
+  if (!f)
+    return NULL;
+  sc = module_sidecar_get(m, create ? 1 : 0);
+  if (!sc)
+    return NULL;
+  if (!create) {
+    if (pi >= f->num_params || f->param_base < 0)
+      return NULL;
+    abs = f->param_base + pi;
+    if (abs < 0 || abs >= sc->func_params.len)
+      return NULL;
+    return (FuncParamEntry *)grow_vec_at(&sc->func_params, abs);
+  }
+  if (f->param_base < 0)
+    f->param_base = sc->func_params.len;
+  abs = f->param_base + pi;
+  while (sc->func_params.len <= abs) {
+    if (grow_vec_push(&sc->func_params) < 0)
+      return NULL;
+  }
+  if (pi + 1 > f->num_params)
+    f->num_params = pi + 1;
+  return (FuncParamEntry *)grow_vec_at(&sc->func_params, abs);
+}
+
+/** Read/write arena func param sidecar slot; create=1 grows as needed. */
+static FuncParamEntry *arena_func_param_entry(struct ast_ASTArena *a, int32_t func_ref, int32_t pi, int create) {
+  ArenaSidecar *sc;
+  struct ast_Func *f;
+  int32_t abs;
+  if (!a || func_ref <= 0 || func_ref > a->num_funcs || pi < 0)
+    return NULL;
+  f = pipeline_arena_func_ptr(a, func_ref);
+  if (!f)
+    return NULL;
+  sc = arena_sidecar_get(a, create ? 1 : 0);
+  if (!sc)
+    return NULL;
+  if (!create) {
+    if (pi >= f->num_params || f->param_base < 0)
+      return NULL;
+    abs = f->param_base + pi;
+    if (abs < 0 || abs >= sc->func_params.len)
+      return NULL;
+    return (FuncParamEntry *)grow_vec_at(&sc->func_params, abs);
+  }
+  if (f->param_base < 0)
+    f->param_base = sc->func_params.len;
+  abs = f->param_base + pi;
+  while (sc->func_params.len <= abs) {
+    if (grow_vec_push(&sc->func_params) < 0)
+      return NULL;
+  }
+  if (pi + 1 > f->num_params)
+    f->num_params = pi + 1;
+  return (FuncParamEntry *)grow_vec_at(&sc->func_params, abs);
+}
+
 
 /** Module 侧分配新函数槽，返回 0-based 下标；失败返回 -1。 */
 int32_t pipeline_module_func_alloc_slot(struct ast_Module *m) {

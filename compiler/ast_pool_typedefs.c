@@ -495,6 +495,20 @@ int32_t glue_i32_to_f32_bits(int32_t v);
 int32_t glue_i64_to_f32_bits(int64_t v);
 void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi);
 
+
+/* wave279: lifecycle Cap faces live in runtime_pipeline_abi seed ALWAYS
+ * (block_on_alloc / module|arena reset|release / drop_bodies / onefunc reset|release).
+ * Residual same-TU consumers need these prototypes (host leaf deleted).
+ * dual-export ban: pipeline_abi T · pipeline_x U. PLATFORM: SHARED freestanding. */
+void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
+void ast_pool_module_reset(struct ast_Module *m);
+void ast_pool_arena_reset(struct ast_ASTArena *a);
+void ast_pool_arena_release(struct ast_ASTArena *a);
+void ast_pool_module_release(struct ast_Module *m);
+void ast_pool_drop_bodies_for_check(struct ast_ASTArena *a, struct ast_Module *m);
+void ast_pool_onefunc_reset(uint8_t *out);
+void ast_pool_onefunc_release(uint8_t *out);
+
 /** PipelineDepCtx 侧车：dep 槽与 -L lib_root 动态 grow（ctx 指针作键）。 */
 typedef struct {
   struct ast_PipelineDepCtx *ctx;

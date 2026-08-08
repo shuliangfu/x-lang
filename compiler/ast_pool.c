@@ -52,8 +52,15 @@ extern char *link_abi_getenv(const char *name);
 #include "ast_pool_typedefs.c"
 #include "ast_pool_ptr_at.c"
 
-/** Forward: pure/cold pipeline_arena_block_alloc calls this (lifecycle body). */
+/** Forward: pure/cold pipeline_arena_block_alloc → seed ALWAYS lifecycle (wave279). */
 void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
+void ast_pool_module_reset(struct ast_Module *m);
+void ast_pool_arena_reset(struct ast_ASTArena *a);
+void ast_pool_arena_release(struct ast_ASTArena *a);
+void ast_pool_module_release(struct ast_Module *m);
+void ast_pool_drop_bodies_for_check(struct ast_ASTArena *a, struct ast_Module *m);
+void ast_pool_onefunc_reset(uint8_t *out);
+void ast_pool_onefunc_release(uint8_t *out);
 
 /* 2026-08-08: ast_pool_arena.c pure-owned leave (wave276).
  * Live faces: runtime_pipeline_abi pure pipeline_arena_{type,expr,block,func}_{ptr,alloc}
@@ -70,8 +77,10 @@ void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
  * PLATFORM: SHARED — dual-export ban; pipeline_x U for type pool faces. */
 
 
-#include "ast_pool_lifecycle.c"
-
+/* wave279: ast_pool_lifecycle.c host leaf deleted — Cap residual in
+ * runtime_pipeline_abi seed ALWAYS (block_on_alloc / module|arena reset|release /
+ * drop_bodies / onefunc reset|release). Static module_func helpers live in
+ * ast_pool_module_func.c. dual-export ban (pipeline_x U). PLATFORM: SHARED. */
 
 /** BC 8.3.2: Module Func cold accessors domain (same-TU thin). */
 #include "ast_pool_module_func.c"
