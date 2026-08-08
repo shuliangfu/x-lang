@@ -4,6 +4,8 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave283: pipeline_ast_forwarders.c seed ALWAYS leave (host leaf deleted).
+//   Live=seed ALWAYS WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256.
 // wave282: ast_pool_bootstrap_glue.c seed ALWAYS leave (host leaf deleted).
 //   Live faces: typeck_i32_ptr_* / layout_metrics init+read / asm scope BSS /
 //   asm_local_slot_reg_offset + align/bump/simd/scoped + patch_parent_links +

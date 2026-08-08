@@ -1515,7 +1515,11 @@ extern int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena, struct 
  * All 246 ast_pipeline functions are pure pass-through forwarders to unprefixed
  * pipeline_ implementations in ast_pool.c. No static state; safe to colocate.
  */
-#include "pipeline_ast_forwarders.c"
+/* wave283: pipeline_ast_forwarders.c seed ALWAYS leave (host leaf deleted).
+ * Live = runtime_pipeline_abi seed ALWAYS (WAVE283_AST_FORWARDERS_ALWAYS):
+ * ast_pipeline_* thin rename shims + pipeline_copy_lib_root_to_buf256.
+ * PLATFORM: SHARED — no host-cc twin in pipeline_x mega-TU. */
+
 /* wave1286 G.7: typeck forward-decl / extern shell migrated to
  * pipeline_glue_typeck_fwd.c (same-TU #include). Pure decls only;
  * sits after ast_forwarders and before typeck_assign.
