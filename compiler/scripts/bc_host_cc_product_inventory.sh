@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=BC 8.3 structure floor closed wave309 (present 0); residual host-cc = gen seeds／runtime seeds not 8.3 map; BC 终局 still gen mega host-cc"
+  echo "NEXT=BC 8.3 floor closed + pipeline_gen seed re-pin wave310 (present 0); residual host-cc = typeck/codegen/parser mega gen + runtime seeds; BC 终局 still ⬜"
 }
 
 run_check() {
