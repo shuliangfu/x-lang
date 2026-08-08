@@ -1,0 +1,54 @@
+/* seeds/typeck_short_face_alias.from_x.c — wave317 typeck M4 layer-3 (partial)
+ * Bare ast_block_* / ast_expr_* / ast_arena_* short names → ast_ast_* product faces.
+ * Tip typeck.x -E emits bare calls; product/pool export ast_ast_* (and pipeline_*).
+ * G.7: define-only aliases (zero bodies). Inject early in typeck_gen (before bodies).
+ * PLATFORM: SHARED freestanding typeck tip re-pin companion.
+ */
+#ifndef XLANG_TYPECK_SHORT_FACE_ALIAS_H
+#define XLANG_TYPECK_SHORT_FACE_ALIAS_H
+#define ast_block_final_expr_ref ast_ast_block_final_expr_ref
+#define ast_block_num_consts ast_ast_block_num_consts
+#define ast_block_num_lets ast_ast_block_num_lets
+#define ast_block_num_loops ast_ast_block_num_loops
+#define ast_block_num_for_loops ast_ast_block_num_for_loops
+#define ast_block_num_if_stmts ast_ast_block_num_if_stmts
+#define ast_block_num_regions ast_ast_block_num_regions
+#define ast_block_num_labeled_stmts ast_ast_block_num_labeled_stmts
+#define ast_block_region_body_ref ast_ast_block_region_body_ref
+#define ast_block_num_expr_stmts ast_ast_block_num_expr_stmts
+#define ast_block_num_stmt_order ast_ast_block_num_stmt_order
+#define ast_block_stmt_order_kind ast_ast_block_stmt_order_kind
+#define ast_block_stmt_order_idx ast_ast_block_stmt_order_idx
+#define ast_block_const_init_ref ast_ast_block_const_init_ref
+#define ast_block_const_type_ref ast_ast_block_const_type_ref
+#define ast_block_let_init_ref ast_ast_block_let_init_ref
+#define ast_block_let_type_ref ast_ast_block_let_type_ref
+#define ast_block_expr_stmt_ref ast_ast_block_expr_stmt_ref
+#define ast_block_while_cond_ref ast_ast_block_while_cond_ref
+#define ast_block_while_body_ref ast_ast_block_while_body_ref
+#define ast_block_for_init_ref ast_ast_block_for_init_ref
+#define ast_block_for_cond_ref ast_ast_block_for_cond_ref
+#define ast_block_for_step_ref ast_ast_block_for_step_ref
+#define ast_block_for_body_ref ast_ast_block_for_body_ref
+#define ast_block_if_cond_ref ast_ast_block_if_cond_ref
+#define ast_block_if_then_body_ref ast_ast_block_if_then_body_ref
+#define ast_block_if_else_body_ref ast_ast_block_if_else_body_ref
+#define ast_block_resolve_var_to_type_ref ast_ast_block_resolve_var_to_type_ref
+#define ast_expr_apply_call_resolve ast_ast_expr_apply_call_resolve
+#define ast_expr_disallows_implicit_tail ast_ast_expr_disallows_implicit_tail
+#define ast_expr_layout_prime_call_resolved ast_ast_expr_layout_prime_call_resolved
+#define ast_arena_init ast_ast_arena_init
+#define ast_arena_type_alloc ast_ast_arena_type_alloc
+#define ast_arena_expr_alloc ast_ast_arena_expr_alloc
+#define ast_arena_block_alloc ast_ast_arena_block_alloc
+#define ast_arena_type_get ast_ast_arena_type_get
+#define ast_arena_type_set ast_ast_arena_type_set
+#define ast_arena_expr_get ast_ast_arena_expr_get
+#define ast_arena_expr_set ast_ast_arena_expr_set
+#define ast_arena_block_get ast_ast_arena_block_get
+#define ast_arena_block_set ast_ast_arena_block_set
+#define ast_arena_func_alloc ast_ast_arena_func_alloc
+#define ast_arena_func_get ast_ast_arena_func_get
+#define ast_arena_func_set ast_ast_arena_func_set
+#define ast_arena_patch_block_parent_links ast_ast_arena_patch_block_parent_links
+#endif /* XLANG_TYPECK_SHORT_FACE_ALIAS_H */
