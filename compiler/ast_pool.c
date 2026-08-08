@@ -404,10 +404,10 @@ int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, 
 uint8_t *pipeline_elf_ctx_reloc_sym_name_ptr(uint8_t *ctx_bytes, int32_t idx);
 void pipeline_elf_ctx_reloc_sym_name_copy64(uint8_t *ctx_bytes, int32_t idx, uint8_t *dst);
 int32_t pipeline_elf_ctx_reloc_name_len(uint8_t *ctx_bytes, int32_t idx);
-void pipeline_elf_log_unresolved_patch(void *ctx, int32_t patch_idx);
-int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, void *out);
-int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, void *out);
-int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, void *out);
+void pipeline_elf_log_unresolved_patch(struct platform_elf_ElfCodegenCtx *ctx, int32_t patch_idx);
+int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out);
+int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out);
+int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out);
 int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf);
 
 /* 8.3.2 host-cc leave: pipeline_scratch_bufs.c retired — path/prefix

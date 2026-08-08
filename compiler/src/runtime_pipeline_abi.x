@@ -78882,9 +78882,9 @@ export function pipeline_elf_ctx_resolve_patches(ctx_bytes: *u8): i32 {
       let insn: i32 = pipe_elf_read_u32_le(ctx_bytes, patch_shndx, rel32_offset);
       let imm: i32 = delta / 4;
       if (imm_bits == 26) {
-        insn = (insn & 4293918720) | (imm & 67108863);
+        insn = (insn & (0 - 1048576)) | (imm & 67108863);
       } else if (imm_bits == 19) {
-        insn = (insn & 4278190175) | ((imm & 524287) << 5);
+        insn = (insn & (0 - 16777121)) | ((imm & 524287) << 5);
       }
       pipe_elf_write_u32_le(ctx_bytes, patch_shndx, rel32_offset, insn);
     } else if (e_machine == 243 || imm_bits == 13 || imm_bits == 21) {
@@ -79708,7 +79708,7 @@ function pipe_elf_store_i32_bytes(dst: *u8, off: i32, v: i32): void {
 
 function pipe_elf_align4(n: i32): i32 {
   // (n + 3) & ~3
-  return (n + 3) & 4294967292;
+  return (n + 3) & (0 - 4);
 }
 
 function pipe_elf_ws_undef_name_row(i: i32): *u8 {
