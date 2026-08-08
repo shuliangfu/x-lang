@@ -5,7 +5,7 @@
 # Authority (G.7):
 #   Single implementation of product frontend *_gen.c production for:
 #     parser_gen.c   (seed pin / force -E / C-04 post-normalize)     — wave736
-#     typeck_gen.c   (seed pin + contract refresh / force -E / slim) — wave736
+#     typeck_gen.c   (wave322 M4 7.4.1: prefer typeck.x assemble; pin archaeology)
 #     codegen_gen.c  (tip seed pin sync / force -E / fix_slim_arena) — wave736
 #     lexer_gen.c    (seed pin + contract refresh / force -E / slim) — wave737
 #   migrate_x_objs.sh and ./xbuild migrate-gen call this script (0× make for
@@ -24,14 +24,19 @@
 #
 # Env:
 #   XLANG_FORCE_REGEN_GEN=1 — force -E regen (ignore local pin)
+#   XLANG_TYPECK_FROM_X=1   — force typeck.x assemble path (default prefer when -E works)
+#   XLANG_TYPECK_ALLOW_PIN=1 — allow seed pin restore / refresh (default 1 for true-cold egg)
 #   XLANG_PARSER_GEN_TIMEOUT — seconds for parser -E (default 120)
 #   XLANG_C / XLANG_X — binary names (default xlang-c / xlang-x)
+#   XLANG_TYPECK_E — preferred binary name for typeck -E (optional)
 #
 # PLATFORM: SHARED shell orchestration; product seed pins are host-portable C.
 # Stale gitignored pins (dual-boot Windows) fail product symbol contract →
 # refresh from seeds/*_gen.linux.x86_64.c (same class as codegen tip-seed sync).
 # wave829 (G.7 有则补全): FORCE dep-thin — Makefile prereqs FORCE+script only;
 #   shell owns pin/seed/FORCE_REGEN policy. NOT physical delete.
+# wave322 (G.7 M4 7.4.1): typeck cold path prefer assemble_typeck_gen_from_x
+#   (tip -E + companions); pin seed is archaeology / no-binary egg only.
 # Wave: 736/737 Track MG · pairs with migrate_x_objs.sh + Makefile thin leaves.
 
 set -euo pipefail
@@ -40,6 +45,10 @@ cd "$(dirname "$0")/.."
 XLANG_C="${XLANG_C:-xlang-c}"
 XLANG_X="${XLANG_X:-xlang-x}"
 XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}"
+# Prefer typeck.x assemble whenever a product -E binary works (wave322 / 7.4.1).
+XLANG_TYPECK_FROM_X="${XLANG_TYPECK_FROM_X:-1}"
+# Archaeology seed restore allowed when no -E binary (true cold egg).
+XLANG_TYPECK_ALLOW_PIN="${XLANG_TYPECK_ALLOW_PIN:-1}"
 XLANG_PARSER_GEN_TIMEOUT="${XLANG_PARSER_GEN_TIMEOUT:-120}"
 MODE="${1:-all}"
 
@@ -245,42 +254,137 @@ ensure_parser_gen() {
 }
 
 # ---------------------------------------------------------------------------
-# typeck_gen.c
+# typeck_gen.c — wave322 M4 7.4.1: prefer typeck.x assemble over pin
 # ---------------------------------------------------------------------------
-ensure_typeck_gen() {
-  local tmp seed="seeds/typeck_gen.linux.x86_64.c"
-  tmp="typeck_gen.c.tmp.$$"
-  rm -f "$tmp"
-
-  if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
-    ensure_xlang_c
-    "./$XLANG_C" -L .. -L src -L src/lexer -L src/ast -L src/parser \
-      src/typeck/typeck.x -E-extern >"$tmp" && mv "$tmp" typeck_gen.c
-  elif [ -s typeck_gen.c ]; then
-    if refresh_gen_from_seed_if_stale typeck_gen.c "$seed" typeck_gen_contract_ok typeck_gen.c; then
-      :
-    else
-      log "typeck_gen.c: pinned ($(bytes_of typeck_gen.c) bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"
+# Run tip -E for typeck.x into $1. Product pure NO_C rejects -E-extern; plain -E works.
+# PLATFORM: SHARED — same -E face on Darwin/Linux; binary may be xlang / xlang_asm / xlang-c.
+typeck_run_tip_e() {
+  local out="$1"
+  local b err
+  err="${out}.err"
+  rm -f "$out" "$err"
+  for b in ${XLANG_TYPECK_E:-} xlang xlang_asm xlang-c bootstrap_xlangc; do
+    [ -n "$b" ] || continue
+    if [ ! -x "./$b" ] && [ ! -f "./$b" ]; then
+      continue
     fi
-  elif seed_ok "$seed" && [ ! -s typeck_gen.c ]; then
-    cp -f "$seed" typeck_gen.c
-    log "typeck_gen.c: restored from $seed"
-  else
-    ensure_xlang_c
-    if "./$XLANG_C" -L .. -L src -L src/lexer -L src/ast -L src/parser \
-      src/typeck/typeck.x -E-extern >"$tmp" && mv "$tmp" typeck_gen.c; then
-      :
+    # Product freestanding: plain -E (not -E-extern) emits library C for typeck.x.
+    if "./$b" -L .. -L src -L src/lexer -L src/ast -L src/parser \
+      -E src/typeck/typeck.x >"$out" 2>"$err"; then
+      if [ -s "$out" ]; then
+        log "typeck tip -E via ./$b ($(bytes_of "$out") bytes)"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+
+# Assemble typeck_gen.c from tip -E + companions (G.7 body = assemble_typeck_gen_from_x.py).
+typeck_assemble_from_x() {
+  local tip tmp py
+  tip="typeck_gen.tip_e.tmp.$$"
+  tmp="typeck_gen.c.tmp.$$"
+  py="${PYTHON:-python3}"
+  if [ ! -f scripts/assemble_typeck_gen_from_x.py ]; then
+    log "missing scripts/assemble_typeck_gen_from_x.py (wave322)"
+    return 1
+  fi
+  if ! typeck_run_tip_e "$tip"; then
+    rm -f "$tip" "$tip.err" 2>/dev/null || true
+    log "typeck tip -E failed (no working product -E binary?)"
+    return 1
+  fi
+  if ! "$py" scripts/assemble_typeck_gen_from_x.py --tip "$tip" --out "$tmp"; then
+    rm -f "$tip" "$tip.err" "$tmp" 2>/dev/null || true
+    return 1
+  fi
+  mv -f "$tmp" typeck_gen.c
+  rm -f "$tip" "$tip.err" 2>/dev/null || true
+  log "typeck_gen.c: assembled from typeck.x + companions (wave322 / 7.4.1)"
+  return 0
+}
+
+# True when typeck.x (or companions) is newer than local typeck_gen.c → must re-assemble.
+typeck_x_sources_newer_than_gen() {
+  local gen="typeck_gen.c"
+  local src
+  [ -s "$gen" ] || return 0
+  for src in \
+    src/typeck/typeck.x \
+    seeds/typeck_short_face_alias.from_x.c \
+    seeds/typeck_cap_residual.from_x.c \
+    seeds/typeck_mangle_link_alias.from_x.c \
+    scripts/assemble_typeck_gen_from_x.py
+  do
+    if [ -f "$src" ] && [ "$src" -nt "$gen" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+ensure_typeck_gen() {
+  local seed="seeds/typeck_gen.linux.x86_64.c"
+  local need_assemble=0
+  local did_assemble=0
+
+  # wave322 / 7.4.1 policy (G.7):
+  #   product authority = typeck.x + companions assemble
+  #   pin seed = archaeology / true-cold egg only (no -E binary)
+  # Prefer assemble when: FORCE, missing gen, .x/companions newer, or
+  # XLANG_TYPECK_FROM_X=1 with no contract-ok local (stale bare -E).
+  if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
+    need_assemble=1
+  elif [ ! -s typeck_gen.c ]; then
+    need_assemble=1
+  elif [ "$XLANG_TYPECK_FROM_X" = "1" ] && typeck_x_sources_newer_than_gen; then
+    need_assemble=1
+  elif [ "$XLANG_TYPECK_FROM_X" = "1" ] && ! typeck_gen_contract_ok typeck_gen.c; then
+    need_assemble=1
+  fi
+
+  if [ "$need_assemble" = "1" ]; then
+    if typeck_assemble_from_x; then
+      did_assemble=1
     else
-      rm -f "$tmp"
-      if seed_ok "$seed"; then
-        cp -f "$seed" typeck_gen.c
-        log "typeck_gen.c: fallback seed (xlang-c -E failed)"
+      if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
+        if [ "$XLANG_TYPECK_ALLOW_PIN" = "1" ] && seed_ok "$seed"; then
+          cp -f "$seed" typeck_gen.c
+          log "typeck_gen.c: FORCE fallback archaeology seed (tip -E failed)"
+        else
+          log "typeck_gen.c: FAIL FORCE regen (no -E and no pin escape)"
+          exit 1
+        fi
       else
-        exit 1
+        log "typeck_gen.c: tip assemble unavailable; try local/pin (archaeology)"
       fi
     fi
   fi
-  rm -f "$tmp" 2>/dev/null || true
+
+  # Local still missing: archaeology seed (true cold, no product -E binary).
+  if [ ! -s typeck_gen.c ]; then
+    if [ "$XLANG_TYPECK_ALLOW_PIN" = "1" ] && seed_ok "$seed"; then
+      cp -f "$seed" typeck_gen.c
+      log "typeck_gen.c: restored archaeology seed $seed (no -E binary; true-cold egg)"
+    else
+      log "typeck_gen.c: FAIL no assemble and no archaeology seed"
+      exit 1
+    fi
+  fi
+
+  # Optional: if local is pre-wave322 bare pin without assemble banner, and
+  # FROM_X=1, refresh from archaeology seed only when seed is newer AND we
+  # did not just assemble (post-pull dual-end). Does NOT re-assert pin authority
+  # over typeck.x — seed is a snapshot of last good assemble.
+  if [ "$did_assemble" != "1" ] && [ "$XLANG_TYPECK_ALLOW_PIN" = "1" ]; then
+    if ! typeck_gen_contract_ok typeck_gen.c; then
+      if seed_ok "$seed" && typeck_gen_contract_ok "$seed"; then
+        cp -f "$seed" typeck_gen.c
+        log "typeck_gen.c: local failed contract → archaeology seed"
+      fi
+    fi
+  fi
 
   if [ -f scripts/fix_slim_arena_gen_c.pl ]; then
     perl scripts/fix_slim_arena_gen_c.pl typeck_gen.c

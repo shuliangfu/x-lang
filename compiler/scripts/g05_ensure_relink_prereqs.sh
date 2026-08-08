@@ -1213,21 +1213,28 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   done
-  # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o
-  # PLATFORM: SHARED — true cold deletes typeck_x.o but often leaves a stale host-local
-  # typeck_gen.c (gitignored). That stale file can predate product contracts (e.g. void main
-  # ret_kind allows ord_void=16). Always re-pin seed when typeck_x.o is missing so L4 does
-  # not compile an old gen that still returns -4 on `function main(): void`.
-  if [ ! -f typeck_x.o ] && [ -f seeds/typeck_gen.linux.x86_64.c ]; then
-    cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c
-    echo "g05_ensure: typeck_gen.c ← seeds/typeck_gen.linux.x86_64.c (cold: missing typeck_x.o)"
+  # LANG-007 + typeck_x.o cold path (wave322 M4 7.4.1).
+  # PLATFORM: SHARED — true cold deletes typeck_x.o; host-local typeck_gen.c is gitignored
+  # and may be stale. Prefer ensure_migrate_gen typeck (typeck.x -E + companions assemble)
+  # when a product -E binary exists; archaeology seed only if assemble cannot run.
+  # G.7: do not blind-cp pin over a fresher .x assemble.
+  if [ ! -f typeck_x.o ]; then
+    if [ -f scripts/ensure_migrate_gen.sh ]; then
+      echo "g05_ensure: ensure_migrate_gen typeck (cold: missing typeck_x.o; prefer .x assemble)"
+      bash scripts/ensure_migrate_gen.sh typeck \
+        || echo "g05_ensure: ensure_migrate_gen typeck failed (will try pin/local)" >&2
+    fi
+    if [ ! -s typeck_gen.c ] && [ -f seeds/typeck_gen.linux.x86_64.c ]; then
+      cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c
+      echo "g05_ensure: typeck_gen.c ← archaeology seed (cold egg; no assemble)"
+    fi
   fi
   if [ -f typeck_gen.c ] && [ -f scripts/patch_typeck_gen_lang007.py ]; then
     _tg_before=$(wc -c < typeck_gen.c | tr -d ' ')
     python3 scripts/patch_typeck_gen_lang007.py || true
     _tg_after=$(wc -c < typeck_gen.c | tr -d ' ')
     if [ "$_tg_before" != "$_tg_after" ] || [ ! -f typeck_x.o ] || [ typeck_gen.c -nt typeck_x.o ]; then
-      echo "g05_ensure: cc -c typeck_gen.c → typeck_x.o (LANG-007 patch)"
+      echo "g05_ensure: cc -c typeck_gen.c → typeck_x.o (LANG-007 / assemble)"
       # shellcheck disable=SC2086
       $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o typeck_x.o typeck_gen.c
     fi

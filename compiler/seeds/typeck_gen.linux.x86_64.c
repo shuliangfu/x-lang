@@ -1,563 +1,17 @@
-/* wave317 typeck M4 re-pin (2026-08-09):
- *   base = tip xlang_asm -E compiler/src/typeck/typeck.x (~725kB)
+/* wave322 typeck M4 cold assemble from .x (7.4.1):
+ *   base = tip xlang -E src/typeck/typeck.x
+ *   module-prefix rename: bare export faces → typeck_*
  *   layer-3 short-face #defines = seeds/typeck_short_face_alias.from_x.c (inject early)
  *   layer-1 Cap residual append = seeds/typeck_cap_residual.from_x.c
  *   layer-2 mangle alias append = seeds/typeck_mangle_link_alias.from_x.c
- * G.7: do not blind-overwrite with bare tip -E.
- * PLATFORM: SHARED freestanding typeck product twin.
+ * G.7: product authority = typeck.x + companions; pin seed archaeology only.
+ * PLATFORM: SHARED freestanding typeck cold assemble.
  */
 #include <stdint.h>
-#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
-#error "Generated code needs C11. Compile with -std=gnu11 or -std=c11."
-#endif
 #include <stddef.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#if !defined(_WIN32) && !defined(_WIN64)
-#include <unistd.h>
-#else
-#include <io.h>
-#include <sys/types.h>
-#endif
-#if !defined(_WIN32) && !defined(_WIN64)
-#include <sys/uio.h>
-#endif
-#if !defined(_WIN32) && !defined(_WIN64)
-#include <poll.h>
-#endif
-#ifndef O_RDONLY
-#define O_RDONLY 0
-#endif
-#ifndef O_WRONLY
-#define O_WRONLY 1
-#endif
-#ifndef O_RDWR
-#define O_RDWR 2
-#endif
-#if defined(__APPLE__)
-#ifndef O_CREAT
-#define O_CREAT 512
-#endif
-#ifndef O_TRUNC
-#define O_TRUNC 1024
-#endif
-#ifndef O_APPEND
-#define O_APPEND 8
-#endif
-#ifndef F_NOCACHE
-#define F_NOCACHE 48
-#endif
-#else
-#ifndef O_CREAT
-#define O_CREAT 64
-#endif
-#ifndef O_TRUNC
-#define O_TRUNC 512
-#endif
-#ifndef O_APPEND
-#define O_APPEND 1024
-#endif
-#endif
-#ifndef PROT_READ
-#define PROT_READ 1
-#endif
-#ifndef PROT_WRITE
-#define PROT_WRITE 2
-#endif
-#ifndef MAP_SHARED
-#define MAP_SHARED 1
-#endif
-#ifndef MAP_PRIVATE
-#define MAP_PRIVATE 2
-#endif
-#ifndef MAP_FAILED
-#define MAP_FAILED ((int64_t)-1)
-#endif
-#ifndef S_IFMT
-#define S_IFMT 61440u
-#endif
-#ifndef S_IFDIR
-#define S_IFDIR 16384u
-#endif
-#ifndef S_IFREG
-#define S_IFREG 32768u
-#endif
-#ifndef FS_IOV_BUF_MAX
-#define FS_IOV_BUF_MAX 16
-#endif
-#ifndef DIRENT_D_NAME_OFF
-#if defined(__APPLE__)
-#define DIRENT_D_NAME_OFF ((size_t)21)
-#else
-#define DIRENT_D_NAME_OFF ((size_t)19)
-#endif
-#endif
-#if !defined(_WIN32) && !defined(_WIN64)
-#if defined(__APPLE__)
-extern int *__error(void);
-#else
-extern int *__errno_location(void);
-#endif
-extern int32_t fcntl(int32_t fd, int32_t cmd, int32_t arg);
-extern int32_t madvise(uint8_t *addr, size_t len, int32_t advice);
-extern int32_t open(uint8_t *path, int32_t flags, int32_t mode);
-static inline int32_t fs_libc_open(uint8_t *path, int32_t flags, int32_t mode) {
-  return open(path, flags, mode);
-}
-#define fs_note_last_error_posix std_fs_posix_fs_note_last_error_posix
-#endif
-static inline ssize_t xlang_sys_read(int32_t fd, uint8_t *buf, size_t count) {
-  return read((int)fd, (void *)buf, count);
-}
-static inline ssize_t xlang_sys_write(int32_t fd, uint8_t *buf, size_t count) {
-  return write((int)fd, (const void *)buf, count);
-}
-#if !defined(_WIN32) && !defined(_WIN64)
-static inline ssize_t xlang_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {
-  return readv((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);
-}
-#endif
-#if !defined(_WIN32) && !defined(_WIN64)
-static inline ssize_t xlang_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {
-  return writev((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);
-}
-#endif
-#if !defined(_WIN32) && !defined(_WIN64)
-static inline int32_t xlang_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {
-  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);
-}
-#endif
-#if !defined(_WIN32) && !defined(_WIN64)
-static inline ssize_t xlang_sys_pread(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
-  return pread((int)fd, (void *)buf, count, (off_t)offset);
-}
-#endif
-#if !defined(_WIN32) && !defined(_WIN64)
-static inline ssize_t xlang_sys_pwrite(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
-  return pwrite((int)fd, (const void *)buf, count, (off_t)offset);
-}
-#endif
-static inline int32_t xlang_fs_unlink(uint8_t *path) {
-  return (int32_t)unlink((const char *)path);
-}
-static inline int32_t xlang_fs_rmdir(uint8_t *path) {
-  return (int32_t)rmdir((const char *)path);
-}
-#ifndef XLANG_SLICE_LAYOUTS
-#define XLANG_SLICE_LAYOUTS
-struct xlang_slice_uint8_t { uint8_t *data; size_t length; };
-struct xlang_slice_int8_t { int8_t *data; size_t length; };
-struct xlang_slice_int16_t { int16_t *data; size_t length; };
-struct xlang_slice_uint16_t { uint16_t *data; size_t length; };
-struct xlang_slice_int { int *data; size_t length; };
-struct xlang_slice_int32_t { int32_t *data; size_t length; };
-struct xlang_slice_uint32_t { uint32_t *data; size_t length; };
-struct xlang_slice_int64_t { int64_t *data; size_t length; };
-struct xlang_slice_uint64_t { uint64_t *data; size_t length; };
-struct xlang_slice_size_t { size_t *data; size_t length; };
-struct xlang_slice_ssize_t { ssize_t *data; size_t length; };
-struct xlang_slice_float { float *data; size_t length; };
-struct xlang_slice_double { double *data; size_t length; };
-struct xlang_slice_xlang_slice_uint8_t { struct xlang_slice_uint8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_int8_t { struct xlang_slice_int8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_int16_t { struct xlang_slice_int16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_uint16_t { struct xlang_slice_uint16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_int { struct xlang_slice_int *data; size_t length; };
-struct xlang_slice_xlang_slice_int32_t { struct xlang_slice_int32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_uint32_t { struct xlang_slice_uint32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_int64_t { struct xlang_slice_int64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_uint64_t { struct xlang_slice_uint64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_size_t { struct xlang_slice_size_t *data; size_t length; };
-struct xlang_slice_xlang_slice_ssize_t { struct xlang_slice_ssize_t *data; size_t length; };
-struct xlang_slice_xlang_slice_float { struct xlang_slice_float *data; size_t length; };
-struct xlang_slice_xlang_slice_double { struct xlang_slice_double *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_uint8_t { struct xlang_slice_xlang_slice_uint8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_int8_t { struct xlang_slice_xlang_slice_int8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_int16_t { struct xlang_slice_xlang_slice_int16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_uint16_t { struct xlang_slice_xlang_slice_uint16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_int { struct xlang_slice_xlang_slice_int *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_int32_t { struct xlang_slice_xlang_slice_int32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_uint32_t { struct xlang_slice_xlang_slice_uint32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_int64_t { struct xlang_slice_xlang_slice_int64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_uint64_t { struct xlang_slice_xlang_slice_uint64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_size_t { struct xlang_slice_xlang_slice_size_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_ssize_t { struct xlang_slice_xlang_slice_ssize_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_float { struct xlang_slice_xlang_slice_float *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_double *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint8_t { struct xlang_slice_xlang_slice_xlang_slice_uint8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int8_t { struct xlang_slice_xlang_slice_xlang_slice_int8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int16_t { struct xlang_slice_xlang_slice_xlang_slice_int16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint16_t { struct xlang_slice_xlang_slice_xlang_slice_uint16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int { struct xlang_slice_xlang_slice_xlang_slice_int *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int32_t { struct xlang_slice_xlang_slice_xlang_slice_int32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint32_t { struct xlang_slice_xlang_slice_xlang_slice_uint32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int64_t { struct xlang_slice_xlang_slice_xlang_slice_int64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint64_t { struct xlang_slice_xlang_slice_xlang_slice_uint64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_size_t { struct xlang_slice_xlang_slice_xlang_slice_size_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t { struct xlang_slice_xlang_slice_xlang_slice_ssize_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_float { struct xlang_slice_xlang_slice_xlang_slice_float *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_xlang_slice_double *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint8_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int8_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int16_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint16_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int32_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint32_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int64_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint64_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_size_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_size_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_float *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_double *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint8_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int8_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int16_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint16_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int32_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint32_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int64_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint64_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_size_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_size_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint8_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int8_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int16_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint16_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int32_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint32_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int64_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint64_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_size_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_size_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint8_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int8_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int8_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int16_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint16_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint16_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int32_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint32_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint32_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int64_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint64_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint64_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_size_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_size_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float *data; size_t length; };
-struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double *data; size_t length; };
-#endif
-#if defined(__GNUC__) || defined(__clang__)
-typedef int32_t i32x4_t __attribute__((vector_size(16)));
-typedef int32_t i32x8_t __attribute__((vector_size(32)));
-typedef int32_t i32x16_t __attribute__((vector_size(64)));
-typedef uint32_t u32x4_t __attribute__((vector_size(16)));
-typedef uint32_t u32x8_t __attribute__((vector_size(32)));
-typedef uint32_t u32x16_t __attribute__((vector_size(64)));
-typedef float f32x4_t __attribute__((vector_size(16)));
-typedef float f32x8_t __attribute__((vector_size(32)));
-typedef float f32x16_t __attribute__((vector_size(64)));
-#else
-typedef struct { int32_t e[4]; } i32x4_t;
-typedef struct { int32_t e[8]; } i32x8_t;
-typedef struct { int32_t e[16]; } i32x16_t;
-typedef struct { uint32_t e[4]; } u32x4_t;
-typedef struct { uint32_t e[8]; } u32x8_t;
-typedef struct { uint32_t e[16]; } u32x16_t;
-typedef struct { float e[4]; } f32x4_t;
-typedef struct { float e[8]; } f32x8_t;
-typedef struct { float e[16]; } f32x16_t;
-#endif
-typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;
-extern int io_register_buffer(uint8_t *ptr, size_t len);
-extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
-__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
-static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }
-#define io_register_buffers_buf(bufs, nr) io_register_buffers_buf_i32((intptr_t)(void *)(bufs), (nr))
-extern void io_unregister_buffers(void);
-extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
-extern ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
-extern ptrdiff_t io_read_batch(int fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, int n, unsigned timeout_ms);
-extern ptrdiff_t io_write_batch(int fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, int n, unsigned timeout_ms);
-extern ptrdiff_t io_read_fixed(int fd, unsigned buf_index, size_t offset, size_t len, unsigned timeout_ms);
-extern ptrdiff_t io_write_fixed(int fd, unsigned buf_index, size_t offset, size_t len, unsigned timeout_ms);
-extern int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms);
-extern uint8_t *io_read_ptr(size_t handle, unsigned timeout_ms);
-extern int io_read_ptr_len(void);
-extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
-extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
-extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
-extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
-extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);
-extern int32_t xlang_io_read_ptr_len(void);
-typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;
-static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }
-static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }
-static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }
-static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }
-static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }
-#define xlang_io_register(buf) xlang_io_register_buf(buf)
-#define xlang_io_submit_read(buf, timeout_m) xlang_io_submit_read_buf(buf, timeout_m)
-#define xlang_io_submit_write(buf, timeout_m) xlang_io_submit_write_buf(buf, timeout_m)
-/* 撤销宏：X codegen 会生成同名函数定义(xlang_io_register/submit_read/submit_write)，宏与多参签名冲突，在函数体前必须 undef。 */
-#undef xlang_io_register
-#undef xlang_io_submit_read
-#undef xlang_io_submit_write
-struct std_io_driver_Buffer { void *ptr; size_t length; size_t handle; };
-typedef struct std_io_driver_Buffer std_io_Buffer;
-#define std_io_Buffer std_io_driver_Buffer
-extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
-extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
-extern int32_t std_io_driver_submit_register_fixed_buffers_buf(struct std_io_driver_Buffer * bufs, uint32_t nr);
-#define std_io_driver_driver_read_ptr_len xlang_io_read_ptr_len
-#define std_io_driver_driver_read_ptr xlang_io_read_ptr
-#define driver_read_ptr_len std_io_driver_driver_read_ptr_len
-#define driver_read_ptr std_io_driver_driver_read_ptr
-#define submit_register_fixed_buffers_buf std_io_driver_submit_register_fixed_buffers_buf
-/* 短名 submit_read/write → via_ptr；全名 std_io_driver_submit_* 由 co-emit 定义。 */
-#define submit_read(buf, timeout_ms) std_io_driver_submit_read_via_ptr((ptrdiff_t)(uintptr_t)&(buf), (timeout_ms))
-#define submit_write(buf, timeout_ms) std_io_driver_submit_write_via_ptr((ptrdiff_t)(uintptr_t)&(buf), (timeout_ms))
-#define std_io_driver_read_ptr driver_read_ptr
-#define std_io_driver_read_ptr_len driver_read_ptr_len
-extern size_t std_io_handle_stdin(void);
-extern size_t std_io_handle_stdout(void);
-extern size_t std_io_handle_stderr(void);
-extern size_t std_io_handle_from_fd(int32_t fd, int32_t unused);
-extern size_t std_io_driver_handle_from_fd(int32_t fd, int32_t unused);
-extern int32_t std_io_write_stdout(uint8_t *ptr, size_t len);
-#define std_io_driver_handle_stdin std_io_handle_stdin
-#define std_io_driver_handle_stdout std_io_handle_stdout
-#define std_io_driver_handle_stderr std_io_handle_stderr
-#define std_io_driver_write_stdout std_io_write_stdout
-/* std.io.core 体内调 extern io_*；codegen 前缀为 std_io_core_io_*，映射到 preamble 已声明的 io_*。 */
-#define std_io_core_io_read io_read
-#define std_io_core_io_write io_write
-#define std_io_core_io_read_batch io_read_batch
-#define std_io_core_io_write_batch io_write_batch
-#define std_io_core_io_read_fixed io_read_fixed
-#define std_io_core_io_write_fixed io_write_fixed
-#define std_io_core_xlang_io_register xlang_io_register
-#define std_io_core_xlang_io_register_buffers xlang_io_register_buffers
-#define std_io_core_xlang_io_unregister_buffers xlang_io_unregister_buffers
-#define std_io_core_xlang_io_submit_read xlang_io_submit_read
-#define std_io_core_xlang_io_read_ptr xlang_io_read_ptr
-#define std_io_core_xlang_io_read_ptr_len xlang_io_read_ptr_len
-#define std_io_core_xlang_io_submit_write xlang_io_submit_write
-#define std_io_core_xlang_io_submit_read_batch xlang_io_submit_read_batch
-#define std_io_core_xlang_io_submit_write_batch xlang_io_submit_write_batch
-#define std_io_core_xlang_io_read_fixed xlang_io_read_fixed
-#define std_io_core_xlang_io_write_fixed xlang_io_write_fixed
-#define std_io_core_xlang_io_register_buffers_buf io_register_buffers_buf
-#define std_io_core_xlang_io_read_ptr_gen xlang_io_read_ptr_gen
-#define std_io_core_xlang_io_read_ptr_gen_valid xlang_io_read_ptr_gen_valid
-#define std_io_core_xlang_io_read_ptr_backend xlang_io_read_ptr_backend
-#define std_io_core_xlang_io_read_ptr_slice xlang_io_read_ptr_slice
-#define std_io_core_xlang_io_read_batch_buf(fd, bufs, n, t) io_read_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))
-#define std_io_core_xlang_io_write_batch_buf(fd, bufs, n, t) io_write_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))
-#define std_io_core_xlang_io_register_provided_buffers xlang_io_register_provided_buffers
-#define std_io_core_xlang_io_unregister_provided_buffers xlang_io_unregister_provided_buffers
-#define std_io_core_xlang_io_provided_buffer_ptr xlang_io_provided_buffer_ptr
-#define std_io_core_xlang_io_provided_buffer_size xlang_io_provided_buffer_size
-#define std_io_core_xlang_io_read_provided xlang_io_read_provided
-#define std_io_core_xlang_io_read_batch_provided xlang_io_read_batch_provided
-#define std_io_core_xlang_io_submit_read_async xlang_io_submit_read_async
-#define std_io_core_xlang_io_complete_read_async xlang_io_complete_read_async
-#define std_io_core_xlang_io_complete_read_async_slot xlang_io_complete_read_async_slot
-#define std_io_core_xlang_io_submit_write_async xlang_io_submit_write_async
-#define std_io_core_xlang_io_complete_write_async xlang_io_complete_write_async
-#define std_io_core_xlang_io_complete_write_async_slot xlang_io_complete_write_async_slot
-#define std_io_core_xlang_io_poll_async_completions xlang_io_poll_async_completions
-#define std_io_core_xlang_io_uring_is_available_c xlang_io_uring_is_available_c
-extern int32_t xlang_io_read_ptr_gen_valid(uint64_t saved);
-extern int32_t xlang_io_read_ptr_backend(void);
-extern uint64_t xlang_io_read_ptr_gen(void);
-extern struct xlang_slice_uint8_t xlang_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
-extern int32_t xlang_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
-extern void xlang_io_unregister_provided_buffers(void);
-extern uint8_t *xlang_io_provided_buffer_ptr(uint32_t bid);
-extern uint32_t xlang_io_provided_buffer_size(void);
-extern int32_t xlang_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);
-extern int32_t xlang_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);
-extern int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t xlang_io_complete_read_async(void);
-extern int32_t xlang_io_complete_read_async_slot(int32_t slot);
-extern int32_t xlang_io_submit_write_async(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t xlang_io_complete_write_async(void);
-extern int32_t xlang_io_complete_write_async_slot(int32_t slot);
-extern uint32_t xlang_io_poll_async_completions(uint32_t timeout_ms);
-extern int32_t xlang_io_uring_is_available_c(void);
-#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
-extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
-extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
-#define std_io_submit_read_batch_buf std_io_driver_submit_read_batch_buf
-#define std_io_submit_write_batch_buf std_io_driver_submit_write_batch_buf
-extern int32_t std_io_read_fixed_fd_impl(int32_t fd, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
-extern int32_t std_io_write_fixed_fd_impl(int32_t fd, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
-/* X 生成代码可能调用 std_io_* / std_net_* 带前缀名且首参为 stream/listener 结构体；以下宏统一转为 .fd 再调 _impl。C 路径下 std.io 仍定义 std_io_read_fixed_fd，故仅 X 需宏。 */
-struct std_net_TcpStream { int32_t fd; };
-struct std_net_TcpListener { int32_t fd; };
-struct std_net_UdpSocket { int32_t fd; };
-#if defined(__clang__)
-#define xlang_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))
-#elif defined(__GNUC__)
-/* 仅用 *(int32_t*)&(x)：int32_t 与仅含 .fd 的 struct 首字节相同，且避免 __builtin_types_compatible_p 在部分环境报错、三元分支被全量类型检查。调用方须传 lvalue。 */
-#define xlang_io_net_fd(x) (*(int32_t*)(void*)&(x))
-#else
-#define xlang_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))
-#endif
-#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)
-#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)
-/* X 内联 std.io 会生成函数定义；撤销与定义/extern 冲突的宏，并补齐 batch 注册符号映射。 */
-#undef std_io_driver_io_register_buffers_buf
-#undef std_io_read_fixed_fd
-#undef std_io_write_fixed_fd
-#undef std_io_core_xlang_io_register_buffers
-#undef std_io_core_xlang_io_unregister_buffers
-#undef std_io_core_xlang_io_read_fixed
-#undef std_io_core_xlang_io_write_fixed
-#undef std_io_core_xlang_io_wait_readable
-#define std_io_core_xlang_io_register_buffers io_register_buffers_4
-#define std_io_core_xlang_io_unregister_buffers io_unregister_buffers
-#define std_io_core_xlang_io_read_fixed xlang_io_read_fixed
-#define std_io_core_xlang_io_write_fixed xlang_io_write_fixed
-#define std_io_core_xlang_io_wait_readable io_wait_readable
-/* codegen 体内调 std_io_driver_io_*；#undef 后重绑到 preamble/io.o 的 io_*。 */
-#define std_io_driver_io_read_batch_buf io_read_batch_buf
-#define std_io_driver_io_write_batch_buf io_write_batch_buf
-#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
-#include <stdio.h>
-#ifndef __cplusplus
-/* 仅补 co-emit 未定义的符号；勿桩 submit_read / submit_*_batch / submit_write（core 强定义）。 */
-__attribute__((weak)) int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
-  (void)ptr; (void)len; (void)handle; return -1;
-}
-__attribute__((weak)) int32_t xlang_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
-  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
-}
-__attribute__((weak)) int32_t xlang_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
-  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
-}
-__attribute__((weak)) int32_t xlang_io_read_ptr_backend(void) { return 0; }
-__attribute__((weak)) int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {
-  (void)p0;(void)l0;(void)p1;(void)l1;(void)p2;(void)l2;(void)p3;(void)l3;(void)nr; return -1;
-}
-__attribute__((weak)) int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms) {
-  (void)fds;(void)n;(void)timeout_ms; return -1;
-}
-__attribute__((weak)) ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
-  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
-}
-__attribute__((weak)) ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
-  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
-}
-__attribute__((weak)) int32_t process_xlang_argc_get(void) { return 0; }
-__attribute__((weak)) uint8_t *process_xlang_argv_get(int32_t i) { (void)i; return (uint8_t *)0; }
-__attribute__((weak)) int32_t process_args_count_c(void) { return process_xlang_argc_get(); }
-__attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_xlang_argv_get(i); }
-__attribute__((weak)) int32_t args_iter_count_c(void) { return process_args_count_c(); }
-__attribute__((weak)) uint8_t *args_iter_at_c(int32_t i) { return process_arg_c(i); }
-__attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
-__attribute__((weak)) int64_t ctx_background_c(void) { return 0; }
-__attribute__((weak)) void ctx_cancel_c(int64_t c) { (void)c; }
-__attribute__((weak)) int64_t ctx_deadline_ns_c(int64_t c) { (void)c; return 0; }
-__attribute__((weak)) void ctx_free_c(int64_t c) { (void)c; }
-__attribute__((weak)) int32_t ctx_get_value_c(int64_t h, uint8_t *key, int64_t *out) {
-  (void)h;(void)key; if (out) *out = 0; return 0;
-}
-__attribute__((weak)) int32_t ctx_is_cancelled_c(int64_t c) { (void)c; return 0; }
-__attribute__((weak)) int64_t ctx_remaining_ns_c(int64_t c) { (void)c; return 0; }
-__attribute__((weak)) int32_t ctx_set_value_c(int64_t h, uint8_t *key, int64_t value) {
-  (void)h;(void)key;(void)value; return 0;
-}
-__attribute__((weak)) int64_t ctx_with_cancel_c(int64_t p) { (void)p; return 0; }
-__attribute__((weak)) int64_t ctx_with_deadline_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }
-__attribute__((weak)) int64_t ctx_with_timeout_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }
-#endif
-struct std_net_Ipv4Addr { uint8_t a; uint8_t b; uint8_t c; uint8_t d; };
-struct std_net_Ipv6Addr { uint8_t b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15; };
-#define handle_from_fd std_io_handle_from_fd
-#define submit_read_batch_buf std_io_submit_read_batch_buf
-#define submit_write_batch_buf std_io_submit_write_batch_buf
-#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)
-#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)
-/* 实际符号用 _real；仅定义 std_net_net_* 宏。
- * 【Why 勿 #define net_close_socket_c / net_run_accept_workers_c】
- * link_only 路径会 emit `extern int32_t net_close_socket_c(...)`；
- * 若宏同名，extern 声明被展开 → expected parameter declarator。 */
-extern int32_t net_close_socket_c_real(int32_t fd);
-extern int32_t net_run_accept_workers_c_real(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);
-extern int32_t net_close_socket_c(int32_t fd);
-extern int32_t net_run_accept_workers_c(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);
-#define std_net_net_close_socket_c(x) net_close_socket_c_real(xlang_io_net_fd(x))
-#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(xlang_io_net_fd(x), n, t)
-#define STD_FS_FS_IOVEC_BUF_DEFINED
-struct std_fs_FsIovecBuf { void *ptr; size_t length; size_t handle; };
-#define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf
-struct std_io_sync_Iovec { uint8_t *base; size_t length; };
-#define std_fs_posix_Iovec std_io_sync_Iovec
-struct std_map_Map_i32_i32;
-typedef struct std_io_driver_Buffer std_net_Buffer;
-struct std_error_Error { int32_t code; };
-struct std_error_ErrorChain { int32_t depth; int32_t c0; int32_t c1; int32_t c2; int32_t c3; };
-struct std_string_String { uint8_t data[256]; int32_t length; };
-typedef struct std_string_String String;
-struct std_string_StrView { uint8_t *ptr; int32_t length; };
-struct std_heap_Arena64 { uint8_t *chunk; size_t cap; size_t off; };
-struct std_heap_Allocator { int32_t kind; struct std_heap_Arena64 *arena; };
-struct std_vec_Vec_i32;
-struct core_option_Option_i32 { int is_some; int32_t value; };
-struct core_option_Option_u8 { int is_some; uint8_t value; uint8_t _pad0; uint8_t _pad1; uint8_t _pad2; };
-struct core_option_Option_u64 { int is_some; int32_t _pad; uint64_t value; };
-struct core_option_Option_ptr_u8 { int is_some; int32_t _pad; uint8_t *value; };
-struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32_t _pad2; };
-struct core_result_Result_u8 { uint8_t value; uint8_t _pad1; uint8_t _pad2; uint8_t _pad3; int32_t err; int32_t _pad4; };
-extern void xlang_panic_(int, intptr_t);
-extern int32_t core_types_placeholder(void);
-extern int32_t std_heap_alloc_size_zero(void);
-extern int32_t std_runtime_runtime_ready(void);
-#ifndef __cplusplus
-__attribute__((weak)) int32_t std_vec_vec_len_empty(void) { return 0; }
-__attribute__((weak)) int32_t std_vec_len_empty(void) { return 0; }
-#else
-extern int32_t std_vec_vec_len_empty(void);
-extern int32_t std_vec_len_empty(void);
-#endif
-#define vec_len_empty std_vec_vec_len_empty
-#define alloc_size_zero std_heap_alloc_size_zero
-#define runtime_ready std_runtime_runtime_ready
-#ifndef __cplusplus
-__attribute__((weak)) int32_t std_string_placeholder(void) { return 0; }
-#else
-extern int32_t std_string_placeholder(void);
-#endif
-extern int32_t fmt_i32(int32_t);
-extern struct std_string_String std_string_string_new(void);
-typedef struct std_fs_FsIovecBuf fs_iovec_buf_t;
-extern int32_t fs_open_read_c(uint8_t *path);
-extern uint64_t fs_direct_align_c(void);
-extern int32_t fs_fadvise_sequential_c(int32_t fd);
-extern int32_t fs_fadvise_willneed_c(int32_t fd, int64_t offset, size_t len);
-extern int64_t fs_copy_file_range_c(int32_t fd_in, int32_t fd_out, size_t len);
-extern int64_t fs_sendfile_c(int32_t out_fd, int32_t in_fd, size_t count);
-extern int64_t fs_pipe_splice_c(int32_t fd_in, int32_t fd_out, size_t len);
-extern int32_t fs_sync_range_c(int32_t fd, int64_t offset, size_t len);
-extern int32_t fs_sync_c(int32_t fd);
-extern int32_t fs_fallocate_c(int32_t fd, int64_t offset, int64_t len);
-extern int32_t fs_last_error_c(void);
-extern int64_t fs_readv_buf_c(int32_t fd, const fs_iovec_buf_t *bufs, int n);
-extern int64_t fs_writev_buf_c(int32_t fd, const fs_iovec_buf_t *bufs, int n);
-extern int32_t std_path_empty_len(void);
-#define empty_len() std_path_empty_len()
-extern int32_t map_i32_i32_find_c(const int32_t *keys, const uint8_t *occupied, int32_t cap, int32_t key);
-extern int32_t std_map_empty_size(void);
-#define empty_size(_a, _b) std_map_empty_size()
-extern int32_t std_error_error_ok(void);
-#define error_ok(_a, _b) std_error_error_ok()
+#include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
 #ifndef XLANG_SLICE_LAYOUTS
@@ -667,6 +121,62 @@ struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_x
 struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float *data; size_t length; };
 struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double *data; size_t length; };
 #endif
+
+/* seeds/typeck_short_face_alias.from_x.c — wave317 typeck M4 layer-3 (partial)
+ * Bare ast_block_* / ast_expr_* / ast_arena_* short names → ast_ast_* product faces.
+ * Tip typeck.x -E emits bare calls; product/pool export ast_ast_* (and pipeline_*).
+ * G.7: define-only aliases (zero bodies). Inject early in typeck_gen (before bodies).
+ * PLATFORM: SHARED freestanding typeck tip re-pin companion.
+ */
+#ifndef XLANG_TYPECK_SHORT_FACE_ALIAS_H
+#define XLANG_TYPECK_SHORT_FACE_ALIAS_H
+#define ast_block_final_expr_ref ast_ast_block_final_expr_ref
+#define ast_block_num_consts ast_ast_block_num_consts
+#define ast_block_num_lets ast_ast_block_num_lets
+#define ast_block_num_loops ast_ast_block_num_loops
+#define ast_block_num_for_loops ast_ast_block_num_for_loops
+#define ast_block_num_if_stmts ast_ast_block_num_if_stmts
+#define ast_block_num_regions ast_ast_block_num_regions
+#define ast_block_num_labeled_stmts ast_ast_block_num_labeled_stmts
+#define ast_block_region_body_ref ast_ast_block_region_body_ref
+#define ast_block_num_expr_stmts ast_ast_block_num_expr_stmts
+#define ast_block_num_stmt_order ast_ast_block_num_stmt_order
+#define ast_block_stmt_order_kind ast_ast_block_stmt_order_kind
+#define ast_block_stmt_order_idx ast_ast_block_stmt_order_idx
+#define ast_block_const_init_ref ast_ast_block_const_init_ref
+#define ast_block_const_type_ref ast_ast_block_const_type_ref
+#define ast_block_let_init_ref ast_ast_block_let_init_ref
+#define ast_block_let_type_ref ast_ast_block_let_type_ref
+#define ast_block_expr_stmt_ref ast_ast_block_expr_stmt_ref
+#define ast_block_while_cond_ref ast_ast_block_while_cond_ref
+#define ast_block_while_body_ref ast_ast_block_while_body_ref
+#define ast_block_for_init_ref ast_ast_block_for_init_ref
+#define ast_block_for_cond_ref ast_ast_block_for_cond_ref
+#define ast_block_for_step_ref ast_ast_block_for_step_ref
+#define ast_block_for_body_ref ast_ast_block_for_body_ref
+#define ast_block_if_cond_ref ast_ast_block_if_cond_ref
+#define ast_block_if_then_body_ref ast_ast_block_if_then_body_ref
+#define ast_block_if_else_body_ref ast_ast_block_if_else_body_ref
+#define ast_block_resolve_var_to_type_ref ast_ast_block_resolve_var_to_type_ref
+#define ast_expr_apply_call_resolve ast_ast_expr_apply_call_resolve
+#define ast_expr_disallows_implicit_tail ast_ast_expr_disallows_implicit_tail
+#define ast_expr_layout_prime_call_resolved ast_ast_expr_layout_prime_call_resolved
+#define ast_arena_init ast_ast_arena_init
+#define ast_arena_type_alloc ast_ast_arena_type_alloc
+#define ast_arena_expr_alloc ast_ast_arena_expr_alloc
+#define ast_arena_block_alloc ast_ast_arena_block_alloc
+#define ast_arena_type_get ast_ast_arena_type_get
+#define ast_arena_type_set ast_ast_arena_type_set
+#define ast_arena_expr_get ast_ast_arena_expr_get
+#define ast_arena_expr_set ast_ast_arena_expr_set
+#define ast_arena_block_get ast_ast_arena_block_get
+#define ast_arena_block_set ast_ast_arena_block_set
+#define ast_arena_func_alloc ast_ast_arena_func_alloc
+#define ast_arena_func_get ast_ast_arena_func_get
+#define ast_arena_func_set ast_ast_arena_func_set
+#define ast_arena_patch_block_parent_links ast_ast_arena_patch_block_parent_links
+#endif /* XLANG_TYPECK_SHORT_FACE_ALIAS_H */
+
 enum ast_TypeKind { ast_TypeKind_TYPE_I32, ast_TypeKind_TYPE_BOOL, ast_TypeKind_TYPE_U8, ast_TypeKind_TYPE_U32, ast_TypeKind_TYPE_U64, ast_TypeKind_TYPE_I64, ast_TypeKind_TYPE_USIZE, ast_TypeKind_TYPE_ISIZE, ast_TypeKind_TYPE_NAMED, ast_TypeKind_TYPE_PTR, ast_TypeKind_TYPE_ARRAY, ast_TypeKind_TYPE_SLICE, ast_TypeKind_TYPE_LINEAR, ast_TypeKind_TYPE_VECTOR, ast_TypeKind_TYPE_F32, ast_TypeKind_TYPE_F64, ast_TypeKind_TYPE_VOID };
 enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_ExprKind_EXPR_BOOL_LIT, ast_ExprKind_EXPR_VAR, ast_ExprKind_EXPR_ADD, ast_ExprKind_EXPR_SUB, ast_ExprKind_EXPR_MUL, ast_ExprKind_EXPR_DIV, ast_ExprKind_EXPR_MOD, ast_ExprKind_EXPR_SHL, ast_ExprKind_EXPR_SHR, ast_ExprKind_EXPR_BITAND, ast_ExprKind_EXPR_BITOR, ast_ExprKind_EXPR_BITXOR, ast_ExprKind_EXPR_EQ, ast_ExprKind_EXPR_NE, ast_ExprKind_EXPR_LT, ast_ExprKind_EXPR_LE, ast_ExprKind_EXPR_GT, ast_ExprKind_EXPR_GE, ast_ExprKind_EXPR_LOGAND, ast_ExprKind_EXPR_LOGOR, ast_ExprKind_EXPR_NEG, ast_ExprKind_EXPR_BITNOT, ast_ExprKind_EXPR_LOGNOT, ast_ExprKind_EXPR_IF, ast_ExprKind_EXPR_BLOCK, ast_ExprKind_EXPR_TERNARY, ast_ExprKind_EXPR_ASSIGN, ast_ExprKind_EXPR_ADD_ASSIGN, ast_ExprKind_EXPR_SUB_ASSIGN, ast_ExprKind_EXPR_MUL_ASSIGN, ast_ExprKind_EXPR_DIV_ASSIGN, ast_ExprKind_EXPR_MOD_ASSIGN, ast_ExprKind_EXPR_BITAND_ASSIGN, ast_ExprKind_EXPR_BITOR_ASSIGN, ast_ExprKind_EXPR_BITXOR_ASSIGN, ast_ExprKind_EXPR_SHL_ASSIGN, ast_ExprKind_EXPR_SHR_ASSIGN, ast_ExprKind_EXPR_BREAK, ast_ExprKind_EXPR_CONTINUE, ast_ExprKind_EXPR_RETURN, ast_ExprKind_EXPR_PANIC, ast_ExprKind_EXPR_MATCH, ast_ExprKind_EXPR_FIELD_ACCESS, ast_ExprKind_EXPR_STRUCT_LIT, ast_ExprKind_EXPR_ARRAY_LIT, ast_ExprKind_EXPR_INDEX, ast_ExprKind_EXPR_CALL, ast_ExprKind_EXPR_METHOD_CALL, ast_ExprKind_EXPR_ENUM_VARIANT, ast_ExprKind_EXPR_ADDR_OF, ast_ExprKind_EXPR_DEREF, ast_ExprKind_EXPR_BINOP, ast_ExprKind_EXPR_AS, ast_ExprKind_EXPR_AWAIT, ast_ExprKind_EXPR_RUN, ast_ExprKind_EXPR_SPAWN, ast_ExprKind_EXPR_TRY_PROPAGATE, ast_ExprKind_EXPR_STRING_LIT };
 enum ast_ImportKind { ast_ImportKind_IMPORT_WHOLE, ast_ImportKind_IMPORT_BINDING, ast_ImportKind_IMPORT_SELECT };
@@ -1068,6 +578,775 @@ struct ast_ASTArena {
   int32_t num_blocks;
   int32_t num_funcs;
 };
+
+/* pipeline call aliases (ast_pipeline_* extern, pipeline_* call) */
+#define pipeline_block_expr_stmt_ref ast_pipeline_block_expr_stmt_ref
+#define ast_arena_init ast_ast_arena_init
+#define ast_arena_type_alloc ast_ast_arena_type_alloc
+#define ast_arena_expr_alloc ast_ast_arena_expr_alloc
+#define ast_arena_block_alloc ast_ast_arena_block_alloc
+#define ast_arena_type_get ast_ast_arena_type_get
+#define ast_arena_type_set ast_ast_arena_type_set
+#define ast_arena_expr_get ast_ast_arena_expr_get
+#define ast_arena_expr_set ast_ast_arena_expr_set
+#define ast_arena_block_get ast_ast_arena_block_get
+#define ast_arena_patch_block_parent_links ast_ast_arena_patch_block_parent_links
+#define ast_arena_block_set ast_ast_arena_block_set
+#define ast_arena_func_alloc ast_ast_arena_func_alloc
+#define ast_arena_func_get ast_ast_arena_func_get
+#define ast_arena_func_set ast_ast_arena_func_set
+#define typeck_typeck_type_kind_ordinal typeck_type_kind_ordinal
+#define typeck_typeck_name_equal typeck_name_equal
+#define typeck_typeck_resolve_type_alias_ref_local typeck_resolve_type_alias_ref_local
+#define typeck_typeck_resolve_type_alias_ref typeck_resolve_type_alias_ref
+#define typeck_typeck_named_type_matches_name_or_alias typeck_named_type_matches_name_or_alias
+#define typeck_typeck_layout_name_equal typeck_layout_name_equal
+#define typeck_typeck_layout_field_name_equal typeck_layout_field_name_equal
+#define typeck_typeck_layout_name_into typeck_layout_name_into
+#define typeck_typeck_layout_field_name_into typeck_layout_field_name_into
+#define typeck_typeck_import_path_slice_equal typeck_import_path_slice_equal
+#define typeck_typeck_import_binding_name_equal typeck_import_binding_name_equal
+#define typeck_typeck_module_num_imports typeck_module_num_imports
+#define typeck_typeck_var_is_import_visible_name typeck_var_is_import_visible_name
+#define typeck_typeck_import_select_name_equal typeck_import_select_name_equal
+#define typeck_typeck_top_level_let_name_equal typeck_top_level_let_name_equal
+#define typeck_typeck_dep_module_const_idx_named typeck_dep_module_const_idx_named
+#define typeck_typeck_find_import_const_dep_index typeck_find_import_const_dep_index
+#define typeck_typeck_import_last_segment_into typeck_import_last_segment_into
+#define typeck_typeck_resolve_dep_index_for_import typeck_resolve_dep_index_for_import
+#define typeck_typeck_import_const_binding_hint_at typeck_import_const_binding_hint_at
+#define typeck_typeck_reject_bare_import_const typeck_reject_bare_import_const
+#define typeck_typeck_find_layout_idx_by_type_name typeck_find_layout_idx_by_type_name
+#define typeck_typeck_x_named_builtin_align typeck_x_named_builtin_align
+#define typeck_typeck_x_named_builtin_size typeck_x_named_builtin_size
+#define typeck_typeck_x_type_align typeck_x_type_align
+#define typeck_typeck_type_is_empty_struct typeck_type_is_empty_struct
+#define typeck_typeck_x_type_size typeck_x_type_size
+#define typeck_typeck_soa_find_layout_idx_by_name typeck_soa_find_layout_idx_by_name
+#define typeck_typeck_soa_find_layout_module_and_idx typeck_soa_find_layout_module_and_idx
+#define typeck_typeck_soa_col_base_for_field typeck_soa_col_base_for_field
+#define typeck_typeck_soa_field_soa_index typeck_soa_field_soa_index
+#define typeck_typeck_soa_array_storage_size_glue typeck_soa_array_storage_size_glue
+#define typeck_typeck_struct_layout_metrics typeck_struct_layout_metrics
+#define typeck_typeck_validate_struct_layouts_zero_padding typeck_validate_struct_layouts_zero_padding
+#define typeck_typeck_get_field_offset_from_layout typeck_get_field_offset_from_layout
+#define typeck_typeck_get_field_type_ref_from_layout typeck_get_field_type_ref_from_layout
+#define typeck_typeck_get_field_offset_from_layout_deps typeck_get_field_offset_from_layout_deps
+#define typeck_typeck_ensure_struct_layout_from_struct_lit typeck_ensure_struct_layout_from_struct_lit
+#define typeck_typeck_field_known_ptr typeck_field_known_ptr
+#define typeck_typeck_dep_top_level_const_match typeck_dep_top_level_const_match
+#define typeck_typeck_field_import_try_dep_enum_type typeck_field_import_try_dep_enum_type
+#define typeck_typeck_field_import_binding typeck_field_import_binding
+#define typeck_typeck_field_reverse_infer_base_type typeck_field_reverse_infer_base_type
+#define typeck_typeck_named_is_module_concrete typeck_named_is_module_concrete
+#define typeck_typeck_mono_field_type_from_base typeck_mono_field_type_from_base
+#define typeck_typeck_field_unknown_hard_fail typeck_field_unknown_hard_fail
+#define typeck_typeck_field_layout_named typeck_field_layout_named
+#define typeck_typeck_expr_var_name_equal_func typeck_expr_var_name_equal_func
+#define typeck_typeck_find_or_alloc_named_type_ref typeck_find_or_alloc_named_type_ref
+#define typeck_typeck_field_access_lexer_wrapper_fallback typeck_field_access_lexer_wrapper_fallback
+#define typeck_typeck_ensure_primitive_by_kind_ord typeck_ensure_primitive_by_kind_ord
+#define typeck_typeck_ensure_i32_type_ref typeck_ensure_i32_type_ref
+#define typeck_typeck_ensure_u8_type_ref typeck_ensure_u8_type_ref
+#define typeck_typeck_ensure_bool_type_ref typeck_ensure_bool_type_ref
+#define typeck_typeck_ensure_f32_type_ref typeck_ensure_f32_type_ref
+#define typeck_typeck_ensure_f64_type_ref typeck_ensure_f64_type_ref
+#define typeck_typeck_ensure_usize_type_ref typeck_ensure_usize_type_ref
+#define typeck_typeck_ensure_void_type_ref typeck_ensure_void_type_ref
+#define typeck_typeck_map_import_binding_named_to_caller typeck_map_import_binding_named_to_caller
+#define typeck_typeck_get_dep_return_type_in_caller_arena typeck_get_dep_return_type_in_caller_arena
+#define typeck_typeck_ensure_i64_type_ref typeck_ensure_i64_type_ref
+#define typeck_typeck_find_or_alloc_compound_type_ref typeck_find_or_alloc_compound_type_ref
+#define typeck_typeck_find_or_alloc_array_type_ref typeck_find_or_alloc_array_type_ref
+#define typeck_typeck_ensure_array_type_ref_named_elem typeck_ensure_array_type_ref_named_elem
+#define typeck_typeck_ensure_kind_only_type_ref typeck_ensure_kind_only_type_ref
+#define typeck_typeck_find_or_alloc_ptr_type_ref typeck_find_or_alloc_ptr_type_ref
+#define typeck_typeck_find_or_alloc_slice_type_ref typeck_find_or_alloc_slice_type_ref
+#define typeck_typeck_find_or_alloc_linear_type_ref typeck_find_or_alloc_linear_type_ref
+#define typeck_typeck_find_or_alloc_vector_type_ref typeck_find_or_alloc_vector_type_ref
+#define typeck_typeck_dep_return_type_to_caller_arena typeck_dep_return_type_to_caller_arena
+#define typeck_typeck_expr_field_access_fallback_scalar_type_ref typeck_expr_field_access_fallback_scalar_type_ref
+#define typeck_typeck_get_field_type_ref_from_layout_deps typeck_get_field_type_ref_from_layout_deps
+#define typeck_typeck_inline_u8_64_array_field_type_ref typeck_inline_u8_64_array_field_type_ref
+#define typeck_typeck_expr_inline_array_field_type_ref typeck_expr_inline_array_field_type_ref
+#define typeck_typeck_entry_module_find_struct_layout_index typeck_entry_module_find_struct_layout_index
+#define typeck_typeck_resolve_scan_dep_with_apply typeck_resolve_scan_dep_with_apply
+#define typeck_typeck_find_func_return_type_in_module typeck_find_func_return_type_in_module
+#define typeck_typeck_find_func_return_type_in_module_by_name typeck_find_func_return_type_in_module_by_name
+#define typeck_typeck_overload_arg_param_score typeck_overload_arg_param_score
+#define typeck_typeck_find_func_return_type_in_module_by_name_overload typeck_find_func_return_type_in_module_by_name_overload
+#define typeck_typeck_find_func_return_type_in_module_overload typeck_find_func_return_type_in_module_overload
+#define typeck_typeck_import_path_segment_count typeck_import_path_segment_count
+#define typeck_typeck_import_segment_at typeck_import_segment_at
+#define typeck_typeck_resolve_whole_import_qualified_call_return_type typeck_resolve_whole_import_qualified_call_return_type
+#define typeck_typeck_resolve_call_binding_import_return_type typeck_resolve_call_binding_import_return_type
+#define typeck_typeck_resolve_method_call_binding_import_return_type typeck_resolve_method_call_binding_import_return_type
+#define typeck_typeck_resolve_call_select_import_return_type typeck_resolve_call_select_import_return_type
+#define typeck_typeck_resolve_call_callee_try_whole_import typeck_resolve_call_callee_try_whole_import
+#define typeck_typeck_resolve_call_callee_try_binding_import typeck_resolve_call_callee_try_binding_import
+#define typeck_typeck_resolve_call_callee_local_module typeck_resolve_call_callee_local_module
+#define typeck_typeck_resolve_call_callee_scan_dep typeck_resolve_call_callee_scan_dep
+#define typeck_typeck_resolve_call_callee_return_type typeck_resolve_call_callee_return_type
+#define typeck_typeck_expr_type_ref typeck_expr_type_ref
+#define typeck_typeck_type_ref_is_bool_impl typeck_type_ref_is_bool_impl
+#define typeck_typeck_type_ref_is_bool typeck_type_ref_is_bool
+#define typeck_typeck_named_unqual_start typeck_named_unqual_start
+#define typeck_typeck_type_refs_equal_named typeck_type_refs_equal_named
+#define typeck_typeck_type_refs_equal_same_kind typeck_type_refs_equal_same_kind
+#define typeck_typeck_type_refs_equal_impl typeck_type_refs_equal_impl
+#define typeck_typeck_type_refs_equal typeck_type_refs_equal
+#define typeck_typeck_integer_widen_ok typeck_integer_widen_ok
+#define typeck_typeck_int_family_id typeck_int_family_id
+#define typeck_typeck_integer_widen_ok_refs typeck_integer_widen_ok_refs
+#define typeck_typeck_float_widen_ok typeck_float_widen_ok
+#define typeck_typeck_return_operand_matches typeck_return_operand_matches
+#define typeck_typeck_expr_is_null_keyword typeck_expr_is_null_keyword
+#define typeck_typeck_coerce_init_lit_to_decl typeck_coerce_init_lit_to_decl
+#define typeck_typeck_coerce_init_float_lit_to_decl typeck_coerce_init_float_lit_to_decl
+#define typeck_typeck_coerce_init_enum_field_to_decl typeck_coerce_init_enum_field_to_decl
+#define typeck_typeck_coerce_init_named_call_to_decl typeck_coerce_init_named_call_to_decl
+#define typeck_typeck_coerce_init_resolved_alias_to_decl typeck_coerce_init_resolved_alias_to_decl
+#define typeck_typeck_coerce_array_lit_elem_types_to_decl typeck_coerce_array_lit_elem_types_to_decl
+#define typeck_typeck_vector_lanes_of_type typeck_vector_lanes_of_type
+#define typeck_typeck_coerce_init_array_vector_lit_to_decl typeck_coerce_init_array_vector_lit_to_decl
+#define typeck_typeck_coerce_init_vector_binop_to_decl typeck_coerce_init_vector_binop_to_decl
+#define typeck_typeck_coerce_init_int_binop_to_decl typeck_coerce_init_int_binop_to_decl
+#define typeck_typeck_coerce_init_bool_to_int_decl typeck_coerce_init_bool_to_int_decl
+#define typeck_typeck_coerce_init_slice_from_array typeck_coerce_init_slice_from_array
+#define typeck_typeck_coerce_init_expr_to_decl typeck_coerce_init_expr_to_decl
+#define typeck_typeck_coerce_init_struct_lit_to_decl typeck_coerce_init_struct_lit_to_decl
+#define typeck_typeck_diag_append_lit typeck_diag_append_lit
+#define typeck_typeck_diag_append_u32_dec typeck_diag_append_u32_dec
+#define typeck_typeck_diag_fmt_type_at typeck_diag_fmt_type_at
+#define typeck_typeck_diag_fmt_type_into typeck_diag_fmt_type_into
+#define typeck_typeck_diag_fmt_type_or_question typeck_diag_fmt_type_or_question
+#define typeck_typeck_return_breadcrumb_into typeck_return_breadcrumb_into
+#define typeck_typeck_check_expr_float_lit typeck_check_expr_float_lit
+#define typeck_typeck_check_expr_int_lit typeck_check_expr_int_lit
+#define typeck_typeck_check_expr_bool_lit typeck_check_expr_bool_lit
+#define typeck_typeck_check_expr_string_lit typeck_check_expr_string_lit
+#define typeck_typeck_check_expr_break_continue typeck_check_expr_break_continue
+#define typeck_typeck_check_expr_enum_variant typeck_check_expr_enum_variant
+#define typeck_typeck_check_expr_if_ternary typeck_check_expr_if_ternary
+#define typeck_typeck_block_expr_value_ref typeck_block_expr_value_ref
+#define typeck_typeck_check_expr_block typeck_check_expr_block
+#define typeck_typeck_check_expr_assign typeck_check_expr_assign
+#define typeck_typeck_check_expr_return typeck_check_expr_return
+#define typeck_typeck_check_expr_panic typeck_check_expr_panic
+#define typeck_typeck_check_expr_match_arm typeck_check_expr_match_arm
+#define typeck_typeck_check_expr_match typeck_check_expr_match
+#define typeck_typeck_check_expr_try_propagate typeck_check_expr_try_propagate
+#define typeck_typeck_check_expr_call_arg typeck_check_expr_call_arg
+#define typeck_typeck_check_expr_call_resolve typeck_check_expr_call_resolve
+#define typeck_typeck_check_call_arity typeck_check_call_arity
+#define typeck_typeck_named_is_module_type typeck_named_is_module_type
+#define typeck_typeck_type_is_free_type_param typeck_type_is_free_type_param
+#define typeck_typeck_type_tree_has_free_type_param typeck_type_tree_has_free_type_param
+#define typeck_typeck_generic_formal_matches_arg_type typeck_generic_formal_matches_arg_type
+#define typeck_typeck_check_call_arg_types typeck_check_call_arg_types
+#define typeck_typeck_match_subject_field_type typeck_match_subject_field_type
+#define typeck_typeck_call_arg_repr_compatible_ok typeck_call_arg_repr_compatible_ok
+#define typeck_typeck_check_extern_call_unsafe_boundary typeck_check_extern_call_unsafe_boundary
+#define typeck_typeck_slice_region_escape typeck_slice_region_escape
+#define typeck_typeck_slice_region_conflict typeck_slice_region_conflict
+#define typeck_typeck_check_slice_region_assign typeck_check_slice_region_assign
+#define typeck_typeck_check_return_slice_region typeck_check_return_slice_region
+#define typeck_typeck_ptr_has_stack_local_label typeck_ptr_has_stack_local_label
+#define typeck_typeck_block_tree_has_var typeck_block_tree_has_var
+#define typeck_typeck_var_is_block_local typeck_var_is_block_local
+#define typeck_typeck_expr_is_addr_of_block_local typeck_expr_is_addr_of_block_local
+#define typeck_typeck_lval_is_param_ptr_field typeck_lval_is_param_ptr_field
+#define typeck_typeck_block_is_strict_ancestor typeck_block_is_strict_ancestor
+#define typeck_typeck_expr_lval_root_var typeck_expr_lval_root_var
+#define typeck_typeck_check_struct_stack_escape_assign typeck_check_struct_stack_escape_assign
+#define typeck_typeck_check_scope_borrow_assign typeck_check_scope_borrow_assign
+#define typeck_typeck_check_scope_borrow_return typeck_check_scope_borrow_return
+#define typeck_typeck_type_is_allocator_struct typeck_type_is_allocator_struct
+#define typeck_typeck_check_allocator_region_assign typeck_check_allocator_region_assign
+#define typeck_typeck_check_allocator_region_return typeck_check_allocator_region_return
+#define typeck_typeck_check_call_ptr_struct_compat typeck_check_call_ptr_struct_compat
+#define typeck_typeck_check_call_slice_region typeck_check_call_slice_region
+#define typeck_typeck_check_expr_call typeck_check_expr_call
+#define typeck_typeck_type_is_aggregate_cmp_operand typeck_type_is_aggregate_cmp_operand
+#define typeck_typeck_check_expr_binop_cmp typeck_check_expr_binop_cmp
+#define typeck_typeck_check_expr_binop_arith typeck_check_expr_binop_arith
+#define typeck_typeck_check_expr_binop typeck_check_expr_binop
+#define typeck_typeck_check_expr_field_access typeck_check_expr_field_access
+#define typeck_typeck_check_expr_unary typeck_check_expr_unary
+#define typeck_typeck_check_expr_addr_of typeck_check_expr_addr_of
+#define typeck_typeck_check_expr_deref typeck_check_expr_deref
+#define typeck_typeck_check_expr_var_top_level typeck_check_expr_var_top_level
+#define typeck_typeck_check_expr_var typeck_check_expr_var
+#define typeck_typeck_check_expr_method_call_arg typeck_check_expr_method_call_arg
+#define typeck_typeck_check_expr_method_call typeck_check_expr_method_call
+#define typeck_typeck_as_cast_type_class_ok typeck_as_cast_type_class_ok
+#define typeck_typeck_as_cast_allowed typeck_as_cast_allowed
+#define typeck_typeck_check_expr_as typeck_check_expr_as
+#define typeck_typeck_check_expr_struct_lit_field typeck_check_expr_struct_lit_field
+#define typeck_typeck_coerce_struct_lit_field_inits_to_layout typeck_coerce_struct_lit_field_inits_to_layout
+#define typeck_typeck_check_expr_struct_lit typeck_check_expr_struct_lit
+#define typeck_typeck_vector_elem_type_ref typeck_vector_elem_type_ref
+#define typeck_typeck_type_is_valid_subscript_index typeck_type_is_valid_subscript_index
+#define typeck_typeck_check_expr_index typeck_check_expr_index
+#define typeck_typeck_expr_is_any_assign_kind typeck_expr_is_any_assign_kind
+#define typeck_typeck_check_expr_array_lit typeck_check_expr_array_lit
+#define typeck_typeck_check_expr_impl_mega typeck_check_expr_impl_mega
+#define typeck_typeck_check_expr_impl typeck_check_expr_impl
+#define typeck_typeck_check_expr typeck_check_expr
+#define typeck_typeck_func_body_tail_expr_ref_for_implicit_rule typeck_func_body_tail_expr_ref_for_implicit_rule
+#define typeck_typeck_func_body_has_implicit_return_tail typeck_func_body_has_implicit_return_tail
+#define typeck_typeck_loop_depth_push typeck_loop_depth_push
+#define typeck_typeck_check_block_as_loop_body typeck_check_block_as_loop_body
+#define typeck_typeck_check_block_one_const typeck_check_block_one_const
+#define typeck_typeck_check_block_one_let typeck_check_block_one_let
+#define typeck_typeck_check_block_one_while typeck_check_block_one_while
+#define typeck_typeck_check_block_one_for typeck_check_block_one_for
+#define typeck_typeck_check_block_one_if typeck_check_block_one_if
+#define typeck_typeck_void_reject_value_expr typeck_void_reject_value_expr
+#define typeck_typeck_check_block_final typeck_check_block_final
+#define typeck_typeck_check_block_one_region typeck_check_block_one_region
+#define typeck_typeck_check_block_stmt_order_one typeck_check_block_stmt_order_one
+#define typeck_typeck_check_block_legacy_consts typeck_check_block_legacy_consts
+#define typeck_typeck_check_block_legacy_lets typeck_check_block_legacy_lets
+#define typeck_typeck_check_block_legacy_whiles typeck_check_block_legacy_whiles
+#define typeck_typeck_check_block_legacy_fors typeck_check_block_legacy_fors
+#define typeck_typeck_check_block_legacy_ifs typeck_check_block_legacy_ifs
+#define typeck_typeck_check_block_legacy_expr_stmts typeck_check_block_legacy_expr_stmts
+#define typeck_typeck_check_block_impl typeck_check_block_impl
+#define typeck_typeck_check_block typeck_check_block
+#define typeck_typeck_x_ast_check_one_func typeck_x_ast_check_one_func
+#define typeck_typeck_x_ast_check_all_funcs_loop typeck_x_ast_check_all_funcs_loop
+#define typeck_typeck_x_ast_impl typeck_x_ast_impl
+#define typeck_typeck_x_ast_library typeck_x_ast_library
+#define typeck_typeck_x_ast typeck_x_ast
+#define typeck_typeck_scan_expr_stack_escape_c typeck_scan_expr_stack_escape_c
+#define typeck_typeck_scan_block_stack_escape_c typeck_scan_block_stack_escape_c
+#define typeck_typeck_module_func_overload_count typeck_module_func_overload_count
+#define typeck_typeck_pick_overload_func_index_for_call typeck_pick_overload_func_index_for_call
+#define typeck_typeck_resolve_call_func_index_for_emit typeck_resolve_call_func_index_for_emit
+#define typeck_typeck_call_arg_effective_type typeck_call_arg_effective_type
+#define typeck_typeck_try_infer_generic_call_from_args typeck_try_infer_generic_call_from_args
+#define typeck_typeck_check_inferred_generic_bounds typeck_check_inferred_generic_bounds
+#define typeck_typeck_check_call_generic_type_args typeck_check_call_generic_type_args
+#define typeck_typeck_mono_map_lookup typeck_mono_map_lookup
+#define typeck_typeck_mono_map_bind typeck_mono_map_bind
+#define typeck_typeck_named_num_type_args typeck_named_num_type_args
+#define typeck_typeck_alloc_named_with_type_args_flat typeck_alloc_named_with_type_args_flat
+#define typeck_typeck_pattern_unify_bind typeck_pattern_unify_bind
+#define typeck_typeck_build_value_formal_mono_map typeck_build_value_formal_mono_map
+#define typeck_typeck_subst_type_ref typeck_subst_type_ref
+#define typeck_typeck_generic_call_subst_ret_from_formal_map typeck_generic_call_subst_ret_from_formal_map
+#define typeck_typeck_method_call_generic_ufcs typeck_method_call_generic_ufcs
+#define typeck_typeck_generic_call_fixup_resolved_type typeck_generic_call_fixup_resolved_type
+#define typeck_typeck_linear_name_already_moved typeck_linear_name_already_moved
+#define typeck_typeck_call_resolve_dep_idx_peek typeck_call_resolve_dep_idx_peek
+#define typeck_typeck_call_resolve_func_idx_peek typeck_call_resolve_func_idx_peek
+#define typeck_typeck_overload_expected_ret_peek typeck_overload_expected_ret_peek
+#define typeck_typeck_expr_is_c_static_const_init typeck_expr_is_c_static_const_init
+#define typeck_typeck_block_const_init_is_const typeck_block_const_init_is_const
+#define ast_expr_apply_call_resolve ast_ast_expr_apply_call_resolve
+#define ast_block_final_expr_ref ast_ast_block_final_expr_ref
+#define ast_expr_disallows_implicit_tail ast_ast_expr_disallows_implicit_tail
+#define ast_block_num_consts ast_ast_block_num_consts
+#define ast_block_num_lets ast_ast_block_num_lets
+#define ast_block_num_loops ast_ast_block_num_loops
+#define ast_block_num_for_loops ast_ast_block_num_for_loops
+#define ast_block_num_if_stmts ast_ast_block_num_if_stmts
+#define ast_block_num_regions ast_ast_block_num_regions
+#define ast_block_num_labeled_stmts ast_ast_block_num_labeled_stmts
+#define ast_block_region_body_ref ast_ast_block_region_body_ref
+#define ast_block_num_expr_stmts ast_ast_block_num_expr_stmts
+#define ast_block_num_stmt_order ast_ast_block_num_stmt_order
+#define ast_block_stmt_order_kind ast_ast_block_stmt_order_kind
+#define ast_block_stmt_order_idx ast_ast_block_stmt_order_idx
+#define ast_block_const_init_ref ast_ast_block_const_init_ref
+#define ast_block_const_type_ref ast_ast_block_const_type_ref
+#define ast_block_let_init_ref ast_ast_block_let_init_ref
+#define ast_block_let_type_ref ast_ast_block_let_type_ref
+#define ast_block_expr_stmt_ref ast_ast_block_expr_stmt_ref
+#define ast_block_while_cond_ref ast_ast_block_while_cond_ref
+#define ast_block_while_body_ref ast_ast_block_while_body_ref
+#define ast_block_for_init_ref ast_ast_block_for_init_ref
+#define ast_block_for_cond_ref ast_ast_block_for_cond_ref
+#define ast_block_for_step_ref ast_ast_block_for_step_ref
+#define ast_block_for_body_ref ast_ast_block_for_body_ref
+#define ast_block_if_cond_ref ast_ast_block_if_cond_ref
+#define ast_block_if_then_body_ref ast_ast_block_if_then_body_ref
+#define ast_block_if_else_body_ref ast_ast_block_if_else_body_ref
+#define ast_block_resolve_var_to_type_ref ast_ast_block_resolve_var_to_type_ref
+#define ast_expr_layout_prime_call_resolved ast_ast_expr_layout_prime_call_resolved
+#define ast_arena_expr_set ast_ast_arena_expr_set
+#define ast_arena_block_set ast_ast_arena_block_set
+#define ast_arena_type_set ast_ast_arena_type_set
+#define ast_arena_func_set ast_ast_arena_func_set
+
+/* pipeline reverse aliases (call ast_pipeline_* → pipeline_* extern) */
+#define ast_pipeline_arena_expr_get_copy pipeline_arena_expr_get_copy
+#define ast_pipeline_arena_block_get_copy pipeline_arena_block_get_copy
+#define ast_pipeline_arena_type_get_copy pipeline_arena_type_get_copy
+#define ast_pipeline_arena_func_get_copy pipeline_arena_func_get_copy
+#define ast_pipeline_arena_type_alloc pipeline_arena_type_alloc
+#define ast_pipeline_arena_expr_alloc pipeline_arena_expr_alloc
+#define ast_pipeline_arena_block_alloc pipeline_arena_block_alloc
+#define ast_pipeline_arena_func_alloc pipeline_arena_func_alloc
+#define ast_pipeline_arena_type_set_copy pipeline_arena_type_set_copy
+#define ast_pipeline_arena_expr_set_copy pipeline_arena_expr_set_copy
+#define ast_pipeline_arena_block_set_copy pipeline_arena_block_set_copy
+#define ast_pipeline_arena_func_set_copy pipeline_arena_func_set_copy
+#define ast_pipeline_arena_type_cap pipeline_arena_type_cap
+#define ast_pipeline_arena_expr_cap pipeline_arena_expr_cap
+#define ast_pipeline_arena_block_cap pipeline_arena_block_cap
+#define ast_pipeline_arena_func_cap pipeline_arena_func_cap
+#define ast_pipeline_module_import_alloc pipeline_module_import_alloc
+#define ast_pipeline_module_import_set_path pipeline_module_import_set_path
+#define ast_pipeline_module_import_path_len pipeline_module_import_path_len
+#define ast_pipeline_module_import_path_copy pipeline_module_import_path_copy
+#define ast_pipeline_module_import_path_byte_at pipeline_module_import_path_byte_at
+#define ast_pipeline_module_import_set_kind pipeline_module_import_set_kind
+#define ast_pipeline_module_import_kind_at pipeline_module_import_kind_at
+#define ast_pipeline_module_import_set_binding_name pipeline_module_import_set_binding_name
+#define ast_pipeline_module_import_binding_name_len pipeline_module_import_binding_name_len
+#define ast_pipeline_module_import_binding_name_byte_at pipeline_module_import_binding_name_byte_at
+#define ast_pipeline_module_import_set_select_count pipeline_module_import_set_select_count
+#define ast_pipeline_module_import_append_select_name pipeline_module_import_append_select_name
+#define ast_pipeline_module_import_select_count_at pipeline_module_import_select_count_at
+#define ast_pipeline_module_import_set_select_name pipeline_module_import_set_select_name
+#define ast_pipeline_module_import_select_name_len pipeline_module_import_select_name_len
+#define ast_pipeline_module_import_select_name_byte_at pipeline_module_import_select_name_byte_at
+#define ast_pipeline_module_struct_layout_alloc pipeline_module_struct_layout_alloc
+#define ast_pipeline_module_struct_layout_reset_slot pipeline_module_struct_layout_reset_slot
+#define ast_pipeline_module_struct_layout_set_name pipeline_module_struct_layout_set_name
+#define ast_pipeline_module_struct_layout_set_field pipeline_module_struct_layout_set_field
+#define ast_pipeline_module_struct_layout_name_len pipeline_module_struct_layout_name_len
+#define ast_pipeline_module_struct_layout_name_into pipeline_module_struct_layout_name_into
+#define ast_pipeline_module_struct_layout_field_name_into pipeline_module_struct_layout_field_name_into
+#define ast_pipeline_module_struct_layout_num_fields pipeline_module_struct_layout_num_fields
+#define ast_pipeline_module_struct_layout_set_num_fields pipeline_module_struct_layout_set_num_fields
+#define ast_pipeline_module_struct_layout_field_type_ref pipeline_module_struct_layout_field_type_ref
+#define ast_pipeline_module_struct_layout_field_name_len pipeline_module_struct_layout_field_name_len
+#define ast_pipeline_module_top_level_let_alloc pipeline_module_top_level_let_alloc
+#define ast_pipeline_module_top_level_let_set pipeline_module_top_level_let_set
+#define ast_pipeline_module_top_level_let_name_len pipeline_module_top_level_let_name_len
+#define ast_pipeline_module_top_level_let_name_byte_at pipeline_module_top_level_let_name_byte_at
+#define ast_pipeline_module_top_level_let_type_ref pipeline_module_top_level_let_type_ref
+#define ast_pipeline_module_top_level_let_init_ref pipeline_module_top_level_let_init_ref
+#define ast_pipeline_module_top_level_let_is_const pipeline_module_top_level_let_is_const
+#define ast_pipeline_module_enum_alloc pipeline_module_enum_alloc
+#define ast_pipeline_module_enum_set_name pipeline_module_enum_set_name
+#define ast_pipeline_module_enum_name_len pipeline_module_enum_name_len
+#define ast_pipeline_module_enum_name_byte_at pipeline_module_enum_name_byte_at
+#define ast_pipeline_module_struct_layout_name_byte_at pipeline_module_struct_layout_name_byte_at
+#define ast_pipeline_module_struct_layout_set_allow_padding pipeline_module_struct_layout_set_allow_padding
+#define ast_pipeline_module_struct_layout_allow_padding_at pipeline_module_struct_layout_allow_padding_at
+#define ast_pipeline_module_struct_layout_set_soa pipeline_module_struct_layout_set_soa
+#define ast_pipeline_module_struct_layout_set_packed pipeline_module_struct_layout_set_packed
+#define ast_pipeline_module_struct_layout_packed_at pipeline_module_struct_layout_packed_at
+#define ast_pipeline_module_struct_layout_soa_at pipeline_module_struct_layout_soa_at
+#define ast_pipeline_module_struct_layout_field_offset_at pipeline_module_struct_layout_field_offset_at
+#define ast_pipeline_module_struct_layout_set_field_offset pipeline_module_struct_layout_set_field_offset
+#define ast_pipeline_onefunc_append_const_name pipeline_onefunc_append_const_name
+#define ast_pipeline_onefunc_const_name_len pipeline_onefunc_const_name_len
+#define ast_pipeline_onefunc_const_name_byte_at pipeline_onefunc_const_name_byte_at
+#define ast_pipeline_onefunc_const_init_val pipeline_onefunc_const_init_val
+#define ast_pipeline_onefunc_num_consts pipeline_onefunc_num_consts
+#define ast_pipeline_onefunc_append_let pipeline_onefunc_append_let
+#define ast_pipeline_onefunc_let_name_len pipeline_onefunc_let_name_len
+#define ast_pipeline_onefunc_let_name_byte_at pipeline_onefunc_let_name_byte_at
+#define ast_pipeline_onefunc_let_init_val pipeline_onefunc_let_init_val
+#define ast_pipeline_onefunc_let_init_ref pipeline_onefunc_let_init_ref
+#define ast_pipeline_onefunc_let_type_ref pipeline_onefunc_let_type_ref
+#define ast_pipeline_onefunc_num_lets pipeline_onefunc_num_lets
+#define ast_pipeline_onefunc_const_name_copy64 pipeline_onefunc_const_name_copy64
+#define ast_pipeline_onefunc_let_name_copy64 pipeline_onefunc_let_name_copy64
+#define ast_pipeline_onefunc_copy_sidecar pipeline_onefunc_copy_sidecar
+#define ast_pipeline_block_append_const pipeline_block_append_const
+#define ast_pipeline_block_append_let pipeline_block_append_let
+#define ast_pipeline_block_append_if pipeline_block_append_if
+#define ast_pipeline_block_append_region pipeline_block_append_region
+#define ast_pipeline_block_append_unsafe pipeline_block_append_unsafe
+#define ast_pipeline_block_region_body_ref pipeline_block_region_body_ref
+#define ast_pipeline_block_append_expr_stmt pipeline_block_append_expr_stmt
+#define ast_pipeline_block_append_stmt_order pipeline_block_append_stmt_order
+#define ast_pipeline_block_const_init_ref pipeline_block_const_init_ref
+#define ast_pipeline_block_const_type_ref pipeline_block_const_type_ref
+#define ast_pipeline_block_const_name_len pipeline_block_const_name_len
+#define ast_pipeline_block_const_name_copy64 pipeline_block_const_name_copy64
+#define ast_pipeline_block_let_init_ref pipeline_block_let_init_ref
+#define ast_pipeline_block_let_type_ref pipeline_block_let_type_ref
+#define ast_pipeline_block_let_name_len pipeline_block_let_name_len
+#define ast_pipeline_block_let_name_copy64 pipeline_block_let_name_copy64
+#define ast_pipeline_block_stmt_order_kind pipeline_block_stmt_order_kind
+#define ast_pipeline_block_stmt_order_idx pipeline_block_stmt_order_idx
+#define ast_pipeline_block_if_cond_ref pipeline_block_if_cond_ref
+#define ast_pipeline_block_if_then_body_ref pipeline_block_if_then_body_ref
+#define ast_pipeline_block_if_else_body_ref pipeline_block_if_else_body_ref
+#define ast_pipeline_block_resolve_var_type_ref pipeline_block_resolve_var_type_ref
+#define ast_pipeline_block_fill_ifs_from_onefunc pipeline_block_fill_ifs_from_onefunc
+#define ast_pipeline_block_fill_stmt_order_from_onefunc pipeline_block_fill_stmt_order_from_onefunc
+#define ast_pipeline_block_fill_expr_stmts_from_onefunc pipeline_block_fill_expr_stmts_from_onefunc
+#define ast_pipeline_block_append_while pipeline_block_append_while
+#define ast_pipeline_block_append_for pipeline_block_append_for
+#define ast_pipeline_block_while_cond_ref pipeline_block_while_cond_ref
+#define ast_pipeline_block_while_body_ref pipeline_block_while_body_ref
+#define ast_pipeline_block_for_init_ref pipeline_block_for_init_ref
+#define ast_pipeline_block_for_cond_ref pipeline_block_for_cond_ref
+#define ast_pipeline_block_for_step_ref pipeline_block_for_step_ref
+#define ast_pipeline_block_for_body_ref pipeline_block_for_body_ref
+#define ast_pipeline_block_fill_whiles_from_onefunc pipeline_block_fill_whiles_from_onefunc
+#define ast_pipeline_block_fill_fors_from_onefunc pipeline_block_fill_fors_from_onefunc
+#define ast_pipeline_block_append_labeled pipeline_block_append_labeled
+#define ast_pipeline_block_labeled_return_expr_ref pipeline_block_labeled_return_expr_ref
+#define ast_pipeline_onefunc_append_while pipeline_onefunc_append_while
+#define ast_pipeline_onefunc_while_cond_ref pipeline_onefunc_while_cond_ref
+#define ast_pipeline_onefunc_while_body_ref pipeline_onefunc_while_body_ref
+#define ast_pipeline_onefunc_num_whiles pipeline_onefunc_num_whiles
+#define ast_pipeline_onefunc_append_for pipeline_onefunc_append_for
+#define ast_pipeline_onefunc_for_init_ref pipeline_onefunc_for_init_ref
+#define ast_pipeline_onefunc_for_cond_ref pipeline_onefunc_for_cond_ref
+#define ast_pipeline_onefunc_for_step_ref pipeline_onefunc_for_step_ref
+#define ast_pipeline_onefunc_for_body_ref pipeline_onefunc_for_body_ref
+#define ast_pipeline_onefunc_num_fors pipeline_onefunc_num_fors
+#define ast_pipeline_dep_ctx_set_module pipeline_dep_ctx_set_module
+#define ast_pipeline_dep_ctx_set_arena pipeline_dep_ctx_set_arena
+#define ast_pipeline_dep_ctx_module_at pipeline_dep_ctx_module_at
+#define ast_pipeline_dep_ctx_arena_at pipeline_dep_ctx_arena_at
+#define ast_pipeline_dep_ctx_set_import_path pipeline_dep_ctx_set_import_path
+#define ast_pipeline_dep_ctx_import_path_len pipeline_dep_ctx_import_path_len
+#define ast_pipeline_dep_ctx_import_path_byte_at pipeline_dep_ctx_import_path_byte_at
+#define ast_pipeline_dep_ctx_import_path_copy64 pipeline_dep_ctx_import_path_copy64
+#define ast_pipeline_dep_ctx_ndep pipeline_dep_ctx_ndep
+#define ast_pipeline_dep_ctx_set_ndep pipeline_dep_ctx_set_ndep
+#define ast_pipeline_ctx_append_lib_root pipeline_ctx_append_lib_root
+#define ast_pipeline_ctx_lib_root_count pipeline_ctx_lib_root_count
+#define ast_pipeline_ctx_lib_root_len pipeline_ctx_lib_root_len
+#define ast_pipeline_ctx_lib_root_copy pipeline_ctx_lib_root_copy
+#define ast_pipeline_module_func_alloc_slot pipeline_module_func_alloc_slot
+#define ast_pipeline_module_func_ref_at pipeline_module_func_ref_at
+#define ast_pipeline_module_func_ref_set pipeline_module_func_ref_set
+#define ast_pipeline_module_func_set_return_type pipeline_module_func_set_return_type
+#define ast_pipeline_module_func_set_body_ref pipeline_module_func_set_body_ref
+#define ast_pipeline_module_func_set_body_expr_ref pipeline_module_func_set_body_expr_ref
+#define ast_pipeline_module_func_set_is_extern pipeline_module_func_set_is_extern
+#define ast_pipeline_module_func_set_is_variadic pipeline_module_func_set_is_variadic
+#define ast_pipeline_module_func_is_variadic_at pipeline_module_func_is_variadic_at
+#define ast_pipeline_module_func_set_num_params pipeline_module_func_set_num_params
+#define ast_pipeline_module_func_set_num_generic_params pipeline_module_func_set_num_generic_params
+#define ast_pipeline_module_func_return_type_at pipeline_module_func_return_type_at
+#define ast_pipeline_module_func_num_generic_params_at pipeline_module_func_num_generic_params_at
+#define ast_pipeline_module_func_name_equal_at pipeline_module_func_name_equal_at
+#define ast_pipeline_module_func_name_byte_at pipeline_module_func_name_byte_at
+#define ast_pipeline_module_func_body_expr_ref_at pipeline_module_func_body_expr_ref_at
+#define ast_pipeline_expr_append_call_arg pipeline_expr_append_call_arg
+#define ast_pipeline_expr_call_arg_ref pipeline_expr_call_arg_ref
+#define ast_pipeline_expr_call_num_args_at pipeline_expr_call_num_args_at
+#define ast_pipeline_expr_call_num_type_args_at pipeline_expr_call_num_type_args_at
+#define ast_pipeline_expr_append_method_call_arg pipeline_expr_append_method_call_arg
+#define ast_pipeline_expr_method_call_arg_ref pipeline_expr_method_call_arg_ref
+#define ast_pipeline_expr_append_match_arm pipeline_expr_append_match_arm
+#define ast_pipeline_expr_match_num_arms_at pipeline_expr_match_num_arms_at
+#define ast_pipeline_expr_match_arm_result_ref pipeline_expr_match_arm_result_ref
+#define ast_pipeline_expr_match_arm_is_wildcard pipeline_expr_match_arm_is_wildcard
+#define ast_pipeline_expr_match_arm_lit_val pipeline_expr_match_arm_lit_val
+#define ast_pipeline_expr_match_arm_is_enum_variant pipeline_expr_match_arm_is_enum_variant
+#define ast_pipeline_expr_match_arm_variant_index pipeline_expr_match_arm_variant_index
+#define ast_pipeline_expr_match_arm_set_wildcard pipeline_expr_match_arm_set_wildcard
+#define ast_pipeline_expr_match_arm_set_lit_val pipeline_expr_match_arm_set_lit_val
+#define ast_pipeline_expr_match_arm_set_enum_variant pipeline_expr_match_arm_set_enum_variant
+#define ast_pipeline_expr_append_struct_lit_field pipeline_expr_append_struct_lit_field
+#define ast_pipeline_expr_append_array_lit_elem pipeline_expr_append_array_lit_elem
+#define ast_pipeline_expr_array_lit_elem_ref pipeline_expr_array_lit_elem_ref
+#define ast_pipeline_expr_array_lit_num_elems_at pipeline_expr_array_lit_num_elems_at
+#define ast_pipeline_expr_init_call_resolve_at_ref pipeline_expr_init_call_resolve_at_ref
+#define ast_pipeline_expr_apply_call_resolve pipeline_expr_apply_call_resolve
+#define ast_pipeline_typeck_field_import_binding_resolve_c pipeline_typeck_field_import_binding_resolve_c
+#define ast_pipeline_typeck_field_layout_named_c pipeline_typeck_field_layout_named_c
+#define ast_pipeline_typeck_field_unknown_hard_fail_c pipeline_typeck_field_unknown_hard_fail_c
+#define ast_pipeline_typeck_named_is_module_concrete_c pipeline_typeck_named_is_module_concrete_c
+#define ast_pipeline_typeck_with_arena_scope_n_at pipeline_typeck_with_arena_scope_n_at
+#define ast_pipeline_typeck_with_arena_current_body_ref_c pipeline_typeck_with_arena_current_body_ref_c
+#define ast_pipeline_typeck_with_arena_scope_push_c pipeline_typeck_with_arena_scope_push_c
+#define ast_pipeline_typeck_with_arena_scope_pop_c pipeline_typeck_with_arena_scope_pop_c
+#define ast_pipeline_typeck_with_arena_scope_reset_c pipeline_typeck_with_arena_scope_reset_c
+#define ast_pipeline_dep_ctx_scope_region_push_c pipeline_dep_ctx_scope_region_push_c
+#define ast_pipeline_dep_ctx_scope_region_pop_c pipeline_dep_ctx_scope_region_pop_c
+#define ast_pipeline_dep_ctx_scope_region_len_at pipeline_dep_ctx_scope_region_len_at
+#define ast_pipeline_typeck_region_scope_reset_c pipeline_typeck_region_scope_reset_c
+#define ast_pipeline_typeck_scan_module_struct_stack_escape_c pipeline_typeck_scan_module_struct_stack_escape_c
+#define ast_pipeline_typeck_is_read_ptr_slice_callee_c pipeline_typeck_is_read_ptr_slice_callee_c
+#define ast_pipeline_typeck_read_ptr_slice_return_ref_c pipeline_typeck_read_ptr_slice_return_ref_c
+#define ast_pipeline_type_stamp_block_let_region_c pipeline_type_stamp_block_let_region_c
+#define ast_pipeline_typeck_check_block_one_region_c pipeline_typeck_check_block_one_region_c
+#define ast_pipeline_typeck_check_call_struct_stack_escape_c pipeline_typeck_check_call_struct_stack_escape_c
+#define ast_pipeline_typeck_ptr_for_addr_of_operand_c pipeline_typeck_ptr_for_addr_of_operand_c
+#define ast_pipeline_typeck_check_return_slice_region_in_scope_c pipeline_typeck_check_return_slice_region_in_scope_c
+#define ast_pipeline_typeck_resolve_call_callee_return_type_c pipeline_typeck_resolve_call_callee_return_type_c
+#define ast_pipeline_typeck_pick_overload_func_index_for_call_c pipeline_typeck_pick_overload_func_index_for_call_c
+#define ast_pipeline_typeck_resolve_call_func_index_for_emit_c pipeline_typeck_resolve_call_func_index_for_emit_c
+#define ast_pipeline_typeck_named_is_module_type_c pipeline_typeck_named_is_module_type_c
+#define ast_pipeline_typeck_call_arg_effective_type_c pipeline_typeck_call_arg_effective_type_c
+#define ast_pipeline_typeck_check_call_generic_type_args_c pipeline_typeck_check_call_generic_type_args_c
+#define ast_pipeline_typeck_method_call_generic_ufcs_c pipeline_typeck_method_call_generic_ufcs_c
+#define ast_pipeline_typeck_set_entry_module_for_dep_map_c pipeline_typeck_set_entry_module_for_dep_map_c
+#define ast_pipeline_typeck_get_dep_return_type_in_caller_arena_c pipeline_typeck_get_dep_return_type_in_caller_arena_c
+#define ast_pipeline_typeck_dep_return_type_to_caller_arena_c pipeline_typeck_dep_return_type_to_caller_arena_c
+#define ast_pipeline_typeck_expr_var_name_equal_func_c pipeline_typeck_expr_var_name_equal_func_c
+#define ast_pipeline_typeck_find_func_return_type_in_module_by_name_c pipeline_typeck_find_func_return_type_in_module_by_name_c
+#define ast_pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal
+#define ast_pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal
+#define ast_pipeline_typeck_find_func_return_type_in_module_c pipeline_typeck_find_func_return_type_in_module_c
+#define ast_pipeline_typeck_block_const_init_is_const_c pipeline_typeck_block_const_init_is_const_c
+#define ast_pipeline_typeck_const_init_not_constant_c pipeline_typeck_const_init_not_constant_c
+#define ast_pipeline_typeck_fold_expr_c pipeline_typeck_fold_expr_c
+#define ast_pipeline_typeck_fold_block_const_init_c pipeline_typeck_fold_block_const_init_c
+#define ast_pipeline_typeck_fold_expr_in_block_c pipeline_typeck_fold_expr_in_block_c
+#define ast_pipeline_expr_is_c_static_const_init pipeline_expr_is_c_static_const_init
+#define ast_pipeline_typeck_check_expr_assign_c pipeline_typeck_check_expr_assign_c
+#define ast_pipeline_typeck_diag_append_lit_c pipeline_typeck_diag_append_lit_c
+#define ast_pipeline_typeck_diag_append_u32_dec_c pipeline_typeck_diag_append_u32_dec_c
+#define ast_pipeline_typeck_diag_fmt_type_at_c pipeline_typeck_diag_fmt_type_at_c
+#define ast_pipeline_typeck_diag_fmt_type_into_c pipeline_typeck_diag_fmt_type_into_c
+#define ast_pipeline_typeck_diag_fmt_type_or_question_c pipeline_typeck_diag_fmt_type_or_question_c
+#define ast_pipeline_typeck_check_slice_region_assign_c pipeline_typeck_check_slice_region_assign_c
+#define ast_pipeline_typeck_check_struct_stack_escape_assign_c pipeline_typeck_check_struct_stack_escape_assign_c
+#define ast_pipeline_typeck_check_scope_borrow_assign_c pipeline_typeck_check_scope_borrow_assign_c
+#define ast_pipeline_typeck_check_scope_borrow_return_c pipeline_typeck_check_scope_borrow_return_c
+#define ast_pipeline_typeck_check_allocator_region_assign_c pipeline_typeck_check_allocator_region_assign_c
+#define ast_pipeline_typeck_check_allocator_region_return_c pipeline_typeck_check_allocator_region_return_c
+#define ast_pipeline_typeck_check_return_slice_region_c pipeline_typeck_check_return_slice_region_c
+#define ast_pipeline_typeck_check_call_slice_region_c pipeline_typeck_check_call_slice_region_c
+#define ast_pipeline_typeck_coerce_init_lit_to_decl_c pipeline_typeck_coerce_init_lit_to_decl_c
+#define ast_pipeline_typeck_coerce_init_float_lit_to_decl_c pipeline_typeck_coerce_init_float_lit_to_decl_c
+#define ast_pipeline_typeck_coerce_init_enum_field_to_decl_c pipeline_typeck_coerce_init_enum_field_to_decl_c
+#define ast_pipeline_typeck_coerce_init_named_call_to_decl_c pipeline_typeck_coerce_init_named_call_to_decl_c
+#define ast_pipeline_typeck_coerce_init_array_vector_lit_to_decl_c pipeline_typeck_coerce_init_array_vector_lit_to_decl_c
+#define ast_pipeline_typeck_coerce_init_vector_binop_to_decl_c pipeline_typeck_coerce_init_vector_binop_to_decl_c
+#define ast_pipeline_typeck_coerce_init_int_binop_to_decl_c pipeline_typeck_coerce_init_int_binop_to_decl_c
+#define ast_pipeline_typeck_coerce_init_struct_lit_to_decl_c pipeline_typeck_coerce_init_struct_lit_to_decl_c
+#define ast_pipeline_typeck_coerce_init_slice_from_array_c pipeline_typeck_coerce_init_slice_from_array_c
+#define ast_pipeline_typeck_coerce_init_expr_to_decl_c pipeline_typeck_coerce_init_expr_to_decl_c
+#define ast_pipeline_typeck_float_widen_ok_c pipeline_typeck_float_widen_ok_c
+#define ast_pipeline_typeck_integer_widen_ok_c pipeline_typeck_integer_widen_ok_c
+#define ast_pipeline_typeck_integer_widen_ok_refs_c pipeline_typeck_integer_widen_ok_refs_c
+#define ast_pipeline_typeck_type_refs_equal_named_c pipeline_typeck_type_refs_equal_named_c
+#define ast_pipeline_typeck_resolve_type_alias_ref_c pipeline_typeck_resolve_type_alias_ref_c
+#define ast_pipeline_typeck_type_refs_equal_impl_c pipeline_typeck_type_refs_equal_impl_c
+#define ast_pipeline_typeck_type_refs_equal_c pipeline_typeck_type_refs_equal_c
+#define ast_pipeline_typeck_type_refs_equal_same_kind_c pipeline_typeck_type_refs_equal_same_kind_c
+#define ast_pipeline_typeck_type_ref_is_bool_impl_c pipeline_typeck_type_ref_is_bool_impl_c
+#define ast_pipeline_typeck_type_ref_is_bool_c pipeline_typeck_type_ref_is_bool_c
+#define ast_pipeline_typeck_expr_type_ref_impl_c pipeline_typeck_expr_type_ref_impl_c
+#define ast_pipeline_typeck_expr_type_ref_c pipeline_typeck_expr_type_ref_c
+#define ast_pipeline_typeck_return_operand_matches_c pipeline_typeck_return_operand_matches_c
+#define ast_pipeline_typeck_ret_coerce_integral_to_expect_i32_c pipeline_typeck_ret_coerce_integral_to_expect_i32_c
+#define ast_pipeline_typeck_ret_coerce_integral_widen_c pipeline_typeck_ret_coerce_integral_widen_c
+#define ast_pipeline_typeck_check_expr_int_lit_c pipeline_typeck_check_expr_int_lit_c
+#define ast_pipeline_typeck_expr_is_any_assign_kind_c pipeline_typeck_expr_is_any_assign_kind_c
+#define ast_pipeline_typeck_block_impl_bind_ctx_c pipeline_typeck_block_impl_bind_ctx_c
+#define ast_pipeline_typeck_block_impl_restore_ctx_c pipeline_typeck_block_impl_restore_ctx_c
+#define ast_pipeline_typeck_block_impl_touch_ctx_block_c pipeline_typeck_block_impl_touch_ctx_block_c
+#define ast_pipeline_typeck_loop_depth_push_c pipeline_typeck_loop_depth_push_c
+#define ast_pipeline_typeck_loop_depth_pop_c pipeline_typeck_loop_depth_pop_c
+#define ast_pipeline_dep_ctx_typeck_unsafe_depth_at pipeline_dep_ctx_typeck_unsafe_depth_at
+#define ast_pipeline_typeck_unsafe_depth_push_c pipeline_typeck_unsafe_depth_push_c
+#define ast_pipeline_typeck_unsafe_depth_pop_c pipeline_typeck_unsafe_depth_pop_c
+#define ast_pipeline_typeck_loop_depth_set_c pipeline_typeck_loop_depth_set_c
+#define ast_pipeline_typeck_check_block_impl_c pipeline_typeck_check_block_impl_c
+#define ast_pipeline_typeck_check_block_c pipeline_typeck_check_block_c
+#define ast_pipeline_typeck_check_block_as_loop_body_c pipeline_typeck_check_block_as_loop_body_c
+#define ast_pipeline_typeck_set_active_ctx_c pipeline_typeck_set_active_ctx_c
+#define ast_pipeline_typeck_linear_reset_c pipeline_typeck_linear_reset_c
+#define ast_pipeline_typeck_linear_use_var_c pipeline_typeck_linear_use_var_c
+#define ast_pipeline_typeck_linear_accepts_init_c pipeline_typeck_linear_accepts_init_c
+#define ast_pipeline_typeck_reject_addr_of_linear_c pipeline_typeck_reject_addr_of_linear_c
+#define ast_pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c
+#define ast_pipeline_typeck_func_body_has_implicit_return_tail_c pipeline_typeck_func_body_has_implicit_return_tail_c
+#define ast_pipeline_typeck_check_expr_method_call_c pipeline_typeck_check_expr_method_call_c
+#define ast_pipeline_typeck_expr_apply_call_resolve_c pipeline_typeck_expr_apply_call_resolve_c
+#define ast_pipeline_typeck_import_segment_at_c pipeline_typeck_import_segment_at_c
+#define ast_pipeline_typeck_resolve_dep_index_for_import_c pipeline_typeck_resolve_dep_index_for_import_c
+#define ast_pipeline_typeck_resolve_whole_import_call_ret_c pipeline_typeck_resolve_whole_import_call_ret_c
+#define ast_pipeline_typeck_loop_depth_set_c_PipelineDepCtx_ptr_i32 pipeline_typeck_loop_depth_set_c_PipelineDepCtx_ptr_i32
+#define ast_pipeline_dep_ctx_set_current_func_index pipeline_dep_ctx_set_current_func_index
+#define ast_pipeline_typeck_check_expr_impl_c pipeline_typeck_check_expr_impl_c
+#define ast_pipeline_typeck_check_expr_impl_mega_c pipeline_typeck_check_expr_impl_mega_c
+#define ast_pipeline_typeck_check_expr_method_call_c_Module_ptr_ASTArena_ptr_i32_i32_PipelineDepCtx_ptr_reti32 pipeline_typeck_check_expr_method_call_c_Module_ptr_ASTArena_ptr_i32_i32_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_expr_apply_call_resolve_c_ASTArena_ptr_i32_i32_i32 pipeline_typeck_expr_apply_call_resolve_c_ASTArena_ptr_i32_i32_i32
+#define ast_pipeline_typeck_import_segment_at_c_Module_ptr_i32_i32_i32_ptr_i32_ptr_reti32 pipeline_typeck_import_segment_at_c_Module_ptr_i32_i32_i32_ptr_i32_ptr_reti32
+#define ast_pipeline_typeck_resolve_dep_index_for_import_c_Module_ptr_PipelineDepCtx_ptr_i32_reti32 pipeline_typeck_resolve_dep_index_for_import_c_Module_ptr_PipelineDepCtx_ptr_i32_reti32
+#define ast_pipeline_typeck_resolve_whole_import_call_ret_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_i32_ptr_i32_ptr_reti32 pipeline_typeck_resolve_whole_import_call_ret_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_i32_ptr_i32_ptr_reti32
+#define ast_pipeline_typeck_check_expr_try_propagate_c pipeline_typeck_check_expr_try_propagate_c
+#define ast_pipeline_typeck_check_expr_match_c pipeline_typeck_check_expr_match_c
+#define ast_pipeline_typeck_match_set_subject_c pipeline_typeck_match_set_subject_c
+#define ast_pipeline_typeck_match_clear_subject_c pipeline_typeck_match_clear_subject_c
+#define ast_pipeline_typeck_match_subject_ty_get_c pipeline_typeck_match_subject_ty_get_c
+#define ast_pipeline_typeck_match_subject_mod_get_c pipeline_typeck_match_subject_mod_get_c
+#define ast_pipeline_module_struct_layout_repr_compatible_at pipeline_module_struct_layout_repr_compatible_at
+#define ast_pipeline_typeck_check_expr_c pipeline_typeck_check_expr_c
+#define ast_pipeline_module_struct_layout_num_type_params_at pipeline_module_struct_layout_num_type_params_at
+#define ast_pipeline_module_struct_layout_type_param_name_len pipeline_module_struct_layout_type_param_name_len
+#define ast_pipeline_module_struct_layout_type_param_name_into pipeline_module_struct_layout_type_param_name_into
+#define ast_pipeline_type_named_name_into pipeline_type_named_name_into
+#define ast_pipeline_type_kind_ord_at pipeline_type_kind_ord_at
+#define ast_pipeline_type_array_size_at pipeline_type_array_size_at
+#define ast_pipeline_type_elem_ref_at pipeline_type_elem_ref_at
+#define ast_pipeline_type_type_arg_ref_at pipeline_type_type_arg_ref_at
+#define ast_pipeline_type_append_type_arg pipeline_type_append_type_arg
+#define ast_pipeline_type_set_elem_array_size_at pipeline_type_set_elem_array_size_at
+#define ast_pipeline_typeck_type_refs_equal_c_ASTArena_ptr_i32_i32_reti32 pipeline_typeck_type_refs_equal_c_ASTArena_ptr_i32_i32_reti32
+#define ast_pipeline_typeck_call_arg_repr_compatible_ok_c pipeline_typeck_call_arg_repr_compatible_ok_c
+#define ast_pipeline_typeck_check_extern_call_unsafe_boundary_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_reti32 pipeline_typeck_check_extern_call_unsafe_boundary_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_match_subject_field_type_c pipeline_typeck_match_subject_field_type_c
+#define ast_pipeline_typeck_active_module_c pipeline_typeck_active_module_c
+#define ast_pipeline_module_num_type_aliases_at pipeline_module_num_type_aliases_at
+#define ast_pipeline_module_type_alias_name_len pipeline_module_type_alias_name_len
+#define ast_pipeline_module_type_alias_name_byte_at pipeline_module_type_alias_name_byte_at
+#define ast_pipeline_module_type_alias_target_ref pipeline_module_type_alias_target_ref
+#define ast_pipeline_typeck_func_body_has_implicit_return_tail_c_ASTArena_ptr_i32_reti32 pipeline_typeck_func_body_has_implicit_return_tail_c_ASTArena_ptr_i32_reti32
+#define ast_pipeline_expr_binop_left_ref_at pipeline_expr_binop_left_ref_at
+#define ast_pipeline_expr_binop_right_ref_at pipeline_expr_binop_right_ref_at
+#define ast_pipeline_block_name_binding_kind pipeline_block_name_binding_kind
+#define ast_pipeline_module_top_level_name_is_const pipeline_module_top_level_name_is_const
+#define ast_pipeline_block_local_name_redecl_c pipeline_block_local_name_redecl_c
+#define ast_pipeline_patch_block_parent_links pipeline_patch_block_parent_links
+#define ast_pipeline_asm_emit_dep_pipe_c pipeline_asm_emit_dep_pipe_c
+#define ast_pipeline_asm_emit_func_index_c pipeline_asm_emit_func_index_c
+#define ast_pipeline_asm_emit_set_func_index pipeline_asm_emit_set_func_index
+#define ast_pipeline_expr_set_field_access_soa_stride pipeline_expr_set_field_access_soa_stride
+#define ast_pipeline_expr_field_access_soa_stride pipeline_expr_field_access_soa_stride
+#define ast_pipeline_debug_trace_named_func_bodies pipeline_debug_trace_named_func_bodies
+#define ast_pipeline_get_dep_arena_slot pipeline_get_dep_arena_slot
+#define ast_pipeline_module_func_param_type_ref_for_name pipeline_module_func_param_type_ref_for_name
+#define ast_pipeline_module_num_funcs pipeline_module_num_funcs
+#define ast_pipeline_module_main_func_index pipeline_module_main_func_index
+#define ast_pipeline_module_func_is_extern_at pipeline_module_func_is_extern_at
+#define ast_pipeline_module_func_body_ref_at pipeline_module_func_body_ref_at
+#define ast_pipeline_module_func_name_len_at pipeline_module_func_name_len_at
+#define ast_pipeline_module_func_name_copy64 pipeline_module_func_name_copy64
+#define ast_pipeline_struct_layout_next_field_offset pipeline_struct_layout_next_field_offset
+#define ast_pipeline_expr_struct_lit_num_fields pipeline_expr_struct_lit_num_fields
+#define ast_pipeline_expr_struct_lit_type_name_len pipeline_expr_struct_lit_type_name_len
+#define ast_pipeline_expr_struct_lit_type_name_into pipeline_expr_struct_lit_type_name_into
+#define ast_pipeline_expr_struct_lit_type_name_set pipeline_expr_struct_lit_type_name_set
+#define ast_pipeline_expr_struct_lit_field_name_len pipeline_expr_struct_lit_field_name_len
+#define ast_pipeline_expr_struct_lit_field_name_into pipeline_expr_struct_lit_field_name_into
+#define ast_pipeline_expr_struct_lit_init_ref pipeline_expr_struct_lit_init_ref
+#define ast_pipeline_expr_resolved_type_ref pipeline_expr_resolved_type_ref
+#define ast_pipeline_expr_set_resolved_type_ref pipeline_expr_set_resolved_type_ref
+#define ast_pipeline_expr_typeck_set_float_bits_from_val pipeline_expr_typeck_set_float_bits_from_val
+#define ast_pipeline_expr_line_at pipeline_expr_line_at
+#define ast_pipeline_expr_col_at pipeline_expr_col_at
+#define ast_pipeline_dep_ctx_typeck_loop_depth_at pipeline_dep_ctx_typeck_loop_depth_at
+#define ast_pipeline_dep_ctx_current_block_ref_at pipeline_dep_ctx_current_block_ref_at
+#define ast_pipeline_dep_ctx_current_func_index pipeline_dep_ctx_current_func_index
+#define ast_pipeline_dep_ctx_typeck_unsafe_depth_at_PipelineDepCtx_ptr_reti32 pipeline_dep_ctx_typeck_unsafe_depth_at_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_block_impl_bind_ctx_c_PipelineDepCtx_ptr_i32_reti32 pipeline_typeck_block_impl_bind_ctx_c_PipelineDepCtx_ptr_i32_reti32
+#define ast_pipeline_typeck_block_impl_restore_ctx_c_PipelineDepCtx_ptr_i32 pipeline_typeck_block_impl_restore_ctx_c_PipelineDepCtx_ptr_i32
+#define ast_pipeline_typeck_block_impl_touch_ctx_block_c_PipelineDepCtx_ptr_i32 pipeline_typeck_block_impl_touch_ctx_block_c_PipelineDepCtx_ptr_i32
+#define ast_pipeline_expr_int_val_at pipeline_expr_int_val_at
+#define ast_pipeline_expr_field_access_is_enum_variant pipeline_expr_field_access_is_enum_variant
+#define ast_pipeline_expr_set_field_access_enum_variant pipeline_expr_set_field_access_enum_variant
+#define ast_pipeline_expr_match_arm_guard_ref pipeline_expr_match_arm_guard_ref
+#define ast_pipeline_expr_match_matched_ref_at pipeline_expr_match_matched_ref_at
+#define ast_pipeline_module_enum_variant_tag_for_names pipeline_module_enum_variant_tag_for_names
+#define ast_pipeline_type_init_primitive_kind_at pipeline_type_init_primitive_kind_at
+#define ast_pipeline_type_init_named_at pipeline_type_init_named_at
+#define ast_pipeline_type_init_compound_kind_at pipeline_type_init_compound_kind_at
+#define ast_pipeline_type_ensure_by_kind_ord pipeline_type_ensure_by_kind_ord
+#define ast_pipeline_type_find_or_alloc_named pipeline_type_find_or_alloc_named
+#define ast_pipeline_type_find_or_alloc_compound pipeline_type_find_or_alloc_compound
+#define ast_pipeline_type_region_label_into pipeline_type_region_label_into
+#define ast_pipeline_type_region_label_len_at pipeline_type_region_label_len_at
+#define ast_pipeline_type_set_region_label_at pipeline_type_set_region_label_at
+#define ast_pipeline_type_find_or_alloc_slice pipeline_type_find_or_alloc_slice
+#define ast_pipeline_type_find_or_alloc_ptr pipeline_type_find_or_alloc_ptr
+#define ast_pipeline_typeck_check_slice_region_assign_c_ASTArena_ptr_i32_i32_i32_reti32 pipeline_typeck_check_slice_region_assign_c_ASTArena_ptr_i32_i32_i32_reti32
+#define ast_pipeline_typeck_check_return_slice_region_c_ASTArena_ptr_i32_i32_i32_reti32 pipeline_typeck_check_return_slice_region_c_ASTArena_ptr_i32_i32_i32_reti32
+#define ast_pipeline_typeck_check_return_slice_region_in_scope_c_ASTArena_ptr_i32_i32_PipelineDepCtx_ptr_reti32 pipeline_typeck_check_return_slice_region_in_scope_c_ASTArena_ptr_i32_i32_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_check_call_slice_region_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_reti32 pipeline_typeck_check_call_slice_region_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_resolve_call_func_index_for_emit_c_u8_ptr_u8_ptr_i32_reti32 pipeline_typeck_resolve_call_func_index_for_emit_c_u8_ptr_u8_ptr_i32_reti32
+#define ast_pipeline_typeck_pick_overload_func_index_for_call_c_Module_ptr_ASTArena_ptr_i32_reti32 pipeline_typeck_pick_overload_func_index_for_call_c_Module_ptr_ASTArena_ptr_i32_reti32
+#define ast_pipeline_typeck_check_call_generic_type_args_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_i32_reti32 pipeline_typeck_check_call_generic_type_args_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_i32_reti32
+#define ast_pipeline_typeck_method_call_generic_ufcs_c_Module_ptr_ASTArena_ptr_i32_i32_u8_ptr_i32_i32_reti32 pipeline_typeck_method_call_generic_ufcs_c_Module_ptr_ASTArena_ptr_i32_i32_u8_ptr_i32_i32_reti32
+#define ast_pipeline_expr_call_type_arg_ref_at pipeline_expr_call_type_arg_ref_at
+#define ast_pipeline_typeck_resolve_call_callee_return_type_c_Module_ptr_ASTArena_ptr_i32_i32_PipelineDepCtx_ptr_reti32 pipeline_typeck_resolve_call_callee_return_type_c_Module_ptr_ASTArena_ptr_i32_i32_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_type_stamp_block_let_region_c_ASTArena_ptr_i32_i32_PipelineDepCtx_ptr_reti32 pipeline_type_stamp_block_let_region_c_ASTArena_ptr_i32_i32_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_is_read_ptr_slice_callee_c_u8_ptr_i32_reti32 pipeline_typeck_is_read_ptr_slice_callee_c_u8_ptr_i32_reti32
+#define ast_pipeline_typeck_read_ptr_slice_return_ref_c_ASTArena_ptr_reti32 pipeline_typeck_read_ptr_slice_return_ref_c_ASTArena_ptr_reti32
+#define ast_pipeline_block_set_let_type_ref pipeline_block_set_let_type_ref
+#define ast_pipeline_typeck_check_block_one_region_c_Module_ptr_ASTArena_ptr_i32_i32_i32_PipelineDepCtx_ptr_reti32 pipeline_typeck_check_block_one_region_c_Module_ptr_ASTArena_ptr_i32_i32_i32_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_check_call_struct_stack_escape_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_reti32 pipeline_typeck_check_call_struct_stack_escape_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_block_region_is_unsafe pipeline_block_region_is_unsafe
+#define ast_pipeline_block_region_with_arena_cap_ref pipeline_block_region_with_arena_cap_ref
+#define ast_pipeline_block_region_label_len pipeline_block_region_label_len
+#define ast_pipeline_block_region_label_copy64 pipeline_block_region_label_copy64
+#define ast_pipeline_typeck_unsafe_depth_push_c_PipelineDepCtx_ptr_reti32 pipeline_typeck_unsafe_depth_push_c_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_unsafe_depth_pop_c_PipelineDepCtx_ptr_i32 pipeline_typeck_unsafe_depth_pop_c_PipelineDepCtx_ptr_i32
+#define ast_pipeline_typeck_linear_use_var_c_ASTArena_ptr_i32_i32_u8_ptr_i32_reti32 pipeline_typeck_linear_use_var_c_ASTArena_ptr_i32_i32_u8_ptr_i32_reti32
+#define ast_pipeline_typeck_linear_accepts_init_c_ASTArena_ptr_i32_i32_reti32 pipeline_typeck_linear_accepts_init_c_ASTArena_ptr_i32_i32_reti32
+#define ast_pipeline_typeck_reject_addr_of_linear_c_ASTArena_ptr_i32_i32_Module_ptr_PipelineDepCtx_ptr_reti32 pipeline_typeck_reject_addr_of_linear_c_ASTArena_ptr_i32_i32_Module_ptr_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_ptr_for_addr_of_operand_c_ASTArena_ptr_i32_i32_Module_ptr_PipelineDepCtx_ptr_reti32 pipeline_typeck_ptr_for_addr_of_operand_c_ASTArena_ptr_i32_i32_Module_ptr_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_check_struct_stack_escape_assign_c_Module_ptr_ASTArena_ptr_i32_i32_i32_PipelineDepCtx_ptr_reti32 pipeline_typeck_check_struct_stack_escape_assign_c_Module_ptr_ASTArena_ptr_i32_i32_i32_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_check_scope_borrow_assign_c_Module_ptr_ASTArena_ptr_i32_i32_i32_PipelineDepCtx_ptr_reti32 pipeline_typeck_check_scope_borrow_assign_c_Module_ptr_ASTArena_ptr_i32_i32_i32_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_check_scope_borrow_return_c_Module_ptr_ASTArena_ptr_i32_i32_i32_PipelineDepCtx_ptr_reti32 pipeline_typeck_check_scope_borrow_return_c_Module_ptr_ASTArena_ptr_i32_i32_i32_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_check_allocator_region_assign_c_Module_ptr_ASTArena_ptr_i32_i32_PipelineDepCtx_ptr_reti32 pipeline_typeck_check_allocator_region_assign_c_Module_ptr_ASTArena_ptr_i32_i32_PipelineDepCtx_ptr_reti32
+#define ast_pipeline_typeck_check_allocator_region_return_c_ASTArena_ptr_i32_i32_reti32 pipeline_typeck_check_allocator_region_return_c_ASTArena_ptr_i32_i32_reti32
+#define ast_pipeline_block_parent_block_ref_at pipeline_block_parent_block_ref_at
+#define ast_pipeline_block_find_var_decl_block_ref pipeline_block_find_var_decl_block_ref
+#define ast_pipeline_module_func_param_type_ref_at pipeline_module_func_param_type_ref_at
+#define ast_pipeline_module_func_num_params_at pipeline_module_func_num_params_at
+#define ast_pipeline_expr_call_resolved_func_index_at pipeline_expr_call_resolved_func_index_at
+#define ast_pipeline_expr_call_resolved_dep_index_at pipeline_expr_call_resolved_dep_index_at
+#define ast_pipeline_expr_kind_ord_at pipeline_expr_kind_ord_at
+#define ast_pipeline_block_set_const_type_ref pipeline_block_set_const_type_ref
+#define ast_pipeline_module_top_level_let_set_type_ref pipeline_module_top_level_let_set_type_ref
+#define ast_pipeline_expr_if_cond_ref_at pipeline_expr_if_cond_ref_at
+#define ast_pipeline_expr_if_then_ref_at pipeline_expr_if_then_ref_at
+#define ast_pipeline_expr_if_else_ref_at pipeline_expr_if_else_ref_at
+#define ast_pipeline_expr_block_ref_at pipeline_expr_block_ref_at
+#define ast_pipeline_asm_block_final_expr_ref_at pipeline_asm_block_final_expr_ref_at
+#define ast_pipeline_block_set_parent_if_zero pipeline_block_set_parent_if_zero
+#define ast_pipeline_expr_unary_operand_ref_at pipeline_expr_unary_operand_ref_at
+#define ast_pipeline_expr_call_callee_ref_at pipeline_expr_call_callee_ref_at
+#define ast_pipeline_expr_index_base_ref pipeline_expr_index_base_ref
+#define ast_pipeline_expr_index_index_ref pipeline_expr_index_index_ref
+#define ast_pipeline_expr_set_index_base_is_slice pipeline_expr_set_index_base_is_slice
+#define ast_pipeline_expr_set_index_proven_in_bounds pipeline_expr_set_index_proven_in_bounds
+#define ast_pipeline_expr_as_operand_ref_at pipeline_expr_as_operand_ref_at
+#define ast_pipeline_expr_as_target_type_ref_at pipeline_expr_as_target_type_ref_at
+#define ast_pipeline_expr_field_access_name_into pipeline_expr_field_access_name_into
+#define ast_pipeline_expr_field_access_name_len pipeline_expr_field_access_name_len
+#define ast_pipeline_expr_field_access_base_ref pipeline_expr_field_access_base_ref
+#define ast_pipeline_expr_set_field_access_offset pipeline_expr_set_field_access_offset
+#define ast_pipeline_expr_var_name_into pipeline_expr_var_name_into
+#define ast_pipeline_expr_var_name_len pipeline_expr_var_name_len
+#define ast_pipeline_expr_method_call_base_ref_at pipeline_expr_method_call_base_ref_at
+#define ast_pipeline_expr_method_call_num_args_at pipeline_expr_method_call_num_args_at
+#define ast_pipeline_expr_method_call_name_len pipeline_expr_method_call_name_len
+#define ast_pipeline_expr_method_call_name_into pipeline_expr_method_call_name_into
+#define ast_pipeline_module_num_struct_layouts_at pipeline_module_num_struct_layouts_at
+#define ast_pipeline_module_struct_layout_field_align_at pipeline_module_struct_layout_field_align_at
+#define ast_pipeline_module_struct_layout_set_field_align pipeline_module_struct_layout_set_field_align
+#define ast_pipeline_struct_layout_next_field_offset_ex pipeline_struct_layout_next_field_offset_ex
+#define ast_pipeline_typeck_pad_fields_warn_layout pipeline_typeck_pad_fields_warn_layout
+#define ast_pipeline_typeck_hot_reorder_warn_layout pipeline_typeck_hot_reorder_warn_layout
+#define ast_pipeline_visibility_allow_func pipeline_visibility_allow_func
+#define ast_pipeline_expr_is_null_keyword_c pipeline_expr_is_null_keyword_c
+#define ast_pipeline_typeck_active_module_set_c pipeline_typeck_active_module_set_c
+#define ast_pipeline_expr_enum_variant_tag_at pipeline_expr_enum_variant_tag_at
+#define ast_pipeline_expr_try_mark_enum_field_access pipeline_expr_try_mark_enum_field_access
+#define ast_pipeline_expr_const_folded_valid_at pipeline_expr_const_folded_valid_at
+#define ast_pipeline_expr_const_folded_val_at pipeline_expr_const_folded_val_at
+
+/* slim arena grow pool glue (linked from pipeline/runtime) */
+extern struct ast_Expr pipeline_arena_expr_get_copy(struct ast_ASTArena *a, int32_t ref);
+extern struct ast_Block pipeline_arena_block_get_copy(struct ast_ASTArena *a, int32_t ref);
+extern struct ast_Type pipeline_arena_type_get_copy(struct ast_ASTArena *a, int32_t ref);
+extern struct ast_Func pipeline_arena_func_get_copy(struct ast_ASTArena *a, int32_t ref);
+extern void ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);
+extern void ast_arena_block_set(struct ast_ASTArena *a, int32_t ref, struct ast_Block b);
+extern void ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t);
+extern void ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
+
 
 struct xlang_slice_ast_ASTArena { struct ast_ASTArena *data; size_t length; };
 
@@ -2114,61 +2393,6 @@ extern int32_t pipeline_module_top_level_let_name_len(struct ast_Module * module
 extern uint8_t pipeline_module_top_level_let_name_byte_at(struct ast_Module * module, int32_t idx, int32_t off);
 extern int32_t pipeline_module_top_level_let_type_ref(struct ast_Module * module, int32_t idx);
 extern int32_t pipeline_module_top_level_let_is_const(struct ast_Module * module, int32_t idx);
-/* seeds/typeck_short_face_alias.from_x.c — wave317 typeck M4 layer-3 (partial)
- * Bare ast_block_* / ast_expr_* / ast_arena_* short names → ast_ast_* product faces.
- * Tip typeck.x -E emits bare calls; product/pool export ast_ast_* (and pipeline_*).
- * G.7: define-only aliases (zero bodies). Inject early in typeck_gen (before bodies).
- * PLATFORM: SHARED freestanding typeck tip re-pin companion.
- */
-#ifndef XLANG_TYPECK_SHORT_FACE_ALIAS_H
-#define XLANG_TYPECK_SHORT_FACE_ALIAS_H
-#define ast_block_final_expr_ref ast_ast_block_final_expr_ref
-#define ast_block_num_consts ast_ast_block_num_consts
-#define ast_block_num_lets ast_ast_block_num_lets
-#define ast_block_num_loops ast_ast_block_num_loops
-#define ast_block_num_for_loops ast_ast_block_num_for_loops
-#define ast_block_num_if_stmts ast_ast_block_num_if_stmts
-#define ast_block_num_regions ast_ast_block_num_regions
-#define ast_block_num_labeled_stmts ast_ast_block_num_labeled_stmts
-#define ast_block_region_body_ref ast_ast_block_region_body_ref
-#define ast_block_num_expr_stmts ast_ast_block_num_expr_stmts
-#define ast_block_num_stmt_order ast_ast_block_num_stmt_order
-#define ast_block_stmt_order_kind ast_ast_block_stmt_order_kind
-#define ast_block_stmt_order_idx ast_ast_block_stmt_order_idx
-#define ast_block_const_init_ref ast_ast_block_const_init_ref
-#define ast_block_const_type_ref ast_ast_block_const_type_ref
-#define ast_block_let_init_ref ast_ast_block_let_init_ref
-#define ast_block_let_type_ref ast_ast_block_let_type_ref
-#define ast_block_expr_stmt_ref ast_ast_block_expr_stmt_ref
-#define ast_block_while_cond_ref ast_ast_block_while_cond_ref
-#define ast_block_while_body_ref ast_ast_block_while_body_ref
-#define ast_block_for_init_ref ast_ast_block_for_init_ref
-#define ast_block_for_cond_ref ast_ast_block_for_cond_ref
-#define ast_block_for_step_ref ast_ast_block_for_step_ref
-#define ast_block_for_body_ref ast_ast_block_for_body_ref
-#define ast_block_if_cond_ref ast_ast_block_if_cond_ref
-#define ast_block_if_then_body_ref ast_ast_block_if_then_body_ref
-#define ast_block_if_else_body_ref ast_ast_block_if_else_body_ref
-#define ast_block_resolve_var_to_type_ref ast_ast_block_resolve_var_to_type_ref
-#define ast_expr_apply_call_resolve ast_ast_expr_apply_call_resolve
-#define ast_expr_disallows_implicit_tail ast_ast_expr_disallows_implicit_tail
-#define ast_expr_layout_prime_call_resolved ast_ast_expr_layout_prime_call_resolved
-#define ast_arena_init ast_ast_arena_init
-#define ast_arena_type_alloc ast_ast_arena_type_alloc
-#define ast_arena_expr_alloc ast_ast_arena_expr_alloc
-#define ast_arena_block_alloc ast_ast_arena_block_alloc
-#define ast_arena_type_get ast_ast_arena_type_get
-#define ast_arena_type_set ast_ast_arena_type_set
-#define ast_arena_expr_get ast_ast_arena_expr_get
-#define ast_arena_expr_set ast_ast_arena_expr_set
-#define ast_arena_block_get ast_ast_arena_block_get
-#define ast_arena_block_set ast_ast_arena_block_set
-#define ast_arena_func_alloc ast_ast_arena_func_alloc
-#define ast_arena_func_get ast_ast_arena_func_get
-#define ast_arena_func_set ast_ast_arena_func_set
-#define ast_arena_patch_block_parent_links ast_ast_arena_patch_block_parent_links
-#endif /* XLANG_TYPECK_SHORT_FACE_ALIAS_H */
-
 int32_t typeck_type_kind_ordinal(enum ast_TypeKind k) {
   int32_t o = ((int32_t)(k));
   int32_t lo = 0;
@@ -8006,49 +8230,43 @@ int32_t typeck_block_expr_value_ref(struct ast_ASTArena * arena, int32_t block_r
   }
 }
 int32_t typeck_check_expr_block(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
-  {
-    int32_t ord_assign = 28;
-    int32_t block_ref = pipeline_expr_block_ref_at(arena, expr_ref);
-    int32_t fin_blk = 0;
-    int32_t ty_fin = 0;
-    int32_t nes = 0;
-    int32_t fst_es = 0;
-    int32_t st_kind = 0;
-    int32_t rhs_ref = 0;
-    int32_t ty_rhs = 0;
-    if ((typeck_check_block(module, arena, block_ref, return_type_ref, ctx) !=0)) {
-      return -1;
-    }
-    if ((ast_ref_is_null(block_ref) || (block_ref <=0))) {
-      return 0;
-    }
-    (void)((fin_blk = typeck_block_expr_value_ref(arena, block_ref)));
-    if (!(ast_ref_is_null(fin_blk))) {
-      (void)((ty_fin = typeck_expr_type_ref(arena, fin_blk)));
-      (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ty_fin));
-      return 0;
-    }
-    (void)((nes = ast_ast_block_num_expr_stmts(arena, block_ref)));
-    if ((nes !=1)) {
-      return 0;
-    }
-    (void)((fst_es = pipeline_block_expr_stmt_ref(arena, block_ref, 0)));
-    if ((fst_es <=0)) {
-      return 0;
-    }
-    (void)((st_kind = pipeline_expr_kind_ord_at(arena, fst_es)));
-    if (((st_kind !=ord_assign) && ((st_kind < 29) || (st_kind > 39)))) {
-      return 0;
-    }
-    (void)((rhs_ref = pipeline_expr_binop_right_ref_at(arena, fst_es)));
-    if (ast_ref_is_null(rhs_ref)) {
-      return 0;
-    }
-    (void)((ty_rhs = typeck_expr_type_ref(arena, rhs_ref)));
-    (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ty_rhs));
+  int32_t ord_assign = 28;
+  int32_t block_ref = pipeline_expr_block_ref_at(arena, expr_ref);
+  int32_t fin_blk = 0;
+  int32_t ty_fin = 0;
+  int32_t nes = 0;
+  int32_t fst_es = 0;
+  int32_t st_kind = 0;
+  int32_t rhs_ref = 0;
+  int32_t ty_rhs = 0;
+  int32_t saved_ud = 0;
+  int32_t blk_rc = 0;
+  extern int32_t pipeline_typeck_unsafe_depth_push_c(struct ast_PipelineDepCtx *ctx);
+  extern void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved);
+  saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
+  blk_rc = typeck_check_block(module, arena, block_ref, return_type_ref, ctx);
+  pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
+  if (blk_rc != 0) { return (-1); }
+  if (ast_ref_is_null(block_ref) || block_ref <= 0) { return 0; }
+  fin_blk = pipeline_asm_block_final_expr_ref_at(arena, block_ref);
+  if (!ast_ref_is_null(fin_blk)) {
+    ty_fin = typeck_expr_type_ref(arena, fin_blk);
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, ty_fin);
     return 0;
   }
+  nes = ast_block_num_expr_stmts(arena, block_ref);
+  if (nes != 1) { return 0; }
+  fst_es = pipeline_block_expr_stmt_ref(arena, block_ref, 0);
+  if (fst_es <= 0) { return 0; }
+  st_kind = pipeline_expr_kind_ord_at(arena, fst_es);
+  if (st_kind != ord_assign && st_kind < 29 || st_kind > 39) { return 0; }
+  rhs_ref = pipeline_expr_binop_right_ref_at(arena, fst_es);
+  if (ast_ref_is_null(rhs_ref)) { return 0; }
+  ty_rhs = typeck_expr_type_ref(arena, rhs_ref);
+  pipeline_expr_set_resolved_type_ref(arena, expr_ref, ty_rhs);
+  return 0;
 }
+
 int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t ord_assign = 28;
@@ -11862,59 +12080,52 @@ int32_t typeck_check_expr(struct ast_Module * module, struct ast_ASTArena * aren
   return rc;
 }
 int32_t typeck_func_body_tail_expr_ref_for_implicit_rule(struct ast_ASTArena * arena, int32_t body_ref) {
-  {
-    uint8_t stmt_order_kind_expr_stmt = 2;
-    uint8_t stmt_order_kind_region_c_parser = 5;
-    uint8_t stmt_order_kind_region_x_parser = 6;
-    int32_t ord_break = 39;
-    int32_t ord_continue = 40;
-    int32_t ord_return = 41;
-    int32_t ord_panic = 42;
-    int32_t fin_ref = ast_ast_block_final_expr_ref(arena, body_ref);
-    int32_t fin_kind = 0;
-    int32_t nso = ast_ast_block_num_stmt_order(arena, body_ref);
-    if (!(ast_ref_is_null(fin_ref))) {
-      (void)((fin_kind = pipeline_expr_kind_ord_at(arena, fin_ref)));
-      if (((((fin_kind ==ord_return) || (fin_kind ==ord_panic)) || (fin_kind ==ord_break)) || (fin_kind ==ord_continue))) {
-        return fin_ref;
-      }
-    }
-    if ((nso > 0)) {
-      uint8_t last_k = ast_ast_block_stmt_order_kind(arena, body_ref, (nso - 1));
-      if (((last_k ==stmt_order_kind_region_c_parser) || (last_k ==stmt_order_kind_region_x_parser))) {
-        int32_t ridx = ast_ast_block_stmt_order_idx(arena, body_ref, (nso - 1));
-        int32_t nreg = ast_ast_block_num_regions(arena, body_ref);
-        if (((ridx >=0) && (ridx < nreg))) {
-          int32_t unsafe_region = pipeline_block_region_is_unsafe(arena, body_ref, ridx);
-          if ((unsafe_region !=0)) {
-            int32_t inner_ref = ast_ast_block_region_body_ref(arena, body_ref, ridx);
-            if (!(ast_ref_is_null(inner_ref))) {
-              return typeck_func_body_tail_expr_ref_for_implicit_rule(arena, inner_ref);
-            }
-          }
-        }
-      }
-    }
-    if (!(ast_ref_is_null(fin_ref))) {
+  /* W-tail order:
+   * 1) final RETURN/PANIC/BREAK/CONTINUE wins (return after unsafe assign).
+   * 2) else peel trailing unsafe region (sole unsafe{return} may leave stale EXPR_LIT final).
+   * 3) else final / expr_stmt / last expr_stmt. */
+  extern int32_t pipeline_block_region_is_unsafe(struct ast_ASTArena *a, int32_t br, int32_t ri);
+  extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
+  int32_t nso = ast_block_num_stmt_order(arena, body_ref);
+  int32_t fin_ref = ast_block_final_expr_ref(arena, body_ref);
+  if (!ast_ref_is_null(fin_ref)) {
+    int32_t fin_kind = pipeline_expr_kind_ord_at(arena, fin_ref);
+    if (fin_kind == 41 || fin_kind == 42 || fin_kind == 39 || fin_kind == 40)
       return fin_ref;
-    }
-    if ((nso > 0)) {
-      uint8_t last_k2 = ast_ast_block_stmt_order_kind(arena, body_ref, (nso - 1));
-      if ((last_k2 ==stmt_order_kind_expr_stmt)) {
-        int32_t idx = ast_ast_block_stmt_order_idx(arena, body_ref, (nso - 1));
-        int32_t nes = ast_ast_block_num_expr_stmts(arena, body_ref);
-        if (((idx >=0) && (idx < nes))) {
-          return ast_ast_block_expr_stmt_ref(arena, body_ref, idx);
+  }
+  if (nso > 0) {
+    uint8_t last_k = ast_block_stmt_order_kind(arena, body_ref, nso - 1);
+    if (last_k == ((uint8_t)(5)) || last_k == ((uint8_t)(6))) {
+      int32_t ridx = ast_block_stmt_order_idx(arena, body_ref, nso - 1);
+      int32_t nreg = ast_block_num_regions(arena, body_ref);
+      if (ridx >= 0 && ridx < nreg) {
+        int32_t unsafe_region = pipeline_block_region_is_unsafe(arena, body_ref, ridx);
+        if (unsafe_region != 0) {
+          int32_t inner_ref = pipeline_block_region_body_ref(arena, body_ref, ridx);
+          if (!ast_ref_is_null(inner_ref))
+            return typeck_func_body_tail_expr_ref_for_implicit_rule(arena, inner_ref);
         }
       }
-      return 0;
     }
-    int32_t nes2 = ast_ast_block_num_expr_stmts(arena, body_ref);
-    if ((nes2 > 0)) {
-      return ast_ast_block_expr_stmt_ref(arena, body_ref, (nes2 - 1));
+  }
+  if (!ast_ref_is_null(fin_ref))
+    return fin_ref;
+  if (nso > 0) {
+    uint8_t last_k2 = ast_block_stmt_order_kind(arena, body_ref, nso - 1);
+    if (last_k2 == ((uint8_t)(2))) {
+      int32_t idx = ast_block_stmt_order_idx(arena, body_ref, nso - 1);
+      int32_t nes = ast_block_num_expr_stmts(arena, body_ref);
+      if (idx >= 0 && idx < nes)
+        return ast_block_expr_stmt_ref(arena, body_ref, idx);
     }
     return 0;
   }
+  {
+    int32_t nes2 = ast_block_num_expr_stmts(arena, body_ref);
+    if (nes2 > 0)
+      return ast_block_expr_stmt_ref(arena, body_ref, nes2 - 1);
+  }
+  return 0;
 }
 int typeck_func_body_has_implicit_return_tail(struct ast_ASTArena * arena, int32_t body_ref) {
   {
@@ -15246,6 +15457,7 @@ int32_t pipeline_typeck_resolve_whole_import_call_ret_c(struct ast_Module * modu
   return typeck_resolve_whole_import_qualified_call_return_type(module, arena, callee_expr_ref, ctx, dep_index_out, func_index_out);
 }
 
+/* wave322 layer-1 Cap residual (seeds/typeck_cap_residual.from_x.c) */
 /* ============================================================================
  * wave317 typeck M4 layer-1 Cap residual (BSS slots + CTFE).
  * Authority: pin typeck_gen L13097-14390 (pre-wave317). allow_legacy lives in
@@ -16548,7 +16760,31 @@ void typeck_fold_expr_in_block(struct ast_ASTArena *arena, int32_t block_ref,
 
 
 
-/* wave317 layer-2 mangle aliases */
+/* wave322 layer-2 mangle aliases (seeds/typeck_mangle_link_alias.from_x.c) */
+/* seeds/typeck_mangle_link_alias.from_x.c — wave317 typeck M4 layer-2
+ * X-mangle call sites from tip typeck.x -E → short product C faces.
+ * G.7: alias-only (zero business logic); short faces on typeck_x / pipeline_abi.
+ * PLATFORM: SHARED freestanding typeck tip re-pin companion (ld -r or append).
+ */
+#include <stdint.h>
+#include "xlang_weak.h"
+
+/* XLANG_ALLOW_LEGACY_EXTERN: typeck_set_allow_legacy_extern_calls (seed regen / -E). */
+static int g_typeck_allow_legacy_extern_calls = 0;
+int typeck_set_allow_legacy_extern_calls(int allow) {
+  int old = g_typeck_allow_legacy_extern_calls;
+  g_typeck_allow_legacy_extern_calls = allow ? 1 : 0;
+  return old;
+}
+int typeck_get_allow_legacy_extern_calls(void) {
+  return g_typeck_allow_legacy_extern_calls;
+}
+
+
+struct ast_Module;
+struct ast_ASTArena;
+struct ast_PipelineDepCtx;
+
 extern int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t call_expr_ref, struct ast_PipelineDepCtx * ctx, int32_t expected_ret);
 int32_t glue_generic_call_fixup_resolved_type_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_i32_reti32(struct ast_Module * module, struct ast_ASTArena * arena, int32_t call_expr_ref, struct ast_PipelineDepCtx * ctx, int32_t expected_ret) { return glue_generic_call_fixup_resolved_type_c(module, arena, call_expr_ref, ctx, expected_ret); }
 
