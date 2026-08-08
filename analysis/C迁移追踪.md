@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-08（对照 tip residual：glue／ast_pool host 壳 + 域叶 thin／leave；bc-inventory present residual **26**／ROWS=128 · bootstrap_orchestration host wrapper leave 后；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-08（对照 tip residual：glue／ast_pool host 壳 + 域叶 thin／leave；bc-inventory present residual **21**／ROWS=128 · 8.3.5 seed host wrappers leave 后；**只改勾选与事实 LOC**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -34,7 +34,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-08 实测**）：`pipeline_glue.c` 仍 host 编排壳 + domain `#include`；`ast_pool.c` 纯 `#include` 编排。**bc-inventory 诚实**：present residual product C rows **26**（ROWS=128；bootstrap_orchestration host wrapper leave 后；mega_body／elf forwarders／bootstrap_glue／orch wrapper 等亦 absent）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + 多叶 leave**；**8.3.3 field_access／soa + typeck_slots + scratch／loop_glue leave** · 父项仍 🟡（pipeline_x mega 未离；**下刀 glue 壳／typedefs／9×fwd／alias·stub**；present 难降＝壳／typedef／fwd 声明／seed twin／alias·stub）；**8.3.4 bootstrap_glue + orchestration host wrapper ✅ leave**；**8.3.5–8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。**BC 终局（离 host-cc）仍 ⬜** |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-08 实测**）：`pipeline_glue.c` 仍 host 编排壳 + domain `#include`；`ast_pool.c` 纯 `#include` 编排。**bc-inventory 诚实**：present residual product C rows **21**（ROWS=128；8.3.5 五 seed host wrappers leave 后；orch／bootstrap_glue／mega_body／elf forwarders 等亦 absent）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + 多叶 leave**；**8.3.3 field_access／soa + typeck_slots + scratch／loop_glue leave** · 父项仍 🟡（pipeline_x mega 未离；**下刀 glue 壳／typedefs／9×fwd／typeck bare alias／_stubs**；present 难降＝壳／typedef／fwd 声明／seed twin／真体 alias·stub）；**8.3.4 bootstrap_glue + orchestration host wrapper ✅ leave**；**8.3.5 🟡**（5× seed wrapper ✅ leave；残 typeck bare alias + _stubs*）；**8.3.6–8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。**BC 终局（离 host-cc）仍 ⬜** |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 **`36363b90f`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -1021,7 +1021,7 @@
 | `ast_pool_bootstrap_glue.c` | **0（deleted）** | 冷启动 ast 桥 residual | ✅ **seed ALWAYS leave**（wave282 · 2026-08-08）；live＝runtime_pipeline_abi seed ALWAYS；host 叶已删；present **28→27**；**双端 L2 绿**；**pipeline_x mega 首刀／8.3.4** |
 | `pipeline_bootstrap_orchestration.c` | **0（deleted）** | 编排 host 占位（5 行 seed include） | ✅ **host wrapper leave**（产品 ensure 直编 seed → `.o`；host 叶已删；present **27→26**；**双端 L2 绿**；**8.3.4 残收口**） |
 | `pipeline_glue_strict_minimal`（seed → 产品链） | — | 产品 weak 孪生 | 🟡 仍在链；**退役策略 8.3.6 ⬜** |
-| bare link alias / stubs 族 | 小 | `*_bare_link_alias.c` · `_stubs.c` · `xlang_x_stubs.c` · `typeck_c_module_stubs.c` 等 | 🟡 仍在链；**8.3.5 退役 ⬜** |
+| bare link alias / stubs 族 | 小 | 5× seed host wrappers **deleted**（seed-only .o）；残 `typeck_asm_bare_link_alias.c` 真体 + `_stubs.c`／`_x_stubs2.c`／`xlang_x_stubs.c` + scripts stubs | 🟡 **8.3.5 部分 leave**（5 wrappers ✅；真体／cold stubs 仍 present） |
 
 #### 8.3 消费方地图（谁还拉 glue · 迁时必同改）
 
@@ -1191,11 +1191,11 @@
   - ✅ `ast_pool_bootstrap_glue.c` **seed ALWAYS leave**（host 叶已删；present 28→27；双端 L2 绿；pipeline_x mega 首刀）
   - ✅ `pipeline_bootstrap_orchestration.c` **host wrapper leave**（seed-only `.o`；present 27→26；双端 L2 绿）
 
-⬜ **8.3.5 链接桩 / bare alias 退役**
+🟡 **8.3.5 链接桩 / bare alias 退役**
 
-  - `ast_asm_bare_link_alias.c` · `backend_asm_*_alias.c` · `typeck_asm_bare_link_alias.c` · `x_frontend_link_alias.c` · `_stubs.c` · `_x_stubs2.c` · `xlang_x_stubs.c` · `typeck_c_module_stubs.c`
+  - ✅ 5× seed host wrappers leave：`ast_asm_bare_link_alias.c` · `backend_asm_bare_link_alias.c` · `backend_asm_strict_fallback_alias.c` · `x_frontend_link_alias.c` · `typeck_c_module_stubs.c`（产品 ensure 直编 seed → `.o`；host 叶已删；present **26→21**；双端 L2 绿）
+  - 🟡 残：`typeck_asm_bare_link_alias.c`（真体 rename 表）· `_stubs.c` · `_x_stubs2.c` · `xlang_x_stubs.c` · scripts stubs
   - 目标：符号面由 .x `#[no_mangle]` / 单一 mangle 权威提供，无「为让 ld 安静」的永久 C 桩
-  - 🟡 **桩文件仍在链** — 未退役
 
 ⬜ **8.3.6 `seeds/*.from_x.c` 全表退役策略**
 
