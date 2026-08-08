@@ -347,21 +347,19 @@ export extern function pipeline_read_file_x_impl_c(ctx: *PipelineDepCtx): i32;
 export extern function read_file_x(ctx: *PipelineDepCtx): i32;
 
 /**
- * Cap-struct-return residual: parse with strict init (ParseIntoResult).
- * Soft residual this wave — pure Cap uses scalars/out-params; product thin stays host.
- * @param arena *ASTArena
- * @param module *Module
- * @param data *u8
- * @param len i32
- * @return ParseIntoResult
- * PLATFORM: SHARED freestanding 8.3 pipeline.x residual Cap-struct face.
+ * Cap-struct-return leave wave308: parse with strict init (ParseIntoResult).
+ * Live authority: runtime_pipeline_abi seed ALWAYS `pipeline_parse_into_with_init_buf`
+ * (thin→pipeline_parse_into_with_init_buf_impl_c). Pure freestanding owns scalars/impl_rc
+ * only (avoids by-value Cap); product Cap face is seed Cap residual class (wave284 pattern).
+ * Historical pipeline.x body was XLANG_LIB_WEAK thin residual. G.7 dual-export ban.
+ * @param arena *ASTArena — AST arena; null rejected by impl_c fail result
+ * @param module *Module — destination module; null rejected by impl_c
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 → fail result
+ * @return ParseIntoResult — ok + main_idx (Cap-struct product face)
+ * PLATFORM: SHARED freestanding 8.3 Cap-struct residual leave.
  */
-export function parse_into_with_init_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    return pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
-  }
-}
+export extern function parse_into_with_init_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult;
 
 /**
  * parse_apply_main_from_scalars — pure leave wave307.

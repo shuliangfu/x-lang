@@ -45053,6 +45053,16 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_result_c(void) {
   return r;
 }
 
+/* wave308: Cap-struct product face ALWAYS seed leave from pipeline.x host residual.
+ * Pure freestanding avoids by-value ParseIntoResult (scalars/impl_rc authority);
+ * G.7 single product Cap face = seed ALWAYS thin→impl_c (not host-cc pipeline_x).
+ * PLATFORM: SHARED freestanding 8.3 Cap-struct residual leave. */
+struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena *arena,
+                                                                 struct ast_Module *module,
+                                                                 uint8_t *data, int32_t len) {
+  return pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
+}
+
 /* Cold twins for pure-owned strong symbols (not under FROM_X prefer). */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 XLANG_WEAK int32_t pipeline_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module,
@@ -45072,11 +45082,7 @@ XLANG_WEAK int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx *ctx, uint8
   return pipeline_resolve_path_x_impl_c(ctx, import_path, path_len);
 }
 /* pipeline_read_file_x cold twin already defined earlier in this seed (~4212). */
-XLANG_WEAK struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena *arena,
-                                                                           struct ast_Module *module,
-                                                                           uint8_t *data, int32_t len) {
-  return pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
-}
+/* wave308: pipeline_parse_into_with_init_buf Cap face is ALWAYS above (not cold-only). */
 XLANG_WEAK int32_t pipeline_load_import_from_disk_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     struct ast_PipelineDepCtx *ctx, int32_t import_idx) {
   return pipeline_load_import_from_disk(module, arena, ctx, import_idx);
@@ -45089,21 +45095,9 @@ XLANG_WEAK size_t pipeline_sizeof_arena(void) { return W284_ARENA_SZ; }
 XLANG_WEAK size_t pipeline_sizeof_module(void) { return W284_MODULE_SZ; }
 #endif /* !FROM_X pure dual cold */
 
-/* Prefer path: Cap-struct + non-pure strong faces still need local cold dispatch
- * for parse_into_with_init_buf name when pure does not own Cap-struct-return. */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X)
-static struct parser_ParseIntoResult w284_parse_into_with_init_buf(struct ast_ASTArena *arena,
-                                                                   struct ast_Module *module,
-                                                                   uint8_t *data, int32_t len) {
-  return pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
-}
-#else
-#define w284_parse_into_with_init_buf pipeline_parse_into_with_init_buf
-#endif
-
 struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_c(struct ast_ASTArena *arena, struct ast_Module *module,
                                                                    uint8_t *data, int32_t len) {
-  return w284_parse_into_with_init_buf(arena, module, data, len);
+  return pipeline_parse_into_with_init_buf(arena, module, data, len);
 }
 
 int32_t pipeline_lsp_diag_parse_typeck_buf_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,

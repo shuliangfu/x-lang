@@ -12915,7 +12915,8 @@ export function pipeline_resolve_path_try_entry_dir(ctx: *u8, import_path: *u8, 
 // G.7: product non-_c faces thin-compose Cap _c (wave105–112) already pure.
 // pipeline_run_x_pipeline_impl orch composes Cap parse/load/typeck/codegen.
 // pipeline.x converts residual bodies to export-extern (dual-export ban).
-// parse_into_with_init_buf Cap-struct-return stays pipeline.x residual this wave.
+// wave308: parse_into_with_init_buf Cap-struct-return left to seed ALWAYS
+// (pure freestanding keeps scalars/impl_rc only; dual-export ban).
 // Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
 // PLATFORM: SHARED freestanding 8.3 pipeline.x residual pure leave.
 // ---------------------------------------------------------------------------

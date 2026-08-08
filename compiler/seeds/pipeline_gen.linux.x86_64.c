@@ -380,9 +380,7 @@ XLANG_LIB_WEAK size_t pipeline_loaded_buf_cap() {
 XLANG_LIB_WEAK int32_t pipeline_read_file_x(struct ast_PipelineDepCtx * ctx) {
   return pipeline_read_file_x_impl_c(ctx);
 }
-XLANG_LIB_WEAK struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * data, int32_t len) {
-  return pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
-}
+/* wave308: pipeline_parse_into_with_init_buf Cap-struct leave → seed ALWAYS (no body here). */
 XLANG_LIB_WEAK int32_t pipeline_parse_apply_main_from_scalars(struct ast_Module * module, struct ast_ASTArena * arena) {
   return pipeline_parse_apply_main_from_scalars_c(module, arena);
 }
