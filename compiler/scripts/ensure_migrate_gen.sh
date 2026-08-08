@@ -61,9 +61,9 @@ XLANG_TYPECK_ALLOW_PIN="${XLANG_TYPECK_ALLOW_PIN:-1}"
 # Prefer codegen.x assemble whenever a product -E binary works (wave323 / 7.4.2).
 XLANG_CODEGEN_FROM_X="${XLANG_CODEGEN_FROM_X:-1}"
 XLANG_CODEGEN_ALLOW_PIN="${XLANG_CODEGEN_ALLOW_PIN:-1}"
-# wave324: tip -E assemble ready (scripts/assemble_parser_gen_from_x.py) but product
-# matrix still P011 on trait bare `self` when FROM_X=1 — keep pin default until green.
-XLANG_PARSER_FROM_X="${XLANG_PARSER_FROM_X:-0}"
+# wave325: tip -E assemble matrix green (scripts/assemble_parser_gen_from_x.py).
+# Close parser cold pin: prefer .x assemble by default; pin only archaeology egg.
+XLANG_PARSER_FROM_X="${XLANG_PARSER_FROM_X:-1}"
 XLANG_PARSER_ALLOW_PIN="${XLANG_PARSER_ALLOW_PIN:-1}"
 XLANG_PARSER_GEN_TIMEOUT="${XLANG_PARSER_GEN_TIMEOUT:-180}"
 MODE="${1:-all}"
