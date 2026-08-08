@@ -1833,21 +1833,11 @@ extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena *a, int32
 extern int32_t check_block(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
-/* wave1187 G.7: typeck orchestration cluster (10 fns + 2 statics + 3 XLANG_WEAK)
- * migrated to pipeline_typeck_orch.c (same-TU #include). Members:
- * pipeline_typeck_x_ast_check_one_func_c / pipeline_typeck_x_ast_impl_c /
- * pipeline_typeck_x_ast_library_c / pipeline_typeck_x_ast_c
- * + g_pipeline_typeck_diag_soft_suppress static + diag_soft_suppress_set/get (XLANG_WEAK)
- * + g_pipeline_typeck_dep_ctx_cold static + set_dep_ctx/get_dep_ctx (XLANG_WEAK)
- * + pipeline_typeck_dep_prerun_module_c (XLANG_WEAK)
- * + typeck_validate_struct_layouts_zero_padding_glue
- * + typeck_x_type_size_from_layout_glue / typeck_x_type_align_from_layout_glue
- * Also: codegen_/backend_pipeline_expr_struct_lit_field_offset_at/_store_sz (4 fns)
- *   migrated to pipeline_asm_emit_expr_rec.c EOF (same-TU #include at L1914).
- * All extern (non-static): cross-TU calls (driver.x / lsp.x / runtime_pipeline_abi.x / seeds).
- * XLANG_WEAK definitions retained for product pure strong-symbol override.
- * PLATFORM: SHARED. */
-#include "pipeline_typeck_orch.c"
+/* wave285 G.7: pipeline_typeck_orch Cap residual host-cc leave.
+ * Live = runtime_pipeline_abi seed ALWAYS (WAVE285): thin typeck_x_ast*_c faces
+ * + layout glue size/align/zero_padding; pure owns soft_suppress/dep_ctx/dep_prerun
+ * strong; cold WEAK twins under #ifndef FROM_X. Host leaf deleted (no #include).
+ * PLATFORM: SHARED freestanding Cap leave (seed residual class). */
 
 /* wave1183 G.7: ast_ast_block_* control flow + ast_ast_expr_* apply cluster
  * (11 fns) migrated to ast_pool_block.c EOF (same-TU #include already exists).
@@ -1874,6 +1864,6 @@ extern int32_t check_block(struct ast_Module *module, struct ast_ASTArena *arena
  * extern-called by ast_pool.c:8151 (same pipeline_x.o symbol, no link
  * change). glue.c:16551/16564/16576 callsites (typeck_validate_* wrappers)
  * see the definition via same-TU #include at glue.c:2095. */
-/* wave1187 G.7: typeck_validate_struct_layouts_zero_padding_glue +
+/* wave285: typeck_validate_struct_layouts_zero_padding_glue +
  * typeck_x_type_size_from_layout_glue + typeck_x_type_align_from_layout_glue
- * (3 fns) migrated to pipeline_typeck_orch.c (same-TU #include above). */
+ * live in runtime_pipeline_abi seed ALWAYS (WAVE285); no host-cc #include. */

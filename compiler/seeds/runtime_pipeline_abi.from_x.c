@@ -45187,3 +45187,181 @@ int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
 }
 
 #endif /* WAVE284_PARSE_ORCH_ALWAYS */
+
+/* =============================================================================
+ * WAVE285 ALWAYS: pipeline_typeck_orch Cap residual (host leaf deleted).
+ * Not gated by FROM_X. Product authority for typeck orch Cap residual that pure
+ * does not own:
+ *   - thin product faces pipeline_typeck_x_ast{,_impl,_library,_check_one_func}_c
+ *     → typeck_x.o (typeck.x is live orch authority; dual-export ban)
+ *   - layout glue typeck_validate_struct_layouts_zero_padding_glue +
+ *     typeck_x_type_{size,align}_from_layout_glue (typeck.x / pure call as extern)
+ * Pure already owns strong: soft_suppress / set|get_dep_ctx / dep_prerun /
+ * validate_zero_padding_c / patch_all_body_parent_links_c (wave89–92).
+ * Cold WEAK twins for those pure faces live only under #ifndef
+ * XLANG_RUNTIME_PIPELINE_ABI_FROM_X (prefer cold / no pure).
+ * PLATFORM: SHARED freestanding Cap leave (seed residual class).
+ * ============================================================================= */
+#ifndef WAVE285_TYPECK_ORCH_ALWAYS
+#define WAVE285_TYPECK_ORCH_ALWAYS 1
+
+#include <stdint.h>
+#include <stddef.h>
+#include <stdio.h>
+
+#ifndef XLANG_WEAK
+#if defined(__GNUC__) || defined(__clang__)
+#define XLANG_WEAK __attribute__((weak))
+#else
+#define XLANG_WEAK
+#endif
+#endif
+
+/* Prefer void* faces (match pure / earlier ALWAYS blocks; dual-decl safe). */
+extern int32_t typeck_x_ast_check_one_func(void *module, void *arena, void *ctx, int32_t func_idx);
+extern int32_t typeck_x_ast_impl(void *module, void *arena, void *ctx);
+extern int32_t typeck_x_ast_library(void *module, void *arena, void *ctx);
+extern int32_t typeck_x_ast(void *module, void *arena, void *ctx);
+extern int32_t typeck_typeck_x_ast_library(void *module, void *arena, void *ctx);
+extern int32_t typeck_typeck_struct_layout_metrics(void *module, void *arena, int32_t li, int32_t depth,
+                                                    int32_t want_align, int32_t *out_size, int32_t *out_align);
+extern int32_t pipeline_module_num_struct_layouts_at(void *m);
+extern void pipeline_typeck_patch_all_body_parent_links_c(void *module, void *arena);
+extern char *link_abi_getenv(const char *name);
+
+/**
+ * Product-mega C face for per-function body typeck.
+ * Thin → typeck_x_ast_check_one_func (wave684+ generic body check).
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_typeck_x_ast_check_one_func_c(void *module, void *arena, void *ctx, int32_t func_idx) {
+  return typeck_x_ast_check_one_func(module, arena, ctx, func_idx);
+}
+
+/**
+ * Product-mega C face for whole-module typeck (main preconditions + loop).
+ * Thin → typeck_x_ast_impl.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_typeck_x_ast_impl_c(void *module, void *arena, void *ctx) {
+  return typeck_x_ast_impl(module, arena, ctx);
+}
+
+/**
+ * Product-mega C face for library-module typeck (no main).
+ * Thin → typeck_x_ast_library.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_typeck_x_ast_library_c(void *module, void *arena, void *ctx) {
+  return typeck_x_ast_library(module, arena, ctx);
+}
+
+/**
+ * Product-mega C face for whole-module typeck entry.
+ * Thin → typeck_x_ast.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_typeck_x_ast_c(void *module, void *arena, void *ctx) {
+  return typeck_x_ast(module, arena, ctx);
+}
+
+/**
+ * Validate all struct layouts have zero padding waste (host-cc era glue).
+ * Iterates layout metrics; pure product path prefers typeck.x face via
+ * pipeline_typeck_validate_struct_layouts_zero_padding_c.
+ * PLATFORM: SHARED.
+ */
+int32_t typeck_validate_struct_layouts_zero_padding_glue(void *module, void *arena) {
+  int32_t li;
+  int32_t nsl;
+  if (!module || !arena)
+    return -1;
+  nsl = pipeline_module_num_struct_layouts_at(module);
+  for (li = 0; li < nsl; li++) {
+    int32_t dz = 0;
+    int32_t da = 1;
+    if (typeck_typeck_struct_layout_metrics(module, arena, li, 0, 1, &dz, &da) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/**
+ * Compute TYPE_NAMED size from struct_layout when layout exists.
+ * PLATFORM: SHARED — typeck.x / pure call as extern (void* ABI).
+ */
+int32_t typeck_x_type_size_from_layout_glue(void *module, void *arena, int32_t li, int32_t depth) {
+  int32_t z2 = 0;
+  int32_t al2 = 1;
+  if (li < 0)
+    return 0;
+  if (typeck_typeck_struct_layout_metrics(module, arena, li, depth, 0, &z2, &al2) != 0)
+    return 0;
+  return z2;
+}
+
+/**
+ * Compute TYPE_NAMED align from struct_layout when layout exists.
+ * PLATFORM: SHARED — typeck.x calls as extern.
+ */
+int32_t typeck_x_type_align_from_layout_glue(void *module, void *arena, int32_t li, int32_t depth) {
+  int32_t z2 = 0;
+  int32_t al2 = 1;
+  if (li < 0)
+    return 1;
+  if (typeck_typeck_struct_layout_metrics(module, arena, li, depth, 0, &z2, &al2) != 0)
+    return 1;
+  return al2 > 0 ? al2 : 1;
+}
+
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X)
+/* Cold WEAK twins — pure owns strong under prefer rest / hybrid. */
+
+static int32_t g_w285_typeck_diag_soft_suppress = 0;
+static void *g_w285_typeck_dep_ctx_cold = 0;
+
+XLANG_WEAK void pipeline_typeck_diag_soft_suppress_set(int32_t v) {
+  g_w285_typeck_diag_soft_suppress = v ? 1 : 0;
+}
+
+XLANG_WEAK int32_t pipeline_typeck_diag_soft_suppress_get(void) {
+  return g_w285_typeck_diag_soft_suppress;
+}
+
+XLANG_WEAK void pipeline_typeck_set_dep_ctx(void *ctx) {
+  g_w285_typeck_dep_ctx_cold = ctx;
+}
+
+XLANG_WEAK void *pipeline_typeck_get_dep_ctx(void) {
+  return g_w285_typeck_dep_ctx_cold;
+}
+
+XLANG_WEAK int32_t pipeline_typeck_validate_struct_layouts_zero_padding_c(void *module, void *arena) {
+  return typeck_validate_struct_layouts_zero_padding_glue(module, arena);
+}
+
+/**
+ * dep prerun typeck cold fallback (wave89 pure owns strong).
+ * Prefer full library typeck; light-fallback padding+parent_link.
+ * PLATFORM: SHARED — ELF weak overridden by pure when linked.
+ */
+XLANG_WEAK int32_t pipeline_typeck_dep_prerun_module_c(void *module, void *arena, void *ctx) {
+  int32_t tc;
+  if (!module || !arena || !ctx)
+    return -5;
+  pipeline_typeck_set_dep_ctx(ctx);
+  pipeline_typeck_diag_soft_suppress_set(1);
+  tc = typeck_typeck_x_ast_library(module, arena, ctx);
+  pipeline_typeck_diag_soft_suppress_set(0);
+  if (tc == 0)
+    return 0;
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
+    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep prerun full typeck rc=%d, light fallback\n", (int)tc);
+  if (pipeline_typeck_validate_struct_layouts_zero_padding_c(module, arena) != 0)
+    return -7;
+  pipeline_typeck_patch_all_body_parent_links_c(module, arena);
+  return 0;
+}
+#endif /* !XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+
+#endif /* WAVE285_TYPECK_ORCH_ALWAYS */

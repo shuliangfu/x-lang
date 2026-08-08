@@ -4,7 +4,10 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
-// wave284 parse_orch seed ALWAYS leave; wave283: pipeline_ast_forwarders.c seed ALWAYS leave (host leaf deleted).
+// wave285 typeck_orch seed ALWAYS leave; wave284 parse_orch seed ALWAYS leave;
+// wave283: pipeline_ast_forwarders.c seed ALWAYS leave (host leaf deleted).
+//   Live=seed ALWAYS WAVE285: typeck_x_ast*_c thin + layout glue size/align/zero_padding;
+//   pure owns soft_suppress/dep_ctx/dep_prerun strong; cold WEAK under #ifndef FROM_X.
 //   Live=seed ALWAYS WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256.
 // wave282: ast_pool_bootstrap_glue.c seed ALWAYS leave (host leaf deleted).
 //   Live faces: typeck_i32_ptr_* / layout_metrics init+read / asm scope BSS /
