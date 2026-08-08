@@ -33,7 +33,7 @@
 | **R2 真迁退役** | 🟡 ~85% | 128 prove 模块中 ~120 已 R2；Cap residual 待消灭 ~8 模块 |
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
-| **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
+| **Pinned gen.c 退役** | 🟡 19/30 | Track L 退役 **19** 个（wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen = 6 项 Batch 3）；仍 pin **前端核心** typeck／codegen／parser 等 + 工具链／测试 pin。lexer_x 专用 cold seed rung 绕开 legacy gen.c 隐式声明 C99 错误。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 **`36363b90f`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
@@ -790,7 +790,7 @@
 
 ---
 
-## 阶段 8：Pinned gen.c 退役（部分完成 · 13/30）
+## 阶段 8：Pinned gen.c 退役（部分完成 · 19/30 · wave327/328 Batch3 六项）
 
 > **定义**：compiler/ 顶层的 *_gen.c 是 pinned 生成器，产品链权威。Track L 退役 = 构建改用 *_x.o，pinned gen 仅考古。
 

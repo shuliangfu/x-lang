@@ -54,6 +54,10 @@ driver_leaf_key_for_out() {
     lsp_io_std_heap_x.o|*lsp_io_std_heap_x.o) printf '%s' "lsp_io_std_heap_x.o" ;;
     lsp_diag_x.o|*lsp_diag_x.o) printf '%s' "lsp_diag_x.o" ;;
     lsp_x.o|*lsp_x.o) printf '%s' "lsp_x.o" ;;
+    pipeline_x.o|*pipeline_x.o) printf '%s' "pipeline_x.o" ;;
+    driver_x.o|*driver_x.o) printf '%s' "driver_x.o" ;;
+    preprocess_x.o|*preprocess_x.o) printf '%s' "preprocess_x.o" ;;
+    lexer_x.o|*lexer_x.o) printf '%s' "lexer_x.o" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -153,6 +157,18 @@ driver_leaf_spec_for_key() {
     lsp_x.o)
       printf '%s' 'src/lsp/lsp.x||seeds/lsp_gen.linux.x86_64.c|lsp'
       ;;
+    pipeline_x.o)
+      printf '%s' 'src/pipeline/pipeline.x||seeds/pipeline_gen.linux.x86_64.c|extended'
+      ;;
+    driver_x.o)
+      printf '%s' 'src/main.x||seeds/driver_gen.linux.x86_64.c|extended'
+      ;;
+    preprocess_x.o)
+      printf '%s' 'src/preprocess/preprocess.x||seeds/preprocess_gen.linux.x86_64.c|extended'
+      ;;
+    lexer_x.o)
+      printf '%s' 'src/lexer/lexer.x||seeds/lexer_gen.linux.x86_64.c|extended'
+      ;;
     *)
       printf '%s' ''
       ;;
@@ -227,7 +243,11 @@ driver_leaf_list_keys() {
     lsp_io_x.o \
     lsp_io_std_heap_x.o \
     lsp_diag_x.o \
-    lsp_x.o
+    lsp_x.o \
+    pipeline_x.o \
+    driver_x.o \
+    preprocess_x.o \
+    lexer_x.o
 }
 
 driver_leaf_check() {
@@ -304,8 +324,8 @@ driver_leaf_check() {
   done <<EOF
 $(driver_leaf_list_keys)
 EOF
-  if [ "$_n" -ne 11 ]; then
-    echo "driver_leaf_x_to_o --check: expected 11 catalog keys, got $_n" >&2
+  if [ "$_n" -ne 15 ]; then
+    echo "driver_leaf_x_to_o --check: expected 15 catalog keys, got $_n" >&2
     exit 1
   fi
   if [ "$_miss" -ne 0 ]; then
@@ -369,7 +389,7 @@ EOF
       exit 1
     fi
   fi
-  echo "driver_leaf_x_to_o --check: OK (11 catalog leaves: 9 Makefile-driven (wave896) + 2 ensure_gen_x_o-driven (lsp_diag/lsp wave327); BASE_CFLAGS export leaf wave860; not physical delete)"
+  echo "driver_leaf_x_to_o --check: OK (15 catalog leaves: 9 Makefile-driven (wave896) + 2 ensure_gen_x_o lsp (wave327) + 3 B4 ensure_host_cc (pipeline/driver/preprocess wave328) + 1 lexer_x (wave328; avoids gen.c implicit-decl bug); BASE_CFLAGS export leaf wave860; not physical delete)"
   exit 0
 }
 
