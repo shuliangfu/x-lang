@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-08（对照 tip residual：glue／ast_pool host 壳 + 域叶 thin／leave；bc-inventory present residual **30**／ROWS=119 · wave279 lifecycle leave 后；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-08（对照 tip residual：glue／ast_pool host 壳 + 域叶 thin／leave；bc-inventory present residual **29**／ROWS=119 · wave280 module_func leave 后；**只改勾选与事实 LOC**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -34,7 +34,7 @@
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
 | **Pinned gen.c 退役** | 🟡 13/30 | Track L 退役 **13** 个（含 lsp_io_gen + build_*_gen 三件套 + cfg_eval_gen）；仍 pin **前端核心** typeck／codegen／parser／pipeline 等 + 工具链／测试 pin |
-| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-08 实测**）：`pipeline_glue.c` 仍 host 编排壳 + domain `#include`；`ast_pool.c` 纯 `#include` 编排。**bc-inventory 诚实**：present residual product C rows **30**（ROWS=119；wave279 lifecycle seed ALWAYS leave 后；expr_sidecar／block／arena／sidecar_pool／WPO 等更早 absent）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + 多叶 leave（含 …→sidecar_pool→arena→block）**；**8.3.3 field_access／soa + typeck_slots + scratch／loop_glue leave** · 父项仍 🟡（pipeline_x mega 未离；**下刀 pipeline_x mega 或 onefunc／module_func**）；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
+| **非 gen 产品 C（glue/ast 池）** | 🟡 | 阶段 8.3 **进行中**（**2026-08-08 实测**）：`pipeline_glue.c` 仍 host 编排壳 + domain `#include`；`ast_pool.c` 纯 `#include` 编排。**bc-inventory 诚实**：present residual product C rows **29**（ROWS=119；wave280 module_func seed ALWAYS leave 后；lifecycle／expr_sidecar／block／arena／sidecar_pool／WPO 等更早 absent）；`./xbuild bc-inventory --check` 绿。**8.3.1 域 thin 子项大多 ✅**；**8.3.2 域 thin + 多叶 leave（含 …→module_func）**；**8.3.3 field_access／soa + typeck_slots + scratch／loop_glue leave** · 父项仍 🟡（pipeline_x mega 未离；**下刀 pipeline_x mega 或 onefunc**）；**8.3.9 ✅**；**8.3.4–8.3.8／8.3.10 ⬜**。**BC 终局（离 host-cc）仍 ⬜** |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 **`36363b90f`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
@@ -968,7 +968,7 @@
 | `ast_pool_module_enum.c` | **0（leave）** | module ModuleEnumEntry Cap residual pure-owned leave (wave264) | ✅ host-cc leave；权威 runtime_pipeline_abi pure multi-module map + faces + try_mark；seed cold twins under #ifndef FROM_X；same-TU pure face decls |
 | `ast_pool_onefunc.c` | ~986 | OneFunc sidecar + fill_from_onefunc residual 切片 | 🟡 已抽出（wave984+991 有则补全）；仍 host-cc 入 `pipeline_x` |
 | `ast_pool_dep_ctx.c` | **~0** | PipelineDepCtx Cap pure leave wave272（bodies runtime_pipeline_abi；DepCtxSidecar pure BSS） | ✅ **absent** pure leave · inventory present **36**（wave273 后） |
-| `ast_pool_module_func.c` | ~445 | module Func cold accessors + param sidecar 切片 | 🟡 已抽出；仍 host-cc 入 `pipeline_x` |
+| `ast_pool_module_func.c` | **0（deleted）** | module Func cold accessors + param sidecar residual | ✅ **seed ALWAYS leave**（wave280 · 2026-08-08）；live＝runtime_pipeline_abi seed ALWAYS；host 叶已删；present **30→29**；**双端 L2 绿** |
 | `ast_pool_arena.c` | **0（deleted）** | ASTArena main-pool cold accessors 切片 | ✅ **pure-owned leave**（wave276 · 2026-08-08）；live＝runtime_pipeline_abi pure ptr/alloc/write/init + seed always-C by-value get/set_copy/float；cold twins under #ifndef FROM_X；host 叶已删；dual-export ban；present **34→33**；**双端 L2 绿** |
 | `ast_pool_block.c` | **0（deleted）** | block append/region/defer/loop/labeled/getters/parent/resolve/stmt_order residual | ✅ **seed ALWAYS leave**（wave277 · 2026-08-08）；live＝runtime_pipeline_abi.from_x WAVE277 ALWAYS；host 叶已删；present **33→32**；**双端 L2 绿** |
 | `pipeline_typeck_field_access.c` | **~218** | field_access **全 thin**（同 TU 入 glue） | 🟡 **已抽出**；**.x 权威收口**（含 bare-import-const）；仍 host-cc |
@@ -1083,6 +1083,7 @@
   - ✅ onefunc 域 thin：`ast_pool_onefunc.c`（const/let/param/call/while/for + copy_sidecar ~522 LOC body；`grow_vec_copy_append` 上提 core）同 TU 抽出；COUNT 40→41 / g05 STALE / inventory 已收
   - ✅ dep_ctx 域 thin→**pure leave wave272**：`ast_pool_dep_ctx.c` absent（`pipeline_dep_ctx_*`／`pipeline_ctx_lib_root_*`／`pipeline_dep_ctx_sidecar_release` · DepCtxSidecar pure BSS）；g05 STALE／inventory absent；live→runtime_pipeline_abi pure；sidecar_pool 不再挂 DepCtx 表；present **39→38**
   - ✅ module_func 域 thin：`ast_pool_module_func.c`（module Func alloc/flags/params/name_equal/byte + arena_func param_write/copy_slot · ~409 LOC body；static helpers + visibility/L7 + glue name/body 仍 core）同 TU 抽出；COUNT 42→43 / g05 STALE / inventory 已收
+  - ✅ module_func 域 thin→**seed ALWAYS leave wave280**：`ast_pool_module_func.c` **absent**（pipeline_module_func_*／arena_func param_write|copy_slot／asm+arch_arm64 forwarders）；live＝runtime_pipeline_abi seed ALWAYS；typedef Cap face decls；g05 STALE／inventory absent；present **30→29**；**双端 L2 绿**（mac + Ubuntu `ubuntu-remote-server` @ `06b0ff801`）
   - ✅ lifecycle 域 thin→**seed ALWAYS leave wave279**：`ast_pool_lifecycle.c` **absent**（block_on_alloc／module|arena reset|release／drop_bodies／onefunc reset|release）；live＝runtime_pipeline_abi seed ALWAYS；module_func residual 收纳 static helpers；typedef Cap face decls；g05 STALE／inventory absent；present **31→30**；**双端 L2 绿**（mac + Ubuntu）
   - ✅ expr_sidecar 域 thin→**seed ALWAYS leave wave278**：`ast_pool_expr_sidecar.c` **absent**（call/method/match/struct_lit/array_lit + type_arg + Expr field Cap）；live＝runtime_pipeline_abi seed ALWAYS；typedef Cap face decls；FIELD_ACCESS=44；g05 STALE／inventory absent；present **32→31**；**双端 L2 绿**（mac + Ubuntu）
   - ✅ block 域 thin→**seed ALWAYS leave wave277**：`ast_pool_block.c` **absent**（append/getters/patch/resolve/stmt_order fixup）；live＝runtime_pipeline_abi seed ALWAYS；typedef Cap face decls；pure fixup 空 stub→export-extern；dual-export ban；g05 STALE／inventory absent；present **33→32**；**双端 L2 绿**（mac + Ubuntu `ubuntu-remote-server` @ `5a927c3c3`）
