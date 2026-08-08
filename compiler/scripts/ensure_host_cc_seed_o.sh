@@ -39,6 +39,11 @@
 #   wave766: G.7 g05 rt multi-slice swallow — `try-rt-prefer OUT` for
 #            src/runtime_driver_no_c.o (content..dispatch + rest FROM_X → cc -r;
 #            RT_SEED_SLICE external). g05_ensure + Makefile thin-call.
+#   wave318: G.7 runtime mega full seed host-cc leave (prefer path) —
+#            when all hybrid non-default RT_* slices are ok, monofile rest under
+#            full XLANG_RT_*_FROM_X is T=0 (empty mega). Omit host-cc of
+#            seeds/runtime.from_x.c and merge slices only (parser f-330 analogue).
+#            Cold fallback still full seed + NO_C. Not M4 pin-off (7.1 still ⬜).
 #   wave767: G.7 g05 pipeline_abi + ldpc PREFER swallow —
 #            `try-pipeline-abi-prefer OUT` (full .x WEAK + rest FROM_X → cc -r)
 #            · `try-ldpc-prefer OUT` (thin .x WEAK + rest L2_LSP_CTX → cc -r).
@@ -2683,10 +2688,23 @@ ensure_rt_prefer_one() {
           if [ "$_rt_st_ok" = "1" ]; then
             _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_STACK_FROM_X"
           fi
-          # shellcheck disable=SC2086
-          if [ "$_rt_content_ok" = "1" ] && [ -n "$_rt_rest_o" ] \
-            && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc \
-                 $_rt_rest_defs -c -o "$_rt_rest_o" "$_rt"; then
+          # wave318: full non-default hybrid set ⇒ monofile rest T=0 under all
+          # XLANG_RT_*_FROM_X (NO_C already carries 5 RT_SEED_SLICE FROM_X).
+          # PLATFORM: SHARED freestanding — omit empty mega rest host-cc.
+          _rt_full_slices_ok=0
+          if [ "$_rt_content_ok" = "1" ] \
+            && [ "$_rt_util_ok" = "1" ] && [ "$_rt_argv_ok" = "1" ] \
+            && [ "$_rt_ef_ok" = "1" ] && [ "$_rt_compile_ok" = "1" ] \
+            && [ "$_rt_run_ok" = "1" ] && [ "$_rt_asm_ok" = "1" ] \
+            && [ "$_rt_entry_ok" = "1" ] && [ "$_rt_diag_ok" = "1" ] \
+            && [ "$_rt_elfd_ok" = "1" ] && [ "$_rt_lr_ok" = "1" ] \
+            && [ "$_rt_fs_ok" = "1" ] && [ "$_rt_fo_ok" = "1" ] \
+            && [ "$_rt_dt_ok" = "1" ] && [ "$_rt_di_ok" = "1" ] \
+            && [ "$_rt_xe_ok" = "1" ] && [ "$_rt_abk_ok" = "1" ] \
+            && [ "$_rt_rcp_ok" = "1" ]; then
+            _rt_full_slices_ok=1
+          fi
+          if [ "$_rt_content_ok" = "1" ]; then
             _rt_link_objs="$_rt_c_o"
             if [ "$_rt_util_ok" = "1" ]; then
               _rt_link_objs="$_rt_link_objs $_rt_u_o"
@@ -2750,7 +2768,17 @@ ensure_rt_prefer_one() {
             # path owns those). Hybrid thin+rest can be incomplete and would
             # poison product asm codegen (CG002 code_len=0 on Darwin).
             # shellcheck disable=SC2086
-            if $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
+            if [ "$_rt_full_slices_ok" = "1" ]; then
+              # wave318: all hybrid slices present → empty mega rest; no host-cc
+              # of seeds/runtime.from_x.c on product prefer path.
+              if $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs 2>/dev/null; then
+                echo "rt-prefer: $_rt_o ← hybrid slices only; omit empty mega rest (wave318)"
+                _rt_done=1
+              fi
+            elif [ -n "$_rt_rest_o" ] \
+              && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc \
+                   $_rt_rest_defs -c -o "$_rt_rest_o" "$_rt" \
+              && $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
               echo "rt-prefer: $_rt_o ← R2..R10/diag/…/parsed + rest (G-02f-317 hybrid; slices external)"
               _rt_done=1
             fi
