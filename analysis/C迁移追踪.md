@@ -973,8 +973,8 @@
 | `ast_pool_block.c` | ~1,439 | block append/region/defer + loop/labeled/getters + parent/resolve + stmt_order rebuild residual 切片 | 🟡 已抽出（wave988–990+992 有则补全）；仍 host-cc 入 `pipeline_x` |
 | `pipeline_typeck_field_access.c` | **~218** | field_access **全 thin**（同 TU 入 glue） | 🟡 **已抽出**；**.x 权威收口**（含 bare-import-const）；仍 host-cc |
 | `pipeline_typeck_soa.c` | **~82** | typeck SOA **全 thin**（extern + fill/soa_index 转调） | 🟡 **已抽出**；**.x 权威收口**；仍 host-cc |
-| `pipeline_elf_write_o.c` | **~1,581** | ELF64 ET_REL + Mach-O MH_OBJECT `.o` writers | 🟡 **已抽出**（8.3.2）；仍 host-cc 入 `pipeline_x` |
-| `pipeline_elf_ctx.c` | **~1,001** | ELF/Mach-O codegen ctx accessors + PGO-Lite + reloc/label/patch/shndx/common sidecar | 🟡 **已抽出**（8.3.2 wave1247）；仍 host-cc 入 `pipeline_x` |
+| `pipeline_elf_write_o.c` | **0（leave）** | ELF64 ET_REL + Mach-O MH_OBJECT `.o` writers | ✅ wave273 pure-owned leave；live＝runtime_pipeline_abi pure；seed cold twin under #ifndef FROM_X；host 叶已删 |
+| `pipeline_elf_ctx.c` | **0（leave）** | ELF/Mach-O codegen ctx accessors + PGO-Lite + reloc/label/patch/shndx/common sidecar | ✅ wave273 pure-owned leave；live＝runtime_pipeline_abi pure；seed cold twin under #ifndef FROM_X；host 叶已删 |
 | `pipeline_codegen_type_to_c.c` | **0（deleted）** | TypeKind/VECTOR → C type name repr（type_kind_copy/append + vector_type_copy + type_to_c_repr） | ✅ **pure-owned leave**（2026-08-05 wave109）；live＝`runtime_pipeline_abi` pure；seed cold twin under #ifndef FROM_X；host-cc 叶已删；struct_emit 改调 public type_to_c_repr |
 | `pipeline_codegen_skip_force.c` | **0（deleted）** | codegen skip/force/override/path 谓词 | ✅ **pure-owned leave**（2026-08-05 wave108）；live＝`runtime_pipeline_abi` pure；seed cold twin under #ifndef FROM_X；host-cc 叶已删 |
 | `pipeline_codegen_struct_emit.c` | **~243** | C co-emit struct tag + outbuf append + struct field emit（struct_tag_try_claim + out_append_* + emit_struct_field_*） | 🟡 **已抽出**（8.3.2 wave1250）；仍 host-cc 入 `pipeline_x` |

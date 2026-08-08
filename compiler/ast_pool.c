@@ -368,7 +368,47 @@ int32_t pipeline_dep_ctx_typeck_loop_depth_at(struct ast_PipelineDepCtx *ctx);
 /* 8.3.1 host-cc leave: pipeline_typeck_slots.c retired — BSS accessors live in
  * typeck_x.o (typeck_gen seed). Do not re-include into pipeline_x. */
 
-#include "pipeline_elf_ctx.c"
+/* wave273: pipeline_elf_ctx.c + pipeline_elf_write_o.c pure-owned leave —
+ * authority runtime_pipeline_abi pure (#[no_mangle] pipeline_elf_* /
+ * pipeline_macho_* / platform_macho_write_macho_o_to_buf).
+ * Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * Same-TU residual keeps only extern prototypes so forwarders compile;
+ * bodies T from runtime_pipeline_abi.o (dual-export ban).
+ * PLATFORM: SHARED freestanding ELF leave. */
+int32_t pipeline_elf_pgo_hot_enabled(void);
+void pipeline_elf_ctx_set_emit_hot(uint8_t *ctx_bytes, int32_t hot);
+int32_t pipeline_elf_ctx_total_code_len(uint8_t *ctx_bytes);
+int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx_bytes);
+int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
+void pipeline_elf_ctx_reloc_sidecar_reset(uint8_t *ctx_bytes);
+int32_t pipeline_elf_ctx_reloc_offset_at(uint8_t *ctx_bytes, int32_t idx);
+int32_t pipeline_elf_ctx_reloc_shndx_at(uint8_t *ctx_bytes, int32_t idx);
+int32_t pipeline_elf_ctx_sym_shndx_at(uint8_t *ctx_bytes, int32_t idx);
+uint8_t *pipeline_elf_ctx_code_data_ptr(uint8_t *ctx_bytes);
+void pipeline_elf_ctx_reloc_offset_set(uint8_t *ctx_bytes, int32_t idx, int32_t offset);
+void pipeline_elf_label_mod_scope_reset(void);
+int32_t pipeline_elf_label_mod_scope_next_module(void);
+void pipeline_elf_label_mod_scope_begin_module(void);
+int32_t pipeline_elf_label_mod_scope_active(void);
+int32_t pipeline_elf_ctx_add_label(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t offset);
+int32_t pipeline_elf_ctx_ensure_label(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len);
+int32_t pipeline_elf_ctx_pad_code_to_4(uint8_t *ctx_bytes);
+int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t offset);
+int32_t pipeline_elf_ctx_add_common_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t size, int32_t align);
+int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
+int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, uint8_t *name, int32_t name_len, int32_t imm_bits);
+int32_t pipeline_elf_ctx_patch_imm_bits_at(uint8_t *ctx_bytes, int32_t patch_idx);
+int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes);
+int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len);
+int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len, int32_t r_type, int32_t r_pcrel);
+uint8_t *pipeline_elf_ctx_reloc_sym_name_ptr(uint8_t *ctx_bytes, int32_t idx);
+void pipeline_elf_ctx_reloc_sym_name_copy64(uint8_t *ctx_bytes, int32_t idx, uint8_t *dst);
+int32_t pipeline_elf_ctx_reloc_name_len(uint8_t *ctx_bytes, int32_t idx);
+void pipeline_elf_log_unresolved_patch(void *ctx, int32_t patch_idx);
+int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, void *out);
+int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, void *out);
+int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, void *out);
+int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf);
 
 /* 8.3.2 host-cc leave: pipeline_scratch_bufs.c retired — path/prefix
  * scratch BSS accessors live in codegen_x.o (codegen_gen seed append).

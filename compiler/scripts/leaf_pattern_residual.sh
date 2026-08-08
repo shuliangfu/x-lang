@@ -9151,6 +9151,12 @@ fi
 if [ -f "$ROOT/compiler/ast_pool_dep_ctx.c" ]; then
   bad "ast_pool_dep_ctx.c must be deleted (wave272 pure-owned leave)"
 fi
+if [ -f "$ROOT/compiler/pipeline_elf_ctx.c" ]; then
+  bad "pipeline_elf_ctx.c must be deleted (wave273 pure-owned leave)"
+fi
+if [ -f "$ROOT/compiler/pipeline_elf_write_o.c" ]; then
+  bad "pipeline_elf_write_o.c must be deleted (wave273 pure-owned leave)"
+fi
 if grep -qE 'ast_pool_module_import\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list ast_pool_module_import.c (wave263 host-cc leave)"
 fi

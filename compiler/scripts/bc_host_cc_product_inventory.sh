@@ -135,8 +135,8 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_emit_x86_enc_helpers.c|8.3.1|asm x86 enc helpers|0|absent"
   "compiler/pipeline_asm_emit_fold_primitives.c|8.3.1|asm fold pattern detectors (wave136 pure-owned leave)|0|absent"
   # --- 8.3.2 pipeline/asm/codegen domain leaves (wave1246–1280; still host-cc) ---
-  "compiler/pipeline_elf_write_o.c|8.3.2|ELF/Mach-O .o writers (wave1246)|50|present"
-  "compiler/pipeline_elf_ctx.c|8.3.2|ELF/Mach-O ctx accessors (wave1247)|700|present"
+  "compiler/pipeline_elf_write_o.c|8.3.2|ELF/Mach-O .o writers pure-owned leave (wave273)|0|absent"
+  "compiler/pipeline_elf_ctx.c|8.3.2|ELF/Mach-O ctx accessors pure-owned leave (wave273)|0|absent"
   "compiler/pipeline_codegen_type_to_c.c|8.3.2|codegen type-to-c (wave109 pure-owned leave)|240|absent"
   "compiler/pipeline_codegen_skip_force.c|8.3.2|codegen skip/force predicates (wave1249 pure-owned leave)|270|absent"
   "compiler/pipeline_codegen_struct_emit.c|8.3.2|codegen struct emit (wave110 pure-owned leave)|170|absent"
@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 elf residual / pipeline_x mega host-cc leave (wave272 DepCtx done · present 38); candidates: elf_ctx + elf_write_o + asm wpo (ptr_at=same-TU static only · not Cap shortcut)"
+  echo "NEXT=8.3.2 asm_wpo / pipeline_x mega host-cc leave (wave273 ELF done · present 36); candidates: pipeline_asm_wpo + pipeline_x mega (ptr_at=same-TU static only · not Cap shortcut)"
 }
 
 run_check() {
