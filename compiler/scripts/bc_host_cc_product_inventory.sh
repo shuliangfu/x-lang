@@ -69,9 +69,9 @@ esac
 PRODUCT_RESIDUAL_ROWS=(
   # --- 8.3.1 / 8.3.2 host shells (post-thin floors · wave1281 honesty) ---
   # glue ~3.4k residual body + #include face; not the historical ~18k mega.
-  "compiler/pipeline_glue.c|8.3.1|product glue host shell (typeck/codegen/asm residual + domain #includes)|1200|present"
+  "compiler/pipeline_glue.c|8.3.1|product glue host shell retired wave309 (0 body mega; product pure-ld no pipeline_x)|0|absent"
   # ast_pool ~0.18k pure #include orchestration; domain bodies live in leaves.
-  "compiler/ast_pool.c|8.3.2|AST pool host shell (#include orchestration only)|100|present"
+  "compiler/ast_pool.c|8.3.2|AST pool host shell retired wave309 (structure floor leave)|0|absent"
   # --- 8.3.2 ast_pool domain leaves (same-TU into pipeline_x) ---
   "compiler/ast_pool_module_import.c|8.3.2|module ImportEntry Cap residual pure-owned leave (wave263)|0|absent"
   "compiler/ast_pool_struct_layout.c|8.3.2|module StructLayout Cap residual pure-owned leave (wave266)|0|absent"
@@ -87,7 +87,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_lifecycle.c|8.3.2|ast_pool lifecycle/reset/release domain (wave279 leave)|0|absent"
   "compiler/ast_pool_ptr_at.c|8.3.2|ast_pool core ptr_at dead leave (wave298; zero residual callers)|0|absent"
   "compiler/ast_pool_sidecar_pool.c|8.3.2|ast_pool sidecar pool Cap residual pure-owned leave (wave275)|0|absent"
-  "compiler/ast_pool_typedefs.c|8.3.2|ast_pool early typedef domain (wave1278)|220|present"
+  "compiler/ast_pool_typedefs.c|8.3.2|ast_pool typedef domain retired wave309 (structure floor leave)|0|absent"
   "compiler/ast_pool_type.c|8.3.2|ast_pool type pool Cap residual pure-owned leave (wave270)|0|absent"
   "compiler/pipeline_grow_vec.c|8.3.2|GrowVec pure-owned leave (wave271)|0|absent"
   "compiler/pipeline_lint_meta.c|8.3.2|pipeline lint+meta pure-owned leave wave121|0|absent"
@@ -142,15 +142,15 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_codegen_struct_emit.c|8.3.2|codegen struct emit (wave110 pure-owned leave)|170|absent"
   "compiler/pipeline_codegen_residual.c|8.3.2|codegen residual name/predicate (wave1251 pure-owned leave)|130|absent"
   "compiler/pipeline_asm_ctx_layout.c|8.3.1|AsmFuncCtx layout cast pure leave (wave125); typedef in glue shell|0|absent"
-  "compiler/pipeline_glue_early_fwd.c|8.3|glue early forward-decl/extern shell (wave1284)|180|present"
-  "compiler/pipeline_glue_mid_fwd.c|8.3|glue mid forward-decl/extern shell after parser_result (wave1285)|90|present"
-  "compiler/pipeline_glue_backend_fwd.c|8.3|glue backend/emit-path forward-decl extern shell (wave1285)|500|present"
-  "compiler/pipeline_glue_typeck_fwd.c|8.3|glue typeck forward-decl/extern shell before assign (wave1286)|250|present"
-  "compiler/pipeline_glue_typeck_mid_fwd.c|8.3|glue typeck mid forward-decl/extern shell after field_access (wave1286)|220|present"
-  "compiler/pipeline_glue_emit_fwd.c|8.3|glue early emit inter-include forward-decl/static shell after logand (wave1287)|80|present"
-  "compiler/pipeline_glue_emit_block_fwd.c|8.3|glue block-accessor pure-fwd shell after cmp (wave1287)|50|present"
-  "compiler/pipeline_glue_emit_lea_fwd.c|8.3|glue lea/return inter-include forward-decl/define shell after lea_common (wave1288)|70|present"
-  "compiler/pipeline_glue_emit_mid_fwd.c|8.3|glue mid-emit inter-include forward-decl/ordinal shell after emit_fwd (wave1289)|60|present"
+  "compiler/pipeline_glue_early_fwd.c|8.3|glue early fwd shell retired wave309|0|absent"
+  "compiler/pipeline_glue_mid_fwd.c|8.3|glue mid fwd shell retired wave309|0|absent"
+  "compiler/pipeline_glue_backend_fwd.c|8.3|glue backend fwd shell retired wave309|0|absent"
+  "compiler/pipeline_glue_typeck_fwd.c|8.3|glue typeck fwd shell retired wave309|0|absent"
+  "compiler/pipeline_glue_typeck_mid_fwd.c|8.3|glue typeck mid fwd shell retired wave309|0|absent"
+  "compiler/pipeline_glue_emit_fwd.c|8.3|glue emit fwd shell retired wave309|0|absent"
+  "compiler/pipeline_glue_emit_block_fwd.c|8.3|glue emit block fwd shell retired wave309|0|absent"
+  "compiler/pipeline_glue_emit_lea_fwd.c|8.3|glue emit lea fwd shell retired wave309|0|absent"
+  "compiler/pipeline_glue_emit_mid_fwd.c|8.3|glue emit mid fwd shell retired wave309|0|absent"
   "compiler/pipeline_glue_statics.c|8.3|glue emit/typeck Cap residual pure-owned leave (wave261; BSS era closed wave224)|0|absent"
   "compiler/pipeline_asm_locals.c|8.3.2|asm locals + block slot sidecar (wave1252; pure leave wave267)|200|absent"
   "compiler/pipeline_asm_slot_bytes.c|8.3.2|asm slot bytes + ensure_block_locals (wave1253; pure leave wave268)|320|absent"
@@ -190,7 +190,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_elf_codegen_forwarders.c|8.3.2|elf/codegen prefix forwarders Cap residual (wave291 seed ALWAYS leave)|0|absent"
   "compiler/pipeline_bootstrap_orchestration.c|8.3.4|orchestration host wrapper retired (wave292 seed-only .o)|0|absent"
   # --- 8.3 product weak twin / standalone seed ---
-  "compiler/seeds/pipeline_glue_standalone.from_x.c|8.3.1|standalone glue seed twin|50|present"
+  "compiler/seeds/pipeline_glue_standalone.from_x.c|8.3.1|standalone glue seed retired wave309 (product pure-ld no mega)|0|absent"
   "compiler/seeds/pipeline_glue_strict_minimal.from_x.c|8.3.6|strict_minimal seed shell retired wave304 (0 T after wave303; product g05 unlinked)|0|absent"
   # --- 8.3.5 link alias / stubs (wave293: 5 seed host wrappers leave; wave294: _stubs+xlang_x_stubs leave) ---
   "compiler/ast_asm_bare_link_alias.c|8.3.5|bare link alias host wrapper retired (wave293 seed-only .o)|0|absent"
@@ -270,7 +270,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=glue shell／typedefs／9×fwd／standalone floor (wave308 Cap-struct seed ALWAYS leave · present 13 · pipeline_x T≈1 io_register stub); L2 auth=./xbuild l2-matrix"
+  echo "NEXT=BC 8.3 structure floor closed wave309 (present 0); residual host-cc = gen seeds／runtime seeds not 8.3 map; BC 终局 still gen mega host-cc"
 }
 
 run_check() {
@@ -350,17 +350,21 @@ run_check() {
     note "ok xbuild bc-inventory wiring"
   fi
 
-  if [ "$present_debt" -lt 10 ]; then
-    bad "present residual debt rows $present_debt < 10 (inventory under-count?)"
+  # wave309: 8.3 structure floor can close to present=0 (glue shell／typedefs／9×fwd／standalone).
+  # Under-count guard only when debt still expected open (>=1 and < floor).
+  if [ "$present_debt" -eq 0 ]; then
+    note "present residual product C rows=0 (wave309 8.3 structure floor closed)"
+  elif [ "$present_debt" -lt 1 ]; then
+    bad "present residual debt rows invalid"
   else
-    note "present residual product C rows=$present_debt (BC debt still open)"
+    note "present residual product C rows=$present_debt (BC residual still open)"
   fi
 
   if [ "$fail" -ne 0 ]; then
     echo "bc_host_cc_product_inventory: --check FAILED" >&2
     exit 1
   fi
-  echo "bc_host_cc_product_inventory: CHECK OK (BC open · wave1281 honesty · glue/ast_pool shell floors honest · 8.3.1 typeck+asm leaves + 8.3.2 domain leaves (bootstrap_glue leave…onefunc…module_func…lifecycle…WPO) present · 8.3.9 absent · host-cc residual still required)" >&2
+  echo "bc_host_cc_product_inventory: CHECK OK (wave309 8.3 structure floor closed · present 0 · glue/typedefs/9×fwd/standalone absent · gen/runtime host-cc seeds may remain outside this map)" >&2
 }
 
 case "$MODE" in

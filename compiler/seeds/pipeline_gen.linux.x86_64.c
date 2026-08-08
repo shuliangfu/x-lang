@@ -564,4 +564,4 @@ XLANG_LIB_WEAK int32_t pipeline_run_x_pipeline_impl(struct ast_Module * module, 
   return 0;
 }
 
-#include "pipeline_glue.c"
+/* wave309: pipeline_glue shell retired — no include */

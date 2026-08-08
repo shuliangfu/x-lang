@@ -1836,10 +1836,13 @@ void xlang_fputs_stdout(const char *s) {
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-234 / wave309: pure owns xlang_emit_pipeline_glue_include (no-op after
+ * 8.3 structure-floor leave — do not emit #include "pipeline_glue.c").
+ * Cold twin under #ifndef FROM_X matches pure no-op. PLATFORM: SHARED. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void xlang_emit_pipeline_glue_include(void) {
-    fputs("\n#include \"pipeline_glue.c\"\n", stdout);
+    /* wave309: product glue shell retired; no include line. */
+    (void)0;
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 

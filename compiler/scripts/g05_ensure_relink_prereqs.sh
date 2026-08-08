@@ -563,54 +563,25 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     "sizes_nostub"
   # ~~G-02f-6 / G-02f-257 target_cpu dual hybrid~~ wave768 → try-target-cpu-prefer above
   # ~~R2 async three dual hybrid~~ wave770 → try-async-prefer above
-  # Unbundle hygiene：pipeline_glue.c 变更后，旧 pipeline_x / filtered / standalone
-  # 仍可能内嵌 pool T → Darwin 与 pool.o 双定义红。产品 g05 无 make 时在此重建。
-  # 8.3.1+8.3.2: #include slices (ctfe/.../soa/ast_pool*/struct_layout/top_level/expr_sidecar/module_enum; module_import leave wave263; type_alias leave wave262) also force STALE —
-  # editing a slice alone must rebuild pipeline_x.o (G.7; was a silent gap).
-  # PLATFORM: SHARED — Linux 允许多定义时也应以无内嵌为真值。
+  # wave309 G.7 8.3 structure floor leave: product pure-ld no longer links
+  # pipeline_x / filtered / standalone mega. Glue shell sources deleted; do not
+  # host-cc empty mega for product. Soft no-op when residual files still on disk
+  # (archaeology). PLATFORM: SHARED freestanding pipeline mega shell retire.
   if [ -f pipeline_glue.c ] && [ -f pipeline_gen.c ]; then
-    _glue_slice_stale=0
-    # wave263: drop ast_pool_module_import.c (pure leave). wave261: drop glue_statics + ctx_layout.
-    for _gs in pipeline_glue_early_fwd.c pipeline_glue_mid_fwd.c pipeline_glue_backend_fwd.c pipeline_glue_typeck_fwd.c pipeline_glue_typeck_mid_fwd.c pipeline_glue_emit_fwd.c pipeline_glue_emit_block_fwd.c pipeline_glue_emit_lea_fwd.c pipeline_glue_emit_mid_fwd.c \
-      ast_pool_typedefs.c ast_pool.c; do
-      if [ -f "$_gs" ] && [ "$_gs" -nt pipeline_x.o ]; then
-        _glue_slice_stale=1
-        break
-      fi
-    done
-    if [ ! -f pipeline_x.o ] || [ pipeline_glue.c -nt pipeline_x.o ] \
-      || [ pipeline_gen.c -nt pipeline_x.o ] || [ "$_glue_slice_stale" = 1 ]; then
-      echo "g05_ensure: pipeline_x.o ← pipeline_gen.c (glue unbundle / stale vs pipeline_glue.c+slices)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Wno-error -c -o pipeline_x.o pipeline_gen.c
-      if [ -d build_asm/gen_driver ]; then
-        cp -f pipeline_x.o build_asm/gen_driver/pipeline_x.o 2>/dev/null || true
-      fi
-    fi
+    echo "g05_ensure: skip pipeline_x.o host-cc (wave309 product mega retired)"
   fi
-  if [ -f seeds/pipeline_glue_standalone.from_x.c ] && [ -f pipeline_glue.c ]; then
-    _pgs_o=build_asm/pipeline_glue_standalone.o
-    if [ ! -f "$_pgs_o" ] || [ pipeline_glue.c -nt "$_pgs_o" ] \
-      || [ seeds/pipeline_glue_standalone.from_x.c -nt "$_pgs_o" ]; then
-      echo "g05_ensure: $_pgs_o ← pipeline_glue_standalone (glue unbundle; no pool embed)"
-      mkdir -p build_asm
-      # shellcheck disable=SC2086
-      sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$_pgs_o" \
-        -Wno-error=return-type -Ibuild_asm
-    fi
+  if [ -f seeds/pipeline_glue_standalone.from_x.c ]; then
+    echo "g05_ensure: skip pipeline_glue_standalone (wave309 product shell retire)"
   fi
-  # Darwin product link uses filtered pipeline + filtered USER_ASM trio; drop
-  # stale TDS after unbundle / partial refresh. Pure shell (no make).
-  # wave835: G.7 有则补全 — mtime + ensure live in filter_* scripts (same as Makefile
-  # FORCE thin). g05 thin-calls ensure only (no dual mtime if-ladder here).
-  # Authority: filter_bootstrap_seed_*_o.sh → filter_o_export_against_deps.sh (G.7).
-  # PLATFORM: SHARED hygiene; PLATFORM: MACOS product link consumes these (g05_relink_env).
-  _filt=build_asm/bootstrap_seed_pipeline_filtered.o
-  if [ -f pipeline_x.o ]; then
-    echo "g05_ensure: $_filt ← filter_bootstrap_seed_pipeline_o.sh ensure (no make)"
+  # wave309: Darwin product no longer consumes bootstrap_seed_pipeline_filtered.o.
+  if [ -f pipeline_x.o ] && [ "${XLANG_FILTER_PIPELINE_FORCE:-0}" = "1" ]; then
+    _filt=build_asm/bootstrap_seed_pipeline_filtered.o
+    echo "g05_ensure: $_filt ← filter (FORCE only; product link empty wave309)"
     if ! bash scripts/filter_bootstrap_seed_pipeline_o.sh ensure "$_filt"; then
-      echo "g05_ensure: WARN filter $_filt failed (Darwin may dual-def pool)" >&2
+      echo "g05_ensure: WARN filter $_filt failed (product does not link it)" >&2
     fi
+  else
+    echo "g05_ensure: skip pipeline filtered (wave309 product mega retired)"
   fi
   # Class-G trio: filter against seed_host partial only (catalog in filter script).
   _partial=build_asm/seed_host/asm_backend_partial.o

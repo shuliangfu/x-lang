@@ -67,7 +67,8 @@ R1_MISC_BASENAME_OBJS = runtime_link_abi_user_env.o runtime_channel_glue.o runti
 # wave759: pipeline_glue_standalone joined seed-map.
 # wave905: also make-graph multi-target FORCE thin try-heat inventory (COUNT=5).
 # Body = ensure try-heat; do not re-list in Makefile or residual shells (G.7).
-R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap_orchestration.o parser_asm_thin_glue.o build_asm/pipeline_glue_standalone.o
+# wave309: drop pipeline_glue_standalone (structure floor leave; product pure-ld no mega).
+R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap_orchestration.o parser_asm_thin_glue.o
 
 # wave757 R3 cold-else family: thin+rest leaves whose cold path is pure host-cc.
 # List authority for ensure try-r3-cold / try-r3-prefer / r3-cold-seed (G.7).
@@ -257,5 +258,5 @@ FILTER_AGAINST_PARTIAL_OBJS = \
 # Do not re-list in Makefile or residual shells (G.7).
 FILTER_PIPELINE_OBJS = build_asm/bootstrap_seed_pipeline_filtered.o
 
-# pipeline_glue_standalone product leaf (also referenced by composites / export lists).
-ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
+# wave309: standalone seed deleted (8.3 structure floor leave). Empty token.
+ASM_GLUE_STANDALONE_O =

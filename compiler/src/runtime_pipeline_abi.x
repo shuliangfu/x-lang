@@ -2126,22 +2126,18 @@ export function xlang_fputs_stdout(s: *u8): void {
 
 // xlang_emit_pipeline_glue_include: see function docblock below.
 /**
- * Emit the pipeline_glue.c include line to stdout (codegen glue surface).
- * @return void
- * G.7 pure xlang_fputs_stdout (wave78) owns stdout write.
- * PLATFORM: SHARED.
+ * Historical -E surface that appended `#include "pipeline_glue.c"` after pipeline.x.
+ * wave309 G.7 8.3 structure-floor leave: product glue shell / typedefs / 9×fwd /
+ * standalone are retired (0 host-cc function bodies; product pure-ld no longer
+ * links pipeline_x mega). Emitting the include would force host-cc of a deleted
+ * shell. Live faces already live in runtime_pipeline_abi pure/seed ALWAYS.
+ * @return void — no-op (keeps symbol for runtime -E call sites)
+ * PLATFORM: SHARED freestanding pipeline mega shell retire.
  */
 #[no_mangle]
 export function xlang_emit_pipeline_glue_include(): void {
-  // "\n#include \"pipeline_glue.c\"\n"
-  let s: u8[32] = [];
-  s[0]=10;s[1]=35;s[2]=105;s[3]=110;s[4]=99;s[5]=108;s[6]=117;s[7]=100;
-  s[8]=101;s[9]=32;s[10]=34;s[11]=112;s[12]=105;s[13]=112;s[14]=101;s[15]=108;
-  s[16]=105;s[17]=110;s[18]=101;s[19]=95;s[20]=103;s[21]=108;s[22]=117;s[23]=101;
-  s[24]=46;s[25]=99;s[26]=34;s[27]=10;s[28]=0;
-  unsafe {
-    xlang_fputs_stdout(&s[0]);
-  }
+  // wave309: no-op — do not emit pipeline_glue.c include (shell deleted).
+  return;
 }
 
 // xlang_import_dep_dir_from_path: see function docblock below.

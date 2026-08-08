@@ -48,7 +48,8 @@ AST_POOL_L5_BRIDGE_O = src/runtime_driver_strict_glue_stubs.o
 # PLATFORM: SHARED freestanding 8.3.6 shell retire.
 RELINK_XLANG_GLUE_SUFFIX = src/runtime_driver_strict_glue_stubs.o
 DRIVER_SEED_GLUE_PREFIX =
-DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O) src/runtime_driver_strict_glue_stubs.o
+# wave304/309: stubs only (strict_minimal + standalone shells retired).
+DRIVER_SEED_GLUE_SUFFIX = src/runtime_driver_strict_glue_stubs.o
 
 # LSP_DIAG_LINK_O: fmt needs real xlang_format_x_document (not stubs_no_c).
 LSP_DIAG_LINK_O = src/lsp/lsp_diag.o

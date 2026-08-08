@@ -49,10 +49,14 @@ case "$UNAME_S" in
   _MAIN_LINK_FLAGS=""
   ;;
   esac
-  # Darwin：filtered pipeline + filtered user_asm seed 拓扑
+  # wave309 G.7 8.3 floor: product pipeline_x / filtered mega retired (0 residual
+  # product T after Cap/domain leave; only gen weak io_register stub — duplicated).
+  # Darwin historically linked bootstrap_seed_pipeline_filtered.o; empty keep after
+  # leave made filter --require-keep fail. Live faces = runtime_pipeline_abi pure/seed.
   # asm_experimental_symbol_bridge：Darwin weak 桩 platform_macho_write_macho_o_to_buf
   # （seed bridge weak_import 静态链必需；见 seeds/asm_experimental_symbol_bridge.from_x.c）
-  _PIPELINE_LINK_O="build_asm/bootstrap_seed_pipeline_filtered.o"
+  # PLATFORM: MACOS product pure-ld — no pipeline mega .o.
+  _PIPELINE_LINK_O=""
   # PLATFORM: MACOS — backend_arm64_enc_c.o strong arch_arm64_enc_* override weak -1 stubs (CG002).
   _USER_ASM_LINK="build_asm/seed_host/asm_backend_partial.o build_asm/seed_host/asm_full_link_stubs.o build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o src/asm/backend_arm64_enc_c.o build_asm/asm_experimental_symbol_bridge.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
   ;;
@@ -68,8 +72,9 @@ case "$UNAME_S" in
   _MAIN_LINK_FLAGS=""
   ;;
   esac
-  # Linux：pipeline_x.o + 全量 USER_ASM_LINK
-  _PIPELINE_LINK_O="pipeline_x.o"
+  # wave309 G.7 8.3 floor: product pipeline_x.o retired (empty mega; pure/seed owns faces).
+  # Linux historically linked pipeline_x.o; now empty. PLATFORM: LINUX product pure-ld.
+  _PIPELINE_LINK_O=""
   _USER_ASM_LINK="build_asm/seed_host/asm_backend_partial.o build_asm/seed_host/asm_full_link_stubs.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
   ;;
   # PLATFORM: WINDOWS | MSYS | MINGW — mirror of Makefile XLANG_IS_WIN_HOST branch
@@ -77,7 +82,7 @@ case "$UNAME_S" in
   # (MSYS default main thread stack ~2MiB overflows deep parse_into/typeck_x_ast
   # recursion), --allow-multiple-definition (PE has no weak function symbols;
   # XLANG_WEAK expands empty, stubs are strong — see include/xlang_weak.h).
-  # Topology mirrors Linux else-branch (pipeline_x.o + raw USER_ASM_SEED_OBJS;
+  # wave309: topology mirrors Linux (empty pipeline mega + raw USER_ASM_SEED_OBJS).
   # Darwin-only filtered objs do not apply on PE). Single authority is the
   # Makefile; this shell branch is the G-05 product-path mirror (G.7).
   MINGW*|MSYS*|CYGWIN*)
@@ -92,7 +97,8 @@ case "$UNAME_S" in
   _MAIN_LINK_FLAGS=""
   ;;
   esac
-  _PIPELINE_LINK_O="pipeline_x.o"
+  # wave309: empty pipeline mega on Windows product path too.
+  _PIPELINE_LINK_O=""
   _USER_ASM_LINK="build_asm/seed_host/asm_backend_partial.o build_asm/seed_host/asm_full_link_stubs.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
   ;;
   *)
@@ -146,14 +152,11 @@ _DRIVER_SUBCMD="driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x
 # after wave303 overload leave → typeck_x). Product no longer host-cc or links
 # that empty shell. Historical: strict_minimal + stubs was DRIVER_SEED_GLUE_SUFFIX.
 # Why runtime_driver_strict_glue_stubs.o at link END (not in _DRIVER_SEED_SUPPORT
-# middle): stubs .o has symbols WITH real impls in pipeline_x.o (e.g.
-# driver_get_module_num_funcs, parser_parse_into_init, pipeline_run_x_pipeline).
-# On Windows PE --allow-multiple-definition FIRST-wins; linking stubs BEFORE
-# pipeline_x.o makes the stub shadow the real impl → xlang -c silently reports
-# num_funcs=0 / pipeline returned -1 (XP001/XP003). On ELF/Darwin XLANG_WEAK=weak
-# so real impl wins regardless of order. Stubs at link END (after all real impls)
-# guarantees real impls win on PE. Mirrors Makefile L1863-1875 fix (2026-07-19).
-# PLATFORM: SHARED freestanding 8.3.6 shell retire.
+# middle): stubs .o has symbols WITH real impls in runtime_pipeline_abi / pure
+# (historical: pipeline_x.o). wave309 retired product pipeline_x mega.
+# On Windows PE --allow-multiple-definition FIRST-wins; stubs AFTER real impls.
+# On ELF/Darwin XLANG_WEAK=weak so real impl wins regardless of order.
+# PLATFORM: SHARED freestanding 8.3.6 shell retire + wave309 pipeline mega retire.
 _GLUE_SUFFIX="src/runtime_driver_strict_glue_stubs.o"
 
 # Cap residual：与 Makefile RT_SEED_SLICE_OBJS / build_xlang_asm asm_bootstrap_support_extra_link 同源。

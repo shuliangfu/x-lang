@@ -827,38 +827,9 @@ void xlang_fputs_stdout(uint8_t * s) {
     }
   }
 }
+/* wave309: no-op — product glue shell retired; do not emit #include pipeline_glue.c. */
 void xlang_emit_pipeline_glue_include(void) {
-  uint8_t s[32] = {};
-  (void)(((s)[0] = 10));
-  (void)(((s)[1] = 35));
-  (void)(((s)[2] = 105));
-  (void)(((s)[3] = 110));
-  (void)(((s)[4] = 99));
-  (void)(((s)[5] = 108));
-  (void)(((s)[6] = 117));
-  (void)(((s)[7] = 100));
-  (void)(((s)[8] = 101));
-  (void)(((s)[9] = 32));
-  (void)(((s)[10] = 34));
-  (void)(((s)[11] = 112));
-  (void)(((s)[12] = 105));
-  (void)(((s)[13] = 112));
-  (void)(((s)[14] = 101));
-  (void)(((s)[15] = 108));
-  (void)(((s)[16] = 105));
-  (void)(((s)[17] = 110));
-  (void)(((s)[18] = 101));
-  (void)(((s)[19] = 95));
-  (void)(((s)[20] = 103));
-  (void)(((s)[21] = 108));
-  (void)(((s)[22] = 117));
-  (void)(((s)[23] = 101));
-  (void)(((s)[24] = 46));
-  (void)(((s)[25] = 99));
-  (void)(((s)[26] = 34));
-  (void)(((s)[27] = 10));
-  (void)(((s)[28] = 0));
-  (void)(xlang_fputs_stdout(&((s)[0])));
+  return;
 }
 int32_t xlang_import_dep_dir_from_path(uint8_t * path, uint8_t * dep_dir, int64_t dep_dir_size) {
   if ((path ==0)) {
