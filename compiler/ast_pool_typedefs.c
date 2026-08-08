@@ -324,6 +324,95 @@ void module_sidecar_free(ModuleSidecar *sc);
 OneFuncSidecar *onefunc_sidecar_get(uint8_t *out, int create);
 void onefunc_sidecar_free(OneFuncSidecar *sc);
 
+/* wave276 pure-owned leave: arena main-pool Cap faces live in runtime_pipeline_abi
+ * (pure ptr/alloc/write + seed always-C by-value get/set_copy + float IEEE).
+ * Residual same-TU consumers need these prototypes (host leaf deleted).
+ * dual-export ban: pipeline_abi T · pipeline_x U. PLATFORM: SHARED freestanding. */
+struct ast_Type *pipeline_arena_type_ptr(struct ast_ASTArena *a, int32_t ref);
+struct ast_Expr *pipeline_arena_expr_ptr(struct ast_ASTArena *a, int32_t ref);
+struct ast_Block *pipeline_arena_block_ptr(struct ast_ASTArena *a, int32_t ref);
+struct ast_Func *pipeline_arena_func_ptr(struct ast_ASTArena *a, int32_t ref);
+int32_t pipeline_arena_type_alloc(struct ast_ASTArena *a);
+int32_t pipeline_arena_expr_alloc(struct ast_ASTArena *a);
+int32_t pipeline_arena_block_alloc(struct ast_ASTArena *a);
+int32_t pipeline_arena_func_alloc(struct ast_ASTArena *a);
+int32_t pipeline_arena_num_types(struct ast_ASTArena *a);
+int32_t pipeline_arena_type_cap(void);
+int32_t pipeline_arena_expr_cap(void);
+int32_t pipeline_arena_block_cap(void);
+int32_t pipeline_arena_func_cap(void);
+void pipeline_arena_expr_write_var(struct ast_ASTArena *a, int32_t ref, uint8_t *name, int32_t name_len);
+void pipeline_arena_expr_write_binop(struct ast_ASTArena *a, int32_t ref, int32_t kind_ord, int32_t left_ref,
+                                     int32_t right_ref);
+struct ast_Type pipeline_arena_type_get_copy(struct ast_ASTArena *a, int32_t ref);
+void pipeline_arena_type_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Type t);
+struct ast_Expr pipeline_arena_expr_get_copy(struct ast_ASTArena *a, int32_t ref);
+void pipeline_arena_expr_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);
+struct ast_Block pipeline_arena_block_get_copy(struct ast_ASTArena *a, int32_t ref);
+void pipeline_arena_block_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Block b);
+struct ast_Func pipeline_arena_func_get_copy(struct ast_ASTArena *a, int32_t ref);
+void pipeline_arena_func_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
+struct ast_Type ast_pipeline_arena_type_get_copy(struct ast_ASTArena *a, int32_t ref);
+void ast_pipeline_arena_type_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Type t);
+struct ast_Expr ast_pipeline_arena_expr_get_copy(struct ast_ASTArena *a, int32_t ref);
+void ast_pipeline_arena_expr_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);
+void ast_pipeline_arena_expr_write_var(struct ast_ASTArena *a, int32_t ref, uint8_t *name, int32_t name_len);
+void ast_pipeline_arena_expr_write_binop(struct ast_ASTArena *a, int32_t ref, int32_t kind_ord, int32_t left_ref,
+                                         int32_t right_ref);
+struct ast_Block ast_pipeline_arena_block_get_copy(struct ast_ASTArena *a, int32_t ref);
+void ast_pipeline_arena_block_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Block b);
+struct ast_Func ast_pipeline_arena_func_get_copy(struct ast_ASTArena *a, int32_t ref);
+void ast_pipeline_arena_func_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
+struct ast_Type ast_ast_arena_type_get(struct ast_ASTArena *a, int32_t ref);
+void ast_ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t);
+struct ast_Expr ast_ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref);
+void ast_ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);
+struct ast_Block ast_ast_arena_block_get(struct ast_ASTArena *a, int32_t ref);
+void ast_ast_arena_block_set(struct ast_ASTArena *a, int32_t ref, struct ast_Block b);
+struct ast_Func ast_ast_arena_func_get(struct ast_ASTArena *a, int32_t ref);
+void ast_ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
+struct ast_Type ast_arena_type_get(struct ast_ASTArena *a, int32_t ref);
+void ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t);
+struct ast_Expr ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref);
+void ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);
+struct ast_Block ast_arena_block_get(struct ast_ASTArena *a, int32_t ref);
+void ast_arena_block_set(struct ast_ASTArena *a, int32_t ref, struct ast_Block b);
+struct ast_Func ast_arena_func_get(struct ast_ASTArena *a, int32_t ref);
+void ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
+int ast_ref_is_null(int32_t ref);
+void ast_expr_layout_prime_call_resolved(void);
+void ast_ast_arena_init(struct ast_ASTArena *arena);
+int32_t ast_ast_arena_type_alloc(struct ast_ASTArena *a);
+int32_t ast_ast_arena_expr_alloc(struct ast_ASTArena *a);
+int32_t ast_ast_arena_block_alloc(struct ast_ASTArena *a);
+int32_t ast_ast_arena_func_alloc(struct ast_ASTArena *a);
+int implicit_tail_expr_disallowed_by_glue(struct ast_ASTArena *a, int32_t expr_ref);
+void pipeline_module_fill_u8_64_from_src_c(uint8_t *dst, const uint8_t *src, int32_t n, int32_t src_cap);
+void pipeline_parser_library_init_bool_type_c(struct ast_ASTArena *arena, int32_t type_ref);
+void pipeline_parser_library_init_named_type_c(struct ast_ASTArena *arena, int32_t type_ref, const uint8_t *name,
+                                               int32_t name_len);
+void pipeline_parser_library_init_var_expr_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t type_ref,
+                                             const uint8_t *param_name, int32_t param_name_len);
+void pipeline_parser_library_init_field_access_expr_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t base_ref,
+                                                      const uint8_t *field_name, int32_t field_len);
+void pipeline_parser_library_init_enum_variant_expr_c(struct ast_ASTArena *arena, int32_t expr_ref);
+void pipeline_parser_library_init_eq_expr_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t bool_type_ref,
+                                            int32_t left_ref, int32_t right_ref);
+int32_t pipeline_parser_library_init_labeled_block_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t eq_ref);
+int32_t pipeline_parser_extern_init_arena_func_and_register_c(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                              int32_t func_ref, const uint8_t *name, int32_t name_len,
+                                                              int32_t num_params, int32_t return_ty_ref);
+struct ast_Expr *glue_arena_expr_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t pipeline_expr_float_bits_lo_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t pipeline_expr_float_bits_hi_at(struct ast_ASTArena *a, int32_t expr_ref);
+void pipeline_expr_typeck_set_float_bits_from_val(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t glue_ieee_f64_bits_to_f32_bits(int32_t lo, int32_t hi);
+int32_t glue_ieee_f32_bits_to_f64_lo(int32_t fb);
+int32_t glue_ieee_f32_bits_to_f64_hi(int32_t fb);
+int32_t glue_i32_to_f32_bits(int32_t v);
+int32_t glue_i64_to_f32_bits(int64_t v);
+void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi);
+
 /** PipelineDepCtx 侧车：dep 槽与 -L lib_root 动态 grow（ctx 指针作键）。 */
 typedef struct {
   struct ast_PipelineDepCtx *ctx;

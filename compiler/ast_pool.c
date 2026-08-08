@@ -52,22 +52,21 @@ extern char *link_abi_getenv(const char *name);
 #include "ast_pool_typedefs.c"
 #include "ast_pool_ptr_at.c"
 
-/** Forward: pipeline_arena_block_alloc calls this before its definition in lifecycle. */
+/** Forward: pure/cold pipeline_arena_block_alloc calls this (lifecycle body). */
 void ast_pool_block_on_alloc(struct ast_ASTArena *a, int32_t block_ref);
 
-/** BC 8.3.2: ASTArena main-pool cold accessors domain (same-TU thin). */
-#include "ast_pool_arena.c"
+/* 2026-08-08: ast_pool_arena.c pure-owned leave (wave276).
+ * Live faces: runtime_pipeline_abi pure pipeline_arena_{type,expr,block,func}_{ptr,alloc}
+ * + caps/num_types/write_var|binop/parser_library_init/fill_u8/init aliases (no_mangle).
+ * Value-ABI residual (by-value get/set_copy + float IEEE) = seed always-C in
+ * runtime_pipeline_abi.from_x.c (not gated by FROM_X; dual-platform sret).
+ * Seed cold twins under #ifndef FROM_X for pure-owned faces.
+ * Host residual leaf deleted; dual-export ban (pipeline_x U).
+ * PLATFORM: SHARED freestanding arena Cap leave. */
 
-/* wave1166 G.7: type pool cold accessors (read/write/find-or-alloc) —
- * migrated from pipeline_glue.c L1041-1153/L2216. Same TU via ast_pool.c
- * #include. Depends on pipeline_arena_type_ptr / pipeline_arena_type_alloc
- * (ast_pool_arena.c above). Forward decls retained in glue.c L761-762
- * (kind_ord_at / array_size_at) for callsites before this #include at
- * glue.c L5160.
- * PLATFORM: SHARED — host-cc Cap residual; parser/typeck/codegen call these. */
 /* 2026-08-08: ast_pool_type.c pure-owned leave (wave270).
  * Live faces: runtime_pipeline_abi pure pipeline_type_* (#[no_mangle]).
- * Cap residual: pipeline_arena_type_ptr/alloc still host-cc (this TU).
+ * wave276: pipeline_arena_type_ptr/alloc pure same-TU (was Cap residual).
  * PLATFORM: SHARED — dual-export ban; pipeline_x U for type pool faces. */
 
 

@@ -36370,3 +36370,690 @@ void *onefunc_sidecar_get(void *key, int create) {
 
 #endif /* !XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 #endif /* WAVE275_SIDECAR_POOL_COLD */
+
+/* =============================================================================
+ * WAVE276 ALWAYS: value-ABI residual (by-value get/set_copy + name aliases +
+ * float IEEE helpers). NOT gated by FROM_X — pure freestanding cannot emit
+ * portable large-struct sret/pass on SysV x86_64 and AAPCS64 together.
+ * Calls pipeline_arena_*_ptr (pure product / cold twin).
+ * PLATFORM: SHARED host-cc seed residual (runtime_pipeline_abi.o).
+ * ============================================================================= */
+#ifndef WAVE276_ARENA_VALUE_ABI_ALWAYS
+#define WAVE276_ARENA_VALUE_ABI_ALWAYS 1
+
+enum { W276_TY = 276, W276_EX = 712, W276_BL = 92, W276_FN = 196 };
+
+struct w276_Type { uint8_t _b[W276_TY]; };
+struct w276_Expr { uint8_t _b[W276_EX]; };
+struct w276_Block { uint8_t _b[W276_BL]; };
+struct w276_Func { uint8_t _b[W276_FN]; };
+
+/* Pure (FROM_X) or cold twins provide these. */
+extern void *pipeline_arena_type_ptr(void *a, int32_t ref);
+extern void *pipeline_arena_expr_ptr(void *a, int32_t ref);
+extern void *pipeline_arena_block_ptr(void *a, int32_t ref);
+extern void *pipeline_arena_func_ptr(void *a, int32_t ref);
+extern int typeck_float64_bits_lo(double d);
+extern int typeck_float64_bits_hi(double d);
+
+struct w276_Type pipeline_arena_type_get_copy(void *a, int32_t ref) {
+  struct w276_Type empty;
+  void *tp;
+  memset(&empty, 0, sizeof(empty));
+  tp = pipeline_arena_type_ptr(a, ref);
+  if (tp)
+    memcpy(&empty, tp, (size_t)W276_TY);
+  return empty;
+}
+void pipeline_arena_type_set_copy(void *a, int32_t ref, struct w276_Type t) {
+  void *tp = pipeline_arena_type_ptr(a, ref);
+  if (tp)
+    memcpy(tp, &t, (size_t)W276_TY);
+}
+struct w276_Expr pipeline_arena_expr_get_copy(void *a, int32_t ref) {
+  struct w276_Expr empty;
+  void *ep;
+  memset(&empty, 0, sizeof(empty));
+  ep = pipeline_arena_expr_ptr(a, ref);
+  if (ep)
+    memcpy(&empty, ep, (size_t)W276_EX);
+  return empty;
+}
+void pipeline_arena_expr_set_copy(void *a, int32_t ref, struct w276_Expr e) {
+  void *ep = pipeline_arena_expr_ptr(a, ref);
+  if (ep)
+    memcpy(ep, &e, (size_t)W276_EX);
+}
+struct w276_Block pipeline_arena_block_get_copy(void *a, int32_t ref) {
+  struct w276_Block empty;
+  void *bp;
+  memset(&empty, 0, sizeof(empty));
+  bp = pipeline_arena_block_ptr(a, ref);
+  if (bp)
+    memcpy(&empty, bp, (size_t)W276_BL);
+  return empty;
+}
+void pipeline_arena_block_set_copy(void *a, int32_t ref, struct w276_Block b) {
+  void *bp = pipeline_arena_block_ptr(a, ref);
+  if (bp)
+    memcpy(bp, &b, (size_t)W276_BL);
+}
+struct w276_Func pipeline_arena_func_get_copy(void *a, int32_t ref) {
+  struct w276_Func empty;
+  void *fp;
+  memset(&empty, 0, sizeof(empty));
+  fp = pipeline_arena_func_ptr(a, ref);
+  if (fp)
+    memcpy(&empty, fp, (size_t)W276_FN);
+  return empty;
+}
+void pipeline_arena_func_set_copy(void *a, int32_t ref, struct w276_Func f) {
+  void *fp = pipeline_arena_func_ptr(a, ref);
+  if (fp)
+    memcpy(fp, &f, (size_t)W276_FN);
+}
+
+struct w276_Type ast_pipeline_arena_type_get_copy(void *a, int32_t ref) {
+  return pipeline_arena_type_get_copy(a, ref);
+}
+void ast_pipeline_arena_type_set_copy(void *a, int32_t ref, struct w276_Type t) {
+  pipeline_arena_type_set_copy(a, ref, t);
+}
+struct w276_Expr ast_pipeline_arena_expr_get_copy(void *a, int32_t ref) {
+  return pipeline_arena_expr_get_copy(a, ref);
+}
+void ast_pipeline_arena_expr_set_copy(void *a, int32_t ref, struct w276_Expr e) {
+  pipeline_arena_expr_set_copy(a, ref, e);
+}
+struct w276_Block ast_pipeline_arena_block_get_copy(void *a, int32_t ref) {
+  return pipeline_arena_block_get_copy(a, ref);
+}
+void ast_pipeline_arena_block_set_copy(void *a, int32_t ref, struct w276_Block b) {
+  pipeline_arena_block_set_copy(a, ref, b);
+}
+struct w276_Func ast_pipeline_arena_func_get_copy(void *a, int32_t ref) {
+  return pipeline_arena_func_get_copy(a, ref);
+}
+void ast_pipeline_arena_func_set_copy(void *a, int32_t ref, struct w276_Func f) {
+  pipeline_arena_func_set_copy(a, ref, f);
+}
+
+struct w276_Type ast_ast_arena_type_get(void *a, int32_t ref) {
+  struct w276_Type empty;
+  if (ref <= 0) {
+    memset(&empty, 0, sizeof(empty));
+    return empty;
+  }
+  return pipeline_arena_type_get_copy(a, ref);
+}
+void ast_ast_arena_type_set(void *a, int32_t ref, struct w276_Type t) {
+  pipeline_arena_type_set_copy(a, ref, t);
+}
+struct w276_Expr ast_ast_arena_expr_get(void *a, int32_t ref) {
+  return pipeline_arena_expr_get_copy(a, ref);
+}
+void ast_ast_arena_expr_set(void *a, int32_t ref, struct w276_Expr e) {
+  pipeline_arena_expr_set_copy(a, ref, e);
+}
+struct w276_Block ast_ast_arena_block_get(void *a, int32_t ref) {
+  return pipeline_arena_block_get_copy(a, ref);
+}
+void ast_ast_arena_block_set(void *a, int32_t ref, struct w276_Block b) {
+  pipeline_arena_block_set_copy(a, ref, b);
+}
+struct w276_Func ast_ast_arena_func_get(void *a, int32_t ref) {
+  return pipeline_arena_func_get_copy(a, ref);
+}
+void ast_ast_arena_func_set(void *a, int32_t ref, struct w276_Func f) {
+  pipeline_arena_func_set_copy(a, ref, f);
+}
+
+struct w276_Type ast_arena_type_get(void *a, int32_t ref) {
+  return ast_ast_arena_type_get(a, ref);
+}
+void ast_arena_type_set(void *a, int32_t ref, struct w276_Type t) {
+  ast_ast_arena_type_set(a, ref, t);
+}
+struct w276_Expr ast_arena_expr_get(void *a, int32_t ref) {
+  return ast_ast_arena_expr_get(a, ref);
+}
+void ast_arena_expr_set(void *a, int32_t ref, struct w276_Expr e) {
+  ast_ast_arena_expr_set(a, ref, e);
+}
+struct w276_Block ast_arena_block_get(void *a, int32_t ref) {
+  return ast_ast_arena_block_get(a, ref);
+}
+void ast_arena_block_set(void *a, int32_t ref, struct w276_Block b) {
+  ast_ast_arena_block_set(a, ref, b);
+}
+struct w276_Func ast_arena_func_get(void *a, int32_t ref) {
+  return ast_ast_arena_func_get(a, ref);
+}
+void ast_arena_func_set(void *a, int32_t ref, struct w276_Func f) {
+  ast_ast_arena_func_set(a, ref, f);
+}
+
+int32_t pipeline_expr_float_bits_lo_at(void *a, int32_t expr_ref) {
+  uint8_t *ex = (uint8_t *)pipeline_arena_expr_ptr(a, expr_ref);
+  int32_t kind, lo;
+  double fv;
+  if (!ex)
+    return 0;
+  memcpy(&kind, ex + 0, 4);
+  if (kind == 1) {
+    memcpy(&fv, ex + 24, 8);
+    return (int32_t)typeck_float64_bits_lo(fv);
+  }
+  memcpy(&lo, ex + 684, 4);
+  return lo;
+}
+int32_t pipeline_expr_float_bits_hi_at(void *a, int32_t expr_ref) {
+  uint8_t *ex = (uint8_t *)pipeline_arena_expr_ptr(a, expr_ref);
+  int32_t kind, hi;
+  double fv;
+  if (!ex)
+    return 0;
+  memcpy(&kind, ex + 0, 4);
+  if (kind == 1) {
+    memcpy(&fv, ex + 24, 8);
+    return (int32_t)typeck_float64_bits_hi(fv);
+  }
+  memcpy(&hi, ex + 688, 4);
+  return hi;
+}
+void pipeline_expr_typeck_set_float_bits_from_val(void *a, int32_t expr_ref) {
+  uint8_t *ex;
+  int32_t ne;
+  double fv;
+  int32_t lo, hi;
+  if (!a || expr_ref <= 0)
+    return;
+  memcpy(&ne, (uint8_t *)a + 4, 4);
+  if (expr_ref > ne)
+    return;
+  ex = (uint8_t *)pipeline_arena_expr_ptr(a, expr_ref);
+  if (!ex)
+    return;
+  memcpy(&fv, ex + 24, 8);
+  lo = (int32_t)typeck_float64_bits_lo(fv);
+  hi = (int32_t)typeck_float64_bits_hi(fv);
+  memcpy(ex + 684, &lo, 4);
+  memcpy(ex + 688, &hi, 4);
+}
+int32_t glue_ieee_f64_bits_to_f32_bits(int32_t lo, int32_t hi) {
+  double dv;
+  float fv;
+  uint32_t fb;
+  int32_t parts[2];
+  parts[0] = lo;
+  parts[1] = hi;
+  memcpy(&dv, parts, sizeof(dv));
+  fv = (float)dv;
+  memcpy(&fb, &fv, sizeof(fb));
+  return (int32_t)fb;
+}
+int32_t glue_ieee_f32_bits_to_f64_lo(int32_t fb) {
+  float fv;
+  double dv;
+  uint64_t u64;
+  memcpy(&fv, &fb, sizeof(fv));
+  dv = (double)fv;
+  memcpy(&u64, &dv, sizeof(u64));
+  return (int32_t)(u64 & 0xffffffffu);
+}
+int32_t glue_ieee_f32_bits_to_f64_hi(int32_t fb) {
+  float fv;
+  double dv;
+  uint64_t u64;
+  memcpy(&fv, &fb, sizeof(fv));
+  dv = (double)fv;
+  memcpy(&u64, &dv, sizeof(u64));
+  return (int32_t)(u64 >> 32);
+}
+int32_t glue_i32_to_f32_bits(int32_t v) {
+  float fv = (float)v;
+  uint32_t fb = 0;
+  memcpy(&fb, &fv, sizeof(fb));
+  return (int32_t)fb;
+}
+int32_t glue_i64_to_f32_bits(int64_t v) {
+  float fv = (float)v;
+  uint32_t fb = 0;
+  memcpy(&fb, &fv, sizeof(fb));
+  return (int32_t)fb;
+}
+void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi) {
+  double dv = (double)v;
+  uint64_t u = 0;
+  memcpy(&u, &dv, sizeof(u));
+  if (lo)
+    *lo = (int32_t)(u & 0xffffffffu);
+  if (hi)
+    *hi = (int32_t)(u >> 32);
+}
+
+#endif /* WAVE276_ARENA_VALUE_ABI_ALWAYS */
+
+
+/* =============================================================================
+ * WAVE276 COLD: pure-owned arena cold faces when product pure is NOT linked.
+ * Gated by #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * PLATFORM: SHARED freestanding arena Cap leave cold twins.
+ * ============================================================================= */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef WAVE276_ARENA_DOMAIN_COLD
+#define WAVE276_ARENA_DOMAIN_COLD 1
+
+#include <string.h>
+#include <stdint.h>
+
+void *arena_sidecar_get(void *a, int create);
+void *grow_vec_at(void *v, int32_t idx);
+int32_t grow_vec_push(void *v);
+void ast_pool_block_on_alloc(void *a, int32_t br);
+int32_t pipeline_module_func_alloc_slot(void *m);
+void pipeline_module_func_name_write(void *m, int32_t fi, uint8_t *name, int32_t name_len);
+void pipeline_module_func_set_num_params(void *m, int32_t fi, int32_t n);
+void pipeline_module_func_set_return_type(void *m, int32_t fi, int32_t tr);
+void pipeline_module_func_set_body_ref(void *m, int32_t fi, int32_t br);
+void pipeline_module_func_set_body_expr_ref(void *m, int32_t fi, int32_t er);
+void pipeline_module_func_set_is_extern(void *m, int32_t fi, int32_t v);
+void pipeline_module_func_set_is_async(void *m, int32_t fi, int32_t v);
+void pipeline_module_func_ref_set(void *m, int32_t fi, int32_t fr);
+int32_t ast_pipeline_block_append_labeled(void *a, int32_t br, int32_t label_len, int32_t is_goto,
+                                          int32_t goto_target_len, int32_t return_expr_ref);
+
+enum {
+  W276C_TY = 276, W276C_EX = 712, W276C_BL = 92, W276C_FN = 196,
+  W276C_NO_LIMIT = 2147483647
+};
+
+static int32_t w276_load_i32(uint8_t *b, int32_t off) {
+  return (int32_t)((uint32_t)b[off] | ((uint32_t)b[off + 1] << 8) | ((uint32_t)b[off + 2] << 16) |
+                   ((uint32_t)b[off + 3] << 24));
+}
+static void w276_store_i32(uint8_t *b, int32_t off, int32_t v) {
+  b[off] = (uint8_t)(v & 255);
+  b[off + 1] = (uint8_t)((v >> 8) & 255);
+  b[off + 2] = (uint8_t)((v >> 16) & 255);
+  b[off + 3] = (uint8_t)((v >> 24) & 255);
+}
+static void w276_zero(uint8_t *p, int32_t n) {
+  int32_t i;
+  if (!p)
+    return;
+  for (i = 0; i < n; i++)
+    p[i] = 0;
+}
+
+void *pipeline_arena_type_ptr(void *a, int32_t ref) {
+  uint8_t *sc;
+  int32_t nt;
+  if (!a || ref <= 0)
+    return NULL;
+  nt = w276_load_i32((uint8_t *)a, 0);
+  if (ref > nt)
+    return NULL;
+  sc = (uint8_t *)arena_sidecar_get(a, 0);
+  if (!sc)
+    return NULL;
+  return grow_vec_at(sc + 16, ref - 1);
+}
+void *pipeline_arena_expr_ptr(void *a, int32_t ref) {
+  uint8_t *sc;
+  int32_t ne;
+  if (!a || ref <= 0)
+    return NULL;
+  ne = w276_load_i32((uint8_t *)a, 4);
+  if (ref > ne)
+    return NULL;
+  sc = (uint8_t *)arena_sidecar_get(a, 0);
+  if (!sc)
+    return NULL;
+  return grow_vec_at(sc + 48, ref - 1);
+}
+void *pipeline_arena_block_ptr(void *a, int32_t ref) {
+  uint8_t *sc;
+  int32_t nb;
+  if (!a || ref <= 0)
+    return NULL;
+  nb = w276_load_i32((uint8_t *)a, 8);
+  if (ref > nb)
+    return NULL;
+  sc = (uint8_t *)arena_sidecar_get(a, 0);
+  if (!sc)
+    return NULL;
+  return grow_vec_at(sc + 80, ref - 1);
+}
+void *pipeline_arena_func_ptr(void *a, int32_t ref) {
+  uint8_t *sc;
+  int32_t nf;
+  if (!a || ref <= 0)
+    return NULL;
+  nf = w276_load_i32((uint8_t *)a, 12);
+  if (ref > nf)
+    return NULL;
+  sc = (uint8_t *)arena_sidecar_get(a, 0);
+  if (!sc)
+    return NULL;
+  return grow_vec_at(sc + 112, ref - 1);
+}
+int32_t pipeline_arena_type_alloc(void *a) {
+  uint8_t *sc;
+  int32_t ln;
+  if (!a)
+    return 0;
+  sc = (uint8_t *)arena_sidecar_get(a, 1);
+  if (!sc)
+    return 0;
+  if (grow_vec_push(sc + 16) < 0)
+    return 0;
+  ln = w276_load_i32(sc + 16, 12);
+  w276_store_i32((uint8_t *)a, 0, ln);
+  return ln;
+}
+int32_t pipeline_arena_expr_alloc(void *a) {
+  uint8_t *sc;
+  int32_t ln;
+  if (!a)
+    return 0;
+  sc = (uint8_t *)arena_sidecar_get(a, 1);
+  if (!sc)
+    return 0;
+  if (grow_vec_push(sc + 48) < 0)
+    return 0;
+  ln = w276_load_i32(sc + 48, 12);
+  w276_store_i32((uint8_t *)a, 4, ln);
+  return ln;
+}
+int32_t pipeline_arena_block_alloc(void *a) {
+  uint8_t *sc;
+  int32_t ln;
+  if (!a)
+    return 0;
+  sc = (uint8_t *)arena_sidecar_get(a, 1);
+  if (!sc)
+    return 0;
+  if (grow_vec_push(sc + 80) < 0)
+    return 0;
+  ln = w276_load_i32(sc + 80, 12);
+  w276_store_i32((uint8_t *)a, 8, ln);
+  ast_pool_block_on_alloc(a, ln);
+  return ln;
+}
+int32_t pipeline_arena_func_alloc(void *a) {
+  uint8_t *sc, *f;
+  int32_t ln;
+  if (!a)
+    return 0;
+  sc = (uint8_t *)arena_sidecar_get(a, 1);
+  if (!sc)
+    return 0;
+  if (grow_vec_push(sc + 112) < 0)
+    return 0;
+  ln = w276_load_i32(sc + 112, 12);
+  f = (uint8_t *)grow_vec_at(sc + 112, ln - 1);
+  if (f) {
+    w276_zero(f, W276C_FN);
+    w276_store_i32(f, 132, -1); /* param_base */
+  }
+  w276_store_i32((uint8_t *)a, 12, ln);
+  return ln;
+}
+int32_t pipeline_arena_num_types(void *a) {
+  return a ? w276_load_i32((uint8_t *)a, 0) : 0;
+}
+int32_t pipeline_arena_type_cap(void) { return W276C_NO_LIMIT; }
+int32_t pipeline_arena_expr_cap(void) { return W276C_NO_LIMIT; }
+int32_t pipeline_arena_block_cap(void) { return W276C_NO_LIMIT; }
+int32_t pipeline_arena_func_cap(void) { return W276C_NO_LIMIT; }
+
+void pipeline_arena_expr_write_var(void *a, int32_t ref, uint8_t *name, int32_t name_len) {
+  uint8_t *ep;
+  int32_t n, i;
+  if (!a || ref <= 0 || !name || name_len <= 0)
+    return;
+  ep = (uint8_t *)pipeline_arena_expr_ptr(a, ref);
+  if (!ep)
+    return;
+  w276_zero(ep, W276C_EX);
+  w276_store_i32(ep, 0, 3); /* EXPR_VAR */
+  n = name_len;
+  if (n > 127)
+    n = 63;
+  w276_store_i32(ep, 160, n);
+  for (i = 0; i < n; i++)
+    ep[32 + i] = name[i];
+  w276_store_i32(ep, 704, -1);
+  w276_store_i32(ep, 708, -1);
+}
+void pipeline_arena_expr_write_binop(void *a, int32_t ref, int32_t kind_ord, int32_t left_ref, int32_t right_ref) {
+  uint8_t *ep;
+  if (!a || ref <= 0)
+    return;
+  ep = (uint8_t *)pipeline_arena_expr_ptr(a, ref);
+  if (!ep)
+    return;
+  w276_zero(ep, W276C_EX);
+  w276_store_i32(ep, 0, kind_ord);
+  w276_store_i32(ep, 164, left_ref);
+  w276_store_i32(ep, 168, right_ref);
+  w276_store_i32(ep, 704, -1);
+  w276_store_i32(ep, 708, -1);
+}
+void ast_pipeline_arena_expr_write_var(void *a, int32_t ref, uint8_t *name, int32_t name_len) {
+  pipeline_arena_expr_write_var(a, ref, name, name_len);
+}
+void ast_pipeline_arena_expr_write_binop(void *a, int32_t ref, int32_t kind_ord, int32_t left_ref, int32_t right_ref) {
+  pipeline_arena_expr_write_binop(a, ref, kind_ord, left_ref, right_ref);
+}
+
+int ast_ref_is_null(int32_t ref) { return ref == 0; }
+void ast_expr_layout_prime_call_resolved(void) {}
+void ast_ast_arena_init(void *arena) {
+  if (!arena)
+    return;
+  ast_expr_layout_prime_call_resolved();
+  w276_store_i32((uint8_t *)arena, 0, 0);
+  w276_store_i32((uint8_t *)arena, 4, 0);
+  w276_store_i32((uint8_t *)arena, 8, 0);
+  w276_store_i32((uint8_t *)arena, 12, 0);
+}
+int32_t ast_ast_arena_type_alloc(void *a) { return pipeline_arena_type_alloc(a); }
+int32_t ast_ast_arena_expr_alloc(void *a) { return pipeline_arena_expr_alloc(a); }
+int32_t ast_ast_arena_block_alloc(void *a) { return pipeline_arena_block_alloc(a); }
+int32_t ast_ast_arena_func_alloc(void *a) { return pipeline_arena_func_alloc(a); }
+void *glue_arena_expr_at_ref(void *a, int32_t expr_ref) { return pipeline_arena_expr_ptr(a, expr_ref); }
+int implicit_tail_expr_disallowed_by_glue(void *a, int32_t expr_ref) {
+  uint8_t *ex;
+  int32_t ne, k;
+  if (!a || expr_ref <= 0)
+    return 1;
+  ne = w276_load_i32((uint8_t *)a, 4);
+  if (expr_ref > ne)
+    return 1;
+  ex = (uint8_t *)pipeline_arena_expr_ptr(a, expr_ref);
+  if (!ex)
+    return 1;
+  k = w276_load_i32(ex, 0);
+  if (k == 39 || k == 40 || k == 41 || k == 42)
+    return 1;
+  return 0;
+}
+void pipeline_module_fill_u8_64_from_src_c(uint8_t *dst, const uint8_t *src, int32_t n, int32_t src_cap) {
+  int32_t i;
+  if (!dst)
+    return;
+  if (n < 0)
+    n = 0;
+  if (src_cap < 0)
+    src_cap = 0;
+  for (i = 0; i < 64; i++) {
+    if (src && i < n && i < src_cap)
+      dst[i] = src[i];
+    else
+      dst[i] = 0;
+  }
+}
+
+/* Parser library init cold (mirror pure) */
+void pipeline_parser_library_init_bool_type_c(void *arena, int32_t type_ref) {
+  uint8_t *t;
+  if (!arena || type_ref <= 0)
+    return;
+  t = (uint8_t *)pipeline_arena_type_ptr(arena, type_ref);
+  if (!t)
+    return;
+  w276_store_i32(t, 0, 1);
+  w276_store_i32(t, 132, 0);
+  w276_store_i32(t, 136, 0);
+  w276_store_i32(t, 140, 0);
+}
+void pipeline_parser_library_init_named_type_c(void *arena, int32_t type_ref, const uint8_t *name, int32_t name_len) {
+  uint8_t *t;
+  if (!arena || type_ref <= 0)
+    return;
+  t = (uint8_t *)pipeline_arena_type_ptr(arena, type_ref);
+  if (!t)
+    return;
+  w276_store_i32(t, 0, 8);
+  w276_store_i32(t, 132, name_len);
+  pipeline_module_fill_u8_64_from_src_c(t + 4, name, name_len, 64);
+  w276_store_i32(t, 136, 0);
+  w276_store_i32(t, 140, 0);
+}
+void pipeline_parser_library_init_var_expr_c(void *arena, int32_t expr_ref, int32_t type_ref, const uint8_t *param_name, int32_t param_name_len) {
+  uint8_t *ve;
+  if (!arena || expr_ref <= 0)
+    return;
+  ve = (uint8_t *)pipeline_arena_expr_ptr(arena, expr_ref);
+  if (!ve)
+    return;
+  w276_store_i32(ve, 0, 3);
+  w276_store_i32(ve, 4, type_ref);
+  w276_store_i32(ve, 8, 0);
+  w276_store_i32(ve, 12, 0);
+  w276_store_i32(ve, 160, param_name_len);
+  pipeline_module_fill_u8_64_from_src_c(ve + 32, param_name, param_name_len, 32);
+  w276_store_i32(ve, 196, 0);
+  w276_store_i32(ve, 692, 0);
+  w276_store_i32(ve, 204, 0);
+  w276_store_i32(ve, 336, 0);
+  w276_store_i32(ve, 340, 0);
+  w276_store_i32(ve, 344, 0);
+}
+void pipeline_parser_library_init_field_access_expr_c(void *arena, int32_t expr_ref, int32_t base_ref, const uint8_t *field_name, int32_t field_len) {
+  uint8_t *fe;
+  if (!arena || expr_ref <= 0)
+    return;
+  fe = (uint8_t *)pipeline_arena_expr_ptr(arena, expr_ref);
+  if (!fe)
+    return;
+  w276_store_i32(fe, 0, 44);
+  w276_store_i32(fe, 4, 0);
+  w276_store_i32(fe, 8, 0);
+  w276_store_i32(fe, 12, 0);
+  w276_store_i32(fe, 204, base_ref);
+  w276_store_i32(fe, 336, field_len);
+  pipeline_module_fill_u8_64_from_src_c(fe + 208, field_name, field_len, 64);
+  w276_store_i32(fe, 340, 0);
+  w276_store_i32(fe, 344, 0);
+  w276_store_i32(fe, 196, 0);
+  w276_store_i32(fe, 692, 0);
+  w276_store_i32(fe, 164, 0);
+  w276_store_i32(fe, 168, 0);
+}
+void pipeline_parser_library_init_enum_variant_expr_c(void *arena, int32_t expr_ref) {
+  uint8_t *ene;
+  if (!arena || expr_ref <= 0)
+    return;
+  ene = (uint8_t *)pipeline_arena_expr_ptr(arena, expr_ref);
+  if (!ene)
+    return;
+  w276_store_i32(ene, 0, 50);
+  w276_store_i32(ene, 4, 0);
+  w276_store_i32(ene, 8, 0);
+  w276_store_i32(ene, 12, 0);
+  w276_store_i32(ene, 692, 0);
+  w276_store_i32(ene, 196, 0);
+  w276_store_i32(ene, 204, 0);
+  w276_store_i32(ene, 336, 0);
+}
+void pipeline_parser_library_init_eq_expr_c(void *arena, int32_t expr_ref, int32_t bool_type_ref, int32_t left_ref, int32_t right_ref) {
+  uint8_t *eqe;
+  if (!arena || expr_ref <= 0)
+    return;
+  eqe = (uint8_t *)pipeline_arena_expr_ptr(arena, expr_ref);
+  if (!eqe)
+    return;
+  w276_store_i32(eqe, 0, 14);
+  w276_store_i32(eqe, 4, bool_type_ref);
+  w276_store_i32(eqe, 8, 0);
+  w276_store_i32(eqe, 12, 0);
+  w276_store_i32(eqe, 164, left_ref);
+  w276_store_i32(eqe, 168, right_ref);
+  w276_store_i32(eqe, 196, 0);
+  w276_store_i32(eqe, 692, 0);
+  w276_store_i32(eqe, 204, 0);
+  w276_store_i32(eqe, 336, 0);
+}
+int32_t pipeline_parser_library_init_labeled_block_c(void *arena, int32_t block_ref, int32_t eq_ref) {
+  uint8_t *b;
+  if (!arena || block_ref <= 0)
+    return -1;
+  b = (uint8_t *)pipeline_arena_block_ptr(arena, block_ref);
+  if (!b)
+    return -1;
+  w276_store_i32(b, 4, 0);
+  w276_store_i32(b, 12, 0);
+  w276_store_i32(b, 16, 0);
+  w276_store_i32(b, 24, 0);
+  w276_store_i32(b, 32, 0);
+  w276_store_i32(b, 40, 0);
+  w276_store_i32(b, 56, 0);
+  if (ast_pipeline_block_append_labeled(arena, block_ref, 0, 0, 0, eq_ref) < 0)
+    return -1;
+  b = (uint8_t *)pipeline_arena_block_ptr(arena, block_ref);
+  if (!b)
+    return -1;
+  w276_store_i32(b, 72, 0);
+  w276_store_i32(b, 76, 0);
+  w276_store_i32(b, 84, 0);
+  return 0;
+}
+int32_t pipeline_parser_extern_init_arena_func_and_register_c(void *arena, void *module, int32_t func_ref,
+                                                             const uint8_t *name, int32_t name_len,
+                                                             int32_t num_params, int32_t return_ty_ref) {
+  uint8_t *fp;
+  int32_t fi;
+  if (!arena || !module || func_ref <= 0)
+    return -1;
+  if (name_len < 0 || name_len > 127)
+    return -1;
+  fp = (uint8_t *)pipeline_arena_func_ptr(arena, func_ref);
+  if (!fp)
+    return -1;
+  pipeline_module_fill_u8_64_from_src_c(fp, name, name_len, 64);
+  w276_store_i32(fp, 128, name_len);
+  w276_store_i32(fp, 136, num_params);
+  w276_store_i32(fp, 144, return_ty_ref);
+  w276_store_i32(fp, 148, 0);
+  w276_store_i32(fp, 152, 0);
+  w276_store_i32(fp, 156, 1);
+  w276_store_i32(fp, 160, 0);
+  fi = pipeline_module_func_alloc_slot(module);
+  if (fi < 0)
+    return -1;
+  pipeline_module_func_name_write(module, fi, (uint8_t *)name, name_len);
+  pipeline_module_func_set_num_params(module, fi, num_params);
+  pipeline_module_func_set_return_type(module, fi, return_ty_ref);
+  pipeline_module_func_set_body_ref(module, fi, 0);
+  pipeline_module_func_set_body_expr_ref(module, fi, 0);
+  pipeline_module_func_set_is_extern(module, fi, 1);
+  pipeline_module_func_set_is_async(module, fi, 0);
+  pipeline_module_func_ref_set(module, fi, func_ref);
+  return fi;
+}
+
+#endif /* WAVE276_ARENA_DOMAIN_COLD */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

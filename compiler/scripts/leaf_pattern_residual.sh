@@ -9169,6 +9169,12 @@ fi
 if grep -qE 'ast_pool_sidecar_pool\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list ast_pool_sidecar_pool.c (wave275 host-cc leave)"
 fi
+if [ -f "$ROOT/compiler/ast_pool_arena.c" ]; then
+  bad "ast_pool_arena.c must be deleted (wave276 pure-owned leave)"
+fi
+if grep -qE 'ast_pool_arena\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_arena.c (wave276 host-cc leave)"
+fi
 if grep -qE 'ast_pool_module_import\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list ast_pool_module_import.c (wave263 host-cc leave)"
 fi
@@ -9379,9 +9385,7 @@ fi
 if ! grep -qE 'ast_pool_module_func\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_module_func.c (8.3.2 module_func slice)"
 fi
-if ! grep -qE 'ast_pool_arena\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_arena.c (8.3.2 arena slice)"
-fi
+# wave276: ast_pool_arena.c host-cc leave (must-delete checks above)
 if ! grep -qE 'ast_pool_block\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_block.c (8.3.2 block slice)"
 fi

@@ -11,7 +11,7 @@
 //   Seed cold twins under #ifndef FROM_X. PLATFORM: POSIX mmap (mac+linux).
 // wave270: ast_pool_type.c pure-owned leave (pipeline_type_* pool accessors +
 //   find_or_alloc slice/ptr/named/compound + init/ensure + region label).
-//   Cap residual: pipeline_arena_type_ptr/alloc stay host-cc (ast_pool_arena).
+//   wave276: pipeline_arena_type_ptr/alloc pure-owned leave (ast_pool_arena host leaf deleted).
 //   Type LE: kind@0 name[128]@4 name_len@132 elem@136 array_size@140
 //   region_label[128]@144 region_label_len@272 (size 276). Seed cold twins
 //   under #ifndef FROM_X. Extern Cap calls via unsafe wrappers.
@@ -698,7 +698,7 @@ export extern "C" function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32):
 export extern "C" function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32;
 export extern "C" function asm_struct_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32;
 export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_ref: i32, type_ref: i32): void;
-export extern "C" function pipeline_arena_block_ptr(arena: *u8, ref: i32): *u8;
+// wave276: pipeline_arena_block_ptr pure-owned at EOF (dual-export ban)
 export extern "C" function pipeline_module_func_param_type_ref_at(mod: *u8, func_index: i32, param_index: i32): i32;
 
 // wave142 Cap residual: assign pure leave callees (binop/try_index/spill/slice/
@@ -1283,7 +1283,7 @@ export extern "C" function link_abi_getenv(name: *u8): *u8;
  * Without this, the empty .x body overrode the C init, causing AST arena
  * state leakage between file checks in directory mode (T001 cascades).
  * PLATFORM: SHARED - all externs are platform-agnostic arena/module reset. */
-export extern "C" function ast_ast_arena_init(arena: *u8): void;
+// wave276: ast_ast_arena_init pure-owned at EOF (dual-export ban; no Cap residual)
 export extern "C" function ast_pool_module_reset(module: *u8): void;
 export extern "C" function ast_pool_arena_reset(arena: *u8): void;
 export extern "C" function parser_onefunc_result_layout_prime(): void;
@@ -1314,7 +1314,7 @@ export extern "C" function xlang_generic_bound_stash_source_buf_c(data: *u8, len
 // wave121: pipeline_lint_set_source_buf + pipeline_module_set_main_func_index pure below.
 // (lint_meta pure-owned leave)
 export extern "C" function driver_diagnostic_parse_fail(main_idx: i32, num_funcs: i32, arena_num_types: i32): void;
-export extern "C" function pipeline_arena_num_types(arena: *u8): i32;
+// wave276: pipeline_arena_num_types pure-owned at EOF (dual-export ban)
 /* wave112: pipeline_parse_into_with_init_buf_scalars is pure export below
  * (parse_typeck_dispatch leave). Cap residual unpack is
  * pipeline_parse_into_with_init_buf_impl_rc (pipeline_parse_orch.c) over
@@ -14272,11 +14272,9 @@ export function pipeline_codegen_force_param_uint32_t(prefix: *u8, prefix_len: i
 
 /** Arena type pool accessors for type_to_c (wave109).
  * wave270: pure-owned leave — faces defined at EOF (dual-export ban; not Cap residual).
- * Cap residual host still provides pipeline_arena_type_ptr / pipeline_arena_type_alloc
- * (call only via unsafe wrappers in wave270 section).
- * pipeline_arena_num_types already declared earlier in this file with "C". */
-export extern "C" function pipeline_arena_type_ptr(arena: *u8, ref: i32): *u8;
-export extern "C" function pipeline_arena_type_alloc(arena: *u8): i32;
+ * wave276: type_ptr/alloc/num_types pure-owned at EOF (wave270 wrappers call same-TU). */
+// wave276: pipeline_arena_type_ptr pure-owned at EOF (dual-export ban)
+// wave276: pipeline_arena_type_alloc pure-owned at EOF (dual-export ban)
 
 /**
  * Copy n bytes from src into dst when cap is large enough.
@@ -43395,7 +43393,7 @@ export function pipeline_asm_emit_binop_mod_elf_c(arena: *u8, elf_ctx: *u8, left
 export extern "C" function typeck_get_field_offset_from_layout_deps(module: *u8, ctx: *u8, type_name: *u8, type_name_len: i32, field_name: *u8, field_name_len: i32): i32;
 // wave264 pure-owned: pipeline_module_enum_variant_tag_for_names lives at EOF (#[no_mangle]).
 // (was Cap residual export extern; dual-export ban.)
-export extern "C" function glue_arena_expr_at_ref(a: *u8, expr_ref: i32): *u8;
+// wave276: glue_arena_expr_at_ref pure-owned at EOF (dual-export ban)
 export extern "C" function pipeline_expr_field_access_offset(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_field_access_soa_stride(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_enum_variant_tag_at(arena: *u8, expr_ref: i32): i32;
@@ -68632,7 +68630,7 @@ function pipeline_ast_expr_sizeof_c(): i32 {
  * @return *u8 — struct ast_Expr* or null
  * PLATFORM: SHARED.
  */
-export extern "C" function pipeline_arena_expr_ptr(arena: *u8, ref: i32): *u8;
+// wave276: pipeline_arena_expr_ptr pure-owned at EOF (dual-export ban)
 
 /**
  * Seed partial text EXPR_CALL emit (asm_backend_partial / weak mega fallback).
@@ -82832,3 +82830,990 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
 }
 
 // end wave275 pure-owned leave
+
+// =============================================================================
+// wave276 pure-owned leave: ASTArena main-pool cold accessors (ast_pool_arena.c)
+// =============================================================================
+// PLATFORM: SHARED freestanding LP64 little-endian.
+// Pure owns: pipeline_arena_{type,expr,block,func}_{ptr,alloc} + caps + num_types
+//   + expr_write_var/binop + ast_ast_arena_init/alloc aliases + ast_ref_is_null
+//   + fill_u8_64 + glue_arena_expr_at_ref + implicit_tail + parser_library_init_*
+//   + parser_extern_init_arena_func_and_register_c + ast_expr_layout_prime.
+// Value-ABI residual (by-value Type/Expr/Block/Func get/set_copy + name aliases
+// + float IEEE helpers) stays seed always-C (host ABI sret/pass; dual-platform).
+// Seed cold twins under #ifndef FROM_X for pure-owned faces.
+// Layout LE (match product seeds / wave275 GrowVec elem sizes):
+//   ASTArena: num_types@0 num_exprs@4 num_blocks@8 num_funcs@12 (16B)
+//   ArenaSidecar: types@16 exprs@48 blocks@80 funcs@112 (GrowVec 32 each)
+//   Type 276 · Expr 712 · Block 92 · Func 196
+// Cap: AST_POOL_NO_LIMIT = 2147483647
+// G.7 single authority — residual host leaf deleted; dual-export ban.
+// =============================================================================
+
+function pipe_ar_ty_sz(): i32 { return 276; }
+function pipe_ar_ex_sz(): i32 { return 712; }
+function pipe_ar_bl_sz(): i32 { return 92; }
+function pipe_ar_fn_sz(): i32 { return 196; }
+function pipe_ar_no_limit(): i32 { return 2147483647; }
+function pipe_ar_off_num_types(): i32 { return 0; }
+function pipe_ar_off_num_exprs(): i32 { return 4; }
+function pipe_ar_off_num_blocks(): i32 { return 8; }
+function pipe_ar_off_num_funcs(): i32 { return 12; }
+function pipe_ar_sc_types(): i32 { return 16; }
+function pipe_ar_sc_exprs(): i32 { return 48; }
+function pipe_ar_sc_blocks(): i32 { return 80; }
+function pipe_ar_sc_funcs(): i32 { return 112; }
+function pipe_ar_ex_kind(): i32 { return 0; }
+function pipe_ar_ex_resolved_ty(): i32 { return 4; }
+function pipe_ar_ex_var_name(): i32 { return 32; }
+function pipe_ar_ex_var_name_len(): i32 { return 160; }
+function pipe_ar_ex_binop_l(): i32 { return 164; }
+function pipe_ar_ex_binop_r(): i32 { return 168; }
+function pipe_ar_ex_match_arm_base(): i32 { return 196; }
+function pipe_ar_ex_fa_base(): i32 { return 204; }
+function pipe_ar_ex_fa_name(): i32 { return 208; }
+function pipe_ar_ex_fa_len(): i32 { return 336; }
+function pipe_ar_ex_fa_is_enum(): i32 { return 340; }
+function pipe_ar_ex_fa_off(): i32 { return 344; }
+function pipe_ar_ex_call_res_fi(): i32 { return 704; }
+function pipe_ar_ex_call_res_di(): i32 { return 708; }
+function pipe_ar_ex_enum_tag(): i32 { return 692; }
+function pipe_ar_ty_kind(): i32 { return 0; }
+function pipe_ar_ty_name(): i32 { return 4; }
+function pipe_ar_ty_name_len(): i32 { return 132; }
+function pipe_ar_ty_elem(): i32 { return 136; }
+function pipe_ar_ty_arr(): i32 { return 140; }
+function pipe_ar_fn_name(): i32 { return 0; }
+function pipe_ar_fn_name_len(): i32 { return 128; }
+function pipe_ar_fn_param_base(): i32 { return 132; }
+function pipe_ar_fn_num_params(): i32 { return 136; }
+function pipe_ar_fn_ret(): i32 { return 144; }
+function pipe_ar_fn_body(): i32 { return 148; }
+function pipe_ar_fn_body_expr(): i32 { return 152; }
+function pipe_ar_fn_is_extern(): i32 { return 156; }
+function pipe_ar_fn_is_async(): i32 { return 160; }
+function pipe_ar_bl_num_consts(): i32 { return 4; }
+function pipe_ar_bl_num_lets(): i32 { return 12; }
+function pipe_ar_bl_num_early_lets(): i32 { return 16; }
+function pipe_ar_bl_num_loops(): i32 { return 24; }
+function pipe_ar_bl_num_for(): i32 { return 32; }
+function pipe_ar_bl_num_if(): i32 { return 40; }
+function pipe_ar_bl_num_regions(): i32 { return 48; }
+function pipe_ar_bl_num_defers(): i32 { return 56; }
+function pipe_ar_bl_num_expr_stmts(): i32 { return 72; }
+function pipe_ar_bl_final_expr(): i32 { return 76; }
+function pipe_ar_bl_num_stmt_order(): i32 { return 84; }
+// ExprKind ordinals (product enum)
+function pipe_ar_ek_var(): i32 { return 3; }
+function pipe_ar_ek_eq(): i32 { return 14; }
+function pipe_ar_ek_break(): i32 { return 39; }
+function pipe_ar_ek_continue(): i32 { return 40; }
+function pipe_ar_ek_return(): i32 { return 41; }
+function pipe_ar_ek_panic(): i32 { return 42; }
+function pipe_ar_ek_field(): i32 { return 44; }
+function pipe_ar_ek_enum_var(): i32 { return 50; }
+// TypeKind
+function pipe_ar_tk_bool(): i32 { return 1; }
+function pipe_ar_tk_named(): i32 { return 8; }
+
+/**
+ * Zero n bytes at p.
+ * @param p *u8 - dest
+ * @param n i32 - byte count
+ * PLATFORM: SHARED.
+ */
+function pipe_ar_zero(p: *u8, n: i32): void {
+  if (p == 0 as *u8) {
+    return;
+  }
+  if (n <= 0) {
+    return;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    unsafe {
+      p[i] = 0;
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * Store i32 little-endian at base+off.
+ * @param base *u8
+ * @param off i32
+ * @param v i32
+ * PLATFORM: SHARED.
+ */
+function pipe_ar_store_i32(base: *u8, off: i32, v: i32): void {
+  if (base == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    base[off] = (v & 255) as u8;
+    base[off + 1] = ((v >> 8) & 255) as u8;
+    base[off + 2] = ((v >> 16) & 255) as u8;
+    base[off + 3] = ((v >> 24) & 255) as u8;
+  }
+}
+
+/**
+ * Load i32 little-endian from base+off.
+ * @param base *u8
+ * @param off i32
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+function pipe_ar_load_i32(base: *u8, off: i32): i32 {
+  if (base == 0 as *u8) {
+    return 0;
+  }
+  let b0: i32 = 0;
+  let b1: i32 = 0;
+  let b2: i32 = 0;
+  let b3: i32 = 0;
+  unsafe {
+    b0 = base[off] as i32;
+    b1 = base[off + 1] as i32;
+    b2 = base[off + 2] as i32;
+    b3 = base[off + 3] as i32;
+  }
+  return b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
+}
+
+export extern "C" function ast_pool_block_on_alloc(a: *u8, br: i32): void;
+export extern "C" function pipeline_module_func_alloc_slot(m: *u8): i32;
+export extern "C" function pipeline_module_func_name_write(m: *u8, fi: i32, name: *u8, name_len: i32): void;
+export extern "C" function pipeline_module_func_set_num_params(m: *u8, fi: i32, n: i32): void;
+export extern "C" function pipeline_module_func_set_return_type(m: *u8, fi: i32, tr: i32): void;
+export extern "C" function pipeline_module_func_set_body_ref(m: *u8, fi: i32, br: i32): void;
+export extern "C" function pipeline_module_func_set_body_expr_ref(m: *u8, fi: i32, er: i32): void;
+export extern "C" function pipeline_module_func_set_is_extern(m: *u8, fi: i32, v: i32): void;
+export extern "C" function pipeline_module_func_set_is_async(m: *u8, fi: i32, v: i32): void;
+export extern "C" function pipeline_module_func_ref_set(m: *u8, fi: i32, fr: i32): void;
+export extern "C" function ast_pipeline_block_append_labeled(a: *u8, br: i32, label_len: i32, is_goto: i32, goto_target_len: i32, return_expr_ref: i32): i32;
+
+/**
+ * Main-pool Type* for 1-based ref.
+ * @param a *u8 - ASTArena*
+ * @param ref i32 - 1-based type ref
+ * @return *u8 - Type* or null
+ * wave276 pure Cap leave. PLATFORM: SHARED freestanding arena leave.
+ */
+#[no_mangle]
+export function pipeline_arena_type_ptr(a: *u8, ref: i32): *u8 {
+  if (a == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (ref <= 0) {
+    return 0 as *u8;
+  }
+  let nt: i32 = pipe_ar_load_i32(a, pipe_ar_off_num_types());
+  if (ref > nt) {
+    return 0 as *u8;
+  }
+  let sc: *u8 = arena_sidecar_get(a, 0);
+  if (sc == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return grow_vec_at(sc + (pipe_ar_sc_types() as usize), ref - 1);
+}
+
+/**
+ * Main-pool Expr* for 1-based ref.
+ * @param a *u8 - ASTArena*
+ * @param ref i32
+ * @return *u8 - Expr* or null
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_expr_ptr(a: *u8, ref: i32): *u8 {
+  if (a == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (ref <= 0) {
+    return 0 as *u8;
+  }
+  let ne: i32 = pipe_ar_load_i32(a, pipe_ar_off_num_exprs());
+  if (ref > ne) {
+    return 0 as *u8;
+  }
+  let sc: *u8 = arena_sidecar_get(a, 0);
+  if (sc == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return grow_vec_at(sc + (pipe_ar_sc_exprs() as usize), ref - 1);
+}
+
+/**
+ * Main-pool Block* for 1-based ref (was static block_at).
+ * @param a *u8 - ASTArena*
+ * @param ref i32
+ * @return *u8 - Block* or null
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_block_ptr(a: *u8, ref: i32): *u8 {
+  if (a == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (ref <= 0) {
+    return 0 as *u8;
+  }
+  let nb: i32 = pipe_ar_load_i32(a, pipe_ar_off_num_blocks());
+  if (ref > nb) {
+    return 0 as *u8;
+  }
+  let sc: *u8 = arena_sidecar_get(a, 0);
+  if (sc == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return grow_vec_at(sc + (pipe_ar_sc_blocks() as usize), ref - 1);
+}
+
+/**
+ * Main-pool Func* for 1-based ref.
+ * @param a *u8 - ASTArena*
+ * @param ref i32
+ * @return *u8 - Func* or null
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_func_ptr(a: *u8, ref: i32): *u8 {
+  if (a == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (ref <= 0) {
+    return 0 as *u8;
+  }
+  let nf: i32 = pipe_ar_load_i32(a, pipe_ar_off_num_funcs());
+  if (ref > nf) {
+    return 0 as *u8;
+  }
+  let sc: *u8 = arena_sidecar_get(a, 0);
+  if (sc == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return grow_vec_at(sc + (pipe_ar_sc_funcs() as usize), ref - 1);
+}
+
+/**
+ * Allocate one Type slot; return 1-based ref or 0.
+ * @param a *u8 - ASTArena*
+ * @return i32
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_type_alloc(a: *u8): i32 {
+  if (a == 0 as *u8) {
+    return 0;
+  }
+  let sc: *u8 = arena_sidecar_get(a, 1);
+  if (sc == 0 as *u8) {
+    return 0;
+  }
+  if (grow_vec_push(sc + (pipe_ar_sc_types() as usize)) < 0) {
+    return 0;
+  }
+  // GrowVec.len@12
+  let ln: i32 = pipe_ar_load_i32(sc + (pipe_ar_sc_types() as usize), 12);
+  pipe_ar_store_i32(a, pipe_ar_off_num_types(), ln);
+  return ln;
+}
+
+/**
+ * Allocate one Expr slot; return 1-based ref or 0.
+ * @param a *u8
+ * @return i32
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_expr_alloc(a: *u8): i32 {
+  if (a == 0 as *u8) {
+    return 0;
+  }
+  let sc: *u8 = arena_sidecar_get(a, 1);
+  if (sc == 0 as *u8) {
+    return 0;
+  }
+  if (grow_vec_push(sc + (pipe_ar_sc_exprs() as usize)) < 0) {
+    return 0;
+  }
+  let ln: i32 = pipe_ar_load_i32(sc + (pipe_ar_sc_exprs() as usize), 12);
+  pipe_ar_store_i32(a, pipe_ar_off_num_exprs(), ln);
+  return ln;
+}
+
+/**
+ * Allocate one Block slot; hook on_alloc; return 1-based ref or 0.
+ * @param a *u8
+ * @return i32
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_block_alloc(a: *u8): i32 {
+  if (a == 0 as *u8) {
+    return 0;
+  }
+  let sc: *u8 = arena_sidecar_get(a, 1);
+  if (sc == 0 as *u8) {
+    return 0;
+  }
+  if (grow_vec_push(sc + (pipe_ar_sc_blocks() as usize)) < 0) {
+    return 0;
+  }
+  let ln: i32 = pipe_ar_load_i32(sc + (pipe_ar_sc_blocks() as usize), 12);
+  pipe_ar_store_i32(a, pipe_ar_off_num_blocks(), ln);
+  unsafe {
+    ast_pool_block_on_alloc(a, ln);
+  }
+  return ln;
+}
+
+/**
+ * Allocate one Func slot; zero + param_base=-1; return 1-based ref or 0.
+ * @param a *u8
+ * @return i32
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_func_alloc(a: *u8): i32 {
+  if (a == 0 as *u8) {
+    return 0;
+  }
+  let sc: *u8 = arena_sidecar_get(a, 1);
+  if (sc == 0 as *u8) {
+    return 0;
+  }
+  if (grow_vec_push(sc + (pipe_ar_sc_funcs() as usize)) < 0) {
+    return 0;
+  }
+  let ln: i32 = pipe_ar_load_i32(sc + (pipe_ar_sc_funcs() as usize), 12);
+  let f: *u8 = grow_vec_at(sc + (pipe_ar_sc_funcs() as usize), ln - 1);
+  if (f != 0 as *u8) {
+    pipe_ar_zero(f, pipe_ar_fn_sz());
+    pipe_ar_store_i32(f, pipe_ar_fn_param_base(), 0 - 1);
+  }
+  pipe_ar_store_i32(a, pipe_ar_off_num_funcs(), ln);
+  return ln;
+}
+
+/**
+ * Read arena.num_types.
+ * @param a *u8
+ * @return i32
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_num_types(a: *u8): i32 {
+  if (a == 0 as *u8) {
+    return 0;
+  }
+  return pipe_ar_load_i32(a, pipe_ar_off_num_types());
+}
+
+/**
+ * Type pool soft capacity (no fixed limit).
+ * @return i32 - INT32_MAX
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_type_cap(): i32 {
+  return pipe_ar_no_limit();
+}
+
+/**
+ * Expr pool soft capacity.
+ * @return i32
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_expr_cap(): i32 {
+  return pipe_ar_no_limit();
+}
+
+/**
+ * Block pool soft capacity.
+ * @return i32
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_block_cap(): i32 {
+  return pipe_ar_no_limit();
+}
+
+/**
+ * Func pool soft capacity.
+ * @return i32
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_func_cap(): i32 {
+  return pipe_ar_no_limit();
+}
+
+/**
+ * Initialize EXPR_VAR slot in C layout (avoid X whole-struct set).
+ * @param a *u8 - ASTArena*
+ * @param ref i32 - expr ref
+ * @param name *u8 - name bytes
+ * @param name_len i32 - length
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_expr_write_var(a: *u8, ref: i32, name: *u8, name_len: i32): void {
+  if (a == 0 as *u8) {
+    return;
+  }
+  if (ref <= 0) {
+    return;
+  }
+  if (name == 0 as *u8) {
+    return;
+  }
+  if (name_len <= 0) {
+    return;
+  }
+  let ep: *u8 = pipeline_arena_expr_ptr(a, ref);
+  if (ep == 0 as *u8) {
+    return;
+  }
+  pipe_ar_zero(ep, pipe_ar_ex_sz());
+  pipe_ar_store_i32(ep, pipe_ar_ex_kind(), pipe_ar_ek_var());
+  let n: i32 = name_len;
+  if (n > 127) {
+    n = 63;
+  }
+  pipe_ar_store_i32(ep, pipe_ar_ex_var_name_len(), n);
+  let i: i32 = 0;
+  while (i < n) {
+    unsafe {
+      ep[pipe_ar_ex_var_name() + i] = name[i];
+    }
+    i = i + 1;
+  }
+  pipe_ar_store_i32(ep, pipe_ar_ex_call_res_fi(), 0 - 1);
+  pipe_ar_store_i32(ep, pipe_ar_ex_call_res_di(), 0 - 1);
+}
+
+/**
+ * Initialize binary-op expr slot from kind ordinal + left/right refs.
+ * @param a *u8
+ * @param ref i32
+ * @param kind_ord i32 - ExprKind ordinal
+ * @param left_ref i32
+ * @param right_ref i32
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_arena_expr_write_binop(a: *u8, ref: i32, kind_ord: i32, left_ref: i32, right_ref: i32): void {
+  if (a == 0 as *u8) {
+    return;
+  }
+  if (ref <= 0) {
+    return;
+  }
+  let ep: *u8 = pipeline_arena_expr_ptr(a, ref);
+  if (ep == 0 as *u8) {
+    return;
+  }
+  pipe_ar_zero(ep, pipe_ar_ex_sz());
+  pipe_ar_store_i32(ep, pipe_ar_ex_kind(), kind_ord);
+  pipe_ar_store_i32(ep, pipe_ar_ex_binop_l(), left_ref);
+  pipe_ar_store_i32(ep, pipe_ar_ex_binop_r(), right_ref);
+  pipe_ar_store_i32(ep, pipe_ar_ex_call_res_fi(), 0 - 1);
+  pipe_ar_store_i32(ep, pipe_ar_ex_call_res_di(), 0 - 1);
+}
+
+/**
+ * ast.x module-prefix alias: write_var.
+ * @param a *u8
+ * @param ref i32
+ * @param name *u8
+ * @param name_len i32
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_pipeline_arena_expr_write_var(a: *u8, ref: i32, name: *u8, name_len: i32): void {
+  pipeline_arena_expr_write_var(a, ref, name, name_len);
+}
+
+/**
+ * ast.x module-prefix alias: write_binop.
+ * @param a *u8
+ * @param ref i32
+ * @param kind_ord i32
+ * @param left_ref i32
+ * @param right_ref i32
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_pipeline_arena_expr_write_binop(a: *u8, ref: i32, kind_ord: i32, left_ref: i32, right_ref: i32): void {
+  pipeline_arena_expr_write_binop(a, ref, kind_ord, left_ref, right_ref);
+}
+
+/**
+ * Ref is null when == 0.
+ * @param ref i32
+ * @return i32 - 1 if null else 0
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_ref_is_null(ref: i32): i32 {
+  if (ref == 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Empty layout prime hook for ast.x.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_expr_layout_prime_call_resolved(): void {
+}
+
+/**
+ * Zero arena counters.
+ * @param arena *u8 - ASTArena*
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_ast_arena_init(arena: *u8): void {
+  if (arena == 0 as *u8) {
+    return;
+  }
+  ast_expr_layout_prime_call_resolved();
+  pipe_ar_store_i32(arena, pipe_ar_off_num_types(), 0);
+  pipe_ar_store_i32(arena, pipe_ar_off_num_exprs(), 0);
+  pipe_ar_store_i32(arena, pipe_ar_off_num_blocks(), 0);
+  pipe_ar_store_i32(arena, pipe_ar_off_num_funcs(), 0);
+}
+
+/**
+ * ast.x alias: type_alloc.
+ * @param a *u8
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_ast_arena_type_alloc(a: *u8): i32 {
+  return pipeline_arena_type_alloc(a);
+}
+
+/**
+ * ast.x alias: expr_alloc.
+ * @param a *u8
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_ast_arena_expr_alloc(a: *u8): i32 {
+  return pipeline_arena_expr_alloc(a);
+}
+
+/**
+ * ast.x alias: block_alloc.
+ * @param a *u8
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_ast_arena_block_alloc(a: *u8): i32 {
+  return pipeline_arena_block_alloc(a);
+}
+
+/**
+ * ast.x alias: func_alloc.
+ * @param a *u8
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_ast_arena_func_alloc(a: *u8): i32 {
+  return pipeline_arena_func_alloc(a);
+}
+
+/**
+ * Historical glue name for expr slot pointer.
+ * @param a *u8
+ * @param expr_ref i32
+ * @return *u8
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_arena_expr_at_ref(a: *u8, expr_ref: i32): *u8 {
+  return pipeline_arena_expr_ptr(a, expr_ref);
+}
+
+/**
+ * True when expr kind is RETURN/PANIC/BREAK/CONTINUE (or invalid).
+ * @param a *u8
+ * @param expr_ref i32
+ * @return i32 - 1 disallowed, 0 ok
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function implicit_tail_expr_disallowed_by_glue(a: *u8, expr_ref: i32): i32 {
+  if (a == 0 as *u8) {
+    return 1;
+  }
+  if (expr_ref <= 0) {
+    return 1;
+  }
+  let ne: i32 = pipe_ar_load_i32(a, pipe_ar_off_num_exprs());
+  if (expr_ref > ne) {
+    return 1;
+  }
+  let ex: *u8 = pipeline_arena_expr_ptr(a, expr_ref);
+  if (ex == 0 as *u8) {
+    return 1;
+  }
+  let k: i32 = pipe_ar_load_i32(ex, pipe_ar_ex_kind());
+  if (k == pipe_ar_ek_return()) {
+    return 1;
+  }
+  if (k == pipe_ar_ek_panic()) {
+    return 1;
+  }
+  if (k == pipe_ar_ek_break()) {
+    return 1;
+  }
+  if (k == pipe_ar_ek_continue()) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Copy src[0..n) capped at src_cap into dst[0..63], zero-pad to 64.
+ * @param dst *u8 - 64-byte dest
+ * @param src *u8 - source (nullable)
+ * @param n i32
+ * @param src_cap i32
+ * wave276 pure Cap leave. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_fill_u8_64_from_src_c(dst: *u8, src: *u8, n: i32, src_cap: i32): void {
+  if (dst == 0 as *u8) {
+    return;
+  }
+  let nn: i32 = n;
+  let sc: i32 = src_cap;
+  if (nn < 0) {
+    nn = 0;
+  }
+  if (sc < 0) {
+    sc = 0;
+  }
+  let i: i32 = 0;
+  while (i < 64) {
+    if (src != 0 as *u8) {
+      if (i < nn) {
+        if (i < sc) {
+          unsafe {
+            dst[i] = src[i];
+          }
+          i = i + 1;
+          continue;
+        }
+      }
+    }
+    unsafe {
+      dst[i] = 0;
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * Write TYPE_BOOL into type slot.
+ * @param arena *u8
+ * @param type_ref i32
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parser_library_init_bool_type_c(arena: *u8, type_ref: i32): void {
+  if (arena == 0 as *u8) {
+    return;
+  }
+  if (type_ref <= 0) {
+    return;
+  }
+  let t: *u8 = pipeline_arena_type_ptr(arena, type_ref);
+  if (t == 0 as *u8) {
+    return;
+  }
+  pipe_ar_store_i32(t, pipe_ar_ty_kind(), pipe_ar_tk_bool());
+  pipe_ar_store_i32(t, pipe_ar_ty_name_len(), 0);
+  pipe_ar_store_i32(t, pipe_ar_ty_elem(), 0);
+  pipe_ar_store_i32(t, pipe_ar_ty_arr(), 0);
+}
+
+/**
+ * Write TYPE_NAMED + name into type slot.
+ * @param arena *u8
+ * @param type_ref i32
+ * @param name *u8
+ * @param name_len i32
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parser_library_init_named_type_c(arena: *u8, type_ref: i32, name: *u8, name_len: i32): void {
+  if (arena == 0 as *u8) {
+    return;
+  }
+  if (type_ref <= 0) {
+    return;
+  }
+  let t: *u8 = pipeline_arena_type_ptr(arena, type_ref);
+  if (t == 0 as *u8) {
+    return;
+  }
+  pipe_ar_store_i32(t, pipe_ar_ty_kind(), pipe_ar_tk_named());
+  pipe_ar_store_i32(t, pipe_ar_ty_name_len(), name_len);
+  pipeline_module_fill_u8_64_from_src_c(t + (pipe_ar_ty_name() as usize), name, name_len, 64);
+  pipe_ar_store_i32(t, pipe_ar_ty_elem(), 0);
+  pipe_ar_store_i32(t, pipe_ar_ty_arr(), 0);
+}
+
+/**
+ * Write EXPR_VAR + param name into expr slot.
+ * @param arena *u8
+ * @param expr_ref i32
+ * @param type_ref i32
+ * @param param_name *u8
+ * @param param_name_len i32
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parser_library_init_var_expr_c(arena: *u8, expr_ref: i32, type_ref: i32, param_name: *u8, param_name_len: i32): void {
+  if (arena == 0 as *u8) {
+    return;
+  }
+  if (expr_ref <= 0) {
+    return;
+  }
+  let ve: *u8 = pipeline_arena_expr_ptr(arena, expr_ref);
+  if (ve == 0 as *u8) {
+    return;
+  }
+  pipe_ar_store_i32(ve, pipe_ar_ex_kind(), pipe_ar_ek_var());
+  pipe_ar_store_i32(ve, pipe_ar_ex_resolved_ty(), type_ref);
+  // line@8 col@12
+  pipe_ar_store_i32(ve, 8, 0);
+  pipe_ar_store_i32(ve, 12, 0);
+  pipe_ar_store_i32(ve, pipe_ar_ex_var_name_len(), param_name_len);
+  pipeline_module_fill_u8_64_from_src_c(ve + (pipe_ar_ex_var_name() as usize), param_name, param_name_len, 32);
+  pipe_ar_store_i32(ve, pipe_ar_ex_match_arm_base(), 0);
+  pipe_ar_store_i32(ve, pipe_ar_ex_enum_tag(), 0);
+  pipe_ar_store_i32(ve, pipe_ar_ex_fa_base(), 0);
+  pipe_ar_store_i32(ve, pipe_ar_ex_fa_len(), 0);
+  pipe_ar_store_i32(ve, pipe_ar_ex_fa_is_enum(), 0);
+  pipe_ar_store_i32(ve, pipe_ar_ex_fa_off(), 0);
+}
+
+/**
+ * Write EXPR_FIELD_ACCESS into expr slot.
+ * @param arena *u8
+ * @param expr_ref i32
+ * @param base_ref i32
+ * @param field_name *u8
+ * @param field_len i32
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parser_library_init_field_access_expr_c(arena: *u8, expr_ref: i32, base_ref: i32, field_name: *u8, field_len: i32): void {
+  if (arena == 0 as *u8) {
+    return;
+  }
+  if (expr_ref <= 0) {
+    return;
+  }
+  let fe: *u8 = pipeline_arena_expr_ptr(arena, expr_ref);
+  if (fe == 0 as *u8) {
+    return;
+  }
+  pipe_ar_store_i32(fe, pipe_ar_ex_kind(), pipe_ar_ek_field());
+  pipe_ar_store_i32(fe, pipe_ar_ex_resolved_ty(), 0);
+  pipe_ar_store_i32(fe, 8, 0);
+  pipe_ar_store_i32(fe, 12, 0);
+  pipe_ar_store_i32(fe, pipe_ar_ex_fa_base(), base_ref);
+  pipe_ar_store_i32(fe, pipe_ar_ex_fa_len(), field_len);
+  pipeline_module_fill_u8_64_from_src_c(fe + (pipe_ar_ex_fa_name() as usize), field_name, field_len, 64);
+  pipe_ar_store_i32(fe, pipe_ar_ex_fa_is_enum(), 0);
+  pipe_ar_store_i32(fe, pipe_ar_ex_fa_off(), 0);
+  pipe_ar_store_i32(fe, pipe_ar_ex_match_arm_base(), 0);
+  pipe_ar_store_i32(fe, pipe_ar_ex_enum_tag(), 0);
+  pipe_ar_store_i32(fe, pipe_ar_ex_binop_l(), 0);
+  pipe_ar_store_i32(fe, pipe_ar_ex_binop_r(), 0);
+}
+
+/**
+ * Write EXPR_ENUM_VARIANT placeholder.
+ * @param arena *u8
+ * @param expr_ref i32
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parser_library_init_enum_variant_expr_c(arena: *u8, expr_ref: i32): void {
+  if (arena == 0 as *u8) {
+    return;
+  }
+  if (expr_ref <= 0) {
+    return;
+  }
+  let ene: *u8 = pipeline_arena_expr_ptr(arena, expr_ref);
+  if (ene == 0 as *u8) {
+    return;
+  }
+  pipe_ar_store_i32(ene, pipe_ar_ex_kind(), pipe_ar_ek_enum_var());
+  pipe_ar_store_i32(ene, pipe_ar_ex_resolved_ty(), 0);
+  pipe_ar_store_i32(ene, 8, 0);
+  pipe_ar_store_i32(ene, 12, 0);
+  pipe_ar_store_i32(ene, pipe_ar_ex_enum_tag(), 0);
+  pipe_ar_store_i32(ene, pipe_ar_ex_match_arm_base(), 0);
+  pipe_ar_store_i32(ene, pipe_ar_ex_fa_base(), 0);
+  pipe_ar_store_i32(ene, pipe_ar_ex_fa_len(), 0);
+}
+
+/**
+ * Write EXPR_EQ binop into expr slot.
+ * @param arena *u8
+ * @param expr_ref i32
+ * @param bool_type_ref i32
+ * @param left_ref i32
+ * @param right_ref i32
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parser_library_init_eq_expr_c(arena: *u8, expr_ref: i32, bool_type_ref: i32, left_ref: i32, right_ref: i32): void {
+  if (arena == 0 as *u8) {
+    return;
+  }
+  if (expr_ref <= 0) {
+    return;
+  }
+  let eqe: *u8 = pipeline_arena_expr_ptr(arena, expr_ref);
+  if (eqe == 0 as *u8) {
+    return;
+  }
+  pipe_ar_store_i32(eqe, pipe_ar_ex_kind(), pipe_ar_ek_eq());
+  pipe_ar_store_i32(eqe, pipe_ar_ex_resolved_ty(), bool_type_ref);
+  pipe_ar_store_i32(eqe, 8, 0);
+  pipe_ar_store_i32(eqe, 12, 0);
+  pipe_ar_store_i32(eqe, pipe_ar_ex_binop_l(), left_ref);
+  pipe_ar_store_i32(eqe, pipe_ar_ex_binop_r(), right_ref);
+  pipe_ar_store_i32(eqe, pipe_ar_ex_match_arm_base(), 0);
+  pipe_ar_store_i32(eqe, pipe_ar_ex_enum_tag(), 0);
+  pipe_ar_store_i32(eqe, pipe_ar_ex_fa_base(), 0);
+  pipe_ar_store_i32(eqe, pipe_ar_ex_fa_len(), 0);
+}
+
+/**
+ * Init labeled return block for library parse path.
+ * @param arena *u8
+ * @param block_ref i32
+ * @param eq_ref i32
+ * @return i32 - 0 ok, -1 fail
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parser_library_init_labeled_block_c(arena: *u8, block_ref: i32, eq_ref: i32): i32 {
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (block_ref <= 0) {
+    return 0 - 1;
+  }
+  let b: *u8 = pipeline_arena_block_ptr(arena, block_ref);
+  if (b == 0 as *u8) {
+    return 0 - 1;
+  }
+  pipe_ar_store_i32(b, pipe_ar_bl_num_consts(), 0);
+  pipe_ar_store_i32(b, pipe_ar_bl_num_lets(), 0);
+  pipe_ar_store_i32(b, pipe_ar_bl_num_early_lets(), 0);
+  pipe_ar_store_i32(b, pipe_ar_bl_num_loops(), 0);
+  pipe_ar_store_i32(b, pipe_ar_bl_num_for(), 0);
+  pipe_ar_store_i32(b, pipe_ar_bl_num_if(), 0);
+  pipe_ar_store_i32(b, pipe_ar_bl_num_defers(), 0);
+  let rc: i32 = 0;
+  unsafe {
+    rc = ast_pipeline_block_append_labeled(arena, block_ref, 0, 0, 0, eq_ref);
+  }
+  if (rc < 0) {
+    return 0 - 1;
+  }
+  b = pipeline_arena_block_ptr(arena, block_ref);
+  if (b == 0 as *u8) {
+    return 0 - 1;
+  }
+  pipe_ar_store_i32(b, pipe_ar_bl_num_expr_stmts(), 0);
+  pipe_ar_store_i32(b, pipe_ar_bl_final_expr(), 0);
+  pipe_ar_store_i32(b, pipe_ar_bl_num_stmt_order(), 0);
+  return 0;
+}
+
+/**
+ * Write arena Func slot and register in module (extern decl path).
+ * @param arena *u8
+ * @param module *u8
+ * @param func_ref i32
+ * @param name *u8
+ * @param name_len i32
+ * @param num_params i32
+ * @param return_ty_ref i32
+ * @return i32 - module func index or -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parser_extern_init_arena_func_and_register_c(arena: *u8, module: *u8, func_ref: i32, name: *u8, name_len: i32, num_params: i32, return_ty_ref: i32): i32 {
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (func_ref <= 0) {
+    return 0 - 1;
+  }
+  if (name_len < 0) {
+    return 0 - 1;
+  }
+  if (name_len > 127) {
+    return 0 - 1;
+  }
+  let fp: *u8 = pipeline_arena_func_ptr(arena, func_ref);
+  if (fp == 0 as *u8) {
+    return 0 - 1;
+  }
+  pipeline_module_fill_u8_64_from_src_c(fp + (pipe_ar_fn_name() as usize), name, name_len, 64);
+  pipe_ar_store_i32(fp, pipe_ar_fn_name_len(), name_len);
+  pipe_ar_store_i32(fp, pipe_ar_fn_num_params(), num_params);
+  pipe_ar_store_i32(fp, pipe_ar_fn_ret(), return_ty_ref);
+  pipe_ar_store_i32(fp, pipe_ar_fn_body(), 0);
+  pipe_ar_store_i32(fp, pipe_ar_fn_body_expr(), 0);
+  pipe_ar_store_i32(fp, pipe_ar_fn_is_extern(), 1);
+  pipe_ar_store_i32(fp, pipe_ar_fn_is_async(), 0);
+  let fi: i32 = 0;
+  unsafe {
+    fi = pipeline_module_func_alloc_slot(module);
+  }
+  if (fi < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_module_func_name_write(module, fi, name, name_len);
+    pipeline_module_func_set_num_params(module, fi, num_params);
+    pipeline_module_func_set_return_type(module, fi, return_ty_ref);
+    pipeline_module_func_set_body_ref(module, fi, 0);
+    pipeline_module_func_set_body_expr_ref(module, fi, 0);
+    pipeline_module_func_set_is_extern(module, fi, 1);
+    pipeline_module_func_set_is_async(module, fi, 0);
+    pipeline_module_func_ref_set(module, fi, func_ref);
+  }
+  return fi;
+}
+
+// end wave276 pure-owned leave
