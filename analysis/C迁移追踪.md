@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-08（对照 tip residual：wave310 pipeline_gen seed re-pin · wave309 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-08（对照 tip residual：wave311 typeck_gen monofile dual WEAK leave · wave310 pipeline_gen re-pin · wave309 8.3 结构地板闭 · bc-inventory present residual **0**／ROWS=128 · product pure-ld 无 pipeline mega；**只改勾选与事实 LOC**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -829,7 +829,8 @@
 ⬜ **8.2.4 typeck_gen.c** pinned（Makefile L2172）
 
   - 前端核心：src/typeck/typeck.x
-  - 阻塞：typeck mega 去 pin
+  - 阻塞：typeck mega 去 pin（全量 `-E` 仍 T001；wave311 已过 L003）
+  - **wave311（2026-08-08）**：`seeds/typeck_gen.linux.x86_64.c` monofile dual **30× WEAK** polyfill → **extern-only**（live STRONG＝`runtime_pipeline_abi`；typeck_x T **409→379** · dual_pabi **0**）。同波 `typeck.x` 块注释 `U*/F*` 提前闭注释 → L003 根修（`-E` 过 lexer；余 T001）。**未** Track L 退役
 
 ⬜ **8.2.5 codegen_gen.c** pinned（Makefile L2199）
 
