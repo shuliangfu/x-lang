@@ -1,14 +1,15 @@
-/* ast_pool_sidecar_pool.c — sidecar 池管理域（自 ast_pool.c 抽出）
+/* ast_pool_sidecar_pool.c — sidecar pool domain (from ast_pool.c)
  *
- * 进程级 pointer-keyed sidecar 池：g_arena_sc／g_module_sc／g_onefunc_sc／
- * g_xlang_depctx_sc 全局数组 + MAX_*_SIDECARS 上限 + sidecar_get（查找／分配）+ ensure_slot +
- * sidecar_free（grow_vec_free 归还）+ pipeline_dep_ctx_sidecar_release（批量 check teardown）。
- * g_xlang_depctx_sc／depctx_sidecar_get 故意非 static（pure crt0 embed 双份需求）。
- * 2026-08-05: g_driver_emit_sc retired with pipeline_emit_sidecar pure leave —
- * driver_emit_lib_root_* live in runtime_pipeline_abi fixed-cap BSS (no GrowVec).
- * 依赖 sidecar typedef（先于此 include）+ GrowVec + ast 结构头。同 TU #include（typedefs 后）。 */
+ * Process-wide pointer-keyed pools: g_arena_sc / g_module_sc / g_onefunc_sc +
+ * MAX_*_SIDECARS + sidecar_get + ensure_slot + sidecar_free (grow_vec_free).
+ * wave272: DepCtx sidecar table + pipeline_dep_ctx_sidecar_release retired from host-cc —
+ * authority is runtime_pipeline_abi pure (g_pipe_dep_sc_blob). Do NOT reintroduce
+ * g_xlang_depctx_sc here (dual-table ban).
+ * 2026-08-05: g_driver_emit_sc retired with pipeline_emit_sidecar pure leave.
+ * Depends on sidecar typedefs + GrowVec. Same-TU #include after typedefs.
+ * PLATFORM: SHARED — residual arena/module/onefunc host-cc Cap residual.
+ */
 
-#define MAX_DEP_CTX_SIDECARS 64
 /* PLATFORM: SHARED — sidecar table caps (pointer-keyed global pools).
  * MAX_ONEFUNC_SIDECARS: raised 256→1024 for codegen M1 (2026-07-17).
  * Peak observed under XLANG_DEBUG_PIPE while -E src/codegen/codegen.x:
@@ -22,105 +23,6 @@
 static ArenaSidecar g_arena_sc[MAX_ARENA_SIDECARS];
 static ModuleSidecar g_module_sc[MAX_MODULE_SIDECARS];
 static OneFuncSidecar g_onefunc_sc[MAX_ONEFUNC_SIDECARS];
-/*
- * PLATFORM: SHARED — process-wide DepCtx sidecar table (G.7 single authority).
- *
- * Must NOT be `static`: pure static crt0 embeds depctx_sidecar_get in both
- * pipeline_x / glue_standalone (global) and crt0 L5 pipeline partial (local).
- * Per-TU static BSS → dual tables keyed by the same PipelineDepCtx*:
- *   load_and_sync set_module/path writes table A;
- *   Cap run_x_pipeline_codegen_one_dep module_at reads table B;
- *   codegen_x_ast path_copy reads table A → module/path split
- *   (NL-07 pure static si -o: core.types body emitted as core_result_*).
- *
- * Non-static global: multi-def objects share one BSS under
- * --allow-multiple-definition (product + nostdlib crt0). Weak so a single
- * surviving definition owns all references when the linker merges.
- *
- * ALSO required: ld_partial_export (build_xlang_asm.sh / relink strict glue) must
- * keep this symbol GLOBAL when extracting pipeline partials. Linux
- * objcopy --keep-global-symbols and Darwin -exported_symbols_list localize
- * unlisted symbols; a localized copy + static depctx_sidecar_get reopens the
- * dual-table split even when this definition is weak in the source .o.
- */
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((weak))
-#endif
-DepCtxSidecar g_xlang_depctx_sc[MAX_DEP_CTX_SIDECARS];
-
-static DepCtxSidecar *depctx_sidecar_get(struct ast_PipelineDepCtx *ctx, int create) {
-  int i;
-  if (!ctx)
-    return NULL;
-  for (i = 0; i < MAX_DEP_CTX_SIDECARS; i++) {
-    if (g_xlang_depctx_sc[i].used && g_xlang_depctx_sc[i].ctx == ctx)
-      return &g_xlang_depctx_sc[i];
-  }
-  if (!create)
-    return NULL;
-  for (i = 0; i < MAX_DEP_CTX_SIDECARS; i++) {
-    if (!g_xlang_depctx_sc[i].used) {
-      g_xlang_depctx_sc[i].ctx = ctx;
-      g_xlang_depctx_sc[i].used = 1;
-      if (!grow_vec_init(&g_xlang_depctx_sc[i].dep_modules, sizeof(void *), AST_POOL_INIT_CAP))
-        return NULL;
-      if (!grow_vec_init(&g_xlang_depctx_sc[i].dep_arenas, sizeof(void *), AST_POOL_INIT_CAP))
-        return NULL;
-      /* wave579 Cap: path row width 64→128 (import paths may be >63 after Cap).
-       * PLATFORM: SHARED — must match set_import_path memcpy cap below. */
-      if (!grow_vec_init(&g_xlang_depctx_sc[i].dep_path_rows, 128, AST_POOL_INIT_CAP))
-        return NULL;
-      if (!grow_vec_init(&g_xlang_depctx_sc[i].dep_path_lens, sizeof(int32_t), AST_POOL_INIT_CAP))
-        return NULL;
-      if (!grow_vec_init(&g_xlang_depctx_sc[i].lib_root_rows, 256, AST_POOL_INIT_CAP))
-        return NULL;
-      if (!grow_vec_init(&g_xlang_depctx_sc[i].lib_root_lens, sizeof(int32_t), AST_POOL_INIT_CAP))
-        return NULL;
-      if (!grow_vec_init(&g_xlang_depctx_sc[i].empty_param_indices, sizeof(int32_t), AST_POOL_INIT_CAP))
-        return NULL;
-      if (!grow_vec_init(&g_xlang_depctx_sc[i].empty_param_backup, sizeof(int32_t), AST_POOL_INIT_CAP))
-        return NULL;
-      return &g_xlang_depctx_sc[i];
-    }
-  }
-  return NULL;
-}
-
-/** 确保 dep 侧车池至少有 idx+1 个槽。 */
-static int depctx_ensure_slot(DepCtxSidecar *sc, int32_t idx) {
-  int32_t need;
-  void **pm;
-  void **pa;
-  uint8_t *row;
-  int32_t *pl;
-  if (!sc || idx < 0)
-    return 0;
-  need = idx + 1;
-  while (sc->dep_modules.len < need) {
-    if (grow_vec_push(&sc->dep_modules) < 0)
-      return 0;
-    pm = (void **)grow_vec_at(&sc->dep_modules, sc->dep_modules.len - 1);
-    if (pm)
-      *pm = NULL;
-    if (grow_vec_push(&sc->dep_arenas) < 0)
-      return 0;
-    pa = (void **)grow_vec_at(&sc->dep_arenas, sc->dep_arenas.len - 1);
-    if (pa)
-      *pa = NULL;
-    if (grow_vec_push(&sc->dep_path_rows) < 0)
-      return 0;
-    row = (uint8_t *)grow_vec_at(&sc->dep_path_rows, sc->dep_path_rows.len - 1);
-    if (row)
-      memset(row, 0, 128);
-    if (grow_vec_push(&sc->dep_path_lens) < 0)
-      return 0;
-    pl = (int32_t *)grow_vec_at(&sc->dep_path_lens, sc->dep_path_lens.len - 1);
-    if (pl)
-      *pl = 0;
-  }
-  return 1;
-}
-
 static ArenaSidecar *arena_sidecar_get(struct ast_ASTArena *a, int create) {
   int i;
   if (!a)
@@ -443,41 +345,3 @@ static void module_sidecar_free(ModuleSidecar *sc) {
   memset(sc, 0, sizeof(*sc));
 }
 
-/**
- * Free DepCtxSidecar GrowVecs and mark the process-wide slot unused.
- *
- * Why: pipeline_dep_ctx_heap_destroy used to free(ctx) only. That left
- * g_xlang_depctx_sc[MAX=64] used with dangling ctx keys; batch check exhausts
- * the table and subsequent dep path mapping / parse degrades (num_funcs drop).
- * PLATFORM: SHARED — pair with free(ctx) in heap_destroy (wave1228).
- */
-static void depctx_sidecar_free(DepCtxSidecar *sc) {
-  if (!sc)
-    return;
-  grow_vec_free(&sc->dep_modules);
-  grow_vec_free(&sc->dep_arenas);
-  grow_vec_free(&sc->dep_path_rows);
-  grow_vec_free(&sc->dep_path_lens);
-  grow_vec_free(&sc->lib_root_rows);
-  grow_vec_free(&sc->lib_root_lens);
-  grow_vec_free(&sc->empty_param_indices);
-  grow_vec_free(&sc->empty_param_backup);
-  memset(sc, 0, sizeof(*sc));
-}
-
-/**
- * Release process-wide DepCtx sidecar for this PipelineDepCtx pointer.
- * Call before free(ctx). Safe no-op if null or untracked.
- * PLATFORM: SHARED — G.7 single teardown for batch check (wave1228).
- */
-void pipeline_dep_ctx_sidecar_release(struct ast_PipelineDepCtx *ctx) {
-  int i;
-  if (!ctx)
-    return;
-  for (i = 0; i < MAX_DEP_CTX_SIDECARS; i++) {
-    if (g_xlang_depctx_sc[i].used && g_xlang_depctx_sc[i].ctx == ctx) {
-      depctx_sidecar_free(&g_xlang_depctx_sc[i]);
-      return;
-    }
-  }
-}

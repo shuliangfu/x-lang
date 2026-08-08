@@ -4,6 +4,7 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45-wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
+// wave272: ast_pool_dep_ctx.c pure-owned leave (PipelineDepCtx + DepCtxSidecar table).
 // wave271: pipeline_grow_vec.c pure-owned leave (GrowVec init/free/ensure/at/push/
 //   copy_append + mmap large-path RSS). Layout LE sizeof 32: data*@0 cap@8 len@12
 //   elem_sz@16 mmap_backed@24. Residual keeps typedef + extern prototypes only.
@@ -394,26 +395,17 @@ export extern "C" function ast_pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *
 export extern "C" function pipeline_loop_should_continue_lib_root_c(ctx: *u8, idx: i32): i32;
 export extern "C" function pipeline_resolve_path_try_one_lib_root(ctx: *u8, lib_idx: i32, import_path: *u8, path_len: i32): i32;
 export extern "C" function pipeline_resolve_path_try_entry_dir(ctx: *u8, import_path: *u8, path_len: i32): i32;
-export extern "C" function pipeline_dep_ctx_path_buf_ptr(ctx: *u8): *u8;
-export extern "C" function pipeline_dep_ctx_loaded_buf_ptr(ctx: *u8): *u8;
-export extern "C" function pipeline_dep_ctx_set_loaded_len(ctx: *u8, n: i64): void;
 export extern "C" function xlang_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 // wave105 resolve_path pure-owned leave Cap residual (dep_ctx path byte + entry_dir +
 //   lib_root copy + fs open/close). PRODUCT: pipeline_x / std.fs strong; pure only calls.
 // PLATFORM: SHARED - sole host-cc body retired with pipeline_resolve_path.c.
 // wave106: pipeline_run_x_pipeline.c pure-owned leave (last_rc / typeck_fail /
 //   parse_entry_do_parse / typecheck_entry_emit / const-buf face).
-export extern "C" function pipeline_dep_ctx_set_path_buf_byte(ctx: *u8, off: i32, b: u8): void;
-export extern "C" function pipeline_dep_ctx_entry_dir_len(ctx: *u8): i32;
-export extern "C" function pipeline_dep_ctx_entry_dir_copy(ctx: *u8, dst: *u8, cap: i32): void;
 export extern "C" function pipeline_copy_lib_root_to_buf256(ctx: *u8, lib_idx: i32, dst: *u8): i32;
-export extern "C" function pipeline_ctx_lib_root_count(ctx: *u8): i32;
 export extern "C" function std_fs_fs_open_read(path: *u8): i32;
 export extern "C" function std_fs_fs_close(fd: i32): i32;
 // wave95 Cap residual under pure load_import orch (arena/prep ptr accessors).
 // wave96: pipeline_parse_into_buf is pure export function below (not export-extern).
-export extern "C" function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
-export extern "C" function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *u8): *u8;
 // wave101: pipeline_dep_ctx_preprocess_len_get is pure export below (not Cap residual
 //   host-cc field load). 2026-08-05: import_bind host-cc leave - pure sole provider.
 // wave102: asm_diag_* pure export below (start_func_skip + BODY/FUNC_TRACE).
@@ -449,6 +441,14 @@ export extern "C" function runtime_release_file_view(view: *u8): void;
 export extern "C" function ast_module_free(mod: *u8): void;
 // wave78: xlang_lsp_ptr_slot_clear is pure export function below (G.7 xlang_ptr_slot_set).
 /* See implementation. */
+
+// wave272: pipeline_dep_ctx_* / pipeline_ctx_lib_root_* / pipeline_dep_ctx_sidecar_release
+// are pure export functions at EOF (not Cap residual; not export-extern).
+// Do NOT reintroduce export extern for these names: same-TU pure calls would hit
+// typeck T001 "extern call requires unsafe block", and dual export would break prefer.
+// Mid-file orch calls resolve to the pure #[no_mangle] bodies (same pattern as wave101
+// pipeline_dep_ctx_preprocess_len_get / wave271 grow_vec_*).
+
 export extern "C" function ast_pipeline_dep_ctx_reset(ctx: *u8): void;
 export extern "C" function ast_pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void;
 export extern "C" function ast_pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a: *u8): void;
@@ -482,8 +482,6 @@ export extern "C" function driver_x_pipeline_skip_typeck_get(): i32;
 export extern "C" function driver_x_pipeline_skip_codegen_get(): i32;
 export extern "C" function pipeline_driver_asm_build_skip_typeck(): i32;
 export extern "C" function pipeline_driver_x_pipeline_skip_typeck(): i32;
-export extern "C" function pipeline_dep_ctx_asm_entry_module_only(ctx: *u8): i32;
-export extern "C" function pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern "C" function pipeline_run_x_pipeline_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
 // wave112 Cap residual: active ctx / WPO-S3 escape scan.
 // wave121: pipeline_typeck_unused_private_funcs is pure export function below (lint_meta leave).
@@ -496,14 +494,6 @@ export extern "C" function driver_is_large_stack_thread(): i32;
 // wave111: codegen_dep pure-owned leave Cap residual (asm/C emit + dep_ctx path faces).
 // PRODUCT: pipeline_x / codegen_x / driver_abi / link_abi; pure only orchestrates.
 // PLATFORM: SHARED.
-export extern "C" function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
-export extern "C" function pipeline_dep_ctx_import_path_len(ctx: *u8, idx: i32): i32;
-export extern "C" function pipeline_dep_ctx_import_path_copy64(ctx: *u8, idx: i32, dst: *u8): void;
-export extern "C" function pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, path: *u8, len: i32): void;
-export extern "C" function pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void;
-export extern "C" function pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a: *u8): void;
-export extern "C" function pipeline_dep_ctx_use_asm_backend(ctx: *u8): i32;
-export extern "C" function pipeline_dep_ctx_entry_already_parsed(ctx: *u8): i32;
 export extern "C" function asm_asm_codegen_ast(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8): i32;
 export extern "C" function codegen_codegen_x_ast(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8, dep_index: i32): i32;
 export extern "C" function driver_set_current_dep_path_for_codegen(path: *u8): void;
@@ -779,7 +769,6 @@ export extern "C" function ast_ast_block_stmt_order_kind(arena: *u8, block_ref: 
 export extern "C" function ast_ast_block_stmt_order_idx(arena: *u8, block_ref: i32, si: i32): i32;
 export extern "C" function ast_pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, ei: i32): i32;
 
-export extern "C" function pipeline_dep_ctx_target_arch(ctx: *u8): i32;
 
 // wave78: xlang_fputs_stdout / driver_asm_fp_is_stdout / driver_asm_fclose_file are pure below.
 // g05 prologue harness (same as driver_abi wave22/26): FILE* cast residual for pure .x.
@@ -76310,3 +76299,1476 @@ export function grow_vec_copy_append(dst: *u8, src: *u8): void {
 }
 
 // end wave271 pure-owned leave
+
+// =============================================================================
+// wave272 pure-owned leave: PipelineDepCtx Cap residual (ast_pool_dep_ctx.c)
+// + DepCtxSidecar process table (from ast_pool_sidecar_pool.c)
+// =============================================================================
+// PLATFORM: SHARED freestanding LP64 little-endian.
+// Authority: pipeline_dep_ctx_* / pipeline_ctx_* / pipeline_dep_ctx_sidecar_release
+// live here (#[no_mangle]). Residual host-cc leaf deleted; seed cold twins under
+// #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// DepCtxSidecar LE sizeof 272:
+//   ctx*@0 used@8 dep_modules@16 dep_arenas@48 dep_path_rows@80 dep_path_lens@112
+//   lib_root_rows@144 lib_root_lens@176 empty_param_indices@208 empty_param_backup@240
+// GrowVec LE sizeof 32 (wave271). Table: MAX 64 slots, single pure BSS blob
+// (G.7 single authority — no residual g_xlang_depctx_sc dual table).
+// PipelineDepCtx LE offsets match runtime_pipeline_abi.h / ast.x (loaded_len@4195344).
+// =============================================================================
+
+function pipe_dep_sc_size(): i32 { return 272; }
+function pipe_dep_sc_max(): i32 { return 64; }
+function pipe_dep_sc_off_ctx(): i32 { return 0; }
+function pipe_dep_sc_off_used(): i32 { return 8; }
+function pipe_dep_sc_off_dep_modules(): i32 { return 16; }
+function pipe_dep_sc_off_dep_arenas(): i32 { return 48; }
+function pipe_dep_sc_off_dep_path_rows(): i32 { return 80; }
+function pipe_dep_sc_off_dep_path_lens(): i32 { return 112; }
+function pipe_dep_sc_off_lib_root_rows(): i32 { return 144; }
+function pipe_dep_sc_off_lib_root_lens(): i32 { return 176; }
+function pipe_dep_sc_off_empty_param_indices(): i32 { return 208; }
+function pipe_dep_sc_off_empty_param_backup(): i32 { return 240; }
+
+// PipelineDepCtx field offsets (LP64) — match pure pipe_pctx_off_* where present.
+function pipe_pctx_off_ndep(): i32 { return 0; }
+function pipe_pctx_off_path_buf(): i32 { return 524; }
+function pipe_pctx_off_loaded_buf(): i32 { return 1036; }
+function pipe_pctx_off_preprocess_buf(): i32 { return 4195352; }
+function pipe_pctx_off_use_asm_backend(): i32 { return 8389660; }
+function pipe_pctx_off_target_arch(): i32 { return 8389664; }
+function pipe_pctx_off_use_macho_o(): i32 { return 8389672; }
+function pipe_pctx_off_use_coff_o(): i32 { return 8389676; }
+function pipe_pctx_off_current_block_ref(): i32 { return 8389680; }
+function pipe_pctx_off_typeck_loop_depth(): i32 { return 8389684; }
+function pipe_pctx_off_current_func_index(): i32 { return 8389688; }
+function pipe_pctx_off_entry_already_parsed(): i32 { return 8389696; }
+function pipe_pctx_off_current_func_empty_param_count(): i32 { return 8389704; }
+function pipe_pctx_off_current_codegen_module(): i32 { return 8389720; }
+function pipe_pctx_off_current_codegen_arena(): i32 { return 8389728; }
+function pipe_pctx_off_current_codegen_dep_index(): i32 { return 8389736; }
+function pipe_pctx_off_current_codegen_prefix_mirror(): i32 { return 8389740; }
+function pipe_pctx_off_current_codegen_prefix_len(): i32 { return 8389868; }
+function pipe_pctx_off_asm_entry_module_only(): i32 { return 8389872; }
+
+// Flat BSS table: 64 * 272 = 17408 bytes. Zero-initialized; used flags start 0.
+let g_pipe_dep_sc_blob: u8[17408] = [];
+
+/**
+ * Pointer to DepCtxSidecar slot i (0..63).
+ * @param i i32 - slot index
+ * @return *u8 - sidecar base or null if i out of range
+ * PLATFORM: SHARED freestanding DepCtx table.
+ */
+function pipe_dep_sc_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= pipe_dep_sc_max()) {
+    return 0 as *u8;
+  }
+  let off: i64 = (i as i64) * (pipe_dep_sc_size() as i64);
+  return &g_pipe_dep_sc_blob[0] + (off as usize);
+}
+
+/**
+ * GrowVec* field inside a DepCtxSidecar at given byte offset.
+ * @param sc *u8 - sidecar base
+ * @param field_off i32 - offset of GrowVec within sidecar
+ * @return *u8 - GrowVec* or null
+ */
+function pipe_dep_sc_gv(sc: *u8, field_off: i32): *u8 {
+  if (sc == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (field_off < 0) {
+    return 0 as *u8;
+  }
+  return sc + (field_off as usize);
+}
+
+/**
+ * Free all GrowVecs in a DepCtxSidecar and zero the slot.
+ * @param sc *u8 - sidecar base
+ * @return void
+ */
+function pipe_dep_sc_free(sc: *u8): void {
+  if (sc == 0 as *u8) {
+    return;
+  }
+  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules()));
+  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas()));
+  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows()));
+  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens()));
+  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows()));
+  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens()));
+  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices()));
+  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_backup()));
+  unsafe {
+    memset(sc, 0, pipe_dep_sc_size() as usize);
+  }
+}
+
+/**
+ * Lookup or create DepCtxSidecar for PipelineDepCtx key.
+ * @param ctx *u8 - PipelineDepCtx*; null -> null
+ * @param create i32 - non-zero to allocate free slot + init GrowVecs
+ * @return *u8 - sidecar or null
+ * G.7 single process table (was residual g_xlang_depctx_sc + depctx_sidecar_get).
+ * PLATFORM: SHARED freestanding DepCtx table — product matrix dual-end.
+ */
+function pipe_depctx_sidecar_get(ctx: *u8, create: i32): *u8 {
+  if (ctx == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let i: i32 = 0;
+  while (i < pipe_dep_sc_max()) {
+    let sc: *u8 = pipe_dep_sc_at(i);
+    let used: i32 = pipe_load_i32_le(sc, pipe_dep_sc_off_used());
+    if (used != 0) {
+      let k: *u8 = pipe_load_ptr_slot(sc, 0);
+      if (k == ctx) {
+        return sc;
+      }
+    }
+    i = i + 1;
+  }
+  if (create == 0) {
+    return 0 as *u8;
+  }
+  i = 0;
+  while (i < pipe_dep_sc_max()) {
+    let sc2: *u8 = pipe_dep_sc_at(i);
+    let used2: i32 = pipe_load_i32_le(sc2, pipe_dep_sc_off_used());
+    if (used2 == 0) {
+      // bind key + mark used before init so partial fail can free
+      pipe_store_ptr_slot(sc2, 0, ctx);
+      pipe_store_i32_le(sc2, pipe_dep_sc_off_used(), 1);
+      let ic: i32 = pipe_gv_init_cap();
+      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_modules()), 8, ic) == 0) {
+        pipe_dep_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_arenas()), 8, ic) == 0) {
+        pipe_dep_sc_free(sc2);
+        return 0 as *u8;
+      }
+      // path rows: 128-byte elems (wave579)
+      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_path_rows()), 128, ic) == 0) {
+        pipe_dep_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_path_lens()), 4, ic) == 0) {
+        pipe_dep_sc_free(sc2);
+        return 0 as *u8;
+      }
+      // lib_root rows: 256-byte elems
+      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_lib_root_rows()), 256, ic) == 0) {
+        pipe_dep_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_lib_root_lens()), 4, ic) == 0) {
+        pipe_dep_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_empty_param_indices()), 4, ic) == 0) {
+        pipe_dep_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_empty_param_backup()), 4, ic) == 0) {
+        pipe_dep_sc_free(sc2);
+        return 0 as *u8;
+      }
+      return sc2;
+    }
+    i = i + 1;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Ensure dep slot pools have at least idx+1 entries (modules/arenas/paths).
+ * @param sc *u8 - DepCtxSidecar*
+ * @param idx i32 - required index
+ * @return i32 - 1 ok, 0 fail
+ */
+function pipe_depctx_ensure_slot(sc: *u8, idx: i32): i32 {
+  if (sc == 0 as *u8) {
+    return 0;
+  }
+  if (idx < 0) {
+    return 0;
+  }
+  let need: i32 = idx + 1;
+  let mods: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules());
+  let ars: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas());
+  let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows());
+  let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens());
+  while (pipe_gv_load_len(mods) < need) {
+    if (grow_vec_push(mods) < 0) {
+      return 0;
+    }
+    let pm: *u8 = grow_vec_at(mods, pipe_gv_load_len(mods) - 1);
+    if (pm != 0 as *u8) {
+      pipe_store_ptr_slot(pm, 0, 0 as *u8);
+    }
+    if (grow_vec_push(ars) < 0) {
+      return 0;
+    }
+    let pa: *u8 = grow_vec_at(ars, pipe_gv_load_len(ars) - 1);
+    if (pa != 0 as *u8) {
+      pipe_store_ptr_slot(pa, 0, 0 as *u8);
+    }
+    if (grow_vec_push(rows) < 0) {
+      return 0;
+    }
+    let row: *u8 = grow_vec_at(rows, pipe_gv_load_len(rows) - 1);
+    if (row != 0 as *u8) {
+      unsafe {
+        memset(row, 0, 128 as usize);
+      }
+    }
+    if (grow_vec_push(lens) < 0) {
+      return 0;
+    }
+    let pl: *u8 = grow_vec_at(lens, pipe_gv_load_len(lens) - 1);
+    if (pl != 0 as *u8) {
+      pipe_store_i32_le(pl, 0, 0);
+    }
+  }
+  return 1;
+}
+
+/**
+ * Release process-wide DepCtx sidecar for this PipelineDepCtx pointer.
+ * @param ctx *u8 - PipelineDepCtx*; null -> no-op
+ * @return void
+ * Call before free(ctx). G.7 single teardown for batch check (wave1228).
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_sidecar_release(ctx: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let i: i32 = 0;
+  while (i < pipe_dep_sc_max()) {
+    let sc: *u8 = pipe_dep_sc_at(i);
+    let used: i32 = pipe_load_i32_le(sc, pipe_dep_sc_off_used());
+    if (used != 0) {
+      let k: *u8 = pipe_load_ptr_slot(sc, 0);
+      if (k == ctx) {
+        pipe_dep_sc_free(sc);
+        return;
+      }
+    }
+    i = i + 1;
+  }
+}
+
+
+/**
+ * Reset dep / lib_root GrowVec lens and header ndep / num_lib_roots.
+ * @param ctx *u8 - PipelineDepCtx*
+ * @return void
+ * wave272 pure-owned leave (was pipeline_dep_ctx_reset).
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_reset(ctx: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc != 0 as *u8) {
+    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules()), 0);
+    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas()), 0);
+    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows()), 0);
+    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens()), 0);
+    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows()), 0);
+    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens()), 0);
+  }
+  pipe_store_i32_le(ctx, pipe_pctx_off_ndep(), 0);
+  pipe_store_i32_le(ctx, pipe_pctx_off_num_lib_roots(), 0);
+}
+
+/**
+ * Set dep module pointer at idx (create slot if needed).
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param idx i32 - dep index; <0 ignored
+ * @param m *u8 - Module* (may be null)
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void {
+  if (ctx == 0 as *u8 || idx < 0) {
+    return;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 1);
+  if (sc == 0 as *u8) {
+    return;
+  }
+  if (pipe_depctx_ensure_slot(sc, idx) == 0) {
+    return;
+  }
+  let mods: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules());
+  let pm: *u8 = grow_vec_at(mods, idx);
+  if (pm != 0 as *u8) {
+    pipe_store_ptr_slot(pm, 0, m);
+  }
+  let nd: i32 = pipe_load_i32_le(ctx, pipe_pctx_off_ndep());
+  if (idx + 1 > nd) {
+    pipe_store_i32_le(ctx, pipe_pctx_off_ndep(), idx + 1);
+  }
+}
+
+/**
+ * Set dep arena pointer at idx.
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param idx i32
+ * @param a *u8 - ASTArena*
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a: *u8): void {
+  if (ctx == 0 as *u8 || idx < 0) {
+    return;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 1);
+  if (sc == 0 as *u8) {
+    return;
+  }
+  if (pipe_depctx_ensure_slot(sc, idx) == 0) {
+    return;
+  }
+  let ars: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas());
+  let pa: *u8 = grow_vec_at(ars, idx);
+  if (pa != 0 as *u8) {
+    pipe_store_ptr_slot(pa, 0, a);
+  }
+}
+
+/**
+ * Read dep Module* at idx.
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param idx i32
+ * @return *u8 - Module* or null
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8 {
+  if (ctx == 0 as *u8 || idx < 0) {
+    return 0 as *u8;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let mods: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules());
+  if (idx >= pipe_gv_load_len(mods)) {
+    return 0 as *u8;
+  }
+  let pm: *u8 = grow_vec_at(mods, idx);
+  if (pm == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return pipe_load_ptr_slot(pm, 0);
+}
+
+/**
+ * Read dep ASTArena* at idx.
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param idx i32
+ * @return *u8 - ASTArena* or null
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8 {
+  if (ctx == 0 as *u8 || idx < 0) {
+    return 0 as *u8;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let ars: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas());
+  if (idx >= pipe_gv_load_len(ars)) {
+    return 0 as *u8;
+  }
+  let pa: *u8 = grow_vec_at(ars, idx);
+  if (pa == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return pipe_load_ptr_slot(pa, 0);
+}
+
+/**
+ * Store import path bytes for dep idx (cap 127 + NUL in 128-byte row).
+ * @param ctx *u8 - PipelineDepCtx*
+ * @param idx i32
+ * @param bytes *u8 - path bytes
+ * @param len i32 - byte count; <=0 ignored
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8, len: i32): void {
+  if (ctx == 0 as *u8 || idx < 0 || bytes == 0 as *u8 || len <= 0) {
+    return;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 1);
+  if (sc == 0 as *u8) {
+    return;
+  }
+  if (pipe_depctx_ensure_slot(sc, idx) == 0) {
+    return;
+  }
+  let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows());
+  let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens());
+  let row: *u8 = grow_vec_at(rows, idx);
+  let pl: *u8 = grow_vec_at(lens, idx);
+  if (row == 0 as *u8 || pl == 0 as *u8) {
+    return;
+  }
+  let n: i32 = len;
+  if (n > 127) {
+    n = 127;
+  }
+  unsafe {
+    memset(row, 0, 128 as usize);
+    memcpy(row, bytes, n as usize);
+  }
+  row[n] = 0;
+  pipe_store_i32_le(pl, 0, n);
+}
+
+/**
+ * Import path length at dep idx.
+ * @param ctx *u8
+ * @param idx i32
+ * @return i32 - length or 0
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_import_path_len(ctx: *u8, idx: i32): i32 {
+  if (ctx == 0 as *u8 || idx < 0) {
+    return 0;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc == 0 as *u8) {
+    return 0;
+  }
+  let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens());
+  if (idx >= pipe_gv_load_len(lens)) {
+    return 0;
+  }
+  let pl: *u8 = grow_vec_at(lens, idx);
+  if (pl == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(pl, 0);
+}
+
+/**
+ * Byte at off of dep import path.
+ * @param ctx *u8
+ * @param idx i32
+ * @param off i32
+ * @return u8 - byte or 0
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_import_path_byte_at(ctx: *u8, idx: i32, off: i32): u8 {
+  if (ctx == 0 as *u8 || idx < 0 || off < 0) {
+    return 0 as u8;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc == 0 as *u8) {
+    return 0 as u8;
+  }
+  let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows());
+  let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens());
+  if (idx >= pipe_gv_load_len(rows)) {
+    return 0 as u8;
+  }
+  let pl: *u8 = grow_vec_at(lens, idx);
+  let row: *u8 = grow_vec_at(rows, idx);
+  if (pl == 0 as *u8 || row == 0 as *u8) {
+    return 0 as u8;
+  }
+  let n: i32 = pipe_load_i32_le(pl, 0);
+  if (off >= n) {
+    return 0 as u8;
+  }
+  return row[off];
+}
+
+/**
+ * Copy dep import path into dst (zero first 128 bytes). Historical name copy64.
+ * @param ctx *u8
+ * @param idx i32
+ * @param dst *u8 - caller provides >=128 bytes
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_import_path_copy64(ctx: *u8, idx: i32, dst: *u8): void {
+  if (dst == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    memset(dst, 0, 128 as usize);
+  }
+  if (ctx == 0 as *u8 || idx < 0) {
+    return;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc == 0 as *u8) {
+    return;
+  }
+  let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows());
+  let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens());
+  if (idx >= pipe_gv_load_len(rows)) {
+    return;
+  }
+  let pl: *u8 = grow_vec_at(lens, idx);
+  let row: *u8 = grow_vec_at(rows, idx);
+  if (pl == 0 as *u8 || row == 0 as *u8) {
+    return;
+  }
+  let n: i32 = pipe_load_i32_le(pl, 0);
+  if (n > 127) {
+    n = 127;
+  }
+  let k: i32 = 0;
+  while (k < n) {
+    dst[k] = row[k];
+    k = k + 1;
+  }
+}
+
+/**
+ * Soft-sync ndep from sidecar modules.len if larger; return ndep.
+ * @param ctx *u8
+ * @return i32 - ndep or 0
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_ndep(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  let nd: i32 = pipe_load_i32_le(ctx, pipe_pctx_off_ndep());
+  if (sc != 0 as *u8) {
+    let mods: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules());
+    let ml: i32 = pipe_gv_load_len(mods);
+    if (ml > nd) {
+      pipe_store_i32_le(ctx, pipe_pctx_off_ndep(), ml);
+      nd = ml;
+    }
+  }
+  return nd;
+}
+
+/**
+ * Write ctx.ndep.
+ * @param ctx *u8
+ * @param n i32 - clamped to >=0
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let v: i32 = n;
+  if (v < 0) {
+    v = 0;
+  }
+  pipe_store_i32_le(ctx, pipe_pctx_off_ndep(), v);
+}
+
+/**
+ * Read current_codegen_prefix_len.
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_codegen_prefix_len(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_current_codegen_prefix_len());
+}
+
+/**
+ * Read current_codegen_prefix_mirror[off].
+ * @param ctx *u8
+ * @param off i32
+ * @return u8
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_codegen_prefix_byte_at(ctx: *u8, off: i32): u8 {
+  if (ctx == 0 as *u8 || off < 0) {
+    return 0 as u8;
+  }
+  let n: i32 = pipe_load_i32_le(ctx, pipe_pctx_off_current_codegen_prefix_len());
+  if (off >= n || off >= 64) {
+    return 0 as u8;
+  }
+  let base: *u8 = ctx + (pipe_pctx_off_current_codegen_prefix_mirror() as usize);
+  return base[off];
+}
+
+/**
+ * Copy prefix_mirror into dst (NUL-terminated, max cap-1).
+ * @param ctx *u8
+ * @param dst *u8
+ * @param cap i32
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_codegen_prefix_copy(ctx: *u8, dst: *u8, cap: i32): void {
+  if (ctx == 0 as *u8 || dst == 0 as *u8 || cap <= 0) {
+    return;
+  }
+  let n: i32 = pipe_load_i32_le(ctx, pipe_pctx_off_current_codegen_prefix_len());
+  if (n >= cap) {
+    n = cap - 1;
+  }
+  let base: *u8 = ctx + (pipe_pctx_off_current_codegen_prefix_mirror() as usize);
+  let k: i32 = 0;
+  while (k < n) {
+    dst[k] = base[k];
+    k = k + 1;
+  }
+  dst[n] = 0;
+}
+
+/**
+ * Write current_codegen_prefix_mirror + len (max 127).
+ * @param ctx *u8
+ * @param bytes *u8
+ * @param len i32
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_codegen_prefix_mirror(ctx: *u8, bytes: *u8, len: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let n: i32 = len;
+  if (n > 127) {
+    n = 127;
+  }
+  if (n < 0) {
+    n = 0;
+  }
+  pipe_store_i32_le(ctx, pipe_pctx_off_current_codegen_prefix_len(), 0);
+  let base: *u8 = ctx + (pipe_pctx_off_current_codegen_prefix_mirror() as usize);
+  let k: i32 = 0;
+  while (k < n) {
+    if (bytes != 0 as *u8) {
+      base[k] = bytes[k];
+    } else {
+      base[k] = 0 as u8;
+    }
+    k = k + 1;
+  }
+  base[n] = 0;
+  pipe_store_i32_le(ctx, pipe_pctx_off_current_codegen_prefix_len(), n);
+}
+
+/**
+ * Return path_buf base pointer.
+ * @param ctx *u8
+ * @return *u8
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_path_buf_ptr(ctx: *u8): *u8 {
+  if (ctx == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return ctx + (pipe_pctx_off_path_buf() as usize);
+}
+
+/**
+ * path_buf[off] read.
+ * @param ctx *u8
+ * @param off i32
+ * @return u8
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_path_buf_byte_at(ctx: *u8, off: i32): u8 {
+  if (ctx == 0 as *u8 || off < 0 || off >= 512) {
+    return 0 as u8;
+  }
+  let base: *u8 = ctx + (pipe_pctx_off_path_buf() as usize);
+  return base[off];
+}
+
+/**
+ * path_buf[off] write.
+ * @param ctx *u8
+ * @param off i32
+ * @param b u8
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_path_buf_byte(ctx: *u8, off: i32, b: u8): void {
+  if (ctx == 0 as *u8 || off < 0 || off >= 512) {
+    return;
+  }
+  let base: *u8 = ctx + (pipe_pctx_off_path_buf() as usize);
+  base[off] = b;
+}
+
+/**
+ * entry_dir_len read.
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_entry_dir_len(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_entry_dir_len());
+}
+
+/**
+ * Copy entry_dir_buf into dst (NUL-terminated).
+ * @param ctx *u8
+ * @param dst *u8
+ * @param cap i32
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_entry_dir_copy(ctx: *u8, dst: *u8, cap: i32): void {
+  if (ctx == 0 as *u8 || dst == 0 as *u8 || cap <= 0) {
+    return;
+  }
+  let n: i32 = pipe_load_i32_le(ctx, pipe_pctx_off_entry_dir_len());
+  if (n >= cap) {
+    n = cap - 1;
+  }
+  let base: *u8 = ctx + (pipe_pctx_off_entry_dir_buf() as usize);
+  let k: i32 = 0;
+  while (k < n) {
+    dst[k] = base[k];
+    k = k + 1;
+  }
+  dst[n] = 0;
+}
+
+/**
+ * Ensure source buffers present (embedded in ctx; always ok if non-null).
+ * @param ctx *u8
+ * @return i32 - 0 ok, -1 null
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_ensure_source_buffers(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Clear loaded_len / preprocess_len (embedded buffers; no free).
+ * @param ctx *u8
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_free_source_buffers(ctx: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  pipe_store_i64_zero(ctx, pipe_pctx_off_loaded_len());
+  pipe_store_i32_le(ctx, pipe_pctx_off_preprocess_len(), 0);
+}
+
+/**
+ * Release sidecar + clear lens + free(ctx) for heap-allocated PipelineDepCtx.
+ * @param ctx *u8
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_heap_destroy(ctx: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  pipeline_dep_ctx_sidecar_release(ctx);
+  pipeline_dep_ctx_free_source_buffers(ctx);
+  // free is export extern "C" — typeck T001 requires unsafe for extern calls.
+  unsafe {
+    free(ctx);
+  }
+}
+
+/**
+ * loaded_buf base.
+ * @param ctx *u8
+ * @return *u8
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_loaded_buf_ptr(ctx: *u8): *u8 {
+  if (ctx == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return ctx + (pipe_pctx_off_loaded_buf() as usize);
+}
+
+/**
+ * preprocess_buf base.
+ * @param ctx *u8
+ * @return *u8
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *u8): *u8 {
+  if (ctx == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return ctx + (pipe_pctx_off_preprocess_buf() as usize);
+}
+
+/**
+ * Store loaded_len (i64 / ptrdiff_t).
+ * @param ctx *u8
+ * @param n i64
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_loaded_len(ctx: *u8, n: i64): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  // loaded_len at offset 4195344 = size_t slot index 524418
+  xlang_size_slot_set(ctx, 524418, n);
+}
+
+/**
+ * entry_already_parsed flag.
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_entry_already_parsed(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_entry_already_parsed());
+}
+
+/**
+ * asm_entry_module_only flag.
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_asm_entry_module_only(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_asm_entry_module_only());
+}
+
+/**
+ * xlang check mode from driver slot (ctx unused).
+ * @param ctx *u8 - ignored
+ * @return i32 - driver_check_only_get
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_check_only_mode(ctx: *u8): i32 {
+  let _c: *u8 = ctx;
+  let co: i32 = 0;
+  // driver_check_only_get is export extern "C" — T001 requires unsafe.
+  unsafe {
+    co = driver_check_only_get();
+  }
+  return co;
+}
+
+/**
+ * use_asm_backend flag.
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_use_asm_backend(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_use_asm_backend());
+}
+
+/**
+ * use_macho_o flag.
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_use_macho_o(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_use_macho_o());
+}
+
+/**
+ * use_coff_o flag.
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_use_coff_o(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_use_coff_o());
+}
+
+/**
+ * target_arch field.
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_target_arch(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_target_arch());
+}
+
+/**
+ * entry_dir_buf[off].
+ * @param ctx *u8
+ * @param off i32
+ * @return u8
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_entry_dir_byte_at(ctx: *u8, off: i32): u8 {
+  if (ctx == 0 as *u8 || off < 0) {
+    return 0 as u8;
+  }
+  let n: i32 = pipe_load_i32_le(ctx, pipe_pctx_off_entry_dir_len());
+  if (off >= n || off >= 512) {
+    return 0 as u8;
+  }
+  let base: *u8 = ctx + (pipe_pctx_off_entry_dir_buf() as usize);
+  return base[off];
+}
+
+/**
+ * current_codegen_dep_index (-1 if null).
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_current_codegen_dep_index(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_current_codegen_dep_index());
+}
+
+/**
+ * current_codegen_module pointer.
+ * @param ctx *u8
+ * @return *u8
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_current_codegen_module(ctx: *u8): *u8 {
+  if (ctx == 0 as *u8) {
+    return 0 as *u8;
+  }
+  // offset 8389720 / 8 = slot 1048715
+  return pipe_load_ptr_slot(ctx + (pipe_pctx_off_current_codegen_module() as usize), 0);
+}
+
+/**
+ * current_codegen_arena pointer.
+ * @param ctx *u8
+ * @return *u8
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_current_codegen_arena(ctx: *u8): *u8 {
+  if (ctx == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return pipe_load_ptr_slot(ctx + (pipe_pctx_off_current_codegen_arena() as usize), 0);
+}
+
+/**
+ * current_func_index (-1 if null).
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_current_func_index(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_current_func_index());
+}
+
+/**
+ * current_block_ref (0 if null).
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_current_block_ref_at(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_current_block_ref());
+}
+
+/**
+ * Set current_codegen_module.
+ * @param ctx *u8
+ * @param m *u8
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_current_codegen_module(ctx: *u8, m: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  pipe_store_ptr_slot(ctx + (pipe_pctx_off_current_codegen_module() as usize), 0, m);
+}
+
+/**
+ * Set current_codegen_arena.
+ * @param ctx *u8
+ * @param a *u8
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_current_codegen_arena(ctx: *u8, a: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  pipe_store_ptr_slot(ctx + (pipe_pctx_off_current_codegen_arena() as usize), 0, a);
+}
+
+/**
+ * Set current_codegen_dep_index.
+ * @param ctx *u8
+ * @param ix i32
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_current_codegen_dep_index(ctx: *u8, ix: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  pipe_store_i32_le(ctx, pipe_pctx_off_current_codegen_dep_index(), ix);
+}
+
+/**
+ * Set current_func_index.
+ * @param ctx *u8
+ * @param ix i32
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_current_func_index(ctx: *u8, ix: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  pipe_store_i32_le(ctx, pipe_pctx_off_current_func_index(), ix);
+}
+
+/**
+ * Append -L lib_root path (256-byte row, max 255 bytes).
+ * @param ctx *u8
+ * @param path *u8
+ * @param len i32
+ * @return i32 - new index or -1
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32 {
+  if (ctx == 0 as *u8 || path == 0 as *u8 || len <= 0) {
+    return 0 - 1;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 1);
+  if (sc == 0 as *u8) {
+    return 0 - 1;
+  }
+  let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows());
+  let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens());
+  let idx: i32 = grow_vec_push(rows);
+  if (idx < 0) {
+    return 0 - 1;
+  }
+  if (grow_vec_push(lens) < 0) {
+    return 0 - 1;
+  }
+  let row: *u8 = grow_vec_at(rows, idx);
+  let pl: *u8 = grow_vec_at(lens, idx);
+  if (row == 0 as *u8 || pl == 0 as *u8) {
+    return 0 - 1;
+  }
+  let n: i32 = len;
+  if (n > 255) {
+    n = 255;
+  }
+  unsafe {
+    memset(row, 0, 256 as usize);
+    memcpy(row, path, n as usize);
+  }
+  pipe_store_i32_le(pl, 0, n);
+  pipe_store_i32_le(ctx, pipe_pctx_off_num_lib_roots(), pipe_gv_load_len(rows));
+  return idx;
+}
+
+/**
+ * lib_root count from sidecar (0 if none).
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_ctx_lib_root_count(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc == 0 as *u8) {
+    return 0;
+  }
+  return pipe_gv_load_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows()));
+}
+
+/**
+ * lib_root path length at i.
+ * @param ctx *u8
+ * @param i i32
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_ctx_lib_root_len(ctx: *u8, i: i32): i32 {
+  if (ctx == 0 as *u8 || i < 0) {
+    return 0;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc == 0 as *u8) {
+    return 0;
+  }
+  let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens());
+  if (i >= pipe_gv_load_len(lens)) {
+    return 0;
+  }
+  let pl: *u8 = grow_vec_at(lens, i);
+  if (pl == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(pl, 0);
+}
+
+/**
+ * Copy lib_root path i into dst.
+ * @param ctx *u8
+ * @param i i32
+ * @param dst *u8
+ * @param cap i32
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_ctx_lib_root_copy(ctx: *u8, i: i32, dst: *u8, cap: i32): void {
+  if (dst == 0 as *u8 || cap <= 0) {
+    return;
+  }
+  unsafe {
+    memset(dst, 0, cap as usize);
+  }
+  if (ctx == 0 as *u8 || i < 0) {
+    return;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc == 0 as *u8) {
+    return;
+  }
+  let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows());
+  let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens());
+  if (i >= pipe_gv_load_len(rows)) {
+    return;
+  }
+  let pl: *u8 = grow_vec_at(lens, i);
+  let row: *u8 = grow_vec_at(rows, i);
+  if (pl == 0 as *u8 || row == 0 as *u8) {
+    return;
+  }
+  let n: i32 = pipe_load_i32_le(pl, 0);
+  if (n >= cap) {
+    n = cap - 1;
+  }
+  let k: i32 = 0;
+  while (k < n) {
+    dst[k] = row[k];
+    k = k + 1;
+  }
+}
+
+/**
+ * lib_root path byte at (i, off).
+ * @param ctx *u8
+ * @param i i32
+ * @param off i32
+ * @return u8
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_ctx_lib_root_byte_at(ctx: *u8, i: i32, off: i32): u8 {
+  if (ctx == 0 as *u8 || i < 0 || off < 0) {
+    return 0 as u8;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc == 0 as *u8) {
+    return 0 as u8;
+  }
+  let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows());
+  let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens());
+  if (i >= pipe_gv_load_len(rows)) {
+    return 0 as u8;
+  }
+  let pl: *u8 = grow_vec_at(lens, i);
+  let row: *u8 = grow_vec_at(rows, i);
+  if (pl == 0 as *u8 || row == 0 as *u8) {
+    return 0 as u8;
+  }
+  let n: i32 = pipe_load_i32_le(pl, 0);
+  if (off >= n) {
+    return 0 as u8;
+  }
+  return row[off];
+}
+
+/**
+ * Reset empty-param index pool + header count.
+ * @param ctx *u8
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_empty_param_reset(ctx: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc != 0 as *u8) {
+    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices()), 0);
+  }
+  pipe_store_i32_le(ctx, pipe_pctx_off_current_func_empty_param_count(), 0);
+}
+
+/**
+ * Append empty-param index pi.
+ * @param ctx *u8
+ * @param pi i32
+ * @return i32 - new index or -1
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_empty_param_append(ctx: *u8, pi: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 1);
+  if (sc == 0 as *u8) {
+    return 0 - 1;
+  }
+  let idxv: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices());
+  if (grow_vec_push(idxv) < 0) {
+    return 0 - 1;
+  }
+  let slot: *u8 = grow_vec_at(idxv, pipe_gv_load_len(idxv) - 1);
+  if (slot == 0 as *u8) {
+    return 0 - 1;
+  }
+  pipe_store_i32_le(slot, 0, pi);
+  let n: i32 = pipe_gv_load_len(idxv);
+  pipe_store_i32_le(ctx, pipe_pctx_off_current_func_empty_param_count(), n);
+  return n - 1;
+}
+
+/**
+ * empty-param index at i (-1 if OOB).
+ * @param ctx *u8
+ * @param i i32
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_empty_param_at(ctx: *u8, i: i32): i32 {
+  if (ctx == 0 as *u8 || i < 0) {
+    return 0 - 1;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc == 0 as *u8) {
+    return 0 - 1;
+  }
+  let idxv: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices());
+  if (i >= pipe_gv_load_len(idxv)) {
+    return 0 - 1;
+  }
+  let slot: *u8 = grow_vec_at(idxv, i);
+  if (slot == 0 as *u8) {
+    return 0 - 1;
+  }
+  return pipe_load_i32_le(slot, 0);
+}
+
+/**
+ * Backup empty-param indices into backup GrowVec.
+ * @param ctx *u8
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_empty_param_backup(ctx: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 1);
+  if (sc == 0 as *u8) {
+    return;
+  }
+  let bak: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_backup());
+  let idxv: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices());
+  pipe_gv_store_len(bak, 0);
+  grow_vec_copy_append(bak, idxv);
+}
+
+/**
+ * Restore empty-param indices from backup.
+ * @param ctx *u8
+ * @return void
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_empty_param_restore(ctx: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
+  if (sc == 0 as *u8) {
+    return;
+  }
+  let bak: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_backup());
+  let idxv: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices());
+  pipe_gv_store_len(idxv, 0);
+  grow_vec_copy_append(idxv, bak);
+  pipe_store_i32_le(ctx, pipe_pctx_off_current_func_empty_param_count(), pipe_gv_load_len(idxv));
+}
+
+/**
+ * typeck_loop_depth field read.
+ * @param ctx *u8
+ * @return i32
+ * wave272 pure-owned leave.
+ * PLATFORM: SHARED freestanding DepCtx Cap leave.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_typeck_loop_depth_at(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(ctx, pipe_pctx_off_typeck_loop_depth());
+}
+
+// end wave272 pure-owned leave

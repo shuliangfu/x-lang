@@ -253,8 +253,68 @@ void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct as
 #include "ast_pool_expr_sidecar.c"
 
 /** BC 8.3.2: PipelineDepCtx cold accessors domain (same-TU thin). */
-#include "ast_pool_dep_ctx.c"
-
+/* wave272: ast_pool_dep_ctx.c pure-owned leave — authority runtime_pipeline_abi pure.
+ * Live faces: #[no_mangle] pipeline_dep_ctx_* / pipeline_ctx_* / sidecar_release
+ * in runtime_pipeline_abi.x (seed cold twin under #ifndef FROM_X).
+ * Same-TU residual (pipeline_glue → ast_pool → pipeline_ast_forwarders) keeps
+ * only extern prototypes so forwarders compile; bodies are U from this TU and
+ * T from runtime_pipeline_abi.o (dual-export ban).
+ * PLATFORM: SHARED freestanding DepCtx Cap leave. */
+void pipeline_dep_ctx_sidecar_release(struct ast_PipelineDepCtx *ctx);
+void pipeline_dep_ctx_reset(struct ast_PipelineDepCtx *ctx);
+void pipeline_dep_ctx_set_module(struct ast_PipelineDepCtx *ctx, int32_t idx, struct ast_Module *m);
+void pipeline_dep_ctx_set_arena(struct ast_PipelineDepCtx *ctx, int32_t idx, struct ast_ASTArena *a);
+struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
+struct ast_ASTArena *pipeline_dep_ctx_arena_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
+void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes, int32_t len);
+int32_t pipeline_dep_ctx_import_path_len(struct ast_PipelineDepCtx *ctx, int32_t idx);
+uint8_t pipeline_dep_ctx_import_path_byte_at(struct ast_PipelineDepCtx *ctx, int32_t idx, int32_t off);
+void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *dst);
+int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
+void pipeline_dep_ctx_set_ndep(struct ast_PipelineDepCtx *ctx, int32_t n);
+int32_t pipeline_dep_ctx_codegen_prefix_len(struct ast_PipelineDepCtx *ctx);
+uint8_t pipeline_dep_ctx_codegen_prefix_byte_at(struct ast_PipelineDepCtx *ctx, int32_t off);
+void pipeline_dep_ctx_codegen_prefix_copy(struct ast_PipelineDepCtx *ctx, uint8_t *dst, int32_t cap);
+void pipeline_dep_ctx_set_codegen_prefix_mirror(struct ast_PipelineDepCtx *ctx, uint8_t *bytes, int32_t len);
+uint8_t *pipeline_dep_ctx_path_buf_ptr(struct ast_PipelineDepCtx *ctx);
+uint8_t pipeline_dep_ctx_path_buf_byte_at(struct ast_PipelineDepCtx *ctx, int32_t off);
+void pipeline_dep_ctx_set_path_buf_byte(struct ast_PipelineDepCtx *ctx, int32_t off, uint8_t b);
+int32_t pipeline_dep_ctx_entry_dir_len(struct ast_PipelineDepCtx *ctx);
+void pipeline_dep_ctx_entry_dir_copy(struct ast_PipelineDepCtx *ctx, uint8_t *dst, int32_t cap);
+int32_t pipeline_dep_ctx_ensure_source_buffers(struct ast_PipelineDepCtx *ctx);
+void pipeline_dep_ctx_free_source_buffers(struct ast_PipelineDepCtx *ctx);
+void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
+uint8_t *pipeline_dep_ctx_loaded_buf_ptr(struct ast_PipelineDepCtx *ctx);
+uint8_t *pipeline_dep_ctx_preprocess_buf_ptr(struct ast_PipelineDepCtx *ctx);
+void pipeline_dep_ctx_set_loaded_len(struct ast_PipelineDepCtx *ctx, ptrdiff_t n);
+int32_t pipeline_dep_ctx_entry_already_parsed(struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_dep_ctx_asm_entry_module_only(struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_dep_ctx_check_only_mode(struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_dep_ctx_use_asm_backend(struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_dep_ctx_use_macho_o(struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_dep_ctx_use_coff_o(struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_dep_ctx_target_arch(struct ast_PipelineDepCtx *ctx);
+uint8_t pipeline_dep_ctx_entry_dir_byte_at(struct ast_PipelineDepCtx *ctx, int32_t off);
+int32_t pipeline_dep_ctx_current_codegen_dep_index(struct ast_PipelineDepCtx *ctx);
+struct ast_Module *pipeline_dep_ctx_current_codegen_module(struct ast_PipelineDepCtx *ctx);
+struct ast_ASTArena *pipeline_dep_ctx_current_codegen_arena(struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_dep_ctx_current_func_index(struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_dep_ctx_current_block_ref_at(struct ast_PipelineDepCtx *ctx);
+void pipeline_dep_ctx_set_current_codegen_module(struct ast_PipelineDepCtx *ctx, struct ast_Module *m);
+void pipeline_dep_ctx_set_current_codegen_arena(struct ast_PipelineDepCtx *ctx, struct ast_ASTArena *a);
+void pipeline_dep_ctx_set_current_codegen_dep_index(struct ast_PipelineDepCtx *ctx, int32_t ix);
+void pipeline_dep_ctx_set_current_func_index(struct ast_PipelineDepCtx *ctx, int32_t ix);
+int32_t pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint8_t *path, int32_t len);
+int32_t pipeline_ctx_lib_root_count(struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_ctx_lib_root_len(struct ast_PipelineDepCtx *ctx, int32_t i);
+void pipeline_ctx_lib_root_copy(struct ast_PipelineDepCtx *ctx, int32_t i, uint8_t *dst, int32_t cap);
+uint8_t pipeline_ctx_lib_root_byte_at(struct ast_PipelineDepCtx *ctx, int32_t i, int32_t off);
+void pipeline_dep_ctx_empty_param_reset(struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_dep_ctx_empty_param_append(struct ast_PipelineDepCtx *ctx, int32_t pi);
+int32_t pipeline_dep_ctx_empty_param_at(struct ast_PipelineDepCtx *ctx, int32_t i);
+void pipeline_dep_ctx_empty_param_backup(struct ast_PipelineDepCtx *ctx);
+void pipeline_dep_ctx_empty_param_restore(struct ast_PipelineDepCtx *ctx);
+int32_t pipeline_dep_ctx_typeck_loop_depth_at(struct ast_PipelineDepCtx *ctx);
 
 /* 2026-08-05: pipeline_resolve_path.c pure-owned leave retired.
  * Live face: runtime_pipeline_abi.x (path_append_*_c / resolve probe / flat_import /

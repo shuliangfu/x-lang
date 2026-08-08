@@ -1356,7 +1356,7 @@ B7B_RELINK_LEGACY_LIST_WAVE=wave822
 #   ast_pool_module_import(leave263) + ast_pool_struct_layout(leave266) + pipeline_asm_locals(leave267) + pipeline_asm_slot_bytes(leave268) + pipeline_asm_block_tree(leave269) + ast_pool_type(leave270) + pipeline_grow_vec(leave271) +
 #   ast_pool_top_level(leave265) + ast_pool_type_alias(leave262) +
 #   ast_pool_expr_sidecar + ast_pool_module_enum(leave264) +
-#   ast_pool_onefunc + ast_pool_dep_ctx + ast_pool_module_func + ast_pool_arena +
+#   ast_pool_onefunc + ast_pool_dep_ctx(leave272) + ast_pool_module_func + ast_pool_arena +
 #   ast_pool_block) into PIPELINE_X_DEPS STALE.
 # NOT physical delete — thin edges + std_core product make graph remain.
 PHYS_DEL_B7B_SOURCE_DEPS_LIST=1
@@ -9143,6 +9143,14 @@ fi
 if [ -f "$ROOT/compiler/pipeline_grow_vec.c" ]; then
   bad "pipeline_grow_vec.c must be deleted (wave271 pure-owned leave)"
 fi
+
+# wave272 host-cc leave: ast_pool_dep_ctx Cap residual retired; authority runtime_pipeline_abi pure.
+if grep -qE 'ast_pool_dep_ctx\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_dep_ctx.c (wave272 host-cc leave)"
+fi
+if [ -f "$ROOT/compiler/ast_pool_dep_ctx.c" ]; then
+  bad "ast_pool_dep_ctx.c must be deleted (wave272 pure-owned leave)"
+fi
 if grep -qE 'ast_pool_module_import\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list ast_pool_module_import.c (wave263 host-cc leave)"
 fi
@@ -9348,7 +9356,7 @@ if ! grep -qE 'ast_pool_onefunc\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_onefunc.c (8.3.2 onefunc slice)"
 fi
 if ! grep -qE 'ast_pool_dep_ctx\.c' "$_XSD_MK"; then
-  bad "PIPELINE_X_DEPS must list ast_pool_dep_ctx.c (8.3.2 dep_ctx slice)"
+  bad "PIPELINE_X_DEPS must list (8.3.2 dep_ctx slice)"
 fi
 if ! grep -qE 'ast_pool_module_func\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must list ast_pool_module_func.c (8.3.2 module_func slice)"

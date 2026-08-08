@@ -80,7 +80,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_expr_sidecar.c|8.3.2|expr (+ type-pos) var-len sidecar domain slice|620|present"
   "compiler/ast_pool_module_enum.c|8.3.2|module ModuleEnumEntry Cap residual pure-owned leave (wave264)|0|absent"
   "compiler/ast_pool_onefunc.c|8.3.2|OneFunc sidecar + fill_from_onefunc residual (defer/labeled/if/region/stmt_order/whiles/fors) slice|900|present"
-  "compiler/ast_pool_dep_ctx.c|8.3.2|PipelineDepCtx cold accessors + lib_root + empty_param slice|480|present"
+  "compiler/ast_pool_dep_ctx.c|8.3.2|PipelineDepCtx Cap residual pure-owned leave (wave272)|0|absent"
   "compiler/ast_pool_module_func.c|8.3.2|module Func cold accessors + param sidecar slice|400|present"
   "compiler/ast_pool_arena.c|8.3.2|ASTArena main-pool cold accessors slice|200|present"
   "compiler/ast_pool_block.c|8.3.2|block append/region/defer + loop/labeled/getters + parent/resolve + stmt_order rebuild/fixup residual slice|1300|present"
@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.1 elf residual / pipeline_x mega host-cc leave (grow_vec leave wave271); pure-owned leave candidates: elf_ctx + elf_write_o + ptr_at + glue_fwd shells + asm wpo + dep_ctx"
+  echo "NEXT=8.3.1 elf residual / pipeline_x mega host-cc leave (dep_ctx leave wave272); pure-owned leave candidates: elf_ctx + elf_write_o + ptr_at + glue_fwd shells + asm wpo"
 }
 
 run_check() {
