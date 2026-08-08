@@ -82223,3 +82223,612 @@ export function pipeline_asm_wpo_pgo_is_hot_func(m: *u8, fi: i32): i32 {
 }
 
 // end wave274 pure-owned leave
+
+// =============================================================================
+// wave275 pure-owned leave: Arena/Module/OneFunc sidecar process tables
+// (ast_pool_sidecar_pool.c host-cc leave)
+// =============================================================================
+// PLATFORM: SHARED freestanding LP64 little-endian.
+// Authority: arena_sidecar_get / module_sidecar_get / onefunc_sidecar_get +
+// arena_sidecar_free / module_sidecar_free / onefunc_sidecar_free live here
+// (#[no_mangle]). Residual host-cc leaf deleted; seed cold twins under
+// #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+// Layout LE (match ast_pool_typedefs.c / host pipeline_x.o):
+//   GrowVec sizeof 32 (wave271)
+//   ArenaSidecar sizeof 816: key*@0 used@8 types@16 … func_params@784
+//   ModuleSidecar sizeof 432: key*@0 used@8 funcs@16 … type_param_meta@400
+//   OneFuncSidecar sizeof 944: key*@0 used@8 if_cond@16 … labeleds@912
+// Caps: MAX_ARENA=512 MAX_MODULE=512 MAX_ONEFUNC=1024 (codegen M1 peak)
+// BSS: 512*816 + 512*432 + 1024*944 = 1605632 bytes total
+// G.7 single authority — no residual g_arena_sc dual table.
+// =============================================================================
+
+function pipe_arena_sc_size(): i32 { return 816; }
+function pipe_arena_sc_max(): i32 { return 512; }
+function pipe_module_sc_size(): i32 { return 432; }
+function pipe_module_sc_max(): i32 { return 512; }
+function pipe_onefunc_sc_size(): i32 { return 944; }
+function pipe_onefunc_sc_max(): i32 { return 1024; }
+
+// Flat BSS tables (zero-init; used flags start 0).
+let g_pipe_arena_sc_blob: u8[417792] = [];
+let g_pipe_module_sc_blob: u8[221184] = [];
+let g_pipe_onefunc_sc_blob: u8[966656] = [];
+
+/**
+ * Pointer to ArenaSidecar slot i (0..511).
+ * @param i i32 - slot index
+ * @return *u8 - sidecar base or null if i out of range
+ * PLATFORM: SHARED freestanding arena sidecar table.
+ */
+function pipe_arena_sc_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= pipe_arena_sc_max()) {
+    return 0 as *u8;
+  }
+  let off: i64 = (i as i64) * (pipe_arena_sc_size() as i64);
+  return &g_pipe_arena_sc_blob[0] + (off as usize);
+}
+
+/**
+ * Pointer to ModuleSidecar slot i (0..511).
+ * @param i i32 - slot index
+ * @return *u8 - sidecar base or null
+ * PLATFORM: SHARED freestanding module sidecar table.
+ */
+function pipe_module_sc_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= pipe_module_sc_max()) {
+    return 0 as *u8;
+  }
+  let off: i64 = (i as i64) * (pipe_module_sc_size() as i64);
+  return &g_pipe_module_sc_blob[0] + (off as usize);
+}
+
+/**
+ * Pointer to OneFuncSidecar slot i (0..1023).
+ * @param i i32 - slot index
+ * @return *u8 - sidecar base or null
+ * PLATFORM: SHARED freestanding onefunc sidecar table.
+ */
+function pipe_onefunc_sc_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= pipe_onefunc_sc_max()) {
+    return 0 as *u8;
+  }
+  let off: i64 = (i as i64) * (pipe_onefunc_sc_size() as i64);
+  return &g_pipe_onefunc_sc_blob[0] + (off as usize);
+}
+
+
+function pipe_arena_sc_free(sc: *u8): void {
+  if (sc == 0 as *u8) {
+    return;
+  }
+  grow_vec_free(sc + (16 as usize));
+  grow_vec_free(sc + (48 as usize));
+  grow_vec_free(sc + (80 as usize));
+  grow_vec_free(sc + (112 as usize));
+  grow_vec_free(sc + (144 as usize));
+  grow_vec_free(sc + (176 as usize));
+  grow_vec_free(sc + (208 as usize));
+  grow_vec_free(sc + (240 as usize));
+  grow_vec_free(sc + (272 as usize));
+  grow_vec_free(sc + (304 as usize));
+  grow_vec_free(sc + (336 as usize));
+  grow_vec_free(sc + (368 as usize));
+  grow_vec_free(sc + (400 as usize));
+  grow_vec_free(sc + (432 as usize));
+  grow_vec_free(sc + (464 as usize));
+  grow_vec_free(sc + (496 as usize));
+  grow_vec_free(sc + (528 as usize));
+  grow_vec_free(sc + (560 as usize));
+  grow_vec_free(sc + (592 as usize));
+  grow_vec_free(sc + (624 as usize));
+  grow_vec_free(sc + (656 as usize));
+  grow_vec_free(sc + (688 as usize));
+  grow_vec_free(sc + (720 as usize));
+  grow_vec_free(sc + (752 as usize));
+  grow_vec_free(sc + (784 as usize));
+  unsafe {
+    memset(sc, 0, pipe_arena_sc_size() as usize);
+  }
+}
+
+function pipe_module_sc_free(sc: *u8): void {
+  if (sc == 0 as *u8) {
+    return;
+  }
+  grow_vec_free(sc + (16 as usize));
+  grow_vec_free(sc + (48 as usize));
+  grow_vec_free(sc + (80 as usize));
+  grow_vec_free(sc + (112 as usize));
+  grow_vec_free(sc + (144 as usize));
+  grow_vec_free(sc + (176 as usize));
+  grow_vec_free(sc + (208 as usize));
+  grow_vec_free(sc + (240 as usize));
+  grow_vec_free(sc + (272 as usize));
+  grow_vec_free(sc + (304 as usize));
+  grow_vec_free(sc + (336 as usize));
+  grow_vec_free(sc + (368 as usize));
+  grow_vec_free(sc + (400 as usize));
+  unsafe {
+    memset(sc, 0, pipe_module_sc_size() as usize);
+  }
+}
+
+function pipe_onefunc_sc_free(sc: *u8): void {
+  if (sc == 0 as *u8) {
+    return;
+  }
+  grow_vec_free(sc + (16 as usize));
+  grow_vec_free(sc + (48 as usize));
+  grow_vec_free(sc + (80 as usize));
+  grow_vec_free(sc + (112 as usize));
+  grow_vec_free(sc + (144 as usize));
+  grow_vec_free(sc + (176 as usize));
+  grow_vec_free(sc + (208 as usize));
+  grow_vec_free(sc + (240 as usize));
+  grow_vec_free(sc + (272 as usize));
+  grow_vec_free(sc + (304 as usize));
+  grow_vec_free(sc + (336 as usize));
+  grow_vec_free(sc + (368 as usize));
+  grow_vec_free(sc + (400 as usize));
+  grow_vec_free(sc + (432 as usize));
+  grow_vec_free(sc + (464 as usize));
+  grow_vec_free(sc + (496 as usize));
+  grow_vec_free(sc + (528 as usize));
+  grow_vec_free(sc + (560 as usize));
+  grow_vec_free(sc + (592 as usize));
+  grow_vec_free(sc + (624 as usize));
+  grow_vec_free(sc + (656 as usize));
+  grow_vec_free(sc + (688 as usize));
+  grow_vec_free(sc + (720 as usize));
+  grow_vec_free(sc + (752 as usize));
+  grow_vec_free(sc + (784 as usize));
+  grow_vec_free(sc + (816 as usize));
+  grow_vec_free(sc + (848 as usize));
+  grow_vec_free(sc + (880 as usize));
+  grow_vec_free(sc + (912 as usize));
+  unsafe {
+    memset(sc, 0, pipe_onefunc_sc_size() as usize);
+  }
+}
+
+/**
+ * Free all GrowVec data buffers owned by a arena sidecar and mark slot unused.
+ * @param sc *u8 — arena sidecar base; null -> no-op
+ * @return void
+ * wave275 pure-owned leave. PLATFORM: SHARED freestanding.
+ */
+#[no_mangle]
+export function arena_sidecar_free(sc: *u8): void {
+  pipe_arena_sc_free(sc);
+}
+
+/**
+ * Free all GrowVec data buffers owned by a module sidecar and mark slot unused.
+ * @param sc *u8 — module sidecar base; null -> no-op
+ * @return void
+ * wave275 pure-owned leave. PLATFORM: SHARED freestanding.
+ */
+#[no_mangle]
+export function module_sidecar_free(sc: *u8): void {
+  pipe_module_sc_free(sc);
+}
+
+/**
+ * Free all GrowVec data buffers owned by a onefunc sidecar and mark slot unused.
+ * @param sc *u8 — onefunc sidecar base; null -> no-op
+ * @return void
+ * wave275 pure-owned leave. PLATFORM: SHARED freestanding.
+ */
+#[no_mangle]
+export function onefunc_sidecar_free(sc: *u8): void {
+  pipe_onefunc_sc_free(sc);
+}
+
+/**
+ * Lookup or create arena sidecar for pointer key.
+ * @param key *u8 — arena/module/onefunc key; null -> null
+ * @param create i32 — non-zero to allocate free slot + init GrowVecs
+ * @return *u8 — sidecar base or null
+ * wave275 pure-owned leave; G.7 single process table.
+ * PLATFORM: SHARED freestanding arena Cap leave.
+ */
+#[no_mangle]
+export function arena_sidecar_get(key: *u8, create: i32): *u8 {
+  if (key == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let i: i32 = 0;
+  while (i < pipe_arena_sc_max()) {
+    let sc: *u8 = pipe_arena_sc_at(i);
+    let used: i32 = pipe_load_i32_le(sc, 8);
+    if (used != 0) {
+      let k: *u8 = pipe_load_ptr_slot(sc, 0);
+      if (k == key) {
+        return sc;
+      }
+    }
+    i = i + 1;
+  }
+  if (create == 0) {
+    return 0 as *u8;
+  }
+  i = 0;
+  while (i < pipe_arena_sc_max()) {
+    let sc2: *u8 = pipe_arena_sc_at(i);
+    let used2: i32 = pipe_load_i32_le(sc2, 8);
+    if (used2 == 0) {
+      pipe_store_ptr_slot(sc2, 0, key);
+      pipe_store_i32_le(sc2, 8, 1);
+      let ic: i32 = pipe_gv_init_cap();
+      if (grow_vec_init(sc2 + (16 as usize), 276, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (48 as usize), 712, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (80 as usize), 92, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (112 as usize), 196, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (144 as usize), 140, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (176 as usize), 140, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (208 as usize), 12, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (240 as usize), 140, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (272 as usize), 8, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (304 as usize), 16, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (336 as usize), 4, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (368 as usize), 272, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (400 as usize), 4, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (432 as usize), 8, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (464 as usize), 4, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (496 as usize), 4, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (528 as usize), 4, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (560 as usize), 4, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (592 as usize), 4, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (624 as usize), 4, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (656 as usize), 4, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (688 as usize), 24, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (720 as usize), 136, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (752 as usize), 4, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (784 as usize), 136, ic) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      return sc2;
+    }
+    i = i + 1;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Lookup or create module sidecar for pointer key.
+ * @param key *u8 — arena/module/onefunc key; null -> null
+ * @param create i32 — non-zero to allocate free slot + init GrowVecs
+ * @return *u8 — sidecar base or null
+ * wave275 pure-owned leave; G.7 single process table.
+ * PLATFORM: SHARED freestanding module Cap leave.
+ */
+#[no_mangle]
+export function module_sidecar_get(key: *u8, create: i32): *u8 {
+  if (key == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let i: i32 = 0;
+  while (i < pipe_module_sc_max()) {
+    let sc: *u8 = pipe_module_sc_at(i);
+    let used: i32 = pipe_load_i32_le(sc, 8);
+    if (used != 0) {
+      let k: *u8 = pipe_load_ptr_slot(sc, 0);
+      if (k == key) {
+        return sc;
+      }
+    }
+    i = i + 1;
+  }
+  if (create == 0) {
+    return 0 as *u8;
+  }
+  i = 0;
+  while (i < pipe_module_sc_max()) {
+    let sc2: *u8 = pipe_module_sc_at(i);
+    let used2: i32 = pipe_load_i32_le(sc2, 8);
+    if (used2 == 0) {
+      pipe_store_ptr_slot(sc2, 0, key);
+      pipe_store_i32_le(sc2, 8, 1);
+      let ic: i32 = pipe_gv_init_cap();
+      if (grow_vec_init(sc2 + (16 as usize), 196, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (48 as usize), 4, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (80 as usize), 404, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (112 as usize), 160, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (144 as usize), 148, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (176 as usize), 136, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (208 as usize), 33932, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (240 as usize), 128, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (272 as usize), 4, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (304 as usize), 136, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (336 as usize), 144, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (368 as usize), 132, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (400 as usize), 8, ic) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      return sc2;
+    }
+    i = i + 1;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Lookup or create onefunc sidecar for pointer key.
+ * @param key *u8 — arena/module/onefunc key; null -> null
+ * @param create i32 — non-zero to allocate free slot + init GrowVecs
+ * @return *u8 — sidecar base or null
+ * wave275 pure-owned leave; G.7 single process table.
+ * PLATFORM: SHARED freestanding onefunc Cap leave.
+ */
+#[no_mangle]
+export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
+  if (key == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let i: i32 = 0;
+  while (i < pipe_onefunc_sc_max()) {
+    let sc: *u8 = pipe_onefunc_sc_at(i);
+    let used: i32 = pipe_load_i32_le(sc, 8);
+    if (used != 0) {
+      let k: *u8 = pipe_load_ptr_slot(sc, 0);
+      if (k == key) {
+        return sc;
+      }
+    }
+    i = i + 1;
+  }
+  if (create == 0) {
+    return 0 as *u8;
+  }
+  i = 0;
+  while (i < pipe_onefunc_sc_max()) {
+    let sc2: *u8 = pipe_onefunc_sc_at(i);
+    let used2: i32 = pipe_load_i32_le(sc2, 8);
+    if (used2 == 0) {
+      pipe_store_ptr_slot(sc2, 0, key);
+      pipe_store_i32_le(sc2, 8, 1);
+      let ic: i32 = pipe_gv_init_cap();
+      if (grow_vec_init(sc2 + (16 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (48 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (80 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (112 as usize), 128, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (144 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (176 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (208 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (240 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (272 as usize), 128, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (304 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (336 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (368 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (400 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (432 as usize), 1, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (464 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (496 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (528 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (560 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (592 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (624 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (656 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (688 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (720 as usize), 128, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (752 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (784 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (816 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (848 as usize), 140, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (880 as usize), 4, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      if (grow_vec_init(sc2 + (912 as usize), 272, ic) == 0) {
+        pipe_onefunc_sc_free(sc2);
+        return 0 as *u8;
+      }
+      return sc2;
+    }
+    i = i + 1;
+  }
+  return 0 as *u8;
+}
+
+// end wave275 pure-owned leave

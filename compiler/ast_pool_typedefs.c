@@ -314,6 +314,16 @@ typedef struct {
   GrowVec labeleds;
 } OneFuncSidecar;
 
+/* wave275 pure-owned leave: process tables live in runtime_pipeline_abi pure
+ * (g_pipe_*_sc_blob). Residual host-cc same-TU consumers use these Cap faces.
+ * dual-export ban: pipeline_abi T · pipeline_x U. PLATFORM: SHARED freestanding. */
+ArenaSidecar *arena_sidecar_get(struct ast_ASTArena *a, int create);
+void arena_sidecar_free(ArenaSidecar *sc);
+ModuleSidecar *module_sidecar_get(struct ast_Module *m, int create);
+void module_sidecar_free(ModuleSidecar *sc);
+OneFuncSidecar *onefunc_sidecar_get(uint8_t *out, int create);
+void onefunc_sidecar_free(OneFuncSidecar *sc);
+
 /** PipelineDepCtx 侧车：dep 槽与 -L lib_root 动态 grow（ctx 指针作键）。 */
 typedef struct {
   struct ast_PipelineDepCtx *ctx;

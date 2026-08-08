@@ -265,15 +265,13 @@ void ast_pool_arena_reset(struct ast_ASTArena *a) {
  * PLATFORM: SHARED — see `arena_sidecar_free`.
  */
 void ast_pool_arena_release(struct ast_ASTArena *a) {
-  int i;
+  ArenaSidecar *sc;
   if (!a)
     return;
-  for (i = 0; i < MAX_ARENA_SIDECARS; i++) {
-    if (g_arena_sc[i].used && g_arena_sc[i].arena == a) {
-      arena_sidecar_free(&g_arena_sc[i]);
-      return;
-    }
-  }
+  /* wave275: pure owns process table — free by key (no residual g_arena_sc). */
+  sc = arena_sidecar_get(a, 0);
+  if (sc)
+    arena_sidecar_free(sc);
 }
 
 /**
@@ -301,7 +299,7 @@ void pipeline_module_top_level_let_storage_release(struct ast_Module *m);
 void pipeline_module_struct_layout_storage_release(struct ast_Module *m);
 
 void ast_pool_module_release(struct ast_Module *m) {
-  int i;
+  ModuleSidecar *sc;
   if (!m)
     return;
   /* wave110: pure ImportEntry map free (strong pure / weak empty cold). */
@@ -314,12 +312,10 @@ void ast_pool_module_release(struct ast_Module *m) {
   pipeline_module_top_level_let_storage_release(m);
   /* wave266: pure StructLayout maps free (strong pure / seed cold twin). */
   pipeline_module_struct_layout_storage_release(m);
-  for (i = 0; i < MAX_MODULE_SIDECARS; i++) {
-    if (g_module_sc[i].used && g_module_sc[i].module == m) {
-      module_sidecar_free(&g_module_sc[i]);
-      return;
-    }
-  }
+  /* wave275: pure owns process table — free by key (no residual g_module_sc). */
+  sc = module_sidecar_get(m, 0);
+  if (sc)
+    module_sidecar_free(sc);
 }
 
 /**
@@ -434,24 +430,12 @@ void ast_pool_drop_bodies_for_check(struct ast_ASTArena *a, struct ast_Module *m
   }
 #endif
   if (link_abi_getenv("XLANG_DEBUG_CHECK_MEM")) {
-    size_t live_expr_cap = 0;
-    size_t live_type_cap = 0;
-    int live_arenas = 0;
-    int j;
-    for (j = 0; j < MAX_ARENA_SIDECARS; j++) {
-      if (!g_arena_sc[j].used)
-        continue;
-      live_arenas++;
-      live_expr_cap += (size_t)g_arena_sc[j].exprs.cap * g_arena_sc[j].exprs.elem_sz;
-      live_type_cap += (size_t)g_arena_sc[j].types.cap * g_arena_sc[j].types.elem_sz;
-    }
+    /* wave275: process table is pure BSS — no residual g_arena_sc scan. */
     fprintf(stderr,
             "xlang: [CHECK_MEM] drop_bodies arena=%p n_expr=%d n_block=%d n_type=%d "
-            "n_func=%d freed_body_approx=%zuMB | live_arenas=%d live_expr_cap=%zuMB "
-            "live_type_cap=%zuMB\n",
+            "n_func=%d freed_body_approx=%zuMB\n",
             (void *)a, (int)n_expr, (int)n_block, (int)n_type,
-            m ? (int)m->num_funcs : -1, freed_approx / (1024 * 1024), live_arenas,
-            live_expr_cap / (1024 * 1024), live_type_cap / (1024 * 1024));
+            m ? (int)m->num_funcs : -1, freed_approx / (1024 * 1024));
   }
 }
 
@@ -494,13 +478,11 @@ void ast_pool_onefunc_reset(uint8_t *out) {
 }
 
 void ast_pool_onefunc_release(uint8_t *out) {
-  int i;
+  OneFuncSidecar *sc;
   if (!out)
     return;
-  for (i = 0; i < MAX_ONEFUNC_SIDECARS; i++) {
-    if (g_onefunc_sc[i].used && g_onefunc_sc[i].onefunc == out) {
-      onefunc_sidecar_free(&g_onefunc_sc[i]);
-      return;
-    }
-  }
+  /* wave275: pure owns process table — free by key (no residual g_onefunc_sc). */
+  sc = onefunc_sidecar_get(out, 0);
+  if (sc)
+    onefunc_sidecar_free(sc);
 }

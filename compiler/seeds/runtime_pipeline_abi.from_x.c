@@ -1,5 +1,6 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave275: arena/module/onefunc sidecar pool Cap residual pure leave cold twins under #ifndef FROM_X
  * wave266: struct_layout Cap residual pure leave cold twins under #ifndef FROM_X
  * wave264: module_enum Cap residual pure leave cold twins under #ifndef FROM_X
  *   (pipeline_module_enum_* + try_mark + storage_reset/release; 33932B ModuleEnumEntry LE map)
@@ -35970,3 +35971,402 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
 
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */
+
+/* WAVE275: Arena/Module/OneFunc sidecar process tables pure-owned leave cold twins
+ * under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
+ * Layout LE matches pure + host typedefs (Arena 816 / Module 432 / OneFunc 944).
+ * PLATFORM: SHARED freestanding Cap residual cold twin.
+ */
+#ifndef WAVE275_SIDECAR_POOL_COLD
+#define WAVE275_SIDECAR_POOL_COLD 1
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+#include <stdlib.h>
+
+/* GrowVec + grow_vec_* already declared in this seed TU (wave271). */
+
+#define W275_ARENA_SC_SIZE 816
+#define W275_ARENA_SC_MAX 512
+#define W275_MODULE_SC_SIZE 432
+#define W275_MODULE_SC_MAX 512
+#define W275_ONEFUNC_SC_SIZE 944
+#define W275_ONEFUNC_SC_MAX 1024
+#define W275_GV_INIT_CAP 256
+
+static uint8_t g_w275_arena_sc_blob[W275_ARENA_SC_MAX * W275_ARENA_SC_SIZE];
+static uint8_t g_w275_module_sc_blob[W275_MODULE_SC_MAX * W275_MODULE_SC_SIZE];
+static uint8_t g_w275_onefunc_sc_blob[W275_ONEFUNC_SC_MAX * W275_ONEFUNC_SC_SIZE];
+
+static uint8_t *w275_arena_sc_at(int i) {
+  if (i < 0 || i >= W275_ARENA_SC_MAX) return NULL;
+  return g_w275_arena_sc_blob + (size_t)i * W275_ARENA_SC_SIZE;
+}
+static uint8_t *w275_module_sc_at(int i) {
+  if (i < 0 || i >= W275_MODULE_SC_MAX) return NULL;
+  return g_w275_module_sc_blob + (size_t)i * W275_MODULE_SC_SIZE;
+}
+static uint8_t *w275_onefunc_sc_at(int i) {
+  if (i < 0 || i >= W275_ONEFUNC_SC_MAX) return NULL;
+  return g_w275_onefunc_sc_blob + (size_t)i * W275_ONEFUNC_SC_SIZE;
+}
+
+static int32_t w275_load_i32(uint8_t *b, int off) {
+  int32_t v;
+  memcpy(&v, b + off, 4);
+  return v;
+}
+static void w275_store_i32(uint8_t *b, int off, int32_t v) {
+  memcpy(b + off, &v, 4);
+}
+static void *w275_load_ptr(uint8_t *b, int off) {
+  void *p;
+  memcpy(&p, b + off, sizeof(void *));
+  return p;
+}
+static void w275_store_ptr(uint8_t *b, int off, void *p) {
+  memcpy(b + off, &p, sizeof(void *));
+}
+
+static void arena_sidecar_free_inner(uint8_t *sc) {
+  if (!sc) return;
+  grow_vec_free((GrowVec *)(sc + 16));
+  grow_vec_free((GrowVec *)(sc + 48));
+  grow_vec_free((GrowVec *)(sc + 80));
+  grow_vec_free((GrowVec *)(sc + 112));
+  grow_vec_free((GrowVec *)(sc + 144));
+  grow_vec_free((GrowVec *)(sc + 176));
+  grow_vec_free((GrowVec *)(sc + 208));
+  grow_vec_free((GrowVec *)(sc + 240));
+  grow_vec_free((GrowVec *)(sc + 272));
+  grow_vec_free((GrowVec *)(sc + 304));
+  grow_vec_free((GrowVec *)(sc + 336));
+  grow_vec_free((GrowVec *)(sc + 368));
+  grow_vec_free((GrowVec *)(sc + 400));
+  grow_vec_free((GrowVec *)(sc + 432));
+  grow_vec_free((GrowVec *)(sc + 464));
+  grow_vec_free((GrowVec *)(sc + 496));
+  grow_vec_free((GrowVec *)(sc + 528));
+  grow_vec_free((GrowVec *)(sc + 560));
+  grow_vec_free((GrowVec *)(sc + 592));
+  grow_vec_free((GrowVec *)(sc + 624));
+  grow_vec_free((GrowVec *)(sc + 656));
+  grow_vec_free((GrowVec *)(sc + 688));
+  grow_vec_free((GrowVec *)(sc + 720));
+  grow_vec_free((GrowVec *)(sc + 752));
+  grow_vec_free((GrowVec *)(sc + 784));
+  memset(sc, 0, W275_ARENA_SC_SIZE);
+}
+void arena_sidecar_free(void *sc) { arena_sidecar_free_inner((uint8_t *)sc); }
+static void module_sidecar_free_inner(uint8_t *sc) {
+  if (!sc) return;
+  grow_vec_free((GrowVec *)(sc + 16));
+  grow_vec_free((GrowVec *)(sc + 48));
+  grow_vec_free((GrowVec *)(sc + 80));
+  grow_vec_free((GrowVec *)(sc + 112));
+  grow_vec_free((GrowVec *)(sc + 144));
+  grow_vec_free((GrowVec *)(sc + 176));
+  grow_vec_free((GrowVec *)(sc + 208));
+  grow_vec_free((GrowVec *)(sc + 240));
+  grow_vec_free((GrowVec *)(sc + 272));
+  grow_vec_free((GrowVec *)(sc + 304));
+  grow_vec_free((GrowVec *)(sc + 336));
+  grow_vec_free((GrowVec *)(sc + 368));
+  grow_vec_free((GrowVec *)(sc + 400));
+  memset(sc, 0, W275_MODULE_SC_SIZE);
+}
+void module_sidecar_free(void *sc) { module_sidecar_free_inner((uint8_t *)sc); }
+static void onefunc_sidecar_free_inner(uint8_t *sc) {
+  if (!sc) return;
+  grow_vec_free((GrowVec *)(sc + 16));
+  grow_vec_free((GrowVec *)(sc + 48));
+  grow_vec_free((GrowVec *)(sc + 80));
+  grow_vec_free((GrowVec *)(sc + 112));
+  grow_vec_free((GrowVec *)(sc + 144));
+  grow_vec_free((GrowVec *)(sc + 176));
+  grow_vec_free((GrowVec *)(sc + 208));
+  grow_vec_free((GrowVec *)(sc + 240));
+  grow_vec_free((GrowVec *)(sc + 272));
+  grow_vec_free((GrowVec *)(sc + 304));
+  grow_vec_free((GrowVec *)(sc + 336));
+  grow_vec_free((GrowVec *)(sc + 368));
+  grow_vec_free((GrowVec *)(sc + 400));
+  grow_vec_free((GrowVec *)(sc + 432));
+  grow_vec_free((GrowVec *)(sc + 464));
+  grow_vec_free((GrowVec *)(sc + 496));
+  grow_vec_free((GrowVec *)(sc + 528));
+  grow_vec_free((GrowVec *)(sc + 560));
+  grow_vec_free((GrowVec *)(sc + 592));
+  grow_vec_free((GrowVec *)(sc + 624));
+  grow_vec_free((GrowVec *)(sc + 656));
+  grow_vec_free((GrowVec *)(sc + 688));
+  grow_vec_free((GrowVec *)(sc + 720));
+  grow_vec_free((GrowVec *)(sc + 752));
+  grow_vec_free((GrowVec *)(sc + 784));
+  grow_vec_free((GrowVec *)(sc + 816));
+  grow_vec_free((GrowVec *)(sc + 848));
+  grow_vec_free((GrowVec *)(sc + 880));
+  grow_vec_free((GrowVec *)(sc + 912));
+  memset(sc, 0, W275_ONEFUNC_SC_SIZE);
+}
+void onefunc_sidecar_free(void *sc) { onefunc_sidecar_free_inner((uint8_t *)sc); }
+void *arena_sidecar_get(void *key, int create) {
+  int i;
+  if (!key) return NULL;
+  for (i = 0; i < W275_ARENA_SC_MAX; i++) {
+    uint8_t *sc = w275_arena_sc_at(i);
+    if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) return sc;
+  }
+  if (!create) return NULL;
+  for (i = 0; i < W275_ARENA_SC_MAX; i++) {
+    uint8_t *sc = w275_arena_sc_at(i);
+    if (w275_load_i32(sc, 8) == 0) {
+      w275_store_ptr(sc, 0, key);
+      w275_store_i32(sc, 8, 1);
+      if (!grow_vec_init((GrowVec *)(sc + 16), (size_t)276, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 48), (size_t)712, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 80), (size_t)92, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 112), (size_t)196, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 144), (size_t)140, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 176), (size_t)140, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 208), (size_t)12, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 240), (size_t)140, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 272), (size_t)8, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 304), (size_t)16, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 336), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 368), (size_t)272, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 400), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 432), (size_t)8, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 464), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 496), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 528), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 560), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 592), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 624), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 656), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 688), (size_t)24, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 720), (size_t)136, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 752), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 784), (size_t)136, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      return sc;
+    }
+  }
+  return NULL;
+}
+void *module_sidecar_get(void *key, int create) {
+  int i;
+  if (!key) return NULL;
+  for (i = 0; i < W275_MODULE_SC_MAX; i++) {
+    uint8_t *sc = w275_module_sc_at(i);
+    if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) return sc;
+  }
+  if (!create) return NULL;
+  for (i = 0; i < W275_MODULE_SC_MAX; i++) {
+    uint8_t *sc = w275_module_sc_at(i);
+    if (w275_load_i32(sc, 8) == 0) {
+      w275_store_ptr(sc, 0, key);
+      w275_store_i32(sc, 8, 1);
+      if (!grow_vec_init((GrowVec *)(sc + 16), (size_t)196, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 48), (size_t)4, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 80), (size_t)404, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 112), (size_t)160, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 144), (size_t)148, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 176), (size_t)136, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 208), (size_t)33932, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 240), (size_t)128, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 272), (size_t)4, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 304), (size_t)136, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 336), (size_t)144, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 368), (size_t)132, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 400), (size_t)8, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      return sc;
+    }
+  }
+  return NULL;
+}
+void *onefunc_sidecar_get(void *key, int create) {
+  int i;
+  if (!key) return NULL;
+  for (i = 0; i < W275_ONEFUNC_SC_MAX; i++) {
+    uint8_t *sc = w275_onefunc_sc_at(i);
+    if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) return sc;
+  }
+  if (!create) return NULL;
+  for (i = 0; i < W275_ONEFUNC_SC_MAX; i++) {
+    uint8_t *sc = w275_onefunc_sc_at(i);
+    if (w275_load_i32(sc, 8) == 0) {
+      w275_store_ptr(sc, 0, key);
+      w275_store_i32(sc, 8, 1);
+      if (!grow_vec_init((GrowVec *)(sc + 16), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 48), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 80), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 112), (size_t)128, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 144), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 176), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 208), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 240), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 272), (size_t)128, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 304), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 336), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 368), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 400), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 432), (size_t)1, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 464), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 496), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 528), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 560), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 592), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 624), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 656), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 688), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 720), (size_t)128, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 752), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 784), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 816), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 848), (size_t)140, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 880), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 912), (size_t)272, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      return sc;
+    }
+  }
+  return NULL;
+}
+
+#endif /* !XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* WAVE275_SIDECAR_POOL_COLD */

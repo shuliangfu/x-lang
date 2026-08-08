@@ -86,7 +86,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_block.c|8.3.2|block append/region/defer + loop/labeled/getters + parent/resolve + stmt_order rebuild/fixup residual slice|1300|present"
   "compiler/ast_pool_lifecycle.c|8.3.2|ast_pool lifecycle/reset/release domain (wave1273)|330|present"
   "compiler/ast_pool_ptr_at.c|8.3.2|ast_pool core ptr_at accessors (wave1278)|25|present"
-  "compiler/ast_pool_sidecar_pool.c|8.3.2|ast_pool sidecar pool management (wave1276)|340|present"
+  "compiler/ast_pool_sidecar_pool.c|8.3.2|ast_pool sidecar pool Cap residual pure-owned leave (wave275)|0|absent"
   "compiler/ast_pool_typedefs.c|8.3.2|ast_pool early typedef domain (wave1278)|220|present"
   "compiler/ast_pool_type.c|8.3.2|ast_pool type pool Cap residual pure-owned leave (wave270)|0|absent"
   "compiler/pipeline_grow_vec.c|8.3.2|GrowVec pure-owned leave (wave271)|0|absent"
@@ -261,7 +261,7 @@ dump_rows() {
   done
   echo "ROWS=${#PRODUCT_RESIDUAL_ROWS[@]} present_on_disk=$present absent_on_disk=$absent"
   echo "BC_TRACK=open wave963"
-  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave274 asm_wpo done · present 35); candidates: pipeline_x mega (ptr_at=same-TU static only · not Cap shortcut)"
+  echo "NEXT=8.3.2 pipeline_x mega host-cc leave (wave275 sidecar_pool done · present 34); candidates: ast_pool_arena/block/expr_sidecar or pipeline_x mega"
 }
 
 run_check() {

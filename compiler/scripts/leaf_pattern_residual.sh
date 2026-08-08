@@ -9160,6 +9160,15 @@ fi
 if [ -f "$ROOT/compiler/pipeline_asm_wpo.c" ]; then
   bad "pipeline_asm_wpo.c must be deleted (wave274 pure-owned leave)"
 fi
+if grep -qE 'pipeline_asm_wpo\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list pipeline_asm_wpo.c (wave274 host-cc leave)"
+fi
+if [ -f "$ROOT/compiler/ast_pool_sidecar_pool.c" ]; then
+  bad "ast_pool_sidecar_pool.c must be deleted (wave275 pure-owned leave)"
+fi
+if grep -qE 'ast_pool_sidecar_pool\.c' "$_XSD_MK"; then
+  bad "PIPELINE_X_DEPS must NOT list ast_pool_sidecar_pool.c (wave275 host-cc leave)"
+fi
 if grep -qE 'ast_pool_module_import\.c' "$_XSD_MK"; then
   bad "PIPELINE_X_DEPS must NOT list ast_pool_module_import.c (wave263 host-cc leave)"
 fi
