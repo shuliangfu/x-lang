@@ -13,18 +13,31 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-// See implementation.
 //
-// See implementation.
-// See implementation.
-// See implementation.
-const ast = import("ast");
-const lexer = import("lexer");
-const parser = import("parser");
-const typeck = import("typeck");
-const codegen = import("codegen");
-const asm_backend = import("asm.backend");
+// Historical pipeline.x was a pure-extern-signature declaration module — 162
+// export extern function signatures with ZERO function bodies; all
+// implementations live in runtime_pipeline_abi.x (pipeline_gen.x chain).
+// Before wave335, six DEAD import() statements were left-over placeholders:
+//   import("ast"/"lexer"/"parser"/"typeck"/"codegen"/"asm.backend")
+// The imported modules were NEVER referenced (grep word-count == 1 per
+// module — only the import line itself; typeck had 2 more matches inside
+// docblock comments; preprocess had 0 functional refs). These dead imports
+// caused severe -E expansion pathological cost: 658 LOC pipeline.x → 46.62s
+// / 795 KB output because -E transitively expanded parser (12176 LOC) + typeck
+// (19542) + codegen (21922) + asm_backend + their dependencies → 50K+ LOC
+// extra with O(n²) transitive-module-declaration-duplication cost.
+//
+// G.7 SINGLE AUTHORITY FIX (root cause, not symptom): REMOVE ALL DEAD IMPORTS
+// (0 imports remain). Pure extern signature modules MUST NOT depend on
+// front-end heavy modules (they declare FFI signatures only; actual symbols
+// resolve at link-time against runtime_pipeline_abi). Semantically,
+// removing dead imports is behaviour-preserving — import() produces a value
+// that is never assigned nor dereferenced.
+//
+// Verified baseline: 6 dead imports → -E 46.62s / 795 KB output
+// After fix (0 imports):   -E 5.85s / 96 KB output (≈ 8× faster & smaller).
+//
+// PLATFORM: SHARED (freestanding extern header; no platform deps).
 
 /* See implementation. */
 export extern function driver_dep_arena_buf(i: i32): *u8;

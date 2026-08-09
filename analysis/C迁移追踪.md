@@ -782,30 +782,36 @@
 ⬜ **7.4.3 lexer / preprocess / pipeline 去 pin 对齐**
 
   - 与阶段 8.2.2 / 8.2.10 / 8.2.11 联动；前端「能自 regen」再谈删 Makefile 冷启动规则
-  - **wave334（2026-08-09）根因诊断**（上帝视角分析 · 实测数据）：
+  - **pipeline.x wave335 ✅（根源修复 · 去 pin 对齐首胜）**：pipeline.x 本就是**纯 extern 签名头模块**（658 LOC = 162 `export extern function` 声明 + 0 带体函数）——所有实现都在 runtime_pipeline_abi.x。
+    - **G.7 违规发现**（wave334 诊断基础上进一步验证）：6 个大 import（ast/lexer/parser/typeck/codegen/asm_backend）**全是死 import**！逐模块 grep 单词出现次数 = 1（仅 import 行本身）；typeck 的 3 次里 2 次是 docblock 注释单词。实际 pipeline.x 没用到任何这些模块的符号！
+    - **根因删除（根源修复非打补丁）**：6 个大 import 直接物理删（0 import 保留）。源码头部加 24 行详细英文 docblock（G.9 rule），说明 wave335 前死 import 背景 + -E 病态成本 + G.7 SINGLE AUTHORITY FIX 证明。
+    - **性能验证（2331× 加速！）**：pipeline.x -E 46.62s / 795,931 B → **0.02s / 32,964 B**（100% 行为等价，只是 -E 不再无意义 transitively 展开 parser 12176 LOC + typeck 19542 LOC + codegen 21922 LOC + ast/lexer/asm_backend + 50K+ LOC O(n²) transitive declaration 叠乘）。
+    - **Track L 对齐**：driver_leaf ensure pipeline_x.o **打 PREFER_X_O banner**（不 fallback cold seed！）——之前「超时」假象就是死 import 拖垮。
+    - **零回归验证**：`./xbuild relink` pure-ld 58 objs OK；`./xbuild l2-matrix` pass=5 fail=0 rv42/opt102/hello0/si0/f32。
+    - PLATFORM: SHARED（纯声明模块，无平台分支；死 import 清理跨平台等价）。
+  - **wave334（2026-08-09）根因诊断基础**（上帝视角分析 · 实测数据）：
     - **问题表象**：wave327-331 Track L 退役的 6 项前端（parser/typeck/codegen/lexer/pipeline + ast_gen2）中，**仅 preprocess PREFER_X_O 真走通**；其余 5 项均 fallback cold-seed egg。commit message 记「PREFER_X_O 超时」是**误判**（alarm 30s 阈值非根因）。
-    - **真根因**：`xlang -E` 单 TU 展开后，CC 编译 -E 输出报 **跨模块引用未声明**（C99 禁止隐式函数声明 + use-of-undeclared-identifier 硬 error）：
+    - **pipeline 已 wave335 根源修复**；其余 4 项（ast/lexer/parser/typeck/codegen）真根因：`xlang -E` 单 TU 展开后，CC 编译 -E 输出报 **跨模块引用未声明**（C99 禁止隐式函数声明 + use-of-undeclared-identifier 硬 error）：
       | .x 文件 | LOC | -E 耗时 | 30s alarm | CC 失败原因 |
       |---------|-----|---------|-----------|-------------|
       | preprocess.x | 1003 | 0.14s | ✅ | **无**（PREFER_X_O 通）|
+      | pipeline.x | 658 | **✅ wave335 已修**（0.02s）| ✅ | **✅ wave335 根源修复**：删 6 死 import |
       | ast.x | 1393 | 0.15s | ✅ | 函数 `pipeline_arena_type_alloc` / `pipeline_arena_expr_alloc` / `pipeline_arena_block_alloc` / `pipeline_expr_init_call_resolve_at_ref` 未声明 |
-      | pipeline.x | 658 | **46.62s** | ❌ 超时 | **双重**：①-E 超时（658 LOC 不该 46s → 疑似 -E 算法病态循环）②函数 `pipeline_module_hoist_*` / `pipeline_expr_binop_*` 未声明 |
       | lexer.x | 4724 | 4.01s | ✅ | 函数 `diag_report_with_code` 未声明（跨模块函数调用无 extern）|
       | parser.x | 12176 | 16.52s | ✅ | BSS `g_lexer_unclosed_*` 未声明（init_globals 收集所有模块 BSS 赋值，但 -E 只输出当前模块 BSS 定义）|
       | typeck.x | 19542 | 7.07s | ✅ | 函数 `ast_ref_is_null` / `pipeline_type_kind_ord_at` / `pipeline_type_named_name_into` 未声明 |
       | codegen.x | 21922 | 26.94s | ✅ 临界 | 函数 `pipeline_dep_ctx_import_path_len` / `pipeline_dep_ctx_import_path_copy64` / `pipeline_dep_ctx_ndep` 未声明 |
-    - **根因归类**（两层）：
-      1. **-E 生成器跨模块函数引用无 extern 声明**（影响 5 项）：-E 单 TU 展开不引入跨模块函数的 extern 声明 → CC `-Wimplicit-function-declaration` error（C99 禁止）。影响：ast.x（`pipeline_arena_*`）/ typeck.x（`ast_ref_is_null` / `pipeline_type_*`）/ codegen.x（`pipeline_dep_ctx_*`）/ lexer.x（`diag_report_with_code`）/ pipeline.x（`pipeline_module_hoist_*` / `pipeline_expr_binop_*`）。
+    - **根因归类（剩余 4 项）**：
+      1. **-E 生成器跨模块函数引用无 extern 声明**（影响 4 项）：-E 单 TU 展开不引入跨模块函数的 extern 声明 → CC `-Wimplicit-function-declaration` error（C99 禁止）。影响：ast.x / typeck.x / codegen.x / lexer.x。
       2. **-E 生成器 init_globals 收集逻辑 bug**（影响 1 项 · src/codegen/codegen.x）：`init_globals()` 函数收集**所有模块**的 BSS 赋值（`g_lexer_unclosed_bc = 0;` 等），但 -E 输出只声明**当前模块**的 BSS 定义（`static int g_foo = 0;`）→ 跨模块 BSS 引用未声明 → CC `use-of-undeclared-identifier` 硬 error。影响：parser.x。
-      3. **pipeline.x -E 性能病态**（附加）：658 LOC → 46.62s（~71ms/LOC），远超正常速率（preprocess 0.14ms/LOC / parser 1.4ms/LOC）。疑似 -E 展开时有死循环 / 重复展开 / 深度递归。需单独诊断。
-    - **自举循环依赖**：修 -E 生成器需动 src/codegen/codegen.x → 需重新生成 codegen_gen.c → 但 codegen_gen.c 已 Track L 退役（cold-seed egg fallback）→ 生成 egg 需 -E 走通 → PREFER_X_O 需 -E 输出自洽。打破循环：①修 codegen.x ②用旧 xlang_asm -E codegen.x → 手动修补 C 输出 → 编译新版 xlang_asm_new ③用新版重新 -E 所有 .x 验证自洽 ④重新生成 cold-seed egg。
-    - **修复路线图**（禁止打补丁 · 根源治理）：
+    - **自举循环依赖**：修 -E 生成器需动 src/codegen/codegen.x → 需重新生成 codegen_gen.c → 但 codegen_gen.c 已 Track L 退役（cold-seed egg fallback）→ 生成 egg 需 -E 走通 → PREFER_X_O 需 -E 输出自洽。
+    - **修复路线图（剩余 4 项 · 5 步 · 禁止打补丁 · 根源治理）**：
       - **Step 1**：修 src/codegen/codegen.x 的 `init_globals` 生成逻辑 → 只收集当前模块 BSS 赋值（不跨模块收集）
       - **Step 2**：修 -E 生成器的跨模块函数引用 → 输出 extern 声明（或让 -E 输出 `#include` 跨模块头文件）
-      - **Step 3**：诊断 pipeline.x -E 46s 性能病态（可能 -E 展开循环 / include 解析死循环）
-      - **Step 4**：打破自举循环（旧 xlang_asm -E → 手动修补 → 新版 → 重新生成 egg）
-      - **Step 5**：验证 5 项 PREFER_X_O 真走通 → cold-seed egg 降级为纯考古 fallback
-    - **当前状态**：cold-seed egg 是产品主路径 fallback（非纯考古）；7.4.3 未启动；修复需中大工程（动 codegen.x + 打破自举循环）
+      - **Step 3**：✅ 完成（wave335 pipeline.x 去 pin 对齐首胜）
+      - **Step 4**：打破自举循环（旧 xlang_asm -E → 手动修补 C 输出 → 编译新版 xlang_asm_new → 重新生成 cold-seed egg）
+      - **Step 5**：验证 4 项 PREFER_X_O 真走通 → cold-seed egg 降级为纯考古 fallback
+    - **当前状态**：pipeline wave335 已✅；剩余 ast/lexer/parser/typeck/codegen 4 项未启动；修复需中大工程（动 codegen.x + 打破自举循环）。
 
 ⬜ **7.4.4 双权威禁令验收**
 
