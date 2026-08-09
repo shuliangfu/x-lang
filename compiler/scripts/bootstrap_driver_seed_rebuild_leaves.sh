@@ -187,9 +187,15 @@ else
   # list_source set above
 fi
 
+# Empty SEED_REBUILD_OBJS is a legitimate no-op state for some phases on some
+# platforms (e.g. DRIVER_SEED_ASM_GLUE_OBJS is empty on Darwin because no
+# standalone glue .o is needed). Treating empty as an error caused L4 cold
+# bootstrap to fail at the glue phase on macOS. Exit 0 with an informational
+# message so callers using `set -e` proceed correctly; a broken catalog would
+# still be visible because downstream link steps would fail on missing symbols.
 if [ -z "${SEED_REBUILD_OBJS// /}" ]; then
-  echo "bootstrap_driver_seed_rebuild_leaves: empty SEED_REBUILD_OBJS from $list_source" >&2
-  exit 1
+  echo "bootstrap_driver_seed_rebuild_leaves: empty SEED_REBUILD_OBJS from $list_source (no-op)" >&2
+  exit 0
 fi
 
 n_objs=$(printf '%s\n' "$SEED_REBUILD_OBJS" | wc -w | tr -d ' ')
