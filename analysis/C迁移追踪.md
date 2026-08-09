@@ -787,7 +787,9 @@
     - **根因删除（根源修复非打补丁）**：6 个大 import 直接物理删（0 import 保留）。源码头部加 24 行详细英文 docblock（G.9 rule），说明 wave335 前死 import 背景 + -E 病态成本 + G.7 SINGLE AUTHORITY FIX 证明。
     - **性能验证（2331× 加速！）**：pipeline.x -E 46.62s / 795,931 B → **0.02s / 32,964 B**（100% 行为等价，只是 -E 不再无意义 transitively 展开 parser 12176 LOC + typeck 19542 LOC + codegen 21922 LOC + ast/lexer/asm_backend + 50K+ LOC O(n²) transitive declaration 叠乘）。
     - **Track L 对齐**：driver_leaf ensure pipeline_x.o **打 PREFER_X_O banner**（不 fallback cold seed！）——之前「超时」假象就是死 import 拖垮。
-    - **零回归验证**：`./xbuild relink` pure-ld 58 objs OK；`./xbuild l2-matrix` pass=5 fail=0 rv42/opt102/hello0/si0/f32。
+    - **零回归验证（** **G.8 SHARED 双端闭环** **）**：
+      - **macOS arm64**：`./xbuild relink` pure-ld 58 objs OK；`./xbuild l2-matrix` pass=5 fail=0 rv42/opt102/hello0/si0/f32 @ `867e1e64d`
+      - **Ubuntu x86_64（金标）**：`ssh ubuntu-remote-server` → `/home/shuliangfu/worker/xlang/x-lang` git ff 到 `867e1e64d` → `XLANG=./compiler/xlang_asm ./xbuild l2-matrix` **pass=5 fail=0**（SHA=867e1e64d Linux-x86_64；rv42 run=42 / opt102 run=102 / si0 run=0 / hello stdout 含 Hello / f32 run=0；build=0 ×5）
     - PLATFORM: SHARED（纯声明模块，无平台分支；死 import 清理跨平台等价）。
   - **wave334（2026-08-09）根因诊断基础**（上帝视角分析 · 实测数据）：
     - **问题表象**：wave327-331 Track L 退役的 6 项前端（parser/typeck/codegen/lexer/pipeline + ast_gen2）中，**仅 preprocess PREFER_X_O 真走通**；其余 5 项均 fallback cold-seed egg。commit message 记「PREFER_X_O 超时」是**误判**（alarm 30s 阈值非根因）。
