@@ -17293,7 +17293,25 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
         (void)((w495_mono_set = 1));
       }
     }
-    if ((codegen_emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) !=0)) {
+    /* PLATFORM: SHARED — process entry ABI: void main → int32_t main (Zig-like).
+     * Mirror emit_func's emit_c_main_symbol logic so the extern forward
+     * declaration matches the definition's return type. Without this,
+     * `extern void main(void);` conflicts with `int32_t main(void) {`
+     * (BLD001 conflicting types for main). is_entry mirrors emit_func's
+     * (fi == module.main_func_index) || (module.num_funcs == 1). */
+    int32_t ext_ret_ty_ref = pipeline_module_func_return_type_at(module, fi);
+    int ext_name_is_main = (((((fn_len ==4) && ((fn_local)[0] ==109)) && ((fn_local)[1] ==97)) && ((fn_local)[2] ==105)) && ((fn_local)[3] ==110));
+    int ext_is_entry = ((fi == ((module)->main_func_index)) || (((module)->num_funcs) ==1));
+    int ext_emit_c_main = 0;
+    if ((ext_is_entry && ext_name_is_main)) {
+      (void)((ext_emit_c_main = 1));
+    }
+    if ((ext_emit_c_main && (pipeline_type_kind_ord_at(arena, ext_ret_ty_ref) ==16))) {
+      uint8_t i32_ty[8] = {105, 110, 116, 51, 50, 95, 116, 0};
+      if ((codegen_emit_bytes_8(out, &((i32_ty)[0]), 7) !=0)) {
+        return -1;
+      }
+    } else if ((codegen_emit_type(arena, out, ext_ret_ty_ref, prefix, prefix_len, ctx) !=0)) {
       return -1;
     }
     if ((codegen_append_byte(out, 32) !=0)) {
