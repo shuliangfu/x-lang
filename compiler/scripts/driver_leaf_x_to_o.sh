@@ -61,6 +61,7 @@ driver_leaf_key_for_out() {
     parser_x.o|*parser_x.o) printf '%s' "parser_x.o" ;;
     typeck_x.o|*typeck_x.o) printf '%s' "typeck_x.o" ;;
     codegen_x.o|*codegen_x.o) printf '%s' "codegen_x.o" ;;
+    ast_gen2.o|*ast_gen2.o) printf '%s' "ast_gen2.o" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -181,6 +182,9 @@ driver_leaf_spec_for_key() {
     codegen_x.o)
       printf '%s' 'src/codegen/codegen.x||seeds/codegen_gen.linux.x86_64.c|extended'
       ;;
+    ast_gen2.o)
+      printf '%s' 'src/ast/ast.x||seeds/ast_gen2.linux.x86_64.c|extended'
+      ;;
     *)
       printf '%s' ''
       ;;
@@ -262,7 +266,8 @@ driver_leaf_list_keys() {
     lexer_x.o \
     parser_x.o \
     typeck_x.o \
-    codegen_x.o
+    codegen_x.o \
+    ast_gen2.o
 }
 
 driver_leaf_check() {
@@ -339,8 +344,8 @@ driver_leaf_check() {
   done <<EOF
 $(driver_leaf_list_keys)
 EOF
-  if [ "$_n" -ne 18 ]; then
-    echo "driver_leaf_x_to_o --check: expected 18 catalog keys, got $_n" >&2
+  if [ "$_n" -ne 19 ]; then
+    echo "driver_leaf_x_to_o --check: expected 19 catalog keys, got $_n" >&2
     exit 1
   fi
   if [ "$_miss" -ne 0 ]; then
@@ -404,7 +409,7 @@ EOF
       exit 1
     fi
   fi
-  echo "driver_leaf_x_to_o --check: OK (18 catalog leaves: 9 Makefile-driven (wave896) + 2 ensure_gen_x_o lsp (wave327) + 3 B4 ensure_host_cc (pipeline/driver/preprocess wave328) + 1 lexer_x cold-seed (wave328) + 3 M4 front-end cold-seed (parser/typeck/codegen wave329); BASE_CFLAGS export leaf wave860; not physical delete)"
+  echo "driver_leaf_x_to_o --check: OK (19 catalog leaves: 9 Makefile-driven (wave896) + 2 ensure_gen_x_o lsp (wave327) + 3 B4 ensure_host_cc (pipeline/driver/preprocess wave328) + 1 lexer_x cold-seed (wave328) + 3 M4 front-end cold-seed (parser/typeck/codegen wave329) + 1 ast_gen2 cold-seed (wave331); BASE_CFLAGS export leaf wave860; not physical delete)"
   exit 0
 }
 
