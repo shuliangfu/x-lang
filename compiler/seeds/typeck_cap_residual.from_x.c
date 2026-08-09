@@ -436,10 +436,30 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
   kd = e->kind;
 
   if (kd == ast_ExprKind_EXPR_LIT || kd == ast_ExprKind_EXPR_BOOL_LIT) {
-    /* P0-4: do not CTFE-truncate wide i64 literals into the i32 fold field. */
-    if (typeck_ctfe_fits_i32(e->int_val)) {
-      e->const_folded_val = (int32_t)e->int_val;
-      e->const_folded_valid = 1;
+    /* P0-4: do not CTFE-truncate wide i64 literals into the i32 fold field.
+     * But u32 literals (0..UINT32_MAX) must be foldable: their 32-bit bit
+     * pattern fits in int32_t and two's complement arithmetic is correct
+     * for both signed and unsigned 32-bit types.
+     * Invariant: const_folded_val is int32_t; storing (int32_t)(uint32_t)v
+     * preserves the 32-bit bit pattern. Codegen reinterprets by type.
+     * For 64-bit types (ordinal >= 4), keep int32_t range to avoid
+     * sign-extension truncation on emit. */
+    {
+      int64_t v = e->int_val;
+      int fits = typeck_ctfe_fits_i32(v);
+      if (!fits) {
+        int32_t tr = e->resolved_type_ref;
+        if (tr > 0) {
+          int32_t tk = pipeline_type_kind_ord_at(a, tr);
+          /* TYPE_I32=0, TYPE_BOOL=1, TYPE_U8=2, TYPE_U32=3: 32-bit types */
+          if (tk >= 0 && tk <= 3 && v >= 0 && v <= (int64_t)UINT32_MAX)
+            fits = 1;
+        }
+      }
+      if (fits) {
+        e->const_folded_val = (int32_t)(uint32_t)v;
+        e->const_folded_valid = 1;
+      }
     }
     return;
   }
