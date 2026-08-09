@@ -154,13 +154,14 @@
 #define ast_arena_patch_block_parent_links ast_ast_arena_patch_block_parent_links
 #endif /* XLANG_TYPECK_SHORT_FACE_ALIAS_H */
 
-/* PLATFORM: POSIX — errno location symbol; not related to short-face aliases. */
+/* PLATFORM: POSIX — errno + libc FS decls; short-face aliases stay SHARED above.
+ * Do not nest SHORT_FACE under __APPLE__ (Linux cold typeck bare UNDEF).
+ */
 #if !defined(_WIN32) && !defined(_WIN64)
 #if defined(__APPLE__)
 extern int *__error(void);
 #else
 extern int *__errno_location(void);
-#endif
 #endif
 extern int32_t fcntl(int32_t fd, int32_t cmd, int32_t arg);
 extern int32_t madvise(uint8_t *addr, size_t len, int32_t advice);
