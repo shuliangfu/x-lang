@@ -798,11 +798,11 @@
       |---------|-----|---------|-----------|-------------|
       | preprocess.x | 1003 | 0.14s | ✅ | **无**（PREFER_X_O 通）|
       | pipeline.x | 658 | **✅ wave335 已修**（0.02s）| ✅ | **✅ wave335 根源修复**：删 6 死 import |
-      | ast.x | 1393 | 0.15s | ✅ | 函数 `pipeline_arena_type_alloc` / `pipeline_arena_expr_alloc` / `pipeline_arena_block_alloc` / `pipeline_expr_init_call_resolve_at_ref` 未声明 |
-      | lexer.x | 4724 | 4.01s | ✅ | 函数 `diag_report_with_code` 未声明（跨模块函数调用无 extern）|
-      | parser.x | 12176 | 16.52s | ✅ | BSS `g_lexer_unclosed_*` 未声明（init_globals 收集所有模块 BSS 赋值，但 -E 只输出当前模块 BSS 定义）|
-      | typeck.x | 19542 | 7.07s | ✅ | 函数 `ast_ref_is_null` / `pipeline_type_kind_ord_at` / `pipeline_type_named_name_into` 未声明 |
-      | codegen.x | 21922 | 26.94s | ✅ 临界 | 函数 `pipeline_dep_ctx_import_path_len` / `pipeline_dep_ctx_import_path_copy64` / `pipeline_dep_ctx_ndep` 未声明 |
+      | ast.x | 1393 | 0.15s | ✅ | **✅ wave336-337 post_E_fixup 修**（forward-decl + typedef 前移）；macOS xlang-seed-phase1 codegen 命名 bug 待修 |
+      | lexer.x | 4724 | 4.01s | ✅ | **✅ wave336-337 post_E_fixup 修**（forward-decl + typedef 前移）|
+      | parser.x | 12176 | 16.52s | ✅ | **✅ wave336-337 post_E_fixup 修**（forward-decl + scrub init_globals）|
+      | typeck.x | 19542 | 7.07s | ✅ | **✅ wave336-337 post_E_fixup 修**（forward-decl + 条件 append 5 body + static helper + 4 externs）|
+      | codegen.x | 21922 | 26.94s | ✅ 临界 | **✅ wave336-337 post_E_fixup 修**（macOS PREFER_X_O 通；Ubuntu 30s alarm 超时待修）|
     - **根因归类（剩余 4 项）**：
       1. **-E 生成器跨模块函数引用无 extern 声明**（影响 4 项）：-E 单 TU 展开不引入跨模块函数的 extern 声明 → CC `-Wimplicit-function-declaration` error（C99 禁止）。影响：ast.x / typeck.x / codegen.x / lexer.x。
       2. **-E 生成器 init_globals 收集逻辑 bug**（影响 1 项 · src/codegen/codegen.x）：`init_globals()` 函数收集**所有模块**的 BSS 赋值（`g_lexer_unclosed_bc = 0;` 等），但 -E 输出只声明**当前模块**的 BSS 定义（`static int g_foo = 0;`）→ 跨模块 BSS 引用未声明 → CC `use-of-undeclared-identifier` 硬 error。影响：parser.x。
@@ -814,6 +814,24 @@
       - **Step 4**：打破自举循环（旧 xlang_asm -E → 手动修补 C 输出 → 编译新版 xlang_asm_new → 重新生成 cold-seed egg）
       - **Step 5**：验证 4 项 PREFER_X_O 真走通 → cold-seed egg 降级为纯考古 fallback
     - **当前状态**：pipeline wave335 已✅；剩余 ast/lexer/parser/typeck/codegen 4 项未启动；修复需中大工程（动 codegen.x + 打破自举循环）。
+  - **wave336-337（2026-08-09）post_E_fixup 根修 + 条件 append + typedef 前移**（双端验证 · typeck_x.o PREFER_X_O 通）：
+    - **wave336 根修：post_E_fixup 条件 append（G.7 有则补全）**
+      - **问题**：wave335 `--append-typeck-bodies` 总是追加 5 个 body + 1 static helper + 4 externs；但 xlang-seed-phase1（macOS cold-start binary）的 -E 输出已含 5 个 body → redefinition error → PREFER_X_O 失败。
+      - **根修**：`append_typeck_missing_bodies()` 改为**条件追加**——检查每个 body/static/extern 是否已在 src 中，已存在则跳过。`_has_body()` / `_has_static()` / `_has_extern()` 三个检测器，精确匹配 `name(...)\s*{`（body 定义）、`static ... name(`（static helper）、`extern ... name(`（extern 声明）。
+      - **效果**：旧 xlang binary（缺 5 body）→ 追加 5 body + helper + externs；新 xlang-seed-phase1（已有 5 body）→ 0 追加，纯 no-op。G.7 有则补全铁律。
+    - **wave337 根修：post_E_fixup typedef 前移（targeted hoisting）**
+      - **问题**：forward-decl 注入在文件顶部，但 `fs_iovec_buf_t` 等typedef 在 -E 输出第 532 行才定义 → forward-decl 第 178 行报 `unknown type name 'fs_iovec_buf_t'`。
+      - **根修**：`inject_forward_decls()` 加 Phase 0——扫描所有 `typedef struct Tag name;`（incomplete-struct typedef），只前移**函数签名中实际引用**的 typedef（`_needed_typedef_names` 集合过滤）。跳过 struct-body typedef（`typedef struct { ... } name;`）避免与系统头 SIMD 类型冲突。
+      - **效果**：pipeline_x.o / preprocess_x.o / lexer_x.o / typeck_x.o / codegen_x.o / parser_x.o 全部 PREFER_X_O 通过（6/8 macOS）。
+    - **双端验证（G.8 SHARED）**：
+      - **macOS arm64**（xlang-seed-phase1 binary）：6/8 PREFER_X_O（pipeline/preprocess/lexer/typeck/codegen/parser ✅；ast_gen2 + driver_x 是 xlang-seed-phase1 codegen 回归——ast_gen2 命名不一致 `ast_ast_arena_block_get` vs `ast_arena_block_get`；driver_x `main_run_compiler_c` 双定义）。mac L2 5/5 ✅。
+      - **Ubuntu x86_64**（金标 · xlang binary）：7/8 PREFER_X_O（pipeline/preprocess/lexer/typeck/parser/ast_gen2/driver_x ✅；codegen_x 是 30s alarm 超时——`_e_rc=142` SIGALRM）。Ubuntu L2 5/5 ✅（rv42/opt102/hello0/si0/f32）。
+      - **typeck_x.o PREFER_X_O 双端都通过** ✅ — 根修验证完成。
+    - **剩余失败分类（非 post_E_fixup 问题，记为后续 wave）**：
+      - macOS ast_gen2.o：xlang-seed-phase1 -E 输出声明 `ast_ast_arena_block_get`（双前缀）但调用 `ast_arena_block_get`（单前缀），cold seed 有双声明但 -E 只有 prefixed → codegen 命名 bug。
+      - macOS driver_x.o：xlang-seed-phase1 -E 输出 `main_run_compiler_c` 双定义（1891+1894 行重复 body）→ codegen 重复输出 bug。
+      - Ubuntu codegen_x.o：`xlang -E src/codegen/codegen.x` 超过 30s alarm → `_e_rc=142` SIGALRM。性能问题（codegen.x 21922 LOC，-E 耗时 ~27s 临界）。
+    - PLATFORM: SHARED（post_E_fixup 条件 append + typedef 前移跨平台行为等价；typeck_x.o 双端 PREFER_X_O 通过）。
 
 ⬜ **7.4.4 双权威禁令验收**
 

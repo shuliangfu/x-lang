@@ -457,6 +457,26 @@ apply_rename() {
 # Core build body (legacy + ensure share this).
 # Args: X_SRC OUT_O SYM_RENAME COLD_SEED
 # Env: CC BASE_CFLAGS DRIVER_SUBCMD_DIRS (or DIRS pre-set)
+#
+# G.7 root fixes applied in PREFER_X_O path via post_E_fixup.py hook:
+#   (A) parser_x.o: --scrub-init-globals removes cross-module BSS assignments
+#       (g_lexer_* etc.) that physically live in lexer_x.o not parser_x.o.
+#   (B) ALL leaves: inject_forward_decls — two sub-fixes in order:
+#       (B.1) Prepend `struct X;`/`union Y;`/`enum Z;` incomplete-type tag
+#             decls for every tag referenced by any function signature.
+#             Without this, C treats tags first seen inside `f(struct X*)` as
+#             prototype-scope-local (ISO C 6.2.1 §4), causing "conflicting
+#             types" errors / -Wvisibility when the real tag declaration
+#             appears later in the file.
+#       (B.2) Prepend forward-decls for ALL extern + static function
+#             signatures. xlang -E-extern only injects externs for explicitly
+#             declared export-extern symbols; file-local static helpers never
+#             get them; and extern decls can be emitted AFTER call sites too.
+#   (C) driver_x.o (src/main.x): import std.sys lives at repo-root/std;
+#       xlang -E resolver succeeds only when cwd=repo-root (so the implicit
+#       module-root relative search finds std/sys/mod.x). We therefore
+#       chdir to repo-root for this single leaf and rewrite -L paths to
+#       be repo-root-relative (prefix src/ → compiler/src/, etc.).
 driver_leaf_build() {
   X_SRC="$1"
   OUT_O="$2"
@@ -478,12 +498,86 @@ driver_leaf_build() {
   fi
   DIRS="${DRIVER_SUBCMD_DIRS:--L .. -L src -L src/lexer -L src/ast}"
 
+  # post_E_fixup flags — per-leaf mode toggles for the G.7 authoritative
+  # post-processing hook (scripts/post_E_fixup.py).  Each flag maps to ONE
+  # root-level fix applied only to the leaf that needs it (wave335):
+  #   --scrub-init-globals        parser_x.o  : drop cross-module BSS assigns
+  #   --append-typeck-bodies      typeck_x.o  : append 5 seed-era public API
+  #                                bodies that typeck.x -E regressed (pure-ld
+  #                                5 UNDEF symbols at relink time)
+  SCRUB_INIT_GLOBALS_FLAG=""
+  APPEND_TYPECK_BODIES_FLAG=""
+  _out_base="${OUT_O##*/}"
+  case "$_out_base" in
+    parser_x.o) SCRUB_INIT_GLOBALS_FLAG="--scrub-init-globals" ;;
+    typeck_x.o) APPEND_TYPECK_BODIES_FLAG="--append-typeck-bodies" ;;
+  esac
+
+  # (C) driver_x.o: run -E from REPO ROOT with repo-root-relative -L paths
+  # because src/main.x imports std.sys which lives at <repo>/std/sys/mod.x
+  # and xlang -E resolver uses implicit cwd-relative module search roots
+  # that only succeed when cwd=<repo-root>. We save/restore PWD around -E.
+  _orig_pwd="$PWD"
+  _e_dirs_for_leaf="$DIRS"
+  _e_xsrc_for_leaf="$X_SRC"
+  case "$_out_base" in
+    driver_x.o)
+      # rewrite: cwd becomes <repo-root>; X_SRC goes from src/main.x → compiler/src/main.x
+      # DIRS rewrite: -L X → each X that was compiler/-relative must now be prefixed compiler/
+      _repo_root="${_orig_pwd}/.."
+      _e_xsrc_for_leaf="compiler/${X_SRC}"
+      # ROOT-FIX wave335: DIRS comes to us in TWO-token form: `-L ../` `-L src` ...
+      # (space-separated flag + arg). The for-loop below only handles ONE-token
+      # combined form `-L../` `-Lsrc` ... So FIRST normalize: sed collapses any
+      # run of whitespace between `-L` and the path into a single combined token.
+      # Without this, the 2nd token (the path) falls into the `*)` DEFAULT case
+      # and gets SILENTLY DROPPED → _new_dirs is full of bare -L with no paths,
+      # → xlang -E misses -L . (repo-root) and cannot resolve import std.sys
+      # because std/sys/mod.x lives at <repo-root>/std/sys/mod.x.
+      _e_dirs_for_leaf="$(echo "$_e_dirs_for_leaf" | sed 's/-L[[:space:]]\{1,\}/-L/g')"
+      # Rewrite each now-combined -L<arg> token:
+      #   .././..  → -L .      (compiler parent = repo root)
+      #   src/*    → -L compiler/src/*
+      #   others   → keep relative
+      _new_dirs=""
+      for _tok in $_e_dirs_for_leaf; do
+        case "$_tok" in
+          -L*)
+            _lp="${_tok#-L}"
+            case "$_lp" in
+              ".."|"./..")  _new_dirs="$_new_dirs -L ." ;;
+              src|src/*)    _new_dirs="$_new_dirs -L compiler/${_lp}" ;;
+              *)            _new_dirs="$_new_dirs -L ${_lp}" ;;
+            esac
+            ;;
+          *) ;;
+        esac
+      done
+      # Explicit search order (defense in depth — even if rewrite regresses,
+      # std.sys and compiler submodules MUST be findable):
+      #   -L .              → repo-root: finds std/sys/mod.x for import std.sys
+      #   -L compiler/src   → finds compiler/src/main.x + ast/lexer/... submods
+      # then the rewritten per-module -L entries from _new_dirs.
+      _e_dirs_for_leaf="-L . -L compiler/src $(echo "$_new_dirs" | sed 's/^ *//')"
+      ;;
+  esac
+
   if XLANG_BIN=$(pick_xlang); then
     tmp="$(mktemp "${TMPDIR:-/tmp}/driver_leaf.XXXXXX.c")"
     # 30s guard (align prove_module_selfhost / g05)
     # shellcheck disable=SC2086
-    if perl -e 'alarm 30; exec @ARGV' "$XLANG_BIN" -E $DIRS "$X_SRC" >"$tmp" 2>/dev/null \
-      && [ -s "$tmp" ]; then
+    _e_rc=0
+    case "$_out_base" in
+      driver_x.o)
+        ( cd "$_repo_root" && \
+          perl -e 'alarm 30; exec @ARGV' "${_orig_pwd}/${XLANG_BIN}" -E $_e_dirs_for_leaf "$_e_xsrc_for_leaf" >"$tmp" 2>/dev/null ) \
+          || _e_rc=$?
+        ;;
+      *)
+        perl -e 'alarm 30; exec @ARGV' "$XLANG_BIN" -E $DIRS "$X_SRC" >"$tmp" 2>/dev/null || _e_rc=$?
+        ;;
+    esac
+    if [ "$_e_rc" = "0" ] && [ -s "$tmp" ]; then
       grep -v '^DBG-' "$tmp" >"${tmp}.clean" && mv "${tmp}.clean" "$tmp"
       apply_rename "$tmp" "$SYM_RENAME"
       {
@@ -522,6 +616,16 @@ driver_leaf_build() {
             -e '/^extern size_t strlen(/d' \
             "$tmp"
       } >"${tmp}.full" && mv "${tmp}.full" "$tmp"
+      # G.7 post_E_fixup (wave335):
+      #   · tag forward-decls + function forward-decls (all leaves, always)
+      #   · init_globals cross-module scrub (parser_x.o only)
+      #   · 5 missing public-API body append (typeck_x.o only)
+      # Script lives next to this shell driver; always invoke from compiler/ (orig pwd).
+      tmp_fix="$(mktemp "${TMPDIR:-/tmp}/driver_leaf_fix.XXXXXX.c")"
+      ( cd "$_orig_pwd" && \
+        python3 scripts/post_E_fixup.py "$tmp" "$tmp_fix" \
+          $SCRUB_INIT_GLOBALS_FLAG $APPEND_TYPECK_BODIES_FLAG ) \
+      && mv "$tmp_fix" "$tmp"
       # shellcheck disable=SC2086
       if $CC $BASE_CFLAGS -x c -c -o "$OUT_O" "$tmp" 2>/dev/null; then
         rm -f "$tmp"
@@ -529,7 +633,7 @@ driver_leaf_build() {
         return 0
       fi
     fi
-    rm -f "$tmp"
+    rm -f "$tmp" "${tmp_fix:-}"
     echo "driver_leaf_x_to_o: PREFER_X_O failed for $X_SRC; try cold seed" >&2
   fi
 
