@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
 """post_E_fixup.py — G.7 single authority post-processing hook for driver_leaf PREFER_X_O path.
 
-Applies THREE root-level fixes after xlang -E produces its C output, BEFORE the
+Applies FIVE root-level fixes after xlang -E produces its C output, BEFORE the
 host `cc -c` step in driver_leaf_build:
+
+0. Colliding-definition dedup (ALL leaves, always on; wave338):
+   Removes duplicate function definitions and extern declarations produced by
+   codegen's module-prefix collision. When two source functions map to the
+   same C symbol after prefixing (e.g. main.x `run_compiler_c` → `main_` +
+   `run_compiler_c` collides with the existing `main_run_compiler_c`), the
+   codegen emits two definitions with the same name. The duplicate from the
+   colliding source function has a body that calls the colliding name —
+   i.e. calls ITSELF (infinite recursion). This pass detects such
+   self-calling duplicates and removes them, keeping the correct definition.
+   Also deduplicates extern declarations (keeps first occurrence per name).
 
 1. init_globals scrub (parser_x.o only → `--scrub-init-globals` flag):
    Removes cross-module BSS assignments that belong to lexer/token/typeck/...
@@ -21,6 +32,18 @@ host `cc -c` step in driver_leaf_build:
    appears linearly in the C output. xlang-x -E-extern only injects externs
    for explicitly-declared export-extern symbols; file-local helpers never
    get them; and extern decls can be emitted AFTER call sites too.
+
+   2a. Double-prefix alias injection (ALL leaves, always on; wave338):
+   codegen's `ast_` special case in `codegen_c_prefix_redundant_with_name`
+   (codegen.x L3568) forces the module prefix onto `export extern` names even
+   when the name already starts with the module prefix, producing ghost
+   declarations like `ast_ast_arena_block_get`. Call sites within the same
+   module use the single-prefix name `ast_arena_block_get` (the actual C
+   symbol defined in runtime_pipeline_abi.o). External modules (pipeline.x,
+   runtime_driver_diagnostic_thin.x) correctly reference the double-prefix
+   name. This sub-phase keeps the double-prefix declaration AND adds the
+   single-prefix alias, so internal call sites resolve. Safe: unused extern
+   aliases are link-time no-ops; used aliases resolve to the real symbol.
 
 3. Missing-body append (typeck_x.o only → `--append-typeck-bodies` flag):
    Historical pinned gen.c (typeck_gen.*.c) contained FIVE function bodies
@@ -654,6 +677,141 @@ def scrub_init_globals(src: str) -> str:
     return pat.sub(repl, src, count=1)
 
 
+# === Colliding-definition dedup (wave338) ====================================
+#
+# ROOT CAUSE: codegen's module-prefix logic in codegen_emit_func_link_name
+# (codegen.x ~L15505) adds the module name as a C-link prefix onto every
+# `export function` name, with a skip-if-redundant check via
+# codegen_c_prefix_redundant_with_name (codegen.x L3560).  When two source
+# functions in the SAME module map to the same C symbol after prefixing,
+# the codegen emits TWO definitions with the identical name.
+#
+# Concrete instance (driver_x.o / src/main.x):
+#   export function run_compiler_c(...)      → prefixed → main_run_compiler_c
+#   export function main_run_compiler_c(...) → skip     → main_run_compiler_c  (collision!)
+#
+# The second definition (from the source `main_run_compiler_c`) originally
+# called `run_compiler_c(...)`; after prefixing that call also becomes
+# `main_run_compiler_c(...)` — i.e. the function calls ITSELF, creating
+# infinite recursion AND a duplicate-definition linker error.
+#
+# This pass detects:
+#   (A) duplicate extern declarations of the same name → keep first, drop rest
+#   (B) duplicate function definitions of the same name → drop any whose body
+#       calls the function's own name (self-calling = the colliding duplicate);
+#       keep the remaining definition (which calls a DIFFERENT symbol = correct)
+#
+# Safety: only acts when ≥2 definitions share a name. A lone self-recursive
+# function (legitimate recursion) is never touched. Brace matching is
+# depth-counted; -E output is machine-generated C without brace-in-string
+# edge cases, so depth counting is exact for this input class.
+# PLATFORM: SHARED — pure text manipulation, stdlib only.
+
+_EXTERN_NAME_RE = re.compile(
+    r"^\s*extern\s+.+\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^)]*\)\s*;\s*$"
+)
+
+# Function definition: [storage] <rettype-chain> <name>(<params>) {
+# Opening brace must be on the same line (INVARIANT 2a of -E output).
+_FUNC_DEF_RE = re.compile(
+    r"^(?:static\s+|inline\s+|static\s+inline\s+)?"
+    r"(\w[\w\s\*]*?)\s+"  # return-type chain (non-greedy)
+    r"([A-Za-z_][A-Za-z0-9_]*)\s*"  # function name
+    r"\(([^)]*)\)\s*\{"  # params + opening brace
+)
+
+
+def _find_func_def_ranges(lines):
+    """Return list of (name, start_idx, end_idx) for each top-level function
+    definition, where end_idx is the line of the matching closing brace.
+    Uses depth-counted brace matching (exact for -E output class).
+    """
+    results = []
+    i = 0
+    N = len(lines)
+    while i < N:
+        m = _FUNC_DEF_RE.match(lines[i])
+        if not m:
+            i += 1
+            continue
+        name = m.group(2)
+        depth = 0
+        end = i
+        for j in range(i, N):
+            for ch in lines[j]:
+                if ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        end = j
+                        break
+            if depth == 0:
+                break
+        results.append((name, i, end))
+        i = end + 1
+    return results
+
+
+def dedup_colliding_definitions(src: str) -> str:
+    """Remove duplicate function definitions + extern declarations caused by
+    codegen module-prefix collisions (wave338).
+
+    See module docstring §0 for the full root-cause analysis. This function is
+    always-on (ALL leaves) because the collision is a codegen-level defect that
+    can affect any module where a source function name collides with another
+    after prefixing; it is NOT leaf-specific.
+
+    Returns src unchanged if no collisions are found.
+    """
+    lines = src.split("\n")
+    remove = set()  # line indices to drop
+
+    # --- (B) duplicate function definitions: drop self-calling copies -------
+    ranges = _find_func_def_ranges(lines)
+    from collections import defaultdict
+    by_name = defaultdict(list)
+    for name, start, end in ranges:
+        by_name[name].append((start, end))
+
+    for name, defs in by_name.items():
+        if len(defs) < 2:
+            continue
+        # A definition "calls itself" if the function name appears as a call
+        # (name + "(") MORE THAN ONCE in the full definition text — once in
+        # the signature, plus ≥1 in the body. Counting avoids needing to
+        # separate signature from body.
+        for start, end in defs:
+            full = "\n".join(lines[start : end + 1])
+            call_count = len(re.findall(r"\b" + re.escape(name) + r"\s*\(", full))
+            if call_count >= 2:
+                for k in range(start, end + 1):
+                    remove.add(k)
+
+    # --- (A) duplicate extern declarations: keep first per name -------------
+    seen_extern = set()
+    for i, ln in enumerate(lines):
+        m = _EXTERN_NAME_RE.match(ln)
+        if not m:
+            continue
+        ename = m.group(1)
+        if ename in seen_extern:
+            remove.add(i)
+        else:
+            seen_extern.add(ename)
+
+    if not remove:
+        return src
+
+    new_lines = [ln for i, ln in enumerate(lines) if i not in remove]
+    # Trailing newline preservation: split("\n") drops the final newline;
+    # rejoin and re-add if original ended with one.
+    result = "\n".join(new_lines)
+    if src.endswith("\n") and not result.endswith("\n"):
+        result += "\n"
+    return result
+
+
 # === Forward-declaration generator ==========================================
 #
 # xlang -E emitter style invariants (G.7 — single authority = no dual style):
@@ -874,11 +1032,51 @@ def inject_forward_decls(src: str) -> str:
     extern_decls = [d for s, d, _ in sigs if s != "static"]
     static_decls = [d for s, d, _ in sigs if s == "static"]
 
+    # ---- Phase 2.5: double-prefix alias injection (wave338) ----------------
+    # codegen's `ast_` special case (codegen_c_prefix_redundant_with_name,
+    # codegen.x L3568) forces the module prefix onto `export extern` names
+    # even when the name already starts with that prefix. This produces ghost
+    # declarations like `ast_ast_arena_block_get` while internal call sites
+    # use the single-prefix `ast_arena_block_get` (the real C symbol defined
+    # in runtime_pipeline_abi.o). External modules (pipeline.x,
+    # runtime_driver_diagnostic_thin.x) correctly reference the double-prefix
+    # name, so we KEEP the double-prefix decl AND add a single-prefix alias
+    # for internal call sites. Safe: unused extern aliases are link-time
+    # no-ops; used aliases resolve to the real symbol.
+    declared_names = {n for _, _, n in sigs}
+    alias_decls = []
+    alias_seen = set()
+    for _s, d, name in sigs:
+        # Detect <mod>_<mod>_<rest> double-prefix pattern (e.g. ast_ast_X)
+        m = re.match(r"^([a-z][a-z0-9]*)_([a-z][a-z0-9]*)_(.+)$", name)
+        if not m:
+            continue
+        mod, mod2, rest = m.group(1), m.group(2), m.group(3)
+        if mod != mod2:
+            continue  # not a double prefix (e.g. main_run_compiler_c)
+        single_name = f"{mod}_{rest}"
+        if single_name in declared_names or single_name in alias_seen:
+            continue  # single-prefix already declared — no alias needed
+        # Only add alias if the single-prefix name is actually CALLED in
+        # this file (avoid cluttering with unused aliases).
+        if not re.search(r"\b" + re.escape(single_name) + r"\s*\(", src):
+            continue
+        # Build alias by replacing the first occurrence of the double-prefix
+        # name with the single-prefix name in the canonical decl string.
+        alias_decl = d.replace(name, single_name, 1)
+        alias_seen.add(single_name)
+        alias_decls.append(alias_decl)
+    if alias_decls:
+        extern_decls.extend(alias_decls)
+
     # ---- Phase 3: build combined block ----
     block_lines = [""]
+    _alias_cnt = len(alias_decls)
     header_note = (
         f"/* driver_leaf post_E_fixup: "
-        f"{len(typedef_lines)} typedefs + {len(tag_seen)} tags + {len(sigs)} function forward-decls */"
+        f"{len(typedef_lines)} typedefs + {len(tag_seen)} tags + {len(sigs)} function forward-decls"
+        + (f" + {_alias_cnt} double-prefix aliases" if _alias_cnt else "")
+        + " */"
     )
     block_lines.append(header_note)
     if typedef_lines:
@@ -946,6 +1144,12 @@ def main(argv):
     with open(args.input, "r", encoding="utf-8", errors="replace") as f:
         src = f.read()
 
+    # Order matters: dedup FIRST (removes colliding duplicate definitions +
+    # externs from the body), THEN scrub init_globals, THEN inject
+    # forward-decls (which also adds double-prefix aliases), THEN append
+    # typeck bodies. dedup before inject ensures inject_forward_decls does
+    # not pick up self-calling duplicate signatures as forward-decls.
+    src = dedup_colliding_definitions(src)
     if args.scrub_init_globals:
         src = scrub_init_globals(src)
     src = inject_forward_decls(src)

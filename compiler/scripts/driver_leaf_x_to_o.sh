@@ -513,6 +513,16 @@ driver_leaf_build() {
     typeck_x.o) APPEND_TYPECK_BODIES_FLAG="--append-typeck-bodies" ;;
   esac
 
+  # Per-leaf -E alarm override (wave338): codegen.x is 21922 LOC and its -E
+  # legitimately exceeds the 30s default on Ubuntu x86_64 (SIGALRM _e_rc=142).
+  # Scale alarm by leaf so large files get proportional headroom while small
+  # files still fail fast on infinite-loop hangs.  Override via env
+  # XLANG_DRIVER_LEAF_E_ALARM=<secs> for probing.
+  _E_ALARM_SECS="${XLANG_DRIVER_LEAF_E_ALARM:-30}"
+  case "$_out_base" in
+    codegen_x.o) _E_ALARM_SECS="${XLANG_DRIVER_LEAF_E_ALARM:-60}" ;;  # 21922 LOC ~27s mac
+  esac
+
   # (C) driver_x.o: run -E from REPO ROOT with repo-root-relative -L paths
   # because src/main.x imports std.sys which lives at <repo>/std/sys/mod.x
   # and xlang -E resolver uses implicit cwd-relative module search roots
@@ -564,17 +574,17 @@ driver_leaf_build() {
 
   if XLANG_BIN=$(pick_xlang); then
     tmp="$(mktemp "${TMPDIR:-/tmp}/driver_leaf.XXXXXX.c")"
-    # 30s guard (align prove_module_selfhost / g05)
+    # -E alarm guard (wave338: per-leaf scalable; was hardcoded 30s).
     # shellcheck disable=SC2086
     _e_rc=0
     case "$_out_base" in
       driver_x.o)
         ( cd "$_repo_root" && \
-          perl -e 'alarm 30; exec @ARGV' "${_orig_pwd}/${XLANG_BIN}" -E $_e_dirs_for_leaf "$_e_xsrc_for_leaf" >"$tmp" 2>/dev/null ) \
+          perl -e "alarm ${_E_ALARM_SECS}; exec @ARGV" "${_orig_pwd}/${XLANG_BIN}" -E $_e_dirs_for_leaf "$_e_xsrc_for_leaf" >"$tmp" 2>/dev/null ) \
           || _e_rc=$?
         ;;
       *)
-        perl -e 'alarm 30; exec @ARGV' "$XLANG_BIN" -E $DIRS "$X_SRC" >"$tmp" 2>/dev/null || _e_rc=$?
+        perl -e "alarm ${_E_ALARM_SECS}; exec @ARGV" "$XLANG_BIN" -E $DIRS "$X_SRC" >"$tmp" 2>/dev/null || _e_rc=$?
         ;;
     esac
     if [ "$_e_rc" = "0" ] && [ -s "$tmp" ]; then
