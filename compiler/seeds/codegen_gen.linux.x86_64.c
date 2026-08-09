@@ -4788,6 +4788,22 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
         }
         return 0;
       }
+      /* ABI-dup canonical tag: rt_preamble owns `struct std_string_String` (+ typedef
+       * String) and `struct std_string_StrView`; per-module layout is skipped. Bare
+       * `struct String` is an incomplete host-C type that mismatches the STRUCT_LIT
+       * compound literal `struct std_string_String` in function bodies -> host-cc
+       * "returning 'struct std_string_String' from incompatible result type 'struct
+       * String'". Root fix: emit_type uses the same canonical namespaced tag as the
+       * STRUCT_LIT emitter and rt_preamble authority. Mirrors Buffer pattern.
+       * PLATFORM: SHARED -- seed pin same commit as codegen.x; G.8 dual-end L2. */
+      if ((((((((name_len ==6) && ((nm)[0] ==83)) && ((nm)[1] ==116)) && ((nm)[2] ==114)) && ((nm)[3] ==105)) && ((nm)[4] ==110)) && ((nm)[5] ==103))) {
+        uint8_t s_string[26] = {115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 83, 116, 114, 105, 110, 103, 0, 0};
+        return codegen_emit_bytes_from_ptr(out, &((s_string)[0]), 24);
+      }
+      if (((((((((name_len ==7) && ((nm)[0] ==83)) && ((nm)[1] ==116)) && ((nm)[2] ==114)) && ((nm)[3] ==86)) && ((nm)[4] ==105)) && ((nm)[5] ==101)) && ((nm)[6] ==119))) {
+        uint8_t s_view[27] = {115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 83, 116, 114, 86, 105, 101, 119, 0, 0};
+        return codegen_emit_bytes_from_ptr(out, &((s_view)[0]), 25);
+      }
       if (((((name_len ==3) && ((nm)[0] ==117)) && ((nm)[1] ==49)) && ((nm)[2] ==54))) {
         uint8_t u16_t[9] = {117, 105, 110, 116, 49, 54, 95, 116, 0};
         return codegen_emit_bytes_8(out, &((u16_t)[0]), 8);

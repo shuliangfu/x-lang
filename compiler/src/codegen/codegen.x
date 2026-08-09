@@ -4344,6 +4344,31 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         }
         return 0;
       }
+      /*
+       * ABI-dup canonical tag: rt_preamble owns `struct std_string_String` (+ typedef
+       * String) and `struct std_string_StrView`; the per-module layout is skipped
+       * (codegen_should_skip_emit_struct_layout_for_abi_dup). Bare `struct String`
+       * is therefore an INCOMPLETE host-C type that mismatches the STRUCT_LIT
+       * compound literal `struct std_string_String` emitted in function bodies →
+       * host-cc "returning 'struct std_string_String' from incompatible result type
+       * 'struct String'" (std/string/mod.x -x -E entry-only path).
+       * Root fix: emit_type must use the same canonical namespaced tag as the
+       * STRUCT_LIT emitter (codegen.x:12568-12580) and rt_preamble authority.
+       * Mirrors the existing Buffer→struct std_io_Buffer pattern above.
+       * PLATFORM: SHARED — seed pin same commit; G.8 dual-end L2.
+       */
+      if (name_len == 6 && nm[0] == 83 && nm[1] == 116 && nm[2] == 114
+          && nm[3] == 105 && nm[4] == 110 && nm[5] == 103) {
+        /* "struct std_string_String" — canonical preamble tag. */
+        let s_string: u8[26] = [115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 83, 116, 114, 105, 110, 103, 0, 0];
+        return emit_bytes_from_ptr(out, &s_string[0], 24);
+      }
+      if (name_len == 7 && nm[0] == 83 && nm[1] == 116 && nm[2] == 114
+          && nm[3] == 86 && nm[4] == 105 && nm[5] == 101 && nm[6] == 119) {
+        /* "struct std_string_StrView" — canonical preamble tag. */
+        let s_view: u8[27] = [115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 83, 116, 114, 86, 105, 101, 119, 0, 0];
+        return emit_bytes_from_ptr(out, &s_view[0], 25);
+      }
       /* See implementation. */
       if (name_len == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54) {
         let u16_t: u8[9] = [117, 105, 110, 116, 49, 54, 95, 116, 0];
