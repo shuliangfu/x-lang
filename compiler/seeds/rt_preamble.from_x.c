@@ -611,7 +611,9 @@ const char *const driver_preamble_fs_path_lines[] = {
         "extern int64_t fs_writev_buf_c(int32_t fd, const fs_iovec_buf_t *bufs, int n);\n",
         "extern int32_t std_path_empty_len(void);\n",
         "#define empty_len() std_path_empty_len()\n",
-        "extern int32_t map_i32_i32_find_c(const int32_t *keys, const uint8_t *occupied, int32_t cap, int32_t key);\n",
+        /* Match std/heap/ops.x / map_abi.h (non-const): co-emit defining TU must not
+         * conflict with this prototype. PLATFORM: SHARED — G.7 single signature. */
+        "extern int32_t map_i32_i32_find_c(int32_t *keys, uint8_t *occupied, int32_t cap, int32_t key);\n",
         "extern int32_t std_map_empty_size(void);\n",
         "#define empty_size(_a, _b) std_map_empty_size()\n",
         "extern int32_t std_error_error_ok(void);\n",
