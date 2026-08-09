@@ -1087,6 +1087,12 @@ export function rt_xe_step_finish(): i32 {
   }
   if (ec == 0) {
     if (out_len > 0) {
+      /* Emit smoke summary (parse OK / typeck OK) before C body so run-typeck.sh
+       * gate grep finds the marker on the -E path. Mirrors driver/emit.x:413
+       * and rt_run_compiler_parsed.x:1251. PLATFORM: SHARED. */
+      unsafe {
+        driver_print_x_smoke_summary(module, out_len as usize);
+      }
       unsafe {
         driver_x_emit_fwrite_stdout(out_data, out_len);
       }
