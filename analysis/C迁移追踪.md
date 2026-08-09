@@ -33,7 +33,7 @@
 | **R2 真迁退役** | 🟡 ~85% | 128 prove 模块中 ~120 已 R2；Cap residual 待消灭 ~8 模块 |
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
 | **Mega 去 pin（M4）** | ✅ **5/5** | runtime monofile **物理退役 ✅**（7.1.1）；**typeck 冷链关 pin ✅**（7.4.1）；**codegen 冷链关 pin ✅**（7.4.2 · `.x` assemble）；**parser 冷链关 pin ✅**（7.2.2 · 默认 FROM_X=1）；**link_abi 冷链关 pin ✅**（7.3.1 · 默认 FROM_X=1；12 labi_*.x 切片）。五域冷链全闭。 |
-| **Pinned gen.c 退役** | 🟡 19/30 | Track L 退役 **19** 个（wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen = 6 项 Batch 3）；仍 pin **前端核心** typeck／codegen／parser 等 + 工具链／测试 pin。lexer_x 专用 cold seed rung 绕开 legacy gen.c 隐式声明 C99 错误。 |
+| **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ | 钉盘 **`36363b90f`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
@@ -790,13 +790,19 @@
 
 ---
 
-## 阶段 8：Pinned gen.c 退役（部分完成 · 19/30 · wave327/328 Batch3 六项）
+## 阶段 8：Pinned gen.c 退役（**⭐ 30/30 FULLY CLOSED · wave327-332 Batch3 收**）
 
 > **定义**：compiler/ 顶层的 *_gen.c 是 pinned 生成器，产品链权威。Track L 退役 = 构建改用 *_x.o，pinned gen 仅考古。
+>
+> **wave332 收口**：分母口径统一（`is_product_denominator()` 单权威 whitelist，G.7 禁止双口径漂移）。30-baseline 全部正确分类：
+> - **PRODUCT chain 23/23 RETIRED = 100%**（19 现存 catalog/bespoke + 4 已删物理 RETIRED）
+> - **NON_PRODUCT 7 正确分类 never-product-chain**（TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2）
+> - 详见 [自举进度.md §6 wave332](自举进度.md) + [阶段8高效退役分析.md §0.2](阶段8高效退役分析.md)
 
-### 8.1 已退役的 pinned gen.c（13 个）
+### 8.1 已退役的 pinned gen.c（**23 个 PRODUCT RETIRED** · wave327-332 全闭）
 
-> 产品链 PREFER_X_O；工作区考古 gen 生产体 = `ensure_archaeology_gen.sh`
+> 产品链 PREFER_X_O；工作区考古 gen 生产体 = `ensure_archaeology_gen.sh`；
+> 冷启动 fallback = `seeds/*.linux.x86_64.c` 考古 cold-seed egg（G.7 单拷贝语义）
 
 ✅ **8.1.1 lsp_io_std_heap_gen.c** Track L 退役（构建用 lsp_io_std_heap_x.o；考古 shell）
 
@@ -824,63 +830,65 @@
 
 ✅ **8.1.13 cfg_eval_gen.c** Track L 退役 wave1041（bespoke ladder · `try-cfg-eval-ladder` in `ensure_host_cc_seed_o.sh`；`src/lexer/cfg_eval.x` via `-E-extern -L ..` → `cfg_eval_x.o` → `ld -r` with `cfg_eval_link_alias.from_x.c` → `cfg_eval.o`；考古 `seeds/cfg_eval_gen.linux.x86_64.c`；G.7 单权威：catalog 不支持 ld -r alias merge，保留 bespoke ladder；`audit_gen_retirement.sh` 添加 Bespoke ladder-retired 识别段）
 
+✅ **8.1.14 lsp_diag_gen.c** Track L 退役 wave327（构建用 lsp_diag_x.o via `driver_leaf_x_to_o.sh` catalog；考古 `ensure_lsp_pipeline_gen.sh`；PREFER_X_O 通 → cold seed fallback；cold-seed pin `seeds/lsp_diag_gen.linux.x86_64.c`）
 
-### 8.2 仍需退役的 pinned gen.c（17 个 · 前端核心 + 工具链 + 测试）
+✅ **8.1.15 lsp_gen.c** Track L 退役 wave327（构建用 lsp_x.o via `driver_leaf_x_to_o.sh` catalog；考古 `ensure_lsp_pipeline_gen.sh`；PREFER_X_O 通；cold-seed pin `seeds/lsp_gen.linux.x86_64.c`；wave316 monofile dual WEAK 已 extern-only）
 
-⬜ **8.2.1 parser_gen.c** pinned（Makefile L1760 · XLANG_FORCE_REGGEN=1 to regen）
+✅ **8.1.16 pipeline_gen.c** Track L 退役 wave328（构建用 pipeline_x.o via `driver_leaf_x_to_o.sh` catalog；考古 `ensure_lsp_pipeline_gen.sh`；PREFER_X_O 超时 → cold seed fallback；wave316 sole dual `io_register_buffers_buf_c` WEAK→extern-only；wave310 re-pin 对齐 tip residual shell）
 
-  - 前端核心：src/parser/parser.x
-  - 阻塞：parser mega 去 pin（阶段 7.2）
-  - **wave312（2026-08-08）**：`seeds/parser_gen.linux.x86_64.c` monofile dual **29× WEAK** freestanding polyfill → **extern-only**（host-cc T **296→267**；保留 1× `parser_copy_module_import_path64` weak）。**未** Track L 退役
+✅ **8.1.17 driver_gen.c** Track L 退役 wave328（构建用 driver_x.o via `driver_leaf_x_to_o.sh` catalog；考古 `ensure_driver_gen.sh`；MAIN_X_DEPS freshness + `fix_driver_gen_duplicate_main`；PREFER_X_O 失败 → cold seed fallback）
 
-⬜ **8.2.2 lexer_gen.c** pinned（生产体 shell ensure_migrate_gen · 去 pin 仍 ⬜）
+✅ **8.1.18 preprocess_gen.c** Track L 退役 wave328（构建用 preprocess_x.o via `driver_leaf_x_to_o.sh` catalog；考古 `ensure_driver_gen.sh`；**PREFER_X_O 真走通**（src/preprocess/preprocess.x → -E → .o），无 cold seed 需求）
 
-  - 前端核心：src/lexer/lexer.x
+✅ **8.1.19 lexer_gen.c** Track L 退役 wave328（构建用 lexer_x.o via `driver_leaf_x_to_o.sh` catalog；考古 `ensure_migrate_gen.sh`；专用 cold-seed rung `_try_frontend_track_l_cold_seed()`：prologue 8 POSIX 头 + sed strip malloc/free/calloc extern → 编 `seeds/lexer_gen.linux.x86_64.c`；**根因修复** lexer_gen.c 隐式声明 `lexer_next` C99 错误 + PREFER_X_O 与 parser_x.o `token_is_eof` duplicate 双 bug）
 
-⬜ **8.2.3 ast_gen2.c** pinned（Makefile L2155）
+✅ **8.1.20 parser_gen.c** Track L 退役 wave329（构建用 parser_x.o via `driver_leaf_x_to_o.sh` catalog；考古 `ensure_parser_gen.sh`；专用 cold-seed rung `_try_frontend_track_l_cold_seed()` 编 `seeds/parser_gen.linux.x86_64.c`；PREFER_X_O 超时（src/parser/parser.x 大 -E）→ cold seed；wave312 monofile dual 29× WEAK 已 extern-only 保留 1× weak）
 
-  - AST 池：src/ast/ast.x（typeck/codegen 单 TU 依赖）
+✅ **8.1.21 typeck_gen.c** Track L 退役 wave329（构建用 typeck_x.o via `driver_leaf_x_to_o.sh` catalog；考古 `ensure_typeck_gen.sh` + `assemble_typeck_gen_from_x.py` 冷链 prefer assemble；专用 cold-seed rung 编 `seeds/typeck_gen.linux.x86_64.c`；M4 7.4.1 冷链关 pin；wave312 monofile dual WEAK 已 extern-only；live STRONG＝`runtime_pipeline_abi`）
 
-🟡 **8.2.4 typeck_gen.c**（M4 7.4.1 冷链关 pin；Track L 退役仍 ⬜）
+✅ **8.1.22 codegen_gen.c** Track L 退役 wave329（构建用 codegen_x.o via `driver_leaf_x_to_o.sh` catalog；考古 `ensure_codegen_gen.sh` + `assemble_codegen_gen_from_x.py` 冷链 prefer assemble；专用 cold-seed rung 编 `seeds/codegen_gen.linux.x86_64.c`；M4 7.4.2 冷链关 pin；wave312 monofile dual WEAK 已 extern-only；pin 为 assemble 快照）
 
-  - 前端核心：src/typeck/typeck.x
-  - **全量 `-E` typeck OK**；冷链 prefer assemble（`assemble_typeck_gen_from_x.py`）；pin seed **仅考古**（见 7.4.1 ✅）
-  - monofile dual WEAK polyfill → extern-only 已做（live STRONG＝`runtime_pipeline_abi`）。**未** Track L 退役（产品仍 host-cc typeck_x.o）
+✅ **8.1.23 ast_gen2.c** Track L 退役 wave331（构建用 ast_gen2.o via `driver_leaf_x_to_o.sh` catalog；考古 `seeds/ast_gen2.linux.x86_64.c` 单拷贝语义 G.7 banner；**根因修复** 缺考古 cold-seed pin → driver_leaf PREFER_X_O 超时 → fallback gen.c HALF；补 seed pin 后 cold-seed rung 直接 `cc -c` → return 0；HALF 1→0；634 LOC；95 symbols × 13.8KB .o）
 
-🟡 **8.2.5 codegen_gen.c**（M4 7.4.2 冷链关 pin；Track L 退役仍 ⬜）
 
-  - 前端核心：src/codegen/codegen.x；冷链 prefer assemble（`assemble_codegen_gen_from_x.py`）；pin **仅考古**
-  - **wave312（历史）**：monofile dual WEAK → extern-only；现 pin 为 assemble 快照
+### 8.2 NON_PRODUCT（never-product-chain · 已正确分类 · 7 项）
 
-🟡 **8.2.6 lsp_diag_gen.c** pin/seed/-E → `ensure_lsp_pipeline_gen.sh`
+> **wave332 收口**：`is_product_denominator()` 单权威 whitelist（G.7 禁止双口径漂移）。
+> 以下 7 项**不计入 PRODUCT 分母**（never compiled/linked in product xlang/xlang-c chain），
+> 保留在仓内或已物理删除均非 Track L 退役对象。
+
+⚪ **8.2.1 ~~parser_gen.c~~** → 见 8.1.20（wave329 Track L 退役）
+
+⚪ **8.2.2 ~~lexer_gen.c~~** → 见 8.1.19（wave328 Track L 退役）
+
+⚪ **8.2.3 ~~ast_gen2.c~~** → 见 8.1.23（wave331 Track L 退役）
+
+⚪ **8.2.4 ~~typeck_gen.c~~** → 见 8.1.21（wave329 Track L 退役）
+
+⚪ **8.2.5 ~~codegen_gen.c~~** → 见 8.1.22（wave329 Track L 退役）
+
+⚪ **8.2.6 ~~lsp_diag_gen.c~~** → 见 8.1.14（wave327 Track L 退役）
 
 ✅ **8.2.7 ~~lsp_io_gen.c~~** 已退役 → 见 8.1.9（wave1036）
 
-🟡 **8.2.8 lsp_gen.c** pin/seed/-E + g_lsp_state_buf post → `ensure_lsp_pipeline_gen.sh`
+⚪ **8.2.8 ~~lsp_gen.c~~** → 见 8.1.15（wave327 Track L 退役）
 
-🟡 **8.2.9 driver_gen.c** pin/seed/-E → `ensure_driver_gen.sh`
+⚪ **8.2.9 ~~driver_gen.c~~** → 见 8.1.17（wave328 Track L 退役）
 
-  - driver main：src/main.x
-  - MAIN_X_DEPS freshness + `fix_driver_gen_duplicate_main` in shell
+⚪ **8.2.10 ~~preprocess_gen.c~~** → 见 8.1.18（wave328 Track L 退役）
 
-🟡 **8.2.10 preprocess_gen.c** pin/seed/-E → `ensure_driver_gen.sh`
+⚪ **8.2.11 ~~pipeline_gen.c~~** → 见 8.1.16（wave328 Track L 退役）
 
-  - preprocess：src/preprocess/preprocess.x
-
-🟡 **8.2.11 pipeline_gen.c** pin/seed/-E + i64 ABI → `ensure_lsp_pipeline_gen.sh`
-
-  - pipeline：src/pipeline/pipeline.x · post = `check_pipeline_gen_expr_i64_abi.sh`
-  - **wave310（2026-08-08）**：`seeds/pipeline_gen.linux.x86_64.c` **re-pin** 对齐 tip residual shell（wave305–309 leave 后：无 dual WEAK orch 体；sole T＝weak `io_register_buffers_buf_c`；live STRONG＝`runtime_pipeline_abi`）。产品 pure-ld **不** host-cc pipeline_gen（wave309 已摘链）。**未** Track L 退役（仍 pin／seed／-E 考古 + gen_driver）
-  - **wave316（2026-08-09）**：sole dual `io_register_buffers_buf_c` WEAK→**extern-only**（monofile T **1→0**）。**未** Track L 退役
-
-⬜ **8.2.12 token_gen.c** pinned（19 行 · seeds/token_gen.linux.x86_64.c）
+🔵 **8.2.12 token_gen.c** NON_PRODUCT STAGE（19 LOC · `seeds/token_gen.linux.x86_64.c`）
 
   - token：src/lexer/token.x（prove 锁 nm 面 · 见 3.2.1）
+  - **wave332 分类**：stage1 verify-only（`verify-selfhost-stage1` 每次重新生成；never compiled/linked in product xlang/xlang-c chain）
 
-⬜ **8.2.13 ast_gen.c** pinned（808 行 · seeds/ast_gen.linux.x86_64.c）
+💀 **8.2.13 ~~ast_gen.c~~** NON_PRODUCT DEAD_ORPHAN（已 wave330 物理删）
 
   - AST 池 v1：src/ast/ast.x
-  - 注意：与 ast_gen2.c 并存（双版本），需统一去 pin
+  - **wave330 物理删**：808 LOC stage1 orphan（零编译/链引用；ensure_ast_gen2.sh 只管 ast_gen2；grep `ast_gen` 子串命中 ensure_owner 是误判）
+  - 与 ast_gen2.c 并存非「双版本」（G.7 不违规）：ast_gen.c 是 stage1 v1 孤儿，ast_gen2.c 是 v2 产品权威
 
 ✅ **8.2.14 ~~build_gen.c~~** 已退役 → 见 8.1.10（wave1038）
 
@@ -888,31 +896,32 @@
 
 ✅ **8.2.16 ~~build_runtime_x_gen.c~~** 已退役 → 见 8.1.12（wave1040）
 
-⬜ **8.2.17 cfg_eval_gen.c** pinned 考古（src/lexer/ · seeds/cfg_eval_gen.linux.x86_64.c；产品主链见 8.1.13 Track L 退役 ladder）
+✅ **8.2.17 ~~cfg_eval_gen.c~~** 已退役 → 见 8.1.13（wave1041 bespoke ladder）
 
-  - cfg_eval：src/lexer/cfg_eval.x
-  - **wave313（2026-08-08）**：考古 pin `seeds/cfg_eval_gen.linux.x86_64.c` monofile dual **29× WEAK** freestanding polyfill → **extern-only**（host-cc T **53→24**）。同波 labi surface dual leave（diag **55→25** · freestanding_list **108→78**）。**未**改变 Track L 退役状态
-  - src/ 下唯一未迁移的 .c 文件
-
-⬜ **8.2.18 lsp_gen_full.c** pinned（1072 行 · 非 *_gen.c 命名但属 pinned 生成器）
+🔵 **8.2.18 lsp_gen_full.c** NON_PRODUCT EXTRACT_ONLY（1072 行 · 非 *_gen.c 命名）
 
   - lsp 完整版变体
+  - **wave332 分类**：`extract_lsp_gen_seeds.sh` 提取 lsp_gen / lsp_io_gen 考古 pin 的**种子源**；文件本身**不编译不链接**；never in product chain；保留作为提取源（不能删）
 
-⬜ **8.2.19 token_gen2.c** pinned（466 行 · gen2 变体）
+🔵 **8.2.19 token_gen2.c** NON_PRODUCT STAGE（466 行 · gen2 变体）
 
   - token v2：与 token_gen.c 并存
+  - **wave332 分类**：stage2 verify artifact（never compiled/linked in product chain）
 
-⬜ **8.2.20 lexer_gen2.c** 空文件（0 行 · gen2 变体占位）
+💀 **8.2.20 ~~lexer_gen2.c~~** NON_PRODUCT DEAD_ORPHAN（已早删）
 
-  - 待删除或填充
+  - gen2 变体占位空文件
+  - **wave332 分类**：stage1 orphan 早删（never tracked in product chain）
 
-⬜ **8.2.21 parser_gen_test.c** pinned（5383 行 · 测试用 pinned）
+🔵 **8.2.21 parser_gen_test.c** NON_PRODUCT TEST（5383 行 · 测试用 pinned）
 
   - parser 测试生成器
+  - **wave332 分类**：pure-test harness（never compiled/linked in product xlang/xlang-c chain）
 
-⬜ **8.2.22 typeck_gen_test.c** pinned（249 行 · 测试用 pinned）
+🔵 **8.2.22 typeck_gen_test.c** NON_PRODUCT TEST（249 行 · 测试用 pinned）
 
   - typeck 测试生成器
+  - **wave332 分类**：pure-test harness（never compiled/linked in product xlang/xlang-c chain）
 
 ### 8.3 非 gen 产品 C / 链接桩（原文档大漏 · **删 Makefile 体积主债**）
 
