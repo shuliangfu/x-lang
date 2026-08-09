@@ -921,6 +921,111 @@ for x_path in "$@"; do
     fi
   fi
 
+  # PLATFORM: MACOS — macOS lacks objcopy (Linux path renames bare → std_<mod>_*
+  # in the .o). Without a rename, product links fail on missing std_<mod>_*.
+  #
+  # Root authority map (do NOT stack two rename strategies on one symbol):
+  #   1) rt_preamble may already `#define bare std_<mod>_bare` so the bare C
+  #      definition *is* the namespaced object symbol after preprocessing.
+  #   2) Linux: objcopy --redefine-sym bare=std_<mod>_bare (post-cc).
+  #   3) macOS (this block): thin wrapper `std_<mod>_bare(...){ return bare(...); }`
+  #      only when (1) did not already claim the namespaced symbol.
+  #
+  # Symptom that was wrong: generating (3) for symbols under (1) → host-cc
+  # redefinition of `std_heap_alloc_size_zero` (heap/mod.x).
+  # G.7: single predicate — skip wrapper iff namespaced form already owned.
+  # Linux objcopy path remains the ELF authority; this is the Mach-O twin.
+  if ! command -v objcopy >/dev/null 2>&1 && [ -f "$gen_c" ] && [ -s "$gen_c" ]; then
+    case "$base_name" in
+      mod.x)
+        _wrap_leaf=$(basename "$(dirname "$x_path")")
+        _wrap_root=$(printf '%s' "$x_path" | sed -e 's|^\.\./||' -e 's|/.*||')
+        case "$_wrap_root" in
+          core) _wrap_pref="core_${_wrap_leaf}_" ;;
+          *)    _wrap_pref="std_${_wrap_leaf}_" ;;
+        esac
+        if [ -n "$_wrap_pref" ] && [ "$_wrap_pref" != "_" ]; then
+          python3 - "$gen_c" "$_wrap_pref" <<'PYEOF' >>"$gen_c.append_wrappers.c" 2>/dev/null && cat "$gen_c.append_wrappers.c" >>"$gen_c" && rm -f "$gen_c.append_wrappers.c" || true
+import re, sys
+# PLATFORM: MACOS — thin namespaced wrappers; skip when preamble #define already
+# owns pref+name (bare def expands to that symbol). Mirrors Linux "nm already
+# has mod_pref → skip objcopy" per-symbol.
+gen_c_path, pref = sys.argv[1], sys.argv[2]
+with open(gen_c_path, 'r') as f:
+    s = f.read()
+# Simple identifier #define bare → expansion (rt_preamble product aliases).
+_define_re = re.compile(
+    r'^#define\s+([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*$',
+    re.M,
+)
+defines = {m.group(1): m.group(2) for m in _define_re.finditer(s)}
+_func_def_re = re.compile(
+    r'^(?P<ret>(?:struct\s+\w+|(?:u?int(?:8|16|32|64)?_t|void|int|size_t|char|float|double|ssize_t|uintptr_t|intptr_t)[\s\*]*))\s+'
+    r'(?P<name>[a-z_][a-zA-Z_0-9]*)\s*'
+    r'\((?P<args>[^)]*)\)\s*\{',
+    re.M
+)
+def _extract_arg_names(args_str):
+    args_str = args_str.strip()
+    if args_str == 'void' or args_str == '':
+        return ''
+    names = []
+    for part in args_str.split(','):
+        part = part.strip()
+        if part == '...':
+            names.append('...')
+            continue
+        part_clean = re.sub(r'\[[^\]]*\]', '', part)
+        tokens = part_clean.split()
+        if not tokens:
+            names.append('')
+            continue
+        names.append(tokens[-1].lstrip('*'))
+    return ', '.join(names)
+# Strong defs already present under this module prefix (or any std_/core_).
+existing_ns = set()
+for fm in _func_def_re.finditer(s):
+    n = fm.group('name')
+    if n.startswith(pref) or n.startswith(('core_', 'std_', 'xlang_')):
+        existing_ns.add(n)
+_skip_prefixes = ('core_', 'std_', 'xlang_', '__')
+out_lines = []
+for fm in _func_def_re.finditer(s):
+    fname = fm.group('name')
+    if fname.startswith(_skip_prefixes) or fname == 'main':
+        continue
+    ns = pref + fname
+    # Never redefine an existing namespaced body.
+    if ns in existing_ns:
+        continue
+    # rt_preamble may `#define bare product_sym`. After preprocess the bare
+    # definition *is* product_sym — emitting another `ns` body redefines it
+    # when product_sym == ns (heap: alloc_size_zero → std_heap_alloc_size_zero).
+    # When product_sym is some other std_/core_ symbol, bare is not a free
+    # link name either; skip inventing pref+fname on top.
+    exp = defines.get(fname)
+    if exp is not None:
+        if exp == ns:
+            continue
+        if exp.startswith(('std_', 'core_', 'xlang_')):
+            continue
+    fret = fm.group('ret').strip()
+    fargs = fm.group('args').strip()
+    farg_names = _extract_arg_names(fargs)
+    decl_args = 'void' if (fargs == '' or fargs == 'void') else fargs
+    if fret == 'void':
+        out_lines.append(f'{fret} {ns}({decl_args}) {{ {fname}({farg_names}); }}')
+    else:
+        out_lines.append(f'{fret} {ns}({decl_args}) {{ return {fname}({farg_names}); }}')
+if out_lines:
+    print('/* Namespaced wrappers — macOS twin of Linux objcopy; skip if #define owns ns. */')
+    print('\n'.join(out_lines))
+PYEOF
+        fi
+        ;;
+    esac
+  fi
+
   if ! cc $CFLAGS -c "$gen_c" -o "$obj" 2>"$tmp_dir/cc_${idx}.log"; then
     echo "xlang_compile_std_module.sh: cc -c failed for $x_path" >&2
     # 显示首个 error

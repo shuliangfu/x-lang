@@ -132,19 +132,42 @@ def _extract_arg_names(args_str):
     return ', '.join(names)
 
 _skip_prefixes = ('core_', 'std_', 'xlang_', '__')
+# PLATFORM: MACOS — same root predicate as xlang_compile_std_module.sh:
+# skip wrapper when rt_preamble `#define bare std_string_bare` already owns
+# the namespaced object symbol (bare def expands to it after preprocess).
+_define_re = re.compile(
+    r'^#define\s+([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*$',
+    re.M,
+)
+defines = {m.group(1): m.group(2) for m in _define_re.finditer(s)}
+pref = 'std_string_'
+existing_ns = set()
+for fm in _func_def_re.finditer(s):
+    n = fm.group('name')
+    if n.startswith(pref) or n.startswith(('core_', 'std_', 'xlang_')):
+        existing_ns.add(n)
 wrappers = []
 for fm in _func_def_re.finditer(s):
     fname = fm.group('name')
     if fname.startswith(_skip_prefixes) or fname == 'main':
         continue
+    ns = pref + fname
+    if ns in existing_ns:
+        continue
+    exp = defines.get(fname)
+    if exp is not None:
+        if exp == ns:
+            continue
+        if exp.startswith(('std_', 'core_', 'xlang_')):
+            continue
     fret = fm.group('ret').strip()
     fargs = fm.group('args').strip()
     farg_names = _extract_arg_names(fargs)
     decl_args = 'void' if (fargs == '' or fargs == 'void') else fargs
     if fret == 'void':
-        wrappers.append(f'{fret} std_string_{fname}({decl_args}) {{ {fname}({farg_names}); }}\n')
+        wrappers.append(f'{fret} {ns}({decl_args}) {{ {fname}({farg_names}); }}\n')
     else:
-        wrappers.append(f'{fret} std_string_{fname}({decl_args}) {{ return {fname}({farg_names}); }}\n')
+        wrappers.append(f'{fret} {ns}({decl_args}) {{ return {fname}({farg_names}); }}\n')
 
 # Insert extra block (struct defs, BSS, weak stubs) after the last #include.
 if extra:
