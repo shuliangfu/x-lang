@@ -90,7 +90,11 @@ formal_mod_key_for_out() {
 # Authority body sources (match historic Makefile recipe args, not always full prereqs).
 formal_mod_spec_for_key() {
   case "$1" in
-    std/string/string.o) printf '%s' "mod|1|../std/string/mod.x|../std/string/string.x" ;;
+    # G.7: string.o authority = xlang_compile_std_string_o.sh (Mac std_string_* wrappers
+    # + runtime_string_fast bare ABI). formal_mod generic path lacks Mac objcopy rename
+    # completeness for entry-only -x -E; dual path caused L4 run-string BLD001.
+    # PLATFORM: SHARED — same dedicated vehicle as fs_formal pattern.
+    std/string/string.o) printf '%s' "string_formal|0|" ;;
     std/heap/heap.o) printf '%s' "mod|0|../std/heap/mod.x|../std/heap/libc.x|../std/heap/ops.x" ;;
     std/heap/page_mmap.o) printf '%s' "mod|0|../std/heap/page_mmap.x" ;;
     std/sys/sys.o) printf '%s' "mod|0|../std/sys/mod.x" ;;
@@ -213,6 +217,18 @@ formal_mod_check() {
         echo "formal_mod --check: missing xlang_compile_std_fs_formal.sh" >&2
         _bad=1
       fi
+    elif [ "$_kind" = "string_formal" ]; then
+      # PLATFORM: SHARED — string.o vehicle = xlang_compile_std_string_o.sh
+      if [ ! -x "$_here/xlang_compile_std_string_o.sh" ] && [ ! -f "$_here/xlang_compile_std_string_o.sh" ]; then
+        echo "formal_mod --check: missing xlang_compile_std_string_o.sh" >&2
+        _bad=1
+      fi
+      for _s in ../std/string/mod.x ../std/string/string.x; do
+        if [ ! -f "$_here/$_s" ] && [ ! -f "$_s" ]; then
+          echo "formal_mod --check: missing source $_s for $_k" >&2
+          _bad=1
+        fi
+      done
     else
       _old_ifs=$IFS
       IFS='|'
@@ -352,6 +368,14 @@ case "${1:-}" in
       _fs_sh="$(dirname "$0")/xlang_compile_std_fs_formal.sh"
       [ -f "$_fs_sh" ] || _fs_sh="./xlang_compile_std_fs_formal.sh"
       exec sh "$_fs_sh" "$out_o"
+    fi
+    if [ "$_kind" = "string_formal" ]; then
+      # PLATFORM: SHARED — string.o authority = xlang_compile_std_string_o.sh
+      # (Mac wrappers + runtime_string_fast; G.7 single vehicle, no dual formal_mod body).
+      _str_sh="$(dirname "$0")/xlang_compile_std_string_o.sh"
+      [ -f "$_str_sh" ] || _str_sh="./xlang_compile_std_string_o.sh"
+      # Dedicated script ignores out path; always writes $ROOT/std/string/string.o
+      exec sh "$_str_sh"
     fi
     BARE_IMPL="$_bare"
     # Rebuild positional args as sources for shared compile body below (out_o already set).

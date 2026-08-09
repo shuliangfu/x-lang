@@ -3,6 +3,8 @@
  * Tip typeck.x -E emits bare calls; product/pool export ast_ast_* (and pipeline_*).
  * G.7: define-only aliases (zero bodies). Inject early in typeck_gen (before bodies).
  * PLATFORM: SHARED freestanding typeck tip re-pin companion.
+ * MUST stay outside #if defined(__APPLE__) when merged into typeck_gen pin:
+ * Linux cold Track-L otherwise leaves U bare ast_block_* → phase1 pure-ld UNDEF.
  */
 #ifndef XLANG_TYPECK_SHORT_FACE_ALIAS_H
 #define XLANG_TYPECK_SHORT_FACE_ALIAS_H

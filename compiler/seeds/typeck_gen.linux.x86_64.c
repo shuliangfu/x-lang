@@ -98,14 +98,12 @@
 #define DIRENT_D_NAME_OFF ((size_t)19)
 #endif
 #endif
-#if !defined(_WIN32) && !defined(_WIN64)
-#if defined(__APPLE__)
-
 /* seeds/typeck_short_face_alias.from_x.c — wave317 typeck M4 layer-3 (partial)
  * Bare ast_block_* / ast_expr_* / ast_arena_* short names → ast_ast_* product faces.
  * Tip typeck.x -E emits bare calls; product/pool export ast_ast_* (and pipeline_*).
  * G.7: define-only aliases (zero bodies). Inject early in typeck_gen (before bodies).
- * PLATFORM: SHARED freestanding typeck tip re-pin companion.
+ * PLATFORM: SHARED — must NOT nest under __APPLE__/DIRENT; Linux pure-ld needs these
+ * macros on cold Track-L seed or typeck_x.o keeps U bare ast_block_* (phase1 UNDEF).
  */
 #ifndef XLANG_TYPECK_SHORT_FACE_ALIAS_H
 #define XLANG_TYPECK_SHORT_FACE_ALIAS_H
@@ -156,9 +154,13 @@
 #define ast_arena_patch_block_parent_links ast_ast_arena_patch_block_parent_links
 #endif /* XLANG_TYPECK_SHORT_FACE_ALIAS_H */
 
+/* PLATFORM: POSIX — errno location symbol; not related to short-face aliases. */
+#if !defined(_WIN32) && !defined(_WIN64)
+#if defined(__APPLE__)
 extern int *__error(void);
 #else
 extern int *__errno_location(void);
+#endif
 #endif
 extern int32_t fcntl(int32_t fd, int32_t cmd, int32_t arg);
 extern int32_t madvise(uint8_t *addr, size_t len, int32_t advice);
