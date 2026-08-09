@@ -4369,6 +4369,42 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         let s_view: u8[27] = [115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 83, 116, 114, 86, 105, 101, 119, 0, 0];
         return emit_bytes_from_ptr(out, &s_view[0], 25);
       }
+      /*
+       * ABI-dup canonical tags (same class as String/Buffer):
+       * rt_preamble owns `struct std_error_Error` / `struct std_error_ErrorChain`
+       * / `struct std_heap_Allocator`; per-module layouts are skipped by
+       * codegen_should_skip_emit_struct_layout_for_abi_dup. Bare `struct Error`
+       * as a function result type is incomplete host-C while STRUCT_LIT already
+       * emits `struct std_error_Error` → host-cc fail on std/error (and heap).
+       * Root fix: emit_type uses the same canonical namespaced tags.
+       * PLATFORM: SHARED — seed pin same commit; G.8 dual-end L2.
+       */
+      if (name_len == 5 && nm[0] == 69 && nm[1] == 114 && nm[2] == 114
+          && nm[3] == 111 && nm[4] == 114) {
+        /* "struct std_error_Error" — 22 bytes. */
+        let s_err: u8[24] = [115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 101, 114, 114, 111, 114, 95, 69, 114, 114, 111, 114, 0, 0];
+        return emit_bytes_from_ptr(out, &s_err[0], 22);
+      }
+      if (name_len == 10 && nm[0] == 69 && nm[1] == 114 && nm[2] == 114
+          && nm[3] == 111 && nm[4] == 114 && nm[5] == 67 && nm[6] == 104
+          && nm[7] == 97 && nm[8] == 105 && nm[9] == 110) {
+        /* "struct std_error_ErrorChain" — 27 bytes. */
+        let s_chain: u8[28] = [115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 101, 114, 114, 111, 114, 95, 69, 114, 114, 111, 114, 67, 104, 97, 105, 110, 0];
+        return emit_bytes_from_ptr(out, &s_chain[0], 27);
+      }
+      if (name_len == 9 && nm[0] == 65 && nm[1] == 108 && nm[2] == 108
+          && nm[3] == 111 && nm[4] == 99 && nm[5] == 97 && nm[6] == 116
+          && nm[7] == 111 && nm[8] == 114) {
+        /* "struct std_heap_Allocator" — 25 bytes. */
+        let s_alloc: u8[26] = [115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 104, 101, 97, 112, 95, 65, 108, 108, 111, 99, 97, 116, 111, 114, 0];
+        return emit_bytes_from_ptr(out, &s_alloc[0], 25);
+      }
+      if (name_len == 7 && nm[0] == 65 && nm[1] == 114 && nm[2] == 101
+          && nm[3] == 110 && nm[4] == 97 && nm[5] == 54 && nm[6] == 52) {
+        /* "struct std_heap_Arena64" — 23 bytes. Preamble owns layout (abi_dup skip). */
+        let s_arena: u8[24] = [115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 104, 101, 97, 112, 95, 65, 114, 101, 110, 97, 54, 52, 0];
+        return emit_bytes_from_ptr(out, &s_arena[0], 23);
+      }
       /* See implementation. */
       if (name_len == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54) {
         let u16_t: u8[9] = [117, 105, 110, 116, 49, 54, 95, 116, 0];
@@ -12565,6 +12601,31 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           sl_pfx[4] = 101; sl_pfx[5] = 114; sl_pfx[6] = 114; sl_pfx[7] = 111;
           sl_pfx[8] = 114; sl_pfx[9] = 95; sl_pfx[10] = 0;
           sl_plen = 10;
+        } else if (e.struct_lit_struct_name_len == 10
+            && e.struct_lit_struct_name[0] == 69 && e.struct_lit_struct_name[5] == 67) {
+          /* ErrorChain → std_error_ (pair emit_type canonical tag). */
+          sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
+          sl_pfx[4] = 101; sl_pfx[5] = 114; sl_pfx[6] = 114; sl_pfx[7] = 111;
+          sl_pfx[8] = 114; sl_pfx[9] = 95; sl_pfx[10] = 0;
+          sl_plen = 10;
+        } else if (e.struct_lit_struct_name_len == 9
+            && e.struct_lit_struct_name[0] == 65 && e.struct_lit_struct_name[1] == 108
+            && e.struct_lit_struct_name[2] == 108 && e.struct_lit_struct_name[3] == 111) {
+          /* Allocator → std_heap_ (pair emit_type canonical tag). */
+          sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
+          sl_pfx[4] = 104; sl_pfx[5] = 101; sl_pfx[6] = 97; sl_pfx[7] = 112;
+          sl_pfx[8] = 95; sl_pfx[9] = 0;
+          sl_plen = 9;
+        } else if (e.struct_lit_struct_name_len == 7
+            && e.struct_lit_struct_name[0] == 65 && e.struct_lit_struct_name[1] == 114
+            && e.struct_lit_struct_name[2] == 101 && e.struct_lit_struct_name[3] == 110
+            && e.struct_lit_struct_name[4] == 97 && e.struct_lit_struct_name[5] == 54
+            && e.struct_lit_struct_name[6] == 52) {
+          /* Arena64 → std_heap_ (pair emit_type canonical tag). */
+          sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
+          sl_pfx[4] = 104; sl_pfx[5] = 101; sl_pfx[6] = 97; sl_pfx[7] = 112;
+          sl_pfx[8] = 95; sl_pfx[9] = 0;
+          sl_plen = 9;
         } else if (e.struct_lit_struct_name_len >= 8 && e.struct_lit_struct_name[0] == 79
             && e.struct_lit_struct_name[1] == 112 && e.struct_lit_struct_name[2] == 116
             && e.struct_lit_struct_name[3] == 105 && e.struct_lit_struct_name[4] == 111

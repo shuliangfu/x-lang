@@ -4804,6 +4804,25 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
         uint8_t s_view[27] = {115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 83, 116, 114, 86, 105, 101, 119, 0, 0};
         return codegen_emit_bytes_from_ptr(out, &((s_view)[0]), 25);
       }
+      /* ABI-dup canonical tags: Error/ErrorChain/Allocator — same class as String.
+       * rt_preamble owns namespaced layouts; bare tags are incomplete when layout skip.
+       * PLATFORM: SHARED — seed pin same commit as codegen.x. */
+      if (((((((name_len ==5) && ((nm)[0] ==69)) && ((nm)[1] ==114)) && ((nm)[2] ==114)) && ((nm)[3] ==111)) && ((nm)[4] ==114))) {
+        uint8_t s_err[24] = {115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 101, 114, 114, 111, 114, 95, 69, 114, 114, 111, 114, 0, 0};
+        return codegen_emit_bytes_from_ptr(out, &((s_err)[0]), 22);
+      }
+      if ((((((((((((name_len ==10) && ((nm)[0] ==69)) && ((nm)[1] ==114)) && ((nm)[2] ==114)) && ((nm)[3] ==111)) && ((nm)[4] ==114)) && ((nm)[5] ==67)) && ((nm)[6] ==104)) && ((nm)[7] ==97)) && ((nm)[8] ==105)) && ((nm)[9] ==110))) {
+        uint8_t s_chain[28] = {115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 101, 114, 114, 111, 114, 95, 69, 114, 114, 111, 114, 67, 104, 97, 105, 110, 0};
+        return codegen_emit_bytes_from_ptr(out, &((s_chain)[0]), 27);
+      }
+      if (((((((((((name_len ==9) && ((nm)[0] ==65)) && ((nm)[1] ==108)) && ((nm)[2] ==108)) && ((nm)[3] ==111)) && ((nm)[4] ==99)) && ((nm)[5] ==97)) && ((nm)[6] ==116)) && ((nm)[7] ==111)) && ((nm)[8] ==114))) {
+        uint8_t s_alloc[26] = {115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 104, 101, 97, 112, 95, 65, 108, 108, 111, 99, 97, 116, 111, 114, 0};
+        return codegen_emit_bytes_from_ptr(out, &((s_alloc)[0]), 25);
+      }
+      if (((((((((name_len ==7) && ((nm)[0] ==65)) && ((nm)[1] ==114)) && ((nm)[2] ==101)) && ((nm)[3] ==110)) && ((nm)[4] ==97)) && ((nm)[5] ==54)) && ((nm)[6] ==52))) {
+        uint8_t s_arena[24] = {115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 104, 101, 97, 112, 95, 65, 114, 101, 110, 97, 54, 52, 0};
+        return codegen_emit_bytes_from_ptr(out, &((s_arena)[0]), 23);
+      }
       if (((((name_len ==3) && ((nm)[0] ==117)) && ((nm)[1] ==49)) && ((nm)[2] ==54))) {
         uint8_t u16_t[9] = {117, 105, 110, 116, 49, 54, 95, 116, 0};
         return codegen_emit_bytes_8(out, &((u16_t)[0]), 8);
@@ -11628,6 +11647,53 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             (void)(((sl_pfx)[9] = 95));
             (void)(((sl_pfx)[10] = 0));
             (void)((sl_plen = 10));
+          } else if ((((((e).struct_lit_struct_name_len) ==10) && ((((e).struct_lit_struct_name))[0] ==69)) && ((((e).struct_lit_struct_name))[5] ==67))) {
+            /* ErrorChain → std_error_ (pair emit_type) */
+            (void)(((sl_pfx)[0] = 115));
+            (void)(((sl_pfx)[1] = 116));
+            (void)(((sl_pfx)[2] = 100));
+            (void)(((sl_pfx)[3] = 95));
+            (void)(((sl_pfx)[4] = 101));
+            (void)(((sl_pfx)[5] = 114));
+            (void)(((sl_pfx)[6] = 114));
+            (void)(((sl_pfx)[7] = 111));
+            (void)(((sl_pfx)[8] = 114));
+            (void)(((sl_pfx)[9] = 95));
+            (void)(((sl_pfx)[10] = 0));
+            (void)((sl_plen = 10));
+          } else if ((((((((e).struct_lit_struct_name_len) ==9) && ((((e).struct_lit_struct_name))[0] ==65)) && ((((e).struct_lit_struct_name))[1] ==108)) && ((((e).struct_lit_struct_name))[2] ==108)) && ((((e).struct_lit_struct_name))[3] ==111))) {
+            /* Allocator → std_heap_ (pair emit_type) */
+            (void)(((sl_pfx)[0] = 115));
+            (void)(((sl_pfx)[1] = 116));
+            (void)(((sl_pfx)[2] = 100));
+            (void)(((sl_pfx)[3] = 95));
+            (void)(((sl_pfx)[4] = 104));
+            (void)(((sl_pfx)[5] = 101));
+            (void)(((sl_pfx)[6] = 97));
+            (void)(((sl_pfx)[7] = 112));
+            (void)(((sl_pfx)[8] = 95));
+            (void)(((sl_pfx)[9] = 0));
+            (void)((sl_plen = 9));
+          } else if (((((e).struct_lit_struct_name_len) ==7)
+              && ((((e).struct_lit_struct_name))[0] ==65)
+              && ((((e).struct_lit_struct_name))[1] ==114)
+              && ((((e).struct_lit_struct_name))[2] ==101)
+              && ((((e).struct_lit_struct_name))[3] ==110)
+              && ((((e).struct_lit_struct_name))[4] ==97)
+              && ((((e).struct_lit_struct_name))[5] ==54)
+              && ((((e).struct_lit_struct_name))[6] ==52))) {
+            /* Arena64 → std_heap_ (pair emit_type) */
+            (void)(((sl_pfx)[0] = 115));
+            (void)(((sl_pfx)[1] = 116));
+            (void)(((sl_pfx)[2] = 100));
+            (void)(((sl_pfx)[3] = 95));
+            (void)(((sl_pfx)[4] = 104));
+            (void)(((sl_pfx)[5] = 101));
+            (void)(((sl_pfx)[6] = 97));
+            (void)(((sl_pfx)[7] = 112));
+            (void)(((sl_pfx)[8] = 95));
+            (void)(((sl_pfx)[9] = 0));
+            (void)((sl_plen = 9));
           } else {
             if (((((((((((e).struct_lit_struct_name_len) >=8) && ((((e).struct_lit_struct_name))[0] ==79)) && ((((e).struct_lit_struct_name))[1] ==112)) && ((((e).struct_lit_struct_name))[2] ==116)) && ((((e).struct_lit_struct_name))[3] ==105)) && ((((e).struct_lit_struct_name))[4] ==111)) && ((((e).struct_lit_struct_name))[5] ==110)) && ((((e).struct_lit_struct_name))[6] ==95))) {
               (void)(((sl_pfx)[0] = 99));
