@@ -293,7 +293,10 @@ export function enc_sub_rbx_rax_then_mov(ctx: *ElfCodegenCtx): i32 {
  * @return i32
  */
 export function enc_sub_rax_rbx(ctx: *ElfCodegenCtx): i32 {
-  /** 0x4B000001 — SUB W0, W0, W1。 */
+  /* 0x4B010000 — SUB W0, W0, W1 (32-bit, Rm=1=rbx). SUB is NOT commutative so
+   * Rm must be 1. G.7 authority: seed arch_arm64_enc_enc_sub_rax_rbx must emit
+   * the same 0x4B010000 (prior seed 0x4B000001 was SUB W1,W0,W0 = 0, wrong).
+   * PLATFORM: MACOS|ARM64. */
   return enc_u32_le(ctx, 1258356736);
 }
 
@@ -937,20 +940,74 @@ export function enc_add_imm_to_rbx(ctx: *ElfCodegenCtx, imm: i32): i32 {
   return enc_u32_le(ctx, 2432696320 | (imm12 << 10) | 1 | (1 << 5));
 }
 
-/** Exported function `enc_load_rbp_to_x2`.
- * Implements `enc_load_rbp_to_x2`.
- * @param ctx *ElfCodegenCtx
- * @param offset i32
- * @return i32
+/**
+ * Load INDEX primary scratch x2 from frame home [x29, #offset] (positive).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O emit context
+ * @param offset i32 — non-negative frame home bytes (product convention:
+ *   positive [x29,#off] with wave414 bottom-x29 prologue)
+ * @return i32 — 0 success, -1 failure (offset < 0)
+ * wave617: positive-offset LDR X2, [X29, #imm12] (scaled /8) — G.7 twin of
+ *   seeds/backend_arm64_enc_c.from_x.c arch_arm64_enc_enc_load_rbp_to_x2.
+ * Root: prior negated offset (LDUR [x29,-off]) while product frame homes live
+ *   at positive [x29,+off] → loaded garbage below the frame for INDEX scratch.
+ * Invariant: offset >= 0; scaled imm12 = offset/8 (<= 4095) fast path, else
+ *   lea x2,[x29+#off] (multi-chunk ADD) then ldr x2,[x2].
+ * PLATFORM: MACOS|ARM64.
  */
 export function enc_load_rbp_to_x2(ctx: *ElfCodegenCtx, offset: i32): i32 {
-  let simm9: i32 = 0 - offset;
-  if (simm9 < -256) { simm9 = -256; }
-  let u9: i32 = simm9 & 511;
-  /* See implementation. */
-  let base64: i32 = 0 - 130023424;
-  let base: i32 = base64 - 1073741824;
-  return enc_u32_le(ctx, base | (u9 << 12) | (29 << 5) | 2);
+  if (offset < 0) { return 0 - 1; }
+  if ((offset % 8) == 0 && (offset / 8) <= 4095) {
+    /* 0xF94003A2 = LDR X2, [X29, #imm12] (Rt=2, Rn=29) */
+    return enc_u32_le(ctx, 4181722018 | ((offset / 8) << 10));
+  }
+  /* mov x2, x29 ≡ orr x2, xzr, x29 — 0xAA1D03E2 */
+  if (enc_u32_le(ctx, 2854028258) != 0) { return 0 - 1; }
+  let left: i32 = offset;
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) { chunk = 4095; }
+    /* add x2, x2, #chunk — 0x91000042 + (chunk<<10) */
+    if (enc_u32_le(ctx, 2432696386 | (chunk << 10)) != 0) { return 0 - 1; }
+    left = left - chunk;
+  }
+  /* ldr x2, [x2] — 0xF9400042 */
+  return enc_u32_le(ctx, 4181721154);
+}
+
+/**
+ * Load INDEX secondary scratch x3 from frame home [x29, #offset] (positive).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O emit context
+ * @param offset i32 — non-negative frame home bytes (product convention:
+ *   positive [x29,#off] with wave414 bottom-x29 prologue)
+ * @return i32 — 0 success, -1 failure (offset < 0)
+ * wave617: G.7 twin of enc_load_rbp_to_x2 with Rt=3 (x3 = INDEX secondary
+ *   scratch). Positive-offset LDR X3, [X29, #imm12] (scaled /8) — matches
+ *   seeds/backend_arm64_enc_c.from_x.c arch_arm64_enc_enc_load_rbp_to_x3.
+ * Root: INDEX secondary scratch loader inline-negated offset (LDUR W3,
+ *   [x29,-off]) while primary loader used positive LDR X2, [x29,+off] →
+ *   secondary loaded garbage below the frame for arr[i+j] right operand
+ *   (i+j computed wrong, e.g. got 10 not 99).
+ * Invariant: secondary loader offset convention MUST match primary loader.
+ * PLATFORM: MACOS|ARM64.
+ */
+export function enc_load_rbp_to_x3(ctx: *ElfCodegenCtx, offset: i32): i32 {
+  if (offset < 0) { return 0 - 1; }
+  if ((offset % 8) == 0 && (offset / 8) <= 4095) {
+    /* 0xF94003A3 = LDR X3, [X29, #imm12] (Rt=3, Rn=29) */
+    return enc_u32_le(ctx, 4181722019 | ((offset / 8) << 10));
+  }
+  /* mov x3, x29 ≡ orr x3, xzr, x29 — 0xAA1D03E3 */
+  if (enc_u32_le(ctx, 2854028259) != 0) { return 0 - 1; }
+  let left: i32 = offset;
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) { chunk = 4095; }
+    /* add x3, x3, #chunk — 0x91000043 + (chunk<<10) */
+    if (enc_u32_le(ctx, 2432696387 | (chunk << 10)) != 0) { return 0 - 1; }
+    left = left - chunk;
+  }
+  /* ldr x3, [x3] — 0xF9400063 */
+  return enc_u32_le(ctx, 4181721187);
 }
 
 /**

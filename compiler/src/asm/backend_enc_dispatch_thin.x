@@ -1272,6 +1272,11 @@ export extern "C" function arch_riscv64_enc_enc_load_32_from_rax(elf_ctx: *u8): 
 export extern "C" function arch_x86_64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_load_rbp_to_x2(elf_ctx: *u8, offset: i32): i32;
+/* G.7 twin of arch_arm64_enc_enc_load_rbp_to_x2 with Rt=3 (x3 = INDEX secondary
+ * scratch). Positive-offset LDR X3, [X29, #imm12] — must match primary loader's
+ * positive-offset convention; old inline negated offset (LDUR [x29,-off]) loaded
+ * garbage from below the frame for arr[i+j] right operand. */
+export extern "C" function arch_arm64_enc_enc_load_rbp_to_x3(elf_ctx: *u8, offset: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_load_rbp_to_a2(elf_ctx: *u8, offset: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_load_rbp_to_ecx(elf_ctx: *u8, offset: i32): i32;
 export extern "C" function arch_arm64_enc_enc_load_64_from_rax(elf_ctx: *u8): i32;
@@ -1864,7 +1869,7 @@ export extern "C" function backend_enc_x86_jcc_rel32_c_impl(elf_ctx: *u8, opcode
 #[no_mangle]
 export function backend_enc_index_scratch_add_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (184680514 as i32)); }
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (184746050 as i32)); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_add_a2_a3(elf_ctx); }
@@ -1882,7 +1887,7 @@ export function backend_enc_index_scratch_add_secondary_arch(elf_ctx: *u8, ta: i
 #[no_mangle]
 export function backend_enc_index_scratch_sub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (1258553410 as i32)); }
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (1258487874 as i32)); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_sub_a2_a3(elf_ctx); }
@@ -1900,7 +1905,7 @@ export function backend_enc_index_scratch_sub_secondary_arch(elf_ctx: *u8, ta: i
 #[no_mangle]
 export function backend_enc_index_scratch_rsub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (1258487906 as i32)); }
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (1258422370 as i32)); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_rsub_a2_a3(elf_ctx); }
@@ -1918,7 +1923,7 @@ export function backend_enc_index_scratch_rsub_secondary_arch(elf_ctx: *u8, ta: 
 #[no_mangle]
 export function backend_enc_rbx_index_rsub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (1258422369 as i32)); }
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (1258356833 as i32)); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_rsub_rbx_a3(elf_ctx); }
@@ -1936,7 +1941,7 @@ export function backend_enc_rbx_index_rsub_secondary_arch(elf_ctx: *u8, ta: i32)
 #[no_mangle]
 export function backend_enc_rbx_index_add_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (184680481 as i32)); }
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (184746017 as i32)); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_add_rbx_a3(elf_ctx); }
@@ -1954,7 +1959,7 @@ export function backend_enc_rbx_index_add_secondary_arch(elf_ctx: *u8, ta: i32):
 #[no_mangle]
 export function backend_enc_rbx_index_sub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (1258553377 as i32)); }
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, (1258487841 as i32)); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_sub_rbx_a3(elf_ctx); }
@@ -2268,17 +2273,14 @@ export function backend_enc_add_imm_to_index_scratch_arch(elf_ctx: *u8, imm: i32
  */
 #[no_mangle]
 export function backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  /* wave617: delegate to arch_arm64_enc_enc_load_rbp_to_x3 (positive-offset LDR
+   * X3, [X29, #imm12]) — SAME convention as primary loader load_rbp_to_x2.
+   * Root: old inline negated offset (LDUR W3, [x29,-off]) while primary used
+   *   positive LDR X2, [x29,+off] → secondary loaded garbage below the frame
+   *   for arr[i+j] right operand (i+j computed wrong, e.g. got 10 not 99).
+   * Invariant: secondary loader offset convention MUST match primary loader. */
   if (ta == 1) {
-    if (offset > 256) {
-      unsafe {
-        return arch_arm64_enc_enc_u32_le(elf_ctx, ((3091202048 as u32) | (256 * 4096) | 931) as i32);
-      }
-      return 0 - 1;
-    }
-    unsafe {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, ((3091202048 as u32) | ((((0 - offset) & 511) as u32) * 4096) | 931) as i32);
-    }
-    return 0 - 1;
+    unsafe { return arch_arm64_enc_enc_load_rbp_to_x3(elf_ctx, offset); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_load_rbp_to_a3(elf_ctx, offset); }

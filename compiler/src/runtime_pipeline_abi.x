@@ -58693,9 +58693,14 @@ export function glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c(are
     if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0) {
       return 0 - 1;
     }
-    if (glue_index_minus_pair_cache_spill_after_sub_elf_c(arena, elf_ctx, ctx, i_ref, j_ref, ta) != 0) {
-      return 0 - 1;
-    }
+    /* wave340: removed glue_index_minus_pair_cache_spill_after_sub_elf_c here.
+     * Root: the spill pushes (i-j) onto the hard stack BETWEEN the RHS push
+     * (done by caller before this function) and the finish_store pop (done by
+     * caller after return). finish_store's pop_rax then reads the spill value
+     * instead of the RHS value → arr[idx] gets (i-j) not 99.
+     * The subsub3_mul_lit path (no spill) proves the cache is not needed for
+     * correctness; cache hit paths become dead code (never populated).
+     * PLATFORM: SHARED freestanding 7.3 INDEX assign subsub3 path. */
     if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0) {
       return 0 - 1;
     }
@@ -59031,9 +59036,10 @@ export function glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c(arena
     if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0) {
       return 0 - 1;
     }
-    if (glue_index_minus_pair_cache_spill_after_sub_elf_c(arena, elf_ctx, ctx, i_ref, j_ref, ta) != 0) {
-      return 0 - 1;
-    }
+    /* wave340: removed glue_index_minus_pair_cache_spill_after_sub_elf_c here.
+     * Same root cause as subsub3 path: spill pushes (i-j) between RHS push and
+     * finish_store pop → pop reads spill not RHS. Removed for push/pop balance.
+     * PLATFORM: SHARED freestanding 7.3 INDEX assign minus_var_mul_lit path. */
     if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0) {
       return 0 - 1;
     }
@@ -59281,16 +59287,17 @@ export function glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c(arena: 
     if (backend_enc_index_scratch_sub_secondary_arch(elf_ctx, ta) != 0) {
       return 0 - 1;
     }
-    if (glue_index_minus_pair_cache_spill_after_sub_elf_c(arena, elf_ctx, ctx, i_ref, j_ref, ta) != 0) {
-      return 0 - 1;
-    }
+    /* wave340: removed glue_index_minus_pair_cache_spill_after_sub_elf_c AND
+     * glue_index_subadd3_sum_cache_spill_store_elf_c here.
+     * Same root cause: both spills push intermediate results onto the hard
+     * stack BETWEEN the RHS push and finish_store pop → pop reads spill not
+     * RHS. Two spills would push twice, breaking push/pop balance by +2.
+     * Removed for correctness; cache hit paths become dead code.
+     * PLATFORM: SHARED freestanding 7.3 INDEX assign subadd3_mul_lit path. */
     if (backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx, k_off, ta) != 0) {
       return 0 - 1;
     }
     if (backend_enc_index_scratch_add_secondary_arch(elf_ctx, ta) != 0) {
-      return 0 - 1;
-    }
-    if (glue_index_subadd3_sum_cache_spill_store_elf_c(arena, elf_ctx, ctx, i_ref, j_ref, k_ref, ta) != 0) {
       return 0 - 1;
     }
     if (backend_enc_mul_imm_to_index_scratch_arch(elf_ctx, lit_imm, ta) != 0) {

@@ -270,6 +270,11 @@ export extern "C" function arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx: *u8, offse
 export extern "C" function arch_arm64_enc_enc_load_64_from_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i32;
 export extern "C" function arch_arm64_enc_enc_load_rbp_to_x2(elf_ctx: *u8, offset: i32): i32;
+/* G.7 twin of arch_arm64_enc_enc_load_rbp_to_x2 with Rt=3 (x3 = INDEX secondary
+ * scratch). Positive-offset LDR X3, [X29, #imm12] — must match primary loader's
+ * positive-offset convention; old inline negated offset (LDUR [x29,-off]) loaded
+ * garbage from below the frame for arr[i+j] right operand. */
+export extern "C" function arch_arm64_enc_enc_load_rbp_to_x3(elf_ctx: *u8, offset: i32): i32;
 export extern "C" function arch_arm64_enc_enc_load_zext8_from_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm32: i32): i32;
@@ -2242,14 +2247,14 @@ export function backend_enc_sub_imm_from_rbx_index_arch(elf_ctx: *u8, imm: i32, 
  */
 #[no_mangle]
 export function backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
-  // See implementation.
+  /* wave617: delegate to arch_arm64_enc_enc_load_rbp_to_x3 (positive-offset LDR
+   * X3, [X29, #imm12]) — SAME convention as primary loader load_rbp_to_x2.
+   * Root: old inline negated offset (LDUR W3, [x29,-off]) while primary used
+   *   positive LDR X2, [x29,+off] → secondary loaded garbage below the frame
+   *   for arr[i+j] right operand (i+j computed wrong, e.g. got 10 not 99).
+   * Invariant: secondary loader offset convention MUST match primary loader. */
   unsafe {
-  if (ta == 1) {
-    let simm9: i32 = 0 - offset;
-    if (simm9 < 0 - 256) { simm9 = 0 - 256; }
-    let u9: i32 = simm9 & 511;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((3090513920 as u32) | ((u9 as u32) * 4096) | (29 * 32) | 3) as i32);
-  }
+  if (ta == 1) { return arch_arm64_enc_enc_load_rbp_to_x3(elf_ctx, offset); }
   if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_a3(elf_ctx, offset); }
   return arch_x86_64_enc_enc_load_rbp_to_edx(elf_ctx, offset);
   }

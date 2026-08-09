@@ -295,8 +295,18 @@ int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, ui
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_add_rax_rbx */
+/* addl %ebx, %eax — 32-bit add (zero-extends to RAX).
+ * Why: X language integer arithmetic defaults to 32-bit (i32/u32/u8/bool).
+ *      A 32-bit ADD EAX,EBX zero-extends the result to RAX, giving correct
+ *      wrapping semantics for u32 (0xFFFFFFFF + 1 = 0). The prior 64-bit
+ *      ADD RAX,RBX (REX.W + 01 D8) did not wrap at 32 bits, breaking
+ *      unsigned overflow.
+ * Invariant: Must match .x authority x86_64_enc.x::enc_add_rax_rbx.
+ *            i64/u64/ptr arithmetic uses enc_rax_plus_rbx_scale1 (64-bit) or
+ *            ptr-arith scaled paths, NOT this function.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
 int32_t arch_x86_64_enc_enc_add_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 1, 216};
+  static const uint8_t ins[] = {1, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -466,8 +476,12 @@ int32_t arch_x86_64_enc_enc_idiv_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx)
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_rbx_rax */
+/* imull %ebx, %eax — 32-bit imul (zero-extends to RAX).
+ * Why: Must match .x authority x86_64_enc.x::enc_imul_rbx_rax.
+ *      i64/u64/ptr arithmetic uses scaled paths, NOT this function.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
 int32_t arch_x86_64_enc_enc_imul_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 15, 175, 195};
+  static const uint8_t ins[] = {15, 175, 195};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -1204,11 +1218,15 @@ int32_t arch_x86_64_enc_enc_store_rax_to_rbx_offset(struct platform_elf_ElfCodeg
 }
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
-/** subq %rax, %rbx（rax = rax - rbx；字面量左操作数 SUB 快路径）。 */
+/** subl %ebx, %eax — 32-bit sub (zero-extends to RAX). */
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sub_rax_rbx */
+/* subl %ebx, %eax — 32-bit sub (zero-extends to RAX).
+ * Why: Must match .x authority x86_64_enc.x::enc_sub_rax_rbx.
+ *      i64/u64/ptr arithmetic uses scaled paths, NOT this function.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
 int32_t arch_x86_64_enc_enc_sub_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 41, 216};
+  static const uint8_t ins[] = {41, 216};
   if (!elf_ctx)
     return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));

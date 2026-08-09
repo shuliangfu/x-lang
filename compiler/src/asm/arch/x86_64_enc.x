@@ -135,10 +135,18 @@ export function enc_pop_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u8(ctx, 88);
 }
 
-/** addq %rbx, %rax。 */
+/** addl %ebx, %eax — 32-bit add (zero-extends to RAX).
+ * Why: X language integer arithmetic defaults to 32-bit (i32/u32/u8/bool).
+ *      A 32-bit ADD EAX,EBX zero-extends the result to RAX, giving correct
+ *      wrapping semantics for u32 (0xFFFFFFFF + 1 = 0). The prior 64-bit
+ *      ADD RAX,RBX did not wrap at 32 bits, breaking unsigned overflow.
+ * Invariant: Must match seed authority backend_x86_64_enc_c.from_x.c.
+ *            i64/u64/ptr arithmetic uses enc_rax_plus_rbx_scale1 (64-bit) or
+ *            ptr-arith scaled paths, NOT this function.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
 export function enc_add_rax_rbx(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[3] = [72, 1, 216];
-  return elf.append_elf_bytes(ctx, buf, 3);
+  let buf: u8[2] = [1, 216];
+  return elf.append_elf_bytes(ctx, buf, 2);
 }
 
 /** subq %rax, %rbx; movq %rbx, %rax。 */
@@ -154,15 +162,20 @@ export function enc_sub_rbx_rax_then_mov(ctx: *ElfCodegenCtx): i32 {
  * @param ctx *ElfCodegenCtx
  * @return i32
  */
+/** subl %ebx, %eax — 32-bit sub (zero-extends to RAX).
+ * Why: Must match arm64_enc.x 32-bit sub. i64/u64/ptr use scaled paths.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
 export function enc_sub_rax_rbx(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[3] = [72, 41, 216];
-  return elf.append_elf_bytes(ctx, buf, 3);
+  let buf: u8[2] = [41, 216];
+  return elf.append_elf_bytes(ctx, buf, 2);
 }
 
-/** imulq %rbx, %rax。 */
+/** imull %ebx, %eax — 32-bit imul (zero-extends to RAX).
+ * Why: Must match arm64_enc.x 32-bit mul. i64/u64/ptr use scaled paths.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
 export function enc_imul_rbx_rax(ctx: *ElfCodegenCtx): i32 {
-  let buf: u8[4] = [72, 15, 175, 195];
-  return elf.append_elf_bytes(ctx, buf, 4);
+  let buf: u8[3] = [15, 175, 195];
+  return elf.append_elf_bytes(ctx, buf, 3);
 }
 
 /** movq %rax, %rbx。 */

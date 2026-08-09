@@ -398,13 +398,27 @@ int32_t arch_arm64_enc_enc_mov_rbx_to_rax(struct platform_elf_ElfCodegenCtx *elf
 }
 
 int32_t arch_arm64_enc_enc_add_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x0, x0, x1 */
-  return arm64_enc_u32_le(elf_ctx, 0x8b010000u);
+  /* add w0, w0, w1 — 32-bit add (sf=0).
+   * Why: X language integer arithmetic defaults to 32-bit (i32/u32/u8/bool).
+   *      A 32-bit ADD W0,W0,W1 zero-extends the result to X0, giving correct
+   *      wrapping semantics for u32 (0xFFFFFFFF + 1 = 0). The prior 64-bit
+   *      ADD X0,X0,X1 did not wrap at 32 bits, breaking unsigned overflow.
+   * Invariant: Must match .x authority arm64_enc.x::enc_add_rax_rbx (0x0B000020).
+   *            i64/u64/ptr arithmetic uses enc_rax_plus_rbx_scale1 (64-bit) or
+   *            ptr-arith scaled paths, NOT this function.
+   * PLATFORM: MACOS|ARM64 — twin of compiler/src/asm/arch/arm64_enc.x. */
+  return arm64_enc_u32_le(elf_ctx, 0x0B000020u);
 }
 
 int32_t arch_arm64_enc_enc_sub_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* sub x0, x0, x1 */
-  return arm64_enc_u32_le(elf_ctx, 0xcb010000u);
+  /* sub w0, w0, w1 — 32-bit sub (sf=0), zero-extends to X0.
+   * Why: Must match .x authority arm64_enc.x::enc_sub_rax_rbx (0x4B010000).
+   *      i64/u64/ptr arithmetic uses scaled paths, NOT this function.
+   * Root: prior 0x4B000001 had Rd=1,Rm=0 → SUB W1,W0,W0 (=0, result in wrong
+   *      reg) instead of SUB W0,W0,W1. SUB is NOT commutative so Rm must be 1
+   *      (rbx=W1) for rax = rax - rbx. Broke (i-j)-k assign bounds-check eval.
+   * PLATFORM: MACOS|ARM64. */
+  return arm64_enc_u32_le(elf_ctx, 0x4B010000u);
 }
 
 int32_t arch_arm64_enc_enc_sub_rbx_rax_then_mov(struct platform_elf_ElfCodegenCtx *elf_ctx) {
@@ -413,8 +427,14 @@ int32_t arch_arm64_enc_enc_sub_rbx_rax_then_mov(struct platform_elf_ElfCodegenCt
 }
 
 int32_t arch_arm64_enc_enc_imul_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* mul x0, x0, x1 */
-  return arm64_enc_u32_le(elf_ctx, 0x9b017c00u);
+  /* mul w0, w0, w1 — 32-bit mul (sf=0), zero-extends to X0.
+   * Why: Must match .x authority arm64_enc.x::enc_imul_rbx_rax (0x1B017C00).
+   *      i64/u64/ptr arithmetic uses scaled paths, NOT this function.
+   * Root: prior 0x1B007C00 had Rm=0 → MUL W0,W0,W0 (self-multiply) instead of
+   *      MUL W0,W0,W1. Bounds-check binop eval for arr[i*j] computed i*i not
+   *      i*j → out-of-bounds panic. Rm must be 1 (rbx=W1) for rax*=rbx.
+   * PLATFORM: MACOS|ARM64. */
+  return arm64_enc_u32_le(elf_ctx, 0x1B017C00u);
 }
 
 int32_t arch_arm64_enc_enc_idiv_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
@@ -742,6 +762,24 @@ int32_t arch_arm64_enc_enc_load_rbp_to_x2(struct platform_elf_ElfCodegenCtx *elf
   if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 2, 29, offset) != 0)
     return -1;
   return arm64_enc_u32_le(elf_ctx, 0xf9400042u); /* ldr x2, [x2] */
+}
+
+/* G.7 twin of enc_load_rbp_to_x2 with Rt=3 (x3 = INDEX secondary scratch).
+ * Positive-offset LDR X3, [X29, #imm12] (scaled) or lea+ldr fallback.
+ * Root: secondary scratch loader manually negated offset (LDUR [x29,-off])
+ *   while index scratch loader used positive offset — loaded garbage from
+ *   below stack pointer for arr[i+j] right operand.
+ * Invariant: Must use SAME positive-offset convention as load_rbp_to_x2.
+ * PLATFORM: MACOS|ARM64 — G.7 twin arch/arm64_enc.x::enc_load_rbp_to_x3. */
+int32_t arch_arm64_enc_enc_load_rbp_to_x3(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  if (offset < 0)
+    return -1;
+  if ((offset % 8) == 0 && (offset / 8) <= 4095)
+    return arm64_enc_u32_le(elf_ctx, 0xf94003a3u | (((uint32_t)(offset / 8)) << 10));
+  /* lea x3, [x29+#off]; ldr x3, [x3] */
+  if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 3, 29, offset) != 0)
+    return -1;
+  return arm64_enc_u32_le(elf_ctx, 0xf9400063u); /* ldr x3, [x3] */
 }
 
 /*

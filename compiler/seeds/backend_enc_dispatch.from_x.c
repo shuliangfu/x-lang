@@ -348,6 +348,11 @@ int32_t arch_x86_64_enc_enc_cdqe_rax_impl(struct platform_elf_ElfCodegenCtx *elf
 extern int32_t arch_arm64_enc_enc_add_imm_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
 extern int32_t arch_arm64_enc_enc_add_imm_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
 extern int32_t arch_arm64_enc_enc_load_rbp_to_x2(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
+/* G.7 twin of arch_arm64_enc_enc_load_rbp_to_x2 with Rt=3 (x3 = INDEX secondary
+ * scratch). Positive-offset LDR X3, [X29, #imm12] — must match primary loader's
+ * positive-offset convention; old inline negated offset (LDUR [x29,-off]) loaded
+ * garbage from below the frame for arr[i+j] right operand. */
+extern int32_t arch_arm64_enc_enc_load_rbp_to_x3(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
 extern int32_t arch_arm64_enc_enc_rbx_plus_x2_scale1(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_rbx_plus_x2_scale4(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_rbx_plus_x2_scale8(struct platform_elf_ElfCodegenCtx *elf_ctx);
@@ -2575,18 +2580,14 @@ int32_t backend_enc_add_imm_to_index_scratch_arch(struct platform_elf_ElfCodegen
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_load_rbp_index_secondary_scratch_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                            int32_t ta) {
-  int32_t simm9;
-  uint32_t u9;
-  uint32_t ins;
-  if (ta == 1) {
-    simm9 = -offset;
-    if (simm9 < -256)
-      simm9 = -256;
-    u9 = (uint32_t)(simm9 & 511);
-    /** LDUR w3, [x29, #-off]；Rt=3。 */
-    ins = 0xB8400000u | (u9 << 12u) | (29u << 5u) | 3u;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)ins);
-  }
+  /* wave617: delegate to arch_arm64_enc_enc_load_rbp_to_x3 (positive-offset LDR
+   * X3, [X29, #imm12]) — SAME convention as primary loader load_rbp_to_x2.
+   * Root: old inline negated offset (LDUR W3, [x29,-off]) while primary used
+   *   positive LDR X2, [x29,+off] → secondary loaded garbage below the frame
+   *   for arr[i+j] right operand (i+j computed wrong, e.g. got 10 not 99).
+   * Invariant: secondary loader offset convention MUST match primary loader. */
+  if (ta == 1)
+    return arch_arm64_enc_enc_load_rbp_to_x3(elf_ctx, offset);
   if (ta == 2)
     return arch_riscv64_enc_enc_load_rbp_to_a3(elf_ctx, offset);
   return arch_x86_64_enc_enc_load_rbp_to_edx(elf_ctx, offset);
