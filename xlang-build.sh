@@ -358,6 +358,21 @@ case "$TARGET" in
     bash compiler/scripts/product_l2_matrix.sh "$@"
     ;;
 
+  # === wave341 · G.7 L4 true-cold product gate (single entry next to l2-matrix) ===
+  l4|l4-cold|true-cold|true-cold-l4|product-l4|l4-true-cold)
+    # G.7 single body: compiler/scripts/product_l4_true_cold.sh
+    # Full wipe .o + product binaries → seed pin → bootstrap-driver-seed → g05
+    # → product_l2_matrix → run-all-bstrict (SKIP_BUILD=1). Does NOT run check.
+    # Usage:
+    #   ./xbuild l4
+    #   ./xbuild l4-cold
+    #   ./xbuild l4 --no-bstrict      # rebuild + matrix only
+    #   ./xbuild l4 --rebuild-only    # purge + seed + g05 only
+    # PLATFORM: SHARED — dual-end for SHARED / bootstrap cut-over (Ubuntu gold).
+    shift
+    bash compiler/scripts/product_l4_true_cold.sh "$@"
+    ;;
+
   # === wave799 · 11.3.1 · physical-delete execute gate (NOT delete; NOT Windows green) ===
   phys-del-gate|phys-del|physical-delete-gate|makefile-delete-gate)
     # G.7 single body: compiler/scripts/phys_del_makefile_gate.sh
@@ -731,6 +746,11 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        rv42／opt102／hello0／si0／f32；**捕获**预期非 0
                                        （return-value=42 是绿，禁 set -e 中途打断）
                                        体 = product_l2_matrix.sh
+  l4 / l4-cold / true-cold             L4 真冷全测（wave341 · G.7 单权威）
+                                       全擦 .o + 重链 seed/g05 + L2 矩阵 + 全量 bstrict
+                                       （SKIP_BUILD=1；**不跑** xlang check）
+                                       ./xbuild l4 --no-bstrict | --rebuild-only
+                                       体 = product_l4_true_cold.sh
   phys-del-gate / phys-del             物理删 Makefile 执行闸门（wave799–810；非物理删）
   phys-del-gate --check                硬拒删 + preflight 诚实 + proof + flip + endgame + delete-body-preview + commit-honesty
   phys-del-gate --dry-run-delete       仅列将删面
