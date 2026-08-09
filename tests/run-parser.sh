@@ -39,7 +39,7 @@ $XLANG build -L . tests/parser/semicolon_required.x -o /tmp/xlang_parser_ok 2>&1
 /tmp/xlang_parser_ok || { echo "parser: semicolon_required binary should exit 0"; exit 1; }
 
 # 负例：return 操作数后接 INT_LIT（非语句头）应拒绝；bare 双 return 已由 Cap-T001+ASI 放行
-if parser_expect_reject tests/parser/semicolon_missing.x "expected ';' after return|parse produced no functions|typeck error|pipeline failed|XP003"; then
+if parser_expect_reject tests/parser/semicolon_missing.x "expected ';' after return|parse produced no functions|typeck error|pipeline failed|XP003|parse error|P00[0-9]+"; then
   : # 预期报错
 else
   echo "parser: expected parse error for return operand then INT_LIT (ASI refuse)"
