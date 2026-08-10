@@ -5024,6 +5024,26 @@ bootstrap_link_tail_crt0() {
   fi
 }
 
+# Stage 12.2.2: ld-compatible crt0 tail — objects only, no CC-driver flags.
+# Returns object files / libs for the crt0 link tail (zero-CC ld path).
+# PLATFORM: LINUX — nostdlib freestanding crt0 only (this block is Linux-guarded).
+# Translation from bootstrap_link_tail_crt0:
+#   -nostdlib (CC-driver only) → dropped (ld never adds default libs/startup)
+#   -static / --gc-sections    → emitted by caller as direct ld flags
+#   object files               → identical (G.7 single authority with CC path)
+# Callers capture stdout: BOOT_CRT0_LD_TAIL=$(bootstrap_link_tail_crt0_ld).
+bootstrap_link_tail_crt0_ld() {
+  if bootstrap_wants_nostdlib; then
+  ensure_freestanding_io_x86_64_obj
+  ensure_bootstrap_nostdlib_stubs_obj
+  echo "src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o"
+  elif build_xlang_asm_is_msys; then
+  echo ""
+  else
+  echo "-lc -lm"
+  fi
+}
+
 # driver / experimental / strict 链尾（保留 PIPELINE_LIBS，仅去 -lc/-lm）。
 # PLATFORM: LINUX — same stdout purity rule as bootstrap_link_tail_crt0 (NL-07).
 # PLATFORM: WINDOWS | MINGW | MSYS — no -lc/-lm; keep PIPELINE_LIBS only (usually empty).
@@ -5336,6 +5356,33 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   fi
   fi
   CRT_RC=1
+  # Stage 12.2.2: zero-CC crt0 link — direct ld invocation (no host-CC driver).
+  # PLATFORM: LINUX — crt0_x86_64 _start entry; nostdlib freestanding.
+  # Opt-in: XLANG_ZERO_CC_LD=1. Flag unset = $CC path (zero regression).
+  # ld flag translation from $CC driver:
+  #   -nostdlib (CC-only) → dropped (ld never adds default libs/startup)
+  #   -static              → -static (ld accepts)
+  #   -Wl,--gc-sections    → --gc-sections
+  #   entry: -e _start (crt0_x86_64.o defines _start; ld default but explicit)
+  # Object order mirrors the $CC path (crt0 → typeck_f64 → panic → atoi →
+  # CRT0_ASM → backend companions → freestanding_io → nostdlib_stubs).
+  if [ "${XLANG_ZERO_CC_LD:-0}" = "1" ]; then
+  BOOT_CRT0_LD_TAIL=$(bootstrap_link_tail_crt0_ld)
+  build_xlang_asm_info "Stage 12.2.2: zero-CC crt0 link via ld (XLANG_ZERO_CC_LD=1)"
+  # shellcheck disable=SC2086
+  ld -o xlang_asm -e _start -static --gc-sections \
+  src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o $CRT0_ATOI_LINK \
+  $CRT0_ASM $CRT0_BACKEND_COMPANIONS $BOOT_CRT0_LD_TAIL 2>"$BUILD_DIR/.bootstrap_nostdlib_link_err"
+  CRT_RC=$?
+  if [ "$CRT_RC" -ne 0 ]; then
+  build_xlang_asm_error "zero-CC crt0 link failed (rc=$CRT_RC) — no $CC fallback (XLANG_ZERO_CC_LD=1)"
+  if [ -f "$BUILD_DIR/.bootstrap_nostdlib_link_err" ]; then
+  head -15 "$BUILD_DIR/.bootstrap_nostdlib_link_err" 2>/dev/null || true
+  fi
+  else
+  build_xlang_asm_info "zero-CC crt0 link OK via ld (no host-CC, no libc)"
+  fi
+  else
   if bootstrap_wants_nostdlib; then
   BOOT_CRT0_TAIL=$(bootstrap_link_tail_crt0)
   build_xlang_asm_info "trying bootstrap nostdlib crt0 link (XLANG_BOOTSTRAP_NOSTDLIB=1)"
@@ -5361,6 +5408,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   CRT_RC=$?
   fi
   # F-no-libc NL-07 END
+  fi
   set -e
   if [ "$CRT_RC" -eq 0 ]; then
   build_xlang_asm_info "xlang_asm built (no C runtime driver)"
