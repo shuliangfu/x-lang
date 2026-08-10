@@ -2836,7 +2836,7 @@ filter_experimental_asm_objs() {
   typeck_lsp_io_stub.o|\
   backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|\
   asm_backend_compat_stubs.o|\
-  std_fs_shim.o|x_seed_bridge.o|\
+  std_fs_shim.o|x_seed_bridge.o|seed_link_compat.o|\
   parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_xlang_lsp_diag_stub.o)
   continue
   ;;
@@ -2964,7 +2964,7 @@ filter_strict_asm_objs() {
   typeck_lsp_io_stub.o|\
   backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|\
   asm_backend_compat_stubs.o|\
-  std_fs_shim.o|x_seed_bridge.o|\
+  std_fs_shim.o|x_seed_bridge.o|seed_link_compat.o|\
   parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_xlang_lsp_diag_stub.o|\
   parser_asm_minimal_partial.o|\
   \
@@ -5191,7 +5191,9 @@ xlang_asm_bstrict_relink_runtime_only() {
   ST_LAYOUT_PARTIAL=""
   ST_PIPELINE_ALIAS=""
   ST_STRICT_FB_X_TAIL=""
-  if [ -f runtime_panic.o ]; then
+  if [ -f runtime_panic.o ] && [ "$(uname -s 2>/dev/null)" != "Darwin" ]; then
+  # PLATFORM: DARWIN — skip runtime_panic.o (link_abi_getenv dual-defs with
+  # src/runtime_link_abi.o G.7 authority; host link resolves panic/crash via static locals).
   ST_RUNTIME_PANIC="runtime_panic.o atoi_stub.o"
   fi
   refresh_build_asm_ci_text_stubs_for_strict_link || true
@@ -5715,7 +5717,16 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   # (PLATFORM: DARWIN rejects the same .o twice as duplicate symbols).
   ST_BSTRICT_LINK_EXTRA="src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
   ensure_asm_link_objs
+  # PLATFORM: DARWIN — runtime_panic.o is a user-domain cold twin (STD_AND_PANIC
+  # bag) that defines link_abi_getenv/_impl, dual-defining with src/runtime_link_abi.o
+  # (G.7 host authority hard-coded above). Darwin ld rejects the duplicate; Linux ld
+  # tolerates it (last-def wins). The host compiler link does not need runtime_panic.o:
+  # xlang_panic_ and crash_evidence are resolved as static locals in other .o; atoi via
+  # libc. Skip on Darwin to match experimental bootstrap (which never links it).
   ST_RUNTIME_PANIC="runtime_panic.o atoi_stub.o"
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+    ST_RUNTIME_PANIC=""
+  fi
   ST_BRIDGE_OBJ=""
   ST_SEED_PARSER_TCK=""
   ST_SEED_PREPROCESS_LINK=""
