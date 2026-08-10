@@ -174,3 +174,45 @@ pure_ld_try_link() {
   echo "pure_ld_shared: pure-ld failed for $out" >&2
   return 1
 }
+
+# ---------------------------------------------------------------------------
+# pure_ld_partial_merge — merge .o files into a single relocatable .o.
+# Replaces `$CC -r -nostdlib -o OUT OBJS...` in the prefer hybrid path
+# (thin.o + rest.o → final.o) used by ensure_host_cc_seed_o.sh and
+# g05_ensure_relink_prereqs.sh (Stage 12.2.3 zero-CC partial-merge).
+#
+# When XLANG_ZERO_CC_LD=1: uses `ld -r` with multidef flags (zero-CC).
+# When unset (default): uses `$CC -r -nostdlib` (original behavior; zero
+# regression — callers that don't set the flag are unaffected).
+#
+# Usage: pure_ld_partial_merge OUT OBJS...
+#   OBJS is one or more .o paths (space-separated).
+# Returns 0 on success, non-zero on failure. Caller owns stderr redirect.
+#
+# PLATFORM: SHARED — ld -r + multidef; no syslibroot/dynamic (relocatable
+#           merge, not final executable link). multidef via
+#           pure_ld_multidef_flags (Darwin: -multiply_defined suppress;
+#           Linux: --allow-multiple-definition).
+# ---------------------------------------------------------------------------
+pure_ld_partial_merge() {
+  local out="$1"; shift
+  local objs="$*"
+  local ld_bin multidef
+  if [ -z "$out" ] || [ -z "$objs" ]; then
+    echo "pure_ld_shared: pure_ld_partial_merge needs OUT and OBJS" >&2
+    return 1
+  fi
+  if [ "${XLANG_ZERO_CC_LD:-0}" = "1" ]; then
+    ld_bin="$(pure_ld_resolve_ld)" || {
+      echo "pure_ld_shared: ld not found for partial_merge" >&2
+      return 1
+    }
+    multidef="$(pure_ld_multidef_flags)"
+    # shellcheck disable=SC2086
+    "$ld_bin" -r $multidef -o "$out" $objs
+  else
+    # Original path: $CC -r -nostdlib (zero regression when flag unset).
+    # shellcheck disable=SC2086
+    ${CC:-cc} -r -nostdlib -o "$out" $objs
+  fi
+}

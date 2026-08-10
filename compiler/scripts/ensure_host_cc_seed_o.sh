@@ -324,6 +324,11 @@ cd "$_ENSURE_HOST_CC_DIR/.."
 # PLATFORM: SHARED.
 . "$_ENSURE_HOST_CC_DIR/forbid_host_cc.sh"
 
+# Stage 12.2.3: pure-ld partial-merge helper (replaces $CC -r -nostdlib in
+# prefer hybrid merges; zero-CC when XLANG_ZERO_CC_LD=1, else $CC -r zero
+# regression). PLATFORM: SHARED.
+. "$_ENSURE_HOST_CC_DIR/pure_ld_shared.sh"
+
 MAKE="${MAKE:-make}"
 FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
 
@@ -1666,7 +1671,7 @@ ensure_labi_prefer_one() {
         [ "$l9_ok" = "1" ] && link_objs="$link_objs $l9_o"
         # shellcheck disable=SC2086
         # PLATFORM: SHARED — historic g05 used $CC -r -nostdlib (not ld Darwin flags).
-        if $CC -r -nostdlib -o "$o" $link_objs "$rest_o" 2>/dev/null; then
+        if pure_ld_partial_merge "$o" $link_objs "$rest_o" 2>/dev/null; then
           log "prefer multi-slice $o <- L0..L9+L8b+L8c + link_abi rest (try-labi-prefer)"
           done=1
         fi
@@ -2196,7 +2201,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_content_x" "$_rt_content_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_CONTENT_FROM_X \
                      -c -o "$_rt_content_rest_o" "$_rt_content_seed" \
-                && $CC -r -nostdlib -o "$_rt_c_o" "$_rt_content_thin_o" "$_rt_content_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_c_o" "$_rt_content_thin_o" "$_rt_content_rest_o" 2>/dev/null; then
                 _rt_content_ok=1
                 echo "rt-prefer: R2 content ← full .x + rest H=0 (path wrappers in .x)"
               fi
@@ -2219,7 +2224,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_util_x" "$_rt_util_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_UTIL_FROM_X \
                      -c -o "$_rt_util_rest_o" "$_rt_util_seed" \
-                && $CC -r -nostdlib -o "$_rt_u_o" "$_rt_util_thin_o" "$_rt_util_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_u_o" "$_rt_util_thin_o" "$_rt_util_rest_o" 2>/dev/null; then
                 _rt_util_ok=1
                 echo "rt-prefer: R0 util ← thin .x + rest (G-02f-435 L2 prefer .x)"
               fi
@@ -2242,7 +2247,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_argv_x" "$_rt_argv_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ARGV_FROM_X \
                      -c -o "$_rt_argv_rest_o" "$_rt_argv_seed" \
-                && $CC -r -nostdlib -o "$_rt_a_o" "$_rt_argv_thin_o" "$_rt_argv_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_a_o" "$_rt_argv_thin_o" "$_rt_argv_rest_o" 2>/dev/null; then
                 _rt_argv_ok=1
                 echo "rt-prefer: R1 argv ← full .x + rest (R2 full H=0; G-02f-431 PREFER_X_O)"
               fi
@@ -2265,7 +2270,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_ef_x" "$_rt_ef_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_EMIT_FLAGS_FROM_X \
                      -c -o "$_rt_ef_rest_o" "$_rt_ef_seed" \
-                && $CC -r -nostdlib -o "$_rt_e_o" "$_rt_ef_thin_o" "$_rt_ef_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_e_o" "$_rt_ef_thin_o" "$_rt_ef_rest_o" 2>/dev/null; then
                 _rt_ef_ok=1
                 echo "rt-prefer: R2 emit_flags ← full .x + rest (G-02f R2 prefer .x; FROM_X rest H=0)"
               fi
@@ -2288,7 +2293,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_pre_x" "$_rt_p_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_PREAMBLE_FROM_X \
                      -c -o "$_rt_p_rest_o" "$_rt_pre_seed" \
-                && $CC -r -nostdlib -o "$_rt_p_o" "$_rt_p_thin_o" "$_rt_p_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_p_o" "$_rt_p_thin_o" "$_rt_p_rest_o" 2>/dev/null; then
                 _rt_pre_ok=1
                 echo "rt-prefer: R3 preamble ← full .x + rest tables/marker (R2 full H=0)"
               fi
@@ -2313,7 +2318,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_compile_x" "$_rt_cmp_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_COMPILE_FROM_X \
                      -c -o "$_rt_cmp_rest_o" "$_rt_compile_seed" \
-                && $CC -r -nostdlib -o "$_rt_cmp_o" "$_rt_cmp_thin_o" "$_rt_cmp_rest_o" 2>/dev/null \
+                && pure_ld_partial_merge "$_rt_cmp_o" "$_rt_cmp_thin_o" "$_rt_cmp_rest_o" 2>/dev/null \
                 && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_compile_state_alloc_c$" \
                 && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_deps_are_std_core_closure_only$" \
                 && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_compile_parse_argv_impl_c$"; then
@@ -2342,7 +2347,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_run_exec_x" "$_rt_run_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_EXEC_FROM_X \
                      -c -o "$_rt_run_rest_o" "$_rt_run_seed" \
-                && $CC -r -nostdlib -o "$_rt_run_o" "$_rt_run_thin_o" "$_rt_run_rest_o" 2>/dev/null \
+                && pure_ld_partial_merge "$_rt_run_o" "$_rt_run_thin_o" "$_rt_run_rest_o" 2>/dev/null \
                 && nm "$_rt_run_o" 2>/dev/null | grep -q " T driver_run_test$"; then
                 _rt_run_ok=1
                 echo "rt-prefer: R7 run/exec ← full .x + rest marker (R2 full H=0)"
@@ -2368,7 +2373,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_asm_stub_x" "$_rt_asm_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ASM_STUB_FROM_X \
                      -c -o "$_rt_asm_rest_o" "$_rt_asm_seed" \
-                && $CC -r -nostdlib -o "$_rt_asm_o" "$_rt_asm_thin_o" "$_rt_asm_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_asm_o" "$_rt_asm_thin_o" "$_rt_asm_rest_o" 2>/dev/null; then
                 _rt_asm_ok=1
                 echo "rt-prefer: R9 asm stub ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2391,7 +2396,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_entry_x" "$_rt_ent_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ENTRY_FROM_X \
                      -c -o "$_rt_ent_rest_o" "$_rt_entry_seed" \
-                && $CC -r -nostdlib -o "$_rt_ent_o" "$_rt_ent_thin_o" "$_rt_ent_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_ent_o" "$_rt_ent_thin_o" "$_rt_ent_rest_o" 2>/dev/null; then
                 _rt_entry_ok=1
                 echo "rt-prefer: R10 entry ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2414,7 +2419,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_diag_x" "$_rt_diag_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DIAG_ERRNO_FROM_X \
                      -c -o "$_rt_diag_rest_o" "$_rt_diag_seed" \
-                && $CC -r -nostdlib -o "$_rt_diag_o" "$_rt_diag_thin_o" "$_rt_diag_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_diag_o" "$_rt_diag_thin_o" "$_rt_diag_rest_o" 2>/dev/null; then
                 _rt_diag_ok=1
                 echo "rt-prefer: rest diag_errno ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2437,7 +2442,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_emit_st_x" "$_rt_est_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_EMIT_STATE_FROM_X \
                      -c -o "$_rt_est_rest_o" "$_rt_emit_st_seed" \
-                && $CC -r -nostdlib -o "$_rt_est_o" "$_rt_est_thin_o" "$_rt_est_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_est_o" "$_rt_est_thin_o" "$_rt_est_rest_o" 2>/dev/null; then
                 _rt_est_ok=1
                 echo "rt-prefer: rest emit state ← full .x + rest BSS+marker (R2 full H=0)"
               fi
@@ -2460,7 +2465,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_elf_diag_x" "$_rt_elfd_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_PIPELINE_ELF_DIAG_FROM_X \
                      -c -o "$_rt_elfd_rest_o" "$_rt_elf_diag_seed" \
-                && $CC -r -nostdlib -o "$_rt_elfd_o" "$_rt_elfd_thin_o" "$_rt_elfd_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_elfd_o" "$_rt_elfd_thin_o" "$_rt_elfd_rest_o" 2>/dev/null; then
                 _rt_elfd_ok=1
                 echo "rt-prefer: rest pipeline elf diag ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2483,7 +2488,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_lib_root_x" "$_rt_lr_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_LIB_ROOT_FROM_X \
                      -c -o "$_rt_lr_rest_o" "$_rt_lib_root_seed" \
-                && $CC -r -nostdlib -o "$_rt_lr_o" "$_rt_lr_thin_o" "$_rt_lr_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_lr_o" "$_rt_lr_thin_o" "$_rt_lr_rest_o" 2>/dev/null; then
                 _rt_lr_ok=1
                 echo "rt-prefer: rest lib_root ← thin .x + rest (G-02f-432 L2 prefer .x)"
               fi
@@ -2507,7 +2512,7 @@ ensure_rt_prefer_one() {
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc \
                      -DXLANG_RT_PARSE_DIAG_FROM_X -DXLANG_RT_PARSE_DIAG_PRECISE_BRIDGE \
                      -c -o "$_rt_pd_rest_o" "$_rt_parse_diag_seed" \
-                && $CC -r -nostdlib -o "$_rt_pd_o" "$_rt_pd_thin_o" "$_rt_pd_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_pd_o" "$_rt_pd_thin_o" "$_rt_pd_rest_o" 2>/dev/null; then
                 _rt_pd_ok=1
                 echo "rt-prefer: rest parse_diag ← thin .x + rest (R2 full H=0; G-02f-448 PREFER_X_O)"
               fi
@@ -2530,7 +2535,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_fs_open_x" "$_rt_fs_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_FS_OPEN_FROM_X \
                      -c -o "$_rt_fs_rest_o" "$_rt_fs_open_seed" \
-                && $CC -r -nostdlib -o "$_rt_fs_o" "$_rt_fs_thin_o" "$_rt_fs_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_fs_o" "$_rt_fs_thin_o" "$_rt_fs_rest_o" 2>/dev/null; then
                 _rt_fs_ok=1
                 echo "rt-prefer: rest fs open ← thin .x + rest (R2 full H=0; G-02f-452 PREFER_X_O)"
               fi
@@ -2553,7 +2558,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_arena_buf_x" "$_rt_ab_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ARENA_BUF_FROM_X \
                      -c -o "$_rt_ab_rest_o" "$_rt_arena_buf_seed" \
-                && $CC -r -nostdlib -o "$_rt_ab_o" "$_rt_ab_thin_o" "$_rt_ab_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_ab_o" "$_rt_ab_thin_o" "$_rt_ab_rest_o" 2>/dev/null; then
                 _rt_ab_ok=1
                 echo "rt-prefer: rest arena_buf ← full .x + rest BSS+marker (R2 full H=0)"
               fi
@@ -2576,7 +2581,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_fmt_one_x" "$_rt_fo_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_FMT_ONE_FROM_X \
                      -c -o "$_rt_fo_rest_o" "$_rt_fmt_one_seed" \
-                && $CC -r -nostdlib -o "$_rt_fo_o" "$_rt_fo_thin_o" "$_rt_fo_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_fo_o" "$_rt_fo_thin_o" "$_rt_fo_rest_o" 2>/dev/null; then
                 _rt_fo_ok=1
                 echo "rt-prefer: rest fmt_one ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2599,7 +2604,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_dispatch_thin_x" "$_rt_dt_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DISPATCH_THIN_FROM_X \
                      -c -o "$_rt_dt_rest_o" "$_rt_dispatch_thin_seed" \
-                && $CC -r -nostdlib -o "$_rt_dt_o" "$_rt_dt_thin_o" "$_rt_dt_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_dt_o" "$_rt_dt_thin_o" "$_rt_dt_rest_o" 2>/dev/null; then
                 _rt_dt_ok=1
                 echo "rt-prefer: rest dispatch_thin ← full .x + rest marker (R2 H=0)"
               fi
@@ -2623,7 +2628,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_dispatch_impl_x" "$_rt_di_thin_o" \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DISPATCH_IMPL_FROM_X \
                      -c -o "$_rt_di_rest_o" "$_rt_dispatch_impl_seed" \
-                && $CC -r -nostdlib -o "$_rt_di_o" "$_rt_di_thin_o" "$_rt_di_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_di_o" "$_rt_di_thin_o" "$_rt_di_rest_o" 2>/dev/null; then
                 _rt_di_ok=1
                 echo "rt-prefer: rest dispatch_impl ← full .x + rest marker (R2 H=0)"
               fi
@@ -2647,7 +2652,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_run_x_emit_x" "$_rt_xe_thin_o" \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_X_EMIT_FROM_X \
                      -c -o "$_rt_xe_rest_o" "$_rt_run_x_emit_seed" \
-                && $CC -r -nostdlib -o "$_rt_xe_o" "$_rt_xe_thin_o" "$_rt_xe_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_xe_o" "$_rt_xe_thin_o" "$_rt_xe_rest_o" 2>/dev/null; then
                 _rt_xe_ok=1
                 echo "rt-prefer: R2 run_x_emit ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2670,7 +2675,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_run_asm_backend_x" "$_rt_abk_thin_o" \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_ASM_BACKEND_FROM_X \
                      -c -o "$_rt_abk_rest_o" "$_rt_run_asm_backend_seed" \
-                && $CC -r -nostdlib -o "$_rt_abk_o" "$_rt_abk_thin_o" "$_rt_abk_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_abk_o" "$_rt_abk_thin_o" "$_rt_abk_rest_o" 2>/dev/null; then
                 _rt_abk_ok=1
                 echo "rt-prefer: R2 run_asm_backend ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2693,7 +2698,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_thin_o" \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_COMPILER_PARSED_FROM_X \
                      -c -o "$_rt_rcp_rest_o" "$_rt_run_compiler_parsed_seed" \
-                && $CC -r -nostdlib -o "$_rt_rcp_o" "$_rt_rcp_thin_o" "$_rt_rcp_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_rcp_o" "$_rt_rcp_thin_o" "$_rt_rcp_rest_o" 2>/dev/null; then
                 _rt_rcp_ok=1
                 echo "rt-prefer: R2 run_compiler_parsed ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2716,7 +2721,7 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_stack_x" "$_rt_st_thin_o" \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_STACK_FROM_X \
                      -c -o "$_rt_st_rest_o" "$_rt_stack_seed" \
-                && $CC -r -nostdlib -o "$_rt_st_o" "$_rt_st_thin_o" "$_rt_st_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_st_o" "$_rt_st_thin_o" "$_rt_st_rest_o" 2>/dev/null; then
                 _rt_st_ok=1
                 echo "rt-prefer: rest stack esc ← full .x + rest marker (R2 full H=0)"
               fi
@@ -2880,7 +2885,7 @@ ensure_rt_prefer_one() {
             if [ "$_rt_full_slices_ok" = "1" ]; then
               # wave318/319: all non-default slices present → empty mega rest;
               # no host-cc of seeds/runtime.from_x.c (prefer hybrid or cold seeds).
-              if $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs 2>/dev/null; then
+              if pure_ld_partial_merge "$_rt_o" $_rt_link_objs 2>/dev/null; then
                 if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ]; then
                   echo "rt-prefer: $_rt_o ← hybrid slices only; omit empty mega rest (wave318)"
                 else
@@ -2891,7 +2896,7 @@ ensure_rt_prefer_one() {
             elif [ "$allow_monofile" = "1" ] && [ -f "$_rt" ] && [ -n "$_rt_rest_o" ] \
               && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc \
                    $_rt_rest_defs -c -o "$_rt_rest_o" "$_rt" \
-              && $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
+              && pure_ld_partial_merge "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
               # wave320: partial monofile rest only with explicit archaeology escape.
               echo "rt-prefer: $_rt_o ← R2..R10/diag/…/parsed + monofile rest (ALLOW_MONOFILE_LAST_RESORT=1)"
               _rt_done=1
@@ -3031,7 +3036,7 @@ ensure_pipeline_abi_prefer_one() {
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
            -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
            -c -o "$rest_o" "$seed" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer; prefer=${prefer})"
       done=1
     else
@@ -3146,7 +3151,7 @@ ensure_ldpc_prefer_one() {
     if G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_LSP_CTX_THIN_FROM_X \
            -c -o "$rest_o" "$seed" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer thin+rest $o <- $x_src + seed-rest (try-ldpc-prefer)"
       done=1
     else
@@ -3256,7 +3261,7 @@ ensure_target_cpu_prefer_one() {
     if rt_prefer_try_x_to_o "$flags_x" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_TARGET_CPU_FLAGS_FROM_X \
            -c -o "$rest_o" "$seed" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer thin+rest $o <- $flags_x + seed-rest (try-target-cpu-prefer)"
       done=1
     else
@@ -3401,7 +3406,7 @@ ensure_l2_asm_prefer_one() {
     if rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_extra -D"$from_x_def" \
            -c -o "$rest_o" "$seed" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer thin+rest $o <- $x_src + seed-rest (try-l2-asm-prefer)"
       done=1
     else
@@ -3540,7 +3545,7 @@ ensure_async_prefer_one() {
     if rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -D"$from_x_def" \
            -c -o "$rest_o" "$seed" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer full.x+rest $o <- $x_src + seed-rest (try-async-prefer)"
       done=1
     else
@@ -3743,7 +3748,7 @@ ensure_other_l2_prefer_one() {
     if [ "$_thin_ok" = "1" ] \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_extra -D"$from_x_def" \
            -c -o "$rest_o" "$seed" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer thin.x+rest $o <- $x_src + seed-rest (try-other-l2-prefer/$leaf_kind)"
       done=1
     else
@@ -3988,7 +3993,7 @@ ensure_runtime_os_prefer_one() {
     rest_o="$(mktemp "${TMPDIR:-/tmp}/rtos_rest.XXXXXX")"
     if rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && _runtime_os_cc_seed "$rest_o" "$seed" "$from_x_def" "$leaf_kind" \
-      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       log "prefer thin.x+rest $o <- $x_src + seed-rest (try-runtime-os-prefer/$leaf_kind)"
       done=1
     else

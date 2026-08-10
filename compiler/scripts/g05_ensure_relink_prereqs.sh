@@ -65,6 +65,11 @@ if [ ! -f "${G05_BOOTSTRAP:-bootstrap_xlangc}" ] && [ ! -f xlang ] && [ ! -f xla
   exit 1
 fi
 
+# Stage 12.2.3: pure-ld partial-merge helper (replaces $CC -r -nostdlib in
+# prefer hybrid merges; zero-CC when XLANG_ZERO_CC_LD=1, else $CC -r zero
+# regression). PLATFORM: SHARED.
+. scripts/pure_ld_shared.sh
+
 # --- 热路径：直接 cc -c（不经 make）；G-02e-22：.inc 走 cc_inc_tu ---
 g05_cc_c() {
   # $1 = .o  $2 = .c|.inc  [$3...] = extra cflags
@@ -627,7 +632,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && G05_X_O_WEAK=1 g05_try_x_to_o "$_pel_x" "$_pel_thin_o" \
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS \
                -DXLANG_L2_PEL_THIN_FROM_X -c -o "$_pel_rest_o" "$_pel" \
-          && $CC -r -nostdlib -o "$_pel_o" "$_pel_thin_o" "$_pel_rest_o" 2>/dev/null; then
+          && pure_ld_partial_merge "$_pel_o" "$_pel_thin_o" "$_pel_rest_o" 2>/dev/null; then
           echo "g05_ensure: $_pel_o ← $_pel_x + seed-rest (G-02f-333 L2 hybrid parse_expr_link thin)"
           _pel_done=1
         else
@@ -1069,7 +1074,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ "$_pthin_full" = "1" ]; then
           # shellcheck disable=SC2086
-          if $CC -r -nostdlib -o parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
+          if pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
             echo "g05_ensure: parser_asm_thin_glue.o ← P1–P7+P9–P20 only (G-02f-330 omit empty rest; P8 smoke-only)"
             _pthin_done=1
           fi
@@ -1081,11 +1086,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             _pthin_rest_t=$(nm -gU "$_pthin_rest_o" 2>/dev/null | awk '$2=="T"{c++} END{print c+0}')
             # shellcheck disable=SC2086
             if [ "${_pthin_rest_t:-1}" = "0" ]; then
-              if $CC -r -nostdlib -o parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
+              if pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
                 echo "g05_ensure: parser_asm_thin_glue.o ← hybrid slices only (rest T=0 omit; G-02f-330)"
                 _pthin_done=1
               fi
-            elif $CC -r -nostdlib -o parser_asm_thin_glue.o $_pthin_link "$_pthin_rest_o" 2>/dev/null; then
+            elif pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link "$_pthin_rest_o" 2>/dev/null; then
               echo "g05_ensure: parser_asm_thin_glue.o ← hybrid slices + thin rest (G-02f-330 partial; rest T=$_pthin_rest_t)"
               _pthin_done=1
             fi
@@ -1122,7 +1127,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && G05_X_O_WEAK=1 g05_try_x_to_o "$_diag_thin_x" "$_diag_thin_o" \
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_DIAG_THIN_FROM_X \
                -c -o "$_diag_rest_o" "$_diag" \
-          && $CC -r -nostdlib -o "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
+          && pure_ld_partial_merge "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
           echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-347/420/421 L2 hybrid diag thin)"
           _diag_done=1
         else
@@ -1149,7 +1154,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _xsb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_xsb_thin.XXXXXX") || true
         _xsb_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_xsb_rest.XXXXXX") || true
         # shellcheck disable=SC2086
-        if [ -n "$_xsb_thin_o" ] && [ -n "$_xsb_rest_o" ]           && G05_X_O_WEAK=1 g05_try_x_to_o "$_xsb_x" "$_xsb_thin_o"           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_X_SEED_BRIDGE_THIN_FROM_X                -c -o "$_xsb_rest_o" "$_xsb"           && $CC -r -nostdlib -o "$_xsb_o" "$_xsb_thin_o" "$_xsb_rest_o" 2>/dev/null; then
+        if [ -n "$_xsb_thin_o" ] && [ -n "$_xsb_rest_o" ]           && G05_X_O_WEAK=1 g05_try_x_to_o "$_xsb_x" "$_xsb_thin_o"           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_X_SEED_BRIDGE_THIN_FROM_X                -c -o "$_xsb_rest_o" "$_xsb"           && pure_ld_partial_merge "$_xsb_o" "$_xsb_thin_o" "$_xsb_rest_o" 2>/dev/null; then
           echo "g05_ensure: $_xsb_o ← $_xsb_x + seed-rest (G-02f-332 L2 hybrid x_seed_bridge thin)"
           _xsb_done=1
         else
