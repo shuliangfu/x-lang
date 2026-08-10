@@ -1442,12 +1442,16 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
         case "$bare" in
           "${prod_pref}"*|core_*|std_*|xlang_*) continue ;;
           args_*|ctx_*|io_*|process_*) continue ;;
+          # PLATFORM: SHARED — never invent prod_pref+*_c. Impl / FFI faces stay
+          # bare (or get dedicated alias tables). Regression @71d9c714e: log_write_c
+          # → std_log_log_write_c broke runtime_log_os U log_write_c (run-log).
+          # Same rule as Mac wrappers "never wrap *_c" and encoding multi-file.
+          *_c) continue ;;
         esac
-        # heap multi-file: libc/ops bare *_c stay for the dedicated alias table
-        # (std_heap_libc_* / std_heap_ops_*), not std_heap_<bare>.
+        # heap multi-file ops bare (not always *_c) → dedicated alias table only.
         if [ "$leaf" = "heap" ]; then
           case "$bare" in
-            heap_*_c|map_i32_i32_find_c|map_slot|heap_mem_set_c|heap_mem_compare_c) continue ;;
+            map_slot|heap_mem_set_c|heap_mem_compare_c) continue ;;
           esac
         fi
         # Already have product export → leave bare alone only if namespaced exists
@@ -1487,16 +1491,32 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
       done
     fi
     # PLATFORM: SHARED — post-o twin of pre-cc clash guard (wait + libm math bare names).
+    # Pre-cc rewrites def to xlang_formal_bare_<name>; post-o must map that body to
+    # std_<leaf>_<name> (product face). Looking only for bare T <clash> missed
+    # xlang_formal_bare_log → run-log UNDEF std_log_log @71d9c714e. G.7 complete.
     for clash in free open close malloc realloc calloc getcwd chdir pipe exit \
                  getenv setenv unsetenv getpid getppid waitpid wait exec signal abort \
                  remove rename system time clock read write \
                  abs fabs floor ceil trunc round sin cos tan asin acos atan atan2 \
                  sqrt cbrt pow exp log log1p expm1 erf erfc min max; do
+      prod="std_${leaf}_${clash}"
+      fb="xlang_formal_bare_${clash}"
+      if nm "$out_o" 2>/dev/null | grep -qE " T ${fb}$| T _${fb}$"; then
+        if nm "$out_o" 2>/dev/null | grep -qE " T ${prod}$| T _${prod}$"; then
+          objcopy --localize-symbol="$fb" "$out_o" 2>/dev/null || true
+          objcopy --localize-symbol="_${fb}" "$out_o" 2>/dev/null || true
+        else
+          if nm "$out_o" 2>/dev/null | grep -q " T _${fb}$"; then
+            objcopy --redefine-sym "_${fb}=_${prod}" "$out_o" 2>/dev/null || true
+          else
+            objcopy --redefine-sym "${fb}=${prod}" "$out_o" 2>/dev/null || true
+          fi
+        fi
+      fi
       if nm "$out_o" 2>/dev/null | grep -q " T ${clash}$"; then
         # Prefer product export std_<leaf>_<clash> (e.g. std_env_getenv). *_api was a
         # historical clash guard; product import-binding calls std_env_getenv not *_api.
         # PLATFORM: SHARED — Ubuntu asm -o of mod.x often emits bare names; mac may prefix.
-        prod="std_${leaf}_${clash}"
         if nm "$out_o" 2>/dev/null | grep -q " T ${prod}$"; then
           objcopy --redefine-sym "${clash}=std_${leaf}_${clash}_api" "$out_o" 2>/dev/null || true
         else
