@@ -1074,6 +1074,14 @@ for fm in _func_def_re.finditer(s):
         continue
     if fname in _skip_names:
         continue
+    # PLATFORM: SHARED — multi-file formal (mod.x + encoding.x): bodies named
+    # encoding_*_c must stay global T so mod.x U-imports resolve inside the
+    # ar. Making them static (hide multi-def) broke L4 run-encoding:
+    # U encoding_utf8_*_c from mod with only `t` local in encoding TU.
+    # G.7: only wrap bare product API (utf8_valid, ascii_is_alpha); never the
+    # *_c impl face or already-prefixed impl names.
+    if fname.endswith('_c'):
+        continue
     # Skip co-emitted foreign module bodies (io driver / process / ctx glue / args).
     # PLATFORM: SHARED — do NOT skip this module's real API that shares a short
     # prefix. std.error exports io_err_cancelled/timeout/generic; the old blanket
