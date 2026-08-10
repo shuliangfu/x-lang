@@ -358,6 +358,11 @@ case "${1:-}" in
       echo "xlang_compile_std_module.sh ensure: unknown formal_mod leaf: $out_o" >&2
       exit 3
     fi
+    # PLATFORM: SHARED — always land at catalog out path from compiler/ cwd
+    # (../std|core/…). Callers may pass std/heap/heap.o without ../; without
+    # this normalize libtool writes compiler/std/... (wrong) and product links
+    # the stale ../std/... .o. G.7 single out authority.
+    out_o="$(formal_mod_out_for_key "$_key")"
     _spec="$(formal_mod_spec_for_key "$_key")"
     _kind="${_spec%%|*}"
     _rest="${_spec#*|}"
@@ -959,17 +964,47 @@ for x_path in "$@"; do
   # redefinition of `std_heap_alloc_size_zero` (heap/mod.x).
   # G.7: single predicate — skip wrapper iff namespaced form already owned.
   # Linux objcopy path remains the ELF authority; this is the Mach-O twin.
+  #
+  # PLATFORM: MACOS — apply wrappers for *every* formal .x TU, not only mod.x.
+  # Multi-file modules (heap = mod+libc+ops) import-bind as std_heap_libc_* /
+  # std_heap_ops_* (see xlang_entry_lib_name_from_path_impl). Wrapping only
+  # mod.x left libc/ops bare (heap_alloc_i32_c, map_i32_i32_find_c) → L4
+  # run-set UNDEF std_heap_libc_* / std_heap_ops_map_i32_i32_find_c. Prefix
+  # mirrors path: std/heap/libc.x → std_heap_libc_; skip trailing mod segment.
   if ! command -v objcopy >/dev/null 2>&1 && [ -f "$gen_c" ] && [ -s "$gen_c" ]; then
-    case "$base_name" in
-      mod.x)
-        _wrap_leaf=$(basename "$(dirname "$x_path")")
-        _wrap_root=$(printf '%s' "$x_path" | sed -e 's|^\.\./||' -e 's|/.*||')
-        case "$_wrap_root" in
-          core) _wrap_pref="core_${_wrap_leaf}_" ;;
-          *)    _wrap_pref="std_${_wrap_leaf}_" ;;
-        esac
-        if [ -n "$_wrap_pref" ] && [ "$_wrap_pref" != "_" ]; then
-          python3 - "$gen_c" "$_wrap_pref" <<'PYEOF' >>"$gen_c.append_wrappers.c" 2>/dev/null && cat "$gen_c.append_wrappers.c" >>"$gen_c" && rm -f "$gen_c.append_wrappers.c" || true
+    # Derive pref from path (same rules as xlang_entry_lib_name_from_path_impl).
+    _wrap_pref=""
+    _wrap_rel=$(printf '%s' "$x_path" | sed -e 's|^\.\./||')
+    case "$_wrap_rel" in
+      std/*|core/*)
+        _wrap_pref=$(python3 -c '
+import sys
+p = sys.argv[1].replace("\\\\", "/")
+for root, pref0 in (("std/", "std_"), ("core/", "core_")):
+    idx = p.find(root)
+    if idx < 0:
+        continue
+    # accept only at path start or after /
+    if idx > 0 and p[idx-1] not in "/":
+        continue
+    segs = p[idx+len(root):].split("/")
+    parts = []
+    for s in segs:
+        if s.endswith(".su"):
+            s = s[:-3]
+        elif s.endswith(".x"):
+            s = s[:-2]
+        if not s or s == "mod":
+            continue
+        parts.append(s)
+    if parts:
+        print(pref0 + "_".join(parts) + "_")
+        break
+' "$_wrap_rel" 2>/dev/null) || _wrap_pref=""
+        ;;
+    esac
+    if [ -n "$_wrap_pref" ] && [ "$_wrap_pref" != "_" ]; then
+      python3 - "$gen_c" "$_wrap_pref" <<'PYEOF' >>"$gen_c.append_wrappers.c" 2>/dev/null && cat "$gen_c.append_wrappers.c" >>"$gen_c" && rm -f "$gen_c.append_wrappers.c" || true
 import re, sys
 # PLATFORM: MACOS — thin namespaced wrappers; skip when preamble #define already
 # owns pref+name (bare def expands to that symbol). Mirrors Linux "nm already
@@ -1013,10 +1048,29 @@ for fm in _func_def_re.finditer(s):
     if n.startswith(pref) or n.startswith(('core_', 'std_', 'xlang_')):
         existing_ns.add(n)
 _skip_prefixes = ('core_', 'std_', 'xlang_', '__')
+# Co-emitted dep/runtime shims must not get this module's prefix (would invent
+# false product symbols and clash when multi-file ld -r / ar merges TUs).
+_skip_names = {
+    'args_iter_at_c', 'args_iter_count_c',
+    'ctx_background_c', 'ctx_cancel_c', 'ctx_deadline_ns_c', 'ctx_free_c',
+    'ctx_get_value_c', 'ctx_is_cancelled_c', 'ctx_remaining_ns_c',
+    'ctx_set_value_c', 'ctx_with_cancel_c', 'ctx_with_deadline_c',
+    'ctx_with_timeout_c',
+    'io_read_batch_buf', 'io_register_buffers_4', 'io_register_buffers_buf_c',
+    'io_wait_readable', 'io_write_batch_buf',
+    'process_arg_c', 'process_args_count_c',
+    'process_xlang_argc_get', 'process_xlang_argv_get',
+}
 out_lines = []
 for fm in _func_def_re.finditer(s):
     fname = fm.group('name')
     if fname.startswith(_skip_prefixes) or fname == 'main':
+        continue
+    if fname in _skip_names:
+        continue
+    # Skip co-emitted foreign module bodies that already carry a foreign prefix
+    # token mid-name (e.g. io_*, process_* already listed; also bare noise).
+    if fname.startswith(('io_', 'process_', 'ctx_', 'args_')):
         continue
     ns = pref + fname
     # Never redefine an existing namespaced body.
@@ -1045,9 +1099,7 @@ if out_lines:
     print('/* Namespaced wrappers — macOS twin of Linux objcopy; skip if #define owns ns. */')
     print('\n'.join(out_lines))
 PYEOF
-        fi
-        ;;
-    esac
+    fi
   fi
 
   # PLATFORM: SHARED — pre-cc POSIX/libc bare-name clash guard.
@@ -1075,6 +1127,23 @@ PYEOF
           printf '/* formal_mod pre-cc: bare %s clashes with hosted C — rename body */\n' "$_cn"
           printf '#ifdef %s\n#undef %s\n#endif\n#define %s xlang_formal_bare_%s\n' \
             "$_cn" "$_cn" "$_cn" "$_cn"
+        } >>"$_clash_hdr"
+      fi
+    done
+    # PLATFORM: SHARED — rt_preamble consumer shims are function-like macros
+    # (`#define empty_size(_a,_b) std_map_empty_size()` etc.). When formal_mod
+    # is the *producer* of that export, gen_c has `int32_t empty_size(void)` /
+    # `int32_t empty_size(void) {…}` and the macro expands with too few args →
+    # cc -c fails (L4: map.o never built ×80; run-set later UNDEF heap surface
+    # that depends on map/heap formal completeness). G.7: undef the shim only
+    # when this TU defines the bare function body (producer). Consumers keep
+    # the preamble macro. Same class: error_ok, empty_len.
+    for _pm in empty_size error_ok empty_len; do
+      if grep -Eq "^#define[[:space:]]+${_pm}[[:space:]]*\\(" "$gen_c" 2>/dev/null \
+         && grep -Eq "^[A-Za-z_][A-Za-z0-9_ *]*[[:space:]]+${_pm}[[:space:]]*\\(" "$gen_c" 2>/dev/null; then
+        {
+          printf '/* formal_mod pre-cc: undef preamble macro %s — this TU defines the export */\n' "$_pm"
+          printf '#ifdef %s\n#undef %s\n#endif\n' "$_pm" "$_pm"
         } >>"$_clash_hdr"
       fi
     done
@@ -1143,7 +1212,11 @@ fi
 # 在 .o 落地后把与 libc 冲突的裸符号重命名为 std_<leaf>_*_api，避免污染。
 # 与上方 pre-cc 改名双保险：若某路径未走 pre-cc（旧 gen）仍可后处理。
 # 真前缀收敛后（codegen 对 entry 正确应用 path lib_name）本段可删。
-if command -v nm >/dev/null 2>&1 && command -v objcopy >/dev/null 2>&1 && [ -f "$out_o" ]; then
+# PLATFORM: SHARED — post-o symbol authority. Linux uses objcopy redefine;
+# macOS often has no objcopy (wrappers above are primary). Heap alias table
+# below must still run on Darwin (nm-only) when multi-file ar lacks namespaced
+# libc/ops exports. G.7: do not gate the whole post-o block on objcopy.
+if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
   leaf=$(basename "$(dirname "$out_o")")
   case "$leaf" in
     ''|.) leaf=$(basename "$out_o" .o) ;;
@@ -1159,89 +1232,282 @@ if command -v nm >/dev/null 2>&1 && command -v objcopy >/dev/null 2>&1 && [ -f "
     std)  prod_pref="std_${leaf}_" ;;
     *)    prod_pref="" ;;
   esac
-  if [ -n "$prod_pref" ] && ! nm "$out_o" 2>/dev/null | grep -q " T ${prod_pref}"; then
-    nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
-      [ -n "$sym" ] || continue
-      case "$sym" in
-        "${prod_pref}"*|_"${prod_pref}"*) continue ;;
-        core_*|std_*|_core_*|_std_*) continue ;;
-        _Z*|.L*|L0*|__*|_*_c|args_*|ctx_*|io_*|process_*) continue ;;
-      esac
-      bare="$sym"
-      case "$sym" in
-        _*) bare="${sym#_}" ;;
-      esac
-      case "$bare" in
-        "${prod_pref}"*|core_*|std_*) continue ;;
-      esac
-      if [ "$bare" != "$sym" ]; then
-        objcopy --redefine-sym "${sym}=_${prod_pref}${bare}" "$out_o" 2>/dev/null || true
-      else
-        objcopy --redefine-sym "${sym}=${prod_pref}${bare}" "$out_o" 2>/dev/null || true
-      fi
-    done
-  fi
-  # PLATFORM: SHARED — core.slice co-emits core_option_* bodies; when both mod.o and
-  # option.o are pushed (--allow-multiple-definition) the wrong is_some/unwrap can win
-  # (Ubuntu length.x asm exit 4 after i32 path). Localize co-emitted option APIs so
-  # option.o remains the global authority; internal get_* still bind locally. G.7.
-  if [ "$out_root" = "core" ] && [ "$leaf" = "slice" ]; then
-    nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
-      bare="$sym"
-      case "$sym" in
-        _*) bare="${sym#_}" ;;
-      esac
-      case "$bare" in
-        core_option_*)
-          objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
-          ;;
-      esac
-    done
-  fi
-  # PLATFORM: SHARED — post-o twin of pre-cc clash guard (wait added; was cc-only red).
-  for clash in free open close malloc realloc calloc getcwd chdir pipe exit getenv setenv unsetenv getpid getppid waitpid wait exec signal abort remove rename system time clock read write; do
-    if nm "$out_o" 2>/dev/null | grep -q " T ${clash}$"; then
-      # Prefer product export std_<leaf>_<clash> (e.g. std_env_getenv). *_api was a
-      # historical clash guard; product import-binding calls std_env_getenv not *_api.
-      # PLATFORM: SHARED — Ubuntu asm -o of mod.x often emits bare names; mac may prefix.
-      prod="std_${leaf}_${clash}"
-      if nm "$out_o" 2>/dev/null | grep -q " T ${prod}$"; then
-        objcopy --redefine-sym "${clash}=std_${leaf}_${clash}_api" "$out_o" 2>/dev/null || true
-      else
-        objcopy --redefine-sym "${clash}=${prod}" "$out_o" 2>/dev/null || true
-      fi
+  if command -v objcopy >/dev/null 2>&1; then
+    if [ -n "$prod_pref" ] && ! nm "$out_o" 2>/dev/null | grep -q " T ${prod_pref}"; then
+      nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
+        [ -n "$sym" ] || continue
+        case "$sym" in
+          "${prod_pref}"*|_"${prod_pref}"*) continue ;;
+          core_*|std_*|_core_*|_std_*) continue ;;
+          _Z*|.L*|L0*|__*|_*_c|args_*|ctx_*|io_*|process_*) continue ;;
+        esac
+        bare="$sym"
+        case "$sym" in
+          _*) bare="${sym#_}" ;;
+        esac
+        case "$bare" in
+          "${prod_pref}"*|core_*|std_*) continue ;;
+        esac
+        if [ "$bare" != "$sym" ]; then
+          objcopy --redefine-sym "${sym}=_${prod_pref}${bare}" "$out_o" 2>/dev/null || true
+        else
+          objcopy --redefine-sym "${sym}=${prod_pref}${bare}" "$out_o" 2>/dev/null || true
+        fi
+      done
     fi
-  done
-  # PLATFORM: SHARED — env product surface: bare getenv_exists/z/ptr/temp_dir/iter*
-  # are not in the libc-clash list above; import calls std_env_*. Complete the rename.
-  if [ "$leaf" = "env" ]; then
-    for bare in getenv getenv_exists getenv_z getenv_ptr setenv unsetenv temp_dir \
-                iter iter_count iter_next args_iter args_iter_count args_iter_next; do
-      if nm "$out_o" 2>/dev/null | grep -q " T ${bare}$"; then
-        objcopy --redefine-sym "${bare}=std_env_${bare}" "$out_o" 2>/dev/null || true
-      fi
-      if nm "$out_o" 2>/dev/null | grep -q " T std_env_${bare}_api$"; then
-        objcopy --redefine-sym "std_env_${bare}_api=std_env_${bare}" "$out_o" 2>/dev/null || true
+    # PLATFORM: SHARED — core.slice co-emits core_option_* bodies; when both mod.o and
+    # option.o are pushed (--allow-multiple-definition) the wrong is_some/unwrap can win
+    # (Ubuntu length.x asm exit 4 after i32 path). Localize co-emitted option APIs so
+    # option.o remains the global authority; internal get_* still bind locally. G.7.
+    if [ "$out_root" = "core" ] && [ "$leaf" = "slice" ]; then
+      nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
+        bare="$sym"
+        case "$sym" in
+          _*) bare="${sym#_}" ;;
+        esac
+        case "$bare" in
+          core_option_*)
+            objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
+            ;;
+        esac
+      done
+    fi
+    # PLATFORM: SHARED — post-o twin of pre-cc clash guard (wait added; was cc-only red).
+    for clash in free open close malloc realloc calloc getcwd chdir pipe exit getenv setenv unsetenv getpid getppid waitpid wait exec signal abort remove rename system time clock read write; do
+      if nm "$out_o" 2>/dev/null | grep -q " T ${clash}$"; then
+        # Prefer product export std_<leaf>_<clash> (e.g. std_env_getenv). *_api was a
+        # historical clash guard; product import-binding calls std_env_getenv not *_api.
+        # PLATFORM: SHARED — Ubuntu asm -o of mod.x often emits bare names; mac may prefix.
+        prod="std_${leaf}_${clash}"
+        if nm "$out_o" 2>/dev/null | grep -q " T ${prod}$"; then
+          objcopy --redefine-sym "${clash}=std_${leaf}_${clash}_api" "$out_o" 2>/dev/null || true
+        else
+          objcopy --redefine-sym "${clash}=${prod}" "$out_o" 2>/dev/null || true
+        fi
       fi
     done
+    # PLATFORM: SHARED — env product surface: bare getenv_exists/z/ptr/temp_dir/iter*
+    # are not in the libc-clash list above; import calls std_env_*. Complete the rename.
+    if [ "$leaf" = "env" ]; then
+      for bare in getenv getenv_exists getenv_z getenv_ptr setenv unsetenv temp_dir \
+                  iter iter_count iter_next args_iter args_iter_count args_iter_next; do
+        if nm "$out_o" 2>/dev/null | grep -q " T ${bare}$"; then
+          objcopy --redefine-sym "${bare}=std_env_${bare}" "$out_o" 2>/dev/null || true
+        fi
+        if nm "$out_o" 2>/dev/null | grep -q " T std_env_${bare}_api$"; then
+          objcopy --redefine-sym "std_env_${bare}_api=std_env_${bare}" "$out_o" 2>/dev/null || true
+        fi
+      done
+    fi
   fi
-  # heap import-binding：impl 常产出裸 heap_alloc_c，用户/co-emit 与 http.o 等要
-  # std_heap_libc_heap_alloc_c。只要 .o 有 T heap_alloc_c 且缺 std 前缀名就补别名
-  # （勿仅依赖本 TU 的 U 引用——单文件 heap.o 落地时往往没有 U）。
-  if nm "$out_o" 2>/dev/null | grep -q " T heap_alloc_c$" \
-     && ! nm "$out_o" 2>/dev/null | grep -q " T std_heap_libc_heap_alloc_c$"; then
-    alias_c="$tmp_dir/heap_alloc_alias.c"
-    alias_o="$tmp_dir/heap_alloc_alias.o"
-    printf '%s\n' \
-      '#include <stddef.h>' \
-      '#include <stdint.h>' \
-      'extern uint8_t *heap_alloc_c(size_t size);' \
-      'uint8_t *std_heap_libc_heap_alloc_c(size_t size) { return heap_alloc_c(size); }' \
-      >"$alias_c"
-    if cc -fPIE -c "$alias_c" -o "$alias_o" 2>/dev/null; then
-      merged="$tmp_dir/heap_merged.o"
-      if ld -r -o "$merged" "$out_o" "$alias_o" 2>/dev/null; then
-        mv "$merged" "$out_o"
+  # heap import-binding：impl 常产出裸 heap_*_c / map_*_c，mod.x U 要
+  # std_heap_libc_* / std_heap_ops_*。Mac 多文件 ar 不合并符号；缺 wrappers 时
+  # L4 run-set UNDEF. G.7: complete alias table (not only heap_alloc_c).
+  # PLATFORM: SHARED — objcopy redefine when available; else thin C wrappers +
+  # ld -r (or ar q when out is already a static archive from libtool).
+  # Note: runs with nm only (no objcopy required) so Darwin libtool ar path is covered.
+  if [ "$leaf" = "heap" ] && [ -f "$out_o" ]; then
+    # libc.x surface: bare heap_* → std_heap_libc_heap_*
+    # ops.x surface: bare map_* / heap_mem_* → std_heap_ops_*
+    _heap_alias_list=""
+    for bare in \
+      heap_alloc_c heap_alloc_aligned_c heap_alloc_zeroed_c \
+      heap_alloc_i32_c heap_alloc_u8_c heap_alloc_u64_c heap_alloc_f32_c heap_alloc_f64_c \
+      heap_free_c heap_free_i32_c heap_free_u8_c heap_free_u64_c heap_free_f32_c heap_free_f64_c \
+      heap_realloc_c heap_realloc_i32_c heap_realloc_u8_c heap_realloc_u64_c \
+      heap_realloc_f32_c heap_realloc_f64_c \
+      heap_copy_i32_at_c heap_copy_u8_at_c heap_copy_u64_at_c heap_copy_f32_at_c heap_copy_f64_at_c \
+      heap_arena64_init_c heap_arena64_alloc_c heap_arena64_bump_c heap_arena64_deinit_c \
+      heap_ptr_mod_c heap_trace_enabled_c heap_trace_reset_c heap_trace_stats_c; do
+      ns="std_heap_libc_${bare}"
+      if nm "$out_o" 2>/dev/null | grep -qE " T ${bare}$| T _${bare}$" \
+         && ! nm "$out_o" 2>/dev/null | grep -qE " T ${ns}$| T _${ns}$"; then
+        _heap_alias_list="${_heap_alias_list}${bare}|${ns}
+"
+      fi
+    done
+    for bare in map_i32_i32_find_c map_slot heap_mem_set_c heap_mem_compare_c; do
+      ns="std_heap_ops_${bare}"
+      if nm "$out_o" 2>/dev/null | grep -qE " T ${bare}$| T _${bare}$" \
+         && ! nm "$out_o" 2>/dev/null | grep -qE " T ${ns}$| T _${ns}$"; then
+        _heap_alias_list="${_heap_alias_list}${bare}|${ns}
+"
+      fi
+    done
+    if [ -n "$_heap_alias_list" ]; then
+      if command -v objcopy >/dev/null 2>&1; then
+        printf '%s' "$_heap_alias_list" | while IFS='|' read -r bare ns; do
+          [ -n "$bare" ] || continue
+          if nm "$out_o" 2>/dev/null | grep -q " T _${bare}$"; then
+            objcopy --redefine-sym "_${bare}=_${ns}" "$out_o" 2>/dev/null || true
+          else
+            objcopy --redefine-sym "${bare}=${ns}" "$out_o" 2>/dev/null || true
+          fi
+        done
+      else
+        # PLATFORM: MACOS — emit thin wrappers and merge. Prefer ld -r; if out is
+        # ar archive (libtool fallback), append member via ar r.
+        alias_c="$tmp_dir/heap_full_alias.c"
+        alias_o="$tmp_dir/heap_full_alias.o"
+        {
+          echo '#include <stddef.h>'
+          echo '#include <stdint.h>'
+          printf '%s' "$_heap_alias_list" | while IFS='|' read -r bare ns; do
+            [ -n "$bare" ] || continue
+            # Prefer prototypes from nm-driven known signatures; default to
+            # identity-cast via void* for uncommon ones. Typed alloc/free only.
+            case "$bare" in
+              heap_alloc_c|heap_alloc_zeroed_c)
+                echo "extern uint8_t *${bare}(size_t size);"
+                echo "uint8_t *${ns}(size_t size) { return ${bare}(size); }"
+                ;;
+              heap_alloc_aligned_c)
+                echo "extern uint8_t *${bare}(size_t align_bytes, size_t size);"
+                echo "uint8_t *${ns}(size_t align_bytes, size_t size) { return ${bare}(align_bytes, size); }"
+                ;;
+              heap_alloc_i32_c)
+                echo "extern int32_t *${bare}(int32_t count);"
+                echo "int32_t *${ns}(int32_t count) { return ${bare}(count); }"
+                ;;
+              heap_alloc_u8_c)
+                echo "extern uint8_t *${bare}(int32_t count);"
+                echo "uint8_t *${ns}(int32_t count) { return ${bare}(count); }"
+                ;;
+              heap_alloc_u64_c)
+                echo "extern uint64_t *${bare}(int32_t count);"
+                echo "uint64_t *${ns}(int32_t count) { return ${bare}(count); }"
+                ;;
+              heap_alloc_f32_c)
+                echo "extern float *${bare}(int32_t count);"
+                echo "float *${ns}(int32_t count) { return ${bare}(count); }"
+                ;;
+              heap_alloc_f64_c)
+                echo "extern double *${bare}(int32_t count);"
+                echo "double *${ns}(int32_t count) { return ${bare}(count); }"
+                ;;
+              heap_free_c|heap_free_u8_c)
+                echo "extern void ${bare}(uint8_t *p);"
+                echo "void ${ns}(uint8_t *p) { ${bare}(p); }"
+                ;;
+              heap_free_i32_c)
+                echo "extern void ${bare}(int32_t *p);"
+                echo "void ${ns}(int32_t *p) { ${bare}(p); }"
+                ;;
+              heap_free_u64_c)
+                echo "extern void ${bare}(uint64_t *p);"
+                echo "void ${ns}(uint64_t *p) { ${bare}(p); }"
+                ;;
+              heap_free_f32_c)
+                echo "extern void ${bare}(float *p);"
+                echo "void ${ns}(float *p) { ${bare}(p); }"
+                ;;
+              heap_free_f64_c)
+                echo "extern void ${bare}(double *p);"
+                echo "void ${ns}(double *p) { ${bare}(p); }"
+                ;;
+              heap_realloc_c|heap_realloc_u8_c)
+                echo "extern uint8_t *${bare}(uint8_t *p, size_t size);"
+                echo "uint8_t *${ns}(uint8_t *p, size_t size) { return ${bare}(p, size); }"
+                ;;
+              heap_realloc_i32_c)
+                echo "extern int32_t *${bare}(int32_t *p, int32_t count);"
+                echo "int32_t *${ns}(int32_t *p, int32_t count) { return ${bare}(p, count); }"
+                ;;
+              heap_realloc_u64_c)
+                echo "extern uint64_t *${bare}(uint64_t *p, int32_t count);"
+                echo "uint64_t *${ns}(uint64_t *p, int32_t count) { return ${bare}(p, count); }"
+                ;;
+              heap_realloc_f32_c)
+                echo "extern float *${bare}(float *p, int32_t count);"
+                echo "float *${ns}(float *p, int32_t count) { return ${bare}(p, count); }"
+                ;;
+              heap_realloc_f64_c)
+                echo "extern double *${bare}(double *p, int32_t count);"
+                echo "double *${ns}(double *p, int32_t count) { return ${bare}(p, count); }"
+                ;;
+              heap_copy_i32_at_c)
+                echo "extern void ${bare}(int32_t *dst, int32_t dst_offset, int32_t *src, int32_t count);"
+                echo "void ${ns}(int32_t *dst, int32_t dst_offset, int32_t *src, int32_t count) { ${bare}(dst, dst_offset, src, count); }"
+                ;;
+              heap_copy_u8_at_c)
+                echo "extern void ${bare}(uint8_t *dst, int32_t dst_offset, uint8_t *src, int32_t count);"
+                echo "void ${ns}(uint8_t *dst, int32_t dst_offset, uint8_t *src, int32_t count) { ${bare}(dst, dst_offset, src, count); }"
+                ;;
+              heap_copy_u64_at_c)
+                echo "extern void ${bare}(uint64_t *dst, int32_t dst_offset, uint64_t *src, int32_t count);"
+                echo "void ${ns}(uint64_t *dst, int32_t dst_offset, uint64_t *src, int32_t count) { ${bare}(dst, dst_offset, src, count); }"
+                ;;
+              heap_copy_f32_at_c)
+                echo "extern void ${bare}(float *dst, int32_t dst_offset, float *src, int32_t count);"
+                echo "void ${ns}(float *dst, int32_t dst_offset, float *src, int32_t count) { ${bare}(dst, dst_offset, src, count); }"
+                ;;
+              heap_copy_f64_at_c)
+                echo "extern void ${bare}(double *dst, int32_t dst_offset, double *src, int32_t count);"
+                echo "void ${ns}(double *dst, int32_t dst_offset, double *src, int32_t count) { ${bare}(dst, dst_offset, src, count); }"
+                ;;
+              map_i32_i32_find_c)
+                echo "extern int32_t ${bare}(int32_t *keys, uint8_t *occupied, int32_t cap, int32_t key);"
+                echo "int32_t ${ns}(int32_t *keys, uint8_t *occupied, int32_t cap, int32_t key) { return ${bare}(keys, occupied, cap, key); }"
+                ;;
+              map_slot)
+                echo "extern int32_t ${bare}(int32_t key, int32_t cap);"
+                echo "int32_t ${ns}(int32_t key, int32_t cap) { return ${bare}(key, cap); }"
+                ;;
+              heap_mem_set_c)
+                echo "extern void ${bare}(uint8_t *ptr, uint8_t byte, int32_t n);"
+                echo "void ${ns}(uint8_t *ptr, uint8_t byte, int32_t n) { ${bare}(ptr, byte, n); }"
+                ;;
+              heap_mem_compare_c)
+                echo "extern int32_t ${bare}(uint8_t *a, uint8_t *b, int32_t n);"
+                echo "int32_t ${ns}(uint8_t *a, uint8_t *b, int32_t n) { return ${bare}(a, b, n); }"
+                ;;
+              heap_ptr_mod_c)
+                echo "extern size_t ${bare}(uint8_t *p, size_t m);"
+                echo "size_t ${ns}(uint8_t *p, size_t m) { return ${bare}(p, m); }"
+                ;;
+              heap_trace_enabled_c)
+                echo "extern int32_t ${bare}(void);"
+                echo "int32_t ${ns}(void) { return ${bare}(); }"
+                ;;
+              heap_trace_reset_c)
+                echo "extern void ${bare}(void);"
+                echo "void ${ns}(void) { ${bare}(); }"
+                ;;
+              heap_trace_stats_c)
+                # Variadic surface differs by monomorph; skip thin alias (wrappers cover Mac).
+                ;;
+              heap_arena64_init_c)
+                # Incomplete struct ok for alias if definition is in same link unit.
+                echo "struct std_heap_libc_LibcArena64;"
+                echo "extern int32_t ${bare}(struct std_heap_libc_LibcArena64 *a, size_t cap);"
+                echo "int32_t ${ns}(struct std_heap_libc_LibcArena64 *a, size_t cap) { return ${bare}(a, cap); }"
+                ;;
+              heap_arena64_alloc_c|heap_arena64_bump_c)
+                echo "struct std_heap_libc_LibcArena64;"
+                echo "extern uint8_t *${bare}(struct std_heap_libc_LibcArena64 *a, size_t size, size_t align_bytes);"
+                echo "uint8_t *${ns}(struct std_heap_libc_LibcArena64 *a, size_t size, size_t align_bytes) { return ${bare}(a, size, align_bytes); }"
+                ;;
+              heap_arena64_deinit_c)
+                echo "struct std_heap_libc_LibcArena64;"
+                echo "extern void ${bare}(struct std_heap_libc_LibcArena64 *a);"
+                echo "void ${ns}(struct std_heap_libc_LibcArena64 *a) { ${bare}(a); }"
+                ;;
+              *)
+                ;;
+            esac
+          done
+        } >"$alias_c"
+        if [ -s "$alias_c" ] && cc -fPIE -c "$alias_c" -o "$alias_o" 2>/dev/null; then
+          merged="$tmp_dir/heap_merged.o"
+          if ld -r -o "$merged" "$out_o" "$alias_o" 2>/dev/null; then
+            mv "$merged" "$out_o"
+          elif file "$out_o" 2>/dev/null | grep -q 'ar archive'; then
+            ar r "$out_o" "$alias_o" 2>/dev/null || true
+          elif command -v libtool >/dev/null 2>&1; then
+            # out is relocatable .o but ld -r failed (duplicate co-emits); pack as ar.
+            libtool -static -o "$merged" "$out_o" "$alias_o" 2>/dev/null && mv "$merged" "$out_o" || true
+          fi
+        fi
       fi
     fi
   fi
