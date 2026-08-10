@@ -402,12 +402,19 @@ fi
 ST_LSP_DIAG_STUB="$BUILD_DIR/asm_xlang_lsp_diag_stub.o"
 GLUE_O="$BUILD_DIR/pipeline_glue_standalone.o"
 PIPELINE_GEN_CFLAGS="-O2 -g -fno-strict-aliasing -DPIPELINE_GEN_STANDALONE"
-if [ ! -f "$GLUE_O" ] || [ "seeds/pipeline_glue_standalone.from_x.c" -nt "$GLUE_O" ] \
-  || [ "pipeline_glue.c" -nt "$GLUE_O" ] || [ "ast_pool.c" -nt "$GLUE_O" ]; then
+# wave309: pipeline_glue_standalone.from_x.c seed retired; pure runtime_pipeline_abi.o
+# is G.7 authority. Skip compilation when seed absent (non-fatal; experimental link
+# resolves via runtime_pipeline_abi.o). PLATFORM: SHARED.
+if [ -f seeds/pipeline_glue_standalone.from_x.c ] && { [ ! -f "$GLUE_O" ] || [ "seeds/pipeline_glue_standalone.from_x.c" -nt "$GLUE_O" ] \
+  || [ "pipeline_glue.c" -nt "$GLUE_O" ] || [ "ast_pool.c" -nt "$GLUE_O" ]; }; then
   experimental_bootstrap_info "cc pipeline_glue_standalone.o"
   mkdir -p "$BUILD_DIR"
   sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$GLUE_O" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
 fi
+# wave309: glue seed shell retired; drop GLUE_O if .o physically missing so LD argv
+# does not reference non-existent file. Pure runtime_pipeline_abi.o / pipeline_x.o
+# provide pipeline symbols (G.7). PLATFORM: SHARED.
+[ -z "$GLUE_O" ] || [ -f "$GLUE_O" ] || GLUE_O=""
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   EXP_ALLOW_MULTIDEF="-Wl,-multiply_defined -Wl,suppress"
 else
@@ -422,7 +429,7 @@ fi
 # PLATFORM: SHARED — G-02e: no runtime_abi/proc_abi .o; link runtime_link_abi instead.
 "$CC" $CFLAGS $EXP_ALLOW_MULTIDEF -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm.experimental \
   src/asm/runtime_asm_build.o \
-  "$GLUE_O" \
+  ${GLUE_O:+"$GLUE_O"} \
   src/runtime_io_abi.o \
   src/runtime_link_abi.o \
   src/runtime_driver_asm_strict.o \
