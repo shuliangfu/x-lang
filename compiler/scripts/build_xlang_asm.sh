@@ -3878,7 +3878,10 @@ ensure_asm_bootstrap_x_companion_objs() {
 # 与 Makefile USER_ASM_SEED_OBJS 对齐：pipeline_glue / partial 引用的 enc/call 分派 TU。
 # backend_x86_64_enc_c.o 须链入，否则 asm_full_link_stubs weak enc_label 恒 -1（用户 asm -o 全挂）。
 BSTRICT_PIPELINE_LINK_O="pipeline_x.o"
-BSTRICT_EXPERIMENTAL_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
+# wave309: pipeline_glue_standalone seed retired; pure runtime_pipeline_abi.o (already in
+# LD argv) is G.7 authority. Default empty; refresh_bstrict_link_variants populates only
+# when .o physically exists (end-of-function guard). PLATFORM: SHARED.
+BSTRICT_EXPERIMENTAL_GLUE_OBJ=""
 BSTRICT_USER_ASM_SEED_BRIDGE_LINK="src/asm/user_asm_seed_bridge.o"
 BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="src/asm/asm_backend_compat_stubs.o"
 BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
@@ -3924,6 +3927,12 @@ refresh_bstrict_link_variants() {
   BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
   # Keep full_link_stubs next to partial (same as module-level GEN_DRIVER_BSTRICT_COMPANIONS).
   GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+  # wave309/wave304: glue seed shells retired; pure runtime_pipeline_abi.o (already in
+  # LD argv) is G.7 authority. Drop BSTRICT_EXPERIMENTAL_GLUE_OBJ path when .o physically
+  # absent so LD argv does not reference non-existent file (ld.bfd "cannot find").
+  # Covers Linux standalone default + Darwin complement/fallback assignments above.
+  # PLATFORM: SHARED — same authority as L4 g05 pure-ld path.
+  [ -z "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" ] || [ -f "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" ] || BSTRICT_EXPERIMENTAL_GLUE_OBJ=""
 }
 
 # gen_driver 回退链须与 bootstrap-driver-seed 同款 companion：pipeline_x.o 引用 std_fs_shim / try_inline 分派等。
@@ -5114,6 +5123,10 @@ xlang_asm_bstrict_relink_runtime_only() {
   if asm_strict_typeck_x_glue_via_pipeline_x; then
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
   fi
+  # wave309/wave304: glue seed shells retired; drop ST_GLUE_OBJ if .o physically missing.
+  # Pure runtime_pipeline_abi.o (in LD argv) + runtime_driver_strict_glue_stubs.o provide
+  # same symbols (G.7, same as L4 pure-ld). PLATFORM: SHARED.
+  [ -z "$ST_GLUE_OBJ" ] || [ -f "$ST_GLUE_OBJ" ] || ST_GLUE_OBJ=""
   ST_WPO_ALIAS=""
   ST_PARSER_LINK=""
   ST_BRIDGE_OBJ="$BUILD_DIR/asm_experimental_symbol_bridge.o"
@@ -5197,7 +5210,7 @@ xlang_asm_bstrict_relink_runtime_only() {
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
   $BSTRICT_SEED_SUPPORT \
-  "$ST_GLUE_OBJ" \
+  ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
   $ST_PARSER_LINK \
@@ -5465,7 +5478,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   BSTRICT_MINIMAL_GLUE_COMPANION=""
   if [ "$(uname -s 2>/dev/null)" != "Darwin" ] \
     && [ -n "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" ] \
-    && [ "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" != "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; then
+    && [ "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" != "$BUILD_DIR/pipeline_glue_strict_minimal.o" ] \
+    && [ -f "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; then
   BSTRICT_MINIMAL_GLUE_COMPANION="$BUILD_DIR/pipeline_glue_strict_minimal.o"
   fi
   ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
@@ -5558,6 +5572,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ensure_asm_pipeline_glue_standalone_obj
   ensure_asm_pipeline_glue_strict_minimal_obj
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
+  # wave309/wave304: glue seed shells retired; drop ST_GLUE_OBJ if .o missing.
+  [ -z "$ST_GLUE_OBJ" ] || [ -f "$ST_GLUE_OBJ" ] || ST_GLUE_OBJ=""
   ST_WPO_ALIAS=""
   ST_PARSER_LINK=""
   ST_RUNTIME_PARTIAL=""
@@ -5599,6 +5615,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   else
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
   fi
+  # wave309/wave304: glue seed shells retired; drop ST_GLUE_OBJ if .o missing.
+  [ -z "$ST_GLUE_OBJ" ] || [ -f "$ST_GLUE_OBJ" ] || ST_GLUE_OBJ=""
   ST_RUNTIME_EXTRA=""
   if asm_strict_typeck_selfhosted; then
   ensure_typeck_asm_layout_partial_obj && ST_LAYOUT_PARTIAL="$BUILD_DIR/typeck_asm_layout_partial.o" || ST_LAYOUT_PARTIAL=""
@@ -5874,7 +5892,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/runtime_driver_asm_strict.o \
   $BSTRICT_SEED_SUPPORT \
   "$BUILD_DIR/preprocess_if_stack_only.o" \
-  "$ST_GLUE_OBJ" \
+  ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
   $ST_PARSER_LINK \
@@ -5937,7 +5955,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/runtime_driver_asm_strict.o \
   $BSTRICT_SEED_SUPPORT \
   "$BUILD_DIR/preprocess_if_stack_only.o" \
-  "$ST_GLUE_OBJ" \
+  ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
   "$ST_PARSER_LINK" \
