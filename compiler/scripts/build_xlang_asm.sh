@@ -5004,6 +5004,11 @@ fi
 # shellcheck disable=SC1091
 . "$(CDPATH= cd -- "$(dirname "$0")" && pwd)/bootstrap_nostdlib_shared.sh"
 
+# Stage 12.2.2: G.7 pure-ld helpers — single authority for direct ld link paths
+# (shared with g05 product chain). Sourced for XLANG_ZERO_CC_LD crt0 link path.
+# shellcheck disable=SC1091
+. "$(CDPATH= cd -- "$(dirname "$0")" && pwd)/pure_ld_shared.sh"
+
 # crt0 链尾参数（无 PIPELINE_LIBS）。
 # PLATFORM: LINUX — nostdlib tail is Linux x86_64 bootstrap only.
 # PLATFORM: WINDOWS | MINGW | MSYS — never emit bare -lc/-lm: MinGW has no
@@ -5367,20 +5372,26 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   # Object order mirrors the $CC path (crt0 → typeck_f64 → panic → atoi →
   # CRT0_ASM → backend companions → freestanding_io → nostdlib_stubs).
   if [ "${XLANG_ZERO_CC_LD:-0}" = "1" ]; then
-  BOOT_CRT0_LD_TAIL=$(bootstrap_link_tail_crt0_ld)
-  build_xlang_asm_info "Stage 12.2.2: zero-CC crt0 link via ld (XLANG_ZERO_CC_LD=1)"
-  # shellcheck disable=SC2086
-  ld -o xlang_asm -e _start -static --gc-sections \
-  src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o $CRT0_ATOI_LINK \
-  $CRT0_ASM $CRT0_BACKEND_COMPANIONS $BOOT_CRT0_LD_TAIL 2>"$BUILD_DIR/.bootstrap_nostdlib_link_err"
-  CRT_RC=$?
-  if [ "$CRT_RC" -ne 0 ]; then
-  build_xlang_asm_error "zero-CC crt0 link failed (rc=$CRT_RC) — no $CC fallback (XLANG_ZERO_CC_LD=1)"
-  if [ -f "$BUILD_DIR/.bootstrap_nostdlib_link_err" ]; then
-  head -15 "$BUILD_DIR/.bootstrap_nostdlib_link_err" 2>/dev/null || true
-  fi
+  # Stage 12.2.2: zero-CC crt0 link via pure_ld_try_link (G.7 single authority).
+  # Reuses the same pure-ld helpers as g05 product chain (wave773/774):
+  #   · pure_ld_multidef_flags → --allow-multiple-definition (Linux)
+  #   · pure_ld_platform_prefix → syslibroot (Darwin) / empty (Linux)
+  #   · pure_ld_default_entry → -e _start
+  # This fixes the multidef issue that breaks the $CC crt0 path (both $CC and
+  # bare ld fail without --allow-multiple-definition; pure_ld_try_link adds it).
+  # PLATFORM: LINUX — nostdlib freestanding crt0.
+  BOOT_CRT0_LD_OBJS="$(bootstrap_link_tail_crt0_ld)"
+  CRT0_LD_OBJS="src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o $CRT0_ATOI_LINK $CRT0_ASM $CRT0_BACKEND_COMPANIONS $BOOT_CRT0_LD_OBJS"
+  build_xlang_asm_info "Stage 12.2.2: zero-CC crt0 link via pure-ld (XLANG_ZERO_CC_LD=1)"
+  if pure_ld_try_link xlang_asm "$CRT0_LD_OBJS" "$(pure_ld_default_entry)" "" "-static --gc-sections" "" 2>"$BUILD_DIR/.bootstrap_nostdlib_link_err"; then
+    CRT_RC=0
+    build_xlang_asm_info "zero-CC crt0 link OK via pure-ld (no host-CC, no libc)"
   else
-  build_xlang_asm_info "zero-CC crt0 link OK via ld (no host-CC, no libc)"
+    CRT_RC=1
+    build_xlang_asm_error "zero-CC crt0 link failed — no $CC fallback (XLANG_ZERO_CC_LD=1)"
+    if [ -f "$BUILD_DIR/.bootstrap_nostdlib_link_err" ]; then
+      head -15 "$BUILD_DIR/.bootstrap_nostdlib_link_err" 2>/dev/null || true
+    fi
   fi
   else
   if bootstrap_wants_nostdlib; then
