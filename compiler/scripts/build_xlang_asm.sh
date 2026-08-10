@@ -146,12 +146,51 @@ emit_asm_text_stub_o() {
   local out="$1"
   local stub_c="seeds/asm_text_stub.from_x.c"
   local stub_s="scripts/asm_text_stub.s"
+  local _stub_sym="xlang_asm_ci_text_stub"
+  # Stage 12.2.3: Generate platform-specific weak .s stub as PRIMARY path
+  # (zero-CC via pure_as_compile). Defines xlang_asm_ci_text_stub as weak —
+  # identical symbol to .c stub (verified: nm -m shows "weak external" on both
+  # Darwin and Linux). On Linux plain nm shows W (weak) vs T (strong); on Darwin
+  # plain nm shows T for both — refresh_build_asm_ci_text_stubs_for_strict_link
+  # regenerates all ≤64-byte text stubs on Darwin regardless, which is safe
+  # because this function always emits a weak stub.
+  # PLATFORM: SHARED — Darwin (.weak_definition + _prefix) / Linux (.weak).
+  local _stub_s_tmp=""
+  _stub_s_tmp="$(mktemp "${TMPDIR:-/tmp}/xlang_stub_XXXXXX.s" 2>/dev/null)" || _stub_s_tmp=""
+  if [ -n "$_stub_s_tmp" ]; then
+    case "$(uname -s 2>/dev/null)" in
+      Darwin)
+        # macOS Mach-O: underscore prefix + .weak_definition.
+        printf '.text\n.globl _%s\n.weak_definition _%s\n_%s:\n  ret\n' \
+          "$_stub_sym" "$_stub_sym" "$_stub_sym" > "$_stub_s_tmp"
+        ;;
+      Linux)
+        # ELF: no prefix + .weak.
+        printf '.text\n.globl %s\n.weak %s\n%s:\n  ret\n' \
+          "$_stub_sym" "$_stub_sym" "$_stub_sym" > "$_stub_s_tmp"
+        ;;
+      *)
+        rm -f "$_stub_s_tmp"
+        _stub_s_tmp=""
+        ;;
+    esac
+  fi
+  if [ -n "$_stub_s_tmp" ] && [ -s "$_stub_s_tmp" ]; then
+    # pure_as_compile: as when XLANG_ZERO_CC_AS=1, else $CC -c (zero regression).
+    if pure_as_compile "$out" "$_stub_s_tmp" 2>/dev/null; then
+      rm -f "$_stub_s_tmp"
+      return 0
+    fi
+    rm -f "$_stub_s_tmp"
+  fi
+  # Fallback: .c stub via $CC (zero regression when .s generation unavailable
+  # or unsupported platform, e.g. Windows/MSYS).
   if [ -f "$stub_c" ]; then
   "$CC" $CFLAGS -c -o "$out" "$stub_c" 2>/dev/null && return 0
   fi
+  # Last resort: static .s stub (different symbol __xlang_asm_mod_stub, non-weak).
   [ -f "$stub_s" ] || return 1
   echo " fallback: $stub_s -> $out (asm compile abort recovery)"
-  # Stage 12.2.3: pure_as_compile (as when XLANG_ZERO_CC_AS=1, else $CC -c).
   pure_as_compile "$out" "$stub_s" 2>/dev/null
 }
 
