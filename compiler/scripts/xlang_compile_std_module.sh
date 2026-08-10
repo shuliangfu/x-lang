@@ -1433,7 +1433,17 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
           _Z*|.L*|L0*|__*) continue ;;
           # Foreign co-emit faces (ctx/io/process/args) — not this leaf's API;
           # left for localize step below (do not invent std_heap_ctx_*).
-          args_*|ctx_*|io_*|process_*|_args_*|_ctx_*|_io_*|_process_*) continue ;;
+          # PLATFORM: SHARED — std.error product API is io_err_* (not io driver).
+          # Blanket io_* skip left bare io_err_timeout → run-std-io-context-gate
+          # UNDEF std_error_io_err_* (Ubuntu L4 @775804765). Match Mac wrappers:
+          # skip io_* except io_err_*.
+          args_*|ctx_*|process_*|_args_*|_ctx_*|_process_*) continue ;;
+          io_*|_io_*)
+            case "$sym" in
+              io_err_*|_io_err_*) ;;
+              *) continue ;;
+            esac
+            ;;
         esac
         bare="$sym"
         case "$sym" in
@@ -1441,7 +1451,13 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
         esac
         case "$bare" in
           "${prod_pref}"*|core_*|std_*|xlang_*) continue ;;
-          args_*|ctx_*|io_*|process_*) continue ;;
+          args_*|ctx_*|process_*) continue ;;
+          io_*)
+            case "$bare" in
+              io_err_*) ;;
+              *) continue ;;
+            esac
+            ;;
           # PLATFORM: SHARED — never invent prod_pref+*_c. Impl / FFI faces stay
           # bare (or get dedicated alias tables). Regression @71d9c714e: log_write_c
           # → std_log_log_write_c broke runtime_log_os U log_write_c (run-log).
