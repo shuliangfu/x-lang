@@ -14374,6 +14374,85 @@ int32_t codegen_func_c_symbol_prefix_len(struct ast_Module * module, int32_t fi,
   }
   return prefix_len;
 }
+/*
+ * PLATFORM: SHARED — host-C keyword escape for function link stems.
+ * Trait/impl free-fn hoist can emit methods named like C type-specifiers
+ * (e.g. double) → BLD001 "two or more data types" without escape.
+ * Single authority: only codegen_emit_func_link_name uses these helpers for
+ * the base stem (def / call / extern / mono all share link_name).
+ */
+static int32_t codegen_c_ident_is_keyword(uint8_t * name, int32_t name_len) {
+  if (((name ==0) || (name_len <=0))) {
+    return 0;
+  }
+  if ((name_len ==2)) {
+    if ((((name)[0] ==100) && ((name)[1] ==111))) { return 1; }
+    if ((((name)[0] ==105) && ((name)[1] ==102))) { return 1; }
+    return 0;
+  }
+  if ((name_len ==3)) {
+    if (((((name)[0] ==102) && ((name)[1] ==111)) && ((name)[2] ==114))) { return 1; }
+    if (((((name)[0] ==105) && ((name)[1] ==110)) && ((name)[2] ==116))) { return 1; }
+    return 0;
+  }
+  if ((name_len ==4)) {
+    if ((((((name)[0] ==99) && ((name)[1] ==97)) && ((name)[2] ==115)) && ((name)[3] ==101))) { return 1; }
+    if ((((((name)[0] ==99) && ((name)[1] ==104)) && ((name)[2] ==97)) && ((name)[3] ==114))) { return 1; }
+    if ((((((name)[0] ==101) && ((name)[1] ==108)) && ((name)[2] ==115)) && ((name)[3] ==101))) { return 1; }
+    if ((((((name)[0] ==101) && ((name)[1] ==110)) && ((name)[2] ==117)) && ((name)[3] ==109))) { return 1; }
+    if ((((((name)[0] ==103) && ((name)[1] ==111)) && ((name)[2] ==116)) && ((name)[3] ==111))) { return 1; }
+    if ((((((name)[0] ==108) && ((name)[1] ==111)) && ((name)[2] ==110)) && ((name)[3] ==103))) { return 1; }
+    if ((((((name)[0] ==118) && ((name)[1] ==111)) && ((name)[2] ==105)) && ((name)[3] ==100))) { return 1; }
+    return 0;
+  }
+  if ((name_len ==5)) {
+    if (((((((name)[0] ==98) && ((name)[1] ==114)) && ((name)[2] ==101)) && ((name)[3] ==97)) && ((name)[4] ==107))) { return 1; }
+    if (((((((name)[0] ==99) && ((name)[1] ==111)) && ((name)[2] ==110)) && ((name)[3] ==115)) && ((name)[4] ==116))) { return 1; }
+    if (((((((name)[0] ==102) && ((name)[1] ==108)) && ((name)[2] ==111)) && ((name)[3] ==97)) && ((name)[4] ==116))) { return 1; }
+    if (((((((name)[0] ==115) && ((name)[1] ==104)) && ((name)[2] ==111)) && ((name)[3] ==114)) && ((name)[4] ==116))) { return 1; }
+    if (((((((name)[0] ==117) && ((name)[1] ==110)) && ((name)[2] ==105)) && ((name)[3] ==111)) && ((name)[4] ==110))) { return 1; }
+    if (((((((name)[0] ==119) && ((name)[1] ==104)) && ((name)[2] ==105)) && ((name)[3] ==108)) && ((name)[4] ==101))) { return 1; }
+    return 0;
+  }
+  if ((name_len ==6)) {
+    if ((((((((name)[0] ==100) && ((name)[1] ==111)) && ((name)[2] ==117)) && ((name)[3] ==98)) && ((name)[4] ==108)) && ((name)[5] ==101))) { return 1; }
+    if ((((((((name)[0] ==101) && ((name)[1] ==120)) && ((name)[2] ==116)) && ((name)[3] ==101)) && ((name)[4] ==114)) && ((name)[5] ==110))) { return 1; }
+    if ((((((((name)[0] ==114) && ((name)[1] ==101)) && ((name)[2] ==116)) && ((name)[3] ==117)) && ((name)[4] ==114)) && ((name)[5] ==110))) { return 1; }
+    if ((((((((name)[0] ==115) && ((name)[1] ==105)) && ((name)[2] ==103)) && ((name)[3] ==110)) && ((name)[4] ==101)) && ((name)[5] ==100))) { return 1; }
+    if ((((((((name)[0] ==115) && ((name)[1] ==105)) && ((name)[2] ==122)) && ((name)[3] ==101)) && ((name)[4] ==111)) && ((name)[5] ==102))) { return 1; }
+    if ((((((((name)[0] ==115) && ((name)[1] ==116)) && ((name)[2] ==97)) && ((name)[3] ==116)) && ((name)[4] ==105)) && ((name)[5] ==99))) { return 1; }
+    if ((((((((name)[0] ==115) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==117)) && ((name)[4] ==99)) && ((name)[5] ==116))) { return 1; }
+    if ((((((((name)[0] ==115) && ((name)[1] ==119)) && ((name)[2] ==105)) && ((name)[3] ==116)) && ((name)[4] ==99)) && ((name)[5] ==104))) { return 1; }
+    return 0;
+  }
+  if ((name_len ==7)) {
+    if (((((((((name)[0] ==100) && ((name)[1] ==101)) && ((name)[2] ==102)) && ((name)[3] ==97)) && ((name)[4] ==117)) && ((name)[5] ==108)) && ((name)[6] ==116))) { return 1; }
+    if (((((((((name)[0] ==116) && ((name)[1] ==121)) && ((name)[2] ==112)) && ((name)[3] ==101)) && ((name)[4] ==100)) && ((name)[5] ==101)) && ((name)[6] ==102))) { return 1; }
+    return 0;
+  }
+  if ((name_len ==8)) {
+    if ((((((((((name)[0] ==99) && ((name)[1] ==111)) && ((name)[2] ==110)) && ((name)[3] ==116)) && ((name)[4] ==105)) && ((name)[5] ==110)) && ((name)[6] ==117)) && ((name)[7] ==101))) { return 1; }
+    if ((((((((((name)[0] ==114) && ((name)[1] ==101)) && ((name)[2] ==103)) && ((name)[3] ==105)) && ((name)[4] ==115)) && ((name)[5] ==116)) && ((name)[6] ==101)) && ((name)[7] ==114))) { return 1; }
+    if ((((((((((name)[0] ==114) && ((name)[1] ==101)) && ((name)[2] ==115)) && ((name)[3] ==116)) && ((name)[4] ==114)) && ((name)[5] ==105)) && ((name)[6] ==99)) && ((name)[7] ==116))) { return 1; }
+    if ((((((((((name)[0] ==117) && ((name)[1] ==110)) && ((name)[2] ==115)) && ((name)[3] ==105)) && ((name)[4] ==103)) && ((name)[5] ==110)) && ((name)[6] ==101)) && ((name)[7] ==100))) { return 1; }
+    if ((((((((((name)[0] ==118) && ((name)[1] ==111)) && ((name)[2] ==108)) && ((name)[3] ==97)) && ((name)[4] ==116)) && ((name)[5] ==105)) && ((name)[6] ==108)) && ((name)[7] ==101))) { return 1; }
+    return 0;
+  }
+  return 0;
+}
+static int32_t codegen_emit_c_func_base_name(struct codegen_CodegenOutBuf * out, uint8_t * name, int32_t name_len) {
+  if (((((out ==0) || (name ==0)) || (name_len <=0)))) {
+    return -1;
+  }
+  if ((codegen_c_ident_is_keyword(name, name_len) !=0)) {
+    /* "xlang_" */
+    uint8_t pfx[7] = {120, 108, 97, 110, 103, 95, 0};
+    if ((codegen_emit_bytes_from_ptr(out, &((pfx)[0]), 6) !=0)) {
+      return -1;
+    }
+  }
+  return codegen_emit_bytes_64(out, name, name_len);
+}
 int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi) {
   {
     uint8_t fn_local[128] = {};
@@ -14391,13 +14470,13 @@ int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct a
       return -1;
     }
     if ((pipeline_module_func_is_no_mangle_at(module, fi) !=0)) {
-      return codegen_emit_bytes_64(out, &((fn_local)[0]), fn_len);
+      return codegen_emit_c_func_base_name(out, &((fn_local)[0]), fn_len);
     }
     (void)((overload_count = codegen_module_func_overload_count(module, &((fn_local)[0]), fn_len)));
     if ((overload_count <=1)) {
-      return codegen_emit_bytes_64(out, &((fn_local)[0]), fn_len);
+      return codegen_emit_c_func_base_name(out, &((fn_local)[0]), fn_len);
     }
-    if ((codegen_emit_bytes_64(out, &((fn_local)[0]), fn_len) !=0)) {
+    if ((codegen_emit_c_func_base_name(out, &((fn_local)[0]), fn_len) !=0)) {
       return -1;
     }
     (void)((np = pipeline_module_func_num_params_at(module, fi)));

@@ -15579,13 +15579,121 @@ export function codegen_func_c_symbol_prefix_len(module: *Module, fi: i32, prefi
 }
 
 /**
+ * True when bare source identifier is a C keyword / type-specifier.
+ * Purpose: host-C cannot emit `int32_t double(int32_t)` (type-specifier collision).
+ * Parameters: name/name_len — exact bare function name bytes (not module-prefixed).
+ * Returns: 1 = keyword (must escape), 0 = safe bare C identifier.
+ * Coverage: C11 type-specifiers + common statement keywords that break as function names.
+ * PLATFORM: SHARED — host-C backend; used only by codegen_emit_c_func_base_name.
+ */
+function codegen_c_ident_is_keyword(name: *u8, name_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (name == 0 as *u8 || name_len <= 0) {
+      return 0;
+    }
+    /* len 2: do, if */
+    if (name_len == 2) {
+      if (name[0] == 100 && name[1] == 111) { return 1; }
+      if (name[0] == 105 && name[1] == 102) { return 1; }
+      return 0;
+    }
+    /* len 3: for, int */
+    if (name_len == 3) {
+      if (name[0] == 102 && name[1] == 111 && name[2] == 114) { return 1; }
+      if (name[0] == 105 && name[1] == 110 && name[2] == 116) { return 1; }
+      return 0;
+    }
+    /* len 4: case, char, else, enum, goto, long, void */
+    if (name_len == 4) {
+      if (name[0] == 99 && name[1] == 97 && name[2] == 115 && name[3] == 101) { return 1; }
+      if (name[0] == 99 && name[1] == 104 && name[2] == 97 && name[3] == 114) { return 1; }
+      if (name[0] == 101 && name[1] == 108 && name[2] == 115 && name[3] == 101) { return 1; }
+      if (name[0] == 101 && name[1] == 110 && name[2] == 117 && name[3] == 109) { return 1; }
+      if (name[0] == 103 && name[1] == 111 && name[2] == 116 && name[3] == 111) { return 1; }
+      if (name[0] == 108 && name[1] == 111 && name[2] == 110 && name[3] == 103) { return 1; }
+      if (name[0] == 118 && name[1] == 111 && name[2] == 105 && name[3] == 100) { return 1; }
+      return 0;
+    }
+    /* len 5: break, const, float, short, union, while */
+    if (name_len == 5) {
+      if (name[0] == 98 && name[1] == 114 && name[2] == 101 && name[3] == 97 && name[4] == 107) { return 1; }
+      if (name[0] == 99 && name[1] == 111 && name[2] == 110 && name[3] == 115 && name[4] == 116) { return 1; }
+      if (name[0] == 102 && name[1] == 108 && name[2] == 111 && name[3] == 97 && name[4] == 116) { return 1; }
+      if (name[0] == 115 && name[1] == 104 && name[2] == 111 && name[3] == 114 && name[4] == 116) { return 1; }
+      if (name[0] == 117 && name[1] == 110 && name[2] == 105 && name[3] == 111 && name[4] == 110) { return 1; }
+      if (name[0] == 119 && name[1] == 104 && name[2] == 105 && name[3] == 108 && name[4] == 101) { return 1; }
+      return 0;
+    }
+    /* len 6: double, extern, return, signed, sizeof, static, struct, switch */
+    if (name_len == 6) {
+      if (name[0] == 100 && name[1] == 111 && name[2] == 117 && name[3] == 98 && name[4] == 108 && name[5] == 101) { return 1; }
+      if (name[0] == 101 && name[1] == 120 && name[2] == 116 && name[3] == 101 && name[4] == 114 && name[5] == 110) { return 1; }
+      if (name[0] == 114 && name[1] == 101 && name[2] == 116 && name[3] == 117 && name[4] == 114 && name[5] == 110) { return 1; }
+      if (name[0] == 115 && name[1] == 105 && name[2] == 103 && name[3] == 110 && name[4] == 101 && name[5] == 100) { return 1; }
+      if (name[0] == 115 && name[1] == 105 && name[2] == 122 && name[3] == 101 && name[4] == 111 && name[5] == 102) { return 1; }
+      if (name[0] == 115 && name[1] == 116 && name[2] == 97 && name[3] == 116 && name[4] == 105 && name[5] == 99) { return 1; }
+      if (name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 117 && name[4] == 99 && name[5] == 116) { return 1; }
+      if (name[0] == 115 && name[1] == 119 && name[2] == 105 && name[3] == 116 && name[4] == 99 && name[5] == 104) { return 1; }
+      return 0;
+    }
+    /* len 7: default, typedef */
+    if (name_len == 7) {
+      if (name[0] == 100 && name[1] == 101 && name[2] == 102 && name[3] == 97 && name[4] == 117 && name[5] == 108 && name[6] == 116) { return 1; }
+      if (name[0] == 116 && name[1] == 121 && name[2] == 112 && name[3] == 101 && name[4] == 100 && name[5] == 101 && name[6] == 102) { return 1; }
+      return 0;
+    }
+    /* len 8: continue, register, restrict, unsigned, volatile */
+    if (name_len == 8) {
+      if (name[0] == 99 && name[1] == 111 && name[2] == 110 && name[3] == 116 && name[4] == 105 && name[5] == 110 && name[6] == 117 && name[7] == 101) { return 1; }
+      if (name[0] == 114 && name[1] == 101 && name[2] == 103 && name[3] == 105 && name[4] == 115 && name[5] == 116 && name[6] == 101 && name[7] == 114) { return 1; }
+      if (name[0] == 114 && name[1] == 101 && name[2] == 115 && name[3] == 116 && name[4] == 114 && name[5] == 105 && name[6] == 99 && name[7] == 116) { return 1; }
+      if (name[0] == 117 && name[1] == 110 && name[2] == 115 && name[3] == 105 && name[4] == 103 && name[5] == 110 && name[6] == 101 && name[7] == 100) { return 1; }
+      if (name[0] == 118 && name[1] == 111 && name[2] == 108 && name[3] == 97 && name[4] == 116 && name[5] == 105 && name[6] == 108 && name[7] == 101) { return 1; }
+      return 0;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Emit host-C function base identifier (optional keyword escape).
+ * Purpose: single path for bare stem used by def / call / extern / mono base.
+ * When name is a C keyword, prefix "xlang_" so `int32_t double(...)` becomes
+ * `int32_t xlang_double(...)` (trait Double.double / similar).
+ * Parameters: out — C text sink; name/name_len — bare source name.
+ * Returns: 0 on success, -1 on emit error.
+ * PLATFORM: SHARED — host-C only authority for keyword-safe stems.
+ */
+function codegen_emit_c_func_base_name(out: *CodegenOutBuf, name: *u8, name_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (out == 0 as *CodegenOutBuf || name == 0 as *u8 || name_len <= 0) {
+      return -1;
+    }
+    if (codegen_c_ident_is_keyword(name, name_len) != 0) {
+      /* "xlang_" */
+      let pfx: u8[7] = [120, 108, 97, 110, 103, 95, 0];
+      if (emit_bytes_from_ptr(out, &pfx[0], 6) != 0) {
+        return -1;
+      }
+    }
+    return emit_bytes_64(out, name, name_len);
+  }
+}
+
+/**
  * Emit the C link symbol for function fi: bare name, or mangled name_t1_t2 when overloaded.
- * Aligns with seed pin / historical codegen.c func_link_name. #[no_mangle] always bare.
+ * Aligns with seed pin / historical codegen.c func_link_name. #[no_mangle] always bare
+ * stem (still keyword-escaped via codegen_emit_c_func_base_name).
  *
  * Why zero-init + assign (not let x = f(name)): product pin X→C hoists all `let` inits
  * to the top of the block. `let overload_count = count(fn_local, …)` ran before
  * codegen_copy_func_name64, so overload_count was always 0/1 and extern decls collided
  * (hello: core_fmt_fmt_scalar_to_buf / std_io_print unmangled).
+ * Why keyword escape: trait/impl hoist free fns named like C type-specifiers
+ * (e.g. double) → BLD001 "two or more data types" without escape; def/call/extern
+ * share this helper so symbols stay consistent.
  * PLATFORM: SHARED — definition / extern decl / CALL must all call this helper.
  */
 export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTArena, module: *Module, fi: i32): i32 {
@@ -15609,15 +15717,15 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
     }
     /* See implementation. */
     if (pipeline_module_func_is_no_mangle_at(module, fi) != 0) {
-      return emit_bytes_64(out, &fn_local[0], fn_len);
+      return codegen_emit_c_func_base_name(out, &fn_local[0], fn_len);
     }
     /* Count overloads only after name is copied (let-hoist safe). */
     overload_count = codegen_module_func_overload_count(module, &fn_local[0], fn_len);
     if (overload_count <= 1) {
-      return emit_bytes_64(out, &fn_local[0], fn_len);
+      return codegen_emit_c_func_base_name(out, &fn_local[0], fn_len);
     }
     /* See implementation. */
-    if (emit_bytes_64(out, &fn_local[0], fn_len) != 0) {
+    if (codegen_emit_c_func_base_name(out, &fn_local[0], fn_len) != 0) {
       return -1;
     }
     np = pipeline_module_func_num_params_at(module, fi);
