@@ -216,3 +216,37 @@ pure_ld_partial_merge() {
     ${CC:-cc} -r -nostdlib -o "$out" $objs
   fi
 }
+
+# ---------------------------------------------------------------------------
+# pure_as_compile — assemble a .s file into a .o (zero-CC COMPILE elimination).
+# Replaces `$CC -c -o OUT SRC.s` in R2 panic/crt0/typeck_f64 paths
+# (Stage 12.2.3 zero-CC COMPILE migration for pure assembly files).
+#
+# When XLANG_ZERO_CC_AS=1: uses system `as` (zero-CC; .s files are pure
+#   assembly, no C preprocessor needed — verified: 0 cpp directives in all
+#   crt0_*.s / runtime_panic_*.s / typeck_f64_bits_*.s).
+# When unset (default): uses `$CC -c` (original behavior; zero regression).
+#
+# Usage: pure_as_compile OUT SRC.s
+# Returns 0 on success, non-zero on failure.
+#
+# PLATFORM: SHARED — `as` is available on macOS (Xcode tools) and Linux
+#           (binutils). .s (lowercase) = no cpp; .S (uppercase) would need cpp
+#           and must NOT use this helper.
+# ---------------------------------------------------------------------------
+pure_as_compile() {
+  local out="$1"
+  local src="$2"
+  if [ -z "$out" ] || [ -z "$src" ]; then
+    echo "pure_ld_shared: pure_as_compile needs OUT and SRC" >&2
+    return 1
+  fi
+  if [ "${XLANG_ZERO_CC_AS:-0}" = "1" ]; then
+    # Zero-CC: system assembler (no C compiler invoked).
+    as -o "$out" "$src"
+  else
+    # Original path: $CC -c (zero regression when flag unset).
+    # shellcheck disable=SC2086
+    ${CC:-cc} -c -o "$out" "$src"
+  fi
+}

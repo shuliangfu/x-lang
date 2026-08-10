@@ -134,6 +134,12 @@ CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 # PLATFORM: SHARED.
 . "$(dirname "$0")/forbid_host_cc.sh"
 
+# Stage 12.2.3: pure-ld/as helpers (zero-CC when XLANG_ZERO_CC_LD/AS=1).
+# Sourced at top so all functions (including ensure_asm_link_objs fallback
+# and emit_asm_text_stub_o) can use pure_as_compile / pure_ld_partial_merge.
+# PLATFORM: SHARED.
+. "$(dirname "$0")/pure_ld_shared.sh"
+
 # backend.x 等大模块 asm 编译 abort 时，用最小 .s/.c 占位保证 __text 非空（质检 24/24）。
 # wave297: host scripts/asm_text_stub.c left; seed authority seeds/asm_text_stub.from_x.c
 emit_asm_text_stub_o() {
@@ -4850,13 +4856,13 @@ ensure_typeck_f64_bits_obj() {
   UNAME_S=$(uname -s 2>/dev/null || echo Unknown)
   UNAME_M=$(uname -m 2>/dev/null || echo Unknown)
   if [ "$UNAME_S" = "Linux" ] && [ "$UNAME_M" = "x86_64" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
-    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_x86_64.s
+    pure_as_compile "$_f64o" src/typeck/typeck_f64_bits_x86_64.s
   elif [ "$UNAME_S" = "Linux" ] && [ "$UNAME_M" = "aarch64" ] && [ -f src/typeck/typeck_f64_bits_aarch64_elf.s ]; then
-    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_aarch64_elf.s
+    pure_as_compile "$_f64o" src/typeck/typeck_f64_bits_aarch64_elf.s
   elif [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "arm64" ] && [ -f src/typeck/typeck_f64_bits_arm64.s ]; then
-    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_arm64.s
+    pure_as_compile "$_f64o" src/typeck/typeck_f64_bits_arm64.s
   elif [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "x86_64" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
-    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_x86_64.s
+    pure_as_compile "$_f64o" src/typeck/typeck_f64_bits_x86_64.s
   else
     echo "ensure_typeck_f64_bits_obj: missing platform .s for $UNAME_S/$UNAME_M" >&2
     return 1
@@ -4932,7 +4938,7 @@ ensure_asm_link_objs() {
     # Fallback only if ensure script missing (should not happen on product tree).
     if [ "$UNAME_S" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
       echo " cc -c runtime_panic.o <- src/asm/runtime_panic_x86_64.s"
-      "$CC" -c -o runtime_panic.o src/asm/runtime_panic_x86_64.s
+      pure_as_compile runtime_panic.o src/asm/runtime_panic_x86_64.s
     elif [ -f seeds/runtime_panic_arm64.from_x.c ] && { [ "$(uname -m 2>/dev/null)" = "aarch64" ] || [ "$(uname -m 2>/dev/null)" = "arm64" ]; }; then
       echo " cc -c runtime_panic.o <- seeds/runtime_panic_arm64.from_x.c"
       $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic_arm64.from_x.c -o runtime_panic.o
@@ -4942,7 +4948,7 @@ ensure_asm_link_objs() {
     fi
     if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/crt0_x86_64.s ]; then
       echo " cc -c src/asm/crt0_x86_64.o <- src/asm/crt0_x86_64.s"
-      "$CC" -c -o src/asm/crt0_x86_64.o src/asm/crt0_x86_64.s
+      pure_as_compile src/asm/crt0_x86_64.o src/asm/crt0_x86_64.s
     fi
   fi
   ensure_typeck_f64_bits_obj

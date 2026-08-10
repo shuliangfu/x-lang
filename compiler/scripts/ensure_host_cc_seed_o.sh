@@ -5050,8 +5050,8 @@ ensure_r2_panic_one() {
         return 0
       fi
       log "cc -c $src → $o"
-      # shellcheck disable=SC2086
-      $CC -c -o "$o" "$src"
+      # Stage 12.2.3: pure_as_compile (as when XLANG_ZERO_CC_AS=1, else $CC -c).
+      pure_as_compile "$o" "$src"
       ;;
     *)
       echo "ensure_host_cc_seed_o r2-panic: unknown kind $kind" >&2
@@ -5345,8 +5345,8 @@ ensure_r2_typeck_f64_one() {
     return 0
   fi
   log "cc -c $src → $o"
-  # shellcheck disable=SC2086
-  $CC -c -o "$o" "$src"
+  # Stage 12.2.3: pure_as_compile (as when XLANG_ZERO_CC_AS=1, else $CC -c).
+  pure_as_compile "$o" "$src"
 }
 
 ensure_r2_typeck_f64() {
@@ -5416,8 +5416,8 @@ ensure_r2_crt0_one() {
         return 0
       fi
       log "cc -c $src → $o"
-      # shellcheck disable=SC2086
-      $CC -c -o "$o" "$src"
+      # Stage 12.2.3: pure_as_compile (as when XLANG_ZERO_CC_AS=1, else $CC -c).
+      pure_as_compile "$o" "$src"
       ;;
     cc_inc_tu)
       # PLATFORM: WINDOWS — WIN32_O_CFLAGS from env when set by caller (wave866:
