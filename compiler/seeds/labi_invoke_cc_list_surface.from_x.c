@@ -1431,9 +1431,12 @@ void invoke_cc_append_std_ensure_push_heavy_b(uint8_t **argv, int32_t *ia, int32
     }
   }
   {
+    /* PLATFORM: SHARED — process_argv + panic U complement (≡ .x / from_x seed). */
     int32_t need_pav = 0;
     int32_t have_process_o = 0;
     int32_t have_pav = 0;
+    int32_t need_panic_u = 0;
+    int32_t have_panic_o = 0;
     int32_t ai;
     for (ai = 0; ai < *ia && argv[ai]; ai++) {
       uint8_t *e = argv[ai];
@@ -1446,6 +1449,10 @@ void invoke_cc_append_std_ensure_push_heavy_b(uint8_t **argv, int32_t *ia, int32
       if (xlang_link_obj_needs_undef_sym(e, (uint8_t *)"process_xlang_argc_get") ||
           xlang_link_obj_needs_undef_sym(e, (uint8_t *)"process_xlang_argv_get"))
         need_pav = 1;
+      if (strstr((const char *)e, "runtime_panic.o"))
+        have_panic_o = 1;
+      if (xlang_link_obj_needs_undef_sym(e, (uint8_t *)"xlang_panic_"))
+        need_panic_u = 1;
     }
     if (need_pav && !have_process_o && !have_pav) {
       (void)xlang_ensure_runtime_process_argv_o(NULL);
@@ -1453,6 +1460,20 @@ void invoke_cc_append_std_ensure_push_heavy_b(uint8_t **argv, int32_t *ia, int32
         uint8_t *rpa = xlang_runtime_process_argv_o_path(NULL);
         if (rpa && rpa[0])
           (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
+      }
+    }
+    if (need_panic_u && !have_panic_o) {
+      (void)xlang_ensure_runtime_panic_o(NULL);
+      {
+        uint8_t *rp = xlang_runtime_panic_o_path(NULL);
+        if (rp && rp[0])
+          (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
+      }
+      (void)xlang_ensure_runtime_link_abi_user_env_o(NULL);
+      {
+        uint8_t *rue = xlang_runtime_link_abi_user_env_o_path(NULL);
+        if (rue && rue[0])
+          (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
       }
     }
   }

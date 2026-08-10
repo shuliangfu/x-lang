@@ -3281,6 +3281,16 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
   let need_pav: i32 = 0;
   let have_process_o: i32 = 0;
   let have_pav: i32 = 0;
+  // PLATFORM: SHARED — transitive U xlang_panic_ from formal KEEP_C co-emits.
+  // Root (L4 Mac run-backtrace @1bbce7ddc): error.o defines core_result_expect_*_or_panic
+  // which U xlang_panic_, but mid=51 only scans gen-C use_line (skips preamble
+  // `extern void xlang_panic_(…)`). need_error pushes error.o without need_panic.
+  // -Wl,-export_dynamic (need_backtrace) freezes those T symbols so -dead_strip cannot
+  // drop them → BLD001 UNDEF _xlang_panic_. Same class: unicode/http/option/debug.o.
+  // G.7: single argv nm scan authority (peer process_argv complement + heap F-06);
+  // do not special-case only error.o or only backtrace.
+  let need_panic_u: i32 = 0;
+  let have_panic_o: i32 = 0;
   let ai: i32 = 0;
   let nargv: i32 = ia[0];
   while (ai < nargv) {
@@ -3311,6 +3321,15 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
       if (u1 != 0 || u2 != 0) {
         need_pav = 1;
       }
+      // Panic face: detect provider vs consumer of xlang_panic_ on argv.
+      let hit_panic_o: *u8 = strstr(e, "runtime_panic.o");
+      if (hit_panic_o != 0 as *u8) {
+        have_panic_o = 1;
+      }
+      let u_panic: i32 = xlang_link_obj_needs_undef_sym(e, "xlang_panic_");
+      if (u_panic != 0) {
+        need_panic_u = 1;
+      }
     }
   }
   if (need_pav != 0) {
@@ -3323,6 +3342,28 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
             if (rpa[0] != 0) {
               let _ppa: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
             }
+          }
+        }
+      }
+    }
+  }
+  // PLATFORM: SHARED — ensure+push runtime_panic.o when any formal on argv U-imports it.
+  // Also pull user_env companion (wave288: panic/process residual U link_abi_getenv).
+  if (need_panic_u != 0) {
+    if (have_panic_o == 0) {
+      unsafe {
+        let _ep: i32 = xlang_ensure_runtime_panic_o(0 as *u8);
+        let rp: *u8 = xlang_runtime_panic_o_path(0 as *u8);
+        if (rp != 0 as *u8) {
+          if (rp[0] != 0) {
+            let _ppn: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
+          }
+        }
+        let _eue: i32 = xlang_ensure_runtime_link_abi_user_env_o(0 as *u8);
+        let rue: *u8 = xlang_runtime_link_abi_user_env_o_path(0 as *u8);
+        if (rue != 0 as *u8) {
+          if (rue[0] != 0) {
+            let _pue: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
           }
         }
       }

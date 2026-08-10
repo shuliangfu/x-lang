@@ -1422,10 +1422,16 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
   // process_argv complement after std/*.o pushes
   // (C seed: // form — gcc is non-nested and -Wcomment on /* inside /* */;
   //  Xlang .x accepts the same prose as a nested path-safe block comment.)
+  // PLATFORM: SHARED — also complement runtime_panic.o when any argv .o has
+  // U xlang_panic_ (error.o co-emits core_result_expect_*_or_panic; mid=51 is
+  // gen-C use_line only). export_dynamic (backtrace) freezes those T symbols.
+  // G.7: peer of .x heavy_b end scan; seed twin must stay same-commit.
   {
     int need_pav = 0;
     int have_process_o = 0;
     int have_pav = 0;
+    int need_panic_u = 0;
+    int have_panic_o = 0;
     int ai;
     for (ai = 0; ai < *ia && argv[ai]; ai++) {
       const char *e = argv[ai];
@@ -1438,6 +1444,10 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
       if (xlang_link_obj_needs_undef_sym(e, "process_xlang_argc_get") ||
           xlang_link_obj_needs_undef_sym(e, "process_xlang_argv_get"))
         need_pav = 1;
+      if (strstr(e, "runtime_panic.o"))
+        have_panic_o = 1;
+      if (xlang_link_obj_needs_undef_sym(e, "xlang_panic_"))
+        need_panic_u = 1;
     }
     if (need_pav && !have_process_o && !have_pav) {
       (void)xlang_ensure_runtime_process_argv_o(NULL);
@@ -1445,6 +1455,20 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
         const char *rpa = xlang_runtime_process_argv_o_path(NULL);
         if (rpa && rpa[0])
           (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
+      }
+    }
+    if (need_panic_u && !have_panic_o) {
+      (void)xlang_ensure_runtime_panic_o(NULL);
+      {
+        const char *rp = xlang_runtime_panic_o_path(NULL);
+        if (rp && rp[0])
+          (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
+      }
+      (void)xlang_ensure_runtime_link_abi_user_env_o(NULL);
+      {
+        const char *rue = xlang_runtime_link_abi_user_env_o_path(NULL);
+        if (rue && rue[0])
+          (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
       }
     }
   }

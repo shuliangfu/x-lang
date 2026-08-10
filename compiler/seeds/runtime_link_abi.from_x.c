@@ -2914,18 +2914,40 @@ int link_abi_buf_contains_substr_use_line(const char *data, size_t data_len, con
          * is the function call (std_net_listen), not the struct name (Foo). The legacy check
          * "line-startswith struct/typedef" falsely skipped such lines → need_net=0 → net.o not
          * pushed → BLD001 undefined _std_net_listen.
-         * Root cause fix (2026-07-19): distinguish struct/typedef DEFINITION (needle is the
-         * type name, preceded by "struct "/"typedef ") from variable decl (needle is the
-         * function call, preceded by "= "/"("/"," etc.). Only skip the former.
+         * Root (2026-07-19): distinguish tag name vs call-site needle.
+         * Bug (2026-08-10 L4 Mac run-backtrace): walking whitespace then checking
+         * memcmp(p-7,"struct ") FAILED for the common form `struct std_string_String`
+         * because the single space of "struct " was consumed by the walk-back, leaving
+         * p on the last letter of "struct" (p-7 no longer points at "struct "). Result:
+         * need_string/map/error=1 from preamble alone → formals co-emitting core_mem_*
+         * linked together with -Wl,-export_dynamic (backtrace) → 33 duplicate symbols
+         * (dead_strip cannot drop them). G.7: walk back ws then match keyword *without*
+         * trailing space; require p < off (at least one ws between keyword and needle).
          */
         {
             size_t p = off;
             while (p > line_start && (data[p - 1] == ' ' || data[p - 1] == '\t'))
                 p--;
-            if (p >= line_start + 7 && memcmp(data + p - 7, "struct ", 7) == 0)
-                is_extern = 1; /* needle is the struct name in a definition or variable decl */
-            if (p >= line_start + 8 && memcmp(data + p - 8, "typedef ", 8) == 0)
-                is_extern = 1; /* needle is the typedef name */
+            /* Tag form: "struct" + ws + needle  or  "typedef" + ws + needle. */
+            if (p < off) {
+                if (p >= line_start + 6 && memcmp(data + p - 6, "struct", 6) == 0) {
+                    /* Boundary: start-of-line or non-ident before "struct". */
+                    if (p == line_start + 6 ||
+                        !((data[p - 7] >= 'A' && data[p - 7] <= 'Z') ||
+                          (data[p - 7] >= 'a' && data[p - 7] <= 'z') ||
+                          (data[p - 7] >= '0' && data[p - 7] <= '9') ||
+                          data[p - 7] == '_'))
+                        is_extern = 1;
+                }
+                if (p >= line_start + 7 && memcmp(data + p - 7, "typedef", 7) == 0) {
+                    if (p == line_start + 7 ||
+                        !((data[p - 8] >= 'A' && data[p - 8] <= 'Z') ||
+                          (data[p - 8] >= 'a' && data[p - 8] <= 'z') ||
+                          (data[p - 8] >= '0' && data[p - 8] <= '9') ||
+                          data[p - 8] == '_'))
+                        is_extern = 1;
+                }
+            }
         }
         /* Skip weak placeholder bodies only when this line contains "placeholder". */
         {
