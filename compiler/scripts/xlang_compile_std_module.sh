@@ -1050,6 +1050,55 @@ PYEOF
     esac
   fi
 
+  # PLATFORM: SHARED — pre-cc POSIX/libc bare-name clash guard.
+  # Root: formal_mod host-C emits bare export names (e.g. std.sync wait). System
+  # headers already declare wait(int*)/free/… → "conflicting types for 'wait'" at
+  # cc -c; post-o objcopy never runs. Symptom: L4 cold ensure sync.o fails →
+  # run-sync UNDEF std_sync_*. Authority: only when gen_c defines bare name as a
+  # function, inject after last #include:
+  #   #undef name / #define name xlang_formal_bare_name
+  # so defs + call sites rename; Mac std_<mod>_* wrappers and Linux objcopy both
+  # still see a consistent body. G.7: single pre-cc gate (do not stack a second
+  # rename strategy for the same bare name).
+  if [ -f "$gen_c" ] && [ -s "$gen_c" ]; then
+    _clash_hdr="$tmp_dir/libc_clash_${idx}.h"
+    : >"$_clash_hdr"
+    # POSIX + common hosted names that appear as bare X exports in formal_mod.
+    # Keep list aligned with post-o clash loop below (+ wait, which fails at cc).
+    for _cn in wait free open close malloc realloc calloc getcwd chdir pipe exit \
+               getenv setenv unsetenv getpid getppid waitpid exec signal abort \
+               remove rename system time clock read write; do
+      # Only guard names that have a function *definition* in this TU (not mere
+      # mentions in comments / strings). Match return-type name( form.
+      if grep -Eq "^[A-Za-z_][A-Za-z0-9_ *]*[[:space:]]+${_cn}[[:space:]]*\\(" "$gen_c" 2>/dev/null; then
+        {
+          printf '/* formal_mod pre-cc: bare %s clashes with hosted C — rename body */\n' "$_cn"
+          printf '#ifdef %s\n#undef %s\n#endif\n#define %s xlang_formal_bare_%s\n' \
+            "$_cn" "$_cn" "$_cn" "$_cn"
+        } >>"$_clash_hdr"
+      fi
+    done
+    if [ -s "$_clash_hdr" ]; then
+      _clash_merged="$tmp_dir/gen_clash_${idx}.c"
+      if grep -q '^#include' "$gen_c"; then
+        awk -v inj="$_clash_hdr" '
+          /^#include/ { last=NR }
+          { lines[NR]=$0 }
+          END {
+            for (i=1;i<=NR;i++) {
+              print lines[i]
+              if (i==last) {
+                while ((getline l < inj) > 0) print l
+                close(inj)
+              }
+            }
+          }' "$gen_c" >"$_clash_merged" && mv "$_clash_merged" "$gen_c"
+      else
+        cat "$_clash_hdr" "$gen_c" >"$_clash_merged" && mv "$_clash_merged" "$gen_c"
+      fi
+    fi
+  fi
+
   if ! cc $CFLAGS -c "$gen_c" -o "$obj" 2>"$tmp_dir/cc_${idx}.log"; then
     echo "xlang_compile_std_module.sh: cc -c failed for $x_path" >&2
     # 显示首个 error
@@ -1149,7 +1198,8 @@ if command -v nm >/dev/null 2>&1 && command -v objcopy >/dev/null 2>&1 && [ -f "
       esac
     done
   fi
-  for clash in free open close malloc realloc calloc getcwd chdir pipe exit getenv setenv unsetenv getpid getppid waitpid exec; do
+  # PLATFORM: SHARED — post-o twin of pre-cc clash guard (wait added; was cc-only red).
+  for clash in free open close malloc realloc calloc getcwd chdir pipe exit getenv setenv unsetenv getpid getppid waitpid wait exec signal abort remove rename system time clock read write; do
     if nm "$out_o" 2>/dev/null | grep -q " T ${clash}$"; then
       # Prefer product export std_<leaf>_<clash> (e.g. std_env_getenv). *_api was a
       # historical clash guard; product import-binding calls std_env_getenv not *_api.
