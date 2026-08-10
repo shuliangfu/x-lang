@@ -250,3 +250,64 @@ pure_as_compile() {
     ${CC:-cc} -c -o "$out" "$src"
   fi
 }
+
+# ---------------------------------------------------------------------------
+# pure_ld_hosted_crt1 — stdout: path to system crt1.o for hosted (with libc)
+# pure-ld links. Complements the freestanding crt0 path (pure_ld_default_entry
+# + nostdlib). Used by relink_xlang_asm_experimental_bootstrap.sh to replace
+# `$CC -o ...` (which auto-includes crt1.o) with pure `ld` (Stage 12.2.3).
+#
+# Returns 0 and prints crt1.o path on success; returns 1 if not found.
+#
+# PLATFORM: MACOS — $SDK/usr/lib/crt1.o (via xcrun or fallback SDK paths).
+# PLATFORM: LINUX — /usr/lib/<triple>/crt1.o or /usr/lib/crt1.o (glibc).
+# PLATFORM: WINDOWS — not eligible (caller uses CC residual).
+# ---------------------------------------------------------------------------
+pure_ld_hosted_crt1() {
+  local os arch sdk
+  os="$(uname -s 2>/dev/null || echo Unknown)"
+  arch="$(uname -m 2>/dev/null || echo unknown)"
+  case "$os" in
+    Darwin)
+      sdk=""
+      if command -v xcrun >/dev/null 2>&1; then
+        sdk="$(xcrun --show-sdk-path 2>/dev/null || true)"
+      fi
+      if [ -z "$sdk" ] || [ ! -d "$sdk" ]; then
+        for c in \
+          /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk \
+          /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk; do
+          if [ -d "$c" ]; then sdk="$c"; break; fi
+        done
+      fi
+      if [ -n "$sdk" ] && [ -f "$sdk/usr/lib/crt1.o" ]; then
+        printf '%s\n' "$sdk/usr/lib/crt1.o"
+        return 0
+      fi
+      echo "pure_ld_shared: crt1.o not found under SDK=$sdk" >&2
+      return 1
+      ;;
+    Linux)
+      local triple=""
+      case "$arch" in
+        x86_64|amd64) triple="x86_64-linux-gnu" ;;
+        aarch64) triple="aarch64-linux-gnu" ;;
+      esac
+      for c in \
+        "/usr/lib/${triple}/crt1.o" \
+        "/usr/lib/crt1.o" \
+        "/usr/lib64/crt1.o"; do
+        if [ -f "$c" ]; then
+          printf '%s\n' "$c"
+          return 0
+        fi
+      done
+      echo "pure_ld_shared: crt1.o not found (triple=$triple)" >&2
+      return 1
+      ;;
+    *)
+      echo "pure_ld_shared: crt1.o not available on $os" >&2
+      return 1
+      ;;
+  esac
+}
