@@ -1414,21 +1414,49 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
     *)    prod_pref="" ;;
   esac
   if command -v objcopy >/dev/null 2>&1; then
-    if [ -n "$prod_pref" ] && ! nm "$out_o" 2>/dev/null | grep -q " T ${prod_pref}"; then
+    # PLATFORM: SHARED — bare → prod_pref rename is **per-symbol**, not whole-file.
+    # Root bug (Ubuntu L4 run-set @5acd137bd): gate was
+    #   if ! nm | grep " T ${prod_pref}"  → skip entire rename when ANY namespaced
+    #   export already exists.
+    # Multi-file heap (mod+libc+ops) already has std_heap_libc_* / std_heap_ops_*
+    # after merge, so mod.x surfaces (map_find, alloc_usize, …) stayed bare T.
+    # Product monofile U-refs std_heap_map_find → UNDEF; Mac twin used pre-cc
+    # wrappers so monofile path stayed green (false dual-end signal).
+    # G.7: single post-o rename authority — only rename when prod_pref+bare is
+    # still missing; never skip the whole leaf because sibling TUs already prefixed.
+    if [ -n "$prod_pref" ]; then
       nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
         [ -n "$sym" ] || continue
         case "$sym" in
           "${prod_pref}"*|_"${prod_pref}"*) continue ;;
-          core_*|std_*|_core_*|_std_*) continue ;;
-          _Z*|.L*|L0*|__*|_*_c|args_*|ctx_*|io_*|process_*) continue ;;
+          core_*|std_*|_core_*|_std_*|xlang_*|_xlang_*) continue ;;
+          _Z*|.L*|L0*|__*) continue ;;
+          # Foreign co-emit faces (ctx/io/process/args) — not this leaf's API;
+          # left for localize step below (do not invent std_heap_ctx_*).
+          args_*|ctx_*|io_*|process_*|_args_*|_ctx_*|_io_*|_process_*) continue ;;
         esac
         bare="$sym"
         case "$sym" in
           _*) bare="${sym#_}" ;;
         esac
         case "$bare" in
-          "${prod_pref}"*|core_*|std_*) continue ;;
+          "${prod_pref}"*|core_*|std_*|xlang_*) continue ;;
+          args_*|ctx_*|io_*|process_*) continue ;;
         esac
+        # heap multi-file: libc/ops bare *_c stay for the dedicated alias table
+        # (std_heap_libc_* / std_heap_ops_*), not std_heap_<bare>.
+        if [ "$leaf" = "heap" ]; then
+          case "$bare" in
+            heap_*_c|map_i32_i32_find_c|map_slot|heap_mem_set_c|heap_mem_compare_c) continue ;;
+          esac
+        fi
+        # Already have product export → leave bare alone only if namespaced exists
+        # (then localize bare below would drop a second body; prefer redefine when
+        # target missing). If target already present, localize bare duplicate.
+        if nm "$out_o" 2>/dev/null | grep -qE " T ${prod_pref}${bare}$| T _${prod_pref}${bare}$"; then
+          objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
+          continue
+        fi
         if [ "$bare" != "$sym" ]; then
           objcopy --redefine-sym "${sym}=_${prod_pref}${bare}" "$out_o" 2>/dev/null || true
         else
@@ -1436,18 +1464,23 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
         fi
       done
     fi
-    # PLATFORM: SHARED — core.slice co-emits core_option_* bodies; when both mod.o and
-    # option.o are pushed (--allow-multiple-definition) the wrong is_some/unwrap can win
-    # (Ubuntu length.x asm exit 4 after i32 path). Localize co-emitted option APIs so
-    # option.o remains the global authority; internal get_* still bind locally. G.7.
-    if [ "$out_root" = "core" ] && [ "$leaf" = "slice" ]; then
+    # PLATFORM: SHARED — formal_mod co-emits foreign module bodies as global T
+    # (core_mem_* into heap.o/set.o; core_option_* into slice.o; …). Product
+    # links leaf.o + authority .o → multi-def on Ubuntu full link (Mac monofile
+    # often avoids multi-o fallback). Localize every global T that is std_*/core_*
+    # but NOT this leaf's prod_pref. Authority .o keeps the global face. G.7
+    # generalizes the former core.slice-only core_option_* special case.
+    # Mirror: ensure_host_cc_seed_o.sh _std_core_keep_global_prefixes (net_merge).
+    if [ -n "$prod_pref" ]; then
       nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
+        [ -n "$sym" ] || continue
         bare="$sym"
         case "$sym" in
           _*) bare="${sym#_}" ;;
         esac
         case "$bare" in
-          core_option_*)
+          "${prod_pref}"*) continue ;;
+          core_*|std_*)
             objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
             ;;
         esac
