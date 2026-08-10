@@ -795,7 +795,7 @@
   - pipeline.x wave335 ✅（删 6 死 import · -E 46.62s→0.02s · 2331× 加速）
   - ast/lexer/parser/typeck/codegen wave336-337 ✅（post_E_fixup forward-decl + typedef 前移 + 条件 append）
   - wave338 ✅（dedup_colliding_definitions + double-prefix alias + per-leaf alarm）
-  - 双端验证：macOS arm64 8/8 ✅ · Ubuntu x86_64 8/8 ✅ · 双端 L2 5/5 绿
+  - **8/10 复验**（formal_mod 波 `d79a368b2` 后）：wave338 三缺口全修复确认 — macOS ast_gen2（双前缀消除）+ macOS driver_x（双定义消除）由 formal_mod per-symbol bare rename 修；Ubuntu codegen_x（37.3s < 60s alarm）由 wave338 per-leaf override 覆盖。双端 PREFER_X_O 8/8 真验证 ✅ · 双端 L2 5/5 绿 @ `d9e9ce5aa`
 
   - 与阶段 8.2.2 / 8.2.10 / 8.2.11 联动；前端「能自 regen」再谈删 Makefile 冷启动规则
   - **pipeline.x wave335 ✅（根源修复 · 去 pin 对齐首胜）**：pipeline.x 本就是**纯 extern 签名头模块**（658 LOC = 162 `export extern function` 声明 + 0 带体函数）——所有实现都在 runtime_pipeline_abi.x。
@@ -814,11 +814,11 @@
       |---------|-----|---------|-----------|-------------|
       | preprocess.x | 1003 | 0.14s | ✅ | **无**（PREFER_X_O 通）|
       | pipeline.x | 658 | **✅ wave335 已修**（0.02s）| ✅ | **✅ wave335 根源修复**：删 6 死 import |
-      | ast.x | 1393 | 0.15s | ✅ | **✅ wave336-337 post_E_fixup 修**（forward-decl + typedef 前移）；macOS xlang-seed-phase1 codegen 命名 bug 待修 |
+      | ast.x | 1393 | 0.15s | ✅ | **✅ wave336-337 post_E_fixup 修**（forward-decl + typedef 前移）；✅ 8/10 复验 formal_mod 修 codegen 命名 bug（双前缀消除） |
       | lexer.x | 4724 | 4.01s | ✅ | **✅ wave336-337 post_E_fixup 修**（forward-decl + typedef 前移）|
       | parser.x | 12176 | 16.52s | ✅ | **✅ wave336-337 post_E_fixup 修**（forward-decl + scrub init_globals）|
       | typeck.x | 19542 | 7.07s | ✅ | **✅ wave336-337 post_E_fixup 修**（forward-decl + 条件 append 5 body + static helper + 4 externs）|
-      | codegen.x | 21922 | 26.94s | ✅ 临界 | **✅ wave336-337 post_E_fixup 修**（macOS PREFER_X_O 通；Ubuntu 30s alarm 超时待修）|
+      | codegen.x | 21922 | 26.94s | ✅ 临界 | **✅ wave336-337 post_E_fixup 修**（macOS 30.6s · Ubuntu 37.3s · 60s alarm override 覆盖）|
     - **根因归类（剩余 4 项）**：
       1. **-E 生成器跨模块函数引用无 extern 声明**（影响 4 项）：-E 单 TU 展开不引入跨模块函数的 extern 声明 → CC `-Wimplicit-function-declaration` error（C99 禁止）。影响：ast.x / typeck.x / codegen.x / lexer.x。
       2. **-E 生成器 init_globals 收集逻辑 bug**（影响 1 项 · src/codegen/codegen.x）：`init_globals()` 函数收集**所有模块**的 BSS 赋值（`g_lexer_unclosed_bc = 0;` 等），但 -E 输出只声明**当前模块**的 BSS 定义（`static int g_foo = 0;`）→ 跨模块 BSS 引用未声明 → CC `use-of-undeclared-identifier` 硬 error。影响：parser.x。
@@ -843,10 +843,10 @@
       - **macOS arm64**（xlang-seed-phase1 binary）：6/8 PREFER_X_O（pipeline/preprocess/lexer/typeck/codegen/parser ✅；ast_gen2 + driver_x 是 xlang-seed-phase1 codegen 回归——ast_gen2 命名不一致 `ast_ast_arena_block_get` vs `ast_arena_block_get`；driver_x `main_run_compiler_c` 双定义）。mac L2 5/5 ✅。
       - **Ubuntu x86_64**（金标 · xlang binary）：7/8 PREFER_X_O（pipeline/preprocess/lexer/typeck/parser/ast_gen2/driver_x ✅；codegen_x 是 30s alarm 超时——`_e_rc=142` SIGALRM）。Ubuntu L2 5/5 ✅（rv42/opt102/hello0/si0/f32）。
       - **typeck_x.o PREFER_X_O 双端都通过** ✅ — 根修验证完成。
-    - **剩余失败分类（非 post_E_fixup 问题，记为后续 wave）**：
-      - macOS ast_gen2.o：xlang-seed-phase1 -E 输出声明 `ast_ast_arena_block_get`（双前缀）但调用 `ast_arena_block_get`（单前缀），cold seed 有双声明但 -E 只有 prefixed → codegen 命名 bug。
-      - macOS driver_x.o：xlang-seed-phase1 -E 输出 `main_run_compiler_c` 双定义（1891+1894 行重复 body）→ codegen 重复输出 bug。
-      - Ubuntu codegen_x.o：`xlang -E src/codegen/codegen.x` 超过 30s alarm → `_e_rc=142` SIGALRM。性能问题（codegen.x 21922 LOC，-E 耗时 ~27s 临界）。
+    - **剩余失败分类（非 post_E_fixup 问题 · 8/10 复验全修复 ✅）**：
+      - ✅ macOS ast_gen2.o：xlang-seed-phase1 -E 双前缀 `ast_ast_arena_block_get` → formal_mod 波 `d79a368b2` per-symbol bare rename 修 → tip -E `ast_arena_block_get` ×13（0 双前缀）→ PREFER_X_O exit=0。
+      - ✅ macOS driver_x.o：xlang-seed-phase1 -E `main_run_compiler_c` 双定义 → formal_mod 修 codegen 重复输出 → PREFER_X_O exit=0。
+      - ✅ Ubuntu codegen_x.o：30s alarm `_e_rc=142` SIGALRM → wave338 per-leaf 60s override → Ubuntu 实测 37.3s < 60s → PREFER_X_O exit=0。
     - PLATFORM: SHARED（post_E_fixup 条件 append + typedef 前移跨平台行为等价；typeck_x.o 双端 PREFER_X_O 通过）。
 
 ⬜ **7.4.4 双权威禁令验收**
