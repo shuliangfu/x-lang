@@ -472,6 +472,22 @@ EXP_LINK_OBJS="$EXP_LINK_OBJS $SEED_O/async_liveness.o $SEED_O/async_cps_codegen
 [ -f parser_x.o ] || EXP_LINK_OBJS="$EXP_LINK_OBJS $SEED_O/parser.o"
 [ -z "$ST_LSP_X" ] || EXP_LINK_OBJS="$EXP_LINK_OBJS $ST_LSP_X"
 EXP_LINK_OBJS="$EXP_LINK_OBJS src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_diag_pipeline_sizes.o $PARSER_ASM_THIN_C $PARSER_EXPR_LINK_O parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o"
+# Stage 12.2.3: Add objects to close pre-existing undefined symbol gap between
+# experimental chain and g05 product chain (symbols present in g05 but missing
+# from experimental link). Objects identified by diffing g05 G05_OBJS against
+# EXP_LINK_OBJS — G.7 single authority (g05_relink_env.sh is the production
+# truth; experimental link must converge to same object set modulo bootstrap
+# specific runtime_asm_build.o / asm_experimental_symbol_bridge.o).
+#
+# Key fix: use src/lexer/cfg_eval.o (full partial merge: cfg_eval_x.o +
+# cfg_eval_link_alias.o via ld -r) instead of bare cfg_eval_link_alias.o.
+# The link_alias alone CONSUMES lexer_cfg_* symbols (U in nm); cfg_eval.o
+# PROVIDES them (T in nm). This matches g05 _DRIVER_SEED_SUPPORT in no_c
+# default mode. Without this fix the link fails with 4 lexer_cfg_* U refs.
+#
+# PLATFORM: SHARED — all 8 objects exist on both macOS and Ubuntu after g05
+# ensure. cfg_eval.o is platform-agnostic (partial merge via ld -r).
+EXP_LINK_OBJS="$EXP_LINK_OBJS src/seed_link_compat.o build_asm/seed_host/asm_full_link_stubs.o src/runtime_driver_diagnostic.o src/runtime_driver_abi.o src/diag.o src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o"
 
 # Stage 12.2.3: zero-CC experimental bootstrap link via pure_ld_try_link
 # (G.7 single authority). When XLANG_ZERO_CC_LD=1 and host is freestanding-eligible,
