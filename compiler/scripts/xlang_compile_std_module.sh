@@ -913,6 +913,7 @@ for x_path in "$@"; do
           # Second: emit missing export struct bodies from mod.x.
           open(my $in, "<", $inject) or exit 0;
           my $in_body = 0; my $name; my $buf = "";
+          my @emitted_full;  # pref+Struct names we print (for bare #define aliases)
           while (my $l = <$in>) {
             if (!$in_body && $l =~ /^struct (\Q$pref\E[A-Za-z_][A-Za-z0-9_]*) \{/) {
               $name = $1; $buf = $l; $in_body = 1; next;
@@ -920,12 +921,40 @@ for x_path in "$@"; do
             if ($in_body) {
               $buf .= $l;
               if ($l =~ /^\};/) {
-                if (!exists $has_full{$name}) { print $buf; }
+                if (!exists $has_full{$name}) {
+                  print $buf;
+                  push @emitted_full, $name;
+                }
                 $in_body = 0;
               }
             }
           }
           close($in);
+          # Third: bare struct tag aliases. Codegen emits struct Ipv4Addr while
+          # inject/gen has struct std_net_Ipv4Addr. Without alias, Mac formal cc
+          # fails incomplete type struct Ipv4Addr (L4 net.o / net-context).
+          # define Bare to pref_Bare so struct Bare equals namespaced body.
+          # Cover both newly injected bodies and already-present pref+name bodies.
+          # PLATFORM: SHARED — G.7 complete inject authority (no second type path).
+          # NOTE: no single-quotes in this perl -e block (bash closes the string).
+          open(my $gf2, "<", $gen_c) or exit 0;
+          my $gtext = do { local $/; <$gf2> };
+          close($gf2);
+          my %alias_src;
+          for my $full (@emitted_full) { $alias_src{$full} = 1; }
+          for my $full (keys %has_full) {
+            next unless $full =~ /^\Q$pref\E/;
+            next if $full =~ /^xlang_slice_/;
+            $alias_src{$full} = 1;
+          }
+          for my $full (sort keys %alias_src) {
+            my $bare = $full;
+            $bare =~ s/^\Q$pref\E//;
+            next if $bare eq "" || $bare eq $full;
+            next if $gtext =~ /^struct \Q$bare\E \{/m;  # already complete bare
+            next if $gtext !~ /\bstruct \Q$bare\E\b/;   # not used
+            print "#ifndef ${bare}\n#define ${bare} ${full}\n#endif\n";
+          }
         ' "$gen_c" "$inject_tmp" "$mod_pref_x" >"$filtered" 2>/dev/null || true
         if [ -s "$filtered" ]; then
           merged="$tmp_dir/gen_inj_${idx}.c"
@@ -944,6 +973,73 @@ for x_path in "$@"; do
               }' "$gen_c" >"$merged" && mv "$merged" "$gen_c"
           else
             cat "$filtered" "$gen_c" >"$merged" && mv "$merged" "$gen_c"
+          fi
+        fi
+        # PLATFORM: SHARED — shell twin of perl bare-tag aliases (belt after filtered).
+        # Emit `#define Bare pref_Bare` for every complete `struct pref_Bare {`
+        # whose bare tag is used incomplete. Fixes L4 net.o incomplete Ipv4Addr.
+        if [ -n "$mod_pref_x" ] && [ -f "$gen_c" ]; then
+          _alias_h="$tmp_dir/bare_alias_${idx}.h"
+          : >"$_alias_h"
+          # Lines like: struct std_net_Ipv4Addr { ...
+          grep -E "^struct ${mod_pref_x}[A-Za-z0-9_]+ \\{" "$gen_c" 2>/dev/null \
+            | while IFS= read -r _sl; do
+                full=$(printf '%s' "$_sl" | sed -E 's/^struct ([A-Za-z0-9_]+) \{.*/\1/')
+                bare=${full#"$mod_pref_x"}
+                [ -n "$bare" ] && [ "$bare" != "$full" ] || continue
+                if grep -qE "struct[[:space:]]+${bare}([^A-Za-z0-9_]|$)" "$gen_c" 2>/dev/null \
+                  && ! grep -qE "^struct[[:space:]]+${bare}[[:space:]]*\\{" "$gen_c" 2>/dev/null; then
+                  if ! grep -qE "^#define[[:space:]]+${bare}[[:space:]]+" "$gen_c" 2>/dev/null \
+                    && ! grep -qE "^#define[[:space:]]+${bare}[[:space:]]+" "$_alias_h" 2>/dev/null; then
+                    printf '#ifndef %s\n#define %s %s\n#endif\n' "$bare" "$bare" "$full" >>"$_alias_h"
+                  fi
+                fi
+              done
+          # Insert bare #defines + slice bodies immediately AFTER the last complete
+          # `struct pref_* {` block (preamble compact structs), so aliases apply before
+          # any `struct xlang_slice_Bare { struct Bare *data }` uses incomplete Bare.
+          # PLATFORM: SHARED — L4 net.o incomplete TcpStream / xlang_slice_TcpStream.
+          if [ -s "$_alias_h" ]; then
+            # Drop any incomplete slice bodies that referenced bare tags (re-add below).
+            _scrub="$tmp_dir/gen_scrub_${idx}.c"
+            grep -vE "^struct[[:space:]]+xlang_slice_[A-Za-z0-9_]+[[:space:]]*\\{[[:space:]]*struct[[:space:]]+[A-Za-z0-9_]+[[:space:]]*\\*data" "$gen_c" >"$_scrub" 2>/dev/null \
+              || cp "$gen_c" "$_scrub"
+            # Collect one-level xlang_slice_Bare only (not nested xlang_slice_xlang_slice_*).
+            _slice_h="$tmp_dir/slice_syn_${idx}.h"
+            : >"$_slice_h"
+            _sl_list="$tmp_dir/slice_list_${idx}.txt"
+            grep -oE 'struct[[:space:]]+xlang_slice_[A-Za-z0-9_]+' "$_scrub" 2>/dev/null \
+              | sed -E 's/struct[[:space:]]+//' | sort -u >"$_sl_list" || true
+            while IFS= read -r _sln; do
+              case "$_sln" in
+                xlang_slice_xlang_slice_*) continue ;; # skip nested explosion
+                xlang_slice_*) ;;
+                *) continue ;;
+              esac
+              _elem=${_sln#xlang_slice_}
+              case "$_elem" in
+                std_*|core_*|uint*|int*|size_t|ssize_t|float|double) continue ;; # already namespaced/primitive
+              esac
+              if grep -qE "^#define[[:space:]]+${_elem}[[:space:]]+" "$_alias_h" 2>/dev/null \
+                || grep -qE "struct[[:space:]]+${mod_pref_x}${_elem}[[:space:]]*\\{" "$_scrub" 2>/dev/null; then
+                printf 'struct %s { struct %s *data; size_t length; };\n' "$_sln" "$_elem" >>"$_slice_h"
+              fi
+            done <"$_sl_list"
+            # Package: #defines first, then slice bodies (element types resolve via define).
+            _pkg="$tmp_dir/alias_pkg_${idx}.h"
+            {
+              cat "$_alias_h"
+              [ -s "$_slice_h" ] && cat "$_slice_h"
+            } >"$_pkg"
+            # Insert after last complete pref struct line (compact one-line bodies OK).
+            _ins_line=$(grep -nE "^struct ${mod_pref_x}[A-Za-z0-9_]+ \\{" "$_scrub" 2>/dev/null | tail -1 | cut -d: -f1)
+            [ -n "$_ins_line" ] || _ins_line=$(grep -n '^#include' "$_scrub" 2>/dev/null | tail -1 | cut -d: -f1)
+            [ -n "$_ins_line" ] || _ins_line=1
+            {
+              head -n "$_ins_line" "$_scrub"
+              cat "$_pkg"
+              tail -n +"$((_ins_line + 1))" "$_scrub"
+            } >"$tmp_dir/gen_alias_${idx}.c" && mv "$tmp_dir/gen_alias_${idx}.c" "$gen_c"
           fi
         fi
       fi
@@ -1203,6 +1299,53 @@ PYEOF
       else
         cat "$_clash_hdr" "$gen_c" >"$_clash_merged" && mv "$_clash_merged" "$gen_c"
       fi
+    fi
+  fi
+
+  # PLATFORM: SHARED — final pre-cc: complete one-level xlang_slice_Bare when
+  # #define Bare pref_Bare is present but slice body is only a forward decl.
+  # Root (L4 net.o): inject order left `struct xlang_slice_TcpStream;` incomplete.
+  # Also re-arm std_io_read/write_fixed_fd macros if preamble #undef left calls bare.
+  if [ -f "$gen_c" ]; then
+    _fin_slice="$tmp_dir/final_slice_${idx}.h"
+    : >"$_fin_slice"
+    grep -oE 'struct[[:space:]]+xlang_slice_[A-Za-z0-9_]+' "$gen_c" 2>/dev/null \
+      | sed -E 's/struct[[:space:]]+//' | sort -u >"$tmp_dir/final_sl_${idx}.txt" || true
+    while IFS= read -r _sln; do
+      case "$_sln" in
+        xlang_slice_xlang_slice_*) continue ;;
+        xlang_slice_*) ;;
+        *) continue ;;
+      esac
+      _elem=${_sln#xlang_slice_}
+      case "$_elem" in
+        std_*|core_*|uint*|int*|size_t|ssize_t|float|double) continue ;;
+      esac
+      # Need alias for element and no complete slice body yet.
+      if grep -qE "^#define[[:space:]]+${_elem}[[:space:]]+" "$gen_c" 2>/dev/null \
+        && ! grep -qE "^struct[[:space:]]+${_sln}[[:space:]]*\\{[^;]*data" "$gen_c" 2>/dev/null; then
+        printf 'struct %s { struct %s *data; size_t length; };\n' "$_sln" "$_elem" >>"$_fin_slice"
+      fi
+    done <"$tmp_dir/final_sl_${idx}.txt"
+    # net.o: preamble may #undef std_io_read_fixed_fd after defining it; re-arm if called.
+    if grep -qE '\bstd_io_read_fixed_fd\s*\(' "$gen_c" 2>/dev/null \
+      && ! grep -qE '^#define[[:space:]]+std_io_read_fixed_fd' "$gen_c" 2>/dev/null; then
+      printf '#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)\n' >>"$_fin_slice"
+    fi
+    if grep -qE '\bstd_io_write_fixed_fd\s*\(' "$gen_c" 2>/dev/null \
+      && ! grep -qE '^#define[[:space:]]+std_io_write_fixed_fd' "$gen_c" 2>/dev/null; then
+      printf '#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)\n' >>"$_fin_slice"
+    fi
+    if [ -s "$_fin_slice" ]; then
+      # Insert after last #define Bare pref_Bare (or last #include) so bodies precede uses.
+      _ins=$(grep -nE '^#define[[:space:]]+[A-Za-z0-9_]+[[:space:]]+std_[a-z0-9_]+' "$gen_c" 2>/dev/null | tail -1 | cut -d: -f1)
+      [ -n "$_ins" ] || _ins=$(grep -n '^#include' "$gen_c" 2>/dev/null | tail -1 | cut -d: -f1)
+      [ -n "$_ins" ] || _ins=1
+      {
+        head -n "$_ins" "$gen_c"
+        cat "$_fin_slice"
+        tail -n +"$((_ins + 1))" "$gen_c"
+      } >"$tmp_dir/gen_finsl_${idx}.c" && mv "$tmp_dir/gen_finsl_${idx}.c" "$gen_c"
     fi
   fi
 

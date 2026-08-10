@@ -4143,6 +4143,72 @@ _std_core_ld_r() {
   fi
 }
 
+# PLATFORM: SHARED — after ld -r product .o, keep only export faces as global T.
+# formal_mod co-emits foreign std_io_*/core_result_*/xlang_io_*/ctx_*/process_*
+# bodies as global T; product monofile also emits them → multi-def (L4
+# run-std-net-context-gate: 221 dups). Localize non-export T so monofile owns
+# foreign faces; this .o only exports its API. G.7 single post-merge authority.
+# $1=out.o  remaining args = bare prefixes without leading _ (e.g. std_net_ net_)
+# Darwin: nmedit -s keep_list. Linux: objcopy/llvm-objcopy --localize-symbol.
+_std_core_keep_global_prefixes() {
+  local out="$1"
+  shift
+  [ -f "$out" ] || return 0
+  command -v nm >/dev/null 2>&1 || return 0
+  local uname_s keep_re keep_list sym bare p
+  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+  keep_re=""
+  for p in "$@"; do
+    [ -n "$p" ] || continue
+    if [ -n "$keep_re" ]; then
+      keep_re="${keep_re}|${p}"
+    else
+      keep_re="${p}"
+    fi
+  done
+  [ -n "$keep_re" ] || return 0
+  keep_list=$(mktemp "${TMPDIR:-/tmp}/xlang_keep_glob.XXXXXX") || return 0
+  # nm -gU: defined global only. Match bare name against keep prefixes (optional _).
+  nm -gU "$out" 2>/dev/null | awk '{print $NF}' | while IFS= read -r sym; do
+    [ -n "$sym" ] || continue
+    bare="$sym"
+    case "$sym" in
+      _*) bare="${sym#_}" ;;
+    esac
+    if printf '%s' "$bare" | grep -Eq "^(${keep_re})"; then
+      printf '%s\n' "$sym"
+    fi
+  done >"$keep_list" 2>/dev/null || true
+  if [ ! -s "$keep_list" ]; then
+    rm -f "$keep_list"
+    return 0
+  fi
+  if [ "$uname_s" = "Darwin" ] && command -v nmedit >/dev/null 2>&1; then
+    # nmedit: globals NOT in list become local. Export list = keep.
+    nmedit -s "$keep_list" "$out" 2>/dev/null || true
+  else
+    # Linux / objcopy path: localize every global T not in keep_list.
+    local oc=""
+    if command -v objcopy >/dev/null 2>&1; then
+      oc=objcopy
+    elif command -v llvm-objcopy >/dev/null 2>&1; then
+      oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    fi
+    if [ -n "$oc" ]; then
+      nm -gU "$out" 2>/dev/null | awk '{print $NF}' | while IFS= read -r sym; do
+        [ -n "$sym" ] || continue
+        if ! grep -Fxq "$sym" "$keep_list" 2>/dev/null; then
+          "$oc" --localize-symbol="$sym" "$out" 2>/dev/null || true
+        fi
+      done
+    fi
+  fi
+  rm -f "$keep_list"
+  return 0
+}
+
 # One net_*_fast PREFER or cold seed piece.
 # $1=fast_o $2=seed $3=x_src $4=from_x_def $5=mode (thin_rest|direct) $6=xlang_bin
 _std_core_net_fast_one() {
@@ -4332,10 +4398,89 @@ ensure_std_core_prefer_one() {
           ;;
       esac
       objs=""
-      for x in alpn udp tcp udp_batch workers; do
+      # PLATFORM: SHARED — include tls_stub (mod.x import std.net.tls_stub).
+      # OpenSSL/mbedTLS variants remain separate product overlays.
+      for x in alpn udp tcp udp_batch workers tls_stub; do
         sh scripts/xlang_compile_std_x.sh "$net_sub_xlang" "../std/net/$x.x" "../std/net/$x.o" || return 1
         objs="$objs ../std/net/$x.o"
       done
+      # Import-binding face: bare net_tls_*_c → std_net_tls_stub_net_tls_*_c.
+      # xlang_compile_std_x emits bare C symbols; mod.x import path prefixes both
+      # leaf and name. G.7: single alias .o after stub compile (no second TLS body).
+      if [ -f ../std/net/tls_stub.o ]; then
+        # Keep alias .o under std/net/ (not TMPDIR) so ld -r sees a stable path.
+        _tls_alias_c="../std/net/tls_stub_import_alias.c"
+        _tls_alias_o="../std/net/tls_stub_import_alias.o"
+        {
+          echo '/* net_merge: import-binding aliases for std.net.tls_stub */'
+          echo '#include <stdint.h>'
+          echo '#include <stddef.h>'
+          cat <<'TEOF'
+extern int32_t net_tls_is_available_c(void);
+extern uint8_t *net_tls_backend_name_c(void);
+extern int32_t net_tls_connect_client_c(int32_t fd, uint8_t *sni);
+extern int32_t net_tls_connect_client_alpn_c(int32_t fd, uint8_t *sni, uint8_t *alpn, int32_t alpn_len);
+extern int32_t net_tls_close_c(int64_t h);
+extern int32_t net_tls_read_c(int64_t h, uint8_t *buf, int32_t cap);
+extern int32_t net_tls_write_c(int64_t h, uint8_t *buf, int32_t len);
+extern int32_t net_tls_last_error_c(void);
+extern int32_t net_tls_alpn_selected_c(int64_t h, uint8_t *out, int32_t out_cap);
+extern int32_t net_tls_alpn_is_h2_c(int64_t h);
+int32_t std_net_tls_stub_net_tls_is_available_c(void) { return net_tls_is_available_c(); }
+uint8_t *std_net_tls_stub_net_tls_backend_name_c(void) { return net_tls_backend_name_c(); }
+int32_t std_net_tls_stub_net_tls_connect_client_c(int32_t fd, uint8_t *sni) { return net_tls_connect_client_c(fd, sni); }
+int32_t std_net_tls_stub_net_tls_connect_client_alpn_c(int32_t fd, uint8_t *sni, uint8_t *alpn, int32_t alpn_len) { return net_tls_connect_client_alpn_c(fd, sni, alpn, alpn_len); }
+int32_t std_net_tls_stub_net_tls_close_c(int64_t h) { return net_tls_close_c(h); }
+int32_t std_net_tls_stub_net_tls_read_c(int64_t h, uint8_t *buf, int32_t cap) { return net_tls_read_c(h, buf, cap); }
+int32_t std_net_tls_stub_net_tls_write_c(int64_t h, uint8_t *buf, int32_t len) { return net_tls_write_c(h, buf, len); }
+int32_t std_net_tls_stub_net_tls_last_error_c(void) { return net_tls_last_error_c(); }
+int32_t std_net_tls_stub_net_tls_alpn_selected_c(int64_t h, uint8_t *out, int32_t out_cap) { return net_tls_alpn_selected_c(h, out, out_cap); }
+int32_t std_net_tls_stub_net_tls_alpn_is_h2_c(int64_t h) { return net_tls_alpn_is_h2_c(h); }
+/* Residual faces pulled by alpn/pool co-emit when product only needs connect_ctx.
+ * Weak so real io/tcp_pool .o can override when linked. PLATFORM: SHARED. */
+__attribute__((weak)) int32_t std_io_read_fixed_fd(int32_t a, uint32_t b, size_t c, size_t d, uint32_t e) {
+  (void)a;(void)b;(void)c;(void)d;(void)e; return -1;
+}
+__attribute__((weak)) int32_t std_io_write_fixed_fd(int32_t a, uint32_t b, size_t c, size_t d, uint32_t e) {
+  (void)a;(void)b;(void)c;(void)d;(void)e; return -1;
+}
+__attribute__((weak)) uint8_t *xlang_io_read_ptr_len(size_t h, size_t *out_len) {
+  (void)h; if (out_len) *out_len = 0; return (uint8_t *)0;
+}
+__attribute__((weak)) int64_t std_net_tcp_pool_net_tcp_pool_create_c(uint32_t a, uint32_t b, int32_t c) {
+  (void)a;(void)b;(void)c; return 0;
+}
+__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_acquire_c(int64_t h, uint32_t t) {
+  (void)h;(void)t; return -1;
+}
+__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_release_c(int64_t h, int32_t fd) {
+  (void)h;(void)fd; return -1;
+}
+__attribute__((weak)) void std_net_tcp_pool_net_tcp_pool_drain_c(int64_t h) { (void)h; }
+__attribute__((weak)) void std_net_tcp_pool_net_tcp_pool_destroy_c(int64_t h) { (void)h; }
+__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_connect_count_c(int64_t h) {
+  (void)h; return 0;
+}
+__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_idle_count_c(int64_t h) {
+  (void)h; return 0;
+}
+__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_smoke_c(void) { return 0; }
+/* Fast-path addr helpers sometimes only on asm leaves; weak for pure host-C net.o. */
+__attribute__((weak)) int64_t net_tcp_local_addr_c(int32_t fd) { (void)fd; return 0; }
+__attribute__((weak)) int64_t net_tcp_peer_addr_c(int32_t fd) { (void)fd; return 0; }
+__attribute__((weak)) void net_tcp_set_addr_port_buf_c(uint8_t *b, uint32_t a, uint32_t p) {
+  (void)b;(void)a;(void)p;
+}
+__attribute__((weak)) void net_udp_set_addr_port_buf_c(uint8_t *b, uint32_t a, uint32_t p) {
+  (void)b;(void)a;(void)p;
+}
+TEOF
+        } >"$_tls_alias_c"
+        if cc -std=c11 -c -o "$_tls_alias_o" "$_tls_alias_c" 2>/dev/null; then
+          objs="$objs $_tls_alias_o"
+        fi
+        rm -f "$_tls_alias_c"
+      fi
       sh scripts/xlang_compile_std_module.sh ../std/net/mod.o ../std/net/mod.x || return 1
       objs="$objs ../std/net/mod.o"
       _std_core_net_fast_one ../std/net/net_dns_fast.o \
@@ -4362,6 +4507,10 @@ ensure_std_core_prefer_one() {
       fi
       rm -f ../std/net/mod.o ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o \
         ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o
+      # Keep only net product faces global. formal_mod co-emits std_io_*/core_result_*
+      # etc. as T; monofile also defines them → multi-def on product -o (L4 STD-092).
+      # PLATFORM: SHARED — nmedit (Darwin) / objcopy localize (Linux).
+      _std_core_keep_global_prefixes "$o" "std_net_" "net_"
       log "net_merge $o <- sub.x + mod + five fast (try-std-core-prefer)"
       return 0
       ;;
