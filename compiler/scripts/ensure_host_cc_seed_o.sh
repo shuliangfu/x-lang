@@ -317,6 +317,13 @@ cd "$_ENSURE_HOST_CC_DIR/.."
 # CC=cc — MinGW ships gcc without a `cc` alias (Windows hybrid min-gate).
 # shellcheck source=resolve_host_cc.sh
 . "$_ENSURE_HOST_CC_DIR/resolve_host_cc.sh"
+
+# Stage 12.2.1: XLANG_FORBID_HOST_CC gate (no-op when flag unset; zero impact
+# on normal builds). When XLANG_FORBID_HOST_CC=1, replaces $CC with a wrapper
+# that logs and blocks all host-CC invocations — builds the zero-CC problem map.
+# PLATFORM: SHARED.
+. "$_ENSURE_HOST_CC_DIR/forbid_host_cc.sh"
+
 MAKE="${MAKE:-make}"
 FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
 

@@ -128,6 +128,12 @@ build_xlang_asm_info "using XLANG=$XLANG (list from $BUILD_LIST_X)"
 CC="${CC:-cc}"
 CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 
+# Stage 12.2.1: XLANG_FORBID_HOST_CC gate (no-op when flag unset; zero impact
+# on normal builds). When XLANG_FORBID_HOST_CC=1, replaces $CC with a wrapper
+# that logs and blocks all host-CC invocations — builds the zero-CC problem map.
+# PLATFORM: SHARED.
+. "$(dirname "$0")/forbid_host_cc.sh"
+
 # backend.x 等大模块 asm 编译 abort 时，用最小 .s/.c 占位保证 __text 非空（质检 24/24）。
 # wave297: host scripts/asm_text_stub.c left; seed authority seeds/asm_text_stub.from_x.c
 emit_asm_text_stub_o() {
