@@ -13,6 +13,9 @@ export STRICT_LINK_BUILD_ASM_PIPELINE=1
 # disagree on underscore/letter order → "file is not in sorted order" noise and
 # wrong set subtraction for WPO partial export (dual authority with build_xlang_asm).
 export LC_ALL=C
+# Stage 12.2.3: source pure_ld_shared.sh for pure_as_compile (zero-CC .s assembly).
+# PLATFORM: SHARED — used for runtime_panic .s compilation on Linux x86_64.
+. scripts/pure_ld_shared.sh
 
 # #region debug-point A:dbg-helpers
 DBG_ENV_FILE="../.dbg/relink-strict-glue-hang.env"
@@ -1896,7 +1899,7 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
   if [ -n "$_panic_src" ] && { [ ! -f runtime_panic.o ] || [ "$_panic_src" -nt runtime_panic.o ]; }; then
   strict_glue_info "cc runtime_panic.o <- $_panic_src"
   if [ "${_panic_src##*.}" = "s" ]; then
-  "$CC" -c -o runtime_panic.o "$_panic_src"
+  pure_as_compile runtime_panic.o "$_panic_src"
   else
   sh scripts/cc_inc_tu.sh "$_panic_src" runtime_panic.o
   fi

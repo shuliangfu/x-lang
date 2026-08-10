@@ -4879,7 +4879,7 @@ ensure_typeck_f64_bits_obj() {
     if [ -f src/typeck/typeck_f64_bits_x86_64_mingw.s ]; then
       _f64s=src/typeck/typeck_f64_bits_x86_64_mingw.s
       echo " win: cc -c $_f64s → $_f64o (no try-r2)"
-      "$CC" -c -o "$_f64o" "$_f64s" \
+      pure_as_compile "$_f64o" "$_f64s" \
         || { echo "ensure_typeck_f64_bits_obj: win cc failed" >&2; return 1; }
       return 0
     fi

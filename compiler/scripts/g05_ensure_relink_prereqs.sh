@@ -556,7 +556,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ -n "$_f64s" ] && [ -f "$_f64s" ]; then
       if [ ! -f src/typeck/typeck_f64_bits.o ] || [ "$_f64s" -nt src/typeck/typeck_f64_bits.o ]; then
         echo "g05_ensure: cc -c $_f64s → src/typeck/typeck_f64_bits.o"
-        $CC -c -o src/typeck/typeck_f64_bits.o "$_f64s"
+        pure_as_compile src/typeck/typeck_f64_bits.o "$_f64s"
       fi
     fi
   fi
