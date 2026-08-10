@@ -150,8 +150,9 @@ emit_asm_text_stub_o() {
   "$CC" $CFLAGS -c -o "$out" "$stub_c" 2>/dev/null && return 0
   fi
   [ -f "$stub_s" ] || return 1
-  echo " fallback: $CC -c $stub_s -> $out (asm compile abort recovery)"
-  "$CC" -c -o "$out" "$stub_s" 2>/dev/null
+  echo " fallback: $stub_s -> $out (asm compile abort recovery)"
+  # Stage 12.2.3: pure_as_compile (as when XLANG_ZERO_CC_AS=1, else $CC -c).
+  pure_as_compile "$out" "$stub_s" 2>/dev/null
 }
 
 # strict 链前：首遍 stub .o 若仍含强符号 xlang_asm_ci_text_stub，用 weak 版重编（并列链 multiple definition）。
