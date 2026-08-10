@@ -615,10 +615,10 @@
 
 ### 5.2 R2 待收口项
 
-⬜ **5.2.1 wave445 SHARED ABI mono 字段 tip L4 收口**
+✅ **5.2.1 wave445 SHARED ABI mono 字段 tip L4 收口**
 
-  - 日常 L2 已过，tip L4 升钉未含此
-  - 下一阶段收口时跑 L4
+  - 日常 L2 已过；**双端 L4 真冷绿 @ `d79a368b2`**（mac 35m42s · Ubuntu 11m36s · bstrict 129 · 2026-08-10 升钉）
+  - wave445 SHARED ABI mono 字段已含入 d79a368b2 钉盘 L4 验证范围
 
 ⬜ **5.2.2 Darwin stage2 rv / strict multi-def** 平台债
 
@@ -722,7 +722,11 @@
   - 当前：产品 PREFER=0/1 → 切片 `cc -r` only（omit empty rest）；**默认硬拒** monofile；monofile 文件已不在树（wave321）
   - 目标：产品 .o 全部来自切片／.x — **已达标**
 
-⬜ **7.1.3 M3 Stage2 / D-03 验证**
+✅ **7.1.3 M3 Stage2 / D-03 验证**
+
+  - Stage2 行为一致（xlang_asm / xlang_asm2 编 return-value exit=42 双端对齐）
+  - Stage2 SHA256 金标准 match（`0f8b72c2a184670cb9d76a7b41f224f13504906daacaa2ed0a61d6dab4725c17`）
+  - M4 5/5 全 ✅（runtime 7.1 / typeck 7.4.1 / codegen 7.4.2 / parser 7.2 / link_abi 7.3 冷链全闭）
 
 
 ### 7.2 parser mega 去 pin
@@ -740,7 +744,10 @@
   - 验收：双端 L2 绿（macOS arm64 + Ubuntu x86_64 gold @ ubuntu-remote-server）；pure-ld 58／60 + `./xbuild l2-matrix` 5/5
   - 达标：默认 FROM_X=1 且双端 L2 绿；pin 仅考古 egg
 
-⬜ **7.2.3 M3 Stage2 / D-03 验证**
+✅ **7.2.3 M3 Stage2 / D-03 验证**
+
+  - Stage2 行为一致 + SHA256 match（见 7.1.3）
+  - parser 7.2.2 关 pin ✅（wave325 · 默认 FROM_X=1 · pin 仅考古 egg）
 
 
 ### 7.3 link_abi mega 去 pin
@@ -755,7 +762,10 @@
 
 ⬜ **7.3.2 runtime_link_abi_gen.c 去 pin**（如存在独立 pin）
 
-⬜ **7.3.3 M3 Stage2 / D-03 验证**
+✅ **7.3.3 M3 Stage2 / D-03 验证**
+
+  - Stage2 行为一致 + SHA256 match（见 7.1.3）
+  - link_abi 7.3.1 关 pin ✅（wave326 · 12 labi_*.x 默认 FROM_X=1 · pin 仅考古 egg）
 
 
 ### 7.4 前端 mega 去 pin（typeck / codegen · 原文档漏项）
@@ -779,7 +789,13 @@
   - 证据：hide pin seed 后 ensure assemble OK；pure-ld + `./xbuild l2-matrix` 5/5
   - 残：companion 逐步 fold 进 `.x`；parser／link_abi pin 仍 ⬜
 
-⬜ **7.4.3 lexer / preprocess / pipeline 去 pin 对齐**
+✅ **7.4.3 lexer / preprocess / pipeline 去 pin 对齐**
+
+  - **wave338 双端 8/8 PREFER_X_O 全通**（pipeline wave335 + post_E_fixup wave336-337 + wave338 dedup/double-prefix/typedef 前移）
+  - pipeline.x wave335 ✅（删 6 死 import · -E 46.62s→0.02s · 2331× 加速）
+  - ast/lexer/parser/typeck/codegen wave336-337 ✅（post_E_fixup forward-decl + typedef 前移 + 条件 append）
+  - wave338 ✅（dedup_colliding_definitions + double-prefix alias + per-leaf alarm）
+  - 双端验证：macOS arm64 8/8 ✅ · Ubuntu x86_64 8/8 ✅ · 双端 L2 5/5 绿
 
   - 与阶段 8.2.2 / 8.2.10 / 8.2.11 联动；前端「能自 regen」再谈删 Makefile 冷启动规则
   - **pipeline.x wave335 ✅（根源修复 · 去 pin 对齐首胜）**：pipeline.x 本就是**纯 extern 签名头模块**（658 LOC = 162 `export extern function` 声明 + 0 带体函数）——所有实现都在 runtime_pipeline_abi.x。
@@ -1296,11 +1312,11 @@
   - present **17→15**；双端 L2 绿；G05 产品路径本不 host-cc 这两叶
   - 注：`scripts/asm_text_stub.s` 仍为 asm 回退占位（非 C residual）
 
-⬜ **8.3.8 `build_asm/gen_driver/*.c`（10 个 · 物理在 compiler/ 外）**
+🟡 **8.3.8 `build_asm/gen_driver/*.c`（原 10 个 · 物理在 compiler/ 外）**
 
   - `build_asm/gen_driver/pipeline_gen.c` · `lsp_io_gen.c` · `driver_check.c` · `preprocess_gen.c` · `driver_fmt.c` · `lsp_gen.c` · `lsp_io_std_heap_gen.c` · `driver_gen.c` · `driver_test.c`
-  - 🟡 仍被 g05／partial 引用
-  - 被 g05 / partial 脚本引用；属构建链产物，物理位置在 compiler/ 之外
+  - **2026-08-10 实测**：`build_asm/gen_driver/` 下仅剩 `pipeline_gen.c`（1 个 .c）+ 4 个 _x.o 产物；其余 8 个 .c 已被 Track L 退役替换为 _x.o（见 8.1.9–8.1.20）
+  - 🟡 `pipeline_gen.c` 仍作构建链产物残留（8.1.16 已 Track L 退役，构建用 pipeline_x.o）；需确认 g05/partial 是否仍引用此 .c 体
 
 ✅ **8.3.9 `analysis/_debug_io_ctx_gen.c` 孤儿 .c**
 
@@ -1684,7 +1700,7 @@
   - 运行时 PATH 探针：`tests/run-product-path-zero-make-path-probe.sh` — shadow make/gmake；help + g05_relink_env + ensure/prepare 须 **0-exec** make
   - **仍非日常 0-make**：FULL=1→make bstrict（g05 白名单）；嵌套 `tests/run-all-*.sh` / ensure 内 make（11.2.3）
 
-🟡 **11.0.3 冷启动路径减 make**（§5b 全 🟢；叶清单→mk）
+✅ **11.0.3 冷启动路径减 make**（§5b 全 🟢；叶清单→mk）
 
   - ✅ 类 G 全 4 filtered.o = 纯 shell；冷启动 `$(MAKE)` **白名单**：[Makefile迁移表.md](Makefile迁移表.md) §5b
   - ✅ 编排 / 链接 / rebuild / host-stubs / check-abi / asm-host → shell 权威；Makefile 薄叶子 + export
@@ -1968,7 +1984,11 @@
 
 ### 13.1 语义自举验证
 
-⬜ **13.1.1 阶段 7 M4 完成**（含 7.4 typeck/codegen）
+✅ **13.1.1 阶段 7 M4 完成**（含 7.4 typeck/codegen）
+
+  - M4 5/5 全 ✅：runtime 7.1 · parser 7.2 · link_abi 7.3 · typeck 7.4.1 · codegen 7.4.2
+  - Stage2 行为一致 + SHA256 match（见 7.1.3）
+  - PREFER_X_O 双端 8/8 wave338 ✅（见 7.4.3）
 
 ⬜ **13.1.2 阶段 8 gen + 8.3 glue/ast/桩 完成**
 
