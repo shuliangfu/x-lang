@@ -1117,9 +1117,15 @@ PYEOF
     : >"$_clash_hdr"
     # POSIX + common hosted names that appear as bare X exports in formal_mod.
     # Keep list aligned with post-o clash loop below (+ wait, which fails at cc).
+    # PLATFORM: SHARED — math.h / libm bare names (std.math mod.x exports abs/floor/…):
+    # without rename, cc -c fails "conflicting types for 'abs'" (C int abs(int) vs
+    # X f64 abs(f64)); L4 cold ensure math.o never lands → run-math C smoke + product
+    # UNDEF std_math_*. G.7: extend same pre-cc clash gate (no second math-only path).
     for _cn in wait free open close malloc realloc calloc getcwd chdir pipe exit \
                getenv setenv unsetenv getpid getppid waitpid exec signal abort \
-               remove rename system time clock read write; do
+               remove rename system time clock read write \
+               abs fabs floor ceil trunc round sin cos tan asin acos atan atan2 \
+               sqrt cbrt pow exp log log1p expm1 erf erfc min max; do
       # Only guard names that have a function *definition* in this TU (not mere
       # mentions in comments / strings). Match return-type name( form.
       if grep -Eq "^[A-Za-z_][A-Za-z0-9_ *]*[[:space:]]+${_cn}[[:space:]]*\\(" "$gen_c" 2>/dev/null; then
@@ -1272,8 +1278,12 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
         esac
       done
     fi
-    # PLATFORM: SHARED — post-o twin of pre-cc clash guard (wait added; was cc-only red).
-    for clash in free open close malloc realloc calloc getcwd chdir pipe exit getenv setenv unsetenv getpid getppid waitpid wait exec signal abort remove rename system time clock read write; do
+    # PLATFORM: SHARED — post-o twin of pre-cc clash guard (wait + libm math bare names).
+    for clash in free open close malloc realloc calloc getcwd chdir pipe exit \
+                 getenv setenv unsetenv getpid getppid waitpid wait exec signal abort \
+                 remove rename system time clock read write \
+                 abs fabs floor ceil trunc round sin cos tan asin acos atan atan2 \
+                 sqrt cbrt pow exp log log1p expm1 erf erfc min max; do
       if nm "$out_o" 2>/dev/null | grep -q " T ${clash}$"; then
         # Prefer product export std_<leaf>_<clash> (e.g. std_env_getenv). *_api was a
         # historical clash guard; product import-binding calls std_env_getenv not *_api.
