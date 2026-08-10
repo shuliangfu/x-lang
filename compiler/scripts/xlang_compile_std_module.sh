@@ -1062,16 +1062,29 @@ _skip_names = {
     'process_xlang_argc_get', 'process_xlang_argv_get',
 }
 out_lines = []
+# Bare names that receive a product wrapper. Linux objcopy renames bare→ns;
+# Mac leaves bare as global T → multi-formal multi-def (context+error both
+# export is_cancelled). Hide bare via static on def + forward decl only
+# (NOT #define — that breaks struct field designators like .code).
+# PLATFORM: MACOS — L4 io-context gate.
+to_wrap = []  # (fname, ns, fret, decl_args, farg_names)
 for fm in _func_def_re.finditer(s):
     fname = fm.group('name')
     if fname.startswith(_skip_prefixes) or fname == 'main':
         continue
     if fname in _skip_names:
         continue
-    # Skip co-emitted foreign module bodies that already carry a foreign prefix
-    # token mid-name (e.g. io_*, process_* already listed; also bare noise).
-    if fname.startswith(('io_', 'process_', 'ctx_', 'args_')):
+    # Skip co-emitted foreign module bodies (io driver / process / ctx glue / args).
+    # PLATFORM: SHARED — do NOT skip this module's real API that shares a short
+    # prefix. std.error exports io_err_cancelled/timeout/generic; the old blanket
+    # `io_*` skip left those bare on Mac → product UNDEF std_error_io_err_*
+    # (L4 run-std-io-context-gate). G.7: prefix skip only for known co-emit faces.
+    if fname.startswith(('process_', 'args_')):
         continue
+    if fname.startswith('ctx_'):
+        continue  # co-emitted ctx_*_c glue; product uses std_context_* wrappers
+    if fname.startswith('io_') and not fname.startswith('io_err_'):
+        continue  # co-emitted io driver shims; io_err_* is std.error API
     ns = pref + fname
     # Never redefine an existing namespaced body.
     if ns in existing_ns:
@@ -1091,13 +1104,24 @@ for fm in _func_def_re.finditer(s):
     fargs = fm.group('args').strip()
     farg_names = _extract_arg_names(fargs)
     decl_args = 'void' if (fargs == '' or fargs == 'void') else fargs
-    if fret == 'void':
-        out_lines.append(f'{fret} {ns}({decl_args}) {{ {fname}({farg_names}); }}')
-    else:
-        out_lines.append(f'{fret} {ns}({decl_args}) {{ return {fname}({farg_names}); }}')
-if out_lines:
-    print('/* Namespaced wrappers — macOS twin of Linux objcopy; skip if #define owns ns. */')
-    print('\n'.join(out_lines))
+    to_wrap.append((fname, ns, fret, decl_args, farg_names))
+if to_wrap:
+    s2 = s
+    for fname, ns, fret, decl_args, farg_names in to_wrap:
+        # Forward decls: "extern ret fname(" / "ret fname(" → static (once each form).
+        s2 = re.sub(
+            rf'(?m)^(extern\s+)?((?:struct\s+\w+|(?:u?int(?:8|16|32|64)?_t|void|int|size_t|char|float|double|ssize_t|uintptr_t|intptr_t)[\s\*]*)\s+){re.escape(fname)}(\s*\()',
+            rf'static \2{fname}\3',
+            s2,
+        )
+    with open(gen_c_path, 'w') as f:
+        f.write(s2)
+    print('/* Namespaced wrappers — macOS twin of Linux objcopy; bare body static. */')
+    for fname, ns, fret, decl_args, farg_names in to_wrap:
+        if fret == 'void':
+            print(f'{fret} {ns}({decl_args}) {{ {fname}({farg_names}); }}')
+        else:
+            print(f'{fret} {ns}({decl_args}) {{ return {fname}({farg_names}); }}')
 PYEOF
     fi
   fi

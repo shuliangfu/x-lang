@@ -1352,8 +1352,22 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, tar_o);
   if (need_simd)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, simd_o);
-  if (need_context)
+  /* PLATFORM: SHARED — context.o U atomic_*_c + time_now_*; ensure companions. */
+  if (need_context) {
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, context_o);
+    (void)xlang_ensure_runtime_atomic_glue_o(NULL);
+    {
+      const char *rag = xlang_runtime_atomic_glue_o_path(NULL);
+      if (rag && rag[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rag);
+    }
+    (void)xlang_ensure_runtime_time_os_o(NULL);
+    {
+      const char *rto = xlang_runtime_time_os_o_path(NULL);
+      if (rto && rto[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
+    }
+  }
   if (need_error)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
         xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_error_o()));

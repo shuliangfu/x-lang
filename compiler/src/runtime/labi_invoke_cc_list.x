@@ -3102,9 +3102,27 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
       let _ps: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, simd_o);
     }
   }
+  // PLATFORM: SHARED — context.o KEEP_C / glue U-imports atomic_*_c and
+  // time_now_monotonic_ns_c. mid scan only sees gen-C std_context_*; without
+  // companions L4 io-context gate UNDEF atomic_load_i32_c / time_now_*.
+  // G.7: pair context formal with atomic glue + time_os (same class as panic U).
   if (need_context != 0) {
     unsafe {
       let _pcx: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, context_o);
+      let _eag: i32 = xlang_ensure_runtime_atomic_glue_o(0 as *u8);
+      let rag: *u8 = xlang_runtime_atomic_glue_o_path(0 as *u8);
+      if (rag != 0 as *u8) {
+        if (rag[0] != 0) {
+          let _pag: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rag);
+        }
+      }
+      let _eto: i32 = xlang_ensure_runtime_time_os_o(0 as *u8);
+      let rto: *u8 = xlang_runtime_time_os_o_path(0 as *u8);
+      if (rto != 0 as *u8) {
+        if (rto[0] != 0) {
+          let _pto: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
+        }
+      }
     }
   }
   if (need_error != 0) {
