@@ -2221,12 +2221,17 @@ EOF
 # build_asm pipeline.o 第二遍：path/resolve/load + run_x_pipeline_impl 均 X 真 emit。
 # 当前 seed 二遍实测 __text≈6843B（低于历史 S3a 11588B 目标，但符号齐全即可 strict）。
 # nm：ELF 无 leading _，Mach-O 有 _；resolve 符号名为 resolve_path_probe_dot_x_and_mod 等。
+# G.7 authority: runtime_pipeline_abi.o is the pipeline implementation (890KB+ text,
+# 739 T symbols, run_x_pipeline_impl / path_append / resolve_path). pipeline.x is a
+# pure-extern declaration module (0 function bodies); pipeline_x.o / pipeline.o are
+# stubs (driver_leaf, 1688B text, 0 T symbols). Check the authority, not the stub.
+# PLATFORM: SHARED — runtime_pipeline_abi.o is in LD argv on both Darwin and Linux.
 asm_strict_pipeline_selfhosted() {
   local t
-  t=$(asm_o_text_bytes "$BUILD_DIR/pipeline.o" 2>/dev/null || echo 0)
+  t=$(asm_o_text_bytes src/runtime_pipeline_abi.o 2>/dev/null || echo 0)
   [ "$t" -ge 6144 ] 2>/dev/null || return 1
-  nm -g "$BUILD_DIR/pipeline.o" 2>/dev/null | grep -qE '(_)?path_append_from_buf_256|(_)?resolve_path_.*su' || return 1
-  nm -g "$BUILD_DIR/pipeline.o" 2>/dev/null | grep -qE '(_)?run_x_pipeline_impl' || return 1
+  nm -g src/runtime_pipeline_abi.o 2>/dev/null | grep -qE '(_)?path_append_from_buf_256|(_)?resolve_path_.*su' || return 1
+  nm -g src/runtime_pipeline_abi.o 2>/dev/null | grep -qE '(_)?run_x_pipeline_impl' || return 1
   return 0
 }
 
