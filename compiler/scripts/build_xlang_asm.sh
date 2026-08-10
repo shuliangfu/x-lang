@@ -2713,7 +2713,12 @@ ensure_typeck_x_no_layout_partial_obj() {
   fi
   if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$SUO" -nt "$SYMS" ]; then
   # ELF 符号无 leading _；统一 sed 去/加 _ 供 macOS exported_symbols_list 与 Linux objcopy。
-  nm "$SUO" 2>/dev/null | awk '/ T _?typeck_/ {print $3}' | sed 's/^_//' | \
+  # Keep ALL T symbols (not just typeck_* prefix): typeck.x also defines pipeline_typeck_*,
+  # pipeline_expr_is_c_*, pipeline_dep_ctx_*, glue_typeck_* etc. The old awk '/ T _?typeck_/'
+  # only matched symbols starting with typeck_ right after the T column, silently dropping
+  # pipeline_typeck_* (which have pipeline_ prefix) → undefined references in strict link.
+  # The 7 grep -v below still exclude layout symbols owned by typeck_asm_layout_partial.o.
+  nm "$SUO" 2>/dev/null | awk '/ T / {print $3}' | sed 's/^_//' | \
   grep -v '^typeck_struct_layout_metrics$' | \
   grep -v '^typeck_validate_struct_layouts_zero_padding$' | \
   grep -v '^typeck_merge_dep_struct_layouts_into_entry$' | \
