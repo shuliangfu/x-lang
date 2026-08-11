@@ -2002,8 +2002,9 @@
     - **GREEN×8 pure-asm ONLY**：`diag_pure`／`host_lit`／`path_io`／`invoke_ld_list`／`freestanding_list`／`std_list`／`ondemand_list`／`gates`  
     - **RED×4 pure-asm ONLY**：`path_pure`（opt/si/hello SEGV）· `ensure_list`（rv/f32 **rc=1**）· `invoke_cc_list`（opt/si/hello SEGV）· `ondemand_heavy`（rv/f32 SEGV）  
   - **再探 residual**：全量 PREFER_ASM_O 仍禁默认 · SEED_SLICE permanent `.o` · RED 四刀 G.7 pure-asm ABI  
-  - **path_pure pure-asm（WIP 工作区 2026-08-11）**：modlet COMMON（TYPE_ARRAY 模块 let）+ INDEX base 三路径 LEA → pure-asm **42KB 绿**（对照 tip 栈叠 355KB）；**hybrid ONLY=path_pure 仍 2/5 SEGV**（opt/si/hello 编译器 139）  
-  - 下一步：hybrid SEGV 根因 · `ensure_list`／`invoke_cc_list`／`ondemand_heavy` · 全量 hybrid 仍 opt-in · 谈升钉才 L4  
+  - **path_pure pure-asm @ `34164691a`**：modlet COMMON + INDEX LEA → **42KB**；**hybrid ONLY 仍 2/5**（指针截断）  
+  - **path_pure hybrid 闭（本波）**：`glue_emit_binop_add` is_64bit → scale1 64-bit ADD；**mac hybrid ONLY=path_pure L2 5/5**；产品 baseline 双端 L2  
+  - 下一步：`ensure_list`／`invoke_cc_list`／`ondemand_heavy` · 全量 hybrid 仍 opt-in · 谈升钉才 L4  
 
 
 

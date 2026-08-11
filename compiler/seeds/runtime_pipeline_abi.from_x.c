@@ -21540,8 +21540,14 @@ int32_t glue_try_emit_ptr_arith_scaled_elf_c(void *arena, void *elf_ctx, void *c
   return 0;
 }
 
-/* wave149 cold twin glue_emit_binop_add_rax_rbx_elf_c. PLATFORM: SHARED. */
+/*
+ * wave149 cold twin glue_emit_binop_add_rax_rbx_elf_c.
+ * Stage 12.0.5: usize/i64/u64/isize/ptr → 64-bit ADD (rax_plus_rbx_scale1);
+ * i32/u32 remain 32-bit ADD W. Matches pure: path_last_sep base+off must not
+ * truncate Darwin pointers. PLATFORM: SHARED.
+ */
 int32_t glue_emit_binop_add_rax_rbx_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t left_ref, int32_t right_ref, int32_t ta) {
+  int32_t is_64bit;
   if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
     return backend_enc_addsd_rax_rbx_arch(elf_ctx, ta);
@@ -21551,6 +21557,9 @@ int32_t glue_emit_binop_add_rax_rbx_elf_c(void *arena, void *elf_ctx, void *ctx,
   /* wave642: assign `p += n` — left@rax right@rbx; scale integer offset. */
   if (glue_ptr_arith_scale_rbx_offset_if_left_ptr_c(arena, elf_ctx, left_ref, right_ref, ta) != 0)
     return -1;
+  is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
+  if (is_64bit)
+    return backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
   return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
 }
 

@@ -43333,8 +43333,27 @@ function glue_binop_maybe_sxt_i32_result_elf_c(arena: *u8, ctx: *u8, left_ref: i
   return 0;
 }
 
+/**
+ * Emit integer/float ADD of rax and rbx (operands already loaded).
+ * Stage 12.0.5: usize/i64/u64/isize/ptr ADD must use 64-bit encode
+ * (backend_enc_rax_plus_rbx_scale1_arch → arm64 ADD X0,X0,X1). The default
+ * backend_enc_add_rax_rbx_arch is 32-bit ADD W on arm64 (u32 wrap); using it
+ * for `base + off` pointer reconstruction zero-extends X0 and truncates
+ * Darwin user pointers (0x1_xxxxxxxx → 0x0_xxxxxxxx) → hybrid path_pure SEGV
+ * in xlang_path_last_sep after modlet COMMON. G.7: is_64bit already covers
+ * TYPE_U64/I64/USIZE/ISIZE/PTR; scale1 is the documented 64-bit twin.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param ctx *u8 — AsmCtx* (var types)
+ * @param left_ref i32 — left expr ref
+ * @param right_ref i32 — right expr ref
+ * @param ta i32 — target arch
+ * @return i32 — 0 ok; nonzero encode fail
+ * PLATFORM: SHARED · MACOS|ARM64 64-bit ADD critical · x86_64 REX.W scale1
+ */
 export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
   let rc: i32 = 0;
+  let is_64bit: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_addsd_rax_rbx_arch(elf_ctx, ta);
@@ -43346,15 +43365,26 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
     if (glue_ptr_arith_scale_rbx_offset_if_left_ptr_c(arena, elf_ctx, left_ref, right_ref, ta) != 0) {
       return -1;
     }
-    rc = backend_enc_add_rax_rbx_arch(elf_ctx, ta);
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
+    if (is_64bit != 0) {
+      // 64-bit ADD X0,X0,X1 (arm64 sf=1) / REX.W add (x86) — ptr/usize/i64.
+      rc = backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
+    } else {
+      rc = backend_enc_add_rax_rbx_arch(elf_ctx, ta);
+    }
   }
   if (rc != 0) {
     return rc;
   }
-  /* 32-bit ADD W zeros-extends; i32 signed compare / j-1 loops need sxtw.
+  if (is_64bit != 0) {
+    // No sxtw: result already full 64-bit width.
+    return 0;
+  }
+  /* 32-bit ADD W zero-extends; i32 signed compare / j-1 loops need sxtw.
    * PLATFORM: SHARED · MACOS|ARM64 sxtw · x86_64 cdqe. */
   return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);
 }
+
 
 /**
  * wave149 pure: G.7 authority (was pipeline_asm_emit_binop.c::pipeline_asm_emit_binop_add_elf_c).
