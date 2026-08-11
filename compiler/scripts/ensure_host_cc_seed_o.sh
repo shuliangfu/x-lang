@@ -1474,12 +1474,18 @@ labi_prefer_pick_xlang() {
 
 # Prefer one layer .x → .o (simple -E harness; fail → caller seed).
 # $1=x_src $2=out.o  Returns 0 on success.
+# Stage 12.0.5: opt-in pure_asm_x_to_o first when XLANG_PREFER_ASM_O=1;
+# fall through to -E+$CC (zero regression when flag unset).
 # PLATFORM: SHARED — retry -E then -backend c -E (Ubuntu SIGSEGV history).
 labi_prefer_try_x_to_o() {
   local x_src="$1" x_out="$2" xlang_bin tmp e_ok e_try
   [ -f "$x_src" ] || return 1
-  xlang_bin="$(labi_prefer_pick_xlang)" || return 1
   mkdir -p "$(dirname "$x_out")"
+  # Opt-in pure-asm (G.7 pure_asm_x_to_o); reject panic/__error → fall through.
+  if pure_asm_x_to_o "$x_out" "$x_src"; then
+    return 0
+  fi
+  xlang_bin="$(labi_prefer_pick_xlang)" || return 1
   tmp="$(mktemp "${TMPDIR:-/tmp}/labipref.XXXXXX")"
   e_ok=0
   for e_try in 1 2 3 4 5; do
@@ -1766,11 +1772,16 @@ rt_prefer_try_x_to_o() {
     return 1
   fi
   mkdir -p "$(dirname "$_xout")"
-  # Stage 12.0.5 note: pure_asm_x_to_o (pure_ld_shared.sh) is the G.7 authority
-  # for freestanding .x→.o, but product hybrid PREFER still uses -E+$CC here.
-  # Residual: pure-asm thin merged into runtime_driver_no_c.o links or runs bad
-  # on g05 pure-ld (panic surface / runtime SIGSEGV). Do NOT auto-call until
-  # ABI parity is proven. PLATFORM: SHARED harness
+  # Stage 12.0.5: opt-in pure-asm first (G.7 pure_asm_x_to_o).
+  # Default XLANG_PREFER_ASM_O unset → pure_asm_x_to_o returns 1 immediately
+  # (zero regression; product hybrid stays -E+$CC). When set=1: try freestanding
+  # .x→.o (no temp C / no host-cc COMPILE); reject panic/__error → fall through
+  # to -E+$CC. Weak/rename envs also force fall-through (need C rewrite).
+  # PLATFORM: SHARED harness · opt-in only until dual-end L2 green under flag.
+  if pure_asm_x_to_o "$_xout" "$_xsrc"; then
+    return 0
+  fi
+  # Historic product path: -E → prologue → $CC -c.
   # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
   _xtmp=$(mktemp "${TMPDIR:-/tmp}/rtpref_x.XXXXXX") || return 1
   # 优先默认 -E（Linux 上 -backend c -E 可能 SIGSEGV）；再回退 -backend c -E。

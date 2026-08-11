@@ -103,10 +103,11 @@ g05_cc_c() {
 }
 
 # G-02f-256/257/258 / L2：.x → xlang -backend c -E → cc -c → .o
-# Stage 12.0.5：pure_asm_x_to_o is G.7 authority for freestanding .x→.o, but
-# product g05_try still uses -E+$CC (pure-asm hybrid residual: link panic /
-# runtime SIGSEGV on Darwin pure-ld). Call pure_asm_x_to_o only from inventory
-# probes until ABI parity. 返回 0 成功；失败不删既有 .o（调用方回退 seed）。
+# Stage 12.0.5：pure_asm_x_to_o is G.7 authority for freestanding .x→.o.
+# Opt-in: when XLANG_PREFER_ASM_O=1 try pure-asm first (no temp C / no host-cc
+# COMPILE); reject panic/__error or weak/rename → fall through to -E+$CC.
+# Default flag unset = zero regression (historic -E+$CC only).
+# 返回 0 成功；失败不删既有 .o（调用方回退 seed）。
 # $1=.x  $2=.o  [$3...]=extra cflags for cc
 # 环境：G05_X_O_WEAK=1 时给顶层函数加 __attribute__((weak))
 #       （strict_glue 等与 bootstrap_seed_pipeline_filtered 同名符号需 weak，对齐 seed）
@@ -128,6 +129,11 @@ g05_try_x_to_o() {
     return 1
   fi
   mkdir -p "$(dirname "$_xout")"
+  # Stage 12.0.5 opt-in pure-asm (G.7 pure_asm_x_to_o). PLATFORM: SHARED.
+  if pure_asm_x_to_o "$_xout" "$_xsrc"; then
+    return 0
+  fi
+  # Historic: -E → prologue → $CC -c
   # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
   _xtmp=$(mktemp "${TMPDIR:-/tmp}/g05_x.XXXXXX") || return 1
   # 优先默认 -E（Linux 上 -backend c -E 可能 SIGSEGV）；再回退 -backend c -E。

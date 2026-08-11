@@ -255,10 +255,11 @@ pure_as_compile() {
 # pure_asm_x_to_o — freestanding .x → .o via asm backend (zero host-cc COMPILE).
 # Stage 12.0.5: G.7 single authority for pure asm module emit.
 #
-# Intended callers (after ABI parity): rt_prefer_try_x_to_o / g05_try_x_to_o.
-# Current product hybrid still uses -E+$CC — pure-asm thin merge into
-# runtime_driver_no_c.o has residual link (xlang_panic_/__error) or runtime
-# SIGSEGV on Darwin pure-ld. Inventory/probes may call this helper directly.
+# Callers (Stage 12.0.5 opt-in): rt_prefer_try_x_to_o / labi_prefer_try_x_to_o /
+# g05_try_x_to_o try this first when XLANG_PREFER_ASM_O=1, then fall through to
+# -E+$CC on reject/fail. Default flag unset = zero product regression.
+# Residual: full product hybrid under PREFER_ASM_O still needs dual-end L2
+# proof before any default-on flip (prior Darwin pure-ld panic / SIGSEGV).
 #
 # When XLANG_PREFER_ASM_O=1: run `$XLANG -backend asm -c` via a staged `*.o`
 #   path (driver only emits relocatable objects when OUT ends with `.o`;
