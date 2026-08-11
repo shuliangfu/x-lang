@@ -28816,7 +28816,8 @@ export function pipeline_asm_emit_as_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
 //   label_len[64]@8452 (256B)
 //   label[64][24]@8708 (1536B)
 //   init_imm[64]@10244 (256B)
-//   total 10500B
+//   cell_size[64]@10500 (256B) — Stage 12.0.5: COMMON payload bytes (8 scalar; N array)
+//   total 10756B
 // Cap residual: top_level is_const/type_ref + common_sym + enc load/store/mov +
 //   hoist_target + let_init_stack_reserve + asm_ctx local faces + pipe module/arena
 //   num getters (LP64).
@@ -28827,7 +28828,8 @@ export function pipeline_asm_emit_as_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
 
 // wave139: modlet shared mutable cell table (max 64). Reset each mega emit.
 // PLATFORM: SHARED - layout matches host-cc pipeline_asm_modlet_table_t.
-let g_pipeline_asm_modlet: u8[10500] = [];
+// Stage 12.0.5: +cell_size[64] so TYPE_ARRAY module lets emit full COMMON (not stack).
+let g_pipeline_asm_modlet: u8[10756] = [];
 
 function pipe_modlet_off_n(): i32 {
   return 0;
@@ -28851,6 +28853,16 @@ function pipe_modlet_off_label(i: i32): i32 {
 
 function pipe_modlet_off_init_imm(i: i32): i32 {
   return 10244 + (i * 4);
+}
+
+/**
+ * Byte offset of cell_size[i] in the modlet table (COMMON payload size).
+ * @param i i32 — table index 0..63
+ * @return i32 — byte offset within g_pipeline_asm_modlet
+ * PLATFORM: SHARED — LP64 table layout Stage 12.0.5.
+ */
+function pipe_modlet_off_cell_size(i: i32): i32 {
+  return 10500 + (i * 4);
 }
 
 function pipe_modlet_get_n(): i32 {
@@ -29041,13 +29053,19 @@ function pipeline_asm_modlet_lea_rbx_arch(elf_ctx: *u8, idx: i32, ta: i32): i32 
 
 /**
  * Load a shared modlet cell into rax/x0.
+ * Scalar cells (cell_size<=8): LEA base then load qword (value).
+ * Array/blob cells (cell_size>8): LEA base then mov base→rax (address decay).
+ *   Fixed TYPE_ARRAY module lets need the address for INDEX/`&arr[0]`/call args;
+ *   loading the first qword would be wrong and was never used for array bases.
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param name *u8 - modlet name
  * @param name_len i32 - length
  * @param ta i32 - target arch
  * @return i32 - 0 ok; -1 miss/null/bad arch
  * wave139 pure: G.7 authority (was static load_to_rax_elf_c).
- * Cap residual: backend_enc_load_qword_from_rbx_to_rax_arch (x86) + append_bytes (arm64 ldr).
+ * Stage 12.0.5: cell_size>8 LEA-only (labi_path_pure g_labi_* fixed arrays).
+ * Cap residual: backend_enc_load_qword_from_rbx_to_rax_arch (x86) + append_bytes (arm64 ldr)
+ *   + backend_enc_mov_rbx_to_rax_arch (array decay).
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -29061,6 +29079,18 @@ export function pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx: *u8, name: *u8, n
   }
   if (pipeline_asm_modlet_lea_rbx_arch(elf_ctx, idx, ta) != 0) {
     return 0 - 1;
+  }
+  // Array/blob COMMON: return address in rax (C array decay), do not load payload.
+  // Scalar lit cells always cell_size==8 (wave139). Arrays use real payload size
+  // (1, 512, 4096, …). cell_size!=8 ⇒ LEA-only. Edge: TYPE_ARRAY of exactly 8
+  // bytes collides with scalar and would load — rare; path_pure has no such cells.
+  let csz: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(idx));
+  if (csz != 8) {
+    let rc_arr: i32 = 0;
+    unsafe {
+      rc_arr = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+    }
+    return rc_arr;
   }
   if (ta == 1) {
     // ldr x0, [x1] = 0xf9400020
@@ -29113,14 +29143,22 @@ export function pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx: *u8, name: *u8
 }
 
 /**
- * Build the modlet table and emit SHN_COMMON symbols for module mutable lit lets.
+ * Build the modlet table and emit SHN_COMMON symbols for module mutable lets.
+ * Accepts:
+ *   (1) scalar LIT/BOOL init (kind 0/2) → 8-byte COMMON (historic wave139)
+ *   (2) fixed TYPE_ARRAY (kind 10) with ARRAY_LIT init (kind 46), e.g. `u8[N]=[]`
+ *       → COMMON of full array payload bytes (Stage 12.0.5)
+ * Without (2), pure-asm stacked every module array into each function frame
+ * (~sum of all g_labi_* buffers per call) → stack overflow / dangling path
+ * returns (labi_path_pure hybrid SEGV on opt/si/hello).
  * @param m *u8 - Module*
  * @param a *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param ta i32 - target arch
  * @return i32 - 0 ok (incl no-op); -1 COMMON emit fail
  * wave139 pure: G.7 authority (was static prepare_and_emit_elf_c).
- * Cap residual: top_level readers + expr_kind/int_val + common_sym + pipe nlets/nexprs.
+ * Cap residual: top_level readers + expr_kind/int_val + type_kind/array size +
+ *   common_sym + fixed_array_total_bytes + pipe nlets/nexprs.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -29167,9 +29205,43 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
     unsafe {
       init_kind = pipeline_expr_kind_ord_at(a, init_ref);
     }
-    if (init_kind != 0 && init_kind != 2) {
-      tl = tl + 1;
-      continue;
+    // Classify: scalar lit (0/2) vs fixed array empty/filled ARRAY_LIT (46).
+    let cell_sz: i32 = 8;
+    let imm: i32 = 0;
+    let type_ref: i32 = 0;
+    unsafe {
+      type_ref = pipeline_module_top_level_let_type_ref(m, tl);
+    }
+    let tk: i32 = 0;
+    if (type_ref > 0) {
+      unsafe {
+        tk = pipeline_type_kind_ord_at(a, type_ref);
+      }
+    }
+    if (init_kind == 0 || init_kind == 2) {
+      unsafe {
+        imm = pipeline_expr_int_val_at(a, init_ref);
+      }
+      cell_sz = 8;
+    } else {
+      // TYPE_ARRAY (10) + ARRAY_LIT (46): durable BSS for module path buffers etc.
+      if (tk != 10 || init_kind != 46) {
+        tl = tl + 1;
+        continue;
+      }
+      unsafe {
+        cell_sz = glue_fixed_array_total_bytes_c(a, type_ref, 0);
+      }
+      if (cell_sz <= 0) {
+        tl = tl + 1;
+        continue;
+      }
+      // Cap residual guard: absurd sizes must not create giant COMMON.
+      if (cell_sz > 1048576) {
+        tl = tl + 1;
+        continue;
+      }
+      imm = 0;
     }
     let idx: i32 = pipe_modlet_get_n();
     pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_name_len(idx), name_len);
@@ -29183,11 +29255,8 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
       }
       k = k + 1;
     }
-    let imm: i32 = 0;
-    unsafe {
-      imm = pipeline_expr_int_val_at(a, init_ref);
-    }
     pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(idx), imm);
+    pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(idx), cell_sz);
     // Symbol: Lxlang_ml_<idx>
     let llen: i32 = 0;
     let lbase: i32 = pipe_modlet_off_label(idx);
@@ -29241,9 +29310,29 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
   while (i < nn) {
     let llen2: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(i));
     let lbase2: i32 = pipe_modlet_off_label(i);
+    let csz2: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(i));
+    if (csz2 <= 0) {
+      csz2 = 8;
+    }
+    let calign: i32 = 8;
+    if (csz2 == 1) {
+      calign = 1;
+    } else {
+      if (csz2 == 2) {
+        calign = 2;
+      } else {
+        if (csz2 == 4) {
+          calign = 4;
+        } else {
+          if (csz2 >= 16) {
+            calign = 16;
+          }
+        }
+      }
+    }
     let rc: i32 = 0;
     unsafe {
-      rc = pipeline_elf_ctx_add_common_sym(elf_ctx, &g_pipeline_asm_modlet[lbase2], llen2, 8, 8);
+      rc = pipeline_elf_ctx_add_common_sym(elf_ctx, &g_pipeline_asm_modlet[lbase2], llen2, csz2, calign);
     }
     if (rc != 0) {
       return 0 - 1;
@@ -29363,6 +29452,21 @@ export function pipeline_asm_register_module_top_level_lets_c(ctx: *u8, m: *u8, 
       type_ref = pipeline_module_top_level_let_type_ref(m, tl);
       init_ref = pipeline_module_top_level_let_init_ref(m, tl);
       is_const = pipeline_module_top_level_let_is_const(m, tl);
+    }
+    // Stage 12.0.5: fixed array module lets → COMMON only (TYPE_ARRAY or ARRAY_LIT init).
+    if (type_ref > 0) {
+      let tk_arr: i32 = 0;
+      let ik_arr: i32 = 0;
+      unsafe {
+        tk_arr = pipeline_type_kind_ord_at(a, type_ref);
+        if (init_ref > 0 && init_ref <= nexprs) {
+          ik_arr = pipeline_expr_kind_ord_at(a, init_ref);
+        }
+      }
+      if (tk_arr == 10 || ik_arr == 46) {
+        tl = tl + 1;
+        continue;
+      }
     }
     if (is_const != 0 && init_ref > 0 && init_ref <= nexprs) {
       let init_kind: i32 = 0;
@@ -29913,8 +30017,12 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
       pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
       off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
     }
+    // Stage 12.0.5: module fixed arrays live in SHN_COMMON modlet cells (no stack
+    // slot after register/sum skip). Accept modlet hit so eff_addr can LEA COMMON.
     if (off < 0) {
-      return 0 - 99;
+      if (pipeline_asm_modlet_find(&vname[0], vlen) < 0) {
+        return 0 - 99;
+      }
     }
   }
   let hit: i32 = 0;
@@ -38514,14 +38622,21 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
         pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
         off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
       }
+      // Stage 12.0.5: COMMON module arrays — no stack slot; LEA via modlet.
       if (off < 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, off, ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
+        unsafe {
+          rc = pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx, &vname[0], vlen, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      } else {
+        unsafe {
+          rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, off, ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
       }
     } else {
       unsafe {
@@ -58339,7 +58454,23 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
     unsafe {
       boff = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
     }
+    // Stage 12.0.5: module fixed arrays → SHN_COMMON modlet (no stack).
+    // LEA address into rax for INDEX base (load_to_rax decays arrays).
     if (boff < 0) {
+      let vn: u8[128] = [];
+      let vnlen: i32 = 0;
+      unsafe {
+        vnlen = pipeline_expr_var_name_len(arena, base_ref);
+      }
+      if (vnlen <= 0 || vnlen > 127) {
+        return 0 - 2;
+      }
+      unsafe {
+        pipeline_expr_var_name_into(arena, base_ref, &vn[0]);
+        if (pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx, &vn[0], vnlen, ta) == 0) {
+          return 0;
+        }
+      }
       return 0 - 2;
     }
     // TYPE_SLICE base → array data pointer in rax.
@@ -72544,6 +72675,17 @@ export function pipeline_asm_hoist_target_func_index(module: *u8): i32 {
  * Hoist module top-level let/const into main (or first non-extern body) for asm
  * stack-slot init. Keeps num_top_level_lets so emit can still fall back to
  * module const literals for other functions.
+ *
+ * Stage 12.0.5: do NOT hoist fixed TYPE_ARRAY module lets (ARRAY_LIT init).
+ * Those become SHN_COMMON via pipeline_asm_modlet_prepare_and_emit_elf_c;
+ * hoisting them into main body stacked full payload on the hoist-target frame
+ * (labi_path_pure g_labi_* ~sum N*2 via slot+reserve) while COMMON already
+ * held the durable home — dual stack/BSS and SEGV on large modules.
+ * Non-hoist functions already skip these via sum/register; main was the hole.
+ *
+ * prepend_lets count must equal the number actually appended (not raw n), else
+ * skipped COMMON arrays would desync stmt_order vs block lets.
+ *
  * @param module *u8 - module
  * @param arena *u8 - ASTArena
  * @return void
@@ -72601,35 +72743,59 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
   unsafe {
     let_start_idx = ast_ast_block_num_lets(arena, br);
   }
+  let nexprs: i32 = pipe_load_i32_le(arena, pipe_arena_off_num_exprs());
+  let hoisted: i32 = 0;
   let tl: i32 = 0;
   while (tl < n) {
     let name_len: i32 = pipeline_module_top_level_let_name_len(module, tl);
     if (name_len > 0) {
       if (name_len <= 127) {
-        let name_buf: u8[128] = [];
-        let k: i32 = 0;
-        while (k < name_len) {
-          name_buf[k] = pipeline_module_top_level_let_name_byte_at(module, tl, k) as u8;
-          k = k + 1;
-        }
         let type_ref: i32 = pipeline_module_top_level_let_type_ref(module, tl);
         let init_ref: i32 = pipeline_module_top_level_let_init_ref(module, tl);
-        unsafe {
-          let _al: i32 = pipeline_block_append_let(arena, br, &name_buf[0], name_len, type_ref, init_ref);
+        // Skip COMMON-bound fixed arrays (match prepare/sum/register).
+        let skip_common_arr: i32 = 0;
+        if (type_ref > 0) {
+          let tk_h: i32 = 0;
+          let ik_h: i32 = 0;
+          unsafe {
+            tk_h = pipeline_type_kind_ord_at(arena, type_ref);
+            if (init_ref > 0 && init_ref <= nexprs) {
+              ik_h = pipeline_expr_kind_ord_at(arena, init_ref);
+            }
+          }
+          if (tk_h == 10 || ik_h == 46) {
+            skip_common_arr = 1;
+          }
+        }
+        if (skip_common_arr == 0) {
+          let name_buf: u8[128] = [];
+          let k: i32 = 0;
+          while (k < name_len) {
+            name_buf[k] = pipeline_module_top_level_let_name_byte_at(module, tl, k) as u8;
+            k = k + 1;
+          }
+          unsafe {
+            let _al: i32 = pipeline_block_append_let(arena, br, &name_buf[0], name_len, type_ref, init_ref);
+          }
+          hoisted = hoisted + 1;
         }
       }
     }
     tl = tl + 1;
   }
-  unsafe {
-    pipeline_block_stmt_order_prepend_lets(arena, br, let_start_idx, n);
+  if (hoisted > 0) {
+    unsafe {
+      pipeline_block_stmt_order_prepend_lets(arena, br, let_start_idx, hoisted);
+    }
   }
 }
 
 /**
  * Accumulate stack occupancy of module top-level let/const slots for non-hoist
- * target functions (frame_size estimate). Shared modlet cells live in .text and
- * are skipped.
+ * target functions (frame_size estimate). Skipped (never per-func stack):
+ *   · shared modlet cells (scalar lit COMMON / text cells)
+ *   · fixed TYPE_ARRAY module lets (Stage 12.0.5: full COMMON via prepare;
+ *     stacking them once per function blew frames by sum(g_labi_* ) ~160KB)
  * @param arena *u8 - ASTArena
  * @param mod *u8 - module
  * @param off i32 - incoming frame offset
@@ -72654,9 +72820,24 @@ export function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u
   while (tl < n) {
     let type_ref: i32 = pipeline_module_top_level_let_type_ref(mod, tl);
     if (type_ref > 0) {
-      let name_len: i32 = pipeline_module_top_level_let_name_len(mod, tl);
       let skip: i32 = 0;
-      if (name_len > 0) {
+      let init_ref: i32 = pipeline_module_top_level_let_init_ref(mod, tl);
+      // Stage 12.0.5: module fixed arrays → COMMON via prepare (never per-func stack).
+      // Skip when TYPE_ARRAY (10) OR ARRAY_LIT init (46) — dual signal; type_kind alone
+      // can miss when top_level type_ref is not yet stamped ARRAY at sum time.
+      let tk: i32 = 0;
+      let ik: i32 = 0;
+      unsafe {
+        tk = pipeline_type_kind_ord_at(arena, type_ref);
+        if (init_ref > 0) {
+          ik = pipeline_expr_kind_ord_at(arena, init_ref);
+        }
+      }
+      if (tk == 10 || ik == 46) {
+        skip = 1;
+      }
+      let name_len: i32 = pipeline_module_top_level_let_name_len(mod, tl);
+      if (skip == 0 && name_len > 0) {
         let name_buf: u8[128] = [];
         let k: i32 = 0;
         while (k < name_len) {
@@ -72668,7 +72849,6 @@ export function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u
         }
       }
       if (skip == 0) {
-        let init_ref: i32 = pipeline_module_top_level_let_init_ref(mod, tl);
         let off_slot: i32[1] = [];
         off_slot[0] = cur;
         unsafe {

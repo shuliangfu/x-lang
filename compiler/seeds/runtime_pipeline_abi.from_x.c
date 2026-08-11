@@ -12731,6 +12731,8 @@ typedef struct {
   int32_t label_len[XLANG_ASM_MODLET_MAX];
   uint8_t label[XLANG_ASM_MODLET_MAX][24];
   int32_t init_imm[XLANG_ASM_MODLET_MAX];
+  /* Stage 12.0.5: COMMON payload size (8 scalar; N for TYPE_ARRAY module lets). */
+  int32_t cell_size[XLANG_ASM_MODLET_MAX];
 } pipeline_asm_modlet_table_t;
 
 static pipeline_asm_modlet_table_t g_pipeline_asm_modlet_cold;
@@ -12852,6 +12854,7 @@ static int32_t pipeline_asm_modlet_lea_rbx_arch_cold(void *elf_ctx, int32_t idx,
 
 int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
   int32_t idx;
+  int32_t csz;
   if ((ta != 0 && ta != 1) || !elf_ctx)
     return -1;
   idx = pipeline_asm_modlet_find_cold(name, name_len);
@@ -12859,6 +12862,11 @@ int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int3
     return -1;
   if (pipeline_asm_modlet_lea_rbx_arch_cold(elf_ctx, idx, ta) != 0)
     return -1;
+  /* Stage 12.0.5: array/blob COMMON → address decay (mov base→rax), not load.
+   * Scalar lit cells are always cell_size==8; arrays use real payload size. */
+  csz = g_pipeline_asm_modlet_cold.cell_size[idx];
+  if (csz != 8)
+    return backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
   if (ta == 1) {
     uint8_t ldr4[4];
     ldr4[0] = 0x20; ldr4[1] = 0x00; ldr4[2] = 0x40; ldr4[3] = 0xf9;
@@ -12888,6 +12896,12 @@ static int32_t cold_arena_num_exprs(void *a) {
   if (!a) return 0;
   return *(int32_t *)((uint8_t *)a + 4);
 }
+/* Cap residual faces used by Stage 12.0.5 TYPE_ARRAY modlet prepare (cold twin). */
+extern int32_t pipeline_module_top_level_let_type_ref(void *m, int32_t tl);
+extern int32_t pipeline_type_kind_ord_at(void *a, int32_t type_ref);
+extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
+extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
+
 int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_ctx, int32_t ta) {
   int32_t tl, n, i;
   pipeline_asm_modlet_reset_cold();
@@ -12896,6 +12910,7 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
   n = cold_mod_num_top_level_lets(m);
   for (tl = 0; tl < n; tl++) {
     int32_t name_len, init_ref, init_kind, k, is_const, idx;
+    int32_t type_ref, tk, cell_sz, imm;
     if (g_pipeline_asm_modlet_cold.n >= XLANG_ASM_MODLET_MAX)
       break;
     is_const = pipeline_module_top_level_let_is_const(m, tl);
@@ -12908,13 +12923,28 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
     if (init_ref <= 0 || init_ref > cold_arena_num_exprs(a))
       continue;
     init_kind = pipeline_expr_kind_ord_at(a, init_ref);
-    if (init_kind != 0 && init_kind != 2)
+    type_ref = pipeline_module_top_level_let_type_ref(m, tl);
+    tk = (type_ref > 0) ? pipeline_type_kind_ord_at(a, type_ref) : 0;
+    cell_sz = 8;
+    imm = 0;
+    if (init_kind == 0 || init_kind == 2) {
+      imm = pipeline_expr_int_val_at(a, init_ref);
+      cell_sz = 8;
+    } else if (tk == 10 && init_kind == 46) {
+      /* TYPE_ARRAY + ARRAY_LIT (e.g. u8[N]=[]): full COMMON payload. */
+      cell_sz = glue_fixed_array_total_bytes_c(a, type_ref, 0);
+      if (cell_sz <= 0 || cell_sz > 1048576)
+        continue;
+      imm = 0;
+    } else {
       continue;
+    }
     idx = g_pipeline_asm_modlet_cold.n;
     g_pipeline_asm_modlet_cold.name_len[idx] = name_len;
     for (k = 0; k < name_len; k++)
       g_pipeline_asm_modlet_cold.name[idx][k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
-    g_pipeline_asm_modlet_cold.init_imm[idx] = pipeline_expr_int_val_at(a, init_ref);
+    g_pipeline_asm_modlet_cold.init_imm[idx] = imm;
+    g_pipeline_asm_modlet_cold.cell_size[idx] = cell_sz;
     {
       int32_t llen = 0;
       const char *pfx = "Lxlang_ml_";
@@ -12941,8 +12971,20 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
     g_pipeline_asm_modlet_cold.n = idx + 1;
   }
   for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
+    int32_t csz = g_pipeline_asm_modlet_cold.cell_size[i];
+    int32_t calign = 8;
+    if (csz <= 0)
+      csz = 8;
+    if (csz == 1)
+      calign = 1;
+    else if (csz == 2)
+      calign = 2;
+    else if (csz == 4)
+      calign = 4;
+    else if (csz >= 16)
+      calign = 16;
     if (pipeline_elf_ctx_add_common_sym((uint8_t *)elf_ctx, g_pipeline_asm_modlet_cold.label[i],
-                                        g_pipeline_asm_modlet_cold.label_len[i], 8, 8) != 0)
+                                        g_pipeline_asm_modlet_cold.label_len[i], csz, calign) != 0)
       return -1;
   }
   return 0;
@@ -12993,6 +13035,15 @@ void pipeline_asm_register_module_top_level_lets_c(void *ctx, void *m, void *a, 
     type_ref = pipeline_module_top_level_let_type_ref(m, tl);
     init_ref = pipeline_module_top_level_let_init_ref(m, tl);
     is_const = pipeline_module_top_level_let_is_const(m, tl);
+    /* Stage 12.0.5: TYPE_ARRAY / ARRAY_LIT module lets → COMMON only (not stack). */
+    if (type_ref > 0) {
+      int32_t tk_arr = pipeline_type_kind_ord_at(a, type_ref);
+      int32_t ik_arr = 0;
+      if (init_ref > 0 && init_ref <= cold_arena_num_exprs(a))
+        ik_arr = pipeline_expr_kind_ord_at(a, init_ref);
+      if (tk_arr == 10 || ik_arr == 46)
+        continue;
+    }
     if (is_const != 0 && init_ref > 0 && init_ref <= cold_arena_num_exprs(a)) {
       int32_t init_kind = pipeline_expr_kind_ord_at(a, init_ref);
       if (init_kind == 0 || init_kind == 2)
@@ -29150,10 +29201,68 @@ int32_t pipeline_module_top_level_name_is_const(void *module, uint8_t *vname, in
   return 0;
 }
 
-/* Cold freestanding: hoist/sum need Cap block/asm faces; product pure owns full path. */
+/*
+ * Cold twin of pure pipeline_module_hoist_top_level_lets_into_main.
+ * Stage 12.0.5: skip TYPE_ARRAY (10) / ARRAY_LIT (46) module lets — they are
+ * COMMON via modlet prepare; hoisting them stacked full payload on main.
+ * prepend count = actually appended (not raw n). Product pure owns full path
+ * when strong; cold must match so WEAK hybrid / freestanding stay aligned.
+ * PLATFORM: SHARED freestanding top_level hoist.
+ */
 void pipeline_module_hoist_top_level_lets_into_main(void *module, void *arena) {
-  (void)module;
-  (void)arena;
+  int32_t n, mi, br, let_start_idx, tl, hoisted, nexprs, name_len, type_ref, init_ref;
+  int32_t tk, ik, k;
+  uint8_t name_buf[128];
+  if (!module || !arena)
+    return;
+  n = cold_mod_num_top_level_lets(module);
+  if (n <= 0)
+    return;
+  mi = pipeline_module_main_func_index(module);
+  if (mi < 0) {
+    int32_t nf = pipeline_module_num_funcs(module);
+    int32_t fi;
+    mi = -1;
+    for (fi = 0; fi < nf; fi++) {
+      int32_t is_ext = pipeline_asm_module_func_is_extern_at(module, fi);
+      int32_t br0 = pipeline_module_func_body_ref_at(module, fi);
+      if (is_ext == 0 && br0 > 0) {
+        mi = fi;
+        break;
+      }
+    }
+    if (mi < 0)
+      return;
+  }
+  br = pipeline_module_func_body_ref_at(module, mi);
+  if (br <= 0)
+    return;
+  let_start_idx = ast_ast_block_num_lets(arena, br);
+  nexprs = cold_arena_num_exprs(arena);
+  hoisted = 0;
+  for (tl = 0; tl < n; tl++) {
+    name_len = pipeline_module_top_level_let_name_len(module, tl);
+    if (name_len <= 0 || name_len > 127)
+      continue;
+    type_ref = pipeline_module_top_level_let_type_ref(module, tl);
+    init_ref = pipeline_module_top_level_let_init_ref(module, tl);
+    tk = 0;
+    ik = 0;
+    if (type_ref > 0) {
+      tk = pipeline_type_kind_ord_at(arena, type_ref);
+      if (init_ref > 0 && init_ref <= nexprs)
+        ik = pipeline_expr_kind_ord_at(arena, init_ref);
+      if (tk == 10 || ik == 46)
+        continue;
+    }
+    for (k = 0; k < name_len; k++)
+      name_buf[k] = pipeline_module_top_level_let_name_byte_at(module, tl, k);
+    if (pipeline_block_append_let(arena, br, name_buf, name_len, type_ref, init_ref) < 0)
+      return;
+    hoisted++;
+  }
+  if (hoisted > 0)
+    pipeline_block_stmt_order_prepend_lets(arena, br, let_start_idx, hoisted);
 }
 
 int32_t pipeline_asm_hoist_target_func_index(void *module) {
