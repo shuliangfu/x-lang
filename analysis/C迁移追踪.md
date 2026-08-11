@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + L2-asm／tcpu／ldpc／async／other-l2／**R3 pure-asm hybrid 双端 5/5** · labi full12 hybrid 双端 5/5 · 授权仍拒默认（须用户明示）· 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + L2-asm／tcpu／ldpc／async／other-l2／R3 pure-asm hybrid 双端 5/5** · labi full12 hybrid 双端 5/5 · **rt pure-asm hybrid mac RED 0/5** · **B1–B3 pure-asm hybrid mac 全绿** · 授权仍拒默认（须用户明示）· 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -42,7 +42,7 @@
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
 | **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
-| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅** · **i32 VAR/call-ret/binop sxtw ✅** · **call-arg 栈序 ✅** · **INDEX `**T` 双剥皮闭 ✅** · **typeck_selfhost ndef 误判闭 ✅** · **`ONLY=` IN_NO_C 含 `rt_run_asm_backend` 真 L2 5/5 ✅** · **fixed-array bounds 无 U panic ✅** · **div/mod host-E 对等无 U panic ✅** · **labi pure_asm 12/12 ✅** · **labi full12 hybrid 双端 5/5 ✅**（mac + Ubuntu 金标 @ tip `6b6fcdd0c` · 单 slice RED×0 · 授权仍拒默认须用户明示）· **COMPILE residual pure_asm 13/13 ✅** · **L2-asm hybrid pure-asm 3/3 ✅** · **tcpu pure-asm hybrid 装链 ✅** · **ldpc pure-asm hybrid 装链 ✅**（objcopy --weaken 闭 multidef×3）· **other-l2 WEAK pure-asm hybrid 4/4 ✅**（含 fmt · seed `xlang_fmt_*` XLANG_WEAK）· **async pure-asm hybrid 3/3 双端 ✅ · **R3 pure-asm hybrid 9/9 双端 5/5**（ptr+int scale1 + opaque reject · Ubuntu pin soft recover + gold）** · **SEED_SLICE 不并 no_c** · **产品默认 PREFER_ASM 仍禁** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC`（pipeline_abi mega 等） |
+| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅** · **i32 VAR/call-ret/binop sxtw ✅** · **call-arg 栈序 ✅** · **INDEX `**T` 双剥皮闭 ✅** · **typeck_selfhost ndef 误判闭 ✅** · **`ONLY=` IN_NO_C 含 `rt_run_asm_backend` 真 L2 5/5 ✅** · **fixed-array bounds 无 U panic ✅** · **div/mod host-E 对等无 U panic ✅** · **labi pure_asm 12/12 ✅** · **labi full12 hybrid 双端 5/5 ✅**（mac + Ubuntu 金标 @ tip `6b6fcdd0c` · 单 slice RED×0 · 授权仍拒默认须用户明示）· **COMPILE residual pure_asm 13/13 ✅** · **L2-asm hybrid pure-asm 3/3 ✅** · **tcpu pure-asm hybrid 装链 ✅** · **ldpc pure-asm hybrid 装链 ✅**（objcopy --weaken 闭 multidef×3）· **other-l2 WEAK pure-asm hybrid 4/4 ✅**（含 fmt · seed `xlang_fmt_*` XLANG_WEAK）· **async pure-asm hybrid 3/3 双端 ✅** · **R3 pure-asm hybrid 9/9 双端 5/5**（ptr+int scale1 + opaque reject · Ubuntu pin soft recover + gold）· **rt pure-asm hybrid mac 地图：独立 pure_asm 23/23 · pure-ld OK · matrix 0/5 rc=254 · restore -E 5/5** · **B1 runtime-os／B2 std-core／B3 lsp-sat pure-asm hybrid mac 全绿** · **SEED_SLICE 不并 no_c** · **产品默认 PREFER_ASM 仍禁** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC`（pipeline_abi mega 等） |
 | **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
@@ -2065,7 +2065,21 @@
     - 日志 mac `/tmp/xlang_async_pure_asm_hybrid_*.log` · Ubuntu `/tmp/ubu_async_pure_asm_hybrid_190ab4eb3_20260812_022411.log`  
     - ensure 头注释钉 Stage12.0.5 pure-asm hybrid 双端闭 · **产品默认仍 -E**  
   - **labi full12 hybrid 双端 5/5 ✅（2026-08-12）** · 授权仍拒默认化（须用户明示「授权 labi-only PREFER」）  
-  - 下一步：用户明示后 labi-only PREFER 授权设计／实施 · r3／rt／B1–B3 COMPILE residual hybrid 地图 · pipeline_abi mega 仍禁 pure-asm
+  - **rt pure-asm hybrid 地图（mac · 2026-08-12 · tip `7ca063e81`）🟡 RED hybrid**：  
+    - 配方：`PREFER_ASM_O=1`+`HOST_CC_SEED_FORCE=1` FORCE `try-rt-prefer` multi-slice → unset PREFER → soft g05 pure-ld → matrix → restore -E  
+    - pure_asm 独立 **23/23** OK · hybrid `runtime_driver_no_c.o` **131616→184080**（Δ+52464）· pure-ld **OK** · xlang 装链成功  
+    - **hybrid matrix 0/5**：五探针 **BUILD FAIL rc=254**（空 stderr；`-o` 失败）  
+    - restore -E no_c **131616** · matrix **5/5**  
+    - 日志 `/tmp/xlang_rt_pure_asm_hybrid_true_7ca063e81_*.log` · `/tmp/xlang_rt_pure_asm_hybrid_7ca063e81_*.log`  
+    - **产品默认仍 -E** · **禁** rt multi-slice PREFER 默认化 · **Ubuntu 金标待复验**（本波 SSH 金标机不可达）  
+  - **B1–B3 pure-asm hybrid 地图（mac · 2026-08-12 · tip `7ca063e81`）✅**：  
+    - 配方同 residual：`PREFER_ASM_O=1`+FORCE prefer → unset → soft g05 → matrix → restore -E  
+    - **B1** `try-runtime-os-prefer` ×23：prefer pure-asm **23/23** · hybrid matrix **5/5** · restore **5/5**（多叶不在 pure-ld 58；装链探针绿）  
+    - **B2** `try-std-core-prefer` ×5（path／runtime／slice／process／net）：prefer **5/5** · hybrid **5/5** · restore **5/5**  
+    - **B3** `try-lsp-sat-prefer` ×2（sizes_nostub／stubs_no_c）：prefer **2/2** · hybrid **5/5** · restore **5/5**  
+    - 日志 `/tmp/xlang_b1b2b3_pure_asm_hybrid_7ca063e81_20260812_054531.log`  
+    - **产品默认仍 -E** · pipeline_abi mega 仍禁 pure-asm  
+  - 下一步：rt hybrid 0/5 根因（`ONLY=` 二分／rc=254）· Ubuntu 金标复验 · 用户明示后 labi-only PREFER 授权 · pipeline_abi mega 仍禁 pure-asm
 
 
 
