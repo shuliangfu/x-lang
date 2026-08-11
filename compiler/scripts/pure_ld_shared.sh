@@ -328,12 +328,13 @@ pure_asm_x_to_o() {
   if "$xl" -backend asm -c -o "$_pure_asm_stage" "$src" 2>/dev/null \
     && [ -s "$_pure_asm_stage" ]; then
     # Product g05 pure-ld surface guard (Stage 12.0.5 residual):
-    # · asm bounds checks emit U xlang_panic_ — not always in g05 freestanding
-    #   object set (runtime_panic.o is user-domain cold twin, not host link).
-    # · some modules emit bare U __error; Darwin libSystem provides ___error
-    #   (C -E path). Bare __error breaks pure-ld.
+    # · asm bounds checks emit U xlang_panic_ — not in g05 freestanding bag
+    #   (runtime_panic.o is user-domain cold twin; g05 has no T xlang_panic_).
+    # · bare U __error was Darwin mangling miss (fixed Stage 12.0.5: always
+    #   prepend '_' so C __error → ___error). Keep reject as safety net if any
+    #   residual path still emits unmangled __error.
     # Reject → caller falls back to -E+$CC (zero product regression).
-    # PLATFORM: SHARED reject list; Darwin ___error vs __error noted above.
+    # PLATFORM: SHARED reject list.
     if nm -u "$_pure_asm_stage" 2>/dev/null | grep -E 'xlang_panic|^__error$' >/dev/null 2>&1; then
       rm -f "$_pure_asm_stage"
       return 1

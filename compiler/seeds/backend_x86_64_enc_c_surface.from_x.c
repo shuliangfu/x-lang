@@ -1227,8 +1227,10 @@ int32_t arch_x86_64_enc_enc_call(uint8_t * elf_ctx, uint8_t * name, int32_t name
   }
   {
     int32_t rel32_at = (pipeline_elf_ctx_emit_code_len(elf_ctx) - 4);
-    /* wave580 Cap: rn u8[128] holds '_' + up to 127 content (was 63). PLATFORM: MACOS|DARWIN. */
-    if (((((pipeline_elf_ctx_macho_leading_underscore(elf_ctx) !=0) && (name_len > 0)) && (name_len <=127)) && ((name)[0] !=95))) {
+    /* wave580 Cap: rn u8[128] holds '_' + up to 127 content (was 63). PLATFORM: MACOS|DARWIN.
+     * Stage 12.0.5 ABI: always prepend '_' even when C name starts with '_'
+     * (__error → ___error). Do not skip on name[0]=='_'. */
+    if (((((pipeline_elf_ctx_macho_leading_underscore(elf_ctx) !=0) && (name_len > 0)) && (name_len <=127)))) {
       uint8_t rn[128] = {0};
       (void)(((rn)[0] = 95));
       int32_t k = 0;

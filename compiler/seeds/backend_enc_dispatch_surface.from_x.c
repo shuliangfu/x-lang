@@ -251,23 +251,21 @@ int32_t backend_enc_arm64_call_c(uint8_t * elf_ctx, uint8_t * name, int32_t name
     if ((at < 0)) {
       return (0 - 1);
     }
-    if ((macho !=0)) {
-      if ((name_len <=127)) {
-        if (((name)[0] !=95)) {
-          uint8_t reloc_name[128] = {};
-          (void)(((reloc_name)[0] = 95));
-          int32_t i = 0;
-          while ((i < name_len)) {
-            if ((i >=127)) {
-              break;
-            }
-            (void)(((reloc_name)[(i + 1)] = (name)[i]));
-            (void)((i = (i + 1)));
-          }
-          int32_t reloc_len = (name_len + 1);
-          return pipeline_elf_ctx_append_reloc(elf_ctx, at, &((reloc_name)[0]), reloc_len);
+    /* Stage 12.0.5 ABI: always prepend '_' on Darwin (even if C name starts with
+     * '_', e.g. __error → ___error). Do not skip on name[0]=='_'. */
+    if (((macho !=0) && (name_len <=127))) {
+      uint8_t reloc_name[128] = {};
+      (void)(((reloc_name)[0] = 95));
+      int32_t i = 0;
+      while ((i < name_len)) {
+        if ((i >=127)) {
+          break;
         }
+        (void)(((reloc_name)[(i + 1)] = (name)[i]));
+        (void)((i = (i + 1)));
       }
+      int32_t reloc_len = (name_len + 1);
+      return pipeline_elf_ctx_append_reloc(elf_ctx, at, &((reloc_name)[0]), reloc_len);
     }
     return pipeline_elf_ctx_append_reloc(elf_ctx, at, name, name_len);
   }

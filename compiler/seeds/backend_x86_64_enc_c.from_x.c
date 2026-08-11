@@ -1153,8 +1153,10 @@ int32_t arch_x86_64_enc_enc_call(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
   if (x86_enc_u32_le(elf_ctx, 0) != 0) return -1;
   rel32_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
   /* wave580 Cap: rn u8[128] holds '_' + up to 127 content (was 63).
-   * PLATFORM: MACOS|DARWIN x86_64 call reloc. */
-  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 127 && name[0] != 95) {
+   * PLATFORM: MACOS|DARWIN x86_64 call reloc.
+   * Stage 12.0.5 ABI: always prepend '_' even when C name starts with '_'
+   * (__error → ___error). Do not skip on name[0]=='_'. */
+  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 127) {
     rn[0] = 95; k = 0;
     while (k < name_len && k < 127) { rn[k + 1] = name[k]; k = k + 1; }
     return pipeline_elf_ctx_append_reloc(cb, rel32_at, rn, name_len + 1);

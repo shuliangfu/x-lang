@@ -1430,11 +1430,13 @@ export function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32)
   if (x86_enc_u32_le(elf_ctx, 0) != 0) { return 0 - 1; }
   unsafe {
     let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
-    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+    // PLATFORM: MACOS|DARWIN — always prepend '_' for C call names (even if the
+    // C name itself starts with '_', e.g. __error → ___error). Stage 12.0.5.
+    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 127) {
       let rn: u8[128] = [0];
       rn[0] = 95;
       let k: i32 = 0;
-      while (k < name_len && k < 63) {
+      while (k < name_len && k < 127) {
         rn[k + 1] = name[k];
         k = k + 1;
       }

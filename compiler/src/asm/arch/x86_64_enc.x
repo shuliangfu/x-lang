@@ -1238,11 +1238,13 @@ export function enc_call(ctx: *ElfCodegenCtx, name: u8[128], name_len: i32): i32
   if (enc_u32_le(ctx, 0) != 0) { return -1; }
   let rel32_at: i32 = ctx.code_len - 4;
 /** See implementation for details. */
-  if (ctx.macho_leading_underscore != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+  // PLATFORM: MACOS|DARWIN — always prepend '_' for C call names.
+  // Must not skip when name[0]=='_' (__error → ___error). Stage 12.0.5 ABI.
+  if (ctx.macho_leading_underscore != 0 && name_len > 0 && name_len <= 127) {
     let rn: u8[128] = [];
     rn[0] = 95;
     let k: i32 = 0;
-    while (k < name_len && k < 63) {
+    while (k < name_len && k < 127) {
       rn[k + 1] = name[k];
       k = k + 1;
     }

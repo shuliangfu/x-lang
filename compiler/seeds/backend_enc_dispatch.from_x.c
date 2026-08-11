@@ -274,9 +274,11 @@ int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
   /* wave580 Cap residual: NEVER hardcode ElfCodegenCtx field offsets (598052 was
    * pre-Cap name[64]; after name[128] tables, offsetof is ~9e6). G.7 authority =
    * pipeline_elf_ctx_macho_leading_underscore (ast_pool offsetof).
-   * PLATFORM: MACOS|DARWIN arm64 BL reloc; LINUX flag stays 0. */
+   * PLATFORM: MACOS|DARWIN arm64 BL reloc; LINUX flag stays 0.
+   * Stage 12.0.5 ABI: always prepend '_' for C call names. Do NOT skip when
+   * name[0]=='_' — C reserved names like __error must become ___error (host cc). */
   macho_leading_underscore = pipeline_elf_ctx_macho_leading_underscore((uint8_t *)elf_ctx);
-  if (macho_leading_underscore != 0 && name_len > 0 && name_len <= 127 && name[0] != (uint8_t)'_') {
+  if (macho_leading_underscore != 0 && name_len > 0 && name_len <= 127) {
     reloc_name[0] = (uint8_t)'_';
     for (i = 0; i < name_len && i < 127; i++)
       reloc_name[i + 1] = name[i];
