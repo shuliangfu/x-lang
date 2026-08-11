@@ -36473,6 +36473,8 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
   let mod: *u8 = 0 as *u8;
   let rc: i32 = 0;
   let store_off: i32 = 0;
+  let empty_array_zero: i32 = 0;
+  let lit_n: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0 || fty <= 0) {
     return 0 - 1;
   }
@@ -36485,7 +36487,9 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
       n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
     }
   }
-  if (n_arr <= 0 || n_arr > 1024) {
+  // Empty ARRAY_LIT `[]` has 0 elems; type size still supplies n_arr for zero-fill.
+  // Per-elem paths still cap at 1024; empty / zero-fill may be larger (skip body if huge).
+  if (n_arr <= 0) {
     return 0 - 1;
   }
   unsafe {
@@ -36503,64 +36507,83 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
     }
   }
 
+  // EXPR_ARRAY_LIT = 46.
+  // Empty `[]` ≡ product zero-init (host-C `{0}`) — fall through to wave363 zero path.
+  // Non-empty still uses vector_let_init (caps at 1024 elems).
+  // PLATFORM: SHARED freestanding — Stage 12.2.7 CG002 root (struct field `data: []`).
   if (iko == 46) {
-    if (sret_direct == 0) {
-      return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, field_mag);
-    }
     unsafe {
-      sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
+      lit_n = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
     }
-    ai = 0;
-    while (ai < n_arr) {
+    if (lit_n == 0) {
+      empty_array_zero = 1;
+    } else if (n_arr > 1024) {
+      return 0 - 1;
+    } else if (sret_direct == 0) {
+      return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, field_mag);
+    } else {
       unsafe {
-        elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+        sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
       }
-      if (elem_ref == 0) {
+      ai = 0;
+      while (ai < n_arr) {
+        unsafe {
+          elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+        }
+        if (elem_ref == 0) {
+          ai = ai + 1;
+          continue;
+        }
+        unsafe {
+          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_push_rax_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_load_rbp_to_rbx_arch(elf_ctx, sret_home, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + ai * esz, esz, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
         ai = ai + 1;
-        continue;
       }
-      unsafe {
-        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_push_rax_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_load_rbp_to_rbx_arch(elf_ctx, sret_home, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_pop_rax_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + ai * esz, esz, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      ai = ai + 1;
+      return 0;
     }
-    return 0;
   }
 
-  // wave363: let a: T[N] = 0 zero-fill
-  if (iko == 0) {
-    unsafe {
-      lit_v = pipeline_expr_int64_val_at(arena, init_ref);
+  // wave363: let a: T[N] = 0 zero-fill (+ empty ARRAY_LIT `[]` via empty_array_zero).
+  // n_arr > 1024: accept without per-elem stores (avoids multi-MiB instruction blast;
+  // product multi-MiB buffers use heap ensure / uninit+assign, not STRUCT_LIT zero).
+  if (iko == 0 || empty_array_zero != 0) {
+    if (empty_array_zero == 0) {
+      unsafe {
+        lit_v = pipeline_expr_int64_val_at(arena, init_ref);
+      }
+      if (lit_v != (0 as i64)) {
+        return 0 - 2;
+      }
     }
-    if (lit_v != (0 as i64)) {
-      return 0 - 2;
+    if (n_arr > 1024) {
+      return 0;
     }
     if (sret_direct == 0) {
       unsafe {

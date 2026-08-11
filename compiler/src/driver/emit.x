@@ -346,9 +346,14 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
   if (state.path_len >= 0 && state.path_len < 511) {
     state.path_buf[state.path_len] = 0 as u8;
   }
+  // PLATFORM: SHARED — freestanding asm CG002 root:
+  // PipelineDepCtx embeds multi-MiB arrays (loaded_buf / preprocess_buf). STRUCT_LIT
+  // with empty array fields (`entry_dir_buf: []`) and CodegenOutBuf `{ data: [], length: 0 }`
+  // (data-first mega field) fail asm emit (empty ARRAY_LIT + field_mag / MAX_ELEMS).
+  // Init only scalar fields via STRUCT_LIT; leave large array payloads uninit here —
+  // ew_ensure_source_buffers / field stores fill what the path needs.
   let ctx: PipelineDepCtx = PipelineDepCtx {
     ndep: 0,
-    entry_dir_buf: [],
     entry_dir_len: 0,
     num_lib_roots: 0
   };
@@ -395,7 +400,10 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
   }
   ctx.num_lib_roots = 0;
   emit_copy_lib_roots_to_ctx(emit_state_key(state), &ctx);
-  let out: CodegenOutBuf = CodegenOutBuf { data: [], length: 0 };
+  // CodegenOutBuf.data is u8[9MiB] first — STRUCT_LIT { length: 0 } still trips
+  // data-first mega-field path. Uninit + scalar field assign is the asm-safe form.
+  let out: CodegenOutBuf;
+  out.length = 0;
   let source_len: usize = out_len as usize;
   let prep_src: *u8 = ew_preprocess_buf_ptr(&ctx);
   let rc: i32 = 0;

@@ -776,19 +776,18 @@ out_cap: i32): i32 {
       - 1; }
     ti = ti + 1;
   }
-  /* See implementation. */
-  return 0;
-}
-} */
-if (pj < json_cap) { json_ptr[pj] = 93; pj = pj + 1; }
-if (pj < json_cap) { json_ptr[pj] = 125; pj = pj + 1; }
-if (pj < json_cap) { json_ptr[pj] = 125; pj = pj + 1; }
+  // Close JSON array and objects: data ]  result }  root }
+  if (pj < json_cap) { json_ptr[pj] = 93; pj = pj + 1; }
+  if (pj < json_cap) { json_ptr[pj] = 125; pj = pj + 1; }
+  if (pj < json_cap) { json_ptr[pj] = 125; pj = pj + 1; }
 
-let resp_len: i32 = pj;
-/* See implementation. */
-let ri: i32 = 0;
-while (ri < resp_len && ri < out_cap) { out_buf[ri] = json_ptr[ri]; ri = ri + 1; }
-std_heap_free(json_ptr);
-std_heap_free(token_data as *u8);
-return resp_len;
+  let resp_len: i32 = pj;
+  // Copy built JSON into caller buffer; free temporary allocations.
+  let ri: i32 = 0;
+  while (ri < resp_len && ri < out_cap) { out_buf[ri] = json_ptr[ri]; ri = ri + 1; }
+  std_heap_free(json_ptr);
+  std_heap_free(token_data as *u8);
+  return resp_len;
+  }
+  return 0;
 }

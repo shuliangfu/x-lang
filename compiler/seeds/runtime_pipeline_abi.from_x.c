@@ -17441,7 +17441,8 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(
   n_arr = pipeline_type_array_size_at(arena, fty);
   if (n_arr <= 0 && iko == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT)
     n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
-  if (n_arr <= 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
+  /* Empty ARRAY_LIT has 0 elems; type size still supplies n_arr for zero-fill. */
+  if (n_arr <= 0)
     return -1;
   elem_tr = pipeline_type_elem_ref_at(arena, fty);
   esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
@@ -17458,67 +17459,85 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(
       return -1;
   }
 
-  if (iko == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
-    if (sret_direct == 0) {
-      /* rbp-relative: write elems at arch-aware field mag (wave652 ≡ nest_slot). */
-      return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, field_mag);
-    }
-    /* SysV sret: dest base in [sret_home]; store each elem at foff + i*esz. */
-    for (ai = 0; ai < n_arr; ai++) {
-      int32_t elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
-      if (elem_ref == 0)
-        continue;
-      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta) != 0)
-        return -1;
-      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-      if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, pipeline_asm_emit_ctx_sret_home_off_get(), ta) != 0)
-        return -1;
-      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + ai * esz, esz, ta) != 0)
-        return -1;
-    }
-    return 0;
-  }
-
   /*
-   * wave363 Cap residual / tip L4: `let a: T[N] = 0` (and STRUCT_LIT field = 0).
-   * typeck coerces EXPR_LIT 0 onto TYPE_ARRAY (pipeline_typeck_coerce_init_lit_to_decl_c);
-   * host-C emits `= {0}`; freestanding previously returned -2 → CG002 num_funcs=0
-   * on Ubuntu gold (tests/array/main.x). Zero-fill each element into the inline slot.
-   * PLATFORM: SHARED freestanding · LINUX gold · only int_val==0 (product zero-init).
+   * Stage 12.2.7: empty ARRAY_LIT `[]` ≡ product zero-init (host-C `{0}`).
+   * vector_let_init rejects n_arr==0 → CG002 on struct fields like `data: []`.
+   * n_arr > MAX: accept without per-elem stores (multi-MiB STRUCT_LIT zero avoided).
+   * PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
    */
-  if (iko == (int32_t)ast_ExprKind_EXPR_LIT) {
-    int64_t lit_v = pipeline_expr_int64_val_at(arena, init_ref);
-    if (lit_v != 0)
-      return -2;
-    if (sret_direct == 0) {
-      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, field_mag, ta) != 0)
+  {
+    int32_t empty_array_zero = 0;
+    if (iko == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
+      int32_t lit_n = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+      if (lit_n == 0) {
+        empty_array_zero = 1;
+      } else if (n_arr > GLUE_ARRAY_LIT_MAX_ELEMS) {
         return -1;
-      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-        return -1;
+      } else if (sret_direct == 0) {
+        return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, field_mag);
+      } else {
+        /* SysV sret: dest base in [sret_home]; store each elem at foff + i*esz. */
+        for (ai = 0; ai < n_arr; ai++) {
+          int32_t elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+          if (elem_ref == 0)
+            continue;
+          if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+            return -1;
+          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+            return -1;
+          if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, pipeline_asm_emit_ctx_sret_home_off_get(), ta) != 0)
+            return -1;
+          if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + ai * esz, esz, ta) != 0)
+            return -1;
+        }
+        return 0;
+      }
+    }
+
+    /*
+     * wave363 Cap residual / tip L4: `let a: T[N] = 0` (and STRUCT_LIT field = 0 / empty []).
+     * typeck coerces EXPR_LIT 0 onto TYPE_ARRAY (pipeline_typeck_coerce_init_lit_to_decl_c);
+     * host-C emits `= {0}`; freestanding previously returned -2 → CG002 num_funcs=0
+     * on Ubuntu gold (tests/array/main.x). Zero-fill each element into the inline slot.
+     * PLATFORM: SHARED freestanding · LINUX gold · only int_val==0 (product zero-init).
+     */
+    if (iko == (int32_t)ast_ExprKind_EXPR_LIT || empty_array_zero != 0) {
+      if (empty_array_zero == 0) {
+        int64_t lit_v = pipeline_expr_int64_val_at(arena, init_ref);
+        if (lit_v != 0)
+          return -2;
+      }
+      if (n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
+        return 0;
+      if (sret_direct == 0) {
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, field_mag, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta) != 0)
+          return -1;
+        for (ai = 0; ai < n_arr; ai++) {
+          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
+            return -1;
+        }
+        return 0;
+      }
       if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta) != 0)
         return -1;
       for (ai = 0; ai < n_arr; ai++) {
-        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, pipeline_asm_emit_ctx_sret_home_off_get(), ta) != 0)
+          return -1;
+        if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + ai * esz, esz, ta) != 0)
           return -1;
       }
       return 0;
     }
-    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta) != 0)
-      return -1;
-    for (ai = 0; ai < n_arr; ai++) {
-      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-      if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, pipeline_asm_emit_ctx_sret_home_off_get(), ta) != 0)
-        return -1;
-      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + ai * esz, esz, ta) != 0)
-        return -1;
-    }
-    return 0;
   }
 
   /*

@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-11（Stage 12 零 cc：LINK／`.s`／forbid／STRING_LIT／**module const 嵌套 binop load**；钉盘仍 **`d79a368b2`**；**只改勾选与事实**，无波次流水）
+> **状态刷新**：2026-08-11（Stage 12 零 cc：LINK／`.s`／forbid／STRING_LIT／module const binop／**empty `[]` 字段 + emit/lsp_diag CG002**；钉盘仍 **`d79a368b2`**；**只改勾选与事实**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -1972,11 +1972,18 @@
   - 闭合：非首函数 `((A+B)+C)`／`W\|C\|T` 左结合路径；`src/runtime/rt_fs_open.x` rc=0  
   - 探针纪律：每文件 timeout；禁无界扫 mega
 
+✅ **12.0.7 empty STRUCT_LIT 数组字段 `[]` + emit／lsp_diag CG002**
+
+  - 权威：`glue_struct_lit_store_fixed_array_field_elf_c`（`.x` + seed）— 空 ARRAY_LIT ≡ 零初始化（≤1024 逐元；>1024 接受不爆破）  
+  - `lsp_diag.x`：修复 `lsp_build_semantic_tokens_response` 尾部 stub／`*/` 源损坏（表象 `copy_bytes` fail）  
+  - `emit.x` `run_x_emit_x`：巨型 `PipelineDepCtx`／`CodegenOutBuf` 不用 `data: []` STRUCT_LIT；标量 lit + uninit/`length=`  
+  - 验收：`empty8`／`lsp_diag.x`／`emit.x` `-backend asm -c` rc=0；L2 5/5
+
 🟡 **12.0.5 asm backend 模块覆盖（`.x`→`.o` 直出替 `-E`+`$CC -c`）**
 
   - 目标：g05／ensure 中 COMPILE 对象逐步走 `xlang -backend asm -c module.x -o module.o`  
-  - 已绿：extern-only 跳过；STRING_LIT；module const 嵌套 binop；`rt_fs_open`／`diag`／`labi_*_pure`／`runtime_driver_diagnostic` 等  
-  - 限时残留 CG002：`src/driver/emit.x`（`run_x_emit_x`）· `src/lsp/lsp_diag.x`（`copy_bytes`）· mega 禁盲扫  
+  - 已绿：extern-only；STRING_LIT；module const binop；empty `[]` 字段；`rt_fs_open`／`diag`／`labi_*`／`lsp_diag`／`emit` 等  
+  - 下一步：按模块扩 g05 COMPILE residual；新 CG002 限时根因；**禁 mega 盲扫**  
   - 未完成前冷构建仍会 `$CC -c` 编译 seed／X-emit C
 
 ### 12.1 最小 seed 设计
