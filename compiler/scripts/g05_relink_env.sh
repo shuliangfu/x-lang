@@ -11,8 +11,20 @@
 # 仍走 Makefile 冷启动；本脚本服务日常 relink / xlang_asm 产品路径。
 
 set -e
-# 允许从任意 cwd 调用：解析到 compiler/
-_G05_ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+# Resolve compiler/ from this file's path — not $0 alone.
+# When this file is `source`d (bash), $0 is the parent shell argv0 and
+# dirname("$0")/.. can land on the *repo* root; Ubuntu then misses
+# compiler/scripts/bootstrap_nostdlib_shared.sh (mac had an untracked
+# repo scripts/ symlink that masked the bug).
+# PLATFORM: SHARED — BASH_SOURCE when available; $0 for sh exec/eval.
+# shellcheck disable=SC2128,SC3054
+if [ -n "${BASH_SOURCE:-}" ]; then
+  # bash: BASH_SOURCE[0] is this file even under `source`
+  _G05_SELF="${BASH_SOURCE[0]}"
+else
+  _G05_SELF="$0"
+fi
+_G05_ROOT="$(CDPATH= cd -- "$(dirname "$_G05_SELF")/.." && pwd)"
 cd "$_G05_ROOT"
 
 UNAME_S="$(uname -s 2>/dev/null || echo Unknown)"
