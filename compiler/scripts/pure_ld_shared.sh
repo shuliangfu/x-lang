@@ -252,6 +252,94 @@ pure_as_compile() {
 }
 
 # ---------------------------------------------------------------------------
+# pure_asm_find_objcopy — stdout: path to objcopy that supports --weaken.
+# Used by pure_asm weak polish (Stage 12.0.5 ldpc pure-asm hybrid residual).
+# Prefer XLANG_OBJCOPY, then llvm-objcopy / objcopy / common install paths.
+# PLATFORM: SHARED — Darwin (homebrew llvm) · Linux (binutils/llvm).
+# ---------------------------------------------------------------------------
+pure_asm_find_objcopy() {
+  local c path
+  for c in \
+    "${XLANG_OBJCOPY:-}" \
+    llvm-objcopy \
+    objcopy \
+    gobjcopy \
+    /opt/homebrew/opt/llvm/bin/llvm-objcopy \
+    /usr/local/opt/llvm/bin/llvm-objcopy \
+    /usr/bin/llvm-objcopy \
+    /usr/bin/objcopy; do
+    [ -n "$c" ] || continue
+    path=""
+    if [ -x "$c" ]; then
+      path="$c"
+    elif command -v "$c" >/dev/null 2>&1; then
+      path="$(command -v "$c")"
+    fi
+    [ -n "$path" ] || continue
+    # Require --weaken (llvm-objcopy / GNU binutils); nmedit cannot weak pure-asm.
+    if "$path" --help 2>&1 | grep -q -- '--weaken'; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# pure_asm_apply_weak_polish OUT
+# Mirror rt_prefer_try_x_to_o C rewrite of G05_X_O_WEAK / G05_X_O_WEAK_FUNCS
+# after freestanding pure-asm emit (no temp C). G.7 有则补全 on pure_asm path:
+#   · G05_X_O_WEAK=1        → objcopy --weaken (all defined globals weak)
+#   · G05_X_O_WEAK_FUNCS    → --weaken-symbol per bare C name
+#                             (Darwin Mach-O: try _name first, then name)
+# Returns 0 on success; 1 if no capable objcopy or polish failed (caller must
+# fall through to -E+$CC so product hybrid stays green without the tool).
+# PLATFORM: SHARED — ELF/Mach-O weak binding; PE residual still -E path.
+# ---------------------------------------------------------------------------
+pure_asm_apply_weak_polish() {
+  local out="$1"
+  local oc="" uname_s="" _old_ifs="" _wfn="" _ok=0
+  if [ -z "$out" ] || [ ! -s "$out" ]; then
+    return 1
+  fi
+  # No polish requested: success no-op (pure_asm caller only invokes when set).
+  if [ "${G05_X_O_WEAK:-0}" != "1" ] && [ -z "${G05_X_O_WEAK_FUNCS:-}" ]; then
+    return 0
+  fi
+  oc="$(pure_asm_find_objcopy)" || return 1
+  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+  if [ -n "${G05_X_O_WEAK_FUNCS:-}" ]; then
+    # Named weak only (seed_link_compat 6 stubs etc.). Do NOT --weaken all.
+    _old_ifs="$IFS"
+    IFS=','
+    for _wfn in $G05_X_O_WEAK_FUNCS; do
+      _wfn="$(printf '%s' "$_wfn" | tr -d '[:space:]')"
+      [ -z "$_wfn" ] && continue
+      _ok=0
+      # PLATFORM: MACOS|DARWIN — C symbols in Mach-O objects are underscore-prefixed.
+      if [ "$uname_s" = "Darwin" ]; then
+        if "$oc" --weaken-symbol="_${_wfn}" "$out" 2>/dev/null; then
+          _ok=1
+        fi
+      fi
+      if [ "$_ok" != "1" ]; then
+        if ! "$oc" --weaken-symbol="${_wfn}" "$out" 2>/dev/null; then
+          IFS="$_old_ifs"
+          return 1
+        fi
+      fi
+    done
+    IFS="$_old_ifs"
+    return 0
+  fi
+  # G05_X_O_WEAK=1: weaken every defined global (matches -E perl XLANG_WEAK polish).
+  if ! "$oc" --weaken "$out" 2>/dev/null; then
+    return 1
+  fi
+  return 0
+}
+
+# ---------------------------------------------------------------------------
 # pure_asm_x_to_o — freestanding .x → .o via asm backend (zero host-cc COMPILE).
 # Stage 12.0.5: G.7 single authority for pure asm module emit.
 #
@@ -267,10 +355,18 @@ pure_as_compile() {
 # When unset (default): return 1 immediately (zero regression for callers).
 #
 # Skip (return 1) when:
-#   · G05_X_O_WEAK=1 / G05_X_O_WEAK_FUNCS / G05_X_O_SYM_RENAME (need C rewrite)
+#   · G05_X_O_SYM_RENAME set (still needs C identifier rewrite; no pure-asm polish)
 #   · object has U xlang_panic or bare U __error (g05 pure-ld surface mismatch)
 #   · CG002 / typeck / empty output
 #   · XLANG_PREFER_ASM_O_ONLY set and SRC basename not in the allow-list
+#   · G05_X_O_WEAK / G05_X_O_WEAK_FUNCS set but objcopy --weaken unavailable/fails
+#     (fall through to historic -E+$CC weak polish)
+#
+# Weak polish (Stage 12.0.5 residual close for ldpc pure-asm hybrid):
+#   After successful pure-asm emit, apply pure_asm_apply_weak_polish so product
+#   hybrid under G05_X_O_WEAK=1 no longer multidefs vs strong peers (e.g.
+#   lsp_diag_{hover,definition,references}_at vs lsp_diag_x.o). nmedit cannot
+#   mark pure-asm objects weak; llvm-objcopy/binutils --weaken is the authority.
 #
 # XLANG_PREFER_ASM_O_ONLY (optional, Stage 12.0.5 ABI bisect):
 #   Comma-separated basenames or stems, e.g. "rt_util.x,rt_content" or "rt_util".
@@ -297,13 +393,7 @@ pure_asm_x_to_o() {
   if [ "${XLANG_PREFER_ASM_O:-0}" != "1" ]; then
     return 1
   fi
-  # Weak/rename need C intermediate; pure asm cannot apply those rewrites.
-  if [ "${G05_X_O_WEAK:-0}" = "1" ]; then
-    return 1
-  fi
-  if [ -n "${G05_X_O_WEAK_FUNCS:-}" ]; then
-    return 1
-  fi
+  # SYM_RENAME still needs C identifier rewrite; pure-asm cannot rename.
   if [ -n "${G05_X_O_SYM_RENAME:-}" ]; then
     return 1
   fi
@@ -373,6 +463,14 @@ pure_asm_x_to_o() {
     if nm -u "$_pure_asm_stage" 2>/dev/null | grep -E 'xlang_panic|^__error$' >/dev/null 2>&1; then
       rm -f "$_pure_asm_stage"
       return 1
+    fi
+    # Weak polish before install: G05_X_O_WEAK / G05_X_O_WEAK_FUNCS (G.7).
+    # Fail polish → drop stage and fall through to -E+$CC (same as missing objcopy).
+    if [ "${G05_X_O_WEAK:-0}" = "1" ] || [ -n "${G05_X_O_WEAK_FUNCS:-}" ]; then
+      if ! pure_asm_apply_weak_polish "$_pure_asm_stage"; then
+        rm -f "$_pure_asm_stage"
+        return 1
+      fi
     fi
     if mv -f "$_pure_asm_stage" "$out" 2>/dev/null; then
       return 0
