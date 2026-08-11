@@ -479,15 +479,41 @@ EXP_LINK_OBJS="$EXP_LINK_OBJS src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_diag_p
 # truth; experimental link must converge to same object set modulo bootstrap
 # specific runtime_asm_build.o / asm_experimental_symbol_bridge.o).
 #
-# Key fix: use src/lexer/cfg_eval.o (full partial merge: cfg_eval_x.o +
+# Key fix 1: use src/lexer/cfg_eval.o (full partial merge: cfg_eval_x.o +
 # cfg_eval_link_alias.o via ld -r) instead of bare cfg_eval_link_alias.o.
 # The link_alias alone CONSUMES lexer_cfg_* symbols (U in nm); cfg_eval.o
 # PROVIDES them (T in nm). This matches g05 _DRIVER_SEED_SUPPORT in no_c
 # default mode. Without this fix the link fails with 4 lexer_cfg_* U refs.
 #
-# PLATFORM: SHARED — all 8 objects exist on both macOS and Ubuntu after g05
-# ensure. cfg_eval.o is platform-agnostic (partial merge via ld -r).
+# Key fix 2: add src/asm/backend_arm64_enc_c.o (arm64 instruction encoder).
+# Without it, asm_codegen on Darwin arm64 produces code_len=0 (CG002) because
+# arch_arm64_enc_enc_mov_imm32_to_w0 (needed for `return N` → `mov w0, #N`)
+# is undefined. g05 _USER_ASM_LINK includes both x86_64_enc_c.o AND
+# arm64_enc_c.o for cross-target support; experimental BSTRICT_DISPATCH
+# only had x86_64. PLATFORM: SHARED — arm64 encoder needed on Darwin arm64;
+# x86_64 encoder needed on Linux x86_64; both included for cross-target.
+#
+# Key fix 3: add driver_x.o (main entry + command dispatch). The experimental
+# chain had individual driver_*_x.o subcommand objects but NOT driver_x.o
+# itself, which provides _main_run_compiler_c_impl and _main_* helpers.
+# Without it, `xlang_asm build` subcommand fails (rc=255, no output) though
+# default `xlang_asm -o out src.x` works via a different main path.
+#
+# Key fix 4: add runtime_process_argv.o (process_xlang_argc_get /
+# process_xlang_argv_get / xlang_process_argv_bind_from_crt). g05
+# _DRIVER_SEED_OBJS includes this explicitly; experimental had only
+# process_args_count_c from runtime_driver_asm_strict.o.
+#
+# NOTE: LSP objects (lsp_x.o, lsp_diag_x.o, lsp_io_x.o, lsp_io_std_heap_x.o,
+# src/lsp/lsp_diag.o) are NOT added here because the experimental chain
+# already includes them via $SEED_O/lsp_diag.o and $ST_LSP_X variables
+# (lines 465-473). Adding them again causes 145 duplicate symbols.
+#
+# PLATFORM: SHARED — all objects exist on both macOS and Ubuntu after g05
+# ensure. arm64_enc_c.o is needed on arm64; x86_64_enc_c.o on x86_64;
+# both included for cross-target codegen (matches g05).
 EXP_LINK_OBJS="$EXP_LINK_OBJS src/seed_link_compat.o build_asm/seed_host/asm_full_link_stubs.o src/runtime_driver_diagnostic.o src/runtime_driver_abi.o src/diag.o src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o"
+EXP_LINK_OBJS="$EXP_LINK_OBJS src/asm/backend_arm64_enc_c.o driver_x.o runtime_process_argv.o"
 
 # Stage 12.2.3: zero-CC experimental bootstrap link via pure_ld_try_link
 # (G.7 single authority). When XLANG_ZERO_CC_LD=1 and host is freestanding-eligible,
