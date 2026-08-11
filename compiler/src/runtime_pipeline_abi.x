@@ -17359,7 +17359,16 @@ export function asm_module_is_backend_selfhost(m: *u8): i32 {
 }
 
 /**
- * Module is typeck.x self-host unit (name probes + ndef heuristics; exclude ast/parser markers).
+ * Module is typeck.x self-host unit (positive name probes only; exclude ast/parser).
+ *
+ * Stage 12.0.5 G.7: bare `ndef ∈ [75,155]|[160,180]` was a false-positive for any
+ * large Cap residual runtime slice (e.g. `rt_run_asm_backend.x`: ~125 `export extern`
+ * + 75 defined → ndef=75 → typeck_selfhost → compiler_selfhost → default coarse
+ * filter `nfuncs>=160 && func_index>=72` ret0-stubs **every** defined body). Pure-asm
+ * then produced a bit-identical-looking `.o` with empty `driver_run_asm_backend`
+ * (rc=0, no bin). Real typeck.x is identified by name markers (`type_kind_ordinal`,
+ * `typeck_x_ast`, `check_expr` / `check_expr_impl`); do not reintroduce ndef-only.
+ *
  * @param m *u8 - ast_Module*
  * @return i32 - 1 yes, 0 no
  * wave115 pure: G.7 single product authority.
@@ -17398,23 +17407,26 @@ export function asm_module_is_typeck_selfhost(m: *u8): i32 {
       }
       i = i + 1;
     }
+    // Positive markers only (real typeck.x). No ndef-only fallback.
     if (pipeline_module_func_name_equal_at(m, 0, "type_kind_ordinal", 17) != 0) {
       return 1;
     }
     i = 0;
     while (i < nfuncs) {
+      if (pipeline_module_func_name_equal_at(m, i, "type_kind_ordinal", 17) != 0) {
+        return 1;
+      }
       if (pipeline_module_func_name_equal_at(m, i, "typeck_x_ast", 12) != 0) {
+        return 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "check_expr", 10) != 0) {
+        return 1;
+      }
+      if (pipeline_module_func_name_equal_at(m, i, "check_expr_impl", 15) != 0) {
         return 1;
       }
       i = i + 1;
     }
-  }
-  let ndef: i32 = asm_module_num_defined_funcs(m);
-  if (ndef >= 75 && ndef <= 155) {
-    return 1;
-  }
-  if (ndef >= 160 && ndef <= 180) {
-    return 1;
   }
   return 0;
 }
@@ -19199,7 +19211,8 @@ export function asm_skip_heavy_module_func_body(m: *u8, arena: *u8, func_index: 
         if (func_index >= asm_emit_heavy_abort_lo() && func_index <= asm_emit_heavy_abort_hi()) {
           return 1;
         }
-      } else if (nfuncs >= 160 && func_index >= 72 && asm_module_is_backend_selfhost(m) == 0 &&
+      } else if (nfuncs >= 160 && asm_module_defined_func_ordinal(m, func_index) >= 72 &&
+                 asm_module_is_backend_selfhost(m) == 0 &&
                  asm_module_is_typeck_selfhost(m) == 0 &&
                  asm_module_is_parser_emit_heavy(m) == 0) {
         return 1;
@@ -19230,7 +19243,12 @@ export function asm_skip_heavy_module_func_body(m: *u8, arena: *u8, func_index: 
       return 0;
     }
     // Default large module coarse filter (non EMIT_HEAVY second pass).
-    if (nfuncs >= 160 && func_index >= 72) {
+    // Stage 12.0.5: use defined-func ordinal (not raw func_index). Leading
+    // export-extern decls inflate raw indices; Cap residual runtime slices
+    // (rt_run_asm_backend ~125 extern + 75 body) must not ret0-stub every body
+    // when misclassified as selfhost. PLATFORM: SHARED pure-asm correctness.
+    let def_ord_coarse: i32 = asm_module_defined_func_ordinal(m, func_index);
+    if (nfuncs >= 160 && def_ord_coarse >= 72) {
       return 1;
     }
     let body_ref3: i32 = pipeline_module_func_body_ref_at(m, func_index);

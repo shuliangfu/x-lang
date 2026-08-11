@@ -7231,8 +7231,12 @@ int32_t asm_module_is_backend_selfhost(void *m) {
   return 0;
 }
 
+/* Stage 12.0.5 G.7: positive name probes only — bare ndef∈[75,155]|[160,180]
+ * false-positive'd Cap residual runtime slices (rt_run_asm_backend: ~125 extern
+ * + 75 defined → ret0-stub every body under pure-asm). Cold twin ≡ .x.
+ * PLATFORM: SHARED. */
 int32_t asm_module_is_typeck_selfhost(void *m) {
-  int32_t i, nfuncs, ndef;
+  int32_t i, nfuncs;
   if (!m)
     return 0;
   nfuncs = pipeline_module_num_funcs(m);
@@ -7255,14 +7259,15 @@ int32_t asm_module_is_typeck_selfhost(void *m) {
   if (pipeline_module_func_name_equal_at(m, 0, (uint8_t *)"type_kind_ordinal", 17))
     return 1;
   for (i = 0; i < nfuncs; i++) {
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"type_kind_ordinal", 17))
+      return 1;
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"typeck_x_ast", 12))
       return 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"check_expr", 10))
+      return 1;
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"check_expr_impl", 15))
+      return 1;
   }
-  ndef = asm_module_num_defined_funcs(m);
-  if (ndef >= 75 && ndef <= 155)
-    return 1;
-  if (ndef >= 160 && ndef <= 180)
-    return 1;
   return 0;
 }
 
@@ -8521,7 +8526,8 @@ int32_t asm_skip_heavy_module_func_body(void *m, void *arena, int32_t func_index
     } else if (driver_typeck_skip_large_entry() != 0 && nfuncs >= 175) {
       if (func_index >= asm_emit_heavy_abort_lo() && func_index <= asm_emit_heavy_abort_hi())
         return 1;
-    } else if (nfuncs >= 160 && func_index >= 72 && !asm_module_is_backend_selfhost(m) &&
+    } else if (nfuncs >= 160 && asm_module_defined_func_ordinal(m, func_index) >= 72 &&
+               !asm_module_is_backend_selfhost(m) &&
                !asm_module_is_typeck_selfhost(m) && !asm_module_is_parser_emit_heavy(m)) {
       return 1;
     }
@@ -8546,8 +8552,12 @@ int32_t asm_skip_heavy_module_func_body(void *m, void *arena, int32_t func_index
     }
     return 0;
   }
-  if (nfuncs >= 160 && func_index >= 72)
-    return 1;
+  /* Stage 12.0.5: defined ordinal — leading export-extern must not ret0-stub. */
+  {
+    int32_t def_ord_coarse = asm_module_defined_func_ordinal(m, func_index);
+    if (nfuncs >= 160 && def_ord_coarse >= 72)
+      return 1;
+  }
   body_ref = pipeline_module_func_body_ref_at(m, func_index);
   if (arena && body_ref > 0) {
     slots = asm_count_block_stack_slots(arena, body_ref);
