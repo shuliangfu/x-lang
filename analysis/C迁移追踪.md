@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + L2-asm／tcpu／ldpc／other-l2 hybrid 绿 · labi full12 hybrid 双端 5/5（mac+Ubuntu 金标）· 授权仍拒默认（须用户明示）· 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + L2-asm／tcpu／ldpc／async／other-l2 hybrid 双端绿 · labi full12 hybrid 双端 5/5 · 授权仍拒默认（须用户明示）· 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -42,7 +42,7 @@
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
 | **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
-| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅** · **i32 VAR/call-ret/binop sxtw ✅** · **call-arg 栈序 ✅** · **INDEX `**T` 双剥皮闭 ✅** · **typeck_selfhost ndef 误判闭 ✅** · **`ONLY=` IN_NO_C 含 `rt_run_asm_backend` 真 L2 5/5 ✅** · **fixed-array bounds 无 U panic ✅** · **div/mod host-E 对等无 U panic ✅** · **labi pure_asm 12/12 ✅** · **labi full12 hybrid 双端 5/5 ✅**（mac + Ubuntu 金标 @ tip `6b6fcdd0c` · 单 slice RED×0 · 授权仍拒默认须用户明示）· **COMPILE residual pure_asm 13/13 ✅** · **L2-asm hybrid pure-asm 3/3 ✅** · **tcpu pure-asm hybrid 装链 ✅** · **ldpc pure-asm hybrid 装链 ✅**（objcopy --weaken 闭 multidef×3）· **other-l2 WEAK pure-asm hybrid 4/4 ✅**（含 fmt · seed `xlang_fmt_*` XLANG_WEAK）· **SEED_SLICE 不并 no_c** · **产品默认 PREFER_ASM 仍禁** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC`（pipeline_abi mega 等） |
+| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅** · **i32 VAR/call-ret/binop sxtw ✅** · **call-arg 栈序 ✅** · **INDEX `**T` 双剥皮闭 ✅** · **typeck_selfhost ndef 误判闭 ✅** · **`ONLY=` IN_NO_C 含 `rt_run_asm_backend` 真 L2 5/5 ✅** · **fixed-array bounds 无 U panic ✅** · **div/mod host-E 对等无 U panic ✅** · **labi pure_asm 12/12 ✅** · **labi full12 hybrid 双端 5/5 ✅**（mac + Ubuntu 金标 @ tip `6b6fcdd0c` · 单 slice RED×0 · 授权仍拒默认须用户明示）· **COMPILE residual pure_asm 13/13 ✅** · **L2-asm hybrid pure-asm 3/3 ✅** · **tcpu pure-asm hybrid 装链 ✅** · **ldpc pure-asm hybrid 装链 ✅**（objcopy --weaken 闭 multidef×3）· **other-l2 WEAK pure-asm hybrid 4/4 ✅**（含 fmt · seed `xlang_fmt_*` XLANG_WEAK）· **async pure-asm hybrid 3/3 双端 ✅** · **SEED_SLICE 不并 no_c** · **产品默认 PREFER_ASM 仍禁** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC`（pipeline_abi mega 等） |
 | **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
@@ -2017,13 +2017,13 @@
   - **full12 pure-asm hybrid tip 再验绿 ✅（2026-08-12 · tip `18318d0d4` · mac）**：  
     - 相对授权图 tip `662b5fbfe` RED×6／full12 0/5：path_pure param_home + residual ABI 后 **单 slice RED×0** · full12 matrix **5/5**  
     - link_abi≈380k · xlang≈4.6M · 日志 `/tmp/xlang_labi_full12_reauth_*.log`／`/tmp/xlang_labi_red_reprobe_*.log`  
-    - **Ubuntu 金标 full12 仍待本 tip 复验**  
+    - **Ubuntu 金标 full12 5/5 ✅**（@ tip `6b6fcdd0c` · `/tmp/ubu_labi_full12_hybrid_6b6fcdd0c_20260812_020712.log`）  
   - **labi-only PREFER 授权地图 · 仍拒默认化（2026-08-12）**：  
     - 目的：评估是否仅对 `try-labi-prefer` 默认 pure-asm（**禁**树级 `PREFER_ASM_O=1` 默认 · **禁** pipeline_abi mega）  
     - 授权图时（tip `662b5fbfe`）：full12 **0/5** · RED×6／GREEN×6（`/tmp/xlang_labi_only_auth_map_662b5fbfe.log` · `/tmp/xlang_labi_slice_bisect_662b5fbfe.log`）  
-    - tip `18318d0d4` 再验后：**mac 单 slice RED×0 + full12 5/5**；**默认化仍拒**直至 **Ubuntu 金标 full12 5/5** + 用户明示「授权 labi-only PREFER」  
+    - tip `18318d0d4`／`6b6fcdd0c` 后：**mac+Ubuntu 单 slice RED×0 + full12 5/5**；**默认化仍拒**直至用户明示「授权 labi-only PREFER」  
     - **默认化设计（未实施 · 须授权）**：`labi_prefer_try_x_to_o` 作用域 `XLANG_PREFER_ASM_O_LABI`（scoped export 给 `pure_asm_x_to_o`）；`rt_prefer`／`g05_try`／其它 prefer 叶仍默认 -E  
-    - **放行闸门**：mac full12 ✅ · **Ubuntu full12 ⬜** · restore 5/5 ✅ · 用户明示授权 ⬜  
+    - **放行闸门**：mac full12 ✅ · **Ubuntu full12 ✅** · restore 5/5 ✅ · 用户明示授权 ⬜  
 
   - **COMPILE residual prefer 薄叶 pure_asm 问题地图 ✅（2026-08-11 · tip `6a814b52c`）**：  
     - 对象 13 叶（l2asm×3 · tcpu×2 · ldpc · async×3 · ol2×4）；**禁** `runtime_pipeline_abi.x` mega pure-asm  
@@ -2057,7 +2057,15 @@
     - 辅：`pure_asm_find_objcopy` 用 `command grep`／`/usr/bin/grep` 防 shell shadow  
     - **mac** pure-asm thin+rest · soft g05 pure-ld · matrix **5/5** · restore -E **5/5**  
     - **产品默认仍 -E**  
-  - 下一步：labi pure-asm hybrid RED×6 根修 → 再谈 labi-only 授权 · pipeline_abi mega 仍禁 pure-asm
+  - **async pure-asm hybrid 装链 ✅ 双端 3/3（2026-08-12 · tip `190ab4eb3`）**：  
+    - 配方：`PREFER_ASM_O=1`+`HOST_CC_SEED_FORCE=1` FORCE `try-async-prefer` ×3 → unset → soft g05 pure-ld → matrix → rm restore -E → matrix  
+    - pure_asm 独立 **3/3**（div0 FAIL_ABI residual 已闭；无 U panic）  
+    - **mac** hybrid thin+rest **58976／45528／16216** · matrix **5/5** · restore -E **41632／28856／11160** · **5/5**  
+    - **Ubuntu 金标** hybrid **81752／57336／22256** · pure-ld 60 · matrix **5/5** · restore **52080／33016／14472** · **5/5**  
+    - 日志 mac `/tmp/xlang_async_pure_asm_hybrid_*.log` · Ubuntu `/tmp/ubu_async_pure_asm_hybrid_190ab4eb3_20260812_022411.log`  
+    - ensure 头注释钉 Stage12.0.5 pure-asm hybrid 双端闭 · **产品默认仍 -E**  
+  - **labi full12 hybrid 双端 5/5 ✅（2026-08-12）** · 授权仍拒默认化（须用户明示「授权 labi-only PREFER」）  
+  - 下一步：用户明示后 labi-only PREFER 授权设计／实施 · r3／rt／B1–B3 COMPILE residual hybrid 地图 · pipeline_abi mega 仍禁 pure-asm
 
 
 

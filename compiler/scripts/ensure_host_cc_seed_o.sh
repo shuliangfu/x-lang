@@ -3486,6 +3486,10 @@ try_ensure_l2_asm_prefer_one() {
 #   rest = seed under FROM_X -D (slice_marker only)
 #   merge: $CC -r -nostdlib thin + rest → OUT
 # Prefer fail / PREFER≠1 / no xlang → ensure_one cold plain seed.
+# Stage 12.0.5 pure-asm hybrid (opt-in PREFER_ASM_O; not product-default):
+#   pure_asm standalone 3/3 (div0 FAIL_ABI residual closed) · FORCE try-async-prefer
+#   pure-asm thin+rest · soft g05 pure-ld · matrix 5/5 · restore -E 5/5
+#   dual-end @ tip 190ab4eb3 (mac + Ubuntu gold). No WEAK polish needed.
 # Callers: g05_ensure (wave770) · Makefile three leaves (was dual hybrid).
 # Exit codes:
 #   0 — OUT is a table member; prefer or cold body produced OUT
