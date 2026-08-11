@@ -18257,8 +18257,12 @@ int32_t glue_emit_slice_length_to_rbx_elf_c(void *arena,
 }
 
 /**
- * UB 收窄：定长数组 / 切片下标越界时发射 xlang_panic_(1,0)（与 C codegen 一致）。
- * ix_ref：INDEX expr ref（读 proven_in_bounds / base_is_slice）；<=0 时仍按 base 类型检查。
+ * UB narrowing for INDEX (seed cold twin of runtime_pipeline_abi.x).
+ * Stage 12.0.5: fixed-array non-lit index skips runtime xlang_panic_ to match
+ * host -E codegen (hybrid pure-asm freestanding bag has no T xlang_panic_).
+ * Slice lo/hi guards and fixed-array lit OOB still call panic.
+ * ix_ref: INDEX expr (proven_in_bounds / base_is_slice); <=0 still type-checks base.
+ * PLATFORM: SHARED freestanding · cold twin must stay same-commit with .x.
  */
 int32_t glue_emit_index_bounds_guard_elf_c(void *arena,
                                                    void *elf_ctx,
@@ -18304,6 +18308,10 @@ int32_t glue_emit_index_bounds_guard_elf_c(void *arena,
       return 0;
     }
   }
+
+  /* Stage 12.0.5: fixed-array non-lit — C parity, no U xlang_panic_. */
+  if (is_slice == 0)
+    return 0;
 
   ok_lo_len = pipeline_asm_emit_next_label_c(ctx, ok_lo, 64);
   ok_hi_len = pipeline_asm_emit_next_label_c(ctx, ok_hi, 64);

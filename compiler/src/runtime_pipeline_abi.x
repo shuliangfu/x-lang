@@ -37682,7 +37682,24 @@ export function glue_emit_slice_length_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, ct
 }
 
 /**
- * UB narrowing: fixed array / slice index OOB emits xlang_panic_(1,0).
+ * UB narrowing for INDEX: slice OOB still emits xlang_panic_(1,0); fixed arrays
+ * match host -E codegen (no runtime bounds call) for hybrid pure-asm parity.
+ *
+ * Stage 12.0.5 root (labi FAIL_ABI): pure-asm used to emit U xlang_panic_ for
+ * every variable-index fixed array (e.g. dig[i], path_buf[j], u8[4096] joins).
+ * Product g05 freestanding bag has no T xlang_panic_ (runtime_panic.o is
+ * user-domain cold twin), so pure_asm_x_to_o rejected labi_diag_pure /
+ * ensure_list / freestanding_list / path_pure. Host -E+$CC never inserts those
+ * checks on fixed arrays — pure-asm must not introduce a freestanding UNDEF.
+ *
+ * Policy:
+ *   · proven_in_bounds → skip
+ *   · non-array/non-slice base → skip
+ *   · fixed array + lit index: still panic on lit OOB / negative (compile-time
+ *     known; rare in product leaves; keeps intentional UB narrowing)
+ *   · fixed array + non-lit index: **no** runtime guard (C parity; no U panic)
+ *   · slice: keep lo/hi runtime guards → xlang_panic_ (user programs link panic)
+ *
  * ix_ref: INDEX expr (reads proven_in_bounds / base_is_slice); <=0 still type-checks base.
  * @return i32 - 0 ok/skipped; -1 error
  * wave147 pure: G.7 authority (was static glue_emit_index_bounds_guard_elf_c).
@@ -37747,6 +37764,11 @@ export function glue_emit_index_bounds_guard_elf_c(arena: *u8, elf_ctx: *u8, ctx
       }
       return 0;
     }
+  }
+  // Stage 12.0.5: fixed-array non-lit index — match host -E (no runtime panic).
+  // Slice path continues below with length-based lo/hi guards.
+  if (is_slice == 0) {
+    return 0;
   }
   unsafe {
     ok_lo_len = pipeline_asm_emit_next_label_c(ctx, &ok_lo[0], 64);
