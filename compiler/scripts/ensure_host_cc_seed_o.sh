@@ -1766,6 +1766,11 @@ rt_prefer_try_x_to_o() {
     return 1
   fi
   mkdir -p "$(dirname "$_xout")"
+  # Stage 12.0.5 note: pure_asm_x_to_o (pure_ld_shared.sh) is the G.7 authority
+  # for freestanding .x→.o, but product hybrid PREFER still uses -E+$CC here.
+  # Residual: pure-asm thin merged into runtime_driver_no_c.o links or runs bad
+  # on g05 pure-ld (panic surface / runtime SIGSEGV). Do NOT auto-call until
+  # ABI parity is proven. PLATFORM: SHARED harness
   # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
   _xtmp=$(mktemp "${TMPDIR:-/tmp}/rtpref_x.XXXXXX") || return 1
   # 优先默认 -E（Linux 上 -backend c -E 可能 SIGSEGV）；再回退 -backend c -E。

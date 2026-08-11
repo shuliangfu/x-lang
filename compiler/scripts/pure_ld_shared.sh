@@ -252,6 +252,106 @@ pure_as_compile() {
 }
 
 # ---------------------------------------------------------------------------
+# pure_asm_x_to_o — freestanding .x → .o via asm backend (zero host-cc COMPILE).
+# Stage 12.0.5: G.7 single authority for pure asm module emit.
+#
+# Intended callers (after ABI parity): rt_prefer_try_x_to_o / g05_try_x_to_o.
+# Current product hybrid still uses -E+$CC — pure-asm thin merge into
+# runtime_driver_no_c.o has residual link (xlang_panic_/__error) or runtime
+# SIGSEGV on Darwin pure-ld. Inventory/probes may call this helper directly.
+#
+# When XLANG_PREFER_ASM_O=1: run `$XLANG -backend asm -c` via a staged `*.o`
+#   path (driver only emits relocatable objects when OUT ends with `.o`;
+#   ensure mktemp thins are extension-less).
+# When unset (default): return 1 immediately (zero regression for callers).
+#
+# Skip (return 1) when:
+#   · G05_X_O_WEAK=1 / G05_X_O_WEAK_FUNCS / G05_X_O_SYM_RENAME (need C rewrite)
+#   · object has U xlang_panic or bare U __error (g05 pure-ld surface mismatch)
+#   · CG002 / typeck / empty output
+#
+# Usage: pure_asm_x_to_o OUT SRC.x
+# Returns 0 on success (OUT non-empty), non-zero to fall through.
+#
+# PLATFORM: SHARED — asm backend object emit; no temp C; no host-cc on this path.
+# ---------------------------------------------------------------------------
+pure_asm_x_to_o() {
+  local out="$1"
+  local src="$2"
+  local xl=""
+  local _pure_asm_stage=""
+  if [ -z "$out" ] || [ -z "$src" ]; then
+    return 1
+  fi
+  # Opt-in only: default keeps historic -E+$CC path (zero regression).
+  if [ "${XLANG_PREFER_ASM_O:-0}" != "1" ]; then
+    return 1
+  fi
+  # Weak/rename need C intermediate; pure asm cannot apply those rewrites.
+  if [ "${G05_X_O_WEAK:-0}" = "1" ]; then
+    return 1
+  fi
+  if [ -n "${G05_X_O_WEAK_FUNCS:-}" ]; then
+    return 1
+  fi
+  if [ -n "${G05_X_O_SYM_RENAME:-}" ]; then
+    return 1
+  fi
+  if [ ! -f "$src" ]; then
+    return 1
+  fi
+  # Prefer freestanding product binary, then hosted xlang / seed binaries.
+  if [ -n "${XLANG:-}" ] && [ -x "$XLANG" ]; then
+    xl="$XLANG"
+  elif [ -x ./xlang_asm ]; then
+    xl=./xlang_asm
+  elif [ -x ./xlang ]; then
+    xl=./xlang
+  elif [ -x ./xlang-c ]; then
+    xl=./xlang-c
+  elif [ -x ./bootstrap_xlangc ]; then
+    xl=./bootstrap_xlangc
+  else
+    return 1
+  fi
+  mkdir -p "$(dirname "$out")" 2>/dev/null || true
+  # PLATFORM: SHARED — freestanding asm .o; stderr discarded (caller has seed fallback).
+  # Critical: product `xlang -backend asm -c -o PATH` only emits a relocatable
+  # object when PATH ends with `.o`. Otherwise the driver treats PATH as a final
+  # link target (needs main) → BLD001 ld fail. ensure thin temps from mktemp are
+  # extension-less (`rtpref_*_thin.XXXXXX`), so always stage via a `*.o` temp
+  # then mv into the caller path (G.7 single authority; callers stay unchanged).
+  # BSD/macOS mktemp needs X-run at end of template — create bare temp, append .o.
+  _pure_asm_stage=$(mktemp "${TMPDIR:-/tmp}/pure_asm.XXXXXX") || return 1
+  rm -f "$_pure_asm_stage"
+  _pure_asm_stage="${_pure_asm_stage}.o"
+  if "$xl" -backend asm -c -o "$_pure_asm_stage" "$src" 2>/dev/null \
+    && [ -s "$_pure_asm_stage" ]; then
+    # Product g05 pure-ld surface guard (Stage 12.0.5 residual):
+    # · asm bounds checks emit U xlang_panic_ — not always in g05 freestanding
+    #   object set (runtime_panic.o is user-domain cold twin, not host link).
+    # · some modules emit bare U __error; Darwin libSystem provides ___error
+    #   (C -E path). Bare __error breaks pure-ld.
+    # Reject → caller falls back to -E+$CC (zero product regression).
+    # PLATFORM: SHARED reject list; Darwin ___error vs __error noted above.
+    if nm -u "$_pure_asm_stage" 2>/dev/null | grep -E 'xlang_panic|^__error$' >/dev/null 2>&1; then
+      rm -f "$_pure_asm_stage"
+      return 1
+    fi
+    if mv -f "$_pure_asm_stage" "$out" 2>/dev/null; then
+      return 0
+    fi
+    # mv failed (cross-device rare): try cp then rm
+    if cp -f "$_pure_asm_stage" "$out" 2>/dev/null && [ -s "$out" ]; then
+      rm -f "$_pure_asm_stage"
+      return 0
+    fi
+  fi
+  rm -f "$_pure_asm_stage" 2>/dev/null || true
+  return 1
+}
+
+# ---------------------------------------------------------------------------
 # pure_ld_hosted_crt1 — stdout: path to system crt1.o for hosted (with libc)
 # pure-ld links. Complements the freestanding crt0 path (pure_ld_default_entry
 # + nostdlib). Used by relink_xlang_asm_experimental_bootstrap.sh to replace

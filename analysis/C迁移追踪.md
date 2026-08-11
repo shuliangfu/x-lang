@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-11（Stage 12 零 cc：LINK／`.s`／forbid／STRING_LIT／module const binop／**empty `[]` 字段 + emit/lsp_diag CG002**；钉盘仍 **`d79a368b2`**；**只改勾选与事实**，无波次流水）
+> **状态刷新**：2026-08-11（Stage 12 零 cc：LINK／`.s`／forbid／STRING_LIT／module const binop／empty `[]`／**12.0.5 asm 覆盖清单 + pure_asm_x_to_o**；钉盘仍 **`d79a368b2`**；**只改勾选与事实**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -42,7 +42,7 @@
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
 | **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
-| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT 空串／cap126 ✅** · **module const 嵌套 binop load ✅**（`rt_fs_open` 等）· 最小 seed ⬜ · COMPILE residual 仍需 `$CC` · asm 覆盖 🟡（余 `emit`／`lsp_diag` 等 CG002） |
+| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC` · asm 覆盖 🟡（产品 hybrid pure-asm ABI residual；`rt_run_x_emit`／`rt_run_asm_backend` XT001） |
 | **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
@@ -1982,8 +1982,10 @@
 🟡 **12.0.5 asm backend 模块覆盖（`.x`→`.o` 直出替 `-E`+`$CC -c`）**
 
   - 目标：g05／ensure 中 COMPILE 对象逐步走 `xlang -backend asm -c module.x -o module.o`  
-  - 已绿：extern-only；STRING_LIT；module const binop；empty `[]` 字段；`rt_fs_open`／`diag`／`labi_*`／`lsp_diag`／`emit` 等  
-  - 下一步：按模块扩 g05 COMPILE residual；新 CG002 限时根因；**禁 mega 盲扫**  
+  - **覆盖清单（限时探针 · mac arm64）**：`rt_*.x` **21/23** 绿；FAIL `rt_run_x_emit`（T001 unresolved call in `rt_xe_step_finish`）· `rt_run_asm_backend`（extern call 需 unsafe in `rt_ab_step_finish`）；`labi_*` 多数绿；`diag`／`emit`／`lsp_diag`／driver thin 绿  
+  - **G.7 权威 helper**：`pure_asm_x_to_o`（`compiler/scripts/pure_ld_shared.sh`）— `XLANG_PREFER_ASM_O=1`；`*.o` 暂存（OUT 必须以 `.o` 结尾）；拒 U `xlang_panic`／裸 `__error`  
+  - **产品 hybrid residual**：pure-asm thin 并入 `runtime_driver_no_c.o` 后 g05 pure-ld 要么缺 `xlang_panic_`／`__error`，要么链接过但 **L2 全 SIGSEGV** → ensure／g05_try **暂不** 自动调用 pure_asm（仍 -E+$CC）  
+  - 下一步：ABI 对等（panic 入链或 asm 去 panic／errno 符号）· 修两处 XT001 · 再挂产品 hybrid；**禁 mega 盲扫**  
   - 未完成前冷构建仍会 `$CC -c` 编译 seed／X-emit C
 
 ### 12.1 最小 seed 设计
