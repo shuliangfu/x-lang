@@ -28860,9 +28860,56 @@ function pipe_modlet_off_init_imm(i: i32): i32 {
  * @param i i32 — table index 0..63
  * @return i32 — byte offset within g_pipeline_asm_modlet
  * PLATFORM: SHARED — LP64 table layout Stage 12.0.5.
+ *
+ * Encoding (Stage 12.0.5 / invoke_cc_list):
+ *   low 30 bits = payload bytes for SHN_COMMON
+ *   bit 30 (0x40000000) = TYPE_ARRAY address-decay (LEA-only load)
+ * Scalar lit cells store plain 8 (no bit). Arrays store N|bit30 so u8[8]
+ * (payload==8) does not collide with scalar load-qword (labi g_labi_icc_oopt_buf).
  */
 function pipe_modlet_off_cell_size(i: i32): i32 {
   return 10500 + (i * 4);
+}
+
+/**
+ * TYPE_ARRAY flag in cell_size: bit 30 = 0x40000000 = 1073741824.
+ * @return i32 — flag mask
+ * PLATFORM: SHARED — modlet table encoding.
+ */
+function pipe_modlet_cell_array_bit(): i32 {
+  return 1073741824;
+}
+
+/**
+ * Payload bytes for COMMON emit (mask out array flag).
+ * @param csz i32 — stored cell_size word
+ * @return i32 — size >= 1 (default 8 if empty)
+ * PLATFORM: SHARED.
+ */
+function pipe_modlet_cell_payload(csz: i32): i32 {
+  let p: i32 = csz & 1073741823;
+  if (p <= 0) {
+    return 8;
+  }
+  return p;
+}
+
+/**
+ * Whether load must return address (array decay), not first qword.
+ * @param csz i32 — stored cell_size word
+ * @return i32 — 1 LEA-only; 0 load qword
+ * PLATFORM: SHARED.
+ */
+function pipe_modlet_cell_is_array(csz: i32): i32 {
+  if ((csz & 1073741824) != 0) {
+    return 1;
+  }
+  // Legacy: arrays registered without the bit still used payload!=8.
+  let p: i32 = csz & 1073741823;
+  if (p != 8 && p > 0) {
+    return 1;
+  }
+  return 0;
 }
 
 function pipe_modlet_get_n(): i32 {
@@ -29053,17 +29100,19 @@ function pipeline_asm_modlet_lea_rbx_arch(elf_ctx: *u8, idx: i32, ta: i32): i32 
 
 /**
  * Load a shared modlet cell into rax/x0.
- * Scalar cells (cell_size<=8): LEA base then load qword (value).
- * Array/blob cells (cell_size>8): LEA base then mov base→rax (address decay).
- *   Fixed TYPE_ARRAY module lets need the address for INDEX/`&arr[0]`/call args;
- *   loading the first qword would be wrong and was never used for array bases.
+ * Scalar cells (cell_size==8, no array bit): LEA base then load qword (value).
+ * Array/blob cells (array bit or legacy payload!=8): LEA base then mov base→rax
+ *   (C array decay). Fixed TYPE_ARRAY module lets need the address for
+ *   INDEX / `&arr[0]` / call args; loading the first qword is wrong.
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param name *u8 - modlet name
  * @param name_len i32 - length
  * @param ta i32 - target arch
  * @return i32 - 0 ok; -1 miss/null/bad arch
  * wave139 pure: G.7 authority (was static load_to_rax_elf_c).
- * Stage 12.0.5: cell_size>8 LEA-only (labi_path_pure g_labi_* fixed arrays).
+ * Stage 12.0.5: array bit30 on cell_size so u8[8] (e.g. g_labi_icc_oopt_buf)
+ *   is LEA-only; prior payload!=8 heuristic collided with scalar 8-byte cells
+ *   → pure-asm hybrid SEGV on invoke_cc_list head_flags strb [null].
  * Cap residual: backend_enc_load_qword_from_rbx_to_rax_arch (x86) + append_bytes (arm64 ldr)
  *   + backend_enc_mov_rbx_to_rax_arch (array decay).
  * PLATFORM: SHARED.
@@ -29081,11 +29130,9 @@ export function pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx: *u8, name: *u8, n
     return 0 - 1;
   }
   // Array/blob COMMON: return address in rax (C array decay), do not load payload.
-  // Scalar lit cells always cell_size==8 (wave139). Arrays use real payload size
-  // (1, 512, 4096, …). cell_size!=8 ⇒ LEA-only. Edge: TYPE_ARRAY of exactly 8
-  // bytes collides with scalar and would load — rare; path_pure has no such cells.
+  // G.7: bit30 marks TYPE_ARRAY (incl. payload==8); legacy unflagged N!=8 still LEA.
   let csz: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(idx));
-  if (csz != 8) {
+  if (pipe_modlet_cell_is_array(csz) != 0) {
     let rc_arr: i32 = 0;
     unsafe {
       rc_arr = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
@@ -29241,6 +29288,8 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
         tl = tl + 1;
         continue;
       }
+      // Mark array decay so payload==8 (u8[8]) is not treated as scalar load.
+      cell_sz = cell_sz | pipe_modlet_cell_array_bit();
       imm = 0;
     }
     let idx: i32 = pipe_modlet_get_n();
@@ -29310,10 +29359,9 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
   while (i < nn) {
     let llen2: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(i));
     let lbase2: i32 = pipe_modlet_off_label(i);
-    let csz2: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(i));
-    if (csz2 <= 0) {
-      csz2 = 8;
-    }
+    let csz_raw: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(i));
+    // COMMON size = payload only (strip array-decay bit30).
+    let csz2: i32 = pipe_modlet_cell_payload(csz_raw);
     let calign: i32 = 8;
     if (csz2 == 1) {
       calign = 1;

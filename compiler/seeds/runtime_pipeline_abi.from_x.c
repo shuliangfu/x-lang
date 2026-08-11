@@ -12731,9 +12731,30 @@ typedef struct {
   int32_t label_len[XLANG_ASM_MODLET_MAX];
   uint8_t label[XLANG_ASM_MODLET_MAX][24];
   int32_t init_imm[XLANG_ASM_MODLET_MAX];
-  /* Stage 12.0.5: COMMON payload size (8 scalar; N for TYPE_ARRAY module lets). */
+  /* Stage 12.0.5: COMMON payload size (8 scalar; N for TYPE_ARRAY module lets).
+   * Bit 30 (0x40000000) = TYPE_ARRAY address-decay so u8[8] does not collide
+   * with scalar load-qword (labi g_labi_icc_oopt_buf / invoke_cc_list). */
   int32_t cell_size[XLANG_ASM_MODLET_MAX];
 } pipeline_asm_modlet_table_t;
+
+/* PLATFORM: SHARED — modlet cell_size encoding (mirror .x pipe_modlet_cell_*). */
+#define XLANG_ASM_MODLET_CELL_ARRAY_BIT 0x40000000
+#define XLANG_ASM_MODLET_CELL_PAYLOAD_MASK 0x3fffffff
+
+static int32_t pipeline_asm_modlet_cell_payload_cold(int32_t csz) {
+  int32_t p = csz & XLANG_ASM_MODLET_CELL_PAYLOAD_MASK;
+  return (p <= 0) ? 8 : p;
+}
+
+static int32_t pipeline_asm_modlet_cell_is_array_cold(int32_t csz) {
+  int32_t p;
+  if ((csz & XLANG_ASM_MODLET_CELL_ARRAY_BIT) != 0)
+    return 1;
+  p = csz & XLANG_ASM_MODLET_CELL_PAYLOAD_MASK;
+  if (p != 8 && p > 0)
+    return 1;
+  return 0;
+}
 
 static pipeline_asm_modlet_table_t g_pipeline_asm_modlet_cold;
 
@@ -12863,9 +12884,10 @@ int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int3
   if (pipeline_asm_modlet_lea_rbx_arch_cold(elf_ctx, idx, ta) != 0)
     return -1;
   /* Stage 12.0.5: array/blob COMMON → address decay (mov base→rax), not load.
-   * Scalar lit cells are always cell_size==8; arrays use real payload size. */
+   * Scalar lit cells are always cell_size==8 (no bit30); arrays set bit30 so
+   * payload==8 (u8[8]) still LEA-only — see g_labi_icc_oopt_buf hybrid SEGV. */
   csz = g_pipeline_asm_modlet_cold.cell_size[idx];
-  if (csz != 8)
+  if (pipeline_asm_modlet_cell_is_array_cold(csz))
     return backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
   if (ta == 1) {
     uint8_t ldr4[4];
@@ -12931,10 +12953,11 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
       imm = pipeline_expr_int_val_at(a, init_ref);
       cell_sz = 8;
     } else if (tk == 10 && init_kind == 46) {
-      /* TYPE_ARRAY + ARRAY_LIT (e.g. u8[N]=[]): full COMMON payload. */
+      /* TYPE_ARRAY + ARRAY_LIT (e.g. u8[N]=[]): full COMMON payload + array bit. */
       cell_sz = glue_fixed_array_total_bytes_c(a, type_ref, 0);
       if (cell_sz <= 0 || cell_sz > 1048576)
         continue;
+      cell_sz |= XLANG_ASM_MODLET_CELL_ARRAY_BIT;
       imm = 0;
     } else {
       continue;
@@ -12971,10 +12994,8 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
     g_pipeline_asm_modlet_cold.n = idx + 1;
   }
   for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
-    int32_t csz = g_pipeline_asm_modlet_cold.cell_size[i];
+    int32_t csz = pipeline_asm_modlet_cell_payload_cold(g_pipeline_asm_modlet_cold.cell_size[i]);
     int32_t calign = 8;
-    if (csz <= 0)
-      csz = 8;
     if (csz == 1)
       calign = 1;
     else if (csz == 2)

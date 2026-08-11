@@ -2000,12 +2000,15 @@
   - **labi hybrid 真 L2 地图 ✅**（`try-labi-prefer` + soft g05 + matrix + restore；矩阵须 hybrid 本波 `xlang`）：  
     - `ONLY=__none__` **5/5** · 全量 12 层 pure-asm **0/5 SEGV**  
     - **GREEN×8 pure-asm ONLY**：`diag_pure`／`host_lit`／`path_io`／`invoke_ld_list`／`freestanding_list`／`std_list`／`ondemand_list`／`gates`  
-    - **RED×4 pure-asm ONLY**：`path_pure`（opt/si/hello SEGV）· `ensure_list`（rv/f32 **rc=1**）· `invoke_cc_list`（opt/si/hello SEGV）· `ondemand_heavy`（rv/f32 SEGV）  
-  - **再探 residual**：全量 PREFER_ASM_O 仍禁默认 · SEED_SLICE permanent `.o` · RED 四刀 G.7 pure-asm ABI  
+    - **RED residual pure-asm ONLY**：~~path_pure~~ ✅ · ~~ensure_list~~ ✅ · ~~invoke_cc_list~~ ✅ · `ondemand_heavy`（rv/f32 SEGV）  
+    - **GREEN×11 pure-asm ONLY**（原 8 + 三闭）  
+  - **再探 residual**：全量 PREFER_ASM_O 仍禁默认 · SEED_SLICE permanent `.o` · ondemand_heavy G.7  
   - **path_pure pure-asm @ `34164691a`**：modlet COMMON + INDEX LEA → **42KB**；**hybrid ONLY 仍 2/5**（指针截断）  
   - **path_pure hybrid 闭**：`glue_emit_binop_add` is_64bit → scale1 64-bit ADD；**mac hybrid ONLY=path_pure L2 5/5**  
-  - **ensure_list hybrid 闭（本波）**：`asm_ctx_local_find_offset_scoped` 限本块 `[min_slot, min_slot+nconst+nlet)`（禁 sibling 同名 `let p`）；**mac hybrid ONLY=ensure_list L2 5/5**（原 rv/f32 BLD001）  
-  - 下一步：`invoke_cc_list`／`ondemand_heavy` · 全量 hybrid 仍 opt-in · 谈升钉才 L4  
+  - **ensure_list hybrid 闭**：`asm_ctx_local_find_offset_scoped` 限本块 `[min_slot, min_slot+nconst+nlet)`（禁 sibling 同名 `let p`）；**mac hybrid ONLY=ensure_list L2 5/5**（原 rv/f32 BLD001）  
+  - **invoke_cc_list hybrid 闭（本波）**：modlet `cell_size` bit30=TYPE_ARRAY LEA（`u8[8]` oopt_buf 不再误 `ldr`→null）；seed 冷孪；**mac hybrid ONLY=labi_invoke_cc_list L2 5/5**  
+  - 下一步：`ondemand_heavy` · 全量 hybrid 仍 opt-in · 谈升钉才 L4  
+
 
 
 
