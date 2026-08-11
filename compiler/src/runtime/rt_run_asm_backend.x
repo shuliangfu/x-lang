@@ -1669,9 +1669,13 @@ export function rt_ab_step_finish(): i32 {
           // 0 code + 0 labels fails ELF emission. Skip codegen entirely and produce
           // a 0-byte .o (matching C path where extern decls produce no .text).
           // PLATFORM: SHARED.
+          // extern calls require unsafe (typeck T001); keep both in one block.
           let _all_extern_pre: i32 = 1;
           let _fi_pre: i32 = 0;
-          let _nf_pre: i32 = driver_get_module_num_funcs(module);
+          let _nf_pre: i32 = 0;
+          unsafe {
+            _nf_pre = driver_get_module_num_funcs(module);
+          }
           while (_fi_pre < _nf_pre) {
             unsafe {
               if (pipeline_module_func_is_extern_at(module, _fi_pre) == 0) {

@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-11（Stage 12 零 cc：LINK／`.s`／forbid／STRING_LIT／module const／empty `[]`／**12.0.5 pure_asm helper + Darwin `__error`→`___error` mangling**；钉盘仍 **`d79a368b2`**；**只改勾选与事实**，无波次流水）
+> **状态刷新**：2026-08-11（Stage 12 零 cc：LINK／`.s`／forbid／STRING_LIT／module const／empty `[]`／**12.0.5 pure_asm helper + Darwin mangling + `rt_*` pure_asm 23/23**；钉盘仍 **`d79a368b2`**；**只改勾选与事实**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -42,7 +42,7 @@
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
 | **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
-| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin call mangling `__error`→`___error` ✅** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC` · asm 覆盖 🟡（残：`xlang_panic_` g05 bag · `rt_run_x_emit`／`rt_run_asm_backend` XT001 · 产品 hybrid 未自动挂 pure-asm） |
+| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin call mangling `__error`→`___error` ✅** · **`rt_*` pure_asm 23/23 ✅**（panic／XT001 清）· 最小 seed ⬜ · COMPILE residual 仍需 `$CC` · 产品 hybrid 未自动挂 pure-asm（仍 -E+$CC）· labi／driver 入链覆盖 🟡 |
 | **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）

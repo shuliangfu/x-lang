@@ -118,6 +118,11 @@ export extern "C" function driver_x_emit_work_z_get(i: i32): usize;
 export extern "C" function driver_x_emit_work_z_set(i: i32, v: usize): void;
 export extern "C" function driver_x_emit_work_cleanup(): void;
 export extern "C" function typeck_set_allow_legacy_extern_calls(allow: i32): i32;
+/* Used by rt_xe_step_finish before fwrite of -E body (same face as
+ * rt_run_compiler_parsed / rt_run_asm_backend). Missing decl → tip T001/XT001
+ * on pure-asm / -E of this monofile; product PREFER still cold-seed fallback.
+ * PLATFORM: SHARED — link-name contract with runtime_driver_abi. */
+export extern "C" function driver_print_x_smoke_summary(module: *u8, codegen_len: usize): void;
 
 /* work pointer indices */
 /** Work-slot index for entry path pointer.

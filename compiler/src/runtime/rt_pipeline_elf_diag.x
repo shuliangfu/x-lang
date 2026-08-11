@@ -146,8 +146,17 @@ export function rt_elf_append(dst: *u8, cap: i32, src: *u8): void {
 
 /** Append decimal representation of v onto dst (handles 0 and negatives).
  * Digits built in a small local buffer then reverse-copied via rt_elf_append.
+ *
+ * Digit buffer accesses use an unsafe *u8 view of dig[16], matching the rest of
+ * this module (rt_elf_load_i32_le / names_eq). Reason: pure-asm INDEX on fixed
+ * arrays with two live index vars (swap dig[j] with dig[hi]) emits U xlang_panic_
+ * bounds calls; g05 freestanding bag has no runtime_panic.o T for that surface
+ * (product user path links panic via invoke_cc ensure). Pointer indexing keeps
+ * pure-asm ABI equal to -E+$CC for this freestanding leaf (no U xlang_panic_).
+ *
  * Track-L: #[no_mangle] keeps surface short name (not pipeline_rt_elf_append_i32).
- * PLATFORM: SHARED — link-name contract; dual-host prove. */
+ * PLATFORM: SHARED — link-name contract; dual-host prove; pure-asm g05 bag safe.
+ */
 #[no_mangle]
 export function rt_elf_append_i32(dst: *u8, cap: i32, v: i32): void {
   let dig: u8[16] = [];
@@ -156,41 +165,48 @@ export function rt_elf_append_i32(dst: *u8, cap: i32, v: i32): void {
   let j: i32 = 0;
   let neg: i32 = 0;
   let a: u8 = 0;
-  dig[0] = 0;
-  if (n == 0) {
-    dig[0] = 48;
-    dig[1] = 0;
-    rt_elf_append(dst, cap, &dig[0]);
-    return;
-  }
-  if (n < 0) {
-    neg = 1;
-    n = 0 - n;
-  }
-  while (n > 0) {
-    if (i >= 15) {
-      break;
+  let hi: i32 = 0;
+  unsafe {
+    let d: *u8 = &dig[0];
+    // Manual digit buffer via d[k]; caller-owned stack storage, cap 16.
+    d[0] = 0;
+    if (n == 0) {
+      d[0] = 48;
+      d[1] = 0;
+      rt_elf_append(dst, cap, d);
+      return;
     }
-    dig[i] = (48 + (n - (n / 10) * 10)) as u8;
-    n = n / 10;
-    i = i + 1;
-  }
-  if (neg != 0) {
-    if (i < 15) {
-      dig[i] = 45;
+    if (n < 0) {
+      neg = 1;
+      n = 0 - n;
+    }
+    while (n > 0) {
+      if (i >= 15) {
+        break;
+      }
+      // Least-significant digit first; reverse below.
+      d[i as usize] = (48 + (n - (n / 10) * 10)) as u8;
+      n = n / 10;
       i = i + 1;
     }
+    if (neg != 0) {
+      if (i < 15) {
+        d[i as usize] = 45;
+        i = i + 1;
+      }
+    }
+    // Reverse digits in place (were least-significant first).
+    j = 0;
+    while (j < i / 2) {
+      hi = i - 1 - j;
+      a = d[j as usize];
+      d[j as usize] = d[hi as usize];
+      d[hi as usize] = a;
+      j = j + 1;
+    }
+    d[i as usize] = 0;
+    rt_elf_append(dst, cap, d);
   }
-  // Reverse digits in place (were least-significant first).
-  j = 0;
-  while (j < i / 2) {
-    a = dig[j];
-    dig[j] = dig[i - 1 - j];
-    dig[i - 1 - j] = a;
-    j = j + 1;
-  }
-  dig[i] = 0;
-  rt_elf_append(dst, cap, &dig[0]);
 }
 
 /** Write ASCII "note" + NUL into kind[0..4]. Caller must provide at least 5 bytes.
