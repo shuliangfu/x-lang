@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-11（Stage 12 零 cc：…／**12.0.5 labi full12 hybrid 双端 + COMPILE residual pure_asm 9/13 + L2-asm hybrid 2/3 双端 L2 5/5 · 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）
+> **状态刷新**：2026-08-11（Stage 12 零 cc：…／**12.0.5 labi full12 hybrid 双端 + COMPILE residual pure_asm 9/13 + L2-asm hybrid 3/3（user_asm merge residual 闭）· 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -42,7 +42,7 @@
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
 | **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
-| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅** · **i32 VAR/call-ret/binop sxtw ✅** · **call-arg 栈序 ✅** · **INDEX `**T` 双剥皮闭 ✅** · **typeck_selfhost ndef 误判闭 ✅** · **`ONLY=` IN_NO_C 含 `rt_run_asm_backend` 真 L2 5/5 ✅** · **fixed-array bounds 无 U panic ✅** · **labi pure_asm 12/12 ✅** · **labi hybrid 单 slice RED×0 ✅** · **labi full12 hybrid 双端 L2 5/5 ✅** · **COMPILE residual pure_asm 9/13 双端 ✅** · **L2-asm hybrid pure-asm 2/3 装链双端 L2 5/5 ✅**（问题地图；**默认仍 -E**） · **SEED_SLICE 不并 no_c** · **产品默认 PREFER_ASM 仍禁** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC`（pipeline_abi mega／FAIL×4／user_asm hybrid merge） |
+| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅** · **i32 VAR/call-ret/binop sxtw ✅** · **call-arg 栈序 ✅** · **INDEX `**T` 双剥皮闭 ✅** · **typeck_selfhost ndef 误判闭 ✅** · **`ONLY=` IN_NO_C 含 `rt_run_asm_backend` 真 L2 5/5 ✅** · **fixed-array bounds 无 U panic ✅** · **labi pure_asm 12/12 ✅** · **labi hybrid 单 slice RED×0 ✅** · **labi full12 hybrid 双端 L2 5/5 ✅** · **COMPILE residual pure_asm 9/13 双端 ✅** · **L2-asm hybrid pure-asm 3/3 装链 ✅**（user_asm merge residual 闭；**默认仍 -E**） · **SEED_SLICE 不并 no_c** · **产品默认 PREFER_ASM 仍禁** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC`（pipeline_abi mega／FAIL residual×4） |
 | **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
@@ -2015,11 +2015,11 @@
     - pure_asm **9/13 双端 OK**：l2asm 全 · tcpu 全 · ldpc · `async_asm_pool` · `seed_link_compat` · `strict_glue_thin`  
     - **FAIL×4**：`async_liveness`／`async_cps_codegen`／`runtime_lsp_glue` U `xlang_panic_` · `fmt_check_cmd_thin` CG002（code_len>0／num_labels=0）  
     - **L2-asm 真 hybrid 装链**（`XLANG_HOST_CC_SEED_FORCE=1`+`PREFER_ASM_O=1` try-l2-asm-prefer → unset → soft g05 → matrix）：  
-      - pure-asm thin+rest **2/3**：`backend_x86_64_enc_c`／`asm_backend_compat_stubs` 双端  
-      - `user_asm_seed_bridge` pure_asm 单叶 OK · hybrid merge fail→full seed  
+      - pure-asm thin+rest **3/3 ✅**（含 `user_asm_seed_bridge` merge residual 闭）：  
+        根因：FROM_X rest 去掉 debug／emit_trace 体却无 always-visible `extern` 面声明 → ISO C99 implicit-decl；补 `extern int seed_asm_{debug,emit_trace}_enabled(void)`（对标 `seed_elf_ctx_code_len`）  
       - 装链双端 L2 **5/5** · restore **5/5**  
-    - 日志：mac `/tmp/xlang_compile_residual_pure_asm_map_*.log` · `/tmp/xlang_l2asm_hybrid_true_*.log`；Ubuntu `/tmp/ubu_compile_residual_pure_asm_map.log` · `/tmp/ubu_l2asm_hybrid_true.log`  
-  - 下一步：FAIL×4 根修 · user_asm hybrid merge residual · tcpu／ldpc hybrid 装链 · labi-only 默认化须明示授权 · pipeline_abi mega 仍禁 pure-asm  
+    - 日志：mac `/tmp/xlang_compile_residual_pure_asm_map_*.log` · `/tmp/xlang_l2asm_hybrid_true_*.log` · `/tmp/xlang_uasb_hybrid_true_*.log`；Ubuntu `/tmp/ubu_compile_residual_pure_asm_map.log` · `/tmp/ubu_l2asm_hybrid_true.log` · `/tmp/ubu_uasb_hybrid_true.log`  
+  - 下一步：FAIL residual 根修（async panic／fmt CG002／lsp_glue）· tcpu／ldpc hybrid 装链 · labi-only 默认化须明示授权 · pipeline_abi mega 仍禁 pure-asm 
 
 
 
