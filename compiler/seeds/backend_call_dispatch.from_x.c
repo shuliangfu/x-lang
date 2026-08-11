@@ -3315,23 +3315,43 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
 
+/* G.7 integer ret sxt/zxt (same as VAR load glue_load_var path). Product pure-asm. */
+extern int32_t glue_enc_sxt_i32_result_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t glue_enc_zxt_u32_result_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t glue_enc_zxt_u8_result_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+
 /**
- * PLATFORM: LINUX+MACOS x86_64 SysV — after CALL, harvest f32/f64 return from xmm0 into eax/rax.
+ * PLATFORM: SHARED — after CALL, canonicalize return into GPR x0/rax.
  * Authority: pipeline_asm_call_return_type_kind_ord_c (resolved_type + dep map + dep-arena kind).
- * Type-driven only (G.7): kind 14=f32, 15=f64. No name gate; no kind<0 force-harvest.
+ * Type-driven only (G.7):
+ *   · kind 14=f32 / 15=f64 → xmm0 harvest (x86_64 only; ta==0)
+ *   · kind 0=I32 → sxtw/cdqe (AAPCS64 `mov w0,imm` zero-extends; pure-asm
+ *     compares full x0 vs sign-ext -2 → false without this — hybrid
+ *     ONLY=rt_run_compiler_parsed try_c returned 254)
+ *   · kind 3=U32 → zxt; kind 1=BOOL / 2=U8 → zxt8
  * Import FIELD_ACCESS (math.floor) must resolve via glue_asm_resolve_call_target_module_c.
  */
 static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                       int32_t call_expr_ref, int32_t ta) {
   int32_t kind;
-  if (ta != 0 || !arena || !elf_ctx || call_expr_ref <= 0)
+  if (!arena || !elf_ctx || call_expr_ref <= 0)
     return 0;
   kind = pipeline_asm_call_return_type_kind_ord_c(arena, call_expr_ref);
-  if (kind == 14)
-    return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
-  if (kind == 15)
-    return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
+  /* SSE harvest remains x86-only (xmm). */
+  if (ta == 0) {
+    if (kind == 14)
+      return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
+    if (kind == 15)
+      return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
+  }
+  /* Integer GP ret: both x86_64 and arm64 (sxtw / cdqe / uxt). */
+  if (kind == 0)
+    return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+  if (kind == 3)
+    return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+  if (kind == 1 || kind == 2)
+    return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
   return 0;
 }
 

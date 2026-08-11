@@ -43104,7 +43104,93 @@ export function glue_try_emit_ptr_arith_scaled_elf_c(arena: *u8, elf_ctx: *u8, c
  * PLATFORM: SHARED freestanding emit.
  */
 #[no_mangle]
+/**
+ * After 32-bit GP ADD/SUB/MUL (arm64 ADD/SUB/MUL W zero-extends to X0), sign-extend
+ * when either operand is TYPE_I32 so signed compares and countdown loops work.
+ * INT_LIT alone has no resolved type — if either side resolves to I32, sxt.
+ * Skip when neither side is known i32 (u32 keeps zero-ext; i64/ptr use other paths).
+ * @return i32 - 0 ok, non-zero encode fail
+ * PLATFORM: SHARED freestanding · MACOS|ARM64 sxtw · x86_64 cdqe.
+ */
+function glue_binop_maybe_sxt_i32_result_elf_c(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32, elf_ctx: *u8, ta: i32): i32 {
+  let tr: i32 = 0;
+  let k: i32 = 0;
+  let need: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+  }
+  if (tr > 0) {
+    unsafe {
+      k = pipeline_type_kind_ord_at(arena, tr);
+    }
+    if (k == 0) {
+      need = 1;
+    }
+  }
+  if (need == 0 && ctx != (0 as *u8)) {
+    unsafe {
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+    }
+    if (tr > 0) {
+      unsafe {
+        k = pipeline_type_kind_ord_at(arena, tr);
+      }
+      if (k == 0) {
+        need = 1;
+      }
+    }
+  }
+  if (need == 0) {
+    unsafe {
+      tr = pipeline_expr_resolved_type_ref(arena, right_ref);
+    }
+    if (tr > 0) {
+      unsafe {
+        k = pipeline_type_kind_ord_at(arena, tr);
+      }
+      if (k == 0) {
+        need = 1;
+      }
+    }
+  }
+  if (need == 0 && ctx != (0 as *u8)) {
+    unsafe {
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, right_ref);
+    }
+    if (tr > 0) {
+      unsafe {
+        k = pipeline_type_kind_ord_at(arena, tr);
+      }
+      if (k == 0) {
+        need = 1;
+      }
+    }
+  }
+  /* INT_LIT kind_ord is typically unstamped; when one side is INT_LIT (ko=2)
+   * and the other is not known u32/f*, default X integer is i32 → sxt. */
+  if (need == 0) {
+    let ko_l: i32 = 0;
+    let ko_r: i32 = 0;
+    unsafe {
+      ko_l = pipeline_expr_kind_ord_at(arena, left_ref);
+      ko_r = pipeline_expr_kind_ord_at(arena, right_ref);
+    }
+    /* EXPR_INT_LIT = 2 (ast.x). */
+    if (ko_l == 2 || ko_r == 2) {
+      need = 1;
+    }
+  }
+  if (need != 0) {
+    return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+  }
+  return 0;
+}
+
 export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
+  let rc: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_addsd_rax_rbx_arch(elf_ctx, ta);
@@ -43116,8 +43202,14 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
     if (glue_ptr_arith_scale_rbx_offset_if_left_ptr_c(arena, elf_ctx, left_ref, right_ref, ta) != 0) {
       return -1;
     }
-    return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
+    rc = backend_enc_add_rax_rbx_arch(elf_ctx, ta);
   }
+  if (rc != 0) {
+    return rc;
+  }
+  /* 32-bit ADD W zeros-extends; i32 signed compare / j-1 loops need sxtw.
+   * PLATFORM: SHARED · MACOS|ARM64 sxtw · x86_64 cdqe. */
+  return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);
 }
 
 /**
@@ -43269,6 +43361,7 @@ export function pipeline_asm_emit_binop_add_elf_c(arena: *u8, elf_ctx: *u8, left
  */
 #[no_mangle]
 export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
+  let rc: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_subsd_rbx_rax_arch(elf_ctx, ta);
@@ -43276,8 +43369,12 @@ export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_subss_rbx_rax_arch(elf_ctx, ta);
     }
-    return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
+    rc = backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
   }
+  if (rc != 0) {
+    return rc;
+  }
+  return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);
 }
 
 /**
@@ -43293,6 +43390,7 @@ export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8
  */
 #[no_mangle]
 export function glue_emit_binop_sub_rax_minus_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
+  let rc: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_subsd_rax_rbx_arch(elf_ctx, ta);
@@ -43304,8 +43402,16 @@ export function glue_emit_binop_sub_rax_minus_rbx_elf_c(arena: *u8, elf_ctx: *u8
     if (glue_ptr_arith_scale_rbx_offset_if_left_ptr_c(arena, elf_ctx, left_ref, right_ref, ta) != 0) {
       return -1;
     }
-    return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+    rc = backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
   }
+  if (rc != 0) {
+    return rc;
+  }
+  /* 32-bit SUB W zeros-extends; i32 `j = n - 1` then `j >= 0` must sxtw or
+   * j=-1 becomes 0x00000000ffffffff (signed-positive) and loops forever
+   * (hybrid ONLY=rt_run_compiler_parsed load_deps ptr_table_set SEGV).
+   * PLATFORM: SHARED · MACOS|ARM64 sxtw · x86_64 cdqe. */
+  return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);
 }
 
 /**
@@ -43321,6 +43427,7 @@ export function glue_emit_binop_sub_rax_minus_rbx_elf_c(arena: *u8, elf_ctx: *u8
  */
 #[no_mangle]
 export function glue_emit_binop_mul_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
+  let rc: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_mulsd_rax_rbx_arch(elf_ctx, ta);
@@ -43328,8 +43435,14 @@ export function glue_emit_binop_mul_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_mulss_rax_rbx_arch(elf_ctx, ta);
     }
-    return backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
+    rc = backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
   }
+  if (rc != 0) {
+    return rc;
+  }
+  /* 32-bit MUL W zero-extends; i32 product needs sxtw before signed use.
+   * PLATFORM: SHARED · MACOS|ARM64 sxtw · x86_64 cdqe. */
+  return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);
 }
 
 /**
@@ -52949,8 +53062,10 @@ let g_w157_walk_stack: i32[256] = [];
 /**
  * Recursive sum of permanent call-arg spill bytes under one expression.
  * CALL(48)/METHOD_CALL(49): each reg-class arg (and method receiver) reserves
- * 32B without reclaim; nested calls counted in subtrees. Walks binop/unary/
- * AS/INDEX/FIELD/ARRAY_LIT/STRUCT_LIT/EXPR_IF children.
+ * 32B without reclaim; nested calls counted in subtrees. Walks binop/ASSIGN
+ * (*ASSIGN 28..38 via binop left/right)/unary/AS/INDEX/FIELD/ARRAY_LIT/
+ * STRUCT_LIT/EXPR_IF children. ASSIGN must be walked: body expr stmts are
+ * often `x = call(...)`; omitting them under-sizes pure-asm frames.
  * Soft leave-off: mutates g_w157_spill_total / g_w157_spill_visits.
  * @param arena *u8 - ASTArena*
  * @param expr_ref i32 - expression pool ref; <=0 no-op
@@ -53023,8 +53138,14 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
     g_w157_spill_total = g_w157_spill_total + (n + 1) * 32;
     return;
   }
-  // binops / assign-like (4..21, 25, 26)
-  if ((ko >= 4 && ko <= 21) || ko == 25 || ko == 26) {
+  // binops (4..21, 25, 26) + ASSIGN / *ASSIGN (28..38).
+  // ASSIGN reuses binop left/right (ast.h AST_EXPR_ASSIGN). Without this walk,
+  // pure-asm frame sizing under-counts sequential `x = f(g())` expr stmts:
+  // next_offset still advances on emit, but compute_frame_size only reserved the
+  // min 512B scratch → spill homes past the frame clobber caller's saved LR
+  // (mac hybrid ONLY=rt_run_compiler_parsed SEGV pc=0x4 when argc=4 smashed LR).
+  // PLATFORM: SHARED freestanding frame-size estimation · dual-end L2.
+  if ((ko >= 4 && ko <= 21) || ko == 25 || ko == 26 || (ko >= 28 && ko <= 38)) {
     unsafe {
       arg_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
       op = pipeline_expr_binop_right_ref_at(arena, expr_ref);
