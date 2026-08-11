@@ -85,6 +85,12 @@ extern void parser_parse_into_init(void *arena, void *module);
 extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data, int32_t len);
 extern void parser_parse_into_set_main_index(void *module, int32_t main_idx);
 extern int driver_get_module_num_funcs(void *m);
+/* Stage 12.2.4: extern-only module detection for asm backend CG002 false-positive
+ * fix. extern-only modules (e.g., pipeline.x — 162 export extern function signatures
+ * with ZERO bodies) legitimately produce 0 bytes of code; CG002 must not fire for
+ * them. Provided by runtime_pipeline_abi (G.7 single authority).
+ * PLATFORM: SHARED. */
+extern int pipeline_module_func_is_extern_at(void *module, int fi);
 extern int32_t parser_get_module_num_imports(void *module);
 extern void xlang_get_entry_dir(const char *path, char *out, size_t out_sz);
 extern int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
@@ -828,6 +834,20 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                              (int)elf_ec, (size_t)out_buf->length);
             }
             if (elf_ec != 0 || out_buf->length <= 0) {
+                /* Stage 12.2.4: extern-only modules (all functions are extern declarations
+                 * with no bodies, e.g., pipeline.x — 162 export extern signatures) produce
+                 * 0 bytes of code legitimately. Skip CG002 false positive for them.
+                 * Non-extern modules with 0 output are real CG002 errors (codegen gap).
+                 * PLATFORM: SHARED. */
+                int _all_extern = 1;
+                int _fi;
+                int _nf = driver_get_module_num_funcs(module);
+                for (_fi = 0; _fi < _nf; _fi++) {
+                    if (pipeline_module_func_is_extern_at(module, _fi) == 0) {
+                        _all_extern = 0;
+                    }
+                }
+                if (elf_ec != 0 || _all_extern == 0 || _nf == 0) {
                 diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG002, NULL,
                                        "asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)",
                                        (int)elf_ec, (size_t)out_buf->length, driver_get_module_num_funcs(module));
@@ -847,6 +867,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 free(module);
                 free(src);
                 return 1;
+                }
+                /* All functions are extern — 0 bytes is correct, not CG002. Fall through
+                 * to fwrite (0-byte write is a no-op; extern-only .o contributes no code
+                 * to link, matching C path where extern decls produce no .text). */
             }
         }
         fwrite(out_buf->data, 1, (size_t)out_buf->length, asm_out ? asm_out : stdout);

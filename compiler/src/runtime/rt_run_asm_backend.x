@@ -33,6 +33,12 @@ export extern function pipeline_sizeof_module(): usize;
 export extern function parser_parse_into_init(module: *u8, arena: *u8): void;
 export extern function parser_parse_into_set_main_index(module: *u8, main_idx: i32): void;
 export extern function driver_get_module_num_funcs(m: *u8): i32;
+// Stage 12.2.4: extern-only module detection for asm backend CG002 false-positive
+// fix. extern-only modules (e.g., pipeline.x — 162 export extern function signatures
+// with ZERO bodies) legitimately produce 0 bytes of code; CG002 must not fire for
+// them. Provided by runtime_pipeline_abi (G.7 single authority).
+// PLATFORM: SHARED.
+export extern function pipeline_module_func_is_extern_at(module: *u8, fi: i32): i32;
 export extern function parser_get_module_num_imports(module: *u8): i32;
 export extern function xlang_get_entry_dir(path: *u8, out: *u8, out_sz: usize): void;
 export extern function driver_dep_seeded_clear_all(): void;
@@ -1675,11 +1681,32 @@ export function rt_ab_step_finish(): i32 {
             return 1;
           }
           if (out_len <= 0) {
-            rt_ab_diag(path, 5, 10, 11);
-            unsafe {
-              driver_unlink_failed_output(outp);
+            // Stage 12.2.4: extern-only modules (all functions are extern declarations
+            // with no bodies, e.g., pipeline.x — 162 export extern signatures) produce
+            // 0 bytes of code legitimately. Skip CG002 false positive for them.
+            // Non-extern modules with 0 output are real CG002 errors (codegen gap).
+            // PLATFORM: SHARED.
+            let _all_extern: i32 = 1;
+            let _fi: i32 = 0;
+            let _nf: i32 = driver_get_module_num_funcs(module);
+            while (_fi < _nf) {
+              unsafe {
+                if (pipeline_module_func_is_extern_at(module, _fi) == 0) {
+                  _all_extern = 0;
+                }
+              }
+              _fi = _fi + 1;
             }
-            return 1;
+            if (_all_extern == 0 || _nf == 0) {
+              rt_ab_diag(path, 5, 10, 11);
+              unsafe {
+                driver_unlink_failed_output(outp);
+              }
+              return 1;
+            }
+            // All functions are extern — 0 bytes is correct, not CG002. Fall through
+            // to write step (0-byte write is a no-op; extern-only .o contributes no
+            // code to link, matching C path where extern decls produce no .text).
           }
         }
       }
