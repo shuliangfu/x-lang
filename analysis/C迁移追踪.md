@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 labi full12 + pure_asm residual 13/13 + L2-asm hybrid 3/3 + tcpu／ldpc pure-asm hybrid（objcopy --weaken）+ other-l2 WEAK hybrid（slc／strict／lsp 双端 · fmt mac residual）· 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 labi full12 + pure_asm residual 13/13 + L2-asm hybrid 3/3 + tcpu／ldpc pure-asm hybrid（objcopy --weaken）+ other-l2 WEAK pure-asm hybrid 4/4（含 fmt `xlang_fmt_*` XLANG_WEAK）· 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -42,7 +42,7 @@
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
 | **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
-| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅** · **i32 VAR/call-ret/binop sxtw ✅** · **call-arg 栈序 ✅** · **INDEX `**T` 双剥皮闭 ✅** · **typeck_selfhost ndef 误判闭 ✅** · **`ONLY=` IN_NO_C 含 `rt_run_asm_backend` 真 L2 5/5 ✅** · **fixed-array bounds 无 U panic ✅** · **div/mod host-E 对等无 U panic ✅** · **labi pure_asm 12/12 ✅** · **labi hybrid 单 slice RED×0 ✅** · **labi full12 hybrid 双端 L2 5/5 ✅** · **COMPILE residual pure_asm 13/13 ✅** · **L2-asm hybrid pure-asm 3/3 ✅** · **tcpu pure-asm hybrid 装链 ✅** · **ldpc pure-asm hybrid 装链 ✅**（objcopy --weaken 闭 multidef×3）· **other-l2 WEAK hybrid slc／strict／lsp 双端 ✅**（fmt mac residual）· **SEED_SLICE 不并 no_c** · **产品默认 PREFER_ASM 仍禁** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC`（pipeline_abi mega 等） |
+| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅** · **i32 VAR/call-ret/binop sxtw ✅** · **call-arg 栈序 ✅** · **INDEX `**T` 双剥皮闭 ✅** · **typeck_selfhost ndef 误判闭 ✅** · **`ONLY=` IN_NO_C 含 `rt_run_asm_backend` 真 L2 5/5 ✅** · **fixed-array bounds 无 U panic ✅** · **div/mod host-E 对等无 U panic ✅** · **labi pure_asm 12/12 ✅** · **labi hybrid 单 slice RED×0 ✅** · **labi full12 hybrid 双端 L2 5/5 ✅** · **COMPILE residual pure_asm 13/13 ✅** · **L2-asm hybrid pure-asm 3/3 ✅** · **tcpu pure-asm hybrid 装链 ✅** · **ldpc pure-asm hybrid 装链 ✅**（objcopy --weaken 闭 multidef×3）· **other-l2 WEAK pure-asm hybrid 4/4 ✅**（含 fmt · seed `xlang_fmt_*` XLANG_WEAK）· **SEED_SLICE 不并 no_c** · **产品默认 PREFER_ASM 仍禁** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC`（pipeline_abi mega 等） |
 | **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
@@ -2034,11 +2034,15 @@
   - **other-l2 WEAK pure-asm hybrid 地图 ✅（2026-08-12 · tip `1218796d0`）**：  
     - 对象 4 叶（`try-other-l2-prefer`）：`seed_link_compat`（WEAK_FUNCS×6）／`strict_glue`／`fmt_check_cmd_driver`／`lsp_diag`（`runtime_lsp_glue`）  
     - pure_asm+WEAK polish 探针 mac 全绿（llvm-objcopy `--weaken`／named）  
-    - **mac hybrid**：slc／strict／lsp **5/5** · **fmt pure-ld FAIL** U `xlang_fmt_{access,opendir,closedir,readdir_name}`  
-    - **Ubuntu 金标 hybrid**：四叶 **全 5/5** 含 fmt · restore **5/5**  
+    - **mac hybrid**（地图波）：slc／strict／lsp **5/5** · **fmt pure-ld FAIL** U `xlang_fmt_*`  
+    - **Ubuntu 金标 hybrid**（地图波）：四叶 **全 5/5** 含 fmt（常 fallthrough -E）· restore **5/5**  
     - 日志 mac `/tmp/xlang_ol2_weak_pure_asm_hybrid_true_*.log` · Ubuntu `/tmp/ubu_ol2_weak_pure_asm_hybrid_1218796d0_*.log`  
+  - **fmt pure-asm hybrid residual ✅ 闭（2026-08-12）**：  
+    - 根修 G.7：`fmt_check_cmd.from_x.c` 常驻导出 `XLANG_WEAK xlang_fmt_{opendir,closedir,access,readdir_name}`（cold＋FROM_X rest；对等 prologue static inline 语义；Win32 opendir 宏）  
+    - 辅：`pure_asm_find_objcopy` 用 `command grep`／`/usr/bin/grep` 防 shell shadow  
+    - **mac** pure-asm thin+rest · soft g05 pure-ld · matrix **5/5** · restore -E **5/5**  
     - **产品默认仍 -E**  
-  - 下一步：fmt pure-asm hybrid mac `xlang_fmt_*` UNDEF 根修 · labi-only 默认化须明示授权 · pipeline_abi mega 仍禁 pure-asm
+  - 下一步：labi-only 默认化须明示授权 · pipeline_abi mega 仍禁 pure-asm
 
 
 

@@ -277,7 +277,10 @@ pure_asm_find_objcopy() {
     fi
     [ -n "$path" ] || continue
     # Require --weaken (llvm-objcopy / GNU binutils); nmedit cannot weak pure-asm.
-    if "$path" --help 2>&1 | grep -q -- '--weaken'; then
+    # PLATFORM: SHARED — use /usr/bin/grep when present so agent/shells that
+    # shadow `grep` (ugrep wrappers without -q) do not false-negative objcopy.
+    if "$path" --help 2>&1 | command grep -q -- '--weaken' 2>/dev/null \
+      || "$path" --help 2>&1 | /usr/bin/grep -q -- '--weaken' 2>/dev/null; then
       printf '%s\n' "$path"
       return 0
     fi
