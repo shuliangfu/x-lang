@@ -36,6 +36,13 @@ cd "$(dirname "$0")/.."
 
 CC="${G05_CC:-cc}"
 CFLAGS="${G05_CFLAGS:-}"
+
+# Stage 12.2.1: XLANG_FORBID_HOST_CC gate (no-op when flag unset; zero impact
+# on normal builds). When XLANG_FORBID_HOST_CC=1, replaces $CC with a wrapper
+# that logs and blocks all host-CC invocations — builds the zero-CC problem map.
+# PLATFORM: SHARED.
+. "$(dirname "$0")/forbid_host_cc.sh"
+
 OUT="${G05_OUT:-xlang}"
 OBJS="${G05_OBJS:-}"
 XLANG_C="${G05_XLANG_C:-xlang-c}"

@@ -54,6 +54,13 @@ fi
 #      "cc: command not found" on Windows.
 CC="${G05_CC:-${CC:-cc}}"
 BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
+
+# Stage 12.2.1: XLANG_FORBID_HOST_CC gate (no-op when flag unset; zero impact
+# on normal builds). When XLANG_FORBID_HOST_CC=1, replaces $CC with a wrapper
+# that logs and blocks all host-CC invocations — builds the zero-CC problem map.
+# PLATFORM: SHARED.
+. "$(dirname "$0")/forbid_host_cc.sh"
+
 # 与 Makefile RUNTIME_DRIVER_NO_C_CFLAGS 一致（runtime.c → runtime_driver_no_c.o）
 # Cap residual 数据在 RT_SEED_SLICE_OBJS（g05_relink_env）；runtime 开 XLANG_RT_*_FROM_X。
 # 须含 PARSE_DIAG_FROM_X：parse_diag 只在 src/runtime/rt_parse_diag.o，禁止再 merge 进 no_c（否则 Darwin 双符号）。
