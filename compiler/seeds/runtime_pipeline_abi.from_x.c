@@ -10910,6 +10910,36 @@ int32_t glue_enc_sxt_i32_result_to_rax_elf_c(void *elf_ctx, int32_t ta) {
   return 0;
 }
 
+/* Stage 12.0.5: zero-extend u32 in eax/w0 (pair of sxt). PLATFORM: SHARED. */
+int32_t glue_enc_zxt_u32_result_to_rax_elf_c(void *elf_ctx, int32_t ta) {
+  if (!elf_ctx)
+    return -1;
+  if (ta == 0) {
+    static const uint8_t mov_eax[2] = {0x89, 0xc0};
+    return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)mov_eax, 2);
+  }
+  if (ta == 1) {
+    static const uint8_t uxtw[4] = {0x00, 0x7c, 0x40, 0xd3};
+    return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)uxtw, 4);
+  }
+  return 0;
+}
+
+/* Stage 12.0.5: zero-extend u8/bool in al/w0. PLATFORM: SHARED. */
+int32_t glue_enc_zxt_u8_result_to_rax_elf_c(void *elf_ctx, int32_t ta) {
+  if (!elf_ctx)
+    return -1;
+  if (ta == 0) {
+    static const uint8_t and_ff[5] = {0x25, 0xff, 0x00, 0x00, 0x00};
+    return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)and_ff, 5);
+  }
+  if (ta == 1) {
+    static const uint8_t uxtb[4] = {0x00, 0x1c, 0x00, 0x53};
+    return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)uxtb, 4);
+  }
+  return 0;
+}
+
 int32_t glue_enc_jz_after_bool_in_eax(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta) {
   if (ta == 0) {
     if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)

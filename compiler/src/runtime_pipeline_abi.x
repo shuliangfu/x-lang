@@ -24627,6 +24627,90 @@ export function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32
 }
 
 /**
+ * Zero-extend u32 / 32-bit unsigned result in eax/w0 to full GP (rax/x0).
+ * Pair of glue_enc_sxt_i32: AAPCS/SysV leave high bits undefined for <64-bit
+ * integer args; 64-bit stack load reloads garbage — index/add need clean GP.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param ta i32 - 0=x86_64 mov eax,eax (zxt); 1=arm64 uxtw; other no-op
+ * @return i32 - 0 ok; -1 encoder failure
+ * Stage 12.0.5: G.7 有则补全 (narrow GP canonicalize; same family as sxt).
+ * PLATFORM: SHARED contract; x86_64 zxt-via-32; arm64 uxtw.
+ */
+#[no_mangle]
+export function glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32 {
+  let rc: i32 = 0;
+  let mov_eax: u8[2] = [];
+  let uxtw: u8[4] = [];
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ta == 0) {
+    // mov %eax, %eax — 89 c0; writing eax zero-extends upper 32 of rax
+    mov_eax[0] = 0x89 as u8;
+    mov_eax[1] = 0xc0 as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &mov_eax[0], 2);
+    }
+    return rc;
+  }
+  if (ta == 1) {
+    // uxtw x0, w0 — UBFM Xd,Xn,#0,#31 = 0xd3407c00 little-endian
+    uxtw[0] = 0x00 as u8;
+    uxtw[1] = 0x7c as u8;
+    uxtw[2] = 0x40 as u8;
+    uxtw[3] = 0xd3 as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &uxtw[0], 4);
+    }
+    return rc;
+  }
+  return 0;
+}
+
+/**
+ * Zero-extend u8 / bool result in al/w0 to full GP (rax/x0).
+ * Same AAPCS high-bit garbage class as u32; byte compare / index need clean GP.
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null → -1
+ * @param ta i32 - 0=x86_64 and $0xff; 1=arm64 uxtb; other no-op
+ * @return i32 - 0 ok; -1 encoder failure
+ * Stage 12.0.5: G.7 有则补全 (narrow GP canonicalize family).
+ * PLATFORM: SHARED contract; x86_64 mask; arm64 uxtb.
+ */
+#[no_mangle]
+export function glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32 {
+  let rc: i32 = 0;
+  let and_ff: u8[5] = [];
+  let uxtb: u8[4] = [];
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ta == 0) {
+    // and $0xff, %eax — 25 ff 00 00 00
+    and_ff[0] = 0x25 as u8;
+    and_ff[1] = 0xff as u8;
+    and_ff[2] = 0x00 as u8;
+    and_ff[3] = 0x00 as u8;
+    and_ff[4] = 0x00 as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &and_ff[0], 5);
+    }
+    return rc;
+  }
+  if (ta == 1) {
+    // uxtb w0, w0 — UBFM Wd,Wn,#0,#7 = 0x53001c00 little-endian
+    uxtb[0] = 0x00 as u8;
+    uxtb[1] = 0x1c as u8;
+    uxtb[2] = 0x00 as u8;
+    uxtb[3] = 0x53 as u8;
+    unsafe {
+      rc = pipeline_elf_ctx_append_bytes(elf_ctx, &uxtb[0], 4);
+    }
+    return rc;
+  }
+  return 0;
+}
+
+/**
  * Bool result already in eax/x0: jump to label when zero.
  * x86_64: test eax,eax then jz (mov does not set ZF). arm64/riscv: jz reads reg.
  * @param elf_ctx *u8 - ElfCodegenCtx*
@@ -62758,6 +62842,8 @@ export function glue_func_return_byte_size_c(mod: *u8, arena: *u8, func_index: i
  * 9–16B INTEGER dual-GP: x86 high-end (low@off, high@off-8 → rax+rdx);
  * arm64 low-end (low@off, high@off+8 → x0+x1). Pointer-home formals (*T /
  * T[N] / T[]) load the pointer then optionally deref 9–16B via residual.
+ * Scalar i32/u32/u8/bool: after 64-bit stack load, canonicalize high bits
+ * (sxt/zxt) so index/add/cmp match AAPCS/SysV (clang uses ldrsw/str w).
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
  * @param arena *u8 — ASTArena* (sizing; may be null for plain load)
  * @param ctx *u8 — AsmFuncCtx* (type/param lookup)
@@ -62767,6 +62853,7 @@ export function glue_func_return_byte_size_c(mod: *u8, arena: *u8, func_index: i
  * @return i32 — 0 success; -1 enc/null failure
  *
  * wave193 pure: G.7 authority (was Cap residual call_args / wave603 arm64 dual).
+ * Stage 12.0.5: narrow GP sxt/zxt after scalar load (rt_eq6 i32 p SEGV root).
  * PLATFORM: SHARED freestanding dual-GP load · LINUX+MACOS x86 · MACOS|ARM64.
  */
 #[no_mangle]
@@ -62776,6 +62863,7 @@ export function glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx: *u8, arena: *u8
   let nsz: i32 = 0;
   let mod: *u8 = 0 as *u8;
   let rc: i32 = 0;
+  let kind_ord: i32 = 0 - 1;
   if (elf_ctx == (0 as *u8) || off < 0) {
     return -1;
   }
@@ -62871,6 +62959,25 @@ export function glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx: *u8, arena: *u8
   }
   if (rc != 0) {
     return -1;
+  }
+  // Narrow integer VAR: full-width stack load keeps AAPCS/SysV high-bit
+  // garbage from param_home (str x / mov QWORD). Index `c[p as usize]` and
+  // binop need clean GP — match clang ldrsw / zero-ext load.
+  // TypeKind: I32=0 BOOL=1 U8=2 U32=3 (ast.x).
+  // PLATFORM: SHARED freestanding · LINUX+MACOS x86 · MACOS|ARM64.
+  if (arena != (0 as *u8) && tr > 0) {
+    unsafe {
+      kind_ord = pipeline_type_kind_ord_at(arena, tr);
+    }
+    if (kind_ord == 0) {
+      return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+    }
+    if (kind_ord == 3) {
+      return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+    }
+    if (kind_ord == 1 || kind_ord == 2) {
+      return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
+    }
   }
   return 0;
 }

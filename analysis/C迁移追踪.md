@@ -42,7 +42,7 @@
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
 | **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
-| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅**（RED_SEGV：`content`／`run_compiler_parsed`；RED_L2：`dispatch_impl`／`emit_flags`／`lib_root`／`run_asm_backend`；根因钉：arm64 **i32 未 sxtw** @ `rt_eq6`）· **SEED_SLICE 不并 no_c** · **全量 PREFER_ASM 仍禁默认** · labi **8/12** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC` |
+| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅** · **i32/u8 VAR load sxtw/zxt ✅**（`ONLY=rt_content` 仍 RED：call-arg multi-imm）· **SEED_SLICE 不并 no_c** · **全量 PREFER_ASM 仍禁默认** · labi **8/12** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC` |
 | **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
@@ -1992,9 +1992,9 @@
     - **RED_SEGV**：`rt_content`／`rt_run_compiler_parsed`  
     - **RED_L2**：`rt_dispatch_impl`／`rt_emit_flags`／`rt_lib_root`／`rt_run_asm_backend`  
     - **VACUOUS**：`rt_run_exec`（seed 冷）· **SEED_SLICE 外链**（`preamble`／`stack`／`arena_buf`／`emit_state`／`parse_diag`）→ `ONLY=` **不改** `runtime_driver_no_c.o`  
-  - **`rt_content` 根因钉**：lldb `rt_eq6`；pure-asm 64 位用 `i32 p`，clang `ldrsw`；G.7 补 **i32 param/local sxtw**（已有 `glue_enc_sxt_i32_result_to_rax_elf_c`）  
+  - **`rt_content` 根因钉（演进）**：①lldb `rt_eq6` i32 `p` 未 sxtw → **已修**（VAR load 挂 sxt/zxt；探针见 `sxtw`）②复验仍 SEGV：c home=`0x3e`（`'>'`）= 最后 imm → **call-arg 多参装寄存器**（spill 后 `mov xN,x0` 未 reload）  
   - **再探 residual**：全量 PREFER_ASM_O 仍 L2 SIGSEGV → **禁止默认打开**  
-  - 下一步：i32 sxtw 权威修 → 复验 RED hybrid · labi 4× panic · SEED_SLICE 走 permanent `.o` 路径  
+  - 下一步：G.7 call-arg multi-imm GP fill → 复验 `ONLY=rt_content` · labi 4× panic · SEED_SLICE permanent `.o`  
 
 
   - 未完成前冷构建仍会 `$CC -c` 编译 seed／X-emit C

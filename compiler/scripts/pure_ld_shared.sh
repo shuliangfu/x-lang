@@ -332,13 +332,16 @@ pure_asm_x_to_o() {
       return 1
     fi
   fi
-  # Prefer freestanding product binary, then hosted xlang / seed binaries.
+  # Prefer product xlang (g05 / soft-relink tip), then explicit XLANG, then
+  # experimental xlang_asm / seed eggs. Preferring xlang_asm over product
+  # silently re-emitted stale pure-asm (no Stage12.0.5 sxtw) under hybrid
+  # bisect — PLATFORM: SHARED harness.
   if [ -n "${XLANG:-}" ] && [ -x "$XLANG" ]; then
     xl="$XLANG"
-  elif [ -x ./xlang_asm ]; then
-    xl=./xlang_asm
   elif [ -x ./xlang ]; then
     xl=./xlang
+  elif [ -x ./xlang_asm ]; then
+    xl=./xlang_asm
   elif [ -x ./xlang-c ]; then
     xl=./xlang-c
   elif [ -x ./bootstrap_xlangc ]; then
