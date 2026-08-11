@@ -10165,20 +10165,15 @@ int32_t pipeline_asm_emit_panic_int_div_zero_elf_c(void *elf_ctx, int32_t ta) {
   return pipeline_asm_emit_xlang_panic_call_elf_c(0, elf_ctx, 0, ta, 1, 0);
 }
 
+/* Stage 12.0.5: host -E parity — no runtime xlang_panic_ on div/mod zero.
+ * Pure-asm residual FAIL_ABI_panic on async_liveness / async_cps / runtime_lsp_glue
+ * (and any freestanding / %) came from test+jne+CALL panic. Match fixed-array
+ * bounds skip: product pure_asm_x_to_o must not invent freestanding UNDEF.
+ * PLATFORM: SHARED cold twin of runtime_pipeline_abi.x authority (G.7 same commit). */
 int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(void *elf_ctx, void *ctx, int32_t ta) {
-  uint8_t ok_lbl[128];
-  int32_t ok_len;
-  ok_len = pipeline_asm_emit_next_label_c(ctx, ok_lbl, 64);
-  if (ok_len <= 0)
-    return -1;
-  if (backend_enc_test_rbx_rbx_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_jne_arch(elf_ctx, ok_lbl, ok_len, ta) != 0)
-    return -1;
-  if (pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta) != 0)
-    return -1;
-  if (backend_enc_label_arch(elf_ctx, ok_lbl, ok_len, 0, ta) != 0)
-    return -1;
+  (void)elf_ctx;
+  (void)ctx;
+  (void)ta;
   return 0;
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

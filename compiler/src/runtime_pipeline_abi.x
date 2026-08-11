@@ -23170,48 +23170,33 @@ export function pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx: *u8, ta: i32
 }
 
 /**
- * Divisor already in rbx/w1: zero-check; if zero panic else continue idiv/rem.
- * Uses enc_test_rbx (not mov rbx→rax) so VAR fast-path dividend stays in w0/rax.
- * @param elf_ctx *u8 - ElfCodegenCtx*
- * @param ctx *u8 - AsmFuncCtx* for next_label
- * @param ta i32 - target arch
- * @return i32 - 0 ok; -1 label/encoder/panic failure
+ * Divisor already in rbx/w1: optional zero-check before idiv/rem.
+ *
+ * Stage 12.0.5 root (COMPILE residual FAIL_ABI_panic): host -E emits bare C
+ * `a/b` / `a%b` with **no** runtime `xlang_panic_` (integer div-by-zero is C
+ * UB, same as host gcc). Pure-asm used to insert test/jne + CALL xlang_panic_,
+ * so freestanding product leaves with LE byte packing or decimal print
+ * (`async_liveness` / `async_cps_codegen` / `runtime_lsp_glue` and any `/` `%`)
+ * produced U xlang_panic_ and pure_asm_x_to_o rejected them. Fixed-array
+ * bounds already matched host-E (skip non-lit); div/mod must match too.
+ *
+ * Policy: **no** runtime panic / no labels — return 0 always so callers still
+ * emit idiv/rem. Keep the face for G.7 single call sites (binop + assign).
+ * Explicit EXPR_PANIC and intentional lit OOB array panic paths unchanged.
+ *
+ * @param elf_ctx *u8 — ElfCodegenCtx* (unused; face parity with cold seed)
+ * @param ctx *u8 — AsmFuncCtx* (unused; no next_label)
+ * @param ta i32 — target arch (unused)
+ * @return i32 — always 0 (host-E parity; never -1 from this face)
  * wave127 pure: G.7 authority (was static in pipeline_asm_emit_panic.c).
  * Callers: binop div/mod/rem, assign compound div.
- * PLATFORM: SHARED - sole provider after panic leave.
+ * PLATFORM: SHARED — sole provider after panic leave; freestanding pure-asm safe.
  */
 #[no_mangle]
 export function pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx: *u8, ctx: *u8, ta: i32): i32 {
-  let ok_lbl: u8[128] = [];
-  let ok_len: i32 = 0;
-  unsafe {
-    ok_len = pipeline_asm_emit_next_label_c(ctx, &ok_lbl[0], 64);
-  }
-  if (ok_len <= 0) {
-    return 0 - 1;
-  }
-  let rc: i32 = 0;
-  unsafe {
-    rc = backend_enc_test_rbx_rbx_arch(elf_ctx, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_jne_arch(elf_ctx, &ok_lbl[0], ok_len, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  rc = pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_label_arch(elf_ctx, &ok_lbl[0], ok_len, 0, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
+  // Host-E parity: no runtime div-zero panic (see docblock). Silence unused params.
+  if (elf_ctx == (0 as *u8) && ctx == (0 as *u8) && ta < 0) {
+    return 0;
   }
   return 0;
 }
