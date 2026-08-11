@@ -2003,8 +2003,9 @@
     - **RED×4 pure-asm ONLY**：`path_pure`（opt/si/hello SEGV）· `ensure_list`（rv/f32 **rc=1**）· `invoke_cc_list`（opt/si/hello SEGV）· `ondemand_heavy`（rv/f32 SEGV）  
   - **再探 residual**：全量 PREFER_ASM_O 仍禁默认 · SEED_SLICE permanent `.o` · RED 四刀 G.7 pure-asm ABI  
   - **path_pure pure-asm @ `34164691a`**：modlet COMMON + INDEX LEA → **42KB**；**hybrid ONLY 仍 2/5**（指针截断）  
-  - **path_pure hybrid 闭（本波）**：`glue_emit_binop_add` is_64bit → scale1 64-bit ADD；**mac hybrid ONLY=path_pure L2 5/5**；产品 baseline 双端 L2  
-  - 下一步：`ensure_list`／`invoke_cc_list`／`ondemand_heavy` · 全量 hybrid 仍 opt-in · 谈升钉才 L4  
+  - **path_pure hybrid 闭**：`glue_emit_binop_add` is_64bit → scale1 64-bit ADD；**mac hybrid ONLY=path_pure L2 5/5**  
+  - **ensure_list hybrid 闭（本波）**：`asm_ctx_local_find_offset_scoped` 限本块 `[min_slot, min_slot+nconst+nlet)`（禁 sibling 同名 `let p`）；**mac hybrid ONLY=ensure_list L2 5/5**（原 rv/f32 BLD001）  
+  - 下一步：`invoke_cc_list`／`ondemand_heavy` · 全量 hybrid 仍 opt-in · 谈升钉才 L4  
 
 
 

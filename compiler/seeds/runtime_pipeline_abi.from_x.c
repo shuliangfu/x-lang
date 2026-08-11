@@ -43642,20 +43642,57 @@ int32_t asm_local_slot_reg_offset(void *arena, int32_t type_ref, int32_t off, in
   return slot_off;
 }
 
+/*
+ * Resolve local name within the current emit scope block.
+ *
+ * PLATFORM: SHARED — pure-asm VAR load / return of block-local lets.
+ *
+ * Root (Stage 12.0.5 labi_ensure_list hybrid RED): fill_block_locals_tree
+ * pre-order-appends sibling if-then blocks into one name table. Scanning
+ * from count-1 down to min_slot (this block's base) still sees later
+ * siblings' same-name lets. Multi-branch
+ *   if (i==0) { let p = "a"; return p; }
+ *   if (i==1) { let p = "b"; return p; }
+ * then stores into per-branch slots but every `return p` loads the last
+ * registered "p" (or the first when fill order is reversed) → catalog_stem
+ * returns wrong path strings → ensure/prepare BLD001 on pure freestanding.
+ *
+ * Fix: only search this block's direct const/let range
+ *   [min_slot, min_slot + nconst + nlet). Nested children have their own
+ * block_slot bases and are not included. Fallback: unscoped find_offset
+ * (back-to-front) for outer-scope names.
+ */
 int32_t asm_ctx_local_find_offset_scoped(uint8_t *ctx, void *arena, uint8_t *name, int32_t name_len) {
   int32_t scope_blk;
   int32_t min_slot;
-  (void)arena;
+  int32_t end_slot;
+  int32_t nconst;
+  int32_t nlet;
+  int32_t count;
   scope_blk = asm_ctx_scope_block_ref_at(ctx);
   if (scope_blk <= 0)
     return asm_ctx_local_find_offset(ctx, name, name_len);
   min_slot = asm_ctx_block_slot_get(ctx, scope_blk);
   if (min_slot < 0)
     return asm_ctx_local_find_offset(ctx, name, name_len);
+  nconst = 0;
+  nlet = 0;
+  if (arena) {
+    nconst = ast_ast_block_num_consts(arena, scope_blk);
+    nlet = ast_ast_block_num_lets(arena, scope_blk);
+  }
+  if (nconst < 0)
+    nconst = 0;
+  if (nlet < 0)
+    nlet = 0;
+  end_slot = min_slot + nconst + nlet;
+  count = asm_ctx_local_count(ctx);
+  if (end_slot > count)
+    end_slot = count;
   {
     int32_t i;
     int32_t off;
-    for (i = asm_ctx_local_count(ctx) - 1; i >= min_slot; i--) {
+    for (i = end_slot - 1; i >= min_slot; i--) {
       uint8_t nb[128];
       int32_t nlen;
       int32_t k;
