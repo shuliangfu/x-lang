@@ -35,6 +35,25 @@ export extern function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32)
 export extern function pipeline_asm_redirect_std_c_wrapper_sym(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
 export extern function backend_enc_call_arch(elf: *u8, name: *u8, nlen: i32, ta: i32): i32;
 export extern function backend_enc_call_stack_cleanup_arch(elf: *u8, nbytes: i32, ta: i32): i32;
+/**
+ * Call-return kind ordinal for harvest (I32=0, BOOL/U8, U32, f32/f64).
+ * Authority: pipeline_asm_call_return_type_kind_ord_c (pipeline_abi).
+ * PLATFORM: SHARED.
+ */
+export extern function pipeline_asm_call_return_type_kind_ord_c(arena: *u8, call_expr_ref: i32): i32;
+/**
+ * Sign-extend i32 call result in w0/x0 after CALL (AAPCS mov w0,imm zero-extends).
+ * PLATFORM: SHARED — pure-asm cmp of full x0 vs -2 requires this.
+ */
+export extern function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+/** Zero-extend u32 call result in w0/x0 after CALL. PLATFORM: SHARED. */
+export extern function glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+/** Zero-extend u8/bool call result in w0/x0 after CALL. PLATFORM: SHARED. */
+export extern function glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+/** x86_64 only: move xmm0 f32 bits into eax after CALL. PLATFORM: LINUX|MACOS x86_64. */
+export extern function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
+/** x86_64 only: move xmm0 f64 bits into rax after CALL. PLATFORM: LINUX|MACOS x86_64. */
+export extern function backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern function pipeline_asm_emit_call_sret_reg_shift_c(): i32;
 export extern function backend_enc_store_x0_sp_offset_arch(elf: *u8, off_bytes: i32, ta: i32): i32;
 export extern function pipeline_asm_emit_set_call_param_type_ref(tr: i32): void;
@@ -1609,15 +1628,99 @@ export function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8,
   return 0 - 1;
 }
 
-// G-02f-141: emit args + call + stack cleanup
-/** Function `glue_asm_emit_call_with_cleanup`.
- * Purpose: implements `glue_asm_emit_call_with_cleanup`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
+/**
+ * After CALL, canonicalize the return value into GPR x0/rax for pure-asm consumers.
+ * Type-driven only (G.7; mirrors seed glue_asm_harvest_sse_call_ret_to_gpr_c):
+ *   · kind 14=f32 / 15=f64 → xmm0 harvest (x86_64 only; ta==0)
+ *   · kind 0=I32 → sxtw/cdqe (AAPCS64 `mov w0,imm` zero-extends; pure-asm
+ *     full-x0 cmp vs sign-ext -2 fails without this — hybrid ONLY=rt_run_compiler_parsed
+ *     try_c returned shell rc=254)
+ *   · kind 3=U32 → zxt; kind 1=BOOL / 2=U8 → zxt8
+ * Unknown kind / null → no-op success (0).
+ * @param arena *u8 — AST arena for call_expr_ref type resolution
+ * @param elf_ctx *u8 — ElfCodegenCtx* receiving encode bytes
+ * @param call_expr_ref i32 — EXPR_CALL node (not ASSIGN wrapper)
+ * @param ta i32 — target arch (0=x86_64, 1=arm64)
+ * @return i32 — 0 ok; non-zero encode failure
+ * PLATFORM: SHARED (GP sxt/zxt) / LINUX+MACOS x86_64 (SSE harvest).
+ */
+#[no_mangle]
+export function glue_asm_harvest_call_ret_to_gpr_c(
+  arena: *u8, elf_ctx: *u8, call_expr_ref: i32, ta: i32
+): i32 {
+  let kind: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0;
+  }
+  if (call_expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    kind = pipeline_asm_call_return_type_kind_ord_c(arena, call_expr_ref);
+  }
+  // SSE harvest remains x86-only (xmm).
+  if (ta == 0) {
+    if (kind == 14) {
+      unsafe {
+        return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
+      }
+    }
+    if (kind == 15) {
+      unsafe {
+        return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
+      }
+    }
+  }
+  // Integer GP ret: both x86_64 and arm64 (sxtw / cdqe / uxt).
+  if (kind == 0) {
+    unsafe {
+      return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+    }
+  }
+  if (kind == 3) {
+    unsafe {
+      return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+    }
+  }
+  if (kind == 1) {
+    unsafe {
+      return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
+    }
+  }
+  if (kind == 2) {
+    unsafe {
+      return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
+    }
+  }
+  return 0;
+}
+
+// G-02f-141: emit args + call + stack cleanup + call-ret harvest (G.7 complete)
+/**
+ * Emit CALL arguments, the call site, outgoing-stack cleanup, then harvest
+ * the return value into GPR (i32 sxtw / u32 zxt / f32 xmm).
+ * Completes pure .x authority to match seed glue_asm_emit_call_with_cleanup_impl
+ * harvest (was missing → pure-asm try_c `rc == -2` false → hello -o rc=254).
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param expr_ref i32 — EXPR_CALL node
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch
+ * @param nargs i32 — argument count
+ * @param cname *u8 — callee symbol bytes
+ * @param clen i32 — symbol length
+ * @return i32 — 0 ok; -1 emit failure
+ * PLATFORM: SHARED — pure-asm product path for freestanding .x→.o.
  */
 #[no_mangle]
 export function glue_asm_emit_call_with_cleanup(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, nargs: i32, cname: *u8, clen: i32
 ): i32 {
+  let cleanup: i32 = 0;
+  let hr: i32 = 0;
   unsafe {
     if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, nargs) != 0) {
       return 0 - 1;
@@ -1625,9 +1728,19 @@ export function glue_asm_emit_call_with_cleanup(
     if (glue_asm_enc_call_redirected(elf_ctx, cname, clen, ta) != 0) {
       return 0 - 1;
     }
-    let cleanup: i32 = glue_asm_call_stack_cleanup_bytes(ta, nargs);
-    if (cleanup < 0) { return 0 - 1; }
-    return backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta);
+    cleanup = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+    if (cleanup < 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta) != 0) {
+      return 0 - 1;
+    }
+    // G.7 complete: seed impl always harvests after cleanup; pure .x must too.
+    hr = glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta);
+    if (hr != 0) {
+      return 0 - 1;
+    }
+    return 0;
   }
   return 0 - 1;
 }

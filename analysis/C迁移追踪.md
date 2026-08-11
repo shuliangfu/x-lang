@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + L2-asm／tcpu／ldpc／async／other-l2／R3 pure-asm hybrid 双端 5/5** · labi full12 hybrid 双端 5/5 · **rt pure-asm hybrid RED 根因 = `rt_run_compiler_parsed` 单叶 pure-asm** · B1–B3 hybrid mac 全绿 · 授权仍拒默认（须用户明示）· 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + L2-asm／tcpu／ldpc／async／other-l2／R3 pure-asm hybrid 双端 5/5** · labi full12 hybrid 双端 5/5 · **rt pure-asm hybrid mac 5/5 ✅**（call-ret harvest pure 补全；ONLY=rcp＋full multi-slice）· B1–B3 hybrid mac 全绿 · 授权仍拒默认（须用户明示）· 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -1992,7 +1992,7 @@
     - **IN_NO_C GREEN**：`rt_util`／`rt_run_x_emit`／**`rt_content`**／**`rt_run_compiler_parsed`**／**`rt_emit_flags`**／**`rt_dispatch_impl`**／**`rt_lib_root`**／**`rt_run_asm_backend`**（及早前若干 real thin）  
     - **VACUOUS**：`rt_run_exec`（seed 冷）· **SEED_SLICE 外链**（`preamble`／`stack`／`arena_buf`／`emit_state`／`parse_diag`）→ `ONLY=` **不改** `runtime_driver_no_c.o`  
   - **`rt_content` 根因钉（已闭）**：①i32 VAR load sxtw ✅ · ②AAPCS64 9 参 stack-before-GP ✅ → **`ONLY=rt_content` 5/5**  
-  - **`rt_run_compiler_parsed` 根因钉（已闭）**：①frame spill sum walk **ASSIGN 28..38** ✅ · ②i32 call-ret harvest sxtw/zxt ✅ · ③i32 binop add/sub/mul 后 sxtw ✅ → **`ONLY=rt_run_compiler_parsed` 真 L2 5/5**  
+  - **`rt_run_compiler_parsed` 根因钉（已闭 · 再闭 2026-08-12）**：①frame spill sum walk **ASSIGN 28..38** ✅ · ②i32 call-ret harvest sxtw/zxt（seed）✅ · ③i32 binop add/sub/mul 后 sxtw ✅ · ④**pure `.x` `glue_asm_emit_call_with_cleanup` 补 harvest** ✅（产品半残无 sxtw → try_c `rc==-2` 假失败 shell 254；`glue_asm_harvest_call_ret_to_gpr_c` 权威）→ **`ONLY=rt_run_compiler_parsed` 真 L2 5/5** · **full multi-slice hybrid mac 5/5**  
   - **`rt_emit_flags` 根因钉（已闭）**：`pipeline_asm_index_elem_byte_sz_c` 对 base PTR **双剥皮**（pre-peel + glue 再 peel）→ `**u8` esz=1 · `argv[i]` scale1+ldrb SEGV；改单 peel 传 base `tr` + fallback 调 glue · seed 孪 ✅ → **`ONLY=rt_emit_flags` 真 L2 5/5**  
   - **`rt_dispatch_impl`／`rt_lib_root`（连带闭）**：前序 ABI 刀后复探 **真 L2 5/5**（无本波新代码）  
   - **`rt_run_asm_backend` 根因钉（已闭）**：`asm_module_is_typeck_selfhost` 裸 ndef 误判 + coarse raw `func_index` → pure-asm 全 ret0 stub → 静默 rc=0 无 bin；删 ndef-only + defined ordinal · seed 孪 ✅ → **`ONLY=rt_run_asm_backend` 真 L2 5/5**  
@@ -2065,15 +2065,14 @@
     - 日志 mac `/tmp/xlang_async_pure_asm_hybrid_*.log` · Ubuntu `/tmp/ubu_async_pure_asm_hybrid_190ab4eb3_20260812_022411.log`  
     - ensure 头注释钉 Stage12.0.5 pure-asm hybrid 双端闭 · **产品默认仍 -E**  
   - **labi full12 hybrid 双端 5/5 ✅（2026-08-12）** · 授权仍拒默认化（须用户明示「授权 labi-only PREFER」）  
-  - **rt pure-asm hybrid 地图（mac · 2026-08-12）🟡 RED → 根因钉单叶**：  
+  - **rt pure-asm hybrid 地图（mac · 2026-08-12）✅ 闭**：  
     - 配方：`PREFER_ASM_O=1`+`HOST_CC_SEED_FORCE=1` FORCE `try-rt-prefer` → unset PREFER → pure-ld（`set -a; eval g05_relink_env`）→ 仓根 hello／matrix → restore -E  
-    - pure_asm 独立 **23/23** OK · full hybrid no_c **131616→184080** · pure-ld **OK** · full matrix／hello **0/5 rc=254** · restore -E **5/5**  
-    - **方法学**：pure-asm 发射器必须 **baseline_E**（禁 hybrid 自污染）；hello 从仓根（禁 `compiler/` cwd IMP001）；前序「ONLY=×23 绿」日志 sz=131616／hits=0 = **pure_asm 未真装假绿**  
-    - **半量二分（v2）**：none 绿 · halfA 绿（144544）· halfB 红（171200）· full 红（184080）· q2 绿（136568）· q3 红（166248）· **q3∖`rt_run_compiler_parsed` 绿**（157080）  
-    - **pair 钉**：**`ONLY=rt_run_compiler_parsed` 单叶 pure-asm RED** no_c=140792 · hello **-o rc=254** 空 stderr · **rv42 绿**；其它 q3 单叶（abk／xe／di／dt）绿；q3∖rcp 绿  
-    - 现象补充：hybrid `-E` 可出 C（~162k）但 stderr 见 typeck T001 `xlang_io_register`；pure_asm 独立 .o ~33k 多 U `driver_parsed_*`  
-    - 日志 half `/tmp/xlang_rt_half_bisect_v2_669c84aa5_*.log` · pair `/tmp/xlang_rt_q3_pair_bisect_669c84aa5_*.log` · full `/tmp/xlang_rt_pure_asm_hybrid_true_7ca063e81_*.log`  
-    - **产品默认仍 -E** · **禁** 含 rcp pure-asm 的 rt PREFER 默认化 · **Ubuntu 金标待复验**  
+    - pure_asm 独立 **23/23** OK · 发射器 **baseline_E**（禁 hybrid 自污染）· hello 从仓根  
+    - **半量／pair 历史地图**：halfB／q3／`ONLY=rt_run_compiler_parsed` 曾 RED（hello rc=254）；根因 = pure `emit_call_with_cleanup` 无 harvest  
+    - **根修 ✅**：`glue_asm_harvest_call_ret_to_gpr_c` + pure cleanup 后 harvest · seed／surface 孪  
+    - **ONLY=rt_run_compiler_parsed hybrid mac 5/5**（no_c≈141480）· **full multi-slice hybrid mac 5/5**（no_c≈186664）· restore -E **5/5**  
+    - 日志 `/tmp/xlang_rcp_harvest_verify_*.log` · `/tmp/xlang_rt_full_after_harvest_*.log` · 前序 half/pair `/tmp/xlang_rt_half_bisect_v2_*.log`  
+    - **产品默认仍 -E** · **Ubuntu 金标待复验**  
   - **B1–B3 pure-asm hybrid 地图（mac · 2026-08-12 · tip `7ca063e81`）✅**：  
     - 配方同 residual：`PREFER_ASM_O=1`+FORCE prefer → unset → soft g05 → matrix → restore -E  
     - **B1** `try-runtime-os-prefer` ×23：prefer pure-asm **23/23** · hybrid matrix **5/5** · restore **5/5**（多叶不在 pure-ld 58；装链探针绿）  
@@ -2081,7 +2080,7 @@
     - **B3** `try-lsp-sat-prefer` ×2（sizes_nostub／stubs_no_c）：prefer **2/2** · hybrid **5/5** · restore **5/5**  
     - 日志 `/tmp/xlang_b1b2b3_pure_asm_hybrid_7ca063e81_20260812_054531.log`  
     - **产品默认仍 -E** · pipeline_abi mega 仍禁 pure-asm  
-  - 下一步：G.7 pure-asm **`rt_run_compiler_parsed`** 装链 ABI（import／typeck 路径；hello -o rc=254 · rv42 对照绿）· Ubuntu 金标复验 · 用户明示后 labi-only PREFER 授权 · pipeline_abi mega 仍禁 pure-asm
+  - 下一步：Ubuntu 金标 **rt pure-asm hybrid** 复验 · 用户明示后 labi-only PREFER 授权 · pipeline_abi mega 仍禁 pure-asm
 
 
 

@@ -3322,18 +3322,21 @@ extern int32_t glue_enc_zxt_u8_result_to_rax_elf_c(struct platform_elf_ElfCodege
 
 /**
  * PLATFORM: SHARED — after CALL, canonicalize return into GPR x0/rax.
+ * G.7 single authority name: glue_asm_harvest_call_ret_to_gpr_c
+ *   (was static glue_asm_harvest_sse_call_ret_to_gpr_c; pure .x twin owns product PREFER).
  * Authority: pipeline_asm_call_return_type_kind_ord_c (resolved_type + dep map + dep-arena kind).
- * Type-driven only (G.7):
+ * Type-driven only:
  *   · kind 14=f32 / 15=f64 → xmm0 harvest (x86_64 only; ta==0)
  *   · kind 0=I32 → sxtw/cdqe (AAPCS64 `mov w0,imm` zero-extends; pure-asm
  *     compares full x0 vs sign-ext -2 → false without this — hybrid
  *     ONLY=rt_run_compiler_parsed try_c returned 254)
  *   · kind 3=U32 → zxt; kind 1=BOOL / 2=U8 → zxt8
- * Import FIELD_ACCESS (math.floor) must resolve via glue_asm_resolve_call_target_module_c.
+ * Cold seed twin when pure .x not linked; product PREFER uses .x body.
  */
-static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena,
-                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                      int32_t call_expr_ref, int32_t ta) {
+#ifndef XLANG_BACKEND_CALL_DISPATCH_FROM_X
+int32_t glue_asm_harvest_call_ret_to_gpr_c(struct ast_ASTArena *arena,
+                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                           int32_t call_expr_ref, int32_t ta) {
   int32_t kind;
   if (!arena || !elf_ctx || call_expr_ref <= 0)
     return 0;
@@ -3354,6 +3357,11 @@ static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena
     return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
   return 0;
 }
+#else
+extern int32_t glue_asm_harvest_call_ret_to_gpr_c(struct ast_ASTArena *arena,
+                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                  int32_t call_expr_ref, int32_t ta);
+#endif
 
 /**
  * 发射实参、call 目标符号，并按 ABI 回收 outgoing 栈区。
@@ -3406,7 +3414,8 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
     return -1;
   if (backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta) != 0)
     return -1;
-  if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+  /* G.7: single harvest authority (pure .x / cold seed twin). */
+  if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
     return -1;
   return 0;
 }

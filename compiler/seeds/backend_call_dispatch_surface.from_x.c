@@ -1207,19 +1207,30 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(uint8_t * arena, uint8_t * elf_ct
   }
   return (0 - 1);
 }
+/* G.7 twin of backend_call_dispatch.x: harvest after cleanup (i32 sxtw). */
+extern int32_t glue_asm_harvest_call_ret_to_gpr_c(uint8_t * arena, uint8_t * elf_ctx, int32_t call_expr_ref, int32_t ta);
 int32_t glue_asm_emit_call_with_cleanup(uint8_t * arena, uint8_t * elf_ctx, int32_t expr_ref, uint8_t * ctx, int32_t ta, int32_t nargs, uint8_t * cname, int32_t clen) {
   {
-    int32_t cleanup = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+    int32_t cleanup = 0;
+    int32_t hr = 0;
     if ((pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, nargs) !=0)) {
       return (0 - 1);
     }
     if ((glue_asm_enc_call_redirected(elf_ctx, cname, clen, ta) !=0)) {
       return (0 - 1);
     }
+    cleanup = glue_asm_call_stack_cleanup_bytes(ta, nargs);
     if ((cleanup < 0)) {
       return (0 - 1);
     }
-    return backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta);
+    if ((backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta) !=0)) {
+      return (0 - 1);
+    }
+    hr = glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta);
+    if ((hr !=0)) {
+      return (0 - 1);
+    }
+    return 0;
   }
   return (0 - 1);
 }
