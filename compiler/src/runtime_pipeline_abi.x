@@ -29268,8 +29268,13 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
         tl = tl + 1;
         continue;
       }
-      // Cap residual guard: absurd sizes must not create giant COMMON.
-      if (cell_sz > 1048576) {
+      // Cap residual guard: reject absurd COMMON sizes (not product BSS).
+      // PLATFORM: SHARED — low 30 bits hold payload; bit30 = array decay.
+      // Product: fmt_check_cmd_thin g_fmt_file_list_paths = DRIVER_FMT_MAX_FILES(8192)×512
+      // = 4194304 (4 MiB). Historical 1 MiB cap skipped that cell → pure-asm
+      // &g_fmt_file_list_paths[0] UNHANDLED → CG002 in fmt_file_list_at (Stage12.0.5).
+      // Cap 8 MiB: covers 4 MiB product + headroom; still << 0x3FFFFFFF encoding max.
+      if (cell_sz > 8388608) {
         tl = tl + 1;
         continue;
       }

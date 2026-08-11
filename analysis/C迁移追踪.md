@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-11（Stage 12 零 cc：…／**12.0.5 labi full12 hybrid 双端 + COMPILE residual pure_asm 12/13（div0 panic×3 闭）+ L2-asm hybrid 3/3 · 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）
+> **状态刷新**：2026-08-11（Stage 12 零 cc：…／**12.0.5 labi full12 hybrid 双端 + COMPILE residual pure_asm 13/13（div0 panic×3 + fmt CG002 闭）+ L2-asm hybrid 3/3 · 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -42,7 +42,7 @@
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
 | **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
-| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅** · **i32 VAR/call-ret/binop sxtw ✅** · **call-arg 栈序 ✅** · **INDEX `**T` 双剥皮闭 ✅** · **typeck_selfhost ndef 误判闭 ✅** · **`ONLY=` IN_NO_C 含 `rt_run_asm_backend` 真 L2 5/5 ✅** · **fixed-array bounds 无 U panic ✅** · **div/mod host-E 对等无 U panic ✅** · **labi pure_asm 12/12 ✅** · **labi hybrid 单 slice RED×0 ✅** · **labi full12 hybrid 双端 L2 5/5 ✅** · **COMPILE residual pure_asm 12/13 ✅**（仅 fmt_check_cmd_thin CG002）· **L2-asm hybrid pure-asm 3/3 装链 ✅**（**默认仍 -E**） · **SEED_SLICE 不并 no_c** · **产品默认 PREFER_ASM 仍禁** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC`（pipeline_abi mega／fmt CG002） |
+| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅** · **i32 VAR/call-ret/binop sxtw ✅** · **call-arg 栈序 ✅** · **INDEX `**T` 双剥皮闭 ✅** · **typeck_selfhost ndef 误判闭 ✅** · **`ONLY=` IN_NO_C 含 `rt_run_asm_backend` 真 L2 5/5 ✅** · **fixed-array bounds 无 U panic ✅** · **div/mod host-E 对等无 U panic ✅** · **labi pure_asm 12/12 ✅** · **labi hybrid 单 slice RED×0 ✅** · **labi full12 hybrid 双端 L2 5/5 ✅** · **COMPILE residual pure_asm 13/13 ✅**（fmt CG002：modlet BSS 8MiB 盖 4MiB file_list）· **L2-asm hybrid pure-asm 3/3 装链 ✅**（**默认仍 -E**） · **SEED_SLICE 不并 no_c** · **产品默认 PREFER_ASM 仍禁** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC`（pipeline_abi mega 等） |
 | **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
@@ -2018,9 +2018,13 @@
   - **FAIL_ABI_panic×3 根修 ✅（2026-08-11）**：  
     - 根因：pure-asm `pipeline_asm_emit_divisor_zero_check_rbx_elf_c` 对 `/` `%` 插 CALL `xlang_panic_`；host -E 为 0 panic（C UB）  
     - 修：权威 no-op + seed cold twin 同 commit（对标 fixed-array bounds host-E 对等）  
-    - 复验 pure_asm residual **12/13**（闭 al／ac／rl；仅 `fmt_check_cmd_thin` CG002 code_len>0／num_labels=0）  
+    - 复验 pure_asm residual **12/13**（闭 al／ac／rl；仅 `fmt_check_cmd_thin` CG002）  
     - 日志 mac `/tmp/xlang_compile_residual_after_div0.log` · `/tmp/xlang_div0_matrix.log`  
-  - 下一步：fmt_check_cmd_thin CG002 · tcpu／ldpc hybrid 装链 · labi-only 默认化须明示授权 · pipeline_abi mega 仍禁 pure-asm
+  - **fmt_check_cmd_thin CG002 根修 ✅（2026-08-11）**：  
+    - 根因：modlet `cell_sz>1MiB` skip → `g_fmt_file_list_paths` 4MiB 未 COMMON → `fmt_file_list_at` LEA 失败  
+    - 修：G.7 护栏 **1MiB→8MiB**（`runtime_pipeline_abi.x` + seed twin）  
+    - 复验 pure_asm residual **13/13** · matrix **5/5** · 日志 `/tmp/xlang_compile_residual_after_fmt_cg002.log`  
+  - 下一步：tcpu／ldpc hybrid 装链 · labi-only 默认化须明示授权 · pipeline_abi mega 仍禁 pure-asm
 
 
 

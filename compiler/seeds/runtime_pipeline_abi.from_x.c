@@ -12948,9 +12948,13 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
       imm = pipeline_expr_int_val_at(a, init_ref);
       cell_sz = 8;
     } else if (tk == 10 && init_kind == 46) {
-      /* TYPE_ARRAY + ARRAY_LIT (e.g. u8[N]=[]): full COMMON payload + array bit. */
+      /* TYPE_ARRAY + ARRAY_LIT (e.g. u8[N]=[]): full COMMON payload + array bit.
+       * PLATFORM: SHARED — twin of runtime_pipeline_abi.x prepare guard.
+       * Product fmt_check_cmd_thin g_fmt_file_list_paths = 8192×512 = 4 MiB;
+       * historical 1 MiB skip → pure-asm fmt_file_list_at CG002 (Stage12.0.5).
+       * Cap 8 MiB (covers 4 MiB + headroom; << bit30-payload max 0x3FFFFFFF). */
       cell_sz = glue_fixed_array_total_bytes_c(a, type_ref, 0);
-      if (cell_sz <= 0 || cell_sz > 1048576)
+      if (cell_sz <= 0 || cell_sz > 8388608)
         continue;
       cell_sz |= XLANG_ASM_MODLET_CELL_ARRAY_BIT;
       imm = 0;
