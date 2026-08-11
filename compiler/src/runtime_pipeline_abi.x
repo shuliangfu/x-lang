@@ -29623,18 +29623,20 @@ export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i3
         tr_kind = pipeline_type_kind_ord_at(arena, tr);
       }
     }
+    // Base type is *T (or **T / *Named…): glue_index_elem_byte_sz_from_type_ref_c
+    // peels the outer PTR once and returns sizeof(T). Call it with the *base*
+    // type `tr`, never with a pre-peeled pointee — double-peel on **u8 yields
+    // sizeof(u8)=1 instead of pointer width 8 (argv[i] pure-asm scale1+ldrb
+    // SEGV). PLATFORM: SHARED freestanding · pure-asm INDEX stride authority.
     if (tr > 0 && tr_kind == 9) {
       unsafe {
-        pointee = pipeline_type_elem_ref_at(arena, tr);
+        esz_base = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
       }
-      if (pointee > 0) {
-        unsafe {
-          esz_base = glue_index_elem_byte_sz_from_type_ref_c(arena, pointee);
-        }
-        if (esz_base > 0 && esz_base < 8) {
-          return esz_base;
-        }
+      if (esz_base > 0 && esz_base < 8) {
+        return esz_base;
       }
+      // esz_base == 8 (pointer / i64 element): fall through so INDEX result
+      // TYPE_PTR arm returns 8; do not early-return here.
     } else {
       if (tr > 0) {
         unsafe {
@@ -29702,17 +29704,14 @@ export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i3
             tbk = pipeline_type_kind_ord_at(arena, tr_base);
           }
         }
+        // Base *T: glue peels once. Pass tr_base, not a pre-peeled pointee2
+        // (same double-peel trap as the early path). PLATFORM: SHARED.
         if (tr_base > 0 && tbk == 9) {
           unsafe {
-            pointee2 = pipeline_type_elem_ref_at(arena, tr_base);
+            esz_pt = glue_index_elem_byte_sz_from_type_ref_c(arena, tr_base);
           }
-          if (pointee2 > 0) {
-            unsafe {
-              esz_pt = glue_index_elem_byte_sz_from_type_ref_c(arena, pointee2);
-            }
-            if (esz_pt > 0 && esz_pt < esz_res) {
-              return esz_pt;
-            }
+          if (esz_pt > 0 && esz_pt < esz_res) {
+            return esz_pt;
           }
         }
       }
@@ -29757,22 +29756,12 @@ export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i3
   unsafe {
     kind_ord = pipeline_type_kind_ord_at(arena, tr);
   }
+  // PTR base fallback: single peel via G.7 glue (handles *u8→1, *i32→4,
+  // **T→8). Inline re-peel here historically missed pointee PTR → default 4.
   if (kind_ord == 9) {
     unsafe {
-      pointee = pipeline_type_elem_ref_at(arena, tr);
+      return glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
     }
-    if (pointee > 0) {
-      unsafe {
-        kind_ord = pipeline_type_kind_ord_at(arena, pointee);
-      }
-      if (kind_ord == 2 || kind_ord == 1) {
-        return 1;
-      }
-      if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
-        return 4;
-      }
-    }
-    return 4;
   }
   if (kind_ord == 10 || kind_ord == 11) {
     unsafe {

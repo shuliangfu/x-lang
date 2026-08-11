@@ -13137,13 +13137,13 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
     } else {
       tr = pipeline_expr_resolved_type_ref(arena, base_ref);
     }
+    /* Base *T/**T: glue peels outer PTR once. Do not pre-peel then call glue
+     * (double-peel **u8 → sizeof(u8)=1; pure-asm argv[i] scale1+ldrb SEGV).
+     * PLATFORM: SHARED freestanding — seed cold twin of pure .x. */
     if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == 9) {
-      pointee = pipeline_type_elem_ref_at(arena, tr);
-      if (pointee > 0) {
-        esz_base = glue_index_elem_byte_sz_from_type_ref_c(arena, pointee);
-        if (esz_base > 0 && esz_base < 8)
-          return esz_base;
-      }
+      esz_base = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
+      if (esz_base > 0 && esz_base < 8)
+        return esz_base;
     } else if (tr > 0) {
       esz_base = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
       if (esz_base > 0 && esz_base < 8)
@@ -13175,13 +13175,11 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
         } else {
           tr_base = pipeline_expr_resolved_type_ref(arena, base_ref2);
         }
+        /* Base *T: glue peels once — pass tr_base, not pre-peeled pointee2. */
         if (tr_base > 0 && pipeline_type_kind_ord_at(arena, tr_base) == 9) {
-          pointee2 = pipeline_type_elem_ref_at(arena, tr_base);
-          if (pointee2 > 0) {
-            esz_pt = glue_index_elem_byte_sz_from_type_ref_c(arena, pointee2);
-            if (esz_pt > 0 && esz_pt < esz_res)
-              return esz_pt;
-          }
+          esz_pt = glue_index_elem_byte_sz_from_type_ref_c(arena, tr_base);
+          if (esz_pt > 0 && esz_pt < esz_res)
+            return esz_pt;
         }
       }
     }
@@ -13203,17 +13201,9 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
   if (tr <= 0)
     return 4;
   kind_ord = pipeline_type_kind_ord_at(arena, tr);
-  if (kind_ord == 9) {
-    pointee = pipeline_type_elem_ref_at(arena, tr);
-    if (pointee > 0) {
-      kind_ord = pipeline_type_kind_ord_at(arena, pointee);
-      if (kind_ord == 2 || kind_ord == 1)
-        return 1;
-      if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
-        return 4;
-    }
-    return 4;
-  }
+  /* PTR base fallback: single peel via G.7 glue (*u8→1, *i32→4, **T→8). */
+  if (kind_ord == 9)
+    return glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
   if (kind_ord == 10 || kind_ord == 11) {
     pointee = pipeline_type_elem_ref_at(arena, tr);
     if (pointee > 0) {
