@@ -461,9 +461,18 @@ pure_asm_x_to_o() {
     # · bare U __error was Darwin mangling miss (fixed Stage 12.0.5: always
     #   prepend '_' so C __error → ___error). Keep reject as safety net if any
     #   residual path still emits unmangled __error.
-    # Reject → caller falls back to -E+$CC (zero product regression).
-    # PLATFORM: SHARED reject list.
-    if nm -u "$_pure_asm_stage" 2>/dev/null | grep -E 'xlang_panic|^__error$' >/dev/null 2>&1; then
+    # · U xlang_driver_*_opaque / stdout_ptr / fflush_stdout / realpath_opaque /
+    #   pipeline_run_x_thread_fn_ptr / asm_elf_o_thread_fn_ptr — these exist
+    #   only as static inline in rt_prefer_try_x_to_o C prologue (G-02f-332/334;
+    #   ensure_host_cc_seed_o.sh). pure-asm never injects that prologue, so
+    #   accepting such .o → g05 pure-ld UNDEF (R3 hybrid residual:
+    #   runtime_driver_abi_thin pure-asm → driver_env_flag_truthy refs).
+    # Reject → caller falls back to -E+$CC (zero product regression; prologue
+    #   path resolves helpers as local `t`).
+    # PLATFORM: SHARED reject list · G.7 有则补全 freestanding surface.
+    if nm -u "$_pure_asm_stage" 2>/dev/null | grep -E \
+      'xlang_panic|^__error$|xlang_driver_(fputs_opaque|stdout_ptr|fclose_opaque|fwrite_opaque|fopen_write_opaque|stderr_ptr|fflush_stdout|fopen_wb_opaque|fdopen_wb_opaque|realpath_opaque|pipeline_run_x_thread_fn_ptr|asm_elf_o_thread_fn_ptr)' \
+      >/dev/null 2>&1; then
       rm -f "$_pure_asm_stage"
       return 1
     fi

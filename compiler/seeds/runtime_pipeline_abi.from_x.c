@@ -21606,10 +21606,16 @@ int32_t glue_try_emit_ptr_arith_scaled_elf_c(void *arena, void *elf_ctx, void *c
       return -1;
   }
   if (is_sub) {
+    /* ptr-int / ptr-ptr: x86 REX.W sub is 64-bit; arm64 enc_sub is 32-bit W
+     * residual for large offsets. PLATFORM: SHARED. */
     if (backend_enc_sub_rax_rbx_arch(elf_ctx, ta) != 0)
       return -1;
   } else {
-    if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0)
+    /* Stage 12.0.5 root: ptr+int must use 64-bit ADD (scale1), NOT 32-bit
+     * backend_enc_add_rax_rbx_arch (arm64 ADD W truncates Darwin pointers →
+     * pure-asm hybrid runtime_io_abi `buf + off` IO001). G.7 有则补全 twin of
+     * .x glue_try_emit_ptr_arith_scaled. PLATFORM: SHARED. */
+    if (backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta) != 0)
       return -1;
   }
   glue_binop_var_slot_cache_invalidate_rax();

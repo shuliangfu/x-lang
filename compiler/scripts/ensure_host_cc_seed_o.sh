@@ -1184,6 +1184,12 @@ ensure_r3_cold_seed() {
 
 # ---------------------------------------------------------------------------
 # wave763/764: try-r3-prefer OUT — R3 PREFER thin+rest product path (single body).
+# Stage 12.0.5 pure-asm hybrid (opt-in PREFER_ASM_O; not product-default):
+#   thin via rt_prefer_try_x_to_o → pure_asm_x_to_o first. Freestanding reject
+#   covers U xlang_driver_*_opaque (rdabi fallthrough -E). ptr+int ADD uses
+#   scale1 64-bit (glue_try_emit_ptr_arith_scaled) — closes pure-asm rio IO001.
+#   Dual-end R3 hybrid 9/9 pure-ld + matrix 5/5 @ tip after fix.
+
 #
 # Membership = catalog R3_COLD_SEED_OBJS only (lists = mk; same KEY as cold).
 # When XLANG_G05_PREFER_X_O=1 and ./xlang-c is executable:

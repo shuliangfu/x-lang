@@ -43374,11 +43374,18 @@ export function glue_try_emit_ptr_arith_scaled_elf_c(arena: *u8, elf_ctx: *u8, c
       }
     }
     if (is_sub != 0) {
+      /* ptr-int / ptr-ptr byte diff: x86 REX.W sub is 64-bit; arm64 enc_sub
+       * is 32-bit W residual for large offsets until dedicated 64-bit sub. */
       if (backend_enc_sub_rax_rbx_arch(elf_ctx, ta) != 0) {
         return -1;
       }
     } else {
-      if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0) {
+      /* Stage 12.0.5 root: ptr+int must use 64-bit ADD (scale1), NOT
+       * backend_enc_add_rax_rbx_arch (arm64 ADD W truncates Darwin user
+       * pointers → pure-asm hybrid runtime_io_abi `buf + off` → IO001).
+       * G.7 有则补全: same scale1 as glue_emit_binop_add is_64bit path.
+       * PLATFORM: SHARED · MACOS|ARM64 critical · x86_64 REX.W scale1. */
+      if (backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta) != 0) {
         return -1;
       }
     }
