@@ -10945,6 +10945,46 @@ int32_t glue_enc_zxt_u8_result_to_rax_elf_c(void *elf_ctx, int32_t ta) {
   return 0;
 }
 
+/* Stage 12.0.5 cold twin: canonicalize formal in rax before param_home store.
+ * PLATFORM: SHARED — pure leave owns product; cold under #ifndef FROM_X. */
+int32_t glue_enc_canonicalize_param_in_rax_elf_c(void *elf_ctx, void *arena, void *mod,
+                                                  int32_t func_index, int32_t param_index,
+                                                  int32_t ta) {
+  int32_t pty;
+  int32_t kind_ord;
+  if (!elf_ctx)
+    return -1;
+  if (!arena || !mod || func_index < 0 || param_index < 0)
+    return 0;
+  pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
+  if (pty <= 0)
+    return 0;
+  kind_ord = pipeline_type_kind_ord_at(arena, pty);
+  if (kind_ord == 0)
+    return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+  if (kind_ord == 3)
+    return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+  if (kind_ord == 1 || kind_ord == 2)
+    return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
+  return 0;
+}
+
+/* Stage 12.0.5 cold twin: ARM64 MOV X0, Xn. PLATFORM: MACOS|ARM64. */
+int32_t glue_enc_arm64_mov_xn_to_x0_elf_c(void *elf_ctx, int32_t reg) {
+  uint8_t insn[4];
+  int32_t word;
+  if (!elf_ctx)
+    return -1;
+  if (reg <= 0 || reg > 31)
+    return 0;
+  word = (int32_t)0xAA0003E0 | (reg << 16);
+  insn[0] = (uint8_t)(word & 255);
+  insn[1] = (uint8_t)((word >> 8) & 255);
+  insn[2] = (uint8_t)((word >> 16) & 255);
+  insn[3] = (uint8_t)((word >> 24) & 255);
+  return pipeline_elf_ctx_append_bytes(elf_ctx, insn, 4);
+}
+
 int32_t glue_enc_jz_after_bool_in_eax(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta) {
   if (ta == 0) {
     if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
@@ -13763,13 +13803,20 @@ int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, 
           stack_pos += 16;
         }
       } else if (gp < 6) {
+        void *arena = pipeline_asm_emit_ctx_arena_get();
         if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0) != 0)
+          return -1;
+        /* Stage 12.0.5: clean SysV high garbage for i32/u8/u32/bool before store. */
+        if (glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, 0) != 0)
           return -1;
         if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
           return -1;
         gp++;
       } else {
+        void *arena = pipeline_asm_emit_ctx_arena_get();
         if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0) != 0)
+          return -1;
+        if (glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, 0) != 0)
           return -1;
         if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
           return -1;
@@ -13825,11 +13872,20 @@ int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, 
           stack_pos += 16;
         }
       } else if (gp < reg_max) {
-        if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, gp, home, ta) != 0)
+        /* Stage 12.0.5: Xn→X0 + canonicalize narrow before store (AAPCS high garbage). */
+        if (gp != 0) {
+          if (glue_enc_arm64_mov_xn_to_x0_elf_c(elf_ctx, gp) != 0)
+            return -1;
+        }
+        if (glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
           return -1;
         gp++;
       } else {
         if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos, ta) != 0)
+          return -1;
+        if (glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, ta) != 0)
           return -1;
         if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
           return -1;

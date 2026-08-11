@@ -2000,8 +2000,12 @@
   - **labi hybrid 真 L2 地图 ✅**（`try-labi-prefer` + soft g05 + matrix + restore；矩阵须 hybrid 本波 `xlang`）：  
     - 历史：`ONLY=__none__` **5/5** · 早期全量 12 层 pure-asm **0/5 SEGV**（pre residual ABI）  
     - **GREEN×8 pure-asm ONLY**：`diag_pure`／`host_lit`／`path_io`／`invoke_ld_list`／`freestanding_list`／`std_list`／`ondemand_list`／`gates`  
-    - **RED residual 全闭 ✅**：path_pure · ensure_list · invoke_cc_list · ondemand_heavy（ABI 根修后 dual-end）  
-  - **path_pure hybrid 闭**：`glue_emit_binop_add` is_64bit → scale1 64-bit ADD  
+    - **RED residual 曾闭（历史 `1a66374b1`）** · tip 回归后 **path_pure 再闭（2026-08-12）** · 余 ensure／invoke／freestanding／ondemand_heavy  
+  - **path_pure hybrid 闭（历史）**：`glue_emit_binop_add` is_64bit → scale1 64-bit ADD  
+  - **path_pure hybrid 再闭 ✅（2026-08-12 · param_home 窄整数 AAPCS）**：  
+    - 根因：`labi_suffix_eq2` pure-asm 形参 `str xN` 保留高位垃圾 → suffix 匹配失败 → ld 吃 `.x` 源 BLD001  
+    - 修：`glue_enc_canonicalize_param_in_rax_elf_c` + arm64 `mov Xn→X0` · param_home／f32-xmm 轨 · VAR-vs-lit cmp 走 load_var  
+    - **mac ONLY=labi_path_pure hybrid L2 5/5** · restore -E 5/5 · 日志 `/tmp/xlang_pp_fix_*.log`  
   - **ensure_list hybrid 闭**：`asm_ctx_local_find_offset_scoped` 限本块  
   - **invoke_cc_list hybrid 闭**：modlet `cell_size` bit30=TYPE_ARRAY LEA  
   - **ondemand_heavy hybrid 闭**：连带 residual 刀后 mac／Ubuntu hybrid **5/5**  
@@ -2015,10 +2019,11 @@
     - pure_asm 独立 **12/12** 仍绿；full12 hybrid 装链 matrix **0/5**（rv/f32 BLD001 · opt/si/hello SEGV139）· restore -E **5/5**  
     - **ONLY= 单 slice 二分**（`/tmp/xlang_labi_slice_bisect_662b5fbfe.log`）：  
       - **GREEN×6**：`diag_pure`／`host_lit`／`path_io`／`std_list`／`gates`／`ondemand_list`  
-      - **RED×6**：`path_pure`（0/5 BLD001）· `ensure_list`（3/5 rv/f32 BLD001）· `invoke_cc_list`／`invoke_ld_list`／`freestanding_list`（2/5 opt/si/hello SEGV）· `ondemand_heavy`（3/5 rv/f32 SEGV）  
+      - **RED×6（授权时）**：`path_pure`（0/5 BLD001）· `ensure_list`（3/5 rv/f32 BLD001）· `invoke_cc_list`／`invoke_ld_list`／`freestanding_list`（2/5 opt/si/hello SEGV）· `ondemand_heavy`（3/5 rv/f32 SEGV）  
+      - **path_pure 已根修闭**；余 **RED×5**  
     - 相对 `1a66374b1` full12 绿：经 div0／modlet8MiB／weaken／fmt 刀后 **tip 装链回归**（emit 12/12 ≠ hybrid ABI 绿）  
     - **默认化设计（未实施 · 须授权）**：`labi_prefer_try_x_to_o` 作用域 `XLANG_PREFER_ASM_O_LABI`（scoped export 给 `pure_asm_x_to_o`）；`rt_prefer`／`g05_try`／其它 prefer 叶仍默认 -E  
-    - **放行闸门**：RED×6 根修 + mac／Ubuntu full12 hybrid **5/5** + restore 5/5 + 用户明示「授权 labi-only PREFER」  
+    - **放行闸门**：RED 余×5 根修 + mac／Ubuntu full12 hybrid **5/5** + restore 5/5 + 用户明示「授权 labi-only PREFER」  
     - 日志 `/tmp/xlang_labi_only_auth_map_662b5fbfe.log` · `/tmp/xlang_labi_slice_bisect_662b5fbfe.log`  
   - **COMPILE residual prefer 薄叶 pure_asm 问题地图 ✅（2026-08-11 · tip `6a814b52c`）**：  
     - 对象 13 叶（l2asm×3 · tcpu×2 · ldpc · async×3 · ol2×4）；**禁** `runtime_pipeline_abi.x` mega pure-asm  

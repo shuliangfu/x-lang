@@ -24714,6 +24714,85 @@ export function glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32 
 }
 
 /**
+ * Canonicalize a formal param already in rax/x0 before param_home stack store.
+ * AAPCS64/SysV leave high bits of <64-bit integer args undefined; param_home
+ * used to `str xN` / mov QWORD the full GP, so later full-width loads and
+ * 64-bit cmp (e.g. labi_suffix_eq2 u8 a0 vs ldrb) always mismatched → product
+ * hybrid pure-asm path_pure BLD001 (ld treated .x as object).
+ * TypeKind: I32=0 BOOL=1 U8=2 U32=3 (ast.x). Wider/pointer kinds: no-op.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
+ * @param arena *u8 — ASTArena*; null → no-op 0
+ * @param mod *u8 — Module*; null → no-op 0
+ * @param func_index i32 — emitting function
+ * @param param_index i32 — formal index
+ * @param ta i32 — 0=x86_64 SysV; 1=arm64 AAPCS64
+ * @return i32 — 0 ok/no-op; -1 encoder failure
+ * Stage 12.0.5: G.7 有则补全 (narrow GP family; pair of load-side zxt/sxt).
+ * PLATFORM: SHARED freestanding · LINUX+MACOS x86 · MACOS|ARM64.
+ */
+#[no_mangle]
+export function glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx: *u8, arena: *u8, mod: *u8, func_index: i32, param_index: i32, ta: i32): i32 {
+  let pty: i32 = 0;
+  let kind_ord: i32 = 0 - 1;
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (arena == (0 as *u8) || mod == (0 as *u8) || func_index < 0 || param_index < 0) {
+    return 0;
+  }
+  unsafe {
+    pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
+  }
+  if (pty <= 0) {
+    return 0;
+  }
+  unsafe {
+    kind_ord = pipeline_type_kind_ord_at(arena, pty);
+  }
+  if (kind_ord == 0) {
+    return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+  }
+  if (kind_ord == 3) {
+    return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+  }
+  if (kind_ord == 1 || kind_ord == 2) {
+    return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
+  }
+  return 0;
+}
+
+/**
+ * ARM64 only: MOV X0, Xn (ORR X0, XZR, Xn) so narrow canonicalize helpers
+ * (which only touch x0/w0) can clean AAPCS arg registers before store.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
+ * @param reg i32 — source Xn (0..31); 0 = no-op
+ * @return i32 — 0 ok; -1 fail
+ * PLATFORM: MACOS|ARM64 AAPCS64 (callers gate ta==1).
+ */
+#[no_mangle]
+export function glue_enc_arm64_mov_xn_to_x0_elf_c(elf_ctx: *u8, reg: i32): i32 {
+  let insn: u8[4] = [];
+  let word: i32 = 0;
+  let rc: i32 = 0;
+  if (elf_ctx == (0 as *u8)) {
+    return 0 - 1;
+  }
+  if (reg <= 0 || reg > 31) {
+    return 0;
+  }
+  // ORR X0, XZR, Xn — 0xAA0003E0 | (Rm<<16) | Rd  (Rd=0, Rn=31=XZR)
+  word = (0xAA0003E0 as i32) | (reg << 16);
+  insn[0] = (word & 255) as u8;
+  insn[1] = ((word >> 8) & 255) as u8;
+  insn[2] = ((word >> 16) & 255) as u8;
+  insn[3] = ((word >> 24) & 255) as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &insn[0], 4);
+  }
+  return rc;
+}
+
+/**
  * Bool result already in eax/x0: jump to label when zero.
  * x86_64: test eax,eax then jz (mov does not set ZF). arm64/riscv: jz reads reg.
  * @param elf_ctx *u8 - ElfCodegenCtx*
@@ -27951,8 +28030,16 @@ export function pipeline_asm_emit_cmp_elf(arena: *u8, elf_ctx: *u8, cmp_expr_ref
         if (cc < 0) {
           return 0 - 1;
         }
+        // Stage 12.0.5: load via glue_load_var (narrow sxt/zxt) then mov→rbx.
+        // Raw load_rbp_to_rbx kept AAPCS high garbage vs imm32 (suffix_eq / path_pure).
         unsafe {
-          rc = backend_enc_load_rbp_to_rbx_arch(elf_ctx, var_off, ta);
+          rc = glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx, arena, ctx, left_ref, var_off, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
         }
         if (rc != 0) {
           return 0 - 1;
@@ -30981,6 +31068,12 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
             if (rc != 0) {
               return -1;
             }
+            // Stage 12.0.5: clean AAPCS/SysV high garbage for i32/u8/u32/bool
+            // before 64-bit home store (labi_suffix_eq2 pure-asm hybrid root).
+            rc = glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, 0);
+            if (rc != 0) {
+              return -1;
+            }
             unsafe {
               rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0);
             }
@@ -30992,6 +31085,10 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
             unsafe {
               rc = backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0);
             }
+            if (rc != 0) {
+              return -1;
+            }
+            rc = glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, 0);
             if (rc != 0) {
               return -1;
             }
@@ -31102,8 +31199,20 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
         }
       } else {
         if (gp < reg_max) {
+          // Stage 12.0.5: move Xn→X0, canonicalize narrow, store X0 (not raw str xN).
+          // PLATFORM: MACOS|ARM64 AAPCS64 high-bit garbage on wN args.
+          if (gp != 0) {
+            rc = glue_enc_arm64_mov_xn_to_x0_elf_c(elf_ctx, gp);
+            if (rc != 0) {
+              return -1;
+            }
+          }
+          rc = glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, ta);
+          if (rc != 0) {
+            return -1;
+          }
           unsafe {
-            rc = backend_enc_store_x_reg_to_rbp_arch(elf_ctx, gp, home, ta);
+            rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
           }
           if (rc != 0) {
             return -1;
@@ -31113,6 +31222,10 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
           unsafe {
             rc = backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos, ta);
           }
+          if (rc != 0) {
+            return -1;
+          }
+          rc = glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, ta);
           if (rc != 0) {
             return -1;
           }
@@ -64796,6 +64909,11 @@ export function pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx: *u8, ct
             if (rc != 0) {
               return 0 - 1;
             }
+            // Stage 12.0.5: same narrow canonicalize as main param_home (SysV f32-xmm track).
+            rc = glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, 0);
+            if (rc != 0) {
+              return 0 - 1;
+            }
             unsafe {
               rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0);
             }
@@ -64807,6 +64925,10 @@ export function pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx: *u8, ct
             unsafe {
               rc = backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0);
             }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            rc = glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, 0);
             if (rc != 0) {
               return 0 - 1;
             }
