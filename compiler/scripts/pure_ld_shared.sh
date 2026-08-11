@@ -270,6 +270,14 @@ pure_as_compile() {
 #   · G05_X_O_WEAK=1 / G05_X_O_WEAK_FUNCS / G05_X_O_SYM_RENAME (need C rewrite)
 #   · object has U xlang_panic or bare U __error (g05 pure-ld surface mismatch)
 #   · CG002 / typeck / empty output
+#   · XLANG_PREFER_ASM_O_ONLY set and SRC basename not in the allow-list
+#
+# XLANG_PREFER_ASM_O_ONLY (optional, Stage 12.0.5 ABI bisect):
+#   Comma-separated basenames or stems, e.g. "rt_util.x,rt_content" or "rt_util".
+#   When set with PREFER_ASM_O=1, only matching sources take pure-asm; others
+#   return 1 immediately so callers fall through to -E+$CC. Unset = all
+#   PREFER_ASM_O sources try pure-asm (historic full-hybrid behavior).
+#   Used to single-slice / binary-search L2 SIGSEGV under product hybrid.
 #
 # Usage: pure_asm_x_to_o OUT SRC.x
 # Returns 0 on success (OUT non-empty), non-zero to fall through.
@@ -281,6 +289,7 @@ pure_asm_x_to_o() {
   local src="$2"
   local xl=""
   local _pure_asm_stage=""
+  local _bn="" _stem="" _only="" _tok="" _match=0 _old_ifs=""
   if [ -z "$out" ] || [ -z "$src" ]; then
     return 1
   fi
@@ -300,6 +309,28 @@ pure_asm_x_to_o() {
   fi
   if [ ! -f "$src" ]; then
     return 1
+  fi
+  # Optional single-slice / allow-list gate for hybrid ABI bisect.
+  # PLATFORM: SHARED diagnostic harness — does not change default-all behavior.
+  if [ -n "${XLANG_PREFER_ASM_O_ONLY:-}" ]; then
+    _bn="$(basename "$src")"
+    _stem="${_bn%.x}"
+    _match=0
+    _old_ifs="$IFS"
+    IFS=','
+    for _tok in $XLANG_PREFER_ASM_O_ONLY; do
+      _tok="$(printf '%s' "$_tok" | tr -d '[:space:]')"
+      [ -z "$_tok" ] && continue
+      if [ "$_tok" = "$_bn" ] || [ "$_tok" = "$_stem" ] \
+        || [ "$_tok" = "${_stem}.x" ]; then
+        _match=1
+        break
+      fi
+    done
+    IFS="$_old_ifs"
+    if [ "$_match" != "1" ]; then
+      return 1
+    fi
   fi
   # Prefer freestanding product binary, then hosted xlang / seed binaries.
   if [ -n "${XLANG:-}" ] && [ -x "$XLANG" ]; then

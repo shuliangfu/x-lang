@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-11（Stage 12 零 cc：LINK／`.s`／forbid／STRING_LIT／module const／empty `[]`／**12.0.5 pure_asm helper + Darwin mangling + `rt_*` 23/23 + hybrid opt-in 再探（默认 -E；PREFER_ASM_O 仍 L2 SIGSEGV）**；钉盘仍 **`d79a368b2`**；**只改勾选与事实**，无波次流水）
+> **状态刷新**：2026-08-11（Stage 12 零 cc：…／**12.0.5 pure_asm + hybrid opt-in + `PREFER_ASM_O_ONLY` 真 L2 地图（`rt_content` SEGV→i32 sxtw；默认 -E）**；钉盘仍 **`d79a368b2`**；**只改勾选与事实**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -42,7 +42,7 @@
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
 | **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
-| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in 入链 ✅**（`XLANG_PREFER_ASM_O=1`；默认 -E 零回归）· **PREFER_ASM 产品 L2 仍 SIGSEGV residual** · labi pure_asm **8/12**（4 ABI panic）· 最小 seed ⬜ · COMPILE residual 仍需 `$CC` |
+| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT ✅** · **module const binop ✅** · **empty `[]`／emit／lsp_diag CG002 ✅** · **`pure_asm_x_to_o` helper ✅** · **Darwin mangling ✅** · **`rt_*` pure_asm 23/23 ✅** · **hybrid pure-asm opt-in ✅** · **`PREFER_ASM_O_ONLY` 真 L2 地图 ✅**（RED_SEGV：`content`／`run_compiler_parsed`；RED_L2：`dispatch_impl`／`emit_flags`／`lib_root`／`run_asm_backend`；根因钉：arm64 **i32 未 sxtw** @ `rt_eq6`）· **SEED_SLICE 不并 no_c** · **全量 PREFER_ASM 仍禁默认** · labi **8/12** · 最小 seed ⬜ · COMPILE residual 仍需 `$CC` |
 | **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
@@ -1986,8 +1986,17 @@
   - **Darwin call mangling ✅**：`macho_leading_underscore` 对 C 名**一律** prepend `_` → `__error`→`___error`  
   - **pure_asm 覆盖（mac）**：`rt_*.x` **23/23** ✅；hybrid thin **18/18**；labi **8/12**（FAIL_ABI panic：`labi_diag_pure`／`ensure_list`／`freestanding_list`／`path_pure`）  
   - **产品 hybrid opt-in ✅**：`rt_prefer_try_x_to_o`／`labi_prefer_try_x_to_o`／`g05_try_x_to_o` 在 `XLANG_PREFER_ASM_O=1` 时先 pure_asm，失败回退 -E+$CC；**默认 flag 未设=仍 -E+$CC**  
-  - **再探 residual**：PREFER_ASM_O=1 重建 `runtime_driver_no_c.o` pure-ld 绿、无 panic U，但 **L2 5/5 SIGSEGV**（已恢复 -E hybrid）；ABI 对等未证 → **禁止默认打开**  
-  - 下一步：单 slice 二分 SIGSEGV 根因 · labi 4× panic bounds · RT_SEED_SLICE 勿直替（缺 seed-only `slice_marker`）；**禁 mega 盲扫**  
+  - **单 slice 二分 harness ✅**：`XLANG_PREFER_ASM_O_ONLY`（G.7 `pure_asm_x_to_o` allow-list）  
+  - **真 L2 地图（prefer + soft g05_relink + matrix）**：  
+    - **IN_NO_C GREEN**：`rt_util`／`rt_run_x_emit`（及早前若干 real thin）  
+    - **RED_SEGV**：`rt_content`／`rt_run_compiler_parsed`  
+    - **RED_L2**：`rt_dispatch_impl`／`rt_emit_flags`／`rt_lib_root`／`rt_run_asm_backend`  
+    - **VACUOUS**：`rt_run_exec`（seed 冷）· **SEED_SLICE 外链**（`preamble`／`stack`／`arena_buf`／`emit_state`／`parse_diag`）→ `ONLY=` **不改** `runtime_driver_no_c.o`  
+  - **`rt_content` 根因钉**：lldb `rt_eq6`；pure-asm 64 位用 `i32 p`，clang `ldrsw`；G.7 补 **i32 param/local sxtw**（已有 `glue_enc_sxt_i32_result_to_rax_elf_c`）  
+  - **再探 residual**：全量 PREFER_ASM_O 仍 L2 SIGSEGV → **禁止默认打开**  
+  - 下一步：i32 sxtw 权威修 → 复验 RED hybrid · labi 4× panic · SEED_SLICE 走 permanent `.o` 路径  
+
+
   - 未完成前冷构建仍会 `$CC -c` 编译 seed／X-emit C
 
 ### 12.1 最小 seed 设计
