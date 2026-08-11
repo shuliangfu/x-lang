@@ -3113,6 +3113,12 @@ try_ensure_pipeline_abi_prefer_one() {
 #     -DXLANG_L2_LSP_CTX_THIN_FROM_X
 #   merge: $CC -r -nostdlib thin + rest → OUT
 # Prefer fail / PREFER≠1 / no xlang → ensure_one cold plain seed.
+# Stage 12.0.5 pure-asm residual (documented, not product-default):
+#   pure_asm_x_to_o alone OK for lsp_diag_pipeline_ctx.x, but product hybrid
+#   under PREFER_ASM cannot drop WEAK: pure-asm thin is strong and multidefs
+#   lsp_diag_{hover,definition,references}_at vs lsp_diag_x.o (g05 pure-ld
+#   hard fail). pure_asm_x_to_o also returns 1 under G05_X_O_WEAK (needs C
+#   rewrite). Next knife: pure-asm weak emission or thin extern-only those 3.
 # Callers: g05_ensure (wave767) · Makefile src/lsp/lsp_diag_pipeline_ctx.o.
 # Exit codes:
 #   0 — OUT is lsp_diag_pipeline_ctx.o; prefer or cold body produced OUT
