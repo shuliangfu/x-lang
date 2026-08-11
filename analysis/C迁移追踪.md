@@ -2065,12 +2065,14 @@
     - 日志 mac `/tmp/xlang_async_pure_asm_hybrid_*.log` · Ubuntu `/tmp/ubu_async_pure_asm_hybrid_190ab4eb3_20260812_022411.log`  
     - ensure 头注释钉 Stage12.0.5 pure-asm hybrid 双端闭 · **产品默认仍 -E**  
   - **labi full12 hybrid 双端 5/5 ✅（2026-08-12）** · 授权仍拒默认化（须用户明示「授权 labi-only PREFER」）  
-  - **rt pure-asm hybrid 地图（mac · 2026-08-12 · tip `7ca063e81`）🟡 RED hybrid**：  
-    - 配方：`PREFER_ASM_O=1`+`HOST_CC_SEED_FORCE=1` FORCE `try-rt-prefer` multi-slice → unset PREFER → soft g05 pure-ld → matrix → restore -E  
-    - pure_asm 独立 **23/23** OK · hybrid `runtime_driver_no_c.o` **131616→184080**（Δ+52464）· pure-ld **OK** · xlang 装链成功  
-    - **hybrid matrix 0/5**：五探针 **BUILD FAIL rc=254**（空 stderr；`-o` 失败）  
-    - restore -E no_c **131616** · matrix **5/5**  
-    - 日志 `/tmp/xlang_rt_pure_asm_hybrid_true_7ca063e81_*.log` · `/tmp/xlang_rt_pure_asm_hybrid_7ca063e81_*.log`  
+  - **rt pure-asm hybrid 地图（mac · 2026-08-12 · tip `7ca063e81`／docs `93730d3a9`）🟡 RED full hybrid**：  
+    - 配方：`PREFER_ASM_O=1`+`HOST_CC_SEED_FORCE=1` FORCE `try-rt-prefer` multi-slice → unset PREFER → pure-ld → probe → restore -E  
+    - pure_asm 独立 **23/23** OK · full hybrid no_c **131616→184080**（Δ+52464）· pure-ld **OK** · xlang 装链成功  
+    - **full hybrid matrix／hello 0/5**：五探针 **BUILD FAIL rc=254**（空 stderr；`-o` 失败）  
+    - restore -E no_c **131616** · matrix／hello **5/5**  
+    - **`ONLY=` 单叶 pure-asm hybrid 二分（hello 探针）**：**GREEN×23 RED×0**（含 content／util／argv／emit_flags／compile／run_*／dispatch_*／…／SEED_SLICE 叶）· 单叶装链均绿  
+    - **结论**：残为 **多叶 pure-asm 同装交互**（非单叶 ABI）；下一刀组合二分／半量  
+    - 日志 full `/tmp/xlang_rt_pure_asm_hybrid_true_7ca063e81_*.log` · ONLY= `/tmp/xlang_rt_only_bisect_93730d3a9_20260812_065901.log`  
     - **产品默认仍 -E** · **禁** rt multi-slice PREFER 默认化 · **Ubuntu 金标待复验**（本波 SSH 金标机不可达）  
   - **B1–B3 pure-asm hybrid 地图（mac · 2026-08-12 · tip `7ca063e81`）✅**：  
     - 配方同 residual：`PREFER_ASM_O=1`+FORCE prefer → unset → soft g05 → matrix → restore -E  
