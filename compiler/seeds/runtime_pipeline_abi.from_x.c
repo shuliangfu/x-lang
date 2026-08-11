@@ -20469,8 +20469,37 @@ int32_t glue_try_binop_load_operand_elf_c(void *arena, void *elf_ctx, int32_t ex
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
   if (ko == 3) {
     off = glue_var_expr_stack_off_elf_c(arena, ctx, expr_ref);
-    if (off < 0)
+    if (off < 0) {
+      /*
+       * Stage 12.2.6: module-level export const has no stack slot. Left-assoc
+       * binop paths (A+B)+C call load_operand(to_rbx) after emitting left@rax;
+       * returning -2 made `!= 0` fail hard → CG002 on non-first funcs (first
+       * often const-folds the whole tree; later funcs still need multi-const
+       * nested binops). Align with pipeline_asm_emit_expr_elf_fast VAR path:
+       * materialize top-level const lit as imm into rax/rbx.
+       * PLATFORM: SHARED freestanding emit.
+       */
+      uint8_t vname[128];
+      int32_t vlen;
+      int32_t mod_imm;
+      void *mod;
+      vlen = pipeline_expr_var_name_len(arena, expr_ref);
+      if (vlen <= 0)
+        return -2;
+      pipeline_expr_var_name_into(arena, expr_ref, vname);
+      mod = pipeline_asm_emit_module_ref_c();
+      if (mod && asm_module_top_level_const_lit_i32(mod, arena, vname, vlen, &mod_imm) != 0) {
+        if (to_rbx != 0) {
+          if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, mod_imm, ta) != 0)
+            return -1;
+        } else {
+          if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, mod_imm, ta) != 0)
+            return -1;
+        }
+        return 0;
+      }
       return -2;
+    }
     glue_asm73_evict_cache_if_live_pressure_elf_c(ta, elf_ctx);
     if (to_rbx != 0) {
       if ((glue_binop_var_slot_cache_hit_rbx(ctx, off) != 0))

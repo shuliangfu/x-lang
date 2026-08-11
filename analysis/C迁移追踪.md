@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-11（Stage 12 零 cc 基建：LINK pure-ld／`.s` pure_as／forbid_host_cc／STRING_LIT CG002 根修；钉盘仍 **`d79a368b2`**；**只改勾选与事实**，无波次流水）
+> **状态刷新**：2026-08-11（Stage 12 零 cc：LINK／`.s`／forbid／STRING_LIT／**module const 嵌套 binop load**；钉盘仍 **`d79a368b2`**；**只改勾选与事实**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -42,7 +42,7 @@
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
 | **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
-| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅**（`pure_ld_try_link` + `pure_ld_partial_merge`）· **`.s` COMPILE 零 cc ✅**（`pure_as_compile`）· **stub weak `.s` ✅** · **forbid_host_cc 门禁 ✅** · **asm STRING_LIT 空串／cap126 ✅** · 最小 seed ⬜ · 全量 COMPILE 仍需 `$CC`（X-emit C + seed `.from_x.c`）· asm 模块覆盖 🟡 |
+| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅** · **`.s` COMPILE 零 cc ✅** · **stub weak `.s` ✅** · **forbid_host_cc ✅** · **STRING_LIT 空串／cap126 ✅** · **module const 嵌套 binop load ✅**（`rt_fs_open` 等）· 最小 seed ⬜ · COMPILE residual 仍需 `$CC` · asm 覆盖 🟡（余 `emit`／`lsp_diag` 等 CG002） |
 | **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
@@ -1965,11 +1965,18 @@
   - 验收：`diag.x`／`runtime_driver_diagnostic.x`／`runtime_driver_abi_thin.x` `-backend asm -c` rc=0  
   - 路径：`glue_asm_emit_jmp_skip_string_then_lea`／`glue_asm_emit_string_lit_ptr_rax_elf_c`／fmt string-lit import
 
+✅ **12.0.6 module const 嵌套 binop 左结合 load（CG002 根修）**
+
+  - 权威：`glue_try_binop_load_operand_elf_c`（`runtime_pipeline_abi` seed + `.x`）  
+  - 无 stack slot 的 `export const`：`asm_module_top_level_const_lit_i32` → imm 写入 rax／rbx（对齐 emit_expr_fast）  
+  - 闭合：非首函数 `((A+B)+C)`／`W\|C\|T` 左结合路径；`src/runtime/rt_fs_open.x` rc=0  
+  - 探针纪律：每文件 timeout；禁无界扫 mega
+
 🟡 **12.0.5 asm backend 模块覆盖（`.x`→`.o` 直出替 `-E`+`$CC -c`）**
 
   - 目标：g05／ensure 中 COMPILE 对象逐步走 `xlang -backend asm -c module.x -o module.o`  
-  - 已绿探针：extern-only 跳过 CG002；STRING_LIT 空串／长诊断串  
-  - 残留：mega 模块仍可能 CG002／超时——按产生点根修，不全树盲扫  
+  - 已绿：extern-only 跳过；STRING_LIT；module const 嵌套 binop；`rt_fs_open`／`diag`／`labi_*_pure`／`runtime_driver_diagnostic` 等  
+  - 限时残留 CG002：`src/driver/emit.x`（`run_x_emit_x`）· `src/lsp/lsp_diag.x`（`copy_bytes`）· mega 禁盲扫  
   - 未完成前冷构建仍会 `$CC -c` 编译 seed／X-emit C
 
 ### 12.1 最小 seed 设计
