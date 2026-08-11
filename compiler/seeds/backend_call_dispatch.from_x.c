@@ -2623,18 +2623,12 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
         spill_off_a64[i] = so;
       }
       /*
-       * Load high→low by *arg index*: x0 is spill temp and may be arg0.
-       * Loading lower GPs first would clobber them when materializing higher ones
-       * through x0 (wave392 reent2). Dual-GP loads write gp and gp+1 atomically
-       * relative to later lower-index loads.
+       * Stage 12.0.5: materialize stack/MEMORY places *before* final GP load.
+       * Root (rt_eq6 9-arg / AAPCS x0..x7 + 1 stack): after high→low load of spills,
+       * placing stack arg via emit→x0 + str [sp] clobbered arg0 (x0 ended as last imm
+       * 0x3e='>', SEGV on c[p]). x86 pushes stack first then loads GPs — same order.
+       * PLATFORM: MACOS|ARM64 AAPCS64 · SHARED freestanding multi-arg >8.
        */
-      for (i = nargs - 1; i >= 0; i--) {
-        if (spill_off_a64[i] < 0)
-          continue;
-        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_a64[i], gp_start_a64[i],
-                                                     gp_units_a64[i]) != 0)
-          return -1;
-      }
       for (i = 0; i < nargs; i++) {
         int32_t words;
         int32_t stored;
@@ -2664,6 +2658,20 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
         if (gp_units_a64[i] >= 2) {
           /* high half soft when stack-spilled dual — rare on probes */
         }
+      }
+      /*
+       * Load high→low by *arg index*: x0 is spill temp and may be arg0.
+       * Loading lower GPs first would clobber them when materializing higher ones
+       * through x0 (wave392 reent2). Dual-GP loads write gp and gp+1 atomically
+       * relative to later lower-index loads.
+       * Must run *after* stack place so emit-to-x0 for stack does not wipe final GPs.
+       */
+      for (i = nargs - 1; i >= 0; i--) {
+        if (spill_off_a64[i] < 0)
+          continue;
+        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_a64[i], gp_start_a64[i],
+                                                     gp_units_a64[i]) != 0)
+          return -1;
       }
       pipeline_asm_emit_set_call_param_type_ref(0);
       return 0;
@@ -4086,29 +4094,11 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         return -1;
       spill_off[i] = so;
     }
-    /* Load high place index first so lower GPs are not clobbered via x0/rax temp. */
-    for (i = n_place - 1; i >= 0; i--) {
-      int32_t mov_rc;
-      if (spill_off[i] < 0)
-        continue;
-      if (is_sse[i]) {
-        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off[i], ta) != 0)
-          return -1;
-        if (is_f64[i])
-          mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
-        else
-          mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
-        if (mov_rc != 0)
-          return -1;
-      } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], reg_start[i],
-                                                         reg_units[i]) != 0) {
-        return -1;
-      }
-    }
 
     /*
-     * wave606: after GP arg regs are final, materialize MEMORY/excess stack places
-     * at [sp+#stk*8] (AAPCS64 low-end). Order: left-to-right place index.
+     * Stage 12.0.5: arm64 stack/MEMORY places *before* final GP load (≡ free CALL).
+     * wave606 originally placed after load; that clobbered x0 when >8 places
+     * (emit stack arg through x0). PLATFORM: MACOS|ARM64 AAPCS64.
      */
     if (ta == 1) {
       int32_t stk_slot = 0;
@@ -4150,6 +4140,26 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
           return -1;
         stk_slot++;
+      }
+    }
+
+    /* Load high place index first so lower GPs are not clobbered via x0/rax temp. */
+    for (i = n_place - 1; i >= 0; i--) {
+      int32_t mov_rc;
+      if (spill_off[i] < 0)
+        continue;
+      if (is_sse[i]) {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off[i], ta) != 0)
+          return -1;
+        if (is_f64[i])
+          mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+        else
+          mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+        if (mov_rc != 0)
+          return -1;
+      } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], reg_start[i],
+                                                         reg_units[i]) != 0) {
+        return -1;
       }
     }
 

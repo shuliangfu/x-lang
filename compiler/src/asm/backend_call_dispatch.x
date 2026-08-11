@@ -66,6 +66,8 @@ export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(a: *u8, elf: *u8,
 export extern function pipeline_asm_type_ref_byte_size_c(arena: *u8, pty: i32): i32;
 export extern function backend_enc_store_rax_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
 export extern function backend_enc_store_rdx_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
+/** AAPCS64 dual-GP high half spill (x1 @ home+8). PLATFORM: MACOS|ARM64. */
+export extern function backend_enc_store_x_reg_to_rbp_arch(elf: *u8, reg: i32, off: i32, ta: i32): i32;
 export extern function backend_enc_load_rbp_to_rax_arch(elf: *u8, off: i32, ta: i32): i32;
 export extern function backend_enc_lea_rbp_to_rax_arch(elf: *u8, off: i32, ta: i32): i32;
 export extern function backend_enc_call_stack_reserve_arch(elf: *u8, nbytes: i32, ta: i32): i32;
@@ -572,9 +574,10 @@ function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32)
 }
 
 /**
- * Spill rax (+ rdx for 9–16B) to a fresh frame slot; advance AsmFuncCtx.next_offset @4.
+ * Spill rax (+ rdx / x1 for 9–16B) to a fresh frame slot; advance AsmFuncCtx.next_offset @4.
  * PLATFORM: LINUX+MACOS x86_64 SysV — multi-arg packing must materialize all values to memory
  * before loading GPs so dual-load (uses rdx) does not clobber already-placed higher arg regs.
+ * PLATFORM: MACOS|ARM64 AAPCS64 — dual high half @ home+8 via x1 (wave600 seed twin).
  * @return i32 — spill offset (low half), or -1
  */
 function glue_sysv_spill_rax_rdx_to_frame_c(elf: *u8, ctx: *u8, ta: i32, gp_units: i32): i32 {
@@ -592,6 +595,9 @@ function glue_sysv_spill_rax_rdx_to_frame_c(elf: *u8, ctx: *u8, ta: i32, gp_unit
     if (ta == 0) {
       // SysV high-end: high half @ home-8 (rdx).
       if (backend_enc_store_rdx_to_rbp_arch(elf, off - 8, ta) != 0) { return 0 - 1; }
+    } else {
+      // AAPCS64 low-end: high half @ home+8 (x1).
+      if (backend_enc_store_x_reg_to_rbp_arch(elf, 1, off + 8, ta) != 0) { return 0 - 1; }
     }
   }
   call_dispatch_store_i32_le(ctx, 4, off + 16);
@@ -1325,8 +1331,10 @@ export function glue_asm_enc_call_redirected(elf_ctx: *u8, name: *u8, name_len: 
  * unit accounting. Prior pure surface placed by arg *index* into GP *index*, so
  * `set_in(WithArr, i, v)` put v in rdx then struct dual-load clobbered it →
  * Ubuntu assign_index_struct_field panic 134 (i became 15).
- * Authority matches seeds/backend_call_dispatch.from_x.c impl (wave392/600/601).
- * PLATFORM: SHARED — LINUX+MACOS x86_64 SysV dual-GP; MACOS|ARM64 place kept.
+ * Stage 12.0.5: AAPCS64 spill-then-load + stack-before-GP-reload (seed twin).
+ * Root: high-to-low direct place then stack emit→x0 clobbered arg0 (rt_eq6 c=0x3e).
+ * Authority matches seeds/backend_call_dispatch.from_x.c (wave392/600/601 + 12.0.5).
+ * PLATFORM: SHARED — LINUX+MACOS x86_64 SysV dual-GP; MACOS|ARM64 AAPCS64 spill.
  */
 #[no_mangle]
 export function pipeline_asm_emit_call_args_elf_c(
@@ -1364,7 +1372,11 @@ export function pipeline_asm_emit_call_args_elf_c(
         }
       }
     } else {
+      // arm64: 16-align stack words for excess GP (MEMORY multi-word soft on pure surface).
       stack_reserve = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+      if (stack_reserve > 0) {
+        stack_reserve = (stack_reserve + 15) & (0 - 16);
+      }
     }
     if (stack_reserve < 0) { return 0 - 1; }
     if (backend_enc_call_stack_reserve_arch(elf_ctx, stack_reserve, ta) != 0) { return 0 - 1; }
@@ -1398,38 +1410,81 @@ export function pipeline_asm_emit_call_args_elf_c(
     }
 
     /*
-     * AAPCS64: high-to-low place (historical). Full wave392 spill-then-load remains
-     * seed-complete; pure surface keeps arm64 place until a dedicated pure leave.
-     * PLATFORM: MACOS|ARM64.
+     * AAPCS64: spill-then-load (wave392/600) + stack-before-GP-reload (Stage 12.0.5).
+     * Order: classify → emit+spill GP → place stack (x0 temp OK) → load GPs high→low.
+     * PLATFORM: MACOS|ARM64 AAPCS64 · SHARED freestanding multi-arg.
      */
     if (ta == 1) {
-      let reg_n: i32 = nargs;
-      if (reg_n > eff_reg_max) { reg_n = eff_reg_max; }
-      let i1: i32 = reg_n - 1;
-      while (i1 >= 0) {
-        let arg_ref1: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i1);
-        if (arg_ref1 != 0) {
-          if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref1, i1, ctx, ta) != 0) {
-            return 0 - 1;
-          }
-          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i1 + sret_sh, ta) != 0) {
-            return 0 - 1;
+      let gp_start: i32[96] = [];
+      let gp_units: i32[96] = [];
+      let spill_off: i32[96] = [];
+      let gp_cur: i32 = 0;
+      let i: i32 = 0;
+      while (i < nargs) {
+        let ar_i: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+        let pty_i: i32 = glue_call_param_type_ref_at(arena, expr_ref, i);
+        let sz_i: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i);
+        spill_off[i] = 0 - 1;
+        if (glue_sysv_arg_is_memory_by_value_c(sz_i) != 0) {
+          gp_start[i] = 0 - 1;
+          gp_units[i] = 0;
+        } else {
+          let u: i32 = glue_sysv_arg_gp_units_from_size_c(sz_i);
+          if (u < 1) { u = 1; }
+          if (u > 2) { u = 2; }
+          gp_start[i] = gp_cur;
+          gp_units[i] = u;
+          if (gp_cur + u <= reg_max) {
+            gp_cur = gp_cur + u;
+          } else {
+            gp_start[i] = 0 - 1;
           }
         }
-        i1 = i1 - 1;
+        i = i + 1;
       }
-      let i2: i32 = eff_reg_max;
-      while (i2 < nargs) {
-        let arg_ref2: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i2);
-        if (arg_ref2 != 0) {
-          if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref2, i2, ctx, ta) != 0) {
-            return 0 - 1;
+      // Emit + spill register-class args.
+      i = 0;
+      while (i < nargs) {
+        if (gp_start[i] >= 0) {
+          let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+          if (arg_ref != 0) {
+            if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
+              return 0 - 1;
+            }
+            let so: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units[i]);
+            if (so < 0) { return 0 - 1; }
+            spill_off[i] = so;
           }
-          if (backend_enc_store_x0_sp_offset_arch(elf_ctx, (i2 - eff_reg_max) * 8, ta) != 0) {
+        }
+        i = i + 1;
+      }
+      // Stack / excess: materialize via x0 *before* final GP load (do not clobber x0).
+      let stk_slot: i32 = 0;
+      i = 0;
+      while (i < nargs) {
+        if (gp_start[i] < 0) {
+          let arg_ref2: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+          if (arg_ref2 != 0) {
+            if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref2, i, ctx, ta) != 0) {
+              return 0 - 1;
+            }
+            if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0) {
+              return 0 - 1;
+            }
+            stk_slot = stk_slot + 1;
+          }
+        }
+        i = i + 1;
+      }
+      // Load spills high→low so x0 temp does not wipe lower final GPs.
+      i = nargs - 1;
+      while (i >= 0) {
+        if (spill_off[i] >= 0) {
+          if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], gp_start[i], gp_units[i]) != 0) {
             return 0 - 1;
           }
         }
-        i2 = i2 + 1;
+        i = i - 1;
       }
       pipeline_asm_emit_set_call_param_type_ref(0);
       return 0;
