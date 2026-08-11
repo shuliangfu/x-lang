@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-09（对照 tip residual：typeck.x **全量 `-E` typeck OK** · freestanding dual leave 收口 · **typeck 7.4.1 + codegen 7.4.2 冷链关 pin** · **parser 7.2.2 assemble 基建 🟡**（tip `-E` OK · pure-ld OK · 产品矩阵 tip 仍 P011 trait bare `self` → 默认 pin）· **runtime monofile 物理退役（7.1.1）** · 8.3 结构地板闭 · present **0**／ROWS=128 · **M4 3/5**；parser／link_abi pin 仍 ⬜；**只改勾选与事实 LOC**，无波次流水）
+> **状态刷新**：2026-08-11（Stage 12 零 cc 基建：LINK pure-ld／`.s` pure_as／forbid_host_cc／STRING_LIT CG002 根修；钉盘仍 **`d79a368b2`**；**只改勾选与事实**，无波次流水）
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -19,7 +19,7 @@
 > 2. **禁止** 在本文写波次号、波次 changelog、「waveN 做了 X」流水账。  
 > 3. 波次叙事、tip SHA 演进、commit 序列 **只写 [自举进度.md](自举进度.md)**。  
 > 4. 做到某一项 → 标 🟡；该项完成 → 改 ✅；不要追加「完成波次」段落。  
-> **权威钉盘**（与 [自举进度.md](自举进度.md) 同步）：**`36363b90f`**（产品 L4 放行；MG 物理删 Makefile 仍有效）。
+> **权威钉盘**（与 [自举进度.md](自举进度.md) 同步）：**`d79a368b2`**（产品 L4 放行；MG 物理删 Makefile 仍有效）。
 
 ---
 
@@ -36,13 +36,13 @@
 | **Pinned gen.c 退役** | ✅ **⭐ 30/30 FULLY CLOSED** | Track L 退役 **23/23 PRODUCT RETIRED = 100%**（wave327-332 Batch3 全闭）：wave1035 前 13 + wave327 lsp_diag_gen+lsp_gen + wave328 pipeline_gen+driver_gen+preprocess_gen+lexer_gen + wave329 parser+typeck+codegen（cold-seed rung）+ wave331 ast_gen2（cold-seed pin）。NON_PRODUCT 7 正确分类（wave332 `is_product_denominator()` 单权威）：TEST×2 + STAGE×2 + EXTRACT_ONLY×1 + DELETED_ORPHAN×2。HALF=0；PINNED 产品=0。 |
 | **非 gen 产品 C（glue/ast 池）** | 🟢 | 阶段 8.3 **结构／域 map 收口**（**2026-08-08 wave309**）：glue 壳／typedefs／9×fwd／standalone **deleted**；product pure-ld **无** pipeline mega。**bc-inventory 诚实**：present residual product C rows **0**（ROWS=128）；`./xbuild bc-inventory --check` 绿。**pipeline.x residual** leave ✅。**8.3.1～8.3.7 结构／域 leave ✅**；**8.3.6 🟡** 仅全表 from_x 退役策略仍 ⬜；**8.3.8／8.3.10 ⬜**；**8.3.9 ✅**。日常 L2 矩阵 G.7 单权威 `./xbuild l2-matrix`。**BC 终局（零 host-cc 编编译器）仍 ⬜**（gen／runtime seed 等在 8.3 图外） |
 | **Cap 能力解锁** | 🟡 | untyped self 待治；LANG-006 保留 |
-| **产品 L4 放行** | ✅ | 钉盘 **`36363b90f`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
+| **产品 L4 放行** | ✅ | 钉盘 **`d79a368b2`** · Makefile 物理删除 + 双端 L4 真冷 + bstrict 129 |
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | ✅ **MG 已完成** | **Makefile 已物理删除**（根 + compiler/）· bootstrap 0 make · catalog 单权威（mk/*.mk）· 阶段 11.3.1 ✅ |
 | **根脚本 / tools / docker / CI 去 make+cc** | 🟡 | 11.2.5/11.4.3/11.2.3/11.1.6/11.3/11.3.1/11.4.1/11.4.6 ✅ · 11.1.1–5/11.4.5 🟡 · 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 | 11.5.1–4 **策略已裁定**（`tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
-| **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
+| **冷启动零 cc 链** | 🟡 | **LINK 全零 cc ✅**（`pure_ld_try_link` + `pure_ld_partial_merge`）· **`.s` COMPILE 零 cc ✅**（`pure_as_compile`）· **stub weak `.s` ✅** · **forbid_host_cc 门禁 ✅** · **asm STRING_LIT 空串／cap126 ✅** · 最小 seed ⬜ · 全量 COMPILE 仍需 `$CC`（X-emit C + seed `.from_x.c`）· asm 模块覆盖 🟡 |
 | **终局：无 Makefile + 零 cc + v2==v3** | 🟡 | MG ✅ · BC 🟡 · PC ⬜；见 §0.1 三义；阶段 13 |
 
 ### 0.1 终局三义（禁止混谈「零 cc」）
@@ -1935,7 +1935,42 @@
 
 > **定义**：从最小 seed 到完整产品，**不出现 host cc/gcc/clang**（§0.1 BC + 编排 MG）。  
 > **前置**：阶段 10 + 阶段 9 + 阶段 8.3 足够；阶段 11 xbuild 可驱动冷启动。  
-> **目标**：`最小 seed → xlang → xbuild → 完整产品`。
+> **目标**：`最小 seed → xlang → xbuild → 完整产品`。  
+> **探针纪律**：asm 扩覆盖 **每文件 timeout**；禁止无界扫描 mega（如 `runtime_pipeline_abi.x`）。
+
+### 12.0 零 cc 基建（编排 + 门禁 + emit 根修 · 进行中）
+
+✅ **12.0.1 LINK 零 host-cc**
+
+  - 权威：`pure_ld_try_link`（final）+ `pure_ld_partial_merge`（`ld -r`）  
+  - L4 链步 + g05 final 可 `XLANG_ZERO_CC_LD=1` 走 pure-ld  
+  - flag 未设时 `$CC -r`／`$CC -o` 零回归
+
+✅ **12.0.2 `.s` COMPILE 零 host-cc**
+
+  - 权威：`pure_as_compile`（`XLANG_ZERO_CC_AS=1` → `as -o`）  
+  - ensure／g05／build 路径上 panic／f64_bits／crt0 等 `.s` 全覆盖  
+  - stub：`emit_asm_text_stub_o` 运行时 weak `.s`（非 `.c` stub）
+
+✅ **12.0.3 `forbid_host_cc` 门禁**
+
+  - `compiler/scripts/forbid_host_cc.sh` · wrapper 覆盖 `$CC`  
+  - `build_xlang_asm`／`ensure_host_cc_seed_o`／g05 系列 source  
+  - `XLANG_FORBID_HOST_CC=1` 硬拦；`LOG_ONLY` 可审计（COMPILE 主体仍为 X-emit temp C + seed `.from_x.c`）
+
+✅ **12.0.4 asm STRING_LIT 空串／长度 cap（CG002 根修）**
+
+  - 权威：`backend_call_dispatch.x` + seed／surface 同语义  
+  - `slen==0`（`""`）合法；上限 **126**（x86 short-jmp + NUL；旧 seed 错 cap 63）  
+  - 验收：`diag.x`／`runtime_driver_diagnostic.x`／`runtime_driver_abi_thin.x` `-backend asm -c` rc=0  
+  - 路径：`glue_asm_emit_jmp_skip_string_then_lea`／`glue_asm_emit_string_lit_ptr_rax_elf_c`／fmt string-lit import
+
+🟡 **12.0.5 asm backend 模块覆盖（`.x`→`.o` 直出替 `-E`+`$CC -c`）**
+
+  - 目标：g05／ensure 中 COMPILE 对象逐步走 `xlang -backend asm -c module.x -o module.o`  
+  - 已绿探针：extern-only 跳过 CG002；STRING_LIT 空串／长诊断串  
+  - 残留：mega 模块仍可能 CG002／超时——按产生点根修，不全树盲扫  
+  - 未完成前冷构建仍会 `$CC -c` 编译 seed／X-emit C
 
 ### 12.1 最小 seed 设计
 
@@ -1956,14 +1991,16 @@
 
 ### 12.2 链路验证
 
-⬜ **12.2.1 零 cc 验证（BC+PC）**
+🟡 **12.2.1 零 cc 验证（BC+PC）**
 
-  - 构建与默认产品路径：`strace`/`dtruss` 无 `execve(cc|gcc|clang)`
-  - 可选：`XLANG_FORBID_HOST_CC=1` 运行时硬失败
+  - LINK／`.s` 路径可零 cc（见 12.0.1–12.0.2）；**全路径零 `execve(cc)` 仍 ⬜**（COMPILE 164 级 residual）  
+  - 可选：`XLANG_FORBID_HOST_CC=1` 运行时硬失败（已实现；默认关闭）  
+  - 终局验收：`strace`／`dtruss` 产品冷启动无 `cc|gcc|clang`
 
 ⬜ **12.2.2 双端冷启动验证**
 
-  - macOS + Ubuntu；Windows 探针按 G.8
+  - macOS + Ubuntu；Windows 探针按 G.8  
+  - 钉盘 L4 仍含 host-cc COMPILE；零 cc 冷启动双端闭环待 12.0.5 覆盖足够后做
 
 ⬜ **12.2.3 产品默认后端**
 

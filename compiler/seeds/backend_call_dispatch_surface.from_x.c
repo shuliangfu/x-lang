@@ -372,10 +372,11 @@ int32_t glue_asm_emit_jmp_skip_string_then_lea(uint8_t * ctx_bytes, int32_t ta, 
   if ((sbuf ==0)) {
     return (0 - 1);
   }
-  if ((slen <=0)) {
+  /* Stage 12.2.5: allow empty string lit slen==0 (single embedded NUL). */
+  if ((slen < 0)) {
     return (0 - 1);
   }
-  if ((slen > 63)) {
+  if ((slen > 126)) {
     return (0 - 1);
   }
   if ((ta !=0)) {
@@ -1194,10 +1195,11 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(uint8_t * arena, uint8_t * elf_ct
     if ((pipeline_expr_kind_ord_at(arena, str_expr_ref) !=59)) {
       return (0 - 1);
     }
-    if ((slen <=0)) {
+    /* Stage 12.2.5: empty "" is valid *u8 (slen==0). */
+    if ((slen < 0)) {
       return (0 - 1);
     }
-    if ((slen > 63)) {
+    if ((slen > 126)) {
       return (0 - 1);
     }
     (void)(glue_asm_string_lit_into(arena, str_expr_ref, &((sbuf)[0])));

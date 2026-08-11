@@ -221,8 +221,11 @@ int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref) {
 int32_t glue_asm_string_lit_into_impl(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64) {
   if (!out64)
     return 0;
-  memset(out64, 0, 64);
-  if (glue_asm_string_lit_len(arena, expr_ref) <= 0)
+  /* out is u8[128]; pipeline_expr_var_name_into zeros/copies up to 127. Empty lit OK. */
+  memset(out64, 0, 128);
+  if (glue_asm_string_lit_len(arena, expr_ref) < 0)
+    return 0;
+  if (glue_asm_string_lit_len(arena, expr_ref) == 0)
     return 0;
   pipeline_expr_var_name_into(arena, expr_ref, out64);
   return 0;
@@ -267,7 +270,8 @@ int32_t glue_asm_emit_jmp_skip_string_then_lea_impl(uint8_t *ctx_bytes, int32_t 
   uint32_t immlo;
   uint32_t immhi;
   int32_t i;
-  if (!ctx_bytes || !sbuf || slen <= 0 || slen > 63)
+  /* Stage 12.2.5: slen==0 empty ""; max 126 for x86 short-jmp (eb + len+1 ≤127). */
+  if (!ctx_bytes || !sbuf || slen < 0 || slen > 126)
     return -1;
   if (ta != 0 && ta != 1)
     return -1;
@@ -3187,7 +3191,8 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c_impl(struct ast_ASTArena *arena, 
   if (pipeline_expr_kind_ord_at(arena, str_expr_ref) != GLUE_EXPR_STRING_LIT_ORD)
     return -1;
   slen = glue_asm_string_lit_len(arena, str_expr_ref);
-  if (slen <= 0 || slen > 63)
+  /* Stage 12.2.5: empty OK; long diag msgs up to 126 (was wrong hard-cap 63). */
+  if (slen < 0 || slen > 126)
     return -1;
   glue_asm_string_lit_into(arena, str_expr_ref, sbuf);
   if (glue_asm_emit_jmp_skip_string_then_lea((uint8_t *)elf_ctx, ta, 1, sbuf, slen) != 0)
@@ -3254,7 +3259,8 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(struct ast_ASTAr
   if (arg_ref <= 0 || pipeline_expr_kind_ord_at(arena, arg_ref) != GLUE_EXPR_STRING_LIT_ORD)
     return 0;
   slen = glue_asm_string_lit_len(arena, arg_ref);
-  if (slen <= 0 || slen > 63)
+  /* Stage 12.2.5: empty OK; string lit embed cap 126. */
+  if (slen < 0 || slen > 126)
     return -1;
   glue_asm_string_lit_into(arena, arg_ref, sbuf);
   /*

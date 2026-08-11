@@ -435,16 +435,17 @@ export function glue_asm_call_reg_max(ta: i32): i32 {
  * @param ta i32 — 0=x86_64, 1=aarch64; other → -1
  * @param reg_k i32 — x86: 0→rdi, 1→rax; aarch64: both map to x0
  * @param sbuf *u8 — string bytes (not required NUL-terminated)
- * @param slen i32 — length 1..63
+ * @param slen i32 — length 0..126 (0 = empty ""; max fits x86 short-jmp + NUL)
  * @return i32 — 0 ok, -1 fail
  * PLATFORM: SHARED emit shape / x86_64+aarch64 encodings (wave108 Darwin pure-asm).
+ * Stage 12.2.5: empty string lit is valid (*u8 to NUL); slen==0 must not CG002.
  */
 #[no_mangle]
 export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, reg_k: i32, sbuf: *u8, slen: i32): i32 {
   if (ctx_bytes == 0) { return 0 - 1; }
   if (sbuf == 0) { return 0 - 1; }
-  if (slen <= 0) { return 0 - 1; }
-  if (slen > 127) { return 0 - 1; }
+  if (slen < 0) { return 0 - 1; }
+  if (slen > 126) { return 0 - 1; }
   if (ta != 0) {
     if (ta != 1) { return 0 - 1; }
   }
@@ -1258,8 +1259,9 @@ export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
     if (arg_ref <= 0) { return 0; }
     if (pipeline_expr_kind_ord_at(arena, arg_ref) != 59) { return 0; }
     let slen: i32 = glue_asm_string_lit_len(arena, arg_ref);
-    if (slen <= 0) { return 0 - 1; }
-    if (slen > 127) { return 0 - 1; }
+    // Stage 12.2.5: empty OK; long string lit up to 126.
+    if (slen < 0) { return 0 - 1; }
+    if (slen > 126) { return 0 - 1; }
     let sbuf: u8[128] = [];
     glue_asm_string_lit_into(arena, arg_ref, &sbuf[0]);
     let sym_flat: u8[128] = [];
@@ -1542,8 +1544,9 @@ export function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8,
   unsafe {
     if (pipeline_expr_kind_ord_at(arena, str_expr_ref) != 59) { return 0 - 1; }
     let slen: i32 = glue_asm_string_lit_len(arena, str_expr_ref);
-    if (slen <= 0) { return 0 - 1; }
-    if (slen > 127) { return 0 - 1; }
+    // Stage 12.2.5: empty "" OK; long diag strings up to 126.
+    if (slen < 0) { return 0 - 1; }
+    if (slen > 126) { return 0 - 1; }
     let sbuf: u8[128] = [];
     glue_asm_string_lit_into(arena, str_expr_ref, &sbuf[0]);
     return glue_asm_emit_jmp_skip_string_then_lea(elf_ctx, ta, 1, &sbuf[0], slen);
