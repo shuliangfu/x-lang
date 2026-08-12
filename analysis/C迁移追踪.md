@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + L2-asm／tcpu／ldpc／async／other-l2／R3／rt／B1–B3 pure-asm hybrid 双端 5/5** · **labi-only pure-asm 产品默认双端 ✅** · **pipeline_abi mega pure-asm 硬禁 ✅**（`pure_asm_x_to_o` 秒拒 · hang 地图）· 禁树级 PREFER_ASM 默认 · rt／g05 默认仍 -E；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + hybrid 双端** · **labi-only pure-asm 产品默认 ✅** · **pipeline_abi pure-asm 硬禁 ✅** · **PC 12.2.3／13.2.4 产品路径地图双端 ✅**（import→C residual · option asm UNDEF）· 禁树级 PREFER_ASM 默认 · rt／g05 默认仍 -E；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -53,7 +53,7 @@
 |----|------|----------|--------------|
 | **MG · 编排层** | 不依赖 `make` / `compiler/Makefile` / 顶层 `Makefile` 完成 build / L4 / bootstrap | ✅ Makefile 物理删除 · bootstrap 0 make · catalog 单权威（mk/*.mk）· 双端 L4 绿 | 只删入口 Makefile、实现层仍 `make -C compiler` |
 | **BC · 自举编译层** | 编译器自身 TU **不**再被 host `cc/gcc/clang` 编译（.x→纯 asm `.o` 或等价） | 🟡 已开（inventory 冻结；**glue 叶已 fold、ast_pool 续迁**；`pipeline_x` 仍 host-cc mega-TU） | seed 用 xlang `-E` 出 C 再交给 gcc |
-| **PC · 产品默认后端** | 用户程序默认 **`-backend asm`**（或纯自研目标）；**不**默认 emit C 再 `exec` host-cc；`labi_invoke_cc*` 退役或仅 opt-in | ⬜ `-backend c` 与 labi invoke_cc 仍在产品面 | 自举绿但用户 `-o` 仍调 gcc |
+| **PC · 产品默认后端** | 用户程序默认 **`-backend asm`**（或纯自研目标）；**不**默认 emit C 再 `exec` host-cc；`labi_invoke_cc*` 退役或仅 opt-in | 🟡 **地图 2026-08-12 双端**：无 import（rv）默认 **asm** 绿；有 import（hello／option／si）默认仍 **C + invoke_cc**（`rt_dispatch` 非显式 import→C）；mac 显式 `-backend asm` hello 绿 · option UNDEF residual；seed `__APPLE__` exe→C 与 pure `.x` 分叉；`XLANG_FORBID_HOST_CC` 仅 ensure／g05 非产品 runtime | 自举绿但 import 用户 `-o` 仍调 gcc |
 
 > **用户主目标对齐**：以 **去掉 Makefile（MG）** 为终局叙事主闸门；MG 物理删除的**前置**是 BC 足够小（glue/gen 可被 xbuild 用 xlang 编）且编排逻辑迁到 xbuild / g05 已覆盖的 shell·.x。  
 > **禁止**：只完成 MG 包装层、底层仍 `make`；或只宣称 v2==v3 而 Makefile 仍是冷启动权威。
@@ -2123,9 +2123,20 @@
   - macOS + Ubuntu；Windows 探针按 G.8  
   - 钉盘 L4 仍含 host-cc COMPILE；零 cc 冷启动双端闭环待 12.0.5 覆盖足够后做
 
-⬜ **12.2.3 产品默认后端**
+🟡 **12.2.3 产品默认后端**（2026-08-12 双端路径地图）
 
-  - 文档与 CLI 默认 `-backend asm`；host-C 标 **deprecated / opt-in only**
+  - CLI 文案默认偏 asm；**运行时**：`driver_want_asm_emit_to_file` 默认 1，除非 argv 含 `-backend c`
+  - **产品 live 降级**（G.7 权威 `rt_dispatch_impl`）：`backend_asm_explicit==0` 且顶层 import → `use_asm_backend=0` → C emit + `xlang_invoke_cc`
+  - **双端探针 @ tip `8831f699d`**（日志 mac `/tmp/xlang_pc_map_v3_8831f699d_*.log` · Ubuntu `/tmp/ubu_pc_map_8831f699d_*.log`）：
+    | 探针 | mac 默认 | mac `-backend asm` | Ubuntu 默认 | 备注 |
+    |------|----------|-------------------|-------------|------|
+    | rv（无 import） | asm run=42 | asm | asm＝ASM size | 产品默认已 asm |
+    | hello（import） | **C_EMIT** 绿 | asm 绿 | **C** size＝C_HELLO | import→C |
+    | option／si（import） | **C_EMIT** 绿 | option **UNDEF** | **C／绿** | asm ld on-demand residual |
+    | 显式 `-backend c` | C 绿 | — | C 绿 | invoke_cc 仍产品面 |
+  - **seed 双权威**：`seeds/rt_run_compiler_parsed.from_x.c` `#if __APPLE__` 对 want_exe 强制 C；pure `rt_run_compiler_parsed.x` **无**此块。产品 hybrid 尺寸／行为更近 dispatch 路径（mac DEF_RV 已为 asm，非 blanket APPLE）
+  - **`XLANG_FORBID_HOST_CC`**：ensure／g05 **构建闸**（`forbid_host_cc.sh`）；**不**拦截产品 `invoke_cc_run_cc_argv`
+  - 下一刀候选：①去 import→C（asm 矩阵＋on-demand 先绿）· ②闭 option UNDEF · ③删／对齐 seed APPLE · ④`-backend c` 标 opt-in／deprecated
 
 
 ---
@@ -2179,9 +2190,10 @@
 
   - strace 无 make/cc/gcc/clang（或 make 仅用户 PATH 偶然存在但从未被调用）
 
-⬜ **13.2.4 labi_invoke_cc / `-backend c` 退役或隔离**
+🟡 **13.2.4 labi_invoke_cc / `-backend c` 退役或隔离**
 
   - 产品默认不 exec host-cc；历史 C 后端进 experimental 或删除
+  - **2026-08-12 地图**：无 import 路径已不调 invoke_cc；**import 默认路径仍调**（双端 hello／option／si）；显式 `-backend c` 仍全量产品面；退役前置＝12.2.3 去 import→C + asm ld on-demand
 
 ### 13.3 收尾
 
