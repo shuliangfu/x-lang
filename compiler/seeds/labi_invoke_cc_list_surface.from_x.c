@@ -1740,37 +1740,38 @@ void invoke_cc_append_minimal_cc_link_tail(uint8_t **argv, int32_t *ia, int32_t 
   }
 }
 
-/* wave205: invoke_cc_run_cc_argv pure orch (surface pin ≡ .x).
- * Stage 12.2.1 (2026-08-12): XLANG_FORBID_HOST_CC=1 product host-cc gate
- * (≡ .x / cold twin; LOG_ONLY=1 fallthrough to ALLOW).
- * Stage 12.2.3 (2026-08-12): XLANG_ALLOW_HOST_CC=1 required for spawn
- * (experimental host-cc opt-in; ≡ .x / cold twin).
- * PLATFORM: WINDOWS — do not setenv PATH to Unix dirs (see .x / cold twin). */
-int32_t invoke_cc_run_cc_argv(uint8_t **argv) {
-  int32_t is_win;
-  int32_t is_linux;
-  int32_t rc;
+/* Stage 12.2.3: G.7 single env-gate authority (surface ≡ .x / cold twin). */
+int32_t invoke_cc_host_cc_spawn_gate(void) {
   const char *forbid;
   const char *log_only;
   const char *allow;
-  if (!argv)
-    return -1;
-  /* PLATFORM: SHARED — product FORBID gate (exact "1"; LOG_ONLY fallthrough). */
   forbid = (const char *)link_abi_getenv((uint8_t *)"XLANG_FORBID_HOST_CC");
   if (forbid && forbid[0] == '1' && forbid[1] == '\0') {
     log_only = (const char *)link_abi_getenv((uint8_t *)"XLANG_FORBID_HOST_CC_LOG_ONLY");
     if (!(log_only && log_only[0] == '1' && log_only[1] == '\0')) {
       link_diag_tool_status((uint8_t *)"forbid-host-cc", -1);
-      return -1;
+      return 0;
     }
-    /* LOG_ONLY=1: discovery — fall through to ALLOW then spawn (no diag noise). */
   }
-  /* PLATFORM: SHARED — Stage 12.2.3 experimental ALLOW (exact "1" required). */
   allow = (const char *)link_abi_getenv((uint8_t *)"XLANG_ALLOW_HOST_CC");
   if (!(allow && allow[0] == '1' && allow[1] == '\0')) {
     link_diag_tool_status((uint8_t *)"host-cc-requires-allow", -1);
-    return -1;
+    return 0;
   }
+  return 1;
+}
+
+/* wave205: invoke_cc_run_cc_argv pure orch (surface pin ≡ .x).
+ * Host-cc env gates: invoke_cc_host_cc_spawn_gate (G.7).
+ * PLATFORM: WINDOWS — do not setenv PATH to Unix dirs (see .x / cold twin). */
+int32_t invoke_cc_run_cc_argv(uint8_t **argv) {
+  int32_t is_win;
+  int32_t is_linux;
+  int32_t rc;
+  if (!argv)
+    return -1;
+  if (!invoke_cc_host_cc_spawn_gate())
+    return -1;
   is_win = link_abi_host_is_windows();
   if (!is_win)
     (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);

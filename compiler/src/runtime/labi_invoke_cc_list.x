@@ -3965,16 +3965,9 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
  *
- * Stage 12.2.1 product gate (2026-08-12): when XLANG_FORBID_HOST_CC is exactly "1",
- * do not spawn host-cc (product invoke_cc path). Historical FORBID only wrapped
- * ensure/g05 `$CC` shell; product still exec'd gcc via this function. LOG_ONLY=1
- * mirrors shell discovery (log via link_diag_tool_status, then still spawn).
- *
- * Stage 12.2.3 experimental host-cc (2026-08-12): product spawn also requires
- * XLANG_ALLOW_HOST_CC exactly "1". Default deny even with explicit `-backend c`
- * so host-cc is experimental opt-in (S8.4 / 13.2.4), not a silent product path.
- * Order: FORBID=1 (not LOG_ONLY) wins → else ALLOW must be "1" → else spawn.
- * PLATFORM: SHARED — env gates; verify dual-end ALLOW on/off + FORBID.
+ * Host-cc product gates live in invoke_cc_host_cc_spawn_gate (G.7 single authority):
+ * Stage 12.2.1 FORBID + Stage 12.2.3 ALLOW. Callers: this spawn shell and
+ * xlang_invoke_cc early entry (skip ensure/argv when denied).
  *
  * PLATFORM: WINDOWS | MINGW | MSYS — do NOT setenv PATH to /usr/local/bin:/usr/bin:/bin.
  *   That string is Linux freestanding isolation only. On PE, `_spawnvp("gcc")` searches
@@ -3982,18 +3975,22 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
  *   exit 255 and "系统找不到指定的路径" from path probes that never reach real gcc.
  *   MinGW gcc lives under e.g. C:\Users\...\mingw64\bin (user/shell PATH).
  */
+/**
+ * Product host-cc spawn permission (Stage 12.2.1 FORBID + 12.2.3 ALLOW).
+ * FORBID exact "1" hard-denies unless LOG_ONLY exact "1" (discovery fallthrough).
+ * ALLOW exact "1" required for any spawn (default deny; experimental opt-in).
+ * Emits link_diag_tool_status on deny (forbid-host-cc | host-cc-requires-allow).
+ * @return i32 — 1 allowed to spawn, 0 denied (diag already set)
+ * G.7 single authority for env gates; invoke_cc_run_cc_argv and xlang_invoke_cc both call this.
+ * PLATFORM: SHARED — dual-end ALLOW on/off + FORBID; product default never spawns.
+ */
 #[no_mangle]
-export function invoke_cc_run_cc_argv(argv: **u8): i32 {
-  let ab: *u8 = argv as *u8;
-  if (ab == 0 as *u8) {
-    return 0 - 1;
-  }
-
+export function invoke_cc_host_cc_spawn_gate(): i32 {
   /*
    * PLATFORM: SHARED — Stage 12.2.1 FORBID + Stage 12.2.3 experimental ALLOW.
    * Shell forbid_host_cc.sh only gates $CC in ensure/g05. Product -backend c still
-   * reaches this spawn authority. FORBID exact "1" hard-blocks (LOG_ONLY falls
-   * through to ALLOW check). ALLOW exact "1" required for any spawn (default deny).
+   * reaches invoke_cc. FORBID exact "1" hard-blocks (LOG_ONLY falls through to ALLOW).
+   * ALLOW exact "1" required for any spawn (default deny).
    */
   let forbid: *u8 = 0 as *u8;
   unsafe {
@@ -4012,7 +4009,7 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
       unsafe {
         link_diag_tool_status("forbid-host-cc", 0 - 1);
       }
-      return 0 - 1;
+      return 0;
     }
     /* LOG_ONLY=1: discovery mode — fall through to ALLOW then spawn. */
   }
@@ -4020,7 +4017,6 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
   /*
    * PLATFORM: SHARED — Stage 12.2.3 experimental: host-cc spawn is opt-in.
    * Explicit `-backend c` alone is not enough; set XLANG_ALLOW_HOST_CC=1.
-   * Product default (asm -o) never reaches here. G.7 single authority = this gate.
    */
   let allow: *u8 = 0 as *u8;
   unsafe {
@@ -4030,6 +4026,20 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
     unsafe {
       link_diag_tool_status("host-cc-requires-allow", 0 - 1);
     }
+    return 0;
+  }
+  return 1;
+}
+
+#[no_mangle]
+export function invoke_cc_run_cc_argv(argv: **u8): i32 {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return 0 - 1;
+  }
+
+  /* G.7: single env-gate authority (early xlang_invoke_cc uses the same). */
+  if (invoke_cc_host_cc_spawn_gate() == 0) {
     return 0 - 1;
   }
 

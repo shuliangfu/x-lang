@@ -1740,31 +1740,21 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap) {
   }
 }
 
-/* wave205: invoke_cc_run_cc_argv pure orch (cold twin ≡ .x).
- * Stage 12.2.1 (2026-08-12): XLANG_FORBID_HOST_CC=1 blocks product host-cc spawn
- * (same gate as labi_invoke_cc_list.x; shell $CC wrap alone was incomplete).
- * LOG_ONLY=1: fall through to ALLOW then spawn (discovery ≡ forbid_host_cc.sh).
- * Stage 12.2.3 (2026-08-12): XLANG_ALLOW_HOST_CC=1 required for any spawn
- * (experimental host-cc opt-in; default deny even with -backend c).
- * PLATFORM: WINDOWS — never clobber PATH with /usr/local/bin:/usr/bin:/bin before
- * _spawnvp("gcc"); that Unix PATH hides MinGW and yields BLD001 exit 255.
- * POSIX freestanding may still need the setenv when PATH is empty. */
-int invoke_cc_run_cc_argv(char **argv) {
-  int is_win;
-  int is_linux;
-  int rc;
+/* Stage 12.2.3: G.7 single env-gate authority (cold twin ≡ .x).
+ * FORBID exact "1" hard-deny unless LOG_ONLY; ALLOW exact "1" required.
+ * Callers: invoke_cc_run_cc_argv + xlang_invoke_cc early entry.
+ * PLATFORM: SHARED — dual-end ALLOW/FORBID. */
+int invoke_cc_host_cc_spawn_gate(void) {
   const char *forbid;
   const char *log_only;
   const char *allow;
-  if (!argv)
-    return -1;
   /* PLATFORM: SHARED — product FORBID gate (exact "1"; LOG_ONLY fallthrough). */
   forbid = link_abi_getenv("XLANG_FORBID_HOST_CC");
   if (forbid && forbid[0] == '1' && forbid[1] == '\0') {
     log_only = link_abi_getenv("XLANG_FORBID_HOST_CC_LOG_ONLY");
     if (!(log_only && log_only[0] == '1' && log_only[1] == '\0')) {
       link_diag_tool_status("forbid-host-cc", -1);
-      return -1;
+      return 0;
     }
     /* LOG_ONLY=1: discovery — fall through to ALLOW then spawn (no diag noise). */
   }
@@ -1772,8 +1762,24 @@ int invoke_cc_run_cc_argv(char **argv) {
   allow = link_abi_getenv("XLANG_ALLOW_HOST_CC");
   if (!(allow && allow[0] == '1' && allow[1] == '\0')) {
     link_diag_tool_status("host-cc-requires-allow", -1);
-    return -1;
+    return 0;
   }
+  return 1;
+}
+
+/* wave205: invoke_cc_run_cc_argv pure orch (cold twin ≡ .x).
+ * Host-cc env gates: invoke_cc_host_cc_spawn_gate (G.7).
+ * PLATFORM: WINDOWS — never clobber PATH with /usr/local/bin:/usr/bin:/bin before
+ * _spawnvp("gcc"); that Unix PATH hides MinGW and yields BLD001 exit 255.
+ * POSIX freestanding may still need the setenv when PATH is empty. */
+int invoke_cc_run_cc_argv(char **argv) {
+  int is_win;
+  int is_linux;
+  int rc;
+  if (!argv)
+    return -1;
+  if (!invoke_cc_host_cc_spawn_gate())
+    return -1;
   is_win = link_abi_host_is_windows();
   if (!is_win)
     (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);

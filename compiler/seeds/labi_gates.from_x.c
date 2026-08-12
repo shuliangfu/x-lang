@@ -47,6 +47,9 @@ const char *xlang_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path) {
   return xlang_asm_ld_bank_push_impl(b, path);
 }
 
+/* Stage 12.2.3: early host-cc gate (G.7 ≡ labi_invoke_cc_list / .x). */
+int invoke_cc_host_cc_spawn_gate(void);
+
 int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target,
     const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o,
     const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o,
@@ -64,6 +67,9 @@ int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const cha
   if (c_paths == NULL)
     return -1;
   if (out_path == NULL)
+    return -1;
+  /* Early deny: skip heavy impl ensure/argv when host-cc is not opt-in. */
+  if (!invoke_cc_host_cc_spawn_gate())
     return -1;
   return xlang_invoke_cc_impl(c_paths, n, out_path, target, opt_level, use_lto, io_o, fs_o, process_o,
       string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o,
