@@ -203,6 +203,122 @@ void driver_compile_phase_timing_clear(void);
 #endif
 #endif
 #include <pthread.h>
+/* PLATFORM: SHARED — realpath (opaque surface) on POSIX/Apple; unistd may already
+ * be pulled later for Cap residual; include here so WEAK helpers stay self-contained. */
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#endif
+
+/*
+ * Stage 12.0.5 pure-asm freestanding surface residual (G.7 有则补全 — single exported
+ * authority; peer of fmt_check_cmd.from_x.c xlang_fmt_* WEAK bodies):
+ *
+ * pure-asm of runtime_pipeline_abi.x / runtime_driver_abi_thin.x leaves U
+ * xlang_driver_{fputs,stdout,fclose,fwrite,fopen_*,stderr,fflush,fdopen,realpath}_opaque
+ * and xlang_driver_{pipeline_run_x,asm_elf_o}_thread_fn_ptr. Host-cc prologue
+ * (rt_prefer_try_x_to_o / g05_ensure) only injects static inline bodies (local `t` —
+ * not exported). Without global defs, pure_asm_x_to_o rejected the .o and product
+ * pabi prefer forced RT=0 (skip pure-asm install).
+ *
+ * Always export XLANG_WEAK bodies here for both cold monofile and FROM_X rest so
+ * pure-asm thin / mega .o U's resolve at pure-ld against this leaf (always on
+ * freestanding bag). Keep prologue static inline for -E inlining only; local `t`
+ * does not multidef against these weak globals.
+ *
+ * PLATFORM: SHARED — FILE cast via stdio + realpath/unistd; Win32 realpath null;
+ * thread_fn_ptr casts require product pipeline_run_x_thread_fn and
+ * xlang_asm_codegen_elf_o_thread_fn T defs at final pure-ld (present on bag).
+ */
+XLANG_WEAK int32_t xlang_driver_fputs_opaque(uint8_t *s, uint8_t *stream) {
+    if (!s || !stream) {
+        return (int32_t)-1;
+    }
+    return (int32_t)fputs((const char *)(void *)s, (FILE *)(void *)stream);
+}
+
+XLANG_WEAK uint8_t *xlang_driver_stdout_ptr(void) {
+    return (uint8_t *)(void *)stdout;
+}
+
+XLANG_WEAK int32_t xlang_driver_fclose_opaque(uint8_t *stream) {
+    if (!stream) {
+        return 0;
+    }
+    return fclose((FILE *)(void *)stream) == 0 ? 0 : 1;
+}
+
+XLANG_WEAK int32_t xlang_driver_fwrite_opaque(uint8_t *data, int32_t len, uint8_t *stream) {
+    size_t n;
+    if (!data || len < 0 || !stream) {
+        return 1;
+    }
+    if (len == 0) {
+        return 0;
+    }
+    n = fwrite((const void *)(void *)data, 1, (size_t)len, (FILE *)(void *)stream);
+    return n == (size_t)len ? 0 : 1;
+}
+
+XLANG_WEAK uint8_t *xlang_driver_fopen_write_opaque(uint8_t *path) {
+    if (!path) {
+        return (uint8_t *)0;
+    }
+    return (uint8_t *)(void *)fopen((const char *)(void *)path, "w");
+}
+
+XLANG_WEAK uint8_t *xlang_driver_stderr_ptr(void) {
+    return (uint8_t *)(void *)stderr;
+}
+
+XLANG_WEAK void xlang_driver_fflush_stdout(void) {
+    (void)fflush(stdout);
+}
+
+XLANG_WEAK uint8_t *xlang_driver_fopen_wb_opaque(uint8_t *path) {
+    if (!path) {
+        return (uint8_t *)0;
+    }
+    return (uint8_t *)(void *)fopen((const char *)(void *)path, "wb");
+}
+
+XLANG_WEAK uint8_t *xlang_driver_fdopen_wb_opaque(int32_t fd) {
+    FILE *fp;
+    if (fd < 0) {
+        return (uint8_t *)0;
+    }
+    fp = fdopen((int)fd, "wb");
+    return (uint8_t *)(void *)fp;
+}
+
+#if defined(_POSIX_VERSION) || defined(__APPLE__)
+XLANG_WEAK uint8_t *xlang_driver_realpath_opaque(uint8_t *path, uint8_t *resolved) {
+    char *r;
+    if (!path || !resolved) {
+        return (uint8_t *)0;
+    }
+    r = realpath((const char *)(void *)path, (char *)(void *)resolved);
+    return (uint8_t *)(void *)r;
+}
+#else
+/* PLATFORM: WINDOWS — no POSIX realpath; pure path_try leaves input path. */
+XLANG_WEAK uint8_t *xlang_driver_realpath_opaque(uint8_t *path, uint8_t *resolved) {
+    (void)path;
+    (void)resolved;
+    return (uint8_t *)0;
+}
+#endif
+
+/* Match pure .x export: *u8 arg / *u8 return (not void* — gcc conflicts with pure body). */
+extern uint8_t *pipeline_run_x_thread_fn(uint8_t *);
+extern uint8_t *xlang_asm_codegen_elf_o_thread_fn(uint8_t *);
+
+XLANG_WEAK uint8_t *xlang_driver_pipeline_run_x_thread_fn_ptr(void) {
+    return (uint8_t *)(void *)pipeline_run_x_thread_fn;
+}
+
+XLANG_WEAK uint8_t *xlang_driver_asm_elf_o_thread_fn_ptr(void) {
+    return (uint8_t *)(void *)xlang_asm_codegen_elf_o_thread_fn;
+}
 
 /* wave228 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
 extern char *link_abi_getenv(const char *name);

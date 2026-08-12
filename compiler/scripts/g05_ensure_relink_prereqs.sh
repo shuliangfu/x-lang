@@ -116,7 +116,8 @@ g05_cc_c() {
 #   · Escape: XLANG_PREFER_ASM_O_G05=0 → historic -E+$CC. Ambient tree PREFER
 #     does NOT re-enable pure-asm unless XLANG_ALLOW_TREE_PREFER_ASM=1.
 #   · Ban: tree PREFER_ASM_O=1 product default (hard strip + family=0);
-#     pipeline_abi mega pure-asm product skip (surface U; hang wall closed 2026-08-12).
+#     pipeline_abi mega pure-asm product skip (Cap residual gap; opaque WEAK
+#     surface closed in runtime_driver_abi.from_x.c; hang wall closed 2026-08-12).
 # 返回 0 成功；失败不删既有 .o（调用方回退 seed）。
 # $1=.x  $2=.o  [$3...]=extra cflags for cc
 # 环境：G05_X_O_WEAK=1 时给顶层函数加 __attribute__((weak))

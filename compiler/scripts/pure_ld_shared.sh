@@ -387,14 +387,16 @@ xlang_strip_tree_prefer_asm_unless_allowed() {
 # XLANG_ALLOW_TREE_PREFER_ASM=1). Fall through to -E+$CC on reject/fail.
 # Ban: tree-level PREFER_ASM_O=1 as product default (see
 # xlang_strip_tree_prefer_asm_unless_allowed).
-# pipeline_abi mega pure-asm product skip (instant return 1): freestanding
-# surface residual — pure-asm emits U xlang_driver_*_opaque helpers only the
-# -E hybrid prologue defines (g05 pure-ld UNDEF if installed). Hang wall closed
-# (typeck slim 2026-08-12: mac ~60s / Ubuntu ~75s emit rc=0); ban is NOT hang.
-# Call-site ensure_pipeline_abi_prefer_one forces XLANG_PREFER_ASM_O_RT=0 so
-# product thin never pays pure-asm wall before hybrid -E. Hang guard remains
-# pure_asm_emit_with_timeout (default 90s) for other pure-asm leaves.
-# Escape: PREFER_ASM_O_{LABI,RT,G05}=0 per family.
+# pipeline_abi mega pure-asm product skip (instant return 1): monofile pure-asm
+# emit is green (mac ~45–60s / ~895KiB / ~1948 T) but product install is still
+# incomplete — Cap residual faces (pipeline_type_region_*, grow_vec_*, arena_*,
+# …) live only in seed rest under FROM_X; pure monofile leaves them out → pure-ld
+# UNDEF. pure thin+rest under G05_X_O_WEAK also hits Darwin ld weak-multidef
+# assert. Opaque freestanding surface is closed (XLANG_WEAK bodies in
+# runtime_driver_abi.from_x.c; pure-asm may U those faces). Hang wall closed
+# (typeck slim). Call-site ensure_pipeline_abi_prefer_one forces
+# XLANG_PREFER_ASM_O_RT=0 so product thin never pays pure-asm wall then hybrid.
+# Hang guard: pure_asm_emit_with_timeout (default 90s). Escape: PREFER_ASM_O_*=0.
 #
 # When XLANG_PREFER_ASM_O=1: run `$XLANG -backend asm -c` via a staged `*.o`
 #   path (driver only emits relocatable objects when OUT ends with `.o`;
@@ -402,8 +404,8 @@ xlang_strip_tree_prefer_asm_unless_allowed() {
 # When unset: return 1 immediately (callers that did not scope a family default).
 #
 # Skip (return 1) when:
-#   · SRC is runtime_pipeline_abi.x (product pure-asm install residual: U
-#     xlang_driver_*_opaque surface — hang wall closed; see ban comment above)
+#   · SRC is runtime_pipeline_abi.x (mega pure monofile incomplete for product
+#     bag — Cap residual only in seed rest; see ban comment above)
 #   · emit exceeds XLANG_PURE_ASM_TIMEOUT_SEC (default 90; hang residual safety)
 #   · G05_X_O_SYM_RENAME set (still needs C identifier rewrite; no pure-asm polish)
 #   · object has U xlang_panic or bare U __error (g05 pure-ld surface mismatch)
@@ -411,6 +413,8 @@ xlang_strip_tree_prefer_asm_unless_allowed() {
 #   · XLANG_PREFER_ASM_O_ONLY set and SRC basename not in the allow-list
 #   · G05_X_O_WEAK / G05_X_O_WEAK_FUNCS set but objcopy --weaken unavailable/fails
 #     (fall through to historic -E+$CC weak polish)
+# Note: U xlang_driver_*_opaque / stdout_ptr / thread_fn_ptr are NOT rejected —
+# freestanding bag provides XLANG_WEAK bodies (runtime_driver_abi.from_x.c).
 #
 # Weak polish (Stage 12.0.5 residual close for ldpc pure-asm hybrid):
 #   After successful pure-asm emit, apply pure_asm_apply_weak_polish so product
@@ -505,12 +509,9 @@ pure_asm_x_to_o() {
   if [ ! -f "$src" ]; then
     return 1
   fi
-  # PLATFORM: SHARED — pipeline_abi mega product pure-asm skip (surface U, not hang).
-  # Emit alone is green post typeck-wall slim (mac ~60s / Ubuntu ~75s rc=0), but
-  # pure-asm .o carries U xlang_driver_{fputs,stdout,fclose,realpath}_opaque that
-  # only -E hybrid prologue defines → reject before g05 pure-ld UNDEF. Instant
-  # skip so ensure never pays pure-asm wall then hybrid (G.7 product path).
-  # Open product pure-asm when opaque surface is provided on freestanding bag.
+  # PLATFORM: SHARED — pipeline_abi mega product pure-asm skip (Cap residual gap).
+  # Opaque U surface closed (WEAK on driver_abi bag); ban is monofile completeness,
+  # not hang. Instant skip so ensure never pays pure-asm wall then hybrid.
   _bn="$(basename "$src")"
   if [ "$_bn" = "runtime_pipeline_abi.x" ]; then
     return 1
@@ -575,17 +576,13 @@ pure_asm_x_to_o() {
     # · bare U __error was Darwin mangling miss (fixed Stage 12.0.5: always
     #   prepend '_' so C __error → ___error). Keep reject as safety net if any
     #   residual path still emits unmangled __error.
-    # · U xlang_driver_*_opaque / stdout_ptr / fflush_stdout / realpath_opaque /
-    #   pipeline_run_x_thread_fn_ptr / asm_elf_o_thread_fn_ptr — these exist
-    #   only as static inline in rt_prefer_try_x_to_o C prologue (G-02f-332/334;
-    #   ensure_host_cc_seed_o.sh). pure-asm never injects that prologue, so
-    #   accepting such .o → g05 pure-ld UNDEF (R3 hybrid residual:
-    #   runtime_driver_abi_thin pure-asm → driver_env_flag_truthy refs).
-    # Reject → caller falls back to -E+$CC (zero product regression; prologue
-    #   path resolves helpers as local `t`).
-    # PLATFORM: SHARED reject list · G.7 有则补全 freestanding surface.
+    # · U xlang_driver_*_opaque / stdout_ptr / thread_fn_ptr: NO longer rejected.
+    #   Stage12.0.5: XLANG_WEAK bodies in seeds/runtime_driver_abi.from_x.c resolve
+    #   at pure-ld (same pattern as fmt xlang_fmt_* WEAK). Prologue static inline
+    #   remains for -E inlining only (local `t`, no multidef vs weak globals).
+    # PLATFORM: SHARED reject list · G.7 freestanding surface (panic / bare __error only).
     if nm -u "$_pure_asm_stage" 2>/dev/null | grep -E \
-      'xlang_panic|^__error$|xlang_driver_(fputs_opaque|stdout_ptr|fclose_opaque|fwrite_opaque|fopen_write_opaque|stderr_ptr|fflush_stdout|fopen_wb_opaque|fdopen_wb_opaque|realpath_opaque|pipeline_run_x_thread_fn_ptr|asm_elf_o_thread_fn_ptr)' \
+      'xlang_panic|^__error$' \
       >/dev/null 2>&1; then
       rm -f "$_pure_asm_stage"
       return 1
