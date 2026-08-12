@@ -24518,9 +24518,58 @@ void glue_block_defer_lets_transitive(void *arena, void *ctx, int32_t block_ref,
   }
 }
 
+/* Stage12.0.5: nested INDEX/CALL/METHOD in let init must stay pass1 (G.7 twin of
+ * glue_expr_tree_has_call_index_c). Top-level-only defer missed `f() - 4` and
+ * pass0-hoisted emit_code_len before append_bytes (x86_enc_jcc_rel32 / option-si). */
+int32_t glue_expr_tree_has_call_index_c(void *arena, int32_t expr_ref) {
+  int32_t ko, i, n, left_ref, right_ref, op_ref;
+  if (!arena || expr_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == 47 || ko == 48 || ko == 49)
+    return 1;
+  if (ko >= 4 && ko <= 21) {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0)
+      return 1;
+    return glue_expr_tree_has_call_index_c(arena, right_ref);
+  }
+  if (ko == 22 || ko == 23 || ko == 24 || ko == 41) {
+    op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    return glue_expr_tree_has_call_index_c(arena, op_ref);
+  }
+  op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+  if (op_ref > 0)
+    return glue_expr_tree_has_call_index_c(arena, op_ref);
+  if (ko == 44) {
+    left_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    return glue_expr_tree_has_call_index_c(arena, left_ref);
+  }
+  if (ko == 46) {
+    n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+    for (i = 0; i < n; i++) {
+      left_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i);
+      if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0)
+        return 1;
+    }
+    return 0;
+  }
+  if (ko == 45) {
+    n = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+    for (i = 0; i < n; i++) {
+      left_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, i);
+      if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0)
+        return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
 void glue_block_compute_pass1_deferred_lets(void *arena, void *ctx, int32_t block_ref, int32_t slot_base, int32_t nconst,
                                             int32_t nlet, uint8_t *deferred) {
-  int32_t li, nso, si, j, init_ref, ko, let_si;
+  int32_t li, nso, si, j, init_ref, ko, let_si, has_call;
   uint8_t sk;
   wave153_LiveFwd uses;
   if (!arena || !ctx || !deferred || nlet <= 0)
@@ -24528,7 +24577,8 @@ void glue_block_compute_pass1_deferred_lets(void *arena, void *ctx, int32_t bloc
   for (li = 0; li < nlet; li++) {
     init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, li);
     ko = init_ref > 0 ? pipeline_expr_kind_ord_at(arena, init_ref) : 0;
-    deferred[li] = (uint8_t)(ko == 47 || ko == 48 || ko == 49 ? 1 : 0);
+    has_call = init_ref > 0 ? glue_expr_tree_has_call_index_c(arena, init_ref) : 0;
+    deferred[li] = (uint8_t)(has_call != 0 || ko == 47 || ko == 48 || ko == 49 ? 1 : 0);
   }
   glue_block_defer_lets_transitive(arena, ctx, block_ref, slot_base, nconst, nlet, deferred);
   nso = ast_ast_block_num_stmt_order(arena, block_ref);

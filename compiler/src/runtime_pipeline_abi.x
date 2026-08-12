@@ -47961,9 +47961,112 @@ export function glue_block_defer_lets_transitive(arena: *u8, ctx: *u8, block_ref
 
 
 /**
+ * True when expr tree contains INDEX(47), CALL(48), or METHOD_CALL(49).
+ * Pass0 must not hoist such lets: nested forms like `f() - 4` were only
+ * classified by top-level kind (BINOP) and ran before prior append/side-effect
+ * stmts — pure-asm encoder bug: rel32_at = emit_code_len()-4 before append_bytes
+ * in x86_enc_jcc_rel32 → corrupt jcc stream / option-si SEGV.
+ * Walks binop/unary/AS/INDEX/CALL/METHOD/field/array/struct (same shape as
+ * glue_live_fwd_collect_expr_uses_for_defer). Depth-capped via simple recursion.
+ * @param arena *u8 — ASTArena*; null → 0
+ * @param expr_ref i32 — expr pool ref; <=0 → 0
+ * @return i32 — 1 if side-effect leaf present; 0 otherwise
+ * Stage12.0.5: G.7 有则补全 on pass1-defer authority (wave153 family).
+ * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function glue_expr_tree_has_call_index_c(arena: *u8, expr_ref: i32): i32 {
+  let ko: i32 = 0;
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let op_ref: i32 = 0;
+  if (arena == 0 as *u8 || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  // INDEX=47 CALL=48 METHOD_CALL=49 — any depth must stay pass1
+  if (ko == 47 || ko == 48 || ko == 49) {
+    return 1;
+  }
+  // binop family 4..21
+  if (ko >= 4 && ko <= 21) {
+    unsafe {
+      left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+      right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    }
+    if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0) {
+      return 1;
+    }
+    return glue_expr_tree_has_call_index_c(arena, right_ref);
+  }
+  // unary / LOGNOT
+  if (ko == 22 || ko == 23 || ko == 24 || ko == 41) {
+    unsafe {
+      op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    }
+    return glue_expr_tree_has_call_index_c(arena, op_ref);
+  }
+  // EXPR_AS
+  unsafe {
+    op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+  }
+  if (op_ref > 0) {
+    return glue_expr_tree_has_call_index_c(arena, op_ref);
+  }
+  // field access = 44
+  if (ko == 44) {
+    unsafe {
+      left_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    }
+    return glue_expr_tree_has_call_index_c(arena, left_ref);
+  }
+  // ARRAY_LIT = 46
+  if (ko == 46) {
+    unsafe {
+      n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        left_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i);
+      }
+      if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0) {
+        return 1;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+  // STRUCT_LIT = 45
+  if (ko == 45) {
+    unsafe {
+      n = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        left_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, i);
+      }
+      if (glue_expr_tree_has_call_index_c(arena, left_ref) != 0) {
+        return 1;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
  * Mark lets that must stay in pass 1 (stmt_order position).
- * Pass 0 hoists pure lets; INDEX/CALL/METHOD_CALL + stack-reading past barriers stay pass1.
+ * Pass 0 hoists pure lets; INDEX/CALL/METHOD_CALL (any depth in init tree)
+ * + stack-reading past barriers stay pass1.
  * wave153 pure: G.7 authority (was static in pipeline_asm_emit_block_body.c).
+ * Stage12.0.5: nested CALL/INDEX via glue_expr_tree_has_call_index_c (有则补全).
  * PLATFORM: SHARED freestanding emit.
  */
 #[no_mangle]
@@ -47978,6 +48081,7 @@ export function glue_block_compute_pass1_deferred_lets(arena: *u8, ctx: *u8, blo
   let let_si: i32 = 0;
   let j: i32 = 0;
   let sk: i32 = 0;
+  let has_call: i32 = 0;
   if (arena == 0 as *u8 || ctx == 0 as *u8 || deferred == 0 as *u8 || nlet <= 0) {
     return;
   }
@@ -47990,8 +48094,13 @@ export function glue_block_compute_pass1_deferred_lets(arena: *u8, ctx: *u8, blo
       } else {
         ko = 0;
       }
-      // INDEX=47 CALL=48 METHOD_CALL=49
-      if (ko == 47 || ko == 48 || ko == 49) {
+      // INDEX=47 CALL=48 METHOD_CALL=49 at any depth (not top-level only).
+      // Nested e.g. CALL-binop-lit must not pass0-hoist past prior stmts.
+      has_call = 0;
+      if (init_ref > 0) {
+        has_call = glue_expr_tree_has_call_index_c(arena, init_ref);
+      }
+      if (has_call != 0 || ko == 47 || ko == 48 || ko == 49) {
         deferred[li] = 1 as u8;
       } else {
         deferred[li] = 0 as u8;
@@ -48627,8 +48736,15 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
                 }
               }
             } else {
+              // Stage12.0.5: nested CALL/INDEX (not top-level kind only)
               if (ix_ko == 47 || ix_ko == 48 || ix_ko == 49) {
                 defer_bit = 1;
+              } else {
+                if (init_ref > 0) {
+                  if (glue_expr_tree_has_call_index_c(arena, init_ref) != 0) {
+                    defer_bit = 1;
+                  }
+                }
               }
             }
             if (defer_bit != 0) {
@@ -48724,8 +48840,13 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
                     }
                   }
                 } else {
+                  // Stage12.0.5: nested CALL/INDEX (match pass0 fallback)
                   if (ix_ko == 47 || ix_ko == 48 || ix_ko == 49) {
                     defer_bit = 1;
+                  } else {
+                    if (glue_expr_tree_has_call_index_c(arena, init_ref) != 0) {
+                      defer_bit = 1;
+                    }
                   }
                 }
                 if (defer_bit == 0) {
