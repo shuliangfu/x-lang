@@ -3016,20 +3016,28 @@ try_ensure_rt_prefer_one() {
 #
 # Single leaf: src/runtime_pipeline_abi.o (R1_EXTRA_CFLAGS; cold twin = ensure_one
 # with RUNTIME_PIPELINE_ABI_CFLAGS / -DXLANG_USE_X_PIPELINE).
-# When XLANG_G05_PREFER_X_O=1 and an xlang binary works:
+# When an xlang binary works (always hybrid for this leaf; not gated on PREFER=1):
 #   full .x → .o via rt_prefer_try_x_to_o with G05_X_O_WEAK=1 (Darwin ld -r
 #     pure-dup tolerance; same harness as wave766 — Cap residual realpath /
 #     thread_fn_ptr prologue required by runtime_pipeline_abi.x)
 #   rest = seeds/runtime_pipeline_abi.from_x.c under
 #     -DXLANG_USE_X_PIPELINE -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X
-#   merge: $CC -r -nostdlib thin + rest → OUT (g05 historic; not ld Darwin flags)
-# Prefer fail / PREFER≠1 / no xlang → ensure_one cold + pipeline ABI cflags.
-# Callers: g05_ensure (wave767) · Makefile src/runtime_pipeline_abi.o (unified).
+#   merge: pure_ld_partial_merge thin + rest → OUT
+# Prefer fail / no xlang → ensure_one cold + pipeline ABI cflags (or keep OUT).
+#
+# Stage 12.0.5 COMPILE residual (pipeline_abi mega pure-asm ban · complete):
+#   · pure_asm_x_to_o hard-bans basename runtime_pipeline_abi.x (instant return 1)
+#   · call-site forces XLANG_PREFER_ASM_O_RT=0 so rt_prefer never enters pure_asm
+#     (G.7 belt-and-suspenders; product thin is always -E+$CC hybrid for mega)
+#   · pure_asm_emit_with_timeout hang guard is residual safety if ban ever missed
+#   · Not a product pure-asm default flip; mega pure-asm remains policy-banned
+#
+# Callers: g05_ensure (wave767) · product ensure_one route for pipeline_abi.
 # Exit codes:
 #   0 — OUT is runtime_pipeline_abi.o; prefer or cold body produced OUT
 #   3 — OUT is not src/runtime_pipeline_abi.o
 #   1 — cold seed missing / compile failed
-# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+# PLATFORM: SHARED shell body · product cold path = egg hybrid (not cold full seed).
 # G.7: reuses rt_prefer_try_x_to_o harness (有则补全; no second -E prologue).
 # Residual after: ~~target_cpu~~(wave768) · other L2 · pure-ld · physical delete.
 # ---------------------------------------------------------------------------
@@ -3093,13 +3101,17 @@ ensure_pipeline_abi_prefer_one() {
     thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/pabi_rest.XXXXXX")"
     # WEAK pure thin: Darwin ld -r tolerates residual pure-dup still in rest.
+    # Stage 12.0.5 COMPILE residual: force XLANG_PREFER_ASM_O_RT=0 so
+    # rt_prefer_try_x_to_o never scopes pure_asm for this mega (hang map;
+    # pure_asm_x_to_o basename ban is the second gate). Product thin = -E+$CC.
+    # PLATFORM: SHARED · G.7 call-site policy + pure_asm hard ban.
     # shellcheck disable=SC2086
-    if G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
+    if XLANG_PREFER_ASM_O_RT=0 G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
            -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
            -c -o "$rest_o" "$seed" \
       && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer; prefer=${prefer})"
+      log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer; prefer=${prefer}; pure-asm ban RT=0)"
       done=1
     else
       log "pipeline_abi hybrid failed; fallback full seed (prefer=${prefer})"

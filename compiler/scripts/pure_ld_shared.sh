@@ -388,7 +388,11 @@ xlang_strip_tree_prefer_asm_unless_allowed() {
 # Ban: tree-level PREFER_ASM_O=1 as product default (see
 # xlang_strip_tree_prefer_asm_unless_allowed).
 # Hard ban: pure-asm on runtime_pipeline_abi.x mega (instant return 1; hang map
-# 2026-08-12). Escape: PREFER_ASM_O_{LABI,RT,G05}=0 per family.
+# 2026-08-12). Product call-site also forces XLANG_PREFER_ASM_O_RT=0 in
+# ensure_pipeline_abi_prefer_one (belt-and-suspenders; G.7 complete policy).
+# Hang guard: pure_asm_emit_with_timeout (default 90s; XLANG_PURE_ASM_TIMEOUT_SEC)
+# so any non-banned unbounded emit cannot stall ensure forever.
+# Escape: PREFER_ASM_O_{LABI,RT,G05}=0 per family.
 #
 # When XLANG_PREFER_ASM_O=1: run `$XLANG -backend asm -c` via a staged `*.o`
 #   path (driver only emits relocatable objects when OUT ends with `.o`;
@@ -399,6 +403,7 @@ xlang_strip_tree_prefer_asm_unless_allowed() {
 #   · SRC is runtime_pipeline_abi.x mega (hard ban; Stage12.0.5 map 2026-08-12:
 #     full mega pure-asm hangs 180s+ with empty OUT/stderr — tree PREFER_ASM=1
 #     would stall try-pipeline-abi-prefer before -E fallthrough)
+#   · emit exceeds XLANG_PURE_ASM_TIMEOUT_SEC (default 90; hang residual safety)
 #   · G05_X_O_SYM_RENAME set (still needs C identifier rewrite; no pure-asm polish)
 #   · object has U xlang_panic or bare U __error (g05 pure-ld surface mismatch)
 #   · CG002 / typeck / empty output
@@ -424,6 +429,58 @@ xlang_strip_tree_prefer_asm_unless_allowed() {
 #
 # PLATFORM: SHARED — asm backend object emit; no temp C; no host-cc on this path.
 # ---------------------------------------------------------------------------
+
+# pure_asm_emit_with_timeout XL STAGE SRC
+# Run `$XL -backend asm -c -o STAGE SRC` with hang guard.
+# XLANG_PURE_ASM_TIMEOUT_SEC default 90; 0 disables (unbounded; bisect only).
+# Returns 0 if the emit process exited 0; else 1 (and best-effort rm STAGE).
+# PLATFORM: SHARED — Stage12.0.5 hang residual (mega pure-asm 180s+ stall map);
+# bash job control only (no GNU timeout required on Darwin).
+# G.7: sole pure-asm emit launcher used by pure_asm_x_to_o.
+pure_asm_emit_with_timeout() {
+  local xl="$1" stage="$2" src="$3"
+  local to="${XLANG_PURE_ASM_TIMEOUT_SEC:-90}"
+  local pid="" killer="" rc=0
+
+  if [ -z "$xl" ] || [ -z "$stage" ] || [ -z "$src" ]; then
+    return 1
+  fi
+  # Non-numeric / empty → default 90 (avoid silent disable from bad env).
+  case "$to" in
+    ''|*[!0-9]*) to=90 ;;
+  esac
+
+  # Timeout 0: historic unbounded emit (diagnostic maps only).
+  if [ "$to" = "0" ]; then
+    "$xl" -backend asm -c -o "$stage" "$src" 2>/dev/null
+    return $?
+  fi
+
+  # Hang guard: kill emit if it exceeds `to` seconds.
+  # Map 2026-08-12: mega pure-asm hung 180s+ with empty OUT/stderr; basename ban
+  # covers runtime_pipeline_abi.x, timeout is residual safety for any other
+  # unbounded pure-asm emit that could stall try-*-prefer before -E fallthrough.
+  "$xl" -backend asm -c -o "$stage" "$src" 2>/dev/null &
+  pid=$!
+  (
+    sleep "$to"
+    kill -TERM "$pid" 2>/dev/null || true
+    sleep 1
+    kill -KILL "$pid" 2>/dev/null || true
+  ) &
+  killer=$!
+  rc=0
+  wait "$pid" 2>/dev/null || rc=$?
+  kill -TERM "$killer" 2>/dev/null || true
+  wait "$killer" 2>/dev/null || true
+  # Non-zero (incl. 128+SIGTERM/SIGKILL from hang guard) → reject stage.
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$stage" 2>/dev/null || true
+    return 1
+  fi
+  return 0
+}
+
 pure_asm_x_to_o() {
   local out="$1"
   local src="$2"
@@ -452,6 +509,8 @@ pure_asm_x_to_o() {
   # 85k-line mega hangs 180s+ with zero stderr and no .o; pure_asm_x_to_o had
   # no timeout so PREFER_ASM_O=1 leaked into try-pipeline-abi-prefer and stalled
   # product ensure (G05_X_O_WEAK thin path). Immediate reject → -E+$CC hybrid.
+  # Product call-site also forces XLANG_PREFER_ASM_O_RT=0 (ensure_pipeline_abi
+  # prefer_one) so rt_prefer never enters pure_asm for this mega.
   # Not a product default flip; codifies the long-standing policy ban in G.7.
   _bn="$(basename "$src")"
   if [ "$_bn" = "runtime_pipeline_abi.x" ]; then
@@ -504,10 +563,12 @@ pure_asm_x_to_o() {
   # extension-less (`rtpref_*_thin.XXXXXX`), so always stage via a `*.o` temp
   # then mv into the caller path (G.7 single authority; callers stay unchanged).
   # BSD/macOS mktemp needs X-run at end of template — create bare temp, append .o.
+  # Hang guard: pure_asm_emit_with_timeout (default 90s) — residual safety net
+  # for unbounded pure-asm after basename ban (COMPILE residual Stage12.0.5).
   _pure_asm_stage=$(mktemp "${TMPDIR:-/tmp}/pure_asm.XXXXXX") || return 1
   rm -f "$_pure_asm_stage"
   _pure_asm_stage="${_pure_asm_stage}.o"
-  if "$xl" -backend asm -c -o "$_pure_asm_stage" "$src" 2>/dev/null \
+  if pure_asm_emit_with_timeout "$xl" "$_pure_asm_stage" "$src" \
     && [ -s "$_pure_asm_stage" ]; then
     # Product g05 pure-ld surface guard (Stage 12.0.5 residual):
     # · asm bounds checks emit U xlang_panic_ — not in g05 freestanding bag
