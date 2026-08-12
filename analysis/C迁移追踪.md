@@ -2152,7 +2152,7 @@
   - **monofile 冷孪／surface 早闸收敛**：✅ `runtime_link_abi.from_x.c` 冷面／monofile `.x`／`runtime_link_abi_surface` ≡ `labi_gates`（deny 不进 ensure／argv；产品 live 仍 L9 pure）
   - **`xlang_invoke_cc_impl` ensure／argv 再隔离**：✅ residual **顶部**再调同 gate（先于 `ensure_std_net_o_auto_tls`／argv／early_needs／ensure-push）；直调 impl 亦不可 ensure；三层：入口／impl／spawn
   - **formal shell 短标签 residual 扫描**：✅ 矩阵 5 源 tip `-E` Result_／Option_／Arena residual=0；硬编码 type `#define` 别名已无（Result_／Arena64 已闭）；动态 bare→pref 别名机仍服务 formal_mod 体
-  - 下一刀候选：①树级 PREFER 仍禁 · ②pipeline_abi mega 仍禁 pure-asm／COMPILE residual · ③ALLOW 后 ensure 按需再瘦
+  - 下一刀候选：①pipeline_abi mega 仍禁 pure-asm／COMPILE residual · ②ALLOW 后 ensure 按需再瘦 · ③树级 PREFER 地图 bisect 仅 ALLOW_TREE
 
 
 ---
