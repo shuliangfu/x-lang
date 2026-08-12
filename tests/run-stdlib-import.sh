@@ -55,12 +55,16 @@ if [ -n "${RUN_ALL_USE_C:-}" ] && [ -x ./compiler/xlang-c ]; then
   CHECK_XLANG=./compiler/xlang-c
 fi
 LINK_XLANG="$(stdlib_import_pick_link_shu)"
-# 产品 -o 默认 -backend c（Linux asm 不完整）
+# Product pure-asm cold chain: default -o is pure asm (no -backend).
+# Forcing -backend c hits host-cc-requires-allow on NO silent host-cc product.
+# Opt-in C: XLANG_FORCE_LINK_BACKEND=c (or other) when explicitly needed.
+# PLATFORM: SHARED — dual-end pure-asm product path (L2 matrix).
 STDLIB_IMPORT_BACKEND=""
 case "$(basename "$LINK_XLANG")" in
   xlang|xlang_asm|xlang_asm2|xlang_asm_stage1)
-    STDLIB_IMPORT_BACKEND="${XLANG_FORCE_LINK_BACKEND:+-backend $XLANG_FORCE_LINK_BACKEND}"
-    [ -n "$STDLIB_IMPORT_BACKEND" ] || STDLIB_IMPORT_BACKEND="-backend c"
+    if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
+      STDLIB_IMPORT_BACKEND="-backend ${XLANG_FORCE_LINK_BACKEND}"
+    fi
     ;;
 esac
 

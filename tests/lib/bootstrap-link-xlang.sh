@@ -51,15 +51,11 @@ XLANG_LINK_BACKEND_ARGS=""
 case "$(basename "${RUN_XLANG}")" in
   xlang_asm|xlang_asm2|xlang_asm_stage1) XLANG_LINK_BACKEND_ARGS="-backend asm" ;;
 esac
-# Darwin：产品 asm -o 在 arm64 上 CG002 empty text；-o 链接改走 -backend c。
-# Ubuntu/Linux 金标仍默认 -backend asm。显式 XLANG_LINK_BACKEND_ARGS 优先。
-case "$(uname -s 2>/dev/null)-$(uname -m 2>/dev/null)" in
-  Darwin-arm64|Darwin-aarch64)
-    if [ -z "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
-      XLANG_LINK_BACKEND_ARGS="-backend c"
-    fi
-    ;;
-esac
+# PLATFORM: SHARED — pure-asm product is the default on Darwin-arm64 and Linux.
+# Historical Darwin-arm64 force of -backend c assumed incomplete pure-asm and
+# silent host-cc; product now bans host-cc without XLANG_ALLOW_HOST_CC=1, so
+# that force made bstrict gates fail (stdlib-import / types / void-main).
+# Opt-in only: XLANG_FORCE_LINK_BACKEND=c|asm|... (sets -backend).
 if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
   XLANG_LINK_BACKEND_ARGS="-backend ${XLANG_FORCE_LINK_BACKEND}"
 fi

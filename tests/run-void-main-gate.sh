@@ -17,10 +17,12 @@ run_one() {
   local tag="$2"
   local out="/tmp/xlang_void_main_${tag}_$$"
   rm -f "$out"
-  # Prefer C backend link path for stable process exit code.
-  if "$XLANG" build -backend c -L . "$src" -o "$out" 2>/tmp/void_main_${tag}_build.err; then
+  # Prefer pure-asm product -o (host-cc banned without XLANG_ALLOW_HOST_CC).
+  # PLATFORM: SHARED — dual-end pure-asm; optional -backend c only if allowed.
+  if "$XLANG" build -L . "$src" -o "$out" 2>/tmp/void_main_${tag}_build.err; then
     :
-  elif "$XLANG" build -L . "$src" -o "$out" 2>/tmp/void_main_${tag}_build.err; then
+  elif [ -n "${XLANG_ALLOW_HOST_CC:-}" ] \
+    && "$XLANG" build -backend c -L . "$src" -o "$out" 2>/tmp/void_main_${tag}_build.err; then
     :
   else
     echo "void-main gate FAIL: build $tag ($src)" >&2
