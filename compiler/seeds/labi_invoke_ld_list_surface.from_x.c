@@ -1418,6 +1418,39 @@ void labi_std_append_formal_ensure_for_rel(uint8_t * link_argv0, uint8_t * rel, 
       }
     }
   }
+  /* PLATFORM: SHARED — formal fs.o U error/context (+ atomic/time_os). G.7 ≡ net companions. */
+  int32_t eq_fs = 0;
+  (void)((eq_fs = strcmp(rel, ((uint8_t *)"std/fs/fs.o"))));
+  if ((eq_fs == 0)) {
+    int32_t _fe = 0;
+    int32_t _fc = 0;
+    (void)((_fe = xlang_ensure_formal_std_make_o(include_root, ((uint8_t *)"std/error/error.o"), ((uint8_t *)"../std/error/error.o"))));
+    (void)((_fc = xlang_ensure_formal_std_make_o(include_root, ((uint8_t *)"std/context/context.o"), ((uint8_t *)"../std/context/context.o"))));
+    if ((ab != 0)) {
+      if ((la != 0)) {
+        int32_t _pe = 0;
+        int32_t _pc = 0;
+        (void)((_pe = link_abi_asm_ld_push_obj(0, link_argv0, ((uint8_t *)"std/error/error.o"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0)));
+        (void)((_pc = link_abi_asm_ld_push_obj(0, link_argv0, ((uint8_t *)"std/context/context.o"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0)));
+        int32_t er_ag = 0;
+        uint8_t * agp = 0;
+        (void)((er_ag = xlang_ensure_runtime_atomic_glue_o(link_argv0)));
+        (void)((agp = xlang_runtime_atomic_glue_o_path(link_argv0)));
+        if ((er_ag == 0)) {
+          int32_t _pag = 0;
+          (void)((_pag = link_abi_asm_ld_push_obj(agp, link_argv0, ((uint8_t *)"compiler/runtime_atomic_glue.o"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0)));
+        }
+        int32_t er_to = 0;
+        uint8_t * top = 0;
+        (void)((er_to = xlang_ensure_runtime_time_os_o(link_argv0)));
+        (void)((top = xlang_runtime_time_os_o_path(link_argv0)));
+        if ((er_to == 0)) {
+          int32_t _pto = 0;
+          (void)((_pto = link_abi_asm_ld_push_obj(top, link_argv0, ((uint8_t *)"compiler/runtime_time_os.o"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0)));
+        }
+      }
+    }
+  }
   if ((lb ==0)) {
     if ((_ens !=0)) {
       return;

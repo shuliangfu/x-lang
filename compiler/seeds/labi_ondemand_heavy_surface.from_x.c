@@ -383,7 +383,7 @@ int32_t labi_fk0_sym_count(int32_t k) {
     return 15;
   }
   if ((k ==15)) {
-    return 9;
+    return 11;
   }
   return 0;
 }
@@ -876,6 +876,14 @@ uint8_t * labi_fk0_sym_at(int32_t k, int32_t i) {
     }
     if ((i ==8)) {
       uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x66\x73\x5f\x6c\x61\x73\x74\x5f\x65\x72\x72\x6f\x72");
+      return p;
+    }
+    if ((i ==9)) {
+      uint8_t * p = ((uint8_t *)"std_fs_readv_buf");
+      return p;
+    }
+    if ((i ==10)) {
+      uint8_t * p = ((uint8_t *)"std_fs_writev_buf");
       return p;
     }
     return ((uint8_t *)(0));

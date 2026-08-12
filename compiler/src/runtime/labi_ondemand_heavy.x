@@ -424,8 +424,11 @@ export function labi_fk0_sym_count(k: i32): i32 {
   if (k == 14) {
     return 15;
   }
+  // PLATFORM: SHARED — fs fk0 was incomplete (only invalid/open/…/last_error).
+  // Sole callers of readv_buf/writev_buf never opened the gate → UNDEF at ld
+  // (run-fs readv_writev_buf). G.7 complete surface: public readv/writev faces.
   if (k == 15) {
-    return 9;
+    return 11;
   }
   return 0;
 }
@@ -935,6 +938,15 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 8) {
         let p: *u8 = "std_fs_last_error";
+        return p;
+      }
+      // PLATFORM: SHARED — complete fk0: readv/writev product faces (run-fs residual).
+      if (i == 9) {
+        let p: *u8 = "std_fs_readv_buf";
+        return p;
+      }
+      if (i == 10) {
+        let p: *u8 = "std_fs_writev_buf";
         return p;
       }
       return 0 as *u8;

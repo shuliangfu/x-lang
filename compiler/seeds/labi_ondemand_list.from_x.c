@@ -1583,8 +1583,9 @@ int labi_fk0_sym_count(int k) {
     return 12;
   if (k == 14)
     return 15;
+  /* PLATFORM: SHARED — fs fk0 complete (mirror heavy.x): +readv_buf/writev_buf. */
   if (k == 15)
-    return 9;
+    return 11;
   return 0;
 }
 
@@ -1860,6 +1861,10 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_fs_mmap_ro";
     if (i == 8)
       return "std_fs_last_error";
+    if (i == 9)
+      return "std_fs_readv_buf";
+    if (i == 10)
+      return "std_fs_writev_buf";
     return NULL;
   }
   return NULL;

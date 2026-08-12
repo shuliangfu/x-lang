@@ -790,6 +790,28 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
                                      bank, argv, la, max_la, NULL);
     }
   }
+  /* PLATFORM: SHARED — formal fs.o U error/context (+ atomic/time_os via context).
+   * User needles only std_fs_*; fk0 error/context miss. G.7 ≡ net companions + C need_context. */
+  if (strcmp(rel, "std/fs/fs.o") == 0) {
+    (void)xlang_ensure_formal_std_make_o(include_root, "std/error/error.o", "../std/error/error.o");
+    (void)xlang_ensure_formal_std_make_o(include_root, "std/context/context.o", "../std/context/context.o");
+    if (argv && la) {
+      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/error/error.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/context/context.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+      if (xlang_ensure_runtime_atomic_glue_o(link_argv0) == 0) {
+        (void)link_abi_asm_ld_push_obj(xlang_runtime_atomic_glue_o_path(link_argv0), link_argv0,
+                                       "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
+      if (xlang_ensure_runtime_time_os_o(link_argv0) == 0) {
+        (void)link_abi_asm_ld_push_obj(xlang_runtime_time_os_o_path(link_argv0), link_argv0,
+                                       "compiler/runtime_time_os.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
+    }
+  }
   (void)lib_roots;
   (void)n_lib_roots;
   (void)bank;

@@ -100,11 +100,54 @@ if ! cc -c $CFLAGS "$gen_c" -o "$raw_o" 2>"$tmp_dir/cc.err"; then
   exit 1
 fi
 
-# Drop vehicle main so this is a pure library object for ld with user main.
+# Drop vehicle main + foreign co-emits so fs.o is a pure library face.
+# KEEP_C vehicle co-emits core_result_* / std_io_* / std_error_* / std_context_* as
+# global T; product companions push error.o + io stubs → multi-def if left global.
+# G.7 complete authority ≡ formal_mod leaf export (std_fs_* only).
+# PLATFORM: LINUX|ELF — objcopy strip main + localize foreign.
+# PLATFORM: MACOS|DARWIN — no objcopy; ld -r -exported_symbols_list keep std_fs_*.
 if command -v objcopy >/dev/null 2>&1; then
-  objcopy --strip-symbol=main "$raw_o" "$out_o" 2>/dev/null || cp "$raw_o" "$out_o"
-else
   cp "$raw_o" "$out_o"
+  objcopy --strip-symbol=main "$out_o" 2>/dev/null || true
+  nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
+    [ -n "$sym" ] || continue
+    bare="$sym"
+    case "$sym" in
+      _*) bare="${sym#_}" ;;
+    esac
+    case "$bare" in
+      std_fs_*) continue ;;
+      core_*|std_*)
+        objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
+        ;;
+      main)
+        objcopy --strip-symbol="$sym" "$out_o" 2>/dev/null || true
+        ;;
+    esac
+  done
+else
+  # PLATFORM: MACOS — export only std_fs_* product API (drops main + foreign T).
+  _exp_list="$tmp_dir/fs_export_std_fs.txt"
+  : >"$_exp_list"
+  nm "$raw_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
+    [ -n "$sym" ] || continue
+    bare="$sym"
+    case "$sym" in
+      _*) bare="${sym#_}" ;;
+    esac
+    case "$bare" in
+      std_fs_*)
+        printf '%s\n' "$sym" >>"$_exp_list"
+        ;;
+    esac
+  done
+  if [ -s "$_exp_list" ] && ld -r -exported_symbols_list "$_exp_list" -o "$out_o" "$raw_o" 2>"$tmp_dir/fs_exp.err"; then
+    :
+  else
+    echo "xlang_compile_std_fs_formal.sh: Mac export filter failed" >&2
+    head -8 "$tmp_dir/fs_exp.err" 2>/dev/null >&2 || true
+    cp "$raw_o" "$out_o"
+  fi
 fi
 
 if ! nm "$out_o" 2>/dev/null | grep -q 'std_fs_invalid'; then
