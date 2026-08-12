@@ -1495,8 +1495,10 @@ int labi_fk0_sym_count(int k) {
     return 2;
   if (k == 3)
     return 3;
+  /* PLATFORM: SHARED — json.o fk0 gate complete (mirror labi_ondemand_heavy.x).
+   * Was: parse + dead stringify. Sole parse_null UNDEF never opened gate. */
   if (k == 4)
-    return 2;
+    return 6;
   if (k == 5)
     return 2;
   if (k == 6)
@@ -1574,11 +1576,21 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_http_client_new";
     return NULL;
   }
+  /* PLATFORM: SHARED — exact UNDEF needles for std/json/json.o (k==4).
+   * Exact match only; parse does not cover parse_null/number/string. */
   if (k == 4) {
     if (i == 0)
       return "std_json_parse";
     if (i == 1)
-      return "std_json_stringify";
+      return "std_json_parse_null";
+    if (i == 2)
+      return "std_json_parse_number";
+    if (i == 3)
+      return "std_json_parse_string";
+    if (i == 4)
+      return "std_json_parse_string_view";
+    if (i == 5)
+      return "std_json_skip_value";
     return NULL;
   }
   if (k == 5) {

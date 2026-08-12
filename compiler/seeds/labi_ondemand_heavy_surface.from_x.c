@@ -346,8 +346,9 @@ int32_t labi_fk0_sym_count(int32_t k) {
   if ((k ==3)) {
     return 3;
   }
+  /* PLATFORM: SHARED — json.o fk0 complete (mirror labi_ondemand_heavy.x). */
   if ((k ==4)) {
-    return 2;
+    return 6;
   }
   if ((k ==5)) {
     return 2;
@@ -472,13 +473,30 @@ uint8_t * labi_fk0_sym_at(int32_t k, int32_t i) {
     }
     return ((uint8_t *)(0));
   }
+  /* PLATFORM: SHARED — exact UNDEF needles for std/json/json.o (k==4). */
   if ((k ==4)) {
     if ((i ==0)) {
       uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6a\x73\x6f\x6e\x5f\x70\x61\x72\x73\x65");
       return p;
     }
     if ((i ==1)) {
-      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6a\x73\x6f\x6e\x5f\x73\x74\x72\x69\x6e\x67\x69\x66\x79");
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6a\x73\x6f\x6e\x5f\x70\x61\x72\x73\x65\x5f\x6e\x75\x6c\x6c");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6a\x73\x6f\x6e\x5f\x70\x61\x72\x73\x65\x5f\x6e\x75\x6d\x62\x65\x72");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6a\x73\x6f\x6e\x5f\x70\x61\x72\x73\x65\x5f\x73\x74\x72\x69\x6e\x67");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6a\x73\x6f\x6e\x5f\x70\x61\x72\x73\x65\x5f\x73\x74\x72\x69\x6e\x67\x5f\x76\x69\x65\x77");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6a\x73\x6f\x6e\x5f\x73\x6b\x69\x70\x5f\x76\x61\x6c\x75\x65");
       return p;
     }
     return ((uint8_t *)(0));

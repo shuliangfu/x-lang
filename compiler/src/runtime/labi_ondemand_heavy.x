@@ -385,8 +385,12 @@ export function labi_fk0_sym_count(k: i32): i32 {
   if (k == 3) {
     return 3;
   }
+  // PLATFORM: SHARED — json.o gate was incomplete (only parse + dead stringify).
+  // Sole callers of parse_null/number/string never opened the gate → UNDEF at ld
+  // (boundary json_invalid; run-json OK only because main also UNDEFs std_json_parse).
+  // G.7 complete surface: exact needles for public parse/skip family (nm exact match).
   if (k == 4) {
-    return 2;
+    return 6;
   }
   if (k == 5) {
     return 2;
@@ -526,13 +530,32 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       return 0 as *u8;
     }
+    // PLATFORM: SHARED — fk0 k==4 std/json/json.o exact UNDEF needles.
+    // Must list every public export that can appear as the sole UNDEF in user.o;
+    // matcher is exact (rest==len), so std_json_parse does NOT cover parse_null.
     if (k == 4) {
       if (i == 0) {
         let p: *u8 = "std_json_parse";
         return p;
       }
       if (i == 1) {
-        let p: *u8 = "std_json_stringify";
+        let p: *u8 = "std_json_parse_null";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_json_parse_number";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_json_parse_string";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_json_parse_string_view";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_json_skip_value";
         return p;
       }
       return 0 as *u8;
