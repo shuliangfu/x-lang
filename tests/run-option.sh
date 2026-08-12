@@ -40,12 +40,24 @@ fi
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
 # 产品路径：必须用 $XLANG（或 RUN_XLANG）真 -o + 运行；禁止 check-only 假绿。
-LINK_XLANG="${RUN_XLANG:-$XLANG}"
+# Prefer the product compiler itself over bootstrap wrap (which may inject -backend).
+# Pure-asm product default; host-cc -backend c only with XLANG_ALLOW_HOST_CC /
+# XLANG_FORCE_LINK_BACKEND. PLATFORM: SHARED pure-asm product path.
+LINK_XLANG="${XLANG:-${RUN_XLANG}}"
+case "$(basename "${LINK_XLANG:-}")" in
+  xlang-backend-wrap.sh|xlang-min-link.sh)
+    LINK_XLANG="${XLANG_BACKEND_WRAP_REAL:-${XLANG_MIN_LINK_REAL:-${XLANG:-./compiler/xlang}}}"
+    ;;
+esac
 
 _option_try_compile() {
   local comp="$1"
+  local be_args=()
   [ -x "$comp" ] || return 1
-  "$comp" -backend c -L . tests/option/main.x -o /tmp/xlang_option 2>&1
+  if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
+    be_args=(-backend "${XLANG_FORCE_LINK_BACKEND}")
+  fi
+  "$comp" "${be_args[@]}" -L . tests/option/main.x -o /tmp/xlang_option 2>&1
 }
 
 set +e
