@@ -125,8 +125,10 @@ export XLANG_BSTRICT_RUN_ALL=1
 if [ -n "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]; then
   export XLANG_W3_SKIP_STD_ENSURE=1
 fi
-# -o 链接宿主：产品冷链用本波 xlang（已 cp 自 xlang_asm），配合 XLANG_FORCE_LINK_BACKEND=c。
-# 旧默认 pin xlang-c：冷 L2 后常为 seed 拷贝，import/hello/types 等 -o 假红或空产物。
+# -o 链接宿主：产品冷链用本波 xlang / xlang_asm（已 cp 自 pure-asm product）。
+# 旧默认 pin xlang-c 或 FORCE -backend c：冷 L2 后假红，且 product 禁 silent host-cc。
+# PLATFORM: SHARED — pure-asm product default; C backend only if caller sets
+# XLANG_FORCE_LINK_BACKEND / XLANG_ALLOW_HOST_CC. Do not inject -backend c here.
 if [ -z "${XLANG_LINK_XLANG:-}" ]; then
   if [ -x ./compiler/xlang_asm ]; then
     export XLANG_LINK_XLANG=./compiler/xlang_asm
@@ -136,11 +138,8 @@ if [ -z "${XLANG_LINK_XLANG:-}" ]; then
     export XLANG_LINK_XLANG=./compiler/xlang-c
   fi
 fi
-if [ -z "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
-  case "$(basename "${XLANG_LINK_XLANG:-}")" in
-    xlang|xlang_asm|xlang_asm2|xlang_asm_stage1) export XLANG_FORCE_LINK_BACKEND=c ;;
-  esac
-fi
+# Leave XLANG_FORCE_LINK_BACKEND unset for pure-asm product (default -o).
+# Explicit opt-in remains: export XLANG_FORCE_LINK_BACKEND=c before run-all-bstrict.
 # CI 全量（XLANG_CI_NO_SKIP=1）须跑 parse 烟测；本地可 XLANG_SKIP_PARSE_SMOKE=1 规避 seed 链 SIGSEGV。
 if [ -z "${XLANG_CI_NO_SKIP:-}" ]; then
   export XLANG_SKIP_PARSE_SMOKE=1
