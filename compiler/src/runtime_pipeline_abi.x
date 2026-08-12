@@ -7460,12 +7460,19 @@ export function xlang_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods
 /* See implementation. */
 
 // xlang_driver_asm_prepare_entry_elf_emit: see function docblock below.
-/** Exported function `xlang_driver_asm_prepare_entry_elf_emit`.
- * Implements `xlang_driver_asm_prepare_entry_elf_emit`.
- * @param module *u8
- * @param arena *u8
- * @param pctx *u8
+/**
+ * Pre-asm_codegen_elf_o entry: skip_heavy ctx + stmt_order fixup only.
+ *
+ * ARRAY_LIT / FIELD_ACCESS / fill_var backfill is owned by
+ * `pipeline_backend_asm_codegen_ast_to_elf_c` after dep SoA merge (G.7 single
+ * site). Duplicating fill here caused Stage12 mega pure-asm wall: sample hung
+ * in this symbol while O(nlets×nexprs×nfuncs) fill ran twice (prepare + backend).
+ *
+ * @param module *u8 — AST module; null → no-op
+ * @param arena *u8 — AST arena; null → no-op
+ * @param pctx *u8 — PipelineDepCtx (skip_heavy); may be null
  * @return void
+ * PLATFORM: SHARED — product pure-asm + -E asm backend entry.
  */
 #[no_mangle]
 export function xlang_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, pctx: *u8): void {
@@ -7477,8 +7484,7 @@ export function xlang_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8,
   }
   unsafe {
     asm_skip_heavy_set_pipeline_ctx(pctx);
-    pipeline_fill_array_lit_types_for_skipped_typeck(module, arena);
-    typeck_soa_fill_field_access_for_asm_emit(module, arena);
+    // fill_array + soa_fill: backend_asm_codegen_ast_to_elf after dep merge only.
     pipeline_debug_trace_named_func_bodies("emit_prepare_pre_fixup", module, arena);
     pipeline_module_fixup_with_arena_stmt_orders(module, arena);
     pipeline_debug_trace_named_func_bodies("emit_prepare_post_fixup", module, arena);
@@ -36101,9 +36107,49 @@ export function glue_expr_in_scope_block_c(arena: *u8, expr_ref: i32, scope_bloc
   return 0;
 }
 
+// PLATFORM: SHARED — mega soa fill memo (Stage12 pure-asm emit wall).
+// typeck_soa loops per-func fill_*; first call fills whole module once.
+// Soft leave-off BSS last-wins (w157 pattern).
+let g_fill_var_memo_arena: *u8 = 0 as *u8;
+let g_fill_var_memo_nexprs: i32 = 0;
+let g_fill_var_lets_done: i32 = 0;
+let g_fill_var_params_done: i32 = 0;
+let g_fill_var_params_mod: *u8 = 0 as *u8;
+
+/**
+ * Refresh per-arena fill memo; invalidate when arena/nexprs change.
+ * @param arena *u8 — ASTArena*
+ * @return void
+ * PLATFORM: SHARED — BSS memo for mega skip-typeck fill.
+ */
+function glue_fill_var_memo_touch(arena: *u8): void {
+  let nexprs: i32 = 0;
+  if (arena == (0 as *u8)) {
+    return;
+  }
+  nexprs = pipe_load_i32_le(arena, pipe_arena_off_num_exprs());
+  if (g_fill_var_memo_arena != arena || g_fill_var_memo_nexprs != nexprs) {
+    g_fill_var_memo_arena = arena;
+    g_fill_var_memo_nexprs = nexprs;
+    g_fill_var_lets_done = 0;
+    g_fill_var_params_done = 0;
+    g_fill_var_params_mod = 0 as *u8;
+  }
+}
+
 /**
  * Backfill resolved_type_ref for EXPR_VAR matching function parameter names.
  * Only writes when resolved_type_ref is still 0 (cross-func same-name safe).
+ *
+ * Perf root (Stage12 mega emit wall): **module-level once** via BSS memo.
+ * Callers (typeck_soa) still loop per-func for API stability; first call walks
+ * all VARs once with a body→func owner map (calloc); later calls no-op.
+ * Old O(nfuncs × nexprs × kind_ord) dominated pure-asm after typeck (~minutes).
+ *
+ * @param m *u8 — Module*; null / bad index → no-op
+ * @param arena *u8 — ASTArena*; null → no-op
+ * @param func_index i32 — function ordinal (ignored after first module fill)
+ * @return void
  * wave145 pure: G.7 authority (was glue_fill_var_types_from_params_for_func).
  * PLATFORM: SHARED — pure type_ref propagation.
  */
@@ -36112,52 +36158,147 @@ export function glue_fill_var_types_from_params_for_func(m: *u8, arena: *u8, fun
   let np: i32 = 0;
   let pi: i32 = 0;
   let ei: i32 = 0;
+  let fi: i32 = 0;
   let body_ref: i32 = 0;
   let nm: u8[128] = [];
   let nlen: i32 = 0;
   let tref: i32 = 0;
   let nfuncs: i32 = 0;
   let nexprs: i32 = 0;
-  let in_scope: i32 = 0;
-  let matched: i32 = 0;
+  let nblocks: i32 = 0;
   let rtr: i32 = 0;
+  let ko: i32 = 0;
+  let cur: i32 = 0;
+  let depth: i32 = 0;
+  let owner: *u8 = 0 as *u8;
+  let own_i: i32 = 0;
+  let matched: i32 = 0;
+  let bp: *u8 = 0 as *u8;
   if (m == (0 as *u8) || arena == (0 as *u8) || func_index < 0) { return; }
+  glue_fill_var_memo_touch(arena);
+  if (g_fill_var_params_done != 0 && g_fill_var_params_mod == m) {
+    return;
+  }
   nfuncs = pipeline_module_num_funcs(m);
-  if (func_index >= nfuncs) { return; }
-  unsafe { body_ref = pipeline_module_func_body_ref_at(m, func_index); }
-  if (body_ref <= 0) { return; }
-  unsafe { np = pipeline_asm_module_func_num_params_at(m, func_index); }
+  nblocks = pipe_load_i32_le(arena, 8);
   nexprs = pipe_load_i32_le(arena, pipe_arena_off_num_exprs());
-  pi = 0;
-  while (pi < np) {
-    unsafe { nlen = pipeline_asm_module_func_param_name_len_at(m, func_index, pi); }
-    if (nlen > 0 && nlen <= 127) {
-      unsafe {
-        pipeline_asm_module_func_param_name_copy32(m, func_index, pi, &nm[0]);
-        tref = pipeline_module_func_param_type_ref_at(m, func_index, pi);
-      }
-      if (tref > 0) {
-        ei = 1;
-        while (ei <= nexprs) {
-          in_scope = glue_expr_in_scope_block_c(arena, ei, body_ref);
-          matched = glue_let_name_matches_var(arena, ei, &nm[0], nlen);
-          if (in_scope != 0 && matched != 0) {
-            unsafe { rtr = pipeline_expr_resolved_type_ref(arena, ei); }
-            if (rtr <= 0) {
-              unsafe { pipeline_expr_set_resolved_type_ref(arena, ei, tref); }
+  if (nblocks <= 0 || nexprs <= 0) {
+    g_fill_var_params_done = 1;
+    g_fill_var_params_mod = m;
+    return;
+  }
+  // owner[br] = fi+1 for func body blocks (0 = not a body).
+  unsafe {
+    owner = calloc((nblocks + 1) as usize, 4 as usize);
+  }
+  if (owner == (0 as *u8)) {
+    // OOM: fall back to single-func inverted fill (caller per-func still works).
+    unsafe { body_ref = pipeline_module_func_body_ref_at(m, func_index); }
+    if (body_ref <= 0) { return; }
+    unsafe { np = pipeline_asm_module_func_num_params_at(m, func_index); }
+    if (np <= 0) { return; }
+    ei = 1;
+    while (ei <= nexprs) {
+      unsafe { ko = pipeline_expr_kind_ord_at(arena, ei); }
+      if (ko != 3) { ei = ei + 1; continue; }
+      unsafe { rtr = pipeline_expr_resolved_type_ref(arena, ei); }
+      if (rtr > 0) { ei = ei + 1; continue; }
+      if (glue_expr_in_scope_block_c(arena, ei, body_ref) == 0) { ei = ei + 1; continue; }
+      pi = 0;
+      while (pi < np) {
+        unsafe {
+          nlen = pipeline_asm_module_func_param_name_len_at(m, func_index, pi);
+          if (nlen > 0 && nlen <= 127) {
+            pipeline_asm_module_func_param_name_copy32(m, func_index, pi, &nm[0]);
+            tref = pipeline_module_func_param_type_ref_at(m, func_index, pi);
+            if (tref > 0 && glue_let_name_matches_var(arena, ei, &nm[0], nlen) != 0) {
+              pipeline_expr_set_resolved_type_ref(arena, ei, tref);
+              pi = np;
             }
           }
-          ei = ei + 1;
+        }
+        pi = pi + 1;
+      }
+      ei = ei + 1;
+    }
+    return;
+  }
+  fi = 0;
+  while (fi < nfuncs) {
+    unsafe {
+      if (pipeline_asm_module_func_is_extern_at(m, fi) == 0) {
+        body_ref = pipeline_module_func_body_ref_at(m, fi);
+        if (body_ref > 0 && body_ref <= nblocks) {
+          pipe_store_i32_le(owner, body_ref * 4, fi + 1);
         }
       }
     }
-    pi = pi + 1;
+    fi = fi + 1;
   }
+  // One VAR pass: walk ancestors until a func body owner; match that func's params.
+  ei = 1;
+  while (ei <= nexprs) {
+    unsafe { ko = pipeline_expr_kind_ord_at(arena, ei); }
+    if (ko != 3) { ei = ei + 1; continue; }
+    unsafe { rtr = pipeline_expr_resolved_type_ref(arena, ei); }
+    if (rtr > 0) { ei = ei + 1; continue; }
+    unsafe { cur = pipeline_expr_block_ref_at(arena, ei); }
+    depth = 0;
+    while (cur > 0 && cur <= nblocks && depth < 128) {
+      own_i = pipe_load_i32_le(owner, cur * 4);
+      if (own_i > 0) {
+        fi = own_i - 1;
+        unsafe { np = pipeline_asm_module_func_num_params_at(m, fi); }
+        pi = 0;
+        while (pi < np) {
+          unsafe {
+            nlen = pipeline_asm_module_func_param_name_len_at(m, fi, pi);
+            if (nlen > 0 && nlen <= 127) {
+              pipeline_asm_module_func_param_name_copy32(m, fi, pi, &nm[0]);
+              tref = pipeline_module_func_param_type_ref_at(m, fi, pi);
+              if (tref > 0) {
+                matched = glue_let_name_matches_var(arena, ei, &nm[0], nlen);
+                if (matched != 0) {
+                  pipeline_expr_set_resolved_type_ref(arena, ei, tref);
+                  pi = np;
+                }
+              }
+            }
+          }
+          pi = pi + 1;
+        }
+        cur = 0;
+      } else {
+        unsafe {
+          bp = pipeline_arena_block_ptr(arena, cur);
+        }
+        if (bp == (0 as *u8)) {
+          cur = 0;
+        } else {
+          // Block.parent_block_ref @88 (LP64)
+          cur = pipe_load_i32_le(bp, 88);
+          depth = depth + 1;
+        }
+      }
+    }
+    ei = ei + 1;
+  }
+  unsafe { free(owner); }
+  g_fill_var_params_done = 1;
+  g_fill_var_params_mod = m;
 }
 
 /**
  * Backfill resolved_type_ref for EXPR_VAR matching block-internal let names.
- * Overwrites unconditionally (block-local — no cross-func collision risk).
+ *
+ * Perf root (Stage12 mega emit wall): **module-level once** via BSS memo.
+ * First call: single pass over all VARs; walk ancestor blocks applying typed
+ * lets (nearest name wins). Later per-func calls from typeck_soa are no-ops.
+ * Old per-func full-arena kind_ord loops: O(nfuncs×nexprs) pure-asm wall.
+ *
+ * @param arena *u8 — ASTArena*; null → no-op
+ * @param block_ref i32 — scope block (ignored after first module fill; kept for ABI)
+ * @return void
  * wave145 pure: G.7 authority (was glue_fill_var_types_from_lets_in_block).
  * PLATFORM: SHARED — pure type_ref propagation.
  */
@@ -36171,33 +36312,67 @@ export function glue_fill_var_types_from_lets_in_block(arena: *u8, block_ref: i3
   let nlen: i32 = 0;
   let nblocks: i32 = 0;
   let nexprs: i32 = 0;
-  let in_scope: i32 = 0;
   let matched: i32 = 0;
+  let ko: i32 = 0;
+  let cur: i32 = 0;
+  let depth: i32 = 0;
+  let bp: *u8 = 0 as *u8;
+  let found: i32 = 0;
   if (arena == (0 as *u8) || block_ref <= 0) { return; }
+  glue_fill_var_memo_touch(arena);
+  if (g_fill_var_lets_done != 0) {
+    return;
+  }
   nblocks = pipe_load_i32_le(arena, 8);
-  if (block_ref > nblocks) { return; }
-  unsafe { nlet = ast_ast_block_num_lets(arena, block_ref); }
   nexprs = pipe_load_i32_le(arena, pipe_arena_off_num_exprs());
-  li = 0;
-  while (li < nlet) {
-    unsafe { tref = pipeline_block_let_type_ref(arena, block_ref, li); }
-    if (tref > 0) {
-      unsafe { nlen = pipeline_block_let_name_len(arena, block_ref, li); }
-      if (nlen > 0 && nlen <= 127) {
-        unsafe { pipeline_block_let_name_copy64(arena, block_ref, li, &nm[0]); }
-        ei = 1;
-        while (ei <= nexprs) {
-          in_scope = glue_expr_in_scope_block_c(arena, ei, block_ref);
-          matched = glue_let_name_matches_var(arena, ei, &nm[0], nlen);
-          if (in_scope != 0 && matched != 0) {
-            unsafe { pipeline_expr_set_resolved_type_ref(arena, ei, tref); }
+  // One arena pass: for each untyped VAR, walk ancestors; first matching let wins.
+  ei = 1;
+  while (ei <= nexprs) {
+    unsafe { ko = pipeline_expr_kind_ord_at(arena, ei); }
+    if (ko != 3) {
+      ei = ei + 1;
+      continue;
+    }
+    unsafe {
+      if (pipeline_expr_resolved_type_ref(arena, ei) > 0) {
+        ei = ei + 1;
+        continue;
+      }
+      cur = pipeline_expr_block_ref_at(arena, ei);
+    }
+    depth = 0;
+    found = 0;
+    while (cur > 0 && cur <= nblocks && depth < 128 && found == 0) {
+      unsafe { nlet = ast_ast_block_num_lets(arena, cur); }
+      li = 0;
+      while (li < nlet && found == 0) {
+        unsafe { tref = pipeline_block_let_type_ref(arena, cur, li); }
+        if (tref > 0) {
+          unsafe { nlen = pipeline_block_let_name_len(arena, cur, li); }
+          if (nlen > 0 && nlen <= 127) {
+            unsafe { pipeline_block_let_name_copy64(arena, cur, li, &nm[0]); }
+            matched = glue_let_name_matches_var(arena, ei, &nm[0], nlen);
+            if (matched != 0) {
+              unsafe { pipeline_expr_set_resolved_type_ref(arena, ei, tref); }
+              found = 1;
+            }
           }
-          ei = ei + 1;
+        }
+        li = li + 1;
+      }
+      if (found == 0) {
+        unsafe { bp = pipeline_arena_block_ptr(arena, cur); }
+        if (bp == (0 as *u8)) {
+          cur = 0;
+        } else {
+          cur = pipe_load_i32_le(bp, 88);
+          depth = depth + 1;
         }
       }
     }
-    li = li + 1;
+    ei = ei + 1;
   }
+  g_fill_var_lets_done = 1;
 }
 
 /**
@@ -36230,6 +36405,12 @@ export function glue_fill_array_lit_types_in_block(arena: *u8, block_ref: i32): 
 /**
  * Backfill ARRAY_LIT resolved_type_ref for all non-extern function bodies
  * when C precheck skipped .x typeck.
+ *
+ * G.7: VAR let-type prop is owned by `typeck_soa_fill_field_access_for_asm_emit`
+ * (and its fill_var/params helpers). This entry only stamps ARRAY_LIT from
+ * decl types — avoids a second full-arena fill_var pass on mega modules
+ * (Stage12 pure-asm emit wall).
+ *
  * Completes empty pure stub (G.7 single authority with host leaf leave).
  * wave145 pure: G.7 authority (was pipeline_fill_array_lit_types_for_skipped_typeck).
  * PLATFORM: SHARED.
@@ -36249,7 +36430,7 @@ export function pipeline_fill_array_lit_types_for_skipped_typeck(m: *u8, arena: 
     if (is_ext == 0) {
       unsafe { br = pipeline_module_func_body_ref_at(m, fi); }
       if (br > 0) {
-        glue_fill_var_types_from_lets_in_block(arena, br);
+        // ARRAY_LIT only — fill_var lives in typeck_soa_fill_field_access (once).
         glue_fill_array_lit_types_in_block(arena, br);
       }
     }

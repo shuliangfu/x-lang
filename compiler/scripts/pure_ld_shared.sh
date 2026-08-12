@@ -505,16 +505,16 @@ pure_asm_x_to_o() {
     return 1
   fi
   # Hard ban: runtime_pipeline_abi mega pure-asm.
-  # PLATFORM: SHARED — Stage12.0.5 hang RCA (2026-08-12 tip, post iterative typeck):
-  #   · Not an infinite pure-asm backend loop. Sample mid-stall was typeck then
-  #     xlang_driver_asm_prepare_entry_elf_emit on ~2417 funcs / 85k-line mega.
-  #   · Product -E completes ~340s wall (typeck OK + C emit); pure-asm still
-  #     unfinished at 420s (asm emit residual after shared typeck cost).
-  #   · Historic 180s map with empty OUT/stderr = mid-typeck kill (false hang).
-  # Immediate reject → -E+$CC hybrid (product thin; wall budget). Call-site also
-  # forces XLANG_PREFER_ASM_O_RT=0 (ensure_pipeline_abi prefer_one).
-  # Open pure-asm only after: finite pure-asm .o + hybrid g05 matrix + authorized
-  # wall policy (default 90s pure_asm timeout cannot cover mega).
+  # PLATFORM: SHARED — Stage12.0.5 hang RCA (2026-08-12; emit-wall root 2026-08-12):
+  #   · Not an infinite pure-asm backend loop. Historic mid-stall samples were
+  #     typeck then prepare/soa O(nfuncs×nexprs) fill_var (closed: module-level
+  #     fill memo + prepare no longer double-fills; see glue_fill_var_types_*).
+  #   · Product -E ~340s (typeck OK + C). Pure-asm after fill fix: ~366s then
+  #     CG002 (code_len>0 labels=0) — real asm emit residual, not hang.
+  #   · Historic 180s map empty OUT = mid-typeck kill (false hang).
+  # Immediate reject → -E+$CC hybrid. Call-site forces XLANG_PREFER_ASM_O_RT=0.
+  # Open pure-asm only after: pure-asm .o rc=0 + hybrid g05 matrix + wall policy
+  # (default 90s timeout cannot cover mega typeck ~5–6min alone).
   _bn="$(basename "$src")"
   if [ "$_bn" = "runtime_pipeline_abi.x" ]; then
     return 1
