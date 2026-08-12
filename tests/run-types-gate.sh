@@ -59,20 +59,29 @@ done
 # 仅 xlang_asm/xlang_asm2 等链 asm 后端的构建支持。
 # bootstrap-link 在 XLANG_LINK_XLANG=xlang-c + FORCE_BACKEND=c 时会把 RUN_XLANG
 # 包成 wrap 指向 pin xlang-c，-backend c 导致 link 失败。
-# 产品冷链：-o 用当前 XLANG/xlang_asm + -backend c（与 mac 矩阵一致）。
-TYPES_LINK_BACKEND_ARGS="${XLANG_TYPES_LINK_BACKEND_ARGS:-${XLANG_LINK_BACKEND_ARGS:-}}"
+#
+# Product pure-asm cold chain (xlang / xlang_asm): default backend is pure asm.
+# Forcing `-backend c` hits host-cc-requires-allow (NO silent host-cc) and fails
+# types gate even when pure-asm -o is green (L2 matrix). PLATFORM: SHARED —
+# dual-end pure-asm product path; opt-in C only via XLANG_TYPES_LINK_BACKEND_ARGS.
+TYPES_LINK_BACKEND_ARGS="${XLANG_TYPES_LINK_BACKEND_ARGS:-}"
 TYPES_LINK_XLANG="$RUN_XLANG"
 case "$(basename "${XLANG:-}")" in
   xlang|xlang_asm|xlang_asm2|xlang_asm_stage1)
     TYPES_LINK_XLANG="$XLANG"
-    TYPES_LINK_BACKEND_ARGS="-backend c"
+    # Keep empty unless caller explicitly sets XLANG_TYPES_LINK_BACKEND_ARGS.
+    TYPES_LINK_BACKEND_ARGS="${XLANG_TYPES_LINK_BACKEND_ARGS:-}"
+    ;;
+  xlang-c|xlang_c)
+    TYPES_LINK_XLANG="$XLANG"
+    TYPES_LINK_BACKEND_ARGS=""
     ;;
 esac
-# 若仍是 wrap，还原真实二进制
+# 若仍是 wrap，还原真实二进制（do not re-inject -backend c for pure product）
 case "$(basename "$TYPES_LINK_XLANG")" in
   xlang-backend-wrap.sh|xlang-min-link.sh)
     TYPES_LINK_XLANG="${XLANG_BACKEND_WRAP_REAL:-${XLANG_MIN_LINK_REAL:-./compiler/xlang}}"
-    TYPES_LINK_BACKEND_ARGS="${XLANG_BACKEND_WRAP_ARGS:--backend c}"
+    TYPES_LINK_BACKEND_ARGS="${XLANG_TYPES_LINK_BACKEND_ARGS:-}"
     ;;
 esac
 
