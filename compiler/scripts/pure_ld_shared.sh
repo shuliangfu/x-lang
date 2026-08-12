@@ -346,16 +346,19 @@ pure_asm_apply_weak_polish() {
 # pure_asm_x_to_o — freestanding .x → .o via asm backend (zero host-cc COMPILE).
 # Stage 12.0.5: G.7 single authority for pure asm module emit.
 #
-# Callers (Stage 12.0.5 opt-in): rt_prefer_try_x_to_o / labi_prefer_try_x_to_o /
-# g05_try_x_to_o try this first when XLANG_PREFER_ASM_O=1, then fall through to
-# -E+$CC on reject/fail. Default flag unset = zero product regression.
-# Residual: full product hybrid under PREFER_ASM_O still needs dual-end L2
-# proof before any default-on flip (prior Darwin pure-ld panic / SIGSEGV).
+# Callers:
+#   · labi_prefer_try_x_to_o — product default pure-asm via scoped
+#     XLANG_PREFER_ASM_O_LABI (default 1; authorized 2026-08-12). Subshell sets
+#     XLANG_PREFER_ASM_O=1 for this helper only; does NOT flip tree PREFER.
+#   · rt_prefer_try_x_to_o / g05_try_x_to_o — still opt-in: need ambient
+#     XLANG_PREFER_ASM_O=1; fall through to -E+$CC on reject/fail.
+# Ban: tree-level PREFER_ASM_O=1 as product default; pure-asm on
+# runtime_pipeline_abi mega. Escape labi pure-asm: XLANG_PREFER_ASM_O_LABI=0.
 #
 # When XLANG_PREFER_ASM_O=1: run `$XLANG -backend asm -c` via a staged `*.o`
 #   path (driver only emits relocatable objects when OUT ends with `.o`;
 #   ensure mktemp thins are extension-less).
-# When unset (default): return 1 immediately (zero regression for callers).
+# When unset (default for non-labi callers): return 1 immediately.
 #
 # Skip (return 1) when:
 #   · G05_X_O_SYM_RENAME set (still needs C identifier rewrite; no pure-asm polish)
@@ -392,7 +395,8 @@ pure_asm_x_to_o() {
   if [ -z "$out" ] || [ -z "$src" ]; then
     return 1
   fi
-  # Opt-in only: default keeps historic -E+$CC path (zero regression).
+  # Gate: ambient XLANG_PREFER_ASM_O=1 only (labi scopes this via subshell when
+  # XLANG_PREFER_ASM_O_LABI defaults on; other callers remain opt-in).
   if [ "${XLANG_PREFER_ASM_O:-0}" != "1" ]; then
     return 1
   fi

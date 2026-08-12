@@ -1480,15 +1480,30 @@ labi_prefer_pick_xlang() {
 
 # Prefer one layer .x → .o (simple -E harness; fail → caller seed).
 # $1=x_src $2=out.o  Returns 0 on success.
-# Stage 12.0.5: opt-in pure_asm_x_to_o first when XLANG_PREFER_ASM_O=1;
-# fall through to -E+$CC (zero regression when flag unset).
+# Stage 12.0.5 labi-only pure-asm product default (authorized 2026-08-12):
+#   · XLANG_PREFER_ASM_O_LABI defaults to 1 → scoped XLANG_PREFER_ASM_O=1 for
+#     pure_asm_x_to_o only (subshell; does NOT leak tree-level PREFER_ASM_O).
+#   · pure_asm reject (panic/__error/CG002/ONLY miss) → fall through -E+$CC.
+#   · Escape hatch: XLANG_PREFER_ASM_O_LABI=0 → labi layers stay historic -E+$CC
+#     unless ambient XLANG_PREFER_ASM_O=1 (tree opt-in still applies).
+#   · rt_prefer / g05_try / pipeline_abi mega still require tree PREFER_ASM_O=1
+#     (default off). Ban: defaulting PREFER_ASM_O=1 globally; pure-asm on
+#     runtime_pipeline_abi mega.
 # PLATFORM: SHARED — retry -E then -backend c -E (Ubuntu SIGSEGV history).
+# G.7: single pure_asm_x_to_o authority; no second pure-asm helper.
 labi_prefer_try_x_to_o() {
   local x_src="$1" x_out="$2" xlang_bin tmp e_ok e_try
   [ -f "$x_src" ] || return 1
   mkdir -p "$(dirname "$x_out")"
-  # Opt-in pure-asm (G.7 pure_asm_x_to_o); reject panic/__error → fall through.
-  if pure_asm_x_to_o "$x_out" "$x_src"; then
+  # Labi-only pure-asm default: scope PREFER_ASM_O=1 inside subshell so
+  # pure_asm_x_to_o (G.7) runs without flipping tree-level product defaults.
+  # PLATFORM: SHARED · ambient PREFER_ASM_O=1 still enables pure-asm when LABI=0.
+  if (
+    if [ "${XLANG_PREFER_ASM_O_LABI:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    fi
+    pure_asm_x_to_o "$x_out" "$x_src"
+  ); then
     return 0
   fi
   xlang_bin="$(labi_prefer_pick_xlang)" || return 1
