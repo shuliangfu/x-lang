@@ -505,13 +505,16 @@ pure_asm_x_to_o() {
     return 1
   fi
   # Hard ban: runtime_pipeline_abi mega pure-asm.
-  # PLATFORM: SHARED — map @ tip edf848abc: `xlang -backend asm -c` on this
-  # 85k-line mega hangs 180s+ with zero stderr and no .o; pure_asm_x_to_o had
-  # no timeout so PREFER_ASM_O=1 leaked into try-pipeline-abi-prefer and stalled
-  # product ensure (G05_X_O_WEAK thin path). Immediate reject → -E+$CC hybrid.
-  # Product call-site also forces XLANG_PREFER_ASM_O_RT=0 (ensure_pipeline_abi
-  # prefer_one) so rt_prefer never enters pure_asm for this mega.
-  # Not a product default flip; codifies the long-standing policy ban in G.7.
+  # PLATFORM: SHARED — Stage12.0.5 hang RCA (2026-08-12 tip, post iterative typeck):
+  #   · Not an infinite pure-asm backend loop. Sample mid-stall was typeck then
+  #     xlang_driver_asm_prepare_entry_elf_emit on ~2417 funcs / 85k-line mega.
+  #   · Product -E completes ~340s wall (typeck OK + C emit); pure-asm still
+  #     unfinished at 420s (asm emit residual after shared typeck cost).
+  #   · Historic 180s map with empty OUT/stderr = mid-typeck kill (false hang).
+  # Immediate reject → -E+$CC hybrid (product thin; wall budget). Call-site also
+  # forces XLANG_PREFER_ASM_O_RT=0 (ensure_pipeline_abi prefer_one).
+  # Open pure-asm only after: finite pure-asm .o + hybrid g05 matrix + authorized
+  # wall policy (default 90s pure_asm timeout cannot cover mega).
   _bn="$(basename "$src")"
   if [ "$_bn" = "runtime_pipeline_abi.x" ]; then
     return 1

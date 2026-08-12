@@ -3025,12 +3025,13 @@ try_ensure_rt_prefer_one() {
 #   merge: pure_ld_partial_merge thin + rest → OUT
 # Prefer fail / no xlang → ensure_one cold + pipeline ABI cflags (or keep OUT).
 #
-# Stage 12.0.5 COMPILE residual (pipeline_abi mega pure-asm ban · complete):
+# Stage 12.0.5 COMPILE residual (pipeline_abi mega pure-asm ban · hang RCA closed):
 #   · pure_asm_x_to_o hard-bans basename runtime_pipeline_abi.x (instant return 1)
 #   · call-site forces XLANG_PREFER_ASM_O_RT=0 so rt_prefer never enters pure_asm
 #     (G.7 belt-and-suspenders; product thin is always -E+$CC hybrid for mega)
-#   · pure_asm_emit_with_timeout hang guard is residual safety if ban ever missed
-#   · Not a product pure-asm default flip; mega pure-asm remains policy-banned
+#   · Hang RCA 2026-08-12: shared typeck ~340s on ~2417 funcs (iterative walker
+#     mega-safe); pure-asm still >420s in asm_prepare_entry_elf_emit — ban is
+#     product wall policy, not mystery infinite loop. pure_asm timeout residual.
 #
 # Callers: g05_ensure (wave767) · product ensure_one route for pipeline_abi.
 # Exit codes:

@@ -15042,63 +15042,82 @@ export function typeck_x_ast_check_one_func(module: *Module, arena: *ASTArena, c
 }
 
 /**
- * See implementation.
+ * Typecheck every function body in [func_i, num_funcs) on the entry module.
+ *
+ * Iterative walk (while), not recursion. Historical Cap residual used
+ * tail-style recursion (func_i+1); mega modules (~2k funcs, e.g.
+ * runtime_pipeline_abi.x) forced O(n) stack frames and multi-minute wall
+ * under product pure-asm / -E (Stage12.0.5 hang map: 180s timeout mid-typeck
+ * with empty OUT — false hang). Same semantics as the recursive form:
+ * check_block + implicit-return tail; fail-fast -5/-6; entry-module set once
+ * when starting at func_i==0.
+ *
+ * @param module *Module — entry module after parse
+ * @param arena *ASTArena — type/arena storage for check_block
+ * @param ctx *PipelineDepCtx — current_func_index + dep map
+ * @param func_i i32 — start index (callers pass 0; resume offset kept for API)
+ * @param num_funcs i32 — exclusive end (pipeline_module_num_funcs)
+ * @return i32 — 0 ok; -5 check_block fail; -6 non-void implicit tail
+ * PLATFORM: SHARED — G.7 sole all-funcs typeck walker; seed twin aligned.
  */
 export function typeck_x_ast_check_all_funcs_loop(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx,
 func_i: i32, num_funcs: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+    let i: i32 = 0;
     let body_ref: i32 = 0;
     let ret_ty_ref: i32 = 0;
     let fn_name_len: i32 = 0;
     let num_generic_params: i32 = 0;
     let ord_void: i32 = 16;
     let rt_kind: i32 = 0;
-    let rc: i32 = 0;
-    let err_check_block: i32 = 5;
-    let err_implicit_tail: i32 = 6;
-    /* See implementation. */
     let no_func_ix: i32 = -1;
-    if (func_i >= num_funcs) {
+    let fail_kind_cb: i32 = -5;
+    let fail_kind_tail: i32 = -6;
+    i = func_i;
+    if (i >= num_funcs) {
       pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix);
       return 0;
     }
-    if (func_i == 0) {
+    // Entry-module dep map once when the walk starts at the first function.
+    if (i == 0) {
       pipeline_typeck_set_entry_module_for_dep_map_c(module);
     }
-    pipeline_dep_ctx_set_current_func_index(ctx, func_i);
-    fn_name_len = pipeline_module_func_name_len_at(module, func_i);
-    pipeline_module_func_name_copy64(module, func_i, typeck_scratch64_slot(0));
-    driver_diagnostic_typeck_fn_enter(func_i, typeck_scratch64_slot(0), fn_name_len);
-    /* wave684: do not skip generic bodies (see typeck_x_ast_check_one_func). */
-    num_generic_params = pipeline_module_func_num_generic_params_at(module, func_i);
-    /* wave1219: removed (void)num_generic_params — C-style cast unsupported in X. */
-    body_ref = pipeline_module_func_body_ref_at(module, func_i);
-    if (!ast.ref_is_null(body_ref) && pipeline_module_func_is_extern_at(module, func_i) == 0) {
-      ret_ty_ref = pipeline_module_func_return_type_at(module, func_i);
-      if (check_block(module, arena, body_ref, ret_ty_ref, ctx) != 0) {
-        fn_name_len = pipeline_module_func_name_len_at(module, func_i);
-        pipeline_module_func_name_copy64(module, func_i, typeck_scratch64_slot(0));
-        let fail_kind_cb: i32 = -5;
-        driver_diagnostic_typeck_func_fail(func_i, typeck_scratch64_slot(0), fn_name_len, fail_kind_cb);
-        pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix);
-        return fail_kind_cb;
-      }
-      if (!ast.ref_is_null(ret_ty_ref)) {
-        rt_kind = pipeline_type_kind_ord_at(arena, ret_ty_ref);
-        if (rt_kind != ord_void && func_body_has_implicit_return_tail(arena, body_ref)) {
-          fn_name_len = pipeline_module_func_name_len_at(module, func_i);
-          pipeline_module_func_name_copy64(module, func_i, typeck_scratch64_slot(0));
-          let fail_kind_tail: i32 = -6;
-          driver_diagnostic_typeck_func_fail(func_i, typeck_scratch64_slot(0), fn_name_len, fail_kind_tail);
+    // Iterative per-func typeck — constant stack (mega-safe). Same body as
+    // historical recursive step; matches typeck_patch_all_body_parent_links.
+    while (i < num_funcs) {
+      pipeline_dep_ctx_set_current_func_index(ctx, i);
+      fn_name_len = pipeline_module_func_name_len_at(module, i);
+      pipeline_module_func_name_copy64(module, i, typeck_scratch64_slot(0));
+      driver_diagnostic_typeck_fn_enter(i, typeck_scratch64_slot(0), fn_name_len);
+      // wave684: do not skip generic bodies (see typeck_x_ast_check_one_func).
+      num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
+      body_ref = pipeline_module_func_body_ref_at(module, i);
+      if (!ast.ref_is_null(body_ref) && pipeline_module_func_is_extern_at(module, i) == 0) {
+        ret_ty_ref = pipeline_module_func_return_type_at(module, i);
+        if (check_block(module, arena, body_ref, ret_ty_ref, ctx) != 0) {
+          fn_name_len = pipeline_module_func_name_len_at(module, i);
+          pipeline_module_func_name_copy64(module, i, typeck_scratch64_slot(0));
+          driver_diagnostic_typeck_func_fail(i, typeck_scratch64_slot(0), fn_name_len, fail_kind_cb);
           pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix);
-          return fail_kind_tail;
+          return fail_kind_cb;
+        }
+        if (!ast.ref_is_null(ret_ty_ref)) {
+          rt_kind = pipeline_type_kind_ord_at(arena, ret_ty_ref);
+          if (rt_kind != ord_void && func_body_has_implicit_return_tail(arena, body_ref)) {
+            fn_name_len = pipeline_module_func_name_len_at(module, i);
+            pipeline_module_func_name_copy64(module, i, typeck_scratch64_slot(0));
+            driver_diagnostic_typeck_func_fail(i, typeck_scratch64_slot(0), fn_name_len, fail_kind_tail);
+            pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix);
+            return fail_kind_tail;
+          }
         }
       }
+      pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix);
+      i = i + 1;
     }
     pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix);
-    rc = typeck_x_ast_check_all_funcs_loop(module, arena, ctx, func_i + 1, num_funcs);
-    return rc;
+    return 0;
   }
 }
 

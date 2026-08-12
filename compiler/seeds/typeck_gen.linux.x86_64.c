@@ -12567,56 +12567,62 @@ int32_t typeck_x_ast_check_one_func(struct ast_Module * module, struct ast_ASTAr
     return 0;
   }
 }
+/* PLATFORM: SHARED — iterative all-funcs typeck (mega-safe; was recursive Cap residual).
+ * Align with typeck.x typeck_x_ast_check_all_funcs_loop. Stage12.0.5 hang map root:
+ * O(n) stack on ~2k-func mega falsely looked like pure-asm hang under 180s timeout. */
 int32_t typeck_x_ast_check_all_funcs_loop(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t func_i, int32_t num_funcs) {
   {
+    int32_t i = 0;
     int32_t body_ref = 0;
     int32_t ret_ty_ref = 0;
     int32_t fn_name_len = 0;
     int32_t num_generic_params = 0;
     int32_t ord_void = 16;
     int32_t rt_kind = 0;
-    int32_t rc = 0;
-    int32_t err_check_block = 5;
-    int32_t err_implicit_tail = 6;
     int32_t no_func_ix = -1;
-    if ((func_i >=num_funcs)) {
+    int32_t fail_kind_cb = -5;
+    int32_t fail_kind_tail = -6;
+    (void)((i = func_i));
+    if ((i >= num_funcs)) {
       (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
       return 0;
     }
-    if ((func_i ==0)) {
+    if ((i == 0)) {
       (void)(pipeline_typeck_set_entry_module_for_dep_map_c(module));
     }
-    (void)(pipeline_dep_ctx_set_current_func_index(ctx, func_i));
-    (void)((fn_name_len = pipeline_module_func_name_len_at(module, func_i)));
-    (void)(pipeline_module_func_name_copy64(module, func_i, typeck_scratch64_slot(0)));
-    (void)(driver_diagnostic_typeck_fn_enter(func_i, typeck_scratch64_slot(0), fn_name_len));
-    (void)((num_generic_params = pipeline_module_func_num_generic_params_at(module, func_i)));
-    (void)((body_ref = pipeline_module_func_body_ref_at(module, func_i)));
-    if ((!(ast_ref_is_null(body_ref)) && (pipeline_module_func_is_extern_at(module, func_i) ==0))) {
-      (void)((ret_ty_ref = pipeline_module_func_return_type_at(module, func_i)));
-      if ((typeck_check_block(module, arena, body_ref, ret_ty_ref, ctx) !=0)) {
-        (void)((fn_name_len = pipeline_module_func_name_len_at(module, func_i)));
-        (void)(pipeline_module_func_name_copy64(module, func_i, typeck_scratch64_slot(0)));
-        int32_t fail_kind_cb = -5;
-        (void)(driver_diagnostic_typeck_func_fail(func_i, typeck_scratch64_slot(0), fn_name_len, fail_kind_cb));
-        (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
-        return fail_kind_cb;
-      }
-      if (!(ast_ref_is_null(ret_ty_ref))) {
-        (void)((rt_kind = pipeline_type_kind_ord_at(arena, ret_ty_ref)));
-        if (((rt_kind !=ord_void) && typeck_func_body_has_implicit_return_tail(arena, body_ref))) {
-          (void)((fn_name_len = pipeline_module_func_name_len_at(module, func_i)));
-          (void)(pipeline_module_func_name_copy64(module, func_i, typeck_scratch64_slot(0)));
-          int32_t fail_kind_tail = -6;
-          (void)(driver_diagnostic_typeck_func_fail(func_i, typeck_scratch64_slot(0), fn_name_len, fail_kind_tail));
+    while ((i < num_funcs)) {
+      (void)(pipeline_dep_ctx_set_current_func_index(ctx, i));
+      (void)((fn_name_len = pipeline_module_func_name_len_at(module, i)));
+      (void)(pipeline_module_func_name_copy64(module, i, typeck_scratch64_slot(0)));
+      (void)(driver_diagnostic_typeck_fn_enter(i, typeck_scratch64_slot(0), fn_name_len));
+      (void)((num_generic_params = pipeline_module_func_num_generic_params_at(module, i)));
+      (void)(num_generic_params);
+      (void)((body_ref = pipeline_module_func_body_ref_at(module, i)));
+      if ((!(ast_ref_is_null(body_ref)) && (pipeline_module_func_is_extern_at(module, i) == 0))) {
+        (void)((ret_ty_ref = pipeline_module_func_return_type_at(module, i)));
+        if ((typeck_check_block(module, arena, body_ref, ret_ty_ref, ctx) != 0)) {
+          (void)((fn_name_len = pipeline_module_func_name_len_at(module, i)));
+          (void)(pipeline_module_func_name_copy64(module, i, typeck_scratch64_slot(0)));
+          (void)(driver_diagnostic_typeck_func_fail(i, typeck_scratch64_slot(0), fn_name_len, fail_kind_cb));
           (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
-          return fail_kind_tail;
+          return fail_kind_cb;
+        }
+        if (!(ast_ref_is_null(ret_ty_ref))) {
+          (void)((rt_kind = pipeline_type_kind_ord_at(arena, ret_ty_ref)));
+          if (((rt_kind != ord_void) && typeck_func_body_has_implicit_return_tail(arena, body_ref))) {
+            (void)((fn_name_len = pipeline_module_func_name_len_at(module, i)));
+            (void)(pipeline_module_func_name_copy64(module, i, typeck_scratch64_slot(0)));
+            (void)(driver_diagnostic_typeck_func_fail(i, typeck_scratch64_slot(0), fn_name_len, fail_kind_tail));
+            (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
+            return fail_kind_tail;
+          }
         }
       }
+      (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
+      (void)((i = (i + 1)));
     }
     (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
-    (void)((rc = typeck_x_ast_check_all_funcs_loop(module, arena, ctx, (func_i + 1), num_funcs)));
-    return rc;
+    return 0;
   }
 }
 void typeck_patch_all_body_parent_links(struct ast_Module * module, struct ast_ASTArena * arena) {
