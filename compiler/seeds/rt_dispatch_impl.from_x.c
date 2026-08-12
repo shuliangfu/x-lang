@@ -216,16 +216,15 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
     driver_freestanding_set(1);
     cfg_set_freestanding(1);
   }
-#if defined(__APPLE__)
   /*
-   * Darwin 产品 -o 可执行：asm_codegen 在 arm64 上常 code_len=0（CG002）。
-   * 默认回退 C pipeline + host cc。freestanding 仍强制 asm。
-   * Ubuntu/Linux 金标路径不受影响。
+   * PLATFORM: SHARED — no host-OS force of C for want_exe.
+   * Historical residual: #if __APPLE__ forced use_asm_backend=0 on product -o exe
+   * (CG002 empty text on arm64). That was dual-authority vs pure .x (never had the
+   * block) and vs Ubuntu default-asm. Closed after bare mangle + METHOD spill +
+   * drop import→C (2026-08-12 dual-end DEF option/hello = ASM). Explicit -backend c
+   * and generic-syntax downgrade remain the only default C paths. Cold twin must
+   * match rt_dispatch_impl.x (G.7).
    */
-  if (state->use_asm_backend && !state->use_freestanding && state->out_path_len > 0 &&
-      driver_asm_output_want_exe(state->out_path_buf))
-    state->use_asm_backend = 0;
-#endif
   if (state->use_asm_backend) {
     return driver_run_asm_backend_impl_c(state->path_buf, out_ptr, (uint8_t *)state, target_ptr, argc, argv);
   }

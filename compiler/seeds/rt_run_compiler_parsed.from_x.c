@@ -202,18 +202,15 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             driver_source_has_generic_syntax((const uint8_t *)input_path, plen))
             want_asm_backend = 0;
     }
-#if defined(__APPLE__)
     /*
-     * Darwin 产品 -o 可执行：asm_codegen 在 arm64 上常 code_len=0（CG002 empty text）。
-     * 回退 C pipeline + host cc，与显式 -backend c 一致。Linux/Ubuntu 金标仍默认 asm。
-     * -o *.o/*.s 对象探针仍走 asm（不降级）。
-     */
-    if (want_asm_backend && out_path && xlang_output_want_exe(out_path))
-        want_asm_backend = 0;
-#endif
-    /*
-     * 默认走 asm：一律走 X pipeline + asm_asm_codegen_*（有无 -o 均如此）；`-backend c` 已在上方关闭 want_asm_backend。
-     * 无 \c out_path 时向 stdout 打汇编文本；否则写 \c .o / \c .s / 或可执行路径（参见 driver_run_asm_backend）。
+     * PLATFORM: SHARED — no host-OS force of C for want_exe.
+     * Historical residual: #if __APPLE__ forced want_asm_backend=0 on product -o exe
+     * (CG002 empty text on arm64). Dual-authority vs pure rt_run_compiler_parsed.x
+     * (no such block) and vs Ubuntu default-asm. Closed 2026-08-12 after PC asm
+     * residual (bare mangle / METHOD spill / drop import→C). Explicit -backend c
+     * and generic-syntax downgrade remain. Cold twin matches .x (G.7).
+     * Default path: X pipeline + asm_asm_codegen_* (with or without -o);
+     * no out_path → asm text to stdout; else .o / .s / exe via driver_run_asm_backend.
      */
 #if !defined(XLANG_NO_C_FRONTEND)
     /*
