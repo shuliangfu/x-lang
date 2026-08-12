@@ -64042,11 +64042,12 @@ export function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i3
  * @param pty i32 — formal param type_ref; ≤0 skips formal stages
  * @return i32 — byte size ≥1; 8 when unresolved / pointer / SLICE / ARRAY
  *
- * Contract (wave1209 / wave635 / wave195 pure leave):
+ * Contract (wave1209 / wave635 / wave195 pure leave + import METHOD dual-GP):
  *  1. TYPE_SLICE formal or resolved → 8
- *  2. TYPE_ARRAY / fixed-array formal or (resolved + formal miss/ARRAY) → 8
+ *  2. TYPE_ARRAY / fixed-array formal, resolved, or VAR decl → 8 (E* always;
+ *     C decay even when formal is *T — ban payload size 9–16 dual-GP pack)
  *  3. size_simple(emit_mod, pty) then resolved type_ref
- *  4. EXPR_VAR (3): max(var_decl size, dual_gp)
+ *  4. EXPR_VAR (3): max(var_decl size, dual_gp) — arrays already returned at 2
  *  5. FIELD_ACCESS (44): max(field type size, named layout, dual_gp)
  *  6. dual_gp widen when sz≤8 for pty / resolved
  *  7. sz≤0 → 8 floor
@@ -64088,6 +64089,11 @@ export function pipeline_asm_call_arg_value_byte_size_c(arena: *u8, ctx: *u8, ar
   }
 
   // TYPE_ARRAY / fixed-array → E* (8B). Twin of glue_func_param_agg_byte_size.
+  // wave635 / run-import residual: formal may be *u8 (PTR) while arg is u8[N];
+  // still pass E* (one GP). Historic early-return only when formal was also ARRAY
+  // let size_simple(u8[12])=12 + VAR widen → units=2 after import METHOD dual-GP
+  // (print packed ptr into x0:x1 and len into x2 → no Hello World).
+  // G.7: array/fixed-array call-arg is always pointer width for SysV/AAPCS packing.
   if (arena != (0 as *u8) && pty > 0) {
     unsafe {
       k = pipeline_type_kind_ord_at(arena, pty);
@@ -64105,15 +64111,24 @@ export function pipeline_asm_call_arg_value_byte_size_c(arena: *u8, ctx: *u8, ar
       unsafe {
         k = pipeline_type_kind_ord_at(arena, tr);
       }
+      // TYPE_ARRAY / fixed: always E* (C decay), even when formal is *T / scalar.
       if (k == 10 || glue_type_is_fixed_array(arena, tr) != 0) {
-        // When formal missing, still pass E* for fixed-array values (C decay twin).
-        if (pty <= 0) {
-          return 8;
-        }
+        return 8;
+      }
+    }
+  }
+  // EXPR_VAR decl type may be fixed array even when resolved stamp is soft.
+  if (arena != (0 as *u8) && arg_ref > 0 && ctx != (0 as *u8)) {
+    unsafe {
+      ek = pipeline_expr_kind_ord_at(arena, arg_ref);
+    }
+    if (ek == 3) {
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, arg_ref);
+      if (tr > 0) {
         unsafe {
-          k = pipeline_type_kind_ord_at(arena, pty);
+          k = pipeline_type_kind_ord_at(arena, tr);
         }
-        if (k == 10 || glue_type_is_fixed_array(arena, pty) != 0) {
+        if (k == 10 || glue_type_is_fixed_array(arena, tr) != 0) {
           return 8;
         }
       }
