@@ -778,7 +778,7 @@ export function main_cmd_build(argc: i32, argv: *u8): i32 {
 }
 
 /**
- * `xlang run file.x` (and bare `xlang file.x` via entry): compile in memory and
+ * `xlang run file.x` (and bare `xlang file.x` via main_entry): compile in memory and
  * run the product directly. No a.out in the cwd and no generated C to stdout.
  * When no -o is given, driver_argv_ensure_run_o injects a temp /tmp path as
  * -o so the C/asm backend links a real executable (instead of the no-`-o`
@@ -847,7 +847,7 @@ function main_argv_has_o_flag(argc: i32, argv: *u8): i32 {
 /**
  * Return 1 if argv[1] looks like a source path rather than a named subcommand.
  * Heuristic (PLATFORM: SHARED): ends with ".x", or contains '/' or '\\'.
- * Used by entry() so bare `xlang file.x [-o out]` is not rejected as an unknown
+ * Used by main_entry() so bare `xlang file.x [-o out]` is not rejected as an unknown
  * command (historical product UX; many gates still invoke this form).
  * Contract: path may be truncated to path_cap-1 bytes by the caller; scan only
  * the provided len bytes. Null path or len <= 0 → 0.
@@ -875,7 +875,15 @@ function main_arg_looks_like_source_path(path: *u8, len: i32): i32 {
 export extern function typeck_lsp_main(): i32;
 
 /**
- * Product CLI entry (linked as main_entry via driver_gen).
+ * Product CLI entry symbol (ABI name: main_entry).
+ *
+ * Single authority for the freestanding / pure-ld product entry:
+ * crt0 `_start` and `xlang_forward_main_to_main_entry` both call `main_entry`.
+ * Track L PREFER_X_O (`src/main.x` → driver_x.o) and cold seed
+ * `seeds/driver_gen.linux.x86_64.c` must export the same symbol — never emit
+ * a bare `entry` from .x while the seed / link ABI expect `main_entry`
+ * (L4 Darwin pure-ld UNDEF `_main_entry` when names diverged).
+ *
  * Named subcommands: build | run | fmt | check | test.
  * Bare source path (ends with .x or contains a path separator): treat as
  * `run` semantics without requiring the word "run" — with explicit -o this is
@@ -883,7 +891,7 @@ export extern function typeck_lsp_main(): i32;
  * Unknown non-flag argv[1] that is not a path → usage and exit 1.
  * PLATFORM: SHARED — mac + Ubuntu product binary must accept the same bare form.
  */
-export function entry(argc: i32, argv: *u8): i32 {
+export function main_entry(argc: i32, argv: *u8): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
