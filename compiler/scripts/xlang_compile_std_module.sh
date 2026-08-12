@@ -779,21 +779,12 @@ for x_path in "$@"; do
           printf 'struct %s;\n' "$sn" >>"$fwd_tmp"
         fi
       done <"$tmp_dir/structs_${idx}.txt"
-      # 双名对齐：entry 形参常 emit `struct heap_libc_Arena64`，dep 体为
-      # `struct std_heap_libc_LibcArena64`。#define 标签别名使 `struct heap_libc_Arena64`
-      # 展开为同一标签，避免 GCC 14 incompatible pointer types 当 error。
-      if grep -q 'std_heap_libc_LibcArena64' "$gen_c" \
-         && grep -q 'heap_libc_Arena64' "$gen_c"; then
-        # 勿再 emit incomplete `struct heap_libc_Arena64;`（会与 #define 冲突）
-        if [ -f "$fwd_tmp" ]; then
-          grep -v '^struct heap_libc_Arena64;$' "$fwd_tmp" >"$fwd_tmp.f" 2>/dev/null || true
-          mv "$fwd_tmp.f" "$fwd_tmp" 2>/dev/null || true
-        fi
-        printf '%s\n' \
-          '/* xlang_compile_std_module: Arena64 tag alias (import path vs short) */' \
-          '#define heap_libc_Arena64 std_heap_libc_LibcArena64' \
-          >>"$fwd_tmp"
-      fi
+      # PLATFORM: SHARED — Arena64 short-tag dual-name residual CLOSED (2026-08-12).
+      # Historic: entry params emitted `struct heap_libc_Arena64` while dep bodies used
+      # `struct std_heap_libc_LibcArena64` → shell `#define heap_libc_Arena64 …` dual-authority.
+      # Tip product -E: short `heap_libc_Arena64` count=0; full tags only
+      # (`std_heap_libc_LibcArena64` / `std_heap_Arena64` via emit_type + preamble).
+      # Shell #define tag alias removed; do not reintroduce.
       # PLATFORM: SHARED — Result_i32/u8 short-tag dual-name residual CLOSED (2026-08-12).
       # Root authority is codegen emit_type: bare Result_* → `struct core_result_Result_*`
       # (same class as Option_*). Shell #define tag alias removed; do not reintroduce.

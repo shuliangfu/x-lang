@@ -1,7 +1,9 @@
 #!/bin/sh
 # xlang_compile_std_string_o.sh — 构建 std/string/string.o
 # 【Why】产品 -x -E 对 string 库模块会截断函数体；-o *.o 路径 emit 完整。
-# Arena64 标签双名（heap_libc_Arena64 vs std_heap_libc_LibcArena64）在 cc 前 #define 对齐。
+# PLATFORM: SHARED — Arena64 short-tag dual-name residual CLOSED (2026-08-12).
+# Historic shell `#define heap_libc_Arena64 std_heap_libc_LibcArena64` removed;
+# tip product -E short count=0 (full tags only). Do not reintroduce.
 # 用法：在 compiler/ 下：sh scripts/xlang_compile_std_string_o.sh
 set -e
 ROOT="$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)"
@@ -27,15 +29,14 @@ if [ ! -s "$tmp/mod.c" ]; then
   exit 1
 fi
 
-# Arena64 + 库 -E 无完整 product preamble 时补 String/StrView（codegen ABI skip 依赖 preamble）
+# 库 -E 无完整 product preamble 时补 String/StrView（codegen ABI skip 依赖 preamble）
+# PLATFORM: SHARED — no Arena64 #define alias (short residual closed; full tags only).
 python3 - "$tmp/mod.c" <<'PY'
 import sys, re
 from pathlib import Path
 p = Path(sys.argv[1])
 s = p.read_text()
 extra = []
-if "std_heap_libc_LibcArena64" in s and "heap_libc_Arena64" in s and "#define heap_libc_Arena64" not in s:
-    extra.append("#define heap_libc_Arena64 std_heap_libc_LibcArena64\n")
 # entry-only 库 -E 跳过 String/StrView 完整体；此处注入权威布局。
 # 注意：codegen 可能发 `struct String`（tag）而非 typedef `String`——二者在 C 中不是同一类型。
 need_bare_string = "struct String" in s and "struct String {" not in s
