@@ -3966,8 +3966,9 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
  * Note: export signature must stay single-line.
  *
  * Host-cc product gates live in invoke_cc_host_cc_spawn_gate (G.7 single authority):
- * Stage 12.2.1 FORBID + Stage 12.2.3 ALLOW. Callers: this spawn shell and
- * xlang_invoke_cc early entry (skip ensure/argv when denied).
+ * Stage 12.2.1 FORBID + Stage 12.2.3 ALLOW. Callers: this spawn shell,
+ * xlang_invoke_cc early entry, and xlang_invoke_cc_impl top (ensure/argv isolation;
+ * skip ensure_std / argv / ensure-push when denied — defense-in-depth for residual).
  *
  * PLATFORM: WINDOWS | MINGW | MSYS — do NOT setenv PATH to /usr/local/bin:/usr/bin:/bin.
  *   That string is Linux freestanding isolation only. On PE, `_spawnvp("gcc")` searches
@@ -3981,7 +3982,10 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
  * ALLOW exact "1" required for any spawn (default deny; experimental opt-in).
  * Emits link_diag_tool_status on deny (forbid-host-cc | host-cc-requires-allow).
  * @return i32 — 1 allowed to spawn, 0 denied (diag already set)
- * G.7 single authority for env gates; invoke_cc_run_cc_argv and xlang_invoke_cc both call this.
+ * G.7 single authority for env gates; callers:
+ *   - xlang_invoke_cc (entry early deny; skip calling impl)
+ *   - xlang_invoke_cc_impl (residual top; isolate ensure/argv before any heavy work)
+ *   - invoke_cc_run_cc_argv (spawn shell re-check before host-cc exec)
  * PLATFORM: SHARED — dual-end ALLOW on/off + FORBID; product default never spawns.
  */
 #[no_mangle]

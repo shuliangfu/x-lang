@@ -1742,7 +1742,8 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap) {
 
 /* Stage 12.2.3: G.7 single env-gate authority (cold twin ≡ .x).
  * FORBID exact "1" hard-deny unless LOG_ONLY; ALLOW exact "1" required.
- * Callers: invoke_cc_run_cc_argv + xlang_invoke_cc early entry.
+ * Callers: xlang_invoke_cc early entry, xlang_invoke_cc_impl top (ensure/argv
+ * isolation), invoke_cc_run_cc_argv spawn shell.
  * PLATFORM: SHARED — dual-end ALLOW/FORBID. */
 int invoke_cc_host_cc_spawn_gate(void) {
   const char *forbid;

@@ -2369,6 +2369,10 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
 void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
     const char **c_paths, int n, const char *include_root);
 int invoke_cc_run_cc_argv(char **argv);
+/* Stage 12.2.3 G.7 single host-cc gate (FORBID+ALLOW); pure body in labi_invoke_cc_list.
+ * Decl here so xlang_invoke_cc_impl can isolate ensure/argv before any heavy work.
+ * PLATFORM: SHARED — product default deny; experimental ALLOW=1 only. */
+int invoke_cc_host_cc_spawn_gate(void);
 void invoke_cc_maybe_strip_out(const char *out_path, const char *opt_level);
 void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
     const char *out_path, const char *opt_level, int use_lto, const char *include_root);
@@ -3474,6 +3478,13 @@ void xlang_invoke_cc_clear_user_o_files(void);
  * wave207: argv 尾 flags 迁 pure（invoke_cc_append_argv_tail_flags：pthread/-lc/allow-multiple/user_extra+NULL）；
  * wave208: MINIMAL_CC_LINK 尾迁 pure（invoke_cc_append_minimal_cc_link_tail：Win process_argv + POSIX -lc + NULL）；
  *   Cap residual xlang_spawn_sync_impl / invoke_cc_strip_out_x_impl / getenv quiet·MINIMAL / skip_missing / user_extra count·at。
+ *
+ * Stage 12.2.3 defense-in-depth (G.7): invoke_cc_host_cc_spawn_gate runs at the top of
+ * this residual *before* ensure_std_net_o_auto_tls / argv head / early_needs / ensure-push.
+ * Entry wrappers (labi_gates / monofile twin / surface) already early-gate; this isolates
+ * the Cap residual body so a direct call to xlang_invoke_cc_impl cannot ensure or build
+ * host-cc argv without ALLOW. spawn shell still re-checks the same gate authority.
+ * PLATFORM: SHARED — product default deny; experimental XLANG_ALLOW_HOST_CC=1 only.
  */
 int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;
@@ -3485,6 +3496,14 @@ int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, cons
     /* #endregion */
     if (!c_paths || n < 1) return -1;
     if (!opt_level || !*opt_level) opt_level = "2";
+    /*
+     * PLATFORM: SHARED — isolate ensure/argv behind G.7 host-cc spawn gate.
+     * Must precede ensure_std_net_o_auto_tls (may host-cc compile TLS) and any
+     * argv / early_needs / ensure-push work. Same authority as entry wrappers
+     * and invoke_cc_run_cc_argv; deny emits host-cc-requires-allow | forbid-host-cc.
+     */
+    if (!invoke_cc_host_cc_spawn_gate())
+        return -1;
     if (include_root && include_root[0])
         ensure_std_net_o_auto_tls(include_root);
     /*
@@ -3584,12 +3603,10 @@ int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, cons
 
 /* G-02f-277 L9 gates
  * Stage 12.2.3 / 13.2.4: cold monofile twin must match labi_gates.x early host-cc gate
- * (G.7 single deny path). Without this, LABI=0 cold seed still runs ensure/argv mega
- * before invoke_cc_run_cc_argv re-checks ALLOW/FORBID.
+ * (G.7 single deny path). Without this, LABI=0 cold seed still enters impl; impl now
+ * also gates before ensure/argv (defense-in-depth), and invoke_cc_run_cc_argv re-checks.
  * PLATFORM: SHARED — product hybrid uses L9 pure (FROM_X); this body is cold residual. */
 #ifndef XLANG_LABI_GATES_FROM_X
-int invoke_cc_host_cc_spawn_gate(void);
-
 int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
   if (c_paths == NULL) {
     return -1;
@@ -3597,7 +3614,8 @@ int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const cha
   if (out_path == NULL) {
     return -1;
   }
-  /* Early deny: skip heavy impl ensure/argv when host-cc is not opt-in (≡ labi_gates). */
+  /* Early deny: skip entering impl (and its ensure/argv) when host-cc is not opt-in (≡ labi_gates).
+   * impl re-checks the same gate as defense-in-depth for direct residual calls. */
   if (!invoke_cc_host_cc_spawn_gate())
     return -1;
   {
