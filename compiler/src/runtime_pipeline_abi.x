@@ -1559,6 +1559,21 @@ export function xlang_asm_codegen_elf_o_product_emit(module: *u8, arena: *u8, ct
  * wave1224: delegate to scalars to guarantee byte-identical reset semantics.
  * PLATFORM: SHARED - pure delegation to platform-agnostic C authority. */
 #[no_mangle]
+/**
+ * Parse source buffer into module and set main_func_index.
+ * @param m *u8 — Module*
+ * @param a *u8 — ASTArena*
+ * @param d *u8 — source bytes
+ * @param len i32 — byte length; must be > 0
+ * @return i32 — 0 ok; -2 null/empty/parse fail
+ *
+ * Stage12.0.5 CG002 root (mega pure-asm / freestanding arm64):
+ * Nested CALL-as-arg `driver_diagnostic_parse_fail(main_idx, num_funcs(m), num_types(a))`
+ * failed in emit_call_args under typeck (with_cleanup args ta=1). Bind nf/nt to
+ * lets first so each CALL is a top-level stmt (same values; G.7 single parse path).
+ * Out-params still use scalars face (sidecar available for EMIT_HEAVY).
+ * PLATFORM: SHARED freestanding emit.
+ */
 export function pipeline_parse_set_main_from_buf_c(m: *u8, a: *u8, d: *u8, len: i32): i32 {
   if (m == 0 as *u8) { return 0 - 2; }
   if (a == 0 as *u8) { return 0 - 2; }
@@ -1567,14 +1582,17 @@ export function pipeline_parse_set_main_from_buf_c(m: *u8, a: *u8, d: *u8, len: 
   unsafe {
     // L7 / LSP: anchor unused private function warnings to definition source.
     pipeline_lint_set_source_buf(d, len);
-    // Delegate to C authority scalars: performs full arena/module reset via
+    // Delegate to scalars face: full arena/module reset via
     // pipeline_strict_parse_into_init + trait/generic stash + parser_parse_into_buf
     // and returns ok / main_idx via out parameters.
     let ok: i32 = 0;
     let main_idx: i32 = 0 - 1;
     pipeline_parse_into_with_init_buf_scalars(a, m, d, len, &ok, &main_idx);
     if (ok != 0) {
-      driver_diagnostic_parse_fail(main_idx, pipeline_module_num_funcs(m), pipeline_arena_num_types(a));
+      // Flatten nested CALL args for freestanding pure-asm (CG002 Stage12.0.5).
+      let nf: i32 = pipeline_module_num_funcs(m);
+      let nt: i32 = pipeline_arena_num_types(a);
+      driver_diagnostic_parse_fail(main_idx, nf, nt);
       return 0 - 2;
     }
     pipeline_module_set_main_func_index(m, main_idx);
@@ -16501,8 +16519,10 @@ export function pipeline_parse_fail_diag_scalars_c(module: *u8, arena: *u8): voi
     return;
   }
   unsafe {
-    driver_diagnostic_parse_fail(g_pipeline_parse_scalars_main_idx, pipeline_module_num_funcs(module),
-                                 pipeline_arena_num_types(arena));
+    // Flatten nested CALL args — same CG002 pure-asm root as parse_set_main_from_buf_c.
+    let nf: i32 = pipeline_module_num_funcs(module);
+    let nt: i32 = pipeline_arena_num_types(arena);
+    driver_diagnostic_parse_fail(g_pipeline_parse_scalars_main_idx, nf, nt);
   }
 }
 
