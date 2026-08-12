@@ -268,6 +268,9 @@ void labi_icc_argv_try_push_flag(char **argv, int *ia, int cap, const char *flag
     argv[(*ia)++] = (char *)flag;
 }
 
+/* Stage 12.2.3: full ALLOW path skips freestanding random/time/runtime here
+ * (ensure-push front need_flags[8/7/4] is G.7 authority). MINIMAL keeps them
+ * because ensure-push is skipped entirely under XLANG_MINIMAL_CC_LINK. */
 void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
     const char **c_paths, int n, const char *include_root,
     const char *random_o, const char *time_o, const char *runtime_o, const char *runtime_panic_o) {
@@ -275,9 +278,15 @@ void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
   int needs_db_kv = 0, needs_db_arrow = 0, needs_fs = 0;
   int needs_random = 0, needs_time = 0, needs_runtime = 0;
   int needs_win32 = 0, needs_win32_wsa = 0, needs_libc_heap = 0;
+  int minimal_cc = 0;
   int j;
   if (!argv || !ia || *ia < 0)
     return;
+  {
+    const char *menv = link_abi_getenv("XLANG_MINIMAL_CC_LINK");
+    if (menv && menv[0])
+      minimal_cc = 1;
+  }
   if (c_paths && n > 0) {
     for (j = 0; j < n; j++) {
       const char *cp = c_paths[j];
@@ -295,12 +304,15 @@ void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
         needs_db_arrow = 1;
       if (link_abi_generated_c_needs_fs(cp))
         needs_fs = 1;
-      if (link_abi_generated_c_needs_random(cp))
-        needs_random = 1;
-      if (link_abi_generated_c_needs_time(cp))
-        needs_time = 1;
-      if (link_abi_generated_c_needs_runtime(cp))
-        needs_runtime = 1;
+      /* MINIMAL-only freestanding rtr; full path → ensure-push front. */
+      if (minimal_cc) {
+        if (link_abi_generated_c_needs_random(cp))
+          needs_random = 1;
+        if (link_abi_generated_c_needs_time(cp))
+          needs_time = 1;
+        if (link_abi_generated_c_needs_runtime(cp))
+          needs_runtime = 1;
+      }
       if (link_abi_generated_c_needs_win32(cp))
         needs_win32 = 1;
       if (link_abi_generated_c_needs_win32_wsa(cp))

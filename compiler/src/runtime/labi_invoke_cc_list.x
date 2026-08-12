@@ -558,6 +558,12 @@ export function labi_icc_argv_try_push_flag(argv: **u8, ia: *i32, cap: i32, flag
  * Cap residual: generated_c_needs_* (file view peers) + ensure_runtime_* + host_is_windows
  *   + peer push_existing resolve pool; host_is_linux / host_is_apple for -lc POSIX gate.
  * Why (wave198): hybrid still had early needs scan+push always-mega inside invoke_cc_impl.
+ * Stage 12.2.3 ALLOW ensure slim (align early_needs with need authority):
+ *   · Full ALLOW path (no XLANG_MINIMAL_CC_LINK): do NOT scan/push random.o / time.o /
+ *     runtime.o here. G.7 single authority = ensure-push front via need_flags[8/7/4]
+ *     (use_line needles) + companions. Avoid dual freestanding substr scan + double ensure.
+ *   · MINIMAL_CC_LINK only: keep freestanding needs_random/time/runtime push+ensure here
+ *     (ensure-push is skipped entirely on MINIMAL).
  * Note: export signature must stay single-line (multi-line export drops the function).
  * Callers: mega xlang_invoke_cc_impl child argv build (SHARED product C link path).
  * PLATFORM: SHARED orch / POSIX -lc (linux|apple) / WINDOWS -lbcrypt -lkernel32 -lws2_32.
@@ -576,6 +582,16 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
   if (ia[0] < 0) {
     return;
   }
+  // PLATFORM: SHARED — MINIMAL-only owns freestanding rtr push; full path → need_flags front.
+  let minimal_cc: i32 = 0;
+  unsafe {
+    let menv: *u8 = link_abi_getenv("XLANG_MINIMAL_CC_LINK");
+    if (menv != 0 as *u8) {
+      if (menv[0] != 0) {
+        minimal_cc = 1;
+      }
+    }
+  }
   let needs_core_builtin: i32 = 0;
   let needs_core_mem: i32 = 0;
   let needs_core_slice: i32 = 0;
@@ -589,6 +605,7 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
   let needs_win32_wsa: i32 = 0;
   let needs_libc_heap: i32 = 0;
   // Scan all generated C paths (peer pure needs_* use_line / marker gates).
+  // Skip random/time/runtime freestanding scan when not MINIMAL (front owns those).
   if (n > 0) {
     let cpb: *u8 = c_paths as *u8;
     if (cpb != 0 as *u8) {
@@ -618,14 +635,16 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
           if (link_abi_generated_c_needs_fs(cp) != 0) {
             needs_fs = 1;
           }
-          if (link_abi_generated_c_needs_random(cp) != 0) {
-            needs_random = 1;
-          }
-          if (link_abi_generated_c_needs_time(cp) != 0) {
-            needs_time = 1;
-          }
-          if (link_abi_generated_c_needs_runtime(cp) != 0) {
-            needs_runtime = 1;
+          if (minimal_cc != 0) {
+            if (link_abi_generated_c_needs_random(cp) != 0) {
+              needs_random = 1;
+            }
+            if (link_abi_generated_c_needs_time(cp) != 0) {
+              needs_time = 1;
+            }
+            if (link_abi_generated_c_needs_runtime(cp) != 0) {
+              needs_runtime = 1;
+            }
           }
           if (link_abi_generated_c_needs_win32(cp) != 0) {
             needs_win32 = 1;
@@ -717,6 +736,7 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, flc);
     }
   }
+  // MINIMAL-only: random/time/runtime + ensure companions (full path → ensure-push front).
   // random.o + ensure random_fill before push (L4 cold tree; G.7 ensure-then-push).
   if (needs_random != 0) {
     unsafe {

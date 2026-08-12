@@ -283,6 +283,8 @@ void labi_icc_argv_try_push_flag(uint8_t **argv, int32_t *ia, int32_t cap, uint8
     argv[(*ia)++] = flag;
 }
 
+/* Stage 12.2.3: full ALLOW skips freestanding rtr here (front need_flags authority).
+ * MINIMAL keeps random/time/runtime because ensure-push is skipped. */
 void invoke_cc_append_early_needs(uint8_t **argv, int32_t *ia, int32_t argv_cap,
     uint8_t **c_paths, int32_t n, uint8_t *include_root,
     uint8_t *random_o, uint8_t *time_o, uint8_t *runtime_o, uint8_t *runtime_panic_o) {
@@ -290,9 +292,15 @@ void invoke_cc_append_early_needs(uint8_t **argv, int32_t *ia, int32_t argv_cap,
   int32_t needs_db_kv = 0, needs_db_arrow = 0, needs_fs = 0;
   int32_t needs_random = 0, needs_time = 0, needs_runtime = 0;
   int32_t needs_win32 = 0, needs_win32_wsa = 0, needs_libc_heap = 0;
+  int32_t minimal_cc = 0;
   int32_t j;
   if (!argv || !ia || *ia < 0)
     return;
+  {
+    uint8_t *menv = (uint8_t *)link_abi_getenv("XLANG_MINIMAL_CC_LINK");
+    if (menv && menv[0])
+      minimal_cc = 1;
+  }
   if (c_paths && n > 0) {
     for (j = 0; j < n; j++) {
       uint8_t *cp = c_paths[j];
@@ -310,12 +318,14 @@ void invoke_cc_append_early_needs(uint8_t **argv, int32_t *ia, int32_t argv_cap,
         needs_db_arrow = 1;
       if (link_abi_generated_c_needs_fs(cp))
         needs_fs = 1;
-      if (link_abi_generated_c_needs_random(cp))
-        needs_random = 1;
-      if (link_abi_generated_c_needs_time(cp))
-        needs_time = 1;
-      if (link_abi_generated_c_needs_runtime(cp))
-        needs_runtime = 1;
+      if (minimal_cc) {
+        if (link_abi_generated_c_needs_random(cp))
+          needs_random = 1;
+        if (link_abi_generated_c_needs_time(cp))
+          needs_time = 1;
+        if (link_abi_generated_c_needs_runtime(cp))
+          needs_runtime = 1;
+      }
       if (link_abi_generated_c_needs_win32(cp))
         needs_win32 = 1;
       if (link_abi_generated_c_needs_win32_wsa(cp))
