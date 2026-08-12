@@ -13490,12 +13490,25 @@ export function pipeline_typeck_null_fail_return_c(fail_mapped: i32): i32 {
 }
 
 /**
- * EMIT_HEAVY typecheck entry C glue: skip gate then typeck_entry_module_c.
+ * Product typecheck entry for pure pipeline_run_x_pipeline_impl.
+ *
+ * Root contract (NO_C product):
+ * - C typeck precheck is always skipped (driver_asm_try_c_typeck_precheck → -1).
+ * - rt_run_asm_backend still sets skip_typeck=1 when n_deps>0 (historical "C
+ *   already prechecked" flag). Blind should_skip would then drop ALL typeck on
+ *   `build -o` files that import (result_try_bad / run-typeck negatives) and
+ *   fall through to codegen/ld (BLD001) — false green vs `build -E`.
+ * - Authority matrix (same as historical typecheck_entry_emit_c):
+ *     skip_typeck + single-file + skip_codegen → full typeck
+ *     skip_typeck + XLANG_ASM_BUILD_SKIP_TYPECK → dep_prerun only
+ *     skip_typeck + user -o (imports or not, no build_skip) → full typeck
+ *     else should_skip → 0; else full typeck
+ *
  * @param module *u8 - AST module; null -> -1
  * @param arena *u8 - AST arena; null -> -1
  * @param ctx *u8 - PipelineDepCtx; null -> -1
  * @return i32 - 0 when skip; typeck rc; -1 on null
- * wave106 pure: G.7 single product authority (historical typecheck_entry_c).
+ * G.7 single product authority for entry typeck gate (emit face thin-delegates).
  * PLATFORM: SHARED - sole provider after run_x_pipeline leave.
  */
 #[no_mangle]
@@ -13509,18 +13522,57 @@ export function run_x_pipeline_typecheck_entry_c(module: *u8, arena: *u8, ctx: *
   if (ctx == 0 as *u8) {
     return 0 - 1;
   }
-  let skip: i32 = 0;
+  // Prefer driver_x_pipeline_skip_typeck_get over pure-only should_skip when the
+  // runtime flag is set: user asm -o still needs full typeck (field_access_offset
+  // single-file; import negatives on product -o). XLANG_ASM_BUILD_SKIP_TYPECK is
+  // the only path that may dep_prerun without full check_block.
+  let skip_tk: i32 = 0;
   unsafe {
-    skip = pipeline_should_skip_x_typeck(ctx);
+    skip_tk = driver_x_pipeline_skip_typeck_get();
   }
-  if (skip != 0) {
+  if (skip_tk != 0) {
+    let n_imp: i32 = 0;
+    let skip_cg: i32 = 0;
+    let asm_skip: i32 = 0;
+    unsafe {
+      n_imp = parser_get_module_num_imports(module);
+      skip_cg = driver_x_pipeline_skip_codegen_get();
+      asm_skip = pipeline_driver_asm_build_skip_typeck();
+    }
+    if (n_imp == 0) {
+      if (skip_cg != 0) {
+        let rc0: i32 = 0;
+        unsafe {
+          rc0 = pipeline_typeck_entry_module_c(module, arena, ctx);
+        }
+        return rc0;
+      }
+    }
+    if (asm_skip != 0) {
+      let rc1: i32 = 0;
+      unsafe {
+        rc1 = pipeline_typeck_dep_prerun_module_c(module, arena, ctx);
+      }
+      return rc1;
+    }
+    let rc2: i32 = 0;
+    unsafe {
+      rc2 = pipeline_typeck_entry_module_c(module, arena, ctx);
+    }
+    return rc2;
+  }
+  let skip_x: i32 = 0;
+  unsafe {
+    skip_x = pipeline_should_skip_x_typeck(ctx);
+  }
+  if (skip_x != 0) {
     return 0;
   }
-  let rc: i32 = 0;
+  let rc3: i32 = 0;
   unsafe {
-    rc = pipeline_typeck_entry_module_c(module, arena, ctx);
+    rc3 = pipeline_typeck_entry_module_c(module, arena, ctx);
   }
-  return rc;
+  return rc3;
 }
 
 /**
@@ -13602,78 +13654,18 @@ export function run_x_pipeline_parse_entry_do_parse_c(module: *u8, arena: *u8, s
 }
 
 /**
- * Entry typecheck emit: runtime skip_typeck matrix + should_skip + full typeck.
+ * Entry typecheck emit face — thin delegate to run_x_pipeline_typecheck_entry_c.
+ * Historical name kept for seed orch / thin-name rewrite; body lives in entry_c
+ * (G.7 single matrix: user -o with imports still full typeck on NO_C product).
  * @param module *u8 - AST module; null -> -1
  * @param arena *u8 - AST arena; null -> -1
  * @param ctx *u8 - PipelineDepCtx; null -> -1
  * @return i32 - typeck rc; 0 when skip; -1 on null
- * wave106 pure: G.7 single product authority (historical typecheck_entry_emit_c).
- * Prefer driver_x_pipeline_skip_typeck_get over pure-only should_skip for
- *   freestanding asm -o field_access_offset fill (historical host-cc contract).
  * PLATFORM: SHARED - sole provider after run_x_pipeline leave.
  */
 #[no_mangle]
 export function run_x_pipeline_typecheck_entry_emit_c(module: *u8, arena: *u8, ctx: *u8): i32 {
-  if (module == 0 as *u8) {
-    return 0 - 1;
-  }
-  if (arena == 0 as *u8) {
-    return 0 - 1;
-  }
-  if (ctx == 0 as *u8) {
-    return 0 - 1;
-  }
-  // DEBUG_PIPE fprintf omitted in pure (host residual); non-debug product path identical.
-  let skip_tk: i32 = 0;
-  unsafe {
-    skip_tk = driver_x_pipeline_skip_typeck_get();
-  }
-  if (skip_tk != 0) {
-    // User asm -o single-file: runtime still sets skip_typeck but full typeck
-    // is required for field_access_offset; multi-file XLANG_ASM_BUILD_SKIP_TYPECK
-    // uses dep_prerun only; user -o with imports still needs full typeck.
-    let n_imp: i32 = 0;
-    let skip_cg: i32 = 0;
-    let asm_skip: i32 = 0;
-    unsafe {
-      n_imp = parser_get_module_num_imports(module);
-      skip_cg = driver_x_pipeline_skip_codegen_get();
-      asm_skip = pipeline_driver_asm_build_skip_typeck();
-    }
-    if (n_imp == 0) {
-      if (skip_cg != 0) {
-        let rc0: i32 = 0;
-        unsafe {
-          rc0 = pipeline_typeck_entry_module_c(module, arena, ctx);
-        }
-        return rc0;
-      }
-    }
-    if (asm_skip != 0) {
-      let rc1: i32 = 0;
-      unsafe {
-        rc1 = pipeline_typeck_dep_prerun_module_c(module, arena, ctx);
-      }
-      return rc1;
-    }
-    let rc2: i32 = 0;
-    unsafe {
-      rc2 = pipeline_typeck_entry_module_c(module, arena, ctx);
-    }
-    return rc2;
-  }
-  let skip_x: i32 = 0;
-  unsafe {
-    skip_x = pipeline_should_skip_x_typeck(ctx);
-  }
-  if (skip_x != 0) {
-    return 0;
-  }
-  let rc3: i32 = 0;
-  unsafe {
-    rc3 = pipeline_typeck_entry_module_c(module, arena, ctx);
-  }
-  return rc3;
+  return run_x_pipeline_typecheck_entry_c(module, arena, ctx);
 }
 
 /**

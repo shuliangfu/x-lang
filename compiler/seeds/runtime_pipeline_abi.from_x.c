@@ -5224,8 +5224,19 @@ int32_t pipeline_typeck_null_fail_return_c(int32_t fail_mapped) {
 }
 
 int32_t run_x_pipeline_typecheck_entry_c(void *module, void *arena, void *ctx) {
+  /* G.7 same matrix as pure runtime_pipeline_abi.x entry_c (NO_C product):
+   * runtime may set skip_typeck when n_deps>0, but C precheck is always skipped
+   * so user `build -o` with imports still needs full typeck (result_try_bad).
+   * XLANG_ASM_BUILD_SKIP_TYPECK → dep_prerun only; else full typeck. */
   if (!module || !arena || !ctx)
     return -1;
+  if (driver_x_pipeline_skip_typeck_get() != 0) {
+    if (parser_get_module_num_imports(module) == 0 && driver_x_pipeline_skip_codegen_get() != 0)
+      return pipeline_typeck_entry_module_c(module, arena, ctx);
+    if (pipeline_driver_asm_build_skip_typeck() != 0)
+      return pipeline_typeck_dep_prerun_module_c(module, arena, ctx);
+    return pipeline_typeck_entry_module_c(module, arena, ctx);
+  }
   if (pipeline_should_skip_x_typeck(ctx) != 0)
     return 0;
   return pipeline_typeck_entry_module_c(module, arena, ctx);
@@ -5259,19 +5270,8 @@ int32_t run_x_pipeline_parse_entry_do_parse_c(void *module, void *arena, uint8_t
 }
 
 int32_t run_x_pipeline_typecheck_entry_emit_c(void *module, void *arena, void *ctx) {
-  if (!module || !arena || !ctx)
-    return -1;
-  /* DEBUG_PIPE fprintf omitted in cold twin; product non-debug path identical. */
-  if (driver_x_pipeline_skip_typeck_get() != 0) {
-    if (parser_get_module_num_imports(module) == 0 && driver_x_pipeline_skip_codegen_get() != 0)
-      return pipeline_typeck_entry_module_c(module, arena, ctx);
-    if (pipeline_driver_asm_build_skip_typeck() != 0)
-      return pipeline_typeck_dep_prerun_module_c(module, arena, ctx);
-    return pipeline_typeck_entry_module_c(module, arena, ctx);
-  }
-  if (pipeline_should_skip_x_typeck(ctx) != 0)
-    return 0;
-  return pipeline_typeck_entry_module_c(module, arena, ctx);
+  /* Thin face: sole matrix in run_x_pipeline_typecheck_entry_c (G.7). */
+  return run_x_pipeline_typecheck_entry_c(module, arena, ctx);
 }
 
 int32_t pipeline_run_x_pipeline(void *module, void *arena, const uint8_t *source_data, size_t source_len, void *out_buf,
