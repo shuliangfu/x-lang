@@ -104,9 +104,13 @@ g05_cc_c() {
 
 # G-02f-256/257/258 / L2：.x → xlang -backend c -E → cc -c → .o
 # Stage 12.0.5：pure_asm_x_to_o is G.7 authority for freestanding .x→.o.
-# Opt-in: when XLANG_PREFER_ASM_O=1 try pure-asm first (no temp C / no host-cc
-# COMPILE); reject panic/__error or weak/rename → fall through to -E+$CC.
-# Default flag unset = zero regression (historic -E+$CC only).
+# Prefer-family pure-asm product default (authorized 2026-08-12, peer of
+# PREFER_ASM_O_RT / PREFER_ASM_O_LABI):
+#   · XLANG_PREFER_ASM_O_G05 defaults to 1 → scoped XLANG_PREFER_ASM_O=1 for
+#     pure_asm_x_to_o only (subshell; does NOT leak tree-level PREFER_ASM_O).
+#   · reject panic/__error/weak polish fail/rename → fall through -E+$CC.
+#   · Escape: XLANG_PREFER_ASM_O_G05=0 → historic -E+$CC unless ambient
+#     XLANG_PREFER_ASM_O=1. Ban: tree PREFER_ASM_O=1 default; pipeline_abi mega.
 # 返回 0 成功；失败不删既有 .o（调用方回退 seed）。
 # $1=.x  $2=.o  [$3...]=extra cflags for cc
 # 环境：G05_X_O_WEAK=1 时给顶层函数加 __attribute__((weak))
@@ -129,8 +133,14 @@ g05_try_x_to_o() {
     return 1
   fi
   mkdir -p "$(dirname "$_xout")"
-  # Stage 12.0.5 opt-in pure-asm (G.7 pure_asm_x_to_o). PLATFORM: SHARED.
-  if pure_asm_x_to_o "$_xout" "$_xsrc"; then
+  # Prefer-family pure-asm default via XLANG_PREFER_ASM_O_G05 (default 1).
+  # PLATFORM: SHARED · G.7 pure_asm_x_to_o sole authority.
+  if (
+    if [ "${XLANG_PREFER_ASM_O_G05:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    fi
+    pure_asm_x_to_o "$_xout" "$_xsrc"
+  ); then
     return 0
   fi
   # Historic: -E → prologue → $CC -c

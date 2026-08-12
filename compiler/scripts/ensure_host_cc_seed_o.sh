@@ -1486,10 +1486,11 @@ labi_prefer_pick_xlang() {
 #   · pure_asm reject (panic/__error/CG002/ONLY miss) → fall through -E+$CC.
 #   · Escape hatch: XLANG_PREFER_ASM_O_LABI=0 → labi layers stay historic -E+$CC
 #     unless ambient XLANG_PREFER_ASM_O=1 (tree opt-in still applies).
-#   · rt_prefer / g05_try still require tree PREFER_ASM_O=1 (default off).
+# Peer defaults (same-day auth wave): XLANG_PREFER_ASM_O_RT (rt_prefer harness
+# families: rt/async/R3/l2-asm/B1–B3/…) and XLANG_PREFER_ASM_O_G05 (g05_try).
 #   · pipeline_abi mega pure-asm: hard-banned in pure_asm_x_to_o (basename
 #     runtime_pipeline_abi.x → instant return 1; map 2026-08-12 hang 180s+).
-#     Ban: defaulting PREFER_ASM_O=1 globally.
+#     Ban: defaulting tree-level PREFER_ASM_O=1 globally.
 # PLATFORM: SHARED — retry -E then -backend c -E (Ubuntu SIGSEGV history).
 # G.7: single pure_asm_x_to_o authority; no second pure-asm helper.
 labi_prefer_try_x_to_o() {
@@ -1794,13 +1795,26 @@ rt_prefer_try_x_to_o() {
     return 1
   fi
   mkdir -p "$(dirname "$_xout")"
-  # Stage 12.0.5: opt-in pure-asm first (G.7 pure_asm_x_to_o).
-  # Default XLANG_PREFER_ASM_O unset → pure_asm_x_to_o returns 1 immediately
-  # (zero regression; product hybrid stays -E+$CC). When set=1: try freestanding
-  # .x→.o (no temp C / no host-cc COMPILE); reject panic/__error → fall through
-  # to -E+$CC. Weak/rename envs also force fall-through (need C rewrite).
-  # PLATFORM: SHARED harness · opt-in only until dual-end L2 green under flag.
-  if pure_asm_x_to_o "$_xout" "$_xsrc"; then
+  # Stage 12.0.5 prefer-family pure-asm product default (authorized 2026-08-12):
+  #   · XLANG_PREFER_ASM_O_RT defaults to 1 → scoped XLANG_PREFER_ASM_O=1 for
+  #     pure_asm_x_to_o only (subshell; does NOT leak tree-level PREFER_ASM_O).
+  #   · Covers every prefer family that reuses this harness: try-rt-prefer,
+  #     try-r3-prefer, try-async-prefer, try-l2-asm-prefer, try-target-cpu /
+  #     try-ldpc / try-other-l2, B1 runtime-os / B2 std-core / B3 lsp-sat, etc.
+  #   · pure_asm reject (panic/__error/CG002/ONLY miss/WEAK polish fail) →
+  #     fall through -E+$CC (same as labi default path).
+  #   · Escape hatch: XLANG_PREFER_ASM_O_RT=0 → historic -E+$CC unless ambient
+  #     XLANG_PREFER_ASM_O=1 (tree opt-in still applies).
+  #   · Ban: defaulting tree-level PREFER_ASM_O=1; pipeline_abi mega pure-asm
+  #     remains hard-banned inside pure_asm_x_to_o.
+  # PLATFORM: SHARED harness · G.7 single pure_asm_x_to_o authority.
+  # Labi keeps its own XLANG_PREFER_ASM_O_LABI gate in labi_prefer_try_x_to_o.
+  if (
+    if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    fi
+    pure_asm_x_to_o "$_xout" "$_xsrc"
+  ); then
     return 0
   fi
   # Historic product path: -E → prologue → $CC -c.

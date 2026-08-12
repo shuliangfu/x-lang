@@ -346,20 +346,21 @@ pure_asm_apply_weak_polish() {
 # pure_asm_x_to_o — freestanding .x → .o via asm backend (zero host-cc COMPILE).
 # Stage 12.0.5: G.7 single authority for pure asm module emit.
 #
-# Callers:
-#   · labi_prefer_try_x_to_o — product default pure-asm via scoped
-#     XLANG_PREFER_ASM_O_LABI (default 1; authorized 2026-08-12). Subshell sets
-#     XLANG_PREFER_ASM_O=1 for this helper only; does NOT flip tree PREFER.
-#   · rt_prefer_try_x_to_o / g05_try_x_to_o — still opt-in: need ambient
-#     XLANG_PREFER_ASM_O=1; fall through to -E+$CC on reject/fail.
+# Callers (Stage 12.0.5 product pure-asm defaults; authorized 2026-08-12):
+#   · labi_prefer_try_x_to_o — XLANG_PREFER_ASM_O_LABI default 1 (labi slices).
+#   · rt_prefer_try_x_to_o — XLANG_PREFER_ASM_O_RT default 1 (rt / async / R3 /
+#     l2-asm / tcpu / ldpc / other-l2 / B1–B3 prefer families reusing harness).
+#   · g05_try_x_to_o — XLANG_PREFER_ASM_O_G05 default 1 (residual g05 direct).
+# Each scopes XLANG_PREFER_ASM_O=1 in a subshell only for this helper; tree
+# PREFER_ASM_O stays unset by default. Fall through to -E+$CC on reject/fail.
 # Ban: tree-level PREFER_ASM_O=1 as product default.
 # Hard ban: pure-asm on runtime_pipeline_abi.x mega (instant return 1; hang map
-# 2026-08-12). Escape labi pure-asm: XLANG_PREFER_ASM_O_LABI=0.
+# 2026-08-12). Escape: PREFER_ASM_O_{LABI,RT,G05}=0 per family.
 #
 # When XLANG_PREFER_ASM_O=1: run `$XLANG -backend asm -c` via a staged `*.o`
 #   path (driver only emits relocatable objects when OUT ends with `.o`;
 #   ensure mktemp thins are extension-less).
-# When unset (default for non-labi callers): return 1 immediately.
+# When unset: return 1 immediately (callers that did not scope a family default).
 #
 # Skip (return 1) when:
 #   · SRC is runtime_pipeline_abi.x mega (hard ban; Stage12.0.5 map 2026-08-12:
@@ -399,8 +400,9 @@ pure_asm_x_to_o() {
   if [ -z "$out" ] || [ -z "$src" ]; then
     return 1
   fi
-  # Gate: ambient XLANG_PREFER_ASM_O=1 only (labi scopes this via subshell when
-  # XLANG_PREFER_ASM_O_LABI defaults on; other callers remain opt-in).
+  # Gate: ambient XLANG_PREFER_ASM_O=1 only. Prefer families scope this via
+  # subshell when PREFER_ASM_O_{LABI,RT,G05} defaults on (product pure-asm
+  # default; authorized 2026-08-12). Tree PREFER_ASM_O remains opt-in.
   if [ "${XLANG_PREFER_ASM_O:-0}" != "1" ]; then
     return 1
   fi
