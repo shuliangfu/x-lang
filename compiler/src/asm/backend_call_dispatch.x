@@ -2153,6 +2153,18 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                     let cln: i32 = glue_asm_call_stack_cleanup_bytes(ta, n_ov);
                     if (cln < 0) { return 0 - 1; }
                     if (backend_enc_call_stack_cleanup_arch(elf_ctx, cln, ta) != 0) { return 0 - 1; }
+                    /*
+                     * PLATFORM: SHARED freestanding — after import METHOD_CALL, harvest
+                     * ret into full GPR (i32 sxtw / u32 zxt / f32 xmm). G.7 complete:
+                     * seed _impl always harvests here; pure .x previously returned after
+                     * cleanup only → AAPCS64 `ldr w0` zero-extends -1 to 0xFFFFFFFF,
+                     * then full-x0 signed cmp (`call() >= 0`) is true (run-mem exit 8).
+                     * Free CALL already harvests via glue_asm_emit_call_with_cleanup;
+                     * import METHOD must match (same authority glue_asm_harvest_call_ret_to_gpr_c).
+                     */
+                    if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0) {
+                      return 0 - 1;
+                    }
                     return 0;
                   }
                 }
@@ -2226,7 +2238,10 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         i4 = i4 + 1;
       }
     }
-    return glue_asm_enc_call_redirected(elf_ctx, &name[0], name_len, ta);
+    // PLATFORM: SHARED — UFCS / bare-name METHOD leave: harvest ret same as free CALL.
+    if (glue_asm_enc_call_redirected(elf_ctx, &name[0], name_len, ta) != 0) { return 0 - 1; }
+    if (glue_asm_harvest_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0) { return 0 - 1; }
+    return 0;
   }
   return 0 - 1;
 }
