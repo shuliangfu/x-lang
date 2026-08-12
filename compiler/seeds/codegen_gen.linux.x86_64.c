@@ -4788,6 +4788,26 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
         }
         return 0;
       }
+      /* ABI-dup canonical tag for Result_* mono shorts (same class as Option_*).
+       * Root fix (G.7): emit_type rewrites short Result_* to struct core_result_ +
+       * full name. Seed pin MUST match codegen.x (L4 cold uses this seed for
+       * codegen_x.o; missing rewrite => incomplete struct Result_i32 on
+       * core/result formal + stdlib-import FAIL).
+       * PLATFORM: SHARED — same commit as compiler/src/codegen/codegen.x. */
+      if (((((((((name_len >=8) && ((nm)[0] ==82)) && ((nm)[1] ==101)) && ((nm)[2] ==115)) && ((nm)[3] ==117)) && ((nm)[4] ==108)) && ((nm)[5] ==116)) && ((nm)[6] ==95))) {
+        uint8_t res_head[20] = {115, 116, 114, 117, 99, 116, 32, 99, 111, 114, 101, 95, 114, 101, 115, 117, 108, 116, 95, 0};
+        if ((codegen_emit_bytes_from_ptr(out, &((res_head)[0]), 19) !=0)) {
+          return -1;
+        }
+        int32_t ri = 0;
+        while (((ri < name_len) && (ri < 64))) {
+          if ((codegen_append_byte_u8(out, (nm)[ri]) !=0)) {
+            return -1;
+          }
+          (void)((ri = (ri + 1)));
+        }
+        return 0;
+      }
       /* ABI-dup canonical tag: rt_preamble owns `struct std_string_String` (+ typedef
        * String) and `struct std_string_StrView`; per-module layout is skipped. Bare
        * `struct String` is an incomplete host-C type that mismatches the STRUCT_LIT
