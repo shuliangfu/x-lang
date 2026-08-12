@@ -2029,52 +2029,71 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                     let sym_len: i32 = glue_asm_build_import_binding_call_sym(&pre_buf[0], pre_len, &name[0], name_len, &sym_flat[0]);
                     if (sym_len <= 0) { return 0 - 1; }
                     let n_ov: i32 = pipeline_codegen_call_num_args_override(&pre_buf[0], pre_len, &name[0], name_len, nargs);
-                    if (ta == 1) {
-                      let i: i32 = nargs - 1;
-                      while (i >= 0) {
-                        let arg_ref: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
-                        if (arg_ref != 0) {
-                          if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
-                            return 0 - 1;
-                          }
-                          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i, ta) != 0) { return 0 - 1; }
-                        }
-                        i = i - 1;
+                    /*
+                     * PLATFORM: SHARED freestanding multi-arg · MACOS|ARM64 AAPCS64 + LINUX x86 SysV.
+                     * Root (mac option residual): import-binding METHOD_CALL must spill-then-load
+                     * (same as pipeline_asm_emit_call_args_elf_c / seed wave602). Direct place via
+                     * x0 temp after nested CALL clobbers Option in x0 (unwrap_or(some(42),0)→0).
+                     * G.7: one discipline for free CALL and import METHOD_CALL.
+                     */
+                    {
+                      let spill_off_m: i32[96] = [];
+                      let i_m: i32 = 0;
+                      let reg_max_m: i32 = glue_asm_call_reg_max(ta);
+                      if (reg_max_m < 1) { reg_max_m = 6; }
+                      while (i_m < nargs) {
+                        spill_off_m[i_m] = 0 - 1;
+                        i_m = i_m + 1;
                       }
-                    } else {
-                      /** Reg args first 6; excess scalar args push right-to-left (G.7 align seed multi-arg). */
-                      let i2: i32 = 0;
-                      let stk_n: i32 = 0;
-                      if (nargs > 6) { stk_n = nargs - 6; }
-                      if (stk_n > 0) {
-                        let pad: i32 = 0;
-                        if ((stk_n & 1) != 0) { pad = 1; }
-                        if (pad != 0) {
-                          if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
-                          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-                        }
-                        let is: i32 = nargs - 1;
-                        while (is >= 6) {
-                          let arg_stk: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, is);
-                          if (arg_stk != 0) {
-                            if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk, is, ctx, ta) != 0) {
-                              return 0 - 1;
-                            }
+                      // Excess stack args (x86 only): push high→low before reg spill/load.
+                      if (ta == 0) {
+                        let stk_n: i32 = 0;
+                        if (nargs > reg_max_m) { stk_n = nargs - reg_max_m; }
+                        if (stk_n > 0) {
+                          let pad: i32 = 0;
+                          if ((stk_n & 1) != 0) { pad = 1; }
+                          if (pad != 0) {
+                            if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
                             if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
                           }
-                          is = is - 1;
+                          let is: i32 = nargs - 1;
+                          while (is >= reg_max_m) {
+                            let arg_stk: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, is);
+                            if (arg_stk != 0) {
+                              if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk, is, ctx, ta) != 0) {
+                                return 0 - 1;
+                              }
+                              if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+                            }
+                            is = is - 1;
+                          }
                         }
                       }
-                      while (i2 < nargs) {
-                        if (i2 >= 6) { break; }
-                        let arg_ref2: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i2);
-                        if (arg_ref2 != 0) {
-                          if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref2, i2, ctx, ta) != 0) {
+                      // Emit + spill register-class args (index < reg_max).
+                      i_m = 0;
+                      while (i_m < nargs) {
+                        if (i_m < reg_max_m) {
+                          let arg_ref_m: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+                          if (arg_ref_m != 0) {
+                            if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref_m, i_m, ctx, ta) != 0) {
+                              return 0 - 1;
+                            }
+                            let so_m: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+                            if (so_m < 0) { return 0 - 1; }
+                            spill_off_m[i_m] = so_m;
+                          }
+                        }
+                        i_m = i_m + 1;
+                      }
+                      // Load high→low so x0/rax temp does not wipe lower final GPs.
+                      i_m = nargs - 1;
+                      while (i_m >= 0) {
+                        if (spill_off_m[i_m] >= 0) {
+                          if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_m[i_m], i_m, 1) != 0) {
                             return 0 - 1;
                           }
-                          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i2, ta) != 0) { return 0 - 1; }
                         }
-                        i2 = i2 + 1;
+                        i_m = i_m - 1;
                       }
                     }
                     if (glue_asm_enc_call_redirected(elf_ctx, &sym_flat[0], sym_len, ta) != 0) { return 0 - 1; }

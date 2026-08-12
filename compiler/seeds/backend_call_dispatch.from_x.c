@@ -3840,6 +3840,14 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               }
               mem_stack = pushed_total;
             }
+            /*
+             * PLATFORM: SHARED freestanding multi-arg.
+             * Root (mac arm64 option unwrap_or/some): import-binding METHOD_CALL used to
+             * direct-place on ta!=0 (mov imm→w0 then mov x1,x0) after nested CALL left the
+             * Option in x0 — clobber → is_some=0 / value lost (full option run residual 252).
+             * Ubuntu x86 already spill-then-load here; arm64 must match free CALL / UFCS
+             * wave602 (G.7 one discipline). Load high→low so x0 temp does not wipe lower GPs.
+             */
             for (i = 0; i < n_place; i++) {
               int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
               int32_t so;
@@ -3847,34 +3855,28 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 continue;
               if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
                 return -1;
-              if (ta != 0) {
-                if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, reg_start[i], ta) != 0)
-                  return -1;
-                continue;
-              }
               so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, reg_units[i]);
               if (so < 0)
                 return -1;
               spill_off[i] = so;
             }
-            if (ta == 0) {
-              for (i = 0; i < n_place; i++) {
-                int32_t mov_rc;
-                if (spill_off[i] < 0)
-                  continue;
-                if (is_sse[i]) {
-                  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off[i], ta) != 0)
-                    return -1;
-                  if (is_f64[i])
-                    mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
-                  else
-                    mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
-                  if (mov_rc != 0)
-                    return -1;
-                } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], reg_start[i],
-                                                                  reg_units[i]) != 0) {
+            /* Load spills: high place index first (AAPCS64 x0 temp + SysV rax temp). */
+            for (i = n_place - 1; i >= 0; i--) {
+              int32_t mov_rc;
+              if (spill_off[i] < 0)
+                continue;
+              if (is_sse[i]) {
+                if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off[i], ta) != 0)
                   return -1;
-                }
+                if (is_f64[i])
+                  mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+                else
+                  mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+                if (mov_rc != 0)
+                  return -1;
+              } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], reg_start[i],
+                                                                reg_units[i]) != 0) {
+                return -1;
               }
             }
             if (glue_asm_enc_call_redirected(elf_ctx, sym_flat, sym_len, ta) != 0)

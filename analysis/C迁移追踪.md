@@ -53,7 +53,7 @@
 |----|------|----------|--------------|
 | **MG · 编排层** | 不依赖 `make` / `compiler/Makefile` / 顶层 `Makefile` 完成 build / L4 / bootstrap | ✅ Makefile 物理删除 · bootstrap 0 make · catalog 单权威（mk/*.mk）· 双端 L4 绿 | 只删入口 Makefile、实现层仍 `make -C compiler` |
 | **BC · 自举编译层** | 编译器自身 TU **不**再被 host `cc/gcc/clang` 编译（.x→纯 asm `.o` 或等价） | 🟡 已开（inventory 冻结；**glue 叶已 fold、ast_pool 续迁**；`pipeline_x` 仍 host-cc mega-TU） | seed 用 xlang `-E` 出 C 再交给 gcc |
-| **PC · 产品默认后端** | 用户程序默认 **`-backend asm`**（或纯自研目标）；**不**默认 emit C 再 `exec` host-cc；`labi_invoke_cc*` 退役或仅 opt-in | 🟡 **地图双端 + bare mangle ✅**（`dep_pipe@1384`）：无 import（rv）默认 **asm** 绿；有 import 默认仍 **C + invoke_cc**；mac `-backend asm` hello 绿 · option **link 绿／run residual**（Option_i32 sret）；seed `__APPLE__` exe→C 双权威；`XLANG_FORBID_HOST_CC` 仅 ensure／g05 | 自举绿但 import 用户 `-o` 仍调 gcc |
+| **PC · 产品默认后端** | 用户程序默认 **`-backend asm`**（或纯自研目标）；**不**默认 emit C 再 `exec` host-cc；`labi_invoke_cc*` 退役或仅 opt-in | 🟡 **地图双端 + bare mangle ✅**（`dep_pipe@1384`）+ **mac option asm run=102 ✅**（import METHOD spill-then-load）：无 import（rv）默认 **asm** 绿；有 import 默认仍 **C + invoke_cc**；mac `-backend asm` hello／option **绿**；seed `__APPLE__` exe→C 双权威；`XLANG_FORBID_HOST_CC` 仅 ensure／g05 | 自举绿但 import 用户 `-o` 仍调 gcc |
 
 > **用户主目标对齐**：以 **去掉 Makefile（MG）** 为终局叙事主闸门；MG 物理删除的**前置**是 BC 足够小（glue/gen 可被 xbuild 用 xlang 编）且编排逻辑迁到 xbuild / g05 已覆盖的 shell·.x。  
 > **禁止**：只完成 MG 包装层、底层仍 `make`；或只宣称 v2==v3 而 Makefile 仍是冷启动权威。
