@@ -4629,31 +4629,59 @@ field_name: *u8, field_name_len: i32): i32 {
   }
 }
 
+/*
+ * Stage12.0.5 typeck wall slim — primitive kind O(1) cache keyed by arena.
+ * Sample exclusive CPU on mega pure-asm was dominated by pipe_load_* inside
+ * O(num_types) ensure_primitive / find_or_alloc_compound scans. Cache hits
+ * avoid re-walking the type pool for i32/bool/u8/… on every stamp.
+ * PLATFORM: SHARED — BSS process-local; invalidate when arena pointer changes.
+ */
+let g_typeck_prim_arena: *u8 = 0 as *u8;
+let g_typeck_prim_ref: i32[17] = [];
+
 /**
- * See implementation.
- * See implementation.
+ * Ensure a primitive type slot exists for kind_ord in arena; return its ref.
+ * Stage12.0.5 wall slim: BSS cache per arena + scan without named_name_into
+ * (primitives never carry names; prior scan paid name_into on every kind hit).
+ * @param arena *ASTArena — type pool
+ * @param kind_ord i32 — TypeKind ordinal in [0,16] (i32=0 … void=16)
+ * @return i32 — type_ref > 0, or 0 on null/alloc/init failure
+ * PLATFORM: SHARED freestanding typeck type-pool.
  */
 export function typeck_ensure_primitive_by_kind_ord(arena: *ASTArena, kind_ord: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let k: i32 = 0;
     let ko: i32 = 0;
-    let nlen: i32 = 0;
     let er: i32 = 0;
     let asz: i32 = 0;
-    /* See implementation. */
-    let nm_scr: *u8 = typeck_scratch64_slot(11);
+    let a_u8: *u8 = 0 as *u8;
+    let ci: i32 = 0;
     if (arena == 0 as *ASTArena || kind_ord < 0 || kind_ord > 16) {
       return 0;
+    }
+    a_u8 = arena as *u8;
+    // Invalidate cache when the type pool instance changes.
+    if (g_typeck_prim_arena != a_u8) {
+      g_typeck_prim_arena = a_u8;
+      ci = 0;
+      while (ci <= 16) {
+        g_typeck_prim_ref[ci] = 0;
+        ci = ci + 1;
+      }
+    }
+    if (g_typeck_prim_ref[kind_ord] > 0) {
+      return g_typeck_prim_ref[kind_ord];
     }
     k = 1;
     while (k <= arena.num_types) {
       ko = pipeline_type_kind_ord_at(arena, k);
+      // Bare primitive: matching kind, no pointee, no array size (no name load).
       if (ko == kind_ord) {
-        nlen = pipeline_type_named_name_into(arena, k, nm_scr);
         er = pipeline_type_elem_ref_at(arena, k);
         asz = pipeline_type_array_size_at(arena, k);
-        if (nlen == 0 && er == 0 && asz == 0) {
+        if (er == 0 && asz == 0) {
+          g_typeck_prim_ref[kind_ord] = k;
           return k;
         }
       }
@@ -4666,6 +4694,7 @@ export function typeck_ensure_primitive_by_kind_ord(arena: *ASTArena, kind_ord: 
     if (pipeline_type_init_primitive_kind_at(arena, k, kind_ord) == 0) {
       return 0;
     }
+    g_typeck_prim_ref[kind_ord] = k;
     return k;
   }
 }
@@ -4857,42 +4886,31 @@ export function ensure_i64_type_ref(caller_arena: *ASTArena): i32 {
  * See implementation.
  * See implementation.
  */
+/**
+ * Find or allocate a compound type (*T / T[N] / linear / vector) in the arena.
+ *
+ * G.7 single authority: thin → pipeline_type_find_or_alloc_compound (direct
+ * field loads on Type slots). Prior typeck twin rescanned every type via
+ * pipeline_type_named_name_into + region_label_len — O(num_types × heavy
+ * sidecar loads). Stage12.0.5 mega pure-asm sample: exclusive top frames were
+ * pipe_load_ptr_slot / pipe_load_i32_le under this scan.
+ *
+ * @param a *ASTArena — type pool
+ * @param kind_ord i32 — TypeKind ordinal (PTR=9, ARRAY=10, LINEAR=12, VECTOR=13)
+ * @param elem_ref i32 — pointee / element type_ref (0 only when kind allows)
+ * @param array_size i32 — fixed size for ARRAY/VECTOR; 0 for PTR/LINEAR
+ * @return i32 — type_ref > 0, or 0 on failure
+ * PLATFORM: SHARED freestanding typeck type-pool.
+ */
 export function typeck_find_or_alloc_compound_type_ref(a: *ASTArena, kind_ord: i32, elem_ref: i32,
 array_size: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    let k: i32 = 0;
-    let ko: i32 = 0;
-    let er: i32 = 0;
-    let asz: i32 = 0;
-    let nlen: i32 = 0;
-    let rlen: i32 = 0;
-    let nm_scr: *u8 = typeck_scratch64_slot(13);
-    if (a == 0 as *ASTArena || kind_ord < 0 || kind_ord > 16) {
+    if (a == 0 as *ASTArena || kind_ord < 0 || kind_ord > 15) {
       return 0;
     }
-    k = 1;
-    while (k <= a.num_types) {
-      ko = pipeline_type_kind_ord_at(a, k);
-      if (ko == kind_ord) {
-        er = pipeline_type_elem_ref_at(a, k);
-        asz = pipeline_type_array_size_at(a, k);
-        nlen = pipeline_type_named_name_into(a, k, nm_scr);
-        rlen = pipeline_type_region_label_len_at(a, k);
-        if (er == elem_ref && asz == array_size && nlen == 0 && rlen == 0) {
-          return k;
-        }
-      }
-      k = k + 1;
-    }
-    k = pipeline_arena_type_alloc(a);
-    if (k <= 0) {
-      return 0;
-    }
-    if (pipeline_type_init_compound_kind_at(a, k, kind_ord, elem_ref, array_size) == 0) {
-      return 0;
-    }
-    return k;
+    // G.7: one find/alloc path — pipeline_abi pure leave (wave270).
+    return pipeline_type_find_or_alloc_compound(a, kind_ord, elem_ref, array_size);
   }
 }
 
@@ -14746,72 +14764,96 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
 }
 
 /**
- * See implementation.
+ * Typecheck stmt_order[si .. nso) for one block (const/let/expr/while/for/if/region).
+ *
+ * Iterative walk (while), not tail recursion. Historical form recursed on
+ * si+1 — deep blocks (mega pipeline_abi bodies) stacked dozens of frames
+ * (Stage12.0.5 sample: typeck_check_block_stmt_order_one self-chain). Same
+ * semantics: fail-fast -1; cap si < 96; void expr_stmt reject (wave663).
+ *
+ * @param module *Module — entry / current module
+ * @param arena *ASTArena — type/expr pool
+ * @param block_ref i32 — block under check
+ * @param return_type_ref i32 — enclosing function return type
+ * @param ctx *PipelineDepCtx — current_block / current_func
+ * @param si i32 — start stmt_order index (callers pass 0)
+ * @param nso i32 — stmt_order length
+ * @param nc i32 — num consts (bounds for kind 0)
+ * @param nl i32 — num lets
+ * @param nes i32 — num expr_stmts
+ * @param nlp i32 — num while loops
+ * @param nfp i32 — num for loops
+ * @param nif i32 — num ifs
+ * @param nreg i32 — num regions
+ * @return i32 — 0 ok; -1 typeck fail
+ * PLATFORM: SHARED freestanding typeck block walk.
  */
 export function typeck_check_block_stmt_order_one(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, si: i32, nso: i32, nc: i32, nl: i32, nes: i32,
 nlp: i32, nfp: i32, nif: i32, nreg: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+    let i: i32 = 0;
     let sk: u8 = (0 as u8);
     let idx: i32 = 0;
     let es_ref: i32 = 0;
-    if (si >= nso || si >= 96) {
-      return 0;
+    i = si;
+    // Constant stack: walk stmt_order[i] then i+1 (≡ historical tail recursion).
+    while (i < nso && i < 96) {
+      pipeline_typeck_block_impl_touch_ctx_block_c(ctx, block_ref);
+      sk = ast.ast_block_stmt_order_kind(arena, block_ref, i);
+      idx = ast.ast_block_stmt_order_idx(arena, block_ref, i);
+      if (sk == (0 as u8)) {
+        if (idx >= 0 && idx < nc && idx < 128) {
+          if (typeck_check_block_one_const(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
+            return -1;
+          }
+        }
+      } else if (sk == (1 as u8)) {
+        if (idx >= 0 && idx < nl && idx < 128) {
+          if (typeck_check_block_one_let(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
+            return -1;
+          }
+        }
+      } else if (sk == (2 as u8)) {
+        if (idx >= 0 && idx < nes) {
+          es_ref = ast.ast_block_expr_stmt_ref(arena, block_ref, idx);
+          if (check_expr(module, arena, es_ref, return_type_ref, ctx) != 0) {
+            return -1;
+          }
+          /* wave663: void function expr_stmt value (return e lowered to e). */
+          if (typeck_void_reject_value_expr(arena, es_ref, return_type_ref) != 0) {
+            return -1;
+          }
+        }
+      } else if (sk == (3 as u8)) {
+        if (idx >= 0 && idx < nlp) {
+          if (typeck_check_block_one_while(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
+            return -1;
+          }
+        }
+      } else if (sk == (4 as u8)) {
+        if (idx >= 0 && idx < nfp) {
+          if (typeck_check_block_one_for(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
+            return -1;
+          }
+        }
+      } else if (sk == (5 as u8)) {
+        if (idx >= 0 && idx < nif) {
+          if (typeck_check_block_one_if(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
+            return -1;
+          }
+        }
+      } else if (sk == (6 as u8)) {
+        if (idx >= 0 && idx < nreg) {
+          if (typeck_check_block_one_region(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
+            return -1;
+          }
+        }
+      }
+      i = i + 1;
     }
-    pipeline_typeck_block_impl_touch_ctx_block_c(ctx, block_ref);
-    sk = ast.ast_block_stmt_order_kind(arena, block_ref, si);
-    idx = ast.ast_block_stmt_order_idx(arena, block_ref, si);
-    if (sk == (0 as u8)) {
-      if (idx >= 0 && idx < nc && idx < 128) {
-        if (typeck_check_block_one_const(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-          return - 1;
-        }
-      }
-    } else if (sk == (1 as u8)) {
-      if (idx >= 0 && idx < nl && idx < 128) {
-        if (typeck_check_block_one_let(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-          return - 1;
-        }
-      }
-    } else if (sk == (2 as u8)) {
-      if (idx >= 0 && idx < nes) {
-        es_ref = ast.ast_block_expr_stmt_ref(arena, block_ref, idx);
-        if (check_expr(module, arena, es_ref, return_type_ref, ctx) != 0) {
-          return - 1;
-        }
-        /* wave663: void function expr_stmt value (return e lowered to e). */
-        if (typeck_void_reject_value_expr(arena, es_ref, return_type_ref) != 0) {
-          return - 1;
-        }
-      }
-    } else if (sk == (3 as u8)) {
-      if (idx >= 0 && idx < nlp) {
-        if (typeck_check_block_one_while(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-          return - 1;
-        }
-      }
-    } else if (sk == (4 as u8)) {
-      if (idx >= 0 && idx < nfp) {
-        if (typeck_check_block_one_for(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-          return - 1;
-        }
-      }
-    } else if (sk == (5 as u8)) {
-      if (idx >= 0 && idx < nif) {
-        if (typeck_check_block_one_if(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-          return - 1;
-        }
-      }
-    } else if (sk == (6 as u8)) {
-      if (idx >= 0 && idx < nreg) {
-        if (typeck_check_block_one_region(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-          return - 1;
-        }
-      }
-    }
-    return typeck_check_block_stmt_order_one(module, arena, block_ref, return_type_ref, ctx, si + 1, nso,
-    nc, nl, nes, nlp, nfp, nif, nreg);
+    return 0;
   }
 }
 
