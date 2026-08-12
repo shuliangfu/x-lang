@@ -59,14 +59,14 @@ export extern function driver_emit_lib_root_count(state: *u8): i32;
 export extern function driver_emit_lib_root_len(state: *u8, i: i32): i32;
 export extern function driver_emit_lib_root_copy(state: *u8, i: i32, dst: *u8, cap: i32): void;
 
-/** Exported function `driver_emit_state_key`.
- * Implements `driver_emit_state_key`.
- * @param state *DriverXEmitState
- * @return *u8
+/**
+ * Emit surface authority lives in `src/driver/emit.x` → `driver_emit_x.o`
+ * (Track L renames `emit_state_key` → `driver_emit_state_key`).
+ * G.7: do not re-define here — dual strong T with driver_emit_x.o breaks
+ * Darwin pure-ld (ld64: `-multiply_defined` obsolete; 5 duplicate symbols).
+ * PLATFORM: SHARED — main.x only declares; emit leaf owns the body.
  */
-export function driver_emit_state_key(state: *DriverXEmitState): *u8 {
-  return state as *u8;
-}
+export extern function driver_emit_state_key(state: *DriverXEmitState): *u8;
 
 /** Exported function `driver_emit_try_append_lib_from_argv`.
  * Implements `driver_emit_try_append_lib_from_argv`.
@@ -103,28 +103,14 @@ export function driver_emit_ensure_default_lib_root(state: *DriverXEmitState): v
   }
 }
 
-/** Exported function `driver_emit_copy_lib_roots_to_ctx`.
- * Implements `driver_emit_copy_lib_roots_to_ctx`.
- * @param state *DriverXEmitState
- * @param ctx *PipelineDepCtx
- * @return void
+/**
+ * Emit surface authority: `emit.x` → `driver_emit_copy_lib_roots_to_ctx`
+ * (Track L rename from `emit_copy_lib_roots_to_ctx`).
+ * G.7: no body here — dual strong T with driver_emit_x.o.
+ * Call sites that need it must link driver_emit_x.o (product bag always does).
+ * PLATFORM: SHARED.
  */
-export function driver_emit_copy_lib_roots_to_ctx(state: *DriverXEmitState, ctx: *PipelineDepCtx): void {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    let k: i32 = 0;
-    let n: i32 = driver_emit_lib_root_count(driver_emit_state_key(state));
-    let tmp: u8[256] = [];
-    while (k < n) {
-      let llen: i32 = driver_emit_lib_root_len(driver_emit_state_key(state), k);
-      if (llen > 0) {
-        driver_emit_lib_root_copy(driver_emit_state_key(state), k, &tmp[0], 256);
-        ast_pipeline_ctx_append_lib_root(ctx, &tmp[0], llen);
-      }
-      k = k + 1;
-    }
-  }
-}
+export extern function driver_emit_copy_lib_roots_to_ctx(state: *DriverXEmitState, ctx: *PipelineDepCtx): void;
 
 /**
  * See implementation.
@@ -212,28 +198,26 @@ export function run_compiler_c_impl(argc: i32, argv: *u8): i32 {
     return driver_run_compiler_full(argc, argv);
   }
 }
-/** Exported function `run_compiler_c`.
- * Implements `run_compiler_c`.
- * @param argc i32
- * @param argv *u8
- * @return i32
+/**
+ * `run_compiler_c` name authority: `src/runtime/rt_entry.x` (inside
+ * runtime_driver_no_c.o) trampolines to `main_run_compiler_c`.
+ * G.7: main.x must NOT also export `run_compiler_c` — dual strong T with
+ * runtime_driver_no_c.o fails Darwin pure-ld. Real work stays in
+ * `run_compiler_c_impl` / `main_run_compiler_c`.
+ * PLATFORM: SHARED.
  */
-export function run_compiler_c(argc: i32, argv: *u8): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-
-    return run_compiler_c_impl(argc, argv);
-  }
-}
+export extern function run_compiler_c(argc: i32, argv: *u8): i32;
 
 /**
- * See implementation.
+ * Product-side body for the runtime trampoline `run_compiler_c` → here.
+ * Calls `run_compiler_c_impl` directly (not the runtime trampoline) so the
+ * chain cannot recurse when both TUs are linked.
+ * PLATFORM: SHARED.
  */
 export function main_run_compiler_c(argc: i32, argv: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-
-    return run_compiler_c(argc, argv);
+    return run_compiler_c_impl(argc, argv);
   }
 }
 
@@ -636,99 +620,14 @@ export function driver_argv_parse_x(argc: i32, argv: *u8, state: *DriverXEmitSta
 }
 
 /**
- * See implementation.
- * See implementation.
+ * Emit path authority: `src/driver/emit.x` `run_x_emit_x` → Track L rename
+ * `driver_run_x_emit_x` in `driver_emit_x.o`.
+ * G.7: historic monorepo body removed from main.x so pure-ld has a single
+ * strong definition (Darwin ld64 rejects multidef; Linux hid this via
+ * `--allow-multiple-definition` first-wins).
+ * PLATFORM: SHARED — product bag always links driver_emit_x.o.
  */
-export function driver_run_x_emit_x(state: *DriverXEmitState): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-    if (state.path_len >= 0 && state.path_len < 511) {
-      state.path_buf[state.path_len] = 0 as u8;
-    }
-    let loaded_buf: u8[4194304] = [];
-    let cap_i: i32 = 4194304;
-    let n: i32 = sys.read_file_into(&state.path_buf[0], &loaded_buf[0], cap_i);
-    if (n < 0) {
-      return 1;
-    }
-    let preprocess_buf: u8[4194304] = [];
-    let out_len: i32 = preprocess_x_buf(&loaded_buf[0], n, &preprocess_buf[0], 4194304);
-    if (out_len < 0) {
-      return 1;
-    }
-    /* See implementation. */
-    let arena_buf: *u8 = driver_arena_buf();
-    let module_buf: *u8 = driver_module_buf();
-    let ctx: PipelineDepCtx = pipeline_dep_ctx_for_emit(state.use_asm_backend, state.target_arch);
-    let last_slash: i32 = -1;
-    let k: i32 = 0;
-    while (k < state.path_len && k < 512) {
-      if (state.path_buf[k] == 47) {
-        last_slash = k;
-      }
-      k = k + 1;
-    }
-    if (last_slash >= 0) {
-      k = 0;
-      while (k < last_slash && k < 511) {
-        ctx.entry_dir_buf[k] = state.path_buf[k];
-        k = k + 1;
-      }
-      ctx.entry_dir_buf[k] = 0;
-      ctx.entry_dir_len = k;
-    } else {
-      ctx.entry_dir_buf[0] = 46;
-      ctx.entry_dir_buf[1] = 0;
-      ctx.entry_dir_len = 1;
-    }
-    ctx.num_lib_roots = 0;
-    driver_emit_copy_lib_roots_to_ctx(state, &ctx);
-    let out: CodegenOutBuf = CodegenOutBuf { data: [], length: 0 };
-    let source_len: usize = out_len as usize;
-    let rc: i32 = pipeline_run_x_pipeline_impl(module_buf, arena_buf, preprocess_buf, source_len, &out, &ctx);
-    if (rc != 0) {
-      driver_pipeline_fail_code(rc, &ctx.path_buf[0]);
-      return 1;
-    }
-    /* See implementation. */
-    let len: i32 = out.length;
-    if (state.out_path_len == 0) {
-      driver_print_x_smoke_summary(module_buf, len as usize);
-    }
-    if (state.out_path_len > 0) {
-      let fd: i32 = driver_fs_open_write(state.out_path_buf, state.out_path_len);
-      if (fd < 0) {
-        return 1;
-      }
-      if (len > 262144) {
-        let written: isize = fs_posix_write_c(fd, out.data, 262144);
-        fs_posix_close_c(fd);
-        if (written < 0 || (written as i32) != 262144) {
-          return 1;
-        }
-      } else {
-        let written: isize = fs_posix_write_c(fd, out.data, len as usize);
-        fs_posix_close_c(fd);
-        if (written < 0 || (written as i32) != len) {
-          return 1;
-        }
-      }
-    } else {
-      if (len > 262144) {
-        let written: isize = fs_posix_write_c(1, out.data, 262144);
-        if (written < 0 || (written as i32) != 262144) {
-          return 1;
-        }
-      } else {
-        let written: isize = fs_posix_write_c(1, out.data, len as usize);
-        if (written < 0 || (written as i32) != len) {
-          return 1;
-        }
-      }
-    }
-    return 0;
-  }
-}
+export extern function driver_run_x_emit_x(state: *DriverXEmitState): i32;
 
 /**
  * See implementation.

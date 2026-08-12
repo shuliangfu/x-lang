@@ -3728,7 +3728,11 @@ other_l2_prefer_spec_for_out() {
 }
 
 # Historic G-02f-440: six weak stubs overridden by lsp_diag_x / pipeline_ctx.
-_OTHER_L2_SLC_WEAK_FUNCS="lsp_diag_lsp_build_diagnostics_response,lsp_diag_lsp_build_semantic_tokens_response,lsp_diag_hover_at,lsp_diag_references_at,lsp_diag_definition_at,typeck_lsp_main_impl"
+# slc6 historic lsp/typeck stubs + std_sys_read_file_into (seed from_x.c already
+# XLANG_WEAK; prefer thin .x must match). Without weak, strong dual vs driver_x
+# monomorphized std.sys fails Darwin pure-ld (ld64 multidef obsolete).
+# PLATFORM: SHARED — G.7 seed face weak; product mono in driver_x wins.
+_OTHER_L2_SLC_WEAK_FUNCS="lsp_diag_lsp_build_diagnostics_response,lsp_diag_lsp_build_semantic_tokens_response,lsp_diag_hover_at,lsp_diag_references_at,lsp_diag_definition_at,typeck_lsp_main_impl,std_sys_read_file_into"
 
 ensure_other_l2_prefer_one() {
   local o="$1"
