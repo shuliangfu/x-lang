@@ -603,17 +603,18 @@ export function run_compiler_full_x_post_parse(state: *DriverCompileState, argc:
     if (state.target_len > 0) {
       target_ptr = &state.target_buf[0];
     }
-    /* See implementation. */
+    /*
+     * PLATFORM: SHARED — product default backend is asm (driver_want_asm_emit_to_file).
+     * Historical residual: top-level import forced C + invoke_cc when backend was not
+     * explicit. Removed 2026-08-12 after dual-end option/hello `-backend asm` matrix green
+     * (bare mangle dep_pipe@1384 + import METHOD spill-then-load). Explicit `-backend c`
+     * still selects C; generic syntax downgrade above is unchanged.
+     * No-import -o still locks backend_asm_explicit so later gates treat asm as explicit.
+     */
     if (state.out_path_len > 0 && state.backend_asm_explicit == 0 &&
         driver_source_has_top_level_import_path(&state.path_buf[0], state.path_len) == 0) {
       state.backend_asm_explicit = one;
     }
-    if (state.use_asm_backend != 0 && state.backend_asm_explicit == 0 &&
-        driver_asm_entry_module_only_from_env() == 0 &&
-        driver_source_has_top_level_import_path(&state.path_buf[0], state.path_len) != 0) {
-      state.use_asm_backend = zero;
-    }
-    /* See implementation. */
     if (state.use_freestanding != 0) {
       state.use_asm_backend = one;
       state.backend_asm_explicit = one;

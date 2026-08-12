@@ -794,6 +794,37 @@ for x_path in "$@"; do
           '#define heap_libc_Arena64 std_heap_libc_LibcArena64' \
           >>"$fwd_tmp"
       fi
+      # PLATFORM: SHARED — core/result mono dual-name residual (2026-08-12).
+      # Codegen emits complete `struct core_result_Result_{i32,u8}` but generic
+      # method signatures still use short `struct Result_{i32,u8}` (no body) →
+      # host-cc "incomplete result type". Same class as Arena64 tag alias above.
+      # G.7: unblock formal result.o so product import default-asm (si matrix) can
+      # link; full root fix is codegen type-name authority for mono tags.
+      # #define makes `struct Result_i32` expand to `struct core_result_Result_i32`.
+      if grep -qE 'struct[[:space:]]+core_result_Result_i32[[:space:]]*\{' "$gen_c" \
+         && grep -qE 'struct[[:space:]]+Result_i32[[:space:]]' "$gen_c" \
+         && ! grep -qE 'struct[[:space:]]+Result_i32[[:space:]]*\{' "$gen_c"; then
+        if [ -f "$fwd_tmp" ]; then
+          grep -vE '^struct Result_i32;$' "$fwd_tmp" >"$fwd_tmp.f" 2>/dev/null || true
+          mv "$fwd_tmp.f" "$fwd_tmp" 2>/dev/null || true
+        fi
+        printf '%s\n' \
+          '/* xlang_compile_std_module: Result_i32 tag alias (short vs core_result_*) */' \
+          '#define Result_i32 core_result_Result_i32' \
+          >>"$fwd_tmp"
+      fi
+      if grep -qE 'struct[[:space:]]+core_result_Result_u8[[:space:]]*\{' "$gen_c" \
+         && grep -qE 'struct[[:space:]]+Result_u8[[:space:]]' "$gen_c" \
+         && ! grep -qE 'struct[[:space:]]+Result_u8[[:space:]]*\{' "$gen_c"; then
+        if [ -f "$fwd_tmp" ]; then
+          grep -vE '^struct Result_u8;$' "$fwd_tmp" >"$fwd_tmp.f" 2>/dev/null || true
+          mv "$fwd_tmp.f" "$fwd_tmp" 2>/dev/null || true
+        fi
+        printf '%s\n' \
+          '/* xlang_compile_std_module: Result_u8 tag alias (short vs core_result_*) */' \
+          '#define Result_u8 core_result_Result_u8' \
+          >>"$fwd_tmp"
+      fi
       if [ -s "$fwd_tmp" ]; then
         # 插在最后一个 #include 之后；若无 include 则插文件首
         merged="$tmp_dir/gen_fwd_${idx}.c"

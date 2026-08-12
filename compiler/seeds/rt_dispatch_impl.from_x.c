@@ -200,14 +200,16 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
   target_ptr = NULL;
   if (state->target_len > 0)
     target_ptr = state->target_buf;
+  /*
+   * PLATFORM: SHARED — product default is asm. Import→C force removed 2026-08-12
+   * (mirror src/runtime/rt_dispatch_impl.x; dual-end option/hello -backend asm green).
+   * No-import -o still locks backend_asm_explicit. Seed cold twin under !FROM_X only.
+   */
 #if defined(XLANG_ASM_USE_COMPILER_IMPL_C)
   if (state->out_path_len > 0 && !state->backend_asm_explicit &&
       !driver_source_has_top_level_import_path((const char *)state->path_buf))
     state->backend_asm_explicit = 1;
 #endif
-  if (state->use_asm_backend && !state->backend_asm_explicit && driver_asm_entry_module_only_from_env() == 0 &&
-      driver_source_has_top_level_import_path((const char *)state->path_buf))
-    state->use_asm_backend = 0;
   if (state->use_freestanding) {
     state->use_asm_backend = 1;
     state->backend_asm_explicit = 1;

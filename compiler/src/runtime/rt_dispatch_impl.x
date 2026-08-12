@@ -318,7 +318,6 @@ export function driver_run_compiler_full_x_post_parse_impl_c(
   let target_ptr: *u8 = 0 as *u8;
   let want_generic_check: i32 = 0;
   let has_import: i32 = 0;
-  let entry_only: i32 = 0;
   if (state == 0 as *RtDispatchState) {
     return 1;
   }
@@ -358,7 +357,12 @@ export function driver_run_compiler_full_x_post_parse_impl_c(
   if (state.target_len > 0) {
     target_ptr = &state.target_buf[0];
   }
-  // Dispatch medium impl (asm/emit/post_parse/full_x); G.9 English; body authoritative.
+  /*
+   * PLATFORM: SHARED — product default is asm. Import no longer forces C (2026-08-12):
+   * dual-end option/hello `-backend asm` green after bare mangle + METHOD spill fix.
+   * Keep no-import -o → backend_asm_explicit lock for explicit-asm gate consumers.
+   * Explicit `-backend c` and generic-syntax downgrade remain the only default C paths.
+   */
   if (state.out_path_len > 0) {
     if (state.backend_asm_explicit == 0) {
       unsafe {
@@ -366,19 +370,6 @@ export function driver_run_compiler_full_x_post_parse_impl_c(
       }
       if (has_import == 0) {
         state.backend_asm_explicit = 1;
-      }
-    }
-  }
-  if (state.use_asm_backend != 0) {
-    if (state.backend_asm_explicit == 0) {
-      unsafe {
-        entry_only = driver_asm_entry_module_only_from_env();
-        has_import = driver_source_has_top_level_import_path(&state.path_buf[0]);
-      }
-      if (entry_only == 0) {
-        if (has_import != 0) {
-          state.use_asm_backend = 0;
-        }
       }
     }
   }

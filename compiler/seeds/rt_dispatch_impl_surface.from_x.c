@@ -276,7 +276,6 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(struct RtDispatchState * st
   uint8_t * target_ptr = ((uint8_t *)(0));
   int32_t want_generic_check = 0;
   int32_t has_import = 0;
-  int32_t entry_only = 0;
   if ((state ==((struct RtDispatchState *)(0)))) {
     return 1;
   }
@@ -315,6 +314,7 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(struct RtDispatchState * st
   if (((state->target_len) > 0)) {
     (void)((target_ptr = &(((state->target_buf))[0])));
   }
+  /* PLATFORM: SHARED — import→C force removed 2026-08-12 (mirror rt_dispatch_impl.x). */
   if (((state->out_path_len) > 0)) {
     if (((state->backend_asm_explicit) ==0)) {
       {
@@ -322,19 +322,6 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(struct RtDispatchState * st
       }
       if ((has_import ==0)) {
         (void)(((state->backend_asm_explicit) = 1));
-      }
-    }
-  }
-  if (((state->use_asm_backend) !=0)) {
-    if (((state->backend_asm_explicit) ==0)) {
-      {
-        (void)((entry_only = driver_asm_entry_module_only_from_env()));
-        (void)((has_import = driver_source_has_top_level_import_path(&(((state->path_buf))[0]))));
-      }
-      if ((entry_only ==0)) {
-        if ((has_import !=0)) {
-          (void)(((state->use_asm_backend) = 0));
-        }
       }
     }
   }

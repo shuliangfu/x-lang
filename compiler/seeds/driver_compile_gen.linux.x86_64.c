@@ -831,11 +831,9 @@ int32_t driver_run_compiler_full_x_post_parse(struct DriverCompileState * state,
     if (((state->target_len) > 0)) {
       (void)((target_ptr = &(((state->target_buf))[0])));
     }
+    /* PLATFORM: SHARED — import→C force removed 2026-08-12 (mirror compile.x). */
     if (((((state->out_path_len) > 0) && ((state->backend_asm_explicit) ==0)) && (driver_source_has_top_level_import_path(&(((state->path_buf))[0]), (state->path_len)) ==0))) {
       (void)(((state->backend_asm_explicit) = one));
-    }
-    if ((((((state->use_asm_backend) !=0) && ((state->backend_asm_explicit) ==0)) && (driver_asm_entry_module_only_from_env() ==0)) && (driver_source_has_top_level_import_path(&(((state->path_buf))[0]), (state->path_len)) !=0))) {
-      (void)(((state->use_asm_backend) = zero));
     }
     if (((state->use_freestanding) !=0)) {
       (void)(((state->use_asm_backend) = one));
