@@ -1871,11 +1871,17 @@ int32_t invoke_cc_append_net_tls_ld(uint8_t * argv, int32_t * i, int32_t argv_ca
 void ensure_std_net_o_auto_tls(uint8_t * repo_root) {
   (void)(ensure_std_net_o_auto_tls_impl(repo_root));
 }
+/* Stage 12.2.3: early host-cc gate (G.7 ≡ labi_gates_surface / labi_invoke_cc_list). */
+extern int32_t invoke_cc_host_cc_spawn_gate(void);
 int32_t xlang_invoke_cc(uint8_t * c_paths, int32_t n, uint8_t * out_path, uint8_t * target, uint8_t * opt_level, int32_t use_lto, uint8_t * io_o, uint8_t * fs_o, uint8_t * process_o, uint8_t * string_o, uint8_t * heap_o, uint8_t * path_o, uint8_t * runtime_o, uint8_t * runtime_panic_o, uint8_t * net_o, uint8_t * thread_o, uint8_t * time_o, uint8_t * random_o, uint8_t * env_o, uint8_t * sync_o, uint8_t * encoding_o, uint8_t * base64_o, uint8_t * crypto_o, uint8_t * log_o, uint8_t * atomic_o, uint8_t * channel_o, uint8_t * backtrace_o, uint8_t * hash_o, uint8_t * math_o, uint8_t * sort_o, uint8_t * ffi_o, uint8_t * db_o, uint8_t * elf_o, uint8_t * json_o, uint8_t * csv_o, uint8_t * regex_o, uint8_t * compress_o, uint8_t * unicode_o, uint8_t * dynlib_o, uint8_t * http_o, uint8_t * tar_o, uint8_t * simd_o, uint8_t * context_o, uint8_t * datetime_o, uint8_t * uuid_o, uint8_t * url_o, uint8_t * cli_o, uint8_t * security_o, uint8_t * config_o, uint8_t * cache_o, uint8_t * trace_o, uint8_t * task_o, uint8_t * schema_o, uint8_t * test_o, uint8_t * include_root, uint8_t * async_scheduler_o) {
   if ((c_paths ==0)) {
     return -1;
   }
   if ((out_path ==0)) {
+    return -1;
+  }
+  /* Early deny: skip heavy impl ensure/argv when host-cc is not opt-in. */
+  if ((invoke_cc_host_cc_spawn_gate() == 0)) {
     return -1;
   }
   return xlang_invoke_cc_impl(c_paths, n, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, include_root, async_scheduler_o);

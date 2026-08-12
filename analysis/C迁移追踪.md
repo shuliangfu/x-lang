@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + hybrid 双端** · **prefer 族 pure-asm 产品默认 ✅** · **pipeline_abi pure-asm 硬禁 ✅** · **PC bare-call mangle ✅** · **option asm run=102 ✅** · **PC 去 import→C ✅** · **seed `__APPLE__` exe→C 双权威 ✅** · **codegen mono `Result_*` 短名根修 ✅** · **Arena64 shell 死别名 ✅** · **formal 短标签 residual 扫描关 ✅** · **静默 generic→C 移除 ✅** · **`XLANG_FORBID_HOST_CC` 产品 invoke_cc 闸 ✅** · **`XLANG_ALLOW_HOST_CC` experimental 默认拒 spawn ✅** · **`invoke_cc_host_cc_spawn_gate` 入口早闸 ✅** · **禁树级 PREFER_ASM 默认**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + hybrid 双端** · **prefer 族 pure-asm 产品默认 ✅** · **pipeline_abi pure-asm 硬禁 ✅** · **PC bare-call mangle ✅** · **option asm run=102 ✅** · **PC 去 import→C ✅** · **seed `__APPLE__` exe→C 双权威 ✅** · **codegen mono `Result_*` 短名根修 ✅** · **Arena64 shell 死别名 ✅** · **formal 短标签 residual 扫描关 ✅** · **静默 generic→C 移除 ✅** · **`XLANG_FORBID_HOST_CC` 产品 invoke_cc 闸 ✅** · **`XLANG_ALLOW_HOST_CC` experimental 默认拒 spawn ✅** · **`invoke_cc_host_cc_spawn_gate` 入口早闸 ✅** · **monofile 冷孪／surface 早闸 G.7 收敛 ✅** · **禁树级 PREFER_ASM 默认**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -2148,8 +2148,9 @@
   - **`XLANG_FORBID_HOST_CC`**：✅ ensure／g05 **构建闸** + **产品 spawn 闸**（env 精确 `"1"`；`LOG_ONLY=1` 静默放行）
   - **`XLANG_ALLOW_HOST_CC`**：✅ **experimental 默认拒 spawn**（env 精确 `"1"` 才允许；`host-cc-requires-allow`；FORBID 优先于 ALLOW）
   - **`invoke_cc_host_cc_spawn_gate`**：✅ G.7 单权威（FORBID+ALLOW）；`invoke_cc_run_cc_argv` 转调；**`xlang_invoke_cc` 入口早拒**跳过 `impl` ensure／argv（deny 路径瘦身）
+  - **monofile 冷孪／surface 早闸收敛**：✅ `runtime_link_abi.from_x.c` 冷面／monofile `.x`／`runtime_link_abi_surface` ≡ `labi_gates`（deny 不进 ensure／argv；产品 live 仍 L9 pure）
   - **formal shell 短标签 residual 扫描**：✅ 矩阵 5 源 tip `-E` Result_／Option_／Arena residual=0；硬编码 type `#define` 别名已无（Result_／Arena64 已闭）；动态 bare→pref 别名机仍服务 formal_mod 体
-  - 下一刀候选：①树级 PREFER 仍禁 · ②invoke_cc 本体退役／argv 大段隔离 · ③pipeline_abi mega 仍禁 pure-asm／COMPILE residual
+  - 下一刀候选：①树级 PREFER 仍禁 · ②`xlang_invoke_cc_impl` ensure／argv 进一步隔离（ALLOW 后仍重）· ③pipeline_abi mega 仍禁 pure-asm／COMPILE residual
 
 
 ---
@@ -2206,7 +2207,7 @@
 🟡 **13.2.4 labi_invoke_cc / `-backend c` 退役或隔离**
 
   - 产品默认不 exec host-cc；历史 C 后端进 experimental 或删除
-  - **2026-08-12 地图（刷新）**：import 默认 **asm** · 静默 generic→C **已删** · seed APPLE exe→C **已删**；**`ALLOW_HOST_CC=1` experimental 才 spawn**（显式 `-backend c` alone 不足）· **`FORBID_HOST_CC=1` 硬挡**；**`invoke_cc_host_cc_spawn_gate` 入口早闸**（deny 不进 ensure／argv）· invoke_cc 本体仍服务 ALLOW 后的 C 链 · 未删除
+  - **2026-08-12 地图（刷新）**：import 默认 **asm** · 静默 generic→C **已删** · seed APPLE exe→C **已删**；**`ALLOW_HOST_CC=1` experimental 才 spawn**（显式 `-backend c` alone 不足）· **`FORBID_HOST_CC=1` 硬挡**；**`invoke_cc_host_cc_spawn_gate` 入口早闸**（deny 不进 ensure／argv；**monofile 冷孪／surface ≡ labi_gates**）· invoke_cc_impl 本体仍服务 ALLOW 后的 C 链 · 未删除
 
 ### 13.3 收尾
 

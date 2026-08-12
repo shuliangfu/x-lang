@@ -3582,8 +3582,14 @@ int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, cons
     return 0;
 }
 
-/* G-02f-277 L9 gates */
+/* G-02f-277 L9 gates
+ * Stage 12.2.3 / 13.2.4: cold monofile twin must match labi_gates.x early host-cc gate
+ * (G.7 single deny path). Without this, LABI=0 cold seed still runs ensure/argv mega
+ * before invoke_cc_run_cc_argv re-checks ALLOW/FORBID.
+ * PLATFORM: SHARED — product hybrid uses L9 pure (FROM_X); this body is cold residual. */
 #ifndef XLANG_LABI_GATES_FROM_X
+int invoke_cc_host_cc_spawn_gate(void);
+
 int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
   if (c_paths == NULL) {
     return -1;
@@ -3591,6 +3597,9 @@ int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const cha
   if (out_path == NULL) {
     return -1;
   }
+  /* Early deny: skip heavy impl ensure/argv when host-cc is not opt-in (≡ labi_gates). */
+  if (!invoke_cc_host_cc_spawn_gate())
+    return -1;
   {
     return xlang_invoke_cc_impl(c_paths, n, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, include_root, async_scheduler_o);
   }
