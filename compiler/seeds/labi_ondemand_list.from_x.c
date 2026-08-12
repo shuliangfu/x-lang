@@ -72,6 +72,8 @@ int xlang_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_r
 int driver_freestanding_get(void);
 int xlang_ensure_runtime_thread_glue_o(const char *argv0);
 const char *xlang_runtime_thread_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_atomic_glue_o(const char *argv0);
+const char *xlang_runtime_atomic_glue_o_path(const char *argv0);
 int xlang_ensure_runtime_net_udp_batch_o(const char *argv0);
 const char *xlang_runtime_net_udp_batch_o_path(const char *argv0);
 int xlang_ensure_runtime_net_workers_o(const char *argv0);
@@ -2133,6 +2135,10 @@ int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, i
 
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
+/* PLATFORM: SHARED — net.o transitive U std_error_* / std_context_*; ≡ pure .x. */
+const char *labi_od_rel_error(void) { return "std/error/error.o"; }
+const char *labi_od_rel_context(void) { return "std/context/context.o"; }
+const char *labi_od_rel_atomic_glue(void) { return "compiler/runtime_atomic_glue.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
 const char *labi_od_rel_heap(void) { return "std/heap/heap.o"; }
 const char *labi_od_rel_set(void) { return "std/set/set.o"; }
@@ -2194,6 +2200,27 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
         if (have_net) {
             if (flags)
                 flags->have_net = 1;
+            /* PLATFORM: SHARED — net.o U error/context; user needles miss. ≡ C need_context.
+             * G.7 companions: error formal + context formal + atomic_glue + time_os. */
+            {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0]) {
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/error/error.o",
+                                                        "../std/error/error.o");
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/context/context.o",
+                                                        "../std/context/context.o");
+                }
+                link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_error(), lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_context(), lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_atomic_glue_o,
+                    xlang_runtime_atomic_glue_o_path(link_argv0), link_argv0,
+                    labi_od_rel_atomic_glue(), lib_roots, n_lib_roots, bank, argv, la, max_la);
+                link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_time_os_o,
+                    xlang_runtime_time_os_o_path(link_argv0), link_argv0,
+                    labi_od_time_os_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la);
+            }
             /* workers.x 依赖 thread_create_c；按需再推 thread.o + glue（默认 ld 可能未链）。 */
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_thread(), lib_roots, n_lib_roots, bank, argv, la, max_la,
                 flags ? &flags->have_thread : NULL);

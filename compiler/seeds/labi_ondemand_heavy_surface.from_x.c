@@ -97,6 +97,7 @@ extern int32_t xlang_ensure_runtime_process_argv_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_queue_contention_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_test_fn_invoke_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_thread_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_atomic_glue_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_time_os_o(uint8_t * argv0);
 extern int32_t xlang_link_obj_has_defined_sym(uint8_t * o_path, uint8_t * sym);
 extern int32_t xlang_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym);
@@ -112,6 +113,7 @@ extern uint8_t * xlang_runtime_queue_contention_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_scheduler_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_test_fn_invoke_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_thread_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_atomic_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_time_os_o_path(uint8_t * argv0);
 extern uint8_t * xlang_std_async_scheduler_o_path(uint8_t * argv0);
 int32_t labi_od_std_task_sym_count(void) {
@@ -1344,6 +1346,16 @@ uint8_t * labi_od_rel_net(void) {
   uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x6e\x65\x74\x2f\x6e\x65\x74\x2e\x6f");
   return p;
 }
+/* PLATFORM: SHARED — net.o transitive U std_error_* / std_context_*; ≡ pure .x. */
+uint8_t * labi_od_rel_error(void) {
+  return (uint8_t *)"std/error/error.o";
+}
+uint8_t * labi_od_rel_context(void) {
+  return (uint8_t *)"std/context/context.o";
+}
+uint8_t * labi_od_rel_atomic_glue(void) {
+  return (uint8_t *)"compiler/runtime_atomic_glue.o";
+}
 uint8_t * labi_od_rel_thread(void) {
   uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x74\x68\x72\x65\x61\x64\x2f\x74\x68\x72\x65\x61\x64\x2e\x6f");
   return p;
@@ -1729,6 +1741,28 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
       if ((flags !=0)) {
         int32_t * f = ((int32_t *)(flags));
         (void)(((f)[1] = 1));
+      }
+      /* PLATFORM: SHARED — net.o U error/context; user needles miss. ≡ C need_context. */
+      {
+        uint8_t * root_net = xlang_repo_root_from_argv0(link_argv0);
+        if (root_net && root_net[0]) {
+          (void)xlang_ensure_formal_std_make_o(root_net, (uint8_t *)"std/error/error.o",
+                                               (uint8_t *)"../std/error/error.o");
+          (void)xlang_ensure_formal_std_make_o(root_net, (uint8_t *)"std/context/context.o",
+                                               (uint8_t *)"../std/context/context.o");
+        }
+        (void)link_abi_asm_ld_push_obj(0, link_argv0, labi_od_rel_error(), lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, 0);
+        (void)link_abi_asm_ld_push_obj(0, link_argv0, labi_od_rel_context(), lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, 0);
+        int32_t er_ag = xlang_ensure_runtime_atomic_glue_o(link_argv0);
+        uint8_t * agp = xlang_runtime_atomic_glue_o_path(link_argv0);
+        (void)labi_od_glue_push_if(er_ag, agp, link_argv0, labi_od_rel_atomic_glue(), lib_roots,
+                                   n_lib_roots, bank, argv, la, max_la);
+        int32_t er_to = xlang_ensure_runtime_time_os_o(link_argv0);
+        uint8_t * top = xlang_runtime_time_os_o_path(link_argv0);
+        (void)labi_od_glue_push_if(er_to, top, link_argv0, labi_od_time_os_rel(), lib_roots,
+                                   n_lib_roots, bank, argv, la, max_la);
       }
       uint8_t * rel_th = labi_od_rel_thread();
       int32_t have_th = 0;

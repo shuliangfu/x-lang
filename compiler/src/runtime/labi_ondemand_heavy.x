@@ -61,6 +61,7 @@ export extern function xlang_ensure_runtime_process_argv_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_time_os_o(argv0: *u8): i32;
 export extern function xlang_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32;
 export extern function xlang_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
@@ -76,6 +77,7 @@ export extern function xlang_runtime_queue_contention_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_thread_glue_o_path(argv0: *u8): *u8;
+export extern function xlang_runtime_atomic_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_time_os_o_path(argv0: *u8): *u8;
 export extern function xlang_std_async_scheduler_o_path(argv0: *u8): *u8;
 
@@ -1483,6 +1485,39 @@ export function labi_od_rel_net(): *u8 {
   return p;
 }
 
+/**
+ * Relative path of formal std/error/error.o (net.o transitive U std_error_*).
+ * @return *u8 — static C string "std/error/error.o"
+ * PLATFORM: SHARED — co-pushed with net; user.o often has no error needles.
+ */
+#[no_mangle]
+export function labi_od_rel_error(): *u8 {
+  let p: *u8 = "std/error/error.o";
+  return p;
+}
+
+/**
+ * Relative path of formal std/context/context.o (net.o transitive U std_context_*).
+ * @return *u8 — static C string "std/context/context.o"
+ * PLATFORM: SHARED — co-pushed with net; pairs with atomic_glue + time_os.
+ */
+#[no_mangle]
+export function labi_od_rel_context(): *u8 {
+  let p: *u8 = "std/context/context.o";
+  return p;
+}
+
+/**
+ * Relative path of runtime_atomic_glue.o (context.o U atomic_load/store_i32_c).
+ * @return *u8 — static C string "compiler/runtime_atomic_glue.o"
+ * PLATFORM: SHARED — ≡ C-path need_context companions (invoke_cc_list).
+ */
+#[no_mangle]
+export function labi_od_rel_atomic_glue(): *u8 {
+  let p: *u8 = "compiler/runtime_atomic_glue.o";
+  return p;
+}
+
 /** Exported function `labi_od_rel_thread`.
  * Read path helper `labi_od_rel_thread`.
  * @return *u8
@@ -2154,6 +2189,10 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
     }
 
     // --- net + thread companions ---
+    // PLATFORM: SHARED — net.o carries U std_error_* / std_context_* (timeout/ctx IO).
+    // User.o typically only U net_tcp_* so fk0 error/context user needles miss.
+    // G.7 companions ≡ C-path need_context (error formal + context formal +
+    // atomic_glue + time_os) plus existing thread/udp/workers glue.
     let need_net: i32 = link_abi_user_o_needs_std_net(user_o);
     if (need_net != 0) {
       let have_net: i32 = 0;
@@ -2166,6 +2205,42 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
           let f: *i32 = flags as *i32;
           f[1] = 1;
         }
+        // error.o + context.o formal ensure (L4 wipe drops gitignored .o) then push.
+        let root_net: *u8 = 0 as *u8;
+        unsafe {
+          root_net = xlang_repo_root_from_argv0(link_argv0);
+        }
+        if (root_net != 0 as *u8) {
+          if (root_net[0] != 0) {
+            unsafe {
+              let _fe_err: i32 = xlang_ensure_formal_std_make_o(root_net, "std/error/error.o", "../std/error/error.o");
+              let _fe_ctx: i32 = xlang_ensure_formal_std_make_o(root_net, "std/context/context.o", "../std/context/context.o");
+            }
+          }
+        }
+        let rel_err: *u8 = labi_od_rel_error();
+        let rel_ctx: *u8 = labi_od_rel_context();
+        unsafe {
+          let _pe: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_err, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          let _pc: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_ctx, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+        // context.o U atomic_*_i32_c + time_now_monotonic_ns_c (≡ invoke_cc need_context).
+        let er_ag: i32 = 0;
+        let agp: *u8 = 0 as *u8;
+        let agrel: *u8 = labi_od_rel_atomic_glue();
+        unsafe {
+          er_ag = xlang_ensure_runtime_atomic_glue_o(link_argv0);
+          agp = xlang_runtime_atomic_glue_o_path(link_argv0);
+        }
+        labi_od_glue_push_if(er_ag, agp, link_argv0, agrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+        let er_to: i32 = 0;
+        let top: *u8 = 0 as *u8;
+        let torel: *u8 = labi_od_time_os_rel();
+        unsafe {
+          er_to = xlang_ensure_runtime_time_os_o(link_argv0);
+          top = xlang_runtime_time_os_o_path(link_argv0);
+        }
+        labi_od_glue_push_if(er_to, top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la);
         let rel_th: *u8 = labi_od_rel_thread();
         let have_th: i32 = 0;
         unsafe {
