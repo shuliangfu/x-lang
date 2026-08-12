@@ -1493,9 +1493,8 @@ labi_prefer_pick_xlang() {
 #     XLANG_ALLOW_TREE_PREFER_ASM=1 (product entry also strips tree PREFER).
 # Peer defaults (same-day auth wave): XLANG_PREFER_ASM_O_RT (rt_prefer harness
 # families: rt/async/R3/l2-asm/B1–B3/…) and XLANG_PREFER_ASM_O_G05 (g05_try).
-#   · pipeline_abi mega pure-asm: hard-banned in pure_asm_x_to_o (basename
-#     runtime_pipeline_abi.x → instant return 1; map 2026-08-12 hang 180s+).
-#     Ban: tree-level PREFER_ASM_O=1 as product default (hard strip + family=0).
+#   · pipeline_abi mega pure-asm: product skip (surface U opaque residual;
+#     hang wall closed typeck slim dual-end <90s emit).
 # PLATFORM: SHARED — retry -E then -backend c -E (Ubuntu SIGSEGV history).
 # G.7: single pure_asm_x_to_o authority; no second pure-asm helper.
 labi_prefer_try_x_to_o() {
@@ -1813,8 +1812,8 @@ rt_prefer_try_x_to_o() {
   #     fall through -E+$CC (same as labi default path).
   #   · Escape hatch: XLANG_PREFER_ASM_O_RT=0 → historic -E+$CC. Ambient tree
   #     PREFER does NOT re-enable pure-asm unless XLANG_ALLOW_TREE_PREFER_ASM=1.
-  #   · Ban: tree-level PREFER_ASM_O=1 as product default (hard strip + family=0);
-  #     pipeline_abi mega pure-asm remains hard-banned inside pure_asm_x_to_o.
+  #   · Ban: tree-level PREFER_ASM_O=1 as product default (hard strip + family=0).
+  #     pipeline_abi mega product pure-asm skip (surface U; hang wall closed).
   # PLATFORM: SHARED harness · G.7 single pure_asm_x_to_o authority.
   # Labi keeps its own XLANG_PREFER_ASM_O_LABI gate in labi_prefer_try_x_to_o.
   if (
@@ -3025,13 +3024,10 @@ try_ensure_rt_prefer_one() {
 #   merge: pure_ld_partial_merge thin + rest → OUT
 # Prefer fail / no xlang → ensure_one cold + pipeline ABI cflags (or keep OUT).
 #
-# Stage 12.0.5 COMPILE residual (pipeline_abi mega pure-asm ban · hang+fill wall):
-#   · pure_asm_x_to_o hard-bans basename runtime_pipeline_abi.x (instant return 1)
-#   · call-site forces XLANG_PREFER_ASM_O_RT=0 so rt_prefer never enters pure_asm
-#     (G.7 belt-and-suspenders; product thin is always -E+$CC hybrid for mega)
-#   · Hang RCA 2026-08-12: typeck iterative mega-safe; prepare/soa fill was
-#     O(nfuncs×nexprs) wall (module-level fill memo closed). Pure-asm retime
-#     ~366s → CG002 (not hang). Ban remains product wall + emit residual.
+# Stage 12.0.5 COMPILE residual (pipeline_abi mega pure-asm product skip):
+#   · typeck wall slim ✅ dual-end emit mac ~60s / Ubuntu ~75s (hang closed).
+#   · product pure-asm install residual: U xlang_driver_*_opaque surface
+#     (pure_asm_x_to_o basename skip + call-site PREFER_ASM_O_RT=0).
 #
 # Callers: g05_ensure (wave767) · product ensure_one route for pipeline_abi.
 # Exit codes:
@@ -3102,17 +3098,17 @@ ensure_pipeline_abi_prefer_one() {
     thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/pabi_rest.XXXXXX")"
     # WEAK pure thin: Darwin ld -r tolerates residual pure-dup still in rest.
-    # Stage 12.0.5 COMPILE residual: force XLANG_PREFER_ASM_O_RT=0 so
-    # rt_prefer_try_x_to_o never scopes pure_asm for this mega (hang map;
-    # pure_asm_x_to_o basename ban is the second gate). Product thin = -E+$CC.
-    # PLATFORM: SHARED · G.7 call-site policy + pure_asm hard ban.
+    # Stage 12.0.5: force XLANG_PREFER_ASM_O_RT=0 — pure-asm emit is green under
+    # 90s after typeck wall slim, but pure_asm install rejects U opaque surface;
+    # without RT=0 ensure would pure-asm ~60–75s then fall to hybrid (worse).
+    # PLATFORM: SHARED · G.7 call-site + pure_asm_x_to_o basename skip.
     # shellcheck disable=SC2086
     if XLANG_PREFER_ASM_O_RT=0 G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
            -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
            -c -o "$rest_o" "$seed" \
       && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer; prefer=${prefer}; pure-asm ban RT=0)"
+      log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer; prefer=${prefer}; pure-asm skip surface-U RT=0)"
       done=1
     else
       log "pipeline_abi hybrid failed; fallback full seed (prefer=${prefer})"

@@ -1989,7 +1989,8 @@
   - **树级 PREFER 硬闸 ✅（2026-08-12）**：G.7 `xlang_strip_tree_prefer_asm_unless_allowed`（ensure／g05 入口）· 无 `XLANG_ALLOW_TREE_PREFER_ASM=1` 则 strip 环境级 `PREFER_ASM_O=1` · family=0 时 prefer try 再 `unset PREFER`（逃逸不被 ambient 顶回）· 地图／bisect 须显式 ALLOW_TREE
   - **ALLOW_TREE 树级 PREFER 地图 bisect ✅（2026-08-12）**：仅 `ALLOW_TREE=1` 保留 ambient PREFER · **B2** full hybrid force labi + soft g05 双端矩阵 **5/5**（mac link 384k／Ubuntu 450k）· **C** family=0 无 ALLOW → strip + cold（mac 306k／Ubuntu 317k）· **D** family=0+ALLOW re-leak → pure 装链 + 矩阵 **5/5**（有意诊断路径）· **E** 产品默认恢复 **5/5** · **拒默认化**树级 PREFER（prefer 族已默认 pure-asm；pipeline_abi mega 仍硬禁）· 日志 mac `/tmp/xlang_allow_tree_map2_mac_20260812_154317.log` · Ubuntu `/tmp/ubu_allow_tree_map_20260812_155648.log`
   - **pipeline_abi mega pure-asm 硬禁收口 ✅（2026-08-12）**：G.7 三层——①`pure_asm_x_to_o` basename `runtime_pipeline_abi.x` **秒拒** ②`ensure_pipeline_abi_prefer_one` 强制 `XLANG_PREFER_ASM_O_RT=0`（产品 thin 永不进 pure_asm）③`pure_asm_emit_with_timeout` 默认 90s hang guard（`XLANG_PURE_ASM_TIMEOUT_SEC`）。hybrid 仍 -E thin+rest；双端 L2 5/5 @ tip `af5e621e6`  
-  - **typeck 墙钟瘦身 ✅（2026-08-12）**：prim BSS + compound G.7 thin→`pipeline_type_find_or_alloc_compound` + stmt_order 迭代 · mac pure-asm **361s→60s**（＜90s）· 仍暂硬禁待 Ubuntu 金标再议真开  
+  - **typeck 墙钟瘦身 ✅（2026-08-12）**：prim BSS + compound G.7 thin→`pipeline_type_find_or_alloc_compound` + stmt_order 迭代 · mac **361s→60s**／Ubuntu **75s**（hang 闭；emit rc=0）  
+  - **pipeline_abi mega pure-asm 产品装链 residual**：hang 非根因；pure-asm .o U `xlang_driver_*_opaque`（-E prologue only）→ product basename skip + RT=0 hybrid thin（禁白跑 pure 再 hybrid）  
 
   - 下一刀候选（本域）：ALLOW ensure 再瘦（若仍有 path 无条件／双扫）／mega pure-asm 真开须 hang 根因＋授权／Stage12 COMPILE residual 其它叶
   - **单 slice 二分 harness ✅**：`XLANG_PREFER_ASM_O_ONLY`（G.7 `pure_asm_x_to_o` allow-list）  

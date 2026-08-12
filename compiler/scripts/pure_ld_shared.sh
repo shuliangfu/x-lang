@@ -387,11 +387,13 @@ xlang_strip_tree_prefer_asm_unless_allowed() {
 # XLANG_ALLOW_TREE_PREFER_ASM=1). Fall through to -E+$CC on reject/fail.
 # Ban: tree-level PREFER_ASM_O=1 as product default (see
 # xlang_strip_tree_prefer_asm_unless_allowed).
-# Hard ban: pure-asm on runtime_pipeline_abi.x mega (instant return 1; hang map
-# 2026-08-12). Product call-site also forces XLANG_PREFER_ASM_O_RT=0 in
-# ensure_pipeline_abi_prefer_one (belt-and-suspenders; G.7 complete policy).
-# Hang guard: pure_asm_emit_with_timeout (default 90s; XLANG_PURE_ASM_TIMEOUT_SEC)
-# so any non-banned unbounded emit cannot stall ensure forever.
+# pipeline_abi mega pure-asm product skip (instant return 1): freestanding
+# surface residual — pure-asm emits U xlang_driver_*_opaque helpers only the
+# -E hybrid prologue defines (g05 pure-ld UNDEF if installed). Hang wall closed
+# (typeck slim 2026-08-12: mac ~60s / Ubuntu ~75s emit rc=0); ban is NOT hang.
+# Call-site ensure_pipeline_abi_prefer_one forces XLANG_PREFER_ASM_O_RT=0 so
+# product thin never pays pure-asm wall before hybrid -E. Hang guard remains
+# pure_asm_emit_with_timeout (default 90s) for other pure-asm leaves.
 # Escape: PREFER_ASM_O_{LABI,RT,G05}=0 per family.
 #
 # When XLANG_PREFER_ASM_O=1: run `$XLANG -backend asm -c` via a staged `*.o`
@@ -400,9 +402,8 @@ xlang_strip_tree_prefer_asm_unless_allowed() {
 # When unset: return 1 immediately (callers that did not scope a family default).
 #
 # Skip (return 1) when:
-#   · SRC is runtime_pipeline_abi.x mega (hard ban; Stage12.0.5 map 2026-08-12:
-#     full mega pure-asm hangs 180s+ with empty OUT/stderr — tree PREFER_ASM=1
-#     would stall try-pipeline-abi-prefer before -E fallthrough)
+#   · SRC is runtime_pipeline_abi.x (product pure-asm install residual: U
+#     xlang_driver_*_opaque surface — hang wall closed; see ban comment above)
 #   · emit exceeds XLANG_PURE_ASM_TIMEOUT_SEC (default 90; hang residual safety)
 #   · G05_X_O_SYM_RENAME set (still needs C identifier rewrite; no pure-asm polish)
 #   · object has U xlang_panic or bare U __error (g05 pure-ld surface mismatch)
@@ -504,17 +505,12 @@ pure_asm_x_to_o() {
   if [ ! -f "$src" ]; then
     return 1
   fi
-  # Hard ban: runtime_pipeline_abi mega pure-asm.
-  # PLATFORM: SHARED — Stage12.0.5 hang RCA (2026-08-12; emit-wall root 2026-08-12):
-  #   · Not an infinite pure-asm backend loop. Historic mid-stall samples were
-  #     typeck then prepare/soa O(nfuncs×nexprs) fill_var (closed: module-level
-  #     fill memo + prepare no longer double-fills; see glue_fill_var_types_*).
-  #   · Product -E ~340s (typeck OK + C). Pure-asm after fill fix: ~366s then
-  #     CG002 (code_len>0 labels=0) — real asm emit residual, not hang.
-  #   · Historic 180s map empty OUT = mid-typeck kill (false hang).
-  # Immediate reject → -E+$CC hybrid. Call-site forces XLANG_PREFER_ASM_O_RT=0.
-  # Open pure-asm only after: pure-asm .o rc=0 + hybrid g05 matrix + wall policy
-  # (default 90s timeout cannot cover mega typeck ~5–6min alone).
+  # PLATFORM: SHARED — pipeline_abi mega product pure-asm skip (surface U, not hang).
+  # Emit alone is green post typeck-wall slim (mac ~60s / Ubuntu ~75s rc=0), but
+  # pure-asm .o carries U xlang_driver_{fputs,stdout,fclose,realpath}_opaque that
+  # only -E hybrid prologue defines → reject before g05 pure-ld UNDEF. Instant
+  # skip so ensure never pays pure-asm wall then hybrid (G.7 product path).
+  # Open product pure-asm when opaque surface is provided on freestanding bag.
   _bn="$(basename "$src")"
   if [ "$_bn" = "runtime_pipeline_abi.x" ]; then
     return 1
