@@ -540,7 +540,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena(uint8_t * caller_arena, int32_t cal
     if ((func_ix >=0)) {
       (void)(((out_fi)[0] = func_ix));
       if ((dep_ix >=0)) {
-        uint8_t * pctx = g02f_load_ptr_at(ctx, 1256);
+        uint8_t * pctx = g02f_load_ptr_at(ctx, 1384);
         if ((pctx ==0)) {
           (void)((pctx = pipeline_asm_emit_dep_pipe_c_retu8_ptr()));
         }
@@ -572,7 +572,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena(uint8_t * caller_arena, int32_t cal
         if ((field_len <=63)) {
           uint8_t field_name[128] = {};
           (void)(pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr(caller_arena, callee_ref, &((field_name)[0])));
-          uint8_t * pctx2 = g02f_load_ptr_at(ctx, 1256);
+          uint8_t * pctx2 = g02f_load_ptr_at(ctx, 1384);
           if ((pctx2 ==0)) {
             (void)((pctx2 = pipeline_asm_emit_dep_pipe_c_retu8_ptr()));
           }
@@ -617,7 +617,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena(uint8_t * caller_arena, int32_t cal
       (void)(((out_fi)[0] = fi3));
       return 1;
     }
-    uint8_t * pctx3 = g02f_load_ptr_at(ctx, 1256);
+    uint8_t * pctx3 = g02f_load_ptr_at(ctx, 1384);
     if ((pctx3 ==0)) {
       (void)((pctx3 = pipeline_asm_emit_dep_pipe_c_retu8_ptr()));
     }
@@ -1732,7 +1732,7 @@ int32_t try_inline_var_field_sum_binop_elf(uint8_t * arena, uint8_t * elf_ctx, i
   {
     int32_t base_l = pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32(arena, left_ref);
     int32_t base_r = pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32(arena, right_ref);
-    uint8_t * pctx = g02f_load_ptr_at(ctx, 1256);
+    uint8_t * pctx = g02f_load_ptr_at(ctx, 1384);
     int32_t off_a = (0 - 1);
     int32_t off_b = (0 - 1);
     int32_t nd = pipeline_dep_ctx_ndep_u8_ptr_reti32(pctx);

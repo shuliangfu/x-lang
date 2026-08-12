@@ -248,7 +248,8 @@ export function glue_type_ref_is_named_struct_layout(arena: *u8, mod: *u8, ty_re
   return 0;
 }
 /** Load little-endian pointer from p[off..off+8). Null p → null.
- * Used for AsmFuncCtx module_ref @16 and dep_pipe @1256 (64-bit LE).
+ * Used for AsmFuncCtx module_ref @16 and dep_pipe @1384 (64-bit LE).
+ * LP64 authority: pipeline_abi (was stale 1256 mid continue_label).
  * Track-L: no_mangle keeps surface short name g02f_load_ptr_at.
  * PLATFORM: SHARED — link-name contract; dual-host prove. */
 #[no_mangle]
@@ -487,7 +488,7 @@ export function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: 
 /* ---- G-02f-110 / G-02f-136 / G-02f-138：try_inline fold/field ---- */
 
 // See implementation.
-// module_ref@16，dep_pipe@1256；FIELD_ACCESS=44，VAR=3
+// module_ref@16，dep_pipe@1384；FIELD_ACCESS=44，VAR=3
 /** Exported function `glue_call_lookup_callee_mod_fi_arena`.
  * Implements `glue_call_lookup_callee_mod_fi_arena`.
  * @param caller_arena *u8
@@ -517,7 +518,7 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
     if (func_ix >= 0) {
       out_fi[0] = func_ix;
       if (dep_ix >= 0) {
-        let pctx: *u8 = g02f_load_ptr_at(ctx, 1256);
+        let pctx: *u8 = g02f_load_ptr_at(ctx, 1384);
         if (pctx == 0) {
           pctx = pipeline_asm_emit_dep_pipe_c();
         }
@@ -542,7 +543,7 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
         if (field_len <= 63) {
           let field_name: u8[128] = [];
           pipeline_expr_field_access_name_into(caller_arena, callee_ref, &field_name[0]);
-          let pctx2: *u8 = g02f_load_ptr_at(ctx, 1256);
+          let pctx2: *u8 = g02f_load_ptr_at(ctx, 1384);
           if (pctx2 == 0) {
             pctx2 = pipeline_asm_emit_dep_pipe_c();
           }
@@ -581,7 +582,7 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
       out_fi[0] = fi3;
       return 1;
     }
-    let pctx3: *u8 = g02f_load_ptr_at(ctx, 1256);
+    let pctx3: *u8 = g02f_load_ptr_at(ctx, 1384);
     if (pctx3 == 0) {
       pctx3 = pipeline_asm_emit_dep_pipe_c();
     }
@@ -1579,7 +1580,7 @@ export function try_inline_var_field_sum_binop_elf(
     if (base_l <= 0) { return 0; }
     if (base_r != base_l) { return 0; }
     if (pipeline_expr_kind_ord_at(arena, base_l) != 3) { return 0; }
-    let pctx: *u8 = g02f_load_ptr_at(ctx, 1256);
+    let pctx: *u8 = g02f_load_ptr_at(ctx, 1384);
     if (pctx == 0) {
       pctx = pipeline_asm_emit_dep_pipe_c();
     }

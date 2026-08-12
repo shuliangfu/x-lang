@@ -26,6 +26,8 @@ extern int32_t backend_call_dispatch_x_doc_anchor(void);
 extern int32_t pipeline_asm_abi_f32_xmm_enabled_c(void);
 extern void pipeline_asm_emit_set_call_f32_xmm(int32_t on);
 extern int32_t pipeline_asm_emit_get_call_f32_xmm_c(void);
+/* PLATFORM: SHARED — process-local dep_pipe (set by pipeline_asm_emit_set_dep_pipe). */
+extern uint8_t *pipeline_asm_emit_dep_pipe_c(void);
 extern void glue_asm_string_lit_into(uint8_t * arena, int32_t er, uint8_t * out64);
 extern void glue_codegen_import_path_to_c_prefix_into(uint8_t * path, uint8_t * buf, int32_t buf_cap);
 extern int32_t glue_module_func_overload_count_c(uint8_t * m, uint8_t * name, int32_t nlen);
@@ -1646,7 +1648,10 @@ int32_t pipeline_asm_emit_call_elf_c(uint8_t * arena, uint8_t * elf_ctx, int32_t
       return (0 - 1);
     }
     uint8_t * mod_ref = call_dispatch_load_ptr_le(ctx, 16);
-    uint8_t * dep_pipe = call_dispatch_load_ptr_le(ctx, 1256);
+    /* PLATFORM: SHARED LP64 — AsmFuncCtx dep_pipe@1384 (pipeline_abi; was stale 1256). */
+    uint8_t * dep_pipe = call_dispatch_load_ptr_le(ctx, 1384);
+    if (!dep_pipe)
+      dep_pipe = pipeline_asm_emit_dep_pipe_c();
     int32_t callee_ko = pipeline_expr_kind_ord_at(arena, callee_ref);
     if ((callee_ko ==44)) {
       uint8_t pre_fmt[16] = {};

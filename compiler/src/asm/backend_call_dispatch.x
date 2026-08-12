@@ -97,6 +97,8 @@ export extern function backend_enc_mov_rax_to_xmm_arg_reg_arch(elf: *u8, k: i32,
 export extern function pipeline_asm_call_arg_value_byte_size_c(arena: *u8, ctx: *u8, arg_ref: i32, pty: i32): i32;
 export extern function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
 export extern function pipeline_expr_call_resolved_dep_index_at(arena: *u8, call: i32): i32;
+/** Process-local AsmFuncCtx dep_pipe (set by pipeline_asm_emit_set_dep_pipe). PLATFORM: SHARED. */
+export extern function pipeline_asm_emit_dep_pipe_c(): *u8;
 export extern function pipeline_dep_ctx_ndep(dep: *u8): i32;
 export extern function pipeline_dep_ctx_module_at(dep: *u8, j: i32): *u8;
 export extern function pipeline_dep_ctx_import_path_copy64(dep: *u8, j: i32, path: *u8): void;
@@ -416,7 +418,9 @@ export function call_dispatch_store_i32_le(p: *u8, off: i32, v: i32): void {
 
 // See implementation.
 /** Load little-endian pointer from p[off..off+8). Null p → null.
- * Used for AsmFuncCtx module_ref @16 and dep_pipe @1256 (64-bit LE).
+ * Used for AsmFuncCtx module_ref @16 and dep_pipe @1384 (64-bit LE).
+ * LP64 layout authority: pipeline_abi glue_block_body_bind_module_dep_from_ctx
+ * (module_ref@16 / dep_pipe@1384; was stale 1256 mid continue_label → bare call UNDEF).
  * Track-L: no_mangle keeps surface short name call_dispatch_load_ptr_le.
  * PLATFORM: SHARED — link-name contract; dual-host prove. */
 #[no_mangle]
@@ -2174,7 +2178,12 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
     let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
     if (callee_ref <= 0) { return 0 - 1; }
     let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
-    let dep_pipe: *u8 = call_dispatch_load_ptr_le(ctx, 1256);
+    // PLATFORM: SHARED LP64 — dep_pipe@1384 (pipeline_abi authority; not 1256).
+    // Fallback: process-local set by pipeline_asm_emit_set_dep_pipe (try_inline twin).
+    let dep_pipe: *u8 = call_dispatch_load_ptr_le(ctx, 1384);
+    if (dep_pipe == 0 as *u8) {
+      dep_pipe = pipeline_asm_emit_dep_pipe_c();
+    }
     let callee_ko: i32 = pipeline_expr_kind_ord_at(arena, callee_ref);
     // See implementation.
     if (callee_ko == 44) {
