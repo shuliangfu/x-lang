@@ -352,8 +352,9 @@ pure_asm_apply_weak_polish() {
 #     XLANG_PREFER_ASM_O=1 for this helper only; does NOT flip tree PREFER.
 #   · rt_prefer_try_x_to_o / g05_try_x_to_o — still opt-in: need ambient
 #     XLANG_PREFER_ASM_O=1; fall through to -E+$CC on reject/fail.
-# Ban: tree-level PREFER_ASM_O=1 as product default; pure-asm on
-# runtime_pipeline_abi mega. Escape labi pure-asm: XLANG_PREFER_ASM_O_LABI=0.
+# Ban: tree-level PREFER_ASM_O=1 as product default.
+# Hard ban: pure-asm on runtime_pipeline_abi.x mega (instant return 1; hang map
+# 2026-08-12). Escape labi pure-asm: XLANG_PREFER_ASM_O_LABI=0.
 #
 # When XLANG_PREFER_ASM_O=1: run `$XLANG -backend asm -c` via a staged `*.o`
 #   path (driver only emits relocatable objects when OUT ends with `.o`;
@@ -361,6 +362,9 @@ pure_asm_apply_weak_polish() {
 # When unset (default for non-labi callers): return 1 immediately.
 #
 # Skip (return 1) when:
+#   · SRC is runtime_pipeline_abi.x mega (hard ban; Stage12.0.5 map 2026-08-12:
+#     full mega pure-asm hangs 180s+ with empty OUT/stderr — tree PREFER_ASM=1
+#     would stall try-pipeline-abi-prefer before -E fallthrough)
 #   · G05_X_O_SYM_RENAME set (still needs C identifier rewrite; no pure-asm polish)
 #   · object has U xlang_panic or bare U __error (g05 pure-ld surface mismatch)
 #   · CG002 / typeck / empty output
@@ -405,6 +409,16 @@ pure_asm_x_to_o() {
     return 1
   fi
   if [ ! -f "$src" ]; then
+    return 1
+  fi
+  # Hard ban: runtime_pipeline_abi mega pure-asm.
+  # PLATFORM: SHARED — map @ tip edf848abc: `xlang -backend asm -c` on this
+  # 85k-line mega hangs 180s+ with zero stderr and no .o; pure_asm_x_to_o had
+  # no timeout so PREFER_ASM_O=1 leaked into try-pipeline-abi-prefer and stalled
+  # product ensure (G05_X_O_WEAK thin path). Immediate reject → -E+$CC hybrid.
+  # Not a product default flip; codifies the long-standing policy ban in G.7.
+  _bn="$(basename "$src")"
+  if [ "$_bn" = "runtime_pipeline_abi.x" ]; then
     return 1
   fi
   # Optional single-slice / allow-list gate for hybrid ABI bisect.

@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + L2-asm／tcpu／ldpc／async／other-l2／R3 pure-asm hybrid 双端 5/5** · labi full12 hybrid 双端 5/5 · **rt pure-asm hybrid 双端 5/5 ✅** · **labi-only pure-asm 产品默认双端 ✅**（`PREFER_ASM_O_LABI` 默认 1 · mac+Ubuntu 5/5 · 禁树级 PREFER_ASM 默认 · 禁 pipeline_abi mega）· **B1–B3 pure-asm hybrid 双端 5/5 ✅** · rt／g05 默认仍 -E**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + L2-asm／tcpu／ldpc／async／other-l2／R3／rt／B1–B3 pure-asm hybrid 双端 5/5** · **labi-only pure-asm 产品默认双端 ✅** · **pipeline_abi mega pure-asm 硬禁 ✅**（`pure_asm_x_to_o` 秒拒 · hang 地图）· 禁树级 PREFER_ASM 默认 · rt／g05 默认仍 -E；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -1985,7 +1985,8 @@
   - **G.7 权威 helper**：`pure_asm_x_to_o`（`compiler/scripts/pure_ld_shared.sh`）— 需 ambient `XLANG_PREFER_ASM_O=1`；`*.o` 暂存；拒 U `xlang_panic`／裸 `__error`  
   - **Darwin call mangling ✅**：`macho_leading_underscore` 对 C 名**一律** prepend `_` → `__error`→`___error`  
   - **pure_asm 覆盖（mac）**：`rt_*.x` **23/23** ✅；hybrid thin **18/18**；labi **12/12** ✅（fixed-array bounds 对等闭）  
-  - **产品 hybrid**：`rt_prefer`／`g05_try` 仍 opt-in（`XLANG_PREFER_ASM_O=1`）· **`labi_prefer_try_x_to_o` 产品默认 pure-asm ✅**（`XLANG_PREFER_ASM_O_LABI` 默认 1 · 子 shell scoped 设 PREFER_ASM；逃逸 `=0`；禁树级 PREFER 默认 · 禁 pipeline_abi mega）  
+  - **产品 hybrid**：`rt_prefer`／`g05_try` 仍 opt-in（`XLANG_PREFER_ASM_O=1`）· **`labi_prefer_try_x_to_o` 产品默认 pure-asm ✅**（`XLANG_PREFER_ASM_O_LABI` 默认 1 · 子 shell scoped 设 PREFER_ASM；逃逸 `=0`；禁树级 PREFER 默认）  
+  - **pipeline_abi mega pure-asm 硬禁 ✅（2026-08-12）**：G.7 `pure_asm_x_to_o` basename `runtime_pipeline_abi.x` **秒拒**（地图 hang 180s+ 空 OUT／stderr；树级 PREFER 泄漏会卡 ensure）。hybrid 仍 -E thin+rest；`PREFER_ASM=1`+try-pipeline-abi mac matrix **5/5**（fallthrough -E）  
   - **单 slice 二分 harness ✅**：`XLANG_PREFER_ASM_O_ONLY`（G.7 `pure_asm_x_to_o` allow-list）  
   - **INDEX `**T` 双剥皮闭 ✅**（`pipeline_asm_index_elem_byte_sz_c` pure+seed）  
   - **真 L2 地图（prefer + soft g05_relink + matrix）**：  
@@ -2026,6 +2027,7 @@
     - **Ubuntu 金标 ✅**：default pure link_abi **448744** · hybrid matrix **5/5** · escape -E **316232** · reapply **448744** 5/5（`/tmp/ubu_labi_default_pure_asm_8d48a1d78_20260812_100547.log`）  
     - 历史授权图（tip `662b5fbfe` RED×6）：path_pure param_home + residual ABI 后已闭；full12 双端 5/5 后用户授权落地  
   - **B1／B2／B3 pure-asm hybrid 双端 5/5 ✅**：mac 前序 · Ubuntu @ `5d44fa3eb` prefer+soft g05+matrix+restore 全绿（`/tmp/ubu_b1b2b3_pure_asm_hybrid_true_5d44fa3eb_20260812_084234.log`）  
+  - **pipeline_abi mega pure-asm 问题地图 + 硬禁 ✅**：独立 pure-asm **TIMEOUT 180s** · helper 同 · 硬禁后 BAN wall=0s · labi pure 仍绿 · PREFER_ASM hybrid -E prefer 不挂 · matrix 5/5  
 
 
   - **COMPILE residual prefer 薄叶 pure_asm 问题地图 ✅（2026-08-11 · tip `6a814b52c`）**：  

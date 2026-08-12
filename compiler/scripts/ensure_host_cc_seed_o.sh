@@ -1486,9 +1486,10 @@ labi_prefer_pick_xlang() {
 #   · pure_asm reject (panic/__error/CG002/ONLY miss) → fall through -E+$CC.
 #   · Escape hatch: XLANG_PREFER_ASM_O_LABI=0 → labi layers stay historic -E+$CC
 #     unless ambient XLANG_PREFER_ASM_O=1 (tree opt-in still applies).
-#   · rt_prefer / g05_try / pipeline_abi mega still require tree PREFER_ASM_O=1
-#     (default off). Ban: defaulting PREFER_ASM_O=1 globally; pure-asm on
-#     runtime_pipeline_abi mega.
+#   · rt_prefer / g05_try still require tree PREFER_ASM_O=1 (default off).
+#   · pipeline_abi mega pure-asm: hard-banned in pure_asm_x_to_o (basename
+#     runtime_pipeline_abi.x → instant return 1; map 2026-08-12 hang 180s+).
+#     Ban: defaulting PREFER_ASM_O=1 globally.
 # PLATFORM: SHARED — retry -E then -backend c -E (Ubuntu SIGSEGV history).
 # G.7: single pure_asm_x_to_o authority; no second pure-asm helper.
 labi_prefer_try_x_to_o() {
