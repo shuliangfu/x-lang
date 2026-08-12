@@ -1592,7 +1592,12 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
         esac
       done
     else
-      # PLATFORM: MACOS — export only this leaf's product-prefixed globals.
+      # PLATFORM: MACOS — export this leaf's product-prefixed globals.
+      # bare-impl multi-file (mod.x + encoding.x): also keep leaf_*_c impl faces.
+      # Pure-asm product import still binds encoding_utf8_valid_c (extern face) while
+      # wrappers are std_encoding_utf8_valid; demoting *_c → local left user.o UNDEF.
+      # Foreign core_*/std_* (co-emitted mem) stay off the list → local (no multidef
+      # when companion-push string.o / base64.o). G.7: complete export authority.
       _exp_list="$tmp_dir/export_prod_pref_syms.txt"
       : >"$_exp_list"
       nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' >"$tmp_dir/export_nm_syms.txt" || true
@@ -1604,6 +1609,10 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
         esac
         case "$bare" in
           "${prod_pref}"*)
+            printf '%s\n' "$sym" >>"$_exp_list"
+            ;;
+          "${leaf}_"*_c|"${leaf}_"*_c_*)
+            # leaf=encoding → encoding_utf8_valid_c; not core_mem_*, not std_*.
             printf '%s\n' "$sym" >>"$_exp_list"
             ;;
         esac

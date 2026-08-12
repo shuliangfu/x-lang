@@ -2619,8 +2619,56 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                 }
               }
             }
+            // PLATFORM: SHARED — g2 encoding formal may be gitignored after L4 wipe.
+            // encode_hex/base64 wrappers U string + base64; ensure primary before push.
+            if (sg == 2) {
+              let rt2: *u8 = 0 as *u8;
+              unsafe {
+                rt2 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt2 != 0 as *u8) {
+                if (rt2[0] != 0) {
+                  unsafe {
+                    let _fe2: i32 = xlang_ensure_formal_std_make_o(rt2, "std/encoding/encoding.o", "../std/encoding/encoding.o");
+                  }
+                }
+              }
+            }
             unsafe {
               let _sg: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+            }
+            // PLATFORM: SHARED — g2 encoding.o carries U std_base64_* + std_string_string_*
+            // (encode_hex/base64/base32 helpers). User.o only U encoding_* so g0/g3 alone miss.
+            // Companion co-push ≡ g9 slice glue pattern (transitive formal deps).
+            if (sg == 2) {
+              let rt2c: *u8 = 0 as *u8;
+              unsafe {
+                rt2c = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt2c != 0 as *u8) {
+                if (rt2c[0] != 0) {
+                  unsafe {
+                    let _fes: i32 = xlang_ensure_formal_std_make_o(rt2c, "std/string/string.o", "../std/string/string.o");
+                    let _feb: i32 = xlang_ensure_formal_std_make_o(rt2c, "std/base64/base64.o", "../std/base64/base64.o");
+                  }
+                }
+              }
+              let srel: *u8 = labi_od_simple_group_rel(0);
+              let brel: *u8 = labi_od_simple_group_rel(3);
+              if (srel != 0 as *u8) {
+                if (srel[0] != 0) {
+                  unsafe {
+                    let _ps: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, srel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+                  }
+                }
+              }
+              if (brel != 0 as *u8) {
+                if (brel[0] != 0) {
+                  unsafe {
+                    let _pb: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, brel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+                  }
+                }
+              }
             }
             // g9: co-push glue slice.o after formal mod.o
             if (sg == 9) {

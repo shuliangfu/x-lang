@@ -2090,8 +2090,49 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
               }
             }
           }
+          /* PLATFORM: SHARED — g2 encoding formal ensure (L4 wipe). */
+          if ((sg ==2)) {
+            uint8_t * rt2 = 0;
+            (void)((rt2 = xlang_repo_root_from_argv0(link_argv0)));
+            if ((rt2 !=0)) {
+              if (((rt2)[0] !=0)) {
+                {
+                  int32_t _fe2 = xlang_ensure_formal_std_make_o(rt2, ((uint8_t *)"std/encoding/encoding.o"), ((uint8_t *)"../std/encoding/encoding.o"));
+                }
+              }
+            }
+          }
           {
             int32_t _sg = link_abi_asm_ld_push_obj(0, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+          }
+          /* PLATFORM: SHARED — g2 encoding companion string+base64 (transitive U; ≡ g9 glue). */
+          if ((sg ==2)) {
+            uint8_t * rt2c = 0;
+            (void)((rt2c = xlang_repo_root_from_argv0(link_argv0)));
+            if ((rt2c !=0)) {
+              if (((rt2c)[0] !=0)) {
+                {
+                  int32_t _fes = xlang_ensure_formal_std_make_o(rt2c, ((uint8_t *)"std/string/string.o"), ((uint8_t *)"../std/string/string.o"));
+                  int32_t _feb = xlang_ensure_formal_std_make_o(rt2c, ((uint8_t *)"std/base64/base64.o"), ((uint8_t *)"../std/base64/base64.o"));
+                }
+              }
+            }
+            uint8_t * srel = labi_od_simple_group_rel(0);
+            uint8_t * brel = labi_od_simple_group_rel(3);
+            if ((srel !=0)) {
+              if (((srel)[0] !=0)) {
+                {
+                  int32_t _ps = link_abi_asm_ld_push_obj(0, link_argv0, srel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+                }
+              }
+            }
+            if ((brel !=0)) {
+              if (((brel)[0] !=0)) {
+                {
+                  int32_t _pb = link_abi_asm_ld_push_obj(0, link_argv0, brel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+                }
+              }
+            }
           }
           if ((sg ==9)) {
             uint8_t * rtg = 0;

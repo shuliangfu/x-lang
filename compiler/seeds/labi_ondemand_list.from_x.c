@@ -2374,7 +2374,30 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                     (void)xlang_ensure_formal_std_make_o(include_root, rel, make_tgt);
                 pushed_core_formal = 1;
             }
+            /* PLATFORM: SHARED — g2 encoding formal may be missing after L4 wipe. */
+            if (strstr(rel, "std/encoding/encoding.o")) {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                char make_tgt[PATH_MAX];
+                if (include_root && include_root[0] &&
+                    (size_t)snprintf(make_tgt, sizeof make_tgt, "../%s", rel) < sizeof make_tgt)
+                    (void)xlang_ensure_formal_std_make_o(include_root, rel, make_tgt);
+            }
             link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            /* PLATFORM: SHARED — encoding.o U std_base64_* + std_string_string_* helpers.
+             * User.o only U encoding_*; g0/g3 alone miss. Companion ≡ g9 slice glue. */
+            if (strstr(rel, "std/encoding/encoding.o")) {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0]) {
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/string/string.o",
+                                                        "../std/string/string.o");
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/base64/base64.o",
+                                                        "../std/base64/base64.o");
+                }
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "std/string/string.o", lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "std/base64/base64.o", lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+            }
             /* PLATFORM: SHARED — formal mod.o U from_ptr/subslice → always co-push glue slice.o.
              * User.o for length.x has no U core_slice_*_from_ptr_c, so needs_core_slice alone misses glue. */
             if (strstr(rel, "core/slice/mod.o")) {
