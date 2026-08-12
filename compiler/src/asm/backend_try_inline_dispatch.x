@@ -94,6 +94,7 @@ export extern "C" function backend_enc_add_imm_to_rax_arch(elf: *u8, imm: i32, t
 export extern "C" function backend_fold_func_returns_param0_single_field(arena: *u8, mod: *u8, fi: i32): i32;
 export extern "C" function backend_fold_func_returns_param0_field_sum(arena: *u8, mod: *u8, fi: i32): i32;
 export extern "C" function backend_enc_load_32_from_rax_arch(elf: *u8, ta: i32): i32;
+export extern "C" function backend_enc_load_64_from_rax_arch(elf: *u8, ta: i32): i32;
 export extern "C" function backend_enc_push_rax_arch(elf: *u8, ta: i32): i32;
 export extern "C" function backend_enc_pop_rax_arch(elf: *u8, ta: i32): i32;
 export extern "C" function backend_enc_mov_rax_to_rbx_arch(elf: *u8, ta: i32): i32;
@@ -1458,6 +1459,20 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
     let ret_ref: i32 = glue_try_fold_func_return_operand_ref(callee_arena, callee_mod, fi);
     if (ret_ref <= 0) { return 0; }
     let off: i32 = pipeline_expr_field_access_layout_offset(callee_arena, callee_mod, ret_ref);
+    // PLATFORM: SHARED — pointer returns must not use this i32 field-load fold.
+    // Root (mac L4 cold opt SEGV): expect_ptr_u8 returns *u8 (TYPE_PTR=9) from
+    // Option_ptr_u8.value (dual-GP half at +8). Historic load_32 / off-0 path
+    // loaded is_some tag (1) as a pointer → ldrb [x0=1]. Soft product kept
+    // CALL and stayed green; cold pure-asm inlined the broken path.
+    // G.7: refuse TYPE_PTR returns here (CALL emits dual-GP correctly).
+    // TypeKind: TYPE_PTR = 9 (ast.x / typeck comments).
+    let ret_ty: i32 = pipeline_module_func_return_type_at(callee_mod, fi);
+    if (ret_ty > 0) {
+      let kord: i32 = pipeline_type_kind_ord_at(callee_arena, ret_ty);
+      if (kord == 9) {
+        return 0;
+      }
+    }
     let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
     if (arg_ref <= 0) { return 0 - 1; }
     if (pipeline_expr_kind_ord_at(arena, arg_ref) == 48) {
@@ -1514,6 +1529,16 @@ export function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, e
     if (callee_arena == 0) { return 0; }
     if (callee_mod == 0) { return 0; }
     if (backend_fold_func_returns_param0_field_sum(callee_arena, callee_mod, fi) == 0) { return 0; }
+    // PLATFORM: SHARED — same PTR ban as single-field fold (never sum into *T).
+    {
+      let ret_ty2: i32 = pipeline_module_func_return_type_at(callee_mod, fi);
+      if (ret_ty2 > 0) {
+        let kord2: i32 = pipeline_type_kind_ord_at(callee_arena, ret_ty2);
+        if (kord2 == 9) {
+          return 0;
+        }
+      }
+    }
     let ret_ref: i32 = glue_try_fold_func_return_operand_ref(callee_arena, callee_mod, fi);
     if (ret_ref <= 0) { return 0; }
     let al: i32 = pipeline_expr_binop_left_ref_at(callee_arena, ret_ref);

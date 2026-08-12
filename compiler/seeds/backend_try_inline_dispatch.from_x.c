@@ -311,6 +311,7 @@ extern int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_
 extern int32_t backend_enc_pop_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_add_imm_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, int32_t ta);
 extern int32_t backend_enc_load_32_from_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_64_from_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_rax_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
@@ -1184,6 +1185,19 @@ int32_t try_inline_param0_single_field_call_elf_impl(struct ast_ASTArena *arena,
     return 0;
   /** 勿信 typeck 误填的 field_access_offset（跨 import 常见 fi*8）；只走 struct layout。 */
   off = pipeline_expr_field_access_layout_offset(callee_arena, callee_mod, ret_ref);
+  /*
+   * PLATFORM: SHARED — never fold pointer-returning param0.field (TYPE_PTR=9).
+   * Root (mac L4 cold opt SEGV): expect_ptr_u8 → *u8 from Option_ptr dual-GP;
+   * load_32/off0 treated is_some as pointer. G.7: refuse PTR → CALL path.
+   */
+  {
+    int32_t ret_ty = pipeline_module_func_return_type_at(callee_mod, fi);
+    if (ret_ty > 0) {
+      int32_t kord = pipeline_type_kind_ord_at(callee_arena, ret_ty);
+      if (kord == 9)
+        return 0;
+    }
+  }
   arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
   if (arg_ref <= 0)
     return -1;
@@ -1492,6 +1506,12 @@ int32_t try_inline_param0_field_sum_call_elf_impl(struct ast_ASTArena *arena, st
     return 0;
   if (backend_fold_func_returns_param0_field_sum(callee_arena, callee_mod, fi) == 0)
     return 0;
+  /* PLATFORM: SHARED — same PTR ban as single-field fold. */
+  {
+    int32_t ret_ty2 = pipeline_module_func_return_type_at(callee_mod, fi);
+    if (ret_ty2 > 0 && pipeline_type_kind_ord_at(callee_arena, ret_ty2) == 9)
+      return 0;
+  }
   ret_ref = glue_try_fold_func_return_operand_ref(callee_arena, callee_mod, fi);
   if (ret_ref <= 0)
     return 0;
