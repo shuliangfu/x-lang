@@ -2030,7 +2030,8 @@
     - 实现：`rt_prefer_try_x_to_o` → `XLANG_PREFER_ASM_O_RT` 默认 **1**（覆盖 try-rt／r3／async／l2-asm／tcpu／ldpc／other-l2／B1–B3 共用 harness）；`g05_try_x_to_o` → `XLANG_PREFER_ASM_O_G05` 默认 **1**；均子 shell scoped · G.7 单权威 `pure_asm_x_to_o`  
     - **禁**树级 `PREFER_ASM_O=1` 默认 · **禁** pipeline_abi mega pure-asm（硬禁）  
     - 逃逸：`PREFER_ASM_O_{RT,G05}=0`  
-    - **mac L2 ✅**：RT=0 escape no_c=**131616** · default pure no_c=**186664** SIZE_PROOF · async×3／l2-asm×3／r3 sample · soft g05 · matrix **5/5**（`/tmp/xlang_prefer_default_v2_039d60d23_*.log`）
+    - **mac L2 ✅**：RT=0 escape no_c=**131616** · default pure no_c=**186664** SIZE_PROOF · async×3／l2-asm×3／r3 sample · soft g05 · matrix **5/5**（`/tmp/xlang_prefer_default_v2_039d60d23_*.log`）  
+    - **Ubuntu 金标 ✅** @ tip `3ac15006a`：escape no_c=**180504** · default pure no_c=**248224** SIZE_PROOF · soft g05 · matrix **5/5**（`/tmp/ubu_prefer_default_pure_asm_3ac15006a_*.log`）
   - **B1／B2／B3 pure-asm hybrid 双端 5/5 ✅**：mac 前序 · Ubuntu @ `5d44fa3eb` prefer+soft g05+matrix+restore 全绿（`/tmp/ubu_b1b2b3_pure_asm_hybrid_true_5d44fa3eb_20260812_084234.log`）  
   - **pipeline_abi mega pure-asm 问题地图 + 硬禁 ✅ 双端**：独立 pure-asm **TIMEOUT 180s** · 硬禁后 BAN wall=0s · labi pure 仍绿 · PREFER_ASM hybrid -E prefer 不挂 · mac matrix 5/5 · **Ubuntu** BAN 0s + matrix 5/5（`/tmp/ubu_pabi_hardban_20260812_104117.log`）  
 
