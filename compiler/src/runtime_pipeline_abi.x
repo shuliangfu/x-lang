@@ -66414,6 +66414,9 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
   }
 
   // Body: value = *(data + ai*esz); *(dest + ai*esz) = value; ai++; jmp loop.
+  // PLATFORM: SHARED — ptr + byteoff must use 64-bit ADD (scale1). arm64
+  // add_rax_rbx is ADD W (u32 wrap) and truncates Darwin user pointers → SEGV
+  // on sub[i] after deep-copy (mac pure-asm run-slice subslice_split_chunks).
   unsafe {
     rc = backend_enc_pop_rax_arch(elf_ctx, ta);
   }
@@ -66470,7 +66473,7 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
       return 0 - 1;
     }
     unsafe {
-      rc = backend_enc_add_rax_rbx_arch(elf_ctx, ta);
+      rc = backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
     }
     if (rc != 0) {
       return 0 - 1;
@@ -66543,7 +66546,7 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
       return 0 - 1;
     }
     unsafe {
-      rc = backend_enc_add_rax_rbx_arch(elf_ctx, ta);
+      rc = backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
     }
     if (rc != 0) {
       return 0 - 1;
@@ -66598,7 +66601,7 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
       return 0 - 1;
     }
     unsafe {
-      rc = backend_enc_add_rax_rbx_arch(elf_ctx, ta);
+      rc = backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
     }
     if (rc != 0) {
       return 0 - 1;
@@ -66702,7 +66705,7 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
       return 0 - 1;
     }
     unsafe {
-      rc = backend_enc_add_rax_rbx_arch(elf_ctx, ta);
+      rc = backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
     }
     if (rc != 0) {
       return 0 - 1;

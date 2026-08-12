@@ -834,6 +834,12 @@ for x_path in "$@"; do
         *)    mod_pref_x="std_${mod_leaf_x}_" ;;
       esac
       inject_tmp="$tmp_dir/inject_structs_${idx}.h"
+      # PLATFORM: SHARED — inject_structs to_c_type must lower []T / T[] to
+      # `struct xlang_slice_<elemTag>` (same authority as codegen emit_type).
+      # Historic bug (mac run-slice len_i32): field `left: []i32` fell through to
+      # `struct ${prefix}${t}` → invalid C `struct core_slice_[]i32` (brackets in
+      # tag) → formal_mod cc -c failed → missing core_slice_len_i32 at product link.
+      # G.7: complete the X→C map; do not invent a second slice naming path.
       perl -e '
         use strict;
         my ($prefix, $src) = @ARGV;
@@ -844,10 +850,29 @@ for x_path in "$@"; do
           f32 => "float", f64 => "double", usize => "size_t", isize => "ssize_t",
           bool => "_Bool",
         );
+        # Element tag for xlang_slice_<tag> (codegen: []i32 → xlang_slice_int32_t).
+        sub slice_elem_tag {
+          my $e = shift; $e =~ s/^\s+|\s+$//g; $e =~ s/;$//;
+          if (exists $type_map{$e}) { return $type_map{$e}; }
+          if ($e =~ /^\*(.*)$/) {
+            my $inner = slice_elem_tag($1);
+            return $inner . "_ptr";
+          }
+          # Named user type: prefer bare tag (codegen bare Split_i32 companions).
+          return $e;
+        }
         sub to_c_type {
           my $t = shift; $t =~ s/^\s+|\s+$//g; $t =~ s/;$//;
           if ($t =~ /^\*(.*)$/) { return to_c_type($1) . " *"; }
+          # Fixed array T[N]
           if ($t =~ /^(.+)\[(\d+)\]$/) { return to_c_type($1) . "[" . $2 . "]"; }
+          # Fat slice []T or T[] → struct xlang_slice_<elemC>
+          if ($t =~ /^\[\](.+)$/) {
+            return "struct xlang_slice_" . slice_elem_tag($1);
+          }
+          if ($t =~ /^(.+)\[\]$/) {
+            return "struct xlang_slice_" . slice_elem_tag($1);
+          }
           if (exists $type_map{$t}) { return $type_map{$t}; }
           return "struct ${prefix}${t}";
         }
@@ -885,6 +910,9 @@ for x_path in "$@"; do
       fi
       if [ -s "$inject_tmp" ] && [ -f "$gen_c" ]; then
         filtered="$tmp_dir/inject_filtered_${idx}.h"
+        # PLATFORM: SHARED — bare complete `struct Split_i32 {` satisfies inject
+        # name `core_slice_Split_i32` (codegen often emits bare tags; inject used
+        # to re-emit a second broken pref body). Mark both bare and pref+bare.
         perl -e '
           use strict;
           my ($gen_c, $inject, $pref) = @ARGV;
@@ -893,6 +921,14 @@ for x_path in "$@"; do
           while (my $l = <$gf>) {
             if ($l =~ /^struct (\Q$pref\E[A-Za-z_][A-Za-z0-9_]*) \{/) { $has_full{$1} = 1; }
             if ($l =~ /^struct (xlang_slice_\Q$pref\E[A-Za-z_][A-Za-z0-9_]*) \{/) { $has_full{$1} = 1; }
+            # Bare complete body: struct Split_i32 { → also covers pref+Split_i32
+            if ($pref ne "" && $l =~ /^struct ([A-Za-z_][A-Za-z0-9_]*) \{/) {
+              my $bare = $1;
+              next if $bare =~ /^xlang_slice_/;
+              next if $bare =~ /^\Q$pref\E/;
+              $has_full{$bare} = 1;
+              $has_full{$pref . $bare} = 1;
+            }
             while ($l =~ /xlang_slice_(\Q$pref\E[A-Za-z_][A-Za-z0-9_]*)/g) {
               $slice_seen{$1} = 1;
             }
@@ -1478,28 +1514,6 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
         fi
       done
     fi
-    # PLATFORM: SHARED — formal_mod co-emits foreign module bodies as global T
-    # (core_mem_* into heap.o/set.o; core_option_* into slice.o; …). Product
-    # links leaf.o + authority .o → multi-def on Ubuntu full link (Mac monofile
-    # often avoids multi-o fallback). Localize every global T that is std_*/core_*
-    # but NOT this leaf's prod_pref. Authority .o keeps the global face. G.7
-    # generalizes the former core.slice-only core_option_* special case.
-    # Mirror: ensure_host_cc_seed_o.sh _std_core_keep_global_prefixes (net_merge).
-    if [ -n "$prod_pref" ]; then
-      nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
-        [ -n "$sym" ] || continue
-        bare="$sym"
-        case "$sym" in
-          _*) bare="${sym#_}" ;;
-        esac
-        case "$bare" in
-          "${prod_pref}"*) continue ;;
-          core_*|std_*)
-            objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
-            ;;
-        esac
-      done
-    fi
     # PLATFORM: SHARED — post-o twin of pre-cc clash guard (wait + libm math bare names).
     # Pre-cc rewrites def to xlang_formal_bare_<name>; post-o must map that body to
     # std_<leaf>_<name> (product face). Looking only for bare T <clash> missed
@@ -1546,6 +1560,58 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
           objcopy --redefine-sym "std_env_${bare}_api=std_env_${bare}" "$out_o" 2>/dev/null || true
         fi
       done
+    fi
+  fi
+  # PLATFORM: SHARED — formal_mod co-emits foreign module bodies as global T
+  # (core_mem_* into heap.o/set.o; core_option_* into slice.o; …). Product
+  # links leaf.o + authority .o → multi-def. Keep global only this leaf's
+  # prod_pref exports; foreign core_*/std_* become local. Authority .o keeps
+  # the global face. G.7: former core.slice-only core_option_* special case.
+  # PLATFORM: LINUX|ELF — objcopy --localize-symbol (foreign list).
+  # PLATFORM: MACOS|DARWIN — stock Xcode has no objcopy; nmedit -s is unreliable
+  # on current Xcode (listed symbols not demoted). Use ld -r -exported_symbols_list
+  # with this leaf's prod_pref globals (inverse: keep only leaf API).
+  # Root (mac run-slice): core/slice/mod.o global core_option_* multi-def option.o.
+  if [ -n "$prod_pref" ] && [ -f "$out_o" ]; then
+    if command -v objcopy >/dev/null 2>&1; then
+      nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
+        [ -n "$sym" ] || continue
+        bare="$sym"
+        case "$sym" in
+          _*) bare="${sym#_}" ;;
+        esac
+        case "$bare" in
+          "${prod_pref}"*) continue ;;
+          core_*|std_*)
+            objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
+            ;;
+        esac
+      done
+    else
+      # PLATFORM: MACOS — export only this leaf's product-prefixed globals.
+      _exp_list="$tmp_dir/export_prod_pref_syms.txt"
+      : >"$_exp_list"
+      nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' >"$tmp_dir/export_nm_syms.txt" || true
+      while IFS= read -r sym; do
+        [ -n "$sym" ] || continue
+        bare="$sym"
+        case "$sym" in
+          _*) bare="${sym#_}" ;;
+        esac
+        case "$bare" in
+          "${prod_pref}"*)
+            printf '%s\n' "$sym" >>"$_exp_list"
+            ;;
+        esac
+      done <"$tmp_dir/export_nm_syms.txt"
+      if [ -s "$_exp_list" ]; then
+        if ld -r -exported_symbols_list "$_exp_list" -o "$out_o.exp" "$out_o" 2>"$tmp_dir/ld_exp.err"; then
+          mv "$out_o.exp" "$out_o"
+        else
+          head -5 "$tmp_dir/ld_exp.err" 2>/dev/null >&2 || true
+          rm -f "$out_o.exp" 2>/dev/null || true
+        fi
+      fi
     fi
   fi
   # heap import-binding：impl 常产出裸 heap_*_c / map_*_c，mod.x U 要
