@@ -3486,11 +3486,12 @@ void xlang_invoke_cc_clear_user_o_files(void);
  * host-cc argv without ALLOW. spawn shell still re-checks the same gate authority.
  * PLATFORM: SHARED — product default deny; experimental XLANG_ALLOW_HOST_CC=1 only.
  *
- * Stage 12.2.3 ALLOW-path ensure slim (G.7 need gate): do NOT call ensure_std_net_o_auto_tls
- * at entry for every ALLOW C link. Pre-ensure TLS made XLANG_NET_TLS=stub/openssl pay host
- * make on rv/hello/MINIMAL paths that never need net. Authority: after need scan only when
- * need_flags[5] (net); MINIMAL_CC_LINK skips std ensure-push and never runs TLS ensure.
- * Mirrors time_os policy below (ensure only under need_*, never warm-tree pre-ensure).
+ * Stage 12.2.3 ALLOW-path ensure slim (G.7 need gate):
+ *   · ensure_std_net_o_auto_tls: NOT at entry; only after need scan when need_flags[5] (net).
+ *     MINIMAL_CC_LINK skips std ensure-push and never runs TLS ensure.
+ *   · heap.o: NOT always-push in ensure-push front when path non-empty; authority is
+ *     invoke_cc_append_heap_f06_ondemand (nm argv + use_line + provides + page_mmap).
+ * Mirrors time_os policy (ensure only under need_*, never warm-tree pre-ensure).
  */
 int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;

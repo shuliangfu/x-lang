@@ -839,8 +839,10 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
     }
   }
 
-  if (heap_o && heap_o[0])
-    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, heap_o);
+  /* Stage 12.2.3 ALLOW ensure slim: heap.o need-gated by invoke_cc_append_heap_f06_ondemand
+   * (nm argv + use_line + provides). Do not always-push when path non-empty (rv/hello waste).
+   * heap_o remains in signature for G.7 mega call-site ABI. PLATFORM: SHARED. */
+  (void)heap_o;
   if (need_path)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, path_o);
   if (need_runtime)

@@ -1881,7 +1881,7 @@ export function invoke_cc_scan_std_module_needs(c_paths: **u8, n: i32, flags: *i
 }
 
 /**
- * invoke_cc ensure-push front: string → process → heap → path → runtime → panic →
+ * invoke_cc ensure-push front: string → process → path → runtime → panic →
  * net → thread → time → random → env (contiguous prefix; preserves link argv order).
  * Composes Cap residual ensure/path/push peers + pure labi_icc_argv_try_push_flag.
  * Mutates need_flags[6] (thread) when net.o is linked (workers → thread_create_c).
@@ -1893,7 +1893,7 @@ export function invoke_cc_scan_std_module_needs(c_paths: **u8, n: i32, flags: *i
  * @param include_root *u8 — repo/include root for formal time ensure + rel paths (nullable)
  * @param process_o *u8 — product process.o path (nullable)
  * @param string_o *u8 — product string.o path (nullable)
- * @param heap_o *u8 — product heap.o path (nullable; push if non-empty)
+ * @param heap_o *u8 — product heap.o path (nullable; unused here — F-06 owns heap push)
  * @param path_o *u8 — product path.o path (nullable)
  * @param runtime_o *u8 — product runtime.o path (nullable)
  * @param runtime_panic_o *u8 — product runtime_panic.o path (nullable)
@@ -1906,7 +1906,9 @@ export function invoke_cc_scan_std_module_needs(c_paths: **u8, n: i32, flags: *i
  * Pure orch: ≡ mega ensure-push front inside xlang_invoke_cc_impl (after std need scan).
  * Cap residual: ensure_runtime_* + push_existing resolve pool + formal_std_make + net_tls_ld.
  * Why (wave200): hybrid still had ensure-push front always-mega after wave199 flags bank.
- * Tail residual (sync…process_argv complement) + heap F-06 + fork/exec remain mega.
+ * Stage 12.2.3 ALLOW ensure slim: do NOT always-push heap.o when path non-empty.
+ * Authority: invoke_cc_append_heap_f06_ondemand (nm argv + use_line needles + provides).
+ * heap_o remains in the surface signature for G.7 call-site ABI (mega still passes it).
  * Callers: mega xlang_invoke_cc_impl after invoke_cc_scan_std_module_needs.
  * PLATFORM: SHARED orch / LINUX -pthread + asm_io_stubs with net / WINDOWS -lws2_32 -lbcrypt.
  * Track-L: #[no_mangle] surface short name for mega call sites.
@@ -1982,14 +1984,10 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
     }
   }
 
-  // heap.o always candidate when path non-empty (F-06 on-demand complement is still mega).
-  if (heap_o != 0 as *u8) {
-    if (heap_o[0] != 0) {
-      unsafe {
-        let _ph: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, heap_o);
-      }
-    }
-  }
+  // Stage 12.2.3: heap.o need-gated by invoke_cc_append_heap_f06_ondemand (G.7 single
+  // authority after ensure-push heavy_b). Do not always-push when path non-empty — that
+  // forced heap+page_mmap companions onto every ALLOW C link (rv/hello) that never
+  // references std_heap_*. heap_o param kept for surface ABI only (unused here).
   if (need_path != 0) {
     unsafe {
       let _pp: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, path_o);
