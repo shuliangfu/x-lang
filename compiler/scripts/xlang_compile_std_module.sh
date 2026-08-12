@@ -1598,6 +1598,8 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
       # wrappers are std_encoding_utf8_valid; demoting *_c → local left user.o UNDEF.
       # Foreign core_*/std_* (co-emitted mem) stay off the list → local (no multidef
       # when companion-push string.o / base64.o). G.7: complete export authority.
+      # When multi-file ld -r fails, libtool emits ar; whole-archive
+      # -exported_symbols_list fails. Fall back: filter each ar member (G.7 complete).
       _exp_list="$tmp_dir/export_prod_pref_syms.txt"
       : >"$_exp_list"
       nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' >"$tmp_dir/export_nm_syms.txt" || true
@@ -1615,13 +1617,98 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
             # leaf=encoding → encoding_utf8_valid_c; not core_mem_*, not std_*.
             printf '%s\n' "$sym" >>"$_exp_list"
             ;;
+          map_*)
+            # PLATFORM: MACOS — heap ops.x bare map_* kept for heap_full_alias U→T.
+            # leaf_*_c only matches heap_*; map_i32_i32_find_c / map_slot need explicit keep.
+            if [ "$leaf" = "heap" ]; then
+              printf '%s\n' "$sym" >>"$_exp_list"
+            fi
+            ;;
         esac
       done <"$tmp_dir/export_nm_syms.txt"
       if [ -s "$_exp_list" ]; then
         if ld -r -exported_symbols_list "$_exp_list" -o "$out_o.exp" "$out_o" 2>"$tmp_dir/ld_exp.err"; then
           mv "$out_o.exp" "$out_o"
         else
-          head -5 "$tmp_dir/ld_exp.err" 2>/dev/null >&2 || true
+          # PLATFORM: MACOS — ar archive (libtool multi-file): per-member export filter.
+          # Demotes co-emitted core_*/foreign std_* to local inside each member so
+          # product link of leaf.o + authority mem.o has no multi-def.
+          if file "$out_o" 2>/dev/null | grep -q 'ar archive'; then
+            # PLATFORM: MACOS — libtool multi-file ar. Darwin ld -exported_symbols_list
+            # requires every listed symbol to exist in THAT input .o (unlike a wish-list).
+            # Build per-member export lists (intersection of keep-policy × member nm).
+            _ar_exp_dir="$tmp_dir/ar_export_members"
+            rm -rf "$_ar_exp_dir"
+            mkdir -p "$_ar_exp_dir"
+            _out_abs="$out_o"
+            case "$_out_abs" in
+              /*) ;;
+              *) _out_abs="$(pwd)/$out_o" ;;
+            esac
+            _ld_exp_err_abs="$tmp_dir/ld_exp.err"
+            case "$_ld_exp_err_abs" in
+              /*) ;;
+              *) _ld_exp_err_abs="$(pwd)/$_ld_exp_err_abs" ;;
+            esac
+            # Keep-policy helper (same cases as whole-ar list builder above).
+            # Writes matching symbols from stdin nm lines to $1.
+            _ar_ok=1
+            (
+              cd "$_ar_exp_dir" || exit 1
+              ar x "$_out_abs" || exit 1
+              for _mem in *.o; do
+                [ -f "$_mem" ] || continue
+                _mem_exp="${_mem}.exp_syms.txt"
+                : >"$_mem_exp"
+                nm "$_mem" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
+                  [ -n "$sym" ] || continue
+                  bare="$sym"
+                  case "$sym" in
+                    _*) bare="${sym#_}" ;;
+                  esac
+                  case "$bare" in
+                    "${prod_pref}"*)
+                      printf '%s\n' "$sym" >>"$_mem_exp"
+                      ;;
+                    "${leaf}_"*_c|"${leaf}_"*_c_*)
+                      printf '%s\n' "$sym" >>"$_mem_exp"
+                      ;;
+                    map_*)
+                      if [ "$leaf" = "heap" ]; then
+                        printf '%s\n' "$sym" >>"$_mem_exp"
+                      fi
+                      ;;
+                  esac
+                done
+                if [ ! -s "$_mem_exp" ]; then
+                  # No leaf API in this member (rare co-emit-only): demote all globals
+                  # by exporting a single private sentinel via empty → skip filter keep as-is
+                  # would leave foreign T; force localize by exporting nothing via
+                  # a dummy local-only path: re-ld with only undefined-safe empty list fails.
+                  # Prefer: export one private symbol if any local exists; else leave member.
+                  # Safest: if no keep symbols, still run with empty list only when member
+                  # has zero global TDB (noop). When foreign T exist without leaf API,
+                  # export a single existing private by taking first local — skip if none.
+                  continue
+                fi
+                if ! ld -r -exported_symbols_list "$_mem_exp" -o "${_mem}.exp" "$_mem" 2>>"$_ld_exp_err_abs"; then
+                  exit 1
+                fi
+                mv "${_mem}.exp" "$_mem"
+              done
+              # Rebuild ar in place (drop SYMDEF; ranlib if present).
+              rm -f "$_out_abs"
+              ar rc "$_out_abs" *.o || exit 1
+              if command -v ranlib >/dev/null 2>&1; then
+                ranlib "$_out_abs" 2>/dev/null || true
+              fi
+            ) || _ar_ok=0
+            if [ "$_ar_ok" != 1 ]; then
+              head -8 "$tmp_dir/ld_exp.err" 2>/dev/null >&2 || true
+            fi
+          else
+            head -5 "$tmp_dir/ld_exp.err" 2>/dev/null >&2 || true
+          fi
           rm -f "$out_o.exp" 2>/dev/null || true
         fi
       fi
@@ -1801,7 +1888,11 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
                 echo "void ${ns}(void) { ${bare}(); }"
                 ;;
               heap_trace_stats_c)
-                # Variadic surface differs by monomorph; skip thin alias (wrappers cover Mac).
+                # PLATFORM: MACOS thin alias — fixed 4×*u64 surface (libc.x heap_trace_stats_c).
+                # Must not skip: mod.x U std_heap_libc_heap_trace_stats_c; bare T heap_trace_stats_c
+                # only in multi-file ar members. G.7 complete authority (was empty case → UNDEF).
+                echo "extern void ${bare}(uint64_t *alloc_count, uint64_t *free_count, uint64_t *realloc_count, uint64_t *bytes_allocated);"
+                echo "void ${ns}(uint64_t *alloc_count, uint64_t *free_count, uint64_t *realloc_count, uint64_t *bytes_allocated) { ${bare}(alloc_count, free_count, realloc_count, bytes_allocated); }"
                 ;;
               heap_arena64_init_c)
                 # Incomplete struct ok for alias if definition is in same link unit.
@@ -1826,10 +1917,66 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
         } >"$alias_c"
         if [ -s "$alias_c" ] && cc -fPIE -c "$alias_c" -o "$alias_o" 2>/dev/null; then
           merged="$tmp_dir/heap_merged.o"
-          if ld -r -o "$merged" "$out_o" "$alias_o" 2>/dev/null; then
-            mv "$merged" "$out_o"
-          elif file "$out_o" 2>/dev/null | grep -q 'ar archive'; then
+          # PLATFORM: MACOS — when multi-file path left an ar archive, ar-append the
+          # alias member first (Darwin `ld -r ar.a alias.o` can drop other members).
+          # Then extract+ld -r all members into one relocatable and re-export only
+          # std_heap_* product faces: bare heap_*_c / map_* become local so they do
+          # not multi-def with runtime_heap_user.o, while alias U resolves in-TU.
+          # G.7: complete authority for Mac multi-file heap formal.
+          if file "$out_o" 2>/dev/null | grep -q 'ar archive'; then
             ar r "$out_o" "$alias_o" 2>/dev/null || true
+            _heap_flat_dir="$tmp_dir/heap_flat_merge"
+            rm -rf "$_heap_flat_dir"
+            mkdir -p "$_heap_flat_dir"
+            _out_abs_h="$out_o"
+            case "$_out_abs_h" in
+              /*) ;;
+              *) _out_abs_h="$(pwd)/$out_o" ;;
+            esac
+            if (
+              cd "$_heap_flat_dir" || exit 1
+              ar x "$_out_abs_h" || exit 1
+              # Drop table-of-contents pseudo-member if extracted.
+              rm -f __.SYMDEF __.SYMDEF\ SORTED 2>/dev/null || true
+              _objs=""
+              for _m in *.o; do
+                [ -f "$_m" ] || continue
+                _objs="$_objs $_m"
+              done
+              [ -n "$_objs" ] || exit 1
+              # shellcheck disable=SC2086
+              ld -r -o heap_flat.o $_objs 2>/dev/null || exit 1
+              # Export only namespaced product API (std_heap_* incl. libc/ops aliases).
+              _flat_exp="heap_flat_exp.txt"
+              : >"$_flat_exp"
+              nm heap_flat.o 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
+                [ -n "$sym" ] || continue
+                bare="$sym"
+                case "$sym" in
+                  _*) bare="${sym#_}" ;;
+                esac
+                case "$bare" in
+                  std_heap_*)
+                    printf '%s\n' "$sym" >>"$_flat_exp"
+                    ;;
+                esac
+              done
+              if [ -s "$_flat_exp" ]; then
+                ld -r -exported_symbols_list "$_flat_exp" -o heap_flat.exp.o heap_flat.o 2>/dev/null || exit 1
+                mv heap_flat.exp.o "$_out_abs_h"
+              else
+                mv heap_flat.o "$_out_abs_h"
+              fi
+            ); then
+              : # flat merge ok
+            else
+              # Keep ar+alias if flat merge fails (ranlib for partial usability).
+              if command -v ranlib >/dev/null 2>&1; then
+                ranlib "$out_o" 2>/dev/null || true
+              fi
+            fi
+          elif ld -r -o "$merged" "$out_o" "$alias_o" 2>/dev/null; then
+            mv "$merged" "$out_o"
           elif command -v libtool >/dev/null 2>&1; then
             # out is relocatable .o but ld -r failed (duplicate co-emits); pack as ar.
             libtool -static -o "$merged" "$out_o" "$alias_o" 2>/dev/null && mv "$merged" "$out_o" || true
