@@ -77,6 +77,10 @@ fi
 # regression). PLATFORM: SHARED.
 . scripts/pure_ld_shared.sh
 
+# Stage 12.0.5: strip ambient tree PREFER_ASM_O unless ALLOW_TREE (G.7).
+# Prefer families re-scope PREFER inside pure_asm subshells. PLATFORM: SHARED.
+xlang_strip_tree_prefer_asm_unless_allowed
+
 # --- 热路径：直接 cc -c（不经 make）；G-02e-22：.inc 走 cc_inc_tu ---
 g05_cc_c() {
   # $1 = .o  $2 = .c|.inc  [$3...] = extra cflags
@@ -109,8 +113,10 @@ g05_cc_c() {
 #   · XLANG_PREFER_ASM_O_G05 defaults to 1 → scoped XLANG_PREFER_ASM_O=1 for
 #     pure_asm_x_to_o only (subshell; does NOT leak tree-level PREFER_ASM_O).
 #   · reject panic/__error/weak polish fail/rename → fall through -E+$CC.
-#   · Escape: XLANG_PREFER_ASM_O_G05=0 → historic -E+$CC unless ambient
-#     XLANG_PREFER_ASM_O=1. Ban: tree PREFER_ASM_O=1 default; pipeline_abi mega.
+#   · Escape: XLANG_PREFER_ASM_O_G05=0 → historic -E+$CC. Ambient tree PREFER
+#     does NOT re-enable pure-asm unless XLANG_ALLOW_TREE_PREFER_ASM=1.
+#   · Ban: tree PREFER_ASM_O=1 product default (hard strip + family=0);
+#     pipeline_abi mega pure-asm hard-banned in pure_asm_x_to_o.
 # 返回 0 成功；失败不删既有 .o（调用方回退 seed）。
 # $1=.x  $2=.o  [$3...]=extra cflags for cc
 # 环境：G05_X_O_WEAK=1 时给顶层函数加 __attribute__((weak))
@@ -134,10 +140,13 @@ g05_try_x_to_o() {
   fi
   mkdir -p "$(dirname "$_xout")"
   # Prefer-family pure-asm default via XLANG_PREFER_ASM_O_G05 (default 1).
+  # When G05=0: unset ambient PREFER unless ALLOW_TREE (close tree leak).
   # PLATFORM: SHARED · G.7 pure_asm_x_to_o sole authority.
   if (
     if [ "${XLANG_PREFER_ASM_O_G05:-1}" = "1" ]; then
       export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
     fi
     pure_asm_x_to_o "$_xout" "$_xsrc"
   ); then

@@ -343,6 +343,37 @@ pure_asm_apply_weak_polish() {
 }
 
 # ---------------------------------------------------------------------------
+# xlang_strip_tree_prefer_asm_unless_allowed — Stage 12.0.5 tree PREFER ban.
+# G.7 single authority: product must not inherit ambient tree-level
+# XLANG_PREFER_ASM_O=1 (historic full-hybrid SEGV map; pipeline_abi hang when
+# pure-asm leaked into mega ensure). Prefer families scope PREFER_ASM_O=1 only
+# inside their pure_asm subshells (LABI/RT/G05 defaults).
+#
+# Policy:
+#   · XLANG_ALLOW_TREE_PREFER_ASM=1 → keep ambient PREFER_ASM_O (opt-in maps /
+#     ABI bisect; explicit operator consent).
+#   · else if PREFER_ASM_O=1 → unset + one-line stderr note.
+#   · else → no-op.
+#
+# Callers (product entry, after sourcing this file):
+#   · ensure_host_cc_seed_o.sh
+#   · g05_ensure_relink_prereqs.sh
+# Prefer-family try_* also unset PREFER when family=0 unless ALLOW_TREE (belt).
+# PLATFORM: SHARED — shell env hygiene; mac + Ubuntu product soft-g05.
+# ---------------------------------------------------------------------------
+xlang_strip_tree_prefer_asm_unless_allowed() {
+  if [ "${XLANG_PREFER_ASM_O:-0}" != "1" ]; then
+    return 0
+  fi
+  if [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" = "1" ]; then
+    return 0
+  fi
+  echo "xlang: tree XLANG_PREFER_ASM_O=1 stripped (ban default; prefer families scope pure-asm; set XLANG_ALLOW_TREE_PREFER_ASM=1 to keep)" >&2
+  unset XLANG_PREFER_ASM_O
+  return 0
+}
+
+# ---------------------------------------------------------------------------
 # pure_asm_x_to_o — freestanding .x → .o via asm backend (zero host-cc COMPILE).
 # Stage 12.0.5: G.7 single authority for pure asm module emit.
 #
@@ -352,8 +383,10 @@ pure_asm_apply_weak_polish() {
 #     l2-asm / tcpu / ldpc / other-l2 / B1–B3 prefer families reusing harness).
 #   · g05_try_x_to_o — XLANG_PREFER_ASM_O_G05 default 1 (residual g05 direct).
 # Each scopes XLANG_PREFER_ASM_O=1 in a subshell only for this helper; tree
-# PREFER_ASM_O stays unset by default. Fall through to -E+$CC on reject/fail.
-# Ban: tree-level PREFER_ASM_O=1 as product default.
+# PREFER_ASM_O stays unset by default (product entry strips ambient unless
+# XLANG_ALLOW_TREE_PREFER_ASM=1). Fall through to -E+$CC on reject/fail.
+# Ban: tree-level PREFER_ASM_O=1 as product default (see
+# xlang_strip_tree_prefer_asm_unless_allowed).
 # Hard ban: pure-asm on runtime_pipeline_abi.x mega (instant return 1; hang map
 # 2026-08-12). Escape: PREFER_ASM_O_{LABI,RT,G05}=0 per family.
 #
@@ -402,7 +435,8 @@ pure_asm_x_to_o() {
   fi
   # Gate: ambient XLANG_PREFER_ASM_O=1 only. Prefer families scope this via
   # subshell when PREFER_ASM_O_{LABI,RT,G05} defaults on (product pure-asm
-  # default; authorized 2026-08-12). Tree PREFER_ASM_O remains opt-in.
+  # default; authorized 2026-08-12). Tree PREFER_ASM_O is stripped at product
+  # entry unless XLANG_ALLOW_TREE_PREFER_ASM=1 (diagnostic maps / ABI bisect).
   if [ "${XLANG_PREFER_ASM_O:-0}" != "1" ]; then
     return 1
   fi

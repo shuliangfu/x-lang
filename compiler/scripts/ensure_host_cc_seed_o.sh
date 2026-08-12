@@ -329,6 +329,10 @@ cd "$_ENSURE_HOST_CC_DIR/.."
 # regression). PLATFORM: SHARED.
 . "$_ENSURE_HOST_CC_DIR/pure_ld_shared.sh"
 
+# Stage 12.0.5: strip ambient tree PREFER_ASM_O unless ALLOW_TREE (G.7).
+# Prefer families re-scope PREFER inside pure_asm subshells. PLATFORM: SHARED.
+xlang_strip_tree_prefer_asm_unless_allowed
+
 MAKE="${MAKE:-make}"
 FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
 
@@ -1484,13 +1488,14 @@ labi_prefer_pick_xlang() {
 #   · XLANG_PREFER_ASM_O_LABI defaults to 1 → scoped XLANG_PREFER_ASM_O=1 for
 #     pure_asm_x_to_o only (subshell; does NOT leak tree-level PREFER_ASM_O).
 #   · pure_asm reject (panic/__error/CG002/ONLY miss) → fall through -E+$CC.
-#   · Escape hatch: XLANG_PREFER_ASM_O_LABI=0 → labi layers stay historic -E+$CC
-#     unless ambient XLANG_PREFER_ASM_O=1 (tree opt-in still applies).
+#   · Escape hatch: XLANG_PREFER_ASM_O_LABI=0 → historic -E+$CC. Ambient tree
+#     PREFER_ASM_O does NOT re-enable pure-asm unless
+#     XLANG_ALLOW_TREE_PREFER_ASM=1 (product entry also strips tree PREFER).
 # Peer defaults (same-day auth wave): XLANG_PREFER_ASM_O_RT (rt_prefer harness
 # families: rt/async/R3/l2-asm/B1–B3/…) and XLANG_PREFER_ASM_O_G05 (g05_try).
 #   · pipeline_abi mega pure-asm: hard-banned in pure_asm_x_to_o (basename
 #     runtime_pipeline_abi.x → instant return 1; map 2026-08-12 hang 180s+).
-#     Ban: defaulting tree-level PREFER_ASM_O=1 globally.
+#     Ban: tree-level PREFER_ASM_O=1 as product default (hard strip + family=0).
 # PLATFORM: SHARED — retry -E then -backend c -E (Ubuntu SIGSEGV history).
 # G.7: single pure_asm_x_to_o authority; no second pure-asm helper.
 labi_prefer_try_x_to_o() {
@@ -1499,10 +1504,13 @@ labi_prefer_try_x_to_o() {
   mkdir -p "$(dirname "$x_out")"
   # Labi-only pure-asm default: scope PREFER_ASM_O=1 inside subshell so
   # pure_asm_x_to_o (G.7) runs without flipping tree-level product defaults.
-  # PLATFORM: SHARED · ambient PREFER_ASM_O=1 still enables pure-asm when LABI=0.
+  # When LABI=0: unset ambient PREFER unless ALLOW_TREE (close tree leak).
+  # PLATFORM: SHARED.
   if (
     if [ "${XLANG_PREFER_ASM_O_LABI:-1}" = "1" ]; then
       export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
     fi
     pure_asm_x_to_o "$x_out" "$x_src"
   ); then
@@ -1803,15 +1811,17 @@ rt_prefer_try_x_to_o() {
   #     try-ldpc / try-other-l2, B1 runtime-os / B2 std-core / B3 lsp-sat, etc.
   #   · pure_asm reject (panic/__error/CG002/ONLY miss/WEAK polish fail) →
   #     fall through -E+$CC (same as labi default path).
-  #   · Escape hatch: XLANG_PREFER_ASM_O_RT=0 → historic -E+$CC unless ambient
-  #     XLANG_PREFER_ASM_O=1 (tree opt-in still applies).
-  #   · Ban: defaulting tree-level PREFER_ASM_O=1; pipeline_abi mega pure-asm
-  #     remains hard-banned inside pure_asm_x_to_o.
+  #   · Escape hatch: XLANG_PREFER_ASM_O_RT=0 → historic -E+$CC. Ambient tree
+  #     PREFER does NOT re-enable pure-asm unless XLANG_ALLOW_TREE_PREFER_ASM=1.
+  #   · Ban: tree-level PREFER_ASM_O=1 as product default (hard strip + family=0);
+  #     pipeline_abi mega pure-asm remains hard-banned inside pure_asm_x_to_o.
   # PLATFORM: SHARED harness · G.7 single pure_asm_x_to_o authority.
   # Labi keeps its own XLANG_PREFER_ASM_O_LABI gate in labi_prefer_try_x_to_o.
   if (
     if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
       export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
     fi
     pure_asm_x_to_o "$_xout" "$_xsrc"
   ); then
