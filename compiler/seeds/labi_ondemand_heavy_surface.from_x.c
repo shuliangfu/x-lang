@@ -98,6 +98,8 @@ extern int32_t xlang_ensure_runtime_queue_contention_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_test_fn_invoke_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_thread_glue_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_atomic_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_sync_os_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_sync_lock_diag_tls_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_time_os_o(uint8_t * argv0);
 extern int32_t xlang_link_obj_has_defined_sym(uint8_t * o_path, uint8_t * sym);
 extern int32_t xlang_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym);
@@ -114,6 +116,8 @@ extern uint8_t * xlang_runtime_scheduler_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_test_fn_invoke_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_thread_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_atomic_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_sync_os_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_sync_lock_diag_tls_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_time_os_o_path(uint8_t * argv0);
 extern uint8_t * xlang_std_async_scheduler_o_path(uint8_t * argv0);
 int32_t labi_od_std_task_sym_count(void) {
@@ -1398,6 +1402,19 @@ uint8_t * labi_od_rel_context(void) {
 uint8_t * labi_od_rel_atomic_glue(void) {
   return (uint8_t *)"compiler/runtime_atomic_glue.o";
 }
+/* PLATFORM: SHARED — queue.o monofile SyncQueue U std_sync_* and std_atomic_*; ≡ pure .x. */
+uint8_t * labi_od_rel_sync(void) {
+  return (uint8_t *)"std/sync/sync.o";
+}
+uint8_t * labi_od_rel_atomic(void) {
+  return (uint8_t *)"std/atomic/atomic.o";
+}
+uint8_t * labi_od_rel_sync_os(void) {
+  return (uint8_t *)"compiler/runtime_sync_os.o";
+}
+uint8_t * labi_od_rel_sync_lock_diag(void) {
+  return (uint8_t *)"compiler/runtime_sync_lock_diag_tls.o";
+}
 uint8_t * labi_od_rel_thread(void) {
   uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x74\x68\x72\x65\x61\x64\x2f\x74\x68\x72\x65\x61\x64\x2e\x6f");
   return p;
@@ -2320,6 +2337,7 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
       int32_t _tm = link_abi_asm_ld_push_obj(0, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
     }
   }
+  /* G.7: queue monofile SyncQueue companions (sync/atomic/contention) — ≡ pure .x. */
   int32_t need_qp = link_abi_user_o_needs_std_queue(user_o);
   int32_t n_qc = labi_od_queue_sym_count();
   int32_t need_qc = labi_od_user_needs_table_which(user_o, n_qc, 3);
@@ -2329,28 +2347,48 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
     if ((rq !=0)) {
       if (((rq)[0] !=0)) {
         {
-          int32_t _q1 = xlang_ensure_formal_std_make_o(rq, ((uint8_t *)"\x73\x74\x64\x2f\x71\x75\x65\x75\x65\x2f\x71\x75\x65\x75\x65\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x71\x75\x65\x75\x65\x2f\x71\x75\x65\x75\x65\x2e\x6f"));
-          int32_t _q2 = xlang_ensure_formal_std_make_o(rq, ((uint8_t *)"\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"));
-          int32_t _q3 = xlang_ensure_formal_std_make_o(rq, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"));
+          int32_t _q1 = xlang_ensure_formal_std_make_o(rq, (uint8_t *)"std/queue/queue.o", (uint8_t *)"../std/queue/queue.o");
+          int32_t _q2 = xlang_ensure_formal_std_make_o(rq, (uint8_t *)"std/heap/heap.o", (uint8_t *)"../std/heap/heap.o");
+          int32_t _q3 = xlang_ensure_formal_std_make_o(rq, (uint8_t *)"core/mem/mem.o", (uint8_t *)"../core/mem/mem.o");
+          int32_t _q4 = xlang_ensure_formal_std_make_o(rq, (uint8_t *)"std/sync/sync.o", (uint8_t *)"../std/sync/sync.o");
+          int32_t _q5 = xlang_ensure_formal_std_make_o(rq, (uint8_t *)"std/atomic/atomic.o", (uint8_t *)"../std/atomic/atomic.o");
+          (void)_q1; (void)_q2; (void)_q3; (void)_q4; (void)_q5;
         }
       }
     }
-    if ((need_qc !=0)) {
-      uint8_t * qcp = 0;
-      uint8_t * qcrel = labi_od_queue_contention_rel();
-      {
-        int32_t _eq = xlang_ensure_runtime_queue_contention_o(link_argv0);
-        (void)((qcp = xlang_runtime_queue_contention_o_path(link_argv0)));
-        int32_t _qc = link_abi_asm_ld_push_obj(qcp, link_argv0, qcrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
-      }
-    }
+    uint8_t * qcp = 0;
+    uint8_t * qcrel = labi_od_queue_contention_rel();
+    int32_t er_qc = xlang_ensure_runtime_queue_contention_o(link_argv0);
+    qcp = xlang_runtime_queue_contention_o_path(link_argv0);
+    labi_od_glue_push_if(er_qc, qcp, link_argv0, qcrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
     uint8_t * qrel = labi_od_queue_rel();
     uint8_t * qh = labi_od_rel_heap();
     uint8_t * qm = labi_od_rel_core_mem();
+    uint8_t * qs = labi_od_rel_sync();
+    uint8_t * qa = labi_od_rel_atomic();
+    int32_t have_sq = 0;
     {
       int32_t _qq = link_abi_asm_ld_push_obj(0, link_argv0, qrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
       int32_t _qh = link_abi_asm_ld_push_obj(0, link_argv0, qh, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
       int32_t _qm = link_abi_asm_ld_push_obj(0, link_argv0, qm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+      int32_t _qs = link_abi_asm_ld_push_obj(0, link_argv0, qs, lib_roots, n_lib_roots, bank, argv, la, max_la, &have_sq);
+      int32_t _qa = link_abi_asm_ld_push_obj(0, link_argv0, qa, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+      (void)_qq; (void)_qh; (void)_qm; (void)_qs; (void)_qa;
     }
+    if (have_sq != 0) {
+      if (flags != 0) {
+        int32_t * fsq = (int32_t *)flags;
+        fsq[3] = 1;
+      }
+      int32_t er_sd = xlang_ensure_runtime_sync_lock_diag_tls_o(link_argv0);
+      uint8_t * sdp = xlang_runtime_sync_lock_diag_tls_o_path(link_argv0);
+      labi_od_glue_push_if(er_sd, sdp, link_argv0, labi_od_rel_sync_lock_diag(), lib_roots, n_lib_roots, bank, argv, la, max_la);
+      int32_t er_so = xlang_ensure_runtime_sync_os_o(link_argv0);
+      uint8_t * sop = xlang_runtime_sync_os_o_path(link_argv0);
+      labi_od_glue_push_if(er_so, sop, link_argv0, labi_od_rel_sync_os(), lib_roots, n_lib_roots, bank, argv, la, max_la);
+    }
+    int32_t er_ag_q = xlang_ensure_runtime_atomic_glue_o(link_argv0);
+    uint8_t * agp_q = xlang_runtime_atomic_glue_o_path(link_argv0);
+    labi_od_glue_push_if(er_ag_q, agp_q, link_argv0, labi_od_rel_atomic_glue(), lib_roots, n_lib_roots, bank, argv, la, max_la);
   }
 }

@@ -62,6 +62,8 @@ export extern function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_sync_os_o(argv0: *u8): i32;
+export extern function xlang_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32;
 export extern function xlang_ensure_runtime_time_os_o(argv0: *u8): i32;
 export extern function xlang_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32;
 export extern function xlang_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
@@ -78,6 +80,8 @@ export extern function xlang_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_thread_glue_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_atomic_glue_o_path(argv0: *u8): *u8;
+export extern function xlang_runtime_sync_os_o_path(argv0: *u8): *u8;
+export extern function xlang_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8;
 export extern function xlang_runtime_time_os_o_path(argv0: *u8): *u8;
 export extern function xlang_std_async_scheduler_o_path(argv0: *u8): *u8;
 
@@ -1584,6 +1588,51 @@ export function labi_od_rel_atomic_glue(): *u8 {
   return p;
 }
 
+/**
+ * Relative path of formal std/sync/sync.o (queue.o monofile U std_sync_*).
+ * @return *u8 — static C string "std/sync/sync.o"
+ * PLATFORM: SHARED — co-pushed with queue; user.o often has no sync needles
+ *   (SyncQueue lives inside formal queue.o, invisible to user-only fk scan).
+ */
+#[no_mangle]
+export function labi_od_rel_sync(): *u8 {
+  let p: *u8 = "std/sync/sync.o";
+  return p;
+}
+
+/**
+ * Relative path of formal std/atomic/atomic.o (queue SyncQueue U std_atomic_*).
+ * @return *u8 — static C string "std/atomic/atomic.o"
+ * PLATFORM: SHARED — co-pushed with queue monofile SyncQueue path.
+ */
+#[no_mangle]
+export function labi_od_rel_atomic(): *u8 {
+  let p: *u8 = "std/atomic/atomic.o";
+  return p;
+}
+
+/**
+ * Relative path of runtime_sync_os.o (sync.o U sync_mutex_*_c / condvar / rwlock).
+ * @return *u8 — static C string "compiler/runtime_sync_os.o"
+ * PLATFORM: SHARED — ≡ plan OP_GLUE SYNC_PAIR second half.
+ */
+#[no_mangle]
+export function labi_od_rel_sync_os(): *u8 {
+  let p: *u8 = "compiler/runtime_sync_os.o";
+  return p;
+}
+
+/**
+ * Relative path of runtime_sync_lock_diag_tls.o (sync.o U lock_diag_*_c).
+ * @return *u8 — static C string "compiler/runtime_sync_lock_diag_tls.o"
+ * PLATFORM: SHARED — ≡ plan OP_GLUE SYNC_PAIR first half.
+ */
+#[no_mangle]
+export function labi_od_rel_sync_lock_diag(): *u8 {
+  let p: *u8 = "compiler/runtime_sync_lock_diag_tls.o";
+  return p;
+}
+
 /** Exported function `labi_od_rel_thread`.
  * Read path helper `labi_od_rel_thread`.
  * @return *u8
@@ -2940,7 +2989,14 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
       }
     }
 
-    // --- queue product + contention ---
+    // --- queue product + monofile companions (sync/atomic/contention) ---
+    // G.7 root (pure-asm run-queue): formal queue.o monofile co-defines SyncQueue
+    // locals (sync_new/push/try_pop/smoke) that U std_sync_* / std_atomic_* /
+    // sync_queue_contention_smoke_c. User.o only has std_queue_* needles → fk3
+    // sync / fk6 atomic never fire; need_qc only covers contention smoke symbols
+    // on user.o (tests/queue/main.x never names them). Whole .o link (not archive)
+    // pulls monofile U even for plain Queue_i32 API. Companions ≡ net→error/context
+    // pattern + C-path SYNC_PAIR / ATOMIC glue when have_sync.
     let need_qp: i32 = link_abi_user_o_needs_std_queue(user_o);
     let n_qc: i32 = labi_od_queue_sym_count();
     let need_qc: i32 = labi_od_user_needs_table_which(user_o, n_qc, 3);
@@ -2955,26 +3011,67 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
             let _q1: i32 = xlang_ensure_formal_std_make_o(rq, "std/queue/queue.o", "../std/queue/queue.o");
             let _q2: i32 = xlang_ensure_formal_std_make_o(rq, "std/heap/heap.o", "../std/heap/heap.o");
             let _q3: i32 = xlang_ensure_formal_std_make_o(rq, "core/mem/mem.o", "../core/mem/mem.o");
+            // Monofile SyncQueue transitive formals (L4 wipe drops gitignored .o).
+            let _q4: i32 = xlang_ensure_formal_std_make_o(rq, "std/sync/sync.o", "../std/sync/sync.o");
+            let _q5: i32 = xlang_ensure_formal_std_make_o(rq, "std/atomic/atomic.o", "../std/atomic/atomic.o");
           }
         }
       }
-      if (need_qc != 0) {
-        let qcp: *u8 = 0 as *u8;
-        let qcrel: *u8 = labi_od_queue_contention_rel();
-        unsafe {
-          let _eq: i32 = xlang_ensure_runtime_queue_contention_o(link_argv0);
-          qcp = xlang_runtime_queue_contention_o_path(link_argv0);
-          let _qc: i32 = link_abi_asm_ld_push_obj(qcp, link_argv0, qcrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
-        }
+      // Always co-push contention: monofile sync_smoke U smoke_c regardless of
+      // need_qc (user never names contention symbols for plain Queue API).
+      let qcp: *u8 = 0 as *u8;
+      let qcrel: *u8 = labi_od_queue_contention_rel();
+      let er_qc: i32 = 0;
+      unsafe {
+        er_qc = xlang_ensure_runtime_queue_contention_o(link_argv0);
+        qcp = xlang_runtime_queue_contention_o_path(link_argv0);
       }
+      labi_od_glue_push_if(er_qc, qcp, link_argv0, qcrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
       let qrel: *u8 = labi_od_queue_rel();
       let qh: *u8 = labi_od_rel_heap();
       let qm: *u8 = labi_od_rel_core_mem();
+      let qs: *u8 = labi_od_rel_sync();
+      let qa: *u8 = labi_od_rel_atomic();
+      let have_sq: i32 = 0;
       unsafe {
         let _qq: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         let _qh: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qh, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         let _qm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        let _qs: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qs, lib_roots, n_lib_roots, bank, argv, la, max_la, &have_sq);
+        let _qa: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qa, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
       }
+      // SYNC_PAIR glue (lock_diag_tls + sync_os) + pthread flag; atomic_glue for
+      // formal atomic.o bare atomic_*_c U. Same as plan OP_GLUE when have_sync.
+      if (have_sq != 0) {
+        if (flags != 0 as *u8) {
+          let fsq: *i32 = flags as *i32;
+          fsq[3] = 1;
+        }
+        let er_sd: i32 = 0;
+        let sdp: *u8 = 0 as *u8;
+        let sdrel: *u8 = labi_od_rel_sync_lock_diag();
+        unsafe {
+          er_sd = xlang_ensure_runtime_sync_lock_diag_tls_o(link_argv0);
+          sdp = xlang_runtime_sync_lock_diag_tls_o_path(link_argv0);
+        }
+        labi_od_glue_push_if(er_sd, sdp, link_argv0, sdrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+        let er_so: i32 = 0;
+        let sop: *u8 = 0 as *u8;
+        let sorel: *u8 = labi_od_rel_sync_os();
+        unsafe {
+          er_so = xlang_ensure_runtime_sync_os_o(link_argv0);
+          sop = xlang_runtime_sync_os_o_path(link_argv0);
+        }
+        labi_od_glue_push_if(er_so, sop, link_argv0, sorel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      }
+      let er_ag_q: i32 = 0;
+      let agp_q: *u8 = 0 as *u8;
+      let agrel_q: *u8 = labi_od_rel_atomic_glue();
+      unsafe {
+        er_ag_q = xlang_ensure_runtime_atomic_glue_o(link_argv0);
+        agp_q = xlang_runtime_atomic_glue_o_path(link_argv0);
+      }
+      labi_od_glue_push_if(er_ag_q, agp_q, link_argv0, agrel_q, lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
   }
 }
