@@ -581,6 +581,7 @@ export extern "C" function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i3
 // wave189 pure-owned: glue_local_var_slot_needs_ptr_load_elf_c live at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
 // wave179 pure-owned: glue_index_deref_ptr_field_slot_{rax,rbx}_elf_c live in EOF (#[no_mangle]).
+// FIELD mid-chain *T-only twin: glue_field_chain_mid_auto_deref_ptr_rax_elf_c (no SLICE peel).
 // (was Cap residual export extern; dual-export ban.)
 // wave197 pure-owned: pipeline_asm_call_struct16_ret_needs_rax_deref_c body at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
@@ -37964,8 +37965,9 @@ export function glue_finish_index_base_rax_index_rbx_slow_elf_c(arena: *u8, elf_
 }
 
 /**
- * Slice base length → rbx ({data,length} home, *slice param, or dual-GP call rvalue).
+ * Slice base length → rbx ({data,length} home, *slice param, FIELD fat home, or dual-GP call).
  * Bounds guard holds index in rax; emit of base that clobbers rax must push/pop.
+ * FIELD (44) bases use lvalue fat address + length@+8 (not emit_expr peel of .data).
  * @return i32 - 0 ok; -1 error
  * wave147 pure: G.7 authority (was static glue_emit_slice_length_to_rbx_elf_c).
  * PLATFORM: SHARED freestanding · LINUX gold · dual-GP polarity via glue_slice_dual_gp_length_off_c.
@@ -38051,6 +38053,49 @@ export function glue_emit_slice_length_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, ct
     unsafe {
       return backend_enc_load_rbp_to_rbx_arch(elf_ctx, len_off, ta);
     }
+  }
+  // FIELD base (44): by-value nested fat (e.g. sp.left[i]). Keep fat home address
+  // and load length@+8. Do NOT emit_expr rvalue then +8 — that peels .data as a
+  // pointer (and may load 32-bit), SEGV on *(data+8). Index stays live in rax.
+  // PLATFORM: SHARED freestanding INDEX bounds on nested TYPE_SLICE fields.
+  if (base_ko == 44) {
+    unsafe {
+      rc = backend_enc_push_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
   }
   // non-VAR slice base (esp. CALL take()[1]) — index live in rax
   unsafe {
@@ -46172,7 +46217,18 @@ export function pipeline_expr_field_access_layout_offset(a: *u8, m: *u8, expr_re
 }
 
 /**
- * FIELD_ACCESS load width (layout / resolved / is_some|is_none heuristic).
+ * FIELD_ACCESS load width (base-layout / resolved / is_some|is_none heuristic).
+ *
+ * Order (G.7 typed-first — do not scan all layouts by bare field name):
+ *  1. Base TYPE_NAMED layout match then field type width (Option_u8.value → 1).
+ *  2. Field expr resolved scalar type width.
+ *  3. is_some / is_none name → 1.
+ *  4. Default 8.
+ *
+ * Historical bug: a global "any layout with this field name" scan returned the
+ * first hit (often Option_u64.value → 8) so Option_u8.value did ldr x0 and
+ * compared garbage high bytes (subslice_split_chunks exit 21).
+ *
  * @param a *u8 - ASTArena*
  * @param m *u8 - Module*
  * @param expr_ref i32 - FIELD_ACCESS expr ref
@@ -46216,47 +46272,7 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   unsafe {
     pipeline_expr_field_access_name_into(a, expr_ref, &field_name[0]);
   }
-  if (m != (0 as *u8)) {
-    unsafe {
-      nsl = pipeline_module_num_struct_layouts_at(m);
-    }
-    k = 0;
-    while (k < nsl) {
-      unsafe {
-        nf = pipeline_module_struct_layout_num_fields(m, k);
-      }
-      j = 0;
-      while (j < nf) {
-        unsafe {
-          fnlen = pipeline_module_struct_layout_field_name_len(m, k, j);
-        }
-        feq = 1;
-        if (fnlen != flen) {
-          feq = 0;
-        } else {
-          unsafe {
-            pipeline_module_struct_layout_field_name_into(m, k, j, &fb[0]);
-          }
-          fi = 0;
-          while (fi < fnlen) {
-            if (fb[fi] != field_name[fi]) {
-              feq = 0;
-              break;
-            }
-            fi = fi + 1;
-          }
-        }
-        if (feq != 0) {
-          unsafe {
-            ftr = pipeline_module_struct_layout_field_type_ref(m, k, j);
-            return glue_field_access_load_bytes_for_type_ref(a, ftr);
-          }
-        }
-        j = j + 1;
-      }
-      k = k + 1;
-    }
-  }
+  // 1) Typed base: match layout by base TYPE_NAMED name, then field type width.
   unsafe {
     base_tr = pipeline_expr_resolved_type_ref(a, base_ref);
   }
@@ -46331,6 +46347,7 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
       }
     }
   }
+  // 2) Field expr resolved scalar type (typeck stamp).
   unsafe {
     tr = pipeline_expr_resolved_type_ref(a, expr_ref);
   }
@@ -46342,6 +46359,7 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
       return glue_field_access_load_bytes_for_type_ref(a, tr);
     }
   }
+  // 3) Option tag fields (bool byte).
   if (flen == 7 && wave151_bytes_eq(&field_name[0], &nm_is_some[0], 7) != 0) {
     return 1;
   }
@@ -46890,9 +46908,11 @@ export function glue_field_access_call_base_rvalue_elf_c(arena: *u8, elf_ctx: *u
         }
       }
     }
+    // Intermediate FIELD only: *T auto-deref. Never peel TYPE_SLICE mid-fat
+    // (would break nested by-value slice fields e.g. Split.left.length).
     if (ci > 0) {
       unsafe {
-        if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, chain_fa[ci], ta) != 0) {
+        if (glue_field_chain_mid_auto_deref_ptr_rax_elf_c(arena, elf_ctx, chain_fa[ci], ta) != 0) {
           return 0 - 1;
         }
       }
@@ -57927,16 +57947,21 @@ export function glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena: *u8, elf_ctx: *
 }
 
 /**
- * After FIELD_ACCESS base leaves field slot address in rax: if field is *T or
- * TYPE_SLICE fat, load the pointer (.data @ +0 for slice). No-op when field is
- * by-value array/struct (return 0 without touching enc).
+ * INDEX base field peel: after FIELD leaves slot address in rax, load the
+ * element base pointer when the field is *T (PTR) or TYPE_SLICE fat (.data @ +0).
+ * No-op for by-value array/struct fields.
+ *
+ * Do NOT use this for nested FIELD chains such as `sp.left.length`: TYPE_SLICE
+ * is a by-value 16B fat, and peeling .data turns length into *(data+8). Field
+ * mid-chain auto-deref is glue_field_chain_mid_auto_deref_ptr_rax_elf_c (*T only).
+ *
  * @param arena *u8 - ASTArena*; null/missing type → 0
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param fa_ref i32 - FIELD_ACCESS expr pool ref
  * @param ta i32 - target arch
- * @return i32 - 0 ok or not-ptr field; non-zero enc error
+ * @return i32 - 0 ok or not-ptr/slice field; non-zero enc error
  * wave179 pure-owned G.7 authority (was Cap residual index_helpers).
- * PLATFORM: SHARED freestanding INDEX base field auto-deref.
+ * PLATFORM: SHARED freestanding INDEX base field peel (PTR | SLICE.data).
  */
 #[no_mangle]
 export function glue_index_deref_ptr_field_slot_rax_elf_c(arena: *u8, elf_ctx: *u8, fa_ref: i32, ta: i32): i32 {
@@ -57956,8 +57981,53 @@ export function glue_index_deref_ptr_field_slot_rax_elf_c(arena: *u8, elf_ctx: *
   unsafe {
     fk = pipeline_type_kind_ord_at(arena, ftr);
   }
-  // TypeKind: PTR=9 SLICE=11
+  // TypeKind: PTR=9 SLICE=11 — INDEX needs fat.data; FIELD mid-chain must not peel SLICE.
   if (fk == 9 || fk == 11) {
+    unsafe {
+      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    }
+  }
+  return 0;
+}
+
+/**
+ * FIELD-chain mid-step auto-deref: *T only (wave596).
+ *
+ * After nested FIELD leaves intermediate field address in rax, load when the
+ * intermediate field type is TYPE_PTR so outer offsets apply through the pointer
+ * (`w.p.f`). TYPE_SLICE is by-value fat (data@0 length@8) — keep the address so
+ * outer `.length` / `.data` offsets stay on the embedded fat home
+ * (`sp.left.length` → home+left_off+8, not *(left.data)+8).
+ *
+ * INDEX bases that need fat.data use glue_index_deref_ptr_field_slot_* instead.
+ *
+ * @param arena *u8 - ASTArena*; null/missing type → 0
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param fa_ref i32 - intermediate FIELD_ACCESS expr pool ref
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok or not-ptr field; non-zero enc error
+ * PLATFORM: SHARED freestanding FIELD chain mid auto-deref (*T only).
+ */
+#[no_mangle]
+export function glue_field_chain_mid_auto_deref_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, fa_ref: i32, ta: i32): i32 {
+  let ftr: i32 = 0;
+  let fk: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || fa_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    mod = pipeline_asm_emit_ctx_module_get();
+    ftr = glue_field_access_field_type_ref_c(arena, mod, fa_ref);
+  }
+  if (ftr <= 0) {
+    return 0;
+  }
+  unsafe {
+    fk = pipeline_type_kind_ord_at(arena, ftr);
+  }
+  // TypeKind PTR=9 only — never peel TYPE_SLICE=11 on FIELD mid-chain.
+  if (fk == 9) {
     unsafe {
       return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
     }
@@ -62027,7 +62097,7 @@ export function glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(arena: *u
  * - VAR: lea or load local slot via glue_enc_local_slot_ptr_or_addr_elf_c (*T/T[N] load).
  * - FIELD on VAR base: slot + field offset; enum variants rejected.
  * - FIELD on INDEX base with SoA stride: glue_emit_soa_index_field_addr_elf_c (pure w186).
- * - FIELD chain: recurse then auto-deref *T intermediate (wave596) then add offset.
+ * - FIELD chain: recurse then auto-deref *T intermediate only (wave596; not TYPE_SLICE fat) then add offset.
  * - INDEX: glue_emit_index_eff_addr_scaled_elf_c with esz from pipeline_asm_index_elem_byte_sz_c.
  * - DEREF (ko==52): emit operand only (pointer bits in rax) — not load of *p.
  *
@@ -62150,11 +62220,12 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
     if (rc != 0) {
       return 0 - 1;
     }
-    // wave596: pointer intermediate field (w.p.f) — auto-deref *T mid-field.
-    // G.7 same authority as glue_index_deref_ptr_field_slot_rax_elf_c on INDEX path.
+    // wave596: *T intermediate only (w.p.f). TYPE_SLICE mid-field is by-value fat —
+    // keep address so outer .length/.data apply to embedded fat (sp.left.length).
+    // INDEX peel of fat.data stays in glue_index_deref_ptr_field_slot_*.
     if (base_ko == 44) {
       unsafe {
-        if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
+        if (glue_field_chain_mid_auto_deref_ptr_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
           return 0 - 1;
         }
       }
@@ -62211,7 +62282,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
  * Contracts:
  * - INDEX arm → pipeline_asm_emit_index_eff_addr_text_c (pure wave147).
  * - Local slot → glue_arch_emit_local_slot_ptr_or_addr_text_c (pure wave147).
- * - wave596 text twin: auto-deref *T intermediate field (PTR=9 / SLICE=11) via
+ * - wave596 text twin: auto-deref *T intermediate field (PTR=9 only; not SLICE fat) via
  *   glue_field_access_field_type_ref_c (pure w187) + backend_arch_emit_load_64_from_rax.
  * - DEREF (ko==52) is ELF-only on this face (text residual never had it).
  *
@@ -62308,8 +62379,8 @@ export function pipeline_asm_emit_lvalue_eff_addr_text_c(arena: *u8, out: *u8, l
     if (rc != 0) {
       return 0 - 1;
     }
-    // wave596 text twin: auto-deref *T intermediate field before next field offset.
-    // GLUE_TYPE_KIND_PTR == 9; GLUE_TYPE_KIND_SLICE == 11.
+    // wave596 text twin: *T intermediate only (never peel TYPE_SLICE mid-fat).
+    // GLUE_TYPE_KIND_PTR == 9. TYPE_SLICE=11 stays by-value address for .length/.data.
     if (base_ko == 44) {
       mod = pipeline_asm_emit_module_ref_c();
       unsafe {
@@ -62322,7 +62393,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_text_c(arena: *u8, out: *u8, l
       } else {
         fk = 0;
       }
-      if (fk == 9 || fk == 11) {
+      if (fk == 9) {
         unsafe {
           if (backend_arch_emit_load_64_from_rax(out, ta) != 0) {
             return 0 - 1;
