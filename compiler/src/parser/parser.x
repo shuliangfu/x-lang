@@ -3231,7 +3231,15 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
     }
     b = ast.ast_arena_block_get(arena, block_ref);
   }
-  /* See implementation. */
+  /*
+   * Record block-start early lets for post-parse fixups (with_arena region walk).
+   * prefix_n must NOT become full num_lets — mid-block lets after if/append stay
+   * in source order for pass1-deferred CALL inits (Stage12.0.5 jcc_rel32 root).
+   * PLATFORM: SHARED · G.7 single num_early_lets authority.
+   */
+  b = ast.ast_arena_block_get(arena, block_ref);
+  b.num_early_lets = block_prefix_lets;
+  ast.ast_arena_block_set(arena, block_ref, b);
   if (block_prefix_lets > 0) {
     pipeline_block_stmt_order_fix_prefix_lets(arena, block_ref, block_prefix_lets);
     b = ast.ast_arena_block_get(arena, block_ref);

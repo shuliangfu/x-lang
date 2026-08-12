@@ -3215,6 +3215,10 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
       }
       (void)((b = ast_ast_arena_block_get(arena, block_ref)));
     }
+    /* Stage12.0.5: persist early-let count for region fix_prefix (not num_lets). */
+    (void)((b = ast_ast_arena_block_get(arena, block_ref)));
+    (void)(((b.num_early_lets) = block_prefix_lets));
+    (void)(ast_ast_arena_block_set(arena, block_ref, b));
     if ((block_prefix_lets > 0)) {
       (void)(pipeline_block_stmt_order_fix_prefix_lets(arena, block_ref, block_prefix_lets));
       (void)((b = ast_ast_arena_block_get(arena, block_ref)));

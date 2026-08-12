@@ -39215,8 +39215,14 @@ void pipeline_block_with_arena_fixup_stmt_order(void *a, int32_t br) {
 }
 
 /**
- * 若 stmt_order 中 if(kind=5) 条目少于 num_if_stmts，按侧车池 0..n-1 重建（去掉误解析的 expr kind=2）。
+ * 若 stmt_order 中 if(kind=5) 条目少于 num_if_stmts，补齐 if 并丢弃误解析 expr kind=2。
  * with_arena 内层块 parse 偶发 `(push!=0)` expr + 仅前 2 条 if kind=5。
+ *
+ * Stage12.0.5: do NOT rebuild as consts+ALL lets+ALL ifs — that hoisted mid-block
+ * lets (e.g. after append ifs) to the front and broke pass1-deferred CALL order.
+ * Preserve original non-if order; emit full if set once at the first if slot
+ * (or append if no if slot). Drop kind=2 only.
+ * PLATFORM: SHARED · G.7 single sparse-if rebuild authority.
  */
 void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   W277_Block *b;
@@ -39225,8 +39231,10 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   int32_t nso;
   int32_t nif;
   int32_t i;
+  int32_t j;
   int32_t nn;
   int32_t if_in_order;
+  int32_t emitted_ifs;
   int32_t abs;
   if (!a || br <= 0)
     return;
@@ -39246,31 +39254,39 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   if (if_in_order >= nif)
     return;
   nn = 0;
-  for (i = 0; i < b->num_consts; i++) {
-    neu[nn].kind = 0;
-    neu[nn].idx = i;
-    nn++;
-  }
-  for (i = 0; i < b->num_lets; i++) {
-    neu[nn].kind = 1;
-    neu[nn].idx = i;
-    nn++;
-  }
-  for (i = 0; i < nif; i++) {
-    neu[nn].kind = 5;
-    neu[nn].idx = i;
-    nn++;
-  }
+  emitted_ifs = 0;
   for (i = 0; i < nso; i++) {
     uint8_t k = pipeline_block_stmt_order_kind(a, br, i);
     int32_t idx = pipeline_block_stmt_order_idx(a, br, i);
-    if (k == 0 || k == 1 || k == 5)
-      continue;
     if (k == 2)
-      continue; /* 丢弃误解析 cond 片段 expr */
+      continue; /* drop mis-parsed cond fragment expr */
+    if (k == 5) {
+      if (emitted_ifs == 0) {
+        for (j = 0; j < nif; j++) {
+          if (nn >= 512)
+            return;
+          neu[nn].kind = 5;
+          neu[nn].idx = j;
+          nn++;
+        }
+        emitted_ifs = 1;
+      }
+      continue;
+    }
+    if (nn >= 512)
+      return;
     neu[nn].kind = k;
     neu[nn].idx = idx;
     nn++;
+  }
+  if (emitted_ifs == 0) {
+    for (j = 0; j < nif; j++) {
+      if (nn >= 512)
+        return;
+      neu[nn].kind = 5;
+      neu[nn].idx = j;
+      nn++;
+    }
   }
   abs = b->stmt_order_base;
   if (abs < 0)
@@ -39307,7 +39323,26 @@ void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *a) {
       for (ri = 0; ri < b->num_regions; ri++) {
         int32_t inner = pipeline_block_region_body_ref(a, br, ri);
         if (inner > 0 && inner != br) {
-          pipeline_block_stmt_order_fix_prefix_lets(a, inner, w277_block_at(a, inner) ? w277_block_at(a, inner)->num_lets : 0);
+          /*
+           * Stage12.0.5 root fix: prefix_n must be block-start early lets only
+           * (Block.num_early_lets from parse_body_lets / block_prefix_lets).
+           * Using num_lets treated mid-block `let x = f()-4` after if/append
+           * stmts as prefix and reordered them to the front of stmt_order —
+           * pure-asm pass1-deferred CALL lets still emitted before side-effect
+           * stmts (x86_enc_jcc_rel32: emit_code_len before append_bytes).
+           * parse_block already fixed true prefix; re-fix only early count.
+           * PLATFORM: SHARED · G.7 single fix_prefix_lets authority.
+           */
+          W277_Block *ib = w277_block_at(a, inner);
+          int32_t early = 0;
+          if (ib) {
+            early = ib->num_early_lets;
+            if (early < 0)
+              early = 0;
+            if (early > ib->num_lets)
+              early = ib->num_lets;
+          }
+          pipeline_block_stmt_order_fix_prefix_lets(a, inner, early);
           pipeline_block_stmt_order_rebuild_sparse_ifs(a, inner);
         }
       }
