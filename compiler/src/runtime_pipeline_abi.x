@@ -686,6 +686,9 @@ export extern "C" function ast_ast_block_num_expr_stmts(arena: *u8, block_ref: i
 export extern "C" function pipeline_block_while_body_ref(arena: *u8, block_ref: i32, wi: i32): i32;
 export extern "C" function pipeline_block_for_body_ref(arena: *u8, block_ref: i32, fi: i32): i32;
 export extern "C" function pipeline_block_region_body_ref(arena: *u8, block_ref: i32, ri: i32): i32;
+/* MEM-B0 language defer body pool (parser append_defer / fill_defers). G.7: same
+ * face as codegen.x emit_run_defers — pure-asm must LIFO-run these at block exit. */
+export extern "C" function pipeline_block_defer_body_ref(arena: *u8, block_ref: i32, di: i32): i32;
 export extern "C" function pipeline_block_num_labeled_stmts(arena: *u8, block_ref: i32): i32;
 export extern "C" function pipeline_block_labeled_return_expr_ref(arena: *u8, block_ref: i32, li: i32): i32;
 export extern "C" function pipeline_module_func_ptr(mod: *u8, fi: i32): *u8;
@@ -49147,6 +49150,16 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
     }
   }
 
+  /* MEM-B0: language `defer { }` LIFO before final_expr / trailing return.
+   * Mirrors codegen.x emit_run_defers (host-C). Trailing `return x` is final_expr
+   * when next token is RBRACE (parser.x return_ends_block); mid-body early
+   * return stays stmt_order and matches C (defers not rewound on that path).
+   * PLATFORM: SHARED freestanding pure-asm. */
+  rc = glue_emit_run_language_defers_elf(arena, elf_ctx, block_ref, ctx, ta);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+
   rc = glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta);
   if (rc != 0) {
     return 0 - 1;
@@ -49157,6 +49170,65 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
     glue_block_live_fwd_active_set(0);
     glue_block_live_cfg_parent_set(saved_cfg_live_parent);
     rc = glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta);
+  }
+  return 0;
+}
+
+
+/**
+ * Run language `defer { body }` blocks in LIFO order at block exit (MEM-B0).
+ * Authority twin of codegen.x `emit_run_defers` for pure-asm ELF/Mach-O.
+ * Each defer body is a nested Block (parser pipeline_block_append_defer);
+ * emit via pipeline_asm_emit_block_body_sync_elf so nested defers compose.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx* / MachO twin
+ * @param block_ref i32 — owning block pool ref (>0)
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch
+ * @return i32 — 0 ok; -1 emit failure
+ * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS co-path
+ */
+#[no_mangle]
+export function glue_emit_run_language_defers_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32 {
+  let ndef: i32 = 0;
+  let di: i32 = 0;
+  let dbody: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || block_ref <= 0) {
+    return 0;
+  }
+  /* Count registered defer bodies (cap 256 — same soft cap as host-C path). */
+  ndef = 0;
+  while (ndef < 256) {
+    unsafe {
+      dbody = pipeline_block_defer_body_ref(arena, block_ref, ndef);
+    }
+    if (dbody <= 0) {
+      break;
+    }
+    ndef = ndef + 1;
+  }
+  if (ndef <= 0) {
+    return 0;
+  }
+  /* LIFO: last registered defer runs first. */
+  di = ndef - 1;
+  while (di >= 0) {
+    unsafe {
+      dbody = pipeline_block_defer_body_ref(arena, block_ref, di);
+    }
+    if (dbody > 0) {
+      unsafe {
+        backend_ensure_block_local_slots(ctx, arena, dbody);
+        glue_asm_ctx_set_scope_block(ctx, dbody);
+        rc = pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, dbody, ctx, ta);
+        glue_asm_ctx_set_scope_block(ctx, block_ref);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+    }
+    di = di - 1;
   }
   return 0;
 }

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # MEM-B0：defer 静态内联烟测（LIFO / 嵌套 / 多 return）。
 # 用法：./tests/run-defer-gate.sh
-# 产品路径：必须 XLANG=xlang_asm（或可 -o 的产品编译器）；失败硬退出（禁止假绿）。
+# 产品路径：优先 pure-asm `$XLANG -o`（默认禁 host-cc）；
+# optional host-cc only when XLANG_ALLOW_HOST_CC is set (matches void-main / struct gates).
+# PLATFORM: SHARED — dual-end pure-asm product gate.
 set -e
 cd "$(dirname "$0")/.."
 
@@ -18,9 +20,17 @@ run_case() {
   local src="$1"
   local expect="$2"
   local out="/tmp/xlang_defer_gate_$$"
-  if ! "$XLANG" build -backend c "$src" -o "$out" 2>/tmp/xlang_defer_gate_build.log; then
+  local log="/tmp/xlang_defer_gate_build.log"
+  rm -f "$out"
+  # Prefer pure-asm product -o (host-cc banned without XLANG_ALLOW_HOST_CC).
+  if "$XLANG" build -L . "$src" -o "$out" 2>"$log"; then
+    :
+  elif [ -n "${XLANG_ALLOW_HOST_CC:-}" ] \
+    && "$XLANG" build -backend c -L . "$src" -o "$out" 2>"$log"; then
+    :
+  else
     echo "defer-gate FAIL: compile $src" >&2
-    tail -20 /tmp/xlang_defer_gate_build.log 2>/dev/null || true
+    tail -20 "$log" 2>/dev/null || true
     exit 1
   fi
   local got=0
