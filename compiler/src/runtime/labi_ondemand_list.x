@@ -267,12 +267,12 @@ export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8
  * Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c).
  * Groups: 0 string · 1 types · 2 encoding · 3 base64 · 4 csv · 5 schema ·
  * 6 option · 7 result · 8 debug · 9 slice · 10 builtin · 11 ffi.
- * @return i32 — 12
+ * @return i32 — 13 (was 12; +g12 std.test pure-asm batch residual 2026-08-13)
  * PLATFORM: SHARED — pure-asm product UNDEF gates for formal core/std .o
  */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 12;
+  return 13;
 }
 
 /**
@@ -327,6 +327,12 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   // Pure-asm import METHOD → std_ffi_*; also probe leaf ffi_*_c faces from ffi.x.
   if (g == 11) {
     return 8;
+  }
+  // PLATFORM: SHARED — std.test formal (tests/stdtest pure-asm residual).
+  // need_test special path can miss when monofile dual lags; simple-group is
+  // the same authority path as g10/g11 (ensure formal + push).
+  if (g == 12) {
+    return 5;
   }
   return 0;
 }
@@ -679,6 +685,30 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  // PLATFORM: SHARED — std.test formal export surface (std/test/mod.x + test.x).
+  if (g == 12) {
+    if (i == 0) {
+      let p: *u8 = "std_test_expect";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_test_expect_eq_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_test_expect_ne_i32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_test_assert";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_test_runner_case";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
@@ -741,6 +771,11 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   // PLATFORM: SHARED — std.ffi formal product .o (pure-asm run-ffi residual).
   if (g == 11) {
     let p: *u8 = "std/ffi/ffi.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.test formal product .o (pure-asm run-stdtest residual).
+  if (g == 12) {
+    let p: *u8 = "std/test/test.o";
     return p;
   }
   return 0 as *u8;
@@ -1433,14 +1468,20 @@ export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
  */
 #[no_mangle]
 export function labi_od_test_sym_count(): i32 {
-  return 7;
+  // PLATFORM: SHARED — 7 bare/prefix + 5 pure-asm std_test_* exact faces.
+  return 12;
 }
 
 /**
  * Product test on_demand UNDEF symbol or prefix at index (needs_std_test probe table).
- * @param i i32 — index in [0, 7)
+ * @param i i32 — index in [0, labi_od_test_sym_count())
  * @return *u8 — static C string symbol/prefix, or null if out of range
  * PLATFORM: SHARED — G.7 complete needs_std_test authority (no second hard-coded list)
+ *
+ * Pure-asm import METHOD mangle emits std_test_* (not bare test_*). Historical
+ * table only had bare prefixes; exact-match UNDEF scan never hit std_test_expect
+ * → need_test=0 → never push formal test.o (run-stdtest residual).
+ * Complete: keep bare prefixes for C-path co-emit + add exact std_test_* faces.
  */
 #[no_mangle]
 export function labi_od_test_sym_at(i: i32): *u8 {
@@ -1473,6 +1514,27 @@ export function labi_od_test_sym_at(i: i32): *u8 {
   }
   if (i == 6) {
     let p: *u8 = "test_fuzz_";
+    return p;
+  }
+  // PLATFORM: SHARED — pure-asm product faces (exact match; Darwin nm -u).
+  if (i == 7) {
+    let p: *u8 = "std_test_expect";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_test_expect_eq_i32";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_test_expect_ne_i32";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_test_assert";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_test_runner_case";
     return p;
   }
   return 0 as *u8;

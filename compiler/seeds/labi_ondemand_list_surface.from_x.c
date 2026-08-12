@@ -192,7 +192,7 @@ extern uint8_t * xlang_runtime_scheduler_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_kv_mmap_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
 int32_t labi_od_simple_group_count(void) {
-  return 12;
+  return 13;
 }
 int32_t labi_od_simple_group_sym_count(int32_t g) {
   if ((g < 0)) {
@@ -235,6 +235,9 @@ int32_t labi_od_simple_group_sym_count(int32_t g) {
   /* PLATFORM: SHARED — std.ffi formal (pure-asm run-ffi residual). */
   if ((g ==11)) {
     return 8;
+  }
+  if ((g ==12)) {
+    return 5;
   }
   return 0;
 }
@@ -509,6 +512,14 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
     if ((i ==7)) { uint8_t * p = ((uint8_t *)"ffi_cstring_free_c"); return p; }
     return ((uint8_t *)(0));
   }
+  if ((g ==12)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_test_expect"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_test_expect_eq_i32"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_test_expect_ne_i32"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_test_assert"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_test_runner_case"); return p; }
+    return ((uint8_t *)(0));
+  }
   return ((uint8_t *)(0));
 }
 uint8_t * labi_od_simple_group_rel(int32_t g) {
@@ -561,6 +572,10 @@ uint8_t * labi_od_simple_group_rel(int32_t g) {
   }
   if ((g ==11)) {
     uint8_t * p = ((uint8_t *)"std/ffi/ffi.o");
+    return p;
+  }
+  if ((g ==12)) {
+    uint8_t * p = ((uint8_t *)"std/test/test.o");
     return p;
   }
   return ((uint8_t *)(0));
@@ -1042,7 +1057,7 @@ int32_t link_abi_user_o_needs_std_queue(uint8_t * user_o) {
   return 0;
 }
 int32_t labi_od_test_sym_count(void) {
-  return 7;
+  return 12;
 }
 uint8_t * labi_od_test_sym_at(int32_t i) {
   if ((i < 0)) {
@@ -1076,6 +1091,11 @@ uint8_t * labi_od_test_sym_at(int32_t i) {
     uint8_t * p = ((uint8_t *)"\x74\x65\x73\x74\x5f\x66\x75\x7a\x7a\x5f");
     return p;
   }
+  if ((i ==7)) { uint8_t * p = ((uint8_t *)"std_test_expect"); return p; }
+  if ((i ==8)) { uint8_t * p = ((uint8_t *)"std_test_expect_eq_i32"); return p; }
+  if ((i ==9)) { uint8_t * p = ((uint8_t *)"std_test_expect_ne_i32"); return p; }
+  if ((i ==10)) { uint8_t * p = ((uint8_t *)"std_test_assert"); return p; }
+  if ((i ==11)) { uint8_t * p = ((uint8_t *)"std_test_runner_case"); return p; }
   return ((uint8_t *)(0));
 }
 int32_t link_abi_user_o_needs_std_test(uint8_t * user_o) {

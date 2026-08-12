@@ -84,6 +84,9 @@ formal_mod_key_for_out() {
     ../std/dynlib/dynlib.o|std/dynlib/dynlib.o|*std/dynlib/dynlib.o) printf '%s' "std/dynlib/dynlib.o" ;;
     ../std/http/http.o|std/http/http.o|*std/http/http.o) printf '%s' "std/http/http.o" ;;
     ../std/tar/tar.o|std/tar/tar.o|*std/tar/tar.o) printf '%s' "std/tar/tar.o" ;;
+    # PLATFORM: SHARED — pure-asm batch residual (2026-08-13): formal export std_* faces.
+    ../std/unicode/unicode.o|std/unicode/unicode.o|*std/unicode/unicode.o) printf '%s' "std/unicode/unicode.o" ;;
+    ../std/channel/channel.o|std/channel/channel.o|*std/channel/channel.o) printf '%s' "std/channel/channel.o" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -135,6 +138,11 @@ formal_mod_spec_for_key() {
     std/dynlib/dynlib.o) printf '%s' "mod|1|../std/dynlib/mod.x|../std/dynlib/dynlib.x" ;;
     std/http/http.o) printf '%s' "mod|1|../std/http/mod.x|../std/http/http.x" ;;
     std/tar/tar.o) printf '%s' "mod|1|../std/tar/mod.x|../std/tar/tar.x" ;;
+    # PLATFORM: SHARED — pure-asm std_unicode_* / std_channel_* product faces.
+    # unicode: mod+impl bare (extern-function style leaf symbols in unicode.x).
+    # channel: mod.x wrappers only (API body in runtime_channel_glue channel_i32_*_c).
+    std/unicode/unicode.o) printf '%s' "mod|1|../std/unicode/mod.x|../std/unicode/unicode.x" ;;
+    std/channel/channel.o) printf '%s' "mod|0|../std/channel/mod.x" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -179,7 +187,9 @@ formal_mod_all_keys() {
     std/csv/csv.o \
     std/dynlib/dynlib.o \
     std/http/http.o \
-    std/tar/tar.o
+    std/tar/tar.o \
+    std/unicode/unicode.o \
+    std/channel/channel.o
 }
 
 formal_mod_out_for_key() {
@@ -295,6 +305,7 @@ std/heap/page_mmap.o
 std/sys/sys.o
 std/sys/linux.o
 core/mem/mem.o
+core/builtin/builtin.o
 core/types/types.o
 core/option/option.o
 core/result/result.o
@@ -327,16 +338,18 @@ std/csv/csv.o
 std/dynlib/dynlib.o
 std/http/http.o
 std/tar/tar.o
+std/unicode/unicode.o
+std/channel/channel.o
 KEYS
-  if [ "$_n" -ne 38 ]; then
-    echo "formal_mod --check: expected 38 keys, counted $_n" >&2
+  if [ "$_n" -ne 41 ]; then
+    echo "formal_mod --check: expected 41 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then
     echo "formal_mod --check: FAIL" >&2
     return 1
   fi
-  echo "formal_mod --check: OK (38 leaves; catalog + mk list + multi-target FORCE+ensure wave894; not physical delete)"
+  echo "formal_mod --check: OK (41 leaves; catalog + mk list + multi-target FORCE+ensure wave894; not physical delete)"
   return 0
 }
 

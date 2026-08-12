@@ -270,7 +270,8 @@ int32_t labi_user_needs_std_task(uint8_t * user_o) {
   return 0;
 }
 int32_t labi_fk0_rel_count(void) {
-  return 16;
+  /* PLATFORM: SHARED — +tar +unicode batch residual 2026-08-13 */
+  return 18;
 }
 uint8_t * labi_fk0_rel_at(int32_t k) {
   if ((k ==0)) {
@@ -337,6 +338,14 @@ uint8_t * labi_fk0_rel_at(int32_t k) {
     uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x66\x73\x2f\x66\x73\x2e\x6f");
     return p;
   }
+  if ((k ==16)) {
+    uint8_t * p = ((uint8_t *)"std/tar/tar.o");
+    return p;
+  }
+  if ((k ==17)) {
+    uint8_t * p = ((uint8_t *)"std/unicode/unicode.o");
+    return p;
+  }
   return ((uint8_t *)(0));
 }
 int32_t labi_fk0_sym_count(int32_t k) {
@@ -389,6 +398,12 @@ int32_t labi_fk0_sym_count(int32_t k) {
   }
   if ((k ==15)) {
     return 11;
+  }
+  if ((k ==16)) {
+    return 7;
+  }
+  if ((k ==17)) {
+    return 6;
   }
   return 0;
 }
@@ -926,6 +941,25 @@ uint8_t * labi_fk0_sym_at(int32_t k, int32_t i) {
     }
     return ((uint8_t *)(0));
   }
+  if ((k ==16)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_tar_read_header"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_tar_write_header"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_tar_append_entry"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_tar_next_entry"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_tar_read_entry_data"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"std_tar_path_max"); return p; }
+    if ((i ==6)) { uint8_t * p = ((uint8_t *)"tar_read_header_c"); return p; }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==17)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_unicode_category"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_unicode_to_lower"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_unicode_to_upper"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_unicode_is_whitespace"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_unicode_is_ascii"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"std_unicode_case_fold_rune"); return p; }
+    return ((uint8_t *)(0));
+  }
   return ((uint8_t *)(0));
 }
 int32_t labi_std_fk0_user_needs_rel(uint8_t * user_o, uint8_t * rel) {
@@ -998,7 +1032,7 @@ int32_t labi_std_fk_gate_sym_count(int32_t fk) {
     return 5;
   }
   if ((fk ==7)) {
-    return 4;
+    return 10;
   }
   if ((fk ==8)) {
     return 2;
@@ -1148,19 +1182,43 @@ uint8_t * labi_std_fk_gate_sym_at(int32_t fk, int32_t i) {
   }
   if ((fk ==7)) {
     if ((i ==0)) {
-      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x63\x68\x61\x6e\x6e\x65\x6c\x5f\x73\x65\x6e\x64");
+      uint8_t * p = ((uint8_t *)"std_channel_send");
       return p;
     }
     if ((i ==1)) {
-      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x63\x68\x61\x6e\x6e\x65\x6c\x5f\x72\x65\x63\x76");
+      uint8_t * p = ((uint8_t *)"std_channel_recv");
       return p;
     }
     if ((i ==2)) {
-      uint8_t * p = ((uint8_t *)"\x63\x68\x61\x6e\x6e\x65\x6c\x5f\x73\x65\x6e\x64");
+      uint8_t * p = ((uint8_t *)"std_channel_bounded");
       return p;
     }
     if ((i ==3)) {
-      uint8_t * p = ((uint8_t *)"\x63\x68\x61\x6e\x6e\x65\x6c\x5f\x72\x65\x63\x76");
+      uint8_t * p = ((uint8_t *)"std_channel_close");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"std_channel_free");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"std_channel_try_send");
+      return p;
+    }
+    if ((i ==6)) {
+      uint8_t * p = ((uint8_t *)"std_channel_try_recv");
+      return p;
+    }
+    if ((i ==7)) {
+      uint8_t * p = ((uint8_t *)"std_channel_unbounded");
+      return p;
+    }
+    if ((i ==8)) {
+      uint8_t * p = ((uint8_t *)"channel_i32_send_c");
+      return p;
+    }
+    if ((i ==9)) {
+      uint8_t * p = ((uint8_t *)"channel_i32_bounded_c");
       return p;
     }
     return ((uint8_t *)(0));
@@ -2067,6 +2125,13 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
   }
   int32_t need_test = link_abi_user_o_needs_std_test(user_o);
   if ((need_test !=0)) {
+    uint8_t * rt_test = 0;
+    (void)((rt_test = xlang_repo_root_from_argv0(link_argv0)));
+    if ((rt_test !=0)) {
+      if (((rt_test)[0] !=0)) {
+        (void)(xlang_ensure_formal_std_make_o(rt_test, ((uint8_t *)"std/test/test.o"), ((uint8_t *)"../std/test/test.o")));
+      }
+    }
     int32_t have_test = 0;
     uint8_t * trel = labi_od_rel_test();
     {

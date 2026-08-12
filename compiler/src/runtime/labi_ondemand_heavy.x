@@ -285,12 +285,14 @@ export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 
 /**
  * Count of fk0 rel path needles (substring match order matches mega seed).
- * @return i32 — 16
- * PLATFORM: SHARED
+ * @return i32 — 18 (was 16; +tar +unicode pure-asm batch residual 2026-08-13)
+ * PLATFORM: SHARED — G.7 complete: every OP_STD flag_kind=0 formal rel that can
+ * be the sole user UNDEF must appear here or the gate never opens (run-tar /
+ * run-unicode history: formal .o existed, plan step present, fk0 table missed).
  */
 #[no_mangle]
 export function labi_fk0_rel_count(): i32 {
-  return 16;
+  return 18;
 }
 
 /**
@@ -366,6 +368,18 @@ export function labi_fk0_rel_at(k: i32): *u8 {
     let p: *u8 = "std/fs/fs.o";
     return p;
   }
+  // PLATFORM: SHARED — std/tar/tar.o was OP_STD flag_kind=0 but missing from fk0
+  // → labi_std_fk0_user_needs_rel always 0 → never push formal tar.o (run-tar UNDEF
+  // std_tar_read_header / write_header even when formal rebuild produced T surface).
+  if (k == 16) {
+    let p: *u8 = "std/tar/tar.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std/unicode/unicode.o same class as tar (flag_kind=0, no fk0).
+  if (k == 17) {
+    let p: *u8 = "std/unicode/unicode.o";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -437,6 +451,14 @@ export function labi_fk0_sym_count(k: i32): i32 {
   // (run-fs readv_writev_buf). G.7 complete surface: public readv/writev faces.
   if (k == 15) {
     return 11;
+  }
+  // PLATFORM: SHARED — tar formal public surface (std_tar_*).
+  if (k == 16) {
+    return 7;
+  }
+  // PLATFORM: SHARED — unicode formal public surface (std_unicode_*).
+  if (k == 17) {
+    return 6;
   }
   return 0;
 }
@@ -993,6 +1015,68 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       return 0 as *u8;
     }
+    // PLATFORM: SHARED — std/tar/tar.o exact UNDEF needles (fk0 k==16).
+    // Exact match only; sole callers of read_header/write_header never opened gate.
+    if (k == 16) {
+      if (i == 0) {
+        let p: *u8 = "std_tar_read_header";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_tar_write_header";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_tar_append_entry";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_tar_next_entry";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_tar_read_entry_data";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_tar_path_max";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "tar_read_header_c";
+        return p;
+      }
+      return 0 as *u8;
+    }
+    // PLATFORM: SHARED — std/unicode/unicode.o exact UNDEF needles (fk0 k==17).
+    // Pure-asm import METHOD → std_unicode_*; formal_mod must export same surface.
+    if (k == 17) {
+      if (i == 0) {
+        let p: *u8 = "std_unicode_category";
+        return p;
+      }
+      if (i == 1) {
+        let p: *u8 = "std_unicode_to_lower";
+        return p;
+      }
+      if (i == 2) {
+        let p: *u8 = "std_unicode_to_upper";
+        return p;
+      }
+      if (i == 3) {
+        let p: *u8 = "std_unicode_is_whitespace";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_unicode_is_ascii";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_unicode_case_fold_rune";
+        return p;
+      }
+      return 0 as *u8;
+    }
     return 0 as *u8;
   }
 }
@@ -1100,8 +1184,11 @@ export function labi_std_fk_gate_sym_count(fk: i32): i32 {
   if (fk == 6) {
     return 5;
   }
+  // PLATFORM: SHARED — channel product face complete (pure-asm std_channel_*).
+  // Was only send/recv + bare channel_send/recv; sole callers of bounded/close/
+  // free/try_* never opened fk7 → never push channel.o + channel_glue.
   if (fk == 7) {
-    return 4;
+    return 10;
   }
   if (fk == 8) {
     return 2;
@@ -1277,6 +1364,8 @@ export function labi_std_fk_gate_sym_at(fk: i32, i: i32): *u8 {
       }
       return 0 as *u8;
     }
+    // PLATFORM: SHARED — fk==7 std/channel complete surface (exact match).
+    // Pure-asm import METHOD → std_channel_*; glue provides channel_i32_*_c.
     if (fk == 7) {
       if (i == 0) {
         let p: *u8 = "std_channel_send";
@@ -1287,11 +1376,35 @@ export function labi_std_fk_gate_sym_at(fk: i32, i: i32): *u8 {
         return p;
       }
       if (i == 2) {
-        let p: *u8 = "channel_send";
+        let p: *u8 = "std_channel_bounded";
         return p;
       }
       if (i == 3) {
-        let p: *u8 = "channel_recv";
+        let p: *u8 = "std_channel_close";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_channel_free";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_channel_try_send";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_channel_try_recv";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_channel_unbounded";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "channel_i32_send_c";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "channel_i32_bounded_c";
         return p;
       }
       return 0 as *u8;
@@ -2668,8 +2781,21 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
     }
 
     // --- test + fn_invoke glue ---
+    // PLATFORM: SHARED — pure-asm run-stdtest residual: always formal-ensure test.o
+    // before push (L4 wipe / stale marker .o lack std_test_* T surface).
     let need_test: i32 = link_abi_user_o_needs_std_test(user_o);
     if (need_test != 0) {
+      let rt_test: *u8 = 0 as *u8;
+      unsafe {
+        rt_test = xlang_repo_root_from_argv0(link_argv0);
+      }
+      if (rt_test != 0 as *u8) {
+        if (rt_test[0] != 0) {
+          unsafe {
+            let _fe_t: i32 = xlang_ensure_formal_std_make_o(rt_test, "std/test/test.o", "../std/test/test.o");
+          }
+        }
+      }
       let have_test: i32 = 0;
       let trel: *u8 = labi_od_rel_test();
       unsafe {
@@ -2820,6 +2946,20 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                 if (rt11[0] != 0) {
                   unsafe {
                     let _fe11: i32 = xlang_ensure_formal_std_make_o(rt11, "std/ffi/ffi.o", "../std/ffi/ffi.o");
+                  }
+                }
+              }
+            }
+            // PLATFORM: SHARED — g12 std.test formal (pure-asm run-stdtest residual).
+            if (sg == 12) {
+              let rt12: *u8 = 0 as *u8;
+              unsafe {
+                rt12 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt12 != 0 as *u8) {
+                if (rt12[0] != 0) {
+                  unsafe {
+                    let _fe12: i32 = xlang_ensure_formal_std_make_o(rt12, "std/test/test.o", "../std/test/test.o");
                   }
                 }
               }

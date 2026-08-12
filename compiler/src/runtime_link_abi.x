@@ -451,10 +451,14 @@ export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
   return 0;
 }
 
-/** Exported function `link_abi_user_o_needs_std_test`.
- * Implements `link_abi_user_o_needs_std_test`.
- * @param user_o *u8
- * @return i32
+/**
+ * Whether user .o references std.test API (on-demand chain test.o).
+ * G.7: product table must match labi_ondemand_list pure orch (wave122 + pure-asm
+ * std_test_* faces). Multi-slice ld -r may keep this monofile twin as the linked
+ * authority over L8b — both must stay complete (dual-authority ban: same semantics).
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * PLATFORM: SHARED — pure-asm run-stdtest residual (std_test_expect*)
  */
 #[no_mangle]
 export function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
@@ -465,6 +469,7 @@ export function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
+    // Bare / prefix faces (C-path co-emit residual).
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "test_call_i32_void_c") != 0) {
       return 1;
     }
@@ -484,6 +489,22 @@ export function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
       return 1;
     }
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "test_fuzz_") != 0) {
+      return 1;
+    }
+    // PLATFORM: SHARED — pure-asm import METHOD → std_test_* exact faces.
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_test_expect") != 0) {
+      return 1;
+    }
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_test_expect_eq_i32") != 0) {
+      return 1;
+    }
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_test_expect_ne_i32") != 0) {
+      return 1;
+    }
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_test_assert") != 0) {
+      return 1;
+    }
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_test_runner_case") != 0) {
       return 1;
     }
     return 0;

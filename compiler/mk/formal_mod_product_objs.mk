@@ -49,5 +49,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/csv/csv.o \
 	../std/dynlib/dynlib.o \
 	../std/http/http.o \
-	../std/tar/tar.o
+	../std/tar/tar.o \
+	../std/unicode/unicode.o \
+	../std/channel/channel.o
 

@@ -2292,9 +2292,13 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
   // context.o then U atomic_*_i32_c + time_now_monotonic_ns_c.
   // G.7 complete authority ≡ net have_net companions + C need_context + vec/heap pattern.
   // PLATFORM: SHARED — pure-asm run-fs residual; dual-end L2.
+  // Same companion class for http.o (run-http UNDEF std_error_http_err_* /
+  // std_context_*): monofile co-compiles timeout/ctx faces; user only U std_http_*.
   let eq_fs: i32 = 0;
+  let eq_http: i32 = 0;
   unsafe {
     eq_fs = strcmp(rel, "std/fs/fs.o");
+    eq_http = strcmp(rel, "std/http/http.o");
   }
   if (eq_fs == 0) {
     let _fe: i32 = 0;
@@ -2333,6 +2337,49 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
           let _pto: i32 = 0;
           unsafe {
             _pto = link_abi_asm_ld_push_obj(top, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+      }
+    }
+  }
+  if (eq_http == 0) {
+    // PLATFORM: SHARED — pure-asm run-http residual (≡ fs/net error/context companions).
+    let _fe_h: i32 = 0;
+    let _fc_h: i32 = 0;
+    unsafe {
+      _fe_h = xlang_ensure_formal_std_make_o(include_root, "std/error/error.o", "../std/error/error.o");
+      _fc_h = xlang_ensure_formal_std_make_o(include_root, "std/context/context.o", "../std/context/context.o");
+    }
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let _pe_h: i32 = 0;
+        let _pc_h: i32 = 0;
+        unsafe {
+          _pe_h = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/error/error.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          _pc_h = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/context/context.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+        let er_ag_h: i32 = 0;
+        let agp_h: *u8 = 0 as *u8;
+        unsafe {
+          er_ag_h = xlang_ensure_runtime_atomic_glue_o(link_argv0);
+          agp_h = xlang_runtime_atomic_glue_o_path(link_argv0);
+        }
+        if (er_ag_h == 0) {
+          let _pag_h: i32 = 0;
+          unsafe {
+            _pag_h = link_abi_asm_ld_push_obj(agp_h, link_argv0, "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+        let er_to_h: i32 = 0;
+        let top_h: *u8 = 0 as *u8;
+        unsafe {
+          er_to_h = xlang_ensure_runtime_time_os_o(link_argv0);
+          top_h = xlang_runtime_time_os_o_path(link_argv0);
+        }
+        if (er_to_h == 0) {
+          let _pto_h: i32 = 0;
+          unsafe {
+            _pto_h = link_abi_asm_ld_push_obj(top_h, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
           }
         }
       }
