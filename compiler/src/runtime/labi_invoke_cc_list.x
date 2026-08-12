@@ -3951,10 +3951,10 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
 /**
  * Spawn system cc/gcc with a finished NULL-terminated argv (parent-side, no fork-first).
  * @param argv **u8 — full cc argv ending with null; argv[0] rewritten per candidate; null → -1
- * @return i32 — 0 success (first candidate exit 0); -1 all candidates failed (diag emitted)
+ * @return i32 — 0 success (first candidate exit 0); -1 all candidates failed or FORBID gate
  * Pure orch: ≡ mega post-argv fork/exec/wait shell (wave205).
  * Cap residual: setenv(PATH) on POSIX only + host_is_* + xlang_spawn_sync
- * (public pure thin wave219 → _impl mega) + link_diag_tool_status.
+ * (public pure thin wave219 → _impl mega) + link_diag_tool_status + link_abi_getenv.
  * Candidate order ≡ historical mega child exec chain:
  *   WINDOWS: gcc only (MinGW; no bare `cc`); **never** clobber PATH
  *   LINUX: gcc, cc, /usr/bin/gcc, /usr/bin/cc, /usr/local/bin/gcc, /usr/local/bin/cc
@@ -3964,6 +3964,12 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
  * PLATFORM: SHARED orch / POSIX setenv+PATH / WINDOWS spawn gcc only (keep host PATH).
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
+ *
+ * Stage 12.2.1 product gate (2026-08-12): when XLANG_FORBID_HOST_CC is exactly "1",
+ * do not spawn host-cc (product invoke_cc path). Historical FORBID only wrapped
+ * ensure/g05 `$CC` shell; product still exec'd gcc via this function. LOG_ONLY=1
+ * mirrors shell discovery (log via link_diag_tool_status, then still spawn).
+ * PLATFORM: SHARED — env gate; verify dual-end with FORBID on/off.
  *
  * PLATFORM: WINDOWS | MINGW | MSYS — do NOT setenv PATH to /usr/local/bin:/usr/bin:/bin.
  *   That string is Linux freestanding isolation only. On PE, `_spawnvp("gcc")` searches
@@ -3976,6 +3982,34 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
   let ab: *u8 = argv as *u8;
   if (ab == 0 as *u8) {
     return 0 - 1;
+  }
+
+  /*
+   * PLATFORM: SHARED — Stage 12.2.1 product host-cc isolation.
+   * Shell forbid_host_cc.sh only gates $CC in ensure/g05. Product -backend c still
+   * reaches this spawn authority. Exact env "1" matches shell; LOG_ONLY=1 falls through.
+   */
+  let forbid: *u8 = 0 as *u8;
+  unsafe {
+    forbid = link_abi_getenv("XLANG_FORBID_HOST_CC");
+  }
+  if (forbid != 0 as *u8 && forbid[0] == 49 && forbid[1] == 0) {
+    let log_only: *u8 = 0 as *u8;
+    unsafe {
+      log_only = link_abi_getenv("XLANG_FORBID_HOST_CC_LOG_ONLY");
+    }
+    let is_log_only: i32 = 0;
+    if (log_only != 0 as *u8 && log_only[0] == 49 && log_only[1] == 0) {
+      is_log_only = 1;
+    }
+    if (is_log_only == 0) {
+      unsafe {
+        link_diag_tool_status("forbid-host-cc", 0 - 1);
+      }
+      return 0 - 1;
+    }
+    /* LOG_ONLY=1: discovery mode — fall through to spawn (no second diag; shell
+     * prints its own wrapper log when ensure/g05 $CC is also wrapped). */
   }
 
   let is_win: i32 = 0;
