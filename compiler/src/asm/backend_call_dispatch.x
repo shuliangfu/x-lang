@@ -2034,21 +2034,51 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                      * Root (mac option residual): import-binding METHOD_CALL must spill-then-load
                      * (same as pipeline_asm_emit_call_args_elf_c / seed wave602). Direct place via
                      * x0 temp after nested CALL clobbers Option in x0 (unwrap_or(some(42),0)→0).
-                     * G.7: one discipline for free CALL and import METHOD_CALL.
+                     * Root (run-result 173 residual): pure import METHOD path hard-coded gp_units=1
+                     * and used arg index as GP index → Result_i32 (16B INTEGER dual-GP) only packed
+                     * lows into x0/x1; host core_result_or_i32 expects x0:x1 + x2:x3 → return -3.
+                     * Free CALL already uses size→units + gp_start; import METHOD must match.
+                     * G.7: one discipline for free CALL and import METHOD_CALL (dual-GP units).
                      */
                     {
                       let spill_off_m: i32[96] = [];
+                      let gp_start_m: i32[96] = [];
+                      let gp_units_m: i32[96] = [];
                       let i_m: i32 = 0;
                       let reg_max_m: i32 = glue_asm_call_reg_max(ta);
+                      let gp_cur_m: i32 = 0;
                       if (reg_max_m < 1) { reg_max_m = 6; }
+                      // Classify each arg: 9–16B POD → 2 consecutive GPs; else 1 (or stack).
                       while (i_m < nargs) {
+                        let ar_m: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+                        let pty_m: i32 = glue_call_param_type_ref_at(arena, expr_ref, i_m);
+                        let sz_m: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_m, ar_m);
+                        let u_m: i32 = glue_sysv_arg_gp_units_from_size_c(sz_m);
                         spill_off_m[i_m] = 0 - 1;
+                        if (u_m < 1) { u_m = 1; }
+                        if (u_m > 2) { u_m = 2; }
+                        // MEMORY (>16B) or GP exhaustion → stack place (gp_start < 0).
+                        if (glue_sysv_arg_is_memory_by_value_c(sz_m) != 0) {
+                          gp_start_m[i_m] = 0 - 1;
+                          gp_units_m[i_m] = 0;
+                        } else if (gp_cur_m + u_m <= reg_max_m) {
+                          gp_start_m[i_m] = gp_cur_m;
+                          gp_units_m[i_m] = u_m;
+                          gp_cur_m = gp_cur_m + u_m;
+                        } else {
+                          gp_start_m[i_m] = 0 - 1;
+                          gp_units_m[i_m] = u_m;
+                        }
                         i_m = i_m + 1;
                       }
                       // Excess stack args (x86 only): push high→low before reg spill/load.
                       if (ta == 0) {
                         let stk_n: i32 = 0;
-                        if (nargs > reg_max_m) { stk_n = nargs - reg_max_m; }
+                        i_m = 0;
+                        while (i_m < nargs) {
+                          if (gp_start_m[i_m] < 0) { stk_n = stk_n + 1; }
+                          i_m = i_m + 1;
+                        }
                         if (stk_n > 0) {
                           let pad: i32 = 0;
                           if ((stk_n & 1) != 0) { pad = 1; }
@@ -2056,40 +2086,63 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                             if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
                             if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
                           }
-                          let is: i32 = nargs - 1;
-                          while (is >= reg_max_m) {
-                            let arg_stk: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, is);
-                            if (arg_stk != 0) {
-                              if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk, is, ctx, ta) != 0) {
-                                return 0 - 1;
+                          i_m = nargs - 1;
+                          while (i_m >= 0) {
+                            if (gp_start_m[i_m] < 0) {
+                              let arg_stk: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+                              if (arg_stk != 0) {
+                                if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk, i_m, ctx, ta) != 0) {
+                                  return 0 - 1;
+                                }
+                                if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
                               }
-                              if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
                             }
-                            is = is - 1;
+                            i_m = i_m - 1;
                           }
                         }
                       }
-                      // Emit + spill register-class args (index < reg_max).
+                      // Emit + spill register-class args (dual-GP units from size).
                       i_m = 0;
                       while (i_m < nargs) {
-                        if (i_m < reg_max_m) {
+                        if (gp_start_m[i_m] >= 0) {
                           let arg_ref_m: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
                           if (arg_ref_m != 0) {
                             if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref_m, i_m, ctx, ta) != 0) {
                               return 0 - 1;
                             }
-                            let so_m: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+                            let so_m: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units_m[i_m]);
                             if (so_m < 0) { return 0 - 1; }
                             spill_off_m[i_m] = so_m;
                           }
                         }
                         i_m = i_m + 1;
                       }
+                      // arm64 excess: place on [sp] via x0 *before* final GP load (do not clobber GPs).
+                      if (ta == 1) {
+                        let stk_slot_m: i32 = 0;
+                        i_m = 0;
+                        while (i_m < nargs) {
+                          if (gp_start_m[i_m] < 0) {
+                            let arg_stk_a: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+                            if (arg_stk_a != 0) {
+                              if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk_a, i_m, ctx, ta) != 0) {
+                                return 0 - 1;
+                              }
+                              if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot_m * 8, ta) != 0) {
+                                return 0 - 1;
+                              }
+                              stk_slot_m = stk_slot_m + 1;
+                            }
+                          }
+                          i_m = i_m + 1;
+                        }
+                      }
                       // Load high→low so x0/rax temp does not wipe lower final GPs.
+                      // Dual-GP: load into gp_start_m and gp_start_m+1 (not bare arg index).
                       i_m = nargs - 1;
                       while (i_m >= 0) {
                         if (spill_off_m[i_m] >= 0) {
-                          if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_m[i_m], i_m, 1) != 0) {
+                          if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_m[i_m], gp_start_m[i_m], gp_units_m[i_m]) != 0) {
                             return 0 - 1;
                           }
                         }

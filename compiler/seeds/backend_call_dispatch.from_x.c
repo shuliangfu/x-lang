@@ -3777,13 +3777,22 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 continue;
               }
               /** >16B by-value POD: stack MEMORY (not lea→GP). Matches formal C std_vec_len(Vec). */
-              if (ta == 0 && sz > 16) {
+              if (sz > 16) {
                 is_mem[i] = 1;
                 continue;
               }
+              /*
+               * G.7: size→units on both SysV and AAPCS64 (9–16B INTEGER dual-GP).
+               * Historic `if (ta != 0) u = 1` left only x0/x1 lows for Result_i32 import
+               * METHOD (or_i32/and_i32) → host expects x0:x1+x2:x3 (run-result -3 residual).
+               * Free CALL / pure import METHOD use the same units classification.
+               * PLATFORM: SHARED freestanding · MACOS|ARM64 AAPCS64 · LINUX+MACOS x86 SysV.
+               */
               u = glue_sysv_arg_gp_units_from_size_c(sz);
-              if (ta != 0)
+              if (u < 1)
                 u = 1;
+              if (u > 2)
+                u = 2;
               if (gp_cur + u > 6) {
                 /** Excess integer args: SysV stack (right-to-left push). Dual-GP that does not fit: fail. */
                 if (u > 1)
