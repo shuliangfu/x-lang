@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + hybrid 双端** · **prefer 族 pure-asm 产品默认 ✅** · **pipeline_abi pure-asm 硬禁 ✅** · **PC bare-call mangle ✅** · **option asm run=102 ✅** · **PC 去 import→C ✅** · **seed `__APPLE__` exe→C 双权威 ✅** · **codegen mono `Result_*` 短名根修 ✅** · **静默 generic→C 移除 ✅**（C 仅 `-backend c`／check-only／emit-c）· **`XLANG_FORBID_HOST_CC` 产品 invoke_cc 闸 ✅** · **禁树级 PREFER_ASM 默认**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + hybrid 双端** · **prefer 族 pure-asm 产品默认 ✅** · **pipeline_abi pure-asm 硬禁 ✅** · **PC bare-call mangle ✅** · **option asm run=102 ✅** · **PC 去 import→C ✅** · **seed `__APPLE__` exe→C 双权威 ✅** · **codegen mono `Result_*` 短名根修 ✅** · **静默 generic→C 移除 ✅** · **`XLANG_FORBID_HOST_CC` 产品 invoke_cc 闸 ✅** · **`XLANG_ALLOW_HOST_CC` experimental 默认拒 spawn ✅**（`-backend c` 须 ALLOW=1）· **禁树级 PREFER_ASM 默认**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -53,7 +53,7 @@
 |----|------|----------|--------------|
 | **MG · 编排层** | 不依赖 `make` / `compiler/Makefile` / 顶层 `Makefile` 完成 build / L4 / bootstrap | ✅ Makefile 物理删除 · bootstrap 0 make · catalog 单权威（mk/*.mk）· 双端 L4 绿 | 只删入口 Makefile、实现层仍 `make -C compiler` |
 | **BC · 自举编译层** | 编译器自身 TU **不**再被 host `cc/gcc/clang` 编译（.x→纯 asm `.o` 或等价） | 🟡 已开（inventory 冻结；**glue 叶已 fold、ast_pool 续迁**；`pipeline_x` 仍 host-cc mega-TU） | seed 用 xlang `-E` 出 C 再交给 gcc |
-| **PC · 产品默认后端** | 用户程序默认 **`-backend asm`**（或纯自研目标）；**不**默认 emit C 再 `exec` host-cc；`labi_invoke_cc*` 退役或仅 opt-in | 🟡 **去 import→C ✅** · **seed `__APPLE__` exe→C ✅** · **`Result_*` 短名 ✅** · **静默 generic→C 移除 ✅** · **`FORBID_HOST_CC` 产品 spawn 闸 ✅**（C opt-in；FORBID=1 挡 invoke_cc） | 自举绿但显式 `-backend c` 默认可调 gcc；FORBID=1 零 cc 验收 |
+| **PC · 产品默认后端** | 用户程序默认 **`-backend asm`**（或纯自研目标）；**不**默认 emit C 再 `exec` host-cc；`labi_invoke_cc*` 退役或仅 opt-in | 🟡 **去 import→C ✅** · **seed `__APPLE__` exe→C ✅** · **`Result_*` 短名 ✅** · **静默 generic→C 移除 ✅** · **`FORBID_HOST_CC` ✅** · **`ALLOW_HOST_CC` experimental 默认拒 ✅**（spawn 须 ALLOW=1；FORBID 优先） | 显式 `-backend c` + ALLOW=1 仍可调 gcc；默认产品路径零 spawn |
 
 > **用户主目标对齐**：以 **去掉 Makefile（MG）** 为终局叙事主闸门；MG 物理删除的**前置**是 BC 足够小（glue/gen 可被 xbuild 用 xlang 编）且编排逻辑迁到 xbuild / g05 已覆盖的 shell·.x。  
 > **禁止**：只完成 MG 包装层、底层仍 `make`；或只宣称 v2==v3 而 Makefile 仍是冷启动权威。
@@ -2138,7 +2138,8 @@
   - **codegen mono `Result_*` 短名**：✅ `emit_type` 将 bare `Result_i32`／`Result_u8` → `struct core_result_Result_*`（同 Option_*）；formal shell `#define` 别名已删
   - **静默 generic→C**：✅ 已删（`compile.x`／`rt_dispatch_impl`／`rt_run_compiler_parsed` + seed/surface／driver_compile pin）；产品 C 仅 opt-in
   - **`XLANG_FORBID_HOST_CC`**：✅ ensure／g05 **构建闸** + **产品 `invoke_cc_run_cc_argv` spawn 闸**（env 精确 `"1"`；`LOG_ONLY=1` 静默放行；权威 `labi_invoke_cc_list`）
-  - 下一刀候选：①invoke_cc 再隔离／experimental（非 FORBID 路径）· ②树级 PREFER 仍禁 · ③Arena64 shell 死别名清理（短名已 0）
+  - **`XLANG_ALLOW_HOST_CC`**：✅ **experimental 默认拒 spawn**（env 精确 `"1"` 才允许；`host-cc-requires-allow`；FORBID 优先于 ALLOW；权威同 `invoke_cc_run_cc_argv`）
+  - 下一刀候选：①树级 PREFER 仍禁 · ②Arena64 shell 死别名清理（短名已 0）· ③invoke_cc 本体退役／进一步瘦身
 
 
 ---
@@ -2195,7 +2196,7 @@
 🟡 **13.2.4 labi_invoke_cc / `-backend c` 退役或隔离**
 
   - 产品默认不 exec host-cc；历史 C 后端进 experimental 或删除
-  - **2026-08-12 地图（刷新）**：import 默认 **asm**（不调 invoke_cc）· 静默 generic→C **已删** · seed APPLE exe→C **已删**；产品 host-cc 仅 **显式 `-backend c`**（及 check-only／emit-c）；invoke_cc 本体仍服务显式 C 链 · 未删除
+  - **2026-08-12 地图（刷新）**：import 默认 **asm** · 静默 generic→C **已删** · seed APPLE exe→C **已删**；**`ALLOW_HOST_CC=1` experimental 才 spawn**（显式 `-backend c` alone 不足）· **`FORBID_HOST_CC=1` 硬挡**；invoke_cc 本体仍服务 ALLOW 后的 C 链 · 未删除
 
 ### 13.3 收尾
 

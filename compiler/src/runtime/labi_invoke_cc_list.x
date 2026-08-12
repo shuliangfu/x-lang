@@ -3969,7 +3969,12 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
  * do not spawn host-cc (product invoke_cc path). Historical FORBID only wrapped
  * ensure/g05 `$CC` shell; product still exec'd gcc via this function. LOG_ONLY=1
  * mirrors shell discovery (log via link_diag_tool_status, then still spawn).
- * PLATFORM: SHARED — env gate; verify dual-end with FORBID on/off.
+ *
+ * Stage 12.2.3 experimental host-cc (2026-08-12): product spawn also requires
+ * XLANG_ALLOW_HOST_CC exactly "1". Default deny even with explicit `-backend c`
+ * so host-cc is experimental opt-in (S8.4 / 13.2.4), not a silent product path.
+ * Order: FORBID=1 (not LOG_ONLY) wins → else ALLOW must be "1" → else spawn.
+ * PLATFORM: SHARED — env gates; verify dual-end ALLOW on/off + FORBID.
  *
  * PLATFORM: WINDOWS | MINGW | MSYS — do NOT setenv PATH to /usr/local/bin:/usr/bin:/bin.
  *   That string is Linux freestanding isolation only. On PE, `_spawnvp("gcc")` searches
@@ -3985,9 +3990,10 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
   }
 
   /*
-   * PLATFORM: SHARED — Stage 12.2.1 product host-cc isolation.
+   * PLATFORM: SHARED — Stage 12.2.1 FORBID + Stage 12.2.3 experimental ALLOW.
    * Shell forbid_host_cc.sh only gates $CC in ensure/g05. Product -backend c still
-   * reaches this spawn authority. Exact env "1" matches shell; LOG_ONLY=1 falls through.
+   * reaches this spawn authority. FORBID exact "1" hard-blocks (LOG_ONLY falls
+   * through to ALLOW check). ALLOW exact "1" required for any spawn (default deny).
    */
   let forbid: *u8 = 0 as *u8;
   unsafe {
@@ -4008,8 +4014,23 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
       }
       return 0 - 1;
     }
-    /* LOG_ONLY=1: discovery mode — fall through to spawn (no second diag; shell
-     * prints its own wrapper log when ensure/g05 $CC is also wrapped). */
+    /* LOG_ONLY=1: discovery mode — fall through to ALLOW then spawn. */
+  }
+
+  /*
+   * PLATFORM: SHARED — Stage 12.2.3 experimental: host-cc spawn is opt-in.
+   * Explicit `-backend c` alone is not enough; set XLANG_ALLOW_HOST_CC=1.
+   * Product default (asm -o) never reaches here. G.7 single authority = this gate.
+   */
+  let allow: *u8 = 0 as *u8;
+  unsafe {
+    allow = link_abi_getenv("XLANG_ALLOW_HOST_CC");
+  }
+  if (allow == 0 as *u8 || allow[0] != 49 || allow[1] != 0) {
+    unsafe {
+      link_diag_tool_status("host-cc-requires-allow", 0 - 1);
+    }
+    return 0 - 1;
   }
 
   let is_win: i32 = 0;

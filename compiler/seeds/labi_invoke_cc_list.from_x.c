@@ -1743,7 +1743,9 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap) {
 /* wave205: invoke_cc_run_cc_argv pure orch (cold twin ≡ .x).
  * Stage 12.2.1 (2026-08-12): XLANG_FORBID_HOST_CC=1 blocks product host-cc spawn
  * (same gate as labi_invoke_cc_list.x; shell $CC wrap alone was incomplete).
- * LOG_ONLY=1: diag then still spawn (discovery mode ≡ forbid_host_cc.sh).
+ * LOG_ONLY=1: fall through to ALLOW then spawn (discovery ≡ forbid_host_cc.sh).
+ * Stage 12.2.3 (2026-08-12): XLANG_ALLOW_HOST_CC=1 required for any spawn
+ * (experimental host-cc opt-in; default deny even with -backend c).
  * PLATFORM: WINDOWS — never clobber PATH with /usr/local/bin:/usr/bin:/bin before
  * _spawnvp("gcc"); that Unix PATH hides MinGW and yields BLD001 exit 255.
  * POSIX freestanding may still need the setenv when PATH is empty. */
@@ -1753,6 +1755,7 @@ int invoke_cc_run_cc_argv(char **argv) {
   int rc;
   const char *forbid;
   const char *log_only;
+  const char *allow;
   if (!argv)
     return -1;
   /* PLATFORM: SHARED — product FORBID gate (exact "1"; LOG_ONLY fallthrough). */
@@ -1763,7 +1766,13 @@ int invoke_cc_run_cc_argv(char **argv) {
       link_diag_tool_status("forbid-host-cc", -1);
       return -1;
     }
-    /* LOG_ONLY=1: discovery — fall through to spawn (no diag noise). */
+    /* LOG_ONLY=1: discovery — fall through to ALLOW then spawn (no diag noise). */
+  }
+  /* PLATFORM: SHARED — Stage 12.2.3 experimental ALLOW (exact "1" required). */
+  allow = link_abi_getenv("XLANG_ALLOW_HOST_CC");
+  if (!(allow && allow[0] == '1' && allow[1] == '\0')) {
+    link_diag_tool_status("host-cc-requires-allow", -1);
+    return -1;
   }
   is_win = link_abi_host_is_windows();
   if (!is_win)

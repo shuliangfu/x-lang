@@ -1742,7 +1742,9 @@ void invoke_cc_append_minimal_cc_link_tail(uint8_t **argv, int32_t *ia, int32_t 
 
 /* wave205: invoke_cc_run_cc_argv pure orch (surface pin ≡ .x).
  * Stage 12.2.1 (2026-08-12): XLANG_FORBID_HOST_CC=1 product host-cc gate
- * (≡ .x / cold twin; LOG_ONLY=1 discovery fallthrough).
+ * (≡ .x / cold twin; LOG_ONLY=1 fallthrough to ALLOW).
+ * Stage 12.2.3 (2026-08-12): XLANG_ALLOW_HOST_CC=1 required for spawn
+ * (experimental host-cc opt-in; ≡ .x / cold twin).
  * PLATFORM: WINDOWS — do not setenv PATH to Unix dirs (see .x / cold twin). */
 int32_t invoke_cc_run_cc_argv(uint8_t **argv) {
   int32_t is_win;
@@ -1750,6 +1752,7 @@ int32_t invoke_cc_run_cc_argv(uint8_t **argv) {
   int32_t rc;
   const char *forbid;
   const char *log_only;
+  const char *allow;
   if (!argv)
     return -1;
   /* PLATFORM: SHARED — product FORBID gate (exact "1"; LOG_ONLY fallthrough). */
@@ -1760,7 +1763,13 @@ int32_t invoke_cc_run_cc_argv(uint8_t **argv) {
       link_diag_tool_status((uint8_t *)"forbid-host-cc", -1);
       return -1;
     }
-    /* LOG_ONLY=1: discovery — fall through to spawn (no diag noise). */
+    /* LOG_ONLY=1: discovery — fall through to ALLOW then spawn (no diag noise). */
+  }
+  /* PLATFORM: SHARED — Stage 12.2.3 experimental ALLOW (exact "1" required). */
+  allow = (const char *)link_abi_getenv((uint8_t *)"XLANG_ALLOW_HOST_CC");
+  if (!(allow && allow[0] == '1' && allow[1] == '\0')) {
+    link_diag_tool_status((uint8_t *)"host-cc-requires-allow", -1);
+    return -1;
   }
   is_win = link_abi_host_is_windows();
   if (!is_win)

@@ -284,7 +284,10 @@ STAGE2_COMPILE_BACKEND=""
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
   Darwin-*|Linux-aarch64|Linux-arm64)
     STAGE2_COMPILE_BACKEND="-backend c"
-    echo "verify-stage2-bstrict: Darwin/ARM64 use -backend c for user compile (asm Mach-O incomplete)"
+    # Stage 12.2.3: experimental host-cc requires XLANG_ALLOW_HOST_CC=1.
+    # PLATFORM: SHARED — only this Darwin/ARM64 fallback path uses -backend c.
+    export XLANG_ALLOW_HOST_CC=1
+    echo "verify-stage2-bstrict: Darwin/ARM64 use -backend c for user compile (asm Mach-O incomplete; ALLOW_HOST_CC=1)"
     ;;
 esac
 
