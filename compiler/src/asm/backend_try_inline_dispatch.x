@@ -252,47 +252,53 @@ export function glue_type_ref_is_named_struct_layout(arena: *u8, mod: *u8, ty_re
  * Used for AsmFuncCtx module_ref @16 and dep_pipe @1384 (64-bit LE).
  * LP64 authority: pipeline_abi (was stale 1256 mid continue_label).
  * Track-L: no_mangle keeps surface short name g02f_load_ptr_at.
- * PLATFORM: SHARED — link-name contract; dual-host prove. */
+ * PLATFORM: SHARED — link-name contract; dual-host prove.
+ *
+ * Root (mac pure-asm struct_add_pair SEGV): historic *256 / %256 path was
+ * miscompiled by pure-asm (sdiv used wrong divisor after first byte) so only
+ * the low byte survived store/load → truncated arena/mod (0x70/0xe0) and
+ * pipeline_module_func_body_ref_at crashed. Use shift/or only (no / %).
+ */
 #[no_mangle]
 export function g02f_load_ptr_at(p: *u8, off: i32): *u8 {
   if (p == 0) { return 0 as *u8; }
-  let m: usize = 256;
-  let m2: usize = m * m;
-  let m4: usize = m2 * m2;
-  let a: usize = p[off] as usize;
-  a = a + (p[off + 1] as usize) * m;
-  a = a + (p[off + 2] as usize) * m2;
-  a = a + (p[off + 3] as usize) * (m2 * m);
-  a = a + (p[off + 4] as usize) * m4;
-  a = a + (p[off + 5] as usize) * (m4 * m);
-  a = a + (p[off + 6] as usize) * (m4 * m2);
-  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
+  // PLATFORM: SHARED — reconstruct 64-bit LE pointer via shifts (no div/mod).
+  let a: usize = (p[off] as usize);
+  a = a | ((p[off + 1] as usize) << 8);
+  a = a | ((p[off + 2] as usize) << 16);
+  a = a | ((p[off + 3] as usize) << 24);
+  a = a | ((p[off + 4] as usize) << 32);
+  a = a | ((p[off + 5] as usize) << 40);
+  a = a | ((p[off + 6] as usize) << 48);
+  a = a | ((p[off + 7] as usize) << 56);
   return a as *u8;
 }
 
 /** Store little-endian pointer val into p[off..off+8). Null p is a no-op.
  * Track-L: no_mangle keeps surface short name g02f_store_ptr_at.
- * PLATFORM: SHARED — link-name contract; dual-host prove. */
+ * PLATFORM: SHARED — link-name contract; dual-host prove.
+ * Same pure-asm / % ban as g02f_load_ptr_at (see load docblock).
+ */
 #[no_mangle]
 export function g02f_store_ptr_at(p: *u8, off: i32, val: *u8): void {
   if (p == 0) { return; }
+  // PLATFORM: SHARED — write 64-bit LE pointer via mask/shift (no div/mod).
   let a: usize = val as usize;
-  let m: usize = 256;
-  p[off + 0] = (a % m) as u8;
-  a = a / m;
-  p[off + 1] = (a % m) as u8;
-  a = a / m;
-  p[off + 2] = (a % m) as u8;
-  a = a / m;
-  p[off + 3] = (a % m) as u8;
-  a = a / m;
-  p[off + 4] = (a % m) as u8;
-  a = a / m;
-  p[off + 5] = (a % m) as u8;
-  a = a / m;
-  p[off + 6] = (a % m) as u8;
-  a = a / m;
-  p[off + 7] = (a % m) as u8;
+  p[off + 0] = (a & 255) as u8;
+  a = a >> 8;
+  p[off + 1] = (a & 255) as u8;
+  a = a >> 8;
+  p[off + 2] = (a & 255) as u8;
+  a = a >> 8;
+  p[off + 3] = (a & 255) as u8;
+  a = a >> 8;
+  p[off + 4] = (a & 255) as u8;
+  a = a >> 8;
+  p[off + 5] = (a & 255) as u8;
+  a = a >> 8;
+  p[off + 6] = (a & 255) as u8;
+  a = a >> 8;
+  p[off + 7] = (a & 255) as u8;
 }
 
 // See implementation.
@@ -1455,7 +1461,9 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
     let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
     if (callee_arena == 0) { return 0; }
     if (callee_mod == 0) { return 0; }
-    if (backend_fold_func_returns_param0_single_field(callee_arena, callee_mod, fi) == 0) { return 0; }
+    // PLATFORM: SHARED — fold returns 1=match, 0=no-match, -1=stub/error.
+    // Historic: ==0 treated weak return-(-1) stubs as match → field0-only emit.
+    if (backend_fold_func_returns_param0_single_field(callee_arena, callee_mod, fi) <= 0) { return 0; }
     let ret_ref: i32 = glue_try_fold_func_return_operand_ref(callee_arena, callee_mod, fi);
     if (ret_ref <= 0) { return 0; }
     let off: i32 = pipeline_expr_field_access_layout_offset(callee_arena, callee_mod, ret_ref);
@@ -1528,7 +1536,8 @@ export function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, e
     let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
     if (callee_arena == 0) { return 0; }
     if (callee_mod == 0) { return 0; }
-    if (backend_fold_func_returns_param0_field_sum(callee_arena, callee_mod, fi) == 0) { return 0; }
+    // PLATFORM: SHARED — 1=match only; <=0 refuse (see single_field note).
+    if (backend_fold_func_returns_param0_field_sum(callee_arena, callee_mod, fi) <= 0) { return 0; }
     // PLATFORM: SHARED — same PTR ban as single-field fold (never sum into *T).
     {
       let ret_ty2: i32 = pipeline_module_func_return_type_at(callee_mod, fi);

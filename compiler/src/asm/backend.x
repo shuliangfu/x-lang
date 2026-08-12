@@ -2144,8 +2144,10 @@ export function fold_expr_is_add_kind(arena: *ASTArena, expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
+    // PLATFORM: SHARED — EXPR_ADD=4; EXPR_BINOP=53 (generic binop that is ADD).
+    // Historic bug: k==51 matched EXPR_ADDR_OF, not add.
     let k: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
-    if (k == 4 || k == 51) { return 1; }
+    if (k == 4 || k == 53) { return 1; }
     return 0;
   }
 }

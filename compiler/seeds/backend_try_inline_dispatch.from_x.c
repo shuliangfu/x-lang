@@ -1178,7 +1178,8 @@ int32_t try_inline_param0_single_field_call_elf_impl(struct ast_ASTArena *arena,
     return 0;
   if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
     return 0;
-  if (backend_fold_func_returns_param0_single_field(callee_arena, callee_mod, fi) == 0)
+  /* PLATFORM: SHARED — 1=match only; <=0 refuse (weak -1 stubs must not match). */
+  if (backend_fold_func_returns_param0_single_field(callee_arena, callee_mod, fi) <= 0)
     return 0;
   ret_ref = glue_try_fold_func_return_operand_ref(callee_arena, callee_mod, fi);
   if (ret_ref <= 0)
@@ -1504,7 +1505,8 @@ int32_t try_inline_param0_field_sum_call_elf_impl(struct ast_ASTArena *arena, st
     return 0;
   if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
     return 0;
-  if (backend_fold_func_returns_param0_field_sum(callee_arena, callee_mod, fi) == 0)
+  /* PLATFORM: SHARED — 1=match only; <=0 refuse (weak -1 stubs must not match). */
+  if (backend_fold_func_returns_param0_field_sum(callee_arena, callee_mod, fi) <= 0)
     return 0;
   /* PLATFORM: SHARED — same PTR ban as single-field fold. */
   {
