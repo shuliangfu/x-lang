@@ -2090,6 +2090,18 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
               }
             }
           }
+          /* PLATFORM: SHARED — g11 std.ffi formal ensure (pure-asm run-ffi residual). */
+          if ((sg ==11)) {
+            uint8_t * rt11 = 0;
+            (void)((rt11 = xlang_repo_root_from_argv0(link_argv0)));
+            if ((rt11 !=0)) {
+              if (((rt11)[0] !=0)) {
+                {
+                  int32_t _fe11 = xlang_ensure_formal_std_make_o(rt11, ((uint8_t *)"std/ffi/ffi.o"), ((uint8_t *)"../std/ffi/ffi.o"));
+                }
+              }
+            }
+          }
           /* PLATFORM: SHARED — g2 encoding formal ensure (L4 wipe). */
           if ((sg ==2)) {
             uint8_t * rt2 = 0;

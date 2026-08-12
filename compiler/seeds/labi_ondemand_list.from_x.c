@@ -129,14 +129,15 @@ int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
 }
 
 /* Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
- * core_option=6 core_result=7 core_debug=8 core_slice=9 core_builtin=10.
+ * core_option=6 core_result=7 core_debug=8 core_slice=9 core_builtin=10 std_ffi=11.
  * PLATFORM: SHARED — g1 rel is core/types/types.o (was wrongly base64.o).
  * types/option/result/debug/slice/builtin formal .o via formal_mod + ensure; no asm co-emit hang.
  * g9 rel is core/slice/mod.o (API); glue from_ptr/subslice remains core/slice/slice.o.
- * g10 core.builtin: pure-asm emits core_builtin_* (C-path G-01 still __builtin_*). */
+ * g10 core.builtin: pure-asm emits core_builtin_* (C-path G-01 still __builtin_*).
+ * g11 std.ffi: pure-asm emits std_ffi_*; formal std/ffi/ffi.o (mod.x + ffi.x). */
 
 int labi_od_simple_group_count(void) {
-  return 11;
+  return 12;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -164,6 +165,8 @@ int labi_od_simple_group_sym_count(int g) {
     return 10;
   if (g == 10)
     return 14;
+  if (g == 11)
+    return 8;
   return 0;
 }
 
@@ -338,6 +341,26 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "core_builtin_abort";
     return NULL;
   }
+  /* PLATFORM: SHARED — std.ffi formal (tests/ffi pure-asm UNDEF residual). */
+  if (g == 11) {
+    if (i == 0)
+      return "std_ffi_cstr_len";
+    if (i == 1)
+      return "std_ffi_cstring_new";
+    if (i == 2)
+      return "std_ffi_cstring_free";
+    if (i == 3)
+      return "std_ffi_cstring_try_new";
+    if (i == 4)
+      return "std_ffi_cstring_destroy";
+    if (i == 5)
+      return "ffi_cstr_len_c";
+    if (i == 6)
+      return "ffi_cstring_new_c";
+    if (i == 7)
+      return "ffi_cstring_free_c";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -366,6 +389,8 @@ const char *labi_od_simple_group_rel(int g) {
     return "core/slice/mod.o";
   if (g == 10)
     return "core/builtin/builtin.o";
+  if (g == 11)
+    return "std/ffi/ffi.o";
   return NULL;
 }
 

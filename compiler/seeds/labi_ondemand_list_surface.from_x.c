@@ -192,7 +192,7 @@ extern uint8_t * xlang_runtime_scheduler_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_kv_mmap_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
 int32_t labi_od_simple_group_count(void) {
-  return 11;
+  return 12;
 }
 int32_t labi_od_simple_group_sym_count(int32_t g) {
   if ((g < 0)) {
@@ -231,6 +231,10 @@ int32_t labi_od_simple_group_sym_count(int32_t g) {
   /* PLATFORM: SHARED — core.builtin formal (pure-asm residual; C G-01 __builtin_*). */
   if ((g ==10)) {
     return 14;
+  }
+  /* PLATFORM: SHARED — std.ffi formal (pure-asm run-ffi residual). */
+  if ((g ==11)) {
+    return 8;
   }
   return 0;
 }
@@ -493,6 +497,18 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
     if ((i ==13)) { uint8_t * p = ((uint8_t *)"core_builtin_abort"); return p; }
     return ((uint8_t *)(0));
   }
+  /* PLATFORM: SHARED — std.ffi formal surface (G.7 twin of pure labi_ondemand_list.x). */
+  if ((g ==11)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"std_ffi_cstr_len"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"std_ffi_cstring_new"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"std_ffi_cstring_free"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"std_ffi_cstring_try_new"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"std_ffi_cstring_destroy"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"ffi_cstr_len_c"); return p; }
+    if ((i ==6)) { uint8_t * p = ((uint8_t *)"ffi_cstring_new_c"); return p; }
+    if ((i ==7)) { uint8_t * p = ((uint8_t *)"ffi_cstring_free_c"); return p; }
+    return ((uint8_t *)(0));
+  }
   return ((uint8_t *)(0));
 }
 uint8_t * labi_od_simple_group_rel(int32_t g) {
@@ -541,6 +557,10 @@ uint8_t * labi_od_simple_group_rel(int32_t g) {
   }
   if ((g ==10)) {
     uint8_t * p = ((uint8_t *)"core/builtin/builtin.o");
+    return p;
+  }
+  if ((g ==11)) {
+    uint8_t * p = ((uint8_t *)"std/ffi/ffi.o");
     return p;
   }
   return ((uint8_t *)(0));

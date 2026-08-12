@@ -51,9 +51,10 @@
 //   (wave210–213 pure own has_undef + exports_marker + needs_undef + has_defined public gates).
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
-// core_option=6 core_result=7 core_debug=8 core_slice=9.
+// core_option=6 core_result=7 core_debug=8 core_slice=9 core_builtin=10 std_ffi=11.
 // Formal core/*/*.o; g1 rel is core/types/types.o; g9 rel is core/slice/mod.o (API, not glue).
 // g9: length.x needs core_slice_len_i32/get_* from mod.x; glue remains core/slice/slice.o.
+// g11: pure-asm import METHOD mangle → std_ffi_*; formal std/ffi/ffi.o (mod.x + ffi.x).
 
 /**
  * Cap residual (wave212): host nm/popen exact UNDEF probe body (+ LINUX ELF freestanding).
@@ -265,13 +266,13 @@ export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8
 /**
  * Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c).
  * Groups: 0 string · 1 types · 2 encoding · 3 base64 · 4 csv · 5 schema ·
- * 6 option · 7 result · 8 debug · 9 slice · 10 builtin.
- * @return i32 — 11
+ * 6 option · 7 result · 8 debug · 9 slice · 10 builtin · 11 ffi.
+ * @return i32 — 12
  * PLATFORM: SHARED — pure-asm product UNDEF gates for formal core/std .o
  */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 11;
+  return 12;
 }
 
 /**
@@ -321,6 +322,11 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   // external core_builtin_* and needs formal core/builtin/builtin.o via this group.
   if (g == 10) {
     return 14;
+  }
+  // PLATFORM: SHARED — std.ffi formal (tests/ffi/main.x pure-asm UNDEF residual).
+  // Pure-asm import METHOD → std_ffi_*; also probe leaf ffi_*_c faces from ffi.x.
+  if (g == 11) {
+    return 8;
   }
   return 0;
 }
@@ -636,6 +642,43 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  // PLATFORM: SHARED — std.ffi formal export surface (std/ffi/mod.x + ffi.x).
+  // Pure-asm import METHOD/CALL mangle → std_ffi_<name>; leaf faces ffi_*_c.
+  if (g == 11) {
+    if (i == 0) {
+      let p: *u8 = "std_ffi_cstr_len";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_ffi_cstring_new";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_ffi_cstring_free";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_ffi_cstring_try_new";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_ffi_cstring_destroy";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "ffi_cstr_len_c";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "ffi_cstring_new_c";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "ffi_cstring_free_c";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
@@ -693,6 +736,11 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   // PLATFORM: SHARED — core.builtin formal product .o (G-01 pure-asm only; C stays __builtin_*).
   if (g == 10) {
     let p: *u8 = "core/builtin/builtin.o";
+    return p;
+  }
+  // PLATFORM: SHARED — std.ffi formal product .o (pure-asm run-ffi residual).
+  if (g == 11) {
+    let p: *u8 = "std/ffi/ffi.o";
     return p;
   }
   return 0 as *u8;

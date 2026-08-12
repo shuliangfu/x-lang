@@ -2619,6 +2619,21 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                 }
               }
             }
+            // PLATFORM: SHARED — g11 std.ffi formal (pure-asm run-ffi residual).
+            // L4 wipe drops gitignored std/ffi/ffi.o; ensure via formal_mod catalog.
+            if (sg == 11) {
+              let rt11: *u8 = 0 as *u8;
+              unsafe {
+                rt11 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt11 != 0 as *u8) {
+                if (rt11[0] != 0) {
+                  unsafe {
+                    let _fe11: i32 = xlang_ensure_formal_std_make_o(rt11, "std/ffi/ffi.o", "../std/ffi/ffi.o");
+                  }
+                }
+              }
+            }
             // PLATFORM: SHARED — g2 encoding formal may be gitignored after L4 wipe.
             // encode_hex/base64 wrappers U string + base64; ensure primary before push.
             if (sg == 2) {
