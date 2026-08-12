@@ -47209,10 +47209,16 @@ extern int32_t pipeline_asm_get_return_expr_ref_at(void *a, void *m, int32_t fun
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_module_func_return_type_at(void *m, int32_t fi);
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_module_main_func_index(void *m);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(void *elf_ctx, int32_t imm, int32_t ta);
 extern int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
 extern int32_t backend_enc_mov_rax_to_xmm_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
 extern int32_t backend_enc_epilogue_arch(void *elf_ctx, int32_t ta);
 extern void pipeline_asm_emit_async_cps_end_func_elf_c(void);
+/* TypeKind.TYPE_VOID ordinal (ast.x: after F32=14 F64=15). */
+#ifndef W290_TYPE_KIND_VOID_ORD
+#define W290_TYPE_KIND_VOID_ORD 16
+#endif
 
 /**
  * wave153 Cap residual: reset per-func AsmFuncCtx between mega emit iterations.
@@ -47411,15 +47417,27 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
     /*
      * PLATFORM: LINUX+MACOS x86_64 SysV — place scalar float return in xmm0 before epilogue.
      * Internal path holds IEEE bits in eax/rax; callee ABI requires xmm0 for f32/f64.
+     *
+     * PLATFORM: SHARED — Zig-like void main: process entry must exit 0 on fall-off /
+     * bare `return;` (tail_join then epilogue). Pure-asm previously left w0/x0 garbage
+     * → empty void main exited 1 (void-main gate). C codegen maps void main → int32_t
+     * main + `return 0;`; pure-asm must mov imm 0 into the return reg before epilogue.
+     * Only the module main_func with TYPE_VOID (ord 16); do not clobber i32 main results.
      */
-    if (ta == 0) {
+    {
       int32_t rty = pipeline_module_func_return_type_at(m, i);
       int32_t rkind = (rty > 0) ? pipeline_type_kind_ord_at(a, rty) : -1;
-      if (rkind == W290_GLUE_TYPE_KIND_F32_ORD) {
-        if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, 0, ta) != 0)
-          return -1;
-      } else if (rkind == W290_GLUE_TYPE_KIND_F64_ORD) {
-        if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      if (ta == 0) {
+        if (rkind == W290_GLUE_TYPE_KIND_F32_ORD) {
+          if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, 0, ta) != 0)
+            return -1;
+        } else if (rkind == W290_GLUE_TYPE_KIND_F64_ORD) {
+          if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, 0, ta) != 0)
+            return -1;
+        }
+      }
+      if (rkind == W290_TYPE_KIND_VOID_ORD && i == pipeline_module_main_func_index(m)) {
+        if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
           return -1;
       }
     }
