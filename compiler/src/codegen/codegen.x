@@ -4345,6 +4345,36 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         return 0;
       }
       /*
+       * ABI-dup canonical tag for Result_* mono shorts (same class as Option_*):
+       * rt_preamble owns complete `struct core_result_Result_{i32,u8}`; layout co-emit
+       * is skipped (codegen_should_skip_emit_struct_layout_for_abi_dup). STRUCT_LIT
+       * already prefixes `core_result_` (see struct_lit path), but bare emit_type of
+       * TYPE_NAMED `Result_i32` / `Result_u8` previously emitted incomplete
+       * `struct Result_*` → host-cc "incomplete result type" on formal core/result
+       * and forced a shell `#define Result_i32 core_result_Result_i32` dual-authority
+       * in xlang_compile_std_module.sh.
+       * Root fix (G.7 single authority): emit_type rewrites short Result_* to
+       * `struct core_result_` + full name, matching Option_ / STRUCT_LIT / preamble.
+       * Covers Result_i32 (10), Result_u8 (9), and future Result_* mono suffixes.
+       * PLATFORM: SHARED — product codegen_x FROM_X; dual-end L2 (mac + Ubuntu).
+       */
+      if (name_len >= 8 && nm[0] == 82 && nm[1] == 101 && nm[2] == 115 && nm[3] == 117
+          && nm[4] == 108 && nm[5] == 116 && nm[6] == 95) {
+        /* "struct core_result_" — 19 bytes; then append Result_i32 / Result_u8 / … */
+        let res_head: u8[20] = [115, 116, 114, 117, 99, 116, 32, 99, 111, 114, 101, 95, 114, 101, 115, 117, 108, 116, 95, 0];
+        if (emit_bytes_from_ptr(out, &res_head[0], 19) != 0) {
+          return -1;
+        }
+        let ri: i32 = 0;
+        while (ri < name_len && ri < 64) {
+          if (append_byte_u8(out, nm[ri]) != 0) {
+            return -1;
+          }
+          ri = ri + 1;
+        }
+        return 0;
+      }
+      /*
        * ABI-dup canonical tag: rt_preamble owns `struct std_string_String` (+ typedef
        * String) and `struct std_string_StrView`; the per-module layout is skipped
        * (codegen_should_skip_emit_struct_layout_for_abi_dup). Bare `struct String`
