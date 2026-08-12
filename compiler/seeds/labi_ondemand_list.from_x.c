@@ -129,13 +129,14 @@ int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
 }
 
 /* Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
- * core_option=6 core_result=7 core_debug=8 core_slice=9.
+ * core_option=6 core_result=7 core_debug=8 core_slice=9 core_builtin=10.
  * PLATFORM: SHARED — g1 rel is core/types/types.o (was wrongly base64.o).
- * types/option/result/debug/slice formal .o via Makefile + ensure; no asm co-emit hang.
- * g9 rel is core/slice/mod.o (API); glue from_ptr/subslice remains core/slice/slice.o. */
+ * types/option/result/debug/slice/builtin formal .o via formal_mod + ensure; no asm co-emit hang.
+ * g9 rel is core/slice/mod.o (API); glue from_ptr/subslice remains core/slice/slice.o.
+ * g10 core.builtin: pure-asm emits core_builtin_* (C-path G-01 still __builtin_*). */
 
 int labi_od_simple_group_count(void) {
-  return 10;
+  return 11;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -161,6 +162,8 @@ int labi_od_simple_group_sym_count(int g) {
     return 6;
   if (g == 9)
     return 10;
+  if (g == 10)
+    return 14;
   return 0;
 }
 
@@ -303,6 +306,38 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "core_slice_get_u64";
     return NULL;
   }
+  /* PLATFORM: SHARED — core.builtin formal (tests/builtin pure-asm UNDEF residual). */
+  if (g == 10) {
+    if (i == 0)
+      return "core_builtin_placeholder";
+    if (i == 1)
+      return "core_builtin_copy";
+    if (i == 2)
+      return "core_builtin_min_i32";
+    if (i == 3)
+      return "core_builtin_max_i32";
+    if (i == 4)
+      return "core_builtin_min_u32";
+    if (i == 5)
+      return "core_builtin_max_u32";
+    if (i == 6)
+      return "core_builtin_clz_u32";
+    if (i == 7)
+      return "core_builtin_ctz_u32";
+    if (i == 8)
+      return "core_builtin_popcount_u32";
+    if (i == 9)
+      return "core_builtin_bswap_u32";
+    if (i == 10)
+      return "core_builtin_rotl_u32";
+    if (i == 11)
+      return "core_builtin_rotr_u32";
+    if (i == 12)
+      return "core_builtin_unreachable";
+    if (i == 13)
+      return "core_builtin_abort";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -329,6 +364,8 @@ const char *labi_od_simple_group_rel(int g) {
     return "core/debug/debug.o";
   if (g == 9)
     return "core/slice/mod.o";
+  if (g == 10)
+    return "core/builtin/builtin.o";
   return NULL;
 }
 
@@ -2323,11 +2360,13 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                 continue;
             if (!labi_od_user_needs_simple_group(user_o, sg))
                 continue;
-            /* PLATFORM: SHARED — L4 wipe drops gitignored core types/option/result/debug/slice .o;
-             * ensure via Makefile before push (same pattern as formal vec/math).
-             * g9 core/slice/mod.o is formal API; glue slice.o is pushed immediately after. */
+            /* PLATFORM: SHARED — L4 wipe drops gitignored core types/option/result/debug/slice/builtin .o;
+             * ensure via formal_mod before push (same pattern as formal vec/math).
+             * g9 core/slice/mod.o is formal API; glue slice.o is pushed immediately after.
+             * g10 core/builtin/builtin.o: pure-asm product residual (C-path G-01 stays __builtin_*). */
             if (strstr(rel, "core/types/") || strstr(rel, "core/option/") || strstr(rel, "core/result/")
-                || strstr(rel, "core/debug/") || strstr(rel, "core/slice/")) {
+                || strstr(rel, "core/debug/") || strstr(rel, "core/slice/")
+                || strstr(rel, "core/builtin/")) {
                 const char *include_root = xlang_repo_root_from_argv0(link_argv0);
                 char make_tgt[PATH_MAX];
                 if (include_root && include_root[0] &&

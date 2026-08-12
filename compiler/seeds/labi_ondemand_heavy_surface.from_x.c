@@ -2077,6 +2077,19 @@ void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * use
               }
             }
           }
+          /* PLATFORM: SHARED — g10 core.builtin formal ensure (pure-asm run-builtin residual). */
+          if ((sg ==10)) {
+            uint8_t * rt10 = 0;
+            (void)((rt10 = xlang_repo_root_from_argv0(link_argv0)));
+            if ((rt10 !=0)) {
+              if (((rt10)[0] !=0)) {
+                {
+                  int32_t _fe10 = xlang_ensure_formal_std_make_o(rt10, ((uint8_t *)"core/builtin/builtin.o"), ((uint8_t *)"../core/builtin/builtin.o"));
+                }
+                (void)((pushed_core_formal = 1));
+              }
+            }
+          }
           {
             int32_t _sg = link_abi_asm_ld_push_obj(0, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
           }

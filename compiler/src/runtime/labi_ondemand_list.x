@@ -262,13 +262,24 @@ export extern "C" function xlang_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8;
 
-/** Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c). */
+/**
+ * Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c).
+ * Groups: 0 string · 1 types · 2 encoding · 3 base64 · 4 csv · 5 schema ·
+ * 6 option · 7 result · 8 debug · 9 slice · 10 builtin.
+ * @return i32 — 11
+ * PLATFORM: SHARED — pure-asm product UNDEF gates for formal core/std .o
+ */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 10;
+  return 11;
 }
 
-/** Return symbol probe count for simple group g. */
+/**
+ * Return symbol probe count for simple group g.
+ * @param g i32 — group index in [0, labi_od_simple_group_count())
+ * @return i32 — exact UNDEF needle count for that group; 0 if out of range
+ * PLATFORM: SHARED — must match formal export surface for each rel .o
+ */
 #[no_mangle]
 export function labi_od_simple_group_sym_count(g: i32): i32 {
   if (g < 0) {
@@ -304,6 +315,12 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   // core.slice formal API surface (tests/slice/length.x, subslice_split_chunks.x).
   if (g == 9) {
     return 10;
+  }
+  // PLATFORM: SHARED — core.builtin formal (tests/builtin/main.x pure-asm UNDEF residual).
+  // G-01: C-path still never hard-links builtin.o (bitops → __builtin_*); pure-asm emits
+  // external core_builtin_* and needs formal core/builtin/builtin.o via this group.
+  if (g == 10) {
+    return 14;
   }
   return 0;
 }
@@ -558,10 +575,76 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  // PLATFORM: SHARED — core.builtin formal export surface (core/builtin/mod.x).
+  // Pure-asm import METHOD/CALL mangle → core_builtin_<name>; must match formal_mod.
+  if (g == 10) {
+    if (i == 0) {
+      let p: *u8 = "core_builtin_placeholder";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "core_builtin_copy";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "core_builtin_min_i32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "core_builtin_max_i32";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "core_builtin_min_u32";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "core_builtin_max_u32";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "core_builtin_clz_u32";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "core_builtin_ctz_u32";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "core_builtin_popcount_u32";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "core_builtin_bswap_u32";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "core_builtin_rotl_u32";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "core_builtin_rotr_u32";
+      return p;
+    }
+    if (i == 12) {
+      let p: *u8 = "core_builtin_unreachable";
+      return p;
+    }
+    if (i == 13) {
+      let p: *u8 = "core_builtin_abort";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
-/** Return relative .o path for simple group g (repo-relative). */
+/**
+ * Return relative .o path for simple group g (repo-relative).
+ * @param g i32 — group index in [0, labi_od_simple_group_count())
+ * @return *u8 — static path string, or null if out of range
+ * PLATFORM: SHARED — ensure via xlang_ensure_formal_std_make_o before push
+ */
 #[no_mangle]
 export function labi_od_simple_group_rel(g: i32): *u8 {
   if (g < 0) {
@@ -605,6 +688,11 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   }
   if (g == 9) {
     let p: *u8 = "core/slice/mod.o";
+    return p;
+  }
+  // PLATFORM: SHARED — core.builtin formal product .o (G-01 pure-asm only; C stays __builtin_*).
+  if (g == 10) {
+    let p: *u8 = "core/builtin/builtin.o";
     return p;
   }
   return 0 as *u8;

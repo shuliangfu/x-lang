@@ -51,6 +51,7 @@ formal_mod_key_for_out() {
     ../std/sys/sys.o|std/sys/sys.o|*std/sys/sys.o) printf '%s' "std/sys/sys.o" ;;
     ../std/sys/linux.o|std/sys/linux.o|*std/sys/linux.o) printf '%s' "std/sys/linux.o" ;;
     ../core/mem/mem.o|core/mem/mem.o|*core/mem/mem.o) printf '%s' "core/mem/mem.o" ;;
+    ../core/builtin/builtin.o|core/builtin/builtin.o|*core/builtin/builtin.o) printf '%s' "core/builtin/builtin.o" ;;
     ../core/types/types.o|core/types/types.o|*core/types/types.o) printf '%s' "core/types/types.o" ;;
     ../core/option/option.o|core/option/option.o|*core/option/option.o) printf '%s' "core/option/option.o" ;;
     ../core/result/result.o|core/result/result.o|*core/result/result.o) printf '%s' "core/result/result.o" ;;
@@ -100,6 +101,8 @@ formal_mod_spec_for_key() {
     std/sys/sys.o) printf '%s' "mod|0|../std/sys/mod.x" ;;
     std/sys/linux.o) printf '%s' "mod|0|../std/sys/linux.x" ;;
     core/mem/mem.o) printf '%s' "mod|0|../core/mem/mod.x" ;;
+    # PLATFORM: SHARED — pure-asm product gate (simple group g10); C-path G-01 still __builtin_*.
+    core/builtin/builtin.o) printf '%s' "mod|0|../core/builtin/mod.x" ;;
     core/types/types.o) printf '%s' "mod|0|../core/types/mod.x" ;;
     core/option/option.o) printf '%s' "mod|0|../core/option/mod.x" ;;
     core/result/result.o) printf '%s' "mod|0|../core/result/mod.x" ;;
@@ -144,6 +147,7 @@ formal_mod_all_keys() {
     std/sys/sys.o \
     std/sys/linux.o \
     core/mem/mem.o \
+    core/builtin/builtin.o \
     core/types/types.o \
     core/option/option.o \
     core/result/result.o \

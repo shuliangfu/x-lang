@@ -2603,6 +2603,22 @@ export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o:
                 }
               }
             }
+            // PLATFORM: SHARED — g10 core.builtin formal (pure-asm run-builtin residual).
+            // L4 wipe drops gitignored core/builtin/builtin.o; ensure via formal_mod catalog.
+            if (sg == 10) {
+              let rt10: *u8 = 0 as *u8;
+              unsafe {
+                rt10 = xlang_repo_root_from_argv0(link_argv0);
+              }
+              if (rt10 != 0 as *u8) {
+                if (rt10[0] != 0) {
+                  unsafe {
+                    let _fe10: i32 = xlang_ensure_formal_std_make_o(rt10, "core/builtin/builtin.o", "../core/builtin/builtin.o");
+                  }
+                  pushed_core_formal = 1;
+                }
+              }
+            }
             unsafe {
               let _sg: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
             }

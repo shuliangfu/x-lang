@@ -17,6 +17,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/sys/sys.o \
 	../std/sys/linux.o \
 	../core/mem/mem.o \
+	../core/builtin/builtin.o \
 	../core/types/types.o \
 	../core/option/option.o \
 	../core/result/result.o \

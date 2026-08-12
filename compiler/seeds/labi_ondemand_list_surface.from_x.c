@@ -192,7 +192,7 @@ extern uint8_t * xlang_runtime_scheduler_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_kv_mmap_glue_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
 int32_t labi_od_simple_group_count(void) {
-  return 10;
+  return 11;
 }
 int32_t labi_od_simple_group_sym_count(int32_t g) {
   if ((g < 0)) {
@@ -227,6 +227,10 @@ int32_t labi_od_simple_group_sym_count(int32_t g) {
   }
   if ((g ==9)) {
     return 10;
+  }
+  /* PLATFORM: SHARED — core.builtin formal (pure-asm residual; C G-01 __builtin_*). */
+  if ((g ==10)) {
+    return 14;
   }
   return 0;
 }
@@ -471,6 +475,24 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
     }
     return ((uint8_t *)(0));
   }
+  /* PLATFORM: SHARED — core.builtin formal surface (G.7 twin of pure labi_ondemand_list.x). */
+  if ((g ==10)) {
+    if ((i ==0)) { uint8_t * p = ((uint8_t *)"core_builtin_placeholder"); return p; }
+    if ((i ==1)) { uint8_t * p = ((uint8_t *)"core_builtin_copy"); return p; }
+    if ((i ==2)) { uint8_t * p = ((uint8_t *)"core_builtin_min_i32"); return p; }
+    if ((i ==3)) { uint8_t * p = ((uint8_t *)"core_builtin_max_i32"); return p; }
+    if ((i ==4)) { uint8_t * p = ((uint8_t *)"core_builtin_min_u32"); return p; }
+    if ((i ==5)) { uint8_t * p = ((uint8_t *)"core_builtin_max_u32"); return p; }
+    if ((i ==6)) { uint8_t * p = ((uint8_t *)"core_builtin_clz_u32"); return p; }
+    if ((i ==7)) { uint8_t * p = ((uint8_t *)"core_builtin_ctz_u32"); return p; }
+    if ((i ==8)) { uint8_t * p = ((uint8_t *)"core_builtin_popcount_u32"); return p; }
+    if ((i ==9)) { uint8_t * p = ((uint8_t *)"core_builtin_bswap_u32"); return p; }
+    if ((i ==10)) { uint8_t * p = ((uint8_t *)"core_builtin_rotl_u32"); return p; }
+    if ((i ==11)) { uint8_t * p = ((uint8_t *)"core_builtin_rotr_u32"); return p; }
+    if ((i ==12)) { uint8_t * p = ((uint8_t *)"core_builtin_unreachable"); return p; }
+    if ((i ==13)) { uint8_t * p = ((uint8_t *)"core_builtin_abort"); return p; }
+    return ((uint8_t *)(0));
+  }
   return ((uint8_t *)(0));
 }
 uint8_t * labi_od_simple_group_rel(int32_t g) {
@@ -515,6 +537,10 @@ uint8_t * labi_od_simple_group_rel(int32_t g) {
   }
   if ((g ==9)) {
     uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x2f\x73\x6c\x69\x63\x65\x2f\x6d\x6f\x64\x2e\x6f");
+    return p;
+  }
+  if ((g ==10)) {
+    uint8_t * p = ((uint8_t *)"core/builtin/builtin.o");
     return p;
   }
   return ((uint8_t *)(0));
