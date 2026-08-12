@@ -1,7 +1,7 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
 > **创建**：2026-07-29  
-> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + hybrid 双端** · **prefer 族 pure-asm 产品默认 ✅** · **pipeline_abi pure-asm 硬禁收口 ✅** · **ALLOW ensure slim ✅**（`ensure_std_net` 仅 need_net；heap.o 仅 F-06；MINIMAL 不 ensure TLS）· **PC bare-call mangle ✅** · **option asm run=102 ✅** · **PC 去 import→C ✅** · **seed `__APPLE__` exe→C 双权威 ✅** · **codegen mono `Result_*` 短名根修 ✅** · **Arena64 shell 死别名 ✅** · **formal 短标签 residual 扫描关 ✅** · **静默 generic→C 移除 ✅** · **`XLANG_FORBID_HOST_CC` 产品 invoke_cc 闸 ✅** · **`XLANG_ALLOW_HOST_CC` experimental 默认拒 spawn ✅** · **`invoke_cc_host_cc_spawn_gate` 入口早闸 ✅** · **monofile 冷孪／surface 早闸 G.7 收敛 ✅** · **impl 顶闸 isolate ensure／argv ✅** · **树级 PREFER 硬闸 strip ✅**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
+> **状态刷新**：2026-08-12（Stage 12 零 cc：…／**12.0.5 pure_asm residual 13/13 + hybrid 双端** · **prefer 族 pure-asm 产品默认 ✅** · **pipeline_abi pure-asm 硬禁收口 ✅** · **ALLOW ensure slim ✅**（`ensure_std_net` 仅 need_net；heap.o 仅 F-06；early_needs rtr→need_flags；MINIMAL 不 ensure TLS）· **PC bare-call mangle ✅** · **option asm run=102 ✅** · **PC 去 import→C ✅** · **seed `__APPLE__` exe→C 双权威 ✅** · **codegen mono `Result_*` 短名根修 ✅** · **Arena64 shell 死别名 ✅** · **formal 短标签 residual 扫描关 ✅** · **静默 generic→C 移除 ✅** · **`XLANG_FORBID_HOST_CC` 产品 invoke_cc 闸 ✅** · **`XLANG_ALLOW_HOST_CC` experimental 默认拒 spawn ✅** · **`invoke_cc_host_cc_spawn_gate` 入口早闸 ✅** · **monofile 冷孪／surface 早闸 G.7 收敛 ✅** · **impl 顶闸 isolate ensure／argv ✅** · **树级 PREFER 硬闸 strip ✅**；钉盘 **`e364f4a37`**；**只改勾选与事实**，无波次流水）  
 > **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
 > **终局目标**（**用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
 >   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
@@ -1988,7 +1988,7 @@
   - **产品 hybrid pure-asm 默认 ✅（2026-08-12 用户授权）**：`labi_prefer`／`rt_prefer`／`g05_try` 均 scoped 默认 pure-asm（`PREFER_ASM_O_{LABI,RT,G05}` 默认 1；子 shell 设 PREFER_ASM；逃逸 `=0`）· pipeline_abi mega 硬禁 · G.7 单权威 `pure_asm_x_to_o`
   - **树级 PREFER 硬闸 ✅（2026-08-12）**：G.7 `xlang_strip_tree_prefer_asm_unless_allowed`（ensure／g05 入口）· 无 `XLANG_ALLOW_TREE_PREFER_ASM=1` 则 strip 环境级 `PREFER_ASM_O=1` · family=0 时 prefer try 再 `unset PREFER`（逃逸不被 ambient 顶回）· 地图／bisect 须显式 ALLOW_TREE
   - **pipeline_abi mega pure-asm 硬禁收口 ✅（2026-08-12）**：G.7 三层——①`pure_asm_x_to_o` basename `runtime_pipeline_abi.x` **秒拒** ②`ensure_pipeline_abi_prefer_one` 强制 `XLANG_PREFER_ASM_O_RT=0`（产品 thin 永不进 pure_asm）③`pure_asm_emit_with_timeout` 默认 90s hang guard（`XLANG_PURE_ASM_TIMEOUT_SEC`）。hybrid 仍 -E thin+rest；双端 L2 5/5 @ tip `af5e621e6`  
-  - 下一刀候选（本域）：ALLOW_TREE bisect／ALLOW ensure 再瘦（early_needs 其它 always-push）／mega pure-asm 真开须 hang 根因＋授权
+  - 下一刀候选（本域）：ALLOW_TREE bisect／ALLOW ensure 再瘦（若仍有 path 无条件／双扫）／mega pure-asm 真开须 hang 根因＋授权
   - **单 slice 二分 harness ✅**：`XLANG_PREFER_ASM_O_ONLY`（G.7 `pure_asm_x_to_o` allow-list）  
   - **INDEX `**T` 双剥皮闭 ✅**（`pipeline_asm_index_elem_byte_sz_c` pure+seed）  
   - **真 L2 地图（prefer + soft g05_relink + matrix）**：  
@@ -2154,8 +2154,9 @@
   - **`xlang_invoke_cc_impl` ensure／argv 再隔离**：✅ residual **顶部**再调同 gate（先于 argv／early_needs／ensure-push／need-gated TLS）；直调 impl 亦不可 ensure；三层：入口／impl／spawn
   - **ALLOW ensure need 门后移**：✅ `ensure_std_net_o_auto_tls` **不再**入口无条件调用；need scan 后仅 `need_flags[5]`（net）+ include_root；`XLANG_MINIMAL_CC_LINK` 跳过 ensure-push **且**不跑 TLS ensure（≡ time_os on-demand）
   - **ALLOW heap always-push 再瘦**：✅ `invoke_cc_append_std_ensure_push_front` **不再** path 非空即推 `heap.o`；G.7 单权威 `invoke_cc_append_heap_f06_ondemand`（nm argv + use_line + provides + page_mmap）；`.x` + seed twins + surface 同 commit
+  - **ALLOW early_needs rtr 与 need 对齐**：✅ 全量 ALLOW 下 `invoke_cc_append_early_needs` **不再** freestanding 扫／推 random／time／runtime；权威仅 ensure-push front `need_flags[8/7/4]`；MINIMAL 保留 freestanding rtr（ensure-push 跳过）
   - **formal shell 短标签 residual 扫描**：✅ 矩阵 5 源 tip `-E` Result_／Option_／Arena residual=0；硬编码 type `#define` 别名已无（Result_／Arena64 已闭）；动态 bare→pref 别名机仍服务 formal_mod 体
-  - 下一刀候选：①树级 PREFER 地图 bisect 仅 ALLOW_TREE · ②ALLOW ensure 再瘦（early_needs 其它 always-push）· ③pipeline_abi mega pure-asm 真开（须 hang 根因＋授权）
+  - 下一刀候选：①树级 PREFER 地图 bisect 仅 ALLOW_TREE · ②ALLOW ensure 再瘦（若仍有 path 无条件／双扫）· ③pipeline_abi mega pure-asm 真开（须 hang 根因＋授权）
 
 
 ---
