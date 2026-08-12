@@ -2019,13 +2019,14 @@
     - 相对授权图 tip `662b5fbfe` RED×6／full12 0/5：path_pure param_home + residual ABI 后 **单 slice RED×0** · full12 matrix **5/5**  
     - link_abi≈380k · xlang≈4.6M · 日志 `/tmp/xlang_labi_full12_reauth_*.log`／`/tmp/xlang_labi_red_reprobe_*.log`  
     - **Ubuntu 金标 full12 5/5 ✅**（@ tip `6b6fcdd0c` · `/tmp/ubu_labi_full12_hybrid_6b6fcdd0c_20260812_020712.log`）  
-  - **labi-only pure-asm 产品默认化 ✅（2026-08-12 · 用户明示授权）**：  
+  - **labi-only pure-asm 产品默认化 ✅（2026-08-12 · 用户明示授权 · tip 再验）**：  
     - 实现：`labi_prefer_try_x_to_o` 子 shell scoped `XLANG_PREFER_ASM_O=1` 当 `XLANG_PREFER_ASM_O_LABI` 默认 **1**；G.7 单权威 `pure_asm_x_to_o`  
     - **禁**树级 `PREFER_ASM_O=1` 默认 · **禁** pipeline_abi mega pure-asm  
     - 逃逸：`XLANG_PREFER_ASM_O_LABI=0` → labi 层 historic -E+$CC（ambient PREFER_ASM 仍可强制 pure）  
-    - **mac L2 ✅**：default pure link_abi **383928** · hybrid matrix **5/5** · escape -E **305336** · reapply **383928** 5/5（`/tmp/xlang_labi_default_pure_asm_5d44fa3eb_20260812_085226.log`）  
-    - **Ubuntu 金标 ✅**：default pure link_abi **448744** · hybrid matrix **5/5** · escape -E **316232** · reapply **448744** 5/5（`/tmp/ubu_labi_default_pure_asm_8d48a1d78_20260812_100547.log`）  
-    - 历史授权图（tip `662b5fbfe` RED×6）：path_pure param_home + residual ABI 后已闭；full12 双端 5/5 后用户授权落地  
+    - **mac L2 ✅**：初落地 link_abi **383928** · tip 再验 **384032** · hybrid matrix **5/5**（`/tmp/xlang_labi_default_pure_asm_5d44fa3eb_*.log`／`/tmp/xlang_labi_default_auth_mac_full12.log`）  
+    - **Ubuntu 金标 ✅**：初落地 link_abi **448744** · tip **`6b15edd46`** 再验 **449920** · matrix **5/5**（`/tmp/ubu_labi_default_pure_asm_8d48a1d78_*.log`／`/tmp/ubu_labi_auth_B_full.log`）  
+    - 历史授权图（tip `662b5fbfe` RED×6）：path_pure param_home + residual ABI 后已闭；full12 双端 5/5 后用户授权落地；半截 g05／坏 `xlang_asm` 会假 SEGV（先 LABI=0 冷 seed 恢复）  
+ 
   - **prefer 族 pure-asm 产品默认化 ✅（2026-08-12 · 用户明示授权 rt／async／R3／l2-asm…）**：  
     - 实现：`rt_prefer_try_x_to_o` → `XLANG_PREFER_ASM_O_RT` 默认 **1**（覆盖 try-rt／r3／async／l2-asm／tcpu／ldpc／other-l2／B1–B3 共用 harness）；`g05_try_x_to_o` → `XLANG_PREFER_ASM_O_G05` 默认 **1**；均子 shell scoped · G.7 单权威 `pure_asm_x_to_o`  
     - **禁**树级 `PREFER_ASM_O=1` 默认 · **禁** pipeline_abi mega pure-asm（硬禁）  
@@ -2075,7 +2076,13 @@
     - **Ubuntu 金标** hybrid **81752／57336／22256** · pure-ld 60 · matrix **5/5** · restore **52080／33016／14472** · **5/5**  
     - 日志 mac `/tmp/xlang_async_pure_asm_hybrid_*.log` · Ubuntu `/tmp/ubu_async_pure_asm_hybrid_190ab4eb3_20260812_022411.log`  
     - ensure 头注释钉 Stage12.0.5 pure-asm hybrid 双端闭 · **产品默认仍 -E**  
-  - **labi full12 hybrid 双端 5/5 ✅（2026-08-12）** · 授权仍拒默认化（须用户明示「授权 labi-only PREFER」）  
+  - **labi full12 hybrid 双端 5/5 ✅（2026-08-12）** · **labi-only pure-asm 默认已授权并落地**（`PREFER_ASM_O_LABI` 默认 1）  
+  - **labi full12 默认 pure-asm tip 再验 5/5 ✅（2026-08-12 · tip `6b15edd46` · 用户再明示授权）**：  
+    - 无树级 `PREFER_ASM_O` · LABI=1 · FORCE try-labi-prefer · L0..L9+L8b+L8c prefer `.x` · soft g05 · matrix **5/5**  
+    - **mac** link_abi **384032** · matrix **5/5**（`/tmp/xlang_labi_default_auth_mac_full12.log`）  
+    - **Ubuntu 金标** link_abi **449920** · matrix **5/5**（`/tmp/ubu_labi_auth_B_full.log`；半截 relink 须先 LABI=0 冷 seed 恢复）  
+    - 逃逸 `LABI=0`；**禁**树级 PREFER 默认 · **禁** pipeline_abi mega pure-asm  
+ 
   - **rt pure-asm hybrid 地图（mac · 2026-08-12）✅ 闭**：  
     - 配方：`PREFER_ASM_O=1`+`HOST_CC_SEED_FORCE=1` FORCE `try-rt-prefer` → unset PREFER → pure-ld（`set -a; eval g05_relink_env`）→ 仓根 hello／matrix → restore -E  
     - pure_asm 独立 **23/23** OK · 发射器 **baseline_E**（禁 hybrid 自污染）· hello 从仓根  
