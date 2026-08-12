@@ -102,6 +102,21 @@ export extern function pipeline_asm_emit_dep_pipe_c(): *u8;
 export extern function pipeline_dep_ctx_ndep(dep: *u8): i32;
 export extern function pipeline_dep_ctx_module_at(dep: *u8, j: i32): *u8;
 export extern function pipeline_dep_ctx_import_path_copy64(dep: *u8, j: i32, path: *u8): void;
+export extern function pipeline_dep_ctx_import_path_len(dep: *u8, j: i32): i32;
+export extern function pipeline_dep_ctx_arena_at(dep: *u8, j: i32): *u8;
+/** NAMED type name into out (for overload mid e.g. String / StrView). PLATFORM: SHARED. */
+export extern function pipeline_type_named_name_into(a: *u8, tr: i32, out: *u8): i32;
+export extern function pipeline_module_func_return_type_at(m: *u8, fi: i32): i32;
+/**
+ * G.7 import-binding CALL/METHOD_CALL mangle (pre+mid with overload suffixes).
+ * Defined later in this TU; METHOD/CALL sites must not bare-concat pre+name.
+ * PLATFORM: SHARED.
+ */
+export extern function glue_asm_mangle_import_binding_call_sym_c(
+  arena: *u8, ctx: *u8, expr_ref: i32, mod_ref: *u8, imp_j: i32,
+  pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32,
+  is_method: i32, sym_flat: *u8
+): i32;
 export extern function pipeline_module_func_is_extern_at(m: *u8, fi: i32): i32;
 export extern function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8, call: i32): i32;
 export extern function asm_qual_sym_layer_reset(): void;
@@ -2026,7 +2041,16 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                     if (fmt_lit < 0) { return 0 - 1; }
                     if (fmt_lit > 0) { return 0; }
                     let sym_flat: u8[128] = [];
-                    let sym_len: i32 = glue_asm_build_import_binding_call_sym(&pre_buf[0], pre_len, &name[0], name_len, &sym_flat[0]);
+                    /*
+                     * PLATFORM: SHARED — import METHOD mangle (G.7 ≡ seed).
+                     * Bare pre+name → U std_string_length / std_string_is_empty while
+                     * string.o exports length_String / is_empty_String. Seed
+                     * glue_asm_mangle_import_binding_call_sym_c is authority; pure PREFER
+                     * must call the same surface (not bare build).
+                     */
+                    let sym_len: i32 = glue_asm_mangle_import_binding_call_sym_c(
+                      arena, ctx, expr_ref, mod_ref, j, &pre_buf[0], pre_len, &name[0], name_len, 1, &sym_flat[0]
+                    );
                     if (sym_len <= 0) { return 0 - 1; }
                     let n_ov: i32 = pipeline_codegen_call_num_args_override(&pre_buf[0], pre_len, &name[0], name_len, nargs);
                     /*
@@ -2048,7 +2072,9 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                       let reg_max_m: i32 = glue_asm_call_reg_max(ta);
                       let gp_cur_m: i32 = 0;
                       if (reg_max_m < 1) { reg_max_m = 6; }
-                      // Classify each arg: 9–16B POD → 2 consecutive GPs; else 1 (or stack).
+                      // Classify: 9–16B dual-GP; >16B host-C large POD → 1 GP lea (not MEMORY stack).
+                      // PLATFORM: SHARED import METHOD → host-C std .o (std_string_length_String
+                      // takes x0=&String). Pure→pure UFCS still uses MEMORY on its own path.
                       while (i_m < nargs) {
                         let ar_m: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
                         let pty_m: i32 = glue_call_param_type_ref_at(arena, expr_ref, i_m);
@@ -2057,10 +2083,16 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                         spill_off_m[i_m] = 0 - 1;
                         if (u_m < 1) { u_m = 1; }
                         if (u_m > 2) { u_m = 2; }
-                        // MEMORY (>16B) or GP exhaustion → stack place (gp_start < 0).
+                        // >16B: host-C invisible reference — 1 GP + lea at emit (run-string root).
                         if (glue_sysv_arg_is_memory_by_value_c(sz_m) != 0) {
-                          gp_start_m[i_m] = 0 - 1;
-                          gp_units_m[i_m] = 0;
+                          if (gp_cur_m + 1 <= reg_max_m) {
+                            gp_start_m[i_m] = gp_cur_m;
+                            gp_units_m[i_m] = 1;
+                            gp_cur_m = gp_cur_m + 1;
+                          } else {
+                            gp_start_m[i_m] = 0 - 1;
+                            gp_units_m[i_m] = 1;
+                          }
                         } else if (gp_cur_m + u_m <= reg_max_m) {
                           gp_start_m[i_m] = gp_cur_m;
                           gp_units_m[i_m] = u_m;
@@ -2101,13 +2133,20 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                           }
                         }
                       }
-                      // Emit + spill register-class args (dual-GP units from size).
+                      // Emit + spill register-class args (dual-GP; >16B → lea for host-C).
                       i_m = 0;
                       while (i_m < nargs) {
                         if (gp_start_m[i_m] >= 0) {
                           let arg_ref_m: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
                           if (arg_ref_m != 0) {
-                            if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref_m, i_m, ctx, ta) != 0) {
+                            let pty_e: i32 = glue_call_param_type_ref_at(arena, expr_ref, i_m);
+                            let sz_e: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_e, arg_ref_m);
+                            if (glue_sysv_arg_is_memory_by_value_c(sz_e) != 0) {
+                              // PLATFORM: SHARED — host-C large POD: lea into GP (not by-value load).
+                              if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref_m, ctx, ta) != 0) {
+                                return 0 - 1;
+                              }
+                            } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref_m, i_m, ctx, ta) != 0) {
                               return 0 - 1;
                             }
                             let so_m: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units_m[i_m]);
@@ -2319,8 +2358,10 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
                           let pre_len: i32 = glue_asm_fill_c_prefix_from_module_import(mod_ref, j, &pre_buf[0]);
                           if (pre_len <= 0) { return 0 - 1; }
                           let sym_flat: u8[128] = [];
-                          let sym_len: i32 = glue_asm_build_import_binding_call_sym(
-                            &pre_buf[0], pre_len, &field_name[0], field_len, &sym_flat[0]
+                          /* PLATFORM: SHARED — G.7 import-binding CALL mangle (same as METHOD). */
+                          let sym_len: i32 = glue_asm_mangle_import_binding_call_sym_c(
+                            arena, ctx, expr_ref, mod_ref, j, &pre_buf[0], pre_len,
+                            &field_name[0], field_len, 0, &sym_flat[0]
                           );
                           if (sym_len <= 0) { return 0 - 1; }
                           let fmt_lit: i32 = glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
@@ -2646,6 +2687,452 @@ export function glue_type_kind_to_suffix_c(kind: i32, out: *u8, cap: i32): i32 {
     i = i + 1;
   }
   return slen;
+}
+
+/**
+ * Map a type_ref to an overload-mangle suffix (align seed + codegen_type_ref_to_suffix).
+ * PTR → elem suffix + "_ptr"; NAMED → type name ('.' → '_'); else scalar kind suffix.
+ * @param a *u8 — AST arena owning type_ref
+ * @param type_ref i32 — type pool ref; <=0 → 0
+ * @param out *u8 — destination buffer
+ * @param out_cap i32 — capacity; must be > 0
+ * @return i32 — written length, or 0 on failure
+ * PLATFORM: SHARED — must match host std .o mid (length_String, free_u8_ptr).
+ */
+#[no_mangle]
+export function glue_asm_type_ref_to_suffix_c(a: *u8, type_ref: i32, out: *u8, out_cap: i32): i32 {
+  if (a == 0 as *u8) { return 0; }
+  if (type_ref <= 0) { return 0; }
+  if (out == 0 as *u8) { return 0; }
+  if (out_cap <= 0) { return 0; }
+  unsafe {
+    let tk: i32 = pipeline_type_kind_ord_at(a, type_ref);
+    // TYPE_PTR = 9
+    if (tk == 9) {
+      let elem: i32 = pipeline_type_elem_ref_at(a, type_ref);
+      let n: i32 = glue_asm_type_ref_to_suffix_c(a, elem, out, out_cap);
+      if (n > 0) {
+        if (n + 4 < out_cap) {
+          out[n] = 95; // _
+          out[n + 1] = 112; // p
+          out[n + 2] = 116; // t
+          out[n + 3] = 114; // r
+          return n + 4;
+        }
+      }
+      return n;
+    }
+    // NAMED / user types: prefer type name (String, StrView, Vec_u8, …).
+    let n2: i32 = pipeline_type_named_name_into(a, type_ref, out);
+    if (n2 > 0) {
+      if (n2 < out_cap) {
+        let si: i32 = 0;
+        while (si < n2) {
+          if (out[si] == 46) { // '.'
+            out[si] = 95;
+          }
+          si = si + 1;
+        }
+        return n2;
+      }
+    }
+    return glue_type_kind_to_suffix_c(tk, out, out_cap);
+  }
+  return 0;
+}
+
+/**
+ * Build overload mid name for func_ix: bare when unique; else name_t1_t2[…].
+ * Aligns seed glue_asm_build_func_overload_mid_c (import-binding mid, no dep path).
+ * @param m *u8 — owning Module
+ * @param a *u8 — arena for param type_refs
+ * @param func_ix i32 — function index in m
+ * @param out *u8 — destination
+ * @param out_cap i32 — capacity
+ * @return i32 — mid length, or -1 on failure
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function glue_asm_build_func_overload_mid_c(m: *u8, a: *u8, func_ix: i32, out: *u8, out_cap: i32): i32 {
+  if (m == 0 as *u8) { return 0 - 1; }
+  if (a == 0 as *u8) { return 0 - 1; }
+  if (func_ix < 0) { return 0 - 1; }
+  if (out == 0 as *u8) { return 0 - 1; }
+  if (out_cap <= 0) { return 0 - 1; }
+  unsafe {
+    let fname_len: i32 = pipeline_asm_module_func_name_len_at(m, func_ix);
+    if (fname_len <= 0) { return 0 - 1; }
+    if (fname_len >= out_cap) { return 0 - 1; }
+    if (fname_len > 127) { return 0 - 1; }
+    let fname: u8[128] = [];
+    pipeline_asm_module_func_name_copy64(m, func_ix, &fname[0]);
+    let pos: i32 = 0;
+    while (pos < fname_len) {
+      out[pos] = fname[pos];
+      pos = pos + 1;
+    }
+    if (glue_module_func_overload_count_c(m, &fname[0], fname_len) <= 1) {
+      return pos;
+    }
+    let np: i32 = pipeline_module_func_num_params_at(m, func_ix);
+    let pi: i32 = 0;
+    while (pi < np) {
+      if (pos >= out_cap - 2) { break; }
+      let pty: i32 = pipeline_module_func_param_type_ref_at(m, func_ix, pi);
+      if (pty > 0) {
+        let suf: u8[64] = [];
+        let sl: i32 = glue_asm_type_ref_to_suffix_c(a, pty, &suf[0], 64);
+        if (sl > 0) {
+          if (pos + 1 + sl >= out_cap) { return 0 - 1; }
+          out[pos] = 95;
+          pos = pos + 1;
+          let si: i32 = 0;
+          while (si < sl) {
+            out[pos] = suf[si];
+            pos = pos + 1;
+            si = si + 1;
+          }
+        }
+      }
+      pi = pi + 1;
+    }
+    if (pos > 0) { return pos; }
+  }
+  return 0 - 1;
+}
+
+/**
+ * Score field_name candidates in res_mod (arity + arg-type mid match).
+ * @param arena *u8 — call-site arena
+ * @param expr_ref i32 — CALL or METHOD_CALL
+ * @param res_mod *u8 — dep module to scan
+ * @param res_arena *u8 — arena for res_mod types (may equal arena)
+ * @param field_name *u8 — method/field name bytes
+ * @param field_len i32 — name length
+ * @param want_np i32 — expected param count (= call nargs)
+ * @param is_method i32 — 1 → METHOD_CALL arg refs; 0 → CALL arg refs
+ * @return i32 — best func_ix or -1
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function glue_asm_score_import_binding_func_ix_c(
+  arena: *u8, expr_ref: i32, res_mod: *u8, res_arena: *u8,
+  field_name: *u8, field_len: i32, want_np: i32, is_method: i32
+): i32 {
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (res_mod == 0 as *u8) { return 0 - 1; }
+  if (field_name == 0 as *u8) { return 0 - 1; }
+  if (field_len <= 0) { return 0 - 1; }
+  if (res_arena == 0 as *u8) { res_arena = arena; }
+  unsafe {
+    let best: i32 = 0 - 1;
+    let best_score: i32 = 0 - 1;
+    let nfunc: i32 = pipeline_module_num_funcs(res_mod);
+    let fi: i32 = 0;
+    while (fi < nfunc) {
+      if (pipeline_asm_module_func_is_extern_at(res_mod, fi) == 0) {
+        if (pipeline_module_func_name_equal_at(res_mod, fi, field_name, field_len) != 0) {
+          let np: i32 = pipeline_module_func_num_params_at(res_mod, fi);
+          if (np == want_np) {
+            let score: i32 = 1;
+            let pi: i32 = 0;
+            while (pi < np) {
+              if (pi >= 8) { break; }
+              let arg_ref: i32 = 0;
+              if (is_method != 0) {
+                arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, pi);
+              } else {
+                arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, pi);
+              }
+              let arg_ty: i32 = 0;
+              if (arg_ref > 0) {
+                arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+              }
+              let pty: i32 = pipeline_module_func_param_type_ref_at(res_mod, fi, pi);
+              if (arg_ty > 0) {
+                if (pty > 0) {
+                  let sa: u8[64] = [];
+                  let sb: u8[64] = [];
+                  let na: i32 = glue_asm_type_ref_to_suffix_c(arena, arg_ty, &sa[0], 64);
+                  let nb: i32 = glue_asm_type_ref_to_suffix_c(res_arena, pty, &sb[0], 64);
+                  if (na > 0) {
+                    if (na == nb) {
+                      let eq: i32 = 1;
+                      let k: i32 = 0;
+                      while (k < na) {
+                        if (sa[k] != sb[k]) { eq = 0; break; }
+                        k = k + 1;
+                      }
+                      if (eq != 0) { score = score + 10; }
+                    }
+                  }
+                }
+              }
+              pi = pi + 1;
+            }
+            if (score > best_score) {
+              best_score = score;
+              best = fi;
+            }
+          }
+        }
+      }
+      fi = fi + 1;
+    }
+    return best;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Resolve dep Module for import-binding j: prefer typeck r_dep, else path match.
+ * @param dp *u8 — PipelineDepCtx (nullable)
+ * @param user_mod *u8 — user module with import table
+ * @param imp_j i32 — import index
+ * @param r_dep i32 — typeck resolved dep index (-1 if unknown)
+ * @param out_arena *u8 — out: dep arena (written when non-null out pointer used via return only)
+ * @return *u8 — dep Module or null; arena recovered via pipeline_dep_ctx_arena_at by caller
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function glue_asm_res_mod_for_import_binding_c(
+  dp: *u8, user_mod: *u8, imp_j: i32, r_dep: i32
+): *u8 {
+  if (dp == 0 as *u8) { return 0 as *u8; }
+  unsafe {
+    let nd: i32 = pipeline_dep_ctx_ndep(dp);
+    if (r_dep >= 0) {
+      if (r_dep < nd) {
+        return pipeline_dep_ctx_module_at(dp, r_dep);
+      }
+    }
+    if (user_mod == 0 as *u8) { return 0 as *u8; }
+    if (imp_j < 0) { return 0 as *u8; }
+    let iplen: i32 = pipeline_module_import_path_len(user_mod, imp_j);
+    if (iplen <= 0) { return 0 as *u8; }
+    if (iplen > 63) { return 0 as *u8; }
+    let di: i32 = 0;
+    while (di < nd) {
+      let dplen: i32 = pipeline_dep_ctx_import_path_len(dp, di);
+      if (dplen == iplen) {
+        let dpath: u8[128] = [];
+        pipeline_dep_ctx_import_path_copy64(dp, di, &dpath[0]);
+        let eq: i32 = 1;
+        let k: i32 = 0;
+        while (k < iplen) {
+          if (dpath[k] != pipeline_module_import_path_byte_at(user_mod, imp_j, k)) {
+            eq = 0;
+            break;
+          }
+          k = k + 1;
+        }
+        if (eq != 0) {
+          return pipeline_dep_ctx_module_at(dp, di);
+        }
+      }
+      di = di + 1;
+    }
+  }
+  return 0 as *u8;
+}
+
+/**
+ * G.7 single authority for import-binding CALL / METHOD_CALL symbol mangle.
+ * Builds pre+mid into sym_flat. is_method selects METHOD vs CALL arg accessors.
+ * Formal path: resolve dep Module + func_ix → overload mid; unique names stay bare.
+ * Fallback: bare pre+field when formal mid unavailable.
+ * Root residual: pure METHOD used bare pre+name → U std_string_length while string.o
+ * exports length_String / is_empty_String (seed already mangled; pure PREFER incomplete).
+ * @param arena *u8 — call-site AST arena
+ * @param ctx *u8 — AsmFuncCtx (unused; reserved for arg-type scope recovery)
+ * @param expr_ref i32 — CALL or METHOD_CALL expr
+ * @param mod_ref *u8 — user module
+ * @param imp_j i32 — matching import index
+ * @param pre_buf *u8 — C prefix (e.g. std_string_)
+ * @param pre_len i32 — prefix length
+ * @param field_name *u8 — method / field name
+ * @param field_len i32 — name length
+ * @param is_method i32 — 1 METHOD_CALL, 0 CALL
+ * @param sym_flat *u8 — out symbol buffer (cap 128)
+ * @return i32 — symbol length, or -1 on failure
+ * PLATFORM: SHARED — mac + Ubuntu pure-asm product
+ */
+#[no_mangle]
+export function glue_asm_mangle_import_binding_call_sym_c(
+  arena: *u8, ctx: *u8, expr_ref: i32, mod_ref: *u8, imp_j: i32,
+  pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32,
+  is_method: i32, sym_flat: *u8
+): i32 {
+  if (arena == 0 as *u8) { return 0 - 1; }
+  if (mod_ref == 0 as *u8) { return 0 - 1; }
+  if (pre_buf == 0 as *u8) { return 0 - 1; }
+  if (pre_len <= 0) { return 0 - 1; }
+  if (field_name == 0 as *u8) { return 0 - 1; }
+  if (field_len <= 0) { return 0 - 1; }
+  if (sym_flat == 0 as *u8) { return 0 - 1; }
+  let _ctx_keep: *u8 = ctx; // reserved (scope recovery); silence unused
+  if (_ctx_keep == 0 as *u8) { /* ok */ }
+  unsafe {
+    let r_func: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+    let r_dep: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+    let dp: *u8 = pipeline_asm_emit_dep_pipe_c();
+    let want_np: i32 = 0;
+    if (is_method != 0) {
+      want_np = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+    } else {
+      want_np = pipeline_expr_call_num_args_at(arena, expr_ref);
+    }
+    let mid: u8[128] = [];
+    let mid_len: i32 = 0 - 1;
+    let sym_len: i32 = 0 - 1;
+    let use_fi: i32 = 0 - 1;
+    let res_mod: *u8 = 0 as *u8;
+    let res_arena: *u8 = arena;
+    if (dp != 0 as *u8) {
+      // attempt 0: typeck r_dep; attempt 1: path match ignoring bad r_dep
+      let attempt: i32 = 0;
+      while (attempt < 2) {
+        if (use_fi >= 0) { break; }
+        let try_dep: i32 = r_dep;
+        if (attempt == 1) { try_dep = 0 - 1; }
+        res_mod = glue_asm_res_mod_for_import_binding_c(dp, mod_ref, imp_j, try_dep);
+        if (res_mod != 0 as *u8) {
+          // Prefer arena of matched dep when r_dep valid
+          if (try_dep >= 0) {
+            let ra: *u8 = pipeline_dep_ctx_arena_at(dp, try_dep);
+            if (ra != 0 as *u8) { res_arena = ra; }
+          } else {
+            // path match: scan for same module pointer to get arena
+            let nd: i32 = pipeline_dep_ctx_ndep(dp);
+            let di: i32 = 0;
+            while (di < nd) {
+              if (pipeline_dep_ctx_module_at(dp, di) == res_mod) {
+                let ra2: *u8 = pipeline_dep_ctx_arena_at(dp, di);
+                if (ra2 != 0 as *u8) { res_arena = ra2; }
+                break;
+              }
+              di = di + 1;
+            }
+          }
+          use_fi = r_func;
+          if (use_fi >= 0) {
+            if (use_fi < pipeline_module_num_funcs(res_mod)) {
+              let ok: i32 = 1;
+              if (pipeline_module_func_num_params_at(res_mod, use_fi) != want_np) { ok = 0; }
+              if (pipeline_module_func_name_equal_at(res_mod, use_fi, field_name, field_len) == 0) { ok = 0; }
+              if (ok == 0) { use_fi = 0 - 1; }
+            } else {
+              use_fi = 0 - 1;
+            }
+          }
+          if (use_fi < 0) {
+            use_fi = glue_asm_score_import_binding_func_ix_c(
+              arena, expr_ref, res_mod, res_arena, field_name, field_len, want_np, is_method
+            );
+          }
+          // Overloaded: re-score with arg types when score would improve selection.
+          if (use_fi >= 0) {
+            if (glue_module_func_overload_count_c(res_mod, field_name, field_len) > 1) {
+              let scored: i32 = glue_asm_score_import_binding_func_ix_c(
+                arena, expr_ref, res_mod, res_arena, field_name, field_len, want_np, is_method
+              );
+              if (scored >= 0) { use_fi = scored; }
+            }
+          }
+        }
+        attempt = attempt + 1;
+      }
+      // attempt 2: scan all deps for unique name+arity hit
+      if (use_fi < 0) {
+        let nd2: i32 = pipeline_dep_ctx_ndep(dp);
+        let di2: i32 = 0;
+        while (di2 < nd2) {
+          let rm: *u8 = pipeline_dep_ctx_module_at(dp, di2);
+          if (rm != 0 as *u8) {
+            let ra3: *u8 = pipeline_dep_ctx_arena_at(dp, di2);
+            if (ra3 == 0 as *u8) { ra3 = arena; }
+            let cand: i32 = glue_asm_score_import_binding_func_ix_c(
+              arena, expr_ref, rm, ra3, field_name, field_len, want_np, is_method
+            );
+            if (cand >= 0) {
+              res_mod = rm;
+              res_arena = ra3;
+              use_fi = cand;
+              break;
+            }
+          }
+          di2 = di2 + 1;
+        }
+      }
+      if (res_mod != 0 as *u8) {
+        if (use_fi >= 0) {
+          if (use_fi < pipeline_module_num_funcs(res_mod)) {
+            mid_len = glue_asm_build_func_overload_mid_c(res_mod, res_arena, use_fi, &mid[0], 64);
+            if (mid_len > 0) {
+              sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, &mid[0], mid_len, sym_flat);
+              if (sym_len <= 0) { mid_len = 0 - 1; }
+            }
+          }
+        }
+      }
+    }
+    // Caller-arg mid only when formal failed AND name is overloaded on a known res_mod.
+    if (sym_len <= 0) {
+      if (res_mod != 0 as *u8) {
+        if (glue_module_func_overload_count_c(res_mod, field_name, field_len) > 1) {
+          let alen: i32 = 0;
+          if (field_len < 64) {
+            let ci: i32 = 0;
+            while (ci < field_len) {
+              mid[ci] = field_name[ci];
+              ci = ci + 1;
+            }
+            alen = field_len;
+          }
+          let pi: i32 = 0;
+          while (pi < want_np) {
+            if (alen >= 60) { break; }
+            let arg_ref: i32 = 0;
+            if (is_method != 0) {
+              arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, pi);
+            } else {
+              arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, pi);
+            }
+            let arg_ty: i32 = 0;
+            if (arg_ref > 0) {
+              arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+            }
+            if (arg_ty > 0) {
+              let suf: u8[64] = [];
+              let sl: i32 = glue_asm_type_ref_to_suffix_c(arena, arg_ty, &suf[0], 64);
+              if (sl > 0) {
+                if (alen + 1 + sl < 64) {
+                  mid[alen] = 95;
+                  alen = alen + 1;
+                  let si: i32 = 0;
+                  while (si < sl) {
+                    mid[alen] = suf[si];
+                    alen = alen + 1;
+                    si = si + 1;
+                  }
+                }
+              }
+            }
+            pi = pi + 1;
+          }
+          if (alen > field_len) {
+            let pos: i32 = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, &mid[0], alen, sym_flat);
+            if (pos > 0) { sym_len = pos; }
+          }
+        }
+      }
+    }
+    if (sym_len <= 0) {
+      sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len, sym_flat);
+    }
+    return sym_len;
+  }
+  return 0 - 1;
 }
 
 /** Exported function `glue_asm_import_path_slice_equal`.

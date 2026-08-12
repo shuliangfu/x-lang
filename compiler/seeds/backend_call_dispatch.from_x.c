@@ -3776,9 +3776,25 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 reg_units[i] = 1;
                 continue;
               }
-              /** >16B by-value POD: stack MEMORY (not lea→GP). Matches formal C std_vec_len(Vec). */
+              /*
+               * PLATFORM: SHARED freestanding import METHOD → host-C std .o.
+               * >16B X value types (String ~260B): host-C surface is *invisible reference*
+               * (x0 = pointer; std_string_length_String memmove-from-x0 then length_String).
+               * Pure-asm param_home MEMORY stack words are for pure→pure UFCS only.
+               * Root (run-string): MEMORY stack dump without x0=&s → SEGV / wrong length.
+               * G.7: import METHOD large POD → 1 GP + lea (AAPCS large composite), not is_mem.
+               */
               if (sz > 16) {
-                is_mem[i] = 1;
+                if (gp_cur + 1 > 6) {
+                  is_stk[i] = 1;
+                  continue;
+                }
+                reg_start[i] = gp_cur;
+                reg_units[i] = 1;
+                gp_cur += 1;
+                /* mark via is_sse unused slot: reuse is_mem=-1? use is_f64 as lea flag no —
+                 * reg_units==1 + sz>16 means lea at emit. */
+                is_mem[i] = 2; /* 2 = host-indirect lea → GP (not stack MEMORY) */
                 continue;
               }
               /*
@@ -3813,7 +3829,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               int32_t raw_mem = 0;
               int32_t pushed_total = 0;
               for (i = 0; i < n_place; i++) {
-                if (is_mem[i])
+                if (is_mem[i] == 1)
                   raw_mem += (arg_sz[i] + 7) & ~7;
                 else if (is_stk[i])
                   raw_mem += 8;
@@ -3828,7 +3844,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               for (i = n_place - 1; i >= 0; i--) {
                 int32_t arg_ref;
                 int32_t pushed;
-                if (is_mem[i]) {
+                if (is_mem[i] == 1) {
                   arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
                   if (arg_ref == 0)
                     return -1;
@@ -3848,6 +3864,23 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 }
               }
               mem_stack = pushed_total;
+            } else if (ta == 1) {
+              /* arm64: only true stack MEMORY (is_mem==1) / excess GP (is_stk); not host-indirect lea. */
+              int32_t nw = 0;
+              int32_t stack_reserve;
+              for (i = 0; i < n_place; i++) {
+                if (is_mem[i] == 1)
+                  nw += glue_sysv_arg_stack_words_c(arg_sz[i], 0);
+                else if (is_stk[i])
+                  nw += 1;
+              }
+              stack_reserve = nw * 8;
+              if (stack_reserve > 0)
+                stack_reserve = (stack_reserve + 15) & ~15;
+              mem_stack = stack_reserve;
+              if (stack_reserve > 0 &&
+                  backend_enc_call_stack_reserve_arch(elf_ctx, stack_reserve, ta) != 0)
+                return -1;
             }
             /*
              * PLATFORM: SHARED freestanding multi-arg.
@@ -3856,18 +3889,54 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
              * Option in x0 — clobber → is_some=0 / value lost (full option run residual 252).
              * Ubuntu x86 already spill-then-load here; arm64 must match free CALL / UFCS
              * wave602 (G.7 one discipline). Load high→low so x0 temp does not wipe lower GPs.
+             * is_mem==2: host-C large POD invisible ref — lea into GP (not stack MEMORY).
              */
             for (i = 0; i < n_place; i++) {
               int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
               int32_t so;
-              if (arg_ref == 0 || is_mem[i] || is_stk[i])
+              if (arg_ref == 0 || is_mem[i] == 1 || is_stk[i])
                 continue;
-              if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+              if (is_mem[i] == 2) {
+                /* >16B host-C: pass &arg in GP (AAPCS large composite / std_string_* wrappers). */
+                if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+                  return -1;
+              } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
                 return -1;
+              }
               so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, reg_units[i]);
               if (so < 0)
                 return -1;
               spill_off[i] = so;
+            }
+            /* arm64 true MEMORY stack (is_mem==1) before final GP load. */
+            if (ta == 1) {
+              int32_t stk_slot = 0;
+              for (i = 0; i < n_place; i++) {
+                int32_t arg_ref;
+                int32_t words;
+                int32_t stored;
+                if (is_mem[i] != 1 && !is_stk[i])
+                  continue;
+                arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+                if (arg_ref == 0)
+                  return -1;
+                if (is_mem[i] == 1) {
+                  stored = pipeline_asm_store_memory_by_value_to_sp_elf_c(arena, elf_ctx, ctx, arg_ref,
+                                                                           arg_sz[i], ta, stk_slot * 8);
+                  if (stored < 0)
+                    return -1;
+                  words = stored / 8;
+                  if (words < 1)
+                    words = 1;
+                  stk_slot += words;
+                  continue;
+                }
+                if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+                  return -1;
+                if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
+                  return -1;
+                stk_slot += 1;
+              }
             }
             /* Load spills: high place index first (AAPCS64 x0 temp + SysV rax temp). */
             for (i = n_place - 1; i >= 0; i--) {
