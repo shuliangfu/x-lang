@@ -355,8 +355,9 @@ int32_t labi_fk0_sym_count(int32_t k) {
   if ((k ==5)) {
     return 2;
   }
+  /* PLATFORM: SHARED — path.o fk0 complete (mirror labi_ondemand_heavy.x). */
   if ((k ==6)) {
-    return 4;
+    return 12;
   }
   if ((k ==7)) {
     return 7;
@@ -514,21 +515,54 @@ uint8_t * labi_fk0_sym_at(int32_t k, int32_t i) {
     }
     return ((uint8_t *)(0));
   }
+  /* PLATFORM: SHARED — exact UNDEF needles for std/path/path.o (k==6). */
   if ((k ==6)) {
     if ((i ==0)) {
-      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x70\x61\x74\x68\x5f\x6a\x6f\x69\x6e");
+      uint8_t * p = ((uint8_t *)"std_path_join");
       return p;
     }
     if ((i ==1)) {
-      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x70\x61\x74\x68\x5f\x64\x69\x72\x6e\x61\x6d\x65");
+      uint8_t * p = ((uint8_t *)"std_path_dirname");
       return p;
     }
     if ((i ==2)) {
-      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x70\x61\x74\x68\x5f\x65\x6d\x70\x74\x79\x5f\x6c\x65\x6e");
+      uint8_t * p = ((uint8_t *)"std_path_empty_len");
       return p;
     }
     if ((i ==3)) {
-      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x70\x61\x74\x68\x5f\x62\x61\x73\x65\x6e\x61\x6d\x65");
+      uint8_t * p = ((uint8_t *)"std_path_basename");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"std_path_sep");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"std_path_is_absolute");
+      return p;
+    }
+    if ((i ==6)) {
+      uint8_t * p = ((uint8_t *)"std_path_is_sep");
+      return p;
+    }
+    if ((i ==7)) {
+      uint8_t * p = ((uint8_t *)"std_path_extension");
+      return p;
+    }
+    if ((i ==8)) {
+      uint8_t * p = ((uint8_t *)"std_path_stem");
+      return p;
+    }
+    if ((i ==9)) {
+      uint8_t * p = ((uint8_t *)"std_path_extension_and_stem");
+      return p;
+    }
+    if ((i ==10)) {
+      uint8_t * p = ((uint8_t *)"std_path_clean");
+      return p;
+    }
+    if ((i ==11)) {
+      uint8_t * p = ((uint8_t *)"std_path_resolve");
       return p;
     }
     return ((uint8_t *)(0));

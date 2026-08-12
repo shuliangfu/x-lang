@@ -1565,8 +1565,11 @@ int labi_fk0_sym_count(int k) {
     return 6;
   if (k == 5)
     return 2;
+  /* PLATFORM: SHARED — path.o fk0 complete (mirror labi_ondemand_heavy.x).
+   * Was: join/dirname/empty_len/basename only. Sole sep/clean/extension UNDEF
+   * never opened gate (run-path extension_stem_abs_clean). */
   if (k == 6)
-    return 4;
+    return 12;
   if (k == 7)
     return 7;
   if (k == 8)
@@ -1665,6 +1668,8 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_csv_parse_line";
     return NULL;
   }
+  /* PLATFORM: SHARED — exact UNDEF needles for std/path/path.o (k==6).
+   * Exact match only; join/basename do not cover clean/sep/extension/stem/resolve. */
   if (k == 6) {
     if (i == 0)
       return "std_path_join";
@@ -1674,6 +1679,22 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_path_empty_len";
     if (i == 3)
       return "std_path_basename";
+    if (i == 4)
+      return "std_path_sep";
+    if (i == 5)
+      return "std_path_is_absolute";
+    if (i == 6)
+      return "std_path_is_sep";
+    if (i == 7)
+      return "std_path_extension";
+    if (i == 8)
+      return "std_path_stem";
+    if (i == 9)
+      return "std_path_extension_and_stem";
+    if (i == 10)
+      return "std_path_clean";
+    if (i == 11)
+      return "std_path_resolve";
     return NULL;
   }
   if (k == 7) {

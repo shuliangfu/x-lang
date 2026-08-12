@@ -397,8 +397,12 @@ export function labi_fk0_sym_count(k: i32): i32 {
   if (k == 5) {
     return 2;
   }
+  // PLATFORM: SHARED — path.o fk0 was incomplete (only join/dirname/empty_len/basename).
+  // Sole callers of sep/extension/stem/clean/resolve/is_absolute never opened the gate
+  // → UNDEF at ld (run-path extension_stem_abs_clean / resolve / extreme).
+  // G.7 complete surface: every public std_path_* export that can be sole user UNDEF.
   if (k == 6) {
-    return 4;
+    return 12;
   }
   if (k == 7) {
     return 7;
@@ -576,6 +580,8 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       return 0 as *u8;
     }
+    // PLATFORM: SHARED — exact UNDEF needles for std/path/path.o (k==6).
+    // Exact match only; join/basename do not cover clean/sep/extension/stem/resolve.
     if (k == 6) {
       if (i == 0) {
         let p: *u8 = "std_path_join";
@@ -591,6 +597,38 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       }
       if (i == 3) {
         let p: *u8 = "std_path_basename";
+        return p;
+      }
+      if (i == 4) {
+        let p: *u8 = "std_path_sep";
+        return p;
+      }
+      if (i == 5) {
+        let p: *u8 = "std_path_is_absolute";
+        return p;
+      }
+      if (i == 6) {
+        let p: *u8 = "std_path_is_sep";
+        return p;
+      }
+      if (i == 7) {
+        let p: *u8 = "std_path_extension";
+        return p;
+      }
+      if (i == 8) {
+        let p: *u8 = "std_path_stem";
+        return p;
+      }
+      if (i == 9) {
+        let p: *u8 = "std_path_extension_and_stem";
+        return p;
+      }
+      if (i == 10) {
+        let p: *u8 = "std_path_clean";
+        return p;
+      }
+      if (i == 11) {
+        let p: *u8 = "std_path_resolve";
         return p;
       }
       return 0 as *u8;
