@@ -3094,20 +3094,22 @@ export function labi_user_needs_runtime_env_os(user_o: *u8): i32 {
 
 /**
  * Count of runtime process_argv UNDEF needles for labi_user_needs_runtime_process_argv.
- * Product complete (G.7): process_*_c + process_xlang_* + std_process_* + std_env_args_iter.
- * @return i32 — 9
+ * G.7: process_argv only for bare argv glue + env args_iter (not product std_process_*).
+ * Product import METHOD std_process_* opens std/process/process.o via fk==1 (OP_STD).
+ * Pushing process_argv for std_process_* dual-linked with process.o (multidef args_c).
+ * @return i32 — 5
  * PLATFORM: SHARED
  */
 #[no_mangle]
 export function labi_od_runtime_process_argv_sym_count(): i32 {
-  return 9;
+  return 5;
 }
 
 /**
  * runtime process_argv UNDEF needle at index (exact symbols only).
- * @param i i32 — index in [0, 9)
+ * @param i i32 — index in [0, 5)
  * @return *u8 — static C string symbol, or null if out of range
- * PLATFORM: SHARED
+ * PLATFORM: SHARED — exact match (Darwin nm -u has no type letter U)
  */
 #[no_mangle]
 export function labi_od_runtime_process_argv_sym_at(i: i32): *u8 {
@@ -3131,22 +3133,6 @@ export function labi_od_runtime_process_argv_sym_at(i: i32): *u8 {
     return p;
   }
   if (i == 4) {
-    let p: *u8 = "std_process_args";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "std_process_arg";
-    return p;
-  }
-  if (i == 6) {
-    let p: *u8 = "std_process_argc";
-    return p;
-  }
-  if (i == 7) {
-    let p: *u8 = "std_process_argv";
-    return p;
-  }
-  if (i == 8) {
     let p: *u8 = "std_env_args_iter";
     return p;
   }

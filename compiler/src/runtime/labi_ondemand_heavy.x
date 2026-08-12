@@ -1076,8 +1076,10 @@ export function labi_std_fk0_user_needs_rel(user_o: *u8, rel: *u8): i32 {
  */
 #[no_mangle]
 export function labi_std_fk_gate_sym_count(fk: i32): i32 {
+  // PLATFORM: SHARED — process product face complete (pure-asm std_process_*).
+  // Exact match only (Darwin nm -u); cover full mod.x / import_alias surface.
   if (fk == 1) {
-    return 4;
+    return 28;
   }
   if (fk == 2) {
     return 4;
@@ -1135,23 +1137,37 @@ export function labi_std_fk_gate_sym_at(fk: i32, i: i32): *u8 {
     if (i < 0) {
       return 0 as *u8;
     }
+    // PLATFORM: SHARED — exact UNDEF needles for std/process/process.o (fk==1).
+    // Full std_process_* import surface + bare process_*_c (run-process sole callers).
     if (fk == 1) {
-      if (i == 0) {
-        let p: *u8 = "process_xlang_argv_get";
-        return p;
-      }
-      if (i == 1) {
-        let p: *u8 = "process_arg_c";
-        return p;
-      }
-      if (i == 2) {
-        let p: *u8 = "std_process_exit";
-        return p;
-      }
-      if (i == 3) {
-        let p: *u8 = "std_process_args";
-        return p;
-      }
+      if (i == 0) { let p: *u8 = "process_xlang_argv_get"; return p; }
+      if (i == 1) { let p: *u8 = "process_arg_c"; return p; }
+      if (i == 2) { let p: *u8 = "process_args_count_c"; return p; }
+      if (i == 3) { let p: *u8 = "std_process_exit"; return p; }
+      if (i == 4) { let p: *u8 = "std_process_args_count"; return p; }
+      if (i == 5) { let p: *u8 = "std_process_arg"; return p; }
+      if (i == 6) { let p: *u8 = "std_process_getenv"; return p; }
+      if (i == 7) { let p: *u8 = "std_process_setenv"; return p; }
+      if (i == 8) { let p: *u8 = "std_process_unsetenv"; return p; }
+      if (i == 9) { let p: *u8 = "std_process_getpid"; return p; }
+      if (i == 10) { let p: *u8 = "std_process_getppid"; return p; }
+      if (i == 11) { let p: *u8 = "std_process_getcwd"; return p; }
+      if (i == 12) { let p: *u8 = "std_process_getcwd_ptr"; return p; }
+      if (i == 13) { let p: *u8 = "std_process_getcwd_cached_len"; return p; }
+      if (i == 14) { let p: *u8 = "std_process_chdir"; return p; }
+      if (i == 15) { let p: *u8 = "std_process_self_exe_path"; return p; }
+      if (i == 16) { let p: *u8 = "std_process_self_exe_path_ptr"; return p; }
+      if (i == 17) { let p: *u8 = "std_process_self_exe_path_cached_len"; return p; }
+      if (i == 18) { let p: *u8 = "std_process_spawn"; return p; }
+      if (i == 19) { let p: *u8 = "std_process_spawn_io"; return p; }
+      if (i == 20) { let p: *u8 = "std_process_spawn_simple"; return p; }
+      if (i == 21) { let p: *u8 = "std_process_exec"; return p; }
+      if (i == 22) { let p: *u8 = "std_process_exec_simple"; return p; }
+      if (i == 23) { let p: *u8 = "std_process_waitpid"; return p; }
+      if (i == 24) { let p: *u8 = "std_process_pipe"; return p; }
+      if (i == 25) { let p: *u8 = "process_getenv_c"; return p; }
+      if (i == 26) { let p: *u8 = "process_spawn_c"; return p; }
+      if (i == 27) { let p: *u8 = "process_waitpid_c"; return p; }
       return 0 as *u8;
     }
     if (fk == 2) {

@@ -1389,8 +1389,10 @@ int labi_user_needs_runtime_env_os(const char *user_o) {
   return 0;
 }
 
-/* wave133: process_argv pure table + orch (9 needles). */
-int labi_od_runtime_process_argv_sym_count(void) { return 9; }
+/* wave133: process_argv pure table + orch (5 needles).
+ * PLATFORM: SHARED — product std_process_* is fk==1 → process.o (not process_argv).
+ * Twin of labi_ondemand_list.x (G.7 seed/.x same commit). */
+int labi_od_runtime_process_argv_sym_count(void) { return 5; }
 const char *labi_od_runtime_process_argv_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -1403,14 +1405,6 @@ const char *labi_od_runtime_process_argv_sym_at(int i) {
   if (i == 3)
     return "process_args_count_c";
   if (i == 4)
-    return "std_process_args";
-  if (i == 5)
-    return "std_process_arg";
-  if (i == 6)
-    return "std_process_argc";
-  if (i == 7)
-    return "std_process_argv";
-  if (i == 8)
     return "std_env_args_iter";
   return NULL;
 }
@@ -1924,7 +1918,8 @@ int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
 /* wave190: labi_std_fk_user_needs pure cold twin (fk 1–13 gate tables + orch).
  * Cap residual: xlang_link_obj_needs_undef_sym. PLATFORM: SHARED. */
 int labi_std_fk_gate_sym_count(int fk) {
-  if (fk == 1) return 4;
+  /* PLATFORM: SHARED — process product face complete (pure-asm std_process_*). */
+  if (fk == 1) return 28;
   if (fk == 2) return 4;
   if (fk == 3) return 5;
   if (fk == 4) return 3;
@@ -1942,11 +1937,37 @@ int labi_std_fk_gate_sym_count(int fk) {
 
 const char *labi_std_fk_gate_sym_at(int fk, int i) {
   if (i < 0) return NULL;
+  /* PLATFORM: SHARED — exact UNDEF needles for std/process/process.o (fk==1).
+   * Twin of labi_ondemand_heavy.x labi_std_fk_gate_sym_at (G.7 seed/.x same commit). */
   if (fk == 1) {
     if (i == 0) return "process_xlang_argv_get";
     if (i == 1) return "process_arg_c";
-    if (i == 2) return "std_process_exit";
-    if (i == 3) return "std_process_args";
+    if (i == 2) return "process_args_count_c";
+    if (i == 3) return "std_process_exit";
+    if (i == 4) return "std_process_args_count";
+    if (i == 5) return "std_process_arg";
+    if (i == 6) return "std_process_getenv";
+    if (i == 7) return "std_process_setenv";
+    if (i == 8) return "std_process_unsetenv";
+    if (i == 9) return "std_process_getpid";
+    if (i == 10) return "std_process_getppid";
+    if (i == 11) return "std_process_getcwd";
+    if (i == 12) return "std_process_getcwd_ptr";
+    if (i == 13) return "std_process_getcwd_cached_len";
+    if (i == 14) return "std_process_chdir";
+    if (i == 15) return "std_process_self_exe_path";
+    if (i == 16) return "std_process_self_exe_path_ptr";
+    if (i == 17) return "std_process_self_exe_path_cached_len";
+    if (i == 18) return "std_process_spawn";
+    if (i == 19) return "std_process_spawn_io";
+    if (i == 20) return "std_process_spawn_simple";
+    if (i == 21) return "std_process_exec";
+    if (i == 22) return "std_process_exec_simple";
+    if (i == 23) return "std_process_waitpid";
+    if (i == 24) return "std_process_pipe";
+    if (i == 25) return "process_getenv_c";
+    if (i == 26) return "process_spawn_c";
+    if (i == 27) return "process_waitpid_c";
     return NULL;
   }
   if (fk == 2) {

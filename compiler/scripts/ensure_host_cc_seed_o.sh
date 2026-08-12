@@ -4375,6 +4375,11 @@ ensure_std_core_prefer_one() {
       if [ -f runtime_process_os_glue.o ] && [ runtime_process_os_glue.o -nt "$o" ]; then
         stale=1
       fi
+      # PLATFORM: SHARED — import_alias carries std_process_* product face.
+      if [ -f seeds/runtime_process_import_alias.from_x.c ] &&
+         [ seeds/runtime_process_import_alias.from_x.c -nt "$o" ]; then
+        stale=1
+      fi
     fi
     # wave796: net multi-merge source mtime (FORCE thin; G.7 single body).
     # Mirrors historic Makefile prereqs + net_merge body inputs.
@@ -4442,6 +4447,9 @@ ensure_std_core_prefer_one() {
       ;;
 
     process_merge)
+      # PLATFORM: SHARED — process.o = args_thin + argv + os_glue + import_alias.
+      # import_alias exports std_process_* for pure-asm import METHOD (G.7 complete
+      # process_merge; C-path co-emit of mod.x is not used on pure-asm product).
       if [ ! -f "$seed" ]; then
         echo "ensure_host_cc_seed_o try-std-core-prefer: missing seed $seed for $o" >&2
         return 1
@@ -4456,18 +4464,29 @@ ensure_std_core_prefer_one() {
           || ensure_one runtime_process_os_glue.o seeds/runtime_process_os_glue.from_x.c \
           || return 1
       fi
+      _proc_alias_c="seeds/runtime_process_import_alias.from_x.c"
+      if [ ! -f "$_proc_alias_c" ]; then
+        echo "ensure_host_cc_seed_o try-std-core-prefer: missing $_proc_alias_c for $o" >&2
+        return 1
+      fi
       tmp_args="$(mktemp "${TMPDIR:-/tmp}/proc_args.XXXXXX")"
+      tmp_alias="$(mktemp "${TMPDIR:-/tmp}/proc_alias.XXXXXX")"
       # shellcheck disable=SC2086
       if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$tmp_args"; then
-        rm -f "$tmp_args"
+        rm -f "$tmp_args" "$tmp_alias"
         return 1
       fi
-      if ! _std_core_ld_r "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o; then
-        rm -f "$tmp_args"
+      # shellcheck disable=SC2086
+      if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c "$_proc_alias_c" -o "$tmp_alias"; then
+        rm -f "$tmp_args" "$tmp_alias"
         return 1
       fi
-      rm -f "$tmp_args"
-      log "process_merge $o <- $seed + argv + os_glue (try-std-core-prefer)"
+      if ! _std_core_ld_r "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
+        rm -f "$tmp_args" "$tmp_alias"
+        return 1
+      fi
+      rm -f "$tmp_args" "$tmp_alias"
+      log "process_merge $o <- $seed + argv + os_glue + import_alias (try-std-core-prefer)"
       return 0
       ;;
 
