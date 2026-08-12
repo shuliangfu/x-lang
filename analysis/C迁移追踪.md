@@ -2027,7 +2027,7 @@
     - **Ubuntu 金标 ✅**：default pure link_abi **448744** · hybrid matrix **5/5** · escape -E **316232** · reapply **448744** 5/5（`/tmp/ubu_labi_default_pure_asm_8d48a1d78_20260812_100547.log`）  
     - 历史授权图（tip `662b5fbfe` RED×6）：path_pure param_home + residual ABI 后已闭；full12 双端 5/5 后用户授权落地  
   - **B1／B2／B3 pure-asm hybrid 双端 5/5 ✅**：mac 前序 · Ubuntu @ `5d44fa3eb` prefer+soft g05+matrix+restore 全绿（`/tmp/ubu_b1b2b3_pure_asm_hybrid_true_5d44fa3eb_20260812_084234.log`）  
-  - **pipeline_abi mega pure-asm 问题地图 + 硬禁 ✅**：独立 pure-asm **TIMEOUT 180s** · helper 同 · 硬禁后 BAN wall=0s · labi pure 仍绿 · PREFER_ASM hybrid -E prefer 不挂 · matrix 5/5  
+  - **pipeline_abi mega pure-asm 问题地图 + 硬禁 ✅ 双端**：独立 pure-asm **TIMEOUT 180s** · 硬禁后 BAN wall=0s · labi pure 仍绿 · PREFER_ASM hybrid -E prefer 不挂 · mac matrix 5/5 · **Ubuntu** BAN 0s + matrix 5/5（`/tmp/ubu_pabi_hardban_20260812_104117.log`）  
 
 
   - **COMPILE residual prefer 薄叶 pure_asm 问题地图 ✅（2026-08-11 · tip `6a814b52c`）**：  
