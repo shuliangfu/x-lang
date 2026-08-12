@@ -76,7 +76,10 @@ case "$UNAME_S" in
   _ASM_GLUE_DUP_LDFLAGS="-Wl,--allow-multiple-definition"
   case "$UNAME_M" in
   x86_64|amd64)
-  _MAIN_LINK_O="src/asm/crt0_x86_64.o"
+  # PLATFORM: LINUX x86_64 — mirror mk/driver_seed_link_picks.mk MAIN_LINK_O.
+  # freestanding_io provides xlang_sys_* for pure-ld (driver_x std.sys UNDEFs);
+  # -lc alone cannot resolve them. G.7: same face as catalog MAIN_LINK.
+  _MAIN_LINK_O="src/asm/crt0_x86_64.o src/asm/freestanding_io_x86_64.o"
   _MAIN_LINK_FLAGS="-no-pie -e _start -nostartfiles"
   ;;
   *)
@@ -215,7 +218,9 @@ if bootstrap_wants_nostdlib; then
   # Obj paths only (no ensure). atoi_stub always listed; ensure builds it.
   # runtime_panic T atoi skip is applied in ensure when CRT0_ATOI_LINK empty —
   # g05 bag has no runtime_panic.o, so atoi_stub.o is always required.
-  _G05_NOSTDLIB_OBJS="src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o atoi_stub.o"
+  # freestanding_io is already on MAIN_LINK_O (Linux x86_64 pure-ld face) —
+  # G.7: do not re-list it here (duplicate strong xlang_sys_*).
+  _G05_NOSTDLIB_OBJS="src/asm/bootstrap_nostdlib_stubs.o atoi_stub.o"
   G05_CFLAGS="$G05_CFLAGS $_G05_NOSTDLIB_FLAGS"
   G05_OBJS="$G05_OBJS $_G05_NOSTDLIB_OBJS"
   ;;
