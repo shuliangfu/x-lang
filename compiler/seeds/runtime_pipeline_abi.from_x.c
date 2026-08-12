@@ -5487,10 +5487,11 @@ static const CodegenCallOverrideEntry k_codegen_call_overrides[] = {
     {"std_io_print_u32", 16, 1},
     {"print_i64", 9, 1},
     {"std_io_print_i64", 16, 1},
-    {"std_fmt_println", 14, 2},
+    /* PLATFORM: SHARED — lengths are strlen (std_fmt_println=15, not 14→printl truncate). */
+    {"std_fmt_println", 15, 2},
     {"std_fmt_print", 13, 2},
-    {"std_debug_println", 16, 2},
-    {"std_debug_print", 14, 2},
+    {"std_debug_println", 17, 2},
+    {"std_debug_print", 15, 2},
     {"ok_i32", 6, 1},
     {"core_result_ok_i32", 18, 1},
     {"err_i32", 7, 1},
@@ -44160,13 +44161,15 @@ int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len,
     memcpy(sym_out, "std_fmt_print", 13);
     return 13;
   }
-  if (name_len == 14 && memcmp(name, "std_fmt_println", 14) == 0) {
-    memcpy(sym_out, "std_fmt_println", 14);
-    return 14;
+  /* PLATFORM: SHARED — std_fmt_println is 15 bytes (len 14 truncated to std_fmt_printl
+   * → pure-asm print_str BLD001). Redirect overload mid to bare stub symbol. */
+  if (name_len == 15 && memcmp(name, "std_fmt_println", 15) == 0) {
+    memcpy(sym_out, "std_fmt_println", 15);
+    return 15;
   }
   if (name_len == 26 && memcmp(name, "std_fmt_println_u8_ptr_i32", 26) == 0) {
-    memcpy(sym_out, "std_fmt_println", 14);
-    return 14;
+    memcpy(sym_out, "std_fmt_println", 15);
+    return 15;
   }
   if (name_len > 13 && memcmp(name, "std_encoding_", 13) == 0) {
     const int32_t suffix_len = name_len - 13;

@@ -128,6 +128,8 @@ extern int32_t pipeline_module_func_num_params_at(struct ast_Module *m, int32_t 
 extern int32_t pipeline_module_func_param_type_ref_at(struct ast_Module *m, int32_t fi, int32_t pi);
 extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
 extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *arena, int32_t type_ref);
+/* TYPE_ARRAY size for mid `_aN` (align codegen wave687). PLATFORM: SHARED. */
+extern int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t type_ref);
 extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
 /* ctx is AsmFuncCtx*; void* avoids incomplete-type visibility warning before full layout. */
 extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(struct ast_ASTArena *arena,
@@ -1247,6 +1249,10 @@ int32_t glue_asm_build_dep_export_sym_c(const uint8_t *name, int32_t name_len, u
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-372 call：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_type_kind_to_suffix_c_impl(int32_t kind_ord, uint8_t *out, int32_t out_cap) {
+  /* PLATFORM: SHARED — scalar TypeKind → overload mid only.
+   * TYPE_I32=0 is explicit (not a silent default). Unknown kinds (SLICE/ARRAY/…)
+   * return 0 so callers use compound paths; never map u8[] → "i32" (run-io UNDEF
+   * println_i32_reti32 false collision with println(u8[])). Align codegen_type_ref_to_suffix. */
   static const uint8_t lit_i32[3] = { 105, 51, 50 };
   static const uint8_t lit_i64[3] = { 105, 54, 52 };
   static const uint8_t lit_u8[2] = { 117, 56 };
@@ -1262,9 +1268,13 @@ int32_t glue_type_kind_to_suffix_c_impl(int32_t kind_ord, uint8_t *out, int32_t 
   int32_t i;
   if (!out || out_cap <= 0)
     return 0;
-  src = lit_i32;
-  slen = 3;
-  if (kind_ord == 5) {
+  src = 0;
+  slen = 0;
+  if (kind_ord == 0) {
+    /* TYPE_I32 */
+    src = lit_i32;
+    slen = 3;
+  } else if (kind_ord == 5) {
     src = lit_i64;
     slen = 3;
   } else if (kind_ord == 2) {
@@ -1291,6 +1301,8 @@ int32_t glue_type_kind_to_suffix_c_impl(int32_t kind_ord, uint8_t *out, int32_t 
   } else if (kind_ord == 1) {
     src = lit_bool;
     slen = 4;
+  } else {
+    return 0;
   }
   for (i = 0; i < slen && i < out_cap - 1; i++)
     out[i] = src[i];
@@ -1411,8 +1423,11 @@ static int32_t glue_asm_call_expected_ret_ty_c(struct ast_ASTArena *arena, int32
 
 /**
  * PLATFORM: SHARED — type_ref → overload mangle suffix (align codegen_type_ref_to_suffix).
- * PTR: elem suffix + "_ptr"; NAMED: type name ('.'→'_'); scalars: glue_type_kind_to_suffix.
- * Authority for asm call/export symbols that must match formal std .o (len_String, Vec_u8_ptr).
+ * PTR: elem + "_ptr"; SLICE: elem + "_slc" (u8[] → u8_slc; wave687/C twin);
+ * ARRAY: elem + "_aN"; NAMED: type name ('.'→'_'); scalars: glue_type_kind_to_suffix.
+ * Authority for asm call/export symbols that must match formal std .o
+ * (std_fmt_println_i32 vs println_u8_slc — never collide via default-i32).
+ * G.7: single mid authority with host-C codegen_type_ref_to_suffix.
  */
 static int32_t glue_asm_type_ref_to_suffix_c(struct ast_ASTArena *a, int32_t type_ref, uint8_t *out,
                                             int32_t out_cap) {
@@ -1433,6 +1448,47 @@ static int32_t glue_asm_type_ref_to_suffix_c(struct ast_ASTArena *a, int32_t typ
       out[n + 3] = (uint8_t)'r';
       return n + 4;
     }
+    return n;
+  }
+  /* TYPE_SLICE = 11 → <elem>_slc (std_fmt_println_u8_slc). */
+  if (tk == 11) {
+    int32_t elem = pipeline_type_elem_ref_at(a, type_ref);
+    n = glue_asm_type_ref_to_suffix_c(a, elem, out, out_cap);
+    if (n > 0 && n + 4 < out_cap) {
+      out[n] = (uint8_t)'_';
+      out[n + 1] = (uint8_t)'s';
+      out[n + 2] = (uint8_t)'l';
+      out[n + 3] = (uint8_t)'c';
+      return n + 4;
+    }
+    return 0;
+  }
+  /* TYPE_ARRAY = 10 → <elem>_aN (align codegen wave687). */
+  if (tk == 10) {
+    int32_t elem = pipeline_type_elem_ref_at(a, type_ref);
+    int32_t asz = pipeline_type_array_size_at(a, type_ref);
+    int32_t digs[8];
+    int32_t nd;
+    int32_t v;
+    int32_t di;
+    n = glue_asm_type_ref_to_suffix_c(a, elem, out, out_cap);
+    if (n <= 0 || asz <= 0)
+      return 0;
+    if (n + 2 >= out_cap)
+      return 0;
+    out[n] = (uint8_t)'_';
+    out[n + 1] = (uint8_t)'a';
+    n += 2;
+    nd = 0;
+    v = asz;
+    while (v > 0 && nd < 6) {
+      digs[nd++] = v % 10;
+      v /= 10;
+    }
+    if (nd <= 0 || n + nd >= out_cap)
+      return 0;
+    for (di = nd - 1; di >= 0; di--)
+      out[n++] = (uint8_t)('0' + digs[di]);
     return n;
   }
   /* Named / user types: always try type name (String, Vec_u8, …). */

@@ -77,6 +77,8 @@ export extern function pipeline_asm_module_func_name_copy64(m: *u8, fi: i32, dst
 export extern function pipeline_module_func_num_params_at(m: *u8, fi: i32): i32;
 export extern function pipeline_module_func_param_type_ref_at(m: *u8, fi: i32, pi: i32): i32;
 export extern function pipeline_type_elem_ref_at(a: *u8, tr: i32): i32;
+/** TYPE_ARRAY size (N in T[N]) for mid suffix `_aN`. PLATFORM: SHARED. */
+export extern function pipeline_type_array_size_at(a: *u8, tr: i32): i32;
 /** wave360: UFCS auto-ref helpers (type equal + lvalue lea). */
 export extern function pipeline_typeck_type_refs_equal_c(a: *u8, x: i32, y: i32): i32;
 export extern function pipeline_type_kind_ord_at(a: *u8, tr: i32): i32;
@@ -2650,14 +2652,26 @@ export function glue_asm_c_prefix_redundant_with_name(pre: *u8, plen: i32, name:
  * @param cap i32
  * @return i32
  */
+/**
+ * Map a scalar TypeKind ordinal to an overload mid suffix.
+ * @param kind i32 — TypeKind ord (TYPE_I32=0 …); compound kinds return 0
+ * @param out *u8 — destination buffer
+ * @param cap i32 — capacity
+ * @return i32 — written length, or 0 for unknown/compound kinds
+ * PLATFORM: SHARED — TYPE_I32 is explicit (not silent default). Unknown kinds
+ * (SLICE/ARRAY/…) return 0 so glue_asm_type_ref_to_suffix_c can use compound
+ * paths; never map u8[] → "i32" (run-io false println_i32_reti32 collision).
+ * Aligns codegen_type_ref_to_suffix scalars.
+ */
 #[no_mangle]
 export function glue_type_kind_to_suffix_c(kind: i32, out: *u8, cap: i32): i32 {
   if (out == 0 as *u8) { return 0; }
   if (cap <= 0) { return 0; }
-  // default i32
-  let s0: u8 = 105; let s1: u8 = 51; let s2: u8 = 50; let s3: u8 = 0; let s4: u8 = 0;
-  let slen: i32 = 3;
-  if (kind == 5) { // i64
+  let s0: u8 = 0; let s1: u8 = 0; let s2: u8 = 0; let s3: u8 = 0; let s4: u8 = 0;
+  let slen: i32 = 0;
+  if (kind == 0) { // TYPE_I32 — explicit, not default
+    s0 = 105; s1 = 51; s2 = 50; slen = 3;
+  } else if (kind == 5) { // i64
     s0 = 105; s1 = 54; s2 = 52; slen = 3;
   } else if (kind == 2) { // u8
     s0 = 117; s1 = 56; slen = 2;
@@ -2675,6 +2689,8 @@ export function glue_type_kind_to_suffix_c(kind: i32, out: *u8, cap: i32): i32 {
     s0 = 102; s1 = 54; s2 = 52; slen = 3;
   } else if (kind == 1) { // bool
     s0 = 98; s1 = 111; s2 = 111; s3 = 108; slen = 4;
+  } else {
+    return 0;
   }
   let i: i32 = 0;
   while (i < slen) {
@@ -2691,13 +2707,15 @@ export function glue_type_kind_to_suffix_c(kind: i32, out: *u8, cap: i32): i32 {
 
 /**
  * Map a type_ref to an overload-mangle suffix (align seed + codegen_type_ref_to_suffix).
- * PTR → elem suffix + "_ptr"; NAMED → type name ('.' → '_'); else scalar kind suffix.
+ * PTR → elem + "_ptr"; SLICE → elem + "_slc" (u8[] → u8_slc); ARRAY → elem + "_aN";
+ * NAMED → type name ('.' → '_'); else scalar kind suffix.
  * @param a *u8 — AST arena owning type_ref
  * @param type_ref i32 — type pool ref; <=0 → 0
  * @param out *u8 — destination buffer
  * @param out_cap i32 — capacity; must be > 0
  * @return i32 — written length, or 0 on failure
- * PLATFORM: SHARED — must match host std .o mid (length_String, free_u8_ptr).
+ * PLATFORM: SHARED — must match host std .o mid (println_i32 vs println_u8_slc;
+ * free_u8_ptr). G.7 single authority with codegen_type_ref_to_suffix.
  */
 #[no_mangle]
 export function glue_asm_type_ref_to_suffix_c(a: *u8, type_ref: i32, out: *u8, out_cap: i32): i32 {
@@ -2721,6 +2739,51 @@ export function glue_asm_type_ref_to_suffix_c(a: *u8, type_ref: i32, out: *u8, o
         }
       }
       return n;
+    }
+    // TYPE_SLICE = 11 → <elem>_slc (std_fmt_println_u8_slc; wave687 C twin).
+    if (tk == 11) {
+      let elem_s: i32 = pipeline_type_elem_ref_at(a, type_ref);
+      let ns: i32 = glue_asm_type_ref_to_suffix_c(a, elem_s, out, out_cap);
+      if (ns > 0) {
+        if (ns + 4 < out_cap) {
+          out[ns] = 95; // _
+          out[ns + 1] = 115; // s
+          out[ns + 2] = 108; // l
+          out[ns + 3] = 99; // c
+          return ns + 4;
+        }
+      }
+      return 0;
+    }
+    // TYPE_ARRAY = 10 → <elem>_aN (align codegen wave687).
+    if (tk == 10) {
+      let elem_a: i32 = pipeline_type_elem_ref_at(a, type_ref);
+      let asz: i32 = pipeline_type_array_size_at(a, type_ref);
+      let na: i32 = glue_asm_type_ref_to_suffix_c(a, elem_a, out, out_cap);
+      if (na <= 0) { return 0; }
+      if (asz <= 0) { return 0; }
+      if (na + 2 >= out_cap) { return 0; }
+      out[na] = 95; // _
+      out[na + 1] = 97; // a
+      na = na + 2;
+      let digs: u8[8] = [];
+      let nd: i32 = 0;
+      let v: i32 = asz;
+      while (v > 0) {
+        if (nd >= 6) { break; }
+        digs[nd] = ((v % 10) + 48) as u8;
+        nd = nd + 1;
+        v = v / 10;
+      }
+      if (nd <= 0) { return 0; }
+      if (na + nd >= out_cap) { return 0; }
+      let di: i32 = nd - 1;
+      while (di >= 0) {
+        out[na] = digs[di];
+        na = na + 1;
+        di = di - 1;
+      }
+      return na;
     }
     // NAMED / user types: prefer type name (String, StrView, Vec_u8, …).
     let n2: i32 = pipeline_type_named_name_into(a, type_ref, out);

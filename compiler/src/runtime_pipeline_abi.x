@@ -14344,7 +14344,8 @@ export function pipeline_codegen_call_num_args_override_lookup(buf: *u8, full: i
     if (cg_residual_name_prefix_eq(buf, full, "std_io_print_i32", 16) != 0) { return 1; }
     if (cg_residual_name_prefix_eq(buf, full, "std_io_print_u32", 16) != 0) { return 1; }
     if (cg_residual_name_prefix_eq(buf, full, "std_io_print_i64", 16) != 0) { return 1; }
-    if (cg_residual_name_prefix_eq(buf, full, "std_debug_println", 16) != 0) { return 2; }
+    /* PLATFORM: SHARED — strlen(std_debug_println)=17 (was 16 off-by-one). */
+    if (cg_residual_name_prefix_eq(buf, full, "std_debug_println", 17) != 0) { return 2; }
   }
   if (full == 7) {
     if (cg_residual_name_prefix_eq(buf, full, "fmt_i32", 7) != 0) { return 1; }
@@ -14356,7 +14357,8 @@ export function pipeline_codegen_call_num_args_override_lookup(buf: *u8, full: i
     if (cg_residual_name_prefix_eq(buf, full, "print_i64", 9) != 0) { return 1; }
   }
   if (full == 14) {
-    if (cg_residual_name_prefix_eq(buf, full, "std_fmt_println", 14) != 0) { return 2; }
+    /* PLATFORM: SHARED — strlen(std_fmt_println)=15 (was 14 → prefix "std_fmt_printl"). */
+    if (cg_residual_name_prefix_eq(buf, full, "std_fmt_println", 15) != 0) { return 2; }
   }
   if (full == 6) {
     if (cg_residual_name_prefix_eq(buf, full, "ok_i32", 6) != 0) { return 1; }
